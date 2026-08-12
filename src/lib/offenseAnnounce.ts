@@ -177,6 +177,12 @@ export async function announceNewOffenses(userId: string, now: Date = new Date()
       bodyKey: o.title ? "offenseDetectedMessageTitled" : "offenseDetectedMessage",
       params: detectedParams(o),
       ref: { type: OFFENSE_REF_TYPE, id: o.refId },
+      // Der ABSENDER folgt dem Autor des Vergehens, nicht dem Melder. Hat ein Mensch es von Hand
+      // notiert, ist er der Absender — „System" wäre dort schlicht falsch, auch wenn die Zeile
+      // technisch aus diesem Lauf stammt. Ein ABGELEITETES Vergehen hat keinen Autor
+      // (`recordedBy: null`) und bekommt ausdrücklich „system": dort gibt es wirklich niemanden
+      // ausser der App selbst.
+      actor: o.recordedBy,
       once: true,
     });
   }

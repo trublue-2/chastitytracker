@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireKeyholderOrAdminActor } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import { setOffenseRule } from "@/lib/offenseRulesService";
 import { errorResponse, serviceResponse } from "@/lib/serviceResult";
 
@@ -28,6 +28,6 @@ export async function PATCH(req: Request) {
     // Feld wird zum Leerstring und fällt damit in dieselbe Absage wie ein unbekannter Wert.
     offenseType: typeof body.offenseType === "string" ? body.offenseType : "",
     mode: typeof body.mode === "string" ? body.mode : "",
-    changedBy: actor.user.name ?? "?",
+    changedBy: sessionActor(actor),
   }));
 }

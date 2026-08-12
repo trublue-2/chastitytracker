@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendMailSafe, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { notifyUser, type NotifyContent, type NotifyInbox } from "@/lib/notify";
-import { recordMessageAndBadge } from "@/lib/messageService";
+import { actorColumn, recordMessageAndBadge, type MessageActor } from "@/lib/messageService";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
@@ -81,9 +81,15 @@ export function sperrzeitEndeFromRequest(a: LockRequestSperrzeit, abZeitpunkt: D
  * Single source of truth shared by POST /api/admin/verschluss-anforderung and the MCP write tool.
  * Validates state in a transaction (TOCTOU-safe), withdraws an existing open one of the same art,
  * and sends the user an e-mail + push notification — identical behaviour from UI or MCP.
+ *
+ * `actor` ist WER anordnet (Sitzung bzw. {@link AI_AUTHOR}). Ein eigenes ARGUMENT und bewusst kein
+ * Feld in `params` — die Begründung steht bei `requestKontrolle` (kontrolleService.ts): die Route
+ * reicht den rohen Request-Body durch, und in einem Bag wäre der Absender von aussen setzbar.
+ * Wandert in `VerschlussAnforderung.createdBy` und von dort an jede Zustellung (siehe Schema).
  */
 export async function createVerschlussAnforderung(
   params: CreateVerschlussAnforderungParams,
+  actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
   const { userId, art, nachricht, endetAt, fristH, dauerH, sperrEndetAt, deviceId, reinigungErlaubt, delayMinutes, wirksamAbAt } = params;
 
@@ -198,6 +204,7 @@ export async function createVerschlussAnforderung(
           sperrEndetAt: sperrEndetAtDate,
           deviceId: art === "ANFORDERUNG" ? (deviceId || null) : null,
           reinigungErlaubt: effectiveReinigung,
+          createdBy: actorColumn(actor),
           wirksamAb,
           benachrichtigtAt, // sofort = jetzt benachrichtigt; geplant = Poller
         },
@@ -211,7 +218,7 @@ export async function createVerschlussAnforderung(
 
   // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
   if (!wirksamAb) {
-    await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate, requestId: anforderung.id });
+    await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate, requestId: anforderung.id, actor });
   }
 
   // Instant-Push: Heimdall re-pullt die Config (neue/geänderte Sperre) für eine LIVE Box sofort.
@@ -233,8 +240,20 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   sperrEndetAtDate?: Date | null;
   /** Die Zeile, auf die die Nachricht im Posteingang zeigt. */
   requestId: string;
+  /**
+   * WER die Direktive ANGEORDNET hat — nicht, wer die Zustellung ausgelöst hat.
+   *
+   * Dieselbe Person auf allen drei Wegen hierher (Anlegen, „sofort"-Ziehen per `edit_lock_request`,
+   * Poller): der Satz „schliess dich ein" gehört dem, der ihn gesetzt hat. Deshalb kommt der Wert
+   * überall aus `VerschlussAnforderung.createdBy` und nicht aus der Sitzung des Auslösers — sonst
+   * trüge dieselbe Meldung je nach Zustellweg einen anderen Absender.
+   *
+   * Pflichtfeld: `null` (Altzeile ohne Autor → System-Zeile) ist eine ENTSCHEIDUNG und soll von
+   * einem neuen Aufrufer getroffen werden müssen, statt still durchzurutschen.
+   */
+  actor: MessageActor;
 }) {
-  const { userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate, requestId } = opts;
+  const { userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate, requestId, actor } = opts;
 
   // Die Anforderungs-Nachricht des Keyholders wird NICHT mitkopiert: der Posteingang zeigt auf die
   // Direktive und liest sie beim Anzeigen frisch von dort. Eine spätere Korrektur über
@@ -244,7 +263,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   const badge = await recordMessageAndBadge({
     subjectUserId: userId,
     bodyKey: art === "SPERRZEIT" ? "lockPeriodSetBody" : "lockRequestBody",
-    senderKind: "keyholder",
+    actor,
     ref: { type: "lockRequest", id: requestId },
     once: true,
   });
@@ -314,6 +333,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
 export async function updateSperrzeitEnde(
   id: string,
   endetAt: Date | null,
+  actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; userId: string; notified: boolean }>> {
   const va = await prisma.verschlussAnforderung.findUnique({
     where: { id },
@@ -332,7 +352,9 @@ export async function updateSperrzeitEnde(
   // korrigierte Datum — nur eben zum richtigen Zeitpunkt, nicht drei Wochen zu früh.
   const notified = !isHiddenFromSub(va);
   if (notified) {
-    const inbox = { ref: { type: "lockRequest", id }, senderKind: "keyholder" } as const;
+    // Die ÄNDERUNG trägt den Namen dessen, der sie vorgenommen hat — nicht den des ursprünglichen
+    // Anordnenden. Das ist der Unterschied zur Zustellung der Direktive selbst (siehe dort).
+    const inbox = { ref: { type: "lockRequest", id }, actor } as const;
     await notifyUser(va.userId, endetAt
       ? { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessage", params: { date: formatDateTime(endetAt) }, inbox, alwaysNotify: true }
       : { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessageIndefinite", inbox, alwaysNotify: true });
@@ -422,6 +444,7 @@ export function mergeLockRequestPatch(
 export async function updateLockRequest(
   id: string,
   patch: UpdateLockRequestParams,
+  actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; userId: string; notified: boolean; deliveredToPoller: boolean }>> {
   const va = await prisma.verschlussAnforderung.findUnique({
     where: { id },
@@ -468,13 +491,19 @@ export async function updateLockRequest(
       nachricht: next.nachricht, endetAtDate: next.endetAt,
       dauerH: next.dauerH, sperrEndetAtDate: next.sperrEndetAt,
       requestId: va.id,
+      // Die Anforderung selbst nennt ihren ANORDNENDEN, nicht den, der sie vorgezogen hat — genau
+      // wie auf dem Poller-Weg, der dieselbe Meldung verschickt. OHNE Ausweichen auf `actor`: eine
+      // Altzeile ohne Autor bliebe sonst je nach Zustellweg mal „System" (Poller) und mal der
+      // Bearbeiter — genau der wechselnde Absender, den der Vertrag oben ausschliesst.
+      actor: va.createdBy,
     });
   } else if (!wasHidden) {
     await notifyUser(va.userId, {
       subjectKey: "lockRequestChangedSubject",
       messageKey: "lockRequestChangedMessage",
       params: { date: formatDateTime(next.endetAt) },
-      inbox: { ref: { type: "lockRequest", id: va.id }, senderKind: "keyholder" },
+      // Die ÄNDERUNG dagegen gehört dem, der sie vorgenommen hat.
+      inbox: { ref: { type: "lockRequest", id: va.id }, actor },
       alwaysNotify: true,
     });
   }
@@ -490,10 +519,12 @@ export async function updateLockRequest(
 
 /** Betreff + Text der Withdraw-Benachrichtigung — geteilt von Service (MCP, per art) und
  *  Admin-Route (per id), damit die Meldung nicht divergiert. */
-export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT", refId?: string): NotifyContent {
+export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT", actor: MessageActor, refId?: string): NotifyContent {
   // Ohne `refId` (Rückzug per Art, der mehrere Zeilen treffen kann) bleibt die Nachricht ohne Bezug:
   // auf eine von mehreren zurückgezogenen Direktiven zu zeigen, wäre eine willkürliche Auswahl.
-  const inbox: NotifyInbox = { senderKind: "keyholder", ...(refId ? { ref: { type: "lockRequest" as const, id: refId } } : {}) };
+  // Der ABSENDER bleibt auch dort eindeutig: der Rückzug ist EIN Knopfdruck EINER Person, egal wie
+  // viele Zeilen er trifft — er nennt den Zurückziehenden, nicht die Anordnenden.
+  const inbox: NotifyInbox = { actor, ...(refId ? { ref: { type: "lockRequest" as const, id: refId } } : {}) };
   return art === "SPERRZEIT"
     ? { subjectKey: "lockPeriodWithdrawnSubject", messageKey: "lockPeriodWithdrawnMessage", inbox }
     : { subjectKey: "lockRequestWithdrawnSubject", messageKey: "lockRequestWithdrawnMessage", inbox };
@@ -505,6 +536,9 @@ export interface DueLockRequest extends LockRequestSperrzeit {
   userId: string;
   nachricht: string | null;
   reinigungErlaubt: boolean;
+  /** Wer die Anforderung angeordnet hat — wird an die daraus entstehende Sperrzeit VERERBT und ist
+   *  der Absender ihrer Meldung. Der Poller kennt sonst niemanden, den er nennen könnte. */
+  createdBy: string | null;
 }
 
 /**
@@ -532,7 +566,7 @@ export interface DueLockRequest extends LockRequestSperrzeit {
 export async function carryOverSperrzeitOnAlreadyLocked(
   va: DueLockRequest,
   now: Date,
-): Promise<{ sperrzeitId: string; endetAt: Date; nachricht: string | null } | null> {
+): Promise<{ sperrzeitId: string; endetAt: Date; nachricht: string | null; createdBy: string | null } | null> {
   // Ein Ende in der Vergangenheit trifft nur den absoluten Fall (`sperrEndetAt`) — ein aus `dauerH`
   // gerechnetes liegt per Konstruktion vorn. Eine tote Sperre anzulegen hilft niemandem.
   const endetAt = sperrzeitEndeFromRequest(va, now);
@@ -546,21 +580,27 @@ export async function carryOverSperrzeitOnAlreadyLocked(
         nachricht: va.nachricht,
         endetAt,
         reinigungErlaubt: va.reinigungErlaubt,
+        // Die Sperre ist die Anordnung DERSELBEN Person, nur später wirksam — der Autor wandert mit,
+        // damit ihre Meldung (und jede spätere Änderung daran) denselben Absender nennt.
+        createdBy: va.createdBy,
         // Sofort gültig ⇒ nicht vor dem Sub verborgen. `benachrichtigtAt` bleibt null wie bei der
         // Sperrzeit aus dem Erfüllungs-Pfad: der Stempel meint „Mail/Push ging raus", und der Versand
         // liegt hinter dem Commit — ihn vorab zu setzen behauptete eine Zustellung, die scheitern kann.
         wirksamAb: null,
       },
-      select: { id: true, nachricht: true },
+      select: { id: true, nachricht: true, createdBy: true },
     });
     await tx.verschlussAnforderung.update({ where: { id: va.id }, data: { fulfilledAt: now } });
     return created;
   });
 
   void notifyHeimdallForUserId(va.userId);
-  // `nachricht` aus der GESCHRIEBENEN Zeile, nicht aus der Quelle: die Meldung zitiert damit das,
-  // was wirklich in der Sperrzeit steht.
-  return { sperrzeitId: sperrzeit.id, endetAt, nachricht: sperrzeit.nachricht };
+  // Text UND Absender aus der GESCHRIEBENEN Zeile, nicht aus der Quelle: die Meldung gehört zur
+  // SPERRZEIT, also zitiert sie das, was wirklich in ihr steht. Heute derselbe Wert wie an der
+  // Anforderung (die Zeile erbt beides), und genau deshalb kostet die Regel hier nichts —
+  // auseinanderlaufen könnten sie erst, wenn jemand die Vererbung ändert, und dann liest der
+  // Aufrufer weiter richtig, statt still die Quelle zu nennen.
+  return { sperrzeitId: sperrzeit.id, endetAt, nachricht: sperrzeit.nachricht, createdBy: sperrzeit.createdBy };
 }
 
 /**
@@ -573,6 +613,7 @@ export async function carryOverSperrzeitOnAlreadyLocked(
  */
 export async function withdrawVerschlussAnforderungById(
   id: string,
+  actor: MessageActor,
 ): Promise<ServiceResult<{ userId: string; notified: boolean }>> {
   const va = await prisma.verschlussAnforderung.findUnique({
     where: { id },
@@ -584,7 +625,7 @@ export async function withdrawVerschlussAnforderungById(
   await prisma.verschlussAnforderung.update({ where: { id }, data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.keyholder } });
 
   const notified = !isHiddenFromSub(va);
-  if (notified) await notifyUser(va.userId, verschlussWithdrawNotice(va.art as "ANFORDERUNG" | "SPERRZEIT", id));
+  if (notified) await notifyUser(va.userId, verschlussWithdrawNotice(va.art as "ANFORDERUNG" | "SPERRZEIT", actor, id));
   void notifyHeimdallForUserId(va.userId);
   return { ok: true, data: { userId: va.userId, notified } };
 }
@@ -622,6 +663,7 @@ export interface WithdrawnDirective {
 export async function withdrawVerschlussAnforderung(
   userId: string,
   art: "ANFORDERUNG" | "SPERRZEIT",
+  actor: MessageActor,
 ): Promise<ServiceResult<{ count: number; hidden: number; notified: boolean; rows: WithdrawnDirective[] }>> {
   const now = new Date();
   const where = art === "ANFORDERUNG"
@@ -646,7 +688,7 @@ export async function withdrawVerschlussAnforderung(
   });
 
   const count = rows.length;
-  if (notified) await notifyUser(userId, verschlussWithdrawNotice(art));
+  if (notified) await notifyUser(userId, verschlussWithdrawNotice(art, actor));
   if (count > 0) void notifyHeimdallForUserId(userId); // Instant-Push: der Rückzug erreicht eine LIVE Box sofort
   return { ok: true, data: { count, hidden, notified, rows } };
 }

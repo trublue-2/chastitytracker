@@ -59,6 +59,24 @@ export async function requireKeyholderOrAdminActor(targetUserId: string): Promis
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
+/**
+ * Die Kennung des HANDELNDEN aus seiner Sitzung — was in ein Audit-Feld (`ManualOffense.createdBy`,
+ * `KontrollAnforderung.createdBy`) und als Absender an jede daraus entstehende Nachricht geht.
+ *
+ * Der Ausweichwert ist LEER und kein Platzhalter wie „?": der Autor IST der Absender der Meldung an
+ * den Träger (`senderFromAuthor`), jeder Platzhalter stünde ihm also wörtlich als Absender im
+ * Posteingang. Leer heisst überall dasselbe, ohne dass eine Stelle einen Sonderwert kennen muss —
+ * die Abbildung liest daraus „kein Autor" (→ System), und das Strafbuch lässt die Zeile „Notiert
+ * von" weg. Praktisch unerreichbar (der Credentials-Login setzt `name` immer auf den Benutzernamen),
+ * aber ein `??` soll nichts erfinden.
+ *
+ * Eine Funktion statt eines `session.user.name ?? ""` an jedem Aufrufer: die Begründung für den
+ * leeren Ausweichwert gilt für alle und soll an EINER Stelle stehen.
+ */
+export function sessionActor(session: ApiSession): string {
+  return session.user.name ?? "";
+}
+
 /** API guard: allows a global admin OR a keyholder of `targetUserId`. Self-control is impossible
  *  (isKeyholderOf rejects actor === target). Returns a 401/403 NextResponse on denial, else null. */
 export async function requireKeyholderOrAdminApi(targetUserId: string): Promise<NextResponse | null> {

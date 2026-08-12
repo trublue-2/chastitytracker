@@ -5,7 +5,7 @@ import { formatDateTime, formatDate, formatTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
-import { recordMessageAndBadge, type MessageRef } from "@/lib/messageService";
+import { actorColumn, recordMessageAndBadge, type MessageActor, type MessageRef } from "@/lib/messageService";
 import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
@@ -34,6 +34,7 @@ async function applyInspectionVerdict(
   entryId: string,
   userId: string,
   action: "manuallyVerify" | "reject",
+  actor: MessageActor,
   ref?: MessageRef,
 ): Promise<void> {
   await prisma.entry.update({ where: { id: entryId }, data: { verifikationStatus: verifikationStatusFor(action) } });
@@ -42,14 +43,17 @@ async function applyInspectionVerdict(
     action === "manuallyVerify"
       ? { subjectKey: "inspectionConfirmedSubject", messageKey: "inspectionConfirmedMessage" }
       : { subjectKey: "inspectionRejectedSubject", messageKey: "inspectionRejectedMessage" };
-  await notifyUser(userId, { ...notif, inbox: { ref, senderKind: "keyholder" } });
+  await notifyUser(userId, { ...notif, inbox: { ref, actor } });
 }
 
 /**
  * Resolves an inspection by id: withdraw it, or manually verify / reject its submitted photo.
  * Shared by PATCH /api/admin/kontrollen/[id] and the MCP resolve_inspection tool.
+ *
+ * `actor` ist WER handelt (Sitzung bzw. {@link AI_AUTHOR}) — jede Meldung dieser Funktion ist die
+ * Folge eines Knopfdrucks und nennt deshalb genau diese Person, statt sie beim Anzeigen zu raten.
  */
-export async function resolveKontrolle(id: string, action: KontrolleAction): Promise<ServiceResult<{ userId: string; notified: boolean }>> {
+export async function resolveKontrolle(id: string, action: KontrolleAction, actor: MessageActor): Promise<ServiceResult<{ userId: string; notified: boolean }>> {
   const ka = await prisma.kontrollAnforderung.findUnique({ where: { id } });
   if (!ka) return serviceFail(404, "INSPECTION_NOT_FOUND");
 
@@ -57,7 +61,7 @@ export async function resolveKontrolle(id: string, action: KontrolleAction): Pro
     if (!ka.entryId) return serviceFail(400, "INSPECTION_NO_SUBMISSION");
     // Immer gemeldet: ein Urteil setzt ein eingereichtes Foto voraus, die Kontrolle hat also
     // laengst ausgeloest und ist dem Sub bekannt.
-    await applyInspectionVerdict(ka.entryId, ka.userId, action, { type: "control", id: ka.id });
+    await applyInspectionVerdict(ka.entryId, ka.userId, action, actor, { type: "control", id: ka.id });
     return { ok: true, data: { userId: ka.userId, notified: true } };
   }
   if (action !== "withdraw") return serviceFail(400, "UNKNOWN_ACTION");
@@ -74,7 +78,7 @@ export async function resolveKontrolle(id: string, action: KontrolleAction): Pro
     await notifyUser(ka.userId, {
       subjectKey: "inspectionResolvedWithdrawnSubject",
       messageKey: "inspectionResolvedWithdrawnMessage",
-      inbox: { ref: { type: "control", id: ka.id }, senderKind: "keyholder" },
+      inbox: { ref: { type: "control", id: ka.id }, actor },
     });
   }
 
@@ -92,6 +96,7 @@ export async function resolveKontrolle(id: string, action: KontrolleAction): Pro
 export async function resolveInspectionEntry(
   entryId: string,
   action: KontrolleAction,
+  actor: MessageActor,
 ): Promise<ServiceResult<{ userId: string; notified: boolean }>> {
   // `withdraw` gehört an die Anforderung — an einem Eintrag gibt es nichts zurückzuziehen.
   if (action !== "manuallyVerify" && action !== "reject") return serviceFail(400, "UNKNOWN_ACTION");
@@ -101,7 +106,7 @@ export async function resolveInspectionEntry(
   if (!entry || entry.type !== "PRUEFUNG") return serviceFail(404, "INSPECTION_NOT_FOUND");
 
   const ka = await prisma.kontrollAnforderung.findFirst({ where: { entryId }, select: { id: true } });
-  await applyInspectionVerdict(entryId, entry.userId, action, ka ? { type: "control", id: ka.id } : undefined);
+  await applyInspectionVerdict(entryId, entry.userId, action, actor, ka ? { type: "control", id: ka.id } : undefined);
   // Gleiche Rückgabeform wie `resolveKontrolle` — dieselbe Operation, nur anders adressiert.
   // `notified` ist beim Urteil immer wahr (das Foto liegt vor, die Kontrolle ist dem Sub bekannt).
   return { ok: true, data: { userId: entry.userId, notified: true } };
@@ -285,9 +290,17 @@ export interface RequestKontrolleParams {
  * Das ZIEL bestimmt, was aktiv sein muss: beim KG (Vorgabe) ein laufender VERSCHLUSS, bei einer
  * Trage-Kategorie eine laufende WEAR-Session. Eine Kontrolle auf etwas, das der Sub gerade gar
  * nicht trägt, wäre nicht erfüllbar — sie wird abgelehnt statt angelegt.
+ *
+ * `actor` ist WER stellt (Sitzung bzw. {@link AI_AUTHOR}). Ein eigenes ARGUMENT und bewusst kein
+ * Feld in `params`: die Route reicht den rohen Request-Body als `params` durch, und in einem Bag,
+ * den der Aufrufer füllt, könnte er den Absender der Nachricht setzen, die sein Sub bekommt.
+ * Daneben stehend ist das strukturell unmöglich — dieselbe Form wie bei allen übrigen Diensten.
+ * Der Wert wandert in `KontrollAnforderung.createdBy` und von dort an die Meldung, auch wenn der
+ * Poller sie erst Stunden später zustellt (siehe Schema).
  */
 export async function requestKontrolle(
   params: RequestKontrolleParams,
+  actor: MessageActor,
 ): Promise<ServiceResult<{ code: string | null; deadline: string; scheduledFor: string | null }>> {
   const { userId, kommentar, deadlineH, delayMinutes } = params;
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
@@ -365,6 +378,7 @@ export async function requestKontrolle(
           deviceId: target.deviceId,
           deadline,
           kommentar: kommentarTrimmed || null,
+          createdBy: actorColumn(actor),
           wirksamAb,
           benachrichtigtAt, // sofort = jetzt benachrichtigt; geplant = Poller
         },
@@ -387,7 +401,7 @@ export async function requestKontrolle(
 
   // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
   if (!wirksamAb) {
-    await sendKontrolleNotification({ user, code, sealCode, kommentar: kommentarTrimmed, deadline, controlId, target: targetInfo });
+    await sendKontrolleNotification({ user, code, sealCode, kommentar: kommentarTrimmed, deadline, controlId, target: targetInfo, actor });
   }
 
   return { ok: true, data: { code, deadline: deadline.toISOString(), scheduledFor: wirksamAb?.toISOString() ?? null } };
@@ -546,8 +560,13 @@ export async function sendKontrolleNotification(opts: {
    *  Kontrolle" ohne Zusatz gemeint, ein Label wäre in jeder Mail Rauschen), `categoryId` führt den
    *  Link aufs richtige Formular. */
   target?: { categoryId: string | null; label: string | null };
+  /** WER die Kontrolle gestellt hat. Auf dem Sofort-Pfad die Sitzung des Handelnden, beim Poller
+   *  `KontrollAnforderung.createdBy` — dieselbe Person, nur später zugestellt. Pflichtfeld: leer
+   *  bei einer Auto-Kontrolle (die stellt niemand) ist eine ENTSCHEIDUNG, kein Versehen, und die
+   *  soll ein neuer Aufrufer treffen müssen statt still in die System-Zeile zu rutschen. */
+  actor: MessageActor;
 }): Promise<void> {
-  const { user, code, sealCode, kommentar, deadline, controlId, target } = opts;
+  const { user, code, sealCode, kommentar, deadline, controlId, target, actor } = opts;
   const targetLabel = target?.label ?? null;
 
   // VOR dem E-Mail-Guard: der Posteingang ist der einzige Kanal, der auch ohne hinterlegte Adresse
@@ -559,7 +578,7 @@ export async function sendKontrolleNotification(opts: {
   const badge = await recordMessageAndBadge({
     subjectUserId: user.id,
     bodyKey: "inspectionRequestedMessage",
-    senderKind: "keyholder",
+    actor,
     ref: { type: "control", id: controlId },
     once: true,
   });

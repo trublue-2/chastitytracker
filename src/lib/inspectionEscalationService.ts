@@ -14,6 +14,15 @@ import { codeOf } from "@/lib/codedError";
 import { isSleepingAt, autoKontrolleSettingsFromUser, type AutoKontrolleUserFields } from "@/lib/autoKontrolleService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
+/*
+ * KEINE Nachricht dieses Moduls trägt einen `actor` — und das ist eine Entscheidung, kein Vergessen.
+ *
+ * Die Eskalation ist der eine Fall, in dem eine Frist verstreicht und die APP daraus etwas ableitet:
+ * die Mahnung schickt eine Uhr, die automatische Ablage eine Regel, die der Keyholder einmal
+ * eingeschaltet hat. Ihn hier zu nennen behauptete, er habe gerade gehandelt — er hat vor Wochen
+ * einen Schalter umgelegt. Diese Zeilen bleiben deshalb System-Zeilen (siehe `senderFromAuthor`).
+ */
+
 interface InspectionEscalationUser {
   id: string;
   inspectionReminderEnabled: boolean;

@@ -17,7 +17,10 @@ vi.mock("@/lib/mail", async (importOriginal) => ({
 }));
 vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
 vi.mock("@/lib/notificationPrefs", () => ({ getMessageChannels: vi.fn(async () => ({ mail: true, push: true })) }));
-vi.mock("@/lib/messageService", () => ({
+// Nur die beiden Schreib-Funktionen werden ersetzt; alles andere bleibt echt (Absender-Abbildung &
+// Co. sind reine Ableitung). Spread statt Aufzählung, siehe offenseAnnounce.test.ts.
+vi.mock("@/lib/messageService", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./messageService")>()),
   recordSystemMessage: vi.fn(async () => "m-new"),
   recordMessageAndBadge: vi.fn(async () => 1),
 }));

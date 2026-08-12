@@ -14,6 +14,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const tx = {
   strafeRecord: { upsert: vi.fn(), deleteMany: vi.fn() },
   task: { updateMany: vi.fn() },
+  // Die Rücknahme löscht auch die „fallengelassen"-Meldung; hier zählt nur, dass sie es TUT —
+  // wogegen genau, prüft `offenseDismissedNotice.test.ts` an der echten Zeile.
+  message: { deleteMany: vi.fn() },
 };
 vi.mock("@/lib/prisma", () => ({
   prisma: { $transaction: vi.fn(async (fn: (c: typeof tx) => Promise<unknown>) => fn(tx)) },
@@ -52,7 +55,7 @@ const HOLD_UNTIL = new Date("2026-08-03T18:00:00Z");
 const PARAMS = {
   userId: "u1",
   refId: "t-1",
-  judgedBy: "admin" as const,
+  actor: "herrin",
   title: "Wohnung staubsaugen",
   holdUntil: HOLD_UNTIL,
 };
@@ -68,7 +71,7 @@ beforeEach(() => {
 
 describe("punishWithTask", () => {
   it("legt Aufgabe und Urteil an und meldet EINE Nachricht", async () => {
-    const res = await punishWithTask(PARAMS);
+    const res = await punishWithTask(PARAMS, "herrin");
 
     expect(res).toEqual({ ok: true, data: { id: "task-9" } });
     // Geprüft wird VOR der Transaktion (ein Dutzend Abfragen, die nichts festschreiben),
@@ -86,7 +89,7 @@ describe("punishWithTask", () => {
   });
 
   it("zieht die ersetzte Strafaufgabe zurück, statt sie weiterlaufen zu lassen", async () => {
-    await punishWithTask(PARAMS);
+    await punishWithTask(PARAMS, "herrin");
 
     // Über die Beziehung, nicht über eine vorher gelesene id — die NEUE Aufgabe ist zu diesem
     // Zeitpunkt noch nicht verknüpft, getroffen wird also nur die alte.
@@ -99,7 +102,7 @@ describe("punishWithTask", () => {
   it("nimmt bei einer Rücknahme die Strafaufgabe mit", async () => {
     // Bliebe sie stehen, forderte die App weiter eine Strafe ein, die es nicht mehr gibt — und ihr
     // Verstreichen wäre später ein neues Vergehen, das niemand begangen hat.
-    const res = await judgeOffense({ userId: "u1", refId: "t-1", action: "reopen", judgedBy: "admin" });
+    const res = await judgeOffense({ userId: "u1", refId: "t-1", action: "reopen" }, "herrin");
 
     expect(res).toEqual({ ok: true, data: { status: "open", done: false } });
     expect(tx.task.updateMany).toHaveBeenCalledWith({
@@ -110,7 +113,7 @@ describe("punishWithTask", () => {
   });
 
   it("urteilt nicht über ein Vergehen, das gar nicht erkannt ist", async () => {
-    const res = await punishWithTask({ ...PARAMS, refId: "fremd" });
+    const res = await punishWithTask({ ...PARAMS, refId: "fremd" }, "herrin");
 
     expect(res).toEqual({ ok: false, status: 404, error: "OFFENSE_NOT_FOUND" });
     expect(check).not.toHaveBeenCalled();
@@ -121,7 +124,7 @@ describe("punishWithTask", () => {
     // Der Grund muss den Keyholder im Klartext erreichen — nicht als generischer Transaktionsfehler.
     check.mockResolvedValue({ ok: false, status: 400, error: "TASK_HOLD_UNTIL_TOO_SOON" });
 
-    const res = await punishWithTask(PARAMS);
+    const res = await punishWithTask(PARAMS, "herrin");
 
     expect(res).toEqual({ ok: false, status: 400, error: "TASK_HOLD_UNTIL_TOO_SOON" });
     expect(tx.strafeRecord.upsert).not.toHaveBeenCalled();

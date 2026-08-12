@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminActor, requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, requireKeyholderOrAdminApi, sessionActor } from "@/lib/authGuards";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 import { validateManualOffenseInput, createManualOffense, withdrawManualOffense } from "@/lib/manualOffenseService";
 
@@ -20,8 +20,10 @@ export async function POST(req: Request) {
 
     const input = validateManualOffenseInput({
       userId, occurredAt, title, description,
-      // Audit-Feld wie `StrafeRecord.judgedBy` — der MCP schreibt hier "ai", der Browser den Namen.
-      createdBy: actor.user.name ?? "?",
+      // Audit-Feld wie `StrafeRecord.judgedBy` — der MCP schreibt hier `AI_AUTHOR`, der Browser den
+      // Namen des Handelnden. Warum der Ausweichwert LEER ist (und kein Platzhalter wie „?"), steht
+      // bei {@link sessionActor}; die Nachtrags-Migration überspringt solche Zeilen entsprechend.
+      createdBy: sessionActor(actor),
     });
     if (!input.ok) return serviceFailure(input);
 

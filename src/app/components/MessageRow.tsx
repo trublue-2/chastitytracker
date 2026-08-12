@@ -108,10 +108,12 @@ export default function MessageRow({
           Kategorie stehen: dass die KI geurteilt hat, ist eine Zusicherung und wird nicht durch das
           Thema ersetzt. Beim menschlichen Keyholder ist sein NAME die genauere Zusicherung — die
           Regel dafür teilt sich die Zeile mit der Filterleiste (`senderLabel`), sonst sagte die
-          Auswahl oben den Namen und die Zeile darunter weiter „Keyholder". */}
+          Auswahl oben den Namen und die Zeile darunter weiter „Keyholder". Trägt die Nachricht ihren
+          eigenen Absender (`senderName`), gilt der — er weiss, wer geschrieben hat, während der
+          Seiten-Name nur rät. */}
       <span className="inline-flex items-center gap-1.5">
         <Icon size={12} aria-hidden="true" />
-        {senderLabel(m.senderKind, keyholderName, t)} · {formatDayMonth(m.createdAt, dl, tz)} {formatTime(m.createdAt, dl, tz)}
+        {senderLabel(m.senderKind, m.senderName, keyholderName, t)} · {formatDayMonth(m.createdAt, dl, tz)} {formatTime(m.createdAt, dl, tz)}
       </span>
     </span>
   );

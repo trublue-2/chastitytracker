@@ -1,6 +1,6 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import { resolveInspectionEntry } from "@/lib/kontrolleService";
 import { serviceResponse, errorResponse } from "@/lib/serviceResult";
 
@@ -25,8 +25,8 @@ export async function PATCH(
 
   const entry = await prisma.entry.findUnique({ where: { id }, select: { userId: true } });
   if (!entry) return errorResponse(404, "INSPECTION_NOT_FOUND");
-  const err = await requireKeyholderOrAdminApi(entry.userId);
-  if (err) return err;
+  const actor = await requireKeyholderOrAdminActor(entry.userId);
+  if (actor instanceof NextResponse) return actor;
 
-  return serviceResponse(await resolveInspectionEntry(id, action));
+  return serviceResponse(await resolveInspectionEntry(id, action, sessionActor(actor)));
 }

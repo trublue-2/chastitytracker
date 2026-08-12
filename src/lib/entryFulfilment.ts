@@ -172,6 +172,9 @@ export async function applyEntryFulfilment(
             nachricht: a.nachricht,
             endetAt: sperrEnde,
             reinigungErlaubt: a.reinigungErlaubt,
+            // Der Anordnende wandert mit (wie in `carryOverSperrzeitOnAlreadyLocked`): die Sperrzeit
+            // ist seine Anweisung, auch wenn erst der Verschluss des Subs sie auslöst.
+            createdBy: a.createdBy,
           }]
         : [];
     });

@@ -113,6 +113,10 @@ async function processDue(): Promise<void> {
         await sendKontrolleNotification({
           user: ka.user, code, sealCode, kommentar: ka.kommentar, deadline, controlId: ka.id,
           target: { categoryId: ka.categoryId, label: inspectionTargetLabel(target) },
+          // Der Handelnde ist der, der die Kontrolle GESTELLT hat — der Poller ist nur der Bote.
+          // Bei Auto-Kontrollen (und Altzeilen) ist die Spalte null: dann meldet, wie bisher, das
+          // System. Genau richtig — hinter einer Auto-Kontrolle steht kein Mensch.
+          actor: ka.createdBy,
         });
         // Frist UND Code mitschreiben: Mail, Strafbuch-Beurteilung, Eskalation und die Erfüllung
         // müssen dieselben Werte lesen. Ein verworfener Code darf nicht in der Zeile stehenbleiben —
@@ -291,6 +295,10 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
           nachricht: uebernommen.nachricht,
           endetAtDate: uebernommen.endetAt,
           requestId: uebernommen.sperrzeitId,
+          // Aus der ÜBERNOMMENEN Zeile, wie ihr Text daneben: die Meldung gehört zur Sperrzeit und
+          // nennt deshalb, was in IHR steht. Dass die Anordnende dieselbe ist wie an der Anforderung,
+          // ist die Vererbung in `carryOverSperrzeitOnAlreadyLocked` — und die steht dort, nicht hier.
+          actor: uebernommen.createdBy,
         });
         continue;
       }
@@ -304,6 +312,8 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         dauerH: va.dauerH,
         sperrEndetAtDate: va.sperrEndetAt,
         requestId: va.id,
+        // Wie bei der Kontrolle: genannt wird, wer die Direktive angeordnet hat, nicht der Bote.
+        actor: va.createdBy,
       });
       await prisma.verschlussAnforderung.update({ where: { id: va.id }, data: { benachrichtigtAt: new Date() } });
     } catch (e) {

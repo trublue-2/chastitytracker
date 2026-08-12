@@ -222,7 +222,7 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
   it("schreibt Urteil, Zeitpunkt und Anmerkung", async () => {
     find.mockResolvedValue(submitted());
     evaluatedAs("awaitingReview");
-    const res = await reviewTaskProof("p1", "u1", { accepted: true, note: "  sauber  " });
+    const res = await reviewTaskProof("p1", "u1", { accepted: true, note: "  sauber  " }, "herrin");
     expect(res.ok).toBe(true);
     expect(reviewed().reviewAccepted).toBe(true);
     expect(reviewed().reviewedAt).toEqual(NOW);
@@ -232,13 +232,13 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
   it("eine leere Anmerkung wird zu null, nicht zu einem leeren Text", async () => {
     find.mockResolvedValue(submitted());
     evaluatedAs("awaitingReview");
-    await reviewTaskProof("p1", "u1", { accepted: false, note: "   " });
+    await reviewTaskProof("p1", "u1", { accepted: false, note: "   " }, "herrin");
     expect(reviewed().reviewNote).toBeNull();
   });
 
   it("über einen noch nicht eingereichten Nachweis lässt sich nicht urteilen", async () => {
     find.mockResolvedValue(submitted({ submittedAt: null }));
-    const res = await reviewTaskProof("p1", "u1", { accepted: true });
+    const res = await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_PROOF_NOT_SUBMITTED");
     expect(updateOne).not.toHaveBeenCalled();
@@ -246,7 +246,7 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
 
   it("fremder Nachweis wird nicht gefunden (IDOR-Schutz)", async () => {
     find.mockResolvedValue(null);
-    const res = await reviewTaskProof("p1", "u1", { accepted: true });
+    const res = await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_PROOF_NOT_FOUND");
   });
@@ -258,7 +258,7 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
   it("steht die Aufgabe danach fest, geht die ERGEBNIS-Meldung raus (geteilter Helfer)", async () => {
     find.mockResolvedValue(submitted());
     evaluatedAs("done");
-    await reviewTaskProof("p1", "u1", { accepted: true });
+    await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
     expect(notifyResult).toHaveBeenCalledWith(expect.objectContaining({ taskId: "t1", done: true }));
     // Der Sub bekommt NICHT zusätzlich die Sichtungs-Meldung — das Ergebnis ist die Nachricht.
     expect(notify).not.toHaveBeenCalled();
@@ -267,7 +267,7 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
   it("Ablehnung meldet den Fehlschlag", async () => {
     find.mockResolvedValue(submitted());
     evaluatedAs("missed");
-    await reviewTaskProof("p1", "u1", { accepted: false });
+    await reviewTaskProof("p1", "u1", { accepted: false }, "herrin");
     expect(notifyResult).toHaveBeenCalledWith(expect.objectContaining({ done: false }));
   });
 
@@ -281,7 +281,7 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
   it("REGRESSION: die Sichtung setzt KEIN `once` — sonst bliebe die Korrektur unsichtbar", async () => {
     find.mockResolvedValue(submitted());
     evaluatedAs("done");
-    await reviewTaskProof("p1", "u1", { accepted: true });
+    await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
     expect(notifyResult).toHaveBeenCalledWith(expect.objectContaining({ once: false }));
   });
 
@@ -289,7 +289,7 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
   it("steht sie noch nicht fest, erfährt nur der Sub von der Sichtung", async () => {
     find.mockResolvedValue(submitted());
     evaluatedAs("awaitingReview");
-    await reviewTaskProof("p1", "u1", { accepted: true });
+    await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
     expect(notify.mock.calls[0][1].subjectKey).toBe("taskProofAcceptedSubject");
     expect(notifyResult).not.toHaveBeenCalled();
   });
@@ -298,7 +298,7 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
   it("eine gescheiterte Meldung lässt das Urteil stehen", async () => {
     find.mockResolvedValue(submitted());
     evaluate.mockRejectedValue(new Error("Auswertung kaputt"));
-    const res = await reviewTaskProof("p1", "u1", { accepted: true });
+    const res = await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
     expect(res.ok).toBe(true);
     expect(updateOne).toHaveBeenCalled();
   });

@@ -197,6 +197,21 @@ export interface OffenseDetail {
   title: string | null;
   /** Der ausführliche Text dazu, wo einer erfasst wurde. */
   description: string | null;
+  /**
+   * WER dieses Vergehen festgehalten hat — Audit-Kennung wie `StrafeRecord.judgedBy`: der
+   * Benutzername des Menschen, oder das Kürzel `"ai"` für den Weg über den MCP.
+   *
+   * Nur ein von Hand NOTIERTES Vergehen hat einen Autor; abgeleitete stellt die App selbst fest, und
+   * dort ist `null` die richtige Antwort und nicht eine fehlende. Deshalb ist das Feld PFLICHT und
+   * nicht optional — wer ihn verliert, meldet dem Träger wieder „System" (v5.1).
+   *
+   * SOWEIT der Compiler reicht, und das ist weniger, als es aussieht: die Pflicht trifft nur die
+   * Arten, die überhaupt ein `detail` mitbringen (heute zwei von dreizehn). Eine neue Art OHNE
+   * `detail` bekommt in `selectSubOffenses` stillschweigend `recordedBy: null`, ohne dass Compiler
+   * oder Test etwas sagen. Für abgeleitete Arten ist das genau richtig; eine neue Art mit
+   * MENSCHLICHEM Autor muss deshalb ein `detail` mitbringen — sonst greift hier nichts.
+   */
+  recordedBy: string | null;
 }
 
 /**
@@ -232,14 +247,16 @@ export const OFFENSE_LISTS = {
   cleaning_not_relocked: spec("cleaningNotRelocked", (c) => cleaningNotRelockedRef(c.entryId), (c) => c.relockAt ?? c.deadline),
   // refId = Task.id. Anders als bei den Reinigungs-Vergehen braucht es kein Präfix: die id gehört
   // keiner zweiten Vergehensart, und `StrafeRecord.refId` ist global eindeutig.
+  // `recordedBy: null` — die versäumte Aufgabe stellt die App fest, nicht ein Mensch. Wer die Aufgabe
+  // GESTELLT hat, ist eine andere Frage und wird nirgends festgehalten.
   unfulfilled_task: spec("unfulfilledTasks", (t) => t.id, (t) => t.failedAt ?? t.holdUntil,
-    (t) => ({ title: t.title, description: null })),
+    (t) => ({ title: t.title, description: null, recordedBy: null })),
   // refId ist die AdminPasswordChange-id: eigener Namensraum, kollidiert nicht mit Entry-/
   // Anforderungs-ids und bleibt stabil, auch wenn die Sperrzeit später zurückgezogen wird.
   admin_password_change: spec("adminPasswordChanges", (p) => p.id, (p) => p.at),
   unauthorized_orgasm: spec("unauthorizedOrgasms", (o) => o.id, (o) => o.startTime),
   manual_offense: spec("manualOffenses", (m) => m.id, (m) => m.occurredAt,
-    (m) => ({ title: m.title, description: m.description })),
+    (m) => ({ title: m.title, description: m.description, recordedBy: m.createdBy })),
 } satisfies Record<OffenseCanonicalType, {
   key: keyof StrafbuchData;
   ref: (row: never) => string;

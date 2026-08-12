@@ -74,7 +74,7 @@ describe("withdraw target=inspection lässt geplante Auto-Kontrollen stehen", ()
 
     expect(r.withdrawn).toBe(1);
     expect(resolveKontrolle).toHaveBeenCalledTimes(1);
-    expect(resolveKontrolle).toHaveBeenCalledWith("k-manuell", "withdraw");
+    expect(resolveKontrolle).toHaveBeenCalledWith("k-manuell", "withdraw", "ai");
   });
 
   it("dryRun zählt nach derselben Regel — sonst verspräche die Vorschau einen anderen Umfang", async () => {
@@ -164,7 +164,7 @@ describe("resolve_inspection findet auch die Selbstkontrolle", () => {
 
     await mcpResolveInspection("sub", { action: "verify" });
 
-    expect(resolveInspectionEntry).toHaveBeenCalledWith("e-selbst", "manuallyVerify");
+    expect(resolveInspectionEntry).toHaveBeenCalledWith("e-selbst", "manuallyVerify", "ai");
     // Die Anforderung darf für die AUSWAHL keine Rolle mehr spielen — sonst bliebe die
     // Selbstkontrolle wieder unauffindbar.
     expect(kontrollFindFirstMock).not.toHaveBeenCalled();
@@ -181,7 +181,7 @@ describe("resolve_inspection findet auch die Selbstkontrolle", () => {
     expect(arg.where).toMatchObject({ userId: "u1", type: "PRUEFUNG", imageUrl: { not: null } });
     // `startTime` ist vom Sub wählbar; nur `createdAt` bildet die Reihenfolge der Einreichungen ab.
     expect(arg.orderBy).toEqual({ createdAt: "desc" });
-    expect(resolveInspectionEntry).toHaveBeenCalledWith("e1", "reject");
+    expect(resolveInspectionEntry).toHaveBeenCalledWith("e1", "reject", "ai");
   });
 
   it("ohne jede Kontrolle bleibt es bei der klaren Fehlermeldung", async () => {

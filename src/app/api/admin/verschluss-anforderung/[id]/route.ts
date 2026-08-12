@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import { updateSperrzeitEnde, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
@@ -16,15 +16,15 @@ export async function PATCH(
   });
   if (!va) return errorResponse(404, "NOT_FOUND");
 
-  const err = await requireKeyholderOrAdminApi(va.userId);
-  if (err) return err;
+  const actor = await requireKeyholderOrAdminActor(va.userId);
+  if (actor instanceof NextResponse) return actor;
 
   const body = await req.json();
 
   if (body.action === "withdraw") {
     // Über den Service: nur der kennt die Regel „terminierte Direktiven nicht melden" und den
     // Heimdall-Push. Die Route rechnete beides früher selbst nach — und lag bei beidem falsch.
-    const result = await withdrawVerschlussAnforderungById(id);
+    const result = await withdrawVerschlussAnforderungById(id, sessionActor(actor));
     if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true });
   }
@@ -35,7 +35,7 @@ export async function PATCH(
     if (!body.indefinite && Number.isNaN(endetAt!.getTime())) {
       return errorResponse(400, "INVALID_DATETIME");
     }
-    const result = await updateSperrzeitEnde(id, endetAt);
+    const result = await updateSperrzeitEnde(id, endetAt, sessionActor(actor));
     if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true });
   }

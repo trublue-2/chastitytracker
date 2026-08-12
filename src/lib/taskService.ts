@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
 import { notifyUser, notifyControllers } from "@/lib/notify";
+import type { MessageActor } from "@/lib/messageService";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
@@ -329,8 +330,15 @@ export async function writeTask(tx: PrismaTx, checked: CheckedTask): Promise<{ i
   return { id: task.id, title: task.title, holdUntil: task.holdUntil };
 }
 
-/** Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub. */
-export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ id: string }>> {
+/**
+ * Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub.
+ *
+ * `actor` ist WER stellt (Sitzung bzw. {@link AI_AUTHOR}) — als eigenes Argument wie bei allen
+ * übrigen Diensten, und wie bei der Orgasmus-Anweisung ohne Spalte: eine Aufgabe kennt keine
+ * Terminierung, ihre Meldung geht in diesem Aufruf raus. Die späteren Meldungen aus dem Poller
+ * (erfüllt/versäumt/bitte melden) sind BEFUNDE der App und tragen bewusst keinen Namen.
+ */
+export async function createTask(p: CreateTaskParams, actor: MessageActor): Promise<ServiceResult<{ id: string }>> {
   const checked = await checkTask(prisma, p);
   if (!checked.ok) return checked;
   const task = await writeTask(prisma, checked.data);
@@ -346,7 +354,7 @@ export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ i
     // `taskChanged` als eigene Zeile nach.
     // `once`: eine Aufgabe wird genau einmal gestellt. Ein Retry nach einem Absturz darf keine
     // zweite, dauerhafte Zeile hinterlassen.
-    inbox: { ref: { type: "task", id: task.id }, once: true },
+    inbox: { ref: { type: "task", id: task.id }, once: true, actor },
   });
 
   return { ok: true, data: { id: task.id } };
@@ -363,6 +371,7 @@ export async function updateTask(
   id: string,
   userId: string,
   patch: UpdateTaskParams,
+  actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; userId: string }>> {
   const t = await prisma.task.findFirst({
     where: { id, userId },
@@ -410,7 +419,7 @@ export async function updateTask(
     alwaysNotify: true,
     // KEIN `once`: mehrere Änderungen an derselben Aufgabe sind legitim und jede gehört als eigene
     // Zeile in den Verlauf (so auch bei der Verschluss-Anforderung).
-    inbox: { ref: { type: "task", id } },
+    inbox: { ref: { type: "task", id }, actor },
   });
 
   return { ok: true, data: { id, userId } };
@@ -419,7 +428,7 @@ export async function updateTask(
 /** Zieht eine Aufgabe zurück (Keyholder). Bewusst getrennt von „vorzeitig abgelegt": das eine ist ein
  *  Entschluss der Keyholderin, das andere ein Versäumnis des Subs — und ein Rückzug wird nie ein
  *  Vergehen (siehe Zustand `withdrawn` in `tasks.ts`). */
-export async function withdrawTask(id: string, userId: string): Promise<ServiceResult<{ userId: string }>> {
+export async function withdrawTask(id: string, userId: string, actor: MessageActor): Promise<ServiceResult<{ userId: string }>> {
   const t = await prisma.task.findFirst({ where: { id, userId }, select: { title: true } });
   if (!t) return serviceFail(404, "TASK_NOT_FOUND");
 
@@ -436,7 +445,7 @@ export async function withdrawTask(id: string, userId: string): Promise<ServiceR
     messageKey: "taskWithdrawnMessage",
     params: { title: t.title },
     alwaysNotify: true,
-    inbox: { ref: { type: "task", id }, once: true },
+    inbox: { ref: { type: "task", id }, once: true, actor },
   });
   return { ok: true, data: { userId } };
 }
@@ -509,6 +518,12 @@ export async function completeTask(
  * „Settle", nicht „notify": die Funktion MELDET nicht nur, sie schliesst das Ergebnis ab — sie
  * stempelt den Versand (`resultNotifiedAt`) und schliesst die Strafe, deren Aufgabe erfüllt wurde.
  * Alles drei gehört zusammen, und der Name soll nicht verschweigen, was hier geschrieben wird.
+ *
+ * KEIN `actor`, auf BEIDEN Wegen: „erfüllt" bzw. „versäumt" ist ein Befund der App — `evaluateTasks`
+ * rechnet ihn aus den Einträgen aus. Auch auf dem Sichtungs-Weg spricht die Meldung nicht für die
+ * Keyholderin: sie hat über EINEN Nachweis geurteilt (das sagt `taskProofAccepted/Rejected` mit
+ * ihrem Namen), das Ergebnis der ganzen Aufgabe folgt daraus erst über die Bedingungen und die
+ * Frist. Ihren Namen daran zu hängen behauptete eine Entscheidung, die sie so nicht getroffen hat.
  */
 export async function settleTaskResult(opts: {
   userId: string;

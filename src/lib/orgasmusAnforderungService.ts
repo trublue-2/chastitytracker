@@ -5,7 +5,7 @@ import { firePush } from "@/lib/push";
 import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS } from "@/lib/constants";
 import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten } from "@/lib/reasonsService";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
-import { recordMessageAndBadge } from "@/lib/messageService";
+import { recordMessageAndBadge, type MessageActor } from "@/lib/messageService";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { getTranslations } from "next-intl/server";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
@@ -39,9 +39,16 @@ export interface CreateOrgasmusAnforderungParams {
  * Single source of truth shared by POST /api/admin/orgasmus-anforderung and the MCP request_orgasm tool.
  * Withdraws an existing open directive (one active at a time) and notifies the user by e-mail + push —
  * identical behaviour whether triggered from the admin UI or the MCP.
+ *
+ * `actor` ist WER anweist (Sitzung bzw. {@link AI_AUTHOR}) — als eigenes Argument wie bei allen
+ * übrigen Diensten. Bewusst NUR ein Argument und KEINE Spalte, anders als bei Kontrolle und
+ * Verschluss: eine Orgasmus-Anforderung kennt keine Terminierung (kein `wirksamAb`, siehe
+ * `delayedTrigger.ts`). Ihre Meldung geht in DIESEM Aufruf raus, während der Handelnde noch bekannt
+ * ist — es gibt keinen späteren Zusteller, dem man den Autor hinterlegen müsste.
  */
 export async function createOrgasmusAnforderung(
   params: CreateOrgasmusAnforderungParams,
+  actor: MessageActor,
 ): Promise<ServiceResult<{ id: string }>> {
   const { userId, art, nachricht, beginntAt, endetAt, vorgegebeneArt, oeffnenErlaubt } = params;
 
@@ -90,7 +97,7 @@ export async function createOrgasmusAnforderung(
 
   await sendOrgasmusAnforderungNotifications({
     userId, user, art, nachricht, beginnt, endet, vorgegebeneArt, oeffnenErlaubt: Boolean(oeffnenErlaubt),
-    directiveId: anforderung.id,
+    directiveId: anforderung.id, actor,
   });
 
   return { ok: true, data: { id: anforderung.id } };
@@ -98,13 +105,14 @@ export async function createOrgasmusAnforderung(
 
 /** Notification text shown to the user when an open orgasm directive is withdrawn — shared by the
  *  per-userId (MCP) and per-id (admin route) withdraw paths so the text isn't duplicated. */
-export function orgasmusWithdrawNotice(refId?: string): NotifyContent {
+export function orgasmusWithdrawNotice(actor: MessageActor, refId?: string): NotifyContent {
   // Wie beim Verschluss-Rückzug: ohne `refId` (Rückzug per userId, der mehrere offene Anweisungen
-  // treffen kann) bleibt die Nachricht bewusst ohne Bezug.
+  // treffen kann) bleibt die Nachricht bewusst ohne Bezug — der ABSENDER bleibt trotzdem eindeutig,
+  // der Rückzug ist EIN Knopfdruck EINER Person.
   return {
     subjectKey: "orgasmWithdrawnSubject",
     messageKey: "orgasmWithdrawnMessage",
-    inbox: { senderKind: "keyholder", ...(refId ? { ref: { type: "orgasmDirective" as const, id: refId } } : {}) },
+    inbox: { actor, ...(refId ? { ref: { type: "orgasmDirective" as const, id: refId } } : {}) },
   };
 }
 
@@ -116,6 +124,7 @@ export function orgasmusWithdrawNotice(refId?: string): NotifyContent {
  *  Abfrage nachschlagen. Gleiche Begründung wie bei `withdrawVerschlussAnforderung`. */
 export async function withdrawOrgasmusAnforderung(
   userId: string,
+  actor: MessageActor,
 ): Promise<ServiceResult<{ count: number; rows: { id: string; endetAt: Date; nachricht: string | null }[] }>> {
   const rows = await prisma.$transaction(async (tx) => {
     const open = await tx.orgasmusAnforderung.findMany({
@@ -131,7 +140,7 @@ export async function withdrawOrgasmusAnforderung(
     return open;
   });
   if (rows.length > 0) {
-    await notifyUser(userId, orgasmusWithdrawNotice());
+    await notifyUser(userId, orgasmusWithdrawNotice(actor));
   }
   return { ok: true, data: { count: rows.length, rows } };
 }
@@ -141,7 +150,7 @@ export async function withdrawOrgasmusAnforderung(
  *  up the row's `userId` for the auth guard, so it's passed in here to avoid a second fetch of the
  *  same row (single `updateMany` scoped by id + open-status does the existence/open check via
  *  `count`, matching the one-round-trip shape of `withdrawVerschlussAnforderung`). */
-export async function withdrawOrgasmusAnforderungById(id: string, userId: string): Promise<ServiceResult<{ count: number }>> {
+export async function withdrawOrgasmusAnforderungById(id: string, userId: string, actor: MessageActor): Promise<ServiceResult<{ count: number }>> {
   const res = await prisma.orgasmusAnforderung.updateMany({
     where: { id, fulfilledAt: null, withdrawnAt: null },
     data: { withdrawnAt: new Date() },
@@ -149,7 +158,7 @@ export async function withdrawOrgasmusAnforderungById(id: string, userId: string
   if (res.count === 0) {
     return serviceFail(400, "ORGASM_NOT_OPEN");
   }
-  await notifyUser(userId, orgasmusWithdrawNotice(id));
+  await notifyUser(userId, orgasmusWithdrawNotice(actor, id));
   return { ok: true, data: { count: res.count } };
 }
 
@@ -165,15 +174,17 @@ async function sendOrgasmusAnforderungNotifications(opts: {
   oeffnenErlaubt: boolean;
   /** Die Zeile, auf die die Nachricht im Posteingang zeigt. */
   directiveId: string;
+  /** WER die Anweisung gestellt hat — der Absender ihrer Meldung. */
+  actor: MessageActor;
 }) {
-  const { userId, user, art, nachricht, beginnt, endet, vorgegebeneArt, oeffnenErlaubt, directiveId } = opts;
+  const { userId, user, art, nachricht, beginnt, endet, vorgegebeneArt, oeffnenErlaubt, directiveId, actor } = opts;
   const istAnweisung = art === "ANWEISUNG";
 
   // Nachricht des Keyholders bleibt an der Direktive; der Posteingang verlinkt sie nur.
   const badge = await recordMessageAndBadge({
     subjectUserId: userId,
     bodyKey: istAnweisung ? "orgasmAnweisungIntro" : "orgasmGelegenheitIntro",
-    senderKind: "keyholder",
+    actor,
     ref: { type: "orgasmDirective", id: directiveId },
     once: true,
   });

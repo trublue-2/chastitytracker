@@ -21,6 +21,9 @@ export interface PresentedMessage {
    *  Posteingang des Trägers `null`. Ein NAME, kein Schlüssel: er wird nie übersetzt. */
   subjectUsername: string | null;
   senderKind: MessageSenderKind;
+  /** WER geschrieben hat, wo ein Mensch dahintersteht — sonst null. Ein NAME, kein Schlüssel: er
+   *  wird nie übersetzt, wie `subjectUsername`. */
+  senderName: string | null;
   read: boolean;
 }
 
@@ -74,6 +77,7 @@ export async function presentMessages(messages: InboxMessage[], locale: string):
     refHref: m.refActionCode ? inspectionHref(m.refActionCode, { categoryId: m.refActionCategoryId }) : null,
     subjectUsername: m.subjectUsername,
     senderKind: m.senderKind,
+    senderName: m.senderName,
     read: m.read,
   }));
 }

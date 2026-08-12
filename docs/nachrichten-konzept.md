@@ -69,7 +69,7 @@ Posteingang-Eintrag entsteht in **allen** Fällen; genau das ist der Gewinn der 
 
 | Ereignis | Ausgelöst durch | `bodyKey` | Mail | Push | Schalter | Stille-Regel |
 |---|---|---|---|---|---|---|
-| Strafe verhängt | `judgeOffense` (MCP/KI) · `POST /api/admin/strafe` (Keyholder) | **immer** `penaltyMessageNoReason`, dazu `ref: offense` | ✔ (Mail nutzt `penaltyMessage` mit `{reason}`) | ✔ | ja | nur bei `status=PUNISHED` — ein Verwerfen meldet nichts. `senderKind` kommt über `senderKindOf(judgedBy)` aus `ai`/`admin`/`system` |
+| Strafe verhängt | `judgeOffense` (MCP/KI) · `POST /api/admin/strafe` (Keyholder) | **immer** `penaltyMessageNoReason`, dazu `ref: offense` | ✔ (Mail nutzt `penaltyMessage` mit `{reason}`) | ✔ | ja | nur bei `status=PUNISHED`. Absender aus dem durchgereichten `actor` — mit dem NAMEN des Urteilenden |
 
 Der Straftext wird **nicht** in die Nachricht kopiert: die Mail interpoliert ihn, der Posteingang
 liest ihn beim Anzeigen frisch über `ref` vom `StrafeRecord`. Dasselbe Muster bei Kontroll-Kommentar

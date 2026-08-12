@@ -6,6 +6,7 @@ import { bodyKeysOfCategory, bodyKeysOutsideSystem, type MessageFilter, type Mes
 import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { mapAnforderungStatus } from "@/lib/utils";
+import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
 
 /**
  * Der Posteingang: die Nachrichten, die der Sub nachlesen kann.
@@ -185,15 +186,6 @@ export interface MessageRef {
  *  damit die bestehenden Importeure unverändert bleiben. */
 export { MESSAGE_SENDER_KINDS, isMessageSenderKind, type MessageSenderKind, type MessageFilter } from "@/lib/messageCategories";
 
-/**
- * Autoritäts-Achse (`StrafeRecord.judgedBy`, `KeyholderActionLog.source`) → Absender-Achse.
- * Hier statt am Aufrufer, weil Etappe 2/3 dieselbe Abbildung für den Action-Log braucht — und weil
- * die App die KI nicht verheimlicht: dass sie geurteilt hat, steht an der Nachricht.
- */
-export function senderKindOf(judgedBy: string | null | undefined): MessageSenderKind {
-  return judgedBy === "ai" ? "ai" : judgedBy === "admin" ? "keyholder" : "system";
-}
-
 export interface RecordMessageParams {
   subjectUserId: string;
   /**
@@ -203,7 +195,17 @@ export interface RecordMessageParams {
   audience?: MessageAudience;
   bodyKey: MessageBodyKey;
   params?: Record<string, string | number>;
-  senderKind?: MessageSenderKind;
+  /**
+   * WER die Meldung ausgelöst hat — weglassen, wo die App selbst entschieden hat. Siehe
+   * {@link MessageActor}.
+   *
+   * Der HANDELNDE und nicht das Paar `senderKind`/`senderName`: die Absender-Achse leitet
+   * {@link recordSystemMessage} über {@link senderFromAuthor} selbst ab. Solange die beiden Spalten
+   * hier standen, konnte ein Aufrufer sie widersprüchlich setzen (ein Name an einer System-Zeile,
+   * eine KI-Zeile mit menschlichem Namen) — und die Schreibstelle musste das mit einem eigenen
+   * Wächter wieder einfangen. Als EINE Angabe ist der Widerspruch nicht mehr formulierbar.
+   */
+  actor?: MessageActor;
   ref?: MessageRef | null;
   /**
    * Höchstens EINE Nachricht dieses Texts pro Bezugsobjekt.
@@ -222,6 +224,69 @@ export interface RecordMessageParams {
 }
 
 /**
+ * Wer GEHANDELT hat — die eine Kennung, die von der Aktion bis an die Nachricht durchgereicht wird.
+ *
+ * Drei zulässige Formen, und {@link senderFromAuthor} ist die einzige Stelle, die sie auseinanderhält:
+ *  * der BENUTZERNAME eines Menschen (Sitzung: `session.user.name`) → Keyholder-Zeile MIT Namen,
+ *  * {@link AI_AUTHOR} → KI-Zeile ohne Namen (der MCP hat keine Person),
+ *  * leer/`null`/`undefined` → niemand hat gehandelt, die App hat entschieden → System-Zeile.
+ *
+ * Ein eigener Name statt `string | null | undefined` an zwanzig Signaturen: das Feld trägt eine
+ * Zusicherung („genau EINE Person, nie eine Rolle, nie eine Liste"), die ein nackter String nicht
+ * ausspricht — und die Stelle, an der man sie nachliest, ist diese hier.
+ */
+export type MessageActor = string | null | undefined;
+
+/** Die beiden Absender-Spalten einer Nachricht, wie sie in die Tabelle gehen. */
+type SenderColumns = { senderKind: MessageSenderKind; senderName: string | null };
+
+/**
+ * Absender-Angaben aus der Kennung des Handelnden — die EINE Abbildung {@link MessageActor} →
+ * Absender-Achse. Jede Meldung dieser App geht durch sie; eine zweite daneben wäre die Stelle, an
+ * der die KI irgendwann als Mensch (oder ein Mensch als System) im Posteingang stünde.
+ *
+ * MODULPRIVAT, und das ist der Punkt: die Schreibstelle ({@link recordSystemMessage}) ruft sie
+ * selbst, und {@link RecordMessageParams} nimmt gar keine Absender-Spalten mehr entgegen. Damit ist
+ * „die Absender-Achse folgt immer dem Handelnden" keine Regel, an die sich sechs Aufrufer halten
+ * müssen, sondern die einzige Form, in der eine Nachricht entstehen kann.
+ *
+ * Der Wertebereich ist genau der Grund, warum sie nicht auf `StrafeRecord.judgedBy` rechnet: darin
+ * stehen nur Kürzel ({@link AI_AUTHOR}/"admin"/"system"), hier dagegen dieselbe KI-Kennung ODER ein
+ * echter BENUTZERNAME. Die Richtung „Kennung → Kürzel" ist die Umkehrung und steht dort, wo das
+ * Kürzel gebraucht wird (`judgedByFromActor` in strafurteilService.ts).
+ *
+ * Das Ergebnis ist VOLLSTÄNDIG: beide Spalten stehen immer drin, auch im Fall „kein Autor" — es gibt
+ * keinen Standard, der von woanders durchkäme, und damit keinen Zustand, in dem die eine Spalte
+ * gesetzt und die andere geraten ist.
+ *
+ * OHNE Autor ist „system" die richtige Antwort und keine Notlösung: eine Meldung ohne Handelnden ist
+ * ein Befund der App (Auto-Kontrolle, Eskalation, abgeleitetes Vergehen). WELCHE Werte als „kein
+ * Autor" gelten, sagt {@link hasAuthor} — dort steht auch, warum ein Platzhalter dazugehört.
+ */
+function senderFromAuthor(author: MessageActor): SenderColumns {
+  if (!hasAuthor(author)) return { senderKind: "system", senderName: null };
+  return author === AI_AUTHOR
+    ? { senderKind: "ai", senderName: null }
+    : { senderKind: "keyholder", senderName: author };
+}
+
+/**
+ * Dieselbe Kennung für eine SPALTE (`KontrollAnforderung.createdBy`, `VerschlussAnforderung.createdBy`).
+ *
+ * Steht neben {@link senderFromAuthor}, weil beide dieselbe Grenze ziehen müssen: was die Lese-Seite
+ * als „kein Autor" versteht, darf die Schreib-Seite nicht als Autor ablegen. Zwei getrennt
+ * hingeschriebene `|| null` in zwei Diensten waren genau die Stelle, an der das auseinanderläuft —
+ * dann stünde in der Spalte ein Wert, den kein Leser als „niemand" erkennt. Beide fragen deshalb
+ * dasselbe {@link hasAuthor}.
+ *
+ * Bleibt hier und wandert NICHT zu `hasAuthor` in die `constants.ts`: dies ist die Schreibform eines
+ * {@link MessageActor}, und der Typ mit seiner Zusicherung („genau EINE Person") wohnt hier.
+ */
+export function actorColumn(actor: MessageActor): string | null {
+  return hasAuthor(actor) ? actor : null;
+}
+
+/**
  * Schreibt eine Maschinen-Nachricht (i18n-Schlüssel + Parameter). Die einzige Factory dieser Etappe
  * — sie ist der Grund, warum `body` und `bodyKey` sich nicht gegenseitig überschreiben können: es
  * gibt keinen Aufrufer, der beides setzen könnte (SQLite kennt den Constraint nicht).
@@ -232,6 +297,11 @@ export interface RecordMessageParams {
  */
 export async function recordSystemMessage(p: RecordMessageParams): Promise<string | null> {
   const audience = p.audience ?? "sub";
+  // Die Absender-Achse entsteht HIER, aus dem Handelnden — die EINE Schreibstelle ist damit auch die
+  // einzige, die `senderKind`/`senderName` je zu Gesicht bekommt. Ein Name an einer System-Zeile
+  // (oder eine KI-Zeile mit menschlichem Namen) ist deshalb nicht mehr abzuwehren, sondern gar nicht
+  // erst formulierbar: {@link senderFromAuthor} erzeugt beide Spalten zusammen.
+  const { senderKind, senderName } = senderFromAuthor(p.actor);
   try {
     if (p.once && p.ref) {
       const existing = await prisma.message.findFirst({
@@ -251,7 +321,8 @@ export async function recordSystemMessage(p: RecordMessageParams): Promise<strin
     const created = await prisma.message.create({
       data: {
         subjectUserId: p.subjectUserId,
-        senderKind: p.senderKind ?? "system",
+        senderKind,
+        senderName,
         audience,
         bodyKey: p.bodyKey,
         bodyParams: p.params ? JSON.stringify(p.params) : null,
@@ -272,6 +343,9 @@ export interface InboxMessage {
   id: string;
   createdAt: Date;
   senderKind: MessageSenderKind;
+  /** Der NAME des Absenders, wo einer festgehalten wurde — sonst null, dann beschriftet die Anzeige
+   *  die Zeile über die `senderKind` (siehe `senderLabel`). */
+  senderName: string | null;
   bodyKey: string | null;
   bodyParams: Record<string, string | number> | null;
   body: string | null;
@@ -366,8 +440,13 @@ const DISMISSED_OFFENSE_KEY = "dismissedOffense";
  * eine Umbenennung des Schlüssels bliebe hier also stumm — `keyOf` fiele auf `detectedOffense`
  * zurück und JEDE überholte Verwerfungs-Meldung wäre wieder dauerhaft sichtbar, unter dem Straftext.
  * Genau der Fehler, den diese Regel verhindert.
+ *
+ * Exportiert, weil DREI Stellen dieselbe Zeile meinen müssen: die Sichtbarkeit hier, das Schreiben
+ * (`notifyOffenseDismissed`) und das Löschen beim Wieder-Eröffnen (`judgeOffense`, siehe dort).
+ * Ein zweites Literal in einer davon wäre lautlos — geschrieben würde die eine Zeile, gesucht die
+ * andere.
  */
-const DISMISSAL_BODY_KEY: MessageBodyKey = "offenseDismissedMessage";
+export const DISMISSAL_BODY_KEY: MessageBodyKey = "offenseDismissedMessage";
 
 /** Ist das eine Verwerfungs-Meldung? Die einzige Zeile, deren Sichtbarkeit am `bodyKey` hängt. */
 function isDismissalRow(row: RefRow): boolean {
@@ -688,6 +767,7 @@ export async function listMessages(
       id: true,
       createdAt: true,
       senderKind: true,
+      senderName: true,
       bodyKey: true,
       bodyParams: true,
       body: true,
@@ -716,6 +796,7 @@ export async function listMessages(
       id: row.id,
       createdAt: row.createdAt,
       senderKind: row.senderKind as MessageSenderKind,
+      senderName: row.senderName,
       bodyKey: row.bodyKey,
       bodyParams: parseParams(row.bodyParams),
       body: row.body,

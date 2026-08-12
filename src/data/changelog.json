@@ -32,6 +32,13 @@
         }
       },
       {
+        "type": "fix",
+        "text": {
+          "de": "Nachrichten nennen jetzt die Person, die gehandelt hat, statt allgemein „Keyholder\" oder „System\". Ein von Hand notiertes Vergehen trägt den Namen dessen, der es eingetragen hat.",
+          "en": "Messages now name the person who acted, instead of a generic \"keyholder\" or \"system\". A hand-recorded offense carries the name of whoever entered it."
+        }
+      },
+      {
         "type": "feat",
         "text": {
           "de": "Keyholder haben jetzt einen eigenen Posteingang hinter der Glocke: Meldungen über ihre Träger — automatisch gebuchte Kontrollen und Ergebnisse von Aufgaben — lassen sich dort nachlesen, statt nur als Mail zu kommen.",

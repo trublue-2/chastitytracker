@@ -10,20 +10,46 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *     Deploy die ganze Historie eines langjährigen Nutzers auf einmal in den Posteingang.
  */
 
+type Recorded = {
+  bodyKey: string;
+  refId: string;
+  params?: Record<string, unknown>;
+  senderKind?: string;
+  senderName?: string | null;
+};
+
+/**
+ * Abgelesen wird an der TABELLE, nicht am Aufruf: die Absender-Achse entsteht in der Schreibstelle
+ * (`recordSystemMessage` bildet den Handelnden auf `senderKind`/`senderName` ab), und genau die
+ * prüft diese Datei an den Meldungen. Ein Doppelgänger der Schreib-Funktion prüfte den Doppelgänger.
+ *
+ * Spalte für Spalte statt `...data`: die Erwartungen unten vergleichen ganze Objekte, und die
+ * mitgeschriebenen Randfelder (Betreff, Zielgruppe, Referenz-Typ) machten daraus eine Prüfung auf
+ * die Zeilenform statt auf die Meldung.
+ */
+const recorded: Recorded[] = [];
 const findMany = vi.fn();
+const create = vi.fn(async ({ data }: { data: Record<string, string | null> }) => {
+  recorded.push({
+    bodyKey: data.bodyKey!,
+    refId: data.refEntityId!,
+    params: data.bodyParams ? JSON.parse(data.bodyParams) : undefined,
+    senderKind: data.senderKind ?? undefined,
+    senderName: data.senderName ?? null,
+  });
+  return { id: "m1" };
+});
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    message: { findMany: (...a: unknown[]) => findMany(...a) },
+    message: {
+      findMany: (...a: unknown[]) => findMany(...a),
+      // Die Dubletten-Suche von `once`; der eigentliche Abgleich läuft eine Ebene höher über
+      // `findMany` (siehe „meldet NICHT erneut, was schon eine Nachricht hat").
+      findFirst: vi.fn(async () => null),
+      create: (...a: [{ data: Record<string, string | null> }]) => create(...a),
+    },
     appMeta: { findUnique: vi.fn(async () => null) },
   },
-}));
-
-const recorded: { bodyKey: string; refId: string; params?: Record<string, unknown> }[] = [];
-vi.mock("@/lib/messageService", () => ({
-  recordSystemMessage: vi.fn(async (p: { bodyKey: string; ref?: { id: string }; params?: Record<string, unknown> }) => {
-    recorded.push({ bodyKey: p.bodyKey, refId: p.ref!.id, params: p.params });
-    return "m1";
-  }),
 }));
 
 const offenses = vi.fn();
@@ -42,6 +68,7 @@ function offense(p: Partial<SubOffense> & { refId: string }): SubOffense {
     state: "open",
     title: null,
     description: null,
+    recordedBy: null,
     judgmentText: null,
     judgedAt: null,
     doneAt: null,
@@ -114,8 +141,47 @@ describe("announceNewOffenses — melden ohne Dubletten", () => {
 
     expect(await announceNewOffenses("u1", NOW)).toBe(1);
     expect(recorded).toEqual([
-      { bodyKey: "offenseDetectedMessage", refId: "e1", params: { offenseKey: "unauthorizedOpening.name", title: "" } },
+      {
+        bodyKey: "offenseDetectedMessage", refId: "e1",
+        params: { offenseKey: "unauthorizedOpening.name", title: "" },
+        senderKind: "system", senderName: null,
+      },
     ]);
+  });
+
+  it("meldet ein ABGELEITETES Vergehen als System — es hat keinen Absender", async () => {
+    // Die verpasste Wiederverschluss-Frist stellt die App selbst fest. Hier ist „System" die
+    // richtige Antwort, und `senderFromAuthor` gibt sie ausdrücklich, statt sie einem Standard
+    // weiter oben zu überlassen.
+    offenses.mockReturnValue([offense({ refId: "l1", offenseType: "late_lock" })]);
+
+    await announceNewOffenses("u1", NOW);
+
+    expect(recorded[0]).toMatchObject({ senderKind: "system", senderName: null });
+  });
+
+  it("meldet ein von Hand notiertes Vergehen unter dem NAMEN dessen, der es notiert hat", async () => {
+    // Der Kern des Fixes: notiert hat es ein Mensch, also ist er der Absender. „System" stand vorher
+    // an einer Zeile, deren Urheber die ganze Zeit in `ManualOffense.createdBy` steht.
+    offenses.mockReturnValue([offense({
+      refId: "n1", offenseType: "manual_offense", title: "Abmachung gebrochen", recordedBy: "trublue",
+    })]);
+
+    await announceNewOffenses("u1", NOW);
+
+    expect(recorded[0]).toMatchObject({ senderKind: "keyholder", senderName: "trublue" });
+  });
+
+  it("meldet ein über den MCP notiertes Vergehen als KI, ohne Namen", async () => {
+    // `createdBy: "ai"` ist ein Kürzel, kein Benutzername — als Absender-Name ausgegeben stünde
+    // wörtlich „ai" an der Zeile. Die Art trägt die Auskunft, die Anzeige beschriftet sie selbst.
+    offenses.mockReturnValue([offense({
+      refId: "n2", offenseType: "manual_offense", title: "Abmachung gebrochen", recordedBy: "ai",
+    })]);
+
+    await announceNewOffenses("u1", NOW);
+
+    expect(recorded[0]).toMatchObject({ senderKind: "ai", senderName: null });
   });
 
   it("meldet NICHT erneut, was schon eine Nachricht hat", async () => {

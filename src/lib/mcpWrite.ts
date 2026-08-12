@@ -20,7 +20,7 @@ import {
 import {
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
-  MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH,
+  MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
   type NumberRange,
 } from "@/lib/constants";
 import { clamp, randomInt } from "@/lib/utils";
@@ -171,7 +171,7 @@ export async function mcpRequestLock(username: string, args: RequestLockArgs) {
     deviceId,
     delayMinutes: args.delayMinutes,
     wirksamAbAt: args.scheduledAt,
-  }));
+  }, AI_AUTHOR));
   // Anders als eine Sperrzeit ERSETZT eine neue Anforderung keine bestehende — mehrere koexistieren.
   // Ohne diesen Hinweis hielte die Keyholderin die eben gestellte für die einzige und wunderte sich
   // später über eine zweite Frist, die sie längst vergessen hatte.
@@ -224,7 +224,7 @@ export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs
     reinigungErlaubt: args.reinigungErlaubt,
     delayMinutes: args.delayMinutes,
     wirksamAbAt: args.scheduledAt,
-  }));
+  }, AI_AUTHOR));
   if (data.scheduledFor) {
     return {
       ok: true,
@@ -310,7 +310,7 @@ export async function mcpRequestInspection(username: string, args: RequestInspec
 
   const data = unwrap(await requestKontrolle({
     userId, kommentar: args.comment, deadlineH: args.deadlineHours, delayMinutes, categoryId, deviceId,
-  }));
+  }, AI_AUTHOR));
 
   // Das Ziel im Klartext (die Antwort spricht sonst von „the inspection", obwohl es mehrere
   // gleichzeitig geben kann — je Ziel eine).
@@ -377,7 +377,7 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
     endetAt: endet,
     vorgegebeneArt: args.requiredType,
     oeffnenErlaubt: args.openAllowed,
-  }));
+  }, AI_AUTHOR));
   const kind = args.art === "ANWEISUNG" ? "mandatory directive" : "opportunity";
   return {
     ok: true,
@@ -500,7 +500,7 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     if (args.dryRun) {
       return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: "task", id: args.id, title: task.title, willWithdraw: 1 } } satisfies DryRunPreview;
     }
-    unwrap(await withdrawTask(args.id, userId));
+    unwrap(await withdrawTask(args.id, userId, AI_AUTHOR));
     const taskIso = await isoForUser(userId);
     return singleWithdrawn(
       args.id, task.title, taskIso(task.holdUntil),
@@ -611,7 +611,7 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
   if (owned) {
     // Genau eine Zeile — sonst identisch zum Rundumschlag unten, inklusive Antwort-Formulierung.
     // Auf `owned` verzweigen statt auf `args.id`: dieselbe Bedingung, aber der Compiler weiss es.
-    ({ notified } = unwrap(await withdrawVerschlussAnforderungById(owned.id)));
+    ({ notified } = unwrap(await withdrawVerschlussAnforderungById(owned.id, AI_AUTHOR)));
     count = 1;
     hidden = notified ? 0 : 1;
     // Sichtbarkeit aus `notified` ableiten, NICHT aus dem `owned`-Abbild: das wurde vor dem Rückzug
@@ -625,12 +625,12 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     // Orgasmus-Anforderungen kennen kein `wirksamAb` (nicht terminierbar, siehe delayedTrigger) —
     // der Sub weiss immer von ihnen. `directiveRow` leitet daraus von selbst "triggered" ab, statt
     // dass diese Stelle die Sichtbarkeits-Regel ein zweites Mal von Hand formuliert.
-    const { count: n, rows } = unwrap(await withdrawOrgasmusAnforderung(userId));
+    const { count: n, rows } = unwrap(await withdrawOrgasmusAnforderung(userId, AI_AUTHOR));
     count = n;
     for (const o of rows) withdrawnItems.push(lockItem({ ...o, wirksamAb: null, benachrichtigtAt: null }));
   } else if (args.target === "lock_request" || args.target === "lock_period") {
     const { count: n, hidden: h, notified: was, rows } = unwrap(
-      await withdrawVerschlussAnforderung(userId, args.target === "lock_request" ? "ANFORDERUNG" : "SPERRZEIT"),
+      await withdrawVerschlussAnforderung(userId, args.target === "lock_request" ? "ANFORDERUNG" : "SPERRZEIT", AI_AUTHOR),
     );
     count = n; hidden = h; notified = was;
     for (const s of rows) withdrawnItems.push(lockItem(s));
@@ -647,7 +647,7 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     notified = false;
     for (const ka of open) {
       // Dieselbe Antwort treibt Zähler UND Zeile: `status` kann dem `hidden` nicht widersprechen.
-      const wasNotified = unwrap(await resolveKontrolle(ka.id, "withdraw")).notified;
+      const wasNotified = unwrap(await resolveKontrolle(ka.id, "withdraw", AI_AUTHOR)).notified;
       if (wasNotified) notified = true;
       else hidden++; // schweigend storniert = der Sub kannte sie nicht (terminiert, nicht ausgelöst)
       withdrawnItems.push({
@@ -1123,7 +1123,7 @@ export async function mcpResolveInspection(username: string, args: ResolveInspec
     const after: Record<string, unknown> = { verifikationStatus: verifikationStatusFor(action) };
     return dryRunPreview("resolve_inspection", undefined, { id: entry.id, action: args.action }, diffFields(before, after));
   }
-  unwrap(await resolveInspectionEntry(entry.id, action));
+  unwrap(await resolveInspectionEntry(entry.id, action, AI_AUTHOR));
   return { ok: true, message: `Latest inspection ${args.action === "verify" ? "verified" : "rejected"}; the user was notified by e-mail + push.` };
 }
 
@@ -1221,7 +1221,7 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
     } satisfies DryRunPreview;
   }
 
-  const { notified } = unwrap(await updateSperrzeitEnde(target.id, endetAt));
+  const { notified } = unwrap(await updateSperrzeitEnde(target.id, endetAt, AI_AUTHOR));
   const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${iso(endetAt)}.`;
   return {
     ok: true,
@@ -1327,7 +1327,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
     return dryRunPreview("edit_lock_request", problem, { id: target.id, otherOpenCount: open.length - 1, ...after }, diffFields(before, after));
   }
 
-  const { notified, deliveredToPoller } = unwrap(await updateLockRequest(target.id, patch));
+  const { notified, deliveredToPoller } = unwrap(await updateLockRequest(target.id, patch, AI_AUTHOR));
   const stillScheduled = isScheduledDirective(wirksamAb, now);
   const what = `Lock request updated (deadline ${iso(endetAt ?? target.endetAt)}).`;
   return {
@@ -1345,11 +1345,6 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
 }
 
 // ── Urteil über ein erkanntes Vergehen (Strafbuch-Loop) ─────────────────────
-
-/** Wer über den MCP gehandelt hat, als Audit-Kennung der Strafbuch-Schicht (`StrafeRecord.judgedBy`,
- *  `ManualOffense.createdBy`). WELCHER Keyholder autorisiert hat, steht im Action-Log — hier zählt
- *  nur „von der KI" gegenüber „von Hand in der Oberfläche". */
-const MCP_JUDGED_BY = "ai";
 
 export interface JudgeOffenseArgs {
   /** Vergehens-ref aus get_offenses (das Feld `ref.id`). */
@@ -1409,7 +1404,7 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
       // `complete` schliesst nur den Loop und lässt die Aufgabe, wie sie ist.
       : args.action === "complete" ? { status: existing!.status, reason: existing!.reason, judgedBy: existing!.judgedBy, erledigtAt: iso(existing!.erledigtAt ?? new Date()), penaltyTask: existing!.taskId }
       // punish/dismiss über den FREITEXT-Weg löst eine bestehende Strafaufgabe und zieht sie zurück.
-      : { status: judgmentStatus(args.action), reason: args.text?.trim() || null, judgedBy: MCP_JUDGED_BY, erledigtAt: null, penaltyTask: null };
+      : { status: judgmentStatus(args.action), reason: args.text?.trim() || null, judgedBy: AI_AUTHOR, erledigtAt: null, penaltyTask: null };
     return dryRunPreview("judge_offense", problem ?? undefined, { ref: args.ref, action: args.action, text: args.text ?? null }, after ? diffFields(before, after) : undefined);
   }
   const r = unwrap(await judgeOffense({
@@ -1417,8 +1412,7 @@ export async function mcpJudgeOffense(username: string, args: JudgeOffenseArgs) 
     refId: args.ref,
     action: args.action,
     text: args.text,
-    judgedBy: MCP_JUDGED_BY,
-  }));
+  }, AI_AUTHOR));
   const message =
     args.action === "complete" ? "Penalty marked as completed."
     : r.status === "dismissed" ? "Offense dismissed (no penalty)."
@@ -1460,13 +1454,13 @@ export async function mcpRecordOffense(username: string, args: RecordOffenseArgs
     occurredAt: args.occurredAt ?? new Date(),
     title: args.title,
     description: args.description,
-    createdBy: MCP_JUDGED_BY,
+    createdBy: AI_AUTHOR,
   });
   if (!validated.ok) throw new Error(`record_offense rejected: ${validated.error} (${MANUAL_OFFENSE_LIMITS_HINT})`);
   const { occurredAt, title, description } = validated.data;
   const iso = await isoForUser(userId);
   if (args.dryRun) {
-    return dryRunPreview("record_offense", undefined, { title, occurredAt: iso(occurredAt)!, description, recordedBy: MCP_JUDGED_BY });
+    return dryRunPreview("record_offense", undefined, { title, occurredAt: iso(occurredAt)!, description, recordedBy: AI_AUTHOR });
   }
   const created = await createManualOffense(validated.data);
   return {
@@ -1612,9 +1606,11 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     requirements,
     proofs: args.requireProof,
   };
+  // EINE Kennung für beide Wege unten: die blosse Aufgabe UND die Strafaufgabe, deren Urteil daraus
+  // sein `judgedBy` ableitet — zwei getrennte Angaben könnten auseinanderlaufen.
   const data = unwrap(args.offenseRef
-    ? await punishWithTask({ ...params, refId: args.offenseRef, judgedBy: MCP_JUDGED_BY })
-    : await createTask(params));
+    ? await punishWithTask({ ...params, refId: args.offenseRef }, AI_AUTHOR)
+    : await createTask(params, AI_AUTHOR));
   const conditionPart = requirements.length === 0
     ? `Task set. No conditions attached — it counts as done when the user reports it done, by ${holdUntil.toISOString()}.`
     : `Task set with ${requirements.length} condition(s). All of them must hold CONTINUOUSLY until ${holdUntil.toISOString()}; taking one off earlier makes the task unfulfilled.`;
@@ -1679,7 +1675,7 @@ export async function mcpReviewTaskProof(username: string, args: ReviewTaskProof
 
   // Die Zustands-Prüfung selbst liegt im Service — hier stünde sie ein zweites Mal, mit zweitem Text.
 
-  unwrap(await reviewTaskProof(proof.id, userId, { accepted: args.accepted, note: args.note }));
+  unwrap(await reviewTaskProof(proof.id, userId, { accepted: args.accepted, note: args.note }, AI_AUTHOR));
   return {
     ok: true,
     taskId: task.id,
@@ -1710,6 +1706,6 @@ export async function mcpEditTask(username: string, args: EditTaskArgs) {
     return dryRunPreview("edit_task", problem, { id: task.id, ...after, holdUntil: after.holdUntil.toISOString() }, diffFields({ ...before }, { ...after }));
   }
 
-  unwrap(await updateTask(args.id, userId, patch));
+  unwrap(await updateTask(args.id, userId, patch, AI_AUTHOR));
   return { ok: true, id: args.id, message: "Task updated. The user was notified." };
 }

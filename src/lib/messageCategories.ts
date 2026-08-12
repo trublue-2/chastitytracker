@@ -165,20 +165,32 @@ export function isMessageSenderKind(value: string): value is MessageSenderKind {
 /**
  * Wie ein Absender beschriftet wird — die EINE Regel für Filterleiste und Nachrichten-Zeile.
  *
- * Steht der eine Keyholder fest, erscheint er unter seinem Benutzernamen: für den Träger ist das
- * eine Person, die er im Rest der App auch so sieht, und der Name ist die GENAUERE Zusicherung, nicht
- * die schwächere. Bei mehreren oder keinem bleibt es bei der allgemeinen Bezeichnung — ein Name wäre
- * dann falsch bzw. leer. „System" und „KI-Keyholder" ändern sich nie: dort gibt es keine Person.
+ * DREI Stufen, von der genauesten zur allgemeinsten:
+ *
+ *  1. `senderName` — der an der NACHRICHT festgehaltene Absender (heute: wer ein Vergehen von Hand
+ *     notiert hat). Er gilt vor allem anderen, weil er der einzige ist, der die Frage wirklich
+ *     beantwortet: er stand beim Schreiben fest und bleibt wahr, auch wenn die Zuordnung sich
+ *     später ändert.
+ *  2. `keyholderName` — der EINE Keyholder des Trägers, wenn es genau einen gibt. Eine Schätzung
+ *     aus der Seite, nicht aus der Zeile: bei zweien wäre sie null, sonst stünde die falsche Person
+ *     an einer Nachricht. Sie trägt weiter jede Zeile, die keinen eigenen Namen hat.
+ *  3. Die Bezeichnung der Art. „System" und „KI-Keyholder" ändern sich nie — dort gibt es keine
+ *     Person.
+ *
+ * Der Name gilt nur bei `kind === "keyholder"`: eine System- oder KI-Zeile bekommt gar keinen (und
+ * wo doch einer stünde, wäre er ein Datenfehler, den die Anzeige nicht verstärken soll).
  *
  * `t` kommt als Parameter, weil dieselbe Regel in einer Client-Zeile und in einer Client-Leiste
  * gebraucht wird, dieses Modul aber importfrei bleibt (siehe Kopf der Datei).
  */
 export function senderLabel(
   kind: MessageSenderKind,
+  senderName: string | null,
   keyholderName: string | null,
   t: (key: string) => string,
 ): string {
-  return kind === "keyholder" && keyholderName ? keyholderName : t(`sender.${kind}`);
+  if (kind !== "keyholder") return t(`sender.${kind}`);
+  return senderName || keyholderName || t(`sender.${kind}`);
 }
 
 /** Die Sicht auf den Posteingang: welcher Ausschnitt gezeigt wird. */

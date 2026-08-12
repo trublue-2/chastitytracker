@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { reviewTaskProof } from "@/lib/taskProofService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
@@ -25,10 +25,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
     if (!proof) return errorResponse(404, "TASK_PROOF_NOT_FOUND");
 
-    const err = await requireKeyholderOrAdminApi(proof.task.userId);
-    if (err) return err;
+    const actor = await requireKeyholderOrAdminActor(proof.task.userId);
+    if (actor instanceof NextResponse) return actor;
 
-    const result = await reviewTaskProof(id, proof.task.userId, { accepted: body.accepted, note: body.note });
+    const result = await reviewTaskProof(id, proof.task.userId, { accepted: body.accepted, note: body.note }, sessionActor(actor));
     if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true });
   } catch (err) {

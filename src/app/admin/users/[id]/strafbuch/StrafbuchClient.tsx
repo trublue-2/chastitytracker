@@ -10,6 +10,7 @@ import { useApiError } from "@/app/hooks/useApiError";
 import FormError from "@/app/components/FormError";
 import { taskFormHref } from "@/lib/entryFormRoute";
 import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
+import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
 import type { TaskOffenseState } from "@/lib/tasks";
 
 export interface StrafeRecordData {
@@ -428,7 +429,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   function PunishedBadge({ refId }: { refId: string }) {
     const record = strafeRecords.find(r => r.refId === refId);
     if (!record) return null;
-    const aiJudged = record.judgedBy === "ai";
+    const aiJudged = record.judgedBy === AI_AUTHOR;
     return (
       <div className="mt-1.5 flex flex-col gap-1">
         <div className="flex items-center gap-2 flex-wrap">
@@ -466,7 +467,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   function DismissedBadge({ refId }: { refId: string }) {
     const record = strafeRecords.find(r => r.refId === refId);
     if (!record) return null;
-    const aiJudged = record.judgedBy === "ai";
+    const aiJudged = record.judgedBy === AI_AUTHOR;
     return (
       <div className="mt-1.5 flex items-center gap-2 flex-wrap">
         <span className="text-xs font-semibold text-foreground-faint border border-border px-2 py-0.5 rounded-lg flex items-center gap-1">
@@ -784,7 +785,11 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
         <>
           {titleLine(judged, m.title, m.occurredAtStr)}
           {m.description && <span className={NOTE_CLS}>{m.description}</span>}
-          <p className={FACT_CLS}>{labels.strafbuchNotiertVon}: {m.createdBy}</p>
+          {/* Kein Autor festgehalten (Sitzung ohne Namen, siehe `POST /api/admin/offense`) = die
+              ganze Zeile fällt weg, statt eine Beschriftung ohne Wert dahinter zu zeigen. Über
+              `hasAuthor` und nicht über die blosse Wahrheitswertigkeit: ein Alt-Platzhalter „?"
+              stünde sonst als Name da, während die Meldung an den Träger ihn als „niemand" liest. */}
+          {hasAuthor(m.createdBy) && <p className={FACT_CLS}>{labels.strafbuchNotiertVon}: {m.createdBy}</p>}
         </>
       ),
     }))),

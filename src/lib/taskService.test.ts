@@ -51,7 +51,7 @@ afterEach(() => vi.useRealTimers());
 
 describe("createTask", () => {
   it("legt die Aufgabe an und benachrichtigt den Sub", async () => {
-    const res = await createTask({ ...base, requirements: [{ type: "KG_LOCKED" }] });
+    const res = await createTask({ ...base, requirements: [{ type: "KG_LOCKED" }] }, "herrin");
 
     expect(res.ok).toBe(true);
     expect(notifyMock).toHaveBeenCalledWith("u1", expect.objectContaining({ subjectKey: "taskAssignedSubject" }));
@@ -62,7 +62,8 @@ describe("createTask", () => {
       ...base,
       holdUntil: new Date("2026-07-25T12:20:00Z"), // in 20 Min, Kulanz ist 30
       requirements: [{ type: "KG_LOCKED" }],
-    });
+    },
+    "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_HOLD_UNTIL_TOO_SOON");
@@ -71,13 +72,13 @@ describe("createTask", () => {
 
   it("OHNE Bedingungen zählt die Kulanz nicht — eine kurze Frist ist erlaubt", async () => {
     // Ohne Geräte gibt es nichts anzulegen; holdUntil ist dann eine schlichte Erledigungs-Frist.
-    const res = await createTask({ ...base, holdUntil: new Date("2026-07-25T12:20:00Z") });
+    const res = await createTask({ ...base, holdUntil: new Date("2026-07-25T12:20:00Z") }, "herrin");
     expect(res.ok).toBe(true);
   });
 
   it("KG als Trage-Kategorie wird abgewiesen (dafür gibt es KG_LOCKED)", async () => {
     catMock.mockResolvedValue([{ id: "kg", isBuiltIn: true }]);
-    const res = await createTask({ ...base, requirements: [{ type: "WEAR", categoryId: "kg" }] });
+    const res = await createTask({ ...base, requirements: [{ type: "WEAR", categoryId: "kg" }] }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_REQUIREMENT_KG_CATEGORY");
@@ -85,7 +86,7 @@ describe("createTask", () => {
 
   it("fremde Kategorie wird abgewiesen", async () => {
     catMock.mockResolvedValue([]); // fremde Kategorie wird von der userId-gefilterten Query nicht geliefert
-    const res = await createTask({ ...base, requirements: [{ type: "WEAR", categoryId: "c1" }] });
+    const res = await createTask({ ...base, requirements: [{ type: "WEAR", categoryId: "c1" }] }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("INVALID_CATEGORY");
@@ -93,7 +94,7 @@ describe("createTask", () => {
 
   it("fremdes Gerät wird abgewiesen", async () => {
     devMock.mockResolvedValue([]);
-    const res = await createTask({ ...base, requirements: [{ type: "WEAR", deviceId: "d9" }] });
+    const res = await createTask({ ...base, requirements: [{ type: "WEAR", deviceId: "d9" }] }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("INVALID_DEVICE");
@@ -103,44 +104,45 @@ describe("createTask", () => {
     const res = await createTask({
       ...base,
       requirements: [{ type: "WEAR", categoryId: "c1" }, { type: "WEAR", categoryId: "c1" }],
-    });
+    },
+    "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_DUPLICATE_REQUIREMENT");
   });
 
   it("WEAR ohne Kategorie und ohne Gerät ist keine Bedingung", async () => {
-    const res = await createTask({ ...base, requirements: [{ type: "WEAR" }] });
+    const res = await createTask({ ...base, requirements: [{ type: "WEAR" }] }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_REQUIREMENT_INVALID");
   });
 
   it("leerer Titel → abgelehnt", async () => {
-    const res = await createTask({ ...base, title: "   " });
+    const res = await createTask({ ...base, title: "   " }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_TITLE_REQUIRED");
   });
 
   it("zu langer Titel → abgelehnt", async () => {
-    const res = await createTask({ ...base, title: "x".repeat(200) });
+    const res = await createTask({ ...base, title: "x".repeat(200) }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_TITLE_TOO_LONG");
   });
 
   it("Straf-Anlass wird nur bei isPunishment gespeichert", async () => {
-    await createTask({ ...base, penaltyReason: "zu spät", isPunishment: false });
+    await createTask({ ...base, penaltyReason: "zu spät", isPunishment: false }, "herrin");
     expect(taskCreateMock.mock.calls[0][0].data.penaltyReason).toBeNull();
   });
 
   it("zu lange Beschreibung → abgelehnt", async () => {
-    const res = await createTask({ ...base, description: "x".repeat(3000) });
+    const res = await createTask({ ...base, description: "x".repeat(3000) }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_DESCRIPTION_TOO_LONG");
   });
 
   it("KG_LOCKED verwirft die Kategorie NICHT still, sondern lehnt sie ab", async () => {
-    const res = await createTask({ ...base, requirements: [{ type: "KG_LOCKED", categoryId: "c1" }] });
+    const res = await createTask({ ...base, requirements: [{ type: "KG_LOCKED", categoryId: "c1" }] }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_REQUIREMENT_INVALID");
   });
@@ -149,19 +151,19 @@ describe("createTask", () => {
     // Sonst liesse sich die Regel über das Gerät statt über die Kategorie umgehen — die Aufgabe wäre
     // unerfüllbar, weil ein WEAR_BEGIN auf ein KG-Gerät abgewiesen wird.
     devMock.mockResolvedValue([{ id: "kgdev", category: { isBuiltIn: true } }]);
-    const res = await createTask({ ...base, requirements: [{ type: "WEAR", deviceId: "kgdev" }] });
+    const res = await createTask({ ...base, requirements: [{ type: "WEAR", deviceId: "kgdev" }] }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_REQUIREMENT_KG_CATEGORY");
   });
 
   it("negative Kulanz wird geklemmt statt die Endzeit-Prüfung umzudrehen", async () => {
-    const res = await createTask({ ...base, startGraceMin: -600, requirements: [{ type: "KG_LOCKED" }] });
+    const res = await createTask({ ...base, startGraceMin: -600, requirements: [{ type: "KG_LOCKED" }] }, "herrin");
     expect(res.ok).toBe(true);
     expect(taskCreateMock.mock.calls[0][0].data.startGraceMin).toBe(0);
   });
 
   it("Bedingungen bekommen eine stabile Reihenfolge", async () => {
-    await createTask({ ...base, requirements: [{ type: "KG_LOCKED" }, { type: "WEAR", categoryId: "c1" }] });
+    await createTask({ ...base, requirements: [{ type: "KG_LOCKED" }, { type: "WEAR", categoryId: "c1" }] }, "herrin");
     const created = taskCreateMock.mock.calls[0][0].data.requirements.create;
     expect(created.map((r: { sortOrder: number }) => r.sortOrder)).toEqual([0, 1]);
     expect(created[0].categoryId).toBeNull(); // KG_LOCKED trägt keine Kategorie
@@ -174,7 +176,8 @@ describe("createTask — Nachweis-Fotos (Issue #39)", () => {
   it("die Eingabe-Reihenfolge IST die Soll-Reihenfolge", async () => {
     await createTask({ ...base, proofs: [
       { description: "Verschluss" }, { description: "Plug" }, { description: "Rechnungen" },
-    ] });
+    ] },
+    "herrin");
     expect(proofsOf().map((p: { sortOrder: number; description: string }) => [p.sortOrder, p.description]))
       .toEqual([[0, "Verschluss"], [1, "Plug"], [2, "Rechnungen"]]);
   });
@@ -184,33 +187,34 @@ describe("createTask — Nachweis-Fotos (Issue #39)", () => {
   it("Code-Pflicht vergibt einen Code, ohne Pflicht bleibt er leer", async () => {
     await createTask({ ...base, proofs: [
       { description: "mit Code", requireCode: true }, { description: "ohne Code" },
-    ] });
+    ] },
+    "herrin");
     expect(proofsOf()[0]).toMatchObject({ requireCode: true, code: "12345" });
     expect(proofsOf()[1]).toMatchObject({ requireCode: false, code: null });
   });
 
   it("Beschreibung ist Pflicht — eine leere Zeile ist ein Versehen, keine Forderung", async () => {
-    const res = await createTask({ ...base, proofs: [{ description: "   " }] });
+    const res = await createTask({ ...base, proofs: [{ description: "   " }] }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_PROOF_INVALID");
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("zu lange Beschreibung wird abgewiesen", async () => {
-    const res = await createTask({ ...base, proofs: [{ description: "x".repeat(201) }] });
+    const res = await createTask({ ...base, proofs: [{ description: "x".repeat(201) }] }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_PROOF_INVALID");
   });
 
   it("mehr als zehn Nachweise werden abgewiesen", async () => {
     const many = Array.from({ length: 11 }, (_, i) => ({ description: `N${i}` }));
-    const res = await createTask({ ...base, proofs: many });
+    const res = await createTask({ ...base, proofs: many }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_TOO_MANY_PROOFS");
   });
 
   it("ohne Nachweise bleibt die Liste leer — der Normalfall zahlt nichts", async () => {
-    await createTask(base);
+    await createTask(base, "herrin");
     expect(proofsOf()).toEqual([]);
   });
 });
@@ -223,7 +227,7 @@ describe("updateTask — Endzeit während der Nutzung verschieben (Issue #29)", 
   it("verlängert die Endzeit und meldet es dem Sub", async () => {
     taskFindMock.mockResolvedValue(offen);
     const spaeter = new Date("2026-07-25T17:00:00Z");
-    const res = await updateTask("t1", "u1", { holdUntil: spaeter });
+    const res = await updateTask("t1", "u1", { holdUntil: spaeter }, "herrin");
 
     expect(res.ok).toBe(true);
     expect(taskUpdateMock.mock.calls[0][0].data.holdUntil).toEqual(spaeter);
@@ -232,16 +236,16 @@ describe("updateTask — Endzeit während der Nutzung verschieben (Issue #29)", 
 
   it("abgeschlossene oder zurückgezogene Aufgabe ist nicht mehr änderbar", async () => {
     taskFindMock.mockResolvedValue({ ...offen, withdrawnAt: JETZT });
-    expect((await updateTask("t1", "u1", { title: "neu" })).ok).toBe(false);
+    expect((await updateTask("t1", "u1", { title: "neu" }, "herrin")).ok).toBe(false);
 
     taskFindMock.mockResolvedValue({ ...offen, completedAt: JETZT });
-    expect((await updateTask("t1", "u1", { title: "neu" })).ok).toBe(false);
+    expect((await updateTask("t1", "u1", { title: "neu" }, "herrin")).ok).toBe(false);
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("fremde Aufgabe wird nicht gefunden (IDOR-Schutz)", async () => {
     taskFindMock.mockResolvedValue(null); // findFirst ist bereits auf userId gefiltert
-    const res = await updateTask("t1", "u1", { title: "neu" });
+    const res = await updateTask("t1", "u1", { title: "neu" }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_NOT_FOUND");
   });
@@ -249,14 +253,14 @@ describe("updateTask — Endzeit während der Nutzung verschieben (Issue #29)", 
   it("Endzeit in die VERGANGENHEIT zu setzen wird abgelehnt", async () => {
     // Sonst bekäme der Sub durch einen Datums-Vertipper sofort ein Versäumnis, ohne je handeln zu können.
     taskFindMock.mockResolvedValue({ ...offen, createdAt: new Date("2026-07-22T12:00:00Z") });
-    const res = await updateTask("t1", "u1", { holdUntil: new Date("2026-07-23T12:00:00Z") });
+    const res = await updateTask("t1", "u1", { holdUntil: new Date("2026-07-23T12:00:00Z") }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_HOLD_UNTIL_TOO_SOON");
   });
 
   it("Straf-Anlass fällt weg, wenn die Strafe zurückgenommen wird", async () => {
     taskFindMock.mockResolvedValue({ ...offen, isPunishment: true, penaltyReason: "zu spät" });
-    await updateTask("t1", "u1", { isPunishment: false });
+    await updateTask("t1", "u1", { isPunishment: false }, "herrin");
     expect(taskUpdateMock.mock.calls[0][0].data.penaltyReason).toBeNull();
   });
 
@@ -274,7 +278,7 @@ describe("updateTask — Endzeit während der Nutzung verschieben (Issue #29)", 
    */
   it("REGRESSION: Endzeit unter die Startfrist zu verkürzen wird abgelehnt", async () => {
     taskFindMock.mockResolvedValue(offen); // erstellt 12:00, Kulanz 30 min → Startfrist 12:30
-    const res = await updateTask("t1", "u1", { holdUntil: new Date("2026-07-25T12:10:00Z") });
+    const res = await updateTask("t1", "u1", { holdUntil: new Date("2026-07-25T12:10:00Z") }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_HOLD_UNTIL_TOO_SOON");
     expect(taskUpdateMock).not.toHaveBeenCalled();
@@ -284,7 +288,7 @@ describe("updateTask — Endzeit während der Nutzung verschieben (Issue #29)", 
     // Vor drei Tagen gestellt: die Startfrist ist längst verstrichen, „gleich fällig" bleibt erlaubt.
     taskFindMock.mockResolvedValue({ ...offen, createdAt: new Date("2026-07-22T12:00:00Z") });
     const gleich = new Date("2026-07-25T12:30:00Z");
-    const res = await updateTask("t1", "u1", { holdUntil: gleich });
+    const res = await updateTask("t1", "u1", { holdUntil: gleich }, "herrin");
     expect(res.ok).toBe(true);
     expect(taskUpdateMock.mock.calls[0][0].data.holdUntil).toEqual(gleich);
   });
@@ -292,7 +296,7 @@ describe("updateTask — Endzeit während der Nutzung verschieben (Issue #29)", 
   it("Aufgabe OHNE Bedingungen kennt keine Startfrist — nur „in der Zukunft“ zählt", async () => {
     // Ohne Bedingungen gibt es nichts anzulegen; die Kulanz ist bedeutungslos (wie in `createTask`).
     taskFindMock.mockResolvedValue({ ...offen, _count: { requirements: 0 } });
-    const res = await updateTask("t1", "u1", { holdUntil: new Date("2026-07-25T12:10:00Z") });
+    const res = await updateTask("t1", "u1", { holdUntil: new Date("2026-07-25T12:10:00Z") }, "herrin");
     expect(res.ok).toBe(true);
   });
 });
@@ -354,7 +358,7 @@ describe("completeTask — Selbstmeldung des Subs", () => {
 describe("withdrawTask", () => {
   it("zieht zurück und meldet es", async () => {
     taskFindMock.mockResolvedValue({ id: "t1", userId: "u1", title: "T", withdrawnAt: null, completedAt: null });
-    const res = await withdrawTask("t1", "u1");
+    const res = await withdrawTask("t1", "u1", "herrin");
 
     expect(res.ok).toBe(true);
     expect(notifyMock).toHaveBeenCalledWith("u1", expect.objectContaining({ subjectKey: "taskWithdrawnSubject" }));

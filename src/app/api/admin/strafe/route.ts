@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, requireKeyholderOrAdminApi, sessionActor } from "@/lib/authGuards";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
-import { notifyUser } from "@/lib/notify";
-import { strafeVerhaengtNotice, STORED_TYPE, judgmentStatus, checkPenaltyText, judgeOffense, collectDetectedOffenses } from "@/lib/strafurteilService";
+import { notifyJudgment, STORED_TYPE, judgmentStatus, checkPenaltyText, judgeOffense, judgedByFromActor, collectDetectedOffenses } from "@/lib/strafurteilService";
 import { markLastAction } from "@/lib/appMeta";
 import { buildStrafbuch } from "@/lib/strafbuch";
 
@@ -24,8 +23,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing penalty text" }, { status: 400 });
   }
 
-  const err = await requireKeyholderOrAdminApi(userId);
-  if (err) return err;
+  const session = await requireKeyholderOrAdminActor(userId);
+  if (session instanceof NextResponse) return session;
+  const actor = sessionActor(session);
   if (!VALID_OFFENSE_TYPES.has(offenseType)) {
     return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
   }
@@ -53,9 +53,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
   }
 
-  // Rely on @unique constraint on refId — catch P2002 for clean error
+  // Rely on @unique constraint on refId — catch P2002 for clean error. Der `try` umschliesst NUR
+  // das Schreiben: alles danach ist Nachlauf zu einem bereits gefällten Urteil und darf den Vorgang
+  // nicht mehr in einen Fehler kippen (siehe `notifyJudgment`).
+  let record;
   try {
-    const record = await prisma.strafeRecord.create({
+    record = await prisma.strafeRecord.create({
       data: {
         userId,
         offenseType,
@@ -64,19 +67,25 @@ export async function POST(req: Request) {
         bestraftDatum: bestraftDatum ? new Date(bestraftDatum + "T12:00:00Z") : new Date(),
         notiz: notiz?.trim() || null,
         reason: reason?.trim() || null,
-        judgedBy: "admin",
+        // Dieselbe Ableitung wie im Service, nicht ein zweites „admin"-Literal: Audit-Kürzel und
+        // Absender der Meldung stammen damit aus EINER Kennung.
+        judgedBy: judgedByFromActor(actor),
       },
     });
-    // Konsistent zur MCP (judgeOffense): bei verhängter Strafe den Nutzer benachrichtigen.
-    if (status === "PUNISHED") await notifyUser(userId, strafeVerhaengtNotice(reason?.trim() || null, record.id, "admin"));
-    markLastAction();
-    return NextResponse.json(record, { status: 201 });
   } catch (e: unknown) {
     if (isUniqueConstraintOn(e, "refId")) {
       return NextResponse.json({ error: "Already judged" }, { status: 409 });
     }
     throw e;
   }
+
+  // Konsistent zur MCP (judgeOffense): beide Ausgänge melden, beide mit dem NAMEN dessen, der
+  // geurteilt hat — über DIESELBE Funktion wie der MCP-Weg, damit die zweite Umsetzung nicht wieder
+  // eigene Wege geht. (Genau daran fehlte hier einmal das Verwerfen: der Träger sah seine
+  // Feststellung und erfuhr nie, dass sie erledigt ist.)
+  await notifyJudgment({ userId, refId, recordId: record.id, status, reason: reason?.trim() || null }, actor);
+  markLastAction();
+  return NextResponse.json(record, { status: 201 });
 }
 
 export async function DELETE(req: Request) {
@@ -86,14 +95,14 @@ export async function DELETE(req: Request) {
   const record = await prisma.strafeRecord.findUnique({ where: { refId } });
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const err = await requireKeyholderOrAdminApi(record.userId);
-  if (err) return err;
+  const session = await requireKeyholderOrAdminActor(record.userId);
+  if (session instanceof NextResponse) return session;
 
   // Über `judgeOffense` statt mit einem eigenen `delete`: die Rücknahme zieht auch die Strafaufgabe
   // zurück, die am Urteil hängt. Von Hand gelöscht bliebe sie beim Sub stehen — die App forderte
   // weiter eine Strafe ein, die es nicht mehr gibt, und ihr Verstreichen wäre später ein neues
   // Vergehen. Genau diese Regel galt bisher nur auf dem MCP-Weg, während der Knopf hier daran vorbeilief.
-  const result = await judgeOffense({ userId: record.userId, refId, action: "reopen", judgedBy: "admin" });
+  const result = await judgeOffense({ userId: record.userId, refId, action: "reopen" }, sessionActor(session));
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true });
 }

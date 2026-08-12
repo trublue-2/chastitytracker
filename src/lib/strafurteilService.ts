@@ -2,13 +2,14 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, offenseListViews, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
-import { recordSystemMessage, senderKindOf } from "@/lib/messageService";
+import { recordSystemMessage, DISMISSAL_BODY_KEY, type MessageActor } from "@/lib/messageService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { checkTask, writeTask, type CreateTaskParams } from "@/lib/taskService";
 import { formatDateTime } from "@/lib/utils";
 import { markLastAction } from "@/lib/appMeta";
-import { offenseWasAnnounced } from "@/lib/offenseAnnounce";
+import { offenseWasAnnounced, OFFENSE_REF_TYPE } from "@/lib/offenseAnnounce";
 import { STORED_TYPE, type OffenseCanonicalType } from "@/lib/offenseTypes";
+import { AI_AUTHOR } from "@/lib/constants";
 
 /**
  * Urteils-Lebenszyklus über erkannte Vergehen:
@@ -61,7 +62,24 @@ export interface JudgeOffenseParams {
   action: "dismiss" | "punish" | "complete" | "reopen";
   /** Freitext: Strafe (bei punish, erforderlich) bzw. optionaler Grund (bei dismiss). */
   text?: string;
-  judgedBy: "ai" | "admin";
+}
+
+/**
+ * Das Audit-Kürzel für `StrafeRecord.judgedBy` aus der Kennung des Handelnden.
+ *
+ * Die Spalte kennt nur „wer aus Sicht der Autorität": {@link AI_AUTHOR} für den MCP, sonst „admin" —
+ * ein Mensch bleibt ein Mensch, auch wenn seine Sitzung keinen Namen trug (dann fällt allein der
+ * ABSENDER der Nachricht auf „System" zurück, siehe `senderFromAuthor`). Die KI-Seite ist
+ * {@link AI_AUTHOR} und kein eigenes Literal: dieselbe Kennung schreibt der MCP und liest die
+ * Absender-Abbildung — liefe sie hier auseinander, urteilte die KI unter einem Wert, den niemand
+ * mehr als KI erkennt.
+ *
+ * DAMIT reicht die Namensgrenze auch bis in die Audit-Spalte. Warum ein Mensch trotzdem nie so
+ * heissen kann, steht KANONISCH bei {@link AI_AUTHOR} — hier nicht wiederholt: dies ist die
+ * Abbildung, nicht die Namensvergabe.
+ */
+export function judgedByFromActor(actor: MessageActor): typeof AI_AUTHOR | "admin" {
+  return actor === AI_AUTHOR ? AI_AUTHOR : "admin";
 }
 
 export interface JudgeOffenseResult {
@@ -76,22 +94,84 @@ export interface JudgeOffenseResult {
  * - complete: setzt erledigtAt = now auf einer bestehenden Strafe (Loop schließen).
  * - reopen: entfernt das Urteil (revidieren).
  */
-/** Betreff + Text der „Strafe verhängt"-Benachrichtigung — geteilt von judgeOffense (MCP) und
- *  der Admin-Strafe-Route, damit beide Wege identisch benachrichtigen.
+/** Betreff + Text der „Strafe verhängt"-Benachrichtigung. Erreichbar nur über {@link notifyJudgment}
+ *  — dort steht, warum beide Urteils-Wege durch dieselbe Verzweigung gehen.
  *
  *  Die Mail trägt den Straftext interpoliert (sie ist per Natur eine Kopie), die NACHRICHT dagegen
  *  nur die Referenz auf den `StrafeRecord`: der Text wird beim Lesen frisch von dort geholt, damit
  *  eine spätere Korrektur nicht neben einer veralteten Kopie steht. */
-export function strafeVerhaengtNotice(reason: string | null, recordId: string, judgedBy: string | null): NotifyContent {
+function strafeVerhaengtNotice(reason: string | null, recordId: string, actor: MessageActor): NotifyContent {
   const inbox = {
     bodyKey: "penaltyMessageNoReason",
     ref: { type: "offense", id: recordId },
-    // Die App verheimlicht die KI nicht: wer geurteilt hat, steht an der Nachricht.
-    senderKind: senderKindOf(judgedBy),
+    // Die App verheimlicht weder die KI noch den Menschen: wer geurteilt hat, steht mit NAMEN an der
+    // Nachricht. Nicht aus `StrafeRecord.judgedBy` abgeleitet — darin steht nur das Kürzel „admin".
+    actor,
   } as const;
   return reason
     ? { subjectKey: "penaltySubject", messageKey: "penaltyMessage", params: { reason }, inbox }
     : { subjectKey: "penaltySubject", messageKey: "penaltyMessageNoReason", inbox };
+}
+
+/**
+ * Die „Vergehen fallengelassen"-Zeile — geteilt von `judgeOffense` (MCP) und der Strafbuch-Route.
+ *
+ * Sie stand zuerst nur im MCP-Pfad, und genau daran liess sich der Preis zweier Umsetzungen ablesen:
+ * wer im Strafbuch verwarf, schickte dem Träger NICHTS. Seine Zeile „Ein Vergehen wurde festgestellt
+ * … ob und wie es beurteilt wird, entscheidet der Keyholder" blieb damit für immer unbeantwortet —
+ * dieselbe stille Nicht-Auflösung, gegen die der Posteingang überhaupt gebaut wurde.
+ *
+ * Nur Posteingang, kein Push und keine Mail: die Nachricht nimmt eine Last weg, statt eine
+ * aufzuerlegen. Wer dafür geweckt wird, lernt, Benachrichtigungen abzuschalten.
+ *
+ * NUR, wenn die Feststellung den Träger je erreicht hat. Vor dem Melde-Stichtag abgeleitete Vergehen
+ * werden nie gemeldet — für die wäre diese Zeile das Ende einer Geschichte, die der Posteingang nie
+ * erzählt hat.
+ */
+async function notifyOffenseDismissed(userId: string, refId: string, actor: MessageActor): Promise<void> {
+  if (!(await offenseWasAnnounced(userId, refId))) return;
+  await recordSystemMessage({
+    subjectUserId: userId,
+    bodyKey: DISMISSAL_BODY_KEY,
+    // Auf das VERGEHEN, nicht auf das Urteil: dieselbe Referenz wie die Feststellungs-Meldung,
+    // damit beide Zeilen denselben Anlass zeigen und ihren Freitext live von dort holen.
+    ref: { type: OFFENSE_REF_TYPE, id: refId },
+    // Das Verwerfen ist eine ENTSCHEIDUNG, keine Feststellung — sie trägt den Namen dessen, der sie
+    // getroffen hat, nicht den des Notierenden (dessen Name steht an der Feststellung).
+    actor,
+    // Wieder-eröffnen und erneut verwerfen ist möglich; zwei gleichlautende Zeilen dazu nicht. Die
+    // Zusage greift, weil ein `reopen` die alte Zeile löscht (siehe `judgeOffense`) — sonst wäre
+    // „einmal je Bezugsobjekt" gleichbedeutend mit „für immer der erste Urteilende".
+    once: true,
+  });
+}
+
+/**
+ * Die Meldung an den Träger NACH dem geschriebenen Urteil — beide Ausgänge, geteilt von
+ * {@link judgeOffense} (MCP) und der Strafbuch-Route (Browser). Bis hierher stand dieselbe Verzweigung
+ * zweimal da, und genau daran war der Verwerfungs-Zweig im Browser schon einmal vergessen worden.
+ *
+ * WIRFT NIE, und das ist der Punkt: das Urteil steht zu diesem Zeitpunkt bereits in der Datenbank.
+ * Beide Zweige lesen dabei noch einmal live (`offenseWasAnnounced` bzw. der Empfänger in
+ * `notifyUser`) — ein transienter Fehler dort meldete dem Aufrufer einen 500 für einen Vorgang, der
+ * gelungen ist. Sein Wiederholungsversuch liefe dann in die Eindeutigkeits-Sperre auf `refId` und
+ * bekäme „schon beurteilt" (409): aus einem verschluckten Nebeneffekt würde ein gemeldeter Konflikt.
+ * Die Meldung ist Fire-and-forget wie überall sonst in dieser App (`recordSystemMessage` fängt aus
+ * demselben Grund selbst).
+ */
+export async function notifyJudgment(
+  p: { userId: string; refId: string; recordId: string; status: "PUNISHED" | "DISMISSED"; reason: string | null },
+  actor: MessageActor,
+): Promise<void> {
+  try {
+    if (p.status === "PUNISHED") {
+      await notifyUser(p.userId, strafeVerhaengtNotice(p.reason, p.recordId, actor));
+    } else {
+      await notifyOffenseDismissed(p.userId, p.refId, actor);
+    }
+  } catch (err) {
+    console.error("[strafurteil] Meldung zum Urteil fehlgeschlagen", err);
+  }
 }
 
 /** `action: "punish"` verlangt einen nicht-leeren Straftext — geteilt von `judgeOffense` und der
@@ -133,7 +213,8 @@ export async function requireDetectedOffense(
  * gelesen wird (MCP-Strafbuch, Nachricht), und `taskId` trägt die Verbindung für alles Weitere.
  */
 export async function punishWithTask(
-  p: CreateTaskParams & { refId: string; judgedBy: JudgeOffenseParams["judgedBy"] },
+  p: CreateTaskParams & { refId: string },
+  actor: MessageActor,
 ): Promise<ServiceResult<{ id: string }>> {
   const now = new Date();
 
@@ -154,14 +235,14 @@ export async function punishWithTask(
     const task = await writeTask(tx, checked.data);
     await writeJudgment(tx, {
       userId: p.userId, offense, now,
-      status: "PUNISHED", reason: task.title, judgedBy: p.judgedBy, taskId: task.id,
+      status: "PUNISHED", reason: task.title, actor, taskId: task.id,
     });
     return task;
   });
 
   // NACH der Transaktion: eine Mail lässt sich nicht zurückrollen. Und genau eine — die Strafe IST
   // die Aufgabe, zwei Nachrichten wären zweimal dieselbe Neuigkeit.
-  await notifyUser(p.userId, strafaufgabeNotice(created, p.judgedBy));
+  await notifyUser(p.userId, strafaufgabeNotice(created, actor));
   markLastAction();
 
   return { ok: true, data: { id: created.id } };
@@ -200,13 +281,13 @@ async function writeJudgment(
   p: {
     userId: string; offense: DetectedOffense; now: Date;
     status: "PUNISHED" | "DISMISSED"; reason: string | null;
-    judgedBy: JudgeOffenseParams["judgedBy"]; taskId: string | null;
+    actor: MessageActor; taskId: string | null;
   },
 ): Promise<{ id: string }> {
   await withdrawLinkedTask(tx, p.offense.refId, p.userId, p.now);
 
   const data = {
-    status: p.status, reason: p.reason, judgedBy: p.judgedBy,
+    status: p.status, reason: p.reason, judgedBy: judgedByFromActor(p.actor),
     erledigtAt: null, bestraftDatum: p.now, taskId: p.taskId,
   };
   return tx.strafeRecord.upsert({
@@ -221,7 +302,7 @@ async function writeJudgment(
  *  Sub von der Nachricht aus direkt sieht, was zu tun ist. */
 function strafaufgabeNotice(
   task: { id: string; title: string; holdUntil: Date },
-  judgedBy: string | null,
+  actor: MessageActor,
 ): NotifyContent {
   return {
     subjectKey: "penaltyTaskSubject",
@@ -230,14 +311,31 @@ function strafaufgabeNotice(
     alwaysNotify: true,
     inbox: {
       ref: { type: "task", id: task.id },
-      senderKind: senderKindOf(judgedBy),
+      actor,
       // Eine Aufgabe wird genau einmal gestellt — ein Retry darf keine zweite Zeile hinterlassen.
       once: true,
     },
   };
 }
 
-export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult<JudgeOffenseResult>> {
+/**
+ * Fällt ein Urteil über ein erkanntes Vergehen.
+ *
+ * `actor` ist WER urteilt (Benutzername der Sitzung bzw. {@link AI_AUTHOR} über den MCP, siehe
+ * {@link MessageActor}) — als eigenes ARGUMENT und bewusst kein Feld in `params`, wie bei
+ * {@link punishWithTask} und allen Direktiv-Diensten: die Routen reichen den rohen Request-Body als
+ * Parameter-Objekt durch, und in einem Bag wäre der Urteilende von aussen setzbar.
+ *
+ * Aus ihm entsteht BEIDES — der Absender der Meldung an den Träger und das Audit-Kürzel in
+ * `StrafeRecord.judgedBy` ({@link judgedByFromActor}). Eine Angabe statt zweier: `judgedBy` allein
+ * kennt nur die Kürzel „ai"/„admin" und kann nicht sagen, WELCHER Mensch geurteilt hat. Beide Werte
+ * nebeneinander entgegenzunehmen liesse dagegen die widersprüchliche Kombination zu, das Urteil
+ * eines Menschen als KI-Urteil zu verbuchen.
+ */
+export async function judgeOffense(
+  p: JudgeOffenseParams,
+  actor: MessageActor,
+): Promise<ServiceResult<JudgeOffenseResult>> {
   const now = new Date();
 
   if (p.action === "reopen") {
@@ -248,7 +346,33 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
       // Erst der Rückzug: danach gibt es die Verknüpfung nicht mehr, über die er sein Ziel findet.
       await withdrawLinkedTask(tx, p.refId, p.userId, now);
       const del = await tx.strafeRecord.deleteMany({ where: { userId: p.userId, refId: p.refId } });
-      return del.count > 0;
+      // Gab es kein Urteil, war das hier kein Wieder-Eröffnen: der Aufrufer bekommt 404, und dann
+      // soll dieser Weg auch nichts hinterlassen haben.
+      if (del.count === 0) return false;
+
+      // Sonst geht die „fallengelassen"-Meldung MIT dem Urteil, in derselben Transaktion.
+      //
+      // WARUM LÖSCHEN und nicht bloss verbergen: die Zeile behauptet „dieses Vergehen wurde
+      // fallengelassen", und in dem Moment, in dem das Urteil verschwindet, ist das nicht mehr wahr.
+      // Sichtbar war sie ohnehin schon nicht mehr (`dismissalMessageStillApplies` blendet sie ohne
+      // Urteil aus) — stehen bleibt sie also nur als Sperre: `notifyOffenseDismissed` schreibt mit
+      // `once`, und die alte Zeile unterdrückte damit die NEUE. Wer nach einem reopen erneut
+      // verwarf, blieb im Posteingang des Trägers unter dem Namen des ERSTEN Urteilenden stehen —
+      // mit dessen Zeitpunkt und dessen Gelesen-Stand, also ohne jedes Zeichen für die zweite
+      // Entscheidung. Genau die Falschaussage, gegen die die Absender-Angabe gebaut ist.
+      //
+      // Der Verlust ist keiner: die FESTSTELLUNG („ein Vergehen wurde festgestellt") bleibt stehen,
+      // sie ist der Beleg. Verworfen wird nur die Auflösung, die es nicht mehr gibt.
+      await tx.message.deleteMany({
+        where: {
+          subjectUserId: p.userId,
+          audience: "sub",
+          bodyKey: DISMISSAL_BODY_KEY,
+          refEntityType: OFFENSE_REF_TYPE,
+          refEntityId: p.refId,
+        },
+      });
+      return true;
     });
     if (!removed) return serviceFail(404, "JUDGMENT_NOT_FOUND");
     return { ok: true, data: { status: "open", done: false } };
@@ -277,35 +401,10 @@ export async function judgeOffense(p: JudgeOffenseParams): Promise<ServiceResult
   // bestehende Aufgabe vom Urteil, statt sie stillschweigend weiterzuschleppen.
   const record = await prisma.$transaction((tx) => writeJudgment(tx, {
     userId: p.userId, offense, now,
-    status, reason: text, judgedBy: p.judgedBy, taskId: null,
+    status, reason: text, actor, taskId: null,
   }));
 
-  if (status === "PUNISHED") {
-    await notifyUser(p.userId, strafeVerhaengtNotice(text, record.id, p.judgedBy));
-  } else {
-    // Das Verwerfen bekommt seine EIGENE Zeile — früher war es die einzige Entscheidung, von der der
-    // Träger nie erfuhr. Seit die Feststellung gemeldet wird, ist das nicht mehr bloss eine Lücke:
-    // er hat die Zeile „Vergehen festgestellt" gesehen, und ohne diese hier bliebe sie für immer im
-    // Ungewissen stehen.
-    //
-    // Nur Posteingang, kein Push und keine Mail: die Nachricht nimmt eine Last weg, statt eine
-    // aufzuerlegen. Wer dafür geweckt wird, lernt, Benachrichtigungen abzuschalten.
-    // NUR, wenn die Feststellung ihn je erreicht hat. Vor dem Melde-Stichtag abgeleitete Vergehen
-    // werden nie gemeldet — für die wäre diese Zeile das Ende einer Geschichte, die der Posteingang
-    // nie erzählt hat.
-    if (await offenseWasAnnounced(p.userId, offense.refId)) {
-      await recordSystemMessage({
-        subjectUserId: p.userId,
-        bodyKey: "offenseDismissedMessage",
-        // Auf das VERGEHEN, nicht auf das Urteil: dieselbe Referenz wie die Feststellungs-Meldung,
-        // damit beide Zeilen denselben Anlass zeigen und ihren Freitext live von dort holen.
-        ref: { type: "detectedOffense", id: offense.refId },
-        senderKind: senderKindOf(p.judgedBy),
-        // Wieder-eröffnen und erneut verwerfen ist möglich; zwei gleichlautende Zeilen dazu nicht.
-        once: true,
-      });
-    }
-  }
+  await notifyJudgment({ userId: p.userId, refId: offense.refId, recordId: record.id, status, reason: text }, actor);
   markLastAction();
 
   return { ok: true, data: { status: status === "PUNISHED" ? "punished" : "dismissed", done: false } };

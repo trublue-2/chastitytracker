@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/mail";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
-import { recordMessageAndBadge, recordSystemMessage, type MessageBodyKey, type MessageRef, type MessageSenderKind } from "@/lib/messageService";
+import { recordMessageAndBadge, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messageService";
 import { getMessageChannels } from "@/lib/notificationPrefs";
 
 /**
@@ -28,7 +28,16 @@ export type NotifyInbox =
       /** Abweichender Text für den Posteingang. Default: `messageKey`. Gebraucht dort, wo die Mail
        *  einen Freitext interpoliert, den die Nachricht stattdessen live über `ref` liest. */
       bodyKey?: MessageBodyKey;
-      senderKind?: MessageSenderKind;
+      /**
+       * WER die Meldung ausgelöst hat — der Benutzername des Handelnden, {@link AI_AUTHOR} über den
+       * MCP, sonst weglassen (die App hat selbst entschieden). Siehe {@link MessageActor}.
+       *
+       * Bewusst der Handelnde und nicht die Absender-ART: eine hart gesetzte `senderKind:
+       * "keyholder"` sagt nur „ein Mensch", und die Anzeige musste sich daraus einen Namen raten —
+       * generisch bei zwei Keyholdern, falsch bei einem dritten Admin. Art UND Namen leitet die
+       * Schreibstelle daraus ab (`recordSystemMessage`); hier wird nur durchgereicht.
+       */
+      actor?: MessageActor;
     });
 
 /**
@@ -80,7 +89,7 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
       subjectUserId: userId,
       bodyKey: inbox?.bodyKey ?? messageKey,
       params,
-      senderKind: inbox?.senderKind,
+      actor: inbox?.actor,
       ref: inbox?.ref,
       once: inbox?.once,
     });
@@ -114,8 +123,12 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
  * aus `getControllersOfUser` — `processDueTasks` holt sie bewusst einmal je Nutzer statt einmal je
  * Aufgabe.
  *
+ * KEIN `actor`, und das ist eine Aussage: was heute an die Keyholder geht, ist ausnahmslos ein
+ * Befund der App (Aufgaben-Ergebnis, Sichtung fällig) — es gibt dort keinen Menschen zu nennen.
+ * Käme je eine Meldung dazu, die ein Mensch auslöst, gehört der Handelnde hier durchgereicht.
+ *
  * `inbox` ist hier ENGER als bei `notifyUser` ({@link InboxRefOptions} statt {@link NotifyInbox}):
- * `bodyKey` und `senderKind` gäbe es zwar, aber die Keyholder-Zeile ist keine abschaltbare Variante
+ * `bodyKey` und `actor` gäbe es zwar, aber die Keyholder-Zeile ist keine abschaltbare Variante
  * — und `false` wäre sinnlos, denn die Zeile ist der ganze Zweck dieser Funktion. Beim Weiterreichen
  * an `notifyUser` wird `inbox: false` gesetzt: die Zeile steht schon, und der persönliche
  * Posteingang eines Keyholders ist nicht der Ort für eine Meldung über einen fremden Träger.

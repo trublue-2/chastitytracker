@@ -25,7 +25,9 @@ export interface CreateManualOffenseParams {
   occurredAt: Date;
   title: string;
   description: string | null;
-  /** Wer notiert hat: `"ai"` über den MCP, sonst der Username des Keyholders. */
+  /** Wer notiert hat: `AI_AUTHOR` über den MCP, sonst der Username des Keyholders — leer, wo keiner
+   *  festzustellen war. Aus diesem Feld wird der ABSENDER der Meldung an den Träger
+   *  (`senderFromAuthor`), es ist also nicht bloss Audit-Zierde. */
   createdBy: string;
 }
 

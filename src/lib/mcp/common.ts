@@ -52,7 +52,7 @@ export function buildEnvelope(now: Date, isoFn: Iso, timezone: string): Envelope
  *
  * Zwei Bedingungen, weil der Zugang doppelt gebunden ist: ohne `ENABLE_MCP=true` gibt der Transport
  * 404 (`api/[transport]/route.ts`), und er handelt immer nur für den einen `MCP_USERNAME`. Alles,
- * was die KI hinterlässt — `judgedBy: "ai"` und daraus `senderKind: "ai"` — entsteht ausschliesslich
+ * was die KI hinterlässt — `judgedBy: "ai"` und `senderKind: "ai"`, beide aus `AI_AUTHOR` — entsteht ausschliesslich
  * über diesen Weg. Trifft eine der beiden nicht zu, kann dieser Benutzer nie eine KI-Nachricht
  * bekommen; eine Anzeige, die eine KI-Keyholderin anbietet, behauptete dann eine Fähigkeit, die die
  * Instanz nicht hat.

@@ -48,6 +48,11 @@ export interface SubOffense {
   title: string | null;
   /** Der ausführliche Text dazu, wo einer erfasst wurde (Beschreibung des notierten Vergehens). */
   description: string | null;
+  /** WER das Vergehen festgehalten hat — Benutzername bzw. `"ai"`, siehe {@link OffenseDetail}.
+   *  `null` bei jeder ABGELEITETEN Art: die stellt die App selbst fest. Der Melder macht daraus den
+   *  Absender der Nachricht (`offenseAnnounce.ts`); ohne dieses Feld stünde die Meldung eines von
+   *  Hand notierten Vergehens unter „System" statt unter dem Namen der Keyholderin. */
+  recordedBy: string | null;
   /** Bei `punished`/`done` der Straftext (bei einer Strafaufgabe ihr Titel, siehe `punishWithTask`),
    *  bei `dismissed` die Begründung des Fallenlassens, sofern eine gegeben wurde. Beides ist
    *  derselbe Freitext (`StrafeRecord.reason`) — was er bedeutet, sagt der Zustand. */
@@ -116,6 +121,7 @@ export function selectSubOffenses(sb: StrafbuchData): SubOffense[] {
       offenseAt: o.at,
       title: detail?.title ?? null,
       description: detail?.description ?? null,
+      recordedBy: detail?.recordedBy ?? null,
       ...fromJudgment(judgments.get(o.refId)),
     };
   });
@@ -129,6 +135,9 @@ export function selectSubOffenses(sb: StrafbuchData): SubOffense[] {
       offenseAt: null,
       title: null,
       description: null,
+      // Das verwaiste Urteil: sein Anlass ist nicht mehr auflösbar, also auch nicht, wer ihn
+      // festgehalten hat. Gemeldet wird es ohnehin nie (`announceableOffenses` verlangt eine Art).
+      recordedBy: null,
       ...fromJudgment(r),
     }));
 

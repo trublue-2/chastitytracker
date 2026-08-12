@@ -104,7 +104,10 @@ export default function MessageFilterBar({
         value={filter.senderKind ?? ANY}
         options={[
           { value: ANY, label: t("filterAllSenders") },
-          ...senderKinds.map((s) => ({ value: s, label: senderLabel(s, keyholderName, t) })),
+          // Ohne eigenen Absender-Namen: die Auswahl meint eine ART, keine einzelne Nachricht — es
+          // gibt hier nichts, was sie fragen könnte. Sie bleibt damit beim Seiten-Namen, die Zeilen
+          // darunter dürfen genauer sein.
+          ...senderKinds.map((s) => ({ value: s, label: senderLabel(s, null, keyholderName, t) })),
         ]}
         onChange={(e) =>
           onChange({
