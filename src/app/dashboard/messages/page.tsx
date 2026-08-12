@@ -3,15 +3,18 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { soleControllerName } from "@/lib/keyholder";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
-import { listMessagesFor, unreadCountCached } from "@/lib/messageService";
+import { listMessages, subInbox, unreadCountCached } from "@/lib/messageService";
 import { presentMessages } from "@/lib/messagePresenter";
-import { messageFilterToParams, parseMessageFilter } from "@/lib/messageCategories";
+import { messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
+import { MESSAGE_SCOPES } from "@/lib/messageScope";
 import { APP_TZ } from "@/lib/utils";
 import DashboardBlock from "@/app/components/DashboardBlock";
-import MessageList from "./MessageList";
+import MessageList from "@/app/components/MessageList";
 
 // Wie das übrige Dashboard: user-spezifisch, nie geteilt gecacht.
 export const dynamic = "force-dynamic";
+
+const SCOPE = "own";
 
 export default async function MessagesPage({
   searchParams,
@@ -29,22 +32,16 @@ export default async function MessagesPage({
   const userId = session?.user?.id;
   if (!userId) redirect("/login");
 
-  // Über `URLSearchParams` und `parseMessageFilter`, nicht über die Felder von Hand: das ist die
-  // Form, in der die API-Route denselben Filter einliest, und die Prüfung unbekannter Werte (ein
-  // veralteter Link zeigt den ungefilterten Posteingang statt eines Fehlers) steht dort schon.
-  // Ein doppelt gesetzter Parameter kommt als Array; davon zählt der erste, wie bei `.get()`.
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(await searchParams)) {
-    const first = Array.isArray(value) ? value[0] : value;
-    if (first) params.set(key, first);
-  }
-  const filter = parseMessageFilter(params);
+  // Über `parseMessageFilterFrom`, nicht über die Felder von Hand: dieselbe Lese-Regel, die die
+  // API-Route anwendet — samt Prüfung unbekannter Werte (ein veralteter Link zeigt den ungefilterten
+  // Posteingang statt eines Fehlers).
+  const filter = parseMessageFilterFrom(await searchParams);
 
   // Der Filter geht AUCH an die Abfrage, nicht nur an die Liste: bekäme der Client nur den
   // Startwert, stünde beim ersten Bild die ungefilterte Seite da und spränge erst nach einem
   // Nachladen um — bei „Alle ansehen" also genau die Mischliste, aus der der Link herausführen soll.
   const [page, unread, locale, t, keyholderName] = await Promise.all([
-    listMessagesFor(userId, { filter }),
+    listMessages(subInbox(userId), { filter }),
     unreadCountCached(userId),
     getLocale(),
     getTranslations("messages"),
@@ -59,10 +56,10 @@ export default async function MessagesPage({
 
   return (
     <DashboardBlock>
-      <h1 className="text-lg font-semibold text-foreground mb-1">{t("title")}</h1>
+      <h1 className="text-lg font-semibold text-foreground mb-1">{t(MESSAGE_SCOPES[SCOPE].titleKey)}</h1>
       {/* Der Posteingang beantwortet „Was wurde mir gesagt?" — die Banner auf dem Dashboard
           „Was muss ich JETZT tun?". Deshalb hier bewusst kein Countdown und keine Dringlichkeit. */}
-      <p className="text-xs text-foreground-faint mb-4">{t("intro")}</p>
+      <p className="text-xs text-foreground-faint mb-4">{t(MESSAGE_SCOPES[SCOPE].introKey)}</p>
       {/* `key` = der Filter aus der ADRESSE. Eine reine Query-Änderung (Glocke → ungefilterter
           Posteingang, „Alle ansehen" → Strafen) ist für den Router dieselbe Seite: die Komponente
           bliebe montiert, und `initialFilter` seedet nur `useState`. Ohne den Schlüssel stünde der
@@ -75,6 +72,7 @@ export default async function MessagesPage({
         initialPageCount={page.pageCount}
         initialUnread={unread}
         initialFilter={filter}
+        scope={SCOPE}
         aiSenderAvailable={aiSenderAvailable}
         keyholderName={keyholderName}
         tz={session.user.timezone ?? APP_TZ}

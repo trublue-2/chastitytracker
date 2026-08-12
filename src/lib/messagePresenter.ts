@@ -17,6 +17,9 @@ export interface PresentedMessage {
   category: MessageCategory;
   /** Ziel, falls es eine Seite gibt, die etwas dazu sagt (heute: offene Kontrolle). */
   refHref: string | null;
+  /** UM WEN es geht — nur im Keyholder-Posteingang gesetzt (er spannt über mehrere Träger), im
+   *  Posteingang des Trägers `null`. Ein NAME, kein Schlüssel: er wird nie übersetzt. */
+  subjectUsername: string | null;
   senderKind: MessageSenderKind;
   read: boolean;
 }
@@ -69,6 +72,7 @@ export async function presentMessages(messages: InboxMessage[], locale: string):
     // Mit dem ZIEL (v5.0.1): ohne `categoryId` führte der Link einer Trage-Kontrolle aufs
     // KG-Formular, und die Einreichung von dort erfüllt sie nicht.
     refHref: m.refActionCode ? inspectionHref(m.refActionCode, { categoryId: m.refActionCategoryId }) : null,
+    subjectUsername: m.subjectUsername,
     senderKind: m.senderKind,
     read: m.read,
   }));

@@ -2,25 +2,34 @@ import { prisma } from "@/lib/prisma";
 import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/mail";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
-import { recordMessageAndBadge, type MessageBodyKey, type MessageRef, type MessageSenderKind } from "@/lib/messageService";
+import { recordMessageAndBadge, recordSystemMessage, type MessageBodyKey, type MessageRef, type MessageSenderKind } from "@/lib/messageService";
 import { getMessageChannels } from "@/lib/notificationPrefs";
 
-/** Steuert, was zusätzlich in den Posteingang geschrieben wird. `false` = nichts schreiben — für die
- *  wenigen Meldungen, deren Empfänger NICHT der Sub ist (Info an die Keyholder). */
+/**
+ * Was an einer Posteingangs-Zeile hängt, unabhängig davon, WESSEN Posteingang gemeint ist —
+ * geteilt von `notifyUser` (Zeile des Trägers) und `notifyControllers` (geteilte Keyholder-Zeile).
+ */
+export interface InboxRefOptions {
+  ref?: MessageRef;
+  /** Höchstens EINE Nachricht dieses Texts pro Bezugsobjekt — braucht `ref`. Für Meldungen, die
+   *  ein einmaliges Ereignis festhalten (gestellt, zurückgezogen, Ergebnis): ein Retry nach
+   *  einem Absturz darf keine zweite, dauerhafte Zeile hinterlassen. Semantik und Grenzen in
+   *  `RecordMessageParams.once`. */
+  once?: boolean;
+}
+
+/** Steuert, was `notifyUser` zusätzlich in den Posteingang des Empfängers schreibt. `false` = dort
+ *  nichts schreiben — für die wenigen Meldungen, deren Empfänger NICHT der Sub ist (Info an die
+ *  Keyholder). Deren EINE, geteilte Zeile schreibt `notifyControllers` selbst, mit dem Sub als
+ *  Betreff; sie gehört nicht in den persönlichen Posteingang des einzelnen Keyholders. */
 export type NotifyInbox =
   | false
-  | {
+  | (InboxRefOptions & {
       /** Abweichender Text für den Posteingang. Default: `messageKey`. Gebraucht dort, wo die Mail
        *  einen Freitext interpoliert, den die Nachricht stattdessen live über `ref` liest. */
       bodyKey?: MessageBodyKey;
-      ref?: MessageRef;
       senderKind?: MessageSenderKind;
-      /** Höchstens EINE Nachricht dieses Texts pro Bezugsobjekt — braucht `ref`. Für Meldungen, die
-       *  ein einmaliges Ereignis festhalten (gestellt, zurückgezogen, Ergebnis): ein Retry nach
-       *  einem Absturz darf keine zweite, dauerhafte Zeile hinterlassen. Semantik und Grenzen in
-       *  `RecordMessageParams.once`. */
-      once?: boolean;
-    };
+    });
 
 /**
  * Content of a generic notification, expressed as i18n keys (namespace `emails`) rather than
@@ -93,19 +102,74 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
 }
 
 /**
- * Dieselbe Meldung an die Keyholder eines Subs — Mail und Push, aber NIE eine Posteingangs-Zeile.
+ * Dieselbe Meldung an die Keyholder eines Subs — Mail und Push je Empfänger, dazu EINE
+ * Posteingangs-Zeile.
  *
- * Der Posteingang gehört dem Sub: eine Nachricht mit der `subjectUserId` des Keyholders landete in
- * dessen persönlichem Posteingang, als wäre sie seine eigene Direktive — ohne Fehler, nur falsch
- * einsortiert. Der Keyholder-Kanal kommt mit Etappe 2 (docs/nachrichten-konzept.md).
+ * Eine Zeile je SUB, nicht je Keyholder: `subjectUserId` bleibt der Träger, um den es geht,
+ * `audience: "keyholders"` trennt sie von seinem eigenen Posteingang. Warum das aufgeht, steht
+ * kanonisch am Modell (`prisma/schema.prisma`, `Message.audience`).
  *
- * `inbox` ist deshalb aus dem Content-Typ ausgeschlossen und wird hier gesetzt: ein Aufrufer KANN es
- * nicht vergessen. Die Empfänger kommen als Parameter statt aus `getControllersOfUser` —
- * `processDueTasks` holt sie bewusst einmal je Nutzer statt einmal je Aufgabe.
+ * `subjectUserId` ist deshalb Pflichtparameter und steht VOR den Empfängern: der Träger ist der
+ * Scope-Schlüssel der Zeile, die Empfänger sind nur die Zustell-Liste. Sie kommen als Parameter statt
+ * aus `getControllersOfUser` — `processDueTasks` holt sie bewusst einmal je Nutzer statt einmal je
+ * Aufgabe.
+ *
+ * `inbox` ist hier ENGER als bei `notifyUser` ({@link InboxRefOptions} statt {@link NotifyInbox}):
+ * `bodyKey` und `senderKind` gäbe es zwar, aber die Keyholder-Zeile ist keine abschaltbare Variante
+ * — und `false` wäre sinnlos, denn die Zeile ist der ganze Zweck dieser Funktion. Beim Weiterreichen
+ * an `notifyUser` wird `inbox: false` gesetzt: die Zeile steht schon, und der persönliche
+ * Posteingang eines Keyholders ist nicht der Ort für eine Meldung über einen fremden Träger.
+ *
+ * Trägt der Betreff selbst die ADMIN-Rolle, entfällt die Zeile — siehe {@link keyholderRowReadable}.
  */
 export async function notifyControllers(
+  subjectUserId: string,
   controllers: { id: string }[],
-  content: Omit<NotifyContent, "inbox">,
+  content: Omit<NotifyContent, "inbox"> & { inbox?: InboxRefOptions },
 ): Promise<void> {
+  // Zuerst schreiben, dann senden — dieselbe Reihenfolge wie in `notifyUser`: scheitert der Versand,
+  // bleibt die Meldung nachlesbar. Ohne Badge: der Zähler eines Keyholders steht über ALLEN seinen
+  // Subs und braucht dessen Sub-Liste, die hier niemand hat (siehe `unreadCountForKeyholderCached`).
+  //
+  // `ref`/`once` gehen MIT: ohne sie hinge die Keyholder-Zeile als einzige ohne Einmal-Zusage in der
+  // Luft. Der Poller stempelt erst NACH dem Versand — bricht er dazwischen ab, schriebe der nächste
+  // Lauf dieselbe Meldung ein zweites Mal, und anders als eine doppelte Mail bleibt eine doppelte
+  // Zeile stehen. Die Sub-Zeile ist über `inbox.once` längst geschützt; hier fehlte es.
+  if (await keyholderRowReadable(subjectUserId)) {
+    await recordSystemMessage({
+      subjectUserId,
+      audience: "keyholders",
+      bodyKey: content.messageKey,
+      params: content.params,
+      ref: content.inbox?.ref,
+      once: content.inbox?.once,
+    });
+  }
   await Promise.all(controllers.map((c) => notifyUser(c.id, { ...content, inbox: false })));
+}
+
+/**
+ * Kann diese Zeile überhaupt JEMAND lesen?
+ *
+ * Der Leserkreis des Keyholder-Posteingangs ist `getControllableSubs` — und die Menge schliesst
+ * Träger mit ADMIN-Rolle aus (und einen selbst). Für einen Träger, der Admin ist, gibt es also
+ * keinen einzigen Leser: die Zeile wäre geschrieben, unsichtbar und dauerhaft. Auf einer
+ * Ein-Personen-Instanz ist das der Normalfall, nicht der Sonderfall — `scripts/seed.js` legt den
+ * ersten Nutzer als Admin an, und jedes Aufgaben-Ergebnis und jede automatische Ablage hinge dort
+ * für immer unsichtbar in der Tabelle.
+ *
+ * Die Meldung geht dabei NICHT verloren: ihr Kanal ist in diesem Fall die Mail (und der Push) an
+ * jeden Empfänger — die laufen unverändert weiter, hier entfällt allein die Posteingangs-Zeile.
+ *
+ * Fällt die Abfrage aus, wird geschrieben: eine überflüssige Zeile ist der harmlosere Ausgang als
+ * eine verschluckte Meldung, und die Mail darf ein Lesefehler ohnehin nicht mitreissen.
+ */
+async function keyholderRowReadable(subjectUserId: string): Promise<boolean> {
+  try {
+    const subject = await prisma.user.findUnique({ where: { id: subjectUserId }, select: { role: true } });
+    return subject?.role !== "admin";
+  } catch (err) {
+    console.error("[messages] keyholder row readability check failed", err);
+    return true;
+  }
 }

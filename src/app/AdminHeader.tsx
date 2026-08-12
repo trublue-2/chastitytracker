@@ -4,19 +4,25 @@ import AvatarMenu from "@/app/components/AvatarMenu";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import HeaderMessages from "@/app/components/HeaderMessages";
 import { headerActionsCls, headerBarCls, headerBrandCls, headerRowCls } from "@/app/components/inputStyles";
+import type { OwnTrackerActor } from "@/lib/ownTracker";
 import pkg from "../../package.json";
 
 interface Props {
   username: string;
-  isGlobalAdmin: boolean;
-  userId?: string;
-  /** „Kein eigener Tracker" — siehe Glocken-Bedingung unten. */
+  /** Der Handelnde als Ganzes statt nur seiner id: die Glocke braucht ausserdem Rolle und
+   *  „kontrolliert Subs", um ihre beiden Zähler ohne zusätzliche Abfrage zu entscheiden — und die
+   *  Rolle beantwortet zugleich „globaler Admin?". Beides kam bisher getrennt vom selben Aufrufer,
+   *  aus derselben Session; ein zweites Prop dafür konnte nur noch widersprüchlich sein. */
+  actor?: OwnTrackerActor;
+  /** „Kein eigener Tracker" — hier nur noch fürs Badge (siehe `HeaderMessages`), nicht mehr für die
+   *  Glocke: die meint im blauen Bereich den Keyholder-Posteingang. */
   hideOwnTracker: boolean;
 }
 
-export default async function AdminHeader({ username, isGlobalAdmin, userId, hideOwnTracker }: Props) {
+export default async function AdminHeader({ username, actor, hideOwnTracker }: Props) {
   const feedbackEnabled = process.env.DISABLE_FEEDBACK !== "true";
   const t = await getTranslations("adminNav");
+  const isGlobalAdmin = actor?.role === "admin";
   // Ein reiner Keyholder (role=user, kontrolliert Subs) landet im selben blauen Bereich wie ein Admin —
   // der Titel benennt aber die tatsächliche Rolle, damit „Adminportal" niemanden fälschlich zum Admin macht.
   const portalTitle = isGlobalAdmin ? t("portalAdmin") : t("portalKeyholder");
@@ -29,18 +35,17 @@ export default async function AdminHeader({ username, isGlobalAdmin, userId, hid
         </Link>
 
         <div className={headerActionsCls}>
-          {/* Der Posteingang gehört dem TRÄGER, und auf einer Ein-Personen-Instanz ist das dieselbe
-              Person, die hier steht: ohne die Glocke verlor sie beim Wechsel in den Admin-Bereich
-              den Zugang zu ihren eigenen Nachrichten (und das App-Badge lief weiter, ohne dass eine
-              Seite es je zurücksetzte).
+          {/* Im blauen Bereich meint die Glocke den Posteingang des KEYHOLDERS — die Meldungen über
+              seine Träger, die `notifyControllers` schreibt. Sie ist zugleich die einzige Tür dorthin
+              (kein Nav-Eintrag).
 
-              NICHT bei „kein eigener Tracker": wer keinen hat, hat auch keinen Posteingang
-              (`notifyControllers` schreibt bewusst keine Zeile für Keyholder), und `proxy.ts` leitet
-              ihn von `/dashboard/*` nach `/admin` um — die Glocke wäre ein Knopf, der einen
-              zurückwirft. Diese Bedingung bleibt auch mit Etappe 2 stehen: der Keyholder-Posteingang
-              bekommt einen eigenen Nav-Eintrag über alle Subs, nicht diesen Platz
-              (docs/nachrichten-konzept.md, §2.1). */}
-          {userId && !hideOwnTracker && <HeaderMessages userId={userId} />}
+              Damit fällt die frühere „kein eigener Tracker"-Bedingung hier weg: sie schützte davor,
+              auf einen Posteingang zu zeigen, den es für diese Person nicht gibt — wer hier steht,
+              kontrolliert aber Träger, und dieser Posteingang ist genau seiner. Der EIGENE bleibt am
+              grünen Kopf, mit seiner Bedingung. */}
+          {actor && (
+            <HeaderMessages actor={actor} scope="keyholder" ownInboxReachable={!hideOwnTracker} />
+          )}
           {feedbackEnabled && <FeedbackButton />}
           <AvatarMenu
             username={username}

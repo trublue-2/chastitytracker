@@ -193,10 +193,14 @@ export async function notifyInspectionAutoMarked(opts: {
     inbox: { ref: { type: "control", id: controlId } },
     alwaysNotify: true,
   });
-  await notifyControllers(await getControllersOfUser(userId), {
+  await notifyControllers(userId, await getControllersOfUser(userId), {
     subjectKey: "inspectionAutoRemovedSubjectKeyholder",
     messageKey: `inspectionAutoRemovedMessageKeyholder${variant}`,
     params: code ? { username, code } : { username },
+    // DIESELBE Referenz wie oben beim Träger: beide Seiten reden über dieselbe Kontrolle. Ohne sie
+    // trüge die Keyholder-Zeile als einzige keinen Bezug — kein Kommentar der Anforderung, und im
+    // Posteingang stünde eine Meldung über einen Vorgang, den sie nicht benennen kann.
+    inbox: { ref: { type: "control", id: controlId } },
   });
 }
 

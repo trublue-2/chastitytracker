@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -71,6 +72,17 @@ export async function getControllableSubs(
   }
   return getControlledSubs(userId);
 }
+
+/**
+ * `getControllableSubs`, pro Request memoisiert — für das RENDERN.
+ *
+ * Seiten-Guard (`assertController`) und Kopfzeile (`unreadCountForKeyholderCached`) fragen im selben
+ * Request dieselbe Zuordnung; ohne die Memoisierung liefe sie auf jeder Seite des Admin-Bereichs
+ * zweimal. Die Argumente sind bewusst primitiv: `cache()` schlägt über ihre Identität nach.
+ *
+ * Nicht für Schreibpfade — dort ist ein Stand von vorher genau falsch (siehe `unreadCountCached`).
+ */
+export const getControllableSubsCached = cache(getControllableSubs);
 
 /** Darf `userId` (mit `role`) den Sub `subId` kontrollieren / auf dessen Seite landen? Globaler Admin
  *  kontrolliert jeden Nicht-Admin-Nutzer; Keyholder nur seine zugewiesenen Subs. Nie sich selbst. */

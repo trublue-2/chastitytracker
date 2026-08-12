@@ -76,7 +76,9 @@ export default auth(async (req) => {
   // Keyholders (controlsSubs, non-admin) get a surgical allowance into /admin:
   // (a) any /api/admin/* route (each route self-guards via requireKeyholderOrAdminApi;
   //     instance-level routes keep requireAdminApi), (b) the bare /admin landing,
-  // (c) per-user detail pages (/admin/users/<cuid>/...). Everything else stays admin-only.
+  // (c) per-user detail pages (/admin/users/<cuid>/...), (d) der Keyholder-Posteingang
+  //     (/admin/messages — die Meldungen über SEINE Träger; die Seite grenzt über
+  //     `assertController()` auf genau diese ein). Everything else stays admin-only.
   // Consumed only inside `if (isAdminRoute && role !== "admin" && !keyholderAllowed)`,
   // which already guarantees role !== "admin" — so no need to re-check it here.
   const keyholderAllowed =
@@ -84,6 +86,7 @@ export default auth(async (req) => {
     (pathname.startsWith("/api/admin/") ||
       pathname === "/admin" ||
       pathname === "/admin/settings" || // eigene persönliche Einstellungen (identisch zu /dashboard/settings)
+      pathname === "/admin/messages" || // eigener Keyholder-Posteingang (Glocke im blauen Kopf)
       /^\/admin\/users\/[a-z0-9]{20,}(?:\/.*)?$/.test(pathname));
 
   if (isAdminRoute && role !== "admin" && !keyholderAllowed) {

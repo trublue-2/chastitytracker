@@ -15,7 +15,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await auth();
   const user = session?.user;
   const isGlobalAdmin = user?.role === "admin";
-  // "Kein eigener Tracker": blendet den "Meine Sicht"-Nav-Eintrag und die Glocke aus.
+  // "Kein eigener Tracker": blendet den "Meine Sicht"-Nav-Eintrag aus. NICHT mehr die Glocke — die
+  // meint im Admin-Bereich den Keyholder-Posteingang, und der gehört auch dieser Person.
   const hideOwnTracker = await ownTrackerHidden(user);
 
   return (
@@ -28,12 +29,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div id="admin-root" data-theme="admin" suppressHydrationWarning className="min-h-screen bg-background text-foreground">
       <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("admin") }} />
       <ThemeApplicator role="admin" />
-      <AdminHeader
-        username={user?.name ?? ""}
-        isGlobalAdmin={isGlobalAdmin}
-        userId={user?.id}
-        hideOwnTracker={hideOwnTracker}
-      />
+      <AdminHeader username={user?.name ?? ""} actor={user} hideOwnTracker={hideOwnTracker} />
       <AdminDesktopSidebar version={pkg.version} isGlobalAdmin={isGlobalAdmin} hideOwnTracker={hideOwnTracker} />
 
       {/* Content */}

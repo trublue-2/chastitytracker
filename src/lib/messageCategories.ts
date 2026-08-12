@@ -42,8 +42,8 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   inspectionAutoRemovedMessageSubNoCode: "inspection",
   inspectionAutoRemovedMessageSubWear: "inspection",
   inspectionAutoRemovedMessageSubWearNoCode: "inspection",
-  // Geht an die Keyholder, nicht in den Sub-Posteingang (notify.ts, `inbox: false`) — steht hier nur,
-  // damit die Tabelle über alle Body-Keys vollständig ist.
+  // Geht in den KEYHOLDER-Posteingang (`audience: "keyholders"`, notify.ts), nicht in den des Subs.
+  // Die Kategorie gilt trotzdem: die Filterleiste ist auf beiden Seiten dieselbe.
   inspectionAutoRemovedMessageKeyholder: "inspection",
   inspectionAutoRemovedMessageKeyholderNoCode: "inspection",
   inspectionAutoRemovedMessageKeyholderWear: "inspection",
@@ -67,8 +67,8 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   taskAwaitingMessage: "task",
   taskDoneMessage: "task",
   taskFailedMessage: "task",
-  // Wie bei den Kontroll-Keyholder-Meldungen: gehen an die Keyholder, nicht in den Sub-Posteingang
-  // (`inbox: false` in taskService.ts) — hier nur, damit die Tabelle vollständig bleibt.
+  // Wie bei den Kontroll-Keyholder-Meldungen: gehen in den Keyholder-Posteingang, nicht in den des
+  // Subs.
   taskDoneMessageKeyholder: "task",
   taskFailedMessageKeyholder: "task",
   taskReviewMessageKeyholder: "task",
@@ -216,6 +216,26 @@ export function parseMessageFilter(params: URLSearchParams): MessageFilter {
     ...(category && isMessageCategory(category) ? { category } : {}),
     ...(sender && isMessageSenderKind(sender) ? { senderKind: sender } : {}),
   };
+}
+
+/**
+ * Derselbe Filter aus den `searchParams` einer SEITE — der Weg, den beide Posteingangs-Seiten gehen.
+ *
+ * Next.js reicht sie als `Record<string, string | string[] | undefined>` herein, `parseMessageFilter`
+ * liest `URLSearchParams`. Diese Umformung stand in beiden Seiten wortgleich da; sie gehört neben
+ * die Lese-Regel, damit eine neue Filter-Dimension nicht auf dem Seiten-Weg stumm wegfällt, während
+ * sie über die API weiterläuft. Ein doppelt gesetzter Parameter kommt als Array — davon zählt der
+ * erste, wie bei `.get()`.
+ */
+export function parseMessageFilterFrom(
+  searchParams: Record<string, string | string[] | undefined>,
+): MessageFilter {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    const first = Array.isArray(value) ? value[0] : value;
+    if (first) params.set(key, first);
+  }
+  return parseMessageFilter(params);
 }
 
 /** Zeigt die Liste gerade einen Ausschnitt? Entscheidet den Leer-Text — „keine Nachrichten" wäre

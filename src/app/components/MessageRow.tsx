@@ -96,6 +96,13 @@ export default function MessageRow({
     // flex-wrap, weil Kategorie + Absender + Datum auf 390 px sonst überlaufen.
     <span className="flex items-center flex-wrap gap-x-1.5 gap-y-1 pl-4">
       <Badge size="sm" label={t(cat.labelKey)} variant={cat.variant} />
+      {/* UM WEN es geht — nur im Keyholder-Posteingang gesetzt (dort spannt die Liste über mehrere
+          Träger, und eine Zeile ohne Namen sagt nicht, wen sie meint). Im Posteingang des Trägers
+          bleibt das Feld leer und die Zeile sieht aus wie bisher. Leise gesetzt: die Zeile beantwortet
+          weiterhin zuerst WAS passiert ist, der Name ist die Einordnung daneben. */}
+      {m.subjectUsername && (
+        <span className="font-medium text-foreground-muted">{t("subjectLabel", { name: m.subjectUsername })}</span>
+      )}
       {/* Icon, Absender und Zeit als EINE Einheit: bricht die Zeile, fällt der Umbruch zwischen
           Kategorie und Absender — nie zwischen Icon und Name. Die Absender-Angabe bleibt neben der
           Kategorie stehen: dass die KI geurteilt hat, ist eine Zusicherung und wird nicht durch das

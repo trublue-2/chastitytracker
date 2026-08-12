@@ -1373,6 +1373,9 @@
   "messages": {
     "title": "Posteingang",
     "intro": "Alles, was dir gemeldet wurde — auch wenn die Mail untergegangen ist.",
+    "keyholderTitle": "Posteingang Keyholder",
+    "keyholderIntro": "Meldungen zu deinen Subs: automatisch abgelegte Kontrollen und Ergebnisse von Aufgaben. Was deine Subs selbst erfassen, kommt weiterhin nur per E-Mail.",
+    "subjectLabel": "Zu {name}",
     "unread": "Ungelesen",
     "unreadCount": "{count} ungelesen",
     "emptyTitle": "Keine Nachrichten",

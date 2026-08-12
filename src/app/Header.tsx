@@ -33,7 +33,10 @@ export default async function Header() {
         </Link>
 
         <div className={headerActionsCls}>
-          {user?.id && !hideOwnTracker && <HeaderMessages userId={user.id} />}
+          {/* Der grüne Bereich behält seinen eigenen Posteingang UND seine Bedingung: wer keinen
+              eigenen Tracker hat, hat auch keinen eigenen Posteingang. Das App-Badge zählt hier
+              trotzdem den Keyholder-Stand mit — die Regel dafür steht in `HeaderMessages`. */}
+          {user?.id && !hideOwnTracker && <HeaderMessages actor={user} scope="own" />}
           {user && feedbackEnabled && <FeedbackButton />}
           {user && (
             <AvatarMenu

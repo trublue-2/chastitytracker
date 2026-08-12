@@ -533,10 +533,14 @@ export async function settleTaskResult(opts: {
     // Schreiben scheitern kann; diese Sperre sitzt an der Nachricht selbst.
     inbox: { ref: { type: "task", id: taskId }, once },
   });
-  await notifyControllers(controllers, {
+  await notifyControllers(userId, controllers, {
     subjectKey: done ? "taskDoneSubjectKeyholder" : "taskFailedSubjectKeyholder",
     messageKey: done ? "taskDoneMessageKeyholder" : "taskFailedMessageKeyholder",
     params: { username, title },
+    // Dieselbe Einmal-Zusage wie oben beim Träger — und aus demselben Grund: bricht der Poller
+    // zwischen Versand und Stempel ab, hinterliesse sein nächster Lauf sonst eine zweite,
+    // dauerhafte Zeile im Keyholder-Posteingang.
+    inbox: { ref: { type: "task", id: taskId }, once },
   });
   await prisma.task.update({ where: { id: taskId }, data: { resultNotifiedAt: now } });
 
@@ -671,10 +675,16 @@ export async function processDueTasks(now: Date): Promise<void> {
         }
 
         if (e.evaluation.state === "awaitingReview") {
-          await notifyControllers(controllers, {
+          await notifyControllers(userId, controllers, {
             subjectKey: "taskReviewSubjectKeyholder",
             messageKey: "taskReviewMessageKeyholder",
             params: { username, title: e.task.title },
+            // Dieselbe Einmal-Zusage wie bei der Ergebnis-Meldung (`settleTaskResult`) und aus
+            // demselben Grund: gestempelt wird erst NACH dem Versand, damit ein Fehlschlag erneut
+            // versucht wird. Bricht der Poller dazwischen ab — Deploy, OOM —, läuft der nächste Tick
+            // erneut hier durch und hinterliesse eine ZWEITE, dauerhafte Zeile im
+            // Keyholder-Posteingang. Eine doppelte Mail ist flüchtig, eine doppelte Zeile bleibt.
+            inbox: { ref: { type: "task", id: e.task.id }, once: true },
           });
           await markNotified(e.task.id);
           continue;

@@ -17,13 +17,14 @@ import { parseApiErrorCode } from "@/lib/apiClient";
 import { toDateLocale } from "@/lib/utils";
 import type { PresentedMessage } from "@/lib/messagePresenter";
 import { isMessageFiltered, messageFilterToParams, type MessageFilter } from "@/lib/messageCategories";
-
+import { MESSAGE_SCOPES, type MessageScope } from "@/lib/messageScope";
 
 export default function MessageList({
   initial,
   initialPageCount,
   initialUnread,
   initialFilter = {},
+  scope,
   aiSenderAvailable,
   keyholderName,
   tz,
@@ -35,6 +36,12 @@ export default function MessageList({
    *  wurde. Muss hier als Startwert ankommen, sonst zeigte die Filterleiste „alle Kategorien" über
    *  einer gefilterten Liste — und das erste Blättern hätte den Filter verloren. */
   initialFilter?: MessageFilter;
+  /** WESSEN Posteingang bedient wird — der eigene oder der des Keyholders über seine Träger. Die
+   *  Endpunkt-Familie leitet die Liste daraus ab (`MESSAGE_SCOPES`), statt sie sich sagen zu lassen:
+   *  Ziel, API-Basis und Beschriftung derselben Sicht liegen damit in EINER Tabelle. Der Scope
+   *  selbst steckt AUSSCHLIESSLICH im Endpunkt — beide Familien leiten ihn serverseitig aus der
+   *  Session ab, diese Komponente schickt nie eine Kennung mit. */
+  scope: MessageScope;
   /** Nur durchgereicht — die Filterleiste (beides) und die Zeile (`keyholderName`) sind
    *  Client-Komponenten und können weder die Instanz-Konfiguration noch die Keyholder-Zuordnung
    *  selbst lesen. EIN Ladeweg für beide Anzeigen, nicht zwei. */
@@ -48,6 +55,7 @@ export default function MessageList({
   const dl = toDateLocale(useLocale());
   const apiError = useApiError();
   const router = useRouter();
+  const apiBase = MESSAGE_SCOPES[scope].apiBase;
 
   const [messages, setMessages] = useState(initial);
   // NULLBASIERT wie bei allen acht `ListPager`-Verwendungen; die Umrechnung auf die 1-basierte
@@ -117,7 +125,7 @@ export default function MessageList({
     const opening = openId !== m.id;
     setOpenId(opening ? m.id : null);
     if (!opening || m.read) return;
-    const res = await request<{ unread: number }>(`/api/messages/${m.id}/read`, "POST");
+    const res = await request<{ unread: number }>(`${apiBase}/${m.id}/read`, "POST");
     if (!res) return;
     setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: true } : x)));
     setUnread(res.unread);
@@ -126,14 +134,14 @@ export default function MessageList({
   /** Als gelesen, ohne aufzuklappen — für Zeilen, die nichts aufzuklappen haben. Derselbe Endpunkt,
    *  den `toggle` beim Öffnen ruft. */
   async function markRead(m: PresentedMessage) {
-    const res = await request<{ unread: number }>(`/api/messages/${m.id}/read`, "POST");
+    const res = await request<{ unread: number }>(`${apiBase}/${m.id}/read`, "POST");
     if (!res) return;
     setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: true } : x)));
     setUnread(res.unread);
   }
 
   async function markUnread(m: PresentedMessage) {
-    const res = await request<{ unread: number }>(`/api/messages/${m.id}/read`, "DELETE");
+    const res = await request<{ unread: number }>(`${apiBase}/${m.id}/read`, "DELETE");
     if (!res) return;
     setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: false } : x)));
     setUnread(res.unread);
@@ -141,7 +149,7 @@ export default function MessageList({
 
   async function markAllRead() {
     setSaving(true);
-    const res = await request<{ unread: number }>("/api/messages/read-all", "POST");
+    const res = await request<{ unread: number }>(`${apiBase}/read-all`, "POST");
     setSaving(false);
     setConfirmAll(false);
     if (!res) return;
@@ -151,7 +159,7 @@ export default function MessageList({
 
   async function deleteMessage(m: PresentedMessage) {
     setDeleting(true);
-    const res = await request<{ unread: number }>(`/api/messages/${m.id}`, "DELETE");
+    const res = await request<{ unread: number }>(`${apiBase}/${m.id}`, "DELETE");
     setDeleting(false);
     // Die Rückfrage bleibt bei einem Fehler OFFEN: schlösse sie sich, sähe der Nutzer eine
     // unveränderte Liste und keinen Grund — die Fehlerzeile steht am Listenkopf, womöglich
@@ -179,7 +187,7 @@ export default function MessageList({
     const params = messageFilterToParams(nextFilter);
     params.set("page", String(nextPage + 1));
     const data = await request<{ messages: PresentedMessage[]; page: number; pageCount: number }>(
-      `/api/messages?${params.toString()}`,
+      `${apiBase}?${params.toString()}`,
     );
     loadInFlight.current = false;
     setSaving(false);
@@ -215,7 +223,7 @@ export default function MessageList({
     if (ids.length === 0) return;
     setDeleting(action === "delete");
     setSaving(true);
-    const res = await request<{ unread: number }>("/api/messages/bulk", "POST", { ids, action });
+    const res = await request<{ unread: number }>(`${apiBase}/bulk`, "POST", { ids, action });
     setDeleting(false);
     setSaving(false);
     if (!res) return;
@@ -248,6 +256,7 @@ export default function MessageList({
         filter={filter}
         onChange={applyFilter}
         disabled={saving}
+        scope={scope}
         aiSenderAvailable={aiSenderAvailable}
         keyholderName={keyholderName}
       />

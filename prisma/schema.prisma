@@ -180,7 +180,16 @@ model Message {
   // für eine Absender-Referenz keinen Schreiber und damit keinen Grund, sie zu führen.
   senderKind String
 
-  // "sub" = an den Sub · "keyholders" = an dessen Keyholder (erst ab Etappe 2 belegt)
+  // "sub" = an den Sub · "keyholders" = an dessen Keyholder. Bei BEIDEN ist subjectUserId der SUB.
+  //
+  // KANONISCH — hier steht die Begründung, andere Stellen (messageService.ts, notify.ts) zeigen
+  // hierher: Eine Keyholder-Meldung ist EINE Zeile je Träger, die sich alle seine Keyholder teilen.
+  // Wer gelesen hat, steht in MessageRead.userId (dem LESER), also hat jeder Keyholder auf derselben
+  // Zeile seinen eigenen Stand — deshalb braucht der Keyholder-Kanal keine Migration und keine Zeile
+  // je Empfänger. Die Kehrseite: Löschen trifft alle (siehe deleteMessages in messageService.ts).
+  //
+  // JEDE Abfrage auf diese Tabelle muss audience mitfiltern; subjectUserId allein trennt die beiden
+  // Sichten nicht mehr.
   audience String
 
   bodyKey    String?

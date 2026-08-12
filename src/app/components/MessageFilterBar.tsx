@@ -6,6 +6,7 @@ import Select from "@/app/components/Select";
 import {
   MESSAGE_CATEGORIES, MESSAGE_CATEGORY_PILLS, MESSAGE_SENDER_KINDS, senderLabel, type MessageFilter,
 } from "@/lib/messageCategories";
+import type { MessageScope } from "@/lib/messageScope";
 
 /** Der leere Wert der beiden Auswahlfelder — „egal", nicht „keine". Als Konstante, weil ihn die
  *  Zuordnung in beide Richtungen braucht. */
@@ -22,12 +23,15 @@ export default function MessageFilterBar({
   filter,
   onChange,
   disabled,
+  scope,
   aiSenderAvailable,
   keyholderName,
 }: {
   filter: MessageFilter;
   onChange: (filter: MessageFilter) => void;
   disabled?: boolean;
+  /** WESSEN Posteingang gefiltert wird — entscheidet, ob es die Absender-Achse überhaupt gibt. */
+  scope: MessageScope;
   /** Kann auf dieser Instanz überhaupt eine KI schreiben (MCP eingerichtet)? Sonst fehlt der Eintrag
    *  „KI-Keyholder": er fände nie etwas und behauptete eine Fähigkeit, die es hier nicht gibt. */
   aiSenderAvailable: boolean;
@@ -36,6 +40,14 @@ export default function MessageFilterBar({
   keyholderName: string | null;
 }) {
   const t = useTranslations("messages");
+
+  // Im Keyholder-Posteingang gibt es NICHTS zu filtern: dort ist heute jede Zeile `senderKind:
+  // "system"` (sie entsteht ausschliesslich aus `notifyControllers`). „Keyholder" und
+  // „KI-Keyholder" anzubieten hiesse, auf einen vollen Posteingang eine garantiert leere Liste zu
+  // schalten — dieselbe Begründung, aus der der KI-Eintrag beim Träger ohne MCP wegfällt, nur eine
+  // Achse höher. Das Feld kommt zurück, sobald es von Keyholderin oder KI VERFASSTE Nachrichten gibt
+  // (Etappe 3); dann steht hier eine Bedingung statt eines Riegels.
+  const showSender = scope !== "keyholder";
 
   const senderKinds = MESSAGE_SENDER_KINDS.filter(
     // Der gerade WIRKSAME Wert bleibt immer wählbar, auch wenn er sonst wegfiele: ein bestehender
@@ -84,6 +96,7 @@ export default function MessageFilterBar({
       />
 
       </div>
+      {showSender && (
       <div className="flex-1 min-w-0">
       <Select
         aria-label={t("filterSenderLabel")}
@@ -101,6 +114,7 @@ export default function MessageFilterBar({
         }
       />
       </div>
+      )}
       </div>
     </div>
   );

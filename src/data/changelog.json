@@ -27,8 +27,15 @@
       {
         "type": "ui",
         "text": {
-          "de": "Der Posteingang hat Seiten, Filter und Mehrfachauswahl bekommen. Die Glocke steht neu auch im Keyholder-Bereich.",
-          "en": "The inbox now has pages, filters and multi-select. The bell is now in the keyholder area too."
+          "de": "Der Posteingang hat Seiten, Filter und Mehrfachauswahl bekommen.",
+          "en": "The inbox now has pages, filters and multi-select."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Keyholder haben jetzt einen eigenen Posteingang hinter der Glocke: Meldungen über ihre Träger — automatisch gebuchte Kontrollen und Ergebnisse von Aufgaben — lassen sich dort nachlesen, statt nur als Mail zu kommen.",
+          "en": "Keyholders now have their own inbox behind the bell: notices about their wearers — automatically filed inspections and task results — can be read there instead of arriving only by e-mail."
         }
       },
       {

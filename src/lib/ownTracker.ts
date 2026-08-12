@@ -12,6 +12,22 @@ export interface OwnTrackerActor {
 }
 
 /**
+ * Kontrolliert diese Person Träger — als Keyholder oder qua Admin-Rolle?
+ *
+ * DIE eine Schreibweise für `role === "admin" || controlsSubs === true`. Sie stand an fünf Stellen
+ * ausgeschrieben, und jede einzelne konnte den Admin-Zweig vergessen: ein globaler Admin OHNE
+ * `AdminUserRelationship`-Zeile trägt `controlsSubs: false` und wäre dann plötzlich kein
+ * Kontrolleur mehr — auf der Instanz, die er betreibt.
+ *
+ * Beide Felder kommen aus der Session (`auth.ts` legt `controlsSubs` auf den JWT), es kostet also
+ * keine Abfrage. `=== true` statt `!!`: das Feld ist optional, und ein fehlender Wert heisst „nein",
+ * nicht „unbekannt".
+ */
+export function isController(actor: OwnTrackerActor | undefined): boolean {
+  return actor?.role === "admin" || actor?.controlsSubs === true;
+}
+
+/**
  * Hat diese Person „kein eigener Tracker" gesetzt?
  *
  * DIE Antwort auf diese Frage — vorher stand sie zweimal getrennt da, und genau daran ist sie
@@ -33,7 +49,7 @@ export interface OwnTrackerActor {
  */
 export async function ownTrackerHidden(actor: OwnTrackerActor | undefined): Promise<boolean> {
   if (!actor?.id) return false;
-  if (actor.role !== "admin" && actor.controlsSubs !== true) return false;
+  if (!isController(actor)) return false;
 
   const row = await prisma.user.findUnique({
     where: { id: actor.id },

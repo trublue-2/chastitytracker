@@ -180,8 +180,33 @@ describe("processDueTasks — Regressionen aus dem Code-Review", () => {
 
     expect(notify).not.toHaveBeenCalled();
     expect(notifyKh).toHaveBeenCalledOnce();
-    expect(notifyKh.mock.calls[0][1].subjectKey).toBe("taskReviewSubjectKeyholder");
+    // Argument 0 ist der TRÄGER (Scope-Schlüssel der Keyholder-Zeile), 1 die Empfänger, 2 der Inhalt.
+    expect(notifyKh.mock.calls[0][0]).toBe("u1");
+    expect(notifyKh.mock.calls[0][2].subjectKey).toBe("taskReviewSubjectKeyholder");
     expect(stamped()).toEqual(["t1"]);
+  });
+
+  /**
+   * Gestempelt wird erst NACH dem Versand (damit ein Fehlschlag erneut versucht wird). Stirbt der
+   * Prozess dazwischen — Deploy, OOM —, läuft der nächste Tick erneut durch dieselbe Zeile. Ohne
+   * Bezug und Einmal-Zusage hinterliesse er eine ZWEITE, dauerhafte Zeile im Keyholder-Posteingang;
+   * eine doppelte Mail ist flüchtig, eine doppelte Nachricht bleibt. Die Ergebnis-Meldung
+   * (`settleTaskResult`) war darüber längst geschützt, die Sichtungs-Meldung daneben nicht.
+   *
+   * Dass `once` dann auch wirklich dedupliziert, hält `messageService.test.ts` fest („zwei
+   * Poller-Läufe hinterlassen GENAU EINE Keyholder-Zeile").
+   */
+  it("REGRESSION: zwei Ticks über dieselbe Sichtung ergeben EINE Zeile — Bezug + Einmal-Zusage", async () => {
+    findMany.mockResolvedValue([row("t1")]);
+    evaluate.mockResolvedValue([evaluated("t1", "awaitingReview")]);
+
+    await processDueTasks(NOW); // Versand raus, Stempel verloren (Absturz)
+    await processDueTasks(NOW); // nächster Tick: dieselbe Aufgabe noch einmal
+
+    expect(notifyKh).toHaveBeenCalledTimes(2);
+    for (const call of notifyKh.mock.calls) {
+      expect(call[2].inbox).toEqual({ ref: { type: "task", id: "t1" }, once: true });
+    }
   });
 
   /**

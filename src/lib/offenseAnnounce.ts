@@ -110,10 +110,22 @@ function detectedParams(o: AnnounceableOffense): Record<string, string> {
  * Abfrage den Index (`subjectUserId, refEntityType, refEntityId`) über alle drei Spalten, statt die
  * ersten zwei zu nutzen und den Rest zu lesen. Die gemeldete Menge wächst mit den Jahren, die
  * gefragte nicht.
+ *
+ * `audience: "sub"` gehört zwingend dazu — die Frage lautet „wurde es dem TRÄGER gemeldet?", und
+ * `subjectUserId` allein beantwortet sie nicht mehr: seit dem Keyholder-Kanal tragen auch die
+ * Meldungen AN SEINE KEYHOLDER seine id als Betreff. Ohne die Spalte hielte eine Keyholder-Zeile mit
+ * derselben Referenz das Vergehen für bereits gemeldet und unterdrückte die Meldung an den Träger —
+ * dauerhaft und lautlos. (Der Index führt `audience` nicht; das kostet hier nichts, weil die drei
+ * Index-Spalten die Menge schon auf wenige Zeilen eingrenzen.)
  */
 async function announcedRefs(userId: string, refIds: string[]): Promise<Set<string>> {
   const rows = await prisma.message.findMany({
-    where: { subjectUserId: userId, refEntityType: OFFENSE_REF_TYPE, refEntityId: { in: refIds } },
+    where: {
+      subjectUserId: userId,
+      audience: "sub",
+      refEntityType: OFFENSE_REF_TYPE,
+      refEntityId: { in: refIds },
+    },
     select: { refEntityId: true },
   });
   return new Set(rows.flatMap((m) => (m.refEntityId ? [m.refEntityId] : [])));

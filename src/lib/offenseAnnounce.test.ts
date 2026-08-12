@@ -136,7 +136,16 @@ describe("announceNewOffenses — melden ohne Dubletten", () => {
     await announceNewOffenses("u1", NOW);
 
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { subjectUserId: "u1", refEntityType: OFFENSE_REF_TYPE, refEntityId: { in: ["e1", "e2"] } },
+      where: {
+        subjectUserId: "u1",
+        // `audience` gehört zwingend dazu: seit dem Keyholder-Kanal trägt auch eine Meldung AN SEINE
+        // KEYHOLDER die id des Trägers als Betreff. Ohne die Spalte hielte so eine Zeile mit
+        // derselben Referenz das Vergehen für dem TRÄGER schon gemeldet und unterdrückte seine
+        // Meldung dauerhaft.
+        audience: "sub",
+        refEntityType: OFFENSE_REF_TYPE,
+        refEntityId: { in: ["e1", "e2"] },
+      },
     }));
   });
 

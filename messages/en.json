@@ -1373,6 +1373,9 @@
   "messages": {
     "title": "Inbox",
     "intro": "Everything you were told — even if the e-mail got lost.",
+    "keyholderTitle": "Keyholder inbox",
+    "keyholderIntro": "Notices about your subs: auto-closed inspections and task results. What your subs record themselves still arrives by e-mail only.",
+    "subjectLabel": "About {name}",
     "unread": "Unread",
     "unreadCount": "{count} unread",
     "emptyTitle": "No messages",
