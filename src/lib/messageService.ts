@@ -2,7 +2,7 @@ import { cache } from "react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { bodyKeysOfCategory, bodyKeysOutsideSystem, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
-import { judgmentMessageStillApplies } from "@/lib/offenseTypes";
+import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { mapAnforderungStatus } from "@/lib/utils";
 
@@ -212,8 +212,13 @@ function parseParams(raw: string | null): Record<string, string | number> | null
   }
 }
 
-/** Das Minimum, um über die Sichtbarkeit einer Nachricht zu entscheiden. */
-type RefRow = { id: string; refEntityType: string | null; refEntityId: string | null };
+/**
+ * Das Minimum, um über die Sichtbarkeit einer Nachricht zu entscheiden. `bodyKey` gehört dazu, weil
+ * die Sichtbarkeit nicht durchgehend am Referenz-Typ hängt — siehe {@link DISMISSED_OFFENSE_KEY}.
+ * Pflichtfeld, damit ein Aufrufer, der die Spalte nicht mitliest, ein Compile-Fehler ist statt einer
+ * stillen Regression.
+ */
+type RefRow = { id: string; bodyKey: string | null; refEntityType: string | null; refEntityId: string | null };
 
 const refKey = (type: string, id: string) => `${type}:${id}`;
 
@@ -222,8 +227,31 @@ function idsOfType(rows: RefRow[], type: MessageRefType): string[] {
   return rows.filter((r) => r.refEntityType === type && r.refEntityId).map((r) => r.refEntityId!);
 }
 
+/**
+ * Eigener Sichtbarkeits-Namensraum auf DERSELBEN Referenz: `detectedOffense:<refId>` ist die
+ * Feststellung („ein Vergehen wurde festgestellt" — bleibt wahr), `dismissedOffense:<refId>` die
+ * Verwerfung („fallengelassen" — gilt nur, solange das Urteil DISMISSED ist). Kein
+ * {@link MessageRefType}: an der Nachricht steht weiterhin `detectedOffense`, dies hier ist nur der
+ * Schlüssel, unter dem Text und Sichtbarkeit nachgeschlagen werden.
+ */
+const DISMISSED_OFFENSE_KEY = "dismissedOffense";
+
+/**
+ * Auf die Union getippt, nicht als roher String verglichen: `RefRow.bodyKey` ist `string | null`,
+ * eine Umbenennung des Schlüssels bliebe hier also stumm — `keyOf` fiele auf `detectedOffense`
+ * zurück und JEDE überholte Verwerfungs-Meldung wäre wieder dauerhaft sichtbar, unter dem Straftext.
+ * Genau der Fehler, den diese Regel verhindert.
+ */
+const DISMISSAL_BODY_KEY: MessageBodyKey = "offenseDismissedMessage";
+
+/** Ist das eine Verwerfungs-Meldung? Die einzige Zeile, deren Sichtbarkeit am `bodyKey` hängt. */
+function isDismissalRow(row: RefRow): boolean {
+  return row.bodyKey === DISMISSAL_BODY_KEY && row.refEntityType === "detectedOffense" && Boolean(row.refEntityId);
+}
+
 function keyOf(row: RefRow): string | null {
-  return row.refEntityType && row.refEntityId ? refKey(row.refEntityType, row.refEntityId) : null;
+  if (!row.refEntityType || !row.refEntityId) return null;
+  return refKey(isDismissalRow(row) ? DISMISSED_OFFENSE_KEY : row.refEntityType, row.refEntityId);
 }
 
 /**
@@ -242,6 +270,16 @@ async function hiddenRefKeys(rows: RefRow[], subjectUserId: string): Promise<Set
   const controlIds = idsOfType(rows, "control");
   const lockRequestIds = idsOfType(rows, "lockRequest");
   const offenseIds = idsOfType(rows, "offense");
+  const dismissedIds = rows.filter(isDismissalRow).map((r) => r.refEntityId!);
+  // Die „Strafe verhängt"-Nachricht zeigt auf die id des Urteils, die Verwerfungs-Meldung auf die
+  // `refId` des Vergehens — zwei Spalten derselben Tabelle, also EINE Abfrage. Aber `OR` nur, wenn
+  // wirklich beide Seiten etwas suchen: neben dem `userId`-Filter kostet ein `OR` SQLite den
+  // Punktzugriff, es liest dann JEDE Straf-Zeile des Nutzers. Meist ist eine der beiden Listen leer
+  // — und dieser Pfad läuft im Header auf jeder Dashboard-Seite.
+  const offenseBranches: Prisma.StrafeRecordWhereInput[] = [
+    ...(offenseIds.length ? [{ id: { in: offenseIds } }] : []),
+    ...(dismissedIds.length ? [{ refId: { in: dismissedIds } }] : []),
+  ];
 
   const scoped = { wirksamAb: true, benachrichtigtAt: true, id: true } as const;
   const [controls, lockRequests, offenses] = await Promise.all([
@@ -256,8 +294,11 @@ async function hiddenRefKeys(rows: RefRow[], subjectUserId: string): Promise<Set
     // Nachricht zu einem verworfenen Urteil, der Zähler sie aber nicht, steht dauerhaft ein Badge
     // über einem leeren Posteingang — und der Sub bekommt es nicht weg. Die beiden Pfade sind
     // getrennt, weil der Zähler keine TEXTE braucht; dieselbe Sichtbarkeit brauchen sie sehr wohl.
-    offenseIds.length
-      ? prisma.strafeRecord.findMany({ where: { id: { in: offenseIds }, userId: subjectUserId }, select: { id: true, status: true } })
+    offenseBranches.length
+      ? prisma.strafeRecord.findMany({
+          where: { userId: subjectUserId, ...(offenseBranches.length === 1 ? offenseBranches[0] : { OR: offenseBranches }) },
+          select: { id: true, refId: true, status: true },
+        })
       : [],
   ]);
 
@@ -265,6 +306,15 @@ async function hiddenRefKeys(rows: RefRow[], subjectUserId: string): Promise<Set
   for (const c of controls) if (isHiddenFromSub(c)) hidden.add(refKey("control", c.id));
   for (const l of lockRequests) if (isHiddenFromSub(l)) hidden.add(refKey("lockRequest", l.id));
   for (const o of offenses) if (!judgmentMessageStillApplies(o)) hidden.add(refKey("offense", o.id));
+  // Wortgleich zur Ableitung in `refDetails` — Zähler und Liste dürfen hier nicht auseinanderlaufen.
+  // Über die REFERENZEN, nicht über die gefundenen Urteile: ein blosses reopen LÖSCHT die Zeile, und
+  // eine „fallengelassen"-Meldung ohne Urteil ist genauso falsch wie eine mit einem Strafurteil.
+  if (dismissedIds.length) {
+    const judgmentByRef = new Map(offenses.map((o) => [o.refId, o]));
+    for (const id of dismissedIds) {
+      if (!dismissalMessageStillApplies(judgmentByRef.get(id))) hidden.add(refKey(DISMISSED_OFFENSE_KEY, id));
+    }
+  }
   return hidden;
 }
 
@@ -324,12 +374,22 @@ async function refDetails(rows: RefRow[], subjectUserId: string): Promise<Map<st
   // Vergehen hat kein `StrafeRecord`, und das ist der Normalfall, keine kaputte Referenz — ohne
   // diese Zeile stünde jede frisch gemeldete Zeile als „nicht auflösbar" im Posteingang.
   //
-  // NIE verborgen, anders als die „Strafe verhängt"-Nachricht: diese Zeile sagt „ein Vergehen wurde
-  // festgestellt", und das bleibt wahr, egal was daraus wird. Sie zu verbergen, sobald das Urteil
-  // verworfen wird, wäre genau das lautlose Verschwinden, gegen das die Meldung gebaut ist.
-  const reasonByRef = new Map(judgments.map((j) => [j.refId, j.reason]));
+  // Die FESTSTELLUNG ist NIE verborgen, anders als die „Strafe verhängt"-Nachricht: diese Zeile sagt
+  // „ein Vergehen wurde festgestellt", und das bleibt wahr, egal was daraus wird. Sie zu verbergen,
+  // sobald das Urteil verworfen wird, wäre genau das lautlose Verschwinden, gegen das die Meldung
+  // gebaut ist.
+  //
+  // Die VERWERFUNG dagegen gilt nur, solange das Urteil DISMISSED ist — deshalb ihr eigener
+  // Schlüssel auf derselben Referenz (`dismissedOffense:<refId>`, siehe `keyOf`). Beide Zeilen holen
+  // ihren Freitext aus demselben Urteil.
+  const judgmentByRef = new Map(judgments.map((j) => [j.refId, j]));
   for (const id of detectedIds) {
-    details.set(refKey("detectedOffense", id), { text: reasonByRef.get(id) ?? null, actionCode: null, hidden: false });
+    const judgment = judgmentByRef.get(id);
+    const text = judgment?.reason ?? null;
+    details.set(refKey("detectedOffense", id), { text, actionCode: null, hidden: false });
+    details.set(refKey(DISMISSED_OFFENSE_KEY, id), {
+      text, actionCode: null, hidden: !dismissalMessageStillApplies(judgment),
+    });
   }
   for (const c of controls) {
     // Ein Ziel gibt es NUR bei der offenen Kontrolle — dort steht eine Handlung an. Erfüllt,
@@ -490,8 +550,9 @@ async function visibleUnreadRows(
   const rows = await prisma.message.findMany({
     where: { subjectUserId, audience: "sub", reads: { none: { userId: subjectUserId } } },
     // Nur, was über die Sichtbarkeit entscheidet — kein Text, kein Zeitstempel: dieser Pfad läuft
-    // im Header auf JEDER Dashboard-Seite.
-    select: { id: true, refEntityType: true, refEntityId: true },
+    // im Header auf JEDER Dashboard-Seite. `bodyKey` ist Teil davon, seit die Verwerfungs-Meldung
+    // anders verschwindet als die Feststellung auf derselben Referenz.
+    select: { id: true, bodyKey: true, refEntityType: true, refEntityId: true },
   });
   if (rows.length === 0) return [];
 

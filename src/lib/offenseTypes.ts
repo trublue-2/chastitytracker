@@ -119,6 +119,28 @@ export function judgmentMessageStillApplies(record: { status: string }): boolean
 }
 
 /**
+ * Passt die Nachricht „Vergehen fallengelassen" noch zu ihrem Urteil?
+ *
+ * Spiegelbild zu {@link judgmentMessageStillApplies}, aus demselben Grund: `writeJudgment` upsertet
+ * auf `refId`. Wird ein Urteil revidiert (reopen → erneut bestraft), trägt dieselbe Zeile danach
+ * PUNISHED und den STRAFtext — die alte Verwerfungs-Nachricht behauptete dann das Gegenteil dessen,
+ * was gilt, mit der Strafe darunter.
+ *
+ * `undefined` heisst „gilt nicht mehr": ein blosses reopen LÖSCHT die Zeile, und ein Vergehen ohne
+ * Urteil ist nicht fallengelassen, sondern wieder offen.
+ *
+ * Die FESTSTELLUNGS-Meldung bleibt davon unberührt — sie sagt „ein Vergehen wurde festgestellt", und
+ * das bleibt wahr, egal was daraus wird.
+ *
+ * Prüft `=== "DISMISSED"`, wo {@link offenseState} `!== "PUNISHED"` liest. Heute dasselbe (`status`
+ * kennt genau die zwei Werte); käme ein dritter dazu, verbirgt diese Fassung im Zweifel, statt eine
+ * Verwerfung zu behaupten. Wer den Status erweitert, entscheidet das hier bewusst mit.
+ */
+export function dismissalMessageStillApplies(record: { status: string } | undefined): boolean {
+  return record?.status === "DISMISSED";
+}
+
+/**
  * Die Vollständigkeits-Zusage einer Anzeige als Typ: `true`, solange `Covered` jede kanonische Art
  * enthält — sonst ein Objekttyp, der die fehlende Art im Feldnamen trägt. Eine Anzeige hängt sich
  * mit `const _: AssertCoversAllOffenses<…> = true;` daran; fehlt eine Art, nennt der Compiler sie

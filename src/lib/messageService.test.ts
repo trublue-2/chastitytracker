@@ -183,6 +183,64 @@ describe("Freitexte werden live gelesen, nicht kopiert", () => {
   });
 });
 
+describe("die Verwerfungs-Meldung überlebt ihr Urteil nicht", () => {
+  // Wird ein Urteil revidiert (reopen → erneut bestraft), behält die Zeile ihre `refId`
+  // (`writeJudgment` upsertet darauf) und trägt danach PUNISHED samt STRAFtext. Die alte
+  // „fallengelassen"-Nachricht behauptet dann mit der Strafe darunter das Gegenteil dessen, was
+  // gilt — spiegelbildlich zur „Strafe verhängt"-Nachricht bei der umgekehrten Korrektur.
+  const punished = [{ id: "s1", refId: "e1", reason: "20 Schläge", status: "PUNISHED" }];
+  const dismissal = row({ bodyKey: "offenseDismissedMessage", refEntityType: "detectedOffense", refEntityId: "e1" });
+  const detection = row({ bodyKey: "offenseDetectedMessage", refEntityType: "detectedOffense", refEntityId: "e1" });
+
+  it("steht in beiden, solange das Urteil verworfen BLEIBT — mit dem Grund aus demselben Urteil", async () => {
+    // Der Gegenpol zu den drei Fällen darunter: ohne ihn bestünde die ganze Gruppe auch dann noch,
+    // wenn die Meldung IMMER verschwände — also genau dann, wenn es das Feature nicht mehr gäbe.
+    mock(prisma.message.findMany).mockResolvedValue([dismissal]);
+    mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "s1", refId: "e1", reason: "war abgesprochen", status: "DISMISSED" }]);
+    const { messages } = await listMessagesFor("u1");
+    expect(messages).toHaveLength(1);
+    expect(messages[0].refText).toBe("war abgesprochen");
+    expect(messages[0].refMissing).toBe(false);
+    expect(await unreadCountFor("u1")).toBe(1);
+  });
+
+  it("verschwindet aus der Liste, sobald das Urteil wieder auf Strafe steht", async () => {
+    mock(prisma.message.findMany).mockResolvedValue([dismissal]);
+    mock(prisma.strafeRecord.findMany).mockResolvedValue(punished);
+    const { messages } = await listMessagesFor("u1");
+    expect(messages).toEqual([]);
+  });
+
+  it("verschwindet auch aus dem Zähler — sonst stünde ein Badge über einem leeren Posteingang", async () => {
+    // Anzeige und Zähler MÜSSEN dieselbe Sichtbarkeit haben: liefen sie auseinander, sähe der Sub
+    // dauerhaft „1 ungelesen" und fände nichts, was er lesen könnte.
+    mock(prisma.message.findMany).mockResolvedValue([dismissal]);
+    mock(prisma.strafeRecord.findMany).mockResolvedValue(punished);
+    expect(await unreadCountFor("u1")).toBe(0);
+  });
+
+  it("auch ein blosses Wieder-Eröffnen lässt sie verschwinden — es LÖSCHT das Urteil", async () => {
+    // `reopen` entfernt den `StrafeRecord`. Ohne Urteil ist das Vergehen wieder offen, nicht
+    // fallengelassen — und ohne diesen Fall bliebe die Meldung stehen, solange die Keyholderin nicht
+    // erneut urteilt.
+    mock(prisma.message.findMany).mockResolvedValue([dismissal]);
+    mock(prisma.strafeRecord.findMany).mockResolvedValue([]);
+    expect((await listMessagesFor("u1")).messages).toEqual([]);
+    expect(await unreadCountFor("u1")).toBe(0);
+  });
+
+  it("die FESTSTELLUNG auf derselben Referenz bleibt in beiden stehen", async () => {
+    // Sie sagt „ein Vergehen wurde festgestellt", und das bleibt wahr, egal was daraus wird. Sie
+    // mit zu verbergen wäre genau das lautlose Verschwinden, gegen das die Meldung gebaut ist —
+    // deshalb hängt die Sichtbarkeit am `bodyKey`, nicht am Referenz-Typ.
+    mock(prisma.message.findMany).mockResolvedValue([detection]);
+    mock(prisma.strafeRecord.findMany).mockResolvedValue(punished);
+    const { messages } = await listMessagesFor("u1");
+    expect(messages).toHaveLength(1);
+    expect(await unreadCountFor("u1")).toBe(1);
+  });
+});
+
 describe("Gelesen-Kennzeichen ist an den Besitzer gebunden", () => {
   it("setRead sucht die Nachricht mit subjectUserId — eine fremde id findet nichts", async () => {
     mock(prisma.message.findFirst).mockResolvedValue(null);
