@@ -4,12 +4,17 @@ import AvatarMenu from "@/app/components/AvatarMenu";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import HeaderMessages from "@/app/components/HeaderMessages";
 import { headerActionsCls, headerBarCls, headerBrandCls, headerRowCls } from "@/app/components/inputStyles";
+import { ownTrackerHidden } from "@/lib/ownTracker";
 import pkg from "../../package.json";
 
 export default async function Header() {
   const session = await auth();
   const user = session?.user;
   const feedbackEnabled = process.env.DISABLE_FEEDBACK !== "true";
+  // Ohne eigenen Tracker gibt es keinen eigenen Posteingang — und `/dashboard/messages` wirft der
+  // Proxy ohnehin nach /admin zurück. Der Test steht hier, weil diese Kopfzeile den Betroffenen
+  // trotzdem erreicht: /dashboard/settings und /dashboard/changelog sind vom Rauswurf ausgenommen.
+  const hideOwnTracker = await ownTrackerHidden(user);
 
   const hostname = process.env.NEXTAUTH_URL
     ? (() => { try { return new URL(process.env.NEXTAUTH_URL!).hostname; } catch { return null; } })()
@@ -28,7 +33,7 @@ export default async function Header() {
         </Link>
 
         <div className={headerActionsCls}>
-          {user?.id && <HeaderMessages userId={user.id} />}
+          {user?.id && !hideOwnTracker && <HeaderMessages userId={user.id} />}
           {user && feedbackEnabled && <FeedbackButton />}
           {user && (
             <AvatarMenu

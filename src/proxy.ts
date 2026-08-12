@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { ownTrackerHidden } from "@/lib/ownTracker";
 import { touchAppMeta } from "@/lib/appMeta";
 import { logTimestamp } from "@/lib/logFormat";
 
@@ -99,25 +99,16 @@ export default auth(async (req) => {
   // /admin/users/[id]/eintraege → EntryActions (editHref=/dashboard/edit/[id]?from=admin&userId=...) —
   // dort greift entryManageAccess() als eigentliche Ownership-Prüfung; die pauschale Umleitung hier
   // würde diesen Zugriff blind abfangen, bevor sie überhaupt läuft (Regression, gemeldet 2026-07-17).
-  // Frisch aus der DB (nur auf betroffenen /dashboard-Routen abgefragt), damit ein Umschalten sofort greift.
+  // Die Einstellung selbst liest `ownTrackerHidden()` — warum zentral und was sie kostet, steht dort.
   if (
     isLoggedIn &&
-    user?.id &&
-    // Nur Admins/Keyholder können "kein eigener Tracker" überhaupt setzen (Toggle-Gate = showStartPage).
-    // Reine Subs — der Grossteil des /dashboard-Traffics — sparen so die DB-Query komplett.
-    (role === "admin" || user.controlsSubs === true) &&
     pathname.startsWith("/dashboard") &&
     !pathname.startsWith("/dashboard/settings") &&
     !pathname.startsWith("/dashboard/changelog") &&
-    !pathname.startsWith("/dashboard/edit")
+    !pathname.startsWith("/dashboard/edit") &&
+    (await ownTrackerHidden(user))
   ) {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { hideOwnTracker: true },
-    });
-    if (dbUser?.hideOwnTracker) {
-      return NextResponse.redirect(new URL("/admin", req.url));
-    }
+    return NextResponse.redirect(new URL("/admin", req.url));
   }
 
   if (pathname === "/login" && isLoggedIn) {

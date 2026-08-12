@@ -8,6 +8,10 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
       role: string;
+      // Setzt der Session-Callback aus dem Token (`auth.ts`). Hier deklariert, weil das sonst
+      // niemand SIEHT: Leser wie `ownTrackerHidden()` prüfen das Feld strukturell und würden
+      // stillschweigend „nicht gesetzt" lesen, wenn der Callback es je nicht mehr mitgibt.
+      controlsSubs?: boolean;
       timezone?: string;
       locale?: string;
     };
