@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import SegmentedControl from "@/app/components/SegmentedControl";
 import Select from "@/app/components/Select";
 import {
-  MESSAGE_CATEGORIES, MESSAGE_CATEGORY_PILLS, MESSAGE_SENDER_KINDS, type MessageFilter,
+  MESSAGE_CATEGORIES, MESSAGE_CATEGORY_PILLS, MESSAGE_SENDER_KINDS, senderLabel, type MessageFilter,
 } from "@/lib/messageCategories";
 
 /** Der leere Wert der beiden Auswahlfelder — „egal", nicht „keine". Als Konstante, weil ihn die
@@ -22,12 +22,27 @@ export default function MessageFilterBar({
   filter,
   onChange,
   disabled,
+  aiSenderAvailable,
+  keyholderName,
 }: {
   filter: MessageFilter;
   onChange: (filter: MessageFilter) => void;
   disabled?: boolean;
+  /** Kann auf dieser Instanz überhaupt eine KI schreiben (MCP eingerichtet)? Sonst fehlt der Eintrag
+   *  „KI-Keyholder": er fände nie etwas und behauptete eine Fähigkeit, die es hier nicht gibt. */
+  aiSenderAvailable: boolean;
+  /** Benutzername des EINEN Keyholders, sonst `null`. Ein NAME, kein i18n-Schlüssel — deshalb kommt
+   *  er vom Server. Ohne ihn bleibt es bei der allgemeinen Beschriftung. */
+  keyholderName: string | null;
 }) {
   const t = useTranslations("messages");
+
+  const senderKinds = MESSAGE_SENDER_KINDS.filter(
+    // Der gerade WIRKSAME Wert bleibt immer wählbar, auch wenn er sonst wegfiele: ein bestehender
+    // Link `?sender=ai` filtert die Liste daneben weiterhin, und ein Auswahlfeld ohne passenden
+    // Eintrag zeigte etwas anderes an als das, was gilt.
+    (s) => s !== "ai" || aiSenderAvailable || filter.senderKind === "ai",
+  );
 
   return (
     /* Kein `flex-wrap`: der Umbruch liess das dritte Feld allein auf einer zweiten Zeile stehen, und
@@ -76,7 +91,7 @@ export default function MessageFilterBar({
         value={filter.senderKind ?? ANY}
         options={[
           { value: ANY, label: t("filterAllSenders") },
-          ...MESSAGE_SENDER_KINDS.map((s) => ({ value: s, label: t(`sender.${s}`) })),
+          ...senderKinds.map((s) => ({ value: s, label: senderLabel(s, keyholderName, t) })),
         ]}
         onChange={(e) =>
           onChange({

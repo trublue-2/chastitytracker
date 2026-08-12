@@ -24,6 +24,8 @@ export default function MessageList({
   initialPageCount,
   initialUnread,
   initialFilter = {},
+  aiSenderAvailable,
+  keyholderName,
   tz,
 }: {
   initial: PresentedMessage[];
@@ -33,6 +35,11 @@ export default function MessageList({
    *  wurde. Muss hier als Startwert ankommen, sonst zeigte die Filterleiste „alle Kategorien" über
    *  einer gefilterten Liste — und das erste Blättern hätte den Filter verloren. */
   initialFilter?: MessageFilter;
+  /** Nur durchgereicht — die Filterleiste (beides) und die Zeile (`keyholderName`) sind
+   *  Client-Komponenten und können weder die Instanz-Konfiguration noch die Keyholder-Zuordnung
+   *  selbst lesen. EIN Ladeweg für beide Anzeigen, nicht zwei. */
+  aiSenderAvailable: boolean;
+  keyholderName: string | null;
   /** Zeitzone des Nutzers — Zeitstempel stehen überall in SEINER Zone, nicht in der des Servers. */
   tz: string;
 }) {
@@ -237,7 +244,13 @@ export default function MessageList({
     <>
       {error && <div className="mb-3"><FormError message={error} /></div>}
 
-      <MessageFilterBar filter={filter} onChange={applyFilter} disabled={saving} />
+      <MessageFilterBar
+        filter={filter}
+        onChange={applyFilter}
+        disabled={saving}
+        aiSenderAvailable={aiSenderAvailable}
+        keyholderName={keyholderName}
+      />
 
       {empty ? (
         <Card>
@@ -288,6 +301,7 @@ export default function MessageList({
                 onMarkRead={() => markRead(m)}
                 onMarkUnread={() => markUnread(m)}
                 onDelete={() => setConfirmDelete(m)}
+                keyholderName={keyholderName}
                 dl={dl}
                 tz={tz}
               />

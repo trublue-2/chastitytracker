@@ -107,20 +107,36 @@ export async function getKeyholdersOfUser(subId: string): Promise<{ id: string; 
  *  Sprache gerendert wird — ohne sie bräuchte jeder Aufrufer eine zweite Abfrage über dieselben ids. */
 export interface Controller {
   id: string;
+  username: string;
   email: string | null;
   locale: string;
 }
 
 export async function getControllersOfUser(subId: string): Promise<Controller[]> {
   const [admins, rels] = await Promise.all([
-    prisma.user.findMany({ where: { role: "admin" }, select: { id: true, email: true, locale: true } }),
+    prisma.user.findMany({ where: { role: "admin" }, select: { id: true, username: true, email: true, locale: true } }),
     prisma.adminUserRelationship.findMany({
       where: { userId: subId },
-      select: { admin: { select: { id: true, email: true, locale: true } } },
+      select: { admin: { select: { id: true, username: true, email: true, locale: true } } },
     }),
   ]);
   const byId = new Map<string, Controller>();
   for (const a of admins) byId.set(a.id, a);
   for (const r of rels) byId.set(r.admin.id, r.admin);
   return [...byId.values()];
+}
+
+/**
+ * Der Benutzername des EINEN Keyholders eines Subs — `null`, wenn es keinen oder mehrere gibt.
+ *
+ * Für Beschriftungen, die eine PERSON benennen sollen (Absender-Filter im Posteingang): bei mehreren
+ * wäre ein Name falsch, bei keinem leer — dann bleibt es bei der allgemeinen Bezeichnung.
+ *
+ * Der Sub selbst fällt heraus: auf einer Ein-Personen-Instanz trägt der Träger die Admin-Rolle und
+ * steht damit in seiner eigenen Kontrolleur-Liste (dieselbe Eigenheit, die `entryNotify.ts` bei den
+ * Empfängern kommentiert) — sein eigener Name als „Keyholder" wäre die falscheste aller Antworten.
+ */
+export async function soleControllerName(subId: string): Promise<string | null> {
+  const others = (await getControllersOfUser(subId)).filter((c) => c.id !== subId);
+  return others.length === 1 ? others[0].username : null;
 }

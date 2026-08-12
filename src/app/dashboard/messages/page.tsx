@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
+import { soleControllerName } from "@/lib/keyholder";
+import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import { listMessagesFor, unreadCountCached } from "@/lib/messageService";
 import { presentMessages } from "@/lib/messagePresenter";
 import { messageFilterToParams, parseMessageFilter } from "@/lib/messageCategories";
@@ -41,12 +43,19 @@ export default async function MessagesPage({
   // Der Filter geht AUCH an die Abfrage, nicht nur an die Liste: bekäme der Client nur den
   // Startwert, stünde beim ersten Bild die ungefilterte Seite da und spränge erst nach einem
   // Nachladen um — bei „Alle ansehen" also genau die Mischliste, aus der der Link herausführen soll.
-  const [page, unread, locale, t] = await Promise.all([
+  const [page, unread, locale, t, keyholderName] = await Promise.all([
     listMessagesFor(userId, { filter }),
     unreadCountCached(userId),
     getLocale(),
     getTranslations("messages"),
+    // Für die Beschriftung des Absender-Filters. Muss VON HIER kommen: die Filterleiste ist eine
+    // Client-Komponente und darf nicht nachladen.
+    soleControllerName(userId),
   ]);
+
+  // Der Absender „KI-Keyholder" wird nur angeboten, wenn hier überhaupt eine KI schreiben kann —
+  // die Bedingung dafür steht bei der MCP-Schicht, nicht hier (siehe `aiKeyholderActiveFor`).
+  const aiSenderAvailable = aiKeyholderActiveFor(session.user.name);
 
   return (
     <DashboardBlock>
@@ -66,6 +75,8 @@ export default async function MessagesPage({
         initialPageCount={page.pageCount}
         initialUnread={unread}
         initialFilter={filter}
+        aiSenderAvailable={aiSenderAvailable}
+        keyholderName={keyholderName}
         tz={session.user.timezone ?? APP_TZ}
       />
     </DashboardBlock>

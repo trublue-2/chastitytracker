@@ -17,6 +17,7 @@ import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
 import KeyholderInstructionsForm from "@/app/admin/KeyholderInstructionsForm";
 import KeyholderManager from "@/app/admin/KeyholderManager";
 import { getKeyholdersOfUser } from "@/lib/keyholder";
+import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import NotificationToggles from "./NotificationToggles";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import SettingsSection from "@/app/components/SettingsSection";
@@ -178,8 +179,10 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
       </SettingsSection>
 
-      {/* KI-Keyholder-Regeln (MCP) — nur wenn der MCP-Server aktiviert ist */}
-      {process.env.ENABLE_MCP === "true" && (
+      {/* KI-Keyholder-Regeln (MCP) — nur wenn die KI DIESEN Sub überhaupt anfassen kann. `ENABLE_MCP`
+          allein genügt nicht: der MCP-Server handelt immer nur für den einen `MCP_USERNAME`, bei allen
+          übrigen Subs blieben die Regeln hier folgenlos stehen. */}
+      {aiKeyholderActiveFor(user.username) && (
         <SettingsSection title={t("sectionKeyholder")} description={t("keyholderInstructionsDesc")} bodyPadded>
           <KeyholderInstructionsForm userId={user.id} initial={user.mcpKeyholderInstructions ?? ""} />
         </SettingsSection>

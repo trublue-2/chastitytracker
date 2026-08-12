@@ -10,7 +10,7 @@ import ExpandRow from "@/app/components/ExpandRow";
 import RowActionsMenu from "@/app/components/RowActionsMenu";
 import useIsClamped from "@/app/hooks/useIsClamped";
 import { formatDayMonth, formatTime } from "@/lib/utils";
-import { MESSAGE_CATEGORY_PILLS } from "@/lib/messageCategories";
+import { MESSAGE_CATEGORY_PILLS, senderLabel } from "@/lib/messageCategories";
 import type { PresentedMessage } from "@/lib/messagePresenter";
 import type { MessageSenderKind } from "@/lib/messageService";
 
@@ -38,6 +38,7 @@ export default function MessageRow({
   onMarkRead,
   onMarkUnread,
   onDelete,
+  keyholderName,
   dl,
   tz,
 }: {
@@ -50,6 +51,8 @@ export default function MessageRow({
   onMarkRead: () => void;
   onMarkUnread: () => void;
   onDelete: () => void;
+  /** Benutzername des EINEN Keyholders, sonst `null` — kommt vom Server durch die Liste. */
+  keyholderName: string | null;
   /** Datums-Locale (`toDateLocale`). */
   dl: string;
   tz: string;
@@ -96,10 +99,12 @@ export default function MessageRow({
       {/* Icon, Absender und Zeit als EINE Einheit: bricht die Zeile, fällt der Umbruch zwischen
           Kategorie und Absender — nie zwischen Icon und Name. Die Absender-Angabe bleibt neben der
           Kategorie stehen: dass die KI geurteilt hat, ist eine Zusicherung und wird nicht durch das
-          Thema ersetzt. */}
+          Thema ersetzt. Beim menschlichen Keyholder ist sein NAME die genauere Zusicherung — die
+          Regel dafür teilt sich die Zeile mit der Filterleiste (`senderLabel`), sonst sagte die
+          Auswahl oben den Namen und die Zeile darunter weiter „Keyholder". */}
       <span className="inline-flex items-center gap-1.5">
         <Icon size={12} aria-hidden="true" />
-        {t(`sender.${m.senderKind}`)} · {formatDayMonth(m.createdAt, dl, tz)} {formatTime(m.createdAt, dl, tz)}
+        {senderLabel(m.senderKind, keyholderName, t)} · {formatDayMonth(m.createdAt, dl, tz)} {formatTime(m.createdAt, dl, tz)}
       </span>
     </span>
   );

@@ -162,6 +162,25 @@ export function isMessageSenderKind(value: string): value is MessageSenderKind {
   return (MESSAGE_SENDER_KINDS as readonly string[]).includes(value);
 }
 
+/**
+ * Wie ein Absender beschriftet wird — die EINE Regel für Filterleiste und Nachrichten-Zeile.
+ *
+ * Steht der eine Keyholder fest, erscheint er unter seinem Benutzernamen: für den Träger ist das
+ * eine Person, die er im Rest der App auch so sieht, und der Name ist die GENAUERE Zusicherung, nicht
+ * die schwächere. Bei mehreren oder keinem bleibt es bei der allgemeinen Bezeichnung — ein Name wäre
+ * dann falsch bzw. leer. „System" und „KI-Keyholder" ändern sich nie: dort gibt es keine Person.
+ *
+ * `t` kommt als Parameter, weil dieselbe Regel in einer Client-Zeile und in einer Client-Leiste
+ * gebraucht wird, dieses Modul aber importfrei bleibt (siehe Kopf der Datei).
+ */
+export function senderLabel(
+  kind: MessageSenderKind,
+  keyholderName: string | null,
+  t: (key: string) => string,
+): string {
+  return kind === "keyholder" && keyholderName ? keyholderName : t(`sender.${kind}`);
+}
+
 /** Die Sicht auf den Posteingang: welcher Ausschnitt gezeigt wird. */
 export interface MessageFilter {
   /** Nur ungelesene. */
