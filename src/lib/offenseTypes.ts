@@ -86,11 +86,14 @@ export type OffenseState =
  * bestraft-nicht-erledigt (MCP), nicht-verworfen-und-nicht-erledigt (Admin). Ein fünfter Zustand
  * wäre an drei Orten zu finden, und die übersehene Stelle meldet sich nicht.
  *
- * STAND: umgestellt ist bisher nur die TRÄGER-Sicht (`subOffenses.ts`). `mcp/ledger.ts` (`judge()`,
- * `pendingPenalty`) und `StrafbuchClient.tsx` (`punishedIds`/`dismissedIds`/`closedIds`) leiten
- * weiterhin von Hand ab — beim Ledger wäre es eine reine Ersetzung, der Admin-Client müsste erst
- * seine Zeilenform angleichen (`done: boolean` statt `erledigtAt`). Bis dahin ist der Satz oben ein
- * Vorsatz, keine Beschreibung.
+ * STAND: umgestellt sind die TRÄGER-Sicht (`subOffenses.ts`) und das MCP-Ledger (`mcp/ledger.ts`:
+ * `judge()` und die `pendingPenalty`-Zählung). Offen bleibt nur `StrafbuchClient.tsx`
+ * (`punishedIds`/`dismissedIds`/`closedIds`): dessen Zeilenform trägt `done: boolean` statt
+ * `erledigtAt` und müsste dafür erst angeglichen werden.
+ *
+ * Das Ledger zieht `punished` und `done` danach wieder auseinander — sein Vertrag nach aussen hat
+ * beide als getrennte Felder (`judgment` + `done`). Das ist kein Widerspruch zur Zusammenfassung
+ * hier: die ABLEITUNG ist dieselbe, nur die Darstellung ist feiner.
  */
 export function offenseState(record: { status: string; erledigtAt: Date | null } | undefined): OffenseState {
   if (!record) return "open";

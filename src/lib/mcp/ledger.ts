@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, buildEnvelope, parseIsoDate, type Envelope, type NoteDTO } from "@/lib/mcp/common";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
+import { offenseState } from "@/lib/offenseTypes";
 
 // ── Strafbuch-Snapshot ────────────────────────────────────────────────────────
 // Wohnt hier, weil `getOffenses` sein einziger Aufrufer ist. Solange auch das (entfernte) V1-
@@ -96,22 +97,25 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
   let openOffenseCount = 0;
   let pendingPenaltyCount = 0;
   for (const o of detected) {
-    const rec = judgmentByRef.get(o.refId);
-    const pendingPenalty = rec?.status === "PUNISHED" && rec.erledigtAt == null;
-    if (!rec || pendingPenalty) openOffenseCount++;
-    if (pendingPenalty) pendingPenaltyCount++;
+    const state = offenseState(judgmentByRef.get(o.refId));
+    if (state === "open" || state === "punished") openOffenseCount++;
+    if (state === "punished") pendingPenaltyCount++;
   }
 
   const judge = (canonicalType: string, refId: string): OffenseJudgment => {
     const rec = judgmentByRef.get(refId);
-    const judgment = rec ? (rec.status === "PUNISHED" ? "punished" : "dismissed") : "open";
+    // `offenseState` fasst „bestraft" und „bestraft + erledigt" zu zwei Zuständen zusammen; der
+    // MCP-Vertrag trennt sie seit jeher in `judgment` + `done`. Hier also wieder auseinandergezogen
+    // — die Ausgabe bleibt bitgleich, deshalb auch KEIN schemaVersion-Bump.
+    const state = offenseState(rec);
+    const judgment = state === "done" ? "punished" : state;
     return {
       judgment,
       penalty: judgment === "punished" ? (rec?.reason ?? null) : null,
       reason: judgment === "dismissed" ? (rec?.reason ?? null) : null,
       judgedBy: rec?.judgedBy ?? null,
       judgedAt: rec ? fmt(rec.bestraftDatum) : null,
-      done: judgment === "punished" ? rec?.erledigtAt != null : false,
+      done: state === "done",
       doneAt: rec?.erledigtAt ? fmt(rec.erledigtAt) : null,
       ref: { type: canonicalType, id: refId },
     };
