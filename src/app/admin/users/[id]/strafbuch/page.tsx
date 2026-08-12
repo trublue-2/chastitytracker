@@ -127,8 +127,6 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   const strafeRecords: StrafeRecordData[] = sb.strafeRecords.map((r) => ({
     refId: r.refId,
     status: r.status,
-    bestraftDatumStr: formatDate(r.bestraftDatum, dl, tz),
-    notiz: r.notiz,
     reason: r.reason,
     judgedBy: r.judgedBy,
     done: r.erledigtAt !== null,
@@ -136,7 +134,6 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   }));
 
   const labels = {
-    errorFallback: tCommon("error"),
     networkError: tCommon("networkError"),
     frist: t("frist"),
     instructionLabel: t("instructionLabel"),

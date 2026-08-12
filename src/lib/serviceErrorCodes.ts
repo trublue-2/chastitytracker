@@ -115,16 +115,38 @@ export const ORGASM_DIRECTIVE_CODES = [
  *  Beide Übersetzungen braucht ohnehin jeder Code, der Paritätstest macht keine Ausnahme. */
 export const JUDGMENT_CODES = [
   "JUDGMENT_NOT_FOUND",
+  // Das Gegenstück zu `JUDGMENT_NOT_FOUND`: über dieses Vergehen steht schon ein Urteil, und der
+  // Aufrufer wollte keines ersetzen (`allowRevision: false`, der Browser-Weg). Ausdrücklich NICHT
+  // das gleichnamig klingende `OFFENSE_ALREADY_JUDGED` der manuellen Vergehen: dort ist der nächste
+  // Schritt „Urteil zurücknehmen, dann zurückziehen", hier „Seite neu laden" — die Anfrage kam aus
+  // einer veralteten Ansicht, und was danach zu tun ist, hängt vom Urteil ab, das sie nicht kennt.
+  "JUDGMENT_ALREADY_EXISTS",
   "PENALTY_NOT_PUNISHED",
   "PENALTY_TEXT_REQUIRED",
   "OFFENSE_NOT_FOUND",
+  // Die ref bezeichnet ein Vergehen — aber nicht das, welches der Aufrufer behauptet (siehe
+  // `JudgeOffenseParams.offenseType`). Bewusst kein zweites `OFFENSE_NOT_FOUND`: „weg" und
+  // „verwechselt" führen zu verschiedenen nächsten Schritten.
+  "OFFENSE_TYPE_MISMATCH",
+  // Das Feld FEHLT in der Anfrage — nicht zu verwechseln mit „gibt es nicht mehr"
+  // (`OFFENSE_NOT_FOUND`) oder „passt nicht" (`OFFENSE_TYPE_MISMATCH`). Aus der Oberfläche
+  // unerreichbar, weil sie beide Felder immer mitschickt; wer hier landet, hat einen Fehler im
+  // Aufruf und wird von „lade die Seite neu" nur in die Irre geschickt.
+  "OFFENSE_REF_REQUIRED",
+  "OFFENSE_TYPE_REQUIRED",
 ] as const;
 
 /** manualOffenseService (von Hand notierte Vergehen).
  *
  *  Eigene `OFFENSE_*`-Codes statt der gleichlautenden `TASK_TITLE_*`: die Namensräume folgen hier
  *  durchgehend dem Begriff, nicht dem Satz. Den Zukunfts-Zeitpunkt deckt dagegen das geteilte
- *  `TIME_IN_FUTURE` ab — dort ist der Satz wirklich derselbe. */
+ *  `TIME_IN_FUTURE` ab — dort ist der Satz wirklich derselbe.
+ *
+ *  `OFFENSE_ALREADY_JUDGED` gehört ALLEIN hierher: es beantwortet „warum lässt sich diese Notiz
+ *  nicht zurückziehen" und nennt dafür den konkreten nächsten Schritt (erst das Urteil zurücknehmen,
+ *  dann zurückziehen). Der ähnlich klingende Konflikt beim URTEILEN steht als
+ *  `JUDGMENT_ALREADY_EXISTS` bei den Urteils-Codes — ein Satz, der beide bedienen soll, gibt keinem
+ *  von beiden den richtigen nächsten Schritt. */
 export const MANUAL_OFFENSE_CODES = [
   "OFFENSE_TITLE_REQUIRED",
   "OFFENSE_TITLE_TOO_LONG",

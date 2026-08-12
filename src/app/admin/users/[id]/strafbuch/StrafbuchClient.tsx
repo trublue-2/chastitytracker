@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/app/components/Button";
 import { CheckCircle, ChevronDown, ClipboardList, Plus, Undo2, XCircle } from "lucide-react";
-import { parseApiError, parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import FormError from "@/app/components/FormError";
 import { taskFormHref } from "@/lib/entryFormRoute";
@@ -13,11 +13,16 @@ import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType, t
 import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
 import type { TaskOffenseState } from "@/lib/tasks";
 
+/** Das Urteil einer Zeile, so weit die Anzeige es braucht.
+ *
+ *  Bewusst OHNE `notiz` und `bestraftDatum`: die Notiz-Spalte hat seit dem Wegfall des
+ *  hand-gebauten `create` in `POST /api/admin/strafe` keinen Schreiber mehr (die automatische
+ *  Geräte-Ahndung setzt sie ausdrücklich auf `null`), und das Urteils-Datum wurde hier zwar
+ *  formatiert, aber nie gerendert. Die DB-Spalten bleiben — sie zu entfernen ist eine eigene
+ *  Entscheidung mit Migration. */
 export interface StrafeRecordData {
   refId: string;
   status: string; // "PUNISHED" | "DISMISSED"
-  bestraftDatumStr: string;
-  notiz: string | null;
   reason: string | null; // Strafe-Freitext (PUNISHED) bzw. Grund (DISMISSED)
   judgedBy: string | null;
   done: boolean;
@@ -133,8 +138,6 @@ export interface ManuellesVergehenRow {
 }
 
 interface Labels {
-  /** Generische Fehlermeldung, wenn die API keine eigene liefert (common.error). */
-  errorFallback: string;
   /** Meldung bei Netzwerkfehler (common.networkError). */
   networkError: string;
   frist: string;
@@ -308,8 +311,8 @@ function ZurueckziehenButton({ id, label, networkError, resolveError, onDone }: 
 
 export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, manuelleVergehen, strafeRecords, labels }: Props) {
   const router = useRouter();
-  // Die Vergehens-Route (`/api/admin/offense`) liefert stabile Fehler-CODES; `/api/admin/strafe`
-  // liefert bis heute fertige Sätze und bleibt darum bei `parseApiError`.
+  // Beide Routen dieser Seite (`/api/admin/offense`, `/api/admin/strafe`) liefern stabile
+  // Fehler-CODES — übersetzt wird hier.
   const apiError = useApiError();
   const [showAll, setShowAll] = useState(false);
   const [openFormId, setOpenFormId] = useState<string | null>(null);
@@ -367,7 +370,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
           onClose();
           router.refresh();
         } else {
-          setError(await parseApiError(res, labels.errorFallback));
+          setError(apiError(await parseApiErrorCode(res)));
         }
       } catch {
         // Netzwerkfehler (offline/DNS) — sonst bliebe die Promise unbehandelt.
@@ -520,7 +523,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     return (
       <div className="flex flex-wrap items-start gap-2">
         <WurdeBestraftButton refId={refId} offenseType={offenseType} />
-        <StrafaufgabeButton refId={refId} anlass={anlass} />
+        <StrafaufgabeButton refId={refId} offenseType={offenseType} anlass={anlass} />
         <VerwerfenButton refId={refId} offenseType={offenseType} />
         {offenseType === STORED_TYPE.manual_offense && (
           <ZurueckziehenButton id={refId} label={labels.strafbuchZurueckziehen}
@@ -552,9 +555,15 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
    * Ein Link, kein Formular an Ort und Stelle: eine Aufgabe hat Titel, Frist, Bedingungen und
    * Nachweis-Fotos, und das alles gibt es dort schon. Die Vergehens-ref reist als Query mit; erst der
    * Server macht daraus Aufgabe UND Urteil — hier wird nichts entschieden, nur weitergeleitet.
+   *
+   * Die ART reist genauso mit wie bei den beiden Freitext-Knöpfen: sie steht am geklickten Abschnitt,
+   * und zwei Arten können sich eine ref teilen (eine Reinigungsöffnung über dem Kontingent während
+   * einer Sperrzeit ist unerlaubte Öffnung UND Reinigungs-Limit). Ohne sie stempelte die Strafaufgabe
+   * aus dem Reinigungs-Abschnitt `OEFFNEN_ENTRY` an ihr Urteil — dieselbe Verwechslung, die auf dem
+   * Freitext-Weg schon behoben ist.
    */
-  function StrafaufgabeButton({ refId, anlass }: { refId: string; anlass: string }) {
-    const href = taskFormHref(userId, { offenseRef: refId, anlass });
+  function StrafaufgabeButton({ refId, offenseType, anlass }: { refId: string; offenseType: StoredOffenseType; anlass: string }) {
+    const href = taskFormHref(userId, { offenseRef: refId, offenseType, anlass });
     return (
       <div className="mt-2">
         <Link href={href}

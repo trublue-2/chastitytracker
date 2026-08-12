@@ -130,7 +130,8 @@ Diese Meldungen existieren nach dem Versand nirgends mehr — kein DB-Feld, kein
 - Kontroll-Mahnung und Auto-Buchung (`inspectionEscalationService.ts:37-43`, `:101-105`)
 - Sperrzeit- und Anforderungs-Änderungen (`verschlussAnforderungService.ts:298-300`, `:434-438`)
 - Alle Rückzüge (`verschlussAnforderungService.ts:479`, `:523`, `orgasmusAnforderungService.ts:111`, `:129`)
-- **Strafe verhängt — inklusive Straftext** (`api/admin/strafe/route.ts:72`, `strafurteilService.ts:163`)
+- **Strafe verhängt — inklusive Straftext** (`strafurteilService.ts`, `notifyJudgment`; die
+  Strafbuch-Route hatte damals eine eigene Umsetzung, sie geht heute durch `judgeOffense`)
 - Alle Aufgaben-Änderungen, -Rückzüge und -Ergebnisse (`taskService.ts:275`, `:299`, `:384-395`)
 
 Der Straftext ist der härteste Fall: `emails.penaltyMessage` interpoliert `{reason}`, aber der Sub hat

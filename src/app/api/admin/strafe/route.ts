@@ -1,99 +1,77 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { requireKeyholderOrAdminActor, requireKeyholderOrAdminApi, sessionActor } from "@/lib/authGuards";
-import { isUniqueConstraintOn } from "@/lib/prismaErrors";
-import { notifyJudgment, STORED_TYPE, judgmentStatus, checkPenaltyText, judgeOffense, judgedByFromActor, collectDetectedOffenses } from "@/lib/strafurteilService";
-import { markLastAction } from "@/lib/appMeta";
-import { buildStrafbuch } from "@/lib/strafbuch";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
+import { errorResponse, serviceFailure } from "@/lib/serviceResult";
+import { judgeOffense, type StoredOffenseType } from "@/lib/strafurteilService";
 
-const VALID_OFFENSE_TYPES = new Set(Object.values(STORED_TYPE));
-
+/**
+ * Der Browser-Rand des Urteils — dieselbe Geschäftslogik wie der MCP (`judge_offense`), weil beide
+ * durch {@link judgeOffense} gehen.
+ *
+ * DASS das hier nur noch ein Rand ist, ist der Punkt. Die Route schrieb ihren `StrafeRecord` früher
+ * selbst, und die zweite Umsetzung lief prompt auseinander: wer im Browser verwarf, schickte dem
+ * Träger nichts, und ein Urteil zog die daran hängende Strafaufgabe nicht zurück. Beides waren keine
+ * Entscheidungen, sondern Auslassungen — sichtbar erst, als jemand beide Wege nebeneinander legte.
+ * Was hier bleibt, sind die Fragen, die wirklich zur HTTP-Schicht gehören: wer darf, was steht im
+ * Body, und darf über dieses Vergehen überhaupt (noch einmal) geurteilt werden.
+ */
 export async function POST(req: Request) {
-  const body = await req.json();
-  const { userId, offenseType, refId, bestraftDatum, notiz, reason } = body;
+  const { userId, offenseType, refId, status, reason } = await req.json();
   // action: "punish" (bestraft, default) | "dismiss" (verworfen / keine Strafe)
-  const action: "punish" | "dismiss" = body.status === "DISMISSED" ? "dismiss" : "punish";
-  const status = judgmentStatus(action);
+  const action: "punish" | "dismiss" = status === "DISMISSED" ? "dismiss" : "punish";
 
-  if (!userId || !offenseType || !refId) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
-  // Geteilte Regel mit judgeOffense (MCP) — punish verlangt Freitext, dismiss darf leer sein.
-  if (checkPenaltyText(action, reason)) {
-    return NextResponse.json({ error: "Missing penalty text" }, { status: 400 });
-  }
+  if (!userId) return errorResponse(400, "USER_ID_REQUIRED");
+  // Ohne ref gibt es kein Vergehen, auf das sich das Urteil bezieht — gleiche Abbildung wie im
+  // `DELETE /api/admin/offense`: fehlende Referenz und unbekannte Referenz sind derselbe Satz.
+  if (!refId) return errorResponse(400, "OFFENSE_REF_REQUIRED");
+  // Die Art ist eine Behauptung des Clients, die der Service gegen die Erkennung prüft (siehe
+  // `JudgeOffenseParams.offenseType`). Fehlt sie ganz, wäre das stillschweigend „irgendeins" —
+  // aus dem Strafbuch kommt sie immer mit, denn dort steht sie am geklickten Abschnitt.
+  if (!offenseType) return errorResponse(400, "OFFENSE_TYPE_REQUIRED");
 
   const session = await requireKeyholderOrAdminActor(userId);
   if (session instanceof NextResponse) return session;
-  const actor = sessionActor(session);
-  if (!VALID_OFFENSE_TYPES.has(offenseType)) {
-    return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
-  }
 
-  // Die EINE Schranke statt einer Kette von Sonderfällen: `requireDetectedOffense` wertet das
-  // ganze Strafbuch aus und beantwortet „gehört diese refId zu einem aktuell ERKANNTEN Vergehen
-  // dieses Subs?" für alle Arten auf einmal — über `collectDetectedOffenses` → `OFFENSE_LISTS`.
+  // Von hier an ist alles Geschäftslogik und steht genau einmal: Erkennungs-Schranke, Straftext-
+  // Regel, das Urteil selbst, der Rückzug einer daran hängenden Strafaufgabe, die Meldung an den
+  // Träger unter dem NAMEN des Handelnden und der `lastAction`-Stempel.
   //
-  // Vorher stand hier eine `else if`-Kette mit einer Abfrage je Art. Sie war schwächer (sie prüfte
-  // nur „Datensatz gehört dem User", nicht „ist überhaupt ein Vergehen") und musste bei JEDER neuen
-  // Art erweitert werden — wurde sie vergessen, fiel die Art in den Entry-Zweig und war im Browser
-  // grundsätzlich nicht beurteilbar (404 auf „Wurde bestraft" und „Verwerfen"), ohne dass ein
-  // Compiler oder Test etwas gesagt hätte. Genau das ist mit MANUAL_OFFENSE passiert. Der MCP-Weg
-  // (`judgeOffense`) und `punishWithTask` gingen immer schon hier durch; DELETE weiter unten auch.
-  // ALLE Arten zu dieser refId, nicht nur die erste: zwei Arten können sich eine refId teilen —
-  // `unauthorized_opening` und `cleaning_limit` sind beide die `Entry.id` derselben OEFFNEN-Zeile,
-  // und eine Reinigungsöffnung über dem Kontingent während einer Sperrzeit ohne Reinigungserlaubnis
-  // ist beides. Gegen nur die erste geprüft, liesse sich die zweite Sektion nicht mehr beurteilen.
-  const detected = collectDetectedOffenses(await buildStrafbuch(userId, new Date()))
-    .filter((o) => o.refId === refId);
-  if (detected.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  // `offenseType` aus dem Body ist damit nur noch eine Behauptung, die geprüft wird — der Client
-  // kann die Art nicht mehr danebenlegen.
-  if (!detected.some((o) => o.offenseType === offenseType)) {
-    return NextResponse.json({ error: "Invalid offenseType" }, { status: 400 });
-  }
-
-  // Rely on @unique constraint on refId — catch P2002 for clean error. Der `try` umschliesst NUR
-  // das Schreiben: alles danach ist Nachlauf zu einem bereits gefällten Urteil und darf den Vorgang
-  // nicht mehr in einen Fehler kippen (siehe `notifyJudgment`).
-  let record;
-  try {
-    record = await prisma.strafeRecord.create({
-      data: {
-        userId,
-        offenseType,
-        refId,
-        status,
-        bestraftDatum: bestraftDatum ? new Date(bestraftDatum + "T12:00:00Z") : new Date(),
-        notiz: notiz?.trim() || null,
-        reason: reason?.trim() || null,
-        // Dieselbe Ableitung wie im Service, nicht ein zweites „admin"-Literal: Audit-Kürzel und
-        // Absender der Meldung stammen damit aus EINER Kennung.
-        judgedBy: judgedByFromActor(actor),
-      },
-    });
-  } catch (e: unknown) {
-    if (isUniqueConstraintOn(e, "refId")) {
-      return NextResponse.json({ error: "Already judged" }, { status: 409 });
-    }
-    throw e;
-  }
-
-  // Konsistent zur MCP (judgeOffense): beide Ausgänge melden, beide mit dem NAMEN dessen, der
-  // geurteilt hat — über DIESELBE Funktion wie der MCP-Weg, damit die zweite Umsetzung nicht wieder
-  // eigene Wege geht. (Genau daran fehlte hier einmal das Verwerfen: der Träger sah seine
-  // Feststellung und erfuhr nie, dass sie erledigt ist.)
-  await notifyJudgment({ userId, refId, recordId: record.id, status, reason: reason?.trim() || null }, actor);
-  markLastAction();
-  return NextResponse.json(record, { status: 201 });
+  // `allowRevision: false` ist DIE Produktregel dieses Wegs: im Browser wird EINMAL geurteilt. Das
+  // Strafbuch bietet Bestrafen, Strafaufgabe und Verwerfen nur an einer unbeurteilten Zeile an; ist
+  // eine Zeile beurteilt, steht dort das Urteil mit „Rückgängig". Eine POST-Anfrage auf ein bereits
+  // beurteiltes Vergehen kommt deshalb nicht aus einer Absicht, sondern aus einer VERALTETEN Seite —
+  // und würde ein fremdes Urteil samt seiner Strafaufgabe stillschweigend ersetzen. Der MCP darf
+  // revidieren (er lässt die Angabe weg), weil ein Agent seine Absicht ausspricht statt ein Formular
+  // abzuschicken; hier ist der Weg zurück ausdrücklich „Rückgängig" (DELETE → reopen).
+  //
+  // Warum die Schranke im SERVICE liegt und nicht als Abfrage hier davor: nur dort ist sie atomar
+  // (`create` gegen die Eindeutigkeit von `refId`). Eine vorgeschaltete Abfrage liesse zwischen
+  // Lesen und Schreiben ein Fenster — und „Wurde bestraft" und „Verwerfen" lassen sich im selben Tab
+  // gleichzeitig aufklappen, also nicht nur theoretisch gleichzeitig abschicken. Beide kämen durch,
+  // die zweite überschriebe die erste, und der Träger läse zu EINEM Vergehen „Strafe verhängt" UND
+  // „Vergehen fallengelassen", während die Datenbank nur eines davon hält.
+  //
+  // `offenseType` ist der einzige Wert, den die Route umwandelt: der rohe Body ist untypisiert, der
+  // Service tippt hart. Geprüft wird der Wert im Service gegen die ERKENNUNG — eine erfundene Art
+  // findet dort kein Vergehen und endet als OFFENSE_TYPE_MISMATCH, nicht als stilles „irgendeins".
+  const result = await judgeOffense({
+    userId, refId, action, text: reason,
+    offenseType: offenseType as StoredOffenseType,
+    allowRevision: false,
+  }, sessionActor(session));
+  if (!result.ok) return serviceFailure(result);
+  // 201 wie bisher — das Urteil ist neu (ein bestehendes hätte der 409 des Service abgefangen). Der
+  // Body ist nicht mehr die rohe Datenbank-Zeile: gelesen hat sie nie jemand, und der Service gibt
+  // sie bewusst nicht heraus.
+  return NextResponse.json({ ok: true }, { status: 201 });
 }
 
 export async function DELETE(req: Request) {
   const { refId } = await req.json();
-  if (!refId) return NextResponse.json({ error: "Missing refId" }, { status: 400 });
+  if (!refId) return errorResponse(400, "OFFENSE_REF_REQUIRED");
 
   const record = await prisma.strafeRecord.findUnique({ where: { refId } });
-  if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!record) return errorResponse(404, "JUDGMENT_NOT_FOUND");
 
   const session = await requireKeyholderOrAdminActor(record.userId);
   if (session instanceof NextResponse) return session;
@@ -103,22 +81,38 @@ export async function DELETE(req: Request) {
   // weiter eine Strafe ein, die es nicht mehr gibt, und ihr Verstreichen wäre später ein neues
   // Vergehen. Genau diese Regel galt bisher nur auf dem MCP-Weg, während der Knopf hier daran vorbeilief.
   const result = await judgeOffense({ userId: record.userId, refId, action: "reopen" }, sessionActor(session));
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  if (!result.ok) return serviceFailure(result);
   return NextResponse.json({ ok: true });
 }
 
-// Strafe als erledigt / wieder offen markieren (schließt bzw. öffnet den Loop).
+/**
+ * Strafe als erledigt / wieder offen markieren (schliesst bzw. öffnet den Loop).
+ *
+ * Über `judgeOffense` statt mit einem eigenen `update`: das war zuletzt eine zweite Umsetzung
+ * desselben Vorgangs, und sie war schon auseinandergelaufen — der Service schreibt
+ * `erledigtAt: rec.erledigtAt ?? now` (der Zeitpunkt sagt, wann die Strafe abgeleistet war), die
+ * Route schrieb `new Date()`, sodass ein zweiter Klick auf „Als erledigt" den Zeitpunkt nach vorne
+ * schob. Dass sie überhaupt eigenständig blieb, lag allein an der fehlenden Gegenrichtung im Service
+ * — die gibt es jetzt als `uncomplete`.
+ *
+ * Der `findUnique` bleibt: die Berechtigung hängt am TRÄGER der Zeile, und den kennt die Route erst,
+ * wenn sie ihn gelesen hat. Die inhaltlichen Schranken („gibt es ein Urteil", „ist es eine Strafe")
+ * prüft dagegen der Service — hier steht nur noch, was ohne Träger-Id nicht zu beantworten wäre.
+ */
 export async function PATCH(req: Request) {
   const { refId, done } = await req.json();
-  if (!refId) return NextResponse.json({ error: "Missing refId" }, { status: 400 });
+  if (!refId) return errorResponse(400, "OFFENSE_REF_REQUIRED");
 
-  const record = await prisma.strafeRecord.findUnique({ where: { refId } });
-  if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (record.status !== "PUNISHED") return NextResponse.json({ error: "Only a penalty can be completed" }, { status: 400 });
+  const record = await prisma.strafeRecord.findUnique({ where: { refId }, select: { userId: true } });
+  if (!record) return errorResponse(404, "JUDGMENT_NOT_FOUND");
 
-  const err = await requireKeyholderOrAdminApi(record.userId);
-  if (err) return err;
+  const session = await requireKeyholderOrAdminActor(record.userId);
+  if (session instanceof NextResponse) return session;
 
-  await prisma.strafeRecord.update({ where: { refId }, data: { erledigtAt: done === false ? null : new Date() } });
+  const result = await judgeOffense(
+    { userId: record.userId, refId, action: done === false ? "uncomplete" : "complete" },
+    sessionActor(session),
+  );
+  if (!result.ok) return serviceFailure(result);
   return NextResponse.json({ ok: true });
 }

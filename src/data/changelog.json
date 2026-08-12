@@ -34,6 +34,13 @@
       {
         "type": "fix",
         "text": {
+          "de": "Ein im Strafbuch fallengelassenes Vergehen wird dem Träger jetzt auch gemeldet — bisher blieb die Feststellung bei ihm unbeantwortet stehen. Nimmt der Keyholder ein Urteil zurück, verschwindet auch die Strafaufgabe, die daran hing.",
+          "en": "An offense dismissed in the penalty record is now reported to the wearer as well — until now the notice simply stayed open. Withdrawing a verdict also withdraws the penalty task attached to it."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
           "de": "Nachrichten nennen jetzt die Person, die gehandelt hat, statt allgemein „Keyholder\" oder „System\". Ein von Hand notiertes Vergehen trägt den Namen dessen, der es eingetragen hat.",
           "en": "Messages now name the person who acted, instead of a generic \"keyholder\" or \"system\". A hand-recorded offense carries the name of whoever entered it."
         }

@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, offenseListViews, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { recordSystemMessage, DISMISSAL_BODY_KEY, type MessageActor } from "@/lib/messageService";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
 import { checkTask, writeTask, type CreateTaskParams } from "@/lib/taskService";
 import { formatDateTime } from "@/lib/utils";
 import { markLastAction } from "@/lib/appMeta";
 import { offenseWasAnnounced, OFFENSE_REF_TYPE } from "@/lib/offenseAnnounce";
-import { STORED_TYPE, type OffenseCanonicalType } from "@/lib/offenseTypes";
+import { STORED_TYPE, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
+import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { AI_AUTHOR } from "@/lib/constants";
 
 /**
@@ -59,9 +60,52 @@ export function collectDetectedOffenses(sb: StrafbuchData): DetectedOffense[] {
 export interface JudgeOffenseParams {
   userId: string;
   refId: string;
-  action: "dismiss" | "punish" | "complete" | "reopen";
+  /** `complete`/`uncomplete` sind die beiden Richtungen desselben Schalters am bestehenden Urteil —
+   *  „Als erledigt" und „Wieder offen" im Strafbuch. Getrennt und nicht als `done: boolean`, weil
+   *  die übrigen Werte schon Aktionen sind und ein Bool daneben zwei Grammatiken ergäbe. */
+  action: "dismiss" | "punish" | "complete" | "uncomplete" | "reopen";
   /** Freitext: Strafe (bei punish, erforderlich) bzw. optionaler Grund (bei dismiss). */
   text?: string;
+  /**
+   * WELCHES der Vergehen an dieser ref gemeint ist — die BEHAUPTUNG des Aufrufers, gegen die
+   * Erkennung geprüft (siehe {@link DetectedOffense.offenseType}).
+   *
+   * Zwei Arten können sich eine ref teilen: `unauthorized_opening` und `cleaning_limit` sind beide
+   * die `Entry.id` derselben OEFFNEN-Zeile, und eine Reinigungsöffnung über dem Kontingent während
+   * einer Sperrzeit ist beides. Das Strafbuch zeigt sie in zwei Abschnitten, und der Knopf, der
+   * geklickt wurde, sagt hier, welcher es war — sonst stünde in der Urteils-Zeile die Art des
+   * zuerst erkannten Abschnitts statt der beurteilten.
+   *
+   * Als {@link StoredOffenseType} und nicht als `string`: die Taxonomie ist im ganzen Repo hart
+   * getippt, und ein weiter Typ hier machte ausgerechnet an der Schranke einen Tippfehler
+   * unsichtbar. Die Umwandlung passiert EINMAL am JSON-Rand (der Route), wo der rohe Body ankommt.
+   *
+   * Weglassen heisst „egal, das erste erkannte" — so ruft der MCP, dem `get_offenses` die ref schon
+   * eindeutig zu einer Art geliefert hat. Nur `punish`/`dismiss` werten es aus; die übrigen Aktionen
+   * arbeiten auf dem bestehenden Urteil, das ohnehin genau eines je ref ist.
+   */
+  offenseType?: StoredOffenseType;
+  /**
+   * Darf dieses Urteil ein BESTEHENDES ersetzen?
+   *
+   * Vorgabe ist ja (Revision erlaubt) — so ruft der MCP: ein Agent spricht seine Absicht aus, und
+   * die Korrektur eines eigenen Urteils ist für ihn der Normalfall.
+   *
+   * Der BROWSER ruft mit `false`, und das ist keine Verschärfung, sondern die Rettung einer Zusage,
+   * die es vorher schon gab: das Strafbuch bietet Bestrafen/Strafaufgabe/Verwerfen nur an einer
+   * UNbeurteilten Zeile an, an einer beurteilten steht das Urteil mit „Rückgängig". Eine Anfrage auf
+   * ein bereits beurteiltes Vergehen kommt also aus einer VERALTETEN Seite (zweiter Keyholder,
+   * zweiter Tab, oder — im selben Tab möglich — „Wurde bestraft" und „Verwerfen" gleichzeitig
+   * aufgeklappt und beide abgeschickt) und ersetzte sonst ein fremdes Urteil samt Strafaufgabe.
+   *
+   * Die Schranke liegt HIER und nicht in der Route, weil nur hier atomar ist, was sie zusagt: eine
+   * vorgeschaltete Abfrage („gibt es schon ein Urteil?") lässt zwischen Lesen und Schreiben ein
+   * Fenster, in dem beide Anfragen vorbeikommen — und der Träger bekäme „Strafe verhängt" UND
+   * „Vergehen fallengelassen" zu einem Vergehen, von dem die Datenbank nur eines hält. Umgesetzt
+   * ist sie als `create` gegen die Eindeutigkeit von `StrafeRecord.refId`: die Datenbank entscheidet,
+   * nicht eine Reihenfolge.
+   */
+  allowRevision?: boolean;
 }
 
 /**
@@ -77,8 +121,11 @@ export interface JudgeOffenseParams {
  * DAMIT reicht die Namensgrenze auch bis in die Audit-Spalte. Warum ein Mensch trotzdem nie so
  * heissen kann, steht KANONISCH bei {@link AI_AUTHOR} — hier nicht wiederholt: dies ist die
  * Abbildung, nicht die Namensvergabe.
+ *
+ * Modul-intern: seit die Strafbuch-Route durch {@link judgeOffense} geht, schreibt niemand mehr
+ * ausserhalb dieser Datei einen `StrafeRecord` aus einem Handelnden.
  */
-export function judgedByFromActor(actor: MessageActor): typeof AI_AUTHOR | "admin" {
+function judgedByFromActor(actor: MessageActor): typeof AI_AUTHOR | "admin" {
   return actor === AI_AUTHOR ? AI_AUTHOR : "admin";
 }
 
@@ -87,15 +134,8 @@ export interface JudgeOffenseResult {
   done: boolean;
 }
 
-/**
- * Fällt/aktualisiert ein Urteil über ein erkanntes Vergehen (per refId).
- * - dismiss: markiert DISMISSED (verbindlich), text = optionaler Grund.
- * - punish: markiert PUNISHED, text = Strafe (erforderlich), erledigtAt = null (offen).
- * - complete: setzt erledigtAt = now auf einer bestehenden Strafe (Loop schließen).
- * - reopen: entfernt das Urteil (revidieren).
- */
 /** Betreff + Text der „Strafe verhängt"-Benachrichtigung. Erreichbar nur über {@link notifyJudgment}
- *  — dort steht, warum beide Urteils-Wege durch dieselbe Verzweigung gehen.
+ *  — dort steht, warum die Verzweigung über beide Ausgänge an EINER Stelle liegt.
  *
  *  Die Mail trägt den Straftext interpoliert (sie ist per Natur eine Kopie), die NACHRICHT dagegen
  *  nur die Referenz auf den `StrafeRecord`: der Text wird beim Lesen frisch von dort geholt, damit
@@ -147,9 +187,12 @@ async function notifyOffenseDismissed(userId: string, refId: string, actor: Mess
 }
 
 /**
- * Die Meldung an den Träger NACH dem geschriebenen Urteil — beide Ausgänge, geteilt von
- * {@link judgeOffense} (MCP) und der Strafbuch-Route (Browser). Bis hierher stand dieselbe Verzweigung
- * zweimal da, und genau daran war der Verwerfungs-Zweig im Browser schon einmal vergessen worden.
+ * Die Meldung an den Träger NACH dem geschriebenen Urteil — beide Ausgänge in EINER Verzweigung.
+ *
+ * Sie stand einmal zweimal da (hier und in der Strafbuch-Route), und genau daran war der
+ * Verwerfungs-Zweig im Browser vergessen worden. Heute gibt es nur noch einen Aufrufer: die Route
+ * geht selbst durch {@link judgeOffense}. Die Funktion bleibt trotzdem eigenständig, weil sie eine
+ * eigene Zusage trägt — die folgende.
  *
  * WIRFT NIE, und das ist der Punkt: das Urteil steht zu diesem Zeitpunkt bereits in der Datenbank.
  * Beide Zweige lesen dabei noch einmal live (`offenseWasAnnounced` bzw. der Empfänger in
@@ -159,7 +202,7 @@ async function notifyOffenseDismissed(userId: string, refId: string, actor: Mess
  * Die Meldung ist Fire-and-forget wie überall sonst in dieser App (`recordSystemMessage` fängt aus
  * demselben Grund selbst).
  */
-export async function notifyJudgment(
+async function notifyJudgment(
   p: { userId: string; refId: string; recordId: string; status: "PUNISHED" | "DISMISSED"; reason: string | null },
   actor: MessageActor,
 ): Promise<void> {
@@ -187,18 +230,44 @@ export function judgmentStatus(action: "punish" | "dismiss"): "PUNISHED" | "DISM
 }
 
 /**
- * Das Vergehen, über das geurteilt werden soll — oder null, wenn es aktuell gar nicht (mehr)
- * erkannt ist.
+ * ALLE aktuell erkannten Vergehen zu dieser ref — meist eines, manchmal zwei (siehe
+ * {@link JudgeOffenseParams.offenseType}), leer, wenn die ref gar kein Vergehen (mehr) bezeichnet.
  *
  * Die eine Schranke gegen Urteile über Nicht-Vergehen. Sie wertet das ganze Strafbuch aus und gehört
  * deshalb IMMER vor eine Transaktion.
  */
+async function detectedOffensesAt(userId: string, refId: string, now: Date): Promise<DetectedOffense[]> {
+  return collectDetectedOffenses(await buildStrafbuch(userId, now)).filter((o) => o.refId === refId);
+}
+
+/** Wie {@link detectedOffensesAt}, aber nur das erste Vergehen — für Aufrufer, denen die ART egal
+ *  ist (die MCP-Vorschau fragt bloss „gibt es das überhaupt noch?"). */
 export async function requireDetectedOffense(
   userId: string,
   refId: string,
   now: Date,
 ): Promise<DetectedOffense | null> {
-  return collectDetectedOffenses(await buildStrafbuch(userId, now)).find((o) => o.refId === refId) ?? null;
+  return (await detectedOffensesAt(userId, refId, now))[0] ?? null;
+}
+
+/**
+ * Das Vergehen, über das geurteilt wird — die Schranke gegen Urteile über Nicht-Vergehen samt der
+ * Auflösung, WELCHES an einer geteilten ref gemeint ist.
+ *
+ * Geteilt von {@link judgeOffense} und {@link punishWithTask}, weil beide dieselbe Frage stellen und
+ * dieselben zwei Antworten schulden: 404 heisst „nichts (mehr) da", 400 heisst „da, aber eine andere
+ * Art" — ein Client-Fehler, den ein 404 dem Absender als verschwundenes Vergehen verkaufen würde.
+ */
+async function resolveDetectedOffense(
+  userId: string,
+  refId: string,
+  now: Date,
+  offenseType: StoredOffenseType | undefined,
+): Promise<ServiceResult<DetectedOffense>> {
+  const detected = await detectedOffensesAt(userId, refId, now);
+  if (detected.length === 0) return serviceFail(404, "OFFENSE_NOT_FOUND");
+  const offense = offenseType ? detected.find((o) => o.offenseType === offenseType) : detected[0];
+  return offense ? { ok: true, data: offense } : serviceFail(400, "OFFENSE_TYPE_MISMATCH");
 }
 
 /**
@@ -213,7 +282,7 @@ export async function requireDetectedOffense(
  * gelesen wird (MCP-Strafbuch, Nachricht), und `taskId` trägt die Verbindung für alles Weitere.
  */
 export async function punishWithTask(
-  p: CreateTaskParams & { refId: string },
+  p: CreateTaskParams & Pick<JudgeOffenseParams, "refId" | "offenseType" | "allowRevision">,
   actor: MessageActor,
 ): Promise<ServiceResult<{ id: string }>> {
   const now = new Date();
@@ -221,9 +290,12 @@ export async function punishWithTask(
   // Beide Prüfungen stehen VOR der Transaktion: sie lesen nur, und sie kosten zusammen ein Dutzend
   // Abfragen. Innerhalb hielten sie die einzige SQLite-Verbindung dieser App für ihre ganze Dauer.
   // Nur über ein aktuell ERKANNTES Vergehen lässt sich urteilen — dieselbe Schranke wie in
-  // `judgeOffense`.
-  const offense = await requireDetectedOffense(p.userId, p.refId, now);
-  if (!offense) return serviceFail(404, "OFFENSE_NOT_FOUND");
+  // `judgeOffense`, und über dieselbe Auflösung: welche ART an einer geteilten ref gemeint ist, sagt
+  // der Aufrufer. Ohne sie stempelte die Strafaufgabe aus dem Reinigungs-Limit-Abschnitt
+  // `OEFFNEN_ENTRY` an ihr Urteil — die Art des zuerst erkannten Abschnitts.
+  const found = await resolveDetectedOffense(p.userId, p.refId, now, p.offenseType);
+  if (!found.ok) return found;
+  const offense = found.data;
 
   // Die Ablehnung des Formulars (Titel zu lang, Frist zu früh, Gerät fremd) erreicht den Aufrufer
   // damit direkt, statt aus einem abgebrochenen Vorgang zurückgetragen werden zu müssen.
@@ -231,18 +303,39 @@ export async function punishWithTask(
   if (!checked.ok) return checked;
 
   // Was bleibt, sind die zwei Schreibvorgänge, die zusammengehören: die Aufgabe und ihr Urteil.
-  const created = await prisma.$transaction(async (tx) => {
-    const task = await writeTask(tx, checked.data);
-    await writeJudgment(tx, {
-      userId: p.userId, offense, now,
-      status: "PUNISHED", reason: task.title, actor, taskId: task.id,
+  let created;
+  try {
+    created = await prisma.$transaction(async (tx) => {
+      const task = await writeTask(tx, checked.data);
+      await writeJudgment(tx, {
+        userId: p.userId, offense, now,
+        status: "PUNISHED", reason: task.title, actor, taskId: task.id,
+        allowRevision: p.allowRevision ?? true,
+      });
+      return task;
     });
-    return task;
-  });
+  } catch (e) {
+    // Der Konflikt rollt die GANZE Transaktion zurück — auch die Aufgabe. Genau deshalb steht die
+    // Schranke in der Transaktion und nicht als Abfrage davor: sonst bliebe beim Sub eine Aufgabe
+    // stehen, deren Urteil abgelehnt wurde.
+    const conflict = judgmentConflict(e);
+    if (conflict) return conflict;
+    throw e;
+  }
 
   // NACH der Transaktion: eine Mail lässt sich nicht zurückrollen. Und genau eine — die Strafe IST
   // die Aufgabe, zwei Nachrichten wären zweimal dieselbe Neuigkeit.
-  await notifyUser(p.userId, strafaufgabeNotice(created, actor));
+  //
+  // Gekapselt wie in `notifyJudgment`, und seit `allowRevision: false` ist das keine Vorsicht mehr,
+  // sondern nötig: `notifyUser` liest den Empfänger live: ein transienter Fehler dort meldete dem
+  // Aufrufer einen 500 für einen Vorgang, der GELUNGEN ist. Sein Wiederholungsversuch liefe in die
+  // Eindeutigkeits-Sperre auf `refId` und bekäme „schon beurteilt" — und der Träger bliebe mit einer
+  // Strafaufgabe zurück, von der er nie erfahren hat, ohne zweite Gelegenheit, es ihm zu sagen.
+  try {
+    await notifyUser(p.userId, strafaufgabeNotice(created, actor));
+  } catch (e) {
+    console.error("[strafe] Benachrichtigung zur Strafaufgabe fehlgeschlagen", e);
+  }
   markLastAction();
 
   return { ok: true, data: { id: created.id } };
@@ -266,7 +359,10 @@ async function withdrawLinkedTask(tx: Prisma.TransactionClient, refId: string, u
 }
 
 /**
- * Schreibt das Urteil über ein Vergehen — die EINE Stelle, an der ein `StrafeRecord` entsteht.
+ * Schreibt das URTEIL über ein Vergehen — die eine Stelle, an der ein beurteilter `StrafeRecord`
+ * entsteht. (Nicht die einzige Stelle, an der die Tabelle überhaupt beschrieben wird: die
+ * automatische Ahndung eines falschen Geräts legt ihre Zeile in `entryFulfilment.ts` direkt an. Sie
+ * durchläuft bewusst keinen Urteilsschritt — sie wird sofort als erledigt geschrieben.)
  *
  * `taskId` ist Pflicht-Argument, nicht optional: der Freitext-Weg muss eine frühere Strafaufgabe
  * ausdrücklich mit `null` lösen. Als optionales Feld liess er sie stehen, und ein verworfenes
@@ -275,13 +371,18 @@ async function withdrawLinkedTask(tx: Prisma.TransactionClient, refId: string, u
  * Wird eine bestehende Strafaufgabe ersetzt, ZIEHT sie diese Funktion zurück. Sonst liefe die alte
  * beim Sub weiter, und wenn ihre Frist verstreicht, erzeugt sie als „nicht erfüllte Aufgabe" ein
  * neues Vergehen — die Korrektur eines Urteils würde ein Vergehen erfinden.
+ *
+ * `allowRevision` entscheidet zwischen `upsert` und `create` (Begründung bei
+ * {@link JudgeOffenseParams.allowRevision}). Der `create` wirft bei bestehendem Urteil P2002 auf
+ * `refId` — mitten in der Transaktion, die damit samt dem Aufgaben-Rückzug darüber zurückrollt. Das
+ * Einfangen und Übersetzen ist Sache des Aufrufers, der die Transaktion aufspannt.
  */
 async function writeJudgment(
   tx: Prisma.TransactionClient,
   p: {
     userId: string; offense: DetectedOffense; now: Date;
     status: "PUNISHED" | "DISMISSED"; reason: string | null;
-    actor: MessageActor; taskId: string | null;
+    actor: MessageActor; taskId: string | null; allowRevision: boolean;
   },
 ): Promise<{ id: string }> {
   await withdrawLinkedTask(tx, p.offense.refId, p.userId, p.now);
@@ -290,12 +391,22 @@ async function writeJudgment(
     status: p.status, reason: p.reason, judgedBy: judgedByFromActor(p.actor),
     erledigtAt: null, bestraftDatum: p.now, taskId: p.taskId,
   };
-  return tx.strafeRecord.upsert({
-    where: { refId: p.offense.refId },
-    create: { userId: p.userId, offenseType: p.offense.offenseType, refId: p.offense.refId, ...data },
-    update: data,
-    select: { id: true },
-  });
+  const create = { userId: p.userId, offenseType: p.offense.offenseType, refId: p.offense.refId, ...data };
+  return p.allowRevision
+    ? tx.strafeRecord.upsert({ where: { refId: p.offense.refId }, create, update: data, select: { id: true } })
+    : tx.strafeRecord.create({ data: create, select: { id: true } });
+}
+
+/**
+ * Übersetzt den P2002 eines `create`-Urteils (siehe {@link writeJudgment}) in seinen Fehler-Code —
+ * `null`, wenn es ein anderer Fehler war und der Aufrufer ihn weiterwerfen muss.
+ *
+ * Geteilt von {@link judgeOffense} und {@link punishWithTask}: beide schreiben dasselbe Urteil, und
+ * beide müssen denselben Konflikt gleich beantworten. Genau diese Doppelung war der Grund, warum die
+ * Aufgaben-Route bisher an der Schranke vorbeilief — sie stand nur an einem der beiden Wege.
+ */
+function judgmentConflict(e: unknown): ServiceFailure | null {
+  return isUniqueConstraintOn(e, "refId") ? serviceFail(409, "JUDGMENT_ALREADY_EXISTS") : null;
 }
 
 /** Die eine Nachricht einer Strafaufgabe: sie nennt die Strafe und zeigt auf die Aufgabe, damit der
@@ -319,7 +430,12 @@ function strafaufgabeNotice(
 }
 
 /**
- * Fällt ein Urteil über ein erkanntes Vergehen.
+ * Fällt/aktualisiert ein Urteil über ein erkanntes Vergehen (per refId).
+ * - dismiss: markiert DISMISSED (verbindlich), text = optionaler Grund.
+ * - punish: markiert PUNISHED, text = Strafe (erforderlich), erledigtAt = null (offen).
+ * - complete: setzt erledigtAt auf einer bestehenden Strafe (Loop schliessen) — idempotent.
+ * - uncomplete: nimmt erledigtAt wieder weg (Loop erneut öffnen).
+ * - reopen: entfernt das Urteil (revidieren) samt seiner Strafaufgabe und der Verwerfungs-Meldung.
  *
  * `actor` ist WER urteilt (Benutzername der Sitzung bzw. {@link AI_AUTHOR} über den MCP, siehe
  * {@link MessageActor}) — als eigenes ARGUMENT und bewusst kein Feld in `params`, wie bei
@@ -342,6 +458,15 @@ export async function judgeOffense(
     // Die Strafaufgabe geht mit: bliebe sie stehen, forderte die App weiter eine Strafe ein, die es
     // nicht mehr gibt — und ihr Verstreichen wäre später ein neues Vergehen. Zurückgezogen, nicht
     // gelöscht: der Sub hat sie gesehen, und ein Rückzug ist die dafür vorgesehene Endstation.
+    //
+    // AUCH EINE BEREITS ERFÜLLTE: `withdrawLinkedTask` filtert nur auf `withdrawnAt: null`, nicht
+    // auf den Fortschritt, und `withdrawnAt` schlägt in der Anzeige jeden anderen Zustand — eine
+    // sichtbar erledigte Aufgabe wird also still zu einer zurückgezogenen. Das ist gewollt und die
+    // einzig widerspruchsfreie Wahl: „Rückgängig" LÖSCHT das Urteil, und die Aufgabe war nichts
+    // anderes als dessen Vollzugsform. Ohne den Rückzug bliebe beim Sub eine Strafaufgabe ohne
+    // Strafe stehen; als „erfüllt" stehen zu lassen behauptete, er habe eine Strafe abgeleistet, die
+    // niemand mehr verhängt hat. Was er GETAN hat, ist damit nicht bestritten — der Nachweis bleibt
+    // an der Aufgabe. Bestritten ist nur, dass es eine Strafe war.
     const removed = await prisma.$transaction(async (tx) => {
       // Erst der Rückzug: danach gibt es die Verknüpfung nicht mehr, über die er sein Ziel findet.
       await withdrawLinkedTask(tx, p.refId, p.userId, now);
@@ -378,12 +503,23 @@ export async function judgeOffense(
     return { ok: true, data: { status: "open", done: false } };
   }
 
-  if (p.action === "complete") {
+  // Die beiden Richtungen EINES Schalters am bestehenden Urteil — der Loop schliesst sich oder geht
+  // wieder auf. Zusammen, weil sie sich nur im geschriebenen Wert unterscheiden; die Schranken
+  // davor („gibt es das Urteil, gehört es diesem Träger, ist es überhaupt eine Strafe") sind
+  // dieselben.
+  if (p.action === "complete" || p.action === "uncomplete") {
     const rec = await prisma.strafeRecord.findUnique({ where: { refId: p.refId } });
     if (!rec || rec.userId !== p.userId) return serviceFail(404, "JUDGMENT_NOT_FOUND");
     if (rec.status !== "PUNISHED") return serviceFail(400, "PENALTY_NOT_PUNISHED");
-    await prisma.strafeRecord.update({ where: { refId: p.refId }, data: { erledigtAt: rec.erledigtAt ?? now } });
-    return { ok: true, data: { status: "punished", done: true } };
+    const done = p.action === "complete";
+    // `rec.erledigtAt ?? now` und nicht `now`: der Zeitpunkt sagt, WANN die Strafe abgeleistet war,
+    // nicht wann zuletzt jemand auf den Knopf gedrückt hat. Ein zweiter Klick auf „Als erledigt"
+    // (Doppelklick, zweiter Tab, zweiter Keyholder) darf ihn deshalb nicht nach vorne schieben.
+    await prisma.strafeRecord.update({
+      where: { refId: p.refId },
+      data: { erledigtAt: done ? (rec.erledigtAt ?? now) : null },
+    });
+    return { ok: true, data: { status: "punished", done } };
   }
 
   const text = p.text?.trim() || null;
@@ -392,17 +528,29 @@ export async function judgeOffense(
 
   // Die ref stand früher im Fehlertext; sie ist ein Aufrufer-Argument, das der MCP-Agent bereits
   // kennt — ein Code ohne Interpolation genügt und bleibt übersetzbar.
-  const offense = await requireDetectedOffense(p.userId, p.refId, now);
-  if (!offense) return serviceFail(404, "OFFENSE_NOT_FOUND");
+  const found = await resolveDetectedOffense(p.userId, p.refId, now, p.offenseType);
+  if (!found.ok) return found;
+  const offense = found.data;
 
   const status = judgmentStatus(p.action);
   // In einer Transaktion, weil das Urteil eine frühere Strafaufgabe zurückziehen kann — zwei
   // Schreibvorgänge, die zusammengehören. `taskId: null`: dieser Weg ist der Freitext, er LÖST eine
   // bestehende Aufgabe vom Urteil, statt sie stillschweigend weiterzuschleppen.
-  const record = await prisma.$transaction((tx) => writeJudgment(tx, {
-    userId: p.userId, offense, now,
-    status, reason: text, actor, taskId: null,
-  }));
+  let record;
+  try {
+    record = await prisma.$transaction((tx) => writeJudgment(tx, {
+      userId: p.userId, offense, now,
+      status, reason: text, actor, taskId: null,
+      allowRevision: p.allowRevision ?? true,
+    }));
+  } catch (e) {
+    // Bricht der `create` an der Eindeutigkeit von `refId`, hat ein anderes Urteil das Rennen
+    // gewonnen — und der Rückzug der Strafaufgabe rollt mit zurück. Nichts angefasst, nichts
+    // gemeldet: der Träger bekommt genau eine Auflösung zu genau einem Urteil.
+    const conflict = judgmentConflict(e);
+    if (conflict) return conflict;
+    throw e;
+  }
 
   await notifyJudgment({ userId: p.userId, refId: offense.refId, recordId: record.id, status, reason: text }, actor);
   markLastAction();
