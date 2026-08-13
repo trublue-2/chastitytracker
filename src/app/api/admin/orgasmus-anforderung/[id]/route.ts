@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import { withdrawOrgasmusAnforderungById } from "@/lib/orgasmusAnforderungService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
@@ -16,13 +16,13 @@ export async function PATCH(
   });
   if (!oa) return errorResponse(404, "NOT_FOUND");
 
-  const err = await requireKeyholderOrAdminApi(oa.userId);
-  if (err) return err;
+  const actor = await requireKeyholderOrAdminActor(oa.userId);
+  if (actor instanceof NextResponse) return actor;
 
   const body = await req.json();
 
   if (body.action === "withdraw") {
-    const result = await withdrawOrgasmusAnforderungById(id, oa.userId);
+    const result = await withdrawOrgasmusAnforderungById(id, oa.userId, sessionActor(actor));
     if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true });
   }

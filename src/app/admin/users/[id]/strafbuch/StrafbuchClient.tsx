@@ -3,17 +3,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, ChevronDown, ClipboardList, XCircle } from "lucide-react";
-import { parseApiError } from "@/lib/apiClient";
+import Button from "@/app/components/Button";
+import { CheckCircle, ChevronDown, ClipboardList, Plus, Undo2, XCircle } from "lucide-react";
+import { parseApiErrorCode } from "@/lib/apiClient";
+import { useApiError } from "@/app/hooks/useApiError";
+import FormError from "@/app/components/FormError";
 import { taskFormHref } from "@/lib/entryFormRoute";
 import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
+import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
 import type { TaskOffenseState } from "@/lib/tasks";
 
+/** Das Urteil einer Zeile, so weit die Anzeige es braucht.
+ *
+ *  Bewusst OHNE `notiz` und `bestraftDatum`: die Notiz-Spalte hat seit dem Wegfall des
+ *  hand-gebauten `create` in `POST /api/admin/strafe` keinen Schreiber mehr (die automatische
+ *  Geräte-Ahndung setzt sie ausdrücklich auf `null`), und das Urteils-Datum wurde hier zwar
+ *  formatiert, aber nie gerendert. Die DB-Spalten bleiben — sie zu entfernen ist eine eigene
+ *  Entscheidung mit Migration. */
 export interface StrafeRecordData {
   refId: string;
   status: string; // "PUNISHED" | "DISMISSED"
-  bestraftDatumStr: string;
-  notiz: string | null;
   reason: string | null; // Strafe-Freitext (PUNISHED) bzw. Grund (DISMISSED)
   judgedBy: string | null;
   done: boolean;
@@ -30,8 +39,8 @@ export interface UnerlaubteOeffnungRow {
   id: string;
   startTimeStr: string;
   note: string | null;
-  sperrzetEndetAtStr: string | null;
-  sperrzetUnbefristet: boolean;
+  sperrzeitEndetAtStr: string | null;
+  sperrzeitUnbefristet: boolean;
 }
 
 /** Eine nicht erfüllte Aufgabe. `state` unterscheidet „nie (rechtzeitig) begonnen" von
@@ -108,9 +117,27 @@ export interface AdminPasswortRow {
   sperrzeitEndetAtStr: string | null;
 }
 
+/** Orgasmus ohne deckende Direktive. Die Sperrzeit-Angaben sind nur im Modus `lockedOnly` gesetzt —
+ *  im Modus `always` kann der KG offen gewesen sein, dann gibt es keine. */
+export interface UnerlaubterOrgasmusRow {
+  id: string;
+  startTimeStr: string;
+  orgasmusArt: string | null;
+  note: string | null;
+  sperrzeitEndetAtStr: string | null;
+  sperrzeitUnbefristet: boolean;
+}
+
+/** Von Hand notiertes Vergehen. */
+export interface ManuellesVergehenRow {
+  id: string;
+  occurredAtStr: string;
+  title: string;
+  description: string | null;
+  createdBy: string;
+}
+
 interface Labels {
-  /** Generische Fehlermeldung, wenn die API keine eigene liefert (common.error). */
-  errorFallback: string;
   /** Meldung bei Netzwerkfehler (common.networkError). */
   networkError: string;
   frist: string;
@@ -121,6 +148,7 @@ interface Labels {
   strafbuchAutoEntfernt: string;
   strafbuchAutoEntferntAm: string;
   strafbuchNoEntries: string;
+  recordOffense: string;
   strafbuchWurdeBestraft: string;
   strafbuchStrafaufgabe: string;
   strafbuchAbbrechen: string;
@@ -171,6 +199,12 @@ interface Labels {
   strafbuchAdminPasswort: string;
   strafbuchAdminPasswortAm: string;
   strafbuchAdminPasswortKonto: string;
+  strafbuchUnerlaubterOrgasmus: string;
+  strafbuchOrgasmusAm: string;
+  strafbuchOhneDirektive: string;
+  strafbuchManuelleVergehen: string;
+  strafbuchNotiertVon: string;
+  strafbuchZurueckziehen: string;
   deviceLabel: string;
 }
 
@@ -187,6 +221,8 @@ interface Props {
   orgasmusVersaeumt: OrgasmusVersaeumtRow[];
   falschesGeraet: FalschesGeraetRow[];
   adminPasswort: AdminPasswortRow[];
+  unerlaubteOrgasmen: UnerlaubterOrgasmusRow[];
+  manuelleVergehen: ManuellesVergehenRow[];
   strafeRecords: StrafeRecordData[];
   labels: Labels;
 }
@@ -209,10 +245,75 @@ function sec<C extends OffenseCanonicalType>(canonical: C, title: string, rows: 
   return { canonical, title, rows };
 }
 
+/** Die Geometrie der kleinen Urteils-Knöpfe. Nur die FARBE unterscheidet sie — als vierte Kopie
+ *  der ganzen Klassenkette drifteten Polsterung und Radius beim nächsten Umbau auseinander. */
+const CHIP_CLS = "text-xs font-medium border transition px-2.5 py-1 rounded-lg flex items-center gap-1";
+
+/** Nebenangabe unter der Kopfzeile (Frist, Zeitpunkt). */
+const FACT_CLS = "text-xs text-foreground-faint";
+/** Freitext — Notiz des Subs, Anweisung, Ablehnungsgrund. */
+const NOTE_CLS = "text-xs text-foreground-faint italic";
+
 const fieldCls ="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
 
-export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, strafeRecords, labels }: Props) {
+/**
+ * Ein von Hand notiertes Vergehen zurückziehen — der Weg zurück für einen Fehleintrag. Die Route
+ * setzt `withdrawnAt`, löscht also nicht: das Vergehen fällt aus dem Strafbuch, bleibt aber
+ * nachlesbar.
+ *
+ * Auf MODUL-Ebene, weil eine Komponente mit eigenem Zustand dorthin gehört. Das allein rettet ihren
+ * Zustand hier noch nicht: ihr Elter `JudgmentSlot` wird weiterhin im Rumpf von `StrafbuchClient`
+ * deklariert, bekommt also bei jedem Eltern-Render eine neue Identität, und React hängt den
+ * Teilbaum samt `saving`/`error` neu ein. Praktisch heisst das: eine Fehlermeldung überlebt den
+ * nächsten Klick auf einen anderen Chip nicht. Das aufzulösen hiesse, `JudgmentSlot` (und die
+ * übrigen sechs Unter-Komponenten dieser Datei) mit herauszuziehen — eine eigene Aufräum-Runde,
+ * nicht Teil dieser Änderung. Der Rückzug ist idempotent, ein zweiter Klick ergibt einen 409.
+ */
+function ZurueckziehenButton({ id, label, networkError, resolveError, onDone }: {
+  id: string;
+  label: string;
+  networkError: string;
+  resolveError: (code: string | null) => string;
+  onDone: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function withdraw() {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/offense", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) onDone();
+      else setError(resolveError(await parseApiErrorCode(res)));
+    } catch {
+      setError(networkError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <button type="button" onClick={withdraw} disabled={saving}
+        className={`${CHIP_CLS} text-foreground-faint border-border hover:bg-surface-raised hover:text-foreground disabled:opacity-50`}>
+        <Undo2 size={11} />
+        {label}
+      </button>
+      <FormError message={error} variant="compact" />
+    </div>
+  );
+}
+
+export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, manuelleVergehen, strafeRecords, labels }: Props) {
   const router = useRouter();
+  // Beide Routen dieser Seite (`/api/admin/offense`, `/api/admin/strafe`) liefern stabile
+  // Fehler-CODES — übersetzt wird hier.
+  const apiError = useApiError();
   const [showAll, setShowAll] = useState(false);
   const [openFormId, setOpenFormId] = useState<string | null>(null);
   const [openDismissId, setOpenDismissId] = useState<string | null>(null);
@@ -269,7 +370,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
           onClose();
           router.refresh();
         } else {
-          setError(await parseApiError(res, labels.errorFallback));
+          setError(apiError(await parseApiErrorCode(res)));
         }
       } catch {
         // Netzwerkfehler (offline/DNS) — sonst bliebe die Promise unbehandelt.
@@ -331,7 +432,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   function PunishedBadge({ refId }: { refId: string }) {
     const record = strafeRecords.find(r => r.refId === refId);
     if (!record) return null;
-    const aiJudged = record.judgedBy === "ai";
+    const aiJudged = record.judgedBy === AI_AUTHOR;
     return (
       <div className="mt-1.5 flex flex-col gap-1">
         <div className="flex items-center gap-2 flex-wrap">
@@ -369,7 +470,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   function DismissedBadge({ refId }: { refId: string }) {
     const record = strafeRecords.find(r => r.refId === refId);
     if (!record) return null;
-    const aiJudged = record.judgedBy === "ai";
+    const aiJudged = record.judgedBy === AI_AUTHOR;
     return (
       <div className="mt-1.5 flex items-center gap-2 flex-wrap">
         <span className="text-xs font-semibold text-foreground-faint border border-border px-2 py-0.5 rounded-lg flex items-center gap-1">
@@ -410,15 +511,24 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  /** 3-Wege-Urteilsslot: bestraft → PunishedBadge, verworfen → DismissedBadge, offen → Aktionen. */
+  /** 3-Wege-Urteilsslot: bestraft → PunishedBadge, verworfen → DismissedBadge, offen → Aktionen.
+   *
+   *  Der Rückzug hängt hier mit dran, weil er dieselbe Sichtbarkeitsregel hat wie die Urteils-Chips:
+   *  ist das Vergehen beurteilt, kehrt die Funktion oben aus, und er verschwindet mit ihnen. Nur die
+   *  von Hand NOTIERTE Art hat ihn überhaupt — alle anderen leiten sich aus Einträgen ab, dort gäbe
+   *  es nichts zurückzuziehen. */
   function JudgmentSlot({ refId, offenseType, anlass }: { refId: string; offenseType: StoredOffenseType; anlass: string }) {
     if (punishedIds.has(refId)) return <PunishedBadge refId={refId} />;
     if (dismissedIds.has(refId)) return <DismissedBadge refId={refId} />;
     return (
       <div className="flex flex-wrap items-start gap-2">
         <WurdeBestraftButton refId={refId} offenseType={offenseType} />
-        <StrafaufgabeButton refId={refId} anlass={anlass} />
+        <StrafaufgabeButton refId={refId} offenseType={offenseType} anlass={anlass} />
         <VerwerfenButton refId={refId} offenseType={offenseType} />
+        {offenseType === STORED_TYPE.manual_offense && (
+          <ZurueckziehenButton id={refId} label={labels.strafbuchZurueckziehen}
+            networkError={labels.networkError} resolveError={apiError} onDone={() => router.refresh()} />
+        )}
       </div>
     );
   }
@@ -445,9 +555,15 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
    * Ein Link, kein Formular an Ort und Stelle: eine Aufgabe hat Titel, Frist, Bedingungen und
    * Nachweis-Fotos, und das alles gibt es dort schon. Die Vergehens-ref reist als Query mit; erst der
    * Server macht daraus Aufgabe UND Urteil — hier wird nichts entschieden, nur weitergeleitet.
+   *
+   * Die ART reist genauso mit wie bei den beiden Freitext-Knöpfen: sie steht am geklickten Abschnitt,
+   * und zwei Arten können sich eine ref teilen (eine Reinigungsöffnung über dem Kontingent während
+   * einer Sperrzeit ist unerlaubte Öffnung UND Reinigungs-Limit). Ohne sie stempelte die Strafaufgabe
+   * aus dem Reinigungs-Abschnitt `OEFFNEN_ENTRY` an ihr Urteil — dieselbe Verwechslung, die auf dem
+   * Freitext-Weg schon behoben ist.
    */
-  function StrafaufgabeButton({ refId, anlass }: { refId: string; anlass: string }) {
-    const href = taskFormHref(userId, { offenseRef: refId, anlass });
+  function StrafaufgabeButton({ refId, offenseType, anlass }: { refId: string; offenseType: StoredOffenseType; anlass: string }) {
+    const href = taskFormHref(userId, { offenseRef: refId, offenseType, anlass });
     return (
       <div className="mt-2">
         <Link href={href}
@@ -459,14 +575,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  /** Die Geometrie der kleinen Urteils-Knöpfe. Nur die FARBE unterscheidet sie — als vierte Kopie
-   *  der ganzen Klassenkette drifteten Polsterung und Radius beim nächsten Umbau auseinander. */
-  const CHIP_CLS = "text-xs font-medium border transition px-2.5 py-1 rounded-lg flex items-center gap-1";
-
-  /** Nebenangabe unter der Kopfzeile (Frist, Zeitpunkt). */
-  const FACT_CLS = "text-xs text-foreground-faint";
-  /** Freitext — Notiz des Subs, Anweisung, Ablehnungsgrund. */
-  const NOTE_CLS = "text-xs text-foreground-faint italic";
 
   /** Der Straf-Anlass einer Kontroll-Zeile: Code und Frist. Ohne den Code stünde bei zwei
    *  Kontrollen desselben Tages zweimal derselbe Anlass — und der Sub liest ihn an seiner Aufgabe.
@@ -508,16 +616,31 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
    * Abgeleitet wird nichts mehr von Hand: die Zähler, `hasAny` und die Vollständigkeits-Prüfung
    * unten lesen alle aus dieser Liste.
    */
+  /**
+   * „Und dabei lief eine Sperrzeit" — der Zusatz, der aus einer Handlung ein Vergehen macht.
+   *
+   * Drei Arten stellen dieselbe Frage (unerlaubte Öffnung, unerlaubter Orgasmus, Passwortwechsel am
+   * Admin-Konto) und hatten sie dreimal eigen zusammengesetzt, die dritte sogar mit vertauschten
+   * Zweigen und ohne den Null-Fall. `fallback` ist das, was dort steht, wo gar keine Sperrzeit lief:
+   * bei der Öffnung nichts (ohne Sperrzeit gäbe es das Vergehen nicht), beim Orgasmus der Hinweis
+   * auf das fehlende Fenster (Modus `always` ahndet auch bei offenem KG).
+   */
+  const sperrzeitQualifier = (
+    row: { sperrzeitEndetAtStr: string | null; sperrzeitUnbefristet: boolean },
+    fallback: string | null = null,
+  ): string | null =>
+    row.sperrzeitUnbefristet
+      ? labels.strafbuchTrotzUnbefristet
+      : row.sperrzeitEndetAtStr
+        ? `${labels.strafbuchSperreLiefBis} ${row.sperrzeitEndetAtStr}`
+        : fallback;
+
   const sections = [
     sec("unauthorized_opening", labels.strafbuchUnerlaubteOeffnungen, unerlaubteOeffnungen.map((o) => ({
       refId: o.id,
       anlass: `${labels.strafbuchGeoeffnetAm} ${o.startTimeStr}`,
       body: (judged) => {
-        const qualifier = o.sperrzetUnbefristet
-          ? labels.strafbuchTrotzUnbefristet
-          : o.sperrzetEndetAtStr
-            ? `${labels.strafbuchSperreLiefBis} ${o.sperrzetEndetAtStr}`
-            : null;
+        const qualifier = sperrzeitQualifier(o);
         return (
           <>
             <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
@@ -648,15 +771,47 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       ),
     }))),
 
+    sec("unauthorized_orgasm", labels.strafbuchUnerlaubterOrgasmus, unerlaubteOrgasmen.map((o) => ({
+      refId: o.id,
+      anlass: `${labels.strafbuchOrgasmusAm} ${o.startTimeStr}`,
+      body: (judged) => (
+        <>
+          {titleLine(judged,
+            <>{labels.strafbuchOrgasmusAm} {o.startTimeStr}{o.orgasmusArt ? ` (${o.orgasmusArt})` : ""}</>,
+            // Lief eine Sperrzeit, ist SIE der schwerere Teil des Vorwurfs; sonst bleibt es beim
+            // fehlenden Fenster.
+            sperrzeitQualifier(o, labels.strafbuchOhneDirektive),
+          )}
+          {o.note && <span className={NOTE_CLS}>„{o.note}"</span>}
+        </>
+      ),
+    }))),
+
+    sec("manual_offense", labels.strafbuchManuelleVergehen, manuelleVergehen.map((m) => ({
+      refId: m.id,
+      anlass: `${m.title} (${m.occurredAtStr})`,
+      body: (judged) => (
+        <>
+          {titleLine(judged, m.title, m.occurredAtStr)}
+          {m.description && <span className={NOTE_CLS}>{m.description}</span>}
+          {/* Kein Autor festgehalten (Sitzung ohne Namen, siehe `POST /api/admin/offense`) = die
+              ganze Zeile fällt weg, statt eine Beschriftung ohne Wert dahinter zu zeigen. Über
+              `hasAuthor` und nicht über die blosse Wahrheitswertigkeit: ein Alt-Platzhalter „?"
+              stünde sonst als Name da, während die Meldung an den Träger ihn als „niemand" liest. */}
+          {hasAuthor(m.createdBy) && <p className={FACT_CLS}>{labels.strafbuchNotiertVon}: {m.createdBy}</p>}
+        </>
+      ),
+    }))),
+
     sec("admin_password_change", labels.strafbuchAdminPasswort, adminPasswort.map((p) => ({
       refId: p.id,
       anlass: `${p.atStr}`,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchAdminPasswortAm} {p.atStr}</>,
-            p.sperrzeitEndetAtStr
-              ? <>{labels.strafbuchSperreLiefBis} {p.sperrzeitEndetAtStr}</>
-              : labels.strafbuchTrotzUnbefristet,
+            // `sperrzeitEndetAt: null` heisst hier unbefristet — die Zeile entsteht nur, wenn eine
+            // Sperrzeit lief (`AdminPasswordChange`), es gibt also keinen dritten Fall.
+            sperrzeitQualifier({ sperrzeitEndetAtStr: p.sperrzeitEndetAtStr, sperrzeitUnbefristet: p.sperrzeitEndetAtStr === null }),
           )}
           <p className={FACT_CLS}>
             {labels.strafbuchAdminPasswortKonto}: {p.adminUsername} · {p.via}
@@ -676,6 +831,15 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
   return (
     <div className="flex flex-col gap-6">
+
+      {/* Der Einstieg gehört HIERHER: wer ein Vergehen notieren will, sitzt vor dem Buch, in dem es
+          landen soll. Bisher gab es ihn nur im Aktionen-Hub — man musste die Seite verlassen, um
+          etwas einzutragen, das man gerade vermisst. */}
+      <div className="flex justify-end">
+        <Link href={`/admin/users/${userId}/aktionen/vergehen`}>
+          <Button variant="primary" icon={<Plus size={16} />}>{labels.recordOffense}</Button>
+        </Link>
+      </div>
 
       {!hasAnyOpen && !showAll && hasAny && (
         <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">

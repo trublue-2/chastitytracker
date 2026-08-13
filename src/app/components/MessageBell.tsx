@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bell } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { headerIconBtnCls } from "./inputStyles";
+import { MESSAGE_SCOPES, type MessageScope } from "@/lib/messageScope";
 
 /**
  * Der Zugang zum Posteingang, im Header statt in der Bottom-Nav: die hat bei Keyholder-Rolle bereits
@@ -9,14 +10,21 @@ import { headerIconBtnCls } from "./inputStyles";
  *
  * Server-Komponente ohne eigenen Abruf: der Header ist bereits async und kennt den Nutzer, der
  * Zähler kostet also keinen Client-Fetch.
+ *
+ * Die Glocke zeigt den Posteingang des Bereichs, in dem man steht, das App-Badge die Summe beider —
+ * die Begründung dafür steht bei `HeaderMessages`. Ziel und Beschriftung kommen aus derselben
+ * Tabelle (`MESSAGE_SCOPES`): getrennt geführt liefe die Glocke im Admin-Bereich auf den
+ * Posteingang des Trägers, während ihre Ansage für Screenreader den des Keyholders verspräche.
  */
-export default async function MessageBell({ unread }: { unread: number }) {
+export default async function MessageBell({ unread, scope }: { unread: number; scope: MessageScope }) {
   const t = await getTranslations("messages");
+  const { href, titleKey } = MESSAGE_SCOPES[scope];
+  const title = t(titleKey);
 
   return (
     <Link
-      href="/dashboard/messages"
-      aria-label={unread > 0 ? `${t("title")} (${t("unreadCount", { count: unread })})` : t("title")}
+      href={href}
+      aria-label={unread > 0 ? `${title} (${t("unreadCount", { count: unread })})` : title}
       className={`relative ${headerIconBtnCls}`}
     >
       <Bell size={18} />

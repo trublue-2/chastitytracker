@@ -13,5 +13,9 @@ import { isEntryFormRoute } from "@/lib/entryFormRoute";
 export default function BottomNavSpacer() {
   const pathname = usePathname();
   if (isEntryFormRoute(pathname)) return null;
-  return <div className="h-[calc(5rem+env(safe-area-inset-bottom))] lg:hidden" aria-hidden />;
+  // Höhe aus dem Token `--bottom-nav-space` (globals.css) — dieselbe Quelle, aus der sich auch der
+  // Admin-Platzhalter und die schwebenden Banner bedienen. Vorher stand die Zahl hier eigenständig
+  // und war neun Pixel zu klein: so viel vom untersten Element jeder Seite lag unter der Leiste,
+  // bei einem Knopf also ein Teil seiner Tap-Fläche.
+  return <div className="h-[var(--bottom-nav-space)] lg:hidden" aria-hidden />;
 }

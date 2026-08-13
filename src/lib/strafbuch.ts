@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { deployCutoff } from "@/lib/appMeta";
 import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ } from "@/lib/utils";
 import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
@@ -6,6 +7,8 @@ import { hhmmToMinutes } from "@/lib/autoKontrolleService";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
+import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
+import type { OffenseCanonicalType } from "@/lib/offenseTypes";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
 export interface StrafbuchControlOffense {
@@ -101,6 +104,26 @@ export interface StrafbuchData {
     via: string;
     sperrzeitEndetAt: Date | null;
   }[];
+  /** ORGASMUS-Einträge ohne deckende Orgasmus-Direktive. Ob und in welcher Reichweite das zählt,
+   *  entscheidet die Regel `unauthorized_orgasm` (aus / nur bei Sperrzeit / immer) — Default ist AUS,
+   *  ein Update hängt also niemandem rückwirkend ein Vergehen an. */
+  unauthorizedOrgasms: {
+    id: string;
+    startTime: Date;
+    orgasmusArt: string | null;
+    note: string | null;
+    /** Die zur Tatzeit laufende Sperrzeit, wenn es eine gab — sonst null (Modus `always`). */
+    sperrzeitEndetAt: Date | null;
+    sperrzeitIndefinite: boolean;
+  }[];
+  /** Von Hand notierte Vergehen (`ManualOffense`) — als einzige nicht abgeleitet. */
+  manualOffenses: {
+    id: string;
+    occurredAt: Date;
+    title: string;
+    description: string | null;
+    createdBy: string;
+  }[];
   /** Judgment records — each marks an offense (by `refId`) as PUNISHED or DISMISSED. */
   strafeRecords: {
     refId: string;
@@ -111,7 +134,191 @@ export interface StrafbuchData {
     reason: string | null;
     judgedBy: string | null;
     erledigtAt: Date | null;
+    /** Die Aufgabe, die als Strafe gestellt wurde (`punishWithTask`) — null beim Freitext-Weg. Die
+     *  Strafen-Sicht des Trägers braucht sie, um eine Strafe, die schon als Aufgabe auf dem
+     *  Dashboard steht, nicht ein zweites Mal in voller Länge zu zeigen. */
+    taskId: string | null;
   }[];
+}
+
+/** cleaning_not_relocked shares its underlying OEFFNEN entry with cleaning_limit (both can fire on
+ *  the same REINIGUNG opening — over the daily quota AND not relocked in time). StrafeRecord.refId
+ *  is globally `@unique`, so the two offenses need disjoint ref namespaces — prefixed here rather
+ *  than using the bare entry id.
+ *
+ *  Liegt hier und nicht mehr in `strafurteilService.ts`, weil die ref-Tabelle unten (OFFENSE_LISTS)
+ *  sie braucht und jener Service dieses Modul importiert — andersherum gäbe es einen Zyklus. Dort
+ *  re-exportiert, damit die bestehenden Importeure unverändert bleiben. */
+export function cleaningNotRelockedRef(entryId: string): string {
+  return `relock:${entryId}`;
+}
+export function entryIdFromCleaningNotRelockedRef(refId: string): string | null {
+  return refId.startsWith("relock:") ? refId.slice("relock:".length) : null;
+}
+
+/**
+ * Die Spalten der VERSCHLUSS-/OEFFNEN-Historie, die das Strafbuch tatsächlich liest.
+ *
+ * Diese beiden Abfragen sind unbegrenzt — sie holen jede Öffnung und jeden Verschluss, den es je
+ * gab, weil die Reinigungs-Kontingent-Prüfung gegen den HEUTIGEN Wert über die ganze Historie
+ * zählt. Ohne `select` kam damit jede Zeile mit allen 24 Spalten, inklusive Bildpfad, EXIF-Zeit,
+ * Kontrollcode und Verifikations-Feldern — Daten, die hier niemand anfasst, aber bei einem
+ * langjährigen Nutzer den Löwenanteil der übertragenen Bytes ausmachen. `evaluateTasks` macht es
+ * für dieselben Zeilen längst richtig (`taskIntervals.ts`, der Fallback-Zweig von `kgEntries`).
+ *
+ * Wer hier ein Feld ergänzt, muss es auch brauchen — und wer eines wegnimmt, bekommt einen
+ * Compile-Fehler statt eines stillen Falschergebnisses: die Reinigungs-Helfer nehmen ihre Zeile
+ * strukturell entgegen (`{ oeffnenGrund, startTime }`), und `kgEntries` verlangt `KgEntry`.
+ *
+ * `note` und `source` liest nur der OEFFNEN-Zweig; sie stehen trotzdem in beiden Abfragen, weil die
+ * zwei Listen zusammengeworfen an `evaluateTasks` gehen und zwei verschiedene Zeilenformen dort nur
+ * eine Union erzeugen würden, die niemand braucht.
+ */
+const KG_ENTRY_SELECT = {
+  id: true,
+  type: true,
+  startTime: true,
+  oeffnenGrund: true,
+  note: true,
+  source: true,
+} as const;
+
+/** Nur die drei Felder, die `offenseRuleResolver` liest. Bewusst dieselben wie `CHANGE_SELECT` in
+ *  `offenseRulesService.ts` — dort steht die Schreib-Seite; hier darf keine breitere Zeile geladen
+ *  werden, nur weil es bequem ist. Kein `orderBy`: der Resolver sortiert je Art selbst. */
+const OFFENSE_RULE_CHANGE_SELECT = { offenseType: true, mode: true, effectiveFrom: true } as const;
+
+/** Der Zeilentyp einer Vergehens-Liste in {@link StrafbuchData}. */
+type OffenseListRow<K extends keyof StrafbuchData> = StrafbuchData[K] extends (infer R)[] ? R : never;
+
+/** Der eigene ANLASS-Text einer Vergehens-Zeile, wo die Art einen trägt. */
+export interface OffenseDetail {
+  /** Der Anlass in einer Zeile — Titel des notierten Vergehens bzw. der Aufgabe. */
+  title: string | null;
+  /** Der ausführliche Text dazu, wo einer erfasst wurde. */
+  description: string | null;
+  /**
+   * WER dieses Vergehen festgehalten hat — Audit-Kennung wie `StrafeRecord.judgedBy`: der
+   * Benutzername des Menschen, oder das Kürzel `"ai"` für den Weg über den MCP.
+   *
+   * Nur ein von Hand NOTIERTES Vergehen hat einen Autor; abgeleitete stellt die App selbst fest, und
+   * dort ist `null` die richtige Antwort und nicht eine fehlende. Deshalb ist das Feld PFLICHT und
+   * nicht optional — wer ihn verliert, meldet dem Träger wieder „System" (v5.1).
+   *
+   * SOWEIT der Compiler reicht, und das ist weniger, als es aussieht: die Pflicht trifft nur die
+   * Arten, die überhaupt ein `detail` mitbringen (heute zwei von dreizehn). Eine neue Art OHNE
+   * `detail` bekommt in `selectSubOffenses` stillschweigend `recordedBy: null`, ohne dass Compiler
+   * oder Test etwas sagen. Für abgeleitete Arten ist das genau richtig; eine neue Art mit
+   * MENSCHLICHEM Autor muss deshalb ein `detail` mitbringen — sonst greift hier nichts.
+   */
+  recordedBy: string | null;
+}
+
+/**
+ * Wie aus einer Vergehens-Zeile ihre stabile `refId`, ihr Tatzeitpunkt und ihr Anlass-Text werden —
+ * für JEDE Art, an EINER Stelle.
+ *
+ * Vorher stand diese Zuordnung nur in `collectDetectedOffenses`. Sobald eine zweite Stelle sie
+ * braucht — und die Regel-Filterung unten braucht sie — entsteht sonst eine handgeführte Kopie, und
+ * genau daran ist das Strafbuch schon zweimal gescheitert (der KERN-BUG vom 11.07., dazu die fünf
+ * Arten, die bis v5.0.3 in keiner Anzeige auftauchten). Wer die refs braucht, LEITET sie hier ab.
+ *
+ * `detail` fehlt bei den meisten Arten, und das ist die Aussage: „Kontrolle zu spät" sagt schon
+ * alles, ein Anlass wäre eine Wiederholung. Es steht hier statt beim Anzeiger, weil sonst DORT eine
+ * Aufzählung der Arten mit eigenem Titel entstünde — und eine dritte solche Art bekäme still
+ * `title: null`, ohne dass der Compiler oder ein Test sich meldet.
+ */
+const spec = <K extends keyof StrafbuchData>(
+  key: K,
+  ref: (row: OffenseListRow<K>) => string,
+  at: (row: OffenseListRow<K>) => Date | null,
+  detail?: (row: OffenseListRow<K>) => OffenseDetail,
+) => ({ key, ref, at, detail });
+
+export const OFFENSE_LISTS = {
+  unauthorized_opening: spec("unauthorizedOpenings", (o) => o.id, (o) => o.startTime),
+  late_control: spec("lateControls", (k) => k.id, (k) => k.entryStartTime ?? k.deadline),
+  rejected_control: spec("rejectedControls", (k) => k.id, (k) => k.entryStartTime ?? k.deadline),
+  auto_removed_control: spec("autoRemovedControls", (k) => k.id, (k) => k.entryStartTime ?? k.deadline),
+  cleaning_limit: spec("reinigungLimitViolations", (v) => v.entryId, (v) => v.startTime),
+  wrong_device: spec("wrongDeviceViolations", (v) => v.entryId, (v) => v.startTime),
+  missed_orgasm: spec("missedOrgasmInstructions", (m) => m.id, (m) => m.endetAt),
+  late_lock: spec("lateLocks", (a) => a.id, (a) => a.fulfilledAt ?? a.endetAt),
+  cleaning_not_relocked: spec("cleaningNotRelocked", (c) => cleaningNotRelockedRef(c.entryId), (c) => c.relockAt ?? c.deadline),
+  // refId = Task.id. Anders als bei den Reinigungs-Vergehen braucht es kein Präfix: die id gehört
+  // keiner zweiten Vergehensart, und `StrafeRecord.refId` ist global eindeutig.
+  // `recordedBy: null` — die versäumte Aufgabe stellt die App fest, nicht ein Mensch. Wer die Aufgabe
+  // GESTELLT hat, ist eine andere Frage und wird nirgends festgehalten.
+  unfulfilled_task: spec("unfulfilledTasks", (t) => t.id, (t) => t.failedAt ?? t.holdUntil,
+    (t) => ({ title: t.title, description: null, recordedBy: null })),
+  // refId ist die AdminPasswordChange-id: eigener Namensraum, kollidiert nicht mit Entry-/
+  // Anforderungs-ids und bleibt stabil, auch wenn die Sperrzeit später zurückgezogen wird.
+  admin_password_change: spec("adminPasswordChanges", (p) => p.id, (p) => p.at),
+  unauthorized_orgasm: spec("unauthorizedOrgasms", (o) => o.id, (o) => o.startTime),
+  manual_offense: spec("manualOffenses", (m) => m.id, (m) => m.occurredAt,
+    (m) => ({ title: m.title, description: m.description, recordedBy: m.createdBy })),
+} satisfies Record<OffenseCanonicalType, {
+  key: keyof StrafbuchData;
+  ref: (row: never) => string;
+  at: (row: never) => Date | null;
+  detail?: (row: never) => OffenseDetail;
+}>;
+
+/**
+ * Die Vergehens-Listen eines Strafbuchs als einheitliche Sicht: je Art ihre Zeilen samt der beiden
+ * Zugriffe aus {@link OFFENSE_LISTS}.
+ *
+ * Hier steht der Cast, den das Iterieren über eine je Art typisierte Tabelle unvermeidlich kostet —
+ * EINMAL. `applyOffenseRules` unten und `collectDetectedOffenses` in `strafurteilService.ts`
+ * brauchten ihn beide und hatten ihn beide ausgeschrieben; das ist genau die Sorte Kopie, gegen die
+ * die Tabelle gebaut wurde.
+ */
+export function offenseListViews(sb: StrafbuchData) {
+  const lists = sb as unknown as Record<string, unknown[]>;
+  return Object.entries(OFFENSE_LISTS).map(([type, s]) => ({
+    type: type as OffenseCanonicalType,
+    key: s.key,
+    rows: lists[s.key],
+    ref: s.ref as (row: unknown) => string,
+    at: s.at as (row: unknown) => Date | null,
+    detail: s.detail as ((row: unknown) => OffenseDetail) | undefined,
+  }));
+}
+
+/**
+ * Streicht aus einem rohen Strafbuch jede Zeile, deren Vergehensart zur TATZEIT abgeschaltet war.
+ *
+ * Läuft über {@link OFFENSE_LISTS} statt über eine eigene Aufzählung: eine neue Vergehensart ist
+ * damit automatisch regel-gebunden, statt still ungeprüft durchzurutschen.
+ *
+ * `judgedRefs` sind die bereits beurteilten Vergehen — sie bleiben stehen, egal was die Regel sagt.
+ * Ein gefälltes Urteil ist die Aufzeichnung einer Entscheidung und darf nicht durch einen Schalter
+ * aus der Welt fallen; sonst hinge ein `StrafeRecord` (samt womöglich einer Strafaufgabe) an einem
+ * Vergehen, das keine Oberfläche mehr kennt.
+ *
+ * Zeilen ohne Zeitpunkt (`at` = null, etwa ein falsches Gerät, dessen Eintrag nicht mehr existiert)
+ * werden nach der HEUTE geltenden Fassung beurteilt — mehr ist über sie nicht bekannt.
+ */
+function applyOffenseRules(
+  sb: StrafbuchData,
+  resolve: OffenseRuleResolver,
+  judgedRefs: Set<string>,
+  now: Date,
+): void {
+  const lists = sb as unknown as Record<string, unknown[]>;
+  for (const { type, key, rows, ref, at } of offenseListViews(sb)) {
+    // manual_offense hat bewusst keinen Schalter (Begründung in `offenseRules.ts`).
+    if (!isSwitchableOffenseType(type)) continue;
+    // `unauthorized_orgasm` hat seine Regel schon beim Ableiten gelesen — sie sagt dort nicht nur
+    // ob, sondern WIE WEIT (nur bei Sperrzeit / immer), und das lässt sich hier nicht nachholen.
+    // Ein zweiter Durchgang wäre für diese Art ein No-Op: was die Regel streichen würde, ist dort
+    // längst gestrichen — und den Schutz beurteilter Zeilen bringt die Ableitung selbst mit
+    // (`judgedRefs`, siehe dort).
+    if (type === "unauthorized_orgasm") continue;
+    lists[key] = rows.filter(
+      (row) => judgedRefs.has(ref(row)) || resolve(type, at(row) ?? now) !== "off",
+    );
+  }
 }
 
 /** True if a Verschluss-Anforderung (lock request) deadline has passed without a timely
@@ -172,22 +379,13 @@ const ENFORCED_FROM_KEY = "cleaningWindowEnforcedFrom";
  * oder Korrigieren. Ohne beides (Zeile fehlt, Migration nie gelaufen) gilt der SICHERE Weg: `now`,
  * also ab jetzt — lieber ein Vergehen zu wenig als eines, das es damals nicht gab.
  */
-export async function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
-  const raw = process.env.CLEANING_WINDOW_ENFORCED_FROM;
-  if (raw) {
-    const parsed = new Date(raw);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-    // Ein unlesbares Datum darf NICHT stillschweigend zu "gar kein Stichtag" werden — das bestrafte
-    // rückwirkend die ganze Historie. Laut melden und die DB-Zeile nehmen.
-    console.error(`[strafbuch] CLEANING_WINDOW_ENFORCED_FROM ist kein gültiges Datum: "${raw}" — nutze den Stichtag aus der DB`);
-  }
-
-  const row = await prisma.appMeta.findUnique({ where: { key: ENFORCED_FROM_KEY } });
-  const stored = row ? new Date(row.value) : null;
-  if (stored && !Number.isNaN(stored.getTime())) return stored;
-
-  console.error(`[strafbuch] Kein Stichtag in AppMeta ("${ENFORCED_FROM_KEY}") — bewerte ab jetzt, keine rückwirkenden Vergehen`);
-  return now;
+export function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
+  return deployCutoff(now, {
+    key: ENFORCED_FROM_KEY,
+    envVar: "CLEANING_WINDOW_ENFORCED_FROM",
+    logPrefix: "[strafbuch]",
+    fallbackNote: "bewerte ab jetzt, keine rückwirkenden Vergehen",
+  });
 }
 
 /** True if a REINIGUNG opening inside `sperre` doesn't break the Sperrzeit. Delegates to
@@ -246,13 +444,29 @@ export function cleaningRelockObligation(
  *  rejected Kontrollen, REINIGUNG-limit violations, late locks, missed cleaning re-locks, plus
  *  the punished-marker records. Single source of truth shared by the admin Strafbuch page and the MCP tool. */
 export async function buildStrafbuch(userId: string, now: Date = new Date()): Promise<StrafbuchData> {
+  // Die Regel-Historie ZUERST, allein: sie ist winzig und indiziert, entscheidet aber, ob die
+  // Orgasmus-Historie unten überhaupt gebraucht wird. Der Default dieser Art ist `off` — ohne diese
+  // Vorabfrage lädt JEDES Strafbuch (Admin-Seite, get_offenses, jedes judge_offense) die
+  // vollständige Orgasmus-Historie eines Nutzers und wirft sie eine Zeile später weg.
+  const offenseRuleChanges = await prisma.offenseRuleChange.findMany({ where: { userId }, select: OFFENSE_RULE_CHANGE_SELECT });
+
+  // Ab wann war `unauthorized_orgasm` je scharf? `undefined` = nie — dann braucht es die Einträge
+  // gar nicht. Das ist zugleich die äussere Grenze des Urteils-Schutzes weiter unten: wer die
+  // scharfstellende Zeile von Hand aus der DB löscht, statt eine `off`-Zeile davorzusetzen, nimmt
+  // auch beurteilten Vergehen ihren Anlass. Über die App geht das nicht — `setOffenseRule` legt nur
+  // an. Sonst reicht alles ab diesem Zeitpunkt: davor gilt zwingend der Default `off`, und
+  // die Ableitung unten verwirft diese Einträge ohnehin. Der Filter ist damit verlustfrei.
+  const orgasmRuleArmedFrom = validOffenseRuleChanges(offenseRuleChanges)
+    .filter((c) => c.offenseType === "unauthorized_orgasm" && c.mode !== "off")
+    .reduce<Date | undefined>((min, c) => (!min || c.effectiveFrom < min ? c.effectiveFrom : min), undefined);
+
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw] = await Promise.all([
+  const [enforcedFrom, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true, reinigungsFenster: true, timezone: true } }),
-    prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" } }),
-    prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS" }, orderBy: { startTime: "asc" } }),
+    prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" }, select: KG_ENTRY_SELECT }),
+    prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS" }, orderBy: { startTime: "asc" }, select: KG_ENTRY_SELECT }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...activeVerschlussAnforderungWhere(now) } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "ANFORDERUNG", withdrawnAt: null, ...activeVerschlussAnforderungWhere(now) } }),
     prisma.kontrollAnforderung.findMany({
@@ -266,6 +480,16 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     // Versäumnis des Subs, und darf nie zu einem Vergehen werden.
     prisma.task.findMany({ where: { userId, withdrawnAt: null }, include: TASK_INCLUDE }),
     prisma.adminPasswordChange.findMany({ where: { subUserId: userId }, orderBy: { createdAt: "desc" } }),
+    orgasmRuleArmedFrom
+      ? prisma.entry.findMany({
+          where: { userId, type: "ORGASMUS", startTime: { gte: orgasmRuleArmedFrom } },
+          orderBy: { startTime: "desc" },
+          select: { id: true, startTime: true, orgasmusArt: true, note: true },
+        })
+      : Promise.resolve([]),
+    // Zurückgezogene bleiben draussen — gleiche Begründung wie bei den Aufgaben: der Rückzug ist die
+    // Korrektur des Keyholders an seiner eigenen Notiz.
+    prisma.manualOffense.findMany({ where: { userId, withdrawnAt: null }, orderBy: { occurredAt: "desc" } }),
   ]);
 
   // Öffnungen, Verschlüsse und die Reinigungs-Regeln liegen aus demselben Promise.all vor —
@@ -308,12 +532,15 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
 
   // Windows that explicitly permit opening to perform the directed orgasm — an OEFFNEN inside
   // such a window is not an unauthorized opening (like the REINIGUNG exception).
+  /** Deckt dieses Orgasmus-Fenster den Zeitpunkt? Ein vor dem Zeitpunkt zurückgezogenes Fenster
+   *  deckt nichts mehr. Geteilt von der Öffnungs-Ausnahme (`oeffnenErlaubt`) und der Frage, ob ein
+   *  Orgasmus überhaupt gedeckt war — zwei Fragen, eine Fenster-Arithmetik. */
+  const windowCovers = (w: { beginntAt: Date; endetAt: Date; withdrawnAt: Date | null }, at: Date): boolean =>
+    at >= w.beginntAt && at <= w.endetAt && (w.withdrawnAt === null || w.withdrawnAt > at);
   const oeffnenErlaubtWindows = orgasmusAnforderungen.filter((a) => a.oeffnenErlaubt);
   const isOrgasmusOpenAllowed = (openTime: Date): boolean =>
-    oeffnenErlaubtWindows.some((w) =>
-      openTime >= w.beginntAt && openTime <= w.endetAt &&
-      (w.withdrawnAt === null || w.withdrawnAt > openTime),
-    );
+    oeffnenErlaubtWindows.some((w) => windowCovers(w, openTime));
+  const resolveRule = offenseRuleResolver(offenseRuleChanges);
   const reinigungMaxProTag = user?.reinigungMaxProTag ?? 0;
   const reinigungMaxMinuten = user?.reinigungMaxMinuten ?? 15;
   const reinigungsFenster = user?.reinigungsFenster ?? null;
@@ -331,7 +558,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const offenseEntries = offenseEntryIds.length > 0
     ? await prisma.entry.findMany({
         where: { id: { in: offenseEntryIds } },
-        include: { device: { select: { name: true } } },
+        // Drei Felder plus der Gerätename — genau das, was `wrongDeviceViolations` unten baut.
+        select: { id: true, startTime: true, note: true, device: { select: { name: true } } },
       })
     : [];
   const offenseEntryById = new Map(offenseEntries.map((e) => [e.id, e]));
@@ -384,6 +612,48 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       sperrzeitEndetAt: sperre!.endetAt,
       sperrzeitIndefinite: sperre!.endetAt === null,
     }));
+
+  // Die bereits beurteilten Vergehen — einmal gebaut, zweimal gebraucht: hier für die
+  // Orgasmus-Ableitung und unten für `applyOffenseRules`.
+  const judgedRefs = new Set(strafeRecordsRaw.map((r) => r.refId));
+
+  // Orgasmus ohne deckende Direktive. Anders als alle übrigen Arten fragt diese die Regel schon
+  // BEIM ABLEITEN, weil ihr Modus nicht nur ja/nein sagt, sondern die Reichweite bestimmt:
+  // `lockedOnly` ahndet nur, was während einer laufenden Sperrzeit passierte, `always` jeden
+  // ungedeckten Orgasmus. Der Modus wird zur TATZEIT gelesen, nicht jetzt — ein später umgelegter
+  // Schalter schreibt die Vergangenheit nicht um (Begründung: `offenseRules.ts`).
+  //
+  // Gedeckt ist ein Orgasmus durch JEDES Fenster, das ihn umschliesst — Pflicht (ANWEISUNG) wie
+  // Erlaubnis (GELEGENHEIT). Ob die Direktive dabei erfüllt wurde, ist eine andere Frage und hat mit
+  // `missed_orgasm` ihr eigenes Vergehen; hier zählt allein, ob überhaupt eines offen stand.
+  const unauthorizedOrgasms = orgasmusEintraege.flatMap((o) => {
+    const mode = resolveRule("unauthorized_orgasm", o.startTime);
+    // Ein bereits BEURTEILTES Vergehen überlebt jede Regeländerung — dieselbe Zusage, die
+    // `applyOffenseRules` allen anderen schaltbaren Arten gibt. Sie muss hier stehen, weil diese Art
+    // ihre Regel schon beim Ableiten liest und den Regel-Durchgang deshalb überspringt.
+    //
+    // Ohne sie liesse eine zurückdatierte `off`-Zeile das Vergehen aus der Ableitung fallen, während
+    // sein Urteil bestehen bleibt: der Träger sähe „Vergehen unbekannt" ohne Art und ohne Tatzeit,
+    // die Keyholderin ein Urteil ohne Anlass. Regel-Zeilen von Hand zurückzudatieren ist kein
+    // theoretischer Fall — es ist der Weg, auf dem diese Regel rückwirkend scharf gestellt wird.
+    //
+    // Nur die REGEL wird überbrückt, nicht die Ableitung: deckt später eine Direktive den Orgasmus
+    // ab, verschwindet er wie bei jeder anderen Art auch. Genau diese Grenze zieht `applyOffenseRules`
+    // ebenfalls — sie filtert bereits abgeleitete Zeilen, nicht deren Anlass.
+    const judged = judgedRefs.has(o.id);
+    if (!judged && mode === "off") return [];
+    if (orgasmusAnforderungen.some((w) => windowCovers(w, o.startTime))) return [];
+    const sperre = findActiveSperrzeit(o.startTime, sperrzeiten);
+    if (!judged && mode === "lockedOnly" && !sperre) return [];
+    return [{
+      id: o.id,
+      startTime: o.startTime,
+      orgasmusArt: o.orgasmusArt,
+      note: o.note,
+      sperrzeitEndetAt: sperre?.endetAt ?? null,
+      sperrzeitIndefinite: sperre !== undefined && sperre.endetAt === null,
+    }];
+  });
 
   // Late locks — an ANFORDERUNG (lock request) whose deadline passed without a timely VERSCHLUSS.
   //
@@ -438,7 +708,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     entryNote: k.autoMarkedEntry?.note ?? null,
   });
 
-  return {
+  const data: StrafbuchData = {
     unauthorizedOpenings,
     lateControls: kontrollAnforderungen
       .filter((k) => mapAnforderungStatus(k, k.entry?.startTime ?? null, now) === "late")
@@ -465,6 +735,14 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       via: p.via,
       sperrzeitEndetAt: p.sperrzeitEndetAt,
     })),
+    unauthorizedOrgasms,
+    manualOffenses: manualOffensesRaw.map((m) => ({
+      id: m.id,
+      occurredAt: m.occurredAt,
+      title: m.title,
+      description: m.description,
+      createdBy: m.createdBy,
+    })),
     strafeRecords: strafeRecordsRaw.map((r) => ({
       refId: r.refId,
       offenseType: r.offenseType,
@@ -474,6 +752,10 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       reason: r.reason,
       judgedBy: r.judgedBy,
       erledigtAt: r.erledigtAt,
+      taskId: r.taskId,
     })),
   };
+
+  applyOffenseRules(data, resolveRule, judgedRefs, now);
+  return data;
 }

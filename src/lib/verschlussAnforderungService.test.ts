@@ -92,7 +92,7 @@ beforeEach(() => {
 describe("updateSperrzeitEnde", () => {
   it("BUG 14.07.: eine GEPLANTE Sperrzeit zu ändern schickt KEINE Mail", async () => {
     findUniqueMock.mockResolvedValue(sz(geplant));
-    const res = await updateSperrzeitEnde("s1", NEUES_ENDE);
+    const res = await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(false);
@@ -106,7 +106,7 @@ describe("updateSperrzeitEnde", () => {
     // jede Meldung verschluckt worden: der Sub bliebe verschlossen im Glauben, eine längst
     // geänderte/zurückgezogene Sperre laufe noch weiter.
     findUniqueMock.mockResolvedValue(sz(autoErzeugt));
-    const res = await updateSperrzeitEnde("s1", NEUES_ENDE);
+    const res = await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(true);
@@ -117,7 +117,7 @@ describe("updateSperrzeitEnde", () => {
     for (const zustand of [ausgeloest, sofort]) {
       notifyMock.mockClear();
       findUniqueMock.mockResolvedValue(sz(zustand));
-      const res = await updateSperrzeitEnde("s1", NEUES_ENDE);
+      const res = await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin");
       if (!res.ok) throw new Error("erwartet: ok");
       expect(res.data.notified).toBe(true);
       expect(notifyMock).toHaveBeenCalledTimes(1);
@@ -126,13 +126,13 @@ describe("updateSperrzeitEnde", () => {
 
   it("auf unbefristet setzen folgt derselben Regel", async () => {
     findUniqueMock.mockResolvedValue(sz(geplant));
-    const still = await updateSperrzeitEnde("s1", null);
+    const still = await updateSperrzeitEnde("s1", null, "herrin");
     if (!still.ok) throw new Error("erwartet: ok");
     expect(still.data.notified).toBe(false);
     expect(notifyMock).not.toHaveBeenCalled();
 
     findUniqueMock.mockResolvedValue(sz(ausgeloest));
-    const laut = await updateSperrzeitEnde("s1", null);
+    const laut = await updateSperrzeitEnde("s1", null, "herrin");
     if (!laut.ok) throw new Error("erwartet: ok");
     expect(laut.data.notified).toBe(true);
     expect(notifyMock).toHaveBeenCalledTimes(1);
@@ -140,16 +140,16 @@ describe("updateSperrzeitEnde", () => {
 
   it("die Guards greifen vor allem anderen — kein Schreiben, keine Meldung", async () => {
     findUniqueMock.mockResolvedValue(null);
-    expect((await updateSperrzeitEnde("s1", NEUES_ENDE)).ok).toBe(false);
+    expect((await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(sz({ ...sofort, art: "ANFORDERUNG" }));
-    expect((await updateSperrzeitEnde("s1", NEUES_ENDE)).ok).toBe(false);
+    expect((await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(sz({ ...sofort, withdrawnAt: new Date() }));
-    expect((await updateSperrzeitEnde("s1", NEUES_ENDE)).ok).toBe(false);
+    expect((await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(sz(sofort));
-    expect((await updateSperrzeitEnde("s1", new Date("2020-01-01"))).ok).toBe(false); // Ende in der Vergangenheit
+    expect((await updateSperrzeitEnde("s1", new Date("2020-01-01"), "herrin")).ok).toBe(false); // Ende in der Vergangenheit
 
     expect(notifyMock).not.toHaveBeenCalled();
     expect(updateMock).not.toHaveBeenCalled();
@@ -176,7 +176,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
   describe("updateSperrzeitEnde", () => {
     it("terminiert: ein Ende VOR dem Auslösezeitpunkt wird abgelehnt (auch wenn es in der Zukunft liegt)", async () => {
       findUniqueMock.mockResolvedValue(sz({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null }));
-      const res = await updateSperrzeitEnde("s1", MORGEN);
+      const res = await updateSperrzeitEnde("s1", MORGEN, "herrin");
 
       if (res.ok) throw new Error("erwartet: Fehler");
       expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
@@ -186,7 +186,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
 
     it("terminiert: ein Ende NACH dem Auslösezeitpunkt bleibt erlaubt", async () => {
       findUniqueMock.mockResolvedValue(sz({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null }));
-      const res = await updateSperrzeitEnde("s1", DANACH);
+      const res = await updateSperrzeitEnde("s1", DANACH, "herrin");
 
       expect(res.ok).toBe(true);
       expect(updateMock).toHaveBeenCalledWith({ where: { id: "s1" }, data: { endetAt: DANACH } });
@@ -194,22 +194,22 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
 
     it("Ende GENAU auf dem Auslösezeitpunkt ist eine Sperre der Länge null → abgelehnt", async () => {
       findUniqueMock.mockResolvedValue(sz({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null }));
-      const res = await updateSperrzeitEnde("s1", IN_DREI_WOCHEN);
+      const res = await updateSperrzeitEnde("s1", IN_DREI_WOCHEN, "herrin");
       if (res.ok) throw new Error("erwartet: Fehler");
       expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
     });
 
     it("unbefristet (null) bleibt bei einer terminierten Sperrzeit erlaubt", async () => {
       findUniqueMock.mockResolvedValue(sz({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null }));
-      expect((await updateSperrzeitEnde("s1", null)).ok).toBe(true);
+      expect((await updateSperrzeitEnde("s1", null, "herrin")).ok).toBe(true);
     });
 
     it("bereits ausgelöst: es zählt wieder `jetzt`, nicht das vergangene wirksamAb", async () => {
       findUniqueMock.mockResolvedValue(sz(ausgeloest));
-      expect((await updateSperrzeitEnde("s1", MORGEN)).ok).toBe(true); // verkürzen auf morgen: legitim
+      expect((await updateSperrzeitEnde("s1", MORGEN, "herrin")).ok).toBe(true); // verkürzen auf morgen: legitim
 
       findUniqueMock.mockResolvedValue(sz(ausgeloest));
-      const past = await updateSperrzeitEnde("s1", new Date("2026-07-13T12:00:00Z"));
+      const past = await updateSperrzeitEnde("s1", new Date("2026-07-13T12:00:00Z"), "herrin");
       if (past.ok) throw new Error("erwartet: Fehler");
       expect(past.error).toBe("LOCK_PERIOD_END_MUST_BE_FUTURE");
     });
@@ -220,7 +220,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
       const res = await createVerschlussAnforderung({
         userId: "u1", art: "SPERRZEIT",
         wirksamAbAt: IN_DREI_WOCHEN, endetAt: MORGEN,
-      });
+      }, "herrin");
 
       if (res.ok) throw new Error("erwartet: Fehler");
       expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
@@ -230,7 +230,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
     it("sofortige SPERRZEIT mit Ende in der Vergangenheit wird abgelehnt", async () => {
       const res = await createVerschlussAnforderung({
         userId: "u1", art: "SPERRZEIT", endetAt: new Date("2026-07-13T12:00:00Z"),
-      });
+      }, "herrin");
 
       if (res.ok) throw new Error("erwartet: Fehler");
       expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_FUTURE");
@@ -241,7 +241,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
       const res = await createVerschlussAnforderung({
         userId: "u1", art: "SPERRZEIT",
         wirksamAbAt: IN_DREI_WOCHEN, endetAt: DANACH,
-      });
+      }, "herrin");
 
       expect(res.ok).toBe(true);
       expect(tx.verschlussAnforderung.create).toHaveBeenCalledTimes(1);
@@ -251,7 +251,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
       const res = await createVerschlussAnforderung({
         userId: "u1", art: "ANFORDERUNG",
         wirksamAbAt: IN_DREI_WOCHEN, fristH: 4, sperrEndetAt: MORGEN,
-      });
+      }, "herrin");
 
       if (res.ok) throw new Error("erwartet: Fehler");
       expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
@@ -265,7 +265,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
       const res = await createVerschlussAnforderung({
         userId: "u1", art: "ANFORDERUNG",
         wirksamAbAt: IN_DREI_WOCHEN, endetAt: MORGEN,
-      });
+      }, "herrin");
 
       expect(res.ok).toBe(true);
     });
@@ -279,7 +279,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
 describe("withdrawVerschlussAnforderung (per art)", () => {
   it("nur GEPLANTE storniert → kein Wort an den Sub (er wusste nie davon)", async () => {
     tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...geplant }]);
-    const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT");
+    const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data).toEqual({ count: 1, hidden: 1, notified: false, rows: [{ id: "a1", ...geplant }] });
@@ -292,7 +292,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
     // beiden Guards zusammen (`if (notified)`), behielte eine hardware-erzwungene Box eine Sperre,
     // die es nicht mehr gibt — und der Sub bliebe physisch verschlossen.
     tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...geplant }]);
-    await withdrawVerschlussAnforderung("u1", "SPERRZEIT");
+    await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
 
     expect(notifyMock).not.toHaveBeenCalled();
     expect(heimdallMock).toHaveBeenCalledWith("u1");
@@ -300,7 +300,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
 
   it("eine bekannte Direktive storniert → Meldung wie bisher", async () => {
     tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...ausgeloest }]);
-    const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT");
+    const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data).toEqual({ count: 1, hidden: 0, notified: true, rows: [{ id: "a1", ...ausgeloest }] });
@@ -310,7 +310,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
 
   it("die auto-erzeugte Sperrzeit gilt als bekannt → Meldung", async () => {
     tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...autoErzeugt }]);
-    const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT");
+    const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(true);
@@ -322,7 +322,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
       { id: "a1", ...geplant },
       { id: "a2", ...ausgeloest },
     ]);
-    const res = await withdrawVerschlussAnforderung("u1", "ANFORDERUNG");
+    const res = await withdrawVerschlussAnforderung("u1", "ANFORDERUNG", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     // `rows` sind exakt die in der Transaktion gelesenen Zeilen — der Aufrufer benennt sie damit,
@@ -333,7 +333,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
 
   it("nichts offen → count 0, keine Meldung, kein Schreibzugriff, kein Push", async () => {
     tx.verschlussAnforderung.findMany.mockResolvedValue([]);
-    const res = await withdrawVerschlussAnforderung("u1", "ANFORDERUNG");
+    const res = await withdrawVerschlussAnforderung("u1", "ANFORDERUNG", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data).toEqual({ count: 0, hidden: 0, notified: false, rows: [] });
@@ -345,13 +345,13 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
   it("die Where-Klausel filtert NICHT nach wirksamAb — geplante bleiben eingeschlossen", async () => {
     // Regression: der virtuelle Keyholder beobachtete einmal withdrawn:0 bei einer nur TERMINIERTEN
     // Anforderung. Das Mit-Stornieren ist gewollt; falsch war allein die Meldung darüber.
-    await withdrawVerschlussAnforderung("u1", "ANFORDERUNG");
+    await withdrawVerschlussAnforderung("u1", "ANFORDERUNG", "herrin");
     const where = tx.verschlussAnforderung.findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({ userId: "u1", art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null });
     expect(JSON.stringify(where)).not.toContain("wirksamAb");
 
     tx.verschlussAnforderung.findMany.mockClear();
-    await withdrawVerschlussAnforderung("u1", "SPERRZEIT");
+    await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
     const whereSz = tx.verschlussAnforderung.findMany.mock.calls[0][0].where;
     expect(whereSz).toMatchObject({ userId: "u1", art: "SPERRZEIT", withdrawnAt: null });
     expect(JSON.stringify(whereSz)).not.toContain("wirksamAb");
@@ -361,7 +361,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
     // Sonst könnte der Poller dazwischen auslösen: er stempelt `benachrichtigtAt` nach unserem Lesen,
     // wir schwiegen — und der Sub hielte eine ihm gerade gemeldete Sperrzeit für weiter aktiv.
     tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...geplant }]);
-    await withdrawVerschlussAnforderung("u1", "SPERRZEIT");
+    await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 });
@@ -372,7 +372,7 @@ describe("withdrawVerschlussAnforderungById (Admin-UI)", () => {
 
   it("eine GEPLANTE Zeile wegklicken meldet nichts — pusht aber an Heimdall", async () => {
     findUniqueMock.mockResolvedValue(va(geplant));
-    const res = await withdrawVerschlussAnforderungById("s1");
+    const res = await withdrawVerschlussAnforderungById("s1", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(false);
@@ -382,7 +382,7 @@ describe("withdrawVerschlussAnforderungById (Admin-UI)", () => {
 
   it("eine bekannte Zeile wegklicken meldet", async () => {
     findUniqueMock.mockResolvedValue(va(ausgeloest));
-    const res = await withdrawVerschlussAnforderungById("s1");
+    const res = await withdrawVerschlussAnforderungById("s1", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(true);
@@ -391,10 +391,10 @@ describe("withdrawVerschlussAnforderungById (Admin-UI)", () => {
 
   it("unbekannt → 404, bereits zurückgezogen → 400, jeweils ohne Meldung", async () => {
     findUniqueMock.mockResolvedValue(null);
-    expect((await withdrawVerschlussAnforderungById("s1")).ok).toBe(false);
+    expect((await withdrawVerschlussAnforderungById("s1", "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(va({ ...ausgeloest, withdrawnAt: new Date() }));
-    expect((await withdrawVerschlussAnforderungById("s1")).ok).toBe(false);
+    expect((await withdrawVerschlussAnforderungById("s1", "herrin")).ok).toBe(false);
 
     expect(notifyMock).not.toHaveBeenCalled();
     expect(updateMock).not.toHaveBeenCalled();
@@ -416,14 +416,14 @@ describe("mehrere Anforderungen koexistieren", () => {
 
   it("eine neue ANFORDERUNG zieht bestehende NICHT zurück", async () => {
     isLockedMock.mockResolvedValue(false);
-    const res = await createVerschlussAnforderung({ userId: "u1", art: "ANFORDERUNG", fristH: 4 });
+    const res = await createVerschlussAnforderung({ userId: "u1", art: "ANFORDERUNG", fristH: 4 }, "herrin");
 
     expect(res.ok).toBe(true);
     expect(tx.verschlussAnforderung.updateMany).not.toHaveBeenCalled();
   });
 
   it("eine neue SPERRZEIT ersetzt die bestehende weiterhin", async () => {
-    const res = await createVerschlussAnforderung({ userId: "u1", art: "SPERRZEIT", fristH: 24 });
+    const res = await createVerschlussAnforderung({ userId: "u1", art: "SPERRZEIT", fristH: 24 }, "herrin");
 
     expect(res.ok).toBe(true);
     expect(tx.verschlussAnforderung.updateMany).toHaveBeenCalledTimes(1);
@@ -436,7 +436,7 @@ describe("mehrere Anforderungen koexistieren", () => {
     isLockedMock.mockResolvedValue(true);
     const res = await createVerschlussAnforderung({
       userId: "u1", art: "ANFORDERUNG", fristH: 4, wirksamAbAt: new Date("2026-07-20T12:00:00Z"),
-    });
+    }, "herrin");
 
     expect(res.ok).toBe(true);
     expect(tx.verschlussAnforderung.create).toHaveBeenCalledTimes(1);
@@ -444,7 +444,7 @@ describe("mehrere Anforderungen koexistieren", () => {
 
   it("SOFORT bleibt an den offenen Sub gebunden", async () => {
     isLockedMock.mockResolvedValue(true);
-    const res = await createVerschlussAnforderung({ userId: "u1", art: "ANFORDERUNG", fristH: 4 });
+    const res = await createVerschlussAnforderung({ userId: "u1", art: "ANFORDERUNG", fristH: 4 }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("USER_ALREADY_LOCKED");
@@ -457,7 +457,7 @@ describe("mehrere Anforderungen koexistieren", () => {
     isLockedMock.mockResolvedValue(false);
     const res = await createVerschlussAnforderung({
       userId: "u1", art: "SPERRZEIT", fristH: 24, wirksamAbAt: new Date("2026-07-20T12:00:00Z"),
-    });
+    }, "herrin");
 
     expect(res.ok).toBe(true); // terminiert → der Zustand zählt erst bei der Auslösung
     expect(tx.verschlussAnforderung.create).toHaveBeenCalledTimes(1);
@@ -487,7 +487,7 @@ describe("updateLockRequest", () => {
 
   it("eine GEPLANTE Anforderung zu ändern schickt KEINE Mail", async () => {
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
-    const res = await updateLockRequest("a1", { nachricht: "neu" });
+    const res = await updateLockRequest("a1", { nachricht: "neu" }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(false);
@@ -497,7 +497,7 @@ describe("updateLockRequest", () => {
 
   it("eine bereits ausgelöste Anforderung meldet die Änderung", async () => {
     findUniqueMock.mockResolvedValue(anf(ausgeloest));
-    const res = await updateLockRequest("a1", { endetAt: SPAETER });
+    const res = await updateLockRequest("a1", { endetAt: SPAETER }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(true);
@@ -507,7 +507,7 @@ describe("updateLockRequest", () => {
   it("auf sofort gezogen: die reguläre Zustellung geht JETZT raus, nicht erst beim nächsten Poller-Tick", async () => {
     isLockedMock.mockResolvedValue(false); // eine Einschliess-Anforderung geht nur an einen offenen Sub
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
-    const res = await updateLockRequest("a1", { wirksamAb: null });
+    const res = await updateLockRequest("a1", { wirksamAb: null }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(true);
@@ -523,7 +523,7 @@ describe("updateLockRequest", () => {
     // Zustellung dem Poller (er liest den frischen Stand beim nächsten Tick).
     const VERGANGEN = new Date("2026-07-14T11:59:00Z"); // knapp vor JETZT
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: VERGANGEN, benachrichtigtAt: null, endetAt: SPAETER }));
-    const res = await updateLockRequest("a1", { nachricht: "neu" });
+    const res = await updateLockRequest("a1", { nachricht: "neu" }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(false);
@@ -539,7 +539,7 @@ describe("updateLockRequest", () => {
     // verschlossen ist, wäre unerfüllbar und zählte später als „zu spät verschlossen".
     isLockedMock.mockResolvedValue(true);
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
-    const res = await updateLockRequest("a1", { wirksamAb: null });
+    const res = await updateLockRequest("a1", { wirksamAb: null }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("USER_ALREADY_LOCKED");
@@ -549,14 +549,14 @@ describe("updateLockRequest", () => {
 
   it("Mindestdauer und absolutes Sperr-Ende verdrängen einander, statt still zu koexistieren", async () => {
     findUniqueMock.mockResolvedValue(anf({ ...ausgeloest, dauerH: 24 }));
-    await updateLockRequest("a1", { sperrEndetAt: IN_DREI_WOCHEN });
+    await updateLockRequest("a1", { sperrEndetAt: IN_DREI_WOCHEN }, "herrin");
 
     expect(updateMock.mock.calls[0][0].data).toMatchObject({ dauerH: null, sperrEndetAt: IN_DREI_WOCHEN });
   });
 
   it("beides gleichzeitig zu setzen ist ein Fehler, kein stiller Vorrang", async () => {
     findUniqueMock.mockResolvedValue(anf(ausgeloest));
-    const res = await updateLockRequest("a1", { dauerH: 12, sperrEndetAt: IN_DREI_WOCHEN });
+    const res = await updateLockRequest("a1", { dauerH: 12, sperrEndetAt: IN_DREI_WOCHEN }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("LOCK_DURATION_OR_END");
@@ -565,14 +565,14 @@ describe("updateLockRequest", () => {
 
   it("das Reinigungs-Flag ohne Sperr-Vorgabe fällt weg (es hätte nichts zu erlauben)", async () => {
     findUniqueMock.mockResolvedValue(anf(ausgeloest));
-    await updateLockRequest("a1", { reinigungErlaubt: true });
+    await updateLockRequest("a1", { reinigungErlaubt: true }, "herrin");
 
     expect(updateMock.mock.calls[0][0].data.reinigungErlaubt).toBe(false);
   });
 
   it("ein Sperr-Ende vor der Auslösung wird abgelehnt (dieselbe Regel wie beim Anlegen)", async () => {
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
-    const res = await updateLockRequest("a1", { sperrEndetAt: SPAETER });
+    const res = await updateLockRequest("a1", { sperrEndetAt: SPAETER }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
@@ -581,16 +581,16 @@ describe("updateLockRequest", () => {
 
   it("die Guards greifen vor allem anderen — Sperrzeit, erfüllt, zurückgezogen, unbekannt", async () => {
     findUniqueMock.mockResolvedValue({ ...anf(ausgeloest), art: "SPERRZEIT" });
-    expect((await updateLockRequest("a1", { nachricht: "x" })).ok).toBe(false);
+    expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(anf({ ...ausgeloest, fulfilledAt: JETZT }));
-    expect((await updateLockRequest("a1", { nachricht: "x" })).ok).toBe(false);
+    expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(anf({ ...ausgeloest, withdrawnAt: JETZT }));
-    expect((await updateLockRequest("a1", { nachricht: "x" })).ok).toBe(false);
+    expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(null);
-    expect((await updateLockRequest("a1", { nachricht: "x" })).ok).toBe(false);
+    expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
 
     expect(updateMock).not.toHaveBeenCalled();
     expect(notifyMock).not.toHaveBeenCalled();
@@ -598,7 +598,7 @@ describe("updateLockRequest", () => {
 
   it("LOAD-BEARING: der Heimdall-Push läuft auch bei der stillen Änderung", async () => {
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
-    await updateLockRequest("a1", { nachricht: "neu" });
+    await updateLockRequest("a1", { nachricht: "neu" }, "herrin");
 
     expect(heimdallMock).toHaveBeenCalledWith("u1");
   });

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Lock, Droplets } from "lucide-react";
 import { APP_TZ, formatDayTimeDual } from "@/lib/utils";
 import type { ComponentType, ReactNode } from "react";
@@ -76,6 +77,15 @@ interface LargeProps {
   endetAtLabel?: string | null;
   /** Siehe {@link CompactProps.cleaningNote}. */
   cleaningNote?: string | null;
+  /** Frist verstrichen → Warnfarbe statt der ruhigen Schema-Farbe. Die compact-Variante konnte das
+   *  von Anfang an, die grosse nicht: um 23 Uhr sah eine Anforderung „bis 20 Uhr" aus wie um
+   *  Mittag, obwohl seit drei Stunden ein Vergehen läuft. */
+  overdue?: boolean;
+  /** Macht die Karte anklickbar — direkt aufs Formular, das die Anforderung erfüllt. Ohne ihn sind
+   *  es drei Taps über den Plus-Knopf, und das Banner sagt nicht einmal, wohin. */
+  href?: string;
+  /** Beschriftung des Handlungs-Hinweises rechts (i18n beim Aufrufer, wie `label`). */
+  actionLabel?: string | null;
 }
 
 type Props = CompactProps | LargeProps;
@@ -111,19 +121,25 @@ export default function LockRequestBanner(props: Props) {
   }
 
   // Large variant (dashboard)
-  const { colorScheme, label, nachricht, endetAtLabel, cleaningNote } = props;
-  const c = COLORS[colorScheme];
+  const { colorScheme, label, nachricht, endetAtLabel, cleaningNote, overdue, href, actionLabel } = props;
+  const c = overdue ? WARN : COLORS[colorScheme];
   const Icon = SCHEME_ICON[colorScheme];
 
-  return (
-    <div className={`flex flex-col gap-1.5 ${c.bg} border ${c.border} ${c.leftAccent} rounded-2xl px-5 py-4`}>
+  const inner = (
+    <>
       <div className="flex items-center gap-2">
         <Icon size={15} className={`${c.accent} shrink-0`} />
         <p className={`text-sm font-bold ${c.text}`}>{label}</p>
+        {href && actionLabel && (
+          <span className={`ml-auto text-xs font-semibold opacity-70 ${c.text}`}>{actionLabel}</span>
+        )}
       </div>
       {nachricht && <p className={`text-sm ${c.accent}`}>{nachricht}</p>}
       {endetAtLabel && <p className={`text-xs ${c.accent}`}>{endetAtLabel}</p>}
       {cleaningNote && <p className={`text-xs ${c.accent}`}>{cleaningNote}</p>}
-    </div>
+    </>
   );
+
+  const cls = `flex flex-col gap-1.5 ${c.bg} border ${c.border} ${c.leftAccent} rounded-2xl px-5 py-4`;
+  return href ? <Link href={href} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>;
 }

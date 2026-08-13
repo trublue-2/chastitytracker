@@ -67,7 +67,8 @@ describe("createOrgasmusAnforderung — Vergangenheits-Fenster (B-01)", () => {
   it("endetAt sechs Tage in der Vergangenheit wird abgelehnt, auch bei GELEGENHEIT", async () => {
     const res = await createOrgasmusAnforderung({
       userId: "u1", art: "GELEGENHEIT", beginntAt: VOR_SECHS_TAGEN, endetAt: VOR_EINER_STUNDE,
-    });
+    },
+    "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("ORGASM_END_MUST_BE_FUTURE");
     // Der Guard greift VOR dem User-Lookup — kein Datensatz wurde angelegt oder benachrichtigt.
@@ -78,7 +79,8 @@ describe("createOrgasmusAnforderung — Vergangenheits-Fenster (B-01)", () => {
   it("dieselbe Konstellation mit ANWEISUNG wird ebenfalls abgelehnt (verhindert die unverdiente Strafe)", async () => {
     const res = await createOrgasmusAnforderung({
       userId: "u1", art: "ANWEISUNG", beginntAt: VOR_SECHS_TAGEN, endetAt: VOR_EINER_STUNDE,
-    });
+    },
+    "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("ORGASM_END_MUST_BE_FUTURE");
   });
@@ -86,7 +88,8 @@ describe("createOrgasmusAnforderung — Vergangenheits-Fenster (B-01)", () => {
   it("beginntAt in der Vergangenheit + endetAt in der Zukunft bleibt zulässig (rückwirkende Fensteröffnung)", async () => {
     const res = await createOrgasmusAnforderung({
       userId: "u1", art: "GELEGENHEIT", beginntAt: VOR_SECHS_TAGEN, endetAt: MORGEN,
-    });
+    },
+    "herrin");
     expect(res.ok).toBe(true);
     expect(tx.orgasmusAnforderung.create).toHaveBeenCalledTimes(1);
   });

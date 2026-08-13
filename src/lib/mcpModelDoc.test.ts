@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { MCP_MODEL_DOC } from "./mcpModelDoc";
+import { STORED_TYPE } from "./offenseTypes";
 
 /** Der menschenlesbare Spiegel — laut Header beider Dateien manuell synchron zu halten.
  *  Dieser Test macht aus der Header-Bitte eine Zusicherung: driftet ein Abschnitt, schlägt er fehl.
@@ -31,6 +32,23 @@ function sections(text: string): Section[] {
 const guideRaw = readFileSync(GUIDE_URL, "utf8");
 const doc = sections(MCP_MODEL_DOC);
 const guide = sections(guideRaw.replace(MIRROR_NOTE, ""));
+
+/**
+ * Die Vergehens-Liste in Abschnitt 5 ist die LETZTE hand geführte Kopie der Taxonomie — überall
+ * sonst wird sie aus `STORED_TYPE` abgeleitet (`OFFENSE_TYPES` im Ledger) oder per
+ * `AssertCoversAllOffenses` erzwungen (Strafbuch-Seite, `offenseRules.ts`). Genau so eine Kopie war
+ * der KERN-BUG vom 11.07.2026: sie verlor `auto_removed_control`, ohne dass etwas fehlschlug.
+ *
+ * Hier lässt sich nichts ableiten (der Text ist Prosa für einen Agenten), also prüft der Test die
+ * Vollständigkeit gegen die Tabelle. Eine vierzehnte Art bricht damit den Test, statt dem
+ * Keyholder-Agenten still zu verschweigen, dass es sie gibt. Der Guide erbt die Zusicherung über den
+ * Spiegel-Vergleich unten.
+ */
+describe("explain_model nennt jede kanonische Vergehensart", () => {
+  it.each(Object.keys(STORED_TYPE))("%s steht in der Typen-Liste", (type) => {
+    expect(MCP_MODEL_DOC).toContain(`\`${type}\``);
+  });
+});
 
 describe("mcpModelDoc.ts und docs/mcp-keyholder-guide.md sind synchron", () => {
   it("der Parser findet die Abschnitte tatsächlich", () => {

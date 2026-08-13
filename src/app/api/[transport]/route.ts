@@ -10,7 +10,7 @@ import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
   mcpReviewTaskProof, mcpEditTask,
-  mcpRequestOrgasm, mcpJudgeOffense,
+  mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
 import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
@@ -71,7 +71,11 @@ type ToolExtra = { authInfo?: { extra?: { userId?: string } } };
 /** Freitext-Felder der Write-Args — nur hier könnte ein Keyholder einen Code eintippen, also NUR
  *  diese redigieren. IDs (cuids), Zeitstempel und Zahlenwerte bleiben intakt, damit die Audit-Zeile
  *  nachvollziehbar bleibt (welcher Datensatz, welche Deadline). */
-const MCP_FREE_TEXT_KEYS = new Set(["message", "comment", "note", "kommentar", "reason"]);
+// `text` stand im Kommentar unten als Beispiel, fehlte aber in der Liste — ausgerechnet der
+// Straftext von `judge_offense`. `title`/`description` kamen mit `record_offense` dazu. Wer ein
+// neues Freitext-Feld einführt, trägt es hier ein: die Liste ist die einzige Stelle, an der ein
+// versehentlich hineingeratener Kontroll-Code noch abgefangen wird.
+const MCP_FREE_TEXT_KEYS = new Set(["message", "comment", "note", "kommentar", "reason", "text", "title", "description"]);
 
 /** Redigiert Ziffernfolgen NUR in Freitext-Feldern (redactDigits gegen versehentliches Code-Leak),
  *  nicht in IDs/Zeitstempeln — geteilt vom Container-Log (`serializeMcpArgs`) UND vom DB-Audit
@@ -192,10 +196,14 @@ const MCP_SERVER_INSTRUCTIONS =
   "(`get_session` für Segmente/deviceBreakdown, `device_stats`, `records`, `period_summary`, `denial_trend`, " +
   "`get_offenses`, `get_context`, `timeline`, `get_devices`, `query_notes`, `get_action_log`, `get_box_state`, " +
   "`list_entries` für Roh-Einträge). Die Auto-Kontroll-Einstellungen und die Reinigungs-Regeln stehen in " +
-  "`get_context` (autoInspections + cleaning).\n" +
+  "`get_context` (autoInspections + cleaning). Welche Vergehensarten bei diesem Sub überhaupt zählen, " +
+  "steht ebenfalls in `get_context` (offenseRules) — nur lesbar, umgelegt werden sie in der " +
+  "Admin-Oberfläche, nicht über den MCP.\n" +
   "• DIREKTIVEN (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung): `set_lock_period`, " +
-  "`request_lock`, `request_inspection`, `request_orgasm`, `judge_offense`, `set_training_goal`, " +
-  "`set_cleaning`, `set_auto_inspections`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … `set_cleaning` deckt ALLE " +
+  "`request_lock`, `request_inspection`, `request_orgasm`, `judge_offense`, `record_offense`, `set_training_goal`, " +
+  "`set_cleaning`, `set_auto_inspections`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … Ein Vergehen, das " +
+  "der Tracker nicht sehen kann (gebrochene Abmachung, Unhöflichkeit), notierst du mit `record_offense`; " +
+  "beurteilt wird es danach wie jedes andere. `set_cleaning` deckt ALLE " +
   "Reinigungs-Regeln ab, auch die Tages-Fenster (`windows` — ersetzt die ganze Liste, `[]` löst die Reinigung von der " +
   "Uhrzeit statt sie zu verbieten). Eine EINZELNE Kontrolle veranlasst du weiterhin von Hand über " +
   "`request_inspection`; die REGELN der automatischen Kontrollen (Hauptschalter, Anzahl/Tag, Schlaf-Fenster, " +
@@ -494,7 +502,10 @@ function registerTools(server: McpServer) {
           "maxMinutesPerBreak/maxPausesPerDay/usedToday/windows/windowOpenNow/windowsBinding/" +
           "windowsBindingReason/openingAllowedNow — geändert werden sie mit `set_cleaning`; windows binden NUR während einer aktiven Sperrzeit, " +
           "die Reinigen erlaubt; openingAllowedNow beantwortet direkt, ob JETZT eine Reinigungsöffnung " +
-          "erlaubt ist, statt windows/windowOpenNow selbst zu verrechnen), der wiederkehrende " +
+          "erlaubt ist, statt windows/windowOpenNow selbst zu verrechnen), die geltenden Vergehens-Regeln " +
+          "(offenseRules: welche Arten bei diesem Sub zählen — off/on, bei unauthorized_orgasm zusätzlich " +
+          "lockedOnly/always; NUR LESBAR, es gibt bewusst kein Tool zum Umlegen — das entscheidet der Mensch " +
+          "in der Admin-Oberfläche, suche also nicht danach), der wiederkehrende " +
           "Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree; ordinal/ordinalLabel " +
           "grenzt monatliche Slots ein — z.B. 'erster Mittwoch im Monat') und anstehende Termine " +
           "(per Default ab jetzt, geräte-frei-Flag). Für die Planung von Ankern/Kontrollen. " +
@@ -797,11 +808,21 @@ function registerTools(server: McpServer) {
           "code for inspections) — read it, the count alone does not tell you WHICH directives you took away. " +
           "target=inspection never touches an AUTOMATIC inspection that has not triggered yet — those are " +
           "deliberately hidden from you (see keyholder_dashboard.scheduledDirectives) and are not yours to " +
-          "cancel; an automatic one that has already triggered is withdrawn like any other." +
-          KEYHOLDER_NOTE + SCHEDULED_SILENT,
+          "cancel; an automatic one that has already triggered is withdrawn like any other. " +
+          "target=manual_offense takes back a hand-noted offense (record_offense, id required): it leaves " +
+          "the Strafbuch but stays on record, and a judgment already passed on it is NOT undone " +
+          "(judge_offense action:\"reopen\" does that)." +
+          // KEYHOLDER_BASE statt KEYHOLDER_NOTE: das Notify-Versprechen gilt hier nicht mehr für ALLE
+          // Ziele (manual_offense ist still), und ein Werkzeug, dessen Text beides behauptet, ist für
+          // den Agenten schlechter als eines, das die Ausnahme benennt — dieselbe Wahl wie bei
+          // judge_offense, dessen Aktionen sich ebenfalls unterschiedlich verhalten.
+          KEYHOLDER_BASE +
+          " The user is notified by e-mail + push — with ONE exception: target=manual_offense is silent " +
+          "(a hand-noted offense was never shown to them in the first place)." +
+          SCHEDULED_SILENT,
         inputSchema: {
-          target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive", "task"]).describe("Which open directive to withdraw. `task` always needs an id."),
-          id: z.string().optional().describe("Withdraw exactly THIS directive (id from keyholder_dashboard.openLockRequests / scheduledDirectives / openTasks). Only for lock_request/lock_period/task."),
+          target: z.enum(["lock_request", "lock_period", "inspection", "orgasm_directive", "task", "manual_offense"]).describe("Which open directive to withdraw. `task` and `manual_offense` always need an id."),
+          id: z.string().optional().describe("Withdraw exactly THIS directive (id from keyholder_dashboard.openLockRequests / scheduledDirectives / openTasks, or get_offenses.manualOffenses[].ref.id). Only for lock_request/lock_period/task/manual_offense."),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
@@ -829,6 +850,28 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runWriteTool("judge_offense", extra, args, (u) => mcpJudgeOffense(u, args)),
+    );
+
+    server.registerTool(
+      "record_offense",
+      {
+        title: "Note an offense by hand",
+        description:
+          "Records an offense the tracker cannot derive from entries — a broken agreement, rudeness, " +
+          "anything that left no trace in the data. It is the ONLY offense type that is written down " +
+          "instead of derived, and the only one no rule can switch off. It appears in get_offenses " +
+          "(manualOffenses) like any other and is ruled on with judge_offense; recording it is NOT a " +
+          "judgment and imposes no penalty by itself. A wrong note is taken back with " +
+          "withdraw target:\"manual_offense\", never deleted." + KEYHOLDER_SILENT,
+        inputSchema: {
+          title: z.string().min(1).describe("What happened, in one sentence — the line it appears under in the Strafbuch."),
+          occurredAt: z.string().optional().describe("When it happened (ISO 8601), NOT when you note it. Default: now. Must not be in the future."),
+          description: z.string().optional().describe("Longer text (returned as `description` by get_offenses)."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("record_offense", extra, args, (u) => mcpRecordOffense(u, args)),
     );
 
     server.registerTool(

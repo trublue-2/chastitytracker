@@ -603,7 +603,7 @@ Scope always comes from the session — never from a query parameter. The three 
 | `GET/POST` | `/api/admin/vorgaben` | List / create training goals |
 | `PATCH/DELETE` | `/api/admin/vorgaben/[id]` | Update / delete training goal |
 | `GET/PATCH` | `/api/admin/notifications` | Get / update per-user notification preferences (`?userId=`) |
-| `POST/PATCH/DELETE` | `/api/admin/strafe` | Record / update / remove a penalty (offense type + refId + note) |
+| `POST/PATCH/DELETE` | `/api/admin/strafe` | Judge an offense (offense type + refId) / mark the penalty done or open again / undo the judgment |
 | `POST` | `/api/admin/demo` | Create demo user with sample data (requires `ENABLE_DEMO=true`) |
 
 ### Auth, Passkeys & Settings

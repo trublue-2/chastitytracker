@@ -1,6 +1,8 @@
 # Kommunikation in der App: Posteingang für Sub und Keyholder
 
-**Status:** Etappe 1 umgesetzt (v4.56.0, erweitert bis v4.58.1) · Etappe 2 und 3 offen
+**Status:** Etappe 1 umgesetzt (v4.56.0, erweitert bis v4.58.1) · aus Etappe 2 ist die
+**Keyholder-Ansicht** gebaut (`/admin/messages`, Glocke im blauen Kopf); Antwort/Rückfrage des Subs,
+Quittieren, Idempotenz und Offline-Cache sind weiterhin offen, Etappe 3 ganz
 **Erstellt:** 2026-07-26 · **Ist-Stand nachgezogen:** 2026-07-31
 **Auslöser:** Das App-Icon zeigte ein Nachrichten-Badge, es gab in der App aber keinen Ort, an dem man
 Nachrichten nachliest. Bestandsaufnahme und Entwurf entstanden aus vier parallelen Code-Analysen.
@@ -15,7 +17,15 @@ Verwandte Issues: **#37** (Träger erbittet Aufschluss/Orgasmus), **#36** (offen
 ## Ist-Stand: Wann welche Meldung an den Sub geht
 
 Aus dem Code abgeleitet, Stand 2026-07-31 (v4.60.0). **22 `bodyKey`s** (`messageService.ts:26-53`),
-davon **20 an den Sub** — zwei sind Keyholder-Meldungen und tragen deshalb `inbox: false`.
+davon **20 an den Sub**; zwei richten sich an die Keyholder.
+
+*Nachgezogen:* Die Liste ist seither gewachsen, und die Keyholder-Meldungen sind nicht mehr
+persistenzlos. Heute gehen **sieben** Schlüssel an die Keyholder (vier Varianten der automatischen
+Ablage einer Kontrolle, dazu Aufgabe erfüllt / versäumt / zur Sichtung). Sie tragen weiterhin
+`inbox: false` in Richtung `notifyUser` — der persönliche Posteingang des einzelnen Keyholders ist
+nicht der Ort für eine Meldung über einen fremden Träger —, bekommen aber sehr wohl **eine Zeile**:
+`notifyControllers` schreibt sie mit dem Träger als Betreff und `audience: "keyholders"`, geteilt von
+allen seinen Keyholdern. Was der Sub selbst erfasst (Einträge), geht nach wie vor nur per Mail.
 
 Die Spalte **Schalter** meint „Mail und Push bei neuen Nachrichten"
 (`NotificationPreference.MESSAGE_RECEIVED`, fehlende Zeile = an, `notificationPrefs.ts:9-25`).
@@ -33,7 +43,7 @@ Posteingang-Eintrag entsteht in **allen** Fällen; genau das ist der Gewinn der 
 | Kontrolle zurückgezogen | `resolveKontrolle("withdraw")` | `inspectionResolvedWithdrawnMessage` | ✔ | ✔ | ja | **nur wenn** `!isHiddenFromSub` — eine noch nicht ausgelöste Kontrolle verriete sich sonst durch ihren Rückzug |
 | Mahnung (Stufe 1) | Poller, `inspectionReminderDelayMinutes` nach Deadline | `inspectionReminderMessage` / `…NoCode` | ✔ | ✔ | **nein** | nur bei `inspectionReminderEnabled`; der Zeitstempel wird trotzdem immer gesetzt (Anker für Stufe 2) |
 | Auto-Ablage als Öffnen (Stufe 2) | Poller, `inspectionAutoMarkDelayMinutes` nach der Mahnung | `inspectionAutoRemovedMessageSub` / `…NoCode` | ✔ | ✔ | **nein** | entfällt im Schlaf-Fenster nach einem Reinigungs-Relock |
-| ↳ dieselbe Auto-Ablage an die Keyholder | Poller | `inspectionAutoRemovedMessageKeyholder` / `…NoCode`, **`inbox: false`** | ✔ | ✔ | ja | geht **nicht** an den Sub — der Keyholder-Posteingang kommt mit Etappe 2 |
+| ↳ dieselbe Auto-Ablage an die Keyholder | Poller | `inspectionAutoRemovedMessageKeyholder` / `…NoCode` (dazu die `…Wear`-Varianten) | ✔ | ✔ | ja | geht **nicht** an den Sub, sondern in den **Keyholder-Posteingang** (`audience: "keyholders"`, eine geteilte Zeile je Träger) |
 
 ### Verschluss / Sperrzeit
 
@@ -59,7 +69,7 @@ Posteingang-Eintrag entsteht in **allen** Fällen; genau das ist der Gewinn der 
 
 | Ereignis | Ausgelöst durch | `bodyKey` | Mail | Push | Schalter | Stille-Regel |
 |---|---|---|---|---|---|---|
-| Strafe verhängt | `judgeOffense` (MCP/KI) · `POST /api/admin/strafe` (Keyholder) | **immer** `penaltyMessageNoReason`, dazu `ref: offense` | ✔ (Mail nutzt `penaltyMessage` mit `{reason}`) | ✔ | ja | nur bei `status=PUNISHED` — ein Verwerfen meldet nichts. `senderKind` kommt über `senderKindOf(judgedBy)` aus `ai`/`admin`/`system` |
+| Strafe verhängt | `judgeOffense` (MCP/KI) · `POST /api/admin/strafe` (Keyholder) | **immer** `penaltyMessageNoReason`, dazu `ref: offense` | ✔ (Mail nutzt `penaltyMessage` mit `{reason}`) | ✔ | ja | nur bei `status=PUNISHED`. Absender aus dem durchgereichten `actor` — mit dem NAMEN des Urteilenden |
 
 Der Straftext wird **nicht** in die Nachricht kopiert: die Mail interpoliert ihn, der Posteingang
 liest ihn beim Anzeigen frisch über `ref` vom `StrafeRecord`. Dasselbe Muster bei Kontroll-Kommentar
@@ -120,7 +130,8 @@ Diese Meldungen existieren nach dem Versand nirgends mehr — kein DB-Feld, kein
 - Kontroll-Mahnung und Auto-Buchung (`inspectionEscalationService.ts:37-43`, `:101-105`)
 - Sperrzeit- und Anforderungs-Änderungen (`verschlussAnforderungService.ts:298-300`, `:434-438`)
 - Alle Rückzüge (`verschlussAnforderungService.ts:479`, `:523`, `orgasmusAnforderungService.ts:111`, `:129`)
-- **Strafe verhängt — inklusive Straftext** (`api/admin/strafe/route.ts:72`, `strafurteilService.ts:163`)
+- **Strafe verhängt — inklusive Straftext** (`strafurteilService.ts`, `notifyJudgment`; die
+  Strafbuch-Route hatte damals eine eigene Umsetzung, sie geht heute durch `judgeOffense`)
 - Alle Aufgaben-Änderungen, -Rückzüge und -Ergebnisse (`taskService.ts:275`, `:299`, `:384-395`)
 
 Der Straftext ist der härteste Fall: `emails.penaltyMessage` interpoliert `{reason}`, aber der Sub hat
@@ -182,9 +193,12 @@ dagegen fertig: `Header.tsx:31-41` rendert Feedback-Knopf und Avatar in einer Fl
 Server-Komponente mit `await auth()` — der Ungelesen-Zähler kommt ohne Client-Fetch.
 Zweitplatzierung: `DesktopSidebar.tsx:30-35` hat vertikal Luft.
 
-**Keyholder — vierter Eintrag in `adminNavItems()`** (`src/lib/adminNavItems.ts:20-29`), bereichsweit
-über alle Subs, mit Sub-Filter in der Liste. **Nicht** als zehnter Reiter in `UserSubNav.tsx:18-28` —
-die Navigation hat schon neun und degradiert mobil zu einem `<select>`.
+**Keyholder — GEBAUT als Glocke im Admin-Kopf** (`/admin/messages`), bereichsweit über alle Subs.
+Ursprünglich als vierter Eintrag in `adminNavItems()` geplant; die Glocke gewann, weil sie im blauen
+Bereich denselben Platz und dieselbe Geste hat wie im grünen — eine Tür statt zweier Muster für
+dieselbe Sache. Der Sub-Filter in der Liste ist zurückgestellt: WER gemeint ist, steht an der Zeile.
+**Nicht** als zehnter Reiter in `UserSubNav.tsx:18-28` — die Navigation hat schon neun und degradiert
+mobil zu einem `<select>`.
 
 Der Zähler gehört in den **Renderer**, nicht in `adminNavItems()`: die Liste ist heute rein und
 ikonenbasiert und wird von zwei Navigationen geteilt.
@@ -370,6 +384,15 @@ Instanz-Admin mitliest. **Empfehlung: für Nachrichten die engere `getKeyholders
 eine mögliche Mitlese-Situation in der Oberfläche benennen. Ein Kanal, dessen Publikum der Nutzer
 nicht kennt, ist schlimmer als keiner.
 
+> **Anders entschieden beim Bau des Keyholder-Posteingangs (Etappe 2, Leseteil).** Der Scope kommt
+> aus `getControllableSubs` — dem weiteren Set. Gründe: es spiegelt genau die Empfängerliste, die
+> denselben Inhalt heute schon per Mail bekommt (der Posteingang darf keinen engeren Kreis haben als
+> der Kanal, den er ersetzt); und das engere Set wäre auf jeder Instanz **leer**, die keine
+> `AdminUserRelationship`-Zeilen pflegt — nachgeprüft: die Live-Instanz hat null. Der Preis, klar
+> ausgesprochen: dort liest **jeder globale Admin** die Keyholder-Meldungen aller Träger mit.
+> Für einen Sub→Keyholder-**Schreib**kanal (der Rest von Etappe 2) bleibt die Empfehlung oben
+> bestehen: dort ist das Publikum eine andere Frage als bei einer Systemmeldung.
+
 **Sub ohne Keyholder:** Kanal ausblenden, **kein** Rückfall auf „alle Admins". Der häufigste Fall ist
 der Selbst-Hoster in Personalunion — der schriebe sonst an sich selbst, also genau die
 Selbst-Kontrolle, die `isKeyholderOf` (`keyholder.ts:11-12`) bewusst verbietet. Systemmeldungen an den
@@ -485,7 +508,7 @@ Form, die sich in Schritten ausrollen lässt.
 | # | Inhalt | Risiko | Stand |
 |---|---|---|---|
 | **1** | `Message` + `MessageRead`; `notifyUser` schreibt zusätzlich eine Schlüssel-Nachricht; Posteingang für den Sub (nur lesen); `MESSAGE_RECEIVED` in den Präferenzen; Badge serverberechnet | niedrig | **umgesetzt** (v4.56.0). Darüber hinaus gebaut: Kategorien (`messageCategories.ts`), Zeilen-Menü, Löschen, Link zur offenen Kontrolle (v4.57.3/v4.58.1) |
-| **2** | Antwort und Rückfrage des Subs mit Objektbezug; Keyholder-Ansicht; Quittieren; Idempotenz und Offline-Cache | mittel | offen — `MessageRead.acknowledgedAt` und `clientMessageId` liegen bereit, `senderKind: "sub"` gibt es noch nicht |
+| **2** | Antwort und Rückfrage des Subs mit Objektbezug; Keyholder-Ansicht; Quittieren; Idempotenz und Offline-Cache | mittel | **teilweise** — die **Keyholder-Ansicht** ist gebaut (`/admin/messages`, `audience: "keyholders"`, geteilte Zeile je Träger, Gelesen-Stand je Leser; Guard `assertController()`). Offen: Antwort/Rückfrage des Subs, Quittieren, Idempotenz, Offline-Cache — `MessageRead.acknowledgedAt` und `clientMessageId` liegen bereit, `senderKind: "sub"` gibt es noch nicht |
 | **3** | MCP: `send_message` (V2) + `read_messages`; Zähler additiv im `keyholder_dashboard`; Aufräumregel im Tageswechsel | niedrig | offen |
 
 **Wenn nur eine Sache geht: Etappe 1.** Sie ist die kleinste, ändert **keinen einzigen Aufrufer** —

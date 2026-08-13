@@ -1,5 +1,9 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { predictAutoMarkAt } from "@/lib/inspectionEscalationService";
+import { AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
+import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch";
 import { prisma } from "@/lib/prisma";
 import {
   formatDateTime, formatHours,
@@ -7,8 +11,8 @@ import {
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
   wearingHoursFromPairs, joinParts, APP_TZ,
-  type ReinigungSettings,
-} from "@/lib/utils";
+  formatTime,
+  type ReinigungSettings } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
@@ -22,6 +26,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";
+import OpenPenalties from "./OpenPenalties";
 import TaskList from "./TaskList";
 import { getEvaluatedTaskHistory, isHeldByTask, belongsOnDashboard, loadTaskProofViews } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
@@ -73,7 +78,7 @@ export default async function DashboardPage() {
     // Bei mehreren offenen zeigt das Banner die dringendste — ein Verschluss erfüllt ohnehin alle.
     getOpenLockRequest(userId, now),
     getActiveSperrzeit(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true, inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true, inspectionReminderDelayMinutes: true, ...AUTO_KONTROLLE_SETTINGS_SELECT } }),
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
     prisma.device.count({ where: { userId, archivedAt: null } }),
@@ -115,6 +120,37 @@ export default async function DashboardPage() {
   // Box IST offen, und ein erzwungenes „verschlossen" bräche das Wiederverschluss-Formular und die
   // Entry-Guards.
   const cleaningPauseUntil = runningCleaningPauseUntil(latest, reinigung, now);
+
+  // Die STRAFFRIST daneben, und zwar nur, wenn sie FRÜHER liegt als der Countdown oben.
+  //
+  // Der Countdown beantwortet „bleibt das dieselbe Session?" und darf das auch weiter (Begründung
+  // oben). Aber die Frist, gegen die BESTRAFT wird, ist eine andere: bei konfiguriertem
+  // Reinigungsfenster reicht sie bis ans Fensterende, und der Kommentar an
+  // `cleaningInterruptionDeadline` nimmt an, das sei immer SPÄTER. Es kann früher sein — Öffnung
+  // 21:55, Fenster bis 22:00, Kontingent 15 Minuten: der Countdown lief bis 22:10, das Vergehen
+  // entstand um 22:00. Wer bei grünem Countdown um 22:05 verschloss, hatte ein Vergehen und keine
+  // Ahnung warum. Die strengere Frist gehört ihm gesagt, nicht die bequemere.
+  // Die Sperrzeit, die zur ÖFFNUNGSZEIT schon galt — nicht die, die jetzt gilt. Das Strafbuch nimmt
+  // ebenfalls die damalige (`findActiveSperrzeit` prüft `openTime >= s.createdAt`). Eine erst nach
+  // der Öffnung angelegte Sperrzeit ergäbe hier eine Drohung, der im Strafbuch nichts entspricht.
+  const sperreBeiOeffnung = latest && activeSperrzeit && activeSperrzeit.createdAt <= latest.startTime
+    ? activeSperrzeit
+    : null;
+  const cleaningRelockDeadline = latest && cleaningPauseUntil
+    ? cleaningRelockObligation(
+        latest,
+        sperreBeiOeffnung,
+        // Dieselben drei Felder, die `cleaningBlockReason` liest — `tz` ist die Zone des SUBS, denn
+        // die Fenster sind seine Wanduhrzeit.
+        { reinigungErlaubt: reinigung.erlaubt, reinigungsFenster: userSettings?.reinigungsFenster ?? null, timezone: tz },
+        reinigung.maxMinuten,
+        await cleaningWindowEnforcedFrom(now),
+      )
+    : null;
+  const cleaningRelockWarnUntil =
+    cleaningRelockDeadline && cleaningPauseUntil && cleaningRelockDeadline < cleaningPauseUntil
+      ? cleaningRelockDeadline
+      : null;
 
   // ── Build kontroll items for session events ──
   const kontrollItems = buildKontrolleItems(alleAnforderungen, entries.filter(e => e.type === "PRUEFUNG"), now);
@@ -215,6 +251,11 @@ export default async function DashboardPage() {
       target: inspectionTargetLabel(k),
       overdue: k.deadline < now,
       href: inspectionHref(k.code, { kommentar: k.kommentar, categoryId: k.categoryId }),
+      // WANN das System selbst eingreift — die Zahl, die der Sub bisher nirgends sehen konnte.
+      // Die Rechnung liegt neben der DURCHSETZUNG (`predictAutoMarkAt`), nicht hier: sie kennt den
+      // Mahn-Stempel als Anker und den Schlaf-Fenster-Sonderfall, und beides von Hand nachzubauen
+      // hiesse, die Zwei-Stufen-Logik ein zweites Mal zu führen.
+      autoMarkAt: userSettings ? predictAutoMarkAt(k, { ...userSettings, timezone: tz })?.toISOString() ?? null : null,
     })),
 
     offeneVerschlussAnf: offeneVerschlussAnf ? {
@@ -223,6 +264,13 @@ export default async function DashboardPage() {
         offeneVerschlussAnf.nachricht,
       ),
       endetAtLabel: offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl, tz) }) : null,
+      // Verstrichen heisst: es läuft bereits ein Vergehen (`late_lock`). Das Banner sah bisher aus
+      // wie am ersten Tag — der einzige Unterschied war ein Datum, das er selbst mit der Uhr
+      // vergleichen musste.
+      overdue: !!offeneVerschlussAnf.endetAt && offeneVerschlussAnf.endetAt < now,
+      // Ohne Geräte-Parameter: das Formular liest die offene Anforderung selbst und belegt ihr Gerät
+      // vor (`anforderungDeviceId`). Ein zweiter Weg dorthin wäre eine zweite Wahrheit.
+      href: "/dashboard/new/verschluss",
     } : null,
 
     offeneOrgasmusAnf: offeneOrgasmusAnf ? {
@@ -238,6 +286,11 @@ export default async function DashboardPage() {
   const clientProps: DashboardProps = {
     currentStatus,
     cleaningPauseUntil: cleaningPauseUntil?.toISOString() ?? null,
+    // FERTIG formatiert und in der Zone des SUBS: die Frist ist ein Fensterende in seiner
+    // Wanduhrzeit. Im Client formatiert stünde dort die Gerätezone des Betrachters — und beim
+    // Server-Rendering die des Containers, was zusätzlich einen Hydration-Unterschied ergäbe.
+    cleaningRelockWarnTime: cleaningRelockWarnUntil ? formatTime(cleaningRelockWarnUntil, dl, tz) : null,
+    cleaningRelockWarnPassed: !!cleaningRelockWarnUntil && cleaningRelockWarnUntil < now,
     hasEntries: entries.length > 0,
 
     tagH,
@@ -262,6 +315,16 @@ export default async function DashboardPage() {
       <DashboardAlerts {...alertProps} />
       {heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={boxReinigung} />}
       <OpenTasks tasks={taskCards} tz={tz} />
+      {/* UNTER den Aufgaben: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand.
+          Der Block lädt selbst — sonst müsste diese Seite dieselbe Auflösung noch einmal aufrufen,
+          nur um sie durchzureichen. Deshalb in
+          `Suspense`: sein Laden hängt sonst als weitere serielle Phase am Seiten-Rendering, und die
+          ganze Seite wartete auf einen Block, den die meisten Nutzer nie zu sehen bekommen.
+          `dashboardTaskIds` = die Aufgaben, die oben tatsächlich stehen — daran entscheidet der
+          Block, ob eine Strafaufgabe hier zu wiederholen wäre. */}
+      <Suspense fallback={null}>
+        <OpenPenalties userId={userId} tz={tz} now={now} dashboardTaskIds={new Set(taskCards.map((c) => c.id))} />
+      </Suspense>
       {showLaufendeSession && (
         <DashboardBlock>
           <LaufendeSessionCard

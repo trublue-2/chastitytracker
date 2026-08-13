@@ -40,6 +40,10 @@ export const SHARED_SERVICE_CODES = [
   "INVALID_ORGASM_TYPE",
   "USER_NO_EMAIL",
   "INVALID_DATETIME",
+  // Wie `NOT_FOUND` und `INVALID_IMAGE_URL` schon bei den Entry-Routen deklariert und hier bewusst
+  // MITBENUTZT statt dupliziert: „Zeitpunkt darf nicht in der Zukunft liegen" ist derselbe Satz,
+  // egal ob ein Eintrag oder ein notiertes Vergehen vordatiert wird.
+  "TIME_IN_FUTURE",
   "INTERNAL_ERROR",
   "UNKNOWN_ACTION",
   "USER_NOT_LOCKED",
@@ -104,14 +108,58 @@ export const ORGASM_DIRECTIVE_CODES = [
   "ORGASM_NOT_OPEN",
 ] as const;
 
-/** strafurteilService. Reachable only through the MCP (`judge_offense`) — no route calls it — so
- *  these surface as English sentences via `unwrap()`, never in the browser. They still need both
- *  translations: the parity test makes no exception, and a future admin route would need them. */
+/** strafurteilService, erreichbar über den MCP (`judge_offense`) — dort werden sie via `unwrap()` zu
+ *  englischen Sätzen. Ausnahme ist `OFFENSE_NOT_FOUND`: es beschreibt „zu dieser Referenz gibt es
+ *  kein offenes Vergehen" und gilt wörtlich auch für den Rückzug eines notierten Vergehens
+ *  (/api/admin/offense), der es im BROWSER zeigt — darum steht es hier und nicht doppelt unten.
+ *  Beide Übersetzungen braucht ohnehin jeder Code, der Paritätstest macht keine Ausnahme. */
 export const JUDGMENT_CODES = [
   "JUDGMENT_NOT_FOUND",
+  // Das Gegenstück zu `JUDGMENT_NOT_FOUND`: über dieses Vergehen steht schon ein Urteil, und der
+  // Aufrufer wollte keines ersetzen (`allowRevision: false`, der Browser-Weg). Ausdrücklich NICHT
+  // das gleichnamig klingende `OFFENSE_ALREADY_JUDGED` der manuellen Vergehen: dort ist der nächste
+  // Schritt „Urteil zurücknehmen, dann zurückziehen", hier „Seite neu laden" — die Anfrage kam aus
+  // einer veralteten Ansicht, und was danach zu tun ist, hängt vom Urteil ab, das sie nicht kennt.
+  "JUDGMENT_ALREADY_EXISTS",
   "PENALTY_NOT_PUNISHED",
   "PENALTY_TEXT_REQUIRED",
   "OFFENSE_NOT_FOUND",
+  // Die ref bezeichnet ein Vergehen — aber nicht das, welches der Aufrufer behauptet (siehe
+  // `JudgeOffenseParams.offenseType`). Bewusst kein zweites `OFFENSE_NOT_FOUND`: „weg" und
+  // „verwechselt" führen zu verschiedenen nächsten Schritten.
+  "OFFENSE_TYPE_MISMATCH",
+  // Das Feld FEHLT in der Anfrage — nicht zu verwechseln mit „gibt es nicht mehr"
+  // (`OFFENSE_NOT_FOUND`) oder „passt nicht" (`OFFENSE_TYPE_MISMATCH`). Aus der Oberfläche
+  // unerreichbar, weil sie beide Felder immer mitschickt; wer hier landet, hat einen Fehler im
+  // Aufruf und wird von „lade die Seite neu" nur in die Irre geschickt.
+  "OFFENSE_REF_REQUIRED",
+  "OFFENSE_TYPE_REQUIRED",
+] as const;
+
+/** manualOffenseService (von Hand notierte Vergehen).
+ *
+ *  Eigene `OFFENSE_*`-Codes statt der gleichlautenden `TASK_TITLE_*`: die Namensräume folgen hier
+ *  durchgehend dem Begriff, nicht dem Satz. Den Zukunfts-Zeitpunkt deckt dagegen das geteilte
+ *  `TIME_IN_FUTURE` ab — dort ist der Satz wirklich derselbe.
+ *
+ *  `OFFENSE_ALREADY_JUDGED` gehört ALLEIN hierher: es beantwortet „warum lässt sich diese Notiz
+ *  nicht zurückziehen" und nennt dafür den konkreten nächsten Schritt (erst das Urteil zurücknehmen,
+ *  dann zurückziehen). Der ähnlich klingende Konflikt beim URTEILEN steht als
+ *  `JUDGMENT_ALREADY_EXISTS` bei den Urteils-Codes — ein Satz, der beide bedienen soll, gibt keinem
+ *  von beiden den richtigen nächsten Schritt. */
+export const MANUAL_OFFENSE_CODES = [
+  "OFFENSE_TITLE_REQUIRED",
+  "OFFENSE_TITLE_TOO_LONG",
+  "OFFENSE_DESCRIPTION_TOO_LONG",
+  "OFFENSE_ALREADY_WITHDRAWN",
+  "OFFENSE_ALREADY_JUDGED",
+] as const;
+
+/** Die Massen-Aktionen des Posteingangs (`/api/messages/bulk`). Der Nutzer bekommt sie nur zu
+ *  sehen, wenn eine Anfrage nicht aus der Oberfläche stammt — die kreuzt Zeilen an, die es gibt. */
+export const MESSAGE_BULK_CODES = [
+  "MESSAGE_IDS_REQUIRED",
+  "MESSAGE_ACTION_INVALID",
 ] as const;
 
 /** deviceReferenceService (curated device reference photos). */
@@ -167,6 +215,15 @@ export const TASK_CODES = [
   "TASK_PROOF_NOT_SUBMITTED",
 ] as const;
 
+/** offenseRulesService (welche Vergehensarten bei einem Sub überhaupt gelten). Beide Codes trennen
+ *  zwei Fehler, die der Absender auseinanderhalten muss: die ART ist gar nicht schaltbar
+ *  (`manual_offense`, Tippfehler) — oder sie ist es, aber dieser MODUS gehört nicht zu ihr
+ *  (`lockedOnly` bei einer binären Art). */
+export const OFFENSE_RULE_CODES = [
+  "OFFENSE_TYPE_NOT_SWITCHABLE",
+  "OFFENSE_MODE_INVALID",
+] as const;
+
 /** reinigungService / autoKontrolleService / inspectionEscalationService. These predate the registry
  *  and are camelCase; their message keys are already shipped, so they keep their spelling rather
  *  than churn both locale files for cosmetics. New codes use the SCREAMING_SNAKE form above. */
@@ -186,10 +243,13 @@ export const SERVICE_ERROR_CODES = [
     ...LOCK_CODES,
     ...ORGASM_DIRECTIVE_CODES,
     ...JUDGMENT_CODES,
+    ...MANUAL_OFFENSE_CODES,
+    ...MESSAGE_BULK_CODES,
     ...REFERENCE_CODES,
     ...DEVICE_CODES,
     ...BOX_CODES,
     ...TASK_CODES,
+    ...OFFENSE_RULE_CODES,
     ...SETTINGS_CODES,
   ]),
 ] as readonly string[];
@@ -205,8 +265,11 @@ export type ServiceErrorCode =
   | (typeof LOCK_CODES)[number]
   | (typeof ORGASM_DIRECTIVE_CODES)[number]
   | (typeof JUDGMENT_CODES)[number]
+  | (typeof MANUAL_OFFENSE_CODES)[number]
+  | (typeof MESSAGE_BULK_CODES)[number]
   | (typeof REFERENCE_CODES)[number]
   | (typeof DEVICE_CODES)[number]
   | (typeof BOX_CODES)[number]
   | (typeof TASK_CODES)[number]
+  | (typeof OFFENSE_RULE_CODES)[number]
   | (typeof SETTINGS_CODES)[number];

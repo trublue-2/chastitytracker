@@ -111,7 +111,7 @@ describe("mcpEditLockPeriod — Zielwahl bei mehreren offenen Sperrzeiten", () =
     openMock.mockResolvedValue([geplant, ausgeloest]);
     const res = await mcpEditLockPeriod("kg", { untilAt: NEUES_ENDE, id: "s1" });
 
-    expect(updateEndeMock).toHaveBeenCalledWith("s1", new Date(NEUES_ENDE));
+    expect(updateEndeMock).toHaveBeenCalledWith("s1", new Date(NEUES_ENDE), "ai");
     expect(res.id).toBe("s1");
   });
 

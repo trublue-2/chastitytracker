@@ -51,6 +51,7 @@ export default function TaskFields({
   minNow,
   redirectTo,
   offenseRef,
+  offenseType,
   initialPenaltyReason,
 }: {
   userId: string;
@@ -64,6 +65,9 @@ export default function TaskFields({
   /** Kommt das Formular aus dem Strafbuch, ist die Aufgabe die STRAFE für dieses Vergehen: die Route
    *  legt dann Aufgabe und Urteil zusammen an. Ohne die ref ist es eine gewöhnliche Aufgabe. */
   offenseRef?: string;
+  /** Welche ART an dieser ref beurteilt wird — der Abschnitt, in dem geklickt wurde. Zwei Arten
+   *  können sich eine ref teilen; ohne die Angabe stünde am Urteil die zuerst erkannte. */
+  offenseType?: string;
   /** Vorbelegter Anlass — die Zeile des Vergehens, damit sie niemand abtippt. */
   initialPenaltyReason?: string;
 }) {
@@ -192,8 +196,11 @@ export default function TaskFields({
       // Trägt die Aufgabe eine Vergehens-ref, schreibt die Route sie samt Urteil — das Vergehen gilt
       // damit als bestraft. Der Haken darf das nicht abschalten: die ref ist der Grund, aus dem
       // dieses Formular überhaupt geöffnet wurde. Der Schlüssel kommt aus derselben Konstante wie
-      // die Query — umbenannt fiele die Aufgabe sonst still auf „gewöhnlich" zurück.
+      // die Query — umbenannt fiele die Aufgabe sonst still auf „gewöhnlich" zurück. Die ART reist
+      // mit, weil sich zwei Vergehen eine ref teilen können und sonst die zuerst erkannte am Urteil
+      // stünde statt der geklickten.
       [TASK_FORM_QUERY.offenseRef]: offenseRef,
+      [TASK_FORM_QUERY.offenseType]: offenseType,
     });
   }
 

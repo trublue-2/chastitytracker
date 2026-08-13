@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, buildEnvelope, parseIsoDate, type Envelope, type NoteDTO } from "@/lib/mcp/common";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
+import { offenseState } from "@/lib/offenseTypes";
 
 // ── Strafbuch-Snapshot ────────────────────────────────────────────────────────
 // Wohnt hier, weil `getOffenses` sein einziger Aufrufer ist. Solange auch das (entfernte) V1-
@@ -70,6 +71,16 @@ export interface StrafbuchOverview {
   /** Passwortwechsel an einem Admin-Konto während einer laufenden Sperrzeit. `via` unterscheidet
    *  die Wege; `reset_token` heisst: über das Postfach neuen Zugang verschafft. */
   adminPasswordChanges: ({ time: string; adminUsername: string; via: string; lockPeriodEndedAt: string | null } & OffenseJudgment)[];
+  /** Orgasmen ohne deckende Direktive. Erscheinen nur, wenn die Regel `unauthorized_orgasm` bei
+   *  diesem Sub scharf ist (Default: aus) — die Reichweite (`lockedOnly`/`always`) steht in
+   *  `get_context.offenseRules`. `lockPeriodEndedAt` ist gesetzt, wenn zur Tatzeit eine Sperrzeit lief. */
+  unauthorizedOrgasms: ({
+    time: string; orgasmType: string | null; note: string | null;
+    lockPeriodEndedAt: string | null; lockPeriodIndefinite: boolean;
+  } & OffenseJudgment)[];
+  /** Von Hand notierte Vergehen — die einzigen, die nicht aus Einträgen abgeleitet sind. Entstehen
+   *  über `record_offense` bzw. die Admin-Oberfläche. */
+  manualOffenses: ({ time: string; title: string; description: string | null; recordedBy: string } & OffenseJudgment)[];
 }
 
 /** Baut den Strafbuch-Snapshot. Nimmt den bereits aufgelösten User: `getOffenses` hat ihn ohnehin
@@ -86,22 +97,25 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
   let openOffenseCount = 0;
   let pendingPenaltyCount = 0;
   for (const o of detected) {
-    const rec = judgmentByRef.get(o.refId);
-    const pendingPenalty = rec?.status === "PUNISHED" && rec.erledigtAt == null;
-    if (!rec || pendingPenalty) openOffenseCount++;
-    if (pendingPenalty) pendingPenaltyCount++;
+    const state = offenseState(judgmentByRef.get(o.refId));
+    if (state === "open" || state === "punished") openOffenseCount++;
+    if (state === "punished") pendingPenaltyCount++;
   }
 
   const judge = (canonicalType: string, refId: string): OffenseJudgment => {
     const rec = judgmentByRef.get(refId);
-    const judgment = rec ? (rec.status === "PUNISHED" ? "punished" : "dismissed") : "open";
+    // `offenseState` fasst „bestraft" und „bestraft + erledigt" zu zwei Zuständen zusammen; der
+    // MCP-Vertrag trennt sie seit jeher in `judgment` + `done`. Hier also wieder auseinandergezogen
+    // — die Ausgabe bleibt bitgleich, deshalb auch KEIN schemaVersion-Bump.
+    const state = offenseState(rec);
+    const judgment = state === "done" ? "punished" : state;
     return {
       judgment,
       penalty: judgment === "punished" ? (rec?.reason ?? null) : null,
       reason: judgment === "dismissed" ? (rec?.reason ?? null) : null,
       judgedBy: rec?.judgedBy ?? null,
       judgedAt: rec ? fmt(rec.bestraftDatum) : null,
-      done: judgment === "punished" ? rec?.erledigtAt != null : false,
+      done: state === "done",
       doneAt: rec?.erledigtAt ? fmt(rec.erledigtAt) : null,
       ref: { type: canonicalType, id: refId },
     };
@@ -175,6 +189,21 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
       via: p.via,
       lockPeriodEndedAt: p.sperrzeitEndetAt ? fmt(p.sperrzeitEndetAt) : null,
       ...judge("admin_password_change", p.id),
+    })),
+    unauthorizedOrgasms: sb.unauthorizedOrgasms.map((o) => ({
+      time: fmt(o.startTime),
+      orgasmType: o.orgasmusArt,
+      note: o.note,
+      lockPeriodEndedAt: o.sperrzeitEndetAt ? fmt(o.sperrzeitEndetAt) : null,
+      lockPeriodIndefinite: o.sperrzeitIndefinite,
+      ...judge("unauthorized_orgasm", o.id),
+    })),
+    manualOffenses: sb.manualOffenses.map((m) => ({
+      time: fmt(m.occurredAt),
+      title: m.title,
+      description: m.description,
+      recordedBy: m.createdBy,
+      ...judge("manual_offense", m.id),
     })),
   };
 }
@@ -289,6 +318,8 @@ export function buildOffenseRows(
     ...sb.cleaningNotRelocked.map((c) => toRow(c.relockedAt ?? c.deadline, c, { time: c.time, deadline: c.deadline, relockedAt: c.relockedAt, note: c.note })),
     ...sb.unfulfilledTasks.map((t) => toRow(t.failedAt ?? t.holdUntil, t, { title: t.title, holdUntil: t.holdUntil, state: t.state, failedAt: t.failedAt })),
     ...sb.adminPasswordChanges.map((p) => toRow(p.time, p, { adminUsername: p.adminUsername, via: p.via, lockPeriodEndedAt: p.lockPeriodEndedAt })),
+    ...sb.unauthorizedOrgasms.map((o) => toRow(o.time, o, { note: o.note, orgasmType: o.orgasmType, lockPeriodEndedAt: o.lockPeriodEndedAt, lockPeriodIndefinite: o.lockPeriodIndefinite })),
+    ...sb.manualOffenses.map((m) => toRow(m.time, m, { title: m.title, description: m.description, recordedBy: m.recordedBy })),
   ];
 }
 

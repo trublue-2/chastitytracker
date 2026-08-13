@@ -73,7 +73,7 @@ export default function InstallBanner() {
   if (dismissed || !platform) return null;
 
   return (
-    <div className="fixed bottom-20 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50 bg-foreground text-background rounded-xl shadow-xl p-4 flex items-start gap-3">
+    <div className="fixed bottom-[var(--bottom-nav-space)] sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50 bg-foreground text-background rounded-xl shadow-xl p-4 flex items-start gap-3">
       <div className="flex-1">
         <p className="font-semibold text-sm">{t("title")}</p>
         {platform === "android" ? (

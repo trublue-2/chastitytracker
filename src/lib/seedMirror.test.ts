@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { createRequire } from "node:module";
 import { DEFAULT_ORGASM_ARTEN, backfillOrgasmusArtenConfig, ART_SEP } from "./reasonsService";
+import { AI_AUTHOR } from "./constants";
 
 // scripts/seed.js ist Plain-CJS (kann nicht aus src importieren) und spiegelt Teile von
 // reasonsService.ts. Dieser Test sichert den Mirror gegen stille Drift ab: er lädt die echten
@@ -10,6 +11,8 @@ const seed = require("../../scripts/seed.js") as {
   ART_SEP: string;
   ORGASM_MAIN_WITH_SUBS: Record<string, string[]>;
   backfillOrgasmusArtenConfig: (raw: unknown) => string | null;
+  safeAdminUsername: (raw: string | undefined) => string;
+  AI_AUTHOR: string;
 };
 
 describe("seed.js mirror stays in sync with reasonsService", () => {
@@ -39,5 +42,33 @@ describe("seed.js mirror stays in sync with reasonsService", () => {
     for (const c of cases) {
       expect(seed.backfillOrgasmusArtenConfig(c)).toBe(backfillOrgasmusArtenConfig(c));
     }
+  });
+});
+
+/**
+ * `ADMIN_USERNAME` war der einzige Weg, einen Benutzer namens `ai` anzulegen — die Benutzer-API
+ * verlangt mindestens drei Zeichen. Ein Admin mit dieser Kennung stünde dem Träger in jeder Meldung
+ * als KI im Posteingang und im Strafbuch mit KI-Hinweis am Urteil.
+ */
+describe("seed.js schützt die KI-Kennung als Admin-Namen", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("AI_AUTHOR matches", () => {
+    expect(seed.AI_AUTHOR).toBe(AI_AUTHOR);
+  });
+
+  it.each([AI_AUTHOR, AI_AUTHOR.toUpperCase(), "Ai"])("'%s' weicht auf den Standardnamen aus — laut", (raw) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(seed.safeAdminUsername(raw)).toBe("admin");
+    // Nicht still: der Betreiber sässe sonst mit dem falschen Benutzernamen vor dem Login-Formular.
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("lässt jeden anderen Namen unverändert und behält den Standard bei leerem Wert", () => {
+    expect(seed.safeAdminUsername("herrin")).toBe("herrin");
+    // Knapp daneben ist kein Treffer — die Sperre gilt dem Wert selbst, nicht seinen Nachbarn.
+    expect(seed.safeAdminUsername("aiden")).toBe("aiden");
+    expect(seed.safeAdminUsername(undefined)).toBe("admin");
+    expect(seed.safeAdminUsername("")).toBe("admin");
   });
 });

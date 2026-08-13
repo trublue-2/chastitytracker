@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getControlledSubs, canControlSub } from "@/lib/keyholder";
+import { isController } from "@/lib/ownTracker";
 import { isValidStartPage } from "@/lib/constants";
 
 /** Session shape the landing resolver needs (subset of the NextAuth session). */
@@ -15,8 +16,8 @@ interface LandingSession {
  *   overview; a normal sub → own tracker.
  */
 export async function resolveLandingPath(session: LandingSession): Promise<string> {
-  const { id, role, controlsSubs } = session.user;
-  const isKeyholderOrAdmin = role === "admin" || !!controlsSubs;
+  const { id, role } = session.user;
+  const isKeyholderOrAdmin = isController(session.user);
 
   const user = await prisma.user.findUnique({
     where: { id },

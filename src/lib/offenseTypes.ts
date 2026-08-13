@@ -37,6 +37,12 @@ export const STORED_TYPE = {
   cleaning_not_relocked: "REINIGUNG_NICHT_VERSCHLOSSEN",
   unfulfilled_task: "AUFGABE",
   admin_password_change: "ADMIN_PASSWORT",
+  // Orgasmus ohne deckende Direktive. Ob und wann das zählt, entscheidet die Regel
+  // (`offenseRules.ts`) — dreistufig: aus / nur während einer Sperrzeit / immer.
+  unauthorized_orgasm: "UNAUTHORIZED_ORGASM",
+  // Von Hand notiert (`ManualOffense`), nicht abgeleitet. Die einzige Art ohne Regel-Schalter:
+  // ein ausdrücklich notiertes Vergehen abzuschalten hiesse, die Notiz zu ignorieren.
+  manual_offense: "MANUAL_OFFENSE",
 } as const;
 
 /**
@@ -58,6 +64,81 @@ export type OffenseCanonicalType = keyof typeof STORED_TYPE;
  * bricht der Aufrufer.
  */
 export type StoredOffenseType = (typeof STORED_TYPE)[OffenseCanonicalType];
+
+/** Wo ein Vergehen im Urteils-Lebenszyklus steht. */
+export type OffenseState =
+  /** Erkannt, noch nicht beurteilt. */
+  | "open"
+  /** Die Keyholderin hat es fallengelassen. */
+  | "dismissed"
+  /** Bestraft, Strafe noch offen. */
+  | "punished"
+  /** Bestraft und erledigt. */
+  | "done";
+
+/**
+ * Der Zustand eines Vergehens aus seinem Urteil — `undefined` heisst „kein Urteil".
+ *
+ * Hier und nicht im Service, weil dieselbe Ableitung an mehreren Stellen gebraucht wird und die
+ * meisten davon kein Prisma importieren dürfen: die Träger-Sicht, das MCP-Ledger und die
+ * Admin-Strafbuch-Seite (Client-Komponente). Jede liest sie von Hand aus `status` und `erledigtAt`
+ * — und „offen" bedeutet dabei bereits dreierlei: unbeurteilt (Träger), unbeurteilt ODER
+ * bestraft-nicht-erledigt (MCP), nicht-verworfen-und-nicht-erledigt (Admin). Ein fünfter Zustand
+ * wäre an drei Orten zu finden, und die übersehene Stelle meldet sich nicht.
+ *
+ * STAND: umgestellt sind die TRÄGER-Sicht (`subOffenses.ts`) und das MCP-Ledger (`mcp/ledger.ts`:
+ * `judge()` und die `pendingPenalty`-Zählung). Offen bleibt nur `StrafbuchClient.tsx`
+ * (`punishedIds`/`dismissedIds`/`closedIds`): dessen Zeilenform trägt `done: boolean` statt
+ * `erledigtAt` und müsste dafür erst angeglichen werden.
+ *
+ * Das Ledger zieht `punished` und `done` danach wieder auseinander — sein Vertrag nach aussen hat
+ * beide als getrennte Felder (`judgment` + `done`). Das ist kein Widerspruch zur Zusammenfassung
+ * hier: die ABLEITUNG ist dieselbe, nur die Darstellung ist feiner.
+ */
+export function offenseState(record: { status: string; erledigtAt: Date | null } | undefined): OffenseState {
+  if (!record) return "open";
+  if (record.status !== "PUNISHED") return "dismissed";
+  return record.erledigtAt ? "done" : "punished";
+}
+
+/**
+ * Passt die Nachricht „Strafe verhängt" noch zu ihrem Urteil?
+ *
+ * Sie trägt keine Kopie des Straftexts, sondern die Referenz — gelesen wird beim Anzeigen frisch aus
+ * dem `StrafeRecord`. Wird ein Urteil von PUNISHED auf DISMISSED korrigiert, behält die Zeile ihre
+ * id (`writeJudgment` upsertet auf `refId`), und die alte Nachricht zeigte plötzlich die
+ * VERWERFUNGS-Begründung unter der Überschrift „Strafe verhängt". Dann ist sie nicht mehr wahr und
+ * wird ausgeblendet — Zähler wie Liste, sonst stünde ein Badge über einem leeren Posteingang.
+ *
+ * ACHTUNG, das ist NICHT die Sichtbarkeitsregel des Trägers: sein Strafbuch (`subOffenses.ts`)
+ * zeigt seit v5.1 jedes Vergehen samt Zustand, auch die fallengelassenen. Was hier ausgeblendet
+ * wird, ist allein die nicht mehr zutreffende NACHRICHT.
+ */
+export function judgmentMessageStillApplies(record: { status: string }): boolean {
+  return record.status === "PUNISHED";
+}
+
+/**
+ * Passt die Nachricht „Vergehen fallengelassen" noch zu ihrem Urteil?
+ *
+ * Spiegelbild zu {@link judgmentMessageStillApplies}, aus demselben Grund: `writeJudgment` upsertet
+ * auf `refId`. Wird ein Urteil revidiert (reopen → erneut bestraft), trägt dieselbe Zeile danach
+ * PUNISHED und den STRAFtext — die alte Verwerfungs-Nachricht behauptete dann das Gegenteil dessen,
+ * was gilt, mit der Strafe darunter.
+ *
+ * `undefined` heisst „gilt nicht mehr": ein blosses reopen LÖSCHT die Zeile, und ein Vergehen ohne
+ * Urteil ist nicht fallengelassen, sondern wieder offen.
+ *
+ * Die FESTSTELLUNGS-Meldung bleibt davon unberührt — sie sagt „ein Vergehen wurde festgestellt", und
+ * das bleibt wahr, egal was daraus wird.
+ *
+ * Prüft `=== "DISMISSED"`, wo {@link offenseState} `!== "PUNISHED"` liest. Heute dasselbe (`status`
+ * kennt genau die zwei Werte); käme ein dritter dazu, verbirgt diese Fassung im Zweifel, statt eine
+ * Verwerfung zu behaupten. Wer den Status erweitert, entscheidet das hier bewusst mit.
+ */
+export function dismissalMessageStillApplies(record: { status: string } | undefined): boolean {
+  return record?.status === "DISMISSED";
+}
 
 /**
  * Die Vollständigkeits-Zusage einer Anzeige als Typ: `true`, solange `Covered` jede kanonische Art

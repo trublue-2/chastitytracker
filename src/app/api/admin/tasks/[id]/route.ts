@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import { withdrawTask } from "@/lib/taskService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
@@ -13,13 +13,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const task = await prisma.task.findUnique({ where: { id }, select: { userId: true } });
     if (!task) return errorResponse(404, "TASK_NOT_FOUND");
 
-    const err = await requireKeyholderOrAdminApi(task.userId);
-    if (err) return err;
+    const actor = await requireKeyholderOrAdminActor(task.userId);
+    if (actor instanceof NextResponse) return actor;
 
     const body = await req.json();
 
     if (body.action === "withdraw") {
-      const result = await withdrawTask(id, task.userId);
+      const result = await withdrawTask(id, task.userId, sessionActor(actor));
       if (!result.ok) return serviceFailure(result);
       return NextResponse.json({ ok: true });
     }

@@ -92,8 +92,42 @@ async function ensureNotificationPrefs(userId) {
   );
 }
 
+// Mirror of AI_AUTHOR in src/lib/constants.ts — seed.js is plain CJS and can't import from src.
+// Kanonische Begründung der Namensgrenze steht dort; hier nur die Durchsetzung.
+const AI_AUTHOR = "ai";
+const DEFAULT_ADMIN_USERNAME = "admin";
+
+/**
+ * Der Admin-Name, der wirklich vergeben wird.
+ *
+ * `ai` ist keine freie Wahl, sondern die Kennung „von der KI erledigt" in den Autoren-Feldern
+ * (`StrafeRecord.judgedBy`, `ManualOffense.createdBy`, `KontrollAnforderung.createdBy`, …). Ein
+ * Admin mit diesem Namen bekäme jede seiner Meldungen beim Träger als KI-Zeile zugestellt und jedes
+ * seiner Urteile im Strafbuch mit KI-Hinweis — eine Falschaussage, die niemand mehr korrigieren
+ * kann, weil sie in den Zeilen steht. Die Benutzer-API verlangt mindestens drei Zeichen; dieser Weg
+ * hier war der einzige, der daran vorbeiführte.
+ *
+ * AUSWEICHEN statt Abbruch: eine Instanz, die nicht startet, ist der schlechtere Ausgang als eine
+ * mit umbenanntem Admin — das Portal legt Instanzen unbeaufsichtigt an, und ein harter Abbruch
+ * hinterliesse einen Container, der beim Erststart in einer Neustart-Schleife hängt, ohne dass
+ * jemand an die Ursache käme. Der Name ist zudem nachträglich änderbar, ein toter Erststart nicht.
+ * Dafür ist es NICHT still: die Zeile unten steht im Container-Log über den Zugangsdaten, damit der
+ * Betreiber nicht mit dem falschen Benutzernamen vor dem Login-Formular sitzt.
+ *
+ * Gross/klein egal: `AI` bräche zwar die Abbildung nicht (verglichen wird exakt), wäre aber genau
+ * die Sorte Beinahe-Kollision, die beim nächsten Vergleich mit `toLowerCase()` zuschlägt.
+ */
+function safeAdminUsername(raw) {
+  const username = raw || DEFAULT_ADMIN_USERNAME;
+  if (username.toLowerCase() !== AI_AUTHOR) return username;
+  console.warn(
+    `⚠ ADMIN_USERNAME='${username}' ist für die KI-Kennung reserviert — es wird '${DEFAULT_ADMIN_USERNAME}' verwendet.`,
+  );
+  return DEFAULT_ADMIN_USERNAME;
+}
+
 async function main() {
-  const username = process.env.ADMIN_USERNAME || "admin";
+  const username = safeAdminUsername(process.env.ADMIN_USERNAME);
   const email = process.env.ADMIN_EMAIL || null;
   // Sprache des Admin-Accounts beim ERSTEN Anlegen. Das Portal gibt hier die Sprache mit, in der
   // sich der Nutzer registriert hat; ohne sie startete jede Instanz auf Deutsch, und das Portal
@@ -200,4 +234,4 @@ if (require.main === module) {
     .finally(() => prisma.$disconnect());
 }
 
-module.exports = { backfillOrgasmusArtenConfig, ORGASM_MAIN_WITH_SUBS, ART_SEP };
+module.exports = { backfillOrgasmusArtenConfig, ORGASM_MAIN_WITH_SUBS, ART_SEP, safeAdminUsername, AI_AUTHOR };

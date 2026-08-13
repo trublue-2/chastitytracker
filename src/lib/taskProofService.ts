@@ -7,6 +7,7 @@ import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { isTaskResultFinal } from "@/lib/tasks";
 import { settleTaskResult } from "@/lib/taskService";
+import type { MessageActor } from "@/lib/messageService";
 
 /**
  * Der Sub reicht ein gefordertes Nachweis-Foto ein (Issue #39, Etappe 3).
@@ -139,6 +140,7 @@ export async function reviewTaskProof(
   proofId: string,
   userId: string,
   p: { accepted: boolean; note?: string | null },
+  actor: MessageActor,
 ): Promise<ServiceResult<{ taskId: string }>> {
   const proof = await prisma.taskProof.findFirst({
     where: { id: proofId, task: { userId } },
@@ -154,7 +156,7 @@ export async function reviewTaskProof(
     data: { reviewedAt: new Date(), reviewAccepted: p.accepted, reviewNote: p.note?.trim() || null },
   });
 
-  await notifyProofReviewed(proof.task.id, userId, proof.task.title, p.accepted);
+  await notifyProofReviewed(proof.task.id, userId, proof.task.title, p.accepted, actor);
   return { ok: true, data: { taskId: proof.task.id } };
 }
 
@@ -170,7 +172,7 @@ export async function reviewTaskProof(
  * wird gestempelt, damit der Poller nicht nachlegt. Steht sie noch nicht fest — die Frist läuft
  * noch, oder ein anderer Nachweis fehlt —, erfährt nur der Sub, dass sein Nachweis beurteilt wurde.
  */
-async function notifyProofReviewed(taskId: string, userId: string, title: string, accepted: boolean): Promise<void> {
+async function notifyProofReviewed(taskId: string, userId: string, title: string, accepted: boolean, actor: MessageActor): Promise<void> {
   try {
     const rows = await prisma.task.findMany({ where: { id: taskId }, include: TASK_INCLUDE });
     const [evaluated] = await evaluateTasks(userId, rows, new Date());
@@ -182,7 +184,9 @@ async function notifyProofReviewed(taskId: string, userId: string, title: string
         messageKey: accepted ? "taskProofAcceptedMessage" : "taskProofRejectedMessage",
         params: { title },
         alwaysNotify: true,
-        inbox: { ref: { type: "task", id: taskId } },
+        // Das URTEIL über den Nachweis ist die Entscheidung eines Menschen und nennt ihn. Anders als
+        // die Ergebnis-Meldung darunter (`settleTaskResult`), die ein Befund der App ist.
+        inbox: { ref: { type: "task", id: taskId }, actor },
       });
       return;
     }

@@ -39,7 +39,9 @@ function strafbuchWithOneOfEach() {
     cleaningNotRelocked: [{ ...j("cleaning_not_relocked", "relock:e1"), time: "t", deadline: "d", relockedAt: null, note: null }],
     unfulfilledTasks: [{ ...j("unfulfilled_task", "t1"), title: "Staubsaugen", holdUntil: "d", state: "aborted", failedAt: "t" }],
     adminPasswordChanges: [{ ...j("admin_password_change", "p1"), time: "t", adminUsername: "Admin", via: "reset_token", lockPeriodEndedAt: null }],
-    detectedOffenseCount: 11, openOffenseCount: 11, pendingPenaltyCount: 0,
+    unauthorizedOrgasms: [{ ...j("unauthorized_orgasm", "g1"), time: "t", orgasmType: null, note: null, lockPeriodEndedAt: null, lockPeriodIndefinite: false }],
+    manualOffenses: [{ ...j("manual_offense", "n1"), time: "t", title: "Abmachung gebrochen", description: null, recordedBy: "Admin" }],
+    detectedOffenseCount: 13, openOffenseCount: 13, pendingPenaltyCount: 0,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
@@ -59,6 +61,8 @@ function rawStrafbuchWithOneOfEach() {
     cleaningNotRelocked: [{ entryId: "e1", ...one }],
     unfulfilledTasks: [{ id: "t1", title: "Staubsaugen", holdUntil: null, state: "aborted", failedAt: null, ...one }],
     adminPasswordChanges: [{ id: "p1", at: null, adminUsername: "Admin", via: "reset_token", sperrzeitEndetAt: null }],
+    unauthorizedOrgasms: [{ id: "g1", ...one }],
+    manualOffenses: [{ id: "n1", occurredAt: null, title: "Abmachung gebrochen" }],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }

@@ -6,8 +6,9 @@ import { resolveInspectionTarget, inspectionTargetLabel, isKgTarget } from "@/li
 import { sendVerschlussAnforderungNotifications, checkLockEnd, carryOverSperrzeitOnAlreadyLocked } from "@/lib/verschlussAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt, autoKontrolleSettingsFromUser, AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
 import { APP_TZ } from "@/lib/utils";
-import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked } from "@/lib/inspectionEscalationService";
+import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked, predictAutoMarkAt } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
+import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
 import { deadlineFromDispatch } from "@/lib/delayedTrigger";
 import { processDueTasks } from "@/lib/taskService";
 
@@ -112,6 +113,10 @@ async function processDue(): Promise<void> {
         await sendKontrolleNotification({
           user: ka.user, code, sealCode, kommentar: ka.kommentar, deadline, controlId: ka.id,
           target: { categoryId: ka.categoryId, label: inspectionTargetLabel(target) },
+          // Der Handelnde ist der, der die Kontrolle GESTELLT hat — der Poller ist nur der Bote.
+          // Bei Auto-Kontrollen (und Altzeilen) ist die Spalte null: dann meldet, wie bisher, das
+          // System. Genau richtig — hinter einer Auto-Kontrolle steht kein Mensch.
+          actor: ka.createdBy,
         });
         // Frist UND Code mitschreiben: Mail, Strafbuch-Beurteilung, Eskalation und die Erfüllung
         // müssen dieselben Werte lesen. Ein verworfener Code darf nicht in der Zeile stehenbleiben —
@@ -134,6 +139,11 @@ async function processDue(): Promise<void> {
     // den zeitkritischen Poller-Tick (fällige Kontroll-/Sperrzeit-Mails) NICHT verzögern. Der State liegt
     // in globalThis, nicht am Tick gekoppelt; ohne `now`-Argument nutzt der Check die echte Ausführungszeit.
     void maybeRunHealthChecks().catch((e) => console.error("[health]", e));
+
+    // Festgestellte Vergehen in den Posteingang melden (intern auf fünf Minuten gedrosselt).
+    // FIRE-AND-FORGET aus demselben Grund wie der Health-Check: der Lauf baut je Träger ein volles
+    // Strafbuch und darf die zeitkritischen Fristen-Mails dieses Ticks nicht hinter sich anstellen.
+    void maybeAnnounceOffenses(now).catch((e) => console.error("[offenses]", e));
 
     // Ergebnis fälliger Aufgaben melden. Eigener Block auf der eigenen Tabelle — der frühere
     // Leak-Befund betraf die GETEILTE Anforderungs-Tabelle, hier gibt es keine Überschneidung.
@@ -204,17 +214,18 @@ async function processInspectionEscalation(now: Date): Promise<void> {
       entryId: null,
       user: { inspectionAutoMarkEnabled: true },
     },
-    include: { user: { select: { ...AUTO_KONTROLLE_SETTINGS_SELECT, username: true, inspectionAutoMarkDelayMinutes: true } } },
+    include: { user: { select: { ...AUTO_KONTROLLE_SETTINGS_SELECT, username: true, inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true, inspectionReminderDelayMinutes: true } } },
     take: 50,
   });
   for (const ka of autoMarkDue) {
-    const dueAt = ka.benachrichtigtReminderAt!.getTime() + ka.user.inspectionAutoMarkDelayMinutes * 60_000;
-    if (dueAt > now.getTime()) continue;
-    // Stufe 2 beendet die laufende Session (AUTO_ENTFERNT-Eintrag). Für eine Kontrolle, die nach
-    // einer Reinigungspause IM SCHLAF-FENSTER zugestellt wurde, bleibt es deshalb bei der Mahnung
-    // (Stufe 1 oben läuft normal): verschlafene Minuten dürfen die Session nicht abbrechen.
-    // LIVE abgeleitet statt beim Anlegen eingefroren — ein verschobenes Schlaf-Fenster gilt sofort.
-    if (ka.cleaningRelock && isSleepingAt(autoKontrolleSettingsFromUser(ka.user), ka.benachrichtigtAt ?? ka.wirksamAb ?? ka.deadline, ka.user.timezone ?? APP_TZ)) continue;
+    // DIESELBE Rechnung, die das Dashboard dem Sub ankündigt (`predictAutoMarkAt`). Sie enthält
+    // beides: den Mahn-Stempel als Anker und den Schlaf-Fenster-Sonderfall — für eine Kontrolle, die
+    // nach einer Reinigungspause IM SCHLAF-FENSTER zugestellt wurde, bleibt es bei der Mahnung
+    // (Stufe 1 oben läuft normal), verschlafene Minuten dürfen die Session nicht abbrechen. Wer hier
+    // rechnet und dort ankündigt, hat zwei Wahrheiten — und die Ankündigung ist die, die der Sub
+    // liest.
+    const dueAt = predictAutoMarkAt(ka, ka.user);
+    if (!dueAt || dueAt.getTime() > now.getTime()) continue;
     try {
       const result = await autoMarkInspectionRemoved({ id: ka.id, userId: ka.userId });
       if (!result.skipped) {
@@ -284,6 +295,10 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
           nachricht: uebernommen.nachricht,
           endetAtDate: uebernommen.endetAt,
           requestId: uebernommen.sperrzeitId,
+          // Aus der ÜBERNOMMENEN Zeile, wie ihr Text daneben: die Meldung gehört zur Sperrzeit und
+          // nennt deshalb, was in IHR steht. Dass die Anordnende dieselbe ist wie an der Anforderung,
+          // ist die Vererbung in `carryOverSperrzeitOnAlreadyLocked` — und die steht dort, nicht hier.
+          actor: uebernommen.createdBy,
         });
         continue;
       }
@@ -297,6 +312,8 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         dauerH: va.dauerH,
         sperrEndetAtDate: va.sperrEndetAt,
         requestId: va.id,
+        // Wie bei der Kontrolle: genannt wird, wer die Direktive angeordnet hat, nicht der Bote.
+        actor: va.createdBy,
       });
       await prisma.verschlussAnforderung.update({ where: { id: va.id }, data: { benachrichtigtAt: new Date() } });
     } catch (e) {

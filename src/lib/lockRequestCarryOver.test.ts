@@ -23,9 +23,9 @@ import { carryOverSperrzeitOnAlreadyLocked, sperrzeitEndeFromRequest } from "./v
 const X = new Date("2026-07-31T14:00:00Z");
 const STUNDE = 60 * 60 * 1000;
 
-const anforderung = (over: Partial<{ dauerH: number | null; sperrEndetAt: Date | null }> = {}) => ({
+const anforderung = (over: Partial<{ dauerH: number | null; sperrEndetAt: Date | null; createdBy: string | null }> = {}) => ({
   id: "a1", userId: "u1", nachricht: "24h drin bleiben", reinigungErlaubt: true,
-  dauerH: 24, sperrEndetAt: null, ...over,
+  dauerH: 24, sperrEndetAt: null, createdBy: "herrin", ...over,
 });
 
 beforeEach(() => {

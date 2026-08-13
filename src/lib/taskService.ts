@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
 import { notifyUser, notifyControllers } from "@/lib/notify";
+import type { MessageActor } from "@/lib/messageService";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
@@ -329,8 +330,15 @@ export async function writeTask(tx: PrismaTx, checked: CheckedTask): Promise<{ i
   return { id: task.id, title: task.title, holdUntil: task.holdUntil };
 }
 
-/** Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub. */
-export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ id: string }>> {
+/**
+ * Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub.
+ *
+ * `actor` ist WER stellt (Sitzung bzw. {@link AI_AUTHOR}) — als eigenes Argument wie bei allen
+ * übrigen Diensten, und wie bei der Orgasmus-Anweisung ohne Spalte: eine Aufgabe kennt keine
+ * Terminierung, ihre Meldung geht in diesem Aufruf raus. Die späteren Meldungen aus dem Poller
+ * (erfüllt/versäumt/bitte melden) sind BEFUNDE der App und tragen bewusst keinen Namen.
+ */
+export async function createTask(p: CreateTaskParams, actor: MessageActor): Promise<ServiceResult<{ id: string }>> {
   const checked = await checkTask(prisma, p);
   if (!checked.ok) return checked;
   const task = await writeTask(prisma, checked.data);
@@ -346,7 +354,7 @@ export async function createTask(p: CreateTaskParams): Promise<ServiceResult<{ i
     // `taskChanged` als eigene Zeile nach.
     // `once`: eine Aufgabe wird genau einmal gestellt. Ein Retry nach einem Absturz darf keine
     // zweite, dauerhafte Zeile hinterlassen.
-    inbox: { ref: { type: "task", id: task.id }, once: true },
+    inbox: { ref: { type: "task", id: task.id }, once: true, actor },
   });
 
   return { ok: true, data: { id: task.id } };
@@ -363,6 +371,7 @@ export async function updateTask(
   id: string,
   userId: string,
   patch: UpdateTaskParams,
+  actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; userId: string }>> {
   const t = await prisma.task.findFirst({
     where: { id, userId },
@@ -410,7 +419,7 @@ export async function updateTask(
     alwaysNotify: true,
     // KEIN `once`: mehrere Änderungen an derselben Aufgabe sind legitim und jede gehört als eigene
     // Zeile in den Verlauf (so auch bei der Verschluss-Anforderung).
-    inbox: { ref: { type: "task", id } },
+    inbox: { ref: { type: "task", id }, actor },
   });
 
   return { ok: true, data: { id, userId } };
@@ -419,7 +428,7 @@ export async function updateTask(
 /** Zieht eine Aufgabe zurück (Keyholder). Bewusst getrennt von „vorzeitig abgelegt": das eine ist ein
  *  Entschluss der Keyholderin, das andere ein Versäumnis des Subs — und ein Rückzug wird nie ein
  *  Vergehen (siehe Zustand `withdrawn` in `tasks.ts`). */
-export async function withdrawTask(id: string, userId: string): Promise<ServiceResult<{ userId: string }>> {
+export async function withdrawTask(id: string, userId: string, actor: MessageActor): Promise<ServiceResult<{ userId: string }>> {
   const t = await prisma.task.findFirst({ where: { id, userId }, select: { title: true } });
   if (!t) return serviceFail(404, "TASK_NOT_FOUND");
 
@@ -436,7 +445,7 @@ export async function withdrawTask(id: string, userId: string): Promise<ServiceR
     messageKey: "taskWithdrawnMessage",
     params: { title: t.title },
     alwaysNotify: true,
-    inbox: { ref: { type: "task", id }, once: true },
+    inbox: { ref: { type: "task", id }, once: true, actor },
   });
   return { ok: true, data: { userId } };
 }
@@ -444,8 +453,8 @@ export async function withdrawTask(id: string, userId: string): Promise<ServiceR
 /**
  * Der Sub meldet die Aufgabe als erledigt.
  *
- * Die Idempotenz steckt in der Where-Klausel (`completedAt: null`): ein Wiedereinspielen aus der
- * Offline-Warteschlange trifft null Zeilen und verschiebt den Zeitstempel nicht.
+ * Mehrfach-Zustellung ist eingeplant (Offline-Warteschlange), aber sie darf nicht schaden: die
+ * Where-Klausel unten entscheidet, wann ein Vorrücken des Zeitstempels heilt und wann es schadet.
  *
  * Bei Aufgaben MIT Bedingungen ist das die zweite Hälfte der Erfüllung — die erste (durchgehend
  * getragen) leitet `evaluateTask` aus den Einträgen ab. Der Textteil („ist die Wohnung sauber?") ist
@@ -461,12 +470,36 @@ export async function completeTask(
     return serviceFail(400, "TASK_DESCRIPTION_TOO_LONG");
   }
 
+  // Eine erneute Meldung darf den Zeitstempel neu setzen — aber nicht überall.
+  //
+  // Das ist kein Komfort, sondern die einzige Art, aus einer Sackgasse herauszukommen: `evaluateTask`
+  // verlangt `completedAt >= startedAt`, und `startedAt` ist ABGELEITET — es verschiebt sich, wenn
+  // die Keyholderin einen Eintrag korrigiert oder nachträgt (genau die Eigenschaft, die das
+  // Aufgaben-Modell auszeichnet). Rutscht der Beginn hinter eine bereits abgegebene Meldung, fällt
+  // die Aufgabe zurück auf „wartet auf Bestätigung", der Knopf erscheint wieder — und traf unter der
+  // alten Bedingung keine Zeile mehr. Der Sub drückte, bekam Erfolg gemeldet und die Karte blieb
+  // stehen. Beliebig oft.
+  //
+  // Den Zeitstempel vorzurücken ist dabei die richtige Antwort und nicht bloss die bequeme: er sagt
+  // „ich melde, dass es jetzt erfüllt ist", und genau das tut der Sub in diesem Moment erneut.
   const res = await prisma.task.updateMany({
-    where: { id, userId, withdrawnAt: null, completedAt: null },
+    where: {
+      id, userId, withdrawnAt: null,
+      // WO das Vorrücken heilen kann — und nur dort. Bei einer Aufgabe OHNE Bedingungen misst
+      // `evaluateTask` gegen `holdUntil` statt gegen `startedAt`: ein vorgerückter Zeitstempel kippt
+      // dort `done` → `missed`. Eine rechtzeitige Meldung, die über die Offline-Warteschlange ein
+      // zweites Mal ankommt, würde damit nachträglich zum Vergehen — genau der Grund, aus dem die
+      // Bedingung ursprünglich `completedAt: null` lautete.
+      OR: [
+        { completedAt: null },                 // erste Meldung
+        { requirements: { some: {} } },        // mit Bedingungen: gemessen wird gegen startedAt, Vorrücken ist harmlos
+        { holdUntil: { gte: new Date() } },    // Frist läuft noch: der neue Stempel bleibt darunter
+      ],
+    },
     data: { completedAt: new Date(), ...(trimmed ? { completionNote: trimmed } : {}) },
   });
   if (res.count === 0) {
-    // Entweder gibt es sie nicht (fremd/gelöscht) oder sie ist schon gemeldet/zurückgezogen.
+    // Entweder gibt es sie nicht (fremd/gelöscht) oder sie ist zurückgezogen.
     const exists = await prisma.task.count({ where: { id, userId } });
     return exists === 0 ? serviceFail(404, "TASK_NOT_FOUND") : { ok: true, data: { id } };
   }
@@ -485,6 +518,12 @@ export async function completeTask(
  * „Settle", nicht „notify": die Funktion MELDET nicht nur, sie schliesst das Ergebnis ab — sie
  * stempelt den Versand (`resultNotifiedAt`) und schliesst die Strafe, deren Aufgabe erfüllt wurde.
  * Alles drei gehört zusammen, und der Name soll nicht verschweigen, was hier geschrieben wird.
+ *
+ * KEIN `actor`, auf BEIDEN Wegen: „erfüllt" bzw. „versäumt" ist ein Befund der App — `evaluateTasks`
+ * rechnet ihn aus den Einträgen aus. Auch auf dem Sichtungs-Weg spricht die Meldung nicht für die
+ * Keyholderin: sie hat über EINEN Nachweis geurteilt (das sagt `taskProofAccepted/Rejected` mit
+ * ihrem Namen), das Ergebnis der ganzen Aufgabe folgt daraus erst über die Bedingungen und die
+ * Frist. Ihren Namen daran zu hängen behauptete eine Entscheidung, die sie so nicht getroffen hat.
  */
 export async function settleTaskResult(opts: {
   userId: string;
@@ -509,10 +548,14 @@ export async function settleTaskResult(opts: {
     // Schreiben scheitern kann; diese Sperre sitzt an der Nachricht selbst.
     inbox: { ref: { type: "task", id: taskId }, once },
   });
-  await notifyControllers(controllers, {
+  await notifyControllers(userId, controllers, {
     subjectKey: done ? "taskDoneSubjectKeyholder" : "taskFailedSubjectKeyholder",
     messageKey: done ? "taskDoneMessageKeyholder" : "taskFailedMessageKeyholder",
     params: { username, title },
+    // Dieselbe Einmal-Zusage wie oben beim Träger — und aus demselben Grund: bricht der Poller
+    // zwischen Versand und Stempel ab, hinterliesse sein nächster Lauf sonst eine zweite,
+    // dauerhafte Zeile im Keyholder-Posteingang.
+    inbox: { ref: { type: "task", id: taskId }, once },
   });
   await prisma.task.update({ where: { id: taskId }, data: { resultNotifiedAt: now } });
 
@@ -647,10 +690,16 @@ export async function processDueTasks(now: Date): Promise<void> {
         }
 
         if (e.evaluation.state === "awaitingReview") {
-          await notifyControllers(controllers, {
+          await notifyControllers(userId, controllers, {
             subjectKey: "taskReviewSubjectKeyholder",
             messageKey: "taskReviewMessageKeyholder",
             params: { username, title: e.task.title },
+            // Dieselbe Einmal-Zusage wie bei der Ergebnis-Meldung (`settleTaskResult`) und aus
+            // demselben Grund: gestempelt wird erst NACH dem Versand, damit ein Fehlschlag erneut
+            // versucht wird. Bricht der Poller dazwischen ab — Deploy, OOM —, läuft der nächste Tick
+            // erneut hier durch und hinterliesse eine ZWEITE, dauerhafte Zeile im
+            // Keyholder-Posteingang. Eine doppelte Mail ist flüchtig, eine doppelte Zeile bleibt.
+            inbox: { ref: { type: "task", id: e.task.id }, once: true },
           });
           await markNotified(e.task.id);
           continue;

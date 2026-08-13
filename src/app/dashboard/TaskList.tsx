@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import IconTile from "@/app/components/IconTile";
 import { ListChecks } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Sheet from "@/app/components/Sheet";
@@ -8,7 +9,7 @@ import TaskCard from "@/app/components/TaskCard";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { formatDateTimeDual, toDateLocale } from "@/lib/utils";
-import { TASK_STATE_COLOR } from "@/lib/constants";
+import { TASK_LIST_ANCHOR, TASK_STATE_COLOR } from "@/lib/constants";
 import { taskDeadlineKey, type TaskCardData } from "@/lib/taskView";
 
 const PAGE_SIZE = 5;
@@ -52,7 +53,10 @@ export default function TaskList({
   const dl = toDateLocale(locale);
 
   return (
-    <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+    // Sprungziel des Aufgaben-Badges an `OffenseCard` (Begründung an `TASK_LIST_ANCHOR`).
+    // `scroll-mt-20` hält den Listenkopf frei: der Dashboard-Header ist `sticky` und deckte die
+    // Überschrift sonst genau nach dem Sprung ab.
+    <div id={TASK_LIST_ANCHOR} className="scroll-mt-20 bg-surface rounded-2xl border border-border overflow-hidden">
       <div className="px-5 py-3 border-b border-border-subtle">
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">
           {t("listTitle")}
@@ -67,9 +71,7 @@ export default function TaskList({
             onClick={() => setOpenTask(task)}
             className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-surface-raised transition"
           >
-            <span className="shrink-0 size-8 rounded-lg flex items-center justify-center bg-surface-raised text-foreground-muted" aria-hidden>
-              <ListChecks className="size-4" />
-            </span>
+            <IconTile size="sm" icon={<ListChecks className="size-4" />} />
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-semibold text-foreground truncate">{task.title}</span>
               <span className="block text-xs text-foreground-faint tabular-nums truncate">

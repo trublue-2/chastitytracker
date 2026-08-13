@@ -130,7 +130,7 @@ export default function Heartbeat({ buildDate, initialUserId }: { buildDate: str
   if (!outdated) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-6 sm:w-80 z-50">
+    <div className="fixed bottom-[var(--bottom-nav-space)] left-4 right-4 sm:left-auto sm:right-6 sm:w-80 z-50">
       <div className="bg-gray-900 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl">
         <RefreshCw size={18} className="flex-shrink-0 text-gray-300 animate-spin" style={{ animationDuration: "2s" }} />
         <div className="flex-1 min-w-0">

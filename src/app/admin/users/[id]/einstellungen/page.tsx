@@ -5,6 +5,8 @@ import RoleSelect from "@/app/admin/RoleSelect";
 import ReinigungToggle from "@/app/admin/ReinigungToggle";
 import AutoKontrolleToggle from "@/app/admin/AutoKontrolleToggle";
 import InspectionEscalationToggle from "@/app/admin/InspectionEscalationToggle";
+import OffenseRulesEditor from "@/app/admin/OffenseRulesEditor";
+import { getOffenseRules } from "@/lib/offenseRulesService";
 import { parseReinigungsFenster } from "@/lib/reinigungService";
 import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reasonsService";
 import ReasonsEditor from "@/app/admin/ReasonsEditor";
@@ -15,6 +17,7 @@ import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
 import KeyholderInstructionsForm from "@/app/admin/KeyholderInstructionsForm";
 import KeyholderManager from "@/app/admin/KeyholderManager";
 import { getKeyholdersOfUser } from "@/lib/keyholder";
+import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import NotificationToggles from "./NotificationToggles";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import SettingsSection from "@/app/components/SettingsSection";
@@ -37,7 +40,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   const { userId: actorId, isGlobalAdmin } = await assertKeyholderOrAdmin(id);
 
-  const [user, vorgaben, categories, keyholders, t, tc, dl, tOrgasm, tOpen] = await Promise.all([
+  const [user, vorgaben, categories, keyholders, offenseRules, t, tc, dl, tOrgasm, tOpen] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.trainingVorgabe.findMany({ where: { userId: id, deletedAt: null }, orderBy: { gueltigAb: "desc" } }), // B-04: soft-gelöschte Ziele ausblenden
     // Vorgaben can only be set on KG-built-in or user-categories with allowVorgaben=true.
@@ -47,6 +50,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       select: { id: true, name: true },
     }),
     getKeyholdersOfUser(id),
+    getOffenseRules(id),
     getTranslations("admin"),
     getTranslations("common"),
     getLocale().then(toDateLocale),
@@ -165,13 +169,20 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         />
       </SettingsSection>
 
+      {/* Vergehen: welche Arten bei diesem Sub überhaupt zählen (Parameter bleiben in ihren Abschnitten) */}
+      <SettingsSection title={t("sectionOffenseRules")} description={t("sectionOffenseRulesDesc")} bodyPadded>
+        <OffenseRulesEditor userId={user.id} initialRules={offenseRules} />
+      </SettingsSection>
+
       {/* App */}
       <SettingsSection title={t("sectionApp")} description={t("sectionAppDesc")} bodyPadded>
         <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
       </SettingsSection>
 
-      {/* KI-Keyholder-Regeln (MCP) — nur wenn der MCP-Server aktiviert ist */}
-      {process.env.ENABLE_MCP === "true" && (
+      {/* KI-Keyholder-Regeln (MCP) — nur wenn die KI DIESEN Sub überhaupt anfassen kann. `ENABLE_MCP`
+          allein genügt nicht: der MCP-Server handelt immer nur für den einen `MCP_USERNAME`, bei allen
+          übrigen Subs blieben die Regeln hier folgenlos stehen. */}
+      {aiKeyholderActiveFor(user.username) && (
         <SettingsSection title={t("sectionKeyholder")} description={t("keyholderInstructionsDesc")} bodyPadded>
           <KeyholderInstructionsForm userId={user.id} initial={user.mcpKeyholderInstructions ?? ""} />
         </SettingsSection>

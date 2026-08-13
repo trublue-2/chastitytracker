@@ -19,6 +19,12 @@ export interface DashboardProps {
   /** Ende der laufenden Reinigungspause (ISO) — bis dahin führt ein Wiederverschluss dieselbe
    *  Session fort. `null`, wenn keine läuft. Reine Anzeige: der Verschluss-Zustand ist unberührt. */
   cleaningPauseUntil: string | null;
+  /** Die STRAFFRIST als fertige Uhrzeit in der Zone des Subs — nur gesetzt, wenn sie FRÜHER liegt
+   *  als der Countdown, sonst sagt der Countdown schon alles. Ableitung in `dashboard/page.tsx`. */
+  cleaningRelockWarnTime: string | null;
+  /** Ist sie bereits verstrichen? Dann sagt die Zeile das im Perfekt statt eine Frist zu versprechen,
+   *  die es nicht mehr gibt — die Pause läuft ja noch weiter. */
+  cleaningRelockWarnPassed: boolean;
   hasEntries: boolean;
 
   // Die Anforderungen mit Frist (Kontrolle, Einschliessen, Orgasmus) stehen NICHT hier, sondern
@@ -55,6 +61,8 @@ export default function DashboardClient(props: DashboardProps) {
   const {
     currentStatus,
     cleaningPauseUntil,
+    cleaningRelockWarnTime,
+    cleaningRelockWarnPassed,
     hasEntries,
     tagH: baseTagH,
     wocheH: baseWocheH,
@@ -131,6 +139,15 @@ export default function DashboardClient(props: DashboardProps) {
                 {heroTimer && <TimerDisplay {...heroTimer} className="!text-white text-2xl font-bold" />}
               </div>
             </div>
+            {/* Die Folge, bevor sie eintritt. Der Countdown darüber sagt, wie lange die Session
+                fortgeführt wird; wo die STRAFFRIST früher endet (Reinigungsfenster kürzer als das
+                Kontingent), muss diese Zeile das sagen — sonst verschliesst er bei grünem Countdown
+                und hat ein Vergehen, das er sich nicht erklären kann. */}
+            {cleaningRelockWarnTime && (
+              <p className="mt-3 text-sm font-medium text-white/90">
+                {t(cleaningRelockWarnPassed ? "cleaningRelockWarnPassed" : "cleaningRelockWarn", { time: cleaningRelockWarnTime })}
+              </p>
+            )}
             {cleaningPauseUntil && (
               <Link href="/dashboard/new/verschluss" className="mt-4 block">
                 <Button variant="semantic" semantic="lock" fullWidth icon={<Lock size={16} />}>

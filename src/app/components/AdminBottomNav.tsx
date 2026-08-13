@@ -48,8 +48,11 @@ export default function AdminBottomNav({ version, isGlobalAdmin, hideOwnTracker 
         <AdminFAB isGlobalAdmin={isGlobalAdmin} />
         {rightTabs.map(renderTab)}
       </div>
+      {/* h-6 wie in `BottomNav`: die Höhe der Leiste ist als `--bottom-nav-h` (globals.css)
+          festgeschrieben, weil Platzhalter und schwebende Banner sie brauchen. Entsteht sie hier
+          aus Schriftgrösse und Polsterung, driftet sie von dem Token weg, das sie beschreibt. */}
       {version && (
-        <div className="flex items-center justify-between px-4 pb-1">
+        <div className="flex items-center justify-between px-4 h-6">
           <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
             &copy; trublue {new Date().getFullYear()}
           </a>

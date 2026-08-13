@@ -46,6 +46,27 @@ export function buildEnvelope(now: Date, isoFn: Iso, timezone: string): Envelope
   return { generatedAt: isoFn(now)!, timezone };
 }
 
+/**
+ * Kann die KI auf dieser Instanz für DIESEN Benutzer handeln — ist der MCP-Zugang also eingerichtet
+ * und auf ihn gerichtet?
+ *
+ * Zwei Bedingungen, weil der Zugang doppelt gebunden ist: ohne `ENABLE_MCP=true` gibt der Transport
+ * 404 (`api/[transport]/route.ts`), und er handelt immer nur für den einen `MCP_USERNAME`. Alles,
+ * was die KI hinterlässt — `judgedBy: "ai"` und `senderKind: "ai"`, beide aus `AI_AUTHOR` — entsteht ausschliesslich
+ * über diesen Weg. Trifft eine der beiden nicht zu, kann dieser Benutzer nie eine KI-Nachricht
+ * bekommen; eine Anzeige, die eine KI-Keyholderin anbietet, behauptete dann eine Fähigkeit, die die
+ * Instanz nicht hat.
+ *
+ * Hier statt am Aufrufer, weil die Frage MCP-Wissen braucht (beide Variablen, ihr Zusammenspiel) —
+ * und weil `MCP_USERNAME` eben ein Benutzer*name* ist: dass die Session ihn als `user.name` führt,
+ * ist an einer Dashboard-Seite nicht zu sehen.
+ */
+export function aiKeyholderActiveFor(username: string | null | undefined): boolean {
+  const target = process.env.MCP_USERNAME;
+  // `!!target`: ohne MCP sind beide Seiten `undefined` und wären sonst gleich.
+  return process.env.ENABLE_MCP === "true" && !!target && target === username;
+}
+
 /** Löst MCP_USERNAME (Ziel der Direktiven/Abfragen) zu id + Zeitzone auf. Wirft, wenn unbekannt.
  *  Die Zeitzone des Subs regiert die Zeitdarstellung all seiner Daten. */
 export async function resolveUserContext(username: string): Promise<{ id: string; timezone: string }> {

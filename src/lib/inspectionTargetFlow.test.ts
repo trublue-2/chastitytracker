@@ -36,7 +36,12 @@ vi.mock("@/lib/queries", () => ({
 vi.mock("@/lib/oeffnenService", () => ({ createOeffnenEntryTx: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
-vi.mock("@/lib/messageService", () => ({ recordMessageAndBadge: vi.fn(async () => 0) }));
+// Nur der Schreib-Weg wird ersetzt; der Rest des Moduls (Absender-Abbildung, Spalten-Helfer) bleibt
+// echt — er ist reine Ableitung, keine Nebenwirkung. Spread statt Aufzählung, siehe offenseAnnounce.test.ts.
+vi.mock("@/lib/messageService", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./messageService")>()),
+  recordMessageAndBadge: vi.fn(async () => 0),
+}));
 vi.mock("@/lib/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, appBaseUrl: () => "https://x", noticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
@@ -77,19 +82,19 @@ beforeEach(() => {
 describe("requestKontrolle — das Ziel muss laufen", () => {
   it("Kategorie ohne laufende Trage-Session → USER_NOT_WEARING (nicht USER_NOT_LOCKED)", async () => {
     wearMock.mockResolvedValue(null);
-    const r = await requestKontrolle({ userId: "u1", categoryId: "cat-plug" });
+    const r = await requestKontrolle({ userId: "u1", categoryId: "cat-plug" }, "herrin");
     expect(r.ok).toBe(false);
     expect(!r.ok && r.error).toBe("USER_NOT_WEARING");
   });
 
   it("KG-Kontrolle ohne Verschluss → USER_NOT_LOCKED (Bestandsverhalten)", async () => {
     lockMock.mockResolvedValue({ ...LOCKED, type: "OEFFNEN" });
-    const r = await requestKontrolle({ userId: "u1" });
+    const r = await requestKontrolle({ userId: "u1" }, "herrin");
     expect(!r.ok && r.error).toBe("USER_NOT_LOCKED");
   });
 
   it("Kategorie-Kontrolle speichert das Ziel an der Zeile", async () => {
-    const r = await requestKontrolle({ userId: "u1", categoryId: "cat-plug" });
+    const r = await requestKontrolle({ userId: "u1", categoryId: "cat-plug" }, "herrin");
     expect(r.ok).toBe(true);
     expect(tx.kontrollAnforderung.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ categoryId: "cat-plug", deviceId: null }) }),
@@ -101,12 +106,12 @@ describe("requestKontrolle — das Ziel muss laufen", () => {
       userId: "u1", name: "anderer Plug", archivedAt: null,
       category: { id: "cat-plug", name: "Plug", isBuiltIn: false },
     });
-    const r = await requestKontrolle({ userId: "u1", deviceId: "plug-2" });
+    const r = await requestKontrolle({ userId: "u1", deviceId: "plug-2" }, "herrin");
     expect(!r.ok && r.error).toBe("INSPECTION_DEVICE_NOT_ACTIVE");
   });
 
   it("der Überschneidungs-Guard fragt PRO ZIEL, nicht pro User", async () => {
-    await requestKontrolle({ userId: "u1", categoryId: "cat-plug" });
+    await requestKontrolle({ userId: "u1", categoryId: "cat-plug" }, "herrin");
     expect(tx.kontrollAnforderung.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ categoryId: "cat-plug" }) }),
     );

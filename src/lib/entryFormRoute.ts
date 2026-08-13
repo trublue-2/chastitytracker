@@ -52,24 +52,27 @@ export function entryFormBase(adminUserId?: string): string {
  *  Link setzt sie, die Seite liest sie aus ihren `searchParams`. Als lose Zeichenketten hätte ein
  *  Umbenennen auf einer Seite die Vorbelegung UND die Urteils-Verknüpfung still abgeschaltet — das
  *  Formular sendet weiter, nur eben als gewöhnliche Aufgabe. */
-export const TASK_FORM_QUERY = { offenseRef: "offenseRef", anlass: "anlass" } as const;
+export const TASK_FORM_QUERY = { offenseRef: "offenseRef", offenseType: "offenseType", anlass: "anlass" } as const;
 
 /**
  * Link auf das Aufgaben-Formular des Keyholders.
  *
  * Mit `offenseRef` wird die Aufgabe zur STRAFE für dieses Vergehen: die Route legt dann Aufgabe und
- * Urteil zusammen an. `anlass` belegt nur das Anlass-Feld vor — geprüft wird ausschliesslich die ref,
- * und zwar auf dem Server.
+ * Urteil zusammen an. `offenseType` sagt dabei, WELCHE Art an dieser ref gemeint ist — zwei Arten
+ * können sich eine teilen (unerlaubte Öffnung und Reinigungs-Limit sind beide die `Entry.id`
+ * derselben Zeile), und ohne die Angabe stünde am Urteil die zuerst erkannte statt der geklickten.
+ * `anlass` belegt nur das Anlass-Feld vor — geprüft werden ref und Art auf dem Server.
  *
  * Die Query kommt wie bei {@link inspectionHref} aus `URLSearchParams`: ein Anlass-Text mit `&` oder
  * `#` zerlegte den Link sonst still.
  */
 export function taskFormHref(
   userId: string,
-  opts?: { offenseRef?: string | null; anlass?: string | null },
+  opts?: { offenseRef?: string | null; offenseType?: string | null; anlass?: string | null },
 ): string {
   const params = new URLSearchParams();
   if (opts?.offenseRef) params.set(TASK_FORM_QUERY.offenseRef, opts.offenseRef);
+  if (opts?.offenseType) params.set(TASK_FORM_QUERY.offenseType, opts.offenseType);
   if (opts?.anlass) params.set(TASK_FORM_QUERY.anlass, opts.anlass);
   const query = params.toString();
   return `/admin/users/${userId}/aktionen/aufgabe${query ? `?${query}` : ""}`;

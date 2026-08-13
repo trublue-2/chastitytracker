@@ -99,6 +99,72 @@ model User {
   appointments                   Appointment[]
   receivedMessages               Message[]
   messageReads                   MessageRead[]
+  manualOffenses                 ManualOffense[]
+  offenseRuleChanges             OffenseRuleChange[]
+}
+
+/// Ein von Hand notiertes Vergehen — das einzige, das nicht aus Einträgen ABGELEITET wird.
+///
+/// Alle übrigen Arten entstehen live aus dem Bestand (eine Öffnung während einer Sperrzeit IST das
+/// Vergehen). Was der Keyholder ausserhalb der App beobachtet — eine gebrochene Absprache, eine
+/// Unhöflichkeit, irgendetwas ohne Eintrag — hat keine Quelle, aus der es abgeleitet werden könnte.
+/// Es braucht darum eine eigene Zeile. Vorbild ist `AdminPasswordChange`: festgeschrieben statt
+/// abgeleitet, aus demselben Grund.
+///
+/// Zurückgezogen wird über `withdrawnAt`, nicht gelöscht: ein Fehleintrag verschwindet aus dem
+/// Strafbuch, bleibt aber nachlesbar. Nur solange NICHT geurteilt wurde (`StrafeRecord.refId` =
+/// diese id): sonst bliebe eine Strafaufgabe beim Sub stehen, während ihr Anlass aus dem Strafbuch
+/// fällt. Der Weg zurück führt über die Rücknahme des Urteils — siehe `withdrawManualOffense`.
+model ManualOffense {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Wann es passiert ist (nicht wann es notiert wurde) — danach richtet sich die Einordnung im
+  /// Strafbuch UND welche Regel-Fassung gilt (siehe OffenseRuleChange).
+  occurredAt  DateTime
+  title       String
+  description String?
+  /// Username des Keyholders/Admins, der notiert hat, bzw. die KI-Kennung `ai` für den Weg über den
+  /// MCP. Wie `StrafeRecord.judgedBy` ein Audit-Feld — mit dem Unterschied, dass hier auch ein echter
+  /// NAME stehen kann und nicht nur ein Kürzel. LEER heisst „kein Autor festgehalten" (nur auf dem
+  /// unerreichbaren Ausweichpfad der Route); daraus wird die Meldung an den Träger wieder eine
+  /// System-Zeile, siehe `senderFromAuthor`.
+  ///
+  /// UNVERÄNDERLICH: dieses Modul kennt nur Anlegen und Zurückziehen (`manualOffenseService.ts`),
+  /// keinen Umschreib-Pfad. Darauf beruht, dass die Meldung den Namen KOPIEREN darf — siehe
+  /// `Message.senderName`.
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  withdrawnAt DateTime?
+
+  @@index([userId, occurredAt])
+}
+
+/// Eine Änderung an der Regel „zählt diese Vergehensart bei diesem Sub?" — append-only.
+///
+/// Warum eine HISTORIE und kein Schalter-Feld am User: Das Strafbuch ist eine Live-Ableitung. Ein
+/// einzelnes `enabled` würde beim Umlegen rückwirkend die ganze Vergangenheit umschreiben —
+/// Einschalten liesse Vergehen für Handlungen erscheinen, die zu ihrer Zeit erlaubt waren (genau der
+/// Fehler, gegen den `cleaningWindowEnforcedFrom` gebaut wurde), Ausschalten liesse bereits
+/// geahndete Vorfälle spurlos verschwinden. Mit der Historie wird jede Handlung nach der Fassung
+/// beurteilt, die zu IHREM Zeitpunkt galt: die geltende Regel für t ist die jüngste Zeile mit
+/// `effectiveFrom <= t`, sonst der Code-Default (= bisheriges Verhalten).
+///
+/// `mode` statt `enabled`, weil nicht jede Art binär ist: `unauthorized_orgasm` kennt zusätzlich
+/// „nur während einer Sperrzeit". Gültige Werte je Art stehen in `offenseRules.ts`.
+model OffenseRuleChange {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Kanonischer Vergehenstyp (Schlüssel aus STORED_TYPE, z.B. "unauthorized_opening").
+  offenseType   String
+  mode          String
+  effectiveFrom DateTime
+  /// Username dessen, der umgelegt hat.
+  changedBy     String
+  createdAt     DateTime @default(now())
+
+  @@index([userId, offenseType, effectiveFrom])
 }
 
 // Eine Nachricht im Posteingang. Das Gegenstück zu den Mail-/Push-Meldungen, die bisher nach dem
@@ -117,12 +183,60 @@ model Message {
   subjectUserId String
   subject       User    @relation(fields: [subjectUserId], references: [id], onDelete: Cascade)
 
-  // Wer getippt hat: "system" | "keyholder" | "ai" — Vorbild StrafeRecord.judgedBy. WELCHER Keyholder
-  // getippt hat, wird erst interessant, wenn ein Mensch selbst schreibt (Etappe 2) — bis dahin gibt es
-  // für eine Absender-Referenz keinen Schreiber und damit keinen Grund, sie zu führen.
+  // Wer getippt hat: "system" | "keyholder" | "ai" — Vorbild StrafeRecord.judgedBy. Eine Art, kein
+  // Name: WELCHE Person es war, kann diese Spalte nicht sagen.
   senderKind String
 
-  // "sub" = an den Sub · "keyholders" = an dessen Keyholder (erst ab Etappe 2 belegt)
+  /// Der NAME des Absenders, wo ein Mensch dahintersteht — sonst null.
+  ///
+  /// Heute setzt ihn genau ein Schreiber: die Meldung eines VON HAND notierten Vergehens
+  /// (offenseAnnounce.ts, aus `ManualOffense.createdBy`). Hat die Keyholderin es notiert, ist sie die
+  /// Absenderin; „System" wäre dort schlicht falsch. `null` heisst „kein persönlicher Autor" — die
+  /// Zeile trägt dann wie bisher die Bezeichnung ihrer `senderKind`.
+  ///
+  /// Gefüllt NUR zusammen mit `senderKind = "keyholder"`. Zu „system"/„ai" gehört keine Person, und
+  /// ein Name daneben wäre ein Widerspruch, den keine Anzeige und kein Filter je läse. Erzwungen
+  /// wird das an der einen Schreibstelle (`recordSystemMessage`), nicht per Constraint — SQLite
+  /// kennt keinen, und es gibt nur diesen einen Weg in die Tabelle.
+  ///
+  /// KOPIERT und nicht über die `ref` nachgelesen — die Ausnahme von „Freitexte werden VERLINKT"
+  /// (siehe `refEntityType` unten). Diese Regel schützt vor ZWEI WAHRHEITEN und meint deshalb
+  /// veränderlichen Text: ein korrigierter Straftext darf nicht neben seiner alten Kopie stehen.
+  /// `ManualOffense.createdBy` ist aber UNVERÄNDERLICH — `manualOffenseService.ts` kennt Anlegen und
+  /// Zurückziehen, keinen Umschreib-Pfad —, also gibt es keine zweite Fassung, von der die Kopie
+  /// abweichen könnte. Was es gibt, ist der umgekehrte Fall: die Nachricht ist der Beleg einer
+  /// ZUSTELLUNG und muss wahr bleiben, auch wenn das Vergehen später zurückgezogen wird; nachgelesen
+  /// wäre der Absender dann weg. Zudem ist diese Meldung ohnehin schon eine Momentaufnahme — ihren
+  /// TITEL trägt sie seit jeher in `bodyParams` (`detectedParams` in offenseAnnounce.ts), aus
+  /// genau demselben Grund.
+  ///
+  /// WARUM NUR DIESE EINE MELDUNG. Die beiden anderen Zeilen zum selben Vergehen — Strafe verhängt
+  /// und Vergehen verworfen (strafurteilService.ts) — können ihren Autor nicht nennen: ihr einziges
+  /// Autoren-Feld ist `StrafeRecord.judgedBy`, und darin steht ausschliesslich ein Kürzel
+  /// ("ai"/"admin"/"system"), nie ein Benutzername. WELCHER Mensch geurteilt hat, hält die App an
+  /// keiner Stelle fest. Diese Meldungen mit Namen zu versehen, verlangt also zuerst, den
+  /// Handelnden bis ins Urteil durchzureichen (Signatur von `judgeOffense`) — eine eigene Änderung,
+  /// keine Erweiterung dieser Spalte.
+  ///
+  /// BEKANNTE GRENZEN (bewusst offen, nicht vergessen):
+  ///  * Der Absender-FILTER (`MessageFilterBar`) filtert nach ART, nicht nach Namen. Seine Auswahl
+  ///    „Keyholder" trägt deshalb den Namen der Seite (der EINE Keyholder des Trägers), während die
+  ///    Zeilen darunter ihren eigenen Autor zeigen. Auf einer Instanz mit mehreren Admins können
+  ///    beide auseinanderfallen — die Auswahl nennt dann eine Person und meint alle.
+  ///  * Ein Benutzer, der wirklich `ai` hiesse, würde als KI gelesen. Warum er nicht existieren
+  ///    kann, steht kanonisch bei `AI_AUTHOR` (src/lib/constants.ts).
+  senderName String?
+
+  // "sub" = an den Sub · "keyholders" = an dessen Keyholder. Bei BEIDEN ist subjectUserId der SUB.
+  //
+  // KANONISCH — hier steht die Begründung, andere Stellen (messageService.ts, notify.ts) zeigen
+  // hierher: Eine Keyholder-Meldung ist EINE Zeile je Träger, die sich alle seine Keyholder teilen.
+  // Wer gelesen hat, steht in MessageRead.userId (dem LESER), also hat jeder Keyholder auf derselben
+  // Zeile seinen eigenen Stand — deshalb braucht der Keyholder-Kanal keine Migration und keine Zeile
+  // je Empfänger. Die Kehrseite: Löschen trifft alle (siehe deleteMessages in messageService.ts).
+  //
+  // JEDE Abfrage auf diese Tabelle muss audience mitfiltern; subjectUserId allein trennt die beiden
+  // Sichten nicht mehr.
   audience String
 
   bodyKey    String?
@@ -140,7 +254,15 @@ model Message {
 
   // Der EINE Index, den die Abfragen brauchen: Liste, Zähler und "alle als gelesen" filtern alle
   // auf (subjectUserId, audience) und sortieren nach createdAt.
-  @@index([subjectUserId, audience, createdAt])
+  /// `id` gehört mit in den Index: sortiert wird `createdAt DESC, id DESC` (createdAt allein ist
+  /// nicht eindeutig), und in SQLite steckt der TEXT-Primärschlüssel NICHT implizit im Index. Ohne
+  /// ihn schiebt SQLite einen temporären B-Baum für den letzten Sortier-Term dazwischen.
+  @@index([subjectUserId, audience, createdAt, id])
+  /// Der Abgleich „welche Vergehen wurden diesem Träger schon gemeldet?" (offenseAnnounce.ts) fragt
+  /// `WHERE subjectUserId = ? AND refEntityType = ?`. Der Index oben hat `audience` an zweiter
+  /// Stelle und kann das nicht bedienen — ohne diesen hier scannt jeder Melde-Lauf die ganze
+  /// Nachrichten-Tabelle des Trägers, und der Lauf läuft im Minuten-Poller über alle Träger.
+  @@index([subjectUserId, refEntityType, refEntityId])
 }
 
 // Gelesen-Kennzeichen je Leser. Eigene Tabelle statt Flag an der Nachricht, weil eine Nachricht an
@@ -154,6 +276,10 @@ model MessageRead {
   readAt    DateTime @default(now())
 
   @@unique([messageId, userId])
+  /// Der Ungelesen-Filter fragt `WHERE userId = ?` — der Unique-Index oben hat `messageId` zuerst
+  /// und kann das nicht bedienen. Ohne diesen Index scannt JEDE Ungelesen-Abfrage die ganze Tabelle
+  /// über alle Nutzer, und die hängt an der Glocke im Header, also an jeder Dashboard-Seite.
+  @@index([userId, messageId])
 }
 
 // Gesundheits-Zurückhaltung (§8): ein Signal, dass aus Gesundheitsgründen (Migräne/Aura, Schlaf,
@@ -387,6 +513,17 @@ model KontrollAnforderung {
   deviceId                 String?
   device                   Device?   @relation("KontrolleDevice", fields: [deviceId], references: [id], onDelete: SetNull)
   kommentar                String?
+  /// Username des Keyholders/Admins, der die Kontrolle angefordert hat, bzw. die KI-Kennung `ai` für
+  /// den Weg über den MCP. Gleiche Bedeutung und gleicher Wertebereich wie `ManualOffense.createdBy`.
+  ///
+  /// Gebraucht wird die Spalte für die ZUSTELLUNG: eine TERMINIERTE Kontrolle (`wirksamAb`) meldet
+  /// der Poller, lange nachdem der Mensch den Knopf gedrückt hat — ohne dieses Feld weiss er nicht,
+  /// WER sie gestellt hat, und die Nachricht im Posteingang müsste ihren Absender raten. Gelesen
+  /// wird sie über `senderFromAuthor` (messageService.ts).
+  ///
+  /// `null` heisst „kein Mensch dahinter": so entstehen die AUTO-Kontrollen (autoKontrolleService.ts)
+  /// — und so bleiben alle Zeilen von vor dieser Spalte. Beide melden wie bisher als „System".
+  createdBy                String?
   deadline                 DateTime
   createdAt                DateTime  @default(now())
   fulfilledAt              DateTime? // Server-seitig gesetzt beim Erstellen des PRUEFUNG-Eintrags – nie editierbar
@@ -428,6 +565,15 @@ model VerschlussAnforderung {
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   art              String // "ANFORDERUNG" | "SPERRZEIT"
   nachricht        String?
+  /// Username des Keyholders/Admins, der die Direktive gestellt hat, bzw. `ai` über den MCP —
+  /// dieselbe Spalte und dieselbe Begründung wie `KontrollAnforderung.createdBy`: eine terminierte
+  /// Anforderung/Sperrzeit stellt der Poller zu, und nur diese Spalte sagt ihm, wer sie angeordnet hat.
+  ///
+  /// Vererbt an jede SPERRZEIT, die aus einer ANFORDERUNG entsteht — beim Einschliessen des Subs
+  /// (`entryFulfilment.ts`) wie bei der Übernahme am Poller (`carryOverSperrzeitOnAlreadyLocked`):
+  /// die Sperre ist die Anordnung DERSELBEN Person, nur später wirksam. `null` = Altbestand bzw.
+  /// keine Person feststellbar → die Meldung bleibt eine System-Zeile.
+  createdBy        String?
   endetAt          DateTime? // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
   dauerH           Float? // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT (relativ zur Verschlusszeit)
   sperrEndetAt     DateTime? // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endetAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu dauerH.

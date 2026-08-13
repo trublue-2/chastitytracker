@@ -28,6 +28,21 @@ export function mcpHelpUrl(locale: string): string {
     : `${MARKETING_URL}/blog/ki-keyholder-mcp`;
 }
 
+/**
+ * Sprungmarke der Aufgaben-Historie auf dem Sub-Dashboard (`TaskList`).
+ *
+ * Ziel des Aufgaben-Badges an `OffenseCard`: eine Strafaufgabe, die den Aufgaben-Block oben schon
+ * verlassen hat (versäumt, abgebrochen, erledigt), steht NUR noch in dieser Liste — ohne den Sprung
+ * dorthin sagte das Badge „als Aufgabe gestellt" und liess den Träger stehen. Als Konstante, weil
+ * Sprungmarke und Link sonst in zwei Dateien liegen und ein Umbenennen die eine stumm ins Leere
+ * laufen liesse: ein fehlender Anker wirft nicht, er scrollt einfach nicht.
+ *
+ * BEKANNTE GRENZE: der Sprung führt an die Liste, nicht an die einzelne Aufgabe — die blättert zu
+ * fünft (`usePagedList`), und gerade die hier gemeinten (versäumt, abgebrochen) stehen selten auf
+ * Seite 1. Ein gezielter Deep-Link (Seite vorwählen + Sheet öffnen) wäre der nächste Schritt.
+ */
+export const TASK_LIST_ANCHOR = "tasks";
+
 export const LOCALES = [
   { value: "de", label: "DE" },
   { value: "en", label: "EN" },
@@ -597,3 +612,59 @@ export const TASK_PROOF_MAX = 10;
 export const TASK_PROOF_DESCRIPTION_MAX_LENGTH = 200;
 export const TASK_REQUIREMENT_TYPES = ["WEAR", "KG_LOCKED"] as const;
 export type TaskRequirementType = (typeof TASK_REQUIREMENT_TYPES)[number];
+
+// ── Notierte Vergehen (ManualOffense) ───────────────────────────────────────
+/**
+ * Die AUDIT-KENNUNG „von der KI erledigt" — der eine Wert, unter dem der MCP-Weg in den Autoren-
+ * Feldern der Strafbuch-Schicht steht: `StrafeRecord.judgedBy` und `ManualOffense.createdBy`.
+ *
+ * Drei Rollen hängen an genau diesem String, und sie sind über drei Module verteilt:
+ *  * GESCHRIEBEN wird er ausschliesslich vom MCP (`mcpWrite.ts`) — „von der KI" gegenüber „von Hand
+ *    in der Oberfläche". WELCHER Keyholder autorisiert hat, steht im Action-Log, nicht hier.
+ *  * GELESEN wird er von der Absender-Abbildung (`senderFromAuthor` in `messageService.ts`): daraus
+ *    wird die Zusicherung „die KI hat geurteilt" an der Nachricht.
+ *  * ANGEZEIGT wird er im Strafbuch (`StrafbuchClient.tsx`) als KI-Hinweis am Urteil.
+ *
+ * Hier zentral und nicht dreimal lokal, weil ein Auseinanderlaufen NICHT auffällt: schriebe der MCP
+ * plötzlich „mcp", fiele jedes KI-Urteil beim Lesen in den Zweig „Benutzername" — dem Träger würde
+ * ein MENSCH namens „mcp" als Absender gemeldet, also genau die Falschaussage, gegen die die
+ * Absender-Angabe gebaut ist. Kein Test und kein Compiler bemerkte das an drei privaten Kopien.
+ *
+ * In `constants.ts` und nicht in `messageService.ts`, weil diese Datei importfrei ist und die
+ * Strafbuch-Oberfläche eine CLIENT-Komponente ist — der Service zöge Prisma mit.
+ *
+ * KANONISCH — die Namensgrenze. Ein Benutzer, der wirklich `ai` hiesse, würde überall als KI
+ * gelesen: seine Meldungen kämen beim Träger als KI-Zeile an (`senderFromAuthor`) und sein Urteil
+ * stünde im Strafbuch mit KI-Hinweis (`judgedByFromActor`). Deshalb ist der Name auf JEDEM Weg in
+ * die Benutzertabelle verstellt: die Benutzer-API verlangt mindestens drei Zeichen, und
+ * `scripts/seed.js` weicht auf den Standardnamen aus, wenn `ADMIN_USERNAME` die Kennung trägt
+ * (gross/klein egal). Jede andere Stelle, die diese Grenze erwähnt, zeigt hierher, statt die
+ * Begründung zu wiederholen — sonst hinkt sie beim nächsten Nachziehen an zwei Stellen hinterher.
+ */
+export const AI_AUTHOR = "ai";
+
+/**
+ * Werte eines Autoren-Feldes, die „kein Autor festgehalten" bedeuten — der leere Text (Ausweichwert
+ * von `sessionActor`) und `"?"` (derselbe Ausweichwert, bevor er auf leer umgestellt wurde).
+ *
+ * Ein Autoren-Wert ist der ABSENDER der Meldung an den Träger. Ein Platzhalter, der nicht als
+ * „niemand" erkannt wird, steht ihm deshalb wörtlich als Absender „?" im Posteingang, und das
+ * Strafbuch beschriftet eine Zeile „Notiert von: ?". Genau diese Grenze zieht auch die
+ * Nachtrags-Migration `20260812100000_message_sender_name` (`createdBy NOT IN ('', '?')`) — sie hier
+ * einmal auszusprechen ist der Grund, warum Migration und Laufzeit dieselbe Menge meinen.
+ */
+const NO_AUTHOR_VALUES = new Set(["", "?"]);
+
+/** Steht hinter diesem Autoren-Wert wirklich jemand? Die EINE Antwort für Absender-Abbildung
+ *  (`senderFromAuthor`), Spalten-Schreibweg (`actorColumn`) und Anzeige (`StrafbuchClient`) —
+ *  drei getrennte `if (createdBy)` waren die Stelle, an der sie auseinanderliefen. */
+export function hasAuthor(author: string | null | undefined): author is string {
+  return !!author && !NO_AUTHOR_VALUES.has(author);
+}
+
+/** Längen-Grenzen eines von Hand notierten Vergehens. Zentral hier aus demselben Grund wie bei den
+ *  Aufgaben: dieselben Werte prüft die Route (serverseitig verbindlich) und begrenzt das Formular
+ *  (`maxLength`). Der Titel trägt die Zeile im Strafbuch und wird zum Straf-Anlass einer
+ *  Strafaufgabe — dieselbe Rolle wie ein Aufgaben-Titel, darum dieselbe Grenze. */
+export const MANUAL_OFFENSE_TITLE_MAX_LENGTH = 80;
+export const MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH = 2000;

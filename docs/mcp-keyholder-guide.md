@@ -118,12 +118,27 @@ Sperre `reinigungErlaubt` hat. Freie Wechsel erlauben ⇒ `reinigungErlaubt` set
   **Vorlage für dein Urteil, keine automatische Konsequenz.**
 - Kanonische Typen (`get_offenses`): `unauthorized_opening`, `cleaning_limit`, `late_control`,
   `rejected_control`, `auto_removed_control`, `wrong_device`, `missed_orgasm`, `late_lock`,
-  `cleaning_not_relocked`, `unfulfilled_task`, `admin_password_change`.
+  `cleaning_not_relocked`, `unfulfilled_task`, `admin_password_change`, `unauthorized_orgasm`,
+  `manual_offense`.
 - `admin_password_change` fällt aus der Reihe: Das Passwort eines ADMIN-Kontos wurde geändert,
   während eine Sperrzeit lief. `via` nennt den Weg — `reset_token` (über das Postfach neuen
   Zugang verschafft), `self`, `set_by_other`. Als einziges Vergehen wird es im Moment des
   Vorgangs festgeschrieben statt live abgeleitet, damit eine später zurückgezogene Sperrzeit es
   nicht tilgt. Gedacht als Selbstbindung: Es verhindert nichts, es macht es sichtbar.
+- `unauthorized_orgasm` = ein ORGASMUS-Eintrag ohne deckende Direktive. Ob er zählt, entscheidet die
+  Regel (aus / nur während einer Sperrzeit / immer); Vorgabe ist AUS.
+- `manual_offense` notierst DU selbst mit `record_offense` — für alles, was der Tracker nicht sehen
+  kann (gebrochene Abmachung, Unhöflichkeit) und das darum keine Quelle hat, aus der es abgeleitet
+  werden könnte. Notieren ist noch KEIN Urteil; beurteilt wird es danach wie jedes andere. Eine
+  Fehlnotiz nimmt `withdraw target:"manual_offense"` zurück: sie fällt aus dem Strafbuch, bleibt aber
+  nachlesbar, und ein bereits gefälltes Urteil überlebt sie.
+- **Welche Arten bei diesem Sub überhaupt zählen, ist einstellbar** — der Bestand steht in
+  `get_context.offenseRules`. Die Regeln sind eine HISTORIE, kein Schalter: jede Tat wird nach der
+  Fassung beurteilt, die zu IHREM Zeitpunkt galt, ein Umlegen schreibt die Vergangenheit also nicht
+  um (eine heute abgeschaltete Art kann weiter ältere Vergehen zeigen). Für dich sind sie **nur
+  lesbar** — es gibt bewusst kein Tool dafür, das entscheidet der Mensch in der Admin-Oberfläche.
+  `manual_offense` steht nicht in der Liste: ein ausdrücklich notiertes Vergehen ist nicht
+  abschaltbar, dafür gibt es das Urteil (`dismiss`).
 - **Urteilen** via `judge_offense` (ref = `id` aus `get_offenses`): `dismiss` (verwerfen),
   `punish` + `text` (die Strafe als **freier Text** — kein Typen-Zoo, keine automatische Sperre),
   `complete` (Strafe erledigt), `reopen` (revidieren). `openOffenseCount` = unbeurteilt ODER

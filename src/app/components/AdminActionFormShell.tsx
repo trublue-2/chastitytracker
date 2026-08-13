@@ -10,12 +10,16 @@ interface Props {
   iconColor: string;
   title: string;
   children: ReactNode;
+  /** Ziel des Zurück-Pfeils. Vorgabe ist der Aktionen-Hub — für ein Formular, das von woanders
+   *  erreichbar ist, muss der Pfeil dorthin zurückführen, wo der Nutzer herkam. Sonst führt
+   *  Speichern an die eine Stelle und Abbrechen an eine andere. */
+  backHref?: string;
 }
 
-export default function AdminActionFormShell({ userId, backLabel, icon, iconBg, iconColor, title, children }: Props) {
+export default function AdminActionFormShell({ userId, backLabel, icon, iconBg, iconColor, title, children, backHref }: Props) {
   return (
     <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-4">
-      <Link href={`/admin/users/${userId}/aktionen`} className="text-sm text-foreground-faint hover:text-foreground transition">
+      <Link href={backHref ?? `/admin/users/${userId}/aktionen`} className="text-sm text-foreground-faint hover:text-foreground transition">
         ← {backLabel}
       </Link>
       <Card padding="none" className="overflow-hidden">

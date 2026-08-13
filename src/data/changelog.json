@@ -1,5 +1,95 @@
 [
   {
+    "version": "5.1.0",
+    "date": "2026-08-12",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Vergehen lassen sich jetzt von Hand notieren — auch das, was die App nicht sehen kann, etwa eine gebrochene Abmachung. Welche Vergehensarten überhaupt zählen, ist neu pro Person einstellbar.",
+          "en": "Offenses can now be recorded by hand — including things the app cannot see, such as a broken agreement. Which kinds of offense count at all is now set per person."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Ein Orgasmus ohne Erlaubnis lässt sich als Vergehen zählen: gar nicht, nur während einer Sperrzeit, oder immer.",
+          "en": "An orgasm without permission can now count as an offense: never, only during a lock period, or always."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Festgestellte Vergehen und ihr Ausgang landen neu als Nachricht im Posteingang — auch ein fallengelassenes. Das Dashboard zeigt weiterhin die offenen Strafen.",
+          "en": "Recorded offenses and their outcome now arrive as a message in your inbox — including a dismissed one. The dashboard still shows your open penalties."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Posteingang hat Seiten, Filter und Mehrfachauswahl bekommen.",
+          "en": "The inbox now has pages, filters and multi-select."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein im Strafbuch fallengelassenes Vergehen wird dem Träger jetzt auch gemeldet — bisher blieb die Feststellung bei ihm unbeantwortet stehen. Nimmt der Keyholder ein Urteil zurück, verschwindet auch die Strafaufgabe, die daran hing.",
+          "en": "An offense dismissed in the penalty record is now reported to the wearer as well — until now the notice simply stayed open. Withdrawing a verdict also withdraws the penalty task attached to it."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Nachrichten nennen jetzt die Person, die gehandelt hat, statt allgemein „Keyholder\" oder „System\". Ein von Hand notiertes Vergehen trägt den Namen dessen, der es eingetragen hat.",
+          "en": "Messages now name the person who acted, instead of a generic \"keyholder\" or \"system\". A hand-recorded offense carries the name of whoever entered it."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Keyholder haben jetzt einen eigenen Posteingang hinter der Glocke: Meldungen über ihre Träger — automatisch gebuchte Kontrollen und Ergebnisse von Aufgaben — lassen sich dort nachlesen, statt nur als Mail zu kommen.",
+          "en": "Keyholders now have their own inbox behind the bell: notices about their wearers — automatically filed inspections and task results — can be read there instead of arriving only by e-mail."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Unter „Meine Regeln\" steht jetzt, wonach du beurteilt wirst: Reinigung, automatische Kontrollen und welche Vergehensarten bei dir überhaupt zählen.",
+          "en": "\"My rules\" now shows what you are judged by: cleaning, automatic inspections, and which kinds of offense count for you at all."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Laufende Fristen sagen, was bei ihrem Ablauf passiert — die überfällige Kontrolle nennt den Zeitpunkt der automatischen Buchung, die Reinigungspause die Frist, gegen die bestraft wird.",
+          "en": "Running deadlines now say what happens when they expire — an overdue inspection names the time of the automatic booking, a cleaning break the deadline you are judged against."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine abgelehnte Kontrolle stand als „Verifiziert\" da, und der Grund einer fehlgeschlagenen Foto-Prüfung erreichte dich nie. Beides ist behoben.",
+          "en": "A rejected inspection showed as \"verified\", and the reason a photo check failed never reached you. Both fixed."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Statistik zählte erlaubte Reinigungsöffnungen als unerlaubt mit und übersah Öffnungen während einer unbefristeten Sperrzeit. Sie zeigt jetzt dasselbe wie das Strafbuch.",
+          "en": "The statistics counted permitted cleaning openings as unauthorized and missed openings during an indefinite lock period. It now shows the same as the penalty record."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Texte vereinheitlicht: aus „Device\" wurde „Gerät\", aus „Session\" die „Tragezeit\", und Fehlermeldungen sagen jetzt, was du tun kannst.",
+          "en": "Wording unified: \"session\" is now \"wear period\", and error messages say what you can do about it."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.0.12",
     "date": "2026-08-09",
     "changes": [

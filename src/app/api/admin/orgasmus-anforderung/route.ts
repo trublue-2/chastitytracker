@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
@@ -7,12 +7,13 @@ export async function POST(req: NextRequest) {
   try {
     const { userId, art, nachricht, beginntAt, endetAt, vorgegebeneArt, oeffnenErlaubt } = await req.json();
 
-    const err = await requireKeyholderOrAdminApi(userId);
-    if (err) return err;
+    const actor = await requireKeyholderOrAdminActor(userId);
+    if (actor instanceof NextResponse) return actor;
 
-    const result = await createOrgasmusAnforderung({
-      userId, art, nachricht, beginntAt, endetAt, vorgegebeneArt, oeffnenErlaubt,
-    });
+    const result = await createOrgasmusAnforderung(
+      { userId, art, nachricht, beginntAt, endetAt, vorgegebeneArt, oeffnenErlaubt },
+      sessionActor(actor),
+    );
     if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true, id: result.data.id });
   } catch (err) {

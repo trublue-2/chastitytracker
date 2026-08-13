@@ -1,0 +1,38 @@
+-- Wer eine terminierte Direktive GESTELLT hat.
+--
+-- Beide Tabellen tragen das `{wirksamAb, benachrichtigtAt}`-Paar (siehe `delayedTrigger.ts`) — ihre
+-- Nachricht an den Träger schreibt also nicht der Anlege-Vorgang, sondern Minuten oder Wochen später
+-- der Poller. Der kennt den Handelnden nicht: es gibt keine Sitzung mehr, und in der Zeile stand
+-- bisher nichts über ihn. Die Meldung im Posteingang musste ihren Absender deshalb raten (der EINE
+-- Keyholder des Trägers) — generisch bei zwei Keyholdern und schlicht falsch, wenn ein anderer Admin
+-- gehandelt hat.
+--
+-- Wertebereich wie `ManualOffense.createdBy`: ein BENUTZERNAME, oder die Kennung 'ai' für den Weg
+-- über den MCP. Gelesen wird die Spalte ausschliesslich über `senderFromAuthor` (messageService.ts).
+--
+-- Nullable und OHNE Nachtrag. `null` heisst „kein Mensch dahinter" und ist kein Notbehelf:
+--  * Auto-Kontrollen (`autoKontrolleService.ts`) entstehen ohne jeden Handelnden — sie sollen
+--    dauerhaft null bleiben und wie bisher als „System" melden.
+--  * Für die Bestandszeilen ist der Urheber nirgends festgehalten; ein geratener Nachtrag („der
+--    Keyholder des Trägers") wäre genau die Falschaussage, gegen die diese Spalte gebaut ist.
+--
+-- FOLGE FÜR DEN BESTAND, ausdrücklich in Kauf genommen: jede Direktive von VOR dem Upgrade trägt
+-- `createdBy = NULL` und meldet damit als „System" statt wie zuvor als „Keyholder"; der
+-- Absender-Filter findet sie unter „Keyholder" nicht mehr. Die Alternative wäre, einen Namen zu
+-- erfinden — genau das, was diese Spalte verhindern soll.
+--
+-- Es heilt sich, aber NICHT mit dem Rückstau der Zustellungen — sondern erst, wenn jede Direktive
+-- von vor dem Upgrade verbraucht ist. Drei Wege reichen weiter, als es aussieht:
+--  * `entryFulfilment.ts` und `carryOverSperrzeitOnAlreadyLocked` KOPIEREN `createdBy` in eine NEU
+--    angelegte SPERRZEIT. Eine Alt-ANFORDERUNG, die Monate später erfüllt wird, erzeugt also eine
+--    frische, autorlose Zeile — die Spalte ist neu, ihr Inhalt ist es nicht.
+--  * `updateLockRequest` setzt im `deliverNow`-Zweig `actor: va.createdBy` ohne Ausweichwert (mit
+--    Absicht, siehe dort). Wer eine Alt-Anforderung bearbeitet und auf „sofort" zieht, stellt sie
+--    Sekunden nach seinem Knopfdruck als „System" zu.
+-- Beides ist der Preis dafür, nichts zu erfinden, und beide Stellen sagen es an sich selbst.
+--
+-- Nur die beiden terminierbaren Tabellen bekommen die Spalte, `OrgasmusAnforderung` und `Task`
+-- nicht. Warum, steht in den beiden Diensten — Migrations-SQL wird nie wieder angefasst und ist der
+-- falsche Ort für eine Begründung, die sich mit dem Code ändern kann.
+ALTER TABLE "KontrollAnforderung" ADD COLUMN "createdBy" TEXT;
+ALTER TABLE "VerschlussAnforderung" ADD COLUMN "createdBy" TEXT;

@@ -207,7 +207,7 @@ describe("resolveInspectionEntry — Urteil über den Eintrag statt über die An
     entryFindMock.mockResolvedValue({ userId: "u1", type: "PRUEFUNG" });
     findFirstMock.mockResolvedValue(null);
 
-    const result = await resolveInspectionEntry("e1", "manuallyVerify");
+    const result = await resolveInspectionEntry("e1", "manuallyVerify", "kh");
 
     // Gleiche Rückgabeform wie `resolveKontrolle` — dieselbe Operation, nur anders adressiert.
     expect(result).toEqual({ ok: true, data: { userId: "u1", notified: true } });
@@ -217,14 +217,14 @@ describe("resolveInspectionEntry — Urteil über den Eintrag statt über die An
     expect(userId).toBe("u1");
     expect(content.subjectKey).toBe("inspectionConfirmedSubject");
     // Ohne Anforderung gibt es kein Bezugsobjekt — die Nachricht darf auf nichts zeigen.
-    expect(content.inbox).toEqual({ ref: undefined, senderKind: "keyholder" });
+    expect(content.inbox).toEqual({ ref: undefined, actor: "kh" });
   });
 
   it("Ablehnen setzt 'rejected' und meldet den passenden Text", async () => {
     entryFindMock.mockResolvedValue({ userId: "u1", type: "PRUEFUNG" });
     findFirstMock.mockResolvedValue(null);
 
-    await resolveInspectionEntry("e1", "reject");
+    await resolveInspectionEntry("e1", "reject", "kh");
 
     expect(entryUpdateMock).toHaveBeenCalledWith({ where: { id: "e1" }, data: { verifikationStatus: "rejected" } });
     expect(notifyMock.mock.calls[0][1].subjectKey).toBe("inspectionRejectedSubject");
@@ -234,17 +234,17 @@ describe("resolveInspectionEntry — Urteil über den Eintrag statt über die An
     entryFindMock.mockResolvedValue({ userId: "u1", type: "PRUEFUNG" });
     findFirstMock.mockResolvedValue({ id: "ka1" });
 
-    await resolveInspectionEntry("e1", "manuallyVerify");
+    await resolveInspectionEntry("e1", "manuallyVerify", "kh");
 
     expect(notifyMock.mock.calls[0][1].inbox).toEqual({
-      ref: { type: "control", id: "ka1" }, senderKind: "keyholder",
+      ref: { type: "control", id: "ka1" }, actor: "kh",
     });
   });
 
   it("beurteilt nur Kontrollen: ein Verschluss-Eintrag wird nicht angefasst", async () => {
     entryFindMock.mockResolvedValue({ userId: "u1", type: "VERSCHLUSS" });
 
-    const result = await resolveInspectionEntry("e1", "manuallyVerify");
+    const result = await resolveInspectionEntry("e1", "manuallyVerify", "kh");
 
     expect(result).toEqual({ ok: false, status: 404, error: "INSPECTION_NOT_FOUND" });
     expect(entryUpdateMock).not.toHaveBeenCalled();
@@ -254,14 +254,14 @@ describe("resolveInspectionEntry — Urteil über den Eintrag statt über die An
   it("unbekannter Eintrag → 404, ohne Schreibversuch", async () => {
     entryFindMock.mockResolvedValue(null);
 
-    const result = await resolveInspectionEntry("weg", "manuallyVerify");
+    const result = await resolveInspectionEntry("weg", "manuallyVerify", "kh");
 
     expect(result).toEqual({ ok: false, status: 404, error: "INSPECTION_NOT_FOUND" });
     expect(entryUpdateMock).not.toHaveBeenCalled();
   });
 
   it("'withdraw' gehört an die Anforderung — am Eintrag abgelehnt, bevor irgendetwas geladen wird", async () => {
-    const result = await resolveInspectionEntry("e1", "withdraw");
+    const result = await resolveInspectionEntry("e1", "withdraw", "kh");
 
     expect(result).toEqual({ ok: false, status: 400, error: "UNKNOWN_ACTION" });
     expect(entryFindMock).not.toHaveBeenCalled();

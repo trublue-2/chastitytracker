@@ -11,8 +11,8 @@ import type { BadgeVariant } from "@/app/components/Badge";
  * aus einer Client-Komponente erreichbar bleibt, ohne `prisma` oder `next/server` in den Browser zu
  * ziehen.
  */
-// Nur zur Typ-Ableitung — wer die Kategorien braucht, nimmt MESSAGE_CATEGORY_PILLS.
-const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "penalty", "task", "system"] as const;
+/** Die Kategorien in Anzeige-Reihenfolge — Quelle für den Typ UND für die Filterleiste. */
+export const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "offense", "penalty", "task", "system"] as const;
 export type MessageCategory = (typeof MESSAGE_CATEGORIES)[number];
 
 /**
@@ -24,6 +24,14 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   penaltyMessageNoReason: "penalty",
   penaltyTaskMessage: "penalty",
 
+  // Eigene Kategorie, nicht `penalty`: ein festgestelltes Vergehen IST noch keine Strafe, und ein
+  // fallengelassenes wird nie eine. Beide unter „Strafe" zu führen hiesse, dem Träger eine
+  // Anschuldigung als Urteil zu verkaufen — und der Filter „Strafe" fände Zeilen, die nichts fordern.
+  offenseDetectedMessage: "offense",
+  offenseDetectedMessageTitled: "offense",
+  offenseDismissedMessage: "offense",
+  wrongDeviceMessage: "offense",
+
   inspectionRequestedMessage: "inspection",
   inspectionConfirmedMessage: "inspection",
   inspectionRejectedMessage: "inspection",
@@ -34,8 +42,8 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   inspectionAutoRemovedMessageSubNoCode: "inspection",
   inspectionAutoRemovedMessageSubWear: "inspection",
   inspectionAutoRemovedMessageSubWearNoCode: "inspection",
-  // Geht an die Keyholder, nicht in den Sub-Posteingang (notify.ts, `inbox: false`) — steht hier nur,
-  // damit die Tabelle über alle Body-Keys vollständig ist.
+  // Geht in den KEYHOLDER-Posteingang (`audience: "keyholders"`, notify.ts), nicht in den des Subs.
+  // Die Kategorie gilt trotzdem: die Filterleiste ist auf beiden Seiten dieselbe.
   inspectionAutoRemovedMessageKeyholder: "inspection",
   inspectionAutoRemovedMessageKeyholderNoCode: "inspection",
   inspectionAutoRemovedMessageKeyholderWear: "inspection",
@@ -59,8 +67,8 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   taskAwaitingMessage: "task",
   taskDoneMessage: "task",
   taskFailedMessage: "task",
-  // Wie bei den Kontroll-Keyholder-Meldungen: gehen an die Keyholder, nicht in den Sub-Posteingang
-  // (`inbox: false` in taskService.ts) — hier nur, damit die Tabelle vollständig bleibt.
+  // Wie bei den Kontroll-Keyholder-Meldungen: gehen in den Keyholder-Posteingang, nicht in den des
+  // Subs.
   taskDoneMessageKeyholder: "task",
   taskFailedMessageKeyholder: "task",
   taskReviewMessageKeyholder: "task",
@@ -94,13 +102,156 @@ export function messageCategory(bodyKey: string | null): MessageCategory {
  * Projekts: `size="sm"` ist `h-5 text-xs` und damit das, was in den Listen überall steht — `Pill` ist
  * mit `h-7 text-sm` + Entfernen-Kreuz ein Filter-Chip und würde die Metazeile dominieren.
  * Semantik: Kontrolle = inspect (Aufmerksamkeit), Sperre = sperrzeit, Orgasmus = orgasm,
- * Strafe = warn, System = neutral.
+ * Vergehen = unlock (Feststellung), Strafe = warn (Forderung), System = neutral.
  */
 export const MESSAGE_CATEGORY_PILLS: Record<MessageCategory, { labelKey: string; variant: BadgeVariant }> = {
   inspection: { labelKey: "catInspection", variant: "inspect" },
   lock:       { labelKey: "catLock",       variant: "sperrzeit" },
   orgasm:     { labelKey: "catOrgasm",     variant: "orgasm" },
+  // Nicht `warn`: die Warnfarbe gehört der Strafe, und beide können in der LISTE direkt untereinander
+  // stehen (in der Filterleiste steht nur der Text). `unlock` heisst app-weit sonst „geöffnet" — die
+  // Doppelbelegung ist bewusst in Kauf genommen, frei waren nur `lock`, `unlock` und `ok`, und die
+  // beiden grünen sagen bei einem Vergehen das Falsche.
+  offense:    { labelKey: "catOffense",    variant: "unlock" },
   penalty:    { labelKey: "catPenalty",    variant: "warn" },
   task:       { labelKey: "catTask",       variant: "request" },
   system:     { labelKey: "catSystem",     variant: "neutral" },
 };
+
+/**
+ * Die `bodyKey`s einer Kategorie — die Umkehrung der Tabelle oben.
+ *
+ * Damit lässt sich nach Kategorie filtern, OHNE eine Spalte nachzurüsten: die Zuordnung bleibt eine
+ * Anzeige-Entscheidung (Begründung oben), die Abfrage bekommt nur die Schlüssel, die dazu gehören.
+ * Abgeleitet statt danebengeschrieben — eine zweite Liste veraltete beim ersten neuen Schlüssel.
+ */
+export function bodyKeysOfCategory(category: MessageCategory): MessageBodyKey[] {
+  return (Object.keys(CATEGORY_BY_BODY_KEY) as MessageBodyKey[]).filter(
+    (key) => CATEGORY_BY_BODY_KEY[key] === category,
+  );
+}
+
+/**
+ * Die Schlüssel aller ANDEREN Kategorien — was übrig bleibt, ist „system".
+ *
+ * Denn `system` ist der Auffang-Topf: {@link messageCategory} schickt dorthin auch die Nachricht
+ * ohne Schlüssel (Freitext) und die mit einem unbekannten. Eine Filterung über die system-Schlüssel
+ * allein verlöre also genau die beiden Fälle, die es nur dort gibt.
+ */
+export function bodyKeysOutsideSystem(): MessageBodyKey[] {
+  return (Object.keys(CATEGORY_BY_BODY_KEY) as MessageBodyKey[]).filter(
+    (key) => CATEGORY_BY_BODY_KEY[key] !== "system",
+  );
+}
+
+/** True, wenn der Wert eine bekannte Kategorie ist — die Prüfung für den Query-Parameter. */
+export function isMessageCategory(value: string): value is MessageCategory {
+  return (MESSAGE_CATEGORIES as readonly string[]).includes(value);
+}
+
+/**
+ * Die Absender-Arten. Liegen HIER und nicht in `messageService.ts`, obwohl sie dort gebraucht
+ * werden: die Filterleiste ist eine Client-Komponente, und ein Wert-Import aus dem Service zöge
+ * `prisma` in den Browser-Bundle — genau das, wovor der Kopf dieser Datei warnt. Der Service
+ * re-exportiert sie, damit seine Aufrufer unverändert bleiben.
+ */
+export const MESSAGE_SENDER_KINDS = ["system", "keyholder", "ai"] as const;
+export type MessageSenderKind = (typeof MESSAGE_SENDER_KINDS)[number];
+
+export function isMessageSenderKind(value: string): value is MessageSenderKind {
+  return (MESSAGE_SENDER_KINDS as readonly string[]).includes(value);
+}
+
+/**
+ * Wie ein Absender beschriftet wird — die EINE Regel für Filterleiste und Nachrichten-Zeile.
+ *
+ * DREI Stufen, von der genauesten zur allgemeinsten:
+ *
+ *  1. `senderName` — der an der NACHRICHT festgehaltene Absender (heute: wer ein Vergehen von Hand
+ *     notiert hat). Er gilt vor allem anderen, weil er der einzige ist, der die Frage wirklich
+ *     beantwortet: er stand beim Schreiben fest und bleibt wahr, auch wenn die Zuordnung sich
+ *     später ändert.
+ *  2. `keyholderName` — der EINE Keyholder des Trägers, wenn es genau einen gibt. Eine Schätzung
+ *     aus der Seite, nicht aus der Zeile: bei zweien wäre sie null, sonst stünde die falsche Person
+ *     an einer Nachricht. Sie trägt weiter jede Zeile, die keinen eigenen Namen hat.
+ *  3. Die Bezeichnung der Art. „System" und „KI-Keyholder" ändern sich nie — dort gibt es keine
+ *     Person.
+ *
+ * Der Name gilt nur bei `kind === "keyholder"`: eine System- oder KI-Zeile bekommt gar keinen (und
+ * wo doch einer stünde, wäre er ein Datenfehler, den die Anzeige nicht verstärken soll).
+ *
+ * `t` kommt als Parameter, weil dieselbe Regel in einer Client-Zeile und in einer Client-Leiste
+ * gebraucht wird, dieses Modul aber importfrei bleibt (siehe Kopf der Datei).
+ */
+export function senderLabel(
+  kind: MessageSenderKind,
+  senderName: string | null,
+  keyholderName: string | null,
+  t: (key: string) => string,
+): string {
+  if (kind !== "keyholder") return t(`sender.${kind}`);
+  return senderName || keyholderName || t(`sender.${kind}`);
+}
+
+/** Die Sicht auf den Posteingang: welcher Ausschnitt gezeigt wird. */
+export interface MessageFilter {
+  /** Nur ungelesene. */
+  unreadOnly?: boolean;
+  category?: MessageCategory;
+  senderKind?: MessageSenderKind;
+}
+
+/**
+ * Filter ↔ Query-Parameter, beide Richtungen nebeneinander.
+ *
+ * Vorher stand das Schreiben im Client und das Lesen in der Route — dieselbe Abbildung, vierzig
+ * Zeilen und eine Modulgrenze auseinander, und beide Seiten scheitern STILL: ein vergessener
+ * Parameter fällt einfach weg, die Auswahl bleibt sichtbar und die Liste ignoriert sie. Nebeneinander
+ * kann eine neue Filter-Dimension nur noch in beiden oder in keiner fehlen.
+ */
+export function messageFilterToParams(filter: MessageFilter): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filter.unreadOnly) params.set("unread", "1");
+  if (filter.category) params.set("category", filter.category);
+  if (filter.senderKind) params.set("sender", filter.senderKind);
+  return params;
+}
+
+/** Unbekannte Werte fallen weg, statt den Aufruf abzuweisen: ein Filter ist eine ANSICHT, kein
+ *  Vorgang — ein veralteter Link mit einer Kategorie, die es nicht mehr gibt, soll den ungefilterten
+ *  Posteingang zeigen und keinen Fehler. */
+export function parseMessageFilter(params: URLSearchParams): MessageFilter {
+  const category = params.get("category");
+  const sender = params.get("sender");
+  return {
+    unreadOnly: params.get("unread") === "1",
+    ...(category && isMessageCategory(category) ? { category } : {}),
+    ...(sender && isMessageSenderKind(sender) ? { senderKind: sender } : {}),
+  };
+}
+
+/**
+ * Derselbe Filter aus den `searchParams` einer SEITE — der Weg, den beide Posteingangs-Seiten gehen.
+ *
+ * Next.js reicht sie als `Record<string, string | string[] | undefined>` herein, `parseMessageFilter`
+ * liest `URLSearchParams`. Diese Umformung stand in beiden Seiten wortgleich da; sie gehört neben
+ * die Lese-Regel, damit eine neue Filter-Dimension nicht auf dem Seiten-Weg stumm wegfällt, während
+ * sie über die API weiterläuft. Ein doppelt gesetzter Parameter kommt als Array — davon zählt der
+ * erste, wie bei `.get()`.
+ */
+export function parseMessageFilterFrom(
+  searchParams: Record<string, string | string[] | undefined>,
+): MessageFilter {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    const first = Array.isArray(value) ? value[0] : value;
+    if (first) params.set(key, first);
+  }
+  return parseMessageFilter(params);
+}
+
+/** Zeigt die Liste gerade einen Ausschnitt? Entscheidet den Leer-Text — „keine Nachrichten" wäre
+ *  falsch, wenn nur der Filter greift. */
+export function isMessageFiltered(filter: MessageFilter): boolean {
+  return Boolean(filter.unreadOnly || filter.category || filter.senderKind);
+}

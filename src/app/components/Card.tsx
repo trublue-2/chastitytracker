@@ -11,6 +11,16 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
+/**
+ * Der Innenraum einer Karte mit Randstreifen — Aufgaben-Karte und Strafen-Karte teilen ihn.
+ *
+ * Als Konstante statt als Komponente: gemeinsam ist wirklich nur diese Klassenkette, während der
+ * INHALT beider Karten verschieden ist (die Aufgabe trägt Bedingungen, Nachweise und einen
+ * Aktions-Slot, die Strafe nichts davon). Eine Rahmen-Komponente um ein einziges `div` wäre die
+ * schlechtere Abstraktion — geteilt gehört der Wert, nicht die Struktur.
+ */
+export const CARD_BODY_STRIPED = "flex flex-col gap-3 p-4 border-l-[3px] border-l-border-strong";
+
 const paddingClasses: Record<CardPadding, string> = {
   default: "p-4 sm:p-5",
   compact: "p-3",

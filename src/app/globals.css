@@ -601,6 +601,16 @@
   --space-10:   2.5rem;   /* 40px */
   --space-12:   3rem;     /* 48px */
   --space-16:   4rem;     /* 64px */
+
+  /* Die Höhe der fixen Bottom-Nav (Sub UND Admin): 4rem Reiter-Zeile + 1.5rem Versions-Fusszeile
+     + 1px Oberkante. EINE Quelle, weil vier Stellen sie brauchen: die Leiste selbst, der Platz-
+     halter am Ende des Seiteninhalts (Dashboard und Admin) und alles, was darüber schwebt
+     (Install-Banner, Heartbeat). Vorher stand die Zahl vierfach da, und als sie sich änderte,
+     wurde genau eine Stelle nachgezogen — die anderen drei überlappten die Leiste um 9px.
+     Die Nav setzt ihre Zeilen weiterhin selbst (h-16 / h-6); wer die ändert, ändert HIER mit. */
+  --bottom-nav-h: calc(5.5rem + 1px);
+  /* Dasselbe inklusive der Geräte-Schutzzone — das, was reserviert bzw. abgestanden werden muss. */
+  --bottom-nav-space: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
 }
 
 

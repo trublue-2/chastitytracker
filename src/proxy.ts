@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { ownTrackerHidden } from "@/lib/ownTracker";
 import { touchAppMeta } from "@/lib/appMeta";
 import { logTimestamp } from "@/lib/logFormat";
 
@@ -76,7 +76,9 @@ export default auth(async (req) => {
   // Keyholders (controlsSubs, non-admin) get a surgical allowance into /admin:
   // (a) any /api/admin/* route (each route self-guards via requireKeyholderOrAdminApi;
   //     instance-level routes keep requireAdminApi), (b) the bare /admin landing,
-  // (c) per-user detail pages (/admin/users/<cuid>/...). Everything else stays admin-only.
+  // (c) per-user detail pages (/admin/users/<cuid>/...), (d) der Keyholder-Posteingang
+  //     (/admin/messages — die Meldungen über SEINE Träger; die Seite grenzt über
+  //     `assertController()` auf genau diese ein). Everything else stays admin-only.
   // Consumed only inside `if (isAdminRoute && role !== "admin" && !keyholderAllowed)`,
   // which already guarantees role !== "admin" — so no need to re-check it here.
   const keyholderAllowed =
@@ -84,6 +86,7 @@ export default auth(async (req) => {
     (pathname.startsWith("/api/admin/") ||
       pathname === "/admin" ||
       pathname === "/admin/settings" || // eigene persönliche Einstellungen (identisch zu /dashboard/settings)
+      pathname === "/admin/messages" || // eigener Keyholder-Posteingang (Glocke im blauen Kopf)
       /^\/admin\/users\/[a-z0-9]{20,}(?:\/.*)?$/.test(pathname));
 
   if (isAdminRoute && role !== "admin" && !keyholderAllowed) {
@@ -99,25 +102,16 @@ export default auth(async (req) => {
   // /admin/users/[id]/eintraege → EntryActions (editHref=/dashboard/edit/[id]?from=admin&userId=...) —
   // dort greift entryManageAccess() als eigentliche Ownership-Prüfung; die pauschale Umleitung hier
   // würde diesen Zugriff blind abfangen, bevor sie überhaupt läuft (Regression, gemeldet 2026-07-17).
-  // Frisch aus der DB (nur auf betroffenen /dashboard-Routen abgefragt), damit ein Umschalten sofort greift.
+  // Die Einstellung selbst liest `ownTrackerHidden()` — warum zentral und was sie kostet, steht dort.
   if (
     isLoggedIn &&
-    user?.id &&
-    // Nur Admins/Keyholder können "kein eigener Tracker" überhaupt setzen (Toggle-Gate = showStartPage).
-    // Reine Subs — der Grossteil des /dashboard-Traffics — sparen so die DB-Query komplett.
-    (role === "admin" || user.controlsSubs === true) &&
     pathname.startsWith("/dashboard") &&
     !pathname.startsWith("/dashboard/settings") &&
     !pathname.startsWith("/dashboard/changelog") &&
-    !pathname.startsWith("/dashboard/edit")
+    !pathname.startsWith("/dashboard/edit") &&
+    (await ownTrackerHidden(user))
   ) {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { hideOwnTracker: true },
-    });
-    if (dbUser?.hideOwnTracker) {
-      return NextResponse.redirect(new URL("/admin", req.url));
-    }
+    return NextResponse.redirect(new URL("/admin", req.url));
   }
 
   if (pathname === "/login" && isLoggedIn) {

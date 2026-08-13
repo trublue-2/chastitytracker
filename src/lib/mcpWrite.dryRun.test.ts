@@ -490,7 +490,7 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
 
     const r = await mcpWithdraw("sub", { target: "lock_request", id: "a1" }) as { withdrawn: number };
     expect(r.withdrawn).toBe(1);
-    expect(withdrawVerschlussAnforderungById).toHaveBeenCalledWith("a1");
+    expect(withdrawVerschlussAnforderungById).toHaveBeenCalledWith("a1", "ai");
 
     // Fremder Sub / falsche Art / bereits weg → gar kein Rückzug, statt stillem Erfolg.
     vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u2", art: "ANFORDERUNG", wirksamAb: null, benachrichtigtAt: null, endetAt: null, nachricht: null });

@@ -6,6 +6,7 @@ import {
   type Entry, type Vorgabe,
 } from "@/lib/statsBuilders";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
+import { buildStrafbuch } from "@/lib/strafbuch";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -42,7 +43,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   const dl = toDateLocale(await getLocale());
   const now = new Date();
 
-  const [entries, vorgaben, kontrollen, sperrzeiten, userSettings, allDevices, nonKgCategories] = await Promise.all([
+  const [entries, vorgaben, kontrollen, strafbuch, userSettings, allDevices, nonKgCategories] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "asc" },
@@ -55,7 +56,17 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       include: { category: { select: { id: true, name: true, color: true, icon: true, isBuiltIn: true } } },
     }),
     prisma.kontrollAnforderung.findMany({ where: { userId, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
-    prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT" } }),
+    // Die Karte „Unerlaubte Öffnungen" zeigt, was das STRAFBUCH als solche führt — sie formuliert
+    // die Bedingung nicht selbst. Vorher tat sie es und zählte deshalb jede ERLAUBTE
+    // Reinigungsöffnung während einer Sperrzeit mit, dazu System-Öffnungen (die vermutete Abnahme
+    // nach einer verpassten Kontrolle) und Öffnungen in einem offenen Orgasmus-Fenster — und sie
+    // ignorierte die Vergehens-Regel `unauthorized_opening`.
+    //
+    // `buildStrafbuch` ist teuer (rund zwanzig Abfragen). Der Handel ist trotzdem eindeutig: die
+    // Statistik ruft der Nutzer bewusst auf, sie liegt auf keinem Poll-Pfad, und der Strafen-Block
+    // des Dashboards zahlt denselben Preis längst. Eine dauerhaft falsche Zahl unter einer
+    // anklagenden Überschrift ist der schlechtere Handel.
+    buildStrafbuch(userId, now),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true } }),
     // `lookalikeClusterId` treibt die Bild-Versöhnung in buildSessions (optisch gleiche Geräte
     // dürfen einander nicht als "Konflikt" überstimmen) — ohne sie rechnete die Geräte-Nutzung
@@ -117,15 +128,9 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
   const orgasmusFreiMs = lastOrgasmus ? now.getTime() - lastOrgasmus.startTime.getTime() : null;
 
-  const oeffnungen = entries.filter(e => e.type === "OEFFNEN");
-  const unerlaubteOeffnungen = oeffnungen.filter(o =>
-    sperrzeiten.some(s =>
-      s.endetAt !== null &&
-      s.createdAt <= o.startTime &&
-      s.endetAt > o.startTime &&
-      (s.withdrawnAt === null || s.withdrawnAt > o.startTime)
-    )
-  ).sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+  // Neueste zuerst — die Reihenfolge der Strafbuch-Listen ist keine Zusage an ihre Leser.
+  const unerlaubteOeffnungen = [...strafbuch.unauthorizedOpenings]
+    .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
   // KG-only vorgaben drive the wear calendar + month stats (which visualize KG).
   // The Trainingsziele cards below render ALL active vorgaben across categories.

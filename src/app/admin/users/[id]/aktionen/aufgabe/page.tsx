@@ -15,15 +15,17 @@ export default async function AdminTaskPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  /** Aus dem Strafbuch: `offenseRef` macht die Aufgabe zur Strafe für dieses Vergehen, `anlass`
-   *  belegt den Anlass-Text vor. Beides nur Vorbelegung — geprüft wird die ref auf dem Server. */
-  searchParams: Promise<{ offenseRef?: string; anlass?: string }>;
+  /** Aus dem Strafbuch: `offenseRef` macht die Aufgabe zur Strafe für dieses Vergehen,
+   *  `offenseType` sagt welche Art an dieser ref gemeint ist, `anlass` belegt den Anlass-Text vor.
+   *  Alles nur Durchreichung — geprüft werden ref und Art auf dem Server. */
+  searchParams: Promise<{ offenseRef?: string; offenseType?: string; anlass?: string }>;
 }) {
   const { id: userId } = await params;
   const query = await searchParams;
   // Über die geteilten Schlüssel, nicht über Feldnamen: so bricht ein Umbenennen hier und im
   // Link-Bauplatz gemeinsam, statt die Vorbelegung still abzuschalten.
   const offenseRef = query[TASK_FORM_QUERY.offenseRef];
+  const offenseType = query[TASK_FORM_QUERY.offenseType];
   const anlass = query[TASK_FORM_QUERY.anlass];
   await assertKeyholderOrAdmin(userId);
 
@@ -63,6 +65,7 @@ export default async function AdminTaskPage({
         // die Aufgaben-Liste.
         redirectTo={`/admin/users/${userId}/${offenseRef ? "strafbuch" : "aufgaben"}`}
         offenseRef={offenseRef}
+        offenseType={offenseType}
         initialPenaltyReason={anlass}
       />
     </AdminActionFormShell>
