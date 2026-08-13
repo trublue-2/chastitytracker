@@ -10,8 +10,9 @@ import Toggle from "@/app/components/Toggle";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import PhotoCapture from "@/app/components/PhotoCapture";
+import FormField from "@/app/components/FormField";
 import useToast from "@/app/hooks/useToast";
-import { compressImage } from "@/lib/compressImage";
+import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import type { DeviceRow, CategoryOption } from "./DevicesClient";
 import { parseApiErrorCode } from "@/lib/apiClient";
@@ -49,15 +50,18 @@ export default function DeviceForm({ onClose, onSaved, device, categories, initi
 
   const [name, setName] = useState(device?.name ?? "");
   const [description, setDescription] = useState(device?.description ?? "");
-  const [imageUrl, setImageUrl] = useState(device?.imageUrl ?? "");
-  const [imagePreview, setImagePreview] = useState(device?.imageUrl ?? "");
+  // Kein `startTime`/EXIF hier: das Gerätefoto ist kein Nachweis, es wird gegen keine Uhrzeit geprüft.
+  const photo = usePhotoUpload({
+    startTime: "",
+    uploadErrorText: () => tCommon("networkError"),
+    initial: { imageUrl: device?.imageUrl },
+  });
   const [price, setPrice] = useState(device?.purchasePrice != null ? String(device.purchasePrice) : "");
   const [currency, setCurrency] = useState(device?.currency ?? "CHF");
   const [categoryId, setCategoryId] = useState<string>(defaultCategoryId);
   // Default true = Bestandsverhalten; ein neues Gerät verlangt einen Code, bis jemand ihn abschaltet.
   const [requireCode, setRequireCode] = useState(device?.requireInspectionCode ?? true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   // Focus name field on mount
@@ -65,22 +69,6 @@ export default function DeviceForm({ onClose, onSaved, device, categories, initi
     const el = document.getElementById("device-name");
     el?.focus();
   }, []);
-
-  async function handleFile(file: File) {
-    setUploading(true);
-    try {
-      const compressed = await compressImage(file).catch(() => file);
-      const fd = new FormData();
-      fd.append("file", compressed);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      setImageUrl(data.url);
-      setImagePreview(URL.createObjectURL(file));
-    } catch {
-      setError(tCommon("networkError"));
-    }
-    setUploading(false);
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -98,7 +86,7 @@ export default function DeviceForm({ onClose, onSaved, device, categories, initi
     const payload: Record<string, unknown> = {
       name: name.trim(),
       description: description.trim() || null,
-      imageUrl: imageUrl || null,
+      imageUrl: photo.imageUrl || null,
       purchasePrice: parsedPrice,
       currency: parsedPrice !== null ? currency : null,
       categoryId: categoryId || null,
@@ -179,20 +167,19 @@ export default function DeviceForm({ onClose, onSaved, device, categories, initi
             maxLength={DEVICE_DESCRIPTION_MAX_LENGTH}
           />
 
-          {/* Photo */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">{t("photo")}</label>
-            {imagePreview ? (
+          {/* Photo — `allowGallery`: das Gerätefoto beschreibt das Gerät, es beweist nichts. */}
+          <FormField label={t("photo")}>
+            {photo.imagePreview ? (
               <div className="flex items-start gap-3">
                 <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={imagePreview} alt={name} className="w-full h-full object-cover" />
+                  <img src={photo.imagePreview} alt={name} className="w-full h-full object-cover" />
                 </div>
                 <div className="flex flex-col gap-1.5 pt-1">
-                  <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact />
+                  <PhotoCapture onFile={photo.handleFile} uploading={photo.uploading} variant="emerald" compact allowGallery />
                   <button
                     type="button"
-                    onClick={() => { setImageUrl(""); setImagePreview(""); }}
+                    onClick={photo.clearPhoto}
                     className="text-xs text-warn hover:opacity-80 w-fit transition"
                   >
                     {tCommon("removePhoto")}
@@ -200,9 +187,12 @@ export default function DeviceForm({ onClose, onSaved, device, categories, initi
                 </div>
               </div>
             ) : (
-              <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" />
+              <PhotoCapture onFile={photo.handleFile} uploading={photo.uploading} variant="emerald" allowGallery />
             )}
-          </div>
+            {photo.uploadError && !photo.uploading && (
+              <p className="text-xs text-warn font-medium mt-1">{photo.uploadError}</p>
+            )}
+          </FormField>
 
           {/* Price + Currency */}
           <div className="flex gap-3">
@@ -234,7 +224,7 @@ export default function DeviceForm({ onClose, onSaved, device, categories, initi
             <Button type="button" variant="secondary" fullWidth onClick={onClose}>
               {tCommon("cancel")}
             </Button>
-            <Button type="submit" variant="primary" fullWidth loading={saving || uploading}>
+            <Button type="submit" variant="primary" fullWidth loading={saving || photo.uploading}>
               {device ? tCommon("update") : tCommon("save")}
             </Button>
           </div>

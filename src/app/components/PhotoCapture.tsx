@@ -26,9 +26,14 @@ interface Props {
   compact?: boolean;
   /** when true, mobile behaves like desktop (file picker + webcam) */
   mobileDesktopMode?: boolean;
+  /**
+   *  Mobile: drop `capture`, so the photo library stands next to the camera. Only for photos that
+   *  are NOT evidence — for evidence photos the gallery is opened by `mobileDesktopMode` (keyholder).
+   */
+  allowGallery?: boolean;
 }
 
-export default function PhotoCapture({ onFile, uploading, variant = "emerald", compact = false, mobileDesktopMode = false }: Props) {
+export default function PhotoCapture({ onFile, uploading, variant = "emerald", compact = false, mobileDesktopMode = false, allowGallery = false }: Props) {
   const t = useTranslations("common");
   const isMobile = useIsMobile();
   const showMobileUI = isMobile && !mobileDesktopMode;
@@ -182,12 +187,12 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
 
   return (
     <>
-      {/* Mobile: single file input with camera capture */}
+      {/* Mobile: single file input, camera-only unless the gallery is explicitly allowed */}
       <input
         ref={fileRef}
         type="file"
         accept="image/*"
-        {...(showMobileUI ? { capture: "environment" } : {})}
+        {...(showMobileUI && !allowGallery ? { capture: "environment" } : {})}
         onChange={handleFileChange}
         className="hidden"
       />
