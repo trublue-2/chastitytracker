@@ -77,9 +77,9 @@ Der am besten passende Fall — er braucht nur Aufgaben.
 
 - Die Nachweis-**Reihenfolge wird erzwungen** (Aufnahmezeiten müssen aufsteigen). Hier ist sie nicht
   gemeint: ob Gemüse oder Blumen zuerst, ist gleichgültig. → *Lücke G*
-- Die Leggings sind kein Gerät, also nicht prüfbar. **Empfehlung ohne Codeänderung:** eine Kategorie
-  „Kleidung" anlegen und solche Stücke als Geräte führen — danach sind sie als Bedingung und als
-  Kontroll-Ziel verwendbar. Betrifft auch Fall 5 und 6.
+- Die Leggings sind kein Gerät, also nicht prüfbar — hier trägt das **Nachweis-Foto** den Beleg, und
+  das genügt. (Eine frühere Fassung empfahl, Kleidung als Geräte zu führen; das ist **zurückgezogen**,
+  Begründung in `aufgaben-ausbau.md`, Abschnitt 2a.)
 
 ---
 
@@ -133,7 +133,9 @@ nicht in eine Aufgabe: alle Bedingungen einer Aufgabe teilen sich eine Frist.
 - Die Frist ist **unscharf** („üblicherweise"), das Formular verlangt einen exakten Zeitpunkt. Kommst
   du um 18:45, ist eine auf 19:00 gestellte Aufgabe formal noch nicht fällig; kommst du um 19:20, war
   sie schon verletzt. Eine Kulanz gibt es nur am **Anfang**, nicht am Ende. → *Lücke F*
-- „Den ganzen Tag" ist ohne Gerät nicht messbar (siehe Empfehlung bei Fall 3).
+- „Den ganzen Tag" ist ohne Gerät nicht messbar. Eine **Selbstauskunft mit einem Tap** (Baustein B11)
+  wäre die verhältnismässige Antwort — sie macht die Dauer messbar, ohne ein Kleider-Inventar zu
+  verlangen; belegt wird sie weiterhin durch das Foto.
 
 ---
 
@@ -280,8 +282,10 @@ Modell kennt aber nur bejahte Bedingungen.
 
 ## 4. Ohne Codeänderung sofort besser
 
-- **Kleidung als Geräte führen.** Eine Kategorie „Kleidung" mit Slip, Leggings, Dress macht aus drei
-  unprüfbaren Anweisungstexten (Fälle 3, 5, 6) prüfbare Bedingungen und mögliche Kontroll-Ziele.
+- **Kleidung über Nachweis-Fotos führen, nicht über Geräte.** Ein Gerät verlangt, dass jedes An- und
+  Ausziehen eingetragen wird — beim Plug verhältnismässig, beim Slip unter der Anzughose nicht. Die
+  Praxis auf den Instanzen macht es bereits so (drei Kleidungs-Aufgaben, alle über Fotos gelöst).
+  Ausführlich: `aufgaben-ausbau.md`, Abschnitt 2a.
 - **Fall 9 nicht als Aufgabe bauen.** Die Reinigungsregel deckt ihn vollständig ab, inklusive der
   Kontrolle danach. Eine Aufgabe wäre hier die schlechtere Lösung.
 - **Fall 2 als Kontrolle statt als Aufgabe.** „Zustand zu einem Zeitpunkt" ist die Frage, für die die

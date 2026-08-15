@@ -39,7 +39,7 @@ kann.
 
 ## 2. Die Bausteine
 
-Zehn Stück, jeder einzeln nutzbar. Aufwand und Risiko sind ehrlich geschätzt; „Kern" heisst, dass
+Zwölf Stück, jeder einzeln nutzbar (B10 ist verworfen — die Begründung steht in Abschnitt 2a). Aufwand und Risiko sind ehrlich geschätzt; „Kern" heisst, dass
 `evaluateTask` angefasst wird — die Stelle, an der ein Fehler das Strafbuch rückwirkend umschreibt.
 
 ### B1 — Aufgabe terminieren (`wirksamAb`)
@@ -165,12 +165,72 @@ Toleranz **nach** der Frist, spiegelbildlich zur Kulanz davor. „19:00 ± 30 mi
 - **Risiko:** mittel — Kern, aber nur eine Kante.
 - **Löst:** Lücke F · Fall 6
 
-### B10 — Kleidung als Geräte
+### B10 — ~~Kleidung als Geräte~~ *(verworfen, siehe Abschnitt 2a)*
 
-Kein Code. Eine Kategorie „Kleidung" mit Slip, Leggings, Dress macht aus unprüfbaren Anweisungstexten
-prüfbare Bedingungen und mögliche Kontroll-Ziele.
+Ursprünglich als kostenlose Sofortmassnahme gedacht: eine Kategorie „Kleidung" mit Slip, Leggings,
+Dress. **Zurückgezogen.** Eine Kategorie ohne Zeiterfassung (`trackingEnabled: false`) liefert per
+Design keine Trage-Sessions — und ohne Session gibt es keine Bedingung, denn Bedingungen werden aus
+`WEAR_BEGIN`/`WEAR_END` gebaut. Mit Zeiterfassung müsste der Träger **jedes An- und Ausziehen
+eintragen**. Beim Plug ist das verhältnismässig, beim Slip unter der Anzughose nicht.
 
-- **Löst:** Anteile der Fälle 3, 5, 6 — **sofort**.
+Ersetzt durch **B11** und **B12**.
+
+### B11 — Bestätigte Bedingung (ohne Gerät)
+
+Eine Bedingung, die kein Gerät und keine Trage-Session braucht: der Träger **bestätigt sie einmal**
+(„angelegt"), und sie gilt, bis er sie widerruft oder die Aufgabe endet.
+
+- **Neu:** `TaskRequirement.type = "CONFIRMED"` mit Freitext-Beschriftung; `TaskRequirementConfirmation`
+  (`requirementId`, `von`, `bis`) als Intervall-Quelle.
+- **Kern:** minimal — die Bestätigungen liefern Intervalle in derselben Form wie Trage-Sessions, der
+  Rest der Auswertung bleibt unberührt. Genau deshalb ist dieser Baustein billig.
+- **Ehrliche Grenze:** eine Selbstauskunft ist kein Beweis. Sie macht die Bedingung *bedienbar*
+  (Beginn, Abbruch, Dauer werden messbar), nicht *belegt* — dafür ist der Nachweis da. Beides
+  zusammen ist die richtige Antwort für Kleidung.
+- **Löst:** Kleidungs-Anteile der Fälle 5, 6 — und den ganzen Raum „trage etwas, das kein Gerät ist"
+
+### B12 — Nachweis mit eigener Fälligkeit
+
+Heute haben Nachweise nur eine **Reihenfolge**, keine Zeitpunkte: „drei Fotos über den Tag verteilt"
+lässt sich nicht ausdrücken, „ein Foto um 12:00" auch nicht.
+
+- **Neu:** `TaskProof.dueAt` bzw. `dueOffsetMin` (relativ zum Wirksamwerden), optional ein Fenster.
+- **Kern:** nur `evaluateProofs` — ein überfälliger Nachweis wird bewertbar, statt bis zum Ende der
+  Aufgabe offen zu bleiben.
+- **Nebenwirkung, die man wollen sollte:** damit wird der Nachweis zur eigenständigen Fälligkeit —
+  der Träger kann erinnert werden, statt am Ende alles auf einmal nachzureichen.
+- **Löst:** „3× am Tag ein Foto" (Fall 5), und macht Nachweise zum tragenden Instrument für alles,
+  was kein Gerät ist
+
+---
+
+## 2a. Warum Kleidung kein Gerät wird — und was stattdessen fehlt
+
+`aufgaben-abdeckung.md` empfahl an drei Stellen, Kleidung als Geräte zu führen. **Das war falsch**, und
+die Produktivdaten (Aufgaben-Report vom 15.08.2026, 19 Instanzen) zeigen zugleich, was richtig ist.
+
+**Warum es nicht geht.** Eine Kategorie hat zwei Schalter, und beide führen in eine Sackgasse:
+
+- `trackingEnabled: false` — Inventar ohne Trage-Sessions. Bedingungen werden aber aus
+  `WEAR_BEGIN`/`WEAR_END` gebaut: **ohne Session keine Bedingung.**
+- `trackingEnabled: true` — funktioniert, verlangt aber, dass der Träger **jedes An- und Ausziehen
+  einträgt**. Beim Plug ist das verhältnismässig, beim Slip unter der Anzughose nicht.
+
+Das ist kein Datenmodell-Problem, sondern ein **Erfassungsaufwand-Problem**. Kleidung ist zu Recht
+kein Gerät.
+
+**Was die Praxis längst tut.** Drei der zehn Aufgaben auf der Instanz `trublue` drehen sich um
+Kleidung — „Was du heute drunter trägst, bestimme ich", „Rosa unter der Anzughose", „Montag im Büro,
+darunter". Keine davon hat eine Trage-Bedingung; gelöst wurden sie über das **Nachweis-Foto**. Das ist
+der richtige Instinkt: für etwas, das man nicht erfasst, ist das Foto der Beleg, nicht die Bedingung.
+
+**Was daran heute fehlt.** Ein Nachweis kennt nur seine **Reihenfolge**, keine Zeit. „Drei Fotos über
+den Tag verteilt" oder „ein Foto um 12:00" lassen sich nicht ausdrücken — der Nachweis kann bis zum
+Ende der Aufgabe offen bleiben, und niemand kann daran erinnert werden. Deshalb **B12**.
+
+Und wo die Bedienbarkeit fehlt (wann hat er angelegt? wann abgelegt? wie lange?), reicht eine
+**Selbstauskunft mit einem Tap** — sie macht Beginn, Dauer und Abbruch messbar, ohne ein Inventar zu
+verlangen. Deshalb **B11**. Beleg bleibt das Foto; die Bestätigung ist die Uhr, nicht der Beweis.
 
 ---
 
@@ -213,10 +273,11 @@ Geschnitten nach Wirkung pro Aufwand, nicht nach thematischer Verwandtschaft.
 
 ### Etappe 1 — „terminieren und sauber beschriften"
 
-**B1 · B3 · B8 · B10**
+**B1 · B3 · B8 · B12**
 
 Nach dieser Etappe sind die Fälle **2, 3, 4, 10** reine Aufgaben, und **6** bis auf die weiche Frist.
-B1 ist dabei die Übernahme eines dreifach erprobten Musters, B3/B8 sind klein, B10 kostet keinen Code.
+B1 ist dabei die Übernahme eines dreifach erprobten Musters, B3/B8 sind klein, B12 fasst nur
+`evaluateProofs` an — und macht Nachweise zum tragenden Instrument für alles, was kein Gerät ist.
 
 *Das kleinste Paket, das die meisten Fälle bewegt.*
 
@@ -230,9 +291,11 @@ Vergehen für vorbildliches Verhalten.
 
 ### Etappe 3 — „die Aufgabe komponiert"
 
-**B6 · B4 · B7**
+**B6 · B11 · B4 · B7**
 
-Fall **5** und **8** werden zu einer Aufgabe. Wichtiger als die zwei Fälle: ab hier ist der Raum offen
+Fall **5** und **8** werden zu einer Aufgabe. B11 gehört hierher, weil es dieselbe Frage beantwortet
+wie B4/B7 — was zählt als Bedingung —, aber im Gegensatz zu beiden den Kern kaum berührt: es liefert
+nur eine weitere Intervall-Quelle. Wichtiger als die zwei Fälle: ab hier ist der Raum offen
 — jede künftige Anweisung, die aus Text plus Mechanik besteht, ist ohne neuen Code darstellbar.
 
 **B6 zuerst, B4 und B7 danach.** B6 fasst kein Kernstück an, B4 und B7 bauen die zentrale Rechnung um;
@@ -252,7 +315,7 @@ wer sie vorzieht, riskiert das Strafbuch für zwei Fälle.
 | 2 17:00 kniend | Kontrolle | **1 Aufgabe** | 1 Aufgabe | 1 Aufgabe |
 | 3 Einkaufen | 1 Aufgabe¹ | **1 Aufgabe** | 1 Aufgabe | 1 Aufgabe |
 | 4 Knebel-Strafe | 1 Aufgabe¹ | **1 Aufgabe** | 1 Aufgabe | 1 Aufgabe |
-| 5 Slip bei der Arbeit | 3 Instrumente | 2 Instrumente | 2 Instrumente | **1 Aufgabe** |
+| 5 Slip bei der Arbeit | 3 Instrumente | 2 Instrumente¹ | 2 Instrumente | **1 Aufgabe** |
 | 6 Dienstmädchen | 1 Aufgabe¹ | 1 Aufgabe¹ | **1 Aufgabe** | 1 Aufgabe |
 | 7 Plug jede Nacht | 7 Aufgaben | 7 Aufgaben | **1 Serie** | 1 Serie |
 | 8 nur der KG | Sperrzeit + Text | Sperrzeit + Text | Sperrzeit + Text | **1 Aufgabe** |
@@ -260,7 +323,9 @@ wer sie vorzieht, riskiert das Strafbuch für zwei Fälle.
 | 10 Stunde für mich | 1 Aufgabe¹ | **1 Aufgabe** | 1 Aufgabe | 1 Aufgabe |
 | 11 Wäsche/Knebel | Umweg | Umweg | **1 Aufgabe** | 1 Aufgabe |
 
-¹ geht schon, aber mit Kopfrechnen bzw. mit einer erzwungenen Reihenfolge, die niemand wollte.
+¹ geht schon, aber mit Kopfrechnen bzw. mit einer erzwungenen Reihenfolge, die niemand wollte. Bei
+Fall 5 ersetzt B12 (Nachweise mit eigener Fälligkeit) ab Etappe 1 die drei separaten Kontrollen —
+übrig bleiben Aufgabe + Sperrzeit.
 
 **Fall 9 bleibt bewusst draussen.** Eine Dauerregel ohne Frist und ohne Adressaten ist keine Aufgabe;
 als solche gebaut müsste sie nach jedem Sport neu gestellt werden.
