@@ -211,12 +211,15 @@ export default function TaskFields({
   /**
    * Die Beschriftung des Zahlenfeldes — sie benennt, WAS die Zahl ist.
    *
-   * Im Weg „Tragezeit" ist das die Aussage, auf die es ankommt, und sie steht deshalb noch einmal
-   * hier: die Zahl IST die Tragezeit. In den beiden anderen Wegen ist sie schlicht eine Dauer bzw.
-   * ein Zeitpunkt — den WEG nennt der Umschalter darüber, und ihn hier zu wiederholen ergäbe zwei
-   * Beschriftungen für dieselbe Sache („Frist · Endet in · Endet in").
+   * Sie nennt dabei den ANKER, den der Reiter darüber nicht nennen kann: „Tragezeit ab dem Anlegen"
+   * gegen „Dauer ab jetzt". Genau darin unterscheiden sich die beiden Wege — dieselbe Zahl im selben
+   * Feld, nur ab einem anderen Zeitpunkt gerechnet —, und ohne diesen Zusatz liest sich „Endet in
+   * 1 h" wie eine Zusage über eine Stunde Tragezeit. Das war der ursprüngliche Vorfall.
+   *
+   * Eigene Schlüssel und nicht die des Umschalters: der Reiter muss auf 420 px in eine Zeile mit zwei
+   * weiteren passen und bleibt deshalb kurz. Die Beschriftung darunter hat den Platz.
    */
-  const holdFieldLabel = t(fromStartActive ? "holdModeFromStart" : "holdFieldDuration");
+  const holdFieldLabel = t(fromStartActive ? "holdFieldFromStart" : "holdFieldDuration");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -455,7 +458,10 @@ export default function TaskFields({
         />
         {isPunishment && (
           <Input
-            label={t("penaltyReasonLabel")}
+            // Eigener Schlüssel und nicht der der Karte: dort steht der Anlass als ZEILE („Anlass:
+            // zu spät"), hier ist es die Frage an ein leeres Feld. „Wofür" ist die Frage, „Anlass"
+            // die Überschrift — dasselbe Wort für beides macht eines von beiden schlechter.
+            label={t("penaltyReasonFieldLabel")}
             value={penaltyReason}
             onChange={(e) => setPenaltyReason(e.target.value)}
             placeholder={t("penaltyReasonPlaceholder")}

@@ -9,7 +9,7 @@ Fasst die drei Vorarbeiten zusammen und macht sie umsetzbar.
 | `aufgaben-ausbau.md` | Zwölf Bausteine · das Prinzip „Direktive erzeugt Direktive" |
 | `aufgaben-beschriftung.md` | Elf Beschriftungs-Befunde gegen dieselben elf Fälle |
 
-Stand: v5.1.2 · 15.08.2026 · **Plan, nichts davon ist umgesetzt.**
+Stand: v5.1.3 · 15.08.2026 · **Etappe 0 ist umgesetzt (v5.1.3), Etappen 1–4 sind Plan.**
 
 ---
 
@@ -23,7 +23,7 @@ Beschriftung** — deshalb steht Etappe 0 vor allem anderen.
 
 ---
 
-## Etappe 0 — Die Texte · *sofort, ohne Risiko*
+## Etappe 0 — Die Texte · ✅ *umgesetzt in v5.1.3*
 
 **Aufwand: klein** (ein halber Tag) · **Risiko: praktisch null** · reine `messages/*.json`, eine
 Ausnahme mit einer Zeile Code.
@@ -39,12 +39,12 @@ Das ist der beste Aufwand-Nutzen-Schnitt im ganzen Plan.
 | `requirementsHint` | …müssen GLEICHZEITIG erfüllt sein, damit die Zeit läuft. | Alle gewählten Bedingungen müssen **GLEICHZEITIG und ohne Unterbrechung** gelten. Ohne Bedingung ist es eine reine Textaufgabe. |
 | `holdUntilHintRequirements` | Alle Bedingungen müssen ab dem Stellen durchgehend gelten. Wer später anlegt, trägt entsprechend kürzer. | Alle Bedingungen müssen ab dem Stellen durchgehend gelten — **bis zum Ende der Frist, nicht nur bis die Arbeit getan ist.** Wer später anlegt, trägt entsprechend kürzer. |
 | `holdModeLabel` | Frist | **Wie lange / bis wann?** |
-| `holdModeFromStart` *(Feld)* | Tragezeit | **Tragezeit ab dem Anlegen** |
+| `holdFieldFromStart` *(neu, Feld)* | — | **Tragezeit ab dem Anlegen** |
 | `holdFieldDuration` | Dauer | **Dauer ab jetzt** |
 | `graceLabel` | Zeit zum Anlegen | **Spätester Beginn** |
 | `graceHint` | So lange darf es nach dem Stellen dauern… | Bis dahin muss **begonnen** sein — alle Bedingungen liegen an. Wer später anfängt, hat nicht durchgehend gehalten; die Aufgabe gilt dann als versäumt. |
 | `proofsHint` | …in der Reihenfolge, in der sie aufzunehmen sind. | …in der Reihenfolge, in der sie aufzunehmen sind. **Die Aufnahmezeiten müssen dieser Reihenfolge folgen — sonst gilt die Aufgabe als versäumt.** |
-| `penaltyReasonLabel` | Anlass | **Wofür** |
+| `penaltyReasonFieldLabel` *(neu, Feld)* | — | **Wofür** |
 | `titlePlaceholder` | z.B. Wohnung staubsaugen | **z.B. Halsband anlegen** |
 | `stateNotStarted` | …die Zeit läuft, sobald alle Bedingungen erfüllt sind | Noch nicht begonnen — **beginnt, sobald alle Bedingungen gleichzeitig gelten** |
 
@@ -53,6 +53,17 @@ darüber — „Ohne Unterbrechung 30min ab dem Anlegen" und „Mindestens zu ha
 Aussage zweimal).
 
 Englische Fassung jeweils sinngleich, nicht wörtlich.
+
+**Beim Umsetzen dazugekommen** — drei Stellen, die der Prüfbericht nicht hatte:
+
+- `holdFromStartHint` und `previewEndTooSoon` **verwiesen namentlich auf „Zeit zum Anlegen"** und
+  zeigten nach der Umbenennung auf eine Beschriftung, die es nicht mehr gibt. Wer einen Feldnamen
+  ändert, muss die Texte durchsuchen, die ihn zitieren.
+- `penaltyReasonLabel` wird **auch auf der Träger-Karte** benutzt („Anlass: zu spät"). Als „Wofür: zu
+  spät" liest sich das dort schlechter. Die Karte behält „Anlass", das Formular bekam einen eigenen
+  Schlüssel: „Wofür" ist die Frage an ein leeres Feld, „Anlass" die Überschrift über einer Antwort.
+- Der **Reiter** muss kurz bleiben („Tragezeit"), damit drei Reiter auf 420 px in eine Zeile passen —
+  der Anker steht deshalb an der Feld-Beschriftung darunter, mit eigenem Schlüssel.
 
 ### Warum diese Etappe zuerst
 

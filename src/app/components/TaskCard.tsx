@@ -187,12 +187,15 @@ export default function TaskCard({
                 abgenommen wird. Nur solange nie begonnen wurde — danach zählt die Restzeit, die der
                 Countdown im nächsten Schritt nennt, nicht mehr das Minimum.
 
-                Im Dauer-Modus kommt hier dieselbe Zahl heraus, ohne dass es einen zweiten Zweig
-                bräuchte: `holdUntil` ist dort vor dem Beginn das spätestmögliche Ende (Startfrist +
-                Dauer), die Differenz zur Startfrist also genau die Dauer. */}
-            <p className="text-xs text-foreground-faint">
-              {t("holdMinHint", { duration: formatElapsedMs(new Date(task.holdUntil).getTime() - new Date(startBy).getTime(), locale) })}
-            </p>
+                NICHT im Dauer-Modus: dort steht die Zahl schon in der Frist-Zeile am Kartenkopf
+                („Ohne Unterbrechung 30min ab dem Anlegen"), und zweimal dieselbe Angabe liest sich
+                wie zwei verschiedene Forderungen. Rechnerisch käme hier dasselbe heraus — die
+                Differenz zwischen spätestmöglichem Ende und Startfrist IST die Dauer. */}
+            {!task.holdDurationMin && (
+              <p className="text-xs text-foreground-faint">
+                {t("holdMinHint", { duration: formatElapsedMs(new Date(task.holdUntil).getTime() - new Date(startBy).getTime(), locale) })}
+              </p>
+            )}
           </>
         )}
 
