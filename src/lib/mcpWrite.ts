@@ -20,14 +20,14 @@ import {
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
-  clampProofDueOffset, type NumberRange,
+  clampProofDueOffset, clampHoldDuration, type NumberRange,
 } from "@/lib/constants";
 import { clamp, randomInt } from "@/lib/utils";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 import { reviewTaskProof } from "@/lib/taskProofService";
-import { createTask, updateTask, withdrawTask, mergeTaskPatch, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
+import { createTask, checkTask, updateTask, withdrawTask, mergeTaskPatch, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
 
 /**
@@ -1589,7 +1589,11 @@ function resolveTaskHold(
    *  `TASK_HOLD_UNTIL_TOO_SOON` abgewiesen. Ein ABSOLUTES `holdUntilAt` bleibt absolut. */
   anchor: Date,
 ): Pick<CreateTaskParams, "holdUntil" | "holdDurationMin"> {
-  if (args.holdMinutesFromStart != null) return { holdDurationMin: args.holdMinutesFromStart };
+  // GEKLEMMT wie bei den Nachweis-Fristen in `mcpCreateTask`: die Vorschau soll die Dauer nennen,
+  // die in der Zeile landet — roh durchgereicht verspräche „0.4 Minuten" eine Haltezeit, die der
+  // Dienst auf eine ganze anhebt. Am Ergebnis ändert es nichts: `checkTask` klemmt ohnehin noch mal.
+  const duration = clampHoldDuration(args.holdMinutesFromStart);
+  if (duration != null) return { holdDurationMin: duration };
   const d = parseHoldUntil(args, anchor);
   if (!d) throw new Error("One of holdUntilAt, holdHours or holdMinutesFromStart is required.");
   return { holdUntil: d };
@@ -1652,30 +1656,47 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     ? `${hold.holdDurationMin} minute(s) from the moment the user has everything on`
     : hold.holdUntil!.toISOString();
 
-  /**
-   * Dieselbe Schranke, die `checkProofs` zieht — HIER noch einmal, damit die Vorschau nicht Erfolg
-   * meldet für einen Commit, der mit `TASK_PROOF_DUE_AFTER_END` endet. Genau dafür gibt es den
-   * `problem`-Slot (siehe die `offenseRef`-Prüfung darunter).
-   *
-   * Nur im Modus mit festem Ende: im Dauer-Modus entsteht das Ende erst mit dem Anlegen, und dort
-   * misst der Dienst gegen den frühestmöglichen Zeitpunkt — mehr weiss die Vorschau auch nicht.
-   */
-  const dueAfterEnd = hold.holdUntil != null && proofDueMinutes.some(
-    (m) => m !== null && (previewWirksamAb ?? now).getTime() + m * 60_000 > hold.holdUntil!.getTime(),
-  );
+  /** Der Bauplan der Zeile — EINMAL gebaut für BEIDE Wege. Die Vorschau prüft ihn mit derselben
+   *  Funktion, die der Commit gleich darauf benutzt; deshalb steht er vor der Verzweigung. */
+  const params = {
+    userId,
+    title: args.title,
+    description: args.description,
+    ...hold,
+    startGraceMin: args.startGraceMinutes,
+    isPunishment: args.isPunishment,
+    penaltyReason: args.penaltyReason,
+    requirements,
+    proofs,
+    proofOrderMatters: args.proofOrderMatters,
+    delayMinutes: args.delayMinutes,
+    wirksamAbAt: args.scheduledAt,
+  };
 
   if (args.dryRun) {
     // Nur hier: der Commit-Pfad prüft dieselbe Schranke in `punishWithTask` noch einmal, und ein
     // Strafbuch-Aufbau kostet ein Dutzend Abfragen. Die Vorschau braucht sie trotzdem — sonst legt
     // der Agent eine Vorschau vor, die der Commit mit OFFENSE_NOT_FOUND ablehnt.
     const offenseIsLive = args.offenseRef ? !!(await requireDetectedOffense(userId, args.offenseRef, now)) : null;
+    /**
+     * DIESELBE Prüfung, die der Commit fährt — keine zweite Abschrift ihrer Regeln.
+     *
+     * `checkTask` ist genau dafür vom Schreiben getrennt (siehe dort): es liest drei bis vier Mal
+     * und schreibt nichts. Die Vorschau kann es deshalb aufrufen, statt seine Schranken hier
+     * nachzubauen — und erbt damit jede: Feldgrenzen, „Frist zu früh", Nachweis-Fälligkeit hinter
+     * dem Ende, Dauer-Modus ohne Bedingung, fremdes Gerät. Eine eigene Nachrechnung liefe
+     * irgendwann auseinander; genau das war hier schon einmal der Fehler — die Fälligkeits-Schranke
+     * hing an `holdUntil` und fiel im Dauer-Modus still auf „passt schon".
+     *
+     * `mergeTaskPatch` hält dieselbe Trennung für `edit_task` (siehe seinen Kommentar).
+     */
+    const checked = await checkTask(prisma, params, AI_AUTHOR);
     // Die tote ref gehört in den `problem`-Slot des Rahmens, nicht in ein Zusatzfeld: `wouldSucceed`
     // leitet sich daraus ab. Sonst meldete die Vorschau Erfolg für einen Commit, der mit
-    // OFFENSE_NOT_FOUND endet — und der Agent legt sie seinem Nutzer genau so vor.
-    return dryRunPreview(
-      "create_task",
-      offenseIsLive === false ? "OFFENSE_NOT_FOUND" : dueAfterEnd ? "TASK_PROOF_DUE_AFTER_END" : undefined,
-      {
+    // OFFENSE_NOT_FOUND endet — und der Agent legt sie seinem Nutzer genau so vor. Zuerst geprüft,
+    // weil `punishWithTask` das Vergehen ebenfalls VOR `checkTask` auflöst.
+    const problem = offenseIsLive === false ? "OFFENSE_NOT_FOUND" : checked.ok ? undefined : checked.error;
+    return dryRunPreview("create_task", problem, {
       title: args.title,
       hold: holdText,
       requirementCount: requirements.length,
@@ -1694,20 +1715,6 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     });
   }
 
-  const params = {
-    userId,
-    title: args.title,
-    description: args.description,
-    ...hold,
-    startGraceMin: args.startGraceMinutes,
-    isPunishment: args.isPunishment,
-    penaltyReason: args.penaltyReason,
-    requirements,
-    proofs,
-    proofOrderMatters: args.proofOrderMatters,
-    delayMinutes: args.delayMinutes,
-    wirksamAbAt: args.scheduledAt,
-  };
   // EINE Kennung für beide Wege unten: die blosse Aufgabe UND die Strafaufgabe, deren Urteil daraus
   // sein `judgedBy` ableitet — zwei getrennte Angaben könnten auseinanderlaufen.
   const data = unwrap(args.offenseRef

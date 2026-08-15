@@ -20,6 +20,10 @@ vi.mock("@/lib/prisma", () => ({
     strafeRecord: { findUnique: vi.fn() },
     // getIsLocked/hasActiveKontrolle (advisory dryRun-Checks) lesen darüber.
     entry: { findFirst: vi.fn() },
+    // Der EINZIGE Schreibvorgang von `createTask` (writeTask → tx.task.create). `taskService` ist in
+    // dieser Datei bewusst NICHT gemockt — die create_task-Vorschau ruft `checkTask` echt auf —,
+    // also muss der Schreibweg hier als Mock danebenstehen, um beweisen zu können, dass er ruht.
+    task: { create: vi.fn() },
   },
 }));
 
@@ -82,6 +86,10 @@ const vaFindUniqueMock = prisma.verschlussAnforderung.findUnique as unknown as R
 const entryFindFirstMock = prisma.entry.findFirst as unknown as ReturnType<typeof vi.fn>;
 const strafeRecordFindUniqueMock = prisma.strafeRecord.findUnique as unknown as ReturnType<typeof vi.fn>;
 const detectedOffenseMock = requireDetectedOffense as unknown as ReturnType<typeof vi.fn>;
+const taskCreateMock = prisma.task.create as unknown as ReturnType<typeof vi.fn>;
+
+/** Die Antwort-Form von `dryRunPreview` — dieselbe für jedes Werkzeug. */
+type TaskPreview = { wouldSucceed: boolean; problem?: string; preview: Record<string, unknown> };
 
 const JETZT = new Date("2026-07-17T12:00:00Z");
 const MORGEN = new Date("2026-07-18T12:00:00Z");
@@ -322,6 +330,107 @@ describe("create_task als Strafe (offenseRef)", () => {
     expect(r.wouldSucceed).toBe(true);
     expect(r.preview.penaltyForOffense).toBeNull();
     expect(detectedOffenseMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Die Vorschau von `create_task` prüft mit `checkTask` — derselben Funktion, die der Commit fährt —
+ * statt deren Schranken abzuschreiben. Diese Tests pinnen das an den Schranken fest, die eine
+ * Abschrift übersehen hatte oder übersehen müsste. Der Anlass war die Fälligkeits-Schranke: sie hing
+ * an `holdUntil` und fiel im DAUER-MODUS (`holdMinutesFromStart`) still auf „passt schon", während
+ * der Commit gegen Nullpunkt + Dauer mass und mit 400 antwortete.
+ */
+describe("create_task: die Vorschau prüft mit checkTask, nicht mit einer Abschrift", () => {
+  /** Der Dauer-Modus braucht eine Bedingung, an der die Uhr starten kann — sonst weist ihn schon die
+   *  Schranke davor ab. `requireKgLocked` kostet keine Auflösung (kein Gerätename). */
+  const dauerModus = { title: "Plug tragen", holdMinutesFromStart: 60, requireKgLocked: true, dryRun: true };
+  /** Wirksam erst in vier Stunden — der Nullpunkt einer terminierten Aufgabe. */
+  const IN_VIER_STUNDEN = new Date(JETZT.getTime() + 4 * 3600_000).toISOString();
+
+  it("Dauer-Modus: eine Fälligkeit hinter der Haltedauer wird gemeldet, auf der Kante nicht", async () => {
+    const zuSpaet = await mcpCreateTask("sub", {
+      ...dauerModus, requireProof: [{ description: "zu spät", dueMinutes: 120 }],
+    }) as TaskPreview;
+    expect(zuSpaet.wouldSucceed).toBe(false);
+    expect(zuSpaet.problem).toBe("TASK_PROOF_DUE_AFTER_END");
+
+    // Genau auf dem Ende ist zulässig — dieselbe Kante wie im Dienst.
+    const aufDerKante = await mcpCreateTask("sub", {
+      ...dauerModus, requireProof: [{ description: "auf der Kante", dueMinutes: 60 }],
+    }) as TaskPreview;
+    expect(aufDerKante.wouldSucceed).toBe(true);
+    expect(aufDerKante.problem).toBeUndefined();
+  });
+
+  it("Dauer-Modus: der Nullpunkt kürzt sich weg — eine terminierte Aufgabe misst gegen ihre Dauer, nicht gegen jetzt", async () => {
+    // Gegen „jetzt" gerechnet läge „nach 30 Minuten" scheinbar weit vor dem Ende; in Wahrheit zählen
+    // Fälligkeit UND Dauer ab dem Auslöse-Zeitpunkt.
+    const r = await mcpCreateTask("sub", {
+      ...dauerModus,
+      scheduledAt: IN_VIER_STUNDEN,
+      requireProof: [{ description: "halbe Stunde nach dem Start", dueMinutes: 30 }],
+    }) as TaskPreview;
+
+    expect(r.wouldSucceed).toBe(true);
+    expect(r.preview.scheduledFor).toBe(IN_VIER_STUNDEN);
+  });
+
+  it("Dauer-Modus ohne Bedingung: die Vorschau nennt den Code, an dem der Commit ZUERST scheitert", async () => {
+    // `checkTask` prüft diese Schranke VOR den Nachweisen — hier ist beides falsch, gemeldet wird
+    // die erste. Genau diese Reihenfolge bekommt die Vorschau über den Aufruf geschenkt.
+    const r = await mcpCreateTask("sub", {
+      title: "Plug tragen", holdMinutesFromStart: 60, dryRun: true,
+      requireProof: [{ description: "zu spät", dueMinutes: 120 }],
+    }) as TaskPreview;
+
+    expect(r.wouldSucceed).toBe(false);
+    expect(r.problem).toBe("TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS");
+  });
+
+  it("Dauer-Modus: die Vorschau nennt die GEKLEMMTE Dauer, nicht den rohen Input (K-06-Falle)", async () => {
+    const r = await mcpCreateTask("sub", { ...dauerModus, holdMinutesFromStart: 0.4 }) as TaskPreview;
+
+    expect(r.preview.hold).toBe("1 minute(s) from the moment the user has everything on");
+  });
+
+  it("festes Ende: eine Fälligkeit hinter dem Ende wird gemeldet, davor nicht", async () => {
+    const zuSpaet = await mcpCreateTask("sub", {
+      title: "Einkaufen", holdHours: 3, dryRun: true,
+      requireProof: [{ description: "zu spät", dueMinutes: 240 }],
+    }) as TaskPreview;
+    expect(zuSpaet.problem).toBe("TASK_PROOF_DUE_AFTER_END");
+
+    const passt = await mcpCreateTask("sub", {
+      title: "Einkaufen", holdHours: 3, dryRun: true,
+      requireProof: [{ description: "rechtzeitig", dueMinutes: 180 }],
+    }) as TaskPreview;
+    expect(passt.wouldSucceed).toBe(true);
+  });
+
+  /**
+   * Die Ausbeute des Aufrufs: Schranken, die eine Abschrift NIE hatte. Sie stehen hier, damit ein
+   * späterer Rückbau auf eigene Nachrechnung auffliegt statt still wieder Erfolg zu versprechen.
+   */
+  it("erbt die übrigen Schranken von checkTask — Frist zu früh, Titel, Nachweis-Zahl", async () => {
+    // Ende in 15 Minuten, spätester Beginn aber erst nach der Kulanzfrist: nie erfüllbar.
+    const zuFrueh = await mcpCreateTask("sub", {
+      title: "Plug tragen", holdHours: 0.25, requireKgLocked: true, dryRun: true,
+    }) as TaskPreview;
+    expect(zuFrueh.problem).toBe("TASK_HOLD_UNTIL_TOO_SOON");
+
+    const ohneTitel = await mcpCreateTask("sub", { title: "   ", holdHours: 3, dryRun: true }) as TaskPreview;
+    expect(ohneTitel.problem).toBe("TASK_TITLE_REQUIRED");
+
+    const zuViele = await mcpCreateTask("sub", {
+      title: "Einkaufen", holdHours: 3, dryRun: true,
+      requireProof: Array.from({ length: 11 }, (_, i) => ({ description: `N${i}` })),
+    }) as TaskPreview;
+    expect(zuViele.problem).toBe("TASK_TOO_MANY_PROOFS");
+  });
+
+  it("committet trotz der echten Prüfung nichts", async () => {
+    await mcpCreateTask("sub", { ...dauerModus }) as TaskPreview;
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 });
 
