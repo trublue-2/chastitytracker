@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { validateEntryPayload, deviceCategoriesEnabled, clampStartGrace, VALID_TYPES, KG_ENTRY_TYPES, WEAR_ENTRY_TYPES, TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, DURATION_UNITS, durationToHours, durationFromHours } from "./constants";
+import { validateEntryPayload, deviceCategoriesEnabled, clampStartGrace, startGraceFromClock, VALID_TYPES, KG_ENTRY_TYPES, WEAR_ENTRY_TYPES, TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, DURATION_UNITS, durationToHours, durationFromHours } from "./constants";
 
 const FUTURE_SAFE_TIME = "2030-01-01T10:00:00Z";
 
@@ -187,6 +187,52 @@ describe("clampStartGrace — eine Klemmung für Server UND Formular-Vorschau", 
 
   it("rundet Bruchteile — Minuten sind ganze Zahlen", () => {
     expect(clampStartGrace(12.4)).toBe(12);
+  });
+});
+
+describe("startGraceFromClock — „spätestens um 18:00“ als Minutenzahl", () => {
+  const ms = (iso: string) => new Date(iso).getTime();
+
+  it("misst gegen den Nullpunkt der Aufgabe", () => {
+    expect(startGraceFromClock(ms("2026-08-15T18:00:00Z"), ms("2026-08-15T14:00:00Z"))).toBe(240);
+  });
+
+  it("misst bei einer TERMINIERTEN Aufgabe ab dem Auslösen, nicht ab dem Ausfüllen", () => {
+    // Um 08:00 gestellt, wirksam ab 17:00, spätester Beginn 17:30 — das sind 30 Minuten Kulanz und
+    // nicht 570. Ab „jetzt" gerechnet käme die ganze Wartezeit oben drauf und die Aufgabe wäre bei
+    // ihrem Wirksamwerden längst begonnen zu haben.
+    const wirksamAb = ms("2026-08-15T17:00:00Z");
+    expect(startGraceFromClock(ms("2026-08-15T17:30:00Z"), wirksamAb)).toBe(30);
+  });
+
+  it("weist eine Uhrzeit VOR dem Nullpunkt ab", () => {
+    expect(startGraceFromClock(ms("2026-08-15T16:00:00Z"), ms("2026-08-15T17:00:00Z"))).toBeNull();
+  });
+
+  it("weist den Nullpunkt selbst ab — eine Frist, die sofort abgelaufen wäre", () => {
+    const anchor = ms("2026-08-15T17:00:00Z");
+    expect(startGraceFromClock(anchor, anchor)).toBeNull();
+  });
+
+  it("weist ab, was weiter als der erlaubte Bereich hinter dem Nullpunkt liegt", () => {
+    const anchor = ms("2026-08-15T17:00:00Z");
+    const max = TASK_START_GRACE_RANGE.max;
+    expect(startGraceFromClock(anchor + max * 60_000, anchor)).toBe(max);
+    // Eine Minute darüber wird ABGEWIESEN und nicht geklemmt: aus einer ausdrücklich gewählten
+    // Uhrzeit darf still keine andere werden.
+    expect(startGraceFromClock(anchor + (max + 1) * 60_000, anchor)).toBeNull();
+  });
+
+  it("weist eine unlesbare Uhrzeit ab (leeres oder halb getipptes Feld)", () => {
+    expect(startGraceFromClock(Number.NaN, ms("2026-08-15T17:00:00Z"))).toBeNull();
+  });
+
+  it("rundet AUF ganze Minuten auf — die Rundung darf die Frist nicht strenger machen", () => {
+    // Der Nullpunkt trägt Sekunden (er ist „jetzt"), die gewählte Uhrzeit nicht. Abgerundet läge die
+    // Frist bis zu 59 Sekunden vor der eingestellten Uhrzeit.
+    const anchor = ms("2026-08-15T17:00:35Z");
+    expect(startGraceFromClock(ms("2026-08-15T17:01:00Z"), anchor)).toBe(1);
+    expect(startGraceFromClock(ms("2026-08-15T17:30:00Z"), anchor)).toBe(30);
   });
 });
 

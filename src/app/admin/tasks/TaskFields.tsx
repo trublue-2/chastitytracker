@@ -22,8 +22,8 @@ import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import { useApiError } from "@/app/hooks/useApiError";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH,
-  TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, clampStartGrace, clampHoldDuration,
-  durationToHours, durationFromHours, type DurationUnit,
+  TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, clampStartGrace, startGraceFromClock, clampHoldDuration,
+  DURATION_UNITS, durationToHours, durationFromHours, type DurationUnit,
 } from "@/lib/constants";
 import { minHoldMs, startDeadline } from "@/lib/tasks";
 import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
@@ -57,6 +57,30 @@ const HOLD_MODES = [
   { value: "duration", labelKey: "holdModeDuration" },
   { value: "datetime", labelKey: "holdModeDatetime" },
 ] as const satisfies readonly { value: HoldMode; labelKey: string }[];
+
+/**
+ * Wie der SPÄTESTE BEGINN eingegeben wird — dieselbe Frage in zwei Sprachen.
+ *
+ * Gespeichert wird in beiden Wegen eine Minutenzahl ab dem Nullpunkt der Aufgabe. „Dauer" ist der
+ * bisherige Weg, „Uhrzeit" die Angabe, die die Keyholderin ohnehin im Kopf hat („bis 18:00 liegt
+ * alles an") und heute selbst ausrechnen müsste — bei einer terminierten Aufgabe gegen einen
+ * Nullpunkt, der noch gar nicht da ist.
+ */
+type GraceMode = "duration" | "clock";
+
+/**
+ * Das Raster des Zahlenfeldes (Minuten) — Schrittweite UND Rundung beim Übertragen aus der Uhrzeit.
+ *
+ * Beides aus EINER Konstante, weil es dieselbe Zusage ist: ein `<input type="number">` weist jeden
+ * Wert ab, der nicht auf seinem `step` liegt. Eine aus „18:07" errechnete 247 stünde damit zwar im
+ * Feld, das Formular liesse sich aber nicht mehr absenden — und die Browser-Meldung („die nächsten
+ * gültigen Werte sind 245 und 250") erklärt niemandem, woher die Zahl kommt.
+ *
+ * Genommen wird das Minuten-Raster der Dauer-Eingabe darüber, damit die beiden Zahlenfelder
+ * desselben Formulars auf demselben Gitter liegen. Nur `step`, nicht `min`: die Kulanz darf 0 sein
+ * („sofort anlegen"), eine Haltedauer nicht.
+ */
+const GRACE_STEP_MIN = DURATION_UNITS.min.step;
 
 /**
  * Formular „Aufgabe stellen".
@@ -124,7 +148,15 @@ export default function TaskFields({
   const [hours, setHours] = useState("");
   const [holdUnit, setHoldUnit] = useState<DurationUnit>("h");
   const [holdUntil, setHoldUntil] = useState("");
+  // Der späteste Beginn — die Zahl wie bisher, dazu der Eingabeweg und die Uhrzeit-Fassung.
+  // „Dauer" ist die Vorgabe: sie ist der Bestandsweg und die einzige der beiden Angaben, die auch
+  // ohne Blick auf die Uhr richtig bleibt, wenn das Formular eine Weile offen liegt.
+  const [graceMode, setGraceMode] = useState<GraceMode>("duration");
   const [graceMin, setGraceMin] = useState(String(TASK_DEFAULT_START_GRACE_MIN));
+  // Leer, nicht vorbelegt: gefüllt wird beim Umschalten aus der Zahl daneben (siehe
+  // `switchGraceMode`). Ein beim Seitenaufruf gesetzter Zeitpunkt wäre nach zehn Minuten
+  // Formularausfüllen zehn Minuten zu früh.
+  const [graceAt, setGraceAt] = useState("");
   const [requirements, setRequirements] = useState<TaskRequirementInput[]>([]);
   const [proofs, setProofs] = useState<TaskProofInput[]>([]);
   // Vorgabe „an", wie bisher: die Reihenfolge war bis dahin immer gefordert, und der strengere Weg
@@ -194,6 +226,47 @@ export default function TaskFields({
   }
 
   /**
+   * Der späteste Beginn als MINUTENZAHL — das gespeicherte Feld, aus welchem Weg auch immer.
+   *
+   * `null` heisst: die eingegebene Uhrzeit taugt nicht als Frist (leer, halb getippt, vor dem
+   * Nullpunkt oder weiter als der erlaubte Bereich danach). Das Feld zeigt dann eine Meldung, die
+   * Vorschauen zeigen nichts, und das Absenden bricht ab — geklemmt wird eine Uhrzeit nicht.
+   *
+   * Nimmt den NULLPUNKT entgegen, nicht „jetzt": derselbe Wert geht danach als `createdAt` in die
+   * Vorschau-Rechnung, und aus zwei getrennten Messungen könnten zwei verschiedene Nullpunkte
+   * werden — dieselbe Zusage wie das eine `nowMs` beim Absenden. Die Minutenzahl hinter einer festen
+   * Uhrzeit schrumpft dabei mit jeder Minute Formularausfüllen, solange die Aufgabe sofort wirkt.
+   */
+  function graceMinAt(anchor: number): number | null {
+    if (graceMode === "duration") return clampStartGrace(parseFloat(graceMin));
+    return startGraceFromClock(fromDatetimeLocal(graceAt, tz).getTime(), anchor);
+  }
+
+  /**
+   * Den Eingabeweg des spätesten Beginns wechseln — und dabei den Wert MITNEHMEN. Zusage und
+   * Begründung wie bei {@link switchMode} eine Frage tiefer: umgerechnet, nie umgedeutet.
+   *
+   * Gelesen wird über `graceMinAt` im NOCH gültigen Modus — dieselbe Ableitung, die auch Vorschau
+   * und Absenden benutzen. Aus dem Dauer-Modus kommt sie nie leer zurück (eine leere Eingabe wird
+   * zur Vorgabe, also zu dem Wert, den das Absenden ohnehin schicken würde); aus dem Uhrzeit-Modus
+   * schon — dann bleibt die getippte Zahl stehen, weil es nichts zu übertragen gibt.
+   *
+   * Aufs Raster gebracht wird nur in Richtung Zahlenfeld ({@link GRACE_STEP_MIN}), und AUFgerundet
+   * aus demselben Grund wie in `startGraceFromClock`: abgerundet würden aus zwei Minuten null —
+   * „sofort anlegen" und damit strenger als die gewählte Uhrzeit.
+   */
+  function switchGraceMode(next: GraceMode) {
+    if (next === graceMode) return;
+    const anchor = anchorMs(Date.now());
+    const minutes = graceMinAt(anchor);
+    if (minutes != null) {
+      if (next === "clock") setGraceAt(toDatetimeLocal(new Date(anchor + minutes * 60_000), tz));
+      else setGraceMin(String(Math.ceil(minutes / GRACE_STEP_MIN) * GRACE_STEP_MIN));
+    }
+    setGraceMode(next);
+  }
+
+  /**
    * Den Weg wechseln — und dabei den Wert MITNEHMEN.
    *
    * Wer „endet in 2 h" eingestellt hat und den Zeitpunkt öffnet, will ihn dort feinjustieren, nicht
@@ -225,9 +298,6 @@ export default function TaskFields({
     setMode(next);
   }
 
-  // Geklemmt wie im Service — mit derselben Funktion, damit die Vorschau denselben Wert zeigt, den
-  // der Server am Ende schreibt.
-  const graceEffective = clampStartGrace(parseFloat(graceMin));
   const holdDurationMin = clampHoldDuration(durationToHours(parseFloat(hours), holdUnit) * 60);
   /**
    * Die Beschriftung des Zahlenfeldes — sie benennt, WAS die Zahl ist.
@@ -242,13 +312,33 @@ export default function TaskFields({
    */
   const holdFieldLabel = t(fromStartActive ? "holdFieldFromStart" : "holdFieldDuration");
 
+  /**
+   * Die Meldung zu einer unbrauchbaren Uhrzeit — EIN Satz für zwei Anlässe.
+   *
+   * Er steht am Feld, sobald die Uhrzeit nicht mehr passt, UND in der Fehlerzeile, wenn trotzdem
+   * abgeschickt wird. Am Feld allein wäre er zu leise: die Terminierung steht UNTER dem Block, und
+   * wer sie nachträglich verschiebt, schöbe damit den Nullpunkt unter einer Uhrzeit weg, die er
+   * schon gewählt hat — die Vorschauen verschwänden wortlos.
+   */
+  const graceClockError = t("graceClockInvalid", { hours: TASK_START_GRACE_RANGE.max / 60 });
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (scheduleIsPast(schedule, tz)) {
       setError(ta("scheduleFutureRequired"));
       return;
     }
-    const until = endAt(Date.now());
+    // EIN „jetzt" für alles, was diese Absendung ausrechnet: Frist-Ende und Kulanz hängen beide am
+    // Nullpunkt, und zwei Messungen könnten über eine Minutengrenze fallen.
+    const nowMs = Date.now();
+    const until = endAt(nowMs);
+    // Ohne Bedingungen gibt es nichts anzulegen — dann wird auch keine Kulanz geschickt und keine
+    // geprüft. `null` heisst dagegen: es gibt eine, aber die eingegebene Uhrzeit taugt nicht.
+    const grace = hasRequirements ? graceMinAt(anchorMs(nowMs)) : undefined;
+    if (grace === null) {
+      setError(graceClockError);
+      return;
+    }
     // Leere Zeilen fallen weg: eine angelegte, aber nie ausgefüllte Nachweis-Zeile ist ein Versehen,
     // keine Forderung — der Service wiese sie sonst mit einem Fehler ab.
     const proofRows = proofs.filter((p) => p.description.trim());
@@ -270,7 +360,7 @@ export default function TaskFields({
       // widerspräche der Dauer. Der Server rechnet ihn aus Kulanz + Dauer.
       holdUntil: fromStartActive ? undefined : until.toISOString(),
       holdDurationMin: fromStartActive ? holdDurationMin : undefined,
-      startGraceMin: hasRequirements ? graceEffective : undefined,
+      startGraceMin: grace,
       requirements,
       proofs: proofRows,
       // Ohne Nachweise gibt es keine Reihenfolge — dann auch keine Aussage darüber. Sonst stünde an
@@ -406,14 +496,48 @@ export default function TaskFields({
             zusammen und standen bisher in getrennten Blöcken mit verschiedenen Bauteilen. Nur mit
             Bedingungen — ohne sie gibt es nichts anzulegen, und die Kulanzfrist ist ohne Bedeutung. */}
         {hasRequirements && (
-          <HoursInput
-            label={t("graceLabel")}
-            value={graceMin}
-            onChange={setGraceMin}
-            min={TASK_START_GRACE_RANGE.min}
-            step={5}
-            unit={tc("minutesUnit")}
-          />
+          <>
+            {/* Derselbe Umschalter wie über der Frist, eine Frage tiefer: die Beschriftung („Spätester
+                Beginn") sagt WAS gemeint ist, die Reiter nur, in welcher Sprache es eingegeben wird.
+                Deshalb trägt das Feld darunter keine zweite sichtbare Beschriftung — sie stünde in
+                beiden Wegen wörtlich noch einmal da. */}
+            <FieldTabs
+              label={t("graceLabel")}
+              value={graceMode}
+              // Die zwei Wege stehen hier ausgeschrieben statt in einer Tabelle wie {@link HOLD_MODES}:
+              // die Liste wird nicht gefiltert, und „Dauer" ist ein Allerweltswort, das der
+              // gemeinsame Namensraum schon führt.
+              options={[
+                { value: "duration", label: tc("duration") },
+                { value: "clock", label: t("graceModeClock") },
+              ]}
+              onChange={switchGraceMode}
+            />
+            {graceMode === "duration" ? (
+              <HoursInput
+                ariaLabel={t("graceLabel")}
+                value={graceMin}
+                onChange={setGraceMin}
+                min={TASK_START_GRACE_RANGE.min}
+                step={GRACE_STEP_MIN}
+                unit={tc("minutesUnit")}
+              />
+            ) : (
+              <DateTimePicker
+                aria-label={t("graceLabel")}
+                value={graceAt}
+                onChange={(e) => setGraceAt(e.target.value)}
+                // Die untere Schranke des Wählers ist „jetzt", nicht der Nullpunkt: bei einer
+                // terminierten Aufgabe liegt der in der Zukunft und wandert mit der Terminierung
+                // darunter. Die genaue Grenze zieht deshalb `startGraceFromClock` — sein Urteil
+                // steht als Fehler am Feld, statt die Vorschauen nur verschwinden zu lassen.
+                min={minNow}
+                error={graceAt !== "" && graceMinAt(anchorMs(Date.now())) === null ? graceClockError : null}
+                hint={t("holdUntilTzHint", { tz })}
+                required
+              />
+            )}
+          </>
         )}
 
         {/* DER ZUSAMMENFASSENDE SATZ — die Sache in ihrer zeitlichen Ordnung, in EINER Zeile.
@@ -422,7 +546,16 @@ export default function TaskFields({
             ab dem Stellen, ihr Ende wandert also mit jeder Minute Formularausfüllen mit. */}
         {hasRequirements && (
           <TimePreview
-            at={(nowMs) => startDeadline({ createdAt: new Date(anchorMs(nowMs)), startGraceMin: graceEffective })}
+            at={(nowMs) => {
+              const anchor = anchorMs(nowMs);
+              const grace = graceMinAt(anchor);
+              // Eine unbrauchbare Uhrzeit ergibt bewusst ein UNGÜLTIGES Datum — dieselbe Zusage wie
+              // beim halb getippten Frist-Feld darüber: die Zeile zeigt dann nichts, statt einen
+              // Beginn zu nennen, den so niemand gewählt hat. Den Vorwurf trägt das Feld selbst.
+              return grace === null
+                ? new Date(NaN)
+                : startDeadline({ createdAt: new Date(anchor), startGraceMin: grace });
+            }}
             live
             tz={tz}
             line={(date) => ({
@@ -450,15 +583,19 @@ export default function TaskFields({
           live={effectiveMode !== "datetime" || hasRequirements}
           tz={tz}
           line={(date, nowMs) => {
+            // Ohne Bedingungen gibt es keine Haltezeit zu nennen — und mit einer unbrauchbaren
+            // Uhrzeit keine, die stimmte. Das Ende steht in beiden Fällen fest und wird gezeigt.
+            const anchor = anchorMs(nowMs);
+            const grace = hasRequirements ? graceMinAt(anchor) : null;
+            if (grace === null) return { text: t("previewEnd", { date }) };
             // Über `minHoldMs` und nicht per eigener Rechnung: die Vorschau zeigt damit dieselbe
             // Grösse, gegen die der Server prüft (`TASK_HOLD_UNTIL_TOO_SOON`) und die der Sub auf
             // seiner Karte liest.
             const holdMs = minHoldMs({
-              createdAt: new Date(anchorMs(nowMs)),
-              startGraceMin: graceEffective,
+              createdAt: new Date(anchor),
+              startGraceMin: grace,
               holdUntil: endAt(nowMs),
             });
-            if (!hasRequirements) return { text: t("previewEnd", { date }) };
             // Ein Wert ≤ 0 ist der widersprüchliche Fall: die Aufgabe wäre im Moment des Stellens
             // schon vorbei, bevor überhaupt begonnen sein muss — der Server weist sie mit
             // `TASK_HOLD_UNTIL_TOO_SOON` ab. Seit die Frist Viertelstunden erlaubt, ist das keine

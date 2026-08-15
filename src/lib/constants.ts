@@ -603,6 +603,35 @@ export function clampStartGrace(value: number | undefined): number {
   return Math.min(TASK_START_GRACE_RANGE.max, Math.max(TASK_START_GRACE_RANGE.min, rounded));
 }
 /**
+ * Die Kulanz aus einer UHRZEIT ableiten — „spätestens um 18:00" statt „in 240 Minuten".
+ *
+ * Gespeichert bleibt die Minutenzahl; die Uhrzeit ist nur der zweite Eingabeweg desselben Feldes.
+ * Gemessen wird gegen den NULLPUNKT der Aufgabe (`wirksamAb ?? createdAt`, siehe `taskAnchor`) und
+ * nicht gegen „jetzt": bei einer terminierten Aufgabe liegt zwischen Ausfüllen und Wirksamwerden die
+ * ganze Verzögerung, und ab „jetzt" gerechnet käme sie oben drauf.
+ *
+ * `null` heisst „taugt nicht als Frist" — unlesbar, nicht nach dem Nullpunkt (≤ 0 Minuten), oder
+ * weiter als {@link TASK_START_GRACE_RANGE}`.max` danach. Bewusst KEINE Klemmung wie in
+ * {@link clampStartGrace}: eine getippte Zahl darf man auf ihren Bereich bringen, eine ausdrücklich
+ * gewählte Uhrzeit nicht — aus „spätestens 20:00" würde sonst stillschweigend 18:00. Der Aufrufer
+ * weist die Eingabe stattdessen ab.
+ *
+ * Die 0 ist deshalb hier ungültig, obwohl `TASK_START_GRACE_RANGE.min` sie erlaubt: getippt heisst
+ * sie „sofort anfangen", als Uhrzeit wäre sie der Nullpunkt selbst — eine Frist, die im Moment ihres
+ * Entstehens schon abgelaufen ist.
+ *
+ * AUFGERUNDET auf die ganze Minute, nicht kaufmännisch gerundet: der Nullpunkt trägt Sekunden, die
+ * Uhrzeit nicht. Abgerundet fiele die Frist bis zu 59 Sekunden VOR die gewählte Uhrzeit — sie würde
+ * durch die Rundung strenger, und die Vorschau im Formular nennte eine Minute vor der, die gerade
+ * eingestellt wurde.
+ */
+export function startGraceFromClock(clockMs: number, anchorMs: number): number | null {
+  const minutes = Math.ceil((clockMs - anchorMs) / 60_000);
+  if (!Number.isFinite(minutes)) return null;
+  if (minutes <= 0 || minutes > TASK_START_GRACE_RANGE.max) return null;
+  return minutes;
+}
+/**
  * Zulässige Haltedauer im DAUER-MODUS (Minuten, gemessen ab dem tatsächlichen Beginn).
  *
  * Wie {@link TASK_START_GRACE_RANGE} bewusst KEIN {@link NumberRange}: der Typ verspricht „hiermit

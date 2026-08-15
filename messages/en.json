@@ -1617,6 +1617,8 @@
     "previewStart": "Start by: {date}",
     "graceLabel": "Latest start",
     "graceHint": "Everything must be in place by then. Starting later is not holding continuously — the task then counts as missed.",
+    "graceModeClock": "Clock time",
+    "graceClockInvalid": "The latest start must fall between the moment the task takes effect and {hours} hours after it.",
     "isPunishmentLabel": "As punishment",
     "penaltyReasonLabel": "Reason",
     "penaltyReasonFieldLabel": "What for",
