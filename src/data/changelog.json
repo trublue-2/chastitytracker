@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.1.2",
+    "date": "2026-08-15",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine Aufgabe kann ihre Haltezeit jetzt ab dem Anlegen zählen statt bis zu einem festen Zeitpunkt: „30 Minuten“ sind dann auch 30 Minuten, egal wann der Träger anlegt. Bei mehreren geforderten Geräten startet die Uhr mit dem letzten.",
+          "en": "A task can now count its hold time from the moment things are put on instead of up to a fixed point: “30 minutes” then really means 30 minutes, no matter when the wearer starts. With several required devices the clock starts with the last one."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.1.1",
     "date": "2026-08-13",
     "changes": [

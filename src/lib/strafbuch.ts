@@ -514,7 +514,11 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       ? [{
           id: e.task.id,
           title: e.task.title,
-          holdUntil: e.task.holdUntil,
+          // Das WIRKSAME Ende: es datiert das Vergehen (`unfulfilled_task` nimmt `failedAt ??
+          // holdUntil` als Tatzeit) und steht in der Strafbuch-Zeile. Im Dauer-Modus liegt das
+          // gespeicherte `holdUntil` bis zu eine Kulanzfrist später — das Vergehen wäre auf einen
+          // Zeitpunkt datiert, zu dem längst alles entschieden war.
+          holdUntil: e.evaluation.holdUntil,
           state: e.evaluation.state,
           failedAt: e.evaluation.failedAt,
           // Die KETTE: war diese Aufgabe die Strafe für ein früheres Vergehen, ist ihr Versäumnis ein

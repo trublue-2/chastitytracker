@@ -419,3 +419,110 @@ describe("REGRESSION: eine Unterbrechung INNERHALB der Kulanzfrist darf nicht h�
     expect(r.failedAt).toEqual(new Date("2026-07-25T13:00:00Z"));
   });
 });
+
+/**
+ * DER DAUER-MODUS — die Haltezeit läuft ab dem tatsächlichen Anlegen, nicht ab dem Stellen.
+ *
+ * Anlass ist ein realer Fall: „Halsband mindestens 30 Minuten" gestellt, 15 Minuten herausgekommen.
+ * Klassisch ist das kein Fehler, sondern die Rechnung — die Kulanzfrist liegt INNERHALB der Spanne
+ * und geht der Tragezeit ab. Wer eine Tragezeit meint, braucht deshalb den anderen Anker.
+ *
+ * Die Aufgaben hier sind bewusst mit derselben Zahl gestellt wie im Vorfall: Kulanz 15 Minuten,
+ * Dauer 30 Minuten, spätestmögliches Ende also 12:45.
+ */
+describe("evaluateTask — Dauer-Modus (Haltezeit ab dem Anlegen)", () => {
+  /** Erstellt 12:00 · 15 min Kulanz · 30 min zu halten ab dem Anlegen · spätestens fertig 12:45. */
+  const dauerTask = (over: Partial<TaskLike> = {}): TaskLike => task({
+    startGraceMin: 15,
+    holdDurationMin: 30,
+    holdUntil: d("2026-07-25T12:45:00Z"),
+    ...over,
+  });
+
+  it("minHoldMs ist die Dauer selbst — die Kulanz geht ihr NICHT mehr ab", () => {
+    expect(minHoldMs(dauerTask())).toBe(30 * 60_000);
+  });
+
+  it("DIESELBE Eingabe „30 Minuten“ ergibt in den beiden Modi verschiedene Zusagen", () => {
+    // Klassisch heisst „30 Minuten" = Ende um 12:30. Davon geht die Kulanz ab: garantiert sind 15.
+    // Genau diese Rechnung stand hinter dem Vorfall — gestellt 30, getragen 15.
+    const klassisch = task({ startGraceMin: 15, holdUntil: d("2026-07-25T12:30:00Z") });
+    expect(minHoldMs(klassisch)).toBe(15 * 60_000);
+    // Im Dauer-Modus sind 30 Minuten 30 Minuten.
+    expect(minHoldMs(dauerTask())).toBe(30 * 60_000);
+  });
+
+  it("DER VORFALL: wer die Kulanz ausreizt, trägt trotzdem die vollen 30 Minuten", () => {
+    // Angelegt um 12:15 (letzter erlaubter Moment). Klassisch wäre um 12:45 Schluss — also nach
+    // 30 Minuten Kulanz-plus-Rest, aber nur 15 Minuten Tragezeit ab dem Anlegen.
+    const worn = [iv("2026-07-25T12:15:00Z", "2026-07-25T12:45:00Z")];
+
+    // Um 12:44 — eine Minute vor dem klassischen Ende — läuft es noch.
+    const kurzVor = evaluateTask(dauerTask(), [HALSBAND], [worn], d("2026-07-25T12:44:00Z"));
+    expect(kurzVor.state).toBe("running");
+    expect(kurzVor.holdRunning).toBe(true);
+    // Das wirksame Ende ist 12:15 + 30 min = 12:45, nicht das gestellte Ende.
+    expect(kurzVor.holdUntil).toEqual(d("2026-07-25T12:45:00Z"));
+    expect(kurzVor.startedAt).toEqual(d("2026-07-25T12:15:00Z"));
+  });
+
+  it("wer SOFORT anlegt, ist auch nach 30 Minuten fertig — nicht erst zum spätestmöglichen Ende", () => {
+    const worn = [iv("2026-07-25T12:00:00Z", "2026-07-25T12:30:00Z")];
+    const r = evaluateTask(
+      { ...dauerTask(), completedAt: d("2026-07-25T12:30:00Z") },
+      [HALSBAND], [worn], d("2026-07-25T12:31:00Z"),
+    );
+    expect(r.state).toBe("done");
+    // 12:00 + 30 min — eine Viertelstunde vor dem gespeicherten `holdUntil` (12:45).
+    expect(r.holdUntil).toEqual(d("2026-07-25T12:30:00Z"));
+  });
+
+  it("bei MEHREREN Geräten läuft die Uhr erst, wenn das letzte anliegt", () => {
+    const halsband = [iv("2026-07-25T12:05:00Z", "2026-07-25T12:50:00Z")];
+    const knebel = [iv("2026-07-25T12:10:00Z", "2026-07-25T12:50:00Z")];
+    const r = evaluateTask(dauerTask(), [HALSBAND, KNEBEL], [halsband, knebel], d("2026-07-25T12:41:00Z"));
+
+    // Beginn ist der Knebel (12:10), nicht das Halsband (12:05) — also Ende 12:40.
+    expect(r.startedAt).toEqual(d("2026-07-25T12:10:00Z"));
+    expect(r.holdUntil).toEqual(d("2026-07-25T12:40:00Z"));
+    expect(r.state).toBe("running");
+    expect(r.awaitingConfirmation).toBe(true); // gehalten, es fehlt nur die Selbstmeldung
+  });
+
+  it("zu früh abgelegt ist ein Abbruch — gemessen an der Dauer, nicht am gestellten Ende", () => {
+    // Angelegt 12:05, abgelegt 12:30 → 25 von 30 Minuten. Klassisch (Ende 12:45) wäre das ebenfalls
+    // ein Abbruch, aber aus einem anderen Grund; hier zählt allein die eigene Dauer.
+    const worn = [iv("2026-07-25T12:05:00Z", "2026-07-25T12:30:00Z")];
+    const r = evaluateTask(dauerTask(), [HALSBAND], [worn], d("2026-07-25T12:36:00Z"));
+    expect(r.state).toBe("aborted");
+    expect(r.failedAt).toEqual(d("2026-07-25T12:30:00Z"));
+    expect(r.failedRequirement).toEqual(HALSBAND);
+  });
+
+  it("die Beginn-Suche nimmt den Kandidaten, der SEINE Dauer übersteht", () => {
+    // Zwei Anläufe innerhalb der Kulanz: der erste (12:00–12:08) hält seine 30 Minuten nicht durch,
+    // der zweite (12:12–12:42) schon. Ohne die kandidatenweise Rechnung wäre die Aufgabe an ihrem
+    // ersten, längst korrigierten Anlauf gescheitert.
+    const worn = [iv("2026-07-25T12:00:00Z", "2026-07-25T12:08:00Z"), iv("2026-07-25T12:12:00Z", "2026-07-25T12:42:00Z")];
+    const r = evaluateTask(dauerTask(), [HALSBAND], [worn], d("2026-07-25T12:43:00Z"));
+    expect(r.startedAt).toEqual(d("2026-07-25T12:12:00Z"));
+    expect(r.holdUntil).toEqual(d("2026-07-25T12:42:00Z"));
+    expect(r.state).not.toBe("aborted");
+  });
+
+  it("nach Ablauf der Startfrist gar nicht begonnen bleibt versäumt — die Dauer ändert daran nichts", () => {
+    const worn = [iv("2026-07-25T12:20:00Z", "2026-07-25T13:00:00Z")]; // Kulanz endete 12:15
+    const r = evaluateTask(dauerTask(), [HALSBAND], [worn], d("2026-07-25T12:50:00Z"));
+    expect(r.state).toBe("missed");
+    expect(r.startedAt).toBeNull();
+    // Ohne Beginn bleibt das spätestmögliche Ende stehen — es ist die einzige wahre Aussage.
+    expect(r.holdUntil).toEqual(d("2026-07-25T12:45:00Z"));
+  });
+
+  it("das wirksame Ende liegt NIE nach dem gespeicherten — darauf baut die Vorauswahl des Pollers", () => {
+    // Spätester erlaubter Beginn ist die Kulanzfrist; von dort plus Dauer ist genau `holdUntil`.
+    const worn = [iv("2026-07-25T12:15:00Z", "2026-07-25T13:30:00Z")];
+    const r = evaluateTask(dauerTask(), [HALSBAND], [worn], d("2026-07-25T13:00:00Z"));
+    expect(r.holdUntil.getTime()).toBeLessThanOrEqual(dauerTask().holdUntil.getTime());
+  });
+});

@@ -13,8 +13,11 @@ export async function POST(req: NextRequest) {
     const actor = await requireKeyholderOrAdminActor(body.userId);
     if (actor instanceof NextResponse) return actor;
 
-    const holdUntil = new Date(body.holdUntil);
-    if (Number.isNaN(holdUntil.getTime())) return errorResponse(400, "INVALID_DATETIME");
+    // Im Dauer-Modus schickt das Formular gar kein `holdUntil` — der Service rechnet es aus der
+    // Dauer. Geprüft wird deshalb nur, was da ist: ein mitgeschicktes, aber unlesbares Datum bleibt
+    // ein Fehler, ein fehlendes ist der andere Modus.
+    const holdUntil = body.holdUntil === undefined ? undefined : new Date(body.holdUntil);
+    if (holdUntil && Number.isNaN(holdUntil.getTime())) return errorResponse(400, "INVALID_DATETIME");
 
     // Felder EINZELN übernehmen, nie den rohen Body spreaden: was der Service an Parametern kennt,
     // wäre sonst von aussen setzbar. (Der Handelnde ist ohnehin ausser Reichweite — er ist ein
@@ -24,6 +27,7 @@ export async function POST(req: NextRequest) {
       title: body.title,
       description: body.description,
       holdUntil,
+      holdDurationMin: body.holdDurationMin,
       startGraceMin: body.startGraceMin,
       isPunishment: body.isPunishment,
       penaltyReason: body.penaltyReason,

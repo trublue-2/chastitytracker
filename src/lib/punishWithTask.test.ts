@@ -36,7 +36,13 @@ vi.mock("@/lib/strafbuch", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/strafbuch")>()),
   buildStrafbuch: vi.fn(),
 }));
-vi.mock("@/lib/taskService", () => ({ checkTask: vi.fn(), writeTask: vi.fn() }));
+// Nur die beiden DB-Wege ersetzt; `taskNoticeDeadline` bleibt echt, damit die Strafaufgabe ihre
+// Frist hier genauso benennt wie eine gewöhnliche Aufgabe (sonst prüfte der Test eine Attrappe).
+vi.mock("@/lib/taskService", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/taskService")>()),
+  checkTask: vi.fn(),
+  writeTask: vi.fn(),
+}));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 
@@ -77,7 +83,10 @@ beforeEach(() => {
   tx.strafeRecord.upsert.mockResolvedValue({ id: "s1" });
   tx.strafeRecord.deleteMany.mockResolvedValue({ count: 1 });
   check.mockResolvedValue({ ok: true, data: { data: {} } });
-  write.mockResolvedValue({ id: "task-9", title: "Wohnung staubsaugen", holdUntil: HOLD_UNTIL });
+  write.mockResolvedValue({
+    id: "task-9", title: "Wohnung staubsaugen", holdUntil: HOLD_UNTIL,
+    holdDurationMin: null, createdAt: new Date("2026-08-01T09:00:00Z"), startGraceMin: 30,
+  });
 });
 
 describe("punishWithTask", () => {

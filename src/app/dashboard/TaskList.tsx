@@ -8,9 +8,9 @@ import Sheet from "@/app/components/Sheet";
 import TaskCard from "@/app/components/TaskCard";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
-import { formatDateTimeDual, toDateLocale } from "@/lib/utils";
+import { formatDateTimeDual, formatElapsedMs, toDateLocale } from "@/lib/utils";
 import { TASK_LIST_ANCHOR, TASK_STATE_COLOR } from "@/lib/constants";
-import { taskDeadlineKey, type TaskCardData } from "@/lib/taskView";
+import { taskDeadlineLine, type TaskCardData } from "@/lib/taskView";
 
 const PAGE_SIZE = 5;
 
@@ -51,6 +51,12 @@ export default function TaskList({
   if (tasks.length === 0) return null;
 
   const dl = toDateLocale(locale);
+  // Dieselbe Ableitung wie am Kartenkopf (`TaskCard`) — welche Zeile hier steht, entscheidet
+  // `taskDeadlineLine` und nicht diese Datei.
+  const deadlineOf = (task: TaskCardData) => taskDeadlineLine(task, {
+    date: (iso) => formatDateTimeDual(iso, dl, viewerTz, tz, subLabel),
+    duration: (ms) => formatElapsedMs(ms, locale),
+  });
 
   return (
     // Sprungziel des Aufgaben-Badges an `OffenseCard` (Begründung an `TASK_LIST_ANCHOR`).
@@ -64,7 +70,9 @@ export default function TaskList({
       </div>
 
       <div className="divide-y divide-border-subtle">
-        {visible.map((task) => (
+        {visible.map((task) => {
+          const deadline = deadlineOf(task);
+          return (
           <button
             key={task.id}
             type="button"
@@ -75,14 +83,15 @@ export default function TaskList({
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-semibold text-foreground truncate">{task.title}</span>
               <span className="block text-xs text-foreground-faint tabular-nums truncate">
-                {t(taskDeadlineKey(task), { date: formatDateTimeDual(task.holdUntil, dl, viewerTz, tz, subLabel) })}
+                {t(deadline.key, { value: deadline.value })}
               </span>
             </span>
             <span className={`text-xs font-medium shrink-0 ${TASK_STATE_COLOR[task.state]}`}>
               {t(`shortState_${task.state}`)}
             </span>
           </button>
-        ))}
+          );
+        })}
       </div>
 
       <ListPager page={page} totalPages={totalPages} onPage={setPage} />

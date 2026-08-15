@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { nextTaskStep, taskDeadlineKey, toTaskCard, visibleStartDeadline } from "./taskView";
+import { nextTaskStep, taskDeadlineLine, toTaskCard, visibleStartDeadline } from "./taskView";
 import { safeInternalPath } from "./utils";
 import type { EvaluatedTask, TaskProofView } from "./taskIntervals";
 import type { TaskEvaluation } from "./tasks";
 
 const EVAL: TaskEvaluation = {
   state: "partial",
+  holdUntil: new Date("2026-07-25T15:00:00Z"),
   startedAt: null,
   missing: [],
   failedRequirement: null,
@@ -26,6 +27,7 @@ function evaluated(
       description: null,
       holdUntil: new Date("2026-07-25T15:00:00Z"),
       startGraceMin: 30,
+      holdDurationMin: null,
       isPunishment: false,
       penaltyReason: null,
       createdAt: new Date("2026-07-25T12:00:00Z"),
@@ -89,20 +91,23 @@ describe("toTaskCard — Deep-Links", () => {
   });
 });
 
-describe("taskDeadlineKey — „Halten bis“ nur, wo es etwas zu halten gibt", () => {
+describe("taskDeadlineLine — „Halten bis“ nur, wo es etwas zu halten gibt", () => {
+  const keyOf = (card: Parameters<typeof taskDeadlineLine>[0]) =>
+    taskDeadlineLine(card, { date: (iso) => iso, duration: (ms) => String(ms) }).key;
+
   it("nennt die Haltefrist, sobald die Aufgabe Bedingungen trägt", () => {
-    expect(taskDeadlineKey(toTaskCard(evaluated([wear("r1", "Knebel", "c1")]), false))).toBe("holdUntilShort");
+    expect(keyOf(toTaskCard(evaluated([wear("r1", "Knebel", "c1")]), false))).toBe("holdUntilShort");
   });
 
   it("nennt bei einer reinen Textaufgabe einen Termin", () => {
-    expect(taskDeadlineKey(toTaskCard(evaluated([]), false))).toBe("deadlineShort");
+    expect(keyOf(toTaskCard(evaluated([]), false))).toBe("deadlineShort");
   });
 
   it("bleibt bei der Haltefrist, wenn die Aufgabe längst vorbei ist — die Überschrift steht in JEDEM Zustand", () => {
     // Der Grund, aus dem hier NICHT `holdRunning` gefragt wird: das ist nach Ablauf false, die Karte
     // trüge dann über einer erfüllten Trage-Aufgabe rückwirkend „Erledigen bis".
     const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1", true)], { state: "done", holdRunning: false }), false);
-    expect(taskDeadlineKey(card)).toBe("holdUntilShort");
+    expect(keyOf(card)).toBe("holdUntilShort");
   });
 });
 
@@ -205,5 +210,37 @@ describe("safeInternalPath — die Kette darf kein offenes Weiterleitungsloch se
     expect(safeInternalPath("/\\example.com")).toBeNull();
     expect(safeInternalPath("")).toBeNull();
     expect(safeInternalPath(undefined)).toBeNull();
+  });
+});
+
+/**
+ * Welche Frist-Zeile über einer Aufgabe steht, ist im Dauer-Modus eine ehrliche Frage: vor dem
+ * Beginn gibt es keinen Zeitpunkt, den man nennen könnte, ohne etwas zu behaupten.
+ */
+describe("taskDeadlineLine — Zeitpunkt oder Dauer", () => {
+  const fmt = { date: (iso: string) => `AM ${iso}`, duration: (ms: number) => `${ms / 60_000} MIN` };
+  const card = (over: Partial<Parameters<typeof taskDeadlineLine>[0]>) => ({
+    requirements: [{ id: "r1", label: "Halsband", satisfied: false, href: null }],
+    holdDurationMin: null,
+    startedAt: null,
+    holdUntil: "2026-07-25T15:00:00.000Z",
+    ...over,
+  });
+
+  it("mit festem Ende steht dort der Zeitpunkt", () => {
+    expect(taskDeadlineLine(card({}), fmt)).toEqual({ key: "holdUntilShort", value: "AM 2026-07-25T15:00:00.000Z" });
+  });
+
+  it("Dauer-Modus vor dem Beginn: die DAUER — ein Zeitpunkt wäre eine Behauptung", () => {
+    expect(taskDeadlineLine(card({ holdDurationMin: 30 }), fmt)).toEqual({ key: "holdDurationShort", value: "30 MIN" });
+  });
+
+  it("Dauer-Modus nach dem Beginn: jetzt steht der Zeitpunkt fest und ist die nützlichere Angabe", () => {
+    const line = taskDeadlineLine(card({ holdDurationMin: 30, startedAt: "2026-07-25T12:10:00.000Z" }), fmt);
+    expect(line.key).toBe("holdUntilShort");
+  });
+
+  it("eine reine Textaufgabe bleibt ein Termin, auch ohne Bedingungen", () => {
+    expect(taskDeadlineLine(card({ requirements: [] }), fmt).key).toBe("deadlineShort");
   });
 });

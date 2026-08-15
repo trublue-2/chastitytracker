@@ -9,7 +9,7 @@ import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import useRemainingMs from "@/app/hooks/useRemainingMs";
 import { formatDateTimeDual, formatElapsedMs, formatTime, toDateLocale } from "@/lib/utils";
-import { nextTaskStep, taskDeadlineKey, visibleStartDeadline, type TaskCardData } from "@/lib/taskView";
+import { nextTaskStep, taskDeadlineLine, visibleStartDeadline, type TaskCardData } from "@/lib/taskView";
 import { TASK_STATE_COLOR } from "@/lib/constants";
 
 /**
@@ -91,6 +91,7 @@ export default function TaskCard({
   const dl = toDateLocale(locale);
   const dual = (iso: string) => formatDateTimeDual(iso, dl, viewerTz, subTz, subLabel);
   const startBy = visibleStartDeadline(task);
+  const deadline = taskDeadlineLine(task, { date: dual, duration: (ms) => formatElapsedMs(ms, locale) });
 
   return (
     <Card padding="none">
@@ -99,7 +100,7 @@ export default function TaskCard({
           <IconTile icon={<ListChecks className="size-4" />} />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground break-words">{task.title}</p>
-            <p className="text-xs text-foreground-muted">{t(taskDeadlineKey(task), { date: dual(task.holdUntil) })}</p>
+            <p className="text-xs text-foreground-muted">{t(deadline.key, { value: deadline.value })}</p>
           </div>
           {task.isPunishment && <Badge variant="warn" size="sm" label={t("punishmentBadge")} className="shrink-0" />}
         </div>
@@ -196,7 +197,11 @@ export default function TaskCard({
                 Stellen als Zusage sieht (`minHoldMs`). Ohne sie stünden hier zwei Zeitpunkte, und der
                 Sub müsste die Differenz im Kopf bilden: genau die Rechnung, die der anderen Seite
                 abgenommen wird. Nur solange nie begonnen wurde — danach zählt die Restzeit, die der
-                Countdown im nächsten Schritt nennt, nicht mehr das Minimum. */}
+                Countdown im nächsten Schritt nennt, nicht mehr das Minimum.
+
+                Im Dauer-Modus kommt hier dieselbe Zahl heraus, ohne dass es einen zweiten Zweig
+                bräuchte: `holdUntil` ist dort vor dem Beginn das spätestmögliche Ende (Startfrist +
+                Dauer), die Differenz zur Startfrist also genau die Dauer. */}
             <p className="text-xs text-foreground-faint">
               {t("holdMinHint", { duration: formatElapsedMs(new Date(task.holdUntil).getTime() - new Date(startBy).getTime(), locale) })}
             </p>

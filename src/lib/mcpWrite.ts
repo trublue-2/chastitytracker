@@ -28,7 +28,7 @@ import { createManualOffense, validateManualOffenseInput, withdrawManualOffense 
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 import { reviewTaskProof } from "@/lib/taskProofService";
-import { createTask, updateTask, withdrawTask, mergeTaskPatch, type TaskRequirementInput } from "@/lib/taskService";
+import { createTask, updateTask, withdrawTask, mergeTaskPatch, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
 
 /**
  * dryRun (K-01, leichte Variante): validiert Referenzen/Werte und zeigt die effektiven Argumente,
@@ -1484,6 +1484,8 @@ export interface CreateTaskArgs {
   description?: string;
   holdUntilAt?: string;
   holdHours?: number;
+  /** Dauer-Modus: so viele Minuten halten, gerechnet ab dem tatsächlichen Anlegen. */
+  holdMinutesFromStart?: number;
   requireKgLocked?: boolean;
   requireWearing?: TaskRequirementArg[];
   /** Geforderte Nachweis-Fotos, in der Reihenfolge, in der sie ENTSTEHEN müssen. */
@@ -1502,6 +1504,8 @@ export interface EditTaskArgs {
   description?: string;
   holdUntilAt?: string;
   holdHours?: number;
+  /** Neue Haltedauer — nur bei einer Aufgabe, die schon im Dauer-Modus steht (der Modus wechselt nie). */
+  holdMinutesFromStart?: number;
   isPunishment?: boolean;
   penaltyReason?: string;
   dryRun?: boolean;
@@ -1541,11 +1545,18 @@ function parseHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now:
   return undefined;
 }
 
-/** Dasselbe, aber Pflicht — für `create_task`, wo eine Aufgabe ohne Frist keinen Sinn ergibt. */
-function resolveHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now: Date): Date {
+/**
+ * Die Frist einer neuen Aufgabe in der Form, die der Service erwartet — GENAU eine der beiden.
+ *
+ * `holdMinutesFromStart` schlägt die anderen beiden: es ist die einzige Angabe, die eine Aussage
+ * über die tatsächliche Tragezeit macht, während ein Zeitpunkt nur sagt, wann Schluss ist. Wer beides
+ * mitschickt, meint das Schärfere.
+ */
+function resolveTaskHold(args: CreateTaskArgs, now: Date): Pick<CreateTaskParams, "holdUntil" | "holdDurationMin"> {
+  if (args.holdMinutesFromStart != null) return { holdDurationMin: args.holdMinutesFromStart };
   const d = parseHoldUntil(args, now);
-  if (!d) throw new Error("Either holdUntilAt or holdHours is required.");
-  return d;
+  if (!d) throw new Error("One of holdUntilAt, holdHours or holdMinutesFromStart is required.");
+  return { holdUntil: d };
 }
 
 /** Bedingungs-Namen → ids. Getrennt vom Commit, damit die dryRun-Vorschau dieselbe Auflösung (und
@@ -1567,9 +1578,14 @@ async function resolveTaskRequirements(userId: string, args: CreateTaskArgs): Pr
 export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
   const now = new Date();
   const userId = await resolveTargetUserId(username);
-  const holdUntil = resolveHoldUntil(args, now);
+  const hold = resolveTaskHold(args, now);
   const requirements = await resolveTaskRequirements(userId, args);
   const proofCount = args.requireProof?.length ?? 0;
+  /** Was die Vorschau und der Ergebnis-Satz über die Frist sagen — im Dauer-Modus gibt es keinen
+   *  Zeitpunkt zu nennen, weil er erst mit dem Anlegen entsteht. */
+  const holdText = hold.holdDurationMin != null
+    ? `${hold.holdDurationMin} minute(s) from the moment the user has everything on`
+    : hold.holdUntil!.toISOString();
 
   if (args.dryRun) {
     // Nur hier: der Commit-Pfad prüft dieselbe Schranke in `punishWithTask` noch einmal, und ein
@@ -1581,7 +1597,7 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     // OFFENSE_NOT_FOUND endet — und der Agent legt sie seinem Nutzer genau so vor.
     return dryRunPreview("create_task", offenseIsLive === false ? "OFFENSE_NOT_FOUND" : undefined, {
       title: args.title,
-      holdUntil: holdUntil.toISOString(),
+      hold: holdText,
       requirementCount: requirements.length,
       requiresKgLocked: requirements.some((r) => r.type === "KG_LOCKED"),
       proofCount,
@@ -1599,7 +1615,7 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     userId,
     title: args.title,
     description: args.description,
-    holdUntil,
+    ...hold,
     startGraceMin: args.startGraceMinutes,
     isPunishment: args.isPunishment,
     penaltyReason: args.penaltyReason,
@@ -1612,8 +1628,8 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     ? await punishWithTask({ ...params, refId: args.offenseRef }, AI_AUTHOR)
     : await createTask(params, AI_AUTHOR));
   const conditionPart = requirements.length === 0
-    ? `Task set. No conditions attached — it counts as done when the user reports it done, by ${holdUntil.toISOString()}.`
-    : `Task set with ${requirements.length} condition(s). All of them must hold CONTINUOUSLY until ${holdUntil.toISOString()}; taking one off earlier makes the task unfulfilled.`;
+    ? `Task set. No conditions attached — it counts as done when the user reports it done, by ${holdText}.`
+    : `Task set with ${requirements.length} condition(s). All of them must hold CONTINUOUSLY for ${holdText}; taking one off earlier makes the task unfulfilled.`;
   // Der Nachweis-Teil sagt ausdrücklich, was die Automatik NICHT entscheidet: sonst wartet der Agent
   // auf ein Urteil, das ohne ihn nie kommt.
   const proofPart = proofCount === 0 ? "" :
@@ -1694,14 +1710,20 @@ export async function mcpEditTask(username: string, args: EditTaskArgs) {
     title: args.title,
     description: args.description,
     holdUntil: parseHoldUntil(args, new Date()),
+    holdDurationMin: args.holdMinutesFromStart,
     isPunishment: args.isPunishment,
     penaltyReason: args.penaltyReason,
   };
 
   if (args.dryRun) {
     // Über dieselbe pure Merge-Funktion wie der Commit — eine eigene Nachrechnung liefe auseinander.
-    const before = { title: task.title, description: task.description, holdUntil: task.holdUntil, isPunishment: task.isPunishment, penaltyReason: task.penaltyReason };
-    const after = mergeTaskPatch(before, patch);
+    // Das gilt gerade für den Dauer-Modus: dort ist `holdUntil` abgeleitet, und eine Vorschau, die
+    // den mitgeschickten Zeitpunkt zeigte, verspräche etwas, das der Commit gar nicht schreibt.
+    const before = {
+      title: task.title, description: task.description, holdUntil: task.holdUntil,
+      holdDurationMin: task.holdDurationMin, isPunishment: task.isPunishment, penaltyReason: task.penaltyReason,
+    };
+    const after = mergeTaskPatch(before, patch, task);
     const problem = task.withdrawnAt ? "TASK_NOT_EDITABLE" : undefined;
     return dryRunPreview("edit_task", problem, { id: task.id, ...after, holdUntil: after.holdUntil.toISOString() }, diffFields({ ...before }, { ...after }));
   }

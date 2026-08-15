@@ -61,8 +61,23 @@ export interface TaskRequirementLike {
 
 export interface TaskLike {
   createdAt: Date;
+  /**
+   * Das Ende — im Dauer-Modus (siehe {@link TaskLike.holdDurationMin}) das SPÄTESTMÖGLICHE.
+   *
+   * Es bleibt dort trotzdem gefüllt und bleibt eine obere Schranke für das wirksame Ende. Daran
+   * hängt alles, was über SQL geht (Indizes, Sortierung, die Vorauswahl des Pollers) — nichts davon
+   * kann einen abgeleiteten Wert lesen, und zu kurz schätzen darf keines.
+   */
   holdUntil: Date;
   startGraceMin: number;
+  /**
+   * DAUER-MODUS: Haltezeit in Minuten ab dem tatsächlichen Beginn. `null`/fehlend = klassischer
+   * Modus, `holdUntil` ist das feste Ende.
+   *
+   * Optional, weil das Fehlen die Bedeutung „wie bisher" hat: jede Stelle, die eine Aufgabe nur
+   * gegen ihr festes Ende misst, bleibt damit richtig, ohne das Feld zu kennen.
+   */
+  holdDurationMin?: number | null;
   /** Selbstmeldung des Subs; bei Aufgaben MIT Bedingungen zusätzlich nötig, ohne Bedingungen ist sie
    *  die Erfüllung. */
   completedAt: Date | null;
@@ -71,6 +86,16 @@ export interface TaskLike {
 
 export interface TaskEvaluation {
   state: TaskState;
+  /**
+   * Das WIRKSAME Ende dieser Aufgabe — im klassischen Modus `task.holdUntil`, im Dauer-Modus
+   * `startedAt` + Dauer (und vor dem Beginn das spätestmögliche Ende).
+   *
+   * Teil der Auswertung und nicht Sache der Aufrufer, weil es ohne den abgeleiteten `startedAt`
+   * gar nicht zu haben ist: wer es selbst ausrechnen wollte, bräuchte dieselbe Intervall-Rechnung
+   * noch einmal. Jede Stelle, die „bis wann?" beantwortet — Karte, Ablege-Warnung, Vergehens-Datum,
+   * Nachweis-Frist —, liest es HIER und nicht an der Zeile.
+   */
+  holdUntil: Date;
   /** Ab wann alle Bedingungen gleichzeitig galten. null = nie. */
   startedAt: Date | null;
   /** Bedingungen, die JETZT nicht gelten — für „Fehlt noch: Knebel". Leer, sobald alles läuft. */
@@ -119,9 +144,35 @@ export function startDeadline(task: Pick<TaskLike, "createdAt" | "startGraceMin"
  * Ein Ergebnis ≤ 0 ist genau der Zustand, den `checkTaskFields` mit `TASK_HOLD_UNTIL_TOO_SOON`
  * abweist: die Aufgabe verlangte Deckung bis zu einem Zeitpunkt, zu dem noch gar nicht begonnen sein
  * muss. Deshalb keine Klemmung auf 0 — der Aufrufer soll den Widerspruch sehen können.
+ *
+ * Im DAUER-MODUS ist die Antwort schlicht die eingestellte Dauer: sie läuft erst ab dem Beginn, die
+ * Kulanz geht ihr also nicht mehr ab. Genau darum gibt es den Modus.
  */
-export function minHoldMs(task: Pick<TaskLike, "createdAt" | "startGraceMin" | "holdUntil">): number {
+export function minHoldMs(
+  task: Pick<TaskLike, "createdAt" | "startGraceMin" | "holdUntil" | "holdDurationMin">,
+): number {
+  if (task.holdDurationMin) return task.holdDurationMin * 60_000;
   return task.holdUntil.getTime() - startDeadline(task).getTime();
+}
+
+/**
+ * Das WIRKSAME Ende: im Dauer-Modus ab dem tatsächlichen Beginn gerechnet, sonst das feste `holdUntil`.
+ *
+ * `startedAt` ist der Zeitpunkt, ab dem ALLE Bedingungen gleichzeitig gelten — bei mehreren Geräten
+ * also das letzte angelegte. Ohne Beginn bleibt das spätestmögliche Ende stehen: solange nichts
+ * anliegt, ist das die einzige wahre Aussage über die Frist.
+ *
+ * INVARIANTE: das Ergebnis liegt nie NACH `task.holdUntil`. Der Beginn kann höchstens bis zur
+ * Kulanzfrist liegen (`evaluateTask` verwirft spätere Kandidaten), und `holdUntil` ist im Dauer-Modus
+ * als `createdAt` + Kulanz + Dauer geschrieben. Darauf verlässt sich die Vorauswahl des Pollers: sie
+ * sucht über die Spalte und darf keine Aufgabe verpassen, die längst entschieden ist.
+ */
+export function effectiveHoldUntil(
+  task: Pick<TaskLike, "holdUntil" | "holdDurationMin">,
+  startedAt: Date | null,
+): Date {
+  if (!task.holdDurationMin || !startedAt) return task.holdUntil;
+  return new Date(startedAt.getTime() + task.holdDurationMin * 60_000);
 }
 
 /** Schnittmenge zweier bereits verschmolzener, aufsteigend sortierter Intervall-Listen. */
@@ -301,7 +352,11 @@ export function evaluateProofs(proofs: ProofLike[], task: Pick<TaskLike, "holdUn
  * (gleiche Reihenfolge).
  *
  * Ablauf: Beginn = erster Zeitpunkt, ab dem die Schnittmenge gilt UND der innerhalb der Kulanzfrist
- * liegt. Von dort muss die Schnittmenge bis `holdUntil` lückenlos decken.
+ * liegt. Von dort muss die Schnittmenge bis zum Ende lückenlos decken.
+ *
+ * WELCHES Ende, entscheidet der Modus ({@link effectiveHoldUntil}): klassisch das feste `holdUntil`,
+ * im Dauer-Modus der Beginn plus die Dauer. Das Ergebnis trägt es als `evaluation.holdUntil` nach
+ * aussen — im Dauer-Modus ist es die einzige Stelle, an der es überhaupt entsteht.
  *
  * ZWEI ACHSEN. Bedingungen sind Zustände über Intervalle, Nachweise sind Ereignisse mit einem
  * Zeitpunkt ({@link evaluateProofs}). Erfüllt ist die Aufgabe nur, wenn beide stimmen. Die Reihenfolge
@@ -317,6 +372,9 @@ export function evaluateTask(
 ): TaskEvaluation {
   const base: TaskEvaluation = {
     state: "pending",
+    // Vorbelegt mit dem spätestmöglichen Ende — richtig für jeden Zweig, in dem es keinen Beginn
+    // gibt (nicht begonnen, versäumt, zurückgezogen). Wo einer feststeht, wird es unten ersetzt.
+    holdUntil: task.holdUntil,
     startedAt: null,
     missing: [],
     failedRequirement: null,
@@ -331,12 +389,14 @@ export function evaluateTask(
   // Zurückgezogen schlägt alles: weder offen noch Vergehen, egal was die Einträge sagen.
   if (task.withdrawnAt) return { ...base, state: "withdrawn" };
 
-  const proofVerdict = evaluateProofs(proofs, task, now);
-
   // Aufgabe ohne Bedingungen: allein die Selbstmeldung entscheidet — aber sie muss RECHTZEITIG sein.
   // Ohne den Zeitvergleich heilte eine Meldung von heute eine gestern verpasste Frist rückwirkend und
   // das Vergehen verschwände spurlos.
   if (requirements.length === 0) {
+    // Ohne Bedingungen gibt es nichts anzulegen — und damit auch keinen abgeleiteten Beginn, an dem
+    // eine Dauer hängen könnte. `task.holdUntil` IST hier das Ende (der Dauer-Modus ist für solche
+    // Aufgaben gar nicht erst wählbar, siehe `checkTask`).
+    const proofVerdict = evaluateProofs(proofs, task, now);
     // Ohne Bedingungen tragen allein Selbstmeldung und Nachweise. Stehen Nachweise noch aus, ist die
     // Aufgabe offen bzw. wartet auf die Sichtung — die Selbstmeldung allein macht sie nicht fertig.
     if (proofVerdict === "failed") return { ...base, state: "missed" };
@@ -368,7 +428,15 @@ export function evaluateTask(
   const startsOf = (iv: Interval) => new Date(Math.max(iv.start.getTime(), task.createdAt.getTime()));
 
   // Bis wann muss gedeckt sein? Vor der Frist zählt nur „bis jetzt".
-  const until = now < task.holdUntil ? now : task.holdUntil;
+  //
+  // Im Dauer-Modus hängt das Ende am Beginn — und der wird gerade erst gesucht. Die Frage ist also
+  // je Kandidat eine andere („hält es von HIER aus seine eigene Dauer durch?"), nicht mehr eine
+  // gemeinsame gegen ein feststehendes Ende. Deshalb eine Funktion statt einer Konstanten; im
+  // klassischen Modus liefert sie für jeden Kandidaten denselben Wert wie zuvor.
+  const untilFrom = (start: Date) => {
+    const end = effectiveHoldUntil(task, start);
+    return now < end ? now : end;
+  };
 
   // Unter den fristgerechten Kandidaten den ERSTEN nehmen, von dem aus es durchhält — nicht blind den
   // frühesten. Sonst schlägt eine Unterbrechung INNERHALB der Kulanzfrist alles: wer das Gerät schon
@@ -378,7 +446,10 @@ export function evaluateTask(
   //
   // Fällt keiner durch, bleibt der früheste Kandidat: er trägt den Beleg (`failedAt`), den die
   // Abbruch-Meldung braucht.
-  const startIv = candidates.find((iv) => coversContinuously(combined, startsOf(iv), until)) ?? candidates[0];
+  const startIv = candidates.find((iv) => {
+    const start = startsOf(iv);
+    return coversContinuously(combined, start, untilFrom(start));
+  }) ?? candidates[0];
   const startedAt = startIv ? startsOf(startIv) : null;
 
   if (!startedAt) {
@@ -394,6 +465,11 @@ export function evaluateTask(
     };
   }
 
+  // Ab hier steht der Beginn fest — und damit im Dauer-Modus auch das wirksame Ende. JEDER weitere
+  // Vergleich in dieser Funktion misst gegen `holdUntil`, nicht mehr gegen `task.holdUntil`.
+  const holdUntil = effectiveHoldUntil(task, startedAt);
+  const until = now < holdUntil ? now : holdUntil;
+
   // Es lief. Hat es bis zum Ende (bzw. bis jetzt) durchgehalten?
   if (!coversContinuously(combined, startedAt, until)) {
     // Erste Lücke finden → welche Bedingung fiel wann weg?
@@ -406,6 +482,7 @@ export function evaluateTask(
     return {
       ...base,
       state: "aborted",
+      holdUntil,
       startedAt,
       failedRequirement: failedIdx >= 0 ? requirements[failedIdx] : null,
       failedAt,
@@ -415,7 +492,13 @@ export function evaluateTask(
   // Der EINE Ort, an dem „die Haltefrist läuft noch" gemessen wird — deshalb trägt die Auswertung
   // die Tatsache auch nach aussen, statt die Anzeige sie aus der Abwesenheit von
   // `awaitingConfirmation` erschliessen zu lassen.
-  if (now < task.holdUntil) return { ...base, state: "running", startedAt, holdRunning: true };
+  if (now < holdUntil) return { ...base, state: "running", holdUntil, startedAt, holdRunning: true };
+
+  // Die Nachweise erst JETZT — und gegen das WIRKSAME Ende. Im Dauer-Modus ist die Nachweis-Frist
+  // dieselbe wie die Haltefrist, und die steht erst mit dem Beginn fest; oben, vor der Suche nach
+  // ihm, gäbe es sie noch gar nicht. Der Aufruf wandert damit hinter die Bedingungs-Achse, was
+  // nichts verschiebt: die Nachweis-Zweige darunter lagen ohnehin schon alle hier.
+  const proofVerdict = evaluateProofs(proofs, { holdUntil }, now);
 
   // Bedingungen gehalten. Jetzt die Nachweise.
   //
@@ -425,19 +508,19 @@ export function evaluateTask(
   // Strafbuch liest `missed` ausdrücklich als „nie (rechtzeitig) begonnen", und bei `aborted` hängt
   // die Abbruch-Meldung an `failedRequirement`/`failedAt`. Ein Urteil ohne seinen Beleg lässt sich
   // weder prüfen noch bestreiten.
-  if (proofVerdict === "failed") return { ...base, state: "missed", startedAt };
+  if (proofVerdict === "failed") return { ...base, state: "missed", holdUntil, startedAt };
 
   // Eine ausstehende Sichtung steht VOR der Selbstmeldung, denn sie ist der Grund, warum noch
   // niemand urteilen kann. Den Sub hier zur Meldung zu drängen, während die Keyholderin am Zug ist,
   // wäre die falsche Aufforderung an die falsche Person.
-  if (proofVerdict === "needsReview" || proofVerdict === "checking") return { ...base, state: "awaitingReview", startedAt };
+  if (proofVerdict === "needsReview" || proofVerdict === "checking") return { ...base, state: "awaitingReview", holdUntil, startedAt };
 
   // Durchgehalten. Der Textteil („ist die Wohnung sauber?") ist nicht prüfbar — dafür die Selbstmeldung.
   // Sie muss NACH dem Beginn liegen: eine Meldung aus Minute 1, bevor überhaupt alles anlag, ist keine
   // Aussage über das Ergebnis.
   const confirmed = task.completedAt !== null && task.completedAt >= startedAt;
-  if (!confirmed) return { ...base, state: "running", startedAt, awaitingConfirmation: true };
-  return { ...base, state: "done", startedAt };
+  if (!confirmed) return { ...base, state: "running", holdUntil, startedAt, awaitingConfirmation: true };
+  return { ...base, state: "done", holdUntil, startedAt };
 }
 
 /**

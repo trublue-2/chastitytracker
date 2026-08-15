@@ -16,6 +16,7 @@ const NEXT_DAY = new Date("2026-08-03T18:00:00Z");
 function evaluated(state: TaskState): EvaluatedTask {
   const evaluation: TaskEvaluation = {
     state,
+    holdUntil: HOLD_UNTIL,
     startedAt: null,
     missing: [],
     failedRequirement: null,
@@ -31,6 +32,7 @@ function evaluated(state: TaskState): EvaluatedTask {
       description: null,
       holdUntil: HOLD_UNTIL,
       startGraceMin: 30,
+      holdDurationMin: null,
       isPunishment: false,
       penaltyReason: null,
       createdAt: new Date("2026-08-02T10:00:00Z"),

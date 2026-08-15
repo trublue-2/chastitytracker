@@ -113,6 +113,11 @@ export function proofSubmitBlockedReason(
   proof: { submittedAt: Date | null; task: { withdrawnAt: Date | null; holdUntil: Date } },
   now: Date,
 ): "TASK_NOT_EDITABLE" | "TASK_PROOF_ALREADY_SUBMITTED" | "TASK_PROOF_TOO_LATE" | null {
+  // `task.holdUntil` ist hier die ZEILE, im Dauer-Modus also das spätestmögliche Ende. Das ist
+  // Absicht: die Schranke ist damit nie STRENGER als die Auswertung — sie weist nur ab, was auch
+  // `evaluateProofs` sicher nicht mehr zählt. Sie hier auf das wirksame Ende zu verschärfen hiesse,
+  // auf der Foto-Seite die gesamte Intervall-Rechnung des Subs zu laden, nur um eine Handvoll
+  // Minuten früher „zu spät" zu sagen — für einen Nachweis, den die Auswertung ohnehin beurteilt.
   if (proof.task.withdrawnAt) return "TASK_NOT_EDITABLE";
   // Einmal eingereicht ist eingereicht. Ohne diese Schranke liesse sich ein beanstandetes oder
   // zeitlich unpassendes Foto beliebig oft durch ein besseres ersetzen — die Reihenfolge-Prüfung

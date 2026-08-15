@@ -12,6 +12,7 @@ const HOLD_UNTIL = new Date("2026-07-25T15:00:00Z");
 
 const EVAL: TaskEvaluation = {
   state: "running",
+  holdUntil: HOLD_UNTIL,
   startedAt: new Date("2026-07-25T12:00:00Z"),
   missing: [],
   failedRequirement: null,
@@ -32,6 +33,7 @@ function evaluated(
       description: null,
       holdUntil: HOLD_UNTIL,
       startGraceMin: 30,
+      holdDurationMin: null,
       isPunishment: false,
       penaltyReason: null,
       createdAt: new Date("2026-07-25T11:00:00Z"),

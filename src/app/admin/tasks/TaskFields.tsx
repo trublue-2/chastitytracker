@@ -20,7 +20,7 @@ import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import { useApiError } from "@/app/hooks/useApiError";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH,
-  TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, clampStartGrace,
+  TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, clampStartGrace, clampHoldDuration,
   durationToHours, durationFromHours, type DurationUnit,
 } from "@/lib/constants";
 import { minHoldMs, startDeadline } from "@/lib/tasks";
@@ -95,6 +95,14 @@ export default function TaskFields({
   const [holdUnit, setHoldUnit] = useState<DurationUnit>("h");
   const [holdUntil, setHoldUntil] = useState("");
   const [graceMin, setGraceMin] = useState(String(TASK_DEFAULT_START_GRACE_MIN));
+  /**
+   * Läuft die Haltezeit erst ab dem Anlegen (Dauer-Modus) statt ab dem Stellen?
+   *
+   * Als Haken NEBEN der Dauer und nicht als dritter Reiter: die eingegebene ZAHL ist in beiden Fällen
+   * dieselbe („30 Minuten"), verschieden ist nur, woran sie hängt. Ein eigener Reiter fragte dieselbe
+   * Zahl ein zweites Mal ab und verlöre sie beim Wechsel.
+   */
+  const [fromStart, setFromStart] = useState(false);
   const [requirements, setRequirements] = useState<TaskRequirementInput[]>([]);
   const [proofs, setProofs] = useState<TaskProofInput[]>([]);
   // Aus dem Strafbuch heraus ist beides gesetzt und der Haken bleibt sichtbar: der Keyholder soll
@@ -168,6 +176,20 @@ export default function TaskFields({
   // Geklemmt wie im Service — mit derselben Funktion, damit die Vorschau denselben Wert zeigt, den
   // der Server am Ende schreibt.
   const graceEffective = clampStartGrace(parseFloat(graceMin));
+  /**
+   * Ist der Dauer-Modus gerade wirklich in Kraft?
+   *
+   * Drei Bedingungen, jede aus einem anderen Grund: der Haken ist gesetzt · es gibt Bedingungen (ohne
+   * sie gibt es kein Anlegen, an dem die Uhr starten könnte — der Server weist das mit
+   * `TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS` ab) · und es ist eine DAUER eingegeben (ein fester
+   * Zeitpunkt hat keine, die man ab irgendwo laufen lassen könnte).
+   *
+   * Der Haken bleibt dabei gesetzt, wenn eine der beiden anderen Bedingungen wegfällt: wer die
+   * Bedingungen kurz leert oder in den Zeitpunkt-Reiter schaut, soll seine Wahl beim Zurückwechseln
+   * wiederfinden, statt sie stillschweigend verloren zu haben.
+   */
+  const fromStartActive = fromStart && hasRequirements && mode === "duration";
+  const holdDurationMin = clampHoldDuration(durationToHours(parseFloat(hours), holdUnit) * 60);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -185,7 +207,11 @@ export default function TaskFields({
       userId,
       title: title.trim(),
       description: description.trim() || undefined,
-      holdUntil: until.toISOString(),
+      // Im Dauer-Modus schickt das Formular KEINEN Endzeitpunkt: er ist dort abgeleitet, und ein
+      // mitgeschickter würde entweder ignoriert (dann steht er sinnlos in der Anfrage) oder
+      // widerspräche der Dauer. Der Server rechnet ihn aus Kulanz + Dauer.
+      holdUntil: fromStartActive ? undefined : until.toISOString(),
+      holdDurationMin: fromStartActive ? holdDurationMin : undefined,
       startGraceMin: hasRequirements ? graceEffective : undefined,
       requirements,
       // Leere Zeilen fallen weg: eine angelegte, aber nie ausgefüllte Nachweis-Zeile ist ein
@@ -325,6 +351,27 @@ export default function TaskFields({
             festen Zeitpunkt steht es zwar still — die Mindest-Haltezeit darunter schrumpft aber
             trotzdem, weil die Kulanzfrist ab jetzt läuft. Nur auf den Modus zu schauen liesse genau
             diese Zahl stehen, bis das Formular aus einem anderen Grund neu rendert. */}
+        {/* Der Haken, um den es hier geht: dieselbe Zahl, anderer Anker. Nur mit Bedingungen — ohne
+            sie gibt es kein Anlegen, an dem die Uhr starten könnte — und nur im Dauer-Reiter, weil
+            ein fester Zeitpunkt keine Dauer hat, die irgendwo losliefe. */}
+        {hasRequirements && mode === "duration" && (
+          <Checkbox
+            label={t("holdFromStartLabel")}
+            checked={fromStart}
+            onChange={(e) => setFromStart(e.target.checked)}
+          />
+        )}
+
+        {/* Im Dauer-Modus gibt es keinen Endzeitpunkt anzuzeigen — er entsteht erst, wenn der Sub
+            anlegt. Was hier steht, ist die Zusage selbst: so lange wird gehalten, ganz gleich wann
+            er anfängt. Bewusst OHNE Takt: an der laufenden Uhr hängt diese Zahl gerade nicht — das
+            ist der ganze Unterschied zum Modus darüber. */}
+        {fromStartActive && holdDurationMin != null && (
+          <p className="text-xs text-foreground-muted">
+            {t("previewHoldFromStart", { duration: formatElapsedMs(holdDurationMin * 60_000, locale) })}
+          </p>
+        )}
+        {!fromStartActive && (
         <TimePreview
           at={endAt}
           live={mode === "duration" || hasRequirements}
@@ -350,12 +397,15 @@ export default function TaskFields({
               : { text: t("previewEndTooSoon", { date }), warn: true };
           }}
         />
+        )}
 
         {/* Der Satz trägt das, was sonst nirgends steht: dass die Bedingungen ab dem STELLEN gelten
             müssen. Für die reine Textaufgabe stand hier „Bis dahin zu erledigen." — dieselbe Aussage
             wie die Beschriftung und die Vorschau darüber, also dreimal dasselbe. */}
         {hasRequirements && (
-          <p className="text-xs text-foreground-faint">{t("holdUntilHintRequirements")}</p>
+          <p className="text-xs text-foreground-faint">
+            {t(fromStartActive ? "holdFromStartHint" : "holdUntilHintRequirements")}
+          </p>
         )}
 
         <Button type="button" variant="ghost" size="sm" className="self-start" onClick={toggleMode}>

@@ -8,7 +8,7 @@ import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
 import { startDeadline, isTaskResultFinal } from "@/lib/tasks";
 import {
-  TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace,
+  TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
   TASK_REQUIREMENT_TYPES, TASK_PROOF_MAX,
   TASK_PROOF_DESCRIPTION_MAX_LENGTH, type TaskRequirementType,
 } from "@/lib/constants";
@@ -94,7 +94,11 @@ export interface CreateTaskParams {
   userId: string;
   title: string;
   description?: string | null;
-  holdUntil: Date;
+  /** Das Ende. Im Dauer-Modus wird es NICHT gelesen, sondern aus `holdDurationMin` gerechnet — der
+   *  Aufrufer muss dort keinen Zeitpunkt mehr ausrechnen (und könnte es auch nicht richtig). */
+  holdUntil?: Date;
+  /** Dauer-Modus: Haltezeit in Minuten ab dem tatsächlichen Beginn. Schliesst `holdUntil` aus. */
+  holdDurationMin?: number | null;
   startGraceMin?: number;
   isPunishment?: boolean;
   penaltyReason?: string | null;
@@ -107,7 +111,10 @@ export interface CreateTaskParams {
 export interface UpdateTaskParams {
   title?: string;
   description?: string | null;
+  /** Neues festes Ende — nur im klassischen Modus wirksam (siehe {@link mergeTaskPatch}). */
   holdUntil?: Date;
+  /** Neue Haltedauer in Minuten — nur im Dauer-Modus wirksam. */
+  holdDurationMin?: number;
   isPunishment?: boolean;
   penaltyReason?: string | null;
 }
@@ -116,6 +123,7 @@ export interface MergedTask {
   title: string;
   description: string | null;
   holdUntil: Date;
+  holdDurationMin: number | null;
   isPunishment: boolean;
   penaltyReason: string | null;
 }
@@ -132,12 +140,34 @@ export function effectivePenaltyReason(isPunishment: boolean, reason: string | n
  * der Commit schreibt. (Genau diese Trennung war der Fund aus dem Review der Verschluss-Anforderung:
  * eine eigene Nachrechnung in der Vorschau läuft irgendwann auseinander.)
  */
-export function mergeTaskPatch(current: MergedTask, patch: UpdateTaskParams): MergedTask {
+export function mergeTaskPatch(
+  current: MergedTask,
+  patch: UpdateTaskParams,
+  /** Woran der Dauer-Modus sein spätestmögliches Ende hängt. Bewusst NEBEN `current` und nicht darin:
+   *  `MergedTask` ist die Schreib-Form (`data: next`), und diese beiden Felder ändern sich nie. */
+  anchor: { createdAt: Date; startGraceMin: number },
+): MergedTask {
   const isPunishment = patch.isPunishment ?? current.isPunishment;
+  // DER MODUS BLEIBT. Eine Aufgabe wechselt nicht zwischen „festes Ende" und „Dauer ab dem Anlegen" —
+  // aus demselben Grund, aus dem `edit_task` Bedingungen und Nachweise nicht ändert: der Sub hat
+  // etwas anderes gestellt bekommen, als er dann erfüllen müsste. Änderbar ist nur die ZAHL des
+  // jeweiligen Modus; die Angabe zum anderen Modus fällt still weg, statt ihn umzuschalten.
+  // Nullish und nicht `=== null`: „keine Dauer" ist der klassische Modus, und ob das als `null` oder
+  // als fehlendes Feld ankommt, darf nicht den Modus umdrehen. Mit dem strengen Vergleich landete ein
+  // `undefined` im Dauer-Zweig und rechnete das Ende gegen `undefined` — heraus kam ein `Invalid Date`,
+  // das bis in die Datenbank durchgelaufen wäre.
+  const holdDurationMin = current.holdDurationMin == null
+    ? null
+    : clampHoldDuration(patch.holdDurationMin) ?? current.holdDurationMin;
   return {
     title: patch.title !== undefined ? patch.title.trim() : current.title,
     description: patch.description !== undefined ? (patch.description?.trim() || null) : current.description,
-    holdUntil: patch.holdUntil ?? current.holdUntil,
+    // Im Dauer-Modus ist das Ende ABGELEITET — gerechnet wie beim Anlegen (`checkTask`), damit die
+    // obere Schranke auch nach einer Änderung hält.
+    holdUntil: holdDurationMin !== null
+      ? new Date(startDeadline(anchor).getTime() + holdDurationMin * 60_000)
+      : patch.holdUntil ?? current.holdUntil,
+    holdDurationMin,
     isPunishment,
     penaltyReason: effectivePenaltyReason(
       isPunishment,
@@ -273,12 +303,26 @@ export interface CheckedTask {
 export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<ServiceResult<CheckedTask>> {
   const now = new Date();
   const graceMin = clampStartGrace(p.startGraceMin);
+  const holdDurationMin = clampHoldDuration(p.holdDurationMin) ?? null;
   const reqs = p.requirements ?? [];
+
+  // Der Dauer-Modus braucht etwas, woran die Uhr starten kann. Ohne Bedingung gibt es das nicht —
+  // dann bleibt nur ein Zeitpunkt (siehe `TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS`).
+  if (holdDurationMin !== null && reqs.length === 0) {
+    return serviceFail(400, "TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS");
+  }
+  // Im Dauer-Modus schreibt die Spalte das SPÄTESTMÖGLICHE Ende: später als bis zur Kulanzfrist darf
+  // gar nicht begonnen werden, also ist Startfrist + Dauer die obere Schranke. Sie muss stimmen —
+  // die Vorauswahl des Pollers sucht über die Spalte und dürfte sonst eine fällige Aufgabe verpassen.
+  const holdUntil = holdDurationMin !== null
+    ? new Date(startDeadline({ createdAt: now, startGraceMin: graceMin }).getTime() + holdDurationMin * 60_000)
+    : p.holdUntil;
+  if (!holdUntil) return serviceFail(400, "TASK_HOLD_MISSING");
 
   // Erst ALLE reinen Parameter, dann die DB — wie in `createVerschlussAnforderung`. Ohne Bedingungen
   // gibt es nichts anzulegen: `holdUntil` ist dann eine schlichte Frist, die Kulanz spielt keine Rolle.
   const fieldError = checkTaskFields(
-    { title: p.title, description: p.description ?? null, holdUntil: p.holdUntil },
+    { title: p.title, description: p.description ?? null, holdUntil },
     // Über `startDeadline` wie in `updateTask`: die Startfrist ist EINE Regel, keine Addition, die
     // jede Prüfstelle für sich hinschreibt.
     reqs.length > 0 ? startDeadline({ createdAt: now, startGraceMin: graceMin }) : now,
@@ -304,8 +348,9 @@ export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<Serv
         user: { connect: { id: p.userId } },
         title: p.title.trim(),
         description: p.description?.trim() || null,
-        holdUntil: p.holdUntil,
+        holdUntil,
         startGraceMin: graceMin,
+        holdDurationMin,
         isPunishment,
         penaltyReason: effectivePenaltyReason(isPunishment, p.penaltyReason),
         requirements: { create: checked.normalized.map((r, i) => ({ ...r, sortOrder: i })) },
@@ -325,9 +370,48 @@ export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<Serv
  * Nachricht. Titel und Frist kommen mit zurück, damit der Aufrufer sie dafür nicht ein zweites Mal
  * aus seinen Rohdaten zusammensucht.
  */
-export async function writeTask(tx: PrismaTx, checked: CheckedTask): Promise<{ id: string; title: string; holdUntil: Date }> {
+export async function writeTask(tx: PrismaTx, checked: CheckedTask): Promise<TaskNoticeSource & { id: string }> {
   const task = await tx.task.create({ data: checked.data });
-  return { id: task.id, title: task.title, holdUntil: task.holdUntil };
+  return {
+    id: task.id,
+    title: task.title,
+    holdUntil: task.holdUntil,
+    holdDurationMin: task.holdDurationMin,
+    createdAt: task.createdAt,
+    startGraceMin: task.startGraceMin,
+  };
+}
+
+/** Was eine Aufgaben-Nachricht braucht, um ihre Frist zu benennen. */
+export interface TaskNoticeSource {
+  title: string;
+  holdUntil: Date;
+  holdDurationMin: number | null;
+  createdAt: Date;
+  startGraceMin: number;
+}
+
+/**
+ * Die Frist-Angabe einer Aufgaben-Nachricht — die EINE Stelle, an der die beiden Modi in Worte
+ * gefasst werden.
+ *
+ * Im Dauer-Modus wäre ein blosses „Frist: 21:15" schlicht falsch: das ist das spätestmögliche Ende
+ * und gilt nur, wenn der Sub die Kulanz voll ausreizt. Was ihn bindet, sind zwei andere Zahlen — wie
+ * LANGE zu halten ist und bis wann er begonnen haben muss. Deshalb ein eigener Textbaustein statt
+ * eines umgedeuteten Parameters.
+ *
+ * Die Dauer reist als MINUTEN-Zahl, nicht als fertiger Text: die Nachricht wird in der Sprache des
+ * EMPFÄNGERS gerendert (`notifyUser`), ein hier formatierter Zeitraum käme in der des Servers an.
+ */
+export function taskNoticeDeadline(task: Pick<TaskNoticeSource, "holdUntil" | "holdDurationMin" | "createdAt" | "startGraceMin">):
+  | { durationMode: true; params: { minutes: number; until: string } }
+  | { durationMode: false; params: { until: string } } {
+  return task.holdDurationMin
+    ? {
+        durationMode: true,
+        params: { minutes: task.holdDurationMin, until: formatDateTime(startDeadline(task)) },
+      }
+    : { durationMode: false, params: { until: formatDateTime(task.holdUntil) } };
 }
 
 /**
@@ -343,10 +427,11 @@ export async function createTask(p: CreateTaskParams, actor: MessageActor): Prom
   if (!checked.ok) return checked;
   const task = await writeTask(prisma, checked.data);
 
+  const deadline = taskNoticeDeadline(task);
   await notifyUser(p.userId, {
     subjectKey: "taskAssignedSubject",
-    messageKey: "taskAssignedMessage",
-    params: { title: task.title, until: formatDateTime(task.holdUntil) },
+    messageKey: deadline.durationMode ? "taskAssignedDurationMessage" : "taskAssignedMessage",
+    params: { title: task.title, ...deadline.params },
     alwaysNotify: true,
     // Die Nachricht ZEIGT auf die Aufgabe, statt ihre Beschreibung zu kopieren — der Posteingang
     // liest sie beim Anzeigen frisch. Titel und Frist bleiben bewusst Parameter: eine Nachricht ist
@@ -380,7 +465,7 @@ export async function updateTask(
   if (!t) return serviceFail(404, "TASK_NOT_FOUND");
   if (t.withdrawnAt || t.completedAt) return serviceFail(400, "TASK_NOT_EDITABLE");
 
-  const next = mergeTaskPatch(t, patch);
+  const next = mergeTaskPatch(t, patch, t);
   // Die neue Endzeit muss in der ZUKUNFT liegen. Gegen `createdAt` zu prüfen genügt nicht: bei einer
   // vor Tagen gestellten Aufgabe liesse sich die Frist damit auf einen längst vergangenen Zeitpunkt
   // setzen — der Sub bekäme sofort ein Versäumnis, ohne je handeln zu können. Ein Vertipper im Datum
@@ -412,10 +497,11 @@ export async function updateTask(
   });
   if (res.count === 0) return serviceFail(400, "TASK_NOT_EDITABLE");
 
+  const deadline = taskNoticeDeadline({ ...next, createdAt: t.createdAt, startGraceMin: t.startGraceMin });
   await notifyUser(userId, {
     subjectKey: "taskChangedSubject",
-    messageKey: "taskChangedMessage",
-    params: { title: next.title, until: formatDateTime(next.holdUntil) },
+    messageKey: deadline.durationMode ? "taskChangedDurationMessage" : "taskChangedMessage",
+    params: { title: next.title, ...deadline.params },
     alwaysNotify: true,
     // KEIN `once`: mehrere Änderungen an derselben Aufgabe sind legitim und jede gehört als eigene
     // Zeile in den Verlauf (so auch bei der Verschluss-Anforderung).
@@ -605,6 +691,15 @@ async function closePenaltyForFulfilledTask(taskId: string, now: Date): Promise<
  * Ohne diesen Block erführen beide Seiten erst beim nächsten App-Start, ob die Aufgabe erfüllt wurde.
  */
 export async function processDueTasks(now: Date): Promise<void> {
+  // Gesucht wird über die SPALTE `holdUntil` — im Dauer-Modus also über das spätestmögliche Ende.
+  // Wer sofort angelegt hat, ist bis zu einer Kulanzfrist früher fertig, als diese Abfrage nachsieht:
+  // seine Ergebnis-MELDUNG kommt dann entsprechend später. Der Zustand selbst ist sofort richtig (er
+  // wird bei jeder Anzeige abgeleitet) — verzögert ist nur der Versand.
+  //
+  // Das ist bewusst so und nicht bloss übersehen. Die Abfrage weiter zu fassen hiesse, Aufgaben
+  // aufzugreifen, die noch gar nicht entschieden sind; die bekämen nie ein `resultNotifiedAt`,
+  // sortierten als älteste nach vorn und besetzten den `take`-Deckel dauerhaft — genau der Stau, den
+  // `c77dec2` schon einmal beheben musste.
   const due = await prisma.task.findMany({
     where: { holdUntil: { lte: now }, withdrawnAt: null, resultNotifiedAt: null },
     orderBy: { holdUntil: "asc" },
