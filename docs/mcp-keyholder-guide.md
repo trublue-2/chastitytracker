@@ -163,6 +163,16 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
 - **Beginn:** der erste Zeitpunkt, ab dem ALLE Bedingungen gleichzeitig gelten. Er muss innerhalb der
   Kulanzfrist (`startGraceMinutes`, Default 30) nach dem Stellen liegen — sonst wurde nicht
   durchgehend gehalten, und „kurz vor Schluss alles anlegen" wäre keine Erfüllung.
+- **ZWEI FRISTFORMEN, und die Wahl ist keine Geschmacksfrage.** Mit `holdUntilAt`/`holdHours` steht
+  das ENDE fest; die Kulanzfrist liegt darin und geht der Tragezeit ab — „2 Stunden" gestellt heisst
+  bei 30 Minuten Kulanz nur eineinhalb Stunden garantiert, und wer sofort anlegt, trägt länger als
+  wer sich Zeit lässt. Mit `holdMinutesFromStart` läuft die Uhr erst AB DEM ANLEGEN (bei mehreren
+  Geräten ab dem letzten): 30 Minuten sind dann 30 Minuten, unabhängig vom Anlege-Zeitpunkt.
+  **Wenn der Mensch eine Tragezeit meint („trag es eine halbe Stunde"), ist `holdMinutesFromStart`
+  die richtige Form** — mit einem festen Ende bekäme er nachweislich weniger, als er gesagt hat.
+  Ein festes Ende ist richtig, wenn wirklich der TERMIN gemeint ist („fertig um 15:00").
+  Der Dauer-Modus braucht mindestens eine Bedingung: ohne sie gibt es kein Anlegen, an dem die Uhr
+  starten könnte. In `openTasks` ist er an `holdDurationMin` erkennbar.
 - **Erfüllt** heisst: Bedingungen hielten bis `holdUntil` UND der Sub hat die Aufgabe als erledigt
   gemeldet. Der Textteil („ist die Wohnung sauber?") ist nicht maschinell prüfbar — dafür die
   Selbstmeldung, auf die du ihn behaften kannst. Bis sie kommt, steht `awaitingUserConfirmation`.

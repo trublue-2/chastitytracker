@@ -4,7 +4,7 @@ import { buildStrafbuch, offenseListViews, type StrafbuchData } from "@/lib/stra
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { recordSystemMessage, DISMISSAL_BODY_KEY, type MessageActor } from "@/lib/messageService";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
-import { checkTask, writeTask, type CreateTaskParams } from "@/lib/taskService";
+import { checkTask, writeTask, taskNoticeDeadline, type CreateTaskParams, type TaskNoticeSource } from "@/lib/taskService";
 import { formatDateTime } from "@/lib/utils";
 import { markLastAction } from "@/lib/appMeta";
 import { offenseWasAnnounced, OFFENSE_REF_TYPE } from "@/lib/offenseAnnounce";
@@ -412,13 +412,16 @@ function judgmentConflict(e: unknown): ServiceFailure | null {
 /** Die eine Nachricht einer Strafaufgabe: sie nennt die Strafe und zeigt auf die Aufgabe, damit der
  *  Sub von der Nachricht aus direkt sieht, was zu tun ist. */
 function strafaufgabeNotice(
-  task: { id: string; title: string; holdUntil: Date },
+  task: TaskNoticeSource & { id: string },
   actor: MessageActor,
 ): NotifyContent {
+  // Über denselben Baustein wie die gewöhnliche Aufgabe: eine Strafaufgabe im Dauer-Modus benennt
+  // ihre Frist sonst anders als jede andere Aufgabe — und zwar falsch.
+  const deadline = taskNoticeDeadline(task);
   return {
     subjectKey: "penaltyTaskSubject",
-    messageKey: "penaltyTaskMessage",
-    params: { title: task.title, until: formatDateTime(task.holdUntil) },
+    messageKey: deadline.durationMode ? "penaltyTaskDurationMessage" : "penaltyTaskMessage",
+    params: { title: task.title, ...deadline.params },
     alwaysNotify: true,
     inbox: {
       ref: { type: "task", id: task.id },

@@ -118,8 +118,23 @@ export interface TaskCardData {
   description: string | null;
   isPunishment: boolean;
   penaltyReason: string | null;
-  /** ISO — die Karte formatiert in der Zeitzone des Betrachters. */
+  /**
+   * Das WIRKSAME Ende als ISO — die Karte formatiert in der Zeitzone des Betrachters.
+   *
+   * Aus der AUSWERTUNG, nicht aus der Zeile: im Dauer-Modus entsteht es erst mit dem abgeleiteten
+   * Beginn, und vor ihm ist es das spätestmögliche Ende. Zusammen mit {@link holdDurationMin}
+   * entscheidet die Karte damit, ob sie einen Zeitpunkt nennt oder eine Dauer.
+   */
   holdUntil: string;
+  /**
+   * Dauer-Modus: die Haltezeit in Minuten ab dem Anlegen — null im klassischen Modus.
+   *
+   * Die Karte braucht beides. Vor dem Beginn wäre ein Zeitpunkt eine Behauptung über etwas, das noch
+   * niemand ausgelöst hat („Ohne Unterbrechung bis 21:15", obwohl das nur gilt, wenn er die Kulanz
+   * voll ausreizt); die ehrliche Aussage ist dann die DAUER. Ab dem Beginn steht der Zeitpunkt fest
+   * und ist die nützlichere von beiden.
+   */
+  holdDurationMin: number | null;
   /**
    * Bis wann spätestens ALLE Bedingungen anliegen müssen (`createdAt` + Kulanzfrist) — ISO, null
    * ohne Bedingungen (dann gibt es nichts anzulegen).
@@ -165,9 +180,44 @@ export interface TaskCardData {
  *
  * Hier und nicht in der Komponente: Kartenkopf und Listenzeile ({@link TaskCardData}-Verwender)
  * stellen dieselbe Frage, und zwei Ternäre in zwei Dateien driften auseinander.
+ *
+ * Bewusst NICHT exportiert: der Schlüssel allein genügt seit dem Dauer-Modus nicht mehr, weil er
+ * mitentscheidet, WAS für ein Wert hineingehört (Zeitpunkt oder Dauer). Wer ihn ohne
+ * {@link taskDeadlineLine} nähme, träfe genau die Fallunterscheidung wieder selbst — also die, die
+ * hier zusammengezogen wurde.
  */
-export function taskDeadlineKey(task: Pick<TaskCardData, "requirements">): "holdUntilShort" | "deadlineShort" {
-  return task.requirements.length > 0 ? "holdUntilShort" : "deadlineShort";
+function taskDeadlineKey(
+  task: Pick<TaskCardData, "requirements" | "holdDurationMin" | "startedAt">,
+): "holdUntilShort" | "holdDurationShort" | "deadlineShort" {
+  if (task.requirements.length === 0) return "deadlineShort";
+  // Dauer-Modus, noch nicht begonnen: einen Zeitpunkt zu nennen wäre eine Behauptung über etwas, das
+  // noch niemand ausgelöst hat — das spätestmögliche Ende gilt ja nur, wenn er die Kulanz voll
+  // ausreizt. Sobald der Beginn feststeht, ist der Zeitpunkt die nützlichere Angabe.
+  return task.holdDurationMin && !task.startedAt ? "holdDurationShort" : "holdUntilShort";
+}
+
+/**
+ * Die fertige Frist-Zeile: Schlüssel UND der Wert, der hineingehört.
+ *
+ * Beides zusammen, weil beides zusammengehört — der Schlüssel entscheidet, OB dort ein Zeitpunkt
+ * oder eine Dauer steht, und diese Fallunterscheidung darf nicht an jeder Anzeige neu hängen.
+ * Kartenkopf und Listenzeile stellen dieselbe Frage; als zwei Ternäre in zwei Dateien wäre das die
+ * Sorte Doppelung, bei der die eine Stelle den Dauer-Modus kennt und die andere nicht.
+ *
+ * Die Formatierer kommen von aussen: sie brauchen Locale, Zeitzone und die Sub-Beschriftung, und
+ * genau die hat nur die Komponente.
+ */
+export function taskDeadlineLine(
+  task: Pick<TaskCardData, "requirements" | "holdDurationMin" | "startedAt" | "holdUntil">,
+  fmt: { date: (iso: string) => string; duration: (ms: number) => string },
+): { key: ReturnType<typeof taskDeadlineKey>; value: string } {
+  const key = taskDeadlineKey(task);
+  return {
+    key,
+    value: key === "holdDurationShort" && task.holdDurationMin
+      ? fmt.duration(task.holdDurationMin * 60_000)
+      : fmt.date(task.holdUntil),
+  };
 }
 
 /**
@@ -287,7 +337,8 @@ export function toTaskCard(
     description: e.task.description,
     isPunishment: e.task.isPunishment,
     penaltyReason: e.task.penaltyReason,
-    holdUntil: e.task.holdUntil.toISOString(),
+    holdUntil: e.evaluation.holdUntil.toISOString(),
+    holdDurationMin: e.task.holdDurationMin,
     // Ohne Bedingungen ist die Kulanzfrist bedeutungslos (es gibt nichts anzulegen) — dieselbe
     // Unterscheidung, die `createTask` beim Prüfen der Endzeit trifft.
     startDeadline: e.requirements.length > 0 ? startDeadline(e.task).toISOString() : null,

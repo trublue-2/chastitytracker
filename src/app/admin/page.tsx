@@ -14,7 +14,7 @@ import LockRequestBanner from "@/app/components/LockRequestBanner";
 import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import UserAvatar from "@/app/components/UserAvatar";
-import { Lock, LockOpen, Users, ShieldAlert, CalendarClock } from "lucide-react";
+import { Lock, LockOpen, Users, ShieldAlert, CalendarClock, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDuration, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
@@ -212,7 +212,10 @@ export default async function AdminPage() {
               // wuchs die einspaltige Spur dadurch auf 748 px und schob die GANZE Seite nach rechts —
               // Kopfzeile und Karten links angeschnitten, weisser Streifen rechts. Die Karten-Innereien
               // brechen und kürzen längst korrekt (v4.52.3); es fehlte allein die Erlaubnis zu schrumpfen.
-              <div key={u.id} className="relative min-w-0">
+              // `group` trägt den Hover-Zustand: der Link darüber ist unsichtbar und deckt die ganze
+              // Karte, kann sie also nicht selbst einfärben. Ohne das gab die Karte auf keine Weise zu
+              // erkennen, dass sie ein Klickziel ist (Rückmeldung 15.08.2026).
+              <div key={u.id} className="group relative min-w-0">
                 {/* Stretched link — covers whole card for navigation */}
                 <Link
                   href={`/admin/users/${u.id}`}
@@ -220,7 +223,7 @@ export default async function AdminPage() {
                   aria-label={u.username}
                 />
 
-                <Card padding="default">
+                <Card padding="default" className="transition group-hover:bg-surface-raised">
                   <div className="flex flex-col gap-3">
                     {/* Header: avatar + name + status icon */}
                     <div className="flex items-start gap-3">
@@ -240,11 +243,16 @@ export default async function AdminPage() {
                               : t("noEntry")}
                         </p>
                       </div>
-                      <div className={`flex-shrink-0 mt-1 ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
+                      <div className={`flex-shrink-0 mt-1 flex items-center gap-1 ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
                         {isLocked
                           ? <Lock size={18} strokeWidth={1.75} />
                           : <LockOpen size={18} strokeWidth={1.75} />
                         }
+                        {/* Das BLEIBENDE Zeichen, dass die Karte irgendwohin führt — der Hover-Zustand
+                            allein hilft auf dem Handy nicht, wo es kein Hover gibt. `aria-hidden`, weil
+                            der Link darüber bereits einen Namen trägt: vorgelesen wäre das Zeichen eine
+                            zweite, inhaltsleere Ansage. */}
+                        <ChevronRight size={16} className="text-foreground-faint" aria-hidden />
                       </div>
                     </div>
 

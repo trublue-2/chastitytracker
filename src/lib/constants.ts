@@ -602,6 +602,27 @@ export function clampStartGrace(value: number | undefined): number {
   if (!Number.isFinite(rounded)) return TASK_DEFAULT_START_GRACE_MIN;
   return Math.min(TASK_START_GRACE_RANGE.max, Math.max(TASK_START_GRACE_RANGE.min, rounded));
 }
+/**
+ * Zulässige Haltedauer im DAUER-MODUS (Minuten, gemessen ab dem tatsächlichen Beginn).
+ *
+ * Wie {@link TASK_START_GRACE_RANGE} bewusst KEIN {@link NumberRange}: der Typ verspricht „hiermit
+ * klemmt `clamp()`", und dessen `Math.round(value) || fallback` ist hier falsch — es gibt keinen
+ * sinnvollen Ausweichwert. Eine Aufgabe ohne gewählte Dauer darf nicht auf einer geraten landen;
+ * genau das war beim Vorbelegen der Frist schon einmal der Fehler (zwei Stunden Knebel, nie gewählt).
+ * `min: 1`, weil eine Haltezeit von null Minuten nichts fordert.
+ */
+export const TASK_HOLD_DURATION_RANGE = { min: 1, max: 365 * 24 * 60 } as const;
+
+/** Die Haltedauer auf ihren Bereich bringen — der EINE Ort, an dem dieser Wert geklemmt wird.
+ *  `undefined`/unlesbar bleibt `undefined`: „keine Dauer gewählt" heisst klassischer Modus und darf
+ *  nicht stillschweigend zu einer Dauer werden. */
+export function clampHoldDuration(value: number | null | undefined): number | undefined {
+  if (value == null) return undefined;
+  const rounded = Math.round(value);
+  if (!Number.isFinite(rounded)) return undefined;
+  return Math.min(TASK_HOLD_DURATION_RANGE.max, Math.max(TASK_HOLD_DURATION_RANGE.min, rounded));
+}
+
 /** Arten von Aufgaben-Bedingungen. WEAR = Gerät/Kategorie tragen · KG_LOCKED = verschlossen sein
  *  (der KG ist bewusst keine Trage-Kategorie, ein WEAR_BEGIN darauf wird abgewiesen). */
 /** Wie viele Nachweis-Fotos eine Aufgabe höchstens fordern darf. Nicht willkürlich: jeder Nachweis

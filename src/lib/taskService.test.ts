@@ -41,7 +41,10 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(JETZT);
   userMock.mockResolvedValue({ id: "u1" });
-  taskCreateMock.mockResolvedValue({ id: "t1", title: "Wohnung staubsaugen", holdUntil: IN_DREI_STUNDEN });
+  taskCreateMock.mockResolvedValue({
+    id: "t1", title: "Wohnung staubsaugen", holdUntil: IN_DREI_STUNDEN,
+    holdDurationMin: null, createdAt: JETZT, startGraceMin: 30,
+  });
   taskUpdateMock.mockResolvedValue({ count: 1 });
   taskCountMock.mockResolvedValue(1);
   devMock.mockResolvedValue([{ id: "d1", category: { isBuiltIn: false } }]);
@@ -375,14 +378,97 @@ describe("effectivePenaltyReason — eine Regel für Anlegen und Ändern", () =>
 });
 
 describe("mergeTaskPatch — pure, teilt Vorschau und Commit", () => {
-  const current = { title: "A", description: "d", holdUntil: JETZT, isPunishment: false, penaltyReason: null };
+  const current = { title: "A", description: "d", holdUntil: JETZT, holdDurationMin: null, isPunishment: false, penaltyReason: null };
+  const anchor = { createdAt: JETZT, startGraceMin: 30 };
 
   it("undefined lässt unverändert, null löscht", () => {
-    expect(mergeTaskPatch(current, {}).description).toBe("d");
-    expect(mergeTaskPatch(current, { description: null }).description).toBeNull();
+    expect(mergeTaskPatch(current, {}, anchor).description).toBe("d");
+    expect(mergeTaskPatch(current, { description: null }, anchor).description).toBeNull();
   });
 
   it("trimmt Texte", () => {
-    expect(mergeTaskPatch(current, { title: "  B  " }).title).toBe("B");
+    expect(mergeTaskPatch(current, { title: "  B  " }, anchor).title).toBe("B");
+  });
+
+  /**
+   * Der Modus einer Aufgabe wechselt NIE — aus demselben Grund, aus dem sich Bedingungen und
+   * Nachweise nicht ändern lassen: der Sub hätte etwas anderes zu erfüllen, als ihm gestellt wurde.
+   * Die jeweils modus-fremde Angabe fällt deshalb still weg, statt umzuschalten.
+   */
+  it("eine Aufgabe mit festem Ende nimmt keine Dauer an", () => {
+    const next = mergeTaskPatch(current, { holdDurationMin: 45 }, anchor);
+    expect(next.holdDurationMin).toBeNull();
+    expect(next.holdUntil).toBe(JETZT);
+  });
+
+  it("eine Dauer-Aufgabe ignoriert einen Endzeitpunkt und leitet ihr Ende neu ab", () => {
+    const duration = { ...current, holdDurationMin: 30 };
+    const next = mergeTaskPatch(duration, { holdUntil: new Date("2030-01-01T00:00:00Z"), holdDurationMin: 60 }, anchor);
+    expect(next.holdDurationMin).toBe(60);
+    // Spätestmögliches Ende = Startfrist (30 min Kulanz) + 60 min Dauer.
+    expect(next.holdUntil.getTime()).toBe(JETZT.getTime() + 90 * 60_000);
+  });
+});
+
+/**
+ * Der Dauer-Modus auf der SCHREIB-Seite: die Keyholderin stellt eine Haltezeit, keinen Zeitpunkt.
+ * Das gespeicherte `holdUntil` ist dann eine abgeleitete obere Schranke — sie muss stimmen, weil die
+ * Vorauswahl des Pollers über die Spalte sucht.
+ */
+describe("createTask — Dauer-Modus (Haltezeit ab dem Anlegen)", () => {
+  it("rechnet das spätestmögliche Ende aus Kulanz + Dauer", async () => {
+    const res = await createTask({
+      userId: "u1", title: "Halsband tragen",
+      holdDurationMin: 30, startGraceMin: 15,
+      requirements: [{ type: "WEAR", categoryId: "c1" }],
+    }, "herrin");
+
+    expect(res.ok).toBe(true);
+    const data = taskCreateMock.mock.calls[0][0].data;
+    expect(data.holdDurationMin).toBe(30);
+    // 12:00 + 15 min Kulanz + 30 min Dauer.
+    expect(data.holdUntil).toEqual(new Date("2026-07-25T12:45:00Z"));
+  });
+
+  it("braucht keinen Endzeitpunkt — die Dauer IST die Frist", async () => {
+    const res = await createTask({
+      userId: "u1", title: "Halsband tragen", holdDurationMin: 30,
+      requirements: [{ type: "WEAR", categoryId: "c1" }],
+    }, "herrin");
+    expect(res.ok).toBe(true);
+  });
+
+  it("ohne Bedingungen abgelehnt — es gäbe kein Anlegen, an dem die Uhr starten könnte", async () => {
+    const res = await createTask({ userId: "u1", title: "Staubsaugen", holdDurationMin: 30 }, "herrin");
+
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS");
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("weder Zeitpunkt noch Dauer → abgelehnt, statt mit einer geratenen Frist anzulegen", async () => {
+    const res = await createTask({ userId: "u1", title: "Staubsaugen" }, "herrin");
+
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_HOLD_MISSING");
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("meldet dem Sub die DAUER, nicht das spätestmögliche Ende", async () => {
+    taskCreateMock.mockResolvedValue({
+      id: "t1", title: "Halsband tragen", holdUntil: new Date("2026-07-25T12:45:00Z"),
+      holdDurationMin: 30, createdAt: JETZT, startGraceMin: 15,
+    });
+    await createTask({
+      userId: "u1", title: "Halsband tragen", holdDurationMin: 30, startGraceMin: 15,
+      requirements: [{ type: "WEAR", categoryId: "c1" }],
+    }, "herrin");
+
+    // „Frist: 12:45" wäre die Unwahrheit, die den ganzen Modus wieder aufhöbe: 12:45 gilt nur, wenn
+    // er die Kulanz voll ausreizt. Was ihn bindet, sind die 30 Minuten und der späteste Beginn.
+    expect(notifyMock.mock.calls[0][1]).toMatchObject({
+      messageKey: "taskAssignedDurationMessage",
+      params: expect.objectContaining({ minutes: 30 }),
+    });
   });
 });

@@ -166,7 +166,7 @@ export interface DashboardResult extends Envelope {
    *  v9: `nextRelevant.openControl` (Einzelwert) ist zu `nextRelevant.openControls` (Array)
    *  geworden — seit Kontrollen auf Trage-Kategorien zielen können (v5.0.1), läuft je Ziel eine,
    *  und ein Einzelwert verschwiege die übrigen Fristen. Jede trägt ihr `target`. */
-  schemaVersion: 9;
+  schemaVersion: 10;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
@@ -287,8 +287,17 @@ export interface OpenTaskView {
   id: string;
   title: string;
   description: string | null;
-  /** Bis dahin müssen alle Bedingungen durchgehend gelten (ISO-8601 mit Offset). */
+  /**
+   * Bis dahin müssen alle Bedingungen durchgehend gelten (ISO-8601 mit Offset).
+   *
+   * Ab schemaVersion 10 das WIRKSAME Ende: bei einer Aufgabe im Dauer-Modus (`holdDurationMin`
+   * gesetzt) ist es `startedAt` + Dauer, und solange nicht begonnen wurde das spätestmögliche Ende.
+   * Bei einer Aufgabe mit festem Ende ist es unverändert genau dieses.
+   */
   holdUntil: string;
+  /** Dauer-Modus: die Haltezeit in Minuten AB DEM ANLEGEN (bei mehreren Geräten ab dem letzten).
+   *  null = feste Endzeit. Siehe `explain_model`, Abschnitt 6a. */
+  holdDurationMin: number | null;
   /** pending = nichts erfüllt · partial = ein Teil · running = alles gilt, die Zeit läuft ·
    *  awaitingReview = die Nachweise liegen vor, aber mindestens einer ist maschinell nicht
    *  entscheidbar: DU bist am Zug (`review_task_proof`). Weder erfüllt noch versäumt, bis du urteilst. */
@@ -599,7 +608,8 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       id: e.task.id,
       title: e.task.title,
       description: e.task.description,
-      holdUntil: iso(e.task.holdUntil)!,
+      holdUntil: iso(e.evaluation.holdUntil)!,
+      holdDurationMin: e.task.holdDurationMin,
       state: e.evaluation.state,
       missing: e.evaluation.missing.map((m) => m.label),
       startedAt: iso(e.evaluation.startedAt),
@@ -616,7 +626,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,

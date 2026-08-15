@@ -23,6 +23,7 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   penaltyMessage: "penalty",
   penaltyMessageNoReason: "penalty",
   penaltyTaskMessage: "penalty",
+  penaltyTaskDurationMessage: "penalty",
 
   // Eigene Kategorie, nicht `penalty`: ein festgestelltes Vergehen IST noch keine Strafe, und ein
   // fallengelassenes wird nie eine. Beide unter „Strafe" zu führen hiesse, dem Träger eine
@@ -62,7 +63,9 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   orgasmWithdrawnMessage: "orgasm",
 
   taskAssignedMessage: "task",
+  taskAssignedDurationMessage: "task",
   taskChangedMessage: "task",
+  taskChangedDurationMessage: "task",
   taskWithdrawnMessage: "task",
   taskAwaitingMessage: "task",
   taskDoneMessage: "task",

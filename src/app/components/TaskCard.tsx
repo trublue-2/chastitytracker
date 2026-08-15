@@ -5,11 +5,12 @@ import { ListChecks, Check, ChevronRight, Circle, Camera, ArrowRight, Hourglass 
 import { useTranslations, useLocale } from "next-intl";
 import Card, { CARD_BODY_STRIPED } from "@/app/components/Card";
 import IconTile from "@/app/components/IconTile";
+import RowAction from "@/app/components/RowAction";
 import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import useRemainingMs from "@/app/hooks/useRemainingMs";
 import { formatDateTimeDual, formatElapsedMs, formatTime, toDateLocale } from "@/lib/utils";
-import { nextTaskStep, taskDeadlineKey, visibleStartDeadline, type TaskCardData } from "@/lib/taskView";
+import { nextTaskStep, taskDeadlineLine, visibleStartDeadline, type TaskCardData } from "@/lib/taskView";
 import { TASK_STATE_COLOR } from "@/lib/constants";
 
 /**
@@ -29,19 +30,6 @@ function ChecklistBox({ children }: { children: React.ReactNode }) {
     <ul className="flex flex-col rounded-xl border border-border-subtle divide-y divide-border-subtle overflow-hidden">
       {children}
     </ul>
-  );
-}
-
-/** Das Handlungswort am Ende einer antippbaren Zeile. Ein Chevron allein sagt „hier geht es weiter",
- *  aber nicht, was dort passiert — genau das war offen („Wo muss ich klicken, um ein Foto zu
- *  erfassen?", Rückmeldung 02.08.2026). */
-function RowAction({ icon, label }: { icon?: React.ReactNode; label: string }) {
-  return (
-    <span className="shrink-0 flex items-center gap-1 text-xs font-semibold text-foreground">
-      {icon}
-      {label}
-      <ChevronRight size={14} className="text-foreground-faint" />
-    </span>
   );
 }
 
@@ -91,6 +79,7 @@ export default function TaskCard({
   const dl = toDateLocale(locale);
   const dual = (iso: string) => formatDateTimeDual(iso, dl, viewerTz, subTz, subLabel);
   const startBy = visibleStartDeadline(task);
+  const deadline = taskDeadlineLine(task, { date: dual, duration: (ms) => formatElapsedMs(ms, locale) });
 
   return (
     <Card padding="none">
@@ -99,7 +88,7 @@ export default function TaskCard({
           <IconTile icon={<ListChecks className="size-4" />} />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground break-words">{task.title}</p>
-            <p className="text-xs text-foreground-muted">{t(taskDeadlineKey(task), { date: dual(task.holdUntil) })}</p>
+            <p className="text-xs text-foreground-muted">{t(deadline.key, { value: deadline.value })}</p>
           </div>
           {task.isPunishment && <Badge variant="warn" size="sm" label={t("punishmentBadge")} className="shrink-0" />}
         </div>
@@ -196,10 +185,17 @@ export default function TaskCard({
                 Stellen als Zusage sieht (`minHoldMs`). Ohne sie stünden hier zwei Zeitpunkte, und der
                 Sub müsste die Differenz im Kopf bilden: genau die Rechnung, die der anderen Seite
                 abgenommen wird. Nur solange nie begonnen wurde — danach zählt die Restzeit, die der
-                Countdown im nächsten Schritt nennt, nicht mehr das Minimum. */}
-            <p className="text-xs text-foreground-faint">
-              {t("holdMinHint", { duration: formatElapsedMs(new Date(task.holdUntil).getTime() - new Date(startBy).getTime(), locale) })}
-            </p>
+                Countdown im nächsten Schritt nennt, nicht mehr das Minimum.
+
+                NICHT im Dauer-Modus: dort steht die Zahl schon in der Frist-Zeile am Kartenkopf
+                („Ohne Unterbrechung 30min ab dem Anlegen"), und zweimal dieselbe Angabe liest sich
+                wie zwei verschiedene Forderungen. Rechnerisch käme hier dasselbe heraus — die
+                Differenz zwischen spätestmöglichem Ende und Startfrist IST die Dauer. */}
+            {!task.holdDurationMin && (
+              <p className="text-xs text-foreground-faint">
+                {t("holdMinHint", { duration: formatElapsedMs(new Date(task.holdUntil).getTime() - new Date(startBy).getTime(), locale) })}
+              </p>
+            )}
           </>
         )}
 

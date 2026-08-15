@@ -20,6 +20,8 @@ export interface TaskWithRequirements {
   description: string | null;
   holdUntil: Date;
   startGraceMin: number;
+  /** Dauer-Modus (Minuten ab dem Beginn) — siehe `TaskLike.holdDurationMin`. */
+  holdDurationMin: number | null;
   isPunishment: boolean;
   penaltyReason: string | null;
   createdAt: Date;
@@ -236,7 +238,12 @@ export function belongsOnDashboard(e: EvaluatedTask, now: Date): boolean {
   // Aufgaben fallen damit sofort weg; letztere hielt früher die `withdrawnAt: null`-Bedingung von
   // `getDashboardTasks` fern, die die Liste bewusst nicht mehr setzt.
   if (!isTaskOffense(state)) return false;
-  return now.getTime() - e.task.holdUntil.getTime() <= RECENT_WINDOW_MS;
+  // Über das WIRKSAME Ende: im Dauer-Modus liegt das gespeicherte `holdUntil` (das
+  // spätestmögliche) hinter dem tatsächlichen, die Karte bliebe sonst länger stehen als das
+  // Vergehen alt ist. Die SQL-Vorauswahl (`relevantTaskWhere`) benutzt weiterhin die Spalte — sie
+  // ist damit bewusst weiter gefasst als diese Anzeige-Regel, also genau die Richtung, die nichts
+  // verliert.
+  return now.getTime() - e.evaluation.holdUntil.getTime() <= RECENT_WINDOW_MS;
 }
 
 /**
@@ -345,7 +352,11 @@ export function requirementMatchesTarget(
 export function isHeldByTask(evaluated: EvaluatedTask[], target: TaskTarget, now: Date): boolean {
   return evaluated.some(
     (e) => isTaskOpen(e.evaluation.state)
-      && now < e.task.holdUntil
+      // Das WIRKSAME Ende: im Dauer-Modus ist die Aufgabe nach `startedAt` + Dauer durch, das
+      // gespeicherte `holdUntil` steht aber noch bis zu einer Kulanzfrist länger. Gegen die Spalte
+      // geprüft warnte das Ablege-Formular genau in diesem Fenster vor einem Abbruch, den es nicht
+      // mehr geben kann — dieselbe Falschaussage, die der Absatz oben schon einmal beschreibt.
+      && now < e.evaluation.holdUntil
       && e.requirements.some((r) => r.satisfied && requirementMatchesTarget(r, target)),
   );
 }
@@ -388,7 +399,7 @@ export async function getTasksBlocking(userId: string, now: Date, target: TaskTa
 
   return (await evaluateTasks(userId, rows, now))
     .filter((e) => isHeldByTask([e], target, now))
-    .map((e) => ({ title: e.task.title, holdUntil: e.task.holdUntil.toISOString() }));
+    .map((e) => ({ title: e.task.title, holdUntil: e.evaluation.holdUntil.toISOString() }));
 }
 
 /**

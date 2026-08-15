@@ -204,6 +204,12 @@ export const TASK_CODES = [
   "TASK_TITLE_TOO_LONG",
   "TASK_DESCRIPTION_TOO_LONG",
   "TASK_HOLD_UNTIL_TOO_SOON",
+  /** Weder ein Endzeitpunkt noch eine Dauer genannt — eine Aufgabe ohne Frist gibt es nicht. */
+  "TASK_HOLD_MISSING",
+  /** Dauer-Modus ohne Bedingungen: die Dauer läuft ab dem ANLEGEN, und ohne Bedingung gibt es
+   *  nichts anzulegen — die Uhr fände nie ihren Start. Eine reine Textaufgabe braucht deshalb einen
+   *  Zeitpunkt. */
+  "TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS",
   "TASK_REQUIREMENT_INVALID",
   "TASK_REQUIREMENT_KG_CATEGORY",
   "TASK_DUPLICATE_REQUIREMENT",

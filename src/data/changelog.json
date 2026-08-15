@@ -1,5 +1,39 @@
 [
   {
+    "version": "5.1.2",
+    "date": "2026-08-15",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine Aufgabe kann ihre Haltezeit jetzt ab dem Anlegen zählen statt bis zu einem festen Zeitpunkt: „30 Minuten“ sind dann auch 30 Minuten, egal wann der Träger anlegt. Bei mehreren geforderten Geräten startet die Uhr mit dem letzten.",
+          "en": "A task can now count its hold time from the moment things are put on instead of up to a fixed point: “30 minutes” then really means 30 minutes, no matter when the wearer starts. With several required devices the clock starts with the last one."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Frist-Block im Aufgaben-Formular fragt jetzt EINMAL, woran die Zeit hängt: „Tragezeit“, „Endet in“ oder „Endet um“. Tragezeit und Zeit zum Anlegen stehen als Paar untereinander, mit einem Satz, der beides zusammenfasst.",
+          "en": "The deadline block in the task form now asks ONCE what the time is anchored to: “Wear time”, “Ends in” or “Ends at”. Wear time and time-to-put-on sit together as a pair, with one sentence summarising both."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Antippbare Zeilen und Karten sind jetzt durchgehend als solche zu erkennen: Handlungswort und Pfeil stehen an jeder von ihnen, nicht mehr nur an manchen. Betrifft die Kategorie-Zeilen und laufenden Trage-Sessions im Dashboard sowie die Benutzerkarten im Adminportal.",
+          "en": "Tappable rows and cards are now consistently recognisable as such: every one of them carries an action word and an arrow, not just some. Affects the category rows and running wear sessions on the dashboard as well as the user cards in the admin portal."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Beschriftungen im Aufgaben-Formular sagen jetzt, was sie meinen: aus „Bedingungen“ wird „Durchgehend tragen“, aus „Zeit zum Anlegen“ wird „Spätester Beginn“, und die Zeit-Eingabe nennt ihren Bezugspunkt („Tragezeit ab dem Anlegen“ gegen „Dauer ab jetzt“). Die Hinweise nennen zudem die Folge: dass Bedingungen bis zum Ende der Frist gelten und dass die Reihenfolge der Nachweis-Fotos verbindlich ist.",
+          "en": "The labels in the task form now say what they mean: “Conditions” becomes “Wear continuously”, “Time to get ready” becomes “Latest start”, and the time field names its anchor (“Wear time from putting it on” versus “Duration from now”). The hints also state the consequence: that conditions hold until the end of the deadline, and that the order of proof photos is binding."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.1.1",
     "date": "2026-08-13",
     "changes": [

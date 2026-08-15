@@ -33,6 +33,7 @@ export const MESSAGE_BODY_KEYS = [
   "penaltyMessage",
   "penaltyMessageNoReason",
   "penaltyTaskMessage",
+  "penaltyTaskDurationMessage",
   // Vergehen — festgestellt (noch ohne Urteil) bzw. fallengelassen. Die Feststellung gibt es in
   // zwei Fassungen: mit eigenem Anlass-Titel (notiertes Vergehen, Aufgabe) und ohne, wo die Art
   // selbst schon alles sagt.
@@ -71,7 +72,9 @@ export const MESSAGE_BODY_KEYS = [
   "orgasmWithdrawnMessage",
   // Aufgaben
   "taskAssignedMessage",
+  "taskAssignedDurationMessage",
   "taskChangedMessage",
+  "taskChangedDurationMessage",
   "taskWithdrawnMessage",
   "taskAwaitingMessage",
   "taskDoneMessage",

@@ -1084,6 +1084,13 @@ function registerTools(server: McpServer) {
           description: z.string().optional().describe("The full instruction shown to the user."),
           holdUntilAt: z.string().optional().describe("Hold everything until this moment (ISO 8601, future)."),
           holdHours: z.number().positive().optional().describe("Hold for this many hours from now. Ignored if holdUntilAt is given."),
+          holdMinutesFromStart: z.number().positive().optional().describe(
+            "Hold for this many minutes counted from the moment the user actually has EVERYTHING on (with " +
+            "several devices: the last one), not from now. Overrides holdUntilAt/holdHours. Use this " +
+            "whenever you mean \"wear it for 30 minutes\" — with a fixed end the start grace is deducted, so " +
+            "a user who takes his time putting it on wears it for correspondingly less. Requires at least " +
+            "one condition (without one there is nothing to put on and the clock would never start).",
+          ),
           requireKgLocked: z.boolean().optional().describe("The chastity device must stay locked for the whole time."),
           requireWearing: z.array(z.object({
             category: z.string().describe("Category name, e.g. \"Halsband\". Not \"KG\" — use requireKgLocked."),
@@ -1147,8 +1154,12 @@ function registerTools(server: McpServer) {
           id: z.string().describe("Task id (from keyholder_dashboard.openTasks or get_offenses)."),
           title: z.string().optional(),
           description: z.string().optional().describe('New instruction; "" clears it.'),
-          holdUntilAt: z.string().optional().describe("New end (ISO 8601)."),
+          holdUntilAt: z.string().optional().describe("New end (ISO 8601). Only for tasks with a fixed end."),
           holdHours: z.number().positive().optional().describe("New end, in hours from now. Ignored if holdUntilAt is given."),
+          holdMinutesFromStart: z.number().positive().optional().describe(
+            "New hold duration, in minutes from the moment everything is on. Only for tasks ALREADY in that " +
+            "mode — the mode itself never changes, since the user was given something else to fulfil.",
+          ),
           isPunishment: z.boolean().optional(),
           penaltyReason: z.string().optional(),
           reason: reasonField,

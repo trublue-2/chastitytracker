@@ -947,10 +947,23 @@ model Task {
   title         String
   description   String?
   // Bis dahin müssen alle Bedingungen durchgehend gelten. Ohne Bedingungen: Frist zum Erledigen.
+  //
+  // Im DAUER-MODUS (`holdDurationMin` gesetzt) ist das nicht mehr das wirksame, sondern das
+  // SPÄTESTMÖGLICHE Ende (`createdAt` + Kulanz + Dauer) — das wirksame leitet `effectiveHoldUntil`
+  // aus dem tatsächlichen Beginn ab. Die Spalte bleibt trotzdem gefüllt und bleibt eine obere
+  // Schranke: daran hängen die Indizes, die Sortierung und die Vorauswahl des Pollers, und keine
+  // davon darf zu kurz schätzen.
   holdUntil     DateTime
   // Kulanz zum Anlegen ab Erstellung. Wer erst danach beginnt, hat NICHT durchgehend gehalten und
   // erfüllt die Aufgabe nicht — sonst wäre „eine Minute vor Schluss alles anlegen" eine Erfüllung.
   startGraceMin Int      @default(30)
+  // DAUER-MODUS: Haltezeit in Minuten, gemessen ab dem tatsächlichen Beginn (= sobald ALLE
+  // Bedingungen gleichzeitig anliegen). null = klassischer Modus, `holdUntil` ist das feste Ende.
+  //
+  // Der Unterschied ist der, den die Keyholderin meint, wenn sie „30 Minuten" einstellt: klassisch
+  // geht ihr die Kulanz davon ab (30 gestellt, 15 gehalten, wenn er die Kulanz ausreizt), im
+  // Dauer-Modus sind 30 Minuten 30 Minuten — egal wann er anlegt.
+  holdDurationMin Int?
   // Als Strafe gestellt? Rein informativ — eine Aufgabe ist KEIN StrafeRecord (der kann per Design
   // nur an einem bereits erkannten, vergangenen Vergehen hängen).
   isPunishment  Boolean  @default(false)
