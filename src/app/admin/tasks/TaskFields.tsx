@@ -9,6 +9,7 @@ import useTick from "@/app/hooks/useTick";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import DurationInput from "@/app/components/DurationInput";
 import FieldLabel from "@/app/components/FieldLabel";
+import FieldTabs from "@/app/components/FieldTabs";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
 import HoursInput from "@/app/components/HoursInput";
@@ -33,6 +34,28 @@ import TaskProofPicker from "./TaskProofPicker";
  *  Wahrheit); die Knöpfe rechnen ihn nur bequem aus — „trage den Knebel eine Viertelstunde" ist damit
  *  zwei Taps. Die kurzen Stufen stehen vorne, weil die langen ohnehin die getippten sind. */
 const QUICK_HOURS = [0.25, 0.5, 1, 2, 4] as const;
+
+/**
+ * Woran die Frist hängt — die EINE Entscheidung des Frist-Blocks.
+ *
+ * `fromStart` und `duration` tragen dieselbe Zahl im selben Feld und unterscheiden sich nur im
+ * Anker: ab dem ANLEGEN bzw. ab dem STELLEN. `datetime` ist der feste Termin.
+ *
+ * Vorher waren das zwei getrennte Bedienelemente — ein Ghost-Button für Dauer/Zeitpunkt und ein
+ * Haken für den Anker, der UNTER dem Feld sass, das er umdeutete. Wer die Vorschau las, hatte die
+ * Zahl schon falsch verstanden. Als ein Umschalter ist die Frage einmal gestellt und einmal
+ * beantwortet.
+ */
+type HoldMode = "fromStart" | "duration" | "datetime";
+
+/** Die Wege im Umschalter: Reihenfolge (vom häufigsten zum seltensten) und Beschriftung in EINER
+ *  Liste. Getrennt geführt müssten sie synchron bleiben, ohne dass ein Auseinanderlaufen auffiele —
+ *  ein fehlender Eintrag wäre ein Reiter ohne Namen, kein Fehler. */
+const HOLD_MODES = [
+  { value: "fromStart", labelKey: "holdModeFromStart" },
+  { value: "duration", labelKey: "holdModeDuration" },
+  { value: "datetime", labelKey: "holdModeDatetime" },
+] as const satisfies readonly { value: HoldMode; labelKey: string }[];
 
 /**
  * Formular „Aufgabe stellen".
@@ -83,7 +106,10 @@ export default function TaskFields({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [mode, setMode] = useState<"duration" | "datetime">("duration");
+  // „Tragezeit" ist die Vorgabe — bei einer Aufgabe mit Geräten ist eine TRAGEZEIT fast immer
+  // gemeint, und nur dieser Weg hält die eingestellte Zahl auch ein. Ohne Bedingungen weicht die
+  // Anzeige von selbst auf „Endet in" aus (siehe `effectiveMode`).
+  const [mode, setMode] = useState<HoldMode>("fromStart");
   // Beide Zeit-Eingaben starten LEER — kein vorbelegter Wert.
   //
   // Vorbelegt waren hier zwei Stunden, und genau das war der Fehler: wer die Frist übersah, stellte
@@ -95,14 +121,6 @@ export default function TaskFields({
   const [holdUnit, setHoldUnit] = useState<DurationUnit>("h");
   const [holdUntil, setHoldUntil] = useState("");
   const [graceMin, setGraceMin] = useState(String(TASK_DEFAULT_START_GRACE_MIN));
-  /**
-   * Läuft die Haltezeit erst ab dem Anlegen (Dauer-Modus) statt ab dem Stellen?
-   *
-   * Als Haken NEBEN der Dauer und nicht als dritter Reiter: die eingegebene ZAHL ist in beiden Fällen
-   * dieselbe („30 Minuten"), verschieden ist nur, woran sie hängt. Ein eigener Reiter fragte dieselbe
-   * Zahl ein zweites Mal ab und verlöre sie beim Wechsel.
-   */
-  const [fromStart, setFromStart] = useState(false);
   const [requirements, setRequirements] = useState<TaskRequirementInput[]>([]);
   const [proofs, setProofs] = useState<TaskProofInput[]>([]);
   // Aus dem Strafbuch heraus ist beides gesetzt und der Haken bleibt sichtbar: der Keyholder soll
@@ -123,73 +141,82 @@ export default function TaskFields({
     () => router.push(redirectTo),
   );
 
+  // Die eine Frage, an der in diesem Formular vier Dinge hängen: Beschriftung, Hinweis, Kulanz-Block
+  // und das abgeschickte Feld. Ausgeschrieben stünde sie viermal da und müsste viermal zusammen
+  // geändert werden. Es ist dieselbe Unterscheidung, die `taskDeadlineLine` auf der Anzeige-Seite und
+  // `checkTask` auf der Server-Seite treffen: gibt es überhaupt etwas anzulegen?
+  const hasRequirements = requirements.length > 0;
+
+  /**
+   * Der WIRKSAME Weg — `mode` ist die Wahl der Keyholderin, dies ihre Anwendung.
+   *
+   * „Tragezeit" braucht mindestens eine Bedingung: ohne sie gibt es kein Anlegen, an dem die Uhr
+   * starten könnte, und der Server weist das mit `TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS` ab. Leert
+   * jemand die Bedingungen wieder, fällt die ANZEIGE auf „Endet in" zurück — die Wahl selbst bleibt
+   * aber stehen und kommt zurück, sobald wieder eine Bedingung da ist. Sie stillschweigend zu
+   * verwerfen hiesse, eine Entscheidung zu kassieren, die niemand zurückgenommen hat.
+   */
+  const effectiveMode = mode === "fromStart" && !hasRequirements ? "duration" : mode;
+  const fromStartActive = effectiveMode === "fromStart";
+
   // Die Endzeit aus dem gerade gewählten Reiter — EINE Rechnung für Vorschau und Absenden. Zwei
   // getrennte Fassungen wären genau die Sorte Abweichung, die die Vorschau widerlegen soll: sie
   // verspräche eine Zeit, die das Formular dann anders abschickt.
   //
   // Ein leeres Feld ergibt bewusst ein UNGÜLTIGES Datum und keinen Ersatzwert: die Vorschau zeigt
   // dann nichts, statt eine Zeit zu nennen, die niemand gewählt hat.
+  //
+  // „Tragezeit" rechnet wie „Endet in": beide tragen eine DAUER im selben Feld. Der Unterschied ist
+  // nicht die Rechnung, sondern woran sie hängt — und das entscheidet erst das Abschicken.
   function endAt(nowMs: number): Date {
-    return mode === "duration"
+    return effectiveMode !== "datetime"
       ? new Date(nowMs + durationToHours(parseFloat(hours), holdUnit) * 3600_000)
       : fromDatetimeLocal(holdUntil, tz);
   }
 
   /**
-   * Zwischen Dauer und festem Zeitpunkt wechseln — und dabei den Wert MITNEHMEN.
+   * Den Weg wechseln — und dabei den Wert MITNEHMEN.
    *
    * Wer „endet in 2 h" eingestellt hat und den Zeitpunkt öffnet, will ihn dort feinjustieren, nicht
    * neu suchen: der Wähler startet deshalb auf dem gerade angezeigten Ende. Ohne das stünde dort der
    * beim Seitenaufruf vorbelegte Wert — nach zehn Minuten Formularausfüllen zehn Minuten zu früh.
+   *
+   * Zwischen „Tragezeit" und „Endet in" ist gar nichts umzurechnen: beide halten dieselbe Zahl im
+   * selben Feld, nur der Anker ist ein anderer. Übertragen wird deshalb nur beim Wechsel VON oder ZU
+   * einem festen Zeitpunkt.
    */
-  function toggleMode() {
+  function switchMode(next: HoldMode) {
     // Schlichte Funktion statt setState-Updater (Vorbild: `switchUnit` in `DurationInput`):
     // `mode` steht im Closure, und ein Updater muss REIN sein — unter StrictMode liefe er im Dev
     // zweimal und setzte die Endzeit zweimal mit unterschiedlichem `Date.now()`.
-    //
-    // SYMMETRISCH: `endAt` liest den gerade eingestellten Endzeitpunkt modus-unabhängig, und der
-    // jeweils andere Modus wird darauf gesetzt. Nur eine Richtung zu bedienen hiesse, dass der
-    // Rückweg auf einem alten Stand landet — also auf einer anderen Endzeit als der eben gezeigten.
+    if (next === effectiveMode) return;
     const nowMs = Date.now();
     const end = endAt(nowMs);
     // Noch nichts eingegeben (oder ein halb getipptes Datum): dann gibt es keine Zeit mitzunehmen —
     // umgeschaltet wird trotzdem. Früher brach der Wechsel hier ganz ab, was mit dem leeren Startwert
     // hiesse: der Weg zum festen Zeitpunkt wäre nur über eine erst eingetippte Dauer erreichbar.
     const known = !Number.isNaN(end.getTime());
-    if (mode === "duration") {
-      if (known) setHoldUntil(toDatetimeLocal(end, tz));
-      setMode("datetime");
-    } else {
-      // Auf das Raster der Einheit gebracht, damit im Feld nicht „2.3833" landet.
-      if (known) setHours(String(durationFromHours((end.getTime() - nowMs) / 3600_000, holdUnit)));
-      setMode("duration");
+    if (known && next === "datetime") setHoldUntil(toDatetimeLocal(end, tz));
+    // Auf das Raster der Einheit gebracht, damit im Feld nicht „2.3833" landet.
+    if (known && effectiveMode === "datetime") {
+      setHours(String(durationFromHours((end.getTime() - nowMs) / 3600_000, holdUnit)));
     }
+    setMode(next);
   }
 
-  // Die eine Frage, an der in diesem Formular vier Dinge hängen: Beschriftung, Hinweis, Kulanz-Block
-  // und das abgeschickte Feld. Ausgeschrieben stünde sie viermal da und müsste viermal zusammen
-  // geändert werden. Es ist dieselbe Unterscheidung, die `taskDeadlineKey` auf der Anzeige-Seite und
-  // `checkTask` auf der Server-Seite treffen: gibt es überhaupt etwas anzulegen?
-  const hasRequirements = requirements.length > 0;
-  // Beide Eingabewege tragen dieselbe Beschriftung — sie benennen dieselbe Frage, nur anders gefragt.
-  const holdLabel = t(hasRequirements ? "holdUntilLabel" : "holdUntilLabelPlain");
   // Geklemmt wie im Service — mit derselben Funktion, damit die Vorschau denselben Wert zeigt, den
   // der Server am Ende schreibt.
   const graceEffective = clampStartGrace(parseFloat(graceMin));
-  /**
-   * Ist der Dauer-Modus gerade wirklich in Kraft?
-   *
-   * Drei Bedingungen, jede aus einem anderen Grund: der Haken ist gesetzt · es gibt Bedingungen (ohne
-   * sie gibt es kein Anlegen, an dem die Uhr starten könnte — der Server weist das mit
-   * `TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS` ab) · und es ist eine DAUER eingegeben (ein fester
-   * Zeitpunkt hat keine, die man ab irgendwo laufen lassen könnte).
-   *
-   * Der Haken bleibt dabei gesetzt, wenn eine der beiden anderen Bedingungen wegfällt: wer die
-   * Bedingungen kurz leert oder in den Zeitpunkt-Reiter schaut, soll seine Wahl beim Zurückwechseln
-   * wiederfinden, statt sie stillschweigend verloren zu haben.
-   */
-  const fromStartActive = fromStart && hasRequirements && mode === "duration";
   const holdDurationMin = clampHoldDuration(durationToHours(parseFloat(hours), holdUnit) * 60);
+  /**
+   * Die Beschriftung des Zahlenfeldes — sie benennt, WAS die Zahl ist.
+   *
+   * Im Weg „Tragezeit" ist das die Aussage, auf die es ankommt, und sie steht deshalb noch einmal
+   * hier: die Zahl IST die Tragezeit. In den beiden anderen Wegen ist sie schlicht eine Dauer bzw.
+   * ein Zeitpunkt — den WEG nennt der Umschalter darüber, und ihn hier zu wiederholen ergäbe zwei
+   * Beschriftungen für dieselbe Sache („Frist · Endet in · Endet in").
+   */
+  const holdFieldLabel = t(fromStartActive ? "holdModeFromStart" : "holdFieldDuration");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -263,50 +290,43 @@ export default function TaskFields({
 
       <TaskProofPicker value={proofs} onChange={setProofs} />
 
-      {/* ZUERST der Beginn, dann das Ende — das Formular liest sich in der Reihenfolge, in der die
-          Sache abläuft (Rückmeldung 03.08.2026). Nur mit Bedingungen: ohne sie gibt es nichts
-          anzulegen, und die Kulanzfrist ist ohne Bedeutung. */}
-      {hasRequirements && (
-        <div className="flex flex-col gap-2">
-          <HoursInput
-            label={t("graceLabel")}
-            value={graceMin}
-            onChange={setGraceMin}
-            min={TASK_START_GRACE_RANGE.min}
-            step={5}
-            unit={tc("minutesUnit")}
-          />
-          {/* Dieselbe Rechnung wie auf der Karte des Subs (`startDeadline`), damit die Vorschau nicht
-              das eine verspricht und die Karte danach das andere anzeigt. Immer live: die Kulanz läuft
-              ab dem Stellen, ihr Ende wandert also mit jeder Minute Formularausfüllen mit. */}
-          <TimePreview
-            at={(nowMs) => startDeadline({ createdAt: new Date(nowMs), startGraceMin: graceEffective })}
-            live
-            tz={tz}
-            line={(date) => ({ text: t("previewStart", { date }) })}
-          />
-          <p className="text-xs text-foreground-faint">{t("graceHint")}</p>
-        </div>
-      )}
+      {/* DER FRIST-BLOCK — eine Entscheidung, dann ihr Feld, dann die beiden Zahlen als Paar.
+          Die Reihenfolge ist die Korrektur des alten Aufbaus: der Anker („ab dem Stellen" oder „ab
+          dem Anlegen") hing an einem Haken UNTER dem Zahlenfeld und unter der Vorschau, die er
+          umdeutete — wer die Vorschau las, hatte die Zahl schon falsch verstanden.
+          Die Wahl steht deshalb ganz oben, und die Feld-Beschriftung darunter nennt sie noch einmal
+          beim Namen („Tragezeit" gegen „Endet in").
+          Die Rückmeldung vom 03.08.2026 („zuerst der Beginn, dann das Ende") trägt jetzt der
+          zusammenfassende Satz am Fuss des Blocks: er erzählt die Sache in ihrer zeitlichen Ordnung,
+          während die Eingaben in der Ordnung stehen, in der man sie trifft. */}
+      <div className="flex flex-col gap-3">
+        <FieldTabs
+          label={t("holdModeLabel")}
+          value={effectiveMode}
+          options={HOLD_MODES.filter((m) => m.value !== "fromStart" || hasRequirements)
+            .map((m) => ({ value: m.value, label: t(m.labelKey) }))}
+          onChange={switchMode}
+        />
 
-      {/* Die Frist. Die Beschriftung nennt die FRAGE, nicht bloss „Frist": mit Bedingungen ist es eine
-          Haltefrist, ohne Bedingungen ein Termin. Sie steht in beiden Eingabewegen an derselben
-          Stelle — beim Umschalter der Einheit bzw. über dem Zeitpunkt-Feld; eine Gruppen-Beschriftung
-          darüber stünde dann doppelt da.
-          Der Umschalter „Endet in / Endet um" ist zum Aufklapper geworden: seit die Zeile darunter den
-          errechneten Endzeitpunkt nennt, LAS sich der zweite Reiter wie eine zweite Anzeige desselben
-          Werts (Rückmeldung 03.08.2026). Er ist trotzdem ein eigener EINGABEweg — „bis morgen früh
-          07:00" wäre sonst wieder Kopfrechnen. Also: sichtbar ist der häufige Fall, der seltene ist
-          einen Tap entfernt. */}
-      <div className="flex flex-col gap-2">
-        {mode === "duration" ? (
+        {effectiveMode !== "datetime" ? (
           <>
             <DurationInput
-              label={holdLabel}
-              ariaLabel={t("holdHoursLabel")}
+              label={holdFieldLabel}
+              ariaLabel={holdFieldLabel}
               value={hours}
               unit={holdUnit}
-              onChange={(value, unit) => { setHours(value); setHoldUnit(unit); }}
+              onChange={(value, unit) => {
+                setHours(value);
+                setHoldUnit(unit);
+                // Wer unter dem AUSWEICH-Weg tippt, hat ihn damit gewählt.
+                //
+                // Ohne diese Zeile deutet das Formular seine eigene Zahl um: „Tragezeit" ist die
+                // Vorgabe, mangels Bedingungen zeigt der Umschalter aber „Endet in". Wird danach
+                // eine Bedingung ergänzt, schnappt die Anzeige auf „Tragezeit" zurück — und aus
+                // „2 Stunden bis Schluss" wären unbemerkt „2 Stunden Tragezeit" geworden. Das ist
+                // dieselbe stille Umdeutung, gegen die dieser ganze Block gebaut ist.
+                if (mode === "fromStart" && !hasRequirements) setMode("duration");
+              }}
               required
             />
             {/* Die Knöpfe setzen die Dauer in der GERADE gewählten Einheit — auf „Minuten" gestellt
@@ -331,7 +351,7 @@ export default function TaskFields({
             {/* Bewusst `FieldLabel` und nicht das `label`-Prop des Wählers: dessen Beschriftung ist
                 versal und fett (eine FELD-Beschriftung), hier soll dieselbe leise Gruppen-Beschriftung
                 stehen wie im anderen Zweig — sonst springt der Block beim Umschalten optisch. */}
-            <FieldLabel htmlFor={holdUntilId} required>{holdLabel}</FieldLabel>
+            <FieldLabel htmlFor={holdUntilId} required>{t("holdFieldDatetime")}</FieldLabel>
             <DateTimePicker
               id={holdUntilId}
               value={holdUntil}
@@ -343,38 +363,52 @@ export default function TaskFields({
           </>
         )}
 
+        {/* Die zweite Zahl, direkt unter der ersten: „wie lange" und „bis wann anlegen" gehören
+            zusammen und standen bisher in getrennten Blöcken mit verschiedenen Bauteilen. Nur mit
+            Bedingungen — ohne sie gibt es nichts anzulegen, und die Kulanzfrist ist ohne Bedeutung. */}
+        {hasRequirements && (
+          <HoursInput
+            label={t("graceLabel")}
+            value={graceMin}
+            onChange={setGraceMin}
+            min={TASK_START_GRACE_RANGE.min}
+            step={5}
+            unit={tc("minutesUnit")}
+          />
+        )}
+
+        {/* DER ZUSAMMENFASSENDE SATZ — die Sache in ihrer zeitlichen Ordnung, in EINER Zeile.
+            Dieselbe Rechnung wie auf der Karte des Subs (`startDeadline`), damit die Vorschau nicht
+            das eine verspricht und die Karte danach das andere anzeigt. Immer live: die Kulanz läuft
+            ab dem Stellen, ihr Ende wandert also mit jeder Minute Formularausfüllen mit. */}
+        {hasRequirements && (
+          <TimePreview
+            at={(nowMs) => startDeadline({ createdAt: new Date(nowMs), startGraceMin: graceEffective })}
+            live
+            tz={tz}
+            line={(date) => ({
+              text: fromStartActive && holdDurationMin != null
+                ? t("previewFromStart", { date, duration: formatElapsedMs(holdDurationMin * 60_000, locale) })
+                : t("previewStart", { date }),
+            })}
+          />
+        )}
+
         {/* Die MINDEST-Haltezeit steht dabei, weil die Stundenzahl gerade NICHT die Haltezeit ist: die
-            Kulanz geht davon ab. Seit der Beginn über der Frist steht, liest sich beides sonst wie
-            zwei aufeinanderfolgende Spannen („30 Min. + 2 h"), und das wäre eine halbe Stunde zu viel.
+            Kulanz geht davon ab. Ohne sie liest sich beides wie zwei aufeinanderfolgende Spannen
+            („30 Min. + 2 h"), und das wäre eine halbe Stunde zu viel.
 
             Der Takt hängt an BEIDEM: bei einer Dauer wandert schon das Datum mit der Uhr, bei einem
             festen Zeitpunkt steht es zwar still — die Mindest-Haltezeit darunter schrumpft aber
             trotzdem, weil die Kulanzfrist ab jetzt läuft. Nur auf den Modus zu schauen liesse genau
-            diese Zahl stehen, bis das Formular aus einem anderen Grund neu rendert. */}
-        {/* Der Haken, um den es hier geht: dieselbe Zahl, anderer Anker. Nur mit Bedingungen — ohne
-            sie gibt es kein Anlegen, an dem die Uhr starten könnte — und nur im Dauer-Reiter, weil
-            ein fester Zeitpunkt keine Dauer hat, die irgendwo losliefe. */}
-        {hasRequirements && mode === "duration" && (
-          <Checkbox
-            label={t("holdFromStartLabel")}
-            checked={fromStart}
-            onChange={(e) => setFromStart(e.target.checked)}
-          />
-        )}
+            diese Zahl stehen, bis das Formular aus einem anderen Grund neu rendert.
 
-        {/* Im Dauer-Modus gibt es keinen Endzeitpunkt anzuzeigen — er entsteht erst, wenn der Sub
-            anlegt. Was hier steht, ist die Zusage selbst: so lange wird gehalten, ganz gleich wann
-            er anfängt. Bewusst OHNE Takt: an der laufenden Uhr hängt diese Zahl gerade nicht — das
-            ist der ganze Unterschied zum Modus darüber. */}
-        {fromStartActive && holdDurationMin != null && (
-          <p className="text-xs text-foreground-muted">
-            {t("previewHoldFromStart", { duration: formatElapsedMs(holdDurationMin * 60_000, locale) })}
-          </p>
-        )}
+            Im Weg „Tragezeit" entfällt sie ganz: dort IST die eingestellte Zahl die Haltezeit, und
+            eine zweite Zeile, die sie noch einmal ausrechnet, hätte nichts zu berichtigen. */}
         {!fromStartActive && (
         <TimePreview
           at={endAt}
-          live={mode === "duration" || hasRequirements}
+          live={effectiveMode !== "datetime" || hasRequirements}
           tz={tz}
           line={(date, nowMs) => {
             // Über `minHoldMs` und nicht per eigener Rechnung: die Vorschau zeigt damit dieselbe
@@ -399,18 +433,14 @@ export default function TaskFields({
         />
         )}
 
-        {/* Der Satz trägt das, was sonst nirgends steht: dass die Bedingungen ab dem STELLEN gelten
-            müssen. Für die reine Textaufgabe stand hier „Bis dahin zu erledigen." — dieselbe Aussage
-            wie die Beschriftung und die Vorschau darüber, also dreimal dasselbe. */}
+        {/* Der Satz trägt das, was sonst nirgends steht: woran die Uhr hängt und was passiert, wenn
+            zu spät angelegt wird. Für die reine Textaufgabe stand hier „Bis dahin zu erledigen." —
+            dieselbe Aussage wie die Beschriftung und die Vorschau darüber, also dreimal dasselbe. */}
         {hasRequirements && (
           <p className="text-xs text-foreground-faint">
             {t(fromStartActive ? "holdFromStartHint" : "holdUntilHintRequirements")}
           </p>
         )}
-
-        <Button type="button" variant="ghost" size="sm" className="self-start" onClick={toggleMode}>
-          {t(mode === "duration" ? "modeSwitchToDatetime" : "modeSwitchToDuration")}
-        </Button>
       </div>
 
       <div className="flex flex-col gap-2">

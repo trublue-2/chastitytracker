@@ -9,6 +9,13 @@
           "de": "Eine Aufgabe kann ihre Haltezeit jetzt ab dem Anlegen zählen statt bis zu einem festen Zeitpunkt: „30 Minuten“ sind dann auch 30 Minuten, egal wann der Träger anlegt. Bei mehreren geforderten Geräten startet die Uhr mit dem letzten.",
           "en": "A task can now count its hold time from the moment things are put on instead of up to a fixed point: “30 minutes” then really means 30 minutes, no matter when the wearer starts. With several required devices the clock starts with the last one."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Frist-Block im Aufgaben-Formular fragt jetzt EINMAL, woran die Zeit hängt: „Tragezeit“, „Endet in“ oder „Endet um“. Tragezeit und Zeit zum Anlegen stehen als Paar untereinander, mit einem Satz, der beides zusammenfasst.",
+          "en": "The deadline block in the task form now asks ONCE what the time is anchored to: “Wear time”, “Ends in” or “Ends at”. Wear time and time-to-put-on sit together as a pair, with one sentence summarising both."
+        }
       }
     ]
   },
