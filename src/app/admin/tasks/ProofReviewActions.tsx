@@ -11,7 +11,7 @@ import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
-import type { TaskCardProof } from "@/lib/taskView";
+import { proofIsSubmitted, type TaskCardProof } from "@/lib/taskView";
 
 /**
  * Annehmen oder Ablehnen der eingereichten Nachweise einer Aufgabe (Issue #39, Etappe 4).
@@ -35,7 +35,7 @@ export default function ProofReviewActions({
   // Nur was eingereicht ist, lässt sich beurteilen. Bereits Beurteiltes bleibt dabei: ein Urteil darf
   // korrigiert werden — die Alternative wäre, dass eine versehentliche Ablehnung den Sub
   // unwiderruflich ein Vergehen kostet.
-  const reviewable = proofs.filter((p) => p.state !== "open");
+  const reviewable = proofs.filter(proofIsSubmitted);
   if (reviewable.length === 0) return null;
 
   return (

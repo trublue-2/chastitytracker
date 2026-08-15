@@ -221,6 +221,10 @@ export const TASK_CODES = [
   "TASK_PROOF_ALREADY_SUBMITTED",
   "TASK_PROOF_TOO_LATE",
   "TASK_PROOF_NOT_SUBMITTED",
+  /** Die EIGENE Fälligkeit eines Nachweises liegt hinter dem Ende der Aufgabe. Sie könnte dort nie
+   *  greifen — `proofDeadline` deckelt sie auf das Ende —, also wird sie abgewiesen statt still
+   *  gekappt: die Keyholderin soll sehen, dass ihre Angabe nicht das bedeutet, was sie meint. */
+  "TASK_PROOF_DUE_AFTER_END",
 ] as const;
 
 /** offenseRulesService (welche Vergehensarten bei einem Sub überhaupt gelten). Beide Codes trennen

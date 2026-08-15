@@ -21,7 +21,7 @@ import {
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
-  type NumberRange,
+  clampProofDueOffset, type NumberRange,
 } from "@/lib/constants";
 import { clamp, randomInt } from "@/lib/utils";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
@@ -1507,8 +1507,10 @@ export interface CreateTaskArgs {
   holdMinutesFromStart?: number;
   requireKgLocked?: boolean;
   requireWearing?: TaskRequirementArg[];
-  /** Geforderte Nachweis-Fotos, in der Reihenfolge, in der sie ENTSTEHEN müssen. */
-  requireProof?: { description: string; requireCode?: boolean }[];
+  /** Geforderte Nachweis-Fotos, in der Reihenfolge, in der sie ENTSTEHEN müssen. `dueMinutes` gibt
+   *  einem Nachweis eine EIGENE Frist (Minuten ab dem Wirksamwerden der Aufgabe); ohne sie bleibt er
+   *  bis zum Ende der Aufgabe offen. */
+  requireProof?: { description: string; requireCode?: boolean; dueMinutes?: number }[];
   /** Zählt diese Reihenfolge überhaupt? Fehlend = ja, wie bisher. */
   proofOrderMatters?: boolean;
   startGraceMinutes?: number;
@@ -1611,6 +1613,20 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
   const userId = await resolveTargetUserId(username);
   const requirements = await resolveTaskRequirements(userId, args);
   const proofCount = args.requireProof?.length ?? 0;
+  /** Die Nachweise in der Form des Dienstes — EINMAL übersetzt, damit Vorschau, Commit und
+   *  Ergebnis-Satz dieselbe Liste meinen. `dueMinutes` heisst am Werkzeug so, weil der Agent eine
+   *  Frist stellt; in der Zeile ist es der Abstand zum Nullpunkt (`dueOffsetMin`). */
+  const proofs = args.requireProof?.map((p) => ({
+    description: p.description,
+    requireCode: p.requireCode,
+    dueOffsetMin: p.dueMinutes,
+  }));
+  /** Nur die eigenen Fristen, für Vorschau und Ergebnis-Satz — `null` bedeutet dort ausdrücklich
+   *  „bis zum Ende der Aufgabe", was der Agent sonst raten müsste.
+   *
+   *  GEKLEMMT wie im Dienst: die Vorschau soll den Wert nennen, der in der Zeile landet. Roh
+   *  durchgereicht versprächen „0.4 Minuten" eine Frist, die der Dienst als „keine" speichert. */
+  const proofDueMinutes = proofs?.map((p) => clampProofDueOffset(p.dueOffsetMin) ?? null) ?? [];
   /** EINMAL aufgelöst für Vorschau, Commit und Ergebnis-Satz — die drei dürfen über dieselbe
    *  Aufgabe nicht Verschiedenes sagen. */
   const orderMatters = effectiveProofOrderMatters(args.proofOrderMatters);
@@ -1633,6 +1649,18 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     ? `${hold.holdDurationMin} minute(s) from the moment the user has everything on`
     : hold.holdUntil!.toISOString();
 
+  /**
+   * Dieselbe Schranke, die `checkProofs` zieht — HIER noch einmal, damit die Vorschau nicht Erfolg
+   * meldet für einen Commit, der mit `TASK_PROOF_DUE_AFTER_END` endet. Genau dafür gibt es den
+   * `problem`-Slot (siehe die `offenseRef`-Prüfung darunter).
+   *
+   * Nur im Modus mit festem Ende: im Dauer-Modus entsteht das Ende erst mit dem Anlegen, und dort
+   * misst der Dienst gegen den frühestmöglichen Zeitpunkt — mehr weiss die Vorschau auch nicht.
+   */
+  const dueAfterEnd = hold.holdUntil != null && proofDueMinutes.some(
+    (m) => m !== null && (previewWirksamAb ?? now).getTime() + m * 60_000 > hold.holdUntil!.getTime(),
+  );
+
   if (args.dryRun) {
     // Nur hier: der Commit-Pfad prüft dieselbe Schranke in `punishWithTask` noch einmal, und ein
     // Strafbuch-Aufbau kostet ein Dutzend Abfragen. Die Vorschau braucht sie trotzdem — sonst legt
@@ -1641,13 +1669,17 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     // Die tote ref gehört in den `problem`-Slot des Rahmens, nicht in ein Zusatzfeld: `wouldSucceed`
     // leitet sich daraus ab. Sonst meldete die Vorschau Erfolg für einen Commit, der mit
     // OFFENSE_NOT_FOUND endet — und der Agent legt sie seinem Nutzer genau so vor.
-    return dryRunPreview("create_task", offenseIsLive === false ? "OFFENSE_NOT_FOUND" : undefined, {
+    return dryRunPreview(
+      "create_task",
+      offenseIsLive === false ? "OFFENSE_NOT_FOUND" : dueAfterEnd ? "TASK_PROOF_DUE_AFTER_END" : undefined,
+      {
       title: args.title,
       hold: holdText,
       requirementCount: requirements.length,
       requiresKgLocked: requirements.some((r) => r.type === "KG_LOCKED"),
       proofCount,
       proofOrderMatters: orderMatters,
+      proofDueMinutes,
       startGraceMinutes: args.startGraceMinutes ?? null,
       scheduledFor: previewWirksamAb?.toISOString() ?? null,
       // Die ref ERZWINGT die Strafe — `punishWithTask` setzt `isPunishment: true`, unabhängig vom
@@ -1668,7 +1700,7 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     isPunishment: args.isPunishment,
     penaltyReason: args.penaltyReason,
     requirements,
-    proofs: args.requireProof,
+    proofs,
     proofOrderMatters: args.proofOrderMatters,
     delayMinutes: args.delayMinutes,
     wirksamAbAt: args.scheduledAt,
@@ -1691,7 +1723,16 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
       ? `, in the given order — the CAPTURE times must ascend. `
       : `, in any order — the capture times do not have to ascend. `)
     + `Proofs without a code cannot be decided automatically: the task then waits in "awaitingReview" `
-    + `for YOU to accept or reject them.`;
+    + `for YOU to accept or reject them.`
+    // Eine eigene Frist ist die schärfere Aussage: sie kann verstreichen, WÄHREND die Aufgabe noch
+    // läuft. Das muss dastehen, sonst hält der Agent die Aufgaben-Frist für die einzige.
+    // `join` allein taugte hier nicht: `null` wird darin zum LEERZEICHEN, und aus „240, none" würde
+    // „240, " — der Agent läse eine abgeschnittene Liste statt einer Frist, die es nicht gibt.
+    + (proofDueMinutes.some((m) => m !== null)
+      ? ` Own deadlines per proof (minutes from the trigger time):`
+        + ` ${proofDueMinutes.map((m) => m ?? "none (until the task ends)").join(", ")}.`
+        + ` Letting one pass unsubmitted makes the task unfulfilled right then, before the task's own end.`
+      : "");
   // Der Strafteil zuerst: er ist das, was der Agent seinem Nutzer schuldet — die Aufgabe ist hier
   // nicht bloss gestellt, sondern ein Urteil über ein Vergehen.
   const penaltyPart = args.offenseRef

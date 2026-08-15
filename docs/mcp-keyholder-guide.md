@@ -186,6 +186,13 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
   Aufgabe nur, wenn beide stimmen. Ihre **Aufnahmezeiten** müssen der angegebenen Reihenfolge folgen
   (Aufnahme-, nicht Upload-Zeit — sonst genügte es, am Ende alles hochzuladen). Nach `holdUntil`
   eingereicht zählt nicht mehr.
+- **Ein Nachweis kann eine EIGENE Frist haben** (`requireProof[].dueMinutes`, Minuten ab dem
+  Wirksamwerden der Aufgabe). Damit ist „drei Fotos über den Tag verteilt" EINE Aufgabe statt drei
+  Kontrollen: 240/480/720. Ohne die Angabe bleibt ein Nachweis wie bisher bis zum Ende der Aufgabe
+  offen. Verstreicht eine eigene Frist unerfüllt, ist die Aufgabe **sofort** versäumt — nicht erst
+  am Ende; nach ihr nimmt die App auch nichts mehr an. Später als das Ende der Aufgabe ist sie nicht
+  setzbar. In `openTasks` steht sie je Nachweis als `dueAt`, der verstrichene Fall als
+  `state: "overdue"`.
 - **Ist die Reihenfolge zufällig, schalte sie ab** (`proofOrderMatters: false`). „Ein Selfie in der
   Gemüse-, eines in der Blumenabteilung" ist keine Anweisung, die Abteilungen in dieser Folge zu
   besuchen — erzwungen ergäbe sie ein Versäumnis für nichts. Abgeschaltet entfällt mit der

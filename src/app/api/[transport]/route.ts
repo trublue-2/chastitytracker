@@ -1071,7 +1071,9 @@ function registerTools(server: McpServer) {
           "before the deadline makes the task unfulfilled (an offense of type unfulfilled_task). Without " +
           "conditions it is a plain to-do that the user reports done. State is DERIVED from the user's own " +
           "entries — nothing to confirm manually. A task may be flagged as a punishment. " +
-          "Additionally you may demand PHOTO PROOFS via requireProof: the user submits one photo per entry, " +
+          "Additionally you may demand PHOTO PROOFS via requireProof: each entry may carry its own " +
+          "deadline (dueMinutes) — that is how \"three photos spread over the day\" is expressed. " +
+          "The user submits one photo per entry, " +
           "and their CAPTURE times must ascend in the order you list them (capture time, not upload time — " +
           "otherwise uploading everything at the end would pass; set proofOrderMatters=false where the " +
           "order is incidental). A proof with requireCode is checked " +
@@ -1102,6 +1104,13 @@ function registerTools(server: McpServer) {
           requireProof: z.array(z.object({
             description: z.string().describe("What must be visible, e.g. \"the closed lock\" or \"a photo with at least two receipts\"."),
             requireCode: z.boolean().optional().describe("Demand a handwritten random code in the shot. Only these are decided automatically; without it the proof waits for your review."),
+            dueMinutes: z.number().positive().optional().describe(
+              "Own deadline for THIS proof: minutes counted from the moment the task becomes " +
+              "effective (for a scheduled task: from its trigger time). Omit and the proof stays " +
+              "open until the task ends, as before. Use it for \"three photos spread over the day\" " +
+              "— 240/480/720. Letting one pass unsubmitted makes the task unfulfilled right then, " +
+              "before its own deadline. Must not lie after the end of the task.",
+            ),
           })).optional().describe("Photo proofs, in the order they must be TAKEN."),
           proofOrderMatters: z.boolean().optional().describe(
             "Does that order count? Default true (capture times must ascend). Set false when the " +

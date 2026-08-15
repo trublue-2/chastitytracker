@@ -1,5 +1,5 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/taskIntervals";
-import { firstOutOfOrderProof, isTaskOpen, startDeadline, type TaskState } from "@/lib/tasks";
+import { firstOutOfOrderProof, isTaskOpen, ownProofDeadline, startDeadline, type TaskState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { wearActionHref } from "@/lib/categoryConstants";
 
@@ -39,7 +39,12 @@ export type TaskCardProofState =
   /** Aufnahmezeit bricht die geforderte Reihenfolge — dieser Nachweis ist der Grund, warum die
    *  Aufgabe scheitert. Ohne diesen Zustand zeigte die Zeile „erbracht" (ihr Code stimmte ja),
    *  während die Aufgabe darunter „versäumt" meldet. */
-  | "outOfOrder";
+  | "outOfOrder"
+  /** EIGENE Fälligkeit verstrichen: nichts eingereicht — oder erst NACH ihr, was für das Urteil
+   *  dasselbe ist. Aus demselben Grund ein eigener Zustand wie `outOfOrder`: er ist der Beleg für das
+   *  Urteil der Aufgabe, und er nimmt der Zeile den Aufnahme-Link — sonst führte sie in ein Formular,
+   *  das der Dienst ohnehin abweist. */
+  | "overdue";
 
 export interface TaskCardProof {
   id: string;
@@ -49,6 +54,24 @@ export interface TaskCardProof {
    *  MUSS sichtbar sein — ohne ihn kann er den Nachweis gar nicht erbringen. */
   code: string | null;
   state: TaskCardProofState;
+  /**
+   * EIGENE Fälligkeit dieses Nachweises als ISO — null, wo er bis zum Ende der Aufgabe offen ist
+   * (dann gilt die Frist im Kartenkopf, und eine zweite Zeile mit derselben Uhrzeit wäre Lärm).
+   *
+   * Als aufgelöster ZEITPUNKT und nicht als Minuten-Abstand: gespeichert ist der Abstand zum
+   * Nullpunkt, gemeint ist eine Uhrzeit — und die Karte soll sie nicht selbst ausrechnen müssen,
+   * schon gar nicht mit einem zweiten Begriff davon, wo der Nullpunkt liegt.
+   */
+  dueAt: string | null;
+  /**
+   * Wurde überhaupt etwas eingereicht? Die Grundlage der Sichtung ({@link proofIsSubmitted}).
+   *
+   * Ein eigenes Feld, weil {@link TaskCardProofState} die Frage nicht beantwortet: `overdue` trägt
+   * beide Fälle (nie eingereicht / zu spät eingereicht), und nur im zweiten gibt es ein Foto zu
+   * beurteilen. Der Zeitpunkt selbst reist nicht mit — die Karte zeigt ihn nirgends, und ein Feld,
+   * das niemand liest, wäre bloss eine weitere Zusicherung, die auseinanderlaufen kann.
+   */
+  submitted: boolean;
   /** Deep-Link ins Aufnahme-Formular. Null beim Keyholder und bei bereits eingereichten. */
   href: string | null;
   /** Das eingereichte Foto. Ohne es kann die Keyholderin nicht urteilen — und der Sub sieht, was er
@@ -249,17 +272,48 @@ export function visibleStartDeadline(task: Pick<TaskCardData, "startDeadline" | 
   return task.startDeadline;
 }
 
+/**
+ * Liegt an diesem Nachweis überhaupt ein Foto? — die Frage, an der die Sichtung hängt.
+ *
+ * Am eigenen Feld und NICHT aus {@link TaskCardProof.state} erschlossen, obwohl das kürzer wäre: der
+ * Zustand fasst Sachverhalte zusammen, die für die Sichtung auseinanderfallen. `overdue` heisst „die
+ * Frist ist um" — und das trifft sowohl den Nachweis, zu dem nie etwas kam (nichts zu sichten), als
+ * auch den, der zu SPÄT kam (Foto da, Urteil weiterhin möglich und sinnvoll). Aus dem Zustand
+ * abgeleitet verlor die Keyholderin für den zweiten Fall Annehmen und Ablehnen, während das Bild
+ * darüber sichtbar blieb.
+ */
+export function proofIsSubmitted(proof: Pick<TaskCardProof, "submitted">): boolean {
+  return proof.submitted;
+}
+
 /** Der Zustand eines einzelnen Nachweises. Dieselbe Rangfolge wie in `evaluateProofs`: das Urteil
  *  eines MENSCHEN schlägt jede Automatik.
  *
  *  Exportiert, weil auch das MCP-Dashboard ihn ausliefert — der Keyholder-Agent sieht dann genau das,
  *  was die Karte zeigt. Zwei Ableitungen desselben Zustands wären zwei Antworten auf dieselbe Frage. */
-export function taskProofState(p: TaskProofView, outOfOrderId: string | null): TaskCardProofState {
+export function taskProofState(
+  p: TaskProofView,
+  outOfOrderId: string | null,
+  /** Ist die EIGENE Fälligkeit dieses Nachweises verstrichen? Aus `evaluation.overdueProofIds` —
+   *  die Auswertung ist die einzige Schicht, die „jetzt" kennt (siehe dort).
+   *
+   *  PFLICHT-Angabe ohne Vorgabewert: ein vergessenes Argument fiele sonst still auf „nicht
+   *  überfällig" zurück und zeigte einen versäumten Nachweis als offen — dieselbe Klasse stiller
+   *  Falschauskunft, gegen die `firstOutOfOrderProof` seinen `task`-Parameter bekommen hat. */
+  overdue: boolean,
+): TaskCardProofState {
   // Die Reihenfolge schlägt alles: sie ist der Grund, aus dem die Aufgabe scheitert, und muss an der
   // Zeile stehen, die sie gebrochen hat.
   if (p.id === outOfOrderId) return "outOfOrder";
   if (p.reviewAccepted === true) return "confirmed";
   if (p.reviewAccepted === false) return "rejected";
+  // Vor `open` UND vor der Automatik, aber NACH den Urteilen eines Menschen: ein spät doch noch
+  // angenommener Nachweis ist erbracht, kein Versäumnis.
+  //
+  // Auch ein EINGEREICHTER Nachweis kann hier landen — nämlich einer, der nach seiner eigenen Frist
+  // kam. Fürs Urteil zählt er nicht (`proofCounted`), und ohne diesen Zweig zeigte die Zeile ein
+  // grünes „erbracht" über einer versäumten Aufgabe, ohne dass irgendwo stünde, woran es lag.
+  if (overdue) return "overdue";
   if (!p.submittedAt) return "open";
   return p.verifikationStatus !== null ? "confirmed" : "review";
 }
@@ -325,14 +379,28 @@ export function toTaskCard(
     e.task,
   )?.id ?? null;
 
+  // Die überfälligen kommen aus der AUSWERTUNG, nicht aus einer eigenen Uhr hier — siehe
+  // `TaskEvaluation.overdueProofIds`. Lineare Suche statt eines `Set`: die Liste ist durch
+  // `TASK_PROOF_MAX` auf zehn gedeckelt und fast immer leer, ein Set je Aufgabe wäre teurer als
+  // das, was es beschleunigen soll.
   const proofs: TaskCardProof[] = proofViews.map((p) => {
-    const state = taskProofState(p, outOfOrderId);
+    const state = taskProofState(p, outOfOrderId, e.evaluation.overdueProofIds.includes(p.id));
     return {
       id: p.id,
       description: p.description,
       code: p.code,
       state,
-      href: withLinks && state === "open" ? `/dashboard/new/task-proof/${p.id}` : null,
+      // Gegen das WIRKSAME Ende gedeckelt (`evaluation.holdUntil`), wie jede andere Frist-Anzeige
+      // dieser Karte: im Dauer-Modus steht in der Spalte nur das spätestmögliche.
+      dueAt: ownProofDeadline(p, e.task, e.evaluation.holdUntil)?.toISOString() ?? null,
+      submitted: p.submittedAt !== null,
+      // Der Link hängt an der AUFGABE, nicht nur an der Zeile: steht ihr Ergebnis fest, ändert kein
+      // weiteres Foto mehr etwas. Verpasst der Träger den ersten von drei Nachweisen, ist die Aufgabe
+      // versäumt — die beiden übrigen Zeilen blieben ohne diese Bedingung „offen" und schickten ihn
+      // weiter zum Fotografieren für ein Urteil, das schon gefallen ist.
+      href: withLinks && state === "open" && isTaskOpen(e.evaluation.state)
+        ? `/dashboard/new/task-proof/${p.id}`
+        : null,
       imageUrl: p.imageUrl,
       reviewNote: p.reviewNote,
       // Beides oder nichts: `reviewTaskProof` schreibt Urteil und Zeitstempel in einem Zug.

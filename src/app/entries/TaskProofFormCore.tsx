@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Camera } from "lucide-react";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
@@ -14,6 +14,7 @@ import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import EntryFormShell from "@/app/components/EntryFormShell";
+import { formatDateTime, toDateLocale } from "@/lib/utils";
 
 /**
  * Der Sub reicht EIN gefordertes Nachweis-Foto ein (Issue #39, Etappe 3).
@@ -31,6 +32,8 @@ export default function TaskProofFormCore({
   code,
   taskTitle,
   orderMatters,
+  dueAt,
+  tz,
   mobileDesktopMode,
 }: {
   proofId: string;
@@ -38,6 +41,16 @@ export default function TaskProofFormCore({
   /** Null ohne Code-Pflicht — dann legt die Keyholderin den Nachweis selbst vor. */
   code: string | null;
   taskTitle: string;
+  /**
+   * EIGENE Fälligkeit dieses Nachweises (ISO) — null, wo er bis zum Ende der Aufgabe offen ist.
+   *
+   * Sie MUSS hier stehen: sie ist strenger als die Frist der Aufgabe, und der Träger kommt mit der
+   * Frist im Kopf hierher, die auf der Karte stand. Eine Frist, die man nicht sieht und deren
+   * Verstreichen ein Versäumnis erzeugt, ist genau die Sorte, die es nicht geben darf.
+   */
+  dueAt: string | null;
+  /** Zeitzone des Trägers — Fristen sind absolute Zeitpunkte, angezeigt wird in SEINER Zone. */
+  tz: string;
   /** Fordert die Aufgabe eine Reihenfolge der Aufnahmen (`Task.proofOrderMatters`)? Nur dann zählt
    *  die Aufnahmezeit, und nur dann ist ein Bild ohne sie ein Fall für die Keyholderin — sonst
    *  verspräche das Formular eine Regel, gegen die der Träger gar nicht gemessen wird. */
@@ -46,6 +59,7 @@ export default function TaskProofFormCore({
 }) {
   const t = useTranslations("tasks");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const apiError = useApiError();
   const router = useRouter();
 
@@ -89,6 +103,15 @@ export default function TaskProofFormCore({
           <p className="text-sm mt-2">
             <span className="text-foreground-muted">{t("proofCodeLabel")}: </span>
             <span className="font-mono tracking-widest text-[var(--color-inspect)] font-semibold">{code}</span>
+          </p>
+        )}
+        {/* Ruhig und nicht in Warnfarbe: hierher kommt der Träger nur, SOLANGE die Frist läuft — ist
+            sie um, leitet die Seite ihn gar nicht erst auf dieses Formular (siehe
+            `proofSubmitBlockedReason`). Die Warnfarbe trägt die Karte, wenn die Frist verstrichen
+            ist; hier wäre sie ein Alarm für den Normalfall. */}
+        {dueAt && (
+          <p className="text-xs font-medium text-foreground-muted mt-2 tabular-nums">
+            {t("proofDueLine", { value: formatDateTime(dueAt, toDateLocale(locale), tz) })}
           </p>
         )}
         <p className="text-xs text-foreground-faint mt-2">

@@ -220,6 +220,52 @@ describe("createTask — Nachweis-Fotos (Issue #39)", () => {
     await createTask(base, "herrin");
     expect(proofsOf()).toEqual([]);
   });
+
+  /** B12 — die EIGENE Fälligkeit eines Nachweises (Minuten ab dem Nullpunkt der Aufgabe). */
+  it("eine eigene Fälligkeit wandert als Minutenzahl in die Zeile, ohne sie bleibt sie leer", async () => {
+    await createTask({ ...base, proofs: [{ description: "mittags", dueOffsetMin: 60 }, { description: "irgendwann" }] }, "herrin");
+    expect(proofsOf()[0]).toMatchObject({ dueOffsetMin: 60 });
+    expect(proofsOf()[1]).toMatchObject({ dueOffsetMin: null });
+  });
+
+  /** Eine Fälligkeit HINTER dem Ende der Aufgabe könnte nie greifen: `proofDeadline` deckelt sie auf
+   *  das Ende, und der Poller sucht über die Spalte `holdUntil`. Abweisen statt still kappen — sonst
+   *  bekäme die Keyholderin eine andere Frist, als sie gestellt hat. */
+  it("eine Fälligkeit nach dem Ende der Aufgabe wird abgewiesen", async () => {
+    // Ende in drei Stunden, Fälligkeit „nach vier Stunden".
+    const res = await createTask({ ...base, proofs: [{ description: "zu spät", dueOffsetMin: 240 }] }, "herrin");
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_PROOF_DUE_AFTER_END");
+    expect(taskCreateMock).not.toHaveBeenCalled();
+    // Genau auf dem Ende ist noch zulässig — dieselbe Kante wie beim Einreichen.
+    expect((await createTask({ ...base, proofs: [{ description: "auf der Kante", dueOffsetMin: 180 }] }, "herrin")).ok).toBe(true);
+  });
+
+  /** Eine 0 heisst „keine eigene Frist" — NICHT „eine Minute". Über `clampHoldDuration` geklemmt
+   *  (dessen `min: 1` für eine Haltedauer richtig ist) wäre die Aufgabe eine Minute nach dem
+   *  Nullpunkt versäumt, ohne dass jemand eine Frist gewählt hätte. */
+  it("eine Fälligkeit von 0 ist keine Fälligkeit", async () => {
+    await createTask({ ...base, proofs: [
+      { description: "ohne Frist", dueOffsetMin: 0 },
+      { description: "unlesbar", dueOffsetMin: Number.NaN },
+      { description: "negativ", dueOffsetMin: -30 },
+    ] }, "herrin");
+    expect(proofsOf().map((p: { dueOffsetMin: number | null }) => p.dueOffsetMin)).toEqual([null, null, null]);
+  });
+
+  /** Der Nullpunkt einer TERMINIERTEN Aufgabe ist ihr Auslöse-Zeitpunkt (B1). Gegen „jetzt" geprüft
+   *  wäre eine Fälligkeit, die nach dem Wirksamwerden bequem in die Frist passt, hier abgewiesen. */
+  it("bei einer terminierten Aufgabe zählt die Fälligkeit ab dem Wirksamwerden", async () => {
+    const res = await createTask({
+      ...base,
+      // Wirksam in vier Stunden, Ende sechs Stunden später — „nach 60 Minuten" liegt bequem darin.
+      wirksamAbAt: new Date(JETZT.getTime() + 4 * 3600_000).toISOString(),
+      holdUntil: new Date(JETZT.getTime() + 10 * 3600_000),
+      proofs: [{ description: "eine Stunde nach dem Start", dueOffsetMin: 60 }],
+    }, "herrin");
+    expect(res.ok).toBe(true);
+    expect(proofsOf()[0]).toMatchObject({ dueOffsetMin: 60 });
+  });
 });
 
 describe("updateTask — Endzeit während der Nutzung verschieben (Issue #29)", () => {

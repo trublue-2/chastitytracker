@@ -146,7 +146,7 @@ export default function TaskCard({
                     aus (`firstOutOfOrderProof`), die Nummer ist dann reine Zählung. */}
                 <span
                   className={`size-5 rounded-md flex items-center justify-center shrink-0 text-[11px] font-semibold tabular-nums ${
-                    p.state === "rejected" || p.state === "outOfOrder" ? "bg-warn text-background"
+                    p.state === "rejected" || p.state === "outOfOrder" || p.state === "overdue" ? "bg-warn text-background"
                       : p.state === "confirmed" ? "bg-ok text-background"
                       : "text-foreground-faint"
                   }`}
@@ -156,6 +156,15 @@ export default function TaskCard({
                 </span>
                 <span className="min-w-0 flex-1 flex flex-col">
                   <span className="text-sm text-foreground break-words">{p.description}</span>
+                  {/* Die EIGENE Fälligkeit dieses Nachweises — nur wo es sie gibt. Sonst gilt die
+                      Frist im Kartenkopf, und dieselbe Uhrzeit ein zweites Mal je Zeile wäre Lärm.
+                      Warnfarbe erst, wenn sie verstrichen ist: dann ist sie kein Hinweis mehr,
+                      sondern der Beleg für das Urteil der Aufgabe. */}
+                  {p.dueAt && (
+                    <span className={`text-xs tabular-nums ${p.state === "overdue" ? "text-warn-text" : "text-foreground-muted"}`}>
+                      {t("proofDueLine", { value: dual(p.dueAt) })}
+                    </span>
+                  )}
                   {/* Der Code MUSS sichtbar sein — ohne ihn kann der Nachweis nicht erbracht
                       werden. Monospace und gesperrt, damit er von Hand abschreibbar ist. */}
                   {p.code && p.state === "open" && (

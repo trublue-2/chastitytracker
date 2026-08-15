@@ -175,7 +175,10 @@ describe("submitTaskProof — die Prüfung blockiert das Einreichen NICHT", () =
 });
 
 describe("proofSubmitBlockedReason — geteilt von Seite und Service", () => {
-  const open = { submittedAt: null, task: { withdrawnAt: null, holdUntil: HOLD_UNTIL } };
+  /** Ein Nachweis OHNE eigene Fälligkeit an einer sofort wirksamen Aufgabe — die Bestandsform:
+   *  seine Frist ist unverändert das Ende der Aufgabe. */
+  const TASK = { withdrawnAt: null, holdUntil: HOLD_UNTIL, createdAt: NOW, wirksamAb: null };
+  const open = { submittedAt: null, dueOffsetMin: null, task: TASK };
 
   it("offen und fristgerecht: nichts steht im Weg", () => {
     expect(proofSubmitBlockedReason(open, NOW)).toBeNull();
@@ -183,8 +186,34 @@ describe("proofSubmitBlockedReason — geteilt von Seite und Service", () => {
 
   it("nennt jeden Hinderungsgrund beim Namen", () => {
     expect(proofSubmitBlockedReason({ ...open, submittedAt: NOW }, NOW)).toBe("TASK_PROOF_ALREADY_SUBMITTED");
-    expect(proofSubmitBlockedReason({ ...open, task: { withdrawnAt: NOW, holdUntil: HOLD_UNTIL } }, NOW)).toBe("TASK_NOT_EDITABLE");
+    expect(proofSubmitBlockedReason({ ...open, task: { ...TASK, withdrawnAt: NOW } }, NOW)).toBe("TASK_NOT_EDITABLE");
     expect(proofSubmitBlockedReason(open, new Date("2026-07-25T19:00:00Z"))).toBe("TASK_PROOF_TOO_LATE");
+  });
+
+  /**
+   * B12 — hat der Nachweis eine EIGENE Fälligkeit, ist sie die frühere Schranke. Gegen die Frist der
+   * Aufgabe geprüft nähme das Formular noch stundenlang Fotos an, die `evaluateProofs` längst nicht
+   * mehr zählt: ein Erfolgserlebnis, das keins ist.
+   */
+  it("die eigene Fälligkeit eines Nachweises ist die frühere Schranke", () => {
+    // Nullpunkt 14:00 (`createdAt`), Fälligkeit „nach 60 Minuten" = 15:00, Aufgaben-Ende 18:00.
+    const eigene = { ...open, dueOffsetMin: 60 };
+    expect(proofSubmitBlockedReason(eigene, new Date("2026-07-25T14:59:00Z"))).toBeNull();
+    expect(proofSubmitBlockedReason(eigene, new Date("2026-07-25T15:01:00Z"))).toBe("TASK_PROOF_TOO_LATE");
+    // Ohne eigene Fälligkeit ist zur selben Zeit nichts im Weg — die Bestandsform bleibt unberührt.
+    expect(proofSubmitBlockedReason(open, new Date("2026-07-25T15:01:00Z"))).toBeNull();
+  });
+
+  /** Der Nullpunkt einer terminierten Aufgabe ist ihr Auslöse-Zeitpunkt: eine Stunde nach 16:00,
+   *  nicht eine Stunde nach dem Stellen. */
+  it("bei einer terminierten Aufgabe zählt die eigene Fälligkeit ab dem Wirksamwerden", () => {
+    const terminiert = {
+      ...open,
+      dueOffsetMin: 60,
+      task: { ...TASK, wirksamAb: new Date("2026-07-25T16:00:00Z") },
+    };
+    expect(proofSubmitBlockedReason(terminiert, new Date("2026-07-25T16:30:00Z"))).toBeNull();
+    expect(proofSubmitBlockedReason(terminiert, new Date("2026-07-25T17:30:00Z"))).toBe("TASK_PROOF_TOO_LATE");
   });
 });
 

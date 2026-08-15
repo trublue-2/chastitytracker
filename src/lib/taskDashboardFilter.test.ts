@@ -24,6 +24,7 @@ function evaluated(state: TaskState): EvaluatedTask {
     awaitingConfirmation: false,
     holdRunning: false,
     proofCheckPending: false,
+    overdueProofIds: [],
   };
   return {
     task: {

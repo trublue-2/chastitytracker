@@ -20,6 +20,7 @@ const EVAL: TaskEvaluation = {
   awaitingConfirmation: false,
   holdRunning: true,
   proofCheckPending: false,
+  overdueProofIds: [],
 };
 
 function evaluated(

@@ -652,14 +652,34 @@ export function clampHoldDuration(value: number | null | undefined): number | un
   return Math.min(TASK_HOLD_DURATION_RANGE.max, Math.max(TASK_HOLD_DURATION_RANGE.min, rounded));
 }
 
-/** Arten von Aufgaben-Bedingungen. WEAR = Gerät/Kategorie tragen · KG_LOCKED = verschlossen sein
- *  (der KG ist bewusst keine Trage-Kategorie, ein WEAR_BEGIN darauf wird abgewiesen). */
+/**
+ * Die EIGENE Fälligkeit eines Nachweises auf ihren Bereich bringen (Minuten ab dem Nullpunkt der
+ * Aufgabe) — `undefined` heisst „keine eigene Frist", der Nachweis bleibt bis zum Ende der Aufgabe
+ * offen.
+ *
+ * Eigene Funktion und NICHT {@link clampHoldDuration}, obwohl beide dieselbe Spanne teilen: die
+ * beiden unterscheiden sich genau an der unteren Kante, und dort liegt der Schaden. `clampHoldDuration`
+ * hebt eine 0 auf `min: 1` — für eine Haltedauer richtig („null Minuten fordern nichts"), hier
+ * fatal: aus einer getippten 0 würde eine Frist EINE MINUTE nach dem Nullpunkt, und die Aufgabe wäre
+ * versäumt, bevor der Träger das Handy weglegt. Eine 0 ist hier keine unmögliche Dauer, sondern die
+ * Aussage „keine". Genau die Sorte Umdeutung, gegen die schon `clampStartGrace` eine eigene Funktion
+ * hat (siehe dort).
+ */
+export function clampProofDueOffset(value: number | null | undefined): number | undefined {
+  if (value == null) return undefined;
+  const rounded = Math.round(value);
+  if (!Number.isFinite(rounded) || rounded < TASK_HOLD_DURATION_RANGE.min) return undefined;
+  return Math.min(TASK_HOLD_DURATION_RANGE.max, rounded);
+}
+
 /** Wie viele Nachweis-Fotos eine Aufgabe höchstens fordern darf. Nicht willkürlich: jeder Nachweis
  *  ist ein eigener Gang zum Handy, und die Reihenfolge muss belegbar bleiben. Zehn ist grosszügig
  *  über dem Leitbeispiel (drei) und deckelt zugleich, was `evaluateProofs` je Auswertung sortiert. */
 export const TASK_PROOF_MAX = 10;
 /** Was auf dem Bild zu sehen sein muss — eine Anweisung, kein Aufsatz. */
 export const TASK_PROOF_DESCRIPTION_MAX_LENGTH = 200;
+/** Arten von Aufgaben-Bedingungen. WEAR = Gerät/Kategorie tragen · KG_LOCKED = verschlossen sein
+ *  (der KG ist bewusst keine Trage-Kategorie, ein WEAR_BEGIN darauf wird abgewiesen). */
 export const TASK_REQUIREMENT_TYPES = ["WEAR", "KG_LOCKED"] as const;
 export type TaskRequirementType = (typeof TASK_REQUIREMENT_TYPES)[number];
 

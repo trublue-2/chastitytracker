@@ -14,8 +14,8 @@ import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 import { toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, type BoxFailsafeWarning } from "@/lib/boxStatus";
-import { getEvaluatedTasks, loadTaskProofViews, type TaskProofView } from "@/lib/taskIntervals";
-import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, type TaskLike } from "@/lib/tasks";
+import { getEvaluatedTasks, loadTaskProofViews, type EvaluatedTask, type TaskProofView } from "@/lib/taskIntervals";
+import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike } from "@/lib/tasks";
 import { taskProofState } from "@/lib/taskView";
 
 /** keyholder_dashboard (explain_model §13) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
@@ -171,8 +171,15 @@ export interface DashboardResult extends Envelope {
    *  `nextRelevant.openTasks` bedeutet dadurch etwas anderes: „offen" heisst ab jetzt „beim Sub
    *  angekommen und noch nicht entschieden" — eine terminierte, noch nicht ausgelöste Aufgabe steht
    *  NICHT mehr darin, sondern in `scheduledDirectives` (dort neu mit `kind: "task"`). Kein
-   *  additives Feld: ein v10-Wert zählte auch das Geplante mit, ein v11-Wert nicht. */
-  schemaVersion: 11;
+   *  additives Feld: ein v10-Wert zählte auch das Geplante mit, ein v11-Wert nicht.
+   *
+   *  v12: ein Nachweis kann eine EIGENE Fälligkeit haben (`create_task` mit
+   *  `requireProof[].dueMinutes`). Neu je Nachweis `dueAt` — das allein wäre additiv. Nicht additiv
+   *  ist der neue Wert `overdue` in `openTasks[].proofs[].state`: dieselbe Erweiterung einer
+   *  Zustands-Menge wie in v8, und mit derselben Folge. Wer bisher jede nicht eingereichte Zeile als
+   *  „der Sub ist noch dran" las, läge falsch — bei `overdue` kann er nichts mehr tun, die Frist ist
+   *  vorbei und die Aufgabe damit versäumt. */
+  schemaVersion: 12;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
@@ -329,13 +336,17 @@ export interface OpenTaskView {
 /** Die Nachweise einer Aufgabe für den Keyholder — inklusive der Regel, welcher die Reihenfolge
  *  bricht. Dieselbe Ableitung wie auf der Karte (`taskProofState` + `firstOutOfOrderProof`), damit
  *  Agent und Oberfläche nicht verschiedene Zustände zur selben Zeile nennen. */
-function taskProofViews(views: TaskProofView[], task: Pick<TaskLike, "proofOrderMatters">): OpenTaskProofView[] {
+function taskProofViews(views: TaskProofView[], { task, evaluation }: EvaluatedTask): OpenTaskProofView[] {
   const ordered = [...views].sort((a, b) => a.sortOrder - b.sortOrder);
   const outOfOrderId = firstOutOfOrderProof(ordered, task)?.id ?? null;
   return ordered.map((p, i) => ({
     index: i + 1,
     description: p.description,
-    state: taskProofState(p, outOfOrderId),
+    // Zustand und Frist kommen aus derselben AUSWERTUNG wie auf der Karte — die überfälligen
+    // Nachweise stehen dort schon (`overdueProofIds`), und das wirksame Ende ebenfalls. Eine eigene
+    // Uhr hier gäbe zwei Antworten auf dieselbe Frage.
+    state: taskProofState(p, outOfOrderId, evaluation.overdueProofIds.includes(p.id)),
+    dueAt: ownProofDeadline(p, task, evaluation.holdUntil)?.toISOString() ?? null,
     reviewNote: p.reviewNote,
   }));
 }
@@ -348,8 +359,13 @@ export interface OpenTaskProofView {
   description: string;
   /** open = noch nicht eingereicht · confirmed = erbracht (Code bestätigt oder von dir angenommen) ·
    *  review = eingereicht, wartet auf DEIN Urteil · rejected = von dir abgelehnt ·
-   *  outOfOrder = Aufnahmezeit bricht die geforderte Reihenfolge. */
+   *  outOfOrder = Aufnahmezeit bricht die geforderte Reihenfolge ·
+   *  overdue = eigene Fälligkeit verstrichen, nichts eingereicht (die Aufgabe ist damit versäumt). */
   state: string;
+  /** EIGENE Fälligkeit dieses Nachweises (ISO-8601 mit Offset) — null, wo er bis zum Ende der
+   *  Aufgabe offen ist. Nach ihr nimmt die App nichts mehr an; ein `dueAt` in der Vergangenheit mit
+   *  `state: "open"` gibt es deshalb nicht, das ist dann `overdue`. */
+  dueAt: string | null;
   /** Deine Anmerkung aus der Sichtung, falls du eine hinterlassen hast. */
   reviewNote: string | null;
 }
@@ -651,7 +667,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       missing: e.evaluation.missing.map((m) => m.label),
       startedAt: iso(e.evaluation.startedAt),
       awaitingUserConfirmation: e.evaluation.awaitingConfirmation,
-      proofs: taskProofViews(proofViews.get(e.task.id) ?? [], e.task),
+      proofs: taskProofViews(proofViews.get(e.task.id) ?? [], e),
       proofOrderMatters: e.task.proofOrderMatters,
       isPunishment: e.task.isPunishment,
     }));
@@ -664,7 +680,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 11,
+    schemaVersion: 12,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,

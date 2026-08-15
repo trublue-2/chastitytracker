@@ -5,7 +5,7 @@ import { structuredLog } from "@/lib/serverLog";
 import { notifyUser } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
-import { isTaskResultFinal } from "@/lib/tasks";
+import { isTaskResultFinal, proofDeadline } from "@/lib/tasks";
 import { settleTaskResult } from "@/lib/taskService";
 import type { MessageActor } from "@/lib/messageService";
 
@@ -80,7 +80,9 @@ export async function submitTaskProof(
     // Besitz über die Aufgabe — ein Nachweis gehört niemandem für sich. `userId` ist Pflicht, nicht
     // optional: ein vergessener Besitz-Check wäre ein IDOR, den kein Typfehler auffängt.
     where: { id: proofId, task: { userId } },
-    include: { task: { select: { id: true, withdrawnAt: true, holdUntil: true } } },
+    // `createdAt`/`wirksamAb` gehören zur Schranke: die eigene Fälligkeit eines Nachweises zählt ab
+    // dem Nullpunkt der Aufgabe, nicht ab ihrem Ende.
+    include: { task: { select: { id: true, withdrawnAt: true, holdUntil: true, createdAt: true, wirksamAb: true } } },
   });
   if (!proof) return serviceFail(404, "TASK_PROOF_NOT_FOUND");
 
@@ -110,7 +112,11 @@ export async function submitTaskProof(
  *  formulierte Bedingungsketten wären genau die Stelle, an der eine künftige fünfte Bedingung nur in
  *  einer der beiden landet. */
 export function proofSubmitBlockedReason(
-  proof: { submittedAt: Date | null; task: { withdrawnAt: Date | null; holdUntil: Date } },
+  proof: {
+    submittedAt: Date | null;
+    dueOffsetMin: number | null;
+    task: { withdrawnAt: Date | null; holdUntil: Date; createdAt: Date; wirksamAb: Date | null };
+  },
   now: Date,
 ): "TASK_NOT_EDITABLE" | "TASK_PROOF_ALREADY_SUBMITTED" | "TASK_PROOF_TOO_LATE" | null {
   // `task.holdUntil` ist hier die ZEILE, im Dauer-Modus also das spätestmögliche Ende. Das ist
@@ -126,7 +132,11 @@ export function proofSubmitBlockedReason(
   // Nach der Frist nehmen wir gar nicht erst an. `evaluateProofs` würde einen späten Nachweis ohnehin
   // nicht zählen — ihn trotzdem zu speichern hiesse, dem Sub ein Erfolgserlebnis zu geben, das keins
   // ist. Die klare Absage im Moment des Absendens ist ehrlicher.
-  if (now > proof.task.holdUntil) return "TASK_PROOF_TOO_LATE";
+  //
+  // Gemessen wird gegen die Frist DIESES Nachweises: hat er eine eigene, ist sie die frühere, und
+  // die Aufgaben-Frist wäre eine Einladung, etwas nachzureichen, das nicht mehr zählt. Ohne eigene
+  // Fälligkeit liefert `proofDeadline` unverändert `task.holdUntil`.
+  if (now > proofDeadline(proof, proof.task, proof.task.holdUntil)) return "TASK_PROOF_TOO_LATE";
   return null;
 }
 

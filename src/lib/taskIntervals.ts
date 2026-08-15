@@ -86,7 +86,7 @@ export const TASK_INCLUDE = {
   proofs: {
     orderBy: { sortOrder: "asc" },
     select: {
-      id: true, sortOrder: true, requireCode: true, submittedAt: true,
+      id: true, sortOrder: true, requireCode: true, dueOffsetMin: true, submittedAt: true,
       imageExifTime: true, verifikationStatus: true, verifikationReason: true, reviewAccepted: true,
     },
   },
@@ -221,6 +221,9 @@ export interface TaskProofView {
   requireCode: boolean;
   /** Der Code, den der Sub ins Bild schreiben muss. Null ohne Code-Pflicht. */
   code: string | null;
+  /** EIGENE Fälligkeit in Minuten ab dem Nullpunkt der Aufgabe — die Anzeige löst sie über
+   *  `proofDeadline` zu einem Zeitpunkt auf. Null = offen bis zum Ende der Aufgabe. */
+  dueOffsetMin: number | null;
   submittedAt: Date | null;
   /** Aufnahmezeit — die Anzeige braucht sie, um den Nachweis zu benennen, der die Reihenfolge
    *  bricht (`firstOutOfOrderProof`). */

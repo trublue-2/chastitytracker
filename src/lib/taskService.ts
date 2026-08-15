@@ -7,9 +7,10 @@ import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
 import { computeDelayedTrigger, deadlineFromDispatch, isHiddenFromSub } from "@/lib/delayedTrigger";
-import { startDeadline, isTaskResultFinal, effectiveProofOrderMatters } from "@/lib/tasks";
+import { startDeadline, taskAnchor, isTaskResultFinal, effectiveProofOrderMatters } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
+  clampProofDueOffset,
   TASK_REQUIREMENT_TYPES, TASK_PROOF_MAX,
   TASK_PROOF_DESCRIPTION_MAX_LENGTH, type TaskRequirementType,
 } from "@/lib/constants";
@@ -54,6 +55,10 @@ export interface TaskProofInput {
   /** Handschriftlichen Zufallscode verlangen? Nur damit ist der Nachweis maschinell prüfbar; ohne
    *  Code geht er zur Sichtung an den Keyholder. */
   requireCode?: boolean;
+  /** EIGENE Fälligkeit in Minuten ab dem Nullpunkt der Aufgabe. Fehlend/`null` = wie bisher: offen
+   *  bis zum Ende der Aufgabe. Später als dieses Ende ist sie nicht setzbar
+   *  (`TASK_PROOF_DUE_AFTER_END`) — sonst wäre sie eine Frist, die nie greift. */
+  dueOffsetMin?: number | null;
 }
 
 /**
@@ -74,17 +79,36 @@ function normalizeProof(p: TaskProofInput, sortOrder: number) {
     // Der Code entsteht HIER und nicht beim Einreichen: er ist die Vorgabe, die der Sub im Bild
     // zeigen muss, und muss feststehen, bevor er die Aufgabe zu sehen bekommt.
     code: requireCode ? generateKontrollCode() : null,
+    // `clampProofDueOffset` und NICHT `clampHoldDuration`: die beiden unterscheiden sich an der
+    // unteren Kante, und dort liegt der Schaden — eine getippte 0 würde dort auf eine Minute
+    // angehoben und die Aufgabe wäre versäumt, bevor der Träger das Handy weglegt. Hier heisst 0
+    // „keine eigene Frist" (siehe dort).
+    dueOffsetMin: clampProofDueOffset(p.dueOffsetMin) ?? null,
   };
 }
 type NormalizedProof = ReturnType<typeof normalizeProof>;
 
-function checkProofs(proofs: TaskProofInput[]): ServiceFailure | { ok: true; rows: NormalizedProof[] } {
+function checkProofs(
+  proofs: TaskProofInput[],
+  /** Nullpunkt und Ende der Aufgabe — die eigene Fälligkeit eines Nachweises zählt ab dem einen und
+   *  darf das andere nicht überschreiten. Als Argumente und nicht aus der Zeile gelesen: `checkTask`
+   *  prüft, BEVOR geschrieben wird. */
+  window: { anchor: Date; holdUntil: Date },
+): ServiceFailure | { ok: true; rows: NormalizedProof[] } {
   if (proofs.length > TASK_PROOF_MAX) return serviceFail(400, "TASK_TOO_MANY_PROOFS");
   const rows: NormalizedProof[] = [];
   for (const [i, p] of proofs.entries()) {
     const n = normalizeProof(p, i);
     if (!n.description || n.description.length > TASK_PROOF_DESCRIPTION_MAX_LENGTH) {
       return serviceFail(400, "TASK_PROOF_INVALID");
+    }
+    // Eine Fälligkeit HINTER dem Ende der Aufgabe ist keine Frist, sondern eine Zusage, die nie
+    // greift: `proofDeadline` deckelt sie ohnehin auf das Ende, und der Poller sucht über die Spalte
+    // `holdUntil`. Statt sie still zu kappen, wird sie abgewiesen — die Keyholderin soll sehen, dass
+    // ihre Angabe nicht das bedeutet, was sie meint.
+    if (n.dueOffsetMin !== null
+      && window.anchor.getTime() + n.dueOffsetMin * 60_000 > window.holdUntil.getTime()) {
+      return serviceFail(400, "TASK_PROOF_DUE_AFTER_END");
     }
     rows.push(n);
   }
@@ -366,8 +390,19 @@ export async function checkTask(
   if (fieldError) return fieldError;
 
   // Die Nachweise sind reine Rechnerei — vor die Abfragen, damit eine kaputte Liste ohne eine
-  // einzige Abfrage abgewiesen wird.
-  const checkedProofs = checkProofs(p.proofs ?? []);
+  // einzige Abfrage abgewiesen wird. Der Nullpunkt ist derselbe, gegen den `taskAnchor` später
+  // misst: eine für morgen früh terminierte Aufgabe darf „in 30 Minuten" fordern, ohne dass diese
+  // 30 Minuten heute Abend verstreichen.
+  //
+  // Gegen das FRÜHESTMÖGLICHE Ende geprüft, nicht gegen die Spalte: im Dauer-Modus steht dort das
+  // spätestmögliche (Kulanz voll ausgereizt), das wirksame liegt bis zu einer Kulanzfrist davor.
+  // Eine Fälligkeit dazwischen bestünde die Prüfung und würde zur Laufzeit doch auf das Ende
+  // gekappt — also genau die stille Umdeutung, die dieser Fehlercode verhindern soll. Im klassischen
+  // Modus sind beide dasselbe.
+  const earliestEnd = holdDurationMin !== null
+    ? new Date(taskAnchor(anchor).getTime() + holdDurationMin * 60_000)
+    : holdUntil;
+  const checkedProofs = checkProofs(p.proofs ?? [], { anchor: taskAnchor(anchor), holdUntil: earliestEnd });
   if (!checkedProofs.ok) return checkedProofs;
 
   const user = await db.user.findUnique({ where: { id: p.userId }, select: { id: true } });
@@ -849,6 +884,15 @@ export async function processDueTasks(now: Date): Promise<void> {
   // aufzugreifen, die noch gar nicht entschieden sind; die bekämen nie ein `resultNotifiedAt`,
   // sortierten als älteste nach vorn und besetzten den `take`-Deckel dauerhaft — genau der Stau, den
   // `c77dec2` schon einmal beheben musste.
+  //
+  // SEIT DEN EIGENEN NACHWEIS-FRISTEN (B12) ist dieser Verzug GRÖSSER als eine Kulanzfrist: eine
+  // Aufgabe, deren Mittags-Foto ausbleibt, ist um 12:00 versäumt — gemeldet wird es erst, wenn ihr
+  // eigenes Ende hier auftaucht. Sichtbar ist das Urteil sofort (Karte, Strafbuch und MCP leiten es
+  // bei jedem Lesen ab, mit der Frist des Nachweises als Tatzeit); verzögert ist allein der VERSAND.
+  // Diese Abfrage kennt nur die Spalte `holdUntil` und damit nur EINE der beiden Zeitachsen — sie
+  // enger an die Nachweis-Frist zu binden verlangte eine zweite, mitgeschriebene Spalte
+  // (`min(holdUntil, Nullpunkt + kleinste Nachweis-Frist)`). Das ist die offene Frage dazu, kein
+  // Versehen.
   const due = await prisma.task.findMany({
     // Terminierte, noch nicht zugestellte Aufgaben bleiben aussen vor: über ein Ergebnis zu berichten,
     // bevor die Aufgabe überhaupt angekommen ist, wäre die falsche Nachricht an beide Seiten. Im

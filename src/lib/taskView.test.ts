@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextTaskStep, taskDeadlineLine, toTaskCard, visibleStartDeadline } from "./taskView";
+import { nextTaskStep, proofIsSubmitted, taskDeadlineLine, toTaskCard, visibleStartDeadline } from "./taskView";
 import { safeInternalPath } from "./utils";
 import type { EvaluatedTask, TaskProofView } from "./taskIntervals";
 import type { TaskEvaluation } from "./tasks";
@@ -14,6 +14,7 @@ const EVAL: TaskEvaluation = {
   awaitingConfirmation: false,
   holdRunning: false,
   proofCheckPending: false,
+  overdueProofIds: [],
 };
 
 function evaluated(
@@ -154,7 +155,7 @@ describe("startDeadline auf der Karte — die Frist, die ein Vergehen auslöst, 
 describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
   const proof = (over: Partial<TaskProofView> = {}): TaskProofView => ({
     id: "p1", taskId: "t1", sortOrder: 0, description: "Sauberes Wohnzimmer", requireCode: false,
-    code: null, submittedAt: null, imageExifTime: null, imageUrl: null,
+    code: null, dueOffsetMin: null, submittedAt: null, imageExifTime: null, imageUrl: null,
     verifikationStatus: null, verifikationReason: null,
     reviewAccepted: null, reviewedAt: null, reviewNote: null,
     ...over,
@@ -199,6 +200,78 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
     for (const state of ["done", "missed", "aborted", "withdrawn", "awaitingReview"] as const) {
       expect(nextTaskStep(toTaskCard(evaluated([], { state }), true))).toBeNull();
     }
+  });
+
+  /**
+   * B12 — ein Nachweis mit EIGENER Fälligkeit trägt sie als Zeitpunkt an der Zeile, und ist sie
+   * verstrichen, ist die Zeile `overdue` statt `open`: kein Aufnahme-Link mehr (der Dienst nähme
+   * nichts mehr an) und kein „nächster Schritt", der in ein Formular führte, das sofort umleitet.
+   */
+  it("die eigene Fälligkeit steht als Zeitpunkt an der Zeile", () => {
+    // Nullpunkt 12:00, Fälligkeit „nach 60 Minuten" = 13:00.
+    const card = toTaskCard(evaluated([], { state: "pending" }), true, [proof({ dueOffsetMin: 60 })]);
+    expect(card.proofs[0].dueAt).toBe("2026-07-25T13:00:00.000Z");
+    expect(card.proofs[0].state).toBe("open");
+    // Ohne eigene Fälligkeit steht dort nichts — die Frist der Aufgabe steht schon im Kartenkopf.
+    expect(toTaskCard(evaluated([], { state: "pending" }), true, [proof()]).proofs[0].dueAt).toBeNull();
+  });
+
+  it("eine verstrichene eigene Fälligkeit nimmt der Zeile den Aufnahme-Link", () => {
+    const card = toTaskCard(
+      evaluated([], { state: "missed", overdueProofIds: ["p1"] }),
+      true,
+      [proof({ dueOffsetMin: 60 })],
+    );
+    expect(card.proofs[0].state).toBe("overdue");
+    expect(card.proofs[0].href).toBeNull();
+  });
+
+  /** Steht das Ergebnis der AUFGABE fest, ändert kein weiteres Foto mehr etwas. Ohne diese Bedingung
+   *  schickte die Karte den Träger für die übrigen Nachweise weiter zum Fotografieren — für ein
+   *  Urteil, das schon gefallen ist. */
+  it("eine entschiedene Aufgabe nimmt auch den übrigen Nachweisen den Aufnahme-Link", () => {
+    const offen = toTaskCard(evaluated([], { state: "pending" }), true, [proof()]);
+    expect(offen.proofs[0].href).toBe("/dashboard/new/task-proof/p1");
+    for (const state of ["missed", "aborted", "done", "withdrawn", "awaitingReview"] as const) {
+      const card = toTaskCard(evaluated([], { state }), true, [proof()]);
+      expect(card.proofs[0].href, state).toBeNull();
+    }
+  });
+
+  /** Über ein Foto, das es nicht gibt, lässt sich nicht urteilen: `overdue` gehört zu `open`, nicht
+   *  zu den eingereichten. Sonst stünden Annehmen/Ablehnen über einer leeren Zeile — und der Dienst
+   *  antwortete mit `TASK_PROOF_NOT_SUBMITTED`. */
+  it("ohne Einreichung gibt es nichts zu sichten", () => {
+    const card = (over: Partial<TaskProofView>) =>
+      toTaskCard(evaluated([], { state: "pending" }), false, [proof(over)]).proofs[0];
+    expect(proofIsSubmitted(card({}))).toBe(false);
+    expect(proofIsSubmitted(card({ submittedAt: new Date("2026-07-25T13:00:00Z") }))).toBe(true);
+  });
+
+  /**
+   * Ein ZU SPÄT eingereichter Nachweis ist ebenfalls `overdue` — aber es gibt ein Foto, und darüber
+   * darf die Keyholderin urteilen. Am Zustand statt an der Einreichung festgemacht verlor sie für
+   * diesen Fall Annehmen und Ablehnen, während das Bild darüber sichtbar blieb.
+   */
+  it("ein zu spät eingereichter Nachweis bleibt sichtbar UND sichtbar-machbar", () => {
+    const card = toTaskCard(
+      evaluated([], { state: "missed", overdueProofIds: ["p1"] }),
+      false,
+      [proof({ dueOffsetMin: 60, submittedAt: new Date("2026-07-25T14:00:00Z"), imageUrl: "/u/a.jpg" })],
+    ).proofs[0];
+    expect(card.state).toBe("overdue");
+    expect(proofIsSubmitted(card)).toBe(true);
+  });
+
+  /** Ein spät doch noch angenommener Nachweis ist erbracht — das Urteil eines Menschen schlägt die
+   *  Frist, wie überall sonst auf dieser Achse. */
+  it("angenommen schlägt überfällig", () => {
+    const card = toTaskCard(
+      evaluated([], { state: "done", overdueProofIds: ["p1"] }),
+      false,
+      [proof({ dueOffsetMin: 60, reviewAccepted: true, reviewedAt: new Date("2026-07-25T14:00:00Z") })],
+    );
+    expect(card.proofs[0].state).toBe("confirmed");
   });
 });
 

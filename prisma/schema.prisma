@@ -1077,6 +1077,17 @@ model TaskProof {
   /// Verlangt einen handschriftlichen Zufallscode im Bild. Nur damit ist der Nachweis maschinell
   /// entscheidbar; ohne Code geht er zur Sichtung an die Keyholderin.
   requireCode Boolean @default(false)
+  /// EIGENE Fälligkeit dieses Nachweises, in Minuten ab dem NULLPUNKT der Aufgabe
+  /// (`taskAnchor` = `wirksamAb ?? createdAt`). null = wie bisher: der Nachweis bleibt bis zum Ende
+  /// der Aufgabe offen. Damit wird „drei Fotos über den Tag verteilt" ausdrückbar.
+  ///
+  /// RELATIV und nicht als absoluter Zeitpunkt — aus demselben Grund, aus dem `startGraceMin` eine
+  /// Minutenzahl ist: bei der Zustellung einer TERMINIERTEN Aufgabe rückt `dispatchDueTasks` den
+  /// Nullpunkt auf den tatsächlichen Zustell-Zeitpunkt vor. Ein gespeichertes Datum müsste dort
+  /// mitgeschoben werden — eine zweite Spalte, die still veralten kann. Der Zeitpunkt entsteht
+  /// abgeleitet in `proofDeadline()` und ist dort zugleich auf `Task.holdUntil` gedeckelt: die
+  /// Nachweis-Frist darf das Ende der Aufgabe nie überschreiten (beim Anlegen abgewiesen).
+  dueOffsetMin Int?
   /// Der geforderte Code. Null, wenn `requireCode` false ist.
   code String?
 
