@@ -442,10 +442,14 @@ export type ProofVerdict =
  * einem Versäumnis, ohne dass irgendwo stünde, WAS schiefging — der Sub könnte es nicht einmal
  * bestreiten. Die Regel darf deshalb nur EINMAL existieren, nicht hier und noch einmal in `taskView`.
  *
- * Erwartet eine nach `sortOrder` sortierte Liste mit vollständigen Aufnahmezeiten.
+ * Erwartet eine nach `sortOrder` sortierte Liste. Nachweise OHNE Aufnahmezeit (noch nicht
+ * eingereicht, oder ein Bild ohne EXIF, das die Keyholderin angenommen hat) werden übersprungen:
+ * sie sind selbst kein Bruch, und sie verdecken keinen — verglichen wird mit der letzten BELEGTEN
+ * Zeit, nicht nur mit dem unmittelbaren Vorgänger. Sonst hebelte ein zeitloses Foto in der Mitte
+ * die Reihenfolge der übrigen aus.
  */
 export function firstOutOfOrderProof(
-  orderedWithTimes: ProofLike[],
+  ordered: ProofLike[],
   /** Die Aufgabe — ist ihre Reihenfolge abgeschaltet, gibt es keinen Verstoss, weder fürs Urteil
    *  noch für die Anzeige. Als PARAMETER, damit keiner der drei Aufrufer den Schalter für sich
    *  auflösen muss (und einer davon ihn vergisst — der Rohwert `undefined` wäre falsy und schaltete
@@ -453,11 +457,12 @@ export function firstOutOfOrderProof(
   task: Pick<TaskLike, "proofOrderMatters">,
 ): ProofLike | null {
   if (!effectiveProofOrderMatters(task.proofOrderMatters)) return null;
-  for (let i = 1; i < orderedWithTimes.length; i++) {
-    const prev = orderedWithTimes[i - 1].imageExifTime;
-    const cur = orderedWithTimes[i].imageExifTime;
-    if (!prev || !cur) continue;
-    if (cur.getTime() <= prev.getTime()) return orderedWithTimes[i];
+  let lastTime: number | null = null;
+  for (const p of ordered) {
+    if (!p.imageExifTime) continue;
+    const t = p.imageExifTime.getTime();
+    if (lastTime !== null && t <= lastTime) return p;
+    lastTime = t;
   }
   return null;
 }
@@ -527,9 +532,17 @@ export function evaluateProofs(
   // Die fehlende Aufnahmezeit hängt AN der Reihenfolge und nicht neben ihr: sie ist nur deshalb ein
   // Fall für die Sichtung, weil sich ohne sie die Reihenfolge nicht belegen lässt. Ist die
   // Reihenfolge abgeschaltet, gibt es nichts zu belegen — und nichts zu sichten.
+  //
+  // Angenommen heisst: die Keyholderin hat die Reihenfolge an Stelle der Maschine beurteilt — der
+  // Sichtungsgrund ist verbraucht, sonst käme die Aufgabe nach jeder Annahme wieder hierher zurück
+  // und würde nie fertig (Regressionstest in `taskProofs.test.ts`).
+  //
+  // Der belegte Bruch VOR der Sichtung: brechen die Aufnahmezeiten, die da sind, die Reihenfolge
+  // schon, ändert kein Urteil über das zeitlose Foto etwas daran — die Sichtung wäre eine Frage, deren
+  // Antwort nicht zählt, und die Karte zeigte den Bruch längst, während die App „bitte sichten" meldet.
   if (effectiveProofOrderMatters(task.proofOrderMatters)) {
-    if (ordered.some((p) => p.imageExifTime === null)) return "needsReview";
     if (firstOutOfOrderProof(ordered, task)) return "failed";
+    if (ordered.some((p) => p.imageExifTime === null && p.reviewAccepted !== true)) return "needsReview";
   }
 
   // Automatisch entscheidbar ist nur ein Nachweis MIT erkanntem Code. Alles andere („Foto mit zwei

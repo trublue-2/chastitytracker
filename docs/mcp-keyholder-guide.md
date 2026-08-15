@@ -207,7 +207,9 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
 - **Sichtung** (`review_task_proof`): der EINZIGE Ausweg aus `awaitingReview`. Du nimmst einen
   Nachweis an oder lehnst ihn ab, angesprochen über Aufgabe + Position. Ablehnen macht die Aufgabe
   zum Vergehen, Annehmen des letzten offenen schliesst sie ab — beides meldet die App sofort an
-  beide Seiten, ohne auf den nächsten Tick zu warten. Ein Urteil lässt sich korrigieren.
+  beide Seiten, ohne auf den nächsten Tick zu warten. Ein Urteil lässt sich korrigieren. Nimmst du
+  ein Foto OHNE Aufnahmezeit an, urteilst du damit an Stelle der Maschine über seine Reihenfolge;
+  die übrigen Aufnahmezeiten werden weiterhin geprüft.
 - **TERMINIEREN** (`delayMinutes`/`scheduledAt`): bis zum Auslösen existiert die Aufgabe für den Sub
   NICHT — er sieht sie nicht, sie blockiert nichts, und **keine** ihrer Fristen läuft. Der Nullpunkt
   ist dann der Auslöse-Zeitpunkt, nicht das Stellen: Kulanzfrist und Ende zählen ab dort. Damit ist

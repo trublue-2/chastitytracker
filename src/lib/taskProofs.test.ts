@@ -123,6 +123,57 @@ describe("evaluateProofs — Reihenfolge", () => {
     const p = [proof({ imageExifTime: null })];
     expect(evaluateProofs(p, task, d("2026-07-25T19:00:00Z"))).toBe("needsReview");
   });
+
+  /**
+   * REGRESSION: die fehlende Aufnahmezeit ist NUR deshalb ein Fall für die Sichtung, weil sich ohne
+   * sie die Reihenfolge nicht belegen lässt. Hat die Keyholderin gesichtet und angenommen, ist der
+   * Grund verbraucht — sonst käme die Aufgabe nach jeder Annahme WIEDER zur Sichtung, würde nie
+   * `done`, meldete kein Ergebnis und liesse eine Strafaufgabe für immer im Strafbuch stehen. Der
+   * einzige Ausweg wäre „ablehnen": ein Versäumnis für ein Foto, das der Mensch in Ordnung fand.
+   */
+  it("fehlende Aufnahmezeit, aber angenommen → die Sichtung ist verbraucht, erledigt", () => {
+    const p = [proof({ imageExifTime: null, reviewAccepted: true })];
+    expect(evaluateProofs(p, task, d("2026-07-25T19:00:00Z"))).toBe("complete");
+  });
+
+  it("fehlende Aufnahmezeit, angenommen — die übrigen in Reihenfolge → erledigt", () => {
+    const p = [
+      at("2026-07-25T12:00:00Z", 0, "verschluss"),
+      proof({ id: "plug", sortOrder: 1, imageExifTime: null, reviewAccepted: true }),
+      at("2026-07-25T14:00:00Z", 2, "rechnungen"),
+    ];
+    expect(evaluateProofs(p, task, d("2026-07-25T19:00:00Z"))).toBe("complete");
+  });
+
+  /** Der angenommene Nachweis ohne Zeit darf die Prüfung der ÜBRIGEN nicht aushebeln: die Rechnungen
+   *  vor dem Verschluss sind ein Bruch, egal was dazwischen steht. */
+  it("fehlende Aufnahmezeit, angenommen — die übrigen vertauscht → Fehlschlag", () => {
+    const p = [
+      at("2026-07-25T12:00:00Z", 0, "verschluss"),
+      proof({ id: "plug", sortOrder: 1, imageExifTime: null, reviewAccepted: true }),
+      at("2026-07-25T11:00:00Z", 2, "rechnungen"),
+    ];
+    expect(evaluateProofs(p, task, d("2026-07-25T19:00:00Z"))).toBe("failed");
+  });
+
+  /** Die Sichtung darf keine Frage sein, deren Antwort nicht zählt: steht der Bruch unter den belegten
+   *  Zeiten schon fest, ist die Aufgabe versäumt — egal, wie das zeitlose Foto beurteilt würde. */
+  it("fehlende Aufnahmezeit, UNGESICHTET — die übrigen vertauscht → Fehlschlag, nicht Sichtung", () => {
+    const p = [
+      at("2026-07-25T12:00:00Z", 0, "verschluss"),
+      proof({ id: "plug", sortOrder: 1, imageExifTime: null }),
+      at("2026-07-25T11:00:00Z", 2, "rechnungen"),
+    ];
+    expect(evaluateProofs(p, task, d("2026-07-25T19:00:00Z"))).toBe("failed");
+  });
+
+  it("fehlende Aufnahmezeit, angenommen — ein anderer noch ungesichtet → weiter Sichtung", () => {
+    const p = [
+      proof({ id: "a", sortOrder: 0, imageExifTime: null, reviewAccepted: true }),
+      proof({ id: "b", sortOrder: 1, imageExifTime: null }),
+    ];
+    expect(evaluateProofs(p, task, d("2026-07-25T19:00:00Z"))).toBe("needsReview");
+  });
 });
 
 /**
@@ -637,6 +688,24 @@ describe("firstOutOfOrderProof — der Beleg für den Fehlschlag", () => {
       at("2026-07-25T10:00:00Z", 2, "c"),
     ];
     expect(firstOutOfOrderProof(p, task)?.id).toBe("b");
+  });
+
+  it("ein Nachweis ohne Aufnahmezeit wird übersprungen, nicht als Bruch gezählt", () => {
+    const p = [
+      at("2026-07-25T12:00:00Z", 0, "a"),
+      proof({ id: "b", sortOrder: 1, imageExifTime: null }),
+      at("2026-07-25T13:00:00Z", 2, "c"),
+    ];
+    expect(firstOutOfOrderProof(p, task)).toBeNull();
+  });
+
+  it("ein Nachweis ohne Aufnahmezeit verdeckt keinen Bruch dahinter", () => {
+    const p = [
+      at("2026-07-25T12:00:00Z", 0, "a"),
+      proof({ id: "b", sortOrder: 1, imageExifTime: null }),
+      at("2026-07-25T11:00:00Z", 2, "c"),
+    ];
+    expect(firstOutOfOrderProof(p, task)?.id).toBe("c");
   });
 });
 
