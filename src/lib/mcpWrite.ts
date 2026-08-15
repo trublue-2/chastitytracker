@@ -475,17 +475,27 @@ interface WithdrawnItem extends DirectiveRow {
  * actually went"; ein Zweig ohne die Liste macht daraus eine Lüge, und ein Agent, der sie ausliest,
  * bekäme `undefined`.
  *
- * `status: "triggered"` heisst hier „nicht auf einen künftigen Zeitpunkt terminiert" — nicht „der Sub
- * wurde benachrichtigt". Für beide Objekte gibt es keinen `scheduled`-Zustand, den `wirksamAb` bei
- * den Direktiven meint: eine Aufgabe gilt ab dem Stellen, ein notiertes Vergehen hält fest, was schon
- * passiert ist (und bekommt der Sub überhaupt nie zu sehen). `scheduledFor` bleibt folgerichtig null.
+ * `status` sagt, ob die Zeile den Sub schon ERREICHT hatte. Ein notiertes Vergehen hat keinen
+ * terminierten Zustand (es hält fest, was schon passiert ist, und der Sub sieht es nie) und ist
+ * darum immer `"triggered"`. Eine AUFGABE kann seit `Task.wirksamAb` terminiert sein — dann ist sie
+ * `"scheduled"`, `hidden: 1`, und der Rückzug geht bewusst OHNE Meldung raus (`withdrawTask`): eine
+ * Rücknahme zu melden verriete die Aufgabe, von der der Sub nie erfahren sollte.
  */
-function singleWithdrawn(id: string, label: string | null, endsAt: string | null, message: string) {
+function singleWithdrawn(
+  id: string,
+  label: string | null,
+  endsAt: string | null,
+  message: string,
+  /** Der geplante Auslöse-Zeitpunkt, solange die Zeile den Sub noch nicht erreicht hat. */
+  scheduledFor: string | null = null,
+) {
   return {
     ok: true,
     withdrawn: 1,
-    hidden: 0,
-    withdrawnItems: [{ id, status: "triggered", scheduledFor: null, endsAt, message: label, code: null }] satisfies WithdrawnItem[],
+    hidden: scheduledFor ? 1 : 0,
+    withdrawnItems: [{
+      id, status: scheduledFor ? "scheduled" : "triggered", scheduledFor, endsAt, message: label, code: null,
+    }] satisfies WithdrawnItem[],
     message,
   };
 }
@@ -496,16 +506,24 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     // Aufgaben verlangen IMMER eine id: sie koexistieren beliebig, ein Rundumschlag über alle offenen
     // wäre bei ihnen nie die gemeinte Geste.
     if (!args.id) throw new Error("target task requires an id (from keyholder_dashboard.openTasks).");
-    const task = await prisma.task.findUnique({ where: { id: args.id }, select: { userId: true, title: true, holdUntil: true } });
+    const task = await prisma.task.findUnique({
+      where: { id: args.id },
+      select: { userId: true, title: true, holdUntil: true, wirksamAb: true, benachrichtigtAt: true },
+    });
     if (!task || task.userId !== userId) throw new Error(`No task with id ${args.id}.`);
     if (args.dryRun) {
       return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: "task", id: args.id, title: task.title, willWithdraw: 1 } } satisfies DryRunPreview;
     }
+    // VOR dem Rückzug festhalten: `withdrawTask` entscheidet an genau diesem Zustand, ob es meldet.
+    const wasHidden = isHiddenFromSub(task);
     unwrap(await withdrawTask(args.id, userId, AI_AUTHOR));
     const taskIso = await isoForUser(userId);
     return singleWithdrawn(
       args.id, task.title, taskIso(task.holdUntil),
-      `Task "${task.title}" withdrawn. The user was notified — it can no longer become an offense.`,
+      wasHidden
+        ? `Scheduled task "${task.title}" withdrawn before it triggered. The user was NOT notified — he never learned it existed.`
+        : `Task "${task.title}" withdrawn. The user was notified — it can no longer become an offense.`,
+      wasHidden ? taskIso(task.wirksamAb) : null,
     );
   }
   if (args.target === "manual_offense") {
@@ -1498,6 +1516,10 @@ export interface CreateTaskArgs {
   penaltyReason?: string;
   /** `ref` eines erkannten Vergehens — macht die Aufgabe zu dessen Strafe (Details am Tool-Schema). */
   offenseRef?: string;
+  /** TERMINIERUNG: erst in so vielen Minuten wirksam. Omit/0 = sofort. */
+  delayMinutes?: number;
+  /** TERMINIERUNG auf einen absoluten Zeitpunkt (ISO 8601). Schlägt `delayMinutes`. */
+  scheduledAt?: string;
   dryRun?: boolean;
 }
 
@@ -1539,11 +1561,8 @@ async function resolveAnyDeviceId(userId: string, categoryId: string | null, nam
  *  hier eine dritte Form ergänzt (`holdDays`), ändert eine Stelle — vorher stand die Bedingung
  *  „welche Form kam?" zusätzlich als Ausdruck am `edit_task`-Aufruf und wäre dort still veraltet. */
 function parseHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now: Date): Date | undefined {
-  if (args.holdUntilAt) {
-    const d = new Date(args.holdUntilAt);
-    if (Number.isNaN(d.getTime())) throw new Error(`Invalid holdUntilAt: "${args.holdUntilAt}"`);
-    return d;
-  }
+  const at = parseIsoDate(args.holdUntilAt, "holdUntilAt");
+  if (at) return at;
   if (args.holdHours != null) return new Date(now.getTime() + args.holdHours * 3600_000);
   return undefined;
 }
@@ -1555,9 +1574,18 @@ function parseHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now:
  * über die tatsächliche Tragezeit macht, während ein Zeitpunkt nur sagt, wann Schluss ist. Wer beides
  * mitschickt, meint das Schärfere.
  */
-function resolveTaskHold(args: CreateTaskArgs, now: Date): Pick<CreateTaskParams, "holdUntil" | "holdDurationMin"> {
+function resolveTaskHold(
+  args: CreateTaskArgs,
+  /** Der NULLPUNKT der Aufgabe: bei einer terminierten ihr Auslöse-Zeitpunkt, sonst „jetzt".
+   *
+   *  `holdHours` ist eine SPANNE und muss ab dort zählen, nicht ab dem Stellen — sonst schrumpft
+   *  sie um die Verzögerung: „in 4 Stunden wirksam, 6 Stunden Zeit" ergäbe zwei. Bei einer kürzeren
+   *  Frist als der Verzögerung wäre die Spanne sogar negativ und die Aufgabe würde mit
+   *  `TASK_HOLD_UNTIL_TOO_SOON` abgewiesen. Ein ABSOLUTES `holdUntilAt` bleibt absolut. */
+  anchor: Date,
+): Pick<CreateTaskParams, "holdUntil" | "holdDurationMin"> {
   if (args.holdMinutesFromStart != null) return { holdDurationMin: args.holdMinutesFromStart };
-  const d = parseHoldUntil(args, now);
+  const d = parseHoldUntil(args, anchor);
   if (!d) throw new Error("One of holdUntilAt, holdHours or holdMinutesFromStart is required.");
   return { holdUntil: d };
 }
@@ -1581,12 +1609,24 @@ async function resolveTaskRequirements(userId: string, args: CreateTaskArgs): Pr
 export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
   const now = new Date();
   const userId = await resolveTargetUserId(username);
-  const hold = resolveTaskHold(args, now);
   const requirements = await resolveTaskRequirements(userId, args);
   const proofCount = args.requireProof?.length ?? 0;
   /** EINMAL aufgelöst für Vorschau, Commit und Ergebnis-Satz — die drei dürfen über dieselbe
    *  Aufgabe nicht Verschiedenes sagen. */
   const orderMatters = effectiveProofOrderMatters(args.proofOrderMatters);
+  /** Der Auslöse-Zeitpunkt für die VORSCHAU. Der Commit-Pfad nennt stattdessen `scheduledFor` aus
+   *  der Antwort des Services — wie `request_lock` und `set_lock_period` es tun: die Zeile entsteht
+   *  mit der Uhr des Services, und eine zweite Rechnung hier nennte dem Agenten bei `delayMinutes`
+   *  eine andere Zeit als die gespeicherte.
+   *
+   *  `parseIsoDate` läuft auf BEIDEN Wegen, nicht nur im dryRun: ein unlesbares Argument soll als
+   *  Werkzeug-Fehler mit Feldnamen zurückkommen, nicht als 400 aus dem Service. */
+  const previewWirksamAb = computeDelayedTrigger(now, {
+    delayMinutes: args.delayMinutes,
+    wirksamAbAt: parseIsoDate(args.scheduledAt, "scheduledAt") ?? null,
+  }).wirksamAb;
+  // Die Frist hängt am Nullpunkt, also erst NACH ihm auflösen.
+  const hold = resolveTaskHold(args, previewWirksamAb ?? now);
   /** Was die Vorschau und der Ergebnis-Satz über die Frist sagen — im Dauer-Modus gibt es keinen
    *  Zeitpunkt zu nennen, weil er erst mit dem Anlegen entsteht. */
   const holdText = hold.holdDurationMin != null
@@ -1609,6 +1649,7 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
       proofCount,
       proofOrderMatters: orderMatters,
       startGraceMinutes: args.startGraceMinutes ?? null,
+      scheduledFor: previewWirksamAb?.toISOString() ?? null,
       // Die ref ERZWINGT die Strafe — `punishWithTask` setzt `isPunishment: true`, unabhängig vom
       // Argument. Die Vorschau muss dasselbe sagen, sonst zeigt sie `false` und der Commit schreibt `true`.
       isPunishment: !!args.offenseRef || !!args.isPunishment,
@@ -1629,6 +1670,8 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     requirements,
     proofs: args.requireProof,
     proofOrderMatters: args.proofOrderMatters,
+    delayMinutes: args.delayMinutes,
+    wirksamAbAt: args.scheduledAt,
   };
   // EINE Kennung für beide Wege unten: die blosse Aufgabe UND die Strafaufgabe, deren Urteil daraus
   // sein `judgedBy` ableitet — zwei getrennte Angaben könnten auseinanderlaufen.
@@ -1655,7 +1698,14 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     ? `Offense ${args.offenseRef} is now judged as PUNISHED, with this task as the penalty. `
       + `It counts as served once the task is fulfilled; missing it leaves the penalty open AND becomes a new offense. `
     : "";
-  return { ok: true, id: data.id, message: penaltyPart + conditionPart + proofPart };
+  // Der Terminierungs-Teil sagt ausdrücklich, dass NOCH NICHTS beim Sub angekommen ist: sonst hakt
+  // der Agent die Anweisung als ausgesprochen ab und wundert sich, dass nichts passiert. Der
+  // Zeitpunkt kommt aus der GESCHRIEBENEN Zeile, nicht aus der Vorschau-Rechnung oben.
+  const schedulePart = data.scheduledFor
+    ? ` SCHEDULED: the user learns of it at ${data.scheduledFor} — until then the task does not exist for him,`
+      + ` blocks nothing and starts no deadline (all deadlines count from the trigger time).`
+    : "";
+  return { ok: true, id: data.id, message: penaltyPart + conditionPart + proofPart + schedulePart };
 }
 
 export interface ReviewTaskProofArgs {
@@ -1742,5 +1792,13 @@ export async function mcpEditTask(username: string, args: EditTaskArgs) {
   }
 
   unwrap(await updateTask(args.id, userId, patch, AI_AUTHOR));
-  return { ok: true, id: args.id, message: "Task updated. The user was notified." };
+  // Eine noch nicht ausgelöste Aufgabe meldet ihre Änderung NICHT (siehe `updateTask`) — das hier zu
+  // behaupten liesse den Agenten glauben, der Sub kenne die neue Fassung bereits.
+  return {
+    ok: true,
+    id: args.id,
+    message: isHiddenFromSub(task)
+      ? "Task updated. It is still SCHEDULED, so the user was NOT notified — he will receive the updated version when it triggers."
+      : "Task updated. The user was notified.",
+  };
 }

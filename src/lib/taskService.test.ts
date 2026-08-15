@@ -379,7 +379,7 @@ describe("effectivePenaltyReason — eine Regel für Anlegen und Ändern", () =>
 
 describe("mergeTaskPatch — pure, teilt Vorschau und Commit", () => {
   const current = { title: "A", description: "d", holdUntil: JETZT, holdDurationMin: null, isPunishment: false, penaltyReason: null };
-  const anchor = { createdAt: JETZT, startGraceMin: 30 };
+  const anchor = { createdAt: JETZT, startGraceMin: 30, wirksamAb: null };
 
   it("undefined lässt unverändert, null löscht", () => {
     expect(mergeTaskPatch(current, {}, anchor).description).toBe("d");
@@ -470,5 +470,128 @@ describe("createTask — Dauer-Modus (Haltezeit ab dem Anlegen)", () => {
       messageKey: "taskAssignedDurationMessage",
       params: expect.objectContaining({ minutes: 30 }),
     });
+  });
+});
+
+/**
+ * B1 — eine TERMINIERTE Aufgabe entsteht still: nichts geht raus, und jede ihrer Fristen ankert am
+ * geplanten Zeitpunkt statt am Stellen.
+ */
+describe("createTask — terminiert (wirksamAb)", () => {
+  /** Die Daten, die tatsächlich in die Zeile geschrieben würden. */
+  const written = () => taskCreateMock.mock.calls[0][0].data;
+
+  it("meldet NICHTS und schreibt den geplanten Zeitpunkt — benachrichtigt wird erst der Poller", async () => {
+    const morgen = new Date("2026-07-26T07:00:00Z");
+    const res = await createTask(
+      { ...base, holdUntil: new Date("2026-07-26T09:00:00Z"), wirksamAbAt: morgen.toISOString() },
+      "herrin",
+    );
+
+    expect(res.ok).toBe(true);
+    // Die Meldung IST das, was die Terminierung verschiebt — sie hier zu verschicken verriete die Aufgabe.
+    expect(notifyMock).not.toHaveBeenCalled();
+    expect(written().wirksamAb).toEqual(morgen);
+    expect(written().benachrichtigtAt).toBeNull();
+    // Ohne diese Spalte wüsste der Poller morgen nicht, wer die Aufgabe gestellt hat.
+    expect(written().createdBy).toBe("herrin");
+  });
+
+  it("eine SOFORTIGE Aufgabe bleibt unverändert: Meldung raus, wirksamAb null", async () => {
+    await createTask(base, "herrin");
+    expect(notifyMock).toHaveBeenCalledWith("u1", expect.objectContaining({ subjectKey: "taskAssignedSubject" }));
+    expect(written().wirksamAb).toBeNull();
+    expect(written().benachrichtigtAt).toEqual(JETZT);
+  });
+
+  it("delayMinutes ist der zweite Weg zur selben Terminierung", async () => {
+    await createTask({ ...base, delayMinutes: 90 }, "herrin");
+    expect(written().wirksamAb).toEqual(new Date(JETZT.getTime() + 90 * 60_000));
+  });
+
+  it("das spätestmögliche Ende im Dauer-Modus ankert am Wirksamwerden", async () => {
+    const morgen = new Date("2026-07-26T07:00:00Z");
+    const res = await createTask({
+      userId: "u1", title: "Plug tragen", holdDurationMin: 45, startGraceMin: 30,
+      requirements: [{ type: "WEAR", categoryId: "c1" }], wirksamAbAt: morgen,
+    }, "herrin");
+
+    expect(res.ok).toBe(true);
+    // 07:00 + 30 min Kulanz + 45 min Dauer. Ab `createdAt` gerechnet wäre die Schranke einen halben
+    // Tag zu früh — der Poller hätte die Aufgabe längst als entschieden gemeldet.
+    expect(written().holdUntil).toEqual(new Date("2026-07-26T08:15:00Z"));
+  });
+
+  it("eine Frist VOR dem Wirksamwerden wird abgewiesen, nicht still gestellt", async () => {
+    const res = await createTask({
+      ...base, holdUntil: new Date("2026-07-25T15:00:00Z"), wirksamAbAt: new Date("2026-07-26T07:00:00Z"),
+    }, "herrin");
+    expect(res).toMatchObject({ ok: false, error: "TASK_HOLD_UNTIL_TOO_SOON" });
+  });
+
+  it("ein unlesbarer Zeitpunkt ist ein Fehler, kein „sofort“", async () => {
+    const res = await createTask({ ...base, wirksamAbAt: "morgen früh" }, "herrin");
+    expect(res).toMatchObject({ ok: false, error: "TASK_INVALID_SEND_TIME" });
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("Änderung und Rückzug einer noch nicht ausgelösten Aufgabe bleiben still", () => {
+  const versteckt = {
+    id: "t1", userId: "u1", title: "Plug tragen", description: null,
+    holdUntil: new Date("2026-07-26T09:00:00Z"), holdDurationMin: null, startGraceMin: 30,
+    isPunishment: false, penaltyReason: null, createdAt: JETZT,
+    wirksamAb: new Date("2026-07-26T07:00:00Z"), benachrichtigtAt: null,
+    _count: { requirements: 1 },
+  };
+
+  it("updateTask meldet nichts", async () => {
+    taskFindMock.mockResolvedValue(versteckt);
+    const res = await updateTask("t1", "u1", { title: "Anders" }, "herrin");
+    expect(res.ok).toBe(true);
+    expect(notifyMock).not.toHaveBeenCalled();
+  });
+
+  it("withdrawTask meldet nichts — sonst erführe der Träger von der Aufgabe durch ihre Rücknahme", async () => {
+    taskFindMock.mockResolvedValue(versteckt);
+    const res = await withdrawTask("t1", "u1", "herrin");
+    expect(res.ok).toBe(true);
+    expect(notifyMock).not.toHaveBeenCalled();
+  });
+
+  it("eine bereits ausgelöste Aufgabe meldet ihren Rückzug weiterhin", async () => {
+    taskFindMock.mockResolvedValue({ ...versteckt, benachrichtigtAt: JETZT });
+    await withdrawTask("t1", "u1", "herrin");
+    expect(notifyMock).toHaveBeenCalledWith("u1", expect.objectContaining({ subjectKey: "taskWithdrawnSubject" }));
+  });
+});
+
+/**
+ * REGRESSION (code-review B1): eine relative Frist muss am NULLPUNKT hängen, nicht am Stellen.
+ *
+ * Der Befund war, dass „in vier Stunden wirksam, sechs Stunden Zeit" beim Träger als zwei Stunden
+ * ankam — die Verzögerung ging der Spanne ab, weil `deadlineFromDispatch` bei der Zustellung genau
+ * `holdUntil - wirksamAb` erhält. Bei einer Frist kürzer als die Verzögerung war die Spanne sogar
+ * negativ und die Aufgabe wurde mit `TASK_HOLD_UNTIL_TOO_SOON` abgewiesen.
+ */
+describe("terminierte Aufgabe — die Spanne bis zur Frist bleibt erhalten", () => {
+  const written = () => taskCreateMock.mock.calls[0][0].data;
+
+  it("ein absolutes Ende bleibt absolut", async () => {
+    const morgen = new Date("2026-07-26T07:00:00Z");
+    const ende = new Date("2026-07-26T09:00:00Z");
+    await createTask({ ...base, holdUntil: ende, wirksamAbAt: morgen }, "herrin");
+    expect(written().holdUntil).toEqual(ende);
+    // Zwei Stunden ab dem Wirksamwerden — genau das erhält die Zustellung.
+    expect(written().holdUntil.getTime() - written().wirksamAb.getTime()).toBe(2 * 3600_000);
+  });
+
+  it("eine Aufgabe OHNE Bedingungen darf nach ihrem Wirksamwerden enden", async () => {
+    // Der Fall, der vorher als `TASK_HOLD_UNTIL_TOO_SOON` scheiterte: reine Textaufgabe, morgen
+    // wirksam, zwei Stunden Zeit. `minEnd` ist hier der Nullpunkt, nicht „jetzt".
+    const res = await createTask({
+      ...base, holdUntil: new Date("2026-07-26T09:00:00Z"), wirksamAbAt: new Date("2026-07-26T07:00:00Z"),
+    }, "herrin");
+    expect(res.ok).toBe(true);
   });
 });

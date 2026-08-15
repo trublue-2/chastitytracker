@@ -67,7 +67,7 @@ export async function GET() {
           take: 10,
         })
       : Promise.resolve([]),
-    getDashboardTasks(userId, now),
+    getDashboardTasks(userId, now, "sub"),
   ]);
 
   // Aufgaben tragen ihren ABGELEITETEN Zustand in die Signatur, nicht nur ihre id: eine Aufgabe, die

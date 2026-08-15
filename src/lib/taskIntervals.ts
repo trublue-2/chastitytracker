@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildPairs, filterAndSortPairEntries, mergeWearPairs, KG_PAIR, WEAR_PAIR, type ReinigungSettings, type WearPair } from "@/lib/utils";
 import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice, type SegmentEntry } from "@/lib/sessionModel";
@@ -28,6 +29,10 @@ export interface TaskWithRequirements {
   isPunishment: boolean;
   penaltyReason: string | null;
   createdAt: Date;
+  /** Terminierung — siehe `TaskLike.wirksamAb`. Zusammen mit `benachrichtigtAt` entscheidet sie,
+   *  ob die Aufgabe für den Träger überhaupt schon existiert (`isHiddenFromSub`). */
+  wirksamAb: Date | null;
+  benachrichtigtAt: Date | null;
   completedAt: Date | null;
   completionNote: string | null;
   withdrawnAt: Date | null;
@@ -128,6 +133,39 @@ export const HISTORY_LIMIT = 25;
 const RELEVANT_LIMIT = 50;
 
 /**
+ * WER schaut? Die eine Frage, an der die Sichtbarkeit terminierter Aufgaben hängt.
+ *
+ * Als Pflicht-Angabe der Lade-Funktionen und nicht als optionaler Schalter: eine vergessene Angabe
+ * wäre kein Fehler, sondern ein Leck — der Träger sähe eine Aufgabe, deren ganzer Zweck es ist, ihn
+ * bis zu ihrem Zeitpunkt nicht zu erreichen. So bricht stattdessen der Compiler.
+ */
+export type TaskAudience =
+  /** Der Träger: terminierte, noch nicht zugestellte Aufgaben gibt es für ihn nicht. */
+  | "sub"
+  /** Die Keyholderin: sie sieht auch, was sie für später geplant hat. */
+  | "keyholder";
+
+/**
+ * Die SQL-Entsprechung von `isHiddenFromSub` — was der TRÄGER überhaupt geladen bekommt.
+ *
+ * Als `where`-Fragment und nicht als Filter danach: sonst zöge jede seiner Abfragen ihren `take`-
+ * Deckel an Aufgaben voll, die sie gleich wieder wegwirft, und eine terminierte Aufgabe könnte eine
+ * sichtbare aus der Liste verdrängen.
+ *
+ * In `AND` verpackt und nicht als blosses `OR`: die aufnehmenden Bedingungen tragen ihr eigenes `OR`
+ * (siehe {@link relevantTaskWhere}), und ein zweites auf derselben Ebene überschriebe es still — die
+ * Einschränkung wäre spurlos weg, und zwar genau die, die ein Leck verhindern soll.
+ */
+export const SUB_VISIBLE_WHERE = {
+  AND: [{ OR: [{ wirksamAb: null }, { benachrichtigtAt: { not: null } }] }],
+} satisfies Prisma.TaskWhereInput;
+
+/** Das Sichtbarkeits-Fragment für diese Sicht — leer für die Keyholderin. */
+function audienceWhere(audience: TaskAudience) {
+  return audience === "sub" ? SUB_VISIBLE_WHERE : {};
+}
+
+/**
  * Die grobe SQL-Entsprechung von {@link belongsOnDashboard} — bewusst zu WEIT gefasst: sie hält ein
  * paar Zeilen mehr, aber sie verliert keine.
  *
@@ -136,10 +174,11 @@ const RELEVANT_LIMIT = 50;
  * auf die Selbstmeldung des Subs, und die heilt sie auch noch später. Fiele sie nach 24 h heraus,
  * könnte er sie nie mehr melden.
  */
-function relevantTaskWhere(userId: string, now: Date) {
+function relevantTaskWhere(userId: string, now: Date, audience: TaskAudience) {
   return {
     userId,
     withdrawnAt: null,
+    ...audienceWhere(audience),
     OR: [
       { completedAt: null },
       { holdUntil: { gte: new Date(now.getTime() - RECENT_WINDOW_MS) } },
@@ -156,14 +195,14 @@ function relevantTaskWhere(userId: string, now: Date) {
  * Die Aufgaben, die den Sub JETZT etwas angehen: alles Laufende plus das, was in den letzten 24 h
  * endete.
  */
-export async function getDashboardTasks(userId: string, now: Date): Promise<TaskWithRequirements[]> {
+export async function getDashboardTasks(userId: string, now: Date, audience: TaskAudience): Promise<TaskWithRequirements[]> {
   // `desc` + `take` behält die JÜNGSTEN. Aufsteigend sortiert hätte der Deckel die ältesten behalten
   // — und versäumte Aufgaben altern nie aus dieser Abfrage heraus (sie bekommen nie ein
   // `completedAt`). Nach 50 Versäumnissen wäre jede NEUE Aufgabe unsichtbar gewesen: keine Karte,
   // keine Ablege-Warnung, kein Heartbeat — und am Ende trotzdem ein Vergehen für etwas, das der Sub
   // nie zu sehen bekam.
   const rows = await prisma.task.findMany({
-    where: relevantTaskWhere(userId, now),
+    where: relevantTaskWhere(userId, now, audience),
     orderBy: { holdUntil: "desc" },
     take: RELEVANT_LIMIT,
     include: TASK_INCLUDE,
@@ -265,17 +304,19 @@ export function belongsOnDashboard(e: EvaluatedTask, now: Date): boolean {
 export async function getEvaluatedTaskHistory(
   userId: string,
   now: Date,
-  opts: TaskEntrySource & { kgLabel?: string } = {},
+  opts: TaskEntrySource & { kgLabel?: string; audience: TaskAudience },
 ): Promise<EvaluatedTask[]> {
   const [relevant, recent] = await Promise.all([
     prisma.task.findMany({
-      where: relevantTaskWhere(userId, now),
+      where: relevantTaskWhere(userId, now, opts.audience),
       orderBy: { holdUntil: "desc" },
       take: RELEVANT_LIMIT,
       include: TASK_INCLUDE,
     }),
     prisma.task.findMany({
-      where: { userId },
+      // Die Historie folgt derselben Sichtbarkeit wie die Vorauswahl darüber — sonst käme die
+      // terminierte Aufgabe genau hier wieder herein.
+      where: { userId, ...audienceWhere(opts.audience) },
       orderBy: { holdUntil: "desc" },
       take: HISTORY_LIMIT,
       include: TASK_INCLUDE,
@@ -294,9 +335,9 @@ export async function getEvaluatedTaskHistory(
 export async function getEvaluatedTasks(
   userId: string,
   now: Date,
-  opts: TaskEntrySource & { kgLabel?: string } = {},
+  opts: TaskEntrySource & { kgLabel?: string; audience: TaskAudience },
 ): Promise<EvaluatedTask[]> {
-  return evaluateTasks(userId, await getDashboardTasks(userId, now), now, opts);
+  return evaluateTasks(userId, await getDashboardTasks(userId, now, opts.audience), now, opts);
 }
 
 /** Was die Warnung vor dem Ablegen anzeigt. */
@@ -389,6 +430,9 @@ export async function getTasksBlocking(userId: string, now: Date, target: TaskTa
     where: {
       userId,
       withdrawnAt: null,
+      // Fest auf die Sicht des TRÄGERS: das hier sind seine Formulare. Eine terminierte Aufgabe hält
+      // nichts fest — sie existiert für ihn noch nicht, und eine Warnung vor ihr verriete sie.
+      ...SUB_VISIBLE_WHERE,
       requirements: {
         some: "kg" in target
           ? { type: "KG_LOCKED" }

@@ -165,8 +165,14 @@ export interface DashboardResult extends Envelope {
    *
    *  v9: `nextRelevant.openControl` (Einzelwert) ist zu `nextRelevant.openControls` (Array)
    *  geworden — seit Kontrollen auf Trage-Kategorien zielen können (v5.0.1), läuft je Ziel eine,
-   *  und ein Einzelwert verschwiege die übrigen Fristen. Jede trägt ihr `target`. */
-  schemaVersion: 10;
+   *  und ein Einzelwert verschwiege die übrigen Fristen. Jede trägt ihr `target`.
+   *
+   *  v11: Aufgaben sind terminierbar (`create_task` mit `delayMinutes`/`scheduledAt`), und
+   *  `nextRelevant.openTasks` bedeutet dadurch etwas anderes: „offen" heisst ab jetzt „beim Sub
+   *  angekommen und noch nicht entschieden" — eine terminierte, noch nicht ausgelöste Aufgabe steht
+   *  NICHT mehr darin, sondern in `scheduledDirectives` (dort neu mit `kind: "task"`). Kein
+   *  additives Feld: ein v10-Wert zählte auch das Geplante mit, ein v11-Wert nicht. */
+  schemaVersion: 11;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
@@ -262,16 +268,17 @@ export interface DashboardResult extends Envelope {
     openLockRequests: OpenLockRequestView[];
     /** Offene Aufgaben (create_task): Text + Bedingungen, die bis `holdUntil` DURCHGEHEND gelten
      *  müssen. `state` ist ABGELEITET aus den Einträgen des Subs, nicht gestempelt. Jede trägt ihre
-     *  id für `edit_task` / `withdraw target:"task"`. */
+     *  id für `edit_task` / `withdraw target:"task"`.
+     *  Nur die bereits AUSGELÖSTEN — terminierte stehen in `scheduledDirectives` (seit v11). */
     openTasks: OpenTaskView[];
   };
   goals: { kg: PeriodSummaryResult["kg"]; categories: PeriodSummaryResult["categories"] };
   openOffenses: { count: number; pendingPenalties: number; top: OffenseRow[] };
   /** Vom Keyholder TERMINIERTE, noch nicht ausgelöste Direktiven (wirksamAb in der Zukunft):
-   *  Sperrzeit/Einschliess-Anforderung (lock_period/lock_request) und MANUELLE Kontrollen
-   *  (auto:false). Diese sind für den Sub noch unsichtbar — der Keyholder sieht hier, was in der
-   *  Pipeline liegt, und kann sie via `withdraw` stornieren. Auto-/Zufalls-Kontrollen (auto:true)
-   *  sind bewusst NICHT enthalten (Überraschungseffekt). */
+   *  Sperrzeit/Einschliess-Anforderung (lock_period/lock_request), MANUELLE Kontrollen (auto:false)
+   *  und Aufgaben (task). Diese sind für den Sub noch unsichtbar — der Keyholder sieht hier, was in
+   *  der Pipeline liegt, und kann sie via `withdraw` stornieren. Auto-/Zufalls-Kontrollen
+   *  (auto:true) sind bewusst NICHT enthalten (Überraschungseffekt). */
   scheduledDirectives: ScheduledDirective[];
   /** Gepinnte, dauerhafte Anweisungen (DIRECTIVE) — fallen nie aus einem Recency-Fenster. */
   standingDirectives: NoteDTO[];
@@ -350,13 +357,15 @@ export interface OpenTaskProofView {
 /** Eine vom Keyholder terminierte, noch nicht ausgelöste Direktive (für scheduledDirectives). */
 export interface ScheduledDirective {
   id: string;
-  /** lock_request = Einschliess-Anforderung · lock_period = Sperrzeit · inspection = manuelle Kontrolle. */
-  kind: "lock_request" | "lock_period" | "inspection";
+  /** lock_request = Einschliess-Anforderung · lock_period = Sperrzeit · inspection = manuelle
+   *  Kontrolle · task = terminierte Aufgabe. */
+  kind: "lock_request" | "lock_period" | "inspection" | "task";
   /** Geplanter Auslöse-Zeitpunkt (ISO-8601 mit Offset). */
   wirksamAb: string;
-  /** Frist/Sperrzeit-Ende (ISO) — bei Kontrollen die Erfüllungs-Frist, bei Sperrzeit das Ende, sonst null. */
+  /** Frist/Sperrzeit-Ende (ISO) — bei Kontrollen die Erfüllungs-Frist, bei Sperrzeit das Ende, bei
+   *  einer Aufgabe ihr (spätestmögliches) Ende, sonst null. */
   endetAt: string | null;
-  /** Freitext: Kontroll-Kommentar bzw. Anforderungs-/Sperrzeit-Nachricht. */
+  /** Freitext: Kontroll-Kommentar, Anforderungs-/Sperrzeit-Nachricht bzw. der Aufgaben-Titel. */
   message: string | null;
   /** Nur lock_request/lock_period: erlaubt die (geplante) Sperre Reinigungsöffnungen? Deckt die
    *  „Text sagt Reinigung erlaubt, Flag steht aber auf false"-Falle auf. null bei inspection. */
@@ -364,16 +373,28 @@ export interface ScheduledDirective {
 }
 
 /** Lädt die vom Keyholder terminierten, noch nicht ausgelösten Direktiven (wirksamAb > now):
- *  VerschlussAnforderung (ANFORDERUNG/SPERRZEIT) + MANUELLE Kontrollen (auto:false).
- *  Auto-Kontrollen werden bewusst NICHT geladen. */
+ *  VerschlussAnforderung (ANFORDERUNG/SPERRZEIT) + MANUELLE Kontrollen (auto:false) + Aufgaben.
+ *  Auto-Kontrollen werden bewusst NICHT geladen.
+ *
+ *  Die Aufgaben filtern auf `benachrichtigtAt: null` statt auf `wirksamAb > now`: das ist die
+ *  wörtliche Umkehrung von `isHiddenFromSub` und trifft damit exakt die Zeilen, die aus `openTasks`
+ *  herausfallen. Eine fällige, aber noch nicht zugestellte Aufgabe (der Tick hat sie noch nicht
+ *  erreicht) fiele zwischen die beiden Listen, wenn hier über die Uhr gefiltert würde.
+ *
+ *  Eigene Abfrage statt eines Filters über die ohnehin ausgewerteten Aufgaben: die sind auf die
+ *  jüngsten gedeckelt, eine weit in der Zukunft terminierte Aufgabe darf daran nicht hängen. */
 async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Promise<ScheduledDirective[]> {
-  const [anforderungen, kontrollen] = await Promise.all([
+  const [anforderungen, kontrollen, tasks] = await Promise.all([
     // Kein per-Query orderBy — die zusammengeführte Liste wird unten ohnehin nach wirksamAb sortiert.
     prisma.verschlussAnforderung.findMany({
       where: { userId, withdrawnAt: null, fulfilledAt: null, wirksamAb: { gt: now } },
     }),
     prisma.kontrollAnforderung.findMany({
       where: { userId, withdrawnAt: null, entryId: null, auto: false, wirksamAb: { gt: now } },
+    }),
+    prisma.task.findMany({
+      where: { userId, withdrawnAt: null, wirksamAb: { not: null }, benachrichtigtAt: null },
+      select: { id: true, title: true, wirksamAb: true, holdUntil: true },
     }),
   ]);
   const out: ScheduledDirective[] = [
@@ -391,6 +412,14 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       wirksamAb: iso(k.wirksamAb)!,
       endetAt: iso(k.deadline),
       message: k.kommentar,
+      reinigungErlaubt: null,
+    })),
+    ...tasks.map((t) => ({
+      id: t.id,
+      kind: "task" as const,
+      wirksamAb: iso(t.wirksamAb)!,
+      endetAt: iso(t.holdUntil),
+      message: t.title,
       reinigungErlaubt: null,
     })),
   ];
@@ -597,6 +626,10 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
 
   // Aufgaben: Zustand wird aus den Einträgen abgeleitet, deshalb laden → auswerten → nur die offenen.
   const evaluatedTasks = await getEvaluatedTasks(trackingCtx.userId, now, {
+    // Die Sicht des TRÄGERS, obwohl DU zuschaust: `openTasks` beantwortet „was steht bei ihm gerade
+    // an?". Eine terminierte, noch nicht zugestellte Aufgabe steht bei ihm nicht an — sie steht in
+    // `scheduledDirectives`, wo auch die übrigen geplanten Direktiven stehen.
+    audience: "sub",
     kgEntries: trackingCtx.entries, wearEntries: trackingCtx.entries, reinigung: trackingCtx.reinigung,
   });
   // Beschreibung und Zustand der Nachweise hängen nicht am Auswertungs-Include — eine Abfrage über
@@ -631,7 +664,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 10,
+    schemaVersion: 11,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,

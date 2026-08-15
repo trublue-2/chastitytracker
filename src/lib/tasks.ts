@@ -62,6 +62,14 @@ export interface TaskRequirementLike {
 export interface TaskLike {
   createdAt: Date;
   /**
+   * TERMINIERT: ab wann die Aufgabe überhaupt gilt. `null`/fehlend = sofort wirksam, wie bisher.
+   *
+   * Sie ist nicht bloss ein Sichtbarkeits-Schalter, sondern der NULLPUNKT dieser Aufgabe — siehe
+   * {@link taskAnchor}. Optional, weil das Fehlen „wie bisher" bedeutet: jede Stelle, die eine
+   * Aufgabe ohne dieses Feld auswertet, rechnet unverändert ab `createdAt`.
+   */
+  wirksamAb?: Date | null;
+  /**
    * Das Ende — im Dauer-Modus (siehe {@link TaskLike.holdDurationMin}) das SPÄTESTMÖGLICHE.
    *
    * Es bleibt dort trotzdem gefüllt und bleibt eine obere Schranke für das wirksame Ende. Daran
@@ -134,10 +142,26 @@ export interface TaskEvaluation {
   proofCheckPending: boolean;
 }
 
+/**
+ * Der NULLPUNKT einer Aufgabe: ab wann ihre Uhren laufen.
+ *
+ * Eine terminierte Aufgabe gibt es für den Träger vor `wirksamAb` nicht — Kulanzfrist, Ende und die
+ * Frage, welche Trage-Intervalle überhaupt als Beginn in Frage kommen, dürfen deshalb nicht ab dem
+ * Stellen zählen. Sonst wäre eine am Vorabend für 07:00 gestellte Aufgabe bei ihrem Wirksamwerden
+ * längst versäumt.
+ *
+ * EIN Einzeiler, den alle drei Stellen teilen ({@link startDeadline}, das spätestmögliche Ende im
+ * Dauer-Modus, der Kandidaten-Filter in {@link evaluateTask}) — als dreimal hingeschriebenes `??`
+ * wäre es die Sorte Regel, die an einer Stelle nachgezogen wird und an den anderen nicht.
+ */
+export function taskAnchor(task: Pick<TaskLike, "createdAt" | "wirksamAb">): Date {
+  return task.wirksamAb ?? task.createdAt;
+}
+
 /** Späteste Zeit, zu der begonnen werden darf. Wer danach erst anfängt, hat per Definition nicht
  *  durchgehend gehalten — sonst wäre „eine Minute vor Schluss alles anlegen" eine Erfüllung. */
-export function startDeadline(task: Pick<TaskLike, "createdAt" | "startGraceMin">): Date {
-  return new Date(task.createdAt.getTime() + task.startGraceMin * 60_000);
+export function startDeadline(task: Pick<TaskLike, "createdAt" | "startGraceMin" | "wirksamAb">): Date {
+  return new Date(taskAnchor(task).getTime() + task.startGraceMin * 60_000);
 }
 
 /**
@@ -156,7 +180,7 @@ export function startDeadline(task: Pick<TaskLike, "createdAt" | "startGraceMin"
  * Kulanz geht ihr also nicht mehr ab. Genau darum gibt es den Modus.
  */
 export function minHoldMs(
-  task: Pick<TaskLike, "createdAt" | "startGraceMin" | "holdUntil" | "holdDurationMin">,
+  task: Pick<TaskLike, "createdAt" | "startGraceMin" | "holdUntil" | "holdDurationMin" | "wirksamAb">,
 ): number {
   if (task.holdDurationMin) return task.holdDurationMin * 60_000;
   return task.holdUntil.getTime() - startDeadline(task).getTime();
@@ -171,7 +195,7 @@ export function minHoldMs(
  *
  * INVARIANTE: das Ergebnis liegt nie NACH `task.holdUntil`. Der Beginn kann höchstens bis zur
  * Kulanzfrist liegen (`evaluateTask` verwirft spätere Kandidaten), und `holdUntil` ist im Dauer-Modus
- * als `createdAt` + Kulanz + Dauer geschrieben. Darauf verlässt sich die Vorauswahl des Pollers: sie
+ * als {@link taskAnchor} + Kulanz + Dauer geschrieben. Darauf verlässt sich die Vorauswahl des Pollers: sie
  * sucht über die Spalte und darf keine Aufgabe verpassen, die längst entschieden ist.
  */
 export function effectiveHoldUntil(
@@ -458,19 +482,22 @@ export function evaluateTask(
   // zusätzliches `map(mergeWearPairs)` wäre ein Sort je Bedingung je Aufgabe für nichts.
   const combined = intersectAll(perRequirement);
   const deadline = startDeadline(task);
+  // Der Nullpunkt: bei einer terminierten Aufgabe `wirksamAb`, sonst die Erstellung. Alles darunter
+  // liegt VOR ihrer Zeit und darf weder als Beginn gelten noch gegen den Träger zählen.
+  const anchorMs = taskAnchor(task).getTime();
 
   // Beginn: erster Schnitt-Abschnitt, der bis in die Laufzeit der Aufgabe hineinreicht UND spätestens
   // zur Kulanzfrist gilt.
   //
-  // Das `end > createdAt` ist nicht kosmetisch: ohne es kapert das FRÜHESTE je aufgezeichnete
+  // Das `end > anchor` ist nicht kosmetisch: ohne es kapert das FRÜHESTE je aufgezeichnete
   // Intervall die Suche — trug der Sub dieselben Geräte zufällig schon Stunden vorher, wurde der
-  // Beginn auf `createdAt` hochgezogen, obwohl damals nichts anlag, und die Aufgabe galt ab Minute 1
+  // Beginn auf den Nullpunkt hochgezogen, obwohl damals nichts anlag, und die Aufgabe galt ab Minute 1
   // als abgebrochen. Ein Vergehen für tadelloses Verhalten, und zwar bei jedem Nutzer mit Vorgeschichte.
   const candidates = combined.filter(
-    (iv) => iv.end.getTime() > task.createdAt.getTime()
-      && Math.max(iv.start.getTime(), task.createdAt.getTime()) <= deadline.getTime(),
+    (iv) => iv.end.getTime() > anchorMs
+      && Math.max(iv.start.getTime(), anchorMs) <= deadline.getTime(),
   );
-  const startsOf = (iv: Interval) => new Date(Math.max(iv.start.getTime(), task.createdAt.getTime()));
+  const startsOf = (iv: Interval) => new Date(Math.max(iv.start.getTime(), anchorMs));
 
   // Bis wann muss gedeckt sein? Vor der Frist zählt nur „bis jetzt".
   //

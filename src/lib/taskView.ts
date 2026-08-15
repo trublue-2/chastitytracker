@@ -1,5 +1,6 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/taskIntervals";
 import { firstOutOfOrderProof, isTaskOpen, startDeadline, type TaskState } from "@/lib/tasks";
+import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { wearActionHref } from "@/lib/categoryConstants";
 
 /**
@@ -145,6 +146,15 @@ export interface TaskCardData {
    * kann, ist die eine Sorte Frist, die es nicht geben darf.
    */
   startDeadline: string | null;
+  /**
+   * TERMINIERT und noch nicht ausgelöst: ab wann sie gilt (ISO) — sonst null.
+   *
+   * Nur die KEYHOLDER-Sicht bekommt hier je einen Wert: dem Träger wird eine solche Aufgabe gar
+   * nicht erst geladen. Sie steht trotzdem an der geteilten Karte und nicht an der Keyholder-Hülle,
+   * weil sie die Frist-Zeile darüber ERKLÄRT — ohne sie sähe die Keyholderin eine Aufgabe mit einem
+   * Ende weit in der Zukunft und keinen Hinweis, dass der Träger noch nichts davon weiss.
+   */
+  scheduledFor: string | null;
   state: TaskState;
   startedAt: string | null;
   /** Namen der jetzt fehlenden Bedingungen — „Fehlt noch: Knebel". */
@@ -343,6 +353,9 @@ export function toTaskCard(
     // Ohne Bedingungen ist die Kulanzfrist bedeutungslos (es gibt nichts anzulegen) — dieselbe
     // Unterscheidung, die `createTask` beim Prüfen der Endzeit trifft.
     startDeadline: e.requirements.length > 0 ? startDeadline(e.task).toISOString() : null,
+    // Ausgelöste Aufgaben tragen ihr `wirksamAb` weiter (die Zustellung schreibt es fort) — gemeint
+    // ist hier aber nur das noch AUSSTEHENDE, also dieselbe Frage, die `isHiddenFromSub` beantwortet.
+    scheduledFor: isHiddenFromSub(e.task) ? e.task.wirksamAb!.toISOString() : null,
     state: e.evaluation.state,
     startedAt: e.evaluation.startedAt?.toISOString() ?? null,
     missing: e.evaluation.missing.map((m) => m.label),

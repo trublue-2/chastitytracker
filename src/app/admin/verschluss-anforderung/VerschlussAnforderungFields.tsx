@@ -12,6 +12,7 @@ import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import FieldTabs from "@/app/components/FieldTabs";
 import HoursInput from "@/app/components/HoursInput";
+import ScheduleFields, { initialSchedule, scheduleIsPast, schedulePayload, type ScheduleValue } from "@/app/components/ScheduleFields";
 import type { DeviceOption } from "@/lib/queries";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
@@ -63,13 +64,9 @@ export default function VerschlussAnforderungFields({
   );
   const [deviceId, setDeviceId] = useState("");
   const [reinigungErlaubt, setReinigungErlaubt] = useState(false);
-  // Terminierung: sofort (default), relative Verzögerung, oder absoluter Zeitpunkt.
-  const [scheduleMode, setScheduleMode] = useState<"immediate" | "delay" | "datetime">("immediate");
-  const [delayValue, setDelayValue] = useState("30");
-  const [delayUnit, setDelayUnit] = useState<"minutes" | "hours">("minutes");
-  const [scheduledAt, setScheduledAt] = useState(() =>
-    toDatetimeLocal(new Date(nowBaseMs + 60 * 60 * 1000), tz)
-  );
+  // Terminierung: sofort (default), relative Verzögerung, oder absoluter Zeitpunkt — dasselbe
+  // Bauteil, das auch die Aufgabe verwendet.
+  const [schedule, setSchedule] = useState<ScheduleValue>(() => initialSchedule(minNow, tz));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -79,7 +76,7 @@ export default function VerschlussAnforderungFields({
       setError(t("futureDateRequired"));
       return;
     }
-    if (scheduleMode === "datetime" && scheduledAt && fromDatetimeLocal(scheduledAt, tz) <= new Date()) {
+    if (scheduleIsPast(schedule, tz)) {
       setError(t("scheduleFutureRequired"));
       return;
     }
@@ -93,17 +90,12 @@ export default function VerschlussAnforderungFields({
       const payload: Record<string, unknown> = {
         userId, art,
         nachricht: nachricht.trim() || undefined,
+        ...schedulePayload(schedule, tz),
       };
       if (mode === "datetime" && endetAt) {
         payload.endetAt = fromDatetimeLocal(endetAt, tz).toISOString();
       } else {
         payload.fristH = parseFloat(deadlineH) || (isSperrzeit ? 24 : 4);
-      }
-      if (scheduleMode === "datetime" && scheduledAt) {
-        payload.wirksamAbAt = fromDatetimeLocal(scheduledAt, tz).toISOString();
-      } else if (scheduleMode === "delay") {
-        const v = parseFloat(delayValue) || 0;
-        payload.delayMinutes = delayUnit === "hours" ? v * 60 : v;
       }
       if (!isSperrzeit && withMinDauer) {
         if (sperrMode === "datetime" && sperrEndetAt) {
@@ -226,44 +218,13 @@ export default function VerschlussAnforderungFields({
         />
       )}
 
-      <FieldTabs
-        label={t("schedulingLabel")}
-        value={scheduleMode}
-        onChange={setScheduleMode}
-        options={[
-          { value: "immediate", label: t("scheduleImmediate") },
-          { value: "delay", label: t("scheduleDelay") },
-          { value: "datetime", label: t("scheduleAt") },
-        ]}
+      <ScheduleFields
+        value={schedule}
+        onChange={setSchedule}
+        minNow={minNow}
+        delayHint={t("scheduleDelayHint")}
+        atHint={t("scheduleAtHint")}
       />
-
-      {scheduleMode === "delay" && (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <div className="w-24">
-              <Input type="number" value={delayValue} onChange={(e) => setDelayValue(e.target.value)} min={1} step={1} />
-            </div>
-            <Select
-              options={[
-                { value: "minutes", label: t("scheduleDelayMinutes") },
-                { value: "hours", label: t("scheduleDelayHours") },
-              ]}
-              value={delayUnit}
-              onChange={(e) => setDelayUnit(e.target.value as "minutes" | "hours")}
-            />
-          </div>
-          <span className="text-xs text-foreground-faint">{t("scheduleDelayHint")}</span>
-        </div>
-      )}
-
-      {scheduleMode === "datetime" && (
-        <DateTimePicker
-          value={scheduledAt}
-          onChange={(e) => setScheduledAt(e.target.value)}
-          min={minNow}
-          hint={t("scheduleAtHint")}
-        />
-      )}
 
       <FormError message={error} variant="compact" />
 

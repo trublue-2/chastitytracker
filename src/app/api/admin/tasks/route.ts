@@ -34,6 +34,10 @@ export async function POST(req: NextRequest) {
       requirements: body.requirements,
       proofs: body.proofs,
       proofOrderMatters: body.proofOrderMatters,
+      // Terminierung: als ROHWERTE weiter — der Service parst und validiert sie (dieselbe
+      // Arbeitsteilung wie bei der Verschluss-Anforderung).
+      delayMinutes: body.delayMinutes,
+      wirksamAbAt: body.wirksamAbAt,
     };
 
     // Mit `offenseRef` ist die Aufgabe die STRAFE für ein Vergehen: dann entstehen Aufgabe und

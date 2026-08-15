@@ -1079,7 +1079,9 @@ function registerTools(server: McpServer) {
           "photo without a capture timestamp, puts the task into \"awaitingReview\" until YOU accept or " +
           "reject it — it is then neither fulfilled nor missed. " +
           "Pass offenseRef to make the task the PENALTY for a detected offense instead of a free-text one — " +
-          "judge_offense is then not needed, the judgment is written with the task." + KEYHOLDER_NOTE,
+          "judge_offense is then not needed, the judgment is written with the task. " +
+          "Can be scheduled/time-delayed: until it triggers the task does not exist for the user, and all of " +
+          "its deadlines count from the trigger time." + NO_SCHEDULE_DISCLOSURE + KEYHOLDER_NOTE,
         inputSchema: {
           title: z.string().describe("Short title, e.g. \"Vacuum the flat\"."),
           description: z.string().optional().describe("The full instruction shown to the user."),
@@ -1116,6 +1118,8 @@ function registerTools(server: McpServer) {
             "and a previous penalty task for the same offense is withdrawn. The penalty counts as served once the " +
             "task is fulfilled; missing it leaves the penalty open AND becomes a new offense of its own.",
           ),
+          delayMinutes: z.number().optional().describe("Delay before the task reaches the user, in minutes. Omit/0 = immediate."),
+          scheduledAt: z.string().optional().describe("Absolute time the task becomes effective (ISO 8601). Overrides delayMinutes."),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },

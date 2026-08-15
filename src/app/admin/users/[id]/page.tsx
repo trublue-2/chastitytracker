@@ -144,6 +144,8 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const [telemetryKeyProof, evaluatedTasks] = await Promise.all([
     loadTelemetryKeyProof(user.id, pairs),
     getEvaluatedTaskHistory(id, now, {
+      // Die Keyholder-Sicht: was sie für später geplant hat, gehört auf ihre Seite.
+      audience: "keyholder",
       kgLabel: tTasks("requirementKgLocked"), kgEntries: entries, wearEntries: entries, reinigung,
     }),
   ]);

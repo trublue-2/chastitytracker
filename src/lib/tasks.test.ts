@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  evaluateTask, intersectAll, coversContinuously, startDeadline, minHoldMs, isTaskOpen, isTaskOffense,
+  evaluateTask, intersectAll, coversContinuously, startDeadline, taskAnchor, minHoldMs, isTaskOpen, isTaskOffense,
   type Interval, type TaskLike, type TaskRequirementLike,
 } from "./tasks";
 
@@ -524,5 +524,83 @@ describe("evaluateTask — Dauer-Modus (Haltezeit ab dem Anlegen)", () => {
     const worn = [iv("2026-07-25T12:15:00Z", "2026-07-25T13:30:00Z")];
     const r = evaluateTask(dauerTask(), [HALSBAND], [worn], d("2026-07-25T13:00:00Z"));
     expect(r.holdUntil.getTime()).toBeLessThanOrEqual(dauerTask().holdUntil.getTime());
+  });
+});
+
+/**
+ * B1 — TERMINIERTE Aufgabe (`wirksamAb`).
+ *
+ * Fälle 2, 5, 6 und 7 der elf Anweisungen hängen daran: „um 17:00 …", „morgen bei der Arbeit …",
+ * „wenn ich heimkomme …", „diese Woche jede Nacht …". Der Kern-Eingriff ist eine Verschiebung des
+ * Nullpunkts — genau das prüfen die Fälle hier, an allen drei Stellen, an denen er gelesen wird.
+ */
+describe("evaluateTask — terminierte Aufgabe (wirksamAb)", () => {
+  /** Gestellt am Vorabend (12:00), wirksam erst um 18:00, 30 min Kulanz, halten bis 20:00. */
+  const terminiert = (over: Partial<TaskLike> = {}): TaskLike => task({
+    wirksamAb: d("2026-07-25T18:00:00Z"),
+    holdUntil: d("2026-07-25T20:00:00Z"),
+    ...over,
+  });
+
+  it("taskAnchor und startDeadline ankern auf wirksamAb, nicht auf createdAt", () => {
+    expect(taskAnchor(terminiert())).toEqual(d("2026-07-25T18:00:00Z"));
+    expect(startDeadline(terminiert())).toEqual(d("2026-07-25T18:30:00Z"));
+    // Und die Mindest-Haltezeit wächst entsprechend mit: 18:30 bis 20:00 statt 12:30 bis 20:00.
+    expect(minHoldMs(terminiert())).toBe(90 * 60_000);
+  });
+
+  it("ein Trage-Intervall VOR dem Wirksamwerden zieht den Beginn nicht mehr vor", () => {
+    // Der Sub trug das Halsband ohnehin schon ab 10:00 und legte es um 19:00 ab. Der Beginn ist
+    // 18:00 (das Wirksamwerden), nicht 12:00 — der Abbruch datiert damit auf 19:00, und die Aufgabe
+    // hat 60 von 120 Minuten gehalten statt scheinbar sieben Stunden.
+    const worn = [iv("2026-07-25T10:00:00Z", "2026-07-25T19:00:00Z")];
+    const r = evaluateTask(terminiert(), [HALSBAND], [worn], d("2026-07-25T19:30:00Z"));
+    expect(r.startedAt).toEqual(d("2026-07-25T18:00:00Z"));
+    expect(r.state).toBe("aborted");
+    expect(r.failedAt).toEqual(d("2026-07-25T19:00:00Z"));
+  });
+
+  it("ein Intervall, das VOR dem Wirksamwerden endet, ist gar kein Kandidat", () => {
+    const worn = [iv("2026-07-25T10:00:00Z", "2026-07-25T17:00:00Z")];
+    const r = evaluateTask(terminiert(), [HALSBAND], [worn], d("2026-07-25T18:45:00Z"));
+    // Kulanz lief bis 18:30, angelegt wurde nie — versäumt, ohne Beginn.
+    expect(r.startedAt).toBeNull();
+    expect(r.state).toBe("missed");
+  });
+
+  it("rechtzeitig nach dem Wirksamwerden angelegt und durchgehalten ist erfüllt", () => {
+    const worn = [iv("2026-07-25T18:10:00Z", "2026-07-25T20:30:00Z")];
+    const r = evaluateTask(
+      { ...terminiert(), completedAt: d("2026-07-25T20:05:00Z") },
+      [HALSBAND], [worn], d("2026-07-25T20:10:00Z"),
+    );
+    expect(r.startedAt).toEqual(d("2026-07-25T18:10:00Z"));
+    expect(r.state).toBe("done");
+  });
+
+  it("BESTANDSAUFGABEN: ohne wirksamAb ändert sich kein einziges Urteil", () => {
+    // Dieselbe Aufgabe dreimal — Feld fehlend, `null` und `undefined` müssen exakt dasselbe ergeben
+    // wie vor der Terminierung: der Nullpunkt bleibt `createdAt`.
+    const worn = [iv("2026-07-25T12:20:00Z", "2026-07-25T15:00:00Z")];
+    const at = d("2026-07-25T15:01:00Z");
+    const ohne = evaluateTask(task(), [HALSBAND], [worn], at);
+    expect(evaluateTask(task({ wirksamAb: null }), [HALSBAND], [worn], at)).toEqual(ohne);
+    expect(evaluateTask(task({ wirksamAb: undefined }), [HALSBAND], [worn], at)).toEqual(ohne);
+    expect(ohne.startedAt).toEqual(d("2026-07-25T12:20:00Z"));
+    expect(taskAnchor(task())).toEqual(d("2026-07-25T12:00:00Z"));
+  });
+
+  it("auch terminiert bleibt das gespeicherte holdUntil die obere Schranke — die Vorauswahl des Pollers hängt daran", () => {
+    // Dauer-Modus UND terminiert: `holdUntil` wird als wirksamAb + Kulanz + Dauer geschrieben
+    // (`checkTask`), hier also 18:00 + 30 min + 45 min = 19:15. Wer die Kulanz voll ausreizt, endet
+    // exakt dort; wer früher anlegt, früher.
+    const dauer = terminiert({ startGraceMin: 30, holdDurationMin: 45, holdUntil: d("2026-07-25T19:15:00Z") });
+    const spaet = evaluateTask(dauer, [HALSBAND], [[iv("2026-07-25T18:30:00Z", "2026-07-25T20:00:00Z")]], d("2026-07-25T19:20:00Z"));
+    expect(spaet.holdUntil).toEqual(d("2026-07-25T19:15:00Z"));
+    expect(spaet.holdUntil.getTime()).toBeLessThanOrEqual(dauer.holdUntil.getTime());
+
+    const frueh = evaluateTask(dauer, [HALSBAND], [[iv("2026-07-25T18:00:00Z", "2026-07-25T20:00:00Z")]], d("2026-07-25T19:20:00Z"));
+    expect(frueh.holdUntil).toEqual(d("2026-07-25T18:45:00Z"));
+    expect(frueh.holdUntil.getTime()).toBeLessThanOrEqual(dauer.holdUntil.getTime());
   });
 });

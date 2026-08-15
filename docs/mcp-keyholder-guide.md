@@ -201,6 +201,12 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
   Nachweis an oder lehnst ihn ab, angesprochen über Aufgabe + Position. Ablehnen macht die Aufgabe
   zum Vergehen, Annehmen des letzten offenen schliesst sie ab — beides meldet die App sofort an
   beide Seiten, ohne auf den nächsten Tick zu warten. Ein Urteil lässt sich korrigieren.
+- **TERMINIEREN** (`delayMinutes`/`scheduledAt`): bis zum Auslösen existiert die Aufgabe für den Sub
+  NICHT — er sieht sie nicht, sie blockiert nichts, und **keine** ihrer Fristen läuft. Der Nullpunkt
+  ist dann der Auslöse-Zeitpunkt, nicht das Stellen: Kulanzfrist und Ende zählen ab dort. Damit ist
+  „morgen früh trägst du das eine halbe Stunde" EINE Aufgabe statt einer Merkhilfe für dich. Nenne
+  dem Sub den Zeitpunkt nie. Terminierte Aufgaben stehen in `scheduledDirectives` (`kind: "task"`),
+  **nicht** in `openTasks` — „offen" heisst dort „beim Sub angekommen und noch nicht entschieden".
 - **Zurückziehen** (`withdraw target:"task"`, id nötig) ist DEIN Entschluss und wird nie ein Vergehen.
 - **Bedingungen und Nachweise selbst** sind nicht änderbar. Willst du andere: zurückziehen und neu
   stellen — sonst würde der Sub an etwas gemessen, das er nie bekommen hat. Bei einem Nachweis wiegt

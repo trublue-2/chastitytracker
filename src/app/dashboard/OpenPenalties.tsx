@@ -50,6 +50,21 @@ export default async function OpenPenalties({
   });
   if (openCount === 0) return null;
 
+  // Eine Strafe, deren Aufgabe noch TERMINIERT ist, gibt es für den Träger nicht: ihr Urteilstext
+  // IST der Aufgaben-Titel (`punishWithTask` schreibt `reason: task.title`), und hier stünde er
+  // Stunden bevor die Aufgabe ihn erreichen soll — mitsamt einem Verweis auf eine Aufgabenliste, in
+  // der nichts steht. Genau das soll die Terminierung verhindern.
+  //
+  // NACH dem Zähl-Tor, nicht davor: das Tor ist die eine indizierte Zeile, die jeder Dashboard-
+  // Aufruf zahlt. Eine terminierte Strafaufgabe lässt es im schlimmsten Fall einmal zu früh
+  // aufgehen — die Liste unten ist dann leer und der Block verschwindet (`rows.length === 0`).
+  const hiddenTaskIds = new Set(
+    (await prisma.task.findMany({
+      where: { userId, withdrawnAt: null, wirksamAb: { not: null }, benachrichtigtAt: null },
+      select: { id: true },
+    })).map((t) => t.id),
+  );
+
   const open = openPenaltiesOf(await loadSubOffenses(userId, now));
 
   // DOPPELUNG MIT DEM AUFGABEN-BLOCK: Ist die Strafe eine AUFGABE, die gerade darüber steht, dann
@@ -62,7 +77,7 @@ export default async function OpenPenalties({
   // während ihre Strafe offen bleibt — genau dann muss sie hier erscheinen, sonst fällt sie stumm
   // aus der Sicht des Trägers.
   const rows = open
-    .filter((p) => !(p.taskId && dashboardTaskIds.has(p.taskId)))
+    .filter((p) => !(p.taskId && (dashboardTaskIds.has(p.taskId) || hiddenTaskIds.has(p.taskId))))
     .slice(0, DASHBOARD_LIMIT);
   if (rows.length === 0) return null;
 

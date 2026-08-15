@@ -182,6 +182,7 @@ export default async function DashboardPage() {
   // EINMAL alles laden: der Aufgaben-Block zeigt daraus, was jetzt zu tun ist, die Liste darunter
   // den ganzen Bestand. Zwei Abfragen wären dieselben Zeilen zweimal.
   const evaluatedTasks = await getEvaluatedTaskHistory(userId, now, {
+    audience: "sub",
     kgLabel: tTasks("requirementKgLocked"), kgEntries: entries, wearEntries: entries, reinigung,
   });
   // Die Anzeige-Felder der Nachweise (Beschreibung, Code) hängen nicht am Auswertungs-Include —

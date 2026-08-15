@@ -496,11 +496,16 @@ const hidesFromReader = (scope: InboxScope): boolean => scope.audience === "sub"
 /**
  * Die Referenz-Schlüssel, die für den Sub VERBORGEN sind.
  *
- * Nur `KontrollAnforderung` und `VerschlussAnforderung` tragen überhaupt das `{wirksamAb,
- * benachrichtigtAt}`-Paar (siehe delayedTrigger.ts) — Strafen, Orgasmus-Anweisungen und Aufgaben
- * können nicht terminiert sein und sind deshalb nie verborgen. Genau deshalb fragt diese Funktion
- * ZWEI Tabellen, nicht eine je Referenz-Art: sie ist der heisse Pfad (Header, jede Dashboard-Seite).
- * Wer eine Referenz-Art ergänzt, prüft zuerst, ob sie terminierbar ist — nur dann gehört sie hierher.
+ * Gefragt werden nur `KontrollAnforderung` und `VerschlussAnforderung` — nicht, weil sonst niemand
+ * terminierbar wäre (die AUFGABE ist es seit `Task.wirksamAb`), sondern weil zu einer verborgenen
+ * Aufgabe gar keine Zeile existiert: ihre Meldung entsteht erst bei der Zustellung, und Änderung
+ * wie Rückzug schweigen bis dahin (`taskService.ts`). Es gibt also nichts zu verbergen. Strafen und
+ * Orgasmus-Anweisungen kennen das Feldpaar überhaupt nicht.
+ *
+ * Genau deshalb fragt diese Funktion ZWEI Tabellen, nicht eine je Referenz-Art: sie ist der heisse
+ * Pfad (Header, jede Dashboard-Seite). Wer eine Referenz-Art ergänzt, prüft zuerst, ob sie
+ * terminierbar ist UND ob zu einer verborgenen Zeile eine Nachricht entstehen kann — nur dann
+ * gehört sie hierher.
  *
  * Immer auf die Träger des Scopes eingegrenzt — eine Referenz auf die Zeile eines anderen Nutzers
  * findet nichts, statt sie preiszugeben.

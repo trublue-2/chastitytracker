@@ -89,6 +89,12 @@ export default function TaskCard({
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground break-words">{task.title}</p>
             <p className="text-xs text-foreground-muted">{t(deadline.key, { value: deadline.value })}</p>
+            {/* Nur in der Keyholder-Sicht gefüllt: der Träger bekommt eine noch nicht ausgelöste
+                Aufgabe gar nicht geladen. Ohne diese Zeile stünde bei ihr eine Aufgabe mit einer
+                Frist weit voraus und kein Hinweis, dass davon noch niemand weiss. */}
+            {task.scheduledFor && (
+              <p className="text-xs text-foreground-faint">{t("effectiveFromLabel", { value: dual(task.scheduledFor) })}</p>
+            )}
           </div>
           {task.isPunishment && <Badge variant="warn" size="sm" label={t("punishmentBadge")} className="shrink-0" />}
         </div>

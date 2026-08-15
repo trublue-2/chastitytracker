@@ -10,7 +10,7 @@ import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAuto
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
 import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
 import { deadlineFromDispatch } from "@/lib/delayedTrigger";
-import { processDueTasks } from "@/lib/taskService";
+import { dispatchDueTasks, processDueTasks } from "@/lib/taskService";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
 // benachrichtigt). Ein Container pro Instanz → ein Poller je Prozess genügt; der Zustand liegt
@@ -133,6 +133,15 @@ async function processDue(): Promise<void> {
 
     // Zeitversetzte VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) im selben Tick — kein zweiter Timer.
     await processDueVerschlussAnforderungen(now);
+
+    // Zeitversetzte AUFGABEN im selben Tick, direkt neben ihren beiden Geschwistern und mit
+    // derselben Zusage: erst zustellen, dann stempeln, und im `await`-Zweig — der `running`-Riegel
+    // oben ist Teil der Einmal-Zusage, nicht bloss Bequemlichkeit.
+    //
+    // VOR `processDueTasks`: eine soeben zugestellte Aufgabe bekommt dabei ihr verschobenes
+    // `holdUntil`; würde erst gemeldet und dann zugestellt, sähe die Ergebnis-Meldung im selben Tick
+    // noch die alte, womöglich schon abgelaufene Frist.
+    await dispatchDueTasks(now).catch((e) => console.error("[dispatchDueTasks]", e));
 
     // Selfhosted-KI-Erreichbarkeit prüfen (intern alle HEALTHCHECK_INTERVAL_MIN gedrosselt; No-op ohne
     // konfigurierte selfhosted-KI). FIRE-AND-FORGET: die Probes können bis zum Timeout hängen — das darf

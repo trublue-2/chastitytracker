@@ -31,8 +31,14 @@ export interface DelayedTrigger {
  * Deshalb entscheidet `wirksamAb`: null heisst „sofort", und dann kennt der Sub die Direktive
  * per Konstruktion. Verborgen ist nur, was TERMINIERT ist und noch nicht ausgelöst hat.
  *
- * Gilt für `KontrollAnforderung` und `VerschlussAnforderung` — die beiden Modelle, die das Feldpaar
- * tragen. (`OrgasmusAnforderung` kennt es nicht und kann deshalb gar nicht terminiert werden.)
+ * Gilt für `KontrollAnforderung`, `VerschlussAnforderung` und `Task` — die drei Modelle, die das
+ * Feldpaar tragen. (`OrgasmusAnforderung` kennt es nicht und kann deshalb gar nicht terminiert
+ * werden.)
+ *
+ * SQL-ZWILLING: Wo die Zeilen nicht einzeln geprüft, sondern gefiltert geladen werden, steht
+ * dieselbe Regel als `where`-Fragment — für Aufgaben `SUB_VISIBLE_WHERE` (`taskIntervals.ts`). Die
+ * beiden gehören zusammen: wer hier die Bedingung ändert, ändert sie dort mit, sonst filtert die
+ * Abfrage anders, als die Zeile beurteilt wird.
  */
 export function isHiddenFromSub(directive: { wirksamAb: Date | null; benachrichtigtAt: Date | null }): boolean {
   return directive.wirksamAb !== null && directive.benachrichtigtAt === null;
@@ -81,11 +87,15 @@ export function computeDelayedTrigger(now: Date, params: DelayedTriggerParams): 
  * `wirksamAb: null` heisst „war nie terminiert" — dann gibt es keine Spanne zu erhalten und die
  * gespeicherte Frist gilt unverändert.
  *
- * NUR für `KontrollAnforderung` benutzt, und das ist kein Versehen: `VerschlussAnforderung` trägt
- * dasselbe Feldpaar und dieselbe Verspätung, aber ihr `endetAt` kann ENTWEDER relativ (`fristH` ab
- * Auslösung) ODER ein von der Keyholderin gesetzter absoluter Zeitpunkt sein — und die Zeile hält
- * nicht fest, welches von beidem. Ein absolutes Ende zu verschieben wäre schlicht falsch. Diese
- * Funktion dort anzuwenden setzt also voraus, die Unterscheidung erst zu speichern.
+ * Benutzt von `KontrollAnforderung` und von `Task` — NICHT von `VerschlussAnforderung`, und das ist
+ * kein Versehen: die trägt dasselbe Feldpaar und dieselbe Verspätung, aber ihr `endetAt` kann
+ * ENTWEDER relativ (`fristH` ab Auslösung) ODER ein von der Keyholderin gesetzter absoluter
+ * Zeitpunkt sein — und die Zeile hält nicht fest, welches von beidem. Ein absolutes Ende zu
+ * verschieben wäre schlicht falsch. Diese Funktion dort anzuwenden setzt also voraus, die
+ * Unterscheidung erst zu speichern.
+ *
+ * Bei der Aufgabe stellt sich die Frage nicht: dort wandert die GANZE Geometrie mit (`wirksamAb`
+ * UND `holdUntil` um dieselbe Verspätung), weil auch die Kulanzfrist am Nullpunkt hängt.
  */
 export function deadlineFromDispatch(
   planned: { wirksamAb: Date | null; deadline: Date },

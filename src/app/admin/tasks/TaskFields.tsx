@@ -13,6 +13,7 @@ import FieldTabs from "@/app/components/FieldTabs";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
 import HoursInput from "@/app/components/HoursInput";
+import ScheduleFields, { initialSchedule, scheduleAnchorMs, scheduleIsPast, schedulePayload, type ScheduleValue } from "@/app/components/ScheduleFields";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
@@ -95,6 +96,9 @@ export default function TaskFields({
   initialPenaltyReason?: string;
 }) {
   const t = useTranslations("tasks");
+  // Die Meldung „Zeitpunkt muss in der Zukunft liegen" gehört zur Terminierung und steht deshalb im
+  // `admin`-Namensraum, wo sie sich alle Direktiv-Formulare teilen.
+  const ta = useTranslations("admin");
   // Die Einheiten stehen im gemeinsamen Namensraum, seit `DurationInput` sie braucht — die
   // Kulanzfrist hier holt sie von dort, sonst stünde in EINEM Formular zweimal dieselbe Einheit in
   // zwei Schreibweisen.
@@ -130,9 +134,14 @@ export default function TaskFields({
   // sehen, dass er gerade eine Strafe stellt — nicht bloss eine Aufgabe, die zufällig so heisst.
   const [isPunishment, setIsPunishment] = useState(!!offenseRef);
   const [penaltyReason, setPenaltyReason] = useState(initialPenaltyReason ?? "");
+  // Terminierung — dasselbe Bauteil und dieselben zwei Felder wie an der Verschluss-Anforderung.
+  // Die Vorschauen darüber bleiben davon unberührt: sie rechnen ab „jetzt", weil die eingestellte
+  // Dauer bei einer terminierten Aufgabe ab dem Auslösen ebenso lang ist. Nur die genannten
+  // UHRZEITEN verschieben sich mit — das sagt der Hinweis am Feld.
+  const [schedule, setSchedule] = useState<ScheduleValue>(() => initialSchedule(minNow, tz));
   // Absende-Mechanik (saving/error/networkError/finally) über den geteilten Hook — sie war in den
   // Anforderungs-Formularen schon zweimal von Hand geschrieben.
-  const { saving, error, submit } = useEntrySubmit<Record<string, unknown>>(
+  const { saving, error, setError, submit } = useEntrySubmit<Record<string, unknown>>(
     async (payload) => {
       const res = await fetch("/api/admin/tasks", {
         method: "POST",
@@ -173,8 +182,15 @@ export default function TaskFields({
   // nicht die Rechnung, sondern woran sie hängt — und das entscheidet erst das Abschicken.
   function endAt(nowMs: number): Date {
     return effectiveMode !== "datetime"
-      ? new Date(nowMs + durationToHours(parseFloat(hours), holdUnit) * 3600_000)
+      ? new Date(anchorMs(nowMs) + durationToHours(parseFloat(hours), holdUnit) * 3600_000)
       : fromDatetimeLocal(holdUntil, tz);
+  }
+
+  /** Der Nullpunkt der Aufgabe: bei einer terminierten ihr Auslöse-Zeitpunkt, sonst „jetzt". Die
+   *  Dauer-Eingaben und beide Vorschauen hängen daran — sonst verspräche das Formular eine Spanne
+   *  ab dem Ausfüllen, während der Server sie ab dem Auslösen misst. */
+  function anchorMs(nowMs: number): number {
+    return scheduleAnchorMs(schedule, tz, nowMs);
   }
 
   /**
@@ -202,7 +218,9 @@ export default function TaskFields({
     if (known && next === "datetime") setHoldUntil(toDatetimeLocal(end, tz));
     // Auf das Raster der Einheit gebracht, damit im Feld nicht „2.3833" landet.
     if (known && effectiveMode === "datetime") {
-      setHours(String(durationFromHours((end.getTime() - nowMs) / 3600_000, holdUnit)));
+      // Gegen den NULLPUNKT zurückrechnen, nicht gegen „jetzt" — sonst käme aus einem festen
+      // Zeitpunkt bei einer terminierten Aufgabe die Wartezeit oben drauf.
+      setHours(String(durationFromHours((end.getTime() - anchorMs(nowMs)) / 3600_000, holdUnit)));
     }
     setMode(next);
   }
@@ -226,6 +244,10 @@ export default function TaskFields({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (scheduleIsPast(schedule, tz)) {
+      setError(ta("scheduleFutureRequired"));
+      return;
+    }
     const until = endAt(Date.now());
     // Leere Zeilen fallen weg: eine angelegte, aber nie ausgefüllte Nachweis-Zeile ist ein Versehen,
     // keine Forderung — der Service wiese sie sonst mit einem Fehler ab.
@@ -265,6 +287,7 @@ export default function TaskFields({
       // stünde statt der geklickten.
       [TASK_FORM_QUERY.offenseRef]: offenseRef,
       [TASK_FORM_QUERY.offenseType]: offenseType,
+      ...schedulePayload(schedule, tz),
     });
   }
 
@@ -399,7 +422,7 @@ export default function TaskFields({
             ab dem Stellen, ihr Ende wandert also mit jeder Minute Formularausfüllen mit. */}
         {hasRequirements && (
           <TimePreview
-            at={(nowMs) => startDeadline({ createdAt: new Date(nowMs), startGraceMin: graceEffective })}
+            at={(nowMs) => startDeadline({ createdAt: new Date(anchorMs(nowMs)), startGraceMin: graceEffective })}
             live
             tz={tz}
             line={(date) => ({
@@ -431,7 +454,7 @@ export default function TaskFields({
             // Grösse, gegen die der Server prüft (`TASK_HOLD_UNTIL_TOO_SOON`) und die der Sub auf
             // seiner Karte liest.
             const holdMs = minHoldMs({
-              createdAt: new Date(nowMs),
+              createdAt: new Date(anchorMs(nowMs)),
               startGraceMin: graceEffective,
               holdUntil: endAt(nowMs),
             });
@@ -482,6 +505,14 @@ export default function TaskFields({
           />
         )}
       </div>
+
+      <ScheduleFields
+        value={schedule}
+        onChange={setSchedule}
+        minNow={minNow}
+        delayHint={t("scheduleDelayHint")}
+        atHint={t("scheduleAtHint")}
+      />
 
       <FormError message={error} variant="compact" />
 

@@ -1,11 +1,12 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
-import { notifyUser, notifyControllers } from "@/lib/notify";
-import type { MessageActor } from "@/lib/messageService";
+import { notifyUser, notifyControllers, type NotifyContent } from "@/lib/notify";
+import { actorColumn, type MessageActor } from "@/lib/messageService";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
+import { computeDelayedTrigger, deadlineFromDispatch, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { startDeadline, isTaskResultFinal, effectiveProofOrderMatters } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
@@ -107,6 +108,11 @@ export interface CreateTaskParams {
   proofs?: TaskProofInput[];
   /** Müssen die Aufnahmezeiten dieser Reihenfolge folgen? Fehlend = ja, wie bisher. */
   proofOrderMatters?: boolean;
+  /** TERMINIERUNG, verzögert um so viele Minuten (>0). Fehlt/0 = sofort (sofern kein `wirksamAbAt`). */
+  delayMinutes?: number | null;
+  /** TERMINIERUNG auf einen absoluten Zeitpunkt (ISO-String oder Date). Hat Vorrang vor
+   *  `delayMinutes`. Dieselben zwei Formen wie bei der Verschluss-Anforderung. */
+  wirksamAbAt?: string | Date | null;
 }
 
 /** Änderbare Felder. `undefined` = unverändert; `null` löscht (Beschreibung, Straf-Anlass). */
@@ -146,8 +152,8 @@ export function mergeTaskPatch(
   current: MergedTask,
   patch: UpdateTaskParams,
   /** Woran der Dauer-Modus sein spätestmögliches Ende hängt. Bewusst NEBEN `current` und nicht darin:
-   *  `MergedTask` ist die Schreib-Form (`data: next`), und diese beiden Felder ändern sich nie. */
-  anchor: { createdAt: Date; startGraceMin: number },
+   *  `MergedTask` ist die Schreib-Form (`data: next`), und diese Felder ändern sich nie. */
+  anchor: { createdAt: Date; startGraceMin: number; wirksamAb: Date | null },
 ): MergedTask {
   const isPunishment = patch.isPunishment ?? current.isPunishment;
   // DER MODUS BLEIBT. Eine Aufgabe wechselt nicht zwischen „festes Ende" und „Dauer ab dem Anlegen" —
@@ -290,6 +296,11 @@ async function checkRequirements(
  *  {@link writeTask} — er trägt genau das, was `task.create` braucht, und nichts mehr. */
 export interface CheckedTask {
   data: Prisma.TaskCreateInput;
+  /** Der geplante Auslöse-Zeitpunkt, `null` = sofort. Als eigenes Feld neben der Schreib-Form, weil
+   *  die AUFRUFER daran ihre eine Entscheidung treffen: selbst melden (sofort) oder dem Poller
+   *  überlassen (terminiert). Aus `data` herausgelesen wäre es ein `Date | string | null | undefined`
+   *  aus dem Prisma-Typ, das jeder Aufrufer erneut zurechtbiegen müsste. */
+  wirksamAb: Date | null;
 }
 
 /**
@@ -302,11 +313,31 @@ export interface CheckedTask {
  * die Ablehnung („Frist zu früh") fällt so ausserhalb an, wo sie ohne Umweg über einen abgebrochenen
  * Vorgang zurückgegeben werden kann.
  */
-export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<ServiceResult<CheckedTask>> {
+export async function checkTask(
+  db: PrismaTx,
+  p: CreateTaskParams,
+  /** WER stellt — wandert nach `Task.createdBy` und von dort an eine verspätete Zustellung. Als
+   *  eigenes Argument und kein Feld von `p`: die Route reicht den rohen Request-Body durch, und in
+   *  einem Bag wäre der Absender von aussen setzbar (dieselbe Begründung wie in `kontrolleService`). */
+  actor: MessageActor,
+): Promise<ServiceResult<CheckedTask>> {
   const now = new Date();
   const graceMin = clampStartGrace(p.startGraceMin);
   const holdDurationMin = clampHoldDuration(p.holdDurationMin) ?? null;
   const reqs = p.requirements ?? [];
+
+  // Parsen/Validieren des Client-Datums gehört an den Rand, nicht in die Zeit-Policy — wie bei der
+  // Verschluss-Anforderung.
+  let wirksamAbParsed: Date | null = null;
+  if (p.wirksamAbAt) {
+    wirksamAbParsed = new Date(p.wirksamAbAt);
+    if (Number.isNaN(wirksamAbParsed.getTime())) return serviceFail(400, "TASK_INVALID_SEND_TIME");
+  }
+  const { wirksamAb, benachrichtigtAt } = computeDelayedTrigger(now, {
+    delayMinutes: p.delayMinutes, wirksamAbAt: wirksamAbParsed,
+  });
+  /** Der Nullpunkt dieser Aufgabe — dieselbe Form, die `taskAnchor` später aus der Zeile liest. */
+  const anchor = { createdAt: now, startGraceMin: graceMin, wirksamAb };
 
   // Der Dauer-Modus braucht etwas, woran die Uhr starten kann. Ohne Bedingung gibt es das nicht —
   // dann bleibt nur ein Zeitpunkt (siehe `TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS`).
@@ -316,8 +347,9 @@ export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<Serv
   // Im Dauer-Modus schreibt die Spalte das SPÄTESTMÖGLICHE Ende: später als bis zur Kulanzfrist darf
   // gar nicht begonnen werden, also ist Startfrist + Dauer die obere Schranke. Sie muss stimmen —
   // die Vorauswahl des Pollers sucht über die Spalte und dürfte sonst eine fällige Aufgabe verpassen.
+  // Bei einer TERMINIERTEN Aufgabe hängt die Startfrist an `wirksamAb`, also auch diese Schranke.
   const holdUntil = holdDurationMin !== null
-    ? new Date(startDeadline({ createdAt: now, startGraceMin: graceMin }).getTime() + holdDurationMin * 60_000)
+    ? new Date(startDeadline(anchor).getTime() + holdDurationMin * 60_000)
     : p.holdUntil;
   if (!holdUntil) return serviceFail(400, "TASK_HOLD_MISSING");
 
@@ -326,8 +358,10 @@ export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<Serv
   const fieldError = checkTaskFields(
     { title: p.title, description: p.description ?? null, holdUntil },
     // Über `startDeadline` wie in `updateTask`: die Startfrist ist EINE Regel, keine Addition, die
-    // jede Prüfstelle für sich hinschreibt.
-    reqs.length > 0 ? startDeadline({ createdAt: now, startGraceMin: graceMin }) : now,
+    // jede Prüfstelle für sich hinschreibt. Ohne Bedingungen bleibt der blosse Nullpunkt — eine für
+    // morgen früh terminierte Aufgabe muss trotzdem nach ihrem eigenen Wirksamwerden enden, sonst
+    // wäre sie im Moment der Zustellung schon versäumt.
+    reqs.length > 0 ? startDeadline(anchor) : (wirksamAb ?? now),
   );
   if (fieldError) return fieldError;
 
@@ -346,6 +380,7 @@ export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<Serv
   return {
     ok: true,
     data: {
+      wirksamAb,
       data: {
         user: { connect: { id: p.userId } },
         title: p.title.trim(),
@@ -358,6 +393,9 @@ export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<Serv
         requirements: { create: checked.normalized.map((r, i) => ({ ...r, sortOrder: i })) },
         proofs: { create: checkedProofs.rows },
         proofOrderMatters: effectiveProofOrderMatters(p.proofOrderMatters),
+        createdBy: actorColumn(actor),
+        wirksamAb,
+        benachrichtigtAt, // sofort = jetzt benachrichtigt; terminiert = der Poller übernimmt
       },
     },
   };
@@ -382,6 +420,8 @@ export async function writeTask(tx: PrismaTx, checked: CheckedTask): Promise<Tas
     holdDurationMin: task.holdDurationMin,
     createdAt: task.createdAt,
     startGraceMin: task.startGraceMin,
+    wirksamAb: task.wirksamAb,
+    isPunishment: task.isPunishment,
   };
 }
 
@@ -392,6 +432,11 @@ export interface TaskNoticeSource {
   holdDurationMin: number | null;
   createdAt: Date;
   startGraceMin: number;
+  /** Der Nullpunkt, an dem die Kulanzfrist hängt — die Nachricht nennt sie im Dauer-Modus. */
+  wirksamAb: Date | null;
+  /** Als Strafe gestellt? Entscheidet, WELCHE der beiden Meldungen rausgeht (siehe
+   *  {@link taskAssignmentNotice}). */
+  isPunishment: boolean;
 }
 
 /**
@@ -406,7 +451,7 @@ export interface TaskNoticeSource {
  * Die Dauer reist als MINUTEN-Zahl, nicht als fertiger Text: die Nachricht wird in der Sprache des
  * EMPFÄNGERS gerendert (`notifyUser`), ein hier formatierter Zeitraum käme in der des Servers an.
  */
-export function taskNoticeDeadline(task: Pick<TaskNoticeSource, "holdUntil" | "holdDurationMin" | "createdAt" | "startGraceMin">):
+export function taskNoticeDeadline(task: Pick<TaskNoticeSource, "holdUntil" | "holdDurationMin" | "createdAt" | "startGraceMin" | "wirksamAb">):
   | { durationMode: true; params: { minutes: number; until: string } }
   | { durationMode: false; params: { until: string } } {
   return task.holdDurationMin
@@ -418,22 +463,28 @@ export function taskNoticeDeadline(task: Pick<TaskNoticeSource, "holdUntil" | "h
 }
 
 /**
- * Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub.
+ * Die Meldung „dir ist eine Aufgabe gestellt" — die EINE Stelle, an der sie entsteht.
  *
- * `actor` ist WER stellt (Sitzung bzw. {@link AI_AUTHOR}) — als eigenes Argument wie bei allen
- * übrigen Diensten, und wie bei der Orgasmus-Anweisung ohne Spalte: eine Aufgabe kennt keine
- * Terminierung, ihre Meldung geht in diesem Aufruf raus. Die späteren Meldungen aus dem Poller
- * (erfüllt/versäumt/bitte melden) sind BEFUNDE der App und tragen bewusst keinen Namen.
+ * Sie geht an ZWEI Zeitpunkten raus: beim Stellen (sofort wirksame Aufgabe) und beim Auslösen einer
+ * TERMINIERTEN Aufgabe aus dem Minuten-Tick. Getrennt geschrieben liefen die beiden beim nächsten
+ * Textwechsel auseinander — und die verspätete Zustellung ist genau der Weg, den niemand von Hand
+ * nachprüft.
+ *
+ * Die Strafaufgabe ist derselbe Vorgang mit anderen Worten und deshalb ein Zweig statt einer zweiten
+ * Funktion: sonst müsste der Poller wissen, welchen der beiden Texte er zu wählen hat, und wüsste es
+ * nur, solange es jemand nachträgt.
  */
-export async function createTask(p: CreateTaskParams, actor: MessageActor): Promise<ServiceResult<{ id: string }>> {
-  const checked = await checkTask(prisma, p);
-  if (!checked.ok) return checked;
-  const task = await writeTask(prisma, checked.data);
-
+export function taskAssignmentNotice(
+  task: TaskNoticeSource & { id: string },
+  actor: MessageActor,
+): NotifyContent {
   const deadline = taskNoticeDeadline(task);
-  await notifyUser(p.userId, {
-    subjectKey: "taskAssignedSubject",
-    messageKey: deadline.durationMode ? "taskAssignedDurationMessage" : "taskAssignedMessage",
+  const penalty = task.isPunishment;
+  return {
+    subjectKey: penalty ? "penaltyTaskSubject" : "taskAssignedSubject",
+    messageKey: penalty
+      ? (deadline.durationMode ? "penaltyTaskDurationMessage" : "penaltyTaskMessage")
+      : (deadline.durationMode ? "taskAssignedDurationMessage" : "taskAssignedMessage"),
     params: { title: task.title, ...deadline.params },
     alwaysNotify: true,
     // Die Nachricht ZEIGT auf die Aufgabe, statt ihre Beschreibung zu kopieren — der Posteingang
@@ -443,9 +494,34 @@ export async function createTask(p: CreateTaskParams, actor: MessageActor): Prom
     // `once`: eine Aufgabe wird genau einmal gestellt. Ein Retry nach einem Absturz darf keine
     // zweite, dauerhafte Zeile hinterlassen.
     inbox: { ref: { type: "task", id: task.id }, once: true, actor },
-  });
+  };
+}
 
-  return { ok: true, data: { id: task.id } };
+/**
+ * Legt eine Aufgabe samt Bedingungen an und benachrichtigt den Sub.
+ *
+ * `actor` ist WER stellt (Sitzung bzw. {@link AI_AUTHOR}) — als eigenes Argument wie bei allen
+ * übrigen Diensten. Er wandert zusätzlich in die Spalte `createdBy`, weil eine TERMINIERTE Aufgabe
+ * erst der Poller zustellt und ihren Absender sonst raten müsste. Die späteren Meldungen aus dem
+ * Poller (erfüllt/versäumt/bitte melden) sind dagegen BEFUNDE der App und tragen bewusst keinen Namen.
+ */
+export async function createTask(
+  p: CreateTaskParams,
+  actor: MessageActor,
+): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
+  const checked = await checkTask(prisma, p, actor);
+  if (!checked.ok) return checked;
+  const task = await writeTask(prisma, checked.data);
+
+  // Terminiert: NICHTS melden. Die Meldung IST das, was die Terminierung verschiebt — sie hier
+  // trotzdem zu verschicken verriete die Aufgabe, die der Träger noch nicht kennen soll.
+  if (!checked.data.wirksamAb) await notifyUser(p.userId, taskAssignmentNotice(task, actor));
+
+  // `scheduledFor` mit zurück, wie bei Kontroll- und Verschluss-Anforderung: der MCP nennt dem
+  // Agenten den Auslöse-Zeitpunkt, und er muss GENAU der sein, der in der Zeile steht. Rechnete der
+  // Aufrufer ihn selbst nach, täte er es mit seiner eigenen Uhr — bei `delayMinutes` wäre die
+  // gemeldete Zeit dann eine andere als die gespeicherte.
+  return { ok: true, data: { id: task.id, scheduledFor: checked.data.wirksamAb?.toISOString() ?? null } };
 }
 
 /**
@@ -486,9 +562,13 @@ export async function updateTask(
   //                             `from >= until` früh `true` zurück — die zu deckende Spanne ist leer).
   // Nur bei Aufgaben MIT Bedingungen: ohne sie gibt es nichts anzulegen, und die Kulanz ist ohne
   // Bedeutung — dieselbe Unterscheidung wie in `createTask`.
+  // Nicht unter den NULLPUNKT: bei einer terminierten Aufgabe ist das `wirksamAb`, nicht „jetzt".
+  // Ohne das liesse sich das Ende einer für morgen geplanten Aufgabe auf heute Abend ziehen — bei
+  // der Zustellung verschöbe `deadlineFromDispatch` die (negative) Spanne in die Vergangenheit, und
+  // derselbe Tick meldete die eben erst zugestellte Aufgabe als versäumt.
   const minEnd = t._count.requirements > 0
     ? new Date(Math.max(Date.now(), startDeadline(t).getTime()))
-    : new Date();
+    : new Date(Math.max(Date.now(), t.wirksamAb?.getTime() ?? 0));
   const fieldError = checkTaskFields(next, minEnd);
   if (fieldError) return fieldError;
 
@@ -500,16 +580,21 @@ export async function updateTask(
   });
   if (res.count === 0) return serviceFail(400, "TASK_NOT_EDITABLE");
 
-  const deadline = taskNoticeDeadline({ ...next, createdAt: t.createdAt, startGraceMin: t.startGraceMin });
-  await notifyUser(userId, {
-    subjectKey: "taskChangedSubject",
-    messageKey: deadline.durationMode ? "taskChangedDurationMessage" : "taskChangedMessage",
-    params: { title: next.title, ...deadline.params },
-    alwaysNotify: true,
-    // KEIN `once`: mehrere Änderungen an derselben Aufgabe sind legitim und jede gehört als eigene
-    // Zeile in den Verlauf (so auch bei der Verschluss-Anforderung).
-    inbox: { ref: { type: "task", id }, actor },
-  });
+  // Eine noch nicht ausgelöste Aufgabe darf ihre eigene Änderung NICHT melden — die Meldung verriete
+  // die Aufgabe, deren Terminierung genau das verhindern soll (siehe `isHiddenFromSub`). Zugestellt
+  // wird sie ohnehin erst später, und dann in der geänderten Fassung.
+  if (!isHiddenFromSub(t)) {
+    const deadline = taskNoticeDeadline({ ...next, createdAt: t.createdAt, startGraceMin: t.startGraceMin, wirksamAb: t.wirksamAb });
+    await notifyUser(userId, {
+      subjectKey: "taskChangedSubject",
+      messageKey: deadline.durationMode ? "taskChangedDurationMessage" : "taskChangedMessage",
+      params: { title: next.title, ...deadline.params },
+      alwaysNotify: true,
+      // KEIN `once`: mehrere Änderungen an derselben Aufgabe sind legitim und jede gehört als eigene
+      // Zeile in den Verlauf (so auch bei der Verschluss-Anforderung).
+      inbox: { ref: { type: "task", id }, actor },
+    });
+  }
 
   return { ok: true, data: { id, userId } };
 }
@@ -518,7 +603,10 @@ export async function updateTask(
  *  Entschluss der Keyholderin, das andere ein Versäumnis des Subs — und ein Rückzug wird nie ein
  *  Vergehen (siehe Zustand `withdrawn` in `tasks.ts`). */
 export async function withdrawTask(id: string, userId: string, actor: MessageActor): Promise<ServiceResult<{ userId: string }>> {
-  const t = await prisma.task.findFirst({ where: { id, userId }, select: { title: true } });
+  const t = await prisma.task.findFirst({
+    where: { id, userId },
+    select: { title: true, wirksamAb: true, benachrichtigtAt: true },
+  });
   if (!t) return serviceFail(404, "TASK_NOT_FOUND");
 
   // Ein Aufruf statt Lesen-dann-Schreiben: der offene Zustand steht in der Where-Klausel, ein
@@ -529,13 +617,17 @@ export async function withdrawTask(id: string, userId: string, actor: MessageAct
   });
   if (res.count === 0) return serviceFail(400, "TASK_NOT_EDITABLE");
 
-  await notifyUser(userId, {
-    subjectKey: "taskWithdrawnSubject",
-    messageKey: "taskWithdrawnMessage",
-    params: { title: t.title },
-    alwaysNotify: true,
-    inbox: { ref: { type: "task", id }, once: true, actor },
-  });
+  // Wie bei der Änderung: einen Rückzug zu melden, bevor die Aufgabe ausgelöst hat, verriete sie —
+  // der Träger erführe von einer Anweisung nur dadurch, dass sie zurückgenommen wurde.
+  if (!isHiddenFromSub(t)) {
+    await notifyUser(userId, {
+      subjectKey: "taskWithdrawnSubject",
+      messageKey: "taskWithdrawnMessage",
+      params: { title: t.title },
+      alwaysNotify: true,
+      inbox: { ref: { type: "task", id }, once: true, actor },
+    });
+  }
   return { ok: true, data: { userId } };
 }
 
@@ -685,6 +777,60 @@ async function closePenaltyForFulfilledTask(taskId: string, now: Date): Promise<
 }
 
 /**
+ * Stellt fällige, TERMINIERTE Aufgaben zu (`wirksamAb` erreicht, noch nicht benachrichtigt).
+ *
+ * Dieselbe Einmal-Zusage wie die Nachbar-Blöcke des Minuten-Ticks: erst zustellen, dann stempeln.
+ * Schlägt der Versand fehl, bleibt `benachrichtigtAt` null und der nächste Lauf versucht es erneut;
+ * eine doppelte Mail ist flüchtig, die Zeile im Posteingang hält `once: true` einmalig.
+ *
+ * DER PUNKT, AN DEM ES SONST SCHIEFGEHT: der Tick ist nicht zwingend pünktlich (60-Sekunden-Raster,
+ * Container-Neustart, gescheiterter Versand). Die geplante SPANNE wird deshalb auf den tatsächlichen
+ * Zustell-Zeitpunkt verschoben — Nullpunkt UND Ende wandern um dieselbe Verspätung nach hinten
+ * ({@link deadlineFromDispatch}). Ohne das verlöre der Träger Kulanz für etwas, wovon er nichts
+ * wusste, und im Extremfall (Instanz stand über Nacht) käme eine bereits abgelaufene Frist an.
+ *
+ * Der neue Nullpunkt wird MITGESCHRIEBEN (`wirksamAb: sentAt`) und nicht bloss gerechnet: Karte,
+ * Auswertung, Strafbuch und Poller müssen dieselben Zahlen lesen — dieselbe Begründung, aus der die
+ * Kontroll-Zustellung ihre verschobene Frist zurück in die Zeile schreibt.
+ */
+export async function dispatchDueTasks(now: Date): Promise<void> {
+  const due = await prisma.task.findMany({
+    where: { wirksamAb: { not: null, lte: now }, benachrichtigtAt: null, withdrawnAt: null },
+    orderBy: { wirksamAb: "asc" },
+    take: 50,
+    // Nur was die Meldung und die Frist-Verschiebung lesen — `description`, `completionNote` und
+    // `penaltyReason` sind Freitexte, die auf einem Minuten-Tick nichts zu suchen haben.
+    select: {
+      id: true, userId: true, title: true, holdUntil: true, holdDurationMin: true,
+      startGraceMin: true, createdAt: true, wirksamAb: true, isPunishment: true, createdBy: true,
+    },
+  });
+
+  for (const t of due) {
+    try {
+      const sentAt = new Date();
+      // Die ganze Geometrie um die Verspätung nach hinten: `holdUntil` über die geteilte Regel, die
+      // Kulanzfrist implizit über den neuen Nullpunkt (`startGraceMin` ist eine Dauer, keine Uhrzeit).
+      const holdUntil = deadlineFromDispatch({ wirksamAb: t.wirksamAb, deadline: t.holdUntil }, sentAt);
+
+      await notifyUser(t.userId, taskAssignmentNotice({ ...t, wirksamAb: sentAt, holdUntil }, t.createdBy));
+      // `updateMany` mit dem offenen Zustand in der Bedingung statt `update` auf die id: zieht die
+      // Keyholderin die Aufgabe zwischen Vorauswahl und Versand zurück, darf der Stempel sie nicht
+      // wieder aufwecken. Der Rückzug selbst schwieg (sie galt da noch als verborgen) — bliebe der
+      // Stempel, hätte der Sub eine Zeile im Posteingang zu einer Aufgabe, die er nie zu sehen
+      // bekommt. So bleibt sie zurückgezogen, und die Meldung ist die einzige Spur.
+      await prisma.task.updateMany({
+        where: { id: t.id, withdrawnAt: null, benachrichtigtAt: null },
+        data: { benachrichtigtAt: sentAt, wirksamAb: sentAt, holdUntil },
+      });
+    } catch (e) {
+      // benachrichtigtAt bleibt null → nächster Lauf versucht es erneut.
+      console.error(`[dispatchDueTasks] Zustellung fehlgeschlagen (${t.id}):`, (e as Error).message);
+    }
+  }
+}
+
+/**
  * Meldet das Ergebnis fälliger Aufgaben — einmal, an Sub und Keyholder.
  *
  * Läuft im bestehenden Minuten-Tick. Ungefährlich für die anderen Poller-Blöcke, weil er
@@ -704,7 +850,11 @@ export async function processDueTasks(now: Date): Promise<void> {
   // sortierten als älteste nach vorn und besetzten den `take`-Deckel dauerhaft — genau der Stau, den
   // `c77dec2` schon einmal beheben musste.
   const due = await prisma.task.findMany({
-    where: { holdUntil: { lte: now }, withdrawnAt: null, resultNotifiedAt: null },
+    // Terminierte, noch nicht zugestellte Aufgaben bleiben aussen vor: über ein Ergebnis zu berichten,
+    // bevor die Aufgabe überhaupt angekommen ist, wäre die falsche Nachricht an beide Seiten. Im
+    // Normalfall kann das gar nicht auftreten (ihre Frist liegt in der Zukunft, und `dispatchDueTasks`
+    // läuft im selben Tick davor) — stünde der Tick aber lange still, alterte die Zeile hier hinein.
+    where: { holdUntil: { lte: now }, withdrawnAt: null, resultNotifiedAt: null, ...SUB_VISIBLE_WHERE },
     orderBy: { holdUntil: "asc" },
     take: 50,
     include: TASK_INCLUDE,

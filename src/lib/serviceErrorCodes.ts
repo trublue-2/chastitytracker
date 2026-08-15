@@ -210,6 +210,8 @@ export const TASK_CODES = [
    *  nichts anzulegen — die Uhr fände nie ihren Start. Eine reine Textaufgabe braucht deshalb einen
    *  Zeitpunkt. */
   "TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS",
+  /** Der Zeitpunkt, ab dem eine terminierte Aufgabe gilt, liess sich nicht lesen. */
+  "TASK_INVALID_SEND_TIME",
   "TASK_REQUIREMENT_INVALID",
   "TASK_REQUIREMENT_KG_CATEGORY",
   "TASK_DUPLICATE_REQUIREMENT",

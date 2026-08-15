@@ -4,7 +4,7 @@ import { buildStrafbuch, offenseListViews, type StrafbuchData } from "@/lib/stra
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { recordSystemMessage, DISMISSAL_BODY_KEY, type MessageActor } from "@/lib/messageService";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
-import { checkTask, writeTask, taskNoticeDeadline, type CreateTaskParams, type TaskNoticeSource } from "@/lib/taskService";
+import { checkTask, writeTask, taskAssignmentNotice, type CreateTaskParams } from "@/lib/taskService";
 import { formatDateTime } from "@/lib/utils";
 import { markLastAction } from "@/lib/appMeta";
 import { offenseWasAnnounced, OFFENSE_REF_TYPE } from "@/lib/offenseAnnounce";
@@ -284,7 +284,7 @@ async function resolveDetectedOffense(
 export async function punishWithTask(
   p: CreateTaskParams & Pick<JudgeOffenseParams, "refId" | "offenseType" | "allowRevision">,
   actor: MessageActor,
-): Promise<ServiceResult<{ id: string }>> {
+): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
   const now = new Date();
 
   // Beide Prüfungen stehen VOR der Transaktion: sie lesen nur, und sie kosten zusammen ein Dutzend
@@ -299,7 +299,7 @@ export async function punishWithTask(
 
   // Die Ablehnung des Formulars (Titel zu lang, Frist zu früh, Gerät fremd) erreicht den Aufrufer
   // damit direkt, statt aus einem abgebrochenen Vorgang zurückgetragen werden zu müssen.
-  const checked = await checkTask(prisma, { ...p, isPunishment: true });
+  const checked = await checkTask(prisma, { ...p, isPunishment: true }, actor);
   if (!checked.ok) return checked;
 
   // Was bleibt, sind die zwei Schreibvorgänge, die zusammengehören: die Aufgabe und ihr Urteil.
@@ -331,14 +331,22 @@ export async function punishWithTask(
   // Aufrufer einen 500 für einen Vorgang, der GELUNGEN ist. Sein Wiederholungsversuch liefe in die
   // Eindeutigkeits-Sperre auf `refId` und bekäme „schon beurteilt" — und der Träger bliebe mit einer
   // Strafaufgabe zurück, von der er nie erfahren hat, ohne zweite Gelegenheit, es ihm zu sagen.
-  try {
-    await notifyUser(p.userId, strafaufgabeNotice(created, actor));
-  } catch (e) {
-    console.error("[strafe] Benachrichtigung zur Strafaufgabe fehlgeschlagen", e);
+  //
+  // Eine TERMINIERTE Strafaufgabe meldet hier gar nichts: sie zuzustellen ist Sache des Pollers,
+  // und er verschickt dieselbe Nachricht (`taskAssignmentNotice` wählt sie über `isPunishment`).
+  // Das URTEIL steht davon unberührt in der Datenbank — bestraft ist das Vergehen ab jetzt.
+  if (!checked.data.wirksamAb) {
+    try {
+      await notifyUser(p.userId, taskAssignmentNotice(created, actor));
+    } catch (e) {
+      console.error("[strafe] Benachrichtigung zur Strafaufgabe fehlgeschlagen", e);
+    }
   }
   markLastAction();
 
-  return { ok: true, data: { id: created.id } };
+  // Denselben Vertrag wie `createTask`: der Auslöse-Zeitpunkt kommt aus der geschriebenen Zeile,
+  // nicht aus einer zweiten Rechnung des Aufrufers.
+  return { ok: true, data: { id: created.id, scheduledFor: checked.data.wirksamAb?.toISOString() ?? null } };
 }
 
 /**
@@ -407,29 +415,6 @@ async function writeJudgment(
  */
 function judgmentConflict(e: unknown): ServiceFailure | null {
   return isUniqueConstraintOn(e, "refId") ? serviceFail(409, "JUDGMENT_ALREADY_EXISTS") : null;
-}
-
-/** Die eine Nachricht einer Strafaufgabe: sie nennt die Strafe und zeigt auf die Aufgabe, damit der
- *  Sub von der Nachricht aus direkt sieht, was zu tun ist. */
-function strafaufgabeNotice(
-  task: TaskNoticeSource & { id: string },
-  actor: MessageActor,
-): NotifyContent {
-  // Über denselben Baustein wie die gewöhnliche Aufgabe: eine Strafaufgabe im Dauer-Modus benennt
-  // ihre Frist sonst anders als jede andere Aufgabe — und zwar falsch.
-  const deadline = taskNoticeDeadline(task);
-  return {
-    subjectKey: "penaltyTaskSubject",
-    messageKey: deadline.durationMode ? "penaltyTaskDurationMessage" : "penaltyTaskMessage",
-    params: { title: task.title, ...deadline.params },
-    alwaysNotify: true,
-    inbox: {
-      ref: { type: "task", id: task.id },
-      actor,
-      // Eine Aufgabe wird genau einmal gestellt — ein Retry darf keine zweite Zeile hinterlassen.
-      once: true,
-    },
-  };
 }
 
 /**

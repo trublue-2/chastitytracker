@@ -979,7 +979,23 @@ model Task {
   // nur an einem bereits erkannten, vergangenen Vergehen hängen).
   isPunishment  Boolean  @default(false)
   penaltyReason String?
+  /// Username des Keyholders/Admins, der die Aufgabe gestellt hat, bzw. `ai` über den MCP —
+  /// dieselbe Spalte und dieselbe Begründung wie `KontrollAnforderung.createdBy`: eine TERMINIERTE
+  /// Aufgabe stellt der Poller zu, lange nachdem der Mensch den Knopf gedrückt hat, und nur diese
+  /// Spalte sagt ihm, wer sie angeordnet hat. `null` = Altbestand bzw. kein Mensch feststellbar →
+  /// die Meldung bleibt eine System-Zeile.
+  createdBy     String?
   createdAt     DateTime @default(now())
+  // Zeitversetzte Auslösung: null = sofort wirksam, wie bisher. Gesetzt = geplant; bis dahin ist die
+  // Aufgabe für den Träger unsichtbar, blockiert nichts und zählt nirgends mit.
+  //
+  // Sie ist ausserdem der NULLPUNKT jeder Zeitrechnung dieser Aufgabe (`taskAnchor` in `tasks.ts`):
+  // Kulanzfrist, spätestmögliches Ende im Dauer-Modus und der Kandidaten-Filter der Auswertung
+  // ankern auf `wirksamAb ?? createdAt`. Bei der ZUSTELLUNG rückt der Poller sie auf den
+  // tatsächlichen Zustell-Zeitpunkt vor (samt `holdUntil`), damit ein verspäteter Tick keine
+  // Kulanz verschluckt — siehe `deadlineFromDispatch`.
+  wirksamAb        DateTime?
+  benachrichtigtAt DateTime? // wann Mail/Push raus ging (sofort beim Anlegen, oder per Poller)
   // Selbstmeldung des Subs. Bei Aufgaben MIT Bedingungen zusätzlich zur Bedingungs-Erfüllung nötig
   // (der Textteil — „ist die Wohnung sauber?" — ist maschinell nicht prüfbar); ohne Bedingungen IST
   // sie die Erfüllung.
@@ -1004,6 +1020,15 @@ model Task {
   // praktisch jeder Altzeile gesetzt ist: der IS-NULL-Bereich bleibt winzig, egal wie gross die
   // Tabelle wird.
   @@index([resultNotifiedAt, holdUntil])
+  // Für die Zustellung terminierter Aufgaben im Minuten-Tick
+  // (`benachrichtigtAt IS NULL AND wirksamAb <= now`).
+  //
+  // `benachrichtigtAt` steht VORN — dieselbe Regel wie beim Index darüber: die Zustellung schreibt
+  // `wirksamAb` auf den Zustell-Zeitpunkt fort, also liegt es danach bei JEDER ausgelieferten Zeile
+  // in der Vergangenheit und fiele in den Suchbereich. Mit der Bereichs-Spalte vorn kann SQLite die
+  // zweite nicht mehr zum Suchen nutzen, und der Tick liest jede je terminierte Aufgabe erneut.
+  // Andersherum ist der IS-NULL-Bereich winzig, und die Sortierung nach `wirksamAb` bleibt gratis.
+  @@index([benachrichtigtAt, wirksamAb])
 }
 
 // Eine Bedingung einer Aufgabe. Mehrere je Aufgabe sind der Normalfall („KG verschlossen UND Halsband

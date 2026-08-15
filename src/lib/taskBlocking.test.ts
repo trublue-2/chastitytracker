@@ -33,6 +33,8 @@ function evaluated(
       description: null,
       holdUntil: HOLD_UNTIL,
       startGraceMin: 30,
+      wirksamAb: null,
+      benachrichtigtAt: null,
       holdDurationMin: null,
       proofOrderMatters: true,
       isPunishment: false,

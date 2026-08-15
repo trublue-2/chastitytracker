@@ -4,7 +4,7 @@ import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalM
 import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 import { hhmmToMinutes } from "@/lib/autoKontrolleService";
-import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
@@ -478,7 +478,11 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     prisma.orgasmusAnforderung.findMany({ where: { userId } }),
     // Zurückgezogene bleiben draussen: ein Rückzug ist der Entschluss der Keyholderin, kein
     // Versäumnis des Subs, und darf nie zu einem Vergehen werden.
-    prisma.task.findMany({ where: { userId, withdrawnAt: null }, include: TASK_INCLUDE }),
+    // Eine noch nicht ausgelöste Aufgabe kann kein Vergehen sein — der Träger weiss nichts von ihr.
+    // Ihre Fristen liegen zwar per Konstruktion in der Zukunft (`checkTask` erzwingt das), aber
+    // genau darauf soll sich das Strafbuch nicht verlassen: stünde der Minuten-Tick lange still,
+    // alterte die Zeile in die Vergangenheit und würde zum Versäumnis für etwas, das nie ankam.
+    prisma.task.findMany({ where: { userId, withdrawnAt: null, ...SUB_VISIBLE_WHERE }, include: TASK_INCLUDE }),
     prisma.adminPasswordChange.findMany({ where: { subUserId: userId }, orderBy: { createdAt: "desc" } }),
     orgasmRuleArmedFrom
       ? prisma.entry.findMany({

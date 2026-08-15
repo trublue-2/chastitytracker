@@ -82,10 +82,11 @@ beforeEach(() => {
   tx.strafeRecord.create.mockResolvedValue({ id: "s1" });
   tx.strafeRecord.upsert.mockResolvedValue({ id: "s1" });
   tx.strafeRecord.deleteMany.mockResolvedValue({ count: 1 });
-  check.mockResolvedValue({ ok: true, data: { data: {} } });
+  check.mockResolvedValue({ ok: true, data: { data: {}, wirksamAb: null } });
   write.mockResolvedValue({
     id: "task-9", title: "Wohnung staubsaugen", holdUntil: HOLD_UNTIL,
     holdDurationMin: null, createdAt: new Date("2026-08-01T09:00:00Z"), startGraceMin: 30,
+    wirksamAb: null, isPunishment: true,
   });
 });
 
@@ -93,10 +94,10 @@ describe("punishWithTask", () => {
   it("legt Aufgabe und Urteil an und meldet EINE Nachricht", async () => {
     const res = await punishWithTask(PARAMS, "herrin");
 
-    expect(res).toEqual({ ok: true, data: { id: "task-9" } });
+    expect(res).toEqual({ ok: true, data: { id: "task-9", scheduledFor: null } });
     // Geprüft wird VOR der Transaktion (ein Dutzend Abfragen, die nichts festschreiben),
     // geschrieben darin.
-    expect(check).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ isPunishment: true }));
+    expect(check).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ isPunishment: true }), "herrin");
     expect(write).toHaveBeenCalledWith(tx, expect.anything());
     // Das Urteil trägt die Aufgabe — das ist die Verbindung, auf der alles Weitere aufbaut.
     const upsert = tx.strafeRecord.upsert.mock.calls[0][0];
@@ -213,7 +214,7 @@ describe("Strafaufgabe als zweiter Browser-Eingang", () => {
       "herrin",
     );
 
-    expect(res).toEqual({ ok: true, data: { id: "task-9" } });
+    expect(res).toEqual({ ok: true, data: { id: "task-9", scheduledFor: null } });
     expect(tx.strafeRecord.create.mock.calls[0][0].data).toMatchObject({ offenseType: "REINIGUNG_LIMIT" });
   });
 
