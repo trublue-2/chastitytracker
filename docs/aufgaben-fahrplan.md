@@ -9,7 +9,7 @@ Fasst die drei Vorarbeiten zusammen und macht sie umsetzbar.
 | `aufgaben-ausbau.md` | Zwölf Bausteine · das Prinzip „Direktive erzeugt Direktive" |
 | `aufgaben-beschriftung.md` | Elf Beschriftungs-Befunde gegen dieselben elf Fälle |
 
-Stand: v5.1.3 · 15.08.2026 · **Etappe 0 ist umgesetzt (v5.1.3), Etappen 1–4 sind Plan.**
+Stand: v5.1.2 · 15.08.2026 · **Etappe 0 ist umgesetzt, Etappen 1–4 sind Plan.**
 
 ---
 
@@ -23,7 +23,7 @@ Beschriftung** — deshalb steht Etappe 0 vor allem anderen.
 
 ---
 
-## Etappe 0 — Die Texte · ✅ *umgesetzt in v5.1.3*
+## Etappe 0 — Die Texte · ✅ *umgesetzt (Teil des 5.1.2-Bündels)*
 
 **Aufwand: klein** (ein halber Tag) · **Risiko: praktisch null** · reine `messages/*.json`, eine
 Ausnahme mit einer Zeile Code.
