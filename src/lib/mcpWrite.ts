@@ -1802,8 +1802,12 @@ export async function mcpReviewTaskProof(username: string, args: ReviewTaskProof
   return {
     ok: true,
     taskId: task.id,
+    // BEDINGT formuliert, weil dieser Aufruf den Ausgang nicht kennt: ob der Nachweis überhaupt
+    // verspätet war, sagt erst die Auswertung eine Ebene tiefer (`notifyProofReviewed`), und ob ein
+    // Vergehen bestand, weiss nur das Strafbuch. Ein unbedingtes „das Vergehen ist weg" wäre bei der
+    // grossen Mehrheit der Aufrufe — pünktlich eingereicht, nie ein Vergehen — schlicht falsch.
     message: args.accepted
-      ? `Proof ${args.index} accepted. If that was the last open one, the task result was sent to both sides.`
+      ? `Proof ${args.index} accepted. If it was submitted after its deadline it counts again, so an unjudged unfulfilled_task offense for this task disappears (a judgment you already wrote on it does NOT — reopen that yourself). If it was the last open proof, the task result went out to both sides.`
       : `Proof ${args.index} rejected — the task counts as unfulfilled (offense unfulfilled_task). The user was told.`,
   };
 }

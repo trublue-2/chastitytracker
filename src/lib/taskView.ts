@@ -40,10 +40,12 @@ export type TaskCardProofState =
    *  Aufgabe scheitert. Ohne diesen Zustand zeigte die Zeile „erbracht" (ihr Code stimmte ja),
    *  während die Aufgabe darunter „versäumt" meldet. */
   | "outOfOrder"
-  /** EIGENE Fälligkeit verstrichen: nichts eingereicht — oder erst NACH ihr, was für das Urteil
-   *  dasselbe ist. Aus demselben Grund ein eigener Zustand wie `outOfOrder`: er ist der Beleg für das
-   *  Urteil der Aufgabe, und er nimmt der Zeile den Aufnahme-Link — sonst führte sie in ein Formular,
-   *  das der Dienst ohnehin abweist. */
+  /** EIGENE Fälligkeit verstrichen: nichts eingereicht — oder erst NACH ihr und (noch) nicht
+   *  angenommen, was für das Urteil dasselbe ist. Aus demselben Grund ein eigener Zustand wie
+   *  `outOfOrder`: er ist der Beleg für das Urteil der Aufgabe, und er nimmt der Zeile den
+   *  Aufnahme-Link — sonst führte sie in ein Formular, das der Dienst ohnehin abweist.
+   *
+   *  Nimmt die Keyholderin das späte Foto an, ist die Zeile `confirmed` und die Aufgabe erfüllt. */
   | "overdue";
 
 export interface TaskCardProof {
@@ -307,12 +309,15 @@ export function taskProofState(
   if (p.id === outOfOrderId) return "outOfOrder";
   if (p.reviewAccepted === true) return "confirmed";
   if (p.reviewAccepted === false) return "rejected";
-  // Vor `open` UND vor der Automatik, aber NACH den Urteilen eines Menschen: ein spät doch noch
-  // angenommener Nachweis ist erbracht, kein Versäumnis.
+  // Hier landet auch ein EINGEREICHTER Nachweis — nämlich einer, der nach seiner Frist kam und noch
+  // NICHT gesichtet ist. Fürs Urteil zählt er nicht (`proofCounted`), und ohne diesen Zweig zeigte
+  // die Zeile ein grünes „erbracht" über einer versäumten Aufgabe, ohne dass irgendwo stünde, woran
+  // es lag.
   //
-  // Auch ein EINGEREICHTER Nachweis kann hier landen — nämlich einer, der nach seiner eigenen Frist
-  // kam. Fürs Urteil zählt er nicht (`proofCounted`), und ohne diesen Zweig zeigte die Zeile ein
-  // grünes „erbracht" über einer versäumten Aufgabe, ohne dass irgendwo stünde, woran es lag.
+  // Dass die Annahme oben davorsteht, ist seit der späten Annahme nur noch Absicherung: ein
+  // angenommener Nachweis steht gar nicht mehr in `overdueProofIds` (`proofCounted` zählt ihn), die
+  // beiden Zweige können sich also nicht mehr widersprechen. Die Reihenfolge bleibt trotzdem, weil
+  // sie die richtige Aussage macht, falls die beiden Schichten je wieder auseinanderlaufen.
   if (overdue) return "overdue";
   if (!p.submittedAt) return "open";
   return p.verifikationStatus !== null ? "confirmed" : "review";

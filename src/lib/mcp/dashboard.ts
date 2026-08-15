@@ -179,8 +179,18 @@ export interface DashboardResult extends Envelope {
    *  ist der neue Wert `overdue` in `openTasks[].proofs[].state`: dieselbe Erweiterung einer
    *  Zustands-Menge wie in v8, und mit derselben Folge. Wer bisher jede nicht eingereichte Zeile als
    *  „der Sub ist noch dran" las, läge falsch — bei `overdue` kann er nichts mehr tun, die Frist ist
-   *  vorbei und die Aufgabe damit versäumt. */
-  schemaVersion: 12;
+   *  vorbei und die Aufgabe damit versäumt.
+   *
+   *  v13: die SPÄTE ANNAHME rettet die Aufgabe. Nimmt der Keyholder ein nach der Frist eingereichtes
+   *  Nachweis-Foto an (`review_task_proof accepted:true`), zählt es doch — die Aufgabe ist erfüllt
+   *  statt versäumt. Kein neues Feld, aber ein anderer Wortlaut für ein bestehendes: `state` einer
+   *  Aufgabe war bis v12 endgültig, sobald eine Nachweis-Frist verstrichen war. Ab v13 ist er es
+   *  nicht mehr — eine Aufgabe, die als versäumt aus `openTasks` gefallen war, kann durch eine
+   *  Sichtung als `running`/`awaitingUserConfirmation` zurückkehren, und ein noch UNBEURTEILTES
+   *  `unfulfilled_task` verschwindet dabei rückwirkend (ein bereits geschriebenes Urteil bleibt —
+   *  das nimmt nur `judge_offense reopen` zurück). Ein v12-Wert trug die stille Zusage „das kann
+   *  sich nur noch durch eine ABLEHNUNG ändern"; die gilt nicht mehr. */
+  schemaVersion: 13;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
@@ -361,7 +371,9 @@ export interface OpenTaskProofView {
   /** open = noch nicht eingereicht · confirmed = erbracht (Code bestätigt oder von dir angenommen) ·
    *  review = eingereicht, wartet auf DEIN Urteil · rejected = von dir abgelehnt ·
    *  outOfOrder = Aufnahmezeit bricht die geforderte Reihenfolge ·
-   *  overdue = eigene Fälligkeit verstrichen, nichts eingereicht (die Aufgabe ist damit versäumt). */
+   *  overdue = Frist verstrichen, nichts (rechtzeitig) eingereicht und nichts angenommen — die
+   *  Aufgabe ist damit versäumt. Lag ein spätes Foto vor und du hast es ANGENOMMEN, steht hier
+   *  `confirmed` und die Aufgabe ist erfüllt. */
   state: string;
   /** EIGENE Fälligkeit dieses Nachweises (ISO-8601 mit Offset) — null, wo er bis zum Ende der
    *  Aufgabe offen ist. Nach ihr nimmt die App nichts mehr an; ein `dueAt` in der Vergangenheit mit
@@ -681,7 +693,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,

@@ -1146,8 +1146,12 @@ function registerTools(server: McpServer) {
           "whose code the image check could not confirm) is neither fulfilled nor missed until you decide. " +
           "Address the proof by task plus its POSITION (1-based), the way keyholder_dashboard lists it. " +
           "Rejecting makes the task unfulfilled (offense unfulfilled_task); accepting the last open proof " +
-          "completes it. Either way the user is told, and if the task is thereby decided its result goes " +
-          "out to both sides at once. A judgment can be revised — say so if you change your mind." + KEYHOLDER_NOTE,
+          "completes it. Accepting also RESCUES a proof that was submitted after its deadline: it counts " +
+          "again and the task is fulfilled instead of missed. Such a task counts as missed until you judge " +
+          "it, so it is NOT in keyholder_dashboard.openTasks — find it in get_offenses as unfulfilled_task, " +
+          "whose refId is the taskId. Either way the user is told, and if the task is thereby decided its " +
+          "result goes out to both sides at once. A judgment can be revised — say so if you change your " +
+          "mind." + KEYHOLDER_NOTE,
         inputSchema: {
           taskId: z.string().describe("The task, from keyholder_dashboard.openTasks[].id."),
           index: z.number().int().positive().describe("Which proof, 1-based, in the order they were demanded."),

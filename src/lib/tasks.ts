@@ -155,6 +155,9 @@ export interface TaskEvaluation {
    * Nur Nachweise MIT eigener Fälligkeit stehen hier. Wo die Frist der Aufgabe die kürzere ist,
    * urteilt die Aufgabe selbst — ein zusätzliches „überfällig" an der Zeile wiederholte nur, was ihr
    * Zustand ohnehin sagt.
+   *
+   * Ein spät eingereichter, ANGENOMMENER Nachweis steht nicht mehr darin — er zählt wieder
+   * ({@link proofCounted}).
    */
   overdueProofIds: string[];
 }
@@ -339,6 +342,9 @@ export interface ProofLike {
   /** Gesetzt, wenn die Prüfung lief und NICHT matchte (`VerifyReason`). Unterscheidet „noch nicht
    *  geprüft" von „geprüft und durchgefallen" — beide haben `verifikationStatus: null`. */
   verifikationReason: string | null;
+  /** Das Urteil eines MENSCHEN. `null` = noch nicht gesichtet. Es schlägt jede Automatik in BEIDE
+   *  Richtungen: `false` beendet die Aufgabe als Versäumnis, auch wenn der Code stimmte — `true`
+   *  lässt den Nachweis zählen, auch wenn er nach seiner Frist kam (Begründung: {@link proofCounted}). */
   reviewAccepted: boolean | null;
 }
 
@@ -385,16 +391,52 @@ export function ownProofDeadline(
 }
 
 /**
- * Zählt dieser Nachweis? — RECHTZEITIG eingereicht, gemessen an seiner eigenen Frist.
+ * Zählt dieser Nachweis? — rechtzeitig eingereicht ODER von der Keyholderin angenommen.
  *
  * Die EINE Formulierung dieser Frage: die Nachweis-Achse ({@link evaluateProofs}) und der Beleg an
  * der Zeile ({@link overdueProofsAt}) müssen sie gleich beantworten. Zwei eigene Fassungen wichen
  * schon einmal genau um den Fall ab, den man am wenigsten sieht: ein Foto, das NACH seiner Frist
  * hochgeladen wurde, zählte für das Urteil nicht — die Zeile zeigte es aber weiter als „erbracht",
  * und über einem Versäumnis stand ein grünes Häkchen ohne Erklärung.
+ *
+ * DIE SPÄTE ANNAHME RETTET (Produkt-Entscheidung 15.08.2026). Nimmt die Keyholderin ein nach der
+ * Frist eingereichtes Foto an, ist die Aufgabe erfüllt — kein Vergehen. Das ist dasselbe Prinzip,
+ * das auf dieser Achse ohnehin schon gilt: wo ein Mensch urteilt, urteilt er AN STELLE der Maschine
+ * (das zeitlose Foto in {@link evaluateProofs}, der durchgefallene Code-Check). Passt ihr die
+ * Verspätung nicht, lehnt sie ab — dann bleibt es beim Versäumnis wie bisher.
+ *
+ * Der Ausdruck deckt BEIDE Fristen dieser Achse, weil {@link proofDeadline} beide auflöst: die
+ * EIGENE Fälligkeit eines Nachweises (B12) und — wo er keine hat — das Ende der Aufgabe. Es gibt
+ * hier also keinen zweiten Zweig für den zweiten Fristen-Typ, und damit auch keinen, der beim
+ * nächsten Umbau vergessen werden kann.
+ *
+ * NUR die ausdrückliche Annahme, nicht schon die Einreichung: `reviewAccepted === true` ist die
+ * Handlung eines Menschen. Ein spätes, noch UNGESICHTETES Foto zählt weiter nicht — sonst könnte der
+ * Träger sein eigenes, bereits abgeleitetes Versäumnis durch einen Upload zum Verschwinden bringen,
+ * ohne dass jemand zugestimmt hätte.
+ *
+ * WIE WEIT DIE RETTUNG REICHT — und wo sie aufhört. Das ABGELEITETE Vergehen (`unfulfilled_task` in
+ * `strafbuch.ts`) verschwindet mit dem Urteil, so wie jede Ableitung. Das GESTEMPELTE nicht: wurde
+ * das Versäumnis bereits beurteilt, bleibt der `StrafeRecord` samt Straftext und Strafaufgabe stehen,
+ * und die Keyholderin muss ihn selbst zurücknehmen („Rückgängig" bzw. `judge_offense reopen`). Das
+ * ist genau die Grenze aus `docs/aufgaben-uebergabe.md` §1: der Zustand ist abgeleitet und darf
+ * rückwärts gehen, ein ZUGESTELLTES Urteil trägt seinen eigenen Stempel und darf es nicht.
+ *
+ * Der Träger bleibt darüber nicht im Unklaren: steht die Aufgabe durch die Annahme wieder FEST,
+ * schickt `reviewTaskProof` die Ergebnis-Meldung erneut (`settleTaskResult` mit `once: false`) — die
+ * Korrektur ist dann eine sichtbare Zeile in seinem Posteingang, kein stilles Verschwinden. Rettet
+ * die Annahme die Aufgabe nur in einen ZWISCHENZUSTAND (ein anderer Nachweis ist noch offen), bekommt
+ * er stattdessen die Sichtungs-Meldung zu diesem einen Nachweis; die ältere „Vergehen
+ * festgestellt"-Zeile bleibt dann vorerst stehen, bis das Ergebnis feststeht. Die Feststellungs-Zeile
+ * zurückzunehmen kann diese Schicht nicht — sie ist per Bauart nie verborgen (`offenseAnnounce.ts`).
+ *
+ * RÜCKWÄRTSKOMPATIBEL: bei einem rechtzeitig eingereichten Nachweis ändert der neue Zweig nichts (die
+ * erste Bedingung greift ohnehin), und ohne Annahme urteilt die Aufgabe Wort für Wort wie zuvor.
  */
 function proofCounted(p: ProofLike, task: Pick<TaskLike, "createdAt" | "wirksamAb">, end: Date): boolean {
-  return p.submittedAt !== null && p.submittedAt <= proofDeadline(p, task, end);
+  if (p.submittedAt === null) return false;
+  if (p.reviewAccepted === true) return true;
+  return p.submittedAt <= proofDeadline(p, task, end);
 }
 
 /**
@@ -406,7 +448,9 @@ function proofCounted(p: ProofLike, task: Pick<TaskLike, "createdAt" | "wirksamA
  * dieselbe Liste zweimal mit verschiedenen Enden bilden kann, ohne die Regel zweimal hinzuschreiben.
  *
  * Nicht bloss „nichts eingereicht", sondern „zählt nicht UND die Frist ist um": ein nach seiner
- * Frist nachgereichtes Foto ist genauso versäumt, und das Urteil sagt das ohnehin schon.
+ * Frist nachgereichtes Foto ist genauso versäumt, und das Urteil sagt das ohnehin schon — solange es
+ * nicht angenommen wurde: der Beleg für ein Versäumnis darf nicht an einer Zeile stehen, die gerade
+ * erlassen wurde.
  *
  * Nur Nachweise MIT eigener Frist: wo die Frist der Aufgabe die einzige ist, urteilt die Aufgabe
  * selbst, und ein zusätzliches „überfällig" an der Zeile wiederholte bloss ihren Zustand.
@@ -532,7 +576,9 @@ export function evaluateProofs(
   if (ordered.some((p) => p.reviewAccepted === false)) return "failed";
 
   // Eingereicht heisst: RECHTZEITIG eingereicht — gegen die Frist DIESES Nachweises. Nach ihr zählt
-  // es nicht mehr, sonst wäre sie bedeutungslos: man könnte beliebig lange nachliefern.
+  // es nicht mehr, sonst wäre sie bedeutungslos: man könnte beliebig lange nachliefern. Es sei denn,
+  // die Keyholderin nimmt es ausdrücklich an — dann zählt es doch ({@link proofCounted}). Die Frist
+  // bleibt damit die Regel, die späte Annahme ist die bewusste Ausnahme eines Menschen.
   //
   // Die Fallunterscheidung darunter ist dieselbe wie vorher, nur je Nachweis statt einmal für alle:
   // solange JEDE offene Frist noch läuft, ist die Achse offen; ist eine verstrichen, ist sie

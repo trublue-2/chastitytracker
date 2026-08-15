@@ -189,7 +189,7 @@ fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt
 - **Nachweis-Fotos** (\`requireProof\`) sind eine ZWEITE Achse neben den Bedingungen: erfüllt ist die
   Aufgabe nur, wenn beide stimmen. Ihre **Aufnahmezeiten** müssen der angegebenen Reihenfolge folgen
   (Aufnahme-, nicht Upload-Zeit — sonst genügte es, am Ende alles hochzuladen). Nach \`holdUntil\`
-  eingereicht zählt nicht mehr.
+  eingereicht zählt nicht mehr — es sei denn, du nimmst es ausdrücklich an (siehe Sichtung).
 - **Ein Nachweis kann eine EIGENE Frist haben** (\`requireProof[].dueMinutes\`, Minuten ab dem
   Wirksamwerden der Aufgabe). Damit ist „drei Fotos über den Tag verteilt" EINE Aufgabe statt drei
   Kontrollen: 240/480/720. Ohne die Angabe bleibt ein Nachweis wie bisher bis zum Ende der Aufgabe
@@ -214,6 +214,17 @@ fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt
   beide Seiten, ohne auf den nächsten Tick zu warten. Ein Urteil lässt sich korrigieren. Nimmst du
   ein Foto OHNE Aufnahmezeit an, urteilst du damit an Stelle der Maschine über seine Reihenfolge;
   die übrigen Aufnahmezeiten werden weiterhin geprüft.
+- **Deine Annahme rettet auch ein VERSPÄTETES Foto.** Liegt ein Nachweis vor, der nach seiner Frist
+  eingereicht wurde (das kommt vor, wenn du die Frist nachträglich verkürzt hast oder das wirksame
+  Ende im Dauer-Modus früher lag als die gespeicherte Schranke), zählt er nach deiner Annahme doch:
+  die Aufgabe ist erfüllt statt versäumt, und ein noch unbeurteiltes \`unfulfilled_task\` verschwindet
+  dabei. Hattest du es schon BEURTEILT, bleibt dein Urteil stehen — nimm es mit
+  \`judge_offense action:"reopen"\` zurück, wenn die Strafe entfallen soll. Passt dir die Verspätung
+  nicht, lehne ab; dann bleibt es beim Versäumnis. Nur DEIN Urteil rettet: eine bestandene
+  Code-Prüfung tut es nicht, und der Sub kann sein Versäumnis durch blosses Nachreichen nicht selbst
+  aufheben. **Wo du eine solche Aufgabe findest:** nicht in \`openTasks\` — sie gilt bis zu deinem
+  Urteil als versäumt und steht deshalb in \`get_offenses\` als \`unfulfilled_task\`. Deren \`refId\`
+  IST die \`taskId\`, die \`review_task_proof\` erwartet.
 - **TERMINIEREN** (\`delayMinutes\`/\`scheduledAt\`): bis zum Auslösen existiert die Aufgabe für den Sub
   NICHT — er sieht sie nicht, sie blockiert nichts, und **keine** ihrer Fristen läuft. Der Nullpunkt
   ist dann der Auslöse-Zeitpunkt, nicht das Stellen: Kulanzfrist und Ende zählen ab dort. Damit ist

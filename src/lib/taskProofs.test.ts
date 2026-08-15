@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  evaluateProofs, evaluateTask, firstOutOfOrderProof, isTaskOffense, isTaskOpen, needsKeyholderReview,
-  proofDeadline, type ProofLike, type TaskLike,
+  evaluateProofs, evaluateTask, firstOutOfOrderProof, isTaskOffense, isTaskOpen, isTaskResultFinal,
+  needsKeyholderReview, proofDeadline, type ProofLike, type TaskLike,
 } from "./tasks";
 
 /**
@@ -43,6 +43,12 @@ function proof(over: Partial<ProofLike> = {}): ProofLike {
 
 /** Ein Nachweis mit fester Aufnahmezeit und Position — die Reihenfolge-Fälle brauchen nichts sonst. */
 const at = (iso: string, sortOrder: number, id: string) => proof({ id, sortOrder, imageExifTime: d(iso) });
+
+/** Ein Nachweis mit EIGENER Fälligkeit „nach 60 Minuten": Nullpunkt 12:00, also fällig um 13:00 —
+ *  gut vier Stunden vor dem Ende der Fixture-Aufgabe. Auf Modul-Ebene, weil zwei Blöcke ihn brauchen
+ *  (B12 und die späte Annahme); je Block neu gebaut stünde die 60-Minuten-Konvention zweimal da und
+ *  eine Änderung an ihr liesse die andere Fassung still gegen eine veraltete Frist prüfen. */
+const inAnHour = (over: Partial<ProofLike> = {}) => proof({ dueOffsetMin: 60, ...over });
 
 /** Eine ganze Aufgabe, wie `evaluateTask` sie sieht — sofort wirksam, um 12:00 gestellt. Jeder Test
  *  überschreibt nur, was er variiert; ohne Fixture stünde derselbe Fünfzeiler in jedem zweiten Fall
@@ -275,9 +281,6 @@ describe("Nachweis-Reihenfolge abschaltbar (Fall 3: Gemüse- und Blumenabteilung
  * ist es nur noch die obere Schranke.
  */
 describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", () => {
-  /** Gestellt um 12:00, Ende 18:00. Ein Nachweis „nach 60 Minuten" ist also um 13:00 fällig. */
-  const inAnHour = (over: Partial<ProofLike> = {}) => proof({ dueOffsetMin: 60, ...over });
-
   it("vor der eigenen Frist eingereicht zählt", () => {
     const p = [inAnHour({ submittedAt: d("2026-07-25T12:45:00Z") })];
     expect(evaluateProofs(p, task, d("2026-07-25T13:30:00Z"))).toBe("complete");
@@ -503,6 +506,94 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
     const t = taskWith({ withdrawnAt: d("2026-07-25T13:30:00Z") });
     const p = [proof({ dueOffsetMin: 60, submittedAt: null, imageExifTime: null })];
     expect(evaluateTask(t, [], [], d("2026-07-25T14:00:00Z"), p).state).toBe("withdrawn");
+  });
+});
+
+/**
+ * DIE SPÄTE ANNAHME RETTET (Produkt-Entscheidung 15.08.2026): nimmt die Keyholderin einen nach
+ * seiner Frist eingereichten Nachweis an, ist die Aufgabe erfüllt statt versäumt. Begründung und
+ * Grenzen stehen bei `proofCounted` in `tasks.ts` und werden hier nicht wiederholt.
+ *
+ * ZWEIMAL DASSELBE, absichtlich als Tabelle: seit B12 hat ein Nachweis entweder eine EIGENE
+ * Fälligkeit oder die des Aufgaben-Endes. Beide laufen über `proofDeadline` in denselben Ausdruck —
+ * die Tabelle hält fest, dass keine der beiden einen Sonderzweig hat, der beim nächsten Umbau wegfällt.
+ *
+ * WOHER ein verspäteter Nachweis kommt, ist eine andere Frage und hier nicht mitgeprüft:
+ * `proofSubmitBlockedReason` weist eine späte Einreichung weiterhin ab, es bleiben also die Fälle, in
+ * denen die Frist NACH der Einreichung nach vorn rückt (verkürzt per `edit_task`, oder das wirksame
+ * Ende im Dauer-Modus). Die Auswertung hier gilt für jeden dieser Wege gleich.
+ */
+describe("späte Annahme rettet die Aufgabe", () => {
+  const AFTER = d("2026-07-25T19:00:00Z");
+  /** Nachweis OHNE eigene Fälligkeit: seine Frist IST das Ende der Aufgabe (18:00), eingereicht 18:20. */
+  const lateAtEnd = (over: Partial<ProofLike> = {}) => proof({ submittedAt: d("2026-07-25T18:20:00Z"), ...over });
+  /** Nachweis MIT eigener Fälligkeit (13:00, siehe `inAnHour`), eingereicht 14:00. */
+  const lateOwnDue = (over: Partial<ProofLike> = {}) => inAnHour({ submittedAt: d("2026-07-25T14:00:00Z"), ...over });
+
+  describe.each([
+    ["Frist = Ende der Aufgabe", lateAtEnd],
+    ["eigene Fälligkeit des Nachweises (B12)", lateOwnDue],
+  ] as const)("%s", (_name, late) => {
+    it("angenommen → die Achse ist erfüllt", () => {
+      expect(evaluateProofs([late({ reviewAccepted: true })], task, AFTER)).toBe("complete");
+    });
+
+    /** Der Träger kann sich nicht selbst freisprechen — und die MASCHINE kann es auch nicht: der
+     *  Fixture-Nachweis trägt einen bestätigten Code (`verifikationStatus: "ai"`) und zählt trotzdem
+     *  nicht. Nur das Urteil eines Menschen hebt die Frist auf. */
+    it("ungesichtet → Fehlschlag, auch mit bestätigtem Code", () => {
+      expect(evaluateProofs([late()], task, AFTER)).toBe("failed");
+    });
+  });
+
+  /**
+   * Die ganze Aufgabe, über BEIDE Wege durch `evaluateTask`: ohne Bedingungen entscheidet die
+   * Nachweis-Achse allein, mit Bedingung wird sie erst NACH der Bedingungs-Achse und gegen das
+   * WIRKSAME Ende gefragt (dort greift zusätzlich der `overdue`-Zweig, der eine verstrichene
+   * Nachweis-Frist sofort zum Versäumnis macht). Beide Wege müssen dieselbe Wendung machen.
+   */
+  it("aus versäumt wird erfüllt — Ablehnen lässt es beim Versäumnis", () => {
+    const ohneBedingung = taskWith({ completedAt: d("2026-07-25T17:00:00Z") });
+    expect(evaluateTask(ohneBedingung, [], [], AFTER, [lateOwnDue()]).state).toBe("missed");
+    expect(evaluateTask(ohneBedingung, [], [], AFTER, [lateOwnDue({ reviewAccepted: true })]).state).toBe("done");
+    expect(evaluateTask(ohneBedingung, [], [], AFTER, [lateOwnDue({ reviewAccepted: false })]).state).toBe("missed");
+
+    const mitBedingung = taskWith({ completedAt: d("2026-07-25T18:30:00Z") });
+    const REQ = [{ id: "r1", label: "Slip" }];
+    const held = [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T20:00:00Z") }]];
+    expect(evaluateTask(mitBedingung, REQ, held, AFTER, [lateOwnDue()]).state).toBe("missed");
+    expect(evaluateTask(mitBedingung, REQ, held, AFTER, [lateOwnDue({ reviewAccepted: true })]).state).toBe("done");
+  });
+
+  /**
+   * DER ANZEIGE-WIDERSPRUCH, den diese Entscheidung auflöst: die Zeile zeigte den angenommenen
+   * Nachweis schon immer als „erbracht" (`taskProofState` wertet `reviewAccepted` vor `overdue`),
+   * während das Urteil darüber „versäumt" meldete — und `overdueProofIds`, der Beleg zu diesem
+   * Urteil, nannte ausgerechnet diese Zeile. Beide Auskünfte müssen dieselbe sein.
+   */
+  it("der angenommene Nachweis steht nicht mehr im Beleg der überfälligen", () => {
+    const t = taskWith({ completedAt: d("2026-07-25T17:00:00Z") });
+    const ungesichtet = evaluateTask(t, [], [], AFTER, [lateOwnDue()]);
+    expect(ungesichtet.overdueProofIds).toEqual(["p1"]);
+    expect(ungesichtet.failedAt).toEqual(d("2026-07-25T13:00:00Z"));
+
+    const angenommen = evaluateTask(t, [], [], AFTER, [lateOwnDue({ reviewAccepted: true })]);
+    expect(angenommen.overdueProofIds).toEqual([]);
+    expect(angenommen.failedAt).toBeNull();
+  });
+
+  /**
+   * Die Rettung führt in einen ENDZUSTAND — und genau daran hängt, ob der Träger von der Korrektur
+   * erfährt: `reviewTaskProof` schickt die Ergebnis-Meldung an beide Seiten nur, wenn
+   * `isTaskResultFinal` gilt (und bewusst ohne `once`, damit sie die frühere „versäumt"-Zeile
+   * ablöst). Bliebe die Aufgabe hier in einem Zwischenzustand, verschwände das bereits gemeldete
+   * Versäumnis STILL — der Fall, gegen den `docs/aufgaben-uebergabe.md` §1 warnt.
+   */
+  it("die Rettung endet in einem Endzustand — sonst erführe niemand von der Korrektur", () => {
+    const t = taskWith({ completedAt: d("2026-07-25T17:00:00Z") });
+    const state = evaluateTask(t, [], [], AFTER, [lateAtEnd({ reviewAccepted: true })]).state;
+    expect(isTaskResultFinal(state)).toBe(true);
+    expect(isTaskOffense(state)).toBe(false);
   });
 });
 
