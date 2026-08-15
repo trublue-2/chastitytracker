@@ -60,10 +60,15 @@ Vorbilder im Bestand: `verschlussAnforderungService.ts`, `kontrolleService.ts`, 
 ```prisma
 wirksamAb        DateTime?
 benachrichtigtAt DateTime?
-@@index([wirksamAb, benachrichtigtAt])
+@@index([benachrichtigtAt, wirksamAb])
 ```
 
 Beide `null`-bar, `null` = „sofort wirksam, wie bisher".
+
+**Die Reihenfolge im Index ist genau andersherum, als sie hier ursprünglich stand** — `benachrichtigtAt`
+gehört nach VORN. Die Zustellung schreibt `wirksamAb` auf den Zustell-Zeitpunkt fort, also liegt die
+Spalte danach bei jeder ausgelieferten Zeile in der Vergangenheit; als führende Spalte träfe der
+Bereichs-Vergleich damit fast die ganze Tabelle. Die Begründung steht ausführlich am Modell selbst.
 
 **Der Umbau in `src/lib/tasks.ts`** — es ist eine **Verschiebung des Nullpunkts**, mehr nicht:
 

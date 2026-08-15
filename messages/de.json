@@ -1621,7 +1621,6 @@
     "previewEndTooSoon": "Ende: {date} — zu früh: bis dahin muss noch gar nicht begonnen sein. Frist verlängern oder „Spätester Beginn“ vorverlegen.",
     "previewStart": "Beginn spätestens: {date}",
     "graceLabel": "Spätester Beginn",
-    "graceHint": "Bis dahin muss begonnen sein — alle Bedingungen liegen an. Wer später anfängt, hat nicht durchgehend gehalten; die Aufgabe gilt dann als versäumt.",
     "graceModeClock": "Uhrzeit",
     "graceClockInvalid": "Der späteste Beginn muss zwischen dem Wirksamwerden der Aufgabe und {hours} Stunden danach liegen.",
     "isPunishmentLabel": "Als Strafe",

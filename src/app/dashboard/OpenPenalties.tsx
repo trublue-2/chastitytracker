@@ -5,6 +5,7 @@ import OffenseList from "@/app/components/OffenseList";
 import { prisma } from "@/lib/prisma";
 import { messageFilterToParams } from "@/lib/messageCategories";
 import { loadSubOffenses, openPenaltiesOf } from "@/lib/subOffenses";
+import { hiddenFromSubWhere } from "@/lib/delayedTrigger";
 
 /** Wie viele Strafen im Dashboard ausliegen, bevor auf den Posteingang verwiesen wird. Kein
  *  Aufklapper wie beim Aufgaben-Stapel: der ganze Verlauf steht ohnehin als Nachrichten bereit. */
@@ -60,7 +61,7 @@ export default async function OpenPenalties({
   // aufgehen — die Liste unten ist dann leer und der Block verschwindet (`rows.length === 0`).
   const hiddenTaskIds = new Set(
     (await prisma.task.findMany({
-      where: { userId, withdrawnAt: null, wirksamAb: { not: null }, benachrichtigtAt: null },
+      where: { userId, ...hiddenFromSubWhere },
       select: { id: true },
     })).map((t) => t.id),
   );

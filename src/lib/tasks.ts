@@ -175,6 +175,24 @@ export function taskAnchor(task: Pick<TaskLike, "createdAt" | "wirksamAb">): Dat
   return task.wirksamAb ?? task.createdAt;
 }
 
+/**
+ * Ab wann der Träger FRÜHESTENS handeln kann: der Nullpunkt, aber nie in der Vergangenheit.
+ *
+ * Der Unterschied zu {@link taskAnchor} ist die Blickrichtung. Der Nullpunkt sagt, ab wann die Uhren
+ * einer Aufgabe laufen — auch rückwärts, bei einer vor Tagen gestellten. Diese Funktion beantwortet
+ * die Frage, die jede NACHTRÄGLICH gesetzte Frist stellen muss: ab wann kann der Träger überhaupt
+ * noch etwas tun? Bei einer terminierten, noch nicht ausgelösten Aufgabe ist das ihr `wirksamAb`,
+ * bei einer laufenden „jetzt".
+ *
+ * Gebraucht überall dort, wo eine SPANNE nachträglich verankert wird (`edit_task` mit `holdHours`)
+ * oder eine neue Frist nicht in die Vergangenheit zeigen darf (die Untergrenze in `updateTask`).
+ * Der rohe Nullpunkt taugt dafür nicht: `holdHours: 2` an einer vor drei Stunden gestellten Aufgabe
+ * legte die Frist hinter uns, und der Träger bekäme ein Versäumnis, ohne je handeln zu können.
+ */
+export function earliestActionableAt(task: Pick<TaskLike, "createdAt" | "wirksamAb">, now: Date): Date {
+  return new Date(Math.max(taskAnchor(task).getTime(), now.getTime()));
+}
+
 /** Späteste Zeit, zu der begonnen werden darf. Wer danach erst anfängt, hat per Definition nicht
  *  durchgehend gehalten — sonst wäre „eine Minute vor Schluss alles anlegen" eine Erfüllung. */
 export function startDeadline(task: Pick<TaskLike, "createdAt" | "startGraceMin" | "wirksamAb">): Date {

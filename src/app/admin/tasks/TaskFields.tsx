@@ -167,9 +167,9 @@ export default function TaskFields({
   const [isPunishment, setIsPunishment] = useState(!!offenseRef);
   const [penaltyReason, setPenaltyReason] = useState(initialPenaltyReason ?? "");
   // Terminierung — dasselbe Bauteil und dieselben zwei Felder wie an der Verschluss-Anforderung.
-  // Die Vorschauen darüber bleiben davon unberührt: sie rechnen ab „jetzt", weil die eingestellte
-  // Dauer bei einer terminierten Aufgabe ab dem Auslösen ebenso lang ist. Nur die genannten
-  // UHRZEITEN verschieben sich mit — das sagt der Hinweis am Feld.
+  // Die Vorschauen darüber hängen daran: ihr Nullpunkt ist bei einer terminierten Aufgabe der
+  // Auslöse-Zeitpunkt, nicht „jetzt" (siehe `anchorMs`). Die eingestellten DAUERN bleiben, was sie
+  // sind — mit verschieben sich die genannten Uhrzeiten.
   const [schedule, setSchedule] = useState<ScheduleValue>(() => initialSchedule(minNow, tz));
   // Absende-Mechanik (saving/error/networkError/finally) über den geteilten Hook — sie war in den
   // Anforderungs-Formularen schon zweimal von Hand geschrieben.

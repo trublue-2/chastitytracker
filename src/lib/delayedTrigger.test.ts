@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeDelayedTrigger, deadlineFromDispatch, isHiddenFromSub } from "./delayedTrigger";
+import { computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, hiddenFromSubWhere, isHiddenFromSub } from "./delayedTrigger";
 
 const at = (iso: string) => new Date(iso);
 
@@ -69,5 +69,27 @@ describe("isHiddenFromSub", () => {
     // `entries/route.ts` legt sie ohne benachrichtigtAt an: der Sub hat sich gerade selbst
     // eingeschlossen und weiss davon, es musste niemand eine Mail schicken.
     expect(isHiddenFromSub({ wirksamAb: null, benachrichtigtAt: null })).toBe(false);
+  });
+});
+
+describe("dueForDispatchWhere", () => {
+  const NOW = at("2026-07-29T12:00:00Z");
+
+  it("engt die Verborgenheits-Bedingung ein, statt sie zu ersetzen", () => {
+    // Die Zusage an die Aufrufer: das `lte` kommt HINZU, `not: null` bleibt daneben stehen. Ohne
+    // dieses `not: null` sammelte die Abfrage auch nie terminierte Zeilen ein — die sind längst
+    // zugestellt und würden ein zweites Mal gemeldet.
+    expect(dueForDispatchWhere(NOW)).toEqual({ ...hiddenFromSubWhere, wirksamAb: { not: null, lte: NOW } });
+  });
+
+  it("verträgt den eigenen Filter des Aufrufers", () => {
+    // So nehmen die Poller sie (`entryId: null` / `fulfilledAt: null`): der Spread darf die geteilte
+    // Bedingung nicht überschreiben, sonst stellte ein Poller Zeilen zu, die niemand mehr erwartet.
+    expect({ ...dueForDispatchWhere(NOW), entryId: null }).toMatchObject({
+      wirksamAb: { not: null, lte: NOW },
+      benachrichtigtAt: null,
+      withdrawnAt: null,
+      entryId: null,
+    });
   });
 });

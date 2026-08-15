@@ -9,7 +9,7 @@ import { APP_TZ } from "@/lib/utils";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked, predictAutoMarkAt } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
 import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
-import { deadlineFromDispatch } from "@/lib/delayedTrigger";
+import { deadlineFromDispatch, dueForDispatchWhere } from "@/lib/delayedTrigger";
 import { dispatchDueTasks, processDueTasks } from "@/lib/taskService";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
@@ -40,12 +40,7 @@ async function processDue(): Promise<void> {
     }
 
     const due = await prisma.kontrollAnforderung.findMany({
-      where: {
-        wirksamAb: { not: null, lte: now },
-        benachrichtigtAt: null,
-        withdrawnAt: null,
-        entryId: null,
-      },
+      where: { ...dueForDispatchWhere(now), entryId: null },
       include: { user: { select: { id: true, email: true, username: true, locale: true, autoKontrolleNurBeiSperre: true } } },
       // Chronologisch: werden mehrere Kontrollen desselben Users im selben Tick fällig, überlebt die
       // früheste (wird zuerst zugestellt), die späteren verwirft der Überschneidungs-Schutz unten.
@@ -259,12 +254,7 @@ async function processInspectionEscalation(now: Date): Promise<void> {
  */
 async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
   const due = await prisma.verschlussAnforderung.findMany({
-    where: {
-      wirksamAb: { not: null, lte: now },
-      benachrichtigtAt: null,
-      withdrawnAt: null,
-      fulfilledAt: null,
-    },
+    where: { ...dueForDispatchWhere(now), fulfilledAt: null },
     include: { user: { select: { id: true, email: true, username: true, locale: true } } },
     take: 50,
   });

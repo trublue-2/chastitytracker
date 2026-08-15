@@ -17,6 +17,7 @@ import { toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, type BoxF
 import { getEvaluatedTasks, loadTaskProofViews, type EvaluatedTask, type TaskProofView } from "@/lib/taskIntervals";
 import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike } from "@/lib/tasks";
 import { taskProofState } from "@/lib/taskView";
+import { hiddenFromSubWhere } from "@/lib/delayedTrigger";
 
 /** keyholder_dashboard (explain_model §13) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
  *  Lauf vs. Personal Best, was JETZT getragen wird (alle Kategorien), das Nächst-Relevante, Ziele +
@@ -409,7 +410,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       where: { userId, withdrawnAt: null, entryId: null, auto: false, wirksamAb: { gt: now } },
     }),
     prisma.task.findMany({
-      where: { userId, withdrawnAt: null, wirksamAb: { not: null }, benachrichtigtAt: null },
+      where: { userId, ...hiddenFromSubWhere },
       select: { id: true, title: true, wirksamAb: true, holdUntil: true },
     }),
   ]);

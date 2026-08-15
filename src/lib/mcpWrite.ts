@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getUserDeviceOptions, getKeyholderSperrzeiten, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/queries";
-import { isHiddenFromSub } from "@/lib/delayedTrigger";
+import { isHiddenFromSub, computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
-import { computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
@@ -29,7 +28,7 @@ import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 import { reviewTaskProof } from "@/lib/taskProofService";
 import { createTask, updateTask, withdrawTask, mergeTaskPatch, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
-import { effectiveProofOrderMatters } from "@/lib/tasks";
+import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
 
 /**
  * dryRun (K-01, leichte Variante): validiert Referenzen/Werte und zeigt die effektiven Argumente,
@@ -1558,14 +1557,18 @@ async function resolveAnyDeviceId(userId: string, categoryId: string | null, nam
 
 /** „Bis wann halten" aus den erlaubten Formen — `undefined`, wenn keine davon kam.
  *
- *  Getrennt von {@link resolveHoldUntil}, weil die beiden Aufrufer sich genau darin unterscheiden:
+ *  Getrennt von {@link resolveTaskHold}, weil die beiden Aufrufer sich genau darin unterscheiden:
  *  `create_task` BRAUCHT eine Frist, `edit_task` lässt sie weg, wenn sie unverändert bleibt. Wer
  *  hier eine dritte Form ergänzt (`holdDays`), ändert eine Stelle — vorher stand die Bedingung
- *  „welche Form kam?" zusätzlich als Ausdruck am `edit_task`-Aufruf und wäre dort still veraltet. */
-function parseHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, now: Date): Date | undefined {
+ *  „welche Form kam?" zusätzlich als Ausdruck am `edit_task`-Aufruf und wäre dort still veraltet.
+ *
+ *  `anchor` ist der NULLPUNKT, ab dem die relative Form zählt — nicht zwingend „jetzt". Beide
+ *  Aufrufer rechnen ihn selbst aus (Anlegen: der geplante Auslöse-Zeitpunkt · Ändern: der frühest
+ *  mögliche Handlungs-Zeitpunkt), weil nur sie die Aufgabe kennen. */
+function parseHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, anchor: Date): Date | undefined {
   const at = parseIsoDate(args.holdUntilAt, "holdUntilAt");
   if (at) return at;
-  if (args.holdHours != null) return new Date(now.getTime() + args.holdHours * 3600_000);
+  if (args.holdHours != null) return new Date(anchor.getTime() + args.holdHours * 3600_000);
   return undefined;
 }
 
@@ -1810,10 +1813,15 @@ export async function mcpEditTask(username: string, args: EditTaskArgs) {
   const task = await prisma.task.findUnique({ where: { id: args.id } });
   if (!task || task.userId !== userId) throw new Error(`Task not found: ${args.id}`);
 
+  /** Der Nullpunkt der geänderten Frist — dieselbe Regel wie beim Anlegen ({@link resolveTaskHold}),
+   *  nur eben nachträglich: {@link earliestActionableAt} statt des rohen Nullpunkts, weil eine vor
+   *  Stunden gestellte Aufgabe ihre Spanne sonst in die Vergangenheit legte. */
+  const holdAnchor = earliestActionableAt(task, new Date());
+
   const patch = {
     title: args.title,
     description: args.description,
-    holdUntil: parseHoldUntil(args, new Date()),
+    holdUntil: parseHoldUntil(args, holdAnchor),
     holdDurationMin: args.holdMinutesFromStart,
     isPunishment: args.isPunishment,
     penaltyReason: args.penaltyReason,

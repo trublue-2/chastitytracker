@@ -6,8 +6,8 @@ import { actorColumn, type MessageActor } from "@/lib/messageService";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
-import { computeDelayedTrigger, deadlineFromDispatch, isHiddenFromSub } from "@/lib/delayedTrigger";
-import { startDeadline, taskAnchor, isTaskResultFinal, effectiveProofOrderMatters } from "@/lib/tasks";
+import { computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
+import { startDeadline, taskAnchor, earliestActionableAt, isTaskResultFinal, effectiveProofOrderMatters } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
   clampProofDueOffset,
@@ -600,10 +600,11 @@ export async function updateTask(
   // Nicht unter den NULLPUNKT: bei einer terminierten Aufgabe ist das `wirksamAb`, nicht „jetzt".
   // Ohne das liesse sich das Ende einer für morgen geplanten Aufgabe auf heute Abend ziehen — bei
   // der Zustellung verschöbe `deadlineFromDispatch` die (negative) Spanne in die Vergangenheit, und
-  // derselbe Tick meldete die eben erst zugestellte Aufgabe als versäumt.
+  // derselbe Tick meldete die eben erst zugestellte Aufgabe als versäumt. Genau die Grösse, die
+  // `earliestActionableAt` benennt — dieselbe, an der `edit_task` eine relative Frist verankert.
   const minEnd = t._count.requirements > 0
     ? new Date(Math.max(Date.now(), startDeadline(t).getTime()))
-    : new Date(Math.max(Date.now(), t.wirksamAb?.getTime() ?? 0));
+    : earliestActionableAt(t, new Date());
   const fieldError = checkTaskFields(next, minEnd);
   if (fieldError) return fieldError;
 
@@ -830,7 +831,7 @@ async function closePenaltyForFulfilledTask(taskId: string, now: Date): Promise<
  */
 export async function dispatchDueTasks(now: Date): Promise<void> {
   const due = await prisma.task.findMany({
-    where: { wirksamAb: { not: null, lte: now }, benachrichtigtAt: null, withdrawnAt: null },
+    where: dueForDispatchWhere(now),
     orderBy: { wirksamAb: "asc" },
     take: 50,
     // Nur was die Meldung und die Frist-Verschiebung lesen — `description`, `completionNote` und

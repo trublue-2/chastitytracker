@@ -1,3 +1,7 @@
+// NUR als Typ: das Modul teilen Client-Komponenten und server-only Code, ein Laufzeit-Import des
+// Prisma-Clients hätte hier nichts zu suchen.
+import type { Prisma } from "@prisma/client";
+
 export interface DelayedTriggerParams {
   /** Verzögerte Auslösung in Minuten (>0). Fehlt/≤0 = sofort (sofern kein `wirksamAbAt`). */
   delayMinutes?: number | null;
@@ -68,6 +72,44 @@ export function computeDelayedTrigger(now: Date, params: DelayedTriggerParams): 
   if (wirksamAb && wirksamAb.getTime() <= now.getTime()) wirksamAb = null;
 
   return { wirksamAb, benachrichtigtAt: wirksamAb ? null : now };
+}
+
+/**
+ * Die SQL-Entsprechung von {@link isHiddenFromSub}: terminiert, noch nicht ausgelöst, nicht
+ * zurückgezogen — was die Keyholderin für später geplant hat und der Sub noch nicht kennt.
+ *
+ * `withdrawnAt` gehört dazu und ist keine Zugabe: eine zurückgezogene Zeile ist nicht „verborgen",
+ * sondern weg. Alles Weitere ergänzt der Aufrufer, weil es sein Modell betrifft.
+ *
+ * Getypt gegen `TaskWhereInput`, weil alle drei Modelle mit diesem Feldpaar (`Task`,
+ * `KontrollAnforderung`, `VerschlussAnforderung`) es identisch tragen: was hier durchgeht, passt
+ * strukturell auch in die beiden anderen `where`-Klauseln.
+ *
+ * Die NEGATION („was der Sub sehen darf") steht als `SUB_VISIBLE_WHERE` in `taskIntervals.ts` — sie
+ * muss dort in ein `AND` verpackt sein und ist deshalb nicht dieselbe Form.
+ */
+export const hiddenFromSubWhere = {
+  wirksamAb: { not: null }, benachrichtigtAt: null, withdrawnAt: null,
+} satisfies Prisma.TaskWhereInput;
+
+/**
+ * Was der Poller ZUSTELLEN muss: {@link hiddenFromSubWhere} plus „der Zeitpunkt ist da".
+ *
+ * Die Auswahl-Seite der Konvention, die {@link computeDelayedTrigger} schreibt — exakt die Zeilen,
+ * die für den Sub noch verborgen sind, deren Verborgenheit aber jetzt endet. Sie stand wörtlich
+ * dreimal da (Aufgabe, Kontroll- und Verschluss-Anforderung), und das ist die Sorte Bedingung, die
+ * an einer Stelle nachgezogen wird und an den anderen nicht.
+ *
+ * `wirksamAb: { not: null }` ist NICHT redundant neben `lte`: `null` bedeutet „war nie terminiert",
+ * und eine solche Zeile ist längst zugestellt — sie hier aufzusammeln hiesse, sie ein zweites Mal zu
+ * melden.
+ *
+ * Was jeder Aufrufer SELBST ergänzt, weil es sein Modell betrifft: `entryId: null` (eine schon
+ * erfüllte Kontrolle), `fulfilledAt: null` (eine erfüllte Verschluss-Anforderung). Sie gehören nicht
+ * hierher — die Auslöse-Konvention weiss nichts von Erfüllung.
+ */
+export function dueForDispatchWhere(now: Date) {
+  return { ...hiddenFromSubWhere, wirksamAb: { not: null, lte: now } } satisfies Prisma.TaskWhereInput;
 }
 
 /**
