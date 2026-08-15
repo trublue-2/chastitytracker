@@ -22,6 +22,9 @@ export interface TaskWithRequirements {
   startGraceMin: number;
   /** Dauer-Modus (Minuten ab dem Beginn) — siehe `TaskLike.holdDurationMin`. */
   holdDurationMin: number | null;
+  /** Müssen die Aufnahmezeiten der Nachweise ihrer Reihenfolge folgen? — siehe
+   *  `TaskLike.proofOrderMatters`. */
+  proofOrderMatters: boolean;
   isPunishment: boolean;
   penaltyReason: string | null;
   createdAt: Date;

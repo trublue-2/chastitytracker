@@ -29,6 +29,7 @@ import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 import { reviewTaskProof } from "@/lib/taskProofService";
 import { createTask, updateTask, withdrawTask, mergeTaskPatch, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
+import { effectiveProofOrderMatters } from "@/lib/tasks";
 
 /**
  * dryRun (K-01, leichte Variante): validiert Referenzen/Werte und zeigt die effektiven Argumente,
@@ -1490,6 +1491,8 @@ export interface CreateTaskArgs {
   requireWearing?: TaskRequirementArg[];
   /** Geforderte Nachweis-Fotos, in der Reihenfolge, in der sie ENTSTEHEN müssen. */
   requireProof?: { description: string; requireCode?: boolean }[];
+  /** Zählt diese Reihenfolge überhaupt? Fehlend = ja, wie bisher. */
+  proofOrderMatters?: boolean;
   startGraceMinutes?: number;
   isPunishment?: boolean;
   penaltyReason?: string;
@@ -1581,6 +1584,9 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
   const hold = resolveTaskHold(args, now);
   const requirements = await resolveTaskRequirements(userId, args);
   const proofCount = args.requireProof?.length ?? 0;
+  /** EINMAL aufgelöst für Vorschau, Commit und Ergebnis-Satz — die drei dürfen über dieselbe
+   *  Aufgabe nicht Verschiedenes sagen. */
+  const orderMatters = effectiveProofOrderMatters(args.proofOrderMatters);
   /** Was die Vorschau und der Ergebnis-Satz über die Frist sagen — im Dauer-Modus gibt es keinen
    *  Zeitpunkt zu nennen, weil er erst mit dem Anlegen entsteht. */
   const holdText = hold.holdDurationMin != null
@@ -1601,6 +1607,7 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
       requirementCount: requirements.length,
       requiresKgLocked: requirements.some((r) => r.type === "KG_LOCKED"),
       proofCount,
+      proofOrderMatters: orderMatters,
       startGraceMinutes: args.startGraceMinutes ?? null,
       // Die ref ERZWINGT die Strafe — `punishWithTask` setzt `isPunishment: true`, unabhängig vom
       // Argument. Die Vorschau muss dasselbe sagen, sonst zeigt sie `false` und der Commit schreibt `true`.
@@ -1621,6 +1628,7 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     penaltyReason: args.penaltyReason,
     requirements,
     proofs: args.requireProof,
+    proofOrderMatters: args.proofOrderMatters,
   };
   // EINE Kennung für beide Wege unten: die blosse Aufgabe UND die Strafaufgabe, deren Urteil daraus
   // sein `judgedBy` ableitet — zwei getrennte Angaben könnten auseinanderlaufen.
@@ -1633,7 +1641,12 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
   // Der Nachweis-Teil sagt ausdrücklich, was die Automatik NICHT entscheidet: sonst wartet der Agent
   // auf ein Urteil, das ohne ihn nie kommt.
   const proofPart = proofCount === 0 ? "" :
-    ` ${proofCount} photo proof(s) required, in the given order — the CAPTURE times must ascend. `
+    ` ${proofCount} photo proof(s) required`
+    // Ausdrücklich, nicht weggelassen: der Agent hat die Aufgabe eben mit einer nummerierten Liste
+    // gestellt und schlösse aus dem Schweigen sonst auf die Vorgabe (Reihenfolge zählt).
+    + (orderMatters
+      ? `, in the given order — the CAPTURE times must ascend. `
+      : `, in any order — the capture times do not have to ascend. `)
     + `Proofs without a code cannot be decided automatically: the task then waits in "awaitingReview" `
     + `for YOU to accept or reject them.`;
   // Der Strafteil zuerst: er ist das, was der Agent seinem Nutzer schuldet — die Aufgabe ist hier

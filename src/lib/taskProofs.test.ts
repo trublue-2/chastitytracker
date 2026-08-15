@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { evaluateProofs, evaluateTask, firstOutOfOrderProof, isTaskOffense, isTaskOpen, needsKeyholderReview, type ProofLike } from "./tasks";
+import {
+  evaluateProofs, evaluateTask, firstOutOfOrderProof, isTaskOffense, isTaskOpen, needsKeyholderReview,
+  type ProofLike, type TaskLike,
+} from "./tasks";
 
 /**
  * Die Nachweis-Achse (Issue #39): geforderte Fotos mit vorgegebener Reihenfolge.
@@ -11,7 +14,9 @@ import { evaluateProofs, evaluateTask, firstOutOfOrderProof, isTaskOffense, isTa
 
 const d = (s: string) => new Date(s);
 const HOLD_UNTIL = d("2026-07-25T18:00:00Z");
-const task = { holdUntil: HOLD_UNTIL };
+/** Eine Aufgabe, wie die Nachweis-Achse sie sieht — OHNE `proofOrderMatters`, also mit der Vorgabe
+ *  „die Reihenfolge zählt". Genau die Form jeder Bestandszeile vor B8. */
+const task: Pick<TaskLike, "holdUntil" | "proofOrderMatters"> = { holdUntil: HOLD_UNTIL };
 
 /** Ein eingereichter, per Code geprüfter Nachweis — der maschinell entscheidbare Normalfall. */
 function proof(over: Partial<ProofLike> = {}): ProofLike {
@@ -27,6 +32,9 @@ function proof(over: Partial<ProofLike> = {}): ProofLike {
     ...over,
   };
 }
+
+/** Ein Nachweis mit fester Aufnahmezeit und Position — die Reihenfolge-Fälle brauchen nichts sonst. */
+const at = (iso: string, sortOrder: number, id: string) => proof({ id, sortOrder, imageExifTime: d(iso) });
 
 describe("evaluateProofs — ohne Nachweise", () => {
   it("keine Nachweise gefordert: die Achse spielt keine Rolle", () => {
@@ -63,9 +71,6 @@ describe("evaluateProofs — Vollständigkeit und Frist", () => {
 });
 
 describe("evaluateProofs — Reihenfolge", () => {
-  const at = (iso: string, sortOrder: number, id: string) =>
-    proof({ id, sortOrder, imageExifTime: d(iso) });
-
   it("Aufnahmezeiten in der geforderten Reihenfolge → erfüllt", () => {
     const p = [
       at("2026-07-25T12:00:00Z", 0, "verschluss"),
@@ -97,6 +102,93 @@ describe("evaluateProofs — Reihenfolge", () => {
   it("fehlende Aufnahmezeit → Sichtung statt Fehlschlag", () => {
     const p = [proof({ imageExifTime: null })];
     expect(evaluateProofs(p, task, d("2026-07-25T19:00:00Z"))).toBe("needsReview");
+  });
+});
+
+/**
+ * B8 — die Reihenfolge ist abschaltbar (`Task.proofOrderMatters`).
+ *
+ * Leitfall ist Anweisung 3 aus `docs/aufgaben-abdeckung.md`: „Einkaufen in pinken Leggings, ein
+ * Selfie in der Gemüseabteilung, eines in der Blumenabteilung, um 19:00 zuhause." Zwei Nachweise,
+ * keine Bedingungen — und die Reihenfolge der beiden Abteilungen ist gleichgültig. Erzwungen erzeugte
+ * sie ein Versäumnis für etwas, das nie verlangt war.
+ */
+describe("Nachweis-Reihenfolge abschaltbar (Fall 3: Gemüse- und Blumenabteilung)", () => {
+  /** Blumen zuerst, Gemüse danach — gegen die Liste, aber genau so gemeint gewesen. */
+  const swapped = [at("2026-07-25T13:00:00Z", 0, "gemuese"), at("2026-07-25T12:00:00Z", 1, "blumen")];
+  const orderOff = { ...task, proofOrderMatters: false };
+  const after = d("2026-07-25T19:00:00Z");
+
+  it("abgeschaltet: vertauschte Aufnahmezeiten sind kein Fehlschlag", () => {
+    expect(evaluateProofs(swapped, orderOff, after)).toBe("complete");
+  });
+
+  /** RÜCKWÄRTSKOMPATIBILITÄT: eine Bestandsaufgabe kennt das Feld nicht — sie muss weiter genau so
+   *  urteilen wie vorher. `null`/fehlend heisst „wie bisher", nur das ausdrückliche `false` löst. */
+  it("ohne das Feld urteilt die Aufgabe unverändert wie bisher", () => {
+    expect(evaluateProofs(swapped, task, after)).toBe("failed");
+  });
+
+  it("ausdrücklich eingeschaltet ist die Vorgabe — der Fehlschlag bleibt", () => {
+    expect(evaluateProofs(swapped, { ...task, proofOrderMatters: true }, after)).toBe("failed");
+  });
+
+  /** Die fehlende Aufnahmezeit hing AN der Reihenfolge: ohne Reihenfolge gibt es nichts zu belegen,
+   *  also auch keinen Grund, die Keyholderin zu holen. */
+  it("abgeschaltet: ein Foto ohne Aufnahmezeit verlangt keine Sichtung mehr", () => {
+    expect(evaluateProofs([proof({ imageExifTime: null })], orderOff, after)).toBe("complete");
+  });
+
+  it("abgeschaltet ändert NICHTS an der Frist — nachgeliefert zählt weiterhin nicht", () => {
+    const late = [proof({ submittedAt: d("2026-07-25T18:30:00Z") })];
+    expect(evaluateProofs(late, orderOff, after)).toBe("failed");
+  });
+
+  it("abgeschaltet ändert NICHTS an der Sichtungspflicht ohne Code", () => {
+    const p = [proof({ requireCode: false, verifikationStatus: null, verifikationReason: null })];
+    expect(evaluateProofs(p, orderOff, after)).toBe("needsReview");
+  });
+
+  it("abgeschaltet ändert NICHTS an einem abgelehnten Nachweis", () => {
+    expect(evaluateProofs([proof({ reviewAccepted: false })], orderOff, after)).toBe("failed");
+  });
+
+  /** Die Anzeige liest dieselbe Regel: ohne Reihenfolge darf keine Zeile „ausserhalb der
+   *  Reihenfolge" zeigen, sonst stünde ein Vorwurf über einer erfüllten Aufgabe. */
+  it("abgeschaltet: die Karte findet keinen Reihenfolge-Bruch mehr", () => {
+    expect(firstOutOfOrderProof(swapped, orderOff)).toBeNull();
+    expect(firstOutOfOrderProof(swapped, task)?.id).toBe("blumen");
+  });
+
+  /** Fall 3 als Ganzes: eine Aufgabe OHNE Bedingungen, zwei Selfies in beliebiger Folge, um 19:00
+   *  gemeldet. Vorher ein Versäumnis, jetzt erfüllt. */
+  it("die ganze Aufgabe: zwei Selfies in beliebiger Folge, gemeldet → erfüllt", () => {
+    const t = {
+      createdAt: d("2026-07-25T12:00:00Z"), holdUntil: HOLD_UNTIL, startGraceMin: 30,
+      completedAt: d("2026-07-25T17:00:00Z"), withdrawnAt: null, proofOrderMatters: false,
+    };
+    expect(evaluateTask(t, [], [], after, swapped).state).toBe("done");
+    // Gegenprobe mit der Vorgabe: dieselbe Aufgabe wäre versäumt.
+    expect(evaluateTask({ ...t, proofOrderMatters: true }, [], [], after, swapped).state).toBe("missed");
+  });
+
+  /**
+   * DERSELBE Nachweis-Satz, aber an einer Aufgabe MIT Bedingung — der zweite, getrennte Weg durch
+   * `evaluateTask`: dort wird die Nachweis-Achse erst NACH der Bedingungs-Achse und gegen das
+   * WIRKSAME Ende gefragt, mit einem eigens gebauten Argument. Ohne diesen Fall bliebe genau die
+   * Stelle ungeprüft, an der der Schalter auf dem Weg zur Auswertung verlorengehen kann — der
+   * Compiler fängt es nicht, weil das Feld optional ist.
+   */
+  it("auch mit Bedingung erreicht der Schalter die Nachweis-Achse", () => {
+    const t = {
+      createdAt: d("2026-07-25T12:00:00Z"), holdUntil: HOLD_UNTIL, startGraceMin: 30,
+      completedAt: d("2026-07-25T17:00:00Z"), withdrawnAt: null, proofOrderMatters: false,
+    };
+    const REQ = [{ id: "r1", label: "Knebel" }];
+    // Durchgehend getragen, von vor der Aufgabe bis nach der Frist.
+    const held = [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T20:00:00Z") }]];
+    expect(evaluateTask(t, REQ, held, after, swapped).state).toBe("done");
+    expect(evaluateTask({ ...t, proofOrderMatters: true }, REQ, held, after, swapped).state).toBe("missed");
   });
 });
 
@@ -259,7 +351,6 @@ describe("REGRESSION: laufende Code-Prüfung ist kein Urteil", () => {
 });
 
 describe("firstOutOfOrderProof — der Beleg für den Fehlschlag", () => {
-  const at = (iso: string, sortOrder: number, id: string) => proof({ id, sortOrder, imageExifTime: d(iso) });
 
   /**
    * Die Anzeige braucht ihn: sonst zeigt jede Nachweis-Zeile für sich „erbracht" (jeder Code stimmte
@@ -268,12 +359,12 @@ describe("firstOutOfOrderProof — der Beleg für den Fehlschlag", () => {
    */
   it("nennt den Nachweis, der die Reihenfolge bricht", () => {
     const p = [at("2026-07-25T13:00:00Z", 0, "erster"), at("2026-07-25T12:00:00Z", 1, "zweiter")];
-    expect(firstOutOfOrderProof(p)?.id).toBe("zweiter");
+    expect(firstOutOfOrderProof(p, task)?.id).toBe("zweiter");
   });
 
   it("in richtiger Reihenfolge gibt es keinen", () => {
     const p = [at("2026-07-25T12:00:00Z", 0, "a"), at("2026-07-25T13:00:00Z", 1, "b")];
-    expect(firstOutOfOrderProof(p)).toBeNull();
+    expect(firstOutOfOrderProof(p, task)).toBeNull();
   });
 
   it("bei drei Nachweisen den ERSTEN Bruch, nicht den letzten", () => {
@@ -282,7 +373,7 @@ describe("firstOutOfOrderProof — der Beleg für den Fehlschlag", () => {
       at("2026-07-25T11:00:00Z", 1, "b"),
       at("2026-07-25T10:00:00Z", 2, "c"),
     ];
-    expect(firstOutOfOrderProof(p)?.id).toBe("b");
+    expect(firstOutOfOrderProof(p, task)?.id).toBe("b");
   });
 });
 

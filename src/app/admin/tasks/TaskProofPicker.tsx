@@ -17,18 +17,32 @@ import type { TaskProofInput } from "@/lib/taskService";
  * (die Kategorien des Subs), ein Nachweis ist Freitext. Und die REIHENFOLGE ist hier kein
  * Darstellungsdetail, sondern die eigentliche Forderung — deshalb ist sie sichtbar nummeriert
  * statt bloss implizit durch die Zeilenfolge.
+ *
+ * Ob sie auch GEFORDERT ist, entscheidet der Schalter darunter — die Nummerierung bleibt in beiden
+ * Fällen, sie ist auch die Adresse eines Nachweises („Nachweis 2" in der Sichtung).
  */
 export default function TaskProofPicker({
   value,
   onChange,
+  orderMatters,
+  onOrderMattersChange,
 }: {
   value: TaskProofInput[];
   onChange: (next: TaskProofInput[]) => void;
+  /** Müssen die Aufnahmezeiten der Nummerierung folgen? */
+  orderMatters: boolean;
+  onOrderMattersChange: (next: boolean) => void;
 }) {
   const t = useTranslations("tasks");
 
   const update = (i: number, patch: Partial<TaskProofInput>) =>
     onChange(value.map((p, k) => (k === i ? { ...p, ...patch } : p)));
+
+  // Der Schalter erscheint, sobald es überhaupt einen Nachweis gibt — und NUR dann sagt der Hinweis
+  // darunter etwas anderes. Beide hängen an derselben Bedingung: ein Text, der eine Regel verkündet,
+  // deren Schalter gerade nicht sichtbar ist, wäre eine Aussage ohne Bedienung.
+  const orderConfigurable = value.length > 0;
+  const orderOff = orderConfigurable && !orderMatters;
 
   return (
     <div className="flex flex-col gap-2">
@@ -84,9 +98,17 @@ export default function TaskProofPicker({
         </Button>
       )}
 
+      {orderConfigurable && (
+        <Checkbox
+          label={t("proofOrderLabel")}
+          checked={orderMatters}
+          onChange={(e) => onOrderMattersChange(e.target.checked)}
+        />
+      )}
+
       <p className="text-xs text-foreground-faint flex items-start gap-1.5">
         <Camera size={13} className="shrink-0 mt-0.5" aria-hidden />
-        <span>{t("proofsHint")}</span>
+        <span>{t(orderOff ? "proofsHintNoOrder" : "proofsHint")}</span>
       </p>
     </div>
   );

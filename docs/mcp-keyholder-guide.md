@@ -186,6 +186,12 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
   Aufgabe nur, wenn beide stimmen. Ihre **Aufnahmezeiten** müssen der angegebenen Reihenfolge folgen
   (Aufnahme-, nicht Upload-Zeit — sonst genügte es, am Ende alles hochzuladen). Nach `holdUntil`
   eingereicht zählt nicht mehr.
+- **Ist die Reihenfolge zufällig, schalte sie ab** (`proofOrderMatters: false`). „Ein Selfie in der
+  Gemüse-, eines in der Blumenabteilung" ist keine Anweisung, die Abteilungen in dieser Folge zu
+  besuchen — erzwungen ergäbe sie ein Versäumnis für nichts. Abgeschaltet entfällt mit der
+  Reihenfolge auch die Sichtung wegen einer FEHLENDEN Aufnahmezeit: die ist nur nötig, weil sich die
+  Reihenfolge ohne sie nicht belegen lässt. In `openTasks` steht der Schalter als
+  `proofOrderMatters`.
 - Nur ein Nachweis mit `requireCode` wird **automatisch** entschieden: der Sub muss einen
   Zufallscode ins Bild schreiben. Jeder andere Nachweis — und jedes Foto ohne Aufnahmezeit — bringt
   die Aufgabe in `awaitingReview`: weder erfüllt noch versäumt, **du** bist am Zug. Auch ein

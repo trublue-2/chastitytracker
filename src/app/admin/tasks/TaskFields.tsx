@@ -123,6 +123,9 @@ export default function TaskFields({
   const [graceMin, setGraceMin] = useState(String(TASK_DEFAULT_START_GRACE_MIN));
   const [requirements, setRequirements] = useState<TaskRequirementInput[]>([]);
   const [proofs, setProofs] = useState<TaskProofInput[]>([]);
+  // Vorgabe „an", wie bisher: die Reihenfolge war bis dahin immer gefordert, und der strengere Weg
+  // ist der, den niemand versehentlich wählt.
+  const [proofOrderMatters, setProofOrderMatters] = useState(true);
   // Aus dem Strafbuch heraus ist beides gesetzt und der Haken bleibt sichtbar: der Keyholder soll
   // sehen, dass er gerade eine Strafe stellt — nicht bloss eine Aufgabe, die zufällig so heisst.
   const [isPunishment, setIsPunishment] = useState(!!offenseRef);
@@ -224,6 +227,9 @@ export default function TaskFields({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const until = endAt(Date.now());
+    // Leere Zeilen fallen weg: eine angelegte, aber nie ausgefüllte Nachweis-Zeile ist ein Versehen,
+    // keine Forderung — der Service wiese sie sonst mit einem Fehler ab.
+    const proofRows = proofs.filter((p) => p.description.trim());
     // Über die Oberfläche unerreichbar (beide Eingabewege sind `required`), aber `toISOString()`
     // wirft auf einem ungültigen Datum — und das wäre statt einer Fehlermeldung ein Absturz.
     if (Number.isNaN(until.getTime())) return;
@@ -244,9 +250,11 @@ export default function TaskFields({
       holdDurationMin: fromStartActive ? holdDurationMin : undefined,
       startGraceMin: hasRequirements ? graceEffective : undefined,
       requirements,
-      // Leere Zeilen fallen weg: eine angelegte, aber nie ausgefüllte Nachweis-Zeile ist ein
-      // Versehen, keine Forderung — der Service wiese sie sonst mit einem Fehler ab.
-      proofs: proofs.filter((p) => p.description.trim()),
+      proofs: proofRows,
+      // Ohne Nachweise gibt es keine Reihenfolge — dann auch keine Aussage darüber. Sonst stünde an
+      // einer Aufgabe ganz ohne Fotos ein „Reihenfolge egal", das niemand mehr sehen oder umstellen
+      // kann: der Schalter ist in diesem Zustand nicht einmal sichtbar.
+      proofOrderMatters: proofRows.length > 0 ? proofOrderMatters : undefined,
       isPunishment,
       penaltyReason: isPunishment ? penaltyReason.trim() || undefined : undefined,
       // Trägt die Aufgabe eine Vergehens-ref, schreibt die Route sie samt Urteil — das Vergehen gilt
@@ -291,7 +299,12 @@ export default function TaskFields({
         onChange={setRequirements}
       />
 
-      <TaskProofPicker value={proofs} onChange={setProofs} />
+      <TaskProofPicker
+        value={proofs}
+        onChange={setProofs}
+        orderMatters={proofOrderMatters}
+        onOrderMattersChange={setProofOrderMatters}
+      />
 
       {/* DER FRIST-BLOCK — eine Entscheidung, dann ihr Feld, dann die beiden Zahlen als Paar.
           Die Reihenfolge ist die Korrektur des alten Aufbaus: der Anker („ab dem Stellen" oder „ab

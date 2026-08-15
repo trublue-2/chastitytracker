@@ -312,6 +312,7 @@ export function toTaskCard(
   // Anzeige darf sie nicht nachbauen, sonst zeigt sie irgendwann etwas anderes als das Urteil.
   const outOfOrderId = firstOutOfOrderProof(
     [...proofViews].sort((a, b) => a.sortOrder - b.sortOrder),
+    e.task,
   )?.id ?? null;
 
   const proofs: TaskCardProof[] = proofViews.map((p) => {

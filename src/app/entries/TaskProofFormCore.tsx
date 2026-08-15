@@ -30,6 +30,7 @@ export default function TaskProofFormCore({
   description,
   code,
   taskTitle,
+  orderMatters,
   mobileDesktopMode,
 }: {
   proofId: string;
@@ -37,6 +38,10 @@ export default function TaskProofFormCore({
   /** Null ohne Code-Pflicht — dann legt die Keyholderin den Nachweis selbst vor. */
   code: string | null;
   taskTitle: string;
+  /** Fordert die Aufgabe eine Reihenfolge der Aufnahmen (`Task.proofOrderMatters`)? Nur dann zählt
+   *  die Aufnahmezeit, und nur dann ist ein Bild ohne sie ein Fall für die Keyholderin — sonst
+   *  verspräche das Formular eine Regel, gegen die der Träger gar nicht gemessen wird. */
+  orderMatters: boolean;
   mobileDesktopMode?: boolean;
 }) {
   const t = useTranslations("tasks");
@@ -87,7 +92,9 @@ export default function TaskProofFormCore({
           </p>
         )}
         <p className="text-xs text-foreground-faint mt-2">
-          {code ? t("proofCaptureHintCode") : t("proofCaptureHint")}
+          {orderMatters
+            ? t(code ? "proofCaptureHintCode" : "proofCaptureHint")
+            : t(code ? "proofCaptureHintCodeNoOrder" : "proofCaptureHintNoOrder")}
         </p>
       </Card>
 
@@ -115,8 +122,10 @@ export default function TaskProofFormCore({
       </FormField>
 
       {/* Ohne Aufnahmezeit im Bild ist die Reihenfolge nicht belegbar — dann entscheidet die
-          Keyholderin. Das gehört gesagt, BEVOR er absendet, nicht erst im Ergebnis. */}
-      {photo.imageUrl && !photo.imageExifTime && (
+          Keyholderin. Das gehört gesagt, BEVOR er absendet, nicht erst im Ergebnis.
+          Verlangt die Aufgabe gar keine Reihenfolge, gibt es nichts zu belegen: die Warnung entfällt,
+          genau wie die Sichtung, vor der sie warnt (`evaluateProofs`). */}
+      {orderMatters && photo.imageUrl && !photo.imageExifTime && (
         <Card variant="semantic" semantic="warn">
           <p className="text-sm text-warn-text">{t("proofNoExifWarning")}</p>
         </Card>

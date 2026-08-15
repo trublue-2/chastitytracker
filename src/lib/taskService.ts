@@ -6,7 +6,7 @@ import type { MessageActor } from "@/lib/messageService";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
-import { startDeadline, isTaskResultFinal } from "@/lib/tasks";
+import { startDeadline, isTaskResultFinal, effectiveProofOrderMatters } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
   TASK_REQUIREMENT_TYPES, TASK_PROOF_MAX,
@@ -105,6 +105,8 @@ export interface CreateTaskParams {
   requirements?: TaskRequirementInput[];
   /** Geforderte Nachweis-Fotos, in der Reihenfolge, in der sie entstehen müssen. */
   proofs?: TaskProofInput[];
+  /** Müssen die Aufnahmezeiten dieser Reihenfolge folgen? Fehlend = ja, wie bisher. */
+  proofOrderMatters?: boolean;
 }
 
 /** Änderbare Felder. `undefined` = unverändert; `null` löscht (Beschreibung, Straf-Anlass). */
@@ -355,6 +357,7 @@ export async function checkTask(db: PrismaTx, p: CreateTaskParams): Promise<Serv
         penaltyReason: effectivePenaltyReason(isPunishment, p.penaltyReason),
         requirements: { create: checked.normalized.map((r, i) => ({ ...r, sortOrder: i })) },
         proofs: { create: checkedProofs.rows },
+        proofOrderMatters: effectiveProofOrderMatters(p.proofOrderMatters),
       },
     },
   };

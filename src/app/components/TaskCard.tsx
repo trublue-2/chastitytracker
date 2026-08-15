@@ -134,7 +134,10 @@ export default function TaskCard({
           <ChecklistBox>
             {task.proofs.map((p, i) => (
               <ChecklistRow key={p.id} href={p.href} align="start">
-                {/* Die Nummer, nicht ein Häkchen: die Reihenfolge IST die Forderung. */}
+                {/* Die Nummer, nicht ein Häkchen: sie ist die Adresse eines Nachweises („Nachweis 2"
+                    in Sichtung und MCP). OB die Reihenfolge auch gefordert ist, entscheidet
+                    `Task.proofOrderMatters` — abgeschaltet bleibt der Zustand `outOfOrder` von selbst
+                    aus (`firstOutOfOrderProof`), die Nummer ist dann reine Zählung. */}
                 <span
                   className={`size-5 rounded-md flex items-center justify-center shrink-0 text-[11px] font-semibold tabular-nums ${
                     p.state === "rejected" || p.state === "outOfOrder" ? "bg-warn text-background"

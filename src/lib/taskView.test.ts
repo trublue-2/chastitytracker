@@ -28,6 +28,7 @@ function evaluated(
       holdUntil: new Date("2026-07-25T15:00:00Z"),
       startGraceMin: 30,
       holdDurationMin: null,
+      proofOrderMatters: true,
       isPunishment: false,
       penaltyReason: null,
       createdAt: new Date("2026-07-25T12:00:00Z"),

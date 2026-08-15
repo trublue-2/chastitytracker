@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       penaltyReason: body.penaltyReason,
       requirements: body.requirements,
       proofs: body.proofs,
+      proofOrderMatters: body.proofOrderMatters,
     };
 
     // Mit `offenseRef` ist die Aufgabe die STRAFE für ein Vergehen: dann entstehen Aufgabe und

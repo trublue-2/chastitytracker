@@ -964,6 +964,17 @@ model Task {
   // geht ihr die Kulanz davon ab (30 gestellt, 15 gehalten, wenn er die Kulanz ausreizt), im
   // Dauer-Modus sind 30 Minuten 30 Minuten — egal wann er anlegt.
   holdDurationMin Int?
+  // Müssen die Aufnahmezeiten der Nachweis-Fotos ihrer Reihenfolge folgen? Vorgabe: ja, wie bisher.
+  //
+  // Manchmal IST die Reihenfolge die Forderung (Verschluss vor Plug vor Rechnungen), manchmal ist sie
+  // zufällig („ein Selfie in der Gemüse-, eines in der Blumenabteilung") — dort erzeugte der Zwang ein
+  // Vergehen für eine Reihenfolge, die nie jemand verlangt hat. Abgeschaltet entfällt mit der
+  // Reihenfolge auch die Sichtung wegen einer FEHLENDEN Aufnahmezeit: die war nur nötig, weil sich
+  // die Reihenfolge ohne sie nicht belegen lässt.
+  //
+  // Nach dem Stellen NICHT mehr änderbar — wie die Nachweise selbst und aus demselben Grund (siehe
+  // `mergeTaskPatch`): der Träger fotografiert unter der Regel, die er beim Stellen bekommen hat.
+  proofOrderMatters Boolean @default(true)
   // Als Strafe gestellt? Rein informativ — eine Aufgabe ist KEIN StrafeRecord (der kann per Design
   // nur an einem bereits erkannten, vergangenen Vergehen hängen).
   isPunishment  Boolean  @default(false)

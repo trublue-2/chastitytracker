@@ -1073,7 +1073,8 @@ function registerTools(server: McpServer) {
           "entries — nothing to confirm manually. A task may be flagged as a punishment. " +
           "Additionally you may demand PHOTO PROOFS via requireProof: the user submits one photo per entry, " +
           "and their CAPTURE times must ascend in the order you list them (capture time, not upload time — " +
-          "otherwise uploading everything at the end would pass). A proof with requireCode is checked " +
+          "otherwise uploading everything at the end would pass; set proofOrderMatters=false where the " +
+          "order is incidental). A proof with requireCode is checked " +
           "automatically against a random code the user must write in the shot; every other proof, and any " +
           "photo without a capture timestamp, puts the task into \"awaitingReview\" until YOU accept or " +
           "reject it — it is then neither fulfilled nor missed. " +
@@ -1100,6 +1101,12 @@ function registerTools(server: McpServer) {
             description: z.string().describe("What must be visible, e.g. \"the closed lock\" or \"a photo with at least two receipts\"."),
             requireCode: z.boolean().optional().describe("Demand a handwritten random code in the shot. Only these are decided automatically; without it the proof waits for your review."),
           })).optional().describe("Photo proofs, in the order they must be TAKEN."),
+          proofOrderMatters: z.boolean().optional().describe(
+            "Does that order count? Default true (capture times must ascend). Set false when the " +
+            "order is incidental — \"a selfie in the vegetable aisle and one in the flower aisle\" is " +
+            "not a demand to visit them in that sequence, and enforcing it would make the task missed " +
+            "for nothing. With false, a photo without a capture time also no longer needs your review.",
+          ),
           startGraceMinutes: z.number().min(0).optional().describe("Minutes the user has to put everything on (default 30). Starting later counts as not held continuously."),
           isPunishment: z.boolean().optional().describe("Mark the task as a punishment."),
           penaltyReason: z.string().optional().describe("What the punishment is for. Only kept when isPunishment is true."),

@@ -78,6 +78,13 @@ export interface TaskLike {
    * gegen ihr festes Ende misst, bleibt damit richtig, ohne das Feld zu kennen.
    */
   holdDurationMin?: number | null;
+  /**
+   * Müssen die Aufnahmezeiten der Nachweise ihrer Reihenfolge folgen? `false` schaltet die Prüfung ab.
+   *
+   * Optional, weil das Fehlen „wie bisher" heisst — also `true`. Nur das ausdrückliche `false` ändert
+   * etwas; jede Stelle, die eine Aufgabe ohne dieses Feld auswertet, urteilt unverändert weiter.
+   */
+  proofOrderMatters?: boolean;
   /** Selbstmeldung des Subs; bei Aufgaben MIT Bedingungen zusätzlich nötig, ohne Bedingungen ist sie
    *  die Erfüllung. */
   completedAt: Date | null;
@@ -173,6 +180,23 @@ export function effectiveHoldUntil(
 ): Date {
   if (!task.holdDurationMin || !startedAt) return task.holdUntil;
   return new Date(startedAt.getTime() + task.holdDurationMin * 60_000);
+}
+
+/**
+ * Zählt die Reihenfolge der Nachweise bei dieser Aufgabe? — die EINE Auflösung von
+ * {@link TaskLike.proofOrderMatters}.
+ *
+ * Eine Whitelist mit genau einem erlaubten Abweicher: nur das ausdrückliche `false` schaltet ab,
+ * alles andere (fehlend, `null`, ein Wert aus einem rohen JSON-Body) bleibt bei der strengeren
+ * Vorgabe. Eine Falscheingabe lockert damit nie eine Forderung.
+ *
+ * Als Funktion und nicht als `!== false` an jeder Fundstelle — dieselbe Begründung wie bei
+ * {@link effectivePenaltyReason}: Urteil, Anzeige, Service und die dryRun-Vorschau des MCP müssen
+ * denselben Wert bekommen, sonst verspricht die Vorschau „egal", wo der Commit „muss aufsteigen"
+ * schreibt. Verteilt geschrieben stünde die Regel fünfmal da, zweimal davon negiert.
+ */
+export function effectiveProofOrderMatters(value: boolean | null | undefined): boolean {
+  return value !== false;
 }
 
 /** Schnittmenge zweier bereits verschmolzener, aufsteigend sortierter Intervall-Listen. */
@@ -279,7 +303,15 @@ export type ProofVerdict =
  *
  * Erwartet eine nach `sortOrder` sortierte Liste mit vollständigen Aufnahmezeiten.
  */
-export function firstOutOfOrderProof(orderedWithTimes: ProofLike[]): ProofLike | null {
+export function firstOutOfOrderProof(
+  orderedWithTimes: ProofLike[],
+  /** Die Aufgabe — ist ihre Reihenfolge abgeschaltet, gibt es keinen Verstoss, weder fürs Urteil
+   *  noch für die Anzeige. Als PARAMETER, damit keiner der drei Aufrufer den Schalter für sich
+   *  auflösen muss (und einer davon ihn vergisst — der Rohwert `undefined` wäre falsy und schaltete
+   *  still ab, statt zu greifen). */
+  task: Pick<TaskLike, "proofOrderMatters">,
+): ProofLike | null {
+  if (!effectiveProofOrderMatters(task.proofOrderMatters)) return null;
   for (let i = 1; i < orderedWithTimes.length; i++) {
     const prev = orderedWithTimes[i - 1].imageExifTime;
     const cur = orderedWithTimes[i].imageExifTime;
@@ -299,8 +331,16 @@ export function firstOutOfOrderProof(orderedWithTimes: ProofLike[]): ProofLike |
  *
  * Massgeblich ist die AUFNAHME-Zeit, nicht die Upload-Zeit: sonst genügte es, alle Fotos am Ende
  * hochzuladen, und die geforderte Reihenfolge wäre eine Fiktion.
+ *
+ * Ob die Reihenfolge überhaupt gefordert ist, sagt `task.proofOrderMatters`: manchmal IST sie die
+ * Anweisung (Verschluss vor Plug), manchmal ist sie zufällig („eines in der Gemüse-, eines in der
+ * Blumenabteilung"). Alles andere — Vollständigkeit, Frist, Code, Sichtung — bleibt unberührt.
  */
-export function evaluateProofs(proofs: ProofLike[], task: Pick<TaskLike, "holdUntil">, now: Date): ProofVerdict {
+export function evaluateProofs(
+  proofs: ProofLike[],
+  task: Pick<TaskLike, "holdUntil" | "proofOrderMatters">,
+  now: Date,
+): ProofVerdict {
   if (proofs.length === 0) return "none";
 
   const ordered = [...proofs].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -329,11 +369,16 @@ export function evaluateProofs(proofs: ProofLike[], task: Pick<TaskLike, "holdUn
     return now < task.holdUntil ? "pending" : "failed";
   }
 
-  // Reihenfolge: streng aufsteigende Aufnahmezeiten. Fehlt eine, ist sie nicht prüfbar — dann
-  // entscheidet die Keyholderin, statt dass wir raten.
-  const times = ordered.map((p) => p.imageExifTime);
-  if (times.some((t) => t === null)) return "needsReview";
-  if (firstOutOfOrderProof(ordered)) return "failed";
+  // Die Reihenfolge-Achse, in EINEM Block: streng aufsteigende Aufnahmezeiten, und fehlt eine, ist
+  // sie nicht prüfbar — dann entscheidet die Keyholderin, statt dass wir raten.
+  //
+  // Die fehlende Aufnahmezeit hängt AN der Reihenfolge und nicht neben ihr: sie ist nur deshalb ein
+  // Fall für die Sichtung, weil sich ohne sie die Reihenfolge nicht belegen lässt. Ist die
+  // Reihenfolge abgeschaltet, gibt es nichts zu belegen — und nichts zu sichten.
+  if (effectiveProofOrderMatters(task.proofOrderMatters)) {
+    if (ordered.some((p) => p.imageExifTime === null)) return "needsReview";
+    if (firstOutOfOrderProof(ordered, task)) return "failed";
+  }
 
   // Automatisch entscheidbar ist nur ein Nachweis MIT erkanntem Code. Alles andere („Foto mit zwei
   // Rechnungen") ist eine Aussage über den Bildinhalt, die keine Maschine abschliessend trifft.
@@ -498,7 +543,7 @@ export function evaluateTask(
   // dieselbe wie die Haltefrist, und die steht erst mit dem Beginn fest; oben, vor der Suche nach
   // ihm, gäbe es sie noch gar nicht. Der Aufruf wandert damit hinter die Bedingungs-Achse, was
   // nichts verschiebt: die Nachweis-Zweige darunter lagen ohnehin schon alle hier.
-  const proofVerdict = evaluateProofs(proofs, { holdUntil }, now);
+  const proofVerdict = evaluateProofs(proofs, { holdUntil, proofOrderMatters: task.proofOrderMatters }, now);
 
   // Bedingungen gehalten. Jetzt die Nachweise.
   //

@@ -34,6 +34,7 @@ function evaluated(
       holdUntil: HOLD_UNTIL,
       startGraceMin: 30,
       holdDurationMin: null,
+      proofOrderMatters: true,
       isPunishment: false,
       penaltyReason: null,
       createdAt: new Date("2026-07-25T11:00:00Z"),

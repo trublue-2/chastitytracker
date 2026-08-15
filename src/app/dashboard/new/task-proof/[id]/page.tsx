@@ -18,7 +18,7 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
 
   const proof = await prisma.taskProof.findFirst({
     where: { id, task: { userId: session.user.id } },
-    include: { task: { select: { title: true, withdrawnAt: true, holdUntil: true } } },
+    include: { task: { select: { title: true, withdrawnAt: true, holdUntil: true, proofOrderMatters: true } } },
   });
 
   // Nicht vorhanden, fremd, zurückgezogen, bereits eingereicht oder verfristet: zurück aufs
@@ -40,6 +40,7 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
       description={proof.description}
       code={proof.code}
       taskTitle={proof.task.title}
+      orderMatters={proof.task.proofOrderMatters}
       mobileDesktopMode={user?.mobileDesktopUpload ?? false}
     />
   );
