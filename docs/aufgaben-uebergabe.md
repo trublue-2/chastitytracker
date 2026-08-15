@@ -143,6 +143,12 @@ Kern, aber nur eine Kante.
 `TaskSeries`. Jede Nacht ist eine eigene Zeile mit eigenem Urteil. **Nicht** die Serie als Ganzes
 bewerten; das machte aus sieben Nächten ein unteilbares Urteil.
 
+**Dazu (Entscheidung 3 aus §5): die Ergebnis-Meldung vorziehen.** `processDueTasks` wählt heute über
+`holdUntil` vor — steht das Urteil früher fest, wartet der Versand trotzdem bis zum Aufgaben-Ende.
+Braucht eine mitgeschriebene Spalte `min(holdUntil, Nullpunkt + kleinste Nachweis-Frist)`; der
+Zustand selbst ist bereits sofort richtig, es geht allein um den Versand. Passt zu B9, weil beide
+dieselbe Vorauswahl anfassen.
+
 ---
 
 ## 4. Etappe 3 — Die Aufgabe komponiert · v5.4.0
@@ -167,7 +173,26 @@ gegen den Schnitt aller Bedingungen" wird „Prüfung je Bedingung über ihr eig
 
 ---
 
-## 5. Entscheidungen, die noch offen sind
+## 5. Entscheidungen
+
+### Getroffen am 16.08.2026 (aus den Reviews der Etappe 1)
+
+1. **Verspäteter Poller-Tick: die Kulanz zählt ab der Zustellung, nicht ab der genannten Uhrzeit.**
+   Wird eine für 17:00 terminierte Aufgabe erst um 17:04 zugestellt, hat der Träger bis 18:04 statt
+   bis 18:00. Er wird nie strenger behandelt als angekündigt; dass „18:00" real 18:04 heisst, ist der
+   bewusst in Kauf genommene Preis. **Bleibt wie gebaut** (`deadlineFromDispatch`) — kein absolutes
+   Frist-Feld, kein Kern-Eingriff.
+2. **Eine späte Annahme rettet die Aufgabe.** Nimmt die Keyholderin einen nach der Frist eingereichten
+   Nachweis an, ist die Aufgabe erfüllt — kein Vergehen. Ablehnen bleibt das Versäumnis. Das folgt dem
+   Prinzip, das seit dem Aufnahmezeit-Fix ohnehin gilt: *wo sie urteilt, urteilt sie an Stelle der
+   Maschine.* Gilt für BEIDE Fristen (eigene Nachweis-Fälligkeit und Aufgaben-Ende). Umgesetzt in
+   Etappe 1; der Anzeige-Widerspruch (Urteil „versäumt" bei Zeile „erbracht") fällt damit weg.
+3. **Das Ergebnis wird gemeldet, sobald das Urteil feststeht** — nicht erst zum Aufgaben-Ende.
+   Der Keyholder-Guide verspricht das an anderer Stelle bereits; heute stimmt es dort nicht, weil
+   `processDueTasks` über `holdUntil` vorwählt. **Eingeplant für Etappe 2**, weil es eine
+   mitgeschriebene Spalte braucht: `min(holdUntil, Nullpunkt + kleinste Nachweis-Frist)`.
+
+### Noch offen
 
 1. **B2 — darf eine späte Selbstmeldung die Frist dehnen?** Vorschlag: nein, die Obergrenze gewinnt.
 2. **B4 oder X4?** Mehrere Enden in *einer* Aufgabe sind auf einer Handy-Karte womöglich nicht
