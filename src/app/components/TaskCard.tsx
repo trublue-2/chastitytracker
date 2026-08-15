@@ -5,6 +5,7 @@ import { ListChecks, Check, ChevronRight, Circle, Camera, ArrowRight, Hourglass 
 import { useTranslations, useLocale } from "next-intl";
 import Card, { CARD_BODY_STRIPED } from "@/app/components/Card";
 import IconTile from "@/app/components/IconTile";
+import RowAction from "@/app/components/RowAction";
 import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import useRemainingMs from "@/app/hooks/useRemainingMs";
@@ -29,19 +30,6 @@ function ChecklistBox({ children }: { children: React.ReactNode }) {
     <ul className="flex flex-col rounded-xl border border-border-subtle divide-y divide-border-subtle overflow-hidden">
       {children}
     </ul>
-  );
-}
-
-/** Das Handlungswort am Ende einer antippbaren Zeile. Ein Chevron allein sagt „hier geht es weiter",
- *  aber nicht, was dort passiert — genau das war offen („Wo muss ich klicken, um ein Foto zu
- *  erfassen?", Rückmeldung 02.08.2026). */
-function RowAction({ icon, label }: { icon?: React.ReactNode; label: string }) {
-  return (
-    <span className="shrink-0 flex items-center gap-1 text-xs font-semibold text-foreground">
-      {icon}
-      {label}
-      <ChevronRight size={14} className="text-foreground-faint" />
-    </span>
   );
 }
 

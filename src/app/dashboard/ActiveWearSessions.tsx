@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import { ListChecks } from "lucide-react";
 import Card from "@/app/components/Card";
+import RowAction from "@/app/components/RowAction";
 import { formatElapsedMs } from "@/lib/utils";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import CategoryPhotoThumb from "@/app/components/CategoryPhotoThumb";
@@ -66,7 +67,7 @@ export default function ActiveWearSessions({ sessions, serverNow, adminUserId }:
               <Card>
                 <Link
                   href={endHref}
-                  className="flex items-center gap-3 p-3 active:bg-background-subtle transition border-l-[3px]"
+                  className="flex items-center gap-3 p-3 hover:bg-surface-raised active:bg-background-subtle transition border-l-[3px]"
                   style={{ borderLeftColor: style.borderColor }}
                 >
                   {/* Das beim Einsetzen aufgenommene Foto steht dort, wo sonst das Kategorie-Symbol
@@ -91,8 +92,11 @@ export default function ActiveWearSessions({ sessions, serverNow, adminUserId }:
                   {s.heldReason && (
                     <ListChecks size={14} className="text-warn shrink-0 ml-1" aria-label={s.heldReason} />
                   )}
-                  <span className="text-xs text-foreground-faint shrink-0 ml-1">
-                    {t("endShort")}
+                  {/* Über `RowAction`, damit die Zeile denselben Chevron trägt wie jede andere
+                      antippbare Zeile — „Beenden" allein las sich wie eine Beschriftung des Timers
+                      davor, nicht wie die Handlung, die ein Tap auslöst. */}
+                  <span className="ml-1">
+                    <RowAction label={t("endShort")} />
                   </span>
                 </Link>
               </Card>

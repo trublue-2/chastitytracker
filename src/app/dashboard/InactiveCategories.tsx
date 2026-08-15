@@ -52,7 +52,8 @@ export default function InactiveCategories({ categories }: Props) {
                   icon={c.icon}
                   name={c.name}
                   subtitle={c.todayHours > 0 ? `${tStats("day")} ${formatHours(c.todayHours, dl)}` : undefined}
-                  trailing={<><Plus size={12} />{t("titleBegin")}</>}
+                  actionIcon={<Plus size={12} />}
+                  actionLabel={t("titleBegin")}
                 />
               </li>
             );

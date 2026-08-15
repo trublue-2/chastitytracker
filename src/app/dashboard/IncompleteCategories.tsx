@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { ChevronRight, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import CategoryLinkRow from "@/app/components/CategoryLinkRow";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { deviceFormHref } from "@/lib/categoryConstants";
@@ -42,7 +42,8 @@ export default async function IncompleteCategories({ categories }: { categories:
               name={c.name}
               subtitle={t("noDevice")}
               subtitleTone="warn"
-              trailing={<><Plus size={12} />{tWear("addDeviceLink")}<ChevronRight size={12} /></>}
+              actionIcon={<Plus size={12} />}
+              actionLabel={tWear("addDeviceLink")}
             />
           </li>
         ))}

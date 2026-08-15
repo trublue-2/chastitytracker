@@ -16,6 +16,13 @@
           "de": "Der Frist-Block im Aufgaben-Formular fragt jetzt EINMAL, woran die Zeit hängt: „Tragezeit“, „Endet in“ oder „Endet um“. Tragezeit und Zeit zum Anlegen stehen als Paar untereinander, mit einem Satz, der beides zusammenfasst.",
           "en": "The deadline block in the task form now asks ONCE what the time is anchored to: “Wear time”, “Ends in” or “Ends at”. Wear time and time-to-put-on sit together as a pair, with one sentence summarising both."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Antippbare Zeilen und Karten sind jetzt durchgehend als solche zu erkennen: Handlungswort und Pfeil stehen an jeder von ihnen, nicht mehr nur an manchen. Betrifft die Kategorie-Zeilen und laufenden Trage-Sessions im Dashboard sowie die Benutzerkarten im Adminportal.",
+          "en": "Tappable rows and cards are now consistently recognisable as such: every one of them carries an action word and an arrow, not just some. Affects the category rows and running wear sessions on the dashboard as well as the user cards in the admin portal."
+        }
       }
     ]
   },
