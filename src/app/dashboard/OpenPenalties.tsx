@@ -5,7 +5,7 @@ import OffenseList from "@/app/components/OffenseList";
 import { prisma } from "@/lib/prisma";
 import { messageFilterToParams } from "@/lib/messageCategories";
 import { loadSubOffenses, openPenaltiesOf } from "@/lib/subOffenses";
-import { hiddenFromSubWhere } from "@/lib/delayedTrigger";
+import { SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
 
 /** Wie viele Strafen im Dashboard ausliegen, bevor auf den Posteingang verwiesen wird. Kein
  *  Aufklapper wie beim Aufgaben-Stapel: der ganze Verlauf steht ohnehin als Nachrichten bereit. */
@@ -51,22 +51,30 @@ export default async function OpenPenalties({
   });
   if (openCount === 0) return null;
 
-  // Eine Strafe, deren Aufgabe noch TERMINIERT ist, gibt es für den Träger nicht: ihr Urteilstext
-  // IST der Aufgaben-Titel (`punishWithTask` schreibt `reason: task.title`), und hier stünde er
-  // Stunden bevor die Aufgabe ihn erreichen soll — mitsamt einem Verweis auf eine Aufgabenliste, in
-  // der nichts steht. Genau das soll die Terminierung verhindern.
-  //
-  // NACH dem Zähl-Tor, nicht davor: das Tor ist die eine indizierte Zeile, die jeder Dashboard-
-  // Aufruf zahlt. Eine terminierte Strafaufgabe lässt es im schlimmsten Fall einmal zu früh
-  // aufgehen — die Liste unten ist dann leer und der Block verschwindet (`rows.length === 0`).
-  const hiddenTaskIds = new Set(
-    (await prisma.task.findMany({
-      where: { userId, ...hiddenFromSubWhere },
-      select: { id: true },
-    })).map((t) => t.id),
-  );
-
   const open = openPenaltiesOf(await loadSubOffenses(userId, now));
+
+  // Eine Strafe, deren Aufgabe der Träger noch nicht kennt, gibt es für ihn nicht: ihr Urteilstext
+  // IST der Aufgaben-Titel (`punishWithTask` schreibt `reason: task.title`), und hier stünde er,
+  // bevor die Aufgabe ihn erreichen soll — mitsamt einem Verweis auf eine Aufgabenliste, in der
+  // nichts steht. Genau das soll die Terminierung verhindern.
+  //
+  // Auf die Aufgaben-Ids der offenen Strafen eingegrenzt und deshalb NACH dem Strafbuch: gefragt
+  // wird der Wert nur für diese paar Zeilen, und meistens ist keine davon eine Aufgabe — dann
+  // entfällt die Abfrage ganz, statt bei jedem Aufruf alle Aufgaben des Nutzers durchzugehen.
+  //
+  // `NOT: SUB_VISIBLE_WHERE` und NICHT `pendingDispatchWhere`: das trägt zusätzlich
+  // `withdrawnAt: null`, weil es die Auswahl des Pollers ist. Hier geht es um genau die Zeile, die
+  // dort herausfällt — eine terminierte Strafaufgabe, die VOR dem Auslösen zurückgezogen wurde.
+  // Sie erreicht den Träger nie, ihr Titel stand hier aber trotzdem (er IST der Straftext).
+  const penaltyTaskIds = [...new Set(open.flatMap((p) => p.taskId ?? []))];
+  const hiddenTaskIds = new Set(
+    penaltyTaskIds.length
+      ? (await prisma.task.findMany({
+          where: { id: { in: penaltyTaskIds }, userId, NOT: SUB_VISIBLE_WHERE },
+          select: { id: true },
+        })).map((t) => t.id)
+      : [],
+  );
 
   // DOPPELUNG MIT DEM AUFGABEN-BLOCK: Ist die Strafe eine AUFGABE, die gerade darüber steht, dann
   // steht dort bereits alles — Titel (= der Straftext, siehe `punishWithTask`), Frist, Bedingungen,

@@ -58,7 +58,7 @@ beforeEach(() => {
   // (`it.only`, andere Datei-Reihenfolge) liefert `findMany` dann `undefined`, woran die Auflösung
   // stirbt statt eine leere Liste zu sehen. Genau daran sind hier schon Tests gescheitert.
   mock(prisma.message.findMany).mockResolvedValue([]);
-  for (const m of [prisma.strafeRecord, prisma.kontrollAnforderung, prisma.verschlussAnforderung, prisma.orgasmusAnforderung, prisma.user]) {
+  for (const m of [prisma.strafeRecord, prisma.kontrollAnforderung, prisma.verschlussAnforderung, prisma.orgasmusAnforderung, prisma.task, prisma.user]) {
     mock(m.findMany).mockResolvedValue([]);
   }
 });
@@ -149,6 +149,43 @@ describe("verborgene Direktiven bleiben verborgen", () => {
     mock(prisma.kontrollAnforderung.findMany).mockResolvedValue([hiddenControl]);
     expect(await unreadCount(sub("u1"), ["m1"])).toBe(1);
   });
+
+  /**
+   * Dieselbe Regel für die AUFGABE — sie trägt das Feldpaar seit B1.
+   *
+   * Hier stand einmal ein festes `hidden: false` mit der Begründung, eine Aufgabe kenne keine
+   * Terminierung. Das galt zuletzt nur noch, weil jeder Schreiber einzeln schweigt; die Zustellung
+   * selbst schreibt die Zeile aber, BEVOR sie stempelt (`dispatchDueTasks`), und bricht sie
+   * dazwischen ab, bleibt eine Zeile zu einer verborgenen Aufgabe stehen.
+   */
+  const hiddenTask = { id: "t1", userId: "u1", description: "die ganze Wohnung", wirksamAb: new Date("2026-08-01T10:00:00Z"), benachrichtigtAt: null };
+  const messageOnHiddenTask = row({ refEntityType: "task", refEntityId: "t1" });
+
+  it("die Liste liefert eine Nachricht zu einer noch nicht zugestellten Aufgabe nicht aus", async () => {
+    mock(prisma.message.findMany).mockResolvedValue([messageOnHiddenTask]);
+    mock(prisma.task.findMany).mockResolvedValue([hiddenTask]);
+    expect((await listMessages(sub("u1"))).messages).toEqual([]);
+  });
+
+  it("der Zähler zählt sie ebenfalls nicht — sonst stünde ein Badge über einem leeren Posteingang", async () => {
+    mock(prisma.message.findMany).mockResolvedValue([messageOnHiddenTask]);
+    mock(prisma.task.findMany).mockResolvedValue([hiddenTask]);
+    expect(await unreadCount(sub("u1"))).toBe(0);
+  });
+
+  it("nach der Zustellung erscheint sie", async () => {
+    mock(prisma.message.findMany).mockResolvedValue([messageOnHiddenTask]);
+    mock(prisma.task.findMany).mockResolvedValue([{ ...hiddenTask, benachrichtigtAt: new Date("2026-08-01T10:00:00Z") }]);
+    expect((await listMessages(sub("u1"))).messages).toHaveLength(1);
+  });
+
+  it("die Keyholderin sieht ihre Zeile trotzdem — sie hat die Aufgabe selbst terminiert", async () => {
+    mock(prisma.message.findMany).mockResolvedValue([
+      row({ id: "m-kh", subjectUserId: "sub1", refEntityType: "task", refEntityId: "t1" }),
+    ]);
+    mock(prisma.task.findMany).mockResolvedValue([{ ...hiddenTask, userId: "sub1" }]);
+    expect((await listMessages(kh("kh1", ["sub1"]))).messages).toHaveLength(1);
+  });
 });
 
 describe("Freitexte werden live gelesen, nicht kopiert", () => {
@@ -194,9 +231,9 @@ describe("Freitexte werden live gelesen, nicht kopiert", () => {
     expect(messages[0].refMissing).toBe(false);
   });
 
-  it("eine Aufgabe ist nie verborgen — sie kennt keine Terminierung", async () => {
+  it("eine sofort wirksame Aufgabe ist nicht verborgen", async () => {
     mock(prisma.message.findMany).mockResolvedValue([row({ refEntityType: "task", refEntityId: "t1" })]);
-    mock(prisma.task.findMany).mockResolvedValue([{ id: "t1", userId: "u1", description: null }]);
+    mock(prisma.task.findMany).mockResolvedValue([{ id: "t1", userId: "u1", description: null, wirksamAb: null, benachrichtigtAt: new Date("2026-07-28T10:00:00Z") }]);
     const { messages } = await listMessages(sub("u1"));
     expect(messages).toHaveLength(1);
   });

@@ -856,9 +856,15 @@ export async function dispatchDueTasks(now: Date): Promise<void> {
       await notifyUser(t.userId, taskAssignmentNotice({ ...t, wirksamAb: sentAt, holdUntil }, t.createdBy));
       // `updateMany` mit dem offenen Zustand in der Bedingung statt `update` auf die id: zieht die
       // Keyholderin die Aufgabe zwischen Vorauswahl und Versand zurück, darf der Stempel sie nicht
-      // wieder aufwecken. Der Rückzug selbst schwieg (sie galt da noch als verborgen) — bliebe der
-      // Stempel, hätte der Sub eine Zeile im Posteingang zu einer Aufgabe, die er nie zu sehen
-      // bekommt. So bleibt sie zurückgezogen, und die Meldung ist die einzige Spur.
+      // wieder aufwecken. Der Rückzug selbst schwieg (sie galt da noch als verborgen). So bleibt sie
+      // zurückgezogen und ungestempelt — und damit auch die eben geschriebene Posteingangs-Zeile für
+      // den Träger verborgen (`isHiddenFromSub` in `messageService.ts`), statt ihm eine Aufgabe
+      // anzukündigen, die er nie zu sehen bekommt.
+      //
+      // Dasselbe gilt für das FENSTER zwischen den beiden Zeilen hier: die Meldung ist geschrieben,
+      // der Stempel noch nicht. Die Reihenfolge ist Absicht (ein abgebrochener Versand darf nicht
+      // als erledigt gelten), also muss die Lese-Seite sie tragen — genau dafür leitet der
+      // Posteingang die Sichtbarkeit ab, statt sich auf die Disziplin jedes Schreibers zu verlassen.
       await prisma.task.updateMany({
         where: { id: t.id, withdrawnAt: null, benachrichtigtAt: null },
         data: { benachrichtigtAt: sentAt, wirksamAb: sentAt, holdUntil },

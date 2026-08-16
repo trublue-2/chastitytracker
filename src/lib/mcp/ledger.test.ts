@@ -15,10 +15,20 @@ import { describe, it, expect, vi } from "vitest";
  * still verschwindet.
  */
 
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/prisma", async () => {
+  const { createPrismaMock } = await import("@/test/prismaMock");
+  return { prisma: createPrismaMock() };
+});
+// Nur `buildStrafbuch` festnageln, der Rest bleibt ECHT: `collectDetectedOffenses` und die
+// Kategorien-Tabelle sind genau das, was hier mitgeprüft werden soll.
+vi.mock("@/lib/strafbuch", async (orig) => ({ ...(await orig<object>()), buildStrafbuch: vi.fn() }));
 
-import { buildOffenseRows, filterOffenses, OFFENSE_TYPES, type OffenseRow } from "./ledger";
+import { buildOffenseRows, filterOffenses, getOffenses, OFFENSE_TYPES, type OffenseRow } from "./ledger";
 import { collectDetectedOffenses, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
+import { buildStrafbuch } from "@/lib/strafbuch";
+import { prisma } from "@/lib/prisma";
+import { emptyOffenseLists } from "@/test/strafbuchFixture";
+import { TEST_USER, type PrismaMock } from "@/test/prismaMock";
 
 /** Eine `mcpStrafbuch`-Ausgabe mit GENAU EINEM Eintrag in jeder Kategorie. */
 function strafbuchWithOneOfEach() {
@@ -130,5 +140,40 @@ describe("filterOffenses — K-14", () => {
   });
   it("limit sortiert neueste zuerst und kürzt", () => {
     expect(filterOffenses(rows, { limit: 1 }).map((r) => r.id)).toEqual(["b"]); // 15.07. ist neuester
+  });
+});
+
+/**
+ * Der Vorwurf, den der Keyholder-Agent zu lesen bekommt.
+ *
+ * `state` unterscheidet nur „vorzeitig abgelegt" von „versäumt" — und „versäumt" deckt drei
+ * verschiedene Vorwürfe ab. Die Web-Sicht sagt das seit `taskFailureKind` richtig; ausgerechnet die
+ * Fläche, die am ehesten automatisch handelt, sagte weiter „nie rechtzeitig begonnen", auch wo
+ * durchgehalten und nur der Nachweis versäumt wurde und wo es gar nichts zu beginnen gab.
+ */
+describe("get_offenses — der Vorwurf zu einer versäumten Aufgabe", () => {
+  const task = (over: Record<string, unknown>) => ({
+    id: "t1", title: "Staubsaugen",
+    holdUntil: new Date("2026-08-15T18:00:00Z"), failedAt: null,
+    penaltyForRef: null, penaltyReason: null,
+    ...over,
+  });
+
+  it.each([
+    ["aborted", { state: "aborted", startedAt: new Date("2026-08-15T16:00:00Z"), hasRequirements: true }],
+    ["proofMissing", { state: "missed", startedAt: new Date("2026-08-15T16:00:00Z"), hasRequirements: true }],
+    ["neverStarted", { state: "missed", startedAt: null, hasRequirements: true }],
+    // Der Fall, der „nie begonnen" am deutlichsten widerlegt: es gab nichts zu beginnen.
+    ["notFulfilled", { state: "missed", startedAt: null, hasRequirements: false }],
+  ])("nennt %s statt bloss des Zustands", async (kind, over) => {
+    (prisma as unknown as PrismaMock).user.findUnique.mockResolvedValue(TEST_USER);
+    (prisma as unknown as PrismaMock).strafeRecord.findMany.mockResolvedValue([]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (buildStrafbuch as any).mockResolvedValue({ ...emptyOffenseLists(), strafeRecords: [], unfulfilledTasks: [task(over)] });
+
+    const { offenses } = await getOffenses("sub");
+
+    expect(offenses).toHaveLength(1);
+    expect(offenses[0].context.failureKind).toBe(kind);
   });
 });

@@ -10,7 +10,8 @@ import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import useRemainingMs from "@/app/hooks/useRemainingMs";
 import { formatDateTimeDual, formatElapsedMs, formatTime, toDateLocale } from "@/lib/utils";
-import { nextTaskStep, taskDeadlineLine, visibleStartDeadline, type TaskCardData } from "@/lib/taskView";
+import { nextTaskStep, taskDeadlineLine, taskFailureLabelKey, visibleStartDeadline, type TaskCardData } from "@/lib/taskView";
+import { isTaskOffense } from "@/lib/tasks";
 import { TASK_STATE_COLOR } from "@/lib/constants";
 
 /**
@@ -347,15 +348,16 @@ function StateLine({
   const color = TASK_STATE_COLOR[task.state];
 
   let text: string;
-  if (task.state === "aborted") {
-    text = task.failedRequirement && task.failedAt
-      ? `${t("stateAborted")} — ${t("abortedDetail", { requirement: task.failedRequirement, at: dual(task.failedAt) })}`
-      : t("stateAborted");
-  } else if (task.state === "missed") {
-    // `missed` hat ZWEI Wege: nie (rechtzeitig) begonnen — oder durchgehalten und am Nachweis
-    // gescheitert (`evaluateTask` gibt dort ein `startedAt` mit). Wer getragen und nur das letzte
-    // Foto vergessen hat, las bisher „nie begonnen": ein Vorwurf, der nachweislich falsch ist.
-    text = task.startedAt ? t("stateMissedProof") : t("stateMissed");
+  if (isTaskOffense(task.state)) {
+    // WELCHER Vorwurf, entscheidet `taskFailureKind` über `taskFailureLabelKey` — nicht die Karte:
+    // `missed` steht für drei verschiedene, und die Unterscheidung von Hand lag bei jeder Aufgabe
+    // ohne Bedingungen falsch.
+    text = t(taskFailureLabelKey({ startedAt: task.startedAt, requirements: task.requirements, state: task.state }));
+    // Der BELEG zum Abbruch, wo er vorliegt: „vorzeitig abgelegt" ohne ihn wäre nicht von
+    // „zurückgezogen" zu unterscheiden und ein Vorwurf ohne Nachweis.
+    if (task.state === "aborted" && task.failedRequirement && task.failedAt) {
+      text += ` — ${t("abortedDetail", { requirement: task.failedRequirement, at: dual(task.failedAt) })}`;
+    }
   } else if (task.state === "withdrawn") {
     text = t("stateWithdrawn");
   } else if (task.state === "done") {

@@ -497,16 +497,25 @@ const hidesFromReader = (scope: InboxScope): boolean => scope.audience === "sub"
 /**
  * Die Referenz-Schlüssel, die für den Sub VERBORGEN sind.
  *
- * Gefragt werden nur `KontrollAnforderung` und `VerschlussAnforderung` — nicht, weil sonst niemand
- * terminierbar wäre (die AUFGABE ist es seit `Task.wirksamAb`), sondern weil zu einer verborgenen
- * Aufgabe gar keine Zeile existiert: ihre Meldung entsteht erst bei der Zustellung, und Änderung
- * wie Rückzug schweigen bis dahin (`taskService.ts`). Es gibt also nichts zu verbergen. Strafen und
- * Orgasmus-Anweisungen kennen das Feldpaar überhaupt nicht.
+ * Gefragt werden die drei Modelle mit dem Feldpaar `wirksamAb`/`benachrichtigtAt` —
+ * `KontrollAnforderung`, `VerschlussAnforderung` und `Task`. Strafen und Orgasmus-Anweisungen kennen
+ * es überhaupt nicht und können deshalb gar nicht terminiert werden.
  *
- * Genau deshalb fragt diese Funktion ZWEI Tabellen, nicht eine je Referenz-Art: sie ist der heisse
- * Pfad (Header, jede Dashboard-Seite). Wer eine Referenz-Art ergänzt, prüft zuerst, ob sie
- * terminierbar ist UND ob zu einer verborgenen Zeile eine Nachricht entstehen kann — nur dann
- * gehört sie hierher.
+ * Die AUFGABE stand hier zunächst NICHT, mit der Begründung, zu einer verborgenen Aufgabe existiere
+ * gar keine Zeile: ihre Meldung entsteht erst bei der Zustellung, Änderung und Rückzug schweigen bis
+ * dahin. Das stimmt für jeden Schreiber einzeln — aber die Zustellung selbst schreibt die Zeile,
+ * BEVOR sie stempelt (`dispatchDueTasks`: erst melden, dann `benachrichtigtAt`, und genau in dieser
+ * Reihenfolge, damit ein abgebrochener Versand nicht als erledigt gilt). Dazwischen liegt ein
+ * Fenster, und bricht der Lauf darin ab, bleibt die Zeile zu einer Aufgabe stehen, die noch als
+ * verborgen gilt. Eine Zusage, die von der Disziplin JEDES Schreibers abhängt, gehört an die
+ * Lese-Seite — dafür gibt es dieses Feld.
+ *
+ * Diese Funktion fragt bewusst je Modell, nicht je Referenz-Art: sie ist der heisse Pfad (Header,
+ * jede Dashboard-Seite). Wer eine Referenz-Art ergänzt, prüft, ob ihr Modell terminierbar ist — nur
+ * dann gehört sie hierher.
+ *
+ * ZWILLING: `refDetails` leitet dieselbe Sichtbarkeit für die LISTE ab. Laufen die beiden
+ * auseinander, steht dauerhaft ein Badge über einem leeren Posteingang.
  *
  * Immer auf die Träger des Scopes eingegrenzt — eine Referenz auf die Zeile eines anderen Nutzers
  * findet nichts, statt sie preiszugeben.
@@ -520,6 +529,7 @@ async function hiddenRefKeys(rows: RefRow[], scope: InboxScope): Promise<Set<str
   const subjectUserId = subjectFilter(scope);
   const controlIds = idsOfType(rows, "control");
   const lockRequestIds = idsOfType(rows, "lockRequest");
+  const taskIds = idsOfType(rows, "task");
   const offenseIds = idsOfType(rows, "offense");
   const dismissed = rows.filter(isDismissalRow).map((r) => ({ subjectUserId: r.subjectUserId, refId: r.refEntityId! }));
   const dismissedIds = dismissed.map((d) => d.refId);
@@ -536,13 +546,16 @@ async function hiddenRefKeys(rows: RefRow[], scope: InboxScope): Promise<Set<str
   // `userId` mitlesen: der Träger steht im Referenz-Schlüssel (siehe `refKey`), und er kommt aus dem
   // gefundenen Objekt statt aus der Nachricht — die Abfrage ist ohnehin auf den Scope eingegrenzt.
   const scoped = { wirksamAb: true, benachrichtigtAt: true, id: true, userId: true } as const;
-  const [controls, lockRequests, offenses] = await Promise.all([
+  const [controls, lockRequests, tasks, offenses] = await Promise.all([
     // Leere `in`-Liste = garantiert leeres Ergebnis: die Abfrage gar nicht erst stellen.
     controlIds.length
       ? prisma.kontrollAnforderung.findMany({ where: { id: { in: controlIds }, userId: subjectUserId }, select: scoped })
       : [],
     lockRequestIds.length
       ? prisma.verschlussAnforderung.findMany({ where: { id: { in: lockRequestIds }, userId: subjectUserId }, select: scoped })
+      : [],
+    taskIds.length
+      ? prisma.task.findMany({ where: { id: { in: taskIds }, userId: subjectUserId }, select: scoped })
       : [],
     // Der Urteils-Status gehört ZUM ZÄHLER, nicht nur zur Anzeige: verbirgt `refDetails` eine
     // Nachricht zu einem verworfenen Urteil, der Zähler sie aber nicht, steht dauerhaft ein Badge
@@ -559,6 +572,7 @@ async function hiddenRefKeys(rows: RefRow[], scope: InboxScope): Promise<Set<str
   const hidden = new Set<string>();
   for (const c of controls) if (isHiddenFromSub(c)) hidden.add(refKey(c.userId, "control", c.id));
   for (const l of lockRequests) if (isHiddenFromSub(l)) hidden.add(refKey(l.userId, "lockRequest", l.id));
+  for (const t of tasks) if (isHiddenFromSub(t)) hidden.add(refKey(t.userId, "task", t.id));
   for (const o of offenses) if (!judgmentMessageStillApplies(o)) hidden.add(refKey(o.userId, "offense", o.id));
   // Wortgleich zur Ableitung in `refDetails` — Zähler und Liste dürfen hier nicht auseinanderlaufen.
   // Über die REFERENZEN, nicht über die gefundenen Urteile: ein blosses reopen LÖSCHT die Zeile, und
@@ -638,7 +652,9 @@ async function refDetails(rows: RefRow[], scope: InboxScope): Promise<Map<string
     // Die BESCHREIBUNG, nicht der Titel: sie ist der Freitext der Keyholderin — die eigentliche
     // Anweisung („die Wohnung, nicht nur das Wohnzimmer"). Sie stand im Posteingang bisher gar
     // nicht, und ohne sie ist eine Aufgabe dort nicht nachlesbar, sondern nur benannt.
-    taskIds.length ? prisma.task.findMany({ where: { id: { in: taskIds }, userId: subjectUserId }, select: { id: true, userId: true, description: true } }) : [],
+    // wirksamAb/benachrichtigtAt aus demselben Grund wie bei der Verschluss-Anforderung darüber:
+    // dieselbe Zeile beantwortet Text UND Sichtbarkeit.
+    taskIds.length ? prisma.task.findMany({ where: { id: { in: taskIds }, userId: subjectUserId }, select: { id: true, userId: true, description: true, wirksamAb: true, benachrichtigtAt: true } }) : [],
   ]);
 
   const now = new Date();
@@ -679,10 +695,10 @@ async function refDetails(rows: RefRow[], scope: InboxScope): Promise<Map<string
   }
   for (const l of lockRequests) details.set(refKey(l.userId, "lockRequest", l.id), { text: l.nachricht, actionCode: null, hidden: isHiddenFromSub(l) });
   for (const d of orgasmDirectives) details.set(refKey(d.userId, "orgasmDirective", d.id), { text: d.nachricht, actionCode: null, hidden: false });
-  // `hidden: false`: eine Aufgabe kennt keine Terminierung — sie gilt ab dem Stellen, es gibt keinen
-  // Überraschungs-Zeitpunkt zu schützen (siehe `delayedTrigger.ts`, das nur Kontrolle und Verschluss
-  // betrifft).
-  for (const t of tasks) details.set(refKey(t.userId, "task", t.id), { text: t.description, actionCode: null, hidden: false });
+  // Die Aufgabe IST terminierbar (`Task.wirksamAb` seit B1) — hier stand einmal ein festes
+  // `hidden: false` mit der Begründung, sie kenne keine Terminierung. Dieselbe Ableitung wie bei
+  // Kontrolle und Verschluss-Anforderung, und aus demselben Grund: siehe {@link hiddenRefKeys}.
+  for (const t of tasks) details.set(refKey(t.userId, "task", t.id), { text: t.description, actionCode: null, hidden: isHiddenFromSub(t) });
   return details;
 }
 

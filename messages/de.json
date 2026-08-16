@@ -1648,6 +1648,7 @@
     "stateAwaitingReview": "Nachweise eingereicht — warten auf Sichtung",
     "stateMissed": "Versäumt — nie begonnen",
     "stateMissedProof": "Versäumt — Nachweis nicht erbracht",
+    "stateMissedNotFulfilled": "Versäumt — nicht erfüllt",
     "startDeadlineHint": "Beginn spätestens {date} — danach gilt die Aufgabe als versäumt.",
     "holdMinHint": "Mindestens zu halten: {duration}",
     "stateAborted": "Vorzeitig abgelegt",

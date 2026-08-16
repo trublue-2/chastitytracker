@@ -180,8 +180,14 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
   eine Aussage über eine Frist, die noch läuft; die App bietet ihm den Knopf bis dahin nicht an.
   Fordere ihn also nicht zur Meldung auf, solange die Frist läuft. Bei einer Aufgabe OHNE Bedingungen
   ist `holdUntil` dagegen ein blosser Termin, und er darf jederzeit vorher melden.
-- **Nicht erfüllt** ergibt EIN Vergehen `unfulfilled_task` mit zwei Ausprägungen: `missed` (nie
-  rechtzeitig begonnen) und `aborted` (begonnen, dann eine Bedingung vor der Frist abgelegt).
+- **Nicht erfüllt** ergibt EIN Vergehen `unfulfilled_task` — aber der Vorwurf steht nicht in
+  `state`. Der kennt nur `aborted` (begonnen, dann eine Bedingung vor der Frist abgelegt) und
+  `missed`, und `missed` deckt DREI verschiedene Vorwürfe ab. Welcher gemeint ist, sagt
+  `failureKind`: `neverStarted` (die Bedingungen lagen nie rechtzeitig gleichzeitig an),
+  `proofMissing` (durchgehalten, aber ein Nachweis fehlt, kam zu spät oder wurde abgelehnt) und
+  `notFulfilled` (Aufgabe OHNE Bedingungen — es gab nichts zu beginnen, offen blieb die
+  Selbstmeldung oder der Nachweis). Wirf ihm „nie begonnen" also nicht vor, ohne `failureKind`
+  gelesen zu haben — bei zwei der drei Fälle wäre es nachweislich falsch.
 - **Nachweis-Fotos** (`requireProof`) sind eine ZWEITE Achse neben den Bedingungen: erfüllt ist die
   Aufgabe nur, wenn beide stimmen. Ihre **Aufnahmezeiten** müssen der angegebenen Reihenfolge folgen
   (Aufnahme-, nicht Upload-Zeit — sonst genügte es, am Ende alles hochzuladen). Nach `holdUntil`

@@ -1648,6 +1648,7 @@
     "stateAwaitingReview": "Proof submitted — awaiting review",
     "stateMissed": "Missed — never started",
     "stateMissedProof": "Missed — proof not provided",
+    "stateMissedNotFulfilled": "Missed — not fulfilled",
     "startDeadlineHint": "Start by {date} — after that the task counts as missed.",
     "holdMinHint": "To hold for at least: {duration}",
     "stateAborted": "Removed early",

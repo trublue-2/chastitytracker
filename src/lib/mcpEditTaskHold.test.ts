@@ -117,3 +117,29 @@ describe("mcpEditTask — Nullpunkt von holdHours", () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Leere Strings sind „nicht gesetzt", kein unlesbares Datum.
+ *
+ * Manche MCP-Clients füllen ausgelassene optionale String-Felder mit `""` statt sie wegzulassen.
+ * Bis B1 fing das eine Truthiness-Prüfung ab; danach lief `parseIsoDate` bedingungslos und machte
+ * daraus einen harten Werkzeug-Fehler — ausgerechnet für den Aufruf, der seine Frist ordentlich als
+ * `holdHours` mitschickt.
+ */
+describe("leere Datums-Argumente", () => {
+  it("holdUntilAt: \"\" fällt zu holdHours durch, statt zu werfen", async () => {
+    taskFind.mockResolvedValue(terminiert());
+
+    await mcpEditTask("sub", { id: "t1", holdUntilAt: "", holdHours: 6 });
+
+    expect(updateMock).toHaveBeenCalledWith("t1", "u1", expect.objectContaining({
+      holdUntil: new Date(AUSLOESUNG.getTime() + 6 * H),
+    }), expect.anything());
+  });
+
+  it("ein wirklich unlesbares holdUntilAt wirft weiterhin, mit Feldnamen", async () => {
+    taskFind.mockResolvedValue(terminiert());
+
+    await expect(mcpEditTask("sub", { id: "t1", holdUntilAt: "morgen" })).rejects.toThrow("holdUntilAt");
+  });
+});

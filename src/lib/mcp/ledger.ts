@@ -3,6 +3,7 @@ import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, buil
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
 import { offenseState } from "@/lib/offenseTypes";
+import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks";
 
 // ── Strafbuch-Snapshot ────────────────────────────────────────────────────────
 // Wohnt hier, weil `getOffenses` sein einziger Aufrufer ist. Solange auch das (entfernte) V1-
@@ -65,9 +66,16 @@ export interface StrafbuchOverview {
   lateLocks: ({ deadline: string; fulfilledAt: string | null; message: string | null } & OffenseJudgment)[];
   /** REINIGUNG openings not (or too late) followed by a VERSCHLUSS within the re-lock deadline. */
   cleaningNotRelocked: ({ time: string; deadline: string; relockedAt: string | null; note: string | null } & OffenseJudgment)[];
-  /** Aufgaben, die nicht erfüllt wurden — `state` unterscheidet „nie begonnen" von „vorzeitig
-   *  abgelegt". Beides bleibt EIN Vergehenstyp: dieselbe Pflicht, nur zwei Arten sie zu verfehlen. */
-  unfulfilledTasks: ({ title: string; holdUntil: string; state: string; failedAt: string | null } & OffenseJudgment)[];
+  /** Aufgaben, die nicht erfüllt wurden — EIN Vergehenstyp, aber vier Arten ihn zu begehen.
+   *
+   *  `state` allein taugt nicht als Vorwurf: `missed` deckt drei davon ab (nie begonnen · begonnen
+   *  und nur der Nachweis fehlt · Aufgabe ohne Bedingungen). Welcher es ist, sagt `failureKind` —
+   *  dieselbe Entscheidung wie in der Web-Sicht (`taskFailureKind`), damit die Fläche, die am
+   *  ehesten automatisch handelt, nicht als einzige das Falsche behauptet. */
+  unfulfilledTasks: ({
+    title: string; holdUntil: string; state: string; failedAt: string | null;
+    failureKind: TaskFailureKind;
+  } & OffenseJudgment)[];
   /** Passwortwechsel an einem Admin-Konto während einer laufenden Sperrzeit. `via` unterscheidet
    *  die Wege; `reset_token` heisst: über das Postfach neuen Zugang verschafft. */
   adminPasswordChanges: ({ time: string; adminUsername: string; via: string; lockPeriodEndedAt: string | null } & OffenseJudgment)[];
@@ -181,6 +189,10 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
       holdUntil: fmt(t.holdUntil),
       state: t.state,
       failedAt: t.failedAt ? fmt(t.failedAt) : null,
+      // Nicht hier hergeleitet: `taskFailureKind` ist die EINE Stelle, die den Vorwurf entscheidet
+      // (geteilt mit Träger-Karte und Strafbuch). Sie braucht dafür `startedAt` und
+      // `hasRequirements`, die `buildStrafbuch` ohnehin mitliefert.
+      failureKind: taskFailureKind({ state: t.state, started: t.startedAt !== null, hasRequirements: t.hasRequirements }),
       ...judge("unfulfilled_task", t.id),
     })),
     adminPasswordChanges: sb.adminPasswordChanges.map((p) => ({
@@ -316,7 +328,7 @@ export function buildOffenseRows(
     ...sb.missedOrgasmInstructions.map((m) => toRow(m.windowEndedAt, m, { message: m.message, requiredType: m.requiredType })),
     ...sb.lateLocks.map((a) => toRow(a.fulfilledAt ?? a.deadline, a, { deadline: a.deadline, fulfilledAt: a.fulfilledAt, message: a.message })),
     ...sb.cleaningNotRelocked.map((c) => toRow(c.relockedAt ?? c.deadline, c, { time: c.time, deadline: c.deadline, relockedAt: c.relockedAt, note: c.note })),
-    ...sb.unfulfilledTasks.map((t) => toRow(t.failedAt ?? t.holdUntil, t, { title: t.title, holdUntil: t.holdUntil, state: t.state, failedAt: t.failedAt })),
+    ...sb.unfulfilledTasks.map((t) => toRow(t.failedAt ?? t.holdUntil, t, { title: t.title, holdUntil: t.holdUntil, state: t.state, failedAt: t.failedAt, failureKind: t.failureKind })),
     ...sb.adminPasswordChanges.map((p) => toRow(p.time, p, { adminUsername: p.adminUsername, via: p.via, lockPeriodEndedAt: p.lockPeriodEndedAt })),
     ...sb.unauthorizedOrgasms.map((o) => toRow(o.time, o, { note: o.note, orgasmType: o.orgasmType, lockPeriodEndedAt: o.lockPeriodEndedAt, lockPeriodIndefinite: o.lockPeriodIndefinite })),
     ...sb.manualOffenses.map((m) => toRow(m.time, m, { title: m.title, description: m.description, recordedBy: m.recordedBy })),

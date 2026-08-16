@@ -1,5 +1,5 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/taskIntervals";
-import { firstOutOfOrderProof, isTaskOpen, ownProofDeadline, startDeadline, type TaskEvaluation, type TaskState } from "@/lib/tasks";
+import { firstOutOfOrderProof, isTaskOpen, ownProofDeadline, startDeadline, taskFailureKind, type TaskEvaluation, type TaskFailureKind, type TaskOffenseState, type TaskState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { wearActionHref } from "@/lib/categoryConstants";
 
@@ -261,6 +261,36 @@ export function taskDeadlineLine(
       ? fmt.duration(task.holdDurationMin * 60_000)
       : fmt.date(task.holdUntil),
   };
+}
+
+/** Die vier Vorwürfe auf die Texte DIESER Sicht. Nur die Abbildung steht hier — die Entscheidung
+ *  liegt in {@link taskFailureKind}, geteilt mit dem Strafbuch der Keyholderin (eigene Texte) und
+ *  der MCP-Vergehensliste (gar keine, dort reist die Art selbst). */
+const TASK_FAILURE_LABEL_KEYS = {
+  aborted: "stateAborted",
+  proofMissing: "stateMissedProof",
+  neverStarted: "stateMissed",
+  notFulfilled: "stateMissedNotFulfilled",
+} as const satisfies Record<TaskFailureKind, string>;
+
+/**
+ * Welchen Vorwurf die Zustands-Zeile der Karte erhebt.
+ *
+ * Hier und nicht in der Komponente: die Karte schrieb die Unterscheidung von Hand als
+ * `startedAt ? „Nachweis fehlt" : „nie begonnen"` — und lag damit bei jeder Aufgabe OHNE Bedingungen
+ * falsch. Die bekommt von `evaluateTask` per Konstruktion nie ein `startedAt`, also las die Zeile
+ * „nie begonnen", wo es gar nichts zu beginnen gab.
+ */
+export function taskFailureLabelKey(
+  task: Pick<TaskCardData, "startedAt" | "requirements"> & { state: TaskOffenseState },
+) {
+  return TASK_FAILURE_LABEL_KEYS[
+    taskFailureKind({
+      state: task.state,
+      started: task.startedAt !== null,
+      hasRequirements: task.requirements.length > 0,
+    })
+  ];
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, hiddenFromSubWhere, isHiddenFromSub } from "./delayedTrigger";
+import { computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, pendingDispatchWhere, isHiddenFromSub } from "./delayedTrigger";
 
 const at = (iso: string) => new Date(iso);
 
@@ -79,7 +79,7 @@ describe("dueForDispatchWhere", () => {
     // Die Zusage an die Aufrufer: das `lte` kommt HINZU, `not: null` bleibt daneben stehen. Ohne
     // dieses `not: null` sammelte die Abfrage auch nie terminierte Zeilen ein — die sind längst
     // zugestellt und würden ein zweites Mal gemeldet.
-    expect(dueForDispatchWhere(NOW)).toEqual({ ...hiddenFromSubWhere, wirksamAb: { not: null, lte: NOW } });
+    expect(dueForDispatchWhere(NOW)).toEqual({ ...pendingDispatchWhere, wirksamAb: { not: null, lte: NOW } });
   });
 
   it("verträgt den eigenen Filter des Aufrufers", () => {

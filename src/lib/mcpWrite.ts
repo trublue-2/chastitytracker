@@ -1566,8 +1566,11 @@ async function resolveAnyDeviceId(userId: string, categoryId: string | null, nam
  *  Aufrufer rechnen ihn selbst aus (Anlegen: der geplante Auslöse-Zeitpunkt · Ändern: der frühest
  *  mögliche Handlungs-Zeitpunkt), weil nur sie die Aufgabe kennen. */
 function parseHoldUntil(args: { holdUntilAt?: string; holdHours?: number }, anchor: Date): Date | undefined {
-  const at = parseIsoDate(args.holdUntilAt, "holdUntilAt");
-  if (at) return at;
+  // Truthiness und nicht `!= null` — wie an jedem anderen `parseIsoDate` dieser Datei: ein
+  // LEERSTRING heisst „nicht gesetzt", nicht „unlesbares Datum". Manche Clients füllen ausgelassene
+  // optionale Felder so; `parseIsoDate` selbst kürzt nur bei `null`/`undefined` ab und machte daraus
+  // sonst einen harten Werkzeug-Fehler — für eine Aufgabe, die ihre Frist als `holdHours` mitschickt.
+  if (args.holdUntilAt) return parseIsoDate(args.holdUntilAt, "holdUntilAt");
   if (args.holdHours != null) return new Date(anchor.getTime() + args.holdHours * 3600_000);
   return undefined;
 }
@@ -1646,10 +1649,11 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
    *  eine andere Zeit als die gespeicherte.
    *
    *  `parseIsoDate` läuft auf BEIDEN Wegen, nicht nur im dryRun: ein unlesbares Argument soll als
-   *  Werkzeug-Fehler mit Feldnamen zurückkommen, nicht als 400 aus dem Service. */
+   *  Werkzeug-Fehler mit Feldnamen zurückkommen, nicht als 400 aus dem Service. Hinter der
+   *  Truthiness-Prüfung wie überall sonst — ein Leerstring ist „nicht gesetzt", kein Murks. */
   const previewWirksamAb = computeDelayedTrigger(now, {
     delayMinutes: args.delayMinutes,
-    wirksamAbAt: parseIsoDate(args.scheduledAt, "scheduledAt") ?? null,
+    wirksamAbAt: args.scheduledAt ? parseIsoDate(args.scheduledAt, "scheduledAt") : null,
   }).wirksamAb;
   /** Der NULLPUNKT der künftigen Aufgabe — dasselbe, was `taskAnchor` später aus der Zeile liest
    *  (`wirksamAb ?? createdAt`). EINMAL benannt statt dreimal hingeschrieben: Frist, Schranke und

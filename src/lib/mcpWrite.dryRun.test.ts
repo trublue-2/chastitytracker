@@ -339,6 +339,22 @@ describe("create_task als Strafe (offenseRef)", () => {
     expect(r.preview.penaltyForOffense).toBe("o1");
   });
 
+  /**
+   * Leere Strings sind „nicht gesetzt", kein unlesbares Datum — manche Clients füllen ausgelassene
+   * optionale Felder so. Seit die Terminierung (B1) `parseIsoDate` bedingungslos aufrief, warf die
+   * Vorschau dafür einen harten Werkzeug-Fehler; der Commit-Pfad kam mit demselben Wert längst
+   * zurecht (`createTask` prüft auf Truthiness). Vorschau und Commit dürfen nicht verschieden
+   * urteilen.
+   */
+  it("ein leeres scheduledAt bedeutet sofort wirksam, nicht unlesbar", async () => {
+    const r = await mcpCreateTask("sub", { dryRun: true, title: "Einkaufen", holdHours: 2, scheduledAt: "" }) as {
+      wouldSucceed: boolean; preview: Record<string, unknown>;
+    };
+
+    expect(r.wouldSucceed).toBe(true);
+    expect(r.preview.scheduledFor).toBeNull();
+  });
+
   it("ohne offenseRef bleibt es eine gewöhnliche Aufgabe — ohne Strafbuch-Aufbau", async () => {
     detectedOffenseMock.mockClear();
 

@@ -40,9 +40,17 @@ export interface DelayedTrigger {
  * werden.)
  *
  * SQL-ZWILLING: Wo die Zeilen nicht einzeln geprüft, sondern gefiltert geladen werden, steht
- * dieselbe Regel als `where`-Fragment — für Aufgaben `SUB_VISIBLE_WHERE` (`taskIntervals.ts`). Die
- * beiden gehören zusammen: wer hier die Bedingung ändert, ändert sie dort mit, sonst filtert die
- * Abfrage anders, als die Zeile beurteilt wird.
+ * dieselbe Regel als `where`-Fragment — für Aufgaben `SUB_VISIBLE_WHERE` (`taskIntervals.ts`), die
+ * POSITIVE Form („was der Sub sehen darf"), verpackt in ein `AND`. Wer die Verborgenheit als
+ * `where` braucht, negiert sie (`NOT: SUB_VISIBLE_WHERE`). Die beiden gehören zusammen: wer hier
+ * die Bedingung ändert, ändert sie dort mit, sonst filtert die Abfrage anders, als die Zeile
+ * beurteilt wird.
+ *
+ * NICHT zu verwechseln mit {@link pendingDispatchWhere} weiter unten — das ist die Auswahl des
+ * POLLERS und trägt zusätzlich `withdrawnAt: null`. Solange es „hiddenFromSubWhere" hiess, las es
+ * sich wie das SQL zu dieser Funktion und war es nicht: eine terminierte, VOR dem Auslösen
+ * zurückgezogene Zeile ist für den Sub verborgen, fällt dort aber heraus. Genau daran zeigte das
+ * Dashboard den Titel einer zurückgezogenen Strafaufgabe (Befund 16.08.2026).
  */
 export function isHiddenFromSub(directive: { wirksamAb: Date | null; benachrichtigtAt: Date | null }): boolean {
   return directive.wirksamAb !== null && directive.benachrichtigtAt === null;
@@ -75,25 +83,30 @@ export function computeDelayedTrigger(now: Date, params: DelayedTriggerParams): 
 }
 
 /**
- * Die SQL-Entsprechung von {@link isHiddenFromSub}: terminiert, noch nicht ausgelöst, nicht
- * zurückgezogen — was die Keyholderin für später geplant hat und der Sub noch nicht kennt.
+ * Was noch AUSZULIEFERN ist: terminiert, noch nicht ausgelöst, nicht zurückgezogen — was die
+ * Keyholderin für später geplant hat und was auf den Poller wartet.
  *
- * `withdrawnAt` gehört dazu und ist keine Zugabe: eine zurückgezogene Zeile ist nicht „verborgen",
- * sondern weg. Alles Weitere ergänzt der Aufrufer, weil es sein Modell betrifft.
+ * **Keine Sichtbarkeits-Regel**, auch wenn die ersten beiden Bedingungen wie {@link isHiddenFromSub}
+ * aussehen. `withdrawnAt: null` macht den Unterschied: eine zurückgezogene Zeile ist nichts mehr,
+ * was zugestellt werden müsste — für den Sub aber sehr wohl weiter VERBORGEN, denn ausgelöst hat
+ * sie nie. Wer „darf der Sub das sehen?" fragt, nimmt `NOT: SUB_VISIBLE_WHERE` (`taskIntervals.ts`),
+ * nicht dies hier. Der frühere Name „hiddenFromSubWhere" legte genau die falsche Wahl nahe und
+ * führte auf dem Dashboard zum Titel einer zurückgezogenen Strafaufgabe (Befund 16.08.2026).
+ *
+ * Zwei Abnehmer: {@link dueForDispatchWhere} (der Poller) und die Liste der noch geplanten
+ * Direktiven in der Keyholder-Sicht (`mcp/dashboard.ts`) — beide fragen „was steht noch aus?".
+ * Alles Weitere ergänzt der Aufrufer, weil es sein Modell betrifft.
  *
  * Getypt gegen `TaskWhereInput`, weil alle drei Modelle mit diesem Feldpaar (`Task`,
  * `KontrollAnforderung`, `VerschlussAnforderung`) es identisch tragen: was hier durchgeht, passt
  * strukturell auch in die beiden anderen `where`-Klauseln.
- *
- * Die NEGATION („was der Sub sehen darf") steht als `SUB_VISIBLE_WHERE` in `taskIntervals.ts` — sie
- * muss dort in ein `AND` verpackt sein und ist deshalb nicht dieselbe Form.
  */
-export const hiddenFromSubWhere = {
+export const pendingDispatchWhere = {
   wirksamAb: { not: null }, benachrichtigtAt: null, withdrawnAt: null,
 } satisfies Prisma.TaskWhereInput;
 
 /**
- * Was der Poller ZUSTELLEN muss: {@link hiddenFromSubWhere} plus „der Zeitpunkt ist da".
+ * Was der Poller ZUSTELLEN muss: {@link pendingDispatchWhere} plus „der Zeitpunkt ist da".
  *
  * Die Auswahl-Seite der Konvention, die {@link computeDelayedTrigger} schreibt — exakt die Zeilen,
  * die für den Sub noch verborgen sind, deren Verborgenheit aber jetzt endet. Sie stand wörtlich
@@ -109,7 +122,7 @@ export const hiddenFromSubWhere = {
  * hierher — die Auslöse-Konvention weiss nichts von Erfüllung.
  */
 export function dueForDispatchWhere(now: Date) {
-  return { ...hiddenFromSubWhere, wirksamAb: { not: null, lte: now } } satisfies Prisma.TaskWhereInput;
+  return { ...pendingDispatchWhere, wirksamAb: { not: null, lte: now } } satisfies Prisma.TaskWhereInput;
 }
 
 /**

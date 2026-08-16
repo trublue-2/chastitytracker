@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextTaskStep, proofIsSubmitted, taskDeadlineLine, toTaskCard, visibleStartDeadline } from "./taskView";
+import { nextTaskStep, proofIsSubmitted, taskDeadlineLine, taskFailureLabelKey, toTaskCard, visibleStartDeadline } from "./taskView";
 import { safeInternalPath } from "./utils";
 import type { EvaluatedTask, TaskProofView } from "./taskIntervals";
 import type { TaskEvaluation } from "./tasks";
@@ -399,5 +399,36 @@ describe("taskDeadlineLine — Zeitpunkt oder Dauer", () => {
 
   it("eine reine Textaufgabe bleibt ein Termin, auch ohne Bedingungen", () => {
     expect(taskDeadlineLine(card({ requirements: [] }), fmt).key).toBe("deadlineShort");
+  });
+});
+
+/**
+ * Der Vorwurf auf der Träger-Karte.
+ *
+ * Die Karte schrieb die Unterscheidung selbst hin (`startedAt ? Nachweis : nie begonnen`). Für eine
+ * Aufgabe OHNE Bedingungen war das nachweislich falsch: sie bekommt per Konstruktion nie ein
+ * `startedAt`, also warf ihr die Zeile vor, nicht begonnen zu haben, wo es nichts zu beginnen gab.
+ */
+describe("taskFailureLabelKey — dieselbe Entscheidung wie im Strafbuch", () => {
+  const withRequirement = (over: Partial<TaskEvaluation>) =>
+    toTaskCard(evaluated([wear("r1", "Knebel", "c1")], over), false);
+
+  it("vorzeitig abgelegt bleibt der Abbruch", () => {
+    expect(taskFailureLabelKey({ ...withRequirement({ state: "aborted" }), state: "aborted" })).toBe("stateAborted");
+  });
+
+  it("durchgehalten und nur der Nachweis fehlt", () => {
+    const card = withRequirement({ state: "missed", startedAt: new Date("2026-07-25T12:10:00Z") });
+    expect(taskFailureLabelKey({ ...card, state: "missed" })).toBe("stateMissedProof");
+  });
+
+  it("nie gleichzeitig angelegen", () => {
+    const card = withRequirement({ state: "missed", startedAt: null });
+    expect(taskFailureLabelKey({ ...card, state: "missed" })).toBe("stateMissed");
+  });
+
+  it("ohne Bedingungen gibt es nichts zu beginnen — und deshalb auch keinen solchen Vorwurf", () => {
+    const card = toTaskCard(evaluated([], { state: "missed", startedAt: null }), false);
+    expect(taskFailureLabelKey({ ...card, state: "missed" })).toBe("stateMissedNotFulfilled");
   });
 });
