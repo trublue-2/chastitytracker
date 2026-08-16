@@ -18,6 +18,7 @@ import { loadUploadedImage } from "@/lib/imageUtils";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { type PrismaMock } from "@/test/prismaMock";
+import { taskProofRow } from "@/test/taskProofRow";
 
 const db = prisma as unknown as PrismaMock;
 const load = loadUploadedImage as unknown as ReturnType<typeof vi.fn>;
@@ -67,13 +68,10 @@ describe("loadMcpImage — Adressierung", () => {
   });
 
   it("holt den Nachweis über taskId + 1-basierten Index — dieselbe Adresse wie review_task_proof", async () => {
-    db.task.findFirst.mockResolvedValue({
-      id: "t1", title: "Staubsaugen", withdrawnAt: null,
-      proofs: [
-        { description: "Vorher", imageUrl: "/api/uploads/v.jpg", imageExifTime: null, submittedAt: fresh() },
-        { description: "Nachher", imageUrl: "/api/uploads/n.jpg", imageExifTime: null, submittedAt: fresh() },
-      ],
-    });
+    db.task.findFirst.mockResolvedValue(taskProofRow([
+      { description: "Vorher", imageUrl: "/api/uploads/v.jpg", imageExifTime: null, submittedAt: fresh() },
+      { description: "Nachher", imageUrl: "/api/uploads/n.jpg", imageExifTime: null, submittedAt: fresh() },
+    ]));
     const img = await loadMcpImage("sub", { source: "task_proof", taskId: "t1", proofIndex: 2 });
 
     expect(load).toHaveBeenCalledWith("/api/uploads/n.jpg", expect.anything());
@@ -105,12 +103,12 @@ describe("loadMcpImage — Eigentum und Grenzen", () => {
     db.entry.findFirst.mockResolvedValue(entry({ imageUrl: null }));
     await expect(loadMcpImage("sub", { source: "entry", entryId: "e1" })).rejects.toThrow("has no photo");
 
-    db.task.findFirst.mockResolvedValue({ id: "t1", title: "T", withdrawnAt: null, proofs: [{ description: "d", imageUrl: null, imageExifTime: null, submittedAt: null }] });
+    db.task.findFirst.mockResolvedValue(taskProofRow([{ description: "d", imageUrl: null, imageExifTime: null, submittedAt: null }]));
     await expect(loadMcpImage("sub", { source: "task_proof", taskId: "t1", proofIndex: 1 })).rejects.toThrow("not been submitted");
   });
 
   it("meldet einen Index ausserhalb der Liste mit der tatsächlichen Anzahl", async () => {
-    db.task.findFirst.mockResolvedValue({ id: "t1", title: "T", withdrawnAt: null, proofs: [{ description: "d", imageUrl: "/api/uploads/a.jpg", imageExifTime: null, submittedAt: fresh() }] });
+    db.task.findFirst.mockResolvedValue(taskProofRow([{ description: "d", imageUrl: "/api/uploads/a.jpg", imageExifTime: null, submittedAt: fresh() }]));
     await expect(loadMcpImage("sub", { source: "task_proof", taskId: "t1", proofIndex: 5 }))
       .rejects.toThrow("has 1 proof(s); index 5 does not exist");
   });
@@ -180,10 +178,9 @@ describe("loadMcpImage — Reichweite: nur was frisch eingegangen ist", () => {
   });
 
   it("gilt auch für Aufgaben-Nachweise, gemessen an der Einreichung", async () => {
-    db.task.findFirst.mockResolvedValue({
-      id: "t1", title: "T", withdrawnAt: null,
-      proofs: [{ description: "d", imageUrl: "/api/uploads/a.jpg", imageExifTime: null, submittedAt: new Date(Date.now() - 25 * 60 * 60_000) }],
-    });
+    db.task.findFirst.mockResolvedValue(taskProofRow([
+      { description: "d", imageUrl: "/api/uploads/a.jpg", imageExifTime: null, submittedAt: new Date(Date.now() - 25 * 60 * 60_000) },
+    ]));
     await expect(loadMcpImage("sub", { source: "task_proof", taskId: "t1", proofIndex: 1 })).rejects.toThrow("older than 24h");
   });
 });

@@ -7,7 +7,7 @@ import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
 import { computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
-import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters } from "@/lib/tasks";
+import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters, type TaskLike } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
   clampProofDueOffset,
@@ -228,6 +228,69 @@ function checkTaskFields(
     return serviceFail(400, "TASK_HOLD_UNTIL_TOO_SOON");
   }
   return null;
+}
+
+/** Was {@link checkTaskUpdate} an der bestehenden Zeile mitgelesen haben will — die EINE Quelle für
+ *  beide Leser (`updateTask` und die dryRun-Vorschau in `mcpEditTask`). Aus derselben Not wie
+ *  `TASK_INCLUDE`: eine zweite Abschrift des `include` fiele erst auf, wenn die Prüfung ins Leere
+ *  greift. */
+export const TASK_EDIT_INCLUDE = { _count: { select: { requirements: true } } } as const;
+
+/** Was an der BESTEHENDEN Zeile über die Zulässigkeit einer Änderung entscheidet — genau die Form,
+ *  die beide Aufrufer mit {@link TASK_EDIT_INCLUDE} ohnehin aus Prisma bekommen, damit sie die Zeile
+ *  unverändert durchreichen können. Alle Spalten über `Pick`, statt sie hier abzuschreiben; eigen ist
+ *  nur der `_count`, den `TaskLike` nicht kennt. Die Bedingungen zählen daraus als blosses Ja/Nein,
+ *  und diese Ableitung steht EINMAL in der Funktion statt an jeder Aufrufstelle. */
+export interface TaskEditTarget
+  extends Pick<TaskLike, "createdAt" | "startGraceMin" | "wirksamAb" | "withdrawnAt" | "completedAt"> {
+  _count: { requirements: number };
+}
+
+/**
+ * Prüft eine Änderung — Zustand der Zeile und Feldgrenzen der zusammengeführten Fassung.
+ *
+ * Vom Schreiben getrennt aus demselben Grund wie {@link checkTask} von {@link writeTask}: die
+ * dryRun-Vorschau des MCP (`mcpEditTask`) ruft sie auf, statt ihre Schranken abzuschreiben. Genau
+ * das war hier der Fehler — die Vorschau kannte nur `withdrawnAt` und versprach Erfolg für eine
+ * ERLEDIGTE Aufgabe wie für jede gerissene Titel-, Beschreibungs- und Fristen-Grenze; der Commit
+ * antwortete dann mit 400. Sie schreibt nichts und fragt nichts ab.
+ *
+ * `next` kommt von aussen aus {@link mergeTaskPatch}, das beide Wege ohnehin teilen: die Vorschau
+ * ZEIGT die zusammengeführte Fassung und braucht sie deshalb auch im Fehlerfall — hier den Patch
+ * entgegenzunehmen hiesse, sie zweimal zusammenzuführen.
+ *
+ * `now` kommt ebenfalls von aussen, wie bei `checkLockEnd`/`checkOrgasmWindowEnd`: `mcpEditTask`
+ * verankert die relative Frist bereits an einem Zeitpunkt, und gegen einen zweiten, minimal späteren
+ * geprüft könnte eine gerade eben gesetzte Frist an ihrer eigenen Untergrenze scheitern.
+ */
+export function checkTaskUpdate(task: TaskEditTarget, next: MergedTask, now: Date): ServiceFailure | null {
+  if (task.withdrawnAt || task.completedAt) return serviceFail(400, "TASK_NOT_EDITABLE");
+  // Die neue Endzeit muss in der ZUKUNFT liegen. Gegen `createdAt` zu prüfen genügt nicht: bei einer
+  // vor Tagen gestellten Aufgabe liesse sich die Frist damit auf einen längst vergangenen Zeitpunkt
+  // setzen — der Sub bekäme sofort ein Versäumnis, ohne je handeln zu können. Ein Vertipper im Datum
+  // reicht dafür. Verkürzen auf „gleich fällig" bleibt möglich (Issue #29), nur eben nicht rückwärts.
+  //
+  // UND nicht unter die STARTFRIST: `holdUntil <= createdAt + startGraceMin` ist kein strenger
+  // Sonderfall, sondern ein widersprüchlicher Zustand — die Aufgabe verlangt Deckung bis zu einem
+  // Zeitpunkt, zu dem der Sub noch gar nicht angefangen haben muss. `createTask` verbietet ihn
+  // deshalb; `updateTask` liess ihn zu, und dahinter lagen drei verschiedene Fehlurteile:
+  //   · Sub tut nichts        → Zustand bleibt `pending` (kein Endzustand), der Poller meldet
+  //                             trotzdem „versäumt" und stempelt das dauerhaft.
+  //   · Sub legt danach an    → `running`, obwohl die Frist längst vorbei ist.
+  //   · dito + Selbstmeldung  → **`done`**. Die Aufgabe gilt als erfüllt, obwohl das Gerät vor der
+  //                             Frist nie getragen wurde (`coversContinuously` gibt bei
+  //                             `from >= until` früh `true` zurück — die zu deckende Spanne ist leer).
+  // Nur bei Aufgaben MIT Bedingungen: ohne sie gibt es nichts anzulegen, und die Kulanz ist ohne
+  // Bedeutung — dieselbe Unterscheidung wie in `createTask`.
+  // Nicht unter den NULLPUNKT: bei einer terminierten Aufgabe ist das `wirksamAb`, nicht „jetzt".
+  // Ohne das liesse sich das Ende einer für morgen geplanten Aufgabe auf heute Abend ziehen — bei
+  // der Zustellung verschöbe `deadlineFromDispatch` die (negative) Spanne in die Vergangenheit, und
+  // derselbe Tick meldete die eben erst zugestellte Aufgabe als versäumt. Genau die Grösse, die
+  // `earliestActionableAt` benennt — dieselbe, an der `edit_task` eine relative Frist verankert.
+  const minEnd = task._count.requirements > 0
+    ? new Date(Math.max(now.getTime(), startDeadline(task).getTime()))
+    : earliestActionableAt(task, now);
+  return checkTaskFields(next, minEnd);
 }
 
 /** Die geprüften Bedingungen in Speicher-Form — was `checkRequirements` zurückgibt und `createTask`
@@ -571,39 +634,13 @@ export async function updateTask(
 ): Promise<ServiceResult<{ id: string; userId: string }>> {
   const t = await prisma.task.findFirst({
     where: { id, userId },
-    include: { _count: { select: { requirements: true } } },
+    include: TASK_EDIT_INCLUDE,
   });
   if (!t) return serviceFail(404, "TASK_NOT_FOUND");
-  if (t.withdrawnAt || t.completedAt) return serviceFail(400, "TASK_NOT_EDITABLE");
 
   const next = mergeTaskPatch(t, patch, t);
-  // Die neue Endzeit muss in der ZUKUNFT liegen. Gegen `createdAt` zu prüfen genügt nicht: bei einer
-  // vor Tagen gestellten Aufgabe liesse sich die Frist damit auf einen längst vergangenen Zeitpunkt
-  // setzen — der Sub bekäme sofort ein Versäumnis, ohne je handeln zu können. Ein Vertipper im Datum
-  // reicht dafür. Verkürzen auf „gleich fällig" bleibt möglich (Issue #29), nur eben nicht rückwärts.
-  //
-  // UND nicht unter die STARTFRIST: `holdUntil <= createdAt + startGraceMin` ist kein strenger
-  // Sonderfall, sondern ein widersprüchlicher Zustand — die Aufgabe verlangt Deckung bis zu einem
-  // Zeitpunkt, zu dem der Sub noch gar nicht angefangen haben muss. `createTask` verbietet ihn
-  // deshalb; `updateTask` liess ihn zu, und dahinter lagen drei verschiedene Fehlurteile:
-  //   · Sub tut nichts        → Zustand bleibt `pending` (kein Endzustand), der Poller meldet
-  //                             trotzdem „versäumt" und stempelt das dauerhaft.
-  //   · Sub legt danach an    → `running`, obwohl die Frist längst vorbei ist.
-  //   · dito + Selbstmeldung  → **`done`**. Die Aufgabe gilt als erfüllt, obwohl das Gerät vor der
-  //                             Frist nie getragen wurde (`coversContinuously` gibt bei
-  //                             `from >= until` früh `true` zurück — die zu deckende Spanne ist leer).
-  // Nur bei Aufgaben MIT Bedingungen: ohne sie gibt es nichts anzulegen, und die Kulanz ist ohne
-  // Bedeutung — dieselbe Unterscheidung wie in `createTask`.
-  // Nicht unter den NULLPUNKT: bei einer terminierten Aufgabe ist das `wirksamAb`, nicht „jetzt".
-  // Ohne das liesse sich das Ende einer für morgen geplanten Aufgabe auf heute Abend ziehen — bei
-  // der Zustellung verschöbe `deadlineFromDispatch` die (negative) Spanne in die Vergangenheit, und
-  // derselbe Tick meldete die eben erst zugestellte Aufgabe als versäumt. Genau die Grösse, die
-  // `earliestActionableAt` benennt — dieselbe, an der `edit_task` eine relative Frist verankert.
-  const minEnd = t._count.requirements > 0
-    ? new Date(Math.max(Date.now(), startDeadline(t).getTime()))
-    : earliestActionableAt(t, new Date());
-  const fieldError = checkTaskFields(next, minEnd);
-  if (fieldError) return fieldError;
+  const problem = checkTaskUpdate(t, next, new Date());
+  if (problem) return problem;
 
   // Zustand in der Where-Klausel: läuft parallel ein Rückzug oder eine Erledigt-Meldung, greift
   // diese Änderung nicht mehr — statt sie über den frisch gesetzten Zustand zu schreiben.

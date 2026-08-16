@@ -26,9 +26,9 @@ import { clamp, randomInt } from "@/lib/utils";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
-import { reviewTaskProof } from "@/lib/taskProofService";
-import { createTask, updateTask, withdrawTask, mergeTaskPatch, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
-import { effectiveProofOrderMatters, earliestActionableAt, earliestTaskEnd } from "@/lib/tasks";
+import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/taskProofService";
+import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
+import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
 
 /**
  * dryRun (K-01, leichte Variante): validiert Referenzen/Werte und zeigt die effektiven Argumente,
@@ -51,7 +51,18 @@ export interface DryRunPreview {
 }
 
 /** Baut die dryRun-Hülle — EINE Stelle für `{dryRun, tool, wouldSucceed, problem?, preview, diff?}`
- *  statt zwölfmal denselben Spread. Der tool-spezifische `preview`-Inhalt bleibt bei jedem Aufrufer. */
+ *  statt zwölfmal denselben Spread. Der tool-spezifische `preview`-Inhalt bleibt bei jedem Aufrufer.
+ *
+ *  **Der `problem`-Wert kommt aus derselben schreibfreien Prüfung wie der Commit, nie aus einer
+ *  zweiten Bedingungskette daneben.** Eine Abschrift ist beim Schreiben richtig und wird es später
+ *  nicht bleiben: bekommt der Service eine Schranke dazu, meldet die Vorschau weiter Erfolg für
+ *  einen Aufruf, der mit 400 endet — genau so geschehen bei `edit_task` (`completedAt`). Die
+ *  Aufgaben-Familie ist davon weg (`checkTask` · `checkTaskUpdate` · `proofReviewBlockedReason`);
+ *  ausserhalb rechnen einige Vorschauen noch selbst nach (`LOCK_DURATION_OR_END` an zwei Stellen,
+ *  `ORGASM_END_BEFORE_START`). Offen ist ausserdem `withdraw`: für `target: "task"` prüft es den
+ *  Zustand gar nicht und meldet `wouldSucceed: true` auch für eine bereits zurückgezogene Aufgabe,
+ *  für `target: "manual_offense"` fängt es zwar den Rückzug ab, aber nicht das BEURTEILTE Vergehen
+ *  (das erfährt erst der Commit). Neue Vorschauen schreiben nicht ab; sie rufen. */
 function dryRunPreview(tool: string, problem: string | undefined, preview: unknown, diff?: Record<string, [unknown, unknown]>): DryRunPreview {
   return { dryRun: true, tool, wouldSucceed: !problem, ...(problem ? { problem } : {}), preview, ...(diff ? { diff } : {}) };
 }
@@ -1592,14 +1603,14 @@ function resolveTaskHold(
    *  `TASK_HOLD_UNTIL_TOO_SOON` abgewiesen. Ein ABSOLUTES `holdUntilAt` bleibt absolut. */
   anchor: Date,
 ): Pick<CreateTaskParams, "holdUntil" | "holdDurationMin"> {
-  // GEKLEMMT wie im Dienst, aus demselben Grund wie bei `proofDueMinutes`: die Vorschau soll den
-  // Wert nennen — und gegen die Schranke messen —, die in der Zeile landet. Roh durchgereicht
-  // versprächen „0.4 Minuten" eine Dauer, aus der `checkTask` eine ganze Minute macht.
+  // GEKLEMMT wie bei den Nachweis-Fristen in `mcpCreateTask`: die Vorschau soll die Dauer nennen,
+  // die in der Zeile landet — roh durchgereicht verspräche „0.4 Minuten" eine Haltezeit, die der
+  // Dienst auf eine ganze anhebt. Am Ergebnis ändert es nichts: `checkTask` klemmt ohnehin noch mal.
   //
   // Ein unbrauchbarer Wert fällt durch statt zu einem halben Dauer-Modus zu werden: dann greifen die
   // beiden Zeitpunkt-Formen darunter, und fehlen auch die, sagt der Wurf, was verlangt ist.
-  const holdDurationMin = clampHoldDuration(args.holdMinutesFromStart);
-  if (holdDurationMin != null) return { holdDurationMin };
+  const duration = clampHoldDuration(args.holdMinutesFromStart);
+  if (duration != null) return { holdDurationMin: duration };
   const d = parseHoldUntil(args, anchor);
   if (!d) throw new Error("One of holdUntilAt, holdHours or holdMinutesFromStart is required.");
   return { holdUntil: d };
@@ -1668,33 +1679,47 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     ? `${hold.holdDurationMin} minute(s) from the moment the user has everything on`
     : hold.holdUntil!.toISOString();
 
-  /**
-   * Dieselbe Schranke, die `checkProofs` zieht — HIER noch einmal, damit die Vorschau nicht Erfolg
-   * meldet für einen Commit, der mit `TASK_PROOF_DUE_AFTER_END` endet. Genau dafür gibt es den
-   * `problem`-Slot (siehe die `offenseRef`-Prüfung darunter).
-   *
-   * In BEIDEN Modi. Dass die Vorschau im Dauer-Modus keinen Zeitpunkt zu NENNEN hat, heisst nicht,
-   * dass sie keinen ausrechnen kann — und der geteilte {@link earliestTaskEnd} rechnet ihn genauso
-   * wie `checkTask`. Ohne diese Prüfung meldete `holdMinutesFromStart: 60` mit `dueMinutes: 120`
-   * einen Erfolg, den der Commit als 400 abweist (Befund 16.08.2026).
-   */
-  const earliestEndMs = earliestTaskEnd(hold, anchor).getTime();
-  const dueAfterEnd = proofDueMinutes.some(
-    (m) => m !== null && anchor.getTime() + m * 60_000 > earliestEndMs,
-  );
+  /** Der Bauplan der Zeile — EINMAL gebaut für BEIDE Wege. Die Vorschau prüft ihn mit derselben
+   *  Funktion, die der Commit gleich darauf benutzt; deshalb steht er vor der Verzweigung. */
+  const params = {
+    userId,
+    title: args.title,
+    description: args.description,
+    ...hold,
+    startGraceMin: args.startGraceMinutes,
+    isPunishment: args.isPunishment,
+    penaltyReason: args.penaltyReason,
+    requirements,
+    proofs,
+    proofOrderMatters: args.proofOrderMatters,
+    delayMinutes: args.delayMinutes,
+    wirksamAbAt: args.scheduledAt,
+  };
 
   if (args.dryRun) {
     // Nur hier: der Commit-Pfad prüft dieselbe Schranke in `punishWithTask` noch einmal, und ein
     // Strafbuch-Aufbau kostet ein Dutzend Abfragen. Die Vorschau braucht sie trotzdem — sonst legt
     // der Agent eine Vorschau vor, die der Commit mit OFFENSE_NOT_FOUND ablehnt.
     const offenseIsLive = args.offenseRef ? !!(await requireDetectedOffense(userId, args.offenseRef, now)) : null;
+    /**
+     * DIESELBE Prüfung, die der Commit fährt — keine zweite Abschrift ihrer Regeln.
+     *
+     * `checkTask` ist genau dafür vom Schreiben getrennt (siehe dort): es liest drei bis vier Mal
+     * und schreibt nichts. Die Vorschau kann es deshalb aufrufen, statt seine Schranken hier
+     * nachzubauen — und erbt damit jede: Feldgrenzen, „Frist zu früh", Nachweis-Fälligkeit hinter
+     * dem Ende, Dauer-Modus ohne Bedingung, fremdes Gerät. Eine eigene Nachrechnung liefe
+     * irgendwann auseinander; genau das war hier schon einmal der Fehler — die Fälligkeits-Schranke
+     * hing an `holdUntil` und fiel im Dauer-Modus still auf „passt schon".
+     *
+     * `mergeTaskPatch` hält dieselbe Trennung für `edit_task` (siehe seinen Kommentar).
+     */
+    const checked = await checkTask(prisma, params, AI_AUTHOR);
     // Die tote ref gehört in den `problem`-Slot des Rahmens, nicht in ein Zusatzfeld: `wouldSucceed`
     // leitet sich daraus ab. Sonst meldete die Vorschau Erfolg für einen Commit, der mit
-    // OFFENSE_NOT_FOUND endet — und der Agent legt sie seinem Nutzer genau so vor.
-    return dryRunPreview(
-      "create_task",
-      offenseIsLive === false ? "OFFENSE_NOT_FOUND" : dueAfterEnd ? "TASK_PROOF_DUE_AFTER_END" : undefined,
-      {
+    // OFFENSE_NOT_FOUND endet — und der Agent legt sie seinem Nutzer genau so vor. Zuerst geprüft,
+    // weil `punishWithTask` das Vergehen ebenfalls VOR `checkTask` auflöst.
+    const problem = offenseIsLive === false ? "OFFENSE_NOT_FOUND" : checked.ok ? undefined : checked.error;
+    return dryRunPreview("create_task", problem, {
       title: args.title,
       hold: holdText,
       requirementCount: requirements.length,
@@ -1713,20 +1738,6 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     });
   }
 
-  const params = {
-    userId,
-    title: args.title,
-    description: args.description,
-    ...hold,
-    startGraceMin: args.startGraceMinutes,
-    isPunishment: args.isPunishment,
-    penaltyReason: args.penaltyReason,
-    requirements,
-    proofs,
-    proofOrderMatters: args.proofOrderMatters,
-    delayMinutes: args.delayMinutes,
-    wirksamAbAt: args.scheduledAt,
-  };
   // EINE Kennung für beide Wege unten: die blosse Aufgabe UND die Strafaufgabe, deren Urteil daraus
   // sein `judgedBy` ableitet — zwei getrennte Angaben könnten auseinanderlaufen.
   const data = unwrap(args.offenseRef
@@ -1809,11 +1820,9 @@ export async function mcpReviewTaskProof(username: string, args: ReviewTaskProof
   if (args.dryRun) {
     // Zustands-Regeln gehen als `problem` in die Vorschau, nicht als Wurf — wie bei jedem anderen
     // Werkzeug hier. Ein dryRun soll sagen, was passieren WÜRDE, auch wenn die Antwort „nichts" ist.
-    // Beide Zustands-Regeln, die der Service durchsetzt — sonst verspräche die Vorschau Erfolg, wo
-    // der echte Aufruf abweist. `mcpEditTask` prüft `withdrawnAt` aus demselben Grund.
-    const problem = task.withdrawnAt ? "TASK_NOT_EDITABLE"
-      : !proof.submittedAt ? "TASK_PROOF_NOT_SUBMITTED"
-      : undefined;
+    // Über DIESELBE Prüfung, die der Commit fährt; warum nicht über eine Abschrift ihrer Regeln,
+    // steht bei {@link proofReviewBlockedReason}.
+    const problem = proofReviewBlockedReason(proof, task) ?? undefined;
     return dryRunPreview("review_task_proof", problem, {
       taskId: task.id,
       title: task.title,
@@ -1823,8 +1832,6 @@ export async function mcpReviewTaskProof(username: string, args: ReviewTaskProof
       previouslyReviewed: proof.reviewedAt !== null,
     });
   }
-
-  // Die Zustands-Prüfung selbst liegt im Service — hier stünde sie ein zweites Mal, mit zweitem Text.
 
   unwrap(await reviewTaskProof(proof.id, userId, { accepted: args.accepted, note: args.note }, AI_AUTHOR));
   return {
@@ -1842,13 +1849,18 @@ export async function mcpReviewTaskProof(username: string, args: ReviewTaskProof
 
 export async function mcpEditTask(username: string, args: EditTaskArgs) {
   const userId = await resolveTargetUserId(username);
-  const task = await prisma.task.findUnique({ where: { id: args.id } });
+  // `TASK_EDIT_INCLUDE`, weil die Vorschau unten mit `checkTaskUpdate` prüft — dieselbe Zeilen-Form,
+  // die auch `updateTask` liest.
+  const task = await prisma.task.findUnique({ where: { id: args.id }, include: TASK_EDIT_INCLUDE });
   if (!task || task.userId !== userId) throw new Error(`Task not found: ${args.id}`);
 
+  /** EIN Zeitpunkt für die ganze Anweisung: die Frist wird daran verankert UND dagegen geprüft. Zwei
+   *  Uhrenschläge liessen eine Frist, die exakt auf ihrer Untergrenze sitzt, am zweiten scheitern. */
+  const now = new Date();
   /** Der Nullpunkt der geänderten Frist — dieselbe Regel wie beim Anlegen ({@link resolveTaskHold}),
    *  nur eben nachträglich: {@link earliestActionableAt} statt des rohen Nullpunkts, weil eine vor
    *  Stunden gestellte Aufgabe ihre Spanne sonst in die Vergangenheit legte. */
-  const holdAnchor = earliestActionableAt(task, new Date());
+  const holdAnchor = earliestActionableAt(task, now);
 
   const patch = {
     title: args.title,
@@ -1868,8 +1880,10 @@ export async function mcpEditTask(username: string, args: EditTaskArgs) {
       holdDurationMin: task.holdDurationMin, isPunishment: task.isPunishment, penaltyReason: task.penaltyReason,
     };
     const after = mergeTaskPatch(before, patch, task);
-    const problem = task.withdrawnAt ? "TASK_NOT_EDITABLE" : undefined;
-    return dryRunPreview("edit_task", problem, { id: task.id, ...after, holdUntil: after.holdUntil.toISOString() }, diffFields({ ...before }, { ...after }));
+    // DIESELBE Prüfung, die der Commit fährt — keine zweite Abschrift ihrer Regeln. Von Hand stand
+    // hier nur `withdrawnAt`; warum das zu wenig war, steht bei {@link checkTaskUpdate}.
+    const checked = checkTaskUpdate(task, after, now);
+    return dryRunPreview("edit_task", checked?.error, { id: task.id, ...after, holdUntil: after.holdUntil.toISOString() }, diffFields({ ...before }, { ...after }));
   }
 
   unwrap(await updateTask(args.id, userId, patch, AI_AUTHOR));

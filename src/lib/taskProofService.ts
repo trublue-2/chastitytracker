@@ -302,6 +302,28 @@ export function proofSubmitBlockedReason(
   return null;
 }
 
+/** Was einer SICHTUNG im Weg steht — oder `null`, wenn sie zulässig ist.
+ *
+ *  Das Gegenstück zu {@link proofSubmitBlockedReason} auf der anderen Seite desselben Nachweises,
+ *  und eigenständig aus demselben Grund: geteilt vom Service (er hat das letzte Wort) und von der
+ *  dryRun-Vorschau des MCP (`mcpReviewTaskProof`), die diese Kette sonst ein zweites Mal führte.
+ *  Genau daran ist `edit_task` gescheitert — der Abschrift dort fehlte `completedAt`, und die
+ *  Vorschau versprach Erfolg für einen Commit, der mit 400 endete. Eine dritte Schranke kommt so bei
+ *  beiden an, statt nur bei einem von beiden.
+ *
+ *  Zwei Argumente statt der verschachtelten Form des Geschwisters: die Vorschau bekommt Aufgabe und
+ *  Nachweis von `resolveTaskProof` als zwei Objekte, und ein nur zum Prüfen gebautes
+ *  `{ ...proof, task }` wäre eine Attrappe der Zeile, die es dort gar nicht gibt. */
+export function proofReviewBlockedReason(
+  proof: { submittedAt: Date | null },
+  task: { withdrawnAt: Date | null },
+): "TASK_NOT_EDITABLE" | "TASK_PROOF_NOT_SUBMITTED" | null {
+  if (task.withdrawnAt) return "TASK_NOT_EDITABLE";
+  // Über einen Nachweis, den es noch gar nicht gibt, lässt sich nicht urteilen.
+  if (!proof.submittedAt) return "TASK_PROOF_NOT_SUBMITTED";
+  return null;
+}
+
 /**
  * Die Keyholderin sichtet einen eingereichten Nachweis (Issue #39, Etappe 4).
  *
@@ -324,9 +346,9 @@ export async function reviewTaskProof(
     include: { task: { select: { id: true, title: true, withdrawnAt: true } } },
   });
   if (!proof) return serviceFail(404, "TASK_PROOF_NOT_FOUND");
-  if (proof.task.withdrawnAt) return serviceFail(400, "TASK_NOT_EDITABLE");
-  // Über einen Nachweis, den es noch gar nicht gibt, lässt sich nicht urteilen.
-  if (!proof.submittedAt) return serviceFail(400, "TASK_PROOF_NOT_SUBMITTED");
+
+  const blocked = proofReviewBlockedReason(proof, proof.task);
+  if (blocked) return serviceFail(400, blocked);
 
   await prisma.taskProof.update({
     where: { id: proofId },
