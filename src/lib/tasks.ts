@@ -604,6 +604,18 @@ export type ProofVerdict =
  * sie sind selbst kein Bruch, und sie verdecken keinen — verglichen wird mit der letzten BELEGTEN
  * Zeit, nicht nur mit dem unmittelbaren Vorgänger. Sonst hebelte ein zeitloses Foto in der Mitte
  * die Reihenfolge der übrigen aus.
+ *
+ * ANGENOMMENE NACHWEISE ZÄHLEN NICHT ALS BRUCH (Produkt-Entscheidung 16.08.2026). Nimmt die
+ * Keyholderin ein Foto an, dessen Aufnahmezeit die Reihenfolge bricht, ist der Bruch geheilt — sie
+ * hat ihn gesehen und ihn gelten lassen. Damit gilt auf ALLEN drei Nachweis-Achsen dieselbe Regel:
+ * wo sie urteilt, urteilt sie an Stelle der Maschine (fehlende Aufnahmezeit und Verspätung sind es
+ * längst, siehe {@link evaluateProofs} und {@link proofCounted}). Vorher war die Reihenfolge als
+ * einzige unheilbar — eine Aufgabe scheiterte, obwohl die Keyholderin jedes einzelne Foto
+ * angenommen hatte.
+ *
+ * Ein angenommener Nachweis wird deshalb übersprungen, seine Zeit aber trotzdem als „letzte
+ * belegte" fortgeschrieben: geheilt ist SEIN Bruch, nicht die Reihenfolge der Übrigen. Ein
+ * ungesehenes Foto danach wird weiter gegen ihn gemessen.
  */
 export function firstOutOfOrderProof(
   ordered: ProofLike[],
@@ -618,7 +630,7 @@ export function firstOutOfOrderProof(
   for (const p of ordered) {
     if (!p.imageExifTime) continue;
     const t = p.imageExifTime.getTime();
-    if (lastTime !== null && t <= lastTime) return p;
+    if (lastTime !== null && t <= lastTime && p.reviewAccepted !== true) return p;
     lastTime = t;
   }
   return null;

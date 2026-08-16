@@ -196,6 +196,9 @@ fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt
   Aufgabe nur, wenn beide stimmen. Ihre **Aufnahmezeiten** müssen der angegebenen Reihenfolge folgen
   (Aufnahme-, nicht Upload-Zeit — sonst genügte es, am Ende alles hochzuladen). Nach \`holdUntil\`
   eingereicht zählt nicht mehr — es sei denn, du nimmst es ausdrücklich an (siehe Sichtung).
+  **Deine Annahme heilt jeden der drei Mängel** — zu spät, keine Aufnahmezeit, falsche Reihenfolge.
+  Auf allen drei Achsen gilt dasselbe: wo du urteilst, urteilst du an Stelle der Maschine. Passt dir
+  der Mangel nicht, lehnst du ab.
 - **Ein Nachweis kann eine EIGENE Frist haben** (\`requireProof[].dueMinutes\`, Minuten ab dem
   Wirksamwerden der Aufgabe). Damit ist „drei Fotos über den Tag verteilt" EINE Aufgabe statt drei
   Kontrollen: 240/480/720. Ohne die Angabe bleibt ein Nachweis wie bisher bis zum Ende der Aufgabe

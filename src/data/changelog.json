@@ -1,5 +1,74 @@
 [
   {
+    "version": "5.2.0",
+    "date": "2026-08-16",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine Aufgabe lässt sich für später stellen. Bis zum gewählten Zeitpunkt sieht der Träger sie nicht, und erst dann beginnen ihre Fristen zu laufen.",
+          "en": "A task can be set for later. Until the chosen moment the wearer doesn't see it, and only then do its deadlines start running."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Jedes Nachweis-Foto kann eine eigene Fälligkeit bekommen. „Drei Fotos über den Tag verteilt“ ist damit eine Aufgabe statt drei.",
+          "en": "Each proof photo can have its own due time. “Three photos spread over the day” is now one task instead of three."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Ein Nachweis lässt sich verspätet nachreichen, solange die Aufgabe läuft — der Keyholder entscheidet dann, ob er noch zählt. Seine Annahme heilt jeden Mangel: zu spät, keine Aufnahmezeit im Bild, falsche Reihenfolge.",
+          "en": "A proof can be handed in late as long as the task is still running — the keyholder then decides whether it still counts. Accepting it cures any flaw: too late, no capture time in the image, wrong order."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Keyholder wird benachrichtigt, sobald ein verspäteter Nachweis auf sein Urteil wartet. Der Schalter dafür steht bei den übrigen Benachrichtigungen.",
+          "en": "The keyholder is notified as soon as a late proof is waiting for their verdict. The toggle for it sits with the other notifications."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die verbindliche Reihenfolge der Nachweis-Fotos lässt sich pro Aufgabe abschalten.",
+          "en": "The required order of proof photos can be switched off per task."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der späteste Beginn einer Aufgabe lässt sich wahlweise als Uhrzeit eingeben statt als Dauer.",
+          "en": "The latest start of a task can be entered as a clock time instead of a duration."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein angenommenes Foto ohne Aufnahmezeit schickte die Aufgabe immer wieder zurück zur Sichtung. Sie wurde nie fertig, und eine Strafaufgabe blieb dauerhaft offen.",
+          "en": "An accepted photo without a capture time kept sending the task back for review. It never finished, and a penalty task stayed open forever."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Strafbuch warf einem Träger „nie begonnen“ oder eine Ablege-Zeit vor, wo beides nicht zutraf.",
+          "en": "The offence log accused a wearer of “never started” or showed a removal time where neither applied."
+        }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "Titel, Beschreibung und Code einer noch nicht zugestellten Aufgabe waren über einen direkten Link lesbar. Eine zurückgezogene Strafaufgabe zeigte im Dashboard weiterhin ihren Titel.",
+          "en": "Title, description and code of a task not yet delivered were readable via a direct link. A withdrawn penalty task still showed its title on the dashboard."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.1.2",
     "date": "2026-08-15",
     "changes": [

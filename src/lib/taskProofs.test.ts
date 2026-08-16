@@ -882,6 +882,39 @@ describe("firstOutOfOrderProof — der Beleg für den Fehlschlag", () => {
     ];
     expect(firstOutOfOrderProof(p, task)?.id).toBe("c");
   });
+
+  /**
+   * PRODUKT-ENTSCHEIDUNG 16.08.2026: dieselbe Regel wie auf den beiden anderen Nachweis-Achsen —
+   * wo die Keyholderin urteilt, urteilt sie an Stelle der Maschine. Vorher war die Reihenfolge als
+   * einzige unheilbar: eine Aufgabe scheiterte, obwohl jedes Foto angenommen war.
+   */
+  it("ein angenommener Nachweis bricht die Reihenfolge nicht mehr", () => {
+    const p = [
+      at("2026-07-25T13:00:00Z", 0, "erster"),
+      proof({ id: "zweiter", sortOrder: 1, imageExifTime: new Date("2026-07-25T12:00:00Z"), reviewAccepted: true }),
+    ];
+    expect(firstOutOfOrderProof(p, task)).toBeNull();
+  });
+
+  /** Geheilt ist SEIN Bruch, nicht die Reihenfolge der Übrigen: der ungesehene Nachweis dahinter
+   *  wird weiter gegen die letzte belegte Zeit gemessen. */
+  it("die Annahme heilt nur den eigenen Bruch, nicht den danach", () => {
+    const p = [
+      at("2026-07-25T13:00:00Z", 0, "a"),
+      proof({ id: "b", sortOrder: 1, imageExifTime: new Date("2026-07-25T12:00:00Z"), reviewAccepted: true }),
+      at("2026-07-25T11:00:00Z", 2, "c"),
+    ];
+    expect(firstOutOfOrderProof(p, task)?.id).toBe("c");
+  });
+
+  /** Abgelehnt ist nicht angenommen — die Ablehnung ist das Urteil gegen den Nachweis. */
+  it("ein abgelehnter Nachweis bleibt ein Bruch", () => {
+    const p = [
+      at("2026-07-25T13:00:00Z", 0, "a"),
+      proof({ id: "b", sortOrder: 1, imageExifTime: new Date("2026-07-25T12:00:00Z"), reviewAccepted: false }),
+    ];
+    expect(firstOutOfOrderProof(p, task)?.id).toBe("b");
+  });
 });
 
 describe("Zustands-Prädikate für die Sichtung", () => {
