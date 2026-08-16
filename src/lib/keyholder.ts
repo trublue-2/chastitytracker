@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import type { NotifyRecipient } from "@/lib/notify";
 
 /**
  * Keyholder relationships. A keyholder is any user with an AdminUserRelationship row
@@ -115,14 +116,11 @@ export async function getKeyholdersOfUser(subId: string): Promise<{ id: string; 
  * query alone would miss them). Deduped by id; returns id + email. Keyholders are inherently
  * scoped to their sub; global admins stay global so an instance owner keeps full visibility.
  */
-/** Ein Keyholder als Empfänger einer Meldung. `locale` gehört dazu, weil jede Meldung in SEINER
- *  Sprache gerendert wird — ohne sie bräuchte jeder Aufrufer eine zweite Abfrage über dieselben ids. */
-export interface Controller {
-  id: string;
-  username: string;
-  email: string | null;
-  locale: string;
-}
+/** Ein Keyholder als Empfänger einer Meldung — und zwar GENAU das, was der Versand entgegennimmt
+ *  ({@link NotifyRecipient}), nicht eine zweite Fassung derselben vier Felder. `locale` gehört dazu,
+ *  weil jede Meldung in SEINER Sprache gerendert wird, `email` ebenso — ohne beides bräuchte der
+ *  Versand eine zweite Abfrage über dieselben ids. */
+export type Controller = NotifyRecipient;
 
 export async function getControllersOfUser(subId: string): Promise<Controller[]> {
   const [admins, rels] = await Promise.all([
@@ -136,6 +134,25 @@ export async function getControllersOfUser(subId: string): Promise<Controller[]>
   for (const a of admins) byId.set(a.id, a);
   for (const r of rels) byId.set(r.admin.id, r.admin);
   return [...byId.values()];
+}
+
+/**
+ * Wer eine Meldung ÜBER diesen Träger bekommt, und wie er darin heisst.
+ *
+ * Die beiden gehören zusammen, weil jede Keyholder-Meldung beides braucht: die Empfängerliste für
+ * den Versand und den Namen für den Text („{username} hat …"). Drei Stellen bauten dafür dasselbe
+ * `Promise.all` samt demselben Fallback `?? ""` — die Nebenläufigkeit, das `select` und die Frage,
+ * was ein gelöschter Träger heisst, standen dreimal nebeneinander.
+ *
+ * Der leere Name ist kein Fehler, sondern die bewusste Antwort auf „Zeile weg": die Meldung soll
+ * trotzdem rausgehen, denn der Grund für sie ist eingetreten.
+ */
+export async function getControllerAudience(userId: string): Promise<{ controllers: Controller[]; username: string }> {
+  const [controllers, user] = await Promise.all([
+    getControllersOfUser(userId),
+    prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
+  ]);
+  return { controllers, username: user?.username ?? "" };
 }
 
 /**

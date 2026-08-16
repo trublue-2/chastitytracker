@@ -15,12 +15,14 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
+vi.mock("@/lib/taskProofNotify", () => ({ notifyLateProofsForTask: vi.fn() }));
 // Nur den Zufall festnageln — `utils` ist sonst reine Arithmetik und soll echt laufen.
 vi.mock("@/lib/utils", async (orig) => ({ ...(await orig<object>()), generateKontrollCode: () => "12345" }));
 
 import { createTask, updateTask, withdrawTask, completeTask, mergeTaskPatch, effectivePenaltyReason } from "./taskService";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
+import { notifyLateProofsForTask } from "@/lib/taskProofNotify";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const catMock = prisma.deviceCategory.findMany as unknown as ReturnType<typeof vi.fn>;
@@ -30,6 +32,7 @@ const taskFindMock = prisma.task.findFirst as unknown as ReturnType<typeof vi.fn
 const taskUpdateMock = prisma.task.updateMany as unknown as ReturnType<typeof vi.fn>;
 const taskCountMock = prisma.task.count as unknown as ReturnType<typeof vi.fn>;
 const notifyMock = notifyUser as unknown as ReturnType<typeof vi.fn>;
+const lateSweepMock = notifyLateProofsForTask as unknown as ReturnType<typeof vi.fn>;
 
 const JETZT = new Date("2026-07-25T12:00:00Z");
 const IN_DREI_STUNDEN = new Date("2026-07-25T15:00:00Z");
@@ -305,6 +308,30 @@ describe("updateTask — Endzeit während der Nutzung verschieben (Issue #29)", 
     const res = await updateTask("t1", "u1", { holdUntil: new Date("2026-07-23T12:00:00Z") }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_HOLD_UNTIL_TOO_SOON");
+  });
+
+  /**
+   * Eine Frist, die nach VORN rückt, macht aus einem rechtzeitig eingereichten Nachweis rückwirkend
+   * einen verspäteten — und der zählt dann nur noch, wenn die Keyholderin ihn annimmt. Bis hierher
+   * hing diese Meldung allein am Hochladen: ein Nachweis, den ihre eigene Änderung zu spät machte,
+   * fiel still. Was gemeldet wird, prüft `taskProofNotify.test.ts`; hier zählt die Verdrahtung.
+   */
+  it("eine vorgezogene Endzeit meldet die dadurch verspäteten Nachweise", async () => {
+    taskFindMock.mockResolvedValue(offen);
+    const frueher = new Date("2026-07-25T14:00:00Z");
+    await updateTask("t1", "u1", { holdUntil: frueher }, "herrin");
+
+    // Mit dem NEUEN Ende: gegen das alte gemessen wäre kein einziger Nachweis zu spät.
+    expect(lateSweepMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "t1", holdUntil: frueher }),
+      "u1",
+    );
+  });
+
+  it("eine verlängerte Endzeit meldet nichts — später kann kein Nachweis neu zu spät sein", async () => {
+    taskFindMock.mockResolvedValue(offen);
+    await updateTask("t1", "u1", { holdUntil: new Date("2026-07-25T17:00:00Z") }, "herrin");
+    expect(lateSweepMock).not.toHaveBeenCalled();
   });
 
   it("Straf-Anlass fällt weg, wenn die Strafe zurückgenommen wird", async () => {

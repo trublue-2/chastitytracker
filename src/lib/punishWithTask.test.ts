@@ -28,6 +28,7 @@ vi.mock("@/lib/keyholder", () => ({
   isKeyholderOf: vi.fn(async () => false),
   getControllableSubsCached: vi.fn(async () => []),
   getControllersOfUser: vi.fn(async () => []),
+  getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })),
 }));
 // `collectDetectedOffenses` leitet die refs aus OFFENSE_LISTS ab — der Mock muss die Tabelle
 // mitliefern, sonst prüft der Test eine Auflösung, die es so nicht gibt. Die echte Tabelle ist

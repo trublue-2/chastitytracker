@@ -1,9 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
-import { notifyUser, notifyControllers, type NotifyContent } from "@/lib/notify";
+import { notifyUser, notifyControllers, type NotifyContent, type NotifyRecipient } from "@/lib/notify";
 import { actorColumn, type MessageActor } from "@/lib/messageService";
-import { getControllersOfUser } from "@/lib/keyholder";
+import { getControllerAudience } from "@/lib/keyholder";
+import { notifyLateProofsForTask } from "@/lib/taskProofNotify";
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
 import { computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
@@ -653,8 +654,12 @@ export async function updateTask(
   // Eine noch nicht ausgelöste Aufgabe darf ihre eigene Änderung NICHT melden — die Meldung verriete
   // die Aufgabe, deren Terminierung genau das verhindern soll (siehe `isHiddenFromSub`). Zugestellt
   // wird sie ohnehin erst später, und dann in der geänderten Fassung.
+  // Die Zeile, wie sie jetzt auf der Platte steht — einmal zusammengeführt statt an jeder Stelle
+  // neu, damit ein neues Feld in `mergeTaskPatch` nicht in einer der Kopien still fehlt.
+  const merged = { ...next, id, createdAt: t.createdAt, startGraceMin: t.startGraceMin, wirksamAb: t.wirksamAb };
+
   if (!isHiddenFromSub(t)) {
-    const deadline = taskNoticeDeadline({ ...next, createdAt: t.createdAt, startGraceMin: t.startGraceMin, wirksamAb: t.wirksamAb });
+    const deadline = taskNoticeDeadline(merged);
     await notifyUser(userId, {
       subjectKey: "taskChangedSubject",
       messageKey: deadline.durationMode ? "taskChangedDurationMessage" : "taskChangedMessage",
@@ -665,6 +670,15 @@ export async function updateTask(
       inbox: { ref: { type: "task", id }, actor },
     });
   }
+
+  // Rückt das Ende NACH VORN, wird aus einem rechtzeitig eingereichten Nachweis rückwirkend ein
+  // verspäteter, der auf ein Urteil wartet — Begründung und die Frage „warum nur beim Vorrücken"
+  // stehen bei `notifyLateProofsForTask`.
+  //
+  // Fire-and-forget wie auf dem Einreiche-Weg (`submitTaskProof`): dahinter steht ein SMTP-Versand
+  // je Empfänger und je betroffenem Nachweis. Die Antwort auf die Änderung hängt nicht davon ab, und
+  // die Funktion wirft nie und stempelt sich selbst.
+  if (next.holdUntil < t.holdUntil) void notifyLateProofsForTask(merged, userId);
 
   return { ok: true, data: { id, userId } };
 }
@@ -788,7 +802,7 @@ export async function settleTaskResult(opts: {
   taskId: string;
   title: string;
   done: boolean;
-  controllers: { id: string }[];
+  controllers: NotifyRecipient[];
   username: string;
   now: Date;
   /** Höchstens EINE Zeile dieses Texts im Posteingang. Der Poller setzt das (ein Retry nach einem
@@ -966,12 +980,10 @@ export async function processDueTasks(now: Date): Promise<void> {
     try {
       // Empfänger und Anzeigename hängen nur am User, nicht an der einzelnen Aufgabe — einmal holen,
       // sonst sind es bei fünf fälligen Aufgaben zehn Abfragen statt zwei, in jedem Minuten-Tick.
-      const [evaluated, controllers, user] = await Promise.all([
+      const [evaluated, { controllers, username }] = await Promise.all([
         evaluateTasks(userId, tasks, now),
-        getControllersOfUser(userId),
-        prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
+        getControllerAudience(userId),
       ]);
-      const username = user?.username ?? "";
 
       // Je Aufgabe stempeln, direkt nach IHRER Zustellung — nicht gesammelt am Ende der Schleife.
       // Der Stempel ist die einzige Einmal-Zusage, die es hier gibt (eine Dedup im Posteingang

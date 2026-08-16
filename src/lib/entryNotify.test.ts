@@ -10,10 +10,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    notificationPreference: { findMany: vi.fn() },
     device: { findUnique: vi.fn() },
   },
 }));
+// Die Schalter des Trägers kommen über `notificationPrefs`, nicht über eine eigene Abfrage — diese
+// Meldung war die letzte, die daneben las (und dabei eine fehlende Zeile als „stumm" auslegte).
+vi.mock("@/lib/notificationPrefs", () => ({ getEventChannelsAny: vi.fn() }));
 vi.mock("@/lib/mail", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/mail")>()),
   sendMailSafe: vi.fn(),
@@ -23,12 +25,12 @@ vi.mock("@/lib/push", () => ({ sendPushToUser: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn() }));
 
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "./entryNotify";
-import { prisma } from "@/lib/prisma";
 import { sendMailSafe } from "@/lib/mail";
 import { sendPushToUser } from "@/lib/push";
 import { getControllersOfUser } from "@/lib/keyholder";
+import { getEventChannelsAny } from "@/lib/notificationPrefs";
 
-const prefs = prisma.notificationPreference.findMany as unknown as ReturnType<typeof vi.fn>;
+const prefs = getEventChannelsAny as unknown as ReturnType<typeof vi.fn>;
 const controllers = getControllersOfUser as unknown as ReturnType<typeof vi.fn>;
 const mail = sendMailSafe as unknown as ReturnType<typeof vi.fn>;
 const push = sendPushToUser as unknown as ReturnType<typeof vi.fn>;
@@ -46,7 +48,7 @@ const subjectTo = (email: string) => mail.mock.calls.find((c) => c[0] === email)
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prefs.mockResolvedValue([{ mail: true, push: true }]);
+  prefs.mockResolvedValue({ mail: true, push: true });
   controllers.mockResolvedValue([
     { id: "kh-de", email: "de@example.com", locale: "de" },
     { id: "kh-en", email: "en@example.com", locale: "en" },
@@ -102,7 +104,7 @@ describe("notifyControllersAboutEntry", () => {
   });
 
   it("schweigt, wenn der Träger diese Meldung abgeschaltet hat", async () => {
-    prefs.mockResolvedValue([]);
+    prefs.mockResolvedValue({ mail: false, push: false });
 
     await notifyControllersAboutEntry(BASE);
 
@@ -110,8 +112,28 @@ describe("notifyControllersAboutEntry", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("ein einzelner Kanal bleibt einzeln abschaltbar", async () => {
+    prefs.mockResolvedValue({ mail: false, push: true });
+
+    await notifyControllersAboutEntry(BASE);
+
+    expect(mail).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalled();
+  });
+
+  /**
+   * Eine Öffnung während einer zurückgezogenen Sperrzeit ist AUCH eine Öffnung — sie nennt deshalb
+   * beide Schalter. Was aus zweien wird, entscheidet `notificationPrefs`; hier zählt nur, dass beide
+   * genannt werden. Nennte diese Meldung nur den spezielleren, bliebe der allgemeine wirkungslos.
+   */
+  it("nennt alle Schalter, die der Eintrag auslöst", async () => {
+    await notifyControllersAboutEntry({ ...BASE, type: "OEFFNEN", withdrawnSperrzeit: true });
+
+    expect(prefs).toHaveBeenCalledWith("sub1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]);
+  });
+
   it("wirft nie — eine gescheiterte Meldung darf den Eintrag nicht mitreissen", async () => {
-    prefs.mockRejectedValue(new Error("db weg"));
+    controllers.mockRejectedValue(new Error("db weg"));
 
     await expect(notifyControllersAboutEntry(BASE)).resolves.toBeUndefined();
   });
@@ -126,7 +148,7 @@ describe("notifyControllersAboutEntry", () => {
  */
 describe("Empfängerkreis", () => {
   beforeEach(() => {
-    prefs.mockResolvedValue([{ mail: true, push: true }]);
+    prefs.mockResolvedValue({ mail: true, push: true });
   });
 
   it("erfasst jemand für SICH SELBST, bleibt die Empfängerliste vollständig", async () => {

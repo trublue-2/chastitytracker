@@ -33,6 +33,11 @@ import { recordSystemMessage, recordMessageAndBadge } from "@/lib/messageService
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 
+/** Ein Empfänger, wie ihn `getControllersOfUser` liefert — GELADEN, nicht als blosse id: genau das
+ *  ist der Vertrag von `NotifyRecipient`, und der Fall unten hält fest, dass der Versand ihn dann
+ *  auch nicht ein zweites Mal nachschlägt. */
+const kh = (id: string) => ({ id, username: id, email: `${id}@example.com`, locale: "de" });
+
 const CONTENT = {
   subjectKey: "taskReviewSubjectKeyholder",
   messageKey: "taskReviewMessageKeyholder",
@@ -51,12 +56,12 @@ beforeEach(() => {
 
 describe("notifyControllers", () => {
   it("schreibt GENAU EINE Zeile — auch bei drei Keyholdern", async () => {
-    await notifyControllers("sub1", [{ id: "kh1" }, { id: "kh2" }, { id: "kh3" }], { ...CONTENT });
+    await notifyControllers("sub1", [kh("kh1"), kh("kh2"), kh("kh3")], { ...CONTENT });
     expect(recordSystemMessage).toHaveBeenCalledOnce();
   });
 
   it("die Zeile trägt den SUB als Betreff und die Keyholder als Zielgruppe", async () => {
-    await notifyControllers("sub1", [{ id: "kh1" }, { id: "kh2" }], { ...CONTENT });
+    await notifyControllers("sub1", [kh("kh1"), kh("kh2")], { ...CONTENT });
     expect(mock(recordSystemMessage).mock.calls[0][0]).toMatchObject({
       subjectUserId: "sub1",
       audience: "keyholders",
@@ -74,7 +79,7 @@ describe("notifyControllers", () => {
   });
 
   it("Mail und Push gehen weiterhin an JEDEN Keyholder einzeln", async () => {
-    await notifyControllers("sub1", [{ id: "kh1" }, { id: "kh2" }], { ...CONTENT });
+    await notifyControllers("sub1", [kh("kh1"), kh("kh2")], { ...CONTENT });
     expect(mock(sendMailSafe).mock.calls.map((c) => c[0])).toEqual(
       expect.arrayContaining(["kh1@example.com", "kh2@example.com"]),
     );
@@ -87,7 +92,7 @@ describe("notifyControllers", () => {
     // bleibt stehen, anders als eine doppelte Mail. Die Sub-Zeile war darüber längst geschützt;
     // diese hier bekam die Zusage erst, als `notifyControllers` `inbox` überhaupt annahm.
     // Dass `once` dann auch greift, hält `messageService.test.ts` fest.
-    await notifyControllers("sub1", [{ id: "kh1" }], {
+    await notifyControllers("sub1", [kh("kh1")], {
       ...CONTENT,
       inbox: { ref: { type: "task", id: "t1" }, once: true },
     });
@@ -110,7 +115,7 @@ describe("notifyControllers", () => {
       role: where.id === "sub1" ? "admin" : "user",
     }));
 
-    await notifyControllers("sub1", [{ id: "kh1" }], { ...CONTENT });
+    await notifyControllers("sub1", [kh("kh1")], { ...CONTENT });
 
     expect(recordSystemMessage).not.toHaveBeenCalled();
   });
@@ -125,7 +130,7 @@ describe("notifyControllers", () => {
       role: where.id === "sub1" ? "admin" : "user",
     }));
 
-    await notifyControllers("sub1", [{ id: "kh1" }, { id: "kh2" }], { ...CONTENT });
+    await notifyControllers("sub1", [kh("kh1"), kh("kh2")], { ...CONTENT });
 
     expect(mock(sendMailSafe).mock.calls.map((c) => c[0])).toEqual(
       expect.arrayContaining(["kh1@example.com", "kh2@example.com"]),
@@ -139,16 +144,25 @@ describe("notifyControllers", () => {
       return { email: `${where.id}@example.com`, username: where.id, locale: "de" };
     });
 
-    await notifyControllers("sub1", [{ id: "kh1" }], { ...CONTENT });
+    await notifyControllers("sub1", [kh("kh1")], { ...CONTENT });
 
     expect(recordSystemMessage).toHaveBeenCalledOnce();
     expect(sendMailSafe).toHaveBeenCalled();
   });
 
+  it("schlägt die Empfänger NICHT ein zweites Mal nach", async () => {
+    // Die Aufrufer holen ihre Keyholder über `getControllersOfUser` — mit Mail-Adresse und Sprache,
+    // eben WEIL der Versand beides braucht. Reichten sie nur die ids herein, liefe je Kopf noch eine
+    // Abfrage über dieselbe Zeile: bei drei Keyholdern vier statt einer. Die einzige `user`-Abfrage,
+    // die hier bleiben darf, ist die Rollen-Prüfung am TRÄGER (`keyholderRowReadable`).
+    await notifyControllers("sub1", [kh("kh1"), kh("kh2"), kh("kh3")], { ...CONTENT });
+    expect(mock(prisma.user.findUnique).mock.calls.map((c) => c[0].where.id)).toEqual(["sub1"]);
+  });
+
   it("schreibt KEINE Zeile in den persönlichen Posteingang des Keyholders", async () => {
     // `notifyUser` bekommt `inbox: false` — sonst landete die Meldung über einen fremden Träger im
     // eigenen Posteingang des Keyholders, als wäre sie seine eigene Direktive.
-    await notifyControllers("sub1", [{ id: "kh1" }], { ...CONTENT });
+    await notifyControllers("sub1", [kh("kh1")], { ...CONTENT });
     expect(recordMessageAndBadge).not.toHaveBeenCalled();
   });
 });

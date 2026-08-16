@@ -51,7 +51,7 @@ vi.mock("@/lib/emailI18n", () => ({ emailT: vi.fn(async () => (k: string) => k),
 vi.mock("next-intl/server", () => ({ getTranslations: vi.fn(async () => (k: string) => k) }));
 vi.mock("@/lib/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
+vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []), getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })) }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 // Die Ziel-Auflösung der Kontrolle ist eine eigene, anderswo geprüfte Maschinerie — hier zählt nur,
 // dass sie durchlässt.

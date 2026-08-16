@@ -42,6 +42,25 @@ export type NotifyInbox =
     });
 
 /**
+ * Ein Empfänger, dessen Zeile der Aufrufer BEREITS geladen hat.
+ *
+ * Genau die vier Felder, die der Versand braucht — und die einzige Definition davon: `Controller`
+ * in `keyholder.ts` IST dieser Typ (`type Controller = NotifyRecipient`), statt dieselbe Form ein
+ * zweites Mal zu buchstabieren. Die Richtung ist Absicht: der Versand sagt, was er braucht, die
+ * Keyholder-Abfrage liefert es — umgekehrt wüsste `notify.ts` von Keyholdern.
+ *
+ * `notifyControllers` nimmt geladene Zeilen entgegen, statt für jede id ein zweites Mal dieselbe
+ * Zeile von der Platte zu holen: die Empfänger sind der Grund, aus dem `Controller` `email` und
+ * `locale` überhaupt trägt.
+ */
+export interface NotifyRecipient {
+  id: string;
+  username: string;
+  email: string | null;
+  locale: string;
+}
+
+/**
  * Content of a generic notification, expressed as i18n keys (namespace `emails`) rather than
  * literal text. notifyUser() resolves them in the RECIPIENT's stored language, so subject, mail
  * body and push all arrive translated. `params` are interpolated into both subject and message.
@@ -97,22 +116,36 @@ export interface NotifyContent {
  * weil eine Anforderung mit Frist keine abschaltbare Nachricht ist.
  */
 export async function notifyUser(userId: string, content: NotifyContent): Promise<void> {
-  const { subjectKey, messageKey, params, url = "/dashboard", inbox, alwaysNotify } = content;
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, username: true, locale: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, username: true, locale: true },
+  });
   if (!user) return;
+  await notifyLoadedUser(user, content);
+}
+
+/**
+ * Derselbe Versand für einen Empfänger, dessen Zeile schon vorliegt.
+ *
+ * Der ganze Rumpf von {@link notifyUser} ohne die Abfrage davor — und der einzige Grund, warum es
+ * ihn getrennt gibt: `notifyControllers` bekommt seine Empfänger als geladene Zeilen herein und darf
+ * sie nicht je Kopf noch einmal nachschlagen.
+ */
+async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): Promise<void> {
+  const { subjectKey, messageKey, params, url = "/dashboard", inbox, alwaysNotify } = content;
 
   let badge: number | undefined;
   let channels = content.channels ?? ALL_CHANNELS;
   if (inbox !== false) {
     badge = await recordMessageAndBadge({
-      subjectUserId: userId,
+      subjectUserId: user.id,
       bodyKey: inbox?.bodyKey ?? messageKey,
       params,
       actor: inbox?.actor,
       ref: inbox?.ref,
       once: inbox?.once,
     });
-    if (!alwaysNotify) channels = await getMessageChannels(userId);
+    if (!alwaysNotify) channels = await getMessageChannels(user.id);
   }
 
   const t = await emailT(user.locale);
@@ -126,7 +159,7 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
       dashboardEmailHtml(subject, `${emailGreeting(t, user.username)}<p>${escHtml(message)}</p>`, t("dashboardButton")),
     );
   }
-  if (channels.push) firePush(userId, subject, message, url, badge);
+  if (channels.push) firePush(user.id, subject, message, url, badge);
 }
 
 /**
@@ -140,7 +173,9 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
  * `subjectUserId` ist deshalb Pflichtparameter und steht VOR den Empfängern: der Träger ist der
  * Scope-Schlüssel der Zeile, die Empfänger sind nur die Zustell-Liste. Sie kommen als Parameter statt
  * aus `getControllersOfUser` — `processDueTasks` holt sie bewusst einmal je Nutzer statt einmal je
- * Aufgabe.
+ * Aufgabe. Und sie kommen als GELADENE Zeilen ({@link NotifyRecipient}), nicht als blosse ids: sonst
+ * schlüge der Versand jede davon ein zweites Mal nach, obwohl der Aufrufer sie mit Mail-Adresse und
+ * Sprache längst in der Hand hält.
  *
  * KEIN `actor`, und das ist eine Aussage: was heute an die Keyholder geht, ist ausnahmslos ein
  * Befund der App (Aufgaben-Ergebnis, Sichtung fällig) — es gibt dort keinen Menschen zu nennen.
@@ -156,7 +191,7 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
  */
 export async function notifyControllers(
   subjectUserId: string,
-  controllers: { id: string }[],
+  controllers: NotifyRecipient[],
   content: Omit<NotifyContent, "inbox"> & { inbox?: InboxRefOptions },
 ): Promise<void> {
   // Zuerst schreiben, dann senden — dieselbe Reihenfolge wie in `notifyUser`: scheitert der Versand,
@@ -180,7 +215,7 @@ export async function notifyControllers(
   // Beide Kanäle abgeschaltet: die Zeile steht, mehr ist nicht zu tun. Ohne diesen Riegel liefe je
   // Empfänger eine Nutzer-Abfrage für einen Versand, der garantiert nichts verschickt.
   if (content.channels && !content.channels.mail && !content.channels.push) return;
-  await Promise.all(controllers.map((c) => notifyUser(c.id, { ...content, inbox: false })));
+  await Promise.all(controllers.map((c) => notifyLoadedUser(c, { ...content, inbox: false })));
 }
 
 /**

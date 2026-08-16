@@ -1113,7 +1113,7 @@ model TaskProof {
   verifikationReasonDetected String?
   /// Wann der Keyholderin gemeldet wurde, dass dieser Nachweis VERSPÄTET eingegangen ist und auf ihr
   /// Urteil wartet. null = nie gemeldet. Begründung und Regeln: `notifyLateProof` in
-  /// `src/lib/taskProofService.ts`.
+  /// `src/lib/taskProofNotify.ts`.
   lateNotifiedAt DateTime?
 
   // ── Sichtung durch die Keyholderin ──

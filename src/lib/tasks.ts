@@ -518,7 +518,7 @@ function proofCounted(p: ProofLike, task: Pick<TaskLike, "createdAt" | "wirksamA
  * ohne das Urteil der Keyholderin.
  *
  * Exportiert, weil die MELDUNG sie stellt: ein verspäteter Nachweis wartet auf ein Urteil, und die
- * Keyholderin erfährt davon sonst nichts (`notifyLateProof` in `taskProofService.ts`). Sie darf
+ * Keyholderin erfährt davon sonst nichts (`notifyLateProof` in `taskProofNotify.ts`). Sie darf
  * dafür nicht ihren eigenen Vergleich hinschreiben — die Meldung ginge sonst irgendwann für einen
  * Nachweis raus, den die Auswertung längst als rechtzeitig führt (oder bliebe umgekehrt aus).
  *

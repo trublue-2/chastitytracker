@@ -17,7 +17,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
+vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []), getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })) }));
 
 import { dispatchDueTasks } from "./taskService";
 import { getDashboardTasks, getEvaluatedTaskHistory, getTasksBlocking } from "./taskIntervals";

@@ -3,9 +3,10 @@ import { sendMailSafe, escHtml, appBaseUrl, dashboardEmailHtml } from "@/lib/mai
 import { emailT, localeT, type EmailTranslator } from "@/lib/emailI18n";
 import { sendPushToUser } from "@/lib/push";
 import { getControllersOfUser } from "@/lib/keyholder";
+import { getEventChannelsAny } from "@/lib/notificationPrefs";
 import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { formatDateTime, formatDuration, toDateLocale } from "@/lib/utils";
-import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS } from "@/lib/constants";
+import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, type NotificationEventType } from "@/lib/constants";
 
 export interface EntryNotifyParams {
   /** Der Träger, dessen Eintrag gemeldet wird. */
@@ -33,8 +34,12 @@ export interface EntryNotifyParams {
   reasonConfig: { oeffnenGruendeConfig: string | null; orgasmusArtenConfig: string | null } | null;
 }
 
-/** Welche Benachrichtigungs-Typen dieser Eintrag auslöst. Leer = niemand wird gemeldet. */
-function eventTypesFor(p: EntryNotifyParams): string[] {
+/** Welche Benachrichtigungs-Typen dieser Eintrag auslöst. Leer = niemand wird gemeldet.
+ *
+ *  Der Rückgabetyp ist die Liste aus `constants.ts`, nicht `string[]`: ein Eintragstyp, der einen
+ *  Schalter nennt, den das Raster gar nicht kennt, wird so ein Compile-Fehler statt einer Meldung,
+ *  die stumm nie ankommt. */
+function eventTypesFor(p: EntryNotifyParams): NotificationEventType[] {
   switch (p.type) {
     case "VERSCHLUSS": return ["VERSCHLUSS"];
     case "OEFFNEN": return p.withdrawnSperrzeit ? ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"] : ["OEFFNUNG_IMMER"];
@@ -154,13 +159,17 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
     const eventTypes = eventTypesFor(p);
     if (eventTypes.length === 0) return;
 
-    // Die Einstellungen des TRÄGERS entscheiden, ob überhaupt gemeldet wird — unverändert.
-    const prefs = await prisma.notificationPreference.findMany({
-      where: { userId: p.userId, eventType: { in: eventTypes }, OR: [{ mail: true }, { push: true }] },
-    });
-    if (prefs.length === 0) return;
-    const shouldPush = prefs.some((x) => x.push);
-    const shouldMail = prefs.some((x) => x.mail);
+    // Die Einstellungen des TRÄGERS entscheiden, ob überhaupt gemeldet wird — gelesen über
+    // `notificationPrefs` wie jede andere Meldung, statt mit einer eigenen Abfrage daneben. Die
+    // zweite Lesart wich in zwei Punkten ab, und beide waren Fehler:
+    //  - eine FEHLENDE Zeile hiess hier „stumm", im Rest des Hauses „an". Die Zeilen legt
+    //    `ensureNotificationPreferences` beim Anlegen UND bei jedem Containerstart an; fehlt eine, ist
+    //    das eine Anomalie — und dann ist Senden die sichere Richtung, nicht Schweigen.
+    //  - ein Lesefehler riss den Aufrufer mit, statt auf Senden zurückzufallen.
+    // Die ODER-Regel über mehrere Typen liegt mit dort: sie ist Semantik der Schalter, nicht dieser
+    // Meldung — und der nächste Aufrufer mit zwei Ereignissen soll sie nicht neu herleiten.
+    const channels = await getEventChannelsAny(p.userId, eventTypes);
+    if (!channels.mail && !channels.push) return;
 
     // Den Handelnden streichen NUR, wenn er für JEMAND ANDEREN erfasst hat: dann wäre es eine
     // Meldung über etwas, das er gerade selbst getippt hat. Erfasst jemand für SICH, bleibt die
@@ -211,10 +220,10 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
       };
       const { title, pushBody } = renderHeadline(p, t, time, labels);
 
-      if (shouldPush) {
+      if (channels.push) {
         await Promise.allSettled(group.map((r) => sendPushToUser(r.id, title, pushBody, adminUrl)));
       }
-      if (!shouldMail) continue;
+      if (!channels.mail) continue;
 
       // Der geteilte Rahmen (`dashboardEmailHtml`), nicht eine eigene Kopie: die Farbe der
       // Eintragsart trägt der Balken am Titel, den `heading` roh aufnimmt.

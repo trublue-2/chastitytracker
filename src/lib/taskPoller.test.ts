@@ -20,13 +20,13 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn() }));
+vi.mock("@/lib/keyholder", () => ({ getControllerAudience: vi.fn() }));
 vi.mock("@/lib/taskIntervals", () => ({ evaluateTasks: vi.fn(), TASK_INCLUDE: {}, SUB_VISIBLE_WHERE: {} }));
 
 import { processDueTasks } from "./taskService";
 import { prisma } from "@/lib/prisma";
 import { notifyUser, notifyControllers } from "@/lib/notify";
-import { getControllersOfUser } from "@/lib/keyholder";
+import { getControllerAudience } from "@/lib/keyholder";
 import { evaluateTasks } from "@/lib/taskIntervals";
 import type { TaskState } from "./tasks";
 
@@ -35,7 +35,7 @@ const update = prisma.task.update as unknown as ReturnType<typeof vi.fn>;
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const notify = notifyUser as unknown as ReturnType<typeof vi.fn>;
 const notifyKh = notifyControllers as unknown as ReturnType<typeof vi.fn>;
-const controllers = getControllersOfUser as unknown as ReturnType<typeof vi.fn>;
+const controllers = getControllerAudience as unknown as ReturnType<typeof vi.fn>;
 const evaluate = evaluateTasks as unknown as ReturnType<typeof vi.fn>;
 const closePenalty = prisma.strafeRecord.updateMany as unknown as ReturnType<typeof vi.fn>;
 
@@ -57,7 +57,7 @@ const subjects = () => notify.mock.calls.map((c) => c[1].subjectKey);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  controllers.mockResolvedValue([{ id: "kh1" }]);
+  controllers.mockResolvedValue({ controllers: [{ id: "kh1" }], username: "sub" });
   userFind.mockResolvedValue({ username: "sub" });
   update.mockResolvedValue({});
   closePenalty.mockResolvedValue({ count: 0 });
@@ -149,7 +149,7 @@ describe("processDueTasks — Regressionen aus dem Code-Review", () => {
     for (const state of ["pending", "partial"] as const) {
       vi.clearAllMocks();
       update.mockResolvedValue({});
-      controllers.mockResolvedValue([{ id: "kh1" }]);
+      controllers.mockResolvedValue({ controllers: [{ id: "kh1" }], username: "sub" });
       userFind.mockResolvedValue({ username: "sub" });
       findMany.mockResolvedValue([row("t1")]);
       evaluate.mockResolvedValue([evaluated("t1", state)]);

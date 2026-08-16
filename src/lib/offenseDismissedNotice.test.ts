@@ -44,6 +44,7 @@ vi.mock("@/lib/keyholder", () => ({
   isKeyholderOf: vi.fn(async () => false),
   getControllableSubsCached: vi.fn(async () => []),
   getControllersOfUser: vi.fn(async () => []),
+  getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })),
 }));
 
 // Die Blätter von `notifyUser` — sonst liefe der Test in echte SMTP- und VAPID-Aufrufe. Geteilt mit

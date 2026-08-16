@@ -27,14 +27,50 @@ export function getEventChannels(userId: string, eventType: NotificationEventTyp
   return readChannels(userId, eventType);
 }
 
-/** Die eine Abfrage hinter beiden — samt der Zusage, nie zu werfen (siehe unten). */
+/**
+ * Mail/Push zu MEHREREN Ereignissen des Trägers — es zählt, was MINDESTENS einer erlaubt.
+ *
+ * Für die Meldungen, die ein Eintrag unter mehreren Namen auslöst: eine Öffnung während einer
+ * zurückgezogenen Sperrzeit ist auch eine Öffnung (`entryNotify.ts`). Die ODER-Regel steht hier und
+ * nicht beim Aufrufer, aus demselben Grund wie „fehlende Zeile heisst an": jede Faltung, die daneben
+ * entsteht, läuft irgendwann anders — und der speziellere Schalter machte dann den allgemeinen stumm.
+ *
+ * EINE Abfrage, nicht eine je Typ. Eine leere Liste ergibt „beides aus" — es gibt kein Ereignis, das
+ * etwas erlauben könnte; der Aufrufer prüft das vorher.
+ */
+export async function getEventChannelsAny(
+  userId: string,
+  eventTypes: NotificationEventType[],
+): Promise<NotificationChannels> {
+  try {
+    const rows = await prisma.notificationPreference.findMany({
+      where: { userId, eventType: { in: eventTypes } },
+      select: { eventType: true, mail: true, push: true },
+    });
+    const byType = new Map(rows.map((r) => [r.eventType, r]));
+    return eventTypes.reduce<NotificationChannels>((acc, t) => {
+      const pref = channelsOf(byType.get(t));
+      return { mail: acc.mail || pref.mail, push: acc.push || pref.push };
+    }, { mail: false, push: false });
+  } catch (err) {
+    console.error("[notify] preference lookup failed", err);
+    return ALL_CHANNELS;
+  }
+}
+
+/** Die Zeile in Kanäle — mit der Regel „fehlende Zeile heisst an" an EINER Stelle für beide Wege. */
+function channelsOf(pref: NotificationChannels | null | undefined): NotificationChannels {
+  return { mail: pref?.mail ?? ALL_CHANNELS.mail, push: pref?.push ?? ALL_CHANNELS.push };
+}
+
+/** Die eine Abfrage hinter den beiden Einzel-Lesern — samt der Zusage, nie zu werfen (siehe unten). */
 async function readChannels(userId: string, eventType: string): Promise<NotificationChannels> {
   try {
     const pref = await prisma.notificationPreference.findUnique({
       where: { userId_eventType: { userId, eventType } },
       select: { mail: true, push: true },
     });
-    return { mail: pref?.mail ?? ALL_CHANNELS.mail, push: pref?.push ?? ALL_CHANNELS.push };
+    return channelsOf(pref);
   } catch (err) {
     // Wirft NIE — und fällt im Zweifel auf SENDEN zurück. `notifyUser` wird an vielen Stellen
     // NACH der eigentlichen Änderung awaited (Urteil gefällt, Kontrolle aufgelöst, Sperr-Ende

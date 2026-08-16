@@ -18,7 +18,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => [{ id: "kh1" }]) }));
+vi.mock("@/lib/keyholder", () => ({ getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "kh1" }], username: "sub" })) }));
 vi.mock("@/lib/notificationPrefs", () => ({ getEventChannels: vi.fn(async () => ({ mail: true, push: true })) }));
 // Nur `evaluateTaskById` festnageln, der Rest bleibt ECHT: `SUB_VISIBLE_WHERE` hängt am Einreiche-Pfad
 // und wird unten geprüft. Als Attrappe (`{}` oder eine abgeschriebene Kopie) prüfte der Test die
@@ -26,7 +26,7 @@ vi.mock("@/lib/notificationPrefs", () => ({ getEventChannels: vi.fn(async () => 
 vi.mock("@/lib/taskIntervals", async (orig) => ({ ...(await orig<object>()), evaluateTaskById: vi.fn() }));
 vi.mock("@/lib/taskService", () => ({ settleTaskResult: vi.fn() }));
 
-import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, proofReviewBlockedReason, reviewTaskProof, notifyLateProof } from "./taskProofService";
+import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, proofReviewBlockedReason, reviewTaskProof } from "./taskProofService";
 import { notifyUser, notifyControllers } from "@/lib/notify";
 import { evaluateTaskById } from "@/lib/taskIntervals";
 import { settleTaskResult } from "@/lib/taskService";
@@ -313,74 +313,8 @@ describe("submitTaskProof — was gespeichert wird", () => {
 });
 
 /**
- * DIE MELDUNG, OHNE DIE DIE SPÄTE ANNAHME FUNKTIONSLOS WÄRE.
- *
- * Ein verspätetes Foto zählt nur, wenn die Keyholderin es annimmt. Die vorhandene „bitte
- * sichten"-Meldung des Minuten-Ticks erreicht sie dabei nie: sie hängt an `awaitingReview`, und ein
- * verspäteter Nachweis kommt dort nicht an (er zählt nicht → die Aufgabe ist `missed`). Ohne diesen
- * Weg erführe sie vom Foto erst zum Ende der Aufgabe, und dann als „versäumt".
- */
-describe("notifyLateProof — ein verspäteter Nachweis wartet auf ein Urteil", () => {
-  /** Fälligkeit 60 Minuten nach dem Nullpunkt (= 15:00), eingereicht um 16:00. */
-  const lateProof = (over: Record<string, unknown> = {}) =>
-    proofRow({ dueOffsetMin: 60, submittedAt: new Date("2026-07-25T16:00:00Z"), ...over });
-
-  it("meldet den Keyholdern, dass ein verspätetes Foto auf ihr Urteil wartet", async () => {
-    await notifyLateProof(lateProof(), "u1");
-    expect(notifyKh).toHaveBeenCalledWith("u1", [{ id: "kh1" }], expect.objectContaining({
-      messageKey: "taskProofLateMessageKeyholder",
-      params: { username: "sub", title: "Einkaufen" },
-    }));
-  });
-
-  /** Der Bezug ist die AUFGABE — dorthin führt der Weg zur Sichtung. */
-  it("die Posteingangs-Zeile zeigt auf die Aufgabe", async () => {
-    await notifyLateProof(lateProof(), "u1");
-    expect(notifyKh.mock.calls[0][2].inbox).toEqual({ ref: { type: "task", id: "t1" } });
-  });
-
-  /** Erst zustellen, dann stempeln — ein Fehlschlag darf die Meldung nicht als erledigt ausweisen. */
-  it("stempelt die Zeile NACH dem Versand", async () => {
-    await notifyLateProof(lateProof(), "u1");
-    expect(updateOne).toHaveBeenCalledWith({ where: { id: "p1" }, data: { lateNotifiedAt: NOW } });
-    expect(notifyKh.mock.invocationCallOrder[0]).toBeLessThan(updateOne.mock.invocationCallOrder[0]);
-  });
-
-  /**
-   * GENAU EINMAL JE NACHWEIS. Der Stempel trägt die Zusage, nicht der abgeleitete Zustand: der wird
-   * bei jedem Lesen neu gerechnet und darf rückwärts gehen.
-   */
-  it("ein zweiter Lauf schweigt", async () => {
-    await notifyLateProof(lateProof({ lateNotifiedAt: NOW }), "u1");
-    expect(notifyKh).not.toHaveBeenCalled();
-    expect(updateOne).not.toHaveBeenCalled();
-  });
-
-  /** Rechtzeitig eingereicht: darüber meldet der Minuten-Tick („bitte sichten"), nicht dieser Weg —
-   *  sonst bekäme die Keyholderin zu jedem Nachweis zwei Meldungen. */
-  it("ein rechtzeitiger Nachweis löst nichts aus", async () => {
-    await notifyLateProof(lateProof({ submittedAt: new Date("2026-07-25T14:30:00Z") }), "u1");
-    expect(notifyKh).not.toHaveBeenCalled();
-  });
-
-  /** Ohne eigene Fälligkeit ist die Frist das Ende der Aufgabe — und danach wird gar nichts mehr
-   *  angenommen. Ein solcher Nachweis kann hier nie verspätet sein. */
-  it("ohne eigene Fälligkeit gibt es keine Verspätung", async () => {
-    await notifyLateProof(lateProof({ dueOffsetMin: null }), "u1");
-    expect(notifyKh).not.toHaveBeenCalled();
-  });
-
-  /** Der Nachweis IST eingereicht — eine gescheiterte Meldung darf das nicht mitreissen. */
-  it("wirft nie", async () => {
-    notifyKh.mockRejectedValueOnce(new Error("SMTP weg"));
-    await expect(notifyLateProof(lateProof(), "u1")).resolves.toBeUndefined();
-    expect(updateOne).not.toHaveBeenCalled();
-  });
-});
-
-/**
- * Die Verdrahtung — das eine, was die Fälle oben nicht zeigen können: dass `submitTaskProof` die
- * Meldung überhaupt anstösst. Ob sie im Einzelfall feuert, ist dort geprüft.
+ * Die Verdrahtung — das eine, was `taskProofNotify.test.ts` nicht zeigen kann: dass
+ * `submitTaskProof` die Meldung überhaupt anstösst. Ob sie im Einzelfall feuert, ist dort geprüft.
  *
  * `vi.waitFor`, weil der Aufruf bewusst NICHT awaited wird (SMTP gehört nicht in den Upload des
  * Trägers). Der Test wartet damit auf dieselbe Weise wie die Wirklichkeit: die Antwort ist da,
