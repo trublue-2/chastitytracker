@@ -141,11 +141,33 @@ export interface TaskEvaluation {
    *  niemand mehr erfährt. */
   proofCheckPending: boolean;
   /**
-   * Nachweise mit EIGENER Fälligkeit, deren Frist verstrichen ist, ohne dass etwas eingereicht wurde.
+   * Nimmt die Aufgabe JETZT überhaupt noch ein Nachweis-Foto an? — DIE Schranke der Einreichung,
+   * gelesen von der Karte UND vom Dienst (`proofSubmitBlockedReason`).
+   *
+   * Seit die eigene Frist eines Nachweises WEICH ist (Produkt-Entscheidung 16.08.2026 — verspätet
+   * einreichen ist erlaubt, die Keyholderin entscheidet), ist das Ende der Aufgabe die einzige harte
+   * Grenze geblieben. Solange sie offen ist, trägt auch eine überfällige Zeile ihren Aufnahme-Weg;
+   * danach nicht mehr, und dann mit erkennbarem Grund statt eines stumm fehlenden Links.
+   *
+   * NUR Zeit und Rückzug, ausdrücklich NICHT der Zustand der Aufgabe. Eine versäumte Aufgabe nimmt
+   * weiter an — das ist der ganze Punkt, denn erst die Annahme des verspäteten Fotos hebt das
+   * Versäumnis auf. Auch eine abgebrochene nimmt an: dass ein Foto sie nicht mehr rettet, ist ein
+   * Urteil über den WERT der Einreichung, und das fällt die Keyholderin, nicht die Maschine. Die
+   * Beschriftung verspricht deshalb nirgends die Rettung der Aufgabe, sondern nur, dass der Nachweis
+   * noch zählen KANN.
+   *
+   * Gemessen gegen das WIRKSAME Ende ({@link holdUntil}) und deshalb HIER: im Dauer-Modus kennt nur
+   * die Auswertung es, und sie ist ohnehin die einzige Schicht, die „jetzt" kennt (dieselbe
+   * Begründung wie bei {@link overdueProofIds} darunter).
+   */
+  proofSubmitOpen: boolean;
+  /**
+   * Nachweise mit EIGENER Fälligkeit, deren Frist verstrichen ist, ohne dass rechtzeitig etwas
+   * eingereicht (oder das Verspätete angenommen) wurde.
    *
    * Der Beleg zum Urteil, wie {@link failedRequirement} auf der Bedingungs-Achse: ohne ihn zeigte die
-   * Zeile weiter „offen" (mitsamt Aufnahme-Link), während die Aufgabe darüber „versäumt" meldet — und
-   * der Träger liefe in ein Formular, dessen Absenden der Dienst ohnehin abweist.
+   * Zeile weiter „offen", während die Aufgabe darüber „versäumt" meldet — ein grünes Häkchen über
+   * einem Vorwurf, ohne dass irgendwo stünde, woran es lag.
    *
    * HIER und nicht in der Anzeige, obwohl sich beides aus Frist und Uhr herleiten liesse: die
    * Auswertung ist die einzige Schicht, die „jetzt" kennt. Die Karten-Sicht (`toTaskCard`) und das
@@ -451,6 +473,12 @@ export function ownProofDeadline(
  * (das zeitlose Foto in {@link evaluateProofs}, der durchgefallene Code-Check). Passt ihr die
  * Verspätung nicht, lehnt sie ab — dann bleibt es beim Versäumnis wie bisher.
  *
+ * Seit dem 16.08.2026 ist das der REGELFALL und nicht mehr die Ausnahme: der Träger darf nach der
+ * Frist eines Nachweises tatsächlich noch hochladen, bis die Aufgabe endet
+ * (`proofSubmitBlockedReason`). Vorher konnte ein verspätetes Foto nur entstehen, wenn die Frist
+ * NACH der Einreichung nach vorn rückte. An der Regel hier ändert das nichts — sie war von Anfang an
+ * für beide Wege geschrieben.
+ *
  * Der Ausdruck deckt BEIDE Fristen dieser Achse, weil {@link proofDeadline} beide auflöst: die
  * EIGENE Fälligkeit eines Nachweises (B12) und — wo er keine hat — das Ende der Aufgabe. Es gibt
  * hier also keinen zweiten Zweig für den zweiten Fristen-Typ, und damit auch keinen, der beim
@@ -717,6 +745,10 @@ export function evaluateTask(
     proofCheckPending: proofs.some(
       (p) => p.requireCode && p.submittedAt !== null && p.verifikationStatus === null && p.verifikationReason === null,
     ),
+    // Gegen die SPALTE, wie `holdUntil` daneben und aus demselben Grund: ohne Beginn IST sie das
+    // wirksame Ende. Der Zweig mit Beginn ersetzt beide zusammen (siehe `started`). Rein zeitlich —
+    // den Rückzug trägt der Zweig, der ihn feststellt, wie jedes andere Urteil auch.
+    proofSubmitOpen: now <= task.holdUntil,
     // LEER wie `missing`, `failedRequirement` und `failedAt` daneben: `base` ist der NEUTRALE
     // Träger, und jedes dieser Felder ist ein Beleg, den nur ein vorwerfender Zweig setzen darf.
     // Vorbelegt trug `base` den Vorwurf in jeden Zweig, der ihn nicht ausdrücklich löschte — und
@@ -727,8 +759,9 @@ export function evaluateTask(
   };
 
   // Zurückgezogen schlägt alles: weder offen noch Vergehen, egal was die Einträge sagen — und damit
-  // auch kein Beleg für eines (`base` trägt keinen).
-  if (task.withdrawnAt) return { ...base, state: "withdrawn" };
+  // auch kein Beleg für eines (`base` trägt keinen). Und nichts mehr einzureichen: eine
+  // zurückgenommene Aufgabe fordert nichts, der Dienst weist sie mit `TASK_NOT_EDITABLE` ab.
+  if (task.withdrawnAt) return { ...base, state: "withdrawn", proofSubmitOpen: false };
 
   // Aufgabe ohne Bedingungen: allein die Selbstmeldung entscheidet — aber sie muss RECHTZEITIG sein.
   // Ohne den Zeitvergleich heilte eine Meldung von heute eine gestern verpasste Frist rückwirkend und
@@ -846,7 +879,13 @@ export function evaluateTask(
    * still die Vorbelegung aus `base` — gegen die SPALTE gerechnet statt gegen das wirksame Ende.
    * Kein Typfehler, nur eine falsche Anzeige.
    */
-  const started = { ...base, holdUntil, startedAt, overdueProofIds: overdue.map((p) => p.id) };
+  const started = {
+    ...base, holdUntil, startedAt, overdueProofIds: overdue.map((p) => p.id),
+    // Mit dem Beginn steht im Dauer-Modus auch das wirksame Ende fest — und nur gegen dieses darf
+    // die Einreiche-Schranke gemessen werden. Gegen die Spalte nähme die Karte noch bis zur vollen
+    // Kulanzfrist Fotos für eine Aufgabe an, die längst durch ist.
+    proofSubmitOpen: now <= holdUntil,
+  };
 
   // Es lief. Hat es bis zum Ende (bzw. bis jetzt) durchgehalten?
   if (!coversContinuously(combined, startedAt, until)) {

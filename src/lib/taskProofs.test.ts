@@ -601,10 +601,11 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
  * Fälligkeit oder die des Aufgaben-Endes. Beide laufen über `proofDeadline` in denselben Ausdruck —
  * die Tabelle hält fest, dass keine der beiden einen Sonderzweig hat, der beim nächsten Umbau wegfällt.
  *
- * WOHER ein verspäteter Nachweis kommt, ist eine andere Frage und hier nicht mitgeprüft:
- * `proofSubmitBlockedReason` weist eine späte Einreichung weiterhin ab, es bleiben also die Fälle, in
- * denen die Frist NACH der Einreichung nach vorn rückt (verkürzt per `edit_task`, oder das wirksame
- * Ende im Dauer-Modus). Die Auswertung hier gilt für jeden dieser Wege gleich.
+ * WOHER ein verspäteter Nachweis kommt, ist eine andere Frage und hier nicht mitgeprüft: seit dem
+ * 16.08.2026 darf der Träger nach der Frist selbst noch hochladen (bis zum Ende der Aufgabe, siehe
+ * `proofSubmitBlockedReason`), dazu kommen wie bisher die Fälle, in denen die Frist NACH der
+ * Einreichung nach vorn rückt (verkürzt per `edit_task`, oder das wirksame Ende im Dauer-Modus).
+ * Die Auswertung hier gilt für jeden dieser Wege gleich.
  */
 describe("späte Annahme rettet die Aufgabe", () => {
   const AFTER = d("2026-07-25T19:00:00Z");

@@ -14,6 +14,7 @@ const EVAL: TaskEvaluation = {
   awaitingConfirmation: false,
   holdRunning: false,
   proofCheckPending: false,
+  proofSubmitOpen: true,
   overdueProofIds: [],
 };
 
@@ -204,8 +205,7 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
 
   /**
    * B12 — ein Nachweis mit EIGENER Fälligkeit trägt sie als Zeitpunkt an der Zeile, und ist sie
-   * verstrichen, ist die Zeile `overdue` statt `open`: kein Aufnahme-Link mehr (der Dienst nähme
-   * nichts mehr an) und kein „nächster Schritt", der in ein Formular führte, das sofort umleitet.
+   * verstrichen, ist die Zeile `overdue` statt `open`.
    */
   it("die eigene Fälligkeit steht als Zeitpunkt an der Zeile", () => {
     // Nullpunkt 12:00, Fälligkeit „nach 60 Minuten" = 13:00.
@@ -216,9 +216,30 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
     expect(toTaskCard(evaluated([], { state: "pending" }), true, [proof()]).proofs[0].dueAt).toBeNull();
   });
 
-  it("eine verstrichene eigene Fälligkeit nimmt der Zeile den Aufnahme-Link", () => {
+  /**
+   * VERSPÄTET NACHREICHEN IST ERLAUBT (Produkt-Entscheidung 16.08.2026): die verstrichene eigene
+   * Fälligkeit macht die Zeile `overdue` — den Aufnahme-Weg nimmt sie ihr aber nicht mehr, solange
+   * die Aufgabe noch etwas annimmt. Genau diese Zeile ist die, deren Annahme die Aufgabe rettet;
+   * ihr den Weg zu nehmen hiesse, das Urteil der Keyholderin vorwegzunehmen.
+   *
+   * Dass die Aufgabe dabei `missed` ist, gehört zum Fall: sie IST es, solange die Frist unbeurteilt
+   * verstrichen ist.
+   */
+  it("eine verstrichene eigene Fälligkeit behält den Aufnahme-Link — verspätet", () => {
     const card = toTaskCard(
       evaluated([], { state: "missed", overdueProofIds: ["p1"] }),
+      true,
+      [proof({ dueOffsetMin: 60 })],
+    );
+    expect(card.proofs[0].state).toBe("overdue");
+    expect(card.proofs[0].href).toBe("/dashboard/new/task-proof/p1");
+  });
+
+  /** Nach dem ENDE der Aufgabe ist Schluss — dieselbe Grenze, die der Dienst zieht
+   *  (`proofSubmitBlockedReason`). Eine Zeile, die dann noch führte, endete in einer Umleitung. */
+  it("nach dem Ende der Aufgabe ist auch der verspätete Weg zu", () => {
+    const card = toTaskCard(
+      evaluated([], { state: "missed", overdueProofIds: ["p1"], proofSubmitOpen: false }),
       true,
       [proof({ dueOffsetMin: 60 })],
     );
@@ -226,16 +247,76 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
     expect(card.proofs[0].href).toBeNull();
   });
 
-  /** Steht das Ergebnis der AUFGABE fest, ändert kein weiteres Foto mehr etwas. Ohne diese Bedingung
-   *  schickte die Karte den Träger für die übrigen Nachweise weiter zum Fotografieren — für ein
-   *  Urteil, das schon gefallen ist. */
-  it("eine entschiedene Aufgabe nimmt auch den übrigen Nachweisen den Aufnahme-Link", () => {
-    const offen = toTaskCard(evaluated([], { state: "pending" }), true, [proof()]);
-    expect(offen.proofs[0].href).toBe("/dashboard/new/task-proof/p1");
-    for (const state of ["missed", "aborted", "done", "withdrawn", "awaitingReview"] as const) {
+  /** Ein VERSPÄTET eingereichtes Foto wartet auf ein Urteil, nicht auf ein zweites Foto: die Zeile
+   *  bleibt `overdue` (es zählt erst mit der Annahme), führt aber nirgendwohin. */
+  it("ein bereits eingereichter verspäteter Nachweis führt nirgendwohin", () => {
+    const card = toTaskCard(
+      evaluated([], { state: "missed", overdueProofIds: ["p1"] }),
+      true,
+      [proof({ dueOffsetMin: 60, submittedAt: new Date("2026-07-25T14:00:00Z") })],
+    );
+    expect(card.proofs[0].state).toBe("overdue");
+    expect(card.proofs[0].href).toBeNull();
+  });
+
+  /**
+   * DER SATZ ZUM WEG. Er wird neben dem Link entschieden und nicht in der Komponente aus dessen
+   * FEHLEN zurückgeschlossen — sonst behauptete die Karte „die Aufgabe ist beendet", sobald der Link
+   * aus irgendeinem anderen Grund wegfällt.
+   */
+  describe("lateNote — der Verspätungs-Satz", () => {
+    const overdue = (evaluation: Parameters<typeof evaluated>[1], over = {}) =>
+      toTaskCard(evaluated([], { state: "missed", overdueProofIds: ["p1"], ...evaluation }), true,
+        [proof({ dueOffsetMin: 60, ...over })]).proofs[0].lateNote;
+
+    it("nachreichbar → der Hinweis auf das Urteil", () => {
+      expect(overdue({})).toBe("proofLateHint");
+    });
+
+    /** Das Foto LIEGT VOR — dass die Aufgabe inzwischen zu Ende ist, ändert daran nichts: sie kann
+     *  es weiterhin annehmen. „Nicht mehr nachreichbar" wäre hier eine Absage für etwas, das er
+     *  längst getan hat. */
+    it("verspätet eingereicht → derselbe Hinweis, auch nach dem Ende der Aufgabe", () => {
+      const submitted = { submittedAt: new Date("2026-07-25T14:00:00Z") };
+      expect(overdue({}, submitted)).toBe("proofLateHint");
+      expect(overdue({ proofSubmitOpen: false }, submitted)).toBe("proofLateHint");
+    });
+
+    it("nach dem Ende und nichts abgegeben → der Grund, warum kein Weg mehr da ist", () => {
+      expect(overdue({ proofSubmitOpen: false })).toBe("proofLateClosed");
+    });
+
+    it("eine Zeile, deren Frist läuft, trägt keinen", () => {
+      expect(toTaskCard(evaluated([], { state: "pending" }), true, [proof()]).proofs[0].lateNote).toBeNull();
+    });
+
+    /** Die Keyholderin bekommt ihn nicht: „du kannst nichts mehr nachreichen" ist an sie gerichtet
+     *  falsch, und die Verspätung steht in ihrer Sichtungs-Zeile. */
+    it("in der Keyholder-Sicht trägt keine Zeile einen", () => {
+      const card = toTaskCard(evaluated([], { state: "missed", overdueProofIds: ["p1"] }), false,
+        [proof({ dueOffsetMin: 60 })]);
+      expect(card.proofs[0].lateNote).toBeNull();
+    });
+  });
+
+  /**
+   * DER AUFNAHME-WEG HÄNGT AN DER ZEIT, NICHT AM ZUSTAND (Produkt-Entscheidung 16.08.2026) — genau
+   * wie die Schranke des Dienstes, die er spiegelt.
+   *
+   * Bis dahin nahm ein entschiedener Zustand allen Zeilen den Link, mit der Begründung: es ändert
+   * ohnehin nichts mehr. Mit der späten Annahme stimmt das nicht mehr — eine wegen eines Nachweises
+   * versäumte Aufgabe hängt gerade an diesen Zeilen. Die Zustandsprüfung hätte den Weg ausgerechnet
+   * dort gesperrt, wo er gebraucht wird.
+   */
+  it("der Zustand der Aufgabe sperrt den Aufnahme-Weg nicht — die Zeit tut es", () => {
+    for (const state of ["pending", "missed", "aborted", "awaitingReview"] as const) {
       const card = toTaskCard(evaluated([], { state }), true, [proof()]);
-      expect(card.proofs[0].href, state).toBeNull();
+      expect(card.proofs[0].href, state).toBe("/dashboard/new/task-proof/p1");
     }
+    // Zurückgezogen und nach dem Ende: dieselbe Absage wie im Dienst (`TASK_NOT_EDITABLE` bzw.
+    // `TASK_PROOF_TOO_LATE`) — beide Fälle liefert die Auswertung als `proofSubmitOpen: false`.
+    const zu = toTaskCard(evaluated([], { state: "missed", proofSubmitOpen: false }), true, [proof()]);
+    expect(zu.proofs[0].href).toBeNull();
   });
 
   /** Über ein Foto, das es nicht gibt, lässt sich nicht urteilen: `overdue` gehört zu `open`, nicht

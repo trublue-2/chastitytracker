@@ -212,9 +212,11 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
   beide Seiten, ohne auf den nächsten Tick zu warten. Ein Urteil lässt sich korrigieren. Nimmst du
   ein Foto OHNE Aufnahmezeit an, urteilst du damit an Stelle der Maschine über seine Reihenfolge;
   die übrigen Aufnahmezeiten werden weiterhin geprüft.
-- **Deine Annahme rettet auch ein VERSPÄTETES Foto.** Liegt ein Nachweis vor, der nach seiner Frist
-  eingereicht wurde (das kommt vor, wenn du die Frist nachträglich verkürzt hast oder das wirksame
-  Ende im Dauer-Modus früher lag als die gespeicherte Schranke), zählt er nach deiner Annahme doch:
+- **Deine Annahme rettet auch ein VERSPÄTETES Foto.** Die Frist eines einzelnen Nachweises ist für
+  den Sub WEICH: er darf nach ihr noch hochladen, solange die Aufgabe läuft — das Ende der Aufgabe
+  ist die harte Grenze, danach nimmt die App nichts mehr an. Ein solches Foto landet bei dir wie
+  jedes andere in der Sichtung, und die Aufgabe gilt bis zu deinem Urteil als versäumt. Nimmst du
+  es an, zählt es doch:
   die Aufgabe ist erfüllt statt versäumt, und ein noch unbeurteiltes `unfulfilled_task` verschwindet
   dabei. Hattest du es schon BEURTEILT, bleibt dein Urteil stehen — nimm es mit
   `judge_offense action:"reopen"` zurück, wenn die Strafe entfallen soll. Passt dir die Verspätung

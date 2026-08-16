@@ -333,6 +333,25 @@ export async function getEvaluatedTaskHistory(
   return evaluateTasks(userId, merged, now, opts);
 }
 
+/**
+ * EINE Aufgabe, geladen und ausgewertet — für die Pfade, die eine bestimmte Aufgabe in der Hand
+ * haben und ihren abgeleiteten Zustand brauchen (Sichtung, Einreiche-Schranke).
+ *
+ * `userId` gehört in die Abfrage und nicht nur in die Auswertung: die Aufrufer haben den Besitz
+ * zwar schon geprüft, aber ein Filter, der die Zeile gar nicht erst holt, kann nicht vergessen
+ * werden. Fremd oder gelöscht ⇒ `null`, kein Wurf — beide Aufrufer haben dafür eine sinnvolle
+ * Antwort und keiner will einen Absturz.
+ *
+ * Hier und nicht je Aufrufer: `TASK_INCLUDE`, der `[0]`-Griff und der Leerfall standen sonst zweimal
+ * wortgleich in `taskProofService.ts`, und `taskIntervals.ts` wäre nicht mehr die einzige Tür zu
+ * `evaluateTasks`.
+ */
+export async function evaluateTaskById(userId: string, taskId: string, now: Date): Promise<EvaluatedTask | null> {
+  const rows = await prisma.task.findMany({ where: { id: taskId, userId }, include: TASK_INCLUDE });
+  const [evaluated] = await evaluateTasks(userId, rows, now);
+  return evaluated ?? null;
+}
+
 /** Laden + auswerten in einem — die Kette `getDashboardTasks` → `evaluateTasks` stand sonst an vier
  *  Stellen wortgleich, jede mit eigenem Filter und eigenem (oder fehlendem) Label. */
 export async function getEvaluatedTasks(

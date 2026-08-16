@@ -33,6 +33,7 @@ export default function TaskProofFormCore({
   taskTitle,
   orderMatters,
   dueAt,
+  late,
   tz,
   mobileDesktopMode,
 }: {
@@ -49,6 +50,16 @@ export default function TaskProofFormCore({
    * Verstreichen ein Versäumnis erzeugt, ist genau die Sorte, die es nicht geben darf.
    */
   dueAt: string | null;
+  /**
+   * Die eigene Fälligkeit dieses Nachweises ist bereits verstrichen — eingereicht werden darf
+   * trotzdem, bis die Aufgabe endet, aber nur die Keyholderin entscheidet, ob es noch zählt.
+   *
+   * Als PROP und nicht aus `dueAt` gegen eine Uhr im Browser erschlossen: die Seite hat den
+   * Zeitpunkt bereits gegen die Server-Uhr geprüft, um überhaupt hierher zu leiten. Ein zweiter
+   * Vergleich im Client gäbe zwei Antworten auf dieselbe Frage — und beim Hydrieren womöglich zwei
+   * verschiedene.
+   */
+  late: boolean;
   /** Zeitzone des Trägers — Fristen sind absolute Zeitpunkte, angezeigt wird in SEINER Zone. */
   tz: string;
   /** Fordert die Aufgabe eine Reihenfolge der Aufnahmen (`Task.proofOrderMatters`)? Nur dann zählt
@@ -105,15 +116,18 @@ export default function TaskProofFormCore({
             <span className="font-mono tracking-widest text-[var(--color-inspect)] font-semibold">{code}</span>
           </p>
         )}
-        {/* Ruhig und nicht in Warnfarbe: hierher kommt der Träger nur, SOLANGE die Frist läuft — ist
-            sie um, leitet die Seite ihn gar nicht erst auf dieses Formular (siehe
-            `proofSubmitBlockedReason`). Die Warnfarbe trägt die Karte, wenn die Frist verstrichen
-            ist; hier wäre sie ein Alarm für den Normalfall. */}
+        {/* Im Normalfall ruhig und nicht in Warnfarbe — die Frist läuft ja noch, und ein Alarm für
+            den Regelfall stumpft ab. Ist sie VERSTRICHEN, kommt der Träger seit dem 16.08.2026
+            trotzdem hierher (verspätet einreichen ist erlaubt), und dann ist die Warnfarbe die
+            ehrliche: die Zeile ist keine Ankündigung mehr, sondern der Grund für den Satz darunter. */}
         {dueAt && (
-          <p className="text-xs font-medium text-foreground-muted mt-2 tabular-nums">
+          <p className={`text-xs font-medium mt-2 tabular-nums ${late ? "text-warn-text" : "text-foreground-muted"}`}>
             {t("proofDueLine", { value: formatDateTime(dueAt, toDateLocale(locale), tz) })}
           </p>
         )}
+        {/* Vor dem Auslöser und nicht erst danach: er soll wissen, worauf er sich einlässt, BEVOR er
+            fotografiert — sein Nachweis hängt jetzt an einem Urteil, nicht mehr an der Uhr. */}
+        {late && <p className="text-xs font-medium text-warn-text mt-1">{t("proofLateHint")}</p>}
         <p className="text-xs text-foreground-faint mt-2">
           {orderMatters
             ? t(code ? "proofCaptureHintCode" : "proofCaptureHint")

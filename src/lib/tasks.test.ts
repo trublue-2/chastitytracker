@@ -525,6 +525,50 @@ describe("evaluateTask — Dauer-Modus (Haltezeit ab dem Anlegen)", () => {
     const r = evaluateTask(dauerTask(), [HALSBAND], [worn], d("2026-07-25T13:00:00Z"));
     expect(r.holdUntil.getTime()).toBeLessThanOrEqual(dauerTask().holdUntil.getTime());
   });
+
+  /**
+   * NIMMT DIE AUFGABE NOCH EIN FOTO AN? — die Anzeige-Seite der Einreiche-Schranke.
+   *
+   * Seit die eigene Frist eines Nachweises weich ist (verspätet nachreichen ist erlaubt, die
+   * Keyholderin entscheidet), ist das Ende der Aufgabe die einzige harte Grenze. Sie muss hier
+   * dieselbe sein wie im Dienst — sonst zeigt die Karte einen Aufnahme-Weg, den das Formular gleich
+   * wieder verwehrt.
+   */
+  describe("proofSubmitOpen", () => {
+    it("Dauer-Modus: die Grenze ist das WIRKSAME Ende, nicht die Spalte", () => {
+      // Angelegt 12:00, 30 Minuten Dauer → wirksames Ende 12:30, während die Spalte 12:45 sagt.
+      const worn = [iv("2026-07-25T12:00:00Z", "2026-07-25T12:30:00Z")];
+      const offen = evaluateTask(dauerTask(), [HALSBAND], [worn], d("2026-07-25T12:29:00Z"));
+      expect(offen.proofSubmitOpen).toBe(true);
+
+      // 12:40 liegt VOR der Spalte und trotzdem nach der Aufgabe: gegen `holdUntil` gemessen nähme
+      // die Karte hier noch Fotos für etwas an, das seit zehn Minuten durch ist.
+      const zu = evaluateTask(dauerTask(), [HALSBAND], [worn], d("2026-07-25T12:40:00Z"));
+      expect(zu.holdUntil).toEqual(d("2026-07-25T12:30:00Z"));
+      expect(zu.proofSubmitOpen).toBe(false);
+    });
+
+    it("ohne Beginn gilt die Spalte — sie IST dann das wirksame Ende", () => {
+      const r = evaluateTask(dauerTask(), [HALSBAND], [[]], d("2026-07-25T12:44:00Z"));
+      expect(r.startedAt).toBeNull();
+      expect(r.proofSubmitOpen).toBe(true);
+      expect(evaluateTask(dauerTask(), [HALSBAND], [[]], d("2026-07-25T12:46:00Z")).proofSubmitOpen).toBe(false);
+    });
+
+    it("klassischer Modus: das feste Ende, einschliesslich", () => {
+      const klassisch = task({ holdUntil: d("2026-07-25T12:30:00Z") });
+      expect(evaluateTask(klassisch, [], [], d("2026-07-25T12:30:00Z")).proofSubmitOpen).toBe(true);
+      expect(evaluateTask(klassisch, [], [], d("2026-07-25T12:30:01Z")).proofSubmitOpen).toBe(false);
+    });
+
+    /** Der Rückzug wiegt schwerer als jede Frist — dieselbe Rangfolge wie im Dienst
+     *  (`TASK_NOT_EDITABLE` vor `TASK_PROOF_TOO_LATE`). */
+    it("eine zurückgezogene Aufgabe nimmt nichts mehr an", () => {
+      const r = evaluateTask(task({ withdrawnAt: d("2026-07-25T12:10:00Z") }), [], [], d("2026-07-25T12:15:00Z"));
+      expect(r.state).toBe("withdrawn");
+      expect(r.proofSubmitOpen).toBe(false);
+    });
+  });
 });
 
 /**

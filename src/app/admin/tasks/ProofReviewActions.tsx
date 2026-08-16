@@ -80,6 +80,16 @@ function ReviewVerdict({ proof, tz, awaitingReview }: { proof: TaskCardProof; tz
       {/* Zuerst der Grund zum Zögern: die gebrochene Reihenfolge ist der Grund, aus dem die Aufgabe
           scheitert — sie steht vor jedem Urteil, das sie nicht heilt. */}
       {proof.state === "outOfOrder" && <Badge variant="warn" size="sm" label={t("proofOutOfOrder")} />}
+      {/* VERSPÄTET eingereicht — hier gefiltert auf Eingereichtes, also nie „nichts gekommen".
+          Ohne dieses Abzeichen stand über einem solchen Foto dasselbe neutrale „Wartet auf dein
+          Urteil" wie über jedem anderen, und nichts sagte, dass es fürs Urteil derzeit gar nicht
+          zählt und erst ihre Annahme das ändert (`proofCounted`). Seit der Träger verspätet
+          einreichen DARF, ist das der Regelfall und nicht mehr die Ausnahme.
+
+          Die Beschriftung verspricht bewusst nur, dass der NACHWEIS zählt — nicht, dass die Aufgabe
+          gerettet ist: hängt sie zusätzlich an einer abgelegten Bedingung, bleibt sie abgebrochen,
+          und ein Abzeichen mit „rettet die Aufgabe" wäre dort eine Zusage, die niemand einlöst. */}
+      {proof.state === "overdue" && <Badge variant="warn" size="sm" label={t("proofLateSubmitted")} />}
       {proof.review ? (
         <Badge
           variant={proof.review.accepted ? "ok" : "warn"}

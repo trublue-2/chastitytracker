@@ -172,6 +172,16 @@ export default function TaskCard({
                       {t("proofCodeLabel")}: {p.code}
                     </span>
                   )}
+                  {/* VERSPÄTET — und was das bedeutet. Der Träger darf nachreichen, solange die
+                      Aufgabe läuft, aber ob es dann noch zählt, entscheidet allein die
+                      Keyholderin (`proofCounted`). Das muss er lesen, BEVOR er fotografiert: sonst
+                      nimmt er den Knopf für „geht schon noch" und hält sein Versäumnis für geheilt.
+                      Ist die Aufgabe vorbei, steht hier der GRUND, warum es keinen Knopf mehr gibt —
+                      ein stumm fehlender Link liesse ihn suchen. Welcher Satz, entscheidet
+                      `proofLateNote` neben dem Link, nicht diese Komponente. */}
+                  {p.lateNote && (
+                    <span className="text-xs font-medium text-warn-text">{t(p.lateNote)}</span>
+                  )}
                   {p.reviewNote && (
                     <span className="text-xs text-foreground-faint italic break-words">{p.reviewNote}</span>
                   )}
@@ -185,7 +195,15 @@ export default function TaskCard({
                   )}
                 </span>
                 <span className="sr-only">{t(`proofState_${p.state}`)}</span>
-                {p.href && <RowAction icon={<Camera size={14} />} label={t("proofCapture")} />}
+                {/* Das Handlungswort sagt, WORAUF man sich einlässt: „Foto aufnehmen" wäre für eine
+                    überfällige Zeile dieselbe Einladung wie für eine fristgerechte, obwohl sie
+                    zwei verschiedene Dinge bedeuten. */}
+                {p.href && (
+                  <RowAction
+                    icon={<Camera size={14} />}
+                    label={t(p.state === "overdue" ? "proofCaptureLate" : "proofCapture")}
+                  />
+                )}
               </ChecklistRow>
             ))}
           </ChecklistBox>

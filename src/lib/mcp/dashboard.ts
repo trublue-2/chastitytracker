@@ -396,7 +396,9 @@ export interface OpenTaskProofView {
    *  Eine VERSTRICHENE Nachweis-Frist steht hier nicht: mit ihr ist die Aufgabe versäumt und fällt
    *  aus `openTasks` — du findest sie in `get_offenses` als `unfulfilled_task` und kannst ein spät
    *  eingereichtes Foto von dort aus immer noch annehmen (`review_task_proof`, `refId` IST die
-   *  `taskId`). Nimmst du es an, kehrt die Aufgabe hierher zurück, der Nachweis als `confirmed`. */
+   *  `taskId`). Nimmst du es an, kehrt die Aufgabe hierher zurück, der Nachweis als `confirmed`.
+   *  Der Sub DARF nach der Frist noch hochladen (bis zum Ende der Aufgabe) — rechne also damit,
+   *  dass zu einer versäumten Aufgabe ein Foto nachkommt, das auf dein Urteil wartet. */
   state: string;
   /** EIGENE Fälligkeit dieses Nachweises (ISO-8601 mit Offset) — null, wo er bis zum Ende der
    *  Aufgabe offen ist.

@@ -4,8 +4,8 @@ import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/ve
 import { structuredLog } from "@/lib/serverLog";
 import { notifyUser } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
-import { isTaskResultFinal, proofDeadline } from "@/lib/tasks";
+import { evaluateTaskById } from "@/lib/taskIntervals";
+import { isTaskResultFinal } from "@/lib/tasks";
 import { settleTaskResult } from "@/lib/taskService";
 import type { MessageActor } from "@/lib/messageService";
 
@@ -80,16 +80,19 @@ export async function submitTaskProof(
     // Besitz über die Aufgabe — ein Nachweis gehört niemandem für sich. `userId` ist Pflicht, nicht
     // optional: ein vergessener Besitz-Check wäre ein IDOR, den kein Typfehler auffängt.
     where: { id: proofId, task: { userId } },
-    // `createdAt`/`wirksamAb` gehören zur Schranke: die eigene Fälligkeit eines Nachweises zählt ab
-    // dem Nullpunkt der Aufgabe, nicht ab ihrem Ende.
-    include: { task: { select: { id: true, withdrawnAt: true, holdUntil: true, createdAt: true, wirksamAb: true } } },
+    // `holdDurationMin` gehört zur Schranke: es entscheidet, ob `holdUntil` das Ende IST oder nur
+    // dessen obere Grenze (siehe {@link taskAcceptsProof}).
+    include: { task: { select: { id: true, withdrawnAt: true, holdUntil: true, holdDurationMin: true } } },
   });
   if (!proof) return serviceFail(404, "TASK_PROOF_NOT_FOUND");
 
-  const blocked = proofSubmitBlockedReason(proof, new Date());
+  // EIN „jetzt" für Schranke und Zeitstempel: im Dauer-Modus liegt zwischen beiden eine ganze
+  // Auswertung, und ein Nachweis, der die Frist gerade noch bestanden hat, soll nicht mit einem
+  // Zeitstempel dahinter gespeichert werden.
+  const now = new Date();
+  const blocked = await proofSubmitBlocked(proof, userId, now);
   if (blocked) return serviceFail(400, blocked);
 
-  const now = new Date();
   // Zustand in der Where-Klausel: reicht der Sub parallel zweimal ein (Doppel-Tap, Offline-Replay),
   // trifft der zweite Aufruf null Zeilen statt den ersten zu überschreiben.
   const res = await prisma.taskProof.updateMany({
@@ -105,38 +108,86 @@ export async function submitTaskProof(
   return { ok: true, data: { taskId: proof.task.id } };
 }
 
-/** Was einer Einreichung im Weg steht — oder `null`, wenn sie zulässig ist.
+/**
+ * Nimmt die Aufgabe noch ein Nachweis-Foto an? — dieselbe Frage, die die Auswertung als
+ * {@link TaskEvaluation.proofSubmitOpen} beantwortet, und bewusst DEREN Antwort.
  *
- *  Geteilt von der Formular-Seite (sie leitet aufs Dashboard um, statt ein Formular zu zeigen,
- *  dessen Absenden ohnehin scheitert) und dem Service (er hat das letzte Wort). Zwei unabhängig
- *  formulierte Bedingungsketten wären genau die Stelle, an der eine künftige fünfte Bedingung nur in
- *  einer der beiden landet. */
-export function proofSubmitBlockedReason(
+ * Nicht „das wirksame Ende holen und selbst vergleichen": das wären zwei Formulierungen einer
+ * Grenze, die Karte und Dienst gemeinsam ziehen müssen — bekäme sie je einen zweiten Term, zeigte
+ * die Karte einen Weg, den das Formular gleich wieder verwehrt. Der Vergleich steht deshalb genau
+ * einmal, in `evaluateTask`.
+ *
+ * Im KLASSISCHEN Modus wird dafür nichts geladen: dort IST die Spalte das Ende, und der Ausdruck ist
+ * derselbe Einzeiler wie in der Auswertung. Nur im DAUER-Modus steht in `holdUntil` bloss das
+ * spätestmögliche Ende (Kulanzfrist voll ausgereizt) — das wirkliche hängt am abgeleiteten Beginn,
+ * und den kennt allein die Intervall-Rechnung.
+ *
+ * Warum diese Genauigkeit zählt, seit die Nachweis-Frist weich ist: früher war die Aufgaben-Frist
+ * nur die äussere Klammer um die schärfere Nachweis-Frist, ein paar Minuten Ungenauigkeit fielen
+ * nicht auf. Jetzt ist sie die EINZIGE Grenze — gegen die Spalte gemessen nähme der Dienst im
+ * Dauer-Modus noch Fotos für eine Aufgabe an, die längst durch ist, und eine Annahme der
+ * Keyholderin machte daraus rückwirkend eine erfüllte.
+ *
+ * Fällt die Zeile zwischen den beiden Abfragen weg, gilt die Spalte: sie liegt nie VOR dem wirklichen
+ * Ende, also weist dieser Pfad im Zweifel nicht fälschlich ab.
+ *
+ * Den RÜCKZUG beantwortet sie nicht — {@link proofSubmitBlockedReason} prüft ihn davor und nennt ihn
+ * beim Namen, statt ihn als „zu spät" auszugeben.
+ */
+async function taskAcceptsProof(
+  userId: string,
+  task: { id: string; holdUntil: Date; holdDurationMin: number | null },
+  now: Date,
+): Promise<boolean> {
+  if (!task.holdDurationMin) return now <= task.holdUntil;
+  const evaluated = await evaluateTaskById(userId, task.id, now);
+  return evaluated ? evaluated.evaluation.proofSubmitOpen : now <= task.holdUntil;
+}
+
+/**
+ * Was einer Einreichung im Weg steht — oder `null`, wenn sie zulässig ist.
+ *
+ * Der EINE Aufruf für die Formular-Seite (sie leitet aufs Dashboard um, statt ein Formular zu
+ * zeigen, dessen Absenden ohnehin scheitert) und den Dienst (er hat das letzte Wort). Zwei unabhängig
+ * formulierte Bedingungsketten wären genau die Stelle, an der eine künftige vierte Bedingung nur in
+ * einer der beiden landet.
+ */
+export async function proofSubmitBlocked(
   proof: {
     submittedAt: Date | null;
-    dueOffsetMin: number | null;
-    task: { withdrawnAt: Date | null; holdUntil: Date; createdAt: Date; wirksamAb: Date | null };
+    task: { id: string; withdrawnAt: Date | null; holdUntil: Date; holdDurationMin: number | null };
   },
+  userId: string,
   now: Date,
+): Promise<ReturnType<typeof proofSubmitBlockedReason>> {
+  return proofSubmitBlockedReason(proof, await taskAcceptsProof(userId, proof.task, now));
+}
+
+/** Die Regel selbst — ohne Datenbank, damit sie für sich prüfbar bleibt. Die Rangfolge ist Teil der
+ *  Aussage: ein zurückgezogener oder längst eingereichter Nachweis bekommt SEINEN Grund genannt,
+ *  nicht den der Frist. */
+export function proofSubmitBlockedReason(
+  proof: { submittedAt: Date | null; task: { withdrawnAt: Date | null } },
+  /** Nimmt die Aufgabe überhaupt noch etwas an? ({@link taskAcceptsProof}) */
+  taskAccepts: boolean,
 ): "TASK_NOT_EDITABLE" | "TASK_PROOF_ALREADY_SUBMITTED" | "TASK_PROOF_TOO_LATE" | null {
-  // `task.holdUntil` ist hier die ZEILE, im Dauer-Modus also das spätestmögliche Ende. Das ist
-  // Absicht: die Schranke ist damit nie STRENGER als die Auswertung — sie weist nur ab, was auch
-  // `evaluateProofs` sicher nicht mehr zählt. Sie hier auf das wirksame Ende zu verschärfen hiesse,
-  // auf der Foto-Seite die gesamte Intervall-Rechnung des Subs zu laden, nur um eine Handvoll
-  // Minuten früher „zu spät" zu sagen — für einen Nachweis, den die Auswertung ohnehin beurteilt.
   if (proof.task.withdrawnAt) return "TASK_NOT_EDITABLE";
   // Einmal eingereicht ist eingereicht. Ohne diese Schranke liesse sich ein beanstandetes oder
   // zeitlich unpassendes Foto beliebig oft durch ein besseres ersetzen — die Reihenfolge-Prüfung
   // wäre damit wertlos, weil man sie nachträglich zurechtlegen könnte.
   if (proof.submittedAt) return "TASK_PROOF_ALREADY_SUBMITTED";
-  // Nach der Frist nehmen wir gar nicht erst an. `evaluateProofs` würde einen späten Nachweis ohnehin
-  // nicht zählen — ihn trotzdem zu speichern hiesse, dem Sub ein Erfolgserlebnis zu geben, das keins
-  // ist. Die klare Absage im Moment des Absendens ist ehrlicher.
+  // DIE EIGENE FRIST DES NACHWEISES STEHT HIER NICHT MEHR (Produkt-Entscheidung 16.08.2026).
   //
-  // Gemessen wird gegen die Frist DIESES Nachweises: hat er eine eigene, ist sie die frühere, und
-  // die Aufgaben-Frist wäre eine Einladung, etwas nachzureichen, das nicht mehr zählt. Ohne eigene
-  // Fälligkeit liefert `proofDeadline` unverändert `task.holdUntil`.
-  if (now > proofDeadline(proof, proof.task, proof.task.holdUntil)) return "TASK_PROOF_TOO_LATE";
+  // Sie tat es, mit der Begründung, eine klare Absage im Moment des Absendens sei ehrlicher als ein
+  // Erfolgserlebnis, das keins ist: `evaluateProofs` zählte einen späten Nachweis ohnehin nicht.
+  // Diese Begründung hat sich überholt, seit die späte ANNAHME die Aufgabe rettet — der späte Upload
+  // ist jetzt genau das, was er vorher nicht war: nicht folgenlos. Die Absage traf damit eine
+  // Entscheidung, die der Keyholderin gehört, und zwar so früh, dass sie das Foto nie zu sehen bekam.
+  // Der Träger bekommt den Weg zurück, ehrlich beschriftet (die Karte sagt „verspätet — dein
+  // Keyholder entscheidet"), und der Nachweis geht wie jeder andere in die Sichtung.
+  //
+  // Was bleibt, ist das ENDE der Aufgabe — und zwar das WIRKSAME, nicht die Spalte.
+  if (!taskAccepts) return "TASK_PROOF_TOO_LATE";
   return null;
 }
 
@@ -189,8 +240,7 @@ export async function reviewTaskProof(
  */
 async function notifyProofReviewed(taskId: string, userId: string, title: string, accepted: boolean, actor: MessageActor): Promise<void> {
   try {
-    const rows = await prisma.task.findMany({ where: { id: taskId }, include: TASK_INCLUDE });
-    const [evaluated] = await evaluateTasks(userId, rows, new Date());
+    const evaluated = await evaluateTaskById(userId, taskId, new Date());
     if (!evaluated) return;
 
     if (!isTaskResultFinal(evaluated.evaluation.state)) {

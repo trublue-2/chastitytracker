@@ -1750,6 +1750,15 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
       ? ` Own deadlines per proof (minutes from the trigger time):`
         + ` ${proofDueMinutes.map((m) => m ?? "none (until the task ends)").join(", ")}.`
         + ` Letting one pass unsubmitted makes the task unfulfilled right then, before the task's own end.`
+        // Die Frist ist weich, das Ende hart — das gehört an genau die Stelle, an der sie die Frist
+        // SETZT. Sonst plant sie mit einer Schärfe, die es nicht gibt, und wundert sich später über
+        // ein Foto zu einer längst versäumten Aufgabe.
+        //
+        // „makes it count again" und NICHT „fulfils the task": ob die Aufgabe damit erfüllt ist,
+        // hängt an ihren übrigen Achsen (Bedingung gehalten, Reihenfolge belegt). Eine Zusage, die
+        // nur die Nachweis-Achse einlösen kann, wäre an einer abgebrochenen Aufgabe falsch.
+        + ` He may still upload after that deadline until the task ends; the photo then waits for your`
+        + ` review, and accepting it makes that proof count again.`
       : "");
   // Der Strafteil zuerst: er ist das, was der Agent seinem Nutzer schuldet — die Aufgabe ist hier
   // nicht bloss gestellt, sondern ein Urteil über ein Vergehen.

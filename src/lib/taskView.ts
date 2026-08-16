@@ -1,5 +1,5 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/taskIntervals";
-import { firstOutOfOrderProof, isTaskOpen, ownProofDeadline, startDeadline, type TaskState } from "@/lib/tasks";
+import { firstOutOfOrderProof, isTaskOpen, ownProofDeadline, startDeadline, type TaskEvaluation, type TaskState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { wearActionHref } from "@/lib/categoryConstants";
 
@@ -42,8 +42,11 @@ export type TaskCardProofState =
   | "outOfOrder"
   /** EIGENE Fälligkeit verstrichen: nichts eingereicht — oder erst NACH ihr und (noch) nicht
    *  angenommen, was für das Urteil dasselbe ist. Aus demselben Grund ein eigener Zustand wie
-   *  `outOfOrder`: er ist der Beleg für das Urteil der Aufgabe, und er nimmt der Zeile den
-   *  Aufnahme-Link — sonst führte sie in ein Formular, das der Dienst ohnehin abweist.
+   *  `outOfOrder`: er ist der Beleg für das Urteil der Aufgabe.
+   *
+   *  Er nimmt der Zeile ihren Aufnahme-Link NICHT mehr (Produkt-Entscheidung 16.08.2026):
+   *  nachreichen ist erlaubt, solange die Aufgabe läuft — nur beschriftet die Karte den Weg dann
+   *  ehrlich als verspätet. Nach dem Ende der Aufgabe fällt er weg, mit erkennbarem Grund.
    *
    *  Nimmt die Keyholderin das späte Foto an, ist die Zeile `confirmed` und die Aufgabe erfüllt. */
   | "overdue";
@@ -74,8 +77,13 @@ export interface TaskCardProof {
    * das niemand liest, wäre bloss eine weitere Zusicherung, die auseinanderlaufen kann.
    */
   submitted: boolean;
-  /** Deep-Link ins Aufnahme-Formular. Null beim Keyholder und bei bereits eingereichten. */
+  /** Deep-Link ins Aufnahme-Formular. Null beim Keyholder, bei bereits eingereichten und überall
+   *  dort, wo nichts mehr anzunehmen ist ({@link proofCaptureHref}). */
   href: string | null;
+  /** Der i18n-Schlüssel des Verspätungs-Satzes an dieser Zeile — null, wo keiner hingehört
+   *  ({@link proofLateNote}). Als SCHLÜSSEL und nicht als Text: die Karte übersetzt, die Sicht
+   *  entscheidet. Dasselbe Muster wie {@link taskDeadlineLine} eine Ebene höher. */
+  lateNote: "proofLateHint" | "proofLateClosed" | null;
   /** Das eingereichte Foto. Ohne es kann die Keyholderin nicht urteilen — und der Sub sieht, was er
    *  abgegeben hat. Null, solange nichts eingereicht ist. */
   imageUrl: string | null;
@@ -288,6 +296,59 @@ export function proofIsSubmitted(proof: Pick<TaskCardProof, "submitted">): boole
   return proof.submitted;
 }
 
+/**
+ * Führt diese Nachweis-Zeile ins Aufnahme-Formular?
+ *
+ * EINE Regel, und es ist Wort für Wort die des Dienstes (`proofSubmitBlockedReason`): nichts
+ * Eingereichtes, und die Aufgabe nimmt noch an. Mehr steht dort auch nicht, seit die eigene Frist
+ * eines Nachweises weich ist — eine strengere Regel hier hiesse, eine Zeile stumm zu sperren, die
+ * das Formular annehmen würde.
+ *
+ * BIS ZUM 16.08.2026 stand hier `isTaskOpen(evaluation.state)`, mit der Begründung: steht das
+ * Ergebnis fest, ändert kein weiteres Foto mehr etwas. Diese Begründung ist mit der späten Annahme
+ * weggefallen — eine wegen eines Nachweises versäumte Aufgabe ist gerade NICHT endgültig, und ihre
+ * Zeilen sind die einzigen, über die sie noch zu retten ist. Die alte Regel hätte ausserdem sprunghaft
+ * gewirkt: von zwei offenen Nachweisen wäre der zweite erst wieder antippbar geworden, nachdem auch
+ * SEINE Frist verstrichen war.
+ *
+ * Dass ein Foto an einer abgebrochenen Aufgabe nichts mehr rettet, sperrt den Weg bewusst NICHT: das
+ * ist ein Urteil über den Wert der Einreichung, und das fällt die Keyholderin. Die Beschriftung
+ * verspricht deshalb nirgends die Rettung der Aufgabe — nur, dass der Nachweis noch zählen kann.
+ *
+ * Bereits EINGEREICHTE führen nie irgendwohin — auch nicht die verspäteten: sie warten auf ein
+ * Urteil, nicht auf ein zweites Foto (`TASK_PROOF_ALREADY_SUBMITTED`).
+ */
+function proofCaptureHref(
+  proof: Pick<TaskCardProof, "id" | "submitted">,
+  evaluation: Pick<TaskEvaluation, "proofSubmitOpen">,
+  /** Nur für den Sub: es sind seine Formulare. */
+  withLinks: boolean,
+): string | null {
+  if (!withLinks || proof.submitted || !evaluation.proofSubmitOpen) return null;
+  return `/dashboard/new/task-proof/${proof.id}`;
+}
+
+/**
+ * Der Satz unter einer ÜBERFÄLLIGEN Zeile — oder `null`, wo keiner hingehört.
+ *
+ * Neben dem Weg und nicht in der Komponente: beide Antworten folgen aus derselben Frage („nimmt die
+ * Aufgabe noch an?"), und die Karte hatte sie sonst aus dem FEHLEN eines Links zurückgeschlossen —
+ * eine Herleitung, die schweigend falsch wird, sobald der Link aus einem zweiten Grund fehlt.
+ *
+ * Nur in der Sicht des TRÄGERS: die Keyholderin sieht die Verspätung an ihrer Sichtungs-Zeile, und
+ * „du kannst nichts mehr nachreichen" wäre an sie gerichtet schlicht falsch.
+ */
+function proofLateNote(
+  proof: Pick<TaskCardProof, "state" | "submitted">,
+  evaluation: Pick<TaskEvaluation, "proofSubmitOpen">,
+  withLinks: boolean,
+): "proofLateHint" | "proofLateClosed" | null {
+  if (!withLinks || proof.state !== "overdue") return null;
+  // Eingereicht zählt als Hinweis, nicht als Absage: das Foto liegt vor, es wartet nur noch auf ein
+  // Urteil — auch dann, wenn die Aufgabe inzwischen zu Ende ist.
+  return proof.submitted || evaluation.proofSubmitOpen ? "proofLateHint" : "proofLateClosed";
+}
+
 /** Der Zustand eines einzelnen Nachweises. Dieselbe Rangfolge wie in `evaluateProofs`: das Urteil
  *  eines MENSCHEN schlägt jede Automatik.
  *
@@ -390,6 +451,7 @@ export function toTaskCard(
   // das, was es beschleunigen soll.
   const proofs: TaskCardProof[] = proofViews.map((p) => {
     const state = taskProofState(p, outOfOrderId, e.evaluation.overdueProofIds.includes(p.id));
+    const submitted = p.submittedAt !== null;
     return {
       id: p.id,
       description: p.description,
@@ -398,14 +460,10 @@ export function toTaskCard(
       // Gegen das WIRKSAME Ende gedeckelt (`evaluation.holdUntil`), wie jede andere Frist-Anzeige
       // dieser Karte: im Dauer-Modus steht in der Spalte nur das spätestmögliche.
       dueAt: ownProofDeadline(p, e.task, e.evaluation.holdUntil)?.toISOString() ?? null,
-      submitted: p.submittedAt !== null,
-      // Der Link hängt an der AUFGABE, nicht nur an der Zeile: steht ihr Ergebnis fest, ändert kein
-      // weiteres Foto mehr etwas. Verpasst der Träger den ersten von drei Nachweisen, ist die Aufgabe
-      // versäumt — die beiden übrigen Zeilen blieben ohne diese Bedingung „offen" und schickten ihn
-      // weiter zum Fotografieren für ein Urteil, das schon gefallen ist.
-      href: withLinks && state === "open" && isTaskOpen(e.evaluation.state)
-        ? `/dashboard/new/task-proof/${p.id}`
-        : null,
+      submitted,
+      // Weg UND Hinweis aus derselben Frage — welche das ist, steht bei `proofCaptureHref`.
+      href: proofCaptureHref({ id: p.id, submitted }, e.evaluation, withLinks),
+      lateNote: proofLateNote({ state, submitted }, e.evaluation, withLinks),
       imageUrl: p.imageUrl,
       reviewNote: p.reviewNote,
       // Beides oder nichts: `reviewTaskProof` schreibt Urteil und Zeitstempel in einem Zug.

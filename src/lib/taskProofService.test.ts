@@ -19,12 +19,12 @@ vi.mock("@/lib/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
-vi.mock("@/lib/taskIntervals", () => ({ evaluateTasks: vi.fn(), TASK_INCLUDE: {} }));
+vi.mock("@/lib/taskIntervals", () => ({ evaluateTaskById: vi.fn() }));
 vi.mock("@/lib/taskService", () => ({ settleTaskResult: vi.fn() }));
 
 import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, reviewTaskProof } from "./taskProofService";
 import { notifyUser } from "@/lib/notify";
-import { evaluateTasks } from "@/lib/taskIntervals";
+import { evaluateTaskById } from "@/lib/taskIntervals";
 import { settleTaskResult } from "@/lib/taskService";
 import { prisma } from "@/lib/prisma";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
@@ -34,7 +34,7 @@ const update = prisma.taskProof.updateMany as unknown as ReturnType<typeof vi.fn
 const updateOne = prisma.taskProof.update as unknown as ReturnType<typeof vi.fn>;
 const verify = verifyKontrolleCodeDetailed as unknown as ReturnType<typeof vi.fn>;
 const notify = notifyUser as unknown as ReturnType<typeof vi.fn>;
-const evaluate = evaluateTasks as unknown as ReturnType<typeof vi.fn>;
+const evaluate = evaluateTaskById as unknown as ReturnType<typeof vi.fn>;
 const taskFindMany = prisma.task.findMany as unknown as ReturnType<typeof vi.fn>;
 const taskUpdate = prisma.task.update as unknown as ReturnType<typeof vi.fn>;
 const notifyResult = settleTaskResult as unknown as ReturnType<typeof vi.fn>;
@@ -49,7 +49,7 @@ const proofRow = (over: Record<string, unknown> = {}) => ({
   requireCode: false,
   code: null,
   submittedAt: null,
-  task: { id: "t1", withdrawnAt: null, holdUntil: HOLD_UNTIL },
+  task: { id: "t1", withdrawnAt: null, holdUntil: HOLD_UNTIL, holdDurationMin: null },
   ...over,
 });
 
@@ -96,10 +96,48 @@ describe("submitTaskProof — Schranken", () => {
   });
 
   it("zurückgezogene Aufgabe nimmt nichts mehr an", async () => {
-    find.mockResolvedValue(proofRow({ task: { id: "t1", withdrawnAt: NOW, holdUntil: HOLD_UNTIL } }));
+    find.mockResolvedValue(proofRow({ task: { id: "t1", withdrawnAt: NOW, holdUntil: HOLD_UNTIL, holdDurationMin: null } }));
     const res = await submitTaskProof("p1", "u1", PAYLOAD);
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_NOT_EDITABLE");
+  });
+
+  /**
+   * DIE EIGENE FRIST EINES NACHWEISES HÄLT NICHT MEHR AB (Produkt-Entscheidung 16.08.2026): sie ist
+   * weich, das Ende der Aufgabe ist die harte Grenze. Vorher wies der Dienst hier ab — und nahm
+   * damit der Keyholderin die Entscheidung ab, die ihr gehört, noch bevor sie das Foto sah.
+   */
+  it("nach der EIGENEN Frist, aber vor dem Ende der Aufgabe: wird angenommen", async () => {
+    vi.setSystemTime(new Date("2026-07-25T16:00:00Z"));
+    // Fälligkeit „60 Minuten nach dem Nullpunkt" = 15:00, Ende der Aufgabe 18:00.
+    find.mockResolvedValue(proofRow({ dueOffsetMin: 60 }));
+    const res = await submitTaskProof("p1", "u1", PAYLOAD);
+    expect(res.ok).toBe(true);
+    expect(written().submittedAt).toEqual(new Date("2026-07-25T16:00:00Z"));
+  });
+
+  /**
+   * Im DAUER-Modus steht in `holdUntil` nur das spätestmögliche Ende (Kulanzfrist voll ausgereizt);
+   * das wirkliche hängt am abgeleiteten Beginn und kommt aus der Auswertung. Gegen die Spalte
+   * gemessen nähme der Dienst noch Fotos für eine Aufgabe an, die längst durch ist — und eine
+   * Annahme machte daraus rückwirkend eine erfüllte.
+   */
+  it("Dauer-Modus: die harte Grenze ist das WIRKSAME Ende, nicht die Spalte", async () => {
+    vi.setSystemTime(new Date("2026-07-25T17:00:00Z"));
+    find.mockResolvedValue(proofRow({ task: { id: "t1", withdrawnAt: null, holdUntil: HOLD_UNTIL, holdDurationMin: 60 } }));
+    // Begonnen um 15:00, eine Stunde Dauer → wirksames Ende 16:00, obwohl die Spalte 18:00 sagt.
+    evaluate.mockResolvedValue({ evaluation: { proofSubmitOpen: false } });
+    const res = await submitTaskProof("p1", "u1", PAYLOAD);
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_PROOF_TOO_LATE");
+  });
+
+  /** Der klassische Modus zahlt dafür nichts: dort IST die Spalte das Ende, und es wird nichts
+   *  nachgeladen. Sonst hinge an jedem Foto-Upload die ganze Intervall-Rechnung des Trägers. */
+  it("klassischer Modus: keine Auswertung für die Schranke", async () => {
+    find.mockResolvedValue(proofRow());
+    await submitTaskProof("p1", "u1", PAYLOAD);
+    expect(evaluate).not.toHaveBeenCalled();
   });
 
   /** Zwei gleichzeitige Aufrufe (Doppel-Tap): der zweite trifft null Zeilen, statt den ersten zu
@@ -174,46 +212,27 @@ describe("submitTaskProof — die Prüfung blockiert das Einreichen NICHT", () =
   });
 });
 
-describe("proofSubmitBlockedReason — geteilt von Seite und Service", () => {
-  /** Ein Nachweis OHNE eigene Fälligkeit an einer sofort wirksamen Aufgabe — die Bestandsform:
-   *  seine Frist ist unverändert das Ende der Aufgabe. */
-  const TASK = { withdrawnAt: null, holdUntil: HOLD_UNTIL, createdAt: NOW, wirksamAb: null };
-  const open = { submittedAt: null, dueOffsetMin: null, task: TASK };
+describe("proofSubmitBlockedReason — die Regel hinter Seite und Dienst", () => {
+  const open = { submittedAt: null, task: { withdrawnAt: null } };
 
-  it("offen und fristgerecht: nichts steht im Weg", () => {
-    expect(proofSubmitBlockedReason(open, NOW)).toBeNull();
+  it("offen und die Aufgabe nimmt an: nichts steht im Weg", () => {
+    expect(proofSubmitBlockedReason(open, true)).toBeNull();
   });
 
   it("nennt jeden Hinderungsgrund beim Namen", () => {
-    expect(proofSubmitBlockedReason({ ...open, submittedAt: NOW }, NOW)).toBe("TASK_PROOF_ALREADY_SUBMITTED");
-    expect(proofSubmitBlockedReason({ ...open, task: { ...TASK, withdrawnAt: NOW } }, NOW)).toBe("TASK_NOT_EDITABLE");
-    expect(proofSubmitBlockedReason(open, new Date("2026-07-25T19:00:00Z"))).toBe("TASK_PROOF_TOO_LATE");
+    expect(proofSubmitBlockedReason({ ...open, submittedAt: NOW }, true)).toBe("TASK_PROOF_ALREADY_SUBMITTED");
+    expect(proofSubmitBlockedReason({ ...open, task: { withdrawnAt: NOW } }, true)).toBe("TASK_NOT_EDITABLE");
+    expect(proofSubmitBlockedReason(open, false)).toBe("TASK_PROOF_TOO_LATE");
   });
 
   /**
-   * B12 — hat der Nachweis eine EIGENE Fälligkeit, ist sie die frühere Schranke. Gegen die Frist der
-   * Aufgabe geprüft nähme das Formular noch stundenlang Fotos an, die `evaluateProofs` längst nicht
-   * mehr zählt: ein Erfolgserlebnis, das keins ist.
+   * Die RANGFOLGE ist Teil der Aussage: ein zurückgezogener oder längst eingereichter Nachweis
+   * bekommt seinen eigenen Grund genannt, nicht den der Frist. Sonst läse der Träger „zu spät" über
+   * einer Aufgabe, die es gar nicht mehr gibt.
    */
-  it("die eigene Fälligkeit eines Nachweises ist die frühere Schranke", () => {
-    // Nullpunkt 14:00 (`createdAt`), Fälligkeit „nach 60 Minuten" = 15:00, Aufgaben-Ende 18:00.
-    const eigene = { ...open, dueOffsetMin: 60 };
-    expect(proofSubmitBlockedReason(eigene, new Date("2026-07-25T14:59:00Z"))).toBeNull();
-    expect(proofSubmitBlockedReason(eigene, new Date("2026-07-25T15:01:00Z"))).toBe("TASK_PROOF_TOO_LATE");
-    // Ohne eigene Fälligkeit ist zur selben Zeit nichts im Weg — die Bestandsform bleibt unberührt.
-    expect(proofSubmitBlockedReason(open, new Date("2026-07-25T15:01:00Z"))).toBeNull();
-  });
-
-  /** Der Nullpunkt einer terminierten Aufgabe ist ihr Auslöse-Zeitpunkt: eine Stunde nach 16:00,
-   *  nicht eine Stunde nach dem Stellen. */
-  it("bei einer terminierten Aufgabe zählt die eigene Fälligkeit ab dem Wirksamwerden", () => {
-    const terminiert = {
-      ...open,
-      dueOffsetMin: 60,
-      task: { ...TASK, wirksamAb: new Date("2026-07-25T16:00:00Z") },
-    };
-    expect(proofSubmitBlockedReason(terminiert, new Date("2026-07-25T16:30:00Z"))).toBeNull();
-    expect(proofSubmitBlockedReason(terminiert, new Date("2026-07-25T17:30:00Z"))).toBe("TASK_PROOF_TOO_LATE");
+  it("Rückzug und Einreichung schlagen die Frist", () => {
+    expect(proofSubmitBlockedReason({ ...open, task: { withdrawnAt: NOW } }, false)).toBe("TASK_NOT_EDITABLE");
+    expect(proofSubmitBlockedReason({ ...open, submittedAt: NOW }, false)).toBe("TASK_PROOF_ALREADY_SUBMITTED");
   });
 });
 
@@ -246,7 +265,7 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
   });
   /** Was die Sichtung geschrieben hat. */
   const reviewed = () => updateOne.mock.calls[0][0].data;
-  const evaluatedAs = (state: string) => evaluate.mockResolvedValue([{ evaluation: { state } }]);
+  const evaluatedAs = (state: string) => evaluate.mockResolvedValue({ evaluation: { state } });
 
   it("schreibt Urteil, Zeitpunkt und Anmerkung", async () => {
     find.mockResolvedValue(submitted());
