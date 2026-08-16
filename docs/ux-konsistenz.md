@@ -1,6 +1,6 @@
 # UX-Konsistenz — Befund und Fahrplan
 
-Stand: 16.08.2026 · v5.1.5 · Branch `fix/notify-cleanup`
+Stand: 16.08.2026 · v5.2.0 · Branch `feat/ux-zeit` (P1 umgesetzt, siehe §7)
 
 Vier unabhängige Prüfungen der Bedienoberfläche (Zeit/Fristen · Auswahl/Schalter · Listen/Historie ·
 Erklärtexte). Dieses Papier hält ihr Ergebnis fest, **damit es nicht wiederholt werden muss** — die
@@ -142,7 +142,7 @@ Vier Orte für Erklärungen, drei davon ungenutzt: es fehlt nicht das Werkzeug, 
 
 | # | Inhalt | Aufwand | Gewinn |
 |---|---|---|---|
-| **P1** | **Zeit.** Schnellwahl-Knöpfe von `TaskFields` nach `DurationInput` (dann haben ALLE Fristen Zwei-Tap-Bedienung) · `ScheduleFields` auf `DurationInput` · Verschluss-Frist angleichen · Einheiten-Vokabular auf `common`, Regel „Einheit im Reiter ODER als Suffix, nie in der Feldbeschriftung" | ~½ Tag | eine Art, eine Dauer einzugeben; grösster Handy-Gewinn |
+| ~~**P1**~~ | ~~**Zeit.**~~ **ERLEDIGT (v5.1.6)**, siehe §7. Schnellwahl-Knöpfe von `TaskFields` nach `DurationInput` (dann haben ALLE Fristen Zwei-Tap-Bedienung) · `ScheduleFields` auf `DurationInput` · Verschluss-Frist angleichen · Einheiten-Vokabular auf `common`, Regel „Einheit im Reiter ODER als Suffix, nie in der Feldbeschriftung" | ~½ Tag | eine Art, eine Dauer einzugeben; grösster Handy-Gewinn |
 | **P2** | **Schalter zu Ende beschriften.** `Checkbox` bekommt `description` · sechs bis acht „Aus: …"-Texte durch Zwei-Zustands-Bedienung ersetzen · zwei rohe 16-px-Kästchen ersetzen | klein–mittel | schafft eine ganze TEXTKLASSE ab |
 | **P3** | **Listen.** `SettingsSection` um Zähler/Aktion erweitern, sieben Kopfzeilen darauf ziehen · zwei handgebaute Pager durch `ListPager` (behebt a11y) · **Strafbuch bekommt einen Pager** | mittel | räumt Radius- und Padding-Bruch mit ab |
 | **P4** | **Bestätigen & Löschen.** Acht `confirm()` auf `ConfirmDialog` · EINE Zielform für Löschen · `SegmentedControl` bekommt ARIA · Deutsch aus den Primitiven | klein–mittel | der Code behauptet die Regel bereits |
@@ -187,7 +187,7 @@ Die Prüfer waren hier von sich aus streng — das ist so wichtig wie die Fundli
 2. **Die Einschliess-Frist geht auf 5-Minuten-Schritte.** Begründung: ist eine Kontrollfrist von 15
    Minuten sinnvoll, ist eine Einschliess-Frist von 45 Minuten es auch. Sie bekommt damit auch den
    Stunden/Minuten-Umschalter, den der Nutzer nach der Kontroll-Anforderung dort erwartet.
-3. **Die Orgasmus-Anforderung wird terminierbar** — voller Ausbau: `min` an beiden Feldern und
+3. **(umgesetzt, v5.2.0) Die Orgasmus-Anforderung wird terminierbar** — voller Ausbau: `min` an beiden Feldern und
    Zonen-Rechnung wie im Rest der Datei (das ist der Fehler, kein Geschmack), dazu ein Dauer-Weg
    fürs Fenster-Ende (Reiter „Dauer | Zeitpunkt", Vorgabe 24 h) und `ScheduleFields` wie bei Aufgabe
    und Verschluss-Anforderung. Sie ist danach keine Ausnahme mehr.
@@ -222,9 +222,44 @@ getroffen (§3.2, Muster „halbe Beschriftung") — an EINER von acht Stellen:
 - `DeleteTaskButton` ist die dritte von fünf Lösch-Formen, und die einzige in NEUTRALER Tönung für
   eine zerstörende Aktion (P4).
 
-Dazu: der Kommentar in `TaskFields.tsx` über den „Aufklapper" beschreibt einen Zustand, den es seit
-`58fad25` nicht mehr gibt. In einem Repo, das Kommentare als Entscheidungsgrundlage liest, verteidigt
-er eine Abweichung, die es nicht mehr gibt — fünf Minuten, hoher Wert.
+Dazu: der Kommentar in `TaskFields.tsx` über den „Aufklapper" beschrieb einen Zustand, den es seit
+`58fad25` nicht mehr gibt — mit v5.1.6 weg.
+
+**v5.1.6 — Paket P1 (Zeit), alle vier Schritte:**
+
+- Die Schnellwahl sitzt in `DurationInput`; jede Frist hat damit Zwei-Tap-Bedienung. Wählbar ist nur
+  die SKALA (`DURATION_QUICK_HOURS.short/.long`) — die kurze Reihe unter einem Feld mit Vorgabe 24 h
+  böte fünf Knöpfe an, von denen jeder den sinnvollen Wert überschreibt.
+- `ScheduleFields` und die Verschluss-Frist nehmen dasselbe Bauteil. Die Einheiten-Frage steht damit
+  nur noch EINMAL je Formular, und die Reiter benennen die Antwort-Art („Dauer | Zeitpunkt"), nicht
+  die Einheit.
+- Vokabular in `common` (`duration`, `pointInTime`, `quickHours`, `quickMinutes`); acht verwaiste
+  `admin.*`-Schlüssel und drei Doppelgänger sind weg.
+- Neu dabei: `FieldTabs` und `DurationInput` dürfen ihre sichtbare Beschriftung weglassen, wo der
+  Umschalter darüber sie schon trägt (`ariaLabel` statt `label`) — sonst stünde „Dauer" über „Dauer".
+
+**v5.2.0 — Entscheid 3 (§6): die Orgasmus-Anforderung ist keine Ausnahme mehr.** `min` an beiden
+Feldern, Zonen-Rechnung wie im Rest der Datei, Fenster-Ende wahlweise als Dauer (Vorgabe 24 h) oder
+Zeitpunkt — und terminierbar wie ihre drei Geschwister (`wirksamAb`/`benachrichtigtAt`, Zustellung
+über den Poller). `TimePreview` ist damit an der Schwelle „zweites Formular" nach
+`src/app/components/` gezogen, die sie selbst ausgeschrieben hatte, und der Block „Dauer | Zeitpunkt"
+ist als `DurationOrDatetimeField` extrahiert (vierte Kopie).
+
+Zwei Nebenwirkungen, bewusst in Kauf genommen:
+
+- **`min` am Fenster-START nimmt dem Formular das Rückdatieren.** Der Dienst erlaubt es weiter (ein
+  rückwirkend geöffnetes Fenster ist ein legitimer Fall, so steht es an `checkOrgasmWindowEnd`), über
+  den MCP bleibt es erreichbar. Wer es im Formular wieder braucht, streicht ein Attribut.
+- **Der Poller kann eine Zustellung doppelt versenden**, wenn zwischen Auswahl und Versand
+  zurückgezogen wird — dieselbe Schwäche wie beim Verschluss-Zwilling daneben, nicht neu und nicht
+  hier allein zu beheben.
+
+**Noch offen aus P1s Umfeld** (kein Teil des Pakets, beim Umbau aufgefallen):
+
+- Der späteste Beginn im Aufgaben-Formular bleibt ein nacktes Minuten-Feld. `DurationInput` kann
+  seinen Bereich nicht ausdrücken: die Kulanz darf 0 sein („sofort anlegen"), das Raster nicht.
+- Die Trainingsvorgaben (`InputWithUnit`) bleiben der letzte private Nachbau — ihr Umschalter wählt
+  h gegen %, nicht h gegen min. Gehört zu keinem der fünf Pakete.
 
 ---
 

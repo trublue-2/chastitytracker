@@ -154,12 +154,18 @@ export default function ScheduleFields({
         </div>
       )}
 
+      {/* `required`: ein LEERES Feld im Zeitpunkt-Reiter schickte bisher „sofort" ab —
+          `schedulePayload` fällt ohne Wert auf `{}` zurück, und `scheduleIsPast` sieht bei leerem
+          Feld nichts Vergangenes. Wer terminieren wollte und das Feld leerte, stellte damit
+          unbemerkt sofort zu; bei einer Direktive, deren ganzer Zweck das Verbergen ist, ist das die
+          teuerste Fehlbedienung des Formulars. */}
       {value.mode === "datetime" && (
         <DateTimePicker
           value={value.scheduledAt}
           onChange={(e) => set({ scheduledAt: e.target.value })}
           min={minNow}
           hint={atHint}
+          required
         />
       )}
     </>

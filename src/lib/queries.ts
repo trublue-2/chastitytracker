@@ -3,6 +3,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund, EntrySource } from "@/lib/constants";
 import { LOCK_ENDED_REASON, heimdallEnabled } from "@/lib/constants";
 import { aktivesReinigungsFenster, parseReinigungsFenster } from "@/lib/reinigungService";
+import { triggeredWhere } from "@/lib/delayedTrigger";
 import { APP_TZ } from "@/lib/utils";
 
 /**
@@ -60,17 +61,6 @@ export const AUTO_PLAN_WHERE = {
  *  Aufrufer sie herein, statt sie hier zu erraten. */
 export function todaysAutoPlanWhere(userId: string, day: Date): Prisma.KontrollAnforderungWhereInput {
   return { userId, ...AUTO_PLAN_WHERE, createdAt: { gte: day } };
-}
-
-/**
- * Where-Fragment: bereits AKTIVE VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) — sofortige
- * (wirksamAb null) und zeitversetzte, die schon ausgelöst haben (wirksamAb <= jetzt). Eine
- * ZUKÜNFTIG geplante (wirksamAb in der Zukunft) gilt NICHT als aktiv: eine geplante SPERRZEIT
- * darf vor ihrem Versand nicht durchsetzen/Öffnen blockieren, eine geplante ANFORDERUNG nicht
- * vorzeitig als erfüllt gelten.
- */
-export function activeVerschlussAnforderungWhere(now: Date = new Date()): Prisma.VerschlussAnforderungWhereInput {
-  return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
 }
 
 /**
@@ -494,7 +484,7 @@ function activeSperrzeitWhere(userIdFilter: string | { in: string[] } | undefine
   return {
     ...base,
     AND: [
-      activeVerschlussAnforderungWhere(now),
+      triggeredWhere(now),
       { OR },
     ],
   };
@@ -610,7 +600,7 @@ export const LOCK_REQUEST_ORDER: Prisma.VerschlussAnforderungOrderByWithRelation
  *  ein Zeit-Gate Unterschied. */
 export async function getOpenLockRequests(userId: string, now: Date | null = new Date()) {
   return prisma.verschlussAnforderung.findMany({
-    where: { ...openLockRequestWhere(userId), ...(now ? activeVerschlussAnforderungWhere(now) : {}) },
+    where: { ...openLockRequestWhere(userId), ...(now ? triggeredWhere(now) : {}) },
     orderBy: LOCK_REQUEST_ORDER,
     include: { device: { select: { name: true } } },
   });
@@ -674,11 +664,15 @@ export async function getKeyholderSperrzeiten(userId: string | { userIds: string
   });
 }
 
-/** Returns the open OrgasmusAnforderung whose window has not yet ended (newest first), or null. */
+/** Returns the open OrgasmusAnforderung whose window has not yet ended (newest first), or null.
+ *
+ *  Mit `wirksamAb`-Gate ({@link triggeredWhere}), wie bei der Sperrzeit: eine erst geplante Anweisung
+ *  ist für den Sub nicht da — sie darf weder im Dashboard stehen noch das Öffnen erlauben, und ein
+ *  Orgasmus vor ihrer Auslösung erfüllt sie nicht. */
 export async function getActiveOrgasmusAnforderung(userId: string, now: Date = new Date(), tx?: PrismaTx) {
   const client = tx ?? prisma;
   return client.orgasmusAnforderung.findFirst({
-    where: { userId, fulfilledAt: null, withdrawnAt: null, endetAt: { gte: now } },
+    where: { userId, fulfilledAt: null, withdrawnAt: null, endetAt: { gte: now }, ...triggeredWhere(now) },
     orderBy: { createdAt: "desc" },
   });
 }

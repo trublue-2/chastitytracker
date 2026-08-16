@@ -11,7 +11,7 @@ import DurationInput from "@/app/components/DurationInput";
 import Input from "@/app/components/Input";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import ReorderButtons from "@/app/components/ReorderButtons";
-import TimePreview from "./TimePreview";
+import TimePreview from "@/app/components/TimePreview";
 import {
   TASK_PROOF_MAX, TASK_PROOF_DESCRIPTION_MAX_LENGTH,
   clampProofDueOffset, durationToHours, type DurationUnit,

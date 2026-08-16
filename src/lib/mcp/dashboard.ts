@@ -196,8 +196,13 @@ export interface DashboardResult extends Envelope {
    *  Sichtung als `running`/`awaitingUserConfirmation` zurückkehren, und ein noch UNBEURTEILTES
    *  `unfulfilled_task` verschwindet dabei rückwirkend (ein bereits geschriebenes Urteil bleibt —
    *  das nimmt nur `judge_offense reopen` zurück). Ein v12-Wert trug die stille Zusage „das kann
-   *  sich nur noch durch eine ABLEHNUNG ändern"; die gilt nicht mehr. */
-  schemaVersion: 13;
+   *  sich nur noch durch eine ABLEHNUNG ändern"; die gilt nicht mehr.
+   *
+   *  v14: die Orgasmus-Anweisung ist terminierbar. `openOrgasmWindow` zeigt eine geplante, noch
+   *  nicht ausgelöste Anweisung NICHT mehr — sie steht bis zur Auslösung in `scheduledDirectives`
+   *  (neue `kind`-Ausprägung `orgasm`). Ein v13-Wert hiess „es gibt kein offenes Fenster"; ab v14
+   *  heisst er „es gibt keins, das gerade GILT" — geplant kann trotzdem eines sein. */
+  schemaVersion: 14;
   user: string;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
@@ -417,12 +422,13 @@ export interface OpenTaskProofView {
 export interface ScheduledDirective {
   id: string;
   /** lock_request = Einschliess-Anforderung · lock_period = Sperrzeit · inspection = manuelle
-   *  Kontrolle · task = terminierte Aufgabe. */
-  kind: "lock_request" | "lock_period" | "inspection" | "task";
+   *  Kontrolle · task = terminierte Aufgabe · orgasm = terminierte Orgasmus-Anweisung. */
+  kind: "lock_request" | "lock_period" | "inspection" | "task" | "orgasm";
   /** Geplanter Auslöse-Zeitpunkt (ISO-8601 mit Offset). */
   wirksamAb: string;
   /** Frist/Sperrzeit-Ende (ISO) — bei Kontrollen die Erfüllungs-Frist, bei Sperrzeit das Ende, bei
-   *  einer Aufgabe ihr (spätestmögliches) Ende, sonst null. */
+   *  einer Aufgabe ihr (spätestmögliches) Ende, bei der Orgasmus-Anweisung das Fenster-Ende, sonst
+   *  null. */
   endetAt: string | null;
   /** Freitext: Kontroll-Kommentar, Anforderungs-/Sperrzeit-Nachricht bzw. der Aufgaben-Titel. */
   message: string | null;
@@ -443,7 +449,7 @@ export interface ScheduledDirective {
  *  Eigene Abfrage statt eines Filters über die ohnehin ausgewerteten Aufgaben: die sind auf die
  *  jüngsten gedeckelt, eine weit in der Zukunft terminierte Aufgabe darf daran nicht hängen. */
 async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Promise<ScheduledDirective[]> {
-  const [anforderungen, kontrollen, tasks] = await Promise.all([
+  const [anforderungen, kontrollen, tasks, orgasmWindows] = await Promise.all([
     // Kein per-Query orderBy — die zusammengeführte Liste wird unten ohnehin nach wirksamAb sortiert.
     prisma.verschlussAnforderung.findMany({
       where: { userId, withdrawnAt: null, fulfilledAt: null, wirksamAb: { gt: now } },
@@ -454,6 +460,13 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
     prisma.task.findMany({
       where: { userId, ...pendingDispatchWhere },
       select: { id: true, title: true, wirksamAb: true, holdUntil: true },
+    }),
+    // Wie die Aufgaben über `pendingDispatchWhere`: eine fällige, aber noch nicht zugestellte
+    // Anweisung fiele sonst zwischen diese Liste und `openOrgasmWindow` (das jetzt gegated ist) —
+    // und die Keyholderin plante ahnungslos eine zweite, die die erste stumm verdrängt.
+    prisma.orgasmusAnforderung.findMany({
+      where: { userId, ...pendingDispatchWhere, fulfilledAt: null },
+      select: { id: true, nachricht: true, wirksamAb: true, endetAt: true },
     }),
   ]);
   const out: ScheduledDirective[] = [
@@ -479,6 +492,14 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       wirksamAb: iso(t.wirksamAb)!,
       endetAt: iso(t.holdUntil),
       message: t.title,
+      reinigungErlaubt: null,
+    })),
+    ...orgasmWindows.map((o) => ({
+      id: o.id,
+      kind: "orgasm" as const,
+      wirksamAb: iso(o.wirksamAb)!,
+      endetAt: iso(o.endetAt),
+      message: o.nachricht,
       reinigungErlaubt: null,
     })),
   ];
@@ -723,7 +744,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
   return {
-    schemaVersion: 13,
+    schemaVersion: 14,
     user: username,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,

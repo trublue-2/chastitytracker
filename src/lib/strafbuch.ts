@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { deployCutoff } from "@/lib/appMeta";
 import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ } from "@/lib/utils";
-import { activeVerschlussAnforderungWhere, cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
+import { cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { aktivesReinigungsFenster } from "@/lib/reinigungService";
 import { hhmmToMinutes } from "@/lib/autoKontrolleService";
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
-import { isHiddenFromSub } from "@/lib/delayedTrigger";
+import { triggeredWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
 import type { OffenseCanonicalType } from "@/lib/offenseTypes";
 
@@ -477,8 +477,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxProTag: true, reinigungMaxMinuten: true, reinigungsFenster: true, timezone: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" }, select: KG_ENTRY_SELECT }),
     prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS" }, orderBy: { startTime: "asc" }, select: KG_ENTRY_SELECT }),
-    prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...activeVerschlussAnforderungWhere(now) } }),
-    prisma.verschlussAnforderung.findMany({ where: { userId, art: "ANFORDERUNG", withdrawnAt: null, ...activeVerschlussAnforderungWhere(now) } }),
+    prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...triggeredWhere(now) } }),
+    prisma.verschlussAnforderung.findMany({ where: { userId, art: "ANFORDERUNG", withdrawnAt: null, ...triggeredWhere(now) } }),
     prisma.kontrollAnforderung.findMany({
       where: { userId, OR: [{ entryId: { not: null } }, { autoMarkedRemovedAt: { not: null } }] },
       include: { entry: true, autoMarkedEntry: true },
@@ -553,10 +553,17 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   // Windows that explicitly permit opening to perform the directed orgasm — an OEFFNEN inside
   // such a window is not an unauthorized opening (like the REINIGUNG exception).
   /** Deckt dieses Orgasmus-Fenster den Zeitpunkt? Ein vor dem Zeitpunkt zurückgezogenes Fenster
-   *  deckt nichts mehr. Geteilt von der Öffnungs-Ausnahme (`oeffnenErlaubt`) und der Frage, ob ein
-   *  Orgasmus überhaupt gedeckt war — zwei Fragen, eine Fenster-Arithmetik. */
-  const windowCovers = (w: { beginntAt: Date; endetAt: Date; withdrawnAt: Date | null }, at: Date): boolean =>
-    at >= w.beginntAt && at <= w.endetAt && (w.withdrawnAt === null || w.withdrawnAt > at);
+   *  deckt nichts mehr — und ein zu diesem Zeitpunkt noch nicht AUSGELÖSTES auch nicht: eine
+   *  terminierte Anweisung ist für den Träger nicht da, sie kann ihm also weder eine Öffnung
+   *  erlauben noch einen Orgasmus decken. Ohne diese Zeile widerspräche das Strafbuch dem
+   *  Live-Gate, dessen Regel es spiegeln soll (`isOpeningPermittedNow` über
+   *  `getActiveOrgasmusAnforderung`): dort nicht erlaubt, hier verziehen.
+   *  Geteilt von der Öffnungs-Ausnahme (`oeffnenErlaubt`) und der Frage, ob ein Orgasmus überhaupt
+   *  gedeckt war — zwei Fragen, eine Fenster-Arithmetik. */
+  const windowCovers = (w: { beginntAt: Date; endetAt: Date; withdrawnAt: Date | null; wirksamAb: Date | null }, at: Date): boolean =>
+    at >= w.beginntAt && at <= w.endetAt
+    && (w.withdrawnAt === null || w.withdrawnAt > at)
+    && (w.wirksamAb === null || w.wirksamAb <= at);
   const oeffnenErlaubtWindows = orgasmusAnforderungen.filter((a) => a.oeffnenErlaubt);
   const isOrgasmusOpenAllowed = (openTime: Date): boolean =>
     oeffnenErlaubtWindows.some((w) => windowCovers(w, openTime));
@@ -742,7 +749,11 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     reinigungLimitViolations,
     wrongDeviceViolations,
     missedOrgasmInstructions: orgasmusAnforderungen
-      .filter((a) => a.art === "ANWEISUNG" && a.withdrawnAt === null && a.fulfilledAt === null && a.endetAt < now)
+      // `!isHiddenFromSub`: eine terminierte Anweisung, die nie zugestellt wurde, ist kein Versäumnis
+      // — der Träger hat von ihr nie erfahren. Der Poller zieht solche Zeilen zwar zurück, sobald ihr
+      // Fenster durch ist; stand er (Neustart, Ausfall) über das Fensterende hinaus still, stünde hier
+      // sonst genau die unverdiente Strafe, gegen die schon `checkOrgasmWindowEnd` gebaut ist.
+      .filter((a) => a.art === "ANWEISUNG" && a.withdrawnAt === null && a.fulfilledAt === null && a.endetAt < now && !isHiddenFromSub(a))
       .sort((a, b) => b.endetAt.getTime() - a.endetAt.getTime())
       .map((a) => ({ id: a.id, endetAt: a.endetAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
     lateLocks,

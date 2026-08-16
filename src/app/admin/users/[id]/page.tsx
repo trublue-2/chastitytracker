@@ -228,7 +228,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
       )}
 
       {offeneOrgasmusAnforderung && (() => {
-        const orgasmusExpired = offeneOrgasmusAnforderung.endetAt < now;
+        // Eine noch nicht ausgelöste Anweisung bleibt SICHTBAR (die Keyholderin hat sie gestellt und
+        // muss sie zurückziehen können), aber sie läuft nicht: kein Countdown auf ein Fenster, das
+        // der Träger nicht kennt, und die Beschriftung sagt, wann sie kommt.
+        const orgasmusScheduled = isScheduledDirective(offeneOrgasmusAnforderung.wirksamAb, now);
+        const orgasmusExpired = !orgasmusScheduled && offeneOrgasmusAnforderung.endetAt < now;
         return (
           <LockRequestBanner
             variant="compact"
@@ -236,9 +240,10 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             label={
               orgasmusAnforderungArtLabel(offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", t)
               + (orgasmusExpired ? ` · ${t("orgasmAnforderungExpired")}` : "")
+              + (orgasmusScheduled ? ` · ${t("orgasmAnforderungScheduled", { time: fmtDual(offeneOrgasmusAnforderung.wirksamAb!) })}` : "")
             }
             overdue={orgasmusExpired}
-            endetAt={offeneOrgasmusAnforderung.endetAt}
+            endetAt={orgasmusScheduled ? null : offeneOrgasmusAnforderung.endetAt}
             locale={dl}
             tz={tz}
             viewerTz={viewerTz}

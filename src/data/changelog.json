@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.2.0",
+    "date": "2026-08-16",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine Orgasmus-Aufforderung lässt sich jetzt vorausplanen: Sie wird erst später gestellt und ist bis dahin unsichtbar. Das Fenster-Ende gibt man wahlweise als Dauer oder als Zeitpunkt an.",
+          "en": "An orgasm request can now be scheduled: it is only issued later and stays invisible until then. The end of the window can be given either as a duration or as a point in time."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.1.6",
     "date": "2026-08-16",
     "changes": [

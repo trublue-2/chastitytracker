@@ -8,7 +8,7 @@ import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
-import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
+import { parseTriggerAt, computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 export interface CreateVerschlussAnforderungParams {
@@ -106,14 +106,9 @@ export async function createVerschlussAnforderung(
 
   const now = new Date();
 
-  // Parsen/Validieren des Client-Datums gehört hierher (an den Rand), nicht in die Zeit-Policy.
-  let wirksamAbParsed: Date | null = null;
-  if (wirksamAbAt) {
-    wirksamAbParsed = new Date(wirksamAbAt);
-    if (Number.isNaN(wirksamAbParsed.getTime())) {
-      return serviceFail(400, "LOCK_INVALID_SEND_TIME");
-    }
-  }
+  // Der FEHLERCODE bleibt hier, das Parsen teilen sich die Dienste (`parseTriggerAt`).
+  const wirksamAbParsed = parseTriggerAt(wirksamAbAt);
+  if (wirksamAbParsed === "invalid") return serviceFail(400, "LOCK_INVALID_SEND_TIME");
   const { wirksamAb, benachrichtigtAt } = computeDelayedTrigger(now, { delayMinutes, wirksamAbAt: wirksamAbParsed });
 
   // endetAt berechnen (Frist zum Einschliessen / Sperrzeit-Ende).

@@ -7,13 +7,13 @@ import { prisma } from "@/lib/prisma";
 import { recordSystemMessage } from "@/lib/messageService";
 import { getOffenseRules } from "@/lib/offenseRulesService";
 import {
-  activeVerschlussAnforderungWhere,
   aktiveKontrolleWhere,
   openLockRequestWhere,
   LOCK_REQUEST_ORDER,
   type PrismaTx,
 } from "@/lib/queries";
 import { sperrzeitEndeFromRequest } from "@/lib/verschlussAnforderungService";
+import { triggeredWhere } from "@/lib/delayedTrigger";
 
 /** Der Eintrag, wie ihn die Erfüllung braucht — bewusst die schmale Form statt des Prisma-Modells,
  *  damit beide Routen ihn ohne Umweg übergeben können. */
@@ -137,7 +137,7 @@ export async function applyEntryFulfilment(
       // diese Schranke hätte ein auf gestern zurückdatierter Verschluss eine heute gestellte
       // Anordnung abgehakt — und die Sperrzeit daraus wäre im Moment ihrer Entstehung abgelaufen.
       // Auf dem Sub-Pfad (`at = jetzt`) immer wahr, also wirkungslos.
-      where: { ...openLockRequestWhere(userId), createdAt: { lte: at }, ...activeVerschlussAnforderungWhere(at) },
+      where: { ...openLockRequestWhere(userId), createdAt: { lte: at }, ...triggeredWhere(at) },
       orderBy: LOCK_REQUEST_ORDER,
     });
     if (offeneAnforderungen.length > 0) {
@@ -197,6 +197,14 @@ export async function applyEntryFulfilment(
         withdrawnAt: null,
         beginntAt: { lte: entry.startTime },
         endetAt: { gte: entry.startTime },
+        // Eine terminierte Anweisung, die noch nicht ausgelöst hat, ist für den Sub nicht da — sie
+        // darf sich auch nicht erfüllen. Sonst hakte ein zufällig passender Orgasmus eine Anweisung
+        // ab, von der er nichts wusste, und sie käme nie bei ihm an.
+        //
+        // Gegen die EINTRAGS-Zeit gemessen, wie das Fenster darüber, und bewusst nicht gegen `at`:
+        // gefragt ist „wusste er es, als es passierte?", nicht „als er es erfasste". Ein
+        // rückdatierter Orgasmus aus der verborgenen Phase erfüllt damit nichts.
+        ...triggeredWhere(entry.startTime),
       },
       orderBy: { createdAt: "desc" },
     });

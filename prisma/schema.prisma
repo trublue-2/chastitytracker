@@ -923,8 +923,19 @@ model OrgasmusAnforderung {
   entryId        String?   @unique
   entry          Entry?    @relation("OrgasmusAnforderungEntry", fields: [entryId], references: [id], onDelete: SetNull)
   withdrawnAt    DateTime?
+  /// Username des Keyholders/Admins, der die Anweisung gestellt hat, bzw. `ai` über den MCP —
+  /// dieselbe Spalte und dieselbe Begründung wie `VerschlussAnforderung.createdBy`: eine terminierte
+  /// Anweisung stellt der Poller zu, und nur diese Spalte sagt ihm, wer sie angeordnet hat.
+  createdBy      String?
+  // Zeitversetzte Auslösung: null = sofort. Gesetzt = geplant; bis dahin für den Sub unsichtbar
+  // (das Fenster gilt nicht, es erlaubt kein Öffnen und erfüllt sich nicht), Benachrichtigung erst
+  // beim Auslösen durch den Poller. Dieselbe Konvention wie bei Kontrolle, Verschluss und Aufgabe
+  // (`delayedTrigger.ts`).
+  wirksamAb      DateTime?
+  benachrichtigtAt DateTime? // wann Mail/Push raus ging (sofort beim Anlegen, oder per Poller)
 
   @@index([userId, fulfilledAt, withdrawnAt])
+  @@index([wirksamAb])
 }
 
 // Keyholder-Aufgabe an den Sub: ein Anweisungstext plus 0..n Bedingungen, die bis `holdUntil`

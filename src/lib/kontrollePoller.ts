@@ -4,6 +4,7 @@ import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspecti
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
 import { resolveInspectionTarget, inspectionTargetLabel, isKgTarget } from "@/lib/inspectionTarget";
 import { sendVerschlussAnforderungNotifications, checkLockEnd, carryOverSperrzeitOnAlreadyLocked } from "@/lib/verschlussAnforderungService";
+import { sendOrgasmusAnforderungNotifications, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt, autoKontrolleSettingsFromUser, AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
 import { APP_TZ } from "@/lib/utils";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked, predictAutoMarkAt } from "@/lib/inspectionEscalationService";
@@ -128,6 +129,9 @@ async function processDue(): Promise<void> {
 
     // Zeitversetzte VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) im selben Tick — kein zweiter Timer.
     await processDueVerschlussAnforderungen(now);
+
+    // Zeitversetzte Orgasmus-Anweisungen, gleiche Zusage, gleicher Tick.
+    await processDueOrgasmusAnforderungen(now);
 
     // Zeitversetzte AUFGABEN im selben Tick, direkt neben ihren beiden Geschwistern und mit
     // derselben Zusage: erst zustellen, dann stempeln, und im `await`-Zweig — der `running`-Riegel
@@ -318,6 +322,66 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
     } catch (e) {
       // benachrichtigtAt bleibt null → nächster Lauf versucht es erneut.
       console.error(`[kontrollePoller] Verschluss-Auslösung fehlgeschlagen (${va.id}):`, (e as Error).message);
+    }
+  }
+}
+
+/**
+ * Verschickt fällige, zeitversetzte Orgasmus-Anweisungen (wirksamAb erreicht, noch nicht
+ * benachrichtigt).
+ *
+ * Sanity-Check wie bei der Sperrzeit, aus demselben Grund: ist das FENSTER bei Zustellung schon
+ * vorbei, wird zurückgezogen statt gesendet — eine `ANWEISUNG` würde sonst im Moment ihrer Mail zum
+ * Vergehen für eine Frist, die der Sub nie hatte (B-01). Der Dienst lässt solche Zeilen seit dem
+ * `checkOrgasmWindowEnd` gegen `wirksamAb` gar nicht erst anlegen; hier fängt es den Fall ab, dass
+ * der Poller lange stand (Container-Neustart) und das Fenster inzwischen verstrichen ist.
+ *
+ * Fehler → `benachrichtigtAt` bleibt null (Retry nächster Tick).
+ */
+async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
+  const due = await prisma.orgasmusAnforderung.findMany({
+    where: { ...dueForDispatchWhere(now), fulfilledAt: null },
+    include: { user: { select: { email: true, username: true, orgasmusArtenConfig: true, locale: true } } },
+    take: 50,
+  });
+
+  for (const oa of due) {
+    try {
+      if (checkOrgasmWindowEnd(oa.endetAt, now)) {
+        await prisma.orgasmusAnforderung.update({ where: { id: oa.id }, data: { withdrawnAt: new Date() } });
+        continue;
+      }
+      // Das FENSTER wandert um die Verspätung mit — wie die ganze Geometrie einer Aufgabe
+      // (`deadlineFromDispatch`, Abschnitt über `Task`). Der Poller läuft im Minutenraster, ein
+      // Container-Neustart hält ihn ganz an: ohne diese Verschiebung bekäme der Sub ein Fenster, das
+      // zum Zeitpunkt der Mail schon fast durch ist — und mit `art: "ANWEISUNG"` Minuten später ein
+      // Vergehen. Er bekommt stattdessen die Spanne, die für ihn vorgesehen war, ab dem Moment, in
+      // dem er davon erfährt. Pünktlich (Regelfall: Sekunden) verschiebt sich praktisch nichts.
+      const sentAt = new Date();
+      const lateMs = Math.max(0, sentAt.getTime() - (oa.wirksamAb?.getTime() ?? sentAt.getTime()));
+      const beginnt = new Date(oa.beginntAt.getTime() + lateMs);
+      const endet = new Date(oa.endetAt.getTime() + lateMs);
+      await sendOrgasmusAnforderungNotifications({
+        userId: oa.userId,
+        user: oa.user,
+        art: oa.art as "ANWEISUNG" | "GELEGENHEIT",
+        nachricht: oa.nachricht,
+        beginnt,
+        endet,
+        vorgegebeneArt: oa.vorgegebeneArt,
+        oeffnenErlaubt: oa.oeffnenErlaubt,
+        directiveId: oa.id,
+        // Wie bei Kontrolle und Verschluss: genannt wird, wer die Anweisung angeordnet hat, nicht der Bote.
+        actor: oa.createdBy,
+      });
+      // Verschobenes Fenster UND Stempel in EINEM Schreibvorgang: die Mail nennt bereits die neuen
+      // Zeiten, eine Zeile mit alten Werten wäre ab hier eine Lüge gegenüber dem Träger.
+      await prisma.orgasmusAnforderung.update({
+        where: { id: oa.id },
+        data: { beginntAt: beginnt, endetAt: endet, benachrichtigtAt: sentAt },
+      });
+    } catch (e) {
+      console.error(`[kontrollePoller] Orgasmus-Auslösung fehlgeschlagen (${oa.id}):`, (e as Error).message);
     }
   }
 }

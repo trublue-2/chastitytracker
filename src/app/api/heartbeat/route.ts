@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDashboardTasks, evaluateTasks } from "@/lib/taskIntervals";
-import { getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, activeVerschlussAnforderungWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
+import { getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
+import { triggeredWhere } from "@/lib/delayedTrigger";
 import { visionConfigured } from "@/lib/vision";
 
 /** So lange gilt eine noch offene Erkennung als „läuft gerade" (steuert nur den Poll-Takt). */
@@ -42,7 +43,7 @@ export async function GET() {
     // hiesse: eine hinzukommende oder zurückgezogene zweite ändert die Signatur nicht, und das
     // Sub-UI aktualisiert nie. Geplante bleiben draussen, sie sind für den Sub unsichtbar.
     prisma.verschlussAnforderung.findMany({
-      where: { ...openLockRequestWhere(userId), ...activeVerschlussAnforderungWhere(now) },
+      where: { ...openLockRequestWhere(userId), ...triggeredWhere(now) },
       select: { id: true },
       orderBy: LOCK_REQUEST_ORDER,
     }),

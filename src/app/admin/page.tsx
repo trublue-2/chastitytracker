@@ -20,6 +20,16 @@ import { toDateLocale, formatDuration, formatDateTimeDual, nowDatetimeLocal, APP
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel } from "@/lib/constants";
 
+/** Wie eine geplante Direktive in der Liste erscheint — Beschriftung, Rückzug-Endpunkt, Tönung.
+ *  Eine Zeile je `kind`; eine neue terminierbare Direktive ergänzt hier einen Eintrag und ist damit
+ *  vollständig angeschlossen, statt in drei Ternär-Ketten einzeln nachgetragen zu werden. */
+const SCHEDULED_KINDS = {
+  inspection: { labelKey: "scheduledInspection", apiPath: "/api/admin/kontrollen", colorToken: "inspect" },
+  lock_request: { labelKey: "scheduledLockRequest", apiPath: "/api/admin/verschluss-anforderung", colorToken: "sperrzeit" },
+  lock_period: { labelKey: "scheduledLockPeriod", apiPath: "/api/admin/verschluss-anforderung", colorToken: "sperrzeit" },
+  orgasm: { labelKey: "scheduledOrgasm", apiPath: "/api/admin/orgasmus-anforderung", colorToken: "orgasm" },
+} as const;
+
 export default async function AdminPage() {
   const session = await auth();
   const currentUserId = session?.user?.id;
@@ -98,6 +108,7 @@ export default async function AdminPage() {
 
   const isScheduled = (wirksamAb: Date | null) => isScheduledDirective(wirksamAb, now);
 
+
   function getUserStats(userId: string) {
     const lastV = verschlussMap.get(userId);
     const lastO = oeffnenMap.get(userId);
@@ -109,8 +120,11 @@ export default async function AdminPage() {
     const userKontrollen = kontrolleByUser.get(userId) ?? [];
     const userAnforderungen = anforderungByUser.get(userId) ?? [];
     const userSperrzeiten = sperrzeitByUser.get(userId) ?? [];
-    // OrgasmusAnforderung hat kein wirksamAb (keine Terminierung) — die neueste offene reicht.
-    const offeneOrgasmusAnforderung = orgasmusAnfByUser.get(userId)?.[0] ?? null;
+    const userOrgasmusAnf = orgasmusAnfByUser.get(userId) ?? [];
+    // Die neueste bereits AUSGELÖSTE — eine geplante steht wie ihre drei Geschwister unten in
+    // `scheduled` und nicht als laufendes Banner. Als Banner wäre sie von einer zugestellten nicht
+    // zu unterscheiden, samt mitlaufendem Countdown auf ein Fenster, das der Träger nicht kennt.
+    const offeneOrgasmusAnforderung = userOrgasmusAnf.find(o => !isScheduled(o.wirksamAb)) ?? null;
 
     const offeneKontrolle = userKontrollen.find(k => !isScheduled(k.wirksamAb)) ?? null;
     // ALLE bereits ausgelösten Anforderungen (mehrere dürfen koexistieren), dringendste zuerst
@@ -125,6 +139,7 @@ export default async function AdminPage() {
       ...userKontrollen.filter(k => isScheduled(k.wirksamAb)).map(k => ({ id: k.id, kind: "inspection" as const, wirksamAb: k.wirksamAb!, message: k.kommentar })),
       ...userAnforderungen.filter(v => isScheduled(v.wirksamAb)).map(v => ({ id: v.id, kind: "lock_request" as const, wirksamAb: v.wirksamAb!, message: v.nachricht })),
       ...userSperrzeiten.filter(s => isScheduled(s.wirksamAb)).map(s => ({ id: s.id, kind: "lock_period" as const, wirksamAb: s.wirksamAb!, message: s.nachricht })),
+      ...userOrgasmusAnf.filter(o => isScheduled(o.wirksamAb)).map(o => ({ id: o.id, kind: "orgasm" as const, wirksamAb: o.wirksamAb!, message: o.nachricht })),
     ].sort((a, b) => a.wirksamAb.getTime() - b.wirksamAb.getTime());
 
     return {
@@ -327,11 +342,11 @@ export default async function AdminPage() {
                           <CalendarClock size={12} /> {t("scheduledTitle")}
                         </p>
                         {u.stats.scheduled.map((s) => {
-                          const kindLabel = s.kind === "inspection"
-                            ? t("scheduledInspection")
-                            : s.kind === "lock_request" ? t("scheduledLockRequest") : t("scheduledLockPeriod");
-                          const apiPath = s.kind === "inspection" ? "/api/admin/kontrollen" : "/api/admin/verschluss-anforderung";
-                          const colorToken = s.kind === "inspection" ? "inspect" as const : "sperrzeit" as const;
+                          // Beschriftung, Rückzug-Route und Tönung hängen an derselben Fallunterscheidung
+                          // — deshalb EINE Tabelle statt drei Ternär-Ketten, die je Direktiv-Art einzeln
+                          // nachgezogen werden müssten.
+                          const { labelKey, apiPath, colorToken } = SCHEDULED_KINDS[s.kind];
+                          const kindLabel = t(labelKey);
                           return (
                             // items-start + min-w-0-Textspalte: auf Mobile brechen Label/Datum um und die
                             // Nachricht kürzt sich (truncate wirkt nur mit min-w-0), statt die Zeile — und

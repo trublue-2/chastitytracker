@@ -10,7 +10,7 @@ import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import FieldTabs from "@/app/components/FieldTabs";
-import DurationInput from "@/app/components/DurationInput";
+import DurationOrDatetimeField from "@/app/components/DurationOrDatetimeField";
 import HoursInput from "@/app/components/HoursInput";
 import { DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit } from "@/lib/constants";
 import ScheduleFields, { initialSchedule, scheduleIsPast, schedulePayload, type ScheduleValue } from "@/app/components/ScheduleFields";
@@ -153,37 +153,26 @@ export default function VerschlussAnforderungFields({
 
       {/* Die Reiter benennen die ANTWORT-ART, nicht die Einheit: „Dauer (h)" stand an derselben
           Stelle wie der Stunden/Minuten-Umschalter der Kontroll-Frist, und wer ihn tippte, um auf
-          Minuten zu stellen, landete im Datums-Wähler. Die Einheit steht jetzt dort, wo sie
-          hingehört — im Umschalter des Feldes darunter, und der bleibt unbeschriftet, weil dieser
-          Reiter seinen Namen schon trägt. */}
-      <FieldTabs
+          Minuten zu stellen, landete im Datums-Wähler. Die Einheit steht jetzt im Umschalter des
+          Feldes darunter. */}
+      <DurationOrDatetimeField
         label={t("frist")}
-        value={mode}
-        onChange={setMode}
-        options={[
-          { value: "duration", label: tc("duration") },
-          { value: "datetime", label: tc("pointInTime") },
-        ]}
+        mode={mode}
+        onModeChange={setMode}
+        value={deadlineH}
+        unit={deadlineUnit}
+        onDurationChange={(value, unit) => { setDeadlineH(value); setDeadlineUnit(unit); }}
+        // Eine Sperrzeit wird in Stunden bis Tagen beantwortet, eine Einschliess-Frist in Minuten
+        // bis Stunden — die Skala folgt der Vorgabe daneben (24 h gegen 4 h).
+        quick={isSperrzeit ? DURATION_QUICK_HOURS.long : DURATION_QUICK_HOURS.short}
+        datetime={endetAt}
+        onDatetimeChange={setEndetAt}
+        datetimeMin={minNow}
+        datetimeHint={isSperrzeit ? t("endetHintSperrzeit") : t("endetHintAnforderung")}
+        // Die Frist zählt ab JETZT — anders als beim Orgasmus-Fenster gibt es keinen eigenen Start.
+        anchorMs={() => Date.now()}
+        tz={tz}
       />
-
-      {mode === "duration" ? (
-        <DurationInput
-          ariaLabel={t("frist")}
-          value={deadlineH}
-          unit={deadlineUnit}
-          onChange={(value, unit) => { setDeadlineH(value); setDeadlineUnit(unit); }}
-          // Eine Sperrzeit wird in Stunden bis Tagen beantwortet, eine Einschliess-Frist in Minuten
-          // bis Stunden — die Skala folgt der Vorgabe daneben (24 h gegen 4 h).
-          quick={isSperrzeit ? DURATION_QUICK_HOURS.long : DURATION_QUICK_HOURS.short}
-        />
-      ) : (
-        <DateTimePicker
-          value={endetAt}
-          onChange={(e) => setEndetAt(e.target.value)}
-          min={minNow}
-          hint={isSperrzeit ? t("endetHintSperrzeit") : t("endetHintAnforderung")}
-        />
-      )}
 
       {!isSperrzeit && (
         <div className="flex flex-col gap-2">

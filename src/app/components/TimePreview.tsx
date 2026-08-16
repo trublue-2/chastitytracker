@@ -13,18 +13,16 @@ import { formatDateTime, toDateLocale } from "@/lib/utils";
  * gerade NICHT die Haltedauer — wer erst nach 25 Minuten anlegt, hält entsprechend kürzer; die
  * aufgelöste Uhrzeit ist die einzige Angabe, die in beiden Reitern dasselbe bedeutet.
  *
- * NEBEN dem Formular und nicht in `src/app/components/`: alle Aufrufer sind dieses eine Formular, und
- * der `line`-Vertrag trägt dessen Fragestellung. Der Vorgänger-Text stand als lokale Funktion in
- * `TaskFields.tsx` mit dem Vorbehalt „bei der zweiten Verwendung gehört sie in eine eigene Datei" —
- * das ist eingetreten (der Nachweis-Block ist eine eigene Datei), die Schwelle „ein zweites
- * Formular" (Kontrolle, Verschluss-Anforderung) aber nicht. Dann zieht sie eine Ebene höher.
+ * Geteilt vom Aufgaben-Formular und der Orgasmus-Anweisung: überall dort, wo eine Dauer über einem
+ * Zeitpunkt steht, den niemand im Kopf ausrechnen soll.
  */
-export default function TimePreview({ at, nowMs, tz, line }: {
+export default function TimePreview({ at, nowMs = 0, tz, line }: {
   /** Der anzuzeigende Zeitpunkt, gerechnet aus dem gemeinsamen „jetzt". */
   at: (nowMs: number) => Date;
   /**
    * Das „jetzt", aus dem ALLE Vorschauen dieses Formulars rechnen — vom Formular vorgegeben, nicht
-   * hier gelesen.
+   * hier gelesen. WEGLASSEN, wo die Vorschau gar nicht an der Uhr hängt (das Orgasmus-Fenster zählt
+   * ab seinem eingegebenen Start): dann gibt es kein „jetzt" zu teilen und keinen Ticker zu takten.
    *
    * Vorher taktete jede Zeile für sich. Bei drei Vorschauen (Beginn, Ende, dazu je ein Nachweis)
    * waren das drei bis zwölf Intervalle für EINE Uhr — und, schlimmer, phasenverschobene: jedes
@@ -32,7 +30,7 @@ export default function TimePreview({ at, nowMs, tz, line }: {
    * konnten so bis zu eine Minute lang „Fällig um 20:14" über „Endet um 20:15" schreiben. Genau die
    * Abweichung, die diese Vorschauen ausräumen sollen.
    */
-  nowMs: number;
+  nowMs?: number;
   tz: string;
   /**
    * Der fertige Satz, dazu ob er ein WIDERSPRUCH ist. Bewusst beim Aufrufer: die Endzeile nennt

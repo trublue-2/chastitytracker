@@ -5,6 +5,7 @@ import { firePush } from "@/lib/push";
 import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS } from "@/lib/constants";
 import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten } from "@/lib/reasonsService";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
+import { computeDelayedTrigger, isHiddenFromSub, parseTriggerAt } from "@/lib/delayedTrigger";
 import { recordMessageAndBadge, type MessageActor } from "@/lib/messageService";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { getTranslations } from "next-intl/server";
@@ -20,6 +21,54 @@ export function checkOrgasmWindowEnd(endetAt: Date, now: Date): "ORGASM_END_MUST
   return endetAt > now ? null : "ORGASM_END_MUST_BE_FUTURE";
 }
 
+/** Das geprüfte Ergebnis: die drei Zeitpunkte, mit denen die Zeile geschrieben wird. */
+export interface CheckedOrgasmWindow {
+  beginnt: Date;
+  endet: Date;
+  /** null = sofort auslösen (siehe {@link computeDelayedTrigger}). */
+  wirksamAb: Date | null;
+  benachrichtigtAt: Date | null;
+}
+
+/**
+ * Alle Schranken der Anweisung, die OHNE Datenbank zu beantworten sind — prüfend und schreibfrei,
+ * derselbe Schnitt wie `checkTask()` in `taskService.ts`.
+ *
+ * Genau deshalb ruft die MCP-dryRun-Vorschau sie auf, statt die Kette abzuschreiben: eine zweite
+ * Nachrechnung läuft irgendwann auseinander und verspricht Erfolg für einen Commit, der mit 400
+ * endet. **Eine neue Schranke gehört hierher**, nicht in die Vorschau.
+ *
+ * Was NICHT hier steht, weil es die DB braucht: `USER_NOT_FOUND` und die Prüfung der vorgegebenen
+ * Art gegen die Liste des Ziel-Subs.
+ */
+export function checkOrgasmusAnforderung(
+  p: CreateOrgasmusAnforderungParams,
+  now: Date,
+): { ok: true; window: CheckedOrgasmWindow } | { ok: false; code: "ORGASM_INVALID_ART" | "ORGASM_WINDOW_REQUIRED" | "ORGASM_INVALID_SEND_TIME" | "INVALID_DATETIME" | "ORGASM_END_BEFORE_START" | "ORGASM_END_MUST_BE_FUTURE" } {
+  if (!(ORGASMUS_ANFORDERUNG_ARTEN as readonly string[]).includes(p.art)) {
+    return { ok: false, code: "ORGASM_INVALID_ART" };
+  }
+  if (!p.beginntAt || !p.endetAt) return { ok: false, code: "ORGASM_WINDOW_REQUIRED" };
+  const beginnt = new Date(p.beginntAt);
+  const endet = new Date(p.endetAt);
+  if (Number.isNaN(beginnt.getTime()) || Number.isNaN(endet.getTime())) {
+    return { ok: false, code: "INVALID_DATETIME" };
+  }
+  if (endet <= beginnt) return { ok: false, code: "ORGASM_END_BEFORE_START" };
+  // Der Versandzeitpunkt bekommt einen EIGENEN Code, wie bei Verschluss und Aufgabe: sonst ist ein
+  // vertipptes `scheduledAt` von einem vertippten Fenster-Datum nicht zu unterscheiden.
+  const scheduledAt = parseTriggerAt(p.wirksamAbAt);
+  if (scheduledAt === "invalid") return { ok: false, code: "ORGASM_INVALID_SEND_TIME" };
+  const trigger = computeDelayedTrigger(now, { delayMinutes: p.delayMinutes, wirksamAbAt: scheduledAt });
+  // Bei einer TERMINIERTEN Anweisung zählt der Auslöse-Zeitpunkt, nicht „jetzt": ein Fenster, das
+  // vor seiner eigenen Zustellung endet, ist im Moment der Mail schon verstrichen — und mit
+  // `art: "ANWEISUNG"` sofort ein Vergehen für eine Frist, die der Sub nie erfüllen konnte. Genau
+  // der Fall, den `checkOrgasmWindowEnd` verhindert; er verschiebt sich mit der Terminierung nur.
+  const windowEndError = checkOrgasmWindowEnd(endet, trigger.wirksamAb ?? now);
+  if (windowEndError) return { ok: false, code: windowEndError };
+  return { ok: true, window: { beginnt, endet, ...trigger } };
+}
+
 export interface CreateOrgasmusAnforderungParams {
   userId: string;
   art: "ANWEISUNG" | "GELEGENHEIT";
@@ -32,6 +81,10 @@ export interface CreateOrgasmusAnforderungParams {
   vorgegebeneArt?: string | null;
   /** Whether opening to perform the orgasm during the window is permitted (no Sperre break / penalty). */
   oeffnenErlaubt?: boolean;
+  /** Terminierung — dieselben zwei Felder wie bei Kontrolle, Verschluss und Aufgabe
+   *  ({@link computeDelayedTrigger}). Ohne beide löst die Anweisung sofort aus. */
+  delayMinutes?: number | null;
+  wirksamAbAt?: string | Date | null;
 }
 
 /**
@@ -41,34 +94,21 @@ export interface CreateOrgasmusAnforderungParams {
  * identical behaviour whether triggered from the admin UI or the MCP.
  *
  * `actor` ist WER anweist (Sitzung bzw. {@link AI_AUTHOR}) — als eigenes Argument wie bei allen
- * übrigen Diensten. Bewusst NUR ein Argument und KEINE Spalte, anders als bei Kontrolle und
- * Verschluss: eine Orgasmus-Anforderung kennt keine Terminierung (kein `wirksamAb`, siehe
- * `delayedTrigger.ts`). Ihre Meldung geht in DIESEM Aufruf raus, während der Handelnde noch bekannt
- * ist — es gibt keinen späteren Zusteller, dem man den Autor hinterlegen müsste.
+ * übrigen Diensten, UND als Spalte (`createdBy`), seit die Anweisung terminierbar ist: eine geplante
+ * stellt der Poller zu, und dann ist der Handelnde nur noch dort nachlesbar. Dieselbe Begründung
+ * wie bei `VerschlussAnforderung.createdBy`.
  */
 export async function createOrgasmusAnforderung(
   params: CreateOrgasmusAnforderungParams,
   actor: MessageActor,
-): Promise<ServiceResult<{ id: string }>> {
+): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
   const { userId, art, nachricht, beginntAt, endetAt, vorgegebeneArt, oeffnenErlaubt } = params;
 
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
-  if (!(ORGASMUS_ANFORDERUNG_ARTEN as readonly string[]).includes(art)) {
-    return serviceFail(400, "ORGASM_INVALID_ART");
-  }
-  if (!beginntAt || !endetAt) {
-    return serviceFail(400, "ORGASM_WINDOW_REQUIRED");
-  }
-  const beginnt = new Date(beginntAt);
-  const endet = new Date(endetAt);
-  if (Number.isNaN(beginnt.getTime()) || Number.isNaN(endet.getTime())) {
-    return serviceFail(400, "INVALID_DATETIME");
-  }
-  if (endet <= beginnt) {
-    return serviceFail(400, "ORGASM_END_BEFORE_START");
-  }
-  const windowEndError = checkOrgasmWindowEnd(endet, new Date());
-  if (windowEndError) return serviceFail(400, windowEndError);
+  const now = new Date();
+  const checked = checkOrgasmusAnforderung(params, now);
+  if (!checked.ok) return serviceFail(400, checked.code);
+  const { beginnt, endet, wirksamAb, benachrichtigtAt } = checked.window;
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
   // vorgegebeneArt gegen die (ggf. angepasste) Orgasmus-Liste des Ziel-Subs prüfen; null-Config → Built-ins.
@@ -77,7 +117,19 @@ export async function createOrgasmusAnforderung(
   }
 
   // Withdraw existing open request + create the new one atomically (one active at a time).
+  //
+  // Die verdrängten Zeilen werden MITGELESEN: war eine davon dem Träger bekannt und ist die neue
+  // TERMINIERT, verschwindet ihm sonst ein laufendes Fenster wortlos vom Dashboard — und ein Banner,
+  // das grundlos verschwindet, verrät die Terminierung genauso wie eine verfrühte Meldung. Ist die
+  // neue Anweisung sofort wirksam, meldet sie sich selbst; dann bleibt es wie bisher bei einer
+  // Nachricht.
+  let replacedVisible = false;
   const anforderung = await prisma.$transaction(async (tx) => {
+    const offen = await tx.orgasmusAnforderung.findMany({
+      where: { userId, fulfilledAt: null, withdrawnAt: null },
+      select: { wirksamAb: true, benachrichtigtAt: true },
+    });
+    replacedVisible = offen.some((o) => !isHiddenFromSub(o));
     await tx.orgasmusAnforderung.updateMany({
       where: { userId, fulfilledAt: null, withdrawnAt: null },
       data: { withdrawnAt: new Date() },
@@ -91,16 +143,27 @@ export async function createOrgasmusAnforderung(
         endetAt: endet,
         vorgegebeneArt: vorgegebeneArt || null,
         oeffnenErlaubt: Boolean(oeffnenErlaubt),
+        createdBy: actor ?? null,
+        wirksamAb,
+        benachrichtigtAt,
       },
     });
   });
 
-  await sendOrgasmusAnforderungNotifications({
-    userId, user, art, nachricht, beginnt, endet, vorgegebeneArt, oeffnenErlaubt: Boolean(oeffnenErlaubt),
-    directiveId: anforderung.id, actor,
-  });
+  // Terminiert: kein Wort an den Sub, bis der Poller auslöst — eine Meldung jetzt verriete genau
+  // das, was die Terminierung verbergen soll (`isHiddenFromSub`).
+  if (!wirksamAb) {
+    await sendOrgasmusAnforderungNotifications({
+      userId, user, art, nachricht, beginnt, endet, vorgegebeneArt, oeffnenErlaubt: Boolean(oeffnenErlaubt),
+      directiveId: anforderung.id, actor,
+    });
+  } else if (replacedVisible) {
+    // Nur der RÜCKZUG wird gemeldet, ohne ein Wort über die neue Anweisung: dass die alte weg ist,
+    // sieht der Träger ohnehin, und wann die nächste kommt, geht ihn nichts an.
+    await notifyUser(userId, orgasmusWithdrawNotice(actor));
+  }
 
-  return { ok: true, data: { id: anforderung.id } };
+  return { ok: true, data: { id: anforderung.id, scheduledFor: wirksamAb?.toISOString() ?? null } };
 }
 
 /** Notification text shown to the user when an open orgasm directive is withdrawn — shared by the
@@ -129,7 +192,7 @@ export async function withdrawOrgasmusAnforderung(
   const rows = await prisma.$transaction(async (tx) => {
     const open = await tx.orgasmusAnforderung.findMany({
       where: { userId, fulfilledAt: null, withdrawnAt: null },
-      select: { id: true, endetAt: true, nachricht: true },
+      select: { id: true, endetAt: true, nachricht: true, wirksamAb: true, benachrichtigtAt: true },
     });
     if (open.length > 0) {
       await tx.orgasmusAnforderung.updateMany({
@@ -139,7 +202,9 @@ export async function withdrawOrgasmusAnforderung(
     }
     return open;
   });
-  if (rows.length > 0) {
+  // Gemeldet wird nur, was der Sub überhaupt kennt: eine terminierte, noch nicht ausgelöste Anweisung
+  // zurückzuziehen und ihm das zu melden, verriete sie im selben Atemzug (`isHiddenFromSub`).
+  if (rows.some((o) => !isHiddenFromSub(o))) {
     await notifyUser(userId, orgasmusWithdrawNotice(actor));
   }
   return { ok: true, data: { count: rows.length, rows } };
@@ -148,9 +213,18 @@ export async function withdrawOrgasmusAnforderung(
 /** Withdraws a single OrgasmusAnforderung by id (not yet fulfilled/withdrawn). Used by the admin
  *  PATCH route — targets exactly one directive instead of all open ones. The route already looks
  *  up the row's `userId` for the auth guard, so it's passed in here to avoid a second fetch of the
- *  same row (single `updateMany` scoped by id + open-status does the existence/open check via
- *  `count`, matching the one-round-trip shape of `withdrawVerschlussAnforderung`). */
+ *  same row (`updateMany` scoped by id + open-status does the existence/open check via `count`; der `findFirst`
+ *  davor holt NUR den Auslöse-Stand für die Melde-Entscheidung). */
 export async function withdrawOrgasmusAnforderungById(id: string, userId: string, actor: MessageActor): Promise<ServiceResult<{ count: number }>> {
+  // Der Auslöse-Stand wird MITGELESEN, statt nur zu zählen: eine terminierte, noch nicht ausgelöste
+  // Anweisung darf zwar zurückgezogen, aber nicht gemeldet werden (`isHiddenFromSub`) — und nach dem
+  // `updateMany` ist er nicht mehr zu erfahren, ohne die Zeile ein zweites Mal zu laden. Die
+  // Existenz-/Offen-Prüfung bleibt trotzdem am `updateMany` unten: zwischen Lesen und Schreiben kann
+  // ein zweiter Rückzug dazwischenkommen, und nur der Schreibvorgang selbst entscheidet das.
+  const row = await prisma.orgasmusAnforderung.findFirst({
+    where: { id, fulfilledAt: null, withdrawnAt: null },
+    select: { wirksamAb: true, benachrichtigtAt: true },
+  });
   const res = await prisma.orgasmusAnforderung.updateMany({
     where: { id, fulfilledAt: null, withdrawnAt: null },
     data: { withdrawnAt: new Date() },
@@ -158,12 +232,17 @@ export async function withdrawOrgasmusAnforderungById(id: string, userId: string
   if (res.count === 0) {
     return serviceFail(400, "ORGASM_NOT_OPEN");
   }
-  await notifyUser(userId, orgasmusWithdrawNotice(actor, id));
+  if (row && !isHiddenFromSub(row)) {
+    await notifyUser(userId, orgasmusWithdrawNotice(actor, id));
+  }
   return { ok: true, data: { count: res.count } };
 }
 
-/** Sends the directive e-mail + push to the user. Push is fire-and-forget. */
-async function sendOrgasmusAnforderungNotifications(opts: {
+/** Sends the directive e-mail + push to the user. Push is fire-and-forget.
+ *
+ *  Exportiert für den Poller (`kontrollePoller.ts`), der die terminierten Anweisungen zustellt —
+ *  dieselbe Meldung, nur später und mit dem Anordnenden aus `createdBy` statt aus der Sitzung. */
+export async function sendOrgasmusAnforderungNotifications(opts: {
   userId: string;
   user: { email: string | null; username: string; orgasmusArtenConfig: string | null; locale: string };
   art: "ANWEISUNG" | "GELEGENHEIT";

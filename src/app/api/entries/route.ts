@@ -8,7 +8,7 @@ import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVer
 import { DEVICE_BEARING_TYPES, validateEntryPayload, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, activeVerschlussAnforderungWhere, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
+import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "@/lib/inspectionTarget";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";

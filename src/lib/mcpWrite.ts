@@ -358,6 +358,9 @@ export interface RequestOrgasmArgs {
   requiredType?: string;
   /** Allow opening the device to perform the orgasm during the window (no Sperre break / penalty). */
   openAllowed?: boolean;
+  /** Terminierung — wie bei `request_lock`/`request_inspection`. */
+  delayMinutes?: number;
+  scheduledAt?: string;
   message?: string;
   dryRun?: boolean;
 }
@@ -377,8 +380,11 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
     // Dieselbe Reihenfolge wie createOrgasmusAnforderung: erst endet<=beginnt (Struktur), dann
     // endet<=now (B-01) — sonst könnte ein explizites endsAt vor beginsAt hier fälschlich als
     // "würde gelingen" durchgehen, obwohl der echte Commit mit ORGASM_END_BEFORE_START ablehnt.
-    const problem = endet <= beginnt ? "ORGASM_END_BEFORE_START" : (checkOrgasmWindowEnd(endet, new Date()) ?? undefined);
-    return dryRunPreview("request_orgasm", problem, { art: args.art, beginsAt: iso(beginnt)!, endsAt: iso(endet)!, requiredType: args.requiredType ?? null, openAllowed: !!args.openAllowed });
+    // Gegen den AUSLÖSE-Zeitpunkt, wie der Dienst: ein Fenster, das vor seiner eigenen Zustellung
+    // endet, kommt beim Sub als bereits verstrichene Frist an.
+    const trigger = computeDelayedTrigger(new Date(), { delayMinutes: args.delayMinutes, wirksamAbAt: args.scheduledAt ? parseIsoDate(args.scheduledAt, "scheduledAt") : null });
+    const problem = endet <= beginnt ? "ORGASM_END_BEFORE_START" : (checkOrgasmWindowEnd(endet, trigger.wirksamAb ?? new Date()) ?? undefined);
+    return dryRunPreview("request_orgasm", problem, { art: args.art, beginsAt: iso(beginnt)!, endsAt: iso(endet)!, requiredType: args.requiredType ?? null, openAllowed: !!args.openAllowed, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
   }
   const data = unwrap(await createOrgasmusAnforderung({
     userId,
@@ -388,8 +394,18 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
     endetAt: endet,
     vorgegebeneArt: args.requiredType,
     oeffnenErlaubt: args.openAllowed,
+    delayMinutes: args.delayMinutes,
+    wirksamAbAt: args.scheduledAt,
   }, AI_AUTHOR));
   const kind = args.art === "ANWEISUNG" ? "mandatory directive" : "opportunity";
+  if (data.scheduledFor) {
+    return {
+      ok: true,
+      id: data.id,
+      scheduledFor: data.scheduledFor,
+      message: `Orgasm ${kind} scheduled (window ${iso(beginnt)} – ${iso(endet)}) — it will reach the user at ${data.scheduledFor}. The user cannot see it until it triggers.`,
+    };
+  }
   return {
     ok: true,
     id: data.id,

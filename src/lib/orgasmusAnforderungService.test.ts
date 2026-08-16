@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 
 const tx = {
-  orgasmusAnforderung: { updateMany: vi.fn(), create: vi.fn() },
+  orgasmusAnforderung: { findMany: vi.fn(), updateMany: vi.fn(), create: vi.fn() },
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -25,13 +25,18 @@ vi.mock("@/lib/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, noticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
 vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
+vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/emailI18n", () => ({ emailT: async () => (k: string) => k, emailGreeting: () => "" }));
 vi.mock("next-intl/server", () => ({ getTranslations: vi.fn(async () => (k: string) => k) }));
 
 import { createOrgasmusAnforderung, checkOrgasmWindowEnd } from "./orgasmusAnforderungService";
 import { prisma } from "@/lib/prisma";
+import { sendMailSafe } from "@/lib/mail";
+import { notifyUser } from "@/lib/notify";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
+const mailMock = sendMailSafe as unknown as ReturnType<typeof vi.fn>;
+const notifyMock = notifyUser as unknown as ReturnType<typeof vi.fn>;
 
 const JETZT = new Date("2026-07-17T12:00:00Z");
 const VOR_EINER_STUNDE = new Date("2026-07-17T11:00:00Z");
@@ -43,6 +48,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(JETZT);
   vi.clearAllMocks();
+  tx.orgasmusAnforderung.findMany.mockReset().mockResolvedValue([]);
   tx.orgasmusAnforderung.updateMany.mockReset().mockResolvedValue({ count: 0 });
   tx.orgasmusAnforderung.create.mockReset().mockResolvedValue({ id: "neu" });
   userMock.mockReset().mockResolvedValue({ id: "u1", email: "sub@example.invalid", username: "sub", locale: "de", orgasmusArtenConfig: null });
@@ -92,5 +98,66 @@ describe("createOrgasmusAnforderung — Vergangenheits-Fenster (B-01)", () => {
     "herrin");
     expect(res.ok).toBe(true);
     expect(tx.orgasmusAnforderung.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Die Terminierung folgt der Konvention der drei Geschwister (`delayedTrigger.ts`): bis zum
+ * Auslösen bleibt die Anweisung für den Sub verborgen — und deshalb geht bis dahin auch keine
+ * Meldung raus. Der Fenster-Guard oben zählt dann gegen den AUSLÖSE-Zeitpunkt, nicht gegen „jetzt".
+ */
+describe("createOrgasmusAnforderung — Terminierung", () => {
+  it("sofort: benachrichtigt und gemeldet", async () => {
+    const res = await createOrgasmusAnforderung({
+      userId: "u1", art: "ANWEISUNG", beginntAt: JETZT, endetAt: MORGEN,
+    }, "herrin");
+    expect(res.ok && res.data.scheduledFor).toBeNull();
+    expect(tx.orgasmusAnforderung.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ wirksamAb: null, benachrichtigtAt: JETZT, createdBy: "herrin" }) }),
+    );
+    expect(mailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("verzögert: gespeichert, aber KEINE Meldung — der Poller stellt zu", async () => {
+    const res = await createOrgasmusAnforderung({
+      userId: "u1", art: "ANWEISUNG", beginntAt: JETZT, endetAt: MORGEN, delayMinutes: 60,
+    }, "herrin");
+    expect(res.ok && res.data.scheduledFor).toBe(IN_EINER_STUNDE.toISOString());
+    expect(tx.orgasmusAnforderung.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ wirksamAb: IN_EINER_STUNDE, benachrichtigtAt: null }) }),
+    );
+    expect(mailMock).not.toHaveBeenCalled();
+  });
+
+  it("ein Fenster, das vor der eigenen Zustellung endet, wird abgelehnt", async () => {
+    const res = await createOrgasmusAnforderung({
+      userId: "u1", art: "ANWEISUNG", beginntAt: JETZT, endetAt: IN_EINER_STUNDE, wirksamAbAt: MORGEN,
+    }, "herrin");
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("ORGASM_END_MUST_BE_FUTURE");
+    expect(tx.orgasmusAnforderung.create).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Die verdrängte Vorgängerin: eine neue Anweisung zieht die offene zurück. Ist die neue TERMINIERT,
+ * bekommt der Träger davon nichts mit — dann muss wenigstens der Rückzug bei ihm ankommen, sonst
+ * verschwindet ihm ein laufendes Fenster wortlos vom Dashboard.
+ */
+describe("createOrgasmusAnforderung — Verdrängung", () => {
+  it("terminierte Neue verdrängt eine bekannte Alte → Rückzugs-Meldung", async () => {
+    tx.orgasmusAnforderung.findMany.mockResolvedValue([{ wirksamAb: null, benachrichtigtAt: JETZT }]);
+    await createOrgasmusAnforderung({
+      userId: "u1", art: "GELEGENHEIT", beginntAt: JETZT, endetAt: MORGEN, delayMinutes: 60,
+    }, "herrin");
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("terminierte Neue verdrängt eine ebenfalls verborgene Alte → gar keine Meldung", async () => {
+    tx.orgasmusAnforderung.findMany.mockResolvedValue([{ wirksamAb: MORGEN, benachrichtigtAt: null }]);
+    await createOrgasmusAnforderung({
+      userId: "u1", art: "GELEGENHEIT", beginntAt: JETZT, endetAt: MORGEN, delayMinutes: 60,
+    }, "herrin");
+    expect(notifyMock).not.toHaveBeenCalled();
   });
 });

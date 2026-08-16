@@ -645,7 +645,8 @@ function registerTools(server: McpServer) {
     // STILLE Keyholder-Tools → KEIN aktiver Notify (weder E-Mail noch Push). Nur die
     // notifizierenden Aktionen (Lock, Lock-Periode, Inspektion, Orgasmus) senden eine Nachricht.
     const KEYHOLDER_SILENT = KEYHOLDER_BASE + " The user is NOT notified (no e-mail/push).";
-    // Für alle Tools mit delayMinutes/scheduledAt (request_lock, set_lock_period, request_inspection):
+    // Für alle Tools mit delayMinutes/scheduledAt (request_lock, set_lock_period, request_inspection,
+    // request_orgasm, create_task):
     // der Trigger-Zeitpunkt selbst darf dem Sub nie mitgeteilt werden (nicht in message/comment, nicht
     // im Gespräch) — sonst ist der Überraschungseffekt der Terminierung hinfällig.
     // Beide Edit-Tools teilen die Zielwahl (`pickEditTarget`) — und damit auch ihre Beschreibung.
@@ -750,7 +751,7 @@ function registerTools(server: McpServer) {
           "(a missed window becomes a Strafbuch offense); art=GELEGENHEIT is a permitted opportunity " +
           "(no penalty if unused). Optionally require a specific orgasm type, allow opening the device " +
           "during the window, and attach a message. Replaces any existing open directive (one active " +
-          "at a time). The user is notified by e-mail + push." + KEYHOLDER_NOTE,
+          "at a time). The user is notified by e-mail + push." + KEYHOLDER_NOTE + NO_SCHEDULE_DISCLOSURE,
         inputSchema: {
           art: z.enum(["ANWEISUNG", "GELEGENHEIT"]).describe("ANWEISUNG = mandatory (penalty if missed); GELEGENHEIT = permitted opportunity (no penalty)."),
           beginsAt: z.string().optional().describe("Window start (ISO 8601). Default: now."),
@@ -760,6 +761,8 @@ function registerTools(server: McpServer) {
           // Write-Service validiert `vorgegebeneArt` gegen die effektive Liste des Ziel-Subs.
           requiredType: z.string().optional().describe(`Require a specific orgasm type (must be one of the sub's configured types; built-in defaults: ${ORGASMUS_ARTEN.join(", ")}). Omit = any orgasm counts.`),
           openAllowed: z.boolean().optional().describe("Allow opening the device to perform the orgasm during the window (no lock break / penalty)."),
+          delayMinutes: z.number().optional().describe("Delay before the directive reaches the user, in minutes. Omit/0 = immediate. Until it triggers the window does not apply: it grants no opening and cannot be fulfilled."),
+          scheduledAt: z.string().optional().describe("Absolute send time (ISO 8601). Overrides delayMinutes. The user cannot see the directive until then."),
           message: z.string().optional().describe("Message shown to the user."),
           reason: reasonField,
           dryRun: dryRunFieldV1,

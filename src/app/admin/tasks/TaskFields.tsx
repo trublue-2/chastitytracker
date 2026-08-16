@@ -17,7 +17,7 @@ import ScheduleFields, { initialSchedule, scheduleAnchorLive, scheduleAnchorMs, 
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
-import TimePreview from "./TimePreview";
+import TimePreview from "@/app/components/TimePreview";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import { useApiError } from "@/app/hooks/useApiError";

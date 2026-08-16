@@ -478,7 +478,7 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
     db.orgasmusAnforderung.findMany.mockResolvedValue([{
       id: "d1", art: "GELEGENHEIT", beginntAt: new Date("2026-08-05T00:00:00Z"),
       endetAt: new Date("2026-08-06T00:00:00Z"), withdrawnAt: null, fulfilledAt: null,
-      nachricht: null, oeffnenErlaubt: false,
+      nachricht: null, oeffnenErlaubt: false, wirksamAb: null, benachrichtigtAt: new Date("2026-08-05T00:00:00Z"),
     }]);
 
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toHaveLength(0);

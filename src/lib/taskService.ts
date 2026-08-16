@@ -7,7 +7,7 @@ import { getControllerAudience } from "@/lib/keyholder";
 import { notifyLateProofsForTask } from "@/lib/taskProofNotify";
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
-import { computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
+import { parseTriggerAt, computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters, type TaskLike } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
@@ -415,13 +415,9 @@ export async function checkTask(
   const holdDurationMin = clampHoldDuration(p.holdDurationMin) ?? null;
   const reqs = p.requirements ?? [];
 
-  // Parsen/Validieren des Client-Datums gehört an den Rand, nicht in die Zeit-Policy — wie bei der
-  // Verschluss-Anforderung.
-  let wirksamAbParsed: Date | null = null;
-  if (p.wirksamAbAt) {
-    wirksamAbParsed = new Date(p.wirksamAbAt);
-    if (Number.isNaN(wirksamAbParsed.getTime())) return serviceFail(400, "TASK_INVALID_SEND_TIME");
-  }
+  // Der FEHLERCODE bleibt hier, das Parsen teilen sich die Dienste (`parseTriggerAt`).
+  const wirksamAbParsed = parseTriggerAt(p.wirksamAbAt);
+  if (wirksamAbParsed === "invalid") return serviceFail(400, "TASK_INVALID_SEND_TIME");
   const { wirksamAb, benachrichtigtAt } = computeDelayedTrigger(now, {
     delayMinutes: p.delayMinutes, wirksamAbAt: wirksamAbParsed,
   });

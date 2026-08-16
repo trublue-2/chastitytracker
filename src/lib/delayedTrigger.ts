@@ -35,9 +35,8 @@ export interface DelayedTrigger {
  * Deshalb entscheidet `wirksamAb`: null heisst „sofort", und dann kennt der Sub die Direktive
  * per Konstruktion. Verborgen ist nur, was TERMINIERT ist und noch nicht ausgelöst hat.
  *
- * Gilt für `KontrollAnforderung`, `VerschlussAnforderung` und `Task` — die drei Modelle, die das
- * Feldpaar tragen. (`OrgasmusAnforderung` kennt es nicht und kann deshalb gar nicht terminiert
- * werden.)
+ * Gilt für `KontrollAnforderung`, `VerschlussAnforderung`, `Task` und `OrgasmusAnforderung` — die
+ * vier Modelle, die das Feldpaar tragen.
  *
  * SQL-ZWILLING: Wo die Zeilen nicht einzeln geprüft, sondern gefiltert geladen werden, steht
  * dieselbe Regel als `where`-Fragment — für Aufgaben `SUB_VISIBLE_WHERE` (`taskIntervals.ts`), die
@@ -54,6 +53,21 @@ export interface DelayedTrigger {
  */
 export function isHiddenFromSub(directive: { wirksamAb: Date | null; benachrichtigtAt: Date | null }): boolean {
   return directive.wirksamAb !== null && directive.benachrichtigtAt === null;
+}
+
+/**
+ * Der vom Client gelieferte Auslöse-Zeitpunkt, geparst — `"invalid"` statt eines Wurfs.
+ *
+ * {@link computeDelayedTrigger} nimmt bewusst nur ein fertiges `Date`: das Parsen gehört an den Rand,
+ * in den Service, der die Anfrage besitzt. Genau diese drei Zeilen („parsen, `Number.isNaN`, eigener
+ * Fehlercode") standen deshalb in jedem Service noch einmal — beim vierten Mal hier. Der CODE bleibt
+ * beim Aufrufer, weil er zu seiner Direktive gehört (`LOCK_INVALID_SEND_TIME` gegen
+ * `TASK_INVALID_SEND_TIME`); geteilt wird nur das Parsen.
+ */
+export function parseTriggerAt(value: string | Date | null | undefined): Date | null | "invalid" {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "invalid" : parsed;
 }
 
 /**
@@ -80,6 +94,30 @@ export function computeDelayedTrigger(now: Date, params: DelayedTriggerParams): 
   if (wirksamAb && wirksamAb.getTime() <= now.getTime()) wirksamAb = null;
 
   return { wirksamAb, benachrichtigtAt: wirksamAb ? null : now };
+}
+
+/**
+ * Where-Fragment: Direktiven, deren ZEITPUNKT da ist — sofortige (`wirksamAb` null) und terminierte
+ * mit `wirksamAb <= jetzt`. Für alle Sichten, die fragen „gilt das JETZT?": eine geplante Sperrzeit
+ * darf vor ihrem Versand nicht durchsetzen, ein geplantes Orgasmus-Fenster nicht das Öffnen
+ * erlauben, eine geplante Anforderung nicht vorzeitig als erfüllt gelten. Das SQL zu
+ * {@link isScheduledDirective} (`queries.ts`), negiert.
+ *
+ * **Nicht zu verwechseln mit {@link isHiddenFromSub}**, auch wenn beide „ist das schon da?" fragen:
+ * das hier misst die UHR, jenes die ZUSTELLUNG (`benachrichtigtAt`). Zwischen beiden liegt im
+ * Normalfall ein Poller-Tick, nach einem Container-Stillstand auch Stunden — und für diese Spanne
+ * ist die Antwort verschieden. Welche richtig ist, hängt an der Frage:
+ *
+ * - „Wirkt die Regel?" → die UHR. Eine Sperrzeit, deren Zeitpunkt erreicht ist, gilt; ob die Mail
+ *   schon raus ist, ändert daran nichts (so hält es `activeVerschlussAnforderungWhere` seit je).
+ * - „Darf ich ihm etwas dazu SAGEN / etwas anlasten?" → die ZUSTELLUNG. Was er nicht bekommen hat,
+ *   kann er nicht versäumt haben (`strafbuch.ts`) und darf ihm ein Rückzug nicht verraten.
+ *
+ * Getypt gegen `TaskWhereInput`, wie {@link pendingDispatchWhere} — alle vier Modelle mit dem
+ * Feldpaar tragen es identisch.
+ */
+export function triggeredWhere(now: Date = new Date()) {
+  return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] } satisfies Prisma.TaskWhereInput;
 }
 
 /**

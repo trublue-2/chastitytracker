@@ -33,7 +33,7 @@ vi.mock("@/lib/prisma", () => ({
     entry: { update: vi.fn() },
     kontrollAnforderung: { findUnique: vi.fn(), update: vi.fn() },
     verschlussAnforderung: { findUnique: vi.fn(), update: vi.fn() },
-    orgasmusAnforderung: { updateMany: vi.fn() },
+    orgasmusAnforderung: { findFirst: vi.fn(), updateMany: vi.fn() },
     task: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     strafeRecord: { updateMany: vi.fn() },
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
@@ -211,7 +211,11 @@ describe("Verschluss-Direktiven", () => {
 // ── Orgasmus-Anweisung ──────────────────────────────────────────────────────
 
 describe("Orgasmus-Anweisung", () => {
-  beforeEach(() => mock(prisma.orgasmusAnforderung.updateMany).mockResolvedValue({ count: 1 }));
+  beforeEach(() => {
+    mock(prisma.orgasmusAnforderung.updateMany).mockResolvedValue({ count: 1 });
+    // Ausgelöst und dem Sub bekannt — der Normalfall. Der terminierte Gegenfall steht unten.
+    mock(prisma.orgasmusAnforderung.findFirst).mockResolvedValue({ wirksamAb: null, benachrichtigtAt: new Date() });
+  });
 
   it("Rückzug durch einen Menschen → seine Zeile, mit Namen", async () => {
     await withdrawOrgasmusAnforderungById("oa1", "u1", HERRIN);
@@ -221,6 +225,15 @@ describe("Orgasmus-Anweisung", () => {
   it("Rückzug über den MCP → KI", async () => {
     await withdrawOrgasmusAnforderungById("oa1", "u1", AI_AUTHOR);
     expect(lastToSub()).toMatchObject(AI);
+  });
+
+  // Die Kehrseite derselben Regel: eine terminierte, noch nicht ausgelöste Anweisung kennt der Sub
+  // nicht — ihr Rückzug darf ihm nichts melden, sonst verrät die Meldung sie im selben Atemzug.
+  it("Rückzug einer noch verborgenen Anweisung → gar keine Meldung", async () => {
+    mock(prisma.orgasmusAnforderung.findFirst).mockResolvedValue({ wirksamAb: new Date(Date.now() + 3600_000), benachrichtigtAt: null });
+    const before = mock(prisma.message.create).mock.calls.length;
+    await withdrawOrgasmusAnforderungById("oa1", "u1", HERRIN);
+    expect(mock(prisma.message.create).mock.calls.length).toBe(before);
   });
 });
 
