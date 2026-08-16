@@ -1,6 +1,10 @@
 # UX-Inventar & Navigationsstruktur
 
-Stand: 2026-04-03 | chastitytracker v3.0.0
+Stand: 2026-04-03 | chastitytracker v3.0.0 — **veraltet**, die Seiten- und Komponentenlisten
+unten geben den Stand von v3.0.0 wieder.
+
+Dieses Papier ist die KARTE (welche Seite nutzt welches Bauteil). Der BEFUND — verhält sich
+das Gleiche auch gleich, und was ist zu tun — steht in `ux-konsistenz.md`.
 
 ---
 
