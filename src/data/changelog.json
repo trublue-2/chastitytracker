@@ -1,6 +1,6 @@
 [
   {
-    "version": "5.1.3",
+    "version": "5.1.5",
     "date": "2026-08-16",
     "changes": [
       {
@@ -71,6 +71,19 @@
         "text": {
           "de": "Titel, Beschreibung und Code einer noch nicht zugestellten Aufgabe waren über einen direkten Link lesbar. Eine zurückgezogene Strafaufgabe zeigte im Dashboard weiterhin ihren Titel.",
           "en": "Title, description and code of a task not yet delivered were readable via a direct link. A withdrawn penalty task still showed its title on the dashboard."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.1.4",
+    "date": "2026-08-16",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Bei einer angeforderten Kontrolle lässt sich der Code jetzt per Knopfdruck noch einmal als Meldung aufs Handy schicken — praktisch, wenn er auf der Smartwatch abfotografiert wird und dort von der nächsten Meldung verdrängt wurde.",
+          "en": "For a requested inspection you can now resend the code as a notification at the press of a button — handy when you photograph it off a smartwatch and the next notification has pushed it aside."
         }
       }
     ]

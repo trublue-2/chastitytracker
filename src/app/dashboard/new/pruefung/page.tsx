@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { generateKontrollCode } from "@/lib/utils";
-import { getBoxFormContext } from "@/lib/queries";
+import { getBoxFormContext, getOpenKontrollen } from "@/lib/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { getTranslations } from "next-intl/server";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
@@ -14,7 +14,7 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
   const userId = session?.user?.id;
   const tz = session?.user?.timezone ?? APP_TZ;
 
-  const [dbUser, resolved, box] = await Promise.all([
+  const [dbUser, resolved, box, openKontrollen] = await Promise.all([
     userId ? prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }) : null,
     // Das ZIEL aus dem Link (`cat`): ohne Parameter der KG — dieselbe Auflösung, mit der die
     // Anforderung angelegt wurde. Sie liefert zugleich das gerade getragene Gerät, an dem die
@@ -23,7 +23,16 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
     // Box-User: die Kontrolle verlangt zusätzlich ein Foto durchs Sichtfenster — der Nachweis,
     // dass der Schlüssel seit dem Einschliessen drin GEBLIEBEN ist.
     userId ? getBoxFormContext(userId) : null,
+    // Die offenen Anforderungen — gebraucht allein, um die zum Code aus dem Link zu finden: der
+    // Knopf, der den Code noch einmal als Meldung schickt, braucht ihre Id.
+    //
+    // Nur wenn der Code AUS DEM LINK kommt: eine freiwillige Selbstkontrolle würfelt ihren Code
+    // erst weiter unten, er steht in keiner Zeile — und geriete er hier in die Suche, träfe er im
+    // Ausnahmefall die Anforderung eines fremden Ziels und böte einen Knopf an, der den falschen
+    // Code schickt.
+    userId && code ? getOpenKontrollen(userId) : null,
   ]);
+  const requested = openKontrollen?.find((k) => k.code === code) ?? null;
   const target = resolved?.ok ? resolved.target : null;
   // Das Trage-Ziel, oder null beim KG — die Formular-Props hängen alle an dieser einen Frage.
   const wearTarget = target && !isKgTarget(target) ? target : null;
@@ -56,6 +65,7 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
         // getragene Gerät zugleich das gezeigte und der Schlüssel zur richtigen Anforderung.
         targetDeviceId={wearTarget?.activeDeviceId ?? null}
         targetLabel={inspectionTargetLabel(wearTarget)}
+        codePushControlId={requested?.id ?? null}
         mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false}
         boxConfirm={box?.boxConfirm ?? false}
       />

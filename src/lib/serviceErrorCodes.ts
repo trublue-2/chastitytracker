@@ -48,6 +48,11 @@ export const SHARED_SERVICE_CODES = [
   "UNKNOWN_ACTION",
   "USER_NOT_LOCKED",
   "USER_ALREADY_LOCKED",
+  // Beide gehören zu keinem Dienst, sondern zum Zustand des Aufrufers: er drückt zu schnell, oder
+  // er hat gar kein Gerät für Push angemeldet. Bewusst NICHT unter `INSPECTION_*`, obwohl heute nur
+  // die Code-Wiederholung sie wirft — der Satz änderte sich für einen zweiten Aufrufer nicht.
+  "TOO_MANY_REQUESTS",
+  "PUSH_NOT_ENABLED",
 ] as const;
 
 /** kontrolleService + the inspection routes. */
@@ -63,6 +68,10 @@ export const INSPECTION_CODES = [
   "USER_NOT_WEARING",
   "INSPECTION_TARGET_INVALID",
   "INSPECTION_DEVICE_NOT_ACTIVE",
+  // Die Kontrolle läuft, verlangt aber gar keinen Code (Gerät mit `requireInspectionCode: false`) —
+  // es gibt nichts zu wiederholen. Eigener Code statt `INSPECTION_NOT_FOUND`: die Anforderung ist
+  // da, und „nicht gefunden" schickte den Sub auf die falsche Fehlersuche.
+  "INSPECTION_NO_CODE",
 ] as const;
 
 /** vorgabeService (training goals). `INVALID_CATEGORY` sass hier, solange der vorgabeService der

@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
 
-import { hasActiveKontrolle, inspectionIntro, buildInspectionPush, resolveInspectionEntry } from "./kontrolleService";
+import { hasActiveKontrolle, inspectionIntro, buildInspectionPush, buildInspectionCodePush, resolveInspectionEntry } from "./kontrolleService";
 import { emailT } from "@/lib/emailI18n";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
@@ -194,6 +194,22 @@ describe("buildInspectionPush — der Code muss auf dem Foto der Smartwatch lesb
     expect(body.startsWith("Käfig · ")).toBe(true);
     expect(body).toContain(t("inspectionPushSeal"));
     expect(body.endsWith("Bitte zügig")).toBe(true);
+  });
+});
+
+describe("buildInspectionCodePush — die Wiederholung trägt NUR den Code", () => {
+  it("stellt den blossen Code in den Titel, ohne Beiwerk", () => {
+    const { title, body } = buildInspectionCodePush("70499", null);
+    // Kein Label, kein Trennzeichen: was im Titel steht, sind die Ziffern und sonst nichts. Jedes
+    // Wort davor wäre im Foto eine Zeichenkette mehr, durch die die Erkennung suchen muss.
+    expect(title).toBe("70499");
+    expect(body).toBe("");
+  });
+
+  it("nennt das Ziel im TEXT, wenn der Aufrufer mehrere offene Kontrollen sieht", () => {
+    const { title, body } = buildInspectionCodePush("70499", "Plug");
+    expect(title).toBe("70499");
+    expect(body).toBe("Plug");
   });
 });
 

@@ -312,6 +312,11 @@ export const INSPECTION_AUTO_MARK_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY
  *  Literal geschrieben informiert sie den Agenten still falsch, sobald die Vorgabe wandert. */
 export const INSPECTION_DEADLINE_DEFAULT_H = 1;
 
+/** Sperrfrist zwischen zwei Code-Wiederholungen auf Knopfdruck. Beide Seiten lesen sie hier: die
+ *  Route begrenzt damit (`checkRateLimit`), der Knopf sperrt sich so lange selbst. Stünde sie
+ *  zweimal, liefe der Knopf irgendwann in einen 429, den er selbst hätte verhindern sollen. */
+export const INSPECTION_CODE_PUSH_COOLDOWN_MS = 30_000;
+
 /**
  * Rasterung einer Frist-Eingabe je Einheit — EINE Zahl für `min`/`step` des Feldes, für dessen
  * HTML-Validierung und für das Runden beim Einheiten-Wechsel. Ein Wert neben dem Raster (0.1 h bei

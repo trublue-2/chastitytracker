@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { generateKontrollCode } from "@/lib/utils";
 import { sendMailSafe, escHtml, appBaseUrl, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime, formatDate, formatTime } from "@/lib/utils";
-import { firePush } from "@/lib/push";
+import { firePush, hasPushTarget } from "@/lib/push";
 import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { actorColumn, recordMessageAndBadge, type MessageActor, type MessageRef } from "@/lib/messageService";
@@ -10,7 +10,7 @@ import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { type PrismaTx } from "@/lib/queries";
+import { type PrismaTx, getOpenKontrollen } from "@/lib/queries";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { inspectionHref } from "@/lib/entryFormRoute";
 
@@ -604,4 +604,64 @@ export async function sendKontrolleNotification(opts: {
 
   const push = buildInspectionPush({ t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar });
   firePush(user.id, push.title, push.body, formPath, badge);
+}
+
+/**
+ * Titel + Text der WIEDERHOLUNG auf Knopfdruck — die nackte Fassung von {@link buildInspectionPush}:
+ * im Titel nur der Code, sonst nichts.
+ *
+ * Das ist kein verkürzter Text, das ist der ganze Zweck. Die Meldung wird ABFOTOGRAFIERT (Code auf
+ * der Smartwatch, weil das Handy die Kamera ist und seinen eigenen Bildschirm nicht ablichten kann),
+ * und was im Bild landet, geht durch die Code-Erkennung. Jede weitere Zahl darin — Frist, Uhrzeit,
+ * Siegel-Nummer — ist eine, die für den Code gehalten werden kann. Die ANKÜNDIGUNG braucht ihren
+ * Kontext und behält ihn; die Wiederholung braucht ihn nicht: sie kommt auf Knopfdruck, der Sub
+ * weiss in der Sekunde, worum es geht.
+ *
+ * `targetLabel` deshalb nur, wenn mehr als eine Kontrolle offen ist (der Aufrufer entscheidet das,
+ * er kennt die anderen) — dann wären zwei blosse Ziffernfolgen nicht auseinanderzuhalten. Es steht
+ * im TEXT, nie im Titel: der bleibt rein der Code.
+ */
+export function buildInspectionCodePush(code: string, targetLabel: string | null): { title: string; body: string } {
+  return { title: code, body: targetLabel ?? "" };
+}
+
+/**
+ * Schickt den Code einer laufenden Kontroll-Anforderung NOCH EINMAL als Push — angestossen vom Sub
+ * selbst, aus dem Erfassungs-Formular.
+ *
+ * Warum es das gibt: die Smartwatch ist der zweite Bildschirm, auf dem der Code beim Fotografieren
+ * steht — und sie löscht eine Meldung, sobald sie gesichtet wurde, spätestens aber wenn die nächste
+ * Push sie verdrängt (Sperrzeit, Nachricht, Aufgabe). Danach war der Code für den Sub weg, obwohl
+ * die Kontrolle noch offen ist. Das Verdrängen selbst kann der Server nicht verhindern — die
+ * Wiederholung auf Knopfdruck ist die Antwort darauf.
+ *
+ * BEWUSST kein neues Ereignis: keine Mail, keine Posteingangs-Zeile, kein Badge, kein Zeitstempel an
+ * der Anforderung. Es wird nichts angefordert und nichts erfüllt — derselbe Code erscheint nur noch
+ * einmal auf dem Bildschirm. Eine Zeile je Knopfdruck wäre ein Protokoll des Ablesens, kein Ereignis.
+ * Aus demselben Grund geht `firePush` ohne `badge`: ein Wert dort erfände einen Zähler, eine feste 0
+ * löschte den bestehenden (siehe `sendPushToUser`).
+ */
+export async function resendInspectionCode(userId: string, controlId: string): Promise<ServiceResult<null>> {
+  // EINE Abfrage für beide Fragen: welche Kontrolle ist gemeint, und läuft noch eine zweite. Die
+  // Auswahl ist dieselbe, die auch das Dashboard-Banner zeigt (offen, nicht zurückgezogen, bereits
+  // wirksam) — eine zeitversetzt geplante ist für den Sub noch unsichtbar, und ihr Code darf ihn
+  // auch über diesen Weg nicht früher erreichen. Die Menge ist klein (je Ziel höchstens eine), das
+  // Suchen darin also billiger als ein zweiter Weg zur Datenbank.
+  const open = await getOpenKontrollen(userId);
+  const ka = open.find((k) => k.id === controlId);
+  if (!ka) return serviceFail(404, "INSPECTION_NOT_FOUND");
+  if (!ka.code) return serviceFail(400, "INSPECTION_NO_CODE");
+
+  // Ohne angemeldetes Gerät ginge die Push ins Leere und der Knopf meldete trotzdem Erfolg. Der
+  // Sub soll erfahren, dass er Push erst einschalten muss, statt auf eine Uhr zu warten, die nichts
+  // bekommt — `firePush` ist fire-and-forget und könnte das nie beantworten.
+  if (!await hasPushTarget(userId)) return serviceFail(400, "PUSH_NOT_ENABLED");
+
+  // Läuft noch eine zweite Kontrolle (KG und Trage-Ziel parallel, seit v5.0.1), bekommt die
+  // Wiederholung das Ziel als Untertitel — sonst stünden zwei blosse Ziffernfolgen nebeneinander.
+  const push = buildInspectionCodePush(ka.code, open.length > 1 ? inspectionTargetLabel(ka) : null);
+  // Ziel des Antippens ist dasselbe Formular wie bei der Ankündigung — der Sub steht zwar meist
+  // schon darauf, aber eine Meldung, die nirgendwohin führt, ist auf der Uhr eine Sackgasse.
+  firePush(userId, push.title, push.body, inspectionHref(ka.code, { kommentar: ka.kommentar, categoryId: ka.categoryId }));
+  return { ok: true, data: null };
 }
