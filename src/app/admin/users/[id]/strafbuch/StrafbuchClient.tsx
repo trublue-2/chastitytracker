@@ -11,7 +11,7 @@ import FormError from "@/app/components/FormError";
 import { taskFormHref } from "@/lib/entryFormRoute";
 import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
 import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
-import type { TaskOffenseState } from "@/lib/tasks";
+import { taskFailureKind, type TaskFailureKind, type TaskOffenseState } from "@/lib/tasks";
 
 /** Das Urteil einer Zeile, so weit die Anzeige es braucht.
  *
@@ -43,19 +43,50 @@ export interface UnerlaubteOeffnungRow {
   sperrzeitUnbefristet: boolean;
 }
 
-/** Eine nicht erfüllte Aufgabe. `state` unterscheidet „nie (rechtzeitig) begonnen" von
- *  „begonnen und vor der Frist abgelegt" — dieselbe Unterscheidung wie im Strafbuch-Modell. */
+/** Eine nicht erfüllte Aufgabe. `state`, `started` und `hasRequirements` ergeben zusammen den
+ *  Vorwurf — siehe `taskFailureKind`. */
 export interface AufgabeRow {
   id: string;
   title: string;
   holdUntilStr: string;
   state: TaskOffenseState;
-  /** Nur bei `aborted`: wann die Bedingung wegfiel. Beleg statt blossem Vorwurf. */
+  /** Die TATZEIT. Was sie bedeutet, hängt am Vorwurf — deshalb beschriftet sie `TASK_CLAIM_LABELS`
+   *  und nicht ein fester Text. */
   failedAtStr: string | null;
+  /** Hat die Aufgabe je angelegen? Siehe `StrafbuchData.unfulfilledTasks.startedAt`. */
+  started: boolean;
+  /** Hatte sie überhaupt Bedingungen? Siehe `StrafbuchData.unfulfilledTasks.hasRequirements`. */
+  hasRequirements: boolean;
   /** War die Aufgabe die Strafe für ein früheres Vergehen? Dann ist dieses hier aus jenem entstanden. */
   isPenaltyTask: boolean;
   /** Anlass-Freitext, wo einer gesetzt ist — Zusatz zur Kette, nicht ihr Beleg. */
   penaltyReason: string | null;
+}
+
+/**
+ * Die Texte des Strafbuchs zu den vier Vorwürfen: `claim` beschriftet die Kopfzeile, `failedAt` die
+ * Tatzeit.
+ *
+ * BEIDES in EINER Zeile der Tabelle, weil es eine Frage ist — `failedAt` bedeutet je Vorwurf etwas
+ * anderes (abgelegt vs. Nachweis-Frist verstrichen), und getrennt entschieden lief das schon einmal
+ * auseinander: die Zeile beschriftete jedes `failedAt` als „Abgelegt am", auch wo nie etwas abgelegt
+ * wurde.
+ *
+ * SCHLÜSSEL statt Texte, damit die Zuordnung ohne `labels`-Objekt prüfbar bleibt. Ausser bei
+ * `aborted` ist die Tatzeit immer eine verstrichene Nachweis-Frist — `evaluateTask` setzt auf einem
+ * `missed` gar keinen anderen Zeitpunkt.
+ */
+const TASK_CLAIM_LABELS: Record<TaskFailureKind, { claim: keyof Labels; failedAt: keyof Labels }> = {
+  aborted: { claim: "strafbuchAufgabeAbgebrochen", failedAt: "strafbuchAufgabeAbgelegtAm" },
+  proofMissing: { claim: "strafbuchAufgabeNachweisFehlt", failedAt: "strafbuchAufgabeNachweisFristAm" },
+  neverStarted: { claim: "strafbuchAufgabeVersaeumt", failedAt: "strafbuchAufgabeNachweisFristAm" },
+  notFulfilled: { claim: "strafbuchAufgabeNichtErfuellt", failedAt: "strafbuchAufgabeNachweisFristAm" },
+};
+
+/** Die Beschriftungen einer Vergehens-Zeile. Die Entscheidung selbst liegt in `taskFailureKind` —
+ *  sie teilt sich die Zeile mit der Träger-Karte und der MCP-Vergehensliste. */
+export function taskClaimLabels(a: Pick<AufgabeRow, "state" | "started" | "hasRequirements">) {
+  return TASK_CLAIM_LABELS[taskFailureKind(a)];
 }
 
 export interface KontrollRow {
@@ -183,6 +214,9 @@ interface Labels {
   strafbuchAufgabeVersaeumt: string;
   strafbuchAufgabeAbgebrochen: string;
   strafbuchAufgabeAbgelegtAm: string;
+  strafbuchAufgabeNachweisFehlt: string;
+  strafbuchAufgabeNachweisFristAm: string;
+  strafbuchAufgabeNichtErfuellt: string;
   strafbuchStrafaufgabeKette: string;
   strafbuchNichtVerschlossen: string;
   strafbuchNichtVerschlossenNie: string;
@@ -680,24 +714,27 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       body: kontrollBody(k, <>{labels.strafbuchAutoEntferntAm} {k.entryStartTimeStr ?? k.deadlineStr}</>),
     }))),
 
-    sec("unfulfilled_task", labels.strafbuchAufgaben, unfulfilledTasks.map((a) => ({
-      refId: a.id,
-      anlass: `„${a.title}" (${a.holdUntilStr})`,
-      body: (judged) => (
-        <>
-          {titleLine(judged, a.title, a.state === "aborted" ? labels.strafbuchAufgabeAbgebrochen : labels.strafbuchAufgabeVersaeumt)}
-          <p className={FACT_CLS}>{labels.frist}: {a.holdUntilStr}</p>
-          {/* Bei „abgebrochen" den Beleg nennen: wann die Bedingung wegfiel. Ein Vorwurf ohne
-              Zeitpunkt lässt sich weder prüfen noch bestreiten. */}
-          {a.failedAtStr && <p className={FACT_CLS}>{labels.strafbuchAufgabeAbgelegtAm} {a.failedAtStr}</p>}
-          {a.isPenaltyTask && (
-            <p className={FACT_CLS}>
-              {labels.strafbuchStrafaufgabeKette}{a.penaltyReason ? ` — ${a.penaltyReason}` : ""}
-            </p>
-          )}
-        </>
-      ),
-    }))),
+    sec("unfulfilled_task", labels.strafbuchAufgaben, unfulfilledTasks.map((a) => {
+      // Der Vorwurf steht je Zeile fest — einmal je Aufgabe, nicht bei jedem Rendern des Rumpfs.
+      const { claim, failedAt } = taskClaimLabels(a);
+      return {
+        refId: a.id,
+        anlass: `„${a.title}" (${a.holdUntilStr})`,
+        body: (judged) => (
+          <>
+            {titleLine(judged, a.title, labels[claim])}
+            <p className={FACT_CLS}>{labels.frist}: {a.holdUntilStr}</p>
+            {/* Ein Vorwurf ohne Zeitpunkt lässt sich weder prüfen noch bestreiten. */}
+            {a.failedAtStr && <p className={FACT_CLS}>{labels[failedAt]} {a.failedAtStr}</p>}
+            {a.isPenaltyTask && (
+              <p className={FACT_CLS}>
+                {labels.strafbuchStrafaufgabeKette}{a.penaltyReason ? ` — ${a.penaltyReason}` : ""}
+              </p>
+            )}
+          </>
+        ),
+      };
+    })),
 
     sec("cleaning_limit", labels.strafbuchReinigungLimit, reinigungLimitVergehen.map((r) => ({
       refId: r.entryId,

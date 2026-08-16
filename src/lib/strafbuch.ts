@@ -76,16 +76,26 @@ export interface StrafbuchData {
     relockAt: Date | null;
     note: string | null;
   }[];
-  /** Aufgaben, die nicht erfüllt wurden: `missed` = nie (rechtzeitig) begonnen, `aborted` = begonnen
-   *  und vor der Frist eine Bedingung abgelegt. Wie alles hier LIVE abgeleitet — ein korrigierter
-   *  Eintrag korrigiert auch das Vergehen. */
+  /** Aufgaben, die nicht erfüllt wurden. `state` allein sagt nicht, WAS schiefging — `missed` deckt
+   *  drei verschiedene Vorwürfe ab; welchen, entscheidet `taskFailureKind` aus `startedAt` und
+   *  `hasRequirements`. Wie alles hier LIVE abgeleitet — ein korrigierter Eintrag korrigiert auch
+   *  das Vergehen. */
   unfulfilledTasks: {
     id: string;
     title: string;
     holdUntil: Date;
     state: TaskOffenseState;
-    /** Nur bei `aborted`: wann die Bedingung wegfiel. */
+    /** Die TATZEIT, und je Zustand eine andere: bei `aborted` fiel dann die Bedingung weg, bei
+     *  `missed` verstrich dann die eigene Frist eines Nachweises. Wer sie anzeigt, muss den Zustand
+     *  mitlesen — als „abgelegt am" beschriftet wirft sie dem Träger eine Handlung vor, die es nicht
+     *  gab. */
     failedAt: Date | null;
+    /** Ab wann alle Bedingungen gleichzeitig galten; `null` = nie. Zusammen mit
+     *  {@link hasRequirements} der Vorwurf — siehe `taskFailureKind`. */
+    startedAt: Date | null;
+    /** Hatte die Aufgabe überhaupt Bedingungen? Eine ohne bekommt nie ein `startedAt`, und ohne
+     *  diese Angabe würde ihr „nicht begonnen" vorgeworfen. */
+    hasRequirements: boolean;
     /** `refId` des Vergehens, dessen Strafe diese Aufgabe war — aus `StrafeRecord.taskId`. Null bei
      *  gewöhnlichen Aufgaben. Macht die Kette sichtbar: eine versäumte Strafe erzeugt ein neues
      *  Vergehen, und das soll man ihm ansehen. */
@@ -525,6 +535,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
           holdUntil: e.evaluation.holdUntil,
           state: e.evaluation.state,
           failedAt: e.evaluation.failedAt,
+          startedAt: e.evaluation.startedAt,
+          hasRequirements: e.task.requirements.length > 0,
           // Die KETTE: war diese Aufgabe die Strafe für ein früheres Vergehen, ist ihr Versäumnis ein
           // Vergehen, das aus jenem entstanden ist. Wer sie erneut bestraft, dreht eine Spirale und
           // soll das sehen.

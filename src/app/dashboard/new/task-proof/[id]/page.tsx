@@ -2,16 +2,17 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import TaskProofFormCore from "@/app/entries/TaskProofFormCore";
-import { proofSubmitBlocked } from "@/lib/taskProofService";
+import { ownProofWhere, proofSubmitBlocked } from "@/lib/taskProofService";
 import { ownProofDeadline } from "@/lib/tasks";
 import { APP_TZ } from "@/lib/utils";
 
 /**
  * Aufnahme-Seite für EIN gefordertes Nachweis-Foto (Issue #39, Etappe 3).
  *
- * Der Besitz-Check sitzt hier UND im Service. Das ist keine doppelte Arbeit aus Bequemlichkeit: die
- * Seite muss die Zeile ohnehin laden (sie zeigt Beschreibung und Code), und ohne die Prüfung wäre
- * genau dieser Ladevorgang der Weg, den Code einer fremden Aufgabe zu lesen.
+ * Der Zugriffs-Check sitzt hier UND im Service. Das ist keine doppelte Arbeit aus Bequemlichkeit:
+ * die Seite muss die Zeile ohnehin laden (sie zeigt Beschreibung und Code), und ohne die Prüfung
+ * wäre genau dieser Ladevorgang der Weg, den Code einer fremden — oder einer noch nicht
+ * zugestellten — Aufgabe zu lesen. Formuliert ist er trotzdem nur einmal: `ownProofWhere`.
  */
 export default async function TaskProofPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -24,7 +25,7 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
   // hinter ihr, für nichts.
   const [proof, user] = await Promise.all([
     prisma.taskProof.findFirst({
-      where: { id, task: { userId: session.user.id } },
+      where: ownProofWhere(id, session.user.id),
       include: {
         task: {
           // `createdAt`/`wirksamAb` sind der Nullpunkt, an dem die eigene Fälligkeit dieses

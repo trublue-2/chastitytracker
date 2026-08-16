@@ -19,7 +19,10 @@ vi.mock("@/lib/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
-vi.mock("@/lib/taskIntervals", () => ({ evaluateTaskById: vi.fn() }));
+// Nur `evaluateTaskById` festnageln, der Rest bleibt ECHT: `SUB_VISIBLE_WHERE` hängt am Einreiche-Pfad
+// und wird unten geprüft. Als Attrappe (`{}` oder eine abgeschriebene Kopie) prüfte der Test die
+// Attrappe statt die Regel — grün, während das Fragment fehlt oder veraltet ist.
+vi.mock("@/lib/taskIntervals", async (orig) => ({ ...(await orig<object>()), evaluateTaskById: vi.fn() }));
 vi.mock("@/lib/taskService", () => ({ settleTaskResult: vi.fn() }));
 
 import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, reviewTaskProof } from "./taskProofService";
@@ -252,6 +255,23 @@ describe("submitTaskProof — was gespeichert wird", () => {
     const res = await submitTaskProof("p1", "u1", { ...PAYLOAD, imageExifTime: null });
     expect(res.ok).toBe(true);
     expect(written().imageExifTime).toBeNull();
+  });
+
+  /**
+   * Bis zum Auslösen existiert eine terminierte Aufgabe für den Träger NICHT — samt ihrer Nachweise.
+   * Geprüft wird die `where`-Klausel: der Filter MUSS in SQL stehen, sonst lädt der Dienst die Zeile
+   * und mit ihr Beschreibung und Code, bevor er sie ablehnt.
+   */
+  it("ein Nachweis einer noch nicht zugestellten Aufgabe wird gar nicht erst geladen", async () => {
+    find.mockResolvedValue(null);
+    const res = await submitTaskProof("p1", "u1", PAYLOAD);
+    expect(find.mock.calls[0][0].where.task).toMatchObject({
+      userId: "u1",
+      AND: [{ OR: [{ wirksamAb: null }, { benachrichtigtAt: { not: null } }] }],
+    });
+    // Ununterscheidbar von einem fremden Nachweis — der Ausgang verrät die Aufgabe nicht.
+    expect(res).toMatchObject({ ok: false, status: 404, error: "TASK_PROOF_NOT_FOUND" });
+    expect(update).not.toHaveBeenCalled();
   });
 });
 

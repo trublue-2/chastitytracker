@@ -1,10 +1,11 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/verifyCode";
 import { structuredLog } from "@/lib/serverLog";
 import { notifyUser } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { evaluateTaskById } from "@/lib/taskIntervals";
+import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
 import { isTaskResultFinal } from "@/lib/tasks";
 import { settleTaskResult } from "@/lib/taskService";
 import type { MessageActor } from "@/lib/messageService";
@@ -71,15 +72,33 @@ export async function runTaskProofVerification(proofId: string, imageUrl: string
   }
 }
 
+/**
+ * WELCHE Nachweis-Zeile der Träger überhaupt anfassen darf.
+ *
+ * Zwei Bedingungen, beide in SQL und nicht als Prüfung danach:
+ *  - Besitz über die Aufgabe — ein Nachweis gehört niemandem für sich. Ein vergessener Besitz-Check
+ *    wäre ein IDOR, den kein Typfehler auffängt.
+ *  - `SUB_VISIBLE_WHERE` — bis zum Auslösen existiert eine terminierte Aufgabe für ihn NICHT. Ein
+ *    Nachweis, den er nicht sehen darf, ist damit von einem fremden ununterscheidbar; beide enden im
+ *    selben Ausgang, und der verrät nicht, dass die Aufgabe schon angelegt ist.
+ *
+ * GETEILT von der Formular-Seite und dem Dienst, aus demselben Grund wie
+ * {@link proofSubmitBlockedReason}: die beiden laden dieselbe Zeile zum selben Zweck (nur mit
+ * unterschiedlichen Spalten), und zwei unabhängig formulierte Bedingungsketten sind genau die
+ * Stelle, an der eine künftige dritte Bedingung nur in einer der beiden landet — hier ist das
+ * bereits einmal passiert.
+ */
+export function ownProofWhere(proofId: string, userId: string): Prisma.TaskProofWhereInput {
+  return { id: proofId, task: { userId, ...SUB_VISIBLE_WHERE } };
+}
+
 export async function submitTaskProof(
   proofId: string,
   userId: string,
   p: SubmitProofParams,
 ): Promise<ServiceResult<{ taskId: string }>> {
   const proof = await prisma.taskProof.findFirst({
-    // Besitz über die Aufgabe — ein Nachweis gehört niemandem für sich. `userId` ist Pflicht, nicht
-    // optional: ein vergessener Besitz-Check wäre ein IDOR, den kein Typfehler auffängt.
-    where: { id: proofId, task: { userId } },
+    where: ownProofWhere(proofId, userId),
     // `holdDurationMin` gehört zur Schranke: es entscheidet, ob `holdUntil` das Ende IST oder nur
     // dessen obere Grenze (siehe {@link taskAcceptsProof}).
     include: { task: { select: { id: true, withdrawnAt: true, holdUntil: true, holdDurationMin: true } } },

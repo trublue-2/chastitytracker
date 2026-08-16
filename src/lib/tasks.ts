@@ -1005,8 +1005,8 @@ export function isTaskOpen(state: TaskState): boolean {
 }
 
 /**
- * Die Zustände, die ein Vergehen sind — `missed` (nie begonnen) und `aborted` (zu früh abgelegt),
- * die einander ausschliessen.
+ * Die Zustände, die ein Vergehen sind — `missed` und `aborted` (zu früh abgelegt), die einander
+ * ausschliessen.
  *
  * Eigener Typ, weil das Paar sonst an jeder Stelle einzeln abgeschrieben wird, die ein Vergehen
  * weiterreicht (Strafbuch-Daten, Strafbuch-Anzeige). Kommt je ein dritter Vergehens-Zustand dazu,
@@ -1017,4 +1017,47 @@ export type TaskOffenseState = Extract<TaskState, "missed" | "aborted">;
 /** Ein Vergehen? Als Type-Guard, damit der Aufrufer den engeren Typ auch bekommt statt ihn zu casten. */
 export function isTaskOffense(state: TaskState): state is TaskOffenseState {
   return state === "missed" || state === "aborted";
+}
+
+/**
+ * WAS ist schiefgegangen — die vier Vorwürfe, die ein Aufgaben-Vergehen kennt.
+ *
+ * Der Zustand allein reicht dafür nicht: `missed` steht für DREI verschiedene Vorwürfe, und der
+ * Unterschied ist keine Feinheit. Wer nie begonnen hat, wer durchgehalten und nur den Nachweis nicht
+ * erbracht hat und wer nie eine Bedingung zu halten hatte, bekommen alle denselben Zustand — und
+ * „nicht begonnen" ist für zwei der drei nachweislich falsch.
+ */
+export type TaskFailureKind =
+  /** Begonnen und vor der Frist eine Bedingung abgelegt. */
+  | "aborted"
+  /** Die Bedingungen lagen an, aber ein Nachweis fehlt, kam zu spät oder wurde abgelehnt. */
+  | "proofMissing"
+  /** Die Bedingungen lagen nie (rechtzeitig) gleichzeitig an. */
+  | "neverStarted"
+  /** Aufgabe OHNE Bedingungen — es gab nichts zu beginnen, offen blieb die Selbstmeldung oder der
+   *  Nachweis. Ein eigener Vorwurf und nicht „nicht begonnen": es hat nie etwas angelegen, was der
+   *  Träger hätte beginnen können. */
+  | "notFulfilled";
+
+/**
+ * Der Vorwurf zu einem Vergehen — die EINE Stelle, die ihn entscheidet.
+ *
+ * Hier und nicht in einer Ansicht, weil ihn drei Oberflächen brauchen (Träger-Karte, Strafbuch der
+ * Keyholderin, MCP-Vergehensliste) und jede ihre eigenen Texte hat. Geteilt wird deshalb die
+ * ENTSCHEIDUNG, nicht der Text: der Aufrufer bildet die Art auf seine Schlüssel ab.
+ *
+ * `started` statt `startedAt`, weil nur die Tatsache zählt — der Zeitpunkt selbst wird an keiner
+ * der drei Stellen gezeigt.
+ *
+ * `hasRequirements` ist NICHT aus `started` ableitbar und deshalb ein eigenes Feld: eine Aufgabe ohne
+ * Bedingungen bekommt von `evaluateTask` per Konstruktion nie ein `startedAt` (der Zweig kennt keinen
+ * abgeleiteten Beginn). Ohne diese Angabe fiele jedes „staubsauge bis 18:00" in den Zweig
+ * `neverStarted` — der Vorwurf „nicht begonnen" für eine Aufgabe, bei der es nichts zu beginnen gab.
+ */
+export function taskFailureKind(
+  offense: { state: TaskOffenseState; started: boolean; hasRequirements: boolean },
+): TaskFailureKind {
+  if (offense.state === "aborted") return "aborted";
+  if (!offense.hasRequirements) return "notFulfilled";
+  return offense.started ? "proofMissing" : "neverStarted";
 }

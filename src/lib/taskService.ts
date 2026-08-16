@@ -696,9 +696,16 @@ export async function completeTask(
   //
   // Den Zeitstempel vorzurücken ist dabei die richtige Antwort und nicht bloss die bequeme: er sagt
   // „ich melde, dass es jetzt erfüllt ist", und genau das tut der Sub in diesem Moment erneut.
+  // WELCHE Aufgabe die Meldung überhaupt meinen kann — geteilt von der Meldung und ihrer Gegenprobe
+  // unten, damit die beiden nicht auseinanderlaufen können. Die Selbstmeldung ist ein Sub-Pfad, also
+  // die Sicht des TRÄGERS: eine terminierte, noch nicht zugestellte Aufgabe kann er nicht melden,
+  // weil es sie für ihn noch nicht gibt — und jede Antwort ausser der für eine fremde Aufgabe wäre
+  // die Bestätigung, dass es sie doch gibt.
+  const own = { id, userId, ...SUB_VISIBLE_WHERE };
+
   const res = await prisma.task.updateMany({
     where: {
-      id, userId, withdrawnAt: null,
+      ...own, withdrawnAt: null,
       // WO das Vorrücken heilen kann — und nur dort. Bei einer Aufgabe OHNE Bedingungen misst
       // `evaluateTask` gegen `holdUntil` statt gegen `startedAt`: ein vorgerückter Zeitstempel kippt
       // dort `done` → `missed`. Eine rechtzeitige Meldung, die über die Offline-Warteschlange ein
@@ -713,8 +720,8 @@ export async function completeTask(
     data: { completedAt: new Date(), ...(trimmed ? { completionNote: trimmed } : {}) },
   });
   if (res.count === 0) {
-    // Entweder gibt es sie nicht (fremd/gelöscht) oder sie ist zurückgezogen.
-    const exists = await prisma.task.count({ where: { id, userId } });
+    // Entweder gibt es sie nicht (fremd/gelöscht/noch nicht zugestellt) oder sie ist zurückgezogen.
+    const exists = await prisma.task.count({ where: own });
     return exists === 0 ? serviceFail(404, "TASK_NOT_FOUND") : { ok: true, data: { id } };
   }
   return { ok: true, data: { id } };

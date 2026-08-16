@@ -402,6 +402,26 @@ describe("completeTask — Selbstmeldung des Subs", () => {
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_NOT_FOUND");
   });
+
+  /**
+   * Die Selbstmeldung ist ein Sub-Pfad: eine terminierte, noch nicht zugestellte Aufgabe gibt es für
+   * den Träger nicht, also kann er sie auch nicht melden. Geprüft wird die `where`-Klausel BEIDER
+   * Abfragen — die Gegenprobe darunter entscheidet, was der Aufrufer zu hören bekommt.
+   */
+  it("eine noch nicht zugestellte Aufgabe nimmt keine Meldung an", async () => {
+    const VISIBLE = { AND: [{ OR: [{ wirksamAb: null }, { benachrichtigtAt: { not: null } }] }] };
+    // Die terminierte Zeile fällt aus beiden Abfragen: nichts geschrieben, nichts gezählt.
+    taskUpdateMock.mockResolvedValue({ count: 0 });
+    taskCountMock.mockResolvedValue(0);
+
+    const res = await completeTask("t1", "u1");
+
+    expect(taskUpdateMock.mock.calls[0][0].where).toMatchObject(VISIBLE);
+    expect(taskCountMock.mock.calls[0][0].where).toMatchObject(VISIBLE);
+    // Ununterscheidbar von einer fremden Aufgabe — ein „schon gemeldet" verriete, dass es sie gibt.
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("TASK_NOT_FOUND");
+  });
 });
 
 describe("withdrawTask", () => {

@@ -143,10 +143,12 @@ const mockSperrzeiten = (rows: unknown[]) =>
   );
 
 /** Dieselbe Unterscheidung für `entry.findMany`: buildStrafbuch liest darüber auch VERSCHLUSS. */
-const mockOeffnungen = (rows: unknown[]) =>
+const mockEntriesOfType = (type: string, rows: unknown[]) =>
   db.entry.findMany.mockImplementation((args: { where?: { type?: string } }) =>
-    Promise.resolve(args?.where?.type === "OEFFNEN" ? rows : []),
+    Promise.resolve(args?.where?.type === type ? rows : []),
   );
+const mockOeffnungen = (rows: unknown[]) => mockEntriesOfType("OEFFNEN", rows);
+const mockVerschluesse = (rows: unknown[]) => mockEntriesOfType("VERSCHLUSS", rows);
 
 /** Der Stichtag dieser Instanz, wie ihn die Migration beim ersten Boot schreibt. */
 const mockStichtag = (iso: string) =>
@@ -480,5 +482,80 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
     }]);
 
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toHaveLength(0);
+  });
+});
+
+/**
+ * Die Aufgaben-Vergehen tragen ihre Herkunft mit: `state` allein sagt nicht, WAS schiefging.
+ *
+ * Seit eine eigene Nachweis-Frist die Aufgabe entscheiden kann, deckt `missed` drei Vorwürfe ab.
+ * Welchen, entscheidet `taskFailureKind` aus `startedAt` und `hasRequirements` — fehlt eines der
+ * beiden, wirft die Keyholder-Sicht dem Träger den falschen vor.
+ */
+describe("buildStrafbuch — der Beleg zum Aufgaben-Vergehen", () => {
+  const NOW = new Date("2026-08-10T12:00:00Z");
+  const START = new Date("2026-08-10T08:00:00Z");
+
+  /** Verschlossen seit 08:00, nie geöffnet — die KG-Bedingung hält durchgehend. */
+  const VERSCHLUSS = { id: "v1", type: "VERSCHLUSS", startTime: START, oeffnenGrund: null, note: null, source: "user" };
+
+  const KG_BEDINGUNG = { id: "r1", type: "KG_LOCKED", categoryId: null, deviceId: null, sortOrder: 0, category: null, device: null };
+
+  /** Eine laufende Aufgabe mit einem Nachweis, dessen EIGENE Frist (09:00) längst verstrichen ist —
+   *  die Haltefrist selbst läuft noch bis 18:00. */
+  const aufgabe = (requirements: unknown[]) => [{
+    id: "t1", title: "Foto schicken", description: null,
+    holdUntil: new Date("2026-08-10T18:00:00Z"), startGraceMin: 30, holdDurationMin: null,
+    proofOrderMatters: false, isPunishment: false, penaltyReason: null,
+    createdAt: START, wirksamAb: null, benachrichtigtAt: null,
+    completedAt: null, completionNote: null, withdrawnAt: null,
+    requirements,
+    proofs: [{
+      id: "p1", sortOrder: 0, requireCode: false, dueOffsetMin: 60, submittedAt: null,
+      imageExifTime: null, verifikationStatus: null, verifikationReason: null, reviewAccepted: null,
+    }],
+  }];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.user.findUnique.mockResolvedValue({
+      reinigungErlaubt: false, reinigungMaxProTag: 0, reinigungMaxMinuten: 15,
+      reinigungsFenster: null, timezone: "Europe/Zurich",
+    });
+    mockVerschluesse([VERSCHLUSS]);
+  });
+
+  it("durchgehalten, Nachweis-Frist verstrichen: Versäumnis MIT Beginn", async () => {
+    db.task.findMany.mockResolvedValue(aufgabe([KG_BEDINGUNG]));
+
+    const [t] = (await buildStrafbuch("u1", NOW)).unfulfilledTasks;
+    expect(t.state).toBe("missed");
+    // Der Beleg, an dem die Anzeige „nicht begonnen" von „Nachweis nicht erbracht" trennt.
+    expect(t.startedAt).toEqual(START);
+    expect(t.hasRequirements).toBe(true);
+    // Und die Tatzeit ist die verstrichene Nachweis-Frist — kein Ablegen.
+    expect(t.failedAt).toEqual(new Date("2026-08-10T09:00:00Z"));
+  });
+
+  it("nie verschlossen: dasselbe Versäumnis, aber OHNE Beginn", async () => {
+    mockVerschluesse([]);
+    db.task.findMany.mockResolvedValue(aufgabe([KG_BEDINGUNG]));
+
+    const [t] = (await buildStrafbuch("u1", NOW)).unfulfilledTasks;
+    expect(t.state).toBe("missed");
+    expect(t.startedAt).toBeNull();
+    expect(t.hasRequirements).toBe(true);
+  });
+
+  /** Eine Aufgabe OHNE Bedingungen bekommt von `evaluateTask` per Konstruktion nie ein `startedAt`.
+   *  Ohne `hasRequirements` wäre sie von „nie begonnen" nicht zu unterscheiden — und genau das ist
+   *  ein Vorwurf, den es bei ihr gar nicht geben kann. */
+  it("ohne Bedingungen: kein Beginn, aber auch nichts zu beginnen", async () => {
+    db.task.findMany.mockResolvedValue(aufgabe([]));
+
+    const [t] = (await buildStrafbuch("u1", NOW)).unfulfilledTasks;
+    expect(t.state).toBe("missed");
+    expect(t.startedAt).toBeNull();
+    expect(t.hasRequirements).toBe(false);
   });
 });

@@ -64,6 +64,10 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     holdUntilStr: fmtDual(a.holdUntil),
     state: a.state,
     failedAtStr: a.failedAt ? fmtDual(a.failedAt) : null,
+    // Nur die TATSACHEN, aus denen der Vorwurf folgt — die Zeile zeigt weder den Beginn noch die
+    // Bedingungen selbst an.
+    started: a.startedAt !== null,
+    hasRequirements: a.hasRequirements,
     isPenaltyTask: a.penaltyForRef !== null,
     penaltyReason: a.penaltyReason,
   }));
@@ -178,6 +182,9 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchAufgabeVersaeumt: t("strafbuchAufgabeVersaeumt"),
     strafbuchAufgabeAbgebrochen: t("strafbuchAufgabeAbgebrochen"),
     strafbuchAufgabeAbgelegtAm: t("strafbuchAufgabeAbgelegtAm"),
+    strafbuchAufgabeNachweisFehlt: t("strafbuchAufgabeNachweisFehlt"),
+    strafbuchAufgabeNachweisFristAm: t("strafbuchAufgabeNachweisFristAm"),
+    strafbuchAufgabeNichtErfuellt: t("strafbuchAufgabeNichtErfuellt"),
     strafbuchStrafaufgabeKette: t("strafbuchStrafaufgabeKette"),
     strafbuchNichtVerschlossen: t("strafbuchNichtVerschlossen"),
     strafbuchNichtVerschlossenNie: t("strafbuchNichtVerschlossenNie"),
