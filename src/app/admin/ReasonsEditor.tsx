@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import ReorderButtons from "@/app/components/ReorderButtons";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import FormError from "@/app/components/FormError";
+import { swapAt } from "@/lib/utils";
 import type { ReasonEntry } from "@/lib/reasonsService";
 
 /** Zeile im Editor: ReasonEntry plus optionaler stabiler Client-Key für noch nicht gespeicherte Zeilen. */
@@ -87,10 +89,8 @@ export default function ReasonsEditor({
   }
   function move(i: number, dir: -1 | 1) {
     const cur = rowsRef.current; // aktuelle Zeilen (inkl. evtl. ungespeicherter Tastatureingabe)
-    const j = i + dir;
-    if (j < 0 || j >= cur.length) return;
-    const next = [...cur];
-    [next[i], next[j]] = [next[j], next[i]];
+    const next = swapAt(cur, i, i + dir);
+    if (next === cur) return; // am Rand: nichts zu speichern
     void commit(next);
   }
 
@@ -102,16 +102,14 @@ export default function ReasonsEditor({
         const locked = !!protectedCode && r.code === protectedCode;
         return (
           <div key={r.code || r._k} className="flex items-center gap-1.5">
-            <div className="flex flex-col">
-              <button type="button" onClick={() => move(i, -1)} disabled={saving || i === 0}
-                aria-label={t("reasonMoveUp")} className="p-0.5 text-foreground-faint hover:text-foreground disabled:opacity-30">
-                <ChevronUp size={14} />
-              </button>
-              <button type="button" onClick={() => move(i, 1)} disabled={saving || i === rows.length - 1}
-                aria-label={t("reasonMoveDown")} className="p-0.5 text-foreground-faint hover:text-foreground disabled:opacity-30">
-                <ChevronDown size={14} />
-              </button>
-            </div>
+            <ReorderButtons
+              index={i}
+              count={rows.length}
+              onMove={(dir) => move(i, dir)}
+              upLabel={t("reasonMoveUp")}
+              downLabel={t("reasonMoveDown")}
+              disabled={saving}
+            />
             <input
               type="text"
               value={r.label ?? ""}

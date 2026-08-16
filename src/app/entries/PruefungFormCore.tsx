@@ -24,6 +24,7 @@ import Spinner from "@/app/components/Spinner";
 import InspectionCodePushButton from "@/app/components/InspectionCodePushButton";
 import type { PruefungPayload, SubmitResult } from "./types";
 import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
+import { INSPECTION_CODE_LENGTH, isValidInspectionCode } from "@/lib/constants";
 
 /** Ruhezeit (ms) nach Tippen/Rotieren, bevor ein Live-Code-Check gefeuert wird (entprellt Abbruch-Stürme). */
 const LIVE_CHECK_DEBOUNCE_MS = 600;
@@ -69,6 +70,19 @@ interface Props {
    *  nachzuschicken) und auf dem Keyholder-Pfad (die Meldung ginge an den Sub, und der ist nicht,
    *  wer hier auf den Knopf drückt). */
   codePushControlId?: string | null;
+  /**
+   * Darf der Code auch OHNE Anforderung als Meldung verschickt werden? — die Selbstkontrolle.
+   *
+   * Eine eigene Frage und nicht bloss „`codePushControlId` fehlt": die id fehlt in ZWEI Fällen, und
+   * nur einer davon darf den Knopf sehen. Auf dem Keyholder-Pfad fehlt sie ebenfalls — dort ginge
+   * die Meldung an den, der gerade tippt, also an die Keyholderin statt an den Träger. Aus dem
+   * Fehlen allein zu schliessen, es sei eine Selbstkontrolle, wäre genau dieser Fehler.
+   */
+  selfCodePush?: boolean;
+  /** ZIEL der Kontrolle als Kategorie (null = KG) — nur für den Code-Push der Selbstkontrolle: die
+   *  Meldung muss auf DASSELBE Formular führen, sonst beantwortet das eingereichte Foto eine andere
+   *  Kontrolle als die gemeinte. `targetDeviceId` daneben benennt das Gerät, nicht das Ziel. */
+  categoryId?: string | null;
   mobileDesktopMode?: boolean;
   /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster, das den Schlüssel zeigt.
    *  Nur beim Neuanlegen — beim Bearbeiten wird kein Nachweis nachgereicht. */
@@ -83,7 +97,7 @@ interface Props {
 
 export default function PruefungFormCore({
   initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired = true, mobileDesktopMode,
-  targetDeviceId = null, targetLabel = null, codePushControlId = null,
+  targetDeviceId = null, targetLabel = null, codePushControlId = null, selfCodePush = false, categoryId = null,
   boxConfirm = false, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("inspectionForm");
@@ -147,7 +161,7 @@ export default function PruefungFormCore({
 
   useEffect(() => {
     const key = `${kontrollCode}|${imageUrl}|${rotation}`;
-    if (kontrollCode.length < 5 || !imageUrl || key === lastVerifiedKey.current) return;
+    if (kontrollCode.length < INSPECTION_CODE_LENGTH.min || !imageUrl || key === lastVerifiedKey.current) return;
 
     // Entprellen: erst nach kurzer Tipp-/Rotier-Ruhe einen Live-Check feuern. Verhindert einen Sturm
     // aus Request-Abbrüchen (AbortError) und unnötiger Vision-Last bei jedem Tastendruck/Re-Render.
@@ -223,6 +237,24 @@ export default function PruefungFormCore({
 
   const defaultLabel = isEdit ? tc("update") : t("saveBtn");
   const hasPrefilledCode = !!(initialCode || initial?.kontrollCode);
+  // Der Knopf für den selbst gewählten Code: nur auf dem eigenen Weg des Trägers und nur beim
+  // Erfassen. Eine BEARBEITUNG holt keinen Code mehr auf die Uhr — das Foto liegt längst vor, und
+  // der Code darin ändert sich durch das Nachtragen einer Notiz nicht.
+  const canPushOwnCode = selfCodePush && !isEdit;
+  // EIN Ausdruck für beide Stellen, an denen ein Code steht (die Karte mit dem gewürfelten und das
+  // Eingabefeld für den getippten). Zweimal hingeschrieben könnten die beiden Zweige auseinander
+  // laufen — und die Bedingung ist genau die, die den Keyholder-Pfad aussperrt.
+  //
+  // GESPERRT statt entfernt, solange der Code nicht taugt: ein Knopf, der beim Tippen verschwindet,
+  // nimmt seine Sperrfrist mit — und der Druck nach der Korrektur holt sich den 429 vom Server,
+  // also genau die Absage, gegen die die Sperre gebaut ist.
+  const ownCodePushButton = canPushOwnCode
+    ? <InspectionCodePushButton
+        code={kontrollCode}
+        categoryId={categoryId}
+        disabled={!isValidInspectionCode(kontrollCode)}
+      />
+    : null;
 
   return (
     <EntryFormShell
@@ -278,10 +310,16 @@ export default function PruefungFormCore({
               {kontrollCode || "–"}
             </span>
             {/* Der Weg, den Code zurück auf die Smartwatch zu holen — hier, weil das Handy gleich
-                die Kamera wird und seinen eigenen Bildschirm nicht abfotografieren kann. Ohne
-                zweite Prüfung auf `kontrollCode`: in diesem Block ist er per Konstruktion gesetzt
-                (`hasPrefilledCode` liest genau die Werte, aus denen er initialisiert wird). */}
-            {codePushControlId && <InspectionCodePushButton controlId={codePushControlId} />}
+                die Kamera wird und seinen eigenen Bildschirm nicht abfotografieren kann.
+
+                Die SELBSTKONTROLLE hat denselben Bedarf und bis v5.1.3 keinen Knopf: ihr Code wird
+                beim Öffnen des Formulars gewürfelt und steht in keiner Anforderung, also gab es
+                nichts zu nennen. Sie schickt ihn deshalb selbst mit. Ohne zweite Prüfung auf
+                `kontrollCode`: in diesem Block ist er per Konstruktion gesetzt (`hasPrefilledCode`
+                liest genau die Werte, aus denen er initialisiert wird). */}
+            {codePushControlId
+              ? <InspectionCodePushButton controlId={codePushControlId} />
+              : ownCodePushButton}
           </div>
           {sealRequired && (
             <p className="text-xs text-foreground-muted mt-2">{t("sealAlsoRequired")}</p>
@@ -342,16 +380,22 @@ export default function PruefungFormCore({
       )}
 
       {!hasPrefilledCode && codeRequired && (
-        <Input
-          label={t("controlCode")}
-          hint={t("controlCodeHint")}
-          type="text"
-          value={kontrollCode}
-          onChange={(e) => setKontrollCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
-          maxLength={8}
-          placeholder="–"
-          className="font-mono tracking-widest text-inspect font-bold text-xl"
-        />
+        <div className="flex flex-col gap-2">
+          <Input
+            label={t("controlCode")}
+            hint={t("controlCodeHint")}
+            type="text"
+            value={kontrollCode}
+            onChange={(e) => setKontrollCode(e.target.value.replace(/\D/g, "").slice(0, INSPECTION_CODE_LENGTH.max))}
+            maxLength={INSPECTION_CODE_LENGTH.max}
+            placeholder="–"
+            className="font-mono tracking-widest text-inspect font-bold text-xl"
+          />
+          {/* Sobald die Zahl als Code taugt, steht der Knopf da — vorher schickte er etwas, das die
+              Route ohnehin abweist. Auch hier gilt: das Handy wird gleich die Kamera, der Code
+              gehört auf den zweiten Bildschirm. */}
+          {ownCodePushButton}
+        </div>
       )}
 
       {/* Zweites Foto: Schlüssel im Sichtfenster. Nur beim Neuanlegen — eine Bearbeitung reicht

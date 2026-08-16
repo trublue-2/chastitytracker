@@ -10,16 +10,20 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
+vi.mock("@/lib/push", () => ({ firePush: vi.fn(), hasPushTarget: vi.fn() }));
 
-import { hasActiveKontrolle, inspectionIntro, buildInspectionPush, buildInspectionCodePush, resolveInspectionEntry } from "./kontrolleService";
+import { hasActiveKontrolle, inspectionIntro, buildInspectionPush, buildInspectionCodePush, resolveInspectionEntry, resendOwnInspectionCode } from "./kontrolleService";
 import { emailT } from "@/lib/emailI18n";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
+import { firePush, hasPushTarget } from "@/lib/push";
 
 const findFirstMock = prisma.kontrollAnforderung.findFirst as unknown as ReturnType<typeof vi.fn>;
 const entryFindMock = prisma.entry.findUnique as unknown as ReturnType<typeof vi.fn>;
 const entryUpdateMock = prisma.entry.update as unknown as ReturnType<typeof vi.fn>;
 const notifyMock = notifyUser as unknown as ReturnType<typeof vi.fn>;
+const firePushMock = firePush as unknown as ReturnType<typeof vi.fn>;
+const pushTargetMock = hasPushTarget as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   findFirstMock.mockReset();
@@ -210,6 +214,73 @@ describe("buildInspectionCodePush — die Wiederholung trägt NUR den Code", () 
     const { title, body } = buildInspectionCodePush("70499", "Plug");
     expect(title).toBe("70499");
     expect(body).toBe("Plug");
+  });
+});
+
+/**
+ * Der Weg der SELBSTKONTROLLE: ihr Code steht in keiner Zeile, also kommt er vom Aufrufer.
+ *
+ * Was ihn eng hält, ist nicht die Herkunft des Codes, sondern die Richtung (die Meldung geht an den
+ * Absender selbst) und die FORM. Die Form ist das einzige, was dieser Dienst prüfen kann — und sie
+ * ist der Unterschied zwischen „schick mir meinen Code" und einer allgemeinen Route, deren Titel
+ * jemand mit Freitext füllt.
+ */
+describe("resendOwnInspectionCode — der selbst gewählte Code", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pushTargetMock.mockResolvedValue(true);
+  });
+
+  it("schickt den Code als Meldung an den Absender selbst", async () => {
+    const res = await resendOwnInspectionCode("u1", "70499");
+    expect(res.ok).toBe(true);
+    expect(firePushMock).toHaveBeenCalledWith("u1", "70499", "", expect.any(String));
+  });
+
+  /** Ohne Ziel-Untertitel: eine Selbstkontrolle steht für sich, und jede weitere Zahl in der Meldung
+   *  ist eine, die im Foto für den Code gehalten werden kann. */
+  it("die Meldung trägt nichts ausser dem Code", async () => {
+    await resendOwnInspectionCode("u1", "70499");
+    expect(firePushMock.mock.calls[0][2]).toBe("");
+  });
+
+  /**
+   * Das ZIEL gehört in den Link, auch wenn es nicht in den Text gehört.
+   *
+   * Ohne es führt das Antippen der Meldung auf das KG-Formular, und der Sub reicht dort ein Foto
+   * ein, das seine Trage-Kontrolle gar nicht beantwortet — dieselbe Falle, die `inspectionHref`
+   * beschreibt. Bei einer ANGEFORDERTEN Kontrolle steht das Ziel an der Zeile; hier gibt es keine,
+   * also muss es mitkommen.
+   */
+  it("der Link trägt das Ziel der Trage-Kontrolle", async () => {
+    await resendOwnInspectionCode("u1", "70499", "cat-plug");
+    expect(firePushMock.mock.calls[0][3]).toContain("cat=cat-plug");
+  });
+
+  it("ohne Ziel bleibt es beim KG — kein Parameter", async () => {
+    await resendOwnInspectionCode("u1", "70499");
+    expect(firePushMock.mock.calls[0][3]).not.toContain("cat=");
+  });
+
+  it.each([
+    ["leer", ""],
+    ["zu kurz", "704"],
+    ["zu lang", "704991234"],
+    ["keine Ziffern", "abcde"],
+    ["Ziffern mit Beiwerk", "Code 70499"],
+  ])("weist einen unbrauchbaren Code ab (%s)", async (_name, code) => {
+    const res = await resendOwnInspectionCode("u1", code);
+    expect(res).toMatchObject({ ok: false, status: 400, error: "INSPECTION_CODE_INVALID" });
+    expect(firePushMock).not.toHaveBeenCalled();
+  });
+
+  /** Ohne angemeldetes Gerät ginge die Meldung ins Leere, und der Knopf meldete trotzdem Erfolg —
+   *  der Sub soll erfahren, dass er Push erst einschalten muss. */
+  it("ohne angemeldetes Gerät meldet sie das, statt still nichts zu senden", async () => {
+    pushTargetMock.mockResolvedValue(false);
+    const res = await resendOwnInspectionCode("u1", "70499");
+    expect(res).toMatchObject({ ok: false, error: "PUSH_NOT_ENABLED" });
+    expect(firePushMock).not.toHaveBeenCalled();
   });
 });
 

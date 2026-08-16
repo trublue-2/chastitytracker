@@ -318,6 +318,45 @@ export const INSPECTION_DEADLINE_DEFAULT_H = 1;
 export const INSPECTION_CODE_PUSH_COOLDOWN_MS = 30_000;
 
 /**
+ * Wie lang ein Kontroll-Code sein darf: gewürfelt sind es fünf Ziffern, von Hand vergeben bis zu acht.
+ *
+ * Zusammengezogen für das Eingabefeld, die Auslöse-Schwelle der Foto-Prüfung, die Siegel-Erkennung
+ * (`deriveSealCode` — dieselbe Regel auf derselben Spalte) und die Annahme der Push-Wiederholung.
+ * Die Wiederholung ist die Stelle, an der eine zu grosszügige Annahme etwas hiesse: sie schickt, was
+ * hereinkommt, als Meldung an das Gerät des Absenders.
+ *
+ * NICHT umgestellt: `generateKontrollCode` würfelt seine fünf Ziffern weiter über `10000 + …`, und
+ * `isImplausibleSeal` prüft mit einer eigenen Untergrenze. Beide sind dieselbe Grösse — sie hier
+ * anzuhängen wäre richtig, ist aber ein Eingriff in Erzeugung und Bilderkennung und gehört nicht in
+ * eine Formular-Änderung.
+ */
+export const INSPECTION_CODE_LENGTH = { min: 5, max: 8 } as const;
+
+/** Einmal gebaut statt bei jedem Aufruf: der Ausdruck steht aus zwei Konstanten fest, wird aber im
+ *  Render bei jedem Tastendruck im Code-Feld ausgewertet. */
+const INSPECTION_CODE_RE = new RegExp(`^\\d{${INSPECTION_CODE_LENGTH.min},${INSPECTION_CODE_LENGTH.max}}$`);
+
+/** Ist das eine brauchbare Kontroll-Code-Eingabe? Ziffern, und in der Länge oben. */
+export function isValidInspectionCode(code: string): boolean {
+  return INSPECTION_CODE_RE.test(code);
+}
+
+/**
+ * Der Rate-Limit-Schlüssel der Code-Wiederholung — EINER für beide Wege (Anforderung und
+ * Selbstkontrolle).
+ *
+ * Als Funktion und nicht als Literal in jeder Route: die Zusage ist „ein Zähler je Knopfdruck", und
+ * zwei Zähler liessen sich abwechselnd drücken. Zweimal hingeschrieben hinge sie an einem Kommentar
+ * statt an der Struktur.
+ *
+ * Eigener Schlüssel statt des geteilten `user:<id>`: der zählt schon die Foto-Verifikation (10/min),
+ * und die beiden Aktionen laufen im selben Formular direkt hintereinander.
+ */
+export function inspectionCodePushLimitKey(userId: string): string {
+  return `code-push:${userId}`;
+}
+
+/**
  * Rasterung einer Frist-Eingabe je Einheit — EINE Zahl für `min`/`step` des Feldes, für dessen
  * HTML-Validierung und für das Runden beim Einheiten-Wechsel. Ein Wert neben dem Raster (0.1 h bei
  * step 0.25) liesse das Formular nicht mehr absenden; wer feiner will als eine Viertelstunde,

@@ -66,6 +66,9 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
         targetDeviceId={wearTarget?.activeDeviceId ?? null}
         targetLabel={inspectionTargetLabel(wearTarget)}
         codePushControlId={requested?.id ?? null}
+        // Das AUFGELÖSTE Ziel, nicht der rohe `cat`-Parameter: die Meldung des Code-Push führt
+        // damit exakt auf dieselbe Auflösung zurück, auf der der Sub gerade steht.
+        categoryId={target?.categoryId ?? null}
         mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false}
         boxConfirm={box?.boxConfirm ?? false}
       />

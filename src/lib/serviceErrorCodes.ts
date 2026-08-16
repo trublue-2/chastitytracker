@@ -72,6 +72,10 @@ export const INSPECTION_CODES = [
   // es gibt nichts zu wiederholen. Eigener Code statt `INSPECTION_NOT_FOUND`: die Anforderung ist
   // da, und „nicht gefunden" schickte den Sub auf die falsche Fehlersuche.
   "INSPECTION_NO_CODE",
+  // Der selbst gewählte Code einer Selbstkontrolle taugt nicht als Code (keine Ziffern, zu kurz, zu
+  // lang). Nur auf dem Weg, auf dem der Code vom Aufrufer kommt — bei einer Anforderung hat ihn der
+  // Server selbst vergeben.
+  "INSPECTION_CODE_INVALID",
 ] as const;
 
 /** vorgabeService (training goals). `INVALID_CATEGORY` sass hier, solange der vorgabeService der

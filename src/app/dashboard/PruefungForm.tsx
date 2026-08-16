@@ -39,9 +39,11 @@ interface Props {
   redirectTo?: string;
   /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster. */
   boxConfirm?: boolean;
+  /** ZIEL der Kontrolle — nur für den Code-Push der Selbstkontrolle (siehe PruefungFormCore). */
+  categoryId?: string | null;
 }
 
-export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired, targetDeviceId, targetLabel, codePushControlId, mobileDesktopMode, redirectTo, boxConfirm }: Props) {
+export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired, targetDeviceId, targetLabel, codePushControlId, categoryId, mobileDesktopMode, redirectTo, boxConfirm }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -70,6 +72,11 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
       targetDeviceId={targetDeviceId}
       targetLabel={targetLabel}
       codePushControlId={codePushControlId}
+      // Der eigene Weg des Trägers: hier — und nur hier — darf auch der SELBST gewählte Code
+      // einer Selbstkontrolle als Meldung aufs Gerät. Das Keyholder-Formular teilt sich diesen
+      // Kern und lässt die Zusage bewusst weg: dort drückt nicht der, den die Meldung angeht.
+      selfCodePush
+      categoryId={categoryId}
       mobileDesktopMode={mobileDesktopMode}
       boxConfirm={boxConfirm}
       isEdit={!!initial}

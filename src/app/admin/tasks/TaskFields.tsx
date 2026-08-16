@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
-import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, formatElapsedMs, toDateLocale } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, formatElapsedMs } from "@/lib/utils";
 import useTick from "@/app/hooks/useTick";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import DurationInput from "@/app/components/DurationInput";
@@ -13,10 +13,11 @@ import FieldTabs from "@/app/components/FieldTabs";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
 import HoursInput from "@/app/components/HoursInput";
-import ScheduleFields, { initialSchedule, scheduleAnchorMs, scheduleIsPast, schedulePayload, type ScheduleValue } from "@/app/components/ScheduleFields";
+import ScheduleFields, { initialSchedule, scheduleAnchorLive, scheduleAnchorMs, scheduleIsPast, schedulePayload, type ScheduleValue } from "@/app/components/ScheduleFields";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
+import TimePreview from "./TimePreview";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import { useApiError } from "@/app/hooks/useApiError";
@@ -218,6 +219,19 @@ export default function TaskFields({
       : fromDatetimeLocal(holdUntil, tz);
   }
 
+  /**
+   * EINE Uhr für alle Vorschauen dieses Formulars.
+   *
+   * Vorher taktete jede für sich, mit einem Intervall ab ihrem eigenen Einbau. Zwei Zeilen, die
+   * denselben Zeitpunkt meinen („Fällig um …" über „Endet um …"), konnten dadurch bis zu eine Minute
+   * lang auseinanderliegen — die Vorschau widerlegte sich selbst. Getaktet wird nur, wenn überhaupt
+   * etwas an der laufenden Uhr hängt: ein fester Nullpunkt mit festem Ende bewegt sich nicht.
+   */
+  const anchorLive = scheduleAnchorLive(schedule, tz);
+  const previewLive = anchorLive || hasRequirements || effectiveMode !== "datetime";
+  useTick(previewLive ? 60_000 : 0);
+  const nowMs = Date.now();
+
   /** Der Nullpunkt der Aufgabe: bei einer terminierten ihr Auslöse-Zeitpunkt, sonst „jetzt". Die
    *  Dauer-Eingaben und beide Vorschauen hängen daran — sonst verspräche das Formular eine Spanne
    *  ab dem Ausfüllen, während der Server sie ab dem Auslösen misst. */
@@ -412,11 +426,17 @@ export default function TaskFields({
         onChange={setRequirements}
       />
 
+      {/* Dieselben Funktionen, die auch die Vorschauen unten benutzen — damit die Zeile am Nachweis
+          dieselbe Uhrzeit nennt wie die am Frist-Block. Was sie bedeuten, steht an den Props. */}
       <TaskProofPicker
         value={proofs}
         onChange={setProofs}
         orderMatters={proofOrderMatters}
         onOrderMattersChange={setProofOrderMatters}
+        anchorMs={anchorMs}
+        nowMs={nowMs}
+        endAt={endAt}
+        tz={tz}
       />
 
       {/* DER FRIST-BLOCK — eine Entscheidung, dann ihr Feld, dann die beiden Zahlen als Paar.
@@ -556,7 +576,7 @@ export default function TaskFields({
                 ? new Date(NaN)
                 : startDeadline({ createdAt: new Date(anchor), startGraceMin: grace });
             }}
-            live
+            nowMs={nowMs}
             tz={tz}
             line={(date) => ({
               text: fromStartActive && holdDurationMin != null
@@ -580,7 +600,7 @@ export default function TaskFields({
         {!fromStartActive && (
         <TimePreview
           at={endAt}
-          live={effectiveMode !== "datetime" || hasRequirements}
+          nowMs={nowMs}
           tz={tz}
           line={(date, nowMs) => {
             // Ohne Bedingungen gibt es keine Haltezeit zu nennen — und mit einer unbrauchbaren
@@ -657,61 +677,5 @@ export default function TaskFields({
         {saving ? t("submitting") : t("submit")}
       </Button>
     </form>
-  );
-}
-
-/**
- * Ein aus der Eingabe abgeleiteter Zeitpunkt im Klartext — die Zeile, die eine relative Angabe auf
- * eine Uhrzeit auflöst.
- *
- * Das Formular stellt zwei solche Fragen, die dieselbe Antwortform haben: wann ist Schluss (beide
- * Reiter, „Endet in 2 h" und „Endet um 18:36" sind dasselbe und sehen nicht so aus), und bis wann
- * muss alles anliegen. Bei einer Haltefrist ist die Stundenzahl gerade NICHT die Haltedauer — wer
- * erst nach 25 Minuten anlegt, hält entsprechend kürzer; die aufgelöste Uhrzeit ist die einzige
- * Angabe, die in beiden Reitern dasselbe bedeutet.
- *
- * `live` schaltet den Takt: er lohnt nur, wo der Wert von „jetzt" abhängt (Dauer-Eingaben). Über
- * einem fest eingetippten Zeitpunkt liefe sonst ein Intervall, das jede Minute denselben String neu
- * berechnet. Dasselbe gilt für die noch leere Eingabe: dann gibt es keinen Zeitpunkt, die Zeile
- * zeigt nichts, und ein Takt hätte nichts zu aktualisieren — deshalb hängt er auch an der GÜLTIGKEIT
- * und nicht nur am Modus. `suppressHydrationWarning` wie bei jedem anderen Uhr-Anzeiger der App
- * (siehe `HoldRemaining`) — der Server kennt die Uhr des Betrachters nicht.
- *
- * Bewusst lokal und nicht in `src/app/components/`: es ist bisher EIN Formular. Kommt die zweite
- * Frist-Vorschau (Kontrolle, Verschluss-Anforderung), gehört sie dorthin.
- */
-function TimePreview({ at, live, tz, line }: {
-  /** Der anzuzeigende Zeitpunkt, gerechnet aus „jetzt" — als Funktion, damit der Takt hier bleibt
-   *  und nicht das ganze Formular neu rendert. */
-  at: (nowMs: number) => Date;
-  /** Hängt der Wert an der laufenden Uhr? Ohne das tickt die Zeile nicht. */
-  live: boolean;
-  tz: string;
-  /**
-   * Der fertige Satz, dazu ob er ein WIDERSPRUCH ist. Bewusst beim Aufrufer: die Endzeile nennt
-   * zusätzlich die Mindest-Haltezeit und kann in sich unmöglich werden, die Beginn-Zeile nicht — ein
-   * zweiter Schlüssel plus optionale Parameter hätte die Fallunterscheidung bloss in dieses Bauteil
-   * verschoben, das von Haltezeiten nichts wissen muss.
-   */
-  line: (formatted: string, nowMs: number) => { text: string; warn?: boolean };
-}) {
-  const locale = useLocale();
-
-  const nowMs = Date.now();
-  const date = at(nowMs);
-  // Ein halb getipptes oder noch leeres Feld ist kein Fehler, sondern ein Zwischenstand — dann steht
-  // hier nichts, statt „Ende: Invalid Date".
-  const valid = !Number.isNaN(date.getTime());
-  useTick(live && valid ? 60_000 : 0);
-  if (!valid) return null;
-
-  const { text, warn } = line(formatDateTime(date, toDateLocale(locale), tz), nowMs);
-  return (
-    <p
-      className={`text-xs font-medium tabular-nums ${warn ? "text-warn-text" : "text-foreground-muted"}`}
-      suppressHydrationWarning
-    >
-      {text}
-    </p>
   );
 }

@@ -63,6 +63,22 @@ export function summarizeDurations(durations: number[]): {
   };
 }
 
+/**
+ * Zwei Positionen einer Liste vertauschen, als NEUE Liste.
+ *
+ * Für die Umsortier-Pfeile: dieselbe Vertauschung stand dreimal im Projekt, in drei Fassungen
+ * (Destructuring auf einer Kopie, `map`-Ternär, Server-Swap). `ReorderButtons` hat die Knöpfe
+ * vereinheitlicht — das hier ist die Bewegung dahinter.
+ *
+ * Ausserhalb der Liste wird NICHTS getauscht: ein Index daneben gibt die Liste unverändert zurück,
+ * statt `undefined` einzusetzen. Die Pfeile sperren sich am Rand ohnehin selbst; diese Zusage ist
+ * für den Aufrufer, der sie nicht ein zweites Mal hinschreiben soll.
+ */
+export function swapAt<T>(list: T[], i: number, j: number): T[] {
+  if (i === j || i < 0 || j < 0 || i >= list.length || j >= list.length) return list;
+  return list.map((x, k) => (k === i ? list[j] : k === j ? list[i] : x));
+}
+
 /** Zerlegt eine Dauer in Tage/Stunden/Minuten/Sekunden (jeweils abgerundet, Rest-basiert).
  *  Nur die ZERLEGUNG ist geteilt — die Zusammensetzung bleibt je Formatter eigen, weil sich
  *  Einheiten ("m" vs "min"), Null-Behandlung ("–") und Minuten-Unterdrückung unterscheiden. */

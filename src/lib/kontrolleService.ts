@@ -7,7 +7,7 @@ import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { actorColumn, recordMessageAndBadge, type MessageActor, type MessageRef } from "@/lib/messageService";
 import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
-import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H } from "@/lib/constants";
+import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H, isValidInspectionCode } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { type PrismaTx, getOpenKontrollen } from "@/lib/queries";
@@ -112,10 +112,12 @@ export async function resolveInspectionEntry(
   return { ok: true, data: { userId: entry.userId, notified: true } };
 }
 
-/** Gültige Siegel-Nummer aus dem letzten Eintrag (5–8-stellig, nur bei aktivem VERSCHLUSS), sonst null.
- *  Single source für „ist dieser Code eine Siegel-Nummer" — genutzt beim Anlegen und im Poller. */
+/** Gültige Siegel-Nummer aus dem letzten Eintrag (nur bei aktivem VERSCHLUSS), sonst null.
+ *  Single source für „ist dieser Code eine Siegel-Nummer" — genutzt beim Anlegen und im Poller.
+ *  Die FORM ist dieselbe wie beim Kontroll-Code (dieselbe Spalte, dieselbe Länge), deshalb dieselbe
+ *  Prüfung statt einer zweiten Abschrift derselben Ziffernspanne. */
 export function deriveSealCode(latest: { type: string; kontrollCode: string | null } | null): string | null {
-  return latest?.type === "VERSCHLUSS" && latest.kontrollCode && /^\d{5,8}$/.test(latest.kontrollCode)
+  return latest?.type === "VERSCHLUSS" && latest.kontrollCode && isValidInspectionCode(latest.kontrollCode)
     ? latest.kontrollCode
     : null;
 }
@@ -663,5 +665,48 @@ export async function resendInspectionCode(userId: string, controlId: string): P
   // Ziel des Antippens ist dasselbe Formular wie bei der Ankündigung — der Sub steht zwar meist
   // schon darauf, aber eine Meldung, die nirgendwohin führt, ist auf der Uhr eine Sackgasse.
   firePush(userId, push.title, push.body, inspectionHref(ka.code, { kommentar: ka.kommentar, categoryId: ka.categoryId }));
+  return { ok: true, data: null };
+}
+
+/**
+ * Dasselbe für den Code einer SELBSTKONTROLLE — die andere Hälfte desselben Bedürfnisses.
+ *
+ * Warum es einen zweiten Weg braucht: eine freiwillige Kontrolle hat keine Anforderung. Ihr Code
+ * wird beim Öffnen des Formulars gewürfelt (`generateKontrollCode` in der Seite) und steht in KEINER
+ * Zeile — es gibt nichts, was der Server nachschlagen könnte. Der Code kommt deshalb vom Aufrufer.
+ *
+ * Was das unbedenklich macht, ist die Richtung: die Meldung geht ausschliesslich an den Absender
+ * selbst, sie enthält nur Ziffern, und sie hinterlässt nichts (kein Ereignis, keine Zeile, kein
+ * Badge) — dieselbe Zusage wie {@link resendInspectionCode}. Ein Fremdziel gibt es gar nicht: der
+ * Empfänger IST die Sitzung.
+ *
+ * Was hier trotzdem geprüft wird, ist die FORM: Ziffern in der erlaubten Länge
+ * ({@link isValidInspectionCode}). Nicht wegen der Push — sondern damit dieser Weg nicht zur
+ * allgemeinen „schick mir einen Text aufs Handy"-Route wird, deren Titel jemand mit Freitext füllt.
+ *
+ * Kein Abgleich gegen eine laufende Anforderung, und das ist Absicht: hätte der Sub eine, ginge der
+ * Knopf über die id-Route, wo der Server für den Code bürgt. Hier gibt es keinen richtigen Code —
+ * nur den, den der Sub gleich ins Bild schreibt.
+ */
+export async function resendOwnInspectionCode(
+  userId: string,
+  code: string,
+  /** Das ZIEL der Kontrolle (Trage-Kategorie), `null` = KG. Muss mitkommen: bei einer Anforderung
+   *  steht es in der Zeile, hier gibt es keine. Ohne das Ziel führt die Meldung beim Antippen aufs
+   *  KG-Formular, und der Sub reicht ein Foto ein, das seine Kontrolle gar nicht beantwortet
+   *  (dieselbe Falle, die `inspectionHref` beschreibt). */
+  categoryId: string | null = null,
+): Promise<ServiceResult<null>> {
+  if (!isValidInspectionCode(code)) return serviceFail(400, "INSPECTION_CODE_INVALID");
+
+  // Wie oben: ohne angemeldetes Gerät ginge die Push ins Leere und der Knopf meldete Erfolg.
+  if (!await hasPushTarget(userId)) return serviceFail(400, "PUSH_NOT_ENABLED");
+
+  // Ohne Ziel-Untertitel: eine Selbstkontrolle steht für sich, und was ins Foto gerät, geht durch
+  // die Code-Erkennung — jede weitere Zahl darin ist eine, die für den Code gehalten werden kann.
+  // Das Ziel gehört trotzdem in den LINK: es steuert, wohin das Antippen führt, nicht was im Bild
+  // landet.
+  const push = buildInspectionCodePush(code, null);
+  firePush(userId, push.title, push.body, inspectionHref(code, { categoryId }));
   return { ok: true, data: null };
 }

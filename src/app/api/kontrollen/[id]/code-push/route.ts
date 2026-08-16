@@ -3,7 +3,7 @@ import { requireApi } from "@/lib/authGuards";
 import { resendInspectionCode } from "@/lib/kontrolleService";
 import { serviceResponse, errorResponse } from "@/lib/serviceResult";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
-import { INSPECTION_CODE_PUSH_COOLDOWN_MS } from "@/lib/constants";
+import { INSPECTION_CODE_PUSH_COOLDOWN_MS, inspectionCodePushLimitKey } from "@/lib/constants";
 
 /**
  * Der Sub schickt sich den Code seiner laufenden Kontrolle noch einmal als Push — der Weg, den Code
@@ -23,7 +23,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     if (session instanceof NextResponse) return session;
     const { id } = await params;
 
-    const rl = await checkRateLimit(`code-push:${session.user.id}`, 1, INSPECTION_CODE_PUSH_COOLDOWN_MS);
+    const rl = await checkRateLimit(inspectionCodePushLimitKey(session.user.id), 1, INSPECTION_CODE_PUSH_COOLDOWN_MS);
     if (rl.limited) return rateLimitResponse(rl);
 
     return serviceResponse(await resendInspectionCode(session.user.id, id));

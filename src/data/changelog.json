@@ -1,5 +1,32 @@
 [
   {
+    "version": "5.1.4",
+    "date": "2026-08-16",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die eigene Frist eines Nachweis-Fotos zeigt jetzt, wann sie konkret abläuft — und warnt, wenn sie nicht vor dem Ende der Aufgabe liegt.",
+          "en": "A proof photo's own deadline now shows the actual time it falls due — and warns when it does not lie before the end of the task."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Nachweis-Fotos einer Aufgabe lassen sich umsortieren, ohne sie neu einzugeben.",
+          "en": "The proof photos of a task can be reordered without entering them again."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Auch bei einer freiwilligen Selbstkontrolle lässt sich der Code als Meldung aufs Handy schicken — bisher ging das nur bei einer angeforderten Kontrolle.",
+          "en": "For a voluntary self-inspection the code can now be sent as a notification too — until now that only worked for a requested inspection."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.1.3",
     "date": "2026-08-16",
     "changes": [

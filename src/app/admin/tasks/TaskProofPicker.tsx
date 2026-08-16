@@ -8,10 +8,13 @@ import Checkbox from "@/app/components/Checkbox";
 import DurationInput from "@/app/components/DurationInput";
 import Input from "@/app/components/Input";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
+import ReorderButtons from "@/app/components/ReorderButtons";
+import TimePreview from "./TimePreview";
 import {
   TASK_PROOF_MAX, TASK_PROOF_DESCRIPTION_MAX_LENGTH,
   clampProofDueOffset, durationToHours, type DurationUnit,
 } from "@/lib/constants";
+import { swapAt } from "@/lib/utils";
 import type { TaskProofInput } from "@/lib/taskService";
 
 /** Der Bedienzustand EINES Frist-Feldes: die rohe Eingabe in der gerade gewählten Einheit. */
@@ -45,12 +48,27 @@ export default function TaskProofPicker({
   onChange,
   orderMatters,
   onOrderMattersChange,
+  anchorMs,
+  nowMs,
+  endAt,
+  tz,
 }: {
   value: TaskProofInput[];
   onChange: (next: TaskProofInput[]) => void;
   /** Müssen die Aufnahmezeiten der Nummerierung folgen? */
   orderMatters: boolean;
   onOrderMattersChange: (next: boolean) => void;
+  /** Der NULLPUNKT der Aufgabe, ab dem jede eigene Frist zählt — bei einer terminierten Aufgabe ihr
+   *  Auslöse-Zeitpunkt, sonst „jetzt". Reingereicht statt hier gerechnet: er hängt an der
+   *  Terminierung, und die steht im Formular darüber. */
+  anchorMs: (nowMs: number) => number;
+  /** Die gemeinsame Uhr des Formulars — hier wird keine zweite gelesen und keine zweite getaktet
+   *  (siehe {@link TimePreview}). */
+  nowMs: number;
+  /** Das Ende der Aufgabe — die obere Schranke jeder Nachweis-Frist. */
+  endAt: (nowMs: number) => Date;
+  /** Zeitzone des Subs: die Frist ist ein absoluter Zeitpunkt, gezeigt wird sie in SEINER Zone. */
+  tz: string;
 }) {
   const t = useTranslations("tasks");
 
@@ -84,6 +102,26 @@ export default function TaskProofPicker({
     update(i, { dueOffsetMin: clampProofDueOffset(durationToHours(parseFloat(raw), unit) * 60) ?? null });
   }
 
+  /** Wann diese Frist abläuft — Nullpunkt der Aufgabe plus Versatz. */
+  const dueAt = (nowMs: number, offsetMin: number) => new Date(anchorMs(nowMs) + offsetMin * 60_000);
+
+  /**
+   * Eine Zeile verschieben — Nachweis UND Tippstand, wie beim Entfernen.
+   *
+   * Die Nummer ist hier keine Zierde: sie ist die geforderte Reihenfolge der Aufnahmen, die Adresse
+   * eines Nachweises in der Sichtung („Nachweis 2") und der Anker seiner eigenen Frist. Eine
+   * Nummerierung, die etwas fordert, aber nur durch Löschen und Neutippen zu ändern ist, verlangt für
+   * eine vertauschte Zeile die Neueingabe von Text, Code-Haken und Frist.
+   *
+   * Die FRIST wandert bewusst MIT der Zeile: sie gehört zu diesem Nachweis, nicht zu diesem Platz.
+   * Bliebe sie stehen, tauschte ein Verschieben still zwei Fristen — und genau davon würde niemand
+   * etwas merken, bis der Sub die falsche Frist verpasst.
+   */
+  function move(i: number, dir: -1 | 1) {
+    setDrafts(swapAt(drafts, i, i + dir));
+    onChange(swapAt(value, i, i + dir));
+  }
+
   // Der Schalter erscheint, sobald es überhaupt einen Nachweis gibt — und NUR dann sagt der Hinweis
   // darunter etwas anderes. Beide hängen an derselben Bedingung: ein Text, der eine Regel verkündet,
   // deren Schalter gerade nicht sichtbar ist, wäre eine Aussage ohne Bedienung.
@@ -96,7 +134,11 @@ export default function TaskProofPicker({
 
       {value.length > 0 && (
         <div className="rounded-xl border border-border divide-y divide-border-subtle overflow-hidden">
-          {value.map((p, i) => (
+          {value.map((p, i) => {
+            // Einmal verengt statt zweimal gecastet: die Prüfung unten verliert die Verengung
+            // aus `p.dueOffsetMin != null` sonst in den Closures der Vorschau.
+            const dueOffsetMin = p.dueOffsetMin ?? null;
+            return (
             <div key={i} className="p-3 flex flex-col gap-2">
               <div className="flex items-start gap-2">
                 {/* Die Nummer trägt die Kernforderung: in DIESER Reihenfolge aufnehmen. */}
@@ -115,6 +157,17 @@ export default function TaskProofPicker({
                     maxLength={TASK_PROOF_DESCRIPTION_MAX_LENGTH}
                   />
                 </div>
+                {/* Erst ab zwei Zeilen: an einer einzelnen gäbe es nichts zu tauschen, und zwei
+                    dauerhaft ausgegraute Knöpfe sind zwei Knöpfe zu viel. */}
+                {value.length > 1 && (
+                  <ReorderButtons
+                    index={i}
+                    count={value.length}
+                    onMove={(dir) => move(i, dir)}
+                    upLabel={t("proofMoveUp")}
+                    downLabel={t("proofMoveDown")}
+                  />
+                )}
                 <RemoveRowButton
                   onClick={() => {
                     // Beide Listen zusammen: der Tippstand hängt an der POSITION, und stünde er
@@ -145,9 +198,43 @@ export default function TaskProofPicker({
                   unit={(drafts[i] ?? EMPTY_DRAFT).unit}
                   onChange={(raw, unit) => setDue(i, raw, unit)}
                 />
+                {/* WANN das konkret ist. Die eingegebene Zahl beantwortet die Frage nicht, die der
+                    Keyholder tatsächlich hat („bis wann muss das Foto da sein?"): sie zählt ab dem
+                    Nullpunkt der AUFGABE, nicht ab dem Ausfüllen und nicht ab dem Beginn des Subs —
+                    bei einer terminierten Aufgabe liegen dazwischen Stunden. Dieselbe Auflösung wie
+                    bei den beiden Fristen darüber, mit demselben Bauteil.
+
+                    Die Warnung ist keine Zierde: eine Frist NACH dem Ende der Aufgabe weist der
+                    Dienst mit `TASK_PROOF_DUE_AFTER_END` ab. Sie hier zu zeigen, wo beide Zahlen
+                    stehen, ist billiger als ein 400er nach dem Absenden. */}
+                {dueOffsetMin != null && (
+                  <TimePreview
+                    at={(at) => dueAt(at, dueOffsetMin)}
+                    nowMs={nowMs}
+                    tz={tz}
+                    line={(formatted, at, due) => {
+                      const end = endAt(at).getTime();
+                      // Ein unbrauchbares Ende (halb getipptes Feld darüber) widerlegt nichts —
+                      // dann steht hier die schlichte Zeile, und den Vorwurf trägt das Feld selbst.
+                      // `due` kommt fertig herein, statt hier ein zweites Mal gerechnet zu werden.
+                      //
+                      // `>=` und nicht `>`: GLEICHSTAND ist der Fall, der hier durchginge und beim
+                      // Absenden am 400er endet. Der Dienst misst den Nullpunkt neu (Server-Uhr,
+                      // Sekunden später), das absolute Ende schickt das Formular mit — „Frist 2 h"
+                      // zu „Endet in 2 h" ist damit auf dem Server immer schon zu spät. Eine
+                      // Warnung, die einen Gleichstand zu früh anzeigt, ist der deutlich bessere
+                      // Ausgang als eine Aufgabe, die sich nicht abschicken lässt.
+                      const afterEnd = !Number.isNaN(end) && due.getTime() >= end;
+                      return afterEnd
+                        ? { text: t("proofDueAfterEnd", { date: formatted }), warn: true }
+                        : { text: t("proofDueAt", { date: formatted }) };
+                    }}
+                  />
+                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

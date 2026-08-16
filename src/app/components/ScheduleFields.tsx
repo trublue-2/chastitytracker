@@ -70,6 +70,18 @@ export function scheduleAnchorMs(v: ScheduleValue, tz: string, nowMs: number): n
 }
 
 /**
+ * Wandert der Nullpunkt mit der Uhr? — die Frage, die jede Zeitvorschau über ihm stellen muss.
+ *
+ * Nur ein ABSOLUTER Zeitpunkt steht still; „sofort" und „in 20 Minuten" rücken beide mit jeder
+ * Minute Formularausfüllen weiter. Hier und nicht am Aufrufer, weil es dieselbe Fallunterscheidung
+ * ist wie in {@link scheduleAnchorMs} — zweimal geschrieben liefe die eine irgendwann der anderen
+ * hinterher, und eine Vorschau bliebe stehen oder tickte grundlos.
+ */
+export function scheduleAnchorLive(v: ScheduleValue, tz: string): boolean {
+  return !schedulePayload(v, tz).wirksamAbAt;
+}
+
+/**
  * Die Felder, die der Server erwartet — leer bei „sofort".
  *
  * Als Objekt und nicht als Mutation des Payloads: so bleibt am Aufrufer sichtbar, WAS die
