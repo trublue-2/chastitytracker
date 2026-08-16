@@ -46,6 +46,14 @@ Dasselbe gilt für **Worktrees**: `git worktree add` erbt die Config des Repos, 
 
 **Warum das kein Formalismus ist:** Dieses Repo ist öffentlich, und der Absender darf niemals auf den System-Benutzer oder eine private Adresse zeigen. Die Prüfung gehört vor den ersten Commit, nicht danach — hinterher ist sie ein Rewrite.
 
+### Pushen
+
+Gepusht wird ausschliesslich über das Konto `trublue-2`. Auf trublues Maschine ist das verkabelt und nicht wählbar: die Remote-URL lautet `git@github-trublue:…`, ein SSH-Alias auf den Key dieses Kontos. Wer eine andere Remote-URL setzt, umgeht das — also keine setzen.
+
+Dort greifen zusätzlich globale Hooks (`core.hooksPath`): `pre-commit` und `pre-push` erzwingen `info@trublue.ch` / `trublue-2` als Absender und weisen ausserdem **Inhalte** ab, die auf die Person hinter trublue zeigen — privater Benutzername und private Domains, in Dateitext wie in Dateipfaden. Die Muster stehen in `identity-rules.sh` und gehören bewusst NICHT in eine eingecheckte Datei. Die Zuordnung hängt an der Remote-URL, damit sie auch in einem Klon ohne lokale Config greift.
+
+**In Cloud- und Remote-Umgebungen existieren diese Hooks NICHT.** Ein Hook wirkt nur dort, wo er installiert ist. Dort ist dieser Abschnitt die einzige Sperre — die Prüfung von Absender und Inhalt ist dann Handarbeit und muss vor dem Push passieren, nicht danach.
+
 ---
 
 ## Deployment
