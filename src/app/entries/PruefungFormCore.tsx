@@ -21,6 +21,7 @@ import BoxPhotoField from "@/app/components/BoxPhotoField";
 import Card from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import Spinner from "@/app/components/Spinner";
+import InspectionCodePushButton from "@/app/components/InspectionCodePushButton";
 import type { PruefungPayload, SubmitResult } from "./types";
 import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
 
@@ -62,6 +63,12 @@ interface Props {
   targetDeviceId?: string | null;
   /** Name des Ziels für die Anzeige („Kontrolle: Plug") — null beim KG. */
   targetLabel?: string | null;
+  /** Id der ANGEFORDERTEN Kontrolle, deren Code hier steht — schaltet den Knopf frei, der den Code
+   *  noch einmal als Meldung schickt. Fehlt bewusst in zwei Fällen: bei einer freiwilligen
+   *  Selbstkontrolle (der Code entsteht beim Aufbau der Seite und steht nirgends, es gibt nichts
+   *  nachzuschicken) und auf dem Keyholder-Pfad (die Meldung ginge an den Sub, und der ist nicht,
+   *  wer hier auf den Knopf drückt). */
+  codePushControlId?: string | null;
   mobileDesktopMode?: boolean;
   /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster, das den Schlüssel zeigt.
    *  Nur beim Neuanlegen — beim Bearbeiten wird kein Nachweis nachgereicht. */
@@ -76,7 +83,7 @@ interface Props {
 
 export default function PruefungFormCore({
   initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired = true, mobileDesktopMode,
-  targetDeviceId = null, targetLabel = null,
+  targetDeviceId = null, targetLabel = null, codePushControlId = null,
   boxConfirm = false, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("inspectionForm");
@@ -270,6 +277,11 @@ export default function PruefungFormCore({
             <span className="font-mono font-bold text-xl text-inspect tracking-widest">
               {kontrollCode || "–"}
             </span>
+            {/* Der Weg, den Code zurück auf die Smartwatch zu holen — hier, weil das Handy gleich
+                die Kamera wird und seinen eigenen Bildschirm nicht abfotografieren kann. Ohne
+                zweite Prüfung auf `kontrollCode`: in diesem Block ist er per Konstruktion gesetzt
+                (`hasPrefilledCode` liest genau die Werte, aus denen er initialisiert wird). */}
+            {codePushControlId && <InspectionCodePushButton controlId={codePushControlId} />}
           </div>
           {sealRequired && (
             <p className="text-xs text-foreground-muted mt-2">{t("sealAlsoRequired")}</p>

@@ -188,6 +188,24 @@ async function sendNativePushToUser(
   return true;
 }
 
+/**
+ * Erreicht eine Push diesen Nutzer überhaupt — hat er also mindestens ein angemeldetes Ziel?
+ *
+ * Hier und nicht beim Aufrufer: WELCHE Tabellen ein Push-Ziel darstellen, weiss dieses Modul, und
+ * es ist dieselbe Reihenfolge, die `sendPushToUser` beim Senden anwendet (nativ zuerst, Web nur als
+ * Ersatz). Stünde die Frage anderswo, hätte ein dritter Kanal zwei Stellen zu ändern — und die
+ * vergessene wäre die, die dem Nutzer sagt, seine Meldungen seien aus.
+ *
+ * Gebraucht von Aktionen, die der Nutzer AUSLÖST und deren einziges Ergebnis eine Push ist (heute
+ * die Code-Wiederholung an der Kontrolle): `firePush` ist fire-and-forget und kann nicht
+ * beantworten, ob überhaupt jemand zuhört — ohne diese Vorabfrage meldete der Knopf Erfolg und auf
+ * dem Gerät bliebe es still.
+ */
+export async function hasPushTarget(userId: string): Promise<boolean> {
+  if (await prisma.nativePushToken.findFirst({ where: { userId }, select: { id: true } })) return true;
+  return (await prisma.pushSubscription.findFirst({ where: { userId }, select: { id: true } })) !== null;
+}
+
 /** Fire-and-forget-Push: schluckt JEDEN Fehler. Zwingend für unawaited Aufrufe — `sendPushToUser`
  *  fängt intern NICHT alles (die Prisma-Reads/Cleanups laufen ausserhalb try/catch), ein Reject
  *  eines unawaited Promise würde sonst als unhandledRejection den Prozess beenden. */

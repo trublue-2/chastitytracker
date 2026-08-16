@@ -32,13 +32,16 @@ interface Props {
   targetDeviceId?: string | null;
   /** Name des Ziels für die Anzeige — null beim KG. */
   targetLabel?: string | null;
+  /** Id der angeforderten Kontrolle, deren Code hier steht — schaltet den „Code senden"-Knopf frei
+   *  (Bedeutung und die zwei Fälle, in denen sie fehlt, an der Prop im Core). */
+  codePushControlId?: string | null;
   mobileDesktopMode?: boolean;
   redirectTo?: string;
   /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster. */
   boxConfirm?: boolean;
 }
 
-export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired, targetDeviceId, targetLabel, mobileDesktopMode, redirectTo, boxConfirm }: Props) {
+export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired, targetDeviceId, targetLabel, codePushControlId, mobileDesktopMode, redirectTo, boxConfirm }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -66,6 +69,7 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
       codeRequired={codeRequired}
       targetDeviceId={targetDeviceId}
       targetLabel={targetLabel}
+      codePushControlId={codePushControlId}
       mobileDesktopMode={mobileDesktopMode}
       boxConfirm={boxConfirm}
       isEdit={!!initial}

@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.1.4",
+    "date": "2026-08-16",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Bei einer angeforderten Kontrolle lässt sich der Code jetzt per Knopfdruck noch einmal als Meldung aufs Handy schicken — praktisch, wenn er auf der Smartwatch abfotografiert wird und dort von der nächsten Meldung verdrängt wurde.",
+          "en": "For a requested inspection you can now resend the code as a notification at the press of a button — handy when you photograph it off a smartwatch and the next notification has pushed it aside."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.1.2",
     "date": "2026-08-15",
     "changes": [
