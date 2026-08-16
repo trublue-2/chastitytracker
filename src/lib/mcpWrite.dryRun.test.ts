@@ -20,10 +20,11 @@ vi.mock("@/lib/prisma", () => ({
     strafeRecord: { findUnique: vi.fn() },
     // getIsLocked/hasActiveKontrolle (advisory dryRun-Checks) lesen darüber.
     entry: { findFirst: vi.fn() },
-    // Der EINZIGE Schreibvorgang von `createTask` (writeTask → tx.task.create). `taskService` ist in
-    // dieser Datei bewusst NICHT gemockt — die create_task-Vorschau ruft `checkTask` echt auf —,
-    // also muss der Schreibweg hier als Mock danebenstehen, um beweisen zu können, dass er ruht.
-    task: { create: vi.fn() },
+    // Die EINZIGEN Schreibvorgänge der Aufgaben-Werkzeuge (`createTask` → writeTask → tx.task.create,
+    // `updateTask` → task.updateMany). `taskService` ist in dieser Datei bewusst NICHT gemockt — die
+    // Vorschauen rufen `checkTask`/`checkTaskUpdate` echt auf —, also müssen die Schreibwege hier als
+    // Mocks danebenstehen, um beweisen zu können, dass sie ruhen. `findUnique` liest `edit_task`.
+    task: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
   },
 }));
 
@@ -65,7 +66,7 @@ vi.mock("@/lib/strafbuch", () => ({ buildStrafbuch: vi.fn().mockResolvedValue({}
 import {
   mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpRequestOrgasm, mcpSetTrainingGoal,
   mcpWithdraw, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection,
-  mcpEditLockPeriod, mcpEditLockRequest, mcpJudgeOffense, mcpCreateTask, mcpSetAutoInspections,
+  mcpEditLockPeriod, mcpEditLockRequest, mcpJudgeOffense, mcpCreateTask, mcpEditTask, mcpSetAutoInspections,
 } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
@@ -76,6 +77,7 @@ import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
 import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
+import { taskRow } from "@/test/taskRow";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const userFindUniqueOrThrowMock = prisma.user.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;
@@ -87,6 +89,8 @@ const entryFindFirstMock = prisma.entry.findFirst as unknown as ReturnType<typeo
 const strafeRecordFindUniqueMock = prisma.strafeRecord.findUnique as unknown as ReturnType<typeof vi.fn>;
 const detectedOffenseMock = requireDetectedOffense as unknown as ReturnType<typeof vi.fn>;
 const taskCreateMock = prisma.task.create as unknown as ReturnType<typeof vi.fn>;
+const taskFindUniqueMock = prisma.task.findUnique as unknown as ReturnType<typeof vi.fn>;
+const taskUpdateManyMock = prisma.task.updateMany as unknown as ReturnType<typeof vi.fn>;
 
 /** Die Antwort-Form von `dryRunPreview` — dieselbe für jedes Werkzeug. */
 type TaskPreview = { wouldSucceed: boolean; problem?: string; preview: Record<string, unknown> };
@@ -431,6 +435,80 @@ describe("create_task: die Vorschau prüft mit checkTask, nicht mit einer Abschr
   it("committet trotz der echten Prüfung nichts", async () => {
     await mcpCreateTask("sub", { ...dauerModus }) as TaskPreview;
     expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Dieselbe Klasse für `edit_task`: die Vorschau prüft mit `checkTaskUpdate` — der Funktion, die
+ * `updateTask` fährt — statt mit einer handgeschriebenen `withdrawnAt`-Abfrage. Die kannte genau
+ * EINEN der Ablehnungsgründe des Commits; für eine erledigte Aufgabe und für jede gerissene
+ * Feldgrenze versprach sie Erfolg und der Commit antwortete mit 400.
+ */
+describe("edit_task: die Vorschau prüft mit checkTaskUpdate, nicht mit einer Abschrift", () => {
+  /** Die gewöhnliche offene Aufgabe mit einer Bedingung — geteilt mit `mcpEditTaskHold.test.ts`,
+   *  damit eine neue Spalte der Zeile nicht in zwei Dateien nachgetragen werden muss. */
+  const aufgabe = (over: Partial<Record<string, unknown>> = {}) => {
+    taskFindUniqueMock.mockResolvedValue(taskRow(JETZT, over));
+  };
+
+  beforeEach(() => aufgabe());
+
+  it("eine ERLEDIGTE Aufgabe wird gemeldet — nicht nur die zurückgezogene", async () => {
+    aufgabe({ completedAt: JETZT });
+    const r = await mcpEditTask("sub", { id: "t1", title: "neu", dryRun: true }) as TaskPreview;
+    expect(r.wouldSucceed).toBe(false);
+    expect(r.problem).toBe("TASK_NOT_EDITABLE");
+  });
+
+  it("die zurückgezogene bleibt gemeldet", async () => {
+    aufgabe({ withdrawnAt: JETZT });
+    const r = await mcpEditTask("sub", { id: "t1", title: "neu", dryRun: true }) as TaskPreview;
+    expect(r.problem).toBe("TASK_NOT_EDITABLE");
+  });
+
+  it("erbt die Feldgrenzen — leerer Titel, zu langer Titel, zu lange Beschreibung", async () => {
+    const ohneTitel = await mcpEditTask("sub", { id: "t1", title: "   ", dryRun: true }) as TaskPreview;
+    expect(ohneTitel.problem).toBe("TASK_TITLE_REQUIRED");
+
+    const zuLang = await mcpEditTask("sub", { id: "t1", title: "x".repeat(81), dryRun: true }) as TaskPreview;
+    expect(zuLang.problem).toBe("TASK_TITLE_TOO_LONG");
+
+    const zuVielText = await mcpEditTask("sub", { id: "t1", description: "x".repeat(2001), dryRun: true }) as TaskPreview;
+    expect(zuVielText.problem).toBe("TASK_DESCRIPTION_TOO_LONG");
+  });
+
+  /**
+   * Die Untergrenze der neuen Endzeit hängt daran, OB die Aufgabe Bedingungen hat: mit ihnen zählt
+   * die Startfrist, ohne sie nur der Nullpunkt. Beides an derselben terminierten Aufgabe, damit die
+   * beiden Grenzen auseinanderliegen — sonst bewiese der Test nur, dass irgendeine greift.
+   *
+   * Die Regel selbst gehört `taskService.test.ts`; hier steht sie, weil die Vorschau die Zahl der
+   * Bedingungen ABLEITEN muss — mit einem festverdrahteten „ja" liefe die zweite Hälfte anders aus.
+   */
+  it("die Startfrist zählt nur bei einer Aufgabe MIT Bedingungen", async () => {
+    // Wirksam ab morgen 12:00, eine Stunde Kulanz → Startfrist morgen 13:00. Ein Ende um 12:30
+    // liegt davor.
+    const terminiert = { wirksamAb: MORGEN, startGraceMin: 60, holdUntil: MORGEN };
+    const ende = new Date(MORGEN.getTime() + 30 * 60_000).toISOString();
+
+    aufgabe(terminiert);
+    const mitBedingung = await mcpEditTask("sub", { id: "t1", holdUntilAt: ende, dryRun: true }) as TaskPreview;
+    expect(mitBedingung.problem).toBe("TASK_HOLD_UNTIL_TOO_SOON");
+
+    aufgabe({ ...terminiert, _count: { requirements: 0 } });
+    const ohneBedingung = await mcpEditTask("sub", { id: "t1", holdUntilAt: ende, dryRun: true }) as TaskPreview;
+    expect(ohneBedingung.wouldSucceed).toBe(true);
+  });
+
+  it("die zulässige Änderung meldet Erfolg, zeigt die neue Fassung und committet nichts", async () => {
+    const r = await mcpEditTask("sub", { id: "t1", title: "Anderes tragen", dryRun: true }) as TaskPreview & {
+      diff: Record<string, [unknown, unknown]>;
+    };
+    expect(r.wouldSucceed).toBe(true);
+    expect(r.problem).toBeUndefined();
+    expect(r.preview.title).toBe("Anderes tragen");
+    expect(r.diff.title).toEqual(["Wohnung staubsaugen", "Anderes tragen"]);
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 });
 

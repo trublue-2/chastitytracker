@@ -28,6 +28,7 @@ vi.mock("@/lib/taskService", async (importOriginal) => {
 import { mcpEditTask } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
 import { updateTask } from "@/lib/taskService";
+import { taskRow } from "@/test/taskRow";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const taskFind = prisma.task.findUnique as unknown as ReturnType<typeof vi.fn>;
@@ -38,17 +39,9 @@ const JETZT = new Date("2026-08-15T12:00:00Z");
 const AUSLOESUNG = new Date("2026-08-15T16:00:00Z");
 const H = 3600_000;
 
-/** Eine Aufgabe im klassischen Modus (festes Ende), so wie `prisma.task.findUnique` sie liefert. */
-function task(over: Partial<Record<string, unknown>> = {}) {
-  return {
-    id: "t1", userId: "u1", title: "Wohnung staubsaugen", description: null,
-    holdUntil: new Date("2026-08-15T20:00:00Z"), holdDurationMin: null,
-    isPunishment: false, penaltyReason: null,
-    createdAt: JETZT, startGraceMin: 30, wirksamAb: null, benachrichtigtAt: JETZT,
-    withdrawnAt: null, completedAt: null,
-    ...over,
-  };
-}
+/** Eine Aufgabe im klassischen Modus (festes Ende), so wie `prisma.task.findUnique` sie liefert:
+ *  eben gestellt, Ende acht Stunden später. Die Fälle unten verschieben einzelne Felder. */
+const task = (over: Partial<Record<string, unknown>> = {}) => taskRow(JETZT, over);
 
 /** Terminiert und noch nicht zugestellt — die Konstellation aus `isHiddenFromSub`. */
 const terminiert = () => task({ wirksamAb: AUSLOESUNG, benachrichtigtAt: null });

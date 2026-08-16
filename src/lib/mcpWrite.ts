@@ -27,7 +27,7 @@ import { createManualOffense, validateManualOffenseInput, withdrawManualOffense 
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 import { reviewTaskProof } from "@/lib/taskProofService";
-import { createTask, checkTask, updateTask, withdrawTask, mergeTaskPatch, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
+import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
 
 /**
@@ -1789,7 +1789,15 @@ export async function mcpReviewTaskProof(username: string, args: ReviewTaskProof
     // Zustands-Regeln gehen als `problem` in die Vorschau, nicht als Wurf — wie bei jedem anderen
     // Werkzeug hier. Ein dryRun soll sagen, was passieren WÜRDE, auch wenn die Antwort „nichts" ist.
     // Beide Zustands-Regeln, die der Service durchsetzt — sonst verspräche die Vorschau Erfolg, wo
-    // der echte Aufruf abweist. `mcpEditTask` prüft `withdrawnAt` aus demselben Grund.
+    // der echte Aufruf abweist.
+    //
+    // ABGESCHRIEBEN, und damit die LETZTE Vorschau der Aufgaben-Familie, die das noch tut: hier
+    // stehen die zwei Schranken aus `reviewTaskProof` ein zweites Mal, statt dass eine geteilte
+    // Prüf-Funktion sie liefert. `create_task` (`checkTask`) und `edit_task` (`checkTaskUpdate`)
+    // sind genau davon weg — bei `edit_task` fehlte der Abschrift `completedAt`, und die Vorschau
+    // versprach Erfolg für einen Commit mit 400. Eine dritte Schranke in `reviewTaskProof` liefe
+    // hier still auseinander; der Bauplan dafür steht in derselben Datei
+    // (`proofSubmitBlockedReason` in `taskProofService.ts`).
     const problem = task.withdrawnAt ? "TASK_NOT_EDITABLE"
       : !proof.submittedAt ? "TASK_PROOF_NOT_SUBMITTED"
       : undefined;
@@ -1817,13 +1825,18 @@ export async function mcpReviewTaskProof(username: string, args: ReviewTaskProof
 
 export async function mcpEditTask(username: string, args: EditTaskArgs) {
   const userId = await resolveTargetUserId(username);
-  const task = await prisma.task.findUnique({ where: { id: args.id } });
+  // `TASK_EDIT_INCLUDE`, weil die Vorschau unten mit `checkTaskUpdate` prüft — dieselbe Zeilen-Form,
+  // die auch `updateTask` liest.
+  const task = await prisma.task.findUnique({ where: { id: args.id }, include: TASK_EDIT_INCLUDE });
   if (!task || task.userId !== userId) throw new Error(`Task not found: ${args.id}`);
 
+  /** EIN Zeitpunkt für die ganze Anweisung: die Frist wird daran verankert UND dagegen geprüft. Zwei
+   *  Uhrenschläge liessen eine Frist, die exakt auf ihrer Untergrenze sitzt, am zweiten scheitern. */
+  const now = new Date();
   /** Der Nullpunkt der geänderten Frist — dieselbe Regel wie beim Anlegen ({@link resolveTaskHold}),
    *  nur eben nachträglich: {@link earliestActionableAt} statt des rohen Nullpunkts, weil eine vor
    *  Stunden gestellte Aufgabe ihre Spanne sonst in die Vergangenheit legte. */
-  const holdAnchor = earliestActionableAt(task, new Date());
+  const holdAnchor = earliestActionableAt(task, now);
 
   const patch = {
     title: args.title,
@@ -1843,8 +1856,10 @@ export async function mcpEditTask(username: string, args: EditTaskArgs) {
       holdDurationMin: task.holdDurationMin, isPunishment: task.isPunishment, penaltyReason: task.penaltyReason,
     };
     const after = mergeTaskPatch(before, patch, task);
-    const problem = task.withdrawnAt ? "TASK_NOT_EDITABLE" : undefined;
-    return dryRunPreview("edit_task", problem, { id: task.id, ...after, holdUntil: after.holdUntil.toISOString() }, diffFields({ ...before }, { ...after }));
+    // DIESELBE Prüfung, die der Commit fährt — keine zweite Abschrift ihrer Regeln. Von Hand stand
+    // hier nur `withdrawnAt`; warum das zu wenig war, steht bei {@link checkTaskUpdate}.
+    const checked = checkTaskUpdate(task, after, now);
+    return dryRunPreview("edit_task", checked?.error, { id: task.id, ...after, holdUntil: after.holdUntil.toISOString() }, diffFields({ ...before }, { ...after }));
   }
 
   unwrap(await updateTask(args.id, userId, patch, AI_AUTHOR));
