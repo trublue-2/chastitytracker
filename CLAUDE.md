@@ -24,6 +24,30 @@ npm run test:watch                           # Watch-Mode
 npx vitest run <pfad/zur/datei.test.ts>      # einzelne Datei
 ```
 
+## Git-Absender — VOR dem ersten Commit prüfen
+
+Jeder Commit in diesem Repo muss als `trublue-2 <info@trublue.ch>` entstehen, Autor **und** Committer. Die Konfiguration ist repo-lokal und wird **nicht** mitgeklont:
+
+```bash
+git config user.name  # muss: trublue-2
+git config user.email # muss: info@trublue.ch
+```
+
+Stimmt etwas nicht, zuerst setzen:
+
+```bash
+git config user.name "trublue-2"
+git config user.email "info@trublue.ch"
+```
+
+**Cloud- und Remote-Sessions sind der Regelfall für diesen Fehler.** Sie arbeiten in einem frischen Klon ohne lokale Config und committen dann als `Claude <noreply@anthropic.com>` — ohne Warnung, ohne dass es beim Review auffällt. Genau so entstand `docs(aufgaben): Übergabe-Papier für die Etappen 1-4` (16.08.2026); die Korrektur kostete einen `filter-branch` über 21 Commits und einen Force-Push auf einen bereits veröffentlichten Branch. In `main` stehen aus demselben Grund 26 Commits mit falschem Absender, die dort bleiben müssen — ein Rewrite der Hauptlinie träfe die ausgerollten Instanzen, den `release`-Tag und jeden Fork.
+
+Dasselbe gilt für **Worktrees**: `git worktree add` erbt die Config des Repos, ein frisch geklontes Verzeichnis nicht.
+
+**Warum das kein Formalismus ist:** Dieses Repo ist öffentlich, und der Absender darf niemals auf den System-Benutzer oder eine private Adresse zeigen. Die Prüfung gehört vor den ersten Commit, nicht danach — hinterher ist sie ein Rewrite.
+
+---
+
 ## Deployment
 
 Drei Workflows, alle `workflow_dispatch` (kein Auto-Deploy bei Push):
