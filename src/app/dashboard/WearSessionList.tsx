@@ -9,18 +9,18 @@ import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
+import { BLOCK_PAGE_SIZE } from "@/lib/constants";
 import { categoryStyle } from "@/lib/categoryConstants";
 
 import type { WearSessionRow } from "@/lib/wearSessionRows";
 export type { WearSessionRow } from "@/lib/wearSessionRows";
 
-const PAGE_SIZE = 5;
 
 /** Read-only list of completed non-KG wear sessions, grouped by category icon
  *  and sorted by start time (newest first). Active sessions live in
  *  ActiveWearSessions at the top of the dashboard — they're filtered out here. */
 export default function WearSessionList({ sessions }: { sessions: WearSessionRow[] }) {
-  const { page, setPage, totalPages, visible } = usePagedList(sessions, PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(sessions, BLOCK_PAGE_SIZE);
   // Ein Modal für die ganze Liste statt eines je Zeile — es kann ohnehin nur eines offen sein.
   // Die ganze Zeile im State, weil das Detail-Panel Kategorie, Zeit und Gerät daraus zieht.
   const [openRow, setOpenRow] = useState<WearSessionRow | null>(null);

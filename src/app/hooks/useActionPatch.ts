@@ -23,14 +23,22 @@ export function useActionPatch() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
-  /** Sendet den PATCH. Bei Erfolg wird die Seite neu geladen; sonst entscheidet der Aufrufer. */
-  async function run(url: string, body: unknown): Promise<Response | null> {
+  /**
+   * Sendet die Anfrage. Bei Erfolg wird die Seite neu geladen; sonst entscheidet der Aufrufer.
+   *
+   * `DELETE` ist zugelassen, weil es dieselbe Mechanik ist: Zeile anfassen, Laufzustand, neu laden.
+   * Ohne Body — ein `DELETE` trägt keinen, und `JSON.stringify(undefined)` wäre `undefined` als
+   * Rumpf, was manche Server als Syntaxfehler lesen.
+   */
+  async function run(url: string, body?: unknown, method: "PATCH" | "DELETE" = "PATCH"): Promise<Response | null> {
     setSaving(true);
     try {
       const res = await fetch(url, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        method,
+        ...(body === undefined ? {} : {
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }),
       });
       if (res.ok) router.refresh();
       return res;

@@ -9,10 +9,9 @@ import TaskCard from "@/app/components/TaskCard";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { formatDateTimeDual, formatElapsedMs, toDateLocale } from "@/lib/utils";
-import { TASK_LIST_ANCHOR, TASK_STATE_COLOR } from "@/lib/constants";
+import { TASK_LIST_ANCHOR, TASK_STATE_COLOR, BLOCK_PAGE_SIZE } from "@/lib/constants";
 import { taskDeadlineLine, type TaskCardData } from "@/lib/taskView";
 
-const PAGE_SIZE = 5;
 
 /**
  * Die Aufgaben des Subs als kompakte Liste — dieselbe Rolle wie `WearSessionList` für die
@@ -44,7 +43,7 @@ export default function TaskList({
 }) {
   const t = useTranslations("tasks");
   const locale = useLocale();
-  const { page, setPage, totalPages, visible } = usePagedList(tasks, PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(tasks, BLOCK_PAGE_SIZE);
   // Ein Sheet für die ganze Liste statt eines je Zeile — offen sein kann ohnehin nur eines.
   const [openTask, setOpenTask] = useState<TaskCardData | null>(null);
 

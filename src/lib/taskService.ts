@@ -17,6 +17,7 @@ import {
 } from "@/lib/constants";
 import { formatDateTime, generateKontrollCode } from "@/lib/utils";
 import { structuredLog } from "@/lib/serverLog";
+import { deleteUploadedFiles } from "@/lib/imageUtils";
 
 /**
  * Aufgaben-Service — Anlegen, Ändern, Zurückziehen, Erledigt-Melden.
@@ -713,6 +714,48 @@ export async function withdrawTask(id: string, userId: string, actor: MessageAct
     });
   }
   return { ok: true, data: { userId } };
+}
+
+/**
+ * Löscht eine zurückgezogene Aufgabe endgültig — der Weg, die Liste sauber zu halten.
+ *
+ * NUR ZURÜCKGEZOGENE, und das ist die eigentliche Regel dieser Funktion. Eine laufende Aufgabe zu
+ * löschen nähme dem Träger eine Anweisung unter den Händen weg; eine abgeschlossene zu löschen
+ * tilgte ein Urteil über ihn. Der Rückzug ist die Entscheidung der Keyholderin, diese Aufgabe zu
+ * verwerfen — erst danach ist nichts mehr da, das jemandem gehört.
+ *
+ * Der Zustand steht ZUSÄTZLICH in der Where-Klausel des Löschens, nicht nur in der Prüfung davor.
+ * Das ist heute ein Gürtel ohne Hosenträger-Not: nichts im Code setzt `withdrawnAt` je zurück auf
+ * `null`, ein Rückzug ist also endgültig. Er bleibt trotzdem stehen — die Zusage „nur
+ * zurückgezogene" soll an der Abfrage hängen und nicht daran, dass diese Eigenschaft wahr bleibt.
+ *
+ * WAS MITGEHT: Bedingungen und Nachweis-Zeilen über `onDelete: Cascade`, und die hochgeladenen
+ * Nachweis-FOTOS über {@link deleteUploadedFiles} — sie gehören zu dieser Aufgabe und zu nichts
+ * sonst. Ein Urteil im Strafbuch überlebt (`onDelete: SetNull`, so am Modell begründet).
+ *
+ * WAS BLEIBT: die Posteingangs-Zeilen zu dieser Aufgabe. Sie sind bewusst nicht angetastet — sie
+ * bleiben lesbar (ihr Text steht in der Zeile selbst) und verlieren nur ihren Bezug. Das ist eine
+ * getroffene Entscheidung, kein Versehen.
+ *
+ * Die Dateien werden NACH dem Löschen entfernt und nicht davor: schlägt das `deleteMany` fehl,
+ * stünde die Aufgabe sonst ohne ihre Bilder da.
+ */
+export async function deleteTask(id: string, userId: string): Promise<ServiceResult<null>> {
+  const task = await prisma.task.findFirst({
+    where: { id, userId },
+    select: { withdrawnAt: true, proofs: { select: { imageUrl: true } } },
+  });
+  if (!task) return serviceFail(404, "TASK_NOT_FOUND");
+  if (!task.withdrawnAt) return serviceFail(400, "TASK_NOT_WITHDRAWN");
+
+  const res = await prisma.task.deleteMany({ where: { id, userId, withdrawnAt: { not: null } } });
+  if (res.count === 0) return serviceFail(400, "TASK_NOT_WITHDRAWN");
+
+  // Fire-and-forget wie an allen sechs anderen Aufrufstellen: die Zeile IST weg, und die Antwort der
+  // Keyholderin soll nicht an bis zu zehn `unlink`-Aufrufen hängen. Die Reihenfolge „erst Zeile, dann
+  // Dateien" bleibt davon unberührt — nur das Warten entfällt.
+  void deleteUploadedFiles(task.proofs.map((p) => p.imageUrl));
+  return { ok: true, data: null };
 }
 
 /**

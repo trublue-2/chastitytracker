@@ -2,6 +2,7 @@
 
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
+import { LIST_PAGE_SIZE } from "@/lib/constants";
 
 export interface OrgasmusItemData {
   id: string;
@@ -12,10 +13,9 @@ export interface OrgasmusItemData {
   editHref: string;
 }
 
-const PAGE_SIZE = 10;
 
 export default function OrgasmenListClient({ items }: { items: OrgasmusItemData[] }) {
-  const { page, setPage, totalPages, visible } = usePagedList(items, PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(items, LIST_PAGE_SIZE);
 
   return (
     <>

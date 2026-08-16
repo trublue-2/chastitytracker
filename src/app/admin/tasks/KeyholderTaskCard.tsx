@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import TaskCard from "@/app/components/TaskCard";
 import ProofReviewActions from "@/app/admin/tasks/ProofReviewActions";
 import WithdrawButton from "@/app/admin/WithdrawButton";
+import DeleteTaskButton from "@/app/admin/tasks/DeleteTaskButton";
 import { isTaskOpen, needsKeyholderReview } from "@/lib/tasks";
 import type { TaskCardData } from "@/lib/taskView";
 
@@ -41,6 +42,10 @@ export default function KeyholderTaskCard({
       {isTaskOpen(task.state) && (
         <WithdrawButton id={task.id} apiPath="/api/admin/tasks" title={t("withdraw")} showLabel colorToken="neutral" />
       )}
+      {/* Was NACH dem Rückzug an dieser Karte übrigbleibt. Die beiden schliessen einander aus: was
+          offen ist, wird zurückgezogen, was zurückgezogen ist, kann weg. Nur hier — eine erledigte
+          oder versäumte Aufgabe ist ein Urteil über den Träger und bleibt in seiner Historie. */}
+      {task.state === "withdrawn" && <DeleteTaskButton id={task.id} />}
     </TaskCard>
   );
 }

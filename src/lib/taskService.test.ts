@@ -11,15 +11,17 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: vi.fn() },
     device: { findMany: vi.fn() },
     deviceCategory: { findMany: vi.fn() },
-    task: { create: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
+    task: { create: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
   },
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/taskProofNotify", () => ({ notifyLateProofsForTask: vi.fn() }));
+vi.mock("@/lib/imageUtils", () => ({ deleteUploadedFiles: vi.fn() }));
 // Nur den Zufall festnageln — `utils` ist sonst reine Arithmetik und soll echt laufen.
 vi.mock("@/lib/utils", async (orig) => ({ ...(await orig<object>()), generateKontrollCode: () => "12345" }));
 
-import { createTask, updateTask, withdrawTask, completeTask, mergeTaskPatch, effectivePenaltyReason } from "./taskService";
+import { createTask, updateTask, withdrawTask, deleteTask, completeTask, mergeTaskPatch, effectivePenaltyReason } from "./taskService";
+import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
 import { notifyLateProofsForTask } from "@/lib/taskProofNotify";
@@ -33,6 +35,8 @@ const taskUpdateMock = prisma.task.updateMany as unknown as ReturnType<typeof vi
 const taskCountMock = prisma.task.count as unknown as ReturnType<typeof vi.fn>;
 const notifyMock = notifyUser as unknown as ReturnType<typeof vi.fn>;
 const lateSweepMock = notifyLateProofsForTask as unknown as ReturnType<typeof vi.fn>;
+const taskDeleteMock = prisma.task.deleteMany as unknown as ReturnType<typeof vi.fn>;
+const deleteFilesMock = deleteUploadedFiles as unknown as ReturnType<typeof vi.fn>;
 
 const JETZT = new Date("2026-07-25T12:00:00Z");
 const IN_DREI_STUNDEN = new Date("2026-07-25T15:00:00Z");
@@ -686,5 +690,71 @@ describe("terminierte Aufgabe — die Spanne bis zur Frist bleibt erhalten", () 
       ...base, holdUntil: new Date("2026-07-26T09:00:00Z"), wirksamAbAt: new Date("2026-07-26T07:00:00Z"),
     }, "herrin");
     expect(res.ok).toBe(true);
+  });
+});
+
+/**
+ * Löschen ist die einzige Aktion an einer Aufgabe, die nichts zurücklässt — deshalb ist die Frage
+ * nicht „darf dieser Nutzer", sondern „darf diese ZEILE". Eine laufende Aufgabe zu löschen nähme dem
+ * Träger eine Anweisung unter den Händen weg, eine abgeschlossene tilgte ein Urteil über ihn.
+ */
+describe("deleteTask — nur zurückgezogene, und dann vollständig", () => {
+  const zurueckgezogen = { withdrawnAt: JETZT, proofs: [{ imageUrl: "/api/uploads/a.jpg" }, { imageUrl: null }] };
+
+  beforeEach(() => taskDeleteMock.mockResolvedValue({ count: 1 }));
+
+  it("löscht eine zurückgezogene Aufgabe", async () => {
+    taskFindMock.mockResolvedValue(zurueckgezogen);
+    const res = await deleteTask("t1", "u1");
+    expect(res.ok).toBe(true);
+  });
+
+  /** Der Zustand steht in der WHERE-Klausel, nicht nur in der Prüfung davor: wird die Aufgabe
+   *  zwischen Lesen und Schreiben erledigt gemeldet, trifft das Löschen null Zeilen. */
+  it("der Rückzug steht in der Where-Klausel des Löschens", async () => {
+    taskFindMock.mockResolvedValue(zurueckgezogen);
+    await deleteTask("t1", "u1");
+    expect(taskDeleteMock.mock.calls[0][0].where).toMatchObject({
+      id: "t1", userId: "u1", withdrawnAt: { not: null },
+    });
+  });
+
+  it("nimmt die Nachweis-Fotos mit — sie gehören zu dieser Aufgabe und zu nichts sonst", async () => {
+    taskFindMock.mockResolvedValue(zurueckgezogen);
+    await deleteTask("t1", "u1");
+    expect(deleteFilesMock).toHaveBeenCalledWith(["/api/uploads/a.jpg", null]);
+  });
+
+  /** Erst löschen, dann die Dateien: schlägt das Löschen fehl, stünde die Aufgabe sonst ohne ihre
+   *  Bilder da. Das Aufräumen selbst läuft fire-and-forget — geprüft wird die REIHENFOLGE. */
+  it("entfernt die Dateien NACH der Zeile", async () => {
+    taskFindMock.mockResolvedValue(zurueckgezogen);
+    await deleteTask("t1", "u1");
+    expect(taskDeleteMock.mock.invocationCallOrder[0]).toBeLessThan(deleteFilesMock.mock.invocationCallOrder[0]);
+  });
+
+  it("eine laufende Aufgabe wird nicht gelöscht", async () => {
+    taskFindMock.mockResolvedValue({ withdrawnAt: null, proofs: [] });
+    const res = await deleteTask("t1", "u1");
+    expect(res).toMatchObject({ ok: false, status: 400, error: "TASK_NOT_WITHDRAWN" });
+    expect(taskDeleteMock).not.toHaveBeenCalled();
+    expect(deleteFilesMock).not.toHaveBeenCalled();
+  });
+
+  /** Trifft die Where-Klausel nichts, bleiben auch die Bilder liegen — der Riegel schützt beides.
+   *  (Heute kann das nur eintreten, wenn die Zeile zwischen Lesen und Schreiben verschwindet: ein
+   *  Rückzug wird nirgends zurückgenommen.) */
+  it("trifft das Löschen null Zeilen, bleiben auch die Bilder liegen", async () => {
+    taskFindMock.mockResolvedValue(zurueckgezogen);
+    taskDeleteMock.mockResolvedValue({ count: 0 });
+    const res = await deleteTask("t1", "u1");
+    expect(res).toMatchObject({ ok: false, error: "TASK_NOT_WITHDRAWN" });
+    expect(deleteFilesMock).not.toHaveBeenCalled();
+  });
+
+  it("fremde Aufgabe wird nicht gefunden (IDOR-Schutz)", async () => {
+    taskFindMock.mockResolvedValue(null); // findFirst ist bereits auf userId gefiltert
+    const res = await deleteTask("t1", "u1");
+    expect(res).toMatchObject({ ok: false, status: 404, error: "TASK_NOT_FOUND" });
   });
 });

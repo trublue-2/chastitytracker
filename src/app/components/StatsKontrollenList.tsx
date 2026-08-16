@@ -2,6 +2,7 @@
 
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
+import { LIST_PAGE_SIZE } from "@/lib/constants";
 
 export interface StatsKontrolleRow {
   id: string;
@@ -14,12 +15,11 @@ export interface StatsKontrolleRow {
   deadlineLine: string | null;
 }
 
-const PAGE_SIZE = 10;
 
 /** Paginated list of unified Kontrollen (anforderung + standalone Prüfungen).
  *  Pre-formatted strings come from the server to avoid date-formatting churn here. */
 export default function StatsKontrollenList({ rows }: { rows: StatsKontrolleRow[] }) {
-  const { page, setPage, totalPages, visible } = usePagedList(rows, PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(rows, LIST_PAGE_SIZE);
 
   if (rows.length === 0) return null;
 

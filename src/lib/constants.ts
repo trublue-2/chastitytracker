@@ -315,6 +315,21 @@ export const INSPECTION_DEADLINE_DEFAULT_H = 1;
 /** Sperrfrist zwischen zwei Code-Wiederholungen auf Knopfdruck. Beide Seiten lesen sie hier: die
  *  Route begrenzt damit (`checkRateLimit`), der Knopf sperrt sich so lange selbst. Stünde sie
  *  zweimal, liefe der Knopf irgendwann in einen 429, den er selbst hätte verhindern sollen. */
+/**
+ * Wie viele Zeilen eine geblätterte Liste zeigt — die Zahl hängt an der ART der Liste, nicht an der
+ * Seite, auf der sie steht.
+ *
+ * `LIST` sind die Listen-KARTEN (Kontroll-Historie, Aufgaben-Historie, Statistik-Listen, Orgasmen):
+ * eine Karte mit Kopfzeile, in der man blättert. `BLOCK` sind die Dashboard-BLÖCKE des Trägers, die
+ * sich eine Spalte mit allem anderen teilen und deshalb kürzer bleiben.
+ *
+ * Die Unterscheidung sah lange nach „Adminportal gegen Dashboard" aus — sie ist es nicht:
+ * `StatsKontrollenList` blättert zu zehnt in genau der schmalen Spalte des Trägers. Beide Zahlen
+ * standen als Literal in acht Dateien; hier stehen sie einmal.
+ */
+export const LIST_PAGE_SIZE = 10;
+export const BLOCK_PAGE_SIZE = 5;
+
 export const INSPECTION_CODE_PUSH_COOLDOWN_MS = 30_000;
 
 /**

@@ -1049,6 +1049,19 @@ export function needsKeyholderReview(state: TaskState): boolean {
   return state === "awaitingReview";
 }
 
+/**
+ * Was für die KEYHOLDERIN offen ist — weiter gefasst als {@link isTaskOpen}.
+ *
+ * Eine Aufgabe, die auf ihre Sichtung wartet, ist für den Träger vorbei und für sie eine offene
+ * Pflicht. Beide Prädikate zusammen sind deshalb ihre Sicht, und weil die Menge an drei Stellen
+ * gebraucht wird (Aufgaben-Reiter, Keyholder-Dashboard, MCP), steht sie hier statt dreimal als
+ * `||`-Ausdruck. Das ist dieselbe Zusage wie bei {@link isTaskResultFinal}: wer einen Zustand
+ * ergänzt, entscheidet HIER bewusst über ihn, statt ihn still in den Rest fallen zu lassen.
+ */
+export function isTaskOpenForKeyholder(state: TaskState): boolean {
+  return isTaskOpen(state) || needsKeyholderReview(state);
+}
+
 /** Zählt als offen und damit anzeigepflichtig? Aus Sicht des SUBS: was er noch beeinflussen kann.
  *  `awaitingReview` gehört bewusst nicht dazu — er hat dort nichts mehr zu tun. */
 export function isTaskOpen(state: TaskState): boolean {

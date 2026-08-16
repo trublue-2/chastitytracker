@@ -426,19 +426,6 @@ export default function TaskFields({
         onChange={setRequirements}
       />
 
-      {/* Dieselben Funktionen, die auch die Vorschauen unten benutzen — damit die Zeile am Nachweis
-          dieselbe Uhrzeit nennt wie die am Frist-Block. Was sie bedeuten, steht an den Props. */}
-      <TaskProofPicker
-        value={proofs}
-        onChange={setProofs}
-        orderMatters={proofOrderMatters}
-        onOrderMattersChange={setProofOrderMatters}
-        anchorMs={anchorMs}
-        nowMs={nowMs}
-        endAt={endAt}
-        tz={tz}
-      />
-
       {/* DER FRIST-BLOCK — eine Entscheidung, dann ihr Feld, dann die beiden Zahlen als Paar.
           Die Reihenfolge ist die Korrektur des alten Aufbaus: der Anker („ab dem Stellen" oder „ab
           dem Anlegen") hing an einem Haken UNTER dem Zahlenfeld und unter der Vorschau, die er
@@ -669,6 +656,22 @@ export default function TaskFields({
         minNow={minNow}
         delayHint={t("scheduleDelayHint")}
         atHint={t("scheduleAtHint")}
+      />
+
+      {/* NACH dem Frist-Block, nicht davor: eine Nachweis-Frist wird gegen das Ende der Aufgabe
+          gemessen und an ihm gewarnt. Stand sie darüber, gab man sie ein, bevor es das Ende gab —
+          die Vorschau konnte dann nichts nennen und die Warnung nicht greifen, und der fehlende
+          Bezug musste als Fliesstext behauptet werden. Dieselben Funktionen wie die Vorschauen
+          darüber, damit beide Zeilen dieselbe Uhrzeit nennen. */}
+      <TaskProofPicker
+        value={proofs}
+        onChange={setProofs}
+        orderMatters={proofOrderMatters}
+        onOrderMattersChange={setProofOrderMatters}
+        anchorMs={anchorMs}
+        nowMs={nowMs}
+        endAt={endAt}
+        tz={tz}
       />
 
       <FormError message={error} variant="compact" />

@@ -7,6 +7,7 @@ import { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
+import { BLOCK_PAGE_SIZE } from "@/lib/constants";
 import { toDateLocale } from "@/lib/utils";
 
 interface OeffnenFooter {
@@ -32,7 +33,6 @@ export interface SessionListData {
   sessionEndIso: string | null;
 }
 
-const PAGE_SIZE = 5;
 
 /** `tz` wird nur an `SessionTimeline` durchgereicht — Begründung dort. */
 export default function SessionListClient({ sessions, tz }: { sessions: SessionListData[]; tz: string }) {
@@ -43,7 +43,7 @@ export default function SessionListClient({ sessions, tz }: { sessions: SessionL
   // Freeze "now" at mount: historical sessions don't care about live time, and
   // recomputing on every render invalidates SessionTimeline's useMemo.
   const nowIso = useMemo(() => new Date().toISOString(), []);
-  const { page, setPage, totalPages, visible } = usePagedList(sessions, PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(sessions, BLOCK_PAGE_SIZE);
 
   return (
     <div className="bg-surface rounded-2xl border border-border overflow-hidden">

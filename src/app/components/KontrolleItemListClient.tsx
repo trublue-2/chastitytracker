@@ -9,6 +9,7 @@ import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
+import { LIST_PAGE_SIZE } from "@/lib/constants";
 
 export interface KontrolleItemData {
   id: string;
@@ -31,7 +32,6 @@ export interface KontrolleItemData {
   boxImageUrl?: string | null;
 }
 
-const PAGE_SIZE = 10;
 
 function KontrolleThumb({ k, imageAlt }: { k: KontrolleItemData; imageAlt: string }) {
   const tc = useTranslations("common");
@@ -108,7 +108,7 @@ export default function KontrolleItemListClient({
   items: KontrolleItemData[];
   imageAlt: string;
 }) {
-  const { page, setPage, totalPages, visible } = usePagedList(items, PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(items, LIST_PAGE_SIZE);
 
   return (
     <>

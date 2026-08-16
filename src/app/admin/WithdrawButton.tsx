@@ -28,6 +28,20 @@ const colorClasses: Record<Props["colorToken"], string> = {
   neutral:   "text-foreground-muted hover:bg-surface-raised",
 };
 
+/**
+ * Die Aussehens-Zeile einer beschrifteten Aktion AN EINER KARTE — hier, weil es zwei davon gibt.
+ *
+ * `DeleteTaskButton` sitzt an derselben Karte unmittelbar unter diesem Knopf (was offen ist, wird
+ * zurückgezogen; was zurückgezogen ist, wird gelöscht). Stünde die Kette dort ein zweites Mal, liefe
+ * eine Stiländerung an der einen der anderen davon — und zwar unsichtbar, weil die beiden nie
+ * gleichzeitig erscheinen.
+ *
+ * Nur die BESCHRIFTETE Form: die kompakte (`showLabel` aus) hat kein zweites Vorkommen.
+ */
+export function cardActionCls(colorToken: Props["colorToken"]): string {
+  return `flex items-center gap-1.5 min-h-12 px-3 text-sm font-medium rounded-full active:scale-90 disabled:opacity-50 transition ${colorClasses[colorToken]}`;
+}
+
 export default function WithdrawButton({ id, apiPath, title, showLabel, colorToken }: Props) {
   const tc = useTranslations("common");
   const { saving, run } = useActionPatch();
@@ -48,9 +62,9 @@ export default function WithdrawButton({ id, apiPath, title, showLabel, colorTok
         onClick={handle}
         disabled={saving}
         title={title}
-        className={`flex items-center rounded-full active:scale-90 disabled:opacity-50 transition ${
-          showLabel ? "gap-1.5 min-h-12 px-3 text-sm font-medium" : "p-1.5 -m-1"
-        } ${colorClasses[colorToken]}`}
+        className={showLabel
+          ? cardActionCls(colorToken)
+          : `flex items-center rounded-full active:scale-90 disabled:opacity-50 transition p-1.5 -m-1 ${colorClasses[colorToken]}`}
       >
         <X size={16} strokeWidth={2.5} />
         {showLabel && title}

@@ -10,6 +10,7 @@ import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
+import { LIST_PAGE_SIZE } from "@/lib/constants";
 import KontrolleActions from "./KontrolleActions";
 import { useTranslations } from "next-intl";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
@@ -96,7 +97,6 @@ interface Labels {
   imageAlt: string;
 }
 
-const PAGE_SIZE = 10;
 
 function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labels: Labels }) {
   const t = useTranslations("admin");
@@ -192,7 +192,7 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
   const t = useTranslations("admin");
 
   const activeItems = showAll && allItems ? allItems : items;
-  const { page, setPage, totalPages, visible } = usePagedList(activeItems, PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(activeItems, LIST_PAGE_SIZE);
 
   function toggleShowAll() {
     setShowAll(v => !v);

@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
+import FieldTabs from "@/app/components/FieldTabs";
+import Toggle from "@/app/components/Toggle";
 import DurationInput from "@/app/components/DurationInput";
 import Input from "@/app/components/Input";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
@@ -17,18 +19,43 @@ import {
 import { swapAt } from "@/lib/utils";
 import type { TaskProofInput } from "@/lib/taskService";
 
-/** Der Bedienzustand EINES Frist-Feldes: die rohe Eingabe in der gerade gewählten Einheit. */
-type Draft = { value: string; unit: DurationUnit };
+/**
+ * Der Bedienzustand EINER Zeile: die rohe Eingabe in der gerade gewählten Einheit — und der Reiter.
+ *
+ * Der REITER gehört dazu, weil er sonst nirgends stünde: „am Ende fällig" ist im gespeicherten Wert
+ * ein `null`, und ein `null` kann nicht unterscheiden, ob jemand den Reiter gerade gewählt oder nur
+ * noch nichts getippt hat. Ohne diesen Zustand fiele der Umschalter beim ersten Tastendruck zurück.
+ */
+type Draft = { mode: DueMode; value: string; unit: DurationUnit };
 
-/** Leeres Frist-Feld: „keine eigene Frist". Vorgabe-Einheit Stunden — eine Nachweis-Frist ist fast
- *  immer „in vier Stunden", nicht „in 240 Minuten". */
-const EMPTY_DRAFT: Draft = { value: "", unit: "h" };
+/**
+ * Wann dieser Nachweis fällig ist — die EINE Frage der Zeile, einmal gestellt und einmal beantwortet.
+ *
+ * Vorher war es ein leeres Zahlenfeld, dessen leerer Zustand „am Ende der Aufgabe" bedeutete. Genau
+ * das war unsichtbar und musste als Absatz darunter nachgereicht werden: der Normalfall war der
+ * einzige Zustand, den die Oberfläche nicht anzeigte. Derselbe Griff wie im Frist-Block darunter
+ * („Tragezeit / Endet in / Endet um") — dort ist die Frage schon einmal so gelöst worden.
+ */
+type DueMode = "end" | "early";
+
+/** Vorgabe-Einheit Stunden — eine Nachweis-Frist ist fast immer „in vier Stunden", nicht „in 240
+ *  Minuten". */
+const EMPTY_DRAFT: Draft = { mode: "end", value: "", unit: "h" };
+
+/** Die beiden Reiter: Reihenfolge (Vorgabe vorn) und Beschriftung in EINER Liste — dieselbe Form wie
+ *  `HOLD_MODES` im Frist-Block, und aus demselben Grund: getrennt geführt müssten sie synchron
+ *  bleiben, ohne dass ein Auseinanderlaufen auffiele. Bewusst nur ZWEI: auf 375 px bleiben je Reiter
+ *  rund 140 px, ein dritter Weg wäre gequetscht. */
+const DUE_MODES = [
+  { value: "end", labelKey: "proofDueModeEnd" },
+  { value: "early", labelKey: "proofDueModeEarly" },
+] as const satisfies readonly { value: DueMode; labelKey: string }[];
 
 /** Der Tippstand einer Zeile, wie er aus ihrer gespeicherten Frist entsteht. EIN Ort für den Fall
  *  „noch keine Frist" — sonst hätte das Anlegen einer Zeile eine andere Vorgabe-Einheit als das
  *  Übernehmen einer bestehenden, und dasselbe Feld sähe je nach Weg anders aus. */
 function toDraft(p: TaskProofInput): Draft {
-  return p.dueOffsetMin == null ? EMPTY_DRAFT : { value: String(p.dueOffsetMin), unit: "min" };
+  return p.dueOffsetMin == null ? EMPTY_DRAFT : { mode: "early", value: String(p.dueOffsetMin), unit: "min" };
 }
 
 /**
@@ -94,12 +121,33 @@ export default function TaskProofPicker({
    *  `null` — „keine eigene Frist", also offen bis zum Ende der Aufgabe. Es darf nicht auf eine
    *  geratene Zahl fallen: eine Frist, die niemand gewählt hat, erzeugt Versäumnisse. */
   function setDue(i: number, raw: string, unit: DurationUnit) {
-    setDrafts(drafts.map((d, k) => (k === i ? { value: raw, unit } : d)));
+    setDrafts(drafts.map((d, k) => (k === i ? { ...d, value: raw, unit } : d)));
     // Geklemmt wie im Dienst — mit DERSELBEN Funktion, damit das Formular den Wert schickt, den der
     // Server am Ende schreibt. Von Hand gerundet wiche die gespeicherte Frist still von der
     // eingetippten ab, sobald jemand Sekundenbruchteile oder eine unmögliche Zahl eingibt; und eine
     // getippte 0 heisst hier „keine Frist", nicht „eine Minute" (siehe `clampProofDueOffset`).
     update(i, { dueOffsetMin: clampProofDueOffset(durationToHours(parseFloat(raw), unit) * 60) ?? null });
+  }
+
+  /**
+   * Den Reiter einer Zeile wechseln — und den getippten Wert MITNEHMEN.
+   *
+   * Zurück auf „Am Ende" löscht die gespeicherte Frist (das ist ihre Bedeutung), lässt den Tippstand
+   * aber stehen. Wer versehentlich umschaltet und zurückgeht, findet seine Zahl wieder; ein
+   * Umschalter, der beim Hinsehen löscht, ist ein Löschknopf mit falschem Namen.
+   *
+   * Und umgekehrt: „Früher" ohne getippte Zahl schreibt KEINE geratene Frist. Solange das Feld leer
+   * ist, bleibt der gespeicherte Wert `null` — der Reiter allein erzeugt keine Frist, die niemand
+   * gewählt hat.
+   */
+  function setDueMode(i: number, mode: DueMode) {
+    const draft = drafts[i] ?? EMPTY_DRAFT;
+    setDrafts(drafts.map((d, k) => (k === i ? { ...d, mode } : d)));
+    update(i, {
+      dueOffsetMin: mode === "end"
+        ? null
+        : clampProofDueOffset(durationToHours(parseFloat(draft.value), draft.unit) * 60) ?? null,
+    });
   }
 
   /** Wann diese Frist abläuft — Nullpunkt der Aufgabe plus Versatz. */
@@ -122,11 +170,9 @@ export default function TaskProofPicker({
     onChange(swapAt(value, i, i + dir));
   }
 
-  // Der Schalter erscheint, sobald es überhaupt einen Nachweis gibt — und NUR dann sagt der Hinweis
-  // darunter etwas anderes. Beide hängen an derselben Bedingung: ein Text, der eine Regel verkündet,
-  // deren Schalter gerade nicht sichtbar ist, wäre eine Aussage ohne Bedienung.
-  const orderConfigurable = value.length > 0;
-  const orderOff = orderConfigurable && !orderMatters;
+  // Der Schalter erscheint, sobald es überhaupt einen Nachweis gibt: eine Regel über die Reihenfolge
+  // von nichts ist keine.
+  const hasProofs = value.length > 0;
 
   return (
     <div className="flex flex-col gap-2">
@@ -138,6 +184,10 @@ export default function TaskProofPicker({
             // Einmal verengt statt zweimal gecastet: die Prüfung unten verliert die Verengung
             // aus `p.dueOffsetMin != null` sonst in den Closures der Vorschau.
             const dueOffsetMin = p.dueOffsetMin ?? null;
+            // Fällt der Tippstand je aus (ein von aussen gesetztes `value`), gilt die ZEILE — nicht
+            // der Leer-Entwurf: der zeigte „Am Ende" für einen gesetzten Wert und blendete das Feld
+            // aus, in dem er steht. Der Fallback rettet dann die Bedeutung, nicht nur das Rendern.
+            const draft = drafts[i] ?? toDraft(p);
             return (
             <div key={i} className="p-3 flex flex-col gap-2">
               <div className="flex items-start gap-2">
@@ -184,30 +234,42 @@ export default function TaskProofPicker({
                   checked={p.requireCode ?? false}
                   onChange={(e) => update(i, { requireCode: e.target.checked })}
                 />
-                {/* Die EIGENE Frist dieses Nachweises. Leer lassen ist der Normalfall — dann bleibt
-                    er bis zum Ende der Aufgabe offen, genau wie bisher. Bewusst dasselbe Bauteil wie
-                    im Frist-Block darüber: eine Dauer ist eine Dauer, und ein drittes Zahlenfeld mit
-                    eigener Einheiten-Bedienung wäre die dritte Art, dieselbe Frage zu stellen. */}
-                {/* `?? EMPTY_DRAFT` ist kein toter Zweig, sondern die Zusicherung, dass diese
-                    Zeile rendert: die Tippstände werden EINMAL aus `value` gesetzt und danach
-                    parallel gepflegt. Bekäme das Formular seine Zeilen je von aussen (vorbelegt,
-                    zurückgesetzt), stünde hier sonst ein `undefined` und die Seite bliebe weiss. */}
-                <DurationInput
+                {/* WANN dieser Nachweis fällig ist — als Reiter, nicht als leeres Feld.
+                    „Am Ende" ist die Vorgabe und der häufige Fall; sie trägt ihren Namen selbst,
+                    statt als Absatz unter der Liste erklärt zu werden. Nur „Früher" klappt Zahl und
+                    Uhrzeit auf — die Vorgabe-Zeile bleibt damit kürzer als vorher. */}
+                {/* `required` am Umschalter UND am Feld darunter: wer „Früher" wählt, MUSS eine Zahl
+                    nennen. Ohne diesen Zwang stand der Reiter auf „Früher", das Feld war leer, und
+                    gespeichert wurde `null` — also „Am Ende". Die Oberfläche behauptete damit das
+                    Gegenteil ihres Datenstands, und zwar lautlos: der Leitfall „drei Fotos über den
+                    Tag verteilt" wurde still zu „alle bis zum Schluss". */}
+                <FieldTabs
                   label={t("proofDueLabel")}
-                  value={(drafts[i] ?? EMPTY_DRAFT).value}
-                  unit={(drafts[i] ?? EMPTY_DRAFT).unit}
-                  onChange={(raw, unit) => setDue(i, raw, unit)}
+                  required={draft.mode === "early"}
+                  value={draft.mode}
+                  options={DUE_MODES.map((m) => ({ value: m.value, label: t(m.labelKey) }))}
+                  onChange={(mode) => setDueMode(i, mode)}
                 />
-                {/* WANN das konkret ist. Die eingegebene Zahl beantwortet die Frage nicht, die der
-                    Keyholder tatsächlich hat („bis wann muss das Foto da sein?"): sie zählt ab dem
-                    Nullpunkt der AUFGABE, nicht ab dem Ausfüllen und nicht ab dem Beginn des Subs —
-                    bei einer terminierten Aufgabe liegen dazwischen Stunden. Dieselbe Auflösung wie
-                    bei den beiden Fristen darüber, mit demselben Bauteil.
+                {/* `drafts[i] ?? EMPTY_DRAFT` (oben als `draft`) ist kein toter Zweig, sondern die
+                    Zusicherung, dass diese Zeile rendert: die Tippstände werden EINMAL aus `value`
+                    gesetzt und danach parallel gepflegt. Bekäme das Formular seine Zeilen je von
+                    aussen (vorbelegt, zurückgesetzt), stünde hier sonst ein `undefined`. */}
+                {draft.mode === "early" && (
+                  <DurationInput
+                    label={t("proofDueEarlyLabel")}
+                    required
+                    value={draft.value}
+                    unit={draft.unit}
+                    onChange={(raw, unit) => setDue(i, raw, unit)}
+                  />
+                )}
+                {/* WANN das konkret ist — die Antwort auf „ab wann zählt die Zahl", ohne sie als
+                    Regel zu erklären: eine absolute Uhrzeit braucht keinen Nullpunkt im Text.
 
                     Die Warnung ist keine Zierde: eine Frist NACH dem Ende der Aufgabe weist der
                     Dienst mit `TASK_PROOF_DUE_AFTER_END` ab. Sie hier zu zeigen, wo beide Zahlen
                     stehen, ist billiger als ein 400er nach dem Absenden. */}
-                {dueOffsetMin != null && (
+                {draft.mode === "early" && dueOffsetMin != null && (
                   <TimePreview
                     at={(at) => dueAt(at, dueOffsetMin)}
                     nowMs={nowMs}
@@ -253,22 +315,25 @@ export default function TaskProofPicker({
         </Button>
       )}
 
-      {/* Was ein LEERES Frist-Feld bedeutet, steht nirgends sonst — und es ist die häufigere Wahl.
-          Einmal unter der Liste statt je Zeile: dieselbe Aussage n-mal untereinander liest niemand. */}
-      {value.length > 0 && <p className="text-xs text-foreground-faint">{t("proofDueHint")}</p>}
-
-      {orderConfigurable && (
-        <Checkbox
-          label={t("proofOrderLabel")}
-          checked={orderMatters}
-          onChange={(e) => onOrderMattersChange(e.target.checked)}
-        />
+      {/* Der ZWECK, und nur im Leerzustand: wer schon Nachweise hat, weiss wofür sie sind. Es ist der
+          einzige Satz, den die Oberfläche nicht selbst sagen kann. */}
+      {value.length === 0 && (
+        <p className="text-xs text-foreground-faint flex items-start gap-1.5">
+          <Camera size={13} className="shrink-0 mt-0.5" aria-hidden />
+          <span>{t("proofsEmptyHint")}</span>
+        </p>
       )}
 
-      <p className="text-xs text-foreground-faint flex items-start gap-1.5">
-        <Camera size={13} className="shrink-0 mt-0.5" aria-hidden />
-        <span>{t(orderOff ? "proofsHintNoOrder" : "proofsHint")}</span>
-      </p>
+      {/* Die FOLGE steht am Schalter, nicht in einem Absatz darunter — und sie ändert sich mit ihm.
+          Ein Absatz, der eine Regel verkündet, deren Schalter gerade aus ist, behauptet sie trotzdem. */}
+      {hasProofs && (
+        <Toggle
+          label={t("proofOrderLabel")}
+          description={t(orderMatters ? "proofOrderDescription" : "proofOrderDescriptionOff")}
+          checked={orderMatters}
+          onChange={onOrderMattersChange}
+        />
+      )}
     </div>
   );
 }

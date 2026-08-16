@@ -1,5 +1,32 @@
 [
   {
+    "version": "5.1.5",
+    "date": "2026-08-16",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Frist eines Nachweis-Fotos ist jetzt eine Auswahl statt eines leeren Feldes: „Am Ende\" oder „Früher\". Die langen Erklärtexte im Aufgaben-Formular sind dafür weg.",
+          "en": "A proof photo's deadline is now a choice instead of an empty field: “At the end” or “Earlier”. The long explanatory texts in the task form are gone in exchange."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Aufgaben-Seite trennt Offenes von Erledigtem und blättert, statt alles am Stück zu zeigen.",
+          "en": "The tasks page separates open from finished and pages through them instead of showing everything at once."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Zurückgezogene Aufgaben lassen sich löschen — mit ihren Nachweis-Fotos.",
+          "en": "Withdrawn tasks can be deleted, along with their proof photos."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.1.4",
     "date": "2026-08-16",
     "changes": [

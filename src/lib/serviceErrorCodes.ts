@@ -213,6 +213,10 @@ export const BOX_CODES = [
 export const TASK_CODES = [
   "TASK_NOT_FOUND",
   "TASK_NOT_EDITABLE",
+  // Gelöscht wird NUR eine zurückgezogene Aufgabe. Eine laufende oder abgeschlossene ist Teil
+  // der Historie des Trägers — sie verschwinden zu lassen hiesse, ein Urteil über ihn
+  // spurlos zu tilgen. Der Rückzug ist die Entscheidung der Keyholderin, sie zu verwerfen.
+  "TASK_NOT_WITHDRAWN",
   "TASK_TITLE_REQUIRED",
   "TASK_TITLE_TOO_LONG",
   "TASK_DESCRIPTION_TOO_LONG",
