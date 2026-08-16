@@ -619,12 +619,27 @@ export type ProofVerdict =
  */
 export function firstOutOfOrderProof(
   ordered: ProofLike[],
-  /** Die Aufgabe — ist ihre Reihenfolge abgeschaltet, gibt es keinen Verstoss, weder fürs Urteil
-   *  noch für die Anzeige. Als PARAMETER, damit keiner der drei Aufrufer den Schalter für sich
-   *  auflösen muss (und einer davon ihn vergisst — der Rohwert `undefined` wäre falsy und schaltete
-   *  still ab, statt zu greifen). */
-  task: Pick<TaskLike, "proofOrderMatters">,
+  /**
+   * Die Aufgabe. Zwei Felder, zwei verschiedene Gründe — sie stehen bewusst nicht unter einer
+   * gemeinsamen Begründung:
+   *
+   * `proofOrderMatters` ist PARAMETER, damit keiner der drei Aufrufer den Schalter für sich auflöst
+   * (und einer davon ihn vergisst — der Rohwert `undefined` wäre falsy und schaltete still ab,
+   * statt zu greifen).
+   *
+   * `withdrawnAt` steht hier aus einem anderen Grund, und der ist unbequem: die Reihenfolge ist die
+   * EINZIGE Nachweis-Anklage, die sich die Anzeige selbst ausrechnet, statt sie der Auswertung zu
+   * entnehmen (`taskView.ts` liest `overdueProofIds` aus `TaskEvaluation`, ruft aber eine Zeile
+   * darüber diese Funktion direkt auf). Für die übrigen Achsen erledigt der Rückzug-Zweig in
+   * `evaluateTask` die Frage, ohne dass ein Blatt das Wort „zurückgezogen" kennen müsste; diese
+   * Achse erreicht er nicht. Solange das so ist, muss die Regel hier stehen — die richtige Lösung
+   * wäre, den Beleg wie `overdueProofIds` an `TaskEvaluation` zu hängen.
+   */
+  task: Pick<TaskLike, "proofOrderMatters" | "withdrawnAt">,
 ): ProofLike | null {
+  // Wird die Pflicht aufgehoben, gibt es keinen Bruch mehr, den sie belegen könnte — dieselbe Regel
+  // wie bei den überfälligen Nachweisen (`evaluateTask`, `base`).
+  if (task.withdrawnAt) return null;
   if (!effectiveProofOrderMatters(task.proofOrderMatters)) return null;
   let lastTime: number | null = null;
   for (const p of ordered) {
@@ -658,7 +673,10 @@ export function firstOutOfOrderProof(
  */
 export function evaluateProofs(
   proofs: ProofLike[],
-  task: Pick<TaskLike, "holdUntil" | "proofOrderMatters" | "createdAt" | "wirksamAb">,
+  /** `withdrawnAt` ist reine DURCHREICHE an `firstOutOfOrderProof` — diese Achse prüft den Rückzug
+   *  nicht selbst, und sie bekommt ihn auch nie zu sehen: beide Aufrufer stehen in `evaluateTask`
+   *  unterhalb des Rückzug-Zweigs. Das Feld im Typ ist also keine Zusage dieser Funktion. */
+  task: Pick<TaskLike, "holdUntil" | "proofOrderMatters" | "createdAt" | "wirksamAb" | "withdrawnAt">,
   now: Date,
 ): ProofVerdict {
   if (proofs.length === 0) return "none";

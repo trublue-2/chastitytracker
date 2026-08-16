@@ -19,10 +19,12 @@ const HOLD_UNTIL = d("2026-07-25T18:00:00Z");
 const CREATED_AT = d("2026-07-25T12:00:00Z");
 /** Eine Aufgabe, wie die Nachweis-Achse sie sieht — OHNE `proofOrderMatters` und OHNE `wirksamAb`,
  *  also mit beiden Vorgaben „die Reihenfolge zählt" und „sofort wirksam". Genau die Form jeder
- *  Bestandszeile vor B8/B1. */
-const task: Pick<TaskLike, "holdUntil" | "proofOrderMatters" | "createdAt" | "wirksamAb"> = {
+ *  Bestandszeile vor B8/B1. `withdrawnAt` steht ausdrücklich auf `null` — diese Fixture ist die
+ *  LAUFENDE Aufgabe; die Rückzug-Fälle setzen das Feld je Test. */
+const task: Pick<TaskLike, "holdUntil" | "proofOrderMatters" | "createdAt" | "wirksamAb" | "withdrawnAt"> = {
   holdUntil: HOLD_UNTIL,
   createdAt: CREATED_AT,
+  withdrawnAt: null,
 };
 
 /** Ein eingereichter, per Code geprüfter Nachweis — der maschinell entscheidbare Normalfall. */
@@ -849,6 +851,18 @@ describe("firstOutOfOrderProof — der Beleg für den Fehlschlag", () => {
   it("nennt den Nachweis, der die Reihenfolge bricht", () => {
     const p = [at("2026-07-25T13:00:00Z", 0, "erster"), at("2026-07-25T12:00:00Z", 1, "zweiter")];
     expect(firstOutOfOrderProof(p, task)?.id).toBe("zweiter");
+  });
+
+  /**
+   * Dieselben zwei Fotos, aber die Aufgabe ist zurückgezogen — der Test darüber ist die Gegenprobe.
+   *
+   * Die Reihenfolge war die letzte Achse, auf der eine zurückgenommene Aufgabe den Träger noch
+   * anklagte: die überfälligen Nachweise räumt `evaluateTask` (Test in „Nachweis mit eigener
+   * Fälligkeit"), diese Achse rechnet sich die Anzeige selbst aus und erreichte der Rückzug nicht.
+   */
+  it("ein Rückzug nimmt der gebrochenen Reihenfolge den Vorwurf", () => {
+    const p = [at("2026-07-25T13:00:00Z", 0, "erster"), at("2026-07-25T12:00:00Z", 1, "zweiter")];
+    expect(firstOutOfOrderProof(p, { ...task, withdrawnAt: d("2026-07-25T17:00:00Z") })).toBeNull();
   });
 
   it("in richtiger Reihenfolge gibt es keinen", () => {
