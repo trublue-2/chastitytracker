@@ -17,12 +17,19 @@ import Tabs from "./Tabs";
  */
 export default function FieldTabs<T extends string>({
   label,
+  ariaLabel,
   value,
   options,
   onChange,
   required,
 }: {
-  label: string;
+  /** Sichtbare Beschriftung über der Gruppe. Weglassen, wo sie schon DARÜBER steht — ein
+   *  Einheiten-Umschalter unter einem Umschalter der Antwort-Art wiederholte sonst dessen gerade
+   *  gewählten Reiter („Dauer" über „Dauer"). Dann ist `ariaLabel` Pflicht: namenlos bleiben darf
+   *  die Gruppe nie. */
+  label?: string;
+  /** Name der Gruppe für Assistenztechnik, wo `label` fehlt. */
+  ariaLabel?: string;
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
@@ -33,7 +40,7 @@ export default function FieldTabs<T extends string>({
   const labelId = useId();
   return (
     <div className="flex flex-col gap-2">
-      <FieldLabel id={labelId} required={required}>{label}</FieldLabel>
+      {label && <FieldLabel id={labelId} required={required}>{label}</FieldLabel>}
       <Tabs
         variant="segmented"
         tabs={options.map((o) => ({ key: o.value, label: o.label }))}
@@ -42,7 +49,7 @@ export default function FieldTabs<T extends string>({
         // eigenen Union. Ohne den Wrapper stünde derselbe Cast bei jedem Aufrufer.
         onChange={(key) => onChange(key as T)}
         className="w-full"
-        aria-labelledby={labelId}
+        {...(label ? { "aria-labelledby": labelId } : { "aria-label": ariaLabel })}
       />
     </div>
   );

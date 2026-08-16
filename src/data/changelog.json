@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.1.6",
+    "date": "2026-08-16",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Jede Frist wird jetzt gleich eingegeben: Stunden oder Minuten umschaltbar, mit Schnellwahl-Knöpfen daneben. Das gilt auch für die Einschliess-Frist und die Verzögerung beim Versand.",
+          "en": "Every deadline is now entered the same way: switch between hours and minutes, with quick-pick buttons next to it. That includes the lock-up deadline and the delivery delay."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.1.5",
     "date": "2026-08-16",
     "changes": [

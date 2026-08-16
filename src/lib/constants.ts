@@ -389,6 +389,23 @@ export const DURATION_UNITS = {
 } as const;
 export type DurationUnit = keyof typeof DURATION_UNITS;
 
+/**
+ * Die Schnellwahl einer Dauer-Eingabe, in Stunden — die Stufen, die `DurationInput` als Knöpfe
+ * anbietet.
+ *
+ * ZWEI Skalen, weil die Schnellwahl zur GRÖSSENORDNUNG des Feldes gehört und nicht zur Eingabe-Art:
+ * eine Kontroll-, Aufgaben- oder Nachweis-Frist wird in Minuten bis Stunden beantwortet (`short`),
+ * eine Sperrzeit in Stunden bis Tagen (`long`). Die kurze Reihe unter ein Feld zu setzen, dessen
+ * Vorgabe 24 h ist, böte fünf Knöpfe an, von denen keiner eine plausible Antwort ist — und jeder den
+ * sinnvollen Vorgabewert mit einem Tap überschreibt.
+ *
+ * Die kurzen Stufen stehen je vorne, weil die langen ohnehin die getippten sind.
+ */
+export const DURATION_QUICK_HOURS = {
+  short: [0.25, 0.5, 1, 2, 4],
+  long: [4, 8, 12, 24, 48],
+} as const;
+
 /** Eingetippte Dauer → Stunden, die Einheit, in der Modell und Server rechnen. */
 export function durationToHours(value: number, unit: DurationUnit): number {
   return unit === "min" ? value / 60 : value;
@@ -400,6 +417,21 @@ export function durationFromHours(hours: number, unit: DurationUnit): number {
   const { min, step } = DURATION_UNITS[unit];
   const raw = unit === "min" ? hours * 60 : hours;
   return Math.max(min, Math.round(raw / step) * step);
+}
+
+/**
+ * Die eingetippte Dauer in Stunden — oder der Ersatzwert, wenn das Feld leer (oder unlesbar) ist.
+ *
+ * Der Ersatzwert ist IMMER eine Stunden-Angabe und läuft bewusst NICHT durch die Einheiten-
+ * Umrechnung: in Minuten gelesen würde aus einer Vorgabe von 4 h eine Frist von vier Minuten.
+ * Solange der Einheiten-Wechsel selbst einen Wert nachtrug, war das Feld nie leer und der Fall
+ * unerreichbar; seit `DurationInput` ein leeres Feld leer LÄSST, ist er zwei Klicks entfernt (Feld
+ * leeren, umschalten, absenden). Die Kontroll- und die Einschliess-Frist hatten dafür je eine
+ * eigene Fassung — dieselbe Figur, zweimal gepflegt.
+ */
+export function durationHoursOr(raw: string, unit: DurationUnit, fallbackH: number): number {
+  const value = durationToHours(parseFloat(raw), unit);
+  return value > 0 ? value : fallbackH;
 }
 
 /** Erlaubte Auslöse-Verzögerung einer über den MCP angeforderten Kontrolle: 5 min – 24 h. Kein

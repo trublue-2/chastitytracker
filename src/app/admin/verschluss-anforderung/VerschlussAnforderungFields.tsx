@@ -10,7 +10,9 @@ import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import FieldTabs from "@/app/components/FieldTabs";
+import DurationInput from "@/app/components/DurationInput";
 import HoursInput from "@/app/components/HoursInput";
+import { DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit } from "@/lib/constants";
 import ScheduleFields, { initialSchedule, scheduleIsPast, schedulePayload, type ScheduleValue } from "@/app/components/ScheduleFields";
 import type { DeviceOption } from "@/lib/queries";
 import { parseApiErrorCode } from "@/lib/apiClient";
@@ -45,14 +47,18 @@ export default function VerschlussAnforderungFields({
 
   const [nachricht, setNachricht] = useState("");
   const [mode, setMode] = useState<"duration" | "datetime">("duration");
-  const defaultDurationH = isSperrzeit ? "24" : "4";
-  const [deadlineH, setDeadlineH] = useState(defaultDurationH);
+  const defaultDurationH = isSperrzeit ? 24 : 4;
+  const [deadlineH, setDeadlineH] = useState(String(defaultDurationH));
+  // Die Frist ist eine Dauer wie die Kontroll-Frist und wird auch so eingegeben: Stunden ODER
+  // Minuten, im 5-Minuten-Raster. Vorher stand hier ein nacktes Stundenfeld — ist eine Kontrolle
+  // binnen 15 Minuten sinnvoll, ist ein Einschliessen binnen 45 Minuten es auch.
+  const [deadlineUnit, setDeadlineUnit] = useState<DurationUnit>("h");
   // Base all datetime defaults on the SERVER-provided `minNow` (not client `Date.now()`) so the
   // initializers are deterministic across SSR + hydration.
   const nowBaseMs = fromDatetimeLocal(minNow, tz).getTime();
   // Datetime default = now + default duration, so switching between tabs preserves intent.
   const [endetAt, setEndetAt] = useState(() =>
-    toDatetimeLocal(new Date(nowBaseMs + parseFloat(defaultDurationH) * 60 * 60 * 1000), tz)
+    toDatetimeLocal(new Date(nowBaseMs + defaultDurationH * 60 * 60 * 1000), tz)
   );
   const [withMinDauer, setWithMinDauer] = useState(false);
   // Min-Sperre nach dem Verschliessen: relative Dauer (dauerH) ODER absolutes Ende (sperrEndetAt).
@@ -94,7 +100,7 @@ export default function VerschlussAnforderungFields({
       if (mode === "datetime" && endetAt) {
         payload.endetAt = fromDatetimeLocal(endetAt, tz).toISOString();
       } else {
-        payload.fristH = parseFloat(deadlineH) || (isSperrzeit ? 24 : 4);
+        payload.fristH = durationHoursOr(deadlineH, deadlineUnit, defaultDurationH);
       }
       if (!isSperrzeit && withMinDauer) {
         if (sperrMode === "datetime" && sperrEndetAt) {
@@ -145,18 +151,31 @@ export default function VerschlussAnforderungFields({
         rows={2}
       />
 
+      {/* Die Reiter benennen die ANTWORT-ART, nicht die Einheit: „Dauer (h)" stand an derselben
+          Stelle wie der Stunden/Minuten-Umschalter der Kontroll-Frist, und wer ihn tippte, um auf
+          Minuten zu stellen, landete im Datums-Wähler. Die Einheit steht jetzt dort, wo sie
+          hingehört — im Umschalter des Feldes darunter, und der bleibt unbeschriftet, weil dieser
+          Reiter seinen Namen schon trägt. */}
       <FieldTabs
         label={t("frist")}
         value={mode}
         onChange={setMode}
         options={[
-          { value: "duration", label: t("durationHours") },
-          { value: "datetime", label: t("untilDate") },
+          { value: "duration", label: tc("duration") },
+          { value: "datetime", label: tc("pointInTime") },
         ]}
       />
 
       {mode === "duration" ? (
-        <HoursInput value={deadlineH} onChange={setDeadlineH} min={0.5} step={0.5} unit={tc("hoursUnit")} />
+        <DurationInput
+          ariaLabel={t("frist")}
+          value={deadlineH}
+          unit={deadlineUnit}
+          onChange={(value, unit) => { setDeadlineH(value); setDeadlineUnit(unit); }}
+          // Eine Sperrzeit wird in Stunden bis Tagen beantwortet, eine Einschliess-Frist in Minuten
+          // bis Stunden — die Skala folgt der Vorgabe daneben (24 h gegen 4 h).
+          quick={isSperrzeit ? DURATION_QUICK_HOURS.long : DURATION_QUICK_HOURS.short}
+        />
       ) : (
         <DateTimePicker
           value={endetAt}
@@ -175,13 +194,17 @@ export default function VerschlussAnforderungFields({
           </label>
           {withMinDauer && (
             <div className="flex flex-col gap-2 pl-6">
+              {/* Dieselben zwei Antwort-Arten wie oben — die Mindest-Tragedauer behält aber ihr
+                  nacktes Stundenfeld: dass sie keinen Minuten-Weg hat, ist eine AUSSAGE (die Grösse
+                  lebt in Vielfachen von 24), kein Versäumnis. Die Einheit steht als Suffix am Feld,
+                  nicht in der Reiter-Beschriftung. */}
               <FieldTabs
                 label={t("sperrEndeLabel")}
                 value={sperrMode}
                 onChange={setSperrMode}
                 options={[
-                  { value: "duration", label: t("durationHours") },
-                  { value: "datetime", label: t("sperrUntilDate") },
+                  { value: "duration", label: tc("duration") },
+                  { value: "datetime", label: tc("pointInTime") },
                 ]}
               />
               {sperrMode === "duration" ? (

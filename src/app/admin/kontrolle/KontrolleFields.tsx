@@ -10,7 +10,7 @@ import DurationInput from "@/app/components/DurationInput";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import { parseApiErrorCode } from "@/lib/apiClient";
-import { INSPECTION_DEADLINE_DEFAULT_H, durationToHours, type DurationUnit } from "@/lib/constants";
+import { INSPECTION_DEADLINE_DEFAULT_H, durationHoursOr, type DurationUnit } from "@/lib/constants";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { InspectionTargetOption } from "@/lib/inspectionTarget";
 
@@ -71,20 +71,6 @@ export default function KontrolleFields({
 
   const selectedTarget = targets.find((x) => (x.categoryId ?? KG_VALUE) === targetValue) ?? null;
 
-  /**
-   * Die abzuschickende Frist in Stunden.
-   *
-   * Die Vorgabe darf NICHT durch die Einheiten-Umrechnung laufen: `INSPECTION_DEADLINE_DEFAULT_H`
-   * ist eine Stunden-Angabe, und in Minuten gelesen würde daraus eine Frist von einer Minute. Solange
-   * der Einheiten-Wechsel selbst einen Wert nachtrug, war das Feld nie leer und der Fall unerreichbar;
-   * seit `DurationInput` ein leeres Feld leer LÄSST, ist er zwei Klicks entfernt (Feld leeren,
-   * umschalten, absenden).
-   */
-  function deadlineHours(): number {
-    const value = parseFloat(frist);
-    return value > 0 ? durationToHours(value, fristUnit) : INSPECTION_DEADLINE_DEFAULT_H;
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -96,7 +82,7 @@ export default function KontrolleFields({
         body: JSON.stringify({
           userId,
           kommentar: kommentar.trim() || undefined,
-          deadlineH: deadlineHours(),
+          deadlineH: durationHoursOr(frist, fristUnit, INSPECTION_DEADLINE_DEFAULT_H),
           categoryId: targetValue || undefined,
           // Nur wenn ausdrücklich verlangt: ohne Pin erfüllt jedes Gerät der Kategorie, mit Pin
           // genau dieses — und ein Gerätewechsel macht die Kontrolle unerfüllbar.

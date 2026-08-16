@@ -3,9 +3,9 @@
 import { useTranslations } from "next-intl";
 import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
 import DateTimePicker from "@/app/components/DateTimePicker";
+import DurationInput from "@/app/components/DurationInput";
 import FieldTabs from "@/app/components/FieldTabs";
-import Input from "@/app/components/Input";
-import Select from "@/app/components/Select";
+import { durationToHours, type DurationUnit } from "@/lib/constants";
 
 /**
  * Die TERMINIERUNG einer Direktive — sofort, verzögert oder auf einen Zeitpunkt.
@@ -18,8 +18,13 @@ import Select from "@/app/components/Select";
  *
  * Die HINWEIS-Texte kommen von aussen: sie benennen die Direktive („Anforderung wird versendet" vs.
  * „Aufgabe wird gestellt"), und ein gemeinsamer Text müsste dafür so allgemein werden, dass er
- * nichts mehr sagt. Alles andere — Beschriftung, Reiter, Einheiten — steht im `admin`-Namensraum,
- * in dem ohnehin jeder Verwender lebt.
+ * nichts mehr sagt. Alles andere — Beschriftung und Reiter — steht im `admin`-Namensraum, in dem
+ * ohnehin jeder Verwender lebt.
+ *
+ * Die VERZÖGERUNG ist eine Dauer wie jede andere und nimmt deshalb {@link DurationInput}: vorher
+ * stand die Einheiten-Frage zweimal im selben Formular, oben als Reiter (Frist) und hier als
+ * Dropdown, auf einem Scroll-Weg. Mit dem Bauteil kommt sein 5-Minuten-Raster mit — „in 3 Minuten"
+ * entfällt und ist für eine Terminierung keine Grenze, an der etwas hängt.
  */
 type ScheduleMode = "immediate" | "delay" | "datetime";
 
@@ -27,7 +32,7 @@ export interface ScheduleValue {
   mode: ScheduleMode;
   /** Rohwert des Zahlenfeldes — bewusst als String, wie jede andere Eingabe dieses Formulars. */
   delayValue: string;
-  delayUnit: "minutes" | "hours";
+  delayUnit: DurationUnit;
   /** `datetime-local`-Wert in der Zeitzone des Subs. */
   scheduledAt: string;
 }
@@ -43,7 +48,7 @@ export function initialSchedule(minNow: string, tz: string): ScheduleValue {
   return {
     mode: "immediate",
     delayValue: "30",
-    delayUnit: "minutes",
+    delayUnit: "min",
     scheduledAt: toDatetimeLocal(new Date(fromDatetimeLocal(minNow, tz).getTime() + 60 * 60 * 1000), tz),
   };
 }
@@ -93,7 +98,8 @@ export function schedulePayload(v: ScheduleValue, tz: string): { wirksamAbAt?: s
   }
   if (v.mode === "delay") {
     const n = parseFloat(v.delayValue) || 0;
-    return { delayMinutes: v.delayUnit === "hours" ? n * 60 : n };
+    // Gerundet, weil der Server ganze Minuten erwartet.
+    return { delayMinutes: Math.round(durationToHours(n, v.delayUnit) * 60) };
   }
   return {};
 }
@@ -115,6 +121,9 @@ export default function ScheduleFields({
   atHint: string;
 }) {
   const t = useTranslations("admin");
+  // „Dauer" und „Zeitpunkt" sind das Vokabular JEDER Zeit-Eingabe und stehen deshalb in `common` —
+  // nicht dreimal je Formular-Namensraum.
+  const tc = useTranslations("common");
   const set = (patch: Partial<ScheduleValue>) => onChange({ ...value, ...patch });
 
   return (
@@ -126,31 +135,21 @@ export default function ScheduleFields({
         options={[
           { value: "immediate", label: t("scheduleImmediate") },
           { value: "delay", label: t("scheduleDelay") },
-          { value: "datetime", label: t("scheduleAt") },
+          { value: "datetime", label: tc("pointInTime") },
         ]}
       />
 
       {value.mode === "delay" && (
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <div className="w-24">
-              <Input
-                type="number"
-                value={value.delayValue}
-                onChange={(e) => set({ delayValue: e.target.value })}
-                min={1}
-                step={1}
-              />
-            </div>
-            <Select
-              options={[
-                { value: "minutes", label: t("scheduleDelayMinutes") },
-                { value: "hours", label: t("scheduleDelayHours") },
-              ]}
-              value={value.delayUnit}
-              onChange={(e) => set({ delayUnit: e.target.value as ScheduleValue["delayUnit"] })}
-            />
-          </div>
+          <DurationInput
+            // Ohne sichtbare Beschriftung: der Reiter darüber heisst schon „Verzögert", und
+            // „Verzögerung" darunter sagte dasselbe Wort ein zweites Mal. Einen NAMEN braucht die
+            // Gruppe trotzdem — sonst steht dort ein Umschalter ohne Zugehörigkeit.
+            ariaLabel={t("scheduleDelayLabel")}
+            value={value.delayValue}
+            unit={value.delayUnit}
+            onChange={(delayValue, delayUnit) => set({ delayValue, delayUnit })}
+          />
           <span className="text-xs text-foreground-faint">{delayHint}</span>
         </div>
       )}

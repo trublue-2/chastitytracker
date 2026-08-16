@@ -20,6 +20,10 @@ interface TabsProps {
   className?: string;
   /** Bindet eine externe Beschriftung an die Gruppe (siehe `FieldTabs`). */
   "aria-labelledby"?: string;
+  /** Name der Gruppe, wo es keine sichtbare Beschriftung gibt, an die man binden könnte — der
+   *  Einheiten-Umschalter unter einem Umschalter der Antwort-Art (siehe `FieldTabs`). Eine
+   *  `tablist` ohne Namen wird als Gruppe ohne Zugehörigkeit vorgelesen. */
+  "aria-label"?: string;
 }
 
 export default function Tabs({
@@ -29,6 +33,7 @@ export default function Tabs({
   variant = "underline",
   className = "",
   "aria-labelledby": ariaLabelledBy,
+  "aria-label": ariaLabel,
 }: TabsProps) {
   const tabListRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +77,7 @@ export default function Tabs({
       ref={tabListRef}
       role="tablist"
       aria-labelledby={ariaLabelledBy}
+      aria-label={ariaLabel}
       className={[
         "flex overflow-x-auto scrollbar-none",
         variant === "underline" ? "border-b border-border gap-0"

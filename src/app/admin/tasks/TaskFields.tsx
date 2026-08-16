@@ -32,11 +32,6 @@ import type { TaskRequirementInput, TaskProofInput } from "@/lib/taskService";
 import TaskRequirementPicker, { type PickerCategory } from "./TaskRequirementPicker";
 import TaskProofPicker from "./TaskProofPicker";
 
-/** Schnellwahl für die Endzeit, in Stunden. Das Modell kennt nur den absoluten Zeitpunkt (EINE
- *  Wahrheit); die Knöpfe rechnen ihn nur bequem aus — „trage den Knebel eine Viertelstunde" ist damit
- *  zwei Taps. Die kurzen Stufen stehen vorne, weil die langen ohnehin die getippten sind. */
-const QUICK_HOURS = [0.25, 0.5, 1, 2, 4] as const;
-
 /**
  * Woran die Frist hängt — die EINE Entscheidung des Frist-Blocks.
  *
@@ -86,12 +81,8 @@ const GRACE_STEP_MIN = DURATION_UNITS.min.step;
 /**
  * Formular „Aufgabe stellen".
  *
- * Der Aufbau folgte ursprünglich `VerschlussAnforderungFields` (Umschalter, Zeitwahl, Nachricht).
- * Bei der Zeitwahl weicht er inzwischen ab: dort steht weiter ein `FieldTabs`-Umschalter, hier ist
- * der zweite Weg ein Aufklapper. Grund ist die Vorschau darunter — sie nennt den errechneten
- * Endzeitpunkt, und daneben las sich ein Reiter „Endet um" wie eine zweite Anzeige desselben Werts
- * (Rückmeldung 03.08.2026). Ob das auch für die Anforderungs-Formulare der bessere Weg ist, ist eine
- * eigene Frage — bis sie beantwortet ist, steht die Abweichung hier bewusst und nicht versehentlich.
+ * Der Aufbau folgt `VerschlussAnforderungFields` (Umschalter, Zeitwahl, Nachricht), auch bei der
+ * Zeitwahl: EIN `FieldTabs` über den Wegen, darunter das Feld des gewählten.
  */
 export default function TaskFields({
   userId,
@@ -445,49 +436,32 @@ export default function TaskFields({
         />
 
         {effectiveMode !== "datetime" ? (
-          <>
-            <DurationInput
-              label={holdFieldLabel}
-              ariaLabel={holdFieldLabel}
-              value={hours}
-              unit={holdUnit}
-              onChange={(value, unit) => {
-                setHours(value);
-                setHoldUnit(unit);
-                // Wer unter dem AUSWEICH-Weg tippt, hat ihn damit gewählt.
-                //
-                // Ohne diese Zeile deutet das Formular seine eigene Zahl um: „Tragezeit" ist die
-                // Vorgabe, mangels Bedingungen zeigt der Umschalter aber „Endet in". Wird danach
-                // eine Bedingung ergänzt, schnappt die Anzeige auf „Tragezeit" zurück — und aus
-                // „2 Stunden bis Schluss" wären unbemerkt „2 Stunden Tragezeit" geworden. Das ist
-                // dieselbe stille Umdeutung, gegen die dieser ganze Block gebaut ist.
-                if (mode === "fromStart" && !hasRequirements) setMode("duration");
-              }}
-              required
-            />
-            {/* Die Knöpfe setzen die Dauer in der GERADE gewählten Einheit — auf „Minuten" gestellt
-                trägt „1 h" also 60 ein, nicht 1. Sonst hiesse derselbe Knopf je nach Umschalter etwas
-                anderes. */}
-            <div className="flex flex-wrap gap-2">
-              {QUICK_HOURS.map((h) => (
-                <Button
-                  key={h}
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setHours(String(durationFromHours(h, holdUnit)))}
-                >
-                  {h < 1 ? t("quickMinutes", { minutes: durationFromHours(h, "min") }) : t("quickHours", { hours: h })}
-                </Button>
-              ))}
-            </div>
-          </>
+          <DurationInput
+            label={holdFieldLabel}
+            ariaLabel={holdFieldLabel}
+            value={hours}
+            unit={holdUnit}
+            onChange={(value, unit) => {
+              setHours(value);
+              setHoldUnit(unit);
+              // Wer unter dem AUSWEICH-Weg tippt (oder eine Schnellwahl drückt), hat ihn damit
+              // gewählt.
+              //
+              // Ohne diese Zeile deutet das Formular seine eigene Zahl um: „Tragezeit" ist die
+              // Vorgabe, mangels Bedingungen zeigt der Umschalter aber „Endet in". Wird danach
+              // eine Bedingung ergänzt, schnappt die Anzeige auf „Tragezeit" zurück — und aus
+              // „2 Stunden bis Schluss" wären unbemerkt „2 Stunden Tragezeit" geworden. Das ist
+              // dieselbe stille Umdeutung, gegen die dieser ganze Block gebaut ist.
+              if (mode === "fromStart" && !hasRequirements) setMode("duration");
+            }}
+            required
+          />
         ) : (
           <>
             {/* Bewusst `FieldLabel` und nicht das `label`-Prop des Wählers: dessen Beschriftung ist
                 versal und fett (eine FELD-Beschriftung), hier soll dieselbe leise Gruppen-Beschriftung
                 stehen wie im anderen Zweig — sonst springt der Block beim Umschalten optisch. */}
-            <FieldLabel htmlFor={holdUntilId} required>{t("holdFieldDatetime")}</FieldLabel>
+            <FieldLabel htmlFor={holdUntilId} required>{tc("pointInTime")}</FieldLabel>
             <DateTimePicker
               id={holdUntilId}
               value={holdUntil}
