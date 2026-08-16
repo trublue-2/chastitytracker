@@ -176,22 +176,31 @@ Die Prüfer waren hier von sich aus streng — das ist so wichtig wie die Fundli
 
 ---
 
-## 6. Offene Produktentscheidungen
+## 6. Produktentscheidungen
 
-Stecken in den Paketen und dürfen nicht als Aufräum-Nebenfolge durchrutschen:
+### Getroffen am 16.08.2026 — vor Beginn der Umsetzung
 
-1. **Versand-Verzögerung im 5-Minuten-Raster?** Nach P1 wäre „in 3 Minuten" nicht mehr eingebbar.
-2. **Einschliess-Fristen unter 30 Minuten erlauben?** Heute 30er-Schritte, die Kontrollfrist 5er.
-3. **Soll die Orgasmus-Anforderung terminierbar sein?** Einzige Direktive ohne `ScheduleFields`, ohne
-   dass eine Zeile sagt, ob das Absicht ist.
-4. **Aufgaben-Doppelung auf dem Sub-Dashboard:** ist die untere Liste ein Archiv, oder bekommt sie
-   zwei Abschnitte wie beim Keyholder?
-5. **`/info/[lang]`:** anbinden (dann In-App-Hilfe) oder abbauen (dann ist die Marketing-FAQ die
-   einzige Quelle)? Heute werden drei Wahrheiten parallel gepflegt.
+1. **Die Versand-Verzögerung übernimmt das 5-Minuten-Raster.** Sie nutzt danach dasselbe Bauteil und
+   dasselbe Raster wie jede andere Dauer; „in 3 Minuten" entfällt und ist für eine Terminierung keine
+   relevante Grenze. Ohne das bliebe eine zweite Raster-Variante im selben Bauteil — genau die
+   Abweichung, die P1 abbaut.
+2. **Die Einschliess-Frist geht auf 5-Minuten-Schritte.** Begründung: ist eine Kontrollfrist von 15
+   Minuten sinnvoll, ist eine Einschliess-Frist von 45 Minuten es auch. Sie bekommt damit auch den
+   Stunden/Minuten-Umschalter, den der Nutzer nach der Kontroll-Anforderung dort erwartet.
+3. **Die Orgasmus-Anforderung wird terminierbar** — voller Ausbau: `min` an beiden Feldern und
+   Zonen-Rechnung wie im Rest der Datei (das ist der Fehler, kein Geschmack), dazu ein Dauer-Weg
+   fürs Fenster-Ende (Reiter „Dauer | Zeitpunkt", Vorgabe 24 h) und `ScheduleFields` wie bei Aufgabe
+   und Verschluss-Anforderung. Sie ist danach keine Ausnahme mehr.
+5. **`/info/[lang]` bleibt vorerst liegen.** Es ist eine Inhalts-Entscheidung, keine Bedien-Frage,
+   und sie berührt die Marketing-Seite. Nicht Teil der Aufräumarbeiten — aber der Zustand (drei
+   parallel gepflegte Wahrheiten) bleibt hiermit notiert.
 
-**Unabhängig davon ein Fehler, keine Entscheidung:** die Orgasmus-Anforderung nimmt ein Fenster in
-der VERGANGENHEIT an (kein `min` an beiden Feldern) und prüft als einzige Stelle in der Browser-Zone
-statt in der Zone des Subs.
+### Noch offen
+
+4. **Aufgaben-Doppelung auf dem Sub-Dashboard:** ist die untere Liste ein Archiv
+   (`!belongsOnDashboard`), oder bekommt sie zwei Abschnitte wie beim Keyholder? Hängt an P3 und
+   blockiert die anderen Pakete nicht. Heute erscheint eine offene Aufgabe auf einem Bildschirm
+   zweimal.
 
 ---
 
