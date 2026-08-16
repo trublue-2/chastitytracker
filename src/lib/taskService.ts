@@ -7,7 +7,7 @@ import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
 import { computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
-import { startDeadline, taskAnchor, earliestActionableAt, isTaskResultFinal, effectiveProofOrderMatters } from "@/lib/tasks";
+import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters } from "@/lib/tasks";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
   clampProofDueOffset,
@@ -394,14 +394,11 @@ export async function checkTask(
   // misst: eine für morgen früh terminierte Aufgabe darf „in 30 Minuten" fordern, ohne dass diese
   // 30 Minuten heute Abend verstreichen.
   //
-  // Gegen das FRÜHESTMÖGLICHE Ende geprüft, nicht gegen die Spalte: im Dauer-Modus steht dort das
-  // spätestmögliche (Kulanz voll ausgereizt), das wirksame liegt bis zu einer Kulanzfrist davor.
-  // Eine Fälligkeit dazwischen bestünde die Prüfung und würde zur Laufzeit doch auf das Ende
-  // gekappt — also genau die stille Umdeutung, die dieser Fehlercode verhindern soll. Im klassischen
-  // Modus sind beide dasselbe.
-  const earliestEnd = holdDurationMin !== null
-    ? new Date(taskAnchor(anchor).getTime() + holdDurationMin * 60_000)
-    : holdUntil;
+  // Gegen das FRÜHESTMÖGLICHE Ende geprüft, nicht gegen die Spalte — die Begründung steht bei
+  // `earliestTaskEnd`. Über den geteilten Helfer und nicht als eigener Ternär: die dryRun-Vorschau
+  // des MCP zieht dieselbe Schranke, und zwei Fassungen davon waren genau der Grund, warum sie im
+  // Dauer-Modus gar keine zog.
+  const earliestEnd = earliestTaskEnd({ holdUntil, holdDurationMin }, taskAnchor(anchor));
   const checkedProofs = checkProofs(p.proofs ?? [], { anchor: taskAnchor(anchor), holdUntil: earliestEnd });
   if (!checkedProofs.ok) return checkedProofs;
 

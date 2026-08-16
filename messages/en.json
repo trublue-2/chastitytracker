@@ -133,7 +133,7 @@
     "TASK_TOO_MANY_PROOFS": "Too many proofs for one task",
     "TASK_PROOF_NOT_FOUND": "This proof does not exist",
     "TASK_PROOF_ALREADY_SUBMITTED": "This proof has already been submitted",
-    "TASK_PROOF_TOO_LATE": "The task deadline has passed — this proof no longer counts",
+    "TASK_PROOF_TOO_LATE": "The deadline for this proof has passed — it no longer counts",
     "TASK_PROOF_DUE_AFTER_END": "A proof deadline lies after the end of the task — there it could never take effect",
     "TASK_PROOF_NOT_SUBMITTED": "This proof has not been submitted yet",
     "OFFENSE_TITLE_REQUIRED": "The offense needs a title",

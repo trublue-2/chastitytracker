@@ -62,6 +62,28 @@ const taskWith = (over: Partial<TaskLike> = {}): TaskLike => ({
   ...over,
 });
 
+/**
+ * DER GANZTAGS-FALL, den „drei Fotos über den Tag" braucht: eine bis 22:00 laufende Aufgabe, eine
+ * Trage-Bedingung, die durchgehend gilt, und der Nachweis mit Mittags-Frist (300 min ab 12:00 = 17:00).
+ *
+ * Auf Modul-Ebene aus demselben Grund wie {@link inAnHour} (siehe dort): die drei standen bis zum
+ * 16.08.2026 in vier Testfällen wortgleich nebeneinander, und die 17:00-Konvention damit viermal.
+ * Wer sie an einer Stelle verschiebt, prüft an den anderen drei still gegen eine veraltete Frist.
+ */
+const ENDE_22 = d("2026-07-25T22:00:00Z");
+const SLIP_REQ = [{ id: "r1", label: "Slip" }];
+/** Durchgehend getragen, von vor der Aufgabe bis nach ihrem Ende — die Bedingung fällt nie weg. */
+const GETRAGEN = [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T23:00:00Z") }]];
+/** Das Mittagsfoto, fällig um 17:00 — nie eingereicht. */
+const ohneNachweis = (over: Partial<ProofLike> = {}) =>
+  proof({ id: "mittag", dueOffsetMin: 300, submittedAt: null, imageExifTime: null, ...over });
+/** Dasselbe Foto, aber erst um 18:00 nachgereicht: für das Urteil zählt es nicht (ungesichtet). */
+const spaetNachgereicht = () => ohneNachweis({ submittedAt: d("2026-07-25T18:00:00Z") });
+/** RECHTZEITIG da, aber nicht maschinell entscheidbar (kein Code, keine Aufnahmezeit) — der Fall,
+ *  in dem die Keyholderin am Zug ist. */
+const zurSichtung = () =>
+  ohneNachweis({ requireCode: false, verifikationStatus: null, submittedAt: d("2026-07-25T16:00:00Z") });
+
 describe("evaluateProofs — ohne Nachweise", () => {
   it("keine Nachweise gefordert: die Achse spielt keine Rolle", () => {
     expect(evaluateProofs([], task, d("2026-07-25T19:00:00Z"))).toBe("none");
@@ -316,7 +338,7 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
   /** Fall 5 als Ganzes: eine Aufgabe ohne Bedingungen, drei Fotos über den Tag. Verstreicht das
    *  erste, ist die Aufgabe versäumt — und zwar sofort, nicht erst am Abend. */
   it("die ganze Aufgabe: drei Fotos über den Tag", () => {
-    const ganztags = { ...task, holdUntil: d("2026-07-25T22:00:00Z") };
+    const ganztags = { ...task, holdUntil: ENDE_22 };
     const foto = (id: string, sortOrder: number, dueOffsetMin: number, over: Partial<ProofLike> = {}) =>
       proof({ id, sortOrder, dueOffsetMin, submittedAt: null, imageExifTime: null, ...over });
     const drei = [
@@ -329,7 +351,7 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
     // 17:30: das zweite ist durchgerutscht — versäumt, ohne auf 22:00 zu warten.
     expect(evaluateProofs(drei, ganztags, d("2026-07-25T17:30:00Z"))).toBe("failed");
 
-    const t = taskWith({ holdUntil: d("2026-07-25T22:00:00Z") });
+    const t = taskWith({ holdUntil: ENDE_22 });
     const r = evaluateTask(t, [], [], d("2026-07-25T17:30:00Z"), drei);
     expect(r.state).toBe("missed");
     // Und der BELEG dazu: WELCHES Foto fehlt. Ohne ihn zeigte die Zeile weiter „offen" samt
@@ -346,19 +368,16 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
    * Karte die Zeile schon als überfällig zeigt — zwei Auskünfte über dieselbe Aufgabe.
    */
   it("auch mit Bedingung entscheidet die verstrichene Nachweis-Frist sofort", () => {
-    const t = taskWith({ holdUntil: d("2026-07-25T22:00:00Z") });
-    const REQ = [{ id: "r1", label: "Slip" }];
-    // Durchgehend getragen, von vor der Aufgabe bis nach der Frist.
-    const held = [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T23:00:00Z") }]];
-    const mittags = [proof({ id: "mittag", dueOffsetMin: 300, submittedAt: null, imageExifTime: null })];
+    const t = taskWith({ holdUntil: ENDE_22 });
+    const mittags = [ohneNachweis()];
 
     // 16:00: die Frist des Fotos (17:00) läuft noch — die Aufgabe läuft mit.
-    const laufend = evaluateTask(t, REQ, held, d("2026-07-25T16:00:00Z"), mittags);
+    const laufend = evaluateTask(t, SLIP_REQ, GETRAGEN, d("2026-07-25T16:00:00Z"), mittags);
     expect(laufend.state).toBe("running");
     expect(laufend.overdueProofIds).toEqual([]);
 
     // 17:30: das Foto ist durch, die Aufgabe ist entschieden — obwohl bis 22:00 gehalten wird.
-    const spaet = evaluateTask(t, REQ, held, d("2026-07-25T17:30:00Z"), mittags);
+    const spaet = evaluateTask(t, SLIP_REQ, GETRAGEN, d("2026-07-25T17:30:00Z"), mittags);
     expect(spaet.state).toBe("missed");
     expect(spaet.overdueProofIds).toEqual(["mittag"]);
     // Der Beleg der Bedingungs-Achse bleibt: er HAT begonnen und getragen.
@@ -366,19 +385,16 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
     expect(isTaskOffense(spaet.state)).toBe(true);
 
     // Gegenprobe: derselbe Nachweis OHNE eigene Frist lässt die Aufgabe unverändert laufen.
-    const ohneFrist = [proof({ id: "mittag", submittedAt: null, imageExifTime: null })];
-    expect(evaluateTask(t, REQ, held, d("2026-07-25T17:30:00Z"), ohneFrist).state).toBe("running");
+    const ohneFrist = [ohneNachweis({ dueOffsetMin: null })];
+    expect(evaluateTask(t, SLIP_REQ, GETRAGEN, d("2026-07-25T17:30:00Z"), ohneFrist).state).toBe("running");
   });
 
   /** Ein Abbruch der Bedingung ist der ältere Beleg und behält den Vorrang — sonst verlöre die
    *  Meldung, WELCHE Bedingung wann wegfiel. */
   it("ein Abbruch der Bedingung schlägt die verstrichene Nachweis-Frist", () => {
-    const t = taskWith({ holdUntil: d("2026-07-25T22:00:00Z") });
-    const REQ = [{ id: "r1", label: "Slip" }];
+    const t = taskWith({ holdUntil: ENDE_22 });
     const abgelegt = [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T14:00:00Z") }]];
-    const r = evaluateTask(t, REQ, abgelegt, d("2026-07-25T17:30:00Z"), [
-      proof({ id: "mittag", dueOffsetMin: 300, submittedAt: null, imageExifTime: null }),
-    ]);
+    const r = evaluateTask(t, SLIP_REQ, abgelegt, d("2026-07-25T17:30:00Z"), [ohneNachweis()]);
     expect(r.state).toBe("aborted");
     expect(r.failedRequirement?.label).toBe("Slip");
     // Der Nachweis-Beleg geht dabei nicht verloren — beides ist wahr.
@@ -471,8 +487,8 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
    * stünde damit Stunden in der Zukunft, falsch einsortiert in jeder Perioden-Ansicht.
    */
   it("das Versäumnis wird auf die verstrichene Nachweis-Frist datiert, nicht auf das Aufgaben-Ende", () => {
-    const t = taskWith({ holdUntil: d("2026-07-25T22:00:00Z") });
-    const p = [proof({ id: "mittag", dueOffsetMin: 300, submittedAt: null, imageExifTime: null })];
+    const t = taskWith({ holdUntil: ENDE_22 });
+    const p = [ohneNachweis()];
     const r = evaluateTask(t, [], [], d("2026-07-25T19:00:00Z"), p);
     expect(r.state).toBe("missed");
     // Nullpunkt 12:00 + 300 min = 17:00.
@@ -492,7 +508,7 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
    * versäumten Aufgabe, ohne dass irgendwo stünde, woran es lag.
    */
   it("ein nach seiner Frist nachgereichter Nachweis gilt ebenfalls als überfällig", () => {
-    const t = taskWith({ holdUntil: d("2026-07-25T22:00:00Z") });
+    const t = taskWith({ holdUntil: ENDE_22 });
     // Frist 13:00, eingereicht 14:00.
     const spaet = [proof({ id: "mittag", dueOffsetMin: 60, submittedAt: d("2026-07-25T14:00:00Z") })];
     const r = evaluateTask(t, [], [], d("2026-07-25T15:00:00Z"), spaet);
@@ -501,11 +517,78 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
     expect(r.failedAt).toEqual(d("2026-07-25T13:00:00Z"));
   });
 
-  /** Auch ein RÜCKZUG steht über allem: der Beleg darf da sein, ein Vergehen wird daraus nicht. */
-  it("ein Rückzug schlägt auch eine verstrichene Nachweis-Frist", () => {
+  /**
+   * Auch ein RÜCKZUG steht über allem — und nimmt den BELEG gleich mit.
+   *
+   * `overdueProofIds` begründet ein Versäumnis; ein Rückzug ist keines. Blieb die Liste stehen,
+   * zeigte die Karte des Trägers an einer zurückgenommenen Aufgabe „Nachweis überfällig — Frist
+   * verstrichen": ein Vorwurf an einer Zeile, die ihn nicht mehr bindet.
+   */
+  it("ein Rückzug schlägt auch eine verstrichene Nachweis-Frist — samt ihrem Beleg", () => {
     const t = taskWith({ withdrawnAt: d("2026-07-25T13:30:00Z") });
     const p = [proof({ dueOffsetMin: 60, submittedAt: null, imageExifTime: null })];
-    expect(evaluateTask(t, [], [], d("2026-07-25T14:00:00Z"), p).state).toBe("withdrawn");
+    const r = evaluateTask(t, [], [], d("2026-07-25T14:00:00Z"), p);
+    expect(r.state).toBe("withdrawn");
+    expect(r.overdueProofIds).toEqual([]);
+    // Gegenprobe: ohne den Rückzug wäre genau dieser Nachweis der Beleg gewesen.
+    expect(evaluateTask(taskWith(), [], [], d("2026-07-25T14:00:00Z"), p).overdueProofIds).toEqual(["p1"]);
+  });
+
+  /**
+   * DIE INVARIANTE, an der die MCP-Doku hängt: ein überfälliger Nachweis und ein OFFENER
+   * Aufgaben-Zustand schliessen einander aus.
+   *
+   * Eine verstrichene eigene Frist entscheidet die Aufgabe sofort (`missed`), und `missed` ist weder
+   * offen noch zu sichten — `keyholder_dashboard.openTasks` trägt die Zeile zu diesem Zeitpunkt
+   * längst nicht mehr. Genau deshalb kann `openTasks[].proofs[].state` den Wert `overdue` nicht
+   * zeigen, und genau das sagen Guide und `explain_model` seit dem 16.08.2026. Fällt diese
+   * Invariante, wird die Doku zur Lüge gegenüber dem Keyholder-Agenten — dieser Test ist ihr Halt.
+   *
+   * Als TABELLE mit erwartetem Zustand UND erwartetem Beleg, nicht als Schleife mit einer Bedingung
+   * um das `expect`: eine Zusicherung, die nur in manchen Durchläufen feuert, ist grün, sobald sie in
+   * KEINEM mehr feuert — und dieser Test hätte dann genau das verschwiegen, wogegen er gebaut ist.
+   * Jede Zeile prüft deshalb beides und keine wird übersprungen; die Invariante darüber ist die
+   * Ableitung aus derselben Zeile, nicht ein zweiter, weicherer Massstab.
+   */
+  describe.each([
+    // Vor der Frist des Nachweises (17:00) — offen, also kein Beleg.
+    ["ohne Bedingung, Frist läuft", false, ohneNachweis, "13:00", "pending", []],
+    ["mit Bedingung, Frist läuft", true, ohneNachweis, "13:00", "running", []],
+    // GENAU auf der Frist und danach — versäumt, und der Beleg steht.
+    ["ohne Bedingung, Frist erreicht", false, ohneNachweis, "17:00", "missed", ["mittag"]],
+    ["mit Bedingung, Frist erreicht", true, ohneNachweis, "17:00", "missed", ["mittag"]],
+    ["ohne Bedingung, Frist vorbei", false, ohneNachweis, "19:00", "missed", ["mittag"]],
+    ["mit Bedingung, Frist vorbei", true, ohneNachweis, "19:00", "missed", ["mittag"]],
+    // Zu SPÄT nachgereicht und ungesichtet zählt nicht — dasselbe Urteil, derselbe Beleg.
+    ["ohne Bedingung, zu spät nachgereicht", false, spaetNachgereicht, "19:00", "missed", ["mittag"]],
+    ["mit Bedingung, zu spät nachgereicht", true, spaetNachgereicht, "19:00", "missed", ["mittag"]],
+    // Und der Zustand, in dem die KEYHOLDERIN am Zug ist: rechtzeitig da, aber nicht entscheidbar.
+    ["ohne Bedingung, wartet auf Sichtung", false, zurSichtung, "19:00", "awaitingReview", []],
+    // MIT Bedingung erst nach dem Ende (22:00): solange gehalten wird, ist „halten" der Zustand —
+    // die Nachweis-Achse wird dort noch gar nicht gefragt.
+    ["mit Bedingung, Sichtung fällig aber Haltefrist läuft", true, zurSichtung, "19:00", "running", []],
+    ["mit Bedingung, wartet auf Sichtung", true, zurSichtung, "23:00", "awaitingReview", []],
+  ] as const)("%s", (_name, mitBedingung, mkProof, uhr, erwarteterZustand, erwarteterBeleg) => {
+    const r = () => evaluateTask(
+      taskWith({ holdUntil: ENDE_22 }),
+      mitBedingung ? SLIP_REQ : [],
+      mitBedingung ? GETRAGEN : [],
+      d(`2026-07-25T${uhr}:00Z`),
+      [mkProof()],
+    );
+
+    it(`ist ${erwarteterZustand} mit ${erwarteterBeleg.length} Beleg(en)`, () => {
+      expect(r().state).toBe(erwarteterZustand);
+      expect(r().overdueProofIds).toEqual([...erwarteterBeleg]);
+    });
+
+    /** Die Invariante selbst, aus derselben Zeile abgeleitet: ist der Zustand offen (oder wartet er
+     *  auf die Sichtung), darf kein Beleg dranhängen — sonst zeigte `openTasks` ein `overdue`. */
+    it("offen oder zu sichten ⇒ kein Beleg", () => {
+      const e = r();
+      const offen = isTaskOpen(e.state) || needsKeyholderReview(e.state);
+      expect(offen && e.overdueProofIds.length > 0).toBe(false);
+    });
   });
 });
 

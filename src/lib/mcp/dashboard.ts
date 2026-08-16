@@ -175,11 +175,18 @@ export interface DashboardResult extends Envelope {
    *  additives Feld: ein v10-Wert zählte auch das Geplante mit, ein v11-Wert nicht.
    *
    *  v12: ein Nachweis kann eine EIGENE Fälligkeit haben (`create_task` mit
-   *  `requireProof[].dueMinutes`). Neu je Nachweis `dueAt` — das allein wäre additiv. Nicht additiv
-   *  ist der neue Wert `overdue` in `openTasks[].proofs[].state`: dieselbe Erweiterung einer
-   *  Zustands-Menge wie in v8, und mit derselben Folge. Wer bisher jede nicht eingereichte Zeile als
-   *  „der Sub ist noch dran" las, läge falsch — bei `overdue` kann er nichts mehr tun, die Frist ist
-   *  vorbei und die Aufgabe damit versäumt.
+   *  `requireProof[].dueMinutes`). Neu je Nachweis `dueAt`. Die Bedeutung von `openTasks` selbst
+   *  verschiebt sich damit: eine Aufgabe kann jetzt schon MITTEN in ihrer Laufzeit versäumt sein und
+   *  aus der Liste fallen — bis v11 blieb sie bis zu ihrem Ende darin. Wer aus „steht in openTasks"
+   *  auf „ihre Frist läuft noch" schloss, lag richtig; wer aus dem Verschwinden auf „das Ende ist
+   *  erreicht" schloss, nicht mehr.
+   *
+   *  Der Bump war ANGEKÜNDIGT worden mit einem neuen Zustandswert `overdue` in
+   *  `openTasks[].proofs[].state` — den gibt es dort nicht (korrigiert 16.08.2026). Eine verstrichene
+   *  Nachweis-Frist macht die Aufgabe unmittelbar zu `missed`, und `missed` ist nicht offen: die
+   *  Zeile ist zu dem Zeitpunkt schon aus `openTasks` verschwunden. Den Wert kennt nur die App des
+   *  Trägers, die auch entschiedene Aufgaben zeigt. Kein Grund für einen weiteren Bump — es ändert
+   *  sich kein Feld, nur eine Zusage, die nie eingelöst wurde.
    *
    *  v13: die SPÄTE ANNAHME rettet die Aufgabe. Nimmt der Keyholder ein nach der Frist eingereichtes
    *  Nachweis-Foto an (`review_task_proof accepted:true`), zählt es doch — die Aufgabe ist erfüllt
@@ -347,7 +354,15 @@ export interface OpenTaskView {
 /** Die Nachweise einer Aufgabe für den Keyholder — inklusive der Regel, welcher die Reihenfolge
  *  bricht. Dieselbe Ableitung wie auf der Karte (`taskProofState` + `firstOutOfOrderProof`), damit
  *  Agent und Oberfläche nicht verschiedene Zustände zur selben Zeile nennen. */
-function taskProofViews(views: TaskProofView[], { task, evaluation }: EvaluatedTask): OpenTaskProofView[] {
+function taskProofViews(
+  views: TaskProofView[],
+  { task, evaluation }: EvaluatedTask,
+  /** Der Zeitzonen-Formatierer des Ziel-Subs — DERSELBE, mit dem `openTasks.holdUntil` zwei Felder
+   *  weiter entsteht. Als Parameter und nicht `.toISOString()` hier: das lieferte UTC (`…Z`) neben
+   *  einem `holdUntil` mit Offset, und der Agent läse für dieselbe Aufgabe zwei Zeitzonen — bei
+   *  Europe/Zurich meldete er „15:00" für eine Frist, die 17:00 heisst. */
+  iso: Iso,
+): OpenTaskProofView[] {
   const ordered = [...views].sort((a, b) => a.sortOrder - b.sortOrder);
   const outOfOrderId = firstOutOfOrderProof(ordered, task)?.id ?? null;
   return ordered.map((p, i) => ({
@@ -356,8 +371,14 @@ function taskProofViews(views: TaskProofView[], { task, evaluation }: EvaluatedT
     // Zustand und Frist kommen aus derselben AUSWERTUNG wie auf der Karte — die überfälligen
     // Nachweise stehen dort schon (`overdueProofIds`), und das wirksame Ende ebenfalls. Eine eigene
     // Uhr hier gäbe zwei Antworten auf dieselbe Frage.
+    //
+    // Die Liste ist an dieser Stelle immer LEER, weil `openTasks` nur offene Aufgaben trägt und eine
+    // verstrichene Nachweis-Frist die Aufgabe sofort versäumt macht (siehe `TaskEvaluation`). Trotzdem
+    // durchgereicht statt durch `false` ersetzt: die geteilte Ableitung bleibt damit dieselbe wie auf
+    // der Karte — ein fest verdrahtetes `false` wäre eine zweite Regel, die stillschweigend falsch
+    // würde, sobald `openTasks` je eine entschiedene Aufgabe aufnähme.
     state: taskProofState(p, outOfOrderId, evaluation.overdueProofIds.includes(p.id)),
-    dueAt: ownProofDeadline(p, task, evaluation.holdUntil)?.toISOString() ?? null,
+    dueAt: iso(ownProofDeadline(p, task, evaluation.holdUntil)),
     reviewNote: p.reviewNote,
   }));
 }
@@ -370,14 +391,21 @@ export interface OpenTaskProofView {
   description: string;
   /** open = noch nicht eingereicht · confirmed = erbracht (Code bestätigt oder von dir angenommen) ·
    *  review = eingereicht, wartet auf DEIN Urteil · rejected = von dir abgelehnt ·
-   *  outOfOrder = Aufnahmezeit bricht die geforderte Reihenfolge ·
-   *  overdue = Frist verstrichen, nichts (rechtzeitig) eingereicht und nichts angenommen — die
-   *  Aufgabe ist damit versäumt. Lag ein spätes Foto vor und du hast es ANGENOMMEN, steht hier
-   *  `confirmed` und die Aufgabe ist erfüllt. */
+   *  outOfOrder = Aufnahmezeit bricht die geforderte Reihenfolge.
+   *
+   *  Eine VERSTRICHENE Nachweis-Frist steht hier nicht: mit ihr ist die Aufgabe versäumt und fällt
+   *  aus `openTasks` — du findest sie in `get_offenses` als `unfulfilled_task` und kannst ein spät
+   *  eingereichtes Foto von dort aus immer noch annehmen (`review_task_proof`, `refId` IST die
+   *  `taskId`). Nimmst du es an, kehrt die Aufgabe hierher zurück, der Nachweis als `confirmed`. */
   state: string;
   /** EIGENE Fälligkeit dieses Nachweises (ISO-8601 mit Offset) — null, wo er bis zum Ende der
-   *  Aufgabe offen ist. Nach ihr nimmt die App nichts mehr an; ein `dueAt` in der Vergangenheit mit
-   *  `state: "open"` gibt es deshalb nicht, das ist dann `overdue`. */
+   *  Aufgabe offen ist.
+   *
+   *  Ein `dueAt` in der VERGANGENHEIT ist hier kein Widerspruch und kein Grund zu mahnen: steht die
+   *  Aufgabe noch in `openTasks`, wurde dieser Nachweis rechtzeitig erbracht (sonst wäre sie
+   *  versäumt und verschwunden). Der Sub ist dann längst weiter — offen ist ein anderer Nachweis
+   *  oder die Haltefrist. Was NICHT vorkommt, ist eine verstrichene und UNERFÜLLTE Frist; genau das
+   *  sagt `state`, der hier nie `overdue` ist. */
   dueAt: string | null;
   /** Deine Anmerkung aus der Sichtung, falls du eine hinterlassen hast. */
   reviewNote: string | null;
@@ -680,7 +708,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       missing: e.evaluation.missing.map((m) => m.label),
       startedAt: iso(e.evaluation.startedAt),
       awaitingUserConfirmation: e.evaluation.awaitingConfirmation,
-      proofs: taskProofViews(proofViews.get(e.task.id) ?? [], e),
+      proofs: taskProofViews(proofViews.get(e.task.id) ?? [], e, iso),
       proofOrderMatters: e.task.proofOrderMatters,
       isPunishment: e.task.isPunishment,
     }));

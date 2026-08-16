@@ -158,6 +158,16 @@ export interface TaskEvaluation {
    *
    * Ein spät eingereichter, ANGENOMMENER Nachweis steht nicht mehr darin — er zählt wieder
    * ({@link proofCounted}).
+   *
+   * NUR ein VORWERFENDER Zustand trägt sie — `missed` und `aborted`. Sonst ist sie leer, und zwar
+   * strukturell: die neutrale Vorbelegung in `evaluateTask` ist die leere Liste, gefüllt wird sie
+   * ausschliesslich in den Zweigen, die daraus ein Urteil ableiten.
+   *
+   * Bei `withdrawn` also leer (ein Rückzug ist kein Versäumnis) und in jedem OFFENEN Zustand
+   * ebenfalls — eine verstrichene eigene Frist entscheidet die Aufgabe sofort,
+   * `pending`/`partial`/`running`/`awaitingReview` und eine gefüllte Liste schliessen einander aus.
+   * Daran hängt die MCP-Doku: `openTasks` trägt deshalb nie einen Nachweis im Zustand `overdue`
+   * (Testfall in `taskProofs.test.ts`).
    */
   overdueProofIds: string[];
 }
@@ -242,6 +252,42 @@ export function effectiveHoldUntil(
 ): Date {
   if (!task.holdDurationMin || !startedAt) return task.holdUntil;
   return new Date(startedAt.getTime() + task.holdDurationMin * 60_000);
+}
+
+/**
+ * Das FRÜHESTMÖGLICHE Ende einer geplanten Aufgabe — die Schranke, INNERHALB derer jede Nachweis-
+ * Frist liegen muss.
+ *
+ * Der Unterschied zu {@link effectiveHoldUntil} ist der Zeitpunkt der Frage. Jenes beantwortet „wann
+ * endet DIESE laufende Aufgabe?" und braucht dafür den abgeleiteten Beginn. Diese Funktion wird
+ * gestellt, BEVOR es die Aufgabe gibt — da ist der früheste denkbare Beginn ihr Nullpunkt, und das
+ * früheste Ende folglich Nullpunkt + Dauer. Im klassischen Modus fallen beide auf `holdUntil`
+ * zusammen.
+ *
+ * Warum das FRÜHESTE und nicht die Spalte: im Dauer-Modus steht in `holdUntil` das SPÄTESTMÖGLICHE
+ * Ende (Kulanz voll ausgereizt). Eine Nachweis-Frist dazwischen bestünde eine Prüfung gegen die
+ * Spalte und würde zur Laufzeit doch auf das wirksame Ende gekappt — genau die stille Umdeutung, die
+ * `TASK_PROOF_DUE_AFTER_END` verhindern soll.
+ *
+ * HIER und nicht zweimal ausgeschrieben: der Dienst (`checkTask`) und die dryRun-Vorschau des MCP
+ * (`mcpCreateTask`) müssen dieselbe Schranke ziehen — sonst meldet die Vorschau Erfolg für einen
+ * Aufruf, den der Dienst mit 400 abweist. Das ist keine Vermutung, sondern der Befund vom
+ * 16.08.2026: die Vorschau prüfte im Dauer-Modus gar nicht. Dieselbe Begründung wie bei
+ * {@link effectiveProofOrderMatters}.
+ */
+export function earliestTaskEnd(
+  /** GENAU eine der beiden Formen ist gesetzt — beide Aufrufer stellen das vor dem Aufruf sicher
+   *  (`resolveTaskHold` wirft, `checkTask` weist mit `TASK_HOLD_MISSING` ab). */
+  hold: { holdUntil?: Date; holdDurationMin?: number | null },
+  /** Der Nullpunkt der künftigen Aufgabe: ihr geplantes `wirksamAb`, sonst „jetzt" ({@link taskAnchor}). */
+  anchor: Date,
+): Date {
+  if (hold.holdDurationMin != null) return new Date(anchor.getTime() + hold.holdDurationMin * 60_000);
+  // Kein `!` an den beiden Aufrufstellen, sondern die Zusicherung EINMAL hier: ein Aufrufer, der
+  // beide Formen weglässt, bekommt einen benannten Defekt statt einer `Invalid Date`-Schranke, an
+  // der danach jeder Vergleich still `false` ergibt.
+  if (!hold.holdUntil) throw new Error("earliestTaskEnd: weder holdUntil noch holdDurationMin gesetzt");
+  return hold.holdUntil;
 }
 
 /**
@@ -653,6 +699,9 @@ export function evaluateTask(
    * des Vergehens (`failedAt`), und die braucht schon der Zweig für Aufgaben OHNE Bedingungen.
    */
   const overdueBeforeStart = overdueProofsAt(proofs, task, task.holdUntil, now);
+  /** Der BELEG in der Form, die nach aussen geht — beide Zweige, die vor dem Beginn ein Versäumnis
+   *  feststellen, hängen ihn zusammen mit `failedAt` an ihre Rückgabe. */
+  const overdueIdsBeforeStart = overdueBeforeStart.map((p) => p.id);
 
   const base: TaskEvaluation = {
     state: "pending",
@@ -668,12 +717,17 @@ export function evaluateTask(
     proofCheckPending: proofs.some(
       (p) => p.requireCode && p.submittedAt !== null && p.verifikationStatus === null && p.verifikationReason === null,
     ),
-    // `base` trägt jeden Zweig OHNE Beginn. Sobald einer feststeht, rechnet die Auswertung die Liste
-    // weiter unten gegen das WIRKSAME Ende neu (im Dauer-Modus ist es das frühere).
-    overdueProofIds: overdueBeforeStart.map((p) => p.id),
+    // LEER wie `missing`, `failedRequirement` und `failedAt` daneben: `base` ist der NEUTRALE
+    // Träger, und jedes dieser Felder ist ein Beleg, den nur ein vorwerfender Zweig setzen darf.
+    // Vorbelegt trug `base` den Vorwurf in jeden Zweig, der ihn nicht ausdrücklich löschte — und
+    // genau das geschah beim Rückzug: über einer zurückgenommenen Aufgabe stand „Nachweis
+    // überfällig — Frist verstrichen" (Befund 16.08.2026). Die sichere Richtung ist die leere Liste:
+    // ein neuer Zweig, der den Beleg vergisst, erhebt keinen Vorwurf, statt einen fremden zu erben.
+    overdueProofIds: [],
   };
 
-  // Zurückgezogen schlägt alles: weder offen noch Vergehen, egal was die Einträge sagen.
+  // Zurückgezogen schlägt alles: weder offen noch Vergehen, egal was die Einträge sagen — und damit
+  // auch kein Beleg für eines (`base` trägt keinen).
   if (task.withdrawnAt) return { ...base, state: "withdrawn" };
 
   // Aufgabe ohne Bedingungen: allein die Selbstmeldung entscheidet — aber sie muss RECHTZEITIG sein.
@@ -691,7 +745,9 @@ export function evaluateTask(
     // Vergehen mit dem Zeitstempel des Aufgaben-Endes erzeugen. Fehlt sie (Nachweis abgelehnt,
     // Reihenfolge gebrochen, schlicht nichts abgegeben), bleibt es beim Ende — dort gibt es keinen
     // früheren Zeitpunkt, der etwas belegte.
-    if (proofVerdict === "failed") return { ...base, state: "missed", failedAt: earliestOverdue(overdueBeforeStart) };
+    if (proofVerdict === "failed") {
+      return { ...base, state: "missed", failedAt: earliestOverdue(overdueBeforeStart), overdueProofIds: overdueIdsBeforeStart };
+    }
     if (proofVerdict === "needsReview" || proofVerdict === "checking") return { ...base, state: "awaitingReview" };
     if (proofVerdict === "pending") return { ...base, state: "pending" };
     if (task.completedAt) {
@@ -756,7 +812,10 @@ export function evaluateTask(
     // Aufgabe, die nicht mehr zu erfüllen ist. Genau die zwei Auskünfte, gegen die der Zweig weiter
     // unten gebaut ist — nur bevor überhaupt etwas anlag.
     if (overdueBeforeStart.length > 0) {
-      return { ...base, state: "missed", missing, failedAt: earliestOverdue(overdueBeforeStart) };
+      return {
+        ...base, state: "missed", missing,
+        failedAt: earliestOverdue(overdueBeforeStart), overdueProofIds: overdueIdsBeforeStart,
+      };
     }
     if (now.getTime() > deadline.getTime()) {
       return { ...base, state: "missed", missing };

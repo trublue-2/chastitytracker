@@ -253,6 +253,33 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
     expect(updateSperrzeitEnde).not.toHaveBeenCalled();
   });
 
+  /**
+   * create_task: die Nachweis-Frist gegen das Ende der Aufgabe — auch im DAUER-MODUS, wo die
+   * Vorschau keinen Zeitpunkt zu NENNEN hat.
+   *
+   * Sie kann trotzdem einen ausrechnen: `earliestTaskEnd` ist derselbe Helfer, mit dem `checkTask`
+   * gegen den frühestmöglichen Zeitpunkt (Nullpunkt + Dauer) misst. Vorher prüfte die Vorschau in
+   * diesem Modus gar nicht und meldete Erfolg für einen Aufruf, der als 400 zurückkam.
+   */
+  it("create_task: eine Nachweis-Frist hinter dem Ende ist auch im Dauer-Modus ein Problem", async () => {
+    const args = {
+      dryRun: true, title: "Plug tragen", requireKgLocked: true,
+      requireProof: [{ description: "Selfie", dueMinutes: 120 }],
+    };
+    // Dauer 60 min, Nachweis nach 120 min — eine Stunde hinter dem frühestmöglichen Ende.
+    const dauer = await mcpCreateTask("sub", { ...args, holdMinutesFromStart: 60 }) as { wouldSucceed: boolean; problem?: string };
+    expect(dauer.wouldSucceed).toBe(false);
+    expect(dauer.problem).toBe("TASK_PROOF_DUE_AFTER_END");
+
+    // Innerhalb der Dauer bleibt sie zulässig — die Schranke ist die Dauer, nicht ihr Vorhandensein.
+    const drin = await mcpCreateTask("sub", { ...args, holdMinutesFromStart: 180 }) as { wouldSucceed: boolean };
+    expect(drin.wouldSucceed).toBe(true);
+
+    // Und der Modus mit festem Ende urteilt unverändert: 1 h Frist, Nachweis nach 120 min.
+    const fest = await mcpCreateTask("sub", { ...args, holdHours: 1 }) as { wouldSucceed: boolean; problem?: string };
+    expect(fest.problem).toBe("TASK_PROOF_DUE_AFTER_END");
+  });
+
   it("delete_training_goal: existierendes Ziel wird gefunden, nichts gelöscht", async () => {
     trainingVorgabeMock.mockResolvedValue({ id: "g1", userId: "u1", categoryId: null, gueltigAb: JETZT, gueltigBis: null, validUntilManual: false, minProTagH: 2, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: null });
     const r = await mcpDeleteTrainingGoal("sub", { dryRun: true, id: "g1" }) as { dryRun: boolean };

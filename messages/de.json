@@ -133,7 +133,7 @@
     "TASK_TOO_MANY_PROOFS": "Zu viele Nachweise für eine Aufgabe",
     "TASK_PROOF_NOT_FOUND": "Diesen Nachweis gibt es nicht",
     "TASK_PROOF_ALREADY_SUBMITTED": "Dieser Nachweis wurde bereits eingereicht",
-    "TASK_PROOF_TOO_LATE": "Die Frist der Aufgabe ist abgelaufen — dieser Nachweis zählt nicht mehr",
+    "TASK_PROOF_TOO_LATE": "Die Frist für diesen Nachweis ist abgelaufen — er zählt nicht mehr",
     "TASK_PROOF_DUE_AFTER_END": "Die Frist eines Nachweises liegt nach dem Ende der Aufgabe — dort könnte sie nie greifen",
     "TASK_PROOF_NOT_SUBMITTED": "Dieser Nachweis wurde noch nicht eingereicht",
     "OFFENSE_TITLE_REQUIRED": "Das Vergehen braucht einen Titel",

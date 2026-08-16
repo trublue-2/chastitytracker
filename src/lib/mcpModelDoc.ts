@@ -195,8 +195,10 @@ fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt
   Kontrollen: 240/480/720. Ohne die Angabe bleibt ein Nachweis wie bisher bis zum Ende der Aufgabe
   offen. Verstreicht eine eigene Frist unerfüllt, ist die Aufgabe **sofort** versäumt — nicht erst
   am Ende; nach ihr nimmt die App auch nichts mehr an. Später als das Ende der Aufgabe ist sie nicht
-  setzbar. In \`openTasks\` steht sie je Nachweis als \`dueAt\`, der verstrichene Fall als
-  \`state: "overdue"\`.
+  setzbar. In \`openTasks\` steht sie je Nachweis als \`dueAt\`. Eine VERSTRICHENE und unerfüllte
+  Frist findest du dort nie: mit ihr gilt die Aufgabe als versäumt und steht in \`get_offenses\`
+  (siehe Sichtung). Ein \`dueAt\` in der Vergangenheit heisst deshalb „rechtzeitig erbracht" — kein
+  Grund zu mahnen.
 - **Ist die Reihenfolge zufällig, schalte sie ab** (\`proofOrderMatters: false\`). „Ein Selfie in der
   Gemüse-, eines in der Blumenabteilung" ist keine Anweisung, die Abteilungen in dieser Folge zu
   besuchen — erzwungen ergäbe sie ein Versäumnis für nichts. Abgeschaltet entfällt mit der

@@ -20,7 +20,7 @@ import {
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
-  clampProofDueOffset, type NumberRange,
+  clampProofDueOffset, clampHoldDuration, type NumberRange,
 } from "@/lib/constants";
 import { clamp, randomInt } from "@/lib/utils";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
@@ -28,7 +28,7 @@ import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 import { reviewTaskProof } from "@/lib/taskProofService";
 import { createTask, updateTask, withdrawTask, mergeTaskPatch, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
-import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
+import { effectiveProofOrderMatters, earliestActionableAt, earliestTaskEnd } from "@/lib/tasks";
 
 /**
  * dryRun (K-01, leichte Variante): validiert Referenzen/Werte und zeigt die effektiven Argumente,
@@ -1589,7 +1589,14 @@ function resolveTaskHold(
    *  `TASK_HOLD_UNTIL_TOO_SOON` abgewiesen. Ein ABSOLUTES `holdUntilAt` bleibt absolut. */
   anchor: Date,
 ): Pick<CreateTaskParams, "holdUntil" | "holdDurationMin"> {
-  if (args.holdMinutesFromStart != null) return { holdDurationMin: args.holdMinutesFromStart };
+  // GEKLEMMT wie im Dienst, aus demselben Grund wie bei `proofDueMinutes`: die Vorschau soll den
+  // Wert nennen — und gegen die Schranke messen —, die in der Zeile landet. Roh durchgereicht
+  // versprächen „0.4 Minuten" eine Dauer, aus der `checkTask` eine ganze Minute macht.
+  //
+  // Ein unbrauchbarer Wert fällt durch statt zu einem halben Dauer-Modus zu werden: dann greifen die
+  // beiden Zeitpunkt-Formen darunter, und fehlen auch die, sagt der Wurf, was verlangt ist.
+  const holdDurationMin = clampHoldDuration(args.holdMinutesFromStart);
+  if (holdDurationMin != null) return { holdDurationMin };
   const d = parseHoldUntil(args, anchor);
   if (!d) throw new Error("One of holdUntilAt, holdHours or holdMinutesFromStart is required.");
   return { holdUntil: d };
@@ -1644,8 +1651,13 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     delayMinutes: args.delayMinutes,
     wirksamAbAt: parseIsoDate(args.scheduledAt, "scheduledAt") ?? null,
   }).wirksamAb;
+  /** Der NULLPUNKT der künftigen Aufgabe — dasselbe, was `taskAnchor` später aus der Zeile liest
+   *  (`wirksamAb ?? createdAt`). EINMAL benannt statt dreimal hingeschrieben: Frist, Schranke und
+   *  Nachweis-Fälligkeit zählen alle ab ihm, und eine künftige vierte Herkunft darf nicht an zwei
+   *  von drei Stellen nachgezogen werden. */
+  const anchor = previewWirksamAb ?? now;
   // Die Frist hängt am Nullpunkt, also erst NACH ihm auflösen.
-  const hold = resolveTaskHold(args, previewWirksamAb ?? now);
+  const hold = resolveTaskHold(args, anchor);
   /** Was die Vorschau und der Ergebnis-Satz über die Frist sagen — im Dauer-Modus gibt es keinen
    *  Zeitpunkt zu nennen, weil er erst mit dem Anlegen entsteht. */
   const holdText = hold.holdDurationMin != null
@@ -1657,11 +1669,14 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
    * meldet für einen Commit, der mit `TASK_PROOF_DUE_AFTER_END` endet. Genau dafür gibt es den
    * `problem`-Slot (siehe die `offenseRef`-Prüfung darunter).
    *
-   * Nur im Modus mit festem Ende: im Dauer-Modus entsteht das Ende erst mit dem Anlegen, und dort
-   * misst der Dienst gegen den frühestmöglichen Zeitpunkt — mehr weiss die Vorschau auch nicht.
+   * In BEIDEN Modi. Dass die Vorschau im Dauer-Modus keinen Zeitpunkt zu NENNEN hat, heisst nicht,
+   * dass sie keinen ausrechnen kann — und der geteilte {@link earliestTaskEnd} rechnet ihn genauso
+   * wie `checkTask`. Ohne diese Prüfung meldete `holdMinutesFromStart: 60` mit `dueMinutes: 120`
+   * einen Erfolg, den der Commit als 400 abweist (Befund 16.08.2026).
    */
-  const dueAfterEnd = hold.holdUntil != null && proofDueMinutes.some(
-    (m) => m !== null && (previewWirksamAb ?? now).getTime() + m * 60_000 > hold.holdUntil!.getTime(),
+  const earliestEndMs = earliestTaskEnd(hold, anchor).getTime();
+  const dueAfterEnd = proofDueMinutes.some(
+    (m) => m !== null && anchor.getTime() + m * 60_000 > earliestEndMs,
   );
 
   if (args.dryRun) {
