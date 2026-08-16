@@ -138,8 +138,8 @@ X" ist die häufigste Form einer Anweisung und erzeugt heute ein Vergehen für v
 `effectiveHoldUntil` liefert dann `completedAt ?? min(now, obergrenze)` — die bestehende Frist wird zur
 **Pflicht**-Obergrenze, nicht zur Kür. Ablegen nach der Meldung: erlaubt. Davor: Abbruch.
 
-**Offene Entscheidung (siehe §5):** die Selbstmeldung ist heute unbefristet nachholbar. Wird sie zum
-Frist-Ende, darf eine späte Meldung die Frist nicht rückwirkend dehnen.
+**Entschieden (§5):** die Selbstmeldung ist heute unbefristet nachholbar; als Frist-Ende darf eine
+späte Meldung die Frist NICHT rückwirkend dehnen — die Obergrenze gewinnt.
 
 **B9** (`endGraceMin`) ist die Kulanz *nach* der Frist, spiegelbildlich zu `startGraceMin` davor.
 Kern, aber nur eine Kante.
@@ -197,9 +197,21 @@ gegen den Schnitt aller Bedingungen" wird „Prüfung je Bedingung über ihr eig
    `processDueTasks` über `holdUntil` vorwählt. **Eingeplant für Etappe 2**, weil es eine
    mitgeschriebene Spalte braucht: `min(holdUntil, Nullpunkt + kleinste Nachweis-Frist)`.
 
+### Getroffen am 16.08.2026 (vor dem Beginn der Etappe 2)
+
+4. **B2 — eine späte Selbstmeldung dehnt die Frist NICHT.** Die Obergrenze gewinnt:
+   `effectiveHoldUntil` liefert `completedAt ?? min(now, obergrenze)`. Meldet der Träger erst nach der
+   Frist, endet die Aufgabe trotzdem zur Frist — die Meldung kann sie nicht rückwirkend verlängern.
+   Ablegen davor bleibt Abbruch, danach erlaubt. Die Verspätung wird nicht zusätzlich als eigenes
+   Vergehen notiert.
+
 ### Noch offen
 
-1. **B2 — darf eine späte Selbstmeldung die Frist dehnen?** Vorschlag: nein, die Obergrenze gewinnt.
+1. **Die Verspätungs-Meldung: Auslöser oder Sweep?** Heute hängt sie an zwei Ereignissen (Hochladen,
+   vorgezogene Frist). Ein Block im Minuten-Tick deckte stattdessen JEDE Ursache ab und holte
+   zusätzlich einen gescheiterten fire-and-forget-Versand nach — dafür braucht er eine bewusst
+   begrenzte Abfrage (nur offene Aufgaben), sonst wächst die Kandidatenmenge unbegrenzt. Aufgeworfen
+   vom Review zu v5.1.3; die heutige Fassung ist korrekt und getestet, die Frage ist die Flughöhe.
 2. **B4 oder X4?** Mehrere Enden in *einer* Aufgabe sind auf einer Handy-Karte womöglich nicht
    verständlich darstellbar. Zwei verkettete Aufgaben (X4) wären billiger und ohne Kern-Umbau — dann
    fiele B4 ganz weg.
