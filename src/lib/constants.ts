@@ -421,9 +421,19 @@ export const NOTIFICATION_EVENT_TYPES = [
   "KONTROLLE_ANGEFORDERT",
   "WEAR_BEGIN_ANY",
   "WEAR_END_ANY",
+  "TASK_PROOF_LATE",
 ] as const;
 
 export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
+
+/** Die beiden Versand-Kanäle einer Meldung. Die Posteingangs-Zeile hängt NICHT daran. */
+export interface NotificationChannels {
+  mail: boolean;
+  push: boolean;
+}
+
+/** Ohne Angabe gilt beides — die eine Stelle, an der dieser Default steht. */
+export const ALL_CHANNELS: NotificationChannels = { mail: true, push: true };
 
 /**
  * Präferenzen, die am EMPFÄNGER hängen — bewusst eine eigene Liste.

@@ -4,6 +4,7 @@ import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
 import { recordMessageAndBadge, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messageService";
 import { getMessageChannels } from "@/lib/notificationPrefs";
+import { ALL_CHANNELS, type NotificationChannels } from "@/lib/constants";
 
 /**
  * Was an einer Posteingangs-Zeile hängt, unabhängig davon, WESSEN Posteingang gemeint ist —
@@ -61,6 +62,24 @@ export interface NotifyContent {
    * und der Hinweis am Schalter („Anforderungen und Fristen werden immer gemeldet") wäre gelogen.
    */
   alwaysNotify?: boolean;
+  /**
+   * Welche Kanäle überhaupt in Frage kommen — fehlt die Angabe, beide.
+   *
+   * Für die eine Klasse Meldungen, deren Schalter NICHT am Empfänger hängt, sondern am TRÄGER, um
+   * den es geht: das Raster in seinen Einstellungen (`NotificationToggles`) sagt, welche seiner
+   * Ereignisse die Keyholder per Mail/Push erreichen. Der Aufrufer liest es über
+   * `getEventChannels()` und reicht das Ergebnis hier durch — er kennt den Ereignis-Typ, diese
+   * Funktion kennt nur den Empfänger.
+   *
+   * Die POSTEINGANGS-Zeile bleibt davon unberührt, und das ist der Punkt: „der Kanal wird leiser,
+   * ohne dass Information verloren geht" (`notificationPrefs.ts`). Ein abgeschalteter Schalter darf
+   * eine Meldung dämpfen, nicht verschwinden lassen.
+   *
+   * Mit dem Empfänger-Schalter (`MESSAGE_RECEIVED`) kollidiert das nicht: dieses Feld kommt
+   * ausschliesslich über `notifyControllers`, und das reicht `inbox: false` durch — der Zweig, der
+   * den Empfänger-Schalter liest, wird dann gar nicht erst betreten.
+   */
+  channels?: NotificationChannels;
 }
 
 /**
@@ -83,7 +102,7 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
   if (!user) return;
 
   let badge: number | undefined;
-  let channels = { mail: true, push: true };
+  let channels = content.channels ?? ALL_CHANNELS;
   if (inbox !== false) {
     badge = await recordMessageAndBadge({
       subjectUserId: userId,
@@ -158,6 +177,9 @@ export async function notifyControllers(
       once: content.inbox?.once,
     });
   }
+  // Beide Kanäle abgeschaltet: die Zeile steht, mehr ist nicht zu tun. Ohne diesen Riegel liefe je
+  // Empfänger eine Nutzer-Abfrage für einen Versand, der garantiert nichts verschickt.
+  if (content.channels && !content.channels.mail && !content.channels.push) return;
   await Promise.all(controllers.map((c) => notifyUser(c.id, { ...content, inbox: false })));
 }
 

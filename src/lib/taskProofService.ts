@@ -3,10 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/verifyCode";
 import { structuredLog } from "@/lib/serverLog";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser, notifyControllers } from "@/lib/notify";
+import { getEventChannels } from "@/lib/notificationPrefs";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
-import { isTaskResultFinal } from "@/lib/tasks";
+import { isTaskResultFinal, proofSubmittedLate } from "@/lib/tasks";
 import { settleTaskResult } from "@/lib/taskService";
 import type { MessageActor } from "@/lib/messageService";
 
@@ -99,9 +100,19 @@ export async function submitTaskProof(
 ): Promise<ServiceResult<{ taskId: string }>> {
   const proof = await prisma.taskProof.findFirst({
     where: ownProofWhere(proofId, userId),
-    // `holdDurationMin` gehört zur Schranke: es entscheidet, ob `holdUntil` das Ende IST oder nur
-    // dessen obere Grenze (siehe {@link taskAcceptsProof}).
-    include: { task: { select: { id: true, withdrawnAt: true, holdUntil: true, holdDurationMin: true } } },
+    // `dueOffsetMin` und `lateNotifiedAt` gehören zur Verspätungs-Meldung ({@link notifyLateProof}),
+    // die Nullpunkt-Felder der Aufgabe (`createdAt`/`wirksamAb`) und ihr Titel ebenso.
+    select: {
+      id: true, code: true, submittedAt: true, dueOffsetMin: true, lateNotifiedAt: true,
+      // `holdDurationMin` gehört zur Schranke: es entscheidet, ob `holdUntil` das Ende IST oder nur
+      // dessen obere Grenze (siehe {@link taskAcceptsProof}).
+      task: {
+        select: {
+          id: true, title: true, withdrawnAt: true, holdUntil: true, holdDurationMin: true,
+          createdAt: true, wirksamAb: true,
+        },
+      },
+    },
   });
   if (!proof) return serviceFail(404, "TASK_PROOF_NOT_FOUND");
 
@@ -124,7 +135,88 @@ export async function submitTaskProof(
   // dann gesetzt, wenn ein Code gefordert ist — `checkProofs` vergibt ihn nur dann.
   if (proof.code) void runTaskProofVerification(proofId, p.imageUrl, proof.code);
 
+  // Kam das Foto zu spät, wartet es auf ein URTEIL — und niemand sonst sagt das der Keyholderin.
+  // `submittedAt: now`, weil die Zeile oben gerade so geschrieben wurde; sie noch einmal zu laden
+  // hiesse, den eben gesetzten Wert von der Platte zurückzulesen.
+  //
+  // Fire-and-forget wie die Zeile darüber und wie die Keyholder-Meldung der Erfassungs-Route
+  // (`api/entries/route.ts`): dahinter steht ein SMTP-Versand je Empfänger, und das Gegenüber ist
+  // ein Handy, das gerade ein Foto hochlädt. Die Antwort hängt nicht davon ab — die Funktion wirft
+  // nie und stempelt sich selbst.
+  void notifyLateProof({ ...proof, submittedAt: now }, userId);
+
   return { ok: true, data: { taskId: proof.task.id } };
+}
+
+/**
+ * Meldet der Keyholderin, dass ein VERSPÄTETER Nachweis auf ihr Urteil wartet.
+ *
+ * WARUM ES DIESEN WEG BRAUCHT. Seit der Träger nach der Frist eines Nachweises noch hochladen darf,
+ * hängt der ganze Sinn dieser Kulanz an ihrem Urteil: ein verspätetes Foto zählt nur, wenn sie es
+ * annimmt (`proofCounted`). Die vorhandene „bitte sichten"-Meldung des Minuten-Ticks erreicht sie
+ * dabei nie — die hängt am Zustand `awaitingReview`, und ein verspäteter Nachweis kommt dort gar
+ * nicht an: er zählt nicht, also ist die Nachweis-Achse `failed` und die Aufgabe `missed`. Ohne
+ * diese Meldung erführe sie vom Foto erst zum Ende der Aufgabe, und dann als „versäumt" — zu spät,
+ * um es noch anzunehmen. Das Feature wäre gebaut und funktionslos.
+ *
+ * FORM WIE DIE NACHBARIN: dieselbe eine Posteingangs-Zeile für alle Keyholder plus Mail/Push je
+ * Empfänger (`notifyControllers`), derselbe Bezug auf die AUFGABE — dorthin führt der Weg zur
+ * Sichtung — und kein `actor`: dass ein Foto zu spät kam, ist ein Befund der App, kein Entschluss
+ * eines Menschen.
+ *
+ * ABSCHALTBAR, ABER NICHT VERSCHLUCKBAR. Mail und Push hängen am Schalter `TASK_PROOF_LATE` im
+ * Raster der Benutzer-Einstellungen; die Posteingangs-Zeile schreibt `notifyControllers` in jedem
+ * Fall. Das ist die Regel des Hauses („der Kanal wird leiser, ohne dass Information verloren geht")
+ * und hier zusätzlich eine Schutzmassnahme: ein umgelegter Schalter darf die einzige Spur eines
+ * wartenden Fotos nicht tilgen.
+ *
+ * GENAU EINMAL JE NACHWEIS, über `lateNotifiedAt` an der Zeile. Nicht über den abgeleiteten Zustand
+ * und nicht über `once` an der Nachricht: `once` deduplizierte über die AUFGABE, und eine Aufgabe mit
+ * drei Nachweisen bekäme für den zweiten und dritten keine Meldung mehr, obwohl jeder sein eigenes
+ * Urteil braucht. Gestempelt wird NACH dem Versand — schlägt er fehl, bleibt die Spalte leer, statt
+ * eine Meldung als erledigt auszuweisen, die nie ankam.
+ *
+ * WIRFT NIE: der Nachweis IST eingereicht. Eine gescheiterte Meldung darf die Einreichung nicht
+ * mitreissen — dieselbe Zusage wie bei {@link notifyProofReviewed}.
+ *
+ * Den RÜCKZUG prüft sie nicht: eine zurückgezogene Aufgabe nimmt gar nichts mehr an
+ * ({@link proofSubmitBlockedReason}), und diese Meldung folgt ausschliesslich auf eine geglückte
+ * Einreichung. Die Regel steht dort einmal und soll nicht hier ein zweites Mal stehen.
+ */
+export async function notifyLateProof(
+  proof: {
+    id: string;
+    dueOffsetMin: number | null;
+    submittedAt: Date | null;
+    lateNotifiedAt: Date | null;
+    task: { id: string; title: string; holdUntil: Date; createdAt: Date; wirksamAb: Date | null };
+  },
+  userId: string,
+): Promise<void> {
+  try {
+    if (proof.lateNotifiedAt) return;
+    // Gegen die SPALTE `holdUntil` gemessen, wie `evaluateProofs` es tut: die Meldung soll genau die
+    // Nachweise treffen, die dort nicht zählen. Ein Nachweis ohne eigene Fälligkeit kann hier
+    // ohnehin nie verspätet sein — nach dem Ende der Aufgabe wird gar nichts mehr angenommen.
+    if (!proofSubmittedLate(proof, proof.task, proof.task.holdUntil)) return;
+
+    const [controllers, user, channels] = await Promise.all([
+      getControllersOfUser(userId),
+      prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
+      getEventChannels(userId, "TASK_PROOF_LATE"),
+    ]);
+
+    await notifyControllers(userId, controllers, {
+      subjectKey: "taskProofLateSubjectKeyholder",
+      messageKey: "taskProofLateMessageKeyholder",
+      params: { username: user?.username ?? "", title: proof.task.title },
+      channels,
+      inbox: { ref: { type: "task", id: proof.task.id } },
+    });
+    await prisma.taskProof.update({ where: { id: proof.id }, data: { lateNotifiedAt: new Date() } });
+  } catch (err) {
+    structuredLog("taskProof", "late_notify_failed", { proofId: proof.id, error: (err as Error).message });
+  }
 }
 
 /**

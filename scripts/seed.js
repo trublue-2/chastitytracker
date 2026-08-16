@@ -18,6 +18,7 @@ const NOTIFICATION_EVENT_TYPES = [
   "KONTROLLE_ANGEFORDERT",
   "WEAR_BEGIN_ANY",
   "WEAR_END_ANY",
+  "TASK_PROOF_LATE",
 ];
 
 // Mirror of src/lib/reasonsService.ts (ART_SEP + DEFAULT_ORGASM_ARTEN sub-combos + backfill logic).

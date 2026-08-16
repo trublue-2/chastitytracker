@@ -82,6 +82,7 @@ export const MESSAGE_BODY_KEYS = [
   "taskDoneMessageKeyholder",
   "taskFailedMessageKeyholder",
   "taskReviewMessageKeyholder",
+  "taskProofLateMessageKeyholder",
   "taskProofAcceptedMessage",
   "taskProofRejectedMessage",
 ] as const;

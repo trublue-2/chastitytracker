@@ -18,15 +18,16 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
+vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => [{ id: "kh1" }]) }));
+vi.mock("@/lib/notificationPrefs", () => ({ getEventChannels: vi.fn(async () => ({ mail: true, push: true })) }));
 // Nur `evaluateTaskById` festnageln, der Rest bleibt ECHT: `SUB_VISIBLE_WHERE` hängt am Einreiche-Pfad
 // und wird unten geprüft. Als Attrappe (`{}` oder eine abgeschriebene Kopie) prüfte der Test die
 // Attrappe statt die Regel — grün, während das Fragment fehlt oder veraltet ist.
 vi.mock("@/lib/taskIntervals", async (orig) => ({ ...(await orig<object>()), evaluateTaskById: vi.fn() }));
 vi.mock("@/lib/taskService", () => ({ settleTaskResult: vi.fn() }));
 
-import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, reviewTaskProof } from "./taskProofService";
-import { notifyUser } from "@/lib/notify";
+import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, reviewTaskProof, notifyLateProof } from "./taskProofService";
+import { notifyUser, notifyControllers } from "@/lib/notify";
 import { evaluateTaskById } from "@/lib/taskIntervals";
 import { settleTaskResult } from "@/lib/taskService";
 import { prisma } from "@/lib/prisma";
@@ -37,6 +38,7 @@ const update = prisma.taskProof.updateMany as unknown as ReturnType<typeof vi.fn
 const updateOne = prisma.taskProof.update as unknown as ReturnType<typeof vi.fn>;
 const verify = verifyKontrolleCodeDetailed as unknown as ReturnType<typeof vi.fn>;
 const notify = notifyUser as unknown as ReturnType<typeof vi.fn>;
+const notifyKh = notifyControllers as unknown as ReturnType<typeof vi.fn>;
 const evaluate = evaluateTaskById as unknown as ReturnType<typeof vi.fn>;
 const taskFindMany = prisma.task.findMany as unknown as ReturnType<typeof vi.fn>;
 const taskUpdate = prisma.task.update as unknown as ReturnType<typeof vi.fn>;
@@ -46,13 +48,26 @@ const NOW = new Date("2026-07-25T14:00:00Z");
 const HOLD_UNTIL = new Date("2026-07-25T18:00:00Z");
 const PAYLOAD = { imageUrl: "/api/uploads/x.jpg", imageExifTime: new Date("2026-07-25T13:50:00Z") };
 
+/** Die Aufgabe dahinter — Nullpunkt `NOW`, Ende vier Stunden später. */
+const TASK = {
+  id: "t1",
+  title: "Einkaufen",
+  withdrawnAt: null as Date | null,
+  holdUntil: HOLD_UNTIL,
+  holdDurationMin: null as number | null,
+  createdAt: NOW,
+  wirksamAb: null as Date | null,
+};
+
 /** Ein offener Nachweis ohne Code-Pflicht — der einfachste Fall. */
 const proofRow = (over: Record<string, unknown> = {}) => ({
   id: "p1",
   requireCode: false,
   code: null,
   submittedAt: null,
-  task: { id: "t1", withdrawnAt: null, holdUntil: HOLD_UNTIL, holdDurationMin: null },
+  dueOffsetMin: null,
+  lateNotifiedAt: null,
+  task: TASK,
   ...over,
 });
 
@@ -99,7 +114,7 @@ describe("submitTaskProof — Schranken", () => {
   });
 
   it("zurückgezogene Aufgabe nimmt nichts mehr an", async () => {
-    find.mockResolvedValue(proofRow({ task: { id: "t1", withdrawnAt: NOW, holdUntil: HOLD_UNTIL, holdDurationMin: null } }));
+    find.mockResolvedValue(proofRow({ task: { ...TASK, withdrawnAt: NOW } }));
     const res = await submitTaskProof("p1", "u1", PAYLOAD);
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_NOT_EDITABLE");
@@ -127,7 +142,7 @@ describe("submitTaskProof — Schranken", () => {
    */
   it("Dauer-Modus: die harte Grenze ist das WIRKSAME Ende, nicht die Spalte", async () => {
     vi.setSystemTime(new Date("2026-07-25T17:00:00Z"));
-    find.mockResolvedValue(proofRow({ task: { id: "t1", withdrawnAt: null, holdUntil: HOLD_UNTIL, holdDurationMin: 60 } }));
+    find.mockResolvedValue(proofRow({ task: { ...TASK, holdDurationMin: 60 } }));
     // Begonnen um 15:00, eine Stunde Dauer → wirksames Ende 16:00, obwohl die Spalte 18:00 sagt.
     evaluate.mockResolvedValue({ evaluation: { proofSubmitOpen: false } });
     const res = await submitTaskProof("p1", "u1", PAYLOAD);
@@ -272,6 +287,89 @@ describe("submitTaskProof — was gespeichert wird", () => {
     // Ununterscheidbar von einem fremden Nachweis — der Ausgang verrät die Aufgabe nicht.
     expect(res).toMatchObject({ ok: false, status: 404, error: "TASK_PROOF_NOT_FOUND" });
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * DIE MELDUNG, OHNE DIE DIE SPÄTE ANNAHME FUNKTIONSLOS WÄRE.
+ *
+ * Ein verspätetes Foto zählt nur, wenn die Keyholderin es annimmt. Die vorhandene „bitte
+ * sichten"-Meldung des Minuten-Ticks erreicht sie dabei nie: sie hängt an `awaitingReview`, und ein
+ * verspäteter Nachweis kommt dort nicht an (er zählt nicht → die Aufgabe ist `missed`). Ohne diesen
+ * Weg erführe sie vom Foto erst zum Ende der Aufgabe, und dann als „versäumt".
+ */
+describe("notifyLateProof — ein verspäteter Nachweis wartet auf ein Urteil", () => {
+  /** Fälligkeit 60 Minuten nach dem Nullpunkt (= 15:00), eingereicht um 16:00. */
+  const lateProof = (over: Record<string, unknown> = {}) =>
+    proofRow({ dueOffsetMin: 60, submittedAt: new Date("2026-07-25T16:00:00Z"), ...over });
+
+  it("meldet den Keyholdern, dass ein verspätetes Foto auf ihr Urteil wartet", async () => {
+    await notifyLateProof(lateProof(), "u1");
+    expect(notifyKh).toHaveBeenCalledWith("u1", [{ id: "kh1" }], expect.objectContaining({
+      messageKey: "taskProofLateMessageKeyholder",
+      params: { username: "sub", title: "Einkaufen" },
+    }));
+  });
+
+  /** Der Bezug ist die AUFGABE — dorthin führt der Weg zur Sichtung. */
+  it("die Posteingangs-Zeile zeigt auf die Aufgabe", async () => {
+    await notifyLateProof(lateProof(), "u1");
+    expect(notifyKh.mock.calls[0][2].inbox).toEqual({ ref: { type: "task", id: "t1" } });
+  });
+
+  /** Erst zustellen, dann stempeln — ein Fehlschlag darf die Meldung nicht als erledigt ausweisen. */
+  it("stempelt die Zeile NACH dem Versand", async () => {
+    await notifyLateProof(lateProof(), "u1");
+    expect(updateOne).toHaveBeenCalledWith({ where: { id: "p1" }, data: { lateNotifiedAt: NOW } });
+    expect(notifyKh.mock.invocationCallOrder[0]).toBeLessThan(updateOne.mock.invocationCallOrder[0]);
+  });
+
+  /**
+   * GENAU EINMAL JE NACHWEIS. Der Stempel trägt die Zusage, nicht der abgeleitete Zustand: der wird
+   * bei jedem Lesen neu gerechnet und darf rückwärts gehen.
+   */
+  it("ein zweiter Lauf schweigt", async () => {
+    await notifyLateProof(lateProof({ lateNotifiedAt: NOW }), "u1");
+    expect(notifyKh).not.toHaveBeenCalled();
+    expect(updateOne).not.toHaveBeenCalled();
+  });
+
+  /** Rechtzeitig eingereicht: darüber meldet der Minuten-Tick („bitte sichten"), nicht dieser Weg —
+   *  sonst bekäme die Keyholderin zu jedem Nachweis zwei Meldungen. */
+  it("ein rechtzeitiger Nachweis löst nichts aus", async () => {
+    await notifyLateProof(lateProof({ submittedAt: new Date("2026-07-25T14:30:00Z") }), "u1");
+    expect(notifyKh).not.toHaveBeenCalled();
+  });
+
+  /** Ohne eigene Fälligkeit ist die Frist das Ende der Aufgabe — und danach wird gar nichts mehr
+   *  angenommen. Ein solcher Nachweis kann hier nie verspätet sein. */
+  it("ohne eigene Fälligkeit gibt es keine Verspätung", async () => {
+    await notifyLateProof(lateProof({ dueOffsetMin: null }), "u1");
+    expect(notifyKh).not.toHaveBeenCalled();
+  });
+
+  /** Der Nachweis IST eingereicht — eine gescheiterte Meldung darf das nicht mitreissen. */
+  it("wirft nie", async () => {
+    notifyKh.mockRejectedValueOnce(new Error("SMTP weg"));
+    await expect(notifyLateProof(lateProof(), "u1")).resolves.toBeUndefined();
+    expect(updateOne).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Die Verdrahtung — das eine, was die Fälle oben nicht zeigen können: dass `submitTaskProof` die
+ * Meldung überhaupt anstösst. Ob sie im Einzelfall feuert, ist dort geprüft.
+ *
+ * `vi.waitFor`, weil der Aufruf bewusst NICHT awaited wird (SMTP gehört nicht in den Upload des
+ * Trägers). Der Test wartet damit auf dieselbe Weise wie die Wirklichkeit: die Antwort ist da,
+ * die Meldung kommt gleich.
+ */
+describe("submitTaskProof — die Verspätung wird gemeldet", () => {
+  it("ein nach seiner Frist eingereichtes Foto meldet sich bei den Keyholdern", async () => {
+    vi.setSystemTime(new Date("2026-07-25T16:00:00Z"));
+    find.mockResolvedValue(proofRow({ dueOffsetMin: 60 }));
+    await submitTaskProof("p1", "u1", PAYLOAD);
+    await vi.waitFor(() => expect(notifyKh.mock.calls[0][2].messageKey).toBe("taskProofLateMessageKeyholder"));
   });
 });
 

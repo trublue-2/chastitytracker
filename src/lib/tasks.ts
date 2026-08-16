@@ -510,7 +510,28 @@ export function ownProofDeadline(
 function proofCounted(p: ProofLike, task: Pick<TaskLike, "createdAt" | "wirksamAb">, end: Date): boolean {
   if (p.submittedAt === null) return false;
   if (p.reviewAccepted === true) return true;
-  return p.submittedAt <= proofDeadline(p, task, end);
+  return !proofSubmittedLate(p, task, end);
+}
+
+/**
+ * Ist dieser Nachweis NACH seiner Frist eingegangen? — die halbe Frage aus {@link proofCounted},
+ * ohne das Urteil der Keyholderin.
+ *
+ * Exportiert, weil die MELDUNG sie stellt: ein verspäteter Nachweis wartet auf ein Urteil, und die
+ * Keyholderin erfährt davon sonst nichts (`notifyLateProof` in `taskProofService.ts`). Sie darf
+ * dafür nicht ihren eigenen Vergleich hinschreiben — die Meldung ginge sonst irgendwann für einen
+ * Nachweis raus, den die Auswertung längst als rechtzeitig führt (oder bliebe umgekehrt aus).
+ *
+ * Die späte ANNAHME steht bewusst nicht darin: sie ändert nichts daran, dass das Foto zu spät kam —
+ * sie entscheidet nur, ob es trotzdem zählt. Genau deshalb ist die Verspätung der Anlass zu melden
+ * und die Annahme die Antwort darauf.
+ */
+export function proofSubmittedLate(
+  p: Pick<ProofLike, "dueOffsetMin" | "submittedAt">,
+  task: Pick<TaskLike, "createdAt" | "wirksamAb">,
+  end: Date,
+): boolean {
+  return p.submittedAt !== null && p.submittedAt > proofDeadline(p, task, end);
 }
 
 /**

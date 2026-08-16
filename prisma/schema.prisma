@@ -1111,6 +1111,10 @@ model TaskProof {
   verifikationReason String?
   /// Bei `codeWrong`: die abweichend gelesene Nummer.
   verifikationReasonDetected String?
+  /// Wann der Keyholderin gemeldet wurde, dass dieser Nachweis VERSPÄTET eingegangen ist und auf ihr
+  /// Urteil wartet. null = nie gemeldet. Begründung und Regeln: `notifyLateProof` in
+  /// `src/lib/taskProofService.ts`.
+  lateNotifiedAt DateTime?
 
   // ── Sichtung durch die Keyholderin ──
   reviewedAt     DateTime?
