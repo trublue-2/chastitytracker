@@ -26,7 +26,7 @@ import { clamp, randomInt } from "@/lib/utils";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
-import { reviewTaskProof } from "@/lib/taskProofService";
+import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/taskProofService";
 import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
 
@@ -51,7 +51,18 @@ export interface DryRunPreview {
 }
 
 /** Baut die dryRun-Hülle — EINE Stelle für `{dryRun, tool, wouldSucceed, problem?, preview, diff?}`
- *  statt zwölfmal denselben Spread. Der tool-spezifische `preview`-Inhalt bleibt bei jedem Aufrufer. */
+ *  statt zwölfmal denselben Spread. Der tool-spezifische `preview`-Inhalt bleibt bei jedem Aufrufer.
+ *
+ *  **Der `problem`-Wert kommt aus derselben schreibfreien Prüfung wie der Commit, nie aus einer
+ *  zweiten Bedingungskette daneben.** Eine Abschrift ist beim Schreiben richtig und wird es später
+ *  nicht bleiben: bekommt der Service eine Schranke dazu, meldet die Vorschau weiter Erfolg für
+ *  einen Aufruf, der mit 400 endet — genau so geschehen bei `edit_task` (`completedAt`). Die
+ *  Aufgaben-Familie ist davon weg (`checkTask` · `checkTaskUpdate` · `proofReviewBlockedReason`);
+ *  ausserhalb rechnen einige Vorschauen noch selbst nach (`LOCK_DURATION_OR_END` an zwei Stellen,
+ *  `ORGASM_END_BEFORE_START`). Offen ist ausserdem `withdraw`: für `target: "task"` prüft es den
+ *  Zustand gar nicht und meldet `wouldSucceed: true` auch für eine bereits zurückgezogene Aufgabe,
+ *  für `target: "manual_offense"` fängt es zwar den Rückzug ab, aber nicht das BEURTEILTE Vergehen
+ *  (das erfährt erst der Commit). Neue Vorschauen schreiben nicht ab; sie rufen. */
 function dryRunPreview(tool: string, problem: string | undefined, preview: unknown, diff?: Record<string, [unknown, unknown]>): DryRunPreview {
   return { dryRun: true, tool, wouldSucceed: !problem, ...(problem ? { problem } : {}), preview, ...(diff ? { diff } : {}) };
 }
@@ -1788,19 +1799,9 @@ export async function mcpReviewTaskProof(username: string, args: ReviewTaskProof
   if (args.dryRun) {
     // Zustands-Regeln gehen als `problem` in die Vorschau, nicht als Wurf — wie bei jedem anderen
     // Werkzeug hier. Ein dryRun soll sagen, was passieren WÜRDE, auch wenn die Antwort „nichts" ist.
-    // Beide Zustands-Regeln, die der Service durchsetzt — sonst verspräche die Vorschau Erfolg, wo
-    // der echte Aufruf abweist.
-    //
-    // ABGESCHRIEBEN, und damit die LETZTE Vorschau der Aufgaben-Familie, die das noch tut: hier
-    // stehen die zwei Schranken aus `reviewTaskProof` ein zweites Mal, statt dass eine geteilte
-    // Prüf-Funktion sie liefert. `create_task` (`checkTask`) und `edit_task` (`checkTaskUpdate`)
-    // sind genau davon weg — bei `edit_task` fehlte der Abschrift `completedAt`, und die Vorschau
-    // versprach Erfolg für einen Commit mit 400. Eine dritte Schranke in `reviewTaskProof` liefe
-    // hier still auseinander; der Bauplan dafür steht in derselben Datei
-    // (`proofSubmitBlockedReason` in `taskProofService.ts`).
-    const problem = task.withdrawnAt ? "TASK_NOT_EDITABLE"
-      : !proof.submittedAt ? "TASK_PROOF_NOT_SUBMITTED"
-      : undefined;
+    // Über DIESELBE Prüfung, die der Commit fährt; warum nicht über eine Abschrift ihrer Regeln,
+    // steht bei {@link proofReviewBlockedReason}.
+    const problem = proofReviewBlockedReason(proof, task) ?? undefined;
     return dryRunPreview("review_task_proof", problem, {
       taskId: task.id,
       title: task.title,
@@ -1810,8 +1811,6 @@ export async function mcpReviewTaskProof(username: string, args: ReviewTaskProof
       previouslyReviewed: proof.reviewedAt !== null,
     });
   }
-
-  // Die Zustands-Prüfung selbst liegt im Service — hier stünde sie ein zweites Mal, mit zweitem Text.
 
   unwrap(await reviewTaskProof(proof.id, userId, { accepted: args.accepted, note: args.note }, AI_AUTHOR));
   return {

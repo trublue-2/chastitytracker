@@ -22,7 +22,7 @@ vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) 
 vi.mock("@/lib/taskIntervals", () => ({ evaluateTasks: vi.fn(), TASK_INCLUDE: {} }));
 vi.mock("@/lib/taskService", () => ({ settleTaskResult: vi.fn() }));
 
-import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, reviewTaskProof } from "./taskProofService";
+import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, proofReviewBlockedReason, reviewTaskProof } from "./taskProofService";
 import { notifyUser } from "@/lib/notify";
 import { evaluateTasks } from "@/lib/taskIntervals";
 import { settleTaskResult } from "@/lib/taskService";
@@ -214,6 +214,28 @@ describe("proofSubmitBlockedReason — geteilt von Seite und Service", () => {
     };
     expect(proofSubmitBlockedReason(terminiert, new Date("2026-07-25T16:30:00Z"))).toBeNull();
     expect(proofSubmitBlockedReason(terminiert, new Date("2026-07-25T17:30:00Z"))).toBe("TASK_PROOF_TOO_LATE");
+  });
+});
+
+describe("proofReviewBlockedReason — geteilt von Service und dryRun-Vorschau", () => {
+  /** Ein eingereichter Nachweis an einer offenen Aufgabe: nichts steht der Sichtung im Weg. */
+  const proof = { submittedAt: NOW };
+  const task = { withdrawnAt: null };
+
+  it("eingereicht und die Aufgabe offen: nichts steht im Weg", () => {
+    expect(proofReviewBlockedReason(proof, task)).toBeNull();
+  });
+
+  it("nennt jeden Hinderungsgrund beim Namen", () => {
+    expect(proofReviewBlockedReason(proof, { withdrawnAt: NOW })).toBe("TASK_NOT_EDITABLE");
+    expect(proofReviewBlockedReason({ submittedAt: null }, task)).toBe("TASK_PROOF_NOT_SUBMITTED");
+  });
+
+  /** Sind beide Gründe da, gewinnt der Zustand der AUFGABE: an einer zurückgezogenen Aufgabe ist ein
+   *  fehlender Nachweis keine Auskunft, die dem Aufrufer weiterhilft — nachreichen kann er ihn
+   *  ohnehin nicht mehr. Die Vorschau erbt diese Reihenfolge, statt eine eigene zu wählen. */
+  it("bei zwei Gründen gewinnt der Zustand der Aufgabe", () => {
+    expect(proofReviewBlockedReason({ submittedAt: null }, { withdrawnAt: NOW })).toBe("TASK_NOT_EDITABLE");
   });
 });
 

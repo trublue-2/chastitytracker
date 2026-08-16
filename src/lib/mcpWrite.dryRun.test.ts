@@ -21,10 +21,13 @@ vi.mock("@/lib/prisma", () => ({
     // getIsLocked/hasActiveKontrolle (advisory dryRun-Checks) lesen darüber.
     entry: { findFirst: vi.fn() },
     // Die EINZIGEN Schreibvorgänge der Aufgaben-Werkzeuge (`createTask` → writeTask → tx.task.create,
-    // `updateTask` → task.updateMany). `taskService` ist in dieser Datei bewusst NICHT gemockt — die
-    // Vorschauen rufen `checkTask`/`checkTaskUpdate` echt auf —, also müssen die Schreibwege hier als
-    // Mocks danebenstehen, um beweisen zu können, dass sie ruhen. `findUnique` liest `edit_task`.
-    task: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
+    // `updateTask` → task.updateMany, `reviewTaskProof` → taskProof.update). Weder `taskService` noch
+    // `taskProofService` sind in dieser Datei gemockt — die Vorschauen rufen `checkTask`/
+    // `checkTaskUpdate`/`proofReviewBlockedReason` echt auf —, also müssen die Schreibwege hier als
+    // Mocks danebenstehen, um beweisen zu können, dass sie ruhen. Gelesen wird über `findUnique`
+    // (`edit_task`) bzw. `findFirst` (`resolveTaskProof` in `review_task_proof`).
+    task: { create: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn() },
+    taskProof: { update: vi.fn() },
   },
 }));
 
@@ -67,6 +70,7 @@ import {
   mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpRequestOrgasm, mcpSetTrainingGoal,
   mcpWithdraw, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection,
   mcpEditLockPeriod, mcpEditLockRequest, mcpJudgeOffense, mcpCreateTask, mcpEditTask, mcpSetAutoInspections,
+  mcpReviewTaskProof,
 } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
 import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
@@ -78,6 +82,7 @@ import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
 import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
 import { taskRow } from "@/test/taskRow";
+import { taskProofRow } from "@/test/taskProofRow";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const userFindUniqueOrThrowMock = prisma.user.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;
@@ -90,7 +95,9 @@ const strafeRecordFindUniqueMock = prisma.strafeRecord.findUnique as unknown as 
 const detectedOffenseMock = requireDetectedOffense as unknown as ReturnType<typeof vi.fn>;
 const taskCreateMock = prisma.task.create as unknown as ReturnType<typeof vi.fn>;
 const taskFindUniqueMock = prisma.task.findUnique as unknown as ReturnType<typeof vi.fn>;
+const taskFindFirstMock = prisma.task.findFirst as unknown as ReturnType<typeof vi.fn>;
 const taskUpdateManyMock = prisma.task.updateMany as unknown as ReturnType<typeof vi.fn>;
+const taskProofUpdateMock = prisma.taskProof.update as unknown as ReturnType<typeof vi.fn>;
 
 /** Die Antwort-Form von `dryRunPreview` — dieselbe für jedes Werkzeug. */
 type TaskPreview = { wouldSucceed: boolean; problem?: string; preview: Record<string, unknown> };
@@ -509,6 +516,60 @@ describe("edit_task: die Vorschau prüft mit checkTaskUpdate, nicht mit einer Ab
     expect(r.preview.title).toBe("Anderes tragen");
     expect(r.diff.title).toEqual(["Wohnung staubsaugen", "Anderes tragen"]);
     expect(taskUpdateManyMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Dieselbe Klasse ein drittes Mal, für `review_task_proof`: die Vorschau prüft mit
+ * `proofReviewBlockedReason` — der Funktion, die auch `reviewTaskProof` fährt. Die Regeln selbst
+ * gehören `taskProofService.test.ts`; hier steht, dass die VORSCHAU sie erbt und dabei nichts
+ * schreibt.
+ */
+describe("review_task_proof: die Vorschau prüft mit proofReviewBlockedReason, nicht mit einer Abschrift", () => {
+  /** Ein eingereichter, noch nicht gesichteter Nachweis an einer offenen Aufgabe. Die Hülle kommt
+   *  aus `taskProofRow`, damit ein neues Feld des `select` in `taskProofRef.ts` nicht in zwei
+   *  Testdateien nachgetragen werden muss. */
+  const nachweis = ({ proof, task }: { proof?: Record<string, unknown>; task?: Record<string, unknown> } = {}) => {
+    taskFindFirstMock.mockResolvedValue(taskProofRow(
+      [{ id: "p1", description: "Foto vom Schloss", submittedAt: JETZT, reviewedAt: null, ...proof }],
+      task,
+    ));
+  };
+  const vorschau = () =>
+    mcpReviewTaskProof("sub", { taskId: "t1", index: 1, accepted: false, dryRun: true }) as Promise<TaskPreview>;
+
+  beforeEach(() => nachweis());
+
+  it("eine zurückgezogene Aufgabe wird gemeldet", async () => {
+    nachweis({ task: { withdrawnAt: JETZT } });
+    const r = await vorschau();
+    expect(r.wouldSucceed).toBe(false);
+    expect(r.problem).toBe("TASK_NOT_EDITABLE");
+  });
+
+  it("ein noch nicht eingereichter Nachweis wird gemeldet", async () => {
+    nachweis({ proof: { submittedAt: null } });
+    expect((await vorschau()).problem).toBe("TASK_PROOF_NOT_SUBMITTED");
+  });
+
+  it("die zulässige Sichtung meldet Erfolg, zeigt den Nachweis und committet nichts", async () => {
+    const r = await vorschau();
+    expect(r.wouldSucceed).toBe(true);
+    expect(r.problem).toBeUndefined();
+    expect(r.preview.title).toBe("Wohnung staubsaugen");
+    expect(r.preview.description).toBe("Foto vom Schloss");
+    expect(r.preview.accepted).toBe(false);
+    // Ein zweites Urteil ist erlaubt (`reviewTaskProof` ist bewusst wiederholbar) — die Vorschau sagt
+    // es nur an, statt es zu einem Hinderungsgrund zu machen.
+    expect(r.preview.previouslyReviewed).toBe(false);
+    expect(taskProofUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("ein bereits gesichteter Nachweis bleibt zulässig und wird als solcher angesagt", async () => {
+    nachweis({ proof: { reviewedAt: JETZT } });
+    const r = await vorschau();
+    expect(r.wouldSucceed).toBe(true);
+    expect(r.preview.previouslyReviewed).toBe(true);
   });
 });
 
