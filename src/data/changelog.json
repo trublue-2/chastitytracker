@@ -60,6 +60,13 @@
         }
       },
       {
+        "type": "fix",
+        "text": {
+          "de": "Die Vorschau des KI-Assistenten sagte bei Aufgaben mitunter Erfolg voraus, wo der Aufruf danach abgewiesen wurde. Sie prüft jetzt mit denselben Regeln, die auch beim Ausführen gelten.",
+          "en": "The AI assistant's preview sometimes predicted success for tasks that were rejected when actually run. It now checks against the same rules that apply on execution."
+        }
+      },
+      {
         "type": "security",
         "text": {
           "de": "Titel, Beschreibung und Code einer noch nicht zugestellten Aufgabe waren über einen direkten Link lesbar. Eine zurückgezogene Strafaufgabe zeigte im Dashboard weiterhin ihren Titel.",
