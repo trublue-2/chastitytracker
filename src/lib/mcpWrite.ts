@@ -534,21 +534,33 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     if (!args.id) throw new Error("target task requires an id (from keyholder_dashboard.openTasks).");
     const task = await prisma.task.findUnique({
       where: { id: args.id },
-      select: { userId: true, title: true, holdUntil: true, wirksamAb: true, benachrichtigtAt: true },
+      select: { userId: true, title: true, holdUntil: true, wirksamAb: true, benachrichtigtAt: true, completedAt: true },
     });
     if (!task || task.userId !== userId) throw new Error(`No task with id ${args.id}.`);
     if (args.dryRun) {
-      return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: "task", id: args.id, title: task.title, willWithdraw: 1 } } satisfies DryRunPreview;
+      // `willDropJudgment`: dieselbe Auswahl wie im Commit-Pfad (`withdrawTask`) — eine Vorschau,
+      // die den Strafbuch-Eintrag verschweigt, ist genau für den Fall wertlos, für den man sie ruft.
+      const willDrop = task.completedAt
+        ? 0
+        : await prisma.strafeRecord.count({ where: { userId, taskId: args.id, status: "PUNISHED", erledigtAt: null } });
+      return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: "task", id: args.id, title: task.title, willWithdraw: 1, willDropJudgment: willDrop } } satisfies DryRunPreview;
     }
     // VOR dem Rückzug festhalten: `withdrawTask` entscheidet an genau diesem Zustand, ob es meldet.
     const wasHidden = isHiddenFromSub(task);
-    unwrap(await withdrawTask(args.id, userId, AI_AUTHOR));
+    const { releasedJudgments } = unwrap(await withdrawTask(args.id, userId, AI_AUTHOR));
     const taskIso = await isoForUser(userId);
+    // Eine STRAFaufgabe nimmt ihr noch offenes Urteil mit — das gehört in die Antwort, sonst zieht
+    // ein Agent, der bloss aufräumen wollte, unbemerkt einen Strafbuch-Eintrag mit. Und die
+    // „nicht benachrichtigt"-Zusage darüber gälte weiter, obwohl das wieder unbeurteilte Vergehen
+    // dem Träger binnen Minuten als Feststellung gemeldet wird.
+    const judgmentNote = releasedJudgments > 0
+      ? ` The offense it punished is UNJUDGED again (its judgment was dropped with the task) and will be reported to the user as a detected offense — judge it again if that is not what you want.`
+      : "";
     return singleWithdrawn(
       args.id, task.title, taskIso(task.holdUntil),
-      wasHidden
+      (wasHidden
         ? `Scheduled task "${task.title}" withdrawn before it triggered. The user was NOT notified — he never learned it existed.`
-        : `Task "${task.title}" withdrawn. The user was notified — it can no longer become an offense.`,
+        : `Task "${task.title}" withdrawn. The user was notified — it can no longer become an offense.`) + judgmentNote,
       wasHidden ? taskIso(task.wirksamAb) : null,
     );
   }

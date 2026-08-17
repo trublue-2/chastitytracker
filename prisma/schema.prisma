@@ -721,7 +721,12 @@ model StrafeRecord {
   /// setzt `erledigtAt` von selbst (`settleTaskResult`), statt auf einen Klick des Keyholders zu warten.
   taskId        String?
   /// `SetNull`, nicht `Cascade`: ein Urteil ist die Aufzeichnung einer Entscheidung und überlebt die
-  /// Aufgabe. Zurückgezogen wird eine Strafaufgabe ohnehin über `withdrawnAt`, nicht gelöscht.
+  /// Aufgabe — aber nur, wenn es zu diesem Zeitpunkt noch etwas aufzeichnet. Ein noch OFFENES Urteil
+  /// nimmt der Rückzug der Aufgabe mit (`withdrawTask` → `dropJudgments`), und gelöscht werden darf
+  /// eine Aufgabe erst nach dem Rückzug. Übrig bleibt für `SetNull` also die abgeleistete Strafe:
+  /// sie bleibt stehen, wenn ihre Aufgabe später weggeräumt wird. Vorher blieb hier auch eine offene
+  /// stehen — eine Strafe ohne Aufgabe und ohne Text, die für immer in `pendingPenalties` zählte
+  /// und von einer Freitext-Strafe nicht mehr zu unterscheiden war (Befund 16.08.2026).
   task          Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([userId])

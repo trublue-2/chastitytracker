@@ -1,13 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { deployCutoff } from "@/lib/appMeta";
 import { loadSubOffenses, type SubOffense } from "@/lib/subOffenses";
-import { recordSystemMessage, type MessageRefType } from "@/lib/messageService";
+import { recordSystemMessage, OFFENSE_REF_TYPE } from "@/lib/messageService";
 import { offenseNameKey } from "@/lib/offenseLabels";
 import type { OffenseCanonicalType } from "@/lib/offenseTypes";
-
-/** Bezugs-Typ der Vergehens-Nachrichten: die `refId` des VERGEHENS, nicht die id des Urteils.
- *  Warum das zwei Namensräume sind, steht bei `MessageRefType` in `messageService.ts`. */
-export const OFFENSE_REF_TYPE: MessageRefType = "detectedOffense";
 
 /**
  * Die Brücke von der LIVE-Ableitung in den Posteingang: aus „diese Vergehen bestehen gerade" wird

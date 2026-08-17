@@ -452,9 +452,14 @@ const DISMISSED_OFFENSE_KEY = "dismissedOffense";
  */
 export const DISMISSAL_BODY_KEY: MessageBodyKey = "offenseDismissedMessage";
 
+/** Worauf die Meldungen rund um ein Vergehen zeigen: die refId des VERGEHENS, nicht die id des
+ *  Urteils. Steht neben {@link DISMISSAL_BODY_KEY}, weil die beiden zusammen EINE Zeile adressieren
+ *  — Feststellung, Verwerfung und deren Löschung. */
+export const OFFENSE_REF_TYPE: MessageRefType = "detectedOffense";
+
 /** Ist das eine Verwerfungs-Meldung? Die einzige Zeile, deren Sichtbarkeit am `bodyKey` hängt. */
 function isDismissalRow(row: RefRow): boolean {
-  return row.bodyKey === DISMISSAL_BODY_KEY && row.refEntityType === "detectedOffense" && Boolean(row.refEntityId);
+  return row.bodyKey === DISMISSAL_BODY_KEY && row.refEntityType === OFFENSE_REF_TYPE && Boolean(row.refEntityId);
 }
 
 function keyOf(row: RefRow): string | null {
@@ -580,7 +585,7 @@ async function hiddenRefKeys(rows: RefRow[], scope: InboxScope): Promise<Set<str
   if (dismissed.length) {
     const judgmentByRef = judgmentsByRef(offenses);
     for (const d of dismissed) {
-      if (!dismissalMessageStillApplies(judgmentByRef.get(refKey(d.subjectUserId, "detectedOffense", d.refId)))) {
+      if (!dismissalMessageStillApplies(judgmentByRef.get(refKey(d.subjectUserId, OFFENSE_REF_TYPE, d.refId)))) {
         hidden.add(refKey(d.subjectUserId, DISMISSED_OFFENSE_KEY, d.refId));
       }
     }
@@ -592,7 +597,7 @@ async function hiddenRefKeys(rows: RefRow[], scope: InboxScope): Promise<Set<str
  *  Feststellungs-Meldung nachschlägt (Träger + `detectedOffense` + `refId`). Geteilt von Zähler und
  *  Liste, damit die Zuordnung nicht zweimal von Hand entsteht. */
 function judgmentsByRef<T extends { userId: string; refId: string }>(judgments: T[]): Map<string, T> {
-  return new Map(judgments.map((j) => [refKey(j.userId, "detectedOffense", j.refId), j]));
+  return new Map(judgments.map((j) => [refKey(j.userId, OFFENSE_REF_TYPE, j.refId), j]));
 }
 
 /** Was ein Bezugsobjekt für die Anzeige beiträgt: sein Freitext und — falls es eine Seite gibt, die
@@ -620,7 +625,7 @@ type RefDetail = {
  *  aber keine Verbergen-Regel — er hat die terminierte Direktive selbst gestellt. */
 async function refDetails(rows: RefRow[], scope: InboxScope): Promise<Map<string, RefDetail>> {
   const subjectUserId = subjectFilter(scope);
-  const detected = refsOfType(rows, "detectedOffense");
+  const detected = refsOfType(rows, OFFENSE_REF_TYPE);
   const [offenseIds, detectedIds, controlIds, lockIds, orgasmIds, taskIds] =
     (["offense", "detectedOffense", "control", "lockRequest", "orgasmDirective", "task"] as const).map((t) => idsOfType(rows, t));
 
@@ -674,9 +679,9 @@ async function refDetails(rows: RefRow[], scope: InboxScope): Promise<Map<string
   // ihren Freitext aus demselben Urteil.
   const judgmentByRef = judgmentsByRef(judgments);
   for (const d of detected) {
-    const judgment = judgmentByRef.get(refKey(d.subjectUserId, "detectedOffense", d.refId));
+    const judgment = judgmentByRef.get(refKey(d.subjectUserId, OFFENSE_REF_TYPE, d.refId));
     const text = judgment?.reason ?? null;
-    details.set(refKey(d.subjectUserId, "detectedOffense", d.refId), { text, actionCode: null, hidden: false });
+    details.set(refKey(d.subjectUserId, OFFENSE_REF_TYPE, d.refId), { text, actionCode: null, hidden: false });
     details.set(refKey(d.subjectUserId, DISMISSED_OFFENSE_KEY, d.refId), {
       text, actionCode: null, hidden: !dismissalMessageStillApplies(judgment),
     });

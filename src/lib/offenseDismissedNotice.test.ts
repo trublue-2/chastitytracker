@@ -118,6 +118,9 @@ beforeEach(() => {
   });
   mock(prisma.strafeRecord.create).mockResolvedValue({ id: "sr1" });
   mock(prisma.strafeRecord.upsert).mockResolvedValue({ id: "sr1" });
+  // Die Rücknahme liest das Urteil, bevor sie es löscht — sie braucht seine id für die
+  // „Strafe verhängt"-Meldung, die darauf zeigt.
+  mock(prisma.strafeRecord.findMany).mockResolvedValue([{ id: "sr1" }]);
   mock(prisma.strafeRecord.deleteMany).mockResolvedValue({ count: 1 });
   announce();
 });

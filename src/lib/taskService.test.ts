@@ -6,14 +6,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * `checkOrgasmWindowEnd` seinerzeit für die Orgasmus-Anforderung behoben hat.
  */
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
+// Der Rückzug läuft in einer Transaktion (er nimmt ein offenes Strafurteil mit) — `tx` ist hier
+// derselbe Mock wie `prisma`, die Aufrufe sind damit an einer Stelle ablesbar.
+vi.mock("@/lib/prisma", () => {
+  const p = {
     user: { findUnique: vi.fn() },
     device: { findMany: vi.fn() },
     deviceCategory: { findMany: vi.fn() },
     task: { create: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
-  },
-}));
+    strafeRecord: { findMany: vi.fn(async () => []), deleteMany: vi.fn(async () => ({ count: 0 })) },
+    message: { deleteMany: vi.fn() },
+    $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(p)),
+  };
+  return { prisma: p };
+});
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/taskProofNotify", () => ({ notifyLateProofsForTask: vi.fn() }));
 vi.mock("@/lib/imageUtils", () => ({ deleteUploadedFiles: vi.fn() }));
@@ -37,6 +43,9 @@ const notifyMock = notifyUser as unknown as ReturnType<typeof vi.fn>;
 const lateSweepMock = notifyLateProofsForTask as unknown as ReturnType<typeof vi.fn>;
 const taskDeleteMock = prisma.task.deleteMany as unknown as ReturnType<typeof vi.fn>;
 const deleteFilesMock = deleteUploadedFiles as unknown as ReturnType<typeof vi.fn>;
+// Die Urteils-Tabelle: der Rückzug einer Strafaufgabe liest sie und löscht daraus.
+const judgmentFindMock = prisma.strafeRecord.findMany as unknown as ReturnType<typeof vi.fn>;
+const judgmentDeleteMock = prisma.strafeRecord.deleteMany as unknown as ReturnType<typeof vi.fn>;
 
 const JETZT = new Date("2026-07-25T12:00:00Z");
 const IN_DREI_STUNDEN = new Date("2026-07-25T15:00:00Z");
@@ -462,6 +471,47 @@ describe("withdrawTask", () => {
 
     expect(res.ok).toBe(true);
     expect(notifyMock).toHaveBeenCalledWith("u1", expect.objectContaining({ subjectKey: "taskWithdrawnSubject" }));
+  });
+});
+
+/** Der Rückzug einer STRAFaufgabe nimmt das Urteil mit — Begründung an `dropJudgments`. */
+describe("withdrawTask — das Urteil geht mit", () => {
+  const openJudgment = { refId: "off-1" };
+
+  beforeEach(() => {
+    taskFindMock.mockResolvedValue({ id: "t1", userId: "u1", title: "Strafe", withdrawnAt: null, completedAt: null });
+    taskUpdateMock.mockResolvedValue({ count: 1 });
+    judgmentFindMock.mockResolvedValue([openJudgment]);
+    judgmentDeleteMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("ein noch offenes Urteil wird fallen gelassen", async () => {
+    await withdrawTask("t1", "u1", "herrin");
+
+    expect(judgmentFindMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: "u1", taskId: "t1", status: "PUNISHED", erledigtAt: null } }),
+    );
+    expect(judgmentDeleteMock).toHaveBeenCalledWith({ where: { userId: "u1", refId: { in: ["off-1"] } } });
+  });
+
+  it("eine vom Träger GEMELDETE Strafe behält ihr Urteil", async () => {
+    // Die eigentliche Zusage, und sie hängt NICHT an `erledigtAt`: das stempelt erst der Poller nach
+    // dem Ende der Aufgabe. Zwischen „Freitag gemeldet" und „Sonntag verbucht" läge sonst ein
+    // Fenster, in dem der Rückzug eine abgeleistete Strafe tilgt.
+    taskFindMock.mockResolvedValue({ id: "t1", userId: "u1", title: "Strafe", withdrawnAt: null, completedAt: JETZT });
+    const res = await withdrawTask("t1", "u1", "herrin");
+
+    expect(res.ok).toBe(true);
+    expect(judgmentFindMock).not.toHaveBeenCalled();
+    expect(judgmentDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("eine gewöhnliche Aufgabe lässt die Urteils-Tabelle unberührt", async () => {
+    judgmentFindMock.mockResolvedValue([]);
+    const res = await withdrawTask("t1", "u1", "herrin");
+
+    expect(res.ok).toBe(true);
+    expect(judgmentDeleteMock).not.toHaveBeenCalled();
   });
 });
 

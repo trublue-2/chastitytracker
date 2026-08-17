@@ -2,14 +2,15 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch, offenseListViews, type StrafbuchData } from "@/lib/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
-import { recordSystemMessage, DISMISSAL_BODY_KEY, type MessageActor } from "@/lib/messageService";
+import { recordSystemMessage, DISMISSAL_BODY_KEY, OFFENSE_REF_TYPE, type MessageActor } from "@/lib/messageService";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
 import { checkTask, writeTask, taskAssignmentNotice, type CreateTaskParams } from "@/lib/taskService";
 import { formatDateTime } from "@/lib/utils";
 import { markLastAction } from "@/lib/appMeta";
-import { offenseWasAnnounced, OFFENSE_REF_TYPE } from "@/lib/offenseAnnounce";
+import { offenseWasAnnounced } from "@/lib/offenseAnnounce";
 import { STORED_TYPE, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
+import { dropJudgments, withdrawLinkedTask } from "@/lib/offenseJudgmentCleanup";
 import { AI_AUTHOR } from "@/lib/constants";
 
 /**
@@ -349,22 +350,6 @@ export async function punishWithTask(
   return { ok: true, data: { id: created.id, scheduledFor: checked.data.wirksamAb?.toISOString() ?? null } };
 }
 
-/**
- * Zieht die Aufgabe zurück, die am bisherigen Urteil dieses Vergehens hängt.
- *
- * Über die BEZIEHUNG statt über ein vorher gelesenes `taskId`: das spart die Abfrage und macht den
- * Besitz-Vergleich zu einer Bedingung der Anweisung selbst. Im Anlege-Fall trifft sie nur die ALTE
- * Aufgabe — die neue ist zu diesem Zeitpunkt noch nicht verknüpft (das `upsert` folgt erst danach).
- *
- * `withdrawnAt: null` in der Bedingung: ein zweiter Rückzug fasst null Zeilen an, statt den
- * Zeitpunkt des ersten zu überschreiben.
- */
-async function withdrawLinkedTask(tx: Prisma.TransactionClient, refId: string, userId: string, now: Date): Promise<void> {
-  await tx.task.updateMany({
-    where: { userId, withdrawnAt: null, strafeRecords: { some: { refId } } },
-    data: { withdrawnAt: now },
-  });
-}
 
 /**
  * Schreibt das URTEIL über ein Vergehen — die eine Stelle, an der ein beurteilter `StrafeRecord`
@@ -445,47 +430,15 @@ export async function judgeOffense(
   if (p.action === "reopen") {
     // Die Strafaufgabe geht mit: bliebe sie stehen, forderte die App weiter eine Strafe ein, die es
     // nicht mehr gibt — und ihr Verstreichen wäre später ein neues Vergehen. Zurückgezogen, nicht
-    // gelöscht: der Sub hat sie gesehen, und ein Rückzug ist die dafür vorgesehene Endstation.
-    //
-    // AUCH EINE BEREITS ERFÜLLTE: `withdrawLinkedTask` filtert nur auf `withdrawnAt: null`, nicht
-    // auf den Fortschritt, und `withdrawnAt` schlägt in der Anzeige jeden anderen Zustand — eine
-    // sichtbar erledigte Aufgabe wird also still zu einer zurückgezogenen. Das ist gewollt und die
-    // einzig widerspruchsfreie Wahl: „Rückgängig" LÖSCHT das Urteil, und die Aufgabe war nichts
-    // anderes als dessen Vollzugsform. Ohne den Rückzug bliebe beim Sub eine Strafaufgabe ohne
-    // Strafe stehen; als „erfüllt" stehen zu lassen behauptete, er habe eine Strafe abgeleistet, die
-    // niemand mehr verhängt hat. Was er GETAN hat, ist damit nicht bestritten — der Nachweis bleibt
-    // an der Aufgabe. Bestritten ist nur, dass es eine Strafe war.
+    // gelöscht: der Sub hat sie gesehen, und ein Rückzug ist die dafür vorgesehene Endstation. Auch
+    // eine bereits erfüllte — warum, steht an `withdrawLinkedTask`.
     const removed = await prisma.$transaction(async (tx) => {
       // Erst der Rückzug: danach gibt es die Verknüpfung nicht mehr, über die er sein Ziel findet.
       await withdrawLinkedTask(tx, p.refId, p.userId, now);
-      const del = await tx.strafeRecord.deleteMany({ where: { userId: p.userId, refId: p.refId } });
-      // Gab es kein Urteil, war das hier kein Wieder-Eröffnen: der Aufrufer bekommt 404, und dann
+      // Löschen statt verbergen, samt der „fallengelassen"-Meldung — Begründung an `dropJudgments`.
+      // Kein Urteil heisst: das hier war kein Wieder-Eröffnen. Der Aufrufer bekommt 404, und dann
       // soll dieser Weg auch nichts hinterlassen haben.
-      if (del.count === 0) return false;
-
-      // Sonst geht die „fallengelassen"-Meldung MIT dem Urteil, in derselben Transaktion.
-      //
-      // WARUM LÖSCHEN und nicht bloss verbergen: die Zeile behauptet „dieses Vergehen wurde
-      // fallengelassen", und in dem Moment, in dem das Urteil verschwindet, ist das nicht mehr wahr.
-      // Sichtbar war sie ohnehin schon nicht mehr (`dismissalMessageStillApplies` blendet sie ohne
-      // Urteil aus) — stehen bleibt sie also nur als Sperre: `notifyOffenseDismissed` schreibt mit
-      // `once`, und die alte Zeile unterdrückte damit die NEUE. Wer nach einem reopen erneut
-      // verwarf, blieb im Posteingang des Trägers unter dem Namen des ERSTEN Urteilenden stehen —
-      // mit dessen Zeitpunkt und dessen Gelesen-Stand, also ohne jedes Zeichen für die zweite
-      // Entscheidung. Genau die Falschaussage, gegen die die Absender-Angabe gebaut ist.
-      //
-      // Der Verlust ist keiner: die FESTSTELLUNG („ein Vergehen wurde festgestellt") bleibt stehen,
-      // sie ist der Beleg. Verworfen wird nur die Auflösung, die es nicht mehr gibt.
-      await tx.message.deleteMany({
-        where: {
-          subjectUserId: p.userId,
-          audience: "sub",
-          bodyKey: DISMISSAL_BODY_KEY,
-          refEntityType: OFFENSE_REF_TYPE,
-          refEntityId: p.refId,
-        },
-      });
-      return true;
+      return (await dropJudgments(tx, p.userId, [p.refId])) > 0;
     });
     if (!removed) return serviceFail(404, "JUDGMENT_NOT_FOUND");
     return { ok: true, data: { status: "open", done: false } };

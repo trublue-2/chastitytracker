@@ -21,7 +21,8 @@ const tx = {
   kontrollAnforderung: { create: vi.fn(), findFirst: vi.fn() },
   device: { findUnique: vi.fn() },
   task: { updateMany: vi.fn() },
-  strafeRecord: { upsert: vi.fn() },
+  // Der Aufgaben-Rückzug liest die Urteils-Tabelle (er nimmt ein offenes Urteil mit).
+  strafeRecord: { upsert: vi.fn(), findMany: vi.fn(async () => []) },
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -242,14 +243,15 @@ describe("Orgasmus-Anweisung", () => {
 describe("Aufgaben", () => {
   it("Rückzug durch einen Menschen → seine Zeile, mit Namen", async () => {
     mock(prisma.task.findFirst).mockResolvedValue({ title: "Wohnung putzen" });
-    mock(prisma.task.updateMany).mockResolvedValue({ count: 1 });
+    // Der Rückzug schreibt in einer Transaktion — er nimmt ein offenes Strafurteil mit.
+    mock(tx.task.updateMany).mockResolvedValue({ count: 1 });
     await withdrawTask("t1", "u1", HERRIN);
     expect(lastToSub()).toMatchObject({ bodyKey: "taskWithdrawnMessage", ...NAMED });
   });
 
   it("Rückzug über den MCP → KI", async () => {
     mock(prisma.task.findFirst).mockResolvedValue({ title: "Wohnung putzen" });
-    mock(prisma.task.updateMany).mockResolvedValue({ count: 1 });
+    mock(tx.task.updateMany).mockResolvedValue({ count: 1 });
     await withdrawTask("t1", "u1", AI_AUTHOR);
     expect(lastToSub()).toMatchObject(AI);
   });

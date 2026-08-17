@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.2.2",
+    "date": "2026-08-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Wird eine Strafaufgabe zurückgezogen, gilt das Vergehen wieder als unbeurteilt. Vorher blieb eine Strafe stehen, die niemand mehr erfüllen konnte.",
+          "en": "Withdrawing a penalty task now returns the offence to unjudged. Before, a penalty stayed open that nobody could carry out any more."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.2.1",
     "date": "2026-08-17",
     "changes": [

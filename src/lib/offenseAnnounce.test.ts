@@ -55,7 +55,8 @@ vi.mock("@/lib/prisma", () => ({
 const offenses = vi.fn();
 vi.mock("@/lib/subOffenses", () => ({ loadSubOffenses: async () => offenses() }));
 
-import { announceNewOffenses, announceableOffenses, OFFENSE_REF_TYPE } from "./offenseAnnounce";
+import { announceNewOffenses, announceableOffenses } from "./offenseAnnounce";
+import { OFFENSE_REF_TYPE } from "@/lib/messageService";
 import type { SubOffense } from "./subOffenses";
 
 const SINCE = new Date("2026-08-01T00:00:00Z");

@@ -12,7 +12,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 const tx = {
-  strafeRecord: { create: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
+  // `findMany` vor dem Löschen: die Rücknahme braucht die id des Urteils, um auch die
+  // „Strafe verhängt"-Meldung mitzunehmen (die zeigt auf das URTEIL, nicht auf das Vergehen).
+  strafeRecord: { create: vi.fn(), upsert: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
   task: { updateMany: vi.fn() },
   // Die Rücknahme löscht auch die „fallengelassen"-Meldung; hier zählt nur, dass sie es TUT —
   // wogegen genau, prüft `offenseDismissedNotice.test.ts` an der echten Zeile.
@@ -82,6 +84,7 @@ beforeEach(() => {
   strafbuch.mockResolvedValue(strafbuchWith("t-1"));
   tx.strafeRecord.create.mockResolvedValue({ id: "s1" });
   tx.strafeRecord.upsert.mockResolvedValue({ id: "s1" });
+  tx.strafeRecord.findMany.mockResolvedValue([{ id: "s1" }]);
   tx.strafeRecord.deleteMany.mockResolvedValue({ count: 1 });
   check.mockResolvedValue({ ok: true, data: { data: {}, wirksamAb: null } });
   write.mockResolvedValue({
@@ -131,7 +134,7 @@ describe("punishWithTask", () => {
       where: { userId: "u1", withdrawnAt: null, strafeRecords: { some: { refId: "t-1" } } },
       data: { withdrawnAt: expect.any(Date) },
     });
-    expect(tx.strafeRecord.deleteMany).toHaveBeenCalledWith({ where: { userId: "u1", refId: "t-1" } });
+    expect(tx.strafeRecord.deleteMany).toHaveBeenCalledWith({ where: { userId: "u1", refId: { in: ["t-1"] } } });
   });
 
   it("urteilt nicht über ein Vergehen, das gar nicht erkannt ist", async () => {

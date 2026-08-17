@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { dropJudgments } from "@/lib/offenseJudgmentCleanup";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
 import { notifyUser, notifyControllers, type NotifyContent, type NotifyRecipient } from "@/lib/notify";
 import { actorColumn, type MessageActor } from "@/lib/messageService";
@@ -683,20 +684,46 @@ export async function updateTask(
 /** Zieht eine Aufgabe zurück (Keyholder). Bewusst getrennt von „vorzeitig abgelegt": das eine ist ein
  *  Entschluss der Keyholderin, das andere ein Versäumnis des Subs — und ein Rückzug wird nie ein
  *  Vergehen (siehe Zustand `withdrawn` in `tasks.ts`). */
-export async function withdrawTask(id: string, userId: string, actor: MessageActor): Promise<ServiceResult<{ userId: string }>> {
+export async function withdrawTask(id: string, userId: string, actor: MessageActor): Promise<ServiceResult<{ userId: string; releasedJudgments: number }>> {
   const t = await prisma.task.findFirst({
     where: { id, userId },
-    select: { title: true, wirksamAb: true, benachrichtigtAt: true },
+    select: { title: true, wirksamAb: true, benachrichtigtAt: true, completedAt: true },
   });
   if (!t) return serviceFail(404, "TASK_NOT_FOUND");
 
   // Ein Aufruf statt Lesen-dann-Schreiben: der offene Zustand steht in der Where-Klausel, ein
   // zweiter Rückzug trifft damit null Zeilen (Vorbild: withdrawOrgasmusAnforderungById).
-  const res = await prisma.task.updateMany({
-    where: { id, userId, withdrawnAt: null },
-    data: { withdrawnAt: new Date() },
+  //
+  // Das URTEIL geht mit — die Gegenrichtung zu `judge_offense reopen`, wo der Rückzug des Urteils
+  // die Aufgabe mitnimmt; Begründung an `dropJudgments`.
+  //
+  // NUR wenn der Träger sie nicht schon erfüllt hat. Zwei Schranken, weil eine nicht reicht:
+  //
+  // - `completedAt` ist SEINE Meldung „ich habe das getan". Sie steht, sobald er meldet.
+  // - `erledigtAt` am Urteil ist die Verbuchung der APP, und die passiert erst, wenn der Poller die
+  //   Aufgabe nach ihrem Ende abschliesst (`closePenaltyForFulfilledTask`, `holdUntil <= jetzt`).
+  //
+  // Dazwischen liegt bei einer Aufgabe mit langer Frist ein ganzes Wochenende: gemeldet am Freitag,
+  // verbucht am Sonntag. Nur auf `erledigtAt` zu schauen hiesse, in genau diesem Fenster ein Urteil
+  // über eine ABGELEISTETE Strafe zu löschen — und damit zu bestreiten, was er getan hat.
+  const alreadyDone = t.completedAt !== null;
+  const released = await prisma.$transaction(async (tx) => {
+    const res = await tx.task.updateMany({
+      where: { id, userId, withdrawnAt: null },
+      data: { withdrawnAt: new Date() },
+    });
+    if (res.count === 0) return null;
+    if (alreadyDone) return 0;
+
+    // `status: "PUNISHED"` wie beim Geschwister `closePenaltyForFulfilledTask`: beide Abfragen gehen
+    // über dieselbe Beziehung und sollen dieselbe Menge meinen.
+    const openJudgments = await tx.strafeRecord.findMany({
+      where: { userId, taskId: id, status: "PUNISHED", erledigtAt: null },
+      select: { refId: true },
+    });
+    return dropJudgments(tx, userId, openJudgments.map((j) => j.refId));
   });
-  if (res.count === 0) return serviceFail(400, "TASK_NOT_EDITABLE");
+  if (released === null) return serviceFail(400, "TASK_NOT_EDITABLE");
 
   // Wie bei der Änderung: einen Rückzug zu melden, bevor die Aufgabe ausgelöst hat, verriete sie —
   // der Träger erführe von einer Anweisung nur dadurch, dass sie zurückgenommen wurde.
@@ -709,7 +736,7 @@ export async function withdrawTask(id: string, userId: string, actor: MessageAct
       inbox: { ref: { type: "task", id }, once: true, actor },
     });
   }
-  return { ok: true, data: { userId } };
+  return { ok: true, data: { userId, releasedJudgments: released } };
 }
 
 /**
@@ -727,7 +754,8 @@ export async function withdrawTask(id: string, userId: string, actor: MessageAct
  *
  * WAS MITGEHT: Bedingungen und Nachweis-Zeilen über `onDelete: Cascade`, und die hochgeladenen
  * Nachweis-FOTOS über {@link deleteUploadedFiles} — sie gehören zu dieser Aufgabe und zu nichts
- * sonst. Ein Urteil im Strafbuch überlebt (`onDelete: SetNull`, so am Modell begründet).
+ * sonst. Ein Urteil im Strafbuch überlebt — sofern es das hier überhaupt noch gibt: ein offenes
+ * hat schon der Rückzug mitgenommen, und ohne Rückzug kommt keine Aufgabe hierher.
  *
  * WAS BLEIBT: die Posteingangs-Zeilen zu dieser Aufgabe. Sie sind bewusst nicht angetastet — sie
  * bleiben lesbar (ihr Text steht in der Zeile selbst) und verlieren nur ihren Bezug. Das ist eine
