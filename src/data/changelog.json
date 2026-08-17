@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.2.1",
+    "date": "2026-08-17",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Kontroll-Code, den man sich noch einmal aufs Handy schickt, nennt jetzt zusätzlich die Uhrzeit. Auf der Smartwatch stand vorher zweimal derselbe Code im Foto.",
+          "en": "The inspection code you resend to your phone now also names the time. On a smartwatch the photo previously showed the same code twice."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.2.0",
     "date": "2026-08-16",
     "changes": [
