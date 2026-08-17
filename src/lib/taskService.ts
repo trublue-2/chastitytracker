@@ -6,7 +6,7 @@ import { notifyUser, notifyControllers, type NotifyContent, type NotifyRecipient
 import { actorColumn, type MessageActor } from "@/lib/messageService";
 import { getControllerAudience } from "@/lib/keyholder";
 import { notifyLateProofsForTask } from "@/lib/taskProofNotify";
-import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { evaluateTasks, evaluateTaskById, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
 import { parseTriggerAt, computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters, type TaskLike } from "@/lib/tasks";
@@ -842,7 +842,97 @@ export async function completeTask(
     const exists = await prisma.task.count({ where: own });
     return exists === 0 ? serviceFail(404, "TASK_NOT_FOUND") : { ok: true, data: { id } };
   }
+
+  // Die Meldung kann das Ergebnis FESTSTELLEN — bei einer Aufgabe ohne Bedingungen ist sie sogar
+  // der Regelfall dafür. Dann wird jetzt verbucht, nicht erst zur Frist.
+  //
+  // `void`: seine Meldung IST geschrieben, und sie darf nicht am SMTP der Keyholder-Benachrichtigung
+  // hängen. Bliebe der Request daran stehen, wertete die Offline-Warteschlange den Timeout als
+  // „später nochmal" — und spielte dieselbe Meldung ein zweites Mal ein.
+  void settleIfNowDone(userId, id);
+
   return { ok: true, data: { id } };
+}
+
+
+/**
+ * Steht das Ergebnis fest, dann verbuche es jetzt — der Weg der SICHTUNG (`reviewTaskProof`).
+ *
+ * Die Regel dahinter: **verbucht wird von der Handlung, die das Ergebnis feststellt.** Der Poller
+ * (`processDueTasks`) bleibt das Auffangnetz für alles, was erst mit der Frist entschieden ist.
+ *
+ * WIRFT: der Aufrufer entscheidet, was ein Fehlschlag für IHN bedeutet.
+ */
+export async function settleIfFinal(
+  userId: string,
+  taskId: string,
+  /** Höchstens EINE Zeile im Posteingang? Die SICHTUNG setzt es NICHT — eine Wiederholung ist dort
+   *  ein korrigiertes Urteil, und das muss der Sub sehen (siehe {@link settleTaskResult}). */
+  once: boolean,
+): Promise<"settled" | "notFinal" | "gone"> {
+  const now = new Date();
+  const evaluated = await evaluateTaskById(userId, taskId, now);
+  if (!evaluated) return "gone";
+  if (!isTaskResultFinal(evaluated.evaluation.state)) return "notFinal";
+
+  const { controllers, username } = await getControllerAudience(userId);
+  await settleTaskResult({
+    userId, taskId, title: evaluated.task.title,
+    done: evaluated.evaluation.state === "done",
+    controllers, username, now, once,
+  });
+  return "settled";
+}
+
+/**
+ * Dasselbe für die Wege des TRÄGERS: seine Selbstmeldung (`completeTask`) und die automatische
+ * Code-Prüfung eines Nachweises (`runTaskProofVerification`).
+ *
+ * Der Befund, der beide gebraucht hätte (17.08.2026): Strafaufgabe ohne Bedingungen, Nachweis um
+ * 21:03 angenommen, Selbstmeldung 21:04, Frist am Folgetag 20:00. Erfüllt war sie um 21:04 —
+ * verbucht wurde sie nicht. Der Poller wählt über `holdUntil <= jetzt`, und die Sichtung sah zehn
+ * Sekunden vorher noch kein `completedAt`. 23 Stunden `pendingPenalties: 1` für eine abgeleistete,
+ * angenommene Strafe, und keine Ergebnis-Meldung an irgendwen.
+ *
+ * ZWEI Unterschiede zu {@link settleIfFinal}, und beide sind der Grund für die eigene Funktion:
+ *
+ * 1. NUR `done`. Endgültig im Sinne von `isTaskResultFinal` ist eine Aufgabe auch als `missed` oder
+ *    `aborted`, und zwar oft lange vor ihrer Frist (gebrochene Bedingung, verstrichene Kulanz- oder
+ *    Nachweis-Frist). `resultNotifiedAt` ist aber ein EINWEG-Tor: gestempelt sieht der Poller die
+ *    Zeile nie wieder. Ein früh gemeldetes „versäumt" — etwa aus einer nachgereichten
+ *    Offline-Meldung — nähme der Keyholderin damit die Korrektur: räumt sie den Trage-Eintrag
+ *    gerade, steht die Aufgabe zur Frist auf `done`, aber niemand meldet es mehr und keine Strafe
+ *    schliesst sich. Das wäre derselbe Befund in Gegenrichtung. Ein Fehlschlag hat es nicht eilig;
+ *    er wird zur Frist gemeldet, wo er ohnehin feststeht.
+ * 2. `resultNotifiedAt` wird VORHER gelesen. Die `once`-Sperre hält nur die Posteingangs-Zeile
+ *    einmalig; Mail und Push gehen unbedingt raus. Eine aus der Offline-Warteschlange nachgereichte
+ *    Meldung schickte sonst eine zweite Ergebnis-Mail an Träger und Keyholder.
+ *
+ * WIRFT NIE — die Aufrufer rufen `void`: die Meldung des Trägers IST geschrieben, und sie darf weder
+ * an einem hängenden SMTP warten noch an ihm scheitern.
+ */
+export async function settleIfNowDone(userId: string, taskId: string): Promise<void> {
+  try {
+    const now = new Date();
+    const evaluated = await evaluateTaskById(userId, taskId, now);
+    if (!evaluated || evaluated.evaluation.state !== "done") return;
+
+    // Der Stempel steht nicht am ausgewerteten Bild (`TaskWithRequirements` trägt nur, was die
+    // Auswertung braucht) — eine schmale Abfrage, und nur auf dem Weg, der ohnehin gleich meldet.
+    const stamped = await prisma.task.findFirst({ where: { id: taskId, userId }, select: { resultNotifiedAt: true } });
+    if (!stamped || stamped.resultNotifiedAt) return;
+
+    const { controllers, username } = await getControllerAudience(userId);
+    await settleTaskResult({
+      userId, taskId, title: evaluated.task.title, done: true,
+      controllers, username, now,
+      // Anders als bei der Sichtung: eine wiederholte Selbstmeldung ist dieselbe Sache, kein
+      // korrigiertes Urteil.
+      once: true,
+    });
+  } catch (err) {
+    structuredLog("task", "settle_now_done_failed", { taskId, error: (err as Error).message });
+  }
 }
 
 /**
@@ -902,7 +992,6 @@ export async function settleTaskResult(opts: {
   // dieser Helfer ist der EINE Trichter, durch den jeder Endzustand läuft — der Minuten-Tick ebenso
   // wie die Sichtung eines Nachweises, die eine wartende Aufgabe nachträglich erfüllt. Am Poller
   // allein hinge eine spät angenommene Sichtung in der Luft, und die Strafe bliebe für immer offen.
-  // War die Aufgabe eine STRAFE, ist die Strafe mit ihr abgearbeitet.
   if (done) await closePenaltyForFulfilledTask(taskId, now);
 }
 

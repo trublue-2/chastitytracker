@@ -13,14 +13,21 @@ vi.mock("@/lib/prisma", () => {
     user: { findUnique: vi.fn() },
     device: { findMany: vi.fn() },
     deviceCategory: { findMany: vi.fn() },
-    task: { create: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
-    strafeRecord: { findMany: vi.fn(async () => []), deleteMany: vi.fn(async () => ({ count: 0 })) },
+    task: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
+    strafeRecord: { findMany: vi.fn(async () => []), deleteMany: vi.fn(async () => ({ count: 0 })), updateMany: vi.fn(async () => ({ count: 0 })) },
     message: { deleteMany: vi.fn() },
     $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(p)),
   };
   return { prisma: p };
 });
-vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
+vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
+// Teilmock wie in `taskProofService.test.ts`: die Auswertung ist dort geprüft, hier zählt, was die
+// App mit ihrem Ergebnis tut.
+vi.mock("@/lib/taskIntervals", async (orig) => ({
+  ...(await orig<object>()),
+  evaluateTaskById: vi.fn(),
+}));
+vi.mock("@/lib/keyholder", () => ({ getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })) }));
 vi.mock("@/lib/taskProofNotify", () => ({ notifyLateProofsForTask: vi.fn() }));
 vi.mock("@/lib/imageUtils", () => ({ deleteUploadedFiles: vi.fn() }));
 // Nur den Zufall festnageln — `utils` ist sonst reine Arithmetik und soll echt laufen.
@@ -29,7 +36,8 @@ vi.mock("@/lib/utils", async (orig) => ({ ...(await orig<object>()), generateKon
 import { createTask, updateTask, withdrawTask, deleteTask, completeTask, mergeTaskPatch, effectivePenaltyReason } from "./taskService";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { prisma } from "@/lib/prisma";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser, notifyControllers } from "@/lib/notify";
+import { evaluateTaskById } from "@/lib/taskIntervals";
 import { notifyLateProofsForTask } from "@/lib/taskProofNotify";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
@@ -40,6 +48,10 @@ const taskFindMock = prisma.task.findFirst as unknown as ReturnType<typeof vi.fn
 const taskUpdateMock = prisma.task.updateMany as unknown as ReturnType<typeof vi.fn>;
 const taskCountMock = prisma.task.count as unknown as ReturnType<typeof vi.fn>;
 const notifyMock = notifyUser as unknown as ReturnType<typeof vi.fn>;
+const evalMock = evaluateTaskById as unknown as ReturnType<typeof vi.fn>;
+const notifyControllersMock = notifyControllers as unknown as ReturnType<typeof vi.fn>;
+const penaltyCloseMock = prisma.strafeRecord.updateMany as unknown as ReturnType<typeof vi.fn>;
+const taskUpdateOneMock = prisma.task.update as unknown as ReturnType<typeof vi.fn>;
 const lateSweepMock = notifyLateProofsForTask as unknown as ReturnType<typeof vi.fn>;
 const taskDeleteMock = prisma.task.deleteMany as unknown as ReturnType<typeof vi.fn>;
 const deleteFilesMock = deleteUploadedFiles as unknown as ReturnType<typeof vi.fn>;
@@ -54,6 +66,9 @@ const base = { userId: "u1", title: "Wohnung staubsaugen", holdUntil: IN_DREI_ST
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Ohne ausdrückliches Ergebnis wertet der Nachlauf NICHTS aus — sonst hinge das Verhalten der
+  // übrigen `completeTask`-Tests daran, dass `undefined` zufällig falsy ist.
+  evalMock.mockResolvedValue(null);
   vi.useFakeTimers();
   vi.setSystemTime(JETZT);
   userMock.mockResolvedValue({ id: "u1" });
@@ -806,5 +821,91 @@ describe("deleteTask — nur zurückgezogene, und dann vollständig", () => {
     taskFindMock.mockResolvedValue(null); // findFirst ist bereits auf userId gefiltert
     const res = await deleteTask("t1", "u1");
     expect(res).toMatchObject({ ok: false, status: 404, error: "TASK_NOT_FOUND" });
+  });
+});
+
+
+/**
+ * Verbucht wird von der HANDLUNG, die das Ergebnis feststellt — nicht erst zur Frist.
+ *
+ * Befund 17.08.2026: Strafaufgabe ohne Bedingungen, Nachweis angenommen 21:03, Selbstmeldung 21:04,
+ * Frist am Folgetag 20:00. Erfüllt war sie um 21:04, verbucht wurde sie nicht: der Poller wählt über
+ * `holdUntil <= jetzt`, und die Sichtung sah eine Minute vorher noch kein `completedAt`. 23 Stunden
+ * lang stand `pendingPenalties: 1` für eine abgeleistete und angenommene Strafe.
+ */
+describe("completeTask — steht das Ergebnis fest, wird sofort verbucht", () => {
+  beforeEach(() => {
+    taskUpdateMock.mockResolvedValue({ count: 1 });
+    taskUpdateOneMock.mockResolvedValue({});
+    penaltyCloseMock.mockResolvedValue({ count: 1 });
+    // Noch nicht gemeldet — die Sperre gegen die zweite Ergebnis-Mail.
+    taskFindMock.mockResolvedValue({ resultNotifiedAt: null });
+  });
+
+  /** Der Nachlauf läuft `void` (er darf den Request nicht am SMTP aufhalten) — abgewartet wird sein
+   *  WIRKEN, nicht sein Promise. */
+  const settled = (fn: () => void) => vi.waitFor(fn);
+
+  it("erfüllt → Ergebnis-Meldung und die Strafe ist abgehakt", async () => {
+    evalMock.mockResolvedValue({ task: { id: "t1", title: "Fünfzig Zeilen" }, evaluation: { state: "done" } });
+    await completeTask("t1", "u1");
+
+    // `once: true` — eine wiederholte Selbstmeldung (Offline-Warteschlange) ist dieselbe Sache und
+    // darf keine zweite Zeile hinterlassen.
+    await settled(() => expect(notifyMock).toHaveBeenCalledWith("u1", expect.objectContaining({
+      subjectKey: "taskDoneSubject",
+      inbox: expect.objectContaining({ once: true }),
+    })));
+    // Auch die Keyholder-Hälfte der Meldung.
+    await settled(() => expect(notifyControllersMock).toHaveBeenCalled());
+    // Und die Zeile, die im Befund 23 Stunden zu spät kam.
+    await settled(() => expect(penaltyCloseMock).toHaveBeenCalledWith(expect.objectContaining({
+      where: { taskId: "t1", status: "PUNISHED", erledigtAt: null },
+    })));
+    // Der Stempel, der den Poller von der Zeile fernhält.
+    await settled(() => expect(taskUpdateOneMock).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "t1" }, data: { resultNotifiedAt: expect.any(Date) },
+    })));
+  });
+
+  /**
+   * Die Schranke, die den Befund NICHT in Gegenrichtung wiederholt.
+   *
+   * `aborted` ist endgültig — und zwar oft lange vor der Frist. Früh gemeldet und gestempelt sähe
+   * der Poller die Zeile nie wieder: räumt die Keyholderin danach den Trage-Eintrag, stünde die
+   * Aufgabe zur Frist auf `done`, aber niemand meldete es und keine Strafe schlösse sich.
+   */
+  it("abgebrochen → NICHTS wird früh verbucht, der Poller bleibt zuständig", async () => {
+    evalMock.mockResolvedValue({ task: { id: "t1", title: "Fünfzig Zeilen" }, evaluation: { state: "aborted" } });
+    await completeTask("t1", "u1");
+
+    await expect(vi.waitFor(() => expect(notifyMock).toHaveBeenCalled(), { timeout: 60 })).rejects.toThrow();
+    expect(penaltyCloseMock).not.toHaveBeenCalled();
+    expect(taskUpdateOneMock).not.toHaveBeenCalled();
+  });
+
+  it("läuft noch → nichts wird verbucht", async () => {
+    evalMock.mockResolvedValue({ task: { id: "t1", title: "Fünfzig Zeilen" }, evaluation: { state: "running" } });
+    await completeTask("t1", "u1");
+
+    await expect(vi.waitFor(() => expect(notifyMock).toHaveBeenCalled(), { timeout: 60 })).rejects.toThrow();
+    expect(penaltyCloseMock).not.toHaveBeenCalled();
+  });
+
+  /** Schon gemeldet: eine nachgereichte Offline-Meldung darf keine ZWEITE Ergebnis-Mail auslösen —
+   *  `once` hält nur die Posteingangs-Zeile einmalig, Mail und Push gehen unbedingt raus. */
+  it("bereits gemeldet → keine zweite Ergebnis-Meldung", async () => {
+    evalMock.mockResolvedValue({ task: { id: "t1", title: "Fünfzig Zeilen" }, evaluation: { state: "done" } });
+    taskFindMock.mockResolvedValue({ resultNotifiedAt: JETZT });
+    await completeTask("t1", "u1");
+
+    await expect(vi.waitFor(() => expect(notifyMock).toHaveBeenCalled(), { timeout: 60 })).rejects.toThrow();
+  });
+
+  it("eine gescheiterte Verbuchung reisst die Meldung des Trägers nicht mit", async () => {
+    evalMock.mockRejectedValue(new Error("DB weg"));
+    const res = await completeTask("t1", "u1");
+
+    expect(res.ok).toBe(true);
   });
 });

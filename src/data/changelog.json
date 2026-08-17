@@ -9,6 +9,13 @@
           "de": "Wird eine Strafaufgabe zurückgezogen, gilt das Vergehen wieder als unbeurteilt. Vorher blieb eine Strafe stehen, die niemand mehr erfüllen konnte.",
           "en": "Withdrawing a penalty task now returns the offence to unjudged. Before, a penalty stayed open that nobody could carry out any more."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Meldet der Träger eine Aufgabe als erledigt und steht sie damit fest, wird das Ergebnis sofort gemeldet und eine Strafe sofort abgehakt — nicht erst zur Frist.",
+          "en": "When the wearer reports a task done and that settles it, the result is reported and any penalty closed right away instead of waiting for the deadline."
+        }
       }
     ]
   },

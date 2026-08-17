@@ -24,12 +24,15 @@ vi.mock("@/lib/notificationPrefs", () => ({ getEventChannels: vi.fn(async () => 
 // und wird unten geprüft. Als Attrappe (`{}` oder eine abgeschriebene Kopie) prüfte der Test die
 // Attrappe statt die Regel — grün, während das Fragment fehlt oder veraltet ist.
 vi.mock("@/lib/taskIntervals", async (orig) => ({ ...(await orig<object>()), evaluateTaskById: vi.fn() }));
-vi.mock("@/lib/taskService", () => ({ settleTaskResult: vi.fn() }));
+// Der Sichtungs-Pfad verbucht über den geteilten Helfer; WAS der verbucht, prüft
+// `taskService.test.ts`. Hier zählt, ob er gerufen wird — und was der Pfad tut, wenn die Aufgabe
+// danach noch nicht feststeht.
+vi.mock("@/lib/taskService", () => ({ settleIfFinal: vi.fn(async () => "notFinal") }));
 
 import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, proofReviewBlockedReason, reviewTaskProof } from "./taskProofService";
 import { notifyUser, notifyControllers } from "@/lib/notify";
 import { evaluateTaskById } from "@/lib/taskIntervals";
-import { settleTaskResult } from "@/lib/taskService";
+import { settleIfFinal } from "@/lib/taskService";
 import { prisma } from "@/lib/prisma";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
 
@@ -42,7 +45,7 @@ const notifyKh = notifyControllers as unknown as ReturnType<typeof vi.fn>;
 const evaluate = evaluateTaskById as unknown as ReturnType<typeof vi.fn>;
 const taskFindMany = prisma.task.findMany as unknown as ReturnType<typeof vi.fn>;
 const taskUpdate = prisma.task.update as unknown as ReturnType<typeof vi.fn>;
-const notifyResult = settleTaskResult as unknown as ReturnType<typeof vi.fn>;
+const settle = settleIfFinal as unknown as ReturnType<typeof vi.fn>;
 
 const NOW = new Date("2026-07-25T14:00:00Z");
 const HOLD_UNTIL = new Date("2026-07-25T18:00:00Z");
@@ -340,6 +343,8 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
   /** Was die Sichtung geschrieben hat. */
   const reviewed = () => updateOne.mock.calls[0][0].data;
   const evaluatedAs = (state: string) => evaluate.mockResolvedValue({ evaluation: { state } });
+  /** Was der geteilte Helfer über die Aufgabe berichtet — „steht fest" gegen „läuft noch". */
+  const settlesAs = (outcome: "settled" | "notFinal" | "gone") => settle.mockResolvedValue(outcome);
 
   it("schreibt Urteil, Zeitpunkt und Anmerkung", async () => {
     find.mockResolvedValue(submitted());
@@ -377,20 +382,20 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
    * Der Poller hat seine Meldung („bitte sichten") längst abgegeben und die Zeile dabei gestempelt —
    * er sieht sie nie wieder. Das ERGEBNIS muss deshalb von der Handlung kommen, die es herbeiführt.
    */
-  it("steht die Aufgabe danach fest, geht die ERGEBNIS-Meldung raus (geteilter Helfer)", async () => {
+  it("steht die Aufgabe danach fest, verbucht der geteilte Helfer sie", async () => {
     find.mockResolvedValue(submitted());
-    evaluatedAs("done");
+    settlesAs("settled");
     await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
-    expect(notifyResult).toHaveBeenCalledWith(expect.objectContaining({ taskId: "t1", done: true }));
+    expect(settle).toHaveBeenCalledWith("u1", "t1", false);
     // Der Sub bekommt NICHT zusätzlich die Sichtungs-Meldung — das Ergebnis ist die Nachricht.
     expect(notify).not.toHaveBeenCalled();
   });
 
-  it("Ablehnung meldet den Fehlschlag", async () => {
+  it("eine verschwundene Aufgabe meldet gar nichts", async () => {
     find.mockResolvedValue(submitted());
-    evaluatedAs("missed");
-    await reviewTaskProof("p1", "u1", { accepted: false }, "herrin");
-    expect(notifyResult).toHaveBeenCalledWith(expect.objectContaining({ done: false }));
+    settlesAs("gone");
+    await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
+    expect(notify).not.toHaveBeenCalled();
   });
 
   /**
@@ -402,24 +407,24 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
    */
   it("REGRESSION: die Sichtung setzt KEIN `once` — sonst bliebe die Korrektur unsichtbar", async () => {
     find.mockResolvedValue(submitted());
-    evaluatedAs("done");
+    settlesAs("settled");
     await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
-    expect(notifyResult).toHaveBeenCalledWith(expect.objectContaining({ once: false }));
+    // Drittes Argument: `once`. Die Selbstmeldung setzt es, die Sichtung nicht.
+    expect(settle).toHaveBeenCalledWith("u1", "t1", false);
   });
 
   /** Frist läuft noch oder ein anderer Nachweis fehlt: es GIBT noch kein Ergebnis. */
   it("steht sie noch nicht fest, erfährt nur der Sub von der Sichtung", async () => {
     find.mockResolvedValue(submitted());
-    evaluatedAs("awaitingReview");
+    settlesAs("notFinal");
     await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
     expect(notify.mock.calls[0][1].subjectKey).toBe("taskProofAcceptedSubject");
-    expect(notifyResult).not.toHaveBeenCalled();
   });
 
   /** Die Sichtung IST geschrieben — eine gescheiterte Meldung darf sie nicht mitreissen. */
   it("eine gescheiterte Meldung lässt das Urteil stehen", async () => {
     find.mockResolvedValue(submitted());
-    evaluate.mockRejectedValue(new Error("Auswertung kaputt"));
+    settle.mockRejectedValue(new Error("Auswertung kaputt"));
     const res = await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
     expect(res.ok).toBe(true);
     expect(updateOne).toHaveBeenCalled();

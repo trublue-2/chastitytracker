@@ -8,7 +8,7 @@ import { getControllerAudience } from "@/lib/keyholder";
 import { notifyLateProof } from "@/lib/taskProofNotify";
 import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
 import { isTaskResultFinal } from "@/lib/tasks";
-import { settleTaskResult } from "@/lib/taskService";
+import { settleIfFinal, settleIfNowDone } from "@/lib/taskService";
 import type { MessageActor } from "@/lib/messageService";
 
 /**
@@ -59,13 +59,19 @@ export function proofVerificationOutcome(result: VerifyDetailedResult | null): {
  * Sichtung". Landet die Bestätigung, wechselt er von selbst. Ein Fehlschlag der Prüfung lässt ihn in
  * der Sichtung, was ohnehin der richtige Ausgang ist.
  */
-export async function runTaskProofVerification(proofId: string, imageUrl: string, code: string): Promise<void> {
+export async function runTaskProofVerification(proofId: string, imageUrl: string, code: string, userId: string, taskId: string): Promise<void> {
   try {
     const result = await verifyKontrolleCodeDetailed(imageUrl, code);
     if (result === null || result.error) {
       structuredLog("taskProof", "verify_unavailable", { proofId, error: result?.error ?? "not_configured" });
     }
     await prisma.taskProof.update({ where: { id: proofId }, data: proofVerificationOutcome(result) });
+
+    // Ein bestätigter Code SICHTET den Nachweis von selbst (`codeConfirmed`) — dann kann diese
+    // Prüfung die letzte fehlende Handlung gewesen sein, und die Aufgabe ist damit erfüllt. Ohne
+    // diese Zeile wartete das Ergebnis bis zur Frist, wie es die Selbstmeldung vor dem Befund vom
+    // 17.08.2026 tat.
+    await settleIfNowDone(userId, taskId);
   } catch (err) {
     // Nie werfen: der Nachweis IST eingereicht, und ein gescheiterter Prüflauf darf das nicht
     // rückgängig machen. Ohne Ergebnis bleibt er in der Sichtung — der sichere Ausgang.
@@ -133,7 +139,7 @@ export async function submitTaskProof(
 
   // Code-Prüfung erst NACH dem Speichern (siehe `runTaskProofVerification`). `proof.code` ist genau
   // dann gesetzt, wenn ein Code gefordert ist — `checkProofs` vergibt ihn nur dann.
-  if (proof.code) void runTaskProofVerification(proofId, p.imageUrl, proof.code);
+  if (proof.code) void runTaskProofVerification(proofId, p.imageUrl, proof.code, userId, proof.task.id);
 
   // Kam das Foto zu spät, wartet es auf ein URTEIL — und niemand sonst sagt das der Keyholderin
   // (`taskProofNotify.ts`; die zweite Stelle, an der dieselbe Verspätung entsteht, ist eine nach vorn
@@ -303,31 +309,20 @@ export async function reviewTaskProof(
  */
 async function notifyProofReviewed(taskId: string, userId: string, title: string, accepted: boolean, actor: MessageActor): Promise<void> {
   try {
-    const evaluated = await evaluateTaskById(userId, taskId, new Date());
-    if (!evaluated) return;
+    // `once: false` — eine zweite Sichtung ist ein korrigiertes Urteil. Verschluckte der Posteingang
+    // sie, bliebe nach „abgelehnt → doch angenommen" das falsche Ergebnis als letzte Zeile stehen.
+    if (await settleIfFinal(userId, taskId, false) !== "notFinal") return;
 
-    if (!isTaskResultFinal(evaluated.evaluation.state)) {
-      await notifyUser(userId, {
-        subjectKey: accepted ? "taskProofAcceptedSubject" : "taskProofRejectedSubject",
-        messageKey: accepted ? "taskProofAcceptedMessage" : "taskProofRejectedMessage",
-        params: { title },
-        alwaysNotify: true,
-        // Das URTEIL über den Nachweis ist die Entscheidung eines Menschen und nennt ihn. Anders als
-        // die Ergebnis-Meldung darunter (`settleTaskResult`), die ein Befund der App ist.
-        inbox: { ref: { type: "task", id: taskId }, actor },
-      });
-      return;
-    }
-
-    const { controllers, username } = await getControllerAudience(userId);
-    // Derselbe Helfer, den der Poller benutzt — er stempelt auch, damit dieser nicht nachlegt.
-    await settleTaskResult({
-      userId, taskId, title,
-      done: evaluated.evaluation.state === "done",
-      controllers, username, now: new Date(),
-      // KEIN `once`: eine zweite Sichtung ist ein korrigiertes Urteil. Verschluckte der Posteingang
-      // sie, bliebe nach „abgelehnt → doch angenommen" das falsche Ergebnis als letzte Zeile stehen.
-      once: false,
+    // Steht die Aufgabe noch nicht fest — die Frist läuft, oder ein anderer Nachweis fehlt —,
+    // erfährt nur der Sub, dass sein Nachweis beurteilt wurde.
+    await notifyUser(userId, {
+      subjectKey: accepted ? "taskProofAcceptedSubject" : "taskProofRejectedSubject",
+      messageKey: accepted ? "taskProofAcceptedMessage" : "taskProofRejectedMessage",
+      params: { title },
+      alwaysNotify: true,
+      // Das URTEIL über den Nachweis ist die Entscheidung eines Menschen und nennt ihn. Anders als
+      // die Ergebnis-Meldung darüber (`settleTaskResult`), die ein Befund der App ist.
+      inbox: { ref: { type: "task", id: taskId }, actor },
     });
   } catch (err) {
     // Die Sichtung IST geschrieben — eine gescheiterte Meldung darf sie nicht mitreissen.
