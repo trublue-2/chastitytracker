@@ -4,6 +4,7 @@ import { resendInspectionCode } from "@/lib/kontrolleService";
 import { serviceResponse, errorResponse } from "@/lib/serviceResult";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { INSPECTION_CODE_PUSH_COOLDOWN_MS, inspectionCodePushLimitKey } from "@/lib/constants";
+import { APP_TZ } from "@/lib/utils";
 
 /**
  * Der Sub schickt sich den Code seiner laufenden Kontrolle noch einmal als Push — der Weg, den Code
@@ -26,7 +27,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     const rl = await checkRateLimit(inspectionCodePushLimitKey(session.user.id), 1, INSPECTION_CODE_PUSH_COOLDOWN_MS);
     if (rl.limited) return rateLimitResponse(rl);
 
-    return serviceResponse(await resendInspectionCode(session.user.id, id));
+    // Zeitzone aus der Sitzung (sie hängt am JWT) statt über `getUserTimezone` aus einer zweiten
+    // Abfrage — das ist ein Self-Pfad, und genau dafür liegt der Wert am Token.
+    return serviceResponse(await resendInspectionCode(session.user.id, id, session.user.timezone ?? APP_TZ));
   } catch (err) {
     console.error("[POST /api/kontrollen/[id]/code-push]", err);
     return errorResponse(500, "INTERNAL_ERROR");

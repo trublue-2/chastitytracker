@@ -18,6 +18,10 @@ import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
 import { firePush, hasPushTarget } from "@/lib/push";
 
+/** Die Zone, in der die Erwartungswerte dieser Datei ausgedrückt sind. Als Konstante, damit der
+ *  eine Test, der bewusst eine ANDERE Zone prüft, im Fliesstext sofort auffällt. */
+const TZ = "Europe/Zurich";
+
 const findFirstMock = prisma.kontrollAnforderung.findFirst as unknown as ReturnType<typeof vi.fn>;
 const entryFindMock = prisma.entry.findUnique as unknown as ReturnType<typeof vi.fn>;
 const entryUpdateMock = prisma.entry.update as unknown as ReturnType<typeof vi.fn>;
@@ -201,19 +205,39 @@ describe("buildInspectionPush — der Code muss auf dem Foto der Smartwatch lesb
   });
 });
 
-describe("buildInspectionCodePush — die Wiederholung trägt NUR den Code", () => {
+describe("buildInspectionCodePush — die Wiederholung trägt Code und Uhrzeit", () => {
+  const at = new Date("2026-08-17T12:32:00Z"); // 14:32 in Europe/Zurich
+
   it("stellt den blossen Code in den Titel, ohne Beiwerk", () => {
-    const { title, body } = buildInspectionCodePush("70499", null);
+    const { title } = buildInspectionCodePush({ code: "70499", targetLabel: null, tz: TZ, now: at });
     // Kein Label, kein Trennzeichen: was im Titel steht, sind die Ziffern und sonst nichts. Jedes
     // Wort davor wäre im Foto eine Zeichenkette mehr, durch die die Erkennung suchen muss.
     expect(title).toBe("70499");
-    expect(body).toBe("");
   });
 
-  it("nennt das Ziel im TEXT, wenn der Aufrufer mehrere offene Kontrollen sieht", () => {
-    const { title, body } = buildInspectionCodePush("70499", "Plug");
+  /** Der Grund, warum der Text überhaupt gefüllt ist — siehe `buildInspectionCodePush`: ein leerer
+   *  Text erschien auf der Uhr als zweite Kopie des Titels. */
+  it("nennt die Uhrzeit des Versands im Text", () => {
+    const { body } = buildInspectionCodePush({ code: "70499", targetLabel: null, tz: TZ, now: at });
+    expect(body).toBe("14:32");
+  });
+
+  /** Die Uhr am Handgelenk des Subs zeigt SEINE Zeit — die Meldung daneben muss dieselbe zeigen. */
+  it("rechnet die Uhrzeit in die Zeitzone des Subs", () => {
+    const { body } = buildInspectionCodePush({ code: "70499", targetLabel: null, tz: "America/New_York", now: at });
+    expect(body).toBe("08:32");
+  });
+
+  /** Sekunden werden abgeschnitten — der Test oben belegt die Form nur für eine volle Minute. */
+  it("bleibt 24-stündig und ohne Sekunden", () => {
+    const { body } = buildInspectionCodePush({ code: "70499", targetLabel: null, tz: TZ, now: new Date("2026-08-17T16:05:07Z") });
+    expect(body).toBe("18:05");
+  });
+
+  it("nennt das Ziel im TEXT vor der Uhrzeit, wenn der Aufrufer mehrere offene Kontrollen sieht", () => {
+    const { title, body } = buildInspectionCodePush({ code: "70499", targetLabel: "Plug", tz: TZ, now: at });
     expect(title).toBe("70499");
-    expect(body).toBe("Plug");
+    expect(body).toBe("Plug · 14:32");
   });
 });
 
@@ -231,17 +255,12 @@ describe("resendOwnInspectionCode — der selbst gewählte Code", () => {
     pushTargetMock.mockResolvedValue(true);
   });
 
-  it("schickt den Code als Meldung an den Absender selbst", async () => {
-    const res = await resendOwnInspectionCode("u1", "70499");
+  /** Ohne Ziel-Untertitel: eine Selbstkontrolle steht für sich. Im Text steht nur die Uhrzeit — sie
+   *  belegt im Foto, wann es entstanden ist, und ist als „HH:MM" nie mit dem Code zu verwechseln. */
+  it("schickt Code und Uhrzeit als Meldung an den Absender selbst", async () => {
+    const res = await resendOwnInspectionCode("u1", "70499", TZ);
     expect(res.ok).toBe(true);
-    expect(firePushMock).toHaveBeenCalledWith("u1", "70499", "", expect.any(String));
-  });
-
-  /** Ohne Ziel-Untertitel: eine Selbstkontrolle steht für sich, und jede weitere Zahl in der Meldung
-   *  ist eine, die im Foto für den Code gehalten werden kann. */
-  it("die Meldung trägt nichts ausser dem Code", async () => {
-    await resendOwnInspectionCode("u1", "70499");
-    expect(firePushMock.mock.calls[0][2]).toBe("");
+    expect(firePushMock).toHaveBeenCalledWith("u1", "70499", expect.stringMatching(/^\d{2}:\d{2}$/), expect.any(String));
   });
 
   /**
@@ -253,12 +272,12 @@ describe("resendOwnInspectionCode — der selbst gewählte Code", () => {
    * also muss es mitkommen.
    */
   it("der Link trägt das Ziel der Trage-Kontrolle", async () => {
-    await resendOwnInspectionCode("u1", "70499", "cat-plug");
+    await resendOwnInspectionCode("u1", "70499", TZ, "cat-plug");
     expect(firePushMock.mock.calls[0][3]).toContain("cat=cat-plug");
   });
 
   it("ohne Ziel bleibt es beim KG — kein Parameter", async () => {
-    await resendOwnInspectionCode("u1", "70499");
+    await resendOwnInspectionCode("u1", "70499", TZ);
     expect(firePushMock.mock.calls[0][3]).not.toContain("cat=");
   });
 
@@ -269,7 +288,7 @@ describe("resendOwnInspectionCode — der selbst gewählte Code", () => {
     ["keine Ziffern", "abcde"],
     ["Ziffern mit Beiwerk", "Code 70499"],
   ])("weist einen unbrauchbaren Code ab (%s)", async (_name, code) => {
-    const res = await resendOwnInspectionCode("u1", code);
+    const res = await resendOwnInspectionCode("u1", code, TZ);
     expect(res).toMatchObject({ ok: false, status: 400, error: "INSPECTION_CODE_INVALID" });
     expect(firePushMock).not.toHaveBeenCalled();
   });
@@ -278,7 +297,7 @@ describe("resendOwnInspectionCode — der selbst gewählte Code", () => {
    *  der Sub soll erfahren, dass er Push erst einschalten muss. */
   it("ohne angemeldetes Gerät meldet sie das, statt still nichts zu senden", async () => {
     pushTargetMock.mockResolvedValue(false);
-    const res = await resendOwnInspectionCode("u1", "70499");
+    const res = await resendOwnInspectionCode("u1", "70499", TZ);
     expect(res).toMatchObject({ ok: false, error: "PUSH_NOT_ENABLED" });
     expect(firePushMock).not.toHaveBeenCalled();
   });

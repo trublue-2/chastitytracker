@@ -610,21 +610,43 @@ export async function sendKontrolleNotification(opts: {
 
 /**
  * Titel + Text der WIEDERHOLUNG auf Knopfdruck — die nackte Fassung von {@link buildInspectionPush}:
- * im Titel nur der Code, sonst nichts.
+ * im Titel der Code, im Text die Uhrzeit des Versands.
  *
  * Das ist kein verkürzter Text, das ist der ganze Zweck. Die Meldung wird ABFOTOGRAFIERT (Code auf
  * der Smartwatch, weil das Handy die Kamera ist und seinen eigenen Bildschirm nicht ablichten kann),
- * und was im Bild landet, geht durch die Code-Erkennung. Jede weitere Zahl darin — Frist, Uhrzeit,
- * Siegel-Nummer — ist eine, die für den Code gehalten werden kann. Die ANKÜNDIGUNG braucht ihren
- * Kontext und behält ihn; die Wiederholung braucht ihn nicht: sie kommt auf Knopfdruck, der Sub
- * weiss in der Sekunde, worum es geht.
+ * und was im Bild landet, geht durch die Code-Erkennung. Die ANKÜNDIGUNG braucht ihren Kontext
+ * (Frist, Siegel-Hinweis, Kommentar) und behält ihn; die Wiederholung braucht ihn nicht: sie kommt
+ * auf Knopfdruck, der Sub weiss in der Sekunde, worum es geht.
  *
- * `targetLabel` deshalb nur, wenn mehr als eine Kontrolle offen ist (der Aufrufer entscheidet das,
- * er kennt die anderen) — dann wären zwei blosse Ziffernfolgen nicht auseinanderzuhalten. Es steht
- * im TEXT, nie im Titel: der bleibt rein der Code.
+ * Die UHRZEIT ist die eine Ausnahme, und sie steht hier, weil sie im Bild ARBEITET: das Foto belegt
+ * mit ihr, dass es jetzt entstanden ist und nicht ein älteres ist, das denselben Code zeigt. Ein
+ * leerer Text tat das Gegenteil — die Uhr füllte den leeren Bereich mit dem Titel, und im Foto stand
+ * der Code zweimal statt Code und Zeit.
+ *
+ * Dass sie der Code-Erkennung nicht in die Quere kommt, hängt an ihrer FORM: „14:32" sind vier
+ * Ziffern in zwei Gruppen, der Prompt verlangt genau {@link isValidInspectionCode}-viele
+ * ZUSAMMENHÄNGENDE Ziffern und nennt den gesuchten Code beim Namen. Eine Zeit ohne Trenner oder mit
+ * Sekunden wäre eine echte Verwechslung.
  */
-export function buildInspectionCodePush(code: string, targetLabel: string | null): { title: string; body: string } {
-  return { title: code, body: targetLabel ?? "" };
+export function buildInspectionCodePush(opts: {
+  code: string;
+  /** Nur setzen, wenn mehr als eine Kontrolle offen ist (das entscheidet der Aufrufer, er kennt die
+   *  anderen) — dann wären zwei blosse Ziffernfolgen nicht auseinanderzuhalten. Es steht im TEXT,
+   *  nie im Titel: der bleibt rein der Code. */
+  targetLabel: string | null;
+  /** Zeitzone des SUBS: eine Uhrzeit, die neben seiner Armbanduhr im Foto steht, muss dieselbe sein,
+   *  die seine Armbanduhr zeigt. Ohne Default — ein `= APP_TZ` träfe für jede Sub ausserhalb
+   *  Europe/Zurich still daneben, und zwar genau dort, wo das Bild etwas belegen soll. */
+  tz: string;
+  /** Nur für Tests: der Zeitpunkt, den der Text nennt. */
+  now?: Date;
+}): { title: string; body: string } {
+  const { code, targetLabel, tz, now = new Date() } = opts;
+  // Die Locale ist hier GARANTIE, nicht Nachlässigkeit: sie erzwingt die 24-Stunden-Form. Die des
+  // Subs gilt bewusst NICHT — mit „en" stünde „02:32 PM" im Bild. Und der Test dazu kennt keine
+  // Locale, bliebe also grün: wer das hier locale-abhängig macht, hebelt den Absatz oben still aus.
+  const time = formatTime(now, "de-CH", tz);
+  return { title: code, body: targetLabel ? `${targetLabel} · ${time}` : time };
 }
 
 /**
@@ -643,7 +665,12 @@ export function buildInspectionCodePush(code: string, targetLabel: string | null
  * Aus demselben Grund geht `firePush` ohne `badge`: ein Wert dort erfände einen Zähler, eine feste 0
  * löschte den bestehenden (siehe `sendPushToUser`).
  */
-export async function resendInspectionCode(userId: string, controlId: string): Promise<ServiceResult<null>> {
+export async function resendInspectionCode(
+  userId: string,
+  controlId: string,
+  /** Zeitzone des Subs, siehe {@link buildInspectionCodePush}. */
+  tz: string,
+): Promise<ServiceResult<null>> {
   // EINE Abfrage für beide Fragen: welche Kontrolle ist gemeint, und läuft noch eine zweite. Die
   // Auswahl ist dieselbe, die auch das Dashboard-Banner zeigt (offen, nicht zurückgezogen, bereits
   // wirksam) — eine zeitversetzt geplante ist für den Sub noch unsichtbar, und ihr Code darf ihn
@@ -661,7 +688,11 @@ export async function resendInspectionCode(userId: string, controlId: string): P
 
   // Läuft noch eine zweite Kontrolle (KG und Trage-Ziel parallel, seit v5.0.1), bekommt die
   // Wiederholung das Ziel als Untertitel — sonst stünden zwei blosse Ziffernfolgen nebeneinander.
-  const push = buildInspectionCodePush(ka.code, open.length > 1 ? inspectionTargetLabel(ka) : null);
+  const push = buildInspectionCodePush({
+    code: ka.code,
+    targetLabel: open.length > 1 ? inspectionTargetLabel(ka) : null,
+    tz,
+  });
   // Ziel des Antippens ist dasselbe Formular wie bei der Ankündigung — der Sub steht zwar meist
   // schon darauf, aber eine Meldung, die nirgendwohin führt, ist auf der Uhr eine Sackgasse.
   firePush(userId, push.title, push.body, inspectionHref(ka.code, { kommentar: ka.kommentar, categoryId: ka.categoryId }));
@@ -691,6 +722,10 @@ export async function resendInspectionCode(userId: string, controlId: string): P
 export async function resendOwnInspectionCode(
   userId: string,
   code: string,
+  /** Zeitzone des Subs, siehe {@link buildInspectionCodePush}. Steht VOR `categoryId`, damit dessen
+   *  Default erhalten bleibt: ein Pflichtfeld hinter einem optionalen zwingt jeden Aufrufer, das
+   *  optionale von Hand auszuschreiben. */
+  tz: string,
   /** Das ZIEL der Kontrolle (Trage-Kategorie), `null` = KG. Muss mitkommen: bei einer Anforderung
    *  steht es in der Zeile, hier gibt es keine. Ohne das Ziel führt die Meldung beim Antippen aufs
    *  KG-Formular, und der Sub reicht ein Foto ein, das seine Kontrolle gar nicht beantwortet
@@ -702,11 +737,10 @@ export async function resendOwnInspectionCode(
   // Wie oben: ohne angemeldetes Gerät ginge die Push ins Leere und der Knopf meldete Erfolg.
   if (!await hasPushTarget(userId)) return serviceFail(400, "PUSH_NOT_ENABLED");
 
-  // Ohne Ziel-Untertitel: eine Selbstkontrolle steht für sich, und was ins Foto gerät, geht durch
-  // die Code-Erkennung — jede weitere Zahl darin ist eine, die für den Code gehalten werden kann.
-  // Das Ziel gehört trotzdem in den LINK: es steuert, wohin das Antippen führt, nicht was im Bild
-  // landet.
-  const push = buildInspectionCodePush(code, null);
+  // Ohne Ziel-Untertitel: eine Selbstkontrolle steht für sich, und der Text trägt bereits die
+  // Uhrzeit. Das Ziel gehört trotzdem in den LINK: es steuert, wohin das Antippen führt, nicht was
+  // im Bild landet.
+  const push = buildInspectionCodePush({ code, targetLabel: null, tz });
   firePush(userId, push.title, push.body, inspectionHref(code, { categoryId }));
   return { ok: true, data: null };
 }

@@ -15,7 +15,8 @@ import { INSPECTION_CODE_PUSH_COOLDOWN_MS } from "@/lib/constants";
  * Der Knopf steht neben dem Code im Erfassungs-Formular, weil dort die Kamera ist: das Handy kann
  * seinen eigenen Bildschirm nicht abfotografieren, also braucht der Code einen zweiten (Smartwatch)
  * — und der ist weg, sobald die Meldung gesichtet oder von der nächsten verdrängt wurde. Warum die
- * wiederholte Meldung nur aus dem Code besteht, steht an `buildInspectionCodePush`.
+ * wiederholte Meldung aus Code und Uhrzeit besteht und aus sonst nichts, steht an
+ * `buildInspectionCodePush`.
  *
  * Nach JEDEM Versuch sperrt sich der Knopf für dieselbe Frist, mit der die Route begrenzt
  * ({@link INSPECTION_CODE_PUSH_COOLDOWN_MS}) — auch nach einem gescheiterten. Der Zähler auf dem
