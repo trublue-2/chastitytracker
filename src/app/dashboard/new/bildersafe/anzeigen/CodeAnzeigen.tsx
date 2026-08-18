@@ -7,20 +7,15 @@ import Card from "@/app/components/Card";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 
 export default function CodeAnzeigen({
-  isLocked,
   codeImageUrl,
   revealed,
 }: {
-  isLocked: boolean;
   codeImageUrl: string | null;
   revealed: boolean;
 }) {
   const t = useTranslations("newEntry");
   const [open, setOpen] = useState(false);
 
-  if (!isLocked) {
-    return <p className="text-sm text-foreground-muted">{t("bildersafeShowNotLocked")}</p>;
-  }
   if (!codeImageUrl) {
     return <p className="text-sm text-foreground-muted">{t("bildersafeShowNoCode")}</p>;
   }

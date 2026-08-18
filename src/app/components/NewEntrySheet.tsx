@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound } from "lucide-react";
+import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
@@ -23,11 +23,42 @@ interface Props {
   isLocked: boolean;
   /** Non-KG categories with their active-session state. Empty/undefined when feature flag is off. */
   categoryRows?: NewEntryCategoryRow[];
-  /** Bildersafe-Instanz: „Schlüsselbox-Code versiegeln"-Aktion (während verschlossen) anzeigen. */
+  /** Bildersafe-Instanz: die Schlüsselbox-Code-Aktionen (versiegeln + anzeigen) einblenden. */
   bildersafe?: boolean;
   /** Gesetzt = Keyholder-Sicht: das Sheet erfasst FÜR diesen Sub und zeigt auf dessen
    *  Aktionen-Formulare statt auf `/dashboard/new`. Ungesetzt = der Sub erfasst für sich selbst. */
   adminUserId?: string;
+}
+
+/** Eine anwählbare Zeile des Sheets. Zeilen-Layout und Hover-Verhalten stehen NUR hier — die
+ *  `options`-Liste und die Bildersafe-Zeilen teilen sie sich, damit eine Abstands- oder
+ *  Fokus-Änderung nicht drei Kopien treffen muss. */
+function SheetActionRow({
+  icon: Icon,
+  iconClass,
+  label,
+  desc,
+  onSelect,
+}: {
+  icon: LucideIcon;
+  iconClass: string;
+  label: string;
+  desc: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
+    >
+      <Icon size={22} className={`${iconClass} shrink-0`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-xs text-foreground-muted">{desc}</p>
+      </div>
+    </button>
+  );
 }
 
 export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false, adminUserId }: Props) {
@@ -103,18 +134,14 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
           }
 
           return (
-            <button
+            <SheetActionRow
               key={opt.type}
-              type="button"
-              onClick={() => handleSelect(opt.href)}
-              className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
-            >
-              <Icon size={22} className={`${opt.color} shrink-0`} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{opt.label}</p>
-                <p className="text-xs text-foreground-muted">{opt.desc}</p>
-              </div>
-            </button>
+              icon={Icon}
+              iconClass={opt.color}
+              label={opt.label}
+              desc={opt.desc}
+              onSelect={() => handleSelect(opt.href)}
+            />
           );
         })}
 
@@ -148,35 +175,32 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
           );
         })}
 
-        {/* Bildersafe: Schlüsselbox-Code (neu) versiegeln — nur während verschlossen (hängt am
-            aktuellen Verschluss; deckt das Neu-Versiegeln nach einer Reinigungsöffnung ab).
-            NICHT in der Keyholder-Sicht: unter `/admin/users/<id>/aktionen` gibt es kein
-            Bildersafe-Formular, der Eintrag führte dort ins Leere. Versiegeln ist ohnehin eine
-            Handlung des Subs — er allein hat den Code vor sich. */}
-        {bildersafe && isLocked && !adminUserId && (
+        {/* Bildersafe — beide Zeilen NICHT in der Keyholder-Sicht: unter `/admin/users/<id>/…`
+            gibt es weder Versiegelungs- noch Anzeige-Seite, die Einträge führten dort ins Leere.
+            Versiegeln ist ohnehin eine Handlung des Subs (er allein hat den Code vor sich), und
+            der Keyholder erreicht das Foto über die Session-Timeline. */}
+        {bildersafe && !adminUserId && (
           <>
-            <button
-              type="button"
-              onClick={() => handleSelect(`${base}/bildersafe`)}
-              className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
-            >
-              <KeyRound size={22} className="text-lock shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{t("bildersafeAction")}</p>
-                <p className="text-xs text-foreground-muted">{t("bildersafeActionDesc")}</p>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSelect(`${base}/bildersafe/anzeigen`)}
-              className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
-            >
-              <LockOpen size={22} className="text-unlock shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{t("bildersafeShowAction")}</p>
-                <p className="text-xs text-foreground-muted">{t("bildersafeShowActionDesc")}</p>
-              </div>
-            </button>
+            {/* Versiegeln nur während verschlossen: es hängt am aktuellen Verschluss und deckt
+                damit auch das Neu-Versiegeln nach einer Reinigungsöffnung ab. */}
+            {isLocked && (
+              <SheetActionRow
+                icon={KeyRound}
+                iconClass="text-lock"
+                label={t("bildersafeAction")}
+                desc={t("bildersafeActionDesc")}
+                onSelect={() => handleSelect(`${base}/bildersafe`)}
+              />
+            )}
+            {/* Anzeigen bewusst OHNE `isLocked` — sonst ist der eigene Code nach dem Erfassen des
+                Aufschlusses unerreichbar (Lockout, issue #53). */}
+            <SheetActionRow
+              icon={LockOpen}
+              iconClass="text-unlock"
+              label={t("bildersafeShowAction")}
+              desc={t("bildersafeShowActionDesc")}
+              onSelect={() => handleSelect(`${base}/bildersafe/anzeigen`)}
+            />
           </>
         )}
 

@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.2.3",
+    "date": "2026-08-18",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der versiegelte Schl\u00fcsselbox-Code bleibt erreichbar, nachdem der Aufschluss erfasst ist \u2014 \u00fcber das Plus-Men\u00fc und an jedem Verschluss in der Session-Liste. Vorher war er ab dem Erfassen verschwunden, obwohl er gespeichert blieb.",
+          "en": "The sealed lockbox code stays reachable after the unlock has been recorded \u2014 via the plus menu and on every lock-up in the session list. Before, it vanished the moment you recorded it, even though it was still stored."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.2.2",
     "date": "2026-08-17",
     "changes": [

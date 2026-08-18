@@ -742,6 +742,34 @@ export async function isOpeningPermittedNow(userId: string, now: Date = new Date
 }
 
 /**
+ * Der Code, der JETZT gilt — die Antwort auf „wo ist mein Schlüsselbox-Code".
+ *
+ * Zwei Fälle, und beide sind nötig:
+ * - **Verschlossen** → nur der Code des LAUFENDEN Verschlusses. Ein älterer gehört zu einer Box,
+ *   die längst neu eingestellt ist; ihn hier auszugeben hiesse, dem Träger während einer frischen
+ *   Sperrzeit „Öffnen erlaubt" zu melden, weil das Gate für den ALTEN Eintrag längst freigibt.
+ * - **Nicht verschlossen** → der jüngste Verschluss mit Code. Der Code wird gebraucht, solange die
+ *   Box noch zu ist, und der Aufschluss wird oft erfasst, BEVOR sie offen ist. Wer auch hier nur
+ *   den laufenden Verschluss sucht, sperrt den Träger von seinem eigenen Code aus (issue #53).
+ *
+ * Ob das Foto dann auch ausgeliefert wird, entscheidet allein {@link isCodePhotoRevealed}.
+ */
+export async function getCurrentSealedCode(userId: string) {
+  const [current, sealed] = await Promise.all([
+    getLatestKgEntry(userId),
+    prisma.entry.findFirst({
+      where: { userId, type: "VERSCHLUSS", codeImageUrl: { not: null } },
+      orderBy: { startTime: "desc" },
+      select: { startTime: true, codeImageUrl: true },
+    }),
+  ]);
+  if (!sealed) return null;
+  // Verschlossen, aber der jüngste Code ist ÄLTER als dieser Verschluss → er gehört nicht dazu.
+  if (current?.type === "VERSCHLUSS" && sealed.startTime < current.startTime) return null;
+  return sealed;
+}
+
+/**
  * Ist das versiegelte Code-Foto eines VERSCHLUSS-Eintrags aktuell freigegeben?
  * Freigegeben, wenn die Session vorbei ist (späteres OEFFNEN existiert) ODER Öffnen gerade erlaubt ist.
  * `hasLaterOpen` kann übergeben werden (z.B. aus bereits geladenen Einträgen), um die DB-Abfrage zu sparen.

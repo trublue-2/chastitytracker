@@ -33,6 +33,8 @@ interface Entry {
   id: string;
   startTime: Date;
   imageUrl: string | null;
+  /** Bildersafe (VERSCHLUSS): versiegeltes Code-Foto. Sichtbarkeit entscheidet der Server (403-Gate). */
+  codeImageUrl?: string | null;
   imageExifTime: Date | null;
   note: string | null;
   orgasmusArt: string | null;
@@ -125,6 +127,13 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
       // different year: null → use full dateStr
     }
 
+    // Das Gate gibt das Code-Foto frei, sobald ein SPÄTERES Öffnen existiert — bei einer
+    // abgeschlossenen Session ist das der Aufschluss. Wo wir das sicher wissen, sagen wir es der
+    // Zeile: sonst lädt sie das ganze Bild herunter, nur um dieselbe Antwort zu bekommen.
+    // `undefined` (laufende oder verwaiste Session) heisst „weiss ich nicht" — dann fragt sie selbst.
+    const codeRevealedAfter = (lockedAt: Date) =>
+      oeffnen !== null && oeffnen.startTime > lockedAt ? true : undefined;
+
     const sessionOrgasmen = orgasmusEntries.filter(
       (e) => e.startTime >= verschluss.startTime && (oeffnen === null || e.startTime < oeffnen.startTime)
     );
@@ -141,6 +150,8 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
           ? formatDateTime(verschluss.imageExifTime, dl, tz)
           : null,
         note: verschluss.note,
+        codeImageUrl: verschluss.codeImageUrl ?? null,
+        codeRevealed: codeRevealedAfter(verschluss.startTime),
         entryId: verschluss.id,
         captureHref: null,
         deadlineStr: null,
@@ -227,6 +238,8 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         ...keyProofFor(intr.verschluss.id, intr.verschluss.keyDetected, intr.verschluss.boxImageUrl, telemetryKeyProof),
         exifStr: null,
         note: intr.oeffnen.note,
+        codeImageUrl: intr.verschluss.codeImageUrl ?? null,
+        codeRevealed: codeRevealedAfter(intr.verschluss.startTime),
         entryId: intr.oeffnen.id,
         captureHref: null,
         deadlineStr: null,
