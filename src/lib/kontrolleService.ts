@@ -410,7 +410,7 @@ export async function requestKontrolle(
 }
 
 /**
- * Der Einleitungssatz der Kontroll-Mail — „innert der nächsten X".
+ * Der Einleitungssatz der Kontroll-Mail — „innerhalb der nächsten X".
  *
  * Rein und exportiert, damit die Einheiten-Wahl prüfbar ist. Vorher stand hier
  * `Math.max(1, Math.round(ms / 3600000))`: jede Frist unter einer halben Stunde wurde zu „1 Stunde",
@@ -421,12 +421,12 @@ export async function requestKontrolle(
  * bei vollen Stunden nur Stunden, sonst beides. Aufrunden wäre die gefährliche Richtung — der Satz
  * verspräche mehr Zeit, als die Frist-Zeile darunter einräumt.
  *
- * `Number.isFinite` fängt eine kaputte Frist ab: ohne den Guard stünde „innert der nächsten NaN
+ * `Number.isFinite` fängt eine kaputte Frist ab: ohne den Guard stünde „innerhalb der nächsten NaN
  * Stunden" in der Mail.
  */
 export function inspectionIntro(t: EmailTranslator, msLeft: number): string {
   const safeMs = Number.isFinite(msLeft) ? Math.max(0, msLeft) : 0;
-  // Mindestens 1 Minute: „innert der nächsten 0 Minuten" wäre keine Aussage. Die Wahrheit steht
+  // Mindestens 1 Minute: „innerhalb der nächsten 0 Minuten" wäre keine Aussage. Die Wahrheit steht
   // ohnehin in der Frist-Zeile darunter, die den absoluten Zeitpunkt nennt.
   const totalMinutes = Math.max(1, Math.round(safeMs / 60_000));
   const hours = Math.floor(totalMinutes / 60);
