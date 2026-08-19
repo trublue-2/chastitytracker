@@ -559,3 +559,104 @@ describe("buildStrafbuch — der Beleg zum Aufgaben-Vergehen", () => {
     expect(t.hasRequirements).toBe(false);
   });
 });
+
+/**
+ * Gemeldet am 19.08.2026: Die Keyholderin senkte das Tageskontingent von 2 auf 1 — und im Strafbuch
+ * erschien daraufhin ein Vergehen für eine Reinigungsöffnung vom 13.08. Zu deren Zeit galten 2, die
+ * App hatte dem Träger „1 von 2" angezeigt und ihn nicht gewarnt.
+ *
+ * Ursache war die Live-Ableitung: sie zählte die ganze Historie gegen den HEUTIGEN Spaltenwert.
+ * Seither liest sie die Fassung, die zur Tatzeit galt (`CleaningRuleChange`) — dieselbe Lehre wie
+ * bei den Vergehens-Regeln, nur für die Zahlen dahinter.
+ */
+describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
+  const TZ = "Europe/Zurich";
+  const NOW = new Date("2026-08-19T20:00:00Z");
+
+  /** Heutiger Stand: gesenkt auf eine Öffnung pro Tag. */
+  const USER = {
+    reinigungErlaubt: true,
+    reinigungMaxProTag: 1,
+    reinigungMaxMinuten: 15,
+    reinigungsFenster: null,
+    timezone: TZ,
+  };
+
+  const GESENKT_AM = new Date("2026-08-19T07:00:00Z");
+  const HISTORIE = [
+    { allowed: true, maxMinutes: 15, maxPerDay: 2, windows: null, effectiveFrom: new Date(0) },
+    { allowed: true, maxMinutes: 15, maxPerDay: 1, windows: null, effectiveFrom: GESENKT_AM },
+  ];
+
+  // Zwei Öffnungen am 13.08. (Ortszeit 09:00 und 11:41) — unter dem damaligen Kontingent von 2 in
+  // Ordnung, unter dem heutigen von 1 wäre die zweite ein Vergehen.
+  const DAMALS = [
+    oeffnung(new Date("2026-08-13T07:00:00Z"), "alt1"),
+    oeffnung(new Date("2026-08-13T09:41:00Z"), "alt2"),
+  ];
+  // Zwei Öffnungen am 19.08., beide NACH der Senkung.
+  const HEUTE = [
+    oeffnung(new Date("2026-08-19T08:00:00Z"), "neu1"),
+    oeffnung(new Date("2026-08-19T10:30:00Z"), "neu2"),
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.user.findUnique.mockResolvedValue(USER);
+    db.cleaningRuleChange.findMany.mockResolvedValue(HISTORIE);
+    mockStichtag("2026-01-01T00:00:00Z");
+  });
+
+  it("die zweite Öffnung von damals bleibt straffrei — damals waren zwei erlaubt", async () => {
+    mockOeffnungen(DAMALS);
+    expect((await buildStrafbuch("u1", NOW)).reinigungLimitViolations).toHaveLength(0);
+  });
+
+  it("nach der Senkung ist die zweite Öffnung desselben Tages ein Vergehen", async () => {
+    mockOeffnungen(HEUTE);
+    const violations = (await buildStrafbuch("u1", NOW)).reinigungLimitViolations;
+    expect(violations).toHaveLength(1);
+    expect(violations[0].entryId).toBe("neu2");
+  });
+
+  it("beide Tage zusammen: nur der Tag nach der Senkung schlägt an", async () => {
+    mockOeffnungen([...DAMALS, ...HEUTE]);
+    const violations = (await buildStrafbuch("u1", NOW)).reinigungLimitViolations;
+    expect(violations.map((v) => v.entryId)).toEqual(["neu2"]);
+  });
+
+  it("ohne Historie gilt der heutige Stand — sonst wäre nie etwas ein Vergehen", async () => {
+    db.cleaningRuleChange.findMany.mockResolvedValue([]);
+    mockOeffnungen(DAMALS);
+    expect((await buildStrafbuch("u1", NOW)).reinigungLimitViolations).toHaveLength(1);
+  });
+
+  it("Kontingent 0 heisst unbegrenzt — auch wenn es zur Tatzeit galt", async () => {
+    db.cleaningRuleChange.findMany.mockResolvedValue([
+      { allowed: true, maxMinutes: 15, maxPerDay: 0, windows: null, effectiveFrom: new Date(0) },
+    ]);
+    mockOeffnungen([...DAMALS, ...HEUTE]);
+    expect((await buildStrafbuch("u1", NOW)).reinigungLimitViolations).toHaveLength(0);
+  });
+
+  it("später abgeschaltete Reinigung macht frühere Öffnungen nicht nachträglich unerlaubt", async () => {
+    // Die grössere Fassung desselben Fehlers: aus einer erlaubten Reinigungspause würde sonst
+    // rückwirkend ein Sperrzeit-Bruch.
+    db.user.findUnique.mockResolvedValue({ ...USER, reinigungErlaubt: false });
+    db.cleaningRuleChange.findMany.mockResolvedValue([
+      { allowed: true, maxMinutes: 15, maxPerDay: 2, windows: null, effectiveFrom: new Date(0) },
+      { allowed: false, maxMinutes: 15, maxPerDay: 2, windows: null, effectiveFrom: GESENKT_AM },
+    ]);
+    mockSperrzeiten([{
+      id: "s1",
+      createdAt: new Date("2026-08-01T00:00:00Z"),
+      endetAt: new Date("2026-08-31T00:00:00Z"),
+      withdrawnAt: null,
+      reinigungErlaubt: true,
+      wirksamAb: null,
+      fulfilledAt: null,
+    }]);
+    mockOeffnungen([DAMALS[0]]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
+  });
+});

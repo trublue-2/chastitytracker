@@ -845,7 +845,9 @@ describe("set_cleaning: Reinigungs-Fenster", () => {
   it("ersetzt die ganze Liste — der Service bekommt genau die übergebenen Fenster", async () => {
     const windows = [{ start: "07:00", end: "08:00" }, { start: "19:00", end: "20:30" }];
     const r = await mcpSetCleaning("sub", { windows }) as { message: string };
-    expect(setReinigungMock).toHaveBeenCalledWith("u1", { erlaubt: undefined, maxMinuten: undefined, maxProTag: undefined, fenster: windows });
+    // `changedBy` steht mit dabei: die Reinigungs-Historie hält fest, wer geändert hat — über den
+    // MCP ist das die KI.
+    expect(setReinigungMock).toHaveBeenCalledWith("u1", { erlaubt: undefined, maxMinuten: undefined, maxProTag: undefined, fenster: windows, changedBy: "ai" });
     expect(r.message).toContain("07:00-08:00, 19:00-20:30");
   });
 

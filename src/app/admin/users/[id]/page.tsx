@@ -1,3 +1,4 @@
+import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
 import { auth } from "@/lib/auth";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
@@ -6,7 +7,6 @@ import {
   formatDuration, formatDateTimeDual, formatDate, formatTime, formatHours, toDateLocale, APP_TZ,
   buildPairs, getOpenPair, interruptionPauseMs, isTimeCorrected, decomposeMs,
   buildKontrolleItems, calculateWearingHoursByRange,
-  type ReinigungSettings,
 } from "@/lib/utils";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { buildWearSessions } from "@/lib/sessionModel";
@@ -69,7 +69,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   const now = new Date();
 
   const flagOn = deviceCategoriesEnabled();
-  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, offeneOrgasmusAnforderung, wearSessions, allNonKgCategories, deviceCount] = await Promise.all([
+  const [entries, alleAnforderungen, activeVorgabe, activeSperrzeit, offeneOrgasmusAnforderung, wearSessions, allNonKgCategories, deviceCount, cleaningChanges] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, orderBy: { startTime: "desc" }, include: { device: { select: { id: true, name: true, categoryId: true } } } }),
     prisma.kontrollAnforderung.findMany({
       where: { userId: id, ...keyholderVisibleKontrolleWhere(now) },
@@ -83,10 +83,12 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     flagOn ? getActiveWearSessions(id) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(id) : Promise.resolve([]),
     prisma.device.count({ where: { userId: id, archivedAt: null } }),
+    prisma.cleaningRuleChange.findMany({ where: { userId: id }, select: CLEANING_RULE_CHANGE_SELECT }),
   ]);
   const userHasDevices = deviceCount > 0;
 
-  const reinigung: ReinigungSettings = { erlaubt: user.reinigungErlaubt, maxMinuten: user.reinigungMaxMinuten };
+  // Fassung zur Tatzeit statt heutiger Stand — Begründung am Modell `CleaningRuleChange`.
+  const reinigung = reinigungRulesAt(cleaningRulesFrom(cleaningChanges, user));
   // Aktiv offene Kontrolle für das grosse Banner — geplante (wirksamAb in der Zukunft) ausschliessen:
   // die erscheinen unten in der Kontroll-Liste mit "geplant"-Pill, nicht als aktiver Alarm.
   const offeneKontrolle = alleAnforderungen.find(

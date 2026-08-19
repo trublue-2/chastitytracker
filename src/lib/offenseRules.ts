@@ -1,4 +1,5 @@
 import { type AssertCoversAllOffenses, type OffenseCanonicalType } from "@/lib/offenseTypes";
+import { effectiveAt } from "@/lib/utils";
 
 /**
  * Welche Vergehensarten bei einem Sub überhaupt gelten — und seit wann.
@@ -123,19 +124,13 @@ export function offenseRuleResolver(changes: OffenseRuleChangeRow[]): OffenseRul
     if (list) list.push(c);
     else byType.set(c.offenseType, [c]);
   }
-  for (const list of byType.values()) {
-    list.sort((a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime());
-  }
-
   return (type, at) => {
     const list = byType.get(type);
     if (!list) return OFFENSE_RULE_DEFAULT[type];
-    let mode: OffenseMode = OFFENSE_RULE_DEFAULT[type];
-    for (const c of list) {
-      if (c.effectiveFrom > at) break;
-      mode = c.mode as OffenseMode;
-    }
-    return mode;
+    // `effectiveAt` beantwortet „welche Fassung galt zu at" für JEDE Historie im Projekt —
+    // Vergehens-Regeln wie Reinigungs-Regeln. Die Sortierung liegt darin, nicht hier.
+    const hit = effectiveAt(list, at, null);
+    return hit ? (hit.mode as OffenseMode) : OFFENSE_RULE_DEFAULT[type];
   };
 }
 

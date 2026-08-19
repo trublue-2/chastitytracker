@@ -493,7 +493,50 @@ export function mapVerifikationStatus(vs: string | null): VerifikationStatus {
 }
 
 
+/**
+ * Die Fassung, die zu `at` galt: die jüngste Zeile mit `effectiveFrom <= at`, sonst `fallback`.
+ *
+ * Geteilt mit `offenseRuleResolver` (offenseRules.ts) — dieselbe Frage, zweimal gestellt: dort für
+ * das OB einer Vergehensart, hier für die Reinigungs-Werte. Beim dritten Historie-Feature wäre das
+ * sonst die dritte handgeschriebene Kopie.
+ *
+ * Linearer Scan statt Binärsuche: eine Zeile entsteht nur bei einer echten Änderung, die Listen sind
+ * kurz, und der Aufwand liegt weit unter dem einen DB-Roundtrip, der sie geholt hat.
+ */
+export function effectiveAt<T extends { effectiveFrom: Date }, F>(rows: T[], at: Date, fallback: F): T | F {
+  let found: T | F = fallback;
+  let latest = -Infinity;
+  for (const row of rows) {
+    const from = row.effectiveFrom.getTime();
+    if (from <= at.getTime() && from >= latest) {
+      found = row;
+      latest = from;
+    }
+  }
+  return found;
+}
+
 export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
+
+/**
+ * Die Reinigungs-Regeln als das, was sie sind: ein Stand, der sich ÄNDERN kann.
+ *
+ * Ein festes Objekt beantwortet jeden Zeitpunkt gleich — richtig für die Durchsetzung („darf ich
+ * JETZT öffnen?") und für Tests. Eine Funktion beantwortet ihn nach der Fassung von damals —
+ * richtig für alles, was Vergangenes abbildet (Begründung am Modell `CleaningRuleChange`).
+ *
+ * Aufgelöst wird immer am Zeitpunkt der REINIGUNGSÖFFNUNG: sie entscheidet, ob diese Öffnung die
+ * Session unterbricht oder beendet, und das ist eine Eigenschaft der Öffnung, nicht des späteren
+ * Wiederverschlusses.
+ */
+export type ReinigungRules = ReinigungSettings | ((at: Date) => ReinigungSettings);
+
+/** Die Fassung, die zu `at` galt. Ohne Regeln gilt „keine Reinigung" — derselbe Ausweichwert wie
+ *  bisher, wenn ein Aufrufer sie gar nicht mitgibt. */
+export function reinigungAt(rules: ReinigungRules | undefined, at: Date): ReinigungSettings {
+  if (!rules) return { erlaubt: false, maxMinuten: 0 };
+  return typeof rules === "function" ? rules(at) : rules;
+}
 
 /**
  * Frische 5-stellige Zufalls-Nummer (10000–99999) — der handschriftliche Code, den ein Foto zeigen
@@ -521,7 +564,7 @@ export const WEAR_PAIR: PairTypes = { close: "WEAR_BEGIN", open: "WEAR_END" };
 export type BuildPairsOptions = {
   types?: PairTypes;
   /** Only honored when `types === KG_PAIR`. Ignored for WEAR_PAIR. */
-  reinigung?: ReinigungSettings;
+  reinigung?: ReinigungRules;
 };
 
 type PairResult<E, K> = {
@@ -538,16 +581,18 @@ type PairResult<E, K> = {
   interruptions: { oeffnen: E; verschluss: E }[];
 };
 
-/** True iff the legacy 3rd arg shape (a bare ReinigungSettings) was passed. */
-function isLegacyReinigungArg(arg: unknown): arg is ReinigungSettings {
+/** True iff the legacy 3rd arg shape (bare Regeln statt Options-Objekt) was passed. Eine FUNKTION
+ *  ist immer die Legacy-Form: ein Options-Objekt ist nie aufrufbar. */
+function isLegacyReinigungArg(arg: unknown): arg is ReinigungRules {
+  if (typeof arg === "function") return true;
   return !!arg && typeof arg === "object"
     && "erlaubt" in arg
     && !("types" in arg) && !("reinigung" in arg);
 }
 
 function normalizeBuildPairsOptions(
-  arg?: ReinigungSettings | BuildPairsOptions,
-): { types: PairTypes; reinigung: ReinigungSettings | undefined } {
+  arg?: ReinigungRules | BuildPairsOptions,
+): { types: PairTypes; reinigung: ReinigungRules | undefined } {
   if (!arg) return { types: KG_PAIR, reinigung: undefined };
   if (isLegacyReinigungArg(arg)) return { types: KG_PAIR, reinigung: arg };
   return { types: arg.types ?? KG_PAIR, reinigung: arg.reinigung };
@@ -585,11 +630,15 @@ export function cleaningInterruptionDeadline(openStartTime: Date, maxMinuten: nu
  *  in der Seite: sonst beantworten Anzeige und Session-Modell dieselbe Frage verschieden. */
 export function runningCleaningPauseUntil(
   latest: { type: string; oeffnenGrund?: string | null; startTime: Date } | null,
-  reinigung: ReinigungSettings,
+  reinigung: ReinigungRules,
   now: Date,
 ): Date | null {
-  if (!reinigung.erlaubt || latest?.type !== KG_PAIR.open || latest.oeffnenGrund !== "REINIGUNG") return null;
-  const until = cleaningInterruptionDeadline(latest.startTime, reinigung.maxMinuten);
+  if (latest?.type !== KG_PAIR.open || latest.oeffnenGrund !== "REINIGUNG") return null;
+  // Die Fassung DIESER Öffnung, wie in `buildPairs` — eine Pause, die beim Öffnen erlaubt war,
+  // bleibt es bis zu ihrem Ende, auch wenn die Keyholderin zwischendurch umstellt.
+  const rules = reinigungAt(reinigung, latest.startTime);
+  if (!rules.erlaubt) return null;
+  const until = cleaningInterruptionDeadline(latest.startTime, rules.maxMinuten);
   // `>=`, nicht `>`: {@link buildPairs} verschmilzt einen Wiederverschluss noch, der EXAKT auf der
   // Frist liegt. Mit `>` zeigte die Anzeige in dieser Millisekunde „beendet", während das Modell
   // die Session fortführt — genau der Widerspruch, den diese Ableitung ausschliessen soll.
@@ -614,28 +663,37 @@ export function buildPairs<
 >(
   entries: E[],
   kontrollen: K[],
-  reinigungOrOptions?: ReinigungSettings | BuildPairsOptions,
+  reinigungOrOptions?: ReinigungRules | BuildPairsOptions,
 ): PairResult<E, K>[] {
   const { types, reinigung } = normalizeBuildPairsOptions(reinigungOrOptions);
-  const reinigungActive = types === KG_PAIR && reinigung?.erlaubt === true;
+  /** Unterbricht eine Reinigungsöffnung zu IHRER Zeit die Session — und wenn ja, wie lange? Die
+   *  Regeln je Öffnung statt einmal für die ganze Liste: sonst schriebe die heutige Fassung die
+   *  Sessions der Vergangenheit um. Für WEAR_PAIR gibt es keine Reinigungspausen. */
+  const cleaningPause = (o: E): ReinigungSettings | null => {
+    if (types !== KG_PAIR) return null;
+    const rules = reinigungAt(reinigung, o.startTime);
+    return rules.erlaubt ? rules : null;
+  };
 
   const asc = filterAndSortPairEntries(entries, types);
 
   const pairs: PairResult<E, K>[] = [];
   let pending: E | null = null;
-  let pendingReinigung: E | null = null;
+  /** Die angenommene Reinigungspause SAMT der Fassung, unter der sie angenommen wurde — die Frist
+   *  des Wiederverschlusses gehört zur Öffnung, nicht zum Zeitpunkt des Verschlusses. */
+  let pendingReinigung: { entry: E; maxMinuten: number } | null = null;
   let currentInterruptions: { oeffnen: E; verschluss: E }[] = [];
 
   for (const e of asc) {
     if (e.type === types.close) {
-      if (pendingReinigung && pending && reinigungActive) {
-        if (e.startTime <= cleaningInterruptionDeadline(pendingReinigung.startTime, reinigung!.maxMinuten)) {
+      if (pendingReinigung && pending) {
+        if (e.startTime <= cleaningInterruptionDeadline(pendingReinigung.entry.startTime, pendingReinigung.maxMinuten)) {
           // Valid interruption – continue session
-          currentInterruptions.push({ oeffnen: pendingReinigung, verschluss: e });
+          currentInterruptions.push({ oeffnen: pendingReinigung.entry, verschluss: e });
           pendingReinigung = null;
         } else {
           // Timeout – close session at reinigung OEFFNEN, start new session
-          pairs.push({ verschluss: pending, oeffnen: pendingReinigung, active: false, kontrollen: [], interruptions: currentInterruptions });
+          pairs.push({ verschluss: pending, oeffnen: pendingReinigung.entry, active: false, kontrollen: [], interruptions: currentInterruptions });
           pendingReinigung = null;
           currentInterruptions = [];
           pending = e;
@@ -654,12 +712,13 @@ export function buildPairs<
         pending = e;
       }
     } else if (e.type === types.open && pending) {
-      if (reinigungActive && e.oeffnenGrund === "REINIGUNG") {
-        pendingReinigung = e;
+      const pause = e.oeffnenGrund === "REINIGUNG" ? cleaningPause(e) : null;
+      if (pause) {
+        pendingReinigung = { entry: e, maxMinuten: pause.maxMinuten };
       } else {
         if (pendingReinigung) {
           // Pending reinigung never got a re-lock in time → close at reinigung OEFFNEN
-          pairs.push({ verschluss: pending, oeffnen: pendingReinigung, active: false, kontrollen: [], interruptions: currentInterruptions });
+          pairs.push({ verschluss: pending, oeffnen: pendingReinigung.entry, active: false, kontrollen: [], interruptions: currentInterruptions });
           pendingReinigung = null;
           currentInterruptions = [];
           pending = null;
@@ -674,10 +733,10 @@ export function buildPairs<
 
   // Handle open session (still wearing or pending reinigung)
   if (pending) {
-    if (pendingReinigung && reinigungActive) {
+    if (pendingReinigung) {
       // Device is currently open for cleaning – show session as ended at reinigung OEFFNEN.
       // If user re-locks within maxMinuten, the next page load will merge it as an interruption.
-      pairs.push({ verschluss: pending, oeffnen: pendingReinigung, active: false, kontrollen: [], interruptions: currentInterruptions });
+      pairs.push({ verschluss: pending, oeffnen: pendingReinigung.entry, active: false, kontrollen: [], interruptions: currentInterruptions });
     } else {
       pairs.push({ verschluss: pending, oeffnen: null, active: true, kontrollen: [], interruptions: currentInterruptions });
     }

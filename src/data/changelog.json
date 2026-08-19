@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.2.4",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Änderungen an den Reinigungs-Regeln gelten ab sofort und nicht rückwirkend. Ein gesenktes Kontingent macht frühere Öffnungen nicht mehr zum Vergehen, und alte Tragezeiten, Rekorde und Aufgaben bleiben so stehen, wie sie unter den damaligen Regeln entstanden sind.",
+          "en": "Changes to the cleaning rules now apply from that moment on instead of retroactively. Lowering the allowance no longer turns earlier openings into offences, and past wear times, records and tasks stay as they were under the rules in force back then."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.2.3",
     "date": "2026-08-18",
     "changes": [

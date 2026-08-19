@@ -101,6 +101,7 @@ model User {
   messageReads                   MessageRead[]
   manualOffenses                 ManualOffense[]
   offenseRuleChanges             OffenseRuleChange[]
+  cleaningRuleChanges            CleaningRuleChange[]
 }
 
 /// Ein von Hand notiertes Vergehen — das einzige, das nicht aus Einträgen ABGELEITET wird.
@@ -138,6 +139,45 @@ model ManualOffense {
   withdrawnAt DateTime?
 
   @@index([userId, occurredAt])
+}
+
+/// Eine Änderung an den Reinigungs-Regeln eines Subs — append-only, gleiche Bauart wie
+/// OffenseRuleChange: die für den Zeitpunkt t geltende Fassung ist die jüngste Zeile mit
+/// `effectiveFrom <= t`, sonst der heutige Stand der vier User-Spalten.
+///
+/// Warum eine Historie und nicht bloss die Spalten am User: Das Strafbuch leitet die Vergehen LIVE
+/// aus den Einträgen ab und las dabei den HEUTIGEN Wert. Senkte die Keyholderin das Tageskontingent
+/// von 2 auf 1, wurde damit rückwirkend jede zurückliegende zweite Reinigungsöffnung zum Vergehen —
+/// für einen Tag, an dem die App dem Träger „1 von 2" angezeigt und ihn nicht gewarnt hatte
+/// (gemeldet 19.08.2026). Dasselbe gilt über das Strafbuch hinaus: die Sessions selbst zerfallen an
+/// ihren Pausen, wenn „Reinigung erlaubt" oder die Höchstdauer nachträglich enger wird — mitsamt
+/// Rekorden, Statistik und den Aufgaben, die durchgehendes Tragen verlangen.
+///
+/// Die Spalten am User bleiben der aktuelle Stand — Durchsetzung, Oberfläche und MCP lesen weiter
+/// dort. Diese Tabelle beantwortet allein die Frage der Vergangenheit: was galt DAMALS.
+///
+/// Die erste Änderung eines Subs schreibt ZWEI Zeilen: den Ausgangsstand mit `effectiveFrom` = Epoch
+/// (`changedBy` = null, denn den hat niemand gesetzt) und die neue Fassung ab jetzt. Ohne diese
+/// Grundzeile fiele die Zeit vor der ersten Änderung auf die User-Spalten zurück — also auf den
+/// neuen Wert, und damit genau in den Fehler zurück, den die Tabelle behebt.
+model CleaningRuleChange {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Vollständiger Stand ab `effectiveFrom` — Spiegel der vier User-Spalten, nicht ein Delta: die
+  /// Ableitung braucht für einen Zeitpunkt alle vier Werte, und ein Delta müsste sie erst wieder
+  /// über die ganze Historie zusammensetzen.
+  allowed       Boolean
+  maxMinutes    Int
+  maxPerDay     Int
+  /// Wie `User.reinigungsFenster`: JSON-Liste der Tages-Fenster, null = keine gesetzt.
+  windows       String?
+  effectiveFrom DateTime
+  /// Username dessen, der geändert hat (bzw. `ai`). Null nur bei der Grundzeile.
+  changedBy     String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, effectiveFrom])
 }
 
 /// Eine Änderung an der Regel „zählt diese Vergehensart bei diesem Sub?" — append-only.

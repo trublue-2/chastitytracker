@@ -1,4 +1,4 @@
-import { buildPairs, getOpenPair, interruptionPauseMs, msToHours, type ReinigungSettings } from "@/lib/utils";
+import { buildPairs, getOpenPair, interruptionPauseMs, msToHours, type ReinigungRules } from "@/lib/utils";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 
 /**
@@ -76,7 +76,7 @@ type LockPair<E> = {
  *  Paare wie bisher selbst. */
 export function buildLockState<E extends LockEntry>(
   entries: E[],
-  reinigung: ReinigungSettings,
+  reinigung: ReinigungRules,
   now: Date,
   fmt: Fmt,
   prePairs?: LockPair<E>[],

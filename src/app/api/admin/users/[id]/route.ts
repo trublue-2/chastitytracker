@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { requireAdminApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireAdminApi, requireKeyholderOrAdminApi, requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { isValidEmail, passwordErrorCode, isValidLocale } from "@/lib/constants";
 import { getActiveSperrzeit, getIsLocked } from "@/lib/queries";
@@ -95,11 +95,17 @@ export async function PATCH(
     body.reinigungErlaubt !== undefined || body.reinigungMaxMinuten !== undefined ||
     body.reinigungMaxProTag !== undefined || body.reinigungsFenster !== undefined
   ) {
+    // Zweiter Guard-Aufruf in der Actor-Variante, aus demselben Grund wie beim Passwort oben: die
+    // Historie hält fest, WER das Kontingent gesenkt hat, und der Guard am Anfang der Route reicht
+    // die Sitzung nicht durch. Kostet bei der JWT-Strategie nur ein Cookie-Decode.
+    const actor = await requireKeyholderOrAdminActor(id);
+    if (actor instanceof NextResponse) return actor;
     return serviceResponse(await setReinigungSettings(id, {
       erlaubt: body.reinigungErlaubt !== undefined ? Boolean(body.reinigungErlaubt) : undefined,
       maxMinuten: body.reinigungMaxMinuten !== undefined ? Number(body.reinigungMaxMinuten) : undefined,
       maxProTag: body.reinigungMaxProTag !== undefined ? Number(body.reinigungMaxProTag) : undefined,
       fenster: body.reinigungsFenster, // roh — der Service validiert/normalisiert
+      changedBy: sessionActor(actor),
     }));
   }
 

@@ -990,6 +990,7 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
     maxMinuten: args.maxMinutes,
     maxProTag: args.maxPerDay,
     fenster: windows,
+    changedBy: AI_AUTHOR,
   }));
   return { ok: true, message: `Cleaning settings updated.${windowsNote(windows)}` };
 }

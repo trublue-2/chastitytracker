@@ -1,3 +1,4 @@
+import { CLEANING_RULE_CHANGE_SELECT, cleaningPermissionUserAt, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -12,7 +13,7 @@ import {
   getMidnightToday, getWeekStart, getMonthStart,
   wearingHoursFromPairs, joinParts, APP_TZ,
   formatTime,
-  type ReinigungSettings } from "@/lib/utils";
+ } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
@@ -60,7 +61,7 @@ export default async function DashboardPage() {
 
   // ── Parallel data fetch ──
   const flagOn = deviceCategoriesEnabled();
-  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions, allNonKgCategories, deviceCount, offeneOrgasmusAnf] = await Promise.all([
+  const [entries, alleAnforderungen, activeVorgabe, offeneVerschlussAnf, activeSperrzeit, userSettings, wearSessions, allNonKgCategories, deviceCount, offeneOrgasmusAnf, cleaningChanges] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
@@ -83,13 +84,13 @@ export default async function DashboardPage() {
     flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
     prisma.device.count({ where: { userId, archivedAt: null } }),
     getActiveOrgasmusAnforderung(userId, now),
+    prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
   ]);
   const userHasDevices = deviceCount > 0;
 
-  const reinigung: ReinigungSettings = {
-    erlaubt: userSettings?.reinigungErlaubt ?? false,
-    maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
-  };
+  // Fassung zur Tatzeit statt heutiger Stand — Begründung am Modell `CleaningRuleChange`.
+  const cleaningAt = cleaningRulesFrom(cleaningChanges, userSettings);
+  const reinigung = reinigungRulesAt(cleaningAt);
 
   // ── Compute derived state ──
   // ALLE offenen — je Ziel kann eine laufen (v5.0.1). Dringendste zuerst, damit das Banner mit der
@@ -137,15 +138,19 @@ export default async function DashboardPage() {
     ? activeSperrzeit
     : null;
   const cleaningRelockDeadline = latest && cleaningPauseUntil
-    ? cleaningRelockObligation(
-        latest,
-        sperreBeiOeffnung,
-        // Dieselben drei Felder, die `cleaningBlockReason` liest — `tz` ist die Zone des SUBS, denn
-        // die Fenster sind seine Wanduhrzeit.
-        { reinigungErlaubt: reinigung.erlaubt, reinigungsFenster: userSettings?.reinigungsFenster ?? null, timezone: tz },
-        reinigung.maxMinuten,
-        await cleaningWindowEnforcedFrom(now),
-      )
+    ? await (async () => {
+        // Die Fassung, die zur ÖFFNUNG galt — dieselbe, nach der `buildPairs` und das Strafbuch
+        // diese Pause beurteilen, und ALLE Felder aus ihr: käme das Fenster aus der heutigen
+        // Spalte, liefen Countdown und Vergehens-Frist für dieselbe Pause auseinander.
+        const settings = cleaningAt(latest.startTime);
+        return cleaningRelockObligation(
+          latest,
+          sperreBeiOeffnung,
+          cleaningPermissionUserAt(settings, tz),
+          settings.maxMinutes,
+          await cleaningWindowEnforcedFrom(now),
+        );
+      })()
     : null;
   const cleaningRelockWarnUntil =
     cleaningRelockDeadline && cleaningPauseUntil && cleaningRelockDeadline < cleaningPauseUntil

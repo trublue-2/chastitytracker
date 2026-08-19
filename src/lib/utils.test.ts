@@ -256,6 +256,70 @@ describe("buildPairs — Reinigungs-Interruption", () => {
 
 // ─── Laufende Reinigungspause (Dashboard-Anzeige) ──────────────────────────
 
+/**
+ * Dieselbe Lehre wie beim Tageskontingent (gemeldet 19.08.2026): die Regeln der Vergangenheit sind
+ * die von damals. Ohne das zerfielen alte Sessions rückwirkend an ihren Pausen, sobald die
+ * Keyholderin die Reinigung enger stellt — mitsamt Rekorden, Statistik und den Aufgaben, die auf
+ * durchgehendes Tragen prüfen.
+ */
+describe("buildPairs — die Reinigungs-Regeln je Zeitpunkt", () => {
+  const ALT = new Date("2026-05-01T00:00:00Z");
+  const UMSTELLUNG = new Date("2026-06-01T00:00:00Z");
+  /** Bis zum 01.06. erlaubt (30 min), danach verboten. */
+  const rules = (at: Date) => at < UMSTELLUNG
+    ? { erlaubt: true, maxMinuten: 30 }
+    : { erlaubt: false, maxMinuten: 30 };
+
+  const pauseAm = (tag: string) => [
+    mkEntry("v1", "VERSCHLUSS", `${tag}T10:00:00Z`),
+    mkEntry("o1", "OEFFNEN", `${tag}T11:00:00Z`, "REINIGUNG"),
+    mkEntry("v2", "VERSCHLUSS", `${tag}T11:15:00Z`),
+    mkEntry("o2", "OEFFNEN", `${tag}T14:00:00Z`),
+  ];
+
+  it("eine Pause von damals bleibt eine Unterbrechung, obwohl Reinigung heute verboten ist", () => {
+    const result = buildPairs(pauseAm("2026-05-10"), [], rules);
+    expect(result).toHaveLength(1);
+    expect(result[0].interruptions).toHaveLength(1);
+  });
+
+  it("nach der Umstellung beendet dieselbe Öffnung die Session", () => {
+    const result = buildPairs(pauseAm("2026-06-10"), [], rules);
+    expect(result).toHaveLength(2);
+    expect(result[1].oeffnen?.id).toBe("o1");
+  });
+
+  it("die Höchstdauer kommt aus der Fassung der ÖFFNUNG, nicht aus der des Wiederverschlusses", () => {
+    // Öffnung am 31.05. (30 min erlaubt), Wiederverschluss nach Mitternacht — die Umstellung
+    // dazwischen darf die laufende Pause nicht umdeuten.
+    const entries = [
+      mkEntry("v1", "VERSCHLUSS", "2026-05-31T23:00:00Z"),
+      mkEntry("o1", "OEFFNEN", "2026-05-31T23:50:00Z", "REINIGUNG"),
+      mkEntry("v2", "VERSCHLUSS", "2026-06-01T00:10:00Z"), // 20 min später
+    ];
+    const result = buildPairs(entries, [], rules);
+    expect(result).toHaveLength(1);
+    expect(result[0].interruptions).toHaveLength(1);
+  });
+
+  it("runningCleaningPauseUntil folgt derselben Fassung: eine damals erlaubte Pause läuft weiter", () => {
+    const latest = { type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: new Date("2026-05-31T23:50:00Z") };
+    expect(runningCleaningPauseUntil(latest, rules, new Date("2026-06-01T00:05:00Z")))
+      .toEqual(new Date("2026-06-01T00:20:00Z"));
+  });
+
+  it("runningCleaningPauseUntil: eine Öffnung nach der Abschaltung ist keine Pause", () => {
+    const latest = { type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: new Date("2026-06-02T10:00:00Z") };
+    expect(runningCleaningPauseUntil(latest, rules, new Date("2026-06-02T10:05:00Z"))).toBeNull();
+  });
+
+  it("ein festes Einstellungs-Objekt gilt weiterhin für jeden Zeitpunkt", () => {
+    const result = buildPairs(pauseAm("2026-06-10"), [], { erlaubt: true, maxMinuten: 30 });
+    expect(result).toHaveLength(1);
+    expect(result[0].interruptions).toHaveLength(1);
+  });
+});
+
 describe("runningCleaningPauseUntil — dieselbe Frist, nach der buildPairs die Session fortführt", () => {
   const open = mkEntry("o1", "OEFFNEN", "2026-05-01T11:00:00Z", "REINIGUNG");
 

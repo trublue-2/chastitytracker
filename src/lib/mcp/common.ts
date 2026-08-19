@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
 // ReinigungSettings wird NUR lokal gebraucht — der Typ gehört utils.ts (wo buildPairs ihn
 // definiert); MCP-Konsumenten importieren ihn von dort direkt, nicht über dieses Modul.
-import { APP_TZ, type ReinigungSettings } from "@/lib/utils";
+import { APP_TZ, type ReinigungRules } from "@/lib/utils";
+import { CLEANING_USER_SELECT } from "@/lib/reinigungService";
+import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
 import type { DeviceCheckStatus } from "@/lib/deviceCheck";
 import { isoWithOffset } from "@/lib/mcp/format";
 import type { DeviceMeta } from "@/lib/sessionModel";
@@ -138,7 +140,7 @@ export interface TrackingContext {
    *  Tools wie keyholder_dashboard durchgereicht, damit alle Aggregate dasselbe iso teilen). */
   timezone: string;
   entries: TrackingEntry[];
-  reinigung: ReinigungSettings;
+  reinigung: ReinigungRules;
   devices: DeviceMeta[];
   now: Date;
   /** Freitext-Regeln des menschlichen Keyholders. Kommt aus derselben User-Zeile wie tz/reinigung. */
@@ -154,9 +156,9 @@ export async function loadTrackingContext(username: string, now: Date = new Date
 
 /** Lädt Entries (mit Device-Include) + Reinigungs-Settings + Geräte-Meta + Sub-Zeitzone — die geteilte
  *  Datenbasis aller V2-Read-Tools (get_session, device_stats, records, denial_trend …). */
-export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungSettings; devices: DeviceMeta[]; timezone: string; keyholderInstructions: string | null }> {
-  const [user, entries, devices] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true, mcpKeyholderInstructions: true } }),
+export async function loadTrackingData(userId: string): Promise<{ entries: TrackingEntry[]; reinigung: ReinigungRules; devices: DeviceMeta[]; timezone: string; keyholderInstructions: string | null }> {
+  const [user, entries, devices, cleaningChanges] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { ...CLEANING_USER_SELECT, timezone: true, mcpKeyholderInstructions: true } }),
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "desc" },
@@ -172,10 +174,13 @@ export async function loadTrackingData(userId: string): Promise<{ entries: Track
     // Kategorie brauchen aber nur die, die Sessions/Geräte beschriften — {@link loadCategoryNames}
     // holt sie dort, wo sie gebraucht wird.
     prisma.device.findMany({ where: { userId }, select: { id: true, name: true, lookalikeClusterId: true } }),
+    // Die MCP-Sichten zeigen Vergangenes (Sessions, Rekorde, Zeitstrahl) — Fassung zur Tatzeit
+    // statt heutiger Stand, Begründung am Modell `CleaningRuleChange`.
+    prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
   ]);
   return {
     entries,
-    reinigung: { erlaubt: user.reinigungErlaubt ?? false, maxMinuten: user.reinigungMaxMinuten ?? 15 },
+    reinigung: reinigungRulesAt(cleaningRulesFrom(cleaningChanges, user)),
     devices,
     timezone: user.timezone ?? APP_TZ,
     keyholderInstructions: user.mcpKeyholderInstructions ?? null,

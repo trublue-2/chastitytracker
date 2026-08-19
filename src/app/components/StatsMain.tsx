@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { aktiveKontrolleWhere } from "@/lib/queries";
-import { APP_TZ, formatDate, formatDateTime, formatHours, formatMs, toDateLocale, buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDayKey, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR, type ReinigungSettings } from "@/lib/utils";
+import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
+import { CLEANING_USER_SELECT } from "@/lib/reinigungService";
+import { APP_TZ, formatDate, formatDateTime, formatHours, formatMs, toDateLocale, buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDayKey, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR } from "@/lib/utils";
 import {
   buildCalendarMonths, buildDailyData, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
   type Entry, type Vorgabe,
@@ -43,7 +45,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
   const dl = toDateLocale(await getLocale());
   const now = new Date();
 
-  const [entries, vorgaben, kontrollen, strafbuch, userSettings, allDevices, nonKgCategories] = await Promise.all([
+  const [entries, vorgaben, kontrollen, strafbuch, userSettings, allDevices, nonKgCategories, cleaningChanges] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "asc" },
@@ -67,7 +69,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     // des Dashboards zahlt denselben Preis längst. Eine dauerhaft falsche Zahl unter einer
     // anklagenden Überschrift ist der schlechtere Handel.
     buildStrafbuch(userId, now),
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, timezone: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { ...CLEANING_USER_SELECT, timezone: true } }),
     // `lookalikeClusterId` treibt die Bild-Versöhnung in buildSessions (optisch gleiche Geräte
     // dürfen einander nicht als "Konflikt" überstimmen) — ohne sie rechnete die Geräte-Nutzung
     // anders als `device_stats` im MCP.
@@ -77,16 +79,15 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true, color: true, icon: true },
     }),
+    prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
   ]);
 
   // Sub's own timezone governs all boundary/format math (self or admin-viewed). Read from the
   // user row already loaded above — no extra query.
   const tz = userSettings?.timezone ?? APP_TZ;
 
-  const reinigung: ReinigungSettings = {
-    erlaubt: userSettings?.reinigungErlaubt ?? false,
-    maxMinuten: userSettings?.reinigungMaxMinuten ?? 15,
-  };
+  // Fassung zur Tatzeit statt heutiger Stand — Begründung am Modell `CleaningRuleChange`.
+  const reinigung = reinigungRulesAt(cleaningRulesFrom(cleaningChanges, userSettings));
 
   // Zurückgezogene Kontrollen bleiben aussen vor: ein Rückzug (durch die Keyholderin, eine
   // Auto-Kontrolle bei offenem KG oder den Überschneidungs-Schutz) ist ein Nicht-Ereignis — er

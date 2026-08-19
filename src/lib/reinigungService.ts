@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import {
+  CLEANING_RULES_EPOCH, cleaningSettingsEqual, cleaningSettingsFromUser, type CleaningSettings,
+} from "@/lib/cleaningRules";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
@@ -21,6 +24,10 @@ export interface SetReinigungParams {
   maxProTag?: number;
   /** Daily cleaning windows; raw input, validated/normalised before storing. */
   fenster?: unknown;
+  /** Username dessen, der ändert (bzw. `ai`) — Audit-Feld der Historie. */
+  changedBy?: string;
+  /** Testbarkeit: ab wann die neue Fassung gilt. Default `new Date()`. */
+  now?: Date;
 }
 
 /** Form eines GESPEICHERTEN Fensters: zwei „HH:MM"-Strings, aufsteigend. Bewusst toleranter als
@@ -172,6 +179,15 @@ export interface ReinigungView {
   windowOpenNow: { until: string } | null;
 }
 
+/** Prisma-Select genau der Spalten von {@link ReinigungUserFields} — damit Lese- und Schreibseite
+ *  (und das Strafbuch, das sie für die Historie braucht) nicht getrennt voneinander veralten. */
+export const CLEANING_USER_SELECT = {
+  reinigungErlaubt: true,
+  reinigungMaxMinuten: true,
+  reinigungMaxProTag: true,
+  reinigungsFenster: true,
+} as const;
+
 /** User-Reinigungs-Spalten, die `buildReinigungView` braucht (für Prisma-Select bei den Aufrufern). */
 export interface ReinigungUserFields {
   reinigungErlaubt: boolean | null;
@@ -232,6 +248,38 @@ export async function setReinigungSettings(userId: string, params: SetReinigungP
 
   if (Object.keys(data).length === 0) return serviceFail(400, NO_FIELDS_TO_UPDATE);
 
-  await prisma.user.update({ where: { id: userId }, data });
+  const now = params.now ?? new Date();
+
+  // Bestand lesen, Historie schreiben und Spalten setzen in EINER Transaktion. Die Oberfläche
+  // schickt je Feld einen eigenen PATCH (`ReinigungToggle`), zwei davon können sich überlappen —
+  // ausserhalb der Transaktion gelesen sähen beide denselben Bestand und schrieben zwei Grundzeilen
+  // bzw. eine falsche Vorher-Fassung. Und bräche sie nach der Spalten-Änderung ab, stünde der neue
+  // Wert ohne Historie da: das Strafbuch beurteilte die Vergangenheit wieder nach dem heutigen
+  // Stand, also genau der Fehler, gegen den die Tabelle gebaut ist.
+  await prisma.$transaction(async (tx) => {
+    const before = cleaningSettingsFromUser(
+      await tx.user.findUnique({ where: { id: userId }, select: CLEANING_USER_SELECT }),
+    );
+    const after: CleaningSettings = {
+      allowed: data.reinigungErlaubt ?? before.allowed,
+      maxMinutes: data.reinigungMaxMinuten ?? before.maxMinutes,
+      maxPerDay: data.reinigungMaxProTag ?? before.maxPerDay,
+      windows: data.reinigungsFenster ?? before.windows,
+    };
+    // Die Historie hält Änderungen fest, nicht Klicks: ein Speichern, das nichts bewegt, schreibt
+    // keine Zeile — sonst nennte `changedBy` irgendwann den, der zuletzt bestätigt hat, statt den,
+    // der tatsächlich geändert hat (dieselbe Regel wie in `setOffenseRule`).
+    if (!cleaningSettingsEqual(before, after)) {
+      const hasHistory = await tx.cleaningRuleChange.count({ where: { userId } }) > 0;
+      await tx.cleaningRuleChange.createMany({
+        data: [
+          // Den Ausgangsstand hat niemand gesetzt — `changedBy` bleibt leer.
+          ...(hasHistory ? [] : [{ userId, ...before, effectiveFrom: CLEANING_RULES_EPOCH, changedBy: null }]),
+          { userId, ...after, effectiveFrom: now, changedBy: params.changedBy ?? null },
+        ],
+      });
+    }
+    await tx.user.update({ where: { id: userId }, data });
+  });
   return { ok: true, data: null };
 }
