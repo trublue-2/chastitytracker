@@ -22,13 +22,15 @@
 
 - **Lock/unlock event logging** with timestamps, photos, notes, and device selection
 - **Device (KG) management** — register multiple chastity belts with name, description, photo, and purchase price; automatic per-device wear statistics and cost-per-hour tracking
-- **Cleaning openings** with configurable daily limits and per-opening max-minutes
+- **Cleaning openings** with configurable daily limits, per-opening max-minutes, and optional daily time windows. Changing any of these applies **from that moment on**: the penalty log keeps judging a past opening by the rules that were in force when it happened
 - **Photo upload** with EXIF metadata extraction and rotation correction
 - **Real-time wear duration timer** and live countdown of remaining lock period
 - **Personal statistics** — calendar heatmap, monthly overview, training-goal progress, per-device usage
 - **Orgasm tracking** with type and sub-type selection via two dependent dropdowns (e.g. Orgasmus → Masturbation); the type/sub-type list is admin-customizable per user
 - **Offline-first** — IndexedDB-cached dashboard and queued entry creation with background sync
-- **Inbox** — every notification a user receives (inspection, lock & closure, orgasm, penalty, system) also lands in an in-app inbox, colour-coded by category, so nothing is lost when an email doesn't arrive. Read state is per message (opening the list is not enough), messages can be marked unread again, acknowledged all at once, or deleted; an open inspection links straight to the inspection form with the code pre-filled. The bell and the app icon carry the unread count. Mail and push for *new messages* can be switched off per user — requests and deadlines are always delivered
+- **Inbox** — every notification a user receives (inspection, lock & closure, orgasm, penalty, system) also lands in an in-app inbox, colour-coded by category, so nothing is lost when an email doesn't arrive. Read state is per message (opening the list is not enough), messages can be marked unread again, acknowledged all at once, or deleted; an open inspection links straight to the inspection form with the code pre-filled. The bell and the app icon carry the unread count. Mail and push for *new messages* can be switched off per user — requests and deadlines are always delivered. Keyholders have an inbox of their own behind the same bell: notices about their wearers (auto-filed inspections, task results, late proofs)
+- **Tasks** — assignments from the keyholder with any number of conditions (stay locked, wear a specific device or category) that must hold *continuously*, a start grace period, and a deadline. Proof photos can be required, each with its own due time and an optional order; the capture time comes from the photo's EXIF data, not from the upload. What is left to do is spelled out on the card ("still missing: …"), and when everything has held, the wearer reports the task done
+- **My rules** — a read-only page showing what the wearer is judged by: cleaning permissions and limits, automatic inspections, and which kinds of offense count for them at all
 - **Password self-service** (change and reset via email)
 - **Per-account timezone** — timestamps and day boundaries follow the timezone stored on the account, not the server's
 - **Push notifications** (PWA web-push + native iOS/Android app) for lock/unlock, inspections, lock requests, and penalties; tapping a native push opens the relevant in-app page
@@ -48,11 +50,14 @@
 - **Automatic inspections** — randomly scheduled across the day within a configurable wake window
 - **Lock requests** — request a user locks up by a deadline, optionally with a minimum wear duration
 - **Lock periods (Sperrzeiten)** — enforced lock periods with automatic or manual end time; optional flag allowing cleaning openings during the period
-- **Scheduled directives** — lock requests, lock periods, and inspections can be sent time-delayed or at a fixed time; the directive stays invisible to the sub until it fires, while the keyholder sees pending ones in a "Scheduled" section (admin overview + MCP `keyholder_dashboard.scheduledDirectives`) and can cancel them ahead of time
+- **Scheduled directives** — lock requests, lock periods, inspections, orgasm requirements, and tasks can be sent time-delayed or at a fixed time; the directive stays invisible to the sub until it fires, while the keyholder sees pending ones in a "Scheduled" section (admin overview + MCP `keyholder_dashboard.scheduledDirectives`) and can cancel them ahead of time
 - **Orgasm requirements** — grant a time-boxed orgasm window for a user, optionally tied to a permitted opening and a required orgasm type
 - **Customizable selection lists** — per user, edit the orgasm-type and opening-reason lists (add / rename / remove / reorder) under User → Settings. Orgasm sub-types use a `Main – Sub` convention (`/`, `|`, `-` are auto-normalized) that drives the two dependent dropdowns. The cleaning reason (`REINIGUNG`) is fixed and can only be renamed; the rest is free. Untouched, every user keeps the built-in defaults
 - **Device requirements** — admin can require a specific KG for a lock request; wrong-device usage is flagged automatically
-- **Penalty tracking** — cleaning-limit violations, wrong-device, missed inspections, unauthorized openings
+- **Tasks** — set an assignment with conditions, start grace, deadline, and any number of proof photos; hold time can run to a fixed end or count from the moment the conditions are met. Proofs handed in late are shown for a verdict instead of counting silently, a task can be withdrawn (and then deleted with its photos), and a task can be issued **as a penalty** for a recorded offense — task and verdict are written in one step, and fulfilling it closes the penalty by itself
+- **Penalty tracking** — thirteen kinds of offense, all derived live from the entries: unauthorized opening, inspection late / rejected / unanswered, cleaning limit exceeded, no re-lock after cleaning, wrong device, missed lock request, missed orgasm instruction, unauthorized orgasm, unfulfilled task, admin-password change during a lock period, plus offenses recorded by hand
+- **Offense rules per sub** — which kinds of offense count for a given wearer is switchable; `unauthorized orgasm` additionally distinguishes "only during a lock period" from "always". A change applies from that moment on and never rewrites the past
+- **Record an offense by hand** — for anything the app cannot see (a broken agreement, rudeness). It is judged like any derived one
 - **Unified Admin UI** — user-detail tabs share layout, width, and actions consistently across Overview / Actions / Entries / Inspections / Statistics / Log / Devices / Settings
 - **Per-user notification preferences** (email + push, per event type)
 - **Keyholder relationships** — a non-admin user can be assigned as keyholder for specific subs, gaining scoped access to their data, photos, and notifications — always active, independent of any flag. The optional `USE_ADMIN_RELATIONSHIPS` flag additionally restricts global admins to only their assigned users. Global admins additionally appear as implicit, read-only keyholders in a sub's keyholder list, so it is always clear who controls whom
@@ -480,13 +485,14 @@ src/
       categories/           # Device categories (multi-category wear tracking)
       bildersafe/           # Seal a key-box code photo onto the active lock
       messages/             # In-app inbox (list, read state, delete)
+      tasks/                # Wearer side of tasks: self-report + proof submission
       upload/               # Photo upload
       uploads/              # Auth-protected photo serving
       verify-kontrolle/     # AI inspection verification
       detect-seal/          # AI seal-number detection
       detect-device/        # AI device recognition
       push/                 # Push notification subscription
-    dashboard/              # User-facing pages (entries, devices, stats, inbox, settings)
+    dashboard/              # User-facing pages (entries, devices, stats, tasks, inbox, rules, settings)
     admin/                  # Admin pages with shared user-detail layout
     entries/                # Shared entry-form cores (used by both user and admin)
     components/             # Shared React components
@@ -570,6 +576,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `POST` | `/api/admin/kontrolle` | Request inspection (sends 5-digit code via email) |
 | `GET` | `/api/admin/kontrollen` | List all inspections (admin) |
 | `PATCH` | `/api/admin/kontrollen/[id]` | Withdraw or manually verify inspection (admin) |
+| `GET` | `/api/admin/inspection-targets` | Targets an inspection can currently be requested for (`?userId=`) |
 
 ### Lock Requests & Sperrzeiten
 
@@ -579,6 +586,24 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `PATCH` | `/api/admin/verschluss-anforderung/[id]` | Withdraw a lock request or period (admin) |
 | `POST` | `/api/admin/orgasmus-anforderung` | Create an orgasm requirement / window for a user (admin) |
 | `PATCH` | `/api/admin/orgasmus-anforderung/[id]` | Withdraw an orgasm requirement (admin) |
+
+### Tasks
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/admin/tasks` | Create a task (conditions, deadline, proofs; optionally as a penalty for an offense) |
+| `PATCH/DELETE` | `/api/admin/tasks/[id]` | Edit or withdraw a task / delete a withdrawn one with its proof photos |
+| `PATCH` | `/api/admin/tasks/proofs/[id]` | Accept or reject a submitted proof |
+| `PATCH` | `/api/tasks/[id]` | Wearer reports the task done |
+| `PATCH` | `/api/tasks/proofs/[id]` | Wearer submits a proof photo |
+
+### Offenses & Penalties
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST/PATCH/DELETE` | `/api/admin/strafe` | Judge an offense (offense type + refId) / mark the penalty done or open again / undo the judgment |
+| `POST/DELETE` | `/api/admin/offense` | Record an offense by hand / withdraw it |
+| `PATCH` | `/api/admin/offense-rules` | Switch one kind of offense on or off for a sub (append-only history, applies from now on) |
 
 ### Inbox
 
@@ -590,6 +615,9 @@ Scope always comes from the session — never from a query parameter. The three 
 | `DELETE` | `/api/messages/[id]` | Delete a message (the underlying record stays) |
 | `POST/DELETE` | `/api/messages/[id]/read` | Mark a single message read / unread |
 | `POST` | `/api/messages/read-all` | Acknowledge all messages at once |
+| `POST` | `/api/messages/bulk` | Read / unread / delete a selection at once |
+
+The keyholder inbox mirrors these under `/api/admin/messages` (`GET`, `[id]`, `[id]/read`, `read-all`, `bulk`) — same five endpoints, scope from the keyholder's assigned subs.
 
 ### Admin
 
@@ -603,7 +631,6 @@ Scope always comes from the session — never from a query parameter. The three 
 | `GET/POST` | `/api/admin/vorgaben` | List / create training goals |
 | `PATCH/DELETE` | `/api/admin/vorgaben/[id]` | Update / delete training goal |
 | `GET/PATCH` | `/api/admin/notifications` | Get / update per-user notification preferences (`?userId=`) |
-| `POST/PATCH/DELETE` | `/api/admin/strafe` | Judge an offense (offense type + refId) / mark the penalty done or open again / undo the judgment |
 | `POST` | `/api/admin/demo` | Create demo user with sample data (requires `ENABLE_DEMO=true`) |
 
 ### Auth, Passkeys & Settings
@@ -654,7 +681,12 @@ Scope always comes from the session — never from a query parameter. The three 
 | `KontrollAnforderung` | Inspection requests with 5-digit code and deadline |
 | `VerschlussAnforderung` | Lock requests (`ANFORDERUNG`) and lock periods (`SPERRZEIT`); optional device requirement and `reinigungErlaubt` flag |
 | `OrgasmusAnforderung` | Orgasm requirement / window for a user (optional required type, permitted opening) |
-| `StrafeRecord` | Penalty records — missed inspections, unauthorized openings, cleaning-limit violations, wrong-device usage, missed orgasm instructions |
+| `Task` / `TaskRequirement` / `TaskProof` | Tasks with their conditions and proof photos (own due time, review state, capture time from EXIF) |
+| `StrafeRecord` | Verdicts on offenses — the offense itself is derived live from the entries; this record holds what the keyholder decided (punished, dismissed, done), optionally with a penalty task |
+| `ManualOffense` | Offenses recorded by hand — the only kind not derived from entries |
+| `OffenseRuleChange` | Append-only history of which kinds of offense count for a sub, with `effectiveFrom` |
+| `CleaningRuleChange` | Append-only history of the cleaning rules (allowed, max minutes, daily quota, windows) — so a past opening keeps being judged by the rules in force back then |
+| `AdminPasswordChange` | Password changes on admin accounts (an offense while a lock period is running) |
 | `Message` / `MessageRead` | In-app inbox entries and their per-user read state |
 | `NotificationPreference` | Per-user, per-event email/push notification settings |
 | `PushSubscription` / `NativePushToken` | Web Push endpoints and native-iOS/Android tokens |
@@ -675,7 +707,7 @@ Contributions are welcome. By submitting a pull request you agree that your cont
 2. Follow the existing code conventions — shared UI primitives (see `src/app/components/`), i18n for all visible strings (`next-intl`, both `de.json` and `en.json`), and the form / API conventions already used throughout the codebase.
 3. When changing `prisma/schema.prisma`, create a migration: `DATABASE_URL="file:./dev.db" npx prisma migrate dev --name <name>`.
 4. `npm run build` must pass cleanly before opening a pull request.
-5. Bump the version in `package.json` and add a matching entry to `src/data/changelog.json` in the same commit as the feature/fix.
+5. Not every commit gets its own version. Versions are bumped in bundles, once a coherent state is finished — several commits share one version, and a commit without a bump gets no changelog entry either (its details belong in the commit message). **When** you do bump, the version in `package.json` and the entry in `src/data/changelog.json` belong in the same commit as the change itself. Allowed entry types: `feat`, `fix`, `security`, `perf`, `chore`, `ui`.
 
 ## License
 
