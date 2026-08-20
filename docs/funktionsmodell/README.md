@@ -18,10 +18,21 @@ handlungsleitende Fassung.
 | Datei | Inhalt |
 |---|---|
 | [stellschrauben.md](stellschrauben.md) | **Generiert.** Jedes Feld, das Verhalten steuert: Typ, Default, wer schreiben darf, worauf es wirkt, wo die Regel im Code steht. |
-| [10-sperrzeit.md](10-sperrzeit.md) | Steckbrief Sperrzeit und Verschluss-Anforderung |
-| [20-reinigung.md](20-reinigung.md) | Steckbrief Reinigung |
-| [30-kontrollen.md](30-kontrollen.md) | Steckbrief Kontrollen (manuell, automatisch, Eskalation) |
 | [90-kollisionen.md](90-kollisionen.md) | **Vorrang- und Kollisionsregeln.** Was gewinnt, wenn zwei Regeln gleichzeitig gelten. |
+| [10-sperrzeit.md](10-sperrzeit.md) | Sperrzeit und Einschliess-Anforderung |
+| [15-eintraege.md](15-eintraege.md) | Einträge & Sessions — der Rohstoff, aus dem alles abgeleitet wird |
+| [20-reinigung.md](20-reinigung.md) | Reinigung (und damit der Gerätewechsel) |
+| [30-kontrollen.md](30-kontrollen.md) | Kontrollen: manuell, automatisch, Eskalation |
+| [35-orgasmus.md](35-orgasmus.md) | Orgasmus-Direktive |
+| [40-aufgaben.md](40-aufgaben.md) | Aufgaben: Bedingungen, Nachweise, Sichtung |
+| [45-trainingsziele.md](45-trainingsziele.md) | Trainingsziele |
+| [50-strafbuch.md](50-strafbuch.md) | Vergehen & Strafbuch |
+| [55-geraete.md](55-geraete.md) | Geräte & Kategorien |
+| [60-box.md](60-box.md) | Box (Heimdall) |
+| [70-nachrichten.md](70-nachrichten.md) | Nachrichten / Posteingang |
+| [75-benachrichtigungen.md](75-benachrichtigungen.md) | Benachrichtigungen (Mail, Push) |
+| [80-kontext.md](80-kontext.md) | Keyholder-Wissen & Kontext (die MCP-Gedächtnisschicht) |
+| [85-zugang.md](85-zugang.md) | Konto, Zugang & Darstellung |
 
 Die Steckbriefe folgen alle demselben Raster (Zweck, Stellschrauben, Auslöser, Wirkt auf,
 Unterdrückt von, Sichtbarkeit, Code, Tests). Das ist Absicht: eine Frage lässt sich so in jedem
@@ -80,9 +91,8 @@ flowchart TD
   TASK --> NOTIF
 ```
 
-Noch ohne Steckbrief (die Karte nennt sie, damit die Lücke sichtbar bleibt): Aufgaben,
-Trainingsziele, Orgasmus-Direktive, Geräte/Kategorien, Box, Strafbuch, Nachrichten,
-Benachrichtigungen, Sessions/Statistik.
+Jede Mechanik der Karte hat einen Steckbrief. Was fehlt, ist keine Mechanik, sondern Tiefe: die
+Kollisionsliste wächst mit jeder Überraschung, die im Betrieb auffällt.
 
 ## Pflege
 
@@ -104,7 +114,10 @@ Damit kann das Register nicht stillschweigend veralten — der übliche Tod eine
 Funktionsdokumentation. Die Prosa-Steckbriefe sind von Hand gepflegt und geniessen diesen Schutz
 nicht; sie sind dafür auch nicht der Ort für Zahlen, die sich ändern (die stehen im Register).
 
-**Ein Modell in die Vollprüfung aufnehmen:** Name in `FM_SCANNED_MODELS` eintragen und `npm test`
-laufen lassen — der Test nennt danach jedes Feld, das noch einen Eintrag braucht. Heute geprüft:
-`User`, `Device`, `DeviceCategory`, `VerschlussAnforderung`, `KontrollAnforderung`,
-`NotificationPreference`.
+**Geprüft werden alle 40 Modelle des Schemas** — jedes Skalarfeld hat einen Eintrag, auch die
+uninteressanten. Ein neues Modell trägt man in `FM_SCANNED_MODELS` ein; der Test nennt danach jedes
+Feld, das noch fehlt.
+
+Warum lückenlos statt nur die spannenden Felder: ein Register, das nur die bekannten Schalter kennt,
+dokumentiert die eigene Erinnerung statt das System. Die Felder, an die niemand gedacht hat, sind
+genau die, die später als unerklärliches Verhalten auffallen.

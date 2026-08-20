@@ -99,6 +99,80 @@ rückwirkend der damalige Stand als „seit jeher" (`effectiveFrom = Epoch`).
 **Ein Speichern ohne Wertänderung schreibt keine Zeile.** Sonst nennte `changedBy` irgendwann den,
 der zuletzt bestätigt hat.
 
+## Fristen, die früher zuschlagen als erwartet
+
+**Die eigene Frist eines Nachweises versäumt die GANZE Aufgabe** — sofort, nicht erst am Ende.
+Danach nimmt die App für diesen Nachweis auch nichts mehr an.
+
+**Ein Enddatum eines Trainingsziels wandert von selbst**, wenn `validUntilManual` fehlt: die
+automatische Verkettung setzt es auf den Beginn des Folgeziels. Ein von Hand gesetztes Ende
+verschwindet dann scheinbar grundlos.
+
+**Bedingungen, Nachweise und die Reihenfolge-Regel einer Aufgabe sind nach dem Stellen nicht mehr
+änderbar.** Andere wollen heisst zurückziehen und neu stellen. Ein Zurückziehen wird nie ein
+Vergehen.
+
+## Was ein Rückzug mitnimmt
+
+**Eine zurückgezogene Sperrzeit tilgt die daran hängenden Vergehen** — sie sind live abgeleitet und
+existieren ohne die Sperre nicht mehr. Einzige Ausnahme ist `admin_password_change`: er wird im
+Moment des Vorgangs festgeschrieben, genau deshalb.
+
+**Eine Regeländerung schreibt die Vergangenheit nicht um.** Eine heute abgeschaltete Vergehensart
+kann weiterhin ältere Vergehen zeigen. Das ist richtig, nicht kaputt.
+
+**Alte Vergehen werden nie gemeldet.** Abgeleitete Vergehen mit einer Tatzeit vor dem Stichtag der
+Instanz erreichen den Träger nicht — sonst kippte der erste Lauf nach einem Update seine ganze
+Historie in den Posteingang. Von Hand notierte sind ausgenommen.
+
+## Leere Listen, die keine Leere bedeuten
+
+**Ein Admin-Konto ohne Zuordnung sieht überall leere Listen**, nicht alle Subs. Die Zuordnung
+Keyholder ↔ Sub ist die eigentliche Berechtigung — fehlt sie, ist jede beziehungsbasierte Sicht
+leer, obwohl das Konto Admin-Rechte hat.
+
+**Eine Inventar-Kategorie liefert per Design keine Sessions.** Abwesenheit in den Auswertungen ist
+dort keine Nichtnutzung.
+
+**Eine leere Failsafe-Warnliste der Box ist kein Freibrief.** Sie heisst auch: nie gemeldet,
+Schwellen unbekannt. Und vor der Funkstille kann die Box nicht warnen — eine Box ohne Netz meldet
+auch ihre Funkstille nicht.
+
+**Eine überfällige Kontrolle verschwindet nie.** Eine leere Kontroll-Liste heisst „gerade keine
+offen", nicht „ausgelaufen".
+
+## Stille, die keine Abwesenheit ist
+
+**Alle Benachrichtigungs-Kanäle aus heisst nicht: keine Meldung.** Die Posteingangs-Zeile entsteht
+unabhängig vom Versand. Und umgekehrt stoppt eine nicht zugestellte Mahnung die Eskalation nicht —
+der Stempel wird gesetzt, egal ob sie ankommt.
+
+**Löschen einer Keyholder-Nachricht trifft alle Keyholder.** Es gibt nur eine Zeile je Träger; die
+Empfänger teilen sie sich und haben darauf nur ihren eigenen Lesestand.
+
+**Der Absender-Filter des Posteingangs filtert nach Art, nicht nach Person.** Auf einer Instanz mit
+mehreren Admins nennt seine Auswahl eine Person und meint alle.
+
+**Die MCP-Werkzeugliste ist pro Verbindung gecacht.** Ein neuer Chat genügt nicht, um geänderte
+Werkzeuge zu sehen — es braucht eine frische Verbindung.
+
+## Einstellungen mit Rückwirkung
+
+**Ein Lookalike-Cluster zu setzen rechnet die Geräte-Zuordnung jeder historischen Session mit
+Bild-Konflikt neu.** Die einzige Geräte-Einstellung, die rückwirkt — vorher die Vorschau prüfen.
+
+## Box: Soll ist nicht Ist
+
+**`locked` ist das Soll, `reportedLocked` das Ist.** Seit dem Präsenz-Guard können sie
+auseinanderfallen: die Box kann offen stehen, obwohl sie zu sein soll. Wer nur das Soll liest, sieht
+das nicht.
+
+**Eine verbotene Öffnung bekommt gar kein Box-Kommando** — sonst vollzöge der Tracker das Vergehen,
+das er dokumentiert.
+
+**Der Schlüssel muss nicht in der Box sein.** Erklärt der Sub beim Verschluss das Gegenteil, bekommt
+die Box bewusst kein Sperr-Kommando; die Sperrzeit läuft trotzdem, nur ohne physische Durchsetzung.
+
 ## Offene Frage
 
 **Die Zeitzone ist ein Sub-Feld, steuert aber Keyholder-Regeln.** `User.timezone` lässt sich vom Sub

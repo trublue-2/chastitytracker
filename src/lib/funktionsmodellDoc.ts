@@ -179,7 +179,7 @@ const KIND_LABEL: Record<FmNonSetting["kind"], string> = {
   identity: "Identität", record: "Datensatz", runtime: "Laufzeitzustand", audit: "Nachweis",
 };
 const SCOPE_LABEL: Record<FmScope, string> = {
-  standing: "dauerhaft", directive: "je Direktive",
+  standing: "dauerhaft", directive: "je Direktive", entry: "je Eintrag",
 };
 
 /**
@@ -207,10 +207,16 @@ export function renderStellschrauben(schema: SchemaFields): string {
 
   for (const domain of FM_DOMAINS) {
     const rows = settingsOf(domain, schema);
-    if (rows.length === 0) continue;
     lines.push(`## ${domain.title}`);
     lines.push("");
     if (domain.doc) lines.push(`Steckbrief: [${domain.doc}](${domain.doc})`, "");
+    // Eine Domäne OHNE Stellschraube ist eine Aussage, keine Leerstelle: die Box etwa lässt sich im
+    // Tracker an keiner Stelle einstellen, sie folgt den Einträgen. Wer die Überschrift wegliesse,
+    // gäbe dem Leser die Antwort 'steht nirgends' statt 'gibt es nicht'.
+    if (rows.length === 0) {
+      lines.push("Kein einziges einstellbares Feld — was hier passiert, ergibt sich aus anderen Mechaniken.", "");
+      continue;
+    }
     lines.push(row(["Feld", "Typ", "Default", "Gilt", "Wirkung", "Schreibt", "Wirkt auf", "Anker"]));
     lines.push("|---|---|---|---|---|---|---|---|");
     for (const { entry, field } of rows) {
