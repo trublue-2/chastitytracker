@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import TimerDisplay from "@/app/components/TimerDisplay";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
+import BlockHeading from "@/app/components/BlockHeading";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { formatHoursHM } from "@/lib/utils";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
@@ -165,9 +166,9 @@ export default function DashboardClient(props: DashboardProps) {
       {/* ── Stats Summary ── */}
       <div className="rounded-xl border border-border bg-surface p-4 sm:p-5">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">
+          <BlockHeading>
             {t("statsTitle")}
-          </p>
+          </BlockHeading>
           <Link href="/dashboard/stats" className="text-xs text-foreground-faint hover:text-foreground-muted transition">
             {t("allStats")} →
           </Link>

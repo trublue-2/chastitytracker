@@ -40,8 +40,10 @@ export default function InactiveCategories({ categories }: Props) {
         open={open}
         onToggle={() => setOpen((v) => !v)}
       />
+      {/* Die Liste ohne `mt`: der Knopf darüber trägt seit `py-3` seinen Abstand selbst, ein zweiter
+          addierte sich darauf und risse die erste Zeile von ihrer Beschriftung weg. */}
       {open && (
-        <ul className="mt-2 flex flex-col gap-2">
+        <ul className="flex flex-col gap-2">
           {categories.map((c) => {
             const beginHref = wearActionHref({ categoryId: c.id, active: false });
             return (

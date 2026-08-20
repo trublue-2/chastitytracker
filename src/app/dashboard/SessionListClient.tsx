@@ -1,5 +1,6 @@
 "use client";
 
+import BlockHeading from "@/app/components/BlockHeading";
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, ChevronUp, Lock, LockOpen, Timer } from "lucide-react";
@@ -49,7 +50,7 @@ export default function SessionListClient({ sessions, tz }: { sessions: SessionL
     <div className="bg-surface rounded-2xl border border-border overflow-hidden">
       {/* Title */}
       <div className="px-5 py-3 border-b border-border-subtle">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("sessions")}</p>
+        <BlockHeading>{t("sessions")}</BlockHeading>
       </div>
 
       <div className="divide-y divide-border-subtle">

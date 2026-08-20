@@ -1,5 +1,6 @@
 "use client";
 
+import BlockHeading from "@/app/components/BlockHeading";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Timer } from "lucide-react";
@@ -32,9 +33,9 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
   return (
     <div className="bg-surface rounded-2xl border border-border overflow-hidden">
       <div className="px-5 py-3 border-b border-border-subtle">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">
+        <BlockHeading>
           {t("otherCategorySessions")}
-        </p>
+        </BlockHeading>
       </div>
 
       <div className="divide-y divide-border-subtle">

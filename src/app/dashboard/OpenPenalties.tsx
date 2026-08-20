@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import BlockHeading from "@/app/components/BlockHeading";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import OffenseList from "@/app/components/OffenseList";
 import { prisma } from "@/lib/prisma";
@@ -95,7 +96,7 @@ export default async function OpenPenalties({
   return (
     <DashboardBlock>
       <div className="flex items-center justify-between gap-3 mb-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("openTitle")}</p>
+        <BlockHeading>{t("openTitle")}</BlockHeading>
         {/* Ins POSTFACH, nicht mehr auf eine eigene Strafbuch-Seite: dort werden festgestellte
             Vergehen und ihr Ausgang seit v5.1 als Nachrichten gemeldet — anders als eine Anzeige auf
             der Live-Ableitung können die nicht mehr still verschwinden. (Vergehen von VOR dem

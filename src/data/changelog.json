@@ -4,6 +4,13 @@
     "date": "2026-08-19",
     "changes": [
       {
+        "type": "ui",
+        "text": {
+          "de": "Der Aufgaben-Block nennt jetzt die Gesamtzahl im Kopf und klappt erst ab vier Aufgaben etwas ein. Vorher standen bei drei offenen Aufgaben nur zwei da, ohne dass die dritte auffiel.",
+          "en": "The task block now shows the total in its heading and only collapses from four tasks on. Before, three open tasks showed as two, with no hint that a third existed."
+        }
+      },
+      {
         "type": "fix",
         "text": {
           "de": "Änderungen an den Reinigungs-Regeln gelten ab sofort und nicht rückwirkend. Ein gesenktes Kontingent macht frühere Öffnungen nicht mehr zum Vergehen, und alte Tragezeiten, Rekorde und Aufgaben bleiben so stehen, wie sie unter den damaligen Regeln entstanden sind.",

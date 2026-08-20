@@ -1,5 +1,6 @@
 "use client";
 
+import BlockHeading from "@/app/components/BlockHeading";
 import { useState } from "react";
 import IconTile from "@/app/components/IconTile";
 import { ListChecks } from "lucide-react";
@@ -63,9 +64,9 @@ export default function TaskList({
     // Überschrift sonst genau nach dem Sprung ab.
     <div id={TASK_LIST_ANCHOR} className="scroll-mt-20 bg-surface rounded-2xl border border-border overflow-hidden">
       <div className="px-5 py-3 border-b border-border-subtle">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">
+        <BlockHeading>
           {t("listTitle")}
-        </p>
+        </BlockHeading>
       </div>
 
       <div className="divide-y divide-border-subtle">
