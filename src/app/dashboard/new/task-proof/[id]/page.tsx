@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getMobileDesktopMode } from "@/lib/queries";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import TaskProofFormCore from "@/app/entries/TaskProofFormCore";
@@ -23,7 +24,7 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
   // Beide Abfragen hängen nur an der Session, keine an der anderen — und die Schranke darunter kann
   // im Dauer-Modus eine ganze Auswertung kosten. Nacheinander wartete die Einstellung des Trägers
   // hinter ihr, für nichts.
-  const [proof, user] = await Promise.all([
+  const [proof, mobileDesktopMode] = await Promise.all([
     prisma.taskProof.findFirst({
       where: ownProofWhere(id, session.user.id),
       include: {
@@ -38,7 +39,7 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
         },
       },
     }),
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { mobileDesktopUpload: true } }),
+    getMobileDesktopMode(session.user.id),
   ]);
 
   // Nicht vorhanden, fremd, zurückgezogen, bereits eingereicht oder nach dem Ende der Aufgabe:
@@ -79,7 +80,7 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
       // Fristablaufs auf der Karte überfällig und hier ruhig — dieselbe Sekunde, zwei Auskünfte.
       late={dueAt !== null && now >= dueAt}
       tz={session.user.timezone ?? APP_TZ}
-      mobileDesktopMode={user?.mobileDesktopUpload ?? false}
+      mobileDesktopMode={mobileDesktopMode}
     />
   );
 }

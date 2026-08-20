@@ -77,9 +77,14 @@ interface Props {
   nowDefault: string;
   /** WEAR_END only — laufende Aufgaben, die genau dieses Gerät noch verlangen. */
   taskWarnings?: TaskWarning[];
+  /** Der Keyholder-Schalter „Dateiauswahl auf Mobile" (`User.mobileDesktopUpload`) — er öffnet auf
+   *  dem Handy die Dateiauswahl statt der Kamera. Dieselbe Ausnahme wie in den übrigen
+   *  Nachweis-Formularen; ohne das Prop lief der Schalter hier ins Leere (Issue #51). Nicht zu
+   *  verwechseln mit `allowGallery`: das Foto zum Tragen-Beginn bleibt ein Nachweis. */
+  mobileDesktopMode?: boolean;
 }
 
-export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo, initial, minTime, maxTime, tz, nowDefault, taskWarnings = [] }: Props) {
+export default function WearForm({ kind, category, devices, activeSession, adminUserId, redirectTo, initial, minTime, maxTime, tz, nowDefault, taskWarnings = [], mobileDesktopMode = false }: Props) {
   const t = useTranslations("wearForm");
   const tCommon = useTranslations("common");
   const apiError = useApiError();
@@ -261,7 +266,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
                   onRotateRight={rotateRight}
                 />
                 <div className="flex flex-col gap-2 flex-1 pt-1">
-                  <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact />
+                  <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact mobileDesktopMode={mobileDesktopMode} />
                   <button
                     type="button"
                     onClick={clearPhoto}
@@ -273,7 +278,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
               </div>
             ) : (
               <>
-                <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" />
+                <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
                 {uploadError && !uploading && <p className="text-xs text-warn font-medium mt-1">{uploadError}</p>}
               </>
             )}

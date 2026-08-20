@@ -9,7 +9,7 @@ import OrgasmusForm from "../../OrgasmusForm";
 import WearForm from "../../WearForm";
 import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
-import { getUserDeviceOptions, getUserTimezone, getLatestKgEntry } from "@/lib/queries";
+import { getUserDeviceOptions, getUserTimezone, getLatestKgEntry, getMobileDesktopMode } from "@/lib/queries";
 import { entryManageAccess } from "@/lib/keyholder";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
@@ -34,16 +34,19 @@ export default async function EditEntryPage({
   ]);
   const { from, userId: adminUserId } = sp;
   const currentUserId = session?.user?.id;
-  const [entry, dbUser] = await Promise.all([
+  const [entry, mobileDesktopMode] = await Promise.all([
     prisma.entry.findUnique({
       where: { id },
       include: {
         device: { select: { categoryId: true, category: { select: { id: true, name: true, color: true, icon: true, requirePhoto: true } } } },
       },
     }),
-    currentUserId ? prisma.user.findUnique({ where: { id: currentUserId }, select: { mobileDesktopUpload: true } }) : null,
+    // Hier bewusst der HANDELNDE, nicht der Eigentümer des Eintrags — anders als auf den
+    // Admin-Formularseiten, die den Schalter des Trägers nehmen. Der Unterschied trifft nur den
+    // Keyholder, der einen fremden Eintrag bearbeitet, und ist in der Praxis nie aufgefallen; wer
+    // ihn dreht, ändert Bestandsverhalten für Verschluss, Kontrolle und Tragen zugleich.
+    currentUserId ? getMobileDesktopMode(currentUserId) : false,
   ]);
-  const mobileDesktopMode = dbUser?.mobileDesktopUpload ?? false;
   if (!entry) notFound();
   // Zugriff: eigener Eintrag ODER globaler Admin ODER Keyholder des Eigentümers (scoped admin).
   const { allowed, elevated: isElevated } = await entryManageAccess(currentUserId, session?.user?.role, entry.userId);
@@ -143,6 +146,7 @@ export default async function EditEntryPage({
           maxTime={maxTime}
           tz={tz}
           nowDefault={nowDefault}
+          mobileDesktopMode={mobileDesktopMode}
           redirectTo={redirectTo}
         />
       )}

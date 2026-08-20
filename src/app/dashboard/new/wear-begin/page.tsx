@@ -5,7 +5,7 @@ import { redirect, notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { deviceFormHref } from "@/lib/categoryConstants";
-import { getActiveWearSessionForCategory } from "@/lib/queries";
+import { getActiveWearSessionForCategory, getMobileDesktopMode } from "@/lib/queries";
 import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/utils";
 import WearForm from "../../WearForm";
 
@@ -43,8 +43,11 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
   const preferred = devices.findIndex((d) => d.id === wantedDevice);
   if (preferred > 0) devices.unshift(...devices.splice(preferred, 1));
 
-  const tn = await getTranslations("newEntry");
-  const t = await getTranslations("wearForm");
+  const [tn, t, mobileDesktopMode] = await Promise.all([
+    getTranslations("newEntry"),
+    getTranslations("wearForm"),
+    getMobileDesktopMode(session.user.id),
+  ]);
 
   if (devices.length === 0) {
     return (
@@ -66,6 +69,7 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("titleBegin")}</h1>
       <WearForm
         kind="begin"
+        mobileDesktopMode={mobileDesktopMode}
         category={{ id: category.id, name: category.name, color: category.color, icon: category.icon, requirePhoto: category.requirePhoto }}
         devices={devices}
         redirectTo={target}

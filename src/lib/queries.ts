@@ -106,6 +106,23 @@ export async function getUserTimezone(userId: string): Promise<string> {
   return u?.timezone ?? APP_TZ;
 }
 
+/**
+ * Der Schalter „Dateiauswahl auf Mobile" (`User.mobileDesktopUpload`) eines Subs — öffnet auf dem
+ * Handy die Dateiauswahl statt der Kamera.
+ *
+ * Als eigene Ableitung, weil dieselbe Ein-Feld-Abfrage samt `?? false` in inzwischen sieben
+ * Formular-Seiten stand — und die achte sie vergass: das Foto zum Tragen-Beginn folgte dem Schalter
+ * nicht (Issue #51). Wer den Wert vergisst, bekommt keinen Fehler, sondern ein Formular, das die
+ * Kamera erzwingt, obwohl die Keyholderin es anders eingestellt hat.
+ *
+ * Es gilt der Schalter des TRÄGERS, dem die Fotos gehören — nie der des Betrachters; dieselbe Regel
+ * wie bei {@link getUserTimezone}.
+ */
+export async function getMobileDesktopMode(userId: string): Promise<boolean> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } });
+  return u?.mobileDesktopUpload ?? false;
+}
+
 /** „Hat dieser Sub eine Heimdall-Box?" (+ deren Name fürs Formular). EINE Ableitung für alle
  *  Formulare, die den Box-Block zeigen — Verschluss und Kontrolle. Stünde sie je Seite einzeln da,
  *  zeigte nach der nächsten Änderung die eine Seite den Block und die andere nicht.

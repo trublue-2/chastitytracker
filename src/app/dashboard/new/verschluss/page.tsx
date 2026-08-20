@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserDeviceOptions, getIsLocked, getOpenLockRequest, getBoxFormContext } from "@/lib/queries";
+import { getUserDeviceOptions, getIsLocked, getOpenLockRequest, getBoxFormContext, getMobileDesktopMode } from "@/lib/queries";
 import { bildersafeEnabled } from "@/lib/constants";
 import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/utils";
 
@@ -15,9 +15,9 @@ export default async function NewVerschlussPage({ searchParams }: { searchParams
   const userId = session!.user.id;
   const tz = session!.user.timezone ?? APP_TZ;
 
-  const [isLocked, dbUser, devices, offeneAnforderung, box] = await Promise.all([
+  const [isLocked, mobileDesktopMode, devices, offeneAnforderung, box] = await Promise.all([
     getIsLocked(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }),
+    getMobileDesktopMode(userId),
     getUserDeviceOptions(userId),
     // Dieselbe Auswahl wie die Durchsetzung in POST /api/entries (dringendste zuerst) — sonst
     // schlägt das Formular Gerät X vor, während gegen Y beurteilt wird.
@@ -39,7 +39,7 @@ export default async function NewVerschlussPage({ searchParams }: { searchParams
       <VerschlussForm
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
-        mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false}
+        mobileDesktopMode={mobileDesktopMode}
         devices={devices}
         anforderungDeviceId={offeneAnforderung?.deviceId ?? null}
         redirectTo={target}

@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { generateKontrollCode } from "@/lib/utils";
-import { getBoxFormContext, getOpenKontrollen } from "@/lib/queries";
+import { getBoxFormContext, getOpenKontrollen, getMobileDesktopMode } from "@/lib/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { getTranslations } from "next-intl/server";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
@@ -14,8 +14,8 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
   const userId = session?.user?.id;
   const tz = session?.user?.timezone ?? APP_TZ;
 
-  const [dbUser, resolved, box, openKontrollen] = await Promise.all([
-    userId ? prisma.user.findUnique({ where: { id: userId }, select: { mobileDesktopUpload: true } }) : null,
+  const [mobileDesktopMode, resolved, box, openKontrollen] = await Promise.all([
+    userId ? getMobileDesktopMode(userId) : false,
     // Das ZIEL aus dem Link (`cat`): ohne Parameter der KG — dieselbe Auflösung, mit der die
     // Anforderung angelegt wurde. Sie liefert zugleich das gerade getragene Gerät, an dem die
     // Code-Pflicht hängt, und (nur beim KG) den Lock-Eintrag für die Siegel-Regel.
@@ -69,7 +69,7 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
         // Das AUFGELÖSTE Ziel, nicht der rohe `cat`-Parameter: die Meldung des Code-Push führt
         // damit exakt auf dieselbe Auflösung zurück, auf der der Sub gerade steht.
         categoryId={target?.categoryId ?? null}
-        mobileDesktopMode={dbUser?.mobileDesktopUpload ?? false}
+        mobileDesktopMode={mobileDesktopMode}
         boxConfirm={box?.boxConfirm ?? false}
       />
     </div>

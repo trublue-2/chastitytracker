@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { getActiveWearSessionForCategory, getUserTimezone } from "@/lib/queries";
+import { getActiveWearSessionForCategory, getUserTimezone, getMobileDesktopMode } from "@/lib/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
 import WearForm from "@/app/dashboard/WearForm";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
@@ -21,7 +21,7 @@ export default async function AdminWearBeginPage({
   const { category: categoryId } = await searchParams;
   if (!categoryId) redirect(`/admin/users/${userId}/aktionen`);
 
-  const [t, tw, category, devices, active, tz] = await Promise.all([
+  const [t, tw, category, devices, active, tz, mobileDesktopMode] = await Promise.all([
     getTranslations("admin"),
     getTranslations("wearForm"),
     prisma.deviceCategory.findUnique({
@@ -35,6 +35,8 @@ export default async function AdminWearBeginPage({
     }),
     getActiveWearSessionForCategory(userId, categoryId),
     getUserTimezone(userId),
+    // Der Schalter gehört dem TRÄGER, nicht dem Handelnden — die Regel steht am Helfer.
+    getMobileDesktopMode(userId),
   ]);
   if (!category || category.userId !== userId || category.isBuiltIn) notFound();
   if (active) redirect(`/admin/users/${userId}/aktionen/wear-end?category=${categoryId}`);
@@ -56,6 +58,7 @@ export default async function AdminWearBeginPage({
         redirectTo={`/admin/users/${userId}/aktionen`}
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
+        mobileDesktopMode={mobileDesktopMode}
       />
     </AdminActionFormShell>
   );
