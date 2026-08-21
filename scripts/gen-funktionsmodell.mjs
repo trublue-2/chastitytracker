@@ -18,6 +18,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const outputs = [
   ["docs/funktionsmodell/stellschrauben.md", (doc, schema) => doc.renderStellschrauben(schema)],
   ["docs/funktionsmodell/05-abhaengigkeiten.md", (doc) => doc.renderAbhaengigkeiten()],
+  ["docs/funktionsmodell/01-funktionen.md", (doc) => doc.renderFunktionen()],
 ];
 
 const server = await createServer({

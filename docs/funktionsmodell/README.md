@@ -17,6 +17,7 @@ handlungsleitende Fassung.
 
 | Datei | Inhalt |
 |---|---|
+| [01-funktionen.md](01-funktionen.md) | **Generiert.** Der Funktionskatalog: was der Tracker kann, flach aufgelistet — wer es auslöst, wo, und über welchen Endpunkt. |
 | [stellschrauben.md](stellschrauben.md) | **Generiert.** Jedes Feld, das Verhalten steuert: Typ, Default, wer schreiben darf, worauf es wirkt, wo die Regel im Code steht. |
 | [05-abhaengigkeiten.md](05-abhaengigkeiten.md) | **Generiert.** Je Funktion: was in sie hineinwirkt und worauf sie selbst wirkt — mit Diagramm. Die Gegenrichtung zum Register. |
 | [90-kollisionen.md](90-kollisionen.md) | **Vorrang- und Kollisionsregeln.** Was gewinnt, wenn zwei Regeln gleichzeitig gelten. |
@@ -41,6 +42,8 @@ Steckbrief an derselben Stelle beantworten, und eine leere Rubrik ist ein Befund
 
 ## Wo anfangen
 
+- **„Was kann das Ding überhaupt?"** → [01-funktionen.md](01-funktionen.md), 87 Funktionen nach Mechanik
+  gruppiert, mit einem eigenen Abschnitt für die, die niemand auslöst.
 - **„Was kann ich einstellen?"** → [stellschrauben.md](stellschrauben.md), nach Domäne sortiert.
 - **„Was hängt an dieser Funktion?"** → [05-abhaengigkeiten.md](05-abhaengigkeiten.md). Je Mechanik
   beide Richtungen, und getrennt danach, ob hinter einer Kante ein Schalter steht oder nicht.
@@ -105,7 +108,7 @@ Der generierte Teil hält sich selbst ehrlich:
 npm run funktionsmodell
 ```
 
-Erzeugt **beide** generierten Dateien aus `prisma/schema.prisma` (Form: Feld, Typ, Default) und
+Erzeugt **alle drei** generierten Dateien aus `prisma/schema.prisma` (Form: Feld, Typ, Default) und
 `src/lib/funktionsmodellRegistry.ts` (Bedeutung: wer schreibt, worauf wirkt es, wo steht die Regel).
 
 Die Abhängigkeits-Ansicht ist dabei vollständig **abgeleitet**: sie liest dieselben `affects`-Angaben
@@ -119,11 +122,18 @@ als *feste Regel*.
 
 - ein Feld der geprüften Modelle keinen Registry-Eintrag hat,
 - ein Registry-Eintrag auf ein Feld zeigt, das es nicht mehr gibt,
-- oder eine der beiden eingecheckten Markdown-Dateien nicht mehr zum aktuellen Stand passt.
+- eine API-Route oder ein MCP-Werkzeug in keiner Funktion des Katalogs vorkommt (und auch nicht
+  ausdrücklich ausgenommen ist), oder umgekehrt eine Funktion auf etwas verweist, das es nicht gibt,
+- oder eine der drei eingecheckten Markdown-Dateien nicht mehr zum aktuellen Stand passt.
 
 Damit kann das Register nicht stillschweigend veralten — der übliche Tod einer
 Funktionsdokumentation. Die Prosa-Steckbriefe sind von Hand gepflegt und geniessen diesen Schutz
 nicht; sie sind dafür auch nicht der Ort für Zahlen, die sich ändern (die stehen im Register).
+
+Beim Katalog greift dieselbe Idee an einer anderen Oberfläche: `funktionsmodellSurfaces.ts` liest die
+tatsächlich vorhandenen Routen und Werkzeuge aus dem Quelltext, und der Test hält den Katalog dagegen.
+Was er NICHT abdecken kann, sind Funktionen ohne Endpunkt — die Automatiken. Für die ist der Katalog
+die einzige Liste, die es gibt, und deshalb stehen sie dort noch einmal beisammen.
 
 **Geprüft werden alle 40 Modelle des Schemas** — jedes Skalarfeld hat einen Eintrag, auch die
 uninteressanten. Ein neues Modell trägt man in `FM_SCANNED_MODELS` ein; der Test nennt danach jedes

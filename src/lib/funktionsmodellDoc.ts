@@ -20,6 +20,7 @@ import {
   type FmEntry, type FmSetting, type FmDomain, type FmWriter, type FmScope, type FmNonSetting,
   type FmTarget,
 } from "./funktionsmodellRegistry";
+import { FM_CAPABILITIES, FM_EXCLUDED_ROUTES, type FmCapability, type FmSurface } from "./funktionsmodellCapabilities";
 
 /** Ein Skalarfeld aus `schema.prisma`, so wie es dort steht. */
 export interface SchemaField {
@@ -304,6 +305,11 @@ function mechanicsInPlay(edges: DepEdge[]): FmTarget[] {
   return [...ordered, ...rest.sort()];
 }
 
+/** Der Steckbrief einer Mechanik — aus ihrer Domäne, sonst aus der Zusatztabelle für die Mechaniken
+ *  ohne eigene Domäne. Beide Ansichten fragen danach; ohne diese Stelle stünde die Auflösung zweimal. */
+const docFor = (m: FmTarget): string | undefined =>
+  FM_DOMAINS.find((d) => d.mechanic === m)?.doc ?? FM_TARGET_DOC[m];
+
 /** Mermaid verträgt keine Umlaute und keine Schrägstriche in Knoten-Namen. */
 const nodeId = (t: FmTarget) => "n" + t.replace(/[^A-Za-z]/g, "");
 
@@ -369,7 +375,7 @@ export function renderAbhaengigkeiten(): string {
 
     lines.push(`## ${m}`);
     lines.push("");
-    const doc = FM_DOMAINS.find((d) => d.mechanic === m)?.doc ?? FM_TARGET_DOC[m];
+    const doc = docFor(m);
     if (doc) lines.push(`Steckbrief: [${doc}](${doc})`, "");
     lines.push(...localGraph(m, incoming, outgoing));
     lines.push("");
@@ -391,5 +397,84 @@ export function renderAbhaengigkeiten(): string {
       lines.push(...edgeTable(outgoing, "Wohin", (e) => e.to), "");
     }
   }
+  return lines.join("\n");
+}
+
+
+// ── Funktionskatalog ─────────────────────────────────────────────────────────────────────────────
+
+const SURFACE_LABEL: Record<FmSurface, string> = {
+  "sub-ui": "App (Träger)",
+  "admin-ui": "App (Keyholder)",
+  mcp: "MCP",
+  automatik: "läuft von selbst",
+  extern: "Gegenstelle",
+};
+
+/** Routen und Werkzeuge einer Fähigkeit als eine Zelle. */
+function backing(cap: FmCapability): string {
+  const parts = [...(cap.routes ?? []), ...(cap.tools ?? [])].map((r) => `\`${r}\``);
+  return parts.length > 0 ? parts.join(" ") : "—";
+}
+
+/**
+ * Rendert `docs/funktionsmodell/01-funktionen.md` — die flache Liste aller Fähigkeiten.
+ *
+ * Nach Mechanik gruppiert, damit sie neben den Steckbriefen liegt; innerhalb einer Gruppe in der
+ * Reihenfolge des Katalogs, die grob dem Ablauf folgt (auslösen → erfüllen → beurteilen).
+ */
+export function renderFunktionen(): string {
+  const lines: string[] = [];
+  const mechanics = [...new Set(FM_CAPABILITIES.map((cap) => cap.mechanic))];
+  const auto = FM_CAPABILITIES.filter((cap) => cap.surfaces.includes("automatik"));
+
+  lines.push("# Funktionskatalog");
+  lines.push("");
+  lines.push("<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodellCapabilities.ts");
+  lines.push("     neu erzeugen: `npm run funktionsmodell` -->");
+  lines.push("");
+  lines.push("Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für");
+  lines.push("Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.");
+  lines.push("");
+  lines.push(`${FM_CAPABILITIES.length} Funktionen über ${mechanics.length} Mechaniken, davon ${auto.length} ohne jede Bedienung — sie laufen von selbst.`);
+  lines.push("");
+  lines.push("**Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE");
+  lines.push("Funktion: „Kontrolle anfordern\" gibt es in der App und über den MCP, und beide Wege enden im");
+  lines.push("selben Vorgang — sie können also nicht auseinanderlaufen.");
+  lines.push("");
+  lines.push("Vollständigkeit ist geprüft, nicht behauptet: jede API-Route und jedes MCP-Werkzeug muss hier");
+  lines.push("beansprucht oder ausdrücklich ausgenommen sein, sonst schlägt `npm test` fehl. Die Funktionen");
+  lines.push("ohne Endpunkt (Spalte „—\") entziehen sich dieser Prüfung — für sie ist diese Liste die einzige.");
+  lines.push("");
+
+  for (const m of mechanics) {
+    const caps = FM_CAPABILITIES.filter((cap) => cap.mechanic === m);
+    lines.push(`## ${m}`);
+    lines.push("");
+    const doc = docFor(m);
+    if (doc) lines.push(`Steckbrief: [${doc}](${doc})`, "");
+    lines.push(row(["Funktion", "Was sie tut", "Wer", "Wo", "Endpunkt"]));
+    lines.push("|---|---|---|---|---|");
+    for (const cap of caps) {
+      lines.push(row([
+        `**${cap.title}**`,
+        cap.note ? `${cap.what} <br>*${cap.note}*` : cap.what,
+        cap.actors.map((a) => WRITER_LABEL[a]).join(", "),
+        cap.surfaces.map((f) => SURFACE_LABEL[f]).join(", "),
+        backing(cap),
+      ]));
+    }
+    lines.push("");
+  }
+
+  lines.push("## Läuft von selbst");
+  lines.push("");
+  lines.push("Dieselben Funktionen noch einmal beisammen — die, die niemand auslöst. Sie sind der häufigste");
+  lines.push("Grund für die Frage, welche Einstellung etwas verursacht hat: bei den meisten gibt es keine.");
+  lines.push("");
+  lines.push(row(["Funktion", "Mechanik", "Was sie tut"]));
+  lines.push("|---|---|---|");
+  for (const cap of auto) lines.push(row([`**${cap.title}**`, cap.mechanic, cap.what]));
+  lines.push("");
   return lines.join("\n");
 }
