@@ -1,5 +1,39 @@
 [
   {
+    "version": "5.2.6",
+    "date": "2026-08-21",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Regeln einer Kategorie \u2014 Zeiterfassung, Pflichtfoto und ob Trainingsziele darauf erlaubt sind \u2014 setzt jetzt nur noch die Keyholderin. Vorher konnte der Tr\u00e4ger sie an seinen eigenen Kategorien selbst umlegen.",
+          "en": "A category\u2019s rules \u2014 time tracking, required photo, and whether training goals may use it \u2014 are now set by the keyholder only. Before, the wearer could change them on their own categories."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Zeitzonen-Umstellung wirkt nur noch ab jetzt. Vergangene Reinigungs\u00f6ffnungen werden weiterhin nach der Zone beurteilt, die damals galt.",
+          "en": "Changing your time zone now only takes effect from that moment on. Past cleaning openings are still judged by the zone that applied back then."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Das Strafbuch zeigt jetzt, wer ein Vergehen bestraft oder verworfen hat \u2014 sichtbar dort, wo mehrere Personen urteilen k\u00f6nnen.",
+          "en": "The penalty ledger now shows who punished or dismissed an offence \u2014 visible where more than one person can judge."
+        }
+      },
+      {
+        "type": "chore",
+        "text": {
+          "de": "Gelesene Nachrichten im Posteingang werden nach einem Jahr entfernt. Ungelesene bleiben, egal wie alt.",
+          "en": "Read messages in the inbox are removed after a year. Unread ones stay, however old."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.2.5",
     "date": "2026-08-21",
     "changes": [
