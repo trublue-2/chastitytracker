@@ -63,3 +63,6 @@ keyholder-instructions.md
 # Runtime-Uploads gehören nie ins Repo (öffentlich!)
 /public/uploads/*
 !/public/uploads/.gitkeep
+
+# Obsidian-Konfiguration des lokalen Vaults — persönlich, gehört nicht ins Repo
+docs/.obsidian/
