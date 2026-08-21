@@ -408,6 +408,12 @@ export const FM_CAPABILITIES: FmCapability[] = [
     routes: ["/api/messages", "/api/messages/[id]", "/api/messages/[id]/read", "/api/messages/bulk", "/api/messages/read-all"],
   }),
   c({
+    id: "message-prune", mechanic: "Nachrichten", title: "Posteingang beschneiden",
+    what: "Löscht einmal täglich gelesene Meldungen jenseits der Aufbewahrungsfrist (Vorgabe ein Jahr, per MESSAGE_RETENTION_DAYS einstellbar, 0 = aus).",
+    actors: ["system"], surfaces: ["automatik"],
+    note: "Ungelesene Meldungen bleiben liegen, egal wie alt — eine nie gesehene Zustellung ist kein Altpapier. Die Frist hängt am Zustand, nicht nur am Alter.",
+  }),
+  c({
     id: "inbox-keyholder", mechanic: "Nachrichten", title: "Posteingang des Keyholders",
     what: "Dieselbe Liste für die Meldungen an die Keyholder — eine gemeinsame Zeile je Träger, mit eigenem Lesestand.",
     actors: ["admin"], surfaces: ["admin-ui"],

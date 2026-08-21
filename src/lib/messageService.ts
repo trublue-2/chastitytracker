@@ -1150,3 +1150,58 @@ export const unreadCountForKeyholderCached = cache(
   async (readerId: string, role: string | undefined): Promise<number> =>
     unreadCount(keyholderInbox(readerId, await getControllableSubsCached(readerId, role))),
 );
+
+// ── Aufbewahrung ─────────────────────────────────────────────────────────────────────────────────
+
+/** Vorgabe der Aufbewahrung in Tagen. Ein Jahr: lang genug, dass niemand eine Meldung vermisst, kurz
+ *  genug, dass die Tabelle nicht unbegrenzt wächst. `0` schaltet das Beschneiden ab. */
+const MESSAGE_RETENTION_DAYS_DEFAULT = 365;
+/** Obergrenze je Lauf — das Beschneiden läuft täglich, es muss nicht in einem Zug fertig werden. */
+const MESSAGE_PRUNE_BATCH = 500;
+
+/** Die konfigurierte Aufbewahrung. Unbrauchbare Werte fallen auf die Vorgabe zurück, statt still
+ *  `NaN` zu ergeben — daraus entstünde ein Stichtag `Invalid Date` und ein Lauf, der nichts tut. */
+export function messageRetentionDays(): number {
+  const raw = Number(process.env.MESSAGE_RETENTION_DAYS);
+  return Number.isFinite(raw) && raw >= 0 ? raw : MESSAGE_RETENTION_DAYS_DEFAULT;
+}
+
+/**
+ * Ist diese Zeile vom Beschneiden ausgenommen, unabhängig von ihrem Alter?
+ *
+ * Heute: **ungelesen bleibt liegen.** Eine Meldung, die nie ein Mensch gesehen hat, ist kein
+ * Altpapier — sie stillschweigend zu löschen hiesse, dass eine Zustellung folgenlos verschwindet.
+ *
+ * Hier gehört die Ausnahme hin, wenn der Träger einmal selbst etwas erbitten kann (Aufschluss,
+ * Orgasmus — Issue #37): eine **offene Bitte** ist ebenfalls kein Altpapier, auch wenn die
+ * Keyholderin sie längst gelesen hat. Deshalb hängt die Frist am ZUSTAND und nicht nur am Alter,
+ * und deshalb ist das eine eigene Funktion statt einer Bedingung in der Abfrage.
+ */
+const RETAINED_WHERE = { reads: { some: {} } } as const;
+
+/**
+ * Löscht gelesene Meldungen jenseits der Aufbewahrungsfrist.
+ *
+ * Warum überhaupt: `Message` hatte keine Aufräum-Regel — nur vom Nutzer ausgelöstes Löschen. Auf
+ * einer Instanz mit automatischen Kontrollen und Vergehens-Meldungen wächst die Tabelle monoton,
+ * und ihre Indizes hängen an der Glocke in der Kopfzeile, also an jeder Dashboard-Seite.
+ *
+ * Zwei Schritte statt eines `deleteMany` mit Relations-Filter: die Menge bleibt je Lauf begrenzt und
+ * sichtbar (Rückgabewert), und der Löschbefehl trifft nur Zeilen, die vorher wirklich gelesen wurden.
+ * `MessageRead` hängt per Cascade daran und verschwindet mit.
+ */
+export async function pruneExpiredMessages(now: Date = new Date()): Promise<number> {
+  const days = messageRetentionDays();
+  if (days === 0) return 0;
+  const cutoff = new Date(now.getTime() - days * 86_400_000);
+
+  const stale = await prisma.message.findMany({
+    where: { createdAt: { lt: cutoff }, ...RETAINED_WHERE },
+    select: { id: true },
+    take: MESSAGE_PRUNE_BATCH,
+  });
+  if (stale.length === 0) return 0;
+
+  const { count } = await prisma.message.deleteMany({ where: { id: { in: stale.map((m) => m.id) } } });
+  return count;
+}

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { pruneExpiredMessages } from "@/lib/messageService";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
@@ -38,6 +39,11 @@ async function processDue(): Promise<void> {
     if (g.__autoKontrolleCleanupDay !== utcDayKey) {
       g.__autoKontrolleCleanupDay = utcDayKey;
       await deleteWithdrawnAutoKontrollen(now).catch((e) => console.error("[autoKontrolle:cleanup]", e));
+      // Posteingang beschneiden — dasselbe Tages-Gate und aus demselben Grund: Timing unkritisch,
+      // und je Lauf ist die Menge begrenzt (das Beschneiden holt über die Tage auf).
+      await pruneExpiredMessages(now)
+        .then((n) => { if (n > 0) console.log(`[messages:prune] ${n} Meldungen gelöscht`); })
+        .catch((e) => console.error("[messages:prune]", e));
     }
 
     const due = await prisma.kontrollAnforderung.findMany({

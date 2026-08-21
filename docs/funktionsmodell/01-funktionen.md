@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-87 Funktionen über 17 Mechaniken, davon 11 ohne jede Bedienung — sie laufen von selbst.
+88 Funktionen über 17 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -171,6 +171,7 @@ Steckbrief: [70-nachrichten.md](70-nachrichten.md)
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
 | **Posteingang des Trägers** | Lesen, als gelesen oder ungelesen markieren, löschen, alles auf einmal — einzeln oder als Stapel. | Sub | App (Träger) | `/api/messages` `/api/messages/[id]` `/api/messages/[id]/read` `/api/messages/bulk` `/api/messages/read-all` |
+| **Posteingang beschneiden** | Löscht einmal täglich gelesene Meldungen jenseits der Aufbewahrungsfrist (Vorgabe ein Jahr, per MESSAGE_RETENTION_DAYS einstellbar, 0 = aus). <br>*Ungelesene Meldungen bleiben liegen, egal wie alt — eine nie gesehene Zustellung ist kein Altpapier. Die Frist hängt am Zustand, nicht nur am Alter.* | System | läuft von selbst | — |
 | **Posteingang des Keyholders** | Dieselbe Liste für die Meldungen an die Keyholder — eine gemeinsame Zeile je Träger, mit eigenem Lesestand. <br>*Löschen trifft alle Keyholder — es gibt nur diese eine Zeile.* | Keyholder (UI) | App (Keyholder) | `/api/admin/messages` `/api/admin/messages/[id]` `/api/admin/messages/[id]/read` `/api/admin/messages/bulk` `/api/admin/messages/read-all` |
 | **Rückmeldung senden** | Nimmt eine Nachricht aus der App entgegen. | Sub, Keyholder (UI) | App (Träger) | `/api/feedback` |
 
@@ -237,6 +238,7 @@ Grund für die Frage, welche Einstellung etwas verursacht hat: bei den meisten g
 | **Vergehen melden** | Strafbuch | Stellt erkannte, bestrafte und verworfene Vergehen beiden Seiten in den Posteingang. |
 | **Geräte-Abgleich beim Kontroll-Foto** | Geräte | Vergleicht nach dem Einreichen das Bild mit den Referenzbildern des deklarierten Geräts. |
 | **Siegel im Foto erkennen** | Box | Prüft, ob das Siegel auf dem Bild unversehrt und lesbar ist. |
+| **Posteingang beschneiden** | Nachrichten | Löscht einmal täglich gelesene Meldungen jenseits der Aufbewahrungsfrist (Vorgabe ein Jahr, per MESSAGE_RETENTION_DAYS einstellbar, 0 = aus). |
 | **Terminierte Direktiven zustellen** | Benachrichtigungen | Der Minuten-Takt stellt Kontrollen, Sperrzeiten, Orgasmus-Fenster und Aufgaben zu, sobald sie wirksam werden. |
 | **Auf neue Fassung prüfen** | Zugang | Liest den Changelog der veröffentlichten Fassung und meldet, wenn diese Instanz zurückliegt. |
 | **Lebenszeichen** | Zugang | Der Takt, an dem die zeitgesteuerten Abläufe hängen. |

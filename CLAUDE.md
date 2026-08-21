@@ -222,6 +222,10 @@ CLEANING_WINDOW_ENFORCED_FROM=<iso-date>   # optional
 # AUSGENOMMEN sind von Hand notierte Vergehen: die schreibt die Keyholderin fast immer über etwas
 # Vergangenes und würden sonst nie ankommen. Nur zum bewussten Rückdatieren.
 OFFENSE_ANNOUNCE_FROM=<iso-date>           # optional
+# Aufbewahrung des Posteingangs: gelesene Meldungen jenseits dieser Frist werden einmal täglich
+# gelöscht (Vorgabe 365). `0` schaltet das Beschneiden ab. UNGELESENE bleiben immer liegen — eine
+# Zustellung, die nie jemand gesehen hat, darf nicht folgenlos verschwinden.
+MESSAGE_RETENTION_DAYS=365         # optional
 # Selfhosted-KI Health-Check (nur relevant bei lokalem Vision-/Embedding-Backend):
 HEALTHCHECK_INTERVAL_MIN=5         # optional: Prüfintervall in Minuten (Default 5)
 HEALTHCHECK_ALERT_EMAIL=<email>    # optional: Mail-Alarm bei Ausfall (leer = nur Log). Bei mehreren
