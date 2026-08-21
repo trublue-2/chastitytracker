@@ -52,6 +52,15 @@ export interface FmSetting {
   affects: FmTarget[];
   /** Wo die Regel im Code steht (`datei.ts:symbol`), für den Sprung von der Doku in den Code. */
   anchor?: string;
+  /**
+   * Gesetzt, wenn ein Umlegen die VERGANGENHEIT verändert — mit dem Satz, was genau.
+   *
+   * Eine eigene Achse neben `scope`, nicht ein vierter Wert davon: `scope` sagt, wie lange ein Wert
+   * gilt, dies hier, ob er nach hinten wirkt. Die meisten Einstellungen tun das nicht, weil die
+   * Regeln historisiert sind — die wenigen, die es doch tun, sind die gefährlichsten im Register und
+   * sollen nicht in der Menge untergehen.
+   */
+  retroactive?: string;
 }
 
 /** Ein Feld, das nichts steuert — mit dem Grund, warum nicht. */
@@ -108,7 +117,8 @@ export const FM_SCANNED_MODELS = [
   "User", "Entry", "Device", "DeviceCategory", "DeviceReferenceImage",
   "VerschlussAnforderung", "KontrollAnforderung", "OrgasmusAnforderung", "TrainingVorgabe",
   "Task", "TaskRequirement", "TaskProof",
-  "StrafeRecord", "ManualOffense", "OffenseRuleChange", "CleaningRuleChange", "AdminPasswordChange",
+  "StrafeRecord", "ManualOffense", "OffenseRuleChange", "CleaningRuleChange", "TimezoneChange",
+  "AdminPasswordChange",
   "BoxStatus", "BoxEvent",
   "Message", "MessageRead", "NotificationPreference", "PushSubscription", "NativePushToken",
   "KeyholderNote", "NoteRef", "KeyholderActionLog", "HealthHold", "RecurringContext", "Appointment",
@@ -365,8 +375,9 @@ export const FM_REGISTRY: FmEntry[] = [
   }),
   s({
     model: "User", field: "timezone", domain: "konto", scope: "standing",
-    effect: "Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone.",
-    writers: ["sub"], affects: ["Reinigung", "Auto-Kontrollen", "Sessions/Statistik"], anchor: "utils.ts:APP_TZ",
+    effect: "Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt.",
+    writers: ["sub"], affects: ["Reinigung", "Auto-Kontrollen", "Sessions/Statistik"],
+    anchor: "timezoneRules.ts:timezoneRulesFrom",
   }),
   s({
     model: "User", field: "startPage", domain: "konto", scope: "standing",
@@ -430,8 +441,9 @@ export const FM_REGISTRY: FmEntry[] = [
   }),
   s({
     model: "Device", field: "lookalikeClusterId", domain: "geraete", scope: "standing",
-    effect: "Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen; Setzen rechnet die Geräte-Zuordnung historischer Sessions rückwirkend neu.",
+    effect: "Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen.",
     writers: ["mcp"], affects: ["Geräte", "Sessions/Statistik", "Strafbuch"], anchor: "mcp/devices.ts:set_device_meta",
+    retroactive: "Rechnet die Geräte-Zuordnung JEDER historischen Session mit Bild-Konflikt neu. Vorher die Vorschau prüfen.",
   }),
   s({
     model: "Device", field: "pullOffRisk", domain: "geraete", scope: "standing",
@@ -478,18 +490,21 @@ export const FM_REGISTRY: FmEntry[] = [
   // ── DeviceCategory ─────────────────────────────────────────────────────────────────────────
   s({
     model: "DeviceCategory", field: "trackingEnabled", domain: "geraete", scope: "standing",
-    effect: "Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung.",
-    writers: ["sub", "admin"], affects: ["Sessions/Statistik", "Geräte", "Einträge"],
+    effect: "Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung. Bei der eingebauten Kategorie unveränderlich.",
+    writers: ["admin"], affects: ["Sessions/Statistik", "Geräte", "Einträge"],
+    anchor: "deviceCategoryService.ts:resolveCategoryRuleChanges",
   }),
   s({
     model: "DeviceCategory", field: "requirePhoto", domain: "geraete", scope: "standing",
-    effect: "Ein Trage-Beginn dieser Kategorie verlangt ein Bild.",
-    writers: ["sub", "admin"], affects: ["Einträge", "Geräte"],
+    effect: "Ein Trage-Beginn dieser Kategorie verlangt ein Bild. Bei der eingebauten Kategorie unveränderlich.",
+    writers: ["admin"], affects: ["Einträge", "Geräte"],
+    anchor: "deviceCategoryService.ts:resolveCategoryRuleChanges",
   }),
   s({
     model: "DeviceCategory", field: "allowVorgaben", domain: "geraete", scope: "standing",
-    effect: "Aus = die Kategorie lässt sich in keinem Trainingsziel verwenden.",
-    writers: ["sub", "admin"], affects: ["Trainingsziele"],
+    effect: "Aus = die Kategorie lässt sich in keinem Trainingsziel verwenden — deshalb Keyholder-Feld: der Träger könnte sonst das Ziel aus der Hand nehmen. Bei der eingebauten Kategorie unveränderlich.",
+    writers: ["admin"], affects: ["Trainingsziele"],
+    anchor: "deviceCategoryService.ts:resolveCategoryRuleChanges",
   }),
   s({
     model: "DeviceCategory", field: "name", domain: "geraete", scope: "standing",
@@ -947,7 +962,10 @@ export const FM_REGISTRY: FmEntry[] = [
   x("record", "StrafeRecord", "notiz", "Interne Notiz zum Urteil."),
   x("audit", "StrafeRecord", "status", "PUNISHED oder DISMISSED — das Urteil selbst, kein einstellbarer Wert."),
   x("record", "StrafeRecord", "reason", "Der Straftext bei PUNISHED, ein optionaler Grund bei DISMISSED."),
-  x("audit", "StrafeRecord", "judgedBy", "`ai`, `admin` oder `system`. Ein Kürzel, nie ein Benutzername."),
+  x("audit", "StrafeRecord", "judgedBy",
+    "`ai`, `admin` oder `system` — ein Kürzel. Die Anzeige unterscheidet daran KI von Mensch; WELCHER Mensch, steht daneben."),
+  x("audit", "StrafeRecord", "judgedByName",
+    "Der Name des Urteilenden. `null` bei der KI (ihre Kennung steht im Kürzel), bei der automatischen Ahndung (dahinter steht niemand) und im Altbestand."),
   x("runtime", "StrafeRecord", "erledigtAt", "Nur bei PUNISHED: leer = Strafe offen, gesetzt = erledigt."),
   stamp("StrafeRecord"),
   x("record", "StrafeRecord", "taskId",
@@ -976,6 +994,16 @@ export const FM_REGISTRY: FmEntry[] = [
     "Ab wann die Fassung gilt. Die Grundzeile trägt Epoch, damit keine Lücke bleibt, in die eine Öffnung fallen könnte."),
   x("audit", "CleaningRuleChange", "changedBy", "Wer geändert hat; leer bei der Grundzeile, die niemand gesetzt hat."),
   stamp("CleaningRuleChange"),
+
+  // ── TimezoneChange: Abbild wie CleaningRuleChange ──────────────────────────────────────────
+  pk("TimezoneChange"),
+  owner("TimezoneChange"),
+  x("record", "TimezoneChange", "timezone",
+    "Abbild von `User.timezone` in dieser Fassung. Gesetzt wird über die User-Spalte, nie hier."),
+  x("record", "TimezoneChange", "effectiveFrom",
+    "Ab wann die Zone gilt. Die Grundzeile trägt Epoch, damit keine Lücke bleibt, in die eine Öffnung fallen könnte."),
+  x("audit", "TimezoneChange", "changedBy", "Wer umgestellt hat; leer bei der Grundzeile."),
+  stamp("TimezoneChange"),
 
   // ── Box ────────────────────────────────────────────────────────────────────────────────────
   pk("BoxStatus"),
@@ -1263,6 +1291,7 @@ export const FM_REGISTRY: FmEntry[] = [
     model: "AppMeta", field: "value", domain: "betrieb", scope: "standing",
     effect: "Der Wert dazu. Migrationen schreiben ihn beim ersten Start selbst; eine ENV-Variable kann ihn bewusst überschreiben.",
     writers: ["system"], affects: ["Strafbuch", "Reinigung", "Nachrichten"], anchor: "appMeta.ts:deployCutoff",
+    retroactive: "Einen Stichtag zurückzudatieren beurteilt Vergehen vor diesem Datum neu und kann sie nachträglich melden.",
   }),
   x("runtime", "AppMeta", "updatedAt", "Letzte Änderung. Das Portal liest daraus die Aktivität der Instanz."),
 ];

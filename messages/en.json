@@ -149,7 +149,9 @@
     "OFFENSE_ALREADY_JUDGED": "This offense has already been judged. Undo the judgment first, then it can be withdrawn.",
     "OFFENSE_TYPE_MISMATCH": "This offense type does not match the offense at this position. Reload the page.",
     "MESSAGE_IDS_REQUIRED": "No valid selection.",
-    "MESSAGE_ACTION_INVALID": "Unknown action."
+    "MESSAGE_ACTION_INVALID": "Unknown action.",
+    "CATEGORY_RULE_FORBIDDEN": "Only the keyholder may change these category rules",
+    "CATEGORY_BUILTIN_RULE_IMMUTABLE": "These rules cannot be changed on the built-in category"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -861,6 +863,7 @@
     "strafbuchVerworfenBadge": "Dismissed",
     "strafbuchBegruendung": "Reason",
     "strafbuchUrteilKI": "(AI)",
+    "strafbuchUrteilVon": "(by {name})",
     "strafbuchStrafeLabel": "Penalty",
     "strafbuchStrafePlaceholder": "e.g. 20 strokes",
     "strafbuchStrafeVerhaengen": "Impose penalty",

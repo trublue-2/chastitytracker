@@ -12,6 +12,7 @@ import {
   CLEANING_RULE_CHANGE_SELECT, cleaningPermissionUserAt, cleaningRulesFrom, reinigungRulesAt,
   type CleaningSettingsResolver,
 } from "@/lib/cleaningRules";
+import { TIMEZONE_CHANGE_SELECT, timezoneRulesFrom, type TimezoneResolver } from "@/lib/timezoneRules";
 import type { OffenseCanonicalType } from "@/lib/offenseTypes";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
@@ -147,6 +148,8 @@ export interface StrafbuchData {
     notiz: string | null;
     reason: string | null;
     judgedBy: string | null;
+    /** Name des Urteilenden, sofern ein Mensch entschied — `null` bei KI, System und Altbestand. */
+    judgedByName: string | null;
     erledigtAt: Date | null;
     /** Die Aufgabe, die als Strafe gestellt wurde (`punishWithTask`) — null beim Freitext-Weg. Die
      *  Strafen-Sicht des Trägers braucht sie, um eine Strafe, die schon als Aufgabe auf dem
@@ -350,7 +353,7 @@ function applyOffenseRules(
 function cleaningLimitViolations(
   oeffnungen: { id: string; startTime: Date; oeffnenGrund: string | null; note: string | null }[],
   cleaningAt: CleaningSettingsResolver,
-  subTz: string,
+  tzAt: TimezoneResolver,
   quotaEverSet: boolean,
 ): { entryId: string; startTime: Date | null; note: string | null }[] {
   if (!quotaEverSet) return [];
@@ -362,8 +365,10 @@ function cleaningLimitViolations(
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
   for (const o of reinigungAsc) {
     // Sub-Tag, nicht CH-Tag — dieselbe Grenze, die `reinigungVerbrauchtHeute` (midnightInTZ mit
-    // der Sub-Zeitzone) beim Zählen auf der Box-Karte zieht.
-    const key = tzDayKey(o.startTime, subTz);
+    // der Sub-Zeitzone) beim Zählen auf der Box-Karte zieht. In der Zone, die DAMALS galt: sonst
+    // schöbe eine spätere Umstellung vergangene Öffnungen über eine Tagesgrenze und liesse ein
+    // Kontingent rückwirkend überschritten (oder eingehalten) aussehen.
+    const key = tzDayKey(o.startTime, tzAt(o.startTime));
     const n = (perDay.get(key) ?? 0) + 1;
     perDay.set(key, n);
     const maxPerDay = cleaningAt(o.startTime).maxPerDay;
@@ -513,9 +518,10 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
 
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, cleaningRuleChanges, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw] = await Promise.all([
+  const [enforcedFrom, cleaningRuleChanges, timezoneChanges, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
+    prisma.timezoneChange.findMany({ where: { userId }, select: TIMEZONE_CHANGE_SELECT }),
     prisma.user.findUnique({ where: { id: userId }, select: { ...CLEANING_USER_SELECT, timezone: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" }, select: KG_ENTRY_SELECT }),
     prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS" }, orderBy: { startTime: "asc" }, select: KG_ENTRY_SELECT }),
@@ -552,6 +558,16 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   // durchreichen statt neu laden. Trage-Einträge lädt das Strafbuch nicht; `wearEntries` bleibt
   // deshalb bewusst offen, damit `evaluateTasks` sie selbst holt statt sie für leer zu halten.
   const subTz = user?.timezone ?? APP_TZ;
+  /**
+   * Die Zone, die zu einem Zeitpunkt GALT — nicht die heutige.
+   *
+   * Das Strafbuch beurteilt Vergangenes, und die Zone entscheidet mit: ob eine Reinigungsöffnung im
+   * erlaubten Fenster lag und an welchem Kalendertag sie aufs Tageskontingent zählte. Mit `subTz`
+   * gerechnet, würde eine Umstellung die ganze Historie neu bewerten — und weil der Träger sie selbst
+   * setzen darf, wäre das eine selbstbediente Neubeurteilung. `subTz` bleibt für alles, was JETZT
+   * gilt (Anzeige, laufender Tag).
+   */
+  const tzAt: TimezoneResolver = timezoneRulesFrom(timezoneChanges, user?.timezone);
   /** Die Reinigungs-Regeln in der Fassung ZUR TATZEIT statt im heutigen Stand — Begründung am
    *  Modell `CleaningRuleChange`. Jede der drei Ableitungen unten fragt sie am Zeitpunkt IHRER
    *  Öffnung. */
@@ -638,7 +654,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     return { entryId: r.refId, startTime: entry?.startTime ?? null, note: entry?.note ?? null, deviceName: entry?.device?.name ?? null };
   });
 
-  const reinigungLimitViolations = cleaningLimitViolations(oeffnungen, cleaningAt, subTz, quotaEverSet);
+  const reinigungLimitViolations = cleaningLimitViolations(oeffnungen, cleaningAt, tzAt, quotaEverSet);
 
   // Each OEFFNEN paired with the Sperrzeit active at its startTime (if any) — computed once,
   // shared by unauthorizedOpenings and cleaningNotRelocked below.
@@ -652,7 +668,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const unauthorizedOpenings = oeffnungenMitSperre
     .filter(({ o, sperre }) =>
       o.source !== "system" &&
-      !!sperre && !isAllowedReinigungOpening(o, sperre, cleaningPermissionUserAt(cleaningAt(o.startTime), subTz), enforcedFrom) && !isOrgasmusOpenAllowed(o.startTime),
+      !!sperre && !isAllowedReinigungOpening(o, sperre, cleaningPermissionUserAt(cleaningAt(o.startTime), tzAt(o.startTime)), enforcedFrom) && !isOrgasmusOpenAllowed(o.startTime),
     )
     .map(({ o, sperre }) => ({
       id: o.id,
@@ -724,7 +740,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const cleaningNotRelocked = oeffnungenMitSperre
     .flatMap(({ o, sperre }) => {
       const settings = cleaningAt(o.startTime);
-      const deadline = cleaningRelockObligation(o, sperre ?? null, cleaningPermissionUserAt(settings, subTz), settings.maxMinutes, enforcedFrom);
+      const deadline = cleaningRelockObligation(o, sperre ?? null, cleaningPermissionUserAt(settings, tzAt(o.startTime)), settings.maxMinutes, enforcedFrom);
       if (!deadline) return [];
       const relockAt = verschluesse.find((v) => v.startTime > o.startTime)?.startTime ?? null;
       return isCleaningNotRelocked(deadline, relockAt, now)
@@ -805,6 +821,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       notiz: r.notiz,
       reason: r.reason,
       judgedBy: r.judgedBy,
+      judgedByName: r.judgedByName,
       erledigtAt: r.erledigtAt,
       taskId: r.taskId,
     })),

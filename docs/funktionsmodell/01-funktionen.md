@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-87 Funktionen über 17 Mechaniken, davon 11 ohne jede Bedienung — sie laufen von selbst.
+88 Funktionen über 17 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -94,7 +94,7 @@ Steckbrief: [35-orgasmus.md](35-orgasmus.md)
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
 | **Orgasmus-Fenster stellen** | Ein Zeitfenster als Pflicht (Anweisung) oder Erlaubnis (Gelegenheit), wahlweise mit vorgegebener Art und Öffnungserlaubnis. <br>*Es ist immer nur EINE Direktive aktiv; die Erfüllung passiert automatisch beim passenden Eintrag.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/orgasmus-anforderung` `request_orgasm` |
-| **Orgasmus-Fenster ändern** | Verschiebt Fenster, Art oder Öffnungserlaubnis einer offenen Direktive. | Keyholder (UI) | App (Keyholder) | `/api/admin/orgasmus-anforderung/[id]` |
+| **Orgasmus-Fenster zurückziehen** | Nimmt eine offene Direktive zurück. Die Route kennt nur diese eine Aktion. <br>*ÄNDERN gibt es für diese Direktive nirgends — weder in der App noch über den MCP. Anders wollen heisst zurückziehen und neu stellen; als einzige Direktive fehlt ihr das Gegenstück zu `edit_lock_period`, `edit_task` und `edit_training_goal`.* | Keyholder (UI) | App (Keyholder) | `/api/admin/orgasmus-anforderung/[id]` |
 
 ## Aufgaben
 
@@ -141,7 +141,7 @@ Steckbrief: [55-geraete.md](55-geraete.md)
 | **Geräte-Beurteilung hinterlegen** | Sicherheitsstufe, Abstreif-Risiko und Lookalike-Cluster — Einordnungen für die Keyholder-Entscheidung. <br>*Ein Lookalike-Cluster rechnet die Geräte-Zuordnung historischer Sessions rückwirkend neu.* | Keyholder (MCP) | MCP | `set_device_meta` |
 | **Referenzbilder pflegen** | Kuratiert das Bildmaterial, mit dem die Geräte-Erkennung arbeitet. | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/devices/[id]/references` `/api/devices/[id]/references/[refId]` |
 | **Referenzbilder aus Einträgen übernehmen** | Übernimmt jüngere Verschluss-Fotos als Referenzbilder, als Dateikopie. | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/devices/[id]/references/import-recent` |
-| **Kategorien verwalten** | Anlegen, benennen, einfärben, sortieren und die drei Kategorie-Regeln setzen (Tracking, Pflichtfoto, Trainingsziele). <br>*Die eingebaute Kategorie (Keuschheitsgürtel) lässt sich nicht löschen.* | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/categories` `/api/categories/[id]` |
+| **Kategorien verwalten** | Anlegen, benennen, einfärben und sortieren. Die drei Regeln — Zeiterfassung, Pflichtfoto, Trainingsziele erlaubt — darf nur der Keyholder umlegen. <br>*Die eingebaute Kategorie lässt sich nicht löschen, und ihre drei Regeln sind für niemanden änderbar.* | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/categories` `/api/categories/[id]` |
 | **Gerät im Foto vorschlagen** | Schlägt beim Erfassen anhand des Bildes das getragene Gerät vor. | Sub | App (Träger) | `/api/detect-device` |
 | **Geräte-Abgleich beim Kontroll-Foto** | Vergleicht nach dem Einreichen das Bild mit den Referenzbildern des deklarierten Geräts. <br>*Beratend: ein Abweichen ist KEIN Vergehen — das entsteht nur aus einer Anforderung.* | System | läuft von selbst | — |
 
@@ -171,6 +171,7 @@ Steckbrief: [70-nachrichten.md](70-nachrichten.md)
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
 | **Posteingang des Trägers** | Lesen, als gelesen oder ungelesen markieren, löschen, alles auf einmal — einzeln oder als Stapel. | Sub | App (Träger) | `/api/messages` `/api/messages/[id]` `/api/messages/[id]/read` `/api/messages/bulk` `/api/messages/read-all` |
+| **Posteingang beschneiden** | Löscht einmal täglich gelesene Meldungen jenseits der Aufbewahrungsfrist (Vorgabe ein Jahr, per MESSAGE_RETENTION_DAYS einstellbar, 0 = aus). <br>*Ungelesene Meldungen bleiben liegen, egal wie alt — eine nie gesehene Zustellung ist kein Altpapier. Die Frist hängt am Zustand, nicht nur am Alter.* | System | läuft von selbst | — |
 | **Posteingang des Keyholders** | Dieselbe Liste für die Meldungen an die Keyholder — eine gemeinsame Zeile je Träger, mit eigenem Lesestand. <br>*Löschen trifft alle Keyholder — es gibt nur diese eine Zeile.* | Keyholder (UI) | App (Keyholder) | `/api/admin/messages` `/api/admin/messages/[id]` `/api/admin/messages/[id]/read` `/api/admin/messages/bulk` `/api/admin/messages/read-all` |
 | **Rückmeldung senden** | Nimmt eine Nachricht aus der App entgegen. | Sub, Keyholder (UI) | App (Träger) | `/api/feedback` |
 
@@ -237,6 +238,7 @@ Grund für die Frage, welche Einstellung etwas verursacht hat: bei den meisten g
 | **Vergehen melden** | Strafbuch | Stellt erkannte, bestrafte und verworfene Vergehen beiden Seiten in den Posteingang. |
 | **Geräte-Abgleich beim Kontroll-Foto** | Geräte | Vergleicht nach dem Einreichen das Bild mit den Referenzbildern des deklarierten Geräts. |
 | **Siegel im Foto erkennen** | Box | Prüft, ob das Siegel auf dem Bild unversehrt und lesbar ist. |
+| **Posteingang beschneiden** | Nachrichten | Löscht einmal täglich gelesene Meldungen jenseits der Aufbewahrungsfrist (Vorgabe ein Jahr, per MESSAGE_RETENTION_DAYS einstellbar, 0 = aus). |
 | **Terminierte Direktiven zustellen** | Benachrichtigungen | Der Minuten-Takt stellt Kontrollen, Sperrzeiten, Orgasmus-Fenster und Aufgaben zu, sobald sie wirksam werden. |
 | **Auf neue Fassung prüfen** | Zugang | Liest den Changelog der veröffentlichten Fassung und meldet, wenn diese Instanz zurückliegt. |
 | **Lebenszeichen** | Zugang | Der Takt, an dem die zeitgesteuerten Abläufe hängen. |

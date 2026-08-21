@@ -25,6 +25,15 @@ Das ist der **einzige** Weg, eine laufende Sperrzeit gezielt und folgenlos zu du
 andere Öffnungsgrund ausser einer erlaubten Reinigung hebt die Sperrzeit auf und bucht ins
 Strafbuch.
 
+## Es gibt kein Ändern
+
+Als einzige Direktive hat das Orgasmus-Fenster **kein Änderungs-Werkzeug** — weder in der App noch
+über den MCP. Sperrzeit, Einschliess-Anforderung, Aufgabe und Trainingsziel haben je eines; hier
+kennt die Route nur das Zurückziehen.
+
+Anders wollen heisst also: zurückziehen und neu stellen. Für den Träger sieht das aus wie zwei
+Vorgänge, weil es zwei sind.
+
 ## Auslöser & Erfüllung
 
 Der Keyholder stellt die Direktive (`request_orgasm` oder Admin-UI). Erfüllt wird sie **automatisch**

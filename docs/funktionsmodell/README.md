@@ -13,6 +13,27 @@ geschnittene Referenz `src/lib/mcpModelDoc.ts` (Tool `explain_model`); für den 
 in der App. Wo sich Aussagen überschneiden, ist diese Sammlung die technische, jene die
 handlungsleitende Fassung.
 
+## Der eine Satz, der das meiste erklärt
+
+**Der Tracker erkennt, er setzt nicht durch.**
+
+Das Reinigungs-Kontingent verhindert keine Öffnung, es erzeugt ein Vergehen. Ein Trainingsziel misst
+und fordert nichts ein. Der Geräte-Abgleich und die Schlüssel-Erkennung im Box-Foto sind beratend und
+blockieren nichts. `pullOffRisk` und `securityLevel` sind Einordnungen ohne Wirkung. Und ein
+erkanntes Vergehen ist eine Vorlage für ein Urteil, keine Strafe — es gibt keine automatische
+Konsequenz.
+
+Das ist keine Sammlung von Auslassungen, sondern eine Haltung: **der Server zählt, der Mensch
+urteilt.** Wer sie kennt, hat die häufigste Frage im Betrieb schon beantwortet — „warum ist nichts
+passiert?". Meistens lautet die Antwort: weil nichts passieren sollte.
+
+Die beiden Ausnahmen, die tatsächlich durchsetzen, sind physisch: die Box hält den Schlüssel fest,
+und die Kontroll-Eskalation bucht nach zwei Stufen selbst eine Öffnung. Beide sind ausdrücklich
+einschaltbar und in ihren Steckbriefen benannt.
+
+Wächst der Tracker um ein Gegenstück zur Strafe — eine Belohnung —, gilt derselbe Satz: auch sie
+wird erkannt und vom Menschen zugesprochen, nicht ausgerechnet.
+
 ## Aufbau
 
 | Datei | Inhalt |
@@ -135,7 +156,7 @@ tatsächlich vorhandenen Routen und Werkzeuge aus dem Quelltext, und der Test h�
 Was er NICHT abdecken kann, sind Funktionen ohne Endpunkt — die Automatiken. Für die ist der Katalog
 die einzige Liste, die es gibt, und deshalb stehen sie dort noch einmal beisammen.
 
-**Geprüft werden alle 40 Modelle des Schemas** — jedes Skalarfeld hat einen Eintrag, auch die
+**Geprüft werden alle Modelle des Schemas** — jedes Skalarfeld hat einen Eintrag, auch die
 uninteressanten. Ein neues Modell trägt man in `FM_SCANNED_MODELS` ein; der Test nennt danach jedes
 Feld, das noch fehlt.
 

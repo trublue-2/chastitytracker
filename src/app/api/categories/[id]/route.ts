@@ -3,20 +3,29 @@ import { prisma } from "@/lib/prisma";
 import { requireApi, deviceCategoriesGate } from "@/lib/authGuards";
 import { entryManageAccess } from "@/lib/keyholder";
 import { validateCategoryInput } from "@/lib/categoryConstants";
+import { errorResponse } from "@/lib/serviceResult";
+import { resolveCategoryRuleChanges, CATEGORY_RULE_FIELDS } from "@/lib/deviceCategoryService";
 
 type Params = { params: Promise<{ id: string }> };
 
 /** Access check: returns the category if the session user may manage it — owner, global admin, or
- *  keyholder of the owner (same rule as entries/devices, see entryManageAccess). */
+ *  keyholder of the owner (same rule as entries/devices, see entryManageAccess).
+ *
+ *  `elevated` kommt mit zurück (= handelt als Keyholder/Admin, nicht als Eigentümer) — dieselbe
+ *  Erweiterung und dieselbe Begründung wie bei `getOwnedDevice`: der Guard berechnet es ohnehin, und
+ *  die drei Kategorie-REGELN unten brauchen genau diese Unterscheidung. */
 async function getOwnedCategory(id: string, sessionUserId: string, sessionRole: string) {
   const category = await prisma.deviceCategory.findUnique({ where: { id } });
   if (!category) return null;
-  if (!(await entryManageAccess(sessionUserId, sessionRole, category.userId)).allowed) return null;
-  return category;
+  const access = await entryManageAccess(sessionUserId, sessionRole, category.userId);
+  if (!access.allowed) return null;
+  return { ...category, elevated: access.elevated };
 }
 
-/** PATCH /api/categories/[id] — update name, color, icon, sortOrder.
- *  Built-in: slug + isBuiltIn + trackingEnabled are immutable; name/color/icon are editable. */
+
+/** PATCH /api/categories/[id] — Beschriftung (Name, Farbe, Symbol, Sortierung) für den Eigentümer,
+ *  die drei REGELN nur für Keyholder/Admin (siehe {@link CATEGORY_RULE_FIELDS}).
+ *  Bei der eingebauten Kategorie sind Slug, `isBuiltIn` und die drei Regeln unveränderlich. */
 export async function PATCH(req: NextRequest, { params }: Params) {
   const gate = deviceCategoriesGate();
   if (gate) return gate;
@@ -28,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!category) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const { name, color, icon, sortOrder, trackingEnabled, requirePhoto, allowVorgaben } = body;
+  const { name, color, icon, sortOrder } = body;
 
   const validationError = validateCategoryInput({ name, color, icon });
   if (validationError) return NextResponse.json({ error: validationError.error }, { status: 400 });
@@ -38,9 +47,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (color !== undefined) data.color = color;
   if (icon !== undefined) data.icon = icon;
   if (sortOrder !== undefined && typeof sortOrder === "number") data.sortOrder = sortOrder;
-  if (trackingEnabled !== undefined && typeof trackingEnabled === "boolean") data.trackingEnabled = trackingEnabled;
-  if (requirePhoto !== undefined && typeof requirePhoto === "boolean") data.requirePhoto = requirePhoto;
-  if (allowVorgaben !== undefined && typeof allowVorgaben === "boolean") data.allowVorgaben = allowVorgaben;
+
+  // Die drei Regeln gehören dem Keyholder — die Entscheidung darüber steht im Service, damit
+  // Anlegen und Ändern dieselbe treffen (und sie ohne Prisma prüfbar bleibt).
+  const rules = resolveCategoryRuleChanges(
+    body,
+    Object.fromEntries(CATEGORY_RULE_FIELDS.map((f) => [f, category[f]])) as Record<typeof CATEGORY_RULE_FIELDS[number], boolean>,
+    { isBuiltIn: category.isBuiltIn, elevated: category.elevated },
+  );
+  if (!rules.ok) return errorResponse(rules.status, rules.code);
+  Object.assign(data, rules.data);
 
   const updated = await prisma.deviceCategory.update({ where: { id }, data });
   return NextResponse.json(updated);

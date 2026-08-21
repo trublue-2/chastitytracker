@@ -21,6 +21,8 @@ export default async function AdminCategoriesPage({ params }: { params: Promise<
       userId={user.id}
       username={user.username}
       categories={categories}
+      // Diese Seite steht hinter `assertKeyholderOrAdmin` — wer hier ist, handelt als Keyholder.
+      canEditRules
     />
   );
 }

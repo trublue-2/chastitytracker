@@ -102,6 +102,7 @@ model User {
   manualOffenses                 ManualOffense[]
   offenseRuleChanges             OffenseRuleChange[]
   cleaningRuleChanges            CleaningRuleChange[]
+  timezoneChanges                TimezoneChange[]
 }
 
 /// Ein von Hand notiertes Vergehen — das einzige, das nicht aus Einträgen ABGELEITET wird.
@@ -160,6 +161,31 @@ model ManualOffense {
 /// (`changedBy` = null, denn den hat niemand gesetzt) und die neue Fassung ab jetzt. Ohne diese
 /// Grundzeile fiele die Zeit vor der ersten Änderung auf die User-Spalten zurück — also auf den
 /// neuen Wert, und damit genau in den Fehler zurück, den die Tabelle behebt.
+/// Historie der Zeitzone eines Trägers — dieselbe Bauart wie `CleaningRuleChange` und aus demselben
+/// Grund: die Zone entscheidet mit, ob eine Reinigungsöffnung im erlaubten Fenster lag und an welchem
+/// Kalendertag sie auf das Tageskontingent zählte. Ohne Historie beurteilte eine Umstellung die
+/// ganze Vergangenheit neu — und weil der Träger sie selbst setzen darf, wäre das eine
+/// selbstbediente Neubeurteilung.
+///
+/// Die frühere Begründung, die Zone sei "eine Eigenschaft des Subs, keine Regel der Keyholderin",
+/// bleibt richtig: sie ändert nichts daran, dass die Vergangenheit stillhalten muss. Der Träger
+/// darf weiter umstellen — nur eben mit Wirkung ab jetzt.
+model TimezoneChange {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timezone      String
+  /// Ab wann diese Fassung gilt. Die Grundzeile trägt Epoch — vor der ersten Umstellung ist bekannt,
+  /// DASS diese Zone galt, nicht seit wann; ein erfundener Zeitpunkt liesse eine Lücke, in die eine
+  /// Öffnung fallen könnte (gleiche Regel wie `CLEANING_RULES_EPOCH`).
+  effectiveFrom DateTime
+  /// Wer umgestellt hat. `null` = die Grundzeile, die niemand gesetzt hat.
+  changedBy     String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, effectiveFrom])
+}
+
 model CleaningRuleChange {
   id            String   @id @default(cuid())
   userId        String
@@ -250,13 +276,17 @@ model Message {
   /// TITEL trägt sie seit jeher in `bodyParams` (`detectedParams` in offenseAnnounce.ts), aus
   /// genau demselben Grund.
   ///
-  /// WARUM NUR DIESE EINE MELDUNG. Die beiden anderen Zeilen zum selben Vergehen — Strafe verhängt
-  /// und Vergehen verworfen (strafurteilService.ts) — können ihren Autor nicht nennen: ihr einziges
-  /// Autoren-Feld ist `StrafeRecord.judgedBy`, und darin steht ausschliesslich ein Kürzel
-  /// ("ai"/"admin"/"system"), nie ein Benutzername. WELCHER Mensch geurteilt hat, hält die App an
-  /// keiner Stelle fest. Diese Meldungen mit Namen zu versehen, verlangt also zuerst, den
-  /// Handelnden bis ins Urteil durchzureichen (Signatur von `judgeOffense`) — eine eigene Änderung,
-  /// keine Erweiterung dieser Spalte.
+  /// NICHT MEHR NUR DIESE EINE MELDUNG. Der Absatz stand hier lange andersherum: die beiden Zeilen
+  /// zum Urteil — Strafe verhängt und Vergehen verworfen (strafurteilService.ts) — könnten ihren
+  /// Autor nicht nennen, weil das einzige Autoren-Feld `StrafeRecord.judgedBy` nur ein Kürzel führe.
+  /// Das stimmt seit `judgeOffense(p, actor)` nicht mehr: beide reichen den Handelnden an
+  /// `recordSystemMessage` durch und tragen seinen Namen. Die Einschränkung galt für die SPALTE, nie
+  /// für den Weg dorthin — sie wurde nur nie nachgeführt.
+  ///
+  /// Was tatsächlich fehlte, war der gespeicherte Name AM URTEIL: `judgedBy` faltet den Handelnden
+  /// weiterhin auf "ai"/"admin"/"system" zusammen (die Strafbuch-Optik hängt an diesem Kürzel).
+  /// Deshalb steht der Name seither zusätzlich in `StrafeRecord.judgedByName` — additiv, damit das
+  /// Kürzel und alles, was darauf rechnet, unverändert bleibt.
   ///
   /// BEKANNTE GRENZEN (bewusst offen, nicht vergessen):
   ///  * Der Absender-FILTER (`MessageFilterBar`) filtert nach ART, nicht nach Namen. Seine Auswahl
@@ -750,6 +780,21 @@ model StrafeRecord {
   status        String    @default("PUNISHED") // "PUNISHED" | "DISMISSED"
   reason        String? // DAS eine Freitextfeld: Strafe-Text bei PUNISHED, optionaler Grund bei DISMISSED
   judgedBy      String? // "ai" | "admin" | "system"
+  /// Der NAME dessen, der geurteilt hat — zusätzlich zum Kürzel in `judgedBy`, nicht an seiner Stelle.
+  ///
+  /// Additiv, weil das Kürzel load-bearing ist: die Strafbuch-Optik unterscheidet daran, ob die KI
+  /// oder ein Mensch entschieden hat, und die MCP-Sicht liefert es unverändert weiter. Ein Umdeuten
+  /// hätte beides gebrochen und einen `schemaVersion`-Bump verlangt.
+  ///
+  /// `null` heisst „kein Name festgehalten": Altbestand (vor dieser Spalte), die automatische Ahndung
+  /// (`judgedBy: "system"` — dahinter steht niemand) und das Urteil der KI, deren Kennung bereits im
+  /// Kürzel steht. Die Anzeige nennt den Namen also nur da, wo es wirklich einen gibt.
+  ///
+  /// Der Handelnde lag schon immer an: `judgeOffense(p, actor)` bekommt ihn, und die Meldungen im
+  /// Posteingang tragen ihn längst (siehe `Message.senderName`). Zusammengefaltet wurde er erst eine
+  /// Ebene tiefer, in `judgedByFromActor` — auf einer Instanz mit zwei Admins konnte das Strafbuch
+  /// deshalb nicht sagen, wer entschieden hat.
+  judgedByName  String?
   erledigtAt    DateTime? // nur PUNISHED: null = Strafe offen, gesetzt = erledigt (Loop geschlossen)
   createdAt     DateTime  @default(now())
   /// Die Aufgabe, die DIESE Strafe ist — statt „20 Schläge" als Freitext eine gestellte Aufgabe mit

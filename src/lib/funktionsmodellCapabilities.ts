@@ -225,9 +225,10 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Es ist immer nur EINE Direktive aktiv; die Erfüllung passiert automatisch beim passenden Eintrag.",
   }),
   c({
-    id: "orgasm-directive-edit", mechanic: "Orgasmus", title: "Orgasmus-Fenster ändern",
-    what: "Verschiebt Fenster, Art oder Öffnungserlaubnis einer offenen Direktive.",
+    id: "orgasm-directive-withdraw", mechanic: "Orgasmus", title: "Orgasmus-Fenster zurückziehen",
+    what: "Nimmt eine offene Direktive zurück. Die Route kennt nur diese eine Aktion.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/orgasmus-anforderung/[id]"],
+    note: "ÄNDERN gibt es für diese Direktive nirgends — weder in der App noch über den MCP. Anders wollen heisst zurückziehen und neu stellen; als einzige Direktive fehlt ihr das Gegenstück zu `edit_lock_period`, `edit_task` und `edit_training_goal`.",
   }),
 
   // ── Aufgaben ───────────────────────────────────────────────────────────────────────────────
@@ -352,10 +353,10 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "category-manage", mechanic: "Geräte", title: "Kategorien verwalten",
-    what: "Anlegen, benennen, einfärben, sortieren und die drei Kategorie-Regeln setzen (Tracking, Pflichtfoto, Trainingsziele).",
+    what: "Anlegen, benennen, einfärben und sortieren. Die drei Regeln — Zeiterfassung, Pflichtfoto, Trainingsziele erlaubt — darf nur der Keyholder umlegen.",
     actors: ["sub", "admin"], surfaces: ["sub-ui", "admin-ui"],
     routes: ["/api/categories", "/api/categories/[id]"],
-    note: "Die eingebaute Kategorie (Keuschheitsgürtel) lässt sich nicht löschen.",
+    note: "Die eingebaute Kategorie lässt sich nicht löschen, und ihre drei Regeln sind für niemanden änderbar.",
   }),
   c({
     id: "device-detect", mechanic: "Geräte", title: "Gerät im Foto vorschlagen",
@@ -406,6 +407,12 @@ export const FM_CAPABILITIES: FmCapability[] = [
     what: "Lesen, als gelesen oder ungelesen markieren, löschen, alles auf einmal — einzeln oder als Stapel.",
     actors: ["sub"], surfaces: ["sub-ui"],
     routes: ["/api/messages", "/api/messages/[id]", "/api/messages/[id]/read", "/api/messages/bulk", "/api/messages/read-all"],
+  }),
+  c({
+    id: "message-prune", mechanic: "Nachrichten", title: "Posteingang beschneiden",
+    what: "Löscht einmal täglich gelesene Meldungen jenseits der Aufbewahrungsfrist (Vorgabe ein Jahr, per MESSAGE_RETENTION_DAYS einstellbar, 0 = aus).",
+    actors: ["system"], surfaces: ["automatik"],
+    note: "Ungelesene Meldungen bleiben liegen, egal wie alt — eine nie gesehene Zustellung ist kein Altpapier. Die Frist hängt am Zustand, nicht nur am Alter.",
   }),
   c({
     id: "inbox-keyholder", mechanic: "Nachrichten", title: "Posteingang des Keyholders",

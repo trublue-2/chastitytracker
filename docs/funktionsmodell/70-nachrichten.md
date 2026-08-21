@@ -6,7 +6,8 @@ Der Posteingang — die dauerhafte Spur dessen, was gemeldet wurde. Er ist **nic
 Benachrichtigung: die Posteingangs-Zeile entsteht unabhängig davon, ob Mail oder Push rausgehen
 (siehe [75-benachrichtigungen.md](75-benachrichtigungen.md)).
 
-**Keine Stellschrauben.** Was hier landet, ergibt sich aus den Ereignissen anderer Mechaniken.
+**Keine Stellschrauben am Datensatz.** Was hier landet, ergibt sich aus den Ereignissen anderer
+Mechaniken. Die einzige Einstellung ist die Aufbewahrung, und sie ist instanzweit (siehe unten).
 
 ## Zwei Kanäle, ein Schlüssel
 
@@ -29,13 +30,14 @@ nicht — der Empfängerkreis muss immer mitgefiltert werden.
 
 Gespeichert wird `system`, `keyholder` oder `ai`. **Welche** Person, kann diese Angabe nicht sagen.
 
-Genau eine Meldung trägt zusätzlich einen Namen: die eines von Hand notierten Vergehens. Hat der
-Keyholder es notiert, ist er der Absender — „System" wäre dort schlicht falsch.
+Einen Namen tragen die Meldungen, hinter denen eine Entscheidung eines Menschen steht: das von Hand
+notierte Vergehen, die verhängte Strafe und das verworfene Vergehen. Alle drei reichen den
+Handelnden an die Schreibstelle durch, und die leitet die Absender-Achse daraus ab — es gibt nur
+diesen einen Weg in die Tabelle.
 
-Die beiden anderen Zeilen zum selben Vergehen — Strafe verhängt, Vergehen verworfen — **können**
-ihren Autor nicht nennen: ihr einziges Autorenfeld enthält ein Kürzel, nie einen Benutzernamen. Wer
-geurteilt hat, hält der Tracker nicht fest. Das nachzurüsten heisst, den Handelnden bis ins Urteil
-durchzureichen — eine eigene Änderung, keine Erweiterung des Namensfelds.
+Die reinen Feststellungen bleiben ohne Namen: eine automatisch erkannte Öffnung, eine versäumte
+Kontrolle, eine ausgelaufene Frist. Dahinter steht niemand, und „System" ist dort die richtige
+Angabe, keine Notlösung.
 
 ## Verlinkt statt kopiert — mit einer Ausnahme
 
@@ -59,6 +61,18 @@ Posteingang des Trägers und Posteingang des Keyholders sind **dieselbe** Kompon
 ist ein einziges Merkmal, aus dem sie ihre Endpunkt-Familie ableitet. Ebenso sind die fünf Endpunkte
 eines Posteingangs ein Bauplan, kein Dateisatz. Eine dritte Sicht bekommt einen Auflöser, keine fünf
 neuen Dateien.
+
+## Aufbewahrung
+
+Einmal täglich löscht der Poller **gelesene** Meldungen jenseits der Frist — Vorgabe ein Jahr, über
+`MESSAGE_RETENTION_DAYS` einstellbar, `0` schaltet es ab. Je Lauf begrenzt; über die Tage holt es auf.
+
+**Ungelesene Meldungen bleiben liegen, egal wie alt.** Eine Zustellung, die nie ein Mensch gesehen
+hat, ist kein Altpapier — sie stillschweigend zu löschen hiesse, dass sie folgenlos verschwindet.
+
+Die Frist hängt damit am **Zustand**, nicht nur am Alter. Das ist der Platz, an dem eine offene Bitte
+des Trägers (Aufschluss, Orgasmus) später ausgenommen wird: auch eine gelesene Bitte ist kein
+Altpapier, solange sie unbeantwortet ist.
 
 ## Code
 
