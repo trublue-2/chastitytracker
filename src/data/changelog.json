@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.2.5",
+    "date": "2026-08-21",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Einstellung \u201eDateiauswahl auf Mobile\u201c wirkt jetzt auch beim Foto zum Tragen-Beginn. Vorher erzwang das Handy dort die Kamera, obwohl alle anderen Nachweis-Formulare der Einstellung folgten.",
+          "en": "The \u201cfile picker on mobile\u201d setting now also applies to the photo when starting to wear. Before, the phone forced the camera there, even though every other proof form followed the setting."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.2.4",
     "date": "2026-08-19",
     "changes": [
