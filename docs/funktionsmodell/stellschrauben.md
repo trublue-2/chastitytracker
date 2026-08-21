@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 122 Stellschrauben über 40 Modelle.
+Jedes Feld, das Verhalten steuert: 122 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -161,7 +161,7 @@ Steckbrief: [55-geraete.md](55-geraete.md)
 | `Device.description` | String? | — | dauerhaft | Freitext — und eines der drei optischen Felder, die in die Geräte-Erkennung eingehen. Prosa über das Tragegefühl verwässert sie hier; die gehört in die Sitz-Notizen. | Sub, Keyholder (UI) | Geräte, Oberfläche | `deviceReferenceService.ts:visualTraitsOf` |
 | `Device.archivedAt` | DateTime? | — | dauerhaft | Soft-Delete: gesetzt = archiviert, aus Auswahllisten raus, Historie bleibt. | Sub, Keyholder (UI) | Geräte, Sessions/Statistik | — |
 | `Device.securityLevel` | String? | — | dauerhaft | SECURING oder TRUST_ONLY — Einordnung für die Keyholder-Entscheidung. Wird nirgends durchgesetzt. | Keyholder (MCP) | MCP | `mcp/devices.ts:set_device_meta` |
-| `Device.lookalikeClusterId` | String? | — | dauerhaft | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen; Setzen rechnet die Geräte-Zuordnung historischer Sessions rückwirkend neu. | Keyholder (MCP) | Geräte, Sessions/Statistik, Strafbuch | `mcp/devices.ts:set_device_meta` |
+| `Device.lookalikeClusterId` | String? | — | dauerhaft · **rückwirkend** | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen. | Keyholder (MCP) | Geräte, Sessions/Statistik, Strafbuch | `mcp/devices.ts:set_device_meta` |
 | `Device.pullOffRisk` | Boolean? | — | dauerhaft | Abstreifbar? `null` = nie beurteilt, nicht „sicher“. Reine Beurteilung ohne Durchsetzung. | Keyholder (MCP) | MCP | `mcp/devices.ts:set_device_meta` |
 | `Device.material` | String? | — | dauerhaft | Werkstoff. Geht als optisches Merkmal in die Geräte-Erkennung ein. | Sub, Keyholder (UI) | Geräte | `deviceReferenceService.ts:visualTraitsOf` |
 | `Device.bauform` | String? | — | dauerhaft | Bauform. Ebenfalls ein optisches Merkmal der Erkennung. | Sub, Keyholder (UI) | Geräte | `deviceReferenceService.ts:visualTraitsOf` |
@@ -219,7 +219,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
 | `User.role` | String | `"user"` | dauerhaft | `user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. | Keyholder (UI), Portal | Zugang, MCP | `authGuards.ts:requireAdminApi` |
-| `User.timezone` | String | `"Europe/Zurich"` | dauerhaft | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. | Sub | Reinigung, Auto-Kontrollen, Sessions/Statistik | `utils.ts:APP_TZ` |
+| `User.timezone` | String | `"Europe/Zurich"` | dauerhaft | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | Sub | Reinigung, Auto-Kontrollen, Sessions/Statistik | `timezoneRules.ts:timezoneRulesFrom` |
 | `User.startPage` | String | `"auto"` | dauerhaft | Startseite nach der Anmeldung; `auto` wählt sie nach Rolle. | Sub | Oberfläche | `userSelfField.ts` |
 | `User.hideOwnTracker` | Boolean | `false` | dauerhaft | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | Sub | Oberfläche | `ownTracker.ts` |
 | `User.locale` | String | `"de"` | dauerhaft | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | Sub, Keyholder (UI) | Oberfläche, Benachrichtigungen | `emailI18n.ts` |
@@ -231,7 +231,18 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
 | `AppMeta.key` | String | (keiner) | dauerhaft | Name eines instanzweiten Werts. Hier liegen die STICHTAGE, ab denen eine Regel auf DIESER Instanz gilt — etwa die Reinigungsfenster-Regel und die Vergehens-Meldungen. | System | Strafbuch, Reinigung, Nachrichten | `appMeta.ts:deployCutoff` |
-| `AppMeta.value` | String | (keiner) | dauerhaft | Der Wert dazu. Migrationen schreiben ihn beim ersten Start selbst; eine ENV-Variable kann ihn bewusst überschreiben. | System | Strafbuch, Reinigung, Nachrichten | `appMeta.ts:deployCutoff` |
+| `AppMeta.value` | String | (keiner) | dauerhaft · **rückwirkend** | Der Wert dazu. Migrationen schreiben ihn beim ersten Start selbst; eine ENV-Variable kann ihn bewusst überschreiben. | System | Strafbuch, Reinigung, Nachrichten | `appMeta.ts:deployCutoff` |
+
+## Rückwirkende Einstellungen
+
+Die Ausnahmen: Werte, deren Umlegen die VERGANGENHEIT verändert. Alle übrigen tun das nicht —
+die Regeln sind historisiert, jede Tat wird nach der Fassung ihrer Zeit beurteilt. Diese hier
+sind die wenigen, bei denen das nicht gilt, und deshalb die gefährlichsten im Register.
+
+| Feld | Was ein Umlegen rückwirkend tut |
+|---|---|
+| `Device.lookalikeClusterId` | Rechnet die Geräte-Zuordnung JEDER historischen Session mit Bild-Konflikt neu. Vorher die Vorschau prüfen. |
+| `AppMeta.value` | Einen Stichtag zurückzudatieren beurteilt Vergehen vor diesem Datum neu und kann sie nachträglich melden. |
 
 ## Bewusst keine Stellschrauben
 
@@ -377,6 +388,12 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `CleaningRuleChange.effectiveFrom` | Datensatz | Ab wann die Fassung gilt. Die Grundzeile trägt Epoch, damit keine Lücke bleibt, in die eine Öffnung fallen könnte. |
 | `CleaningRuleChange.changedBy` | Nachweis | Wer geändert hat; leer bei der Grundzeile, die niemand gesetzt hat. |
 | `CleaningRuleChange.createdAt` | Datensatz | Anlage-Zeitpunkt. |
+| `TimezoneChange.id` | Identität | Primärschlüssel. |
+| `TimezoneChange.userId` | Identität | Eigentümer der Zeile. |
+| `TimezoneChange.timezone` | Datensatz | Abbild von `User.timezone` in dieser Fassung. Gesetzt wird über die User-Spalte, nie hier. |
+| `TimezoneChange.effectiveFrom` | Datensatz | Ab wann die Zone gilt. Die Grundzeile trägt Epoch, damit keine Lücke bleibt, in die eine Öffnung fallen könnte. |
+| `TimezoneChange.changedBy` | Nachweis | Wer umgestellt hat; leer bei der Grundzeile. |
+| `TimezoneChange.createdAt` | Datensatz | Anlage-Zeitpunkt. |
 | `AdminPasswordChange.id` | Identität | Primärschlüssel. |
 | `AdminPasswordChange.subUserId` | Identität | Der Sub, dessen Sperrzeit lief — Eigentümer des Vergehens. |
 | `AdminPasswordChange.adminUserId` | Identität | Das Admin-Konto, dessen Passwort geändert wurde. |

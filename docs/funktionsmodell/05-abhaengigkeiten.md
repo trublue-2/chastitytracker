@@ -153,7 +153,7 @@ flowchart LR
 
 | Woher | Wodurch | Was passiert | Anker |
 |---|---|---|---|
-| Zugang | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. | `utils.ts:APP_TZ` |
+| Zugang | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
 | Einträge | `User.oeffnenGruendeConfig` | Auswahlliste der Öffnungsgründe. `REINIGUNG` ist der Grund, an dem die gesamte Reinigungslogik hängt — er lässt sich nicht wegkonfigurieren. | `reasonsService.ts` |
 | Sperrzeit | `VerschlussAnforderung.reinigungErlaubt` | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | `queries.ts:foldActiveSperrzeiten` |
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
@@ -359,7 +359,7 @@ flowchart LR
 | Reinigung | `User.reinigungMaxProTag` | ANZAHL Öffnungen pro Kalendertag des Subs (kein Minutenbudget). 0 = unbegrenzt. Wird nur erkannt, nie durchgesetzt. | `reinigungService.ts:maxPausesPerDaySentinel` |
 | Kontrollen | `User.autoKontrolleAktiv` | Hauptschalter der Automatik. Aus schaltet BEIDES ab: den gewürfelten Tagesplan und die Kontrolle nach dem Wiederverschluss. | `autoKontrolleService.ts` |
 | Kontrollen | `User.inspectionAutoMarkEnabled` | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | `queries.ts:releaseSperrzeitenOnOpen` |
-| Geräte | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen; Setzen rechnet die Geräte-Zuordnung historischer Sessions rückwirkend neu. | `mcp/devices.ts:set_device_meta` |
+| Geräte | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen. | `mcp/devices.ts:set_device_meta` |
 | Sperrzeit | `VerschlussAnforderung.endetAt` | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveSperrzeiten` |
 | Sperrzeit | `VerschlussAnforderung.deviceId` | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | — |
 | Kontrollen | `KontrollAnforderung.deadline` | Erfüllungsfrist. Nach Ablauf verschwindet die Kontrolle nicht, sie wird überfällig — und ist der Startpunkt der Eskalation. | `inspectionEscalationService.ts` |
@@ -428,8 +428,8 @@ flowchart LR
 | Trainingsziele | `Device.categoryId` | Zuordnung zur Kategorie — entscheidet, welche Kategorie-Regeln (Tracking, Pflichtfoto, Trainingsziele) für dieses Gerät gelten. | — |
 | Sessions/Statistik | `Device.categoryId` | Zuordnung zur Kategorie — entscheidet, welche Kategorie-Regeln (Tracking, Pflichtfoto, Trainingsziele) für dieses Gerät gelten. | — |
 | MCP | `Device.securityLevel` | SECURING oder TRUST_ONLY — Einordnung für die Keyholder-Entscheidung. Wird nirgends durchgesetzt. | `mcp/devices.ts:set_device_meta` |
-| Sessions/Statistik | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen; Setzen rechnet die Geräte-Zuordnung historischer Sessions rückwirkend neu. | `mcp/devices.ts:set_device_meta` |
-| Strafbuch | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen; Setzen rechnet die Geräte-Zuordnung historischer Sessions rückwirkend neu. | `mcp/devices.ts:set_device_meta` |
+| Sessions/Statistik | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen. | `mcp/devices.ts:set_device_meta` |
+| Strafbuch | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen. | `mcp/devices.ts:set_device_meta` |
 | MCP | `Device.pullOffRisk` | Abstreifbar? `null` = nie beurteilt, nicht „sicher“. Reine Beurteilung ohne Durchsetzung. | `mcp/devices.ts:set_device_meta` |
 | Oberfläche | `Device.name` | Anzeigename. Geht zusätzlich in die Geräte-Erkennung ein, zusammen mit den Bildern und den drei optischen Feldern. | — |
 | Sessions/Statistik | `Device.archivedAt` | Soft-Delete: gesetzt = archiviert, aus Auswahllisten raus, Historie bleibt. | — |
@@ -589,9 +589,9 @@ Nichts wirkt hier hinein — diese Mechanik lässt sich für sich allein betrach
 
 | Wohin | Wodurch | Was passiert | Anker |
 |---|---|---|---|
-| Reinigung | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. | `utils.ts:APP_TZ` |
-| Auto-Kontrollen | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. | `utils.ts:APP_TZ` |
-| Sessions/Statistik | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. | `utils.ts:APP_TZ` |
+| Reinigung | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
+| Auto-Kontrollen | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
+| Sessions/Statistik | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
 | Oberfläche | `User.startPage` | Startseite nach der Anmeldung; `auto` wählt sie nach Rolle. | `userSelfField.ts` |
 | Oberfläche | `User.hideOwnTracker` | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | `ownTracker.ts` |
 | Oberfläche | `User.locale` | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | `emailI18n.ts` |
@@ -628,7 +628,7 @@ flowchart LR
 | Kontrollen | `User.autoKontrolleFensterVon` | Beginn eines optionalen festen Auslöse-Fensters. Leer = ganzes Wach-Fenster. Wrappt bewusst nicht über Mitternacht. | `autoKontrolleService.ts:fixedWindowMinutes` |
 | Kontrollen | `User.autoKontrolleFensterBis` | Ende desselben Fensters. Liegt es vollständig im Schlaf-Fenster, wird die Kombination abgelehnt statt wirkungslos gespeichert. | `autoKontrolleService.ts:triggerWindowAllQuiet` |
 | Kontrollen | `User.autoKontrolleNurBeiSperre` | Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss. | `autoKontrolleService.ts` |
-| Zugang | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. | `utils.ts:APP_TZ` |
+| Zugang | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
 | Kontrollen | `KontrollAnforderung.wirksamAb` | Terminierte Zustellung; bis dahin für den Sub unsichtbar und ohne laufende Frist. Auch der Weg, auf dem der Tagesplan vorab angelegt wird. | — |
 | MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
 | Reinigung | *feste Regel* | Jeder SELBST erfasste Wiederverschluss nach einer Reinigungspause erzeugt eine Kontrolle (15–45 min, im Schlaf-Fenster 5–15). Sie ersetzt die nächste noch nicht zugestellte Auto-Kontrolle des Tages. Feste Regel, keine Einstellung — nur der Hauptschalter der Automatik schaltet sie ab. | `autoKontrolleService.ts:scheduleCleaningRelockInspection` |
@@ -687,9 +687,9 @@ flowchart LR
 |---|---|---|---|
 | Reinigung | `User.reinigungMaxMinuten` | Höchstdauer EINER Pause. Darüber hinaus zählt die Pause als Tragezeit-Unterbrechung und wird zum erkannten Vergehen. | `cleaningRules.ts:reinigungRulesAt` |
 | Kontrollen | `User.inspectionAutoMarkEnabled` | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | `queries.ts:releaseSperrzeitenOnOpen` |
-| Zugang | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. | `utils.ts:APP_TZ` |
+| Zugang | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
 | Geräte | `Device.categoryId` | Zuordnung zur Kategorie — entscheidet, welche Kategorie-Regeln (Tracking, Pflichtfoto, Trainingsziele) für dieses Gerät gelten. | — |
-| Geräte | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen; Setzen rechnet die Geräte-Zuordnung historischer Sessions rückwirkend neu. | `mcp/devices.ts:set_device_meta` |
+| Geräte | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen. | `mcp/devices.ts:set_device_meta` |
 | Geräte | `Device.archivedAt` | Soft-Delete: gesetzt = archiviert, aus Auswahllisten raus, Historie bleibt. | — |
 | Geräte | `DeviceCategory.trackingEnabled` | Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung. Bei der eingebauten Kategorie unveränderlich. | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |

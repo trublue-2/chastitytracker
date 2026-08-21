@@ -135,7 +135,7 @@ tatsächlich vorhandenen Routen und Werkzeuge aus dem Quelltext, und der Test h�
 Was er NICHT abdecken kann, sind Funktionen ohne Endpunkt — die Automatiken. Für die ist der Katalog
 die einzige Liste, die es gibt, und deshalb stehen sie dort noch einmal beisammen.
 
-**Geprüft werden alle 40 Modelle des Schemas** — jedes Skalarfeld hat einen Eintrag, auch die
+**Geprüft werden alle Modelle des Schemas** — jedes Skalarfeld hat einen Eintrag, auch die
 uninteressanten. Ein neues Modell trägt man in `FM_SCANNED_MODELS` ein; der Test nennt danach jedes
 Feld, das noch fehlt.
 

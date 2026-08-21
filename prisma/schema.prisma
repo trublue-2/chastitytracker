@@ -102,6 +102,7 @@ model User {
   manualOffenses                 ManualOffense[]
   offenseRuleChanges             OffenseRuleChange[]
   cleaningRuleChanges            CleaningRuleChange[]
+  timezoneChanges                TimezoneChange[]
 }
 
 /// Ein von Hand notiertes Vergehen — das einzige, das nicht aus Einträgen ABGELEITET wird.
@@ -160,6 +161,31 @@ model ManualOffense {
 /// (`changedBy` = null, denn den hat niemand gesetzt) und die neue Fassung ab jetzt. Ohne diese
 /// Grundzeile fiele die Zeit vor der ersten Änderung auf die User-Spalten zurück — also auf den
 /// neuen Wert, und damit genau in den Fehler zurück, den die Tabelle behebt.
+/// Historie der Zeitzone eines Trägers — dieselbe Bauart wie `CleaningRuleChange` und aus demselben
+/// Grund: die Zone entscheidet mit, ob eine Reinigungsöffnung im erlaubten Fenster lag und an welchem
+/// Kalendertag sie auf das Tageskontingent zählte. Ohne Historie beurteilte eine Umstellung die
+/// ganze Vergangenheit neu — und weil der Träger sie selbst setzen darf, wäre das eine
+/// selbstbediente Neubeurteilung.
+///
+/// Die frühere Begründung, die Zone sei "eine Eigenschaft des Subs, keine Regel der Keyholderin",
+/// bleibt richtig: sie ändert nichts daran, dass die Vergangenheit stillhalten muss. Der Träger
+/// darf weiter umstellen — nur eben mit Wirkung ab jetzt.
+model TimezoneChange {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timezone      String
+  /// Ab wann diese Fassung gilt. Die Grundzeile trägt Epoch — vor der ersten Umstellung ist bekannt,
+  /// DASS diese Zone galt, nicht seit wann; ein erfundener Zeitpunkt liesse eine Lücke, in die eine
+  /// Öffnung fallen könnte (gleiche Regel wie `CLEANING_RULES_EPOCH`).
+  effectiveFrom DateTime
+  /// Wer umgestellt hat. `null` = die Grundzeile, die niemand gesetzt hat.
+  changedBy     String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, effectiveFrom])
+}
+
 model CleaningRuleChange {
   id            String   @id @default(cuid())
   userId        String

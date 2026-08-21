@@ -52,6 +52,15 @@ export interface FmSetting {
   affects: FmTarget[];
   /** Wo die Regel im Code steht (`datei.ts:symbol`), für den Sprung von der Doku in den Code. */
   anchor?: string;
+  /**
+   * Gesetzt, wenn ein Umlegen die VERGANGENHEIT verändert — mit dem Satz, was genau.
+   *
+   * Eine eigene Achse neben `scope`, nicht ein vierter Wert davon: `scope` sagt, wie lange ein Wert
+   * gilt, dies hier, ob er nach hinten wirkt. Die meisten Einstellungen tun das nicht, weil die
+   * Regeln historisiert sind — die wenigen, die es doch tun, sind die gefährlichsten im Register und
+   * sollen nicht in der Menge untergehen.
+   */
+  retroactive?: string;
 }
 
 /** Ein Feld, das nichts steuert — mit dem Grund, warum nicht. */
@@ -108,7 +117,8 @@ export const FM_SCANNED_MODELS = [
   "User", "Entry", "Device", "DeviceCategory", "DeviceReferenceImage",
   "VerschlussAnforderung", "KontrollAnforderung", "OrgasmusAnforderung", "TrainingVorgabe",
   "Task", "TaskRequirement", "TaskProof",
-  "StrafeRecord", "ManualOffense", "OffenseRuleChange", "CleaningRuleChange", "AdminPasswordChange",
+  "StrafeRecord", "ManualOffense", "OffenseRuleChange", "CleaningRuleChange", "TimezoneChange",
+  "AdminPasswordChange",
   "BoxStatus", "BoxEvent",
   "Message", "MessageRead", "NotificationPreference", "PushSubscription", "NativePushToken",
   "KeyholderNote", "NoteRef", "KeyholderActionLog", "HealthHold", "RecurringContext", "Appointment",
@@ -365,8 +375,9 @@ export const FM_REGISTRY: FmEntry[] = [
   }),
   s({
     model: "User", field: "timezone", domain: "konto", scope: "standing",
-    effect: "Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone.",
-    writers: ["sub"], affects: ["Reinigung", "Auto-Kontrollen", "Sessions/Statistik"], anchor: "utils.ts:APP_TZ",
+    effect: "Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt.",
+    writers: ["sub"], affects: ["Reinigung", "Auto-Kontrollen", "Sessions/Statistik"],
+    anchor: "timezoneRules.ts:timezoneRulesFrom",
   }),
   s({
     model: "User", field: "startPage", domain: "konto", scope: "standing",
@@ -430,8 +441,9 @@ export const FM_REGISTRY: FmEntry[] = [
   }),
   s({
     model: "Device", field: "lookalikeClusterId", domain: "geraete", scope: "standing",
-    effect: "Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen; Setzen rechnet die Geräte-Zuordnung historischer Sessions rückwirkend neu.",
+    effect: "Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen.",
     writers: ["mcp"], affects: ["Geräte", "Sessions/Statistik", "Strafbuch"], anchor: "mcp/devices.ts:set_device_meta",
+    retroactive: "Rechnet die Geräte-Zuordnung JEDER historischen Session mit Bild-Konflikt neu. Vorher die Vorschau prüfen.",
   }),
   s({
     model: "Device", field: "pullOffRisk", domain: "geraete", scope: "standing",
@@ -980,6 +992,16 @@ export const FM_REGISTRY: FmEntry[] = [
   x("audit", "CleaningRuleChange", "changedBy", "Wer geändert hat; leer bei der Grundzeile, die niemand gesetzt hat."),
   stamp("CleaningRuleChange"),
 
+  // ── TimezoneChange: Abbild wie CleaningRuleChange ──────────────────────────────────────────
+  pk("TimezoneChange"),
+  owner("TimezoneChange"),
+  x("record", "TimezoneChange", "timezone",
+    "Abbild von `User.timezone` in dieser Fassung. Gesetzt wird über die User-Spalte, nie hier."),
+  x("record", "TimezoneChange", "effectiveFrom",
+    "Ab wann die Zone gilt. Die Grundzeile trägt Epoch, damit keine Lücke bleibt, in die eine Öffnung fallen könnte."),
+  x("audit", "TimezoneChange", "changedBy", "Wer umgestellt hat; leer bei der Grundzeile."),
+  stamp("TimezoneChange"),
+
   // ── Box ────────────────────────────────────────────────────────────────────────────────────
   pk("BoxStatus"),
   owner("BoxStatus"),
@@ -1266,6 +1288,7 @@ export const FM_REGISTRY: FmEntry[] = [
     model: "AppMeta", field: "value", domain: "betrieb", scope: "standing",
     effect: "Der Wert dazu. Migrationen schreiben ihn beim ersten Start selbst; eine ENV-Variable kann ihn bewusst überschreiben.",
     writers: ["system"], affects: ["Strafbuch", "Reinigung", "Nachrichten"], anchor: "appMeta.ts:deployCutoff",
+    retroactive: "Einen Stichtag zurückzudatieren beurteilt Vergehen vor diesem Datum neu und kann sie nachträglich melden.",
   }),
   x("runtime", "AppMeta", "updatedAt", "Letzte Änderung. Das Portal liest daraus die Aktivität der Instanz."),
 ];

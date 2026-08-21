@@ -226,7 +226,7 @@ export function renderStellschrauben(schema: SchemaFields): string {
         `\`${field.model}.${field.name}\``,
         field.type + (field.optional ? "?" : ""),
         formatDefault(field),
-        SCOPE_LABEL[entry.scope],
+        SCOPE_LABEL[entry.scope] + (entry.retroactive ? " · **rückwirkend**" : ""),
         entry.effect,
         entry.writers.map((w) => WRITER_LABEL[w]).join(", "),
         entry.affects.join(", ") || "—",
@@ -235,6 +235,18 @@ export function renderStellschrauben(schema: SchemaFields): string {
     }
     lines.push("");
   }
+
+  const retro = FM_REGISTRY.filter((e): e is FmSetting => e.kind === "setting" && Boolean(e.retroactive));
+  lines.push("## Rückwirkende Einstellungen");
+  lines.push("");
+  lines.push("Die Ausnahmen: Werte, deren Umlegen die VERGANGENHEIT verändert. Alle übrigen tun das nicht —");
+  lines.push("die Regeln sind historisiert, jede Tat wird nach der Fassung ihrer Zeit beurteilt. Diese hier");
+  lines.push("sind die wenigen, bei denen das nicht gilt, und deshalb die gefährlichsten im Register.");
+  lines.push("");
+  lines.push(row(["Feld", "Was ein Umlegen rückwirkend tut"]));
+  lines.push("|---|---|");
+  for (const e of retro) lines.push(row([`\`${e.model}.${e.field}\``, e.retroactive!]));
+  lines.push("");
 
   lines.push("## Bewusst keine Stellschrauben");
   lines.push("");
