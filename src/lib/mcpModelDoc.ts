@@ -143,6 +143,10 @@ Sperre \`reinigungErlaubt\` hat. Freie Wechsel erlauben ⇒ \`reinigungErlaubt\`
   lesbar** — es gibt bewusst kein Tool dafür, das entscheidet der Mensch in der Admin-Oberfläche.
   \`manual_offense\` steht nicht in der Liste: ein ausdrücklich notiertes Vergehen ist nicht
   abschaltbar, dafür gibt es das Urteil (\`dismiss\`).
+- **Wer geurteilt hat** steht in zwei Feldern: \`judgedBy\` ist die ART (\`ai\` = du, \`admin\` = ein
+  Mensch, \`system\` = automatisch geahndet), \`judgedByName\` der NAME, wo ein Mensch entschied.
+  \`judgedByName: null\` heisst nicht „unbekannt": bei dir steht die Kennung schon in \`judgedBy\`,
+  hinter einer automatischen Ahndung steht niemand, und Urteile von vor dieser Angabe tragen sie nicht.
 - **Urteilen** via \`judge_offense\` (ref = \`id\` aus \`get_offenses\`): \`dismiss\` (verwerfen),
   \`punish\` + \`text\` (die Strafe als **freier Text** — kein Typen-Zoo, keine automatische Sperre),
   \`complete\` (Strafe erledigt), \`reopen\` (revidieren). \`openOffenseCount\` = unbeurteilt ODER

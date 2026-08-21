@@ -35,7 +35,7 @@ function strafbuchWithOneOfEach() {
   const j = (type: OffenseCanonicalType, id: string) => ({
     ref: { type, id },
     judgment: "open" as const,
-    penalty: null, done: false, doneAt: null, reason: null, judgedBy: null, judgedAt: null,
+    penalty: null, done: false, doneAt: null, reason: null, judgedBy: null, judgedByName: null, judgedAt: null,
   });
   return {
     unauthorizedOpenings: [{ ...j("unauthorized_opening", "o1"), time: "t", note: null, lockPeriodEndedAt: null, lockPeriodIndefinite: false }],
@@ -119,7 +119,7 @@ describe("buildOffenseRows — Zähler und Ausgabe dürfen nicht auseinanderlauf
 describe("filterOffenses — K-14", () => {
   const row = (over: Partial<OffenseRow>): OffenseRow => ({
     id: "x", type: "late_control", detectedAt: "2026-07-10T10:00:00+02:00", status: "judged",
-    judgment: "dismissed", consequence: null, dismissReason: null, judgedBy: null, judgedAt: null,
+    judgment: "dismissed", consequence: null, dismissReason: null, judgedBy: null, judgedByName: null, judgedAt: null,
     context: {}, notes: [], ...over,
   });
   const rows: OffenseRow[] = [

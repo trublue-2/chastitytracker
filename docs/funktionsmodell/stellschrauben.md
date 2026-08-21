@@ -366,7 +366,8 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `StrafeRecord.notiz` | Datensatz | Interne Notiz zum Urteil. |
 | `StrafeRecord.status` | Nachweis | PUNISHED oder DISMISSED — das Urteil selbst, kein einstellbarer Wert. |
 | `StrafeRecord.reason` | Datensatz | Der Straftext bei PUNISHED, ein optionaler Grund bei DISMISSED. |
-| `StrafeRecord.judgedBy` | Nachweis | `ai`, `admin` oder `system`. Ein Kürzel, nie ein Benutzername. |
+| `StrafeRecord.judgedBy` | Nachweis | `ai`, `admin` oder `system` — ein Kürzel. Die Anzeige unterscheidet daran KI von Mensch; WELCHER Mensch, steht daneben. |
+| `StrafeRecord.judgedByName` | Nachweis | Der Name des Urteilenden. `null` bei der KI (ihre Kennung steht im Kürzel), bei der automatischen Ahndung (dahinter steht niemand) und im Altbestand. |
 | `StrafeRecord.erledigtAt` | Laufzeitzustand | Nur bei PUNISHED: leer = Strafe offen, gesetzt = erledigt. |
 | `StrafeRecord.createdAt` | Datensatz | Anlage-Zeitpunkt. |
 | `StrafeRecord.taskId` | Datensatz | Die Aufgabe, die DIESE Strafe ist. Eine erfüllte Aufgabe schliesst das Urteil von selbst ab. |

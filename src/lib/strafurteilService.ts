@@ -130,6 +130,25 @@ function judgedByFromActor(actor: MessageActor): typeof AI_AUTHOR | "admin" {
   return actor === AI_AUTHOR ? AI_AUTHOR : "admin";
 }
 
+/**
+ * Die beiden Autoren-Spalten eines Urteils aus dem Handelnden — Kürzel UND Name.
+ *
+ * Zusammen und nicht als zwei Funktionen, weil sie nur zusammen richtig sind: das Kürzel bleibt, wie
+ * es war (die Strafbuch-Optik unterscheidet daran KI von Mensch, die MCP-Sicht liefert es weiter),
+ * der Name kommt daneben. Getrennt gepflegt liefe irgendwann eine Schreibstelle mit nur einer der
+ * beiden.
+ *
+ * Kein Name bei der KI — ihre Kennung steht bereits im Kürzel, und zweimal hingeschrieben müsste die
+ * Anzeige sie wieder wegfiltern. Kein Name ohne Handelnden: das ist die automatische Ahndung, hinter
+ * der niemand steht. `null` heisst hier also „es gab keinen", nicht „unbekannt".
+ */
+export function judgmentAuthorColumns(actor: MessageActor): { judgedBy: string; judgedByName: string | null } {
+  return {
+    judgedBy: judgedByFromActor(actor),
+    judgedByName: !actor || actor === AI_AUTHOR ? null : actor,
+  };
+}
+
 export interface JudgeOffenseResult {
   status: "punished" | "dismissed" | "open";
   done: boolean;
@@ -381,7 +400,8 @@ async function writeJudgment(
   await withdrawLinkedTask(tx, p.offense.refId, p.userId, p.now);
 
   const data = {
-    status: p.status, reason: p.reason, judgedBy: judgedByFromActor(p.actor),
+    status: p.status, reason: p.reason,
+    ...judgmentAuthorColumns(p.actor),
     erledigtAt: null, bestraftDatum: p.now, taskId: p.taskId,
   };
   const create = { userId: p.userId, offenseType: p.offense.offenseType, refId: p.offense.refId, ...data };

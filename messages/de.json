@@ -863,6 +863,7 @@
     "strafbuchVerworfenBadge": "Verworfen",
     "strafbuchBegruendung": "Begründung",
     "strafbuchUrteilKI": "(KI)",
+    "strafbuchUrteilVon": "(von {name})",
     "strafbuchStrafeLabel": "Strafe",
     "strafbuchStrafePlaceholder": "z.B. 20 Schläge",
     "strafbuchStrafeVerhaengen": "Strafe verhängen",

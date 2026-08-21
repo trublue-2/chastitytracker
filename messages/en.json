@@ -863,6 +863,7 @@
     "strafbuchVerworfenBadge": "Dismissed",
     "strafbuchBegruendung": "Reason",
     "strafbuchUrteilKI": "(AI)",
+    "strafbuchUrteilVon": "(by {name})",
     "strafbuchStrafeLabel": "Penalty",
     "strafbuchStrafePlaceholder": "e.g. 20 strokes",
     "strafbuchStrafeVerhaengen": "Impose penalty",

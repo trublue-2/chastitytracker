@@ -133,6 +133,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     status: r.status,
     reason: r.reason,
     judgedBy: r.judgedBy,
+    judgedByName: r.judgedByName,
     done: r.erledigtAt !== null,
     erledigtAtStr: r.erledigtAt ? formatDate(r.erledigtAt, dl, tz) : null,
   }));
@@ -171,6 +172,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchVerworfenBadge: t("strafbuchVerworfenBadge"),
     strafbuchBegruendung: t("strafbuchBegruendung"),
     strafbuchUrteilKI: t("strafbuchUrteilKI"),
+    // Als Vorlage, nicht als fertiger Satz: den Namen setzt der Client ein, er kennt die Zeile.
+    strafbuchUrteilVon: t("strafbuchUrteilVon", { name: "{name}" }),
     strafbuchStrafeLabel: t("strafbuchStrafeLabel"),
     strafbuchStrafePlaceholder: t("strafbuchStrafePlaceholder"),
     strafbuchStrafeVerhaengen: t("strafbuchStrafeVerhaengen"),

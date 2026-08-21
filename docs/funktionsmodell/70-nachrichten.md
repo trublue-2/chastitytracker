@@ -30,13 +30,14 @@ nicht — der Empfängerkreis muss immer mitgefiltert werden.
 
 Gespeichert wird `system`, `keyholder` oder `ai`. **Welche** Person, kann diese Angabe nicht sagen.
 
-Genau eine Meldung trägt zusätzlich einen Namen: die eines von Hand notierten Vergehens. Hat der
-Keyholder es notiert, ist er der Absender — „System" wäre dort schlicht falsch.
+Einen Namen tragen die Meldungen, hinter denen eine Entscheidung eines Menschen steht: das von Hand
+notierte Vergehen, die verhängte Strafe und das verworfene Vergehen. Alle drei reichen den
+Handelnden an die Schreibstelle durch, und die leitet die Absender-Achse daraus ab — es gibt nur
+diesen einen Weg in die Tabelle.
 
-Die beiden anderen Zeilen zum selben Vergehen — Strafe verhängt, Vergehen verworfen — **können**
-ihren Autor nicht nennen: ihr einziges Autorenfeld enthält ein Kürzel, nie einen Benutzernamen. Wer
-geurteilt hat, hält der Tracker nicht fest. Das nachzurüsten heisst, den Handelnden bis ins Urteil
-durchzureichen — eine eigene Änderung, keine Erweiterung des Namensfelds.
+Die reinen Feststellungen bleiben ohne Namen: eine automatisch erkannte Öffnung, eine versäumte
+Kontrolle, eine ausgelaufene Frist. Dahinter steht niemand, und „System" ist dort die richtige
+Angabe, keine Notlösung.
 
 ## Verlinkt statt kopiert — mit einer Ausnahme
 

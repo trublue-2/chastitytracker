@@ -25,6 +25,8 @@ export interface StrafeRecordData {
   status: string; // "PUNISHED" | "DISMISSED"
   reason: string | null; // Strafe-Freitext (PUNISHED) bzw. Grund (DISMISSED)
   judgedBy: string | null;
+  /** Name dessen, der geurteilt hat. `null` = KI, System oder Altbestand — siehe `JudgedByTag`. */
+  judgedByName: string | null;
   done: boolean;
   erledigtAtStr: string | null;
 }
@@ -203,6 +205,8 @@ interface Labels {
   strafbuchVerworfenBadge: string;
   strafbuchBegruendung: string;
   strafbuchUrteilKI: string;
+  /** Vorlage mit `{name}`-Platzhalter — der Client setzt den Namen ein. */
+  strafbuchUrteilVon: string;
   strafbuchStrafeLabel: string;
   strafbuchStrafePlaceholder: string;
   strafbuchStrafeVerhaengen: string;
@@ -463,17 +467,31 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     router.refresh();
   }
 
+  /**
+   * Wer entschieden hat — die KI-Kennzeichnung wie bisher, sonst der Name des Menschen.
+   *
+   * EIN Bauteil für beide Urteils-Badges (verhängt/verworfen): die Kennzeichnung stand vorher
+   * zweimal wörtlich gleich da, und der Name wäre sonst an einer der beiden Stellen gelandet.
+   *
+   * Kein Name heisst NICHT „unbekannt": bei der KI steht ihre Kennung schon im Kürzel, und die
+   * automatische Ahndung hat keinen Urheber. In beiden Fällen ist die stille Zeile die richtige.
+   */
+  function JudgedByTag({ record }: { record: StrafeRecordData }) {
+    if (record.judgedBy === AI_AUTHOR) return <span className={FACT_CLS}>{labels.strafbuchUrteilKI}</span>;
+    if (!record.judgedByName) return null;
+    return <span className={FACT_CLS}>{labels.strafbuchUrteilVon.replace("{name}", record.judgedByName)}</span>;
+  }
+
   function PunishedBadge({ refId }: { refId: string }) {
     const record = strafeRecords.find(r => r.refId === refId);
     if (!record) return null;
-    const aiJudged = record.judgedBy === AI_AUTHOR;
     return (
       <div className="mt-1.5 flex flex-col gap-1">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-semibold text-warn border border-warn px-2 py-0.5 rounded-lg flex items-center gap-1">
             {labels.strafbuchStrafeBadge}{record.reason ? `: ${record.reason}` : ""}
           </span>
-          {aiJudged && <span className={FACT_CLS}>{labels.strafbuchUrteilKI}</span>}
+          <JudgedByTag record={record} />
           <button type="button" onClick={() => handleUndo(refId)}
             className="text-xs text-foreground-faint underline hover:text-warn transition ml-auto">
             {labels.strafbuchRueckgaengig}
@@ -504,13 +522,12 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   function DismissedBadge({ refId }: { refId: string }) {
     const record = strafeRecords.find(r => r.refId === refId);
     if (!record) return null;
-    const aiJudged = record.judgedBy === AI_AUTHOR;
     return (
       <div className="mt-1.5 flex items-center gap-2 flex-wrap">
         <span className="text-xs font-semibold text-foreground-faint border border-border px-2 py-0.5 rounded-lg flex items-center gap-1">
           <XCircle size={10} /> {labels.strafbuchVerworfenBadge}
         </span>
-        {aiJudged && <span className={FACT_CLS}>{labels.strafbuchUrteilKI}</span>}
+        <JudgedByTag record={record} />
         {record.reason && <span className={NOTE_CLS}>„{record.reason}"</span>}
         <button type="button" onClick={() => handleUndo(refId)}
           className="text-xs text-foreground-faint underline hover:text-warn transition ml-auto">

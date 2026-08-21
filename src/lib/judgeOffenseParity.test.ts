@@ -145,10 +145,15 @@ afterEach(() => {
 });
 
 /** Die eine Urteils-ZEILE, wie sie nach `action` aussehen muss — inklusive der Felder, die ein
- *  Freitext-Urteil ausdrücklich LÖSCHT (`taskId`, `erledigtAt`). */
+ *  Freitext-Urteil ausdrücklich LÖSCHT (`taskId`, `erledigtAt`).
+ *
+ *  `judgedBy` bleibt das Kürzel, `judgedByName` trägt den Namen: beide Eingänge werden hier von
+ *  DERSELBEN Person bedient, also muss auch der Name auf beiden Wegen gleich herauskommen. Genau
+ *  das ist die Zusage dieses Tests — die KI-Variante ist ein anderer Handelnder, kein anderer Weg. */
 const judgmentRow = (status: "PUNISHED" | "DISMISSED", reason: string | null) => ({
   userId: USER_ID, offenseType: TYPE, refId: REF,
-  status, reason, judgedBy: "admin", erledigtAt: null, bestraftDatum: NOW, taskId: null,
+  status, reason, judgedBy: "admin", judgedByName: HERRIN,
+  erledigtAt: null, bestraftDatum: NOW, taskId: null,
 });
 
 /** Der Rückzug der Strafaufgabe, die am ersetzten Urteil hängt — über die BEZIEHUNG, nicht über

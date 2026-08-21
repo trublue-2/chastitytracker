@@ -17,6 +17,9 @@ export interface OffenseJudgment {
   /** Grund bei judgment="dismissed". */
   reason: string | null;
   judgedBy: string | null;
+  /** NAME des Urteilenden, wo ein Mensch entschied. `null` bei dir selbst (deine Kennung steht in
+   *  `judgedBy`), bei der automatischen Ahndung und im Altbestand — nicht „unbekannt". */
+  judgedByName: string | null;
   judgedAt: string | null;
   /** Bei judgment="punished": ob die Strafe bereits erledigt ist. */
   done: boolean;
@@ -122,6 +125,7 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
       penalty: judgment === "punished" ? (rec?.reason ?? null) : null,
       reason: judgment === "dismissed" ? (rec?.reason ?? null) : null,
       judgedBy: rec?.judgedBy ?? null,
+      judgedByName: rec?.judgedByName ?? null,
       judgedAt: rec ? fmt(rec.bestraftDatum) : null,
       done: state === "done",
       doneAt: rec?.erledigtAt ? fmt(rec.erledigtAt) : null,
@@ -246,6 +250,7 @@ export interface OffenseRow {
   consequence: { text: string | null; done: boolean; doneAt: string | null } | null;
   dismissReason: string | null;
   judgedBy: string | null;
+  judgedByName: string | null;
   judgedAt: string | null;
   /** Typ-spezifischer Kontext (Zeiten, Gerät, Nachricht …). */
   context: Record<string, unknown>;
@@ -275,6 +280,7 @@ function toRow(detectedAt: string | null, j: OffenseJudgment, context: Record<st
     consequence: j.judgment === "punished" ? { text: j.penalty, done: j.done, doneAt: j.doneAt } : null,
     dismissReason: j.judgment === "dismissed" ? j.reason : null,
     judgedBy: j.judgedBy,
+    judgedByName: j.judgedByName,
     judgedAt: j.judgedAt,
     context,
     notes: [],

@@ -148,6 +148,8 @@ export interface StrafbuchData {
     notiz: string | null;
     reason: string | null;
     judgedBy: string | null;
+    /** Name des Urteilenden, sofern ein Mensch entschied — `null` bei KI, System und Altbestand. */
+    judgedByName: string | null;
     erledigtAt: Date | null;
     /** Die Aufgabe, die als Strafe gestellt wurde (`punishWithTask`) — null beim Freitext-Weg. Die
      *  Strafen-Sicht des Trägers braucht sie, um eine Strafe, die schon als Aufgabe auf dem
@@ -819,6 +821,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       notiz: r.notiz,
       reason: r.reason,
       judgedBy: r.judgedBy,
+      judgedByName: r.judgedByName,
       erledigtAt: r.erledigtAt,
       taskId: r.taskId,
     })),
