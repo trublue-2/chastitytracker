@@ -43,9 +43,12 @@ interface Props {
   /** Admin mode — managing another user's categories. Form payloads include this userId. */
   userId?: string;
   username?: string;
+  /** Darf der Aufrufer die drei Kategorie-REGELN setzen? Kommt aus der Seite, weil nur sie die
+   *  Sitzung kennt — dieselbe Frage, die `entryManageAccess` serverseitig beantwortet. */
+  canEditRules: boolean;
 }
 
-export default function CategoriesClient({ categories: initial, userId, username }: Props) {
+export default function CategoriesClient({ categories: initial, userId, username, canEditRules }: Props) {
   const t = useTranslations("categories");
   const tCommon = useTranslations("common");
   const router = useRouter();
@@ -135,7 +138,13 @@ export default function CategoriesClient({ categories: initial, userId, username
           ← {title}
         </button>
         <div className="mt-4">
-          <CategoryFormSheet category={editCategory} onClose={closeForm} onSaved={handleSaved} userId={userId} />
+          <CategoryFormSheet
+            category={editCategory}
+            onClose={closeForm}
+            onSaved={handleSaved}
+            userId={userId}
+            canEditRules={canEditRules}
+          />
         </div>
       </>
     );

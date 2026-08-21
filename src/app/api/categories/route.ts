@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApi, deviceCategoriesGate } from "@/lib/authGuards";
 import { entryManageAccess } from "@/lib/keyholder";
+import { errorResponse } from "@/lib/serviceResult";
+import { resolveCategoryRuleChanges, CATEGORY_RULE_DEFAULTS } from "@/lib/deviceCategoryService";
 import {
   validateCategoryInput,
   slugifyCategoryName,
@@ -98,7 +100,7 @@ export async function POST(req: NextRequest) {
   if (session instanceof NextResponse) return session;
 
   const body = await req.json();
-  const { name, color, icon, sortOrder, trackingEnabled, requirePhoto, allowVorgaben } = body;
+  const { name, color, icon, sortOrder } = body;
   // Der Name des ERSTEN Geräts, optional. Eine Kategorie ohne Gerät ist eine Sackgasse: erfassen
   // lässt sich darin nichts, und gesagt wird es dem Nutzer nirgends deutlich (Issue #49 — zwei
   // Instanzen standen wochenlang so da und haben danach nie wieder etwas erfasst). Beide Schritte
@@ -106,12 +108,22 @@ export async function POST(req: NextRequest) {
   const firstDeviceName = typeof body.firstDeviceName === "string" ? body.firstDeviceName.trim() : "";
 
   let userId = session.user.id;
+  // Handelt der Aufrufer als Keyholder/Admin? Beim eigenen Konto ist ein Träger Eigentümer und damit
+  // NICHT erhaben (ein globaler Admin schon) — dieselbe Regel wie in `entryManageAccess`.
+  let elevated = session.user.role === "admin";
   if (body.userId && body.userId !== session.user.id) {
-    if (!(await entryManageAccess(session.user.id, session.user.role, body.userId)).allowed) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const access = await entryManageAccess(session.user.id, session.user.role, body.userId);
+    if (!access.allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     userId = body.userId;
+    elevated = access.elevated;
   }
+
+  // Die drei Regeln (siehe categories/[id]/route.ts) auch beim ANLEGEN nur vom Keyholder: sonst wäre
+  // die Schranke dort umgehbar, indem man die Kategorie gleich mit abgeschalteter Zeiterfassung
+  // anlegt. Geprüft wird wieder die ABWEICHUNG vom Standard, nicht die Anwesenheit — ein Formular,
+  // das seinen Vorgabe-Zustand mitschickt, darf davon nicht getroffen werden.
+  const rules = resolveCategoryRuleChanges(body, CATEGORY_RULE_DEFAULTS, { isBuiltIn: false, elevated });
+  if (!rules.ok) return errorResponse(rules.status, rules.code);
 
   const validationError = validateCategoryInput({ name, color, icon });
   if (validationError) return NextResponse.json({ error: validationError.error }, { status: 400 });
@@ -138,9 +150,8 @@ export async function POST(req: NextRequest) {
       color: (color as string | undefined) ?? DEFAULT_USER_CATEGORY_COLOR,
       icon: (icon as string | undefined) ?? DEFAULT_USER_CATEGORY_ICON,
       isBuiltIn: false,
-      trackingEnabled: typeof trackingEnabled === "boolean" ? trackingEnabled : true,
-      requirePhoto: typeof requirePhoto === "boolean" ? requirePhoto : false,
-      allowVorgaben: typeof allowVorgaben === "boolean" ? allowVorgaben : true,
+      ...CATEGORY_RULE_DEFAULTS,
+      ...rules.data,
       sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
       // Verschachtelt statt in einer eigenen Transaktion: Prisma schreibt beides atomar, und eine
       // Kategorie, deren Gerät nicht entstand, wäre genau die Sackgasse, gegen die das Feld gebaut ist.

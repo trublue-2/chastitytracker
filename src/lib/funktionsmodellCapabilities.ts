@@ -352,10 +352,10 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "category-manage", mechanic: "Geräte", title: "Kategorien verwalten",
-    what: "Anlegen, benennen, einfärben, sortieren und die drei Kategorie-Regeln setzen (Tracking, Pflichtfoto, Trainingsziele).",
+    what: "Anlegen, benennen, einfärben und sortieren. Die drei Regeln — Zeiterfassung, Pflichtfoto, Trainingsziele erlaubt — darf nur der Keyholder umlegen.",
     actors: ["sub", "admin"], surfaces: ["sub-ui", "admin-ui"],
     routes: ["/api/categories", "/api/categories/[id]"],
-    note: "Die eingebaute Kategorie (Keuschheitsgürtel) lässt sich nicht löschen.",
+    note: "Die eingebaute Kategorie lässt sich nicht löschen, und ihre drei Regeln sind für niemanden änderbar.",
   }),
   c({
     id: "device-detect", mechanic: "Geräte", title: "Gerät im Foto vorschlagen",

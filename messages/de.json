@@ -149,7 +149,9 @@
     "OFFENSE_ALREADY_JUDGED": "Über dieses Vergehen wurde bereits geurteilt. Nimm zuerst das Urteil zurück, dann lässt es sich zurückziehen.",
     "OFFENSE_TYPE_MISMATCH": "Diese Vergehensart passt nicht zu dem Vergehen an dieser Stelle. Lade die Seite neu.",
     "MESSAGE_IDS_REQUIRED": "Keine gültige Auswahl.",
-    "MESSAGE_ACTION_INVALID": "Unbekannte Aktion."
+    "MESSAGE_ACTION_INVALID": "Unbekannte Aktion.",
+    "CATEGORY_RULE_FORBIDDEN": "Diese Kategorie-Regeln darf nur die Keyholderin ändern",
+    "CATEGORY_BUILTIN_RULE_IMMUTABLE": "Bei der eingebauten Kategorie sind diese Regeln nicht änderbar"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",

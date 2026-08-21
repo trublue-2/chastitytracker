@@ -35,3 +35,56 @@ export async function resolveOwnedCategory(
 
   return { ok: true, data: { isBuiltIn: cat.isBuiltIn, allowVorgaben: cat.allowVorgaben } };
 }
+
+/**
+ * Die drei Felder, die eine Kategorie zur REGEL machen statt zur Beschriftung.
+ *
+ * `trackingEnabled` entscheidet, ob überhaupt gemessen wird; `requirePhoto`, ob ein Trage-Beginn
+ * belegt werden muss; `allowVorgaben`, ob die Keyholderin darauf ein Trainingsziel stellen darf.
+ * Name, Farbe, Symbol und Sortierung bleiben Sache des Eigentümers.
+ */
+export const CATEGORY_RULE_FIELDS = ["trackingEnabled", "requirePhoto", "allowVorgaben"] as const;
+export type CategoryRuleField = (typeof CATEGORY_RULE_FIELDS)[number];
+
+/** Die Vorgaben einer frisch angelegten Kategorie — zugleich der Vergleichswert beim Anlegen. */
+export const CATEGORY_RULE_DEFAULTS: Record<CategoryRuleField, boolean> = {
+  trackingEnabled: true,
+  requirePhoto: false,
+  allowVorgaben: true,
+};
+
+/** Was von den drei Regeln übernommen wird — oder warum nicht. */
+export type CategoryRuleOutcome =
+  | { ok: true; data: Partial<Record<CategoryRuleField, boolean>> }
+  | { ok: false; status: 400 | 403; code: "CATEGORY_BUILTIN_RULE_IMMUTABLE" | "CATEGORY_RULE_FORBIDDEN" };
+
+/**
+ * Prüft, welche der drei Regeln der Aufrufer setzen darf — die eine Stelle für Anlegen und Ändern.
+ *
+ * Geprüft wird die **Änderung**, nicht die Anwesenheit im Body. Der Unterschied ist load-bearing:
+ * das Formular schickt seinen ganzen Zustand mit, auch die unveränderten Schalter, und die App auf
+ * dem Gerät ist eine eigene, mitunter ältere Fassung, die sich nicht mit dem Server aktualisiert.
+ * Eine Schranke auf `!== undefined` liesse einen Träger seine Kategorie nicht einmal mehr UMBENENNEN.
+ * Verboten ist das Umlegen, nicht das Mitschicken.
+ *
+ * `current` ist beim Ändern der Bestand und beim Anlegen {@link CATEGORY_RULE_DEFAULTS}.
+ * `isBuiltIn` schlägt `elevated`: bei der eingebauten Kategorie sind die Regeln für JEDEN
+ * unveränderlich. Zwei der drei wären dort ohnehin wirkungslos — `allowVorgaben` überspringt der
+ * Vorgaben-Service für sie, `requirePhoto` betrifft nur Trage-Einträge, die es dort nicht gibt. Eine
+ * wirkungslose Einstellung anzunehmen wäre schlimmer als sie abzulehnen: sie sähe danach gesetzt aus.
+ */
+export function resolveCategoryRuleChanges(
+  body: Record<string, unknown>,
+  current: Record<CategoryRuleField, boolean>,
+  opts: { isBuiltIn: boolean; elevated: boolean },
+): CategoryRuleOutcome {
+  const data: Partial<Record<CategoryRuleField, boolean>> = {};
+  for (const field of CATEGORY_RULE_FIELDS) {
+    const next = body[field];
+    if (typeof next !== "boolean" || next === current[field]) continue;
+    if (opts.isBuiltIn) return { ok: false, status: 400, code: "CATEGORY_BUILTIN_RULE_IMMUTABLE" };
+    if (!opts.elevated) return { ok: false, status: 403, code: "CATEGORY_RULE_FORBIDDEN" };
+    data[field] = next;
+  }
+  return { ok: true, data };
+}

@@ -478,18 +478,21 @@ export const FM_REGISTRY: FmEntry[] = [
   // ── DeviceCategory ─────────────────────────────────────────────────────────────────────────
   s({
     model: "DeviceCategory", field: "trackingEnabled", domain: "geraete", scope: "standing",
-    effect: "Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung.",
-    writers: ["sub", "admin"], affects: ["Sessions/Statistik", "Geräte", "Einträge"],
+    effect: "Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung. Bei der eingebauten Kategorie unveränderlich.",
+    writers: ["admin"], affects: ["Sessions/Statistik", "Geräte", "Einträge"],
+    anchor: "deviceCategoryService.ts:resolveCategoryRuleChanges",
   }),
   s({
     model: "DeviceCategory", field: "requirePhoto", domain: "geraete", scope: "standing",
-    effect: "Ein Trage-Beginn dieser Kategorie verlangt ein Bild.",
-    writers: ["sub", "admin"], affects: ["Einträge", "Geräte"],
+    effect: "Ein Trage-Beginn dieser Kategorie verlangt ein Bild. Bei der eingebauten Kategorie unveränderlich.",
+    writers: ["admin"], affects: ["Einträge", "Geräte"],
+    anchor: "deviceCategoryService.ts:resolveCategoryRuleChanges",
   }),
   s({
     model: "DeviceCategory", field: "allowVorgaben", domain: "geraete", scope: "standing",
-    effect: "Aus = die Kategorie lässt sich in keinem Trainingsziel verwenden.",
-    writers: ["sub", "admin"], affects: ["Trainingsziele"],
+    effect: "Aus = die Kategorie lässt sich in keinem Trainingsziel verwenden — deshalb Keyholder-Feld: der Träger könnte sonst das Ziel aus der Hand nehmen. Bei der eingebauten Kategorie unveränderlich.",
+    writers: ["admin"], affects: ["Trainingsziele"],
+    anchor: "deviceCategoryService.ts:resolveCategoryRuleChanges",
   }),
   s({
     model: "DeviceCategory", field: "name", domain: "geraete", scope: "standing",

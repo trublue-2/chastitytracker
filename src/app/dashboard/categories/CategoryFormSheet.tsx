@@ -26,6 +26,8 @@ import Toggle from "@/app/components/Toggle";
 import type { CategoryRow } from "./CategoriesClient";
 
 interface Props {
+  /** Darf der Aufrufer die drei Kategorie-REGELN setzen? Nur Keyholder/Admin. */
+  canEditRules: boolean;
   category: CategoryRow | null;
   onClose: () => void;
   onSaved: () => void;
@@ -33,7 +35,7 @@ interface Props {
   userId?: string;
 }
 
-export default function CategoryFormSheet({ category, onClose, onSaved, userId }: Props) {
+export default function CategoryFormSheet({ category, onClose, onSaved, userId, canEditRules }: Props) {
   const t = useTranslations("categories");
   const tCommon = useTranslations("common");
   const toast = useToast();
@@ -180,7 +182,13 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
           </div>
         </div>
 
-        {/* Tracking toggle — when off, this category is inventory-only (no wear sessions). */}
+        {/* Die drei REGELN der Kategorie. Nur für Keyholder/Admin und nie bei der eingebauten
+            Kategorie — dieselbe Schranke, die die Route durchsetzt (categories/[id]/route.ts).
+            Ausgeblendet statt deaktiviert: ein Schalter, den man nie bewegen kann, erklärt sich dem
+            Träger nicht und wirft nur die Frage auf, was ihm fehlt. Der Zustand bleibt derweil auf
+            dem geladenen Wert, wird also unverändert mitgeschickt — und unverändert nimmt die Route
+            ihn von jedem an. */}
+        {canEditRules && !category?.isBuiltIn && (
         <div className="flex flex-col gap-3 pt-3 border-t border-border-subtle">
           <div className="flex flex-col gap-1.5">
             <Toggle
@@ -214,6 +222,7 @@ export default function CategoryFormSheet({ category, onClose, onSaved, userId }
             <p className="text-xs text-foreground-faint">{t("allowVorgabenHint")}</p>
           </div>
         </div>
+        )}
 
         {error && <FormError message={error} />}
 

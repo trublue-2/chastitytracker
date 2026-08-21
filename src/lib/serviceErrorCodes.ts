@@ -203,6 +203,20 @@ export const DEVICE_CODES = [
   "DEVICE_INVALID_CODE_REQUIREMENT",
 ] as const;
 
+/**
+ * /api/categories/[id] — die drei REGELN einer Kategorie (Zeiterfassung, Pflichtfoto,
+ * Trainingsziele erlaubt).
+ *
+ * Eigene Codes, weil die Schranke eine andere ist als bei den übrigen Kategorie-Feldern: Name, Farbe
+ * und Symbol gehören dem Eigentümer, die drei Regeln dem Keyholder. Ein Träger, der `allowVorgaben`
+ * abschalten könnte, nähme der Keyholderin das Trainingsziel aus der Hand — dieselbe Begründung wie
+ * bei `Device.requireInspectionCode`.
+ */
+export const CATEGORY_RULE_CODES = [
+  "CATEGORY_RULE_FORBIDDEN",
+  "CATEGORY_BUILTIN_RULE_IMMUTABLE",
+] as const;
+
 /** /api/box/relock — den Box-Schliessbefehl neu setzen (Reparaturweg, wenn die Box offen steht,
  *  während die Session läuft — z.B. nach Sperrzeit-Ablauf mit scharfgestellter Öffnung). */
 export const BOX_CODES = [
@@ -277,6 +291,7 @@ export const SERVICE_ERROR_CODES = [
     ...MESSAGE_BULK_CODES,
     ...REFERENCE_CODES,
     ...DEVICE_CODES,
+    ...CATEGORY_RULE_CODES,
     ...BOX_CODES,
     ...TASK_CODES,
     ...OFFENSE_RULE_CODES,
@@ -299,6 +314,7 @@ export type ServiceErrorCode =
   | (typeof MESSAGE_BULK_CODES)[number]
   | (typeof REFERENCE_CODES)[number]
   | (typeof DEVICE_CODES)[number]
+  | (typeof CATEGORY_RULE_CODES)[number]
   | (typeof BOX_CODES)[number]
   | (typeof TASK_CODES)[number]
   | (typeof OFFENSE_RULE_CODES)[number]
