@@ -141,6 +141,10 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
     const events = [
       {
         type: "verschluss" as const,
+        pauseDurationStr: null,
+        captureDisabled: false,
+        verifyFailure: null,
+        timeCorrectedSystemStr: null,
         time: verschluss.startTime,
         timeIso: verschluss.startTime.toISOString(),
         dateStr,
@@ -174,6 +178,11 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
           const corrected = isTimeCorrected(k.time, k.submittedAt);
           return {
             type: "kontrolle" as const,
+            // Trifft auf eine Kontroll-Zeile nicht zu — ausgeschrieben statt weggelassen, damit ein
+            // künftiges Feld nicht wieder in EINEM Zweig lautlos fehlt (Issue #54).
+            codeImageUrl: null,
+            codeRevealed: undefined,
+            pauseDurationStr: null,
             time: k.time,
             timeIso: k.time.toISOString(),
             dateStr: formatDate(k.time, dl, tz),
@@ -207,6 +216,20 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         }),
       ...sessionOrgasmen.map((e) => ({
         type: "orgasmus" as const,
+        // Alles, was eine Orgasmus-Zeile NICHT hat — ausgeschrieben statt weggelassen. Genau hier
+        // fehlten die Felder bisher stumm (Issue #54): der Zweig war dünner als seine drei
+        // Geschwister, und niemand sah es, weil das Weglassen erlaubt war.
+        codeImageUrl: null,
+        codeRevealed: undefined,
+        pauseDurationStr: null,
+        captureDisabled: false,
+        verifyFailure: null,
+        timeCorrectedSystemStr: null,
+        deviceName: null,
+        showDevice: false,
+        keyDetected: null,
+        keyProofSource: null,
+        boxImageUrl: null,
         time: e.startTime,
         timeIso: e.startTime.toISOString(),
         dateStr: formatDate(e.startTime, dl, tz),
@@ -227,6 +250,12 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
       })),
       ...(pair.interruptions ?? []).map((intr) => ({
         type: "reinigung" as const,
+        // Wie beim Orgasmus-Zweig: was hier nicht zutrifft, steht jetzt da.
+        captureDisabled: false,
+        verifyFailure: null,
+        timeCorrectedSystemStr: null,
+        deviceName: null,
+        showDevice: false,
         time: intr.oeffnen.startTime,
         timeIso: intr.oeffnen.startTime.toISOString(),
         dateStr: formatDate(intr.oeffnen.startTime, dl, tz),

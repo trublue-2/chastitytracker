@@ -225,9 +225,10 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Es ist immer nur EINE Direktive aktiv; die Erfüllung passiert automatisch beim passenden Eintrag.",
   }),
   c({
-    id: "orgasm-directive-edit", mechanic: "Orgasmus", title: "Orgasmus-Fenster ändern",
-    what: "Verschiebt Fenster, Art oder Öffnungserlaubnis einer offenen Direktive.",
+    id: "orgasm-directive-withdraw", mechanic: "Orgasmus", title: "Orgasmus-Fenster zurückziehen",
+    what: "Nimmt eine offene Direktive zurück. Die Route kennt nur diese eine Aktion.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/orgasmus-anforderung/[id]"],
+    note: "ÄNDERN gibt es für diese Direktive nirgends — weder in der App noch über den MCP. Anders wollen heisst zurückziehen und neu stellen; als einzige Direktive fehlt ihr das Gegenstück zu `edit_lock_period`, `edit_task` und `edit_training_goal`.",
   }),
 
   // ── Aufgaben ───────────────────────────────────────────────────────────────────────────────

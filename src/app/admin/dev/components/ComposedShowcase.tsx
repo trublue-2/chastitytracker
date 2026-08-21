@@ -18,6 +18,7 @@ import UserContextBar from "@/app/admin/users/[id]/UserContextBar";
 import UserSubNav from "@/app/admin/users/[id]/UserSubNav";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import Toggle from "@/app/components/Toggle";
+import type { SessionEventData } from "@/app/dashboard/SessionEventRow";
 import SessionEventRow from "@/app/dashboard/SessionEventRow";
 import SessionDurationBadge from "@/app/dashboard/SessionDurationBadge";
 
@@ -58,6 +59,20 @@ export function ImageViewerDemo() {
 
 // ── Session Event Row ─────────────────────────
 
+/**
+ * Vorgabewerte einer Demo-Zeile: alles auf „trifft nicht zu".
+ *
+ * Nur für die Schaufenster-Daten. Die ECHTEN Bauer (`SessionList`, `LaufendeSessionCard`) schreiben
+ * jedes Feld bewusst aus — dort ist genau das der Zweck der Pflichtfelder (Issue #54). Hier geht es
+ * nur darum, dass eine neue Spalte am Typ nicht elf Demo-Blöcke bricht; der Compiler zeigt sie
+ * trotzdem an EINER Stelle an.
+ */
+const demoEvent = {
+  timeIso: undefined, codeImageUrl: null, codeRevealed: undefined, captureDisabled: false,
+  verifyFailure: null, pauseDurationStr: null, timeCorrected: false, timeCorrectedSystemStr: null,
+  deviceName: null, showDevice: false, keyDetected: null, keyProofSource: null, boxImageUrl: null,
+} satisfies Partial<SessionEventData>;
+
 export function SessionEventRowDemo() {
   return (
     <div className="bg-surface rounded-2xl border border-border overflow-hidden divide-y divide-border-subtle">
@@ -65,6 +80,7 @@ export function SessionEventRowDemo() {
       <SessionEventRow
         icon={<Lock size={18} className="text-lock" />}
         ev={{
+          ...demoEvent,
           type: "verschluss", dateStr: "02.04.2026", timeStr: "23:47",
           imageUrl: null, exifStr: null, note: "Siegel #48291", entryId: "demo-v",
           captureHref: null, deadlineStr: null, isOverdue: false,
@@ -76,6 +92,7 @@ export function SessionEventRowDemo() {
       <SessionEventRow
         icon={<CheckCircle2 size={18} className="text-[var(--color-inspect)]" />}
         ev={{
+          ...demoEvent,
           type: "kontrolle", dateStr: "03.04.2026", timeStr: "14:30",
           imageUrl: null, exifStr: null, note: "Code korrekt", entryId: "demo-k",
           captureHref: null, deadlineStr: "03.04.2026, 18:30", isOverdue: false,
@@ -89,6 +106,7 @@ export function SessionEventRowDemo() {
       <SessionEventRow
         icon={<CheckCircle2 size={18} className="text-[var(--color-inspect)]" />}
         ev={{
+          ...demoEvent,
           type: "kontrolle", dateStr: "03.04.2026", timeStr: "10:00",
           imageUrl: null, exifStr: null, note: null, entryId: null,
           captureHref: "#", deadlineStr: "03.04.2026, 14:00", isOverdue: false,
@@ -100,6 +118,7 @@ export function SessionEventRowDemo() {
       <SessionEventRow
         icon={<CheckCircle2 size={18} className="text-[var(--color-inspect)]" />}
         ev={{
+          ...demoEvent,
           type: "kontrolle", dateStr: "01.04.2026", timeStr: "20:00",
           imageUrl: null, exifStr: null, note: null, entryId: null,
           captureHref: "#", deadlineStr: "02.04.2026, 00:00", isOverdue: true,
@@ -111,6 +130,7 @@ export function SessionEventRowDemo() {
       <SessionEventRow
         icon={<LockOpen size={18} className="text-[var(--color-unlock)]" />}
         ev={{
+          ...demoEvent,
           type: "reinigung", dateStr: "03.04.2026", timeStr: "07:00",
           imageUrl: null, exifStr: null, note: null, entryId: "demo-r",
           captureHref: null, deadlineStr: null, isOverdue: false,
@@ -123,6 +143,7 @@ export function SessionEventRowDemo() {
       <SessionEventRow
         icon={<Droplets size={18} className="text-[var(--color-orgasm)]" />}
         ev={{
+          ...demoEvent,
           type: "orgasmus", dateStr: "02.04.2026", timeStr: "22:30",
           imageUrl: null, exifStr: null, note: "Erlaubt", entryId: "demo-o",
           captureHref: null, deadlineStr: null, isOverdue: false,
@@ -359,6 +380,7 @@ export function LaufendeSessionCardMockDemo() {
           <SessionEventRow
             icon={<Lock size={18} className="text-lock" />}
             ev={{
+              ...demoEvent,
               type: "verschluss",
               dateStr: "30.03.2026",
               timeStr: "08:15",
@@ -380,6 +402,7 @@ export function LaufendeSessionCardMockDemo() {
           <SessionEventRow
             icon={<CheckCircle2 size={18} className="text-[var(--color-inspect)]" />}
             ev={{
+              ...demoEvent,
               type: "kontrolle",
               dateStr: "31.03.2026",
               timeStr: "14:30",
@@ -401,6 +424,7 @@ export function LaufendeSessionCardMockDemo() {
           <SessionEventRow
             icon={<CheckCircle2 size={18} className="text-[var(--color-inspect)]" />}
             ev={{
+              ...demoEvent,
               type: "kontrolle",
               dateStr: "02.04.2026",
               timeStr: "10:00",
@@ -422,6 +446,7 @@ export function LaufendeSessionCardMockDemo() {
           <SessionEventRow
             icon={<LockOpen size={18} className="text-[var(--color-unlock)]" />}
             ev={{
+              ...demoEvent,
               type: "reinigung",
               dateStr: "01.04.2026",
               timeStr: "07:00",
@@ -444,6 +469,7 @@ export function LaufendeSessionCardMockDemo() {
           <SessionEventRow
             icon={<Droplets size={18} className="text-[var(--color-orgasm)]" />}
             ev={{
+              ...demoEvent,
               type: "orgasmus",
               dateStr: "02.04.2026",
               timeStr: "22:30",

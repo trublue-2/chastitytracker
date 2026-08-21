@@ -172,6 +172,12 @@ export default async function LaufendeSessionCard({
             timeStr,
             imageUrl: ev.imageUrl,
             codeImageUrl: ev.codeImageUrl ?? null,
+            // Bewusst `undefined`: die laufende Karte kennt das Urteil des Gates nicht, also fragt
+            // die Zeile selbst nach (siehe `SessionEventData.codeRevealed`). Seit die Felder
+            // pflichtig sind, muss dieses „weiss ich nicht" ausgeschrieben werden.
+            codeRevealed: undefined,
+            // Die laufende Karte ist die Sicht des TRÄGERS — Erfassen ist hier immer erlaubt.
+            captureDisabled: false,
             exifStr,
             note: ev.note,
             entryId: ev.entryId,

@@ -94,7 +94,7 @@ Steckbrief: [35-orgasmus.md](35-orgasmus.md)
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
 | **Orgasmus-Fenster stellen** | Ein Zeitfenster als Pflicht (Anweisung) oder Erlaubnis (Gelegenheit), wahlweise mit vorgegebener Art und Öffnungserlaubnis. <br>*Es ist immer nur EINE Direktive aktiv; die Erfüllung passiert automatisch beim passenden Eintrag.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/orgasmus-anforderung` `request_orgasm` |
-| **Orgasmus-Fenster ändern** | Verschiebt Fenster, Art oder Öffnungserlaubnis einer offenen Direktive. | Keyholder (UI) | App (Keyholder) | `/api/admin/orgasmus-anforderung/[id]` |
+| **Orgasmus-Fenster zurückziehen** | Nimmt eine offene Direktive zurück. Die Route kennt nur diese eine Aktion. <br>*ÄNDERN gibt es für diese Direktive nirgends — weder in der App noch über den MCP. Anders wollen heisst zurückziehen und neu stellen; als einzige Direktive fehlt ihr das Gegenstück zu `edit_lock_period`, `edit_task` und `edit_training_goal`.* | Keyholder (UI) | App (Keyholder) | `/api/admin/orgasmus-anforderung/[id]` |
 
 ## Aufgaben
 

@@ -12,18 +12,34 @@ import PhotoThumb from "@/app/components/PhotoThumb";
 import { formatVerifyReason, type VerifyFailure } from "@/lib/verifyReason";
 import type { KeyProofSource } from "@/lib/boxKeyProof";
 
+/**
+ * Die Daten EINER Zeitleisten-Zeile.
+ *
+ * **Kein Feld ist optional — auch die, die `undefined` sein dürfen, müssen genannt werden.**
+ * Dieselbe Zeile wird an zwei Stellen gebaut (`buildSessionEvents` für die laufende Session,
+ * `SessionList` für die abgeschlossenen). Solange ein Feld weggelassen werden durfte, war jedes
+ * davon eine stille Falle: wer es in EINEM Bauer vergass, bekam keinen Compile-Fehler, sondern eine
+ * Zeile, die im einen Zusammenhang erschien und im anderen lautlos fehlte.
+ *
+ * Das ist zweimal passiert (`verifyFailure`, dann `codeImageUrl` — Issue #53), und beim zweiten Mal
+ * stand der Hinweis bereits als Kommentar im Code. Ein Kommentar, der eine Falle beschreibt,
+ * entschärft sie nicht; ein Pflichtfeld schon.
+ *
+ * Das ist der Zwischenschritt aus Issue #54 und ersetzt die dort vorgeschlagene Zusammenlegung der
+ * beiden Bauer nicht — es macht sie nur ungefährlich, bis sie kommt.
+ */
 export interface SessionEventData {
   type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
   /** Raw ISO timestamp — used by SessionTimeline for bucket grouping. */
-  timeIso?: string;
+  timeIso: string | undefined;
   dateStr: string;
   timeStr: string;
   imageUrl: string | null;
   /** Bildersafe (VERSCHLUSS): versiegeltes Code-Foto. Sichtbarkeit entscheidet der Server (403-Gate). */
-  codeImageUrl?: string | null;
+  codeImageUrl: string | null | undefined;
   /** Urteil des Gates, sofern der Aufrufer es schon kennt (siehe `SealedCodePhoto`). Weggelassen =
    *  die Zeile fragt selbst nach — ein voller Bild-Download für einen Boolean. */
-  codeRevealed?: boolean;
+  codeRevealed: boolean | undefined;
   exifStr: string | null;
   note: string | null;
   entryId: string | null;
@@ -32,7 +48,7 @@ export interface SessionEventData {
    *  Formular über die eigene Session schreibt — der Keyholder hätte die Kontrolle seines Subs auf
    *  SEINEM Konto erfasst. Bewusst ein eigenes Feld statt `captureHref: null`: das Feld steuert auch
    *  die Alarm-Darstellung, und die Frist seines Subs soll der Keyholder sehr wohl sehen. */
-  captureDisabled?: boolean;
+  captureDisabled: boolean | undefined;
   deadlineStr: string | null;
   isOverdue: boolean;
   kontrolleCode: string | null;
@@ -47,25 +63,25 @@ export interface SessionEventData {
    *  Zeile, und ein fertiger String hiesse, dass jeder von ihnen den Übersetzer selbst holen und den
    *  Aufruf richtig hinschreiben muss — wer es vergisst, bekommt keinen Fehler, sondern eine Zeile,
    *  die stumm wieder verschwindet. */
-  verifyFailure?: VerifyFailure | null;
+  verifyFailure: VerifyFailure | null | undefined;
   orgasmusArt: string | null;
-  pauseDurationStr?: string | null;
-  timeCorrected?: boolean;
-  timeCorrectedSystemStr?: string | null;
+  pauseDurationStr: string | null | undefined;
+  timeCorrected: boolean | undefined;
+  timeCorrectedSystemStr: string | null | undefined;
   /** VERSCHLUSS + KONTROLLE: the device worn (null = none selected). */
-  deviceName?: string | null;
+  deviceName: string | null | undefined;
   /** VERSCHLUSS + KONTROLLE: show the device row (true when the user has any devices). */
-  showDevice?: boolean;
+  showDevice: boolean | undefined;
   /** Schlüssel-Urteil. `null`/undefined = nicht geprüft (kein Foto, keine KI, keine Telemetrie,
    *  Alt-Eintrag) → KEINE Pille: „kein Schlüssel erkannt" zu behaupten, wo niemand hingesehen hat,
    *  wäre eine Falschaussage über den Sub. */
-  keyDetected?: boolean | null;
+  keyDetected: boolean | null | undefined;
   /** Quelle des Urteils, siehe `lib/boxKeyProof.ts`. Fehlt sie, gilt „Foto" — das ist keine Annahme
    *  ins Blaue: `Entry.keyDetected` schreibt ausschliesslich die Bild-Erkennung, die Telemetrie wird
    *  nie gespeichert. Eine Zeile OHNE Quelle kann also gar kein Telemetrie-Urteil tragen. */
-  keyProofSource?: KeyProofSource | null;
+  keyProofSource: KeyProofSource | null | undefined;
   /** Foto durchs Sichtfenster der Box. Im Vollbild neben dem Haupt-Foto wählbar. */
-  boxImageUrl?: string | null;
+  boxImageUrl: string | null | undefined;
 }
 
 

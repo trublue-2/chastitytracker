@@ -72,7 +72,8 @@ describe("Beschneiden", () => {
   });
 
   it("löscht genau die gefundenen Zeilen und meldet die Anzahl", async () => {
-    vi.mocked(prisma.message.findMany).mockResolvedValueOnce([{ id: "m1" }, { id: "m2" }]);
+    // Der Schreibpfad wählt nur `id` — der Doppelgänger darf das auch, ohne die ganze Zeile.
+    vi.mocked(prisma.message.findMany).mockResolvedValueOnce([{ id: "m1" }, { id: "m2" }] as never);
     vi.mocked(prisma.message.deleteMany).mockResolvedValueOnce({ count: 2 });
     expect(await pruneExpiredMessages(NOW)).toBe(2);
     expect(vi.mocked(prisma.message.deleteMany).mock.calls[0]?.[0]).toEqual({ where: { id: { in: ["m1", "m2"] } } });
