@@ -16,9 +16,11 @@
  */
 
 import {
-  FM_REGISTRY, FM_SCANNED_MODELS, FM_DOMAINS,
+  FM_REGISTRY, FM_SCANNED_MODELS, FM_DOMAINS, FM_WIRED_EDGES, FM_TARGET_DOC,
   type FmEntry, type FmSetting, type FmDomain, type FmWriter, type FmScope, type FmNonSetting,
+  type FmTarget,
 } from "./funktionsmodellRegistry";
+import { FM_CAPABILITIES, FM_EXCLUDED_ROUTES, type FmCapability, type FmSurface } from "./funktionsmodellCapabilities";
 
 /** Ein Skalarfeld aus `schema.prisma`, so wie es dort steht. */
 export interface SchemaField {
@@ -248,6 +250,231 @@ export function renderStellschrauben(schema: SchemaFields): string {
       lines.push(row([`\`${model}.${field.name}\``, KIND_LABEL[entry.kind], entry.note]));
     }
   }
+  lines.push("");
+  return lines.join("\n");
+}
+
+
+// ── Abhängigkeits-Ansicht ────────────────────────────────────────────────────────────────────────
+//
+// Das Register beantwortet „worauf wirkt dieses Feld?". Die Frage im Betrieb lautet andersherum:
+// „was greift in DIESE Mechanik hinein?". Beides ist dieselbe Kantenmenge, einmal vorwärts und
+// einmal rückwärts gelesen — deshalb wird die Gegenrichtung hier ABGELEITET und nicht ein zweites
+// Mal von Hand gepflegt. Eine handgeführte Rückrichtung wäre binnen weniger Änderungen unvollständig,
+// und zwar unsichtbar: eine fehlende Kante sieht aus wie keine Kante.
+
+/** Eine Kante der Karte, gleich ob über ein Feld oder fest verdrahtet. */
+interface DepEdge {
+  from: FmTarget;
+  to: FmTarget;
+  /** Das Feld, über das die Kante läuft — leer bei einer fest verdrahteten Regel. */
+  via: string | null;
+  what: string;
+  anchor?: string;
+}
+
+/** Die Mechanik, der eine Domäne entspricht (nicht jede hat eine — `betrieb` etwa steht quer dazu). */
+const mechanicOfDomain = (id: string): FmTarget | null =>
+  FM_DOMAINS.find((d) => d.id === id)?.mechanic ?? null;
+
+/**
+ * Alle Kanten: die feldvermittelten aus `affects` plus die fest verdrahteten.
+ *
+ * Selbstkanten fallen weg. Dass `Device.requireInspectionCode` auf Geräte wirkt, ist keine
+ * Abhängigkeit, sondern die Domäne selbst — in einer Karte wäre es eine Schlinge, die nur Platz kostet.
+ */
+function allEdges(): DepEdge[] {
+  const out: DepEdge[] = [];
+  for (const e of FM_REGISTRY) {
+    if (e.kind !== "setting") continue;
+    const from = mechanicOfDomain(e.domain);
+    if (!from) continue;
+    for (const to of e.affects) {
+      if (to === from) continue;
+      out.push({ from, to, via: `${e.model}.${e.field}`, what: e.effect, anchor: e.anchor });
+    }
+  }
+  for (const w of FM_WIRED_EDGES) out.push({ from: w.from, to: w.to, via: null, what: w.rule, anchor: w.anchor });
+  return out;
+}
+
+/** Jede Mechanik, die in irgendeiner Kante vorkommt — in der Reihenfolge der Domänen, Rest hinten an. */
+function mechanicsInPlay(edges: DepEdge[]): FmTarget[] {
+  const ordered = FM_DOMAINS.map((d) => d.mechanic).filter((m): m is FmTarget => Boolean(m));
+  const rest = [...new Set(edges.flatMap((e) => [e.from, e.to]))].filter((m) => !ordered.includes(m));
+  return [...ordered, ...rest.sort()];
+}
+
+/** Der Steckbrief einer Mechanik — aus ihrer Domäne, sonst aus der Zusatztabelle für die Mechaniken
+ *  ohne eigene Domäne. Beide Ansichten fragen danach; ohne diese Stelle stünde die Auflösung zweimal. */
+const docFor = (m: FmTarget): string | undefined =>
+  FM_DOMAINS.find((d) => d.mechanic === m)?.doc ?? FM_TARGET_DOC[m];
+
+/** Mermaid verträgt keine Umlaute und keine Schrägstriche in Knoten-Namen. */
+const nodeId = (t: FmTarget) => "n" + t.replace(/[^A-Za-z]/g, "");
+
+/** Die Nachbarschaft EINER Mechanik als kleines Diagramm — nicht die ganze Karte, die wäre ein Knäuel. */
+function localGraph(m: FmTarget, incoming: DepEdge[], outgoing: DepEdge[]): string[] {
+  const inc = [...new Set(incoming.map((e) => e.from))];
+  const out = [...new Set(outgoing.map((e) => e.to))];
+  if (inc.length === 0 && out.length === 0) return [];
+  const lines = ["```mermaid", "flowchart LR"];
+  lines.push(`  ${nodeId(m)}["${m}"]`);
+  for (const f of inc) lines.push(`  ${nodeId(f)}["${f}"] --> ${nodeId(m)}`);
+  for (const t of out) lines.push(`  ${nodeId(m)} --> ${nodeId(t)}["${t}"]`);
+  lines.push("```");
+  return lines;
+}
+
+/** Eine Kanten-Tabelle; `peer` benennt die jeweils andere Seite. */
+function edgeTable(edges: DepEdge[], peerLabel: string, peerOf: (e: DepEdge) => FmTarget): string[] {
+  const lines = [row([peerLabel, "Wodurch", "Was passiert", "Anker"]), "|---|---|---|---|"];
+  for (const e of edges) {
+    lines.push(row([
+      peerOf(e),
+      e.via ? `\`${e.via}\`` : "*feste Regel*",
+      e.what,
+      e.anchor ? `\`${e.anchor}\`` : "—",
+    ]));
+  }
+  return lines;
+}
+
+/**
+ * Rendert `docs/funktionsmodell/05-abhaengigkeiten.md` — je Mechanik, wer hineinwirkt und wohin sie
+ * selbst wirkt.
+ */
+export function renderAbhaengigkeiten(): string {
+  const edges = allEdges();
+  const lines: string[] = [];
+
+  lines.push("# Abhängigkeiten je Funktion");
+  lines.push("");
+  lines.push("<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodellRegistry.ts");
+  lines.push("     (`affects` je Stellschraube + FM_WIRED_EDGES) · neu erzeugen: `npm run funktionsmodell` -->");
+  lines.push("");
+  lines.push("Für jede Mechanik: **was in sie hineinwirkt** und **worauf sie selbst wirkt**. Die Steckbriefe");
+  lines.push("beantworten die zweite Richtung in Prosa; diese Seite beantwortet vor allem die erste — die,");
+  lines.push("die man stellt, wenn sich etwas unerklärlich verhält.");
+  lines.push("");
+  lines.push("Zwei Arten von Kanten, und der Unterschied ist wichtig:");
+  lines.push("");
+  lines.push("- **Über ein Feld** — es gibt einen Schalter, den jemand gesetzt hat. Nachzuschlagen im");
+  lines.push("  [Stellschrauben-Register](stellschrauben.md).");
+  lines.push("- ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb");
+  lines.push("  überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.");
+  lines.push("");
+  const mechanics = mechanicsInPlay(edges);
+  lines.push(`Insgesamt ${edges.length} Kanten über ${mechanics.length} Mechaniken, davon ${FM_WIRED_EDGES.length} fest verdrahtet.`);
+  lines.push("");
+
+  for (const m of mechanics) {
+    const incoming = edges.filter((e) => e.to === m);
+    const outgoing = edges.filter((e) => e.from === m);
+    if (incoming.length === 0 && outgoing.length === 0) continue;
+
+    lines.push(`## ${m}`);
+    lines.push("");
+    const doc = docFor(m);
+    if (doc) lines.push(`Steckbrief: [${doc}](${doc})`, "");
+    lines.push(...localGraph(m, incoming, outgoing));
+    lines.push("");
+
+    lines.push("### Hängt ab von");
+    lines.push("");
+    if (incoming.length === 0) {
+      // Auch das ist eine Aussage: eine Mechanik, in die nichts hineinwirkt, kann man isoliert ändern.
+      lines.push("Nichts wirkt hier hinein — diese Mechanik lässt sich für sich allein betrachten.", "");
+    } else {
+      lines.push(...edgeTable(incoming, "Woher", (e) => e.from), "");
+    }
+
+    lines.push("### Wirkt auf");
+    lines.push("");
+    if (outgoing.length === 0) {
+      lines.push("Nichts hängt daran — was hier passiert, bleibt hier.", "");
+    } else {
+      lines.push(...edgeTable(outgoing, "Wohin", (e) => e.to), "");
+    }
+  }
+  return lines.join("\n");
+}
+
+
+// ── Funktionskatalog ─────────────────────────────────────────────────────────────────────────────
+
+const SURFACE_LABEL: Record<FmSurface, string> = {
+  "sub-ui": "App (Träger)",
+  "admin-ui": "App (Keyholder)",
+  mcp: "MCP",
+  automatik: "läuft von selbst",
+  extern: "Gegenstelle",
+};
+
+/** Routen und Werkzeuge einer Fähigkeit als eine Zelle. */
+function backing(cap: FmCapability): string {
+  const parts = [...(cap.routes ?? []), ...(cap.tools ?? [])].map((r) => `\`${r}\``);
+  return parts.length > 0 ? parts.join(" ") : "—";
+}
+
+/**
+ * Rendert `docs/funktionsmodell/01-funktionen.md` — die flache Liste aller Fähigkeiten.
+ *
+ * Nach Mechanik gruppiert, damit sie neben den Steckbriefen liegt; innerhalb einer Gruppe in der
+ * Reihenfolge des Katalogs, die grob dem Ablauf folgt (auslösen → erfüllen → beurteilen).
+ */
+export function renderFunktionen(): string {
+  const lines: string[] = [];
+  const mechanics = [...new Set(FM_CAPABILITIES.map((cap) => cap.mechanic))];
+  const auto = FM_CAPABILITIES.filter((cap) => cap.surfaces.includes("automatik"));
+
+  lines.push("# Funktionskatalog");
+  lines.push("");
+  lines.push("<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodellCapabilities.ts");
+  lines.push("     neu erzeugen: `npm run funktionsmodell` -->");
+  lines.push("");
+  lines.push("Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für");
+  lines.push("Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.");
+  lines.push("");
+  lines.push(`${FM_CAPABILITIES.length} Funktionen über ${mechanics.length} Mechaniken, davon ${auto.length} ohne jede Bedienung — sie laufen von selbst.`);
+  lines.push("");
+  lines.push("**Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE");
+  lines.push("Funktion: „Kontrolle anfordern\" gibt es in der App und über den MCP, und beide Wege enden im");
+  lines.push("selben Vorgang — sie können also nicht auseinanderlaufen.");
+  lines.push("");
+  lines.push("Vollständigkeit ist geprüft, nicht behauptet: jede API-Route und jedes MCP-Werkzeug muss hier");
+  lines.push("beansprucht oder ausdrücklich ausgenommen sein, sonst schlägt `npm test` fehl. Die Funktionen");
+  lines.push("ohne Endpunkt (Spalte „—\") entziehen sich dieser Prüfung — für sie ist diese Liste die einzige.");
+  lines.push("");
+
+  for (const m of mechanics) {
+    const caps = FM_CAPABILITIES.filter((cap) => cap.mechanic === m);
+    lines.push(`## ${m}`);
+    lines.push("");
+    const doc = docFor(m);
+    if (doc) lines.push(`Steckbrief: [${doc}](${doc})`, "");
+    lines.push(row(["Funktion", "Was sie tut", "Wer", "Wo", "Endpunkt"]));
+    lines.push("|---|---|---|---|---|");
+    for (const cap of caps) {
+      lines.push(row([
+        `**${cap.title}**`,
+        cap.note ? `${cap.what} <br>*${cap.note}*` : cap.what,
+        cap.actors.map((a) => WRITER_LABEL[a]).join(", "),
+        cap.surfaces.map((f) => SURFACE_LABEL[f]).join(", "),
+        backing(cap),
+      ]));
+    }
+    lines.push("");
+  }
+
+  lines.push("## Läuft von selbst");
+  lines.push("");
+  lines.push("Dieselben Funktionen noch einmal beisammen — die, die niemand auslöst. Sie sind der häufigste");
+  lines.push("Grund für die Frage, welche Einstellung etwas verursacht hat: bei den meisten gibt es keine.");
+  lines.push("");
+  lines.push(row(["Funktion", "Mechanik", "Was sie tut"]));
+  lines.push("|---|---|---|");
+  for (const cap of auto) lines.push(row([`**${cap.title}**`, cap.mechanic, cap.what]));
   lines.push("");
   return lines.join("\n");
 }

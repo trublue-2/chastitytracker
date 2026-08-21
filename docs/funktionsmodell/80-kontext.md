@@ -3,7 +3,29 @@
 ## Zweck
 
 Die Gedächtnis-Schicht des MCP-Keyholders. Zwischen zwei Sitzungen erinnert die KI nur, was hier
-steht — Notizen, Termine, wiederkehrende Kontexte, Gesundheits-Halte. **Der Sub sieht nichts davon.**
+steht — Notizen, Termine, wiederkehrende Kontexte, Gesundheits-Halte.
+
+## Diese Schicht ist absichtlich nur über den MCP erreichbar
+
+**Das ist der wichtigste Satz dieses Steckbriefs, weil er wie ein Versäumnis aussieht und keines ist.**
+
+Siebzehn Stellschrauben und elf Funktionen dieser Schicht gibt es ausschliesslich über den MCP. Sie
+erscheinen in keiner App-Ansicht — weder beim Träger noch beim Betreiber. Eine Analyse der
+Oberflächen findet das als Asymmetrie und wird sie für eine Lücke halten.
+
+Sie ist keine. Die Keyholder-KI ist in diesem Produkt **eine eigene Person mit eigenem Gedächtnis**,
+nicht ein zweiter Bedien-Weg auf dieselben Daten. Sie soll mehr wissen, als die Oberfläche zeigt —
+so wie eine Keyholderin privates Wissen über ihren Sub führt. Dieses Wissen in die App zu heben
+würde die Rolle einebnen: der Träger sähe es weiterhin nie, der Betreiber aber alles, und aus dem
+Gegenüber würde ein Formular.
+
+Daraus folgt für die Weiterentwicklung: **keine Lesesicht auf diese Schicht im Admin-Bereich**, und
+kein Werkzeug, das MCP-Wissen in die Oberfläche spiegelt. Wer eine Auswertung über die Notizen
+braucht, fragt die KI — das ist der vorgesehene Weg, nicht der Umweg.
+
+Nicht betroffen ist die Gegenrichtung: dass die Vergehens-Regeln und die Eskalations-Stufen nur im
+Admin-Bereich stehen und der MCP sie nur lesen darf, hat eigene Gründe (siehe
+[50-strafbuch.md](50-strafbuch.md) und [30-kontrollen.md](30-kontrollen.md)).
 
 ## Notizen
 
@@ -56,6 +78,10 @@ um geänderte Werkzeuge zu sehen — es braucht eine frische Verbindung.
 
 Nur auf die KI. Nichts in dieser Schicht setzt eine Frist, erzeugt ein Vergehen oder verändert eine
 Session — mit der einen Ausnahme des Gesundheits-Halts.
+
+Das ist die zweite Hälfte derselben Entscheidung: weil dieses Wissen die Mechanik nicht anfasst,
+kostet seine Unsichtbarkeit den Betreiber auch nichts. Es beeinflusst, wie die KI urteilt, nicht was
+der Server rechnet.
 
 ## Code
 

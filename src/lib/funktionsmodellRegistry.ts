@@ -69,6 +69,34 @@ export interface FmDomain {
   title: string;
   /** Dateiname des Steckbriefs in `docs/funktionsmodell/`, sofern schon geschrieben. */
   doc?: string;
+  /**
+   * Die Mechanik, DER diese Domäne entspricht — die Gegenrichtung zu `affects`.
+   *
+   * Ohne sie liesse sich aus der Registry nur ablesen, worauf eine Stellschraube wirkt, nicht von
+   * wem eine Mechanik abhängt: die Kante `Feld → Ziel` hat sonst kein benanntes Ausgangs-Ende.
+   * Genau diese Gegenrichtung ist aber die Frage, die man im Betrieb stellt („was greift hier alles
+   * hinein?"). Eine Zeile je Domäne — und daraus fällt die ganze Abhängigkeits-Ansicht heraus.
+   */
+  mechanic?: FmTarget;
+}
+
+/**
+ * Abhängigkeiten OHNE Schalter — Regeln, die fest verdrahtet sind.
+ *
+ * Eine rein aus `affects` abgeleitete Karte zeigt nur, was über ein FELD zusammenhängt. Die
+ * wirkungsvollsten Kopplungen des Trackers haben aber gar kein Feld: dass ein Wiederverschluss nach
+ * einer Reinigungspause eine Kontrolle auslöst, steht in keiner Spalte. Wer die Karte ohne diese
+ * Liste liest, hält genau die Kanten für nicht vorhanden, die ihn später überraschen.
+ *
+ * Aufgenommen wird, was TRÄGT — nicht jede denkbare Kante. Eine Zeile hier ist eine Behauptung über
+ * das Verhalten des Systems und gehört mit einem Code-Anker belegt.
+ */
+export interface FmWiredEdge {
+  from: FmTarget;
+  to: FmTarget;
+  /** Die Regel in einem Satz. */
+  rule: string;
+  anchor?: string;
 }
 
 /**
@@ -89,21 +117,131 @@ export const FM_SCANNED_MODELS = [
 ] as const;
 
 export const FM_DOMAINS: FmDomain[] = [
-  { id: "eintraege", title: "Einträge & Sessions", doc: "15-eintraege.md" },
-  { id: "sperrzeit", title: "Sperrzeit & Verschluss", doc: "10-sperrzeit.md" },
-  { id: "reinigung", title: "Reinigung", doc: "20-reinigung.md" },
-  { id: "kontrollen", title: "Kontrollen", doc: "30-kontrollen.md" },
-  { id: "orgasmus", title: "Orgasmus-Direktive", doc: "35-orgasmus.md" },
-  { id: "aufgaben", title: "Aufgaben", doc: "40-aufgaben.md" },
-  { id: "training", title: "Trainingsziele", doc: "45-trainingsziele.md" },
-  { id: "strafbuch", title: "Vergehen & Strafbuch", doc: "50-strafbuch.md" },
-  { id: "geraete", title: "Geräte & Kategorien", doc: "55-geraete.md" },
-  { id: "box", title: "Box (Heimdall)", doc: "60-box.md" },
-  { id: "nachrichten", title: "Nachrichten", doc: "70-nachrichten.md" },
-  { id: "benachrichtigung", title: "Benachrichtigungen", doc: "75-benachrichtigungen.md" },
-  { id: "kontext", title: "Keyholder-Wissen & Kontext", doc: "80-kontext.md" },
-  { id: "konto", title: "Konto, Zugang & Darstellung", doc: "85-zugang.md" },
+  { id: "eintraege", title: "Einträge & Sessions", doc: "15-eintraege.md", mechanic: "Einträge" },
+  { id: "sperrzeit", title: "Sperrzeit & Verschluss", doc: "10-sperrzeit.md", mechanic: "Sperrzeit" },
+  { id: "reinigung", title: "Reinigung", doc: "20-reinigung.md", mechanic: "Reinigung" },
+  { id: "kontrollen", title: "Kontrollen", doc: "30-kontrollen.md", mechanic: "Kontrollen" },
+  { id: "orgasmus", title: "Orgasmus-Direktive", doc: "35-orgasmus.md", mechanic: "Orgasmus" },
+  { id: "aufgaben", title: "Aufgaben", doc: "40-aufgaben.md", mechanic: "Aufgaben" },
+  { id: "training", title: "Trainingsziele", doc: "45-trainingsziele.md", mechanic: "Trainingsziele" },
+  { id: "strafbuch", title: "Vergehen & Strafbuch", doc: "50-strafbuch.md", mechanic: "Strafbuch" },
+  { id: "geraete", title: "Geräte & Kategorien", doc: "55-geraete.md", mechanic: "Geräte" },
+  { id: "box", title: "Box (Heimdall)", doc: "60-box.md", mechanic: "Box" },
+  { id: "nachrichten", title: "Nachrichten", doc: "70-nachrichten.md", mechanic: "Nachrichten" },
+  { id: "benachrichtigung", title: "Benachrichtigungen", doc: "75-benachrichtigungen.md", mechanic: "Benachrichtigungen" },
+  { id: "kontext", title: "Keyholder-Wissen & Kontext", doc: "80-kontext.md", mechanic: "MCP" },
+  { id: "konto", title: "Konto, Zugang & Darstellung", doc: "85-zugang.md", mechanic: "Zugang" },
   { id: "betrieb", title: "Betrieb & Stichtage" },
+];
+
+/**
+ * Steckbrief einer Mechanik, die KEINE eigene Domäne hat.
+ *
+ * Nicht jede Mechanik ist ein Ort, an dem man etwas einstellt: die automatischen Kontrollen werden
+ * über die Kontroll-Domäne konfiguriert, sind aber in der Wirkungskarte etwas anderes als eine von
+ * Hand gestellte Kontrolle — die feste Regel aus der Reinigung trifft nur sie. Ohne diese Tabelle
+ * stünden solche Mechaniken in der Karte ohne Verweis darauf, wo sie beschrieben sind.
+ */
+export const FM_TARGET_DOC: Partial<Record<FmTarget, string>> = {
+  "Auto-Kontrollen": "30-kontrollen.md",
+  "Sessions/Statistik": "15-eintraege.md",
+  "Bildersafe": "15-eintraege.md",
+};
+
+/** Siehe {@link FmWiredEdge} — die Kopplungen, hinter denen kein Schalter steht. */
+export const FM_WIRED_EDGES: FmWiredEdge[] = [
+  {
+    from: "Reinigung", to: "Auto-Kontrollen",
+    rule: "Jeder SELBST erfasste Wiederverschluss nach einer Reinigungspause erzeugt eine Kontrolle (15–45 min, im Schlaf-Fenster 5–15). Sie ersetzt die nächste noch nicht zugestellte Auto-Kontrolle des Tages. Feste Regel, keine Einstellung — nur der Hauptschalter der Automatik schaltet sie ab.",
+    anchor: "autoKontrolleService.ts:scheduleCleaningRelockInspection",
+  },
+  {
+    from: "Reinigung", to: "Sessions/Statistik",
+    rule: "Eine Pause zerlegt die KG-Session in Segmente und wird von der Tragedauer abgezogen — die Session bricht dabei nicht.",
+    anchor: "sessionModel.ts:buildSessions",
+  },
+  {
+    from: "Reinigung", to: "Geräte",
+    rule: "Es gibt keinen eigenen Gerätewechsel: er läuft über eine Reinigungsöffnung und verbraucht damit deren Tageskontingent.",
+  },
+  {
+    from: "Einträge", to: "Sperrzeit",
+    rule: "Eine Öffnung ohne Deckung hebt JEDE aktive Sperrzeit auf. Eine erlaubte Reinigungsöffnung und ein Orgasmus-Öffnungsfenster tun das nicht.",
+    anchor: "queries.ts:releaseSperrzeitenOnOpen",
+  },
+  {
+    from: "Einträge", to: "Sessions/Statistik",
+    rule: "Sessions, Segmente und jede Stundenzahl entstehen beim LESEN aus den Einträgen. Nichts davon ist gestempelt — ein korrigierter Eintrag korrigiert alles Nachgelagerte mit.",
+    anchor: "sessionModel.ts:buildSessions",
+  },
+  {
+    from: "Einträge", to: "Kontrollen",
+    rule: "Ein Prüfungs-Eintrag erfüllt nur die Kontrolle DESSELBEN Ziels; ein Plug-Foto hakt keine KG-Kontrolle ab.",
+    anchor: "kontrolleService.ts",
+  },
+  {
+    from: "Einträge", to: "Orgasmus",
+    rule: "Ein passender Orgasmus-Eintrag im Fenster erfüllt die Direktive selbsttätig — passend heisst: die vorgegebene Art stimmt, sofern eine gesetzt ist.",
+    anchor: "entryFulfilment.ts",
+  },
+  {
+    from: "Einträge", to: "Box",
+    rule: "Die Box folgt den Einträgen: aus Verschluss und Öffnen leitet der Tracker ihr Kommando ab. Eine VERBOTENE Öffnung bekommt keines — sonst vollzöge er das Vergehen, das er dokumentiert.",
+    anchor: "boxCommand.ts",
+  },
+  {
+    from: "Sperrzeit", to: "Box",
+    rule: "Läuft eine Sperrzeit, hält die Box den Schlüssel fest. Die Sperre ist damit mehr als ein Datenbank-Eintrag.",
+    anchor: "boxCommand.ts",
+  },
+  {
+    from: "Box", to: "Sperrzeit",
+    rule: "Die Failsafes (leerer Akku, zu lange offline, absolutes Hard-Cap) öffnen physisch auch gegen eine laufende Sperrzeit und gegen den Keyholder. Der Tracker-Zustand ändert sich dabei NICHT — beide laufen dann auseinander.",
+    anchor: "boxOpenOutlook.ts",
+  },
+  {
+    from: "Kontrollen", to: "Einträge",
+    rule: "Eskalationsstufe 2 legt selbst einen Öffnen-Eintrag an — ohne Zutun des Subs und ohne dass die Box aufgeht. Eine Sperrzeit hebt sie dabei bewusst nicht auf.",
+    anchor: "inspectionEscalationService.ts",
+  },
+  {
+    from: "Kontrollen", to: "Strafbuch",
+    rule: "Versäumt, abgelehnt oder automatisch als abgenommen gebucht — in jedem Fall ein erkanntes Vergehen, unabhängig davon, ob die Eskalation eingeschaltet ist.",
+  },
+  {
+    from: "Geräte", to: "Einträge",
+    rule: "Das massgebliche Gerät eines Segments ist das EFFEKTIVE: bei einem Konflikt zwischen Bild und Deklaration gewinnt das Bild — ausser innerhalb eines Lookalike-Clusters.",
+    anchor: "sessionModel.ts:effectiveDevice",
+  },
+  {
+    from: "Aufgaben", to: "Einträge",
+    rule: "Die Bedingungen einer Aufgabe werden bei jedem Lesen aus den Einträgen abgeleitet. Ein nachgetragener Eintrag korrigiert die Aufgabe von selbst; es gibt nichts zu bestätigen.",
+    anchor: "tasks.ts",
+  },
+  {
+    from: "Aufgaben", to: "Strafbuch",
+    rule: "Eine nicht erfüllte Aufgabe ergibt GENAU EIN Vergehen — welcher der drei Vorwürfe gemeint ist, sagt erst die Ausfall-Art.",
+  },
+  {
+    from: "Strafbuch", to: "Aufgaben",
+    rule: "Eine Strafe kann eine gestellte Aufgabe sein. Wird das Urteil ersetzt oder zurückgenommen, zieht der Tracker die Aufgabe zurück; eine ERFÜLLTE Strafaufgabe schliesst das Urteil umgekehrt von selbst ab.",
+    anchor: "strafurteilService.ts",
+  },
+  {
+    from: "Trainingsziele", to: "Sessions/Statistik",
+    rule: "Ein Ziel MISST nur. Es fordert nichts ein, erzeugt keine Frist, keine Meldung und kein Vergehen — es liefert eine Zahl, die der Keyholder bewertet.",
+    anchor: "vorgaben.ts",
+  },
+  {
+    from: "Strafbuch", to: "Nachrichten",
+    rule: "Erkannte, bestrafte und verworfene Vergehen werden beiden Seiten gemeldet — abgeleitete aber erst ab dem Stichtag der Instanz, sonst kippte das erste Update die ganze Historie in den Posteingang.",
+    anchor: "offenseAnnounce.ts",
+  },
+  {
+    from: "Zugang", to: "Strafbuch",
+    rule: "Wird das Passwort eines ADMIN-Kontos geändert, während eine Sperrzeit läuft, entsteht ein Vergehen — als einziges im Moment des Vorgangs festgeschrieben statt live abgeleitet.",
+    anchor: "passwordAudit.ts",
+  },
 ];
 
 const s = (e: Omit<FmSetting, "kind">): FmSetting => ({ kind: "setting", ...e });

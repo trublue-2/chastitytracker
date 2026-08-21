@@ -15,7 +15,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
-const target = path.join(root, "docs/funktionsmodell/stellschrauben.md");
+const outputs = [
+  ["docs/funktionsmodell/stellschrauben.md", (doc, schema) => doc.renderStellschrauben(schema)],
+  ["docs/funktionsmodell/05-abhaengigkeiten.md", (doc) => doc.renderAbhaengigkeiten()],
+  ["docs/funktionsmodell/01-funktionen.md", (doc) => doc.renderFunktionen()],
+];
 
 const server = await createServer({
   root,
@@ -38,8 +42,10 @@ try {
     console.error("\nRegistry ergänzen (src/lib/funktionsmodellRegistry.ts), dann erneut ausführen.");
     process.exitCode = 1;
   } else {
-    await fs.writeFile(target, doc.renderStellschrauben(schema), "utf8");
-    console.log(`geschrieben: ${path.relative(root, target)}`);
+    for (const [rel, render] of outputs) {
+      await fs.writeFile(path.join(root, rel), render(doc, schema), "utf8");
+      console.log(`geschrieben: ${rel}`);
+    }
   }
 } finally {
   await server.close();
