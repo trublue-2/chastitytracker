@@ -16,8 +16,9 @@
  */
 
 import {
-  FM_REGISTRY, FM_SCANNED_MODELS, FM_DOMAINS,
+  FM_REGISTRY, FM_SCANNED_MODELS, FM_DOMAINS, FM_WIRED_EDGES, FM_TARGET_DOC,
   type FmEntry, type FmSetting, type FmDomain, type FmWriter, type FmScope, type FmNonSetting,
+  type FmTarget,
 } from "./funktionsmodellRegistry";
 
 /** Ein Skalarfeld aus `schema.prisma`, so wie es dort steht. */
@@ -249,5 +250,146 @@ export function renderStellschrauben(schema: SchemaFields): string {
     }
   }
   lines.push("");
+  return lines.join("\n");
+}
+
+
+// ── Abhängigkeits-Ansicht ────────────────────────────────────────────────────────────────────────
+//
+// Das Register beantwortet „worauf wirkt dieses Feld?". Die Frage im Betrieb lautet andersherum:
+// „was greift in DIESE Mechanik hinein?". Beides ist dieselbe Kantenmenge, einmal vorwärts und
+// einmal rückwärts gelesen — deshalb wird die Gegenrichtung hier ABGELEITET und nicht ein zweites
+// Mal von Hand gepflegt. Eine handgeführte Rückrichtung wäre binnen weniger Änderungen unvollständig,
+// und zwar unsichtbar: eine fehlende Kante sieht aus wie keine Kante.
+
+/** Eine Kante der Karte, gleich ob über ein Feld oder fest verdrahtet. */
+interface DepEdge {
+  from: FmTarget;
+  to: FmTarget;
+  /** Das Feld, über das die Kante läuft — leer bei einer fest verdrahteten Regel. */
+  via: string | null;
+  what: string;
+  anchor?: string;
+}
+
+/** Die Mechanik, der eine Domäne entspricht (nicht jede hat eine — `betrieb` etwa steht quer dazu). */
+const mechanicOfDomain = (id: string): FmTarget | null =>
+  FM_DOMAINS.find((d) => d.id === id)?.mechanic ?? null;
+
+/**
+ * Alle Kanten: die feldvermittelten aus `affects` plus die fest verdrahteten.
+ *
+ * Selbstkanten fallen weg. Dass `Device.requireInspectionCode` auf Geräte wirkt, ist keine
+ * Abhängigkeit, sondern die Domäne selbst — in einer Karte wäre es eine Schlinge, die nur Platz kostet.
+ */
+function allEdges(): DepEdge[] {
+  const out: DepEdge[] = [];
+  for (const e of FM_REGISTRY) {
+    if (e.kind !== "setting") continue;
+    const from = mechanicOfDomain(e.domain);
+    if (!from) continue;
+    for (const to of e.affects) {
+      if (to === from) continue;
+      out.push({ from, to, via: `${e.model}.${e.field}`, what: e.effect, anchor: e.anchor });
+    }
+  }
+  for (const w of FM_WIRED_EDGES) out.push({ from: w.from, to: w.to, via: null, what: w.rule, anchor: w.anchor });
+  return out;
+}
+
+/** Jede Mechanik, die in irgendeiner Kante vorkommt — in der Reihenfolge der Domänen, Rest hinten an. */
+function mechanicsInPlay(edges: DepEdge[]): FmTarget[] {
+  const ordered = FM_DOMAINS.map((d) => d.mechanic).filter((m): m is FmTarget => Boolean(m));
+  const rest = [...new Set(edges.flatMap((e) => [e.from, e.to]))].filter((m) => !ordered.includes(m));
+  return [...ordered, ...rest.sort()];
+}
+
+/** Mermaid verträgt keine Umlaute und keine Schrägstriche in Knoten-Namen. */
+const nodeId = (t: FmTarget) => "n" + t.replace(/[^A-Za-z]/g, "");
+
+/** Die Nachbarschaft EINER Mechanik als kleines Diagramm — nicht die ganze Karte, die wäre ein Knäuel. */
+function localGraph(m: FmTarget, incoming: DepEdge[], outgoing: DepEdge[]): string[] {
+  const inc = [...new Set(incoming.map((e) => e.from))];
+  const out = [...new Set(outgoing.map((e) => e.to))];
+  if (inc.length === 0 && out.length === 0) return [];
+  const lines = ["```mermaid", "flowchart LR"];
+  lines.push(`  ${nodeId(m)}["${m}"]`);
+  for (const f of inc) lines.push(`  ${nodeId(f)}["${f}"] --> ${nodeId(m)}`);
+  for (const t of out) lines.push(`  ${nodeId(m)} --> ${nodeId(t)}["${t}"]`);
+  lines.push("```");
+  return lines;
+}
+
+/** Eine Kanten-Tabelle; `peer` benennt die jeweils andere Seite. */
+function edgeTable(edges: DepEdge[], peerLabel: string, peerOf: (e: DepEdge) => FmTarget): string[] {
+  const lines = [row([peerLabel, "Wodurch", "Was passiert", "Anker"]), "|---|---|---|---|"];
+  for (const e of edges) {
+    lines.push(row([
+      peerOf(e),
+      e.via ? `\`${e.via}\`` : "*feste Regel*",
+      e.what,
+      e.anchor ? `\`${e.anchor}\`` : "—",
+    ]));
+  }
+  return lines;
+}
+
+/**
+ * Rendert `docs/funktionsmodell/05-abhaengigkeiten.md` — je Mechanik, wer hineinwirkt und wohin sie
+ * selbst wirkt.
+ */
+export function renderAbhaengigkeiten(): string {
+  const edges = allEdges();
+  const lines: string[] = [];
+
+  lines.push("# Abhängigkeiten je Funktion");
+  lines.push("");
+  lines.push("<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodellRegistry.ts");
+  lines.push("     (`affects` je Stellschraube + FM_WIRED_EDGES) · neu erzeugen: `npm run funktionsmodell` -->");
+  lines.push("");
+  lines.push("Für jede Mechanik: **was in sie hineinwirkt** und **worauf sie selbst wirkt**. Die Steckbriefe");
+  lines.push("beantworten die zweite Richtung in Prosa; diese Seite beantwortet vor allem die erste — die,");
+  lines.push("die man stellt, wenn sich etwas unerklärlich verhält.");
+  lines.push("");
+  lines.push("Zwei Arten von Kanten, und der Unterschied ist wichtig:");
+  lines.push("");
+  lines.push("- **Über ein Feld** — es gibt einen Schalter, den jemand gesetzt hat. Nachzuschlagen im");
+  lines.push("  [Stellschrauben-Register](stellschrauben.md).");
+  lines.push("- ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb");
+  lines.push("  überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.");
+  lines.push("");
+  const mechanics = mechanicsInPlay(edges);
+  lines.push(`Insgesamt ${edges.length} Kanten über ${mechanics.length} Mechaniken, davon ${FM_WIRED_EDGES.length} fest verdrahtet.`);
+  lines.push("");
+
+  for (const m of mechanics) {
+    const incoming = edges.filter((e) => e.to === m);
+    const outgoing = edges.filter((e) => e.from === m);
+    if (incoming.length === 0 && outgoing.length === 0) continue;
+
+    lines.push(`## ${m}`);
+    lines.push("");
+    const doc = FM_DOMAINS.find((d) => d.mechanic === m)?.doc ?? FM_TARGET_DOC[m];
+    if (doc) lines.push(`Steckbrief: [${doc}](${doc})`, "");
+    lines.push(...localGraph(m, incoming, outgoing));
+    lines.push("");
+
+    lines.push("### Hängt ab von");
+    lines.push("");
+    if (incoming.length === 0) {
+      // Auch das ist eine Aussage: eine Mechanik, in die nichts hineinwirkt, kann man isoliert ändern.
+      lines.push("Nichts wirkt hier hinein — diese Mechanik lässt sich für sich allein betrachten.", "");
+    } else {
+      lines.push(...edgeTable(incoming, "Woher", (e) => e.from), "");
+    }
+
+    lines.push("### Wirkt auf");
+    lines.push("");
+    if (outgoing.length === 0) {
+      lines.push("Nichts hängt daran — was hier passiert, bleibt hier.", "");
+    } else {
+      lines.push(...edgeTable(outgoing, "Wohin", (e) => e.to), "");
+    }
+  }
   return lines.join("\n");
 }

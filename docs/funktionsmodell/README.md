@@ -18,6 +18,7 @@ handlungsleitende Fassung.
 | Datei | Inhalt |
 |---|---|
 | [stellschrauben.md](stellschrauben.md) | **Generiert.** Jedes Feld, das Verhalten steuert: Typ, Default, wer schreiben darf, worauf es wirkt, wo die Regel im Code steht. |
+| [05-abhaengigkeiten.md](05-abhaengigkeiten.md) | **Generiert.** Je Funktion: was in sie hineinwirkt und worauf sie selbst wirkt — mit Diagramm. Die Gegenrichtung zum Register. |
 | [90-kollisionen.md](90-kollisionen.md) | **Vorrang- und Kollisionsregeln.** Was gewinnt, wenn zwei Regeln gleichzeitig gelten. |
 | [10-sperrzeit.md](10-sperrzeit.md) | Sperrzeit und Einschliess-Anforderung |
 | [15-eintraege.md](15-eintraege.md) | Einträge & Sessions — der Rohstoff, aus dem alles abgeleitet wird |
@@ -41,6 +42,8 @@ Steckbrief an derselben Stelle beantworten, und eine leere Rubrik ist ein Befund
 ## Wo anfangen
 
 - **„Was kann ich einstellen?"** → [stellschrauben.md](stellschrauben.md), nach Domäne sortiert.
+- **„Was hängt an dieser Funktion?"** → [05-abhaengigkeiten.md](05-abhaengigkeiten.md). Je Mechanik
+  beide Richtungen, und getrennt danach, ob hinter einer Kante ein Schalter steht oder nicht.
 - **„Warum ist das passiert?"** → [90-kollisionen.md](90-kollisionen.md). Dort stehen die Fälle, in
   denen zwei richtige Regeln ein überraschendes Ergebnis produzieren.
 - **„Wie funktioniert X?"** → der Steckbrief der Mechanik.
@@ -102,13 +105,21 @@ Der generierte Teil hält sich selbst ehrlich:
 npm run funktionsmodell
 ```
 
-Erzeugt `stellschrauben.md` aus `prisma/schema.prisma` (Form: Feld, Typ, Default) und
+Erzeugt **beide** generierten Dateien aus `prisma/schema.prisma` (Form: Feld, Typ, Default) und
 `src/lib/funktionsmodellRegistry.ts` (Bedeutung: wer schreibt, worauf wirkt es, wo steht die Regel).
+
+Die Abhängigkeits-Ansicht ist dabei vollständig **abgeleitet**: sie liest dieselben `affects`-Angaben
+rückwärts. Eine von Hand gepflegte Gegenrichtung wäre binnen weniger Änderungen unvollständig, und
+zwar unsichtbar — eine fehlende Kante sieht aus wie keine Kante. Was sich nicht ableiten lässt, sind
+die Kopplungen **ohne Schalter** (etwa: ein Wiederverschluss löst eine Kontrolle aus). Die stehen als
+`FM_WIRED_EDGES` ebenfalls in der Registry, getippt und mit Code-Anker, und erscheinen in der Karte
+als *feste Regel*.
+
 `funktionsmodellDoc.test.ts` lässt `npm test` fehlschlagen, wenn
 
 - ein Feld der geprüften Modelle keinen Registry-Eintrag hat,
 - ein Registry-Eintrag auf ein Feld zeigt, das es nicht mehr gibt,
-- oder die eingecheckte Markdown-Datei nicht mehr zum aktuellen Stand passt.
+- oder eine der beiden eingecheckten Markdown-Dateien nicht mehr zum aktuellen Stand passt.
 
 Damit kann das Register nicht stillschweigend veralten — der übliche Tod einer
 Funktionsdokumentation. Die Prosa-Steckbriefe sind von Hand gepflegt und geniessen diesen Schutz
