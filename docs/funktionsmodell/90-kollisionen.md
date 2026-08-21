@@ -153,6 +153,11 @@ Empfänger teilen sie sich und haben darauf nur ihren eigenen Lesestand.
 **Der Absender-Filter des Posteingangs filtert nach Art, nicht nach Person.** Auf einer Instanz mit
 mehreren Admins nennt seine Auswahl eine Person und meint alle.
 
+**Die KI weiss mehr als die Oberfläche zeigt — mit Absicht.** Notizen, Grenzen, Termine und die
+Geräte-Beurteilungen gibt es nur über den MCP und in keiner App-Ansicht. Wer die Oberflächen
+vergleicht, findet das als Lücke; es ist die Rollentrennung selbst (siehe
+[80-kontext.md](80-kontext.md)).
+
 **Die MCP-Werkzeugliste ist pro Verbindung gecacht.** Ein neuer Chat genügt nicht, um geänderte
 Werkzeuge zu sehen — es braucht eine frische Verbindung.
 
