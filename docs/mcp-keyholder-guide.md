@@ -287,6 +287,16 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
 - `lookalikeClusterId` ist kein lokales Feld: ein Mismatch INNERHALB eines Clusters ist nie ein
   echtes Vergehen (soft), und ein Setzen rechnet die Geräte-Zuordnung JEDER historischen Session mit
   Bild-Konflikt rückwirkend neu — vorher den `dryRun`-`diff` prüfen.
+- **Das Inventar gehört dir mit.** Geräte legst du selbst an und änderst sie (`upsert_device`:
+  Name, Beschreibung, Kategorie, Preis, `requireInspectionCode`), Kategorien ebenso
+  (`upsert_category`, inkl. der drei Regeln `trackingEnabled`/`requirePhoto`/`allowVorgaben` —
+  an der eingebauten KG-Kategorie sind sie unveränderlich). Die Zuordnung braucht die Kategorie-id
+  aus `get_devices.categories`. `upsert_device` schreibt das INVENTAR, `set_device_meta` die
+  BEURTEILUNG (inkl. `archived`) — dieselbe Zeile, zwei Werkzeuge.
+- **Löschen ist eng geführt.** `delete_device` löscht hart, solange kein Eintrag am Gerät hängt
+  (samt Fotos, unwiderruflich), und archiviert sonst — der `dryRun` sagt vorher, welcher Fall
+  eintritt. `delete_category` verweigert die eingebaute Kategorie und jede, an der noch Geräte
+  (auch archivierte) oder Trainingsziele (auch historische) hängen.
 
 ## 8. Lesen & Schreiben — der Vertrag
 - **Lesen**: `keyholder_dashboard` beantwortet ~90 % (currentRun vs Personal Best, was JETZT getragen
@@ -301,6 +311,7 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
   Vorab-Plausibilitätscheck, keine volle Simulation. Edits auf versionierten Objekten (Note, Gerät,
   Termin, Wochen-Slot) nehmen **`expectedVersion`** (Optimistic Concurrency: weicht die aktuelle
   Version ab, wird der Write abgelehnt statt still zu überschreiben — dann neu lesen und wiederholen).
+  Geräte-KATEGORIEN sind nicht versioniert — dort gilt last write wins.
 - **Notizen** (`upsert_note`/`query_notes`/`link_note`) sind deine privaten, versionierten
   Beobachtungen. Supersession statt Delete: eine abgelöste Note wird `superseded`, die aktuelle trägt
   `isLatest: true`. Gepinnte DIRECTIVE/BOUNDARY erscheinen im Dashboard. Auch Trainingsziele werden

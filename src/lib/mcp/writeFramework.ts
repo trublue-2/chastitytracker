@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { structuredLog } from "@/lib/serverLog";
 import type { Prisma } from "@prisma/client";
 
 /** Prisma-Client innerhalb einer Transaktion (von $transaction an apply/recordAction übergeben). */
@@ -46,6 +47,19 @@ export interface WriteResult<T> {
   diff?: Record<string, [unknown, unknown]>;
   /** Betroffene/erzeugte Entity-id für den Action-Log (Goal, Sperrzeit, Note ...). */
   resultRef?: string;
+  /**
+   * Nebenwirkung AUSSERHALB der Datenbank, die erst nach erfolgreichem Commit laufen darf —
+   * typischerweise das Aufräumen verwaister Dateien.
+   *
+   * Warum nicht einfach im `apply`: das läuft in der Transaktion, die danach noch den Audit-Eintrag
+   * schreibt. Ein Rollback nähme die Zeile zurück, die Dateien wären trotzdem weg — von den beiden
+   * möglichen Halbzuständen ist das der schlechtere. Umgekehrt sind ein paar verwaiste Dateien
+   * nach einem gescheiterten Aufräumen folgenlos.
+   *
+   * Nur für Nicht-DB-Effekte: alles, was in der DB stehen soll, gehört ins `tx` (sonst fällt es aus
+   * der Atomarität von Mutation + Audit heraus, die dieses Framework strukturell erzwingt).
+   */
+  afterCommit?: () => void | Promise<void>;
 }
 
 /**
@@ -198,11 +212,21 @@ export async function executeWrite<A, T>(
   }
 
   // 3. Commit: Mutation + Audit in EINER Transaktion — keine Mutation ohne Audit, kein Halbzustand.
-  const result = await prisma.$transaction(async (tx) => {
+  const { afterCommit, ...result } = await prisma.$transaction(async (tx) => {
     const r = await def.apply(tx, ctx, args);
     await recordAction(tx, { ctx, tool: def.tool, reason, source, args, resultRef: r.resultRef });
     return r;
   });
+
+  // 4. Nebenwirkungen ausserhalb der DB — erst jetzt, wo der Write wirklich steht (s. WriteResult).
+  //    Ein Fehler hier darf den committeten Write nicht als gescheitert melden.
+  if (afterCommit) {
+    try {
+      await afterCommit();
+    } catch (e) {
+      structuredLog("MCP", "after-commit-failed", { tool: def.tool, error: (e as Error).message });
+    }
+  }
 
   return { ...result, dryRun: false, tool: def.tool };
 }

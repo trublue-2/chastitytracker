@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { entryManageAccess } from "@/lib/keyholder";
 import { prisma } from "@/lib/prisma";
-import { isValidImageUrl, VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
+import { isValidImageUrl, validateDeviceInput } from "@/lib/constants";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
+import { removeDevice } from "@/lib/deviceService";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -58,34 +59,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { name, description, imageUrl, purchasePrice, currency, categoryId, requireInspectionCode } = body;
 
-  // Validation (only validate provided fields)
-  if (name !== undefined) {
-    if (!name || typeof name !== "string" || !name.trim()) {
-      return errorResponse(400, "DEVICE_NAME_REQUIRED");
-    }
-    if (name.trim().length > DEVICE_NAME_MAX_LENGTH) {
-      return errorResponse(400, "DEVICE_NAME_TOO_LONG");
-    }
-  }
-  if (description !== undefined && typeof description === "string" && description.length > DEVICE_DESCRIPTION_MAX_LENGTH) {
-    return errorResponse(400, "DEVICE_DESCRIPTION_TOO_LONG");
-  }
+  // Nur angegebene Felder prüfen; Preis und Währung dagegen als EFFEKTIVE Werte (wer nur den Preis
+  // setzt, erbt die bestehende Währung) — die Kette selbst steht im Service, geteilt mit POST und
+  // dem MCP-Write.
+  const invalid = validateDeviceInput({
+    name,
+    description,
+    purchasePrice: purchasePrice !== undefined ? purchasePrice : device.purchasePrice,
+    currency: (currency !== undefined ? currency : device.currency) || undefined,
+  });
+  if (invalid) return errorResponse(400, invalid);
   if (imageUrl !== undefined && !isValidImageUrl(imageUrl)) {
     return errorResponse(400, "INVALID_IMAGE_URL");
-  }
-  if (purchasePrice !== undefined && purchasePrice != null && (typeof purchasePrice !== "number" || purchasePrice < 0)) {
-    return errorResponse(400, "DEVICE_INVALID_PRICE");
-  }
-
-  // Determine effective currency: use provided, or keep existing
-  const effectiveCurrency = currency !== undefined ? currency : device.currency;
-  const effectivePrice = purchasePrice !== undefined ? purchasePrice : device.purchasePrice;
-
-  if (effectiveCurrency && !(VALID_CURRENCIES as readonly string[]).includes(effectiveCurrency)) {
-    return errorResponse(400, "DEVICE_INVALID_CURRENCY");
-  }
-  if (effectivePrice != null && !effectiveCurrency) {
-    return errorResponse(400, "DEVICE_CURRENCY_REQUIRED");
   }
 
   // Ownership is checked against the DEVICE's owner, not the session user: an admin editing another
@@ -140,28 +125,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const device = await getOwnedDevice(id, session.user.id, session.user.role);
   if (!device) return errorResponse(404, "NOT_FOUND");
 
-  // Already archived → no-op
-  if (device.archivedAt) {
-    return NextResponse.json({ archived: true });
-  }
-
-  // Check if any entries reference this device
-  const entryCount = await prisma.entry.count({ where: { deviceId: id } });
-
-  if (entryCount === 0) {
-    // Hard delete — no history to preserve. H5: Geräte-Foto + alle Referenzfotos von der Platte
-    // entfernen (die Referenz-DB-Zeilen kaskadieren, die Dateien nicht).
-    const refs = await prisma.deviceReferenceImage.findMany({ where: { deviceId: id }, select: { imageUrl: true } });
-    await prisma.device.delete({ where: { id } });
-    void deleteUploadedFiles([device.imageUrl, ...refs.map((r) => r.imageUrl)]);
-    return NextResponse.json({ deleted: true });
-  }
-
-  // Soft delete — preserve history
-  await prisma.device.update({
-    where: { id },
-    // version-Bump: Archivieren ändert das MCP-DTO (archived) — siehe restore/PATCH oben.
-    data: { archivedAt: new Date(), version: { increment: 1 } },
-  });
-  return NextResponse.json({ archived: true });
+  // Löschen oder archivieren entscheidet der Service — dieselbe Regel nimmt der MCP-Write.
+  // H5: die verwaisten Bilddateien räumt der Aufrufer weg (die Referenz-DB-Zeilen kaskadieren).
+  const { plan, orphanFiles } = await removeDevice(device);
+  void deleteUploadedFiles(orphanFiles);
+  return NextResponse.json(plan.outcome === "deleted" ? { deleted: true } : { archived: true });
 }

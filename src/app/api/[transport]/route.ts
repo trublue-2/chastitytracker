@@ -12,12 +12,14 @@ import {
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
-import { ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE } from "@/lib/constants";
+import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
 import { queryNotes, upsertNoteDef, linkNoteDef, NOTE_TYPES, NOTE_STATUS, NOTE_SOURCE, NOTE_CONFIDENCE, ENTITY_TYPES } from "@/lib/mcp/notes";
-import { listDevicesV2, setDeviceMetaDef, SECURITY_LEVELS } from "@/lib/mcp/devices";
+import { listDevicesV2, setDeviceMetaDef, upsertDeviceDef, deleteDeviceDef, SECURITY_LEVELS } from "@/lib/mcp/devices";
+import { upsertCategoryDef, deleteCategoryDef } from "@/lib/mcp/categories";
+import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_NAME_MAX_LENGTH } from "@/lib/categoryConstants";
 import { executeWrite, recordAction, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
 import { buildWriteContext } from "@/lib/mcp/common";
 import { prisma } from "@/lib/prisma";
@@ -211,6 +213,10 @@ const MCP_SERVER_INSTRUCTIONS =
   "get_context.autoInspections. Zusätzlich zum Tagesplan folgt auf jeden " +
   "Wiederverschluss nach einer Reinigungspause selbsttätig eine Kontrolle — feste Regel, keine Einstellung " +
   "(Details: `explain_model`, Abschnitt 3).\n" +
+  "• INVENTAR: Geräte und Kategorien pflegst du selbst — `upsert_device` (anlegen/umbenennen, " +
+  "Kategorie, Preis, Kontroll-Code-Pflicht), `upsert_category` (anlegen/ändern inkl. der drei Regeln; " +
+  "an der eingebauten KG-Kategorie sind die Regeln unveränderlich), `delete_device`/`delete_category` " +
+  "zum Wegräumen. Bestand samt Kategorie-ids: `get_devices`.\n" +
   "• WISSEN/META/KONTEXT: `upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
   "`upsert_appointment`, `upsert_recurring_context`. Diese Schicht ist dein GEDÄCHTNIS: zwischen zwei " +
   "Sitzungen erinnerst du nur, was hier in der DB steht — vom Gespräch bleibt nichts. Halte darum fest, " +
@@ -366,7 +372,11 @@ function registerTools(server: McpServer) {
           "Inventory-only-Kategorie, liefert per Design keine Sessions), referenceImages (BEWUSST nur die " +
           "Anzahl — die Bilder wertet der Server für deviceConfidence aus und sie sind via MCP nicht " +
           "abrufbar) — plus inline verknüpfte Notes. Archivierte Geräte sind per Default ausgeblendet. " +
-          "Setze Metadaten (inkl. archived) mit set_device_meta.",
+          "`categories` listet ALLE Kategorien des Subs (unabhängig von den Geräte-Filtern) mit id, Regeln " +
+          "und Zählungen — die ids braucht `upsert_device` für die Zuordnung. SCHREIBEN: Inventar (Name, " +
+          "Beschreibung, Kategorie, Preis, Kontroll-Code-Pflicht) mit `upsert_device`, Beurteilungs-" +
+          "Metadaten (inkl. archived) mit `set_device_meta`, Kategorien mit `upsert_category`; " +
+          "`delete_device`/`delete_category` räumen weg.",
         inputSchema: {
           deviceId: z.string().optional().describe("Nur dieses eine Gerät (per id) zurückgeben."),
           includeNotes: z.boolean().optional().describe("Inline-Notes mitliefern (Default true). false spart den teuersten Teil des Calls."),
@@ -1304,6 +1314,101 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runV2Write(setDeviceMetaDef, extra, args),
+    );
+
+    server.registerTool(
+      "upsert_device",
+      {
+        title: "Create / edit a device (inventory fields) (v2)",
+        description:
+          "Legt ein Gerät an (Pflicht: `name`) oder ändert seine INVENTAR-Felder (`id`): name, " +
+          "description, categoryId, purchasePrice + currency, requireInspectionCode. Die " +
+          "BEURTEILUNGS-Felder (securityLevel, pullOffRisk, material, bauform, healthFlags, " +
+          "retentionNotes, lookalikeClusterId, archived) setzt weiterhin `set_device_meta` — " +
+          "beide zusammen ergeben den Datensatz, den `get_devices` zeigt. Kategorie-ids stehen in " +
+          "get_devices.categories; ein Preis braucht immer eine Währung. Ein ARCHIVIERTES Gerät ist " +
+          "nicht bearbeitbar — erst mit `set_device_meta { archived: false }` zurückholen. Nur " +
+          "angegebene Felder ändern sich." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          id: z.string().optional().describe("Bestehendes Gerät bearbeiten; weglassen = neues anlegen."),
+          expectedVersion: expectedVersionField,
+          name: z.string().optional().describe(`Anzeigename (Pflicht beim Anlegen, max. ${DEVICE_NAME_MAX_LENGTH} Zeichen). Geht zusätzlich in die Geräte-Erkennung ein.`),
+          description: z.string().nullable().optional().describe("Freitext-Beschreibung; null/leer = löschen. Geht in die Geräte-Erkennung ein."),
+          categoryId: z.string().nullable().optional().describe("Kategorie-id aus get_devices.categories; null = Gerät aus der Kategorie nehmen."),
+          purchasePrice: z.number().nullable().optional().describe("Kaufpreis (>= 0); null = löschen. Verlangt eine currency."),
+          currency: z.enum(VALID_CURRENCIES).nullable().optional().describe("Währung des Kaufpreises: " + VALID_CURRENCIES.join(" | ") + "."),
+          requireInspectionCode: z.boolean().optional().describe("Verlangt eine Kontrolle mit DIESEM Gerät den handschriftlichen Code im Foto? false schwächt die Kontrolle: die Erfüllung läuft dann über die offene Anforderung statt über den Code-Vergleich."),
+        },
+      },
+      (args, extra) => runV2Write(upsertDeviceDef, extra, args),
+    );
+
+    server.registerTool(
+      "delete_device",
+      {
+        title: "Delete or archive a device (v2)",
+        description:
+          "Entfernt ein Gerät aus dem Inventar — mit derselben Regel wie die Oberfläche: hängt KEIN " +
+          "Eintrag daran, wird es hart gelöscht (samt Geräte- und Referenzfotos, unwiderruflich); " +
+          "gibt es Einträge, wird es nur ARCHIVIERT, damit die Historie erhalten bleibt. Der dryRun " +
+          "sagt vorher, welcher der beiden Fälle eintritt (`action` + `entryCount`). Zum blossen " +
+          "Ausmustern reicht `set_device_meta { archived: true }`." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          deviceName: z.string().optional().describe("Gerät per Name (case-insensitiv). deviceName ODER deviceId."),
+          deviceId: z.string().optional().describe("Gerät per id."),
+        },
+      },
+      (args, extra) => runV2Write(deleteDeviceDef, extra, args),
+    );
+
+    server.registerTool(
+      "upsert_category",
+      {
+        title: "Create / edit a device category (v2)",
+        description:
+          "Legt eine Geräte-Kategorie an (Pflicht: `name`) oder ändert sie (`id`). Beschriftung: name, " +
+          "color, icon, sortOrder. REGELN: `trackingEnabled` (false = Inventar-Kategorie, es werden " +
+          "GAR KEINE Trage-Sessions gemessen — die Kategorie verschwindet damit aus device_stats), " +
+          "`requirePhoto` (Trage-Beginn braucht ein Foto), `allowVorgaben` (Trainingsziele auf dieser " +
+          "Kategorie erlaubt). Bei der eingebauten KG-Kategorie sind diese drei UNVERÄNDERLICH, " +
+          "Beschriftung und Sortierung dort aber änderbar. Der Slug wird aus dem Namen abgeleitet und " +
+          "bleibt danach stehen. Lege eine neue Kategorie möglichst mit `firstDeviceName` an: eine " +
+          "Kategorie ohne Gerät ist eine Sackgasse, erfassen lässt sich darin nichts. Kein " +
+          "`expectedVersion` — Kategorien führen bewusst kein Versions-Token, hier gilt last write wins." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          id: z.string().optional().describe("Bestehende Kategorie bearbeiten; weglassen = neue anlegen."),
+          name: z.string().optional().describe(`Anzeigename (Pflicht beim Anlegen, max. ${CATEGORY_NAME_MAX_LENGTH} Zeichen).`),
+          color: z.enum(CATEGORY_COLORS).optional().describe("Farb-Token der Kategorie."),
+          icon: z.enum(CATEGORY_ICONS).optional().describe("Symbol-Name (lucide)."),
+          sortOrder: z.number().int().optional().describe("Sortierung in den Listen (kleiner = weiter oben)."),
+          trackingEnabled: z.boolean().optional().describe("false = Inventar-Kategorie ohne Zeiterfassung. Nicht an der KG-Kategorie setzbar."),
+          requirePhoto: z.boolean().optional().describe("true = ein Trage-Beginn verlangt ein Foto. Nicht an der KG-Kategorie setzbar."),
+          allowVorgaben: z.boolean().optional().describe("false = auf dieser Kategorie sind keine Trainingsziele erlaubt. Nicht an der KG-Kategorie setzbar."),
+          firstDeviceName: z.string().optional().describe("Nur beim Anlegen: Name des ersten Geräts, im selben Vorgang mit angelegt."),
+        },
+      },
+      (args, extra) => runV2Write(upsertCategoryDef, extra, args),
+    );
+
+    server.registerTool(
+      "delete_category",
+      {
+        title: "Delete a device category (v2)",
+        description:
+          "Löscht eine Geräte-Kategorie — endgültig und nur, wenn nichts mehr daran hängt: die " +
+          "eingebaute KG-Kategorie nie, und solange Geräte (auch archivierte) oder Trainingsziele " +
+          "(auch historische) darauf verweisen, lehnt der Aufruf ab und nennt die Zahlen. Erst " +
+          "umhängen (`upsert_device { categoryId }`) oder wegräumen, dann löschen." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          id: z.string().optional().describe("Kategorie per id. id ODER categoryName."),
+          categoryName: z.string().optional().describe("Kategorie per Name (case-insensitiv)."),
+        },
+      },
+      (args, extra) => runV2Write(deleteCategoryDef, extra, args),
     );
 
     server.registerTool(

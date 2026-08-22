@@ -4,7 +4,7 @@ import { requireApi, deviceCategoriesGate } from "@/lib/authGuards";
 import { entryManageAccess } from "@/lib/keyholder";
 import { validateCategoryInput } from "@/lib/categoryConstants";
 import { errorResponse } from "@/lib/serviceResult";
-import { resolveCategoryRuleChanges, CATEGORY_RULE_FIELDS } from "@/lib/deviceCategoryService";
+import { resolveCategoryRuleChanges, currentCategoryRules, categoryUsage, categoryDeleteBlock } from "@/lib/deviceCategoryService";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // Anlegen und Ändern dieselbe treffen (und sie ohne Prisma prüfbar bleibt).
   const rules = resolveCategoryRuleChanges(
     body,
-    Object.fromEntries(CATEGORY_RULE_FIELDS.map((f) => [f, category[f]])) as Record<typeof CATEGORY_RULE_FIELDS[number], boolean>,
+    currentCategoryRules(category),
     { isBuiltIn: category.isBuiltIn, elevated: category.elevated },
   );
   if (!rules.ok) return errorResponse(rules.status, rules.code);
@@ -78,19 +78,14 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Eingebaute Kategorien können nicht gelöscht werden" }, { status: 400 });
   }
 
-  const [deviceCount, vorgabeCount] = await Promise.all([
-    prisma.device.count({ where: { categoryId: id } }),
-    // B-04: bewusst OHNE deletedAt-Filter — TrainingVorgabe.categoryId hat ON DELETE SET NULL; würde
-    // eine Kategorie mit nur noch soft-gelöschten Zielen löschbar, verlöre deren Historie stillschweigend
-    // die Kategorie-Zuordnung (fällt auf "KG" zurück). Historische Ziele blockieren die Löschung daher
-    // weiterhin, exakt wie aktive.
-    prisma.trainingVorgabe.count({ where: { categoryId: id } }),
-  ]);
-  if (deviceCount > 0 || vorgabeCount > 0) {
+  // Welche Verweise blockieren (und warum auch archivierte Geräte und historische Ziele zählen),
+  // steht im Service — dieselbe Entscheidung trifft der MCP-Write.
+  const usage = await categoryUsage(prisma, id);
+  if (categoryDeleteBlock(category, usage) === "in-use") {
     return NextResponse.json({
       error: "Kategorie wird verwendet (Geräte oder Vorgaben verknüpft)",
-      deviceCount,
-      vorgabeCount,
+      deviceCount: usage.deviceCount,
+      vorgabeCount: usage.goalCount,
     }, { status: 409 });
   }
 

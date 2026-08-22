@@ -3,35 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { requireApi, deviceCategoriesGate } from "@/lib/authGuards";
 import { entryManageAccess } from "@/lib/keyholder";
 import { errorResponse } from "@/lib/serviceResult";
-import { resolveCategoryRuleChanges, CATEGORY_RULE_DEFAULTS } from "@/lib/deviceCategoryService";
-import {
-  validateCategoryInput,
-  slugifyCategoryName,
-  DEFAULT_USER_CATEGORY_COLOR,
-  DEFAULT_USER_CATEGORY_ICON,
-  CATEGORY_SLUG_MAX_LENGTH,
-} from "@/lib/categoryConstants";
+import { createCategory } from "@/lib/deviceCategoryService";
+import { validateCategoryInput } from "@/lib/categoryConstants";
 import { DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
-import { COUNTABLE_DEVICES_SELECT } from "@/lib/queries";
-
-const MAX_SLUG_SUFFIX = 99;
-
-/** Picks a unique slug given a base, fetching all colliding slugs in one query.
- *  Returns null if MAX_SLUG_SUFFIX is exhausted (caller should respond with 409). */
-async function pickUniqueCategorySlug(userId: string, baseSlug: string): Promise<string | null> {
-  const taken = new Set(
-    (await prisma.deviceCategory.findMany({
-      where: { userId, slug: { startsWith: baseSlug } },
-      select: { slug: true },
-    })).map((c) => c.slug),
-  );
-  if (!taken.has(baseSlug)) return baseSlug;
-  for (let i = 2; i <= MAX_SLUG_SUFFIX; i++) {
-    const candidate = `${baseSlug}-${i}`.slice(0, CATEGORY_SLUG_MAX_LENGTH);
-    if (!taken.has(candidate)) return candidate;
-  }
-  return null;
-}
+import { CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT } from "@/lib/queries";
 
 /** GET /api/categories — list current user's DeviceCategories.
  *  Admin may pass ?userId=<id> to fetch another user's categories.
@@ -53,23 +28,8 @@ export async function GET(req: NextRequest) {
 
   const categories = await prisma.deviceCategory.findMany({
     where: { userId },
-    orderBy: [{ isBuiltIn: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      color: true,
-      icon: true,
-      isBuiltIn: true,
-      trackingEnabled: true,
-      requirePhoto: true,
-      allowVorgaben: true,
-      sortOrder: true,
-      createdAt: true,
-      // Dieselbe Zählung wie Dashboard und Kategorie-Seite — ein dritter `deviceCount` mit eigener
-      // Regel wäre genau der Widerspruch, gegen den die beiden anderen angeglichen wurden.
-      _count: { select: { ...COUNTABLE_DEVICES_SELECT, vorgaben: true } },
-    },
+    orderBy: [...CATEGORY_LIST_ORDER],
+    select: CATEGORY_LIST_SELECT,
   });
 
   return NextResponse.json(
@@ -118,23 +78,8 @@ export async function POST(req: NextRequest) {
     elevated = access.elevated;
   }
 
-  // Die drei Regeln (siehe categories/[id]/route.ts) auch beim ANLEGEN nur vom Keyholder: sonst wäre
-  // die Schranke dort umgehbar, indem man die Kategorie gleich mit abgeschalteter Zeiterfassung
-  // anlegt. Geprüft wird wieder die ABWEICHUNG vom Standard, nicht die Anwesenheit — ein Formular,
-  // das seinen Vorgabe-Zustand mitschickt, darf davon nicht getroffen werden.
-  const rules = resolveCategoryRuleChanges(body, CATEGORY_RULE_DEFAULTS, { isBuiltIn: false, elevated });
-  if (!rules.ok) return errorResponse(rules.status, rules.code);
-
   const validationError = validateCategoryInput({ name, color, icon });
   if (validationError) return NextResponse.json({ error: validationError.error }, { status: 400 });
-
-  const baseSlug = slugifyCategoryName((name as string).trim()) || "category";
-  const slug = await pickUniqueCategorySlug(userId, baseSlug);
-  if (!slug) {
-    return NextResponse.json({ error: "Zu viele Kategorien mit ähnlichem Namen" }, { status: 409 });
-  }
-  const slugError = validateCategoryInput({ slug });
-  if (slugError) return NextResponse.json({ error: slugError.error }, { status: 400 });
 
   // Prosa wie die Prüfungen darüber: diese Route gibt anzeigbare Meldungen zurück, der Aufrufer
   // rendert sie unverändert (`parseApiError`). Ein Code stünde dem Nutzer roh im Fehlerfeld.
@@ -142,21 +87,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Gerätename zu lang (max. ${DEVICE_NAME_MAX_LENGTH} Zeichen)` }, { status: 400 });
   }
 
-  const created = await prisma.deviceCategory.create({
-    data: {
-      userId,
-      name: (name as string).trim(),
-      slug,
-      color: (color as string | undefined) ?? DEFAULT_USER_CATEGORY_COLOR,
-      icon: (icon as string | undefined) ?? DEFAULT_USER_CATEGORY_ICON,
-      isBuiltIn: false,
-      ...CATEGORY_RULE_DEFAULTS,
-      ...rules.data,
-      sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
-      // Verschachtelt statt in einer eigenen Transaktion: Prisma schreibt beides atomar, und eine
-      // Kategorie, deren Gerät nicht entstand, wäre genau die Sackgasse, gegen die das Feld gebaut ist.
-      ...(firstDeviceName ? { devices: { create: { userId, name: firstDeviceName } } } : {}),
+  // Regel-Prüfung, Slug-Vergabe und Anlegen liegen im Service — dieselbe Kette bedient den
+  // MCP-Write. Die drei Regeln darf auch beim ANLEGEN nur der Keyholder setzen: sonst wäre die
+  // Schranke beim Ändern umgehbar, indem man die Kategorie gleich mit abgeschalteter
+  // Zeiterfassung anlegt.
+  const created = await createCategory(
+    prisma,
+    userId,
+    {
+      name: name as string,
+      color: color as string | undefined,
+      icon: icon as string | undefined,
+      sortOrder: typeof sortOrder === "number" ? sortOrder : undefined,
+      firstDeviceName,
     },
-  });
-  return NextResponse.json(created, { status: 201 });
+    { elevated },
+    body,
+  );
+  if (!created.ok) {
+    if (created.reason === "rules") return errorResponse(created.status, created.code);
+    if (created.reason === "slug-exhausted") {
+      return NextResponse.json({ error: "Zu viele Kategorien mit ähnlichem Namen" }, { status: 409 });
+    }
+    return NextResponse.json({ error: created.error }, { status: 400 });
+  }
+  return NextResponse.json(created.category, { status: 201 });
 }

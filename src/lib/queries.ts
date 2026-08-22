@@ -422,6 +422,27 @@ export async function getActiveWearSessionForCategory(
  */
 export const COUNTABLE_DEVICES_SELECT = { devices: { where: { archivedAt: null } } } as const;
 
+/**
+ * Die Kategorie-Liste eines Kontos — Felder und Reihenfolge, wie sie ÜBERALL erscheint:
+ * Kategorien-Seite, `GET /api/categories` und `get_devices` (MCP).
+ *
+ * Als Fragment aus demselben Grund wie `COUNTABLE_DEVICES_SELECT` direkt darüber: die drei Selects
+ * standen Feld für Feld dreimal da, inklusive der Zählungen — und genau diese Zählung ist zwischen
+ * zwei der drei schon einmal auseinandergelaufen (Issue #49). Eine neue Spalte oder eine neue Regel
+ * an der Kategorie gehört jetzt an EINE Stelle.
+ *
+ * Die eingebaute Kategorie steht immer zuoberst, danach die eigene Sortierung.
+ */
+export const CATEGORY_LIST_SELECT = {
+  id: true, name: true, slug: true, color: true, icon: true, isBuiltIn: true,
+  trackingEnabled: true, requirePhoto: true, allowVorgaben: true, sortOrder: true, createdAt: true,
+  _count: { select: { ...COUNTABLE_DEVICES_SELECT, vorgaben: true } },
+} as const;
+
+export const CATEGORY_LIST_ORDER = [
+  { isBuiltIn: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" },
+] as const;
+
 /** Returns non-KG device categories with tracking enabled, ordered by sortOrder then createdAt. */
 export async function getNonKgTrackingCategories(userId: string) {
   const rows = await prisma.deviceCategory.findMany({

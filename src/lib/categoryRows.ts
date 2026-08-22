@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { SESSION_ENTRY_SELECT, COUNTABLE_DEVICES_SELECT, getUserTimezone, getNonKgTrackingCategories, getActiveWearSessions } from "@/lib/queries";
+import { SESSION_ENTRY_SELECT, CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT, getUserTimezone, getNonKgTrackingCategories, getActiveWearSessions } from "@/lib/queries";
 import { buildKgWearPairs, wearingHoursFromPairs, getWeekStart } from "@/lib/utils";
 import { buildWearSessions, isLiveOpenSession, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { deviceCategoriesEnabled } from "@/lib/constants";
@@ -25,26 +25,13 @@ import type { NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
  */
 export async function buildCategoryRows(userId: string, now: Date): Promise<CategoryRow[]> {
   const [categories, entries, tz] = await Promise.all([
+    // Zählung + Reihenfolge kommen aus dem geteilten Fragment: vorher zählte diese Seite auch
+    // archivierte Geräte — war das einzige Gerät archiviert, wies das Dashboard die Kategorie als
+    // unfertig aus, während hier daneben „1 Device" stand (Issue #49).
     prisma.deviceCategory.findMany({
       where: { userId },
-      orderBy: [{ isBuiltIn: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        color: true,
-        icon: true,
-        isBuiltIn: true,
-        trackingEnabled: true,
-        requirePhoto: true,
-        allowVorgaben: true,
-        sortOrder: true,
-        createdAt: true,
-        // Dieselbe Zählung wie im Dashboard. Vorher zählte diese Seite auch archivierte Geräte:
-        // war das einzige Gerät archiviert, wies das Dashboard die Kategorie als unfertig aus,
-        // während hier daneben „1 Device" stand — wer dem Hinweis folgte, fand die Gegenaussage.
-        _count: { select: { ...COUNTABLE_DEVICES_SELECT, vorgaben: true } },
-      },
+      orderBy: [...CATEGORY_LIST_ORDER],
+      select: CATEGORY_LIST_SELECT,
     }),
     prisma.entry.findMany({
       where: { userId, type: { in: ["VERSCHLUSS", "OEFFNEN", "WEAR_BEGIN", "WEAR_END"] } },

@@ -329,9 +329,15 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "device-manage", mechanic: "Geräte", title: "Geräte verwalten",
     what: "Anlegen, benennen, beschreiben, einer Kategorie zuordnen und archivieren.",
-    actors: ["sub", "admin"], surfaces: ["sub-ui", "admin-ui"],
-    routes: ["/api/devices", "/api/devices/[id]"], tools: ["get_devices"],
+    actors: ["sub", "admin", "mcp"], surfaces: ["sub-ui", "admin-ui", "mcp"],
+    routes: ["/api/devices", "/api/devices/[id]"], tools: ["get_devices", "upsert_device"],
     note: "Die Code-Pflicht je Gerät darf nur der Keyholder umlegen.",
+  }),
+  c({
+    id: "device-delete", mechanic: "Geräte", title: "Gerät wegräumen",
+    what: "Löscht das Gerät hart, solange kein Eintrag daran hängt — sonst wird es nur archiviert, damit die Historie bleibt.",
+    actors: ["sub", "admin", "mcp"], surfaces: ["sub-ui", "admin-ui", "mcp"], tools: ["delete_device"],
+    note: "Das harte Löschen nimmt Geräte- und Referenzfotos mit; die Vorschau sagt vorher, welcher der beiden Fälle eintritt.",
   }),
   c({
     id: "device-meta", mechanic: "Geräte", title: "Geräte-Beurteilung hinterlegen",
@@ -354,9 +360,15 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "category-manage", mechanic: "Geräte", title: "Kategorien verwalten",
     what: "Anlegen, benennen, einfärben und sortieren. Die drei Regeln — Zeiterfassung, Pflichtfoto, Trainingsziele erlaubt — darf nur der Keyholder umlegen.",
-    actors: ["sub", "admin"], surfaces: ["sub-ui", "admin-ui"],
-    routes: ["/api/categories", "/api/categories/[id]"],
-    note: "Die eingebaute Kategorie lässt sich nicht löschen, und ihre drei Regeln sind für niemanden änderbar.",
+    actors: ["sub", "admin", "mcp"], surfaces: ["sub-ui", "admin-ui", "mcp"],
+    routes: ["/api/categories", "/api/categories/[id]"], tools: ["upsert_category"],
+    note: "Die eingebaute Kategorie lässt sich nicht löschen, und ihre drei Regeln sind für niemanden änderbar. Kategorien führen kein Versions-Token — hier gilt last write wins.",
+  }),
+  c({
+    id: "category-delete", mechanic: "Geräte", title: "Kategorie löschen",
+    what: "Entfernt eine Kategorie endgültig — nur, solange weder Geräte noch Trainingsziele darauf verweisen.",
+    actors: ["sub", "admin", "mcp"], surfaces: ["sub-ui", "admin-ui", "mcp"], tools: ["delete_category"],
+    note: "Archivierte Geräte und soft-gelöschte Trainingsziele blockieren mit — sonst verlöre deren Historie still die Zuordnung.",
   }),
   c({
     id: "device-detect", mechanic: "Geräte", title: "Gerät im Foto vorschlagen",

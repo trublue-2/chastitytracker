@@ -74,7 +74,7 @@ Steckbrief: [30-kontrollen.md](30-kontrollen.md)
 | `KontrollAnforderung.kommentar` | String? | — | je Direktive | Begleittext an den Sub. | Keyholder (UI), Keyholder (MCP) | Nachrichten | — |
 | `KontrollAnforderung.deadline` | DateTime | (keiner) | je Direktive | Erfüllungsfrist. Nach Ablauf verschwindet die Kontrolle nicht, sie wird überfällig — und ist der Startpunkt der Eskalation. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Strafbuch | `inspectionEscalationService.ts` |
 | `KontrollAnforderung.wirksamAb` | DateTime? | — | je Direktive | Terminierte Zustellung; bis dahin für den Sub unsichtbar und ohne laufende Frist. Auch der Weg, auf dem der Tagesplan vorab angelegt wird. | Keyholder (UI), Keyholder (MCP), System | Kontrollen, Auto-Kontrollen | — |
-| `Device.requireInspectionCode` | Boolean | `true` | dauerhaft | Verlangt eine Kontrolle mit DIESEM Gerät den handschriftlichen Code im Foto? Aus: die Erfüllung läuft über die eine offene Anforderung statt über den Code-Vergleich. | Keyholder (UI) | Kontrollen | `kontrolleService.ts` |
+| `Device.requireInspectionCode` | Boolean | `true` | dauerhaft | Verlangt eine Kontrolle mit DIESEM Gerät den handschriftlichen Code im Foto? Aus: die Erfüllung läuft über die eine offene Anforderung statt über den Code-Vergleich. | Keyholder (UI), Keyholder (MCP) | Kontrollen | `kontrolleService.ts` |
 
 ## Orgasmus-Direktive
 
@@ -149,17 +149,17 @@ Steckbrief: [55-geraete.md](55-geraete.md)
 
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
-| `DeviceCategory.name` | String | (keiner) | dauerhaft | Anzeigename der Kategorie; frei änderbar, der `slug` bleibt. | Sub, Keyholder (UI) | Oberfläche | — |
-| `DeviceCategory.color` | String | (keiner) | dauerhaft | Farbmarke der Kategorie (CSS-Variablen-Suffix). | Sub, Keyholder (UI) | Oberfläche | — |
-| `DeviceCategory.icon` | String | (keiner) | dauerhaft | Symbol der Kategorie (lucide-Name). | Sub, Keyholder (UI) | Oberfläche | — |
-| `DeviceCategory.trackingEnabled` | Boolean | `true` | dauerhaft | Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung. Bei der eingebauten Kategorie unveränderlich. | Keyholder (UI) | Sessions/Statistik, Geräte, Einträge | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
-| `DeviceCategory.requirePhoto` | Boolean | `false` | dauerhaft | Ein Trage-Beginn dieser Kategorie verlangt ein Bild. Bei der eingebauten Kategorie unveränderlich. | Keyholder (UI) | Einträge, Geräte | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
-| `DeviceCategory.allowVorgaben` | Boolean | `true` | dauerhaft | Aus = die Kategorie lässt sich in keinem Trainingsziel verwenden — deshalb Keyholder-Feld: der Träger könnte sonst das Ziel aus der Hand nehmen. Bei der eingebauten Kategorie unveränderlich. | Keyholder (UI) | Trainingsziele | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
-| `DeviceCategory.sortOrder` | Int | `0` | dauerhaft | Reihenfolge in Listen und Auswahlfeldern. | Sub, Keyholder (UI) | Oberfläche | — |
-| `Device.categoryId` | String? | — | dauerhaft | Zuordnung zur Kategorie — entscheidet, welche Kategorie-Regeln (Tracking, Pflichtfoto, Trainingsziele) für dieses Gerät gelten. | Sub, Keyholder (UI) | Geräte, Kontrollen, Trainingsziele, Sessions/Statistik | — |
-| `Device.name` | String | (keiner) | dauerhaft | Anzeigename. Geht zusätzlich in die Geräte-Erkennung ein, zusammen mit den Bildern und den drei optischen Feldern. | Sub, Keyholder (UI) | Geräte, Oberfläche | — |
-| `Device.description` | String? | — | dauerhaft | Freitext — und eines der drei optischen Felder, die in die Geräte-Erkennung eingehen. Prosa über das Tragegefühl verwässert sie hier; die gehört in die Sitz-Notizen. | Sub, Keyholder (UI) | Geräte, Oberfläche | `deviceReferenceService.ts:visualTraitsOf` |
-| `Device.archivedAt` | DateTime? | — | dauerhaft | Soft-Delete: gesetzt = archiviert, aus Auswahllisten raus, Historie bleibt. | Sub, Keyholder (UI) | Geräte, Sessions/Statistik | — |
+| `DeviceCategory.name` | String | (keiner) | dauerhaft | Anzeigename der Kategorie; frei änderbar, der `slug` bleibt. | Sub, Keyholder (UI), Keyholder (MCP) | Oberfläche | — |
+| `DeviceCategory.color` | String | (keiner) | dauerhaft | Farbmarke der Kategorie (CSS-Variablen-Suffix). | Sub, Keyholder (UI), Keyholder (MCP) | Oberfläche | — |
+| `DeviceCategory.icon` | String | (keiner) | dauerhaft | Symbol der Kategorie (lucide-Name). | Sub, Keyholder (UI), Keyholder (MCP) | Oberfläche | — |
+| `DeviceCategory.trackingEnabled` | Boolean | `true` | dauerhaft | Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung. Bei der eingebauten Kategorie unveränderlich. | Keyholder (UI), Keyholder (MCP) | Sessions/Statistik, Geräte, Einträge | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
+| `DeviceCategory.requirePhoto` | Boolean | `false` | dauerhaft | Ein Trage-Beginn dieser Kategorie verlangt ein Bild. Bei der eingebauten Kategorie unveränderlich. | Keyholder (UI), Keyholder (MCP) | Einträge, Geräte | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
+| `DeviceCategory.allowVorgaben` | Boolean | `true` | dauerhaft | Aus = die Kategorie lässt sich in keinem Trainingsziel verwenden — deshalb Keyholder-Feld: der Träger könnte sonst das Ziel aus der Hand nehmen. Bei der eingebauten Kategorie unveränderlich. | Keyholder (UI), Keyholder (MCP) | Trainingsziele | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
+| `DeviceCategory.sortOrder` | Int | `0` | dauerhaft | Reihenfolge in Listen und Auswahlfeldern. | Sub, Keyholder (UI), Keyholder (MCP) | Oberfläche | — |
+| `Device.categoryId` | String? | — | dauerhaft | Zuordnung zur Kategorie — entscheidet, welche Kategorie-Regeln (Tracking, Pflichtfoto, Trainingsziele) für dieses Gerät gelten. | Sub, Keyholder (UI), Keyholder (MCP) | Geräte, Kontrollen, Trainingsziele, Sessions/Statistik | `deviceCategoryService.ts:resolveOwnedCategory` |
+| `Device.name` | String | (keiner) | dauerhaft | Anzeigename. Geht zusätzlich in die Geräte-Erkennung ein, zusammen mit den Bildern und den drei optischen Feldern. | Sub, Keyholder (UI), Keyholder (MCP) | Geräte, Oberfläche | — |
+| `Device.description` | String? | — | dauerhaft | Freitext — und eines der drei optischen Felder, die in die Geräte-Erkennung eingehen. Prosa über das Tragegefühl verwässert sie hier; die gehört in die Sitz-Notizen. | Sub, Keyholder (UI), Keyholder (MCP) | Geräte, Oberfläche | `deviceReferenceService.ts:visualTraitsOf` |
+| `Device.archivedAt` | DateTime? | — | dauerhaft | Soft-Delete: gesetzt = archiviert, aus Auswahllisten raus, Historie bleibt. | Sub, Keyholder (UI), Keyholder (MCP) | Geräte, Sessions/Statistik | — |
 | `Device.securityLevel` | String? | — | dauerhaft | SECURING oder TRUST_ONLY — Einordnung für die Keyholder-Entscheidung. Wird nirgends durchgesetzt. | Keyholder (MCP) | MCP | `mcp/devices.ts:set_device_meta` |
 | `Device.lookalikeClusterId` | String? | — | dauerhaft · **rückwirkend** | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen. | Keyholder (MCP) | Geräte, Sessions/Statistik, Strafbuch | `mcp/devices.ts:set_device_meta` |
 | `Device.pullOffRisk` | Boolean? | — | dauerhaft | Abstreifbar? `null` = nie beurteilt, nicht „sicher“. Reine Beurteilung ohne Durchsetzung. | Keyholder (MCP) | MCP | `mcp/devices.ts:set_device_meta` |

@@ -1,4 +1,5 @@
 import type { EntryValidationCode } from "@/lib/entryErrors";
+import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import type { TaskState } from "@/lib/tasks";
 
 export const VALID_LOCALES = ["de", "en"] as const;
@@ -595,6 +596,52 @@ export type Currency = typeof VALID_CURRENCIES[number];
 
 export const DEVICE_NAME_MAX_LENGTH = 60;
 export const DEVICE_DESCRIPTION_MAX_LENGTH = 500;
+
+/** Die Codes, die {@link validateDeviceInput} liefern kann — eine Teilmenge der `DEVICE_CODES` aus
+ *  dem Service-Register, an dem die Übersetzungen hängen. Das `satisfies` hält sie daran gebunden:
+ *  ein Tippfehler oder ein Code ohne Registry-Eintrag ist ein Compile-Fehler statt eines
+ *  unübersetzten Tokens im Fehlerfeld. */
+const DEVICE_VALIDATION_CODES = [
+  "DEVICE_NAME_REQUIRED", "DEVICE_NAME_TOO_LONG", "DEVICE_DESCRIPTION_TOO_LONG",
+  "DEVICE_INVALID_PRICE", "DEVICE_INVALID_CURRENCY", "DEVICE_CURRENCY_REQUIRED",
+] as const satisfies readonly ServiceErrorCode[];
+export type DeviceValidationCode = typeof DEVICE_VALIDATION_CODES[number];
+
+/**
+ * Prüft die Felder eines Geräts und liefert den ERSTEN Verstoss — oder `null`.
+ *
+ * Die eine Stelle für `POST /api/devices`, `PATCH /api/devices/[id]` und den MCP-Write: die Kette
+ * stand dreimal da und war bereits auseinander (die eine Fassung liess `NaN` als Preis durch, weil
+ * `NaN < 0` falsch ist). Vorbild ist `validateCategoryInput` — nur gibt diese hier einen CODE
+ * zurück, weil die Geräte-Routen ihre Fehler übersetzt ausliefern.
+ *
+ * `undefined` heisst „Feld nicht angegeben" und wird übersprungen — ein PATCH, der nur den Preis
+ * ändert, darf nicht am Bestandsnamen scheitern. Preis und Währung müssen dagegen als EFFEKTIVE
+ * Werte kommen (beim Ändern also mit dem Bestand verschmolzen): „ein Preis braucht eine Währung"
+ * ist eine Aussage über den Zustand NACH der Änderung, nicht über den Aufruf.
+ */
+export function validateDeviceInput(input: {
+  name?: unknown;
+  description?: unknown;
+  purchasePrice?: unknown;
+  currency?: unknown;
+}): DeviceValidationCode | null {
+  if (input.name !== undefined) {
+    if (typeof input.name !== "string" || !input.name.trim()) return "DEVICE_NAME_REQUIRED";
+    if (input.name.trim().length > DEVICE_NAME_MAX_LENGTH) return "DEVICE_NAME_TOO_LONG";
+  }
+  if (typeof input.description === "string" && input.description.length > DEVICE_DESCRIPTION_MAX_LENGTH) {
+    return "DEVICE_DESCRIPTION_TOO_LONG";
+  }
+  if (input.purchasePrice != null && (typeof input.purchasePrice !== "number" || !Number.isFinite(input.purchasePrice) || input.purchasePrice < 0)) {
+    return "DEVICE_INVALID_PRICE";
+  }
+  if (input.currency != null && !(VALID_CURRENCIES as readonly unknown[]).includes(input.currency)) {
+    return "DEVICE_INVALID_CURRENCY";
+  }
+  if (input.purchasePrice != null && !input.currency) return "DEVICE_CURRENCY_REQUIRED";
+  return null;
+}
 
 // ── Rotation ────────────────────────────────────────────────────────────────
 

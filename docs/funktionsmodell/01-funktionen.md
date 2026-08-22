@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-88 Funktionen über 17 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+90 Funktionen über 17 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -137,11 +137,13 @@ Steckbrief: [55-geraete.md](55-geraete.md)
 
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
-| **Geräte verwalten** | Anlegen, benennen, beschreiben, einer Kategorie zuordnen und archivieren. <br>*Die Code-Pflicht je Gerät darf nur der Keyholder umlegen.* | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/devices` `/api/devices/[id]` `get_devices` |
+| **Geräte verwalten** | Anlegen, benennen, beschreiben, einer Kategorie zuordnen und archivieren. <br>*Die Code-Pflicht je Gerät darf nur der Keyholder umlegen.* | Sub, Keyholder (UI), Keyholder (MCP) | App (Träger), App (Keyholder), MCP | `/api/devices` `/api/devices/[id]` `get_devices` `upsert_device` |
+| **Gerät wegräumen** | Löscht das Gerät hart, solange kein Eintrag daran hängt — sonst wird es nur archiviert, damit die Historie bleibt. <br>*Das harte Löschen nimmt Geräte- und Referenzfotos mit; die Vorschau sagt vorher, welcher der beiden Fälle eintritt.* | Sub, Keyholder (UI), Keyholder (MCP) | App (Träger), App (Keyholder), MCP | `delete_device` |
 | **Geräte-Beurteilung hinterlegen** | Sicherheitsstufe, Abstreif-Risiko und Lookalike-Cluster — Einordnungen für die Keyholder-Entscheidung. <br>*Ein Lookalike-Cluster rechnet die Geräte-Zuordnung historischer Sessions rückwirkend neu.* | Keyholder (MCP) | MCP | `set_device_meta` |
 | **Referenzbilder pflegen** | Kuratiert das Bildmaterial, mit dem die Geräte-Erkennung arbeitet. | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/devices/[id]/references` `/api/devices/[id]/references/[refId]` |
 | **Referenzbilder aus Einträgen übernehmen** | Übernimmt jüngere Verschluss-Fotos als Referenzbilder, als Dateikopie. | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/devices/[id]/references/import-recent` |
-| **Kategorien verwalten** | Anlegen, benennen, einfärben und sortieren. Die drei Regeln — Zeiterfassung, Pflichtfoto, Trainingsziele erlaubt — darf nur der Keyholder umlegen. <br>*Die eingebaute Kategorie lässt sich nicht löschen, und ihre drei Regeln sind für niemanden änderbar.* | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/categories` `/api/categories/[id]` |
+| **Kategorien verwalten** | Anlegen, benennen, einfärben und sortieren. Die drei Regeln — Zeiterfassung, Pflichtfoto, Trainingsziele erlaubt — darf nur der Keyholder umlegen. <br>*Die eingebaute Kategorie lässt sich nicht löschen, und ihre drei Regeln sind für niemanden änderbar. Kategorien führen kein Versions-Token — hier gilt last write wins.* | Sub, Keyholder (UI), Keyholder (MCP) | App (Träger), App (Keyholder), MCP | `/api/categories` `/api/categories/[id]` `upsert_category` |
+| **Kategorie löschen** | Entfernt eine Kategorie endgültig — nur, solange weder Geräte noch Trainingsziele darauf verweisen. <br>*Archivierte Geräte und soft-gelöschte Trainingsziele blockieren mit — sonst verlöre deren Historie still die Zuordnung.* | Sub, Keyholder (UI), Keyholder (MCP) | App (Träger), App (Keyholder), MCP | `delete_category` |
 | **Gerät im Foto vorschlagen** | Schlägt beim Erfassen anhand des Bildes das getragene Gerät vor. | Sub | App (Träger) | `/api/detect-device` |
 | **Geräte-Abgleich beim Kontroll-Foto** | Vergleicht nach dem Einreichen das Bild mit den Referenzbildern des deklarierten Geräts. <br>*Beratend: ein Abweichen ist KEIN Vergehen — das entsteht nur aus einer Anforderung.* | System | läuft von selbst | — |
 

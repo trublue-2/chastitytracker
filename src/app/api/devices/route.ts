@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { entryManageAccess } from "@/lib/keyholder";
 import { prisma } from "@/lib/prisma";
-import { isValidImageUrl, VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
+import { isValidImageUrl, validateDeviceInput } from "@/lib/constants";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
 
@@ -74,27 +74,14 @@ export async function POST(req: NextRequest) {
     elevated = access.elevated;
   }
 
-  // Validation
-  if (!name || typeof name !== "string" || !name.trim()) {
-    return errorResponse(400, "DEVICE_NAME_REQUIRED");
-  }
-  if (name.trim().length > DEVICE_NAME_MAX_LENGTH) {
-    return errorResponse(400, "DEVICE_NAME_TOO_LONG");
-  }
-  if (description && typeof description === "string" && description.length > DEVICE_DESCRIPTION_MAX_LENGTH) {
-    return errorResponse(400, "DEVICE_DESCRIPTION_TOO_LONG");
-  }
+  // Feld-Prüfung im Service — dieselbe Kette bedient die PATCH-Route und den MCP-Write. Beim
+  // Anlegen sind die Body-Werte zugleich die effektiven (es gibt keinen Bestand zu erben).
+  // `name ?? null` statt `name`: `undefined` hiesse in der Prüfung „Feld nicht angegeben" und würde
+  // übersprungen — beim ANLEGEN ist ein fehlender Name aber genau der Fehler.
+  const invalid = validateDeviceInput({ name: name ?? null, description, purchasePrice, currency: currency || undefined });
+  if (invalid) return errorResponse(400, invalid);
   if (!isValidImageUrl(imageUrl)) {
     return errorResponse(400, "INVALID_IMAGE_URL");
-  }
-  if (purchasePrice != null && (typeof purchasePrice !== "number" || purchasePrice < 0)) {
-    return errorResponse(400, "DEVICE_INVALID_PRICE");
-  }
-  if (currency && !(VALID_CURRENCIES as readonly string[]).includes(currency)) {
-    return errorResponse(400, "DEVICE_INVALID_CURRENCY");
-  }
-  if (purchasePrice != null && !currency) {
-    return errorResponse(400, "DEVICE_CURRENCY_REQUIRED");
   }
   // Die Kontroll-Code-Pflicht ist KEIN Selbst-Feld — dieselbe Schranke wie beim Bearbeiten
   // (siehe PATCH): sie abzuschalten schwächt eine Kontrolle. Fehlt sie im Body, greift der

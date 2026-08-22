@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.2.7",
+    "date": "2026-08-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die KI-Keyholderin kann Geräte und Kategorien jetzt selbst anlegen, ändern und wegräumen. Bisher konnte sie das Inventar nur lesen.",
+          "en": "The AI keyholder can now create, edit and remove devices and categories herself. Until now she could only read the inventory."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.2.6",
     "date": "2026-08-21",
     "changes": [
