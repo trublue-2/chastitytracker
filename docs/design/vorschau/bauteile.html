@@ -1,0 +1,231 @@
+<!doctype html><html lang='de'><head><meta charset='utf-8'><title>bauteile</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: Archivo, system-ui, sans-serif; background: #0b0609; }
+    a { color: #ff5c7a; } a:hover { color: #ff8ba0; }
+    .sw { height: 56px; border-radius: 8px; display: flex; align-items: flex-end; padding: 8px; box-sizing: border-box; }
+    .swl { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; }
+    .lbl { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #9a868e; }
+    .cap { font-size: 12px; color: #9a868e; line-height: 1.5; margin-top: 8px; }
+    .box { border-top: 1px solid rgba(255,255,255,0.09); padding-top: 22px; margin-top: 34px; }
+  </style>
+<style>body{background:#000;display:flex;justify-content:center;}</style></head><body>
+
+<div style="width: 760px; background: #0b0609; box-sizing: border-box; color: #fdf7f8; padding: 36px 34px 44px;">
+
+  <div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 32px; letter-spacing: -0.01em;">Bauteile und Regeln</div>
+  <div style="font-size: 14px; color: #c9b7bd; margin-top: 10px; line-height: 1.6; max-width: 60ch;">Drei Farben mit je einer Bedeutung, eine Textskala, ein Raster. Alles darunter ist neutral.</div>
+
+  <!-- FARBE -->
+  <div class="box">
+    <div class="lbl">Farbe</div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px;">
+      <div>
+        <div class="sw" style="background: #ff3d68;"><span class="swl" style="color: #3d0518;">#ff3d68</span></div>
+        <div style="font-size: 14px; font-weight: 600; margin-top: 10px;">Rosa — der Zustand</div>
+        <div class="cap">Verschlossen, laufend, aktiv. Die Identität des Produkts. Erscheint auf jedem Bildschirm genau einmal gross.</div>
+      </div>
+      <div>
+        <div class="sw" style="background: #e8b44a;"><span class="swl" style="color: #3d2a05;">#e8b44a</span></div>
+        <div style="font-size: 14px; font-weight: 600; margin-top: 10px;">Gold — die Auszeichnung</div>
+        <div class="cap">Ziel erreicht, Rekord, orgasmusfreie Zeit. Selten, deshalb wirksam.</div>
+      </div>
+      <div>
+        <div class="sw" style="background: #ff8a5c;"><span class="swl" style="color: #451605;">#ff8a5c</span></div>
+        <div style="font-size: 14px; font-weight: 600; margin-top: 10px;">Koralle — die Aufmerksamkeit</div>
+        <div class="cap">Zu spät, Vergehen, Frist läuft ab. Nie dekorativ, immer eine Aufforderung.</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 24px;">
+      <div><div class="sw" style="background: #0b0609; border: 1px solid rgba(255,255,255,0.12); height: 44px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 7px;">Grund</div></div>
+      <div><div class="sw" style="background: #140d10; height: 44px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 7px;">Erhöht</div></div>
+      <div><div class="sw" style="background: #241a1e; height: 44px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 7px;">Feld</div></div>
+      <div><div class="sw" style="background: #9a868e; height: 44px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 7px;">Text leise</div></div>
+      <div><div class="sw" style="background: #c9b7bd; height: 44px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 7px;">Text mitte</div></div>
+      <div><div class="sw" style="background: #fdf7f8; height: 44px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 7px;">Text hoch</div></div>
+    </div>
+    <div class="cap" style="margin-top: 14px;">Alle drei Textstufen erreichen auf dem Grund mindestens 4,5:1. Die vorherige Fassung lag bei „leise“ auf 3:1 — deshalb wirkte sie flau.</div>
+  </div>
+
+  <!-- INTENSITÄT -->
+  <div class="box">
+    <div class="lbl">Intensität — Helligkeit statt Farbton</div>
+    <div style="display: flex; gap: 5px; margin-top: 16px; align-items: flex-end;">
+      <div style="flex-grow: 1;"><div style="height: 40px; background: #1a1013; border-radius: 5px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 8px; text-align: center;">0</div></div>
+      <div style="flex-grow: 1;"><div style="height: 40px; background: #4a1226; border-radius: 5px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 8px; text-align: center;">&lt;25</div></div>
+      <div style="flex-grow: 1;"><div style="height: 40px; background: #7a1836; border-radius: 5px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 8px; text-align: center;">25–40</div></div>
+      <div style="flex-grow: 1;"><div style="height: 40px; background: #a11f45; border-radius: 5px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 8px; text-align: center;">40–65</div></div>
+      <div style="flex-grow: 1;"><div style="height: 40px; background: #ff3d68; border-radius: 5px;"></div><div style="font-size: 11px; color: #9a868e; margin-top: 8px; text-align: center;">&gt;65 %</div></div>
+    </div>
+    <div class="cap">Eine einzige Rampe für jede Mengenangabe — Kalender, Balken, Ringe. Wer sie einmal versteht, versteht sie überall. Fünf Blautöne, die „getragen“ bedeuten sollen, während Blau anderswo „geöffnet“ heisst, gibt es nicht mehr.</div>
+  </div>
+
+  <!-- SCHRIFT -->
+  <div class="box">
+    <div class="lbl">Schrift</div>
+    <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 18px;">
+      <div style="display: flex; align-items: baseline; gap: 22px;">
+        <div style="width: 120px; flex-shrink: 0; font-size: 11px; color: #9a868e;">Zahl gross</div>
+        <div style="font-size: 60px; font-weight: 600; letter-spacing: -0.05em; line-height: 1; font-variant-numeric: tabular-nums;">5:40:16</div>
+        <div style="font-size: 11px; color: #9a868e; margin-left: auto;">60 / 600 / −5 %</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 22px;">
+        <div style="width: 120px; flex-shrink: 0; font-size: 11px; color: #9a868e;">Titel</div>
+        <div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 32px; line-height: 1.1;">54 Tage verschlossen</div>
+        <div style="font-size: 11px; color: #9a868e; margin-left: auto;">Serif 32</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 22px;">
+        <div style="width: 120px; flex-shrink: 0; font-size: 11px; color: #9a868e;">Zeile</div>
+        <div style="font-size: 16px; font-weight: 500;">Kontrollen</div>
+        <div style="font-size: 11px; color: #9a868e; margin-left: auto;">16 / 500</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 22px;">
+        <div style="width: 120px; flex-shrink: 0; font-size: 11px; color: #9a868e;">Fliesstext</div>
+        <div style="font-size: 14px; color: #c9b7bd; line-height: 1.6;">Nackt bis auf Gürtel, Halsband und Knebel.</div>
+        <div style="font-size: 11px; color: #9a868e; margin-left: auto;">14 / 400</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 22px;">
+        <div style="width: 120px; flex-shrink: 0; font-size: 11px; color: #9a868e;">Nebeninfo</div>
+        <div style="font-size: 12px; color: #9a868e;">seit 21. August, 15:49</div>
+        <div style="font-size: 11px; color: #9a868e; margin-left: auto;">12 / 400</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 22px;">
+        <div style="width: 120px; flex-shrink: 0; font-size: 11px; color: #9a868e;">Rubrik</div>
+        <div class="lbl">Kontrollen</div>
+        <div style="font-size: 11px; color: #9a868e; margin-left: auto;">11 / +16 %</div>
+      </div>
+    </div>
+    <div class="cap">Serif nur für Überschriften und die Wortmarke. Zahlen immer tabellarisch — sonst springt die laufende Uhr bei jeder Sekunde.</div>
+  </div>
+
+  <!-- ZUSTANDS-MARKEN -->
+  <div class="box">
+    <div class="lbl">Marken</div>
+    <div style="display: flex; gap: 9px; flex-wrap: wrap; margin-top: 18px;">
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #ff5c7a; background: rgba(255,61,104,0.13); border-radius: 8px; padding: 6px 12px;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #ff3d68;"></span>verschlossen</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #e8b44a; background: rgba(232,180,74,0.13); border-radius: 8px; padding: 6px 12px;">Ziel erreicht</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #ff8a5c; background: rgba(255,138,92,0.13); border-radius: 8px; padding: 6px 12px;">19 min zu spät</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #c9b7bd; background: rgba(255,255,255,0.06); border-radius: 8px; padding: 6px 12px;">erfüllt</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #9a868e; border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 6px 12px;">nicht getragen</span>
+    </div>
+    <div class="cap">Gefüllt heisst „gilt jetzt“, umrandet heisst „gilt nicht“. Kein Rahmen um alles.</div>
+  </div>
+
+  <!-- KNÖPFE -->
+  <div class="box">
+    <div class="lbl">Knöpfe</div>
+    <div style="display: flex; gap: 12px; align-items: center; margin-top: 18px; flex-wrap: wrap;">
+      <button style="font-family: Archivo, sans-serif; font-size: 15px; font-weight: 600; color: #2b0410; background: #ff3d68; border: none; border-radius: 11px; padding: 13px 24px; cursor: pointer;">Öffnen erfassen</button>
+      <button style="font-family: Archivo, sans-serif; font-size: 15px; font-weight: 500; color: #fdf7f8; background: rgba(255,255,255,0.08); border: none; border-radius: 11px; padding: 13px 24px; cursor: pointer;">Abbrechen</button>
+      <button style="font-family: Archivo, sans-serif; font-size: 15px; font-weight: 500; color: #ff8a5c; background: none; border: 1px solid rgba(255,138,92,0.4); border-radius: 11px; padding: 13px 24px; cursor: pointer;">Vergehen notieren</button>
+      <button style="font-family: Archivo, sans-serif; font-size: 15px; font-weight: 500; color: #6b5c62; background: rgba(255,255,255,0.04); border: none; border-radius: 11px; padding: 13px 24px;">gesperrt</button>
+      <div style="width: 52px; height: 52px; border-radius: 999px; background: #ff3d68; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 28px -6px rgba(255,61,104,0.7);">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2b0410" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      </div>
+    </div>
+    <div class="cap">Genau ein gefüllter Knopf je Bildschirm. Die runde Taste ist der einzige Ort mit Leuchten.</div>
+  </div>
+
+  <!-- FELDER -->
+  <div class="box">
+    <div class="lbl">Eingaben</div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 18px;">
+      <div>
+        <div style="font-size: 13px; color: #c9b7bd; margin-bottom: 8px;">Notiz</div>
+        <div style="background: #241a1e; border: 1px solid rgba(255,255,255,0.08); border-radius: 11px; padding: 14px 15px; font-size: 15px; color: #7d6b73;">optional …</div>
+      </div>
+      <div>
+        <div style="font-size: 13px; color: #c9b7bd; margin-bottom: 8px;">Notiz <span style="color: #9a868e;">— aktiv</span></div>
+        <div style="background: #241a1e; border: 1px solid #ff3d68; border-radius: 11px; padding: 14px 15px; font-size: 15px; color: #fdf7f8; box-shadow: 0 0 0 3px rgba(255,61,104,0.16);">Siegel #48291<span style="color: #ff3d68;">|</span></div>
+      </div>
+      <div>
+        <div style="font-size: 13px; color: #c9b7bd; margin-bottom: 8px;">Auswahl</div>
+        <div style="display: flex; gap: 7px;">
+          <span style="font-size: 13px; font-weight: 500; color: #2b0410; background: #ff3d68; border-radius: 999px; padding: 8px 15px;">KG</span>
+          <span style="font-size: 13px; font-weight: 500; color: #c9b7bd; background: rgba(255,255,255,0.06); border-radius: 999px; padding: 8px 15px;">Plug</span>
+          <span style="font-size: 13px; font-weight: 500; color: #c9b7bd; background: rgba(255,255,255,0.06); border-radius: 999px; padding: 8px 15px;">Halsband</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-size: 13px; color: #c9b7bd; margin-bottom: 8px;">Schalter</div>
+        <div style="display: flex; gap: 16px; align-items: center;">
+          <div style="width: 46px; height: 27px; border-radius: 999px; background: #ff3d68; position: relative;"><span style="position: absolute; right: 3px; top: 3px; width: 21px; height: 21px; border-radius: 999px; background: #fdf7f8;"></span></div>
+          <div style="width: 46px; height: 27px; border-radius: 999px; background: rgba(255,255,255,0.11); position: relative;"><span style="position: absolute; left: 3px; top: 3px; width: 21px; height: 21px; border-radius: 999px; background: #9a868e;"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">Felder sind Flächen, keine Rahmen — der Rahmen kommt erst beim Tippen, zusammen mit einem weichen Ring.</div>
+  </div>
+
+  <!-- ZEILEN -->
+  <div class="box">
+    <div class="lbl">Zeilen</div>
+    <div style="margin-top: 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.07);">
+        <div><div style="font-size: 16px; font-weight: 500;">Aufgaben</div><div style="font-size: 12px; color: #9a868e; margin-top: 4px;">14 gestellt, alle erfüllt</div></div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9a868e" stroke-width="2" stroke-linecap="round"><path d="M9 5l7 7-7 7"></path></svg>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.07);">
+        <div><div style="font-size: 16px; font-weight: 500;">Kontrollen</div><div style="font-size: 12px; color: #9a868e; margin-top: 4px;">108 erfüllt · <span style="color: #ff8a5c;">1 zu spät</span></div></div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9a868e" stroke-width="2" stroke-linecap="round"><path d="M9 5l7 7-7 7"></path></svg>
+      </div>
+      <div style="display: flex; align-items: center; gap: 13px; padding: 18px 0;">
+        <span style="width: 7px; height: 7px; border-radius: 999px; background: #ff3d68; flex-shrink: 0;"></span>
+        <div style="flex-grow: 1; font-size: 15px; font-variant-numeric: tabular-nums;">21.08. <span style="color: #9a868e;">15:49</span></div>
+        <span style="font-size: 13px; color: #ff5c7a;">läuft</span>
+      </div>
+    </div>
+    <div class="cap">Trennlinien statt Karten. Der Punkt links trägt den Zustand, rechts steht die Zahl.</div>
+  </div>
+
+  <!-- LEER UND FEHLER -->
+  <div class="box">
+    <div class="lbl">Leer, wartend, gestört</div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px;">
+      <div style="background: #140d10; border-radius: 13px; padding: 26px 18px; text-align: center;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4d3f45" stroke-width="1.5" style="margin-bottom: 12px;"><rect x="4" y="10" width="16" height="11" rx="2.5"></rect><path d="M8 10V6.5a4 4 0 0 1 8 0V10"></path></svg>
+        <div style="font-size: 15px; font-weight: 500;">Noch nichts erfasst</div>
+        <div style="font-size: 12px; color: #9a868e; margin-top: 7px; line-height: 1.5;">Die erste Tragezeit beginnt<br>mit einem Verschluss.</div>
+      </div>
+      <div style="background: #140d10; border-radius: 13px; padding: 26px 18px; text-align: center;">
+        <div style="width: 26px; height: 26px; border-radius: 999px; border: 2.5px solid rgba(255,61,104,0.25); border-top-color: #ff3d68; margin: 0 auto 12px;"></div>
+        <div style="font-size: 15px; font-weight: 500;">Bild wird geprüft</div>
+        <div style="font-size: 12px; color: #9a868e; margin-top: 7px; line-height: 1.5;">Dauert meist<br>ein paar Sekunden.</div>
+      </div>
+      <div style="background: #140d10; border-radius: 13px; padding: 26px 18px; text-align: center; border: 1px solid rgba(255,138,92,0.25);">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ff8a5c" stroke-width="1.8" style="margin-bottom: 12px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5"></path><circle cx="12" cy="16.6" r="0.8" fill="#ff8a5c"></circle></svg>
+        <div style="font-size: 15px; font-weight: 500;">Box seit 9 h offline</div>
+        <div style="font-size: 12px; color: #9a868e; margin-top: 7px; line-height: 1.5;">Öffnet in 3 h von selbst,<br>wenn kein Netz kommt.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAVIGATION -->
+  <div class="box">
+    <div class="lbl">Navigation</div>
+    <div style="margin-top: 18px; background: #140d10; border-radius: 15px; padding: 12px 8px; display: flex; align-items: center; justify-content: space-around; max-width: 390px;">
+      <div style="text-align: center; color: #ff3d68;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"></path></svg>
+        <div style="font-size: 10px; margin-top: 5px;">Übersicht</div>
+      </div>
+      <div style="text-align: center; color: #9a868e;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="5" y="4" width="14" height="17" rx="2.4"></rect><path d="M9 9h6M9 13h6M9 17h3"></path></svg>
+        <div style="font-size: 10px; margin-top: 5px;">Einträge</div>
+      </div>
+      <div style="width: 46px; height: 46px; border-radius: 999px; background: #ff3d68; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 24px -6px rgba(255,61,104,0.75);">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2b0410" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      </div>
+      <div style="text-align: center; color: #9a868e;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 20V11M12 20V4M19 20v-6"></path></svg>
+        <div style="font-size: 10px; margin-top: 5px;">Statistik</div>
+      </div>
+      <div style="text-align: center; color: #9a868e;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="9" cy="12" r="4"></circle><path d="M13 12h7M17 12v3.5"></path></svg>
+        <div style="font-size: 10px; margin-top: 5px;">Keyholder</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body></html>

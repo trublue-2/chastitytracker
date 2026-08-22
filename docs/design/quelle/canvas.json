@@ -1,0 +1,63 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "title": "Bauteile und Regeln",
+      "x": 0,
+      "y": 0,
+      "w": 760,
+      "h": 1900
+    },
+    {
+      "file": "Dashboard.dc.html",
+      "title": "Verschlossen",
+      "x": 840,
+      "y": 0,
+      "w": 390,
+      "h": 900
+    },
+    {
+      "file": "Offen.dc.html",
+      "title": "Geöffnet, frei",
+      "x": 1310,
+      "y": 0,
+      "w": 390,
+      "h": 900
+    },
+    {
+      "file": "OffenFrist.dc.html",
+      "title": "Geöffnet, mit Frist",
+      "x": 1780,
+      "y": 0,
+      "w": 390,
+      "h": 900
+    },
+    {
+      "file": "Statistik.dc.html",
+      "title": "Statistik",
+      "x": 2250,
+      "y": 0,
+      "w": 390,
+      "h": 1080
+    }
+  ],
+  "annotations": [
+    {
+      "id": "regel",
+      "x": 1310,
+      "y": 960,
+      "w": 860,
+      "text": "DIE REGEL, DIE HIER SICHTBAR WIRD\n\nRosa bedeutet „verschlossen, laufend“. Geöffnet ist dieser Zustand nicht — also verschwindet die Farbe, und mit ihr der Lichtschein. Der Bildschirm wird flach und neutral.\n\nÜbrig bleibt Rosa an genau einer Stelle: dem Knopf, der zurückführt. Das macht das Verschliessen zur Rückkehr in die Farbe, ohne dass irgendwo ein Wort dazu steht.\n\nGold trägt, was erreicht wurde (die letzte Tragezeit). Koralle trägt, was drängt (die Frist). Jede der drei Farben tut genau das, was auf dem Bauteil-Blatt steht."
+    },
+    {
+      "id": "umbau",
+      "x": 1310,
+      "y": 1250,
+      "w": 860,
+      "text": "WAS SICH INHALTLICH DREHT\n\nVerschlossen zählt der Bildschirm AUFWÄRTS und zeigt Erreichtes. Geöffnet zählt er, was FEHLT: „Heute fehlen noch 2:34“ statt „17:26 von 20“. Dieselbe Zahl, andere Frage — und geöffnet ist die zweite die nützlichere.\n\nDer heutige Balken im Wochenstreifen ist gestrichelt statt gefüllt: die Uhr steht. Das ist der ganze Hinweis, es braucht keinen Satz dazu.\n\nMit Frist kommt eine zweite Handlung dazu, die es sonst nirgends gibt: „Um Aufschub bitten“ — als leiser Textlink unter dem Knopf, nicht als zweiter Knopf daneben."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}
