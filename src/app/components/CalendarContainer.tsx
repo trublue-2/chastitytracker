@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Fragment, useEffect, useRef } from "react";
-import { formatHours, toDateLocale } from "@/lib/utils";
+import { formatDurationHours, toDateLocale } from "@/lib/utils";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -82,7 +82,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
                           setSelected(dayData);
                         }}
                         className={`relative rounded aspect-square flex items-center justify-center w-full ${dayData.colorClass} ${dayData.dailyGoalMet === true ? "ring-2 ring-emerald-400" : ""} ${hasData ? "cursor-pointer hover:opacity-75 active:scale-95 transition-all" : "cursor-default"}`}
-                        title={dayData.wearHours > 0 ? `${Math.round(dayData.wearHours * 10) / 10}h` : undefined}
+                        title={dayData.wearHours > 0 ? formatDurationHours(dayData.wearHours, locale) : undefined}
                       >
                         <span className="text-xs font-medium leading-none">{dayData.day}</span>
                         {dayData.hasOrgasm && <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-[var(--color-orgasm)] rounded-full" />}
@@ -125,7 +125,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
             {selected.wearHours > 0 && (
               <div className="flex items-center justify-between bg-blue-50 rounded-xl px-4 py-3">
                 <span className="text-sm text-blue-700 font-medium">{t("wearTime")}</span>
-                <span className="text-sm font-bold text-blue-900 tabular-nums">{formatHours(selected.wearHours, locale)}</span>
+                <span className="text-sm font-bold text-blue-900 tabular-nums">{formatDurationHours(selected.wearHours, locale)}</span>
               </div>
             )}
 
@@ -136,26 +136,26 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-request-text">{t("minPerDay")}</span>
                     <span className={`text-xs font-bold ${selected.wearHours >= selected.vorgabe.minProTagH ? "text-ok" : "text-[var(--color-request)]"}`}>
-                      {selected.wearHours >= selected.vorgabe.minProTagH ? "✓ " : ""}{formatHours(selected.vorgabe.minProTagH, locale)}
+                      {selected.wearHours >= selected.vorgabe.minProTagH ? "✓ " : ""}{formatDurationHours(selected.vorgabe.minProTagH, locale)}
                     </span>
                   </div>
                 )}
                 {selected.vorgabe.minProWocheH != null && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-request-text">{t("minPerWeek")}</span>
-                    <span className="text-xs font-bold text-[var(--color-request)]">{formatHours(selected.vorgabe.minProWocheH, locale)}</span>
+                    <span className="text-xs font-bold text-[var(--color-request)]">{formatDurationHours(selected.vorgabe.minProWocheH, locale)}</span>
                   </div>
                 )}
                 {selected.vorgabe.minProMonatH != null && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-request-text">{t("minPerMonth")}</span>
-                    <span className="text-xs font-bold text-[var(--color-request)]">{formatHours(selected.vorgabe.minProMonatH, locale)}</span>
+                    <span className="text-xs font-bold text-[var(--color-request)]">{formatDurationHours(selected.vorgabe.minProMonatH, locale)}</span>
                   </div>
                 )}
                 {selected.vorgabe.minProJahrH != null && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-request-text">{t("minPerYear")}</span>
-                    <span className="text-xs font-bold text-[var(--color-request)]">{formatHours(selected.vorgabe.minProJahrH, locale)}</span>
+                    <span className="text-xs font-bold text-[var(--color-request)]">{formatDurationHours(selected.vorgabe.minProJahrH, locale)}</span>
                   </div>
                 )}
                 {selected.vorgabe.notiz && <p className="text-xs text-request-text italic mt-0.5 opacity-70">{selected.vorgabe.notiz}</p>}

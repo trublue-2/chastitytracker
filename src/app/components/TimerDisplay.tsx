@@ -1,7 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import useTick from "@/app/hooks/useTick";
-import { decomposeMs } from "@/lib/utils";
+import { formatElapsedMs } from "@/lib/utils";
 
 type TimerMode = "countup" | "countdown";
 type TimerFormat = "long" | "short";
@@ -14,16 +15,6 @@ interface TimerDisplayProps {
   criticalThreshold?: number;
   className?: string;
   onExpire?: () => void;
-}
-
-function formatLong(totalMs: number): string {
-  const { days: d, hours: h, minutes: m } = decomposeMs(Math.abs(totalMs));
-
-  const parts: string[] = [];
-  if (d > 0) parts.push(`${d}d`);
-  if (h > 0 || d > 0) parts.push(`${h}h`);
-  parts.push(`${m}m`);
-  return parts.join(" ");
 }
 
 /** Bewusst NICHT über `decomposeMs`: die Uhr-Darstellung `h:mm:ss` faltet Tage in die Stunden
@@ -56,6 +47,8 @@ export default function TimerDisplay({
   onExpire,
 }: TimerDisplayProps) {
   const target = typeof targetDate === "string" ? new Date(targetDate) : targetDate;
+  const locale = useLocale();
+  const tc = useTranslations("common");
   useTick(1000);
   const now = new Date();
 
@@ -81,14 +74,17 @@ export default function TimerDisplay({
 
   const isExpired = mode === "countdown" && diffMs <= 0;
   const displayMs = isExpired ? 0 : Math.abs(diffMs);
-  const formatted = format === "long" ? formatLong(displayMs) : formatShort(displayMs);
+  // `format="long"` setzte seine Einheiten bis Etappe A selbst zusammen — und zwar fest auf
+  // Englisch ("2d 3h 14m"), obwohl es die grösste Zahl des offenen Dashboards ist. Jetzt über
+  // `formatElapsedMs`, also mit denselben Einheiten wie jede andere laufende Dauer.
+  const formatted = format === "long" ? formatElapsedMs(displayMs, locale) : formatShort(displayMs);
   const prefix = isExpired && mode === "countdown" ? "-" : "";
 
   return (
     <span
       className={`font-mono font-bold tabular-nums ${colorClass} ${className}`}
       aria-live="polite"
-      aria-label={`${mode === "countdown" ? "Verbleibend" : "Vergangen"}: ${formatted}`}
+      aria-label={`${tc(mode === "countdown" ? "remaining" : "elapsed")}: ${formatted}`}
       suppressHydrationWarning
     >
       {prefix}{formatted}

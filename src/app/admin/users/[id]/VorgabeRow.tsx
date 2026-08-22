@@ -4,8 +4,9 @@ import { useState } from "react";
 import VorgabeForm, { type VorgabeInitialValues, type CategoryOption } from "./VorgabeForm";
 import DeleteVorgabeButton from "./DeleteVorgabeButton";
 import { useTranslations, useLocale } from "next-intl";
+import { coveragePct } from "@/lib/percent";
 import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/constants";
-import { formatHours } from "@/lib/utils";
+import { formatDurationHours } from "@/lib/utils";
 
 
 interface Props {
@@ -54,26 +55,26 @@ export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH,
         <div className="flex flex-wrap gap-3 mt-1.5">
           {tagH != null && (
             <span className="text-xs text-foreground-muted">
-              {td("day")}: <strong>{formatHours(tagH, locale)}</strong>
-              <span className="text-foreground-faint"> ({Math.round((tagH / HOURS_PER_DAY) * 100)}%)</span>
+              {td("day")}: <strong>{formatDurationHours(tagH, locale)}</strong>
+              <span className="text-foreground-faint"> ({coveragePct(tagH, HOURS_PER_DAY)}%)</span>
             </span>
           )}
           {wocheH != null && (
             <span className="text-xs text-foreground-muted">
-              {td("week")}: <strong>{formatHours(wocheH, locale)}</strong>
-              <span className="text-foreground-faint"> ({Math.round((wocheH / HOURS_PER_WEEK) * 100)}%)</span>
+              {td("week")}: <strong>{formatDurationHours(wocheH, locale)}</strong>
+              <span className="text-foreground-faint"> ({coveragePct(wocheH, HOURS_PER_WEEK)}%)</span>
             </span>
           )}
           {monatH != null && (
             <span className="text-xs text-foreground-muted">
-              {td("month")}: <strong>{formatHours(monatH, locale)}</strong>
-              <span className="text-foreground-faint"> ({Math.round((monatH / HOURS_PER_MONTH) * 100)}%)</span>
+              {td("month")}: <strong>{formatDurationHours(monatH, locale)}</strong>
+              <span className="text-foreground-faint"> ({coveragePct(monatH, HOURS_PER_MONTH)}%)</span>
             </span>
           )}
           {jahrH != null && (
             <span className="text-xs text-foreground-muted">
-              {td("year")}: <strong>{formatHours(jahrH, locale)}</strong>
-              <span className="text-foreground-faint"> ({Math.round((jahrH / HOURS_PER_YEAR) * 100)}%)</span>
+              {td("year")}: <strong>{formatDurationHours(jahrH, locale)}</strong>
+              <span className="text-foreground-faint"> ({coveragePct(jahrH, HOURS_PER_YEAR)}%)</span>
             </span>
           )}
         </div>

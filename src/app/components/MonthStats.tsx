@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { formatHours, formatMs } from "@/lib/utils";
+import { formatDurationHours, formatDurationMs } from "@/lib/utils";
+import { goalPct } from "@/lib/percent";
 import { useTranslations, useLocale } from "next-intl";
 
 import type { MonthStat } from "@/lib/statsTypes";
@@ -29,28 +30,28 @@ export default function MonthStats({ months }: { months: MonthStat[] }) {
       </div>
       <div className="divide-y divide-border-subtle">
         {visible.map((m) => {
-          const pct = m.targetH ? Math.min((m.wearHours / m.targetH) * 100, 100) : null;
+          const pct = goalPct(m.wearHours, m.targetH);
           const reached = pct !== null && pct >= 100;
           return (
             <div key={m.key} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 py-3 hover:bg-surface-raised/60 transition items-center">
               <span className="text-sm text-foreground-muted capitalize">{m.label}</span>
               <span className="text-sm font-semibold text-foreground text-right tabular-nums">{m.count}</span>
               <div className="text-right">
-                <span className="text-sm font-mono text-foreground-muted tabular-nums">{formatHours(m.wearHours, locale)}</span>
+                <span className="text-sm font-mono text-foreground-muted tabular-nums">{formatDurationHours(m.wearHours, locale)}</span>
                 {pct !== null && (
                   <div className="mt-1 h-1 w-16 bg-border rounded-full overflow-hidden ml-auto">
-                    <div className={`h-full rounded-full ${reached ? "bg-ok" : "bg-[var(--color-request)]"}`} style={{ width: `${pct}%` }} />
+                    <div className={`h-full rounded-full ${reached ? "bg-ok" : "bg-[var(--color-request)]"}`} style={{ width: `${Math.min(100, pct)}%` }} />
                   </div>
                 )}
               </div>
               <div className="text-right">
                 {m.targetH ? (
                   <span className={`text-sm font-mono tabular-nums ${reached ? "text-ok font-semibold" : "text-[var(--color-request)]"}`}>
-                    {reached ? "✓ " : ""}{formatHours(m.targetH, locale)}
+                    {reached ? "✓ " : ""}{formatDurationHours(m.targetH, locale)}
                   </span>
                 ) : <span className="text-sm text-foreground-faint">–</span>}
               </div>
-              <span className="text-sm font-mono text-foreground-faint text-right tabular-nums">{formatMs(m.longestMs, locale)}</span>
+              <span className="text-sm font-mono text-foreground-faint text-right tabular-nums">{formatDurationMs(m.longestMs, locale)}</span>
             </div>
           );
         })}

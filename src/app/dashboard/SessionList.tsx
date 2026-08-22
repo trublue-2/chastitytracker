@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, formatDuration, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, buildLockPoints, wornDeviceNameAt, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type ReinigungSettings } from "@/lib/utils";
+import { toDateLocale, formatDurationBetween, formatDurationMs, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, buildLockPoints, wornDeviceNameAt, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type ReinigungSettings } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import type { VerifyFailure } from "@/lib/verifyReason";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
@@ -107,7 +107,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
     const pauseMs = interruptionPauseMs(pair.interruptions ?? []);
     const durationMs = oeffnen ? oeffnen.startTime.getTime() - verschluss.startTime.getTime() - pauseMs : null;
     const durationStr = durationMs !== null
-      ? formatDuration(new Date(0), new Date(durationMs), dl)
+      ? formatDurationMs(durationMs, dl)
       : null;
     const durationUnder24h = durationMs !== null && durationMs < 24 * 60 * 60 * 1000;
 
@@ -279,7 +279,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         kombiniertePillCls: null,
         orgasmusArt: null,
         timeCorrected: false,
-        pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
+        pauseDurationStr: formatDurationBetween(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
       })),
     ].sort((a, b) => a.time.getTime() - b.time.getTime());
 

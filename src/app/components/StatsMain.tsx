@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { aktiveKontrolleWhere } from "@/lib/queries";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
 import { CLEANING_USER_SELECT } from "@/lib/reinigungService";
-import { APP_TZ, formatDate, formatDateTime, formatHours, formatMs, toDateLocale, buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDayKey, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR } from "@/lib/utils";
+import { goalPct, sharePct } from "@/lib/percent";
+import { APP_TZ, formatDate, formatDateTime, formatDurationHours, formatDurationMs, toDateLocale, buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDayKey, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR } from "@/lib/utils";
 import {
   buildCalendarMonths, buildDailyData, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
   type Entry, type Vorgabe,
@@ -250,14 +251,14 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         id: r.id,
         name: r.name,
         count: r.count,
-        totalStr: formatMs(r.totalMs, dl),
-        avgStr: formatMs(r.avgMs, dl),
-        medianStr: formatMs(r.medianMs, dl),
+        totalStr: formatDurationMs(r.totalMs, dl),
+        avgStr: formatDurationMs(r.avgMs, dl),
+        medianStr: formatDurationMs(r.medianMs, dl),
         // Bei einer einzigen Session ist die Spanne keine Spanne — dann nur die eine Dauer zeigen.
-        rangeStr: r.minMs === r.maxMs ? formatMs(r.minMs, dl) : `${formatMs(r.minMs, dl)} – ${formatMs(r.maxMs, dl)}`,
+        rangeStr: r.minMs === r.maxMs ? formatDurationMs(r.minMs, dl) : `${formatDurationMs(r.minMs, dl)} – ${formatDurationMs(r.maxMs, dl)}`,
         lastWornStr: formatDate(r.lastWorn, dl, tz),
         costStr: r.costPerHour !== null && r.currency ? `${r.costPerHour.toFixed(2)} ${r.currency}` : null,
-        sharePct: variantTotalMs > 0 ? Math.round((r.totalMs / variantTotalMs) * 100) : 0,
+        sharePct: sharePct(r.totalMs, variantTotalMs),
       })),
     };
   };
@@ -303,8 +304,8 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{t("kgWearOverview")}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <StatsCard label={t("entries")} value={String(completed.length)} />
-          <StatsCard label={t("totalDuration")} value={totalMs > 0 ? formatMs(totalMs, dl) : "–"} />
-          <StatsCard label={t("avgDuration")} value={formatMs(avgMs, dl)} />
+          <StatsCard label={t("totalDuration")} value={completed.length ? formatDurationMs(totalMs, dl) : "–"} />
+          <StatsCard label={t("avgDuration")} value={completed.length ? formatDurationMs(avgMs, dl) : "–"} />
           <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
         </div>
       </section>
@@ -320,7 +321,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
               {t("lastOrgasm")}: <span className="font-semibold">{formatDateTime(lastOrgasmus!.startTime, dl, tz)}</span>
             </p>
             <span className="text-xl sm:text-2xl font-bold text-[var(--color-orgasm)] whitespace-nowrap tabular-nums">
-              {formatMs(orgasmusFreiMs, dl)}
+              {formatDurationMs(orgasmusFreiMs, dl)}
             </span>
           </div>
         </Card>
@@ -345,7 +346,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             <p className="text-sm text-[var(--color-lock-text)]">
               {t("lockedSince")} <span className="font-semibold">{formatDateTime(activeEntry.startTime, dl, tz)}</span>
             </p>
-            <span className="text-xl sm:text-2xl font-bold text-[var(--color-lock-text)] whitespace-nowrap tabular-nums">{formatMs(activeDurationMs, dl)}</span>
+            <span className="text-xl sm:text-2xl font-bold text-[var(--color-lock-text)] whitespace-nowrap tabular-nums">{formatDurationMs(activeDurationMs, dl)}</span>
           </div>
         </Card>
       )}
@@ -375,22 +376,22 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             <div className="px-6 py-4 flex flex-col gap-4">
               {g.minProTagH && (
                 <GoalBar label={t("today")} actual={g.hoursToday} target={g.minProTagH}
-                  sub={`${formatHours(g.hoursToday, dl)} ${tc("of")} ${formatHours(g.minProTagH, dl)}`}
+                  sub={`${formatDurationHours(g.hoursToday, dl)} ${tc("of")} ${formatDurationHours(g.minProTagH, dl)}`}
                   reachedLabel={t("reached")} />
               )}
               {g.minProWocheH && (
                 <GoalBar label={t("thisWeek")} actual={g.hoursWeek} target={g.minProWocheH}
-                  sub={`${formatHours(g.hoursWeek, dl)} ${tc("of")} ${formatHours(g.minProWocheH, dl)}`}
+                  sub={`${formatDurationHours(g.hoursWeek, dl)} ${tc("of")} ${formatDurationHours(g.minProWocheH, dl)}`}
                   reachedLabel={t("reached")} />
               )}
               {g.minProMonatH && (
                 <GoalBar label={t("thisMonth")} actual={g.hoursMonth} target={g.minProMonatH}
-                  sub={`${formatHours(g.hoursMonth, dl)} ${tc("of")} ${formatHours(g.minProMonatH, dl)}`}
+                  sub={`${formatDurationHours(g.hoursMonth, dl)} ${tc("of")} ${formatDurationHours(g.minProMonatH, dl)}`}
                   reachedLabel={t("reached")} />
               )}
               {g.minProJahrH && (
                 <GoalBar label={t("thisYear")} actual={g.hoursYear} target={g.minProJahrH}
-                  sub={`${formatHours(g.hoursYear, dl)} ${tc("of")} ${formatHours(g.minProJahrH, dl)}`}
+                  sub={`${formatDurationHours(g.hoursYear, dl)} ${tc("of")} ${formatDurationHours(g.minProJahrH, dl)}`}
                   reachedLabel={t("reached")} />
               )}
               {g.notiz && <p className="text-xs text-[var(--color-request)] italic">{g.notiz}</p>}
@@ -416,8 +417,8 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             <p className="text-sm font-bold text-foreground">{t("records")}</p>
           </div>
           <div className="divide-y divide-border-subtle">
-            <RecordRow label={t("longestSession")} value={formatMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl, tz)} />
-            <RecordRow label={t("shortestSession")} value={formatMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl, tz)} />
+            <RecordRow label={t("longestSession")} value={formatDurationMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl, tz)} />
+            <RecordRow label={t("shortestSession")} value={formatDurationMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl, tz)} />
           </div>
         </Card>
       )}
@@ -481,18 +482,18 @@ function RecordRow({ label, value, sub }: { label: string; value: string; sub: s
 }
 
 function GoalBar({ label, actual, target, sub, reachedLabel }: { label: string; actual: number; target: number; sub: string; reachedLabel: string }) {
-  const pct = Math.min((actual / target) * 100, 100);
+  const pct = goalPct(actual, target) ?? 0;
   const reached = actual >= target;
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-sm font-semibold text-foreground-muted">{label}</span>
         <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${reached ? "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" : "bg-surface-raised text-foreground-muted border-border"}`}>
-          {reached ? reachedLabel : `${Math.round(pct)}%`}
+          {reached ? reachedLabel : `${pct}%`}
         </span>
       </div>
       <div className="h-2.5 bg-surface-raised rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${reached ? "bg-[var(--color-lock)]" : "bg-[var(--color-request)]"}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full rounded-full transition-all ${reached ? "bg-[var(--color-lock)]" : "bg-[var(--color-request)]"}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
       <p className="text-xs text-foreground-faint mt-1">{sub}</p>
     </div>

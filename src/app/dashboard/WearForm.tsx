@@ -16,7 +16,7 @@ import FormField from "@/app/components/FormField";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
-import { toDatetimeLocal, fromDatetimeLocal, toDateLocale, formatDuration } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, toDateLocale, formatDurationBetween } from "@/lib/utils";
 import { categoryStyle } from "@/lib/categoryConstants";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
 import type { TaskWarning } from "@/lib/taskIntervals";
@@ -226,7 +226,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
           <div className="text-sm text-foreground-muted bg-background-subtle rounded-lg px-3 py-2">
             {t("endingSession", {
               device: activeSession.deviceName,
-              duration: formatDuration(new Date(activeSession.since), fromDatetimeLocal(startTime, tz), dl.startsWith("en") ? "en" : "de"),
+              duration: formatDurationBetween(new Date(activeSession.since), fromDatetimeLocal(startTime, tz), dl.startsWith("en") ? "en" : "de"),
             })}
           </div>
         )}

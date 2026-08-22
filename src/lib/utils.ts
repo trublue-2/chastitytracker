@@ -1,33 +1,75 @@
 import type { NumberRange } from "@/lib/constants";
 import { toVerifyFailure, type VerifyFailure } from "@/lib/verifyReason";
 
-/** Format hours as h:mm (e.g. 6:35h). No day splitting — pure hours:minutes. */
-export function formatHoursHM(h: number): string {
-  const totalMin = Math.floor(h * 60);
-  const hrs = Math.floor(totalMin / 60);
-  const mins = totalMin % 60;
-  return `${hrs}:${String(mins).padStart(2, "0")}h`;
-}
-
-/** formatHoursHM without the trailing "h" — for compact "x / y h" goal readouts. */
-export function formatHoursHMCompact(h: number): string {
-  return formatHoursHM(h).slice(0, -1);
-}
-
 /** Einheiten-Kürzel für „Tage" nach Locale. Prefix-Vergleich, damit auch regionale Tags
  *  (`"en-US"`, `"en-GB"`) als Englisch zählen — `"de-CH"` bleibt bei "T". */
 function dayUnit(locale: string): string {
   return locale.startsWith("en") ? "d" : "T";
 }
 
-export function formatHours(h: number, locale = "de"): string {
-  const days = Math.floor(h / 24);
-  const hours = Math.round(h % 24);
+/** Was `formatDurationMs` für eine Dauer unter einer Minute schreibt. Bewusst nicht „0min":
+ *  eine 45-Sekunden-Session IST etwas, und ein „0min" (oder das frühere „–") liest sich wie
+ *  nichts.
+ *
+ *  ACHTUNG beim Einbetten in HTML: der Wert beginnt mit „<" und ist damit ein angefangenes Tag.
+ *  Jede Mail-Vorlage muss die Dauer durch `escHtml` schicken. */
+const SUB_MINUTE_LABEL = "<1min";
+
+/**
+ * **Die eine Darstellung einer abgeschlossenen Dauer** — „2T 3h 14min" (Etappe A, 22.08.2026).
+ *
+ * Sie hat fünf Vorgänger abgelöst (`formatHours`, `formatHoursHM`, `formatHoursHMCompact`,
+ * `formatMs`, `formatDuration`), die dieselbe Dauer unterschiedlich schrieben — und dabei drei
+ * Fehler mitbrachten, die hier bewusst NICHT wiederkehren:
+ *
+ * - **Nichts wird aufgerundet.** `formatHours` machte aus 23 h 59 min ein „24h" — eine Minute vor
+ *   dem Tag, aber zu lesen wie ein voller. Betroffen waren Tragekalender und Monatsübersicht,
+ *   also genau die Stellen, an denen jemand nachzählt, ob ein Tagesziel erreicht wurde.
+ * - **Unter einer Minute verschwindet nichts.** `formatMs` schrieb dafür „–", also wie „kein Wert".
+ * - **Minuten fallen nicht weg, nur weil Tage im Spiel sind.** `formatMs` zeigte für 5T 0h 30min
+ *   und 5T 0h 00min dasselbe „5T".
+ *
+ * Null-Teile entfallen (`24 h` → „1T", `5T 0h 30min` → „5T 30min"); ist alles null, bleibt „0min".
+ *
+ * NICHT für laufende Anzeigen — dafür {@link formatElapsedMs} (zeigt die Minute auch bei 0, damit
+ * die letzte Stelle tickt) bzw. die Uhr in `TimerDisplay` (`h:mm:ss`, feste Breite).
+ *
+ * `locale` ist PFLICHT, kein Vorgabewert. Ein `= "de"` wäre bequem und genau die Falle, in die
+ * diese Umstellung prompt gelaufen ist: die drei Kacheln des Dashboards riefen vorher einen
+ * Formatierer OHNE Einheiten auf, brauchten also nie ein Locale — nach dem Wechsel hätten sie
+ * einem englischen Nutzer stillschweigend „2T 3h" gezeigt. Pflicht heisst: der Compiler fragt.
+ */
+export function formatDurationMs(ms: number, locale: string): string {
+  if (ms < 0) return "–";
+  if (ms > 0 && ms < 60_000) return SUB_MINUTE_LABEL;
+
+  const { days, hours, minutes } = decomposeMs(ms);
   const d = dayUnit(locale);
+
   const parts: string[] = [];
   if (days > 0) parts.push(`${days}${d}`);
-  if (hours > 0 || parts.length === 0) parts.push(`${hours}h`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || parts.length === 0) parts.push(`${minutes}min`);
+
   return parts.join(" ");
+}
+
+/**
+ * {@link formatDurationMs} für eine Dauer, die als STUNDEN vorliegt (Ziele, Tages-/Wochensummen).
+ *
+ * `Math.round` auf die Millisekunde ist kein Schönheitsrunden, sondern nötig: Stunden kommen hier
+ * als Gleitkommazahl an (`calculateWearingHoursByRange`, prorata-Ziele), und `2 + 3/60` mal
+ * 3 600 000 ergibt 7 379 999.999… — abgeschnitten also „2h 2min" für zwei Stunden und drei
+ * Minuten. Gerundet wird die Millisekunde, nicht die Minute; die Abschneide-Regel von
+ * `formatDurationMs` bleibt damit unangetastet.
+ */
+export function formatDurationHours(h: number, locale: string): string {
+  return formatDurationMs(Math.round(h * 3_600_000), locale);
+}
+
+/** {@link formatDurationMs} für zwei Zeitpunkte. */
+export function formatDurationBetween(start: Date, end: Date, locale: string): string {
+  return formatDurationMs(end.getTime() - start.getTime(), locale);
 }
 
 /** Auf eine Nachkommastelle runden. */
@@ -91,32 +133,6 @@ export function decomposeMs(ms: number): { days: number; hours: number; minutes:
     minutes: totalMinutes % 60,
     seconds: totalSeconds % 60,
   };
-}
-
-export function formatMs(ms: number, locale = "de"): string {
-  if (ms <= 0) return "–";
-  const { days, hours, minutes: mins } = decomposeMs(ms);
-  const d = dayUnit(locale);
-  const parts: string[] = [];
-  if (days > 0) parts.push(`${days}${d}`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (mins > 0 && days === 0) parts.push(`${mins}m`);
-  return parts.join(" ") || "–";
-}
-
-export function formatDuration(start: Date, end: Date, locale = "de"): string {
-  const ms = end.getTime() - start.getTime();
-  if (ms < 0) return "–";
-
-  const { days, hours, minutes } = decomposeMs(ms);
-  const d = dayUnit(locale);
-
-  const parts: string[] = [];
-  if (days > 0) parts.push(`${days}${d}`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0 || parts.length === 0) parts.push(`${minutes}min`);
-
-  return parts.join(" ");
 }
 
 /** Fügt die vorhandenen Teile einer einzeiligen Beschriftung mit „ · " zusammen; bleibt nichts
@@ -421,7 +437,12 @@ export function getYearEnd(now: Date, tz: string): Date {
   return midnightOfLocalDate(year + 1, 0, 1, tz);
 }
 
-/** Live-elapsed format: always includes minutes ("2T 3h 14min"). Takes pre-computed ms. */
+/**
+ * Die LAUFENDE Fassung von {@link formatDurationMs}: gleiche Einheiten, aber die Minute steht
+ * immer da („1T 0min" statt „1T"). Das ist der ganze Unterschied und er ist Absicht — eine
+ * tickende Anzeige, deren letzte Stelle zwischendurch verschwindet, springt in der Breite und
+ * sieht aus wie stehengeblieben.
+ */
 export function formatElapsedMs(ms: number, locale: string, showSeconds = false): string {
   const { days, hours, minutes, seconds } = decomposeMs(Math.max(0, ms));
   const d = dayUnit(locale);

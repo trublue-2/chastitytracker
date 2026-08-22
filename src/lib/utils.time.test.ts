@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   tzOffsetMsAt, midnightInTZ, dateAtLocalMinutes, fromDatetimeLocal,
-  decomposeMs, formatMs, formatDuration, formatElapsedMs, formatHours,
+  decomposeMs, formatDurationMs, formatDurationBetween, formatElapsedMs, formatDurationHours,
 } from "./utils";
 
 /**
@@ -102,41 +102,83 @@ describe("fromDatetimeLocal — Golden (zwei Pässe, am genauesten)", () => {
 });
 
 describe("Formatter — Golden (Rundungs-/Einheiten-/Locale-Regeln)", () => {
-  // [ms, locale, formatMs, formatDuration, formatElapsedMs(showSeconds)]
-  const rows: [number, string, string, string, string][] = [
-    [-1, "de", "–", "–", "0min 00s"],
-    [0, "de", "–", "0min", "0min 00s"],          // formatMs: ≤0 → "–"; formatDuration: <0 → "–"
-    [59_999, "de", "–", "0min", "0min 59s"],
-    [60_000, "de", "1m", "1min", "1min 00s"],    // Einheit "m" vs "min"
-    [3_599_999, "de", "59m", "59min", "59min 59s"],
-    [3_600_000, "de", "1h", "1h", "1h 0min 00s"],
-    [86_399_999, "de", "23h 59m", "23h 59min", "23h 59min 59s"],
-    [86_400_000, "de", "1T", "1T", "1T 0min 00s"], // formatMs unterdrückt Minuten sobald Tage da sind
-    [90_061_000, "de", "1T 1h", "1T 1h 1min", "1T 1h 1min 01s"],
-    [90_061_000, "en", "1d 1h", "1d 1h 1min", "1d 1h 1min 01s"],
+  // Eine Dauer, EINE Schreibweise (Etappe A, 22.08.2026). Vorher schrieben sechs Formatierer
+  // dieselbe Dauer unterschiedlich; die Golden-Zeilen hier halten fest, was davon übrig ist —
+  // und die drei Fehler, die dabei behoben wurden, bekommen eigene Fälle weiter unten.
+  //
+  // [ms, locale, formatDurationMs, formatElapsedMs(showSeconds)]
+  const rows: [number, string, string, string][] = [
+    [-1, "de", "–", "0min 00s"],
+    [0, "de", "0min", "0min 00s"],
+    [45_000, "de", "<1min", "0min 45s"],
+    [59_999, "de", "<1min", "0min 59s"],
+    [60_000, "de", "1min", "1min 00s"],
+    [3_599_999, "de", "59min", "59min 59s"],
+    [3_600_000, "de", "1h", "1h 0min 00s"],
+    [86_399_999, "de", "23h 59min", "23h 59min 59s"],
+    [86_400_000, "de", "1T", "1T 0min 00s"],
+    [90_061_000, "de", "1T 1h 1min", "1T 1h 1min 01s"],
+    [90_061_000, "en", "1d 1h 1min", "1d 1h 1min 01s"],
   ];
-  it.each(rows)("%i ms / %s", (ms, locale, expMs, expDur, expElapsed) => {
-    expect(formatMs(ms, locale)).toBe(expMs);
-    expect(formatDuration(new Date(0), new Date(ms), locale)).toBe(expDur);
+  it.each(rows)("%i ms / %s", (ms, locale, expMs, expElapsed) => {
+    expect(formatDurationMs(ms, locale)).toBe(expMs);
+    // Die Zeitpunkt-Fassung ist derselbe Formatierer, nur mit anderer Eingabe.
+    expect(formatDurationBetween(new Date(0), new Date(ms), locale)).toBe(expMs);
     expect(formatElapsedMs(ms, locale, true)).toBe(expElapsed);
   });
 
-  it("alle vier Formatter nutzen dieselbe Tages-Einheit bei regionalen Locale-Tags", () => {
-    // Einzige Stelle, die die Regionaltag-Regel festhält — alle vier gehen über dayUnit().
-    expect(formatMs(86_400_000, "en-US")).toBe("1d");
-    expect(formatDuration(new Date(0), new Date(86_400_000), "en-US")).toBe("1d");
+  it("alle Formatter nutzen dieselbe Tages-Einheit bei regionalen Locale-Tags", () => {
+    // Einzige Stelle, die die Regionaltag-Regel festhält — alle gehen über dayUnit().
+    expect(formatDurationMs(86_400_000, "en-US")).toBe("1d");
+    expect(formatDurationBetween(new Date(0), new Date(86_400_000), "en-US")).toBe("1d");
     expect(formatElapsedMs(86_400_000, "en-US", true)).toBe("1d 0min 00s");
-    expect(formatHours(24, "en-US")).toBe("1d");
+    expect(formatDurationHours(24, "en-US")).toBe("1d");
 
-    expect(formatMs(86_400_000, "de-CH")).toBe("1T");
-    expect(formatDuration(new Date(0), new Date(86_400_000), "de-CH")).toBe("1T");
+    expect(formatDurationMs(86_400_000, "de-CH")).toBe("1T");
+    expect(formatDurationBetween(new Date(0), new Date(86_400_000), "de-CH")).toBe("1T");
     expect(formatElapsedMs(86_400_000, "de-CH", true)).toBe("1T 0min 00s");
-    expect(formatHours(24, "de-CH")).toBe("1T");
+    expect(formatDurationHours(24, "de-CH")).toBe("1T");
   });
 
-  it("formatHours rundet (nicht floor) und nutzt decomposeMs bewusst nicht", () => {
-    expect(formatHours(25.7)).toBe("1T 2h"); // 1.7h → round → 2h
-    expect(formatHours(25.4)).toBe("1T 1h");
-    expect(formatHours(0)).toBe("0h");
+  // ── Die drei Fehler der abgelösten Formatierer. Je ein Fall, damit keiner zurückkommt. ──
+
+  it("rundet NIE auf — 23 h 59 min ist kein Tag", () => {
+    // `formatHours` schrieb hier „24h": eine Minute vor dem Tag, zu lesen wie ein voller.
+    // Betroffen waren Tragekalender und Monatsübersicht, also genau die Stellen, an denen
+    // jemand nachzählt, ob ein Tagesziel erreicht ist.
+    expect(formatDurationHours(23 + 59 / 60, "de")).toBe("23h 59min");
+    expect(formatDurationHours(25.7, "de")).toBe("1T 1h 42min");
+    expect(formatDurationHours(0.99, "de")).toBe("59min");
+  });
+
+  it("lässt nichts unter einer Minute verschwinden", () => {
+    // `formatMs` schrieb dafür „–", also wie „kein Wert" — eine 45-Sekunden-Session war in
+    // Gesamtdauer, Durchschnitt und Rekorden nicht von „keine Daten" zu unterscheiden.
+    expect(formatDurationMs(45_000, "de")).toBe("<1min");
+    expect(formatDurationMs(1, "de")).toBe("<1min");
+    expect(formatDurationMs(0, "de")).toBe("0min");
+  });
+
+  it("behält Minuten, auch wenn Tage im Spiel sind", () => {
+    // `formatMs` zeigte für beide Fälle „5T".
+    const fiveDays = 5 * 86_400_000;
+    expect(formatDurationMs(fiveDays + 30 * 60_000, "de")).toBe("5T 30min");
+    expect(formatDurationMs(fiveDays, "de")).toBe("5T");
+  });
+
+  it("lässt Null-Teile weg, aber nie die einzige Stelle", () => {
+    expect(formatDurationMs(5 * 86_400_000 + 30 * 60_000, "de")).toBe("5T 30min"); // Stunde = 0
+    expect(formatDurationMs(2 * 3_600_000, "de")).toBe("2h");                      // Minute = 0
+    expect(formatDurationMs(0, "de")).toBe("0min");                                // alles 0
+  });
+
+  it("formatDurationHours überlebt Gleitkomma-Reste", () => {
+    // `(2 + 3/60) * 3_600_000` ist 7_379_999.999… — ohne Rundung auf die Millisekunde stünde
+    // dort „2h 2min" für zwei Stunden und drei Minuten. Stunden kommen als Float aus
+    // `calculateWearingHoursByRange` und aus den prorata-Zielen, der Fall ist also der Normalfall.
+    expect(formatDurationHours(2 + 3 / 60, "de")).toBe("2h 3min");
+    expect(formatDurationHours(17.5, "de")).toBe("17h 30min");
+    expect(formatDurationHours(23 + 59 / 60, "de")).toBe("23h 59min");
+    expect(formatDurationHours(0, "de")).toBe("0min");
   });
 });

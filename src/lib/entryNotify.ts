@@ -5,7 +5,7 @@ import { sendPushToUser } from "@/lib/push";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { getEventChannelsAny } from "@/lib/notificationPrefs";
 import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
-import { formatDateTime, formatDuration, toDateLocale } from "@/lib/utils";
+import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/utils";
 import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, type NotificationEventType } from "@/lib/constants";
 
 export interface EntryNotifyParams {
@@ -108,6 +108,7 @@ function renderDetails(
   t: EmailTranslator,
   time: string,
   labels: Pick<EntryLabels, "grund" | "art">,
+  locale: string,
 ): string[] {
   const rows = [`<strong>${escHtml(t("entryDetailTime"))}</strong> ${escHtml(time)}`];
   if (p.type === "OEFFNEN" && labels.grund) {
@@ -120,7 +121,7 @@ function renderDetails(
     rows.push(`<strong>${escHtml(t("entryDetailCode"))}</strong> <span style="font-family:monospace;font-weight:bold;color:${EMAIL_BUTTON_COLORS.inspection}">${escHtml(p.kontrollCode)}</span>`);
   }
   if (p.type === "OEFFNEN" && p.lockStartTime) {
-    rows.push(`<strong>${escHtml(t("entryDetailDuration"))}</strong> ${escHtml(formatDuration(p.lockStartTime, p.startTime))}`);
+    rows.push(`<strong>${escHtml(t("entryDetailDuration"))}</strong> ${escHtml(formatDurationBetween(p.lockStartTime, p.startTime, locale))}`);
   }
   rows.push(`<strong>${escHtml(t("entryDetailPhoto"))}</strong> ${escHtml(p.imageUrl ? t("entryPhotoYes") : t("entryPhotoNo"))}`);
   // Die DEKLARATION des Trägers, nicht das KI-Urteil: die Mail geht sofort raus, die Erkennung läuft
@@ -231,7 +232,7 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
       const emailHtml = dashboardEmailHtml(
         `<span style="border-left:4px solid ${accent};padding-left:12px">${escHtml(title)}</span>`,
         `<table style="width:100%;border-collapse:collapse;font-size:14px;color:#334155">
-            ${renderDetails(p, t, time, labels).map((d) => `<tr><td style="padding:6px 0;border-bottom:1px solid #f1f5f9">${d}</td></tr>`).join("")}
+            ${renderDetails(p, t, time, labels, locale).map((d) => `<tr><td style="padding:6px 0;border-bottom:1px solid #f1f5f9">${d}</td></tr>`).join("")}
           </table>`,
         t("entryAdminButton"),
         {

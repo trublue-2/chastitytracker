@@ -1,8 +1,10 @@
 import { tzOffsetMsAt } from "@/lib/utils";
+import { goalPct } from "@/lib/percent";
 
-/** Prozent-Erfüllung (actual/target), gerundet; null wenn kein/0-Ziel. Geteilt von V1 + V2. */
-export const pct = (actual: number, target: number | null): number | null =>
-  target && target > 0 ? Math.round((actual / target) * 100) : null;
+/** Prozent-Erfüllung (actual/target), gerundet; null wenn kein/0-Ziel. Geteilt von V1 + V2.
+ *  Bewusst nur ein Alias auf {@link goalPct}: eine zweite Rechnung für dieselbe Frage liefe
+ *  irgendwann auseinander, und die Keyholder-KI läse dann andere Zahlen als das UI zeigt. */
+export const pct = goalPct;
 
 /** Offset (Minuten) einer Zeitzone zum gegebenen Zeitpunkt. Positiv = östlich von UTC.
  *  Misst am Zeitpunkt selbst (ein Pass) — dieselbe Anker-Wahl wie `dateAtLocalMinutes`. */

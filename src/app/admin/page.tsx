@@ -16,7 +16,7 @@ import EmptyState from "@/app/components/EmptyState";
 import UserAvatar from "@/app/components/UserAvatar";
 import { Lock, LockOpen, Users, ShieldAlert, CalendarClock, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale, formatDuration, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
+import { toDateLocale, formatDurationBetween, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel } from "@/lib/constants";
 
@@ -216,7 +216,7 @@ export default async function AdminPage() {
             const rowTz = u.timezone; // this row's sub governs its own timestamps
             const isLocked = u.stats.currentStatus === "VERSCHLUSS";
             const sinceDisplay = u.stats.since
-              ? formatDuration(u.stats.since, now, dl)
+              ? formatDurationBetween(u.stats.since, now, dl)
               : null;
 
             const hasAlarm = !!u.stats.offeneKontrolle || u.stats.hasOffeneAnforderung;

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import { coveragePct } from "@/lib/percent";
 import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/constants";
 
 function toHours(value: string, unit: string, basis: number): number | null {
@@ -54,7 +55,7 @@ function InputWithUnit({
           {unit === "%" && !isNaN(parseFloat(value))
             ? `≈ ${((parseFloat(value) / 100) * basis).toFixed(1)} h`
             : !isNaN(parseFloat(value))
-            ? `≈ ${((parseFloat(value) / basis) * 100).toFixed(0)} %`
+            ? `≈ ${coveragePct(parseFloat(value), basis) ?? 0} %`
             : ""}
         </p>
       )}

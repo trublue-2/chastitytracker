@@ -4,8 +4,8 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
-  formatDuration, formatDateTimeDual, formatDate, formatTime, formatHours, toDateLocale, APP_TZ,
-  buildPairs, getOpenPair, interruptionPauseMs, isTimeCorrected, decomposeMs,
+  formatDateTimeDual, formatDate, formatTime, formatDurationHours, formatDurationMs, toDateLocale, APP_TZ,
+  buildPairs, getOpenPair, interruptionPauseMs, isTimeCorrected,
   buildKontrolleItems, calculateWearingHoursByRange,
 } from "@/lib/utils";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
@@ -109,18 +109,14 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     (s, p) => s + (p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime()) - interruptionPauseMs(p.interruptions),
     0
   );
-  const totalFormatted = completedPairs.length ? formatDuration(new Date(0), new Date(totalMs), dl) : "–";
+  const totalFormatted = completedPairs.length ? formatDurationMs(totalMs, dl) : "–";
 
   const orgasmusEntries = entries
     .filter(e => e.type === "ORGASMUS")
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
   const lastOrgasmus = orgasmusEntries[0] ?? null;
   const orgasmusFreiMs = lastOrgasmus ? now.getTime() - lastOrgasmus.startTime.getTime() : null;
-  const orgasmusFreiDisplay = (() => {
-    if (!orgasmusFreiMs) return null;
-    const { days, hours } = decomposeMs(orgasmusFreiMs);
-    return days > 0 ? `${days}T ${hours}h` : `${hours}h`;
-  })();
+  const orgasmusFreiDisplay = orgasmusFreiMs ? formatDurationMs(orgasmusFreiMs, dl) : null;
 
   const activePair = getOpenPair(pairs);
   const { tagH, wocheH, monatH, jahrH } = calculateWearingHoursByRange(entries, now, tz);
@@ -297,9 +293,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                 {formatDate(activeVorgabe.gueltigAb, dl, tz)} → {activeVorgabe.gueltigBis ? formatDate(activeVorgabe.gueltigBis, dl, tz) : tc("open")}
               </p>
               <div className="flex flex-wrap gap-3 mt-1">
-                {activeVorgabe.minProTagH != null && <span className="text-xs text-foreground-muted">{td("day")}: <strong className="text-foreground">{formatHours(activeVorgabe.minProTagH, dl)}</strong></span>}
-                {activeVorgabe.minProWocheH != null && <span className="text-xs text-foreground-muted">{td("week")}: <strong className="text-foreground">{formatHours(activeVorgabe.minProWocheH, dl)}</strong></span>}
-                {activeVorgabe.minProMonatH != null && <span className="text-xs text-foreground-muted">{td("month")}: <strong className="text-foreground">{formatHours(activeVorgabe.minProMonatH, dl)}</strong></span>}
+                {activeVorgabe.minProTagH != null && <span className="text-xs text-foreground-muted">{td("day")}: <strong className="text-foreground">{formatDurationHours(activeVorgabe.minProTagH, dl)}</strong></span>}
+                {activeVorgabe.minProWocheH != null && <span className="text-xs text-foreground-muted">{td("week")}: <strong className="text-foreground">{formatDurationHours(activeVorgabe.minProWocheH, dl)}</strong></span>}
+                {activeVorgabe.minProMonatH != null && <span className="text-xs text-foreground-muted">{td("month")}: <strong className="text-foreground">{formatDurationHours(activeVorgabe.minProMonatH, dl)}</strong></span>}
               </div>
               {activeVorgabe.notiz && <p className="text-xs text-foreground-faint italic mt-0.5">{activeVorgabe.notiz}</p>}
             </div>

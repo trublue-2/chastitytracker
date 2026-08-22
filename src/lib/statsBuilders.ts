@@ -1,8 +1,9 @@
 import {
-  dayKeyOfLocalDate, formatHours, formatMonthYear, formatTime, midnightInTZ, midnightOfLocalDate,
+  dayKeyOfLocalDate, formatDurationHours, formatMonthYear, formatTime, midnightInTZ, midnightOfLocalDate,
   mondayIndexOfLocalDate, tzDateParts, tzDayKey, wearingHoursFromPairs, type WearPair,
 } from "@/lib/utils";
 import { proratedTargetH } from "@/lib/goalFulfillment";
+import { coveragePct, goalPct } from "@/lib/percent";
 import { wearIntensityLevel, WEAR_LEVEL_BG } from "@/lib/wearIntensity";
 import type {
   MonthStat, CalendarMonthData, CalendarDayData, DayEntry, DayVorgabe, HeatmapDay, YearHeatmapData,
@@ -179,9 +180,6 @@ export function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }, now: D
 function goalMet(actual: number, target: number | null): boolean | null {
   return target ? actual >= target : null;
 }
-function goalPct(actual: number, target: number | null): number | null {
-  return target ? Math.round((actual / target) * 100) : null;
-}
 
 export function buildCalendarMonths(opts: {
   entries: Entry[];
@@ -298,7 +296,7 @@ export function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<stri
         const dateLabel = formatCalendarDate(year, month, day, dl, DAY_LABEL_OPTS);
         cells.push({
           key,
-          title: `${dateLabel} · ${formatHours(hours, dl)}`,
+          title: `${dateLabel} · ${formatDurationHours(hours, dl)}`,
           level: wearIntensityLevel(hours),
           hasOrgasm: cell?.hasOrgasm ?? false,
         });
@@ -332,8 +330,8 @@ export function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<stri
       year,
       weeks,
       monthLabels,
-      totalHours: formatHours(totalHours, dl),
-      percentLocked: elapsedH > 0 ? Math.round((totalHours / elapsedH) * 100) : 0,
+      totalHours: formatDurationHours(totalHours, dl),
+      percentLocked: coveragePct(totalHours, elapsedH) ?? 0,
     };
   });
 }

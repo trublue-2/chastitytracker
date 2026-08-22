@@ -1,5 +1,25 @@
 [
   {
+    "version": "5.2.8",
+    "date": "2026-08-22",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Zeitangaben stehen jetzt \u00fcberall in derselben Schreibweise, etwa \u201e2T 3h 14min\". Und jede Prozentzahl sagt dazu, worauf sie sich bezieht \u2014 bisher konnte dieselbe Tragezeit auf einem Bildschirm 87 % und 81 % ergeben, ohne dass daran stand, wovon.",
+          "en": "Durations now use one and the same notation everywhere, such as \"2d 3h 14min\". And every percentage says what it refers to \u2014 the same wear time could previously show as 87% and 81% on one screen with nothing saying what of."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Tragezeiten wurden an der Tagesgrenze aufgerundet: 23 h 59 min stand als \u201e24h\" da. Sehr kurze Zeiten fehlten in Statistik und Rekorden ganz, und der laufende Z\u00e4hler im offenen Zustand war auch auf Deutsch englisch beschriftet.",
+          "en": "Wear times were rounded up at the day boundary: 23 h 59 min read as \"24h\". Very short times were missing from statistics and records entirely, and the running counter in the open state was labelled in English even in German."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.2.7",
     "date": "2026-08-22",
     "changes": [

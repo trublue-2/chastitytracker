@@ -1,3 +1,4 @@
+import { goalPct } from "@/lib/percent";
 import type { CalendarMonthData, CalendarDayData, DayVorgabe, MonthStat } from "@/lib/statsTypes";
 import type { KontrolleItemData } from "@/app/components/KontrolleItemListClient";
 import type { OrgasmusItemData } from "@/app/components/OrgasmenListClient";
@@ -66,7 +67,7 @@ function weekGoals(weeks: (CalendarDayData | null)[][]): { met: (boolean | null)
   for (const week of weeks) {
     const total = week.reduce((sum, d) => sum + (d?.wearHours ?? 0), 0);
     met.push(total >= target);
-    pct.push(Math.min((total / target) * 100, 100));
+    pct.push(Math.min(goalPct(total, target) ?? 0, 100));
   }
   return { met, pct };
 }

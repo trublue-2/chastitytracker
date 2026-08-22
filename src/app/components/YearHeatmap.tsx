@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
 import { WEAR_LEVEL_UPPER, WEAR_LEVEL_BG } from "@/lib/wearIntensity";
+import { ratioPct } from "@/lib/percent";
 import type { HeatmapDay, YearHeatmapData } from "@/lib/statsTypes";
 
 // Blau-Skala aus wearIntensity.ts — dieselbe Quelle wie der Monatskalender (via WEAR_LEVEL_BG).
@@ -11,7 +12,7 @@ const LEVEL_CLASS = WEAR_LEVEL_BG;
 
 // Legend rows: swatch + the day-share (%) band each level represents, derived from the shared
 // thresholds so the legend never drifts from the actual colouring. [0, 20, 40, 80, 100].
-const LEGEND_BOUNDS = [0, ...WEAR_LEVEL_UPPER.map((t) => Math.round(t * 100)), 100];
+const LEGEND_BOUNDS = [0, ...WEAR_LEVEL_UPPER.map(ratioPct), 100];
 const LEGEND = LEVEL_CLASS.map((cls, i) => ({
   cls,
   label: i === 0 ? "0 %" : `${LEGEND_BOUNDS[i - 1]}–${LEGEND_BOUNDS[i]} %`,

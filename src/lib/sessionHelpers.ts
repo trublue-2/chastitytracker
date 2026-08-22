@@ -1,4 +1,4 @@
-import { formatDuration, buildLockPoints, wornDeviceNameAt } from "@/lib/utils";
+import { formatDurationBetween, buildLockPoints, wornDeviceNameAt } from "@/lib/utils";
 import type { VerifyFailure } from "@/lib/verifyReason";
 import { keyProofFor, NO_TELEMETRY_KEY_PROOF, type KeyProofSource } from "@/lib/boxKeyProof";
 
@@ -121,7 +121,7 @@ export function buildSessionEvents(
       imageExifTime: null,
       note: intr.oeffnen.note,
       entryId: intr.oeffnen.id,
-      pauseDurationStr: formatDuration(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
+      pauseDurationStr: formatDurationBetween(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
     })),
   ].sort((a, b) => a.time.getTime() - b.time.getTime());
 }

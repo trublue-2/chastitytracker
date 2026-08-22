@@ -1,4 +1,4 @@
-import { formatDate, formatDuration, formatTime } from "@/lib/utils";
+import { formatDate, formatDurationBetween, formatTime } from "@/lib/utils";
 import { type Session } from "@/lib/sessionModel";
 
 /** Die Darstellungs-Schicht über `buildWearSessions` (Session-Modell): fertige Zeilen für die
@@ -67,7 +67,7 @@ export function buildWearSessionRows(
       startTimeStr: formatTime(s.start, dl),
       endDateStr: formatDate(s.end, dl),
       endTimeStr: formatTime(s.end, dl),
-      durationStr: formatDuration(s.start, s.end, dl),
+      durationStr: formatDurationBetween(s.start, s.end, dl),
       imageUrl: imageByEntryId.get(s.id) ?? null,
       deviceName: s.deviceBreakdown[0]?.deviceName ?? null,
     }];

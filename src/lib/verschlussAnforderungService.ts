@@ -6,7 +6,7 @@ import { actorColumn, recordMessageAndBadge, type MessageActor } from "@/lib/mes
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, formatDurationHours } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { parseTriggerAt, computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
@@ -286,7 +286,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
       ? `<p><strong>${t("lockUntilLabel")}</strong> ${formatDateTime(endetAtDate)}</p>`
       : "";
     const dauerHtml = dauerH
-      ? `<p><strong>${t("lockMinWearLabel")}</strong> ${dauerH >= 24 ? `${Math.floor(dauerH / 24)}${t("dayUnitShort")} ${dauerH % 24 > 0 ? `${dauerH % 24}h` : ""}`.trim() : `${dauerH}h`}</p>`
+      ? `<p><strong>${t("lockMinWearLabel")}</strong> ${escHtml(formatDurationHours(dauerH, user.locale))}</p>`
       : "";
     const sperrBisHtml = sperrEndetAtDate
       ? `<p><strong>${t("lockedUntilLabel")}</strong> ${formatDateTime(sperrEndetAtDate)}</p>`

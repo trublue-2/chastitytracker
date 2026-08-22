@@ -7,7 +7,7 @@ import { wearActionHref } from "@/lib/categoryConstants";
 import CategoryLinkRow from "@/app/components/CategoryLinkRow";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import ExpandToggle from "@/app/components/ExpandToggle";
-import { formatHours, toDateLocale } from "@/lib/utils";
+import { formatDurationHours, toDateLocale } from "@/lib/utils";
 
 export interface InactiveCategoryRow {
   id: string;
@@ -53,7 +53,7 @@ export default function InactiveCategories({ categories }: Props) {
                   color={c.color}
                   icon={c.icon}
                   name={c.name}
-                  subtitle={c.todayHours > 0 ? `${tStats("day")} ${formatHours(c.todayHours, dl)}` : undefined}
+                  subtitle={c.todayHours > 0 ? `${tStats("day")} ${formatDurationHours(c.todayHours, dl)}` : undefined}
                   actionIcon={<Plus size={12} />}
                   actionLabel={t("titleBegin")}
                 />

@@ -7,7 +7,7 @@ import { AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
 import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch";
 import { prisma } from "@/lib/prisma";
 import {
-  formatDateTime, formatHours,
+  formatDateTime,
   buildPairs, getOpenPair, interruptionPauseMs, buildKontrolleItems, runningCleaningPauseUntil,
   toDateLocale, calculateWearingHoursByRange,
   getMidnightToday, getWeekStart, getMonthStart,
