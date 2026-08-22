@@ -6,7 +6,7 @@ import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
   deviceCountCached, entriesCached, evaluatedTasksCached, latestKgEntryCached, lockRequestCached,
-  orgasmConfigCached, orgasmEntriesCached, subInspectionsCached, subKeyProofCached,
+  orgasmConfigCached, orgasmEntriesCached, subVisibleInspectionsCached, subKeyProofCached,
   subOrgasmRequestCached, subPairsCached, subRunningSessionCached, subSperrzeitCached,
   taskProofViewsCached, trackingCategoriesCached, userRowCached, wearingHoursCached,
   wearSessionsCached,
@@ -134,7 +134,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   alerts: block({
     load: async ({ userId, nowMs }) => {
       const [anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg] = await Promise.all([
-        subInspectionsCached(userId, nowMs), lockRequestCached(userId, nowMs),
+        subVisibleInspectionsCached(userId, nowMs), lockRequestCached(userId, nowMs),
         subOrgasmRequestCached(userId, nowMs), userRowCached(userId), orgasmConfigCached(userId),
       ]);
       return { anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg };

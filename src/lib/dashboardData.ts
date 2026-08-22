@@ -7,15 +7,19 @@ import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
 import {
-  buildKontrolleItems, buildPairs, calculateWearingHoursByRange, getOpenPair, KG_PAIR,
+  buildKontrolleItems, buildKgWearPairs, buildPairs, calculateWearingHoursByRange,
+  completedPairsFrom, getOpenPair, KG_PAIR, tzDayKey,
 } from "@/lib/utils";
-import { buildWearSessions } from "@/lib/sessionModel";
+import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
+import { buildDailyData } from "@/lib/statsBuilders";
+import { buildStrafbuch } from "@/lib/strafbuch";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { getEvaluatedTaskHistory, loadTaskProofViews } from "@/lib/taskIntervals";
+import { isKgVorgabe } from "@/lib/vorgaben";
 import {
   aktiveKontrolleWhere, KONTROLLE_TARGET_INCLUDE,
-  getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions,
+  CATEGORY_LIST_ORDER, getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions,
   getNonKgTrackingCategories, getActiveOrgasmusAnforderung, getOpenLockRequest,
 } from "@/lib/queries";
 
@@ -122,8 +126,14 @@ export const cleaningRulesCached = cache(async (userId: string) => {
   return { at, rules: reinigungRulesAt(at) };
 });
 
-/** Die Kontroll-Anforderungen, die der TRÄGER sieht — zeitversetzt geplante bleiben ihm verborgen. */
-export const subInspectionsCached = cache(async (userId: string, nowMs: number) =>
+/**
+ * Die Kontroll-Anforderungen, die dem TRÄGER sichtbar sind — zeitversetzt geplante bleiben verborgen.
+ *
+ * „Sub-sichtbar" beschreibt den INHALT, nicht den Betrachter: die Statistik zeigt diese Auswahl
+ * auch der Keyholderin, weil sie dort dieselbe Geschichte erzählt. Die Sicht, die IHR mehr zeigt
+ * (geplante Kontrollen), ist eine eigene Quelle.
+ */
+export const subVisibleInspectionsCached = cache(async (userId: string, nowMs: number) =>
   prisma.kontrollAnforderung.findMany({
     where: { userId, ...aktiveKontrolleWhere(new Date(nowMs)) },
     orderBy: { createdAt: "desc" },
@@ -140,7 +150,7 @@ export const subInspectionsCached = cache(async (userId: string, nowMs: number) 
  */
 export const subPairsCached = cache(async (userId: string, nowMs: number) => {
   const [entries, anforderungen, cleaning] = await Promise.all([
-    entriesCached(userId), subInspectionsCached(userId, nowMs), cleaningRulesCached(userId),
+    entriesCached(userId), subVisibleInspectionsCached(userId, nowMs), cleaningRulesCached(userId),
   ]);
   const items = buildKontrolleItems(anforderungen, entries.filter((e) => e.type === "PRUEFUNG"), new Date(nowMs));
   return buildPairs(entries, items, cleaning.rules);
@@ -253,3 +263,119 @@ export const wearingHoursCached = cache(async (userId: string, nowMs: number, tz
 export const deviceCountCached = cache((userId: string) =>
   prisma.device.count({ where: { userId, archivedAt: null } }),
 );
+
+// ── Quellen der Statistik-Oberflächen ────────────────────────────────────────────────────────
+//
+// Die Statistik ist fast reine Ableitung: dieselbe Paarung, dieselben Tages-Karten und dieselbe
+// Stundenrechnung tragen je drei bis fünf Blöcke. Ohne diese Schicht rechnete jeder Block sie
+// selbst — und die Seite hätte den Vorteil wieder verloren, den Etappe B ihr verschafft.
+
+/**
+ * Dieselben Einträge aufsteigend — die Reihenfolge, in der die Statistik sie erwartet
+ * (`activeEntry` nimmt dort den LETZTEN Verschluss der Liste).
+ *
+ * Sortiert statt umgedreht: `reverse()` auf einer absteigenden Liste kehrt auch die Reihenfolge
+ * gleichzeitiger Einträge um, und genau daran hängt diese Auswahl.
+ */
+export const entriesAscCached = cache(async (userId: string) =>
+  [...(await entriesCached(userId))].sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
+);
+
+/**
+ * Die Sessions OHNE Kontroll-Punkte — die Paarung, auf der die Statistik rechnet.
+ *
+ * Sie rechnet mit Dauern, nicht mit Zeitstrahlen; die Kontrollen führt sie als eigene Liste. Eine
+ * Paarung mit Punkten wäre dort dieselbe Zahl bei mehr Arbeit.
+ *
+ * Alle Paare, nicht nur die abgeschlossenen: die Geräte-Nutzung braucht auch die laufende Session
+ * und reicht das Ergebnis als `prePairs` an `buildSessions` weiter, statt dieselbe Paarung ein
+ * zweites Mal zu bauen.
+ */
+export const kgPairsCached = cache(async (userId: string) => {
+  const [entries, cleaning] = await Promise.all([entriesCached(userId), cleaningRulesCached(userId)]);
+  return buildPairs(entries, [], cleaning.rules);
+});
+
+/** Nur die abgeschlossenen davon — Übersicht, Rekorde und Monatsübersicht zählen nur die. */
+export const completedPairsCached = cache(async (userId: string) =>
+  completedPairsFrom(await kgPairsCached(userId)),
+);
+
+/** Alle Trainingsvorgaben des Trägers (soft-gelöschte bleiben draussen), neueste zuerst. */
+export const vorgabenCached = cache((userId: string) =>
+  prisma.trainingVorgabe.findMany({
+    where: { userId, deletedAt: null },
+    orderBy: { gueltigAb: "desc" },
+    include: { category: { select: { id: true, name: true, color: true, icon: true, isBuiltIn: true } } },
+  }),
+);
+
+/**
+ * Die KG-Vorgaben — Kalender und Monatsübersicht zeichnen beide auf ihnen.
+ *
+ * BEWUSST alle, nicht nur die aktiven: die Monats- und Kalenderansicht zeigt Vergangenes, und ein
+ * ausgelaufenes Ziel gehört zu dem Monat, in dem es galt.
+ */
+export const kgVorgabenCached = cache(async (userId: string) =>
+  (await vorgabenCached(userId)).filter(isKgVorgabe),
+);
+
+/**
+ * Alle Geräte des Trägers, auch archivierte.
+ *
+ * `lookalikeClusterId` treibt die Bild-Versöhnung in `buildSessions` (optisch gleiche Geräte dürfen
+ * einander nicht als „Konflikt" überstimmen) — ohne sie rechnete die Geräte-Nutzung anders als
+ * `device_stats` im MCP.
+ */
+export const devicesCached = cache((userId: string) =>
+  prisma.device.findMany({
+    where: { userId },
+    select: { id: true, name: true, purchasePrice: true, currency: true, archivedAt: true, lookalikeClusterId: true },
+  }),
+);
+
+/** Die Nicht-KG-Kategorien — hier ALLE, auch die ohne Tracking: die Statistik zeigt Vergangenes. */
+export const statsCategoriesCached = cache((userId: string) =>
+  prisma.deviceCategory.findMany({
+    where: { userId, isBuiltIn: false },
+    // Dieselbe Reihenfolge wie überall sonst; `isBuiltIn` ist hier ohne Wirkung (alle false).
+    orderBy: [...CATEGORY_LIST_ORDER],
+    select: { id: true, name: true, color: true, icon: true },
+  }),
+);
+
+/**
+ * Das Strafbuch — die teuerste Quelle dieser Seite (rund zwanzig Abfragen) und die Quelle EINES
+ * einzigen Blocks.
+ *
+ * Der Handel war früher eindeutig, aber teuer: die Karte „Unerlaubte Öffnungen" zeigt, was das
+ * Strafbuch als solche führt, statt die Bedingung selbst zu formulieren — vorher zählte sie jede
+ * ERLAUBTE Reinigungsöffnung während einer Sperrzeit mit. Seit Etappe B ist der Preis freiwillig:
+ * wer den Block ausblendet, zahlt ihn nicht mehr.
+ */
+export const strafbuchCached = cache((userId: string, nowMs: number) =>
+  buildStrafbuch(userId, new Date(nowMs)),
+);
+
+/** Die KG-Tragepaare — Kalender, Heatmap, Monatsübersicht und Ziele rechnen alle darauf. */
+export const kgWearPairsCached = cache(async (userId: string, nowMs: number) =>
+  buildKgWearPairs(await entriesCached(userId), new Date(nowMs)),
+);
+
+/** Die Trage-Stunden je Kategorie — Ziele, Kalender und Geräte-Nutzung teilen sie sich. */
+export const wearPairsByCategoryCached = cache(async (userId: string, nowMs: number) =>
+  wearHourPairsByCategory(await wearSessionsCached(userId, nowMs), new Date(nowMs)),
+);
+
+/** Die Tage mit Orgasmus, als Tagesschlüssel in der Zone des Trägers. */
+export const orgasmDaysCached = cache(async (userId: string, tz: string) =>
+  new Set((await orgasmEntriesCached(userId)).map((e) => tzDayKey(e.startTime, tz))),
+);
+
+/** Die Tages-Karte der KG-Tragezeit — Kalender und Jahres-Heatmap brauchen dieselbe. */
+export const kgDailyDataCached = cache(async (userId: string, nowMs: number, tz: string) => {
+  const [wearPairs, orgasmDays] = await Promise.all([
+    kgWearPairsCached(userId, nowMs), orgasmDaysCached(userId, tz),
+  ]);
+  return wearPairs.length > 0 ? buildDailyData(wearPairs, orgasmDays, tz) : undefined;
+});
