@@ -1,4 +1,4 @@
-import { cache, Suspense } from "react";
+import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { block, type StackBlock } from "@/lib/blockStack";
 import type { SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
@@ -6,10 +6,9 @@ import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
   deviceCountCached, entriesCached, evaluatedTasksCached, latestKgEntryCached, lockRequestCached,
-  orgasmConfigCached, orgasmEntriesCached, subVisibleInspectionsCached, subKeyProofCached,
-  subOrgasmRequestCached, subPairsCached, subRunningSessionCached, subSperrzeitCached,
-  taskProofViewsCached, trackingCategoriesCached, userRowCached, wearingHoursCached,
-  wearSessionsCached,
+  orgasmConfigCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
+  subSperrzeitCached, subVisibleInspectionsCached, taskCardsCached, trackingCategoriesCached,
+  userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
 } from "@/lib/dashboardData";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
 import { predictAutoMarkAt } from "@/lib/inspectionEscalationService";
@@ -20,7 +19,6 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
-import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
 import { resolveReasonLabel } from "@/lib/reasonsService";
@@ -28,7 +26,6 @@ import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import { inspectionHref } from "@/lib/entryFormRoute";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { belongsOnDashboard, isHeldByTask } from "@/lib/taskIntervals";
-import { toTaskCard } from "@/lib/taskView";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";
@@ -94,34 +91,22 @@ export interface SubDashboardCtx {
  * wird die Session samt Telemetrie-Nachweis nie geladen.
  */
 const sessionCardOnScreen = (ctx: SubDashboardCtx): Promise<boolean> | boolean =>
-  ctx.layout.shows("runningSession") &&
-  subRunningSessionCached(ctx.userId, ctx.nowMs, ctx.dl).then((s) => s !== null);
+  ctx.layout.shows("runningSession") && runningSessionCard(ctx).then((s) => s !== null);
 
 /**
- * Die Aufgaben-Karten dieser Seite: oben, was ihn JETZT etwas angeht, unten der ganze Bestand.
+ * Die grüne Karte des TRÄGERS: eine laufende Session mit mindestens einem Ereignis.
  *
- * Gecacht, obwohl es keine Abfrage ist: drei Blöcke fragen danach (Karten, Liste, Strafen), und
- * `toTaskCard` über die ganze Historie dreimal zu bauen wäre genau die Arbeit, die diese Etappe
- * loswerden will. Der Schlüssel sind die drei primitiven Werte, aus denen sich das Ergebnis ergibt.
+ * Die zweite Bedingung ist seine allein — der Keyholderin zeigt eine ereignislose Session ihren
+ * Status-Balken, ihm zeigt sie nichts. Deshalb steht sie hier und nicht in der geteilten Quelle.
  */
-const dashboardTaskCards = cache(async (userId: string, nowMs: number, kgLabel: string) => {
-  const [evaluated, proofViews] = await Promise.all([
-    evaluatedTasksCached(userId, nowMs, kgLabel), taskProofViewsCached(userId, nowMs, kgLabel),
-  ]);
-  const card = (e: (typeof evaluated)[number], withLinks: boolean) =>
-    toTaskCard(e, withLinks, proofViews.get(e.task.id) ?? []);
-  return {
-    // Oben nach nächster Frist zuerst (die Liste kommt absteigend, also umdrehen) — was am
-    // dringendsten ist, steht zuoberst.
-    open: evaluated.filter((e) => belongsOnDashboard(e, new Date(nowMs))).reverse().map((e) => card(e, true)),
-    // Die Liste ist die ARCHIV-Sicht: keine Deep-Links, denn die Formulare stehen an den Karten oben.
-    all: evaluated.map((e) => card(e, false)),
-  };
-});
+const runningSessionCard = async (ctx: SubDashboardCtx) => {
+  const running = await subRunningSessionCached(ctx.userId, ctx.nowMs, ctx.dl);
+  return running && running.events.length > 0 ? running : null;
+};
 
-/** Kürzel für den Aufruf oben — die KG-Beschriftung steckt in jeder Aufgaben-Auswertung. */
+/** Kürzel für die geteilte Herleitung — die KG-Beschriftung steckt in jeder Aufgaben-Auswertung. */
 const taskCardsOf = (ctx: SubDashboardCtx) =>
-  dashboardTaskCards(ctx.userId, ctx.nowMs, ctx.tTasks("requirementKgLocked"));
+  taskCardsCached(ctx.userId, ctx.nowMs, ctx.tTasks("requirementKgLocked"), "sub");
 
 export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<SubDashboardCtx>> = {
   greeting: async ({ t, username }) => (
@@ -226,7 +211,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   // stehen — daran entscheidet der Block, ob eine Strafaufgabe hier zu wiederholen wäre.
   openPenalties: block({
     load: async ({ userId, nowMs, tTasks }) => {
-      const evaluated = await evaluatedTasksCached(userId, nowMs, tTasks("requirementKgLocked"));
+      const evaluated = await evaluatedTasksCached(userId, nowMs, tTasks("requirementKgLocked"), "sub");
       // Nur die Ids — die Karten dazu baut der Aufgaben-Block, dieser hier fragt bloss ab, welche
       // Aufgabe oben schon steht.
       return new Set(
@@ -242,8 +227,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
   runningSession: block({
     load: async (ctx) => {
-      const { userId, nowMs, dl, tz } = ctx;
-      const running = await subRunningSessionCached(userId, nowMs, dl);
+      const { userId, nowMs, tz } = ctx;
+      const running = await runningSessionCard(ctx);
       if (!running) return null;
       const [activeSperrzeit, user, activeVorgabe, hours, deviceCount] = await Promise.all([
         subSperrzeitCached(userId), userRowCached(userId), activeVorgabeCached(userId, nowMs),
@@ -285,7 +270,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
     load: async ({ userId, nowMs, now, tTasks }) => {
       const [sessions, evaluated] = await Promise.all([
         activeWearSessionsCached(userId),
-        evaluatedTasksCached(userId, nowMs, tTasks("requirementKgLocked")),
+        evaluatedTasksCached(userId, nowMs, tTasks("requirementKgLocked"), "sub"),
       ]);
       // Die Trage-Karte ist vollflächig ein Link aufs Ablege-Formular — ohne Markierung sähe eine
       // gebundene Session aus wie jede andere. Gefragt wird je Session (Kategorie UND Gerät) über
@@ -468,13 +453,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   }),
 
   sessionList: block({
-    load: async ({ userId, nowMs }) => {
-      const [pairs, orgasmusEntries, telemetryKeyProof, user, deviceCount] = await Promise.all([
-        subPairsCached(userId, nowMs), orgasmEntriesCached(userId), subKeyProofCached(userId, nowMs),
-        userRowCached(userId), deviceCountCached(userId),
-      ]);
-      return { pairs, orgasmusEntries, telemetryKeyProof, user, deviceCount };
-    },
+    load: ({ userId, nowMs }) => sessionListDataCached(userId, nowMs, "sub"),
     render: (data, { tz }) => data.pairs.length > 0 ? (
       <DashboardBlock>
         <SessionList
@@ -491,12 +470,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   }),
 
   wearSessionList: block({
-    load: async ({ userId, nowMs, dl }) => {
-      const [categories, sessionList, entries] = await Promise.all([
-        trackingCategoriesCached(userId), wearSessionsCached(userId, nowMs), entriesCached(userId),
-      ]);
-      return buildWearSessionRows(categories, sessionList, dl, entries);
-    },
+    load: ({ userId, nowMs, dl }) => wearSessionRowsCached(userId, nowMs, dl),
     render: (rows) => rows.length > 0 ? (
       <DashboardBlock>
         <WearSessionList sessions={rows} />

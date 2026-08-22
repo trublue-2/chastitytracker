@@ -1,5 +1,25 @@
 [
   {
+    "version": "5.3.1",
+    "date": "2026-08-22",
+    "changes": [
+      {
+        "type": "perf",
+        "text": {
+          "de": "Ausgeblendete Blöcke werden nicht mehr im Hintergrund berechnet. Wer sein Dashboard oder seine Statistik zusammenstreicht, bekommt sie jetzt auch schneller.",
+          "en": "Hidden blocks are no longer computed in the background. Trimming your dashboard or statistics now makes them faster, too."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das KG-Ziel steht jetzt auch dann bei den Trainingsvorgaben, wenn die Karte der laufenden Tragezeit ausgeblendet ist.",
+          "en": "The chastity goal now appears with the training targets even when the running-session card is hidden."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.0",
     "date": "2026-08-22",
     "changes": [

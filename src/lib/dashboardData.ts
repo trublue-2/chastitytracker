@@ -15,12 +15,15 @@ import { buildDailyData } from "@/lib/statsBuilders";
 import { buildStrafbuch } from "@/lib/strafbuch";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
-import { getEvaluatedTaskHistory, loadTaskProofViews } from "@/lib/taskIntervals";
+import { belongsOnDashboard, getEvaluatedTaskHistory, loadTaskProofViews } from "@/lib/taskIntervals";
+import { toTaskCard } from "@/lib/taskView";
+import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import {
-  aktiveKontrolleWhere, KONTROLLE_TARGET_INCLUDE,
-  CATEGORY_LIST_ORDER, getActiveVorgabe, getActiveSperrzeit, getActiveWearSessions,
-  getNonKgTrackingCategories, getActiveOrgasmusAnforderung, getOpenLockRequest,
+  CATEGORY_LIST_ORDER, aktiveKontrolleWhere, keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE,
+  getActiveVorgabe, getActiveSperrzeit, getKeyholderSperrzeit, getActiveWearSessions,
+  getNonKgTrackingCategories, getActiveOrgasmusAnforderung, getKeyholderOrgasmusAnforderung,
+  getOpenLockRequest,
 } from "@/lib/queries";
 
 /**
@@ -69,6 +72,7 @@ const BLOCK_USER_SELECT = {
   ...AUTO_KONTROLLE_SETTINGS_SELECT,
   ...CLEANING_USER_SELECT,
   dashboardLayout: true,
+  username: true,
   orgasmusArtenConfig: true,
   oeffnenGruendeConfig: true,
   inspectionAutoMarkEnabled: true,
@@ -127,15 +131,18 @@ export const cleaningRulesCached = cache(async (userId: string) => {
 });
 
 /**
- * Die Kontroll-Anforderungen, die dem TRÄGER sichtbar sind — zeitversetzt geplante bleiben verborgen.
- *
- * „Sub-sichtbar" beschreibt den INHALT, nicht den Betrachter: die Statistik zeigt diese Auswahl
- * auch der Keyholderin, weil sie dort dieselbe Geschichte erzählt. Die Sicht, die IHR mehr zeigt
- * (geplante Kontrollen), ist eine eigene Quelle.
+ * Wessen Sicht auf dieselbe Sache. Reist als Zeichenkette und ist damit ein tauglicher
+ * `cache()`-Schlüssel — deshalb steht unter jeder dieser Fragen EINE Umsetzung und nicht zwei
+ * ausgeschriebene Fassungen, die beim nächsten Eingriff auseinanderlaufen.
  */
-export const subVisibleInspectionsCached = cache(async (userId: string, nowMs: number) =>
+export type BlockAudience = "sub" | "keyholder";
+
+const inspectionsOf = cache(async (userId: string, nowMs: number, audience: BlockAudience) =>
   prisma.kontrollAnforderung.findMany({
-    where: { userId, ...aktiveKontrolleWhere(new Date(nowMs)) },
+    where: {
+      userId,
+      ...(audience === "sub" ? aktiveKontrolleWhere(new Date(nowMs)) : keyholderVisibleKontrolleWhere(new Date(nowMs))),
+    },
     orderBy: { createdAt: "desc" },
     // Ziel-Namen fürs Banner: die Sicht muss wissen, WAS zu zeigen ist.
     include: { entry: true, ...KONTROLLE_TARGET_INCLUDE },
@@ -143,23 +150,48 @@ export const subVisibleInspectionsCached = cache(async (userId: string, nowMs: n
 );
 
 /**
- * Die Sessions des Trägers samt der Kontroll-Punkte darin, aus SEINER Sicht.
+ * Die Kontroll-Anforderungen, die dem TRÄGER sichtbar sind — zeitversetzt geplante bleiben verborgen.
  *
- * Die Paarung sortiert ihre Einträge selbst (`filterAndSortPairEntries`), die Eingabe-Reihenfolge
- * spielt also keine Rolle.
+ * „Sub-sichtbar" beschreibt den INHALT, nicht den Betrachter: die Statistik zeigt diese Auswahl
+ * auch der Keyholderin, weil sie dort dieselbe Geschichte erzählt.
  */
-export const subPairsCached = cache(async (userId: string, nowMs: number) => {
+export const subVisibleInspectionsCached = (userId: string, nowMs: number) =>
+  inspectionsOf(userId, nowMs, "sub");
+
+/** Dieselbe Liste in KEYHOLDER-Sicht — sie sieht auch, was sie für später geplant hat. */
+export const keyholderInspectionsCached = (userId: string, nowMs: number) =>
+  inspectionsOf(userId, nowMs, "keyholder");
+
+/**
+ * Die Sessions samt der Kontroll-Punkte darin — `items` ist der Zeitstrahl, `pairs` die Paarung.
+ *
+ * Der Unterschied zwischen den beiden Sichten sind allein die Kontrollen: der Träger sieht die
+ * geplanten nicht. Die Paarung sortiert ihre Einträge selbst (`filterAndSortPairEntries`), die
+ * Eingabe-Reihenfolge spielt also keine Rolle.
+ */
+const pairsOf = cache(async (userId: string, nowMs: number, audience: BlockAudience) => {
   const [entries, anforderungen, cleaning] = await Promise.all([
-    entriesCached(userId), subVisibleInspectionsCached(userId, nowMs), cleaningRulesCached(userId),
+    entriesCached(userId), inspectionsOf(userId, nowMs, audience), cleaningRulesCached(userId),
   ]);
   const items = buildKontrolleItems(anforderungen, entries.filter((e) => e.type === "PRUEFUNG"), new Date(nowMs));
-  return buildPairs(entries, items, cleaning.rules);
+  return { items, pairs: buildPairs(entries, items, cleaning.rules) };
 });
 
-/** Der Schlüssel-Nachweis aus der Box-Telemetrie zu den Sessions der Träger-Sicht. */
-export const subKeyProofCached = cache(async (userId: string, nowMs: number) =>
-  loadTelemetryKeyProof(userId, await subPairsCached(userId, nowMs)),
+/** Die Sessions aus Sicht des Trägers. */
+export const subPairsCached = (userId: string, nowMs: number) => pairsOf(userId, nowMs, "sub");
+
+/** Dieselben aus Sicht der Keyholderin — mit den Kontrollen, die nur sie sieht. */
+export const keyholderPairsCached = (userId: string, nowMs: number) => pairsOf(userId, nowMs, "keyholder");
+
+const keyProofOf = cache(async (userId: string, nowMs: number, audience: BlockAudience) =>
+  loadTelemetryKeyProof(userId, (await pairsOf(userId, nowMs, audience)).pairs),
 );
+
+/** Der Schlüssel-Nachweis aus der Box-Telemetrie zu den Sessions der Träger-Sicht. */
+export const subKeyProofCached = (userId: string, nowMs: number) => keyProofOf(userId, nowMs, "sub");
+
+/** Derselbe Nachweis zur Keyholder-Sicht — sie soll dieselben Pillen sehen wie er. */
+export const keyholderKeyProofCached = (userId: string, nowMs: number) => keyProofOf(userId, nowMs, "keyholder");
 
 /**
  * Die laufende Session samt ihrer Ereignisse — oder `null`, wenn keine läuft.
@@ -168,30 +200,48 @@ export const subKeyProofCached = cache(async (userId: string, nowMs: number) =>
  * Die Beschriftungen der Orgasmus-Arten holt die Funktion sich selbst — ein Übersetzer als Argument
  * wäre bei jedem Aufruf ein neues Objekt und träfe nie denselben `cache()`-Eintrag. Die Sprache
  * steckt dafür in `dl` und damit im Schlüssel.
+ *
+ * `null` heisst „keine laufende Session". Ob eine EREIGNISLOSE Session noch eine Karte verdient,
+ * entscheidet der Block: der Träger zeigt dann nichts, die Keyholderin ihren Status-Balken.
  */
-export const subRunningSessionCached = cache(async (userId: string, nowMs: number, dl: string) => {
-  const [pairs, orgasmusEntries, telemetryKeyProof, orgasmCfg, tOrgasm] = await Promise.all([
-    subPairsCached(userId, nowMs), orgasmEntriesCached(userId), subKeyProofCached(userId, nowMs),
+const runningSessionOf = cache(async (userId: string, nowMs: number, dl: string, audience: BlockAudience) => {
+  const [{ pairs }, orgasmusEntries, telemetryKeyProof, orgasmCfg, tOrgasm] = await Promise.all([
+    pairsOf(userId, nowMs, audience), orgasmEntriesCached(userId), keyProofOf(userId, nowMs, audience),
     orgasmConfigCached(userId), getTranslations("orgasmForm"),
   ]);
   const activePair = getOpenPair(pairs);
   if (!activePair) return null;
-  const events = buildSessionEvents(
-    activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm), telemetryKeyProof,
-  );
-  return events.length > 0 ? { activePair, events } : null;
+  return {
+    activePair,
+    events: buildSessionEvents(
+      activePair, orgasmusEntries, dl, (art) => resolveOrgasmusArtDisplay(art, orgasmCfg, tOrgasm), telemetryKeyProof,
+    ),
+  };
 });
+
+/** Die laufende Session in Träger-Sicht. */
+export const subRunningSessionCached = (userId: string, nowMs: number, dl: string) =>
+  runningSessionOf(userId, nowMs, dl, "sub");
+
+/** Dieselbe in Keyholder-Sicht — mit den Kontroll-Punkten, die nur sie sieht. */
+export const keyholderRunningSessionCached = (userId: string, nowMs: number, dl: string) =>
+  runningSessionOf(userId, nowMs, dl, "keyholder");
 
 /**
  * Die ausgewerteten Aufgaben eines Trägers. `kgLabel` ist die Beschriftung der KG-Bedingung — eine
  * Zeichenkette und damit als `cache()`-Argument tauglich.
  *
+ * `audience` hat bewusst KEINEN Vorgabewert: `cache()` schlägt über die tatsächlich ÜBERGEBENEN
+ * Argumente nach, nicht über die aufgefüllten. Ein Aufruf mit drei und einer mit vier Argumenten
+ * landen auf verschiedenen Einträgen — auch wenn der vierte genau der Vorgabewert ist. Die
+ * Auswertung liefe dann zweimal, und niemandem fiele es auf.
+ *
  * `evaluateTasks` lädt ohne Aufgaben gar nichts nach: wer keine hat, zahlt hier keinen Preis.
  */
-export const evaluatedTasksCached = cache(async (userId: string, nowMs: number, kgLabel: string) => {
+export const evaluatedTasksCached = cache(async (userId: string, nowMs: number, kgLabel: string, audience: BlockAudience) => {
   const [entries, { rules }] = await Promise.all([entriesCached(userId), cleaningRulesCached(userId)]);
   return getEvaluatedTaskHistory(userId, new Date(nowMs), {
-    audience: "sub", kgLabel, kgEntries: entries, wearEntries: entries, reinigung: rules,
+    audience, kgLabel, kgEntries: entries, wearEntries: entries, reinigung: rules,
   });
 });
 
@@ -200,9 +250,50 @@ export const evaluatedTasksCached = cache(async (userId: string, nowMs: number, 
  * eigene Abfrage kostet und nicht jeder Blick auf die Aufgaben sie braucht (die Trage-Karten fragen
  * nur, ob eine Aufgabe eine Session festhält).
  */
-export const taskProofViewsCached = cache(async (userId: string, nowMs: number, kgLabel: string) =>
-  loadTaskProofViews((await evaluatedTasksCached(userId, nowMs, kgLabel)).map((e) => e.task.id)),
+export const taskProofViewsCached = cache(async (userId: string, nowMs: number, kgLabel: string, audience: BlockAudience) =>
+  loadTaskProofViews((await evaluatedTasksCached(userId, nowMs, kgLabel, audience)).map((e) => e.task.id)),
 );
+
+/**
+ * Die Aufgaben-Karten einer Seite: oben, was JETZT ansteht, unten der ganze Bestand.
+ *
+ * Beide Oberflächen teilen sich diese Herleitung, weil sie dieselbe ist — bis auf zwei Dinge, und
+ * beide hängen an `audience`: die Keyholderin sieht auch, was sie für später geplant hat, und sie
+ * bekommt KEINE Deep-Links, denn es sind nicht ihre Formulare (was sie tun kann, hängt
+ * `KeyholderTaskCard` an).
+ */
+export const taskCardsCached = cache(async (userId: string, nowMs: number, kgLabel: string, audience: BlockAudience) => {
+  const [evaluated, proofViews] = await Promise.all([
+    evaluatedTasksCached(userId, nowMs, kgLabel, audience),
+    taskProofViewsCached(userId, nowMs, kgLabel, audience),
+  ]);
+  const card = (e: (typeof evaluated)[number], withLinks: boolean) =>
+    toTaskCard(e, withLinks, proofViews.get(e.task.id) ?? []);
+  return {
+    // Nächste Frist zuerst (die Liste kommt absteigend, also umdrehen) — was am dringendsten ist,
+    // steht zuoberst.
+    open: evaluated.filter((e) => belongsOnDashboard(e, new Date(nowMs))).reverse().map((e) => card(e, audience === "sub")),
+    // Die Liste ist die ARCHIV-Sicht: keine Deep-Links, denn die Formulare stehen an den Karten oben.
+    all: evaluated.map((e) => card(e, false)),
+  };
+});
+
+/** Die Zeilen der Trage-Sessions — beide Oberflächen zeigen dieselbe Liste, ohne jeden Unterschied. */
+export const wearSessionRowsCached = cache(async (userId: string, nowMs: number, dl: string) => {
+  const [categories, sessionList, entries] = await Promise.all([
+    trackingCategoriesCached(userId), wearSessionsCached(userId, nowMs), entriesCached(userId),
+  ]);
+  return buildWearSessionRows(categories, sessionList, dl, entries);
+});
+
+/** Was die Session-Liste braucht — dieselben fünf Quellen, nur je Sicht die passende Paarung. */
+export const sessionListDataCached = cache(async (userId: string, nowMs: number, audience: BlockAudience) => {
+  const [{ pairs }, orgasmusEntries, telemetryKeyProof, user, deviceCount] = await Promise.all([
+    pairsOf(userId, nowMs, audience), orgasmEntriesCached(userId), keyProofOf(userId, nowMs, audience),
+    userRowCached(userId), deviceCountCached(userId),
+  ]);
+  return { pairs, orgasmusEntries, telemetryKeyProof, user, deviceCount };
+});
 
 /** Die aktive Trainingsvorgabe (KG) zum Zeitpunkt der Seite. */
 export const activeVorgabeCached = cache((userId: string, nowMs: number) =>
@@ -212,6 +303,9 @@ export const activeVorgabeCached = cache((userId: string, nowMs: number) =>
 /** Die für den Träger wirksame Sperrzeit. */
 export const subSperrzeitCached = cache((userId: string) => getActiveSperrzeit(userId));
 
+/** Die Sperrzeit in Keyholder-Sicht — auch eine erst GEPLANTE, damit sie sie zurückziehen kann. */
+export const keyholderSperrzeitCached = cache((userId: string) => getKeyholderSperrzeit(userId));
+
 /** Die offene Verschluss-Anforderung des Trägers (bei mehreren die dringendste). */
 export const lockRequestCached = cache((userId: string, nowMs: number) =>
   getOpenLockRequest(userId, new Date(nowMs)),
@@ -220,6 +314,11 @@ export const lockRequestCached = cache((userId: string, nowMs: number) =>
 /** Die offene Orgasmus-Anforderung des Trägers. */
 export const subOrgasmRequestCached = cache((userId: string, nowMs: number) =>
   getActiveOrgasmusAnforderung(userId, new Date(nowMs)),
+);
+
+/** Dieselbe in Keyholder-Sicht — auch eine geplante oder abgelaufene bleibt ihr sichtbar. */
+export const keyholderOrgasmRequestCached = cache((userId: string) =>
+  getKeyholderOrgasmusAnforderung(userId),
 );
 
 /**
