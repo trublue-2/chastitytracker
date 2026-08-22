@@ -31,6 +31,9 @@ export interface WeightPayload {
   imageUrl: string | null;
   imageExifTime: string | null;
   note: string | null;
+  /** Was die Waagen-Erkennung gelesen hat, ungeachtet dessen, was der Mensch daraus gemacht hat.
+   *  Getrennt gespeichert — nur so ist später sichtbar, ob korrigiert wurde. */
+  detectedKg: number | null;
 }
 
 interface Props {
@@ -73,12 +76,22 @@ export default function WeightFormCore({
 
   const {
     imageUrl, imageExifTime, imagePreview, uploading, exifWarning, uploadError,
-    rotation, rotateLeft, rotateRight, handleFile,
+    rotation, rotateLeft, rotateRight, handleFile, scaleKg, scaleState,
   } = usePhotoUpload({
     startTime: measuredAt,
     exifWarningText: (type, hours) => (type === "missing" ? tc("exifMissing") : tc("exifDeviation", { hours: hours ?? 0 })),
     uploadErrorText: () => tc("uploadError"),
+    enableScaleDetection: true,
+    scaleUnitSystem: unitSystem,
   });
+
+  // Die gelesene Zahl füllt das leere Feld — sie überschreibt NICHTS, was der Mensch getippt hat.
+  // Ein Vorschlag, der eine Korrektur wieder wegräumt, wäre schlimmer als gar keiner.
+  const [detectionApplied, setDetectionApplied] = useState<number | null>(null);
+  if (scaleKg !== null && scaleKg !== detectionApplied && weight.trim() === "") {
+    setDetectionApplied(scaleKg);
+    setWeight(String(weightForDisplay(scaleKg, unitSystem)));
+  }
 
   const { saving, error, setError, submit } = useEntrySubmit<WeightPayload>(submitFn, onSuccess);
 
@@ -97,6 +110,7 @@ export default function WeightFormCore({
       imageUrl: imageUrl || null,
       imageExifTime: imageExifTime || null,
       note: note.trim() || null,
+      detectedKg: scaleKg,
     };
   }
 
@@ -174,6 +188,18 @@ export default function WeightFormCore({
             </>
           )}
         </FormField>
+
+        {scaleState === "detecting" && (
+          <p className="text-xs text-foreground-muted">{t("detecting")}</p>
+        )}
+        {scaleState === "detected" && scaleKg !== null && (
+          <p className="text-xs text-foreground-muted">
+            {t("detected", { value: `${weightForDisplay(scaleKg, unitSystem)} ${unitLabel}` })}
+          </p>
+        )}
+        {scaleState === "not-detected" && (
+          <p className="text-xs text-foreground-faint">{t("notDetected")}</p>
+        )}
 
         <Textarea
           label={tc("commentOptional")}

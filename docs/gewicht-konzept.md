@@ -1,12 +1,12 @@
 # Gewichtstracking: Wiegen, Grenzen, Verlauf
 
-**Status:** **Etappen 1–6 gebaut** (22.08.2026) — Schema und Migration, beide Schalter, der
+**Status:** **Etappen 1–7 gebaut** (22.08.2026) — Schema und Migration, beide Schalter, der
 Rechenkern `weight.ts`, die Wiege-Fenster `weightWindows.ts`, die Einstellungen auf beiden Seiten
 die **Erfassung** (Formular des Trägers, Nachtrag der Keyholderin, ein Wert je Tag, Beleg-Pflicht
 mit Ventil, Sprung-Nachfrage), die **Statistik-Karte** samt Verlaufs-Diagramm und die **Meldepflicht**
 (Vergehensart `missed_weight_report`, Drei-Tage-Blöcke, Pause bei Gesundheits-Halt, Kopplung an den
-Schalter) samt **Grenz-Meldung** an die Keyholder. Waagen-Erkennung, Foto-Beschneidung und der
-MCP-Schreibweg stehen noch aus (Abschnitt 14).
+Schalter), die **Grenz-Meldung** an die Keyholder und die **Waagen-Erkennung**. Foto-Beschneidung und
+der MCP-Schreibweg stehen noch aus (Abschnitt 14).
 **Alle Grundsatzfragen sind entschieden**; offen ist ein einziger Punkt, siehe Abschnitt 13.
 **Erstellt:** 2026-08-22 · **Entscheidungen eingearbeitet:** 2026-08-22
 **Branch:** `feat/weight-tracking` (Worktree `../kg-weight`, abgezweigt von `main` @ a7b0001, v5.2.9)

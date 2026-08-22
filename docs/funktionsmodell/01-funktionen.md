@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-93 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+94 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -231,6 +231,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 |---|---|---|---|---|
 | **Gewichts-Angaben pflegen** | Körpergrösse, Anzeige-Einheit, Referenzangabe und der eigene Zielkorridor. <br>*Nur erreichbar, solange die Keyholderin das Gewichtstracking für diesen Träger freigeschaltet hat — die Route prüft das selbst, nicht nur die Oberfläche.* | Sub | App (Träger) | `/api/settings/weight` |
 | **Gewicht erfassen** | Eine Messung je Kalendertag — vom Träger selbst oder von der Keyholderin für ihn. <br>*Der Träger braucht einen Beleg (Foto oder Notiz), die Keyholderin nicht — sie steht nicht vor seiner Waage. Eine zweite Meldung desselben Tages ersetzt die erste.* | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/weight` |
+| **Waagen-Anzeige lesen** | Liest aus dem Foto der Waage die angezeigte Zahl und, wo ablesbar, die Einheit. <br>*Ein VORSCHLAG für das Formular, kein Messwert: der Mensch bestätigt oder korrigiert. Gespeichert wird die gelesene Zahl getrennt vom bestätigten Wert. Ohne Vision-Provider gibt es keine Erkennung — lokales OCR liest auf Sieben-Segment-Anzeigen zuverlässig Unsinn.* | Sub | App (Träger) | `/api/detect-weight` |
 | **Gewichtstracking einrichten** | Freischaltung, Wiege-Zeitfenster und die Nachbesserung der Grenzen des Trägers. <br>*Die Grenzen setzt der Träger; die Keyholderin darf sie nur weiten, nie verengen.* | Keyholder (UI) | App (Keyholder) | `/api/admin/users/[id]` |
 
 ## Läuft von selbst

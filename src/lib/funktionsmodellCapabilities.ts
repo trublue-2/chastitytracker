@@ -556,6 +556,12 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Der Träger braucht einen Beleg (Foto oder Notiz), die Keyholderin nicht — sie steht nicht vor seiner Waage. Eine zweite Meldung desselben Tages ersetzt die erste.",
   }),
   c({
+    id: "weight-detect", mechanic: "Gewicht", title: "Waagen-Anzeige lesen",
+    what: "Liest aus dem Foto der Waage die angezeigte Zahl und, wo ablesbar, die Einheit.",
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/detect-weight"],
+    note: "Ein VORSCHLAG für das Formular, kein Messwert: der Mensch bestätigt oder korrigiert. Gespeichert wird die gelesene Zahl getrennt vom bestätigten Wert. Ohne Vision-Provider gibt es keine Erkennung — lokales OCR liest auf Sieben-Segment-Anzeigen zuverlässig Unsinn.",
+  }),
+  c({
     id: "weight-keyholder", mechanic: "Gewicht", title: "Gewichtstracking einrichten",
     what: "Freischaltung, Wiege-Zeitfenster und die Nachbesserung der Grenzen des Trägers.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users/[id]"],

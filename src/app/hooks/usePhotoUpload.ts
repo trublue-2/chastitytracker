@@ -5,6 +5,8 @@ import { compressImage } from "@/lib/compressImage";
 import type { Rotation } from "@/lib/constants";
 
 export type SealState = "idle" | "detecting" | "detected" | "not-detected";
+/** Zustand der Waagen-Erkennung — dieselben vier Schritte wie bei der Siegel-Erkennung. */
+export type ScaleState = SealState;
 export type DeviceDetectionState = "idle" | "detecting" | "detected" | "not-detected";
 
 export interface DeviceSuggestion {
@@ -23,6 +25,16 @@ interface UsePhotoUploadOptions {
   enableSealDetection?: boolean;
   /** Auto-detect device from photo by comparing against reference images. Default false. */
   enableDeviceDetection?: boolean;
+  /**
+   * Die Waagen-Anzeige aus dem Foto lesen (Gewichts-Erfassung). Default false.
+   *
+   * Wie die Siegel-Erkennung ein VORSCHLAG: das Ergebnis füllt das Zahlenfeld vor, bestätigt wird
+   * es vom Menschen. Läuft auch nach jedem Drehen erneut — bei einer Anzeige, die schräg
+   * fotografiert wurde, ist genau das oft der Unterschied zwischen Lesen und Raten.
+   */
+  enableScaleDetection?: boolean;
+  /** Anzeige-Einheit dessen, der fotografiert — gilt nur, wenn die Waage selbst keine nennt. */
+  scaleUnitSystem?: "metric" | "imperial";
   /** Initial values (for edit mode). */
   initial?: {
     imageUrl?: string | null;
@@ -37,6 +49,8 @@ export function usePhotoUpload({
   uploadErrorText,
   enableSealDetection = false,
   enableDeviceDetection = false,
+  enableScaleDetection = false,
+  scaleUnitSystem = "metric",
   initial,
 }: UsePhotoUploadOptions) {
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
@@ -50,6 +64,8 @@ export function usePhotoUpload({
   const [deviceSuggestion, setDeviceSuggestion] = useState<DeviceSuggestion | null>(null);
   const [deviceDetectionState, setDeviceDetectionState] = useState<DeviceDetectionState>("idle");
   const [rotation, setRotation] = useState<Rotation>(0);
+  const [scaleKg, setScaleKg] = useState<number | null>(null);
+  const [scaleState, setScaleState] = useState<ScaleState>("idle");
   const blobUrlRef = useRef<string | null>(null);
   // Ref so rotate callbacks always see the latest imageUrl without stale closure
   const imageUrlRef = useRef(imageUrl);
@@ -79,6 +95,23 @@ export function usePhotoUpload({
       setDeviceDetectionState("not-detected");
     }
   }, []);
+
+  const runScaleDetection = useCallback(async (url: string, rot: Rotation) => {
+    setScaleState("detecting");
+    try {
+      const res = await fetch("/api/detect-weight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: url, rotation: rot, unit: scaleUnitSystem }),
+      });
+      if (!res.ok) { setScaleState("not-detected"); return; }
+      const { detectedKg } = await res.json() as { detectedKg: number | null };
+      setScaleKg(detectedKg);
+      setScaleState(detectedKg === null ? "not-detected" : "detected");
+    } catch {
+      setScaleState("not-detected");
+    }
+  }, [scaleUnitSystem]);
 
   const runSealDetection = useCallback(async (url: string, rot: Rotation) => {
     setSealState("detecting");
@@ -110,6 +143,7 @@ export function usePhotoUpload({
     setUploadError("");
     setRotation(0);
     if (enableSealDetection) setSealState("idle");
+    if (enableScaleDetection) { setScaleState("idle"); setScaleKg(null); }
     if (enableDeviceDetection) { setDeviceDetectionState("idle"); setDeviceSuggestion(null); }
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
     const blobUrl = URL.createObjectURL(file);
@@ -170,8 +204,9 @@ export function usePhotoUpload({
     await Promise.all([
       enableSealDetection ? runSealDetection(data.url, 0) : Promise.resolve(),
       enableDeviceDetection ? runDeviceDetection(data.url) : Promise.resolve(),
+      enableScaleDetection ? runScaleDetection(data.url, 0) : Promise.resolve(),
     ]);
-  }, [startTime, exifWarningText, uploadErrorText, enableSealDetection, enableDeviceDetection, runSealDetection, runDeviceDetection]);
+  }, [startTime, exifWarningText, uploadErrorText, enableSealDetection, enableDeviceDetection, enableScaleDetection, runSealDetection, runDeviceDetection, runScaleDetection]);
 
   const rotateLeft = useCallback(() => {
     setRotation(prev => {
@@ -179,9 +214,12 @@ export function usePhotoUpload({
       if (enableSealDetection && imageUrlRef.current) {
         runSealDetection(imageUrlRef.current, next);
       }
+      if (enableScaleDetection && imageUrlRef.current) {
+        runScaleDetection(imageUrlRef.current, next);
+      }
       return next;
     });
-  }, [enableSealDetection, runSealDetection]);
+  }, [enableSealDetection, runSealDetection, enableScaleDetection, runScaleDetection]);
 
   const rotateRight = useCallback(() => {
     setRotation(prev => {
@@ -189,9 +227,12 @@ export function usePhotoUpload({
       if (enableSealDetection && imageUrlRef.current) {
         runSealDetection(imageUrlRef.current, next);
       }
+      if (enableScaleDetection && imageUrlRef.current) {
+        runScaleDetection(imageUrlRef.current, next);
+      }
       return next;
     });
-  }, [enableSealDetection, runSealDetection]);
+  }, [enableSealDetection, runSealDetection, enableScaleDetection, runScaleDetection]);
 
   const clearPhoto = useCallback(() => {
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
@@ -201,6 +242,8 @@ export function usePhotoUpload({
     setExifWarning("");
     setUploadError("");
     setSealState("idle");
+    setScaleState("idle");
+    setScaleKg(null);
     setDeviceDetectionState("idle");
     setDeviceSuggestion(null);
     setRotation(0);
@@ -215,6 +258,8 @@ export function usePhotoUpload({
     uploadError, setUploadError,
     sealNumber, setSealNumber,
     sealState, setSealState,
+    scaleKg, setScaleKg,
+    scaleState, setScaleState,
     deviceSuggestion, setDeviceSuggestion,
     deviceDetectionState, setDeviceDetectionState,
     rotation, rotateLeft, rotateRight,

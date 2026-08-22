@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluateVerifyResponse, isImplausibleSeal, sealDigitsFromReply } from "./verifyCode";
+import { scaleReadingFromReply, evaluateVerifyResponse, isImplausibleSeal, sealDigitsFromReply } from "./verifyCode";
 
 const CODE = "12345";
 const SEAL = "0067321";
@@ -234,5 +234,43 @@ describe("isImplausibleSeal — Halluzinations-/Platzhalter-Guard", () => {
     expect(isImplausibleSeal("48291")).toBe(false);
     expect(isImplausibleSeal(null)).toBe(false);
     expect(isImplausibleSeal("123")).toBe(false); // zu kurz für eine Plombe
+  });
+});
+
+describe("scaleReadingFromReply — die Waagen-Anzeige", () => {
+  it("liest die übliche Schreibweise mit Punkt und mit Komma", () => {
+    expect(scaleReadingFromReply({ detected: "78.4", unit: "kg" })).toEqual({ value: 78.4, unit: "kg" });
+    expect(scaleReadingFromReply({ detected: "78,4", unit: null })).toEqual({ value: 78.4, unit: null });
+  });
+
+  it("nimmt die abgelesene Einheit mit — sie schlägt später die Präferenz des Nutzers", () => {
+    // Eine „165" auf einer Waage in Pfund als Kilogramm zu übernehmen wäre die teuerste denkbare
+    // Fehl-Lesung.
+    expect(scaleReadingFromReply({ detected: "165.2", unit: "lbs" })).toEqual({ value: 165.2, unit: "lb" });
+  });
+
+  it("lässt Fliesstext und Buchstaben durchfallen", () => {
+    // Bei einer ENTDECKUNG gibt es keinen Erwartungswert, gegen den sich eine Fehl-Lesung prüfen
+    // liesse — was hier durchkommt, WIRD der Vorschlag.
+    expect(scaleReadingFromReply({ detected: "etwa 78 kg" })).toBeNull();
+    expect(scaleReadingFromReply({ detected: "78kg" })).toBeNull();
+  });
+
+  it("behandelt die Sentinel-Antworten als nicht erkannt", () => {
+    expect(scaleReadingFromReply({ detected: "null" })).toBeNull();
+    expect(scaleReadingFromReply({ detected: null })).toBeNull();
+    expect(scaleReadingFromReply({})).toBeNull();
+  });
+
+  it("weist unplausible Zahlen ab, bevor sie ein Vorschlag werden", () => {
+    // Zu leicht für einen Menschen auf einer Waage, und zu schwer: der Bereich deckt Kilogramm wie
+    // Pfund ab (20 bis 700), damit die Zahl auch ohne bekannte Einheit beurteilbar bleibt.
+    expect(scaleReadingFromReply({ detected: "7" })).toBeNull();
+    expect(scaleReadingFromReply({ detected: "784" })).toBeNull();
+    expect(scaleReadingFromReply({ detected: "184.2" })).toEqual({ value: 184.2, unit: null });
+  });
+
+  it("verwirft eine verrutschte Kommastelle", () => {
+    expect(scaleReadingFromReply({ detected: "7840" })).toBeNull();
   });
 });

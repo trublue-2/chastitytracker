@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi, requireKeyholderOrAdminActor, sessionActor, weightTrackingGate } from "@/lib/authGuards";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 import { recordWeight } from "@/lib/weightService";
+import { weightProblem } from "@/lib/weight";
+
+/** Die gemeldete Erkennung, sofern sie eine plausible Zahl ist — sonst `null`. */
+function detectedFrom(raw: unknown): number | null {
+  if (raw === null || raw === undefined) return null;
+  const n = Number(raw);
+  return weightProblem(n) ? null : n;
+}
 
 /**
  * Eine Messung erfassen — für sich selbst, oder als Keyholderin für einen Träger.
@@ -47,6 +55,10 @@ export async function POST(req: NextRequest) {
     imageUrl: body.imageUrl || null,
     imageExifTime: exif && !Number.isNaN(exif.getTime()) ? exif : null,
     note: typeof body.note === "string" ? body.note : null,
+    // Was die Erkennung gelesen hat — Beiwerk, kein Messwert. Vom Client, also nur übernommen, wenn
+    // es überhaupt eine plausible Zahl ist; alles andere wird zu `null` statt zu einem Streitfall
+    // darüber, was die Maschine angeblich gesehen hat.
+    detectedKg: detectedFrom(body.detectedKg),
     source: forOther ? "keyholder" : "user",
     createdById,
   });
