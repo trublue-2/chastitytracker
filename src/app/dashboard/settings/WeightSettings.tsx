@@ -7,15 +7,13 @@ import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import {
-  heightForDisplay, heightInputToCm, inchesToFeet, isUnderweightTarget, normalWeightRangeKg,
-  parseDecimalInput, weightFieldValue, weightForDisplay, weightInputToKg,
-  type ReferenceSex, type UnitSystem,
+  heightForDisplay, heightInputToCm, inchesToFeet, isUnderweightTarget,
+  parseDecimalInput, weightFieldValue, weightForDisplay, weightInputToKg, type UnitSystem,
 } from "@/lib/weight";
 
 export interface WeightSettingsProps {
   unitSystem: UnitSystem;
   heightCm: number | null;
-  referenceSex: ReferenceSex | null;
   targetMinKg: number | null;
   targetMaxKg: number | null;
   /** Hat der Sub schon eine Grösse gespeichert? Dann fragt das Formular, ob die neue Zahl eine
@@ -25,7 +23,7 @@ export interface WeightSettingsProps {
 }
 
 export default function WeightSettings({
-  unitSystem, heightCm, referenceSex, targetMinKg, targetMaxKg, hasHeightHistory,
+  unitSystem, heightCm, targetMinKg, targetMaxKg, hasHeightHistory,
 }: WeightSettingsProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
@@ -41,9 +39,6 @@ export default function WeightSettings({
   const weightUnitLabel = unit === "imperial" ? tc("unitLbs") : tc("unitKg");
   const heightUnitLabel = unit === "imperial" ? tc("unitInch") : tc("unitCm");
 
-  // Der Normbereich erscheint HIER und nicht im Statistik-Block: beim Zielsetzen ist eine
-  // Einordnung eine Hilfe, im Alltag wäre sie ein Etikett.
-  const normal = normalWeightRangeKg(heightCm, referenceSex);
   // BEIDE Enden prüfen: eine Obergrenze im Untergewicht FORDERT es ein, eine Untergrenze dort
   // ERLAUBT es. Nur die Obergrenze zu prüfen liesse „mindestens 45 kg bei 1,85 m" wortlos durch.
   const underweight = [min, max].some((field) => {
@@ -128,17 +123,6 @@ export default function WeightSettings({
         <Button variant="secondary" loading={saving} onClick={saveHeight}>{tc("save")}</Button>
       </div>
 
-      <Select
-        label={t("referenceSex")}
-        value={referenceSex ?? ""}
-        disabled={saving}
-        onChange={(e) => save({ referenceSex: e.target.value })}
-        options={[
-          { value: "", label: t("referenceSexNone") },
-          { value: "m", label: t("referenceSexMale") },
-          { value: "f", label: t("referenceSexFemale") },
-        ]}
-      />
 
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-2 gap-3">
@@ -159,15 +143,6 @@ export default function WeightSettings({
             onChange={(e) => setMax(e.target.value)}
           />
         </div>
-        {normal && (
-          <p className="text-xs text-foreground-faint">
-            {t("targetNormalHint", {
-              min: weightForDisplay(normal.minKg, unit),
-              max: weightForDisplay(normal.maxKg, unit),
-              unit: weightUnitLabel,
-            })}
-          </p>
-        )}
         {underweight && (
           <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">
             {t("targetUnderweightWarning")}

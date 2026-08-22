@@ -25,7 +25,6 @@ export async function PATCH(req: NextRequest) {
     heightCm: body.heightCm,
     heightMode: body.heightMode === "correct" ? "correct" : "change",
     unitSystem: body.unitSystem,
-    referenceSex: body.referenceSex,
     targetMinKg: body.targetMinKg,
     targetMaxKg: body.targetMaxKg,
     changedBy: session.user.name ?? null,

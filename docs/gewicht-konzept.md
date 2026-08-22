@@ -1,13 +1,14 @@
 # Gewichtstracking: Wiegen, Grenzen, Verlauf
 
-**Status:** **fertig gebaut** (22.08.2026) — alle neun Etappen — Schema und Migration, beide Schalter, der
+**Status:** **fertig gebaut** (22.08.2026) — alle neun Etappen, alle Grundsatzfragen entschieden — Schema und Migration, beide Schalter, der
 Rechenkern `weight.ts`, die Wiege-Fenster `weightWindows.ts`, die Einstellungen auf beiden Seiten
 die **Erfassung** (Formular des Trägers, Nachtrag der Keyholderin, ein Wert je Tag, Beleg-Pflicht
 mit Ventil, Sprung-Nachfrage), die **Statistik-Karte** samt Verlaufs-Diagramm und die **Meldepflicht**
 (Vergehensart `missed_weight_report`, Drei-Tage-Blöcke, Pause bei Gesundheits-Halt, Kopplung an den
 Schalter), die **Grenz-Meldung** an die Keyholder, die **Waagen-Erkennung**, das **Beschneiden der
 Fotos** und den **MCP** (lesen und schreiben). Offen ist nur noch der Punkt aus Abschnitt 13 und die
-Erprobung der Erkennung gegen ein echtes Modell.
+ein echtes Waagen-Foto für die Erkennung (gegen `qwen2.5vl:7b` ist sie erprobt, nur eben mit
+gerenderten Anzeigen).
 **Alle Grundsatzfragen sind entschieden**; offen ist ein einziger Punkt, siehe Abschnitt 13.
 **Erstellt:** 2026-08-22 · **Entscheidungen eingearbeitet:** 2026-08-22
 **Branch:** `feat/weight-tracking` (Worktree `../kg-weight`, abgezweigt von `main` @ a7b0001, v5.2.9)
@@ -37,7 +38,7 @@ Pfeil auf eine *Entscheidung*, nicht auf eine Buchung.
 | | Sub | Keyholder |
 |---|---|---|
 | Feature freischalten | — | **ja, nur sie** |
-| Körpergrösse, Referenzangabe | setzt | liest |
+| Körpergrösse | setzt | liest |
 | Einheitensystem | eigene Anzeige-Präferenz | eigene Anzeige-Präferenz |
 | Grenzwerte (Min/Max) | **setzt** | darf nur **weiten**, nie verengen (Abschnitt 7) |
 | Wiege-Zeitfenster | liest | setzt |
@@ -140,7 +141,6 @@ mit Gedächtnis.
 ```prisma
 weightTrackingEnabled  Boolean @default(false)   // Gate, von der KH gesetzt
 heightCm               Int?                      // AKTUELLER Wert; Historie in HeightChange
-referenceSex           String?                   // "m" | "f" | null — nur für Referenzbereiche
 unitSystem             String  @default("metric")// "metric" | "imperial", reine Anzeige
 targetMinKg            Float?                    // Korridor des Subs, untere Grenze
 targetMaxKg            Float?                    // Korridor des Subs, obere Grenze
@@ -407,20 +407,15 @@ Die Keyholderin soll über den MCP können, was sie in der Oberfläche kann.
 - Werkzeugliste ist pro Verbindung gecacht: eine laufende KI-Sitzung sieht das Neue erst nach
   frischer Verbindung
 
-## 13. Der letzte offene Punkt
+## 13. Entschieden: keine Referenzangabe
 
-Zwei Entscheidungen widersprechen einander noch: die Angabe **mann/frau** soll für
-**Referenzbereiche** dienen — der BMI wird aber **ohne Kategorie** angezeigt. Damit hätte der
-Referenzbereich keinen Ort, an dem er erscheint.
+Die Angabe mann/frau ist **gestrichen** (22.08.2026). Sie war nur dafür gedacht, eine Referenztabelle
+für den Normbereich auszuwählen — und der Normbereich hatte, seit der BMI ohne Kategorie erscheint,
+keinen Ort mehr. Ein Gesundheitsdatenfeld, das nichts steuert, ist Ballast; der BMI selbst rechnet
+ohnehin geschlechtsunabhängig.
 
-**Vorschlag:** das Feld bleibt, und der Referenzbereich erscheint **nur beim Setzen der
-Grenzwerte** — dort, wo der Sub sich Ziele gibt, ist eine Einordnung eine Hilfe („für deine Grösse
-liegt der Normbereich zwischen 62 und 84 kg") und nicht ein Etikett, das ihn im Alltag begleitet. Im
-Statistik-Block bleibt es bei der blossen Zahl. Das versöhnt beide Entscheidungen und bedient
-zugleich die BMI-Warnung aus Abschnitt 7, die ohnehin an dieser Stelle sitzt.
-
-Alternative, falls das zu viel ist: das Feld ersatzlos streichen. Nichts im übrigen
-Funktionsumfang braucht es.
+Was bleibt: die **Warnung unterhalb von BMI 18,5** beim Setzen der Grenzen und die Unterdrückung der
+Grenz-Meldung darunter (Abschnitt 7). Beide brauchen die Angabe nicht.
 
 ## 14. Etappen
 

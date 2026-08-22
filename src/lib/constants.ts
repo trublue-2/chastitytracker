@@ -262,7 +262,7 @@ export const SELF_EDITABLE_USER_FIELDS = [
   // Gewichtstracking: Angaben ÜBER den Träger, nicht Vorgaben AN ihn. Die Keyholder-Felder
   // (`weightTrackingEnabled`, `weighingWindows`, `targetMin/MaxKeyholderKg`) stehen bewusst nicht
   // hier — sie laufen über `requireKeyholderOrAdminApi()`.
-  "heightCm", "unitSystem", "referenceSex", "targetMinKg", "targetMaxKg",
+  "heightCm", "unitSystem", "targetMinKg", "targetMaxKg",
 ] as const;
 export type SelfEditableUserField = (typeof SELF_EDITABLE_USER_FIELDS)[number];
 

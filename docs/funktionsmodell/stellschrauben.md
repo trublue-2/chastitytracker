@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 132 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 131 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -233,7 +233,6 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 |---|---|---|---|---|---|---|---|
 | `User.weightTrackingEnabled` | Boolean | `false` | dauerhaft | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`). | Keyholder (UI) | Gewicht, Oberfläche | `authGuards.ts:weightTrackingGate` |
 | `User.heightCm` | Int? | — | dauerhaft · **rückwirkend** | Aktuelle Körpergrösse — die Grundlage jedes BMI. Historisiert in `HeightChange`: ein BMI wird mit der Grösse gerechnet, die zum Messzeitpunkt galt. | Sub | Gewicht | `weight.ts:heightAt` |
-| `User.referenceSex` | String? | — | dauerhaft | Wählt die Referenztabelle für den Normbereich beim Setzen der Grenzen. Der BMI selbst rechnet ohne sie. | Sub | Gewicht, Oberfläche | `weight.ts:normalWeightRangeKg` |
 | `User.unitSystem` | String | `"metric"` | dauerhaft | Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt. | Sub | Oberfläche | `weight.ts:weightForDisplay` |
 | `User.targetMinKg` | Float? | — | dauerhaft | Untergrenze des Zielkorridors, gesetzt vom Träger. Eine Unterschreitung meldet der Keyholderin — sie entscheidet, ob etwas folgt. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveCorridor` |
 | `User.targetMaxKg` | Float? | — | dauerhaft | Obergrenze des Zielkorridors, gesetzt vom Träger. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveCorridor` |

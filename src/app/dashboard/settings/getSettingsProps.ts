@@ -4,7 +4,7 @@ import { getControllableSubs } from "@/lib/keyholder";
 import { getMessageChannels } from "@/lib/notificationPrefs";
 import { isValidStartPage, weightTrackingEnabled } from "@/lib/constants";
 import type { WeightSettingsProps } from "./WeightSettings";
-import type { ReferenceSex, UnitSystem } from "@/lib/weight";
+import type { UnitSystem } from "@/lib/weight";
 import pkg from "@/../package.json";
 
 export interface SettingsFormProps {
@@ -57,7 +57,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
         where: { id: userId },
         select: {
           username: true, email: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true,
-          weightTrackingEnabled: true, unitSystem: true, heightCm: true, referenceSex: true,
+          weightTrackingEnabled: true, unitSystem: true, heightCm: true,
           targetMinKg: true, targetMaxKg: true,
         },
       }),
@@ -76,7 +76,6 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
         weight = {
           unitSystem: dbUser.unitSystem as UnitSystem,
           heightCm: dbUser.heightCm,
-          referenceSex: dbUser.referenceSex as ReferenceSex | null,
           targetMinKg: dbUser.targetMinKg,
           targetMaxKg: dbUser.targetMaxKg,
           // Erst ab der ersten gespeicherten Grösse gibt es etwas zu korrigieren — vorher wäre die

@@ -540,6 +540,11 @@ export function scaleReadingFromReply(reply: Record<string, unknown>): ScaleRead
  * Waage in Pfund als Kilogramm zu übernehmen wäre die teuerste denkbare Fehl-Lesung.
  *
  * Ohne Vision-Provider gibt es KEINEN OCR-Rückfall — Begründung bei `detectSealDigits`.
+ *
+ * Erprobt gegen `qwen2.5vl:7b` (22.08.2026) mit gerenderten Anzeigen: Kilogramm, Pfund und eine
+ * Anzeige mit Körperfett und BMI daneben wurden richtig gelesen, ein Bild ohne Waage lieferte
+ * zweimal `null` statt einer geratenen Zahl. Rund sechs Sekunden je Aufruf. Ein ECHTES Foto —
+ * Spiegelung, Winkel, Sieben-Segment — steht weiterhin aus.
  */
 export async function detectScaleReading(imageUrl: string, rotation: Rotation = 0): Promise<ScaleReading | null> {
   return detectSealDigits<ScaleReading>(imageUrl, rotation, {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   bmi, breachToAnnounce, corridorBreach, corridorProblem, effectiveCorridor, heightAt, heightProblem,
-  isUnderweightTarget, keyholderCorridorProblem, normalWeightRangeKg, weightForDisplay,
+  isUnderweightTarget, keyholderCorridorProblem, weightForDisplay,
   weightInputToKg, weightProblem, WEIGHT_PROBLEMS,
 } from "./weight";
 
@@ -40,18 +40,6 @@ describe("bmi", () => {
 
   it("warnt nicht ohne Grösse — ohne sie ist nichts bekannt", () => {
     expect(isUnderweightTarget(45, null)).toBe(false);
-  });
-});
-
-describe("normalWeightRangeKg", () => {
-  it("gibt die Spanne in Kilogramm, nicht in BMI-Punkten", () => {
-    const r = normalWeightRangeKg(180, "m")!;
-    expect(r.minKg).toBeCloseTo(64.8, 1);
-    expect(r.maxKg).toBeCloseTo(81, 1);
-  });
-
-  it("nimmt ohne Angabe den geschlechtsneutralen WHO-Bereich", () => {
-    expect(normalWeightRangeKg(180, null)!.minKg).toBeCloseTo(59.9, 1);
   });
 });
 

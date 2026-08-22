@@ -434,11 +434,6 @@ export const FM_REGISTRY: FmEntry[] = [
     retroactive: "Als KORREKTUR gespeichert (die alte Zahl war nie wahr) schreibt sie die jüngste Historie-Zeile um und verschiebt damit jeden BMI, der mit ihr gerechnet wurde. Als ÄNDERUNG gespeichert wirkt sie nur nach vorn.",
   }),
   s({
-    model: "User", field: "referenceSex", domain: "gewicht", scope: "standing",
-    effect: "Wählt die Referenztabelle für den Normbereich beim Setzen der Grenzen. Der BMI selbst rechnet ohne sie.",
-    writers: ["sub"], affects: ["Gewicht", "Oberfläche"], anchor: "weight.ts:normalWeightRangeKg",
-  }),
-  s({
     model: "User", field: "unitSystem", domain: "gewicht", scope: "standing",
     effect: "Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt.",
     writers: ["sub"], affects: ["Oberfläche"], anchor: "weight.ts:weightForDisplay",

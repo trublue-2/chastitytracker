@@ -5,8 +5,8 @@ import { weighingWindowsProblem, parseWeighingWindows } from "@/lib/weightWindow
 import { OFFENSE_RULE_CHANGE_SELECT } from "@/lib/offenseRulesService";
 import { offenseRuleResolver } from "@/lib/offenseRules";
 import {
-  corridorProblem, heightProblem, isReferenceSex, isUnitSystem, keyholderCorridorProblem,
-  HEIGHT_EPOCH, type Corridor, type ReferenceSex, type UnitSystem,
+  corridorProblem, heightProblem, isUnitSystem, keyholderCorridorProblem,
+  HEIGHT_EPOCH, type Corridor, type UnitSystem,
 } from "@/lib/weight";
 
 /**
@@ -31,7 +31,6 @@ export interface SelfWeightParams {
    *  `"change"` legt eine neue an (echtes Wachstum). Vorgabe: `"change"`. */
   heightMode?: "correct" | "change";
   unitSystem?: unknown;
-  referenceSex?: unknown;
   targetMinKg?: unknown;
   targetMaxKg?: unknown;
   changedBy?: string | null;
@@ -83,7 +82,7 @@ function mergedCorridor(current: Corridor, min: number | null | undefined, max: 
 
 export async function setWeightSettingsSelf(userId: string, params: SelfWeightParams): Promise<ServiceResult<null>> {
   const data: {
-    heightCm?: number; unitSystem?: UnitSystem; referenceSex?: ReferenceSex | null;
+    heightCm?: number; unitSystem?: UnitSystem;
     targetMinKg?: number | null; targetMaxKg?: number | null;
   } = {};
 
@@ -97,14 +96,6 @@ export async function setWeightSettingsSelf(userId: string, params: SelfWeightPa
   if (params.unitSystem !== undefined) {
     if (!isUnitSystem(params.unitSystem)) return serviceFail(400, "INVALID_UNIT_SYSTEM");
     data.unitSystem = params.unitSystem;
-  }
-
-  if (params.referenceSex !== undefined) {
-    // Leer ist eine gültige Antwort: die Angabe wählt nur eine Referenztabelle aus, sie ist keine
-    // Voraussetzung für irgendeine Rechnung.
-    const raw = params.referenceSex === "" ? null : params.referenceSex;
-    if (raw !== null && !isReferenceSex(raw)) return serviceFail(400, "INVALID_REFERENCE_SEX");
-    data.referenceSex = raw;
   }
 
   const min = optionalNumber(params.targetMinKg);

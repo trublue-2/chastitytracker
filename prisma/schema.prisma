@@ -84,9 +84,6 @@ model User {
   // AKTUELLE Körpergrösse. Die Historie steht in `HeightChange` — ein BMI wird mit der Grösse
   // gerechnet, die zum Messzeitpunkt galt, nicht mit der von heute.
   heightCm                       Int?
-  // Nur zur Auswahl der Referenzbereiche beim Setzen der Grenzwerte ("m" | "f" | null = keine
-  // Angabe). Der BMI selbst ist geschlechtsunabhängig und benutzt das Feld NICHT.
-  referenceSex                   String?
   // Anzeige-Präferenz DESSEN, DER SCHAUT ("metric" | "imperial") — keine Eigenschaft der Daten:
   // eine Keyholderin darf Pfund sehen, während ihr Sub in Kilogramm einträgt.
   unitSystem                     String                   @default("metric")

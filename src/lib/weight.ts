@@ -108,41 +108,6 @@ export const WEIGHT_JUMP_CONFIRM_KG = 3;
 /** WHO-Schwelle zum Untergewicht. Auslöser der Warnung beim Setzen eines Zielwerts (Abschnitt 7). */
 export const BMI_UNDERWEIGHT = 18.5;
 
-/**
- * Referenz-BMI-Bereiche je Angabe.
- *
- * Die WHO-Einteilung ist geschlechtsunabhängig (18,5–25); die im deutschsprachigen Raum
- * gebräuchlichen Tabellen führen leicht verschobene Bereiche für Männer und Frauen. Genau dafür —
- * und NUR dafür — gibt es `User.referenceSex`: der BMI selbst rechnet ohne ihn.
- *
- * Der Bereich erscheint dort, wo der Sub sich Grenzen setzt, nicht im Statistik-Block. Eine
- * Einordnung ist beim Zielsetzen eine Hilfe; als Etikett im Alltag wäre sie ein Urteil.
- */
-export const BMI_REFERENCE = {
-  m: { min: 20, max: 25 },
-  f: { min: 19, max: 24 },
-  unspecified: { min: 18.5, max: 25 },
-} as const;
-
-export const REFERENCE_SEXES = ["m", "f"] as const;
-export type ReferenceSex = (typeof REFERENCE_SEXES)[number];
-
-export function isReferenceSex(v: unknown): v is ReferenceSex {
-  return typeof v === "string" && (REFERENCE_SEXES as readonly string[]).includes(v);
-}
-
-/** Der Normbereich als GEWICHTS-Spanne für eine Grösse — die Form, in der er beim Zielsetzen hilft
- *  („für deine Grösse liegt der Normbereich zwischen 62 und 84 kg"). */
-export function normalWeightRangeKg(
-  heightCm: number | null | undefined,
-  sex: ReferenceSex | null | undefined,
-): { minKg: number; maxKg: number } | null {
-  if (!heightCm || heightCm <= 0) return null;
-  const ref = sex ? BMI_REFERENCE[sex] : BMI_REFERENCE.unspecified;
-  const m2 = (heightCm / 100) ** 2;
-  return { minKg: round1(ref.min * m2), maxKg: round1(ref.max * m2) };
-}
-
 // ── Zielkorridor ───────────────────────────────────────────────────────────────────────────────
 
 /** Eine Grenze, die niemand gesetzt hat, ist `null` — nicht 0. */

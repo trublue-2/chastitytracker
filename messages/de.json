@@ -198,7 +198,6 @@
     "WEIGHT_TRACKING_DISABLED": "Gewichtstracking ist nicht aktiviert",
     "WEIGHING_WINDOWS_TOO_MANY": "Zu viele Wiege-Fenster",
     "INVALID_UNIT_SYSTEM": "Ungültige Einheit",
-    "INVALID_REFERENCE_SEX": "Ungültige Angabe",
     "WEIGHT_PROOF_REQUIRED": "Ohne Foto brauchst du eine kurze Notiz",
     "WEIGHT_IN_FUTURE": "Der Zeitpunkt liegt in der Zukunft"
   },
@@ -762,13 +761,8 @@
     "heightMode": "Art der Änderung",
     "heightModeChange": "Geändert (neuer Wert ab heute)",
     "heightModeCorrect": "Korrigiert (alter Wert war falsch)",
-    "referenceSex": "Referenzwerte",
-    "referenceSexNone": "Keine Angabe",
-    "referenceSexMale": "Männlich",
-    "referenceSexFemale": "Weiblich",
     "targetMin": "Untergrenze",
     "targetMax": "Obergrenze",
-    "targetNormalHint": "Normbereich für deine Grösse: {min}–{max} {unit}",
     "targetUnderweightWarning": "Dieses Ziel liegt im Untergewicht (BMI unter 18,5). Du kannst es trotzdem setzen."
   },
   "changelog": {

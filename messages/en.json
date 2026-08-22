@@ -198,7 +198,6 @@
     "WEIGHT_TRACKING_DISABLED": "Weight tracking is not enabled",
     "WEIGHING_WINDOWS_TOO_MANY": "Too many weighing windows",
     "INVALID_UNIT_SYSTEM": "Invalid unit",
-    "INVALID_REFERENCE_SEX": "Invalid value",
     "WEIGHT_PROOF_REQUIRED": "Without a photo you need a short note",
     "WEIGHT_IN_FUTURE": "That time is in the future"
   },
@@ -762,13 +761,8 @@
     "heightMode": "Type of change",
     "heightModeChange": "Changed (new value from today)",
     "heightModeCorrect": "Corrected (previous value was wrong)",
-    "referenceSex": "Reference values",
-    "referenceSexNone": "Not specified",
-    "referenceSexMale": "Male",
-    "referenceSexFemale": "Female",
     "targetMin": "Lower limit",
     "targetMax": "Upper limit",
-    "targetNormalHint": "Normal range for your height: {min}–{max} {unit}",
     "targetUnderweightWarning": "This target is in the underweight range (BMI below 18.5). You can still set it."
   },
   "changelog": {
