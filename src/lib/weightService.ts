@@ -3,7 +3,12 @@ import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from 
 import { isValidImageUrl } from "@/lib/constants";
 import { APP_TZ } from "@/lib/utils";
 import { inWeighingWindow } from "@/lib/weightWindows";
-import { weightDayKey, weightProblem } from "@/lib/weight";
+import {
+  breachToAnnounce, effectiveCorridor, weightDayKey, weightForDisplay, weightProblem,
+  type UnitSystem,
+} from "@/lib/weight";
+import { notifyControllers } from "@/lib/notify";
+import { getControllersOfUser } from "@/lib/keyholder";
 
 /**
  * Das Erfassen einer Messung — der eine Schreibweg, den Formular, Keyholder-Aktion und (später) der
@@ -132,12 +137,71 @@ export async function recordWeight(
 
       return { id: row.id, dayKey, inWindow, replaced: !!existing };
     });
+    // Fire-and-forget: die Zeile steht, der Rest ist Meldung. Siehe `announceCorridorBreach`.
+    void announceCorridorBreach(userId, params.weightKg, params.measuredAt)
+      .catch((e) => console.error("[weight:breach]", (e as Error).message));
     return { ok: true, data: result };
   } catch (e) {
     const mapped = mapServiceError(e, ERRORS);
     if (mapped) return mapped;
     throw e;
   }
+}
+
+/**
+ * Hat dieser Wert den Zielkorridor VERLASSEN? Dann eine Meldung an die Keyholder.
+ *
+ * Nach dem Commit und bewusst ohne `await` beim Aufrufer: die Messung ist gespeichert, und ein
+ * fehlgeschlagener Versand darf sie nicht rückgängig machen — dasselbe Verhältnis wie beim
+ * Geräte-Check der Kontrolle. Ein Fehler bleibt als Logzeile sichtbar.
+ *
+ * **Nur an die Keyholder.** Dem Träger diese Zeile in den Posteingang zu legen hiesse, ihm die Zahl
+ * zu melden, die er zwei Sekunden vorher selbst eingetragen hat.
+ *
+ * Auch dann, wenn die Keyholderin den Wert selbst nachgetragen hat — sie weiss es dann zwar schon,
+ * aber ein Träger kann mehrere Keyholder haben, und getippt hat nur eine davon. Die Zeile ist
+ * ausserdem der bleibende Beleg des Austritts im Posteingang, nicht bloss ein Hinweis.
+ *
+ * Automatisch passiert damit NICHTS ausser dieser Meldung: ob etwas folgt — Aufgabe als Strafe,
+ * Aufgabe als Belohnung oder gar nichts —, entscheidet die Keyholderin. Das Gewicht selbst ist kein
+ * Fehlverhalten, und ein Automatismus, der Kilos in Strafen umrechnet, wäre in dieser App die
+ * falsche Mechanik.
+ */
+async function announceCorridorBreach(userId: string, currentKg: number, measuredAt: Date): Promise<void> {
+  const [user, previousKg] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        username: true, heightCm: true, unitSystem: true,
+        targetMinKg: true, targetMaxKg: true, targetMinKeyholderKg: true, targetMaxKeyholderKg: true,
+      },
+    }),
+    lastWeightBefore(userId, measuredAt),
+  ]);
+  if (!user) return;
+
+  const corridor = effectiveCorridor(
+    { minKg: user.targetMinKg, maxKg: user.targetMaxKg },
+    { minKg: user.targetMinKeyholderKg, maxKg: user.targetMaxKeyholderKg },
+  );
+  const side = breachToAnnounce({ currentKg, previousKg, corridor, heightCm: user.heightCm });
+  if (!side) return;
+
+  const controllers = await getControllersOfUser(userId);
+  // Die Einheit des TRÄGERS, nicht die der Keyholderin: eine Meldung geht an mehrere Empfänger, die
+  // verschiedene Einheiten führen könnten — und der Text steht in der Zeile, nicht in ihrer Ansicht.
+  const unit = (user.unitSystem as UnitSystem) ?? "metric";
+  const suffix = unit === "imperial" ? "lbs" : "kg";
+  const bound = side === "below" ? corridor.minKg : corridor.maxKg;
+  await notifyControllers(userId, controllers, {
+    subjectKey: side === "below" ? "weightBelowLimitSubjectKeyholder" : "weightAboveLimitSubjectKeyholder",
+    messageKey: side === "below" ? "weightBelowLimitMessageKeyholder" : "weightAboveLimitMessageKeyholder",
+    params: {
+      username: user.username,
+      weight: `${weightForDisplay(currentKg, unit)} ${suffix}`,
+      limit: bound === null ? "–" : `${weightForDisplay(bound, unit)} ${suffix}`,
+    },
+  });
 }
 
 /** Die letzte Messung vor `before` — Grundlage der Sprung-Nachfrage im Formular.

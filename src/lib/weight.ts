@@ -239,6 +239,34 @@ export function corridorBreach(kg: number, c: Corridor): "below" | "above" | nul
 }
 
 /**
+ * Soll dieser Messwert der Keyholderin gemeldet werden — und auf welcher Seite?
+ *
+ * **Einmal je Austritt.** Gemeldet wird der Übergang, nicht der Zustand: wer fünf Tage lang 200 g
+ * über der Grenze liegt, löst eine Meldung aus, nicht fünf. Erst die Rückkehr in den Korridor macht
+ * den nächsten Austritt wieder meldenswert. Ein Wechsel der SEITE zählt ebenfalls als neuer Austritt
+ * — von unterhalb nach oberhalb ist eine andere Nachricht.
+ *
+ * **Unterhalb von BMI 18,5 wird nicht gemeldet.** Die App fordert nicht ein, was sie beim Setzen
+ * selbst als bedenklich anzeigt. Die Grenze bleibt bestehen und im Diagramm sichtbar; sie erzeugt
+ * nur keinen Anstoss an die Keyholderin, tätig zu werden.
+ */
+export function breachToAnnounce(params: {
+  currentKg: number;
+  /** Der zuletzt gemessene Wert davor — `null` bei der ersten Messung. */
+  previousKg: number | null;
+  corridor: Corridor;
+  heightCm: number | null;
+}): "below" | "above" | null {
+  const breach = corridorBreach(params.currentKg, params.corridor);
+  if (breach === null) return null;
+  // Die überschrittene GRENZE, nicht das Gewicht: gemeldet wird ja, dass eine Vorgabe verfehlt ist.
+  const bound = breach === "below" ? params.corridor.minKg : params.corridor.maxKg;
+  if (bound !== null && isUnderweightTarget(bound, params.heightCm)) return null;
+  const before = params.previousKg === null ? null : corridorBreach(params.previousKg, params.corridor);
+  return before === breach ? null : breach;
+}
+
+/**
  * Soll beim Setzen dieses Zielwerts gewarnt werden? Wahr, sobald eine Grenze den Träger unter
  * {@link BMI_UNDERWEIGHT} führen würde.
  *

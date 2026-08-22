@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  bmi, corridorBreach, corridorProblem, effectiveCorridor, heightAt, heightProblem,
+  bmi, breachToAnnounce, corridorBreach, corridorProblem, effectiveCorridor, heightAt, heightProblem,
   isUnderweightTarget, keyholderCorridorProblem, normalWeightRangeKg, weightForDisplay,
   weightInputToKg, weightProblem, WEIGHT_PROBLEMS,
 } from "./weight";
@@ -153,5 +153,51 @@ describe("heightAt", () => {
 
   it("ist null, solange keine Grösse bekannt ist", () => {
     expect(heightAt([], new Date())).toBeNull();
+  });
+});
+
+describe("breachToAnnounce — einmal je Austritt", () => {
+  const corridor = { minKg: 70, maxKg: 84 };
+  const call = (currentKg: number, previousKg: number | null, heightCm: number | null = 180) =>
+    breachToAnnounce({ currentKg, previousKg, corridor, heightCm });
+
+  it("meldet den Austritt nach oben", () => {
+    expect(call(85, 83)).toBe("above");
+  });
+
+  it("schweigt, solange er draussen BLEIBT", () => {
+    // Fünf Tage 200 g über der Grenze sollen eine Meldung erzeugen, nicht fünf.
+    expect(call(85.2, 85)).toBeNull();
+  });
+
+  it("meldet wieder, wenn er zurückkehrt und erneut austritt", () => {
+    expect(call(83, 85)).toBeNull();
+    expect(call(85, 83)).toBe("above");
+  });
+
+  it("behandelt den Seitenwechsel als neuen Austritt", () => {
+    expect(call(69, 85)).toBe("below");
+  });
+
+  it("meldet die erste Messung, wenn sie schon ausserhalb liegt", () => {
+    expect(call(90, null)).toBe("above");
+  });
+
+  it("schweigt innerhalb des Korridors", () => {
+    expect(call(80, 90)).toBeNull();
+  });
+
+  it("meldet nichts zu einer Grenze im Untergewicht", () => {
+    // Untergrenze 55 kg bei 1,85 m ist BMI 16 — die App fordert nicht ein, was sie beim Setzen
+    // selbst als bedenklich anzeigt.
+    expect(breachToAnnounce({
+      currentKg: 54, previousKg: 60, corridor: { minKg: 55, maxKg: null }, heightCm: 185,
+    })).toBeNull();
+  });
+
+  it("meldet weiterhin die andere, unbedenkliche Grenze", () => {
+    expect(breachToAnnounce({
+      currentKg: 95, previousKg: 80, corridor: { minKg: 55, maxKg: 90 }, heightCm: 185,
+    })).toBe("above");
   });
 });

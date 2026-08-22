@@ -1,12 +1,12 @@
 # Gewichtstracking: Wiegen, Grenzen, Verlauf
 
-**Status:** **Etappen 1–4 und 6 gebaut** (22.08.2026) — Schema und Migration, beide Schalter, der
+**Status:** **Etappen 1–6 gebaut** (22.08.2026) — Schema und Migration, beide Schalter, der
 Rechenkern `weight.ts`, die Wiege-Fenster `weightWindows.ts`, die Einstellungen auf beiden Seiten
 die **Erfassung** (Formular des Trägers, Nachtrag der Keyholderin, ein Wert je Tag, Beleg-Pflicht
 mit Ventil, Sprung-Nachfrage), die **Statistik-Karte** samt Verlaufs-Diagramm und die **Meldepflicht**
 (Vergehensart `missed_weight_report`, Drei-Tage-Blöcke, Pause bei Gesundheits-Halt, Kopplung an den
-Schalter). Grenz-Meldung, Waagen-Erkennung, Foto-Beschneidung und der MCP-Schreibweg stehen noch aus
-(Abschnitt 14).
+Schalter) samt **Grenz-Meldung** an die Keyholder. Waagen-Erkennung, Foto-Beschneidung und der
+MCP-Schreibweg stehen noch aus (Abschnitt 14).
 **Alle Grundsatzfragen sind entschieden**; offen ist ein einziger Punkt, siehe Abschnitt 13.
 **Erstellt:** 2026-08-22 · **Entscheidungen eingearbeitet:** 2026-08-22
 **Branch:** `feat/weight-tracking` (Worktree `../kg-weight`, abgezweigt von `main` @ a7b0001, v5.2.9)
@@ -308,8 +308,10 @@ Sie entscheidet und hat dafür bereits alles:
   aus der Skizze ist eine ganz normale Aufgabe
 - **nichts tun**
 
-Damit ist „Aufgabe als Strafe (evtl. Zukunft)" schon heute erfüllt, ohne neues Konstrukt: die
-Meldung bekommt einen Verweis direkt ins Aufgaben-Formular für diesen Sub.
+Damit ist „Aufgabe als Strafe (evtl. Zukunft)" ohne neues Konstrukt erfüllt — die Keyholderin stellt
+sie von der Sub-Seite aus. Einen Verweis direkt aus der Meldung ins Aufgaben-Formular gibt es
+**nicht**: Nachrichten führen im Bestand keine Ziel-Links (die `ref` einer Nachricht dient allein der
+Einmal-Zusage), und das nachzurüsten wäre ein eigener Umbau am Posteingang.
 
 ## 9. Das Foto und die Waagen-Erkennung
 
@@ -427,7 +429,7 @@ Funktionsumfang braucht es.
 | 2 | Erfassung: (+)-Zeile, Formular Sub (Foto-Pflicht, 3-kg-Nachfrage), Aktion KH, Upload, EXIF | viele kleine Dateien |
 | 3 | `src/lib/weightWindows.ts` — eigener Baustein, `reinigungService` bleibt unberührt | in sich geschlossen |
 | 4 ✅ | Pflicht und Vergehen: `missed_weight_report`, Drei-Tage-Blöcke, `HealthHold`-Pause, Regel-Historisierung, Kopplung an den Gate, Tests | **die heikelste Etappe** — nur hier kann ein Fehler rückwirkend Vergehen erzeugen |
-| 5 | Grenz-Meldung (einmal je Austritt) + Verweis ins Aufgaben-Formular | wenig Code, existierende Wege |
+| 5 ✅ | Grenz-Meldung (einmal je Austritt) | wenig Code, existierende Wege. **Ohne Verweis ins Aufgaben-Formular:** Nachrichten tragen im Bestand keine Ziel-Links (die `ref` dient nur der Einmal-Zusage), und eine Link-Auflösung im Posteingang wäre ein eigener Umbau. Die Keyholderin handelt von der Sub-Seite aus. |
 | 6 ✅ | Diagramm-Komponente + Statistik-Karte | Zeichenarbeit, keine Logik |
 | 7 | Waagen-Erkennung: Prompt, Dezimalstelle, Route | Neuland, mit Fehlerkennungen zu rechnen |
 | 8 | Foto-Beschneidung im Poller | ein Tages-Gate, Muster `pruneExpiredMessages` |
