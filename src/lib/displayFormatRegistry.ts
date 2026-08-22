@@ -15,8 +15,28 @@
 /** Wofür eine Darstellung zuständig ist. Als Union, damit ein Tippfehler auffällt. */
 export type DisplayKind = "duration" | "percent";
 
+/**
+ * Die Achse, an der sich seit dem 22.08.2026 alles entscheidet: **misst die Zahl eine Spanne oder
+ * eine Summe?**
+ *
+ * `span` — ein durchgehender Zeitraum. Die Tage darin sind echte, aufeinanderfolgende Tage, also
+ * darf die Darstellung sie nennen: eine Session dauerte `3T 2h 36min`.
+ *
+ * `total` — zusammengezählte Zeit. Ihre „Tage" hätten nie am Stück stattgefunden. „Diese Woche
+ * 3T 2h 36min" war rechnerisch richtig und trotzdem falsch: es waren 74 Stunden über fünf
+ * Kalendertage, und weil die Woche sieben Tage HAT, liest sich „3T" als „3 von 7". Summen zeigen
+ * deshalb nur Stunden.
+ *
+ * Der Fehler war NICHT die Schreibweise, sondern die fehlende Unterscheidung — die erste Fassung
+ * dieses Registers kannte nur eine Dauer-Familie und hat damit beide Bedeutungen in einen Topf
+ * geworfen.
+ */
+export type DurationSense = "span" | "total";
+
 export interface DisplayFormat {
   kind: DisplayKind;
+  /** Nur bei `duration`: misst sie eine Spanne oder eine Summe? */
+  sense?: DurationSense;
   /** Der Name, unter dem man sie aufruft. */
   name: string;
   /** `datei.ts:symbol` — der Sprung von hier in den Code. */
@@ -38,6 +58,7 @@ export interface DisplayFormat {
 export const DURATION_FORMATS: readonly DisplayFormat[] = [
   {
     kind: "duration",
+    sense: "span",
     name: "formatDurationMs",
     anchor: "utils.ts:formatDurationMs",
     meaning: "Eine abgeschlossene Dauer, aus Millisekunden.",
@@ -45,6 +66,7 @@ export const DURATION_FORMATS: readonly DisplayFormat[] = [
   },
   {
     kind: "duration",
+    sense: "span",
     name: "formatDurationHours",
     anchor: "utils.ts:formatDurationHours",
     meaning: "Dieselbe Dauer, aber die Eingabe liegt als Stunden vor (Ziele, Tages-/Wochensummen).",
@@ -52,6 +74,7 @@ export const DURATION_FORMATS: readonly DisplayFormat[] = [
   },
   {
     kind: "duration",
+    sense: "span",
     name: "formatDurationBetween",
     anchor: "utils.ts:formatDurationBetween",
     meaning: "Dieselbe Dauer, aber die Eingabe sind zwei Zeitpunkte.",
@@ -59,6 +82,7 @@ export const DURATION_FORMATS: readonly DisplayFormat[] = [
   },
   {
     kind: "duration",
+    sense: "span",
     name: "formatElapsedMs",
     anchor: "utils.ts:formatElapsedMs",
     meaning: "Eine LAUFENDE Dauer in Worten. Zeigt die Minute auch bei null, damit die letzte Stelle tickt.",
@@ -66,10 +90,27 @@ export const DURATION_FORMATS: readonly DisplayFormat[] = [
   },
   {
     kind: "duration",
+    sense: "span",
     name: "TimerDisplay (format=\"short\")",
     anchor: "TimerDisplay.tsx:formatShort",
     meaning: "Die laufende UHR. Feste Breite, Sekunden, Tage in Stunden gefaltet.",
     shape: "51:14:03 · bewusst kein Tages-Anteil",
+  },
+  {
+    kind: "duration",
+    sense: "total",
+    name: "formatTotalMs",
+    anchor: "utils.ts:formatTotalMs",
+    meaning: "Eine SUMME zusammengezählter Zeit, aus Millisekunden. Nie Tage.",
+    shape: "74h 36min · ab 1000 h ohne Minuten und mit Tausender-Trennung (7 446h) · ohne locale",
+  },
+  {
+    kind: "duration",
+    sense: "total",
+    name: "formatTotalHours",
+    anchor: "utils.ts:formatTotalHours",
+    meaning: "Dieselbe Summe, Eingabe als Stunden — der Normalfall (Ziele, Perioden-Summen).",
+    shape: "wie formatTotalMs · rundet die Eingabe auf die Millisekunde",
   },
 ] as const;
 
@@ -111,6 +152,10 @@ export const PERCENT_FORMATS: readonly DisplayFormat[] = [
  * `contains` ist ein Ausschnitt der Zeile statt einer Zeilennummer: eine Nummer veraltet bei der
  * ersten eingefügten Zeile darüber, und eine veraltete Ausnahme lässt den Test entweder grundlos
  * fehlschlagen oder — schlimmer — eine neue Stelle durchrutschen.
+ *
+ * Ein leerer `contains` nimmt die GANZE Datei aus. Das ist nur dort vertretbar, wo eine zweite
+ * Prüfung die Vollständigkeit sichert — bei `utils.ts` tut das der Export-Abgleich im Test
+ * (jeder exportierte Formatierer muss in {@link DURATION_FORMATS} stehen).
  */
 export interface DisplayFormatException {
   file: string;
@@ -122,13 +167,11 @@ export interface DisplayFormatException {
 export const DURATION_ASSEMBLY_EXCEPTIONS: readonly DisplayFormatException[] = [
   {
     file: "src/lib/utils.ts",
-    contains: "parts.push(",
-    reason: "Die Formatierer selbst — hier IST der eine Ort, an dem eine Dauer entsteht.",
-  },
-  {
-    file: "src/lib/utils.ts",
-    contains: '}T${hour}',
-    reason: "`toDatetimeLocal`: ein ISO-Zeitstempel, keine Dauer — das „T\" ist der Datums-Trenner.",
+    contains: "",
+    reason:
+      "Hier IST der eine Ort, an dem eine Dauer entsteht — Zeile für Zeile auszunehmen wäre eine " +
+      "Liste, die bei jeder Umformatierung bricht. Dass hier kein VIERTER Formatierer unbemerkt " +
+      "dazukommt, sichert stattdessen der Export-Abgleich im Test.",
   },
   {
     file: "src/app/api/upload/route.ts",

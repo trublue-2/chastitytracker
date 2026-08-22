@@ -3,7 +3,11 @@ import { aktiveKontrolleWhere } from "@/lib/queries";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
 import { CLEANING_USER_SELECT } from "@/lib/reinigungService";
 import { goalPct, sharePct } from "@/lib/percent";
-import { APP_TZ, formatDate, formatDateTime, formatDurationHours, formatDurationMs, toDateLocale, buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart, tzDayKey, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR } from "@/lib/utils";
+import {
+  APP_TZ, formatDate, formatDateTime, formatDurationMs, formatTotalHours, formatTotalMs, toDateLocale,
+  buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart,
+  tzDayKey, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR,
+} from "@/lib/utils";
 import {
   buildCalendarMonths, buildDailyData, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
   type Entry, type Vorgabe,
@@ -251,7 +255,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         id: r.id,
         name: r.name,
         count: r.count,
-        totalStr: formatDurationMs(r.totalMs, dl),
+        totalStr: formatTotalMs(r.totalMs),
         avgStr: formatDurationMs(r.avgMs, dl),
         medianStr: formatDurationMs(r.medianMs, dl),
         // Bei einer einzigen Session ist die Spanne keine Spanne — dann nur die eine Dauer zeigen.
@@ -304,7 +308,7 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{t("kgWearOverview")}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <StatsCard label={t("entries")} value={String(completed.length)} />
-          <StatsCard label={t("totalDuration")} value={completed.length ? formatDurationMs(totalMs, dl) : "–"} />
+          <StatsCard label={t("totalDuration")} value={completed.length ? formatTotalMs(totalMs) : "–"} />
           <StatsCard label={t("avgDuration")} value={completed.length ? formatDurationMs(avgMs, dl) : "–"} />
           <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
         </div>
@@ -376,22 +380,22 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             <div className="px-6 py-4 flex flex-col gap-4">
               {g.minProTagH && (
                 <GoalBar label={t("today")} actual={g.hoursToday} target={g.minProTagH}
-                  sub={`${formatDurationHours(g.hoursToday, dl)} ${tc("of")} ${formatDurationHours(g.minProTagH, dl)}`}
+                  sub={`${formatTotalHours(g.hoursToday)} ${tc("of")} ${formatTotalHours(g.minProTagH)}`}
                   reachedLabel={t("reached")} />
               )}
               {g.minProWocheH && (
                 <GoalBar label={t("thisWeek")} actual={g.hoursWeek} target={g.minProWocheH}
-                  sub={`${formatDurationHours(g.hoursWeek, dl)} ${tc("of")} ${formatDurationHours(g.minProWocheH, dl)}`}
+                  sub={`${formatTotalHours(g.hoursWeek)} ${tc("of")} ${formatTotalHours(g.minProWocheH)}`}
                   reachedLabel={t("reached")} />
               )}
               {g.minProMonatH && (
                 <GoalBar label={t("thisMonth")} actual={g.hoursMonth} target={g.minProMonatH}
-                  sub={`${formatDurationHours(g.hoursMonth, dl)} ${tc("of")} ${formatDurationHours(g.minProMonatH, dl)}`}
+                  sub={`${formatTotalHours(g.hoursMonth)} ${tc("of")} ${formatTotalHours(g.minProMonatH)}`}
                   reachedLabel={t("reached")} />
               )}
               {g.minProJahrH && (
                 <GoalBar label={t("thisYear")} actual={g.hoursYear} target={g.minProJahrH}
-                  sub={`${formatDurationHours(g.hoursYear, dl)} ${tc("of")} ${formatDurationHours(g.minProJahrH, dl)}`}
+                  sub={`${formatTotalHours(g.hoursYear)} ${tc("of")} ${formatTotalHours(g.minProJahrH)}`}
                   reachedLabel={t("reached")} />
               )}
               {g.notiz && <p className="text-xs text-[var(--color-request)] italic">{g.notiz}</p>}

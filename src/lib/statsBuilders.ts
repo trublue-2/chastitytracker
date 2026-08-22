@@ -1,5 +1,5 @@
 import {
-  dayKeyOfLocalDate, formatDurationHours, formatMonthYear, formatTime, midnightInTZ, midnightOfLocalDate,
+  dayKeyOfLocalDate, formatMonthYear, formatTime, formatTotalHours, midnightInTZ, midnightOfLocalDate,
   mondayIndexOfLocalDate, tzDateParts, tzDayKey, wearingHoursFromPairs, type WearPair,
 } from "@/lib/utils";
 import { proratedTargetH } from "@/lib/goalFulfillment";
@@ -296,7 +296,7 @@ export function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<stri
         const dateLabel = formatCalendarDate(year, month, day, dl, DAY_LABEL_OPTS);
         cells.push({
           key,
-          title: `${dateLabel} · ${formatDurationHours(hours, dl)}`,
+          title: `${dateLabel} · ${formatTotalHours(hours)}`,
           level: wearIntensityLevel(hours),
           hasOrgasm: cell?.hasOrgasm ?? false,
         });
@@ -330,7 +330,7 @@ export function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<stri
       year,
       weeks,
       monthLabels,
-      totalHours: formatDurationHours(totalHours, dl),
+      totalHours: formatTotalHours(totalHours),
       percentLocked: coveragePct(totalHours, elapsedH) ?? 0,
     };
   });

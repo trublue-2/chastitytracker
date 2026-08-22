@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
 import path from "node:path";
 import {
   DURATION_FORMATS, PERCENT_FORMATS,
@@ -60,5 +61,35 @@ describe("Zahlen-Darstellung — Register gegen Quelltext", () => {
     // Die vier Prozent-Arten sind die Exporte von percent.ts — wer eine fünfte anlegt, trägt sie hier ein.
     expect(PERCENT_FORMATS.map((f) => f.name).sort())
       .toEqual(["coveragePct", "goalPct", "ratioPct", "sharePct"]);
+  });
+
+  /**
+   * Der Gegenzug zur Datei-weiten Ausnahme für `utils.ts`. Dort darf jede Zeile eine Dauer bauen —
+   * also muss hier geprüft werden, dass kein Formatierer entsteht, den das Register nicht kennt.
+   * Ohne diesen Test wäre die Ausnahme eine Blankovollmacht.
+   */
+  it("jeder exportierte Formatierer in utils.ts steht im Register", () => {
+    const src = fs.readFileSync(path.join(ROOT, "src/lib/utils.ts"), "utf8");
+    const exported = [...src.matchAll(/export function (format(?:Duration|Total|Elapsed)\w*)/g)].map((m) => m[1]);
+    expect(exported.length).toBeGreaterThan(0); // Scanner-Selbstschutz: eine Umbenennung darf nicht still 0 finden
+    const known = new Set(DURATION_FORMATS.map((f) => f.name));
+    const fehlt = exported.filter((n) => !known.has(n));
+    expect(fehlt, `\nFormatierer ohne Registry-Eintrag: ${fehlt.join(", ")}\n` +
+      "Trag ihn in DURATION_FORMATS ein — mit sense (span/total), Bedeutung und Form.\n").toEqual([]);
+  });
+
+  /**
+   * Die Achse, an der die zweite Fassung dieses Registers hängt. Ein Dauer-Eintrag ohne `sense`
+   * ist genau die Lücke, die den Befund erzeugt hat: „Diese Woche 3T 2h 36min" entstand, weil
+   * niemand die Frage stellte, ob die Zahl eine Spanne oder eine Summe misst.
+   */
+  it("jede Dauer-Darstellung sagt, ob sie eine Spanne oder eine Summe misst", () => {
+    const ohne = DURATION_FORMATS.filter((f) => !f.sense).map((f) => f.name);
+    expect(ohne, `\nDauer-Eintrag ohne sense: ${ohne.join(", ")}\n` +
+      "span = durchgehender Zeitraum (darf Tage nennen) · total = zusammengezählt (nur Stunden).\n")
+      .toEqual([]);
+    // Beide Seiten müssen besetzt bleiben — fällt eine weg, ist die Unterscheidung wieder verloren.
+    const senses = new Set(DURATION_FORMATS.map((f) => f.sense));
+    expect([...senses].sort()).toEqual(["span", "total"]);
   });
 });

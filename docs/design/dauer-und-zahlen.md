@@ -181,3 +181,55 @@ Suchen-und-Ersetzen nicht sieht:
   Eintrags-Mail stillschweigend deutsch bleiben. `locale` ist jetzt Pflicht; der Compiler fragt.
 - **Zwei Layout-Brüche**, erst am laufenden Bild sichtbar: die Jahres-Zeile der Zielbalken drückte
   den Balken auf einen Stummel und schnitt `433 %` ab; die Monats-Kachel brach auf drei Zeilen.
+
+---
+
+## Nachtrag: die Frage, die diese Analyse nicht gestellt hat
+
+Kurz nach der Umsetzung fiel im Betrieb auf: „Diese Woche 3T 2h 36min" ist rechnerisch richtig und
+trotzdem eine Falschaussage. Es waren **74 Stunden, verteilt über fünf Kalendertage** — es gab keine
+drei Tage.
+
+Der Fehler lag nicht in der gewählten Schreibweise. Er lag darin, dass diese Analyse drei
+**Notationen** verglichen und nie gefragt hat, was die Zahl **aussagt**.
+
+### Zwei Grössen, nicht eine
+
+**Spanne** — ein durchgehender Zeitraum. Die Tage darin sind echte, aufeinanderfolgende Tage; die
+Darstellung darf sie nennen. Eine Session dauerte `3T 2h 36min`.
+
+**Summe** — zusammengezählte Zeit. Ihre „Tage" sind 24-Stunden-Portionen, die nie am Stück
+stattgefunden haben. Und weil eine Woche sieben Tage HAT, liest sich `3T` unweigerlich als
+„3 von 7". Der Bezugsrahmen kollidiert mit der Einheit.
+
+Am deutlichsten wird es bei den Zielen: die Keyholderin trägt **130 Stunden pro Woche** ein.
+`3T 2h 36min / 5T 10h` spielt ihr eine Umrechnung zurück, um die niemand gebeten hat.
+`88h 59min / 130h` sagt dasselbe und ist sofort lesbar.
+
+### Die Regel (22.08.2026, v5.2.9)
+
+| | Formatierer | Beispiel |
+|---|---|---|
+| **Spanne** — Session-Dauer, Pausen, Rekorde, Ø Dauer, orgasmusfreie Zeit, laufende Uhr | `formatDurationMs` / `-Hours` / `-Between`, `formatElapsedMs` | `3T 2h 36min` |
+| **Summe** — Tages-/Wochen-/Monats-/Jahreswerte, alle Ziele, Kategorie-Zeiten, Kalender, Gesamtdauer | `formatTotalMs` / `formatTotalHours` | `88h 59min` |
+
+Summen nennen **nie** Tage. Ab 1000 Stunden fallen die Minuten weg und Tausender werden mit einem
+geschützten Leerzeichen gruppiert: `5 340h`, `37 230h`.
+
+Das ist nicht derselbe Fehler wie beim abgelösten `formatMs`, das Minuten schon ab 24 h verschluckte
+— dort machten sie bis zu ein Drittel des Werts aus, hier unter ein Promille.
+
+### Wo die grossen Zahlen sitzen
+
+Von 23 Summen-Stellen können **8** vierstellig werden, und zwar in genau zwei Sorten: das **Jahr**
+(fünf Stellen, Obergrenze 8760 h) und die **Gesamtdauer** (drei Stellen, unbegrenzt). Die übrigen 15
+hören bei 744 h auf.
+
+Bei der Gesamtdauer greift der Einwand streng genommen nicht — es gibt dort keinen Bezugszeitraum,
+an dem man sich verlesen könnte. Sie folgt trotzdem derselben Regel: eine Regel mit benannter
+Ausnahme ist genau die Bauart, die diesen Befund erzeugt hat.
+
+### Gesichert durch
+
+`displayFormatRegistry.ts` führt die Achse `sense: "span" | "total"`; der Test bricht bei einem
+Dauer-Eintrag ohne diese Angabe und bei einem exportierten Formatierer, der nicht im Register steht.

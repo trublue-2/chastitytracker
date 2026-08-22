@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   tzOffsetMsAt, midnightInTZ, dateAtLocalMinutes, fromDatetimeLocal,
   decomposeMs, formatDurationMs, formatDurationBetween, formatElapsedMs, formatDurationHours,
+  formatTotalMs, formatTotalHours,
 } from "./utils";
 
 /**
@@ -180,5 +181,52 @@ describe("Formatter — Golden (Rundungs-/Einheiten-/Locale-Regeln)", () => {
     expect(formatDurationHours(17.5, "de")).toBe("17h 30min");
     expect(formatDurationHours(23 + 59 / 60, "de")).toBe("23h 59min");
     expect(formatDurationHours(0, "de")).toBe("0min");
+  });
+});
+
+describe("Summen — zusammengezählte Zeit nennt nie Tage", () => {
+  /**
+   * Der Befund, der die Trennung erzwungen hat (22.08.2026): „Diese Woche 3T 2h 36min" war
+   * rechnerisch richtig und trotzdem eine Falschaussage — es waren 74 Stunden über fünf
+   * Kalendertage, und weil eine Woche sieben Tage HAT, liest sich „3T" als „3 von 7".
+   */
+  it("die Wochensumme, an der es aufgefallen ist", () => {
+    const woche = (3 * 24 + 2) * 3_600_000 + 36 * 60_000;
+    expect(formatDurationMs(woche, "de")).toBe("3T 2h 36min"); // als SPANNE weiterhin richtig
+    expect(formatTotalMs(woche)).toBe("74h 36min");            // als SUMME die einzig ehrliche Fassung
+  });
+
+  it.each([
+    [0, "0min"],
+    [45_000, "<1min"],
+    [60_000, "1min"],
+    [36 * 60_000, "36min"],
+    [3_600_000, "1h"],
+    [3_600_000 + 36 * 60_000, "1h 36min"],
+    [24 * 3_600_000, "24h"],                    // kein „1T"
+    [(5 * 24) * 3_600_000 + 30 * 60_000, "120h 30min"],
+    [999 * 3_600_000 + 59 * 60_000, "999h 59min"],
+  ])("%i ms → %s", (ms, erwartet) => {
+    expect(formatTotalMs(ms)).toBe(erwartet);
+  });
+
+  it("ab 1000 Stunden ohne Minuten und mit Tausender-Trennung", () => {
+    // Nicht derselbe Fehler wie beim abgelösten `formatMs`: das verschluckte Minuten schon ab
+    // 24 h, wo sie bis zu ein Drittel des Werts ausmachten. Hier sind sie unter einem Promille.
+    expect(formatTotalMs(1000 * 3_600_000 + 59 * 60_000)).toBe("1\u00a0000h");
+    expect(formatTotalMs(7446 * 3_600_000)).toBe("7\u00a0446h");
+    expect(formatTotalMs(37_230 * 3_600_000)).toBe("37\u00a0230h");
+    // Geschütztes Leerzeichen, damit die Zahl nicht umbricht — kein gewöhnliches.
+    expect(formatTotalMs(7446 * 3_600_000)).not.toContain(" ");
+  });
+
+  it("formatTotalHours überlebt Gleitkomma-Reste", () => {
+    expect(formatTotalHours(2 + 3 / 60)).toBe("2h 3min");
+    expect(formatTotalHours(74.6)).toBe("74h 36min");
+    expect(formatTotalHours(0)).toBe("0min");
+  });
+
+  it("negative Summen sind kein Wert", () => {
+    expect(formatTotalMs(-1)).toBe("–");
   });
 });

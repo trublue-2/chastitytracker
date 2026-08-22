@@ -5,13 +5,13 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Lock, LockOpen } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import TimerDisplay from "@/app/components/TimerDisplay";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import BlockHeading from "@/app/components/BlockHeading";
 import DashboardBlock from "@/app/components/DashboardBlock";
-import { formatDurationHours } from "@/lib/utils";
+import { formatTotalHours } from "@/lib/utils";
 import { coveragePct } from "@/lib/percent";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 
@@ -71,7 +71,6 @@ function WearPercent({ wornH, elapsedH, periodKey }: { wornH: number; elapsedH: 
 // ── Component ────────────────────────────────
 export default function DashboardClient(props: DashboardProps) {
   const t = useTranslations("dashboard");
-  const locale = useLocale();
   const {
     currentStatus,
     cleaningPauseUntil,
@@ -192,17 +191,17 @@ export default function DashboardClient(props: DashboardProps) {
             ehrliche Kompromiss, bis Etappe E den Block ohnehin anfasst. */}
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl bg-surface-raised px-3 py-3">
-            <p className="text-base sm:text-xl leading-tight font-bold text-lock tabular-nums">{formatDurationHours(tagH, locale)}</p>
+            <p className="text-base sm:text-xl leading-tight font-bold text-lock tabular-nums">{formatTotalHours(tagH)}</p>
             <p className="text-xs text-foreground-faint mt-0.5">{t("wearToday")}</p>
             <WearPercent wornH={tagH} elapsedH={elapsedTagH} periodKey="coverageDay" />
           </div>
           <div className="rounded-xl bg-surface-raised px-3 py-3">
-            <p className="text-base sm:text-xl leading-tight font-bold text-lock tabular-nums">{formatDurationHours(wocheH, locale)}</p>
+            <p className="text-base sm:text-xl leading-tight font-bold text-lock tabular-nums">{formatTotalHours(wocheH)}</p>
             <p className="text-xs text-foreground-faint mt-0.5">{t("wearWeek")}</p>
             <WearPercent wornH={wocheH} elapsedH={elapsedWocheH} periodKey="coverageWeek" />
           </div>
           <div className="rounded-xl bg-surface-raised px-3 py-3">
-            <p className="text-base sm:text-xl leading-tight font-bold text-lock tabular-nums">{formatDurationHours(monatH, locale)}</p>
+            <p className="text-base sm:text-xl leading-tight font-bold text-lock tabular-nums">{formatTotalHours(monatH)}</p>
             <p className="text-xs text-foreground-faint mt-0.5">{t("wearMonth")}</p>
             <WearPercent wornH={monatH} elapsedH={elapsedMonatH} periodKey="coverageMonth" />
           </div>

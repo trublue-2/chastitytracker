@@ -1,7 +1,4 @@
-"use client";
-
-import { useLocale } from "next-intl";
-import { formatDurationHours } from "@/lib/utils";
+import { formatTotalHours } from "@/lib/utils";
 import { goalPct } from "@/lib/percent";
 
 /**
@@ -37,7 +34,6 @@ export default function GoalProgressRow({
   target: number;
   tone?: "onSurface" | "onAccent";
 }) {
-  const locale = useLocale();
   const pct = goalPct(actual, target);
   if (pct === null) return null;
 
@@ -55,7 +51,7 @@ export default function GoalProgressRow({
         <div className={`h-1.5 rounded-full transition-all ${fill}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
       <span className={`text-xs tabular-nums flex-1 min-w-0 text-right ${onAccent ? "text-white/60" : "text-foreground-muted"}`}>
-        {formatDurationHours(actual, locale)} / {formatDurationHours(target, locale)}
+        {formatTotalHours(actual)} / {formatTotalHours(target)}
       </span>
       <span className={`text-xs font-semibold tabular-nums w-12 text-right shrink-0 ${onAccent ? "text-white" : "text-foreground"}`}>
         {pct}%

@@ -72,6 +72,62 @@ export function formatDurationBetween(start: Date, end: Date, locale: string): s
   return formatDurationMs(end.getTime() - start.getTime(), locale);
 }
 
+/** Ab dieser Stundenzahl schreibt {@link formatTotalMs} keine Minuten mehr. */
+const TOTAL_COARSE_FROM_HOURS = 1000;
+
+/**
+ * **Eine SUMME zusammengezählter Zeit** — „74h 36min", „7 446h". Niemals Tage.
+ *
+ * Der Unterschied zu {@link formatDurationMs} ist keine Formatfrage, sondern eine Bedeutungsfrage,
+ * und er ist im Betrieb aufgefallen: „Diese Woche 3T 2h 36min" war rechnerisch richtig und trotzdem
+ * eine Falschaussage. Es gab keine drei Tage — es waren 74 Stunden, verteilt über fünf Kalendertage.
+ * Und weil eine Woche sieben Tage HAT, liest sich „3T" unweigerlich als „3 von 7".
+ *
+ * Eine Spanne darf Tage nennen, weil ihre Tage echte, aufeinanderfolgende Tage sind. Eine Summe
+ * darf es nicht: ihre „Tage" sind 24-Stunden-Portionen, die nie am Stück stattgefunden haben.
+ *
+ * Der zweite Grund steht bei den Zielen: die Keyholderin trägt **130 Stunden pro Woche** ein. Das
+ * als „5T 10h" zurückzuspielen ist eine Umrechnung, um die niemand gebeten hat.
+ *
+ * **Ab {@link TOTAL_COARSE_FROM_HOURS} Stunden fallen die Minuten weg** und Tausender werden mit
+ * einem geschützten Leerzeichen gruppiert (`7 446h`). Das ist NICHT derselbe Fehler wie beim
+ * abgelösten `formatMs`, das Minuten schon ab 24 h verschluckte und damit „5T 30min" und „5T"
+ * ununterscheidbar machte: dort waren die Minuten bis zu ein Drittel des Werts, hier sind sie
+ * unter einem Promille.
+ *
+ * **Ohne `locale`, und das ist kein Versehen:** ohne Tages-Einheit gibt es nichts zu übersetzen —
+ * „h" und „min" sind in beiden Sprachen gleich, und der Tausender-Trenner ist bewusst
+ * sprachunabhängig gewählt (die Aufrufer reichen teils `"de"`, teils `"de-CH"` herein, was mit
+ * `Intl.NumberFormat` zu zwei verschiedenen Trennern für dieselbe Zahl führen würde). Wer hier je eine
+ * Tages-Einheit einführt, muss `locale` nachziehen — dann aber an allen Aufrufern.
+ */
+export function formatTotalMs(ms: number): string {
+  if (ms < 0) return "–";
+  if (ms > 0 && ms < 60_000) return SUB_MINUTE_LABEL;
+
+  const totalMinutes = Math.floor(ms / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours >= TOTAL_COARSE_FROM_HOURS) {
+    // U+00A0 statt eines normalen Leerzeichens: die Zahl darf nicht umbrechen.
+    return `${hours.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")}h`;
+  }
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}min` : `${hours}h`;
+  return `${minutes}min`;
+}
+
+/**
+ * {@link formatTotalMs} für eine Summe, die als STUNDEN vorliegt — der Normalfall, weil Ziele und
+ * Perioden-Summen als Stunden gerechnet werden.
+ *
+ * `Math.round` auf die Millisekunde aus demselben Grund wie bei {@link formatDurationHours}:
+ * `(2 + 3/60) * 3_600_000` ergibt 7 379 999.999… und ergäbe abgeschnitten „2h 2min".
+ */
+export function formatTotalHours(h: number): string {
+  return formatTotalMs(Math.round(h * 3_600_000));
+}
+
 /** Auf eine Nachkommastelle runden. */
 export const round1 = (n: number) => Math.round(n * 10) / 10;
 

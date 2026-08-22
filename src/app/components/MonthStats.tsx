@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatDurationHours, formatDurationMs } from "@/lib/utils";
+import { formatDurationMs, formatTotalHours } from "@/lib/utils";
 import { goalPct } from "@/lib/percent";
 import { useTranslations, useLocale } from "next-intl";
 
@@ -37,7 +37,7 @@ export default function MonthStats({ months }: { months: MonthStat[] }) {
               <span className="text-sm text-foreground-muted capitalize">{m.label}</span>
               <span className="text-sm font-semibold text-foreground text-right tabular-nums">{m.count}</span>
               <div className="text-right">
-                <span className="text-sm font-mono text-foreground-muted tabular-nums">{formatDurationHours(m.wearHours, locale)}</span>
+                <span className="text-sm font-mono text-foreground-muted tabular-nums">{formatTotalHours(m.wearHours)}</span>
                 {pct !== null && (
                   <div className="mt-1 h-1 w-16 bg-border rounded-full overflow-hidden ml-auto">
                     <div className={`h-full rounded-full ${reached ? "bg-ok" : "bg-[var(--color-request)]"}`} style={{ width: `${Math.min(100, pct)}%` }} />
@@ -47,7 +47,7 @@ export default function MonthStats({ months }: { months: MonthStat[] }) {
               <div className="text-right">
                 {m.targetH ? (
                   <span className={`text-sm font-mono tabular-nums ${reached ? "text-ok font-semibold" : "text-[var(--color-request)]"}`}>
-                    {reached ? "✓ " : ""}{formatDurationHours(m.targetH, locale)}
+                    {reached ? "✓ " : ""}{formatTotalHours(m.targetH)}
                   </span>
                 ) : <span className="text-sm text-foreground-faint">–</span>}
               </div>

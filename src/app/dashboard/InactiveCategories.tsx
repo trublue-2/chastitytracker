@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { wearActionHref } from "@/lib/categoryConstants";
 import CategoryLinkRow from "@/app/components/CategoryLinkRow";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import ExpandToggle from "@/app/components/ExpandToggle";
-import { formatDurationHours, toDateLocale } from "@/lib/utils";
+import { formatTotalHours } from "@/lib/utils";
 
 export interface InactiveCategoryRow {
   id: string;
@@ -28,7 +28,6 @@ interface Props {
 export default function InactiveCategories({ categories }: Props) {
   const t = useTranslations("wearForm");
   const tStats = useTranslations("stats");
-  const dl = toDateLocale(useLocale());
   const [open, setOpen] = useState(false);
 
   if (categories.length === 0) return null;
@@ -53,7 +52,7 @@ export default function InactiveCategories({ categories }: Props) {
                   color={c.color}
                   icon={c.icon}
                   name={c.name}
-                  subtitle={c.todayHours > 0 ? `${tStats("day")} ${formatDurationHours(c.todayHours, dl)}` : undefined}
+                  subtitle={c.todayHours > 0 ? `${tStats("day")} ${formatTotalHours(c.todayHours)}` : undefined}
                   actionIcon={<Plus size={12} />}
                   actionLabel={t("titleBegin")}
                 />

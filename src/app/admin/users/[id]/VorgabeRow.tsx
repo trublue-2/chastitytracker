@@ -3,10 +3,10 @@
 import { useState } from "react";
 import VorgabeForm, { type VorgabeInitialValues, type CategoryOption } from "./VorgabeForm";
 import DeleteVorgabeButton from "./DeleteVorgabeButton";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { coveragePct } from "@/lib/percent";
 import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/constants";
-import { formatDurationHours } from "@/lib/utils";
+import { formatTotalHours } from "@/lib/utils";
 
 
 interface Props {
@@ -27,7 +27,6 @@ interface Props {
 export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH, wocheH, monatH, jahrH, notiz, initialValues, categories, categoryName }: Props) {
   const t = useTranslations("admin");
   const td = useTranslations("dashboard");
-  const locale = useLocale();
   const [editing, setEditing] = useState(false);
 
   if (editing) {
@@ -55,25 +54,25 @@ export default function VorgabeRow({ userId, vorgabeId, active, dateLabel, tagH,
         <div className="flex flex-wrap gap-3 mt-1.5">
           {tagH != null && (
             <span className="text-xs text-foreground-muted">
-              {td("day")}: <strong>{formatDurationHours(tagH, locale)}</strong>
+              {td("day")}: <strong>{formatTotalHours(tagH)}</strong>
               <span className="text-foreground-faint"> ({coveragePct(tagH, HOURS_PER_DAY)}%)</span>
             </span>
           )}
           {wocheH != null && (
             <span className="text-xs text-foreground-muted">
-              {td("week")}: <strong>{formatDurationHours(wocheH, locale)}</strong>
+              {td("week")}: <strong>{formatTotalHours(wocheH)}</strong>
               <span className="text-foreground-faint"> ({coveragePct(wocheH, HOURS_PER_WEEK)}%)</span>
             </span>
           )}
           {monatH != null && (
             <span className="text-xs text-foreground-muted">
-              {td("month")}: <strong>{formatDurationHours(monatH, locale)}</strong>
+              {td("month")}: <strong>{formatTotalHours(monatH)}</strong>
               <span className="text-foreground-faint"> ({coveragePct(monatH, HOURS_PER_MONTH)}%)</span>
             </span>
           )}
           {jahrH != null && (
             <span className="text-xs text-foreground-muted">
-              {td("year")}: <strong>{formatDurationHours(jahrH, locale)}</strong>
+              {td("year")}: <strong>{formatTotalHours(jahrH)}</strong>
               <span className="text-foreground-faint"> ({coveragePct(jahrH, HOURS_PER_YEAR)}%)</span>
             </span>
           )}

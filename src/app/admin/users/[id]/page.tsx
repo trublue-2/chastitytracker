@@ -4,7 +4,8 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import {
-  formatDateTimeDual, formatDate, formatTime, formatDurationHours, formatDurationMs, toDateLocale, APP_TZ,
+  formatDateTimeDual, formatDate, formatTime, formatDurationMs, toDateLocale, APP_TZ,
+  formatTotalHours, formatTotalMs,
   buildPairs, getOpenPair, interruptionPauseMs, isTimeCorrected,
   buildKontrolleItems, calculateWearingHoursByRange,
 } from "@/lib/utils";
@@ -109,7 +110,7 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
     (s, p) => s + (p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime()) - interruptionPauseMs(p.interruptions),
     0
   );
-  const totalFormatted = completedPairs.length ? formatDurationMs(totalMs, dl) : "–";
+  const totalFormatted = completedPairs.length ? formatTotalMs(totalMs) : "–";
 
   const orgasmusEntries = entries
     .filter(e => e.type === "ORGASMUS")
@@ -293,9 +294,9 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
                 {formatDate(activeVorgabe.gueltigAb, dl, tz)} → {activeVorgabe.gueltigBis ? formatDate(activeVorgabe.gueltigBis, dl, tz) : tc("open")}
               </p>
               <div className="flex flex-wrap gap-3 mt-1">
-                {activeVorgabe.minProTagH != null && <span className="text-xs text-foreground-muted">{td("day")}: <strong className="text-foreground">{formatDurationHours(activeVorgabe.minProTagH, dl)}</strong></span>}
-                {activeVorgabe.minProWocheH != null && <span className="text-xs text-foreground-muted">{td("week")}: <strong className="text-foreground">{formatDurationHours(activeVorgabe.minProWocheH, dl)}</strong></span>}
-                {activeVorgabe.minProMonatH != null && <span className="text-xs text-foreground-muted">{td("month")}: <strong className="text-foreground">{formatDurationHours(activeVorgabe.minProMonatH, dl)}</strong></span>}
+                {activeVorgabe.minProTagH != null && <span className="text-xs text-foreground-muted">{td("day")}: <strong className="text-foreground">{formatTotalHours(activeVorgabe.minProTagH)}</strong></span>}
+                {activeVorgabe.minProWocheH != null && <span className="text-xs text-foreground-muted">{td("week")}: <strong className="text-foreground">{formatTotalHours(activeVorgabe.minProWocheH)}</strong></span>}
+                {activeVorgabe.minProMonatH != null && <span className="text-xs text-foreground-muted">{td("month")}: <strong className="text-foreground">{formatTotalHours(activeVorgabe.minProMonatH)}</strong></span>}
               </div>
               {activeVorgabe.notiz && <p className="text-xs text-foreground-faint italic mt-0.5">{activeVorgabe.notiz}</p>}
             </div>

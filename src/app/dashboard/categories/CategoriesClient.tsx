@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTranslations, useLocale } from "next-intl";
-import { formatDurationHours, toDateLocale } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { formatTotalHours } from "@/lib/utils";
 import { Plus, Pencil, Trash2, Tag, ChevronUp, ChevronDown } from "lucide-react";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
@@ -278,7 +278,6 @@ function CategoryRowItem({
   onMoveDown?: () => void;
 }) {
   const t = useTranslations("categories");
-  const dl = toDateLocale(useLocale());
   const style = categoryStyle(c.color);
   // Per mockup #6: KG shows built-in features ("Foto-Pflicht · Siegel · Kontrollen"),
   // others show "ohne Foto-Pflicht" or "Inventar-only" if tracking disabled.
@@ -311,7 +310,7 @@ function CategoryRowItem({
             {c.needsDevice && <p className="text-xs text-warn-text mt-0.5">{t("noDevice")}</p>}
             <p className="text-xs text-foreground-muted mt-0.5">
               {t("usageStats", { devices: c.deviceCount, vorgaben: c.vorgabeCount })}
-              {c.trackingEnabled && c.weeklyHours > 0 && ` · ${t("weekly", { hours: formatDurationHours(c.weeklyHours, dl) })}`}
+              {c.trackingEnabled && c.weeklyHours > 0 && ` · ${t("weekly", { hours: formatTotalHours(c.weeklyHours) })}`}
             </p>
             <p className="text-xs text-foreground-faint mt-0.5">{featureLine}</p>
           </div>
