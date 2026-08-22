@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() }, weightEntry: { findUnique: vi.fn(), findMany: vi.fn() } },
@@ -19,7 +19,17 @@ function wearer(over: Record<string, unknown> = {}) {
   });
 }
 
-beforeEach(() => vi.clearAllMocks());
+// Das Feature ist opt-in (Default AUS) — ohne diesen Schalter wirft jeder Schreibweg „not enabled",
+// und genau das prüft der letzte Fall dieser Datei ausdrücklich.
+const ENV_VORHER = process.env.ENABLE_WEIGHT_TRACKING;
+beforeEach(() => {
+  vi.clearAllMocks();
+  process.env.ENABLE_WEIGHT_TRACKING = "true";
+});
+afterEach(() => {
+  if (ENV_VORHER === undefined) delete process.env.ENABLE_WEIGHT_TRACKING;
+  else process.env.ENABLE_WEIGHT_TRACKING = ENV_VORHER;
+});
 
 describe("set_weight_limits — die Nur-Weiten-Regel gilt auch für die KI", () => {
   it("verlangt überhaupt eine Änderung", () => {
@@ -54,8 +64,15 @@ describe("set_weight_limits — die Nur-Weiten-Regel gilt auch für die KI", () 
     expect(preview.after).toEqual({ minKg: null, maxKg: null });
   });
 
-  it("weist ab, solange das Tracking nicht freigeschaltet ist", async () => {
+  it("weist ab, solange die Keyholderin das Tracking nicht freigeschaltet hat", async () => {
     wearer({ weightTrackingEnabled: false });
+    await expect(setWeightLimitsDef.preview(CTX, { maxKg: 87 })).rejects.toThrow(/not enabled/);
+  });
+
+  it("weist ab, wenn die INSTANZ das Feature gar nicht führt", async () => {
+    // Der zweite Schalter, unabhängig vom ersten: der Träger wäre freigeschaltet, die Instanz nicht.
+    wearer();
+    delete process.env.ENABLE_WEIGHT_TRACKING;
     await expect(setWeightLimitsDef.preview(CTX, { maxKg: 87 })).rejects.toThrow(/not enabled/);
   });
 });
