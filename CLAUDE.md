@@ -346,6 +346,25 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - **Wenn** gebumpt wird: Version + Changelog im **gleichen Commit** wie die Änderung
 - **Einträge sind knapp — ein bis zwei Sätze.** Was sich für den Nutzer geändert hat, nicht jede Bedingung und jeder Sonderfall. Wer erklärt, welcher Knopf wohin führt, schreibt eine Bedienungsanleitung statt eines Changelogs.
 
+### Welche Stelle wandert — und wer sie bewegt
+
+**Sitzungen bumpen ausschliesslich die Patch-Stelle (`0.0.X`).** Die Minor-Stelle zieht trublue
+selbst, wenn ein Stand für ihn ein Meilenstein ist. Ein `feat`-Eintrag im Changelog ist dafür
+**kein** hinreichender Grund — er sagt, wie die Änderung einzuordnen ist, nicht wie gross sie ist.
+
+**Was eine Schnittstelle nachholt, um mit einer anderen gleichzuziehen, ist ein `fix`.** Der
+Anspruch ist, dass die KI-Keyholderin über den MCP alles kann, was die Keyholderin in der
+Oberfläche kann. Eine MCP-Fähigkeit, die es dort längst gibt, schliesst also eine Lücke, statt
+etwas hinzuzufügen — auch wenn sie sich beim Bauen wie ein Feature anfühlt und ein ganzes Bündel
+neuer Werkzeuge mitbringt.
+
+*Vorfall 22.08.2026:* zwei Sitzungen legten die Regel an einem Tag verschieden aus. v5.2.6 trug
+vier Einträge, darunter drei `feat`, und blieb Patch; v5.3.0 zog für die MCP-Schreibrechte an
+Geräten und Kategorien die Minor-Stelle. Korrigiert durch Umnummerierung auf v5.2.7/v5.2.8 samt
+`feat` → `fix` — ein Force-Push auf die veröffentlichte Hauptlinie, den es ohne diese Regel nicht
+gebraucht hätte. Er war nur deshalb vertretbar, weil kein `:v5.3.x`-Image existierte und der
+`release`-Tag unberührt blieb; beim nächsten Mal stimmt beides womöglich nicht mehr.
+
 ## Design System – Shared Primitives
 
 Alle UI-Elemente MÜSSEN auf den gemeinsamen Shared Primitives basieren. Erfinde NIEMALS neue Farben, Abstände, Schriftgrössen, Schatten oder Border-Radii. Verwende ausschliesslich die definierten Tokens.
