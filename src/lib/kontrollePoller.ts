@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { pruneExpiredMessages } from "@/lib/messageService";
+import { pruneWeightPhotos } from "@/lib/weightService";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
@@ -41,6 +42,11 @@ async function processDue(): Promise<void> {
       await deleteWithdrawnAutoKontrollen(now).catch((e) => console.error("[autoKontrolle:cleanup]", e));
       // Posteingang beschneiden — dasselbe Tages-Gate und aus demselben Grund: Timing unkritisch,
       // und je Lauf ist die Menge begrenzt (das Beschneiden holt über die Tage auf).
+      // Waagen-Fotos im selben Tages-Gate und aus demselben Grund: Timing unkritisch, die Menge je
+      // Lauf ist begrenzt, und der Rückstand holt über die Tage auf.
+      await pruneWeightPhotos(now)
+        .then((n) => { if (n > 0) console.log(`[weight:prune] ${n} Waagen-Fotos gelöscht`); })
+        .catch((e) => console.error("[weight:prune]", e));
       await pruneExpiredMessages(now)
         .then((n) => { if (n > 0) console.log(`[messages:prune] ${n} Meldungen gelöscht`); })
         .catch((e) => console.error("[messages:prune]", e));

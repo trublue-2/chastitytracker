@@ -29,6 +29,7 @@ import { getOffenses, OFFENSE_TYPES } from "@/lib/mcp/ledger";
 import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
 import { timeline } from "@/lib/mcp/timeline";
 import { getActionLog } from "@/lib/mcp/actionlog";
+import { weightHistory, logWeightDef, setWeightLimitsDef } from "@/lib/mcp/weight";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1361,6 +1362,63 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runV2Write(deleteDeviceDef, extra, args),
+    );
+
+    server.registerTool(
+      "weight_history",
+      {
+        title: "Weight history, target range and reporting gap",
+        description:
+          "Die Gewichts-Reihe des Trägers: Punkte je Kalendertag, aktueller Wert samt BMI, Veränderung " +
+          "im Zeitraum und das gleitende 7-Tage-Mittel als Trend. Alle Werte METRISCH (kg). " +
+          "`corridor` ist der WIRKSAME Zielbereich — der weitere aus dem, was der Träger sich gesetzt " +
+          "hat (`subCorridor`), und deiner Nachbesserung. `daysSinceLastReport` ist die Zahl, an der die " +
+          "Meldepflicht hängt (mehr als drei Tage ohne Angabe sind ein Vergehen, sofern die Regel " +
+          "scharf ist — siehe get_context.offenseRules). `inWindow: false` heisst: ausserhalb der " +
+          "Wiege-Fenster gemessen; der Wert zählt, bleibt aber aus dem Trend. `enabled: false` = das " +
+          "Feature ist hier nicht freigeschaltet, dann ist die Reihe leer.",
+        inputSchema: {
+          days: z.number().int().positive().optional().describe("Zeitraum in Tagen; weglassen = seit Beginn."),
+        },
+      },
+      (args) => runTool("weight_history", (u) => weightHistory(u, { days: args.days ?? null })),
+    );
+
+    server.registerTool(
+      "log_weight",
+      {
+        title: "Record a weight measurement (v2)",
+        description:
+          "Trägt eine Messung für den Träger nach — METRISCH (kg). Höchstens EINE je Kalendertag " +
+          "(seiner Zeitzone): eine zweite ersetzt die erste, `replaced` sagt es. Anders als beim " +
+          "Träger braucht dein Eintrag keinen Foto-Beleg — du stehst nicht vor seiner Waage. " +
+          "Verlässt der Wert den Zielbereich, geht darüber die übliche Meldung raus." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          weightKg: z.number().describe("Gewicht in Kilogramm (20–300)."),
+          measuredAt: z.string().optional().describe("ISO-Zeitpunkt der Messung; weglassen = jetzt. Nicht in der Zukunft."),
+          note: z.string().optional().describe("Kurze Notiz zur Messung."),
+        },
+      },
+      (args, extra) => runV2Write(logWeightDef, extra, args),
+    );
+
+    server.registerTool(
+      "set_weight_limits",
+      {
+        title: "Widen the wearer's weight target range (v2)",
+        description:
+          "Bessert den Zielbereich NACH — METRISCH (kg). Du darfst ihn nur WEITEN, nie verengen, und " +
+          "nur dort, wo der Träger selbst eine Grenze gesetzt hat: die Grenzen gehören ihm, weil er " +
+          "der Realistischere ist. Wirksam ist danach der weitere der beiden Werte. `null` nimmt deine " +
+          "Nachbesserung zurück. Den Bestand zeigt weight_history (`subCorridor` / `corridor`)." + V2_WRITE_NOTE,
+        inputSchema: {
+          ...writeMetaFields,
+          minKg: z.number().nullable().optional().describe("Deine Untergrenze — muss UNTER der des Trägers liegen; null = zurücknehmen."),
+          maxKg: z.number().nullable().optional().describe("Deine Obergrenze — muss ÜBER der des Trägers liegen; null = zurücknehmen."),
+        },
+      },
+      (args, extra) => runV2Write(setWeightLimitsDef, extra, args),
     );
 
     server.registerTool(

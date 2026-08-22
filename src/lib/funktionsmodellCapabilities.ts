@@ -556,6 +556,18 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Der Träger braucht einen Beleg (Foto oder Notiz), die Keyholderin nicht — sie steht nicht vor seiner Waage. Eine zweite Meldung desselben Tages ersetzt die erste.",
   }),
   c({
+    id: "weight-mcp-read", mechanic: "Gewicht", title: "Gewichts-Reihe lesen (KI)",
+    what: "Punkte, aktueller Wert samt BMI, Trend, Zielbereich und Tage seit der letzten Meldung.",
+    actors: ["mcp"], surfaces: ["mcp"], tools: ["weight_history"],
+    note: "Alle Werte metrisch. `daysSinceLastReport` ist die Zahl, an der die Meldepflicht hängt.",
+  }),
+  c({
+    id: "weight-mcp-write", mechanic: "Gewicht", title: "Gewicht eintragen und Grenzen weiten (KI)",
+    what: "Eine Messung je Kalendertag nachtragen und den Zielbereich des Trägers nachbessern.",
+    actors: ["mcp"], surfaces: ["mcp"], tools: ["log_weight", "set_weight_limits"],
+    note: "Die Grenzen gehören dem Träger: die KI darf sie nur WEITEN, nie verengen — dieselbe Regel wie in der Oberfläche. Ihr Eintrag braucht keinen Foto-Beleg.",
+  }),
+  c({
     id: "weight-detect", mechanic: "Gewicht", title: "Waagen-Anzeige lesen",
     what: "Liest aus dem Foto der Waage die angezeigte Zahl und, wo ablesbar, die Einheit.",
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/detect-weight"],

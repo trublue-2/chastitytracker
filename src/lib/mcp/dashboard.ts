@@ -18,6 +18,7 @@ import { getEvaluatedTasks, loadTaskProofViews, type EvaluatedTask, type TaskPro
 import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike } from "@/lib/tasks";
 import { taskProofState } from "@/lib/taskView";
 import { pendingDispatchWhere } from "@/lib/delayedTrigger";
+import { weightSummary, type WeightSummary } from "@/lib/mcp/weight";
 
 /** keyholder_dashboard (explain_model §13) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller
  *  Lauf vs. Personal Best, was JETZT getragen wird (alle Kategorien), das Nächst-Relevante, Ziele +
@@ -204,6 +205,15 @@ export interface DashboardResult extends Envelope {
    *  heisst er „es gibt keins, das gerade GILT" — geplant kann trotzdem eines sein. */
   schemaVersion: 14;
   user: string;
+  /**
+   * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
+   * nichts erfasst wurde. Rein additiv, deshalb ohne Versions-Bump.
+   *
+   * `breach` sagt, ob der jüngste Wert ausserhalb des Zielbereichs liegt; die vollständige Reihe
+   * samt Wiege-Fenstern steht in `weight_history`. `daysSinceLastReport` ist die Zahl, an der die
+   * Meldepflicht hängt.
+   */
+  weight: WeightSummary | null;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
    *  Inhaltsfeld: alle Direktiven/Writes müssen diese Regeln befolgen. null = keine gesetzt. */
   keyholderInstructions: string | null;
@@ -743,9 +753,14 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // CT-004: echte (cross-cluster) Bild-Diskrepanzen als Daten-Hinweis (keine Vergehen).
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
+  // Gewicht: liefert selbst `null`, wenn das Feature hier nichts zu suchen hat — und lädt dann auch
+  // nichts. Die Reihe selbst holt `weight_history`.
+  const weight = await weightSummary(trackingCtx.userId);
+
   return {
     schemaVersion: 14,
     user: username,
+    weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
     keyholderInstructions: trackingCtx.keyholderInstructions,
     currentRun: {

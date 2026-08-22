@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { isValidImageUrl } from "@/lib/constants";
+import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { APP_TZ } from "@/lib/utils";
 import { inWeighingWindow } from "@/lib/weightWindows";
 import {
@@ -216,4 +217,51 @@ export async function lastWeightBefore(userId: string, before: Date): Promise<nu
     select: { weightKg: true },
   });
   return row?.weightKg ?? null;
+}
+
+// ── Aufbewahrung der Waagen-Fotos ──────────────────────────────────────────────────────────────
+
+const WEIGHT_PHOTO_RETENTION_DAYS_DEFAULT = 60;
+/** Wie viele Zeilen ein Lauf höchstens anfasst. Wie beim Posteingang: der Rückstand holt über die
+ *  Tage auf, statt einen einzelnen Tick minutenlang mit Dateisystem-Arbeit zu belegen. */
+const WEIGHT_PHOTO_PRUNE_BATCH = 200;
+
+/** Die konfigurierte Aufbewahrung in Tagen; `0` schaltet das Beschneiden ab. Unbrauchbare Werte
+ *  fallen auf die Vorgabe zurück, statt still `NaN` und damit einen Stichtag `Invalid Date` zu
+ *  ergeben (dieselbe Falle wie bei `messageRetentionDays`). */
+export function weightPhotoRetentionDays(): number {
+  const raw = Number(process.env.WEIGHT_PHOTO_RETENTION_DAYS);
+  return Number.isFinite(raw) && raw >= 0 ? raw : WEIGHT_PHOTO_RETENTION_DAYS_DEFAULT;
+}
+
+/**
+ * Löscht abgelaufene Waagen-Fotos — **die Datei, nicht die Messung.**
+ *
+ * Der Beleg ist genau so lange nützlich, wie ihn jemand anzweifeln könnte; die Zahl bleibt für
+ * immer. Genau deshalb steht `imagePrunedAt` in der Zeile: ohne ihn wäre „hatte nie ein Foto" von
+ * „hatte eines, ist abgelaufen" nicht zu unterscheiden, und die Keyholderin läse in einen alten
+ * Eintrag eine Beleglosigkeit hinein, die es nie gab.
+ *
+ * Erst die Spalte leeren, dann die Dateien löschen: bricht es dazwischen ab, bleibt eine verwaiste
+ * Datei liegen (Speicherplatz, harmlos). Andersherum zeigte die Oberfläche auf ein Bild, das es
+ * nicht mehr gibt.
+ */
+export async function pruneWeightPhotos(now: Date = new Date()): Promise<number> {
+  const days = weightPhotoRetentionDays();
+  if (days === 0) return 0;
+  const cutoff = new Date(now.getTime() - days * 86_400_000);
+
+  const stale = await prisma.weightEntry.findMany({
+    where: { imageUrl: { not: null }, imagePrunedAt: null, measuredAt: { lt: cutoff } },
+    select: { id: true, imageUrl: true },
+    take: WEIGHT_PHOTO_PRUNE_BATCH,
+  });
+  if (stale.length === 0) return 0;
+
+  await prisma.weightEntry.updateMany({
+    where: { id: { in: stale.map((w) => w.id) } },
+    data: { imageUrl: null, imagePrunedAt: now },
+  });
+  await deleteUploadedFiles(stale.map((w) => w.imageUrl));
+  return stale.length;
 }

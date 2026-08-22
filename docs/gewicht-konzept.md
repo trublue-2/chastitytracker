@@ -1,12 +1,13 @@
 # Gewichtstracking: Wiegen, Grenzen, Verlauf
 
-**Status:** **Etappen 1–7 gebaut** (22.08.2026) — Schema und Migration, beide Schalter, der
+**Status:** **fertig gebaut** (22.08.2026) — alle neun Etappen — Schema und Migration, beide Schalter, der
 Rechenkern `weight.ts`, die Wiege-Fenster `weightWindows.ts`, die Einstellungen auf beiden Seiten
 die **Erfassung** (Formular des Trägers, Nachtrag der Keyholderin, ein Wert je Tag, Beleg-Pflicht
 mit Ventil, Sprung-Nachfrage), die **Statistik-Karte** samt Verlaufs-Diagramm und die **Meldepflicht**
 (Vergehensart `missed_weight_report`, Drei-Tage-Blöcke, Pause bei Gesundheits-Halt, Kopplung an den
-Schalter), die **Grenz-Meldung** an die Keyholder und die **Waagen-Erkennung**. Foto-Beschneidung und
-der MCP-Schreibweg stehen noch aus (Abschnitt 14).
+Schalter), die **Grenz-Meldung** an die Keyholder, die **Waagen-Erkennung**, das **Beschneiden der
+Fotos** und den **MCP** (lesen und schreiben). Offen ist nur noch der Punkt aus Abschnitt 13 und die
+Erprobung der Erkennung gegen ein echtes Modell.
 **Alle Grundsatzfragen sind entschieden**; offen ist ein einziger Punkt, siehe Abschnitt 13.
 **Erstellt:** 2026-08-22 · **Entscheidungen eingearbeitet:** 2026-08-22
 **Branch:** `feat/weight-tracking` (Worktree `../kg-weight`, abgezweigt von `main` @ a7b0001, v5.2.9)
@@ -432,8 +433,8 @@ Funktionsumfang braucht es.
 | 5 ✅ | Grenz-Meldung (einmal je Austritt) | wenig Code, existierende Wege. **Ohne Verweis ins Aufgaben-Formular:** Nachrichten tragen im Bestand keine Ziel-Links (die `ref` dient nur der Einmal-Zusage), und eine Link-Auflösung im Posteingang wäre ein eigener Umbau. Die Keyholderin handelt von der Sub-Seite aus. |
 | 6 ✅ | Diagramm-Komponente + Statistik-Karte | Zeichenarbeit, keine Logik |
 | 7 | Waagen-Erkennung: Prompt, Dezimalstelle, Route | Neuland, mit Fehlerkennungen zu rechnen |
-| 8 | Foto-Beschneidung im Poller | ein Tages-Gate, Muster `pruneExpiredMessages` |
-| 9 | MCP lesen und schreiben | Muster vorhanden, Tests dazu |
+| 8 ✅ | Foto-Beschneidung im Poller | ein Tages-Gate, Muster `pruneExpiredMessages` |
+| 9 ✅ | MCP lesen und schreiben (`weight_history`, `log_weight`, `set_weight_limits`, dazu `weight` im Keyholder-Dashboard) | Muster vorhanden, Tests dazu |
 
 Etappe 7 ist von allem anderen unabhängig — das Zahlenfeld funktioniert ohne Erkennung, und die
 Fotopflicht steht auch ohne sie. Etappe 4 setzt 1–3 voraus; ihre Tests müssen die Aus-Zeiten, den
