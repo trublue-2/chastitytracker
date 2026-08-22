@@ -874,6 +874,22 @@ export function wornDeviceNameAt(lockPoints: { time: Date; name: string | null }
   return name;
 }
 
+/**
+ * Die Dauer EINER abgeschlossenen Session: Öffnung minus Verschluss, abzüglich der
+ * Reinigungspausen.
+ *
+ * Eigene Funktion, weil zwei Zählweisen darauf aufsetzen und nur in EINER Sache abweichen dürfen:
+ * `completedPairsFrom` lässt nicht-positive Dauern weg (für Rekorde und Mittelwerte), die Summe
+ * der Tragezeiten nimmt sie mit (`wearCountsCached`). Die Rechnung selbst muss dieselbe sein.
+ */
+export function pairDurationMs(pair: {
+  verschluss: { startTime: Date };
+  oeffnen: { startTime: Date };
+  interruptions: { oeffnen: { startTime: Date }; verschluss: { startTime: Date } }[];
+}): number {
+  return pair.oeffnen.startTime.getTime() - pair.verschluss.startTime.getTime() - interruptionPauseMs(pair.interruptions);
+}
+
 /** Maps built pairs (from `buildPairs`) to completed sessions with interruption-adjusted
  *  duration. Drops open pairs and non-positive durations. */
 export function completedPairsFrom<E extends { startTime: Date }>(
@@ -884,7 +900,7 @@ export function completedPairsFrom<E extends { startTime: Date }>(
     .map((p) => ({
       verschluss: p.verschluss,
       oeffnen: p.oeffnen!,
-      durationMs: p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime() - interruptionPauseMs(p.interruptions),
+      durationMs: pairDurationMs({ verschluss: p.verschluss, oeffnen: p.oeffnen!, interruptions: p.interruptions }),
     }))
     .filter((p) => p.durationMs > 0);
 }

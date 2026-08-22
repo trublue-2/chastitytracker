@@ -1,46 +1,21 @@
-import { Fragment, type ReactNode } from "react";
-import { prisma } from "@/lib/prisma";
-import DashboardStack from "@/app/components/DashboardStack";
-import { viewerLayout } from "@/lib/viewerLayout";
-import { getWeightStatsProps } from "@/lib/weightStatsProps";
-import WeightStatsCard from "./WeightStatsCard";
-import type { StatsBlockId } from "@/lib/dashboardBlockRegistry";
-import { aktiveKontrolleWhere } from "@/lib/queries";
-import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
-import { CLEANING_USER_SELECT } from "@/lib/reinigungService";
-import { goalPct, sharePct } from "@/lib/percent";
-import {
-  APP_TZ, formatDate, formatDateTime, formatDurationMs, formatTotalHours, formatTotalMs, toDateLocale,
-  buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart, getYearStart,
-  tzDayKey, buildPairs, buildKgWearPairs, wearingHoursFromPairs, summarizeSessions, completedPairsFrom, WEAR_PAIR,
-} from "@/lib/utils";
-import {
-  buildCalendarMonths, buildDailyData, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
-  type Vorgabe,
-} from "@/lib/statsBuilders";
-import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
-import { buildStrafbuch } from "@/lib/strafbuch";
-import { getKombinierterPill } from "@/lib/kontrollePills";
-import { isKgVorgabe } from "@/lib/vorgaben";
-import { categoryStyle } from "@/lib/categoryConstants";
-import { KG_CATEGORY_META } from "@/lib/deviceCategories";
-import { buildSessions, buildWearSessions, deviceWearingsOf, wearHourPairsByCategory, type Session } from "@/lib/sessionModel";
-import { buildDeviceUsage, type UsageSession } from "@/lib/deviceUsage";
-import CategoryIconRender from "./CategoryIcon";
-import { type CategoryVariant } from "./CategorySwitcherCard";
-import DeviceUsageSwitcher, { type DeviceUsageVariant } from "./DeviceUsageSwitcher";
-import WearCalendarSwitcher, { type CalendarVariant } from "./WearCalendarSwitcher";
-import YearHeatmap from "./YearHeatmap";
-import MonthStats from "./MonthStats";
-import Card from "./Card";
-import StatsCard from "./StatsCard";
-import StatsKontrollenList, { type StatsKontrolleRow } from "./StatsKontrollenList";
-import EmptyState from "./EmptyState";
-import { ShieldAlert, BarChart2 } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
+import { APP_TZ, toDateLocale } from "@/lib/utils";
+import { entriesCached, hasWeightDataCached, userRowCached } from "@/lib/dashboardData";
+import { renderStack } from "@/lib/blockStack";
+import { viewerLayout } from "@/lib/viewerLayout";
+import BlockStack from "@/app/components/BlockStack";
+import { STATS_BLOCK_TABLE, type StatsCtx } from "@/app/components/statsBlocks";
+import Card from "./Card";
+import EmptyState from "./EmptyState";
+import { BarChart2 } from "lucide-react";
 
-// ── Main component ─────────────────────────────────────────────────────────────
-
+/**
+ * Die Statistik-Seite — geteilt vom Träger (`/dashboard/stats`) und der Keyholderin
+ * (`/admin/users/[id]/stats`).
+ *
+ * Die Blöcke samt ihrer Datenbeschaffung stehen in `statsBlocks.tsx`; hier bleibt, was beide
+ * Sichten gemeinsam haben: wer, wann, in welcher Zone, und der Rahmen drumherum.
+ */
 export default async function StatsMain({ userId, surface, heading, backHref, backLabel, compact }: {
   userId: string;
   /** Wessen Sicht das ist. Bestimmt, welche Konfiguration gilt — die des Betrachters. */
@@ -51,516 +26,58 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
   /** Use narrower container (max-w-2xl px-4) for dashboard embedding */
   compact?: boolean;
 }) {
-  const t = await getTranslations("stats");
-  const td = await getTranslations("dashboard");
-  const tc = await getTranslations("common");
-  const ta = await getTranslations("admin");
-  const dl = toDateLocale(await getLocale());
   const now = new Date();
-
-  const [entries, vorgaben, kontrollen, strafbuch, userSettings, allDevices, nonKgCategories, cleaningChanges, weightStats] = await Promise.all([
-    prisma.entry.findMany({
-      where: { userId },
-      orderBy: { startTime: "asc" },
-      // `device.id` treibt die geräteweise Paarung in buildWearSessions (Device-Nutzung).
-      include: { device: { select: { id: true, categoryId: true } } },
-    }),
-    prisma.trainingVorgabe.findMany({
-      where: { userId, deletedAt: null }, // B-04: soft-gelöschte Ziele nicht mehr anzeigen
-      orderBy: { gueltigAb: "desc" },
-      include: { category: { select: { id: true, name: true, color: true, icon: true, isBuiltIn: true } } },
-    }),
-    prisma.kontrollAnforderung.findMany({ where: { userId, ...aktiveKontrolleWhere(now) }, orderBy: { createdAt: "desc" }, include: { entry: true } }),
-    // Die Karte „Unerlaubte Öffnungen" zeigt, was das STRAFBUCH als solche führt — sie formuliert
-    // die Bedingung nicht selbst. Vorher tat sie es und zählte deshalb jede ERLAUBTE
-    // Reinigungsöffnung während einer Sperrzeit mit, dazu System-Öffnungen (die vermutete Abnahme
-    // nach einer verpassten Kontrolle) und Öffnungen in einem offenen Orgasmus-Fenster — und sie
-    // ignorierte die Vergehens-Regel `unauthorized_opening`.
-    //
-    // `buildStrafbuch` ist teuer (rund zwanzig Abfragen). Der Handel ist trotzdem eindeutig: die
-    // Statistik ruft der Nutzer bewusst auf, sie liegt auf keinem Poll-Pfad, und der Strafen-Block
-    // des Dashboards zahlt denselben Preis längst. Eine dauerhaft falsche Zahl unter einer
-    // anklagenden Überschrift ist der schlechtere Handel.
-    buildStrafbuch(userId, now),
-    prisma.user.findUnique({ where: { id: userId }, select: { ...CLEANING_USER_SELECT, timezone: true } }),
-    // `lookalikeClusterId` treibt die Bild-Versöhnung in buildSessions (optisch gleiche Geräte
-    // dürfen einander nicht als "Konflikt" überstimmen) — ohne sie rechnete die Geräte-Nutzung
-    // anders als `device_stats` im MCP.
-    prisma.device.findMany({ where: { userId }, select: { id: true, name: true, purchasePrice: true, currency: true, archivedAt: true, lookalikeClusterId: true } }),
-    prisma.deviceCategory.findMany({
-      where: { userId, isBuiltIn: false },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      select: { id: true, name: true, color: true, icon: true },
-    }),
-    prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
-    // Gewicht: liefert selbst `null`, wenn das Feature aus ist oder nichts erfasst wurde —
-    // die Karte entfällt dann, ohne dass hier eine zweite Bedingung dieselbe Frage stellt.
-    getWeightStatsProps(userId),
+  const [t, tc, ta, locale, user, entries, hasWeight] = await Promise.all([
+    getTranslations("stats"), getTranslations("common"), getTranslations("admin"),
+    getLocale(),
+    // Die Zone des TRÄGERS regiert jede Tagesgrenze und jede Formatierung — ob er sich selbst
+    // ansieht oder die Keyholderin ihn.
+    userRowCached(userId),
+    entriesCached(userId),
+    hasWeightDataCached(userId),
   ]);
 
-  // Sub's own timezone governs all boundary/format math (self or admin-viewed). Read from the
-  // user row already loaded above — no extra query.
-  const tz = userSettings?.timezone ?? APP_TZ;
-
-  // Fassung zur Tatzeit statt heutiger Stand — Begründung am Modell `CleaningRuleChange`.
-  const reinigung = reinigungRulesAt(cleaningRulesFrom(cleaningChanges, userSettings));
-
-  // Zurückgezogene Kontrollen bleiben aussen vor: ein Rückzug (durch die Keyholderin, eine
-  // Auto-Kontrolle bei offenem KG oder den Überschneidungs-Schutz) ist ein Nicht-Ereignis — er
-  // sagt nichts über den Sub aus und füllte die Liste. VERSÄUMTE Kontrollen bleiben sichtbar:
-  // die Eskalation setzt zwar ebenfalls `withdrawnAt`, `mapAnforderungStatus` erkennt sie aber am
-  // `autoMarkedRemovedAt` und gibt "missed" zurück.
-  const kontrolleItems = buildKontrolleItems(kontrollen, entries.filter(e => e.type === "PRUEFUNG"), now)
-    .filter(isSubVisibleKontrolle)
-    .sort((a, b) => b.time.getTime() - a.time.getTime());
-
-  // Pre-format kontrolle rows for the client-paginated list — pills and dates resolved here so the
-  // client component can stay simple (no date/i18n logic).
-  const kontrolleRows: StatsKontrolleRow[] = kontrolleItems.map((k) => {
-    const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
-    const primaryLine = k.entryId
-      ? `${t("fulfilled")}: ${k.time.toLocaleString(dl, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: tz })}`
-      : `${t("created")}: ${formatDateTime(k.time, dl, tz)}`;
-    return {
-      id: k.id,
-      code: k.code,
-      pillLabel: pill?.label ?? null,
-      pillCls: pill?.cls ?? null,
-      primaryLine,
-      deadlineLine: k.deadline ? `${t("deadlineLabel")}: ${formatDateTime(k.deadline, dl, tz)}` : null,
-    };
-  });
-
-  const completed = completedPairsFrom(buildPairs(entries, [], reinigung));
-  const { totalMs, avgMs, longest, shortest } = summarizeSessions(completed);
-
-  const activeEntry = (() => {
-    const vs = entries.filter((e) => e.type === "VERSCHLUSS");
-    const os = entries.filter((e) => e.type === "OEFFNEN");
-    return vs.length > os.length ? [...vs].pop() ?? null : null;
-  })();
-  const activeDurationMs = activeEntry ? now.getTime() - activeEntry.startTime.getTime() : 0;
-  const missingPhotos = entries.filter((e) => e.type === "VERSCHLUSS" && !e.imageUrl).length;
-  const lastOrgasmus = [...entries].filter((e) => e.type === "ORGASMUS")
-    .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
-  const orgasmusFreiMs = lastOrgasmus ? now.getTime() - lastOrgasmus.startTime.getTime() : null;
-
-  // Neueste zuerst — die Reihenfolge der Strafbuch-Listen ist keine Zusage an ihre Leser.
-  const unerlaubteOeffnungen = [...strafbuch.unauthorizedOpenings]
-    .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
-
-  // KG-only vorgaben drive the wear calendar + month stats (which visualize KG).
-  // The Trainingsziele cards below render ALL active vorgaben across categories.
-  const kgVorgaben = vorgaben.filter(isKgVorgabe);
-  const wearPairs = buildKgWearPairs(entries, now);
-  // Nicht-KG: die Trage-Sessions einmal bauen — Wanduhr-Stunden je Kategorie (unten) und die
-  // Geräte-Nutzung (weiter unten) leiten sich beide daraus ab.
-  const wearSessionList = buildWearSessions(entries, now);
-  const wearPairsByCategory = wearHourPairsByCategory(wearSessionList, now);
-  const monthStats = buildMonthStats(completed, wearPairs, kgVorgaben, dl, tz);
-
-  const todayStart = getMidnightToday(now, tz);
-  const weekStart = getWeekStart(now, tz);
-  const monthStart = getMonthStart(now, tz);
-  const yearStart = getYearStart(now, tz);
-
-  // Build one goal-card per currently-active vorgabe (KG first, then others by name).
-  // Nicht `filter(isActive)`: Array.filter reicht den Index als zweites Argument durch, der dort
-  // auf den optionalen `now`-Parameter träfe.
-  const activeVorgaben = vorgaben.filter(v => isActive(v)).sort((a, b) => {
-    const aKG = isKgVorgabe(a) ? 0 : 1;
-    const bKG = isKgVorgabe(b) ? 0 : 1;
-    if (aKG !== bKG) return aKG - bKG;
-    return (a.category?.name ?? "").localeCompare(b.category?.name ?? "");
-  });
-  const goalCards = activeVorgaben.map((v) => {
-    const kg = isKgVorgabe(v);
-    const pairs = kg ? wearPairs : wearPairsByCategory.get(v.categoryId!) ?? [];
-    return {
-      id: v.id,
-      name: v.category?.name ?? "KG",
-      color: v.category?.color ?? null,
-      icon: v.category?.icon ?? null,
-      // Ziele prorata: startet/endet die Vorgabe mitten in der Periode, wird das Ziel anteilig
-      // auf die Überschneidung mit der Periode heruntergerechnet (Anzeige + %-Nenner).
-      ...proratedVorgabeTargets(v, now, tz),
-      notiz: v.notiz,
-      hoursToday: wearingHoursFromPairs(pairs, todayStart, now),
-      hoursWeek: wearingHoursFromPairs(pairs, weekStart, now),
-      hoursMonth: wearingHoursFromPairs(pairs, monthStart, now),
-      hoursYear: wearingHoursFromPairs(pairs, yearStart, now),
-    };
-  });
-
-  const orgasmDateSet = new Set<string>(
-    entries.filter((e) => e.type === "ORGASMUS")
-      .map((e) => tzDayKey(e.startTime, tz))
-  );
-
-  // Heatmap und KG-Kalender brauchen dieselbe Tages-Karte — einmal bauen, zweimal nutzen.
-  const kgDailyData = wearPairs.length > 0 ? buildDailyData(wearPairs, orgasmDateSet, tz) : undefined;
-
-  // Jahres-Heatmap (KG-Tragezeit pro Tag, GitHub-Stil) — nur wenn Tragedaten existieren.
-  const yearHeatmaps = kgDailyData ? buildYearHeatmaps(wearPairs, orgasmDateSet, now, tz, dl, kgDailyData) : [];
-  const weekdayLabels = buildWeekdayLabels(dl);
-
-  // Build calendar variants — one per category that has wear data.
-  // KG always shows orgasm dots; non-KG categories don't (orgasms are not device-specific).
-  const calendarVariants: CalendarVariant[] = [];
-  if (wearPairs.length > 0) {
-    calendarVariants.push({
-      ...KG_CATEGORY_META,
-      isKG: true,
-      months: buildCalendarMonths({ entries, wearPairs, vorgaben: kgVorgaben, orgasmDateSet, now, dl, tz, dailyData: kgDailyData }),
-    });
-  }
-  for (const cat of nonKgCategories) {
-    const catPairs = wearPairsByCategory.get(cat.id) ?? [];
-    if (catPairs.length === 0) continue;
-    const catVorgaben = vorgaben.filter((v) => v.categoryId === cat.id);
-    const catEntries = entries.filter(
-      (e) => (e.type === WEAR_PAIR.close || e.type === WEAR_PAIR.open) && e.device?.categoryId === cat.id
-    );
-    calendarVariants.push({
-      id: cat.id,
-      name: cat.name,
-      color: cat.color,
-      icon: cat.icon,
-      isKG: false,
-      months: buildCalendarMonths({ entries: catEntries, wearPairs: catPairs, vorgaben: catVorgaben, orgasmDateSet: new Set(), now, dl, tz }),
-    });
-  }
-
-  // ── Device usage stats ─────────────────────────────────────────────────────
-  // Eine Variante je Kategorie (KG zuerst), zwischen denen der Picker umschaltet.
-  //
-  // BEIDE Pfade gehen durch `deviceWearingsOf` — dieselbe Zurechnungs-Regel, die auch `device_stats`
-  // im MCP benutzt: je Session und Gerät EIN Eintrag (Segmente summiert, das Bild gewinnt bei echtem
-  // Konflikt). Nur so nennen Chat und Statistik-Seite dieselben Zahlen. Vorher rechnete KG hier auf
-  // dem DEKLARIERTEN Gerät des Verschluss-Eintrags über die ganze Session: ein Gerätewechsel über
-  // eine Reinigungspause landete komplett beim ersten Gerät.
-  const usageOf = (sessions: Session[]): UsageSession[] =>
-    deviceWearingsOf(sessions).map((w) => ({ deviceId: w.device.id, durationMs: w.durationMs, start: w.start }));
-
-  const kgSessions = usageOf(buildSessions(entries, reinigung, now, allDevices));
-
-  const wearSessionsByCategory = new Map<string, UsageSession[]>();
-  if (nonKgCategories.length > 0) {
-    for (const s of wearSessionList) {
-      if (!s.categoryId) continue;
-      const list = wearSessionsByCategory.get(s.categoryId) ?? [];
-      list.push(...usageOf([s]));
-      wearSessionsByCategory.set(s.categoryId, list);
-    }
-  }
-
-  const deviceById = new Map(allDevices.map((d) => [d.id, d]));
-  const toVariant = (meta: CategoryVariant, sessions: UsageSession[]): DeviceUsageVariant | null => {
-    const rows = buildDeviceUsage(sessions, deviceById, t("deviceUnknown"));
-    // Ohne ein einziges zugeordnetes Gerät sagt die Card nichts aus (nur „unbekannt"-Zeilen).
-    if (!rows.some((r) => r.id !== null)) return null;
-    const variantTotalMs = rows.reduce((sum, r) => sum + r.totalMs, 0);
-    return {
-      ...meta,
-      rows: rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        count: r.count,
-        totalStr: formatTotalMs(r.totalMs),
-        avgStr: formatDurationMs(r.avgMs, dl),
-        medianStr: formatDurationMs(r.medianMs, dl),
-        // Bei einer einzigen Session ist die Spanne keine Spanne — dann nur die eine Dauer zeigen.
-        rangeStr: r.minMs === r.maxMs ? formatDurationMs(r.minMs, dl) : `${formatDurationMs(r.minMs, dl)} – ${formatDurationMs(r.maxMs, dl)}`,
-        lastWornStr: formatDate(r.lastWorn, dl, tz),
-        costStr: r.costPerHour !== null && r.currency ? `${r.costPerHour.toFixed(2)} ${r.currency}` : null,
-        sharePct: sharePct(r.totalMs, variantTotalMs),
-      })),
-    };
-  };
-
-  const deviceUsageVariants = [
-    toVariant(KG_CATEGORY_META, kgSessions),
-    ...nonKgCategories.map((cat) => {
-      const sessions = wearSessionsByCategory.get(cat.id);
-      return sessions ? toVariant(cat, sessions) : null;
-    }),
-  ].filter((v) => v !== null);
-
   const pageHeading = heading ?? t("title");
+  const wrapper = `flex-1 w-full ${compact ? "max-w-2xl mx-auto px-4 py-6" : "max-w-5xl px-6 py-8"} flex flex-col gap-6`;
 
-  // „Keine Einträge" heisst nicht mehr „nichts zu zeigen": wer nur sein Gewicht führt und noch nie
-  // etwas verschlossen hat, hat sehr wohl eine Statistik. Die Abkürzung gilt deshalb nur, wenn auch
-  // dort nichts liegt — sonst verschwände die Gewichts-Karte hinter einem leeren Zustand.
-  if (entries.length === 0 && !weightStats) {
+  // Ohne einen einzigen Eintrag hat die Seite nichts zu zeigen — und keiner ihrer Blöcke etwas zu
+  // laden. Der Leer-Zustand steht deshalb VOR dem Stapel.
+  //
+  // „Keine Einträge" heisst aber nicht mehr „nichts zu zeigen": wer nur sein Gewicht führt und nie
+  // etwas verschlossen hat, hat sehr wohl eine Statistik.
+  if (entries.length === 0 && !hasWeight) {
     return (
-      <main className={`flex-1 w-full ${compact ? "max-w-2xl mx-auto px-4 py-6" : "max-w-5xl px-6 py-8"} flex flex-col gap-6`}>
+      <main className={wrapper}>
         {backHref && (
           <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
         )}
         <h1 className="text-xl font-bold text-foreground">{pageHeading}</h1>
         <Card padding="default">
-          <EmptyState
-            icon={<BarChart2 size={32} />}
-            title={t("noEntries")}
-          />
+          <EmptyState icon={<BarChart2 size={32} />} title={t("noEntries")} />
         </Card>
       </main>
     );
   }
 
-  // Dieselbe Bauart wie das Dashboard: benannter Record, Vollständigkeit vom Compiler.
-  const blocks: Record<StatsBlockId, ReactNode> = {
-    heading: (
-      <div>
-        {backHref && (
-          <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
-        )}
-        <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
-      </div>
-    ),
-
-    // Übersicht KG-Tragen
-    overview: (
-      <section className="flex flex-col gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{t("kgWearOverview")}</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatsCard label={t("entries")} value={String(completed.length)} />
-          <StatsCard label={t("totalDuration")} value={completed.length ? formatTotalMs(totalMs) : "–"} />
-          <StatsCard label={t("avgDuration")} value={completed.length ? formatDurationMs(avgMs, dl) : "–"} />
-          <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
-        </div>
-      </section>
-    ),
-
-    // Orgasmusfreie Zeit
-    orgasmFree: (
-      orgasmusFreiMs !== null ? (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-orgasm-border">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-orgasm)]">{t("orgasmFreeTime")}</p>
-          </div>
-          <div className="px-6 py-4 flex items-center justify-between gap-4">
-            <p className="text-sm text-orgasm-text">
-              {t("lastOrgasm")}: <span className="font-semibold">{formatDateTime(lastOrgasmus!.startTime, dl, tz)}</span>
-            </p>
-            <span className="text-xl sm:text-2xl font-bold text-[var(--color-orgasm)] whitespace-nowrap tabular-nums">
-              {formatDurationMs(orgasmusFreiMs, dl)}
-            </span>
-          </div>
-        </Card>
-      ) : (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-border-subtle">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("orgasmFreeTime")}</p>
-          </div>
-          <div className="px-6 py-4">
-            <p className="text-sm text-foreground-faint font-semibold">{t("noEntry")}</p>
-          </div>
-        </Card>
-      )
-    ),
-
-    // Aktive Session
-    activeSession: (
-      activeEntry && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-lock-border">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lock)]">{t("currentSession")}</p>
-          </div>
-          <div className="px-6 py-4 flex items-center justify-between gap-4">
-            <p className="text-sm text-[var(--color-lock-text)]">
-              {t("lockedSince")} <span className="font-semibold">{formatDateTime(activeEntry.startTime, dl, tz)}</span>
-            </p>
-            <span className="text-xl sm:text-2xl font-bold text-[var(--color-lock-text)] whitespace-nowrap tabular-nums">{formatDurationMs(activeDurationMs, dl)}</span>
-          </div>
-        </Card>
-      )
-    ),
-
-    // Trainingsziele — eine Card pro aktiver Vorgabe (KG zuerst, dann andere Kategorien)
-    goals: (
-      goalCards.map((g) => {
-        const style = g.color ? categoryStyle(g.color) : null;
-        return (
-          <Card key={g.id} padding="none" className="overflow-hidden">
-            <div className="px-6 py-4 border-b border-[var(--color-request-border)] flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                {style && g.icon && (
-                  <div
-                    className="size-6 rounded-md flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: style.backgroundColor, color: style.color }}
-                    aria-hidden
-                  >
-                    <CategoryIconRender name={g.icon} className="size-3.5" />
-                  </div>
-                )}
-                <p className="text-sm font-bold text-foreground truncate">
-                  {t("trainingGoalFor", { name: g.name })}
-                </p>
-              </div>
-              <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full shrink-0">{tc("active")}</span>
-            </div>
-            <div className="px-6 py-4 flex flex-col gap-4">
-              {g.minProTagH && (
-                <GoalBar label={t("today")} actual={g.hoursToday} target={g.minProTagH}
-                  sub={`${formatTotalHours(g.hoursToday)} ${tc("of")} ${formatTotalHours(g.minProTagH)}`}
-                  reachedLabel={t("reached")} />
-              )}
-              {g.minProWocheH && (
-                <GoalBar label={t("thisWeek")} actual={g.hoursWeek} target={g.minProWocheH}
-                  sub={`${formatTotalHours(g.hoursWeek)} ${tc("of")} ${formatTotalHours(g.minProWocheH)}`}
-                  reachedLabel={t("reached")} />
-              )}
-              {g.minProMonatH && (
-                <GoalBar label={t("thisMonth")} actual={g.hoursMonth} target={g.minProMonatH}
-                  sub={`${formatTotalHours(g.hoursMonth)} ${tc("of")} ${formatTotalHours(g.minProMonatH)}`}
-                  reachedLabel={t("reached")} />
-              )}
-              {g.minProJahrH && (
-                <GoalBar label={t("thisYear")} actual={g.hoursYear} target={g.minProJahrH}
-                  sub={`${formatTotalHours(g.hoursYear)} ${tc("of")} ${formatTotalHours(g.minProJahrH)}`}
-                  reachedLabel={t("reached")} />
-              )}
-              {g.notiz && <p className="text-xs text-[var(--color-request)] italic">{g.notiz}</p>}
-            </div>
-          </Card>
-        );
-      })
-    ),
-
-    // Tragekalender
-    calendar: (
-      calendarVariants.length > 0 && (
-        <WearCalendarSwitcher variants={calendarVariants} />
-      )
-    ),
-
-    // Jahresübersicht (Heatmap)
-    yearHeatmap: (
-      yearHeatmaps.length > 0 && (
-        <YearHeatmap years={yearHeatmaps} weekdayLabels={weekdayLabels} />
-      )
-    ),
-
-    // Rekorde
-    records: (
-      completed.length > 0 && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-border-subtle">
-            <p className="text-sm font-bold text-foreground">{t("records")}</p>
-          </div>
-          <div className="divide-y divide-border-subtle">
-            <RecordRow label={t("longestSession")} value={formatDurationMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl, tz)} />
-            <RecordRow label={t("shortestSession")} value={formatDurationMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl, tz)} />
-          </div>
-        </Card>
-      )
-    ),
-
-    // Device-Nutzung — umschaltbar zwischen KG und den Geräte-Kategorien
-    deviceUsage: (
-      deviceUsageVariants.length > 0 && (
-        <DeviceUsageSwitcher variants={deviceUsageVariants} />
-      )
-    ),
-
-    // Kontrollen
-    inspections: (
-      kontrolleRows.length > 0 && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-border-subtle">
-            <p className="text-sm font-bold text-foreground">{t("inspections")}</p>
-          </div>
-          <StatsKontrollenList rows={kontrolleRows} />
-        </Card>
-      )
-    ),
-
-    // Gewicht — entfällt ganz, solange das Feature aus ist oder noch nichts erfasst wurde.
-    weight: weightStats && <WeightStatsCard {...weightStats} />,
-
-    // Monatsübersicht
-    monthStats: (
-      monthStats.length > 0 && <MonthStats months={monthStats} />
-    ),
-
-    // Unerlaubte Öffnungen
-    unlawfulOpenings: (
-      unerlaubteOeffnungen.length > 0 && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-[var(--color-warn-border)] flex items-center gap-2">
-            <ShieldAlert size={15} className="text-warn shrink-0" />
-            <p className="text-sm font-bold text-warn-text">{t("unlawfulOpenings")} ({unerlaubteOeffnungen.length})</p>
-          </div>
-          <div className="divide-y divide-[var(--color-warn-border)]">
-            {unerlaubteOeffnungen.map((e) => (
-              <div key={e.id} className="px-5 py-3 flex items-center gap-3">
-                <span className="text-sm tabular-nums text-warn-text font-medium shrink-0">
-                  {formatDateTime(e.startTime, dl, tz)}
-                </span>
-                {e.note
-                  ? <span className="text-sm text-warn italic truncate">„{e.note}"</span>
-                  : <span className="text-sm text-foreground-faint">–</span>
-                }
-              </div>
-            ))}
-          </div>
-        </Card>
-      )
-    ),
-  };
-
-
   // Die Konfiguration des BETRACHTERS, nicht die des angezeigten Trägers — `/admin/users/[id]/stats`
   // zeigt einen Sub, zusammengestellt hat die Seite aber die Keyholderin für sich.
   const layout = await viewerLayout(surface);
 
+  const ctx: StatsCtx = {
+    userId,
+    now,
+    nowMs: now.getTime(),
+    tz: user?.timezone ?? APP_TZ,
+    dl: toDateLocale(locale),
+    t, tc, ta,
+    heading: pageHeading, backHref, backLabel,
+  };
+
+  const nodes = await renderStack(layout, ctx, STATS_BLOCK_TABLE);
+
   return (
-    <main className={`flex-1 w-full ${compact ? "max-w-2xl mx-auto px-4 py-6" : "max-w-5xl px-6 py-8"} flex flex-col gap-6`}>
-      <DashboardStack
-        surface={surface}
-        meta={layout.all.map(({ block, hidden }) => ({
-          id: block.id, label: td(block.labelKey), hidden, alwaysOn: block.alwaysOn,
-        }))}
-      >
-        {layout.visible.map((block) => (
-          <Fragment key={block.id}>{blocks[block.id as StatsBlockId]}</Fragment>
-        ))}
-      </DashboardStack>
+    <main className={wrapper}>
+      <BlockStack layout={layout} nodes={nodes} />
     </main>
-  );
-}
-
-
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
-function RecordRow({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 px-6 py-4">
-      <div>
-        <p className="text-sm font-semibold text-foreground-muted">{label}</p>
-        <p className="text-xs text-foreground-faint mt-0.5">{sub}</p>
-      </div>
-      <span className="font-mono text-sm font-bold text-foreground whitespace-nowrap">{value}</span>
-    </div>
-  );
-}
-
-function GoalBar({ label, actual, target, sub, reachedLabel }: { label: string; actual: number; target: number; sub: string; reachedLabel: string }) {
-  const pct = goalPct(actual, target) ?? 0;
-  const reached = actual >= target;
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-sm font-semibold text-foreground-muted">{label}</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${reached ? "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" : "bg-surface-raised text-foreground-muted border-border"}`}>
-          {reached ? reachedLabel : `${pct}%`}
-        </span>
-      </div>
-      <div className="h-2.5 bg-surface-raised rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${reached ? "bg-[var(--color-lock)]" : "bg-[var(--color-request)]"}`} style={{ width: `${Math.min(100, pct)}%` }} />
-      </div>
-      <p className="text-xs text-foreground-faint mt-1">{sub}</p>
-    </div>
   );
 }

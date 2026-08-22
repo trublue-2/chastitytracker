@@ -1,4 +1,4 @@
-import { blocksOf, type BlockSurface, type DashboardBlockDef } from "@/lib/dashboardBlockRegistry";
+import { blocksOf, type BlockIdOf, type BlockSurface, type DashboardBlockDef } from "@/lib/dashboardBlockRegistry";
 
 /**
  * Die gespeicherte Dashboard-Konfiguration: **was ein Nutzer vom Standard ABWEICHEND will.**
@@ -23,13 +23,28 @@ export interface SurfaceLayout {
 /** Der gesamte gespeicherte Wert: je Oberfläche ein Eintrag. */
 export type DashboardLayout = Partial<Record<BlockSurface, SurfaceLayout>>;
 
+/**
+ * Ein Block EINER Oberfläche. Der Typ trägt die Oberfläche und ihre Ids mit — nur deshalb kann der
+ * Compiler eine Konfiguration und eine Block-Tabelle aneinanderbinden, statt dass eine Seite zur
+ * Laufzeit prüfen muss, ob beide zusammengehören.
+ */
+export type SurfaceBlockDef<S extends BlockSurface> = DashboardBlockDef & { id: BlockIdOf<S>; surface: S };
+
 /** Das Ergebnis der Auflösung — was die Seite tatsächlich rendert. */
-export interface ResolvedLayout {
+export interface ResolvedLayout<S extends BlockSurface = BlockSurface> {
+  /** Für welche Oberfläche das gilt. Steht im Ergebnis, damit niemand sie ein zweites Mal nennen muss. */
+  surface: S;
   /** Alle Blöcke der Oberfläche in der wirksamen Reihenfolge, sichtbare wie ausgeblendete. */
-  all: { block: DashboardBlockDef; hidden: boolean }[];
+  all: { block: SurfaceBlockDef<S>; hidden: boolean }[];
   /** Nur die sichtbaren, in derselben Reihenfolge. */
-  visible: DashboardBlockDef[];
+  visible: SurfaceBlockDef<S>[];
   hiddenCount: number;
+  /**
+   * Steht dieser Block? Gebraucht, wo ein Block dem anderen ausweicht (das KG-Ziel der
+   * Session-Karte). Hier statt in jedem Seiten-Kontext: die Frage ist eine Eigenschaft der
+   * aufgelösten Konfiguration, keine der Seite.
+   */
+  shows: (id: BlockIdOf<S>) => boolean;
 }
 
 /**
@@ -97,10 +112,10 @@ export function mergeOrder(defaults: readonly string[], saved: readonly string[]
  * `alwaysOn`-Blöcke lassen sich nicht ausblenden. Das ist keine Bevormundung — dieser Block trägt
  * den Bearbeiten-Knopf, ohne ihn käme man nicht mehr in den Modus zurück.
  */
-export function resolveLayout(layout: DashboardLayout, surface: BlockSurface): ResolvedLayout {
-  const registry = blocksOf(surface);
-  const byId = new Map(registry.map((b) => [b.id, b]));
-  const saved = layout[surface] ?? {};
+export function resolveLayout<S extends BlockSurface>(layout: DashboardLayout, surface: S): ResolvedLayout<S> {
+  const registry = blocksOf(surface) as readonly SurfaceBlockDef<S>[];
+  const byId = new Map(registry.map((b) => [b.id as string, b]));
+  const saved: SurfaceLayout = layout[surface] ?? {};
 
   const order = mergeOrder(registry.map((b) => b.id), cleanIds(saved.order));
   const hiddenIds = new Set(cleanIds(saved.hidden));
@@ -109,11 +124,15 @@ export function resolveLayout(layout: DashboardLayout, surface: BlockSurface): R
     const block = byId.get(id)!;
     return { block, hidden: !block.alwaysOn && hiddenIds.has(id) };
   });
+  const visible = all.filter((x) => !x.hidden).map((x) => x.block);
+  const visibleIds = new Set<string>(visible.map((b) => b.id));
 
   return {
+    surface,
     all,
-    visible: all.filter((x) => !x.hidden).map((x) => x.block),
-    hiddenCount: all.filter((x) => x.hidden).length,
+    visible,
+    hiddenCount: all.length - visible.length,
+    shows: (id) => visibleIds.has(id),
   };
 }
 

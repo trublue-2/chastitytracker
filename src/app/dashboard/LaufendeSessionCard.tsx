@@ -23,6 +23,10 @@ interface Props {
   /** Nur Keyholder-Sicht: geplante (noch nicht ausgelöste) Sperrzeit → Footer zeigt "geplant für"
    *  statt "gesperrt bis". Sub-Sichten setzen dies NIE (geplante bleiben für den Sub unsichtbar). */
   sperrzeitScheduledFor?: Date | null;
+  /** Nur Keyholder-Sicht: eine terminierte Sperre, die inzwischen LÄUFT. Gebraucht, weil eine
+   *  unbefristete Sperre sonst gar keinen Zeitpunkt nennt — sie hat den Beginn selbst gesetzt und
+   *  soll sehen, dass er erreicht ist. Bei befristeten Sperren steht die Frist ohnehin da. */
+  sperrzeitRunningSince?: Date | null;
   /** Erlaubt diese Sperre Reinigungsöffnungen? Fertig übersetzt (i18n bleibt beim Aufrufer).
    *  Weglassen = nicht anzeigen — ein Sub, der grundsätzlich nicht reinigen darf, soll keine Zeile
    *  über etwas lesen, das seine Einstellung ohnehin verbietet. */
@@ -55,6 +59,7 @@ export default async function LaufendeSessionCard({
   sperrzeitUnbefristet = false,
   sperrzeitNachricht,
   sperrzeitScheduledFor = null,
+  sperrzeitRunningSince = null,
   cleaningNote,
   keyInBox = null,
   activeVorgabe,
@@ -73,7 +78,10 @@ export default async function LaufendeSessionCard({
   const sessionStartStr = formatDateTime(sessionStart, dl, tz);
   const sperrzeitStr = sperrzeitEndetAt ? formatDateTime(sperrzeitEndetAt, dl, tz) : null;
   const scheduledForStr = sperrzeitScheduledFor ? formatDateTime(sperrzeitScheduledFor, dl, tz) : null;
-  const showSperrzeit = sperrzeitStr !== null || sperrzeitUnbefristet || scheduledForStr !== null;
+  const runningSinceStr = sperrzeitRunningSince ? formatDateTime(sperrzeitRunningSince, dl, tz) : null;
+  /** Die Nebenangaben der Sperr-Zeile — Restzeit und erreichter Beginn stehen gleichrangig. */
+  const sperrzeitDetailCls = "text-xs font-medium text-sperrzeit-text opacity-80";
+  const showSperrzeit = sperrzeitStr !== null || sperrzeitUnbefristet || scheduledForStr !== null || runningSinceStr !== null;
 
   const hasVorgabe =
     activeVorgabe &&
@@ -228,10 +236,15 @@ export default async function LaufendeSessionCard({
               ? <>{ta("scheduledForLabel")}: {scheduledForStr}</>
               : sperrzeitStr ? <>{t("sessionLockedUntil")} {sperrzeitStr}</> : t("sessionLockedIndefinite")}
           </span>
+          {/* Eine unbefristete Sperre nennt sonst keinen einzigen Zeitpunkt. Nur dort, denn eine
+              befristete trägt ihre Frist schon in der Zeile darüber. */}
+          {!scheduledForStr && !sperrzeitStr && runningSinceStr && (
+            <span className={sperrzeitDetailCls}>{ta("lockRunningSince", { time: runningSinceStr })}</span>
+          )}
           {!scheduledForStr && sperrzeitEndetAt && (
             <SperrzeitRemaining
               endetAt={sperrzeitEndetAt.toISOString()}
-              className="text-xs font-medium text-sperrzeit-text opacity-80"
+              className={sperrzeitDetailCls}
             />
           )}
           {sperrzeitNachricht && (
