@@ -304,10 +304,16 @@ async function limitsOf(userId: string) {
 function assertWidens(sub: Corridor, next: Corridor): void {
   const problem = keyholderCorridorProblem(sub, next);
   if (!problem) return;
+  if (problem === "WEIGHT_CORRIDOR_NO_SUB_LIMIT") {
+    throw new Error(
+      "The wearer has not set that limit himself, so there is nothing to loosen. The target range is " +
+      "his to set — ask him for one instead of setting it for him.",
+    );
+  }
   if (problem === "WEIGHT_CORRIDOR_NARROWER") {
     throw new Error(
-      "You may only WIDEN the wearer's target range, never tighten it — and only where they set a limit themselves. " +
-      `Their own range is ${sub.minKg ?? "–"}–${sub.maxKg ?? "–"} kg.`,
+      "You may only WIDEN the wearer's target range, never tighten it. " +
+      `His own range is ${sub.minKg ?? "–"}–${sub.maxKg ?? "–"} kg.`,
     );
   }
   throw new Error(`Invalid target range (${problem}).`);

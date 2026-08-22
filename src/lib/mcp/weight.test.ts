@@ -53,9 +53,10 @@ describe("set_weight_limits — die Nur-Weiten-Regel gilt auch für die KI", () 
     await expect(setWeightLimitsDef.preview(CTX, { maxKg: 80 })).rejects.toThrow(/84/);
   });
 
-  it("weist eine Grenze ab, wo der Träger gar keine gesetzt hat", async () => {
+  it("weist eine Grenze ab, wo der Träger gar keine gesetzt hat — und sagt der KI, was stattdessen zu tun ist", async () => {
     wearer();
-    await expect(setWeightLimitsDef.preview(CTX, { minKg: 70 })).rejects.toThrow(/only WIDEN/);
+    await expect(setWeightLimitsDef.preview(CTX, { minKg: 70 })).rejects.toThrow(/nothing to loosen/);
+    await expect(setWeightLimitsDef.preview(CTX, { minKg: 70 })).rejects.toThrow(/ask him for one/);
   });
 
   it("lässt die Rücknahme der eigenen Nachbesserung zu", async () => {

@@ -77,9 +77,11 @@ describe("Korridor — die Keyholderin darf nur weiten", () => {
     expect(keyholderCorridorProblem(sub, { minKg: null, maxKg: 80 })).toBe(WEIGHT_PROBLEMS.corridorNarrower);
   });
 
-  it("weist eine Grenze ab, wo der Sub gar keine gesetzt hat", () => {
-    // Von unbegrenzt auf begrenzt ist die grösstmögliche Verengung, nicht ihr Gegenteil.
-    expect(keyholderCorridorProblem(sub, { minKg: 70, maxKg: 84 })).toBe(WEIGHT_PROBLEMS.corridorNarrower);
+  it("weist eine Grenze ab, wo der Sub gar keine gesetzt hat — mit eigenem Grund", () => {
+    // Von unbegrenzt auf begrenzt ist die grösstmögliche Verengung, nicht ihr Gegenteil. Der Grund
+    // ist aber ein anderer als eine zu strenge Zahl: hier fehlt die Voraussetzung, und die
+    // Keyholderin kann ihn durch keine andere Zahl beheben.
+    expect(keyholderCorridorProblem(sub, { minKg: 70, maxKg: 84 })).toBe(WEIGHT_PROBLEMS.corridorNoSubLimit);
   });
 
   it("lässt die Rücknahme der Nachbesserung zu", () => {

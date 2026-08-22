@@ -195,6 +195,7 @@
     "HEIGHT_OUT_OF_RANGE": "Implausible body height",
     "WEIGHT_CORRIDOR_INVERTED": "The lower limit must be below the upper limit",
     "WEIGHT_CORRIDOR_NARROWER": "The limits may only be loosened, not tightened",
+    "WEIGHT_CORRIDOR_NO_SUB_LIMIT": "The wearer has not set a limit here yet — only then can you loosen it",
     "WEIGHT_TRACKING_DISABLED": "Weight tracking is not enabled",
     "WEIGHING_WINDOWS_TOO_MANY": "Too many weighing windows",
     "INVALID_UNIT_SYSTEM": "Invalid unit",
@@ -1309,7 +1310,8 @@
     "weightTargetMax": "Upper limit",
     "weightSubTarget": "Set by the wearer: {min} – {max} {unit}",
     "weightSubTargetNone": "The wearer has not set any limits yet.",
-    "weightWidenOnlyHint": "You can only loosen the limits, never tighten them."
+    "weightWidenOnlyHint": "You can only loosen the limits, never tighten them.",
+    "weightNothingToWiden": "As long as the wearer has not set a limit, there is nothing for you to loosen. He sets the limits in his own settings."
   },
   "forgotPassword": {
     "title": "Forgot password",

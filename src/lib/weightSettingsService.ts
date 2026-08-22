@@ -62,6 +62,7 @@ const { table: ERRORS, fail } = serviceErrors({
   HEIGHT_OUT_OF_RANGE: { status: 400, error: "HEIGHT_OUT_OF_RANGE" },
   WEIGHT_CORRIDOR_INVERTED: { status: 400, error: "WEIGHT_CORRIDOR_INVERTED" },
   WEIGHT_CORRIDOR_NARROWER: { status: 400, error: "WEIGHT_CORRIDOR_NARROWER" },
+  WEIGHT_CORRIDOR_NO_SUB_LIMIT: { status: 400, error: "WEIGHT_CORRIDOR_NO_SUB_LIMIT" },
 });
 
 /** Eine optionale Zahl aus dem Body: `null`/`""` löscht die Grenze, alles andere muss eine Zahl

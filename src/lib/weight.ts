@@ -179,6 +179,7 @@ export const WEIGHT_PROBLEMS = {
   heightOutOfRange: "HEIGHT_OUT_OF_RANGE",
   corridorInverted: "WEIGHT_CORRIDOR_INVERTED",
   corridorNarrower: "WEIGHT_CORRIDOR_NARROWER",
+  corridorNoSubLimit: "WEIGHT_CORRIDOR_NO_SUB_LIMIT",
 } as const satisfies Record<string, ServiceErrorCode>;
 
 /** Die Codes, die dieses Modul überhaupt liefern kann — enger als `ServiceErrorCode`, damit die
@@ -218,14 +219,22 @@ export function corridorProblem(c: Corridor): WeightProblemCode | null {
  *
  * **Wo der Sub keine Grenze gesetzt hat, gibt es nichts zu weiten.** Eine Grenze dort einzuziehen
  * wäre der Schritt von unbegrenzt zu begrenzt — die grösstmögliche Verengung, nicht ihr Gegenteil.
+ * Dieser Fall bekommt einen EIGENEN Code: er ist keine zu strenge Zahl, sondern eine fehlende
+ * Voraussetzung, und die Keyholderin kann ihn nicht durch eine andere Zahl beheben.
  */
 export function keyholderCorridorProblem(sub: Corridor, next: Corridor): WeightProblemCode | null {
   const own = corridorProblem(next);
   if (own) return own;
-  if (next.minKg !== null && (sub.minKg === null || next.minKg > sub.minKg)) {
+  // Zwei verschiedene Gründe, zwei verschiedene Meldungen. „Nur lockern" ist ein Vorwurf und
+  // stimmt hier nicht: wo der Träger gar keine Grenze gesetzt hat, gibt es nichts zu lockern —
+  // das ist keine zu strenge Zahl, sondern eine fehlende Voraussetzung. Beides in einen Satz zu
+  // packen schickt die Keyholderin auf die Suche nach einem Fehler, den sie nicht gemacht hat.
+  if (next.minKg !== null && sub.minKg === null) return WEIGHT_PROBLEMS.corridorNoSubLimit;
+  if (next.maxKg !== null && sub.maxKg === null) return WEIGHT_PROBLEMS.corridorNoSubLimit;
+  if (next.minKg !== null && sub.minKg !== null && next.minKg > sub.minKg) {
     return WEIGHT_PROBLEMS.corridorNarrower;
   }
-  if (next.maxKg !== null && (sub.maxKg === null || next.maxKg < sub.maxKg)) {
+  if (next.maxKg !== null && sub.maxKg !== null && next.maxKg < sub.maxKg) {
     return WEIGHT_PROBLEMS.corridorNarrower;
   }
   return null;

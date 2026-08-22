@@ -46,6 +46,13 @@ export default function WeightToggle({
   const [max, setMax] = useState(weightFieldValue(initialMaxKg, unitSystem));
 
   const unitLabel = unitSystem === "imperial" ? tc("unitLbs") : tc("unitKg");
+  // Gelockert werden kann nur, wo der Träger selbst eine Grenze gesetzt hat. Steht dort nichts, ist
+  // das Feld nicht „noch leer", sondern für sie gar nicht bedienbar — dann wird es auch nicht
+  // angeboten. Ein Eingabefeld, dessen Inhalt der Server garantiert ablehnt, ist eine Einladung in
+  // eine Fehlermeldung.
+  const minSperre = subMinKg === null;
+  const maxSperre = subMaxKg === null;
+  const nichtsZuLockern = minSperre && maxSperre;
 
   function handleToggle(checked: boolean) {
     setEnabled(checked);
@@ -125,7 +132,7 @@ export default function WeightToggle({
                 type="number"
                 inputMode="decimal"
                 value={min}
-                disabled={saving}
+                disabled={saving || minSperre}
                 onChange={(e) => setMin(e.target.value)}
               />
               <Input
@@ -133,7 +140,7 @@ export default function WeightToggle({
                 type="number"
                 inputMode="decimal"
                 value={max}
-                disabled={saving}
+                disabled={saving || maxSperre}
                 onChange={(e) => setMax(e.target.value)}
               />
             </div>
@@ -146,8 +153,12 @@ export default function WeightToggle({
                     unit: unitLabel,
                   })}
             </p>
-            <p className="text-xs text-foreground-faint">{t("weightWidenOnlyHint")}</p>
-            <Button variant="secondary" loading={saving} onClick={saveTargets}>{tc("save")}</Button>
+            <p className="text-xs text-foreground-faint">
+              {nichtsZuLockern ? t("weightNothingToWiden") : t("weightWidenOnlyHint")}
+            </p>
+            <Button variant="secondary" loading={saving} disabled={nichtsZuLockern} onClick={saveTargets}>
+              {tc("save")}
+            </Button>
           </div>
         </>
       )}

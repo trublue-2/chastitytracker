@@ -195,6 +195,7 @@
     "HEIGHT_OUT_OF_RANGE": "Unplausible Körpergrösse",
     "WEIGHT_CORRIDOR_INVERTED": "Die Untergrenze muss unter der Obergrenze liegen",
     "WEIGHT_CORRIDOR_NARROWER": "Die Grenzen dürfen nur gelockert werden, nicht verschärft",
+    "WEIGHT_CORRIDOR_NO_SUB_LIMIT": "Der Träger hat sich hier noch keine Grenze gesetzt — erst dann kannst du sie lockern",
     "WEIGHT_TRACKING_DISABLED": "Gewichtstracking ist nicht aktiviert",
     "WEIGHING_WINDOWS_TOO_MANY": "Zu viele Wiege-Fenster",
     "INVALID_UNIT_SYSTEM": "Ungültige Einheit",
@@ -1309,7 +1310,8 @@
     "weightTargetMax": "Obergrenze",
     "weightSubTarget": "Vom Träger gesetzt: {min} – {max} {unit}",
     "weightSubTargetNone": "Der Träger hat noch keine Grenzen gesetzt.",
-    "weightWidenOnlyHint": "Du kannst die Grenzen nur lockern, nicht verschärfen."
+    "weightWidenOnlyHint": "Du kannst die Grenzen nur lockern, nicht verschärfen.",
+    "weightNothingToWiden": "Solange der Träger sich keine Grenze gesetzt hat, gibt es für dich nichts zu lockern. Die Grenzen setzt er in seinen Einstellungen."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
