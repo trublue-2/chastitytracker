@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "changelog": "node scripts/add-changelog.mjs",
     "funktionsmodell": "node scripts/gen-funktionsmodell.mjs",
+    "snapshot": "node scripts/dashboard-snapshot.mjs",
     "seed:testdata": "node scripts/seed-testdata.mjs"
   },
   "dependencies": {

@@ -1,5 +1,5 @@
 import { CLEANING_RULE_CHANGE_SELECT, cleaningPermissionUserAt, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
-import { Suspense } from "react";
+import { Fragment, Suspense, type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { predictAutoMarkAt } from "@/lib/inspectionEscalationService";
@@ -44,6 +44,7 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import { inspectionHref } from "@/lib/entryFormRoute";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { orderedBlocks, type SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -310,55 +311,66 @@ export default async function DashboardPage() {
 
   const username = session.user.name ?? "";
 
-  return (
-    // Der Abstand zwischen den Blöcken kommt AUSSCHLIESSLICH von diesem `gap-4`, nie aus pt-/pb- der
-    // Blöcke selbst — Begründung in `DashboardBlock`.
-    <div className="flex flex-col gap-4 py-6">
+  // Die Blöcke als benannter Record statt als JSX-Folge. Der Typ ist VOLLSTÄNDIG über die Ids der
+  // Oberfläche — ein vergessener Block ist damit ein Compile-Fehler, kein stiller Ausfall, und ein
+  // erfundener ebenso. Die Reihenfolge steht nicht mehr hier, sondern im Register.
+  const blocks: Record<SubDashboardBlockId, ReactNode> = {
+    greeting: (
       <DashboardBlock>
         <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
       </DashboardBlock>
-      {/* Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte. */}
-      <DashboardAlerts {...alertProps} />
-      {heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={boxReinigung} />}
-      <OpenTasks tasks={taskCards} tz={tz} />
-      {/* UNTER den Aufgaben: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand.
-          Der Block lädt selbst — sonst müsste diese Seite dieselbe Auflösung noch einmal aufrufen,
-          nur um sie durchzureichen. Deshalb in
-          `Suspense`: sein Laden hängt sonst als weitere serielle Phase am Seiten-Rendering, und die
-          ganze Seite wartete auf einen Block, den die meisten Nutzer nie zu sehen bekommen.
-          `dashboardTaskIds` = die Aufgaben, die oben tatsächlich stehen — daran entscheidet der
-          Block, ob eine Strafaufgabe hier zu wiederholen wäre. */}
+    ),
+
+    // Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte.
+    alerts: <DashboardAlerts {...alertProps} />,
+
+    boxStatus: heimdallEnabled() ? <BoxStatusCard tz={tz} reinigung={boxReinigung} /> : null,
+
+    openTasks: <OpenTasks tasks={taskCards} tz={tz} />,
+
+    // UNTER den Aufgaben: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand.
+    // Der Block lädt selbst — sonst müsste diese Seite dieselbe Auflösung noch einmal aufrufen,
+    // nur um sie durchzureichen. Deshalb in `Suspense`: sein Laden hängt sonst als weitere
+    // serielle Phase am Seiten-Rendering, und die ganze Seite wartete auf einen Block, den die
+    // meisten Nutzer nie zu sehen bekommen. `dashboardTaskIds` = die Aufgaben, die oben
+    // tatsächlich stehen — daran entscheidet der Block, ob eine Strafaufgabe hier zu
+    // wiederholen wäre.
+    openPenalties: (
       <Suspense fallback={null}>
         <OpenPenalties userId={userId} tz={tz} now={now} dashboardTaskIds={new Set(taskCards.map((c) => c.id))} />
       </Suspense>
-      {showLaufendeSession && (
-        <DashboardBlock>
-          <LaufendeSessionCard
-            sessionStart={activePair.verschluss.startTime}
-            interruptionPausedMs={interruptionPauseMs(activePair.interruptions)}
-            now={now}
-            events={rawSessionEvents}
-            sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
-            sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
-            sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
-            // Sub-Sicht: nur wenn er grundsätzlich reinigen darf. Sonst verspräche die Zeile etwas,
-            // das seine Benutzer-Einstellung ohnehin verbietet.
-            cleaningNote={
-              activeSperrzeit && userSettings?.reinigungErlaubt
-                ? t(activeSperrzeit.reinigungErlaubt ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
-                : null
-            }
-            keyInBox={activePair.verschluss.keyInBox ?? null}
-            activeVorgabe={activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null}
-            tagH={tagH}
-            wocheH={wocheH}
-            monatH={monatH}
-            jahrH={jahrH}
-            tz={tz}
-            userHasDevices={userHasDevices}
-          />
-        </DashboardBlock>
-      )}
+    ),
+
+    runningSession: showLaufendeSession ? (
+      <DashboardBlock>
+        <LaufendeSessionCard
+          sessionStart={activePair.verschluss.startTime}
+          interruptionPausedMs={interruptionPauseMs(activePair.interruptions)}
+          now={now}
+          events={rawSessionEvents}
+          sperrzeitEndetAt={activeSperrzeit?.endetAt ?? null}
+          sperrzeitUnbefristet={!!activeSperrzeit && activeSperrzeit.endetAt === null}
+          sperrzeitNachricht={activeSperrzeit?.nachricht ?? null}
+          // Sub-Sicht: nur wenn er grundsätzlich reinigen darf. Sonst verspräche die Zeile etwas,
+          // das seine Benutzer-Einstellung ohnehin verbietet.
+          cleaningNote={
+            activeSperrzeit && userSettings?.reinigungErlaubt
+              ? t(activeSperrzeit.reinigungErlaubt ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
+              : null
+          }
+          keyInBox={activePair.verschluss.keyInBox ?? null}
+          activeVorgabe={activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null}
+          tagH={tagH}
+          wocheH={wocheH}
+          monatH={monatH}
+          jahrH={jahrH}
+          tz={tz}
+          userHasDevices={userHasDevices}
+        />
+      </DashboardBlock>
+    ) : null,
+
+    activeWearSessions: (
       <ActiveWearSessions
         sessions={wearSessions.map((s) => ({
           categoryId: s.categoryId,
@@ -372,11 +384,16 @@ export default async function DashboardPage() {
         }))}
         serverNow={now.toISOString()}
       />
-      {flagOn && <CategoriesPromoCard show={allNonKgCategories.length === 0} />}
-      {/* Ohne Gerät ist die Kategorie ein halber Schritt, kein Zustand — sichtbar hier statt unten
-          im eingeklappten „Nicht getragen" (Issue #49). Ohne Feature-Flag ist die Liste leer, der
-          Block blendet sich selbst aus. */}
-      <IncompleteCategories categories={incompleteCategories} />
+    ),
+
+    categoriesPromo: flagOn ? <CategoriesPromoCard show={allNonKgCategories.length === 0} /> : null,
+
+    // Ohne Gerät ist die Kategorie ein halber Schritt, kein Zustand — sichtbar hier statt unten
+    // im eingeklappten „Nicht getragen" (Issue #49). Ohne Feature-Flag ist die Liste leer, der
+    // Block blendet sich selbst aus.
+    incompleteCategories: <IncompleteCategories categories={incompleteCategories} />,
+
+    categoryGoals: (
       <CategoryGoalsToday
         userId={userId}
         activeWearSessions={wearSessions}
@@ -384,6 +401,9 @@ export default async function DashboardPage() {
         includeCategories={flagOn}
         kgGoal={inlineKgGoal}
       />
+    ),
+
+    inactiveCategories: (
       <InactiveCategories
         categories={playableCategories
           .filter((c) => !categoriesWithActiveSession.has(c.id))
@@ -396,24 +416,38 @@ export default async function DashboardPage() {
             ),
           }))}
       />
-      <DashboardClient {...clientProps} />
-      {pairs.length > 0 && (
-        <DashboardBlock>
-          <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} telemetryKeyProof={telemetryKeyProof} />
-        </DashboardBlock>
-      )}
-      {wearSessionRows.length > 0 && (
-        <DashboardBlock>
-          <WearSessionList sessions={wearSessionRows} />
-        </DashboardBlock>
-      )}
-      {/* Der ganze Bestand — hier unten bei den übrigen Historien-Listen, nicht oben bei dem, was
-          gerade zu tun ist. */}
-      {taskListCards.length > 0 && (
-        <DashboardBlock>
-          <TaskList tasks={taskListCards} tz={tz} />
-        </DashboardBlock>
-      )}
+    ),
+
+    statusAndStats: <DashboardClient {...clientProps} />,
+
+    sessionList: pairs.length > 0 ? (
+      <DashboardBlock>
+        <SessionList pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={userSettings?.orgasmusArtenConfig} oeffnenGruendeConfig={userSettings?.oeffnenGruendeConfig} telemetryKeyProof={telemetryKeyProof} />
+      </DashboardBlock>
+    ) : null,
+
+    wearSessionList: wearSessionRows.length > 0 ? (
+      <DashboardBlock>
+        <WearSessionList sessions={wearSessionRows} />
+      </DashboardBlock>
+    ) : null,
+
+    // Der ganze Bestand — hier unten bei den übrigen Historien-Listen, nicht oben bei dem, was
+    // gerade zu tun ist.
+    taskList: taskListCards.length > 0 ? (
+      <DashboardBlock>
+        <TaskList tasks={taskListCards} tz={tz} />
+      </DashboardBlock>
+    ) : null,
+  };
+
+  return (
+    // Der Abstand zwischen den Blöcken kommt AUSSCHLIESSLICH von diesem `gap-4`, nie aus pt-/pb- der
+    // Blöcke selbst — Begründung in `DashboardBlock`.
+    <div className="flex flex-col gap-4 py-6">
+      {orderedBlocks("subDashboard", blocks).map(({ id, node }) => (
+        <Fragment key={id}>{node}</Fragment>
+      ))}
     </div>
   );
 }
