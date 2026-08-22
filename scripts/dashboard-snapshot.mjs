@@ -20,9 +20,9 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 
-const [, , username, password, outFile, portArg] = process.argv;
+const [, , username, password, outFile, portArg, subId] = process.argv;
 if (!username || !password || !outFile) {
-  console.error("Usage: node scripts/dashboard-snapshot.mjs <user> <passwort> <datei.json> [port]");
+  console.error("Usage: node scripts/dashboard-snapshot.mjs <user> <passwort> <datei.json> [port] [subId]");
   process.exit(1);
 }
 const BASE = `http://localhost:${portArg ?? 3000}`;
@@ -38,6 +38,12 @@ const PAGES = [
   { path: "/dashboard", stack: "div.flex.flex-col.gap-4" },
   { path: "/dashboard/stats", stack: "main.flex.flex-col" },
 ];
+
+// Die Keyholder-Sichten brauchen einen Sub und ein Keyholder-Konto — deshalb optional.
+if (subId) {
+  PAGES.push({ path: `/admin/users/${subId}`, stack: "main.flex.flex-col.gap-4" });
+  PAGES.push({ path: `/admin/users/${subId}/stats`, stack: "main.flex.flex-col.gap-6" });
+}
 
 /**
  * Jede Ziffern-FOLGE zu einem `#`: nimmt Uhr und Laufzeit heraus, lässt Struktur und Wörter stehen.

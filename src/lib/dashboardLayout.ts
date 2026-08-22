@@ -137,6 +137,10 @@ export function checkLayoutPatch(
   for (const [surface, raw] of Object.entries(value as Record<string, unknown>)) {
     const registry = blocksOf(surface as BlockSurface);
     if (registry.length === 0) return { error: "layoutUnknownSurface" };
+    // Eine Oberfläche gehört als GANZE einer Rolle. Ohne diese Prüfung liesse sich eine
+    // Keyholder-Oberfläche mit leeren Listen in die eigene Zeile schreiben — folgenlos heute,
+    // aber es ist genau die Art Lücke, die später jemand ausbaut.
+    if (registry[0].role !== role) return { error: "layoutForeignBlock" };
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "layoutInvalid" };
 
     const { hidden, order } = raw as SurfaceLayout;

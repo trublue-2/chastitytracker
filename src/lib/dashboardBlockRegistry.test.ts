@@ -15,10 +15,14 @@ import {
  * Beschriftungen, und dass die Reihenfolge wirklich aus dem Register kommt.
  */
 describe("Dashboard-Block-Register", () => {
-  it("jede Id kommt genau einmal vor", () => {
-    const ids = DASHBOARD_BLOCKS.map((b) => b.id);
-    const doppelt = ids.filter((id, i) => ids.indexOf(id) !== i);
-    expect(doppelt, `Doppelte Block-Id(s): ${doppelt.join(", ")}`).toEqual([]);
+  it("jede Id kommt je Oberfläche genau einmal vor", () => {
+    // Je Oberfläche, nicht global: der gespeicherte Wert ist nach Oberfläche geschlüsselt, und die
+    // beiden Statistik-Sichten teilen sich ihre Block-Namen absichtlich.
+    for (const surface of BLOCK_SURFACES) {
+      const ids = blocksOf(surface).map((b) => b.id);
+      const doppelt = ids.filter((id, i) => ids.indexOf(id) !== i);
+      expect(doppelt, `Doppelte Block-Id(s) auf ${surface}: ${doppelt.join(", ")}`).toEqual([]);
+    }
   });
 
   it("jeder Block hat eine Beschriftung in beiden Sprachen", () => {
@@ -47,12 +51,20 @@ describe("Dashboard-Block-Register", () => {
       .toEqual(SUB_DASHBOARD_BLOCKS.map((b) => b.id));
   });
 
-  it("die erste Oberfläche ist vollständig belegt", () => {
-    // Etappe C1 deckt nur das Träger-Dashboard ab; die drei übrigen kommen in C3 dazu. Der Test
-    // hält fest, was heute gilt, damit „subStats ist leer" eine Aussage bleibt und kein Versehen.
+  it("jede der vier Oberflächen ist belegt", () => {
+    // Hält die Zahlen fest: ein Block, der beim Umbau verlorenginge, fiele hier auf und nicht
+    // erst dem Nutzer.
     expect(blocksOf("subDashboard").length).toBe(15);
-    expect(blocksOf("subStats")).toEqual([]);
-    expect(blocksOf("keyholderSub")).toEqual([]);
-    expect(blocksOf("keyholderStats")).toEqual([]);
+    expect(blocksOf("subStats").length).toBe(12);
+    expect(blocksOf("keyholderStats").length).toBe(12);
+    expect(blocksOf("keyholderSub").length).toBe(14);
+  });
+
+  it("die beiden Statistik-Oberflächen tragen dieselben Blöcke in derselben Folge", () => {
+    // Sie teilen sich `StatsMain`; liefen die Listen auseinander, wäre eine der beiden Seiten
+    // unvollständig, ohne dass der Compiler es merkt (der Record-Typ ist für beide derselbe).
+    expect(blocksOf("subStats").map((b) => b.id)).toEqual(blocksOf("keyholderStats").map((b) => b.id));
+    expect(blocksOf("subStats").every((b) => b.role === "sub")).toBe(true);
+    expect(blocksOf("keyholderStats").every((b) => b.role === "keyholder")).toBe(true);
   });
 });

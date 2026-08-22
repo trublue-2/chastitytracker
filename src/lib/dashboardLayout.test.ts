@@ -87,9 +87,23 @@ describe("checkLayoutPatch — die Schreibseite", () => {
       .toEqual({ error: "layoutUnknownBlock" });
   });
 
-  it("lehnt eine fremde Oberfläche ab", () => {
+  it("lehnt eine Oberfläche ab, die einer anderen Rolle gehört — auch leer", () => {
+    // Leere Listen sind der verführerische Fall: es steht keine fremde Block-Id drin, und ohne
+    // Prüfung auf Oberflächen-Ebene ginge das durch.
     expect(checkLayoutPatch({ keyholderStats: { hidden: [] } }, "sub"))
+      .toEqual({ error: "layoutForeignBlock" });
+    expect(checkLayoutPatch({ subDashboard: { hidden: [] } }, "keyholder"))
+      .toEqual({ error: "layoutForeignBlock" });
+  });
+
+  it("lehnt eine Oberfläche ab, die es gar nicht gibt", () => {
+    expect(checkLayoutPatch({ gibtsNicht: { hidden: [] } }, "sub"))
       .toEqual({ error: "layoutUnknownSurface" });
+  });
+
+  it("die Keyholderin darf ihre eigenen Oberflächen setzen", () => {
+    expect(checkLayoutPatch({ keyholderStats: { hidden: ["records"] } }, "keyholder"))
+      .toEqual({ layout: { keyholderStats: { hidden: ["records"], order: [] } } });
   });
 
   it("lehnt Unsinn ab", () => {

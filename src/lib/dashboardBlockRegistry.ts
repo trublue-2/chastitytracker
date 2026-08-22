@@ -64,8 +64,64 @@ export const SUB_DASHBOARD_BLOCKS = [
 
 export type SubDashboardBlockId = (typeof SUB_DASHBOARD_BLOCKS)[number]["id"];
 
+
+/**
+ * Die Statistik-Seite. **Zweimal dasselbe Bauteil, zwei Oberflächen:** `StatsMain` trägt sowohl
+ * `/dashboard/stats` (der Träger sieht sich) als auch `/admin/users/[id]/stats` (die Keyholderin
+ * sieht einen Sub). Konfiguriert wird sie je Betrachter getrennt — deshalb zwei Oberflächen mit
+ * denselben Block-Namen und nicht eine.
+ */
+const STATS_BLOCKS = [
+  { id: "heading", labelKey: "blockStatsHeading", alwaysOn: true },
+  { id: "overview", labelKey: "blockStatsOverview" },
+  { id: "orgasmFree", labelKey: "blockStatsOrgasmFree" },
+  { id: "activeSession", labelKey: "blockStatsActiveSession" },
+  { id: "goals", labelKey: "blockStatsGoals" },
+  { id: "calendar", labelKey: "blockStatsCalendar" },
+  { id: "yearHeatmap", labelKey: "blockStatsYearHeatmap" },
+  { id: "records", labelKey: "blockStatsRecords" },
+  { id: "deviceUsage", labelKey: "blockStatsDeviceUsage" },
+  { id: "inspections", labelKey: "blockStatsInspections" },
+  { id: "monthStats", labelKey: "blockStatsMonths" },
+  { id: "unlawfulOpenings", labelKey: "blockStatsUnlawful" },
+] as const;
+
+/** Beide Statistik-Oberflächen teilen sich die Block-Namen — der Typ deshalb auch. */
+export type StatsBlockId = (typeof STATS_BLOCKS)[number]["id"];
+
+/** Stempelt Oberfläche und Rolle auf die geteilte Liste — zweimal dieselben zwölf Einträge
+ *  abzuschreiben wäre eine Kopie, die beim ersten neuen Block auseinanderläuft. */
+function statsBlocksFor(surface: BlockSurface, role: "sub" | "keyholder"): readonly DashboardBlockDef[] {
+  return STATS_BLOCKS.map((b) => ({ ...b, surface, role }));
+}
+
+export const SUB_STATS_BLOCKS = statsBlocksFor("subStats", "sub");
+export const KEYHOLDER_STATS_BLOCKS = statsBlocksFor("keyholderStats", "keyholder");
+
+/** Die Sub-Detailseite der Keyholderin — ihr Gegenstück zum Träger-Dashboard. */
+export const KEYHOLDER_SUB_BLOCKS = [
+  { id: "boxStatus", surface: "keyholderSub", role: "keyholder", labelKey: "blockBoxStatus" },
+  { id: "tasks", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenTasks" },
+  { id: "sessionOrStatus", surface: "keyholderSub", role: "keyholder", labelKey: "blockRunningSession" },
+  { id: "wearSessions", surface: "keyholderSub", role: "keyholder", labelKey: "blockActiveWear" },
+  { id: "openInspection", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenInspection" },
+  { id: "orgasmRequest", surface: "keyholderSub", role: "keyholder", labelKey: "blockOrgasmRequest" },
+  { id: "statsCompact", surface: "keyholderSub", role: "keyholder", labelKey: "blockStatusAndStats" },
+  { id: "goalOverview", surface: "keyholderSub", role: "keyholder", labelKey: "blockStatsGoals" },
+  { id: "categoryGoals", surface: "keyholderSub", role: "keyholder", labelKey: "blockCategoryGoals" },
+  { id: "sessionList", surface: "keyholderSub", role: "keyholder", labelKey: "blockSessionList" },
+  { id: "wearSessionList", surface: "keyholderSub", role: "keyholder", labelKey: "blockWearSessionList" },
+  { id: "taskList", surface: "keyholderSub", role: "keyholder", labelKey: "blockTaskList" },
+  { id: "inspectionHistory", surface: "keyholderSub", role: "keyholder", labelKey: "blockStatsInspections" },
+  { id: "orgasmList", surface: "keyholderSub", role: "keyholder", labelKey: "blockOrgasmList" },
+] as const satisfies readonly DashboardBlockDef[];
+
+export type KeyholderSubBlockId = (typeof KEYHOLDER_SUB_BLOCKS)[number]["id"];
+
 /** Alle Blöcke aller Oberflächen. Wächst mit jeder Oberfläche, die dazukommt. */
-export const DASHBOARD_BLOCKS: readonly DashboardBlockDef[] = [...SUB_DASHBOARD_BLOCKS];
+export const DASHBOARD_BLOCKS: readonly DashboardBlockDef[] = [
+  ...SUB_DASHBOARD_BLOCKS, ...SUB_STATS_BLOCKS, ...KEYHOLDER_STATS_BLOCKS, ...KEYHOLDER_SUB_BLOCKS,
+];
 
 /**
  * Die Blöcke einer Oberfläche in ihrer Standard-Reihenfolge.
@@ -82,7 +138,11 @@ export function blocksOf(surface: BlockSurface): readonly DashboardBlockDef[] {
  * Zuordnung liesse sich der Record des Dashboards an eine andere Oberfläche reichen, und heraus
  * käme eine Liste aus `undefined`: eine leere Seite, kein Fehler.
  */
-export type BlockIdOf<S extends BlockSurface> = S extends "subDashboard" ? SubDashboardBlockId : never;
+export type BlockIdOf<S extends BlockSurface> =
+  S extends "subDashboard" ? SubDashboardBlockId
+  : S extends "subStats" | "keyholderStats" ? StatsBlockId
+  : S extends "keyholderSub" ? KeyholderSubBlockId
+  : never;
 
 /**
  * Bringt die gerenderten Blöcke einer Oberfläche in Reihenfolge.

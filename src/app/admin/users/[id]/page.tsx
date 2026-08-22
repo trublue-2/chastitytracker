@@ -2,7 +2,11 @@ import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from
 import { auth } from "@/lib/auth";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
+import { Fragment, type ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
+import DashboardStack from "@/app/components/DashboardStack";
+import { viewerLayout } from "@/lib/viewerLayout";
+import type { KeyholderSubBlockId } from "@/lib/dashboardBlockRegistry";
 import {
   formatDateTimeDual, formatDate, formatTime, formatDurationMs, toDateLocale, APP_TZ,
   formatTotalHours, formatTotalMs,
@@ -157,21 +161,25 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   // Nächste Frist zuerst (die Liste kommt absteigend, also umdrehen) — wie im Sub-Dashboard.
   const openTaskCards = evaluatedTasks.filter((e) => belongsOnDashboard(e, now)).reverse().map(taskCard);
 
-  return (
-    <>
-      {/* Dieselbe Karte wie im Sub-Dashboard, an derselben Stelle (zuoberst): die Keyholderin sah
-          den Box-Zustand bisher nirgends — weder Ist/Soll noch, ob die Box überhaupt noch funkt. */}
-      {heimdallEnabled() && <BoxStatusCard userId={id} tz={tz} viewerTz={viewerTz} reinigung={boxReinigung} />}
+  // Dieselbe Bauart wie Dashboard und Statistik: benannter Record, Vollständigkeit vom
+  // Compiler, Reihenfolge aus dem Register.
+  const blocks: Record<KeyholderSubBlockId, ReactNode> = {
+    // Dieselbe Karte wie im Sub-Dashboard, an derselben Stelle (zuoberst): die Keyholderin sah den Box-Zustand bisher nirgends — weder Ist/Soll noch, ob die Box überhaupt noch funkt.
+    boxStatus: (
+      heimdallEnabled() && <BoxStatusCard userId={id} tz={tz} viewerTz={viewerTz} reinigung={boxReinigung} />
+    ),
 
-      {/* Aufgaben an derselben Stelle wie beim Sub — über der Session-Karte. Eine Aufgabe mit Frist
-          ist das Einzige hier, das in den nächsten Stunden zu einem Vergehen werden kann. */}
+    // Aufgaben an derselben Stelle wie beim Sub — über der Session-Karte. Eine Aufgabe mit Frist ist das Einzige hier, das in den nächsten Stunden zu einem Vergehen werden kann.
+    tasks: (
       <TaskCardStack>
         {openTaskCards.map((card) => (
           <KeyholderTaskCard key={card.id} task={card} viewerTz={viewerTz} subTz={tz} />
         ))}
       </TaskCardStack>
+    ),
 
-      {activePair ? (
+    sessionOrStatus: (
+      activePair ? (
         <LaufendeSessionCard
           sessionStart={activePair.verschluss.startTime}
           interruptionPausedMs={interruptionPauseMs(activePair.interruptions)}
@@ -195,9 +203,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
         />
       ) : (
         <StatusBanner type={currentStatus?.type ?? null} since={currentStatus?.since ?? null} tz={tz} />
-      )}
+      )
+    ),
 
-      {wearSessions.length > 0 && (
+    wearSessions: (
+      wearSessions.length > 0 && (
         <ActiveWearSessions
           sessions={wearSessions.map((s) => ({
             categoryId: s.categoryId,
@@ -211,9 +221,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           serverNow={now.toISOString()}
           adminUserId={id}
         />
-      )}
+      )
+    ),
 
-      {offeneKontrolle && (
+    openInspection: (
+      offeneKontrolle && (
         <KontrolleBanner
           deadline={offeneKontrolle.deadline}
           code={offeneKontrolle.code}
@@ -224,9 +236,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           tz={tz}
           viewerTz={viewerTz}
         />
-      )}
+      )
+    ),
 
-      {offeneOrgasmusAnforderung && (() => {
+    orgasmRequest: (
+      offeneOrgasmusAnforderung && (() => {
         // Eine noch nicht ausgelöste Anweisung bleibt SICHTBAR (die Keyholderin hat sie gestellt und
         // muss sie zurückziehen können), aber sie läuft nicht: kein Countdown auf ein Fenster, das
         // der Träger nicht kennt, und die Beschriftung sagt, wann sie kommt.
@@ -250,9 +264,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             withdrawAction={<WithdrawButton id={offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" title={t("withdrawOrgasmTitle")} colorToken="orgasm" />}
           />
         );
-      })()}
+      })()
+    ),
 
-      {/* Statistik kompakt */}
+    // Statistik kompakt
+    statsCompact: (
       <Card>
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("statsTitle")}</p>
@@ -278,8 +294,10 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
           )}
         </div>
       </Card>
+    ),
 
-      {activeVorgabe && (
+    goalOverview: (
+      activeVorgabe && (
         <Card>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{ts("trainingGoals")}</p>
@@ -302,20 +320,28 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             </div>
           </div>
         </Card>
-      )}
+      )
+    ),
 
+    categoryGoals: (
       <CategoryGoalsToday userId={id} />
+    ),
 
+    sessionList: (
       <SessionList keyholderView pairs={pairs} orgasmusEntries={orgasmusEntries} userHasDevices={userHasDevices} tz={tz} orgasmusArtenConfig={user.orgasmusArtenConfig} oeffnenGruendeConfig={user.oeffnenGruendeConfig} telemetryKeyProof={telemetryKeyProof} />
+    ),
 
-      {wearSessionRows.length > 0 && <WearSessionList sessions={wearSessionRows} />}
+    wearSessionList: (
+      wearSessionRows.length > 0 && <WearSessionList sessions={wearSessionRows} />
+    ),
 
-      {/* Dieselbe Liste wie im Sub-Dashboard, an derselben Stelle: unten bei den Historien. Fristen
-          stehen wie überall sonst auf dieser Seite in BEIDEN Zeitzonen — die Sub-Zeit trägt dazu ihr
-          Präfix, sonst wechselte mitten in der Spalte stumm die Uhr. */}
+    // Dieselbe Liste wie im Sub-Dashboard, an derselben Stelle: unten bei den Historien. Fristen stehen wie überall sonst auf dieser Seite in BEIDEN Zeitzonen — die Sub-Zeit trägt dazu ihr Präfix, sonst wechselte mitten in der Spalte stumm die Uhr.
+    taskList: (
       <TaskList tasks={taskCards} tz={tz} viewerTz={viewerTz} subLabel={subLabel} />
+    ),
 
-      {kontrollItems.length > 0 && (
+    inspectionHistory: (
+      kontrollItems.length > 0 && (
         <Card padding="none" className="overflow-hidden">
           <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1.5">
@@ -345,9 +371,11 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             })}
           />
         </Card>
-      )}
+      )
+    ),
 
-      {orgasmusEntries.length > 0 && (
+    orgasmList: (
+      orgasmusEntries.length > 0 && (
         <Card padding="none" className="overflow-hidden">
           <div className="px-5 py-3 border-b border-border-subtle">
             <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1.5">
@@ -361,7 +389,24 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
             }))}
           />
         </Card>
-      )}
-    </>
+      )
+    ),
+  };
+
+
+  // Die Konfiguration der KEYHOLDERIN, nicht die des angezeigten Trägers.
+  const layout = await viewerLayout("keyholderSub");
+
+  return (
+    <DashboardStack
+      surface="keyholderSub"
+      meta={layout.all.map(({ block, hidden }) => ({
+        id: block.id, label: td(block.labelKey), hidden, alwaysOn: block.alwaysOn,
+      }))}
+    >
+      {layout.visible.map((block) => (
+        <Fragment key={block.id}>{blocks[block.id as KeyholderSubBlockId]}</Fragment>
+      ))}
+    </DashboardStack>
   );
 }

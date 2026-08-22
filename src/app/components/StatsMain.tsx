@@ -1,4 +1,8 @@
+import { Fragment, type ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
+import DashboardStack from "@/app/components/DashboardStack";
+import { viewerLayout } from "@/lib/viewerLayout";
+import type { StatsBlockId } from "@/lib/dashboardBlockRegistry";
 import { aktiveKontrolleWhere } from "@/lib/queries";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
 import { CLEANING_USER_SELECT } from "@/lib/reinigungService";
@@ -10,7 +14,7 @@ import {
 } from "@/lib/utils";
 import {
   buildCalendarMonths, buildDailyData, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
-  type Entry, type Vorgabe,
+  type Vorgabe,
 } from "@/lib/statsBuilders";
 import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
 import { buildStrafbuch } from "@/lib/strafbuch";
@@ -35,8 +39,10 @@ import { getTranslations, getLocale } from "next-intl/server";
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default async function StatsMain({ userId, heading, backHref, backLabel, compact }: {
+export default async function StatsMain({ userId, surface, heading, backHref, backLabel, compact }: {
   userId: string;
+  /** Wessen Sicht das ist. Bestimmt, welche Konfiguration gilt — die des Betrachters. */
+  surface: "subStats" | "keyholderStats";
   heading?: string;
   backHref?: string;
   backLabel?: string;
@@ -294,16 +300,19 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
     );
   }
 
-  return (
-    <main className={`flex-1 w-full ${compact ? "max-w-2xl mx-auto px-4 py-6" : "max-w-5xl px-6 py-8"} flex flex-col gap-6`}>
+  // Dieselbe Bauart wie das Dashboard: benannter Record, Vollständigkeit vom Compiler.
+  const blocks: Record<StatsBlockId, ReactNode> = {
+    heading: (
       <div>
         {backHref && (
           <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
         )}
         <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{pageHeading}</h1>
       </div>
+    ),
 
-      {/* Übersicht KG-Tragen */}
+    // Übersicht KG-Tragen
+    overview: (
       <section className="flex flex-col gap-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{t("kgWearOverview")}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -313,9 +322,11 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
           <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
         </div>
       </section>
+    ),
 
-      {/* Orgasmusfreie Zeit */}
-      {orgasmusFreiMs !== null ? (
+    // Orgasmusfreie Zeit
+    orgasmFree: (
+      orgasmusFreiMs !== null ? (
         <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-orgasm-border">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-orgasm)]">{t("orgasmFreeTime")}</p>
@@ -338,10 +349,12 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             <p className="text-sm text-foreground-faint font-semibold">{t("noEntry")}</p>
           </div>
         </Card>
-      )}
+      )
+    ),
 
-      {/* Aktive Session */}
-      {activeEntry && (
+    // Aktive Session
+    activeSession: (
+      activeEntry && (
         <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-lock-border">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lock)]">{t("currentSession")}</p>
@@ -353,10 +366,12 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             <span className="text-xl sm:text-2xl font-bold text-[var(--color-lock-text)] whitespace-nowrap tabular-nums">{formatDurationMs(activeDurationMs, dl)}</span>
           </div>
         </Card>
-      )}
+      )
+    ),
 
-      {/* Trainingsziele — eine Card pro aktiver Vorgabe (KG zuerst, dann andere Kategorien) */}
-      {goalCards.map((g) => {
+    // Trainingsziele — eine Card pro aktiver Vorgabe (KG zuerst, dann andere Kategorien)
+    goals: (
+      goalCards.map((g) => {
         const style = g.color ? categoryStyle(g.color) : null;
         return (
           <Card key={g.id} padding="none" className="overflow-hidden">
@@ -402,20 +417,26 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             </div>
           </Card>
         );
-      })}
+      })
+    ),
 
-      {/* Tragekalender */}
-      {calendarVariants.length > 0 && (
+    // Tragekalender
+    calendar: (
+      calendarVariants.length > 0 && (
         <WearCalendarSwitcher variants={calendarVariants} />
-      )}
+      )
+    ),
 
-      {/* Jahresübersicht (Heatmap) */}
-      {yearHeatmaps.length > 0 && (
+    // Jahresübersicht (Heatmap)
+    yearHeatmap: (
+      yearHeatmaps.length > 0 && (
         <YearHeatmap years={yearHeatmaps} weekdayLabels={weekdayLabels} />
-      )}
+      )
+    ),
 
-      {/* Rekorde */}
-      {completed.length > 0 && (
+    // Rekorde
+    records: (
+      completed.length > 0 && (
         <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-border-subtle">
             <p className="text-sm font-bold text-foreground">{t("records")}</p>
@@ -425,28 +446,36 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             <RecordRow label={t("shortestSession")} value={formatDurationMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl, tz)} />
           </div>
         </Card>
-      )}
+      )
+    ),
 
-      {/* Device-Nutzung — umschaltbar zwischen KG und den Geräte-Kategorien */}
-      {deviceUsageVariants.length > 0 && (
+    // Device-Nutzung — umschaltbar zwischen KG und den Geräte-Kategorien
+    deviceUsage: (
+      deviceUsageVariants.length > 0 && (
         <DeviceUsageSwitcher variants={deviceUsageVariants} />
-      )}
+      )
+    ),
 
-      {/* Kontrollen */}
-      {kontrolleRows.length > 0 && (
+    // Kontrollen
+    inspections: (
+      kontrolleRows.length > 0 && (
         <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-border-subtle">
             <p className="text-sm font-bold text-foreground">{t("inspections")}</p>
           </div>
           <StatsKontrollenList rows={kontrolleRows} />
         </Card>
-      )}
+      )
+    ),
 
-      {/* Monatsübersicht */}
-      {monthStats.length > 0 && <MonthStats months={monthStats} />}
+    // Monatsübersicht
+    monthStats: (
+      monthStats.length > 0 && <MonthStats months={monthStats} />
+    ),
 
-      {/* Unerlaubte Öffnungen */}
-      {unerlaubteOeffnungen.length > 0 && (
+    // Unerlaubte Öffnungen
+    unlawfulOpenings: (
+      unerlaubteOeffnungen.length > 0 && (
         <Card padding="none" className="overflow-hidden">
           <div className="px-6 py-4 border-b border-[var(--color-warn-border)] flex items-center gap-2">
             <ShieldAlert size={15} className="text-warn shrink-0" />
@@ -466,10 +495,31 @@ export default async function StatsMain({ userId, heading, backHref, backLabel, 
             ))}
           </div>
         </Card>
-      )}
+      )
+    ),
+  };
+
+
+  // Die Konfiguration des BETRACHTERS, nicht die des angezeigten Trägers — `/admin/users/[id]/stats`
+  // zeigt einen Sub, zusammengestellt hat die Seite aber die Keyholderin für sich.
+  const layout = await viewerLayout(surface);
+
+  return (
+    <main className={`flex-1 w-full ${compact ? "max-w-2xl mx-auto px-4 py-6" : "max-w-5xl px-6 py-8"} flex flex-col gap-6`}>
+      <DashboardStack
+        surface={surface}
+        meta={layout.all.map(({ block, hidden }) => ({
+          id: block.id, label: td(block.labelKey), hidden, alwaysOn: block.alwaysOn,
+        }))}
+      >
+        {layout.visible.map((block) => (
+          <Fragment key={block.id}>{blocks[block.id as StatsBlockId]}</Fragment>
+        ))}
+      </DashboardStack>
     </main>
   );
 }
+
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
