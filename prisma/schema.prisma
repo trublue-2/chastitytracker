@@ -1355,8 +1355,11 @@ model WeightEntry {
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   measuredAt    DateTime
-  /// `tzDayKey(measuredAt, user.timezone)` — der Tag in der Zeitzone DES SUBS. Wer um 23:50 Uhr auf
-  /// der Waage steht, hat an diesem Tag gewogen, nicht an dem, den UTC gerade zählt.
+  /// `weightDayKey(measuredAt, user.timezone)` — der Tag in der Zeitzone DES SUBS, als `YYYY-MM-DD`.
+  /// Wer um 23:50 Uhr auf der Waage steht, hat an diesem Tag gewogen, nicht an dem, den UTC gerade
+  /// zählt. BEWUSST nicht `tzDayKey` aus `utils.ts`: dessen Format ist als opak deklariert und darf
+  /// sich ändern — hier hängt der `@@unique` daran, und ein Formatwechsel liesse still zwei Zeilen
+  /// je Tag entstehen. Begründung ausführlich bei `weightDayKey`.
   dayKey        String
   /// IMMER metrisch. Gerundet wird beim Tippen (eine Kommastelle), nicht beim Speichern: wer in
   /// Pfund einträgt, tippt 165,4 lbs = 75,0242 kg — auf 75,0 gerundet zeigte die Anzeige ihm 165,3

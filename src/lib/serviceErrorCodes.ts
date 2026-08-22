@@ -290,6 +290,8 @@ export const WEIGHT_CODES = [
   "WEIGHING_WINDOWS_TOO_MANY",
   "INVALID_UNIT_SYSTEM",
   "INVALID_REFERENCE_SEX",
+  "WEIGHT_PROOF_REQUIRED",
+  "WEIGHT_IN_FUTURE",
 ] as const;
 
 /** Every code the service layer can return — the set the i18n parity test iterates. */

@@ -1,4 +1,4 @@
-import { effectiveAt, round1 } from "@/lib/utils";
+import { effectiveAt, round1, tzDateParts } from "@/lib/utils";
 import { HEIGHT_CM_RANGE, WEIGHT_KG_RANGE } from "@/lib/constants";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 
@@ -94,6 +94,16 @@ export function bmi(weightKg: number, heightCm: number | null | undefined): numb
   const m = heightCm / 100;
   return weightKg / (m * m);
 }
+
+/**
+ * Ab welchem Sprung zum zuletzt gemessenen Wert das Formular nachfragt.
+ *
+ * Drei Kilo fangen den klassischen Zahlendreher (87,5 statt 78,5) und die falsch gelesene Anzeige,
+ * ohne bei echten Tagesschwankungen von ein bis zwei Kilo ständig zu meckern. Eine Nachfrage, keine
+ * Schranke: der Server prüft nur den harten Bereich (20–300 kg). Wer wirklich vier Kilo zugenommen
+ * hat, soll das eintragen können, ohne sich zu rechtfertigen.
+ */
+export const WEIGHT_JUMP_CONFIRM_KG = 3;
 
 /** WHO-Schwelle zum Untergewicht. Auslöser der Warnung beim Setzen eines Zielwerts (Abschnitt 7). */
 export const BMI_UNDERWEIGHT = 18.5;
@@ -240,6 +250,32 @@ export function corridorBreach(kg: number, c: Corridor): "below" | "above" | nul
 export function isUnderweightTarget(targetKg: number, heightCm: number | null | undefined): boolean {
   const value = bmi(targetKg, heightCm);
   return value !== null && value < BMI_UNDERWEIGHT;
+}
+
+// ── Tagesschlüssel ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Der Kalendertag einer Messung in der Zeitzone des Trägers, als `YYYY-MM-DD`.
+ *
+ * **Warum nicht `tzDayKey` aus `utils.ts`.** Der liefert denselben Gedanken, aber einen bewusst
+ * OPAKEN Schlüssel (`2026-7-22` — Monat nullbasiert, ohne führende Null), und seine Doku sagt
+ * ausdrücklich: nur Gleichheit zählt, nie parsen. Für einen Wert, der im Speicher einer Anfrage
+ * lebt, ist das richtig. Hier steht der Schlüssel aber **in einer Spalte**, und daran hängt der
+ * `@@unique`, der „ein Wert pro Tag" durchsetzt:
+ *
+ * - Ändert jemand das opake Format (es ist als änderbar deklariert), passen neu berechnete
+ *   Schlüssel nicht mehr zu den gespeicherten. Der Unique greift nicht mehr, und es entstehen
+ *   still zwei Zeilen für denselben Tag — der Fehler, gegen den er gebaut ist.
+ * - Ein nullbasierter Monat ohne Auffüllung sortiert nicht und lädt jeden späteren Leser dazu ein,
+ *   `dayKey >= "2026-08-01"` zu schreiben und Unsinn zu bekommen.
+ *
+ * Deshalb hier ein eigenes, festgeschriebenes Format — mit `tzDateParts` als geteiltem Kern, damit
+ * die Zeitzonen-Rechnung trotzdem nur an einer Stelle steht.
+ */
+export function weightDayKey(at: Date, tz: string): string {
+  const { year, month, day } = tzDateParts(at, tz);
+  // `tzDateParts` gibt den Monat NULLBASIERT zurück (0 = Januar) — daher das +1.
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 // ── Grössen-Historie ───────────────────────────────────────────────────────────────────────────

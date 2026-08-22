@@ -29,7 +29,10 @@ export async function GET(
   // `categoryRows`: die „Neu erfassen"-Auswahl der Keyholder-Sicht (AdminFAB) — dieselbe Ableitung
   // wie im Sub-Dashboard, nur für den betrachteten Sub.
   const [user, isLocked, offeneAnforderung, activeSperrzeit, categoryRows] = await Promise.all([
-    prisma.user.findUnique({ where: { id }, select: { username: true, email: true } }),
+    prisma.user.findUnique({
+      where: { id },
+      select: { username: true, email: true, weightTrackingEnabled: true },
+    }),
     getIsLocked(id),
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "ANFORDERUNG", withdrawnAt: null, fulfilledAt: null },
@@ -47,6 +50,9 @@ export async function GET(
     hasOffeneAnforderung: !!offeneAnforderung,
     hasActiveSperrzeit: !!activeSperrzeit,
     categoryRows,
+    // Für die (+)-Zeile der Keyholder-Sicht: beide Schalter zu EINER Antwort verrechnet, damit der
+    // Client nicht selbst wissen muss, dass es zwei sind.
+    weightTracking: weightTrackingEnabled() && user.weightTrackingEnabled,
   });
 }
 

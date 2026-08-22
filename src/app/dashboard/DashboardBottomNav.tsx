@@ -11,9 +11,10 @@ interface Props {
   version?: string;
   categoryRows?: NewEntryCategoryRow[];
   bildersafe?: boolean;
+  weight?: boolean;
 }
 
-export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, version, categoryRows, bildersafe }: Props) {
+export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, version, categoryRows, bildersafe, weight }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
@@ -31,6 +32,7 @@ export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, ver
         isLocked={isLocked}
         categoryRows={categoryRows}
         bildersafe={bildersafe}
+        weight={weight}
       />
     </>
   );

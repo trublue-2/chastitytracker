@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
-import { Lock, LockOpen, ClipboardCheck, ClipboardList, Droplets, Bell, Gavel } from "lucide-react";
+import { Lock, LockOpen, ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
+import { weightTrackingEnabled } from "@/lib/constants";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { getTranslations } from "next-intl/server";
@@ -139,6 +140,17 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           title={t("entryOrgasmus")}
           hint={t("entryOrgasmusDesc")}
         />
+
+        {/* Gewicht — nur mit Freischaltung. Ohne sie führte die Zeile auf eine Seite, die umleitet. */}
+        {weightTrackingEnabled() && user.weightTrackingEnabled && (
+          <ActionRow
+            href={`${base}/gewicht`}
+            icon={<Scale size={20} strokeWidth={2} />}
+            iconStyle={{ backgroundColor: "var(--color-surface-raised)", color: "var(--color-foreground-muted)" }}
+            title={t("entryWeight")}
+            hint={t("entryWeightDesc")}
+          />
+        )}
 
         {categories.map((c) => {
           const active = c.activeDeviceName;

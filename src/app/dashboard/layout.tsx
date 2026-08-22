@@ -9,7 +9,8 @@ import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth";
 import { getIsLocked } from "@/lib/queries";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
-import { bildersafeEnabled } from "@/lib/constants";
+import { bildersafeEnabled, weightTrackingEnabled } from "@/lib/constants";
+import { prisma } from "@/lib/prisma";
 import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
 
@@ -27,10 +28,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // so the keyholder nav entry appears exactly when access actually works. No extra DB query.
   const isKeyholder = (user as { controlsSubs?: boolean } | undefined)?.controlsSubs ?? false;
 
-  const [isLocked, categoryRows] = await Promise.all([
+  const [isLocked, categoryRows, weightUser] = await Promise.all([
     userId ? getIsLocked(userId) : Promise.resolve(false),
     userId ? buildNewEntryCategoryRows(userId) : Promise.resolve([]),
+    // Die (+)-Zeile „Gewicht" erscheint nur, wenn BEIDE Schalter stehen. Nur gefragt, wenn die
+    // Instanz das Feature überhaupt führt — sonst ist die Antwort ohnehin bekannt.
+    userId && weightTrackingEnabled()
+      ? prisma.user.findUnique({ where: { id: userId }, select: { weightTrackingEnabled: true } })
+      : Promise.resolve(null),
   ]);
+  const weight = !!weightUser?.weightTrackingEnabled;
 
   return (
     // Gleiche Begründung wie im Admin-Layout: das Inline-Skript setzt `data-theme` vor der
@@ -47,6 +54,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         version={pkg.version}
         categoryRows={categoryRows}
         bildersafe={bildersafeEnabled()}
+        weight={weight}
       />
 
       {/* Content area: offset for sidebar on desktop. Der Platz für die fixe Bottom-Nav (Mobile)
@@ -67,6 +75,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         version={pkg.version}
         categoryRows={categoryRows}
         bildersafe={bildersafeEnabled()}
+        weight={weight}
       />
       <InstallBanner />
     </div>

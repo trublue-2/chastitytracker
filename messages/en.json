@@ -1,4 +1,21 @@
 {
+  "weightForm": {
+    "title": "Record weight",
+    "titleAdmin": "Add a weight",
+    "weight": "Weight",
+    "weightMissing": "Please enter a weight",
+    "saveBtn": "Save weight",
+    "saved": "Weight saved",
+    "savedReplaced": "Replaced today's weight",
+    "bmiHint": "BMI {bmi}",
+    "photoOrNote": "Photo of the scale — if that is not possible, a short note will do.",
+    "proofMissing": "Without a photo you need a short note.",
+    "windowOpenUntil": "Weighing window runs until {time}.",
+    "windowNextFrom": "Next weighing window from {time}. A value outside it still counts, but stays out of the trend line.",
+    "jumpTitle": "Are you sure?",
+    "jumpMessage": "That is {diff} {unit} away from your last measurement.",
+    "jumpConfirm": "Yes, that is right"
+  },
   "errors": {
     "passwordTooShort": "Password too short (min. {min} characters)",
     "passwordTooLong": "Password too long (max. {max} bytes)",
@@ -163,7 +180,9 @@
     "WEIGHT_TRACKING_DISABLED": "Weight tracking is not enabled",
     "WEIGHING_WINDOWS_TOO_MANY": "Too many weighing windows",
     "INVALID_UNIT_SYSTEM": "Invalid unit",
-    "INVALID_REFERENCE_SEX": "Invalid value"
+    "INVALID_REFERENCE_SEX": "Invalid value",
+    "WEIGHT_PROOF_REQUIRED": "Without a photo you need a short note",
+    "WEIGHT_IN_FUTURE": "That time is in the future"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -496,6 +515,8 @@
     "inspectionSubtitle": "Photo & note",
     "orgasm": "Orgasm",
     "orgasmSubtitle": "Type & comment",
+    "weight": "Weight",
+    "weightSubtitle": "Record a reading from the scale",
     "back": "← New",
     "notCaptured": "Not captured"
   },
@@ -1199,6 +1220,8 @@
     "entryPruefungDesc": "Inspection performed",
     "entryOrgasmus": "Orgasm",
     "entryOrgasmusDesc": "Orgasm recorded",
+    "entryWeight": "Weight",
+    "entryWeightDesc": "Add a measurement for this wearer",
     "entryOnlyIfOpen": "Only possible when open",
     "entryOnlyIfLocked": "Only possible when locked",
     "entryOnlyIfLockedOrWorn": "Only possible when locked or wearing something",

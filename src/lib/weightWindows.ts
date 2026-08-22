@@ -131,3 +131,19 @@ export function nextWeighingWindow(raw: unknown, at: Date, tz = APP_TZ): Weighin
   const sorted = [...windows].sort((a, b) => a.start.localeCompare(b.start));
   return sorted.find((w) => w.start > hhmm) ?? sorted[0];
 }
+
+/**
+ * Der Fenster-Hinweis über dem Erfassungs-Formular, aus den beiden Zeit-Angaben des Servers.
+ *
+ * Hier und nicht in den Seiten, weil ihn BEIDE brauchen — die des Trägers und die der Keyholderin —
+ * und ein zweiter Aufbau desselben Satzes irgendwann auseinanderliefe. `null` heisst: keine Fenster
+ * gesetzt, also nichts zu sagen.
+ */
+export function weighingWindowHint(
+  props: { windowActiveUntil: string | null; windowNextFrom: string | null },
+  t: (key: string, values?: Record<string, string>) => string,
+): string | null {
+  if (props.windowActiveUntil) return t("windowOpenUntil", { time: props.windowActiveUntil });
+  if (props.windowNextFrom) return t("windowNextFrom", { time: props.windowNextFrom });
+  return null;
+}

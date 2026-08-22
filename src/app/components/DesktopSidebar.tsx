@@ -20,9 +20,10 @@ interface Props {
   version: string;
   categoryRows?: NewEntryCategoryRow[];
   bildersafe?: boolean;
+  weight?: boolean;
 }
 
-export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, version, categoryRows, bildersafe }: Props) {
+export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, version, categoryRows, bildersafe, weight }: Props) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -36,7 +37,7 @@ export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, version
 
   return (
     <>
-      <NewEntrySheet open={sheetOpen} onClose={() => setSheetOpen(false)} isLocked={isLocked} categoryRows={categoryRows} bildersafe={bildersafe} />
+      <NewEntrySheet open={sheetOpen} onClose={() => setSheetOpen(false)} isLocked={isLocked} categoryRows={categoryRows} bildersafe={bildersafe} weight={weight} />
 
       <aside className="hidden lg:flex fixed left-0 top-14 bottom-0 w-64 bg-nav-bg border-r border-nav-border flex-col z-20">
         <nav className="flex-1 flex flex-col gap-0.5 p-3 pt-4 overflow-y-auto">

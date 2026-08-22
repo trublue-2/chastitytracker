@@ -550,6 +550,12 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Nur erreichbar, solange die Keyholderin das Gewichtstracking für diesen Träger freigeschaltet hat — die Route prüft das selbst, nicht nur die Oberfläche.",
   }),
   c({
+    id: "weight-record", mechanic: "Gewicht", title: "Gewicht erfassen",
+    what: "Eine Messung je Kalendertag — vom Träger selbst oder von der Keyholderin für ihn.",
+    actors: ["sub", "admin"], surfaces: ["sub-ui", "admin-ui"], routes: ["/api/weight"],
+    note: "Der Träger braucht einen Beleg (Foto oder Notiz), die Keyholderin nicht — sie steht nicht vor seiner Waage. Eine zweite Meldung desselben Tages ersetzt die erste.",
+  }),
+  c({
     id: "weight-keyholder", mechanic: "Gewicht", title: "Gewichtstracking einrichten",
     what: "Freischaltung, Wiege-Zeitfenster und die Nachbesserung der Grenzen des Trägers.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users/[id]"],

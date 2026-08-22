@@ -1,4 +1,21 @@
 {
+  "weightForm": {
+    "title": "Gewicht erfassen",
+    "titleAdmin": "Gewicht nachtragen",
+    "weight": "Gewicht",
+    "weightMissing": "Bitte ein Gewicht eintragen",
+    "saveBtn": "Gewicht speichern",
+    "saved": "Gewicht gespeichert",
+    "savedReplaced": "Gewicht des Tages ersetzt",
+    "bmiHint": "BMI {bmi}",
+    "photoOrNote": "Foto der Waage — geht es nicht, reicht eine kurze Notiz.",
+    "proofMissing": "Ohne Foto brauchst du eine kurze Notiz.",
+    "windowOpenUntil": "Wiege-Fenster läuft noch bis {time} Uhr.",
+    "windowNextFrom": "Nächstes Wiege-Fenster ab {time} Uhr. Ein Wert ausserhalb zählt trotzdem, fliesst aber nicht in den Trend ein.",
+    "jumpTitle": "Sicher?",
+    "jumpMessage": "Das sind {diff} {unit} Unterschied zur letzten Messung.",
+    "jumpConfirm": "Ja, so stimmt es"
+  },
   "errors": {
     "passwordTooShort": "Passwort zu kurz (min. {min} Zeichen)",
     "passwordTooLong": "Passwort zu lang (max. {max} Bytes)",
@@ -163,7 +180,9 @@
     "WEIGHT_TRACKING_DISABLED": "Gewichtstracking ist nicht aktiviert",
     "WEIGHING_WINDOWS_TOO_MANY": "Zu viele Wiege-Fenster",
     "INVALID_UNIT_SYSTEM": "Ungültige Einheit",
-    "INVALID_REFERENCE_SEX": "Ungültige Angabe"
+    "INVALID_REFERENCE_SEX": "Ungültige Angabe",
+    "WEIGHT_PROOF_REQUIRED": "Ohne Foto brauchst du eine kurze Notiz",
+    "WEIGHT_IN_FUTURE": "Der Zeitpunkt liegt in der Zukunft"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -496,6 +515,8 @@
     "inspectionSubtitle": "Foto & Notiz",
     "orgasm": "Orgasmus",
     "orgasmSubtitle": "Art & Kommentar",
+    "weight": "Gewicht",
+    "weightSubtitle": "Messung von der Waage eintragen",
     "back": "← Neu",
     "notCaptured": "nicht erfasst"
   },
@@ -1199,6 +1220,8 @@
     "entryPruefungDesc": "Kontrolle durchgeführt",
     "entryOrgasmus": "Orgasmus",
     "entryOrgasmusDesc": "Orgasmus erfasst",
+    "entryWeight": "Gewicht",
+    "entryWeightDesc": "Eine Messung für diesen Träger nachtragen",
     "entryOnlyIfOpen": "Nur möglich wenn offen",
     "entryOnlyIfLocked": "Nur möglich wenn verschlossen",
     "entryOnlyIfLockedOrWorn": "Nur möglich wenn verschlossen oder etwas getragen wird",
