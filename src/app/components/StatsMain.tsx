@@ -1,6 +1,6 @@
-import { Fragment, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
-import DashboardStack from "@/app/components/DashboardStack";
+import BlockStack from "@/app/components/BlockStack";
 import { viewerLayout } from "@/lib/viewerLayout";
 import type { StatsBlockId } from "@/lib/dashboardBlockRegistry";
 import { aktiveKontrolleWhere } from "@/lib/queries";
@@ -50,7 +50,6 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
   compact?: boolean;
 }) {
   const t = await getTranslations("stats");
-  const td = await getTranslations("dashboard");
   const tc = await getTranslations("common");
   const ta = await getTranslations("admin");
   const dl = toDateLocale(await getLocale());
@@ -506,16 +505,7 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
 
   return (
     <main className={`flex-1 w-full ${compact ? "max-w-2xl mx-auto px-4 py-6" : "max-w-5xl px-6 py-8"} flex flex-col gap-6`}>
-      <DashboardStack
-        surface={surface}
-        meta={layout.all.map(({ block, hidden }) => ({
-          id: block.id, label: td(block.labelKey), hidden, alwaysOn: block.alwaysOn,
-        }))}
-      >
-        {layout.visible.map((block) => (
-          <Fragment key={block.id}>{blocks[block.id as StatsBlockId]}</Fragment>
-        ))}
-      </DashboardStack>
+      <BlockStack layout={layout} nodes={layout.visible.map((b) => ({ id: b.id, node: blocks[b.id] }))} />
     </main>
   );
 }

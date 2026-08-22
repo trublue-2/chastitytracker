@@ -7,13 +7,15 @@
  * ausblenden noch verschieben, weil es ihn als *Ding* gar nicht gab, nur als Stelle im Baum.
  *
  * **Die Vollständigkeit erzwingt der Compiler, nicht ein Test.** Die Seite baut ihre Blöcke als
- * `Record<SubDashboardBlockId, ReactNode>` — ein vergessener Block ist ein Typfehler, ein
- * erfundener ebenso. Deshalb steht hier keine Komponente: das Register nennt und ordnet, die Seite
- * rendert. Wer beides mischt, holt sich die halbe Seite in eine Datei, die nur eine Liste sein will.
+ * `Record<SubDashboardBlockId, …>` — ein vergessener Block ist ein Typfehler, ein erfundener
+ * ebenso. Deshalb steht hier keine Komponente: das Register nennt und ordnet, die Seite rendert.
+ * Wer beides mischt, holt sich die halbe Seite in eine Datei, die nur eine Liste sein will.
  *
- * NICHT hier: die Datenbeschaffung. Die Seite lädt weiterhin alles in einem `Promise.all`, ein
- * ausgeblendeter Block spart also noch keine Abfrage. Das ist bewusst aufgeschoben (Etappe B des
- * Redesign-Plans) und ändert an diesem Register nichts — es bekommt später ein `load` je Eintrag.
+ * **NICHT hier: die Datenbeschaffung** (seit Etappe B `load(ctx)` je Block, siehe
+ * `blockStack.ts`). Sie könnte es auch gar nicht: dieses Modul wird von der Client-Komponente
+ * `DashboardStack` importiert und muss deshalb frei von Server-Abhängigkeiten bleiben. Und die Ids
+ * sind nicht global eindeutig — `boxStatus` gibt es auf zwei Oberflächen mit verschiedenen
+ * Ladewegen. Die Block-Tabellen liegen deshalb je Oberfläche neben ihrer Seite.
  */
 
 /** Die Oberflächen mit Block-Stapel. */
@@ -143,22 +145,3 @@ export type BlockIdOf<S extends BlockSurface> =
   : S extends "subStats" | "keyholderStats" ? StatsBlockId
   : S extends "keyholderSub" ? KeyholderSubBlockId
   : never;
-
-/**
- * Bringt die gerenderten Blöcke einer Oberfläche in Reihenfolge.
- *
- * `nodes` ist ein VOLLSTÄNDIGER Record über die Ids GENAU DIESER Oberfläche — daran hängt die
- * Compiler-Garantie: die Seite kann keinen Block vergessen, keinen erfinden und keinen fremden
- * Record durchreichen. Ein Block, der sich selbst ausblendet (null), bleibt hier drin und
- * verschwindet erst beim Rendern; das ist gewollt, denn „ist gerade leer" ist etwas anderes als
- * „ist abgeschaltet".
- */
-export function orderedBlocks<S extends BlockSurface, T>(
-  surface: S,
-  nodes: Record<BlockIdOf<S>, T>,
-): { id: BlockIdOf<S>; node: T }[] {
-  return blocksOf(surface).map((b) => {
-    const id = b.id as BlockIdOf<S>;
-    return { id, node: nodes[id] };
-  });
-}

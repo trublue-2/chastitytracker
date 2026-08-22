@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import de from "../../messages/de.json";
 import en from "../../messages/en.json";
 import {
-  BLOCK_SURFACES, DASHBOARD_BLOCKS, SUB_DASHBOARD_BLOCKS, blocksOf, orderedBlocks,
+  BLOCK_SURFACES, DASHBOARD_BLOCKS, SUB_DASHBOARD_BLOCKS, blocksOf,
   type SubDashboardBlockId,
 } from "@/lib/dashboardBlockRegistry";
 
@@ -39,16 +39,6 @@ describe("Dashboard-Block-Register", () => {
     const summe = BLOCK_SURFACES.reduce((n, s) => n + blocksOf(s).length, 0);
     expect(summe).toBe(DASHBOARD_BLOCKS.length);
     expect(blocksOf("subDashboard").every((b) => b.surface === "subDashboard")).toBe(true);
-  });
-
-  it("orderedBlocks folgt der Reihenfolge des Registers, nicht der des Records", () => {
-    // Der Record wird in der Seite in Lese-Reihenfolge geschrieben; verlassen darf sich darauf
-    // niemand. Deshalb hier ein Record in ABSICHTLICH falscher Reihenfolge.
-    const rueckwaerts = Object.fromEntries(
-      [...SUB_DASHBOARD_BLOCKS].reverse().map((b) => [b.id, b.id]),
-    ) as Record<SubDashboardBlockId, string>;
-    expect(orderedBlocks("subDashboard", rueckwaerts).map((x) => x.id))
-      .toEqual(SUB_DASHBOARD_BLOCKS.map((b) => b.id));
   });
 
   it("jede der vier Oberflächen ist belegt", () => {

@@ -1,6 +1,5 @@
-import { cache } from "react";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { userRowCached } from "@/lib/dashboardData";
 import { parseDashboardLayout, resolveLayout, type ResolvedLayout } from "@/lib/dashboardLayout";
 import type { BlockSurface } from "@/lib/dashboardBlockRegistry";
 
@@ -12,21 +11,20 @@ import type { BlockSurface } from "@/lib/dashboardBlockRegistry";
  * konfiguriert nur sich selbst" heisst deshalb hier: gelesen wird die Zeile des Angemeldeten,
  * nie die des Betrachteten.
  *
- * `cache()` pro Request — dieselbe Begründung wie bei `getControllableSubsCached`: Seite und
- * eingebettete Komponente fragen sonst zweimal dasselbe. Argumente bewusst primitiv, `cache()`
- * schlägt über ihre Identität nach.
+ * Gelesen wird über `userRowCached` — dieselbe gecachte Zeile, aus der die Blöcke ihre
+ * Einstellungen nehmen. Auf dem Träger-Dashboard sind Betrachter und Betrachteter dieselbe Person,
+ * also kostet die Konfiguration dort gar keine eigene Abfrage; auf den Keyholder-Sichten sind es
+ * zwei verschiedene Zeilen und damit zwei Abfragen, wie zuvor.
+ *
+ * `viewerId` mitgeben, wenn die Seite die Sitzung ohnehin schon aufgelöst hat: `auth()` ist NICHT
+ * gecacht, und ein zweiter Aufruf entschlüsselt nicht nur das Token erneut, sondern kann bei
+ * abgelaufener Rollen-Prüfung auch noch zwei Abfragen nachziehen.
  */
-const readViewerLayoutRaw = cache(async (): Promise<string | null> => {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-  const row = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { dashboardLayout: true },
-  });
-  return row?.dashboardLayout ?? null;
-});
-
-/** Die aufgelöste Konfiguration des Angemeldeten für EINE Oberfläche. */
-export async function viewerLayout(surface: BlockSurface): Promise<ResolvedLayout> {
-  return resolveLayout(parseDashboardLayout(await readViewerLayoutRaw()), surface);
+export async function viewerLayout<S extends BlockSurface>(
+  surface: S,
+  viewerId?: string,
+): Promise<ResolvedLayout<S>> {
+  const id = viewerId ?? (await auth())?.user?.id;
+  const raw = id ? (await userRowCached(id))?.dashboardLayout : null;
+  return resolveLayout(parseDashboardLayout(raw), surface);
 }

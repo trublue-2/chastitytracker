@@ -2,9 +2,9 @@ import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from
 import { auth } from "@/lib/auth";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
-import { Fragment, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
-import DashboardStack from "@/app/components/DashboardStack";
+import BlockStack from "@/app/components/BlockStack";
 import { viewerLayout } from "@/lib/viewerLayout";
 import type { KeyholderSubBlockId } from "@/lib/dashboardBlockRegistry";
 import {
@@ -397,16 +397,5 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
   // Die Konfiguration der KEYHOLDERIN, nicht die des angezeigten Trägers.
   const layout = await viewerLayout("keyholderSub");
 
-  return (
-    <DashboardStack
-      surface="keyholderSub"
-      meta={layout.all.map(({ block, hidden }) => ({
-        id: block.id, label: td(block.labelKey), hidden, alwaysOn: block.alwaysOn,
-      }))}
-    >
-      {layout.visible.map((block) => (
-        <Fragment key={block.id}>{blocks[block.id as KeyholderSubBlockId]}</Fragment>
-      ))}
-    </DashboardStack>
-  );
+  return <BlockStack layout={layout} nodes={layout.visible.map((b) => ({ id: b.id, node: blocks[b.id] }))} />;
 }

@@ -1,0 +1,517 @@
+import { cache, Suspense } from "react";
+import { getTranslations } from "next-intl/server";
+import { block, type StackBlock } from "@/lib/blockStack";
+import type { SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
+import type { ResolvedLayout } from "@/lib/dashboardLayout";
+import {
+  activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
+  deviceCountCached, entriesCached, evaluatedTasksCached, latestKgEntryCached, lockRequestCached,
+  orgasmConfigCached, orgasmEntriesCached, subInspectionsCached, subKeyProofCached,
+  subOrgasmRequestCached, subPairsCached, subRunningSessionCached, subSperrzeitCached,
+  taskProofViewsCached, trackingCategoriesCached, userRowCached, wearingHoursCached,
+  wearSessionsCached,
+} from "@/lib/dashboardData";
+import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
+import { predictAutoMarkAt } from "@/lib/inspectionEscalationService";
+import { cleaningPermissionUserAt } from "@/lib/cleaningRules";
+import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch";
+import {
+  formatDateTime, formatTime, interruptionPauseMs, runningCleaningPauseUntil,
+  getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
+} from "@/lib/utils";
+import { wearHourPairsByCategory } from "@/lib/sessionModel";
+import { buildWearSessionRows } from "@/lib/wearSessionRows";
+import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
+import { buildBoxReinigungView } from "@/lib/boxReinigung";
+import { resolveReasonLabel } from "@/lib/reasonsService";
+import { categoryNeedsDevice } from "@/lib/categoryConstants";
+import { inspectionHref } from "@/lib/entryFormRoute";
+import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { belongsOnDashboard, isHeldByTask } from "@/lib/taskIntervals";
+import { toTaskCard } from "@/lib/taskView";
+import DashboardClient, { type DashboardProps } from "./DashboardClient";
+import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
+import OpenTasks from "./OpenTasks";
+import OpenPenalties from "./OpenPenalties";
+import TaskList from "./TaskList";
+import LaufendeSessionCard from "./LaufendeSessionCard";
+import SessionList from "./SessionList";
+import WearSessionList from "./WearSessionList";
+import ActiveWearSessions from "./ActiveWearSessions";
+import CategoriesPromoCard from "./CategoriesPromoCard";
+import CategoryGoalsToday from "./CategoryGoalsToday";
+import InactiveCategories from "./InactiveCategories";
+import IncompleteCategories from "./IncompleteCategories";
+import BoxStatusCard from "@/app/components/BoxStatusCard";
+import DashboardBlock from "@/app/components/DashboardBlock";
+
+/**
+ * **Die Blöcke des Träger-Dashboards — jeder mit seiner eigenen Datenbeschaffung.**
+ *
+ * Bis Etappe B lud `dashboard/page.tsx` elf Abfragen in einem `Promise.all`, bevor der erste Block
+ * entstand. Ein ausgeblendeter Block sparte deshalb die Übertragung, nicht die Abfrage. Jetzt
+ * deklariert jeder Block, was er braucht, und `renderStack` ruft nur die der SICHTBAREN.
+ *
+ * **Warum die Tabelle hier steht und nicht im Register:** das Register benennt und ordnet, es kennt
+ * keine Datenbank — die Client-Komponente `DashboardStack` importiert daraus. Und die Ids sind
+ * nicht global eindeutig: `boxStatus`, `sessionList`, `taskList` gibt es auf dem Träger-Dashboard
+ * UND auf der Keyholder-Detailseite, mit verschiedenen Ladewegen. Ein `load` am Registereintrag
+ * bräuchte deshalb einen Kontext-Union über alle vier Oberflächen; je Oberfläche eine Tabelle
+ * behält den Kontext-Typ und dieselbe Compiler-Garantie.
+ *
+ * **Was ein Block NICHT tut: rechnen, was ein anderer auch rechnet.** Geteiltes gehört in
+ * `dashboardData.ts` — auch reine Ableitungen, nicht nur Abfragen.
+ */
+
+export interface SubDashboardCtx {
+  userId: string;
+  username: string;
+  now: Date;
+  /** Derselbe Zeitpunkt als Zahl — der `cache()`-Schlüssel der geteilten Quellen. */
+  nowMs: number;
+  tz: string;
+  dl: string;
+  t: Awaited<ReturnType<typeof getTranslations<"dashboard">>>;
+  tOrgasm: Awaited<ReturnType<typeof getTranslations<"orgasmForm">>>;
+  tTasks: Awaited<ReturnType<typeof getTranslations<"tasks">>>;
+  /**
+   * Die aufgelöste Konfiguration. Gebraucht für `layout.shows(id)`: das KG-Ziel weicht der grünen
+   * Session-Karte aus, muss also wissen, ob die überhaupt aufgelegt ist.
+   */
+  layout: ResolvedLayout<"subDashboard">;
+}
+
+/**
+ * **Steht die grüne Session-Karte gerade auf dem Schirm?** EINE Antwort für die beiden Blöcke, die
+ * sich darum abstimmen müssen.
+ *
+ * Zwei Bedingungen, und beide gehören dazu: der Block muss aufgelegt sein UND es muss eine Session
+ * laufen. Dass die zweite Frage hier dieselbe Quelle liest, aus der die Karte selbst ihren Inhalt
+ * zieht, ist der Punkt — die Karte hat keine eigene, hier unsichtbare Abbruchbedingung im `render`
+ * (siehe `block()`), also können die beiden gar nicht verschieden antworten.
+ *
+ * Und weil `&&` abkürzt, kostet die Frage bei ausgeblendetem Block nichts: bleibt die Karte weg,
+ * wird die Session samt Telemetrie-Nachweis nie geladen.
+ */
+const sessionCardOnScreen = (ctx: SubDashboardCtx): Promise<boolean> | boolean =>
+  ctx.layout.shows("runningSession") &&
+  subRunningSessionCached(ctx.userId, ctx.nowMs, ctx.dl).then((s) => s !== null);
+
+/**
+ * Die Aufgaben-Karten dieser Seite: oben, was ihn JETZT etwas angeht, unten der ganze Bestand.
+ *
+ * Gecacht, obwohl es keine Abfrage ist: drei Blöcke fragen danach (Karten, Liste, Strafen), und
+ * `toTaskCard` über die ganze Historie dreimal zu bauen wäre genau die Arbeit, die diese Etappe
+ * loswerden will. Der Schlüssel sind die drei primitiven Werte, aus denen sich das Ergebnis ergibt.
+ */
+const dashboardTaskCards = cache(async (userId: string, nowMs: number, kgLabel: string) => {
+  const [evaluated, proofViews] = await Promise.all([
+    evaluatedTasksCached(userId, nowMs, kgLabel), taskProofViewsCached(userId, nowMs, kgLabel),
+  ]);
+  const card = (e: (typeof evaluated)[number], withLinks: boolean) =>
+    toTaskCard(e, withLinks, proofViews.get(e.task.id) ?? []);
+  return {
+    // Oben nach nächster Frist zuerst (die Liste kommt absteigend, also umdrehen) — was am
+    // dringendsten ist, steht zuoberst.
+    open: evaluated.filter((e) => belongsOnDashboard(e, new Date(nowMs))).reverse().map((e) => card(e, true)),
+    // Die Liste ist die ARCHIV-Sicht: keine Deep-Links, denn die Formulare stehen an den Karten oben.
+    all: evaluated.map((e) => card(e, false)),
+  };
+});
+
+/** Kürzel für den Aufruf oben — die KG-Beschriftung steckt in jeder Aufgaben-Auswertung. */
+const taskCardsOf = (ctx: SubDashboardCtx) =>
+  dashboardTaskCards(ctx.userId, ctx.nowMs, ctx.tTasks("requirementKgLocked"));
+
+export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<SubDashboardCtx>> = {
+  greeting: async ({ t, username }) => (
+    <DashboardBlock>
+      <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
+    </DashboardBlock>
+  ),
+
+  // Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte.
+  alerts: block({
+    load: async ({ userId, nowMs }) => {
+      const [anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg] = await Promise.all([
+        subInspectionsCached(userId, nowMs), lockRequestCached(userId, nowMs),
+        subOrgasmRequestCached(userId, nowMs), userRowCached(userId), orgasmConfigCached(userId),
+      ]);
+      return { anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg };
+    },
+    render: ({ anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg }, { now, tz, dl, t, tOrgasm }) => {
+      // ALLE offenen — je Ziel kann eine laufen (v5.0.1). Dringendste zuerst, damit das Banner mit
+      // der knappsten Frist oben steht.
+      const offeneKontrollen = anforderungen
+        .filter((k) => !k.entryId && !k.withdrawnAt)
+        .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+
+      const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
+        ? resolveReasonLabel(offeneOrgasmusAnf.vorgegebeneArt, orgasmCfg, "orgasm", tOrgasm)
+        : null;
+
+      const alertProps: DashboardAlertsProps = {
+        tz,
+
+        offeneKontrollen: offeneKontrollen.map((k) => ({
+          id: k.id,
+          deadline: k.deadline.toISOString(),
+          code: k.code,
+          kommentar: k.kommentar,
+          target: inspectionTargetLabel(k),
+          overdue: k.deadline < now,
+          href: inspectionHref(k.code, { kommentar: k.kommentar, categoryId: k.categoryId }),
+          // WANN das System selbst eingreift — die Zahl, die der Sub bisher nirgends sehen konnte.
+          // Die Rechnung liegt neben der DURCHSETZUNG (`predictAutoMarkAt`), nicht hier: sie kennt
+          // den Mahn-Stempel als Anker und den Schlaf-Fenster-Sonderfall, und beides von Hand
+          // nachzubauen hiesse, die Zwei-Stufen-Logik ein zweites Mal zu führen.
+          autoMarkAt: user ? predictAutoMarkAt(k, { ...user, timezone: tz })?.toISOString() ?? null : null,
+        })),
+
+        offeneVerschlussAnf: offeneVerschlussAnf ? {
+          nachricht: joinParts(
+            offeneVerschlussAnf.device ? t("lockDevicePrefix", { name: offeneVerschlussAnf.device.name }) : null,
+            offeneVerschlussAnf.nachricht,
+          ),
+          endetAtLabel: offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl, tz) }) : null,
+          // Verstrichen heisst: es läuft bereits ein Vergehen (`late_lock`). Das Banner sah bisher
+          // aus wie am ersten Tag — der einzige Unterschied war ein Datum, das er selbst mit der
+          // Uhr vergleichen musste.
+          overdue: !!offeneVerschlussAnf.endetAt && offeneVerschlussAnf.endetAt < now,
+          // Ohne Geräte-Parameter: das Formular liest die offene Anforderung selbst und belegt ihr
+          // Gerät vor (`anforderungDeviceId`). Ein zweiter Weg dorthin wäre eine zweite Wahrheit.
+          href: "/dashboard/new/verschluss",
+        } : null,
+
+        offeneOrgasmusAnf: offeneOrgasmusAnf ? {
+          label: offeneOrgasmusAnf.art === "ANWEISUNG" ? t("orgasmInstructed") : t("orgasmOpportunity"),
+          nachricht: joinParts(
+            orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null,
+            offeneOrgasmusAnf.nachricht,
+          ),
+          windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginntAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endetAt, dl, tz) }),
+        } : null,
+      };
+
+      return <DashboardAlerts {...alertProps} />;
+    },
+  }),
+
+  boxStatus: block({
+    // Ohne Heimdall gibt es keine Box-Karte — dann auch keine Abfragen für sie.
+    load: async ({ userId, now, tz }) => {
+      if (!heimdallEnabled()) return null;
+      // Die Reinigungs-Regeln der Box-Karte (Begründung in `buildBoxReinigungView`) zählen ihr
+      // Tageskontingent aus den ohnehin geladenen Einträgen — ohne eigene DB-Runde.
+      const [user, entries, activeSperrzeit] = await Promise.all([
+        userRowCached(userId), entriesCached(userId), subSperrzeitCached(userId),
+      ]);
+      return buildBoxReinigungView(user, entries, activeSperrzeit, now, tz);
+    },
+    // `null` heisst hier „ohne Reinigungs-Zeilen", nicht „ohne Karte" — die Karte selbst hängt an
+    // Heimdall, und ohne den lief der Loader gar nicht erst.
+    render: (reinigung, { tz }) => heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={reinigung} />,
+  }),
+
+  openTasks: block({
+    load: async (ctx) => (await taskCardsOf(ctx)).open,
+    render: (tasks, { tz }) => <OpenTasks tasks={tasks} tz={tz} />,
+  }),
+
+  // UNTER den Aufgaben: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand.
+  // Der Block lädt seine Strafen selbst — sonst müsste diese Seite dieselbe Auflösung noch einmal
+  // aufrufen, nur um sie durchzureichen. Deshalb in `Suspense`: sein Laden hängt sonst als weitere
+  // serielle Phase am Seiten-Rendering, und die ganze Seite wartete auf einen Block, den die
+  // meisten Nutzer nie zu sehen bekommen. `dashboardTaskIds` = die Aufgaben, die oben tatsächlich
+  // stehen — daran entscheidet der Block, ob eine Strafaufgabe hier zu wiederholen wäre.
+  openPenalties: block({
+    load: async ({ userId, nowMs, tTasks }) => {
+      const evaluated = await evaluatedTasksCached(userId, nowMs, tTasks("requirementKgLocked"));
+      // Nur die Ids — die Karten dazu baut der Aufgaben-Block, dieser hier fragt bloss ab, welche
+      // Aufgabe oben schon steht.
+      return new Set(
+        evaluated.filter((e) => belongsOnDashboard(e, new Date(nowMs))).map((e) => e.task.id),
+      );
+    },
+    render: (dashboardTaskIds, { userId, tz, now }) => (
+      <Suspense fallback={null}>
+        <OpenPenalties userId={userId} tz={tz} now={now} dashboardTaskIds={dashboardTaskIds} />
+      </Suspense>
+    ),
+  }),
+
+  runningSession: block({
+    load: async (ctx) => {
+      const { userId, nowMs, dl, tz } = ctx;
+      const running = await subRunningSessionCached(userId, nowMs, dl);
+      if (!running) return null;
+      const [activeSperrzeit, user, activeVorgabe, hours, deviceCount] = await Promise.all([
+        subSperrzeitCached(userId), userRowCached(userId), activeVorgabeCached(userId, nowMs),
+        wearingHoursCached(userId, nowMs, tz), deviceCountCached(userId),
+      ]);
+      return { ...running, activeSperrzeit, user, activeVorgabe, hours, deviceCount };
+    },
+    render: (data, { now, tz, t }) => data && (
+      <DashboardBlock>
+        <LaufendeSessionCard
+          sessionStart={data.activePair.verschluss.startTime}
+          interruptionPausedMs={interruptionPauseMs(data.activePair.interruptions)}
+          now={now}
+          events={data.events}
+          sperrzeitEndetAt={data.activeSperrzeit?.endetAt ?? null}
+          sperrzeitUnbefristet={!!data.activeSperrzeit && data.activeSperrzeit.endetAt === null}
+          sperrzeitNachricht={data.activeSperrzeit?.nachricht ?? null}
+          // Sub-Sicht: nur wenn er grundsätzlich reinigen darf. Sonst verspräche die Zeile etwas,
+          // das seine Benutzer-Einstellung ohnehin verbietet.
+          cleaningNote={
+            data.activeSperrzeit && data.user?.reinigungErlaubt
+              ? t(data.activeSperrzeit.reinigungErlaubt ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
+              : null
+          }
+          keyInBox={data.activePair.verschluss.keyInBox ?? null}
+          activeVorgabe={data.activeVorgabe ? proratedVorgabeTargets(data.activeVorgabe, now, tz) : null}
+          tagH={data.hours.tagH}
+          wocheH={data.hours.wocheH}
+          monatH={data.hours.monatH}
+          jahrH={data.hours.jahrH}
+          tz={tz}
+          userHasDevices={data.deviceCount > 0}
+        />
+      </DashboardBlock>
+    ),
+  }),
+
+  activeWearSessions: block({
+    load: async ({ userId, nowMs, now, tTasks }) => {
+      const [sessions, evaluated] = await Promise.all([
+        activeWearSessionsCached(userId),
+        evaluatedTasksCached(userId, nowMs, tTasks("requirementKgLocked")),
+      ]);
+      // Die Trage-Karte ist vollflächig ein Link aufs Ablege-Formular — ohne Markierung sähe eine
+      // gebundene Session aus wie jede andere. Gefragt wird je Session (Kategorie UND Gerät) über
+      // `isHeldByTask`, also mit demselben Prädikat wie die Warnung im Formular: eine Bedingung auf
+      // ein bestimmtes Gerät darf nicht die ganze Kategorie markieren, vor der danach niemand warnt.
+      return sessions.map((s) => ({
+        categoryId: s.categoryId,
+        categoryName: s.categoryName,
+        categoryColor: s.categoryColor,
+        categoryIcon: s.categoryIcon,
+        deviceName: s.deviceName,
+        since: s.since.toISOString(),
+        heldReason: isHeldByTask(evaluated, { categoryId: s.categoryId, deviceId: s.deviceId }, now)
+          ? tTasks("heldByTask")
+          : null,
+        imageUrl: s.imageUrl,
+      }));
+    },
+    render: (sessions, { now }) => <ActiveWearSessions sessions={sessions} serverNow={now.toISOString()} />,
+  }),
+
+  // Der Schalter wird hier gebraucht und nicht nur in der Quelle: eine leere Kategorie-Liste heisst
+  // „noch keine angelegt" — genau der Fall, für den diese Karte wirbt. Ohne die Funktion gäbe es
+  // dagegen nichts anzulegen.
+  categoriesPromo: block({
+    load: async ({ userId }) =>
+      deviceCategoriesEnabled() ? (await trackingCategoriesCached(userId)).length === 0 : null,
+    render: (empty) => empty !== null && <CategoriesPromoCard show={empty} />,
+  }),
+
+  // Ohne Gerät ist die Kategorie ein halber Schritt, kein Zustand — sichtbar hier statt unten
+  // im eingeklappten „Nicht getragen" (Issue #49). Ohne Feature-Flag ist die Liste leer, der
+  // Block blendet sich selbst aus.
+  incompleteCategories: block({
+    load: async ({ userId }) => {
+      const [categories, withActiveSession] = await Promise.all([
+        trackingCategoriesCached(userId), activeWearCategoryIdsCached(userId),
+      ]);
+      return categories.filter((c) => categoryNeedsDevice({ ...c, hasActiveSession: withActiveSession.has(c.id) }));
+    },
+    render: (categories) => <IncompleteCategories categories={categories} />,
+  }),
+
+  categoryGoals: block({
+    load: async (ctx) => {
+      const { userId, nowMs, now, tz } = ctx;
+      const [wearSessions, entries, activeVorgabe, hours, sessionCard] = await Promise.all([
+        activeWearSessionsCached(userId), entriesCached(userId), activeVorgabeCached(userId, nowMs),
+        wearingHoursCached(userId, nowMs, tz), sessionCardOnScreen(ctx),
+      ]);
+      // Das KG-Ziel steht während einer Sperre in der grünen Session-Karte (LaufendeSessionCard).
+      // Steht die nicht — weil keine Sperre läuft ODER weil der Träger den Block ausgeblendet hat —
+      // hätte es sonst nirgends Platz; dann zeigen wir es als führende Zeile in der
+      // „Trainingsvorgaben"-Karte (derselben, die die Kategorie-Ziele trägt).
+      const kgTargets = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
+      const kgGoal =
+        !sessionCard && kgTargets &&
+        (kgTargets.minProTagH != null || kgTargets.minProWocheH != null || kgTargets.minProMonatH != null || kgTargets.minProJahrH != null)
+          ? {
+              ...hours,
+              goalDayH: kgTargets.minProTagH, goalWeekH: kgTargets.minProWocheH,
+              goalMonthH: kgTargets.minProMonatH, goalYearH: kgTargets.minProJahrH,
+            }
+          : null;
+      return { wearSessions, entries, kgGoal };
+    },
+    render: ({ wearSessions, entries, kgGoal }, { userId }) => (
+      <CategoryGoalsToday
+        userId={userId}
+        activeWearSessions={wearSessions}
+        entries={entries}
+        includeCategories={deviceCategoriesEnabled()}
+        kgGoal={kgGoal}
+      />
+    ),
+  }),
+
+  inactiveCategories: block({
+    load: async ({ userId, nowMs, now, tz }) => {
+      const [categories, withActiveSession, sessionList] = await Promise.all([
+        trackingCategoriesCached(userId), activeWearCategoryIdsCached(userId), wearSessionsCached(userId, nowMs),
+      ]);
+      // Bespielbar ist eine Kategorie erst mit Gerät — ohne eines lässt sich darin nichts erfassen.
+      const wearPairsByCategory = wearHourPairsByCategory(sessionList, now);
+      return categories
+        .filter((c) => c.deviceCount > 0 && !withActiveSession.has(c.id))
+        .map((c) => ({
+          ...c,
+          todayHours: wearingHoursFromPairs(wearPairsByCategory.get(c.id) ?? [], getMidnightToday(now, tz), now),
+        }));
+    },
+    render: (categories) => <InactiveCategories categories={categories} />,
+  }),
+
+  statusAndStats: block({
+    load: async ({ userId, nowMs, now, tz }) => {
+      const [entries, latest, cleaning, activeSperrzeit, hours] = await Promise.all([
+        entriesCached(userId), latestKgEntryCached(userId), cleaningRulesCached(userId),
+        subSperrzeitCached(userId), wearingHoursCached(userId, nowMs, tz),
+      ]);
+
+      // Reinigungspause: der jüngste KG-Eintrag ist eine Reinigungsöffnung, deren Wiederverschluss
+      // die Session noch fortführen würde. Ohne diese Ableitung sah der Sub in dieser Zeit
+      // „Geöffnet seit …" — nicht von einer wirklich beendeten Session zu unterscheiden
+      // (Rückmeldung 15.07.2026).
+      //
+      // Die Frist kommt aus `runningCleaningPauseUntil` — DERSELBEN Regel, nach der `buildPairs`
+      // die Öffnung als blosse Unterbrechung verbucht. Das ist der Kern: der Countdown beantwortet
+      // genau die Frage, die der Sub stellt („bleibt das dieselbe Session?"), und kann dem
+      // Zeitstrahl darunter gar nicht widersprechen. Die Strafbuch-Frist
+      // (`cleaningRelockObligation`) ist eine ANDERE Frist — siehe die Warnung an beiden Funktionen.
+      //
+      // BEWUSST nur Anzeige: `isLocked`, die Box-Kopplung und jede Statistik bleiben unberührt —
+      // die Box IST offen, und ein erzwungenes „verschlossen" bräche das Wiederverschluss-Formular
+      // und die Entry-Guards.
+      const cleaningPauseUntil = runningCleaningPauseUntil(latest, cleaning.rules, now);
+
+      // Die STRAFFRIST daneben, und zwar nur, wenn sie FRÜHER liegt als der Countdown oben.
+      //
+      // Der Countdown beantwortet „bleibt das dieselbe Session?" und darf das auch weiter
+      // (Begründung oben). Aber die Frist, gegen die BESTRAFT wird, ist eine andere: bei
+      // konfiguriertem Reinigungsfenster reicht sie bis ans Fensterende, und der Kommentar an
+      // `cleaningInterruptionDeadline` nimmt an, das sei immer SPÄTER. Es kann früher sein —
+      // Öffnung 21:55, Fenster bis 22:00, Kontingent 15 Minuten: der Countdown lief bis 22:10, das
+      // Vergehen entstand um 22:00. Wer bei grünem Countdown um 22:05 verschloss, hatte ein
+      // Vergehen und keine Ahnung warum. Die strengere Frist gehört ihm gesagt, nicht die bequemere.
+      //
+      // Die Sperrzeit, die zur ÖFFNUNGSZEIT schon galt — nicht die, die jetzt gilt. Das Strafbuch
+      // nimmt ebenfalls die damalige (`findActiveSperrzeit` prüft `openTime >= s.createdAt`). Eine
+      // erst nach der Öffnung angelegte Sperrzeit ergäbe hier eine Drohung, der im Strafbuch nichts
+      // entspricht.
+      const sperreBeiOeffnung = latest && activeSperrzeit && activeSperrzeit.createdAt <= latest.startTime
+        ? activeSperrzeit
+        : null;
+      const cleaningRelockDeadline = latest && cleaningPauseUntil
+        // Die Fassung, die zur ÖFFNUNG galt — dieselbe, nach der `buildPairs` und das Strafbuch
+        // diese Pause beurteilen, und ALLE Felder aus ihr: käme das Fenster aus der heutigen
+        // Spalte, liefen Countdown und Vergehens-Frist für dieselbe Pause auseinander.
+        ? await (async () => {
+            const settings = cleaning.at(latest.startTime);
+            return cleaningRelockObligation(
+              latest,
+              sperreBeiOeffnung,
+              cleaningPermissionUserAt(settings, tz),
+              settings.maxMinutes,
+              await cleaningWindowEnforcedFrom(now),
+            );
+          })()
+        : null;
+      const cleaningRelockWarnUntil =
+        cleaningRelockDeadline && cleaningPauseUntil && cleaningRelockDeadline < cleaningPauseUntil
+          ? cleaningRelockDeadline
+          : null;
+
+      return { hasEntries: entries.length > 0, latest, cleaningPauseUntil, cleaningRelockWarnUntil, hours };
+    },
+    render: (data, { now, tz, dl }) => {
+      const clientProps: DashboardProps = {
+        currentStatus: data.latest
+          ? { type: data.latest.type as "VERSCHLUSS" | "OEFFNEN", since: data.latest.startTime.toISOString() }
+          : null,
+        cleaningPauseUntil: data.cleaningPauseUntil?.toISOString() ?? null,
+        // FERTIG formatiert und in der Zone des SUBS: die Frist ist ein Fensterende in seiner
+        // Wanduhrzeit. Im Client formatiert stünde dort die Gerätezone des Betrachters — und beim
+        // Server-Rendering die des Containers, was zusätzlich einen Hydration-Unterschied ergäbe.
+        cleaningRelockWarnTime: data.cleaningRelockWarnUntil ? formatTime(data.cleaningRelockWarnUntil, dl, tz) : null,
+        cleaningRelockWarnPassed: !!data.cleaningRelockWarnUntil && data.cleaningRelockWarnUntil < now,
+        hasEntries: data.hasEntries,
+
+        tagH: data.hours.tagH,
+        wocheH: data.hours.wocheH,
+        monatH: data.hours.monatH,
+        serverNow: now.toISOString(),
+        elapsedTagH: (now.getTime() - getMidnightToday(now, tz).getTime()) / 3_600_000,
+        elapsedWocheH: (now.getTime() - getWeekStart(now, tz).getTime()) / 3_600_000,
+        elapsedMonatH: (now.getTime() - getMonthStart(now, tz).getTime()) / 3_600_000,
+      };
+      return <DashboardClient {...clientProps} />;
+    },
+  }),
+
+  sessionList: block({
+    load: async ({ userId, nowMs }) => {
+      const [pairs, orgasmusEntries, telemetryKeyProof, user, deviceCount] = await Promise.all([
+        subPairsCached(userId, nowMs), orgasmEntriesCached(userId), subKeyProofCached(userId, nowMs),
+        userRowCached(userId), deviceCountCached(userId),
+      ]);
+      return { pairs, orgasmusEntries, telemetryKeyProof, user, deviceCount };
+    },
+    render: (data, { tz }) => data.pairs.length > 0 ? (
+      <DashboardBlock>
+        <SessionList
+          pairs={data.pairs}
+          orgasmusEntries={data.orgasmusEntries}
+          userHasDevices={data.deviceCount > 0}
+          tz={tz}
+          orgasmusArtenConfig={data.user?.orgasmusArtenConfig}
+          oeffnenGruendeConfig={data.user?.oeffnenGruendeConfig}
+          telemetryKeyProof={data.telemetryKeyProof}
+        />
+      </DashboardBlock>
+    ) : null,
+  }),
+
+  wearSessionList: block({
+    load: async ({ userId, nowMs, dl }) => {
+      const [categories, sessionList, entries] = await Promise.all([
+        trackingCategoriesCached(userId), wearSessionsCached(userId, nowMs), entriesCached(userId),
+      ]);
+      return buildWearSessionRows(categories, sessionList, dl, entries);
+    },
+    render: (rows) => rows.length > 0 ? (
+      <DashboardBlock>
+        <WearSessionList sessions={rows} />
+      </DashboardBlock>
+    ) : null,
+  }),
+
+  // Der ganze Bestand — hier unten bei den übrigen Historien-Listen, nicht oben bei dem, was
+  // gerade zu tun ist.
+  taskList: block({
+    load: async (ctx) => (await taskCardsOf(ctx)).all,
+    render: (tasks, { tz }) => tasks.length > 0 ? (
+      <DashboardBlock>
+        <TaskList tasks={tasks} tz={tz} />
+      </DashboardBlock>
+    ) : null,
+  }),
+};
