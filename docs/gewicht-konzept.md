@@ -1,7 +1,9 @@
 # Gewichtstracking: Wiegen, Grenzen, Verlauf
 
-**Status:** Planung — noch keine Zeile Code. **Alle Grundsatzfragen sind entschieden** (22.08.2026);
-offen ist noch ein einziger Punkt, siehe Abschnitt 13.
+**Status:** **Etappe 1 gebaut** (22.08.2026) — Schema und Migration, beide Schalter, der Rechenkern
+`weight.ts`, die Wiege-Fenster `weightWindows.ts`, der Schreibpfad und die Einstellungen auf beiden
+Seiten. Erfassung, Vergehen, Meldung, Diagramm, Erkennung und MCP stehen noch aus (Abschnitt 14).
+**Alle Grundsatzfragen sind entschieden**; offen ist ein einziger Punkt, siehe Abschnitt 13.
 **Erstellt:** 2026-08-22 · **Entscheidungen eingearbeitet:** 2026-08-22
 **Branch:** `feat/weight-tracking` (Worktree `../kg-weight`, abgezweigt von `main` @ a7b0001, v5.2.9)
 **Auslöser:** Anfrage aus der Nutzerschaft, ergänzt um eine handschriftliche Detailskizze. Aus
@@ -91,7 +93,7 @@ Erzwungen wird die Pflicht dort, wo sie hingehört: im Erfassungspfad des Subs.
 
 **Eine Kommastelle in der Eingabe, volle Genauigkeit in der Ablage.** Die Skizze verlangt „75,6 kg".
 Gerundet wird beim *Tippen*, nicht beim *Speichern*: wer in Pfund einträgt, tippt 165,4 lbs — das
-sind 75,0257 kg, und genau die kommen in die Spalte. Bei Rundung auf 75,0 kg zeigte die Anzeige ihm
+sind 75,0242 kg, und genau die kommen in die Spalte. Bei Rundung auf 75,0 kg zeigte die Anzeige ihm
 165,3 lbs zurück. Rundung gehört in die Anzeige, nirgendwo sonst.
 
 **`dayKey`** kommt aus `tzDayKey()` mit der **Zeitzone des Subs** — wer um 23:50 Uhr auf der Waage
@@ -140,8 +142,16 @@ targetMaxKg            Float?                    // Korridor des Subs, obere Gre
 targetMinKeyholderKg   Float?                    // Nachbesserung der KH — darf nur WEITEN
 targetMaxKeyholderKg   Float?
 weighingWindows        String?                   // JSON [{"start":"06:00","end":"08:00"}], Sub-Lokalzeit
-weighingWindowsSetById String?
 ```
+
+Die fünf Felder, die der Sub selbst schreibt, stehen zusätzlich in `SELF_EDITABLE_USER_FIELDS` —
+der Whitelist, gegen die das Register prüft, wer welches User-Feld ändern darf. Die vier
+Keyholder-Felder stehen dort bewusst **nicht**.
+
+**Kein Feld „wer hat die Fenster gesetzt".** Ursprünglich vorgesehen, beim Bauen gestrichen: ob eine
+Messung im Fenster lag, entscheidet der Erfassungs-Zeitpunkt und steht danach auf der Zeile
+(`WeightEntry.inWindow`). Damit gibt es nichts, was später nach einer alten Fassung neu beurteilt
+werden müsste — die Fenster brauchen weder Historie noch Urheber.
 
 **BMI wird gerechnet, nicht gespeichert** — eine Spalte wäre eine zweite Wahrheit, die bei jeder
 Grössenkorrektur still falsch würde. Formel, Umrechnung, Rundung und die Korridor-Prüfung in
@@ -271,8 +281,11 @@ wird damit eine Prüfung in einer Zeile statt einer Fallunterscheidung über Ab-
 - Der Wunsch des Subs bleibt neben der Nachbesserung sichtbar
 
 **Untergrenze:** liegt ein Zielwert unter **BMI 18,5**, warnt die App beim Setzen deutlich — lässt
-ihn aber zu. Zusätzlich geht unterhalb dieser Schwelle **keine automatische Grenz-Meldung** an die
-Keyholderin: die App fordert nicht ein, was sie selbst als bedenklich anzeigt. Die
+ihn aber zu. Geprüft werden **beide** Enden: eine Obergrenze im Untergewicht fordert es ein, eine
+Untergrenze dort erlaubt es. *(Gebaut in Etappe 1.)* Zusätzlich soll unterhalb dieser Schwelle
+**keine automatische Grenz-Meldung** an die Keyholderin gehen — die App fordert nicht ein, was sie
+selbst als bedenklich anzeigt. *(Gehört zur Meldung, also Etappe 5; bis dahin verspricht die Warnung
+das auch nicht.)* Die
 „nur-lockern"-Regel schützt vor der Keyholderin; diese Schwelle schützt davor, dass eine
 selbstgesetzte Zahl anschliessend von aussen eingefordert wird.
 

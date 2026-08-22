@@ -544,6 +544,18 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Mehr als Darstellung: Reinigungsfenster, Schlaf-Fenster und der Kalendertag des Kontingents rechnen darin.",
   }),
   c({
+    id: "weight-self", mechanic: "Gewicht", title: "Gewichts-Angaben pflegen",
+    what: "Körpergrösse, Anzeige-Einheit, Referenzangabe und der eigene Zielkorridor.",
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/settings/weight"],
+    note: "Nur erreichbar, solange die Keyholderin das Gewichtstracking für diesen Träger freigeschaltet hat — die Route prüft das selbst, nicht nur die Oberfläche.",
+  }),
+  c({
+    id: "weight-keyholder", mechanic: "Gewicht", title: "Gewichtstracking einrichten",
+    what: "Freischaltung, Wiege-Zeitfenster und die Nachbesserung der Grenzen des Trägers.",
+    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users/[id]"],
+    note: "Die Grenzen setzt der Träger; die Keyholderin darf sie nur weiten, nie verengen.",
+  }),
+  c({
     id: "user-manage", mechanic: "Zugang", title: "Konten verwalten",
     what: "Anlegen, bearbeiten, Rolle setzen, Passwort setzen und löschen.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users", "/api/admin/users/[id]"],

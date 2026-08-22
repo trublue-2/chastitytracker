@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-90 Funktionen über 17 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+92 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -224,6 +224,13 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | **Auf neue Fassung prüfen** | Liest den Changelog der veröffentlichten Fassung und meldet, wenn diese Instanz zurückliegt. | System | läuft von selbst | `/api/upstream-changelog` |
 | **Lebenszeichen** | Der Takt, an dem die zeitgesteuerten Abläufe hängen. | System | läuft von selbst | `/api/heartbeat` |
 | **App-Verknüpfung für iOS** | Die Datei, mit der iOS Links dieser Instanz der App zuordnet. | System | Gegenstelle | `/api/apple-app-site-association` |
+
+## Gewicht
+
+| Funktion | Was sie tut | Wer | Wo | Endpunkt |
+|---|---|---|---|---|
+| **Gewichts-Angaben pflegen** | Körpergrösse, Anzeige-Einheit, Referenzangabe und der eigene Zielkorridor. <br>*Nur erreichbar, solange die Keyholderin das Gewichtstracking für diesen Träger freigeschaltet hat — die Route prüft das selbst, nicht nur die Oberfläche.* | Sub | App (Träger) | `/api/settings/weight` |
+| **Gewichtstracking einrichten** | Freischaltung, Wiege-Zeitfenster und die Nachbesserung der Grenzen des Trägers. <br>*Die Grenzen setzt der Träger; die Keyholderin darf sie nur weiten, nie verengen.* | Keyholder (UI) | App (Keyholder) | `/api/admin/users/[id]` |
 
 ## Läuft von selbst
 

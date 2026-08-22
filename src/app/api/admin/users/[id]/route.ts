@@ -12,6 +12,8 @@ import { setReinigungSettings } from "@/lib/reinigungService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { setReasonConfig } from "@/lib/reasonsService";
+import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
+import { weightTrackingEnabled } from "@/lib/constants";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { serviceResponse } from "@/lib/serviceResult";
 
@@ -144,6 +146,22 @@ export async function PATCH(
   if (body.oeffnenGruendeConfig !== undefined) {
     const config = await setReasonConfig(id, "opening", body.oeffnenGruendeConfig);
     return NextResponse.json({ ok: true, config });
+  }
+
+  if (
+    body.weightTrackingEnabled !== undefined || body.weighingWindows !== undefined ||
+    body.targetMinKeyholderKg !== undefined || body.targetMaxKeyholderKg !== undefined
+  ) {
+    // Instanz-Schalter zuerst: ist das Feature auf dieser Instanz abgewählt, gibt es die
+    // Einstellung nicht — 404 statt 403, damit die Antwort nicht verrät, dass es sie gäbe. Der
+    // Schalter je Sub wird hier NICHT geprüft: er steht in genau diesem Patch.
+    if (!weightTrackingEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return serviceResponse(await setWeightSettingsKeyholder(id, {
+      enabled: body.weightTrackingEnabled,
+      weighingWindows: body.weighingWindows, // roh — der Service validiert/normalisiert
+      targetMinKeyholderKg: body.targetMinKeyholderKg,
+      targetMaxKeyholderKg: body.targetMaxKeyholderKg,
+    }));
   }
 
   if (body.mobileDesktopUpload !== undefined) {

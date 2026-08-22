@@ -2,7 +2,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getControllableSubs } from "@/lib/keyholder";
 import { getMessageChannels } from "@/lib/notificationPrefs";
-import { isValidStartPage } from "@/lib/constants";
+import { isValidStartPage, weightTrackingEnabled } from "@/lib/constants";
+import type { WeightSettingsProps } from "./WeightSettings";
+import type { ReferenceSex, UnitSystem } from "@/lib/weight";
 import pkg from "@/../package.json";
 
 export interface SettingsFormProps {
@@ -25,6 +27,9 @@ export interface SettingsFormProps {
   version: string;
   buildDate?: string;
   feedbackEnabled?: boolean;
+  /** Gewichtstracking — `null`, wenn der Instanz-Schalter aus ist ODER die Keyholderin es für
+   *  diesen Sub nicht freigeschaltet hat. Der Abschnitt erscheint dann gar nicht. */
+  weight: WeightSettingsProps | null;
 }
 
 /**
@@ -42,6 +47,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   let timezone = "Europe/Zurich";
   let startPage = "auto";
   let hideOwnTracker = false;
+  let weight: WeightSettingsProps | null = null;
   // Fehlende Zeile = „an" (dieselbe Annahme wie beim Versand in notify.ts).
   let messageNotify = true;
 
@@ -49,7 +55,11 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     const [dbUser, pref] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
-        select: { username: true, email: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true },
+        select: {
+          username: true, email: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true,
+          weightTrackingEnabled: true, unitSystem: true, heightCm: true, referenceSex: true,
+          targetMinKg: true, targetMaxKg: true,
+        },
       }),
       getMessageChannels(userId),
     ]);
@@ -62,6 +72,18 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
       timezone = dbUser.timezone;
       startPage = dbUser.startPage;
       hideOwnTracker = dbUser.hideOwnTracker;
+      if (weightTrackingEnabled() && dbUser.weightTrackingEnabled) {
+        weight = {
+          unitSystem: dbUser.unitSystem as UnitSystem,
+          heightCm: dbUser.heightCm,
+          referenceSex: dbUser.referenceSex as ReferenceSex | null,
+          targetMinKg: dbUser.targetMinKg,
+          targetMaxKg: dbUser.targetMaxKg,
+          // Erst ab der ersten gespeicherten Grösse gibt es etwas zu korrigieren — vorher wäre die
+          // Frage „Korrektur oder Änderung?" ohne Gegenstand.
+          hasHeightHistory: (await prisma.heightChange.count({ where: { userId } })) > 0,
+        };
+      }
     }
   }
 
@@ -90,5 +112,6 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     version: pkg.version,
     buildDate: process.env.BUILD_DATE ?? undefined,
     feedbackEnabled: process.env.DISABLE_FEEDBACK !== "true",
+    weight,
   };
 }

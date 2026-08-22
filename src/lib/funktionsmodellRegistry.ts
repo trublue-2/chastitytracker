@@ -26,7 +26,7 @@ export type FmWriter = "sub" | "admin" | "mcp" | "portal" | "system";
 export type FmTarget =
   | "Sperrzeit" | "Reinigung" | "Kontrollen" | "Auto-Kontrollen" | "Box" | "Strafbuch"
   | "Aufgaben" | "Trainingsziele" | "Orgasmus" | "Geräte" | "Einträge" | "Sessions/Statistik"
-  | "Benachrichtigungen" | "Nachrichten" | "MCP" | "Oberfläche" | "Zugang" | "Bildersafe";
+  | "Benachrichtigungen" | "Nachrichten" | "MCP" | "Oberfläche" | "Zugang" | "Bildersafe" | "Gewicht";
 
 /**
  * Wie lange ein Wert gilt. Die Unterscheidung ist load-bearing: `User.reinigungErlaubt` ist ein
@@ -141,6 +141,7 @@ export const FM_DOMAINS: FmDomain[] = [
   { id: "benachrichtigung", title: "Benachrichtigungen", doc: "75-benachrichtigungen.md", mechanic: "Benachrichtigungen" },
   { id: "kontext", title: "Keyholder-Wissen & Kontext", doc: "80-kontext.md", mechanic: "MCP" },
   { id: "konto", title: "Konto, Zugang & Darstellung", doc: "85-zugang.md", mechanic: "Zugang" },
+  { id: "gewicht", title: "Gewicht", mechanic: "Gewicht" },
   { id: "betrieb", title: "Betrieb & Stichtage" },
 ];
 
@@ -418,6 +419,54 @@ export const FM_REGISTRY: FmEntry[] = [
     model: "User", field: "mcpKeyholderInstructions", domain: "kontext", scope: "standing",
     effect: "Dauerauftrag an die Keyholder-KI; wird ihr bei jeder MCP-Verbindung mitgegeben. Der Sub sieht ihn nie.",
     writers: ["admin"], affects: ["MCP"], anchor: "app/api/[transport]/route.ts",
+  }),
+
+  // ── User: Gewicht ──────────────────────────────────────────────────────────────────────────
+  s({
+    model: "User", field: "weightTrackingEnabled", domain: "gewicht", scope: "standing",
+    effect: "Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`).",
+    writers: ["admin"], affects: ["Gewicht", "Oberfläche"], anchor: "authGuards.ts:weightTrackingGate",
+  }),
+  s({
+    model: "User", field: "heightCm", domain: "gewicht", scope: "standing",
+    effect: "Aktuelle Körpergrösse — die Grundlage jedes BMI. Historisiert in `HeightChange`: ein BMI wird mit der Grösse gerechnet, die zum Messzeitpunkt galt.",
+    writers: ["sub"], affects: ["Gewicht"], anchor: "weight.ts:heightAt",
+    retroactive: "Als KORREKTUR gespeichert (die alte Zahl war nie wahr) schreibt sie die jüngste Historie-Zeile um und verschiebt damit jeden BMI, der mit ihr gerechnet wurde. Als ÄNDERUNG gespeichert wirkt sie nur nach vorn.",
+  }),
+  s({
+    model: "User", field: "referenceSex", domain: "gewicht", scope: "standing",
+    effect: "Wählt die Referenztabelle für den Normbereich beim Setzen der Grenzen. Der BMI selbst rechnet ohne sie.",
+    writers: ["sub"], affects: ["Gewicht", "Oberfläche"], anchor: "weight.ts:normalWeightRangeKg",
+  }),
+  s({
+    model: "User", field: "unitSystem", domain: "gewicht", scope: "standing",
+    effect: "Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt.",
+    writers: ["sub"], affects: ["Oberfläche"], anchor: "weight.ts:weightForDisplay",
+  }),
+  s({
+    model: "User", field: "targetMinKg", domain: "gewicht", scope: "standing",
+    effect: "Untergrenze des Zielkorridors, gesetzt vom Träger. Eine Unterschreitung meldet der Keyholderin — sie entscheidet, ob etwas folgt.",
+    writers: ["sub"], affects: ["Gewicht", "Nachrichten"], anchor: "weight.ts:effectiveCorridor",
+  }),
+  s({
+    model: "User", field: "targetMaxKg", domain: "gewicht", scope: "standing",
+    effect: "Obergrenze des Zielkorridors, gesetzt vom Träger.",
+    writers: ["sub"], affects: ["Gewicht", "Nachrichten"], anchor: "weight.ts:effectiveCorridor",
+  }),
+  s({
+    model: "User", field: "targetMinKeyholderKg", domain: "gewicht", scope: "standing",
+    effect: "Nachbesserung der Untergrenze durch die Keyholderin. Sie darf den Korridor nur WEITEN — wirksam ist stets der weitere der beiden Werte.",
+    writers: ["admin"], affects: ["Gewicht"], anchor: "weight.ts:keyholderCorridorProblem",
+  }),
+  s({
+    model: "User", field: "targetMaxKeyholderKg", domain: "gewicht", scope: "standing",
+    effect: "Nachbesserung der Obergrenze durch die Keyholderin, mit derselben Nur-Weiten-Regel.",
+    writers: ["admin"], affects: ["Gewicht"], anchor: "weight.ts:keyholderCorridorProblem",
+  }),
+  s({
+    model: "User", field: "weighingWindows", domain: "gewicht", scope: "standing",
+    effect: "Tägliche Zeitfenster fürs Wiegen (Wanduhrzeit des Trägers). Leer = keine Fensterpflicht. Ein Wert ausserhalb wird markiert, nicht geahndet — er misst nur eine andere Tageszeit mit.",
+    writers: ["admin"], affects: ["Gewicht"], anchor: "weightWindows.ts:inWeighingWindow",
   }),
 
   pk("User"),

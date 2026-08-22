@@ -2,9 +2,10 @@ import { auth } from "@/lib/auth";
 import type { Session } from "next-auth";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled, weightTrackingEnabled } from "@/lib/constants";
 import { getControllableSubsCached, isKeyholderOf } from "@/lib/keyholder";
 import { errorResponse } from "@/lib/serviceResult";
+import { prisma } from "@/lib/prisma";
 
 /** A session that is guaranteed to carry a user id (what `requireApi` hands back).
  *  `Session` (not `ReturnType<typeof auth>`) — `auth` is overloaded and would resolve to the
@@ -171,4 +172,24 @@ export async function assertKeyholderOrAdmin(targetUserId: string): Promise<{ us
 export function deviceCategoriesGate(): NextResponse | null {
   if (deviceCategoriesEnabled()) return null;
   return NextResponse.json({ error: "Device-Kategorien sind nicht aktiviert" }, { status: 404 });
+}
+
+/**
+ * Gewichtstracking: **beide** Schalter in einem Guard — der Instanz-Schalter (ENV) und der Schalter
+ * der Keyholderin für DIESEN Sub. `null` heisst „durchlassen".
+ *
+ * Die Prüfung gehört serverseitig in jede Route, nicht nur in die Oberfläche: ein ausgeblendetes
+ * Formular ist keine Sperre, der Endpunkt bliebe per direktem Aufruf erreichbar.
+ *
+ * Zwei verschiedene Antworten, mit Absicht: der ausgeschaltete Instanz-Schalter liefert **404** —
+ * das Feature existiert dort nicht, und ein 403 verriete, dass es es gäbe. Der ausgeschaltete
+ * Sub-Schalter liefert **403** mit stabilem Code, denn hier ist die Antwort „noch nicht
+ * freigeschaltet" und die Oberfläche soll genau das sagen können.
+ */
+export async function weightTrackingGate(userId: string): Promise<NextResponse | null> {
+  if (!weightTrackingEnabled()) {
+    return NextResponse.json({ error: "Gewichtstracking ist nicht aktiviert" }, { status: 404 });
+  }
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { weightTrackingEnabled: true } });
+  return user?.weightTrackingEnabled ? null : errorResponse(403, "WEIGHT_TRACKING_DISABLED");
 }

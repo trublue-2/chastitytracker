@@ -77,6 +77,33 @@ model User {
   dashboardLayout                String?
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
   mcpKeyholderInstructions       String?
+  // ── Gewichtstracking (docs/gewicht-konzept.md) ────────────────────────────────────────────────
+  // Schalter der Keyholderin je Sub. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden, die
+  // Daten bleiben. Dazu der Instanz-Schalter `ENABLE_WEIGHT_TRACKING` (constants.ts).
+  weightTrackingEnabled          Boolean                  @default(false)
+  // AKTUELLE Körpergrösse. Die Historie steht in `HeightChange` — ein BMI wird mit der Grösse
+  // gerechnet, die zum Messzeitpunkt galt, nicht mit der von heute.
+  heightCm                       Int?
+  // Nur zur Auswahl der Referenzbereiche beim Setzen der Grenzwerte ("m" | "f" | null = keine
+  // Angabe). Der BMI selbst ist geschlechtsunabhängig und benutzt das Feld NICHT.
+  referenceSex                   String?
+  // Anzeige-Präferenz DESSEN, DER SCHAUT ("metric" | "imperial") — keine Eigenschaft der Daten:
+  // eine Keyholderin darf Pfund sehen, während ihr Sub in Kilogramm einträgt.
+  unitSystem                     String                   @default("metric")
+  // Der Zielkorridor. Gesetzt wird er vom SUB (er ist der Realistischere); die Keyholderin darf ihn
+  // nur WEITEN, nie verengen — wirksam ist stets der weitere der beiden Werte (siehe `weight.ts`).
+  targetMinKg                    Float?
+  targetMaxKg                    Float?
+  targetMinKeyholderKg           Float?
+  targetMaxKeyholderKg           Float?
+  // Tägliche Wiege-Fenster als JSON-String, z.B. [{"start":"06:00","end":"08:00"}] (Sub-Lokalzeit),
+  // gesetzt von der Keyholderin. NULL/[] = keine Fensterpflicht, jede Uhrzeit gilt.
+  //
+  // Bewusst NICHT historisiert: ob eine Messung im Fenster lag, entscheidet der Erfassungs-Zeitpunkt
+  // und steht danach auf der Zeile (`WeightEntry.inWindow`). Es gibt also nichts, was später nach
+  // einer alten Fassung neu beurteilt werden müsste — anders als bei den Reinigungsfenstern, deren
+  // Verletzung das Strafbuch live ableitet.
+  weighingWindows                String?
   entries                        Entry[]
   notificationPrefs              NotificationPreference[]
   vorgaben                       TrainingVorgabe[]
@@ -107,6 +134,8 @@ model User {
   offenseRuleChanges             OffenseRuleChange[]
   cleaningRuleChanges            CleaningRuleChange[]
   timezoneChanges                TimezoneChange[]
+  weightEntries                  WeightEntry[]
+  heightChanges                  HeightChange[]
 }
 
 /// Ein von Hand notiertes Vergehen — das einzige, das nicht aus Einträgen ABGELEITET wird.
@@ -1314,4 +1343,74 @@ model OAuthRefreshToken {
 
   @@index([tokenHash])
   @@index([expiresAt])
+}
+
+/// Eine Gewichtsmessung — höchstens EINE je Kalendertag des Subs.
+///
+/// Bewusst ein eigenes Modell und kein `Entry`-Typ: `Entry` ist vollständig verschluss- und
+/// geräteförmig (`deviceId`, `kontrollCode`, `verifikationStatus`, `keyInBox`, `boxImageUrl` …).
+/// Ein Gewicht teilt davon nichts und käme mit rund zwanzig dauerhaft leeren Spalten hinein.
+model WeightEntry {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  measuredAt    DateTime
+  /// `tzDayKey(measuredAt, user.timezone)` — der Tag in der Zeitzone DES SUBS. Wer um 23:50 Uhr auf
+  /// der Waage steht, hat an diesem Tag gewogen, nicht an dem, den UTC gerade zählt.
+  dayKey        String
+  /// IMMER metrisch. Gerundet wird beim Tippen (eine Kommastelle), nicht beim Speichern: wer in
+  /// Pfund einträgt, tippt 165,4 lbs = 75,0242 kg — auf 75,0 gerundet zeigte die Anzeige ihm 165,3
+  /// zurück.
+  weightKg      Float
+  /// Lag `measuredAt` in einem Wiege-Fenster? Zum Erfassungs-Zeitpunkt festgeschrieben, weil die
+  /// Fenster nicht historisiert sind. Ein Wert ausserhalb erfüllt die Meldepflicht trotzdem — er
+  /// wird nur im Diagramm abgesetzt und bleibt aus der geglätteten Trendlinie heraus.
+  inWindow      Boolean   @default(true)
+  /// Foto der Waage. Auf dem SUB-Pfad Pflicht, die Spalte bleibt trotzdem nullbar: die Keyholderin
+  /// sitzt beim Nachtragen nicht vor seiner Waage, die KI über den MCP erst recht nicht — und nach
+  /// Ablauf der Aufbewahrungsfrist wird die Datei gelöscht, während der Wert bleibt.
+  imageUrl      String?
+  /// Aufnahmezeit aus den EXIF-Daten. Gegen das Wiege-Fenster geprüft ist sie die schärfste Klinge
+  /// gegen ein Foto von gestern — dafür braucht es kein Modell.
+  imageExifTime DateTime?
+  /// Wann das Foto nach Ablauf der Frist gelöscht wurde. Unterscheidet „hatte nie eines" von
+  /// „hatte eines, ist abgelaufen".
+  imagePrunedAt DateTime?
+  /// Was die Waagen-Erkennung gelesen hat; null = nicht geprüft (kein Foto, kein Vision-Provider,
+  /// nicht auswertbar). Getrennt von `weightKg` aus demselben Grund wie `deviceCheckNote` neben
+  /// `deviceCheck`: nur so ist sichtbar, ob der Mensch korrigiert hat.
+  detectedKg    Float?
+  note          String?
+  /// "user" | "keyholder" | "agent" — wer die Zeile angelegt hat.
+  source        String    @default("user")
+  /// Username des Erfassenden (bzw. `ai`), wenn es nicht der Sub selbst war.
+  createdById   String?
+  /// OCC für Schreibzugriffe über den MCP (`expectedVersion`), wie bei den übrigen MCP-Schreibwegen.
+  version       Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  @@unique([userId, dayKey])
+  @@index([userId, measuredAt])
+}
+
+/// Eine Änderung der Körpergrösse — append-only, Muster `CleaningRuleChange`.
+///
+/// Warum eine Historie: die Grösse geht in JEDEN BMI ein. Ein einzelnes Feld würde beim Ändern
+/// rückwirkend jeden je berechneten BMI verschieben. Mit der Historie wird jede Messung mit der
+/// Grösse gerechnet, die zu IHREM Zeitpunkt galt (`effectiveAt`).
+///
+/// Eine KORREKTUR ist etwas anderes als eine ÄNDERUNG: „178 statt 187" war nie wahr und schreibt
+/// die bestehende Zeile um; echtes Wachstum legt eine neue an. Die App kann das nicht erraten,
+/// deshalb fragt das Formular danach.
+model HeightChange {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  heightCm      Int
+  effectiveFrom DateTime
+  /// Username dessen, der geändert hat (bzw. `ai`). Null bei der Grundzeile.
+  changedBy     String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, effectiveFrom])
 }

@@ -8,6 +8,10 @@ import InspectionEscalationToggle from "@/app/admin/InspectionEscalationToggle";
 import OffenseRulesEditor from "@/app/admin/OffenseRulesEditor";
 import { getOffenseRules } from "@/lib/offenseRulesService";
 import { parseReinigungsFenster } from "@/lib/reinigungService";
+import { parseWeighingWindows } from "@/lib/weightWindows";
+import { weightTrackingEnabled } from "@/lib/constants";
+import WeightToggle from "@/app/admin/WeightToggle";
+import type { UnitSystem } from "@/lib/weight";
 import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reasonsService";
 import ReasonsEditor from "@/app/admin/ReasonsEditor";
 import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, ORGASMUS_ART_I18N_KEYS, GRUND_I18N_KEYS } from "@/lib/constants";
@@ -40,7 +44,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   const { userId: actorId, isGlobalAdmin } = await assertKeyholderOrAdmin(id);
 
-  const [user, vorgaben, categories, keyholders, offenseRules, t, tc, dl, tOrgasm, tOpen] = await Promise.all([
+  const [user, vorgaben, categories, keyholders, offenseRules, t, tc, dl, tOrgasm, tOpen, actor] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.trainingVorgabe.findMany({ where: { userId: id, deletedAt: null }, orderBy: { gueltigAb: "desc" } }), // B-04: soft-gelöschte Ziele ausblenden
     // Vorgaben can only be set on KG-built-in or user-categories with allowVorgaben=true.
@@ -56,10 +60,18 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
     getLocale().then(toDateLocale),
     getTranslations("orgasmForm"),
     getTranslations("openForm"),
+    // Die Anzeige-Einheit DES BETRACHTERS: die Gewichts-Zahlen dieser Seite stehen in ihrer
+    // Einheit, nicht in der des Trägers (docs/gewicht-konzept.md, Abschnitt 2). Im selben
+    // Promise.all wie der Rest — `actorId` steht seit dem Guard fest, ein eigener Roundtrip
+    // danach wäre reine Wartezeit. Führt die Instanz das Feature nicht, wird gar nicht gefragt.
+    weightTrackingEnabled()
+      ? prisma.user.findUnique({ where: { id: actorId }, select: { unitSystem: true } })
+      : Promise.resolve(null),
   ]);
 
   if (!user) redirect("/admin");
   const tz = user.timezone;
+
   // Built-in-Codes → i18n-Label (Placeholder im Editor, wenn kein Override gesetzt ist). Deckt auch
   // die Default-Kombi-Codes (`Orgasmus – Masturbation` …) ab, damit deren Editor-Zeilen nicht leer
   // erscheinen (leere Zeilen verleiten dazu, versehentlich eine Unterart zu einer Hauptart zu machen).
@@ -113,6 +125,23 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           initialFenster={parseReinigungsFenster(user.reinigungsFenster)}
         />
       </SettingsSection>
+
+      {/* Gewichtstracking — entfällt ganz, wenn die Instanz das Feature nicht führt */}
+      {weightTrackingEnabled() && (
+        <SettingsSection title={t("sectionWeight")} description={t("sectionWeightDesc")} bodyPadded>
+          <WeightToggle
+            userId={user.id}
+            /* Die Einheit DER KEYHOLDERIN, nicht die des Subs: die Zahlen stehen in ihrer Anzeige. */
+            unitSystem={(actor?.unitSystem ?? "metric") as UnitSystem}
+            initialEnabled={user.weightTrackingEnabled}
+            initialWindows={parseWeighingWindows(user.weighingWindows)}
+            subMinKg={user.targetMinKg}
+            subMaxKg={user.targetMaxKg}
+            initialMinKg={user.targetMinKeyholderKg}
+            initialMaxKg={user.targetMaxKeyholderKg}
+          />
+        </SettingsSection>
+      )}
 
       {/* Anpassbare Auswahllisten: Orgasmus-Arten + Öffnungsgründe */}
       <SettingsSection title={t("sectionReasons")} description={t("sectionReasonsDesc")}>
