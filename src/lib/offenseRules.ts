@@ -38,6 +38,7 @@ export const OFFENSE_RULE_MODES = {
   cleaning_not_relocked: ["off", "on"],
   unfulfilled_task: ["off", "on"],
   admin_password_change: ["off", "on"],
+  missed_weight_report: ["off", "on"],
   // Dreistufig: `lockedOnly` ahndet nur, was während einer laufenden Sperrzeit passiert ist,
   // `always` jeden Orgasmus ohne offenes Fenster.
   unauthorized_orgasm: ["off", "lockedOnly", "always"],
@@ -68,6 +69,10 @@ export const OFFENSE_RULE_DEFAULT: Record<SwitchableOffenseType, OffenseMode> = 
   cleaning_not_relocked: "on",
   unfulfilled_task: "on",
   admin_password_change: "on",
+  // AUS für alle Bestandsnutzer, und auch für neue: das Gewichtstracking ist selbst opt-in, und wer
+  // es einschaltet, hat damit noch keine Meldepflicht bestellt. Ein Update darf niemandem über
+  // Nacht ein Vergehen anhängen — hier zusätzlich für Daten, die es vorher gar nicht gab.
+  missed_weight_report: "off",
   unauthorized_orgasm: "off",
 };
 

@@ -24,6 +24,7 @@ export const OFFENSE_TYPE_I18N_KEYS: Record<OffenseCanonicalType, string> = {
   unfulfilled_task: "unfulfilledTask",
   admin_password_change: "adminPasswordChange",
   unauthorized_orgasm: "unauthorizedOrgasm",
+  missed_weight_report: "missedWeightReport",
   manual_offense: "manualOffense",
 };
 
@@ -72,6 +73,7 @@ export const OFFENSE_TYPE_ORDER = [
   "missed_orgasm",
   "wrong_device",
   "unfulfilled_task",
+  "missed_weight_report",
   "unauthorized_orgasm",
   "manual_offense",
   "admin_password_change",

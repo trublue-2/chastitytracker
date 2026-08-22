@@ -5,8 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/utils";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { cleaningNotRelockedRef } from "@/lib/strafurteilService";
+import { missedWeightRef } from "@/lib/weightObligation";
 import { getLocale, getTranslations } from "next-intl/server";
-import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow } from "./StrafbuchClient";
+import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow } from "./StrafbuchClient";
 
 export default async function StrafbuchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -31,6 +32,12 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     entryId: v.entryId,
     startTimeStr: v.startTime ? fmtDual(v.startTime) : "–",
     note: v.note,
+  }));
+
+  const missedWeightReports: MissedWeightRow[] = sb.missedWeightReports.map((m) => ({
+    refId: missedWeightRef(m.dayKey),
+    dayStr: fmtDual(m.at),
+    days: m.days,
   }));
 
   const unerlaubteOeffnungen: UnerlaubteOeffnungRow[] = sb.unauthorizedOpenings.map((o) => ({
@@ -167,6 +174,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchOffen: t("strafbuchOffen"),
     strafbuchGesamt: t("strafbuchGesamt"),
     strafbuchReinigungLimit: t("strafbuchReinigungLimit"),
+    strafbuchGewichtVersaeumt: t("strafbuchGewichtVersaeumt"),
+    strafbuchGewichtVersaeumtTage: t("strafbuchGewichtVersaeumtTage"),
     strafbuchReinigungLimitDate: t("strafbuchReinigungLimitDate"),
     strafbuchVerwerfen: t("strafbuchVerwerfen"),
     strafbuchVerworfenBadge: t("strafbuchVerworfenBadge"),
@@ -221,6 +230,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       abgelehnt={abgelehnt}
       autoEntfernt={autoEntfernt}
       reinigungLimitVergehen={reinigungLimitVergehen}
+      missedWeightReports={missedWeightReports}
       unfulfilledTasks={aufgaben}
       nichtVerschlossen={nichtVerschlossen}
       verschlussVersaeumt={verschlussVersaeumt}

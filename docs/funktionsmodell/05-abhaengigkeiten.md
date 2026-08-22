@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 128 Kanten über 17 Mechaniken, davon 19 fest verdrahtet.
+Insgesamt 132 Kanten über 18 Mechaniken, davon 19 fest verdrahtet.
 
 ## Einträge
 
@@ -482,6 +482,7 @@ Steckbrief: [70-nachrichten.md](70-nachrichten.md)
 ```mermaid
 flowchart LR
   nNachrichten["Nachrichten"]
+  nGewicht["Gewicht"] --> nNachrichten
   nSperrzeit["Sperrzeit"] --> nNachrichten
   nKontrollen["Kontrollen"] --> nNachrichten
   nOrgasmus["Orgasmus"] --> nNachrichten
@@ -493,6 +494,8 @@ flowchart LR
 
 | Woher | Wodurch | Was passiert | Anker |
 |---|---|---|---|
+| Gewicht | `User.targetMinKg` | Untergrenze des Zielkorridors, gesetzt vom Träger. Eine Unterschreitung meldet der Keyholderin — sie entscheidet, ob etwas folgt. | `weight.ts:effectiveCorridor` |
+| Gewicht | `User.targetMaxKg` | Obergrenze des Zielkorridors, gesetzt vom Träger. | `weight.ts:effectiveCorridor` |
 | Sperrzeit | `VerschlussAnforderung.nachricht` | Begleittext an den Sub; erscheint in der Meldung und im Posteingang. | — |
 | Kontrollen | `KontrollAnforderung.kommentar` | Begleittext an den Sub. | — |
 | Orgasmus | `OrgasmusAnforderung.nachricht` | Begleittext an den Sub. | — |
@@ -602,6 +605,28 @@ Nichts wirkt hier hinein — diese Mechanik lässt sich für sich allein betrach
 | Nachrichten | `AdminUserRelationship.adminId` | Wer diesen Sub steuern darf. Ohne Zeile sieht ein Admin ihn nicht — die Zuordnung ist die eigentliche Berechtigung. | — |
 | Strafbuch | *feste Regel* | Wird das Passwort eines ADMIN-Kontos geändert, während eine Sperrzeit läuft, entsteht ein Vergehen — als einziges im Moment des Vorgangs festgeschrieben statt live abgeleitet. | `passwordAudit.ts` |
 
+## Gewicht
+
+```mermaid
+flowchart LR
+  nGewicht["Gewicht"]
+  nGewicht --> nOberflche["Oberfläche"]
+  nGewicht --> nNachrichten["Nachrichten"]
+```
+
+### Hängt ab von
+
+Nichts wirkt hier hinein — diese Mechanik lässt sich für sich allein betrachten.
+
+### Wirkt auf
+
+| Wohin | Wodurch | Was passiert | Anker |
+|---|---|---|---|
+| Oberfläche | `User.weightTrackingEnabled` | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`). | `authGuards.ts:weightTrackingGate` |
+| Oberfläche | `User.unitSystem` | Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt. | `weight.ts:weightForDisplay` |
+| Nachrichten | `User.targetMinKg` | Untergrenze des Zielkorridors, gesetzt vom Träger. Eine Unterschreitung meldet der Keyholderin — sie entscheidet, ob etwas folgt. | `weight.ts:effectiveCorridor` |
+| Nachrichten | `User.targetMaxKg` | Obergrenze des Zielkorridors, gesetzt vom Träger. | `weight.ts:effectiveCorridor` |
+
 ## Auto-Kontrollen
 
 Steckbrief: [30-kontrollen.md](30-kontrollen.md)
@@ -645,6 +670,7 @@ flowchart LR
   nOberflche["Oberfläche"]
   nEintrge["Einträge"] --> nOberflche
   nZugang["Zugang"] --> nOberflche
+  nGewicht["Gewicht"] --> nOberflche
   nGerte["Geräte"] --> nOberflche
 ```
 
@@ -657,6 +683,8 @@ flowchart LR
 | Zugang | `User.dashboardLayout` | Abweichungen vom Standard-Dashboard (ausgeblendete Blöcke, eigene Reihenfolge) als JSON je Oberfläche. Leer = Standard. | `dashboardLayout.ts:resolveLayout` |
 | Zugang | `User.hideOwnTracker` | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | `ownTracker.ts` |
 | Zugang | `User.locale` | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | `emailI18n.ts` |
+| Gewicht | `User.weightTrackingEnabled` | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`). | `authGuards.ts:weightTrackingGate` |
+| Gewicht | `User.unitSystem` | Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt. | `weight.ts:weightForDisplay` |
 | Geräte | `Device.name` | Anzeigename. Geht zusätzlich in die Geräte-Erkennung ein, zusammen mit den Bildern und den drei optischen Feldern. | — |
 | Geräte | `Device.description` | Freitext — und eines der drei optischen Felder, die in die Geräte-Erkennung eingehen. Prosa über das Tragegefühl verwässert sie hier; die gehört in die Sitz-Notizen. | `deviceReferenceService.ts:visualTraitsOf` |
 | Geräte | `DeviceCategory.name` | Anzeigename der Kategorie; frei änderbar, der `slug` bleibt. | — |

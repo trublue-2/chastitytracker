@@ -1,0 +1,267 @@
+import { prisma } from "@/lib/prisma";
+import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { isValidImageUrl } from "@/lib/constants";
+import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { APP_TZ } from "@/lib/utils";
+import { inWeighingWindow } from "@/lib/weightWindows";
+import {
+  breachToAnnounce, effectiveCorridor, weightDayKey, weightForDisplay, weightProblem,
+  type UnitSystem,
+} from "@/lib/weight";
+import { notifyControllers } from "@/lib/notify";
+import { getControllersOfUser } from "@/lib/keyholder";
+
+/**
+ * Das Erfassen einer Messung — der eine Schreibweg, den Formular, Keyholder-Aktion und (später) der
+ * MCP teilen.
+ *
+ * Warum ein Dienst und nicht Logik in der Route: der Tagesschlüssel, das Fenster-Urteil und die
+ * Foto-Pflicht sind Regeln des Features, nicht der HTTP-Schicht. Stünden sie in der Sub-Route, hätte
+ * die Keyholder-Route sie ein zweites Mal — und die erste Abweichung wäre eine Messung, die beim
+ * einen Weg im Fenster liegt und beim anderen nicht.
+ */
+
+/** Wer die Zeile anlegt. Bestimmt die Foto-Pflicht: nur der Träger steht vor der Waage. */
+export type WeightSource = "user" | "keyholder" | "agent";
+
+export interface RecordWeightParams {
+  /** Immer metrisch — die Umrechnung passiert in der Oberfläche (`weight.ts`). */
+  weightKg: number;
+  measuredAt: Date;
+  imageUrl?: string | null;
+  imageExifTime?: Date | null;
+  /** Was die Waagen-Erkennung gelesen hat. Etappe 7; bis dahin immer `null`. */
+  detectedKg?: number | null;
+  note?: string | null;
+  source: WeightSource;
+  /** Username des Erfassenden (bzw. `ai`), wenn es nicht der Träger selbst war. */
+  createdById?: string | null;
+  now?: Date;
+}
+
+export interface RecordWeightResult {
+  id: string;
+  dayKey: string;
+  inWindow: boolean;
+  /** Wahr, wenn für diesen Tag schon ein Wert stand und überschrieben wurde. */
+  replaced: boolean;
+}
+
+const { table: ERRORS, fail } = serviceErrors({
+  USER_NOT_FOUND: { status: 404, error: "USER_NOT_FOUND" },
+  WEIGHT_TRACKING_DISABLED: { status: 403, error: "WEIGHT_TRACKING_DISABLED" },
+  WEIGHT_OUT_OF_RANGE: { status: 400, error: "WEIGHT_OUT_OF_RANGE" },
+  WEIGHT_PROOF_REQUIRED: { status: 400, error: "WEIGHT_PROOF_REQUIRED" },
+  WEIGHT_IN_FUTURE: { status: 400, error: "WEIGHT_IN_FUTURE" },
+  INVALID_IMAGE_URL: { status: 400, error: "INVALID_IMAGE_URL" },
+});
+
+/** Ab wann eine Messzeit „in der Zukunft" liegt. Ein paar Minuten Luft, weil die Uhr des Handys
+ *  gegenüber der des Servers vorgehen darf — eine Stunde wäre keine Luft mehr, sondern eine Lücke. */
+const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
+
+/**
+ * Schreibt die Messung des Tages. **Ein Wert je Kalendertag des Trägers** — eine zweite Messung
+ * desselben Tages ersetzt die erste, statt eine zweite Zeile anzulegen.
+ *
+ * Der Tag ist der SEINE: `weightDayKey` mit seiner Zeitzone. Wer um 23:50 Uhr auf der Waage steht, hat
+ * an diesem Tag gewogen — nicht an dem, den UTC gerade zählt.
+ */
+export async function recordWeight(
+  userId: string,
+  params: RecordWeightParams,
+): Promise<ServiceResult<RecordWeightResult>> {
+  const problem = weightProblem(params.weightKg);
+  if (problem) return serviceFail(400, problem);
+  if (!isValidImageUrl(params.imageUrl)) return serviceFail(400, "INVALID_IMAGE_URL");
+
+  const now = params.now ?? new Date();
+  if (params.measuredAt.getTime() > now.getTime() + FUTURE_TOLERANCE_MS) {
+    return serviceFail(400, "WEIGHT_IN_FUTURE");
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { weightTrackingEnabled: true, timezone: true, weighingWindows: true },
+      });
+      if (!user) throw fail("USER_NOT_FOUND");
+      // Der Schalter der Keyholderin gilt für JEDEN Schreibweg, nicht nur für die Oberfläche —
+      // sonst schriebe der MCP weiter, während der Träger nichts mehr sieht. Der Instanz-Schalter
+      // sitzt eine Ebene höher (`weightTrackingGate` in den Routen), weil er ein 404 verlangt.
+      if (!user.weightTrackingEnabled) throw fail("WEIGHT_TRACKING_DISABLED");
+
+      const note = params.note?.trim() || null;
+      // Foto-Pflicht — aber mit Ventil: wer unterwegs ist oder eine Waage ohne beleuchtete Anzeige
+      // hat, meldet MIT NOTIZ und die Zeile bleibt beleglos (`imageUrl` null). Ein harter Riegel
+      // ohne Ausweg erzeugt genau die Lücke, die er verhindern soll — nämlich gar keine Meldung.
+      // Für die Keyholderin und die KI gilt sie nicht: die stehen nicht vor seiner Waage.
+      if (params.source === "user" && !params.imageUrl && !note) throw fail("WEIGHT_PROOF_REQUIRED");
+
+      const tz = user.timezone || APP_TZ;
+      const dayKey = weightDayKey(params.measuredAt, tz);
+      // Zum Erfassungs-Zeitpunkt festgeschrieben: die Fenster sind nicht historisiert, weil genau
+      // dieses Feld die Frage später beantwortet, statt sie neu zu stellen.
+      const inWindow = inWeighingWindow(user.weighingWindows, params.measuredAt, tz);
+
+      // Bewusst Nachschlagen statt `upsert`: der Aufrufer soll dem Nutzer sagen können, dass er
+      // einen bestehenden Wert ERSETZT hat. Ein `upsert` erledigt dasselbe in einer Abfrage,
+      // verschweigt aber genau diese Unterscheidung — und „gespeichert" für ein stilles
+      // Überschreiben ist die Meldung, die den Nutzer glauben lässt, er habe jetzt zwei Werte.
+      const existing = await tx.weightEntry.findUnique({
+        where: { userId_dayKey: { userId, dayKey } },
+        select: { id: true },
+      });
+
+      const data = {
+        dayKey,
+        measuredAt: params.measuredAt,
+        weightKg: params.weightKg,
+        inWindow,
+        imageUrl: params.imageUrl ?? null,
+        imageExifTime: params.imageExifTime ?? null,
+        detectedKg: params.detectedKg ?? null,
+        note,
+        source: params.source,
+        createdById: params.createdById ?? null,
+      };
+
+      const row = existing
+        ? await tx.weightEntry.update({
+            where: { id: existing.id },
+            // `version` treibt die OCC der MCP-Schreibwege — eine Korrektur ist eine neue Fassung.
+            data: { ...data, version: { increment: 1 } },
+            select: { id: true },
+          })
+        : await tx.weightEntry.create({ data: { userId, ...data }, select: { id: true } });
+
+      return { id: row.id, dayKey, inWindow, replaced: !!existing };
+    });
+    // Fire-and-forget: die Zeile steht, der Rest ist Meldung. Siehe `announceCorridorBreach`.
+    void announceCorridorBreach(userId, params.weightKg, params.measuredAt)
+      .catch((e) => console.error("[weight:breach]", (e as Error).message));
+    return { ok: true, data: result };
+  } catch (e) {
+    const mapped = mapServiceError(e, ERRORS);
+    if (mapped) return mapped;
+    throw e;
+  }
+}
+
+/**
+ * Hat dieser Wert den Zielkorridor VERLASSEN? Dann eine Meldung an die Keyholder.
+ *
+ * Nach dem Commit und bewusst ohne `await` beim Aufrufer: die Messung ist gespeichert, und ein
+ * fehlgeschlagener Versand darf sie nicht rückgängig machen — dasselbe Verhältnis wie beim
+ * Geräte-Check der Kontrolle. Ein Fehler bleibt als Logzeile sichtbar.
+ *
+ * **Nur an die Keyholder.** Dem Träger diese Zeile in den Posteingang zu legen hiesse, ihm die Zahl
+ * zu melden, die er zwei Sekunden vorher selbst eingetragen hat.
+ *
+ * Auch dann, wenn die Keyholderin den Wert selbst nachgetragen hat — sie weiss es dann zwar schon,
+ * aber ein Träger kann mehrere Keyholder haben, und getippt hat nur eine davon. Die Zeile ist
+ * ausserdem der bleibende Beleg des Austritts im Posteingang, nicht bloss ein Hinweis.
+ *
+ * Automatisch passiert damit NICHTS ausser dieser Meldung: ob etwas folgt — Aufgabe als Strafe,
+ * Aufgabe als Belohnung oder gar nichts —, entscheidet die Keyholderin. Das Gewicht selbst ist kein
+ * Fehlverhalten, und ein Automatismus, der Kilos in Strafen umrechnet, wäre in dieser App die
+ * falsche Mechanik.
+ */
+async function announceCorridorBreach(userId: string, currentKg: number, measuredAt: Date): Promise<void> {
+  const [user, previousKg] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        username: true, heightCm: true, unitSystem: true,
+        targetMinKg: true, targetMaxKg: true, targetMinKeyholderKg: true, targetMaxKeyholderKg: true,
+      },
+    }),
+    lastWeightBefore(userId, measuredAt),
+  ]);
+  if (!user) return;
+
+  const corridor = effectiveCorridor(
+    { minKg: user.targetMinKg, maxKg: user.targetMaxKg },
+    { minKg: user.targetMinKeyholderKg, maxKg: user.targetMaxKeyholderKg },
+  );
+  const side = breachToAnnounce({ currentKg, previousKg, corridor, heightCm: user.heightCm });
+  if (!side) return;
+
+  const controllers = await getControllersOfUser(userId);
+  // Die Einheit des TRÄGERS, nicht die der Keyholderin: eine Meldung geht an mehrere Empfänger, die
+  // verschiedene Einheiten führen könnten — und der Text steht in der Zeile, nicht in ihrer Ansicht.
+  const unit = (user.unitSystem as UnitSystem) ?? "metric";
+  const suffix = unit === "imperial" ? "lbs" : "kg";
+  const bound = side === "below" ? corridor.minKg : corridor.maxKg;
+  await notifyControllers(userId, controllers, {
+    subjectKey: side === "below" ? "weightBelowLimitSubjectKeyholder" : "weightAboveLimitSubjectKeyholder",
+    messageKey: side === "below" ? "weightBelowLimitMessageKeyholder" : "weightAboveLimitMessageKeyholder",
+    params: {
+      username: user.username,
+      weight: `${weightForDisplay(currentKg, unit)} ${suffix}`,
+      limit: bound === null ? "–" : `${weightForDisplay(bound, unit)} ${suffix}`,
+    },
+  });
+}
+
+/** Die letzte Messung vor `before` — Grundlage der Sprung-Nachfrage im Formular.
+ *
+ *  Ohne eigenen Schalter-Check: die Freischaltung prüfen die Aufrufer, bevor sie überhaupt hierher
+ *  kommen. Eine Lese-Funktion, die bei abgeschaltetem Feature still `null` liefert, wäre von „noch
+ *  nie gewogen" nicht zu unterscheiden — und genau daran hinge dann die Sprung-Nachfrage. */
+export async function lastWeightBefore(userId: string, before: Date): Promise<number | null> {
+  const row = await prisma.weightEntry.findFirst({
+    where: { userId, measuredAt: { lt: before } },
+    orderBy: { measuredAt: "desc" },
+    select: { weightKg: true },
+  });
+  return row?.weightKg ?? null;
+}
+
+// ── Aufbewahrung der Waagen-Fotos ──────────────────────────────────────────────────────────────
+
+const WEIGHT_PHOTO_RETENTION_DAYS_DEFAULT = 60;
+/** Wie viele Zeilen ein Lauf höchstens anfasst. Wie beim Posteingang: der Rückstand holt über die
+ *  Tage auf, statt einen einzelnen Tick minutenlang mit Dateisystem-Arbeit zu belegen. */
+const WEIGHT_PHOTO_PRUNE_BATCH = 200;
+
+/** Die konfigurierte Aufbewahrung in Tagen; `0` schaltet das Beschneiden ab. Unbrauchbare Werte
+ *  fallen auf die Vorgabe zurück, statt still `NaN` und damit einen Stichtag `Invalid Date` zu
+ *  ergeben (dieselbe Falle wie bei `messageRetentionDays`). */
+export function weightPhotoRetentionDays(): number {
+  const raw = Number(process.env.WEIGHT_PHOTO_RETENTION_DAYS);
+  return Number.isFinite(raw) && raw >= 0 ? raw : WEIGHT_PHOTO_RETENTION_DAYS_DEFAULT;
+}
+
+/**
+ * Löscht abgelaufene Waagen-Fotos — **die Datei, nicht die Messung.**
+ *
+ * Der Beleg ist genau so lange nützlich, wie ihn jemand anzweifeln könnte; die Zahl bleibt für
+ * immer. Genau deshalb steht `imagePrunedAt` in der Zeile: ohne ihn wäre „hatte nie ein Foto" von
+ * „hatte eines, ist abgelaufen" nicht zu unterscheiden, und die Keyholderin läse in einen alten
+ * Eintrag eine Beleglosigkeit hinein, die es nie gab.
+ *
+ * Erst die Spalte leeren, dann die Dateien löschen: bricht es dazwischen ab, bleibt eine verwaiste
+ * Datei liegen (Speicherplatz, harmlos). Andersherum zeigte die Oberfläche auf ein Bild, das es
+ * nicht mehr gibt.
+ */
+export async function pruneWeightPhotos(now: Date = new Date()): Promise<number> {
+  const days = weightPhotoRetentionDays();
+  if (days === 0) return 0;
+  const cutoff = new Date(now.getTime() - days * 86_400_000);
+
+  const stale = await prisma.weightEntry.findMany({
+    where: { imageUrl: { not: null }, imagePrunedAt: null, measuredAt: { lt: cutoff } },
+    select: { id: true, imageUrl: true },
+    take: WEIGHT_PHOTO_PRUNE_BATCH,
+  });
+  if (stale.length === 0) return 0;
+
+  await prisma.weightEntry.updateMany({
+    where: { id: { in: stale.map((w) => w.id) } },
+    data: { imageUrl: null, imagePrunedAt: now },
+  });
+  await deleteUploadedFiles(stale.map((w) => w.imageUrl));
+  return stale.length;
+}

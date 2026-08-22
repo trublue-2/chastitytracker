@@ -1,6 +1,6 @@
 import { getTranslations, getLocale } from "next-intl/server";
 import { APP_TZ, toDateLocale } from "@/lib/utils";
-import { entriesCached, userRowCached } from "@/lib/dashboardData";
+import { entriesCached, hasWeightDataCached, userRowCached } from "@/lib/dashboardData";
 import { renderStack } from "@/lib/blockStack";
 import { viewerLayout } from "@/lib/viewerLayout";
 import BlockStack from "@/app/components/BlockStack";
@@ -27,13 +27,14 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
   compact?: boolean;
 }) {
   const now = new Date();
-  const [t, tc, ta, locale, user, entries] = await Promise.all([
+  const [t, tc, ta, locale, user, entries, hasWeight] = await Promise.all([
     getTranslations("stats"), getTranslations("common"), getTranslations("admin"),
     getLocale(),
     // Die Zone des TRÄGERS regiert jede Tagesgrenze und jede Formatierung — ob er sich selbst
     // ansieht oder die Keyholderin ihn.
     userRowCached(userId),
     entriesCached(userId),
+    hasWeightDataCached(userId),
   ]);
 
   const pageHeading = heading ?? t("title");
@@ -41,7 +42,10 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
 
   // Ohne einen einzigen Eintrag hat die Seite nichts zu zeigen — und keiner ihrer Blöcke etwas zu
   // laden. Der Leer-Zustand steht deshalb VOR dem Stapel.
-  if (entries.length === 0) {
+  //
+  // „Keine Einträge" heisst aber nicht mehr „nichts zu zeigen": wer nur sein Gewicht führt und nie
+  // etwas verschlossen hat, hat sehr wohl eine Statistik.
+  if (entries.length === 0 && !hasWeight) {
     return (
       <main className={wrapper}>
         {backHref && (

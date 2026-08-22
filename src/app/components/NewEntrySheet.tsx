@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound, type LucideIcon } from "lucide-react";
+import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound, Scale, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
@@ -25,6 +25,8 @@ interface Props {
   categoryRows?: NewEntryCategoryRow[];
   /** Bildersafe-Instanz: die Schlüsselbox-Code-Aktionen (versiegeln + anzeigen) einblenden. */
   bildersafe?: boolean;
+  /** Gewichtstracking für DIESEN Träger freigeschaltet (Instanz-Schalter UND Keyholder-Schalter). */
+  weight?: boolean;
   /** Gesetzt = Keyholder-Sicht: das Sheet erfasst FÜR diesen Sub und zeigt auf dessen
    *  Aktionen-Formulare statt auf `/dashboard/new`. Ungesetzt = der Sub erfasst für sich selbst. */
   adminUserId?: string;
@@ -61,7 +63,7 @@ function SheetActionRow({
   );
 }
 
-export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false, adminUserId }: Props) {
+export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false, weight = false, adminUserId }: Props) {
   const t = useTranslations("newEntry");
   const tw = useTranslations("wearForm");
   const router = useRouter();
@@ -202,6 +204,19 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
               onSelect={() => handleSelect(`${base}/bildersafe/anzeigen`)}
             />
           </>
+        )}
+
+        {/* Gewicht — anders als der Bildersafe AUCH in der Keyholder-Sicht: sie darf für ihren
+            Träger nachtragen, und das Formular dafür gibt es unter `/admin/users/<id>/aktionen`.
+            Ohne Freischaltung erscheint die Zeile gar nicht; die Seite dahinter prüft es erneut. */}
+        {weight && (
+          <SheetActionRow
+            icon={Scale}
+            iconClass="text-foreground-faint"
+            label={t("weight")}
+            desc={t("weightSubtitle")}
+            onSelect={() => handleSelect(`${base}/gewicht`)}
+          />
         )}
 
         {/* Bewusst KEINE Box-Zeile mehr: „Neu erfassen" erfasst Einträge, die Box folgt ihnen.

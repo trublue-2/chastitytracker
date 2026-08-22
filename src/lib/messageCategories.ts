@@ -12,7 +12,7 @@ import type { BadgeVariant } from "@/app/components/Badge";
  * ziehen.
  */
 /** Die Kategorien in Anzeige-Reihenfolge — Quelle für den Typ UND für die Filterleiste. */
-export const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "offense", "penalty", "task", "system"] as const;
+export const MESSAGE_CATEGORIES = ["inspection", "lock", "orgasm", "offense", "penalty", "task", "weight", "system"] as const;
 export type MessageCategory = (typeof MESSAGE_CATEGORIES)[number];
 
 /**
@@ -78,6 +78,9 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   taskProofLateMessageKeyholder: "task",
   taskProofAcceptedMessage: "task",
   taskProofRejectedMessage: "task",
+
+  weightAboveLimitMessageKeyholder: "weight",
+  weightBelowLimitMessageKeyholder: "weight",
 };
 
 /**
@@ -119,6 +122,10 @@ export const MESSAGE_CATEGORY_PILLS: Record<MessageCategory, { labelKey: string;
   offense:    { labelKey: "catOffense",    variant: "unlock" },
   penalty:    { labelKey: "catPenalty",    variant: "warn" },
   task:       { labelKey: "catTask",       variant: "request" },
+  // Eigene Kategorie und ausdrücklich NICHT `offense`: der Austritt aus dem Zielkorridor meldet eine
+  // Zahl, er erhebt keinen Vorwurf. Unter „Vergehen" gefiltert stünde er neben Dingen, die eine
+  // Konsequenz verlangen — hier entscheidet die Keyholderin erst noch, ob überhaupt etwas folgt.
+  weight:     { labelKey: "catWeight",     variant: "neutral" },
   system:     { labelKey: "catSystem",     variant: "neutral" },
 };
 

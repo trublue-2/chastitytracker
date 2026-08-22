@@ -226,6 +226,13 @@ OFFENSE_ANNOUNCE_FROM=<iso-date>           # optional
 # gelöscht (Vorgabe 365). `0` schaltet das Beschneiden ab. UNGELESENE bleiben immer liegen — eine
 # Zustellung, die nie jemand gesehen hat, darf nicht folgenlos verschwinden.
 MESSAGE_RETENTION_DAYS=365         # optional
+# Gewichtstracking (docs/gewicht-konzept.md). Default AN — sichtbar wird es trotzdem erst, wenn die
+# Keyholderin es je Träger freischaltet (User.weightTrackingEnabled, Default aus). `false` nimmt das
+# Feature ganz aus Oberfläche, Routen und MCP.
+ENABLE_WEIGHT_TRACKING=false       # optional
+# Aufbewahrung der Waagen-Fotos in Tagen (Vorgabe 60). `0` schaltet das Beschneiden ab. Gelöscht wird
+# nur die DATEI — die Messung bleibt, und `imagePrunedAt` hält fest, dass es einmal ein Foto gab.
+WEIGHT_PHOTO_RETENTION_DAYS=60     # optional
 # Selfhosted-KI Health-Check (nur relevant bei lokalem Vision-/Embedding-Backend):
 HEALTHCHECK_INTERVAL_MIN=5         # optional: Prüfintervall in Minuten (Default 5)
 HEALTHCHECK_ALERT_EMAIL=<email>    # optional: Mail-Alarm bei Ausfall (leer = nur Log). Bei mehreren

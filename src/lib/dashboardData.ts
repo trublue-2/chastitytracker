@@ -106,6 +106,20 @@ export const entriesCached = cache(async (userId: string) =>
   }),
 );
 
+/**
+ * Gibt es überhaupt eine Gewichts-Messung?
+ *
+ * Nur für den Leer-Zustand der Statistik-Seite: „keine Einträge" hiess bis zum Gewichtstracking
+ * auch „nichts zu zeigen". Wer nur sein Gewicht führt und nie etwas verschlossen hat, hat sehr wohl
+ * eine Statistik — ohne diese Frage verschwände seine Karte hinter einem leeren Zustand.
+ *
+ * Ein `count` statt der Reihe: die Frage lautet „gibt es etwas", nicht „was". Sie läuft ohnehin nur
+ * in dem seltenen Fall, in dem gar keine Einträge existieren.
+ */
+export const hasWeightDataCached = cache(async (userId: string) =>
+  (await prisma.weightEntry.count({ where: { userId } })) > 0,
+);
+
 /** Die Orgasmus-Einträge, neueste zuerst — Session-Karte und Session-Liste stellen dieselbe Frage. */
 export const orgasmEntriesCached = cache(async (userId: string) =>
   (await entriesCached(userId)).filter((e) => e.type === "ORGASMUS"),

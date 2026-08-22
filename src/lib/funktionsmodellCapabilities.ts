@@ -544,6 +544,42 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Mehr als Darstellung: Reinigungsfenster, Schlaf-Fenster und der Kalendertag des Kontingents rechnen darin.",
   }),
   c({
+    id: "weight-self", mechanic: "Gewicht", title: "Gewichts-Angaben pflegen",
+    what: "Körpergrösse, Anzeige-Einheit, Referenzangabe und der eigene Zielkorridor.",
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/settings/weight"],
+    note: "Nur erreichbar, solange die Keyholderin das Gewichtstracking für diesen Träger freigeschaltet hat — die Route prüft das selbst, nicht nur die Oberfläche.",
+  }),
+  c({
+    id: "weight-record", mechanic: "Gewicht", title: "Gewicht erfassen",
+    what: "Eine Messung je Kalendertag — vom Träger selbst oder von der Keyholderin für ihn.",
+    actors: ["sub", "admin"], surfaces: ["sub-ui", "admin-ui"], routes: ["/api/weight"],
+    note: "Der Träger braucht einen Beleg (Foto oder Notiz), die Keyholderin nicht — sie steht nicht vor seiner Waage. Eine zweite Meldung desselben Tages ersetzt die erste.",
+  }),
+  c({
+    id: "weight-mcp-read", mechanic: "Gewicht", title: "Gewichts-Reihe lesen (KI)",
+    what: "Punkte, aktueller Wert samt BMI, Trend, Zielbereich und Tage seit der letzten Meldung.",
+    actors: ["mcp"], surfaces: ["mcp"], tools: ["weight_history"],
+    note: "Alle Werte metrisch. `daysSinceLastReport` ist die Zahl, an der die Meldepflicht hängt.",
+  }),
+  c({
+    id: "weight-mcp-write", mechanic: "Gewicht", title: "Gewicht eintragen und Grenzen weiten (KI)",
+    what: "Eine Messung je Kalendertag nachtragen und den Zielbereich des Trägers nachbessern.",
+    actors: ["mcp"], surfaces: ["mcp"], tools: ["log_weight", "set_weight_limits"],
+    note: "Die Grenzen gehören dem Träger: die KI darf sie nur WEITEN, nie verengen — dieselbe Regel wie in der Oberfläche. Ihr Eintrag braucht keinen Foto-Beleg.",
+  }),
+  c({
+    id: "weight-detect", mechanic: "Gewicht", title: "Waagen-Anzeige lesen",
+    what: "Liest aus dem Foto der Waage die angezeigte Zahl und, wo ablesbar, die Einheit.",
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/detect-weight"],
+    note: "Ein VORSCHLAG für das Formular, kein Messwert: der Mensch bestätigt oder korrigiert. Gespeichert wird die gelesene Zahl getrennt vom bestätigten Wert. Ohne Vision-Provider gibt es keine Erkennung — lokales OCR liest auf Sieben-Segment-Anzeigen zuverlässig Unsinn.",
+  }),
+  c({
+    id: "weight-keyholder", mechanic: "Gewicht", title: "Gewichtstracking einrichten",
+    what: "Freischaltung, Wiege-Zeitfenster und die Nachbesserung der Grenzen des Trägers.",
+    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users/[id]"],
+    note: "Die Grenzen setzt der Träger; die Keyholderin darf sie nur weiten, nie verengen.",
+  }),
+  c({
     id: "user-manage", mechanic: "Zugang", title: "Konten verwalten",
     what: "Anlegen, bearbeiten, Rolle setzen, Passwort setzen und löschen.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users", "/api/admin/users/[id]"],

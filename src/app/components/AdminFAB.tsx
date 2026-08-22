@@ -31,8 +31,8 @@ export default function AdminFAB({ isGlobalAdmin }: Props) {
   // geholt statt gecacht: zwischen zwei Klicks kann sich der Verschluss-Zustand geändert haben, und
   // ein veraltetes `isLocked` würde die falsche Zeile ausgrauen (Verschluss statt Öffnen).
   // Nicht-nullable: `handleOpen` setzt ihn auf jedem Pfad — auch im catch — bevor `open` wahr wird.
-  const [subState, setSubState] = useState<{ isLocked: boolean; categoryRows: NewEntryCategoryRow[] }>(
-    { isLocked: false, categoryRows: [] },
+  const [subState, setSubState] = useState<{ isLocked: boolean; categoryRows: NewEntryCategoryRow[]; weightTracking: boolean }>(
+    { isLocked: false, categoryRows: [], weightTracking: false },
   );
 
   const userIdFromPath = pathname.match(/^\/admin\/users\/([^/]+)/)?.[1] ?? null;
@@ -50,14 +50,14 @@ export default function AdminFAB({ isGlobalAdmin }: Props) {
       if (userIdFromPath) {
         const res = await fetch(`/api/admin/users/${userIdFromPath}`);
         const data = res.ok ? await res.json() : null;
-        setSubState({ isLocked: !!data?.isLocked, categoryRows: data?.categoryRows ?? [] });
+        setSubState({ isLocked: !!data?.isLocked, categoryRows: data?.categoryRows ?? [], weightTracking: !!data?.weightTracking });
       } else if (!userList) {
         const res = await fetch("/api/admin/users");
         setUserList(res.ok ? await res.json() : []);
       }
     } catch {
       // Netzfehler: mit dem Vorgabe-Zustand weitermachen statt hängen zu bleiben.
-      if (userIdFromPath) setSubState({ isLocked: false, categoryRows: [] });
+      if (userIdFromPath) setSubState({ isLocked: false, categoryRows: [], weightTracking: false });
       else setUserList([]);
     } finally {
       setLoading(false);
@@ -80,6 +80,7 @@ export default function AdminFAB({ isGlobalAdmin }: Props) {
           onClose={() => setOpen(false)}
           isLocked={subState.isLocked}
           categoryRows={subState.categoryRows}
+          weight={subState.weightTracking}
           adminUserId={userIdFromPath}
         />
       ) : (

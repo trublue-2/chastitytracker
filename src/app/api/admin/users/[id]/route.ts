@@ -12,6 +12,8 @@ import { setReinigungSettings } from "@/lib/reinigungService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { setReasonConfig } from "@/lib/reasonsService";
+import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
+import { weightTrackingEnabled } from "@/lib/constants";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { serviceResponse } from "@/lib/serviceResult";
 
@@ -27,7 +29,10 @@ export async function GET(
   // `categoryRows`: die „Neu erfassen"-Auswahl der Keyholder-Sicht (AdminFAB) — dieselbe Ableitung
   // wie im Sub-Dashboard, nur für den betrachteten Sub.
   const [user, isLocked, offeneAnforderung, activeSperrzeit, categoryRows] = await Promise.all([
-    prisma.user.findUnique({ where: { id }, select: { username: true, email: true } }),
+    prisma.user.findUnique({
+      where: { id },
+      select: { username: true, email: true, weightTrackingEnabled: true },
+    }),
     getIsLocked(id),
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "ANFORDERUNG", withdrawnAt: null, fulfilledAt: null },
@@ -45,6 +50,9 @@ export async function GET(
     hasOffeneAnforderung: !!offeneAnforderung,
     hasActiveSperrzeit: !!activeSperrzeit,
     categoryRows,
+    // Für die (+)-Zeile der Keyholder-Sicht: beide Schalter zu EINER Antwort verrechnet, damit der
+    // Client nicht selbst wissen muss, dass es zwei sind.
+    weightTracking: weightTrackingEnabled() && user.weightTrackingEnabled,
   });
 }
 
@@ -144,6 +152,27 @@ export async function PATCH(
   if (body.oeffnenGruendeConfig !== undefined) {
     const config = await setReasonConfig(id, "opening", body.oeffnenGruendeConfig);
     return NextResponse.json({ ok: true, config });
+  }
+
+  if (
+    body.weightTrackingEnabled !== undefined || body.weighingWindows !== undefined ||
+    body.targetMinKeyholderKg !== undefined || body.targetMaxKeyholderKg !== undefined
+  ) {
+    // Instanz-Schalter zuerst: ist das Feature auf dieser Instanz abgewählt, gibt es die
+    // Einstellung nicht — 404 statt 403, damit die Antwort nicht verrät, dass es sie gäbe. Der
+    // Schalter je Sub wird hier NICHT geprüft: er steht in genau diesem Patch.
+    if (!weightTrackingEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Actor-Variante wie bei den Reinigungs-Einstellungen: schaltet das Abschalten die Meldepflicht
+    // mit ab, hält die Regel-Historie fest, WER das war.
+    const actor = await requireKeyholderOrAdminActor(id);
+    if (actor instanceof NextResponse) return actor;
+    return serviceResponse(await setWeightSettingsKeyholder(id, {
+      changedBy: sessionActor(actor),
+      enabled: body.weightTrackingEnabled,
+      weighingWindows: body.weighingWindows, // roh — der Service validiert/normalisiert
+      targetMinKeyholderKg: body.targetMinKeyholderKg,
+      targetMaxKeyholderKg: body.targetMaxKeyholderKg,
+    }));
   }
 
   if (body.mobileDesktopUpload !== undefined) {

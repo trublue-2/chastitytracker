@@ -33,6 +33,8 @@ import MonthStats from "./MonthStats";
 import Card from "./Card";
 import StatsCard from "./StatsCard";
 import StatsKontrollenList, { type StatsKontrolleRow } from "./StatsKontrollenList";
+import WeightStatsCard from "./WeightStatsCard";
+import { getWeightStatsProps } from "@/lib/weightStatsProps";
 import { ShieldAlert } from "lucide-react";
 
 /**
@@ -436,6 +438,14 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
         <StatsKontrollenList rows={rows} />
       </Card>
     ),
+  }),
+
+  // Gewicht — Verlauf, Trend und Zielband. Der Block lädt sich selbst und liefert `null`, wenn das
+  // Feature hier nicht freigeschaltet ist oder noch nichts erfasst wurde; dann entfällt die Karte,
+  // ohne dass die Seite eine zweite Bedingung dafür braucht.
+  weight: block({
+    load: (ctx) => getWeightStatsProps(ctx.userId),
+    render: (props) => props && <WeightStatsCard {...props} />,
   }),
 
   // Monatsübersicht — KG-Ziele, deshalb nur die KG-Vorgaben.

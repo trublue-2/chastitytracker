@@ -4,6 +4,7 @@ import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
 import { offenseState } from "@/lib/offenseTypes";
 import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks";
+import { missedWeightRef } from "@/lib/weightObligation";
 
 // ── Strafbuch-Snapshot ────────────────────────────────────────────────────────
 // Wohnt hier, weil `getOffenses` sein einziger Aufrufer ist. Solange auch das (entfernte) V1-
@@ -89,6 +90,10 @@ export interface StrafbuchOverview {
     time: string; orgasmType: string | null; note: string | null;
     lockPeriodEndedAt: string | null; lockPeriodIndefinite: boolean;
   } & OffenseJudgment)[];
+  /** Versäumte Gewichts-Meldungen: je drei Tage ohne Angabe eine Zeile. Erscheinen nur, wenn die
+   *  Regel `missed_weight_report` bei diesem Sub scharf ist (Default: aus). `day` ist der Tag, mit
+   *  dem der Block voll wurde. */
+  missedWeightReports: ({ time: string; day: string; days: number } & OffenseJudgment)[];
   /** Von Hand notierte Vergehen — die einzigen, die nicht aus Einträgen abgeleitet sind. Entstehen
    *  über `record_offense` bzw. die Admin-Oberfläche. */
   manualOffenses: ({ time: string; title: string; description: string | null; recordedBy: string } & OffenseJudgment)[];
@@ -214,6 +219,12 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
       lockPeriodIndefinite: o.sperrzeitIndefinite,
       ...judge("unauthorized_orgasm", o.id),
     })),
+    missedWeightReports: sb.missedWeightReports.map((m) => ({
+      time: fmt(m.at),
+      day: m.dayKey,
+      days: m.days,
+      ...judge("missed_weight_report", missedWeightRef(m.dayKey)),
+    })),
     manualOffenses: sb.manualOffenses.map((m) => ({
       time: fmt(m.occurredAt),
       title: m.title,
@@ -337,6 +348,7 @@ export function buildOffenseRows(
     ...sb.unfulfilledTasks.map((t) => toRow(t.failedAt ?? t.holdUntil, t, { title: t.title, holdUntil: t.holdUntil, state: t.state, failedAt: t.failedAt, failureKind: t.failureKind })),
     ...sb.adminPasswordChanges.map((p) => toRow(p.time, p, { adminUsername: p.adminUsername, via: p.via, lockPeriodEndedAt: p.lockPeriodEndedAt })),
     ...sb.unauthorizedOrgasms.map((o) => toRow(o.time, o, { note: o.note, orgasmType: o.orgasmType, lockPeriodEndedAt: o.lockPeriodEndedAt, lockPeriodIndefinite: o.lockPeriodIndefinite })),
+    ...sb.missedWeightReports.map((m) => toRow(m.time, m, { day: m.day, days: m.days })),
     ...sb.manualOffenses.map((m) => toRow(m.time, m, { title: m.title, description: m.description, recordedBy: m.recordedBy })),
   ];
 }

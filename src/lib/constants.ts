@@ -78,6 +78,17 @@ export function deviceCategoriesEnabled(): boolean {
   return process.env.ENABLE_DEVICE_CATEGORIES?.toLowerCase() !== "false";
 }
 
+/** Gewichtstracking (Wiegen, BMI, Verlauf) — Instanz-Schalter.
+ *
+ *  Default ON, abschaltbar mit `ENABLE_WEIGHT_TRACKING=false`. „An" heisst hier NICHT „sichtbar":
+ *  je Sub schaltet zusätzlich die Keyholderin (`User.weightTrackingEnabled`, Default false). Der
+ *  Instanz-Schalter ist für Betreiber, die das Feature gar nicht anbieten wollen — er nimmt es aus
+ *  Oberfläche, Routen und MCP, ohne dass jemand die Sub-Schalter einzeln umlegen muss.
+ *  Case-insensitive, damit `False`/`FALSE` nicht still als ON durchrutschen. */
+export function weightTrackingEnabled(): boolean {
+  return process.env.ENABLE_WEIGHT_TRACKING?.toLowerCase() !== "false";
+}
+
 /** Bildersafe (softwareseitige Schlüssel-Verwahrung: versiegeltes Foto des Schlüsselbox-Codes).
  *  Eigenständiges, opt-in Feature pro Instanz via `ENABLE_BILDERSAFE=true` (Default aus).
  *  Unabhängig von Heimdall (das über HEIMDALL_SYNC_SECRET aktiviert wird) — beide können
@@ -246,7 +257,13 @@ export const TYPE_EMAIL_COLORS: Record<string, string> = {
  *  CLAUDE.md („Admin-Felder in User-Settings") zwingend `requireAdminApi()`.
  *  `email`/`passwordHash` sind ebenfalls Self-Felder, laufen aber über eigene Handler
  *  (Trim/409 bzw. anderer Body-Key + bcrypt) und stehen deshalb nicht in dieser Liste. */
-export const SELF_EDITABLE_USER_FIELDS = ["timezone", "locale", "hideOwnTracker", "startPage", "dashboardLayout"] as const;
+export const SELF_EDITABLE_USER_FIELDS = [
+  "timezone", "locale", "hideOwnTracker", "startPage", "dashboardLayout",
+  // Gewichtstracking: Angaben ÜBER den Träger, nicht Vorgaben AN ihn. Die Keyholder-Felder
+  // (`weightTrackingEnabled`, `weighingWindows`, `targetMin/MaxKeyholderKg`) stehen bewusst nicht
+  // hier — sie laufen über `requireKeyholderOrAdminApi()`.
+  "heightCm", "unitSystem", "targetMinKg", "targetMaxKg",
+] as const;
 export type SelfEditableUserField = (typeof SELF_EDITABLE_USER_FIELDS)[number];
 
 /** Stabiler Fehler-Code der Settings-Services, wenn ein Patch kein einziges Feld setzt. Geteilt von
@@ -300,6 +317,15 @@ export const CLEANING_WINDOWS_MAX = 12;
 /** Stabiler Fehler-Code, wenn ein Schreibvorgang mehr als {@link CLEANING_WINDOWS_MAX} Fenster setzt.
  *  Nennt die Zahl bewusst nicht — dafür bräuchte die Meldung einen ICU-Parameter (siehe DEVICE_CODES). */
 export const CLEANING_WINDOWS_TOO_MANY = "CLEANING_WINDOWS_TOO_MANY";
+
+/** Körpergrösse in cm. Grosszügig gefasst — die Grenzen fangen den Tippfehler (17 cm, 1780 cm),
+ *  nicht den ungewöhnlichen Menschen. */
+export const HEIGHT_CM_RANGE = { min: 100, max: 250, fallback: 175 } as const satisfies NumberRange;
+/** Zulässiges Gewicht in kg. Fängt Zahlendreher und die falsch gelesene Waage, sonst nichts. */
+export const WEIGHT_KG_RANGE = { min: 20, max: 300, fallback: 75 } as const satisfies NumberRange;
+/** Höchstzahl der Wiege-Fenster eines Tages — wie {@link CLEANING_WINDOWS_MAX}, eigene Konstante,
+ *  weil die Reinigung von diesem Feature unberührt bleibt (siehe docs/gewicht-konzept.md, 4.1). */
+export const WEIGHING_WINDOWS_MAX = 6;
 
 /** Grenzen beider Eskalationsstufen einer überfälligen Kontrolle: 5 min – 24 h. */
 const INSPECTION_ESCALATION_DELAY = { min: 5, max: 1440 } as const;

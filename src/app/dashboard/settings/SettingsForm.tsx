@@ -23,9 +23,10 @@ import { LOCALES_LONG } from "@/lib/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
+import WeightSettings from "./WeightSettings";
 import type { SettingsFormProps } from "./getSettingsProps";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageNotify, version, buildDate, feedbackEnabled = true }: SettingsFormProps) {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageNotify, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
@@ -330,6 +331,17 @@ export default function SettingsForm({ username, email, locale, timezone, startP
             <FormSuccess message={tzSuccess ? t("saved") : null} variant="inline" />
             <FormError message={tzError} />
           </ExpandRow>
+
+          {/* Gewicht — nur wenn die Keyholderin es freigeschaltet hat (und die Instanz es führt) */}
+          {weight && (
+            <ExpandRow
+              label={t("weightSection")}
+              open={expanded === "weight"}
+              onToggle={() => toggle("weight")}
+            >
+              <WeightSettings {...weight} />
+            </ExpandRow>
+          )}
 
           {/* Startseite nach Login — nur für Keyholder/Admins sinnvoll */}
           {showStartPage && (

@@ -45,6 +45,15 @@ export interface UnerlaubteOeffnungRow {
   sperrzeitUnbefristet: boolean;
 }
 
+/** Ein versäumter Drei-Tage-Block ohne Gewichts-Meldung. `refId` kommt aus dem Tagesschlüssel —
+ *  das Versäumnis hat keine eigene Zeile, aus der eine id käme. */
+export interface MissedWeightRow {
+  refId: string;
+  /** Der Tag, mit dem der Block voll wurde, schon formatiert. */
+  dayStr: string;
+  days: number;
+}
+
 /** Eine nicht erfüllte Aufgabe. `state`, `started` und `hasRequirements` ergeben zusammen den
  *  Vorwurf — siehe `taskFailureKind`. */
 export interface AufgabeRow {
@@ -243,6 +252,8 @@ interface Labels {
   strafbuchManuelleVergehen: string;
   strafbuchNotiertVon: string;
   strafbuchZurueckziehen: string;
+  strafbuchGewichtVersaeumt: string;
+  strafbuchGewichtVersaeumtTage: string;
   deviceLabel: string;
 }
 
@@ -260,6 +271,7 @@ interface Props {
   falschesGeraet: FalschesGeraetRow[];
   adminPasswort: AdminPasswortRow[];
   unerlaubteOrgasmen: UnerlaubterOrgasmusRow[];
+  missedWeightReports: MissedWeightRow[];
   manuelleVergehen: ManuellesVergehenRow[];
   strafeRecords: StrafeRecordData[];
   labels: Labels;
@@ -347,7 +359,7 @@ function ZurueckziehenButton({ id, label, networkError, resolveError, onDone }: 
   );
 }
 
-export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, manuelleVergehen, strafeRecords, labels }: Props) {
+export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, missedWeightReports, manuelleVergehen, strafeRecords, labels }: Props) {
   const router = useRouter();
   // Beide Routen dieser Seite (`/api/admin/offense`, `/api/admin/strafe`) liefern stabile
   // Fehler-CODES — übersetzt wird hier.
@@ -837,6 +849,19 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             sperrzeitQualifier(o, labels.strafbuchOhneDirektive),
           )}
           {o.note && <span className={NOTE_CLS}>„{o.note}"</span>}
+        </>
+      ),
+    }))),
+
+    sec("missed_weight_report", labels.strafbuchGewichtVersaeumt, missedWeightReports.map((m) => ({
+      refId: m.refId,
+      anlass: m.dayStr,
+      body: (judged) => (
+        <>
+          <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
+            {labels.strafbuchGewichtVersaeumt}
+          </p>
+          <p className={FACT_CLS}>{labels.strafbuchGewichtVersaeumtTage} · {m.dayStr}</p>
         </>
       ),
     }))),

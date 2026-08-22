@@ -22,6 +22,8 @@ const db = prisma as unknown as PrismaMock;
 const DASHBOARD_KEYS = [
   "schemaVersion",
   "user",
+  // Rein additiv (kein Versions-Bump): `null`, wo das Gewichtstracking nicht freigeschaltet ist.
+  "weight",
   "generatedAt",
   "timezone",
   "keyholderInstructions",

@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 123 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 131 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -227,6 +227,19 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | `AdminUserRelationship.adminId` | String | (keiner) | dauerhaft | Wer diesen Sub steuern darf. Ohne Zeile sieht ein Admin ihn nicht — die Zuordnung ist die eigentliche Berechtigung. | Keyholder (UI) | Zugang, MCP, Nachrichten | — |
 | `AdminUserRelationship.userId` | String | (keiner) | dauerhaft | Der zugeordnete Sub. | Keyholder (UI) | Zugang | — |
 
+## Gewicht
+
+| Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
+|---|---|---|---|---|---|---|---|
+| `User.weightTrackingEnabled` | Boolean | `false` | dauerhaft | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`). | Keyholder (UI) | Gewicht, Oberfläche | `authGuards.ts:weightTrackingGate` |
+| `User.heightCm` | Int? | — | dauerhaft · **rückwirkend** | Aktuelle Körpergrösse — die Grundlage jedes BMI. Historisiert in `HeightChange`: ein BMI wird mit der Grösse gerechnet, die zum Messzeitpunkt galt. | Sub | Gewicht | `weight.ts:heightAt` |
+| `User.unitSystem` | String | `"metric"` | dauerhaft | Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt. | Sub | Oberfläche | `weight.ts:weightForDisplay` |
+| `User.targetMinKg` | Float? | — | dauerhaft | Untergrenze des Zielkorridors, gesetzt vom Träger. Eine Unterschreitung meldet der Keyholderin — sie entscheidet, ob etwas folgt. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveCorridor` |
+| `User.targetMaxKg` | Float? | — | dauerhaft | Obergrenze des Zielkorridors, gesetzt vom Träger. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveCorridor` |
+| `User.targetMinKeyholderKg` | Float? | — | dauerhaft | Nachbesserung der Untergrenze durch die Keyholderin. Sie darf den Korridor nur WEITEN — wirksam ist stets der weitere der beiden Werte. | Keyholder (UI) | Gewicht | `weight.ts:keyholderCorridorProblem` |
+| `User.targetMaxKeyholderKg` | Float? | — | dauerhaft | Nachbesserung der Obergrenze durch die Keyholderin, mit derselben Nur-Weiten-Regel. | Keyholder (UI) | Gewicht | `weight.ts:keyholderCorridorProblem` |
+| `User.weighingWindows` | String? | — | dauerhaft | Tägliche Zeitfenster fürs Wiegen (Wanduhrzeit des Trägers). Leer = keine Fensterpflicht. Ein Wert ausserhalb wird markiert, nicht geahndet — er misst nur eine andere Tageszeit mit. | Keyholder (UI) | Gewicht | `weightWindows.ts:inWeighingWindow` |
+
 ## Betrieb & Stichtage
 
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
@@ -242,6 +255,7 @@ sind die wenigen, bei denen das nicht gilt, und deshalb die gefährlichsten im R
 
 | Feld | Was ein Umlegen rückwirkend tut |
 |---|---|
+| `User.heightCm` | Als KORREKTUR gespeichert (die alte Zahl war nie wahr) schreibt sie die jüngste Historie-Zeile um und verschiebt damit jeden BMI, der mit ihr gerechnet wurde. Als ÄNDERUNG gespeichert wirkt sie nur nach vorn. |
 | `Device.lookalikeClusterId` | Rechnet die Geräte-Zuordnung JEDER historischen Session mit Bild-Konflikt neu. Vorher die Vorschau prüfen. |
 | `AppMeta.value` | Einen Stichtag zurückzudatieren beurteilt Vergehen vor diesem Datum neu und kann sie nachträglich melden. |
 

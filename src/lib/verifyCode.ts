@@ -378,21 +378,42 @@ export async function verifyKontrolleCodeDetailed(
 }
 
 /**
- * Gemeinsames Gerüst der Ziffern-Erkennung aus einem Code-/Siegelbild: ohne Vision-Provider
- * lokales OCR (min..max Ziffern), sonst visionComplete (task seal-detect) → JSON {detected}
- * → Längen-/Format-Validierung. Genutzt von detectSealNumber (Plombe) und detectLockboxCode (Dial).
+ * Gemeinsames Gerüst der Ziffern-Erkennung aus einem Bild: ohne Vision-Provider lokales OCR
+ * (min..max Ziffern), sonst visionComplete (task seal-detect) → JSON → Auswertung der Antwort.
+ * Genutzt von detectSealNumber (Plombe), detectLockboxCode (Dial) und detectScaleReading (Waage).
+ *
+ * `parse` bekommt das GANZE Antwort-Objekt und entscheidet, was daraus ein gültiges Ergebnis ist.
+ * Ohne diesen Haken war das Gerüst auf `{detected: "<ziffern>"}` festgelegt — die Waage liefert eine
+ * Kommazahl und zusätzlich die abgelesene Einheit, und ein zweites Gerüst daneben wäre die Kopie,
+ * gegen die dieses hier gebaut wurde. Die Vorgabe ist der bisherige Ziffern-Pfad, unverändert.
+ *
+ * `localFallback: false` schaltet das OCR ohne Vision-Provider ab. Für gedruckte Ziffern ist es ein
+ * sinnvoller Rückfall; auf einer Sieben-Segment-Anzeige liest es zuverlässig Unsinn, und eine falsche
+ * Zahl vorzuschlagen ist schlechter, als gar keine anzubieten.
  */
-async function detectSealDigits(
+async function detectSealDigits<T = string>(
   imageUrl: string,
   rotation: Rotation,
-  opts: { minLen: number; maxLen: number; prompt: string; logPrefix: string },
-): Promise<string | null> {
+  opts: {
+    minLen: number; maxLen: number; prompt: string; logPrefix: string;
+    parse?: (reply: Record<string, unknown>) => T | null;
+    localFallback?: boolean;
+  },
+): Promise<T | null> {
   const { minLen, maxLen, prompt, logPrefix } = opts;
+  const parse = opts.parse ?? ((reply) => {
+    if (normalizeDetected(reply.detected) === null) return null;
+    return sealDigitsFromReply(reply.detected, minLen, maxLen) as T | null;
+  });
 
   if (!visionConfigured()) {
+    if (opts.localFallback === false) {
+      vlog(`${logPrefix}:no_provider_no_fallback`, { imageUrl });
+      return null;
+    }
     // Kein Vision-Provider → lokales OCR (gedruckte Ziffern). Kein Datenabfluss; Dials oft schwach → ggf. null.
     vlog(`${logPrefix}:no_provider_local_ocr`, { imageUrl });
-    return localReadDigits(imageUrl, { rotation, minLen, maxLen });
+    return (await localReadDigits(imageUrl, { rotation, minLen, maxLen })) as T | null;
   }
   try {
     const img = await loadImageBuffer(imageUrl, rotation);
@@ -413,16 +434,12 @@ async function detectSealDigits(
     const text = response.text;
     vlog(`${logPrefix}:vision_response`, { requestId: response.requestId, stopReason: response.stopReason, textPreview: redactDigits(text.slice(0, 200)) });
 
-    const result = parseJsonObject<{ detected?: unknown }>(text);
+    const result = parseJsonObject<Record<string, unknown>>(text);
     if (!result) {
       vlog(`${logPrefix}:no_json`, { textPreview: redactDigits(text.slice(0, 200)) });
       return null;
     }
-    if (normalizeDetected(result.detected) === null) {
-      vlog(`${logPrefix}:no_detection`, { detectedType: typeof result.detected });
-      return null;
-    }
-    const detected = sealDigitsFromReply(result.detected, minLen, maxLen);
+    const detected = parse(result);
     if (detected === null) {
       vlog(`${logPrefix}:invalid_format`, { rawLen: digitsOf(result.detected).length });
       return null;
@@ -479,6 +496,66 @@ export async function detectLockboxCode(imageUrl: string, rotation: Rotation = 0
     maxLen: 8,
     logPrefix: "lockbox",
     prompt: `This is a combination padlock or key lockbox with rotating number dials (Zahlenschloss). Read the digits currently set at the indicator — the row aligned with the marker line (often red) / shown in the small windows. Read them in order (top→bottom for stacked dials, left→right for a row). The code is usually 3–4 digits (up to 8). Ignore the partially-visible neighbouring digits above/below the line.\nReply with JSON only: {"detected": "<the digits, with leading zeros, or null>"}. If you cannot read the digits, use null.`,
+  });
+}
+
+/** Was die Waagen-Erkennung gelesen hat. `unit` ist `null`, wenn die Anzeige keine nennt — dann
+ *  gilt die Anzeige-Einheit des Trägers, denn eine Waage ohne Einheiten-Angabe zeigt seine. */
+export interface ScaleReading {
+  value: number;
+  unit: "kg" | "lb" | null;
+}
+
+/** Plausibler Bereich der ABGELESENEN Zahl, bevor bekannt ist, ob sie Kilogramm oder Pfund meint —
+ *  weit genug für beides (20 kg bis 660 lbs), eng genug gegen eine verrutschte Kommastelle. */
+const SCALE_RAW_RANGE = { min: 20, max: 700 };
+
+/** Die Antwort der Waagen-Erkennung auswerten: Zahl und, wo ablesbar, die Einheit.
+ *  Exportiert für Tests — hier steckt die eigentliche Härtung gegen erfundene Werte. */
+export function scaleReadingFromReply(reply: Record<string, unknown>): ScaleReading | null {
+  const raw = normalizeDetected(reply.detected);
+  if (raw === null) return null;
+  // Komma wie Punkt: Modelle geben „78,4" und „78.4" je nach Sprache der Anzeige zurück. Alles
+  // andere lässt die Antwort durchfallen — bei einer ENTDECKUNG gibt es keinen Erwartungswert,
+  // gegen den sich eine Fehl-Lesung prüfen liesse (dieselbe Regel wie bei `sealDigitsFromReply`).
+  const compact = raw.replace(/\s/g, "").replace(",", ".");
+  if (!/^\d{2,3}(\.\d{1,2})?$/.test(compact)) return null;
+  const value = Number(compact);
+  if (value < SCALE_RAW_RANGE.min || value > SCALE_RAW_RANGE.max) return null;
+
+  const unitRaw = typeof reply.unit === "string" ? reply.unit.trim().toLowerCase() : "";
+  const unit = unitRaw === "kg" ? "kg" : (unitRaw === "lb" || unitRaw === "lbs" ? "lb" : null);
+  return { value, unit };
+}
+
+/**
+ * Liest die Anzeige einer Personenwaage.
+ *
+ * **Ein Vorschlag, kein Messwert.** Das Ergebnis füllt das Zahlenfeld vor; bestätigt oder korrigiert
+ * wird es vom Menschen — dasselbe Verhältnis wie bei `deviceCheck` und `detectKeyInBox`, die beide
+ * anzeigen und nichts blockieren. Gründe: Schrägfoto auf ein spiegelndes LCD, Sieben-Segment-Ziffern
+ * sind für kleine Modelle die schwerste Sorte, und manche Waage steht selbst auf Pfund.
+ *
+ * Genau deshalb liest die Erkennung die EINHEIT mit, statt sie zu erraten: eine „165" auf einer
+ * Waage in Pfund als Kilogramm zu übernehmen wäre die teuerste denkbare Fehl-Lesung.
+ *
+ * Ohne Vision-Provider gibt es KEINEN OCR-Rückfall — Begründung bei `detectSealDigits`.
+ *
+ * Erprobt gegen `qwen2.5vl:7b` (22.08.2026) mit gerenderten Anzeigen: Kilogramm, Pfund und eine
+ * Anzeige mit Körperfett und BMI daneben wurden richtig gelesen, ein Bild ohne Waage lieferte
+ * zweimal `null` statt einer geratenen Zahl. Rund sechs Sekunden je Aufruf. Ein ECHTES Foto —
+ * Spiegelung, Winkel, Sieben-Segment — steht weiterhin aus.
+ */
+export async function detectScaleReading(imageUrl: string, rotation: Rotation = 0): Promise<ScaleReading | null> {
+  return detectSealDigits<ScaleReading>(imageUrl, rotation, {
+    minLen: 2,
+    maxLen: 5,
+    logPrefix: "scale",
+    localFallback: false,
+    parse: scaleReadingFromReply,
+    prompt: `This is a photo of a bathroom scale display. Read the weight shown on it — usually 2–3 digits with at most one or two decimals (e.g. 78.4, 165.2). Read ONLY the large main number; ignore body-fat, BMI or memory-slot values shown in smaller digits.
+Also report the unit if the display shows one (kg, lb or lbs).
+Reply with JSON only: {"detected": "<the number, or null>", "unit": "<kg|lb|null>"}. If you cannot read the display, use null for both.`,
   });
 }
 

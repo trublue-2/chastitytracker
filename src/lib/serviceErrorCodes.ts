@@ -278,6 +278,21 @@ export const SETTINGS_CODES = [
   "CLEANING_WINDOWS_TOO_MANY",
 ] as const;
 
+/** Gewichtstracking (docs/gewicht-konzept.md). `WEIGHT_CORRIDOR_NARROWER` ist der einzige Code, der
+ *  eine Regel und keinen Tippfehler meldet: die Keyholderin darf den Zielkorridor des Subs weiten,
+ *  nie verengen — abgewiesen wird mit Begründung, nicht still ignoriert. */
+export const WEIGHT_CODES = [
+  "WEIGHT_OUT_OF_RANGE",
+  "HEIGHT_OUT_OF_RANGE",
+  "WEIGHT_CORRIDOR_INVERTED",
+  "WEIGHT_CORRIDOR_NARROWER",
+  "WEIGHT_TRACKING_DISABLED",
+  "WEIGHING_WINDOWS_TOO_MANY",
+  "INVALID_UNIT_SYSTEM",
+  "WEIGHT_PROOF_REQUIRED",
+  "WEIGHT_IN_FUTURE",
+] as const;
+
 /** Every code the service layer can return — the set the i18n parity test iterates. */
 export const SERVICE_ERROR_CODES = [
   ...new Set<string>([
@@ -296,6 +311,7 @@ export const SERVICE_ERROR_CODES = [
     ...TASK_CODES,
     ...OFFENSE_RULE_CODES,
     ...SETTINGS_CODES,
+    ...WEIGHT_CODES,
   ]),
 ] as readonly string[];
 
@@ -318,4 +334,5 @@ export type ServiceErrorCode =
   | (typeof BOX_CODES)[number]
   | (typeof TASK_CODES)[number]
   | (typeof OFFENSE_RULE_CODES)[number]
-  | (typeof SETTINGS_CODES)[number];
+  | (typeof SETTINGS_CODES)[number]
+  | (typeof WEIGHT_CODES)[number];
