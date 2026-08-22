@@ -217,7 +217,7 @@ Meldungen aussehen.
 | Schalter | Wer | Wirkung |
 |---|---|---|
 | `weightTrackingEnabled` am `User` | Keyholderin, je Sub | Erfassung, Anzeigen, Statistik-Karte, MCP-Schreiben — alles weg |
-| `WEIGHT_TRACKING_ENABLED` (ENV) | Betreiber der Instanz | das Feature existiert dort nicht; Muster `deviceCategoriesEnabled()` + `deviceCategoriesGate()` in `src/lib/authGuards.ts` |
+| `ENABLE_WEIGHT_TRACKING` (ENV) | Betreiber der Instanz | **Opt-in, Default AUS** — ohne ein ausdrückliches `true` existiert das Feature dort nicht. Muster: `bildersafeEnabled()` |
 
 **Was „aus" bedeutet:**
 

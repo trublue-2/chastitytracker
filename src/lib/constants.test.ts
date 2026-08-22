@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { validateEntryPayload, deviceCategoriesEnabled, clampStartGrace, startGraceFromClock, VALID_TYPES, KG_ENTRY_TYPES, WEAR_ENTRY_TYPES, TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, DURATION_UNITS, durationToHours, durationFromHours } from "./constants";
+import { validateEntryPayload, deviceCategoriesEnabled, weightTrackingEnabled, clampStartGrace, startGraceFromClock, VALID_TYPES, KG_ENTRY_TYPES, WEAR_ENTRY_TYPES, TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, DURATION_UNITS, durationToHours, durationFromHours } from "./constants";
 
 const FUTURE_SAFE_TIME = "2030-01-01T10:00:00Z";
 
@@ -14,6 +14,34 @@ describe("VALID_TYPES", () => {
 
   it("WEAR_ENTRY_TYPES contains exactly WEAR_BEGIN and WEAR_END", () => {
     expect([...WEAR_ENTRY_TYPES].sort()).toEqual(["WEAR_BEGIN", "WEAR_END"]);
+  });
+});
+
+describe("weightTrackingEnabled", () => {
+  const original = process.env.ENABLE_WEIGHT_TRACKING;
+  afterEach(() => {
+    if (original === undefined) delete process.env.ENABLE_WEIGHT_TRACKING;
+    else process.env.ENABLE_WEIGHT_TRACKING = original;
+  });
+
+  it("ist AUS, solange nichts gesetzt ist — Gesundheitsdaten sind opt-in", () => {
+    delete process.env.ENABLE_WEIGHT_TRACKING;
+    expect(weightTrackingEnabled()).toBe(false);
+  });
+
+  it("schaltet nur ein exaktes „true\" ein (Gross-/Kleinschreibung egal)", () => {
+    for (const wert of ["true", "True", "TRUE"]) {
+      process.env.ENABLE_WEIGHT_TRACKING = wert;
+      expect(weightTrackingEnabled(), wert).toBe(true);
+    }
+  });
+
+  it("lässt sich nicht versehentlich einschalten", () => {
+    // Ein halb gesetzter Schalter darf ein Gesundheitsdaten-Feature nicht aufmachen.
+    for (const wert of ["1", "yes", "on", "", "false"]) {
+      process.env.ENABLE_WEIGHT_TRACKING = wert;
+      expect(weightTrackingEnabled(), wert).toBe(false);
+    }
   });
 });
 
