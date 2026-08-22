@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { weightTrackingEnabled } from "@/lib/constants";
 import { APP_TZ, formatDate, toDateLocale } from "@/lib/utils";
-import { weightDayKey, type UnitSystem } from "@/lib/weight";
+import { keyholderCorridorOf, subCorridorOf, weightDayKey, type UnitSystem } from "@/lib/weight";
+import { WEIGHT_USER_SELECT } from "@/lib/weightService";
 import type { WeightStatsCardProps } from "@/app/components/WeightStatsCard";
 
 /**
@@ -21,13 +22,7 @@ import type { WeightStatsCardProps } from "@/app/components/WeightStatsCard";
 export async function getWeightStatsProps(subUserId: string): Promise<WeightStatsCardProps | null> {
   if (!weightTrackingEnabled()) return null;
 
-  const sub = await prisma.user.findUnique({
-    where: { id: subUserId },
-    select: {
-      weightTrackingEnabled: true, timezone: true, heightCm: true,
-      targetMinKg: true, targetMaxKg: true, targetMinKeyholderKg: true, targetMaxKeyholderKg: true,
-    },
-  });
+  const sub = await prisma.user.findUnique({ where: { id: subUserId }, select: WEIGHT_USER_SELECT });
   if (!sub?.weightTrackingEnabled) return null;
 
   const [rows, session, locale] = await Promise.all([
@@ -59,8 +54,8 @@ export async function getWeightStatsProps(subUserId: string): Promise<WeightStat
 
   return {
     points: rows,
-    subCorridor: { minKg: sub.targetMinKg, maxKg: sub.targetMaxKg },
-    keyholderCorridor: { minKg: sub.targetMinKeyholderKg, maxKg: sub.targetMaxKeyholderKg },
+    subCorridor: subCorridorOf(sub),
+    keyholderCorridor: keyholderCorridorOf(sub),
     heightCm: sub.heightCm,
     unitSystem: ((viewer?.unitSystem ?? "metric") as UnitSystem),
     todayKey: weightDayKey(new Date(), sub.timezone || APP_TZ),

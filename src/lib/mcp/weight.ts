@@ -2,13 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { APP_TZ, round1 } from "@/lib/utils";
 import { weightTrackingEnabled } from "@/lib/constants";
 import {
-  bmi, corridorBreach, dayNumber, effectiveCorridor, keyholderCorridorProblem, weightDayKey,
-  weightProblem,
-  type Corridor,
+  bmi, corridorBreach, dayNumber, effectiveCorridor, effectiveCorridorOf, keyholderCorridorOf,
+  keyholderCorridorProblem, subCorridorOf, weightDayKey, weightProblem, type Corridor,
 } from "@/lib/weight";
 import { inWeighingWindow, parseWeighingWindows } from "@/lib/weightWindows";
 import { buildWeightSeries } from "@/lib/weightSeries";
-import { recordWeight } from "@/lib/weightService";
+import { recordWeight, WEIGHT_USER_SELECT } from "@/lib/weightService";
 import { type TxClient, type WriteContext, type WriteDef, type WriteResult, diffFields } from "@/lib/mcp/writeFramework";
 
 /**
@@ -23,6 +22,9 @@ import { type TxClient, type WriteContext, type WriteDef, type WriteResult, diff
  * Oberfläche, in der jemand Pfund liest, und eine zweite Einheit in der Antwort wäre bloss eine
  * weitere Stelle, an der jemand die falsche verwendet.
  */
+
+/** Kein Träger, keine Grenzen — die Antwort auf eine Abfrage zu einem Konto, das es nicht gibt. */
+const LEER: Corridor = { minKg: null, maxKg: null };
 
 export const WEIGHT_SCHEMA_VERSION = 1;
 
@@ -44,20 +46,29 @@ export interface WeightHistoryResult {
   changeKg: number | null;
   /** Gleitendes 7-Tage-Mittel des jüngsten Tages mit Messung — die Richtung ohne Tagesrauschen. */
   trendKg: number | null;
-  points: { day: string; weightKg: number; inWindow: boolean; note: string | null }[];
+  /**
+   * Je Tag der Wert und sein Beleg.
+   *
+   * `detectedKg` ist, was die Waagen-Erkennung aus dem Foto gelesen hat — getrennt von dem, was der
+   * Träger bestätigt hat. Weichen beide ab, hat er korrigiert; das ist die Spur, die eine
+   * Schummelei hinterlässt, und der eigentliche Grund, warum beide Zahlen gespeichert werden.
+   * `null` heisst: nicht geprüft (kein Foto, kein Vision-Provider, nicht auswertbar) — NICHT
+   * „stimmte überein".
+   *
+   * `photo`: `"yes"` = Beleg liegt vor, `"expired"` = es gab einen, die Aufbewahrungsfrist ist um,
+   * `"none"` = nie einer (der Träger meldete mit Notiz, oder der Eintrag kam von dir).
+   */
+  points: {
+    day: string; weightKg: number; inWindow: boolean; note: string | null;
+    detectedKg: number | null; photo: "yes" | "expired" | "none";
+  }[];
 }
 
 /** Die Reihe eines Trägers. `days` begrenzt den Zeitraum; `null` = seit Beginn. */
 export async function weightHistory(userId: string, opts: { days: number | null }): Promise<WeightHistoryResult> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      weightTrackingEnabled: true, timezone: true, heightCm: true, weighingWindows: true,
-      targetMinKg: true, targetMaxKg: true, targetMinKeyholderKg: true, targetMaxKeyholderKg: true,
-    },
-  });
-  const subCorridor: Corridor = { minKg: user?.targetMinKg ?? null, maxKg: user?.targetMaxKg ?? null };
-  const keyholderCorridor: Corridor = { minKg: user?.targetMinKeyholderKg ?? null, maxKg: user?.targetMaxKeyholderKg ?? null };
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
+  const subCorridor = user ? subCorridorOf(user) : LEER;
+  const keyholderCorridor = user ? keyholderCorridorOf(user) : LEER;
   const base = {
     schemaVersion: WEIGHT_SCHEMA_VERSION,
     enabled: weightTrackingEnabled() && !!user?.weightTrackingEnabled,
@@ -72,7 +83,10 @@ export async function weightHistory(userId: string, opts: { days: number | null 
   const rows = await prisma.weightEntry.findMany({
     where: { userId },
     orderBy: { measuredAt: "asc" },
-    select: { dayKey: true, weightKg: true, inWindow: true, note: true },
+    select: {
+      dayKey: true, weightKg: true, inWindow: true, note: true,
+      detectedKg: true, imageUrl: true, imagePrunedAt: true,
+    },
   });
   const todayKey = weightDayKey(new Date(), tz);
   const series = buildWeightSeries(rows, { days: opts.days, todayKey, subCorridor, keyholderCorridor });
@@ -88,12 +102,17 @@ export async function weightHistory(userId: string, opts: { days: number | null 
     daysSinceLastReport: rows.length ? dayNumber(todayKey) - dayNumber(rows[rows.length - 1].dayKey) : null,
     changeKg: series.changeKg,
     trendKg: series.trend.length ? series.trend[series.trend.length - 1].weightKg : null,
-    points: series.points.map((p) => ({
-      day: p.dayKey,
-      weightKg: p.weightKg,
-      inWindow: p.inWindow,
-      note: rows.find((r) => r.dayKey === p.dayKey)?.note ?? null,
-    })),
+    points: series.points.map((p) => {
+      const row = rows.find((r) => r.dayKey === p.dayKey);
+      return {
+        day: p.dayKey,
+        weightKg: p.weightKg,
+        inWindow: p.inWindow,
+        note: row?.note ?? null,
+        detectedKg: row?.detectedKg ?? null,
+        photo: row?.imageUrl ? "yes" : (row?.imagePrunedAt ? "expired" : "none"),
+      } as const;
+    }),
   };
 }
 
@@ -125,13 +144,7 @@ export interface WeightSummary {
  */
 export async function weightSummary(userId: string): Promise<WeightSummary | null> {
   if (!weightTrackingEnabled()) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      weightTrackingEnabled: true, timezone: true, heightCm: true,
-      targetMinKg: true, targetMaxKg: true, targetMinKeyholderKg: true, targetMaxKeyholderKg: true,
-    },
-  });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
   if (!user?.weightTrackingEnabled) return null;
 
   const rows = await prisma.weightEntry.findMany({
@@ -144,14 +157,9 @@ export async function weightSummary(userId: string): Promise<WeightSummary | nul
 
   const tz = user.timezone || APP_TZ;
   const todayKey = weightDayKey(new Date(), tz);
-  const corridor = effectiveCorridor(
-    { minKg: user.targetMinKg, maxKg: user.targetMaxKg },
-    { minKg: user.targetMinKeyholderKg, maxKg: user.targetMaxKeyholderKg },
-  );
+  const corridor = effectiveCorridorOf(user);
   const series = buildWeightSeries([...rows].reverse(), {
-    days: null, todayKey,
-    subCorridor: { minKg: user.targetMinKg, maxKg: user.targetMaxKg },
-    keyholderCorridor: { minKg: user.targetMinKeyholderKg, maxKg: user.targetMaxKeyholderKg },
+    days: null, todayKey, subCorridor: subCorridorOf(user), keyholderCorridor: keyholderCorridorOf(user),
   });
   const last = series.latest!;
   return {
@@ -183,10 +191,7 @@ export interface LogWeightResult {
 
 /** Der geplante Zustand einer Messung — für Vorschau UND Commit dieselbe Rechnung. */
 async function projectWeight(userId: string, args: LogWeightArgs) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { weightTrackingEnabled: true, timezone: true, weighingWindows: true },
-  });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
   if (!user) throw new Error("User not found.");
   if (!weightTrackingEnabled() || !user.weightTrackingEnabled) {
     throw new Error("Weight tracking is not enabled for this wearer.");
@@ -287,21 +292,12 @@ function merged(current: Corridor, args: SetWeightLimitsArgs): Corridor {
 }
 
 async function limitsOf(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      weightTrackingEnabled: true,
-      targetMinKg: true, targetMaxKg: true, targetMinKeyholderKg: true, targetMaxKeyholderKg: true,
-    },
-  });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
   if (!user) throw new Error("User not found.");
   if (!weightTrackingEnabled() || !user.weightTrackingEnabled) {
     throw new Error("Weight tracking is not enabled for this wearer.");
   }
-  return {
-    sub: { minKg: user.targetMinKg, maxKg: user.targetMaxKg } as Corridor,
-    keyholder: { minKg: user.targetMinKeyholderKg, maxKg: user.targetMaxKeyholderKg } as Corridor,
-  };
+  return { sub: subCorridorOf(user), keyholder: keyholderCorridorOf(user) };
 }
 
 /** Die Nur-Weiten-Prüfung als Satz, den ein Agent lesen kann. */

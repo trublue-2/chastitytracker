@@ -2,11 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
 import { weighingWindowsProblem, parseWeighingWindows } from "@/lib/weightWindows";
+import { WEIGHT_USER_SELECT } from "@/lib/weightService";
 import { OFFENSE_RULE_CHANGE_SELECT } from "@/lib/offenseRulesService";
 import { offenseRuleResolver } from "@/lib/offenseRules";
 import {
-  corridorProblem, heightProblem, isUnitSystem, keyholderCorridorProblem,
-  HEIGHT_EPOCH, type Corridor, type UnitSystem,
+  corridorProblem, heightProblem, isUnitSystem, keyholderCorridorOf, keyholderCorridorProblem,
+  subCorridorOf, HEIGHT_EPOCH, type Corridor, type UnitSystem,
 } from "@/lib/weight";
 
 /**
@@ -114,14 +115,11 @@ export async function setWeightSettingsSelf(userId: string, params: SelfWeightPa
   // Grundzeilen in die Grössen-Historie.
   try {
     await prisma.$transaction(async (tx) => {
-      const before = await tx.user.findUnique({
-        where: { id: userId },
-        select: { heightCm: true, targetMinKg: true, targetMaxKg: true },
-      });
+      const before = await tx.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
       if (!before) throw fail("USER_NOT_FOUND");
 
       if (min !== undefined || max !== undefined) {
-        const next = mergedCorridor({ minKg: before.targetMinKg, maxKg: before.targetMaxKg }, min, max);
+        const next = mergedCorridor(subCorridorOf(before), min, max);
         const problem = corridorProblem(next);
         if (problem) throw fail(problem);
         data.targetMinKg = next.minKg;
@@ -195,23 +193,15 @@ export async function setWeightSettingsKeyholder(
 
   try {
     await prisma.$transaction(async (tx) => {
-      const before = await tx.user.findUnique({
-        where: { id: userId },
-        select: {
-          targetMinKg: true, targetMaxKg: true,
-          targetMinKeyholderKg: true, targetMaxKeyholderKg: true,
-        },
-      });
+      const before = await tx.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
       if (!before) throw fail("USER_NOT_FOUND");
 
       if (min !== undefined || max !== undefined) {
-        const next = mergedCorridor(
-          { minKg: before.targetMinKeyholderKg, maxKg: before.targetMaxKeyholderKg }, min, max,
-        );
+        const next = mergedCorridor(keyholderCorridorOf(before), min, max);
         // Die Regel des Nutzers: „ich wiege 90 und möchte 84 — dann kann die KH keine 80 daraus
         // machen, aber 87." Abgewiesen wird mit Begründung, nicht still ignoriert: die Keyholderin
         // soll sehen, warum ihre Zahl nicht durchgeht.
-        const problem = keyholderCorridorProblem({ minKg: before.targetMinKg, maxKg: before.targetMaxKg }, next);
+        const problem = keyholderCorridorProblem(subCorridorOf(before), next);
         if (problem) throw fail(problem);
         data.targetMinKeyholderKg = next.minKg;
         data.targetMaxKeyholderKg = next.maxKg;

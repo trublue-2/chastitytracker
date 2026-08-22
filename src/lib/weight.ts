@@ -117,6 +117,41 @@ export interface Corridor {
 }
 
 /**
+ * Die vier Korridor-Spalten, wie sie am `User` stehen.
+ *
+ * Als Typ hier und nicht als Prisma-Zeile: die drei Ableitungen darunter sind rein und werden auch
+ * von Client-Komponenten gebraucht — sie dürfen kein `prisma` in den Browser ziehen.
+ */
+export interface CorridorColumns {
+  targetMinKg: number | null;
+  targetMaxKg: number | null;
+  targetMinKeyholderKg: number | null;
+  targetMaxKeyholderKg: number | null;
+}
+
+/** Was der Träger sich selbst gesetzt hat. */
+export function subCorridorOf(u: CorridorColumns): Corridor {
+  return { minKg: u.targetMinKg, maxKg: u.targetMaxKg };
+}
+
+/** Die Nachbesserung der Keyholderin — für sich genommen; wirksam wird sie erst im Verbund. */
+export function keyholderCorridorOf(u: CorridorColumns): Corridor {
+  return { minKg: u.targetMinKeyholderKg, maxKg: u.targetMaxKeyholderKg };
+}
+
+/**
+ * Der wirksame Korridor direkt aus den Spalten — die Form, die fast jeder Leser will.
+ *
+ * Die drei Helfer stehen hier, weil die Zuordnung „welche Spalte gehört wem" sonst an jeder
+ * Lesestelle erneut ausgeschrieben wird. Sie stand ein Dutzend Mal im Feature, und eine davon
+ * hätte irgendwann die Keyholder-Spalten dem Träger zugeschrieben — ein Fehler, den keine
+ * Typprüfung sieht, weil alle vier Spalten `number | null` sind.
+ */
+export function effectiveCorridorOf(u: CorridorColumns): Corridor {
+  return effectiveCorridor(subCorridorOf(u), keyholderCorridorOf(u));
+}
+
+/**
  * Der wirksame Korridor aus dem Wunsch des Subs und der Nachbesserung der Keyholderin.
  *
  * **Wirksam ist stets der WEITERE der beiden Werte.** Das ist die Regel „die Keyholderin darf nur

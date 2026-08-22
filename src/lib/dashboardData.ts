@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
 import { CLEANING_USER_SELECT } from "@/lib/reinigungService";
+import { weightTrackingEnabled } from "@/lib/constants";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
@@ -117,7 +118,8 @@ export const entriesCached = cache(async (userId: string) =>
  * in dem seltenen Fall, in dem gar keine Einträge existieren.
  */
 export const hasWeightDataCached = cache(async (userId: string) =>
-  (await prisma.weightEntry.count({ where: { userId } })) > 0,
+  // Führt die Instanz das Feature gar nicht, gibt es auch nichts zu zählen.
+  weightTrackingEnabled() && (await prisma.weightEntry.count({ where: { userId } })) > 0,
 );
 
 /** Die Orgasmus-Einträge, neueste zuerst — Session-Karte und Session-Liste stellen dieselbe Frage. */

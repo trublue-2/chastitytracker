@@ -5,7 +5,7 @@ import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { APP_TZ } from "@/lib/utils";
 import { inWeighingWindow } from "@/lib/weightWindows";
 import {
-  breachToAnnounce, effectiveCorridor, weightDayKey, weightForDisplay, weightProblem,
+  breachToAnnounce, effectiveCorridorOf, weightDayKey, weightForDisplay, weightProblem,
   type UnitSystem,
 } from "@/lib/weight";
 import { notifyControllers } from "@/lib/notify";
@@ -20,6 +20,27 @@ import { getControllersOfUser } from "@/lib/keyholder";
  * die Keyholder-Route sie ein zweites Mal — und die erste Abweichung wäre eine Messung, die beim
  * einen Weg im Fenster liegt und beim anderen nicht.
  */
+
+/**
+ * Die Spalten, die eine Gewichts-Sicht braucht — eine Konstante für JEDEN Leser (Statistik,
+ * Formular, Grenz-Meldung, MCP), damit Abfrage und Zeilentyp nicht getrennt voneinander veralten.
+ *
+ * Bewusst etwas mehr, als der einzelne Aufrufer braucht: es sind ein paar kleine Spalten auf einer
+ * Primärschlüssel-Abfrage. Fünf leicht verschiedene Selects nebeneinander kosten mehr — sie laufen
+ * beim ersten neuen Feld auseinander, und dann fehlt es genau an einer Stelle.
+ */
+export const WEIGHT_USER_SELECT = {
+  weightTrackingEnabled: true,
+  timezone: true,
+  heightCm: true,
+  unitSystem: true,
+  username: true,
+  weighingWindows: true,
+  targetMinKg: true,
+  targetMaxKg: true,
+  targetMinKeyholderKg: true,
+  targetMaxKeyholderKg: true,
+} as const;
 
 /** Wer die Zeile anlegt. Bestimmt die Foto-Pflicht: nur der Träger steht vor der Waage. */
 export type WeightSource = "user" | "keyholder" | "agent";
@@ -170,21 +191,12 @@ export async function recordWeight(
  */
 async function announceCorridorBreach(userId: string, currentKg: number, measuredAt: Date): Promise<void> {
   const [user, previousKg] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        username: true, heightCm: true, unitSystem: true,
-        targetMinKg: true, targetMaxKg: true, targetMinKeyholderKg: true, targetMaxKeyholderKg: true,
-      },
-    }),
+    prisma.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT }),
     lastWeightBefore(userId, measuredAt),
   ]);
   if (!user) return;
 
-  const corridor = effectiveCorridor(
-    { minKg: user.targetMinKg, maxKg: user.targetMaxKg },
-    { minKg: user.targetMinKeyholderKg, maxKg: user.targetMaxKeyholderKg },
-  );
+  const corridor = effectiveCorridorOf(user);
   const side = breachToAnnounce({ currentKg, previousKg, corridor, heightCm: user.heightCm });
   if (!side) return;
 

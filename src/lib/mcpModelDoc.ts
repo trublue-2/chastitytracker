@@ -133,7 +133,9 @@ Sperre \`reinigungErlaubt\` hat. Freie Wechsel erlauben ⇒ \`reinigungErlaubt\`
   Regel (aus / nur während einer Sperrzeit / immer); Vorgabe ist AUS.
 - \`weight_history\` zeigt die Gewichts-Reihe: Punkte je Tag, aktueller Wert samt BMI, Trend
   (Sieben-Tage-Mittel) und den wirksamen Zielbereich. \`daysSinceLastReport\` ist die Zahl, an der die
-  Meldepflicht hängt. \`log_weight\` trägt eine Messung nach — höchstens EINE je Kalendertag, eine
+  Meldepflicht hängt. Je Tag nennt \`weight_history.points\` ausserdem
+  \`detectedKg\` (was die Erkennung aus dem Foto las — weicht sie vom Wert ab, hat er korrigiert) und
+  \`photo\` (\`yes\` / \`expired\` / \`none\`). \`log_weight\` trägt eine Messung nach — höchstens EINE je Kalendertag, eine
   zweite ersetzt sie. \`set_weight_limits\` bessert den Zielbereich nach: **nur WEITEN, nie
   verengen**, und nur dort, wo der Träger selbst eine Grenze gesetzt hat. Die Grenzen gehören ihm,
   weil er der Realistischere ist.

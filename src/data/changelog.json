@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.3.3",
+    "date": "2026-08-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Gewichtstracking: Wiegen mit Foto der Waage, Zielbereich und Verlaufskurve. Die Keyholderin schaltet es frei und sieht Werte und Trend; auf Wunsch gibt es eine Meldepflicht.",
+          "en": "Weight tracking: weigh-ins with a photo of the scale, a target range and a history chart. The keyholder enables it and sees values and trend; a reporting duty can be switched on."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.2",
     "date": "2026-08-22",
     "changes": [
