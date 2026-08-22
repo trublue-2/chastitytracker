@@ -82,6 +82,7 @@ const STATS_BLOCKS = [
   { id: "records", labelKey: "blockStatsRecords" },
   { id: "deviceUsage", labelKey: "blockStatsDeviceUsage" },
   { id: "inspections", labelKey: "blockStatsInspections" },
+  { id: "weight", labelKey: "blockStatsWeight" },
   { id: "monthStats", labelKey: "blockStatsMonths" },
   { id: "unlawfulOpenings", labelKey: "blockStatsUnlawful" },
 ] as const;

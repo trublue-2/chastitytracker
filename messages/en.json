@@ -1,4 +1,19 @@
 {
+  "weightStats": {
+    "title": "Weight",
+    "empty": "No measurement recorded yet.",
+    "emptyRange": "No measurement in this period.",
+    "current": "Current",
+    "change": "Change",
+    "bmi": "BMI",
+    "rangeLabel": "Period",
+    "range30": "30 days",
+    "range90": "90 days",
+    "range365": "1 year",
+    "rangeall": "All time",
+    "chartLabel": "Weight history with smoothed trend line",
+    "legend": "Line = average of the last seven days. Hollow dots were measured outside the weighing windows and do not count towards the trend."
+  },
   "weightForm": {
     "title": "Record weight",
     "titleAdmin": "Add a weight",
@@ -389,6 +404,7 @@
     "blockStatsDeviceUsage": "Device usage",
     "blockStatsInspections": "Inspections",
     "blockStatsMonths": "Monthly overview",
+    "blockStatsWeight": "Weight",
     "blockStatsUnlawful": "Unauthorised openings",
     "blockOpenInspection": "Open inspection",
     "blockOrgasmRequest": "Orgasm request",

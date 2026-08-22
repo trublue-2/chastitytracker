@@ -1,4 +1,19 @@
 {
+  "weightStats": {
+    "title": "Gewicht",
+    "empty": "Noch keine Messung erfasst.",
+    "emptyRange": "In diesem Zeitraum keine Messung.",
+    "current": "Aktuell",
+    "change": "Veränderung",
+    "bmi": "BMI",
+    "rangeLabel": "Zeitraum",
+    "range30": "30 Tage",
+    "range90": "90 Tage",
+    "range365": "1 Jahr",
+    "rangeall": "Seit Beginn",
+    "chartLabel": "Gewichtsverlauf mit geglätteter Trendlinie",
+    "legend": "Linie = Mittel der letzten sieben Tage. Offene Punkte wurden ausserhalb der Wiege-Fenster gemessen und zählen nicht zum Trend."
+  },
   "weightForm": {
     "title": "Gewicht erfassen",
     "titleAdmin": "Gewicht nachtragen",
@@ -389,6 +404,7 @@
     "blockStatsDeviceUsage": "Ger\u00e4te-Nutzung",
     "blockStatsInspections": "Kontrollen",
     "blockStatsMonths": "Monats\u00fcbersicht",
+    "blockStatsWeight": "Gewicht",
     "blockStatsUnlawful": "Unerlaubte \u00d6ffnungen",
     "blockOpenInspection": "Offene Kontrolle",
     "blockOrgasmRequest": "Orgasmus-Anforderung",

@@ -2,6 +2,8 @@ import { Fragment, type ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
 import DashboardStack from "@/app/components/DashboardStack";
 import { viewerLayout } from "@/lib/viewerLayout";
+import { getWeightStatsProps } from "@/lib/weightStatsProps";
+import WeightStatsCard from "./WeightStatsCard";
 import type { StatsBlockId } from "@/lib/dashboardBlockRegistry";
 import { aktiveKontrolleWhere } from "@/lib/queries";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
@@ -56,7 +58,7 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
   const dl = toDateLocale(await getLocale());
   const now = new Date();
 
-  const [entries, vorgaben, kontrollen, strafbuch, userSettings, allDevices, nonKgCategories, cleaningChanges] = await Promise.all([
+  const [entries, vorgaben, kontrollen, strafbuch, userSettings, allDevices, nonKgCategories, cleaningChanges, weightStats] = await Promise.all([
     prisma.entry.findMany({
       where: { userId },
       orderBy: { startTime: "asc" },
@@ -91,6 +93,9 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
       select: { id: true, name: true, color: true, icon: true },
     }),
     prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
+    // Gewicht: liefert selbst `null`, wenn das Feature aus ist oder nichts erfasst wurde —
+    // die Karte entfällt dann, ohne dass hier eine zweite Bedingung dieselbe Frage stellt.
+    getWeightStatsProps(userId),
   ]);
 
   // Sub's own timezone governs all boundary/format math (self or admin-viewed). Read from the
@@ -283,7 +288,10 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
 
   const pageHeading = heading ?? t("title");
 
-  if (entries.length === 0) {
+  // „Keine Einträge" heisst nicht mehr „nichts zu zeigen": wer nur sein Gewicht führt und noch nie
+  // etwas verschlossen hat, hat sehr wohl eine Statistik. Die Abkürzung gilt deshalb nur, wenn auch
+  // dort nichts liegt — sonst verschwände die Gewichts-Karte hinter einem leeren Zustand.
+  if (entries.length === 0 && !weightStats) {
     return (
       <main className={`flex-1 w-full ${compact ? "max-w-2xl mx-auto px-4 py-6" : "max-w-5xl px-6 py-8"} flex flex-col gap-6`}>
         {backHref && (
@@ -467,6 +475,9 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
         </Card>
       )
     ),
+
+    // Gewicht — entfällt ganz, solange das Feature aus ist oder noch nichts erfasst wurde.
+    weight: weightStats && <WeightStatsCard {...weightStats} />,
 
     // Monatsübersicht
     monthStats: (
