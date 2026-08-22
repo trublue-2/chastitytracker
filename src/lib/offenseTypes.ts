@@ -40,6 +40,10 @@ export const STORED_TYPE = {
   // Orgasmus ohne deckende Direktive. Ob und wann das zählt, entscheidet die Regel
   // (`offenseRules.ts`) — dreistufig: aus / nur während einer Sperrzeit / immer.
   unauthorized_orgasm: "UNAUTHORIZED_ORGASM",
+  // Mehr als drei Tage ohne Gewichts-Meldung. Abgeleitet aus den Lücken zwischen den erfassten
+  // Tagen (`weightObligation.ts`) — es gibt keine Zeile, die das Versäumnis festhielte, weil es
+  // gerade das Fehlen einer Zeile IST.
+  missed_weight_report: "WEIGHT_REPORT_MISSED",
   // Von Hand notiert (`ManualOffense`), nicht abgeleitet. Die einzige Art ohne Regel-Schalter:
   // ein ausdrücklich notiertes Vergehen abzuschalten hiesse, die Notiz zu ignorieren.
   manual_offense: "MANUAL_OFFENSE",

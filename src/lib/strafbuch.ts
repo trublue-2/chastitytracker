@@ -7,6 +7,8 @@ import { hhmmToMinutes } from "@/lib/autoKontrolleService";
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { triggeredWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
+import { missedWeightBlocks, missedWeightRef } from "@/lib/weightObligation";
+import { addWeightDays, endOfWeightDay, weightDayKey } from "@/lib/weight";
 import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
 import {
   CLEANING_RULE_CHANGE_SELECT, cleaningPermissionUserAt, cleaningRulesFrom, reinigungRulesAt,
@@ -130,6 +132,18 @@ export interface StrafbuchData {
     /** Die zur Tatzeit laufende Sperrzeit, wenn es eine gab — sonst null (Modus `always`). */
     sperrzeitEndetAt: Date | null;
     sperrzeitIndefinite: boolean;
+  }[];
+  /**
+   * Versäumte Gewichts-Meldungen: je angebrochenem Drei-Tage-Block ohne Angabe eine Zeile.
+   *
+   * Die einzige Vergehensart, die aus dem FEHLEN von Zeilen entsteht — abgeleitet aus den Lücken
+   * zwischen den erfassten Tagen (`weightObligation.ts`), nicht aus einem Datensatz.
+   */
+  missedWeightReports: {
+    /** Der Tag, mit dem der Block voll wurde (`YYYY-MM-DD`). */
+    dayKey: string;
+    at: Date;
+    days: number;
   }[];
   /** Von Hand notierte Vergehen (`ManualOffense`) — als einzige nicht abgeleitet. */
   manualOffenses: {
@@ -272,6 +286,9 @@ export const OFFENSE_LISTS = {
   // Anforderungs-ids und bleibt stabil, auch wenn die Sperrzeit später zurückgezogen wird.
   admin_password_change: spec("adminPasswordChanges", (p) => p.id, (p) => p.at),
   unauthorized_orgasm: spec("unauthorizedOrgasms", (o) => o.id, (o) => o.startTime),
+  // refId aus dem Tagesschlüssel: das Versäumnis hat keine eigene Zeile, aus der eine id käme —
+  // der Tag, an dem der Block voll wurde, IST seine Kennung.
+  missed_weight_report: spec("missedWeightReports", (m) => missedWeightRef(m.dayKey), (m) => m.at),
   manual_offense: spec("manualOffenses", (m) => m.id, (m) => m.occurredAt,
     (m) => ({ title: m.title, description: m.description, recordedBy: m.createdBy })),
 } satisfies Record<OffenseCanonicalType, {
@@ -336,6 +353,31 @@ function applyOffenseRules(
       (row) => judgedRefs.has(ref(row)) || resolve(type, at(row) ?? now) !== "off",
     );
   }
+}
+
+/**
+ * Die Kalendertage, an denen ein Gesundheits-Halt lief — die Tage, an denen die Meldepflicht ruht.
+ *
+ * Ein Halt ohne `resolvedAt` läuft bis jetzt. Angebrochene Tage zählen ganz: wer am Morgen krank
+ * gemeldet wird, soll nicht für denselben Abend noch eine Waage suchen müssen.
+ */
+function healthHoldDayKeys(
+  holds: { createdAt: Date; resolvedAt: Date | null }[],
+  tz: string,
+  now: Date,
+): string[] {
+  const days = new Set<string>();
+  for (const hold of holds) {
+    const last = weightDayKey(hold.resolvedAt ?? now, tz);
+    let day = weightDayKey(hold.createdAt, tz);
+    // Obergrenze gegen eine Endlosschleife bei verdrehten Zeitstempeln (resolvedAt vor createdAt):
+    // solche Zeilen liefern gar keinen Tag, statt den Aufbau des Strafbuchs hängen zu lassen.
+    for (let guard = 0; day <= last && guard < 3660; guard++) {
+      days.add(day);
+      day = addWeightDays(day, 1);
+    }
+  }
+  return [...days];
 }
 
 /**
@@ -516,9 +558,16 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     .filter((c) => c.offenseType === "unauthorized_orgasm" && c.mode !== "off")
     .reduce<Date | undefined>((min, c) => (!min || c.effectiveFrom < min ? c.effectiveFrom : min), undefined);
 
+  // Dieselbe Abkürzung für die Gewichts-Meldepflicht, und aus demselben Grund: ihr Default ist `off`,
+  // also lädt der Regelfall weder Messungen noch Gesundheits-Hälte. `undefined` = die Pflicht galt
+  // hier nie.
+  const weightRuleArmedFrom = validOffenseRuleChanges(offenseRuleChanges)
+    .filter((c) => c.offenseType === "missed_weight_report" && c.mode !== "off")
+    .reduce<Date | undefined>((min, c) => (!min || c.effectiveFrom < min ? c.effectiveFrom : min), undefined);
+
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, cleaningRuleChanges, timezoneChanges, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw] = await Promise.all([
+  const [enforcedFrom, cleaningRuleChanges, timezoneChanges, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw, weightRows, healthHolds] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
     prisma.timezoneChange.findMany({ where: { userId }, select: TIMEZONE_CHANGE_SELECT }),
@@ -552,6 +601,14 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     // Zurückgezogene bleiben draussen — gleiche Begründung wie bei den Aufgaben: der Rückzug ist die
     // Korrektur des Keyholders an seiner eigenen Notiz.
     prisma.manualOffense.findMany({ where: { userId, withdrawnAt: null }, orderBy: { occurredAt: "desc" } }),
+    // Gewicht: die erfassten TAGE (nicht die Werte) und die Gesundheits-Hälte — beides nur, wenn die
+    // Meldepflicht je scharf war.
+    weightRuleArmedFrom
+      ? prisma.weightEntry.findMany({ where: { userId }, orderBy: { measuredAt: "asc" }, select: { dayKey: true, measuredAt: true } })
+      : Promise.resolve([]),
+    weightRuleArmedFrom
+      ? prisma.healthHold.findMany({ where: { userId }, select: { createdAt: true, resolvedAt: true } })
+      : Promise.resolve([]),
   ]);
 
   // Öffnungen, Verschlüsse und die Reinigungs-Regeln liegen aus demselben Promise.all vor —
@@ -774,6 +831,32 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     entryNote: k.autoMarkedEntry?.note ?? null,
   });
 
+  // ── Versäumte Gewichts-Meldungen ────────────────────────────────────────────────────────────
+  //
+  // Beginn ist der SPÄTERE aus Regel-Beginn und erster Messung: vor der ersten Meldung gab es nichts
+  // zu versäumen, und vor dem Einschalten galt die Pflicht nicht. Ohne eine der beiden Grenzen
+  // entsteht nichts — genau das ist der Regelfall.
+  //
+  // Gerechnet wird in der HEUTIGEN Zeitzone des Trägers, nicht in der historisierten: die
+  // Tagesschlüssel der Messungen stehen fest (sie wurden beim Erfassen geschrieben), und ein
+  // Zonenwechsel verschöbe hier höchstens eine Tagesgrenze um Stunden. Das ist die eine Stelle, an
+  // der die Ableitung bewusst gröber ist als der Rest — der Aufwand einer taggenauen Zonen-Historie
+  // stünde in keinem Verhältnis zu einer Frist, die in Tagen misst.
+  const firstWeightDay = weightRows[0]?.measuredAt;
+  const missedWeightReports = weightRuleArmedFrom && firstWeightDay
+    ? missedWeightBlocks({
+        reportedDayKeys: weightRows.map((w) => w.dayKey),
+        fromDayKey: weightDayKey(
+          firstWeightDay > weightRuleArmedFrom ? firstWeightDay : weightRuleArmedFrom, subTz,
+        ),
+        toDayKey: weightDayKey(now, subTz),
+        pausedDayKeys: healthHoldDayKeys(healthHolds, subTz, now),
+        now,
+        endOfDay: (dayKey) => endOfWeightDay(dayKey, subTz),
+        addDays: addWeightDays,
+      })
+    : [];
+
   const data: StrafbuchData = {
     unauthorizedOpenings,
     lateControls: kontrollAnforderungen
@@ -806,6 +889,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       sperrzeitEndetAt: p.sperrzeitEndetAt,
     })),
     unauthorizedOrgasms,
+    missedWeightReports,
     manualOffenses: manualOffensesRaw.map((m) => ({
       id: m.id,
       occurredAt: m.occurredAt,

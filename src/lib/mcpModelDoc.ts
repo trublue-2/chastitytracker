@@ -122,8 +122,8 @@ Sperre \`reinigungErlaubt\` hat. Freie Wechsel erlauben ⇒ \`reinigungErlaubt\`
   **Vorlage für dein Urteil, keine automatische Konsequenz.**
 - Kanonische Typen (\`get_offenses\`): \`unauthorized_opening\`, \`cleaning_limit\`, \`late_control\`,
   \`rejected_control\`, \`auto_removed_control\`, \`wrong_device\`, \`missed_orgasm\`, \`late_lock\`,
-  \`cleaning_not_relocked\`, \`unfulfilled_task\`, \`admin_password_change\`, \`unauthorized_orgasm\`,
-  \`manual_offense\`.
+  \`cleaning_not_relocked\`, \`unfulfilled_task\`, \`missed_weight_report\`,
+  \`admin_password_change\`, \`unauthorized_orgasm\`, \`manual_offense\`.
 - \`admin_password_change\` fällt aus der Reihe: Das Passwort eines ADMIN-Kontos wurde geändert,
   während eine Sperrzeit lief. \`via\` nennt den Weg — \`reset_token\` (über das Postfach neuen
   Zugang verschafft), \`self\`, \`set_by_other\`. Als einziges Vergehen wird es im Moment des
@@ -131,6 +131,10 @@ Sperre \`reinigungErlaubt\` hat. Freie Wechsel erlauben ⇒ \`reinigungErlaubt\`
   nicht tilgt. Gedacht als Selbstbindung: Es verhindert nichts, es macht es sichtbar.
 - \`unauthorized_orgasm\` = ein ORGASMUS-Eintrag ohne deckende Direktive. Ob er zählt, entscheidet die
   Regel (aus / nur während einer Sperrzeit / immer); Vorgabe ist AUS.
+- \`missed_weight_report\` = mehr als drei Tage ohne Gewichts-Meldung, abgeleitet aus den Lücken
+  zwischen den erfassten Tagen. Ein Vergehen je angebrochenem Drei-Tage-Block, jede Meldung setzt den
+  Zähler zurück. Zählt nur, wenn die Regel scharf ist (Vorgabe: aus), und ruht, solange ein
+  Gesundheits-Halt läuft.
 - \`manual_offense\` notierst DU selbst mit \`record_offense\` — für alles, was der Tracker nicht sehen
   kann (gebrochene Abmachung, Unhöflichkeit) und das darum keine Quelle hat, aus der es abgeleitet
   werden könnte. Notieren ist noch KEIN Urteil; beurteilt wird es danach wie jedes andere. Eine

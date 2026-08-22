@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildWeightSeries, dayNumber, movingAverage, type WeightPoint } from "./weightSeries";
+import { dayNumber } from "./weight";
+import { buildWeightSeries, movingAverage, type WeightPoint } from "./weightSeries";
 
 const p = (dayKey: string, weightKg: number, inWindow = true): WeightPoint => ({ dayKey, weightKg, inWindow });
 const NONE = { minKg: null, maxKg: null };

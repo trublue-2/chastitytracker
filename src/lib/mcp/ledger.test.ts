@@ -50,8 +50,9 @@ function strafbuchWithOneOfEach() {
     unfulfilledTasks: [{ ...j("unfulfilled_task", "t1"), title: "Staubsaugen", holdUntil: "d", state: "aborted", failedAt: "t" }],
     adminPasswordChanges: [{ ...j("admin_password_change", "p1"), time: "t", adminUsername: "Admin", via: "reset_token", lockPeriodEndedAt: null }],
     unauthorizedOrgasms: [{ ...j("unauthorized_orgasm", "g1"), time: "t", orgasmType: null, note: null, lockPeriodEndedAt: null, lockPeriodIndefinite: false }],
+    missedWeightReports: [{ ...j("missed_weight_report", "weight-missed:2026-08-22"), time: "t", day: "2026-08-22", days: 3 }],
     manualOffenses: [{ ...j("manual_offense", "n1"), time: "t", title: "Abmachung gebrochen", description: null, recordedBy: "Admin" }],
-    detectedOffenseCount: 13, openOffenseCount: 13, pendingPenaltyCount: 0,
+    detectedOffenseCount: 14, openOffenseCount: 14, pendingPenaltyCount: 0,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
@@ -72,6 +73,7 @@ function rawStrafbuchWithOneOfEach() {
     unfulfilledTasks: [{ id: "t1", title: "Staubsaugen", holdUntil: null, state: "aborted", failedAt: null, ...one }],
     adminPasswordChanges: [{ id: "p1", at: null, adminUsername: "Admin", via: "reset_token", sperrzeitEndetAt: null }],
     unauthorizedOrgasms: [{ id: "g1", ...one }],
+    missedWeightReports: [{ dayKey: "2026-08-22", at: null, days: 3 }],
     manualOffenses: [{ id: "n1", occurredAt: null, title: "Abmachung gebrochen" }],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;

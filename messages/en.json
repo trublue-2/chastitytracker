@@ -1139,6 +1139,8 @@
     "reinigungFensterRemove": "Remove window",
     "reinigungFensterAdd": "Add window",
     "strafbuchReinigungLimit": "Cleaning limit exceeded",
+    "strafbuchGewichtVersaeumt": "Weight report missed",
+    "strafbuchGewichtVersaeumtTage": "Three days without an entry",
     "strafbuchReinigungLimitDate": "Cleaning opening on",
     "sectionApp": "App",
     "sectionKeyholder": "AI keyholder rules (MCP)",
@@ -1889,6 +1891,10 @@
     "cleaningNotRelocked": {
       "name": "Not relocked after cleaning",
       "desc": "The relock after a cleaning break was missing or late."
+    },
+    "missedWeightReport": {
+      "name": "Weight report missed",
+      "desc": "Three days in a row without a weight entry."
     },
     "unfulfilledTask": {
       "name": "Task not completed",

@@ -1,4 +1,4 @@
-import { effectiveAt, round1, tzDateParts } from "@/lib/utils";
+import { effectiveAt, midnightOfLocalDate, round1, tzDateParts } from "@/lib/utils";
 import { HEIGHT_CM_RANGE, WEIGHT_KG_RANGE } from "@/lib/constants";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 
@@ -276,6 +276,27 @@ export function weightDayKey(at: Date, tz: string): string {
   const { year, month, day } = tzDateParts(at, tz);
   // `tzDateParts` gibt den Monat NULLBASIERT zurück (0 = Januar) — daher das +1.
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** `YYYY-MM-DD` → Tageszahl seit Epoch. Nur zum Vergleichen und Abzählen von Tagen, nie zur
+ *  Anzeige — der Bezugspunkt ist UTC, die Zeitzone steckt schon im Schlüssel. */
+export function dayNumber(dayKey: string): number {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
+}
+
+/** Der Kalendertag `offset` Tage nach `dayKey` — Rechnung auf den Zahlen, nicht auf Instants.
+ *  Damit trifft sie auch über einen Zeitumstellungs-Tag hinweg den nächsten Kalendertag. */
+export function addWeightDays(dayKey: string, offset: number): string {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  const shifted = new Date(Date.UTC(y, m - 1, d + offset));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(shifted.getUTCDate()).padStart(2, "0")}`;
+}
+
+/** Mitternacht NACH `dayKey` in der Zone des Trägers — der Zeitpunkt, zu dem dieser Tag vorbei ist. */
+export function endOfWeightDay(dayKey: string, tz: string): Date {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  return midnightOfLocalDate(y, m - 1, d + 1, tz);
 }
 
 // ── Grössen-Historie ───────────────────────────────────────────────────────────────────────────

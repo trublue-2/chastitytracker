@@ -11,7 +11,11 @@ import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 /** Genau die Felder, die `OffenseRuleChangeRow` (offenseRules.ts) verlangt — einmal, damit die
  *  Lese- und die Schreib-Abfrage nicht getrennt voneinander veralten. */
-const CHANGE_SELECT = { offenseType: true, mode: true, effectiveFrom: true } as const;
+/** Die drei Felder, die `offenseRuleResolver` liest — exportiert, weil ein zweiter Schreibpfad sie
+ *  braucht: das Abschalten des Gewichtstrackings nimmt die Meldepflicht mit und liest dafür den
+ *  geltenden Stand (`weightSettingsService.ts`). Eine zweite Kopie wäre die dritte im Umlauf. */
+export const OFFENSE_RULE_CHANGE_SELECT = { offenseType: true, mode: true, effectiveFrom: true } as const;
+const CHANGE_SELECT = OFFENSE_RULE_CHANGE_SELECT;
 
 /** Die aktuell geltende Fassung aller schaltbaren Arten eines Subs — für die Einstellungs-Oberfläche
  *  und jede weitere Lesesicht. Abgeleitet aus der Änderungs-Historie, nicht aus einem Feld gelesen

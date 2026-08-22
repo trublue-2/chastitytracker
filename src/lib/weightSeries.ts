@@ -1,5 +1,5 @@
 import { round1 } from "@/lib/utils";
-import { effectiveCorridor, type Corridor } from "@/lib/weight";
+import { dayNumber, effectiveCorridor, type Corridor } from "@/lib/weight";
 
 /**
  * Aus den erfassten Messungen die Reihe machen, die das Diagramm zeichnet: Punkte, Trendlinie,
@@ -36,12 +36,6 @@ export interface WeightSeries {
  * dieses Rauschen statt der Richtung; eine Woche deckt genau einen vollen Wochenrhythmus ab.
  */
 export const TREND_WINDOW_DAYS = 7;
-
-/** `YYYY-MM-DD` → Tageszahl seit Epoch. Nur zum Vergleichen und Abzählen von Tagen, nie zur Anzeige. */
-export function dayNumber(dayKey: string): number {
-  const [y, m, d] = dayKey.split("-").map(Number);
-  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
-}
 
 /**
  * Das gleitende Mittel über ein **Kalender-Fenster**, nicht über die letzten N Punkte.

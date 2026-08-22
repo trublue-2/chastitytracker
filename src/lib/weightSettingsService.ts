@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
 import { weighingWindowsProblem, parseWeighingWindows } from "@/lib/weightWindows";
+import { OFFENSE_RULE_CHANGE_SELECT } from "@/lib/offenseRulesService";
+import { offenseRuleResolver } from "@/lib/offenseRules";
 import {
   corridorProblem, heightProblem, isReferenceSex, isUnitSystem, keyholderCorridorProblem,
   HEIGHT_EPOCH, type Corridor, type ReferenceSex, type UnitSystem,
@@ -39,6 +41,10 @@ export interface SelfWeightParams {
 /** Was die Keyholderin am Sub setzt. */
 export interface KeyholderWeightParams {
   enabled?: unknown;
+  /** Username der Keyholderin — landet in der Regel-Historie, wenn das Abschalten die Meldepflicht
+   *  mitnimmt. */
+  changedBy?: string | null;
+  now?: Date;
   weighingWindows?: unknown;
   targetMinKeyholderKg?: unknown;
   targetMaxKeyholderKg?: unknown;
@@ -159,6 +165,7 @@ export async function setWeightSettingsSelf(userId: string, params: SelfWeightPa
       }
 
       await tx.user.update({ where: { id: userId }, data });
+
     });
   } catch (e) {
     const mapped = mapServiceError(e, ERRORS);
@@ -173,6 +180,7 @@ export async function setWeightSettingsKeyholder(
   userId: string,
   params: KeyholderWeightParams,
 ): Promise<ServiceResult<null>> {
+  const now = params.now ?? new Date();
   const data: {
     weightTrackingEnabled?: boolean; weighingWindows?: string;
     targetMinKeyholderKg?: number | null; targetMaxKeyholderKg?: number | null;
@@ -219,13 +227,38 @@ export async function setWeightSettingsKeyholder(
       }
 
       await tx.user.update({ where: { id: userId }, data });
+
+      // ABSCHALTEN NIMMT DIE MELDEPFLICHT MIT.
+      //
+      // Das Strafbuch leitet das Versäumnis LIVE aus den Lücken zwischen den erfassten Tagen ab.
+      // Bliebe die Vergehensregel scharf, während der Träger nichts mehr eintragen kann, zählte
+      // jeder Tag der Aus-Zeit als versäumte Meldung — für etwas, das ihm die App verwehrt.
+      //
+      // In derselben Transaktion wie das Umlegen des Schalters: bräche es dazwischen ab, stünde
+      // genau dieser Zustand da. Und als eigene Historie-Zeile statt als stiller Sonderfall in der
+      // Ableitung, damit die Vergangenheit unangetastet bleibt — was vor dem Ausschalten versäumt
+      // wurde, bleibt versäumt.
+      //
+      // Der Weg zurück ist bewusst NICHT automatisch: wer das Feature wieder einschaltet, hat damit
+      // noch keine Meldepflicht bestellt. Sie ist ein eigener Schalter und bleibt einer.
+      if (data.weightTrackingEnabled === false) {
+        const changes = await tx.offenseRuleChange.findMany({
+          where: { userId, offenseType: "missed_weight_report" },
+          select: OFFENSE_RULE_CHANGE_SELECT,
+        });
+        if (offenseRuleResolver(changes)("missed_weight_report", now) !== "off") {
+          await tx.offenseRuleChange.create({
+            data: {
+              userId, offenseType: "missed_weight_report", mode: "off",
+              effectiveFrom: now, changedBy: params.changedBy ?? "system",
+            },
+          });
+        }
+      }
     });
   } catch (e) {
-    const code = (e as Error).message;
-    if (code === "USER_NOT_FOUND") return serviceFail(404, "USER_NOT_FOUND");
-    if (code === "WEIGHT_CORRIDOR_NARROWER" || code === "WEIGHT_CORRIDOR_INVERTED" || code === "WEIGHT_OUT_OF_RANGE") {
-      return serviceFail(400, code);
-    }
+    const mapped = mapServiceError(e, ERRORS);
+    if (mapped) return mapped;
     throw e;
   }
 

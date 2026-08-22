@@ -7,8 +7,8 @@ import StatsCard from "@/app/components/StatsCard";
 import FieldTabs from "@/app/components/FieldTabs";
 import MeasurementChart from "@/app/components/MeasurementChart";
 import { round1 } from "@/lib/utils";
-import { bmi, weightForDisplay, type Corridor, type UnitSystem } from "@/lib/weight";
-import { buildWeightSeries, dayNumber, type WeightPoint } from "@/lib/weightSeries";
+import { bmi, dayNumber, weightForDisplay, type Corridor, type UnitSystem } from "@/lib/weight";
+import { buildWeightSeries, type WeightPoint } from "@/lib/weightSeries";
 
 /**
  * Die Gewichts-Karte der Statistik: Kennzahlen, Verlauf, Zielband.

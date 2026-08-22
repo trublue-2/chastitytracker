@@ -162,7 +162,12 @@ export async function PATCH(
     // Einstellung nicht — 404 statt 403, damit die Antwort nicht verrät, dass es sie gäbe. Der
     // Schalter je Sub wird hier NICHT geprüft: er steht in genau diesem Patch.
     if (!weightTrackingEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Actor-Variante wie bei den Reinigungs-Einstellungen: schaltet das Abschalten die Meldepflicht
+    // mit ab, hält die Regel-Historie fest, WER das war.
+    const actor = await requireKeyholderOrAdminActor(id);
+    if (actor instanceof NextResponse) return actor;
     return serviceResponse(await setWeightSettingsKeyholder(id, {
+      changedBy: sessionActor(actor),
       enabled: body.weightTrackingEnabled,
       weighingWindows: body.weighingWindows, // roh — der Service validiert/normalisiert
       targetMinKeyholderKg: body.targetMinKeyholderKg,
