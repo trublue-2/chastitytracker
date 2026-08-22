@@ -71,6 +71,10 @@ model User {
   // Built-in "REINIGUNG" (Code fix, nur Label umbenennbar). Siehe reasonsService.ts.
   orgasmusArtenConfig            String?
   oeffnenGruendeConfig           String?
+  // Abweichungen vom Standard-Dashboard (JSON, je Oberfläche `{hidden, order}`). NULL = Standard,
+  // also exakt die vorgegebene Reihenfolge mit allen Blöcken. Bewusst Abweichungen statt der
+  // Blockliste: sonst bliebe jeder künftig hinzukommende Block bei Bestandsnutzern unsichtbar.
+  dashboardLayout                String?
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
   mcpKeyholderInstructions       String?
   entries                        Entry[]

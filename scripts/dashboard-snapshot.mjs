@@ -39,8 +39,13 @@ const PAGES = [
   { path: "/dashboard/stats", stack: "main.flex.flex-col" },
 ];
 
-/** Jede Ziffernfolge zu `#`: nimmt Uhr und Laufzeit heraus, lässt Struktur und Wörter stehen. */
-const stripDigits = (s) => s.replace(/\d/g, "#").replace(/\s+/g, " ").trim();
+/**
+ * Jede Ziffern-FOLGE zu einem `#`: nimmt Uhr und Laufzeit heraus, lässt Struktur und Wörter stehen.
+ *
+ * Folge, nicht Einzelziffer — sonst leckt die Stellenzahl durch, und zwei Läufe im Abstand von
+ * Minuten melden eine Abweichung, wo nur die Uhr weitergegangen ist (`#T #min` gegen `#T ##min`).
+ */
+const stripDigits = (s) => s.replace(/\d+/g, "#").replace(/\s+/g, " ").trim();
 
 async function login(page) {
   // Wie in take-screenshots.mjs: der clientseitige signIn wirft im Next-16-Dev-Server

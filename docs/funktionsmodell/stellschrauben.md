@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 122 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 123 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -223,6 +223,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | `User.startPage` | String | `"auto"` | dauerhaft | Startseite nach der Anmeldung; `auto` wählt sie nach Rolle. | Sub | Oberfläche | `userSelfField.ts` |
 | `User.hideOwnTracker` | Boolean | `false` | dauerhaft | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | Sub | Oberfläche | `ownTracker.ts` |
 | `User.locale` | String | `"de"` | dauerhaft | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | Sub, Keyholder (UI) | Oberfläche, Benachrichtigungen | `emailI18n.ts` |
+| `User.dashboardLayout` | String? | — | dauerhaft | Abweichungen vom Standard-Dashboard (ausgeblendete Blöcke, eigene Reihenfolge) als JSON je Oberfläche. Leer = Standard. | Sub | Oberfläche | `dashboardLayout.ts:resolveLayout` |
 | `AdminUserRelationship.adminId` | String | (keiner) | dauerhaft | Wer diesen Sub steuern darf. Ohne Zeile sieht ein Admin ihn nicht — die Zuordnung ist die eigentliche Berechtigung. | Keyholder (UI) | Zugang, MCP, Nachrichten | — |
 | `AdminUserRelationship.userId` | String | (keiner) | dauerhaft | Der zugeordnete Sub. | Keyholder (UI) | Zugang | — |
 

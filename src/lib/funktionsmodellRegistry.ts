@@ -385,6 +385,11 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["sub"], affects: ["Oberfläche"], anchor: "userSelfField.ts",
   }),
   s({
+    model: "User", field: "dashboardLayout", domain: "konto", scope: "standing",
+    effect: "Abweichungen vom Standard-Dashboard (ausgeblendete Blöcke, eigene Reihenfolge) als JSON je Oberfläche. Leer = Standard.",
+    writers: ["sub"], affects: ["Oberfläche"], anchor: "dashboardLayout.ts:resolveLayout",
+  }),
+  s({
     model: "User", field: "hideOwnTracker", domain: "konto", scope: "standing",
     effect: "Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen.",
     writers: ["sub"], affects: ["Oberfläche"], anchor: "ownTracker.ts",

@@ -533,9 +533,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "account-display", mechanic: "Zugang", title: "Darstellung einstellen",
-    what: "Sprache, Startseite und das Ausblenden des eigenen Trackers.",
+    what: "Sprache, Startseite, das Ausblenden des eigenen Trackers und die Zusammenstellung des eigenen Dashboards.",
     actors: ["sub"], surfaces: ["sub-ui"],
-    routes: ["/api/settings/locale", "/api/settings/start-page", "/api/settings/hide-own-tracker"],
+    routes: ["/api/settings/locale", "/api/settings/start-page", "/api/settings/hide-own-tracker", "/api/settings/dashboard-layout"],
   }),
   c({
     id: "account-timezone", mechanic: "Zugang", title: "Zeitzone setzen",

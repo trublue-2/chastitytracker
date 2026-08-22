@@ -45,6 +45,8 @@ import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import { inspectionHref } from "@/lib/entryFormRoute";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { orderedBlocks, type SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
+import { parseDashboardLayout, resolveLayout } from "@/lib/dashboardLayout";
+import DashboardStack from "@/app/components/DashboardStack";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -80,7 +82,7 @@ export default async function DashboardPage() {
     // Bei mehreren offenen zeigt das Banner die dringendste — ein Verschluss erfüllt ohnehin alle.
     getOpenLockRequest(userId, now),
     getActiveSperrzeit(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true, inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true, inspectionReminderDelayMinutes: true, ...AUTO_KONTROLLE_SETTINGS_SELECT } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, orgasmusArtenConfig: true, oeffnenGruendeConfig: true, inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true, inspectionReminderDelayMinutes: true, dashboardLayout: true, ...AUTO_KONTROLLE_SETTINGS_SELECT } }),
     flagOn ? getActiveWearSessions(userId) : Promise.resolve([]),
     flagOn ? getNonKgTrackingCategories(userId) : Promise.resolve([]),
     prisma.device.count({ where: { userId, archivedAt: null } }),
@@ -441,13 +443,28 @@ export default async function DashboardPage() {
     ) : null,
   };
 
+  // Die gespeicherten ABWEICHUNGEN gegen das Register aufgelöst. Ohne gespeicherten Wert kommt
+  // exakt die Standard-Reihenfolge heraus, nichts ausgeblendet — die Zusage an jeden, der nie
+  // etwas einstellt.
+  const layout = resolveLayout(parseDashboardLayout(userSettings?.dashboardLayout), "subDashboard");
+  const rendered = Object.fromEntries(orderedBlocks("subDashboard", blocks).map(({ id, node }) => [id, node]));
+
   return (
     // Der Abstand zwischen den Blöcken kommt AUSSCHLIESSLICH von diesem `gap-4`, nie aus pt-/pb- der
     // Blöcke selbst — Begründung in `DashboardBlock`.
     <div className="flex flex-col gap-4 py-6">
-      {orderedBlocks("subDashboard", blocks).map(({ id, node }) => (
-        <Fragment key={id}>{node}</Fragment>
-      ))}
+      <DashboardStack
+        surface="subDashboard"
+        meta={layout.all.map(({ block, hidden }) => ({
+          id: block.id, label: t(block.labelKey), hidden, alwaysOn: block.alwaysOn,
+        }))}
+      >
+        {/* Nur die SICHTBAREN. Ein ausgeblendeter Block wird gar nicht erst gerendert und
+            überträgt nichts — der Bearbeiten-Modus zeigt ohnehin nur Namen. */}
+        {layout.visible.map((block) => (
+          <Fragment key={block.id}>{rendered[block.id as SubDashboardBlockId]}</Fragment>
+        ))}
+      </DashboardStack>
     </div>
   );
 }

@@ -19,10 +19,23 @@ import type { Prisma } from "@prisma/client";
  *
  * `validate` bekommt die Session mit, weil `startPage` gegen die Rolle des Aufrufers prüft
  * (`canControlSub`), und darf async sein. Rückgabe: Fehler-CODE (Client löst i18n auf) oder null.
+ *
+ * `transform` schreibt etwas anderes in die Spalte, als der Body enthielt. Gebraucht für
+ * `dashboardLayout`: der Client schickt ein Objekt, die Spalte hält JSON — und die Umwandlung
+ * gehört hinter die Prüfung, nicht davor. Ohne den Haken bräuchte es eine vierte Sonderroute
+ * neben `email` und `password`, und mit ihr fiele die Compiler-Sperre auf
+ * `SelfEditableUserField` weg.
+ *
+ * `transform` bekommt die Session aus demselben Grund wie `validate` — und muss **zustandsfrei**
+ * sein. Der naheliegende Weg, das Prüfergebnis in einer Modulvariable zwischen beiden Aufrufen zu
+ * merken, ist ein Datenleck: Modulzustand lebt im Server-Prozess, nicht in der Anfrage, und zwei
+ * gleichzeitig speichernde Nutzer schrieben sich gegenseitig den Wert in die Zeile. Lieber
+ * zweimal prüfen — die Prüfung ist rein und billig.
  */
 export function userSelfFieldRoute(
   column: SelfEditableUserField,
   validate: (value: unknown, session: ApiSession) => string | null | Promise<string | null>,
+  transform?: (value: unknown, session: ApiSession) => string | null,
 ): (req: NextRequest) => Promise<NextResponse> {
   return async function PATCH(req: NextRequest) {
     const session = await requireApi();
@@ -36,7 +49,7 @@ export function userSelfFieldRoute(
 
     await prisma.user.update({
       where: { id: session.user.id },
-      data: { [column]: value } as Prisma.UserUpdateInput,
+      data: { [column]: transform ? transform(value, session) : value } as Prisma.UserUpdateInput,
     });
 
     return NextResponse.json({ ok: true });
