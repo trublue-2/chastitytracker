@@ -1,5 +1,25 @@
 [
   {
+    "version": "5.3.2",
+    "date": "2026-08-22",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Keyholderin sieht eine unbefristete Sperrzeit wieder in der Tragezeit-Karte, auch wenn sie sie im Voraus geplant hatte — mit dem Zeitpunkt, seit dem sie läuft.",
+          "en": "The keyholder sees an open-ended lock in the session card again, even when she scheduled it in advance — including the moment it took effect."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Übersicht und Statistik zählen die Tragezeiten jetzt gleich. Vorher nannten die beiden Seiten für denselben Träger zwei verschiedene Zahlen.",
+          "en": "The overview and the statistics page now count wear periods the same way. Before, the two pages gave two different numbers for the same wearer."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.1",
     "date": "2026-08-22",
     "changes": [

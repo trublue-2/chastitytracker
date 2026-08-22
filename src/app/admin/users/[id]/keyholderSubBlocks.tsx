@@ -7,8 +7,8 @@ import {
   activeVorgabeCached, activeWearSessionsCached, deviceCountCached, entriesCached,
   keyholderInspectionsCached, keyholderOrgasmRequestCached, keyholderPairsCached,
   keyholderRunningSessionCached, keyholderSperrzeitCached, latestKgEntryCached, orgasmConfigCached,
-  orgasmEntriesCached, sessionListDataCached, taskCardsCached, userRowCached, wearingHoursCached,
-  wearSessionRowsCached,
+  orgasmEntriesCached, sessionListDataCached, taskCardsCached, userRowCached, wearCountsCached,
+  wearingHoursCached, wearSessionRowsCached,
 } from "@/lib/dashboardData";
 import { heimdallEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
 import { isScheduledDirective } from "@/lib/queries";
@@ -142,9 +142,15 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           now={now}
           events={data.running.events}
           sperrzeitEndetAt={data.sperrzeit?.endetAt ?? null}
-          sperrzeitUnbefristet={!!data.sperrzeit && data.sperrzeit.endetAt === null && !data.sperrzeit.wirksamAb}
+          // Unbefristet ist unbefristet — auch wenn die Sperre terminiert wurde. Die frühere
+          // Zusatzbedingung `!wirksamAb` liess bei einer TERMINIERTEN unbefristeten Sperre alle
+          // drei Sperr-Angaben leer laufen, und damit verschwand die ganze Zeile aus IHRER Karte,
+          // während der Träger sie sah.
+          sperrzeitUnbefristet={!!data.sperrzeit && data.sperrzeit.endetAt === null}
           sperrzeitNachricht={data.sperrzeit?.nachricht ?? null}
           sperrzeitScheduledFor={data.sperrzeit?.wirksamAb && data.sperrzeit.wirksamAb > now ? data.sperrzeit.wirksamAb : null}
+          // Der erreichte Beginn — die Karte zeigt ihn nur, wo sonst kein Zeitpunkt stünde.
+          sperrzeitRunningSince={data.sperrzeit?.wirksamAb && data.sperrzeit.wirksamAb <= now ? data.sperrzeit.wirksamAb : null}
           // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den Benutzer-
           // Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
           cleaningNote={data.sperrzeit ? t(data.sperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
@@ -236,26 +242,16 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
     })(),
   }),
 
-  // Statistik kompakt.
-  //
-  // ACHTUNG, die Zahlen sind NICHT die der Statistik-Seite: „Tragezeiten" zählt hier ALLE Paare
-  // (die laufende mit), die Statistik nur die abgeschlossenen, und deren Gesamtdauer lässt
-  // ausserdem Paare ohne positive Dauer weg (`completedPairsFrom`). So war es vorher schon; wer
-  // die beiden angleichen will, muss sich entscheiden, welche der beiden Zählweisen gilt.
+  // Statistik kompakt. Gezählt wird nach `wearCountsCached` — derselben Regel wie auf der
+  // Statistik-Seite; bis v5.3.1 zählten die beiden Karten verschieden.
   statsCompact: block({
-    load: async ({ subjectId, nowMs, now }) => {
-      const [{ pairs }, orgasmusEntries] = await Promise.all([
-        keyholderPairsCached(subjectId, nowMs), orgasmEntriesCached(subjectId),
+    load: async ({ subjectId, now }) => {
+      const [counts, orgasmusEntries] = await Promise.all([
+        wearCountsCached(subjectId), orgasmEntriesCached(subjectId),
       ]);
-      const completed = pairs.filter((p) => p.oeffnen);
       const lastOrgasmus = orgasmusEntries[0] ?? null;
       return {
-        sessionCount: pairs.length,
-        totalMs: completed.reduce(
-          (sum, p) => sum + (p.oeffnen!.startTime.getTime() - p.verschluss.startTime.getTime()) - interruptionPauseMs(p.interruptions),
-          0,
-        ),
-        completedCount: completed.length,
+        ...counts,
         lastOrgasmus,
         orgasmusFreiMs: lastOrgasmus ? now.getTime() - lastOrgasmus.startTime.getTime() : null,
       };
@@ -273,12 +269,12 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-surface-raised px-4 py-3">
               <p className="text-xs text-foreground-faint mb-0.5">{ts("entries")}</p>
-              <p className="text-2xl font-bold text-foreground tracking-tight">{data.sessionCount}</p>
+              <p className="text-2xl font-bold text-foreground tracking-tight">{data.sessions}</p>
             </div>
             <div className="rounded-xl bg-surface-raised px-4 py-3">
               <p className="text-xs text-foreground-faint mb-0.5">{ts("totalDuration")}</p>
               <p className="text-2xl font-bold text-foreground tracking-tight">
-                {data.completedCount ? formatTotalMs(data.totalMs) : "–"}
+                {data.closed ? formatTotalMs(data.totalMs) : "–"}
               </p>
             </div>
             {orgasmusFreiDisplay !== null && (

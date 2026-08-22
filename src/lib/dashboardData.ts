@@ -8,7 +8,7 @@ import { deviceCategoriesEnabled } from "@/lib/constants";
 import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
 import {
   buildKontrolleItems, buildKgWearPairs, buildPairs, calculateWearingHoursByRange,
-  completedPairsFrom, getOpenPair, KG_PAIR, tzDayKey,
+  completedPairsFrom, getOpenPair, KG_PAIR, pairDurationMs, tzDayKey,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildDailyData } from "@/lib/statsBuilders";
@@ -395,7 +395,34 @@ export const kgPairsCached = cache(async (userId: string) => {
   return buildPairs(entries, [], cleaning.rules);
 });
 
-/** Nur die abgeschlossenen davon — Übersicht, Rekorde und Monatsübersicht zählen nur die. */
+/**
+ * **Die Zählweise der Tragezeiten** — eine Stelle für beide Karten, die sie nennen.
+ *
+ * `sessions` zählt ALLE Paare, die laufende mit: gefragt ist, wie oft er getragen hat, und das
+ * hört nicht auf, weil es gerade noch andauert. `totalMs` summiert nur, was abgeschlossen ist
+ * (eine laufende Session hat noch keine Dauer), und zwar OHNE die Untergrenze aus
+ * `completedPairsFrom` — eine Session, die rechnerisch bei null landet, ist trotzdem passiert.
+ *
+ * Bis v5.3.1 zählten die Keyholder-Übersicht und die Statistik-Seite verschieden und nannten für
+ * denselben Träger zwei Zahlen. Die Übersicht hatte recht; ihre Zählweise steht jetzt hier.
+ * Die REKORDE bleiben davon unberührt — dort wäre eine Session ohne Dauer als „kürzeste" Unsinn.
+ */
+export const wearCountsCached = cache(async (userId: string) => {
+  const pairs = await kgPairsCached(userId);
+  const closed = pairs.filter((p) => p.oeffnen);
+  const totalMs = closed.reduce(
+    (sum, p) => sum + pairDurationMs({ verschluss: p.verschluss, oeffnen: p.oeffnen!, interruptions: p.interruptions }),
+    0,
+  );
+  return {
+    sessions: pairs.length,
+    closed: closed.length,
+    totalMs,
+    avgMs: closed.length ? Math.round(totalMs / closed.length) : 0,
+  };
+});
+
+/** Nur die abgeschlossenen davon — Rekorde und Monatsübersicht rechnen darauf. */
 export const completedPairsCached = cache(async (userId: string) =>
   completedPairsFrom(await kgPairsCached(userId)),
 );

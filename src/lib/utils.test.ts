@@ -8,6 +8,8 @@ import {
   isSubVisibleKontrolle,
   wornDeviceNameAt,
   interruptionPauseMs,
+  pairDurationMs,
+  completedPairsFrom,
   runningCleaningPauseUntil,
   clampInputValue,
   WEAR_PAIR,
@@ -408,6 +410,35 @@ describe("interruptionPauseMs", () => {
     ];
     // 15min + 30min = 45min in ms
     expect(interruptionPauseMs(interruptions)).toBe(45 * 60 * 1000);
+  });
+});
+
+describe("pairDurationMs — die eine Dauer-Rechnung beider Zählweisen", () => {
+  const pair = (von: string, bis: string, pausen: [string, string][] = []) => ({
+    verschluss: { startTime: t(von) },
+    oeffnen: { startTime: t(bis) },
+    interruptions: pausen.map(([auf, zu]) => ({ oeffnen: { startTime: t(auf) }, verschluss: { startTime: t(zu) } })),
+  });
+
+  it("zieht die Reinigungspausen ab", () => {
+    const p = pair("2026-05-01T10:00:00Z", "2026-05-01T14:00:00Z", [["2026-05-01T11:00:00Z", "2026-05-01T11:30:00Z"]]);
+    expect(pairDurationMs(p)).toBe(3.5 * 3_600_000);
+  });
+
+  it("kann negativ werden — eine Pause, die länger dauert als die Session", () => {
+    const p = pair("2026-05-01T10:00:00Z", "2026-05-01T11:00:00Z", [["2026-05-01T10:00:00Z", "2026-05-01T12:00:00Z"]]);
+    expect(pairDurationMs(p)).toBeLessThan(0);
+  });
+
+  it("`completedPairsFrom` wirft genau diese Fälle weg — die SUMME der Tragezeiten nicht", () => {
+    // Der Unterschied zwischen den beiden Zählweisen, festgehalten: die Rekorde dürfen eine
+    // Session ohne positive Dauer nicht als „kürzeste" führen, die Summe zählt sie mit.
+    const kaputt = pair("2026-05-01T10:00:00Z", "2026-05-01T11:00:00Z", [["2026-05-01T10:00:00Z", "2026-05-01T12:00:00Z"]]);
+    const heil = pair("2026-05-02T10:00:00Z", "2026-05-02T12:00:00Z");
+    const offen = { verschluss: { startTime: t("2026-05-03T10:00:00Z") }, oeffnen: null, interruptions: [] };
+
+    expect(completedPairsFrom([kaputt, heil, offen])).toHaveLength(1);
+    expect(pairDurationMs(kaputt) + pairDurationMs(heil)).toBeLessThan(pairDurationMs(heil));
   });
 });
 

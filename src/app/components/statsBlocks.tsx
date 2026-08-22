@@ -6,7 +6,7 @@ import {
   cleaningRulesCached, completedPairsCached, devicesCached, entriesAscCached, entriesCached,
   kgDailyDataCached, kgPairsCached, kgVorgabenCached, kgWearPairsCached, orgasmDaysCached,
   orgasmEntriesCached, statsCategoriesCached, strafbuchCached, subVisibleInspectionsCached,
-  vorgabenCached, wearPairsByCategoryCached, wearSessionsCached,
+  vorgabenCached, wearCountsCached, wearPairsByCategoryCached, wearSessionsCached,
 } from "@/lib/dashboardData";
 import { goalPct, sharePct } from "@/lib/percent";
 import {
@@ -63,10 +63,19 @@ export interface StatsCtx {
   backLabel?: string;
 }
 
-/** Die Zusammenfassung der abgeschlossenen Sessions — Übersicht und Rekorde lesen dieselbe. */
-const sessionSummary = cache(async (userId: string) => {
+/**
+ * Längste und kürzeste Session.
+ *
+ * Rechnet auf `completedPairsCached` und damit NUR auf Sessions mit positiver Dauer — anders als
+ * die Übersicht darüber, und das mit Absicht: eine Session, die rechnerisch bei null landet, wäre
+ * als „kürzeste" keine Auskunft, sondern ein Messfehler.
+ */
+const sessionRecords = cache(async (userId: string) => {
   const completed = await completedPairsCached(userId);
-  return { completed, ...summarizeSessions(completed) };
+  // NUR longest/shortest: die Summe und den Mittelwert nennt die Übersicht, und die zählt anders.
+  // Beides hier mitzuschleppen hiesse, zwei Zählweisen im selben Datenpaket zu führen.
+  const { longest, shortest } = summarizeSessions(completed);
+  return { count: completed.length, longest, shortest };
 });
 
 /**
@@ -102,19 +111,23 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
     </div>
   ),
 
-  // Übersicht KG-Tragen
+  // Übersicht KG-Tragen. Gezählt wird nach `wearCountsCached` — derselben Regel, nach der die
+  // Keyholder-Übersicht zählt; zwei Zahlen für dieselbe Frage waren ein Fehler.
   overview: block({
     load: async ({ userId }) => {
-      const [summary, entries] = await Promise.all([sessionSummary(userId), entriesCached(userId)]);
-      return { ...summary, missingPhotos: entries.filter((e) => e.type === "VERSCHLUSS" && !e.imageUrl).length };
+      const [counts, entries] = await Promise.all([wearCountsCached(userId), entriesCached(userId)]);
+      return { ...counts, missingPhotos: entries.filter((e) => e.type === "VERSCHLUSS" && !e.imageUrl).length };
     },
-    render: ({ completed, totalMs, avgMs, missingPhotos }, { t, dl }) => (
+    render: ({ sessions, closed, totalMs, avgMs, missingPhotos }, { t, dl }) => (
       <section className="flex flex-col gap-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{t("kgWearOverview")}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatsCard label={t("entries")} value={String(completed.length)} />
-          <StatsCard label={t("totalDuration")} value={completed.length ? formatTotalMs(totalMs) : "–"} />
-          <StatsCard label={t("avgDuration")} value={completed.length ? formatDurationMs(avgMs, dl) : "–"} />
+          <StatsCard label={t("entries")} value={String(sessions)} />
+          {/* Summe und Durchschnitt können nur zählen, was abgeschlossen ist — die laufende
+              Session steckt in der Anzahl, hat aber noch keine Dauer. Beim Mittelwert steht das
+              in der Beschriftung: sonst sieht die Karte aus, als ginge ihre Rechnung nicht auf. */}
+          <StatsCard label={t("totalDuration")} value={closed ? formatTotalMs(totalMs) : "–"} />
+          <StatsCard label={t("avgDurationCompleted")} value={closed ? formatDurationMs(avgMs, dl) : "–"} />
           <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
         </div>
       </section>
@@ -310,8 +323,8 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
 
   // Rekorde
   records: block({
-    load: ({ userId }) => sessionSummary(userId),
-    render: ({ completed, longest, shortest }, { t, dl, tz }) => completed.length > 0 && (
+    load: ({ userId }) => sessionRecords(userId),
+    render: ({ count, longest, shortest }, { t, dl, tz }) => count > 0 && (
       <Card padding="none" className="overflow-hidden">
         <div className="px-6 py-4 border-b border-border-subtle">
           <p className="text-sm font-bold text-foreground">{t("records")}</p>
@@ -426,6 +439,10 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
   }),
 
   // Monatsübersicht — KG-Ziele, deshalb nur die KG-Vorgaben.
+  //
+  // Zählt je Monat nur ABGESCHLOSSENE Sessions und summiert sich damit nicht auf die „Tragezeiten"
+  // der Übersicht. Das ist Absicht: eine laufende Session gehört in keinen Monat, solange sie
+  // läuft — sonst änderte ein abgeschlossener Monat nachträglich seine Zahl.
   monthStats: block({
     load: async ({ userId, nowMs, tz, dl }) => {
       const [completed, wearPairs, kgVorgaben] = await Promise.all([
