@@ -11,6 +11,13 @@
         }
       },
       {
+        "type": "fix",
+        "text": {
+          "de": "Die KI-Keyholderin merkt jetzt selbst, wenn ihre Werkzeugliste nach einem Update veraltet ist, und bittet um eine frische Verbindung — statt nach Beschreibungen zu handeln, die der Tracker so nicht mehr meint.",
+          "en": "The AI keyholder now notices when its tool list has gone stale after an update and asks for a fresh connection, instead of acting on descriptions the tracker no longer means."
+        }
+      },
+      {
         "type": "ui",
         "text": {
           "de": "Beim Eintragen der Körpergrösse entfällt die Rückfrage, ob es eine Korrektur oder eine Änderung ist.",

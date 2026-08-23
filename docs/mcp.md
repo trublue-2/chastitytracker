@@ -111,8 +111,10 @@ Notable V2 read fields:
   activity log), and on a **self-hosted** instance whoever owns the database can delete the row —
   this is a self-binding aid, not tamper-proof evidence. The admin **Strafbuch page does not show
   this category** (nor four older ones); it is visible over MCP only.
-- `get_offenses` — includes a `generatedAt` / `timezone` header and `entryNote`
-  on late/rejected controls.
+- `get_offenses` — includes a `generatedAt` / `timezone` / `toolsFingerprint` header and `entryNote`
+  on late/rejected controls. `toolsFingerprint` is on every answer, read and write alike: it is the
+  live half of the staleness check described in `src/lib/mcp/toolSurface.ts` — compare it against the
+  value the server instructions carried when the session connected.
 
 **Directive writes** — `request_lock`, `set_lock_period`,
 `edit_lock_period`, `request_inspection`, `resolve_inspection`, `request_orgasm`,
