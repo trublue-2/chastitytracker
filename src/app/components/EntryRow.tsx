@@ -8,6 +8,7 @@ import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { categoryStyle } from "@/lib/categoryConstants";
+import { listRowCls, listRowButtonCls } from "@/app/components/inputStyles";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -72,11 +73,11 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
 
   return (
     <>
-      <div className="px-5 py-3 flex items-center gap-3">
+      <div className={listRowCls}>
         <button
           type="button"
           onClick={() => setShowDetail(true)}
-          className="flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-surface-raised/60 -mx-2 px-2 -my-1 py-1 rounded-lg transition"
+          className={listRowButtonCls}
         >
           {isWear && e.category ? (
             <span

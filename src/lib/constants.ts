@@ -337,6 +337,24 @@ export const WEIGHING_WINDOWS_MAX = 7;
  *  faktisch abgeschaltet, und das ist seine Sache. */
 export const WEIGHING_WINDOW_DURATION_RANGE = { min: 5, max: 24 * 60, fallback: 180 } as const satisfies NumberRange;
 
+/*
+ * Freigabe-Vorgabe (docs/gewicht-freigabe-konzept.md): das Gewicht öffnet das nächste
+ * Orgasmus-Fenster. Die Schwelle selbst nimmt {@link WEIGHT_KG_RANGE} — es ist dasselbe Gewicht.
+ */
+
+/** Breite des Mittels in KALENDER-Tagen. Untergrenze zwei (bei einem Tag wäre es der Tageswert,
+ *  also genau das Rauschen zurück, dessen Vermeidung der Grund für das Mittel ist), Obergrenze
+ *  vierzehn — darüber beschreibt es nicht mehr den aktuellen Stand. */
+export const RELEASE_AVERAGE_DAYS_RANGE = { min: 2, max: 14, fallback: 3 } as const satisfies NumberRange;
+/** Wie viele zählende Messungen im Fenster liegen müssen. Wird zusätzlich gegen `averageDays`
+ *  geklemmt — mehr Messungen zu verlangen, als das Fenster Tage hat, wäre unerfüllbar. */
+export const RELEASE_MIN_MEASUREMENTS_RANGE = { min: 1, max: 14, fallback: 2 } as const satisfies NumberRange;
+/** Täglicher Anstieg der Schwelle in kg. `0` = konstante Schwelle, und das ist die Vorgabe: der
+ *  Anstieg ist ein Entgegenkommen, keine Voreinstellung. */
+export const RELEASE_STEP_KG_RANGE = { min: 0, max: 5, fallback: 0 } as const satisfies NumberRange;
+/** Wie lange das erzeugte Orgasmus-Fenster offen steht. */
+export const RELEASE_WINDOW_HOURS_RANGE = { min: 1, max: 168, fallback: 24 } as const satisfies NumberRange;
+
 /** Grenzen beider Eskalationsstufen einer überfälligen Kontrolle: 5 min – 24 h. */
 const INSPECTION_ESCALATION_DELAY = { min: 5, max: 1440 } as const;
 /** Verzögerung bis zur Erinnerung (Stufe 1). */

@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
+import { prisma } from "@/lib/prisma";
 import { block, type StackBlock } from "@/lib/blockStack";
+import { weightReleaseStatus } from "@/lib/weightReleaseService";
+import type { UnitSystem } from "@/lib/weight";
 import type { SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
 import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {
@@ -40,6 +43,7 @@ import CategoryGoalsToday from "./CategoryGoalsToday";
 import InactiveCategories from "./InactiveCategories";
 import IncompleteCategories from "./IncompleteCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
+import WeightReleaseCard from "./WeightReleaseCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
 
 /**
@@ -223,6 +227,31 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         <OpenPenalties userId={userId} tz={tz} now={now} dashboardTaskIds={dashboardTaskIds} />
       </Suspense>
     ),
+  }),
+
+  // Die Freigabe-Vorgabe: welches Gewicht den nächsten Orgasmus öffnet. NACH den offenen Strafen
+  // und vor der laufenden Session — sie ist kein Alarm mit Frist, aber eine Bedingung, gegen die er
+  // täglich rechnet (docs/gewicht-freigabe-konzept.md, Abschnitt 10).
+  weightRelease: block({
+    load: async ({ userId, now, dl, tz }) => {
+      const status = await weightReleaseStatus(userId, now);
+      if (!status) return null;
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { unitSystem: true } });
+      return {
+        thresholdKg: status.thresholdKg,
+        nextThresholdKg: status.nextThresholdKg,
+        averageKg: status.averageKg,
+        averageDays: status.release.averageDays,
+        direction: status.release.direction,
+        remainingKg: status.remainingKg,
+        reason: status.reason,
+        // Auf dem Server formatiert: Locale und Zeitzone sind hier bekannt, und eine
+        // Client-Komponente, die selbst formatiert, weicht bis zur Hydration ab.
+        notBeforeLabel: formatDateTime(status.release.notBeforeAt, dl, tz),
+        unitSystem: ((user?.unitSystem ?? "metric") as UnitSystem),
+      };
+    },
+    render: (props) => props && <WeightReleaseCard {...props} />,
   }),
 
   runningSession: block({

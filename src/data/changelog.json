@@ -1,5 +1,39 @@
 [
   {
+    "version": "5.3.6",
+    "date": "2026-08-23",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Keyholderin kann den n\u00e4chsten Orgasmus an das Gewicht kn\u00fcpfen: freigegeben wird er, sobald das Mittel der letzten Tage eine Schwelle erreicht. Der Tr\u00e4ger sieht jederzeit, wie weit er davon entfernt ist.",
+          "en": "The keyholder can tie the next orgasm to weight: it is released once the average of the last few days reaches a threshold. The wearer can see how far off they are at any time."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die einzelnen Wiegungen sind jetzt einsehbar \u2014 beim Tr\u00e4ger unter der Verlaufskurve, bei der Keyholderin eingemischt in die Eintr\u00e4ge. Mit Foto, Notiz und dem Wert, den die Waagen-Erkennung gelesen hat.",
+          "en": "Individual weigh-ins are now visible \u2014 for the wearer below the chart, for the keyholder mixed into the entries. With photo, note and the value the scale detection read."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Fotos der Waage liessen sich nicht \u00f6ffnen. Sie werden jetzt ausgeliefert \u2014 dem Tr\u00e4ger und seinen Keyholdern.",
+          "en": "Photos of the scale could not be opened. They are now served \u2014 to the wearer and their keyholders."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Regel zur vers\u00e4umten Gewichts-Meldung erscheint nur noch, wenn das Gewichtstracking \u00fcberhaupt eingeschaltet ist. Vorher stand ihr Schalter auch dort, wo er nichts bewirkte.",
+          "en": "The missed weight report rule now only appears when weight tracking is switched on at all. Its toggle used to show even where it had no effect."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.5",
     "date": "2026-08-23",
     "changes": [

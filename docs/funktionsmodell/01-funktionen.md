@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-96 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+97 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -235,6 +235,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | **Gewicht eintragen (KI)** | Eine Messung je Kalendertag nachtragen — die Einstellungen liegen in `weight-keyholder`. <br>*Ihr Eintrag braucht keinen Foto-Beleg — sie steht nicht vor seiner Waage.* | Keyholder (MCP) | MCP | `log_weight` |
 | **Waagen-Anzeige lesen** | Liest aus dem Foto der Waage die angezeigte Zahl und, wo ablesbar, die Einheit. <br>*Ein VORSCHLAG für das Formular, kein Messwert: der Mensch bestätigt oder korrigiert. Gespeichert wird die gelesene Zahl getrennt vom bestätigten Wert. Ohne Vision-Provider gibt es keine Erkennung — lokales OCR liest auf Sieben-Segment-Anzeigen zuverlässig Unsinn.* | Sub | App (Träger) | `/api/detect-weight` |
 | **Gewichtstracking einrichten** | Freischaltung, Wiege-Fenster (Zeit, Dauer, Wochentage, Erinnerung) und ihr Zielgewicht. <br>*Ihr Zielgewicht gilt, seines bleibt sichtbar. Das Abschalten nimmt die Meldepflicht mit — sonst zählte die Aus-Zeit als lauter versäumte Meldungen.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]` `set_weight_tracking` |
+| **Freigabe an das Gewicht knüpfen** | Eine Vorgabe, die den nächsten Orgasmus freigibt, sobald das MITTEL der letzten Tage eine Schwelle erreicht. Erfüllt sie sich, entsteht beim nächsten Wiegen ein Orgasmus-Fenster (Gelegenheit). <br>*Geprüft wird das Mittel, nicht der Tageswert — ein einzelnes Wiegen schwankt um ein bis zwei Kilo. Ausgewertet wird nur die ERSTE Messung eines Tages; wer nachwiegt, könnte sonst so lange wiegen, bis es passt. Die Vorgabe ist verbraucht, sobald sie ausgelöst hat; sie erzeugt NIE ein Vergehen — die Konsequenz ist Warten.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/weight-release` `set_weight_release` |
 
 ## Läuft von selbst
 

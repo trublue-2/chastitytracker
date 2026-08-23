@@ -52,6 +52,7 @@ export const SUB_DASHBOARD_BLOCKS = [
   { id: "boxStatus", surface: "subDashboard", role: "sub", labelKey: "blockBoxStatus" },
   { id: "openTasks", surface: "subDashboard", role: "sub", labelKey: "blockOpenTasks" },
   { id: "openPenalties", surface: "subDashboard", role: "sub", labelKey: "blockOpenPenalties" },
+  { id: "weightRelease", surface: "subDashboard", role: "sub", labelKey: "blockWeightRelease" },
   { id: "runningSession", surface: "subDashboard", role: "sub", labelKey: "blockRunningSession" },
   { id: "activeWearSessions", surface: "subDashboard", role: "sub", labelKey: "blockActiveWear" },
   { id: "categoriesPromo", surface: "subDashboard", role: "sub", labelKey: "blockCategoriesPromo" },

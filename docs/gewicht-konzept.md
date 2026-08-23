@@ -266,6 +266,11 @@ Meldungen aussehen.
   Sonst zählte die Ableitung Tage mit, an denen der Sub gar nichts hätte eintragen können
 - **Wieder-Einschalten stellt die Regel nicht automatisch her.** Sie ist ein eigener, bewusster
   Schalter
+- **Ohne Tracking steht ihr Schalter nirgends.** Die Zeile `missed_weight_report` verschwindet aus
+  beiden Regel-Listen — dem Einstellungs-Abschnitt der Keyholderin und „Meine Regeln" des Trägers
+  (`switchableOffenseTypesFor()` in `offenseLabels.ts`). Sie stand dort vorher unabhängig vom Gate
+  und sah scharf aus, während sie wirkungslos war: die Sorte Einstellung, die man einmal umlegt und
+  danach für gültig hält
 - **Die Lücke über die Aus-Zeit hinweg zählt nicht.** War das Feature vom 3. bis zum 20. aus, ist
   der 20. kein Tag mit siebzehn Tagen Rückstand
 
@@ -433,6 +438,32 @@ der Präzedenzfall. Die Komponente wird so geschnitten, dass sie eine beliebige 
 - **gleitendes 7-Tage-Mittel als Trendlinie** — die „Glättung" der Skizze
 - **Zielgewicht als gestrichelte Linie** — gestrichelt, damit sie nie mit der Trendlinie verwechselt wird: die eine ist eine Vorgabe, die andere eine Messung. Dazu eine Kachel mit Restweg und Fortschrittsbalken
 - Zeiträume: **30 Tage (Vorgabe), 90 Tage, 1 Jahr, seit Beginn**
+
+### 11.1 Die Liste der einzelnen Wiegungen
+
+Die Kurve zeigt die Richtung, sie zeigt aber keine einzelne Messung. Foto, Notiz, Uhrzeit, das
+Fenster-Kennzeichen und vor allem der von der Waage GELESENE Wert standen bis dahin in der Datenbank,
+ohne dass eine Oberfläche sie abrief — ausgerechnet `detectedKg`, die Spur einer Korrektur, war die
+unsichtbarste Spalte. Die KI las sie über `weight_history` längst; die Keyholderin im Browser nicht.
+
+Deshalb eine Zeilen-Liste, an zwei Orten aus denselben Bausteinen:
+
+- **Der Träger** findet sie in der Statistik, unter dem Diagramm derselben Karte. Sie folgt dem
+  Zeitraum-Umschalter — wer auf 90 Tage stellt, bewegt Kurve und Liste zugleich — und zeigt je
+  dreissig Zeilen mit „Weitere anzeigen"
+- **Die Keyholderin** findet sie eingemischt in `/admin/users/[id]/eintraege`, chronologisch
+  zwischen Verschluss, Öffnung und Kontrolle. Das Wiege-Fenster einer Seite spannen deren EINTRÄGE
+  auf (untere Grenze einschliessend, obere ausschliessend) — eine zweite Paginierung über eine
+  zweite Tabelle müsste beide Zählungen zusammenrechnen, um zu wissen, wo Seite drei beginnt
+
+Bausteine: `src/lib/weightRows.ts` (Laden samt Veränderung zum Vorwert) und
+`src/app/components/WeightRow.tsx` (die Zeile samt Detail-Panel, Aufbau und Masse wie `EntryRow`).
+Die Veränderung rechnet immer gegen die vorherige Messung im BESTAND, nicht gegen die vorherige im
+Ausschnitt: sonst begänne jede Seite mit einem leeren Delta.
+
+**Der Wert einer Zeile lässt sich hier nicht ändern.** Korrigiert wird wie bisher durch erneutes
+Erfassen desselben Tages — mit der bekannten Einschränkung, dass die Vorfassung dabei überschrieben
+wird (Abschnitt 3.1).
 
 **Keine BMI-Kurve** — bei fester Grösse wäre sie deckungsgleich mit der Gewichtskurve, nur anders
 beschriftet. Der BMI erscheint als **Zahl** daneben (aktueller Wert, Veränderung zum Vormonat),

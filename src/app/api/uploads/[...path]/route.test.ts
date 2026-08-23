@@ -117,4 +117,27 @@ describe("GET /api/uploads/[...path] — Bildersafe-Auslieferung", () => {
     expect(isCodePhotoRevealed).not.toHaveBeenCalled();
     expect(res.headers.get("Cache-Control")).toBe("private, max-age=31536000, immutable");
   });
+
+  /**
+   * Das Foto der Waage gehört zu `WeightEntry`, nicht zu `Entry`. Fehlt diese Quelle in der
+   * Eigentümer-Suche, bleibt `ownerId` null und die Route antwortet mit 403 — dem TRÄGER, der das
+   * Bild selbst hochgeladen hat, und der Keyholderin, für die es der Beleg ist. Genau so war es,
+   * bis die Wiege-Liste das Foto erstmals anzeigte; vorher fiel es niemandem auf, weil keine
+   * Oberfläche es je abrief.
+   */
+  it("Waagen-Foto: der Träger bekommt sein eigenes Bild", async () => {
+    db.entry.findFirst.mockResolvedValue(null);
+    db.weightEntry.findFirst.mockResolvedValue({ userId: OWNER });
+    const res = await get(["scale.jpg"]);
+    expect(res.status).toBe(200);
+  });
+
+  it("Waagen-Foto: ein Fremder bekommt es nicht", async () => {
+    db.entry.findFirst.mockResolvedValue(null);
+    db.weightEntry.findFirst.mockResolvedValue({ userId: OWNER });
+    authMock.mockResolvedValue(session("someone-else"));
+    const res = await get(["scale.jpg"]);
+    expect(res.status).toBe(403);
+    expect(readFile).not.toHaveBeenCalled();
+  });
 });

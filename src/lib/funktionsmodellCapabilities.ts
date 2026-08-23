@@ -623,6 +623,13 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Ihr Zielgewicht gilt, seines bleibt sichtbar. Das Abschalten nimmt die Meldepflicht mit — sonst zählte die Aus-Zeit als lauter versäumte Meldungen.",
   }),
   c({
+    id: "weight-release", mechanic: "Gewicht", title: "Freigabe an das Gewicht knüpfen",
+    what: "Eine Vorgabe, die den nächsten Orgasmus freigibt, sobald das MITTEL der letzten Tage eine Schwelle erreicht. Erfüllt sie sich, entsteht beim nächsten Wiegen ein Orgasmus-Fenster (Gelegenheit).",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/weight-release"], tools: ["set_weight_release"],
+    note: "Geprüft wird das Mittel, nicht der Tageswert — ein einzelnes Wiegen schwankt um ein bis zwei Kilo. Ausgewertet wird nur die ERSTE Messung eines Tages; wer nachwiegt, könnte sonst so lange wiegen, bis es passt. Die Vorgabe ist verbraucht, sobald sie ausgelöst hat; sie erzeugt NIE ein Vergehen — die Konsequenz ist Warten.",
+  }),
+  c({
     id: "user-manage", mechanic: "Zugang", title: "Konten verwalten",
     what: "Anlegen, bearbeiten, Rolle setzen, Passwort setzen und löschen.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users", "/api/admin/users/[id]"],

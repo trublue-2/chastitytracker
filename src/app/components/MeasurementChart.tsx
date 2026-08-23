@@ -32,8 +32,15 @@ interface Props {
   points: ChartPoint[];
   /** Die geglättete Linie. Leer = keine zeichnen. */
   trend: { x: number; value: number }[];
-  /** Waagerechte Marke — der Zielwert. Weglassen heisst: es gibt keinen. */
-  marker?: { value: number; label?: string };
+  /**
+   * Waagerechte Marken — Vorgaben, keine Messungen: das Zielgewicht und die Schwelle der
+   * Freigabe-Vorgabe. Eine leere Liste heisst: es gibt keine.
+   *
+   * `color` als Token-Name, weil die beiden auseinandergehalten werden müssen: das Ziel ist ein
+   * Vorhaben, die Freigabe-Schwelle eine Bedingung mit Folgen. Beide gestrichelt zu zeichnen und
+   * gleich zu färben hiesse, zwei Aussagen als eine zu zeigen.
+   */
+  markers?: { value: number; label?: string; color?: string }[];
   /** Untere/obere Grenze der Werteachse — kommt vom Aufrufer, damit mehrere Diagramme sie teilen können. */
   domain: { min: number; max: number };
   /** Beschriftung der Werteachse, z.B. „kg". */
@@ -46,7 +53,7 @@ const W = 320;
 const H = 140;
 const PAD = { top: 8, right: 6, bottom: 16, left: 30 };
 
-export default function MeasurementChart({ points, trend, marker, domain, unit, ariaLabel }: Props) {
+export default function MeasurementChart({ points, trend, markers = [], domain, unit, ariaLabel }: Props) {
   const clipId = useId();
   if (points.length === 0) return null;
 
@@ -86,19 +93,22 @@ export default function MeasurementChart({ points, trend, marker, domain, unit, 
         </clipPath>
       </defs>
 
-      {marker && (
+      {markers.length > 0 && (
         <g clipPath={`url(#${clipId})`}>
-          {/* Gestrichelt, damit die Marke nie mit der Trendlinie verwechselt wird: die eine ist eine
+          {/* Gestrichelt, damit eine Marke nie mit der Trendlinie verwechselt wird: die eine ist eine
               Vorgabe, die andere eine Messung. */}
-          <line
-            x1={PAD.left} x2={W - PAD.right}
-            y1={py(marker.value)} y2={py(marker.value)}
-            stroke="var(--color-ok)"
-            strokeWidth={1}
-            strokeDasharray="3 3"
-          >
-            {marker.label && <title>{marker.label}</title>}
-          </line>
+          {markers.map((m, i) => (
+            <line
+              key={i}
+              x1={PAD.left} x2={W - PAD.right}
+              y1={py(m.value)} y2={py(m.value)}
+              stroke={m.color ?? "var(--color-ok)"}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+            >
+              {m.label && <title>{m.label}</title>}
+            </line>
+          ))}
         </g>
       )}
 

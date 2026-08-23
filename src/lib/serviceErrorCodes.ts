@@ -289,6 +289,12 @@ export const WEIGHT_CODES = [
   "INVALID_UNIT_SYSTEM",
   "WEIGHT_PROOF_REQUIRED",
   "WEIGHT_IN_FUTURE",
+  // Freigabe-Vorgabe (docs/gewicht-freigabe-konzept.md). Sie gehört zur Gewichts-Familie, nicht zu
+  // den Orgasmus-Codes: geprüft wird eine Gewichts-Bedingung, das Fenster entsteht erst danach.
+  "RELEASE_INVALID_DIRECTION",
+  "RELEASE_NOT_BEFORE_MUST_BE_FUTURE",
+  "RELEASE_TOO_MANY_MEASUREMENTS",
+  "RELEASE_UNDERWEIGHT",
 ] as const;
 
 /** Every code the service layer can return — the set the i18n parity test iterates. */

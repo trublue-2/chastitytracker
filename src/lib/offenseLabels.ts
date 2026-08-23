@@ -95,3 +95,22 @@ void _orderCoversAll;
  */
 export const SWITCHABLE_OFFENSE_TYPES_IN_ORDER: readonly SwitchableOffenseType[] =
   OFFENSE_TYPE_ORDER.filter(isSwitchableOffenseType);
+
+/**
+ * Die schaltbaren Arten, die bei DIESEM Sub überhaupt eine Bedeutung haben.
+ *
+ * `missed_weight_report` hängt am Gewichtstracking: ist es aus, gibt es keine Meldungen, also auch
+ * keine Lücken zwischen ihnen und nichts zu ahnden. Der Schalter stand trotzdem in beiden
+ * Regel-Listen und sah scharf aus, während er wirkungslos war — die Sorte Einstellung, die man
+ * einmal umlegt und danach für gültig hält.
+ *
+ * Das ist reine SICHTBARKEIT, kein zweiter Wirkmechanismus: das Abschalten des Trackings legt die
+ * Regel bereits serverseitig auf `off` (`weightSettingsService.ts`), und wieder eingeschaltet bleibt
+ * sie es. Hier verschwindet nur die Zeile, die sonst über einen Zustand redet, den es nicht gibt.
+ */
+export function switchableOffenseTypesFor(
+  features: { weightTracking: boolean },
+): readonly SwitchableOffenseType[] {
+  if (features.weightTracking) return SWITCHABLE_OFFENSE_TYPES_IN_ORDER;
+  return SWITCHABLE_OFFENSE_TYPES_IN_ORDER.filter((type) => type !== "missed_weight_report");
+}

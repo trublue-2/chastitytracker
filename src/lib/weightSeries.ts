@@ -63,11 +63,30 @@ export function movingAverage(points: WeightPoint[], windowDays = TREND_WINDOW_D
 }
 
 /**
+ * Der Ausschnitt eines Zeitraums, gemessen am TAGESSCHLÜSSEL.
+ *
+ * `days === null` heisst „seit Beginn". Über den Tagesschlüssel und nicht über die Messzeit: der
+ * Zeitraum ist in Kalendertagen des Trägers gemeint, und „die letzten 30 Tage" soll nicht davon
+ * abhängen, ob er morgens oder abends auf der Waage stand.
+ *
+ * Generisch über `dayKey`, weil zwei Anzeigen denselben Ausschnitt brauchen: das Diagramm (Punkte)
+ * und die Liste darunter (ganze Zeilen). Zwei Filter mit derselben Absicht laufen auseinander, und
+ * dann zeigte die Liste einen Tag, den die Kurve nicht kennt.
+ */
+export function withinRange<T extends { dayKey: string }>(
+  items: readonly T[],
+  opts: { days: number | null; todayKey: string },
+): T[] {
+  const { days, todayKey } = opts;
+  if (days === null) return [...items];
+  const today = dayNumber(todayKey);
+  return items.filter((item) => dayNumber(item.dayKey) > today - days);
+}
+
+/**
  * Die Reihe für einen Zeitraum.
  *
- * `days === null` heisst „seit Beginn". Gefiltert wird über den TAGESSCHLÜSSEL und nicht über die
- * Messzeit: der Zeitraum ist in Kalendertagen des Trägers gemeint, und „die letzten 30 Tage" soll
- * nicht davon abhängen, ob er morgens oder abends auf der Waage stand.
+ * Der Ausschnitt kommt aus {@link withinRange} — dieselbe Grenze, die auch die Liste zieht.
  */
 export function buildWeightSeries(
   all: WeightPoint[],
@@ -75,10 +94,7 @@ export function buildWeightSeries(
   // jeder Leser hält es ohnehin selbst in der Hand.
   opts: { days: number | null; todayKey: string; target: WeightTarget | null },
 ): WeightSeries {
-  const today = dayNumber(opts.todayKey);
-  const { days } = opts;
-  const points = (days === null ? [...all] : all.filter((p) => dayNumber(p.dayKey) > today - days))
-    .sort((a, b) => dayNumber(a.dayKey) - dayNumber(b.dayKey));
+  const points = withinRange(all, opts).sort((a, b) => dayNumber(a.dayKey) - dayNumber(b.dayKey));
 
   // Der Trend lässt Messungen ausserhalb der Wiege-Fenster aus. Sie sind echte Beobachtungen und
   // bleiben als Punkte sichtbar — aber ein abends nach dem Essen gemessener Wert gehört nicht in

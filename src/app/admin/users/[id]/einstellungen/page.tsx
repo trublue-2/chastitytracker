@@ -7,6 +7,7 @@ import AutoKontrolleToggle from "@/app/admin/AutoKontrolleToggle";
 import InspectionEscalationToggle from "@/app/admin/InspectionEscalationToggle";
 import OffenseRulesEditor from "@/app/admin/OffenseRulesEditor";
 import { getOffenseRules } from "@/lib/offenseRulesService";
+import { switchableOffenseTypesFor } from "@/lib/offenseLabels";
 import { parseReinigungsFenster } from "@/lib/reinigungService";
 import { parseWeighingWindows } from "@/lib/weightWindows";
 import { weightTrackingEnabled } from "@/lib/constants";
@@ -199,7 +200,15 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
       {/* Vergehen: welche Arten bei diesem Sub überhaupt zählen (Parameter bleiben in ihren Abschnitten) */}
       <SettingsSection title={t("sectionOffenseRules")} description={t("sectionOffenseRulesDesc")} bodyPadded>
-        <OffenseRulesEditor userId={user.id} initialRules={offenseRules} />
+        <OffenseRulesEditor
+          userId={user.id}
+          /* Die Meldepflicht steht nur da, wo sie auch etwas bewirkt — der Gewichts-Abschnitt
+             darüber entscheidet darüber mit, und sein Speichern lädt diese Seite neu. */
+          types={switchableOffenseTypesFor({
+            weightTracking: weightTrackingEnabled() && user.weightTrackingEnabled,
+          })}
+          initialRules={offenseRules}
+        />
       </SettingsSection>
 
       {/* App */}

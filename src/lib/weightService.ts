@@ -10,6 +10,7 @@ import {
 } from "@/lib/weight";
 import { notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
+import { applyWeightRelease } from "@/lib/weightReleaseService";
 
 /**
  * Das Erfassen einer Messung — der eine Schreibweg, den Formular, Keyholder-Aktion und (später) der
@@ -66,6 +67,8 @@ export interface RecordWeightResult {
   inWindow: boolean;
   /** Wahr, wenn für diesen Tag schon ein Wert stand und überschrieben wurde. */
   replaced: boolean;
+  /** Wahr, wenn diese Messung die Freigabe-Vorgabe erfüllt und ein Orgasmus-Fenster geöffnet hat. */
+  released: boolean;
 }
 
 const { table: ERRORS, fail } = serviceErrors({
@@ -162,7 +165,23 @@ export async function recordWeight(
     // Fire-and-forget: die Zeile steht, der Rest ist Meldung. Siehe `announceTargetEvent`.
     void announceTargetEvent(userId, params.weightKg, params.measuredAt)
       .catch((e) => console.error("[weight:target]", (e as Error).message));
-    return { ok: true, data: result };
+
+    // Die Freigabe-Vorgabe: NUR bei der ersten Messung des Tages. Wer nachwiegt, könnte sonst so
+    // lange wiegen, bis das Mittel passt — die „wichtigste Regel" der Vorlage
+    // (docs/gewicht-freigabe-konzept.md, Abschnitt 6). Eine Korrektur wirkt erst ab dem Folgetag mit.
+    //
+    // Nicht fire-and-forget, anders als die Meldung darüber: hier entsteht eine DIREKTIVE, und der
+    // Träger soll die Antwort „du bist frei" mit derselben Anfrage bekommen, mit der er die Zahl
+    // eingetragen hat. Ein Fehler darf die Messung trotzdem nicht kippen — sie steht bereits.
+    let released = false;
+    if (!result.replaced) {
+      try {
+        released = (await applyWeightRelease(userId)) !== null;
+      } catch (e) {
+        console.error("[weight:release]", (e as Error).message);
+      }
+    }
+    return { ok: true, data: { ...result, released } };
   } catch (e) {
     const mapped = mapServiceError(e, ERRORS);
     if (mapped) return mapped;

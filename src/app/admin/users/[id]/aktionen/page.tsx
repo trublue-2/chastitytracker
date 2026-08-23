@@ -78,6 +78,19 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           />
         )}
 
+        {/* Freigabe-Vorgabe: das Gewicht öffnet das nächste Fenster. Neben der Orgasmus-Anweisung,
+            weil sie dasselbe Fenster stellt — nur an eine Bedingung geknüpft statt an einen
+            Zeitpunkt. Ohne Gewichtstracking gibt es sie nicht (die Seite würde umleiten). */}
+        {weightTrackingEnabled() && user.weightTrackingEnabled && (
+          <ActionRow
+            href={`${base}/gewichts-freigabe`}
+            icon={<Scale size={20} strokeWidth={2} />}
+            iconStyle={tone("orgasm")}
+            title={t("releaseTitle")}
+            hint={t("releaseHint")}
+          />
+        )}
+
         <ActionRow
           href={`${base}/orgasmus-anforderung`}
           icon={<Droplets size={20} strokeWidth={2} />}

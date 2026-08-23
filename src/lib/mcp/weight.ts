@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { APP_TZ, round1 } from "@/lib/utils";
 import { weightTrackingEnabled } from "@/lib/constants";
+import { weightReleaseStatus } from "@/lib/weightReleaseService";
 import {
   bmi, dayNumber, effectiveTarget, startWeightIn, subTargetOf, targetProgress, weightDayKey,
   weightProblem,
@@ -160,6 +161,20 @@ export interface WeightSummary {
   remainingKg: number | null;
   reached: boolean;
   daysSinceLastReport: number;
+  /**
+   * Die offene Freigabe-Vorgabe in einem Satz — `null`, wenn keine steht. Vollständig samt
+   * Einstellungen in `get_context.weightRelease`, gestellt mit `set_weight_release`.
+   *
+   * Steht sie hier, ist sie die wichtigste Zahl des Trägers: sie entscheidet, wann er das nächste
+   * Mal darf. `averageKg` ist `null`, solange zu wenige Messungen für ein Mittel vorliegen.
+   */
+  release: {
+    thresholdKg: number;
+    direction: string;
+    averageKg: number | null;
+    remainingKg: number | null;
+    reason: string | null;
+  } | null;
 }
 
 /**
@@ -180,7 +195,7 @@ export async function weightSummary(userId: string): Promise<WeightSummary | nul
   // `keyholder_dashboard` ist der Pfad, den die KI bei JEDER Frage zuerst aufruft. Die 14 Zeilen
   // reichen für das Sieben-Tage-Mittel, nicht aber unbedingt bis zum Setz-Zeitpunkt des Ziels;
   // deshalb hier der Datenbank-Weg statt `startWeightIn`.
-  const [rows, startKg] = await Promise.all([
+  const [rows, startKg, release] = await Promise.all([
     prisma.weightEntry.findMany({
       where: { userId },
       orderBy: { measuredAt: "desc" },
@@ -188,6 +203,9 @@ export async function weightSummary(userId: string): Promise<WeightSummary | nul
       select: { dayKey: true, weightKg: true, inWindow: true },
     }),
     target ? targetStartWeight(userId, target) : null,
+    // Im selben `Promise.all`: der Stand der Vorgabe hängt an derselben Messreihe, und das
+    // Dashboard ist der Pfad, den die KI bei jeder Frage zuerst aufruft.
+    weightReleaseStatus(userId),
   ]);
   if (rows.length === 0) return null;
 
@@ -207,6 +225,13 @@ export async function weightSummary(userId: string): Promise<WeightSummary | nul
     remainingKg: progress?.remainingKg ?? null,
     reached: progress?.reached ?? false,
     daysSinceLastReport: dayNumber(todayKey) - dayNumber(last.dayKey),
+    release: release && {
+      thresholdKg: release.thresholdKg,
+      direction: release.release.direction,
+      averageKg: release.averageKg,
+      remainingKg: release.remainingKg,
+      reason: release.reason,
+    },
   };
 }
 

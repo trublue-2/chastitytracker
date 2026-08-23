@@ -230,6 +230,16 @@ export async function setWeightSettingsKeyholder(
             },
           });
         }
+
+        // UND DIE FREIGABE-VORGABE, aus demselben Grund einen Schritt weiter gedacht: sie prüft das
+        // Mittel der letzten Tage, und ohne Erfassung kommt nie eines zustande. Sie stünde also als
+        // Bedingung da, die er nicht mehr erfüllen KANN — eine Dauersperre ohne Ausweg, und anders
+        // als bei der Meldepflicht fällt das nicht einmal negativ auf, sondern gar nicht.
+        // Auch hier kein automatischer Weg zurück: die nächste Vorgabe stellt die Keyholderin.
+        await tx.weightRelease.updateMany({
+          where: { userId, releasedAt: null, withdrawnAt: null },
+          data: { withdrawnAt: now },
+        });
       }
     });
   } catch (e) {

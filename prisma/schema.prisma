@@ -147,6 +147,64 @@ model User {
   timezoneChanges                TimezoneChange[]
   weightEntries                  WeightEntry[]
   heightChanges                  HeightChange[]
+  weightReleases                 WeightRelease[]
+}
+
+/// Freigabe-Vorgabe: das Gewicht öffnet das nächste Orgasmus-Fenster (docs/gewicht-freigabe-konzept.md).
+///
+/// Die Keyholderin stellt eine Schwelle, gegen die das MITTEL der letzten Tage geprüft wird — nicht
+/// der Tageswert. Ein einzelnes Wiegen schwankt um ein bis zwei Kilo (Salz, Mahlzeit, Tageszeit),
+/// und eine Freigabe daran zu hängen hiesse, Kochsalz über den Orgasmus entscheiden zu lassen.
+///
+/// Eigene Tabelle und kein Feld an `OrgasmusAnforderung`: die Vorgabe steht über viele Tage, die
+/// Anforderung ist ein Fenster mit festem Anfang und Ende. Eine Bedingung in die Anforderung zu
+/// legen hiesse, deren `beginntAt` dynamisch zu machen — und daran hängen Poller, Erfüllung,
+/// Rückzug und die Vergehens-Ableitung.
+///
+/// Sie ist VERBRAUCHT, sobald sie ausgelöst hat (`releasedAt`); die nächste stellt die Keyholderin.
+/// Eine sich selbst fortschreibende Regel würde aus dem letzten Gewicht das nächste Ziel ableiten —
+/// und diese Aussage gehört ihr, nicht dem Rechenkern.
+model WeightRelease {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Schwelle, gegen die das Mittel geprüft wird. IMMER metrisch, wie `WeightEntry.weightKg`.
+  thresholdKg    Float
+  /// "below" = das Mittel muss darunter liegen · "above" = darüber (Zunehmen als Vorgabe).
+  direction      String   @default("below")
+  /// Breite des Mittels in KALENDER-Tagen des Trägers — nicht „die letzten N Messungen".
+  averageDays    Int      @default(3)
+  /// Wie viele zählende Messungen im Fenster liegen müssen, damit das Mittel gilt. Bei einer
+  /// einzigen wäre das „Mittel" dieser eine Wert — also genau das Tagesrauschen zurück, dessen
+  /// Vermeidung der Grund für das Mittel war.
+  minMeasurements Int     @default(2)
+  /// Optionaler Tagesanstieg der Schwelle; 0 = konstant. Mit ihm kommt die Vorgabe dem Träger
+  /// entgegen, statt auf einer Zahl zu beharren.
+  stepKg         Float    @default(0)
+
+  /// Mindestlaufzeit: davor öffnet nichts, egal was die Waage sagt.
+  notBeforeAt    DateTime
+  /// Wie lange das erzeugte Fenster offen steht.
+  windowHours    Int      @default(24)
+  /// Wird an die erzeugte Anforderung durchgereicht: Öffnen zum Orgasmus erlaubt?
+  openingAllowed Boolean  @default(false)
+  /// Freitext, der in der erzeugten Anforderung landet.
+  message        String?
+
+  /// Username des Keyholders, der sie gestellt hat, bzw. `ai` über den MCP — dieselbe Spalte und
+  /// dieselbe Begründung wie `OrgasmusAnforderung.createdBy`.
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  /// Bezugspunkt des Tagesanstiegs: der Tag, an dem `thresholdKg` unverändert gilt.
+  armedAt        DateTime
+  /// Gesetzt, sobald sie ausgelöst hat — damit ist sie verbraucht.
+  releasedAt     DateTime?
+  /// Die erzeugte Anforderung, zur Nachvollziehbarkeit.
+  releasedRequestId String?
+  withdrawnAt    DateTime?
+
+  @@index([userId, releasedAt, withdrawnAt])
 }
 
 /// Ein von Hand notiertes Vergehen — das einzige, das nicht aus Einträgen ABGELEITET wird.

@@ -81,6 +81,12 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
 
   weightTargetReachedMessageKeyholder: "weight",
   weightTargetLostMessageKeyholder: "weight",
+  // Freigabe-Vorgabe (docs/gewicht-freigabe-konzept.md). Kategorie `weight` und nicht `orgasm`:
+  // gestellt und zurückgezogen wird eine GEWICHTS-Bedingung. Erst wenn sie greift, entsteht eine
+  // Orgasmus-Anforderung — und die meldet sich mit ihren eigenen Schlüsseln.
+  weightReleaseSetMessage: "weight",
+  weightReleaseWithdrawnMessage: "weight",
+  weightReleaseOpenedMessageKeyholder: "weight",
 };
 
 /**

@@ -6,6 +6,7 @@ import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKo
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings, maxPausesPerDaySentinel, parseReinigungsFenster, reinigungsFensterListProblem, formatReinigungsFenster, type ReinigungsFenster } from "@/lib/reinigungService";
+import { openWeightRelease, setWeightRelease, weightReleaseStatus, withdrawWeightRelease } from "@/lib/weightReleaseService";
 import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
 import { setOffenseRule, getOffenseRules } from "@/lib/offenseRulesService";
 import { isSwitchableOffenseType, isValidOffenseMode, OFFENSE_RULE_MODES, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
@@ -30,6 +31,7 @@ import {
   MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
   INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
   clampProofDueOffset, clampHoldDuration, type NumberRange,
+  RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE,
 } from "@/lib/constants";
 import { clamp, randomInt, midnightAfterDays } from "@/lib/utils";
 import { goalCategoryKey } from "@/lib/vorgaben";
@@ -1167,6 +1169,95 @@ export async function mcpSetWeightTracking(username: string, args: SetWeightTrac
       : "",
   ];
   return { ok: true, message: `Weight settings updated.${parts.join("")}` };
+}
+
+export interface SetWeightReleaseArgs {
+  thresholdKg?: number | null;
+  direction?: string;
+  averageDays?: number;
+  minMeasurements?: number;
+  stepKg?: number;
+  notBeforeAt?: string;
+  windowHours?: number;
+  openingAllowed?: boolean;
+  message?: string | null;
+  withdraw?: boolean;
+  dryRun?: boolean;
+}
+
+/**
+ * Die Freigabe-Vorgabe stellen oder zurückziehen (docs/gewicht-freigabe-konzept.md).
+ *
+ * Der Dry-Run zeigt, wo der Träger HEUTE steht — Mittel, Schwelle, was noch fehlt. Ohne diese Zahlen
+ * setzt die KI eine Schwelle blind: „unter 74 kg" ist für einen, der bei 74,2 steht, etwas ganz
+ * anderes als für einen bei 82.
+ */
+export async function mcpSetWeightRelease(username: string, args: SetWeightReleaseArgs) {
+  if (!weightTrackingEnabled()) {
+    throw new Error("Weight tracking is not available on this instance (ENABLE_WEIGHT_TRACKING is off).");
+  }
+  const userId = await resolveTargetUserId(username);
+
+  if (args.withdraw) {
+    if (args.dryRun) {
+      const open = await openWeightRelease(userId);
+      return dryRunPreview("set_weight_release", undefined, { withdraw: true, hadOpenCondition: !!open });
+    }
+    const { count } = unwrap(await withdrawWeightRelease(userId));
+    return {
+      ok: true,
+      message: count > 0 ? "Release condition withdrawn." : "There was no open release condition.",
+    };
+  }
+
+  if (args.thresholdKg === null || args.thresholdKg === undefined) {
+    throw new Error("thresholdKg is required (or pass withdraw: true).");
+  }
+  if (!args.notBeforeAt) throw new Error("notBeforeAt is required — the earliest moment the window may open.");
+
+  // Der STAND vor dem Schreiben, für beide Zweige: der Dry-Run zeigt ihn, der Commit hängt ihn an
+  // die Antwort. Eine KI, die gerade eine Schwelle gesetzt hat, soll im selben Zug sehen, wie weit
+  // sie von ihr entfernt ist.
+  const status = await weightReleaseStatus(userId);
+
+  if (args.dryRun) {
+    return dryRunPreview("set_weight_release", undefined, {
+      thresholdKg: args.thresholdKg,
+      direction: args.direction ?? "below",
+      averageDays: args.averageDays ?? RELEASE_AVERAGE_DAYS_RANGE.fallback,
+      minMeasurements: args.minMeasurements ?? RELEASE_MIN_MEASUREMENTS_RANGE.fallback,
+      stepKg: args.stepKg ?? 0,
+      notBeforeAt: args.notBeforeAt,
+      windowHours: args.windowHours ?? RELEASE_WINDOW_HOURS_RANGE.fallback,
+      openingAllowed: Boolean(args.openingAllowed),
+      replacesOpenCondition: !!status,
+      currentAverageKg: status?.averageKg ?? null,
+    });
+  }
+
+  unwrap(await setWeightRelease({
+    userId,
+    thresholdKg: args.thresholdKg,
+    direction: args.direction,
+    averageDays: args.averageDays,
+    minMeasurements: args.minMeasurements,
+    stepKg: args.stepKg,
+    notBeforeAt: args.notBeforeAt,
+    windowHours: args.windowHours,
+    openingAllowed: args.openingAllowed,
+    message: args.message,
+  }, AI_AUTHOR));
+
+  const after = await weightReleaseStatus(userId);
+  const standing = after?.averageKg === null
+    ? " He has too few weigh-ins in the window for an average yet."
+    : after
+      ? ` His current average is ${after.averageKg} kg against a threshold of ${after.thresholdKg} kg.`
+      : "";
+  return {
+    ok: true,
+    message: `Release condition set.${standing} It is consumed once it opens a window — set the next one yourself.`,
+  };
 }
 
 /** Die Fenster-Liste, mit der Position im Fehlertext — dasselbe Muster wie `assertCleaningWindows`:

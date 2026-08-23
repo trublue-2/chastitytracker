@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { STORED_TYPE } from "@/lib/offenseTypes";
-import { OFFENSE_TYPE_I18N_KEYS, OFFENSE_TYPE_ORDER, offenseNameKey } from "@/lib/offenseLabels";
+import {
+  OFFENSE_TYPE_I18N_KEYS, OFFENSE_TYPE_ORDER, SWITCHABLE_OFFENSE_TYPES_IN_ORDER,
+  offenseNameKey, switchableOffenseTypesFor,
+} from "@/lib/offenseLabels";
 import { OFFENSE_MODE_I18N_KEYS } from "@/lib/offenseLabels";
 
 /**
@@ -52,5 +55,22 @@ describe("Vergehens-Bezeichnungen sind in beiden Sprachen vollständig", () => {
 
   it("offenseNameKey hängt .name an den Schlüssel der Art", () => {
     expect(offenseNameKey("manual_offense")).toBe("manualOffense.name");
+  });
+});
+
+describe("welche Arten bei einem Sub überhaupt zur Auswahl stehen", () => {
+  it("ohne Gewichtstracking fehlt die Meldepflicht — sonst ist die Liste vollständig", () => {
+    const ohne = switchableOffenseTypesFor({ weightTracking: false });
+    expect(ohne).not.toContain("missed_weight_report");
+    expect(ohne.length).toBe(SWITCHABLE_OFFENSE_TYPES_IN_ORDER.length - 1);
+  });
+
+  it("mit Gewichtstracking steht sie da, in unveränderter Reihenfolge", () => {
+    expect(switchableOffenseTypesFor({ weightTracking: true })).toEqual(SWITCHABLE_OFFENSE_TYPES_IN_ORDER);
+  });
+
+  it("gefiltert wird nur diese eine Art — die Reihenfolge der übrigen bleibt", () => {
+    const ohne = switchableOffenseTypesFor({ weightTracking: false });
+    expect(ohne).toEqual(SWITCHABLE_OFFENSE_TYPES_IN_ORDER.filter((t) => t !== "missed_weight_report"));
   });
 });

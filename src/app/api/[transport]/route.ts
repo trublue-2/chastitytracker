@@ -9,11 +9,11 @@ import { OFFENSE_RULE_MODES } from "@/lib/offenseRules";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetWeightTracking, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetWeightTracking, mcpSetWeightRelease, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
-import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE } from "@/lib/constants";
+import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -1558,6 +1558,53 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runWriteTool("set_weight_tracking", extra, args, (u) => mcpSetWeightTracking(u, args)),
+    );
+
+    server.registerTool(
+      "set_weight_release",
+      {
+        title: "Tie the next orgasm to a weight",
+        description:
+          "Sets the condition that unlocks the next orgasm: once the AVERAGE of the last few days reaches " +
+          "`thresholdKg`, an orgasm window (GELEGENHEIT) opens by itself at his next weigh-in. The average, " +
+          "not a single day's value — one weigh-in varies by one to two kilos, and hanging a release on that " +
+          "means letting table salt decide. Only the FIRST weigh-in of a day is evaluated, so he cannot " +
+          "re-weigh until it fits. It never creates an offence: the consequence is waiting. The condition is " +
+          "CONSUMED once it opens a window — set the next one yourself. `withdraw: true` takes the open one " +
+          "back. Run it with `dryRun` first: the preview reports his current average, and „below 74 kg\" means " +
+          "something entirely different at 74.2 than at 82." + KEYHOLDER_SILENT,
+        inputSchema: {
+          thresholdKg: z.number().optional().describe(
+            "The weight his average must reach, in kg. Required unless `withdraw` is set.",
+          ),
+          direction: z.enum(["below", "above"]).optional().describe(
+            "Must the average be BELOW the threshold (losing weight, the default) or ABOVE it (gaining)?",
+          ),
+          averageDays: z.number().int().optional().describe(
+            `Width of the average in CALENDAR days (${RELEASE_AVERAGE_DAYS_RANGE.min}–${RELEASE_AVERAGE_DAYS_RANGE.max}, default ${RELEASE_AVERAGE_DAYS_RANGE.fallback}).`,
+          ),
+          minMeasurements: z.number().int().optional().describe(
+            `How many weigh-ins must fall inside that window for the average to count (default ${RELEASE_MIN_MEASUREMENTS_RANGE.fallback}). Must not exceed averageDays — that would be unmeetable.`,
+          ),
+          stepKg: z.number().optional().describe(
+            "How far the threshold moves TOWARD him each day, in kg. 0 (default) keeps it fixed. With a step it comes to meet him, so he will get there eventually — the only question is how many days it costs.",
+          ),
+          notBeforeAt: z.string().optional().describe(
+            "ISO timestamp: nothing opens before this, whatever the scale says. Required unless `withdraw` is set.",
+          ),
+          windowHours: z.number().int().optional().describe(
+            `How long the orgasm window stays open once it triggers (default ${RELEASE_WINDOW_HOURS_RANGE.fallback} h).`,
+          ),
+          openingAllowed: z.boolean().optional().describe(
+            "May he open the device to perform the orgasm during that window? Default false.",
+          ),
+          message: z.string().nullable().optional().describe("Free text carried into the orgasm window."),
+          withdraw: z.boolean().optional().describe("Take back the open condition instead of setting one."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("set_weight_release", extra, args, (u) => mcpSetWeightRelease(u, args)),
     );
 
     server.registerTool(
