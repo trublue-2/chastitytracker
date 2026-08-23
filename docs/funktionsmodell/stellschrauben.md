@@ -232,7 +232,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
 | `User.weightTrackingEnabled` | Boolean | `false` | dauerhaft | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`). | Keyholder (UI) | Gewicht, Oberfläche | `authGuards.ts:weightTrackingGate` |
-| `User.heightCm` | Int? | — | dauerhaft · **rückwirkend** | Aktuelle Körpergrösse — die Grundlage jedes BMI. Historisiert in `HeightChange`: ein BMI wird mit der Grösse gerechnet, die zum Messzeitpunkt galt. | Sub | Gewicht | `weight.ts:heightAt` |
+| `User.heightCm` | Int? | — | dauerhaft · **rückwirkend** | Aktuelle Körpergrösse — die Grundlage jedes BMI. Jede Änderung wird zusätzlich in `HeightChange` protokolliert; gerechnet wird heute überall mit diesem aktuellen Wert. | Sub | Gewicht | `weight.ts:bmi` |
 | `User.unitSystem` | String | `"metric"` | dauerhaft | Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt. | Sub | Oberfläche | `weight.ts:weightForDisplay` |
 | `User.targetWeightKg` | Float? | — | dauerhaft | Zielgewicht, das sich der Träger selbst vorgenommen hat. Wirksam, solange die Keyholderin keines führt; erreicht oder wieder verloren meldet es ihr — sie entscheidet, ob etwas folgt. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveTarget` |
 | `User.targetWeightSetAt` | DateTime? | — | dauerhaft | Wann er sein Ziel gesetzt hat — der Bezugspunkt des Fortschritts: gerechnet wird ab der Messung, die damals galt. Ein unveränderter Wert bewegt den Zeitpunkt nicht. | System | Gewicht | `weightService.ts:targetStartWeight` |
@@ -255,7 +255,7 @@ sind die wenigen, bei denen das nicht gilt, und deshalb die gefährlichsten im R
 
 | Feld | Was ein Umlegen rückwirkend tut |
 |---|---|
-| `User.heightCm` | Als KORREKTUR gespeichert (die alte Zahl war nie wahr) schreibt sie die jüngste Historie-Zeile um und verschiebt damit jeden BMI, der mit ihr gerechnet wurde. Als ÄNDERUNG gespeichert wirkt sie nur nach vorn. |
+| `User.heightCm` | Eine neue Zahl verschiebt JEDEN angezeigten BMI, auch den zu alten Messungen — gerechnet wird stets mit der aktuellen Grösse, nicht mit der von damals. |
 | `Device.lookalikeClusterId` | Rechnet die Geräte-Zuordnung JEDER historischen Session mit Bild-Konflikt neu. Vorher die Vorschau prüfen. |
 | `AppMeta.value` | Einen Stichtag zurückzudatieren beurteilt Vergehen vor diesem Datum neu und kann sie nachträglich melden. |
 

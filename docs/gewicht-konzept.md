@@ -107,12 +107,13 @@ steht, hat an *diesem* Tag gewogen. Der `@@unique` setzt „ein Wert pro Tag" du
 die Maschine gelesen hat, bleibt getrennt von dem, was der Mensch bestätigt hat. Nur so ist sichtbar,
 ob korrigiert wurde — und genau das ist die Spur, die eine Schummelei hinterlässt.
 
-### 3.2 Die Körpergrösse wird historisiert
+### 3.2 Die Körpergrösse wird protokolliert
 
-Sie geht in jeden BMI ein, also bekommt sie eine Historie nach dem Muster von `CleaningRuleChange`:
-der aktuelle Wert steht am `User`, die Vergangenheit in einer eigenen, append-only Tabelle. Ein BMI
-wird mit der Grösse gerechnet, die zum **Messzeitpunkt** galt (`effectiveAt`, wie bei den
-Reinigungsregeln).
+Der aktuelle Wert steht am `User`, jede Änderung zusätzlich in einer append-only Tabelle nach dem
+Muster von `CleaningRuleChange`. Der Resolver `heightAt` kann daraus die Grösse zu einem beliebigen
+Zeitpunkt auflösen — **benutzt wird er heute von niemandem:** jeder BMI im Produkt rechnet mit der
+aktuellen Grösse. Die Tabelle ist damit vorerst ein Protokoll (wer wann welche Zahl eingetragen hat)
+und die Vorarbeit für den Tag, an dem eine BMI-Kurve mit der Grösse von damals rechnen soll.
 
 ```prisma
 model HeightChange {
@@ -128,11 +129,20 @@ model HeightChange {
 }
 ```
 
-Der Preis: eine reine **Tippfehler-Korrektur** („178 statt 187") erzeugt einen dauerhaften Knick in
-der BMI-Kurve, weil die App eine Korrektur nicht von echtem Wachstum unterscheiden kann. Deshalb
-gehört ins Formular eine Auswahl: **„korrigiert" schreibt die bestehende Zeile um, „geändert" legt
-eine neue an.** Ohne diese Unterscheidung ist die Historie kein Gewinn, sondern eine Fehlerquelle
-mit Gedächtnis.
+**Die Rückfrage „Korrektur oder Änderung?" ist gestrichen (23.08.2026).** Bis v5.3.4 fragte das
+Formular den Träger, ob seine neue Zahl eine Korrektur sei (dann wurde die jüngste Zeile
+umgeschrieben) oder echtes Wachstum (dann kam eine neue dazu). Sie ist aus zwei Gründen weg:
+
+- **Sie war folgenlos.** Der historische Wert wird nirgends gelesen; beide Antworten führen zu
+  demselben BMI. Eine Entscheidung zu verlangen, deren Ausgang unsichtbar bleibt, ist keine
+  Sorgfalt, sondern eine Frage ins Leere
+- **Sie war nicht beantwortbar.** Bei erwachsenen Menschen ist eine geänderte Körpergrösse fast
+  immer eine korrigierte Angabe, keine gewachsene — und die Vorgabe stand ausgerechnet auf
+  „geändert"
+
+Geschrieben wird jetzt immer eine neue Zeile. Sollte die BMI-Kurve später historisch rechnen, ist
+der Tippfehler-Knick der Fall, den man dann löst — mit einer Korrektur-Funktion am Protokoll, nicht
+mit einer Rückfrage im Erfassungs-Formular.
 
 ### 3.3 Neue Felder am `User`
 
@@ -458,7 +468,7 @@ Meldung darunter (Abschnitt 7). Beide brauchen die Angabe nicht.
 
 | # | Inhalt | Kern |
 |---|---|---|
-| 1 | Schema + Migration (`WeightEntry`, `HeightChange`, User-Felder), **Gate je Sub + ENV**, `src/lib/weight.ts` (BMI mit `effectiveAt`-Grösse, Umrechnung, Rundung, Korridor-Prüfung), Einstellungen beidseitig, API-Routen | Fleissarbeit nach Muster |
+| 1 | Schema + Migration (`WeightEntry`, `HeightChange`, User-Felder), **Gate je Sub + ENV**, `src/lib/weight.ts` (BMI, Umrechnung, Rundung, Ziel-Prüfung), Einstellungen beidseitig, API-Routen | Fleissarbeit nach Muster |
 | 2 | Erfassung: (+)-Zeile, Formular Sub (Foto-Pflicht, 3-kg-Nachfrage), Aktion KH, Upload, EXIF | viele kleine Dateien |
 | 3 | `src/lib/weightWindows.ts` — eigener Baustein, `reinigungService` bleibt unberührt | in sich geschlossen |
 | 4 ✅ | Pflicht und Vergehen: `missed_weight_report`, Drei-Tage-Blöcke, `HealthHold`-Pause, Regel-Historisierung, Kopplung an den Gate, Tests | **die heikelste Etappe** — nur hier kann ein Fehler rückwirkend Vergehen erzeugen |
@@ -467,7 +477,7 @@ Meldung darunter (Abschnitt 7). Beide brauchen die Angabe nicht.
 | 7 | Waagen-Erkennung: Prompt, Dezimalstelle, Route | Neuland, mit Fehlerkennungen zu rechnen |
 | 8 ✅ | Foto-Beschneidung im Poller | ein Tages-Gate, Muster `pruneExpiredMessages` |
 | 9 ✅ | MCP lesen und schreiben (`weight_history`, `log_weight`, `set_weight_target`, dazu `weight` im Keyholder-Dashboard) | Muster vorhanden, Tests dazu |
-| 10 ✅ | **Überarbeitung 23.08.2026:** Zielgewicht statt Korridor, Nur-Weiten-Regel gestrichen, Wochentage + Dauer + Erinnerung an den Fenstern, `weekdays.ts` + `WeekdayPicker` als geteilter Baustein | dazu der Fehler in `weight_history`: es bekam den Benutzer**namen**, suchte damit aber in der id-Spalte — die Reihe kam immer leer und `enabled: false` zurück, während das Dashboard dieselben Daten korrekt zeigte |
+| 10 ✅ | **Überarbeitung 23.08.2026:** Zielgewicht statt Korridor, Nur-Weiten-Regel gestrichen, Wochentage + Dauer + Erinnerung an den Fenstern, `weekdays.ts` + `WeekdayPicker` als geteilter Baustein, Rückfrage „Korrektur oder Änderung?" bei der Körpergrösse gestrichen | dazu der Fehler in `weight_history`: es bekam den Benutzer**namen**, suchte damit aber in der id-Spalte — die Reihe kam immer leer und `enabled: false` zurück, während das Dashboard dieselben Daten korrekt zeigte |
 
 Etappe 7 ist von allem anderen unabhängig — das Zahlenfeld funktioniert ohne Erkennung, und die
 Fotopflicht steht auch ohne sie. Etappe 4 setzt 1–3 voraus; ihre Tests müssen die Aus-Zeiten, den

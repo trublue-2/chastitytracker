@@ -377,22 +377,24 @@ export function endOfWeightDay(dayKey: string, tz: string): Date {
 
 // ── Grössen-Historie ───────────────────────────────────────────────────────────────────────────
 
-/** Eine Zeile aus `HeightChange` — genau die Felder, die der Resolver liest. */
+/** Eine Zeile aus `HeightChange` — genau die Felder, die der Resolver liest.
+ *
+ *  **Der Resolver hat heute keinen Aufrufer** (jeder BMI rechnet mit der aktuellen Grösse). Er bleibt
+ *  samt Tests stehen, weil er die vollständige, geprüfte Lese-Seite des Protokolls ist: wer die
+ *  BMI-Kurve historisch rechnen lassen will, braucht ihn — nicht eine neue Herleitung derselben
+ *  Regel. Das dazugehörige Prisma-Select ist dagegen entfallen: ein Abfrage-Bauteil ohne Abfrage
+ *  ist kein Bauteil. */
 export interface HeightChangeRow {
   heightCm: number;
   effectiveFrom: Date;
 }
 
-/** Prisma-Select genau dieser Felder, damit Abfrage und Zeilentyp nicht getrennt veralten
- *  (Vorbild: `CLEANING_RULE_CHANGE_SELECT`). Kein `orderBy` — `effectiveAt` sortiert selbst. */
-export const HEIGHT_CHANGE_SELECT = { heightCm: true, effectiveFrom: true } as const;
-
 /**
  * `effectiveFrom` der ersten Zeile: die erste bekannte Grösse gilt „seit jeher".
  *
  * Vor ihr gibt es nichts — anders als bei den Reinigungsregeln, die einen Spalten-Default haben, ist
- * eine unbekannte Grösse kein Wert, der vorher galt. Epoch lässt damit keine Lücke, in die eine
- * frühe Messung fallen und ohne BMI dastehen könnte.
+ * eine unbekannte Grösse kein Wert, der vorher galt. Ein späterer Zeitstempel behauptete dagegen,
+ * davor habe eine ANDERE Grösse gegolten, und liesse das Protokoll mit einer Lücke beginnen.
  */
 export const HEIGHT_EPOCH = new Date(0);
 

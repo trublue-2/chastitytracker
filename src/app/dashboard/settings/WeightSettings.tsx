@@ -25,14 +25,10 @@ export interface WeightSettingsProps {
   /** Mail/Push zur Erinnerung ans Wiege-Fenster. Sein Schalter, nicht ihrer: die Meldung geht an
    *  IHN (`RECIPIENT_NOTIFICATION_EVENT_TYPES`). */
   reminderNotify: boolean;
-  /** Hat der Sub schon eine Grösse gespeichert? Dann fragt das Formular, ob die neue Zahl eine
-   *  KORREKTUR ist (die alte war nie wahr) oder eine ÄNDERUNG (echtes Wachstum) — die App kann das
-   *  nicht erraten, und die Historie hängt daran. */
-  hasHeightHistory: boolean;
 }
 
 export default function WeightSettings({
-  unitSystem, heightCm, targetWeightKg, keyholderTargetKg, reminderNotify, hasHeightHistory,
+  unitSystem, heightCm, targetWeightKg, keyholderTargetKg, reminderNotify,
 }: WeightSettingsProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
@@ -40,7 +36,6 @@ export default function WeightSettings({
 
   const [unit, setUnit] = useState<UnitSystem>(unitSystem);
   const [height, setHeight] = useState(heightCm === null ? "" : String(heightForDisplay(heightCm, unitSystem)));
-  const [heightMode, setHeightMode] = useState<"correct" | "change">("change");
   const [target, setTarget] = useState(weightFieldValue(targetWeightKg, unitSystem));
   const [remind, setRemind] = useState(reminderNotify);
   const [remindError, setRemindError] = useState<string | null>(null);
@@ -74,7 +69,7 @@ export default function WeightSettings({
   async function saveHeight() {
     const parsed = parseDecimalInput(height);
     if (parsed === null) return;
-    await save({ heightCm: heightInputToCm(parsed, unit), heightMode });
+    await save({ heightCm: heightInputToCm(parsed, unit) });
   }
 
   async function saveTarget() {
@@ -129,18 +124,6 @@ export default function WeightSettings({
           onChange={(e) => setHeight(e.target.value)}
           hint={feet ? t("heightFeetHint", { feet: feet.feet, inches: feet.inches }) : undefined}
         />
-        {hasHeightHistory && (
-          <Select
-            label={t("heightMode")}
-            value={heightMode}
-            disabled={saving}
-            onChange={(e) => setHeightMode(e.target.value as "correct" | "change")}
-            options={[
-              { value: "change", label: t("heightModeChange") },
-              { value: "correct", label: t("heightModeCorrect") },
-            ]}
-          />
-        )}
         <Button variant="secondary" loading={saving} onClick={saveHeight}>{tc("save")}</Button>
       </div>
 

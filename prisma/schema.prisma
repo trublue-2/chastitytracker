@@ -81,8 +81,8 @@ model User {
   // Schalter der Keyholderin je Sub. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden, die
   // Daten bleiben. Dazu der Instanz-Schalter `ENABLE_WEIGHT_TRACKING` (constants.ts).
   weightTrackingEnabled          Boolean                  @default(false)
-  // AKTUELLE Körpergrösse. Die Historie steht in `HeightChange` — ein BMI wird mit der Grösse
-  // gerechnet, die zum Messzeitpunkt galt, nicht mit der von heute.
+  // AKTUELLE Körpergrösse. Jede Änderung wird zusätzlich in `HeightChange` protokolliert; gerechnet
+  // wird heute überall mit diesem aktuellen Wert.
   heightCm                       Int?
   // Anzeige-Präferenz DESSEN, DER SCHAUT ("metric" | "imperial") — keine Eigenschaft der Daten:
   // eine Keyholderin darf Pfund sehen, während ihr Sub in Kilogramm einträgt.
@@ -1409,13 +1409,15 @@ model WeightEntry {
 
 /// Eine Änderung der Körpergrösse — append-only, Muster `CleaningRuleChange`.
 ///
-/// Warum eine Historie: die Grösse geht in JEDEN BMI ein. Ein einzelnes Feld würde beim Ändern
-/// rückwirkend jeden je berechneten BMI verschieben. Mit der Historie wird jede Messung mit der
-/// Grösse gerechnet, die zu IHREM Zeitpunkt galt (`effectiveAt`).
+/// **Heute ein Protokoll, keine wirksame Historie.** Jeder BMI im Produkt rechnet mit der aktuellen
+/// Grösse am `User`; die Auflösung „welche Grösse galt zu diesem Zeitpunkt" gibt es als `heightAt`,
+/// aber sie hat keinen Aufrufer. Die Zeilen halten fest, wer wann welche Zahl eingetragen hat — und
+/// sind die Vorarbeit für den Tag, an dem eine BMI-Kurve historisch rechnen soll.
 ///
-/// Eine KORREKTUR ist etwas anderes als eine ÄNDERUNG: „178 statt 187" war nie wahr und schreibt
-/// die bestehende Zeile um; echtes Wachstum legt eine neue an. Die App kann das nicht erraten,
-/// deshalb fragt das Formular danach.
+/// Bis v5.3.4 fragte das Formular, ob eine neue Zahl eine KORREKTUR sei (dann wurde die jüngste
+/// Zeile umgeschrieben) oder echtes Wachstum. Die Rückfrage ist gestrichen: ihr Ausgang war
+/// nirgends sichtbar, und bei erwachsenen Menschen ist eine geänderte Körpergrösse fast immer eine
+/// korrigierte Angabe. Geschrieben wird jetzt immer eine neue Zeile.
 model HeightChange {
   id            String   @id @default(cuid())
   userId        String

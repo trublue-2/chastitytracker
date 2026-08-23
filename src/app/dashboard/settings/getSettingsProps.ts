@@ -81,9 +81,6 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
           keyholderTargetKg: dbUser.targetWeightKeyholderKg,
           // Ein Schalter für beide Kanäle, wie beim Posteingang.
           reminderNotify: reminderPref.mail || reminderPref.push,
-          // Erst ab der ersten gespeicherten Grösse gibt es etwas zu korrigieren — vorher wäre die
-          // Frage „Korrektur oder Änderung?" ohne Gegenstand.
-          hasHeightHistory: (await prisma.heightChange.count({ where: { userId } })) > 0,
         };
       }
     }

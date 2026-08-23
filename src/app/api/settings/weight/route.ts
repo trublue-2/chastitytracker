@@ -21,7 +21,6 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json();
   return serviceResponse(await setWeightSettingsSelf(session.user.id, {
     heightCm: body.heightCm,
-    heightMode: body.heightMode === "correct" ? "correct" : "change",
     unitSystem: body.unitSystem,
     targetWeightKg: body.targetWeightKg,
     changedBy: session.user.name ?? null,

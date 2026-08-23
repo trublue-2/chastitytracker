@@ -429,9 +429,9 @@ export const FM_REGISTRY: FmEntry[] = [
   }),
   s({
     model: "User", field: "heightCm", domain: "gewicht", scope: "standing",
-    effect: "Aktuelle Körpergrösse — die Grundlage jedes BMI. Historisiert in `HeightChange`: ein BMI wird mit der Grösse gerechnet, die zum Messzeitpunkt galt.",
-    writers: ["sub"], affects: ["Gewicht"], anchor: "weight.ts:heightAt",
-    retroactive: "Als KORREKTUR gespeichert (die alte Zahl war nie wahr) schreibt sie die jüngste Historie-Zeile um und verschiebt damit jeden BMI, der mit ihr gerechnet wurde. Als ÄNDERUNG gespeichert wirkt sie nur nach vorn.",
+    effect: "Aktuelle Körpergrösse — die Grundlage jedes BMI. Jede Änderung wird zusätzlich in `HeightChange` protokolliert; gerechnet wird heute überall mit diesem aktuellen Wert.",
+    writers: ["sub"], affects: ["Gewicht"], anchor: "weight.ts:bmi",
+    retroactive: "Eine neue Zahl verschiebt JEDEN angezeigten BMI, auch den zu alten Messungen — gerechnet wird stets mit der aktuellen Grösse, nicht mit der von damals.",
   }),
   s({
     model: "User", field: "unitSystem", domain: "gewicht", scope: "standing",

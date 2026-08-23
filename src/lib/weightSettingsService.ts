@@ -24,9 +24,6 @@ import { heightProblem, isUnitSystem, weightProblem, HEIGHT_EPOCH, type UnitSyst
  *  Zeile einen eigenen PATCH, wie bei den Reinigungs-Einstellungen. */
 export interface SelfWeightParams {
   heightCm?: unknown;
-  /** `"correct"` schreibt die jüngste Historie-Zeile um („178 statt 187" war nie wahr),
-   *  `"change"` legt eine neue an (echtes Wachstum). Vorgabe: `"change"`. */
-  heightMode?: "correct" | "change";
   unitSystem?: unknown;
   /** `null`/`""` nimmt das Ziel zurück. */
   targetWeightKg?: unknown;
@@ -132,31 +129,25 @@ export async function setWeightSettingsSelf(userId: string, params: SelfWeightPa
         data.targetWeightSetAt = patch.setAt;
       }
 
-      // Grössen-Historie fortschreiben — nur bei einer echten Änderung. Ein Speichern, das nichts
-      // bewegt, schreibt keine Zeile (dieselbe Regel wie in `setReinigungSettings`).
+      // Grössen-Protokoll fortschreiben — nur bei einer echten Änderung, und IMMER als neue Zeile:
+      // die Rückfrage „Korrektur oder Änderung?" ist gestrichen, weil der Wert nirgends historisch
+      // gelesen wird (Begründung: docs/gewicht-konzept.md, Abschnitt 3.2).
+      //
+      // `before.heightCm === null` erkennt die erste Zeile ohne zweite Abfrage: diese Funktion ist
+      // der EINZIGE Schreiber von `User.heightCm`, und die Tabelle kam leer aus der Migration —
+      // keine Grösse heisst also kein Protokoll. Ein `count` auf der Tabelle wäre nicht nur ein
+      // Roundtrip mehr, sondern im Ausnahmefall auch falsch: gäbe es je eine Grösse ohne Zeile,
+      // stempelte er den NEUEN Wert als „seit jeher" und behauptete damit, der alte habe nie gegolten.
       if (data.heightCm !== undefined && data.heightCm !== before.heightCm) {
-        const latest = await tx.heightChange.findFirst({
-          where: { userId },
-          orderBy: { effectiveFrom: "desc" },
-          select: { id: true },
+        await tx.heightChange.create({
+          data: {
+            userId,
+            heightCm: data.heightCm,
+            // Die erste bekannte Grösse gilt „seit jeher" — davor gibt es nichts, was gegolten hätte.
+            effectiveFrom: before.heightCm === null ? HEIGHT_EPOCH : now,
+            changedBy: params.changedBy ?? null,
+          },
         });
-        if (!latest) {
-          // Die erste bekannte Grösse gilt „seit jeher" — davor gibt es nichts, was gegolten hätte.
-          await tx.heightChange.create({
-            data: { userId, heightCm: data.heightCm, effectiveFrom: HEIGHT_EPOCH, changedBy: params.changedBy ?? null },
-          });
-        } else if (params.heightMode === "correct") {
-          // Eine Korrektur war nie wahr: sie ersetzt den Wert, statt einen Knick in die Kurve zu
-          // legen. Ohne diese Unterscheidung wäre jeder Tippfehler ein dauerhaftes Ereignis.
-          await tx.heightChange.update({
-            data: { heightCm: data.heightCm, changedBy: params.changedBy ?? null },
-            where: { id: latest.id },
-          });
-        } else {
-          await tx.heightChange.create({
-            data: { userId, heightCm: data.heightCm, effectiveFrom: now, changedBy: params.changedBy ?? null },
-          });
-        }
       }
 
       await tx.user.update({ where: { id: userId }, data });
