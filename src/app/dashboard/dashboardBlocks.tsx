@@ -19,7 +19,7 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
-import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
+import { proratedVorgabeTargets, hasVisibleGoalRow } from "@/lib/goalFulfillment";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
 import { resolveReasonLabel } from "@/lib/reasonsService";
 import { categoryNeedsDevice } from "@/lib/categoryConstants";
@@ -326,14 +326,11 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       // hätte es sonst nirgends Platz; dann zeigen wir es als führende Zeile in der
       // „Trainingsvorgaben"-Karte (derselben, die die Kategorie-Ziele trägt).
       const kgTargets = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
+      // `hasVisibleGoalRow` und nicht „irgendein Ziel gesetzt": am Starttag einer Vorgabe ist jede
+      // Periode ungewertet, und die Zeile stünde sonst als Überschrift über einer leeren Liste.
       const kgGoal =
-        !sessionCard && kgTargets &&
-        (kgTargets.minProTagH != null || kgTargets.minProWocheH != null || kgTargets.minProMonatH != null || kgTargets.minProJahrH != null)
-          ? {
-              ...hours,
-              goalDayH: kgTargets.minProTagH, goalWeekH: kgTargets.minProWocheH,
-              goalMonthH: kgTargets.minProMonatH, goalYearH: kgTargets.minProJahrH,
-            }
+        !sessionCard && kgTargets && hasVisibleGoalRow(kgTargets.targetH)
+          ? { ...hours, goal: kgTargets }
           : null;
       return { wearSessions, entries, kgGoal };
     },

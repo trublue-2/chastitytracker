@@ -439,7 +439,22 @@ export function getMidnightToday(now: Date, tz: string): Date {
   return midnightInTZ(now, tz);
 }
 
+/**
+ * 00:00 Ortszeit `days` Kalendertage nach dem Tag von `now` (negativ = davor). `days: 1` ist die
+ * NÄCHSTE Mitternacht — die Periodengrenze, an der Trainingsziele standardmässig zu laufen beginnen.
+ *
+ * Bewusst über den KALENDERTAG (`tzDateParts` → `midnightOfLocalDate`) statt über `+ n * 86_400_000`
+ * auf einem Mitternachts-Instant: an einem Zeitumstellungstag hat der Tag 23 oder 25 Stunden, und
+ * die Millisekunden-Addition landet dann auf 23:00 bzw. 01:00 statt auf Mitternacht. Der Tag ist
+ * eine Kalendergrösse, keine feste Dauer.
+ */
+export function midnightAfterDays(now: Date, tz: string, days: number): Date {
+  const { year, month, day } = tzDateParts(now, tz);
+  return midnightOfLocalDate(year, month, day + days, tz);
+}
+
 const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+const weekdayFormatters = new Map<string, Intl.DateTimeFormat>();
 
 /** Die Uhrzeit eines Instants in `tz` als „HH:MM" — 24h, fest mit ":" für den lexikalischen
  *  Vergleich gegen Fenster-Grenzen.
@@ -470,7 +485,10 @@ export function hhmmFromMinutes(minutes: number): string {
  *  Liegt der Kalendertag schon als ZAHLEN vor, ist `mondayIndexOfLocalDate` richtig — nicht erst
  *  einen Anker-Instant bauen, um ihn hier wieder in einen Wochentag zurückzuverwandeln. */
 export function mondayIndex(d: Date, tz: string): number {
-  const wd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" })
+  // `memoFormatter` statt eines frischen `Intl.DateTimeFormat` je Aufruf: die Konstruktion kostet
+  // rund das Zwanzigfache einer Formatierung und war damit teurer als alle übrigen Zeitzonen-
+  // Auflösungen einer Perioden-Berechnung zusammen — `getWeekStart` ruft dies je Kategorie-Zeile.
+  const wd = memoFormatter(weekdayFormatters, tz, { weekday: "short" })
     .formatToParts(d).find(p => p.type === "weekday")!.value;
   return ((WEEKDAY_INDEX[wd] ?? 0) + 6) % 7;
 }
@@ -489,9 +507,11 @@ export function mondayIndexOfLocalDate(year: number, month: number, day: number)
   return (new Date(Date.UTC(year, month, day)).getUTCDay() + 6) % 7;
 }
 
-/** Start of the current ISO week (Monday 00:00:00 in `tz`) */
+/** Start of the current ISO week (Monday 00:00:00 in `tz`) — `midnightAfterDays` statt einer
+ *  Millisekunden-Subtraktion, damit die Wochengrenze auch in der Umstellungswoche auf Mitternacht
+ *  fällt und nicht auf 23:00 des Sonntags davor. */
 export function getWeekStart(now: Date, tz: string): Date {
-  return new Date(midnightInTZ(now, tz).getTime() - mondayIndex(now, tz) * 86_400_000);
+  return midnightAfterDays(now, tz, -mondayIndex(now, tz));
 }
 
 /** First day of the current month at 00:00:00 in `tz` */

@@ -22,7 +22,9 @@ import {
   MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
   clampProofDueOffset, clampHoldDuration, type NumberRange,
 } from "@/lib/constants";
-import { clamp, randomInt } from "@/lib/utils";
+import { clamp, randomInt, midnightAfterDays } from "@/lib/utils";
+import { goalCategoryKey } from "@/lib/vorgaben";
+import { goalDateFromInput } from "@/lib/vorgabeService";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
@@ -106,7 +108,7 @@ async function resolveDeviceId(userId: string, name: string): Promise<string> {
 }
 
 /** Resolves a category name to its id ("KG"/built-in or a user category). Throws if not found. */
-async function resolveCategoryId(userId: string, name: string): Promise<string> {
+async function resolveCategory(userId: string, name: string): Promise<{ id: string; isBuiltIn: boolean }> {
   const cats = await prisma.deviceCategory.findMany({
     where: { userId },
     select: { id: true, name: true, isBuiltIn: true },
@@ -115,7 +117,21 @@ async function resolveCategoryId(userId: string, name: string): Promise<string> 
     ? cats.find((c) => c.isBuiltIn)
     : matchByNameCI(cats, name);
   if (!match) throw new Error(`Category not found: "${name}". Available: ${cats.map((c) => c.name).join(", ")}`);
-  return match.id;
+  return { id: match.id, isBuiltIn: match.isBuiltIn };
+}
+
+async function resolveCategoryId(userId: string, name: string): Promise<string> {
+  return (await resolveCategory(userId, name)).id;
+}
+
+/** Ein Ziel-Datum aus MCP-Argumenten: erst die ISO-Prüfung aller MCP-Werkzeuge (`parseIsoDate`
+ *  wirft mit brauchbarer Meldung), dann dieselbe Kalenderdatum-Regel wie im Service — ein blosses
+ *  `2026-06-12` ist Mitternacht beim SUB, nicht in UTC. Ohne diesen Schritt läge dieselbe Angabe je
+ *  nach Schreibweg zwei Stunden auseinander (Zürich), und ein über den MCP auf ein Datum gesetztes
+ *  Ziel begänne um 02:00 — also mitten am Tag, mit allen Folgen aus `goalFulfillment.ts`. */
+function parseGoalDate(value: string, field: string, tz: string): Date {
+  parseIsoDate(value, field);
+  return goalDateFromInput(value, tz);
 }
 
 /** Die englischen Sätze zu den Service-Fehler-Codes. Bewusst aus `messages/en.json` gelesen statt
@@ -428,12 +444,17 @@ export interface SetTrainingGoalArgs {
 
 export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoalArgs) {
   const userId = await resolveTargetUserId(username);
-  const iso = await isoForUser(userId);
+  const tz = await tzOf(userId);
+  const iso = makeIso(tz);
   const categoryId = args.category ? await resolveCategoryId(userId, args.category) : null;
 
-  // Default to now; validFrom may be a future date to schedule a goal in advance.
-  const gueltigAb = args.validFrom ? parseIsoDate(args.validFrom, "validFrom") : new Date();
-  const gueltigBis = args.validUntil ? parseIsoDate(args.validUntil, "validUntil") : null;
+  // Ohne `validFrom` beginnt das Ziel an der NÄCHSTEN MITTERNACHT des Subs, nicht jetzt (Regel 1 in
+  // `goalFulfillment.ts`). Ein Ziel, das um 09:54 zu laufen beginnt, teilt Tag, Woche und Monat und
+  // ist in keiner Auswertung sinnvoll darstellbar — der Prozentwert verglich dann Ist-Stunden der
+  // ganzen Periode mit einem Ziel, das nur ihren Rest abdeckt. Wer den Start mitten in der Periode
+  // ausdrücklich will, gibt `validFrom` an; dort greifen dann die Regeln 2 und 3.
+  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom", tz) : midnightAfterDays(new Date(), tz, 1);
+  const gueltigBis = args.validUntil ? parseGoalDate(args.validUntil, "validUntil", tz) : null;
   if (gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
     throw new Error("validUntil must be after validFrom.");
   }
@@ -455,8 +476,11 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
     minProJahrH: args.minPerYearHours,
     notiz: args.note,
   }));
-  const when = args.validFrom ? `scheduled from ${iso(gueltigAb)!.slice(0, 10)}` : "active now";
-  return { ok: true, id: data.id, message: `Training goal set (${when}).` };
+  return {
+    ok: true,
+    id: data.id,
+    message: `Training goal set (starts ${iso(gueltigAb)!.slice(0, 10)} 00:00${args.validFrom ? "" : ", the next period boundary"}).`,
+  };
 }
 
 export interface WithdrawArgs {
@@ -825,13 +849,17 @@ export interface ListTrainingGoalsArgs {
 }
 export async function mcpListTrainingGoals(username: string, args: ListTrainingGoalsArgs): Promise<ListTrainingGoalsResult> {
   const userId = await resolveTargetUserId(username);
-  const filterCatId = args.category ? await resolveCategoryId(userId, args.category) : undefined;
+  // Über die KANONISCHE Kategorie-Kennung filtern, nicht über die rohe id: KG-Ziele tragen je nach
+  // Entstehungsweg `categoryId: null` oder die id der eingebauten Kategorie, und ein Filter auf die
+  // aufgelöste id liess die andere Hälfte lautlos weg — darunter das Ziel aus dem Vorfall 23.08.2026.
+  const filterCat = args.category ? await resolveCategory(userId, args.category) : undefined;
+  const filterKey = filterCat && goalCategoryKey({ categoryId: filterCat.id, category: { isBuiltIn: filterCat.isBuiltIn } });
   const timezone = await tzOf(userId);
   const iso = makeIso(timezone);
   const now = new Date();
   const nowMs = now.getTime();
   const goals: TrainingGoalRow[] = (await listVorgaben(userId, { includeDeleted: args.includeDeleted }))
-    .filter((g) => filterCatId === undefined || g.categoryId === filterCatId)
+    .filter((g) => filterCat === undefined || goalCategoryKey(g) === filterKey)
     .map((g) => {
       const ab = g.gueltigAb.getTime();
       const bis = g.gueltigBis ? g.gueltigBis.getTime() : null;
@@ -866,12 +894,13 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
 
   // Category: only change when provided (omit = keep existing).
   const categoryId = args.category !== undefined ? await resolveCategoryId(userId, args.category) : undefined;
-  const gueltigAb = args.validFrom ? parseIsoDate(args.validFrom, "validFrom") : existing.gueltigAb;
+  const editTz = await tzOf(userId);
+  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom", editTz) : existing.gueltigAb;
   // validUntil gesetzt → neues, bewusst gesetztes Ende (manuell). Weggelassen/leer → Bestand
   // behalten, inkl. des bestehenden manuell-Flags (abgeleitetes Ende bleibt abgeleitet).
   // Truthy-Check bewusst: "" bedeutet „nicht angegeben" (nicht „parse Invalid Date").
   const validUntilProvided = !!args.validUntil;
-  const gueltigBis = validUntilProvided ? parseIsoDate(args.validUntil!, "validUntil") : existing.gueltigBis;
+  const gueltigBis = validUntilProvided ? parseGoalDate(args.validUntil!, "validUntil", editTz) : existing.gueltigBis;
   const validUntilManual = validUntilProvided ? true : existing.validUntilManual;
   // Datums-Guard nur prüfen, wenn dieser Edit ein Datum wirklich anfasst — sonst würde ein reiner
   // Notiz-/Stunden-Edit auf Bestandsdaten (z.B. verkettetes Ende == Start bei gleichem gueltigAb)
@@ -887,7 +916,7 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
     minProJahrH: args.minPerYearHours ?? existing.minProJahrH,
   };
   if (args.dryRun) {
-    const iso = await isoForUser(userId);
+    const iso = makeIso(editTz); // die Zeitzone ist oben schon aufgelöst — kein zweiter Abruf
     const problem = !hasPeriodTarget(merged) ? "GOAL_PERIOD_TARGET_REQUIRED" : checkGoalPlausibility(merged);
     // Dieselbe Feldnamen-Abbildung wie `vorgabeSnapshot` — statt sie hier ein zweites Mal von Hand
     // hinzuschreiben, durch einen (ungespeicherten) Vorgabe-artigen Zwischenstand jagen.

@@ -20,6 +20,20 @@
       {
         "type": "fix",
         "text": {
+          "de": "Trainingsziele beginnen jetzt an der nächsten Mitternacht statt mitten am Tag. Wird ein Ziel doch mitten in einer Periode gesetzt oder beendet, zeigt der Tracker für diese Periode keine Erfüllung mehr an, statt einer Prozentzahl, die zwei verschiedene Zeiträume vergleicht.",
+          "en": "Training goals now start at the next midnight instead of mid-day. If a goal does start or end in the middle of a period, the tracker no longer shows a fulfilment figure for that period, rather than one comparing two different time spans."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein neues Trainingsziel beendet das laufende Ziel derselben Kategorie wieder zuverlässig — bisher konnten zwei Ziele gleichzeitig gelten.",
+          "en": "A new training goal reliably ends the running goal of the same category again — until now two goals could apply at the same time."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
           "de": "Die KI-Keyholderin bekam den Gewichtsverlauf leer zu sehen, obwohl Werte erfasst waren.",
           "en": "The AI keyholder saw an empty weight history even though values had been logged."
         }

@@ -17,7 +17,7 @@ import {
 import {
   buildCalendarMonths, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
 } from "@/lib/statsBuilders";
-import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
+import { proratedVorgabeTargets, hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/goalFulfillment";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -209,16 +209,21 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
           name: v.category?.name ?? "KG",
           color: v.category?.color ?? null,
           icon: v.category?.icon ?? null,
-          // Ziele prorata: startet/endet die Vorgabe mitten in der Periode, wird das Ziel anteilig
-          // auf die Überschneidung mit der Periode heruntergerechnet (Anzeige + %-Nenner).
-          ...proratedVorgabeTargets(v, now, tz),
+          // Ziele je Periode nach den Regeln aus `goalFulfillment.ts` — in einer geteilten Periode
+          // ist `targetH` bereits null, der Balken fällt damit von selbst aus.
+          goal: proratedVorgabeTargets(v, now, tz),
           notiz: v.notiz,
-          hoursToday: wearingHoursFromPairs(pairs, todayStart, now),
-          hoursWeek: wearingHoursFromPairs(pairs, weekStart, now),
-          hoursMonth: wearingHoursFromPairs(pairs, monthStart, now),
-          hoursYear: wearingHoursFromPairs(pairs, yearStart, now),
+          hours: {
+            day: wearingHoursFromPairs(pairs, todayStart, now),
+            week: wearingHoursFromPairs(pairs, weekStart, now),
+            month: wearingHoursFromPairs(pairs, monthStart, now),
+            year: wearingHoursFromPairs(pairs, yearStart, now),
+          },
         };
-      });
+      })
+        // Eine Karte, deren vier Balken alle ausfallen, wäre eine Überschrift mit „aktiv"-Pille
+        // über einem leeren Kasten — am Tag, an dem eine Vorgabe beginnt, ist das der Normalfall.
+        .filter((g) => hasVisibleGoalRow(g.goal.targetH));
     },
     render: (goalCards, { t, tc }) => goalCards.map((g) => {
       const style = g.color ? categoryStyle(g.color) : null;
@@ -242,26 +247,16 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
             <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full shrink-0">{tc("active")}</span>
           </div>
           <div className="px-6 py-4 flex flex-col gap-4">
-            {g.minProTagH && (
-              <GoalBar label={t("today")} actual={g.hoursToday} target={g.minProTagH}
-                sub={`${formatTotalHours(g.hoursToday)} ${tc("of")} ${formatTotalHours(g.minProTagH)}`}
-                reachedLabel={t("reached")} />
-            )}
-            {g.minProWocheH && (
-              <GoalBar label={t("thisWeek")} actual={g.hoursWeek} target={g.minProWocheH}
-                sub={`${formatTotalHours(g.hoursWeek)} ${tc("of")} ${formatTotalHours(g.minProWocheH)}`}
-                reachedLabel={t("reached")} />
-            )}
-            {g.minProMonatH && (
-              <GoalBar label={t("thisMonth")} actual={g.hoursMonth} target={g.minProMonatH}
-                sub={`${formatTotalHours(g.hoursMonth)} ${tc("of")} ${formatTotalHours(g.minProMonatH)}`}
-                reachedLabel={t("reached")} />
-            )}
-            {g.minProJahrH && (
-              <GoalBar label={t("thisYear")} actual={g.hoursYear} target={g.minProJahrH}
-                sub={`${formatTotalHours(g.hoursYear)} ${tc("of")} ${formatTotalHours(g.minProJahrH)}`}
-                reachedLabel={t("reached")} />
-            )}
+            {GOAL_PERIODS.map((period) => {
+              const target = g.goal.targetH[period];
+              if (!target) return null;
+              const actual = g.hours[period];
+              return (
+                <GoalBar key={period} label={t(GOAL_BAR_LABEL_KEY[period])} actual={actual} target={target}
+                  sub={`${formatTotalHours(actual)} ${tc("of")} ${formatTotalHours(target)}`}
+                  reachedLabel={t("reached")} />
+              );
+            })}
             {g.notiz && <p className="text-xs text-[var(--color-request)] italic">{g.notiz}</p>}
           </div>
         </Card>
@@ -512,6 +507,13 @@ function RecordRow({ label, value, sub }: { label: string; value: string; sub: s
     </div>
   );
 }
+
+/** Die Beschriftung je Periode auf dieser Karte — „Heute"/„Diese Woche" statt der kurzen
+ *  `day`/`week` der Live-Zeilen. Eine Tabelle statt vier ausgeschriebener Balken-Blöcke: die Regel,
+ *  WELCHER Balken erscheint, stand hier sonst ein viertes Mal. */
+const GOAL_BAR_LABEL_KEY: Record<GoalPeriod, "today" | "thisWeek" | "thisMonth" | "thisYear"> = {
+  day: "today", week: "thisWeek", month: "thisMonth", year: "thisYear",
+};
 
 function GoalBar({ label, actual, target, sub, reachedLabel }: { label: string; actual: number; target: number; sub: string; reachedLabel: string }) {
   const pct = goalPct(actual, target) ?? 0;

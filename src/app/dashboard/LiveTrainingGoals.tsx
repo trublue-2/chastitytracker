@@ -1,8 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import GoalProgressRow from "@/app/components/GoalProgressRow";
+import GoalProgressRows from "@/app/components/GoalProgressRows";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
+import type { VorgabeTargets } from "@/lib/goalFulfillment";
 
 interface Props {
   serverNow: string;
@@ -10,12 +11,7 @@ interface Props {
   wocheH: number;
   monatH: number;
   jahrH: number;
-  activeVorgabe: {
-    minProTagH: number | null;
-    minProWocheH: number | null;
-    minProMonatH: number | null;
-    minProJahrH: number | null;
-  };
+  activeVorgabe: VorgabeTargets;
 }
 
 export default function LiveTrainingGoals({ serverNow, tagH: baseTagH, wocheH: baseWocheH, monatH: baseMonatH, jahrH: baseJahrH, activeVorgabe }: Props) {
@@ -30,18 +26,11 @@ export default function LiveTrainingGoals({ serverNow, tagH: baseTagH, wocheH: b
       <p className="text-xs font-semibold uppercase tracking-wider text-emerald-100/70 mb-1">
         {t("kgGoals")}
       </p>
-      {activeVorgabe.minProTagH != null && (
-        <GoalProgressRow tone="onAccent" actual={tagH} target={activeVorgabe.minProTagH} label={t("day")} />
-      )}
-      {activeVorgabe.minProWocheH != null && (
-        <GoalProgressRow tone="onAccent" actual={wocheH} target={activeVorgabe.minProWocheH} label={t("week")} />
-      )}
-      {activeVorgabe.minProMonatH != null && (
-        <GoalProgressRow tone="onAccent" actual={monatH} target={activeVorgabe.minProMonatH} label={t("month")} />
-      )}
-      {activeVorgabe.minProJahrH != null && (
-        <GoalProgressRow tone="onAccent" actual={jahrH} target={activeVorgabe.minProJahrH} label={t("year")} />
-      )}
+      <GoalProgressRows
+        tone="onAccent"
+        actual={{ day: tagH, week: wocheH, month: monatH, year: jahrH }}
+        targetH={activeVorgabe.targetH}
+      />
     </div>
   );
 }
