@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  bmi, breachToAnnounce, corridorBreach, corridorProblem, effectiveCorridor, heightAt, heightProblem,
-  isUnderweightTarget, keyholderCorridorProblem, weightForDisplay,
-  weightInputToKg, weightProblem, WEIGHT_PROBLEMS,
+  bmi, effectiveTarget, heightAt, heightProblem, isUnderweightTarget, targetEventToAnnounce,
+  targetProgress, targetReached, weightForDisplay, weightInputToKg, weightProblem, weightText, WEIGHT_PROBLEMS,
 } from "./weight";
 
 describe("Einheiten", () => {
@@ -43,16 +42,8 @@ describe("bmi", () => {
   });
 });
 
-describe("Korridor — Prüfung", () => {
-  it("nimmt einen einseitigen Korridor an (nur Obergrenze ist der Normalfall)", () => {
-    expect(corridorProblem({ minKg: null, maxKg: 84 })).toBeNull();
-  });
-
-  it("weist eine Untergrenze über der Obergrenze ab", () => {
-    expect(corridorProblem({ minKg: 90, maxKg: 84 })).toBe(WEIGHT_PROBLEMS.corridorInverted);
-  });
-
-  it("weist unplausible Gewichte ab", () => {
+describe("Plausibilität", () => {
+  it("weist unplausible Gewichte ab — als Messwert wie als Ziel", () => {
     expect(weightProblem(5)).toBe(WEIGHT_PROBLEMS.weightOutOfRange);
     expect(weightProblem(400)).toBe(WEIGHT_PROBLEMS.weightOutOfRange);
     expect(weightProblem("75")).toBe(WEIGHT_PROBLEMS.weightOutOfRange);
@@ -66,63 +57,77 @@ describe("Korridor — Prüfung", () => {
   });
 });
 
-describe("Korridor — die Keyholderin darf nur weiten", () => {
-  const sub = { minKg: null, maxKg: 84 };
+describe("Ziel — wer gilt", () => {
+  const setAt = new Date("2026-08-01T00:00:00Z");
 
-  it("lässt die weitere Obergrenze zu (Beispiel des Nutzers: 84 → 87)", () => {
-    expect(keyholderCorridorProblem(sub, { minKg: null, maxKg: 87 })).toBeNull();
+  it("nimmt das der Keyholderin, solange sie eines führt", () => {
+    expect(effectiveTarget({
+      targetWeightKg: 84, targetWeightSetAt: setAt,
+      targetWeightKeyholderKg: 80, targetWeightKeyholderSetAt: setAt,
+    })).toEqual({ kg: 80, setAt, source: "keyholder" });
   });
 
-  it("weist die engere Obergrenze ab (84 → 80)", () => {
-    expect(keyholderCorridorProblem(sub, { minKg: null, maxKg: 80 })).toBe(WEIGHT_PROBLEMS.corridorNarrower);
+  it("fällt auf das des Trägers zurück, wenn sie ihres zurücknimmt", () => {
+    expect(effectiveTarget({
+      targetWeightKg: 84, targetWeightSetAt: setAt,
+      targetWeightKeyholderKg: null, targetWeightKeyholderSetAt: null,
+    })).toEqual({ kg: 84, setAt, source: "sub" });
   });
 
-  it("weist eine Grenze ab, wo der Sub gar keine gesetzt hat — mit eigenem Grund", () => {
-    // Von unbegrenzt auf begrenzt ist die grösstmögliche Verengung, nicht ihr Gegenteil. Der Grund
-    // ist aber ein anderer als eine zu strenge Zahl: hier fehlt die Voraussetzung, und die
-    // Keyholderin kann ihn durch keine andere Zahl beheben.
-    expect(keyholderCorridorProblem(sub, { minKg: 70, maxKg: 84 })).toBe(WEIGHT_PROBLEMS.corridorNoSubLimit);
+  it("ist null, solange niemand eines gesetzt hat", () => {
+    expect(effectiveTarget({
+      targetWeightKg: null, targetWeightSetAt: null,
+      targetWeightKeyholderKg: null, targetWeightKeyholderSetAt: null,
+    })).toBeNull();
   });
 
-  it("lässt die Rücknahme der Nachbesserung zu", () => {
-    expect(keyholderCorridorProblem(sub, { minKg: null, maxKg: null })).toBeNull();
-  });
-
-  it("weist einen in sich widersprüchlichen Korridor auch dann ab, wenn er weiter wäre", () => {
-    expect(keyholderCorridorProblem({ minKg: 70, maxKg: 84 }, { minKg: 90, maxKg: 85 }))
-      .toBe(WEIGHT_PROBLEMS.corridorInverted);
-  });
-});
-
-describe("Korridor — wirksamer Stand", () => {
-  it("nimmt stets den weiteren der beiden Werte", () => {
-    expect(effectiveCorridor({ minKg: 70, maxKg: 84 }, { minKg: 65, maxKg: 87 }))
-      .toEqual({ minKg: 65, maxKg: 87 });
-  });
-
-  it("lässt eine strengere Keyholder-Zahl wirkungslos, falls sie doch in die Spalte gerät", () => {
-    // Zweite Verteidigungslinie: die Prüfung weist so etwas ab, aber Alt-Daten und Roh-SQL fragen
-    // nicht. Wirksam bleibt der Wunsch des Subs.
-    expect(effectiveCorridor({ minKg: null, maxKg: 84 }, { minKg: null, maxKg: 80 }))
-      .toEqual({ minKg: null, maxKg: 84 });
-  });
-
-  it("übernimmt die Keyholder-Grenze, wo der Sub keine hat", () => {
-    expect(effectiveCorridor({ minKg: null, maxKg: null }, { minKg: 60, maxKg: 90 }))
-      .toEqual({ minKg: 60, maxKg: 90 });
+  it("gilt auch dann, wenn ihre Zahl strenger ist als seine — die Nur-Weiten-Regel ist gestrichen", () => {
+    expect(effectiveTarget({
+      targetWeightKg: 84, targetWeightSetAt: setAt,
+      targetWeightKeyholderKg: 78, targetWeightKeyholderSetAt: setAt,
+    })?.kg).toBe(78);
   });
 });
 
-describe("corridorBreach", () => {
-  const c = { minKg: 70, maxKg: 84 };
-  it("meldet die Seite des Austritts", () => {
-    expect(corridorBreach(85, c)).toBe("above");
-    expect(corridorBreach(69.9, c)).toBe("below");
-    expect(corridorBreach(84, c)).toBeNull();
+describe("Ziel — erreicht", () => {
+  it("zählt beim Abnehmen jeden Wert darunter mit", () => {
+    expect(targetReached(84, 84, "down")).toBe(true);
+    expect(targetReached(80, 84, "down")).toBe(true);
+    expect(targetReached(84.1, 84, "down")).toBe(false);
   });
 
-  it("meldet nichts, wo keine Grenze gesetzt ist", () => {
-    expect(corridorBreach(200, { minKg: null, maxKg: null })).toBeNull();
+  it("dreht die Richtung beim Zunehmen um", () => {
+    expect(targetReached(84, 84, "up")).toBe(true);
+    expect(targetReached(86, 84, "up")).toBe(true);
+    expect(targetReached(83, 84, "up")).toBe(false);
+  });
+
+  it("lässt ohne Richtung die Toleranz nach beiden Seiten gelten", () => {
+    expect(targetReached(84.9, 84, "hold")).toBe(true);
+    expect(targetReached(83.1, 84, "hold")).toBe(true);
+    expect(targetReached(85.5, 84, "hold")).toBe(false);
+  });
+});
+
+describe("Ziel — Fortschritt", () => {
+  it("misst die Strecke vom Startgewicht zum Ziel", () => {
+    const p = targetProgress({ targetKg: 90, startKg: 100, currentKg: 96 });
+    expect(p).toMatchObject({ direction: "down", remainingKg: 6, percent: 40, reached: false });
+  });
+
+  it("steht bei erreichtem Ziel auf null Rest und voller Strecke", () => {
+    const p = targetProgress({ targetKg: 90, startKg: 100, currentKg: 88 });
+    expect(p).toMatchObject({ remainingKg: 0, percent: 100, reached: true });
+  });
+
+  it("gibt 0 %, wer sich vom Ziel entfernt hat — statt eines negativen Balkens", () => {
+    expect(targetProgress({ targetKg: 90, startKg: 100, currentKg: 103 }).percent).toBe(0);
+  });
+
+  it("lässt den Anteil ohne Startwert weg, statt ihn zu erfinden", () => {
+    const p = targetProgress({ targetKg: 90, startKg: null, currentKg: 96 });
+    expect(p.percent).toBeNull();
+    expect(p.remainingKg).toBe(6);
   });
 });
 
@@ -146,48 +151,60 @@ describe("heightAt", () => {
   });
 });
 
-describe("breachToAnnounce — einmal je Austritt", () => {
-  const corridor = { minKg: 70, maxKg: 84 };
-  const call = (currentKg: number, previousKg: number | null, heightCm: number | null = 180) =>
-    breachToAnnounce({ currentKg, previousKg, corridor, heightCm });
+describe("targetEventToAnnounce — einmal je Übergang", () => {
+  const target = { kg: 90, setAt: new Date("2026-08-01T00:00:00Z"), source: "keyholder" as const };
+  const base = { target, startKg: 100, heightCm: 180 };
 
-  it("meldet den Austritt nach oben", () => {
-    expect(call(85, 83)).toBe("above");
+  it("meldet das erreichte Ziel", () => {
+    expect(targetEventToAnnounce({ ...base, previousKg: 91, currentKg: 89.5 })).toBe("reached");
   });
 
-  it("schweigt, solange er draussen BLEIBT", () => {
-    // Fünf Tage 200 g über der Grenze sollen eine Meldung erzeugen, nicht fünf.
-    expect(call(85.2, 85)).toBeNull();
+  it("schweigt, solange es erreicht BLEIBT", () => {
+    expect(targetEventToAnnounce({ ...base, previousKg: 89.5, currentKg: 89 })).toBeNull();
   });
 
-  it("meldet wieder, wenn er zurückkehrt und erneut austritt", () => {
-    expect(call(83, 85)).toBeNull();
-    expect(call(85, 83)).toBe("above");
+  it("schweigt, solange es unerreicht bleibt", () => {
+    expect(targetEventToAnnounce({ ...base, previousKg: 95, currentKg: 94 })).toBeNull();
   });
 
-  it("behandelt den Seitenwechsel als neuen Austritt", () => {
-    expect(call(69, 85)).toBe("below");
+  it("meldet den Rückfall erst jenseits der Toleranz", () => {
+    expect(targetEventToAnnounce({ ...base, previousKg: 89, currentKg: 90.5 })).toBeNull();
+    expect(targetEventToAnnounce({ ...base, previousKg: 89, currentKg: 91.5 })).toBe("relapsed");
   });
 
-  it("meldet die erste Messung, wenn sie schon ausserhalb liegt", () => {
-    expect(call(90, null)).toBe("above");
+  it("meldet die erste Messung, wenn sie das Ziel schon trifft", () => {
+    expect(targetEventToAnnounce({ ...base, previousKg: null, currentKg: 88 })).toBe("reached");
   });
 
-  it("schweigt innerhalb des Korridors", () => {
-    expect(call(80, 90)).toBeNull();
+  it("meldet nichts zu einem Ziel im Untergewicht", () => {
+    // Die App fordert nicht ein, was sie beim Setzen selbst als bedenklich anzeigt.
+    const dünn = { kg: 55, setAt: null, source: "sub" as const };
+    expect(targetEventToAnnounce({ target: dünn, startKg: 70, heightCm: 180, previousKg: 60, currentKg: 54 }))
+      .toBeNull();
+  });
+});
+
+describe("weightText", () => {
+  it("schreibt die Zahl in der Sprache des Betrachters", () => {
+    // Der Grund für die Funktion: React rendert eine Zahl mit dem Punkt aus `toString()`, und
+    // „74.1 kg" neben einem Feld, in das man „73,5" tippt, sind zwei Trenner auf einem Bildschirm.
+    expect(weightText(74.14, "metric", "de")).toBe("74,1");
+    expect(weightText(74.14, "metric", "en")).toBe("74.1");
   });
 
-  it("meldet nichts zu einer Grenze im Untergewicht", () => {
-    // Untergrenze 55 kg bei 1,85 m ist BMI 16 — die App fordert nicht ein, was sie beim Setzen
-    // selbst als bedenklich anzeigt.
-    expect(breachToAnnounce({
-      currentKg: 54, previousKg: 60, corridor: { minKg: 55, maxKg: null }, heightCm: 185,
-    })).toBeNull();
+  it("setzt auch bei `de-CH` das Komma — ICU nähme dort den Punkt", () => {
+    // `toDateLocale` liefert „de-CH", und ICU bildet damit die Geld-Schreibweise ab (CHF 74.10).
+    // Für einen Messwert im Fliesstext gilt auch in der Schweiz das Komma; ohne diese
+    // Normalisierung stünde dieselbe Zahl je nach Aufrufer verschieden da.
+    expect(weightText(74.14, "metric", "de-CH")).toBe("74,1");
+    expect(weightText(74.14, "metric", "en-US")).toBe("74.1");
   });
 
-  it("meldet weiterhin die andere, unbedenkliche Grenze", () => {
-    expect(breachToAnnounce({
-      currentKg: 95, previousKg: 80, corridor: { minKg: 55, maxKg: 90 }, heightCm: 185,
-    })).toBe("above");
+  it("rechnet vorher in die Einheit des Betrachters um", () => {
+    expect(weightText(75, "imperial", "en")).toBe("165.3");
+  });
+
+  it("zeigt höchstens eine Nachkommastelle — mehr misst keine Waage dieser App", () => {
+    expect(weightText(74.06, "metric", "en")).toBe("74.1");
   });
 });

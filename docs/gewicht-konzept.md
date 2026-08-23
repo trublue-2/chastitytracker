@@ -1,17 +1,15 @@
 # Gewichtstracking: Wiegen, Grenzen, Verlauf
 
-**Status:** **fertig gebaut** (22.08.2026) — alle neun Etappen, alle Grundsatzfragen entschieden — Schema und Migration, beide Schalter, der
-Rechenkern `weight.ts`, die Wiege-Fenster `weightWindows.ts`, die Einstellungen auf beiden Seiten
-die **Erfassung** (Formular des Trägers, Nachtrag der Keyholderin, ein Wert je Tag, Beleg-Pflicht
-mit Ventil, Sprung-Nachfrage), die **Statistik-Karte** samt Verlaufs-Diagramm und die **Meldepflicht**
-(Vergehensart `missed_weight_report`, Drei-Tage-Blöcke, Pause bei Gesundheits-Halt, Kopplung an den
-Schalter), die **Grenz-Meldung** an die Keyholder, die **Waagen-Erkennung**, das **Beschneiden der
-Fotos** und den **MCP** (lesen und schreiben). Offen ist nur noch der Punkt aus Abschnitt 13 und die
-ein echtes Waagen-Foto für die Erkennung (gegen `qwen2.5vl:7b` ist sie erprobt, nur eben mit
-gerenderten Anzeigen).
-**Alle Grundsatzfragen sind entschieden**; offen ist ein einziger Punkt, siehe Abschnitt 13.
-**Erstellt:** 2026-08-22 · **Entscheidungen eingearbeitet:** 2026-08-22
-**Branch:** `feat/weight-tracking` (Worktree `../kg-weight`, abgezweigt von `main` @ a7b0001, v5.2.9)
+**Status:** **fertig gebaut** (22.08.2026), **überarbeitet am 23.08.2026** nach der ersten
+Rückmeldung aus der Nutzerschaft. Die Überarbeitung betrifft drei Dinge: der Zielkorridor ist einem
+**Zielgewicht** gewichen, die Regel „die Keyholderin darf nur lockern" ist **gestrichen**, und die
+Wiege-Fenster kennen jetzt **Wochentage, eine Dauer und eine Erinnerung**. Alles andere steht wie
+gebaut: beide Schalter, der Rechenkern `weight.ts`, die Erfassung (Formular des Trägers, Nachtrag
+der Keyholderin, ein Wert je Tag, Beleg-Pflicht mit Ventil, Sprung-Nachfrage), die Statistik-Karte
+samt Verlaufs-Diagramm, die Meldepflicht (`missed_weight_report`, Drei-Tage-Blöcke, Pause bei
+Gesundheits-Halt), die Waagen-Erkennung, das Beschneiden der Fotos und der MCP.
+**Erstellt:** 2026-08-22 · **Überarbeitet:** 2026-08-23
+**Branch:** `feat/gewicht-ziel` (Worktree `../kg-gewicht-2`, abgezweigt von `feat/gewicht` @ ec3cd73, v5.3.3)
 **Auslöser:** Anfrage aus der Nutzerschaft, ergänzt um eine handschriftliche Detailskizze. Aus
 „Verlauf ohne Folgen" wurde dabei eine **Pflicht mit Frist**, deren Versäumnis ins Strafbuch fällt.
 
@@ -40,8 +38,8 @@ Pfeil auf eine *Entscheidung*, nicht auf eine Buchung.
 | Feature freischalten | — | **ja, nur sie** |
 | Körpergrösse | setzt | liest |
 | Einheitensystem | eigene Anzeige-Präferenz | eigene Anzeige-Präferenz |
-| Grenzwerte (Min/Max) | **setzt** | darf nur **weiten**, nie verengen (Abschnitt 7) |
-| Wiege-Zeitfenster | liest | setzt |
+| Zielgewicht | **setzt eines** | setzt eines — **ihres gilt**, seines bleibt sichtbar (Abschnitt 7) |
+| Wiege-Fenster (Zeit, Dauer, Wochentage, Erinnerung) | liest | setzt |
 | Gewicht erfassen | ja, **mit Foto** | ja (für den Sub), ohne Fotozwang |
 | Verlauf sehen | ja | **alle** Keyholder dieses Subs, jederzeit, vollständig |
 | Über MCP | — | lesen und schreiben |
@@ -109,12 +107,13 @@ steht, hat an *diesem* Tag gewogen. Der `@@unique` setzt „ein Wert pro Tag" du
 die Maschine gelesen hat, bleibt getrennt von dem, was der Mensch bestätigt hat. Nur so ist sichtbar,
 ob korrigiert wurde — und genau das ist die Spur, die eine Schummelei hinterlässt.
 
-### 3.2 Die Körpergrösse wird historisiert
+### 3.2 Die Körpergrösse wird protokolliert
 
-Sie geht in jeden BMI ein, also bekommt sie eine Historie nach dem Muster von `CleaningRuleChange`:
-der aktuelle Wert steht am `User`, die Vergangenheit in einer eigenen, append-only Tabelle. Ein BMI
-wird mit der Grösse gerechnet, die zum **Messzeitpunkt** galt (`effectiveAt`, wie bei den
-Reinigungsregeln).
+Der aktuelle Wert steht am `User`, jede Änderung zusätzlich in einer append-only Tabelle nach dem
+Muster von `CleaningRuleChange`. Der Resolver `heightAt` kann daraus die Grösse zu einem beliebigen
+Zeitpunkt auflösen — **benutzt wird er heute von niemandem:** jeder BMI im Produkt rechnet mit der
+aktuellen Grösse. Die Tabelle ist damit vorerst ein Protokoll (wer wann welche Zahl eingetragen hat)
+und die Vorarbeit für den Tag, an dem eine BMI-Kurve mit der Grösse von damals rechnen soll.
 
 ```prisma
 model HeightChange {
@@ -130,11 +129,20 @@ model HeightChange {
 }
 ```
 
-Der Preis: eine reine **Tippfehler-Korrektur** („178 statt 187") erzeugt einen dauerhaften Knick in
-der BMI-Kurve, weil die App eine Korrektur nicht von echtem Wachstum unterscheiden kann. Deshalb
-gehört ins Formular eine Auswahl: **„korrigiert" schreibt die bestehende Zeile um, „geändert" legt
-eine neue an.** Ohne diese Unterscheidung ist die Historie kein Gewinn, sondern eine Fehlerquelle
-mit Gedächtnis.
+**Die Rückfrage „Korrektur oder Änderung?" ist gestrichen (23.08.2026).** Bis v5.3.4 fragte das
+Formular den Träger, ob seine neue Zahl eine Korrektur sei (dann wurde die jüngste Zeile
+umgeschrieben) oder echtes Wachstum (dann kam eine neue dazu). Sie ist aus zwei Gründen weg:
+
+- **Sie war folgenlos.** Der historische Wert wird nirgends gelesen; beide Antworten führen zu
+  demselben BMI. Eine Entscheidung zu verlangen, deren Ausgang unsichtbar bleibt, ist keine
+  Sorgfalt, sondern eine Frage ins Leere
+- **Sie war nicht beantwortbar.** Bei erwachsenen Menschen ist eine geänderte Körpergrösse fast
+  immer eine korrigierte Angabe, keine gewachsene — und die Vorgabe stand ausgerechnet auf
+  „geändert"
+
+Geschrieben wird jetzt immer eine neue Zeile. Sollte die BMI-Kurve später historisch rechnen, ist
+der Tippfehler-Knick der Fall, den man dann löst — mit einer Korrektur-Funktion am Protokoll, nicht
+mit einer Rückfrage im Erfassungs-Formular.
 
 ### 3.3 Neue Felder am `User`
 
@@ -142,16 +150,18 @@ mit Gedächtnis.
 weightTrackingEnabled  Boolean @default(false)   // Gate, von der KH gesetzt
 heightCm               Int?                      // AKTUELLER Wert; Historie in HeightChange
 unitSystem             String  @default("metric")// "metric" | "imperial", reine Anzeige
-targetMinKg            Float?                    // Korridor des Subs, untere Grenze
-targetMaxKg            Float?                    // Korridor des Subs, obere Grenze
-targetMinKeyholderKg   Float?                    // Nachbesserung der KH — darf nur WEITEN
-targetMaxKeyholderKg   Float?
-weighingWindows        String?                   // JSON [{"start":"06:00","end":"08:00"}], Sub-Lokalzeit
+targetWeightKg             Float?                // Zielgewicht des Subs
+targetWeightSetAt          DateTime?             // wann gesetzt — Bezugspunkt des Fortschritts
+targetWeightKeyholderKg    Float?                // Zielgewicht der KH — es GILT, solange es steht
+targetWeightKeyholderSetAt DateTime?
+weighingWindows            String?               // JSON [{"start":"05:00","durationMin":180,"days":127,"remind":true}]
+weightReminderMark         String?               // <Tag>#<Startzeit> der zuletzt verschickten Erinnerung
 ```
 
-Die fünf Felder, die der Sub selbst schreibt, stehen zusätzlich in `SELF_EDITABLE_USER_FIELDS` —
-der Whitelist, gegen die das Register prüft, wer welches User-Feld ändern darf. Die vier
-Keyholder-Felder stehen dort bewusst **nicht**.
+Die drei Felder, die der Sub selbst schreibt (`heightCm`, `unitSystem`, `targetWeightKg`), stehen
+zusätzlich in `SELF_EDITABLE_USER_FIELDS` — der Whitelist, gegen die das Register prüft, wer welches
+User-Feld ändern darf. Die Keyholder-Felder stehen dort bewusst **nicht**, und die beiden
+`...SetAt`-Spalten schreibt niemand von Hand: sie folgen dem Ziel.
 
 **Kein Feld „wer hat die Fenster gesetzt".** Ursprünglich vorgesehen, beim Bauen gestrichen: ob eine
 Messung im Fenster lag, entscheidet der Erfassungs-Zeitpunkt und steht danach auf der Zeile
@@ -159,7 +169,7 @@ Messung im Fenster lag, entscheidet der Erfassungs-Zeitpunkt und steht danach au
 werden müsste — die Fenster brauchen weder Historie noch Urheber.
 
 **BMI wird gerechnet, nicht gespeichert** — eine Spalte wäre eine zweite Wahrheit, die bei jeder
-Grössenkorrektur still falsch würde. Formel, Umrechnung, Rundung und die Korridor-Prüfung in
+Grössenkorrektur still falsch würde. Formel, Umrechnung, Rundung, Ziel-Auflösung und Fortschritt in
 `src/lib/weight.ts`.
 
 ## 4. Die Wiege-Fenster
@@ -195,12 +205,39 @@ Zeitarithmetik — der günstigere Handel.
 **Für `/simplify` festgehalten:** die Ähnlichkeit ist gesehen, die Doppelung ist gewollt. Wer sie
 zusammenlegt, ändert die Reinigungslogik — eine eigene Entscheidung, keine Aufräumarbeit nebenbei.
 
-### 4.2 Ohne Fenster funktioniert alles
+### 4.2 Wochentage, Dauer, Erinnerung
+
+Seit dem 23.08.2026 ist ein Fenster **Startzeit + Dauer + Wochentage + Erinnerung**, nicht mehr
+„von–bis, täglich":
+
+```json
+{ "start": "05:00", "durationMin": 180, "days": 127, "remind": true }
+```
+
+- **Start plus Dauer** statt zweier Uhrzeiten — so steht es auf dem Zettel des Nutzers („ab 5:00,
+  ca. 3 h") und so denkt auch, wer es einstellt: die Dauer ist die Grosszügigkeit, die er einräumt
+- **`days` ist eine Wochentags-Bitmaske** (Montag = 1 … Sonntag = 64, 127 = täglich). Sie lebt in
+  `src/lib/weekdays.ts`, zusammen mit der Auswahl-Komponente `WeekdayPicker` — **bewusst ohne Bezug
+  auf das Gewicht**: dieselbe Auswahl brauchen die Auto-Kontrollen (Schlaf-Fenster, festes
+  Auslöse-Fenster) und die Reinigungsfenster, sobald jemand sie nachrüstet. Geteilt wird, was ein
+  Wochentag ist, nicht was er auslöst
+- **`remind`** schickt zum Fensterbeginn eine Erinnerung, wenn an diesem Tag noch nichts gemeldet
+  ist — Mail und Push, **ohne** Posteingangs-Zeile: eine tägliche Erinnerung, die liegen bleibt, ist
+  nach einer Woche Rauschen. Abschalten kann sie der **Träger** in seinen eigenen Einstellungen
+  (`WEIGHT_REMINDER` steht in `RECIPIENT_NOTIFICATION_EVENT_TYPES`, nicht im Admin-Raster: die
+  Meldung geht an ihn, nicht über ihn)
+- Geprüft wird am **laufenden** Fenster, nicht an seiner Startminute (`weightReminder.ts`): ein
+  Poller-Tick, der wegen Neustart oder Deploy ausfällt, holt die Erinnerung dadurch nach, statt sie
+  zu verschlucken. Die Marke `weightReminderMark` (`<Tag>#<Startzeit>`) verhindert die Wiederholung
+- **Alt-Fenster `{start, end}` werden weiter gelesen** und in Start + Dauer übersetzt; eine
+  Erinnerung bekommen sie dabei NICHT — ein Update darf niemandem ungefragt Nachrichten bestellen
+
+### 4.3 Ohne Fenster funktioniert alles
 
 Eine leere Liste heisst **keine Fensterpflicht**: jede Uhrzeit gilt, jeder Wert ist `inWindow`. Das
 ist die Vorgabe. Wer keine Zeitfenster will, bekommt das vollständige Feature ohne sie.
 
-### 4.3 Ein Wert ausserhalb des Fensters
+### 4.4 Ein Wert ausserhalb des Fensters
 
 **Er erfüllt die Meldepflicht** — gemeldet ist gemeldet. Wer verschläft und um elf statt um sieben
 auf die Waage steigt, bekommt kein Vergehen dafür. Der Wert wird aber als `inWindow: false`
@@ -229,6 +266,11 @@ Meldungen aussehen.
   Sonst zählte die Ableitung Tage mit, an denen der Sub gar nichts hätte eintragen können
 - **Wieder-Einschalten stellt die Regel nicht automatisch her.** Sie ist ein eigener, bewusster
   Schalter
+- **Ohne Tracking steht ihr Schalter nirgends.** Die Zeile `missed_weight_report` verschwindet aus
+  beiden Regel-Listen — dem Einstellungs-Abschnitt der Keyholderin und „Meine Regeln" des Trägers
+  (`switchableOffenseTypesFor()` in `offenseLabels.ts`). Sie stand dort vorher unabhängig vom Gate
+  und sah scharf aus, während sie wirkungslos war: die Sorte Einstellung, die man einmal umlegt und
+  danach für gültig hält
 - **Die Lücke über die Aus-Zeit hinweg zählt nicht.** War das Feature vom 3. bis zum 20. aus, ist
   der 20. kein Tag mit siebzehn Tagen Rückstand
 
@@ -270,49 +312,58 @@ Die weiteren Kanten der Ableitung:
   bestraft werden. Der Halt wirkt **nur auf diese eine Vergehensart** — die übrigen bleiben
   unberührt, sonst wäre es ein Eingriff ins Bestandsverhalten
 
-## 7. Grenzwerte: der Sub setzt, die Keyholderin darf nur lockern
+## 7. Das Zielgewicht: beide setzen eines, ihres gilt
 
-Grenzen als **Korridor** (Max 80 / Min 70). Sie bleiben beim Sub, weil er der Realistischere ist —
-„ein 60-Kilo-Mann sollte nicht 20 kg abnehmen müssen". Die Keyholderin darf nachbessern, aber nur in
-eine Richtung: wer bei 90 kg 84 anstrebt, dem darf sie 87 setzen, keine 80.
+**Ein Wert, kein Korridor** (23.08.2026). Die erste Fassung hatte einen Zielbereich (Min/Max) und
+darüber die Regel, dass die Keyholderin ihn nur **weiten** durfte — abgeleitet aus der Sorge, jemand
+könnte eine unerreichbare Zahl von aussen verordnet bekommen. Beides ist gestrichen:
 
-**Als Korridor formuliert ist das eine einzige Regel: die Keyholderin darf ihn nur weiten, nie
-verengen.** Ihre untere Grenze muss unter der des Subs liegen, ihre obere darüber. Aus „nur lockern"
-wird damit eine Prüfung in einer Zeile statt einer Fallunterscheidung über Ab- und Zunehmen.
+> „Das mit den Grenzen nicht verschieben dürfen ist Quatsch. Ich will eigentlich nur ein Zielgewicht
+> angeben können und auf das arbeiten wir hin. Es ist eine App für erwachsene Menschen in einem
+> konsensuellen Spiel."
 
-- **Wirksam** ist immer der weitere der beiden Werte — die Invariante hält auch, wenn der Sub sein
-  Ziel später verschiebt
-- Ein zu enger Versuch wird **abgewiesen mit Begründung**, nicht still ignoriert
-- Der Wunsch des Subs bleibt neben der Nachbesserung sichtbar
+Was an seine Stelle tritt:
 
-**Untergrenze:** liegt ein Zielwert unter **BMI 18,5**, warnt die App beim Setzen deutlich — lässt
-ihn aber zu. Geprüft werden **beide** Enden: eine Obergrenze im Untergewicht fordert es ein, eine
-Untergrenze dort erlaubt es. *(Gebaut in Etappe 1.)* Zusätzlich soll unterhalb dieser Schwelle
-**keine automatische Grenz-Meldung** an die Keyholderin gehen — die App fordert nicht ein, was sie
-selbst als bedenklich anzeigt. *(Gehört zur Meldung, also Etappe 5; bis dahin verspricht die Warnung
-das auch nicht.)* Die
-„nur-lockern"-Regel schützt vor der Keyholderin; diese Schwelle schützt davor, dass eine
-selbstgesetzte Zahl anschliessend von aussen eingefordert wird.
+- **Zwei Spalten, eine Auflösung.** `targetWeightKg` (Träger) und `targetWeightKeyholderKg`
+  (Keyholderin). Wirksam ist **ihres, solange sie eines führt** — auch wenn es strenger ist. Nimmt
+  sie es zurück, gilt wieder seines (`effectiveTarget`)
+- **Beide Werte bleiben sichtbar**, auf beiden Seiten. Ihres überschreibt seines nicht; die
+  Oberfläche zeigt daneben, was der andere sich vorgenommen hat. Wer wann geändert hat, steht im
+  Aktions-Log
+- **Der Fortschritt braucht einen Startpunkt.** `...SetAt` hält fest, wann ein Ziel gesetzt wurde;
+  gerechnet wird ab der Messung, die damals galt (`targetStartWeight`). Ohne das begänne ein heute
+  gesetztes Ziel rückwirkend bei einem Wert von vor einem Jahr. Ein Speichern, das dieselbe Zahl
+  noch einmal schreibt, bewegt den Zeitpunkt **nicht**
+- **Richtung statt Fallunterscheidung:** ab- oder zunehmen ergibt sich aus Startgewicht und Ziel.
+  Beim Abnehmen zählt jeder Wert **unter** dem Ziel als erreicht — wer darunter kommt, hat es nicht
+  knapp verfehlt
+
+**Untergrenze:** liegt ein Ziel unter **BMI 18,5**, warnt die App beim Setzen deutlich — lässt es
+aber zu. Die Warnung gilt jetzt für **beide** Seiten und ist die einzige verbliebene Bremse im
+Feature; über den MCP erscheint sie als `underweightWarning` schon im Dry-Run. Unterhalb dieser
+Schwelle unterbleibt zusätzlich jede automatische Meldung: die App fordert nicht ein, was sie selbst
+als bedenklich anzeigt.
 
 ## 8. Meldung an die Keyholderin — und was sie daraus macht
 
-Verlässt das Gewicht den Korridor, geht **eine** Nachricht an die Keyholder (`messageService.ts`,
-`audience: "keyholders"`). Automatisch passiert sonst nichts.
+Zwei Ereignisse gehen an die Keyholder (`messageService.ts`, `audience: "keyholders"`):
+**Ziel erreicht** und **Ziel wieder verfehlt**. Automatisch passiert sonst nichts.
 
-**Einmal je Austritt.** Erst wenn er zurückkehrt und erneut austritt, meldet es wieder — 200 Gramm
-über der Grenze an fünf Tagen erzeugen eine Meldung, nicht fünf.
+**Einmal je Übergang.** Gemeldet wird der Wechsel, nicht der Zustand — wer fünf Tage lang knapp über
+dem Ziel liegt, erzeugt eine Meldung, nicht fünf. Der **Rückfall** braucht dabei eine Toleranz von
+einem Kilo (`TARGET_TOLERANCE_KG`), das Erreichen nicht: sonst wechselte ein Wert, der um das Ziel
+herum pendelt, täglich zwischen beiden Meldungen.
 
 Sie entscheidet und hat dafür bereits alles:
 
-- **Aufgabe als Strafe** — `Task` mit `isPunishment: true` und `penaltyReason`
-- **Aufgabe als Belohnung** — dieselbe Mechanik ohne das Flag; „die Keyholderin zum Essen einladen"
+- **Aufgabe als Belohnung** — ein `Task` ohne `isPunishment`; „die Keyholderin zum Essen einladen"
   aus der Skizze ist eine ganz normale Aufgabe
+- **Aufgabe als Strafe** — dieselbe Mechanik mit `isPunishment: true` und `penaltyReason`
 - **nichts tun**
 
-Damit ist „Aufgabe als Strafe (evtl. Zukunft)" ohne neues Konstrukt erfüllt — die Keyholderin stellt
-sie von der Sub-Seite aus. Einen Verweis direkt aus der Meldung ins Aufgaben-Formular gibt es
-**nicht**: Nachrichten führen im Bestand keine Ziel-Links (die `ref` einer Nachricht dient allein der
-Einmal-Zusage), und das nachzurüsten wäre ein eigener Umbau am Posteingang.
+Einen Verweis direkt aus der Meldung ins Aufgaben-Formular gibt es **nicht**: Nachrichten führen im
+Bestand keine Ziel-Links (die `ref` einer Nachricht dient allein der Einmal-Zusage), und das
+nachzurüsten wäre ein eigener Umbau am Posteingang.
 
 ## 9. Das Foto und die Waagen-Erkennung
 
@@ -385,8 +436,34 @@ der Präzedenzfall. Die Komponente wird so geschnitten, dass sie eine beliebige 
 
 - Rohwerte als Punkte; Werte ausserhalb des Fensters abgesetzt und **nicht** in der Trendlinie
 - **gleitendes 7-Tage-Mittel als Trendlinie** — die „Glättung" der Skizze
-- **Korridor als Band**, nicht als zwei Linien: die Grenzen sind ein Bereich, in dem er sein soll
+- **Zielgewicht als gestrichelte Linie** — gestrichelt, damit sie nie mit der Trendlinie verwechselt wird: die eine ist eine Vorgabe, die andere eine Messung. Dazu eine Kachel mit Restweg und Fortschrittsbalken
 - Zeiträume: **30 Tage (Vorgabe), 90 Tage, 1 Jahr, seit Beginn**
+
+### 11.1 Die Liste der einzelnen Wiegungen
+
+Die Kurve zeigt die Richtung, sie zeigt aber keine einzelne Messung. Foto, Notiz, Uhrzeit, das
+Fenster-Kennzeichen und vor allem der von der Waage GELESENE Wert standen bis dahin in der Datenbank,
+ohne dass eine Oberfläche sie abrief — ausgerechnet `detectedKg`, die Spur einer Korrektur, war die
+unsichtbarste Spalte. Die KI las sie über `weight_history` längst; die Keyholderin im Browser nicht.
+
+Deshalb eine Zeilen-Liste, an zwei Orten aus denselben Bausteinen:
+
+- **Der Träger** findet sie in der Statistik, unter dem Diagramm derselben Karte. Sie folgt dem
+  Zeitraum-Umschalter — wer auf 90 Tage stellt, bewegt Kurve und Liste zugleich — und zeigt je
+  dreissig Zeilen mit „Weitere anzeigen"
+- **Die Keyholderin** findet sie eingemischt in `/admin/users/[id]/eintraege`, chronologisch
+  zwischen Verschluss, Öffnung und Kontrolle. Das Wiege-Fenster einer Seite spannen deren EINTRÄGE
+  auf (untere Grenze einschliessend, obere ausschliessend) — eine zweite Paginierung über eine
+  zweite Tabelle müsste beide Zählungen zusammenrechnen, um zu wissen, wo Seite drei beginnt
+
+Bausteine: `src/lib/weightRows.ts` (Laden samt Veränderung zum Vorwert) und
+`src/app/components/WeightRow.tsx` (die Zeile samt Detail-Panel, Aufbau und Masse wie `EntryRow`).
+Die Veränderung rechnet immer gegen die vorherige Messung im BESTAND, nicht gegen die vorherige im
+Ausschnitt: sonst begänne jede Seite mit einem leeren Delta.
+
+**Der Wert einer Zeile lässt sich hier nicht ändern.** Korrigiert wird wie bisher durch erneutes
+Erfassen desselben Tages — mit der bekannten Einschränkung, dass die Vorfassung dabei überschrieben
+wird (Abschnitt 3.1).
 
 **Keine BMI-Kurve** — bei fester Grösse wäre sie deckungsgleich mit der Gewichtskurve, nur anders
 beschriftet. Der BMI erscheint als **Zahl** daneben (aktueller Wert, Veränderung zum Vormonat),
@@ -397,11 +474,14 @@ App schnell wie ein Urteil über den Träger.
 
 Die Keyholderin soll über den MCP können, was sie in der Oberfläche kann.
 
-- **Lesen:** aktueller Wert, Trend, Korridor und Tage seit der letzten Meldung in
-  `keyholder_dashboard` (`src/lib/mcp/dashboard.ts`); dazu ein eigenes Werkzeug für die Reihe,
+- **Lesen:** aktueller Wert, Trend, Zielgewicht samt Fortschritt und Tage seit der letzten Meldung
+  in `keyholder_dashboard` (`src/lib/mcp/dashboard.ts`); dazu `weight_history` für die Reihe,
   Muster `device_stats` (`src/lib/mcp/stats.ts`)
-- **Schreiben:** ein Gewicht eintragen und die Grenzen nachbessern (mit derselben
-  Nur-Weiten-Prüfung), über `writeFramework` mit Dry-Run, `recordAction` und OCC — daher `version`
+- **Schreiben:** ein Gewicht eintragen (`log_weight`, über `writeFramework` mit Dry-Run,
+  `recordAction` und OCC — daher `version`) und die EINSTELLUNGEN über ein einziges Werkzeug
+  (`set_weight_tracking`: Freischaltung, Wiege-Fenster, dein Zielgewicht; `null` nimmt es zurück).
+  Ein Werkzeug je Einstellungs-Familie, wie `set_cleaning` — die Regel steht in `CLAUDE.md` unter
+  „MCP-Vollständigkeit". Der Dry-Run meldet `underweightWarning`, bevor etwas geschrieben wird
 - Das versäumte Melden erscheint in `get_offenses` wie jede andere Art und wird über `judge_offense`
   beurteilt. Kein Sonderweg
 - Werkzeugliste ist pro Verbindung gecacht: eine laufende KI-Sitzung sieht das Neue erst nach
@@ -414,14 +494,14 @@ für den Normbereich auszuwählen — und der Normbereich hatte, seit der BMI oh
 keinen Ort mehr. Ein Gesundheitsdatenfeld, das nichts steuert, ist Ballast; der BMI selbst rechnet
 ohnehin geschlechtsunabhängig.
 
-Was bleibt: die **Warnung unterhalb von BMI 18,5** beim Setzen der Grenzen und die Unterdrückung der
-Grenz-Meldung darunter (Abschnitt 7). Beide brauchen die Angabe nicht.
+Was bleibt: die **Warnung unterhalb von BMI 18,5** beim Setzen des Ziels und die Unterdrückung der
+Meldung darunter (Abschnitt 7). Beide brauchen die Angabe nicht.
 
 ## 14. Etappen
 
 | # | Inhalt | Kern |
 |---|---|---|
-| 1 | Schema + Migration (`WeightEntry`, `HeightChange`, User-Felder), **Gate je Sub + ENV**, `src/lib/weight.ts` (BMI mit `effectiveAt`-Grösse, Umrechnung, Rundung, Korridor-Prüfung), Einstellungen beidseitig, API-Routen | Fleissarbeit nach Muster |
+| 1 | Schema + Migration (`WeightEntry`, `HeightChange`, User-Felder), **Gate je Sub + ENV**, `src/lib/weight.ts` (BMI, Umrechnung, Rundung, Ziel-Prüfung), Einstellungen beidseitig, API-Routen | Fleissarbeit nach Muster |
 | 2 | Erfassung: (+)-Zeile, Formular Sub (Foto-Pflicht, 3-kg-Nachfrage), Aktion KH, Upload, EXIF | viele kleine Dateien |
 | 3 | `src/lib/weightWindows.ts` — eigener Baustein, `reinigungService` bleibt unberührt | in sich geschlossen |
 | 4 ✅ | Pflicht und Vergehen: `missed_weight_report`, Drei-Tage-Blöcke, `HealthHold`-Pause, Regel-Historisierung, Kopplung an den Gate, Tests | **die heikelste Etappe** — nur hier kann ein Fehler rückwirkend Vergehen erzeugen |
@@ -429,7 +509,8 @@ Grenz-Meldung darunter (Abschnitt 7). Beide brauchen die Angabe nicht.
 | 6 ✅ | Diagramm-Komponente + Statistik-Karte | Zeichenarbeit, keine Logik |
 | 7 | Waagen-Erkennung: Prompt, Dezimalstelle, Route | Neuland, mit Fehlerkennungen zu rechnen |
 | 8 ✅ | Foto-Beschneidung im Poller | ein Tages-Gate, Muster `pruneExpiredMessages` |
-| 9 ✅ | MCP lesen und schreiben (`weight_history`, `log_weight`, `set_weight_limits`, dazu `weight` im Keyholder-Dashboard) | Muster vorhanden, Tests dazu |
+| 9 ✅ | MCP lesen und schreiben (`weight_history`, `log_weight`, `set_weight_tracking`, dazu `weight` im Keyholder-Dashboard) | Muster vorhanden, Tests dazu |
+| 10 ✅ | **Überarbeitung 23.08.2026:** Zielgewicht statt Korridor, Nur-Weiten-Regel gestrichen, Wochentage + Dauer + Erinnerung an den Fenstern, `weekdays.ts` + `WeekdayPicker` als geteilter Baustein, Rückfrage „Korrektur oder Änderung?" bei der Körpergrösse gestrichen, alle Einstellungen über den MCP erreichbar (`set_weight_tracking`) | dazu der Fehler in `weight_history`: es bekam den Benutzer**namen**, suchte damit aber in der id-Spalte — die Reihe kam immer leer und `enabled: false` zurück, während das Dashboard dieselben Daten korrekt zeigte |
 
 Etappe 7 ist von allem anderen unabhängig — das Zahlenfeld funktioniert ohne Erkennung, und die
 Fotopflicht steht auch ohne sie. Etappe 4 setzt 1–3 voraus; ihre Tests müssen die Aus-Zeiten, den

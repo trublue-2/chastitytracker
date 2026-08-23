@@ -4,7 +4,7 @@ import {
 } from "@/lib/cleaningRules";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
-import { APP_TZ, midnightInTZ, clamp } from "@/lib/utils";
+import { APP_TZ, hhmmInTZ, midnightInTZ, clamp } from "@/lib/utils";
 import {
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, CLEANING_WINDOWS_TOO_MANY,
   HHMM, INVALID_TIME, NO_FIELDS_TO_UPDATE, TIME_RANGE_INVALID,
@@ -101,12 +101,6 @@ export function parseReinigungsFenster(raw: unknown): ReinigungsFenster[] {
 }
 
 /** „HH:MM" der aktuellen Uhrzeit in `tz` (default APP_TZ; 24h, fix mit ":" für lexikalischen Vergleich). */
-function hhmmInTZ(now: Date, tz = APP_TZ): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).format(now);
-}
-
 /** Liegt `now` (Sub-Lokalzeit `tz`, default APP_TZ) in einem Reinigungs-Fenster? Liefert dessen Ende „HH:MM", sonst null.
  *  Die Fenster sind Wanduhrzeit des Subs — deshalb muss `tz` die Sub-Zeitzone sein, nicht die des Betrachters. */
 export function aktivesReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): string | null {

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
 // ReinigungSettings wird NUR lokal gebraucht — der Typ gehört utils.ts (wo buildPairs ihn
 // definiert); MCP-Konsumenten importieren ihn von dort direkt, nicht über dieses Modul.
 import { APP_TZ, type ReinigungRules } from "@/lib/utils";
@@ -37,6 +38,10 @@ export const iso: Iso = makeIso(APP_TZ);
 export interface Envelope {
   generatedAt: string;
   timezone: string;
+  /** Fingerabdruck der Werkzeug-Oberfläche JETZT. Weicht er von dem ab, der beim Verbindungsaufbau
+   *  in den Server-Instructions stand, ist die gecachte Werkzeugliste dieser Sitzung überholt —
+   *  Begründung und Mechanik in `toolSurface.ts`. */
+  toolsFingerprint: string;
 }
 
 /** Baut den Envelope für ein Tool-Ergebnis — EINE Quelle für generatedAt+timezone, damit nicht jedes
@@ -45,7 +50,7 @@ export interface Envelope {
  *  schon einen (fürs Formatieren seiner übrigen Felder) — ein zweiter, nur für dieses eine `now`
  *  gebauter Formatter wäre reine Doppelarbeit. */
 export function buildEnvelope(now: Date, isoFn: Iso, timezone: string): Envelope {
-  return { generatedAt: isoFn(now)!, timezone };
+  return { generatedAt: isoFn(now)!, timezone, toolsFingerprint: toolSurfaceFingerprint() };
 }
 
 /**

@@ -6,6 +6,14 @@ import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKo
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings, maxPausesPerDaySentinel, parseReinigungsFenster, reinigungsFensterListProblem, formatReinigungsFenster, type ReinigungsFenster } from "@/lib/reinigungService";
+import { openWeightRelease, setWeightRelease, weightReleaseStatus, withdrawWeightRelease } from "@/lib/weightReleaseService";
+import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
+import { setOffenseRule, getOffenseRules } from "@/lib/offenseRulesService";
+import { isSwitchableOffenseType, isValidOffenseMode, OFFENSE_RULE_MODES, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
+import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
+import { parseWeighingWindows, weighingWindowEnd, weighingWindowsProblem, type WeighingWindow } from "@/lib/weightWindows";
+import { effectiveTarget, isUnderweightTarget, keyholderTargetOf, subTargetOf, weightProblem } from "@/lib/weight";
+import { ALL_WEEKDAYS, WEEKDAY_KEYS, weekdayMaskOf, weekdayMaskHas } from "@/lib/weekdays";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
@@ -17,12 +25,17 @@ import {
   fixedWindowMinutes, triggerWindowAllQuiet, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoKontrolleSettings,
 } from "@/lib/autoKontrolleService";
 import {
+  weightTrackingEnabled,
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
+  INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
   clampProofDueOffset, clampHoldDuration, type NumberRange,
+  RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE,
 } from "@/lib/constants";
-import { clamp, randomInt } from "@/lib/utils";
+import { clamp, randomInt, midnightAfterDays } from "@/lib/utils";
+import { goalCategoryKey } from "@/lib/vorgaben";
+import { goalDateFromInput } from "@/lib/vorgabeService";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
 import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
@@ -106,7 +119,7 @@ async function resolveDeviceId(userId: string, name: string): Promise<string> {
 }
 
 /** Resolves a category name to its id ("KG"/built-in or a user category). Throws if not found. */
-async function resolveCategoryId(userId: string, name: string): Promise<string> {
+async function resolveCategory(userId: string, name: string): Promise<{ id: string; isBuiltIn: boolean }> {
   const cats = await prisma.deviceCategory.findMany({
     where: { userId },
     select: { id: true, name: true, isBuiltIn: true },
@@ -115,7 +128,21 @@ async function resolveCategoryId(userId: string, name: string): Promise<string> 
     ? cats.find((c) => c.isBuiltIn)
     : matchByNameCI(cats, name);
   if (!match) throw new Error(`Category not found: "${name}". Available: ${cats.map((c) => c.name).join(", ")}`);
-  return match.id;
+  return { id: match.id, isBuiltIn: match.isBuiltIn };
+}
+
+async function resolveCategoryId(userId: string, name: string): Promise<string> {
+  return (await resolveCategory(userId, name)).id;
+}
+
+/** Ein Ziel-Datum aus MCP-Argumenten: erst die ISO-Prüfung aller MCP-Werkzeuge (`parseIsoDate`
+ *  wirft mit brauchbarer Meldung), dann dieselbe Kalenderdatum-Regel wie im Service — ein blosses
+ *  `2026-06-12` ist Mitternacht beim SUB, nicht in UTC. Ohne diesen Schritt läge dieselbe Angabe je
+ *  nach Schreibweg zwei Stunden auseinander (Zürich), und ein über den MCP auf ein Datum gesetztes
+ *  Ziel begänne um 02:00 — also mitten am Tag, mit allen Folgen aus `goalFulfillment.ts`. */
+function parseGoalDate(value: string, field: string, tz: string): Date {
+  parseIsoDate(value, field);
+  return goalDateFromInput(value, tz);
 }
 
 /** Die englischen Sätze zu den Service-Fehler-Codes. Bewusst aus `messages/en.json` gelesen statt
@@ -129,6 +156,23 @@ const EN_ERRORS: Record<string, string> = en.errors;
  *  `Object.hasOwn` statt `EN_ERRORS[code]`: ein Code wie "constructor" träfe sonst eine geerbte
  *  Object-Property und würde eine Funktion als Fehlertext werfen. Unbekannter Code → roher Token,
  *  besser als eine irreführende Meldung. */
+/**
+ * „Mindestens ein Feld" — der Guard, den jedes Patch-Werkzeug braucht, aus EINER Feldliste.
+ *
+ * Der Gewinn ist nicht die Zeilenzahl, sondern dass Bedingung und Fehlertext dieselbe Quelle haben:
+ * die handgeschriebenen Fassungen zählten die Feldnamen zweimal auf — einmal im `if`, einmal im
+ * Satz —, und ein neues Feld landete verlässlich nur in einer von beiden.
+ */
+function requireAnyOf<T extends object>(args: T, keys: readonly (keyof T)[]): void {
+  if (keys.some((k) => args[k] !== undefined)) return;
+  throw new Error(`Provide at least one of: ${keys.join(", ")}.`);
+}
+
+/** Klemmen, falls überhaupt gesetzt — `undefined` bleibt `undefined` (Patch-Semantik). */
+function clampOptional(v: number | undefined, range: NumberRange): number | undefined {
+  return v === undefined ? undefined : clamp(v, range);
+}
+
 function unwrap<T>(r: ServiceResult<T>): T {
   if (!r.ok) throw new Error(enErrorText(r.error));
   return r.data;
@@ -428,12 +472,17 @@ export interface SetTrainingGoalArgs {
 
 export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoalArgs) {
   const userId = await resolveTargetUserId(username);
-  const iso = await isoForUser(userId);
+  const tz = await tzOf(userId);
+  const iso = makeIso(tz);
   const categoryId = args.category ? await resolveCategoryId(userId, args.category) : null;
 
-  // Default to now; validFrom may be a future date to schedule a goal in advance.
-  const gueltigAb = args.validFrom ? parseIsoDate(args.validFrom, "validFrom") : new Date();
-  const gueltigBis = args.validUntil ? parseIsoDate(args.validUntil, "validUntil") : null;
+  // Ohne `validFrom` beginnt das Ziel an der NÄCHSTEN MITTERNACHT des Subs, nicht jetzt (Regel 1 in
+  // `goalFulfillment.ts`). Ein Ziel, das um 09:54 zu laufen beginnt, teilt Tag, Woche und Monat und
+  // ist in keiner Auswertung sinnvoll darstellbar — der Prozentwert verglich dann Ist-Stunden der
+  // ganzen Periode mit einem Ziel, das nur ihren Rest abdeckt. Wer den Start mitten in der Periode
+  // ausdrücklich will, gibt `validFrom` an; dort greifen dann die Regeln 2 und 3.
+  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom", tz) : midnightAfterDays(new Date(), tz, 1);
+  const gueltigBis = args.validUntil ? parseGoalDate(args.validUntil, "validUntil", tz) : null;
   if (gueltigBis && gueltigBis.getTime() <= gueltigAb.getTime()) {
     throw new Error("validUntil must be after validFrom.");
   }
@@ -455,8 +504,11 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
     minProJahrH: args.minPerYearHours,
     notiz: args.note,
   }));
-  const when = args.validFrom ? `scheduled from ${iso(gueltigAb)!.slice(0, 10)}` : "active now";
-  return { ok: true, id: data.id, message: `Training goal set (${when}).` };
+  return {
+    ok: true,
+    id: data.id,
+    message: `Training goal set (starts ${iso(gueltigAb)!.slice(0, 10)} 00:00${args.validFrom ? "" : ", the next period boundary"}).`,
+  };
 }
 
 export interface WithdrawArgs {
@@ -825,13 +877,17 @@ export interface ListTrainingGoalsArgs {
 }
 export async function mcpListTrainingGoals(username: string, args: ListTrainingGoalsArgs): Promise<ListTrainingGoalsResult> {
   const userId = await resolveTargetUserId(username);
-  const filterCatId = args.category ? await resolveCategoryId(userId, args.category) : undefined;
+  // Über die KANONISCHE Kategorie-Kennung filtern, nicht über die rohe id: KG-Ziele tragen je nach
+  // Entstehungsweg `categoryId: null` oder die id der eingebauten Kategorie, und ein Filter auf die
+  // aufgelöste id liess die andere Hälfte lautlos weg — darunter das Ziel aus dem Vorfall 23.08.2026.
+  const filterCat = args.category ? await resolveCategory(userId, args.category) : undefined;
+  const filterKey = filterCat && goalCategoryKey({ categoryId: filterCat.id, category: { isBuiltIn: filterCat.isBuiltIn } });
   const timezone = await tzOf(userId);
   const iso = makeIso(timezone);
   const now = new Date();
   const nowMs = now.getTime();
   const goals: TrainingGoalRow[] = (await listVorgaben(userId, { includeDeleted: args.includeDeleted }))
-    .filter((g) => filterCatId === undefined || g.categoryId === filterCatId)
+    .filter((g) => filterCat === undefined || goalCategoryKey(g) === filterKey)
     .map((g) => {
       const ab = g.gueltigAb.getTime();
       const bis = g.gueltigBis ? g.gueltigBis.getTime() : null;
@@ -866,12 +922,13 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
 
   // Category: only change when provided (omit = keep existing).
   const categoryId = args.category !== undefined ? await resolveCategoryId(userId, args.category) : undefined;
-  const gueltigAb = args.validFrom ? parseIsoDate(args.validFrom, "validFrom") : existing.gueltigAb;
+  const editTz = await tzOf(userId);
+  const gueltigAb = args.validFrom ? parseGoalDate(args.validFrom, "validFrom", editTz) : existing.gueltigAb;
   // validUntil gesetzt → neues, bewusst gesetztes Ende (manuell). Weggelassen/leer → Bestand
   // behalten, inkl. des bestehenden manuell-Flags (abgeleitetes Ende bleibt abgeleitet).
   // Truthy-Check bewusst: "" bedeutet „nicht angegeben" (nicht „parse Invalid Date").
   const validUntilProvided = !!args.validUntil;
-  const gueltigBis = validUntilProvided ? parseIsoDate(args.validUntil!, "validUntil") : existing.gueltigBis;
+  const gueltigBis = validUntilProvided ? parseGoalDate(args.validUntil!, "validUntil", editTz) : existing.gueltigBis;
   const validUntilManual = validUntilProvided ? true : existing.validUntilManual;
   // Datums-Guard nur prüfen, wenn dieser Edit ein Datum wirklich anfasst — sonst würde ein reiner
   // Notiz-/Stunden-Edit auf Bestandsdaten (z.B. verkettetes Ende == Start bei gleichem gueltigAb)
@@ -887,7 +944,7 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
     minProJahrH: args.minPerYearHours ?? existing.minProJahrH,
   };
   if (args.dryRun) {
-    const iso = await isoForUser(userId);
+    const iso = makeIso(editTz); // die Zeitzone ist oben schon aufgelöst — kein zweiter Abruf
     const problem = !hasPeriodTarget(merged) ? "GOAL_PERIOD_TARGET_REQUIRED" : checkGoalPlausibility(merged);
     // Dieselbe Feldnamen-Abbildung wie `vorgabeSnapshot` — statt sie hier ein zweites Mal von Hand
     // hinzuschreiben, durch einen (ungespeicherten) Vorgabe-artigen Zwischenstand jagen.
@@ -948,9 +1005,7 @@ function assertCleaningWindows(windows: { start: string; end: string }[]): void 
 
 export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
   const userId = await resolveTargetUserId(username);
-  if (args.allowed === undefined && args.maxMinutes === undefined && args.maxPerDay === undefined && args.windows === undefined) {
-    throw new Error("Provide at least one of: allowed, maxMinutes, maxPerDay, windows.");
-  }
+  requireAnyOf(args, ["allowed", "maxMinutes", "maxPerDay", "windows"]);
   // VOR dem dryRun-Zweig: eine ungültige Fenster-Liste muss auch der Preview als Fehler zeigen,
   // sonst verspricht er einen Stand, den der Commit danach ablehnt.
   const windows = args.windows;
@@ -1002,6 +1057,247 @@ function windowsNote(windows: ReinigungsFenster[] | undefined): string {
   if (!windows) return "";
   if (windows.length === 0) return " All cleaning windows removed — cleaning is no longer restricted to times of day (use allowed:false to forbid it).";
   return ` Cleaning windows replaced (${windows.length}): ${windows.map(formatReinigungsFenster).join(", ")}.`;
+}
+
+// ── Weight tracking settings ───────────────────────────────────────────────
+
+export interface SetWeightTrackingArgs {
+  enabled?: boolean;
+  windows?: { start: string; durationMin: number; days?: number[]; remind?: boolean }[];
+  targetKg?: number | null;
+  dryRun?: boolean;
+}
+
+/**
+ * Die Gewichts-Einstellungen der Keyholderin — Freischaltung, Wiege-Fenster und ihr Zielgewicht in
+ * EINEM Werkzeug, wie `set_cleaning` alle Reinigungs-Regeln in einem hält.
+ *
+ * Der Zuschnitt ist die Regel „MCP-Vollständigkeit" aus `CLAUDE.md`: ein Werkzeug je
+ * Einstellungs-FAMILIE, nicht je Feld. Bis v5.3.5 gab es nur `set_weight_target` — die Keyholderin
+ * konnte über den MCP ein Ziel setzen, das Feature aber weder freischalten noch die Fenster stellen.
+ *
+ * **Wochentage als Liste, nicht als Bitmaske.** Gespeichert wird eine Maske (`weekdays.ts`); nach
+ * aussen wären `days: 96` für „Sa+So" eine Zumutung — eine Agentin müsste Bits rechnen, um eine
+ * Einstellung zu lesen, die aus sieben Häkchen besteht.
+ */
+export async function mcpSetWeightTracking(username: string, args: SetWeightTrackingArgs) {
+  if (!weightTrackingEnabled()) {
+    throw new Error("Weight tracking is not available on this instance (ENABLE_WEIGHT_TRACKING is off).");
+  }
+  const userId = await resolveTargetUserId(username);
+  requireAnyOf(args, ["enabled", "windows", "targetKg"]);
+
+  // VOR dem dryRun-Zweig, aus demselben Grund wie bei den Reinigungsfenstern: eine ungültige Liste
+  // muss auch der Preview als Fehler zeigen, sonst verspricht er einen Stand, den der Commit ablehnt.
+  const windows = args.windows?.map(toWeighingWindow);
+  if (windows) assertWeighingWindows(windows);
+  if (args.targetKg !== null && args.targetKg !== undefined) {
+    const problem = weightProblem(args.targetKg);
+    if (problem) throw new Error(`targetKg: ${enErrorText(problem)}`);
+  }
+
+  const current = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: {
+      weightTrackingEnabled: true, weighingWindows: true, heightCm: true,
+      targetWeightKg: true, targetWeightSetAt: true,
+      targetWeightKeyholderKg: true, targetWeightKeyholderSetAt: true,
+    },
+  });
+  const subTarget = subTargetOf(current);
+  const keyholderTarget = keyholderTargetOf(current);
+
+  const nextTargetKg = args.targetKg !== undefined ? args.targetKg : (keyholderTarget?.kg ?? null);
+  // Wessen Ziel danach GILT — über `effectiveTarget` auf den Spalten, wie sie DANACH stünden. Kein
+  // Nachbau der Regel „ihres gilt vor seinem": die steht in `weight.ts` und nur dort.
+  const nextEffective = effectiveTarget({ ...current, targetWeightKeyholderKg: nextTargetKg, targetWeightKeyholderSetAt: null });
+  // Vor dem Schreiben gesagt, und im Ergebnis wiederholt: die KI soll den Träger fragen können,
+  // bevor sie eine Zahl setzt, die die App selbst als bedenklich anzeigt — und es erfahren, wenn sie
+  // ohne Vorschau geschrieben hat.
+  const underweightWarning = nextTargetKg !== null && isUnderweightTarget(nextTargetKg, current.heightCm);
+
+  if (args.dryRun) {
+    const before: Record<string, unknown> = {
+      enabled: current.weightTrackingEnabled,
+      windows: parseWeighingWindows(current.weighingWindows).map(formatWeighingWindowForAgent),
+      targetKg: keyholderTarget?.kg ?? null,
+    };
+    const after: Record<string, unknown> = {
+      enabled: args.enabled ?? before.enabled,
+      windows: windows ? windows.map(formatWeighingWindowForAgent) : before.windows,
+      targetKg: nextTargetKg,
+    };
+    return dryRunPreview("set_weight_tracking", undefined, {
+      ...after,
+      effectiveTargetKg: nextEffective?.kg ?? null,
+      effectiveTargetFrom: nextEffective?.source ?? null,
+      subTargetKg: subTarget?.kg ?? null,
+      underweightWarning,
+      // Das Abschalten nimmt die Meldepflicht mit — und der Weg zurück ist NICHT automatisch. Ohne
+      // diesen Hinweis merkt es die Keyholderin erst Wochen später, wenn kein Vergehen mehr auftaucht.
+      ...(args.enabled === false ? { alsoDisablesMissedReportOffence: true } : {}),
+    }, diffFields(before, after));
+  }
+
+  unwrap(await setWeightSettingsKeyholder(userId, {
+    enabled: args.enabled,
+    weighingWindows: windows,
+    targetWeightKeyholderKg: args.targetKg,
+    changedBy: AI_AUTHOR,
+  }));
+
+  // Ob das Tracking für den Träger NACH diesem Aufruf läuft — daran hängt, ob die gesetzten Fenster
+  // und Ziele überhaupt wirken.
+  const enabledAfter = args.enabled ?? current.weightTrackingEnabled;
+  const parts = [
+    args.enabled === undefined ? "" : ` Weight tracking ${args.enabled ? "enabled" : "disabled"}.`,
+    args.enabled === false
+      ? " The missed-report offence rule was switched off with it, so the time it is unavailable does not count against him — switching tracking back on does NOT restore it."
+      : "",
+    weighingWindowsNote(windows),
+    args.targetKg === undefined ? ""
+      : args.targetKg === null
+        ? ` Your target removed — ${subTarget ? `the wearer's own target of ${subTarget.kg} kg applies again.` : "no target is set now."}`
+        : ` Your target weight: ${args.targetKg} kg (applies over the wearer's own).`,
+    underweightWarning
+      ? ` WARNING: that target puts him below BMI 18.5. It is set — but it is the one number this app flags as concerning.`
+      : "",
+    // Ohne diesen Satz meldet das Werkzeug „gespeichert" für Fenster, die nirgends wirken: bei
+    // ausgeschaltetem Tracking lehnen log_weight und weight_history denselben Träger weiter ab.
+    !enabledAfter && (windows !== undefined || args.targetKg !== undefined)
+      ? " NOTE: weight tracking is still OFF for this wearer — these settings take effect once you pass `enabled: true`."
+      : "",
+  ];
+  return { ok: true, message: `Weight settings updated.${parts.join("")}` };
+}
+
+export interface SetWeightReleaseArgs {
+  thresholdKg?: number | null;
+  direction?: string;
+  averageDays?: number;
+  minMeasurements?: number;
+  stepKg?: number;
+  notBeforeAt?: string;
+  windowHours?: number;
+  openingAllowed?: boolean;
+  message?: string | null;
+  withdraw?: boolean;
+  dryRun?: boolean;
+}
+
+/**
+ * Die Freigabe-Vorgabe stellen oder zurückziehen (docs/gewicht-freigabe-konzept.md).
+ *
+ * Der Dry-Run zeigt, wo der Träger HEUTE steht — Mittel, Schwelle, was noch fehlt. Ohne diese Zahlen
+ * setzt die KI eine Schwelle blind: „unter 74 kg" ist für einen, der bei 74,2 steht, etwas ganz
+ * anderes als für einen bei 82.
+ */
+export async function mcpSetWeightRelease(username: string, args: SetWeightReleaseArgs) {
+  if (!weightTrackingEnabled()) {
+    throw new Error("Weight tracking is not available on this instance (ENABLE_WEIGHT_TRACKING is off).");
+  }
+  const userId = await resolveTargetUserId(username);
+
+  if (args.withdraw) {
+    if (args.dryRun) {
+      const open = await openWeightRelease(userId);
+      return dryRunPreview("set_weight_release", undefined, { withdraw: true, hadOpenCondition: !!open });
+    }
+    const { count } = unwrap(await withdrawWeightRelease(userId));
+    return {
+      ok: true,
+      message: count > 0 ? "Release condition withdrawn." : "There was no open release condition.",
+    };
+  }
+
+  if (args.thresholdKg === null || args.thresholdKg === undefined) {
+    throw new Error("thresholdKg is required (or pass withdraw: true).");
+  }
+  if (!args.notBeforeAt) throw new Error("notBeforeAt is required — the earliest moment the window may open.");
+
+  // Der STAND vor dem Schreiben, für beide Zweige: der Dry-Run zeigt ihn, der Commit hängt ihn an
+  // die Antwort. Eine KI, die gerade eine Schwelle gesetzt hat, soll im selben Zug sehen, wie weit
+  // sie von ihr entfernt ist.
+  const status = await weightReleaseStatus(userId);
+
+  if (args.dryRun) {
+    return dryRunPreview("set_weight_release", undefined, {
+      thresholdKg: args.thresholdKg,
+      direction: args.direction ?? "below",
+      averageDays: args.averageDays ?? RELEASE_AVERAGE_DAYS_RANGE.fallback,
+      minMeasurements: args.minMeasurements ?? RELEASE_MIN_MEASUREMENTS_RANGE.fallback,
+      stepKg: args.stepKg ?? 0,
+      notBeforeAt: args.notBeforeAt,
+      windowHours: args.windowHours ?? RELEASE_WINDOW_HOURS_RANGE.fallback,
+      openingAllowed: Boolean(args.openingAllowed),
+      replacesOpenCondition: !!status,
+      currentAverageKg: status?.averageKg ?? null,
+    });
+  }
+
+  unwrap(await setWeightRelease({
+    userId,
+    thresholdKg: args.thresholdKg,
+    direction: args.direction,
+    averageDays: args.averageDays,
+    minMeasurements: args.minMeasurements,
+    stepKg: args.stepKg,
+    notBeforeAt: args.notBeforeAt,
+    windowHours: args.windowHours,
+    openingAllowed: args.openingAllowed,
+    message: args.message,
+  }, AI_AUTHOR));
+
+  const after = await weightReleaseStatus(userId);
+  const standing = after?.averageKg === null
+    ? " He has too few weigh-ins in the window for an average yet."
+    : after
+      ? ` His current average is ${after.averageKg} kg against a threshold of ${after.thresholdKg} kg.`
+      : "";
+  return {
+    ok: true,
+    message: `Release condition set.${standing} It is consumed once it opens a window — set the next one yourself.`,
+  };
+}
+
+/** Die Fenster-Liste, mit der Position im Fehlertext — dasselbe Muster wie `assertCleaningWindows`:
+ *  wer fünf Fenster auf einmal setzt, soll nicht raten müssen, welches abgelehnt wurde. */
+function assertWeighingWindows(windows: WeighingWindow[]): void {
+  const problem = weighingWindowsProblem(windows);
+  if (!problem) return;
+  const stelle = problem.index === undefined
+    ? "windows"
+    : `windows[${problem.index}] ${JSON.stringify(windows[problem.index])}`;
+  throw new Error(`${stelle}: ${enErrorText(problem.code)}`);
+}
+
+/** Ein Fenster aus den Agenten-Argumenten. Fehlende Wochentage heissen „täglich" — dieselbe Vorgabe
+ *  wie in der Oberfläche, wo ein neues Fenster mit allen sieben Häkchen entsteht. */
+function toWeighingWindow(w: { start: string; durationMin: number; days?: number[]; remind?: boolean }): WeighingWindow {
+  return {
+    start: w.start,
+    durationMin: w.durationMin,
+    days: w.days === undefined ? ALL_WEEKDAYS : weekdayMaskOf(w.days),
+    remind: w.remind === true,
+  };
+}
+
+/** Ein Fenster als eine Zeile für Vorschau und Erfolgsmeldung: „06:00-09:00 Mo,Di,Mi (Erinnerung)". */
+function formatWeighingWindowForAgent(w: WeighingWindow): string {
+  const days = w.days === ALL_WEEKDAYS
+    ? "daily"
+    : WEEKDAY_KEYS.filter((_, i) => weekdayMaskHas(w.days, i + 1)).join(",");
+  return `${w.start}-${weighingWindowEnd(w)} ${days}${w.remind ? " (reminder)" : ""}`;
+}
+
+/** Der Zusatz zur Erfolgsmeldung, wenn die Fenster ersetzt wurden. Die geleerte Liste bekommt einen
+ *  eigenen Satz — „keine Fenster" heisst NICHT „kein Wiegen", sondern „jede Uhrzeit zählt". */
+function weighingWindowsNote(windows: WeighingWindow[] | undefined): string {
+  if (!windows) return "";
+  if (windows.length === 0) {
+    return " All weighing windows removed — weighing is no longer tied to a time of day (the reporting duty is unaffected).";
+  }
+  return ` Weighing windows replaced (${windows.length}): ${windows.map(formatWeighingWindowForAgent).join(", ")}.`;
 }
 
 // ── Automatic inspections (Auto-Kontrollen) settings ───────────────────────
@@ -1100,13 +1396,12 @@ export async function mcpSetAutoInspections(username: string, args: SetAutoInspe
 
   // Geklemmt wird HIER, nicht erst im Service: Preview und Paar-Ausrichtung müssen mit denselben
   // Zahlen rechnen, die nachher in der DB stehen (setAutoKontrolleSettings klemmt intern identisch).
-  const clampOpt = (v: number | undefined, range: NumberRange) => (v === undefined ? undefined : clamp(v, range));
   const perDay = alignPair(
-    { min: clampOpt(args.perDayMin, AUTO_INSPECTION_PER_DAY_RANGE), max: clampOpt(args.perDayMax, AUTO_INSPECTION_PER_DAY_RANGE) },
+    { min: clampOptional(args.perDayMin, AUTO_INSPECTION_PER_DAY_RANGE), max: clampOptional(args.perDayMax, AUTO_INSPECTION_PER_DAY_RANGE) },
     { min: before.perDayMin, max: before.perDayMax },
   );
   const frist = alignPair(
-    { min: clampOpt(args.deadlineMinFrom, AUTO_INSPECTION_DEADLINE_FROM_RANGE), max: clampOpt(args.deadlineMinTo, AUTO_INSPECTION_DEADLINE_TO_RANGE) },
+    { min: clampOptional(args.deadlineMinFrom, AUTO_INSPECTION_DEADLINE_FROM_RANGE), max: clampOptional(args.deadlineMinTo, AUTO_INSPECTION_DEADLINE_TO_RANGE) },
     { min: before.fristVon, max: before.fristBis },
   );
   // `null` = Fenster aus → "" (die Speicher-Form), `undefined` lässt den Bestand stehen.
@@ -1152,6 +1447,9 @@ function autoInspectionsNote(before: AutoKontrolleSettings, after: AutoKontrolle
 
 export interface ResolveInspectionArgs {
   action: "verify" | "reject";
+  /** Die zu beurteilende Einreichung explizit wählen (`id` aus `list_entries`/`timeline`). Ohne
+   *  Angabe die jüngste — der Normalfall, und bis v5.3.5 der einzig mögliche. */
+  id?: string;
   dryRun?: boolean;
 }
 export async function mcpResolveInspection(username: string, args: ResolveInspectionArgs) {
@@ -1169,12 +1467,23 @@ export async function mcpResolveInspection(username: string, args: ResolveInspec
   //
   // `createdAt` statt `startTime`: die Eintrags-Zeit ist frei waehlbar, die Reihenfolge der
   // EINREICHUNGEN steht nur in der Server-Uhr.
+  //
+  // Mit `id` wird GENAU diese Einreichung beurteilt. Ohne sie bleibt es bei der jüngsten: die
+  // Oberfläche urteilt je Zeile, also muss die KI dasselbe können — sonst bliebe eine ältere,
+  // übersehene Einreichung für sie unerreichbar.
   const entry = await prisma.entry.findFirst({
-    where: { userId, type: "PRUEFUNG", imageUrl: { not: null } },
+    where: { userId, type: "PRUEFUNG", imageUrl: { not: null }, ...(args.id ? { id: args.id } : {}) },
+    // Nur ohne `id` gibt es überhaupt eine Auswahl; mit id trifft die Bedingung höchstens eine Zeile.
     orderBy: { createdAt: "desc" },
     select: { id: true, verifikationStatus: true },
   });
-  if (!entry) throw new Error("No submitted inspection to verify or reject.");
+  if (!entry) {
+    throw new Error(args.id
+      // Die Bedingungen beim Namen nennen: „not found" liesse offen, ob die id falsch ist, zu einem
+      // anderen Träger gehört oder auf eine Prüfung ohne Foto zeigt.
+      ? `No submitted inspection with id ${args.id} for this wearer (it must be a PRUEFUNG entry with a photo).`
+      : "No submitted inspection to verify or reject.");
+  }
   const action = args.action === "verify" ? "manuallyVerify" : "reject";
   if (args.dryRun) {
     const before: Record<string, unknown> = { verifikationStatus: entry.verifikationStatus };
@@ -1182,7 +1491,143 @@ export async function mcpResolveInspection(username: string, args: ResolveInspec
     return dryRunPreview("resolve_inspection", undefined, { id: entry.id, action: args.action }, diffFields(before, after));
   }
   unwrap(await resolveInspectionEntry(entry.id, action, AI_AUTHOR));
-  return { ok: true, message: `Latest inspection ${args.action === "verify" ? "verified" : "rejected"}; the user was notified by e-mail + push.` };
+  const which = args.id ? `Inspection ${entry.id}` : "Latest inspection";
+  return { ok: true, message: `${which} ${args.action === "verify" ? "verified" : "rejected"}; the user was notified by e-mail + push.` };
+}
+
+// ── Offence rules: which offence types count for this wearer ───────────────
+
+export interface SetOffenseRulesArgs {
+  rules: { type: string; mode: string }[];
+  dryRun?: boolean;
+}
+
+/**
+ * Welche Vergehensarten bei diesem Träger überhaupt zählen — die Schreib-Seite zu
+ * `get_context.offenseRules`, die es bis v5.3.5 nur lesend gab.
+ *
+ * **Mehrere Regeln in einem Aufruf**, weil sie zusammen eine Haltung ergeben: „ab jetzt zählen
+ * verspätete Kontrollen, Reinigungsverstösse aber nicht mehr" ist EINE Entscheidung. Einzeln
+ * gesetzt entstünden Zwischenstände, die niemand so gemeint hat — und in der Regel-Historie
+ * mehrere Zeitpunkte für einen Vorgang.
+ *
+ * Die Historie schreibt der Dienst: was vor der Änderung galt, bleibt gültig. Ein Umlegen wirkt
+ * nach vorn, nie rückwirkend — sonst tauchten Vergehen für eine Zeit auf, in der die Regel aus war.
+ *
+ * Geschrieben wird ohne Transaktion, und das ist vertretbar: jeden fachlichen Grund zum Scheitern
+ * nimmt die Prüfung oben vorweg, es bleibt der Datenbank-Fehler. Bricht es dann mitten in der Liste
+ * ab, stehen die vorherigen Regeln — dieselbe Liste noch einmal zu schicken ist der Weg zurück und
+ * folgenlos, weil ein bereits geltender Modus keine Zeile schreibt.
+ */
+export async function mcpSetOffenseRules(username: string, args: SetOffenseRulesArgs) {
+  const userId = await resolveTargetUserId(username);
+  if (!args.rules?.length) throw new Error("Provide at least one rule ({type, mode}).");
+
+  // Alles VOR dem ersten Schreiben prüfen: eine Liste zur Hälfte anzuwenden hinterlässt einen
+  // Zustand, den niemand angefordert hat, und in der Historie einen halben Vorgang.
+  for (const r of args.rules) {
+    if (!isSwitchableOffenseType(r.type)) {
+      throw new Error(`${r.type}: ${enErrorText("OFFENSE_TYPE_NOT_SWITCHABLE")} Switchable: ${Object.keys(OFFENSE_RULE_MODES).join(", ")}.`);
+    }
+    if (!isValidOffenseMode(r.type, r.mode)) {
+      throw new Error(`${r.type}: ${enErrorText("OFFENSE_MODE_INVALID")} Allowed for this type: ${OFFENSE_RULE_MODES[r.type].join(", ")}.`);
+    }
+    // Zweimal dieselbe Art in einem Aufruf: der letzte Wert gewönne still, und die Historie bekäme
+    // zwei Zeilen mit demselben Zeitpunkt. Wer das schickt, meint etwas anderes, als er schreibt.
+    if (args.rules.filter((x) => x.type === r.type).length > 1) {
+      throw new Error(`${r.type} appears more than once — send each offence type at most once per call.`);
+    }
+  }
+
+  const now = new Date();
+
+  if (args.dryRun) {
+    // Der Bestand NUR hier — der Commit-Pfad braucht ihn nicht, und `setOffenseRule` liest die Zeilen
+    // je Regel ohnehin selbst. Über den Service statt über eine eigene Abfrage, aus demselben Grund
+    // wie in `mcp/context.ts`: es ist derselbe Wert, den die Agentin dort gelesen hat.
+    const currentRules = await getOffenseRules(userId, now);
+    const before: Record<string, unknown> = {};
+    const after: Record<string, unknown> = {};
+    for (const r of args.rules) {
+      before[r.type] = currentRules[r.type as SwitchableOffenseType];
+      after[r.type] = r.mode;
+    }
+    // Was sich NICHT bewegt, gehört in die Vorschau: der Dienst schreibt für einen bereits geltenden
+    // Modus keine Zeile, und ohne diesen Hinweis liest sich ein leerer Diff wie ein Fehlschlag.
+    const unchanged = args.rules.filter((r) => before[r.type] === r.mode).map((r) => r.type);
+    return dryRunPreview("set_offense_rules", undefined, {
+      rules: after,
+      ...(unchanged.length ? { alreadyInEffect: unchanged } : {}),
+    }, diffFields(before, after));
+  }
+
+  for (const r of args.rules) {
+    unwrap(await setOffenseRule({
+      userId, offenseType: r.type as SwitchableOffenseType, mode: r.mode as OffenseMode,
+      changedBy: AI_AUTHOR, now,
+    }));
+  }
+  const applied = args.rules.map((r) => `${r.type}=${r.mode}`).join(", ");
+  return {
+    ok: true,
+    message: `Offence rules updated (${applied}). Applies from now on — what was judged before stays as it is.`,
+  };
+}
+
+// ── Inspection escalation: reminder and automatic marking ──────────────────
+
+export interface SetInspectionEscalationArgs {
+  reminderEnabled?: boolean;
+  reminderDelayMinutes?: number;
+  autoMarkEnabled?: boolean;
+  autoMarkDelayMinutes?: number;
+  dryRun?: boolean;
+}
+
+/**
+ * Die beiden Eskalationsstufen einer überfälligen Kontrolle: Mahnung und automatischer Vermerk,
+ * jede mit eigener Verzögerung ab Fristablauf.
+ *
+ * Beide Stufen in einem Werkzeug, weil sie eine Kette sind — die Mahnung ohne den Vermerk ist eine
+ * Erinnerung, der Vermerk ohne die Mahnung eine Falle.
+ */
+export async function mcpSetInspectionEscalation(username: string, args: SetInspectionEscalationArgs) {
+  const userId = await resolveTargetUserId(username);
+  requireAnyOf(args, ["reminderEnabled", "reminderDelayMinutes", "autoMarkEnabled", "autoMarkDelayMinutes"]);
+
+  if (args.dryRun) {
+    // Der Bestand nur hier — der Commit-Pfad patcht, ohne ihn zu kennen (Muster `set_cleaning`).
+    const current = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: {
+        inspectionReminderEnabled: true, inspectionReminderDelayMinutes: true,
+        inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
+      },
+    });
+    // Wie bei set_cleaning die GEKLEMMTEN Werte zeigen — der Dienst klemmt intern identisch, und
+    // eine Vorschau, die den rohen Wunsch zurückgibt, verschweigt genau diese stille Korrektur.
+    const before: Record<string, unknown> = {
+      reminderEnabled: current.inspectionReminderEnabled,
+      reminderDelayMinutes: current.inspectionReminderDelayMinutes,
+      autoMarkEnabled: current.inspectionAutoMarkEnabled,
+      autoMarkDelayMinutes: current.inspectionAutoMarkDelayMinutes,
+    };
+    const after: Record<string, unknown> = {
+      reminderEnabled: args.reminderEnabled ?? before.reminderEnabled,
+      reminderDelayMinutes: clampOptional(args.reminderDelayMinutes, INSPECTION_REMINDER_DELAY_RANGE) ?? before.reminderDelayMinutes,
+      autoMarkEnabled: args.autoMarkEnabled ?? before.autoMarkEnabled,
+      autoMarkDelayMinutes: clampOptional(args.autoMarkDelayMinutes, INSPECTION_AUTO_MARK_DELAY_RANGE) ?? before.autoMarkDelayMinutes,
+    };
+    return dryRunPreview("set_inspection_escalation", undefined, after, diffFields(before, after));
+  }
+
+  unwrap(await setInspectionEscalationSettings(userId, {
+    reminderEnabled: args.reminderEnabled,
+    reminderDelayMinutes: args.reminderDelayMinutes,
+    autoMarkEnabled: args.autoMarkEnabled,
+    autoMarkDelayMinutes: args.autoMarkDelayMinutes,
+  }));
+  return { ok: true, message: "Inspection escalation settings updated." };
 }
 
 // ── Lock period: change the end of an active Sperrzeit ───────────────────────

@@ -1,20 +1,35 @@
 import { describe, it, expect } from "vitest";
 import {
   activeWeighingWindow, inWeighingWindow, nextWeighingWindow, parseWeighingWindows,
-  weighingWindowsProblem,
+  weighingWindowEnd, weighingWindowsProblem,
 } from "./weightWindows";
+import { ALL_WEEKDAYS, weekdayMaskOf } from "./weekdays";
 
-const MORNING = [{ start: "06:00", end: "08:00" }];
-const TWICE = [{ start: "06:00", end: "08:00" }, { start: "18:00", end: "20:00" }];
+/** Ein Fenster in der Form, die in der Spalte steht. `days` weglassen heisst „täglich". */
+const w = (start: string, durationMin: number, over: Partial<{ days: number; remind: boolean }> = {}) =>
+  ({ start, durationMin, days: ALL_WEEKDAYS, remind: false, ...over });
+
+const MORNING = [w("06:00", 120)];
+const TWICE = [w("06:00", 120), w("18:00", 120)];
 
 describe("parseWeighingWindows", () => {
   it("liest den JSON-String der Spalte", () => {
+    expect(parseWeighingWindows('[{"start":"06:00","durationMin":120,"days":127,"remind":false}]')).toEqual(MORNING);
+  });
+
+  it("liest Alt-Fenster mit Endzeit als Start plus Dauer — sonst löschte das erste Speichern sie", () => {
     expect(parseWeighingWindows('[{"start":"06:00","end":"08:00"}]')).toEqual(MORNING);
+  });
+
+  it("schaltet einem Alt-Fenster keine Erinnerung ein", () => {
+    // Ein Update darf niemandem ungefragt Nachrichten bestellen.
+    expect(parseWeighingWindows([{ start: "06:00", end: "08:00" }])[0].remind).toBe(false);
   });
 
   it("verwirft Murks still — der LESE-Pfad darf an Bestand nicht scheitern", () => {
     expect(parseWeighingWindows("kein json")).toEqual([]);
     expect(parseWeighingWindows([{ start: "08:00", end: "06:00" }])).toEqual([]);
+    expect(parseWeighingWindows([{ start: "23:00", durationMin: 180 }])).toEqual([]);
     expect(parseWeighingWindows(null)).toEqual([]);
   });
 });
@@ -25,21 +40,35 @@ describe("weighingWindowsProblem — die Schreib-Regel", () => {
     expect(weighingWindowsProblem([])).toBeNull();
   });
 
-  it("weist ein rückwärts laufendes Paar ab, statt es still zu verwerfen", () => {
+  it("weist ein Fenster über Mitternacht ab, statt es still zu verwerfen", () => {
     // Der Lese-Pfad würde es wegwerfen — als Antwort auf ein Speichern hiesse das „ok" für ein
     // Fenster, das in Wahrheit gelöscht wurde.
-    expect(weighingWindowsProblem([{ start: "08:00", end: "06:00" }])).toBe("timeRangeInvalid");
+    expect(weighingWindowsProblem([w("23:00", 180)])).toMatchObject({ code: "timeRangeInvalid" });
+  });
+
+  it("weist eine unsinnige Dauer ab", () => {
+    expect(weighingWindowsProblem([w("06:00", 1)])).toMatchObject({ code: "timeRangeInvalid" });
+    expect(weighingWindowsProblem([{ start: "06:00" }])).toMatchObject({ code: "invalidTime" });
   });
 
   it("weist unsinnige Uhrzeiten ab", () => {
-    expect(weighingWindowsProblem([{ start: "6:00", end: "08:00" }])).toBe("invalidTime");
-    expect(weighingWindowsProblem([{ start: "25:00", end: "26:00" }])).toBe("invalidTime");
-    expect(weighingWindowsProblem("nichts")).toBe("invalidTime");
+    expect(weighingWindowsProblem([w("6:00", 120)])).toMatchObject({ code: "invalidTime" });
+    expect(weighingWindowsProblem([w("25:00", 60)])).toMatchObject({ code: "invalidTime" });
+    expect(weighingWindowsProblem("nichts")).toMatchObject({ code: "invalidTime" });
+  });
+
+  it("weist ein Fenster ohne Wochentag ab — es gälte nie und sähe doch nach einer Regel aus", () => {
+    expect(weighingWindowsProblem([w("06:00", 120, { days: 0 })])).toMatchObject({ code: "invalidTime" });
   });
 
   it("begrenzt die Anzahl", () => {
-    const many = Array.from({ length: 7 }, (_, i) => ({ start: `0${i}:00`, end: `0${i}:30` }));
-    expect(weighingWindowsProblem(many)).toBe("WEIGHING_WINDOWS_TOO_MANY");
+    const many = Array.from({ length: 8 }, (_, i) => w(`0${i}:00`, 30));
+    expect(weighingWindowsProblem(many)).toMatchObject({ code: "WEIGHING_WINDOWS_TOO_MANY" });
+  });
+
+  it("nennt die Position des störenden Fensters", () => {
+    // Wer fünf Fenster auf einmal schickt, soll nicht raten müssen, welches abgelehnt wurde.
+    expect(weighingWindowsProblem([w("06:00", 120), w("23:00", 180)])).toEqual({ code: "timeRangeInvalid", index: 1 });
   });
 });
 
@@ -63,6 +92,19 @@ describe("inWeighingWindow", () => {
     const eight = new Date("2026-08-22T06:00:00Z"); // 08:00 Zürich
     expect(inWeighingWindow(MORNING, eight, "Europe/Zurich")).toBe(false);
   });
+
+  it("gilt nur an den gesetzten Wochentagen", () => {
+    // Der 22.08.2026 ist ein Samstag.
+    const nurWerktags = [w("06:00", 120, { days: weekdayMaskOf([1, 2, 3, 4, 5]) })];
+    expect(inWeighingWindow(nurWerktags, morningLocal, "Europe/Zurich")).toBe(false);
+    const auchSamstags = [w("06:00", 120, { days: weekdayMaskOf([6]) })];
+    expect(inWeighingWindow(auchSamstags, morningLocal, "Europe/Zurich")).toBe(true);
+  });
+
+  it("nennt das Ende aus Start und Dauer", () => {
+    expect(weighingWindowEnd(w("06:00", 150))).toBe("08:30");
+    expect(weighingWindowEnd(w("22:00", 120))).toBe("24:00");
+  });
 });
 
 describe("activeWeighingWindow / nextWeighingWindow", () => {
@@ -81,6 +123,17 @@ describe("activeWeighingWindow / nextWeighingWindow", () => {
   it("zeigt nach dem letzten Fenster auf das erste von morgen", () => {
     const night = new Date("2026-08-22T20:00:00Z"); // 22:00 Zürich
     expect(nextWeighingWindow(TWICE, night, "Europe/Zurich")).toEqual(TWICE[0]);
+  });
+
+  it("überspringt Tage, an denen kein Fenster gilt", () => {
+    // Samstag, 22:00 Zürich; das Fenster gilt nur werktags — „wieder ab morgen" wäre falsch, das
+    // nächste ist erst am Montag. Die Uhrzeit ist dieselbe, die Aussage aber nicht.
+    const night = new Date("2026-08-22T20:00:00Z");
+    const werktags = [w("06:00", 120, { days: weekdayMaskOf([1, 2, 3, 4, 5]) })];
+    expect(nextWeighingWindow(werktags, night, "Europe/Zurich")).toEqual(werktags[0]);
+    // Und wo überhaupt kein Tag mehr kommt, gibt es kein „wieder".
+    const nurSamstags = [w("06:00", 120, { days: weekdayMaskOf([6]) })];
+    expect(nextWeighingWindow(nurSamstags, night, "Europe/Zurich")).toEqual(nurSamstags[0]);
   });
 
   it("liefert das FOLGENDE, auch wenn gerade eines läuft", () => {

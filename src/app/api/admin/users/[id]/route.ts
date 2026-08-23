@@ -156,7 +156,7 @@ export async function PATCH(
 
   if (
     body.weightTrackingEnabled !== undefined || body.weighingWindows !== undefined ||
-    body.targetMinKeyholderKg !== undefined || body.targetMaxKeyholderKg !== undefined
+    body.targetWeightKeyholderKg !== undefined
   ) {
     // Instanz-Schalter zuerst: ist das Feature auf dieser Instanz abgewählt, gibt es die
     // Einstellung nicht — 404 statt 403, damit die Antwort nicht verrät, dass es sie gäbe. Der
@@ -170,8 +170,7 @@ export async function PATCH(
       changedBy: sessionActor(actor),
       enabled: body.weightTrackingEnabled,
       weighingWindows: body.weighingWindows, // roh — der Service validiert/normalisiert
-      targetMinKeyholderKg: body.targetMinKeyholderKg,
-      targetMaxKeyholderKg: body.targetMaxKeyholderKg,
+      targetWeightKeyholderKg: body.targetWeightKeyholderKg,
     }));
   }
 

@@ -14,7 +14,10 @@ vi.mock("@/lib/prisma", () => {
   };
 });
 
+vi.mock("@/lib/weightReleaseService", () => ({ applyWeightRelease: vi.fn().mockResolvedValue(null) }));
+
 import { recordWeight } from "./weightService";
+import { applyWeightRelease } from "@/lib/weightReleaseService";
 import { prisma } from "@/lib/prisma";
 
 const tx = (prisma as unknown as { __tx: {
@@ -87,6 +90,28 @@ describe("recordWeight", () => {
     expect(tx.weightEntry.create).not.toHaveBeenCalled();
     // Die Fassung wird hochgezählt — daran hängt die OCC der MCP-Schreibwege.
     expect(tx.weightEntry.update.mock.calls[0][0].data.version).toEqual({ increment: 1 });
+  });
+
+  /**
+   * Die „wichtigste Regel" der Vorlage (docs/gewicht-freigabe-konzept.md, Abschnitt 6): kein
+   * Nachwiegen, um das Ergebnis zu erzwingen. Ohne diese Sperre könnte der Träger so lange wiegen,
+   * bis das Mittel unter der Schwelle liegt — und sich die Freigabe damit selbst ausstellen.
+   */
+  it("prüft die Freigabe-Vorgabe nur bei der ERSTEN Messung des Tages", async () => {
+    user();
+    await recordWeight("u1", {
+      weightKg: 79.4, measuredAt: NOW, source: "user", imageUrl: "/api/uploads/a.jpg", now: NOW,
+    });
+    expect(applyWeightRelease).toHaveBeenCalledOnce();
+
+    vi.clearAllMocks();
+    tx.weightEntry.findUnique.mockResolvedValue({ id: "alt" });
+    tx.weightEntry.update.mockResolvedValue({ id: "w1" });
+    user();
+    await recordWeight("u1", {
+      weightKg: 74.0, measuredAt: NOW, source: "user", imageUrl: "/api/uploads/b.jpg", now: NOW,
+    });
+    expect(applyWeightRelease).not.toHaveBeenCalled();
   });
 
   it("verlangt vom Träger einen Beleg — Foto ODER Notiz", async () => {

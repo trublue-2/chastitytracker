@@ -3,7 +3,6 @@ import { dayNumber } from "./weight";
 import { buildWeightSeries, movingAverage, type WeightPoint } from "./weightSeries";
 
 const p = (dayKey: string, weightKg: number, inWindow = true): WeightPoint => ({ dayKey, weightKg, inWindow });
-const NONE = { minKg: null, maxKg: null };
 
 describe("dayNumber", () => {
   it("zählt aufeinanderfolgende Tage als aufeinanderfolgende Zahlen", () => {
@@ -37,7 +36,7 @@ describe("movingAverage", () => {
 
 describe("buildWeightSeries", () => {
   const all = [p("2026-07-01", 90), p("2026-08-20", 81), p("2026-08-21", 80), p("2026-08-22", 79)];
-  const opts = { todayKey: "2026-08-22", subCorridor: NONE, keyholderCorridor: NONE };
+  const opts = { todayKey: "2026-08-22", target: null };
 
   it("beschränkt auf den Zeitraum in Kalendertagen", () => {
     const s = buildWeightSeries(all, { ...opts, days: 30 });
@@ -66,18 +65,12 @@ describe("buildWeightSeries", () => {
     expect(s.trend.map((t) => t.dayKey)).toEqual(["2026-08-21"]);
   });
 
-  it("spannt die Achse so, dass der Korridor hineinpasst", () => {
+  it("spannt die Achse so, dass die Ziel-Linie hineinpasst", () => {
+    // Ein Ziel ausserhalb des Bildes zeigt nicht, wie weit es noch ist — und genau dafür ist es da.
     const s = buildWeightSeries([p("2026-08-22", 79)], {
-      ...opts, days: 30, subCorridor: { minKg: 70, maxKg: 84 },
+      ...opts, days: 30, target: { kg: 70, setAt: null, source: "sub" as const },
     });
     expect(s.minKg).toBe(70);
-    expect(s.maxKg).toBe(84);
-  });
-
-  it("zeigt den WEITEREN Korridor — die Nachbesserung der Keyholderin lockert nur", () => {
-    const s = buildWeightSeries([p("2026-08-22", 79)], {
-      ...opts, days: 30, subCorridor: { minKg: null, maxKg: 84 }, keyholderCorridor: { minKg: null, maxKg: 87 },
-    });
-    expect(s.corridor.maxKg).toBe(87);
+    expect(s.maxKg).toBe(79);
   });
 });

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser, autoInspectionsView, type AutoInspectionsView } from "@/lib/autoKontrolleService";
+import { weightReleaseStatus } from "@/lib/weightReleaseService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
 import { getActiveSperrzeit, cleaningWindowBindingStatus, type WindowsBindingReason } from "@/lib/queries";
 import { type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
@@ -42,6 +43,27 @@ export type ContextReinigungView = ReinigungView & {
   openingAllowedNow: boolean;
 };
 
+/** Die offene Freigabe-Vorgabe, wie ein Agent sie liest. Gewichte in KILOGRAMM — wie überall im
+ *  Modell; die Anzeige-Einheit ist eine Eigenschaft des Betrachters, nicht der Daten. */
+export interface WeightReleaseView {
+  thresholdKg: number;
+  /** Die Schwelle von morgen — `null`, wenn sie nicht wandert (`stepKg` = 0). */
+  nextThresholdKg: number | null;
+  direction: string;
+  averageDays: number;
+  minMeasurements: number;
+  stepKg: number;
+  notBeforeAt: string;
+  windowHours: number;
+  openingAllowed: boolean;
+  averageKg: number | null;
+  measurements: number;
+  remainingKg: number | null;
+  /** Was noch fehlt: `not_yet` (vor der Mindestlaufzeit), `too_few_measurements`,
+   *  `above_threshold`/`below_threshold`. `null` = erfüllt, öffnet beim nächsten Wiegen. */
+  reason: string | null;
+}
+
 /** Optionale Filter für get_context (K-21, MCP-Restliste 2026-07-17). Ohne beides: nur zukünftige
  *  Termine ab jetzt (bisheriges Verhalten). */
 export interface GetContextOptions {
@@ -54,8 +76,9 @@ export interface GetContextOptions {
 
 export interface ContextResult extends Envelope {
   /** v3: `autoInspections.triggerWindowFrom/Until` liefern `null` statt `""` für „kein Fenster" (K-17);
-   *  `appointments` akzeptiert jetzt ein from/to-Fenster (K-21, additiv). `offenseRules` kam rein
-   *  additiv dazu — keine bestehende Feld-Bedeutung ändert sich, also kein Versions-Bump. */
+   *  `appointments` akzeptiert jetzt ein from/to-Fenster (K-21, additiv). `offenseRules` und
+   *  `inspectionEscalation` kamen rein additiv dazu — keine bestehende Feld-Bedeutung ändert sich,
+   *  also kein Versions-Bump. */
   schemaVersion: 3;
   user: string;
   healthHold: HealthHoldView | null;
@@ -69,16 +92,38 @@ export interface ContextResult extends Envelope {
    * Welche Vergehensarten bei diesem Sub GERADE gelten: `off`/`on`, bei `unauthorized_orgasm`
    * zusätzlich `lockedOnly` (nur während einer Sperrzeit) und `always`.
    *
-   * **Nur lesbar.** Es gibt bewusst KEIN Tool, das eine Regel umlegt — das entscheidet der Mensch in
-   * der Admin-Oberfläche, nicht du. Suche also nicht danach; hier steht, wonach das Strafbuch
-   * urteilt, damit du eine fehlende Vergehensart erklären kannst, statt sie für einen Fehler zu
-   * halten. `manual_offense` fehlt in der Liste: ein von Hand notiertes Vergehen ist nicht
-   * abschaltbar.
+   * Umgelegt werden sie mit `set_offense_rules`. `manual_offense` fehlt in der Liste: ein von Hand
+   * notiertes Vergehen ist nicht abschaltbar — es verwirft man mit dem Urteil, nicht mit der Regel.
    *
    * Der Wert gilt für JETZT. Vergangene Taten werden nach der Fassung beurteilt, die zu ihrem
    * Zeitpunkt galt — eine heute abgeschaltete Art kann also weiterhin ältere Vergehen zeigen.
    */
   offenseRules: Record<SwitchableOffenseType, OffenseMode>;
+  /**
+   * Die offene Freigabe-Vorgabe samt aktuellem Stand — `null`, wenn keine steht
+   * (docs/gewicht-freigabe-konzept.md). Gestellt und zurückgezogen wird sie mit
+   * `set_weight_release`.
+   *
+   * `averageKg` ist das Mittel der letzten `averageDays` Tage über die ZÄHLENDEN Messungen (nur
+   * innerhalb der Wiege-Fenster). `null` heisst „zu wenige Messungen für ein Mittel", nicht „null
+   * Kilo". `remainingKg` sagt, wie weit er noch davon entfernt ist.
+   */
+  weightRelease: WeightReleaseView | null;
+  /**
+   * Was mit einer überfälligen Kontrolle passiert: Mahnung und automatischer Vermerk, je mit eigener
+   * Verzögerung. Änderbar über `set_inspection_escalation`.
+   *
+   * **`autoMarkDelayMinutes` zählt ab der MAHNUNG, nicht ab der Frist** — steht die Mahnung auf 5
+   * und der Vermerk auf 60, fällt er 65 Minuten nach Ablauf. Ist die Mahnung aus, zählt er ab
+   * Frist + Mahnungs-Verzögerung, also rechnerisch gleich. Wer hier „ab der Frist" liest, sagt dem
+   * Träger eine Zeit an, die um die erste Stufe danebenliegt.
+   */
+  inspectionEscalation: {
+    reminderEnabled: boolean;
+    reminderDelayMinutes: number;
+    autoMarkEnabled: boolean;
+    autoMarkDelayMinutes: number;
+  };
   recurringContext: ReturnType<typeof recurringView>[];
   appointments: ReturnType<typeof apptView>[];
 }
@@ -89,6 +134,8 @@ const contextUserSelect = {
   autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true, autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
   autoKontrolleNurBeiSperre: true,
+  inspectionReminderEnabled: true, inspectionReminderDelayMinutes: true,
+  inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
 } as const;
 
 /** Liefert HealthHold + Auto-Kontroll-Einstellungen + Reinigungs-Regeln + Wochen-Kontext + anstehende
@@ -110,7 +157,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     gte: parseIsoDate(opts.appointmentsFrom, "appointmentsFrom") ?? now,
     ...(apptTo ? { lte: apptTo } : {}),
   };
-  const [healthHold, recurring, appts, cleaningUsedToday, sperre, offenseRules] = await Promise.all([
+  const [healthHold, recurring, appts, cleaningUsedToday, sperre, offenseRules, release] = await Promise.all([
     loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: apptWhen }, orderBy: { when: "asc" } }),
@@ -120,6 +167,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     // „damit die Lese- und die Schreib-Abfrage nicht getrennt voneinander veralten" — eine Kopie
     // hier wäre genau die Trennung, die er verhindern soll.
     getOffenseRules(userId, now),
+    weightReleaseStatus(userId, now),
   ]);
 
   // Auto-Kontroll-Einstellungen + Reinigung über die geteilten Helfer der jeweiligen Services.
@@ -137,7 +185,28 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     healthHold,
     autoInspections: autoInspectionsView(auto),
     cleaning: { ...buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ), ...binding },
+    inspectionEscalation: {
+      reminderEnabled: user.inspectionReminderEnabled,
+      reminderDelayMinutes: user.inspectionReminderDelayMinutes,
+      autoMarkEnabled: user.inspectionAutoMarkEnabled,
+      autoMarkDelayMinutes: user.inspectionAutoMarkDelayMinutes,
+    },
     offenseRules,
+    weightRelease: release && {
+      thresholdKg: release.thresholdKg,
+      nextThresholdKg: release.nextThresholdKg,
+      direction: release.release.direction,
+      averageDays: release.release.averageDays,
+      minMeasurements: release.release.minMeasurements,
+      stepKg: release.release.stepKg,
+      notBeforeAt: release.release.notBeforeAt.toISOString(),
+      windowHours: release.release.windowHours,
+      openingAllowed: release.release.openingAllowed,
+      averageKg: release.averageKg,
+      measurements: release.measurements,
+      remainingKg: release.remainingKg,
+      reason: release.reason,
+    },
     recurringContext: recurring.map(recurringView),
     appointments: appts.map((a) => apptView(a, iso)),
   };

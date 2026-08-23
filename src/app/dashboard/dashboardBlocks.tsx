@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
+import { prisma } from "@/lib/prisma";
 import { block, type StackBlock } from "@/lib/blockStack";
+import { weightReleaseStatus } from "@/lib/weightReleaseService";
+import type { UnitSystem } from "@/lib/weight";
 import type { SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
 import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {
@@ -19,7 +22,7 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
-import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
+import { resolveGoalTargets, hasVisibleGoalRow } from "@/lib/goalFulfillment";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
 import { resolveReasonLabel } from "@/lib/reasonsService";
 import { categoryNeedsDevice } from "@/lib/categoryConstants";
@@ -40,6 +43,7 @@ import CategoryGoalsToday from "./CategoryGoalsToday";
 import InactiveCategories from "./InactiveCategories";
 import IncompleteCategories from "./IncompleteCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
+import WeightReleaseCard from "./WeightReleaseCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
 
 /**
@@ -225,6 +229,32 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
     ),
   }),
 
+  // Die Freigabe-Vorgabe: welches Gewicht den nächsten Orgasmus öffnet. NACH den offenen Strafen
+  // und vor der laufenden Session — sie ist kein Alarm mit Frist, aber eine Bedingung, gegen die er
+  // täglich rechnet (docs/gewicht-freigabe-konzept.md, Abschnitt 10).
+  weightRelease: block({
+    load: async ({ userId, now, dl, tz }) => {
+      const status = await weightReleaseStatus(userId, now);
+      if (!status) return null;
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { unitSystem: true } });
+      return {
+        thresholdKg: status.thresholdKg,
+        nextThresholdKg: status.nextThresholdKg,
+        averageKg: status.averageKg,
+        averageDays: status.release.averageDays,
+        direction: status.release.direction,
+        remainingKg: status.remainingKg,
+        reason: status.reason,
+        // Auf dem Server formatiert: Locale und Zeitzone sind hier bekannt, und eine
+        // Client-Komponente, die selbst formatiert, weicht bis zur Hydration ab.
+        notBeforeLabel: formatDateTime(status.release.notBeforeAt, dl, tz),
+        unitSystem: ((user?.unitSystem ?? "metric") as UnitSystem),
+        locale: dl,
+      };
+    },
+    render: (props) => props && <WeightReleaseCard {...props} />,
+  }),
+
   runningSession: block({
     load: async (ctx) => {
       const { userId, nowMs, tz } = ctx;
@@ -254,7 +284,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
               : null
           }
           keyInBox={data.activePair.verschluss.keyInBox ?? null}
-          activeVorgabe={data.activeVorgabe ? proratedVorgabeTargets(data.activeVorgabe, now, tz) : null}
+          activeVorgabe={data.activeVorgabe ? resolveGoalTargets(data.activeVorgabe, now, tz) : null}
           tagH={data.hours.tagH}
           wocheH={data.hours.wocheH}
           monatH={data.hours.monatH}
@@ -325,15 +355,12 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       // Steht die nicht — weil keine Sperre läuft ODER weil der Träger den Block ausgeblendet hat —
       // hätte es sonst nirgends Platz; dann zeigen wir es als führende Zeile in der
       // „Trainingsvorgaben"-Karte (derselben, die die Kategorie-Ziele trägt).
-      const kgTargets = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
+      const kgTargets = activeVorgabe ? resolveGoalTargets(activeVorgabe, now, tz) : null;
+      // `hasVisibleGoalRow` und nicht „irgendein Ziel gesetzt": am Starttag einer Vorgabe ist jede
+      // Periode ungewertet, und die Zeile stünde sonst als Überschrift über einer leeren Liste.
       const kgGoal =
-        !sessionCard && kgTargets &&
-        (kgTargets.minProTagH != null || kgTargets.minProWocheH != null || kgTargets.minProMonatH != null || kgTargets.minProJahrH != null)
-          ? {
-              ...hours,
-              goalDayH: kgTargets.minProTagH, goalWeekH: kgTargets.minProWocheH,
-              goalMonthH: kgTargets.minProMonatH, goalYearH: kgTargets.minProJahrH,
-            }
+        !sessionCard && kgTargets && hasVisibleGoalRow(kgTargets.targetH)
+          ? { ...hours, goal: kgTargets }
           : null;
       return { wearSessions, entries, kgGoal };
     },

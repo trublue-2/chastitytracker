@@ -349,23 +349,23 @@ export const FM_REGISTRY: FmEntry[] = [
   s({
     model: "User", field: "inspectionReminderEnabled", domain: "kontrollen", scope: "standing",
     effect: "Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie.",
-    writers: ["admin"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionEscalationService.ts",
+    writers: ["admin", "mcp"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionEscalationService.ts",
   }),
   s({
     model: "User", field: "inspectionReminderDelayMinutes", domain: "kontrollen", scope: "standing",
     effect: "Verzug bis zur Mahnung, gemessen ab dem Ablauf der Kontroll-Frist.",
-    writers: ["admin"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionEscalationService.ts",
+    writers: ["admin", "mcp"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionEscalationService.ts",
   }),
   s({
     model: "User", field: "inspectionAutoMarkEnabled", domain: "kontrollen", scope: "standing",
     effect: "Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf.",
-    writers: ["admin"], affects: ["Kontrollen", "Einträge", "Sessions/Statistik", "Strafbuch"],
+    writers: ["admin", "mcp"], affects: ["Kontrollen", "Einträge", "Sessions/Statistik", "Strafbuch"],
     anchor: "queries.ts:releaseSperrzeitenOnOpen",
   }),
   s({
     model: "User", field: "inspectionAutoMarkDelayMinutes", domain: "kontrollen", scope: "standing",
     effect: "Verzug bis zu dieser Buchung, gemessen ab dem Stempel der Stufe 1.",
-    writers: ["admin"], affects: ["Kontrollen"], anchor: "inspectionEscalationService.ts",
+    writers: ["admin", "mcp"], affects: ["Kontrollen"], anchor: "inspectionEscalationService.ts",
   }),
 
   // ── User: Erfassung, Darstellung, Zugang ───────────────────────────────────────────────────
@@ -429,9 +429,9 @@ export const FM_REGISTRY: FmEntry[] = [
   }),
   s({
     model: "User", field: "heightCm", domain: "gewicht", scope: "standing",
-    effect: "Aktuelle Körpergrösse — die Grundlage jedes BMI. Historisiert in `HeightChange`: ein BMI wird mit der Grösse gerechnet, die zum Messzeitpunkt galt.",
-    writers: ["sub"], affects: ["Gewicht"], anchor: "weight.ts:heightAt",
-    retroactive: "Als KORREKTUR gespeichert (die alte Zahl war nie wahr) schreibt sie die jüngste Historie-Zeile um und verschiebt damit jeden BMI, der mit ihr gerechnet wurde. Als ÄNDERUNG gespeichert wirkt sie nur nach vorn.",
+    effect: "Aktuelle Körpergrösse — die Grundlage jedes BMI. Jede Änderung wird zusätzlich in `HeightChange` protokolliert; gerechnet wird heute überall mit diesem aktuellen Wert.",
+    writers: ["sub"], affects: ["Gewicht"], anchor: "weight.ts:bmi",
+    retroactive: "Eine neue Zahl verschiebt JEDEN angezeigten BMI, auch den zu alten Messungen — gerechnet wird stets mit der aktuellen Grösse, nicht mit der von damals.",
   }),
   s({
     model: "User", field: "unitSystem", domain: "gewicht", scope: "standing",
@@ -439,30 +439,33 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["sub"], affects: ["Oberfläche"], anchor: "weight.ts:weightForDisplay",
   }),
   s({
-    model: "User", field: "targetMinKg", domain: "gewicht", scope: "standing",
-    effect: "Untergrenze des Zielkorridors, gesetzt vom Träger. Eine Unterschreitung meldet der Keyholderin — sie entscheidet, ob etwas folgt.",
-    writers: ["sub"], affects: ["Gewicht", "Nachrichten"], anchor: "weight.ts:effectiveCorridor",
+    model: "User", field: "targetWeightKg", domain: "gewicht", scope: "standing",
+    effect: "Zielgewicht, das sich der Träger selbst vorgenommen hat. Wirksam, solange die Keyholderin keines führt; erreicht oder wieder verloren meldet es ihr — sie entscheidet, ob etwas folgt.",
+    writers: ["sub"], affects: ["Gewicht", "Nachrichten"], anchor: "weight.ts:effectiveTarget",
   }),
   s({
-    model: "User", field: "targetMaxKg", domain: "gewicht", scope: "standing",
-    effect: "Obergrenze des Zielkorridors, gesetzt vom Träger.",
-    writers: ["sub"], affects: ["Gewicht", "Nachrichten"], anchor: "weight.ts:effectiveCorridor",
+    model: "User", field: "targetWeightSetAt", domain: "gewicht", scope: "standing",
+    effect: "Wann er sein Ziel gesetzt hat — der Bezugspunkt des Fortschritts: gerechnet wird ab der Messung, die damals galt. Ein unveränderter Wert bewegt den Zeitpunkt nicht.",
+    writers: ["system"], affects: ["Gewicht"], anchor: "weightService.ts:targetStartWeight",
   }),
   s({
-    model: "User", field: "targetMinKeyholderKg", domain: "gewicht", scope: "standing",
-    effect: "Nachbesserung der Untergrenze durch die Keyholderin. Sie darf den Korridor nur WEITEN — wirksam ist stets der weitere der beiden Werte.",
-    writers: ["admin"], affects: ["Gewicht"], anchor: "weight.ts:keyholderCorridorProblem",
+    model: "User", field: "targetWeightKeyholderKg", domain: "gewicht", scope: "standing",
+    effect: "Zielgewicht der Keyholderin. Es GILT, solange sie eines führt — auch wenn es strenger ist als seines; seines bleibt daneben sichtbar. Zurückgenommen gilt wieder seines.",
+    writers: ["admin"], affects: ["Gewicht", "Nachrichten"], anchor: "weight.ts:effectiveTarget",
   }),
   s({
-    model: "User", field: "targetMaxKeyholderKg", domain: "gewicht", scope: "standing",
-    effect: "Nachbesserung der Obergrenze durch die Keyholderin, mit derselben Nur-Weiten-Regel.",
-    writers: ["admin"], affects: ["Gewicht"], anchor: "weight.ts:keyholderCorridorProblem",
+    model: "User", field: "targetWeightKeyholderSetAt", domain: "gewicht", scope: "standing",
+    effect: "Wann sie ihr Ziel gesetzt hat — derselbe Bezugspunkt des Fortschritts wie auf seiner Seite.",
+    writers: ["system"], affects: ["Gewicht"], anchor: "weightService.ts:targetStartWeight",
   }),
   s({
     model: "User", field: "weighingWindows", domain: "gewicht", scope: "standing",
     effect: "Tägliche Zeitfenster fürs Wiegen (Wanduhrzeit des Trägers). Leer = keine Fensterpflicht. Ein Wert ausserhalb wird markiert, nicht geahndet — er misst nur eine andere Tageszeit mit.",
     writers: ["admin"], affects: ["Gewicht"], anchor: "weightWindows.ts:inWeighingWindow",
   }),
+
+  x("runtime", "User", "weightReminderMark",
+    "Für welches Wiege-Fenster zuletzt erinnert wurde (`<Tag>#<Startzeit>`). Kein Schalter, sondern die Merkfähigkeit des Minuten-Pollers: sie verhindert die Wiederholung und erlaubt zugleich das Nachholen nach einem Neustart."),
 
   pk("User"),
   x("identity", "User", "username", "Anmeldename, zugleich die Kennung in Meldungen."),
@@ -964,17 +967,17 @@ export const FM_REGISTRY: FmEntry[] = [
   s({
     model: "OffenseRuleChange", field: "offenseType", domain: "strafbuch", scope: "standing",
     effect: "Welche Vergehensart die Zeile umlegt (kanonischer Schlüssel, z.B. `unauthorized_opening`).",
-    writers: ["admin"], affects: ["Strafbuch"], anchor: "offenseRulesService.ts",
+    writers: ["admin", "mcp"], affects: ["Strafbuch"], anchor: "offenseRulesService.ts",
   }),
   s({
     model: "OffenseRuleChange", field: "mode", domain: "strafbuch", scope: "standing",
     effect: "Ob diese Art zählt (aus / nur während Sperrzeit / immer). Eine HISTORIE, kein Schalter: jede Tat wird nach der Fassung ihrer Zeit beurteilt.",
-    writers: ["admin"], affects: ["Strafbuch"], anchor: "offenseRulesService.ts:setOffenseRule",
+    writers: ["admin", "mcp"], affects: ["Strafbuch"], anchor: "offenseRulesService.ts:setOffenseRule",
   }),
   s({
     model: "OffenseRuleChange", field: "effectiveFrom", domain: "strafbuch", scope: "standing",
     effect: "Ab wann diese Fassung gilt. Die Grundzeile trägt Epoch — vor der ersten Änderung ist nur bekannt, DASS die Werte galten, nicht seit wann.",
-    writers: ["admin"], affects: ["Strafbuch"],
+    writers: ["admin", "mcp"], affects: ["Strafbuch"],
   }),
   pk("OffenseRuleChange"),
   owner("OffenseRuleChange"),

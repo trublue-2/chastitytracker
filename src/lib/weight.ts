@@ -1,11 +1,12 @@
 import { effectiveAt, midnightOfLocalDate, round1, tzDateParts } from "@/lib/utils";
 import { HEIGHT_CM_RANGE, WEIGHT_KG_RANGE } from "@/lib/constants";
+import { coveragePct } from "@/lib/percent";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 
 /**
- * Rechenkern des Gewichtstrackings: Einheiten, BMI, Referenzbereiche, Zielkorridor, Grössen-Historie.
+ * Rechenkern des Gewichtstrackings: Einheiten, BMI, Zielgewicht und Fortschritt, Grössen-Historie.
  *
- * Bewusst **importfrei bis auf `constants`/`utils`** (beide selbst client-tauglich), damit
+ * Bewusst **importfrei bis auf `constants`/`utils`/`percent`** (alle selbst client-tauglich), damit
  * Formulare, Statistik-Karte und die Server-Dienste dieselbe Rechnung teilen. Läge sie in einem
  * Service mit `prisma`-Import, hätte die Eingabemaske ihre eigene Kopie — und die erste
  * Abweichung fiele erst auf, wenn Anzeige und gespeicherter Wert auseinanderlaufen.
@@ -42,6 +43,28 @@ export function weightInputToKg(value: number, unit: UnitSystem): number {
 /** kg → Anzeigewert in der Einheit des Betrachters, auf eine Kommastelle. */
 export function weightForDisplay(kg: number, unit: UnitSystem): number {
   return round1(unit === "imperial" ? kg / KG_PER_LB : kg);
+}
+
+/**
+ * Anzeigewert als TEXT in der Sprache des Betrachters — „74,1" statt „74.1".
+ *
+ * `weightForDisplay` liefert eine ZAHL, und die rendert React mit dem Punkt aus `Number.toString()`.
+ * In einem deutschen Satz ist das schlicht falsch, und neben einem Eingabefeld, in das man „73,5"
+ * tippt, steht es sich selbst im Weg.
+ *
+ * **Die Sprach-Kennung wird hier normalisiert, und das ist der eigentliche Inhalt der Funktion.**
+ * Die Aufrufer reichen teils `"de"`, teils `"de-CH"` herein (`toDateLocale`) — und ICU setzt für
+ * `de-CH` einen PUNKT als Dezimaltrenner. Das bildet die Schweizer Geld-Schreibweise ab
+ * (CHF 74.10); für einen Messwert im Fliesstext gilt auch hier das Komma. Ohne diese Normalisierung
+ * stünde dieselbe Zahl je nach Aufrufer verschieden auf dem Bildschirm — genau die Falle, die
+ * `formatTotalMs` in `utils.ts` für den Tausender-Trenner beschreibt.
+ *
+ * **Nur für Fliesstext, nicht für Eingabefelder:** der `value` eines `<input type="number">` MUSS
+ * den Punkt behalten, sonst weist der Browser ihn ab. Dafür bleibt {@link weightFieldValue}.
+ */
+export function weightText(kg: number, unit: UnitSystem, locale: string): string {
+  const tag = locale.startsWith("en") ? "en-US" : "de";
+  return weightForDisplay(kg, unit).toLocaleString(tag, { maximumFractionDigits: 1 });
 }
 
 /** Körpergrösse: metrisch in cm, imperial in ganzen Zoll (die UI zerlegt sie in Fuss + Zoll). */
@@ -108,78 +131,173 @@ export const WEIGHT_JUMP_CONFIRM_KG = 3;
 /** WHO-Schwelle zum Untergewicht. Auslöser der Warnung beim Setzen eines Zielwerts (Abschnitt 7). */
 export const BMI_UNDERWEIGHT = 18.5;
 
-// ── Zielkorridor ───────────────────────────────────────────────────────────────────────────────
+// ── Zielgewicht ────────────────────────────────────────────────────────────────────────────────
 
-/** Eine Grenze, die niemand gesetzt hat, ist `null` — nicht 0. */
-export interface Corridor {
-  minKg: number | null;
-  maxKg: number | null;
+/**
+ * Ein gesetztes Zielgewicht samt Herkunft.
+ *
+ * **Beide Seiten dürfen eines setzen, beide bleiben sichtbar — wirksam ist das der Keyholderin.**
+ * Bis v5.3.3 war es ein Korridor, den sie nur weiten durfte; die Regel ist gestrichen. Sie stammte
+ * aus der Sorge, jemand könnte eine unerreichbare Zahl von aussen verordnet bekommen — dagegen
+ * steht jetzt die Untergewichts-Warnung, und der Rest ist eine Abmachung unter Erwachsenen.
+ *
+ * Der Wunsch des Trägers verschwindet dabei NICHT: er bleibt als eigene Zahl stehen, damit beide
+ * sehen, worüber sie sich einig oder uneinig sind. Nimmt die Keyholderin ihre zurück, gilt wieder
+ * seine.
+ */
+export interface WeightTarget {
+  kg: number;
+  /** Wann es gesetzt wurde — der Bezugspunkt des Fortschritts, nicht die Protokollzeile. */
+  setAt: Date | null;
+  source: "sub" | "keyholder";
 }
 
 /**
- * Die vier Korridor-Spalten, wie sie am `User` stehen.
+ * Die vier Ziel-Spalten, wie sie am `User` stehen.
  *
- * Als Typ hier und nicht als Prisma-Zeile: die drei Ableitungen darunter sind rein und werden auch
- * von Client-Komponenten gebraucht — sie dürfen kein `prisma` in den Browser ziehen.
+ * Als Typ hier und nicht als Prisma-Zeile: die Ableitungen darunter sind rein und werden auch von
+ * Client-Komponenten gebraucht — sie dürfen kein `prisma` in den Browser ziehen.
  */
-export interface CorridorColumns {
-  targetMinKg: number | null;
-  targetMaxKg: number | null;
-  targetMinKeyholderKg: number | null;
-  targetMaxKeyholderKg: number | null;
+export interface TargetColumns {
+  targetWeightKg: number | null;
+  targetWeightSetAt: Date | null;
+  targetWeightKeyholderKg: number | null;
+  targetWeightKeyholderSetAt: Date | null;
 }
 
-/** Was der Träger sich selbst gesetzt hat. */
-export function subCorridorOf(u: CorridorColumns): Corridor {
-  return { minKg: u.targetMinKg, maxKg: u.targetMaxKg };
+/** Was der Träger sich selbst vorgenommen hat. */
+export function subTargetOf(u: TargetColumns): WeightTarget | null {
+  return u.targetWeightKg === null
+    ? null
+    : { kg: u.targetWeightKg, setAt: u.targetWeightSetAt, source: "sub" };
 }
 
-/** Die Nachbesserung der Keyholderin — für sich genommen; wirksam wird sie erst im Verbund. */
-export function keyholderCorridorOf(u: CorridorColumns): Corridor {
-  return { minKg: u.targetMinKeyholderKg, maxKg: u.targetMaxKeyholderKg };
+/** Was die Keyholderin gesetzt hat — für sich genommen. */
+export function keyholderTargetOf(u: TargetColumns): WeightTarget | null {
+  return u.targetWeightKeyholderKg === null
+    ? null
+    : { kg: u.targetWeightKeyholderKg, setAt: u.targetWeightKeyholderSetAt, source: "keyholder" };
 }
 
 /**
- * Der wirksame Korridor direkt aus den Spalten — die Form, die fast jeder Leser will.
+ * Das WIRKSAME Ziel: ihres, solange sie eines führt — sonst seines.
  *
- * Die drei Helfer stehen hier, weil die Zuordnung „welche Spalte gehört wem" sonst an jeder
- * Lesestelle erneut ausgeschrieben wird. Sie stand ein Dutzend Mal im Feature, und eine davon
- * hätte irgendwann die Keyholder-Spalten dem Träger zugeschrieben — ein Fehler, den keine
- * Typprüfung sieht, weil alle vier Spalten `number | null` sind.
+ * Die Zuordnung „welche Spalte gehört wem" steht damit an einer Stelle statt an jeder Lesestelle
+ * erneut. Alle vier Spalten sind `number | null` bzw. `Date | null`; eine Verwechslung sähe keine
+ * Typprüfung.
  */
-export function effectiveCorridorOf(u: CorridorColumns): Corridor {
-  return effectiveCorridor(subCorridorOf(u), keyholderCorridorOf(u));
+export function effectiveTarget(u: TargetColumns): WeightTarget | null {
+  return keyholderTargetOf(u) ?? subTargetOf(u);
 }
 
 /**
- * Der wirksame Korridor aus dem Wunsch des Subs und der Nachbesserung der Keyholderin.
+ * Wie weit ein Wert neben dem Ziel liegen darf, ohne dass es als Verfehlung gilt — ein Kilo.
  *
- * **Wirksam ist stets der WEITERE der beiden Werte.** Das ist die Regel „die Keyholderin darf nur
- * lockern" als Invariante statt als Prüfung: selbst wenn eine strengere Zahl auf irgendeinem Weg in
- * die Spalte käme (Alt-Daten, Roh-SQL, ein künftiger Schreibpfad), bliebe sie wirkungslos. Die
- * Prüfung in {@link keyholderCorridorProblem} sagt es der Keyholderin ins Gesicht; diese Funktion
- * sorgt dafür, dass es auch dann stimmt, wenn die Prüfung einmal umgangen wurde.
+ * Tagesgewicht schwankt um ein bis zwei Kilo. Ohne Toleranz meldete jede Mahlzeit einen Rückfall,
+ * und die Meldung wäre nach einer Woche nichts mehr wert.
  */
-export function effectiveCorridor(sub: Corridor, keyholder: Corridor): Corridor {
+const TARGET_TOLERANCE_KG = 1;
+
+/** Worauf hingearbeitet wird. `hold` heisst: das Ziel ist der Stand von damals — halten. */
+export type TargetDirection = "down" | "up" | "hold";
+
+/**
+ * Die Richtung aus dem Startgewicht. Ohne bekannten Start `hold`: wer nicht weiss, wo er losgelaufen
+ * ist, hat keine Richtung — und eine geratene wäre schlimmer als keine, weil an ihr hängt, ob ein
+ * Wert UNTER dem Ziel als Erfolg oder als Verfehlung gilt.
+ */
+function targetDirection(startKg: number | null, targetKg: number): TargetDirection {
+  if (startKg === null || Math.abs(startKg - targetKg) < Number.EPSILON) return "hold";
+  return startKg > targetKg ? "down" : "up";
+}
+
+/** Ist das Ziel erreicht? Beim Abnehmen zählt jeder Wert darunter mit — wer unter sein Ziel kommt,
+ *  hat es nicht knapp verfehlt. Ohne Richtung entscheidet der Abstand in beide Richtungen. */
+export function targetReached(currentKg: number, targetKg: number, direction: TargetDirection): boolean {
+  if (direction === "down") return currentKg <= targetKg;
+  if (direction === "up") return currentKg >= targetKg;
+  return Math.abs(currentKg - targetKg) <= TARGET_TOLERANCE_KG;
+}
+
+export interface TargetProgress {
+  targetKg: number;
+  /** Das Gewicht, das beim Setzen des Ziels galt — `null`, wenn es damals keine Messung gab. */
+  startKg: number | null;
+  currentKg: number;
+  direction: TargetDirection;
+  /** Was noch fehlt, immer als positive Zahl. `0`, sobald das Ziel erreicht ist. */
+  remainingKg: number;
+  /** Anteil der Strecke, 0–100. `null` ohne Startwert oder wenn Start und Ziel gleich sind — dann
+   *  gibt es keine Strecke, über die sich ein Anteil bilden liesse. */
+  percent: number | null;
+  reached: boolean;
+}
+
+/** Der Fortschritt zum Ziel — „von 100 auf 90, 38 % geschafft". */
+export function targetProgress(params: { targetKg: number; startKg: number | null; currentKg: number }): TargetProgress {
+  const { targetKg, startKg, currentKg } = params;
+  const direction = targetDirection(startKg, targetKg);
+  const reached = targetReached(currentKg, targetKg, direction);
+  const span = startKg === null ? 0 : Math.abs(startKg - targetKg);
+  // Vorzeichenbehaftet in Richtung des Ziels: beim Abnehmen zählt, was unter den Start geht, beim
+  // Zunehmen das Gegenteil. Wer sich entfernt hat, bekommt eine negative Strecke — und unten 0 %.
+  const done = startKg === null ? 0 : (targetKg < startKg ? startKg - currentKg : currentKg - startKg);
+  const pct = coveragePct(done, span);
   return {
-    minKg: pick(sub.minKg, keyholder.minKg, Math.min),
-    maxKg: pick(sub.maxKg, keyholder.maxKg, Math.max),
+    targetKg,
+    startKg,
+    currentKg,
+    direction,
+    remainingKg: reached ? 0 : round1(Math.abs(currentKg - targetKg)),
+    // `coveragePct` kappt oben (wer über sein Ziel hinausschiesst, steht bei 100) und liefert `null`,
+    // wo es keine Strecke gibt; `Math.max` kappt unten (wer sich entfernt hat, steht bei 0). Der
+    // ungekappte Abstand steht daneben in `remainingKg`.
+    percent: pct === null ? null : Math.max(0, pct),
+    reached,
   };
 }
 
-function pick(a: number | null, b: number | null, wider: (x: number, y: number) => number): number | null {
-  if (a === null) return b;
-  if (b === null) return a;
-  return wider(a, b);
+/**
+ * Soll dieser Messwert der Keyholderin gemeldet werden — und als was?
+ *
+ * Zwei Ereignisse, jeweils **einmal je Übergang**: das Ziel ist erreicht, oder es ist nach einem
+ * Erfolg wieder verloren. Gemeldet wird der Wechsel, nicht der Zustand — wer fünf Tage lang 200 g
+ * über dem Ziel liegt, löst eine Meldung aus, nicht fünf.
+ *
+ * **Der Rückfall braucht die Toleranz, das Erreichen nicht.** Sonst wechselte ein Wert, der um das
+ * Ziel herum pendelt, täglich zwischen beiden Meldungen; so muss er erst ein Kilo danebenliegen,
+ * bevor der Erfolg als verloren gilt.
+ *
+ * **Unterhalb von BMI 18,5 wird nichts gemeldet.** Die App fordert nicht ein, was sie beim Setzen
+ * selbst als bedenklich anzeigt. Das Ziel bleibt bestehen und sichtbar; es erzeugt nur keinen
+ * Anstoss an die Keyholderin, tätig zu werden.
+ */
+export function targetEventToAnnounce(params: {
+  currentKg: number;
+  /** Der zuletzt gemessene Wert davor — `null` bei der ersten Messung. */
+  previousKg: number | null;
+  target: WeightTarget;
+  startKg: number | null;
+  heightCm: number | null;
+}): "reached" | "relapsed" | null {
+  const { currentKg, previousKg, target, startKg, heightCm } = params;
+  if (isUnderweightTarget(target.kg, heightCm)) return null;
+
+  const direction = targetDirection(startKg, target.kg);
+  const nowReached = targetReached(currentKg, target.kg, direction);
+  const wasReached = previousKg !== null && targetReached(previousKg, target.kg, direction);
+
+  if (nowReached) return wasReached ? null : "reached";
+  if (!wasReached) return null;
+  // Verloren ist der Erfolg erst jenseits der Toleranz — knapp daneben ist noch kein Rückfall.
+  const missBy = direction === "up" ? target.kg - currentKg : currentKg - target.kg;
+  return missBy > TARGET_TOLERANCE_KG ? "relapsed" : null;
 }
 
 /** Stabile Codes dieses Moduls — die Service-Schicht reicht sie unverändert an die Route weiter. */
 export const WEIGHT_PROBLEMS = {
   weightOutOfRange: "WEIGHT_OUT_OF_RANGE",
   heightOutOfRange: "HEIGHT_OUT_OF_RANGE",
-  corridorInverted: "WEIGHT_CORRIDOR_INVERTED",
-  corridorNarrower: "WEIGHT_CORRIDOR_NARROWER",
-  corridorNoSubLimit: "WEIGHT_CORRIDOR_NO_SUB_LIMIT",
 } as const satisfies Record<string, ServiceErrorCode>;
 
 /** Die Codes, die dieses Modul überhaupt liefern kann — enger als `ServiceErrorCode`, damit die
@@ -187,7 +305,8 @@ export const WEIGHT_PROBLEMS = {
  *  Compile-Fehler statt eines stillen 500. */
 export type WeightProblemCode = (typeof WEIGHT_PROBLEMS)[keyof typeof WEIGHT_PROBLEMS];
 
-/** Liegt ein Gewicht im plausiblen Bereich? Fängt Zahlendreher und die falsch gelesene Waage. */
+/** Liegt ein Gewicht im plausiblen Bereich? Fängt Zahlendreher und die falsch gelesene Waage.
+ *  Gilt für Messwerte UND für Zielgewichte — ein Ziel von 4 kg ist kein Ziel, sondern ein Vertipper. */
 export function weightProblem(kg: unknown): WeightProblemCode | null {
   if (typeof kg !== "number" || !Number.isFinite(kg)) return WEIGHT_PROBLEMS.weightOutOfRange;
   return kg >= WEIGHT_KG_RANGE.min && kg <= WEIGHT_KG_RANGE.max ? null : WEIGHT_PROBLEMS.weightOutOfRange;
@@ -198,95 +317,37 @@ export function heightProblem(cm: unknown): WeightProblemCode | null {
   return cm >= HEIGHT_CM_RANGE.min && cm <= HEIGHT_CM_RANGE.max ? null : WEIGHT_PROBLEMS.heightOutOfRange;
 }
 
-/** Ein Korridor, dessen Untergrenze über der Obergrenze liegt, ist keiner. Beide Enden sind
- *  einzeln optional — nur eine Obergrenze („höchstens 84") ist der häufigste Fall überhaupt. */
-export function corridorProblem(c: Corridor): WeightProblemCode | null {
-  for (const v of [c.minKg, c.maxKg]) {
-    if (v === null) continue;
-    const problem = weightProblem(v);
-    if (problem) return problem;
-  }
-  if (c.minKg !== null && c.maxKg !== null && c.minKg >= c.maxKg) return WEIGHT_PROBLEMS.corridorInverted;
-  return null;
-}
-
 /**
- * Darf die Keyholderin diesen Korridor setzen? Sie darf ihn **nur weiten, nie verengen**.
- *
- * Der Grund steht in der Skizze des Nutzers: „ich wiege 90 und möchte 84 erreichen — dann kann die
- * KH keine 80 daraus machen, aber 87." Als Korridor formuliert braucht das keine Fallunterscheidung
- * über Ab- oder Zunehmen: 87 ist die weitere Obergrenze, 80 die engere.
- *
- * **Wo der Sub keine Grenze gesetzt hat, gibt es nichts zu weiten.** Eine Grenze dort einzuziehen
- * wäre der Schritt von unbegrenzt zu begrenzt — die grösstmögliche Verengung, nicht ihr Gegenteil.
- * Dieser Fall bekommt einen EIGENEN Code: er ist keine zu strenge Zahl, sondern eine fehlende
- * Voraussetzung, und die Keyholderin kann ihn nicht durch eine andere Zahl beheben.
- */
-export function keyholderCorridorProblem(sub: Corridor, next: Corridor): WeightProblemCode | null {
-  const own = corridorProblem(next);
-  if (own) return own;
-  // Zwei verschiedene Gründe, zwei verschiedene Meldungen. „Nur lockern" ist ein Vorwurf und
-  // stimmt hier nicht: wo der Träger gar keine Grenze gesetzt hat, gibt es nichts zu lockern —
-  // das ist keine zu strenge Zahl, sondern eine fehlende Voraussetzung. Beides in einen Satz zu
-  // packen schickt die Keyholderin auf die Suche nach einem Fehler, den sie nicht gemacht hat.
-  if (next.minKg !== null && sub.minKg === null) return WEIGHT_PROBLEMS.corridorNoSubLimit;
-  if (next.maxKg !== null && sub.maxKg === null) return WEIGHT_PROBLEMS.corridorNoSubLimit;
-  if (next.minKg !== null && sub.minKg !== null && next.minKg > sub.minKg) {
-    return WEIGHT_PROBLEMS.corridorNarrower;
-  }
-  if (next.maxKg !== null && sub.maxKg !== null && next.maxKg < sub.maxKg) {
-    return WEIGHT_PROBLEMS.corridorNarrower;
-  }
-  return null;
-}
-
-/** Liegt das Gewicht ausserhalb des wirksamen Korridors — und auf welcher Seite? */
-export function corridorBreach(kg: number, c: Corridor): "below" | "above" | null {
-  if (c.minKg !== null && kg < c.minKg) return "below";
-  if (c.maxKg !== null && kg > c.maxKg) return "above";
-  return null;
-}
-
-/**
- * Soll dieser Messwert der Keyholderin gemeldet werden — und auf welcher Seite?
- *
- * **Einmal je Austritt.** Gemeldet wird der Übergang, nicht der Zustand: wer fünf Tage lang 200 g
- * über der Grenze liegt, löst eine Meldung aus, nicht fünf. Erst die Rückkehr in den Korridor macht
- * den nächsten Austritt wieder meldenswert. Ein Wechsel der SEITE zählt ebenfalls als neuer Austritt
- * — von unterhalb nach oberhalb ist eine andere Nachricht.
- *
- * **Unterhalb von BMI 18,5 wird nicht gemeldet.** Die App fordert nicht ein, was sie beim Setzen
- * selbst als bedenklich anzeigt. Die Grenze bleibt bestehen und im Diagramm sichtbar; sie erzeugt
- * nur keinen Anstoss an die Keyholderin, tätig zu werden.
- */
-export function breachToAnnounce(params: {
-  currentKg: number;
-  /** Der zuletzt gemessene Wert davor — `null` bei der ersten Messung. */
-  previousKg: number | null;
-  corridor: Corridor;
-  heightCm: number | null;
-}): "below" | "above" | null {
-  const breach = corridorBreach(params.currentKg, params.corridor);
-  if (breach === null) return null;
-  // Die überschrittene GRENZE, nicht das Gewicht: gemeldet wird ja, dass eine Vorgabe verfehlt ist.
-  const bound = breach === "below" ? params.corridor.minKg : params.corridor.maxKg;
-  if (bound !== null && isUnderweightTarget(bound, params.heightCm)) return null;
-  const before = params.previousKg === null ? null : corridorBreach(params.previousKg, params.corridor);
-  return before === breach ? null : breach;
-}
-
-/**
- * Soll beim Setzen dieses Zielwerts gewarnt werden? Wahr, sobald eine Grenze den Träger unter
+ * Soll beim Setzen dieses Zielwerts gewarnt werden? Wahr, sobald das Ziel den Träger unter
  * {@link BMI_UNDERWEIGHT} führen würde.
  *
- * Die „nur-lockern"-Regel schützt vor der Keyholderin. Sie schützt nicht davor, dass der Sub sich
- * selbst eine Zahl setzt, die anschliessend in einem Machtverhältnis von aussen eingefordert wird —
- * dafür ist diese Schwelle da. Sie warnt und sperrt nicht: bei kleiner Körpergrösse trifft sie auch
- * Leute, bei denen sie nicht passt.
+ * Sie warnt und sperrt nicht: bei kleiner Körpergrösse trifft sie auch Leute, bei denen sie nicht
+ * passt. Seit die Nur-Lockern-Regel gestrichen ist, ist sie die einzige Bremse im Feature — und
+ * genau deshalb gilt sie für BEIDE Seiten, nicht nur für die Keyholderin.
  */
 export function isUnderweightTarget(targetKg: number, heightCm: number | null | undefined): boolean {
   const value = bmi(targetKg, heightCm);
   return value !== null && value < BMI_UNDERWEIGHT;
+}
+
+/**
+ * Das Startgewicht aus einer bereits geladenen Reihe — die reine Zwillingsfunktion zu
+ * `targetStartWeight` in `weightService.ts`.
+ *
+ * Wer die Messungen ohnehin in der Hand hält (Statistik-Karte, `weight_history`), soll dafür keine
+ * zweite Abfrage stellen. Die Regel ist dieselbe: die letzte Messung bis zum Setz-Zeitpunkt, sonst
+ * die erste danach. Der DB-Weg bleibt für die Aufrufer, die nur einen Ausschnitt geladen haben
+ * (Dashboard-Kurzstand) oder gar keine Reihe (die Meldung nach dem Erfassen).
+ *
+ * `rows` MUSS aufsteigend nach `measuredAt` sortiert sein — so, wie beide Aufrufer sie ohnehin laden.
+ */
+export function startWeightIn(rows: readonly { measuredAt: Date; weightKg: number }[], setAt: Date | null): number | null {
+  if (rows.length === 0) return null;
+  if (setAt === null) return rows[0].weightKg;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (rows[i].measuredAt.getTime() <= setAt.getTime()) return rows[i].weightKg;
+  }
+  return rows[0].weightKg;
 }
 
 // ── Tagesschlüssel ─────────────────────────────────────────────────────────────────────────────
@@ -338,22 +399,24 @@ export function endOfWeightDay(dayKey: string, tz: string): Date {
 
 // ── Grössen-Historie ───────────────────────────────────────────────────────────────────────────
 
-/** Eine Zeile aus `HeightChange` — genau die Felder, die der Resolver liest. */
+/** Eine Zeile aus `HeightChange` — genau die Felder, die der Resolver liest.
+ *
+ *  **Der Resolver hat heute keinen Aufrufer** (jeder BMI rechnet mit der aktuellen Grösse). Er bleibt
+ *  samt Tests stehen, weil er die vollständige, geprüfte Lese-Seite des Protokolls ist: wer die
+ *  BMI-Kurve historisch rechnen lassen will, braucht ihn — nicht eine neue Herleitung derselben
+ *  Regel. Das dazugehörige Prisma-Select ist dagegen entfallen: ein Abfrage-Bauteil ohne Abfrage
+ *  ist kein Bauteil. */
 export interface HeightChangeRow {
   heightCm: number;
   effectiveFrom: Date;
 }
 
-/** Prisma-Select genau dieser Felder, damit Abfrage und Zeilentyp nicht getrennt veralten
- *  (Vorbild: `CLEANING_RULE_CHANGE_SELECT`). Kein `orderBy` — `effectiveAt` sortiert selbst. */
-export const HEIGHT_CHANGE_SELECT = { heightCm: true, effectiveFrom: true } as const;
-
 /**
  * `effectiveFrom` der ersten Zeile: die erste bekannte Grösse gilt „seit jeher".
  *
  * Vor ihr gibt es nichts — anders als bei den Reinigungsregeln, die einen Spalten-Default haben, ist
- * eine unbekannte Grösse kein Wert, der vorher galt. Epoch lässt damit keine Lücke, in die eine
- * frühe Messung fallen und ohne BMI dastehen könnte.
+ * eine unbekannte Grösse kein Wert, der vorher galt. Ein späterer Zeitstempel behauptete dagegen,
+ * davor habe eine ANDERE Grösse gegolten, und liesse das Protokoll mit einer Lücke beginnen.
  */
 export const HEIGHT_EPOCH = new Date(0);
 

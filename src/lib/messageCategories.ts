@@ -79,8 +79,14 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   taskProofAcceptedMessage: "task",
   taskProofRejectedMessage: "task",
 
-  weightAboveLimitMessageKeyholder: "weight",
-  weightBelowLimitMessageKeyholder: "weight",
+  weightTargetReachedMessageKeyholder: "weight",
+  weightTargetLostMessageKeyholder: "weight",
+  // Freigabe-Vorgabe (docs/gewicht-freigabe-konzept.md). Kategorie `weight` und nicht `orgasm`:
+  // gestellt und zurückgezogen wird eine GEWICHTS-Bedingung. Erst wenn sie greift, entsteht eine
+  // Orgasmus-Anforderung — und die meldet sich mit ihren eigenen Schlüsseln.
+  weightReleaseSetMessage: "weight",
+  weightReleaseWithdrawnMessage: "weight",
+  weightReleaseOpenedMessageKeyholder: "weight",
 };
 
 /**
@@ -122,7 +128,7 @@ export const MESSAGE_CATEGORY_PILLS: Record<MessageCategory, { labelKey: string;
   offense:    { labelKey: "catOffense",    variant: "unlock" },
   penalty:    { labelKey: "catPenalty",    variant: "warn" },
   task:       { labelKey: "catTask",       variant: "request" },
-  // Eigene Kategorie und ausdrücklich NICHT `offense`: der Austritt aus dem Zielkorridor meldet eine
+  // Eigene Kategorie und ausdrücklich NICHT `offense`: das erreichte oder verfehlte Ziel meldet eine
   // Zahl, er erhebt keinen Vorwurf. Unter „Vergehen" gefiltert stünde er neben Dingen, die eine
   // Konsequenz verlangen — hier entscheidet die Keyholderin erst noch, ob überhaupt etwas folgt.
   weight:     { labelKey: "catWeight",     variant: "neutral" },

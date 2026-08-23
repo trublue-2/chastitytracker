@@ -3,16 +3,16 @@
 import { useId } from "react";
 
 /**
- * Ein Verlaufs-Diagramm für eine Messreihe: Punkte, geglättete Linie, optionales Zielband.
+ * Ein Verlaufs-Diagramm für eine Messreihe: Punkte, geglättete Linie, optionale Ziel-Linie.
  *
  * **Handgezeichnetes SVG statt einer Bibliothek** — dieselbe Wahl wie bei `YearHeatmap`, dem einzigen
  * anderen Graphen der App. Eine Chart-Bibliothek wäre für diese eine Kurve die grössere Änderung:
  * neue Abhängigkeit im Bundle, eigenes Theming neben den Design-Tokens, und ein Verhalten, das
  * niemand hier kennt, wenn es einmal klemmt.
  *
- * Bewusst **ohne Gewichts-Begriffe**: die Komponente kennt Werte, Einheiten und ein Band. Gewicht ist
- * ihr erster Nutzer, nicht ihr einziger denkbarer — die Zuordnung „was bedeuten die Zahlen" bleibt
- * beim Aufrufer.
+ * Bewusst **ohne Gewichts-Begriffe**: die Komponente kennt Werte, Einheiten und eine Marke. Gewicht
+ * ist ihr erster Nutzer, nicht ihr einziger denkbarer — die Zuordnung „was bedeuten die Zahlen"
+ * bleibt beim Aufrufer.
  *
  * Skaliert wird über `viewBox` statt über feste Pixel: das Diagramm füllt seine Spalte auf jedem
  * Bildschirm, ohne dass jemand Breiten durchreichen muss.
@@ -32,8 +32,15 @@ interface Props {
   points: ChartPoint[];
   /** Die geglättete Linie. Leer = keine zeichnen. */
   trend: { x: number; value: number }[];
-  /** Zielband; beide Enden einzeln optional. */
-  band?: { min: number | null; max: number | null };
+  /**
+   * Waagerechte Marken — Vorgaben, keine Messungen: das Zielgewicht und die Schwelle der
+   * Freigabe-Vorgabe. Eine leere Liste heisst: es gibt keine.
+   *
+   * `color` als Token-Name, weil die beiden auseinandergehalten werden müssen: das Ziel ist ein
+   * Vorhaben, die Freigabe-Schwelle eine Bedingung mit Folgen. Beide gestrichelt zu zeichnen und
+   * gleich zu färben hiesse, zwei Aussagen als eine zu zeigen.
+   */
+  markers?: { value: number; label?: string; color?: string }[];
   /** Untere/obere Grenze der Werteachse — kommt vom Aufrufer, damit mehrere Diagramme sie teilen können. */
   domain: { min: number; max: number };
   /** Beschriftung der Werteachse, z.B. „kg". */
@@ -46,7 +53,7 @@ const W = 320;
 const H = 140;
 const PAD = { top: 8, right: 6, bottom: 16, left: 30 };
 
-export default function MeasurementChart({ points, trend, band, domain, unit, ariaLabel }: Props) {
+export default function MeasurementChart({ points, trend, markers = [], domain, unit, ariaLabel }: Props) {
   const clipId = useId();
   if (points.length === 0) return null;
 
@@ -71,9 +78,6 @@ export default function MeasurementChart({ points, trend, band, domain, unit, ar
   // Drei Beschriftungen reichen: unten, Mitte, oben. Mehr Zahlen machen die Achse zur Tabelle.
   const ticks = [lo, (lo + hi) / 2, hi];
 
-  const bandTop = band?.max != null ? py(band.max) : PAD.top;
-  const bandBottom = band?.min != null ? py(band.min) : H - PAD.bottom;
-
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
@@ -82,22 +86,30 @@ export default function MeasurementChart({ points, trend, band, domain, unit, ar
       aria-label={ariaLabel}
     >
       <defs>
-        {/* Das Band darf nicht über die Zeichenfläche hinauslaufen, wenn nur ein Ende gesetzt ist. */}
+        {/* Die Marke darf nicht über die Zeichenfläche hinauslaufen, wenn das Ziel weit ausserhalb
+            der gezeigten Werte liegt. */}
         <clipPath id={clipId}>
           <rect x={PAD.left} y={PAD.top} width={W - PAD.left - PAD.right} height={H - PAD.top - PAD.bottom} />
         </clipPath>
       </defs>
 
-      {(band?.min != null || band?.max != null) && (
-        <rect
-          x={PAD.left}
-          y={Math.min(bandTop, bandBottom)}
-          width={W - PAD.left - PAD.right}
-          height={Math.abs(bandBottom - bandTop)}
-          clipPath={`url(#${clipId})`}
-          fill="var(--color-ok-bg)"
-          opacity={0.7}
-        />
+      {markers.length > 0 && (
+        <g clipPath={`url(#${clipId})`}>
+          {/* Gestrichelt, damit eine Marke nie mit der Trendlinie verwechselt wird: die eine ist eine
+              Vorgabe, die andere eine Messung. */}
+          {markers.map((m, i) => (
+            <line
+              key={i}
+              x1={PAD.left} x2={W - PAD.right}
+              y1={py(m.value)} y2={py(m.value)}
+              stroke={m.color ?? "var(--color-ok)"}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+            >
+              {m.label && <title>{m.label}</title>}
+            </line>
+          ))}
+        </g>
       )}
 
       {ticks.map((v, i) => (

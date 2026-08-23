@@ -1,5 +1,5 @@
 import { round1 } from "@/lib/utils";
-import { dayNumber, effectiveCorridor, type Corridor } from "@/lib/weight";
+import { dayNumber, type WeightTarget } from "@/lib/weight";
 
 /**
  * Aus den erfassten Messungen die Reihe machen, die das Diagramm zeichnet: Punkte, Trendlinie,
@@ -26,7 +26,6 @@ export interface WeightSeries {
   latest: WeightPoint | null;
   /** Veränderung gegenüber der ältesten Messung im Zeitraum. `null` bei weniger als zwei Werten. */
   changeKg: number | null;
-  corridor: Corridor;
 }
 
 /**
@@ -64,32 +63,49 @@ export function movingAverage(points: WeightPoint[], windowDays = TREND_WINDOW_D
 }
 
 /**
+ * Der Ausschnitt eines Zeitraums, gemessen am TAGESSCHLÜSSEL.
+ *
+ * `days === null` heisst „seit Beginn". Über den Tagesschlüssel und nicht über die Messzeit: der
+ * Zeitraum ist in Kalendertagen des Trägers gemeint, und „die letzten 30 Tage" soll nicht davon
+ * abhängen, ob er morgens oder abends auf der Waage stand.
+ *
+ * Generisch über `dayKey`, weil zwei Anzeigen denselben Ausschnitt brauchen: das Diagramm (Punkte)
+ * und die Liste darunter (ganze Zeilen). Zwei Filter mit derselben Absicht laufen auseinander, und
+ * dann zeigte die Liste einen Tag, den die Kurve nicht kennt.
+ */
+export function withinRange<T extends { dayKey: string }>(
+  items: readonly T[],
+  opts: { days: number | null; todayKey: string },
+): T[] {
+  const { days, todayKey } = opts;
+  if (days === null) return [...items];
+  const today = dayNumber(todayKey);
+  return items.filter((item) => dayNumber(item.dayKey) > today - days);
+}
+
+/**
  * Die Reihe für einen Zeitraum.
  *
- * `days === null` heisst „seit Beginn". Gefiltert wird über den TAGESSCHLÜSSEL und nicht über die
- * Messzeit: der Zeitraum ist in Kalendertagen des Trägers gemeint, und „die letzten 30 Tage" soll
- * nicht davon abhängen, ob er morgens oder abends auf der Waage stand.
+ * Der Ausschnitt kommt aus {@link withinRange} — dieselbe Grenze, die auch die Liste zieht.
  */
 export function buildWeightSeries(
   all: WeightPoint[],
-  opts: { days: number | null; todayKey: string; subCorridor: Corridor; keyholderCorridor: Corridor },
+  // `target` geht NICHT als Feld zurück: die Reihe braucht es allein für die Achsen-Spanne, und
+  // jeder Leser hält es ohnehin selbst in der Hand.
+  opts: { days: number | null; todayKey: string; target: WeightTarget | null },
 ): WeightSeries {
-  const today = dayNumber(opts.todayKey);
-  const { days } = opts;
-  const points = (days === null ? [...all] : all.filter((p) => dayNumber(p.dayKey) > today - days))
-    .sort((a, b) => dayNumber(a.dayKey) - dayNumber(b.dayKey));
+  const points = withinRange(all, opts).sort((a, b) => dayNumber(a.dayKey) - dayNumber(b.dayKey));
 
   // Der Trend lässt Messungen ausserhalb der Wiege-Fenster aus. Sie sind echte Beobachtungen und
   // bleiben als Punkte sichtbar — aber ein abends nach dem Essen gemessener Wert gehört nicht in
   // dieselbe Reihe wie die morgendlichen, sonst misst die Linie die Tageszeit mit.
   const trend = movingAverage(points.filter((p) => p.inWindow));
 
-  const corridor = effectiveCorridor(opts.subCorridor, opts.keyholderCorridor);
-  // Die Spanne umfasst auch den Korridor: ein Band, das aus dem Bild läuft, ist kein Ziel mehr,
-  // sondern ein Rand.
+  // Die Spanne umfasst auch das Ziel: eine Linie, die aus dem Bild läuft, zeigt nicht, wie weit es
+  // noch ist — und genau dafür ist sie da.
   const spanValues = [
     ...points.map((p) => p.weightKg),
-    ...[corridor.minKg, corridor.maxKg].filter((v): v is number => v !== null),
+    ...(opts.target ? [opts.target.kg] : []),
   ];
   return {
     points,
@@ -101,6 +117,5 @@ export function buildWeightSeries(
     maxKg: spanValues.length ? Math.max(...spanValues) : 0,
     latest: points.length ? points[points.length - 1] : null,
     changeKg: points.length >= 2 ? round1(points[points.length - 1].weightKg - points[0].weightKg) : null,
-    corridor,
   };
 }

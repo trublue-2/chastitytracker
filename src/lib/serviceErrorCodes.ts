@@ -278,20 +278,23 @@ export const SETTINGS_CODES = [
   "CLEANING_WINDOWS_TOO_MANY",
 ] as const;
 
-/** Gewichtstracking (docs/gewicht-konzept.md). `WEIGHT_CORRIDOR_NARROWER` ist der einzige Code, der
- *  eine Regel und keinen Tippfehler meldet: die Keyholderin darf den Zielkorridor des Subs weiten,
- *  nie verengen — abgewiesen wird mit Begründung, nicht still ignoriert. */
+/** Gewichtstracking (docs/gewicht-konzept.md). Seit dem Umbau auf EIN Zielgewicht melden diese Codes
+ *  nur noch Tippfehler und fehlende Voraussetzungen — die Regel-Codes des alten Zielkorridors
+ *  (`WEIGHT_CORRIDOR_*`) sind mit der Nur-Weiten-Regel entfallen. */
 export const WEIGHT_CODES = [
   "WEIGHT_OUT_OF_RANGE",
   "HEIGHT_OUT_OF_RANGE",
-  "WEIGHT_CORRIDOR_INVERTED",
-  "WEIGHT_CORRIDOR_NARROWER",
-  "WEIGHT_CORRIDOR_NO_SUB_LIMIT",
   "WEIGHT_TRACKING_DISABLED",
   "WEIGHING_WINDOWS_TOO_MANY",
   "INVALID_UNIT_SYSTEM",
   "WEIGHT_PROOF_REQUIRED",
   "WEIGHT_IN_FUTURE",
+  // Freigabe-Vorgabe (docs/gewicht-freigabe-konzept.md). Sie gehört zur Gewichts-Familie, nicht zu
+  // den Orgasmus-Codes: geprüft wird eine Gewichts-Bedingung, das Fenster entsteht erst danach.
+  "RELEASE_INVALID_DIRECTION",
+  "RELEASE_NOT_BEFORE_MUST_BE_FUTURE",
+  "RELEASE_TOO_MANY_MEASUREMENTS",
+  "RELEASE_UNDERWEIGHT",
 ] as const;
 
 /** Every code the service layer can return — the set the i18n parity test iterates. */

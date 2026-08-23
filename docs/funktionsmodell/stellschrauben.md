@@ -65,10 +65,10 @@ Steckbrief: [30-kontrollen.md](30-kontrollen.md)
 | `User.autoKontrolleFensterVon` | String | `""` | dauerhaft | Beginn eines optionalen festen Auslöse-Fensters. Leer = ganzes Wach-Fenster. Wrappt bewusst nicht über Mitternacht. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen | `autoKontrolleService.ts:fixedWindowMinutes` |
 | `User.autoKontrolleFensterBis` | String | `""` | dauerhaft | Ende desselben Fensters. Liegt es vollständig im Schlaf-Fenster, wird die Kombination abgelehnt statt wirkungslos gespeichert. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen | `autoKontrolleService.ts:triggerWindowAllQuiet` |
 | `User.autoKontrolleNurBeiSperre` | Boolean | `false` | dauerhaft | Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen, Sperrzeit | `autoKontrolleService.ts` |
-| `User.inspectionReminderEnabled` | Boolean | `false` | dauerhaft | Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie. | Keyholder (UI) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
-| `User.inspectionReminderDelayMinutes` | Int | `5` | dauerhaft | Verzug bis zur Mahnung, gemessen ab dem Ablauf der Kontroll-Frist. | Keyholder (UI) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
-| `User.inspectionAutoMarkEnabled` | Boolean | `false` | dauerhaft | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | Keyholder (UI) | Kontrollen, Einträge, Sessions/Statistik, Strafbuch | `queries.ts:releaseSperrzeitenOnOpen` |
-| `User.inspectionAutoMarkDelayMinutes` | Int | `60` | dauerhaft | Verzug bis zu dieser Buchung, gemessen ab dem Stempel der Stufe 1. | Keyholder (UI) | Kontrollen | `inspectionEscalationService.ts` |
+| `User.inspectionReminderEnabled` | Boolean | `false` | dauerhaft | Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
+| `User.inspectionReminderDelayMinutes` | Int | `5` | dauerhaft | Verzug bis zur Mahnung, gemessen ab dem Ablauf der Kontroll-Frist. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
+| `User.inspectionAutoMarkEnabled` | Boolean | `false` | dauerhaft | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Einträge, Sessions/Statistik, Strafbuch | `queries.ts:releaseSperrzeitenOnOpen` |
+| `User.inspectionAutoMarkDelayMinutes` | Int | `60` | dauerhaft | Verzug bis zu dieser Buchung, gemessen ab dem Stempel der Stufe 1. | Keyholder (UI), Keyholder (MCP) | Kontrollen | `inspectionEscalationService.ts` |
 | `KontrollAnforderung.categoryId` | String? | — | je Direktive | ZIEL der Kontrolle: leer = der KG (verlangt einen aktiven Verschluss), gesetzt = eine Trage-Kategorie. Je Ziel darf nur eine Kontrolle laufen. | Keyholder (UI), Keyholder (MCP) | Kontrollen | `kontrolleService.ts:hasActiveKontrolle` |
 | `KontrollAnforderung.deviceId` | String? | — | je Direktive | Verengt das Ziel auf genau ein Gerät und hat Vorrang vor der Kategorie. Es muss das getragene sein, sonst ist die Kontrolle nicht erfüllbar. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Geräte | — |
 | `KontrollAnforderung.kommentar` | String? | — | je Direktive | Begleittext an den Sub. | Keyholder (UI), Keyholder (MCP) | Nachrichten | — |
@@ -139,9 +139,9 @@ Steckbrief: [50-strafbuch.md](50-strafbuch.md)
 | `ManualOffense.occurredAt` | DateTime | (keiner) | je Direktive | Wann es passiert ist, nicht wann notiert wurde. Danach richtet sich die Einordnung UND welche Regel-Fassung gilt. | Keyholder (UI), Keyholder (MCP) | Strafbuch | — |
 | `ManualOffense.title` | String | (keiner) | je Direktive | Worum es geht. Für alles, was der Tracker nicht sehen kann — gebrochene Abmachung, Unhöflichkeit. | Keyholder (UI), Keyholder (MCP) | Strafbuch, Nachrichten | — |
 | `ManualOffense.description` | String? | — | je Direktive | Ausführlichere Fassung. | Keyholder (UI), Keyholder (MCP) | Strafbuch | — |
-| `OffenseRuleChange.offenseType` | String | (keiner) | dauerhaft | Welche Vergehensart die Zeile umlegt (kanonischer Schlüssel, z.B. `unauthorized_opening`). | Keyholder (UI) | Strafbuch | `offenseRulesService.ts` |
-| `OffenseRuleChange.mode` | String | (keiner) | dauerhaft | Ob diese Art zählt (aus / nur während Sperrzeit / immer). Eine HISTORIE, kein Schalter: jede Tat wird nach der Fassung ihrer Zeit beurteilt. | Keyholder (UI) | Strafbuch | `offenseRulesService.ts:setOffenseRule` |
-| `OffenseRuleChange.effectiveFrom` | DateTime | (keiner) | dauerhaft | Ab wann diese Fassung gilt. Die Grundzeile trägt Epoch — vor der ersten Änderung ist nur bekannt, DASS die Werte galten, nicht seit wann. | Keyholder (UI) | Strafbuch | — |
+| `OffenseRuleChange.offenseType` | String | (keiner) | dauerhaft | Welche Vergehensart die Zeile umlegt (kanonischer Schlüssel, z.B. `unauthorized_opening`). | Keyholder (UI), Keyholder (MCP) | Strafbuch | `offenseRulesService.ts` |
+| `OffenseRuleChange.mode` | String | (keiner) | dauerhaft | Ob diese Art zählt (aus / nur während Sperrzeit / immer). Eine HISTORIE, kein Schalter: jede Tat wird nach der Fassung ihrer Zeit beurteilt. | Keyholder (UI), Keyholder (MCP) | Strafbuch | `offenseRulesService.ts:setOffenseRule` |
+| `OffenseRuleChange.effectiveFrom` | DateTime | (keiner) | dauerhaft | Ab wann diese Fassung gilt. Die Grundzeile trägt Epoch — vor der ersten Änderung ist nur bekannt, DASS die Werte galten, nicht seit wann. | Keyholder (UI), Keyholder (MCP) | Strafbuch | — |
 
 ## Geräte & Kategorien
 
@@ -232,12 +232,12 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
 | `User.weightTrackingEnabled` | Boolean | `false` | dauerhaft | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`). | Keyholder (UI) | Gewicht, Oberfläche | `authGuards.ts:weightTrackingGate` |
-| `User.heightCm` | Int? | — | dauerhaft · **rückwirkend** | Aktuelle Körpergrösse — die Grundlage jedes BMI. Historisiert in `HeightChange`: ein BMI wird mit der Grösse gerechnet, die zum Messzeitpunkt galt. | Sub | Gewicht | `weight.ts:heightAt` |
+| `User.heightCm` | Int? | — | dauerhaft · **rückwirkend** | Aktuelle Körpergrösse — die Grundlage jedes BMI. Jede Änderung wird zusätzlich in `HeightChange` protokolliert; gerechnet wird heute überall mit diesem aktuellen Wert. | Sub | Gewicht | `weight.ts:bmi` |
 | `User.unitSystem` | String | `"metric"` | dauerhaft | Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt. | Sub | Oberfläche | `weight.ts:weightForDisplay` |
-| `User.targetMinKg` | Float? | — | dauerhaft | Untergrenze des Zielkorridors, gesetzt vom Träger. Eine Unterschreitung meldet der Keyholderin — sie entscheidet, ob etwas folgt. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveCorridor` |
-| `User.targetMaxKg` | Float? | — | dauerhaft | Obergrenze des Zielkorridors, gesetzt vom Träger. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveCorridor` |
-| `User.targetMinKeyholderKg` | Float? | — | dauerhaft | Nachbesserung der Untergrenze durch die Keyholderin. Sie darf den Korridor nur WEITEN — wirksam ist stets der weitere der beiden Werte. | Keyholder (UI) | Gewicht | `weight.ts:keyholderCorridorProblem` |
-| `User.targetMaxKeyholderKg` | Float? | — | dauerhaft | Nachbesserung der Obergrenze durch die Keyholderin, mit derselben Nur-Weiten-Regel. | Keyholder (UI) | Gewicht | `weight.ts:keyholderCorridorProblem` |
+| `User.targetWeightKg` | Float? | — | dauerhaft | Zielgewicht, das sich der Träger selbst vorgenommen hat. Wirksam, solange die Keyholderin keines führt; erreicht oder wieder verloren meldet es ihr — sie entscheidet, ob etwas folgt. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveTarget` |
+| `User.targetWeightSetAt` | DateTime? | — | dauerhaft | Wann er sein Ziel gesetzt hat — der Bezugspunkt des Fortschritts: gerechnet wird ab der Messung, die damals galt. Ein unveränderter Wert bewegt den Zeitpunkt nicht. | System | Gewicht | `weightService.ts:targetStartWeight` |
+| `User.targetWeightKeyholderKg` | Float? | — | dauerhaft | Zielgewicht der Keyholderin. Es GILT, solange sie eines führt — auch wenn es strenger ist als seines; seines bleibt daneben sichtbar. Zurückgenommen gilt wieder seines. | Keyholder (UI) | Gewicht, Nachrichten | `weight.ts:effectiveTarget` |
+| `User.targetWeightKeyholderSetAt` | DateTime? | — | dauerhaft | Wann sie ihr Ziel gesetzt hat — derselbe Bezugspunkt des Fortschritts wie auf seiner Seite. | System | Gewicht | `weightService.ts:targetStartWeight` |
 | `User.weighingWindows` | String? | — | dauerhaft | Tägliche Zeitfenster fürs Wiegen (Wanduhrzeit des Trägers). Leer = keine Fensterpflicht. Ein Wert ausserhalb wird markiert, nicht geahndet — er misst nur eine andere Tageszeit mit. | Keyholder (UI) | Gewicht | `weightWindows.ts:inWeighingWindow` |
 
 ## Betrieb & Stichtage
@@ -255,7 +255,7 @@ sind die wenigen, bei denen das nicht gilt, und deshalb die gefährlichsten im R
 
 | Feld | Was ein Umlegen rückwirkend tut |
 |---|---|
-| `User.heightCm` | Als KORREKTUR gespeichert (die alte Zahl war nie wahr) schreibt sie die jüngste Historie-Zeile um und verschiebt damit jeden BMI, der mit ihr gerechnet wurde. Als ÄNDERUNG gespeichert wirkt sie nur nach vorn. |
+| `User.heightCm` | Eine neue Zahl verschiebt JEDEN angezeigten BMI, auch den zu alten Messungen — gerechnet wird stets mit der aktuellen Grösse, nicht mit der von damals. |
 | `Device.lookalikeClusterId` | Rechnet die Geräte-Zuordnung JEDER historischen Session mit Bild-Konflikt neu. Vorher die Vorschau prüfen. |
 | `AppMeta.value` | Einen Stichtag zurückzudatieren beurteilt Vergehen vor diesem Datum neu und kann sie nachträglich melden. |
 
@@ -272,6 +272,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `User.email` | Identität | Zustelladresse; steuert nichts, ausser dass ohne sie keine Mail geht. |
 | `User.createdAt` | Identität | Anlage-Zeitpunkt. |
 | `User.autoInspectionPlannedFor` | Laufzeitzustand | Merker des Planers: bis wann der Tagesplan gewürfelt ist. Wird vom Poller gesetzt, nicht von Hand. |
+| `User.weightReminderMark` | Laufzeitzustand | Für welches Wiege-Fenster zuletzt erinnert wurde (`<Tag>#<Startzeit>`). Kein Schalter, sondern die Merkfähigkeit des Minuten-Pollers: sie verhindert die Wiederholung und erlaubt zugleich das Nachholen nach einem Neustart. |
 | `Entry.id` | Identität | Primärschlüssel. |
 | `Entry.userId` | Identität | Eigentümer der Zeile. |
 | `Entry.type` | Datensatz | VERSCHLUSS \| OEFFNEN \| PRUEFUNG \| ORGASMUS \| WEAR_BEGIN \| WEAR_END — die Art des Ereignisses, nicht einstellbar. |

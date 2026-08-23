@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
 import { structuredLog } from "@/lib/serverLog";
 import type { Prisma } from "@prisma/client";
 
@@ -97,6 +98,10 @@ export interface WriteDef<A, T> {
 export interface DryRunResponse {
   dryRun: true;
   tool: string;
+  /** Fingerabdruck der Werkzeug-Oberfläche JETZT — dieselbe Zusage wie im Lese-Envelope, siehe
+   *  `toolSurface.ts`. Auch Schreib-Antworten tragen ihn, damit eine Sitzung, die mit einer
+   *  Direktive beginnt, die Prüfung nicht verpasst. */
+  toolsFingerprint: string;
   /** false, wenn `preview` ein `problem` meldete (unerfüllbare reine Regel). Sonst true. */
   wouldSucceed: boolean;
   problem?: string;
@@ -107,7 +112,9 @@ export interface DryRunResponse {
   after?: unknown;
 }
 
-export type ExecuteResponse<T> = (WriteResult<T> & { dryRun: false; tool: string }) | DryRunResponse;
+export type ExecuteResponse<T> =
+  | (WriteResult<T> & { dryRun: false; tool: string; toolsFingerprint: string })
+  | DryRunResponse;
 
 /** Berechnet einen flachen Feld-Diff zwischen Vorher- und Nachher-Zustand (nur geänderte Keys).
  *  Vergleich über JSON-Serialisierung — robust für die flachen Skalar-Zustände, die hier gedifft werden.
@@ -203,6 +210,7 @@ export async function executeWrite<A, T>(
     return {
       dryRun: true,
       tool: def.tool,
+      toolsFingerprint: toolSurfaceFingerprint(),
       wouldSucceed: !p.problem,
       ...(p.problem ? { problem: p.problem } : {}),
       preview: p.preview,
@@ -228,5 +236,8 @@ export async function executeWrite<A, T>(
     }
   }
 
-  return { ...result, dryRun: false, tool: def.tool };
+  // `toolsFingerprint` auch hier, nicht nur im Lese-Envelope: die Instructions sagen zu, dass JEDE
+  // Antwort ihn trägt, und eine Sitzung, die mit einer Direktive beginnt, prüft sonst nie — oder
+  // hielte sein Fehlen für „weicht ab" und schlüge grundlos Alarm.
+  return { ...result, dryRun: false, tool: def.tool, toolsFingerprint: toolSurfaceFingerprint() };
 }

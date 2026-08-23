@@ -1,5 +1,121 @@
 [
   {
+    "version": "5.3.6",
+    "date": "2026-08-23",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Gewichte stehen jetzt \u00fcberall mit Komma statt mit Punkt.",
+          "en": "Weights are now written with the local decimal separator throughout."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Keyholderin kann den n\u00e4chsten Orgasmus an das Gewicht kn\u00fcpfen: freigegeben wird er, sobald das Mittel der letzten Tage eine Schwelle erreicht. Der Tr\u00e4ger sieht jederzeit, wie weit er davon entfernt ist.",
+          "en": "The keyholder can tie the next orgasm to weight: it is released once the average of the last few days reaches a threshold. The wearer can see how far off they are at any time."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die einzelnen Wiegungen sind jetzt einsehbar \u2014 beim Tr\u00e4ger unter der Verlaufskurve, bei der Keyholderin eingemischt in die Eintr\u00e4ge. Mit Foto, Notiz und dem Wert, den die Waagen-Erkennung gelesen hat.",
+          "en": "Individual weigh-ins are now visible \u2014 for the wearer below the chart, for the keyholder mixed into the entries. With photo, note and the value the scale detection read."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Fotos der Waage liessen sich nicht \u00f6ffnen. Sie werden jetzt ausgeliefert \u2014 dem Tr\u00e4ger und seinen Keyholdern.",
+          "en": "Photos of the scale could not be opened. They are now served \u2014 to the wearer and their keyholders."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Regel zur vers\u00e4umten Gewichts-Meldung erscheint nur noch, wenn das Gewichtstracking \u00fcberhaupt eingeschaltet ist. Vorher stand ihr Schalter auch dort, wo er nichts bewirkte.",
+          "en": "The missed weight report rule now only appears when weight tracking is switched on at all. Its toggle used to show even where it had no effect."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.3.5",
+    "date": "2026-08-23",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Periode, in der ein Trainingsziel beginnt oder endet, bleibt jetzt vollständig unbewertet. Vorher stand dort noch ein anteilig gekürzter Zielwert, der sich versehentlich mit den Stunden der ganzen Periode vergleichen liess.",
+          "en": "A period in which a training goal starts or ends is now left entirely unrated. Until now it still carried a scaled-down target that invited comparison with the hours of the whole period."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die KI-Keyholderin merkt jetzt selbst, wenn ihre Werkzeugliste nach einem Update veraltet ist, und bittet um eine frische Verbindung — statt nach Beschreibungen zu handeln, die der Tracker so nicht mehr meint.",
+          "en": "The AI keyholder now notices when its tool list has gone stale after an update and asks for a fresh connection, instead of acting on descriptions the tracker no longer means."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die KI-Keyholderin kann das Gewichtstracking jetzt vollständig einrichten: freischalten, Wiege-Fenster stellen und ihr Zielgewicht setzen. Bisher konnte sie nur das Ziel ändern.",
+          "en": "The AI keyholder can now set up weight tracking completely: enable it, define the weighing windows and set her target weight. Until now she could only change the target."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Beim Eintragen der Körpergrösse entfällt die Rückfrage, ob es eine Korrektur oder eine Änderung ist.",
+          "en": "Entering your height no longer asks whether it is a correction or a change."
+        }
+      }
+    ]
+  },
+  {
+    "version": "5.3.4",
+    "date": "2026-08-23",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Gewicht: Statt eines Zielbereichs gibt es jetzt ein Zielgewicht. Träger und Keyholderin setzen je eines — ihres gilt, seines bleibt sichtbar — und die Statistik zeigt, wie weit es noch ist.",
+          "en": "Weight: a single target weight replaces the target range. Wearer and keyholder each set one — hers applies, his stays visible — and the stats show how far there is to go."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Wiege-Fenster gelten jetzt je Wochentag, mit Startzeit und Dauer. Auf Wunsch erinnert die App zum Beginn, wenn an dem Tag noch kein Wert steht.",
+          "en": "Weighing windows now apply per weekday, with a start time and a duration. If you want, the app reminds you when one opens and nothing has been logged that day."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Trainingsziele beginnen jetzt an der nächsten Mitternacht statt mitten am Tag. Wird ein Ziel doch mitten in einer Periode gesetzt oder beendet, zeigt der Tracker für diese Periode keine Erfüllung mehr an, statt einer Prozentzahl, die zwei verschiedene Zeiträume vergleicht.",
+          "en": "Training goals now start at the next midnight instead of mid-day. If a goal does start or end in the middle of a period, the tracker no longer shows a fulfilment figure for that period, rather than one comparing two different time spans."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein neues Trainingsziel beendet das laufende Ziel derselben Kategorie wieder zuverlässig — bisher konnten zwei Ziele gleichzeitig gelten.",
+          "en": "A new training goal reliably ends the running goal of the same category again — until now two goals could apply at the same time."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die KI-Keyholderin bekam den Gewichtsverlauf leer zu sehen, obwohl Werte erfasst waren.",
+          "en": "The AI keyholder saw an empty weight history even though values had been logged."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.3",
     "date": "2026-08-22",
     "changes": [

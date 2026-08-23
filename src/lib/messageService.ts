@@ -85,10 +85,16 @@ export const MESSAGE_BODY_KEYS = [
   "taskProofLateMessageKeyholder",
   "taskProofAcceptedMessage",
   "taskProofRejectedMessage",
-  // Gewicht: der Träger hat den Zielkorridor verlassen. Geht NUR an die Keyholder — für den Träger
-  // wäre es keine Nachricht, sondern die Zahl, die er gerade selbst eingetragen hat.
-  "weightAboveLimitMessageKeyholder",
-  "weightBelowLimitMessageKeyholder",
+  // Gewicht: das Zielgewicht ist erreicht oder wieder verfehlt. Geht NUR an die Keyholder — für den
+  // Träger wäre es keine Nachricht, sondern die Zahl, die er gerade selbst eingetragen hat.
+  "weightTargetReachedMessageKeyholder",
+  "weightTargetLostMessageKeyholder",
+  // Freigabe-Vorgabe: gestellt und zurückgezogen an den Träger, das Öffnen an die Keyholder. Dass
+  // die Vorgabe GEGRIFFEN hat, erfährt er über die Orgasmus-Anforderung, die dabei entsteht — eine
+  // zweite Meldung im selben Moment wäre dieselbe Nachricht zweimal.
+  "weightReleaseSetMessage",
+  "weightReleaseWithdrawnMessage",
+  "weightReleaseOpenedMessageKeyholder",
 ] as const;
 
 export type MessageBodyKey = (typeof MESSAGE_BODY_KEYS)[number];

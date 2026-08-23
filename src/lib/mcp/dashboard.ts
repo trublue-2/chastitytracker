@@ -202,16 +202,32 @@ export interface DashboardResult extends Envelope {
    *  v14: die Orgasmus-Anweisung ist terminierbar. `openOrgasmWindow` zeigt eine geplante, noch
    *  nicht ausgelöste Anweisung NICHT mehr — sie steht bis zur Auslösung in `scheduledDirectives`
    *  (neue `kind`-Ausprägung `orgasm`). Ein v13-Wert hiess „es gibt kein offenes Fenster"; ab v14
-   *  heisst er „es gibt keins, das gerade GILT" — geplant kann trotzdem eines sein. */
-  schemaVersion: 14;
+   *  heisst er „es gibt keins, das gerade GILT" — geplant kann trotzdem eines sein.
+   *
+   *  v15 trug ZWEI Umdeutungen, die am selben Tag aus zwei Zweigen kamen und gemeinsam auf den
+   *  Feature-Kanal gingen:
+   *
+   *  - `goals` folgt `period_summary` schemaVersion 3. Die Prozentwerte (`todayPct`/`weekPct`/
+   *    `monthPct`/`yearPct`) sind seither `null`, wenn eine Zielgrenze IN der Periode liegt — daneben
+   *    steht `goalChangedInPeriod` je Periode. Ein Wert aus v14 war in diesem Fall eine Zahl,
+   *    die Ist-Stunden der ganzen Periode einem Ziel für einen Teil davon gegenüberstellte (1013 %
+   *    im Vorfall vom 23.08.2026); rückwirkend ist er damit nicht als Erfüllung lesbar. Zusätzlich
+   *    ist `goals.*.goalDayH` an einem Anbruchtag `null` statt eines anteilig gekürzten Werts.
+   *  - `weight` folgt dem Zielgewicht: `corridor`/`breach` sind weg, `target`/`remainingKg`/
+   *    `reached` stehen an ihrer Stelle.
+   *
+   *  v16: `goals` folgt `period_summary` schemaVersion 4 — in einer Periode mit Zielgrenze ist
+   *  `goal*H` (Tag, Woche, Monat UND Jahr) `null` statt eines anteilig gekürzten Ziels. Ein
+   *  v15-Wert stand dort als Absolutwert für einen anderen Zeitraum als die Ist-Stunden daneben. */
+  schemaVersion: 16;
   user: string;
   /**
    * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
-   * nichts erfasst wurde. Rein additiv, deshalb ohne Versions-Bump.
+   * nichts erfasst wurde. Mit v15 auf das Zielgewicht umgestellt (siehe `schemaVersion`).
    *
-   * `breach` sagt, ob der jüngste Wert ausserhalb des Zielbereichs liegt; die vollständige Reihe
-   * samt Wiege-Fenstern steht in `weight_history`. `daysSinceLastReport` ist die Zahl, an der die
-   * Meldepflicht hängt.
+   * `target` nennt das wirksame Zielgewicht samt Herkunft, `remainingKg`/`reached` den Stand dazu;
+   * die vollständige Reihe samt Wiege-Fenstern steht in `weight_history`. `daysSinceLastReport` ist
+   * die Zahl, an der die Meldepflicht hängt.
    */
   weight: WeightSummary | null;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
@@ -758,7 +774,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const weight = await weightSummary(trackingCtx.userId);
 
   return {
-    schemaVersion: 14,
+    schemaVersion: 16,
     user: username,
     weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),

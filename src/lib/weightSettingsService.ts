@@ -5,18 +5,14 @@ import { weighingWindowsProblem, parseWeighingWindows } from "@/lib/weightWindow
 import { WEIGHT_USER_SELECT } from "@/lib/weightService";
 import { OFFENSE_RULE_CHANGE_SELECT } from "@/lib/offenseRulesService";
 import { offenseRuleResolver } from "@/lib/offenseRules";
-import {
-  corridorProblem, heightProblem, isUnitSystem, keyholderCorridorOf, keyholderCorridorProblem,
-  subCorridorOf, HEIGHT_EPOCH, type Corridor, type UnitSystem,
-} from "@/lib/weight";
+import { heightProblem, isUnitSystem, weightProblem, HEIGHT_EPOCH, type UnitSystem } from "@/lib/weight";
 
 /**
  * Schreibpfad der Gewichts-Einstellungen. Zwei Türen, weil zwei Rollen verschiedene Felder setzen:
  *
- * - {@link setWeightSettingsSelf} — der Sub: Körpergrösse, Einheit, Referenzangabe, **sein**
- *   Zielkorridor
- * - {@link setWeightSettingsKeyholder} — die Keyholderin: Freischaltung, Wiege-Fenster, und ihre
- *   **Nachbesserung** des Korridors
+ * - {@link setWeightSettingsSelf} — der Sub: Körpergrösse, Einheit, **sein** Zielgewicht
+ * - {@link setWeightSettingsKeyholder} — die Keyholderin: Freischaltung, Wiege-Fenster und **ihr**
+ *   Zielgewicht (das wirksame, solange sie eines führt)
  *
  * Die Trennung ist keine Kosmetik, sondern die Security-Regel aus `CLAUDE.md`: Felder, die der
  * Admin für einen Sub setzt, dürfen nicht über einen Session-Guard erreichbar sein. Zwei Funktionen
@@ -28,12 +24,9 @@ import {
  *  Zeile einen eigenen PATCH, wie bei den Reinigungs-Einstellungen. */
 export interface SelfWeightParams {
   heightCm?: unknown;
-  /** `"correct"` schreibt die jüngste Historie-Zeile um („178 statt 187" war nie wahr),
-   *  `"change"` legt eine neue an (echtes Wachstum). Vorgabe: `"change"`. */
-  heightMode?: "correct" | "change";
   unitSystem?: unknown;
-  targetMinKg?: unknown;
-  targetMaxKg?: unknown;
+  /** `null`/`""` nimmt das Ziel zurück. */
+  targetWeightKg?: unknown;
   changedBy?: string | null;
   now?: Date;
 }
@@ -46,23 +39,20 @@ export interface KeyholderWeightParams {
   changedBy?: string | null;
   now?: Date;
   weighingWindows?: unknown;
-  targetMinKeyholderKg?: unknown;
-  targetMaxKeyholderKg?: unknown;
+  /** `null`/`""` nimmt ihr Ziel zurück — dann gilt wieder das des Trägers. */
+  targetWeightKeyholderKg?: unknown;
 }
 
 /**
  * Wurf- und Fang-Seite an EINER Tabelle: `fail()` akzeptiert nur Codes, die unten auch gemappt
  * werden — ein Tippfehler ist damit ein Compile-Fehler statt eines stillen 500. Die Schlüssel SIND
- * die Codes, die `corridorProblem`/`keyholderCorridorProblem` liefern, sodass ihr Ergebnis ohne
+ * die Codes, die `weightProblem`/`heightProblem` liefern, sodass ihr Ergebnis ohne
  * Übersetzungstabelle in `fail()` wandert.
  */
 const { table: ERRORS, fail } = serviceErrors({
   USER_NOT_FOUND: { status: 404, error: "USER_NOT_FOUND" },
   WEIGHT_OUT_OF_RANGE: { status: 400, error: "WEIGHT_OUT_OF_RANGE" },
   HEIGHT_OUT_OF_RANGE: { status: 400, error: "HEIGHT_OUT_OF_RANGE" },
-  WEIGHT_CORRIDOR_INVERTED: { status: 400, error: "WEIGHT_CORRIDOR_INVERTED" },
-  WEIGHT_CORRIDOR_NARROWER: { status: 400, error: "WEIGHT_CORRIDOR_NARROWER" },
-  WEIGHT_CORRIDOR_NO_SUB_LIMIT: { status: 400, error: "WEIGHT_CORRIDOR_NO_SUB_LIMIT" },
 });
 
 /** Eine optionale Zahl aus dem Body: `null`/`""` löscht die Grenze, alles andere muss eine Zahl
@@ -74,18 +64,27 @@ function optionalNumber(v: unknown): number | null | undefined {
   return Number.isFinite(n) ? n : NaN;
 }
 
-/** Der Korridor, wie er nach dem Patch aussähe — ungesetzte Felder behalten den Bestand. */
-function mergedCorridor(current: Corridor, min: number | null | undefined, max: number | null | undefined): Corridor {
-  return {
-    minKg: min === undefined ? current.minKg : min,
-    maxKg: max === undefined ? current.maxKg : max,
-  };
+/**
+ * Was ein Ziel-Wechsel an Feldern schreibt — `undefined`, wenn sich nichts bewegt.
+ *
+ * **Der Zeitstempel bewegt sich nur bei einer echten Änderung.** An ihm hängt der Startwert des
+ * Fortschritts; ein Speichern, das dieselbe Zahl noch einmal schreibt, würde den Bezugspunkt sonst
+ * auf heute ziehen und die bereits geschaffte Strecke aus der Rechnung nehmen.
+ *
+ * Modul-privat: beide Schreibwege — Oberfläche wie MCP (`set_weight_tracking`) — kommen über
+ * {@link setWeightSettingsKeyholder} bzw. {@link setWeightSettingsSelf} hierher.
+ */
+function targetPatch(
+  current: number | null, next: number | null, now: Date,
+): { kg: number | null; setAt: Date | null } | undefined {
+  if (next === current) return undefined;
+  return { kg: next, setAt: next === null ? null : now };
 }
 
 export async function setWeightSettingsSelf(userId: string, params: SelfWeightParams): Promise<ServiceResult<null>> {
   const data: {
     heightCm?: number; unitSystem?: UnitSystem;
-    targetMinKg?: number | null; targetMaxKg?: number | null;
+    targetWeightKg?: number | null; targetWeightSetAt?: Date | null;
   } = {};
 
   if (params.heightCm !== undefined) {
@@ -100,11 +99,15 @@ export async function setWeightSettingsSelf(userId: string, params: SelfWeightPa
     data.unitSystem = params.unitSystem;
   }
 
-  const min = optionalNumber(params.targetMinKg);
-  const max = optionalNumber(params.targetMaxKg);
-  if (Number.isNaN(min) || Number.isNaN(max)) return serviceFail(400, "WEIGHT_OUT_OF_RANGE");
+  // `weightProblem` fängt NaN selbst ab (`!Number.isFinite`) — eine eigene isNaN-Zeile davor wäre
+  // dieselbe Prüfung mit demselben Code.
+  const target = optionalNumber(params.targetWeightKg);
+  if (typeof target === "number" || Number.isNaN(target)) {
+    const problem = weightProblem(target);
+    if (problem) return serviceFail(400, problem);
+  }
 
-  if (Object.keys(data).length === 0 && min === undefined && max === undefined) {
+  if (Object.keys(data).length === 0 && target === undefined) {
     return serviceFail(400, NO_FIELDS_TO_UPDATE);
   }
 
@@ -119,39 +122,31 @@ export async function setWeightSettingsSelf(userId: string, params: SelfWeightPa
       const before = await tx.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
       if (!before) throw fail("USER_NOT_FOUND");
 
-      if (min !== undefined || max !== undefined) {
-        const next = mergedCorridor(subCorridorOf(before), min, max);
-        const problem = corridorProblem(next);
-        if (problem) throw fail(problem);
-        data.targetMinKg = next.minKg;
-        data.targetMaxKg = next.maxKg;
+      const patch = target === undefined ? undefined : targetPatch(before.targetWeightKg, target, now);
+      if (patch) {
+        data.targetWeightKg = patch.kg;
+        data.targetWeightSetAt = patch.setAt;
       }
 
-      // Grössen-Historie fortschreiben — nur bei einer echten Änderung. Ein Speichern, das nichts
-      // bewegt, schreibt keine Zeile (dieselbe Regel wie in `setReinigungSettings`).
+      // Grössen-Protokoll fortschreiben — nur bei einer echten Änderung, und IMMER als neue Zeile:
+      // die Rückfrage „Korrektur oder Änderung?" ist gestrichen, weil der Wert nirgends historisch
+      // gelesen wird (Begründung: docs/gewicht-konzept.md, Abschnitt 3.2).
+      //
+      // `before.heightCm === null` erkennt die erste Zeile ohne zweite Abfrage: diese Funktion ist
+      // der EINZIGE Schreiber von `User.heightCm`, und die Tabelle kam leer aus der Migration —
+      // keine Grösse heisst also kein Protokoll. Ein `count` auf der Tabelle wäre nicht nur ein
+      // Roundtrip mehr, sondern im Ausnahmefall auch falsch: gäbe es je eine Grösse ohne Zeile,
+      // stempelte er den NEUEN Wert als „seit jeher" und behauptete damit, der alte habe nie gegolten.
       if (data.heightCm !== undefined && data.heightCm !== before.heightCm) {
-        const latest = await tx.heightChange.findFirst({
-          where: { userId },
-          orderBy: { effectiveFrom: "desc" },
-          select: { id: true },
+        await tx.heightChange.create({
+          data: {
+            userId,
+            heightCm: data.heightCm,
+            // Die erste bekannte Grösse gilt „seit jeher" — davor gibt es nichts, was gegolten hätte.
+            effectiveFrom: before.heightCm === null ? HEIGHT_EPOCH : now,
+            changedBy: params.changedBy ?? null,
+          },
         });
-        if (!latest) {
-          // Die erste bekannte Grösse gilt „seit jeher" — davor gibt es nichts, was gegolten hätte.
-          await tx.heightChange.create({
-            data: { userId, heightCm: data.heightCm, effectiveFrom: HEIGHT_EPOCH, changedBy: params.changedBy ?? null },
-          });
-        } else if (params.heightMode === "correct") {
-          // Eine Korrektur war nie wahr: sie ersetzt den Wert, statt einen Knick in die Kurve zu
-          // legen. Ohne diese Unterscheidung wäre jeder Tippfehler ein dauerhaftes Ereignis.
-          await tx.heightChange.update({
-            data: { heightCm: data.heightCm, changedBy: params.changedBy ?? null },
-            where: { id: latest.id },
-          });
-        } else {
-          await tx.heightChange.create({
-            data: { userId, heightCm: data.heightCm, effectiveFrom: now, changedBy: params.changedBy ?? null },
-          });
-        }
       }
 
       await tx.user.update({ where: { id: userId }, data });
@@ -173,22 +168,24 @@ export async function setWeightSettingsKeyholder(
   const now = params.now ?? new Date();
   const data: {
     weightTrackingEnabled?: boolean; weighingWindows?: string;
-    targetMinKeyholderKg?: number | null; targetMaxKeyholderKg?: number | null;
+    targetWeightKeyholderKg?: number | null; targetWeightKeyholderSetAt?: Date | null;
   } = {};
 
   if (params.enabled !== undefined) data.weightTrackingEnabled = Boolean(params.enabled);
 
   if (params.weighingWindows !== undefined) {
     const problem = weighingWindowsProblem(params.weighingWindows);
-    if (problem) return serviceFail(400, problem);
+    if (problem) return serviceFail(400, problem.code);
     data.weighingWindows = JSON.stringify(parseWeighingWindows(params.weighingWindows));
   }
 
-  const min = optionalNumber(params.targetMinKeyholderKg);
-  const max = optionalNumber(params.targetMaxKeyholderKg);
-  if (Number.isNaN(min) || Number.isNaN(max)) return serviceFail(400, "WEIGHT_OUT_OF_RANGE");
+  const target = optionalNumber(params.targetWeightKeyholderKg);
+  if (typeof target === "number" || Number.isNaN(target)) {
+    const problem = weightProblem(target);
+    if (problem) return serviceFail(400, problem);
+  }
 
-  if (Object.keys(data).length === 0 && min === undefined && max === undefined) {
+  if (Object.keys(data).length === 0 && target === undefined) {
     return serviceFail(400, NO_FIELDS_TO_UPDATE);
   }
 
@@ -197,15 +194,12 @@ export async function setWeightSettingsKeyholder(
       const before = await tx.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
       if (!before) throw fail("USER_NOT_FOUND");
 
-      if (min !== undefined || max !== undefined) {
-        const next = mergedCorridor(keyholderCorridorOf(before), min, max);
-        // Die Regel des Nutzers: „ich wiege 90 und möchte 84 — dann kann die KH keine 80 daraus
-        // machen, aber 87." Abgewiesen wird mit Begründung, nicht still ignoriert: die Keyholderin
-        // soll sehen, warum ihre Zahl nicht durchgeht.
-        const problem = keyholderCorridorProblem(subCorridorOf(before), next);
-        if (problem) throw fail(problem);
-        data.targetMinKeyholderKg = next.minKg;
-        data.targetMaxKeyholderKg = next.maxKg;
+      // Kein Vergleich mit dem Ziel des Trägers: sie darf ihres frei setzen, und ihres gilt. Seines
+      // bleibt daneben stehen, damit beide sehen, worüber sie sich einig sind.
+      const patch = target === undefined ? undefined : targetPatch(before.targetWeightKeyholderKg, target, now);
+      if (patch) {
+        data.targetWeightKeyholderKg = patch.kg;
+        data.targetWeightKeyholderSetAt = patch.setAt;
       }
 
       await tx.user.update({ where: { id: userId }, data });
@@ -236,6 +230,16 @@ export async function setWeightSettingsKeyholder(
             },
           });
         }
+
+        // UND DIE FREIGABE-VORGABE, aus demselben Grund einen Schritt weiter gedacht: sie prüft das
+        // Mittel der letzten Tage, und ohne Erfassung kommt nie eines zustande. Sie stünde also als
+        // Bedingung da, die er nicht mehr erfüllen KANN — eine Dauersperre ohne Ausweg, und anders
+        // als bei der Meldepflicht fällt das nicht einmal negativ auf, sondern gar nicht.
+        // Auch hier kein automatischer Weg zurück: die nächste Vorgabe stellt die Keyholderin.
+        await tx.weightRelease.updateMany({
+          where: { userId, releasedAt: null, withdrawnAt: null },
+          data: { withdrawnAt: now },
+        });
       }
     });
   } catch (e) {

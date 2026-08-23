@@ -23,12 +23,12 @@ export interface InboxRefOptions {
  *  nichts schreiben — für die wenigen Meldungen, deren Empfänger NICHT der Sub ist (Info an die
  *  Keyholder). Deren EINE, geteilte Zeile schreibt `notifyControllers` selbst, mit dem Sub als
  *  Betreff; sie gehört nicht in den persönlichen Posteingang des einzelnen Keyholders. */
-export type NotifyInbox =
-  | false
-  | (InboxRefOptions & {
-      /** Abweichender Text für den Posteingang. Default: `messageKey`. Gebraucht dort, wo die Mail
-       *  einen Freitext interpoliert, den die Nachricht stattdessen live über `ref` liest. */
-      bodyKey?: MessageBodyKey;
+export type NotifyInbox = false | InboxOptions;
+
+export type InboxOptions = InboxRefOptions & {
+  /** Abweichender Text für den Posteingang. Default: `messageKey`. Gebraucht dort, wo die Mail
+   *  einen Freitext interpoliert, den die Nachricht stattdessen live über `ref` liest. */
+  bodyKey?: MessageBodyKey;
       /**
        * WER die Meldung ausgelöst hat — der Benutzername des Handelnden, {@link AI_AUTHOR} über den
        * MCP, sonst weglassen (die App hat selbst entschieden). Siehe {@link MessageActor}.
@@ -39,7 +39,7 @@ export type NotifyInbox =
        * Schreibstelle daraus ab (`recordSystemMessage`); hier wird nur durchgereicht.
        */
       actor?: MessageActor;
-    });
+    };
 
 /**
  * Ein Empfänger, dessen Zeile der Aufrufer BEREITS geladen hat.
@@ -65,12 +65,20 @@ export interface NotifyRecipient {
  * literal text. notifyUser() resolves them in the RECIPIENT's stored language, so subject, mail
  * body and push all arrive translated. `params` are interpolated into both subject and message.
  */
-export interface NotifyContent {
+/**
+ * Schlüssel von Meldungen, die BEWUSST keine Posteingangs-Zeile hinterlassen und deshalb NICHT in
+ * `MESSAGE_BODY_KEYS` stehen — sie werden nur als Mail/Push-Text aufgelöst.
+ *
+ * Bislang genau einer: die Erinnerung zum Wiege-Fenster. Eine Zeile je Tag, die nach dem Fenster
+ * niemanden mehr angeht, wäre nach einer Woche nur noch Rauschen im Postfach; das Versäumnis selbst
+ * steht ohnehin im Strafbuch.
+ */
+export type TransientMessageKey = "weightReminderMessage";
+
+interface NotifyContentBase {
   subjectKey: string;
-  messageKey: MessageBodyKey;
   params?: Record<string, string | number>;
   url?: string;
-  inbox?: NotifyInbox;
   /**
    * Mail/Push gehen raus, auch wenn der Sub „Mail und Push bei neuen Nachrichten" abgeschaltet hat.
    *
@@ -100,6 +108,23 @@ export interface NotifyContent {
    */
   channels?: NotificationChannels;
 }
+
+/**
+ * Was verschickt wird — als Union über `inbox`, und das ist die eigentliche Aussage:
+ *
+ * - **mit Posteingangs-Zeile** (der Normalfall) muss `messageKey` ein {@link MessageBodyKey} sein,
+ *   denn er landet als `bodyKey` in der Spalte und wird später über die Kategorien-Tabelle gelesen
+ * - **ohne Zeile** (`inbox: false`) darf zusätzlich ein {@link TransientMessageKey} stehen
+ *
+ * Der Typ trägt die Bindung damit selbst: ein flüchtiger Schlüssel OHNE `inbox: false` ist ein
+ * Compile-Fehler. Als blosse Whitelist neben dem Typ wäre dieselbe Regel nur eine Bitte im
+ * Kommentar — und beim ersten Aufrufer, der sie überliest, stünde eine Posteingangs-Zeile mit einem
+ * Schlüssel, den die Kategorien-Tabelle nicht kennt.
+ */
+export type NotifyContent = NotifyContentBase & (
+  | { inbox: false; messageKey: MessageBodyKey | TransientMessageKey }
+  | { inbox?: InboxOptions; messageKey: MessageBodyKey }
+);
 
 /**
  * Generischer Benachrichtigungs-Helper für einfache Status-Meldungen an den Nutzer
@@ -132,14 +157,17 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
  * sie nicht je Kopf noch einmal nachschlagen.
  */
 async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): Promise<void> {
-  const { subjectKey, messageKey, params, url = "/dashboard", inbox, alwaysNotify } = content;
+  const { subjectKey, messageKey, params, url = "/dashboard", alwaysNotify } = content;
 
   let badge: number | undefined;
   let channels = content.channels ?? ALL_CHANNELS;
-  if (inbox !== false) {
+  // Kein `inbox` aus der Destrukturierung: die Union wird über genau dieses Feld unterschieden, und
+  // nur am Objekt geprüft weiss der Compiler, dass `messageKey` in diesem Zweig ein Body-Key ist.
+  if (content.inbox !== false) {
+    const inbox = content.inbox;
     badge = await recordMessageAndBadge({
       subjectUserId: user.id,
-      bodyKey: inbox?.bodyKey ?? messageKey,
+      bodyKey: inbox?.bodyKey ?? content.messageKey,
       params,
       actor: inbox?.actor,
       ref: inbox?.ref,
@@ -192,7 +220,7 @@ async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): 
 export async function notifyControllers(
   subjectUserId: string,
   controllers: NotifyRecipient[],
-  content: Omit<NotifyContent, "inbox"> & { inbox?: InboxRefOptions },
+  content: NotifyContentBase & { messageKey: MessageBodyKey; inbox?: InboxRefOptions },
 ): Promise<void> {
   // Zuerst schreiben, dann senden — dieselbe Reihenfolge wie in `notifyUser`: scheitert der Versand,
   // bleibt die Meldung nachlesbar. Ohne Badge: der Zähler eines Keyholders steht über ALLEN seinen

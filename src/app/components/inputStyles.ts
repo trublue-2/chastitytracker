@@ -41,3 +41,19 @@ export const headerRowCls = "px-4 h-14 flex items-center justify-between gap-3";
 export const headerActionsCls = "flex items-center gap-2";
 export const headerBrandCls =
   "font-bold text-header-text hover:opacity-80 transition text-lg tracking-tight flex items-baseline gap-2";
+
+/**
+ * Eine Zeile der Verlaufs-Listen und ihre Klickfläche — geteilt von `EntryRow` und `WeightRow`.
+ *
+ * Aus demselben Grund hier wie die Kopfzeile darüber: die beiden stehen in der Eintragsliste der
+ * Keyholderin UNMITTELBAR untereinander, chronologisch gemischt. Driften Polsterung oder
+ * Hover-Fläche auseinander, sieht man es nicht in der einen Zeile, sondern im Rhythmus der Liste.
+ *
+ * Klassen statt einer Hüllen-Komponente: gemeinsam ist wirklich nur das Mass. Der INHALT beider
+ * Zeilen teilt nichts (Gerätekategorie, Kontroll-Code und Orgasmus-Art auf der einen Seite, Gewicht,
+ * Veränderung und der von der Waage gelesene Wert auf der anderen), und eine Hülle müsste ihn samt
+ * Modal-Panel als Slots durchreichen — mehr Gerüst als Ersparnis (Muster: `CARD_BODY_STRIPED`).
+ */
+export const listRowCls = "px-5 py-3 flex items-center gap-3";
+export const listRowButtonCls =
+  "flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-surface-raised/60 -mx-2 px-2 -my-1 py-1 rounded-lg transition";

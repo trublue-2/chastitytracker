@@ -81,26 +81,40 @@ model User {
   // Schalter der Keyholderin je Sub. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden, die
   // Daten bleiben. Dazu der Instanz-Schalter `ENABLE_WEIGHT_TRACKING` (constants.ts).
   weightTrackingEnabled          Boolean                  @default(false)
-  // AKTUELLE Körpergrösse. Die Historie steht in `HeightChange` — ein BMI wird mit der Grösse
-  // gerechnet, die zum Messzeitpunkt galt, nicht mit der von heute.
+  // AKTUELLE Körpergrösse. Jede Änderung wird zusätzlich in `HeightChange` protokolliert; gerechnet
+  // wird heute überall mit diesem aktuellen Wert.
   heightCm                       Int?
   // Anzeige-Präferenz DESSEN, DER SCHAUT ("metric" | "imperial") — keine Eigenschaft der Daten:
   // eine Keyholderin darf Pfund sehen, während ihr Sub in Kilogramm einträgt.
   unitSystem                     String                   @default("metric")
-  // Der Zielkorridor. Gesetzt wird er vom SUB (er ist der Realistischere); die Keyholderin darf ihn
-  // nur WEITEN, nie verengen — wirksam ist stets der weitere der beiden Werte (siehe `weight.ts`).
-  targetMinKg                    Float?
-  targetMaxKg                    Float?
-  targetMinKeyholderKg           Float?
-  targetMaxKeyholderKg           Float?
-  // Tägliche Wiege-Fenster als JSON-String, z.B. [{"start":"06:00","end":"08:00"}] (Sub-Lokalzeit),
-  // gesetzt von der Keyholderin. NULL/[] = keine Fensterpflicht, jede Uhrzeit gilt.
+  // Das Zielgewicht. Beide Seiten dürfen eines setzen, und BEIDE bleiben sichtbar; wirksam ist das
+  // der Keyholderin, solange sie eines führt (siehe `effectiveTarget` in `weight.ts`). Nimmt sie es
+  // zurück, gilt wieder seines.
+  //
+  // `...SetAt` ist kein Protokoll — wer wann geändert hat, steht im Aktions-Log. Es beantwortet die
+  // Frage, ab WELCHEM Gewicht gerechnet wird: der Fortschritt („von 100 auf 90, 38 % geschafft")
+  // misst gegen die Messung, die beim Setzen des Ziels galt. Ohne den Zeitpunkt wäre der Startwert
+  // die jeweils älteste Messung überhaupt — und ein neu gesetztes Ziel begänne rückwirkend.
+  targetWeightKg                 Float?
+  targetWeightSetAt              DateTime?
+  targetWeightKeyholderKg        Float?
+  targetWeightKeyholderSetAt     DateTime?
+  // Wiege-Fenster als JSON-String, gesetzt von der Keyholderin (Sub-Lokalzeit):
+  // [{"start":"05:00","durationMin":180,"days":127,"remind":true}] — `days` ist eine Wochentags-
+  // Bitmaske (Mo=1 … So=64, 127 = täglich, siehe `weekdays.ts`), `remind` schickt zum Fensterbeginn
+  // eine Erinnerung. NULL/[] = keine Fensterpflicht, jede Uhrzeit gilt. Alt-Fenster im Format
+  // {"start","end"} werden weiter gelesen und in Start + Dauer übersetzt.
   //
   // Bewusst NICHT historisiert: ob eine Messung im Fenster lag, entscheidet der Erfassungs-Zeitpunkt
   // und steht danach auf der Zeile (`WeightEntry.inWindow`). Es gibt also nichts, was später nach
   // einer alten Fassung neu beurteilt werden müsste — anders als bei den Reinigungsfenstern, deren
   // Verletzung das Strafbuch live ableitet.
   weighingWindows                String?
+  /// Für welches Fenster zuletzt an die Wiege-Meldung erinnert wurde: `<YYYY-MM-DD>#<HH:MM>` in der
+  /// Zone des Trägers. Verhindert, dass der Minuten-Poller dieselbe Erinnerung wiederholt — und
+  /// erlaubt es ihm zugleich, sie nach einem Neustart NACHZUHOLEN, solange das Fenster noch läuft.
+  /// Eine eigene Tabelle wäre eine Zeile je Tag und Träger, die nach dem Tag niemanden mehr angeht.
+  weightReminderMark             String?
   entries                        Entry[]
   notificationPrefs              NotificationPreference[]
   vorgaben                       TrainingVorgabe[]
@@ -133,6 +147,64 @@ model User {
   timezoneChanges                TimezoneChange[]
   weightEntries                  WeightEntry[]
   heightChanges                  HeightChange[]
+  weightReleases                 WeightRelease[]
+}
+
+/// Freigabe-Vorgabe: das Gewicht öffnet das nächste Orgasmus-Fenster (docs/gewicht-freigabe-konzept.md).
+///
+/// Die Keyholderin stellt eine Schwelle, gegen die das MITTEL der letzten Tage geprüft wird — nicht
+/// der Tageswert. Ein einzelnes Wiegen schwankt um ein bis zwei Kilo (Salz, Mahlzeit, Tageszeit),
+/// und eine Freigabe daran zu hängen hiesse, Kochsalz über den Orgasmus entscheiden zu lassen.
+///
+/// Eigene Tabelle und kein Feld an `OrgasmusAnforderung`: die Vorgabe steht über viele Tage, die
+/// Anforderung ist ein Fenster mit festem Anfang und Ende. Eine Bedingung in die Anforderung zu
+/// legen hiesse, deren `beginntAt` dynamisch zu machen — und daran hängen Poller, Erfüllung,
+/// Rückzug und die Vergehens-Ableitung.
+///
+/// Sie ist VERBRAUCHT, sobald sie ausgelöst hat (`releasedAt`); die nächste stellt die Keyholderin.
+/// Eine sich selbst fortschreibende Regel würde aus dem letzten Gewicht das nächste Ziel ableiten —
+/// und diese Aussage gehört ihr, nicht dem Rechenkern.
+model WeightRelease {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Schwelle, gegen die das Mittel geprüft wird. IMMER metrisch, wie `WeightEntry.weightKg`.
+  thresholdKg    Float
+  /// "below" = das Mittel muss darunter liegen · "above" = darüber (Zunehmen als Vorgabe).
+  direction      String   @default("below")
+  /// Breite des Mittels in KALENDER-Tagen des Trägers — nicht „die letzten N Messungen".
+  averageDays    Int      @default(3)
+  /// Wie viele zählende Messungen im Fenster liegen müssen, damit das Mittel gilt. Bei einer
+  /// einzigen wäre das „Mittel" dieser eine Wert — also genau das Tagesrauschen zurück, dessen
+  /// Vermeidung der Grund für das Mittel war.
+  minMeasurements Int     @default(2)
+  /// Optionaler Tagesanstieg der Schwelle; 0 = konstant. Mit ihm kommt die Vorgabe dem Träger
+  /// entgegen, statt auf einer Zahl zu beharren.
+  stepKg         Float    @default(0)
+
+  /// Mindestlaufzeit: davor öffnet nichts, egal was die Waage sagt.
+  notBeforeAt    DateTime
+  /// Wie lange das erzeugte Fenster offen steht.
+  windowHours    Int      @default(24)
+  /// Wird an die erzeugte Anforderung durchgereicht: Öffnen zum Orgasmus erlaubt?
+  openingAllowed Boolean  @default(false)
+  /// Freitext, der in der erzeugten Anforderung landet.
+  message        String?
+
+  /// Username des Keyholders, der sie gestellt hat, bzw. `ai` über den MCP — dieselbe Spalte und
+  /// dieselbe Begründung wie `OrgasmusAnforderung.createdBy`.
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  /// Bezugspunkt des Tagesanstiegs: der Tag, an dem `thresholdKg` unverändert gilt.
+  armedAt        DateTime
+  /// Gesetzt, sobald sie ausgelöst hat — damit ist sie verbraucht.
+  releasedAt     DateTime?
+  /// Die erzeugte Anforderung, zur Nachvollziehbarkeit.
+  releasedRequestId String?
+  withdrawnAt    DateTime?
+
+  @@index([userId, releasedAt, withdrawnAt])
 }
 
 /// Ein von Hand notiertes Vergehen — das einzige, das nicht aus Einträgen ABGELEITET wird.
@@ -1395,13 +1467,15 @@ model WeightEntry {
 
 /// Eine Änderung der Körpergrösse — append-only, Muster `CleaningRuleChange`.
 ///
-/// Warum eine Historie: die Grösse geht in JEDEN BMI ein. Ein einzelnes Feld würde beim Ändern
-/// rückwirkend jeden je berechneten BMI verschieben. Mit der Historie wird jede Messung mit der
-/// Grösse gerechnet, die zu IHREM Zeitpunkt galt (`effectiveAt`).
+/// **Heute ein Protokoll, keine wirksame Historie.** Jeder BMI im Produkt rechnet mit der aktuellen
+/// Grösse am `User`; die Auflösung „welche Grösse galt zu diesem Zeitpunkt" gibt es als `heightAt`,
+/// aber sie hat keinen Aufrufer. Die Zeilen halten fest, wer wann welche Zahl eingetragen hat — und
+/// sind die Vorarbeit für den Tag, an dem eine BMI-Kurve historisch rechnen soll.
 ///
-/// Eine KORREKTUR ist etwas anderes als eine ÄNDERUNG: „178 statt 187" war nie wahr und schreibt
-/// die bestehende Zeile um; echtes Wachstum legt eine neue an. Die App kann das nicht erraten,
-/// deshalb fragt das Formular danach.
+/// Bis v5.3.4 fragte das Formular, ob eine neue Zahl eine KORREKTUR sei (dann wurde die jüngste
+/// Zeile umgeschrieben) oder echtes Wachstum. Die Rückfrage ist gestrichen: ihr Ausgang war
+/// nirgends sichtbar, und bei erwachsenen Menschen ist eine geänderte Körpergrösse fast immer eine
+/// korrigierte Angabe. Geschrieben wird jetzt immer eine neue Zeile.
 model HeightChange {
   id            String   @id @default(cuid())
   userId        String

@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-96 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+97 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -75,7 +75,7 @@ Steckbrief: [30-kontrollen.md](30-kontrollen.md)
 | **Code im Foto erkennen** | Liest den handschriftlichen Kontroll-Code aus dem Bild und vergleicht ihn mit dem geforderten. <br>*Bei fehlgeschlagener Erkennung entsteht ein Grund-Code, kein stilles Scheitern.* | System | läuft von selbst | `/api/verify-kontrolle` |
 | **Kontroll-Code erneut zustellen** | Schickt den Code einer offenen Kontrolle noch einmal als Push. | Sub | App (Träger) | `/api/kontrollen/code-push` `/api/kontrollen/[id]/code-push` |
 | **Überfällige Kontrolle eskalieren** | Stufe 1 mahnt, Stufe 2 bucht die Öffnung bzw. das Ablegen selbst. <br>*Stufe 2 zählt ab dem Stempel von Stufe 1 — ohne Stufe 1 feuert sie nie. Eine Sperrzeit hebt sie nicht auf.* | System | läuft von selbst | — |
-| **Eskalations-Stufen einstellen** | Ob und nach welcher Zeit gemahnt und die Abnahme gebucht wird. | Keyholder (UI) | App (Keyholder) | `/api/admin/users/[id]` |
+| **Eskalations-Stufen einstellen** | Ob und nach welcher Zeit gemahnt und die Abnahme gebucht wird. <br>*Zwei Stufen, eine Kette: die Mahnung ohne den Vermerk ist eine Erinnerung, der Vermerk ohne die Mahnung eine Falle.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]` `set_inspection_escalation` |
 
 ## Auto-Kontrollen
 
@@ -128,7 +128,7 @@ Steckbrief: [50-strafbuch.md](50-strafbuch.md)
 | **Vergehen einsehen** | Die erkannten Vergehen mit Urteilsstand — dreizehn Arten, die meisten live aus den Einträgen abgeleitet. | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `get_offenses` |
 | **Vergehen von Hand notieren** | Hält fest, was der Tracker nicht sehen kann — gebrochene Abmachung, Unhöflichkeit. <br>*Notieren ist noch kein Urteil. Ein Rückzug nimmt es aus dem Strafbuch, lässt es aber nachlesbar.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/offense` `record_offense` |
 | **Urteilen** | Verwerfen, bestrafen (Freitext oder als gestellte Aufgabe), erledigen oder wieder aufnehmen. <br>*Es gibt keine automatische Strafe und keinen Straftypen-Zoo. Eine erfüllte Strafaufgabe schliesst das Urteil selbst.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/strafe` `judge_offense` |
-| **Vergehens-Regeln umlegen** | Legt je Art fest, ob sie zählt — aus, nur während einer Sperrzeit, oder immer. <br>*Über den MCP bewusst nur lesbar. Historisiert: eine Änderung schreibt die Vergangenheit nicht um.* | Keyholder (UI) | App (Keyholder) | `/api/admin/offense-rules` |
+| **Vergehens-Regeln umlegen** | Legt je Art fest, ob sie zählt — aus, nur während einer Sperrzeit, oder immer. <br>*Historisiert: eine Änderung schreibt die Vergangenheit nicht um, sie wirkt nach vorn. `manual_offense` ist nicht schaltbar — eine selbst notierte Tat verwirft man mit dem Urteil, nicht mit der Regel.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/offense-rules` `set_offense_rules` |
 | **Vergehen melden** | Stellt erkannte, bestrafte und verworfene Vergehen beiden Seiten in den Posteingang. <br>*Abgeleitete Vergehen erst ab dem Stichtag der Instanz — sonst kippte das erste Update die ganze Historie hinein.* | System | läuft von selbst | — |
 
 ## Geräte
@@ -229,12 +229,13 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
-| **Gewichts-Angaben pflegen** | Körpergrösse, Anzeige-Einheit, Referenzangabe und der eigene Zielkorridor. <br>*Nur erreichbar, solange die Keyholderin das Gewichtstracking für diesen Träger freigeschaltet hat — die Route prüft das selbst, nicht nur die Oberfläche.* | Sub | App (Träger) | `/api/settings/weight` |
+| **Gewichts-Angaben pflegen** | Körpergrösse, Anzeige-Einheit und das eigene Zielgewicht. <br>*Nur erreichbar, solange die Keyholderin das Gewichtstracking für diesen Träger freigeschaltet hat — die Route prüft das selbst, nicht nur die Oberfläche.* | Sub | App (Träger) | `/api/settings/weight` |
 | **Gewicht erfassen** | Eine Messung je Kalendertag — vom Träger selbst oder von der Keyholderin für ihn. <br>*Der Träger braucht einen Beleg (Foto oder Notiz), die Keyholderin nicht — sie steht nicht vor seiner Waage. Eine zweite Meldung desselben Tages ersetzt die erste.* | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/weight` |
-| **Gewichts-Reihe lesen (KI)** | Punkte, aktueller Wert samt BMI, Trend, Zielbereich und Tage seit der letzten Meldung. <br>*Alle Werte metrisch. `daysSinceLastReport` ist die Zahl, an der die Meldepflicht hängt.* | Keyholder (MCP) | MCP | `weight_history` |
-| **Gewicht eintragen und Grenzen weiten (KI)** | Eine Messung je Kalendertag nachtragen und den Zielbereich des Trägers nachbessern. <br>*Die Grenzen gehören dem Träger: die KI darf sie nur WEITEN, nie verengen — dieselbe Regel wie in der Oberfläche. Ihr Eintrag braucht keinen Foto-Beleg.* | Keyholder (MCP) | MCP | `log_weight` `set_weight_limits` |
+| **Gewichts-Reihe lesen (KI)** | Punkte, aktueller Wert samt BMI, Trend, Zielgewicht samt Fortschritt und Tage seit der letzten Meldung. <br>*Alle Werte metrisch. `daysSinceLastReport` ist die Zahl, an der die Meldepflicht hängt.* | Keyholder (MCP) | MCP | `weight_history` |
+| **Gewicht eintragen (KI)** | Eine Messung je Kalendertag nachtragen — die Einstellungen liegen in `weight-keyholder`. <br>*Ihr Eintrag braucht keinen Foto-Beleg — sie steht nicht vor seiner Waage.* | Keyholder (MCP) | MCP | `log_weight` |
 | **Waagen-Anzeige lesen** | Liest aus dem Foto der Waage die angezeigte Zahl und, wo ablesbar, die Einheit. <br>*Ein VORSCHLAG für das Formular, kein Messwert: der Mensch bestätigt oder korrigiert. Gespeichert wird die gelesene Zahl getrennt vom bestätigten Wert. Ohne Vision-Provider gibt es keine Erkennung — lokales OCR liest auf Sieben-Segment-Anzeigen zuverlässig Unsinn.* | Sub | App (Träger) | `/api/detect-weight` |
-| **Gewichtstracking einrichten** | Freischaltung, Wiege-Zeitfenster und die Nachbesserung der Grenzen des Trägers. <br>*Die Grenzen setzt der Träger; die Keyholderin darf sie nur weiten, nie verengen.* | Keyholder (UI) | App (Keyholder) | `/api/admin/users/[id]` |
+| **Gewichtstracking einrichten** | Freischaltung, Wiege-Fenster (Zeit, Dauer, Wochentage, Erinnerung) und ihr Zielgewicht. <br>*Ihr Zielgewicht gilt, seines bleibt sichtbar. Das Abschalten nimmt die Meldepflicht mit — sonst zählte die Aus-Zeit als lauter versäumte Meldungen.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]` `set_weight_tracking` |
+| **Freigabe an das Gewicht knüpfen** | Eine Vorgabe, die den nächsten Orgasmus freigibt, sobald das MITTEL der letzten Tage eine Schwelle erreicht. Erfüllt sie sich, entsteht beim nächsten Wiegen ein Orgasmus-Fenster (Gelegenheit). <br>*Geprüft wird das Mittel, nicht der Tageswert — ein einzelnes Wiegen schwankt um ein bis zwei Kilo. Ausgewertet wird nur die ERSTE Messung eines Tages; wer nachwiegt, könnte sonst so lange wiegen, bis es passt. Die Vorgabe ist verbraucht, sobald sie ausgelöst hat; sie erzeugt NIE ein Vergehen — die Konsequenz ist Warten.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/weight-release` `set_weight_release` |
 
 ## Läuft von selbst
 

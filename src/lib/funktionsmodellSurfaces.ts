@@ -26,10 +26,17 @@ export interface ApiRoute {
 }
 
 const HTTP_EXPORT = /export\s+(?:const|async\s+function)\s+(GET|POST|PATCH|PUT|DELETE)\b/g;
-/** `registerTool(` samt Namen — der steht heute in der Folgezeile, `\s*` deckt auch dieselbe ab. */
-const MCP_TOOL = /registerTool\(\s*"([a-z_]+)"/g;
+/** `.registerTool(` samt Namen — der steht heute in der Folgezeile, `\s*` deckt auch dieselbe ab.
+ *
+ *  Der PUNKT gehört ins Muster, der Empfängername bewusst nicht: `route.ts` enthält seit dem
+ *  Werkzeug-Fingerabdruck auch eine `registerTool`-IMPLEMENTIERUNG (der Sammler in
+ *  `measureToolSurface`), und die ist keine Registrierung. Eine Methoden-Definition hat keinen
+ *  Punkt davor, ein Aufruf immer — damit fällt sie heraus, ohne dass die Prüfung sich auf den Namen
+ *  `server` festlegt. Täte sie das, entginge ihr ein Aufruf über eine anders benannte Variable
+ *  gleich doppelt (weder gezählt noch gelesen), und die Lücke bliebe still. */
+const MCP_TOOL = /\.registerTool\(\s*"([a-z_]+)"/g;
 /** Jede Registrierung, unabhängig davon, wie der Name danach formatiert ist. */
-const MCP_TOOL_CALL = /registerTool\(/g;
+const MCP_TOOL_CALL = /\.registerTool\(/g;
 
 /** Alle `route.ts` unterhalb eines Verzeichnisses, aufsteigend sortiert. */
 function routeFiles(dir: string, out: string[] = []): string[] {

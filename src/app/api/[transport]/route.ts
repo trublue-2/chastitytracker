@@ -5,14 +5,15 @@ import { z } from "zod";
 import { listEntries } from "@/lib/mcp/entries";
 import { loadMcpImage, mcpImageToolVisible } from "@/lib/mcp/entryImage";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
+import { OFFENSE_RULE_MODES } from "@/lib/offenseRules";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetWeightTracking, mcpSetWeightRelease, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
-import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE } from "@/lib/constants";
+import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -22,6 +23,7 @@ import { upsertCategoryDef, deleteCategoryDef } from "@/lib/mcp/categories";
 import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_NAME_MAX_LENGTH } from "@/lib/categoryConstants";
 import { executeWrite, recordAction, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
 import { buildWriteContext } from "@/lib/mcp/common";
+import { computeToolSurfaceFingerprint, setToolSurfaceFingerprint, toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
 import { prisma } from "@/lib/prisma";
 import { keyholderDashboard, getBoxState } from "@/lib/mcp/dashboard";
 import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
@@ -29,7 +31,7 @@ import { getOffenses, OFFENSE_TYPES } from "@/lib/mcp/ledger";
 import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
 import { timeline } from "@/lib/mcp/timeline";
 import { getActionLog } from "@/lib/mcp/actionlog";
-import { weightHistory, logWeightDef, setWeightLimitsDef } from "@/lib/mcp/weight";
+import { weightHistory, logWeightDef } from "@/lib/mcp/weight";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -134,7 +136,16 @@ async function runWriteTool<T>(label: string, extra: ToolExtra, args: Record<str
   if (!reason) return denyWrite(label, args, `"${label}" requires a non-empty reason (audit is mandatory)`);
 
   const isDryRun = args.dryRun === true;
-  const result = await runTool(label, fn);
+  // Nicht `runTool`: V1-Schreibergebnisse tragen keinen Envelope, und die Instructions sagen zu,
+  // dass JEDE Antwort den Fingerabdruck führt. Eine Sitzung, die mit einer Direktive beginnt,
+  // prüfte sonst nie — oder läse sein Fehlen als „weicht ab" und schlüge grundlos Alarm.
+  const result = await runToolWith(label, fn, (data) => [{
+    type: "text",
+    text: JSON.stringify(
+      typeof data === "object" && data !== null ? { ...data, toolsFingerprint: toolSurfaceFingerprint() } : data,
+      null, 2,
+    ),
+  }]);
   logMcpWrite(label, args, result.isError ? "error" : isDryRun ? "dryrun" : "ok");
 
   // dryRun committet nichts (siehe mcpWrite.ts) — folgerichtig auch kein Audit-Eintrag, exakt wie
@@ -200,11 +211,11 @@ const MCP_SERVER_INSTRUCTIONS =
   "`get_offenses`, `get_context`, `timeline`, `get_devices`, `query_notes`, `get_action_log`, `get_box_state`, " +
   "`list_entries` für Roh-Einträge). Die Auto-Kontroll-Einstellungen und die Reinigungs-Regeln stehen in " +
   "`get_context` (autoInspections + cleaning). Welche Vergehensarten bei diesem Sub überhaupt zählen, " +
-  "steht ebenfalls in `get_context` (offenseRules) — nur lesbar, umgelegt werden sie in der " +
-  "Admin-Oberfläche, nicht über den MCP.\n" +
+  "steht ebenfalls in `get_context` (offenseRules); umgelegt werden sie mit `set_offense_rules`.\n" +
   "• DIREKTIVEN (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung): `set_lock_period`, " +
   "`request_lock`, `request_inspection`, `request_orgasm`, `judge_offense`, `record_offense`, `set_training_goal`, " +
-  "`set_cleaning`, `set_auto_inspections`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … Ein Vergehen, das " +
+  "`set_cleaning`, `set_auto_inspections`, `set_offense_rules`, `set_inspection_escalation`, " +
+  "`set_weight_tracking`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … Ein Vergehen, das " +
   "der Tracker nicht sehen kann (gebrochene Abmachung, Unhöflichkeit), notierst du mit `record_offense`; " +
   "beurteilt wird es danach wie jedes andere. `set_cleaning` deckt ALLE " +
   "Reinigungs-Regeln ab, auch die Tages-Fenster (`windows` — ersetzt die ganze Liste, `[]` löst die Reinigung von der " +
@@ -237,6 +248,23 @@ const KEYHOLDER_RULES_POINTER =
   "`keyholder_dashboard.keyholderInstructions` und sind VOR jeder Direktive zu lesen — immer frisch " +
   "von dort, da sie sich jederzeit ändern können.";
 
+/** Die gecachte Hälfte des Stale-Vergleichs. Steht im Instructions-Text, den der Client EINMAL beim
+ *  Verbindungsaufbau liest — der Wert daneben im Envelope jeder Antwort ist der von jetzt.
+ *  Mechanik und Begründung: `toolSurface.ts`. */
+function toolSurfaceNotice(): string {
+  return (
+    "\n\nWERKZEUGLISTE-STAND: " + toolSurfaceFingerprint() + ". Deine Werkzeugliste — Namen, " +
+    "Beschreibungen, Parameter — hast du beim Verbinden EINMAL gelesen; die Aufrufe gehen live. " +
+    "Jede ERFOLGREICHE Antwort trägt `toolsFingerprint` — Fehlermeldungen nicht, die sagen ohnehin " +
+    "selbst, was los ist. Weicht er von dem Wert oben ab, ist deine Liste " +
+    "überholt: nach einem Deploy können Parameter dazugekommen, weggefallen oder in ihrer Bedeutung " +
+    "geändert sein. Verlass dich dann NICHT mehr auf die Beschreibungen, die du im Kopf hast, sag " +
+    "es der Keyholderin und bitte sie um eine frische Verbindung — ein neuer Chat allein genügt " +
+    "nicht. Was du bereits weisst, bleibt bis dahin brauchbar; nur was eine Beschreibung verspricht, " +
+    "ist es nicht mehr."
+  );
+}
+
 /**
  * Baut die finalen Server-Instructions: Basis + Regel-Zeiger, und — best effort — ein WÖRTLICHES Abbild
  * der aktuellen `mcpKeyholderInstructions` des MCP_USERNAME, damit die Regeln direkt mit der Tool-Liste
@@ -247,7 +275,9 @@ const KEYHOLDER_RULES_POINTER =
  * try/catch; bei Fehler/leer fällt es auf Basis + Zeiger zurück (kein Crash).
  */
 async function buildServerInstructions(): Promise<string> {
-  let instructions = MCP_SERVER_INSTRUCTIONS + KEYHOLDER_RULES_POINTER;
+  // `toolSurfaceNotice()` erst hier auswerten, nicht als Konstante: der Fingerabdruck wird beim
+  // Bauen des Handlers gesetzt, und eine Konstante hätte den Wert von vor dem Setzen festgehalten.
+  let instructions = MCP_SERVER_INSTRUCTIONS + KEYHOLDER_RULES_POINTER + toolSurfaceNotice();
   if (process.env.NEXT_RUNTIME !== "nodejs") return instructions;
   const username = process.env.MCP_USERNAME;
   if (!username) return instructions;
@@ -271,8 +301,33 @@ async function buildServerInstructions(): Promise<string> {
  *  is for the user named in MCP_USERNAME. */
 type McpServer = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
 
+/**
+ * Macht die Eingabe-Schemas ALLER danach registrierten Tools strikt: ein Feld, das im Schema nicht
+ * steht, führt zu einem Fehler statt still verworfen zu werden. Verändert `server` an Ort und
+ * Stelle und gibt bewusst nichts zurück — ein Rückgabewert läse sich wie eine Hülle, die er nicht ist.
+ *
+ * **Warum das nötig war (Befunde vom 23.08.2026):** Zod verwirft unbekannte Schlüssel
+ * standardmässig lautlos. `period_summary { granularity, periods }` lieferte darum ohne Murren
+ * immer dieselbe feste Auswertung, und `upsert_device { id, trackingEnabled: false }` meldete
+ * `ok: true` mit leerem `diff` — das Feld hängt an der Kategorie, nicht am Gerät. In beiden Fällen
+ * bekam die Aufruferin die Bestätigung einer Wirkung, die es nicht gab. Ein still ignorierter
+ * Parameter ist die schlechteste der drei möglichen Antworten; ein Fehler ist die ehrlichste.
+ *
+ * Sitzt hier und nicht an 48 Registrierungen: eine Regel, die man je Tool wiederholen muss, gilt
+ * über kurz oder lang nicht mehr für alle. `z.strictObject` schreibt zusätzlich
+ * `additionalProperties: false` in das veröffentlichte JSON-Schema — die Aufruferin sieht die
+ * Schranke also, bevor sie dagegen läuft.
+ */
+function makeInputsStrict(server: McpServer): void {
+  const register = server.registerTool.bind(server);
+  server.registerTool = ((name: string, config: { inputSchema?: z.ZodRawShape }, cb: unknown) =>
+    register(name, { ...config, inputSchema: z.strictObject(config.inputSchema ?? {}) } as never, cb as never)
+  ) as typeof server.registerTool;
+}
+
 /** Registriert alle MCP-Tools auf dem Server. */
 function registerTools(server: McpServer) {
+    makeInputsStrict(server);
     server.registerTool(
       "list_entries",
       {
@@ -455,8 +510,14 @@ function registerTools(server: McpServer) {
       {
         title: "Period summary (day/week/month) + goal fulfillment",
         description:
-          "MCP V2 — Tag/Woche/Monat-Tragestunden für KG und je Kategorie inkl. Ziel-Erfüllung (pct). " +
-          "Eine Quelle für die Adhärenz-Frage.",
+          "MCP V2 — Tag/Woche/Monat/Jahr-Tragestunden für KG und je Kategorie inkl. Ziel-Erfüllung (pct). " +
+          "Eine Quelle für die Adhärenz-Frage. Liegt eine Zielgrenze (Beginn/Ende einer Vorgabe) INNERHALB " +
+          "einer Periode, wird diese Periode GAR NICHT bewertet: goal<Periode>H und <periode>Pct sind beide " +
+          "null, goalChangedInPeriod.<periode> ist true. Ist-Stunden der ganzen Periode gegen ein Ziel für " +
+          "einen Teil davon ergäbe keine Aussage — auch nicht, wenn man beide Rohwerte selbst " +
+          "nebeneinanderlegt. Die IST-Stunden daneben gelten weiter; beurteile in dem Fall diese. " +
+          "Nimmt KEINE Parameter — granularity/periods gibt es nicht, ein Aufruf damit schlägt fehl statt " +
+          "sie still zu ignorieren.",
         inputSchema: {},
       },
       () => runTool("period_summary", periodSummary),
@@ -787,17 +848,21 @@ function registerTools(server: McpServer) {
       {
         title: "Set training goal (Vorgabe)",
         description:
-          "Sets a wear-time goal (min hours per day/week/month) for KG or a named category. Starts now by " +
-          "default, or schedule a future start via validFrom. Goals are chained per category by start date, " +
-          "so a future-dated goal automatically ends the current one at that date. At least one period target " +
-          "is required." + KEYHOLDER_SILENT,
+          "Sets a wear-time goal (min hours per day/week/month) for KG or a named category. Without " +
+          "validFrom the goal starts at the user's NEXT MIDNIGHT, not at the moment of the call — a goal " +
+          "that begins mid-period splits that period and makes its fulfilment percentage meaningless. " +
+          "Pass validFrom to schedule a later start, or to start mid-period on purpose; a period holding a " +
+          "goal boundary is then not evaluated at all — target and percentage both null (see " +
+          "period_summary.goalChangedInPeriod). " +
+          "Goals are chained per category by start date, so a new goal automatically ends the current one " +
+          "of that category at its start. At least one period target is required." + KEYHOLDER_SILENT,
         inputSchema: {
           category: z.string().optional().describe('Category name, e.g. "Plug". Omit or "KG" for the chastity device.'),
           minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day."),
           minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week."),
           minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month."),
-          minPerYearHours: z.number().nonnegative().optional().describe("Min hours per year. Prorated to the goal's overlap with the year when it starts/ends mid-year."),
-          validFrom: z.string().optional().describe("Goal start (ISO 8601, e.g. 2026-06-12). Omit to start now. May be a future date to schedule a goal in advance."),
+          minPerYearHours: z.number().nonnegative().optional().describe("Min hours per year."),
+          validFrom: z.string().optional().describe("Goal start (ISO 8601, e.g. 2026-06-12). Omit to start at the user's next midnight — the next period boundary. Set it to schedule a goal in advance, or to start mid-period deliberately."),
           validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit for open-ended."),
           note: z.string().optional().describe("Note shown with the goal."),
           reason: reasonField,
@@ -1011,17 +1076,69 @@ function registerTools(server: McpServer) {
     server.registerTool(
       "resolve_inspection",
       {
-        title: "Verify or reject the latest inspection",
+        title: "Verify or reject a submitted inspection",
         description:
-          "Manually verifies or rejects the user's most recent submitted inspection photo (overrides any " +
-          "automatic check). Use request_inspection to ask for one, withdraw to cancel an open one." + KEYHOLDER_NOTE,
+          "Manually verifies or rejects a submitted inspection photo (overrides any automatic check). " +
+          "Without `id` it takes the most recent submission — the normal case. Pass `id` (from list_entries; " +
+          "timeline does not carry entry ids) to judge a specific, older one, exactly as the web interface " +
+          "does row by row. " +
+          "Use request_inspection to ask for one, withdraw to cancel an open one." + KEYHOLDER_NOTE,
         inputSchema: {
           action: z.enum(["verify", "reject"]).describe("Accept (verify) or reject the submitted photo."),
+          id: z.string().optional().describe("Entry id of the submission to judge (from list_entries); omit for the most recent one."),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("resolve_inspection", extra, args, (u) => mcpResolveInspection(u, args)),
+    );
+
+    server.registerTool(
+      "set_offense_rules",
+      {
+        title: "Set which offence types count for this wearer",
+        description:
+          "Switches offence types on or off for this wearer — the write side of get_context.offenseRules. " +
+          "Pass every rule you want to change in ONE call: together they are one decision, and one call " +
+          "leaves one point in time in the rule history instead of several. A rule applies FROM NOW ON: " +
+          "judgements already made stay as they are, and switching a rule on does not make the past count. " +
+          "`unauthorized_orgasm` is the only three-mode type (off / lockedOnly / always). " +
+          "`manual_offense` is deliberately not switchable — a note you wrote yourself is not something the " +
+          "app should discard; dismiss it with judge_offense instead." + KEYHOLDER_SILENT,
+        inputSchema: {
+          rules: z.array(z.object({
+            type: z.enum(Object.keys(OFFENSE_RULE_MODES) as [string, ...string[]]).describe("The offence type."),
+            mode: z.enum([...new Set(Object.values(OFFENSE_RULE_MODES).flat())] as [string, ...string[]])
+              .describe(`Every type takes "off"/"on"; only unauthorized_orgasm also takes "lockedOnly" (only during a lock period) and "always".`),
+          })).describe("The rules to change. Everything is validated before the first one is written."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("set_offense_rules", extra, args, (u) => mcpSetOffenseRules(u, args)),
+    );
+
+    server.registerTool(
+      "set_inspection_escalation",
+      {
+        title: "Set the escalation stages of an overdue inspection",
+        description:
+          "Sets what happens when an inspection deadline passes: a REMINDER to the wearer, and the automatic " +
+          "MARKING as removed (which counts as an offence if that rule is on). The reminder delay is measured " +
+          "from the DEADLINE; the auto-mark delay is measured from the REMINDER — reminder 5 + auto-mark 60 " +
+          "means the mark falls 65 minutes after the deadline, not 60. Do not promise the wearer a time " +
+          "without adding the two up. Only provided fields change; the current values are in " +
+          "get_context.inspectionEscalation." + KEYHOLDER_SILENT,
+        inputSchema: {
+          reminderEnabled: z.boolean().optional().describe("Remind the wearer when the deadline passes?"),
+          reminderDelayMinutes: rangeField(INSPECTION_REMINDER_DELAY_RANGE, "Minutes after the DEADLINE before reminding"),
+          autoMarkEnabled: z.boolean().optional().describe("Automatically mark the inspection as removed when it stays unanswered?"),
+          autoMarkDelayMinutes: rangeField(INSPECTION_AUTO_MARK_DELAY_RANGE, "Minutes after the REMINDER before marking automatically (so: deadline + reminderDelay + this)"),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("set_inspection_escalation", extra, args, (u) => mcpSetInspectionEscalation(u, args)),
     );
 
     server.registerTool(
@@ -1371,8 +1488,9 @@ function registerTools(server: McpServer) {
         description:
           "Die Gewichts-Reihe des Trägers: Punkte je Kalendertag, aktueller Wert samt BMI, Veränderung " +
           "im Zeitraum und das gleitende 7-Tage-Mittel als Trend. Alle Werte METRISCH (kg). " +
-          "`corridor` ist der WIRKSAME Zielbereich — der weitere aus dem, was der Träger sich gesetzt " +
-          "hat (`subCorridor`), und deiner Nachbesserung. `daysSinceLastReport` ist die Zahl, an der die " +
+          "`target` ist das WIRKSAME Zielgewicht — deines, solange du eines führst, sonst seines; " +
+          "`subTarget` bleibt daneben stehen, `progress` sagt, wie weit er ist. " +
+          "`daysSinceLastReport` ist die Zahl, an der die " +
           "Meldepflicht hängt (mehr als drei Tage ohne Angabe sind ein Vergehen, sofern die Regel " +
           "scharf ist — siehe get_context.offenseRules). `inWindow: false` heisst: ausserhalb der " +
           "Wiege-Fenster gemessen; der Wert zählt, bleibt aber aus dem Trend. `enabled: false` = das " +
@@ -1392,7 +1510,7 @@ function registerTools(server: McpServer) {
           "Trägt eine Messung für den Träger nach — METRISCH (kg). Höchstens EINE je Kalendertag " +
           "(seiner Zeitzone): eine zweite ersetzt die erste, `replaced` sagt es. Anders als beim " +
           "Träger braucht dein Eintrag keinen Foto-Beleg — du stehst nicht vor seiner Waage. " +
-          "Verlässt der Wert den Zielbereich, geht darüber die übliche Meldung raus." + V2_WRITE_NOTE,
+          "Erreicht der Wert das Ziel oder verfehlt es wieder, geht darüber die übliche Meldung raus." + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
           weightKg: z.number().describe("Gewicht in Kilogramm (20–300)."),
@@ -1404,21 +1522,89 @@ function registerTools(server: McpServer) {
     );
 
     server.registerTool(
-      "set_weight_limits",
+      "set_weight_tracking",
       {
-        title: "Widen the wearer's weight target range (v2)",
+        title: "Set weight-tracking settings",
         description:
-          "Bessert den Zielbereich NACH — METRISCH (kg). Du darfst ihn nur WEITEN, nie verengen, und " +
-          "nur dort, wo der Träger selbst eine Grenze gesetzt hat: die Grenzen gehören ihm, weil er " +
-          "der Realistischere ist. Wirksam ist danach der weitere der beiden Werte. `null` nimmt deine " +
-          "Nachbesserung zurück. Den Bestand zeigt weight_history (`subCorridor` / `corridor`)." + V2_WRITE_NOTE,
+          "Sets EVERYTHING you can set about weight tracking: the master switch for this wearer, the weighing " +
+          "windows, and YOUR target weight. Only provided fields change; read the current values from " +
+          "weight_history first. `windows` REPLACES the whole list (that is how a window is retimed, added or " +
+          "deleted) — pass every window you want to keep. `windows:[]` clears them, which does NOT stop the " +
+          "weighing: with no windows any time of day counts (the reporting duty is a separate rule, see " +
+          "get_context.offenseRules). `targetKg` is YOUR target — it applies over the wearer's own, which stays " +
+          "visible; `null` withdraws it and his applies again. The dry run reports `underweightWarning` when " +
+          "your number would put him below BMI 18.5 — it is set anyway, but ask him first. Switching the master " +
+          "switch OFF also switches the missed-report offence rule off, so the time it was unavailable does not " +
+          "count against him." + KEYHOLDER_SILENT,
         inputSchema: {
-          ...writeMetaFields,
-          minKg: z.number().nullable().optional().describe("Deine Untergrenze — muss UNTER der des Trägers liegen; null = zurücknehmen."),
-          maxKg: z.number().nullable().optional().describe("Deine Obergrenze — muss ÜBER der des Trägers liegen; null = zurücknehmen."),
+          enabled: z.boolean().optional().describe("Enable weight tracking for this wearer at all?"),
+          windows: z.array(z.object({
+            start: z.string().describe(`Window start, "HH:MM" in the wearer's local time (00:00–23:59).`),
+            durationMin: z.number().int().describe(
+              `How long the window stays open, in minutes (${WEIGHING_WINDOW_DURATION_RANGE.min}–${WEIGHING_WINDOW_DURATION_RANGE.max}). Start + duration must stay within the same day.`,
+            ),
+            days: z.array(z.number().int().min(1).max(7)).optional().describe(
+              "Weekdays it applies to, ISO numbers (1 = Monday … 7 = Sunday). Omit = every day. An empty list is rejected: a window that never applies is not a rule.",
+            ),
+            remind: z.boolean().optional().describe(
+              "Remind him when this window opens and he has not logged a value that day? Mail and push; he can switch the channel off in his own settings. Default false.",
+            ),
+          })).optional().describe(
+            `The complete new list of weighing windows (max ${WEIGHING_WINDOWS_MAX}), replacing the current one. A window cannot cross midnight.`,
+          ),
+          targetKg: z.number().nullable().optional().describe("YOUR target weight in kg; null withdraws it (his own applies again)."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
-      (args, extra) => runV2Write(setWeightLimitsDef, extra, args),
+      (args, extra) => runWriteTool("set_weight_tracking", extra, args, (u) => mcpSetWeightTracking(u, args)),
+    );
+
+    server.registerTool(
+      "set_weight_release",
+      {
+        title: "Tie the next orgasm to a weight",
+        description:
+          "Sets the condition that unlocks the next orgasm: once the AVERAGE of the last few days reaches " +
+          "`thresholdKg`, an orgasm window (GELEGENHEIT) opens by itself at his next weigh-in. The average, " +
+          "not a single day's value — one weigh-in varies by one to two kilos, and hanging a release on that " +
+          "means letting table salt decide. Only the FIRST weigh-in of a day is evaluated, so he cannot " +
+          "re-weigh until it fits. It never creates an offence: the consequence is waiting. The condition is " +
+          "CONSUMED once it opens a window — set the next one yourself. `withdraw: true` takes the open one " +
+          "back. Run it with `dryRun` first: the preview reports his current average, and „below 74 kg\" means " +
+          "something entirely different at 74.2 than at 82." + KEYHOLDER_SILENT,
+        inputSchema: {
+          thresholdKg: z.number().optional().describe(
+            "The weight his average must reach, in kg. Required unless `withdraw` is set.",
+          ),
+          direction: z.enum(["below", "above"]).optional().describe(
+            "Must the average be BELOW the threshold (losing weight, the default) or ABOVE it (gaining)?",
+          ),
+          averageDays: z.number().int().optional().describe(
+            `Width of the average in CALENDAR days (${RELEASE_AVERAGE_DAYS_RANGE.min}–${RELEASE_AVERAGE_DAYS_RANGE.max}, default ${RELEASE_AVERAGE_DAYS_RANGE.fallback}).`,
+          ),
+          minMeasurements: z.number().int().optional().describe(
+            `How many weigh-ins must fall inside that window for the average to count (default ${RELEASE_MIN_MEASUREMENTS_RANGE.fallback}). Must not exceed averageDays — that would be unmeetable.`,
+          ),
+          stepKg: z.number().optional().describe(
+            "How far the threshold moves TOWARD him each day, in kg. 0 (default) keeps it fixed. With a step it comes to meet him, so he will get there eventually — the only question is how many days it costs.",
+          ),
+          notBeforeAt: z.string().optional().describe(
+            "ISO timestamp: nothing opens before this, whatever the scale says. Required unless `withdraw` is set.",
+          ),
+          windowHours: z.number().int().optional().describe(
+            `How long the orgasm window stays open once it triggers (default ${RELEASE_WINDOW_HOURS_RANGE.fallback} h).`,
+          ),
+          openingAllowed: z.boolean().optional().describe(
+            "May he open the device to perform the orgasm during that window? Default false.",
+          ),
+          message: z.string().nullable().optional().describe("Free text carried into the orgasm window."),
+          withdraw: z.boolean().optional().describe("Take back the open condition instead of setting one."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("set_weight_release", extra, args, (u) => mcpSetWeightRelease(u, args)),
     );
 
     server.registerTool(
@@ -1596,13 +1782,62 @@ function registerImageTool(server: McpServer) {
   );
 }
 
+/**
+ * Der Fingerabdruck der Werkzeug-Oberfläche, GEMESSEN an den Definitionen, die der Client bekommt.
+ *
+ * Dafür läuft die Registrierung ein zusätzliches Mal gegen einen Sammler statt gegen einen Server.
+ * Der Umweg ist Absicht: eine von Hand gepflegte Versionszahl neben den Werkzeugen wäre genau die
+ * Sorte Angabe, die beim nächsten Beschreibungs-Wechsel stehen bleibt. Was hier herauskommt, kann
+ * per Konstruktion nicht danebenliegen — es IST die Oberfläche.
+ *
+ * `imagesVisible` geht mit ein, weil es ein Werkzeug erscheinen und verschwinden lässt: eine
+ * Sitzung, die vor der Freischaltung verbunden hat, kennt `get_image` nicht.
+ *
+ * Exportiert für `toolSurfaceRegistration.test.ts`: die Messung schickt jedes der registrierten
+ * Schemas durch `z.toJSONSchema`, und ein Wurf dort träfe den Handler-Bau — also den gesamten
+ * MCP-Endpunkt. Das gehört an den echten Registrierungen geprüft, nicht an einer Stichprobe.
+ */
+export function measureToolSurface(imagesVisible: boolean): string {
+  // Der Briefing-Text zählt mit: er wird genauso EINMAL beim Verbinden gelesen und nennt Werkzeuge
+  // und Regeln beim Namen. Ohne ihn liesse ein Deploy, der nur das Briefing umschreibt, den
+  // Fingerabdruck stehen — der Envelope bestätigte der Sitzung dann ihren veralteten Text als
+  // aktuell, was schlimmer ist als gar kein Signal. NICHT dabei: der finale Text mitsamt
+  // `toolSurfaceNotice()` (der enthält den Wert selbst, das wäre zirkulär) und das Abbild der
+  // Keyholder-Regeln, das seinen eigenen Immer-frisch-Zeiger hat.
+  const collected: { name: string; surface: string }[] = [
+    { name: "", surface: MCP_SERVER_INSTRUCTIONS + KEYHOLDER_RULES_POINTER },
+  ];
+  const collector = {
+    registerTool(name: string, config: { title?: string; description?: string; inputSchema: z.ZodType }) {
+      // `inputSchema` ist hier immer das strikte Zod-Objekt: `makeInputsStrict` läuft mit und setzt
+      // es für jedes Werkzeug, auch für die parameterlosen. Also exakt das, woraus der Client sein
+      // JSON-Schema bekommt — samt der Parameter-Beschreibungen, um die es hier vor allem geht.
+      const input = JSON.stringify(z.toJSONSchema(config.inputSchema));
+      collected.push({ name, surface: `${config.title ?? ""}${config.description ?? ""}${input}` });
+    },
+  } as unknown as McpServer;
+  registerTools(collector);
+  if (imagesVisible) registerImageTool(collector);
+  return computeToolSurfaceFingerprint(collected);
+}
+
 /** Baut den auth-umhüllten MCP-Handler. Async, weil die Server-Instructions erst per await-Helfer
  *  (best-effort DB-Read der Keyholder-Regeln) befüllt werden. */
 async function buildAuthHandler(): Promise<(req: Request) => Promise<Response>> {
-  const instructions = await buildServerInstructions();
   // Der Sub-Schlüssel braucht die Datenbank, die Werkzeug-Registrierung ist synchron — deshalb hier
   // auflösen. Das Tor steht damit an genau einer Stelle, dort wo der Wert entsteht.
   const imagesVisible = await mcpImageToolVisible();
+  // VOR den Instructions: der Fingerabdruck gehört in ihren Text.
+  //
+  // In try/catch, weil die Messung ein Diagnose-Hilfsmittel ist und nie der Grund sein darf, dass
+  // der MCP-Endpunkt nicht hochkommt. Fällt sie aus, bleibt der Wert "unknown" — die Sitzung
+  // bekommt dann keinen Stale-Hinweis, aber alles andere funktioniert.
+  try {
+    setToolSurfaceFingerprint(measureToolSurface(imagesVisible));
+  } catch (e) {
+    structuredLog("MCP", "tool-surface-failed", { error: (e as Error).message });
+  }
+  const instructions = await buildServerInstructions();
   const handler = createMcpHandler(
     (server) => {
       registerTools(server);

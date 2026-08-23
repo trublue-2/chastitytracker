@@ -30,7 +30,7 @@ vi.mock("@/lib/mcp/common", async (orig) => ({
   loadTrackingContext: (...a: unknown[]) => loadTrackingContext(...a),
 }));
 
-import { deviceStats, records, denialTrend, type DeviceStatsResult } from "./stats";
+import { deviceStats, records, denialTrend, periodGoal, type DeviceStatsResult } from "./stats";
 
 const NOW = new Date("2026-07-14T18:00:00+02:00");
 const KG = { id: "cat-kg", name: "KG", isBuiltIn: true };
@@ -379,5 +379,45 @@ describe("denial_trend — trendRising (A-10, MCP-Befundliste 2026-07-17)", () =
     const recent = [200, 220, 210];
     const result = await denialTrend("sub", {}, ctx(orgasmEntries("2026-01-01T00:00:00Z", [...older, ...recent])));
     expect(result.trendRising).toBe(true);
+  });
+});
+
+describe("periodGoal — Prozentwerte einer geteilten Periode", () => {
+  const IST = { day: 0.5, week: 76.5, month: 216.9, year: 1334.4 };
+  const UNGETEILT = { day: false, week: false, month: false, year: false };
+
+  it("der Vorfall vom 23.08.2026 liefert keine 1013 % mehr", () => {
+    // Ziel 15/90/390 um 09:54 gesetzt: Tag, Woche und Monat tragen die Grenze — keine dieser drei
+    // Perioden wird bewertet, weder mit Prozentwert noch mit einem Ziel als Absolutwert.
+    const g = periodGoal(IST, {
+      targetH: { day: null, week: null, month: null, year: null },
+      changedInPeriod: { day: true, week: true, month: true, year: false },
+    });
+    expect(g.todayPct).toBeNull();
+    expect(g.weekPct).toBeNull();
+    expect(g.monthPct).toBeNull();
+    // Auch kein anteiliges Ziel als Absolutwert: `goalWeekH: 7.55` neben `week: 76.5` lud dazu ein,
+    // von Hand denselben Vergleich anzustellen, den der unterdrückte Prozentwert vermeidet.
+    expect(g.goalWeekH).toBeNull();
+    expect(g.goalMonthH).toBeNull();
+    // Die IST-Stunden bleiben — sie sind das, was der Konsument stattdessen beurteilt.
+    expect(g.week).toBe(76.5);
+    expect(g.goalChangedInPeriod).toEqual({ day: true, week: true, month: true, year: false });
+  });
+
+  it("ungeteilte Perioden rechnen weiterhin ganz normal", () => {
+    const voll = { day: 15, week: 90, month: 390, year: null };
+    const g = periodGoal(IST, { targetH: voll, changedInPeriod: UNGETEILT });
+    expect(g.todayPct).toBe(3);
+    expect(g.weekPct).toBe(85);
+    expect(g.monthPct).toBe(56);
+    // Ohne Jahresziel bleibt der Jahres-Prozentwert null — wie bisher, unabhängig von der Regel.
+    expect(g.yearPct).toBeNull();
+  });
+
+  it("Übererfüllung wird NICHT geklemmt — nur Artefakte werden unterdrückt", () => {
+    const ziel = { day: null, week: 80, month: null, year: null };
+    const g = periodGoal({ ...IST, week: 100 }, { targetH: ziel, changedInPeriod: UNGETEILT });
+    expect(g.weekPct).toBe(125);
   });
 });

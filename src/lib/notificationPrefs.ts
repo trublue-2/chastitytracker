@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { NOTIFICATION_EVENT_TYPES, ALL_CHANNELS, type NotificationChannels, type NotificationEventType } from "@/lib/constants";
+import {
+  NOTIFICATION_EVENT_TYPES, ALL_CHANNELS,
+  type NotificationChannels, type NotificationEventType, type RecipientNotificationEventType,
+} from "@/lib/constants";
 
 export type { NotificationChannels };
 
@@ -10,7 +13,22 @@ export type { NotificationChannels };
  * gelesen vom Versand (notify.ts) und von der Anzeige des Schalters (getSettingsProps).
  */
 export function getMessageChannels(userId: string): Promise<NotificationChannels> {
-  return readChannels(userId, "MESSAGE_RECEIVED");
+  return getRecipientChannels(userId, "MESSAGE_RECEIVED");
+}
+
+/**
+ * Mail/Push zu einer Meldung AN DEN NUTZER selbst — der Schalter aus SEINEN Einstellungen
+ * (`RECIPIENT_NOTIFICATION_EVENT_TYPES`).
+ *
+ * Getrennt von {@link getEventChannels}, weil die beiden Listen Gegenteiliges bedeuten: dort geht es
+ * um Meldungen ÜBER den Träger an seine Keyholder, hier um Meldungen AN ihn. Ein gemeinsamer Leser
+ * würde diesen Unterschied genau dann verwischen, wenn jemand den falschen Schaltertyp erwischt.
+ * Eine fehlende Zeile heisst auch hier „an".
+ */
+export function getRecipientChannels(
+  userId: string, eventType: RecipientNotificationEventType,
+): Promise<NotificationChannels> {
+  return readChannels(userId, eventType);
 }
 
 /**

@@ -44,7 +44,7 @@ describe("Dashboard-Block-Register", () => {
   it("jede der vier Oberflächen ist belegt", () => {
     // Hält die Zahlen fest: ein Block, der beim Umbau verlorenginge, fiele hier auf und nicht
     // erst dem Nutzer.
-    expect(blocksOf("subDashboard").length).toBe(15);
+    expect(blocksOf("subDashboard").length).toBe(16);
     expect(blocksOf("subStats").length).toBe(13);
     expect(blocksOf("keyholderStats").length).toBe(13);
     expect(blocksOf("keyholderSub").length).toBe(14);

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Badge from "@/app/components/Badge";
@@ -17,9 +17,13 @@ import {
   parseReinigungsFenster,
 } from "@/lib/reinigungService";
 import {
-  OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS, SWITCHABLE_OFFENSE_TYPES_IN_ORDER,
+  OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS, switchableOffenseTypesFor,
 } from "@/lib/offenseLabels";
 import { getOffenseRules } from "@/lib/offenseRulesService";
+import { weightTrackingEnabled } from "@/lib/constants";
+import { weightReleaseStatus } from "@/lib/weightReleaseService";
+import { weightText, type UnitSystem } from "@/lib/weight";
+import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/utils";
 
 /** Ein „von–bis"-Paar als eine Zeile. Die Seite zeigt drei Sorten davon (Uhrzeiten, Minuten,
  *  Anzahl) — `formatReinigungsFenster` bleibt beim Reinigungs-Fenster, dessen Form es kennt. */
@@ -41,7 +45,7 @@ export default async function RulesPage() {
   const userId = session?.user?.id;
   if (!userId) redirect("/login");
 
-  const [user, offenseRules, t, ta, tc, tOffense] = await Promise.all([
+  const [user, offenseRules, release, locale, t, ta, tc, tOffense, tRelease] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -49,15 +53,28 @@ export default async function RulesPage() {
         reinigungMaxMinuten: true,
         reinigungMaxProTag: true,
         reinigungsFenster: true,
+        weightTrackingEnabled: true,
+        unitSystem: true,
         ...AUTO_KONTROLLE_SETTINGS_SELECT,
       },
     }),
     getOffenseRules(userId),
+    // Die Vorgabe steht hier vollständig: „Meine Regeln" beantwortet die Frage „wonach werde ich
+    // beurteilt", und eine Bedingung, die den nächsten Orgasmus entscheidet, gehört zu den
+    // wichtigsten Antworten darauf.
+    weightReleaseStatus(userId),
+    getLocale(),
     getTranslations("rules"),
     getTranslations("admin"),
     getTranslations("common"),
     getTranslations("offenses"),
+    getTranslations("release"),
   ]);
+
+  // Seine Einheit und seine Zeitzone: hier schaut der Träger auf sich selbst.
+  const viewerUnit = ((user?.unitSystem ?? "metric") as UnitSystem);
+  const releaseUnitLabel = viewerUnit === "imperial" ? tc("unitLbs") : tc("unitKg");
+  const tz = user?.timezone || APP_TZ;
 
   const cleaningWindows = parseReinigungsFenster(user?.reinigungsFenster);
   const auto = user ? autoKontrolleSettingsFromUser(user) : null;
@@ -151,12 +168,51 @@ export default async function RulesPage() {
           </div>
         </SettingsSection>
 
+        {/* Nur wenn eine Vorgabe steht: ein leerer Abschnitt „Freigabe-Vorgabe" auf jeder
+            Regel-Seite behauptete ein Feature, das die meisten Träger gar nicht haben. */}
+        {release && (
+          <SettingsSection title={tRelease("title")} description={tRelease("rulesDesc")} bodyPadded>
+            <div className="flex flex-col gap-3">
+              <DetailField label={tRelease("required", { days: release.release.averageDays })}>
+                <p className="text-sm font-semibold text-foreground tabular-nums">
+                  {tRelease(release.release.direction === "above" ? "requiredAbove" : "requiredBelow", {
+                    value: `${weightText(release.thresholdKg, viewerUnit, toDateLocale(locale))} ${releaseUnitLabel}`,
+                  })}
+                </p>
+              </DetailField>
+              <DetailField label={tRelease("current", { days: release.release.averageDays })}>
+                <p className="text-sm text-foreground tabular-nums">
+                  {release.averageKg === null
+                    ? tRelease("noAverage")
+                    : `${weightText(release.averageKg, viewerUnit, toDateLocale(locale))} ${releaseUnitLabel}`}
+                </p>
+              </DetailField>
+              <DetailField label={tRelease("notBefore")}>
+                <p className="text-sm text-foreground-muted">
+                  {formatDateTime(release.release.notBeforeAt, toDateLocale(locale), tz)}
+                </p>
+              </DetailField>
+              <DetailField label={tRelease("rulesWindow", { hours: release.release.windowHours })}>
+                <p className="text-sm text-foreground-muted">
+                  {release.nextThresholdKg === null
+                    ? "—"
+                    : tRelease("tomorrow", { value: `${weightText(release.nextThresholdKg, viewerUnit, toDateLocale(locale))} ${releaseUnitLabel}` })}
+                </p>
+              </DetailField>
+            </div>
+          </SettingsSection>
+        )}
+
         <SettingsSection title={ta("sectionOffenseRules")} description={t("offensesDesc")} bodyPadded>
           <div className="flex flex-col gap-3">
             {/* AUCH die abgeschalteten Arten, mit ihrem Modus daneben: die Seite existiert, weil
                 „zählt das bei mir überhaupt?" bisher unbeantwortbar war — eine gefilterte Liste
-                beantwortet nur die halbe Frage. */}
-            {SWITCHABLE_OFFENSE_TYPES_IN_ORDER.map((type) => {
+                beantwortet nur die halbe Frage. Draussen bleibt nur, was es bei ihm gar nicht gibt:
+                ohne Gewichtstracking existiert die Meldepflicht nicht, „aus" wäre die Antwort auf
+                eine Frage, die sich nie gestellt hat. */}
+            {switchableOffenseTypesFor({
+              weightTracking: weightTrackingEnabled() && !!user?.weightTrackingEnabled,
+            }).map((type) => {
               const key = OFFENSE_TYPE_I18N_KEYS[type];
               const mode = offenseRules[type];
               return (

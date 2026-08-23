@@ -1,5 +1,6 @@
-import { APP_TZ } from "@/lib/utils";
-import { WEIGHING_WINDOWS_MAX } from "@/lib/constants";
+import { APP_TZ, hhmmFromMinutes, hhmmInTZ, hhmmToMinutes } from "@/lib/utils";
+import { HHMM, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE } from "@/lib/constants";
+import { isoWeekdayInTZ, parseWeekdayMask, weekdayMaskHas, weekdayMaskValid } from "@/lib/weekdays";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 
 /**
@@ -29,22 +30,58 @@ import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
  * Fenster misst die Kurve die Tageszeit mit.
  */
 
+/**
+ * Ein Fenster: ab wann, wie lange, an welchen Tagen — und ob daran erinnert wird.
+ *
+ * **Startzeit plus Dauer statt Anfang und Ende.** So steht es auf dem Zettel des Nutzers („ab 5:00,
+ * ca. 3 h"), und so denkt auch, wer es einstellt: die Dauer ist die Grosszügigkeit, die er dem
+ * Träger einräumt. Zwei Uhrzeiten zwingen ihn, sie jedes Mal selbst auszurechnen.
+ */
 export interface WeighingWindow {
   start: string;
-  end: string;
+  durationMin: number;
+  /** Bitmaske der Wochentage (`weekdays.ts`) — an welchen Tagen dieses Fenster überhaupt gilt. */
+  days: number;
+  /** Erinnert die App zum Fensterbeginn, wenn an diesem Tag noch kein Wert steht? */
+  remind: boolean;
 }
 
-const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+/** Das Ende eines Fensters als „HH:MM" — abgeleitet, nie gespeichert. */
+export function weighingWindowEnd(w: WeighingWindow): string {
+  return hhmmFromMinutes(hhmmToMinutes(w.start) + w.durationMin);
+}
 
-/** Fenster über Mitternacht gibt es hier bewusst nicht: `start < end`. Wer um 23 Uhr beginnt und um
- *  1 Uhr endet, wiegt nicht mehr nüchtern zur gleichen Tageszeit — der Fall wäre eine Einladung,
- *  die Messreihe unbrauchbar zu machen. */
+/**
+ * Fenster über Mitternacht gibt es hier bewusst nicht: Start plus Dauer muss im selben Tag bleiben.
+ * Wer um 23 Uhr beginnt und um 1 Uhr endet, wiegt nicht mehr nüchtern zur gleichen Tageszeit — der
+ * Fall wäre eine Einladung, die Messreihe unbrauchbar zu machen.
+ *
+ * **Alt-Fenster `{start, end}` werden mitgelesen** und in Start + Dauer übersetzt: sie stehen als
+ * JSON in der Spalte, und ein Lese-Pfad, der sie verwirft, löschte beim ersten Speichern still die
+ * Einstellung des Nutzers.
+ */
 function shape(w: unknown): WeighingWindow | null {
-  const start = (w as { start?: unknown })?.start;
-  const end = (w as { end?: unknown })?.end;
-  if (typeof start !== "string" || typeof end !== "string") return null;
-  if (!HHMM.test(start) || !HHMM.test(end) || start >= end) return null;
-  return { start, end };
+  const raw = w as { start?: unknown; end?: unknown; durationMin?: unknown; days?: unknown; remind?: unknown };
+  if (typeof raw?.start !== "string" || !HHMM.test(raw.start)) return null;
+
+  let durationMin: number;
+  if (typeof raw.durationMin === "number" && Number.isFinite(raw.durationMin)) {
+    durationMin = Math.round(raw.durationMin);
+  } else if (typeof raw.end === "string" && HHMM.test(raw.end)) {
+    durationMin = hhmmToMinutes(raw.end) - hhmmToMinutes(raw.start);
+  } else {
+    return null;
+  }
+  if (durationMin < 1 || hhmmToMinutes(raw.start) + durationMin > 24 * 60) return null;
+
+  return {
+    start: raw.start,
+    durationMin,
+    days: parseWeekdayMask(raw.days),
+    // Alt-Fenster kannten keine Erinnerung — und ein Update darf niemandem ungefragt Nachrichten
+    // einschalten. Also aus, bis jemand das Häkchen setzt.
+    remind: raw.remind === true,
+  };
 }
 
 /** Parst die Liste aus `User.weighingWindows` (JSON-String ODER Array). **Tolerant:** Murks wird
@@ -65,34 +102,45 @@ export function parseWeighingWindows(raw: unknown): WeighingWindow[] {
 }
 
 /**
- * Die SCHREIB-Regel der ganzen Liste: stabiler Fehler-Code, `null` heisst gültig.
+ * Die SCHREIB-Regel der ganzen Liste: stabiler Fehler-Code samt Position, `null` heisst gültig.
  *
- * Der Lese-Pfad verwirft Murks still; für einen Schreiber wäre genau das die Falle — „08:00–06:00"
- * käme als `ok` zurück und hätte in Wahrheit ein Fenster gelöscht.
+ * Der Lese-Pfad verwirft Murks still; für einen Schreiber wäre genau das die Falle — ein Fenster
+ * über Mitternacht käme als `ok` zurück und wäre in Wahrheit gelöscht.
+ *
+ * Der `index` sagt, WELCHES Fenster stört (Vorbild `reinigungsFensterListProblem`). Ohne ihn bekommt
+ * eine Agentin, die fünf Fenster auf einmal setzt, ein blosses „Invalid time" und muss raten.
  */
-export function weighingWindowsProblem(raw: unknown): ServiceErrorCode | null {
-  if (!Array.isArray(raw)) return "invalidTime";
-  if (raw.length > WEIGHING_WINDOWS_MAX) return "WEIGHING_WINDOWS_TOO_MANY";
-  for (const w of raw) {
-    const start = (w as { start?: unknown })?.start;
-    const end = (w as { end?: unknown })?.end;
-    if (typeof start !== "string" || !HHMM.test(start)) return "invalidTime";
-    if (typeof end !== "string" || !HHMM.test(end)) return "invalidTime";
-    if (start >= end) return "timeRangeInvalid";
+export function weighingWindowsProblem(raw: unknown): { code: ServiceErrorCode; index?: number } | null {
+  if (!Array.isArray(raw)) return { code: "invalidTime" };
+  if (raw.length > WEIGHING_WINDOWS_MAX) return { code: "WEIGHING_WINDOWS_TOO_MANY" };
+  for (const [index, w] of raw.entries()) {
+    const { start, durationMin, days } = (w ?? {}) as Record<string, unknown>;
+    if (typeof start !== "string" || !HHMM.test(start)) return { code: "invalidTime", index };
+    if (typeof durationMin !== "number" || !Number.isInteger(durationMin)) return { code: "invalidTime", index };
+    if (durationMin < WEIGHING_WINDOW_DURATION_RANGE.min || durationMin > WEIGHING_WINDOW_DURATION_RANGE.max) {
+      return { code: "timeRangeInvalid", index };
+    }
+    // Über Mitternacht hinaus gibt es kein Fenster — der Schreiber erfährt den Grund, statt dass der
+    // Lese-Pfad es später still verwirft.
+    if (hhmmToMinutes(start) + durationMin > 24 * 60) return { code: "timeRangeInvalid", index };
+    // `days` darf fehlen (dann alle Tage), aber nicht falsch sein: eine Null-Maske wäre ein Fenster,
+    // das nie gilt, und sähe in der Liste trotzdem nach einer Regel aus.
+    if (days !== undefined && !weekdayMaskValid(days)) return { code: "invalidTime", index };
   }
   return null;
 }
 
-/** Ein Fenster als eine Zeile („06:00-08:00") — für Meldungen und Feld-Diffs. */
-export function formatWeighingWindow(w: WeighingWindow): string {
-  return `${w.start}-${w.end}`;
+/** Gilt dieses Fenster an dem Kalendertag, in den `at` fällt? */
+function appliesOn(w: WeighingWindow, at: Date, tz: string): boolean {
+  return weekdayMaskHas(w.days, isoWeekdayInTZ(at, tz));
 }
 
-/** „HH:MM" der Uhrzeit in `tz` — 24h, fest mit ":" für den lexikalischen Vergleich. */
-function hhmmInTZ(at: Date, tz: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).format(at);
+/** Läuft `at` gerade in diesem Fenster? Tag und Uhrzeit müssen beide passen. */
+function covers(w: WeighingWindow, at: Date, tz: string): boolean {
+  if (!appliesOn(w, at, tz)) return false;
+  const now = hhmmToMinutes(hhmmInTZ(at, tz));
+  const from = hhmmToMinutes(w.start);
+  return from <= now && now < from + w.durationMin;
 }
 
 /**
@@ -107,14 +155,12 @@ function hhmmInTZ(at: Date, tz: string): string {
 export function inWeighingWindow(raw: unknown, at: Date, tz = APP_TZ): boolean {
   const windows = parseWeighingWindows(raw);
   if (windows.length === 0) return true;
-  const hhmm = hhmmInTZ(at, tz);
-  return windows.some((w) => w.start <= hhmm && hhmm < w.end);
+  return windows.some((w) => covers(w, at, tz));
 }
 
 /** Das Fenster, in dem `at` liegt — sonst null. Für die Anzeige „läuft noch bis 08:00". */
 export function activeWeighingWindow(raw: unknown, at: Date, tz = APP_TZ): WeighingWindow | null {
-  const hhmm = hhmmInTZ(at, tz);
-  return parseWeighingWindows(raw).find((w) => w.start <= hhmm && hhmm < w.end) ?? null;
+  return parseWeighingWindows(raw).find((w) => covers(w, at, tz)) ?? null;
 }
 
 /**
@@ -129,7 +175,18 @@ export function nextWeighingWindow(raw: unknown, at: Date, tz = APP_TZ): Weighin
   if (windows.length === 0) return null;
   const hhmm = hhmmInTZ(at, tz);
   const sorted = [...windows].sort((a, b) => a.start.localeCompare(b.start));
-  return sorted.find((w) => w.start > hhmm) ?? sorted[0];
+
+  // Erst heute, dann die kommenden Tage der Reihe nach. Ein blosses „sonst das früheste der Liste"
+  // wäre seit den Wochentagen falsch: wer freitagabends auf ein Werktags-Fenster schaut, bekäme
+  // „wieder ab 06:00" — und das gilt erst am Montag. Sieben Tage reichen, mehr hat eine Woche nicht.
+  const heute = sorted.find((w) => w.start > hhmm && appliesOn(w, at, tz));
+  if (heute) return heute;
+  for (let offset = 1; offset <= 7; offset++) {
+    const tag = new Date(at.getTime() + offset * 86_400_000);
+    const treffer = sorted.find((w) => appliesOn(w, tag, tz));
+    if (treffer) return treffer;
+  }
+  return null;
 }
 
 /**

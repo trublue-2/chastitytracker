@@ -5,7 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Scale } from "lucide-react";
 import { toDateLocale, formatDateTime, fromDatetimeLocal, round1 } from "@/lib/utils";
 import {
-  bmi, parseDecimalInput, weightForDisplay, weightInputToKg, WEIGHT_JUMP_CONFIRM_KG,
+  bmi, parseDecimalInput, weightForDisplay, weightText, weightInputToKg, WEIGHT_JUMP_CONFIRM_KG,
   type UnitSystem,
 } from "@/lib/weight";
 import FormError from "@/app/components/FormError";
@@ -194,7 +194,7 @@ export default function WeightFormCore({
         )}
         {scaleState === "detected" && scaleKg !== null && (
           <p className="text-xs text-foreground-muted">
-            {t("detected", { value: `${weightForDisplay(scaleKg, unitSystem)} ${unitLabel}` })}
+            {t("detected", { value: `${weightText(scaleKg, unitSystem, dl)} ${unitLabel}` })}
           </p>
         )}
         {scaleState === "not-detected" && (
@@ -220,7 +220,7 @@ export default function WeightFormCore({
           lastWeightKg !== null && jumpAsk
             // Die Differenz in SEINER Einheit — wer in Pfund wiegt, liest „6,6 lbs", nicht „3 kg".
             ? t("jumpMessage", {
-                diff: weightForDisplay(Math.abs(jumpAsk.weightKg - lastWeightKg), unitSystem),
+                diff: weightText(Math.abs(jumpAsk.weightKg - lastWeightKg), unitSystem, dl),
                 unit: unitLabel,
               })
             : ""

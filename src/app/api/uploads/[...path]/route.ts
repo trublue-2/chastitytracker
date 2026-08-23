@@ -37,7 +37,7 @@ export async function GET(
   const imageUrlInDb = `/api/uploads/${filename}`;
   const actorId = session.user.id;
   const isAdmin = session.user.role === "admin";
-  const [entryOwner, deviceOwner, codePhoto, refOwner, boxPhotoOwner, proofOwner] = await Promise.all([
+  const [entryOwner, deviceOwner, codePhoto, refOwner, boxPhotoOwner, proofOwner, weightOwner] = await Promise.all([
     prisma.entry.findFirst({ where: { imageUrl: imageUrlInDb }, select: { userId: true } }),
     prisma.device.findFirst({ where: { imageUrl: imageUrlInDb }, select: { userId: true } }),
     prisma.entry.findFirst({ where: { codeImageUrl: imageUrlInDb }, select: { userId: true, startTime: true } }),
@@ -51,8 +51,13 @@ export async function GET(
     // Ohne diese Quelle gilt exakt das oben Gesagte: 403 für alle ausser einem globalen Admin — und
     // damit sähe ausgerechnet die Keyholderin das Bild nicht, über das sie urteilen soll.
     prisma.taskProof.findFirst({ where: { imageUrl: imageUrlInDb }, select: { task: { select: { userId: true } } } }),
+    // Foto der Waage (WeightEntry). Ohne diese Quelle gilt dasselbe wie zweimal darüber: 403 für
+    // alle ausser einem globalen Admin — also auch für den Träger, der das Bild selbst hochgeladen
+    // hat, und für die Keyholderin, für die es der Beleg ist. Es fiel bis zur Wiege-Liste nur
+    // deshalb nicht auf, weil keine Oberfläche das Foto je angezeigt hat.
+    prisma.weightEntry.findFirst({ where: { imageUrl: imageUrlInDb }, select: { userId: true } }),
   ]);
-  const ownerId = entryOwner?.userId ?? deviceOwner?.userId ?? codePhoto?.userId ?? refOwner?.device?.userId ?? boxPhotoOwner?.userId ?? proofOwner?.task?.userId ?? null;
+  const ownerId = entryOwner?.userId ?? deviceOwner?.userId ?? codePhoto?.userId ?? refOwner?.device?.userId ?? boxPhotoOwner?.userId ?? proofOwner?.task?.userId ?? weightOwner?.userId ?? null;
   const isOwner = ownerId != null && ownerId === actorId;
   // Keyholder-Zugriff ist strikt auf die EIGENEN Subs gescopt (isKeyholderOf prüft die konkrete Beziehung).
   const isKeyholder = !isOwner && !isAdmin && ownerId != null && (await isKeyholderOf(actorId, ownerId));

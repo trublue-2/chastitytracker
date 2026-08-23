@@ -42,6 +42,47 @@ export interface FmCapability {
   note?: string;
 }
 
+/**
+ * Fähigkeiten, die es in der Keyholder-Oberfläche gibt, über den MCP aber NICHT — jede mit Grund.
+ *
+ * Die Regel dazu steht in `CLAUDE.md` („MCP-Vollständigkeit"): was ein Keyholder in der Oberfläche
+ * kann, muss auch die KI-Keyholderin können. Sie liess sich bisher nur aufschreiben, nicht prüfen —
+ * und eine Lücke fällt niemandem beim Bauen auf, sondern erst dem Nutzer, der die KI darum bittet
+ * und eine Absage bekommt (Auslöser: die Wiege-Fenster, 23.08.2026).
+ *
+ * Diese Liste macht die Regel testbar (`funktionsmodellDoc.test.ts`). Sie kennt zwei Sorten
+ * Einträge, und die Unterscheidung gehört in den Text:
+ *
+ * - **Absicht** — die Fähigkeit gehört nicht in die Hand einer KI, oder sie ist technisch nicht
+ *   KI-fähig. Solche Einträge bleiben stehen.
+ * - **OFFEN** — eine echte Lücke, die noch niemand geschlossen hat. Wer sie schliesst, streicht die
+ *   Zeile; der Test erzwingt das (eine Ausnahme ohne Lücke lässt ihn scheitern).
+ *
+ * Was hier NICHT hineingehört: eine neue Fähigkeit, für die man sich den MCP-Weg sparen will. Der
+ * ganze Zweck der Liste ist, dass diese Entscheidung einen Namen und einen Satz Begründung bekommt.
+ */
+export const FM_MCP_EXEMPT: Record<string, string> = {
+  // ── Absicht: gehört nicht in die Hand einer KI ─────────────────────────────────────────────
+  "user-manage": "Absicht: Passwörter, E-Mail, Benutzername, Löschen — Zugang und Identität. Eine KI mit Passwort-Hoheit könnte den Träger aussperren.",
+  "keyholder-assign": "Absicht: die KI entschiede über ihre eigene Berufung mit.",
+  "demo-data": "Absicht: Werkzeug des Betreibers, nicht der Keyholderin (zusätzlich ENV-gegated).",
+  // ── Absicht: technisch nicht KI-fähig ──────────────────────────────────────────────────────
+  "upload": "Absicht: eine KI liefert keine Fotos. Die Leserichtung deckt `get_image` ab.",
+  "stats-pages": "Absicht: Seiten, keine Handlung. Dieselben Zahlen liefern `period_summary`, `records` und `device_stats`.",
+  "inbox-keyholder": "Absicht: der Posteingang sammelt Meldungen FÜR den Menschen; die KI bekommt dieselben Befunde direkt aus den Deep-Views.",
+  "weight-record": "Absicht: über `log_weight` (Fähigkeit `weight-mcp-write`) abgedeckt — der Katalog führt die MCP-Seite des Gewichts als eigene Zeile.",
+
+  // ── OFFEN: echte Lücken, noch nicht geschlossen ────────────────────────────────────────────
+  "entry-admin-create": "OFFEN: Ereignis für den Träger nachtragen. Braucht zuerst eine Service-Extraktion — die Logik liegt inline in `/api/admin/entries`.",
+  "entry-admin-edit": "OFFEN: fremden Eintrag ändern/löschen. Dieselbe Extraktion wie `entry-admin-create`.",
+  "device-references": "OFFEN: Referenzbilder der Geräte-Erkennung pflegen (Liste, Löschen).",
+  "device-references-import": "OFFEN: vorhandene Verschluss-Fotos als Referenz übernehmen — braucht keinen Upload und wäre damit KI-fähig.",
+  "inspection-targets": "OFFEN: die möglichen Kontroll-Ziele abfragen, bevor eine Kontrolle gestellt wird.",
+  "inspection-list": "OFFEN: Kontroll-Verlauf als Liste mit Status.",
+  "notify-prefs-admin": "OFFEN: Benachrichtigungs-Matrix des Trägers. Nutzen für eine KI gering — sie bekommt weder Mail noch Push.",
+  "orgasm-directive-withdraw": "OFFEN: laut Register admin-ui-only, obwohl `withdraw` das Ziel `orgasm_directive` kennt — der Eintrag ist zu prüfen, nicht die Fähigkeit.",
+};
+
 /** Routen, die keine Fähigkeit im Sinne dieses Katalogs sind — mit Grund. */
 export const FM_EXCLUDED_ROUTES: Record<string, string> = {
   "/api/auth/[...nextauth]": "Der NextAuth-Handler selbst; die Fähigkeit dahinter ist die Anmeldung.",
@@ -315,8 +356,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "offense-rules", mechanic: "Strafbuch", title: "Vergehens-Regeln umlegen",
     what: "Legt je Art fest, ob sie zählt — aus, nur während einer Sperrzeit, oder immer.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/offense-rules"],
-    note: "Über den MCP bewusst nur lesbar. Historisiert: eine Änderung schreibt die Vergangenheit nicht um.",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/offense-rules"], tools: ["set_offense_rules"],
+    note: "Historisiert: eine Änderung schreibt die Vergangenheit nicht um, sie wirkt nach vorn. `manual_offense` ist nicht schaltbar — eine selbst notierte Tat verwirft man mit dem Urteil, nicht mit der Regel.",
   }),
   c({
     id: "offense-announce", mechanic: "Strafbuch", title: "Vergehen melden",
@@ -545,7 +587,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "weight-self", mechanic: "Gewicht", title: "Gewichts-Angaben pflegen",
-    what: "Körpergrösse, Anzeige-Einheit, Referenzangabe und der eigene Zielkorridor.",
+    what: "Körpergrösse, Anzeige-Einheit und das eigene Zielgewicht.",
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/settings/weight"],
     note: "Nur erreichbar, solange die Keyholderin das Gewichtstracking für diesen Träger freigeschaltet hat — die Route prüft das selbst, nicht nur die Oberfläche.",
   }),
@@ -557,15 +599,15 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "weight-mcp-read", mechanic: "Gewicht", title: "Gewichts-Reihe lesen (KI)",
-    what: "Punkte, aktueller Wert samt BMI, Trend, Zielbereich und Tage seit der letzten Meldung.",
+    what: "Punkte, aktueller Wert samt BMI, Trend, Zielgewicht samt Fortschritt und Tage seit der letzten Meldung.",
     actors: ["mcp"], surfaces: ["mcp"], tools: ["weight_history"],
     note: "Alle Werte metrisch. `daysSinceLastReport` ist die Zahl, an der die Meldepflicht hängt.",
   }),
   c({
-    id: "weight-mcp-write", mechanic: "Gewicht", title: "Gewicht eintragen und Grenzen weiten (KI)",
-    what: "Eine Messung je Kalendertag nachtragen und den Zielbereich des Trägers nachbessern.",
-    actors: ["mcp"], surfaces: ["mcp"], tools: ["log_weight", "set_weight_limits"],
-    note: "Die Grenzen gehören dem Träger: die KI darf sie nur WEITEN, nie verengen — dieselbe Regel wie in der Oberfläche. Ihr Eintrag braucht keinen Foto-Beleg.",
+    id: "weight-mcp-write", mechanic: "Gewicht", title: "Gewicht eintragen (KI)",
+    what: "Eine Messung je Kalendertag nachtragen — die Einstellungen liegen in `weight-keyholder`.",
+    actors: ["mcp"], surfaces: ["mcp"], tools: ["log_weight"],
+    note: "Ihr Eintrag braucht keinen Foto-Beleg — sie steht nicht vor seiner Waage.",
   }),
   c({
     id: "weight-detect", mechanic: "Gewicht", title: "Waagen-Anzeige lesen",
@@ -575,9 +617,17 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "weight-keyholder", mechanic: "Gewicht", title: "Gewichtstracking einrichten",
-    what: "Freischaltung, Wiege-Zeitfenster und die Nachbesserung der Grenzen des Trägers.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users/[id]"],
-    note: "Die Grenzen setzt der Träger; die Keyholderin darf sie nur weiten, nie verengen.",
+    what: "Freischaltung, Wiege-Fenster (Zeit, Dauer, Wochentage, Erinnerung) und ihr Zielgewicht.",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/users/[id]"], tools: ["set_weight_tracking"],
+    note: "Ihr Zielgewicht gilt, seines bleibt sichtbar. Das Abschalten nimmt die Meldepflicht mit — sonst zählte die Aus-Zeit als lauter versäumte Meldungen.",
+  }),
+  c({
+    id: "weight-release", mechanic: "Gewicht", title: "Freigabe an das Gewicht knüpfen",
+    what: "Eine Vorgabe, die den nächsten Orgasmus freigibt, sobald das MITTEL der letzten Tage eine Schwelle erreicht. Erfüllt sie sich, entsteht beim nächsten Wiegen ein Orgasmus-Fenster (Gelegenheit).",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/weight-release"], tools: ["set_weight_release"],
+    note: "Geprüft wird das Mittel, nicht der Tageswert — ein einzelnes Wiegen schwankt um ein bis zwei Kilo. Ausgewertet wird nur die ERSTE Messung eines Tages; wer nachwiegt, könnte sonst so lange wiegen, bis es passt. Die Vorgabe ist verbraucht, sobald sie ausgelöst hat; sie erzeugt NIE ein Vergehen — die Konsequenz ist Warten.",
   }),
   c({
     id: "user-manage", mechanic: "Zugang", title: "Konten verwalten",
@@ -594,7 +644,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "escalation-settings", mechanic: "Kontrollen", title: "Eskalations-Stufen einstellen",
     what: "Ob und nach welcher Zeit gemahnt und die Abnahme gebucht wird.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users/[id]"],
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/users/[id]"], tools: ["set_inspection_escalation"],
+    note: "Zwei Stufen, eine Kette: die Mahnung ohne den Vermerk ist eine Erinnerung, der Vermerk ohne die Mahnung eine Falle.",
   }),
   c({
     id: "oauth", mechanic: "Zugang", title: "Fremdanwendung verbinden",

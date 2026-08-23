@@ -18,7 +18,7 @@ import path from "node:path";
 import {
   parsePrismaSchema, checkRegistry, renderStellschrauben, renderAbhaengigkeiten, renderFunktionen,
 } from "./funktionsmodellDoc";
-import { FM_CAPABILITIES, FM_EXCLUDED_ROUTES } from "./funktionsmodellCapabilities";
+import { FM_CAPABILITIES, FM_EXCLUDED_ROUTES, FM_MCP_EXEMPT } from "./funktionsmodellCapabilities";
 import { readApiRoutes, readMcpTools } from "./funktionsmodellSurfaces";
 import { FM_REGISTRY, FM_SCANNED_MODELS } from "./funktionsmodellRegistry";
 import { SELF_EDITABLE_USER_FIELDS } from "./constants";
@@ -112,6 +112,40 @@ describe("Funktionskatalog", () => {
     const actual = fs.existsSync(CAPS) ? fs.readFileSync(CAPS, "utf8") : "";
     expect(actual, "docs/funktionsmodell/01-funktionen.md ist veraltet — `npm run funktionsmodell`")
       .toBe(renderFunktionen());
+  });
+});
+
+/** Die Regel „MCP-Vollständigkeit" als Prüfung. Warum es sie braucht und was die beiden Sorten
+ *  Ausnahme bedeuten, steht bei {@link FM_MCP_EXEMPT}. */
+describe("MCP-Vollständigkeit", () => {
+  const gaps = FM_CAPABILITIES.filter((c) => c.surfaces.includes("admin-ui") && !c.surfaces.includes("mcp"));
+
+  it("jede Keyholder-Fähigkeit ist über den MCP erreichbar — oder ausdrücklich ausgenommen", () => {
+    const unexplained = gaps.filter((c) => !FM_MCP_EXEMPT[c.id]).map((c) => `${c.id} (${c.title})`);
+    expect(unexplained, "\nKeyholder-Fähigkeit ohne MCP-Weg:\n" + unexplained.join("\n") +
+      "\n\nEntweder ein MCP-Werkzeug ergänzen (Regel: ein Werkzeug je Einstellungs-FAMILIE, Vorbild " +
+      "set_cleaning) oder in FM_MCP_EXEMPT eintragen — mit einem Satz, warum die Fähigkeit nicht in " +
+      "die Hand einer KI gehört.\n").toEqual([]);
+  });
+
+  it("jede Ausnahme deckt noch eine echte Lücke", () => {
+    // Die Gegenrichtung, wie bei den Format-Ausnahmen: wer eine Lücke schliesst und den Eintrag
+    // stehen lässt, deckt damit klaglos die nächste, die zufällig dieselbe Kennung trägt.
+    const ids = new Set(gaps.map((c) => c.id));
+    const stale = Object.keys(FM_MCP_EXEMPT).filter((id) => !ids.has(id));
+    expect(stale, "\nVeraltete MCP-Ausnahme(n) — die Fähigkeit hat den MCP-Weg inzwischen (oder es gibt " +
+      "sie nicht mehr):\n" + stale.join("\n") + "\n").toEqual([]);
+  });
+
+  it("nennt zu jeder Ausnahme einen Grund, der Absicht von Rückstand unterscheidet", () => {
+    // „Absicht" und „OFFEN" sind keine Kosmetik: die eine Sorte bleibt für immer, die andere ist
+    // eine Aufgabenliste. Ein Eintrag ohne diese Angabe verwischt genau das.
+    const unclassified = Object.entries(FM_MCP_EXEMPT)
+      .filter(([, grund]) => !/^(Absicht|OFFEN):/.test(grund))
+      .map(([id]) => id);
+    expect(unclassified, "\nAusnahme ohne Einordnung — beginne den Grund mit „Absicht:" +
+      "\" (bleibt so) oder \"OFFEN:\" (Lücke, noch zu schliessen):\n" + unclassified.join("\n") + "\n")
+      .toEqual([]);
   });
 });
 

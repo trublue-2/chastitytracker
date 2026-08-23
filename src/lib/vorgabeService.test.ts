@@ -11,6 +11,9 @@ vi.mock("@/lib/prisma", () => ({
     trainingVorgabe: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
   },
 }));
+// Der Service löst die Zeitzone des Subs auf, um ein reines Kalenderdatum („2026-08-23" aus dem
+// `<input type="date">`) als LOKALE Mitternacht zu speichern statt als UTC-Mitternacht.
+vi.mock("@/lib/queries", () => ({ getUserTimezone: vi.fn(async () => "Europe/Zurich") }));
 vi.mock("@/lib/vorgaben", () => ({ reorderVorgabenDates: vi.fn() }));
 vi.mock("@/lib/deviceCategoryService", () => ({ resolveOwnedCategory: vi.fn(async () => ({ ok: true, data: null })) }));
 
@@ -158,5 +161,28 @@ describe("listVorgaben — soft-gelöschte Ziele standardmässig ausgeblendet (B
     expect(findManyMock).toHaveBeenCalledWith(expect.objectContaining({
       where: { userId: "u1" },
     }));
+  });
+});
+
+describe("createVorgabe — reines Kalenderdatum als LOKALE Mitternacht", () => {
+  const storedGueltigAb = () => createMock.mock.calls[0][0].data.gueltigAb as Date;
+
+  it("„2026-08-23\" aus dem Datumsfeld wird 00:00 Zürich, nicht 00:00 UTC", async () => {
+    // `new Date("2026-08-23")` ist nach ISO-8601 UTC-Mitternacht = 02:00 Zürich. Ein über die
+    // Oberfläche auf heute gesetztes Ziel begann damit mitten im Tag und löste die Regeln für
+    // geteilte Perioden aus, obwohl niemand einen Start mitten am Tag gemeint hatte.
+    await createVorgabe({ userId: "u1", gueltigAb: "2026-08-23", minProTagH: 8 });
+    expect(storedGueltigAb().toISOString()).toBe("2026-08-22T22:00:00.000Z");
+  });
+
+  it("ein Wert MIT Uhrzeit bleibt unangetastet — der bewusste Start mitten am Tag ist erlaubt", async () => {
+    await createVorgabe({ userId: "u1", gueltigAb: "2026-08-23T09:54:00+02:00", minProTagH: 8 });
+    expect(storedGueltigAb().toISOString()).toBe("2026-08-23T07:54:00.000Z");
+  });
+
+  it("ein fertiges Date (MCP-Pfad: nächste Mitternacht) geht unverändert durch", async () => {
+    const d = new Date("2026-08-23T22:00:00.000Z");
+    await createVorgabe({ userId: "u1", gueltigAb: d, minProTagH: 8 });
+    expect(storedGueltigAb()).toBe(d);
   });
 });
