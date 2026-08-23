@@ -3,12 +3,13 @@
 import { useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
 import Card from "@/app/components/Card";
-import GoalProgressRow from "@/app/components/GoalProgressRow";
+import GoalProgressRows from "@/app/components/GoalProgressRows";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 import type { CategoryWearGoal } from "@/lib/categoryGoals";
+import type { VorgabeTargets } from "@/lib/goalFulfillment";
 
 export interface CategoryGoalRow extends CategoryWearGoal {
   /** True while a wear session for this category is running — its hours tick live. */
@@ -24,10 +25,7 @@ export interface KgGoalRow {
   wocheH: number;
   monatH: number;
   jahrH: number;
-  goalDayH: number | null;
-  goalWeekH: number | null;
-  goalMonthH: number | null;
-  goalYearH: number | null;
+  goal: VorgabeTargets;
 }
 
 /** Client renderer for the per-category training goals. Mirrors the KG goal (LiveTrainingGoals):
@@ -71,17 +69,16 @@ function KgRow({ goal }: { goal: KgGoalRow }) {
         <p className="text-sm font-medium text-foreground truncate">{t("kgGoalLabel")}</p>
       </div>
       <div className="pl-9 flex flex-col gap-1">
-        {goal.goalDayH != null && <GoalProgressRow label={t("day")} actual={goal.tagH} target={goal.goalDayH} />}
-        {goal.goalWeekH != null && <GoalProgressRow label={t("week")} actual={goal.wocheH} target={goal.goalWeekH} />}
-        {goal.goalMonthH != null && <GoalProgressRow label={t("month")} actual={goal.monatH} target={goal.goalMonthH} />}
-        {goal.goalYearH != null && <GoalProgressRow label={t("year")} actual={goal.jahrH} target={goal.goalYearH} />}
+        <GoalProgressRows
+          actual={{ day: goal.tagH, week: goal.wocheH, month: goal.monatH, year: goal.jahrH }}
+          targetH={goal.goal.targetH}
+        />
       </div>
     </li>
   );
 }
 
 function CategoryRow({ row, serverNow }: { row: CategoryGoalRow; serverNow: string }) {
-  const t = useTranslations("dashboard");
   const tagH = useLiveHours(row.tagH, serverNow, row.active);
   const wocheH = useLiveHours(row.wocheH, serverNow, row.active);
   const monatH = useLiveHours(row.monatH, serverNow, row.active);
@@ -101,10 +98,10 @@ function CategoryRow({ row, serverNow }: { row: CategoryGoalRow; serverNow: stri
         <p className="text-sm font-medium text-foreground truncate">{row.name}</p>
       </div>
       <div className="pl-9 flex flex-col gap-1">
-        {row.goalDayH != null && <GoalProgressRow label={t("day")} actual={tagH} target={row.goalDayH} />}
-        {row.goalWeekH != null && <GoalProgressRow label={t("week")} actual={wocheH} target={row.goalWeekH} />}
-        {row.goalMonthH != null && <GoalProgressRow label={t("month")} actual={monatH} target={row.goalMonthH} />}
-        {row.goalYearH != null && <GoalProgressRow label={t("year")} actual={jahrH} target={row.goalYearH} />}
+        <GoalProgressRows
+          actual={{ day: tagH, week: wocheH, month: monatH, year: jahrH }}
+          targetH={row.goal.targetH}
+        />
       </div>
     </li>
   );

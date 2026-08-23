@@ -202,8 +202,15 @@ export interface DashboardResult extends Envelope {
    *  v14: die Orgasmus-Anweisung ist terminierbar. `openOrgasmWindow` zeigt eine geplante, noch
    *  nicht ausgelöste Anweisung NICHT mehr — sie steht bis zur Auslösung in `scheduledDirectives`
    *  (neue `kind`-Ausprägung `orgasm`). Ein v13-Wert hiess „es gibt kein offenes Fenster"; ab v14
-   *  heisst er „es gibt keins, das gerade GILT" — geplant kann trotzdem eines sein. */
-  schemaVersion: 14;
+   *  heisst er „es gibt keins, das gerade GILT" — geplant kann trotzdem eines sein.
+   *
+   *  v15: `goals` folgt `period_summary` schemaVersion 3. Die Prozentwerte (`todayPct`/`weekPct`/
+   *  `monthPct`/`yearPct`) sind jetzt `null`, wenn eine Zielgrenze IN der Periode liegt — daneben
+   *  steht neu `goalChangedInPeriod` je Periode. Ein Wert aus v14 war in diesem Fall eine Zahl,
+   *  die Ist-Stunden der ganzen Periode einem Ziel für einen Teil davon gegenüberstellte (1013 %
+   *  im Vorfall vom 23.08.2026); rückwirkend ist er damit nicht als Erfüllung lesbar. Zusätzlich
+   *  ist `goals.*.goalDayH` an einem Anbruchtag `null` statt eines anteilig gekürzten Werts. */
+  schemaVersion: 15;
   user: string;
   /**
    * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
@@ -758,7 +765,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const weight = await weightSummary(trackingCtx.userId);
 
   return {
-    schemaVersion: 14,
+    schemaVersion: 15,
     user: username,
     weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),

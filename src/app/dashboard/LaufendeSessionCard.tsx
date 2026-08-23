@@ -11,6 +11,7 @@ import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
 import type { SessionEvent } from "@/lib/sessionHelpers";
 import { inspectionHref } from "@/lib/entryFormRoute";
+import { hasVisibleGoalRow, type VorgabeTargets } from "@/lib/goalFulfillment";
 
 interface Props {
   sessionStart: Date;
@@ -34,12 +35,7 @@ interface Props {
   /** Schlüssel-Deklaration des laufenden Verschlusses: liegt er in der Box? `null`/undefined =
    *  keine Box oder Alt-Eintrag → keine Zeile (statt einer Behauptung ins Blaue). */
   keyInBox?: boolean | null;
-  activeVorgabe: {
-    minProTagH: number | null;
-    minProWocheH: number | null;
-    minProMonatH: number | null;
-    minProJahrH: number | null;
-  } | null;
+  activeVorgabe: VorgabeTargets | null;
   tagH: number;
   wocheH: number;
   monatH: number;
@@ -83,12 +79,9 @@ export default async function LaufendeSessionCard({
   const sperrzeitDetailCls = "text-xs font-medium text-sperrzeit-text opacity-80";
   const showSperrzeit = sperrzeitStr !== null || sperrzeitUnbefristet || scheduledForStr !== null || runningSinceStr !== null;
 
-  const hasVorgabe =
-    activeVorgabe &&
-    (activeVorgabe.minProTagH != null ||
-      activeVorgabe.minProWocheH != null ||
-      activeVorgabe.minProMonatH != null ||
-      activeVorgabe.minProJahrH != null);
+  // Nicht „hat die Vorgabe Ziele?", sondern „bleibt eine bewertbare Zeile übrig?" — sonst stünde
+  // die Überschrift „KG-Ziele" am Starttag einer Vorgabe über einer leeren Liste.
+  const hasVorgabe = activeVorgabe != null && hasVisibleGoalRow(activeVorgabe.targetH);
 
   return (
     <div className="bg-surface rounded-2xl overflow-hidden shadow-card border border-border">

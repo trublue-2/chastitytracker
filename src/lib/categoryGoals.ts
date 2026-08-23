@@ -4,11 +4,12 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, getYearStart,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory, type SegmentEntry } from "@/lib/sessionModel";
-import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
+import { proratedVorgabeTargets, hasVisibleGoalRow, type VorgabeTargets } from "@/lib/goalFulfillment";
 import { getNonKgTrackingCategories, getWearEntries, getUserTimezone } from "@/lib/queries";
 
 /** Wearing hours + active TrainingVorgabe targets for one non-KG tracking category.
- *  Goal targets are already prorated to the goal's overlap with each period. */
+ *  Die Ziele sind bereits nach den Regeln in `goalFulfillment.ts` aufgelöst: anteilig auf die
+ *  Überschneidung mit der Periode, Tagesziel an einem Anbruchtag `null`, dazu `changedInPeriod`. */
 export interface CategoryWearGoal {
   categoryId: string;
   name: string;
@@ -18,10 +19,9 @@ export interface CategoryWearGoal {
   wocheH: number;
   monatH: number;
   jahrH: number;
-  goalDayH: number | null;
-  goalWeekH: number | null;
-  goalMonthH: number | null;
-  goalYearH: number | null;
+  /** Ziele dieser Kategorie, bereits nach den Regeln aufgelöst — `targetH` zum Bewerten,
+   *  `displayH` zum Anzeigen, `changedInPeriod` für den MCP. */
+  goal: VorgabeTargets;
 }
 
 
@@ -78,7 +78,6 @@ export async function buildCategoryWearGoals(
 
   return categories.map((c) => {
     const pairs = pairsByCategory.get(c.id) ?? [];
-    const t = proratedVorgabeTargets(goalByCategory.get(c.id) ?? null, now, tz);
     return {
       categoryId: c.id,
       name: c.name,
@@ -88,15 +87,14 @@ export async function buildCategoryWearGoals(
       wocheH: wearingHoursFromPairs(pairs, wocheStart, now),
       monatH: wearingHoursFromPairs(pairs, monatStart, now),
       jahrH: wearingHoursFromPairs(pairs, jahrStart, now),
-      goalDayH: t.minProTagH,
-      goalWeekH: t.minProWocheH,
-      goalMonthH: t.minProMonatH,
-      goalYearH: t.minProJahrH,
+      goal: proratedVorgabeTargets(goalByCategory.get(c.id) ?? null, now, tz),
     };
   });
 }
 
-/** True when a category row carries at least one period goal. */
+/** True, wenn die Kategorie-Zeile mindestens eine BEWERTBARE Ziel-Periode hat.
+ *  Bewusst `hasVisibleGoalRow` und nicht „irgendein Ziel gesetzt": am Starttag einer Vorgabe ist
+ *  jede Periode ungewertet, und eine Zeile, die dann nichts rendert, gehört nicht in die Liste. */
 export function hasAnyGoal(c: CategoryWearGoal): boolean {
-  return c.goalDayH != null || c.goalWeekH != null || c.goalMonthH != null || c.goalYearH != null;
+  return hasVisibleGoalRow(c.goal.targetH);
 }

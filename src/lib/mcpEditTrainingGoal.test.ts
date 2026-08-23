@@ -7,12 +7,15 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: vi.fn() },
   },
 }));
-vi.mock("@/lib/vorgabeService", () => ({
+vi.mock("@/lib/vorgabeService", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./vorgabeService")>()),
   createVorgabe: vi.fn(),
   updateVorgabe: vi.fn(),
   deleteVorgabe: vi.fn(),
   listVorgaben: vi.fn(),
   findActiveVorgabe: vi.fn(), // loadOwnedVorgabe (mcpWrite.ts) lädt darüber — geteilte Existenz-Definition (B-04)
+  // `goalDateFromInput` bewusst ECHT: `parseGoalDate` in mcpWrite legt damit die Kalenderdatum-
+  // Regel auf validFrom/validUntil, und genau die soll dieser Test mit durchlaufen.
 }));
 
 import { mcpEditTrainingGoal } from "./mcpWrite";
@@ -72,7 +75,10 @@ describe("mcpEditTrainingGoal — echter Teil-Edit", () => {
     await mcpEditTrainingGoal("kg", { id: "g1", validUntil: "2026-08-01" });
     const arg = updateMock.mock.calls[0][1];
     expect(arg.validUntilManual).toBe(true);
-    expect(arg.gueltigBis).toEqual(new Date("2026-08-01"));
+    // Lokale Mitternacht beim Sub (Europe/Zurich, Sommerzeit), NICHT `new Date("2026-08-01")` —
+    // das wäre UTC-Mitternacht und damit 02:00 Ortszeit, also mitten im Tag. Ein blosses
+    // Kalenderdatum meint den Tagesanfang dort, wo der Tag gezählt wird.
+    expect(arg.gueltigBis).toEqual(new Date("2026-07-31T22:00:00.000Z"));
   });
 
   it("validUntil weglassen behält ein abgeleitetes Ende abgeleitet (manuell bleibt false)", async () => {

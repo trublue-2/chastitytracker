@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { midnightOfLocalDate, APP_TZ } from "@/lib/utils";
+import { getUserTimezone } from "@/lib/queries";
 import { reorderVorgabenDates } from "@/lib/vorgaben";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
@@ -19,6 +21,37 @@ export interface CreateVorgabeParams {
   minProMonatH?: number | null;
   minProJahrH?: number | null;
   notiz?: string | null;
+}
+
+/**
+ * Ein Datum aus einem Formular- oder MCP-Feld zu einem Instant — ein reines Kalenderdatum
+ * (`YYYY-MM-DD`) als Mitternacht in der Zeitzone DES SUBS, alles andere unverändert.
+ *
+ * **Warum das hier steht und nicht beim Aufrufer:** `<input type="date">` liefert `"2026-08-23"`,
+ * und `new Date("2026-08-23")` liest das nach ISO-8601 als UTC-Mitternacht — in Zürich also
+ * 02:00 Ortszeit. Ein über die Oberfläche auf „heute" gesetztes Ziel begann damit MITTEN im Tag und
+ * löste die Regeln für geteilte Perioden aus (`goalFulfillment.ts`), obwohl niemand einen Start
+ * mitten am Tag gemeint hatte. Ein Parsing-Artefakt, kein Wunsch.
+ *
+ * Ein Wert MIT Uhrzeit bleibt unangetastet: der ausdrückliche Start mitten in der Periode ist
+ * erlaubt, und genau für ihn gibt es die Regeln 2 und 3.
+ *
+ * Exportiert, weil der MCP seine Datums-Argumente selbst zu `Date` parst, bevor der Service sie
+ * sieht (`parseIsoDate` prüft dort das ISO-Format aller Werkzeuge). Ohne dieselbe Regel auf beiden
+ * Wegen läge `2026-06-12` je nach Schreibweg zwei Stunden auseinander.
+ */
+export function goalDateFromInput(value: string | Date, tz: string): Date {
+  if (value instanceof Date) return value;
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!dateOnly) return new Date(value);
+  return midnightOfLocalDate(+dateOnly[1], +dateOnly[2] - 1, +dateOnly[3], tz);
+}
+
+/** Die Zeitzone des Subs — aber nur, wenn ein Datum als STRING kommt und die Kalenderdatum-Regel
+ *  überhaupt greifen kann. Fertige `Date`-Werte (der MCP parst selbst) brauchen sie nicht, und ein
+ *  Ziel-Write soll dafür keine Abfrage ausgeben. */
+async function tzForDates(userId: string, ...values: (string | Date | null | undefined)[]): Promise<string> {
+  return values.some((v) => typeof v === "string") ? getUserTimezone(userId) : APP_TZ;
 }
 
 /** Validates that a category exists, belongs to `userId`, and allows Vorgaben.
@@ -104,12 +137,13 @@ export async function createVorgabe(params: CreateVorgabeParams): Promise<Servic
   const catErr = await validateVorgabeCategory(categoryId, userId);
   if (catErr) return catErr;
 
+  const tz = await tzForDates(userId, gueltigAb, gueltigBis);
   const vorgabe = await prisma.trainingVorgabe.create({
     data: {
       userId,
       categoryId: categoryId || null,
-      gueltigAb: new Date(gueltigAb),
-      gueltigBis: gueltigBis ? new Date(gueltigBis) : null,
+      gueltigAb: goalDateFromInput(gueltigAb, tz),
+      gueltigBis: gueltigBis ? goalDateFromInput(gueltigBis, tz) : null,
       validUntilManual: params.validUntilManual ?? !!gueltigBis, // explizit gesetztes Ende gegen Auto-Verkettung schützen
       minProTagH: minProTagH ?? null,
       minProWocheH: minProWocheH ?? null,
@@ -142,12 +176,13 @@ export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Pr
   const catErr = await validateVorgabeCategory(categoryId, existing.userId);
   if (catErr) return catErr;
 
+  const tz = await tzForDates(existing.userId, gueltigAb, gueltigBis);
   await prisma.trainingVorgabe.update({
     where: { id },
     data: {
       ...(categoryId !== undefined ? { categoryId: categoryId || null } : {}),
-      gueltigAb: new Date(gueltigAb),
-      gueltigBis: gueltigBis ? new Date(gueltigBis) : null,
+      gueltigAb: goalDateFromInput(gueltigAb, tz),
+      gueltigBis: gueltigBis ? goalDateFromInput(gueltigBis, tz) : null,
       validUntilManual: params.validUntilManual ?? !!gueltigBis, // explizit gesetztes Ende gegen Auto-Verkettung schützen
       minProTagH: minProTagH ?? null,
       minProWocheH: minProWocheH ?? null,
@@ -189,6 +224,7 @@ export async function listVorgaben(userId: string, opts: { includeDeleted?: bool
   return prisma.trainingVorgabe.findMany({
     where,
     orderBy: [{ categoryId: "asc" }, { gueltigAb: "asc" }],
-    include: { category: { select: { name: true } } },
+    // `isBuiltIn` mit: die Aufrufer filtern über `goalCategoryKey`, das es braucht.
+    include: { category: { select: { name: true, isBuiltIn: true } } },
   });
 }

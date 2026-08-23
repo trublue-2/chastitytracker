@@ -271,8 +271,33 @@ async function buildServerInstructions(): Promise<string> {
  *  is for the user named in MCP_USERNAME. */
 type McpServer = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
 
+/**
+ * Macht die Eingabe-Schemas ALLER danach registrierten Tools strikt: ein Feld, das im Schema nicht
+ * steht, führt zu einem Fehler statt still verworfen zu werden. Verändert `server` an Ort und
+ * Stelle und gibt bewusst nichts zurück — ein Rückgabewert läse sich wie eine Hülle, die er nicht ist.
+ *
+ * **Warum das nötig war (Befunde vom 23.08.2026):** Zod verwirft unbekannte Schlüssel
+ * standardmässig lautlos. `period_summary { granularity, periods }` lieferte darum ohne Murren
+ * immer dieselbe feste Auswertung, und `upsert_device { id, trackingEnabled: false }` meldete
+ * `ok: true` mit leerem `diff` — das Feld hängt an der Kategorie, nicht am Gerät. In beiden Fällen
+ * bekam die Aufruferin die Bestätigung einer Wirkung, die es nicht gab. Ein still ignorierter
+ * Parameter ist die schlechteste der drei möglichen Antworten; ein Fehler ist die ehrlichste.
+ *
+ * Sitzt hier und nicht an 48 Registrierungen: eine Regel, die man je Tool wiederholen muss, gilt
+ * über kurz oder lang nicht mehr für alle. `z.strictObject` schreibt zusätzlich
+ * `additionalProperties: false` in das veröffentlichte JSON-Schema — die Aufruferin sieht die
+ * Schranke also, bevor sie dagegen läuft.
+ */
+function makeInputsStrict(server: McpServer): void {
+  const register = server.registerTool.bind(server);
+  server.registerTool = ((name: string, config: { inputSchema?: z.ZodRawShape }, cb: unknown) =>
+    register(name, { ...config, inputSchema: z.strictObject(config.inputSchema ?? {}) } as never, cb as never)
+  ) as typeof server.registerTool;
+}
+
 /** Registriert alle MCP-Tools auf dem Server. */
 function registerTools(server: McpServer) {
+    makeInputsStrict(server);
     server.registerTool(
       "list_entries",
       {
@@ -455,8 +480,13 @@ function registerTools(server: McpServer) {
       {
         title: "Period summary (day/week/month) + goal fulfillment",
         description:
-          "MCP V2 — Tag/Woche/Monat-Tragestunden für KG und je Kategorie inkl. Ziel-Erfüllung (pct). " +
-          "Eine Quelle für die Adhärenz-Frage.",
+          "MCP V2 — Tag/Woche/Monat/Jahr-Tragestunden für KG und je Kategorie inkl. Ziel-Erfüllung (pct). " +
+          "Eine Quelle für die Adhärenz-Frage. Liegt eine Zielgrenze (Beginn/Ende einer Vorgabe) INNERHALB " +
+          "einer Periode, ist deren pct bewusst null und goalChangedInPeriod.<periode> true: Ist-Stunden der " +
+          "ganzen Periode gegen ein Ziel für einen Teil davon ergäbe keine Aussage. Die Absolutwerte daneben " +
+          "gelten weiter; ein angebrochener TAG bekommt gar kein Ziel (goalDayH null), weil ein Tagesziel " +
+          "einen Tagesbogen misst und keinen Nachmittag. Nimmt KEINE Parameter — granularity/periods gibt es " +
+          "nicht, ein Aufruf damit schlägt fehl statt sie still zu ignorieren.",
         inputSchema: {},
       },
       () => runTool("period_summary", periodSummary),
@@ -787,17 +817,20 @@ function registerTools(server: McpServer) {
       {
         title: "Set training goal (Vorgabe)",
         description:
-          "Sets a wear-time goal (min hours per day/week/month) for KG or a named category. Starts now by " +
-          "default, or schedule a future start via validFrom. Goals are chained per category by start date, " +
-          "so a future-dated goal automatically ends the current one at that date. At least one period target " +
-          "is required." + KEYHOLDER_SILENT,
+          "Sets a wear-time goal (min hours per day/week/month) for KG or a named category. Without " +
+          "validFrom the goal starts at the user's NEXT MIDNIGHT, not at the moment of the call — a goal " +
+          "that begins mid-period splits that period and makes its fulfilment percentage meaningless. " +
+          "Pass validFrom to schedule a later start, or to start mid-period on purpose; periods holding a " +
+          "goal boundary then report their percentage as null (see period_summary.goalChangedInPeriod). " +
+          "Goals are chained per category by start date, so a new goal automatically ends the current one " +
+          "of that category at its start. At least one period target is required." + KEYHOLDER_SILENT,
         inputSchema: {
           category: z.string().optional().describe('Category name, e.g. "Plug". Omit or "KG" for the chastity device.'),
           minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day."),
           minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week."),
           minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month."),
           minPerYearHours: z.number().nonnegative().optional().describe("Min hours per year. Prorated to the goal's overlap with the year when it starts/ends mid-year."),
-          validFrom: z.string().optional().describe("Goal start (ISO 8601, e.g. 2026-06-12). Omit to start now. May be a future date to schedule a goal in advance."),
+          validFrom: z.string().optional().describe("Goal start (ISO 8601, e.g. 2026-06-12). Omit to start at the user's next midnight — the next period boundary. Set it to schedule a goal in advance, or to start mid-period deliberately."),
           validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit for open-ended."),
           note: z.string().optional().describe("Note shown with the goal."),
           reason: reasonField,
