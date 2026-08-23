@@ -240,6 +240,41 @@ async function announceTargetEvent(userId: string, currentKg: number, measuredAt
 }
 
 /**
+ * Löscht eine Messung — samt ihrem Foto.
+ *
+ * **Nur die Keyholderin, nicht der Träger.** Dieselbe Trennung wie bei den Einträgen: er korrigiert
+ * eigene Zeilen nicht selbst. Der Guard sitzt in der Route, hier steht die Wirkung.
+ *
+ * Die Datei wird MIT gelöscht, und zwar nach dem Commit: eine verwaiste Datei im Upload-Ordner wäre
+ * bei einem Gesundheitsdatum genau die Sorte Rest, wegen der man löscht. Bricht das Entfernen der
+ * Datei ab, bleibt die Zeile trotzdem weg — die Meldung darüber ist eine Logzeile, kein Fehler für
+ * den Aufrufer (Muster: `pruneWeightPhotos`).
+ *
+ * **Was NICHT mitgelöscht wird: eine Freigabe-Vorgabe, die auf diese Messung hin ausgelöst hat.**
+ * Das Orgasmus-Fenster ist danach seine eigene Zeile mit eigenem Rückzugsweg, und eine Freigabe
+ * rückwirkend einzukassieren, weil jemand die Messung entfernt, wäre die härtere Überraschung.
+ *
+ * **Wovon der Löschende wissen sollte: das Strafbuch rechnet mit.** Die versäumte Gewichts-Meldung
+ * ist eine LIVE-Ableitung aus den Lücken zwischen den erfassten Tagen — eine entfernte Messung
+ * reisst dort rückwirkend eine Lücke auf und kann, wenn die Regel bei diesem Träger scharf steht,
+ * ein Vergehen erscheinen lassen, das es vorher nicht gab. Das ist kein Fehler, sondern dieselbe
+ * Mechanik wie überall (`strafbuch.ts`); es steht hier, weil man beim Aufräumen von Testdaten nicht
+ * damit rechnet.
+ */
+export async function deleteWeightEntry(id: string): Promise<ServiceResult<null>> {
+  const row = await prisma.weightEntry.findUnique({ where: { id }, select: { imageUrl: true } });
+  if (!row) return serviceFail(404, "NOT_FOUND");
+
+  await prisma.weightEntry.delete({ where: { id } });
+  // Nach dem Löschen der Zeile und ohne `await`: eine Datei, die nicht wegging, ist eine Logzeile
+  // wert — sie darf aber nicht dazu führen, dass die Messung stehen bleibt (Muster:
+  // `pruneWeightPhotos`).
+  void deleteUploadedFiles([row.imageUrl])
+    .catch((e) => console.error("[weight:delete-photo]", (e as Error).message));
+  return { ok: true, data: null };
+}
+
+/**
  * Das Gewicht, ab dem auf dieses Ziel hingearbeitet wird — die Messung, die beim Setzen galt.
  *
  * **Nur für Aufrufer ohne vollständige Reihe.** Wer die Messungen ohnehin geladen hat, nimmt

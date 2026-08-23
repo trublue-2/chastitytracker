@@ -304,7 +304,35 @@ ihm 1,3 kg". Gerechnet vom Server mit demselben Fenster, das später entscheidet
 (`currentWeightAverage`): ein aus allen vorhandenen Punkten gebildetes Mittel stünde als „heute" da,
 während der Träger seit einer Woche nicht auf der Waage war.
 
-## 15. Wie es gebaut wurde
+## 15. Der Weg zurück
+
+Der erste Test auf dem `:feature`-Kanal förderte zutage, dass es keinen gab: die Vorgabe liess sich
+stellen, aber nicht zurücknehmen (der Dienst existierte, ein Knopf dafür nicht), und eingetragene
+Wiegungen liessen sich überhaupt nicht entfernen — nur überschreiben.
+
+- **Vorgabe zurückziehen:** im Formular, wo der Hinweis „Es steht bereits eine Vorgabe" ohnehin
+  steht. Vorher kam man an sie nur heran, indem man eine neue stellte — also durch dieselbe Tür,
+  aus der man heraus wollte.
+- **Wiegung löschen:** Drei-Punkte-Menü an der Zeile in der Eintragsliste der Keyholderin, samt
+  Foto. **Nur dort** — der Träger korrigiert eigene Zeilen nicht selbst, dieselbe Trennung wie bei
+  den Einträgen.
+
+Zwei Dinge, die dabei ausdrücklich NICHT passieren:
+
+- **Ein bereits geöffnetes Orgasmus-Fenster bleibt bestehen**, auch wenn die Messung verschwindet,
+  die es geöffnet hat. Es ist danach eine eigene Zeile mit eigenem Rückzugsweg; eine Freigabe
+  rückwirkend einzukassieren wäre die härtere Überraschung.
+- **Die KI kann nicht löschen** (`FM_MCP_EXEMPT`). Korrigieren kann sie über `log_weight` — ein Wert
+  je Tag, der neue ersetzt den alten. Eine Beobachtung ganz zu entfernen bleibt beim Menschen. Der
+  Unterschied ist nicht die Gefahr, sondern die Art der Handlung: die KI ändert, was gilt; was NIE
+  gegolten haben soll, entscheidet die Keyholderin.
+
+**Eine Nebenwirkung, mit der man beim Aufräumen nicht rechnet:** das Strafbuch leitet die versäumte
+Gewichts-Meldung LIVE aus den Lücken zwischen den erfassten Tagen ab. Eine entfernte Messung reisst
+dort rückwirkend eine Lücke auf — steht die Regel bei diesem Träger scharf, kann danach ein Vergehen
+erscheinen, das es vorher nicht gab.
+
+## 16. Wie es gebaut wurde
 
 | Baustein | Wo |
 |---|---|

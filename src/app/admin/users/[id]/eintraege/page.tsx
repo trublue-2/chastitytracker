@@ -2,15 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale } from "@/lib/utils";
+import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { weightTrackingEnabled } from "@/lib/constants";
 import { loadWeightRows } from "@/lib/weightRows";
-import type { UnitSystem } from "@/lib/weight";
+import { weightText, type UnitSystem } from "@/lib/weight";
 import Link from "next/link";
 import EntryRow from "@/app/components/EntryRow";
 import WeightRow from "@/app/components/WeightRow";
+import WeightRowActions from "@/app/admin/WeightRowActions";
 import EntryActions from "@/app/dashboard/EntryActions";
 
 const PAGE_SIZE = 100;
@@ -105,6 +106,7 @@ export default async function AdminUserEintraegePage({
       })
     : [];
   const unitSystem = ((actor?.unitSystem ?? "metric") as UnitSystem);
+  const unitLabel = unitSystem === "imperial" ? t("unitLbs") : t("unitKg");
   const base = `/admin/users/${id}/eintraege`;
 
   // Beide Sorten auf EINER Zeitachse. Die Zeilen tragen ihren `key` selbst, deshalb reicht hier der
@@ -131,7 +133,23 @@ export default async function AdminUserEintraegePage({
     })),
     ...weightRows.map((w) => ({
       at: w.measuredAt,
-      node: <WeightRow key={w.id} row={w} locale={dl} tz={tz} unitSystem={unitSystem} />,
+      node: (
+        <WeightRow
+          key={w.id}
+          row={w}
+          locale={dl}
+          tz={tz}
+          unitSystem={unitSystem}
+          // Löschen gibt es NUR hier, nicht in seiner Statistik: der Träger korrigiert eigene
+          // Zeilen nicht selbst (dieselbe Trennung wie bei den Einträgen).
+          actions={
+            <WeightRowActions
+              id={w.id}
+              label={`${formatDateTime(w.measuredAt, dl, tz)} · ${weightText(w.weightKg, unitSystem, dl)} ${unitLabel}`}
+            />
+          }
+        />
+      ),
     })),
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
 
