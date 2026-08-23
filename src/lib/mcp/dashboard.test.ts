@@ -26,6 +26,7 @@ const DASHBOARD_KEYS = [
   "weight",
   "generatedAt",
   "timezone",
+  "toolsFingerprint",
   "keyholderInstructions",
   "currentRun",
   "dataDiscrepancies",

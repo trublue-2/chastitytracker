@@ -343,6 +343,7 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/lib/rate-limit.ts` — DB-basiertes Rate Limiting Helper
 - `src/lib/login-attempts.ts` — Login-Versuchs-Tracking
 - `src/lib/vorgaben.ts` — Trainings-Vorgaben Berechnungslogik
+- `src/lib/mcp/toolSurface.ts` — Fingerabdruck der MCP-Werkzeug-Oberfläche: EIN Wert, den zwei weit auseinanderliegende Stellen teilen — der gecachte Instructions-Text (`route.ts`) und der Envelope jeder Antwort (`mcp/common.ts`, `mcp/writeFramework.ts`). Weichen sie voneinander ab, ist die Werkzeugliste einer laufenden Sitzung überholt. **Eine neue Antwort-Form trägt ihn mit**, sonst liest ein Agent sein Fehlen als „weicht ab" und schlägt grundlos Alarm
 - `src/app/dashboard/EntryActions.tsx` — Drei-Punkte-Menü (Edit + optional Delete)
 
 ### MCP schemaVersion-Disziplin

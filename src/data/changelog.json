@@ -9,6 +9,13 @@
           "de": "Eine Periode, in der ein Trainingsziel beginnt oder endet, bleibt jetzt vollständig unbewertet. Vorher stand dort noch ein anteilig gekürzter Zielwert, der sich versehentlich mit den Stunden der ganzen Periode vergleichen liess.",
           "en": "A period in which a training goal starts or ends is now left entirely unrated. Until now it still carried a scaled-down target that invited comparison with the hours of the whole period."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die KI-Keyholderin merkt jetzt selbst, wenn ihre Werkzeugliste nach einem Update veraltet ist, und bittet um eine frische Verbindung — statt nach Beschreibungen zu handeln, die der Tracker so nicht mehr meint.",
+          "en": "The AI keyholder now notices when its tool list has gone stale after an update and asks for a fresh connection, instead of acting on descriptions the tracker no longer means."
+        }
       }
     ]
   },

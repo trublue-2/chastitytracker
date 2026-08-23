@@ -22,6 +22,7 @@ import { upsertCategoryDef, deleteCategoryDef } from "@/lib/mcp/categories";
 import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_NAME_MAX_LENGTH } from "@/lib/categoryConstants";
 import { executeWrite, recordAction, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
 import { buildWriteContext } from "@/lib/mcp/common";
+import { computeToolSurfaceFingerprint, setToolSurfaceFingerprint, toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
 import { prisma } from "@/lib/prisma";
 import { keyholderDashboard, getBoxState } from "@/lib/mcp/dashboard";
 import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
@@ -134,7 +135,16 @@ async function runWriteTool<T>(label: string, extra: ToolExtra, args: Record<str
   if (!reason) return denyWrite(label, args, `"${label}" requires a non-empty reason (audit is mandatory)`);
 
   const isDryRun = args.dryRun === true;
-  const result = await runTool(label, fn);
+  // Nicht `runTool`: V1-Schreibergebnisse tragen keinen Envelope, und die Instructions sagen zu,
+  // dass JEDE Antwort den Fingerabdruck führt. Eine Sitzung, die mit einer Direktive beginnt,
+  // prüfte sonst nie — oder läse sein Fehlen als „weicht ab" und schlüge grundlos Alarm.
+  const result = await runToolWith(label, fn, (data) => [{
+    type: "text",
+    text: JSON.stringify(
+      typeof data === "object" && data !== null ? { ...data, toolsFingerprint: toolSurfaceFingerprint() } : data,
+      null, 2,
+    ),
+  }]);
   logMcpWrite(label, args, result.isError ? "error" : isDryRun ? "dryrun" : "ok");
 
   // dryRun committet nichts (siehe mcpWrite.ts) — folgerichtig auch kein Audit-Eintrag, exakt wie
@@ -237,6 +247,23 @@ const KEYHOLDER_RULES_POINTER =
   "`keyholder_dashboard.keyholderInstructions` und sind VOR jeder Direktive zu lesen — immer frisch " +
   "von dort, da sie sich jederzeit ändern können.";
 
+/** Die gecachte Hälfte des Stale-Vergleichs. Steht im Instructions-Text, den der Client EINMAL beim
+ *  Verbindungsaufbau liest — der Wert daneben im Envelope jeder Antwort ist der von jetzt.
+ *  Mechanik und Begründung: `toolSurface.ts`. */
+function toolSurfaceNotice(): string {
+  return (
+    "\n\nWERKZEUGLISTE-STAND: " + toolSurfaceFingerprint() + ". Deine Werkzeugliste — Namen, " +
+    "Beschreibungen, Parameter — hast du beim Verbinden EINMAL gelesen; die Aufrufe gehen live. " +
+    "Jede ERFOLGREICHE Antwort trägt `toolsFingerprint` — Fehlermeldungen nicht, die sagen ohnehin " +
+    "selbst, was los ist. Weicht er von dem Wert oben ab, ist deine Liste " +
+    "überholt: nach einem Deploy können Parameter dazugekommen, weggefallen oder in ihrer Bedeutung " +
+    "geändert sein. Verlass dich dann NICHT mehr auf die Beschreibungen, die du im Kopf hast, sag " +
+    "es der Keyholderin und bitte sie um eine frische Verbindung — ein neuer Chat allein genügt " +
+    "nicht. Was du bereits weisst, bleibt bis dahin brauchbar; nur was eine Beschreibung verspricht, " +
+    "ist es nicht mehr."
+  );
+}
+
 /**
  * Baut die finalen Server-Instructions: Basis + Regel-Zeiger, und — best effort — ein WÖRTLICHES Abbild
  * der aktuellen `mcpKeyholderInstructions` des MCP_USERNAME, damit die Regeln direkt mit der Tool-Liste
@@ -247,7 +274,9 @@ const KEYHOLDER_RULES_POINTER =
  * try/catch; bei Fehler/leer fällt es auf Basis + Zeiger zurück (kein Crash).
  */
 async function buildServerInstructions(): Promise<string> {
-  let instructions = MCP_SERVER_INSTRUCTIONS + KEYHOLDER_RULES_POINTER;
+  // `toolSurfaceNotice()` erst hier auswerten, nicht als Konstante: der Fingerabdruck wird beim
+  // Bauen des Handlers gesetzt, und eine Konstante hätte den Wert von vor dem Setzen festgehalten.
+  let instructions = MCP_SERVER_INSTRUCTIONS + KEYHOLDER_RULES_POINTER + toolSurfaceNotice();
   if (process.env.NEXT_RUNTIME !== "nodejs") return instructions;
   const username = process.env.MCP_USERNAME;
   if (!username) return instructions;
@@ -1631,13 +1660,62 @@ function registerImageTool(server: McpServer) {
   );
 }
 
+/**
+ * Der Fingerabdruck der Werkzeug-Oberfläche, GEMESSEN an den Definitionen, die der Client bekommt.
+ *
+ * Dafür läuft die Registrierung ein zusätzliches Mal gegen einen Sammler statt gegen einen Server.
+ * Der Umweg ist Absicht: eine von Hand gepflegte Versionszahl neben den Werkzeugen wäre genau die
+ * Sorte Angabe, die beim nächsten Beschreibungs-Wechsel stehen bleibt. Was hier herauskommt, kann
+ * per Konstruktion nicht danebenliegen — es IST die Oberfläche.
+ *
+ * `imagesVisible` geht mit ein, weil es ein Werkzeug erscheinen und verschwinden lässt: eine
+ * Sitzung, die vor der Freischaltung verbunden hat, kennt `get_image` nicht.
+ *
+ * Exportiert für `toolSurfaceRegistration.test.ts`: die Messung schickt jedes der registrierten
+ * Schemas durch `z.toJSONSchema`, und ein Wurf dort träfe den Handler-Bau — also den gesamten
+ * MCP-Endpunkt. Das gehört an den echten Registrierungen geprüft, nicht an einer Stichprobe.
+ */
+export function measureToolSurface(imagesVisible: boolean): string {
+  // Der Briefing-Text zählt mit: er wird genauso EINMAL beim Verbinden gelesen und nennt Werkzeuge
+  // und Regeln beim Namen. Ohne ihn liesse ein Deploy, der nur das Briefing umschreibt, den
+  // Fingerabdruck stehen — der Envelope bestätigte der Sitzung dann ihren veralteten Text als
+  // aktuell, was schlimmer ist als gar kein Signal. NICHT dabei: der finale Text mitsamt
+  // `toolSurfaceNotice()` (der enthält den Wert selbst, das wäre zirkulär) und das Abbild der
+  // Keyholder-Regeln, das seinen eigenen Immer-frisch-Zeiger hat.
+  const collected: { name: string; surface: string }[] = [
+    { name: "", surface: MCP_SERVER_INSTRUCTIONS + KEYHOLDER_RULES_POINTER },
+  ];
+  const collector = {
+    registerTool(name: string, config: { title?: string; description?: string; inputSchema: z.ZodType }) {
+      // `inputSchema` ist hier immer das strikte Zod-Objekt: `makeInputsStrict` läuft mit und setzt
+      // es für jedes Werkzeug, auch für die parameterlosen. Also exakt das, woraus der Client sein
+      // JSON-Schema bekommt — samt der Parameter-Beschreibungen, um die es hier vor allem geht.
+      const input = JSON.stringify(z.toJSONSchema(config.inputSchema));
+      collected.push({ name, surface: `${config.title ?? ""}${config.description ?? ""}${input}` });
+    },
+  } as unknown as McpServer;
+  registerTools(collector);
+  if (imagesVisible) registerImageTool(collector);
+  return computeToolSurfaceFingerprint(collected);
+}
+
 /** Baut den auth-umhüllten MCP-Handler. Async, weil die Server-Instructions erst per await-Helfer
  *  (best-effort DB-Read der Keyholder-Regeln) befüllt werden. */
 async function buildAuthHandler(): Promise<(req: Request) => Promise<Response>> {
-  const instructions = await buildServerInstructions();
   // Der Sub-Schlüssel braucht die Datenbank, die Werkzeug-Registrierung ist synchron — deshalb hier
   // auflösen. Das Tor steht damit an genau einer Stelle, dort wo der Wert entsteht.
   const imagesVisible = await mcpImageToolVisible();
+  // VOR den Instructions: der Fingerabdruck gehört in ihren Text.
+  //
+  // In try/catch, weil die Messung ein Diagnose-Hilfsmittel ist und nie der Grund sein darf, dass
+  // der MCP-Endpunkt nicht hochkommt. Fällt sie aus, bleibt der Wert "unknown" — die Sitzung
+  // bekommt dann keinen Stale-Hinweis, aber alles andere funktioniert.
+  try {
+    setToolSurfaceFingerprint(measureToolSurface(imagesVisible));
+  } catch (e) {
+    structuredLog("MCP", "tool-surface-failed", { error: (e as Error).message });
+  }
+  const instructions = await buildServerInstructions();
   const handler = createMcpHandler(
     (server) => {
       registerTools(server);
