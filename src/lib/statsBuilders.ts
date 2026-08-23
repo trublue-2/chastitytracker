@@ -167,7 +167,7 @@ export function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], v
       const monthEnd = midnightOfLocalDate(y, m, 1, tz);
       const wearHours = wearingHoursFromPairs(wearPairs, monthStart, monthEnd);
       const vg = vorgabeFor(vorgaben, monthStart, monthEnd);
-      return { ...v, wearHours, targetH: vg ? periodTarget(vg.minProMonatH, "month", monthStart, monthEnd, vg).targetH : null };
+      return { ...v, wearHours, targetH: vg ? periodTarget(vg.minProMonatH, monthStart, monthEnd, vg).targetH : null };
     });
 }
 
@@ -175,7 +175,7 @@ export function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }, now: D
   return v.gueltigAb <= now && (v.gueltigBis === null || v.gueltigBis >= now);
 }
 
-/** Ein prorata-Ziel von 0 heisst „Vorgabe deckt diese Periode nicht ab" → kein „erreicht"-Marker
+/** Ein Ziel von 0 heisst „Vorgabe deckt diese Periode nicht ab" → kein „erreicht"-Marker
  *  (sonst wäre `ist >= 0` trivial immer erfüllt). Deshalb Truthy-Guard statt `!= null`. */
 function goalMet(actual: number, target: number | null): boolean | null {
   return target ? actual >= target : null;
@@ -215,7 +215,7 @@ export function buildCalendarMonths(opts: {
     const monthEndDate = midnightOfLocalDate(year, month + 1, 1, tz);
     const vorgabe = vorgabeFor(vorgaben, monthStartDate, monthEndDate) ?? null;
     const monthTotalH = wearingHoursFromPairs(wearPairs, monthStartDate, monthEndDate);
-    const monthTarget = vorgabe ? periodTarget(vorgabe.minProMonatH, "month", monthStartDate, monthEndDate, vorgabe).targetH : null;
+    const monthTarget = vorgabe ? periodTarget(vorgabe.minProMonatH, monthStartDate, monthEndDate, vorgabe).targetH : null;
 
     const cells: (number | null)[] = [
       ...Array(startOffset).fill(null),
@@ -245,7 +245,7 @@ export function buildCalendarMonths(opts: {
         // oder 169 Stunden, und die Millisekunden-Addition verfehlt die Mitternacht.
         const wkEnd = midnightOfLocalDate(year, month, firstDayOfRow - dow + 7, tz);
         weekH = wearingHoursFromPairs(wearPairs, wkStart, wkEnd);
-        weekTarget = periodTarget(vorgabe.minProWocheH, "week", wkStart, wkEnd, vorgabe).targetH;
+        weekTarget = periodTarget(vorgabe.minProWocheH, wkStart, wkEnd, vorgabe).targetH;
       }
       weekGoalMet.push(goalMet(weekH, weekTarget));
       weekGoalPct.push(goalPct(weekH, weekTarget));
@@ -256,9 +256,9 @@ export function buildCalendarMonths(opts: {
         const data = dailyData.get(key);
         const dayStart = midnightOfLocalDate(year, month, day, tz);
         const dayEnd = midnightOfLocalDate(year, month, day + 1, tz);
-        // Regel 3: beginnt oder endet die Vorgabe MITTEN an diesem Tag, bleibt der Tag unbewertet
+        // Beginnt oder endet die Vorgabe MITTEN an diesem Tag, bleibt der Tag unbewertet
         // (`targetH: null`) — ein Tagesziel misst einen Tagesbogen, keinen Nachmittag.
-        const dayTarget = vorgabe ? periodTarget(vorgabe.minProTagH, "day", dayStart, dayEnd, vorgabe).targetH : null;
+        const dayTarget = vorgabe ? periodTarget(vorgabe.minProTagH, dayStart, dayEnd, vorgabe).targetH : null;
         const dailyGoalMet = data != null ? goalMet(data.hours, dayTarget) : null;
         const colorClass = calendarLevelClass(wearIntensityLevel(data?.hours ?? 0));
         // entries arrived from prisma sorted by startTime asc, so per-day buckets are too.

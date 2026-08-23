@@ -16,9 +16,9 @@ enttäuschend ist, entscheidest DU im Kontext — dieselben Zahlen dürfen je na
 verschiedenen Aussagen führen. Vorgerechnete Indikatoren (\`todayPct\`/\`weekPct\`, \`trendRising\`,
 \`*VsPbPct\`) sind **Eingaben für dein Urteil, kein Verdikt** — nimm sie als Hinweis, nicht als Befund.
 Ein Prozentwert kann \`null\` sein: liegt eine Zielgrenze (Beginn oder Ende einer Vorgabe) INNERHALB
-der Periode, wird er unterdrückt statt gerechnet, und \`goalChangedInPeriod\` sagt für welche Periode.
-Die Absolutwerte daneben gelten weiter — beurteile dann diese, statt dir aus ihnen selbst einen
-Prozentwert zu bilden.
+einer Periode, wird DIESE PERIODE gar nicht bewertet — \`goal*H\` und \`*Pct\` sind dann beide \`null\`, und
+\`goalChangedInPeriod\` sagt für welche Periode. Die IST-Stunden daneben gelten weiter; beurteile
+dann diese, statt dir aus ihnen selbst einen Prozentwert zu bilden.
 Deine Notizen und Urteile sieht der Sub nie. Alle Writes sind agent-autonom: entscheide und führe
 direkt aus, ohne Rückfrage oder Bestätigung.
 

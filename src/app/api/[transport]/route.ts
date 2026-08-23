@@ -482,11 +482,12 @@ function registerTools(server: McpServer) {
         description:
           "MCP V2 — Tag/Woche/Monat/Jahr-Tragestunden für KG und je Kategorie inkl. Ziel-Erfüllung (pct). " +
           "Eine Quelle für die Adhärenz-Frage. Liegt eine Zielgrenze (Beginn/Ende einer Vorgabe) INNERHALB " +
-          "einer Periode, ist deren pct bewusst null und goalChangedInPeriod.<periode> true: Ist-Stunden der " +
-          "ganzen Periode gegen ein Ziel für einen Teil davon ergäbe keine Aussage. Die Absolutwerte daneben " +
-          "gelten weiter; ein angebrochener TAG bekommt gar kein Ziel (goalDayH null), weil ein Tagesziel " +
-          "einen Tagesbogen misst und keinen Nachmittag. Nimmt KEINE Parameter — granularity/periods gibt es " +
-          "nicht, ein Aufruf damit schlägt fehl statt sie still zu ignorieren.",
+          "einer Periode, wird diese Periode GAR NICHT bewertet: goal<Periode>H und <periode>Pct sind beide " +
+          "null, goalChangedInPeriod.<periode> ist true. Ist-Stunden der ganzen Periode gegen ein Ziel für " +
+          "einen Teil davon ergäbe keine Aussage — auch nicht, wenn man beide Rohwerte selbst " +
+          "nebeneinanderlegt. Die IST-Stunden daneben gelten weiter; beurteile in dem Fall diese. " +
+          "Nimmt KEINE Parameter — granularity/periods gibt es nicht, ein Aufruf damit schlägt fehl statt " +
+          "sie still zu ignorieren.",
         inputSchema: {},
       },
       () => runTool("period_summary", periodSummary),
@@ -820,8 +821,9 @@ function registerTools(server: McpServer) {
           "Sets a wear-time goal (min hours per day/week/month) for KG or a named category. Without " +
           "validFrom the goal starts at the user's NEXT MIDNIGHT, not at the moment of the call — a goal " +
           "that begins mid-period splits that period and makes its fulfilment percentage meaningless. " +
-          "Pass validFrom to schedule a later start, or to start mid-period on purpose; periods holding a " +
-          "goal boundary then report their percentage as null (see period_summary.goalChangedInPeriod). " +
+          "Pass validFrom to schedule a later start, or to start mid-period on purpose; a period holding a " +
+          "goal boundary is then not evaluated at all — target and percentage both null (see " +
+          "period_summary.goalChangedInPeriod). " +
           "Goals are chained per category by start date, so a new goal automatically ends the current one " +
           "of that category at its start. At least one period target is required." + KEYHOLDER_SILENT,
         inputSchema: {
@@ -829,7 +831,7 @@ function registerTools(server: McpServer) {
           minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day."),
           minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week."),
           minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month."),
-          minPerYearHours: z.number().nonnegative().optional().describe("Min hours per year. Prorated to the goal's overlap with the year when it starts/ends mid-year."),
+          minPerYearHours: z.number().nonnegative().optional().describe("Min hours per year."),
           validFrom: z.string().optional().describe("Goal start (ISO 8601, e.g. 2026-06-12). Omit to start at the user's next midnight — the next period boundary. Set it to schedule a goal in advance, or to start mid-period deliberately."),
           validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit for open-ended."),
           note: z.string().optional().describe("Note shown with the goal."),

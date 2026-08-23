@@ -1,49 +1,11 @@
 import { describe, it, expect } from "vitest";
+import type { GoalWindow } from "./goalFulfillment";
 import {
-  periodOverlapRatio, periodTarget, periodBounds, proratedVorgabeTargets,
-  goalBoundaryInPeriod, hasVisibleGoalRow,
+  periodTarget, periodBounds, resolveGoalTargets, goalBoundaryInPeriod, hasVisibleGoalRow,
 } from "./goalFulfillment";
 
 const D = (s: string) => new Date(s);
 const TZ = "Europe/Zurich";
-
-describe("periodOverlapRatio", () => {
-  const monthStart = D("2026-07-01T00:00:00Z");
-  const monthEnd = D("2026-08-01T00:00:00Z"); // 31 Tage
-
-  it("volle Abdeckung → 1 (Bestandsverhalten)", () => {
-    expect(periodOverlapRatio(monthStart, monthEnd, D("2026-06-01T00:00:00Z"), null)).toBe(1);
-    expect(periodOverlapRatio(monthStart, monthEnd, D("2026-07-01T00:00:00Z"), D("2026-08-01T00:00:00Z"))).toBe(1);
-  });
-
-  it("Vorgabe startet mitten in der Periode → anteilig", () => {
-    // Start 17.07 → 15 der 31 Tage abgedeckt
-    const r = periodOverlapRatio(monthStart, monthEnd, D("2026-07-17T00:00:00Z"), null);
-    expect(r).toBeCloseTo(15 / 31, 6);
-  });
-
-  it("Vorgabe endet mitten in der Periode → anteilig", () => {
-    // Ende 16.07 → 15 der 31 Tage abgedeckt (halb-offenes Intervall)
-    const r = periodOverlapRatio(monthStart, monthEnd, D("2026-06-01T00:00:00Z"), D("2026-07-16T00:00:00Z"));
-    expect(r).toBeCloseTo(15 / 31, 6);
-  });
-
-  it("kein Overlap → 0", () => {
-    expect(periodOverlapRatio(monthStart, monthEnd, D("2026-05-01T00:00:00Z"), D("2026-06-01T00:00:00Z"))).toBe(0);
-    expect(periodOverlapRatio(monthStart, monthEnd, D("2026-08-01T00:00:00Z"), null)).toBe(0);
-  });
-
-  it("Woche, Freitag-Start (User-Beispiel) → 3 von 7 Tagen (Fr/Sa/So)", () => {
-    const weekStart = D("2026-07-06T00:00:00Z"); // Montag
-    const weekEnd = D("2026-07-13T00:00:00Z");
-    const r = periodOverlapRatio(weekStart, weekEnd, D("2026-07-10T00:00:00Z"), null); // Freitag
-    expect(r).toBeCloseTo(3 / 7, 6);
-  });
-
-  it("degenerierte Periode (start==end) → 0", () => {
-    expect(periodOverlapRatio(monthStart, monthStart, D("2026-01-01T00:00:00Z"), null)).toBe(0);
-  });
-});
 
 describe("periodTarget", () => {
   const monthStart = D("2026-07-01T00:00:00Z");
@@ -51,52 +13,70 @@ describe("periodTarget", () => {
   const full = { gueltigAb: D("2026-01-01T00:00:00Z"), gueltigBis: null };
 
   it("null-Ziel bleibt null und gilt nie als geteilt", () => {
-    expect(periodTarget(null, "month", monthStart, monthEnd, full)).toEqual({ targetH: null, displayH: null, changedInPeriod: false });
-    expect(periodTarget(undefined, "month", monthStart, monthEnd, full)).toEqual({ targetH: null, displayH: null, changedInPeriod: false });
+    expect(periodTarget(null, monthStart, monthEnd, full)).toEqual({ targetH: null, changedInPeriod: false });
+    expect(periodTarget(undefined, monthStart, monthEnd, full)).toEqual({ targetH: null, changedInPeriod: false });
   });
 
   it("volle Abdeckung → Ziel unverändert, Periode ungeteilt", () => {
-    expect(periodTarget(200, "month", monthStart, monthEnd, full)).toEqual({ targetH: 200, displayH: 200, changedInPeriod: false });
+    expect(periodTarget(200, monthStart, monthEnd, full)).toEqual({ targetH: 200, changedInPeriod: false });
   });
 
-  it("halbe Abdeckung → das anteilige Ziel steht nur noch in displayH, nicht mehr in targetH", () => {
-    // Der Kern der Umkehrung: wer rechnet, greift targetH und bekommt null. Wer anzeigt, greift
-    // displayH und bekommt die 150 Stunden, die neben den Ist-Stunden stehen dürfen.
-    const t = periodTarget(310, "month", monthStart, monthEnd, { gueltigAb: D("2026-07-17T00:00:00Z"), gueltigBis: null });
-    expect(t.targetH).toBeNull();
-    expect(t.displayH).toBeCloseTo(310 * 15 / 31, 6);
-    expect(t.changedInPeriod).toBe(true);
+  it("Grenze in der Periode → gar kein Ziel, auch kein anteiliges", () => {
+    // Vorher stand hier 310 × 15/31 = 150. Als Absolutwert neben Ist-Stunden der ganzen Periode
+    // lud diese Zahl dazu ein, von Hand denselben Vergleich anzustellen, den der unterdrückte
+    // Prozentwert schon vermied.
+    expect(periodTarget(310, monthStart, monthEnd, { gueltigAb: D("2026-07-17T00:00:00Z"), gueltigBis: null }))
+      .toEqual({ targetH: null, changedInPeriod: true });
   });
 
   it("kein Overlap → 0, und NICHT geteilt (die Vorgabe berührt die Periode gar nicht)", () => {
-    expect(periodTarget(200, "month", monthStart, monthEnd, { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null }))
-      .toEqual({ targetH: 0, displayH: 0, changedInPeriod: false });
+    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null }))
+      .toEqual({ targetH: 0, changedInPeriod: false });
   });
 
-  it("Regel 3: ein angebrochener TAG bekommt gar kein Ziel statt eines gekürzten", () => {
+  it("ohne Grenze in der Periode gibt es nur ganz oder gar nicht — nie einen Zwischenwert", () => {
+    // Der Grund, warum das anteilige Ziel ersatzlos entfallen konnte: ein Anteil entstand
+    // ausschliesslich in geteilten Perioden, und die bleiben ohnehin unbewertet.
+    //
+    // Jede Lage nennt ihren ERWARTETEN Wert, statt nur „einer von beiden" zuzusichern — sonst
+    // bliebe eine vertauschte Abdeckungs-Prüfung unbemerkt.
+    //
+    // Was dieser Test NICHT leisten kann: eine Rückkehr zu `baseTargetH * ratio` in diesem Zweig
+    // aufdecken. Ausserhalb einer geteilten Periode sind die beiden Formeln nicht bloss gleich
+    // gross, sie sind dieselbe Funktion — der Anteil ist dort immer 0 oder 1. Genau das ist ja der
+    // Grund, warum er entfallen konnte. Dass in der GETEILTEN Periode kein Anteil zurückkommt,
+    // sichern die beiden Tests darüber und darunter.
+    const faelle: [string, GoalWindow, number][] = [
+      ["deckt weit über die Periode hinaus", full, 200],
+      ["deckt sie genau ab", { gueltigAb: monthStart, gueltigBis: monthEnd }, 200],
+      ["beginnt erst danach", { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null }, 0],
+      ["endete schon davor", { gueltigAb: D("2026-01-01T00:00:00Z"), gueltigBis: monthStart }, 0],
+    ];
+    for (const [lage, goal, erwartet] of faelle) {
+      const t = periodTarget(200, monthStart, monthEnd, goal);
+      expect(t.changedInPeriod, lage).toBe(false);
+      expect(t.targetH, lage).toBe(erwartet);
+    }
+  });
+
+  it("ein angebrochener TAG bekommt kein Ziel", () => {
     const dayStart = D("2026-07-15T00:00:00Z");
     const dayEnd = D("2026-07-16T00:00:00Z");
-    const startsMidday = { gueltigAb: D("2026-07-15T12:00:00Z"), gueltigBis: null };
-    expect(periodTarget(15, "day", dayStart, dayEnd, startsMidday)).toEqual({ targetH: null, displayH: null, changedInPeriod: true });
-    // Woche/Monat zeigen dagegen weiterhin ihr anteiliges Ziel — bewertet wird auch dort nicht.
-    const week = periodTarget(15, "week", dayStart, dayEnd, startsMidday);
-    expect(week.targetH).toBeNull();
-    expect(week.displayH).toBeCloseTo(7.5, 6);
+    expect(periodTarget(15, dayStart, dayEnd, { gueltigAb: D("2026-07-15T12:00:00Z"), gueltigBis: null }))
+      .toEqual({ targetH: null, changedInPeriod: true });
   });
 
   it("ein Ziel, das GENAU an der Periodengrenze beginnt, teilt sie nicht", () => {
     // Der Normalfall aus Regel 1: ohne validFrom startet ein Ziel an der nächsten Mitternacht.
-    expect(periodTarget(200, "month", monthStart, monthEnd, { gueltigAb: monthStart, gueltigBis: null }))
-      .toEqual({ targetH: 200, displayH: 200, changedInPeriod: false });
-    expect(periodTarget(200, "month", monthStart, monthEnd, { gueltigAb: D("2026-06-01T00:00:00Z"), gueltigBis: monthEnd }))
-      .toEqual({ targetH: 200, displayH: 200, changedInPeriod: false });
+    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: monthStart, gueltigBis: null }))
+      .toEqual({ targetH: 200, changedInPeriod: false });
+    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: D("2026-06-01T00:00:00Z"), gueltigBis: monthEnd }))
+      .toEqual({ targetH: 200, changedInPeriod: false });
   });
 
   it("auch ein ENDE mitten in der Periode teilt sie", () => {
-    const t = periodTarget(200, "month", monthStart, monthEnd, { gueltigAb: D("2026-06-01T00:00:00Z"), gueltigBis: D("2026-07-16T00:00:00Z") });
-    expect(t.changedInPeriod).toBe(true);
-    expect(t.targetH).toBeNull();
-    expect(t.displayH).toBeCloseTo(200 * 15 / 31, 6);
+    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: D("2026-06-01T00:00:00Z"), gueltigBis: D("2026-07-16T00:00:00Z") }))
+      .toEqual({ targetH: null, changedInPeriod: true });
   });
 });
 
@@ -143,7 +123,7 @@ describe("periodBounds", () => {
   });
 });
 
-describe("proratedVorgabeTargets", () => {
+describe("resolveGoalTargets", () => {
   const now = D("2026-07-15T12:00:00Z");
   const base = { minProTagH: 6, minProWocheH: 40, minProMonatH: 200, minProJahrH: 3000 };
   const VIER = { day: 6, week: 40, month: 200, year: 3000 };
@@ -151,24 +131,18 @@ describe("proratedVorgabeTargets", () => {
   const UNGETEILT = { day: false, week: false, month: false, year: false };
 
   it("null-Vorgabe → alle Ziele null", () => {
-    expect(proratedVorgabeTargets(null, now, TZ)).toEqual({
-      targetH: KEINE, displayH: KEINE, changedInPeriod: UNGETEILT,
-    });
+    expect(resolveGoalTargets(null, now, TZ)).toEqual({ targetH: KEINE, changedInPeriod: UNGETEILT });
   });
 
   it("Vorgabe deckt alle aktuellen Perioden voll ab → Ziele unverändert", () => {
     const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, ...base };
-    expect(proratedVorgabeTargets(goal, now, TZ)).toEqual({
-      targetH: VIER, displayH: VIER, changedInPeriod: UNGETEILT,
-    });
+    expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: VIER, changedInPeriod: UNGETEILT });
   });
 
   it("Vorgabe komplett in der Vergangenheit → alle Ziele 0 (kein Overlap mit aktuellen Perioden)", () => {
     const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: D("2021-01-01T00:00:00Z"), ...base };
     const NULLEN = { day: 0, week: 0, month: 0, year: 0 };
-    expect(proratedVorgabeTargets(goal, now, TZ)).toEqual({
-      targetH: NULLEN, displayH: NULLEN, changedInPeriod: UNGETEILT,
-    });
+    expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: NULLEN, changedInPeriod: UNGETEILT });
   });
 
   it("der Vorfall vom 23.08.2026: Ziel 15/90/390 am Sonntag um 09:54 gesetzt", () => {
@@ -178,12 +152,10 @@ describe("proratedVorgabeTargets", () => {
       gueltigAb: D("2026-08-23T07:54:00Z"), gueltigBis: null,   // 09:54 Ortszeit
       minProTagH: 15, minProWocheH: 90, minProMonatH: 390, minProJahrH: null,
     };
-    const t = proratedVorgabeTargets(goal, D("2026-08-23T09:08:00Z"), TZ);
-    // Bewertet wird in KEINER der drei geteilten Perioden — daher auch kein Prozentwert.
+    const t = resolveGoalTargets(goal, D("2026-08-23T09:08:00Z"), TZ);
+    // Bewertet wird in KEINER der drei geteilten Perioden — weder mit Prozentwert noch mit einem
+    // anteiligen Ziel als Absolutwert. Vorher stand hier goalWeekH 7.55 neben week 76.5.
     expect(t.targetH).toEqual({ day: null, week: null, month: null, year: null });
-    // Der Tag zeigt nach Regel 3 auch keinen Anteil; Woche und Monat zeigen ihren.
-    expect(t.displayH.day).toBeNull();
-    expect(t.displayH.week).toBeCloseTo(90 * 14.1 / 168, 2);
     expect(t.changedInPeriod).toEqual({ day: true, week: true, month: true, year: false });
     // Das JAHR bleibt false, obwohl die Vorgabe mitten in ihm beginnt: es hat gar kein Ziel
     // (minProJahrH null). Wo nichts bewertet wird, gibt es auch nichts zu unterdrücken.
@@ -195,14 +167,13 @@ describe("proratedVorgabeTargets", () => {
       gueltigAb: D("2026-08-23T07:54:00Z"), gueltigBis: null,
       minProTagH: 15, minProWocheH: 90, minProMonatH: 390, minProJahrH: null,
     };
-    const t = proratedVorgabeTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
+    const t = resolveGoalTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
     expect(t.targetH.day).toBe(15);
     // Die neue Woche beginnt am Montag → auch sie ist wieder ungeteilt und voll.
     expect(t.targetH.week).toBe(90);
     expect(t.changedInPeriod).toEqual({ day: false, week: false, month: true, year: false });
-    // Der August trägt die Grenze weiterhin: kein Nenner, aber ein Anzeige-Anteil.
+    // Der August trägt die Grenze weiterhin — also kein Ziel für den Monat.
     expect(t.targetH.month).toBeNull();
-    expect(t.displayH.month).toBeGreaterThan(0);
     expect(hasVisibleGoalRow(t.targetH)).toBe(true);
   });
 
@@ -211,7 +182,7 @@ describe("proratedVorgabeTargets", () => {
       gueltigAb: D("2026-08-23T22:00:00Z"), gueltigBis: null,   // 24.08. 00:00 Ortszeit, ein Montag
       minProTagH: 15, minProWocheH: 90, minProMonatH: 390, minProJahrH: null,
     };
-    const t = proratedVorgabeTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
+    const t = resolveGoalTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
     expect(t.targetH.day).toBe(15);
     expect(t.targetH.week).toBe(90);
     expect(t.changedInPeriod).toEqual({ day: false, week: false, month: true, year: false });

@@ -13,7 +13,7 @@ import {
 import { heimdallEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
 import { isScheduledDirective } from "@/lib/queries";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
-import { proratedVorgabeTargets } from "@/lib/goalFulfillment";
+import { resolveGoalTargets } from "@/lib/goalFulfillment";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
@@ -155,7 +155,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           // Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
           cleaningNote={data.sperrzeit ? t(data.sperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
           keyInBox={data.running.activePair.verschluss.keyInBox ?? null}
-          activeVorgabe={data.activeVorgabe ? proratedVorgabeTargets(data.activeVorgabe, now, subjectTz) : null}
+          activeVorgabe={data.activeVorgabe ? resolveGoalTargets(data.activeVorgabe, now, subjectTz) : null}
           tagH={data.hours.tagH}
           wocheH={data.hours.wocheH}
           monatH={data.hours.monatH}

@@ -204,18 +204,22 @@ export interface DashboardResult extends Envelope {
    *  (neue `kind`-Ausprägung `orgasm`). Ein v13-Wert hiess „es gibt kein offenes Fenster"; ab v14
    *  heisst er „es gibt keins, das gerade GILT" — geplant kann trotzdem eines sein.
    *
-   *  v15 trägt ZWEI Umdeutungen, die am selben Tag aus zwei Zweigen kamen und gemeinsam
-   *  ausgeliefert werden:
+   *  v15 trug ZWEI Umdeutungen, die am selben Tag aus zwei Zweigen kamen und gemeinsam auf den
+   *  Feature-Kanal gingen:
    *
    *  - `goals` folgt `period_summary` schemaVersion 3. Die Prozentwerte (`todayPct`/`weekPct`/
-   *    `monthPct`/`yearPct`) sind jetzt `null`, wenn eine Zielgrenze IN der Periode liegt — daneben
-   *    steht neu `goalChangedInPeriod` je Periode. Ein Wert aus v14 war in diesem Fall eine Zahl,
+   *    `monthPct`/`yearPct`) sind seither `null`, wenn eine Zielgrenze IN der Periode liegt — daneben
+   *    steht `goalChangedInPeriod` je Periode. Ein Wert aus v14 war in diesem Fall eine Zahl,
    *    die Ist-Stunden der ganzen Periode einem Ziel für einen Teil davon gegenüberstellte (1013 %
    *    im Vorfall vom 23.08.2026); rückwirkend ist er damit nicht als Erfüllung lesbar. Zusätzlich
    *    ist `goals.*.goalDayH` an einem Anbruchtag `null` statt eines anteilig gekürzten Werts.
    *  - `weight` folgt dem Zielgewicht: `corridor`/`breach` sind weg, `target`/`remainingKg`/
-   *    `reached` stehen an ihrer Stelle. */
-  schemaVersion: 15;
+   *    `reached` stehen an ihrer Stelle.
+   *
+   *  v16: `goals` folgt `period_summary` schemaVersion 4 — in einer Periode mit Zielgrenze ist
+   *  `goal*H` (Tag, Woche, Monat UND Jahr) `null` statt eines anteilig gekürzten Ziels. Ein
+   *  v15-Wert stand dort als Absolutwert für einen anderen Zeitraum als die Ist-Stunden daneben. */
+  schemaVersion: 16;
   user: string;
   /**
    * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
@@ -770,7 +774,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const weight = await weightSummary(trackingCtx.userId);
 
   return {
-    schemaVersion: 15,
+    schemaVersion: 16,
     user: username,
     weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),

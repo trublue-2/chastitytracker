@@ -1,5 +1,5 @@
 import { calculateWearingHoursByRange, median, msToHours, round1, summarizeDurations } from "@/lib/utils";
-import { proratedVorgabeTargets, type ByPeriod, type GoalChangedInPeriod, type VorgabeTargets } from "@/lib/goalFulfillment";
+import { resolveGoalTargets, type ByPeriod, type GoalChangedInPeriod, type VorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals } from "@/lib/categoryGoals";
 import { buildSessions, buildWearSessions, deviceDisplayName, deviceGroupKey, isLiveOpenSession, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/sessionModel";
@@ -426,15 +426,20 @@ export interface PeriodGoal {
   today: number; week: number; month: number; year: number;
   goalDayH: number | null; goalWeekH: number | null; goalMonthH: number | null; goalYearH: number | null;
   todayPct: number | null; weekPct: number | null; monthPct: number | null; yearPct: number | null;
-  /** Je Periode: liegt eine Zielgrenze (Beginn/Ende der Vorgabe) INNERHALB der Periode? Dann ist
-   *  der zugehörige `*Pct` bewusst `null` — er vergliche sonst Ist-Stunden der ganzen Periode mit
-   *  einem Ziel, das nur einen Teil davon abdeckt (Regel 2 in `goalFulfillment.ts`). Die
-   *  Absolutwerte daneben bleiben gültig. */
+  /** Je Periode: liegt eine Zielgrenze (Beginn/Ende der Vorgabe) INNERHALB der Periode? Dann sind
+   *  `goal*H` UND `*Pct` dieser Periode `null` — sie vergliche sonst Ist-Stunden der ganzen Periode
+   *  mit einem Ziel, das nur einen Teil davon abdeckt (Regel 2 in `goalFulfillment.ts`). Die
+   *  Ist-Stunden daneben bleiben gültig. */
   goalChangedInPeriod: GoalChangedInPeriod;
 }
 
 export interface PeriodSummaryResult extends Envelope {
-  schemaVersion: 3;
+  /** v3: Zielgrenze in der Periode → `*Pct` null, dazu `goalChangedInPeriod`.
+   *  v4: in derselben Lage ist auch `goal*H` null. v3 lieferte dort das anteilig gekürzte Ziel
+   *  (`goalWeekH: 7.55` neben `week: 76.5`) — ein Absolutwert für einen anderen Zeitraum als die
+   *  Ist-Stunden daneben. Wer die Rohwerte nebeneinanderlegte, stellte damit von Hand genau den
+   *  Vergleich an, den der unterdrückte Prozentwert vermeiden sollte. */
+  schemaVersion: 4;
   user: string;
   kg: PeriodGoal;
   categories: ({ name: string } & PeriodGoal)[];
@@ -448,11 +453,11 @@ export interface PeriodSummaryResult extends Envelope {
  *  23.08.2026, und ohne Test wäre sie die erste, die jemand beim nächsten Umbau „repariert". */
 export const periodGoal = (actual: ByPeriod<number>, goal: VorgabeTargets): PeriodGoal => ({
   today: round1(actual.day), week: round1(actual.week), month: round1(actual.month), year: round1(actual.year),
-  // Angezeigt wird das anteilige Ziel (`displayH`), gerechnet wird mit `targetH` — das in einer
-  // geteilten Periode bereits `null` ist und `pct` damit von selbst zu `null` macht. Keine zweite
-  // Unterdrückungs-Bedingung an dieser Stelle: die Regel steht in `goalFulfillment.ts`.
-  goalDayH: goal.displayH.day, goalWeekH: goal.displayH.week,
-  goalMonthH: goal.displayH.month, goalYearH: goal.displayH.year,
+  // Ziel UND Prozentwert kommen aus derselben Zahl: ist die Periode geteilt, ist `targetH` null,
+  // und `pct` wird damit von selbst null. Keine zweite Unterdrückungs-Bedingung an dieser Stelle —
+  // die Regel steht in `goalFulfillment.ts`.
+  goalDayH: goal.targetH.day, goalWeekH: goal.targetH.week,
+  goalMonthH: goal.targetH.month, goalYearH: goal.targetH.year,
   todayPct: pct(actual.day, goal.targetH.day),
   weekPct: pct(actual.week, goal.targetH.week),
   monthPct: pct(actual.month, goal.targetH.month),
@@ -474,10 +479,10 @@ export async function periodSummary(username: string, ctx?: TrackingContext): Pr
 
   // Dieselbe Zeitzone wie die Stunden darüber: sonst misst der Nenner eine andere Periode als der
   // Zähler. Was in einer geteilten Periode passiert, entscheidet `goalFulfillment.ts`.
-  const kgGoal = proratedVorgabeTargets(kgVorgabe, now, timezone);
+  const kgGoal = resolveGoalTargets(kgVorgabe, now, timezone);
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     kg: periodGoal({ day: kg.tagH, week: kg.wocheH, month: kg.monatH, year: kg.jahrH }, kgGoal),

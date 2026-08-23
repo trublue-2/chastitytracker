@@ -58,7 +58,7 @@ export function formatDurationMs(ms: number, locale: string): string {
  * {@link formatDurationMs} für eine Dauer, die als STUNDEN vorliegt (Ziele, Tages-/Wochensummen).
  *
  * `Math.round` auf die Millisekunde ist kein Schönheitsrunden, sondern nötig: Stunden kommen hier
- * als Gleitkommazahl an (`calculateWearingHoursByRange`, prorata-Ziele), und `2 + 3/60` mal
+ * als Gleitkommazahl an (`calculateWearingHoursByRange`, Stundenziele), und `2 + 3/60` mal
  * 3 600 000 ergibt 7 379 999.999… — abgeschnitten also „2h 2min" für zwei Stunden und drei
  * Minuten. Gerundet wird die Millisekunde, nicht die Minute; die Abschneide-Regel von
  * `formatDurationMs` bleibt damit unangetastet.
@@ -1041,8 +1041,8 @@ export function wearingHoursFromPairs(pairs: WearPair[], rangeStart: Date, range
 
 /** KG-Tragestunden für heute / laufende Woche / Monat / Jahr.
  *  Baut die Paare einmal und nutzt sie für alle vier Zeiträume (statt vier voller Sortierungen).
- *  `tz` ist die Zeitzone der SUB: „heute" muss denselben Tag meinen wie das prorata gerechnete Ziel
- *  (`proratedVorgabeTargets`) und die verstrichene Zeit daneben — sonst haben Zähler und Nenner
+ *  `tz` ist die Zeitzone der SUB: „heute" muss denselben Tag meinen wie das aufgelöste Ziel
+ *  (`resolveGoalTargets`) und die verstrichene Zeit daneben — sonst haben Zähler und Nenner
  *  desselben Fortschrittsbalkens zwei verschiedene Mitternachte. */
 export function calculateWearingHoursByRange<
   E extends {

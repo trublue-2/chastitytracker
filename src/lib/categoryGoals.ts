@@ -4,12 +4,12 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, getYearStart,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory, type SegmentEntry } from "@/lib/sessionModel";
-import { proratedVorgabeTargets, hasVisibleGoalRow, type VorgabeTargets } from "@/lib/goalFulfillment";
+import { resolveGoalTargets, hasVisibleGoalRow, type VorgabeTargets } from "@/lib/goalFulfillment";
 import { getNonKgTrackingCategories, getWearEntries, getUserTimezone } from "@/lib/queries";
 
 /** Wearing hours + active TrainingVorgabe targets for one non-KG tracking category.
- *  Die Ziele sind bereits nach den Regeln in `goalFulfillment.ts` aufgelöst: anteilig auf die
- *  Überschneidung mit der Periode, Tagesziel an einem Anbruchtag `null`, dazu `changedInPeriod`. */
+ *  Die Ziele sind bereits nach den Regeln in `goalFulfillment.ts` aufgelöst: eine Periode mit
+ *  Zielgrenze trägt gar kein Ziel, dazu `changedInPeriod` für den MCP. */
 export interface CategoryWearGoal {
   categoryId: string;
   name: string;
@@ -19,8 +19,8 @@ export interface CategoryWearGoal {
   wocheH: number;
   monatH: number;
   jahrH: number;
-  /** Ziele dieser Kategorie, bereits nach den Regeln aufgelöst — `targetH` zum Bewerten,
-   *  `displayH` zum Anzeigen, `changedInPeriod` für den MCP. */
+  /** Ziele dieser Kategorie, bereits nach den Regeln aufgelöst — `targetH` je Periode,
+   *  `changedInPeriod` sagt, ob eine Periode wegen einer Zielgrenze unbewertet bleibt. */
   goal: VorgabeTargets;
 }
 
@@ -37,7 +37,7 @@ export interface CategoryWearGoal {
  *  query — das Session-Modell filtert selbst auf WEAR_BEGIN/WEAR_END.
  *
  *  Die Zeitzone ist immer die DES SUBS — auch wenn der Keyholder die Zahlen liest: Tages-, Wochen-
- *  und Monatsgrenze müssen dieselbe Mitternacht meinen wie die prorata gerechneten Ziele daneben.
+ *  und Monatsgrenze müssen dieselbe Mitternacht meinen wie die Ziele daneben.
  *  Ohne `prefetchedTz` lädt die Funktion sie selbst (wie `buildCategoryRows`) und bleibt damit für
  *  Aufrufer brauchbar, die nur eine userId haben; wer sie ohnehin schon geladen hat — der
  *  MCP-Kontext etwa — reicht sie durch und spart die zweite Query. */
@@ -87,7 +87,7 @@ export async function buildCategoryWearGoals(
       wocheH: wearingHoursFromPairs(pairs, wocheStart, now),
       monatH: wearingHoursFromPairs(pairs, monatStart, now),
       jahrH: wearingHoursFromPairs(pairs, jahrStart, now),
-      goal: proratedVorgabeTargets(goalByCategory.get(c.id) ?? null, now, tz),
+      goal: resolveGoalTargets(goalByCategory.get(c.id) ?? null, now, tz),
     };
   });
 }

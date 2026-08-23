@@ -13,19 +13,26 @@
  * Woche gegenüber: 1013 % Erfüllung. Der Fehler war nicht die anteilige Rechnung, sondern dass sie
  * nur auf EINER Seite stattfand — der Nenner mass 14 Stunden, der Zähler die ganze Woche.
  *
- * Daraus die drei Regeln:
+ * Daraus zwei Regeln:
  *
  * 1. **Ziele beginnen an einer Periodengrenze.** Ohne ausdrückliches Startdatum setzt der MCP
  *    `gueltigAb` auf die nächste Mitternacht (`mcpSetTrainingGoal`), nicht auf den Aufrufzeitpunkt.
- *    Das verhindert den Fall an der Wurzel; alles Weitere hier greift nur noch, wenn jemand einen
- *    Start mitten in der Periode ausdrücklich WILL.
- * 2. **Liegt eine Zielgrenze in der Periode, gibt es keinen Prozentwert.** Statt ihn zu reparieren,
- *    wird er unterdrückt: das Ziel zum RECHNEN (`targetH`) ist dort `null`, womit `goalPct` von
- *    selbst `null` liefert. Das anteilige Ziel bleibt als Anzeige-Absolutwert (`displayH`) neben
- *    den Ist-Stunden stehen, und `changedInPeriod` sagt der MCP-Aufruferin, warum.
- * 3. **Tagesziele werden nie anteilig gerechnet.** Ein Tagesziel misst einen Tagesbogen, keinen
- *    Nachmittag: 15 Stunden auf einen angebrochenen Tag umzurechnen ergibt sachlich nichts. Der
- *    Anbruchtag wird darum gar nicht bewertet (`targetH: null`), ab dem Folgetag gilt der volle Wert.
+ *    Das verhindert den Fall an der Wurzel; Regel 2 greift nur noch, wenn jemand einen Start
+ *    mitten in der Periode ausdrücklich WILL.
+ * 2. **Liegt eine Zielgrenze in der Periode, wird sie gar nicht bewertet.** Das Ziel ist dort
+ *    `null` — womit `goalPct` von selbst `null` liefert — und `changedInPeriod` sagt der
+ *    MCP-Aufruferin, warum.
+ *
+ * Regel 2 gilt für ALLE vier Perioden, und der Weg dorthin führte über den Tag: ein Tagesziel misst
+ * einen Tagesbogen, keinen Nachmittag — 15 Stunden auf einen angebrochenen Tag umzurechnen ergibt
+ * sachlich nichts. Dasselbe Argument trägt aber für die Woche und den Monat: `goalWeekH: 7.55` neben
+ * `week: 76.5` ist kein Absolutwert, der irgendetwas rettet, sondern eine Einladung, von Hand
+ * denselben Vergleich anzustellen, den der unterdrückte Prozentwert vermeidet. Anfangs blieb der
+ * Anteil dort stehen; er ist ersatzlos entfallen, nachdem genau dieser Stolperstein gemeldet wurde.
+ *
+ * Ein anteilig gekürztes Ziel gibt es damit nirgends mehr — und es fehlt auch nichts: ohne Grenze
+ * in der Periode deckt eine Vorgabe sie ganz ab oder gar nicht, ein Zwischenwert konnte nur in den
+ * geteilten Perioden entstehen.
  */
 
 import { getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd, midnightAfterDays } from "@/lib/utils";
@@ -66,25 +73,6 @@ export function periodBounds(period: GoalPeriod, now: Date, tz: string): { start
 }
 
 /**
- * Fraction (0..1) of the half-open period `[periodStart, periodEnd)` that the goal window
- * `[gueltigAb, gueltigBis ?? +∞)` covers. Returns 0 for no overlap, 1 for full coverage.
- */
-export function periodOverlapRatio(
-  periodStart: Date,
-  periodEnd: Date,
-  gueltigAb: Date,
-  gueltigBis: Date | null,
-): number {
-  const periodMs = periodEnd.getTime() - periodStart.getTime();
-  if (periodMs <= 0) return 0;
-  const from = Math.max(periodStart.getTime(), gueltigAb.getTime());
-  const to = Math.min(periodEnd.getTime(), gueltigBis ? gueltigBis.getTime() : periodEnd.getTime());
-  const overlap = to - from;
-  if (overlap <= 0) return 0;
-  return Math.min(1, overlap / periodMs);
-}
-
-/**
  * Liegt eine Grenze des Ziels (Beginn ODER Ende) ECHT INNERHALB der Periode — teilt sie also in
  * einen Teil mit und einen Teil ohne Ziel?
  *
@@ -101,56 +89,55 @@ export function goalBoundaryInPeriod(periodStart: Date, periodEnd: Date, goal: G
   return (ab > start && ab < end) || (bis != null && bis > start && bis < end);
 }
 
-/**
- * Das Ziel einer Periode in ZWEI Lesarten — und welche davon den kurzen Namen trägt, ist Absicht.
- *
- * Ein paralleles „hier nicht rechnen"-Flag neben einer weiterhin gefüllten Zahl lässt sich
- * versehentlich übergehen: wer nur einen Nenner braucht, nimmt die Zahl und liest das Flag nicht —
- * ohne dass es auffällt. Genau so wäre der Kalender bei seiner Prozentrechnung geblieben, während
- * drei andere Anzeigen sie schon nicht mehr machten. Ein `null` kann man nicht übergehen:
- * `goalPct(x, null)` und `goalMet(x, null)` sind bereits `null`. Deshalb heisst die sichere Lesart
- * `targetH` und die gefährliche `displayH`.
- */
+/** Das Ziel einer Periode nach den Regeln oben. */
 export interface PeriodTarget {
-  /** Ziel-Stunden für die BEWERTUNG. `null`, wenn kein Ziel gesetzt ist ODER die Periode geteilt
-   *  ist. Wer einen Prozentwert, einen Balken oder ein „erreicht" bildet, nimmt DIESEN Wert. */
+  /** Ziel-Stunden dieser Periode — `null`, wenn kein Ziel gesetzt ist ODER die Periode geteilt ist.
+   *  Ein `null` statt eines Flags neben einer gefüllten Zahl ist Absicht: ein Flag lässt sich
+   *  übergehen, wenn man nur einen Nenner sucht, ein `null` nicht (`goalPct(x, null)` und
+   *  `goalMet(x, null)` sind bereits `null`). Genau daran wäre der Kalender bei seiner
+   *  Prozentrechnung geblieben, während drei andere Anzeigen sie schon nicht mehr machten. */
   targetH: number | null;
-  /** Dasselbe Ziel als ANZEIGE-Absolutwert: in einer geteilten Periode das anteilige Ziel, das
-   *  `targetH` dort verschweigt. `period_summary.goalWeekH` liefert es neben den Ist-Stunden, damit
-   *  die Aufruferin die Lage selbst beurteilen kann. Beim TAG immer gleich `targetH` — Regel 3
-   *  kürzt ein Tagesziel gar nicht erst, es gibt also keinen Anteil zu zeigen.
-   *  **Nie als Nenner verwenden.** */
-  displayH: number | null;
   /** Eine Zielgrenze liegt in dieser Periode (Regel 2). Ohne gesetztes Ziel immer `false` — wo
    *  nichts bewertet wird, gibt es auch nichts zu unterdrücken. */
   changedInPeriod: boolean;
 }
 
-const NO_TARGET: PeriodTarget = { targetH: null, displayH: null, changedInPeriod: false };
+const NO_TARGET: PeriodTarget = { targetH: null, changedInPeriod: false };
 
 /**
- * Das Ziel einer Periode nach den drei Regeln oben.
+ * Das Ziel einer Periode nach den Regeln oben.
  *
- * `baseTargetH == null` (Periode ohne Ziel) → `NO_TARGET`. Überlappung 0 (Ziel deckt die Periode
- * nicht ab) → Ziel 0, wie bisher: `goalPct` liest eine 0 bewusst als „deckt diese Periode nicht ab"
- * und nicht als „zu 100 % erfüllt".
- *
- * `period` unterscheidet ausschliesslich die ANZEIGE: Woche, Monat und Jahr zeigen in einer
- * geteilten Periode ihr anteiliges Ziel, der Tag nach Regel 3 nichts.
+ * `baseTargetH == null` (Periode ohne Ziel) → `NO_TARGET`. Deckt die Vorgabe die Periode nicht ab
+ * → Ziel 0, wie bisher: `goalPct` liest eine 0 bewusst als „deckt diese Periode nicht ab" und nicht
+ * als „zu 100 % erfüllt".
  */
 export function periodTarget(
   baseTargetH: number | null | undefined,
-  period: GoalPeriod,
   periodStart: Date,
   periodEnd: Date,
   goal: GoalWindow,
 ): PeriodTarget {
   if (baseTargetH == null) return NO_TARGET;
-  const prorated = baseTargetH * periodOverlapRatio(periodStart, periodEnd, goal.gueltigAb, goal.gueltigBis);
-  if (!goalBoundaryInPeriod(periodStart, periodEnd, goal)) {
-    return { targetH: prorated, displayH: prorated, changedInPeriod: false };
-  }
-  return { targetH: null, displayH: period === "day" ? null : prorated, changedInPeriod: true };
+  if (goalBoundaryInPeriod(periodStart, periodEnd, goal)) return { targetH: null, changedInPeriod: true };
+  return { targetH: goalCoversPeriod(periodStart, periodEnd, goal) ? baseTargetH : 0, changedInPeriod: false };
+}
+
+/**
+ * Deckt die Vorgabe die GANZE Periode ab?
+ *
+ * Nur zusammen mit `goalBoundaryInPeriod` sinnvoll zu lesen: liegt keine Grenze in der Periode,
+ * sind ganz und gar nicht die einzigen beiden Lagen — ein Zwischenwert kann dann nicht entstehen.
+ * Genau das macht ein anteilig gekürztes Ziel überflüssig, und deshalb steht die Aussage hier als
+ * Code und nicht als Kommentar.
+ *
+ * Die Längenprüfung am Ende hält eine entartete Periode (`end <= start`) bei „deckt nicht ab" —
+ * `periodBounds` erzeugt keine solche, aber ohne die Prüfung wäre sie durch die beiden
+ * Vergleiche darüber trivial „abgedeckt".
+ */
+function goalCoversPeriod(periodStart: Date, periodEnd: Date, goal: GoalWindow): boolean {
+  const start = periodStart.getTime();
+  const end = periodEnd.getTime();
+  return goal.gueltigAb.getTime() <= start && (goal.gueltigBis?.getTime() ?? Infinity) >= end && end > start;
 }
 
 /** The four period hour-targets of a training goal. */
@@ -177,16 +164,13 @@ export type GoalChangedInPeriod = ByPeriod<boolean>;
  * Kategorie-Zeilen mit ihrer eigenen Schreibweise (`goalDayH` …) käme eine dritte dazu.
  */
 export interface VorgabeTargets {
-  /** Ziel je Periode für die BEWERTUNG — `null`, wo nichts gesetzt oder die Periode geteilt ist. */
+  /** Ziel je Periode — `null`, wo nichts gesetzt oder die Periode geteilt ist. */
   targetH: ByPeriod<number | null>;
-  /** Ziel je Periode als ANZEIGE-Absolutwert. Nie als Nenner (siehe `PeriodTarget.displayH`). */
-  displayH: ByPeriod<number | null>;
   changedInPeriod: GoalChangedInPeriod;
 }
 
 const NO_TARGETS: VorgabeTargets = {
   targetH: { day: null, week: null, month: null, year: null },
-  displayH: { day: null, week: null, month: null, year: null },
   changedInPeriod: { day: false, week: false, month: false, year: false },
 };
 
@@ -205,7 +189,7 @@ export function hasVisibleGoalRow(targetH: ByPeriod<number | null>): boolean {
   return GOAL_PERIODS.some((period) => !!targetH[period]);
 }
 
-export function proratedVorgabeTargets(
+export function resolveGoalTargets(
   goal: (GoalWindow & VorgabePeriodTargets) | null,
   now: Date,
   tz: string,
@@ -215,22 +199,19 @@ export function proratedVorgabeTargets(
     day: goal.minProTagH, week: goal.minProWocheH, month: goal.minProMonatH, year: goal.minProJahrH,
   };
   const targetH = {} as ByPeriod<number | null>;
-  const displayH = {} as ByPeriod<number | null>;
   const changedInPeriod = {} as GoalChangedInPeriod;
   for (const period of GOAL_PERIODS) {
     // Perioden ohne Ziel überspringen die Grenzberechnung: `periodBounds` kostet mehrere
     // Intl-Auflösungen, und eine typische Vorgabe setzt ein oder zwei der vier Perioden.
     if (base[period] == null) {
       targetH[period] = null;
-      displayH[period] = null;
       changedInPeriod[period] = false;
       continue;
     }
     const { start, end } = periodBounds(period, now, tz);
-    const t = periodTarget(base[period], period, start, end, goal);
+    const t = periodTarget(base[period], start, end, goal);
     targetH[period] = t.targetH;
-    displayH[period] = t.displayH;
     changedInPeriod[period] = t.changedInPeriod;
   }
-  return { targetH, displayH, changedInPeriod };
+  return { targetH, changedInPeriod };
 }
