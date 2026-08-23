@@ -29,7 +29,7 @@ import { getOffenses, OFFENSE_TYPES } from "@/lib/mcp/ledger";
 import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
 import { timeline } from "@/lib/mcp/timeline";
 import { getActionLog } from "@/lib/mcp/actionlog";
-import { weightHistory, logWeightDef, setWeightLimitsDef } from "@/lib/mcp/weight";
+import { weightHistory, logWeightDef, setWeightTargetDef } from "@/lib/mcp/weight";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1371,8 +1371,9 @@ function registerTools(server: McpServer) {
         description:
           "Die Gewichts-Reihe des Trägers: Punkte je Kalendertag, aktueller Wert samt BMI, Veränderung " +
           "im Zeitraum und das gleitende 7-Tage-Mittel als Trend. Alle Werte METRISCH (kg). " +
-          "`corridor` ist der WIRKSAME Zielbereich — der weitere aus dem, was der Träger sich gesetzt " +
-          "hat (`subCorridor`), und deiner Nachbesserung. `daysSinceLastReport` ist die Zahl, an der die " +
+          "`target` ist das WIRKSAME Zielgewicht — deines, solange du eines führst, sonst seines; " +
+          "`subTarget` bleibt daneben stehen, `progress` sagt, wie weit er ist. " +
+          "`daysSinceLastReport` ist die Zahl, an der die " +
           "Meldepflicht hängt (mehr als drei Tage ohne Angabe sind ein Vergehen, sofern die Regel " +
           "scharf ist — siehe get_context.offenseRules). `inWindow: false` heisst: ausserhalb der " +
           "Wiege-Fenster gemessen; der Wert zählt, bleibt aber aus dem Trend. `enabled: false` = das " +
@@ -1392,7 +1393,7 @@ function registerTools(server: McpServer) {
           "Trägt eine Messung für den Träger nach — METRISCH (kg). Höchstens EINE je Kalendertag " +
           "(seiner Zeitzone): eine zweite ersetzt die erste, `replaced` sagt es. Anders als beim " +
           "Träger braucht dein Eintrag keinen Foto-Beleg — du stehst nicht vor seiner Waage. " +
-          "Verlässt der Wert den Zielbereich, geht darüber die übliche Meldung raus." + V2_WRITE_NOTE,
+          "Erreicht der Wert das Ziel oder verfehlt es wieder, geht darüber die übliche Meldung raus." + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
           weightKg: z.number().describe("Gewicht in Kilogramm (20–300)."),
@@ -1404,21 +1405,21 @@ function registerTools(server: McpServer) {
     );
 
     server.registerTool(
-      "set_weight_limits",
+      "set_weight_target",
       {
-        title: "Widen the wearer's weight target range (v2)",
+        title: "Set the wearer's target weight (v2)",
         description:
-          "Bessert den Zielbereich NACH — METRISCH (kg). Du darfst ihn nur WEITEN, nie verengen, und " +
-          "nur dort, wo der Träger selbst eine Grenze gesetzt hat: die Grenzen gehören ihm, weil er " +
-          "der Realistischere ist. Wirksam ist danach der weitere der beiden Werte. `null` nimmt deine " +
-          "Nachbesserung zurück. Den Bestand zeigt weight_history (`subCorridor` / `corridor`)." + V2_WRITE_NOTE,
+          "Setzt DEIN Zielgewicht für den Träger — METRISCH (kg). Es gilt, solange du eines führst; " +
+          "`null` nimmt es zurück, dann gilt wieder seines. Sein eigenes Ziel bleibt in jedem Fall " +
+          "sichtbar (weight_history: `subTarget`), es wird nicht überschrieben. Der dryRun meldet " +
+          "`underweightWarning`, wenn deine Zahl den Träger unter BMI 18,5 führt — gesetzt wird sie " +
+          "trotzdem, aber frag ihn vorher. Wie weit er ist, steht in weight_history (`progress`)." + V2_WRITE_NOTE,
         inputSchema: {
           ...writeMetaFields,
-          minKg: z.number().nullable().optional().describe("Deine Untergrenze — muss UNTER der des Trägers liegen; null = zurücknehmen."),
-          maxKg: z.number().nullable().optional().describe("Deine Obergrenze — muss ÜBER der des Trägers liegen; null = zurücknehmen."),
+          targetKg: z.number().nullable().describe("Dein Zielgewicht in kg; null = zurücknehmen."),
         },
       },
-      (args, extra) => runV2Write(setWeightLimitsDef, extra, args),
+      (args, extra) => runV2Write(setWeightTargetDef, extra, args),
     );
 
     server.registerTool(

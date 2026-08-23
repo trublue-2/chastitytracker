@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getControllableSubs } from "@/lib/keyholder";
-import { getMessageChannels } from "@/lib/notificationPrefs";
+import { getMessageChannels, getRecipientChannels } from "@/lib/notificationPrefs";
 import { isValidStartPage, weightTrackingEnabled } from "@/lib/constants";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
@@ -52,16 +52,17 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   let messageNotify = true;
 
   if (userId) {
-    const [dbUser, pref] = await Promise.all([
+    const [dbUser, pref, reminderPref] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
         select: {
           username: true, email: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true,
           weightTrackingEnabled: true, unitSystem: true, heightCm: true,
-          targetMinKg: true, targetMaxKg: true,
+          targetWeightKg: true, targetWeightKeyholderKg: true,
         },
       }),
       getMessageChannels(userId),
+      getRecipientChannels(userId, "WEIGHT_REMINDER"),
     ]);
     // Ein Schalter für beide Kanäle: "an", solange mindestens einer läuft.
     messageNotify = pref.mail || pref.push;
@@ -76,8 +77,10 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
         weight = {
           unitSystem: dbUser.unitSystem as UnitSystem,
           heightCm: dbUser.heightCm,
-          targetMinKg: dbUser.targetMinKg,
-          targetMaxKg: dbUser.targetMaxKg,
+          targetWeightKg: dbUser.targetWeightKg,
+          keyholderTargetKg: dbUser.targetWeightKeyholderKg,
+          // Ein Schalter für beide Kanäle, wie beim Posteingang.
+          reminderNotify: reminderPref.mail || reminderPref.push,
           // Erst ab der ersten gespeicherten Grösse gibt es etwas zu korrigieren — vorher wäre die
           // Frage „Korrektur oder Änderung?" ohne Gegenstand.
           hasHeightHistory: (await prisma.heightChange.count({ where: { userId } })) > 0,

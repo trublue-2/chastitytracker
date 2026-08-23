@@ -135,10 +135,9 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             unitSystem={(actor?.unitSystem ?? "metric") as UnitSystem}
             initialEnabled={user.weightTrackingEnabled}
             initialWindows={parseWeighingWindows(user.weighingWindows)}
-            subMinKg={user.targetMinKg}
-            subMaxKg={user.targetMaxKg}
-            initialMinKg={user.targetMinKeyholderKg}
-            initialMaxKg={user.targetMaxKeyholderKg}
+            subTargetKg={user.targetWeightKg}
+            initialTargetKg={user.targetWeightKeyholderKg}
+            subHeightCm={user.heightCm}
           />
         </SettingsSection>
       )}

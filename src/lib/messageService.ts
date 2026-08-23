@@ -85,10 +85,10 @@ export const MESSAGE_BODY_KEYS = [
   "taskProofLateMessageKeyholder",
   "taskProofAcceptedMessage",
   "taskProofRejectedMessage",
-  // Gewicht: der Träger hat den Zielkorridor verlassen. Geht NUR an die Keyholder — für den Träger
-  // wäre es keine Nachricht, sondern die Zahl, die er gerade selbst eingetragen hat.
-  "weightAboveLimitMessageKeyholder",
-  "weightBelowLimitMessageKeyholder",
+  // Gewicht: das Zielgewicht ist erreicht oder wieder verfehlt. Geht NUR an die Keyholder — für den
+  // Träger wäre es keine Nachricht, sondern die Zahl, die er gerade selbst eingetragen hat.
+  "weightTargetReachedMessageKeyholder",
+  "weightTargetLostMessageKeyholder",
 ] as const;
 
 export type MessageBodyKey = (typeof MESSAGE_BODY_KEYS)[number];

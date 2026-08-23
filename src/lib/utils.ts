@@ -441,6 +441,31 @@ export function getMidnightToday(now: Date, tz: string): Date {
 
 const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
+/** Die Uhrzeit eines Instants in `tz` als „HH:MM" — 24h, fest mit ":" für den lexikalischen
+ *  Vergleich gegen Fenster-Grenzen.
+ *
+ *  Hier und nicht in den Fenster-Bausteinen: „wie spät ist es in Zone X" ist keine Regel der
+ *  Reinigung und keine des Wiegens. Die Trennung, die `weightWindows.ts` gegenüber
+ *  `reinigungService.ts` verteidigt, betrifft die REGELN der Fenster — nicht die Uhr. */
+export function hhmmInTZ(at: Date, tz: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).format(at);
+}
+
+/** „HH:MM" → Minuten seit Mitternacht (0–1439). */
+export function hhmmToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** Die Gegenrichtung: Minuten seit Mitternacht → „HH:MM". `1440` wird zu `24:00` — als ENDE einer
+ *  Spanne ist das Tagesende gemeint, nicht Mitternacht des Folgetags. Steht neben
+ *  {@link hhmmToMinutes}, damit Hin- und Rückweg nicht getrennt voneinander driften. */
+export function hhmmFromMinutes(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
 /** Wochentag des Instants `d` in `tz`, montagsbasiert: Mo=0 … So=6.
  *  Liegt der Kalendertag schon als ZAHLEN vor, ist `mondayIndexOfLocalDate` richtig — nicht erst
  *  einen Anker-Instant bauen, um ihn hier wieder in einen Wochentag zurückzuverwandeln. */

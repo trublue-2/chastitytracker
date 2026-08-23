@@ -494,8 +494,8 @@ flowchart LR
 
 | Woher | Wodurch | Was passiert | Anker |
 |---|---|---|---|
-| Gewicht | `User.targetMinKg` | Untergrenze des Zielkorridors, gesetzt vom Träger. Eine Unterschreitung meldet der Keyholderin — sie entscheidet, ob etwas folgt. | `weight.ts:effectiveCorridor` |
-| Gewicht | `User.targetMaxKg` | Obergrenze des Zielkorridors, gesetzt vom Träger. | `weight.ts:effectiveCorridor` |
+| Gewicht | `User.targetWeightKg` | Zielgewicht, das sich der Träger selbst vorgenommen hat. Wirksam, solange die Keyholderin keines führt; erreicht oder wieder verloren meldet es ihr — sie entscheidet, ob etwas folgt. | `weight.ts:effectiveTarget` |
+| Gewicht | `User.targetWeightKeyholderKg` | Zielgewicht der Keyholderin. Es GILT, solange sie eines führt — auch wenn es strenger ist als seines; seines bleibt daneben sichtbar. Zurückgenommen gilt wieder seines. | `weight.ts:effectiveTarget` |
 | Sperrzeit | `VerschlussAnforderung.nachricht` | Begleittext an den Sub; erscheint in der Meldung und im Posteingang. | — |
 | Kontrollen | `KontrollAnforderung.kommentar` | Begleittext an den Sub. | — |
 | Orgasmus | `OrgasmusAnforderung.nachricht` | Begleittext an den Sub. | — |
@@ -624,8 +624,8 @@ Nichts wirkt hier hinein — diese Mechanik lässt sich für sich allein betrach
 |---|---|---|---|
 | Oberfläche | `User.weightTrackingEnabled` | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`). | `authGuards.ts:weightTrackingGate` |
 | Oberfläche | `User.unitSystem` | Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt. | `weight.ts:weightForDisplay` |
-| Nachrichten | `User.targetMinKg` | Untergrenze des Zielkorridors, gesetzt vom Träger. Eine Unterschreitung meldet der Keyholderin — sie entscheidet, ob etwas folgt. | `weight.ts:effectiveCorridor` |
-| Nachrichten | `User.targetMaxKg` | Obergrenze des Zielkorridors, gesetzt vom Träger. | `weight.ts:effectiveCorridor` |
+| Nachrichten | `User.targetWeightKg` | Zielgewicht, das sich der Träger selbst vorgenommen hat. Wirksam, solange die Keyholderin keines führt; erreicht oder wieder verloren meldet es ihr — sie entscheidet, ob etwas folgt. | `weight.ts:effectiveTarget` |
+| Nachrichten | `User.targetWeightKeyholderKg` | Zielgewicht der Keyholderin. Es GILT, solange sie eines führt — auch wenn es strenger ist als seines; seines bleibt daneben sichtbar. Zurückgenommen gilt wieder seines. | `weight.ts:effectiveTarget` |
 
 ## Auto-Kontrollen
 

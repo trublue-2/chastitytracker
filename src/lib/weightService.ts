@@ -5,8 +5,8 @@ import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { APP_TZ } from "@/lib/utils";
 import { inWeighingWindow } from "@/lib/weightWindows";
 import {
-  breachToAnnounce, effectiveCorridorOf, weightDayKey, weightForDisplay, weightProblem,
-  type UnitSystem,
+  effectiveTarget, targetEventToAnnounce, weightDayKey, weightForDisplay, weightProblem,
+  type UnitSystem, type WeightTarget,
 } from "@/lib/weight";
 import { notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
@@ -36,10 +36,10 @@ export const WEIGHT_USER_SELECT = {
   unitSystem: true,
   username: true,
   weighingWindows: true,
-  targetMinKg: true,
-  targetMaxKg: true,
-  targetMinKeyholderKg: true,
-  targetMaxKeyholderKg: true,
+  targetWeightKg: true,
+  targetWeightSetAt: true,
+  targetWeightKeyholderKg: true,
+  targetWeightKeyholderSetAt: true,
 } as const;
 
 /** Wer die Zeile anlegt. Bestimmt die Foto-Pflicht: nur der Träger steht vor der Waage. */
@@ -159,9 +159,9 @@ export async function recordWeight(
 
       return { id: row.id, dayKey, inWindow, replaced: !!existing };
     });
-    // Fire-and-forget: die Zeile steht, der Rest ist Meldung. Siehe `announceCorridorBreach`.
-    void announceCorridorBreach(userId, params.weightKg, params.measuredAt)
-      .catch((e) => console.error("[weight:breach]", (e as Error).message));
+    // Fire-and-forget: die Zeile steht, der Rest ist Meldung. Siehe `announceTargetEvent`.
+    void announceTargetEvent(userId, params.weightKg, params.measuredAt)
+      .catch((e) => console.error("[weight:target]", (e as Error).message));
     return { ok: true, data: result };
   } catch (e) {
     const mapped = mapServiceError(e, ERRORS);
@@ -171,7 +171,8 @@ export async function recordWeight(
 }
 
 /**
- * Hat dieser Wert den Zielkorridor VERLASSEN? Dann eine Meldung an die Keyholder.
+ * Hat dieser Wert das Zielgewicht erreicht — oder einen erreichten Stand wieder verloren? Dann eine
+ * Meldung an die Keyholder.
  *
  * Nach dem Commit und bewusst ohne `await` beim Aufrufer: die Messung ist gespeichert, und ein
  * fehlgeschlagener Versand darf sie nicht rückgängig machen — dasselbe Verhältnis wie beim
@@ -182,39 +183,78 @@ export async function recordWeight(
  *
  * Auch dann, wenn die Keyholderin den Wert selbst nachgetragen hat — sie weiss es dann zwar schon,
  * aber ein Träger kann mehrere Keyholder haben, und getippt hat nur eine davon. Die Zeile ist
- * ausserdem der bleibende Beleg des Austritts im Posteingang, nicht bloss ein Hinweis.
+ * ausserdem der bleibende Beleg im Posteingang, nicht bloss ein Hinweis.
  *
- * Automatisch passiert damit NICHTS ausser dieser Meldung: ob etwas folgt — Aufgabe als Strafe,
- * Aufgabe als Belohnung oder gar nichts —, entscheidet die Keyholderin. Das Gewicht selbst ist kein
+ * Automatisch passiert damit NICHTS ausser dieser Meldung: ob etwas folgt — Aufgabe als Belohnung,
+ * Aufgabe als Strafe oder gar nichts —, entscheidet die Keyholderin. Das Gewicht selbst ist kein
  * Fehlverhalten, und ein Automatismus, der Kilos in Strafen umrechnet, wäre in dieser App die
  * falsche Mechanik.
  */
-async function announceCorridorBreach(userId: string, currentKg: number, measuredAt: Date): Promise<void> {
+async function announceTargetEvent(userId: string, currentKg: number, measuredAt: Date): Promise<void> {
   const [user, previousKg] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT }),
     lastWeightBefore(userId, measuredAt),
   ]);
   if (!user) return;
 
-  const corridor = effectiveCorridorOf(user);
-  const side = breachToAnnounce({ currentKg, previousKg, corridor, heightCm: user.heightCm });
-  if (!side) return;
+  const target = effectiveTarget(user);
+  if (!target) return;
+
+  const startKg = await targetStartWeight(userId, target);
+  const event = targetEventToAnnounce({ currentKg, previousKg, target, startKg, heightCm: user.heightCm });
+  if (!event) return;
 
   const controllers = await getControllersOfUser(userId);
   // Die Einheit des TRÄGERS, nicht die der Keyholderin: eine Meldung geht an mehrere Empfänger, die
   // verschiedene Einheiten führen könnten — und der Text steht in der Zeile, nicht in ihrer Ansicht.
   const unit = (user.unitSystem as UnitSystem) ?? "metric";
   const suffix = unit === "imperial" ? "lbs" : "kg";
-  const bound = side === "below" ? corridor.minKg : corridor.maxKg;
   await notifyControllers(userId, controllers, {
-    subjectKey: side === "below" ? "weightBelowLimitSubjectKeyholder" : "weightAboveLimitSubjectKeyholder",
-    messageKey: side === "below" ? "weightBelowLimitMessageKeyholder" : "weightAboveLimitMessageKeyholder",
+    subjectKey: event === "reached" ? "weightTargetReachedSubjectKeyholder" : "weightTargetLostSubjectKeyholder",
+    messageKey: event === "reached" ? "weightTargetReachedMessageKeyholder" : "weightTargetLostMessageKeyholder",
     params: {
       username: user.username,
       weight: `${weightForDisplay(currentKg, unit)} ${suffix}`,
-      limit: bound === null ? "–" : `${weightForDisplay(bound, unit)} ${suffix}`,
+      target: `${weightForDisplay(target.kg, unit)} ${suffix}`,
     },
   });
+}
+
+/**
+ * Das Gewicht, ab dem auf dieses Ziel hingearbeitet wird — die Messung, die beim Setzen galt.
+ *
+ * **Nur für Aufrufer ohne vollständige Reihe.** Wer die Messungen ohnehin geladen hat, nimmt
+ * `startWeightIn` aus `weight.ts` — dieselbe Regel ohne zweite Abfrage.
+ *
+ * Der Fortschritt („von 100 auf 90, 38 % geschafft") braucht einen Startpunkt, und die älteste
+ * Messung überhaupt wäre der falsche: ein heute gesetztes Ziel begänne sonst bei einem Wert von vor
+ * einem Jahr und zeigte einen Fortschritt, den es für dieses Ziel nie gab.
+ *
+ * **Gab es beim Setzen noch keine Messung**, gilt die erste danach: wer sein Ziel notiert, bevor er
+ * das erste Mal auf der Waage steht, startet eben bei diesem ersten Wert. Ohne den Fallback bliebe
+ * der Fortschritt für immer ohne Richtung — und ein Wert unter dem Ziel wäre nicht als Erfolg,
+ * sondern nur als „nicht getroffen" lesbar.
+ */
+export async function targetStartWeight(userId: string, target: WeightTarget): Promise<number | null> {
+  if (target.setAt === null) return weightNearest(userId, null, "after");
+  return (await weightNearest(userId, target.setAt, "before", true))
+    ?? (await weightNearest(userId, target.setAt, "after"));
+}
+
+/** Die Messung neben einem Zeitpunkt. `at === null` heisst „ohne Schranke" — dann liefert `after`
+ *  die älteste und `before` die jüngste Messung überhaupt. */
+async function weightNearest(
+  userId: string, at: Date | null, side: "before" | "after", inclusive = false,
+): Promise<number | null> {
+  const bound = at === null
+    ? {}
+    : { measuredAt: side === "before" ? (inclusive ? { lte: at } : { lt: at }) : (inclusive ? { gte: at } : { gt: at }) };
+  const row = await prisma.weightEntry.findFirst({
+    where: { userId, ...bound },
+    orderBy: { measuredAt: side === "before" ? "desc" : "asc" },
+    select: { weightKg: true },
+  });
+  return row?.weightKg ?? null;
 }
 
 /** Die letzte Messung vor `before` — Grundlage der Sprung-Nachfrage im Formular.
@@ -223,12 +263,7 @@ async function announceCorridorBreach(userId: string, currentKg: number, measure
  *  kommen. Eine Lese-Funktion, die bei abgeschaltetem Feature still `null` liefert, wäre von „noch
  *  nie gewogen" nicht zu unterscheiden — und genau daran hinge dann die Sprung-Nachfrage. */
 export async function lastWeightBefore(userId: string, before: Date): Promise<number | null> {
-  const row = await prisma.weightEntry.findFirst({
-    where: { userId, measuredAt: { lt: before } },
-    orderBy: { measuredAt: "desc" },
-    select: { weightKg: true },
-  });
-  return row?.weightKg ?? null;
+  return weightNearest(userId, before, "before");
 }
 
 // ── Aufbewahrung der Waagen-Fotos ──────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { hhmmToMinutes, isInQuietMinutes, generateAutoKontrollen, fillFreeGaps, triggerWindowAllQuiet, type AutoKontrolleSettings } from "./autoKontrolleService";
+import { isInQuietMinutes, generateAutoKontrollen, fillFreeGaps, triggerWindowAllQuiet, type AutoKontrolleSettings } from "./autoKontrolleService";
+import { hhmmToMinutes } from "./utils";
 import { dateAtLocalMinutes, midnightInTZ, formatTime } from "./utils";
 
 /** Alle Tests dieser Datei rechnen in der Zeitzone einer CH-Sub. */

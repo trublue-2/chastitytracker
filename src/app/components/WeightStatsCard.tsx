@@ -7,11 +7,11 @@ import StatsCard from "@/app/components/StatsCard";
 import FieldTabs from "@/app/components/FieldTabs";
 import MeasurementChart from "@/app/components/MeasurementChart";
 import { round1 } from "@/lib/utils";
-import { bmi, dayNumber, weightForDisplay, type Corridor, type UnitSystem } from "@/lib/weight";
+import { bmi, dayNumber, targetProgress, weightForDisplay, type UnitSystem, type WeightTarget } from "@/lib/weight";
 import { buildWeightSeries, type WeightPoint } from "@/lib/weightSeries";
 
 /**
- * Die Gewichts-Karte der Statistik: Kennzahlen, Verlauf, Zielband.
+ * Die Gewichts-Karte der Statistik: Kennzahlen, Verlauf, Ziel und Fortschritt.
  *
  * Warum alle Punkte auf einmal an den Client gehen und der Zeitraum HIER gefiltert wird: bei einem
  * Wert je Tag ist selbst ein Jahrzehnt eine kleine Liste, und der Umschalter soll sofort reagieren
@@ -31,8 +31,10 @@ type RangeValue = (typeof RANGES)[number]["value"];
 
 export interface WeightStatsCardProps {
   points: WeightPoint[];
-  subCorridor: Corridor;
-  keyholderCorridor: Corridor;
+  /** Das WIRKSAME Ziel — das der Keyholderin, solange sie eines führt, sonst das des Trägers. */
+  target: WeightTarget | null;
+  /** Das Gewicht, das beim Setzen des Ziels galt — der Bezugspunkt des Fortschritts. */
+  startKg: number | null;
   /** Aktuelle Körpergrösse für die BMI-Kennzahl; null = keine hinterlegt, dann entfällt sie. */
   heightCm: number | null;
   /** Anzeige-Einheit des BETRACHTERS. */
@@ -44,7 +46,7 @@ export interface WeightStatsCardProps {
 }
 
 export default function WeightStatsCard({
-  points, subCorridor, keyholderCorridor, heightCm, unitSystem, todayKey, dateLabels,
+  points, target, startKg, heightCm, unitSystem, todayKey, dateLabels,
 }: WeightStatsCardProps) {
   const t = useTranslations("weightStats");
   const tc = useTranslations("common");
@@ -52,13 +54,20 @@ export default function WeightStatsCard({
 
   const days = RANGES.find((r) => r.value === range)!.days;
   const series = useMemo(
-    () => buildWeightSeries(points, { days, todayKey, subCorridor, keyholderCorridor }),
-    [points, days, todayKey, subCorridor, keyholderCorridor],
+    () => buildWeightSeries(points, { days, todayKey, target }),
+    [points, days, todayKey, target],
   );
 
   const unitLabel = unitSystem === "imperial" ? tc("unitLbs") : tc("unitKg");
   const show = (kg: number) => `${weightForDisplay(kg, unitSystem)} ${unitLabel}`;
   const latestBmi = series.latest ? bmi(series.latest.weightKg, heightCm) : null;
+  // Der Fortschritt rechnet gegen die JÜNGSTE Messung, nicht gegen die letzte des gewählten
+  // Zeitraums: „wie weit bin ich" ist eine Frage an heute, nicht an den Ausschnitt, den gerade
+  // jemand betrachtet.
+  const latestOverall = points.length ? points[points.length - 1] : null;
+  const progress = target && latestOverall
+    ? targetProgress({ targetKg: target.kg, startKg, currentKg: latestOverall.weightKg })
+    : null;
 
   const chartPoints = series.points.map((p) => ({
     x: dayNumber(p.dayKey),
@@ -91,6 +100,15 @@ export default function WeightStatsCard({
             {/* Der BMI als ZAHL, ohne Einordnung. Die WHO-Kategorie kennt weder Muskelmasse noch
                 Statur und liest sich in dieser App schnell wie ein Urteil über den Träger. */}
             {latestBmi !== null && <StatsCard label={t("bmi")} value={String(round1(latestBmi))} />}
+            {progress && (
+              <StatsCard
+                label={progress.reached ? t("targetReached") : t("targetRemaining", { value: show(progress.remainingKg) })}
+                value={show(progress.targetKg)}
+                variant={progress.percent === null ? "default" : "progress"}
+                progress={progress.percent ?? undefined}
+                color={progress.reached ? "ok" : undefined}
+              />
+            )}
           </div>
 
           <Card className="flex flex-col gap-3">
@@ -104,10 +122,9 @@ export default function WeightStatsCard({
               <MeasurementChart
                 points={chartPoints}
                 trend={chartTrend}
-                band={{
-                  min: series.corridor.minKg === null ? null : weightForDisplay(series.corridor.minKg, unitSystem),
-                  max: series.corridor.maxKg === null ? null : weightForDisplay(series.corridor.maxKg, unitSystem),
-                }}
+                marker={target
+                  ? { value: weightForDisplay(target.kg, unitSystem), label: `${t("target")} · ${show(target.kg)}` }
+                  : undefined}
                 domain={{
                   min: weightForDisplay(series.minKg, unitSystem),
                   max: weightForDisplay(series.maxKg, unitSystem),

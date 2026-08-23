@@ -545,7 +545,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "weight-self", mechanic: "Gewicht", title: "Gewichts-Angaben pflegen",
-    what: "Körpergrösse, Anzeige-Einheit, Referenzangabe und der eigene Zielkorridor.",
+    what: "Körpergrösse, Anzeige-Einheit und das eigene Zielgewicht.",
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/settings/weight"],
     note: "Nur erreichbar, solange die Keyholderin das Gewichtstracking für diesen Träger freigeschaltet hat — die Route prüft das selbst, nicht nur die Oberfläche.",
   }),
@@ -557,15 +557,15 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "weight-mcp-read", mechanic: "Gewicht", title: "Gewichts-Reihe lesen (KI)",
-    what: "Punkte, aktueller Wert samt BMI, Trend, Zielbereich und Tage seit der letzten Meldung.",
+    what: "Punkte, aktueller Wert samt BMI, Trend, Zielgewicht samt Fortschritt und Tage seit der letzten Meldung.",
     actors: ["mcp"], surfaces: ["mcp"], tools: ["weight_history"],
     note: "Alle Werte metrisch. `daysSinceLastReport` ist die Zahl, an der die Meldepflicht hängt.",
   }),
   c({
-    id: "weight-mcp-write", mechanic: "Gewicht", title: "Gewicht eintragen und Grenzen weiten (KI)",
-    what: "Eine Messung je Kalendertag nachtragen und den Zielbereich des Trägers nachbessern.",
-    actors: ["mcp"], surfaces: ["mcp"], tools: ["log_weight", "set_weight_limits"],
-    note: "Die Grenzen gehören dem Träger: die KI darf sie nur WEITEN, nie verengen — dieselbe Regel wie in der Oberfläche. Ihr Eintrag braucht keinen Foto-Beleg.",
+    id: "weight-mcp-write", mechanic: "Gewicht", title: "Gewicht eintragen und Ziel setzen (KI)",
+    what: "Eine Messung je Kalendertag nachtragen und das Zielgewicht setzen oder zurücknehmen.",
+    actors: ["mcp"], surfaces: ["mcp"], tools: ["log_weight", "set_weight_target"],
+    note: "Ihr Ziel gilt, seines bleibt sichtbar — dieselbe Auflösung wie in der Oberfläche. Der dryRun warnt, wenn die Zahl unter BMI 18,5 führt. Ihr Eintrag braucht keinen Foto-Beleg.",
   }),
   c({
     id: "weight-detect", mechanic: "Gewicht", title: "Waagen-Anzeige lesen",

@@ -1,5 +1,32 @@
 [
   {
+    "version": "5.3.4",
+    "date": "2026-08-23",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Gewicht: Statt eines Zielbereichs gibt es jetzt ein Zielgewicht. Träger und Keyholderin setzen je eines — ihres gilt, seines bleibt sichtbar — und die Statistik zeigt, wie weit es noch ist.",
+          "en": "Weight: a single target weight replaces the target range. Wearer and keyholder each set one — hers applies, his stays visible — and the stats show how far there is to go."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Wiege-Fenster gelten jetzt je Wochentag, mit Startzeit und Dauer. Auf Wunsch erinnert die App zum Beginn, wenn an dem Tag noch kein Wert steht.",
+          "en": "Weighing windows now apply per weekday, with a start time and a duration. If you want, the app reminds you when one opens and nothing has been logged that day."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die KI-Keyholderin bekam den Gewichtsverlauf leer zu sehen, obwohl Werte erfasst waren.",
+          "en": "The AI keyholder saw an empty weight history even though values had been logged."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.3",
     "date": "2026-08-22",
     "changes": [

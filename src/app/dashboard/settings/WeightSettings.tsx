@@ -5,17 +5,26 @@ import { useTranslations } from "next-intl";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
+import Toggle from "@/app/components/Toggle";
+import UnderweightNote from "@/app/components/UnderweightNote";
+import FormError from "@/app/components/FormError";
 import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import {
-  heightForDisplay, heightInputToCm, inchesToFeet, isUnderweightTarget,
+  heightForDisplay, heightInputToCm, inchesToFeet,
   parseDecimalInput, weightFieldValue, weightForDisplay, weightInputToKg, type UnitSystem,
 } from "@/lib/weight";
 
 export interface WeightSettingsProps {
   unitSystem: UnitSystem;
   heightCm: number | null;
-  targetMinKg: number | null;
-  targetMaxKg: number | null;
+  /** Das eigene Zielgewicht des Trägers. */
+  targetWeightKg: number | null;
+  /** Das Ziel der Keyholderin — nur zur Ansicht. Es GILT, solange sie eines führt; seines bleibt
+   *  trotzdem stehen, damit beide sehen, worüber sie sich einig oder uneinig sind. */
+  keyholderTargetKg: number | null;
+  /** Mail/Push zur Erinnerung ans Wiege-Fenster. Sein Schalter, nicht ihrer: die Meldung geht an
+   *  IHN (`RECIPIENT_NOTIFICATION_EVENT_TYPES`). */
+  reminderNotify: boolean;
   /** Hat der Sub schon eine Grösse gespeichert? Dann fragt das Formular, ob die neue Zahl eine
    *  KORREKTUR ist (die alte war nie wahr) oder eine ÄNDERUNG (echtes Wachstum) — die App kann das
    *  nicht erraten, und die Historie hängt daran. */
@@ -23,7 +32,7 @@ export interface WeightSettingsProps {
 }
 
 export default function WeightSettings({
-  unitSystem, heightCm, targetMinKg, targetMaxKg, hasHeightHistory,
+  unitSystem, heightCm, targetWeightKg, keyholderTargetKg, reminderNotify, hasHeightHistory,
 }: WeightSettingsProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
@@ -32,19 +41,15 @@ export default function WeightSettings({
   const [unit, setUnit] = useState<UnitSystem>(unitSystem);
   const [height, setHeight] = useState(heightCm === null ? "" : String(heightForDisplay(heightCm, unitSystem)));
   const [heightMode, setHeightMode] = useState<"correct" | "change">("change");
-  const [min, setMin] = useState(weightFieldValue(targetMinKg, unitSystem));
-  const [max, setMax] = useState(weightFieldValue(targetMaxKg, unitSystem));
+  const [target, setTarget] = useState(weightFieldValue(targetWeightKg, unitSystem));
+  const [remind, setRemind] = useState(reminderNotify);
+  const [remindError, setRemindError] = useState<string | null>(null);
 
   // Die Einheiten-Kürzel stehen in `common` — sie sind in beiden Oberflächen dieselben.
   const weightUnitLabel = unit === "imperial" ? tc("unitLbs") : tc("unitKg");
   const heightUnitLabel = unit === "imperial" ? tc("unitInch") : tc("unitCm");
 
-  // BEIDE Enden prüfen: eine Obergrenze im Untergewicht FORDERT es ein, eine Untergrenze dort
-  // ERLAUBT es. Nur die Obergrenze zu prüfen liesse „mindestens 45 kg bei 1,85 m" wortlos durch.
-  const underweight = [min, max].some((field) => {
-    const value = parseDecimalInput(field);
-    return value !== null && isUnderweightTarget(weightInputToKg(value, unit), heightCm);
-  });
+  const parsedTarget = parseDecimalInput(target);
 
   async function saveUnit(next: string) {
     const value = next as UnitSystem;
@@ -57,12 +62,10 @@ export default function WeightSettings({
         const parsed = parseDecimalInput(h);
         return parsed === null ? h : String(heightForDisplay(heightInputToCm(parsed, previous), value));
       });
-      const convert = (v: string) => {
+      setTarget((v) => {
         const parsed = parseDecimalInput(v);
         return parsed === null ? v : String(weightForDisplay(weightInputToKg(parsed, previous), value));
-      };
-      setMin(convert);
-      setMax(convert);
+      });
     } else {
       setUnit(previous);
     }
@@ -74,13 +77,31 @@ export default function WeightSettings({
     await save({ heightCm: heightInputToCm(parsed, unit), heightMode });
   }
 
-  async function saveTargets() {
-    const parsedMin = parseDecimalInput(min);
-    const parsedMax = parseDecimalInput(max);
-    await save({
-      targetMinKg: parsedMin === null ? null : weightInputToKg(parsedMin, unit),
-      targetMaxKg: parsedMax === null ? null : weightInputToKg(parsedMax, unit),
-    });
+  async function saveTarget() {
+    await save({ targetWeightKg: parsedTarget === null ? null : weightInputToKg(parsedTarget, unit) });
+  }
+
+  // Eigene Route: der Kanal-Schalter hängt an der Benachrichtigungs-Tabelle, nicht an den
+  // Gewichts-Spalten. Ein Schalter für beide Kanäle, wie beim Posteingang.
+  async function saveRemind(checked: boolean) {
+    setRemind(checked);
+    setRemindError(null);
+    // Zurückspringen ohne Meldung sähe aus wie ein klemmender Schalter — dieselbe Behandlung wie
+    // beim Nachrichten-Schalter in `SettingsForm`.
+    try {
+      const res = await fetch("/api/settings/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventType: "WEIGHT_REMINDER", mail: checked, push: checked }),
+      });
+      if (!res.ok) {
+        setRemind(!checked);
+        setRemindError(tc("error"));
+      }
+    } catch {
+      setRemind(!checked);
+      setRemindError(tc("error"));
+    }
   }
 
   const feet = unit === "imperial" && heightCm !== null ? inchesToFeet(heightForDisplay(heightCm, unit)) : null;
@@ -125,30 +146,34 @@ export default function WeightSettings({
 
 
       <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label={`${t("targetMin")} (${weightUnitLabel})`}
-            type="number"
-            inputMode="decimal"
-            value={min}
-            disabled={saving}
-            onChange={(e) => setMin(e.target.value)}
-          />
-          <Input
-            label={`${t("targetMax")} (${weightUnitLabel})`}
-            type="number"
-            inputMode="decimal"
-            value={max}
-            disabled={saving}
-            onChange={(e) => setMax(e.target.value)}
-          />
-        </div>
-        {underweight && (
-          <p className="text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3">
-            {t("targetUnderweightWarning")}
-          </p>
-        )}
-        <Button variant="secondary" loading={saving} onClick={saveTargets}>{tc("save")}</Button>
+        <Input
+          label={`${t("targetWeight")} (${weightUnitLabel})`}
+          type="number"
+          inputMode="decimal"
+          value={target}
+          disabled={saving}
+          onChange={(e) => setTarget(e.target.value)}
+          hint={keyholderTargetKg === null ? undefined : t("targetKeyholderApplies", {
+            value: `${weightForDisplay(keyholderTargetKg, unit)} ${weightUnitLabel}`,
+          })}
+        />
+        <UnderweightNote
+          input={target}
+          unit={unit}
+          heightCm={heightCm}
+          message={t("targetUnderweightWarning")}
+        />
+        <Button variant="secondary" loading={saving} onClick={saveTarget}>{tc("save")}</Button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Toggle
+          label={t("weightReminderLabel")}
+          description={t("weightReminderHint")}
+          checked={remind}
+          onChange={saveRemind}
+        />
+        <FormError message={remindError} />
       </div>
     </div>
   );

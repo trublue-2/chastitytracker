@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { pruneExpiredMessages } from "@/lib/messageService";
 import { pruneWeightPhotos } from "@/lib/weightService";
+import { sendDueWeighingReminders } from "@/lib/weightReminder";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
@@ -51,6 +52,12 @@ async function processDue(): Promise<void> {
         .then((n) => { if (n > 0) console.log(`[messages:prune] ${n} Meldungen gelöscht`); })
         .catch((e) => console.error("[messages:prune]", e));
     }
+
+    // Erinnerung ans Wiegen: prüft das LAUFENDE Fenster, nicht seine Startminute — ein Tick, der
+    // wegen Neustart oder Deploy ausfällt, holt sie dadurch nach, statt sie zu verschlucken.
+    await sendDueWeighingReminders(now)
+      .then((n) => { if (n > 0) console.log(`[weight:reminder] ${n} Erinnerungen verschickt`); })
+      .catch((e) => console.error("[weight:reminder]", e));
 
     const due = await prisma.kontrollAnforderung.findMany({
       where: { ...dueForDispatchWhere(now), entryId: null },

@@ -265,9 +265,9 @@ export const TYPE_EMAIL_COLORS: Record<string, string> = {
 export const SELF_EDITABLE_USER_FIELDS = [
   "timezone", "locale", "hideOwnTracker", "startPage", "dashboardLayout",
   // Gewichtstracking: Angaben ÜBER den Träger, nicht Vorgaben AN ihn. Die Keyholder-Felder
-  // (`weightTrackingEnabled`, `weighingWindows`, `targetMin/MaxKeyholderKg`) stehen bewusst nicht
+  // (`weightTrackingEnabled`, `weighingWindows`, `targetWeightKeyholderKg`) stehen bewusst nicht
   // hier — sie laufen über `requireKeyholderOrAdminApi()`.
-  "heightCm", "unitSystem", "targetMinKg", "targetMaxKg",
+  "heightCm", "unitSystem", "targetWeightKg",
 ] as const;
 export type SelfEditableUserField = (typeof SELF_EDITABLE_USER_FIELDS)[number];
 
@@ -330,7 +330,12 @@ export const HEIGHT_CM_RANGE = { min: 100, max: 250, fallback: 175 } as const sa
 export const WEIGHT_KG_RANGE = { min: 20, max: 300, fallback: 75 } as const satisfies NumberRange;
 /** Höchstzahl der Wiege-Fenster eines Tages — wie {@link CLEANING_WINDOWS_MAX}, eigene Konstante,
  *  weil die Reinigung von diesem Feature unberührt bleibt (siehe docs/gewicht-konzept.md, 4.1). */
-export const WEIGHING_WINDOWS_MAX = 6;
+export const WEIGHING_WINDOWS_MAX = 7;
+
+/** Wie lange ein Wiege-Fenster dauern darf. Untergrenze fünf Minuten (darunter ist es keine Spanne,
+ *  sondern ein Termin), Obergrenze ein ganzer Tag — wer 24 h einstellt, hat die Fensterpflicht
+ *  faktisch abgeschaltet, und das ist seine Sache. */
+export const WEIGHING_WINDOW_DURATION_RANGE = { min: 5, max: 24 * 60, fallback: 180 } as const satisfies NumberRange;
 
 /** Grenzen beider Eskalationsstufen einer überfälligen Kontrolle: 5 min – 24 h. */
 const INSPECTION_ESCALATION_DELAY = { min: 5, max: 1440 } as const;
@@ -565,8 +570,13 @@ export const ALL_CHANNELS: NotificationChannels = { mail: true, push: true };
  * AN DIE KEYHOLDER, und genau so ist das Admin-Raster (`NotificationToggles`) beschriftet. Ein
  * Schalter, der dort das Gegenteil bedeutet — „Meldungen AN den Sub" —, wäre eine Falle. Diese
  * Liste erscheint deshalb ausschliesslich in den eigenen Einstellungen des Nutzers.
+ *
+ * `WEIGHT_REMINDER` ist der zweite Fall dieser Art: die Erinnerung zum Wiege-Fenster geht an den
+ * TRÄGER. Sie gehört damit in seine Einstellungen und ausdrücklich NICHT in das Admin-Raster —
+ * dort stünde ein Schalter, dessen Beschriftung („Meldungen über seine Einträge") das Gegenteil
+ * verspricht.
  */
-export const RECIPIENT_NOTIFICATION_EVENT_TYPES = ["MESSAGE_RECEIVED"] as const;
+export const RECIPIENT_NOTIFICATION_EVENT_TYPES = ["MESSAGE_RECEIVED", "WEIGHT_REMINDER"] as const;
 
 export type RecipientNotificationEventType = typeof RECIPIENT_NOTIFICATION_EVENT_TYPES[number];
 

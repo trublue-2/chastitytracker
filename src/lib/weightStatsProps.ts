@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { weightTrackingEnabled } from "@/lib/constants";
 import { APP_TZ, formatDate, toDateLocale } from "@/lib/utils";
-import { keyholderCorridorOf, subCorridorOf, weightDayKey, type UnitSystem } from "@/lib/weight";
+import { effectiveTarget, startWeightIn, weightDayKey, type UnitSystem } from "@/lib/weight";
 import { WEIGHT_USER_SELECT } from "@/lib/weightService";
 import type { WeightStatsCardProps } from "@/app/components/WeightStatsCard";
 
@@ -29,7 +29,7 @@ export async function getWeightStatsProps(subUserId: string): Promise<WeightStat
     prisma.weightEntry.findMany({
       where: { userId: subUserId },
       orderBy: { measuredAt: "asc" },
-      select: { dayKey: true, weightKg: true, inWindow: true },
+      select: { dayKey: true, measuredAt: true, weightKg: true, inWindow: true },
     }),
     auth(),
     getLocale(),
@@ -52,10 +52,13 @@ export async function getWeightStatsProps(subUserId: string): Promise<WeightStat
     dateLabels[row.dayKey] = formatDate(new Date(`${row.dayKey}T12:00:00Z`), dl, "UTC");
   }
 
+  const target = effectiveTarget(sub);
   return {
     points: rows,
-    subCorridor: subCorridorOf(sub),
-    keyholderCorridor: keyholderCorridorOf(sub),
+    target,
+    // Aus der bereits geladenen Reihe, nicht per zweiter Abfrage: `rows` ist vollständig und
+    // aufsteigend sortiert — genau das, was `startWeightIn` erwartet.
+    startKg: target ? startWeightIn(rows, target.setAt) : null,
     heightCm: sub.heightCm,
     unitSystem: ((viewer?.unitSystem ?? "metric") as UnitSystem),
     todayKey: weightDayKey(new Date(), sub.timezone || APP_TZ),

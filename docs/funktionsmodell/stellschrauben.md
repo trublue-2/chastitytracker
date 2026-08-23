@@ -234,10 +234,10 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | `User.weightTrackingEnabled` | Boolean | `false` | dauerhaft | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`). | Keyholder (UI) | Gewicht, Oberfläche | `authGuards.ts:weightTrackingGate` |
 | `User.heightCm` | Int? | — | dauerhaft · **rückwirkend** | Aktuelle Körpergrösse — die Grundlage jedes BMI. Historisiert in `HeightChange`: ein BMI wird mit der Grösse gerechnet, die zum Messzeitpunkt galt. | Sub | Gewicht | `weight.ts:heightAt` |
 | `User.unitSystem` | String | `"metric"` | dauerhaft | Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt. | Sub | Oberfläche | `weight.ts:weightForDisplay` |
-| `User.targetMinKg` | Float? | — | dauerhaft | Untergrenze des Zielkorridors, gesetzt vom Träger. Eine Unterschreitung meldet der Keyholderin — sie entscheidet, ob etwas folgt. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveCorridor` |
-| `User.targetMaxKg` | Float? | — | dauerhaft | Obergrenze des Zielkorridors, gesetzt vom Träger. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveCorridor` |
-| `User.targetMinKeyholderKg` | Float? | — | dauerhaft | Nachbesserung der Untergrenze durch die Keyholderin. Sie darf den Korridor nur WEITEN — wirksam ist stets der weitere der beiden Werte. | Keyholder (UI) | Gewicht | `weight.ts:keyholderCorridorProblem` |
-| `User.targetMaxKeyholderKg` | Float? | — | dauerhaft | Nachbesserung der Obergrenze durch die Keyholderin, mit derselben Nur-Weiten-Regel. | Keyholder (UI) | Gewicht | `weight.ts:keyholderCorridorProblem` |
+| `User.targetWeightKg` | Float? | — | dauerhaft | Zielgewicht, das sich der Träger selbst vorgenommen hat. Wirksam, solange die Keyholderin keines führt; erreicht oder wieder verloren meldet es ihr — sie entscheidet, ob etwas folgt. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveTarget` |
+| `User.targetWeightSetAt` | DateTime? | — | dauerhaft | Wann er sein Ziel gesetzt hat — der Bezugspunkt des Fortschritts: gerechnet wird ab der Messung, die damals galt. Ein unveränderter Wert bewegt den Zeitpunkt nicht. | System | Gewicht | `weightService.ts:targetStartWeight` |
+| `User.targetWeightKeyholderKg` | Float? | — | dauerhaft | Zielgewicht der Keyholderin. Es GILT, solange sie eines führt — auch wenn es strenger ist als seines; seines bleibt daneben sichtbar. Zurückgenommen gilt wieder seines. | Keyholder (UI) | Gewicht, Nachrichten | `weight.ts:effectiveTarget` |
+| `User.targetWeightKeyholderSetAt` | DateTime? | — | dauerhaft | Wann sie ihr Ziel gesetzt hat — derselbe Bezugspunkt des Fortschritts wie auf seiner Seite. | System | Gewicht | `weightService.ts:targetStartWeight` |
 | `User.weighingWindows` | String? | — | dauerhaft | Tägliche Zeitfenster fürs Wiegen (Wanduhrzeit des Trägers). Leer = keine Fensterpflicht. Ein Wert ausserhalb wird markiert, nicht geahndet — er misst nur eine andere Tageszeit mit. | Keyholder (UI) | Gewicht | `weightWindows.ts:inWeighingWindow` |
 
 ## Betrieb & Stichtage
@@ -272,6 +272,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `User.email` | Identität | Zustelladresse; steuert nichts, ausser dass ohne sie keine Mail geht. |
 | `User.createdAt` | Identität | Anlage-Zeitpunkt. |
 | `User.autoInspectionPlannedFor` | Laufzeitzustand | Merker des Planers: bis wann der Tagesplan gewürfelt ist. Wird vom Poller gesetzt, nicht von Hand. |
+| `User.weightReminderMark` | Laufzeitzustand | Für welches Wiege-Fenster zuletzt erinnert wurde (`<Tag>#<Startzeit>`). Kein Schalter, sondern die Merkfähigkeit des Minuten-Pollers: sie verhindert die Wiederholung und erlaubt zugleich das Nachholen nach einem Neustart. |
 | `Entry.id` | Identität | Primärschlüssel. |
 | `Entry.userId` | Identität | Eigentümer der Zeile. |
 | `Entry.type` | Datensatz | VERSCHLUSS \| OEFFNEN \| PRUEFUNG \| ORGASMUS \| WEAR_BEGIN \| WEAR_END — die Art des Ereignisses, nicht einstellbar. |

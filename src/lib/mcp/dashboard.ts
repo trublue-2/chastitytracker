@@ -203,15 +203,16 @@ export interface DashboardResult extends Envelope {
    *  nicht ausgelöste Anweisung NICHT mehr — sie steht bis zur Auslösung in `scheduledDirectives`
    *  (neue `kind`-Ausprägung `orgasm`). Ein v13-Wert hiess „es gibt kein offenes Fenster"; ab v14
    *  heisst er „es gibt keins, das gerade GILT" — geplant kann trotzdem eines sein. */
-  schemaVersion: 14;
+  schemaVersion: 15;
   user: string;
   /**
    * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
-   * nichts erfasst wurde. Rein additiv, deshalb ohne Versions-Bump.
+   * nichts erfasst wurde. Mit 15 auf das Zielgewicht umgestellt: `corridor`/`breach` sind weg,
+   * `target`/`remainingKg`/`reached` an ihrer Stelle — kein additiver Zuwachs, also ein Bump.
    *
-   * `breach` sagt, ob der jüngste Wert ausserhalb des Zielbereichs liegt; die vollständige Reihe
-   * samt Wiege-Fenstern steht in `weight_history`. `daysSinceLastReport` ist die Zahl, an der die
-   * Meldepflicht hängt.
+   * `target` nennt das wirksame Zielgewicht samt Herkunft, `remainingKg`/`reached` den Stand dazu;
+   * die vollständige Reihe samt Wiege-Fenstern steht in `weight_history`. `daysSinceLastReport` ist
+   * die Zahl, an der die Meldepflicht hängt.
    */
   weight: WeightSummary | null;
   /** Freitext-Regeln des menschlichen Keyholders (mcpKeyholderInstructions) — bewusst als erstes
@@ -758,7 +759,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const weight = await weightSummary(trackingCtx.userId);
 
   return {
-    schemaVersion: 14,
+    schemaVersion: 15,
     user: username,
     weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),

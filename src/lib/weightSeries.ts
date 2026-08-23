@@ -1,5 +1,5 @@
 import { round1 } from "@/lib/utils";
-import { dayNumber, effectiveCorridor, type Corridor } from "@/lib/weight";
+import { dayNumber, type WeightTarget } from "@/lib/weight";
 
 /**
  * Aus den erfassten Messungen die Reihe machen, die das Diagramm zeichnet: Punkte, Trendlinie,
@@ -26,7 +26,6 @@ export interface WeightSeries {
   latest: WeightPoint | null;
   /** Veränderung gegenüber der ältesten Messung im Zeitraum. `null` bei weniger als zwei Werten. */
   changeKg: number | null;
-  corridor: Corridor;
 }
 
 /**
@@ -72,7 +71,9 @@ export function movingAverage(points: WeightPoint[], windowDays = TREND_WINDOW_D
  */
 export function buildWeightSeries(
   all: WeightPoint[],
-  opts: { days: number | null; todayKey: string; subCorridor: Corridor; keyholderCorridor: Corridor },
+  // `target` geht NICHT als Feld zurück: die Reihe braucht es allein für die Achsen-Spanne, und
+  // jeder Leser hält es ohnehin selbst in der Hand.
+  opts: { days: number | null; todayKey: string; target: WeightTarget | null },
 ): WeightSeries {
   const today = dayNumber(opts.todayKey);
   const { days } = opts;
@@ -84,12 +85,11 @@ export function buildWeightSeries(
   // dieselbe Reihe wie die morgendlichen, sonst misst die Linie die Tageszeit mit.
   const trend = movingAverage(points.filter((p) => p.inWindow));
 
-  const corridor = effectiveCorridor(opts.subCorridor, opts.keyholderCorridor);
-  // Die Spanne umfasst auch den Korridor: ein Band, das aus dem Bild läuft, ist kein Ziel mehr,
-  // sondern ein Rand.
+  // Die Spanne umfasst auch das Ziel: eine Linie, die aus dem Bild läuft, zeigt nicht, wie weit es
+  // noch ist — und genau dafür ist sie da.
   const spanValues = [
     ...points.map((p) => p.weightKg),
-    ...[corridor.minKg, corridor.maxKg].filter((v): v is number => v !== null),
+    ...(opts.target ? [opts.target.kg] : []),
   ];
   return {
     points,
@@ -101,6 +101,5 @@ export function buildWeightSeries(
     maxKg: spanValues.length ? Math.max(...spanValues) : 0,
     latest: points.length ? points[points.length - 1] : null,
     changeKg: points.length >= 2 ? round1(points[points.length - 1].weightKg - points[0].weightKg) : null,
-    corridor,
   };
 }

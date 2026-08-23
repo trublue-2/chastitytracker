@@ -87,20 +87,34 @@ model User {
   // Anzeige-Präferenz DESSEN, DER SCHAUT ("metric" | "imperial") — keine Eigenschaft der Daten:
   // eine Keyholderin darf Pfund sehen, während ihr Sub in Kilogramm einträgt.
   unitSystem                     String                   @default("metric")
-  // Der Zielkorridor. Gesetzt wird er vom SUB (er ist der Realistischere); die Keyholderin darf ihn
-  // nur WEITEN, nie verengen — wirksam ist stets der weitere der beiden Werte (siehe `weight.ts`).
-  targetMinKg                    Float?
-  targetMaxKg                    Float?
-  targetMinKeyholderKg           Float?
-  targetMaxKeyholderKg           Float?
-  // Tägliche Wiege-Fenster als JSON-String, z.B. [{"start":"06:00","end":"08:00"}] (Sub-Lokalzeit),
-  // gesetzt von der Keyholderin. NULL/[] = keine Fensterpflicht, jede Uhrzeit gilt.
+  // Das Zielgewicht. Beide Seiten dürfen eines setzen, und BEIDE bleiben sichtbar; wirksam ist das
+  // der Keyholderin, solange sie eines führt (siehe `effectiveTarget` in `weight.ts`). Nimmt sie es
+  // zurück, gilt wieder seines.
+  //
+  // `...SetAt` ist kein Protokoll — wer wann geändert hat, steht im Aktions-Log. Es beantwortet die
+  // Frage, ab WELCHEM Gewicht gerechnet wird: der Fortschritt („von 100 auf 90, 38 % geschafft")
+  // misst gegen die Messung, die beim Setzen des Ziels galt. Ohne den Zeitpunkt wäre der Startwert
+  // die jeweils älteste Messung überhaupt — und ein neu gesetztes Ziel begänne rückwirkend.
+  targetWeightKg                 Float?
+  targetWeightSetAt              DateTime?
+  targetWeightKeyholderKg        Float?
+  targetWeightKeyholderSetAt     DateTime?
+  // Wiege-Fenster als JSON-String, gesetzt von der Keyholderin (Sub-Lokalzeit):
+  // [{"start":"05:00","durationMin":180,"days":127,"remind":true}] — `days` ist eine Wochentags-
+  // Bitmaske (Mo=1 … So=64, 127 = täglich, siehe `weekdays.ts`), `remind` schickt zum Fensterbeginn
+  // eine Erinnerung. NULL/[] = keine Fensterpflicht, jede Uhrzeit gilt. Alt-Fenster im Format
+  // {"start","end"} werden weiter gelesen und in Start + Dauer übersetzt.
   //
   // Bewusst NICHT historisiert: ob eine Messung im Fenster lag, entscheidet der Erfassungs-Zeitpunkt
   // und steht danach auf der Zeile (`WeightEntry.inWindow`). Es gibt also nichts, was später nach
   // einer alten Fassung neu beurteilt werden müsste — anders als bei den Reinigungsfenstern, deren
   // Verletzung das Strafbuch live ableitet.
   weighingWindows                String?
+  /// Für welches Fenster zuletzt an die Wiege-Meldung erinnert wurde: `<YYYY-MM-DD>#<HH:MM>` in der
+  /// Zone des Trägers. Verhindert, dass der Minuten-Poller dieselbe Erinnerung wiederholt — und
+  /// erlaubt es ihm zugleich, sie nach einem Neustart NACHZUHOLEN, solange das Fenster noch läuft.
+  /// Eine eigene Tabelle wäre eine Zeile je Tag und Träger, die nach dem Tag niemanden mehr angeht.
+  weightReminderMark             String?
   entries                        Entry[]
   notificationPrefs              NotificationPreference[]
   vorgaben                       TrainingVorgabe[]

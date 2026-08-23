@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { APP_TZ, nowDatetimeLocal } from "@/lib/utils";
 import { getMobileDesktopMode } from "@/lib/queries";
-import { activeWeighingWindow, nextWeighingWindow } from "@/lib/weightWindows";
+import { activeWeighingWindow, nextWeighingWindow, weighingWindowEnd } from "@/lib/weightWindows";
 import { lastWeightBefore } from "@/lib/weightService";
 import type { UnitSystem } from "@/lib/weight";
 
@@ -55,7 +55,7 @@ export async function getWeightFormProps(targetUserId: string, actorId: string):
     heightCm: target.heightCm,
     lastWeightKg,
     mobileDesktopMode,
-    windowActiveUntil: active?.end ?? null,
+    windowActiveUntil: active ? weighingWindowEnd(active) : null,
     windowNextFrom: active ? null : (nextWeighingWindow(target.weighingWindows, now, tz)?.start ?? null),
   };
 }

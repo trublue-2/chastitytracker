@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { APP_TZ, midnightInTZ, dateAtLocalMinutes, formatTime, clamp, randomInt } from "@/lib/utils";
+import { APP_TZ, hhmmToMinutes, midnightInTZ, dateAtLocalMinutes, formatTime, clamp, randomInt } from "@/lib/utils";
 import {
   NO_FIELDS_TO_UPDATE, INVALID_TIME, HHMM, AUTO_INSPECTION_PER_DAY_RANGE,
   AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
@@ -86,12 +86,6 @@ function minuteAxis(now: Date, awakeStart: number, tz: string): { at: (m: number
 /** Hebt einen „Bis"-Wert auf „Von" an, falls er darunter liegt (Von-/Bis-Paar-Konsistenz). */
 function raiseMaxToMin(min: number | undefined, max: number): number {
   return min !== undefined && max < min ? min : max;
-}
-
-/** "HH:MM" → Minuten seit Mitternacht (0–1439). */
-export function hhmmToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
 }
 
 /** Liegt die Uhrzeit (Minuten seit Mitternacht, evtl. >1440 = Folgetag) im Schlaf-Fenster? Wrap-aware:
