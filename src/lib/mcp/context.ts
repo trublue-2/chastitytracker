@@ -54,8 +54,9 @@ export interface GetContextOptions {
 
 export interface ContextResult extends Envelope {
   /** v3: `autoInspections.triggerWindowFrom/Until` liefern `null` statt `""` für „kein Fenster" (K-17);
-   *  `appointments` akzeptiert jetzt ein from/to-Fenster (K-21, additiv). `offenseRules` kam rein
-   *  additiv dazu — keine bestehende Feld-Bedeutung ändert sich, also kein Versions-Bump. */
+   *  `appointments` akzeptiert jetzt ein from/to-Fenster (K-21, additiv). `offenseRules` und
+   *  `inspectionEscalation` kamen rein additiv dazu — keine bestehende Feld-Bedeutung ändert sich,
+   *  also kein Versions-Bump. */
   schemaVersion: 3;
   user: string;
   healthHold: HealthHoldView | null;
@@ -69,16 +70,28 @@ export interface ContextResult extends Envelope {
    * Welche Vergehensarten bei diesem Sub GERADE gelten: `off`/`on`, bei `unauthorized_orgasm`
    * zusätzlich `lockedOnly` (nur während einer Sperrzeit) und `always`.
    *
-   * **Nur lesbar.** Es gibt bewusst KEIN Tool, das eine Regel umlegt — das entscheidet der Mensch in
-   * der Admin-Oberfläche, nicht du. Suche also nicht danach; hier steht, wonach das Strafbuch
-   * urteilt, damit du eine fehlende Vergehensart erklären kannst, statt sie für einen Fehler zu
-   * halten. `manual_offense` fehlt in der Liste: ein von Hand notiertes Vergehen ist nicht
-   * abschaltbar.
+   * Umgelegt werden sie mit `set_offense_rules`. `manual_offense` fehlt in der Liste: ein von Hand
+   * notiertes Vergehen ist nicht abschaltbar — es verwirft man mit dem Urteil, nicht mit der Regel.
    *
    * Der Wert gilt für JETZT. Vergangene Taten werden nach der Fassung beurteilt, die zu ihrem
    * Zeitpunkt galt — eine heute abgeschaltete Art kann also weiterhin ältere Vergehen zeigen.
    */
   offenseRules: Record<SwitchableOffenseType, OffenseMode>;
+  /**
+   * Was mit einer überfälligen Kontrolle passiert: Mahnung und automatischer Vermerk, je mit eigener
+   * Verzögerung. Änderbar über `set_inspection_escalation`.
+   *
+   * **`autoMarkDelayMinutes` zählt ab der MAHNUNG, nicht ab der Frist** — steht die Mahnung auf 5
+   * und der Vermerk auf 60, fällt er 65 Minuten nach Ablauf. Ist die Mahnung aus, zählt er ab
+   * Frist + Mahnungs-Verzögerung, also rechnerisch gleich. Wer hier „ab der Frist" liest, sagt dem
+   * Träger eine Zeit an, die um die erste Stufe danebenliegt.
+   */
+  inspectionEscalation: {
+    reminderEnabled: boolean;
+    reminderDelayMinutes: number;
+    autoMarkEnabled: boolean;
+    autoMarkDelayMinutes: number;
+  };
   recurringContext: ReturnType<typeof recurringView>[];
   appointments: ReturnType<typeof apptView>[];
 }
@@ -89,6 +102,8 @@ const contextUserSelect = {
   autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true, autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
   autoKontrolleNurBeiSperre: true,
+  inspectionReminderEnabled: true, inspectionReminderDelayMinutes: true,
+  inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
 } as const;
 
 /** Liefert HealthHold + Auto-Kontroll-Einstellungen + Reinigungs-Regeln + Wochen-Kontext + anstehende
@@ -137,6 +152,12 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     healthHold,
     autoInspections: autoInspectionsView(auto),
     cleaning: { ...buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ), ...binding },
+    inspectionEscalation: {
+      reminderEnabled: user.inspectionReminderEnabled,
+      reminderDelayMinutes: user.inspectionReminderDelayMinutes,
+      autoMarkEnabled: user.inspectionAutoMarkEnabled,
+      autoMarkDelayMinutes: user.inspectionAutoMarkDelayMinutes,
+    },
     offenseRules,
     recurringContext: recurring.map(recurringView),
     appointments: appts.map((a) => apptView(a, iso)),

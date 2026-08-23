@@ -75,7 +75,7 @@ Steckbrief: [30-kontrollen.md](30-kontrollen.md)
 | **Code im Foto erkennen** | Liest den handschriftlichen Kontroll-Code aus dem Bild und vergleicht ihn mit dem geforderten. <br>*Bei fehlgeschlagener Erkennung entsteht ein Grund-Code, kein stilles Scheitern.* | System | läuft von selbst | `/api/verify-kontrolle` |
 | **Kontroll-Code erneut zustellen** | Schickt den Code einer offenen Kontrolle noch einmal als Push. | Sub | App (Träger) | `/api/kontrollen/code-push` `/api/kontrollen/[id]/code-push` |
 | **Überfällige Kontrolle eskalieren** | Stufe 1 mahnt, Stufe 2 bucht die Öffnung bzw. das Ablegen selbst. <br>*Stufe 2 zählt ab dem Stempel von Stufe 1 — ohne Stufe 1 feuert sie nie. Eine Sperrzeit hebt sie nicht auf.* | System | läuft von selbst | — |
-| **Eskalations-Stufen einstellen** | Ob und nach welcher Zeit gemahnt und die Abnahme gebucht wird. | Keyholder (UI) | App (Keyholder) | `/api/admin/users/[id]` |
+| **Eskalations-Stufen einstellen** | Ob und nach welcher Zeit gemahnt und die Abnahme gebucht wird. <br>*Zwei Stufen, eine Kette: die Mahnung ohne den Vermerk ist eine Erinnerung, der Vermerk ohne die Mahnung eine Falle.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]` `set_inspection_escalation` |
 
 ## Auto-Kontrollen
 
@@ -128,7 +128,7 @@ Steckbrief: [50-strafbuch.md](50-strafbuch.md)
 | **Vergehen einsehen** | Die erkannten Vergehen mit Urteilsstand — dreizehn Arten, die meisten live aus den Einträgen abgeleitet. | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `get_offenses` |
 | **Vergehen von Hand notieren** | Hält fest, was der Tracker nicht sehen kann — gebrochene Abmachung, Unhöflichkeit. <br>*Notieren ist noch kein Urteil. Ein Rückzug nimmt es aus dem Strafbuch, lässt es aber nachlesbar.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/offense` `record_offense` |
 | **Urteilen** | Verwerfen, bestrafen (Freitext oder als gestellte Aufgabe), erledigen oder wieder aufnehmen. <br>*Es gibt keine automatische Strafe und keinen Straftypen-Zoo. Eine erfüllte Strafaufgabe schliesst das Urteil selbst.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/strafe` `judge_offense` |
-| **Vergehens-Regeln umlegen** | Legt je Art fest, ob sie zählt — aus, nur während einer Sperrzeit, oder immer. <br>*Über den MCP bewusst nur lesbar. Historisiert: eine Änderung schreibt die Vergangenheit nicht um.* | Keyholder (UI) | App (Keyholder) | `/api/admin/offense-rules` |
+| **Vergehens-Regeln umlegen** | Legt je Art fest, ob sie zählt — aus, nur während einer Sperrzeit, oder immer. <br>*Historisiert: eine Änderung schreibt die Vergangenheit nicht um, sie wirkt nach vorn. `manual_offense` ist nicht schaltbar — eine selbst notierte Tat verwirft man mit dem Urteil, nicht mit der Regel.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/offense-rules` `set_offense_rules` |
 | **Vergehen melden** | Stellt erkannte, bestrafte und verworfene Vergehen beiden Seiten in den Posteingang. <br>*Abgeleitete Vergehen erst ab dem Stichtag der Instanz — sonst kippte das erste Update die ganze Historie hinein.* | System | läuft von selbst | — |
 
 ## Geräte

@@ -184,6 +184,26 @@ describe("resolve_inspection findet auch die Selbstkontrolle", () => {
     expect(resolveInspectionEntry).toHaveBeenCalledWith("e1", "reject", "ai");
   });
 
+  it("beurteilt mit `id` GENAU diese Einreichung", async () => {
+    // Die Oberfläche urteilt je Zeile, auch über ältere Einreichungen. Ohne diesen Weg wäre eine
+    // übersehene Kontrolle für die KI unerreichbar — sie träfe immer nur die jüngste.
+    entryFindFirstMock.mockResolvedValue({ id: "e-alt", verifikationStatus: null });
+
+    await mcpResolveInspection("sub", { action: "verify", id: "e-alt" });
+
+    expect(entryFindFirstMock.mock.lastCall?.[0].where).toMatchObject({ id: "e-alt", imageUrl: { not: null } });
+    expect(resolveInspectionEntry).toHaveBeenCalledWith("e-alt", "manuallyVerify", "ai");
+  });
+
+  it("sagt bei unbekannter id, woran es liegen kann", async () => {
+    // „not found" liesse offen, ob die id falsch ist, zu einem anderen Träger gehört oder auf eine
+    // Prüfung ohne Foto zeigt — drei verschiedene Fehler mit demselben Satz.
+    entryFindFirstMock.mockResolvedValue(null);
+
+    await expect(mcpResolveInspection("sub", { action: "verify", id: "gibts-nicht" }))
+      .rejects.toThrow(/id gibts-nicht .*PRUEFUNG entry with a photo/);
+  });
+
   it("ohne jede Kontrolle bleibt es bei der klaren Fehlermeldung", async () => {
     entryFindFirstMock.mockResolvedValue(null);
 

@@ -99,7 +99,11 @@ Notable V2 read fields:
   active / perDay / sleep window / deadline window / trigger window; written via
   `set_auto_inspections`) and `cleaning`
   (allowed / maxMinutesPerBreak / maxPausesPerDay / usedToday / windows /
-  windowOpenNow). These moved here from the removed `get_overview`.
+  windowOpenNow). These moved here from the removed `get_overview`. Also
+  `offenseRules` (which offence types count for this sub; written via
+  `set_offense_rules`) and `inspectionEscalation` (reminder + automatic marking,
+  written via `set_inspection_escalation`) — note that the auto-mark delay counts
+  from the REMINDER, not from the deadline.
 - `get_devices` — includes `purchasePrice` and `currency` per device.
 - `get_offenses` — carries the offense type `admin_password_change`: the password of an **admin**
   account was changed while a lock period was running for this sub. `via` names the route —
@@ -120,7 +124,10 @@ Notable V2 read fields:
 `edit_lock_period`, `request_inspection`, `resolve_inspection`, `request_orgasm`,
 `judge_offense`, `withdraw`, `set_training_goal` / `edit_training_goal` /
 `delete_training_goal` / `list_training_goals`, `set_cleaning`,
-`set_auto_inspections`, `edit_lock_request`. Lock, lock-period,
+`set_auto_inspections`, `set_offense_rules`, `set_inspection_escalation`,
+`set_weight_tracking`, `edit_lock_request`. `resolve_inspection` takes an optional
+`id` (from `list_entries`) to judge a specific, older submission instead of the
+latest. Lock, lock-period,
 inspection, orgasm, resolve, withdraw and "punish" verdicts notify the sub
 (email + push); the rest are silent. `request_lock` and `set_lock_period` accept
 optional `delayMinutes` or `scheduledAt` to **schedule** the directive — it stays

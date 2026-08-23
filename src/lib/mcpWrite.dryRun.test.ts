@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * K-01 (leichte Variante, MCP-Befundliste 2026-07-17): dryRun für alle V1-Write-Tools — validiert
+ * K-01 (leichte Variante, MCP-Befundliste 2026-07-17): dryRun für die V1-Write-Tools — validiert
  * Argument-Auflösung + die hier verfügbaren Regeln, OHNE die mutierende Service-Funktion aufzurufen.
+ * Nicht mehr ganz vollständig: die Einstellungs-Werkzeuge, die später dazukamen
+ * (`set_weight_tracking`, `set_offense_rules`, `set_inspection_escalation`), pinnen dieselbe
+ * Zusage in ihren eigenen Dateien — dort steht der Bestand daneben, den ihre Vorschau zeigen muss.
+ *
  * Diese Tests pinnen zwei Dinge pro Tool: (1) dryRun:true committet NICHTS (die mutierende Funktion
  * wird nie aufgerufen), (2) wo eine echte Prüf-Funktion existiert (checkOrgasmWindowEnd,
  * checkGoalPlausibility, checkLockEnd), erkennt der Preview einen Verstoss auch wirklich.

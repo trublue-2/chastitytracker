@@ -5,14 +5,15 @@ import { z } from "zod";
 import { listEntries } from "@/lib/mcp/entries";
 import { loadMcpImage, mcpImageToolVisible } from "@/lib/mcp/entryImage";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
+import { OFFENSE_RULE_MODES } from "@/lib/offenseRules";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetWeightTracking, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetWeightTracking, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
-import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE } from "@/lib/constants";
+import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -210,11 +211,11 @@ const MCP_SERVER_INSTRUCTIONS =
   "`get_offenses`, `get_context`, `timeline`, `get_devices`, `query_notes`, `get_action_log`, `get_box_state`, " +
   "`list_entries` für Roh-Einträge). Die Auto-Kontroll-Einstellungen und die Reinigungs-Regeln stehen in " +
   "`get_context` (autoInspections + cleaning). Welche Vergehensarten bei diesem Sub überhaupt zählen, " +
-  "steht ebenfalls in `get_context` (offenseRules) — nur lesbar, umgelegt werden sie in der " +
-  "Admin-Oberfläche, nicht über den MCP.\n" +
+  "steht ebenfalls in `get_context` (offenseRules); umgelegt werden sie mit `set_offense_rules`.\n" +
   "• DIREKTIVEN (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung): `set_lock_period`, " +
   "`request_lock`, `request_inspection`, `request_orgasm`, `judge_offense`, `record_offense`, `set_training_goal`, " +
-  "`set_cleaning`, `set_auto_inspections`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … Ein Vergehen, das " +
+  "`set_cleaning`, `set_auto_inspections`, `set_offense_rules`, `set_inspection_escalation`, " +
+  "`set_weight_tracking`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … Ein Vergehen, das " +
   "der Tracker nicht sehen kann (gebrochene Abmachung, Unhöflichkeit), notierst du mit `record_offense`; " +
   "beurteilt wird es danach wie jedes andere. `set_cleaning` deckt ALLE " +
   "Reinigungs-Regeln ab, auch die Tages-Fenster (`windows` — ersetzt die ganze Liste, `[]` löst die Reinigung von der " +
@@ -1075,17 +1076,69 @@ function registerTools(server: McpServer) {
     server.registerTool(
       "resolve_inspection",
       {
-        title: "Verify or reject the latest inspection",
+        title: "Verify or reject a submitted inspection",
         description:
-          "Manually verifies or rejects the user's most recent submitted inspection photo (overrides any " +
-          "automatic check). Use request_inspection to ask for one, withdraw to cancel an open one." + KEYHOLDER_NOTE,
+          "Manually verifies or rejects a submitted inspection photo (overrides any automatic check). " +
+          "Without `id` it takes the most recent submission — the normal case. Pass `id` (from list_entries; " +
+          "timeline does not carry entry ids) to judge a specific, older one, exactly as the web interface " +
+          "does row by row. " +
+          "Use request_inspection to ask for one, withdraw to cancel an open one." + KEYHOLDER_NOTE,
         inputSchema: {
           action: z.enum(["verify", "reject"]).describe("Accept (verify) or reject the submitted photo."),
+          id: z.string().optional().describe("Entry id of the submission to judge (from list_entries); omit for the most recent one."),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("resolve_inspection", extra, args, (u) => mcpResolveInspection(u, args)),
+    );
+
+    server.registerTool(
+      "set_offense_rules",
+      {
+        title: "Set which offence types count for this wearer",
+        description:
+          "Switches offence types on or off for this wearer — the write side of get_context.offenseRules. " +
+          "Pass every rule you want to change in ONE call: together they are one decision, and one call " +
+          "leaves one point in time in the rule history instead of several. A rule applies FROM NOW ON: " +
+          "judgements already made stay as they are, and switching a rule on does not make the past count. " +
+          "`unauthorized_orgasm` is the only three-mode type (off / lockedOnly / always). " +
+          "`manual_offense` is deliberately not switchable — a note you wrote yourself is not something the " +
+          "app should discard; dismiss it with judge_offense instead." + KEYHOLDER_SILENT,
+        inputSchema: {
+          rules: z.array(z.object({
+            type: z.enum(Object.keys(OFFENSE_RULE_MODES) as [string, ...string[]]).describe("The offence type."),
+            mode: z.enum([...new Set(Object.values(OFFENSE_RULE_MODES).flat())] as [string, ...string[]])
+              .describe(`Every type takes "off"/"on"; only unauthorized_orgasm also takes "lockedOnly" (only during a lock period) and "always".`),
+          })).describe("The rules to change. Everything is validated before the first one is written."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("set_offense_rules", extra, args, (u) => mcpSetOffenseRules(u, args)),
+    );
+
+    server.registerTool(
+      "set_inspection_escalation",
+      {
+        title: "Set the escalation stages of an overdue inspection",
+        description:
+          "Sets what happens when an inspection deadline passes: a REMINDER to the wearer, and the automatic " +
+          "MARKING as removed (which counts as an offence if that rule is on). The reminder delay is measured " +
+          "from the DEADLINE; the auto-mark delay is measured from the REMINDER — reminder 5 + auto-mark 60 " +
+          "means the mark falls 65 minutes after the deadline, not 60. Do not promise the wearer a time " +
+          "without adding the two up. Only provided fields change; the current values are in " +
+          "get_context.inspectionEscalation." + KEYHOLDER_SILENT,
+        inputSchema: {
+          reminderEnabled: z.boolean().optional().describe("Remind the wearer when the deadline passes?"),
+          reminderDelayMinutes: rangeField(INSPECTION_REMINDER_DELAY_RANGE, "Minutes after the DEADLINE before reminding"),
+          autoMarkEnabled: z.boolean().optional().describe("Automatically mark the inspection as removed when it stays unanswered?"),
+          autoMarkDelayMinutes: rangeField(INSPECTION_AUTO_MARK_DELAY_RANGE, "Minutes after the REMINDER before marking automatically (so: deadline + reminderDelay + this)"),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("set_inspection_escalation", extra, args, (u) => mcpSetInspectionEscalation(u, args)),
     );
 
     server.registerTool(

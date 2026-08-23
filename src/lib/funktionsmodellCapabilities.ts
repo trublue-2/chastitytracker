@@ -75,8 +75,6 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
   // ── OFFEN: echte Lücken, noch nicht geschlossen ────────────────────────────────────────────
   "entry-admin-create": "OFFEN: Ereignis für den Träger nachtragen. Braucht zuerst eine Service-Extraktion — die Logik liegt inline in `/api/admin/entries`.",
   "entry-admin-edit": "OFFEN: fremden Eintrag ändern/löschen. Dieselbe Extraktion wie `entry-admin-create`.",
-  "offense-rules": "OFFEN: Vergehens-Regeln umlegen; über den MCP heute nur lesbar (`get_context.offenseRules`). `setOffenseRule()` ist da, es fehlt das Werkzeug.",
-  "escalation-settings": "OFFEN: Eskalations-Stufen der Kontrollen. `setInspectionEscalationSettings()` ist da.",
   "device-references": "OFFEN: Referenzbilder der Geräte-Erkennung pflegen (Liste, Löschen).",
   "device-references-import": "OFFEN: vorhandene Verschluss-Fotos als Referenz übernehmen — braucht keinen Upload und wäre damit KI-fähig.",
   "inspection-targets": "OFFEN: die möglichen Kontroll-Ziele abfragen, bevor eine Kontrolle gestellt wird.",
@@ -358,8 +356,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "offense-rules", mechanic: "Strafbuch", title: "Vergehens-Regeln umlegen",
     what: "Legt je Art fest, ob sie zählt — aus, nur während einer Sperrzeit, oder immer.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/offense-rules"],
-    note: "Über den MCP bewusst nur lesbar. Historisiert: eine Änderung schreibt die Vergangenheit nicht um.",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/offense-rules"], tools: ["set_offense_rules"],
+    note: "Historisiert: eine Änderung schreibt die Vergangenheit nicht um, sie wirkt nach vorn. `manual_offense` ist nicht schaltbar — eine selbst notierte Tat verwirft man mit dem Urteil, nicht mit der Regel.",
   }),
   c({
     id: "offense-announce", mechanic: "Strafbuch", title: "Vergehen melden",
@@ -638,7 +637,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "escalation-settings", mechanic: "Kontrollen", title: "Eskalations-Stufen einstellen",
     what: "Ob und nach welcher Zeit gemahnt und die Abnahme gebucht wird.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users/[id]"],
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/users/[id]"], tools: ["set_inspection_escalation"],
+    note: "Zwei Stufen, eine Kette: die Mahnung ohne den Vermerk ist eine Erinnerung, der Vermerk ohne die Mahnung eine Falle.",
   }),
   c({
     id: "oauth", mechanic: "Zugang", title: "Fremdanwendung verbinden",

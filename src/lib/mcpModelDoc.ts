@@ -144,6 +144,12 @@ Sperre \`reinigungErlaubt\` hat. Freie Wechsel erlauben ⇒ \`reinigungErlaubt\`
   ALLE Einstellungen des Features: die Freischaltung, die Wiege-Fenster (Startzeit, Dauer,
   Wochentage als ISO-Liste 1–7, Erinnerung) und DEIN Zielgewicht — es gilt, solange du eines führst,
   seines bleibt daneben sichtbar (\`subTarget\`). Der dryRun warnt, wenn deine Zahl unter BMI 18,5 führt.
+- Welche Vergehensarten überhaupt zählen, legst du mit \`set_offense_rules\` um (Bestand:
+  \`get_context.offenseRules\`). Mehrere Arten gehören in EINEN Aufruf — zusammen sind sie eine
+  Entscheidung, und die Regel-Historie bekommt einen Zeitpunkt statt mehrerer. Eine Änderung wirkt
+  nach vorn: was schon beurteilt ist, bleibt. \`manual_offense\` ist bewusst nicht schaltbar.
+- Was mit einer überfälligen Kontrolle passiert — Mahnung, automatischer Vermerk, je mit eigener
+  Verzögerung —, stellt \`set_inspection_escalation\`.
 - \`missed_weight_report\` = mehr als drei Tage ohne Gewichts-Meldung, abgeleitet aus den Lücken
   zwischen den erfassten Tagen. Ein Vergehen je angebrochenem Drei-Tage-Block, jede Meldung setzt den
   Zähler zurück. Zählt nur, wenn die Regel scharf ist (Vorgabe: aus), und ruht, solange ein

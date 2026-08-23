@@ -349,23 +349,23 @@ export const FM_REGISTRY: FmEntry[] = [
   s({
     model: "User", field: "inspectionReminderEnabled", domain: "kontrollen", scope: "standing",
     effect: "Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie.",
-    writers: ["admin"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionEscalationService.ts",
+    writers: ["admin", "mcp"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionEscalationService.ts",
   }),
   s({
     model: "User", field: "inspectionReminderDelayMinutes", domain: "kontrollen", scope: "standing",
     effect: "Verzug bis zur Mahnung, gemessen ab dem Ablauf der Kontroll-Frist.",
-    writers: ["admin"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionEscalationService.ts",
+    writers: ["admin", "mcp"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionEscalationService.ts",
   }),
   s({
     model: "User", field: "inspectionAutoMarkEnabled", domain: "kontrollen", scope: "standing",
     effect: "Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf.",
-    writers: ["admin"], affects: ["Kontrollen", "Einträge", "Sessions/Statistik", "Strafbuch"],
+    writers: ["admin", "mcp"], affects: ["Kontrollen", "Einträge", "Sessions/Statistik", "Strafbuch"],
     anchor: "queries.ts:releaseSperrzeitenOnOpen",
   }),
   s({
     model: "User", field: "inspectionAutoMarkDelayMinutes", domain: "kontrollen", scope: "standing",
     effect: "Verzug bis zu dieser Buchung, gemessen ab dem Stempel der Stufe 1.",
-    writers: ["admin"], affects: ["Kontrollen"], anchor: "inspectionEscalationService.ts",
+    writers: ["admin", "mcp"], affects: ["Kontrollen"], anchor: "inspectionEscalationService.ts",
   }),
 
   // ── User: Erfassung, Darstellung, Zugang ───────────────────────────────────────────────────
@@ -967,17 +967,17 @@ export const FM_REGISTRY: FmEntry[] = [
   s({
     model: "OffenseRuleChange", field: "offenseType", domain: "strafbuch", scope: "standing",
     effect: "Welche Vergehensart die Zeile umlegt (kanonischer Schlüssel, z.B. `unauthorized_opening`).",
-    writers: ["admin"], affects: ["Strafbuch"], anchor: "offenseRulesService.ts",
+    writers: ["admin", "mcp"], affects: ["Strafbuch"], anchor: "offenseRulesService.ts",
   }),
   s({
     model: "OffenseRuleChange", field: "mode", domain: "strafbuch", scope: "standing",
     effect: "Ob diese Art zählt (aus / nur während Sperrzeit / immer). Eine HISTORIE, kein Schalter: jede Tat wird nach der Fassung ihrer Zeit beurteilt.",
-    writers: ["admin"], affects: ["Strafbuch"], anchor: "offenseRulesService.ts:setOffenseRule",
+    writers: ["admin", "mcp"], affects: ["Strafbuch"], anchor: "offenseRulesService.ts:setOffenseRule",
   }),
   s({
     model: "OffenseRuleChange", field: "effectiveFrom", domain: "strafbuch", scope: "standing",
     effect: "Ab wann diese Fassung gilt. Die Grundzeile trägt Epoch — vor der ersten Änderung ist nur bekannt, DASS die Werte galten, nicht seit wann.",
-    writers: ["admin"], affects: ["Strafbuch"],
+    writers: ["admin", "mcp"], affects: ["Strafbuch"],
   }),
   pk("OffenseRuleChange"),
   owner("OffenseRuleChange"),
