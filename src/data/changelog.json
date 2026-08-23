@@ -1,28 +1,15 @@
 [
   {
-    "version": "5.3.7",
+    "version": "5.3.6",
     "date": "2026-08-23",
     "changes": [
-      {
-        "type": "ui",
-        "text": {
-          "de": "Die Freigabe an das Gewicht fragt nur noch drei Dinge: das Gewicht, ab wann fr\u00fchestens, und wie lange Zeit bleibt. Daneben steht, wo der Tr\u00e4ger heute liegt und was ihm fehlt.",
-          "en": "Tying a release to weight now asks only three things: the weight, the earliest date, and how long the window stays open. Next to it stands where the wearer is today and how far off they are."
-        }
-      },
       {
         "type": "ui",
         "text": {
           "de": "Gewichte stehen jetzt \u00fcberall mit Komma statt mit Punkt.",
           "en": "Weights are now written with the local decimal separator throughout."
         }
-      }
-    ]
-  },
-  {
-    "version": "5.3.6",
-    "date": "2026-08-23",
-    "changes": [
+      },
       {
         "type": "feat",
         "text": {
