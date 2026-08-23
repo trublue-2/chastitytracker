@@ -6,6 +6,10 @@ import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKo
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
 import { setReinigungSettings, maxPausesPerDaySentinel, parseReinigungsFenster, reinigungsFensterListProblem, formatReinigungsFenster, type ReinigungsFenster } from "@/lib/reinigungService";
+import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
+import { parseWeighingWindows, weighingWindowEnd, weighingWindowsProblem, type WeighingWindow } from "@/lib/weightWindows";
+import { effectiveTarget, isUnderweightTarget, keyholderTargetOf, subTargetOf, weightProblem } from "@/lib/weight";
+import { ALL_WEEKDAYS, WEEKDAY_KEYS, weekdayMaskOf, weekdayMaskHas } from "@/lib/weekdays";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
@@ -17,6 +21,7 @@ import {
   fixedWindowMinutes, triggerWindowAllQuiet, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoKontrolleSettings,
 } from "@/lib/autoKontrolleService";
 import {
+  weightTrackingEnabled,
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
@@ -1031,6 +1036,160 @@ function windowsNote(windows: ReinigungsFenster[] | undefined): string {
   if (!windows) return "";
   if (windows.length === 0) return " All cleaning windows removed — cleaning is no longer restricted to times of day (use allowed:false to forbid it).";
   return ` Cleaning windows replaced (${windows.length}): ${windows.map(formatReinigungsFenster).join(", ")}.`;
+}
+
+// ── Weight tracking settings ───────────────────────────────────────────────
+
+export interface SetWeightTrackingArgs {
+  enabled?: boolean;
+  windows?: { start: string; durationMin: number; days?: number[]; remind?: boolean }[];
+  targetKg?: number | null;
+  dryRun?: boolean;
+}
+
+/**
+ * Die Gewichts-Einstellungen der Keyholderin — Freischaltung, Wiege-Fenster und ihr Zielgewicht in
+ * EINEM Werkzeug, wie `set_cleaning` alle Reinigungs-Regeln in einem hält.
+ *
+ * Der Zuschnitt ist die Regel „MCP-Vollständigkeit" aus `CLAUDE.md`: ein Werkzeug je
+ * Einstellungs-FAMILIE, nicht je Feld. Bis v5.3.5 gab es nur `set_weight_target` — die Keyholderin
+ * konnte über den MCP ein Ziel setzen, das Feature aber weder freischalten noch die Fenster stellen.
+ *
+ * **Wochentage als Liste, nicht als Bitmaske.** Gespeichert wird eine Maske (`weekdays.ts`); nach
+ * aussen wären `days: 96` für „Sa+So" eine Zumutung — eine Agentin müsste Bits rechnen, um eine
+ * Einstellung zu lesen, die aus sieben Häkchen besteht.
+ */
+export async function mcpSetWeightTracking(username: string, args: SetWeightTrackingArgs) {
+  if (!weightTrackingEnabled()) {
+    throw new Error("Weight tracking is not available on this instance (ENABLE_WEIGHT_TRACKING is off).");
+  }
+  const userId = await resolveTargetUserId(username);
+  if (args.enabled === undefined && args.windows === undefined && args.targetKg === undefined) {
+    throw new Error("Provide at least one of: enabled, windows, targetKg.");
+  }
+
+  // VOR dem dryRun-Zweig, aus demselben Grund wie bei den Reinigungsfenstern: eine ungültige Liste
+  // muss auch der Preview als Fehler zeigen, sonst verspricht er einen Stand, den der Commit ablehnt.
+  const windows = args.windows?.map(toWeighingWindow);
+  if (windows) assertWeighingWindows(windows);
+  if (args.targetKg !== null && args.targetKg !== undefined) {
+    const problem = weightProblem(args.targetKg);
+    if (problem) throw new Error(`targetKg: ${enErrorText(problem)}`);
+  }
+
+  const current = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: {
+      weightTrackingEnabled: true, weighingWindows: true, heightCm: true,
+      targetWeightKg: true, targetWeightSetAt: true,
+      targetWeightKeyholderKg: true, targetWeightKeyholderSetAt: true,
+    },
+  });
+  const subTarget = subTargetOf(current);
+  const keyholderTarget = keyholderTargetOf(current);
+
+  const nextTargetKg = args.targetKg !== undefined ? args.targetKg : (keyholderTarget?.kg ?? null);
+  // Wessen Ziel danach GILT — über `effectiveTarget` auf den Spalten, wie sie DANACH stünden. Kein
+  // Nachbau der Regel „ihres gilt vor seinem": die steht in `weight.ts` und nur dort.
+  const nextEffective = effectiveTarget({ ...current, targetWeightKeyholderKg: nextTargetKg, targetWeightKeyholderSetAt: null });
+  // Vor dem Schreiben gesagt, und im Ergebnis wiederholt: die KI soll den Träger fragen können,
+  // bevor sie eine Zahl setzt, die die App selbst als bedenklich anzeigt — und es erfahren, wenn sie
+  // ohne Vorschau geschrieben hat.
+  const underweightWarning = nextTargetKg !== null && isUnderweightTarget(nextTargetKg, current.heightCm);
+
+  if (args.dryRun) {
+    const before: Record<string, unknown> = {
+      enabled: current.weightTrackingEnabled,
+      windows: parseWeighingWindows(current.weighingWindows).map(formatWeighingWindowForAgent),
+      targetKg: keyholderTarget?.kg ?? null,
+    };
+    const after: Record<string, unknown> = {
+      enabled: args.enabled ?? before.enabled,
+      windows: windows ? windows.map(formatWeighingWindowForAgent) : before.windows,
+      targetKg: nextTargetKg,
+    };
+    return dryRunPreview("set_weight_tracking", undefined, {
+      ...after,
+      effectiveTargetKg: nextEffective?.kg ?? null,
+      effectiveTargetFrom: nextEffective?.source ?? null,
+      subTargetKg: subTarget?.kg ?? null,
+      underweightWarning,
+      // Das Abschalten nimmt die Meldepflicht mit — und der Weg zurück ist NICHT automatisch. Ohne
+      // diesen Hinweis merkt es die Keyholderin erst Wochen später, wenn kein Vergehen mehr auftaucht.
+      ...(args.enabled === false ? { alsoDisablesMissedReportOffence: true } : {}),
+    }, diffFields(before, after));
+  }
+
+  unwrap(await setWeightSettingsKeyholder(userId, {
+    enabled: args.enabled,
+    weighingWindows: windows,
+    targetWeightKeyholderKg: args.targetKg,
+    changedBy: AI_AUTHOR,
+  }));
+
+  // Ob das Tracking für den Träger NACH diesem Aufruf läuft — daran hängt, ob die gesetzten Fenster
+  // und Ziele überhaupt wirken.
+  const enabledAfter = args.enabled ?? current.weightTrackingEnabled;
+  const parts = [
+    args.enabled === undefined ? "" : ` Weight tracking ${args.enabled ? "enabled" : "disabled"}.`,
+    args.enabled === false
+      ? " The missed-report offence rule was switched off with it, so the time it is unavailable does not count against him — switching tracking back on does NOT restore it."
+      : "",
+    weighingWindowsNote(windows),
+    args.targetKg === undefined ? ""
+      : args.targetKg === null
+        ? ` Your target removed — ${subTarget ? `the wearer's own target of ${subTarget.kg} kg applies again.` : "no target is set now."}`
+        : ` Your target weight: ${args.targetKg} kg (applies over the wearer's own).`,
+    underweightWarning
+      ? ` WARNING: that target puts him below BMI 18.5. It is set — but it is the one number this app flags as concerning.`
+      : "",
+    // Ohne diesen Satz meldet das Werkzeug „gespeichert" für Fenster, die nirgends wirken: bei
+    // ausgeschaltetem Tracking lehnen log_weight und weight_history denselben Träger weiter ab.
+    !enabledAfter && (windows !== undefined || args.targetKg !== undefined)
+      ? " NOTE: weight tracking is still OFF for this wearer — these settings take effect once you pass `enabled: true`."
+      : "",
+  ];
+  return { ok: true, message: `Weight settings updated.${parts.join("")}` };
+}
+
+/** Die Fenster-Liste, mit der Position im Fehlertext — dasselbe Muster wie `assertCleaningWindows`:
+ *  wer fünf Fenster auf einmal setzt, soll nicht raten müssen, welches abgelehnt wurde. */
+function assertWeighingWindows(windows: WeighingWindow[]): void {
+  const problem = weighingWindowsProblem(windows);
+  if (!problem) return;
+  const stelle = problem.index === undefined
+    ? "windows"
+    : `windows[${problem.index}] ${JSON.stringify(windows[problem.index])}`;
+  throw new Error(`${stelle}: ${enErrorText(problem.code)}`);
+}
+
+/** Ein Fenster aus den Agenten-Argumenten. Fehlende Wochentage heissen „täglich" — dieselbe Vorgabe
+ *  wie in der Oberfläche, wo ein neues Fenster mit allen sieben Häkchen entsteht. */
+function toWeighingWindow(w: { start: string; durationMin: number; days?: number[]; remind?: boolean }): WeighingWindow {
+  return {
+    start: w.start,
+    durationMin: w.durationMin,
+    days: w.days === undefined ? ALL_WEEKDAYS : weekdayMaskOf(w.days),
+    remind: w.remind === true,
+  };
+}
+
+/** Ein Fenster als eine Zeile für Vorschau und Erfolgsmeldung: „06:00-09:00 Mo,Di,Mi (Erinnerung)". */
+function formatWeighingWindowForAgent(w: WeighingWindow): string {
+  const days = w.days === ALL_WEEKDAYS
+    ? "daily"
+    : WEEKDAY_KEYS.filter((_, i) => weekdayMaskHas(w.days, i + 1)).join(",");
+  return `${w.start}-${weighingWindowEnd(w)} ${days}${w.remind ? " (reminder)" : ""}`;
+}
+
+/** Der Zusatz zur Erfolgsmeldung, wenn die Fenster ersetzt wurden. Die geleerte Liste bekommt einen
+ *  eigenen Satz — „keine Fenster" heisst NICHT „kein Wiegen", sondern „jede Uhrzeit zählt". */
+function weighingWindowsNote(windows: WeighingWindow[] | undefined): string {
+  if (!windows) return "";
+  if (windows.length === 0) {
+    return " All weighing windows removed — weighing is no longer tied to a time of day (the reporting duty is unaffected).";
+  }
+  return ` Weighing windows replaced (${windows.length}): ${windows.map(formatWeighingWindowForAgent).join(", ")}.`;
 }
 
 // ── Automatic inspections (Auto-Kontrollen) settings ───────────────────────

@@ -8,11 +8,11 @@ import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetWeightTracking, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
-import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE } from "@/lib/constants";
+import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -30,7 +30,7 @@ import { getOffenses, OFFENSE_TYPES } from "@/lib/mcp/ledger";
 import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
 import { timeline } from "@/lib/mcp/timeline";
 import { getActionLog } from "@/lib/mcp/actionlog";
-import { weightHistory, logWeightDef, setWeightTargetDef } from "@/lib/mcp/weight";
+import { weightHistory, logWeightDef } from "@/lib/mcp/weight";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1469,21 +1469,42 @@ function registerTools(server: McpServer) {
     );
 
     server.registerTool(
-      "set_weight_target",
+      "set_weight_tracking",
       {
-        title: "Set the wearer's target weight (v2)",
+        title: "Set weight-tracking settings",
         description:
-          "Setzt DEIN Zielgewicht für den Träger — METRISCH (kg). Es gilt, solange du eines führst; " +
-          "`null` nimmt es zurück, dann gilt wieder seines. Sein eigenes Ziel bleibt in jedem Fall " +
-          "sichtbar (weight_history: `subTarget`), es wird nicht überschrieben. Der dryRun meldet " +
-          "`underweightWarning`, wenn deine Zahl den Träger unter BMI 18,5 führt — gesetzt wird sie " +
-          "trotzdem, aber frag ihn vorher. Wie weit er ist, steht in weight_history (`progress`)." + V2_WRITE_NOTE,
+          "Sets EVERYTHING you can set about weight tracking: the master switch for this wearer, the weighing " +
+          "windows, and YOUR target weight. Only provided fields change; read the current values from " +
+          "weight_history first. `windows` REPLACES the whole list (that is how a window is retimed, added or " +
+          "deleted) — pass every window you want to keep. `windows:[]` clears them, which does NOT stop the " +
+          "weighing: with no windows any time of day counts (the reporting duty is a separate rule, see " +
+          "get_context.offenseRules). `targetKg` is YOUR target — it applies over the wearer's own, which stays " +
+          "visible; `null` withdraws it and his applies again. The dry run reports `underweightWarning` when " +
+          "your number would put him below BMI 18.5 — it is set anyway, but ask him first. Switching the master " +
+          "switch OFF also switches the missed-report offence rule off, so the time it was unavailable does not " +
+          "count against him." + KEYHOLDER_SILENT,
         inputSchema: {
-          ...writeMetaFields,
-          targetKg: z.number().nullable().describe("Dein Zielgewicht in kg; null = zurücknehmen."),
+          enabled: z.boolean().optional().describe("Enable weight tracking for this wearer at all?"),
+          windows: z.array(z.object({
+            start: z.string().describe(`Window start, "HH:MM" in the wearer's local time (00:00–23:59).`),
+            durationMin: z.number().int().describe(
+              `How long the window stays open, in minutes (${WEIGHING_WINDOW_DURATION_RANGE.min}–${WEIGHING_WINDOW_DURATION_RANGE.max}). Start + duration must stay within the same day.`,
+            ),
+            days: z.array(z.number().int().min(1).max(7)).optional().describe(
+              "Weekdays it applies to, ISO numbers (1 = Monday … 7 = Sunday). Omit = every day. An empty list is rejected: a window that never applies is not a rule.",
+            ),
+            remind: z.boolean().optional().describe(
+              "Remind him when this window opens and he has not logged a value that day? Mail and push; he can switch the channel off in his own settings. Default false.",
+            ),
+          })).optional().describe(
+            `The complete new list of weighing windows (max ${WEIGHING_WINDOWS_MAX}), replacing the current one. A window cannot cross midnight.`,
+          ),
+          targetKg: z.number().nullable().optional().describe("YOUR target weight in kg; null withdraws it (his own applies again)."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
         },
       },
-      (args, extra) => runV2Write(setWeightTargetDef, extra, args),
+      (args, extra) => runWriteTool("set_weight_tracking", extra, args, (u) => mcpSetWeightTracking(u, args)),
     );
 
     server.registerTool(

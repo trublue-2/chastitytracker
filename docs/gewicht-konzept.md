@@ -446,9 +446,11 @@ Die Keyholderin soll über den MCP können, was sie in der Oberfläche kann.
 - **Lesen:** aktueller Wert, Trend, Zielgewicht samt Fortschritt und Tage seit der letzten Meldung
   in `keyholder_dashboard` (`src/lib/mcp/dashboard.ts`); dazu `weight_history` für die Reihe,
   Muster `device_stats` (`src/lib/mcp/stats.ts`)
-- **Schreiben:** ein Gewicht eintragen (`log_weight`) und das Zielgewicht setzen
-  (`set_weight_target`, `null` nimmt es zurück), über `writeFramework` mit Dry-Run, `recordAction`
-  und OCC — daher `version`. Der Dry-Run meldet `underweightWarning`, bevor etwas geschrieben wird
+- **Schreiben:** ein Gewicht eintragen (`log_weight`, über `writeFramework` mit Dry-Run,
+  `recordAction` und OCC — daher `version`) und die EINSTELLUNGEN über ein einziges Werkzeug
+  (`set_weight_tracking`: Freischaltung, Wiege-Fenster, dein Zielgewicht; `null` nimmt es zurück).
+  Ein Werkzeug je Einstellungs-Familie, wie `set_cleaning` — die Regel steht in `CLAUDE.md` unter
+  „MCP-Vollständigkeit". Der Dry-Run meldet `underweightWarning`, bevor etwas geschrieben wird
 - Das versäumte Melden erscheint in `get_offenses` wie jede andere Art und wird über `judge_offense`
   beurteilt. Kein Sonderweg
 - Werkzeugliste ist pro Verbindung gecacht: eine laufende KI-Sitzung sieht das Neue erst nach
@@ -476,8 +478,8 @@ Meldung darunter (Abschnitt 7). Beide brauchen die Angabe nicht.
 | 6 ✅ | Diagramm-Komponente + Statistik-Karte | Zeichenarbeit, keine Logik |
 | 7 | Waagen-Erkennung: Prompt, Dezimalstelle, Route | Neuland, mit Fehlerkennungen zu rechnen |
 | 8 ✅ | Foto-Beschneidung im Poller | ein Tages-Gate, Muster `pruneExpiredMessages` |
-| 9 ✅ | MCP lesen und schreiben (`weight_history`, `log_weight`, `set_weight_target`, dazu `weight` im Keyholder-Dashboard) | Muster vorhanden, Tests dazu |
-| 10 ✅ | **Überarbeitung 23.08.2026:** Zielgewicht statt Korridor, Nur-Weiten-Regel gestrichen, Wochentage + Dauer + Erinnerung an den Fenstern, `weekdays.ts` + `WeekdayPicker` als geteilter Baustein, Rückfrage „Korrektur oder Änderung?" bei der Körpergrösse gestrichen | dazu der Fehler in `weight_history`: es bekam den Benutzer**namen**, suchte damit aber in der id-Spalte — die Reihe kam immer leer und `enabled: false` zurück, während das Dashboard dieselben Daten korrekt zeigte |
+| 9 ✅ | MCP lesen und schreiben (`weight_history`, `log_weight`, `set_weight_tracking`, dazu `weight` im Keyholder-Dashboard) | Muster vorhanden, Tests dazu |
+| 10 ✅ | **Überarbeitung 23.08.2026:** Zielgewicht statt Korridor, Nur-Weiten-Regel gestrichen, Wochentage + Dauer + Erinnerung an den Fenstern, `weekdays.ts` + `WeekdayPicker` als geteilter Baustein, Rückfrage „Korrektur oder Änderung?" bei der Körpergrösse gestrichen, alle Einstellungen über den MCP erreichbar (`set_weight_tracking`) | dazu der Fehler in `weight_history`: es bekam den Benutzer**namen**, suchte damit aber in der id-Spalte — die Reihe kam immer leer und `enabled: false` zurück, während das Dashboard dieselben Daten korrekt zeigte |
 
 Etappe 7 ist von allem anderen unabhängig — das Zahlenfeld funktioniert ohne Erkennung, und die
 Fotopflicht steht auch ohne sie. Etappe 4 setzt 1–3 voraus; ihre Tests müssen die Aus-Zeiten, den

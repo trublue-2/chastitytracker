@@ -102,27 +102,30 @@ export function parseWeighingWindows(raw: unknown): WeighingWindow[] {
 }
 
 /**
- * Die SCHREIB-Regel der ganzen Liste: stabiler Fehler-Code, `null` heisst gültig.
+ * Die SCHREIB-Regel der ganzen Liste: stabiler Fehler-Code samt Position, `null` heisst gültig.
  *
- * Der Lese-Pfad verwirft Murks still; für einen Schreiber wäre genau das die Falle — „08:00–06:00"
- * käme als `ok` zurück und hätte in Wahrheit ein Fenster gelöscht.
+ * Der Lese-Pfad verwirft Murks still; für einen Schreiber wäre genau das die Falle — ein Fenster
+ * über Mitternacht käme als `ok` zurück und wäre in Wahrheit gelöscht.
+ *
+ * Der `index` sagt, WELCHES Fenster stört (Vorbild `reinigungsFensterListProblem`). Ohne ihn bekommt
+ * eine Agentin, die fünf Fenster auf einmal setzt, ein blosses „Invalid time" und muss raten.
  */
-export function weighingWindowsProblem(raw: unknown): ServiceErrorCode | null {
-  if (!Array.isArray(raw)) return "invalidTime";
-  if (raw.length > WEIGHING_WINDOWS_MAX) return "WEIGHING_WINDOWS_TOO_MANY";
-  for (const w of raw) {
+export function weighingWindowsProblem(raw: unknown): { code: ServiceErrorCode; index?: number } | null {
+  if (!Array.isArray(raw)) return { code: "invalidTime" };
+  if (raw.length > WEIGHING_WINDOWS_MAX) return { code: "WEIGHING_WINDOWS_TOO_MANY" };
+  for (const [index, w] of raw.entries()) {
     const { start, durationMin, days } = (w ?? {}) as Record<string, unknown>;
-    if (typeof start !== "string" || !HHMM.test(start)) return "invalidTime";
-    if (typeof durationMin !== "number" || !Number.isInteger(durationMin)) return "invalidTime";
+    if (typeof start !== "string" || !HHMM.test(start)) return { code: "invalidTime", index };
+    if (typeof durationMin !== "number" || !Number.isInteger(durationMin)) return { code: "invalidTime", index };
     if (durationMin < WEIGHING_WINDOW_DURATION_RANGE.min || durationMin > WEIGHING_WINDOW_DURATION_RANGE.max) {
-      return "timeRangeInvalid";
+      return { code: "timeRangeInvalid", index };
     }
     // Über Mitternacht hinaus gibt es kein Fenster — der Schreiber erfährt den Grund, statt dass der
     // Lese-Pfad es später still verwirft.
-    if (hhmmToMinutes(start) + durationMin > 24 * 60) return "timeRangeInvalid";
+    if (hhmmToMinutes(start) + durationMin > 24 * 60) return { code: "timeRangeInvalid", index };
     // `days` darf fehlen (dann alle Tage), aber nicht falsch sein: eine Null-Maske wäre ein Fenster,
     // das nie gilt, und sähe in der Liste trotzdem nach einer Regel aus.
-    if (days !== undefined && !weekdayMaskValid(days)) return "invalidTime";
+    if (days !== undefined && !weekdayMaskValid(days)) return { code: "invalidTime", index };
   }
   return null;
 }

@@ -4,7 +4,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() }, weightEntry: { findUnique: vi.fn(), findMany: vi.fn() } },
 }));
 
-import { logWeightDef, setWeightTargetDef, weightHistory } from "./weight";
+import { logWeightDef, weightHistory } from "./weight";
 import { prisma } from "@/lib/prisma";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
@@ -21,8 +21,8 @@ function wearer(over: Record<string, unknown> = {}) {
   });
 }
 
-// Das Feature ist opt-in (Default AUS) — ohne diesen Schalter wirft jeder Schreibweg „not enabled",
-// und genau das prüft der letzte Fall dieser Datei ausdrücklich.
+// Das Feature ist opt-in (Default AUS) — ohne diesen Schalter wirft jeder Schreibweg „not enabled".
+// Geprüft wird das an den EINSTELLUNGEN, wo der Schalter hingehört: `mcpSetWeightTracking.test.ts`.
 const ENV_VORHER = process.env.ENABLE_WEIGHT_TRACKING;
 beforeEach(() => {
   vi.clearAllMocks();
@@ -31,53 +31,6 @@ beforeEach(() => {
 afterEach(() => {
   if (ENV_VORHER === undefined) delete process.env.ENABLE_WEIGHT_TRACKING;
   else process.env.ENABLE_WEIGHT_TRACKING = ENV_VORHER;
-});
-
-describe("set_weight_target — ihr Ziel gilt, seines bleibt stehen", () => {
-  it("verlangt überhaupt eine Änderung", () => {
-    expect(() => setWeightTargetDef.validate?.({} as never)).toThrow(/Nothing to change/);
-  });
-
-  it("weist ein unplausibles Ziel schon in der Prüfung ab", () => {
-    expect(() => setWeightTargetDef.validate?.({ targetKg: 4 })).toThrow(/Implausible target/);
-  });
-
-  it("lässt ein STRENGERES Ziel zu als seines — die Nur-Weiten-Regel ist gestrichen", async () => {
-    wearer();
-    const preview = await setWeightTargetDef.preview(CTX, { targetKg: 78 });
-    expect(preview.after).toEqual({ targetKg: 78 });
-    expect(preview.preview).toMatchObject({ target: { kg: 78, source: "keyholder" }, subTargetKg: 84 });
-  });
-
-  it("überschreibt sein Ziel nicht, sondern stellt seines daneben", async () => {
-    wearer();
-    const preview = await setWeightTargetDef.preview(CTX, { targetKg: 78 });
-    expect(preview.preview).toMatchObject({ subTargetKg: 84 });
-  });
-
-  it("warnt in der Vorschau, wenn das Ziel ins Untergewicht führt — und setzt es trotzdem", async () => {
-    wearer();
-    const preview = await setWeightTargetDef.preview(CTX, { targetKg: 55 });
-    expect(preview.preview).toMatchObject({ underweightWarning: true });
-  });
-
-  it("gibt bei der Rücknahme wieder sein Ziel als wirksames zurück", async () => {
-    wearer({ targetWeightKeyholderKg: 80, targetWeightKeyholderSetAt: new Date("2026-08-02T00:00:00Z") });
-    const preview = await setWeightTargetDef.preview(CTX, { targetKg: null });
-    expect(preview.preview).toMatchObject({ target: { kg: 84, source: "sub" } });
-  });
-
-  it("weist ab, solange die Keyholderin das Tracking nicht freigeschaltet hat", async () => {
-    wearer({ weightTrackingEnabled: false });
-    await expect(setWeightTargetDef.preview(CTX, { targetKg: 80 })).rejects.toThrow(/not enabled/);
-  });
-
-  it("weist ab, wenn die INSTANZ das Feature gar nicht führt", async () => {
-    // Der zweite Schalter, unabhängig vom ersten: der Träger wäre freigeschaltet, die Instanz nicht.
-    wearer();
-    delete process.env.ENABLE_WEIGHT_TRACKING;
-    await expect(setWeightTargetDef.preview(CTX, { targetKg: 80 })).rejects.toThrow(/not enabled/);
-  });
 });
 
 describe("log_weight", () => {

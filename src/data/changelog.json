@@ -18,6 +18,13 @@
         }
       },
       {
+        "type": "fix",
+        "text": {
+          "de": "Die KI-Keyholderin kann das Gewichtstracking jetzt vollständig einrichten: freischalten, Wiege-Fenster stellen und ihr Zielgewicht setzen. Bisher konnte sie nur das Ziel ändern.",
+          "en": "The AI keyholder can now set up weight tracking completely: enable it, define the weighing windows and set her target weight. Until now she could only change the target."
+        }
+      },
+      {
         "type": "ui",
         "text": {
           "de": "Beim Eintragen der Körpergrösse entfällt die Rückfrage, ob es eine Korrektur oder eine Änderung ist.",

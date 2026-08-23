@@ -346,6 +346,35 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/lib/mcp/toolSurface.ts` — Fingerabdruck der MCP-Werkzeug-Oberfläche: EIN Wert, den zwei weit auseinanderliegende Stellen teilen — der gecachte Instructions-Text (`route.ts`) und der Envelope jeder Antwort (`mcp/common.ts`, `mcp/writeFramework.ts`). Weichen sie voneinander ab, ist die Werkzeugliste einer laufenden Sitzung überholt. **Eine neue Antwort-Form trägt ihn mit**, sonst liest ein Agent sein Fehlen als „weicht ab" und schlägt grundlos Alarm
 - `src/app/dashboard/EntryActions.tsx` — Drei-Punkte-Menü (Edit + optional Delete)
 
+### MCP-Vollständigkeit — was die Keyholderin kann, kann die KI
+
+**Jede Einstellung und jede Handlung, die einem Keyholder in der Oberfläche offensteht, MUSS auch
+über den MCP erreichbar sein.** Die KI-Keyholderin ist kein Beobachter mit Leserechten, sondern eine
+zweite Keyholderin; eine Fähigkeit, die nur im Browser existiert, zwingt sie, den Menschen um etwas
+zu bitten, das sie selbst tun könnte.
+
+**Warum die Lücke so schwer auffällt:** Sie zeigt sich nicht beim Bauen, sondern erst, wenn jemand
+die KI darum bittet — und dann als Absage. Der Nutzer erfährt die Grenze also im ungünstigsten
+Moment und hält sie leicht für einen Defekt. Genau so kam es beim Gewichtstracking heraus: das
+Zielgewicht war über den MCP setzbar, die Freischaltung und die Wiege-Fenster aber nicht (23.08.2026).
+
+Daraus folgt für jede Änderung:
+
+- **Eine neue Keyholder-Einstellung bekommt ihren MCP-Schreibweg im SELBEN Zweig.** Nachgereicht
+  wird sie erfahrungsgemäss nicht — sie fällt ja niemandem auf
+- **Ein Werkzeug je Einstellungs-Familie, nicht je Feld.** Vorbild `set_cleaning`: es deckt ALLE
+  Reinigungs-Regeln ab, samt der Tages-Fenster, statt einen Hauptschalter freizugeben und den Rest
+  in der Oberfläche zu lassen. Dasselbe bei `set_auto_inspections`
+- **Was nachgeholt wird, ist ein `fix`**, kein `feat` — siehe „Welche Stelle wandert" weiter unten:
+  die Schnittstelle zieht mit einer anderen gleich, statt etwas hinzuzufügen
+
+**Die Ausnahmen stehen an EINER Stelle, und die wird geprüft:** `FM_MCP_EXEMPT` in
+`src/lib/funktionsmodellCapabilities.ts`. Jeder Eintrag braucht einen Grund, der mit `Absicht:`
+(bleibt so — Passwörter, Konten, Keyholder-Zuordnung, Uploads) oder `OFFEN:` (Rückstand, noch zu
+schliessen) beginnt; `funktionsmodellDoc.test.ts` erzwingt beides und meldet ausserdem jede
+Keyholder-Fähigkeit, die weder einen MCP-Weg noch einen Eintrag hat. Eine zweite Liste in Prosa
+hier wäre die halbe Wahrheit — sie liefe der geprüften davon.
+
 ### MCP schemaVersion-Disziplin
 - Jede MCP-Deep-View trägt eine `schemaVersion`. **Ändert sich Semantik eines Felds oder fällt ein Feld weg, MUSS die schemaVersion des betroffenen Tools erhöht werden** — sonst sind historische Werte rückwirkend uninterpretierbar (Vorfall 16.07.2026: `hardwareEnforced` zweimal umgedeutet bei unveränderter Version 2). Rein additive Felder brauchen keinen Bump.
 

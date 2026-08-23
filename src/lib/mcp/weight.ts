@@ -2,22 +2,22 @@ import { prisma } from "@/lib/prisma";
 import { APP_TZ, round1 } from "@/lib/utils";
 import { weightTrackingEnabled } from "@/lib/constants";
 import {
-  bmi, dayNumber, effectiveTarget, isUnderweightTarget, keyholderTargetOf, startWeightIn,
-  subTargetOf, targetProgress, weightDayKey, weightProblem, type TargetColumns, type WeightTarget,
+  bmi, dayNumber, effectiveTarget, startWeightIn, subTargetOf, targetProgress, weightDayKey,
+  weightProblem,
 } from "@/lib/weight";
 import { inWeighingWindow, parseWeighingWindows } from "@/lib/weightWindows";
 import { buildWeightSeries } from "@/lib/weightSeries";
 import { recordWeight, targetStartWeight, WEIGHT_USER_SELECT } from "@/lib/weightService";
-import { targetPatch } from "@/lib/weightSettingsService";
-import { type TxClient, type WriteContext, type WriteDef, type WriteResult, diffFields } from "@/lib/mcp/writeFramework";
+import { type WriteDef, type WriteResult, diffFields } from "@/lib/mcp/writeFramework";
 
 /**
  * Gewicht über den MCP — lesen und schreiben.
  *
  * Der Anspruch ist, dass die KI-Keyholderin hier alles kann, was die Keyholderin in der Oberfläche
- * kann. Also: die Reihe lesen, eine Messung nachtragen und das Zielgewicht setzen — ihres gilt,
- * seines bleibt daneben sichtbar. Die Nur-Weiten-Regel von v5.3.3 ist gestrichen; was bleibt, ist
- * die Warnung unterhalb von BMI 18,5.
+ * kann (CLAUDE.md, „MCP-Vollständigkeit"). Hier stehen die Reihe (`weight_history`) und das
+ * Nachtragen einer Messung (`log_weight`); die EINSTELLUNGEN — Freischaltung, Wiege-Fenster und ihr
+ * Zielgewicht — liegen als eine Familie in `set_weight_tracking` (`mcpWrite.ts`), wie `set_cleaning`
+ * alle Reinigungs-Regeln in einem Werkzeug hält.
  *
  * Werte gehen metrisch raus und rein. Eine Anzeige-Einheit gibt es hier nicht: der MCP hat keine
  * Oberfläche, in der jemand Pfund liest, und eine zweite Einheit in der Antwort wäre bloss eine
@@ -295,90 +295,6 @@ export const logWeightDef: WriteDef<LogWeightArgs, LogWeightResult> = {
       },
       resultRef: result.data.id,
       ...(p.existing ? { diff: diffFields({ weightKg: p.existing.weightKg }, { weightKg: args.weightKg }) } : {}),
-    };
-  },
-};
-
-// ── Write: set_weight_target ───────────────────────────────────────────────
-
-export interface SetWeightTargetArgs {
-  /** Dein Zielgewicht in kg; `null` nimmt es zurück — dann gilt wieder seines. */
-  targetKg: number | null;
-}
-
-export interface WeightTargetResult {
-  /** Nach der Änderung wirksam — deines, solange du eines führst. */
-  target: { kg: number; source: "sub" | "keyholder" } | null;
-  keyholderTargetKg: number | null;
-  subTargetKg: number | null;
-  /** Wahr, wenn dein Ziel den Träger unter BMI 18,5 führt. Gesetzt wird es trotzdem. */
-  underweightWarning: boolean;
-}
-
-/** Das Ziel als flaches Feld — die Form, die das Schreib-Gerüst für Diff und Vorschau erwartet. */
-function asFields(kg: number | null): Record<string, unknown> {
-  return { targetKg: kg };
-}
-
-async function targetsOf(userId: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
-  if (!user) throw new Error("User not found.");
-  if (!weightTrackingEnabled() || !user.weightTrackingEnabled) {
-    throw new Error("Weight tracking is not enabled for this wearer.");
-  }
-  return { user, sub: subTargetOf(user), keyholder: keyholderTargetOf(user) };
-}
-
-/** Der Zustand nach dem Schreiben — {@link effectiveTarget} auf den Spalten, wie sie DANACH stünden.
- *  Kein Nachbau der Regel „ihres gilt vor seinem": die steht dort und nur dort. */
-function resolved(user: TargetColumns, nextKg: number | null): WeightTargetResult["target"] {
-  const next = effectiveTarget({ ...user, targetWeightKeyholderKg: nextKg, targetWeightKeyholderSetAt: null });
-  return next && { kg: next.kg, source: next.source };
-}
-
-export const setWeightTargetDef: WriteDef<SetWeightTargetArgs, WeightTargetResult> = {
-  tool: "set_weight_target",
-  validate(args) {
-    if (args.targetKg === undefined) throw new Error("Nothing to change — pass `targetKg` (or null to clear).");
-    if (args.targetKg !== null && weightProblem(args.targetKg)) {
-      throw new Error(`Implausible target weight: ${args.targetKg} kg.`);
-    }
-    return args;
-  },
-  async preview(ctx, args) {
-    const { user, sub, keyholder } = await targetsOf(ctx.targetUserId);
-    return {
-      preview: {
-        action: "edit",
-        target: resolved(user, args.targetKg),
-        subTargetKg: sub?.kg ?? null,
-        // Vor dem Schreiben gesagt, nicht danach: die KI soll den Träger fragen können, bevor sie
-        // eine Zahl setzt, die die App selbst als bedenklich anzeigt.
-        underweightWarning: args.targetKg !== null && isUnderweightTarget(args.targetKg, user.heightCm),
-      },
-      before: asFields(keyholder?.kg ?? null),
-      after: asFields(args.targetKg),
-    };
-  },
-  async apply(tx: TxClient, ctx: WriteContext, args): Promise<WriteResult<WeightTargetResult>> {
-    const { user, sub, keyholder } = await targetsOf(ctx.targetUserId);
-    // Dieselbe Zeitstempel-Regel wie in der Oberfläche — geliehen, nicht abgeschrieben.
-    const patch = targetPatch(keyholder?.kg ?? null, args.targetKg, new Date());
-    if (patch) {
-      await tx.user.update({
-        where: { id: ctx.targetUserId },
-        data: { targetWeightKeyholderKg: patch.kg, targetWeightKeyholderSetAt: patch.setAt },
-      });
-    }
-    return {
-      newState: {
-        target: resolved(user, args.targetKg),
-        keyholderTargetKg: args.targetKg,
-        subTargetKg: sub?.kg ?? null,
-        underweightWarning: args.targetKg !== null && isUnderweightTarget(args.targetKg, user.heightCm),
-      },
-      resultRef: ctx.targetUserId,
-      diff: diffFields(asFields(keyholder?.kg ?? null), asFields(args.targetKg)),
     };
   },
 };

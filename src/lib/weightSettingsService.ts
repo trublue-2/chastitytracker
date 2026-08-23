@@ -71,11 +71,10 @@ function optionalNumber(v: unknown): number | null | undefined {
  * Fortschritts; ein Speichern, das dieselbe Zahl noch einmal schreibt, würde den Bezugspunkt sonst
  * auf heute ziehen und die bereits geschaffte Strecke aus der Rechnung nehmen.
  *
- * Exportiert, weil der MCP dieselbe Regel braucht (`set_weight_target`): sie zweimal aufzuschreiben
- * hiesse, dass die eine Fassung den Bezugspunkt irgendwann anders setzt als die andere — und das
- * fiele erst am verschobenen Fortschritt auf.
+ * Modul-privat: beide Schreibwege — Oberfläche wie MCP (`set_weight_tracking`) — kommen über
+ * {@link setWeightSettingsKeyholder} bzw. {@link setWeightSettingsSelf} hierher.
  */
-export function targetPatch(
+function targetPatch(
   current: number | null, next: number | null, now: Date,
 ): { kg: number | null; setAt: Date | null } | undefined {
   if (next === current) return undefined;
@@ -176,7 +175,7 @@ export async function setWeightSettingsKeyholder(
 
   if (params.weighingWindows !== undefined) {
     const problem = weighingWindowsProblem(params.weighingWindows);
-    if (problem) return serviceFail(400, problem);
+    if (problem) return serviceFail(400, problem.code);
     data.weighingWindows = JSON.stringify(parseWeighingWindows(params.weighingWindows));
   }
 

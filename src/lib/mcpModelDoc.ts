@@ -140,9 +140,10 @@ Sperre \`reinigungErlaubt\` hat. Freie Wechsel erlauben ⇒ \`reinigungErlaubt\`
   \`daysSinceLastReport\` ist die Zahl, an der die Meldepflicht hängt. Je Tag nennt
   \`weight_history.points\` ausserdem \`detectedKg\` (was die Erkennung aus dem Foto las — weicht sie
   vom Wert ab, hat er korrigiert) und \`photo\` (\`yes\` / \`expired\` / \`none\`). \`log_weight\` trägt eine
-  Messung nach — höchstens EINE je Kalendertag, eine zweite ersetzt sie. \`set_weight_target\` setzt
-  DEIN Zielgewicht: es gilt, solange du eines führst, seines bleibt daneben sichtbar (\`subTarget\`).
-  Der dryRun warnt, wenn deine Zahl unter BMI 18,5 führt.
+  Messung nach — höchstens EINE je Kalendertag, eine zweite ersetzt sie. \`set_weight_tracking\` hält
+  ALLE Einstellungen des Features: die Freischaltung, die Wiege-Fenster (Startzeit, Dauer,
+  Wochentage als ISO-Liste 1–7, Erinnerung) und DEIN Zielgewicht — es gilt, solange du eines führst,
+  seines bleibt daneben sichtbar (\`subTarget\`). Der dryRun warnt, wenn deine Zahl unter BMI 18,5 führt.
 - \`missed_weight_report\` = mehr als drei Tage ohne Gewichts-Meldung, abgeleitet aus den Lücken
   zwischen den erfassten Tagen. Ein Vergehen je angebrochenem Drei-Tage-Block, jede Meldung setzt den
   Zähler zurück. Zählt nur, wenn die Regel scharf ist (Vorgabe: aus), und ruht, solange ein

@@ -43,27 +43,32 @@ describe("weighingWindowsProblem — die Schreib-Regel", () => {
   it("weist ein Fenster über Mitternacht ab, statt es still zu verwerfen", () => {
     // Der Lese-Pfad würde es wegwerfen — als Antwort auf ein Speichern hiesse das „ok" für ein
     // Fenster, das in Wahrheit gelöscht wurde.
-    expect(weighingWindowsProblem([w("23:00", 180)])).toBe("timeRangeInvalid");
+    expect(weighingWindowsProblem([w("23:00", 180)])).toMatchObject({ code: "timeRangeInvalid" });
   });
 
   it("weist eine unsinnige Dauer ab", () => {
-    expect(weighingWindowsProblem([w("06:00", 1)])).toBe("timeRangeInvalid");
-    expect(weighingWindowsProblem([{ start: "06:00" }])).toBe("invalidTime");
+    expect(weighingWindowsProblem([w("06:00", 1)])).toMatchObject({ code: "timeRangeInvalid" });
+    expect(weighingWindowsProblem([{ start: "06:00" }])).toMatchObject({ code: "invalidTime" });
   });
 
   it("weist unsinnige Uhrzeiten ab", () => {
-    expect(weighingWindowsProblem([w("6:00", 120)])).toBe("invalidTime");
-    expect(weighingWindowsProblem([w("25:00", 60)])).toBe("invalidTime");
-    expect(weighingWindowsProblem("nichts")).toBe("invalidTime");
+    expect(weighingWindowsProblem([w("6:00", 120)])).toMatchObject({ code: "invalidTime" });
+    expect(weighingWindowsProblem([w("25:00", 60)])).toMatchObject({ code: "invalidTime" });
+    expect(weighingWindowsProblem("nichts")).toMatchObject({ code: "invalidTime" });
   });
 
   it("weist ein Fenster ohne Wochentag ab — es gälte nie und sähe doch nach einer Regel aus", () => {
-    expect(weighingWindowsProblem([w("06:00", 120, { days: 0 })])).toBe("invalidTime");
+    expect(weighingWindowsProblem([w("06:00", 120, { days: 0 })])).toMatchObject({ code: "invalidTime" });
   });
 
   it("begrenzt die Anzahl", () => {
     const many = Array.from({ length: 8 }, (_, i) => w(`0${i}:00`, 30));
-    expect(weighingWindowsProblem(many)).toBe("WEIGHING_WINDOWS_TOO_MANY");
+    expect(weighingWindowsProblem(many)).toMatchObject({ code: "WEIGHING_WINDOWS_TOO_MANY" });
+  });
+
+  it("nennt die Position des störenden Fensters", () => {
+    // Wer fünf Fenster auf einmal schickt, soll nicht raten müssen, welches abgelehnt wurde.
+    expect(weighingWindowsProblem([w("06:00", 120), w("23:00", 180)])).toEqual({ code: "timeRangeInvalid", index: 1 });
   });
 });
 
