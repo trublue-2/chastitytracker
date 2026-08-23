@@ -249,6 +249,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         // Client-Komponente, die selbst formatiert, weicht bis zur Hydration ab.
         notBeforeLabel: formatDateTime(status.release.notBeforeAt, dl, tz),
         unitSystem: ((user?.unitSystem ?? "metric") as UnitSystem),
+        locale: dl,
       };
     },
     render: (props) => props && <WeightReleaseCard {...props} />,

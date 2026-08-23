@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import Toggle from "@/app/components/Toggle";
@@ -16,7 +16,7 @@ import InlineSettingRow from "@/app/components/InlineSettingRow";
 import { inlineLabelCls as faintCls } from "@/app/components/inputStyles";
 import { WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE } from "@/lib/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { parseDecimalInput, weightFieldValue, weightForDisplay, weightInputToKg, type UnitSystem } from "@/lib/weight";
+import { parseDecimalInput, weightFieldValue, weightText, weightInputToKg, type UnitSystem } from "@/lib/weight";
 import { weighingWindowEnd, type WeighingWindow } from "@/lib/weightWindows";
 import { ALL_WEEKDAYS } from "@/lib/weekdays";
 
@@ -43,6 +43,7 @@ export default function WeightToggle({
   subHeightCm: number | null;
 }) {
   const t = useTranslations("admin");
+  const locale = useLocale();
   const tc = useTranslations("common");
   const { saving, save } = useUserSettingsSave(userId);
   const [enabled, setEnabled] = useState(initialEnabled);
@@ -162,7 +163,7 @@ export default function WeightToggle({
               {subTargetKg === null
                 ? t("weightSubTargetNone")
                 : t("weightSubTarget", {
-                    value: `${weightForDisplay(subTargetKg, unitSystem)} ${unitLabel}`,
+                    value: `${weightText(subTargetKg, unitSystem, locale)} ${unitLabel}`,
                   })}
             </p>
             <UnderweightNote

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   bmi, effectiveTarget, heightAt, heightProblem, isUnderweightTarget, targetEventToAnnounce,
-  targetProgress, targetReached, weightForDisplay, weightInputToKg, weightProblem, WEIGHT_PROBLEMS,
+  targetProgress, targetReached, weightForDisplay, weightInputToKg, weightProblem, weightText, WEIGHT_PROBLEMS,
 } from "./weight";
 
 describe("Einheiten", () => {
@@ -181,5 +181,30 @@ describe("targetEventToAnnounce — einmal je Übergang", () => {
     const dünn = { kg: 55, setAt: null, source: "sub" as const };
     expect(targetEventToAnnounce({ target: dünn, startKg: 70, heightCm: 180, previousKg: 60, currentKg: 54 }))
       .toBeNull();
+  });
+});
+
+describe("weightText", () => {
+  it("schreibt die Zahl in der Sprache des Betrachters", () => {
+    // Der Grund für die Funktion: React rendert eine Zahl mit dem Punkt aus `toString()`, und
+    // „74.1 kg" neben einem Feld, in das man „73,5" tippt, sind zwei Trenner auf einem Bildschirm.
+    expect(weightText(74.14, "metric", "de")).toBe("74,1");
+    expect(weightText(74.14, "metric", "en")).toBe("74.1");
+  });
+
+  it("setzt auch bei `de-CH` das Komma — ICU nähme dort den Punkt", () => {
+    // `toDateLocale` liefert „de-CH", und ICU bildet damit die Geld-Schreibweise ab (CHF 74.10).
+    // Für einen Messwert im Fliesstext gilt auch in der Schweiz das Komma; ohne diese
+    // Normalisierung stünde dieselbe Zahl je nach Aufrufer verschieden da.
+    expect(weightText(74.14, "metric", "de-CH")).toBe("74,1");
+    expect(weightText(74.14, "metric", "en-US")).toBe("74.1");
+  });
+
+  it("rechnet vorher in die Einheit des Betrachters um", () => {
+    expect(weightText(75, "imperial", "en")).toBe("165.3");
+  });
+
+  it("zeigt höchstens eine Nachkommastelle — mehr misst keine Waage dieser App", () => {
+    expect(weightText(74.06, "metric", "en")).toBe("74.1");
   });
 });

@@ -22,7 +22,7 @@ import {
 import { getOffenseRules } from "@/lib/offenseRulesService";
 import { weightTrackingEnabled } from "@/lib/constants";
 import { weightReleaseStatus } from "@/lib/weightReleaseService";
-import { weightForDisplay, type UnitSystem } from "@/lib/weight";
+import { weightText, type UnitSystem } from "@/lib/weight";
 import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/utils";
 
 /** Ein „von–bis"-Paar als eine Zeile. Die Seite zeigt drei Sorten davon (Uhrzeiten, Minuten,
@@ -176,7 +176,7 @@ export default async function RulesPage() {
               <DetailField label={tRelease("required", { days: release.release.averageDays })}>
                 <p className="text-sm font-semibold text-foreground tabular-nums">
                   {tRelease(release.release.direction === "above" ? "requiredAbove" : "requiredBelow", {
-                    value: `${weightForDisplay(release.thresholdKg, viewerUnit)} ${releaseUnitLabel}`,
+                    value: `${weightText(release.thresholdKg, viewerUnit, toDateLocale(locale))} ${releaseUnitLabel}`,
                   })}
                 </p>
               </DetailField>
@@ -184,7 +184,7 @@ export default async function RulesPage() {
                 <p className="text-sm text-foreground tabular-nums">
                   {release.averageKg === null
                     ? tRelease("noAverage")
-                    : `${weightForDisplay(release.averageKg, viewerUnit)} ${releaseUnitLabel}`}
+                    : `${weightText(release.averageKg, viewerUnit, toDateLocale(locale))} ${releaseUnitLabel}`}
                 </p>
               </DetailField>
               <DetailField label={tRelease("notBefore")}>
@@ -196,7 +196,7 @@ export default async function RulesPage() {
                 <p className="text-sm text-foreground-muted">
                   {release.nextThresholdKg === null
                     ? "—"
-                    : tRelease("tomorrow", { value: `${weightForDisplay(release.nextThresholdKg, viewerUnit)} ${releaseUnitLabel}` })}
+                    : tRelease("tomorrow", { value: `${weightText(release.nextThresholdKg, viewerUnit, toDateLocale(locale))} ${releaseUnitLabel}` })}
                 </p>
               </DetailField>
             </div>

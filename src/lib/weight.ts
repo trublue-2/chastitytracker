@@ -45,6 +45,28 @@ export function weightForDisplay(kg: number, unit: UnitSystem): number {
   return round1(unit === "imperial" ? kg / KG_PER_LB : kg);
 }
 
+/**
+ * Anzeigewert als TEXT in der Sprache des Betrachters — „74,1" statt „74.1".
+ *
+ * `weightForDisplay` liefert eine ZAHL, und die rendert React mit dem Punkt aus `Number.toString()`.
+ * In einem deutschen Satz ist das schlicht falsch, und neben einem Eingabefeld, in das man „73,5"
+ * tippt, steht es sich selbst im Weg.
+ *
+ * **Die Sprach-Kennung wird hier normalisiert, und das ist der eigentliche Inhalt der Funktion.**
+ * Die Aufrufer reichen teils `"de"`, teils `"de-CH"` herein (`toDateLocale`) — und ICU setzt für
+ * `de-CH` einen PUNKT als Dezimaltrenner. Das bildet die Schweizer Geld-Schreibweise ab
+ * (CHF 74.10); für einen Messwert im Fliesstext gilt auch hier das Komma. Ohne diese Normalisierung
+ * stünde dieselbe Zahl je nach Aufrufer verschieden auf dem Bildschirm — genau die Falle, die
+ * `formatTotalMs` in `utils.ts` für den Tausender-Trenner beschreibt.
+ *
+ * **Nur für Fliesstext, nicht für Eingabefelder:** der `value` eines `<input type="number">` MUSS
+ * den Punkt behalten, sonst weist der Browser ihn ab. Dafür bleibt {@link weightFieldValue}.
+ */
+export function weightText(kg: number, unit: UnitSystem, locale: string): string {
+  const tag = locale.startsWith("en") ? "en-US" : "de";
+  return weightForDisplay(kg, unit).toLocaleString(tag, { maximumFractionDigits: 1 });
+}
+
 /** Körpergrösse: metrisch in cm, imperial in ganzen Zoll (die UI zerlegt sie in Fuss + Zoll). */
 export function heightInputToCm(value: number, unit: UnitSystem): number {
   return Math.round(unit === "imperial" ? value * CM_PER_INCH : value);

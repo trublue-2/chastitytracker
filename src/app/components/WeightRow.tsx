@@ -7,7 +7,7 @@ import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
 import { listRowCls, listRowButtonCls } from "@/app/components/inputStyles";
 import { formatDateTime, APP_TZ } from "@/lib/utils";
-import { weightForDisplay, type UnitSystem } from "@/lib/weight";
+import { weightText, type UnitSystem } from "@/lib/weight";
 import type { WeightRowData } from "@/lib/weightRows";
 
 /**
@@ -36,12 +36,12 @@ export default function WeightRow({
   const [showDetail, setShowDetail] = useState(false);
 
   const unitLabel = unitSystem === "imperial" ? tc("unitLbs") : tc("unitKg");
-  const show = (kg: number) => `${weightForDisplay(kg, unitSystem)} ${unitLabel}`;
+  const show = (kg: number) => `${weightText(kg, unitSystem, locale)} ${unitLabel}`;
   // Das Vorzeichen bleibt stehen: „−0,3" ist die Information, „0,3" wäre die halbe. Ohne Färbung —
   // ob eine Abnahme gut ist, weiss nur das Ziel, und die Zeile kennt es nicht.
   const delta = row.deltaKg === null
     ? null
-    : `${row.deltaKg > 0 ? "+" : ""}${weightForDisplay(row.deltaKg, unitSystem)}`;
+    : `${row.deltaKg > 0 ? "+" : ""}${weightText(row.deltaKg, unitSystem, locale)}`;
   const measuredAt = new Date(row.measuredAt);
   // Nur die ABWEICHUNG ist eine Aussage: las die Waage dasselbe, sagt die Zeile nichts darüber.
   // Als WERT und nicht als Ja/Nein, damit die beiden Anzeigen darunter ihn ohne `!` benutzen.

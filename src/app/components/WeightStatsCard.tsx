@@ -8,7 +8,7 @@ import FieldTabs from "@/app/components/FieldTabs";
 import MeasurementChart from "@/app/components/MeasurementChart";
 import WeightRow from "@/app/components/WeightRow";
 import { round1 } from "@/lib/utils";
-import { bmi, dayNumber, targetProgress, weightForDisplay, type UnitSystem, type WeightTarget } from "@/lib/weight";
+import { bmi, dayNumber, targetProgress, weightForDisplay, weightText, type UnitSystem, type WeightTarget } from "@/lib/weight";
 import { buildWeightSeries, withinRange, type WeightPoint } from "@/lib/weightSeries";
 import type { WeightRowData } from "@/lib/weightRows";
 
@@ -83,7 +83,7 @@ export default function WeightStatsCard({
   );
 
   const unitLabel = unitSystem === "imperial" ? tc("unitLbs") : tc("unitKg");
-  const show = (kg: number) => `${weightForDisplay(kg, unitSystem)} ${unitLabel}`;
+  const show = (kg: number) => `${weightText(kg, unitSystem, locale)} ${unitLabel}`;
   const latestBmi = series.latest ? bmi(series.latest.weightKg, heightCm) : null;
   // Der Fortschritt rechnet gegen die JÜNGSTE Messung, nicht gegen die letzte des gewählten
   // Zeitraums: „wie weit bin ich" ist eine Frage an heute, nicht an den Ausschnitt, den gerade

@@ -61,8 +61,14 @@ type WeightRowInput = Omit<WeightRowData, "deltaKg">;
 export function withDeltas(ascending: readonly WeightRowInput[]): WeightRowData[] {
   return ascending.map((row, i) => ({
     ...row,
-    deltaKg: i === 0 ? null : round1(row.weightKg - ascending[i - 1].weightKg),
+    deltaKg: i === 0 ? null : noNegativeZero(round1(row.weightKg - ascending[i - 1].weightKg)),
   }));
+}
+
+/** `-0` ist in JavaScript eine eigene Zahl, und jede Formatierung schreibt sie als „−0" aus: bei
+ *  gleichem Gewicht an zwei Tagen stünde dort ein Minuszeichen ohne Veränderung dahinter. */
+function noNegativeZero(v: number): number {
+  return v === 0 ? 0 : v;
 }
 
 /**

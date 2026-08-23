@@ -4,10 +4,10 @@ import {
   RELEASE_WINDOW_HOURS_RANGE, weightTrackingEnabled,
 } from "@/lib/constants";
 import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/serviceResult";
-import { isUnderweightTarget, weightDayKey, weightProblem } from "@/lib/weight";
+import { dayNumber, isUnderweightTarget, weightDayKey, weightProblem } from "@/lib/weight";
 import { APP_TZ, clamp } from "@/lib/utils";
 import { evaluateRelease, isReleaseDirection, thresholdOn, type ReleaseEvaluation } from "@/lib/weightRelease";
-import type { WeightPoint } from "@/lib/weightSeries";
+import { movingAverage, type WeightPoint } from "@/lib/weightSeries";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { notifyUser, notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
@@ -254,6 +254,34 @@ async function announceRelease(userId: string, status: ReleaseStatus): Promise<v
       threshold: `${weightForDisplay(status.thresholdKg, unit)} ${suffix}`,
     },
   });
+}
+
+/**
+ * Sein Mittel der letzten `days` Tage — für das Formular, in dem noch gar keine Vorgabe steht.
+ *
+ * Dasselbe Kalender-Fenster und dieselben zählenden Messungen wie in der echten Auswertung, damit
+ * die Zahl, gegen die die Keyholderin ihre Schwelle setzt, die Zahl ist, die später entscheidet.
+ * **`null`, wenn die letzten Tage leer sind** — ein Mittel aus alten Werten wäre die gefährlichere
+ * Auskunft: es stünde als „heute" da, während er seit einer Woche nicht auf der Waage war.
+ */
+export async function currentWeightAverage(
+  userId: string,
+  days: number,
+  now: Date = new Date(),
+): Promise<{ averageKg: number; measurements: number } | null> {
+  const [user, points] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } }),
+    countingPoints(userId, days, now),
+  ]);
+  const tz = user?.timezone || APP_TZ;
+  const today = dayNumber(weightDayKey(now, tz));
+  const inWindow = points.filter((p) => {
+    const n = dayNumber(p.dayKey);
+    return n > today - days && n <= today;
+  });
+  if (inWindow.length === 0) return null;
+  const trend = movingAverage(inWindow, days);
+  return { averageKg: trend[trend.length - 1].weightKg, measurements: inWindow.length };
 }
 
 /**

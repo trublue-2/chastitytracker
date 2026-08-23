@@ -41,6 +41,14 @@ describe("die Veränderung zum Vorwert", () => {
     expect(only).toEqual({ ...source, deltaKg: null });
   });
 
+  it("macht aus unverändertem Gewicht eine glatte Null, kein „−0\"", () => {
+    // 74.0 − 74.0 ergibt in IEEE-754 je nach Operanden `-0`, und jede Formatierung schreibt das als
+    // „−0" aus — ein Minuszeichen ohne Veränderung dahinter.
+    const [, second] = withDeltas([row("2026-08-01", 74), row("2026-08-02", 74)]);
+    expect(Object.is(second.deltaKg, -0)).toBe(false);
+    expect(second.deltaKg).toBe(0);
+  });
+
   it("eine leere Reihe bleibt leer", () => {
     expect(withDeltas([])).toEqual([]);
   });

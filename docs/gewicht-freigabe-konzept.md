@@ -267,10 +267,44 @@ Alles am 23.08.2026 durch trublue, in dieser Reihenfolge gefragt und beantwortet
 - **Volle Kontrolle der Keyholderin** — verschärfen und lockern, kein Ratchet
 - **Nach einer Freigabe eine neue Vorgabe.** Keine Wiederholung, keine abgeleitete Folgeschwelle
 - **Kein Netz**, das die Freigabe irgendwann von selbst gewährt (Abschnitt 8)
+- **Drei Felder in der Oberfläche** (nachgezogen am selben Tag, nach dem ersten Blick auf das
+  gebaute Formular): das Gewicht, ab wann frühestens, wie lange er dann Zeit hat. Sonst nichts
 
 `minMeasurements` steht wie vorgeschlagen bei zwei von drei Tagen — einstellbar je Vorgabe.
 
-## 14. Wie es gebaut wurde
+## 14. Die Oberfläche zeigt drei Felder, das Modell kann mehr
+
+Die erste Fassung des Formulars stellte alle neun Einstellungen nebeneinander, jede mit einer Zeile
+Erklärung darunter — und war damit genau der Befund aus `docs/ux-konsistenz.md` §3.2: nicht zu lange
+Texte, sondern zu viele davon auf einmal. Zu entscheiden ist aber nur:
+
+| Feld | Warum es bleibt |
+|---|---|
+| **Gewicht, bei dem der Orgasmus erlaubt ist** | die Entscheidung selbst |
+| **Frühestens ab** | als Griffe („in einer Woche"), nicht als Datumsfeld — so denkt man darüber |
+| **Zeit zum Einlösen** | wie lange das Fenster dann offen steht |
+
+Alles andere steht im Modell und im MCP, nicht in der Oberfläche: Richtung (dort immer „darunter"),
+Breite des Mittels (drei Tage), geforderte Messungen (zwei), Tagesanstieg (keiner), Begleittext. Ein
+Feld, das in neun von zehn Fällen auf seiner Vorgabe stehen bleibt, kostet jedes Mal Aufmerksamkeit
+und bringt sie einmal ein. Die KI spielt über `set_weight_release` weiterhin das ganze Register —
+die Arbeitsteilung ist gewollt: die Oberfläche trifft die tägliche Entscheidung, der MCP den
+Sonderfall.
+
+**Zwei Dinge, die aus dieser Verkürzung folgen:**
+
+- **Öffnen ist erlaubt, ohne dass jemand gefragt wird.** Eine Freigabe, die er nicht einlösen kann,
+  weil das Gerät zubleibt, ist keine. Bei einer Anweisung von Hand bleibt es die Entscheidung der
+  Keyholderin — dort ist das Fenster ihr Einfall, hier ist es sein Verdienst.
+- **Das Gewichtsfeld ist ein Textfeld**, kein `type="number"`: das bringt Pfeilchen mit, verstellt
+  sich beim Scrollen und lehnt in manchen Browsern das Komma ab. `parseDecimalInput` nimmt beides.
+
+**Der Stand steht daneben, während sie tippt** — „heute liegt sein Schnitt bei 74,1 kg, es fehlen
+ihm 1,3 kg". Gerechnet vom Server mit demselben Fenster, das später entscheidet
+(`currentWeightAverage`): ein aus allen vorhandenen Punkten gebildetes Mittel stünde als „heute" da,
+während der Träger seit einer Woche nicht auf der Waage war.
+
+## 15. Wie es gebaut wurde
 
 | Baustein | Wo |
 |---|---|

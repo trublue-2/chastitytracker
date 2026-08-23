@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
@@ -11,7 +11,7 @@ import FormError from "@/app/components/FormError";
 import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import {
   heightForDisplay, heightInputToCm, inchesToFeet,
-  parseDecimalInput, weightFieldValue, weightForDisplay, weightInputToKg, type UnitSystem,
+  parseDecimalInput, weightFieldValue, weightForDisplay, weightText, weightInputToKg, type UnitSystem,
 } from "@/lib/weight";
 
 export interface WeightSettingsProps {
@@ -31,6 +31,7 @@ export default function WeightSettings({
   unitSystem, heightCm, targetWeightKg, keyholderTargetKg, reminderNotify,
 }: WeightSettingsProps) {
   const t = useTranslations("settings");
+  const locale = useLocale();
   const tc = useTranslations("common");
   const { saving, save } = useSettingsSave("/api/settings/weight");
 
@@ -137,7 +138,7 @@ export default function WeightSettings({
           disabled={saving}
           onChange={(e) => setTarget(e.target.value)}
           hint={keyholderTargetKg === null ? undefined : t("targetKeyholderApplies", {
-            value: `${weightForDisplay(keyholderTargetKg, unit)} ${weightUnitLabel}`,
+            value: `${weightText(keyholderTargetKg, unit, locale)} ${weightUnitLabel}`,
           })}
         />
         <UnderweightNote

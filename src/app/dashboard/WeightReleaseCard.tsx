@@ -4,7 +4,7 @@ import { Scale } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
 import DetailField from "@/app/components/DetailField";
-import { weightForDisplay, type UnitSystem } from "@/lib/weight";
+import { weightText, type UnitSystem } from "@/lib/weight";
 
 /**
  * Die Freigabe-Vorgabe, wie der Träger sie sieht: was verlangt ist, wo er steht, was noch fehlt
@@ -25,17 +25,20 @@ export interface WeightReleaseCardProps {
   /** Vorformatiert auf dem Server — Locale und Zeitzone sind dort bekannt (Muster `WeightStatsCard`). */
   notBeforeLabel: string | null;
   unitSystem: UnitSystem;
+  /** Sprach-Kennung für die Zahlen — als Prop wie das Datum daneben, damit Server und Client
+   *  dieselbe Zeichenkette bilden. */
+  locale: string;
 }
 
 export default function WeightReleaseCard({
   thresholdKg, nextThresholdKg, averageKg, averageDays, direction, remainingKg, reason,
-  notBeforeLabel, unitSystem,
+  notBeforeLabel, unitSystem, locale,
 }: WeightReleaseCardProps) {
   const t = useTranslations("release");
   const tc = useTranslations("common");
 
   const unitLabel = unitSystem === "imperial" ? tc("unitLbs") : tc("unitKg");
-  const show = (kg: number) => `${weightForDisplay(kg, unitSystem)} ${unitLabel}`;
+  const show = (kg: number) => `${weightText(kg, unitSystem, locale)} ${unitLabel}`;
 
   return (
     <Card className="flex flex-col gap-3">
