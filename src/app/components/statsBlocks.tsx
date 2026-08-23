@@ -17,7 +17,7 @@ import {
 import {
   buildCalendarMonths, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
 } from "@/lib/statsBuilders";
-import { proratedVorgabeTargets, hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/goalFulfillment";
+import { resolveGoalTargets, hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/goalFulfillment";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -211,7 +211,7 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
           icon: v.category?.icon ?? null,
           // Ziele je Periode nach den Regeln aus `goalFulfillment.ts` — in einer geteilten Periode
           // ist `targetH` bereits null, der Balken fällt damit von selbst aus.
-          goal: proratedVorgabeTargets(v, now, tz),
+          goal: resolveGoalTargets(v, now, tz),
           notiz: v.notiz,
           hours: {
             day: wearingHoursFromPairs(pairs, todayStart, now),

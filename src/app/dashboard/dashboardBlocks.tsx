@@ -19,7 +19,7 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
-import { proratedVorgabeTargets, hasVisibleGoalRow } from "@/lib/goalFulfillment";
+import { resolveGoalTargets, hasVisibleGoalRow } from "@/lib/goalFulfillment";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
 import { resolveReasonLabel } from "@/lib/reasonsService";
 import { categoryNeedsDevice } from "@/lib/categoryConstants";
@@ -254,7 +254,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
               : null
           }
           keyInBox={data.activePair.verschluss.keyInBox ?? null}
-          activeVorgabe={data.activeVorgabe ? proratedVorgabeTargets(data.activeVorgabe, now, tz) : null}
+          activeVorgabe={data.activeVorgabe ? resolveGoalTargets(data.activeVorgabe, now, tz) : null}
           tagH={data.hours.tagH}
           wocheH={data.hours.wocheH}
           monatH={data.hours.monatH}
@@ -325,7 +325,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       // Steht die nicht — weil keine Sperre läuft ODER weil der Träger den Block ausgeblendet hat —
       // hätte es sonst nirgends Platz; dann zeigen wir es als führende Zeile in der
       // „Trainingsvorgaben"-Karte (derselben, die die Kategorie-Ziele trägt).
-      const kgTargets = activeVorgabe ? proratedVorgabeTargets(activeVorgabe, now, tz) : null;
+      const kgTargets = activeVorgabe ? resolveGoalTargets(activeVorgabe, now, tz) : null;
       // `hasVisibleGoalRow` und nicht „irgendein Ziel gesetzt": am Starttag einer Vorgabe ist jede
       // Periode ungewertet, und die Zeile stünde sonst als Überschrift über einer leeren Liste.
       const kgGoal =

@@ -387,25 +387,27 @@ describe("periodGoal — Prozentwerte einer geteilten Periode", () => {
   const UNGETEILT = { day: false, week: false, month: false, year: false };
 
   it("der Vorfall vom 23.08.2026 liefert keine 1013 % mehr", () => {
-    // Ziel 15/90/390 um 09:54 gesetzt: Tag, Woche und Monat tragen die Grenze. Bewertbar ist
-    // nichts davon (targetH null), anzuzeigen bleibt das anteilige Ziel.
+    // Ziel 15/90/390 um 09:54 gesetzt: Tag, Woche und Monat tragen die Grenze — keine dieser drei
+    // Perioden wird bewertet, weder mit Prozentwert noch mit einem Ziel als Absolutwert.
     const g = periodGoal(IST, {
       targetH: { day: null, week: null, month: null, year: null },
-      displayH: { day: null, week: 7.55, month: 108.04, year: null },
       changedInPeriod: { day: true, week: true, month: true, year: false },
     });
     expect(g.todayPct).toBeNull();
     expect(g.weekPct).toBeNull();
     expect(g.monthPct).toBeNull();
-    // Die Absolutwerte bleiben stehen — sie sind das, was der Konsument stattdessen beurteilt.
+    // Auch kein anteiliges Ziel als Absolutwert: `goalWeekH: 7.55` neben `week: 76.5` lud dazu ein,
+    // von Hand denselben Vergleich anzustellen, den der unterdrückte Prozentwert vermeidet.
+    expect(g.goalWeekH).toBeNull();
+    expect(g.goalMonthH).toBeNull();
+    // Die IST-Stunden bleiben — sie sind das, was der Konsument stattdessen beurteilt.
     expect(g.week).toBe(76.5);
-    expect(g.goalWeekH).toBe(7.55);
     expect(g.goalChangedInPeriod).toEqual({ day: true, week: true, month: true, year: false });
   });
 
   it("ungeteilte Perioden rechnen weiterhin ganz normal", () => {
     const voll = { day: 15, week: 90, month: 390, year: null };
-    const g = periodGoal(IST, { targetH: voll, displayH: voll, changedInPeriod: UNGETEILT });
+    const g = periodGoal(IST, { targetH: voll, changedInPeriod: UNGETEILT });
     expect(g.todayPct).toBe(3);
     expect(g.weekPct).toBe(85);
     expect(g.monthPct).toBe(56);
@@ -415,7 +417,7 @@ describe("periodGoal — Prozentwerte einer geteilten Periode", () => {
 
   it("Übererfüllung wird NICHT geklemmt — nur Artefakte werden unterdrückt", () => {
     const ziel = { day: null, week: 80, month: null, year: null };
-    const g = periodGoal({ ...IST, week: 100 }, { targetH: ziel, displayH: ziel, changedInPeriod: UNGETEILT });
+    const g = periodGoal({ ...IST, week: 100 }, { targetH: ziel, changedInPeriod: UNGETEILT });
     expect(g.weekPct).toBe(125);
   });
 });

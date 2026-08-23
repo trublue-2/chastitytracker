@@ -21,7 +21,8 @@ const noGoal: Vorgabe = {
  *
  *  `gueltigAb` liegt bewusst weit VOR jedem geprüften Zeitraum: ein Startdatum, das in einer Zone
  *  auf Mitternacht fällt und in einer anderen mitten in den Tag, liesse die Zeitzonen-Fälle unten
- *  an Regel 3 scheitern (angebrochener Tag wird nicht bewertet) statt an dem, was sie prüfen.
+ *  an der Regel scheitern, dass eine Periode mit Zielgrenze unbewertet bleibt, statt an dem, was
+ *  sie prüfen.
  *  `2026-01-01T00:00:00Z` war genau so ein Datum — in Pacific/Auckland ist das 13:00 Ortszeit am
  *  1. Januar. Die Regel selbst prüft `goalFulfillment.test.ts`. */
 const monatsziel100: Vorgabe = {

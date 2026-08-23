@@ -20,7 +20,7 @@ const asPct = (ratio: number): number => Math.round(ratio * 100);
 /**
  * **Zielerfüllung** — Anteil am SOLL. „Wie viel von dem, was verlangt ist, habe ich?"
  *
- * `null` bei fehlendem oder null-wertigem Ziel: ein prorata-Ziel von 0 heisst „die Vorgabe deckt
+ * `null` bei fehlendem oder null-wertigem Ziel: ein Ziel von 0 heisst „die Vorgabe deckt
  * diese Periode nicht ab", nicht „zu 100 % erfüllt". Deshalb Truthy-Prüfung statt `!= null`.
  *
  * **Nicht geklemmt.** Wer sein Ziel übertrifft, hat 130 % — und soll das sehen. Ein Balken, der

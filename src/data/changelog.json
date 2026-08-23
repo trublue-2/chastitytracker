@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.3.5",
+    "date": "2026-08-23",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Periode, in der ein Trainingsziel beginnt oder endet, bleibt jetzt vollständig unbewertet. Vorher stand dort noch ein anteilig gekürzter Zielwert, der sich versehentlich mit den Stunden der ganzen Periode vergleichen liess.",
+          "en": "A period in which a training goal starts or ends is now left entirely unrated. Until now it still carried a scaled-down target that invited comparison with the hours of the whole period."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.4",
     "date": "2026-08-23",
     "changes": [
