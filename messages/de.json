@@ -32,6 +32,8 @@
   },
   "weightList": {
     "typeLabel": "Gewicht",
+    "deleteTitle": "Wiegung löschen",
+    "deleteConfirm": "Die Wiegung vom {entry} wird gelöscht — mit Foto und Notiz. Das lässt sich nicht rückgängig machen.",
     "releaseMarker": "Freigabe",
     "countInList": "{count} Wiegungen",
     "title": "Wiegungen",
@@ -951,6 +953,7 @@
     "requestOrgasm": "Orgasmus anfordern",
     "requestOrgasmHint": "Anweisung oder Gelegenheit für einen Orgasmus",
     "releaseTitle": "Freigabe an das Gewicht knüpfen",
+    "releaseWithdraw": "Bestehende Vorgabe zurückziehen",
     "releaseLead": "Der nächste Orgasmus wird frei, sobald {name} im Schnitt der letzten {days} Tage unter dem Gewicht liegt. Gemittelt wird, weil ein einzelnes Wiegen um ein bis zwei Kilo schwankt.",
     "releaseNoAverage": "Für einen Schnitt liegen noch zu wenige Wiegungen vor.",
     "releaseAverageOnly": "Heute liegt der Schnitt der letzten {days} Tage bei {value}.",

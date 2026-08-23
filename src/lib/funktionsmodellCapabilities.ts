@@ -71,6 +71,7 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
   "stats-pages": "Absicht: Seiten, keine Handlung. Dieselben Zahlen liefern `period_summary`, `records` und `device_stats`.",
   "inbox-keyholder": "Absicht: der Posteingang sammelt Meldungen FÜR den Menschen; die KI bekommt dieselben Befunde direkt aus den Deep-Views.",
   "weight-record": "Absicht: über `log_weight` (Fähigkeit `weight-mcp-write`) abgedeckt — der Katalog führt die MCP-Seite des Gewichts als eigene Zeile.",
+  "weight-delete": "Absicht: eine Messung ist eine BEOBACHTUNG, keine Einstellung. Korrigieren kann die KI sie über `log_weight` (ein Wert je Tag, der neue ersetzt den alten) — eine Beobachtung ganz zu entfernen, samt Foto, bleibt beim Menschen. Der Unterschied ist nicht die Gefahr, sondern die Art der Handlung: die KI ändert, was gilt; was NIE gegolten haben soll, entscheidet die Keyholderin.",
 
   // ── OFFEN: echte Lücken, noch nicht geschlossen ────────────────────────────────────────────
   "entry-admin-create": "OFFEN: Ereignis für den Träger nachtragen. Braucht zuerst eine Service-Extraktion — die Logik liegt inline in `/api/admin/entries`.",
@@ -621,6 +622,12 @@ export const FM_CAPABILITIES: FmCapability[] = [
     actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
     routes: ["/api/admin/users/[id]"], tools: ["set_weight_tracking"],
     note: "Ihr Zielgewicht gilt, seines bleibt sichtbar. Das Abschalten nimmt die Meldepflicht mit — sonst zählte die Aus-Zeit als lauter versäumte Meldungen.",
+  }),
+  c({
+    id: "weight-delete", mechanic: "Gewicht", title: "Wiegung löschen",
+    what: "Entfernt eine einzelne Messung samt Foto und Notiz.",
+    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/weight/[id]"],
+    note: "Nur der Keyholder — der Träger korrigiert eigene Zeilen nicht selbst, wie bei den Einträgen. Ein bereits geöffnetes Orgasmus-Fenster bleibt bestehen: es ist danach eine eigene Zeile mit eigenem Rückzugsweg, und eine Freigabe rückwirkend einzukassieren wäre die härtere Überraschung.",
   }),
   c({
     id: "weight-release", mechanic: "Gewicht", title: "Freigabe an das Gewicht knüpfen",

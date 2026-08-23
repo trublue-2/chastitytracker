@@ -67,6 +67,7 @@ export default function WeightReleaseForm({
   const [customStart, setCustomStart] = useState(nowDefault);
   const [windowHours, setWindowHours] = useState(String(RELEASE_WINDOW_HOURS_RANGE.fallback));
   const [saving, setSaving] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   const [error, setError] = useState("");
 
   const unitLabel = unitSystem === "imperial" ? tc("unitLbs") : tc("unitKg");
@@ -89,6 +90,25 @@ export default function WeightReleaseForm({
    *  stehen bereits in SEINER Einheit, deshalb hier `"metric"`: umzurechnen ist nichts mehr, zu
    *  formatieren schon — und zwar mit derselben Regel wie überall (`weightText`). */
   const num = (v: number) => weightText(v, "metric", locale);
+
+  /** Die offene Vorgabe zurückziehen — dieselbe Route, andere Methode. */
+  async function withdraw() {
+    setWithdrawing(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/weight-release", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) { setError(apiError(await parseApiErrorCode(res))); return; }
+      router.push(target);
+    } catch {
+      setError(tc("networkError"));
+    } finally {
+      setWithdrawing(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -135,7 +155,21 @@ export default function WeightReleaseForm({
         {/* Die Regel in einem Satz, mit seinem Namen: was hier eingestellt wird, ist keine
             Einstellung, sondern eine Bedingung über eine bestimmte Person. */}
         <p className="text-sm text-foreground">{t("releaseLead", { name: subName, days })}</p>
-        {hasOpen && <p className="text-sm text-warn">{t("releaseReplacesOpen")}</p>}
+        {/* Steht schon eine, gehört der Weg zurück hierher: sonst kommt man an sie nur heran, indem
+            man eine neue stellt — also durch dieselbe Tür, aus der man heraus will. */}
+        {hasOpen && (
+          <div className="flex flex-col gap-2 rounded-xl border border-[var(--color-warn-border)] bg-warn-bg px-4 py-3">
+            <p className="text-sm text-warn">{t("releaseReplacesOpen")}</p>
+            <button
+              type="button"
+              disabled={withdrawing}
+              onClick={withdraw}
+              className="self-start text-sm font-medium text-warn underline hover:opacity-80 disabled:opacity-50"
+            >
+              {t("releaseWithdraw")}
+            </button>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <p className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">

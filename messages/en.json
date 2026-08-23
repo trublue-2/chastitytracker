@@ -32,6 +32,8 @@
   },
   "weightList": {
     "typeLabel": "Weight",
+    "deleteTitle": "Delete weigh-in",
+    "deleteConfirm": "The weigh-in from {entry} will be deleted — photo and note included. This cannot be undone.",
     "releaseMarker": "Release",
     "countInList": "{count} weigh-ins",
     "title": "Weigh-ins",
@@ -951,6 +953,7 @@
     "requestOrgasm": "Request orgasm",
     "requestOrgasmHint": "Instruction or opportunity for an orgasm",
     "releaseTitle": "Tie the release to weight",
+    "releaseWithdraw": "Withdraw the existing condition",
     "releaseLead": "The next orgasm is released once {name}'s average over the last {days} days is below the weight. It is averaged because a single weigh-in varies by one to two kilos.",
     "releaseNoAverage": "Too few weigh-ins yet for an average.",
     "releaseAverageOnly": "Today the average over the last {days} days is {value}.",
