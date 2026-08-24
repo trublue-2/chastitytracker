@@ -920,3 +920,87 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROTOTYP — NICHT FÜR DEN MERGE. Etappe D, Entscheidungsvorlage.
+   Umschalten: document.documentElement.setAttribute('data-variant','drei'|'acht')
+   Der zweite Selektor je Regel ist nötig, weil der Theme-Wrapper `[data-theme]`
+   dieselbe Spezifität hat und sonst innerhalb des Wrappers gewinnt.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Gemeinsam: der neue Grund und die neuen Textstufen ────────────────────── */
+[data-variant], [data-variant] [data-theme] {
+  --background:        #0b0609;
+  --background-subtle: #100a0d;
+  --surface:           #140d10;
+  --surface-raised:    #1c1317;
+  --surface-overlay:   #0b0609e6;
+  --border:            #241a1e;
+  --border-subtle:     #180f13;
+  --border-strong:     #3a2b31;
+  --foreground:        #fdf7f8;
+  --foreground-muted:  #c9b7bd;
+  --foreground-faint:  #9a868e;
+  --foreground-invert: #2b0410;
+
+  /* Die Rolle sitzt im Grund, nicht im Akzent — Kopf und Navigation werden neutral. */
+  --header-bg:          #100a0d;
+  --header-border:      #241a1e;
+  --header-text:        #fdf7f8;
+  --header-avatar-bg:   #2a1218;
+  --header-avatar-text: #ff8ba0;
+  --nav-bg:             #100a0d;
+  --nav-border:         #241a1e;
+  --nav-active-bg:      #2a1218;
+  --nav-active-text:    #fdf7f8;
+  --nav-inactive-text:  #9a868e;
+  --nav-inactive-hover: #fdf7f8;
+  --nav-icon-bg:        #1c1317;
+  --nav-icon-active-bg: #ff3d68;
+}
+
+/* ── Variante DREI: nur Zustand, Auszeichnung, Aufmerksamkeit ──────────────── */
+[data-variant="drei"], [data-variant="drei"] [data-theme] {
+  /* Rosa — der Zustand */
+  --color-lock:#ff3d68; --color-lock-bg:#1a1013; --color-lock-border:#7a1836; --color-lock-muted:#ff8ba0; --color-lock-text:#ff8ba0;
+  /* Gold — die Auszeichnung */
+  --color-ok:#e8b44a; --color-ok-bg:#1a1405; --color-ok-border:#7a5410; --color-ok-muted:#f0cd85; --color-ok-text:#f0cd85;
+  /* Koralle — die Aufmerksamkeit. Kontrolle UND Verspätung sind dasselbe Signal. */
+  --color-warn:#ff8a5c; --color-warn-bg:#1c1108; --color-warn-border:#8a3a18; --color-warn-muted:#ffb598; --color-warn-text:#ffb598;
+  --color-inspect:#ff8a5c; --color-inspect-bg:#1c1108; --color-inspect-border:#8a3a18; --color-inspect-muted:#ffb598; --color-inspect-text:#ffb598;
+  /* Alles Übrige ist neutral — kein eigener Farbton mehr. */
+  --color-unlock:#c9b7bd; --color-unlock-bg:#140d10; --color-unlock-border:#2e2226; --color-unlock-muted:#9a868e; --color-unlock-text:#c9b7bd;
+  --color-orgasm:#c9b7bd; --color-orgasm-bg:#140d10; --color-orgasm-border:#2e2226; --color-orgasm-muted:#9a868e; --color-orgasm-text:#c9b7bd;
+  --color-request:#c9b7bd; --color-request-bg:#140d10; --color-request-border:#2e2226; --color-request-muted:#9a868e; --color-request-text:#c9b7bd;
+  --color-sperrzeit:#c9b7bd; --color-sperrzeit-bg:#140d10; --color-sperrzeit-border:#2e2226; --color-sperrzeit-muted:#9a868e; --color-sperrzeit-text:#c9b7bd;
+}
+
+/* ── Variante ACHT: alle acht behalten einen eigenen Farbton ───────────────── */
+[data-variant="acht"], [data-variant="acht"] [data-theme] {
+  --color-lock:#ff3d68; --color-lock-bg:#1a1013; --color-lock-border:#7a1836; --color-lock-muted:#ff8ba0; --color-lock-text:#ff8ba0;
+  --color-ok:#e8b44a; --color-ok-bg:#1a1405; --color-ok-border:#7a5410; --color-ok-muted:#f0cd85; --color-ok-text:#f0cd85;
+  --color-warn:#ff8a5c; --color-warn-bg:#1c1108; --color-warn-border:#8a3a18; --color-warn-muted:#ffb598; --color-warn-text:#ffb598;
+  /* Ab hier muss das System Farbtöne borgen, die es nicht besitzt. */
+  --color-inspect:#f0a830; --color-inspect-bg:#1a1305; --color-inspect-border:#7d5510; --color-inspect-muted:#f7cd82; --color-inspect-text:#f7cd82;
+  --color-unlock:#5cc8f0; --color-unlock-bg:#07161c; --color-unlock-border:#155e75; --color-unlock-muted:#9fdcf7; --color-unlock-text:#9fdcf7;
+  --color-request:#8b91f5; --color-request-bg:#0e0e20; --color-request-border:#3f3f9e; --color-request-muted:#c2c5fb; --color-request-text:#c2c5fb;
+  --color-sperrzeit:#c07ef5; --color-sperrzeit-bg:#140a1e; --color-sperrzeit-border:#61309a; --color-sperrzeit-muted:#dfbcfb; --color-sperrzeit-text:#dfbcfb;
+  --color-orgasm:#f56fa8; --color-orgasm-bg:#1c0a14; --color-orgasm-border:#9c2a5c; --color-orgasm-muted:#fbb6d2; --color-orgasm-text:#fbb6d2;
+}
+
+/* Prototyp: die lauteste Fläche des Bildschirms hängt heute an KEINEM Token
+   (`bg-gradient-to-br from-emerald-600 to-emerald-500`). Für den Vergleich
+   provisorisch tokenisiert — im echten Umbau gehört das in die Komponente. */
+[data-variant], [data-variant] [data-theme] {
+  --color-lock-grad-a: #7a1836;
+  --color-lock-grad-b: #ff3d68;
+  --color-lock-on:     #2b0410;
+  --btn-primary-bg:    #ff3d68;
+  --btn-primary-hover: #d81b52;
+  --btn-primary-text:  #2b0410;
+}
+[data-variant="acht"], [data-variant="acht"] [data-theme] {
+  --color-lock-grad-a: #7a1836;
+  --color-lock-grad-b: #ff3d68;
+}
+

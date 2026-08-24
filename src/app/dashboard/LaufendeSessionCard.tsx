@@ -86,7 +86,7 @@ export default async function LaufendeSessionCard({
   return (
     <div className="bg-surface rounded-2xl overflow-hidden shadow-card border border-border">
       {/* ── Green status header ── */}
-      <div className="bg-gradient-to-br from-emerald-600 to-emerald-500 text-white px-5 py-4">
+      <div className="px-5 py-4" style={{ background: "linear-gradient(to bottom right, var(--color-lock-grad-a), var(--color-lock-grad-b))", color: "var(--color-lock-on)" }}>
         <div className="flex items-start gap-3">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10 mt-0.5">
             <Lock size={24} strokeWidth={2} />
