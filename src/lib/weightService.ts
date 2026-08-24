@@ -240,6 +240,53 @@ async function announceTargetEvent(userId: string, currentKg: number, measuredAt
 }
 
 /**
+ * Korrigiert eine Messung: den Wert, die Notiz.
+ *
+ * **Warum nicht über `recordWeight`**, das den Tageswert ohnehin ersetzt: dieser Weg schreibt die
+ * ganze Zeile neu und setzt dabei `imageUrl`, `imageExifTime` und `detectedKg` auf `null` — beim
+ * Nachtragen ist das richtig (die Keyholderin sitzt nicht vor seiner Waage), bei einer KORREKTUR
+ * wäre es Datenvernichtung: der Beleg verschwände, weil jemand einen Zahlendreher richtigstellt.
+ * Hier ändert sich nur, was angegeben wurde.
+ *
+ * **Zeitpunkt und Foto bleiben, wie sie sind.** Beides ist Teil der BEOBACHTUNG, nicht der Eingabe:
+ * an `measuredAt` hängen Tagesschlüssel, `inWindow`, der Trend und die Freigabe-Rechnung. Wer den
+ * falschen Tag erwischt hat, löscht die Zeile und trägt neu ein — das ist ehrlicher, als eine
+ * Messung auf einen anderen Tag zu schieben, an dem sie nie stattgefunden hat.
+ *
+ * `version` steigt wie beim Ersetzen: eine Korrektur ist eine neue Fassung, und daran hängt die
+ * OCC der MCP-Schreibwege.
+ *
+ * **Die Freigabe-Vorgabe wird NICHT neu geprüft** — dieselbe Regel wie beim Nachwiegen: eine
+ * Korrektur wirkt erst ab dem Folgetag im Mittel mit. Sonst liesse sich eine Freigabe durch
+ * nachträgliches Korrigieren erzeugen.
+ */
+export async function updateWeightEntry(
+  id: string,
+  params: { weightKg?: number; note?: string | null },
+): Promise<ServiceResult<null>> {
+  const data: { weightKg?: number; note?: string | null } = {};
+
+  if (params.weightKg !== undefined) {
+    const problem = weightProblem(params.weightKg);
+    if (problem) return serviceFail(400, problem);
+    data.weightKg = params.weightKg;
+  }
+  if (params.note !== undefined) data.note = params.note?.trim() || null;
+  // Ein leerer Patch ist kein Fehler, sondern nichts zu tun — dieselbe Haltung wie beim Rückzug
+  // ohne offene Vorgabe. Ein eigener Fehler-Code dafür wäre eine Meldung an niemanden.
+  if (Object.keys(data).length === 0) return { ok: true, data: null };
+
+  // `updateMany` statt `update`: eine inzwischen gelöschte Zeile ist dann `count: 0` statt eines
+  // geworfenen Prisma-Fehlers, den der Aufrufer als 500 sähe.
+  const { count } = await prisma.weightEntry.updateMany({
+    where: { id },
+    data: { ...data, version: { increment: 1 } },
+  });
+  if (count === 0) return serviceFail(404, "NOT_FOUND");
+  return { ok: true, data: null };
+}
+
+/**
  * Löscht eine Messung — samt ihrem Foto.
  *
  * **Nur die Keyholderin, nicht der Träger.** Dieselbe Trennung wie bei den Einträgen: er korrigiert

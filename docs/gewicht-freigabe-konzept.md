@@ -313,9 +313,17 @@ Wiegungen liessen sich überhaupt nicht entfernen — nur überschreiben.
 - **Vorgabe zurückziehen:** im Formular, wo der Hinweis „Es steht bereits eine Vorgabe" ohnehin
   steht. Vorher kam man an sie nur heran, indem man eine neue stellte — also durch dieselbe Tür,
   aus der man heraus wollte.
-- **Wiegung löschen:** Drei-Punkte-Menü an der Zeile in der Eintragsliste der Keyholderin, samt
-  Foto. **Nur dort** — der Träger korrigiert eigene Zeilen nicht selbst, dieselbe Trennung wie bei
-  den Einträgen.
+- **Wiegung korrigieren und löschen:** Drei-Punkte-Menü an der Zeile in der Eintragsliste der
+  Keyholderin. **Nur dort** — der Träger korrigiert eigene Zeilen nicht selbst, dieselbe Trennung
+  wie bei den Einträgen.
+
+Die Korrektur geht bewusst NICHT über den Erfassungsweg, obwohl der den Tageswert ohnehin ersetzt:
+`recordWeight` schreibt die ganze Zeile neu und setzt dabei Foto, EXIF-Zeit und den gelesenen Wert
+auf `null`. Beim Nachtragen ist das richtig — die Keyholderin sitzt nicht vor seiner Waage —, bei
+einer Wertkorrektur verlöre ein Zahlendreher den Beleg. Geändert werden **Wert und Notiz**; der
+Zeitpunkt bleibt, weil an ihm Tagesschlüssel, Wiege-Fenster, Trend und die Freigabe-Rechnung hängen.
+Wer den falschen Tag erwischt hat, löscht und trägt neu ein. Und die Freigabe-Vorgabe wird nach
+einer Korrektur NICHT neu geprüft — sonst liesse sich eine Freigabe nachträglich herbeikorrigieren.
 
 Zwei Dinge, die dabei ausdrücklich NICHT passieren:
 

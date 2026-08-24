@@ -11,12 +11,12 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 vi.mock("@/lib/authGuards", () => ({ requireKeyholderOrAdminApi: vi.fn() }));
-vi.mock("@/lib/weightService", () => ({ deleteWeightEntry: vi.fn() }));
+vi.mock("@/lib/weightService", () => ({ deleteWeightEntry: vi.fn(), updateWeightEntry: vi.fn() }));
 
-import { DELETE } from "./route";
+import { DELETE, PATCH } from "./route";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
-import { deleteWeightEntry } from "@/lib/weightService";
+import { deleteWeightEntry, updateWeightEntry } from "@/lib/weightService";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;
@@ -25,11 +25,18 @@ const call = (id = "w1") =>
     params: Promise.resolve({ id }),
   });
 
+const patch = (body: unknown, id = "w1") =>
+  PATCH(
+    new NextRequest(`http://x/api/weight/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    { params: Promise.resolve({ id }) },
+  );
+
 beforeEach(() => {
   vi.clearAllMocks();
   db.weightEntry.findUnique.mockResolvedValue({ userId: "sub1" });
   vi.mocked(requireKeyholderOrAdminApi).mockResolvedValue(null);
   vi.mocked(deleteWeightEntry).mockResolvedValue({ ok: true, data: null });
+  vi.mocked(updateWeightEntry).mockResolvedValue({ ok: true, data: null });
 });
 
 describe("DELETE /api/weight/[id]", () => {
@@ -61,5 +68,36 @@ describe("DELETE /api/weight/[id]", () => {
     // Kein Guard-Aufruf: die Antwort darf nicht verraten, welche ids existieren.
     expect(requireKeyholderOrAdminApi).not.toHaveBeenCalled();
     expect(deleteWeightEntry).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/weight/[id]", () => {
+  it("korrigiert Wert und Notiz", async () => {
+    const res = await patch({ weightKg: 74.2, note: "korrigiert" });
+    expect(res.status).toBe(200);
+    expect(updateWeightEntry).toHaveBeenCalledWith("w1", { weightKg: 74.2, note: "korrigiert" });
+  });
+
+  it("gibt ein fehlendes Feld als `undefined` weiter — Patch-Semantik, kein Nullen", async () => {
+    // Ohne diese Unterscheidung löschte eine reine Wert-Korrektur die Notiz mit.
+    await patch({ weightKg: 74.2 });
+    expect(updateWeightEntry).toHaveBeenCalledWith("w1", { weightKg: 74.2, note: undefined });
+  });
+
+  it("prüft dieselbe Rechte-Grenze wie das Löschen", async () => {
+    const { NextResponse } = await import("next/server");
+    vi.mocked(requireKeyholderOrAdminApi).mockResolvedValue(
+      NextResponse.json({ error: "FORBIDDEN" }, { status: 403 }),
+    );
+    const res = await patch({ weightKg: 74.2 });
+    expect(res.status).toBe(403);
+    expect(updateWeightEntry).not.toHaveBeenCalled();
+  });
+
+  it("eine unbekannte id ist 404, bevor der Guard läuft", async () => {
+    db.weightEntry.findUnique.mockResolvedValue(null);
+    const res = await patch({ weightKg: 74.2 }, "gibtsnicht");
+    expect(res.status).toBe(404);
+    expect(requireKeyholderOrAdminApi).not.toHaveBeenCalled();
   });
 });

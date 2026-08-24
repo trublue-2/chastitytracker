@@ -33,6 +33,9 @@
   "weightList": {
     "typeLabel": "Weight",
     "deleteTitle": "Delete weigh-in",
+    "editTitle": "Correct weigh-in",
+    "editWeightMissing": "Please enter a weight",
+    "editKeepsPhoto": "Photo, timestamp and the value read from the scale stay untouched. If the day is wrong, delete the weigh-in and enter it again.",
     "deleteConfirm": "The weigh-in from {entry} will be deleted — photo and note included. This cannot be undone.",
     "releaseMarker": "Release",
     "countInList": "{count} weigh-ins",

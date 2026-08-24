@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.3.8",
+    "date": "2026-08-24",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Keyholderin kann eine Wiegung korrigieren \u2014 Wert und Notiz, ohne dass Foto und Zeitpunkt verloren gehen.",
+          "en": "The keyholder can correct a weigh-in \u2014 value and note, without losing the photo or the timestamp."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.7",
     "date": "2026-08-23",
     "changes": [
