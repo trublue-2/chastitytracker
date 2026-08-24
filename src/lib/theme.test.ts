@@ -141,6 +141,28 @@ describe("getThemeInitScript — was das Inline-Skript vor der Hydration setzt",
 //
 // Der unauffällige Fall ist Tailwinds `@container` (= `container-type: inline-size`): eine
 // Utility-Klasse, die auf einer Layout-Wurzel völlig harmlos aussieht.
+/** Selektor-Liste und Deklarationen jedes Regelblocks, der ein Theme setzt (`:root` eingeschlossen).
+ *  Kommentare fallen vorher weg, damit ein `--token` in einer Erklärung nicht mitzählt. */
+function themeBlocks(): { selektoren: string[]; deklarationen: string[] }[] {
+  const css = readFileSync("src/app/globals.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const blocks: { selektoren: string[]; deklarationen: string[] }[] = [];
+  for (const [, sel, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    // Vor dem Selektor kann noch eine At-Regel oder das Ende des Vorgänger-Blocks stehen
+    // (`@import "tailwindcss";` gleich am Dateianfang). Alles bis zum letzten `;` wegschneiden,
+    // sonst heisst der erste Selektor `@import …;\n:root` und trifft keinen Vergleich.
+    const selektoren = sel
+      .split(",")
+      .map((x) => x.slice(x.lastIndexOf(";") + 1).trim())
+      .filter(Boolean);
+    if (!selektoren.some((x) => x === ":root" || x.startsWith("[data-theme"))) continue;
+    blocks.push({
+      selektoren,
+      deklarationen: body.split(";").map((d) => d.trim()).filter(Boolean),
+    });
+  }
+  return blocks;
+}
+
 describe("Theme-Wrapper bleiben Containing-Block-frei", () => {
   // Das Wrapper-Tag wird als Ganzes geprüft, Klassen-Utilities wie Inline-Styles. Beide
   // Schreibweisen müssen also drinstehen: `will-change` (Klasse) UND `willChange` (Style-Objekt).
@@ -203,17 +225,40 @@ describe("Theme-Wrapper bleiben Containing-Block-frei", () => {
   // gleichzeitig, und kein Wrapper-Tag sähe verdächtig aus. Die Blöcke tragen deshalb
   // ausschliesslich Custom Properties.
   it("die [data-theme]-Blöcke in globals.css setzen nur Custom Properties", () => {
-    const css = readFileSync("src/app/globals.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    const blocks = css.match(/\[data-theme[^\]]*\]\s*\{[^}]*\}/g) ?? [];
-    expect(blocks.length).toBe(4);
+    const blocks = themeBlocks().filter((b) =>
+      b.selektoren.some((x) => x.startsWith("[data-theme")),
+    );
+    // Vier Themes plus ein geteilter Block, den sich die beiden DUNKLEN teilen.
+    expect(blocks.length).toBe(5);
 
-    for (const block of blocks) {
-      const declarations = block
-        .slice(block.indexOf("{") + 1, -1)
-        .split(";")
-        .map((d) => d.trim())
-        .filter(Boolean);
-      for (const d of declarations) expect(d.startsWith("--")).toBe(true);
+    for (const { deklarationen } of blocks)
+      for (const d of deklarationen) expect(d.startsWith("--")).toBe(true);
+  });
+
+  // Der Fall, der das hier ausgelöst hat: die dunkle DeviceCategory-Palette stand nur im
+  // `admin`-Block. `user-dark` erbte deshalb die HELLEN Werte und zeigte im Träger-Dunkelmodus
+  // helle Chips auf dunklem Grund — in zehn Komponenten, und niemandem fiel es auf.
+  //
+  // Die Prüfung richtet sich NUR an die dunklen Themes, und das ist kein Versehen: der Block
+  // `:root, [data-theme="user"]` IST das helle Träger-Theme. Ein helles Theme darf von dort
+  // erben, ein dunkles nie — was es nicht selbst setzt, bekommt es hell.
+  //
+  // Grundmenge ist bewusst dieser Block und nicht jedes `:root`: die übrigen `:root`-Blöcke
+  // tragen Abstände, Dauern und Kurven, die für alle Themes gleich gelten sollen.
+  it("jedes Farbtoken des hellen Themes ist in BEIDEN dunklen gesetzt", () => {
+    const gesetzt = (name: string) =>
+      new Set(
+        themeBlocks()
+          .filter((b) => b.selektoren.includes(name))
+          .flatMap((b) => b.deklarationen.map((d) => d.split(":")[0].trim())),
+      );
+
+    const hell = gesetzt('[data-theme="user"]');
+    expect(hell.size).toBeGreaterThan(100);
+
+    for (const dunkel of ['[data-theme="admin"]', '[data-theme="user-dark"]']) {
+      const fehlend = [...hell].filter((t) => !gesetzt(dunkel).has(t)).sort();
+      expect(fehlend, `${dunkel} erbt diese Tokens hell aus :root`).toEqual([]);
     }
   });
 });
