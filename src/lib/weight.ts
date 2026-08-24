@@ -128,6 +128,41 @@ export function bmi(weightKg: number, heightCm: number | null | undefined): numb
  */
 export const WEIGHT_JUMP_CONFIRM_KG = 3;
 
+/**
+ * Ab welcher Abweichung eine gelesene Zahl NICHT mehr als Gewicht durchgeht — fünfzehn Kilo.
+ *
+ * Die Waagen-Erkennung sieht eine Ziffernanzeige, nicht ihre Bedeutung. Viele Waagen zeigen nach dem
+ * Gewicht noch BMI, Körperfett, Wasseranteil und Muskelmasse; wer den Moment verpasst,
+ * fotografiert eine dieser Zahlen. Sie liegt oft im gleichen Bereich wie ein Körpergewicht
+ * (ein BMI von 22,8 ist genauso „plausibel" wie 22,8 kg), und die Anzeige meldete daraufhin
+ * „getippt 74,1 · gelesen 22,8" in Warnfarbe — die Spur, an der man eine Schummelei erkennen soll,
+ * feuerte ohne Anlass.
+ *
+ * Fünfzehn Kilo trennen die beiden Fälle: eine bewusst zu niedrig getippte Zahl liegt zwei bis fünf
+ * Kilo daneben, ein BMI- oder Fett-Wert typischerweise dreissig bis achtzig. Wer fünfzehn Kilo
+ * falsch einträgt, fällt ohnehin in der Kurve auf — dafür braucht es die Erkennung nicht.
+ *
+ * **Die Grenze verschweigt, sie beschuldigt nicht.** Jenseits davon gilt die Zahl als nicht
+ * gelesen — dieselbe Behandlung wie ein unscharfes Foto. Das ist die vorsichtigere Richtung: eine
+ * verschwiegene Abweichung kostet einen Hinweis, eine erfundene kostet Vertrauen.
+ */
+export const DETECTION_MAX_DEVIATION_KG = 15;
+
+/**
+ * Die gelesene Zahl, sofern sie überhaupt ein Körpergewicht sein kann — sonst `null`.
+ *
+ * `reference` ist, woran sie gemessen wird: im Formular die letzte bekannte Messung (dort gibt es
+ * noch keinen getippten Wert), beim Speichern der Wert, den der Mensch bestätigt hat. Ohne Referenz
+ * bleibt es beim harten Bereich — beim allerersten Wiegen gibt es nichts zu vergleichen.
+ */
+export function plausibleDetection(detectedKg: unknown, reference: number | null): number | null {
+  if (detectedKg === null || detectedKg === undefined) return null;
+  const n = Number(detectedKg);
+  if (weightProblem(n)) return null;
+  if (reference === null) return n;
+  return Math.abs(n - reference) > DETECTION_MAX_DEVIATION_KG ? null : n;
+}
+
 /** WHO-Schwelle zum Untergewicht. Auslöser der Warnung beim Setzen eines Zielwerts (Abschnitt 7). */
 export const BMI_UNDERWEIGHT = 18.5;
 

@@ -107,6 +107,20 @@ steht, hat an *diesem* Tag gewogen. Der `@@unique` setzt „ein Wert pro Tag" du
 die Maschine gelesen hat, bleibt getrennt von dem, was der Mensch bestätigt hat. Nur so ist sichtbar,
 ob korrigiert wurde — und genau das ist die Spur, die eine Schummelei hinterlässt.
 
+**Gelesen wird nur, was ein Gewicht sein KANN** (`plausibleDetection`, seit 24.08.2026). Die
+Erkennung sieht eine Ziffernanzeige, nicht ihre Bedeutung — und viele Waagen zeigen nach dem Gewicht
+noch BMI, Körperfett, Wasseranteil und Muskelmasse. Wer den Moment verpasst, fotografiert eine
+dieser Zahlen, und sie liegt oft im selben Bereich wie ein Körpergewicht: ein BMI von 22,8 ist
+genauso „plausibel" wie 22,8 kg. In der Liste stand daraufhin „getippt 74,1 · gelesen 22,8" in
+Warnfarbe — die Spur, an der man eine Schummelei erkennen soll, feuerte ohne Anlass.
+
+Deshalb wird die gelesene Zahl an einer Referenz gemessen: im Formular an der letzten Messung, beim
+Speichern am bestätigten Wert. Mehr als **fünfzehn Kilo** daneben, und sie gilt als nicht gelesen —
+dieselbe Behandlung wie ein unscharfes Foto. Die Grenze trennt die beiden Fälle sauber: eine bewusst
+zu niedrig getippte Zahl liegt zwei bis fünf Kilo daneben, ein BMI- oder Fett-Wert dreissig bis
+achtzig. **Die Grenze verschweigt, sie beschuldigt nicht** — eine verschwiegene Abweichung kostet
+einen Hinweis, eine erfundene kostet Vertrauen.
+
 ### 3.2 Die Körpergrösse wird protokolliert
 
 Der aktuelle Wert steht am `User`, jede Änderung zusätzlich in einer append-only Tabelle nach dem

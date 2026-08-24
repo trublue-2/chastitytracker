@@ -2,14 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi, requireKeyholderOrAdminActor, sessionActor, weightTrackingGate } from "@/lib/authGuards";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 import { recordWeight } from "@/lib/weightService";
-import { weightProblem } from "@/lib/weight";
-
-/** Die gemeldete Erkennung, sofern sie eine plausible Zahl ist — sonst `null`. */
-function detectedFrom(raw: unknown): number | null {
-  if (raw === null || raw === undefined) return null;
-  const n = Number(raw);
-  return weightProblem(n) ? null : n;
-}
+import { plausibleDetection } from "@/lib/weight";
 
 /**
  * Eine Messung erfassen — für sich selbst, oder als Keyholderin für einen Träger.
@@ -56,9 +49,11 @@ export async function POST(req: NextRequest) {
     imageExifTime: exif && !Number.isNaN(exif.getTime()) ? exif : null,
     note: typeof body.note === "string" ? body.note : null,
     // Was die Erkennung gelesen hat — Beiwerk, kein Messwert. Vom Client, also nur übernommen, wenn
-    // es überhaupt eine plausible Zahl ist; alles andere wird zu `null` statt zu einem Streitfall
-    // darüber, was die Maschine angeblich gesehen hat.
-    detectedKg: detectedFrom(body.detectedKg),
+    // es überhaupt ein Körpergewicht sein KANN: gemessen am bestätigten Wert, nicht bloss am harten
+    // Bereich. Eine Zahl, die fünfzehn Kilo daneben liegt, ist keine falsch gelesene Waage, sondern
+    // ein anderer Messwert der Anzeige (BMI, Fett, Wasser) — sie als Widerspruch zu speichern wäre
+    // ein Vorwurf ohne Anlass (`plausibleDetection`).
+    detectedKg: plausibleDetection(body.detectedKg, Number(body.weightKg)),
     source: forOther ? "keyholder" : "user",
     createdById,
   });

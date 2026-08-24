@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.3.10",
+    "date": "2026-08-24",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Erwischt das Foto der Waage statt des Gewichts einen anderen Wert \u2014 BMI, K\u00f6rperfett \u2014, gilt die Anzeige jetzt als nicht lesbar. Vorher stand die fremde Zahl als Widerspruch zur Eingabe in der Liste.",
+          "en": "If the photo of the scale catches another value instead of the weight \u2014 BMI, body fat \u2014 the reading now counts as unreadable. Until now that stray number showed up as contradicting the entry."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.8",
     "date": "2026-08-24",
     "changes": [

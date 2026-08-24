@@ -5,7 +5,8 @@ import { useTranslations, useLocale } from "next-intl";
 import { Scale } from "lucide-react";
 import { toDateLocale, formatDateTime, fromDatetimeLocal, round1 } from "@/lib/utils";
 import {
-  bmi, parseDecimalInput, weightForDisplay, weightText, weightInputToKg, WEIGHT_JUMP_CONFIRM_KG,
+  bmi, parseDecimalInput, plausibleDetection, weightForDisplay, weightText, weightInputToKg,
+  WEIGHT_JUMP_CONFIRM_KG,
   type UnitSystem,
 } from "@/lib/weight";
 import FormError from "@/app/components/FormError";
@@ -85,12 +86,21 @@ export default function WeightFormCore({
     scaleUnitSystem: unitSystem,
   });
 
+  /**
+   * Die gelesene Zahl, sofern sie überhaupt sein Gewicht sein kann — gemessen an der letzten
+   * Messung. Viele Waagen zeigen nach dem Gewicht noch BMI, Fett und Wasseranteil; wer den Moment
+   * verpasst, fotografiert eine dieser Zahlen. Sie als Vorschlag ins Feld zu schreiben hiesse, ihn
+   * jedes Mal eine falsche Zahl überschreiben zu lassen — und beim Speichern stünde sie als
+   * „Widerspruch" in der Liste.
+   */
+  const detected = plausibleDetection(scaleKg, lastWeightKg);
+
   // Die gelesene Zahl füllt das leere Feld — sie überschreibt NICHTS, was der Mensch getippt hat.
   // Ein Vorschlag, der eine Korrektur wieder wegräumt, wäre schlimmer als gar keiner.
   const [detectionApplied, setDetectionApplied] = useState<number | null>(null);
-  if (scaleKg !== null && scaleKg !== detectionApplied && weight.trim() === "") {
-    setDetectionApplied(scaleKg);
-    setWeight(String(weightForDisplay(scaleKg, unitSystem)));
+  if (detected !== null && detected !== detectionApplied && weight.trim() === "") {
+    setDetectionApplied(detected);
+    setWeight(String(weightForDisplay(detected, unitSystem)));
   }
 
   const { saving, error, setError, submit } = useEntrySubmit<WeightPayload>(submitFn, onSuccess);
@@ -110,7 +120,7 @@ export default function WeightFormCore({
       imageUrl: imageUrl || null,
       imageExifTime: imageExifTime || null,
       note: note.trim() || null,
-      detectedKg: scaleKg,
+      detectedKg: detected,
     };
   }
 
@@ -192,12 +202,14 @@ export default function WeightFormCore({
         {scaleState === "detecting" && (
           <p className="text-xs text-foreground-muted">{t("detecting")}</p>
         )}
-        {scaleState === "detected" && scaleKg !== null && (
+        {/* „Gelesen: X" nur, wenn X auch als Gewicht durchgeht. Sonst gilt dieselbe Meldung wie bei
+            einem unscharfen Foto — die Anzeige war nicht lesbar, und er trägt von Hand ein. */}
+        {scaleState === "detected" && detected !== null && (
           <p className="text-xs text-foreground-muted">
-            {t("detected", { value: `${weightText(scaleKg, unitSystem, dl)} ${unitLabel}` })}
+            {t("detected", { value: `${weightText(detected, unitSystem, dl)} ${unitLabel}` })}
           </p>
         )}
-        {scaleState === "not-detected" && (
+        {(scaleState === "not-detected" || (scaleState === "detected" && detected === null)) && (
           <p className="text-xs text-foreground-faint">{t("notDetected")}</p>
         )}
 

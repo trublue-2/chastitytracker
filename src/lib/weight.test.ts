@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   bmi, effectiveTarget, heightAt, heightProblem, isUnderweightTarget, targetEventToAnnounce,
-  targetProgress, targetReached, weightForDisplay, weightInputToKg, weightProblem, weightText, WEIGHT_PROBLEMS,
+  plausibleDetection, targetProgress, targetReached, weightForDisplay, weightInputToKg,
+  weightProblem, weightText, WEIGHT_PROBLEMS,
 } from "./weight";
 
 describe("Einheiten", () => {
@@ -206,5 +207,45 @@ describe("weightText", () => {
 
   it("zeigt höchstens eine Nachkommastelle — mehr misst keine Waage dieser App", () => {
     expect(weightText(74.06, "metric", "en")).toBe("74.1");
+  });
+});
+
+/**
+ * Der Grund für die Grenze: viele Waagen zeigen nach dem Gewicht noch BMI, Körperfett und
+ * Wasseranteil. Wer den Moment verpasst, fotografiert eine dieser Zahlen — und sie liegt oft im
+ * gleichen Bereich wie ein Körpergewicht. Ohne Vergleich stand daraufhin „getippt 74,1 · gelesen
+ * 22,8" in Warnfarbe: die Spur, an der man eine Schummelei erkennen soll, feuerte ohne Anlass.
+ */
+describe("plausibleDetection", () => {
+  it("nimmt eine Zahl nahe am bestätigten Wert — auch mit Abweichung", () => {
+    // Genau dafür ist die Spalte da: 0,6 kg Unterschied bleiben sichtbar.
+    expect(plausibleDetection(74.7, 74.1)).toBe(74.7);
+  });
+
+  it("verwirft einen BMI, der zufällig im Gewichtsbereich liegt", () => {
+    expect(plausibleDetection(22.8, 74.1)).toBeNull();
+  });
+
+  it("verwirft einen Körperfett-Wert", () => {
+    expect(plausibleDetection(28.4, 74.1)).toBeNull();
+  });
+
+  it("lässt eine ernstzunehmende Abweichung stehen", () => {
+    // Fünf Kilo daneben ist die Grössenordnung, in der geschummelt wird — das muss sichtbar bleiben.
+    expect(plausibleDetection(79.1, 74.1)).toBe(79.1);
+    expect(plausibleDetection(60, 74.1)).toBe(60);   // 14,1 daneben — bleibt sichtbar …
+    expect(plausibleDetection(59, 74.1)).toBeNull(); // … 15,1 gilt nicht mehr als Gewicht
+  });
+
+  it("verwirft, was gar kein Körpergewicht sein kann", () => {
+    expect(plausibleDetection(4, 74.1)).toBeNull();
+    expect(plausibleDetection(500, 74.1)).toBeNull();
+    expect(plausibleDetection("abc", 74.1)).toBeNull();
+    expect(plausibleDetection(null, 74.1)).toBeNull();
+  });
+
+  it("ohne Referenz bleibt es beim harten Bereich — beim ersten Wiegen gibt es nichts zu vergleichen", () => {
+    expect(plausibleDetection(22.8, null)).toBe(22.8);
+    expect(plausibleDetection(4, null)).toBeNull();
   });
 });
