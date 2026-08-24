@@ -33,6 +33,9 @@
   "weightList": {
     "typeLabel": "Gewicht",
     "deleteTitle": "Wiegung löschen",
+    "editTitle": "Wiegung korrigieren",
+    "editWeightMissing": "Bitte ein Gewicht eintragen",
+    "editKeepsPhoto": "Foto, Zeitpunkt und der von der Waage gelesene Wert bleiben unverändert. Stimmt der Tag nicht, lösche die Wiegung und trage sie neu ein.",
     "deleteConfirm": "Die Wiegung vom {entry} wird gelöscht — mit Foto und Notiz. Das lässt sich nicht rückgängig machen.",
     "releaseMarker": "Freigabe",
     "countInList": "{count} Wiegungen",

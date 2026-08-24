@@ -146,6 +146,10 @@ export default async function AdminUserEintraegePage({
             <WeightRowActions
               id={w.id}
               label={`${formatDateTime(w.measuredAt, dl, tz)} · ${weightText(w.weightKg, unitSystem, dl)} ${unitLabel}`}
+              weightKg={w.weightKg}
+              note={w.note}
+              unitSystem={unitSystem}
+              locale={dl}
             />
           }
         />

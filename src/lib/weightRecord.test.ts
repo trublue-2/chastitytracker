@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => {
   const tx = {
     user: { findUnique: vi.fn() },
-    weightEntry: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    weightEntry: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   };
   return {
     prisma: {
@@ -16,13 +16,16 @@ vi.mock("@/lib/prisma", () => {
 
 vi.mock("@/lib/weightReleaseService", () => ({ applyWeightRelease: vi.fn().mockResolvedValue(null) }));
 
-import { recordWeight } from "./weightService";
+import { recordWeight, updateWeightEntry } from "./weightService";
 import { applyWeightRelease } from "@/lib/weightReleaseService";
 import { prisma } from "@/lib/prisma";
 
 const tx = (prisma as unknown as { __tx: {
   user: { findUnique: ReturnType<typeof vi.fn> };
-  weightEntry: { findUnique: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+  weightEntry: {
+    findUnique: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>; updateMany: ReturnType<typeof vi.fn>;
+  };
 } }).__tx;
 
 const NOW = new Date("2026-08-22T09:00:00Z");
@@ -166,5 +169,47 @@ describe("recordWeight", () => {
       weightKg: 80, measuredAt: NOW, source: "user", imageUrl: "https://example.com/x.jpg", now: NOW,
     });
     expect(res.ok === false && res.error).toBe("INVALID_IMAGE_URL");
+  });
+});
+
+/**
+ * Die Korrektur ist ein eigener Weg, und der Grund ist der Beleg: `recordWeight` schreibt die Zeile
+ * NEU und setzt dabei Foto, EXIF-Zeit und den gelesenen Wert auf null. Beim Nachtragen ist das
+ * richtig — bei einer Wertkorrektur verlöre ein Zahlendreher den Nachweis.
+ */
+describe("updateWeightEntry", () => {
+  it("ändert nur, was angegeben wurde — Foto und Erkennung bleiben unberührt", async () => {
+    tx.weightEntry.updateMany.mockResolvedValue({ count: 1 });
+    const res = await updateWeightEntry("w1", { weightKg: 74.2 });
+    expect(res.ok).toBe(true);
+    const data = tx.weightEntry.updateMany.mock.calls[0][0].data;
+    expect(data).toEqual({ weightKg: 74.2, version: { increment: 1 } });
+    expect(data).not.toHaveProperty("imageUrl");
+    expect(data).not.toHaveProperty("detectedKg");
+    expect(data).not.toHaveProperty("measuredAt");
+  });
+
+  it("weist ein unplausibles Gewicht ab, bevor es die Datenbank anfasst", async () => {
+    const res = await updateWeightEntry("w1", { weightKg: 4 });
+    expect(res.ok === false && res.error).toBe("WEIGHT_OUT_OF_RANGE");
+    expect(tx.weightEntry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("eine leere Notiz wird zu null, nicht zu einer leeren Zeichenkette", async () => {
+    tx.weightEntry.updateMany.mockResolvedValue({ count: 1 });
+    await updateWeightEntry("w1", { note: "   " });
+    expect(tx.weightEntry.updateMany.mock.calls[0][0].data.note).toBeNull();
+  });
+
+  it("ein leerer Patch tut nichts — und ist trotzdem kein Fehler", async () => {
+    const res = await updateWeightEntry("w1", {});
+    expect(res.ok).toBe(true);
+    expect(tx.weightEntry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("eine inzwischen gelöschte Zeile ist 404, kein 500", async () => {
+    tx.weightEntry.updateMany.mockResolvedValue({ count: 0 });
+    const res = await updateWeightEntry("weg", { weightKg: 74.2 });
+    expect(res.ok === false && res.status).toBe(404);
   });
 });
