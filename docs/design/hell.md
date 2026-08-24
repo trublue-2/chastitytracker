@@ -1,10 +1,8 @@
 # Die helle Fassung — Etappe D0
 
 Der Gestaltungs-Entwurf in [`README.md`](README.md) existierte nur dunkel. Diese Datei ergänzt die
-hellen Fassungen für beide Rollen. Anschauen: [`vorschau/bauteile-hell.html`](vorschau/bauteile-hell.html),
-[`vorschau/dashboard-verschlossen-hell.html`](vorschau/dashboard-verschlossen-hell.html),
-[`vorschau/keyholder-uebersicht-hell.html`](vorschau/keyholder-uebersicht-hell.html) — jeweils neben
-der dunklen Datei gleichen Namens.
+hellen Fassungen für beide Rollen. **Jedes Blatt in [`vorschau/`](vorschau/) gibt es jetzt zweimal**
+— `name.html` dunkel, `name-hell.html` hell.
 
 **Nichts hiervon ist im Code.** Wie der Rest dieses Ordners: Entwurf, kein Stand.
 
@@ -76,6 +74,23 @@ endet deshalb auf der Tinte, nicht auf der Marken-Rose** — auf Weiss ist die s
 stärkste Punkt, sondern die tiefste. Ein Balken bei 87 % steht in `#c3022d`, nicht in `#ff3d68`;
 sonst stünde er heller da als der Balken bei 40 %.
 
+### Die Ziffer richtet sich nach ihrer Zelle
+
+Im Kalender steht Text **auf** der Rampe, nicht daneben. Er kann sich deshalb nicht am Grund
+orientieren:
+
+| Zelle | dunkel | hell |
+|---|---|---|
+| leer | `#9a868e` leise | `#7d656d` leise · 4,8:1 |
+| 0 | `#9a868e` leise | `#7d656d` leise · 4,6:1 |
+| <25 % | `#c9b7bd` mitte | `#634d55` mitte · 5,4:1 |
+| 25–40 % | `#fdf7f8` hoch | `#2d1d26` hoch · 7,8:1 |
+| 40–65 % | weiss 75 % | `#3d0518` Schrift auf Fläche · 6,0:1 |
+| >65 % | `#3d0518` dunkel | **weiss** · 6,2:1 |
+
+Die beiden Spalten laufen gegenläufig und kippen beide am Ende: dunkel wird die Ziffer heller, bis
+die Zelle so hell ist, dass nur noch Dunkel trägt — hell genau umgekehrt.
+
 ## Aus dem Leuchten wird eine Tönung
 
 Ein heller Grund kann nicht strahlen — er kann sich nur einfärben. Der radiale Schein hinter der
@@ -102,72 +117,103 @@ Bauteile-Blatt nebeneinander:
 - **A · Gold als Plakette** — volle Fläche, dunkler Text darauf (9,0:1). Gold bleibt Gold, kostet
   Platz und ist lauter als die dunkle Fassung.
 - **B · Bronze-Tinte** — Struktur unverändert, nur der Ton wandert. Leise und lesbar, aber es ist
-  nicht mehr Gold. *(So sind die beiden Bildschirme gebaut.)*
+  nicht mehr Gold. **← so gebaut, entschieden am 24.08.2026.**
 - **C · Bronze auf Gold-Hauch** — Tinte für die Schrift, Gold als Tönung dahinter. Beides zugleich;
   die Regel „keine Karten" biegt sich hier zum Chip.
 
-**Die Entscheidung steht aus.** Sie gehört zu D, nicht zu D0.
+**Entschieden: B.** Die Struktur bleibt, der Ton wandert. A und C bleiben im Bauteile-Blatt stehen,
+damit die Wahl später nachvollziehbar ist statt nur behauptet.
 
-## Befunde aus dem Bau der hellen Fassung
+## Befunde — vier, alle in der DUNKLEN Fassung
 
-Geprüft wurde nicht am Token-Blatt, sondern am gerenderten Bild: ein Kontrast-Abzug über jeden
-Textknoten, mit der tatsächlich aufgeschichteten Hintergrundfarbe statt der deklarierten.
+Geprüft wurde nicht am Token-Blatt, sondern am gerenderten Ergebnis (siehe unten). Alle vier hingen
+genau daran: am Token gerechnet war jede einzelne Farbe korrekt. **Alle sind behoben** — in der
+dunklen Fassung, denn die helle spiegelt sie ja.
 
-1. **Der Entwurf hat eine undokumentierte vierte Textstufe, und sie fällt durch.** `#7d6b73` steht
-   an fünf Stellen des dunklen Träger-Bildschirms (Benutzername in der Kopfzeile, „← Zurück"
-   zweimal, Fusszeile, Versionsnummer) und erreicht **4,04:1** — unter den 4,5:1, die die
-   `README` für ihre Textstufen zusagt. Die helle Fassung spiegelt sie **nicht** mit; die fünf
-   Stellen nehmen dort die leise Stufe. **Die dunkle Fassung braucht dieselbe Korrektur**, wenn D
-   die Tokens umsetzt.
-2. **Fünfmal Gold untereinander.** Die Aufgaben-Liste des Träger-Bildschirms setzt fünf „Erfüllt" in
-   Folge in Gold. Die Regel des Entwurfs lautet „selten, deshalb wirksam" — fünf gleiche
-   Auszeichnungen in einer Liste sind das Gegenteil. Fällt hell stärker auf, gilt aber für beide
-   Fassungen.
-3. **Die Zeile eines Subs bricht, sobald eine Sperrzeit dazukommt.** In der Keyholder-Übersicht
-   drängt sich „· Sperrzeit bis Sonntag" neben Zustand und Uhrzeit und wirft „Sonntag" auf eine
-   zweite Zeile. **Steht schon in der dunklen Fassung** — beim Spiegeln aufgefallen, nicht dabei
-   entstanden.
+1. **Eine undokumentierte vierte Textstufe.** `#7d6b73` erreicht auf dem Grund **4,04:1** und
+   unterschreitet damit die 4,5:1, die die `README` für ihre Textstufen zusagt. Sie stand an fünf
+   Stellen des Träger-Dashboards und **zwanzig** im Kalender der Statistik, dazu eine fünfte Stufe
+   `#5c4c53` bei **2,42:1**. Alle nehmen jetzt die leise Stufe `#9a868e`, die Kalender-Ziffern die
+   Regel aus dem Abschnitt oben. Als *Grafik* darf `#7d6b73` bleiben — Striche brauchen 3:1.
+2. **Fünfmal Gold untereinander.** Die Aufgaben-Liste setzte fünf „Erfüllt" in Folge in Gold, gegen
+   die eigene Regel „selten, deshalb wirksam". Eine erledigte Routine-Aufgabe ist keine
+   Auszeichnung; Häkchen und Wort sind jetzt neutral. Damit steht Gold auf diesem Bildschirm noch
+   **an genau einer** Stelle — dem erreichten Tagesziel.
+3. **Die Zeile eines Subs bricht, sobald eine Sperrzeit dazukommt.** „· Sperrzeit bis Sonntag"
+   drängte sich neben Zustand und Uhrzeit und warf „Sonntag" um. Die Sperrzeit steht jetzt auf einer
+   eigenen Zeile — sie ist ohnehin eine zweite Tatsache, nicht ein Zusatz zur ersten.
+4. **Ein Blatt wich in seiner Textfarbe ab.** `statistik.html` setzte `#f7f0f2` als Wurzel-Textton,
+   alle anderen `#fdf7f8`. Im Dunkeln fällt so etwas nicht auf — beides ist Fast-Weiss. Beim
+   Spiegeln wurde daraus ein Loch: der Wert stand in keiner Tabelle, blieb unverändert und war auf
+   Weiss mit **1,06:1** unsichtbar. Das ist zugleich der Grund, warum der Riegel des Generators
+   heute prüft, ob ein Wert *angefasst* wurde, statt ob er noch *dunkel* ist.
 
-## Die übrigen sechs spiegeln
+Bewusst nicht behoben: der **gesperrte Knopf** im Bauteile-Blatt (2,99:1). WCAG 1.4.3 nimmt inaktive
+Bedienelemente aus, und ein gesperrter Knopf *muss* matt aussehen — er sagt ja gerade, dass hier
+nichts zu holen ist. Er ist dafür als `disabled` ausgezeichnet, nicht bloss blass gefärbt; der
+Abzug überspringt ihn deshalb.
 
-Die Zuordnung dunkel → hell steht als [`spiegeln.mjs`](spiegeln.mjs) im Ordner — nicht aus
-Bequemlichkeit, sondern weil sie die Entscheidung *ist*: wer sie von Hand nachbaut, trifft sie ein
-zweites Mal und anders.
+## Wie die hellen Blätter entstehen
+
+Zwei Skripte, beide im Ordner. Sie sind der Grund, warum die helle Fassung nicht wieder auseinander
+läuft — genau die Bauart aus [`../funktionsmodell/`](../funktionsmodell/): Register, Generator, Test.
+
+### `spiegeln.mjs` — die Zuordnung
 
 ```bash
-node docs/design/spiegeln.mjs traeger vorschau/statistik.html vorschau/statistik-hell.html
+node docs/design/spiegeln.mjs traeger   vorschau/statistik.html     vorschau/statistik-hell.html
+node docs/design/spiegeln.mjs keyholder vorschau/keyholder-sub.html vorschau/keyholder-sub-hell.html
 ```
 
-**Es bricht ab, statt zu raten.** Die Tabellen decken heute die zwei gebauten Bildschirme ab, nicht
-alle neun. Was sie nicht kennen, bliebe sonst dunkel auf hellem Grund stehen — und das Ergebnis
-sähe plausibel aus. Also schreibt das Skript gar nichts und listet stattdessen die offenen Werte:
+Die Tabellen darin **sind** die Entscheidung; wer ein Blatt von Hand überträgt, trifft sie ein
+zweites Mal und anders. Drei Gruppen:
 
+- **VERBUND** — Paare, die einzeln nicht entscheidbar sind. Dieselbe Rose ist an einer Stelle eine
+  Marke und an der nächsten eine Füllung, die Intensität bedeutet. Hier stehen der gefüllte Knopf
+  (dunkle Schrift auf voller Rose → **weisse** auf der Tinte), die sechs Kalenderzellen und die
+  Balkenfüllungen.
+- **TRAEGER / KEYHOLDER** — Grund, Flächen, Textstufen, Rampe, Auflagen, Schein.
+- **GEMEINSAM** — die drei Bedeutungsfarben als Tinte.
+
+Zwei Dinge stehen bewusst *nicht* drin, weil sie sich selbst regeln: **Tönungen behalten ihre
+Farbe** (`rgba(255,61,104,α)` ist auf Schwarz ein dunkles Weinrot und auf Weiss ein blasses Rosa —
+beide Male „eine Rose-Tönung"), und die **Marken-Rose bleibt**, solange sie Marke ist: 3,2:1 liegt
+über der 3:1-Schranke für Grafik.
+
+Die **weissen Auflagen** sind nicht geschätzt. Für jedes Alpha ist gemessen, welchen Kontrastschritt
+es im Dunkeln macht, und das helle Alpha gesucht, das denselben macht — auf Hell braucht es
+durchweg etwas mehr (`0.20` weiss → `0.27` dunkel).
+
+**Der Riegel: er bricht ab, statt zu raten.** Geprüft wird nicht „ist noch etwas dunkel?", sondern
+**„hat die Tabelle diesen Wert überhaupt angefasst?"**. Der Unterschied ist nicht theoretisch — er
+ist Befund 4: ein heller Textton überlebte die Dunkel-Prüfung mühelos und stand danach unsichtbar
+auf Weiss. Fehlt eine Zuordnung, schreibt das Skript **gar nichts** und listet die offenen Werte.
+
+### `kontrast.mjs` — die Probe
+
+```bash
+node docs/design/kontrast.mjs            # alle Blätter
+node docs/design/kontrast.mjs statistik  # nur diese
 ```
-vorschau/statistik.html: 6 Werte ohne Zuordnung — NICHT geschrieben.
-  #1a1013  #4a1226  #120b0e  #5c4c53
-  rgba(255,255,255,0.75)  rgba(255,255,255,0.055)
-```
 
-Jede Zeile ist eine Entscheidung, die noch fehlt, keine Panne. Weisse Auflagen sind dabei der
-häufigste Fall: sie hellen einen dunklen Grund auf und haben auf einem hellen nichts zu suchen —
-sie werden zu **dunklen** Auflagen, nicht weggelassen.
+Läuft über jeden Textknoten jedes Blattes und misst gegen den **aufgeschichteten** Grund: jede
+durchscheinende Auflage der Elternkette wird übereinandergelegt, nicht nur die nächstliegende
+deklarierte Farbe. Verläufe bleiben aussen vor, genau wie im Browser, wo `getComputedStyle` nur
+`backgroundColor` liefert.
 
-Zwei Dinge kann das Skript dagegen nicht sehen; die prüft man am Bild — beide oben begründet:
+Warum am Ergebnis und nicht an der Tabelle: **alle vier Befunde hingen daran.** Am Token gerechnet
+war jede einzelne Farbe korrekt. Durchgefallen sind Paarungen, die erst beim Aufeinanderschichten
+entstehen — und ein Wert, den niemand in der Tabelle stehen hatte.
 
-1. **Füllungen, die Intensität kodieren, nehmen die Rampe** (Spitze `#c3022d`), nicht die
-   Marken-Rose. Eine Füllung und eine 2-px-Marke sehen im Quelltext gleich aus.
-2. **Leiser Text auf einer getönten Auflage** muss auf die mittlere Stufe.
-
-Beim Bau der zwei vorhandenen Bildschirme waren das zusammen fünf Stellen.
-
-**Geprüft wird am gerenderten Bild, nicht am Token-Blatt:** ein Kontrast-Abzug über jeden
-Textknoten, der die tatsächlich aufgeschichtete Hintergrundfarbe nimmt (`getComputedStyle`) statt
-der deklarierten. Genau daran hingen beide Befunde unten — am Token gerechnet war jede Farbe
-korrekt. Wenn D die Tokens nach `globals.css` bringt, gehört dieser Abzug als Test dazu; über den
-Entwurfs-Dateien wäre er die Probe am falschen Objekt.
+Stand: **18 Blätter, 0 Durchfaller**, schwächste Stelle 4,52:1.
 
 ## Was hell noch fehlt
 
-- Die übrigen sechs Bildschirme (`dashboard-offen`, `-mit-frist`, `statistik`, `keyholder-sub`)
-- Der Gold-Entscheid (A/B/C oben)
-- Erfassen-Formulare, Posteingang, Bewegung — fehlen dunkel ebenso
+Nichts an Bildschirmen — jedes Blatt gibt es jetzt in beiden Fassungen. Offen bleibt, was **dunkel
+ebenso fehlt**: Erfassen-Formulare samt Fotoaufnahme, Nachrichten und Posteingang, der
+Kalender-Kategorie-Umschalter, und Bewegung (was passiert beim Verschliessen, beim Ablauf einer
+Frist).
+
+Für **Etappe D** — wenn die Tokens nach `globals.css` wandern — gehört der Abzug aus `kontrast.mjs`
+an den echten Stand statt an die Entwurfs-Blätter. Dort ist er die Probe am richtigen Objekt; hier
+war er die Probe an einem Vorschlag.

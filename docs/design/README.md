@@ -54,9 +54,10 @@ In `vorschau/` liegen beide Fassungen nebeneinander (`keyholder-uebersicht.html`
 `#f4f5fb` hoch · `#bcbed3` mitte · `#8c8ea6` leise — alle drei über 4,5:1 auf dem Grund.
 Eine frühere Fassung lag bei „leise“ auf etwa 3:1 und wirkte deshalb flau.
 
-An fünf Stellen steht allerdings eine **vierte, undokumentierte Stufe** (`#7d6b73`, 4,04:1) — sie
-fällt durch die eigene Zusage. Beim Bau der hellen Fassung aufgefallen, dort weggelassen; die
-dunkle braucht dieselbe Korrektur (siehe [`hell.md`](hell.md), Befunde).
+Es waren lange **drei plus zwei**: eine undokumentierte vierte Stufe (`#7d6b73`, 4,04:1) und eine
+fünfte im Kalender (`#5c4c53`, 2,42:1), beide unter der eigenen Zusage. Beim Bau der hellen Fassung
+aufgefallen und behoben — es sind wieder drei. Als *Grafik* darf `#7d6b73` bleiben, Striche
+brauchen 3:1.
 
 ## Schrift
 
@@ -85,7 +86,7 @@ dunkle braucht dieselbe Korrektur (siehe [`hell.md`](hell.md), Befunde).
 | `statistik.html` | Kennzahlen, Kalender in der Helligkeits-Rampe, orgasmusfreie Zeit |
 | `keyholder-uebersicht.html` | Alle Subs auf einen Blick, nach dem sortiert, was eine Entscheidung braucht |
 | `keyholder-sub.html` | Ein Sub im Detail: Zustand, „Wartet auf dich“, die zwölf Hebel, private Notizen |
-| `*-hell.html` | Die hellen Fassungen von `bauteile`, `dashboard-verschlossen` und `keyholder-uebersicht` — siehe [`hell.md`](hell.md) |
+| `*-hell.html` | Zu **jedem** Blatt die helle Fassung — Palette, Regeln und Herleitung in [`hell.md`](hell.md) |
 
 ### Die Umkehrung beim Keyholder
 
@@ -112,10 +113,12 @@ Beim Nachbauen mit echten Inhalten fielen Dinge auf, die keine Gestaltungsfragen
    ausrechnen.
 4. **Farbe sagt zweimal das Gegenteil:** der Tragekalender kodiert Intensität in Blau, obwohl Blau
    im Farbsystem `unlock` bedeutet; die Balken im Trainingsziel stehen in Indigo, also `request`.
+   *(Betrifft die App, nicht den Entwurf — hier läuft beides über die Rosa-Rampe.)*
 5. **„KG-Tracker“ bricht in der Kopfzeile auf zwei Zeilen.**
 6. **„TRAININGSVORGABEN“ steht zweimal auf demselben Bildschirm** und meint zweierlei.
 
-Punkt 1 und 2 würde ich unabhängig vom Design angehen.
+Punkt 1 und 2 würde ich unabhängig vom Design angehen — **beide sind mit Etappe A erledigt**
+(v5.2.8/v5.2.9): eine Dauer-Schreibweise, und Prozentwerte heissen nach ihrem Nenner.
 
 ## Wie es dazu kam
 
@@ -141,5 +144,4 @@ Die verworfenen Stände liegen als Artifacts:
 - Erfassen-Formulare samt Fotoaufnahme
 - Nachrichten und Posteingang
 - Der Kalender-Kategorie-Umschalter und die Wochenprozente in der Statistik
-- Helle Fassung der übrigen sechs Bildschirme (drei stehen — siehe [`hell.md`](hell.md))
 - Bewegung: was passiert beim Verschliessen, beim Ablauf einer Frist
