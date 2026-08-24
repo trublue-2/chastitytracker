@@ -52,6 +52,7 @@
     "sourceLabel": "Erfasst von",
     "sourceKeyholder": "Nachgetragen von der Keyholderin",
     "sourceAgent": "Eingetragen \u00fcber die KI-Keyholderin",
+    "sourceHealth": "Von der Waage gemeldet (Apple Health)",
     "photoLabel": "Foto",
     "photoExpired": "Das Foto ist abgelaufen und wurde gel\u00f6scht. Der Wert bleibt."
   },
@@ -383,6 +384,7 @@
     "signOutConfirm": "Wirklich abmelden?",
     "build": "Build",
     "copyright": "© trublue {year}",
+    "copy": "Kopieren",
     "entries": "Einträge",
     "changelog": "Changelog",
     "dashboard": "Dashboard",
@@ -806,6 +808,8 @@
     "targetKeyholderApplies": "Deine Keyholderin hat {value} gesetzt — dieser Wert gilt.",
     "weightReminderLabel": "Erinnerung ans Wiegen",
     "weightReminderHint": "Mail und Push zum Beginn eines Wiege-Fensters, wenn an dem Tag noch kein Wert steht.",
+    "healthTokenLabel": "Zugang für die Waage",
+    "healthTokenHint": "Damit kann ein Kurzbefehl auf deinem iPhone dein Gewicht aus Apple Health melden, statt dass du es abfotografierst. Solche Werte erscheinen als „von der Waage gemeldet“ — ohne Foto, und das sieht deine Keyholderin.",
     "targetUnderweightWarning": "Dieses Ziel liegt im Untergewicht (BMI unter 18,5). Du kannst es trotzdem setzen."
   },
   "changelog": {

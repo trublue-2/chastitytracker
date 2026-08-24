@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.3.9",
+    "date": "2026-08-24",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Das Gewicht l\u00e4sst sich aus Apple Health melden, statt die Waage abzufotografieren \u2014 \u00fcber einen Kurzbefehl auf dem iPhone. Solche Werte kommen ohne Foto und sind als \u201evon der Waage gemeldet\\u201c gekennzeichnet, damit die Keyholderin sieht, welche Werte belegt sind.",
+          "en": "Weight can be reported from Apple Health instead of photographing the scale, via a shortcut on the iPhone. Such values arrive without a photo and are marked as reported by the scale, so the keyholder can see which values carry proof."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.8",
     "date": "2026-08-24",
     "changes": [

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getControllableSubs } from "@/lib/keyholder";
 import { getMessageChannels, getRecipientChannels } from "@/lib/notificationPrefs";
 import { isValidStartPage, weightTrackingEnabled } from "@/lib/constants";
+import { healthTokenFor } from "@/lib/healthIngest";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
 import pkg from "@/../package.json";
@@ -81,6 +82,9 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
           keyholderTargetKg: dbUser.targetWeightKeyholderKg,
           // Ein Schalter für beide Kanäle, wie beim Posteingang.
           reminderNotify: reminderPref.mail || reminderPref.push,
+          // Sein Zugang für den Kurzbefehl — `null`, wenn die Instanz ihn nicht führt. Abgeleitet,
+          // nicht gespeichert (docs/gewicht-health.md).
+          healthToken: healthTokenFor(dbUser.username),
         };
       }
     }

@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
+import SettingLabel from "@/app/components/SettingLabel";
 import Toggle from "@/app/components/Toggle";
 import UnderweightNote from "@/app/components/UnderweightNote";
 import FormError from "@/app/components/FormError";
@@ -25,10 +26,13 @@ export interface WeightSettingsProps {
   /** Mail/Push zur Erinnerung ans Wiege-Fenster. Sein Schalter, nicht ihrer: die Meldung geht an
    *  IHN (`RECIPIENT_NOTIFICATION_EVENT_TYPES`). */
   reminderNotify: boolean;
+  /** Sein Zugang für den Kurzbefehl, der die Waage meldet — `null`, wenn die Instanz ihn nicht
+   *  führt (docs/gewicht-health.md). */
+  healthToken: string | null;
 }
 
 export default function WeightSettings({
-  unitSystem, heightCm, targetWeightKg, keyholderTargetKg, reminderNotify,
+  unitSystem, heightCm, targetWeightKg, keyholderTargetKg, reminderNotify, healthToken,
 }: WeightSettingsProps) {
   const t = useTranslations("settings");
   const locale = useLocale();
@@ -149,6 +153,22 @@ export default function WeightSettings({
         />
         <Button variant="secondary" loading={saving} onClick={saveTarget}>{tc("save")}</Button>
       </div>
+
+      {/* Der Zugang für den Kurzbefehl. Steht bei den Gewichts-Einstellungen und nicht bei den
+          Konto-Daten: er tut genau eine Sache, und wer ihn sucht, sucht ihn hier. */}
+      {healthToken && (
+        <div className="flex flex-col gap-2">
+          <SettingLabel label={t("healthTokenLabel")} description={t("healthTokenHint")} />
+          <div className="flex items-center gap-2">
+            <code className="flex-1 min-w-0 truncate rounded-lg border border-border-subtle bg-surface-raised px-3 py-2 font-mono text-xs text-foreground">
+              {healthToken}
+            </code>
+            <Button variant="secondary" onClick={() => navigator.clipboard?.writeText(healthToken)}>
+              {tc("copy")}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <Toggle
