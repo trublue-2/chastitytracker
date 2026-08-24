@@ -52,7 +52,6 @@
     "sourceLabel": "Recorded by",
     "sourceKeyholder": "Added by the keyholder",
     "sourceAgent": "Entered via the AI keyholder",
-    "sourceHealth": "Reported by the scale (Apple Health)",
     "photoLabel": "Photo",
     "photoExpired": "The photo has expired and was deleted. The value remains."
   },
@@ -384,7 +383,6 @@
     "signOutConfirm": "Really sign out?",
     "build": "Build",
     "copyright": "© trublue {year}",
-    "copy": "Copy",
     "entries": "Entries",
     "changelog": "Changelog",
     "dashboard": "Dashboard",
@@ -808,8 +806,6 @@
     "targetKeyholderApplies": "Your keyholder set {value} — that value applies.",
     "weightReminderLabel": "Weigh-in reminder",
     "weightReminderHint": "Mail and push when a weighing window opens and nothing has been logged that day.",
-    "healthTokenLabel": "Access for your scale",
-    "healthTokenHint": "Lets a shortcut on your iPhone report your weight from Apple Health instead of you photographing it. Such values show as “reported by the scale” — without a photo, and your keyholder sees that.",
     "targetUnderweightWarning": "This target is in the underweight range (BMI below 18.5). You can still set it."
   },
   "changelog": {

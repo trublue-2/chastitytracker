@@ -624,12 +624,6 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Ihr Zielgewicht gilt, seines bleibt sichtbar. Das Abschalten nimmt die Meldepflicht mit — sonst zählte die Aus-Zeit als lauter versäumte Meldungen.",
   }),
   c({
-    id: "weight-health-ingest", mechanic: "Gewicht", title: "Wiegung aus Apple Health",
-    what: "Nimmt eine vom Gerät gemeldete Wiegung entgegen — ein Kurzbefehl auf dem iPhone des Trägers liest sie aus Apple Health und schickt sie samt Messzeitpunkt.",
-    actors: ["system"], surfaces: ["extern"], routes: ["/api/integration/weight"],
-    note: "Zugang ist ein Token JE TRÄGER (HMAC über den Benutzernamen), weil es auf seinem Handy liegt — ein gemeinsames Instanz-Secret liesse ihn für fremde Träger schreiben. Solche Werte tragen KEIN Foto und sind als `source: health` gekennzeichnet: die Keyholderin sieht, welche Werte belegt sind. Ohne ENV `HEALTH_INGEST_SECRET` gibt es die Route nicht (404). Details: docs/gewicht-health.md.",
-  }),
-  c({
     id: "weight-delete", mechanic: "Gewicht", title: "Wiegung löschen",
     what: "Entfernt eine einzelne Messung samt Foto und Notiz.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/weight/[id]"],

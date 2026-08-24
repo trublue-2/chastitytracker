@@ -66,10 +66,6 @@ export interface WeightHistoryResult {
   points: {
     day: string; weightKg: number; inWindow: boolean; note: string | null;
     detectedKg: number | null; photo: "yes" | "expired" | "none";
-    /** Wer die Zeile gemeldet hat: `user` (er selbst, mit Beleg-Pflicht), `keyholder`, `agent` (du),
-     *  `health` = die Waage über Apple Health. Bei `health` gibt es KEIN Foto, und das ist kein
-     *  Versäumnis — der Wert kommt von dem Gerät, das das Foto belegen sollte. */
-    source: string;
   }[];
 }
 
@@ -105,7 +101,7 @@ export async function weightHistory(username: string, opts: { days: number | nul
     orderBy: { measuredAt: "asc" },
     select: {
       dayKey: true, measuredAt: true, weightKg: true, inWindow: true, note: true,
-      detectedKg: true, imageUrl: true, imagePrunedAt: true, source: true,
+      detectedKg: true, imageUrl: true, imagePrunedAt: true,
     },
   });
   const todayKey = weightDayKey(new Date(), tz);
@@ -142,7 +138,6 @@ export async function weightHistory(username: string, opts: { days: number | nul
         note: row?.note ?? null,
         detectedKg: row?.detectedKg ?? null,
         photo: row?.imageUrl ? "yes" : (row?.imagePrunedAt ? "expired" : "none"),
-        source: row?.source ?? "user",
       } as const;
     }),
   };

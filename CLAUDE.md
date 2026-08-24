@@ -231,12 +231,6 @@ MESSAGE_RETENTION_DAYS=365         # optional
 # (User.weightTrackingEnabled, ebenfalls Default aus). Ohne diesen Schalter gibt es das Feature auf
 # der Instanz nicht — weder in der Oberfläche noch in den Routen noch im MCP.
 ENABLE_WEIGHT_TRACKING=true        # optional
-# Zugang für Wiegungen, die das Gerät selbst meldet (docs/gewicht-health.md): ein Kurzbefehl auf dem
-# iPhone des Trägers liest den Wert aus Apple Health und schickt ihn an /api/integration/weight.
-# OHNE diese Variable gibt es die Route nicht (404). Das Token JE TRÄGER wird daraus abgeleitet
-# (HMAC über den Benutzernamen) und steht in seinen Einstellungen; wer die Variable dreht, entwertet
-# alle Token auf einmal — einzeln widerrufen geht nicht.
-HEALTH_INGEST_SECRET=<secret>      # optional
 # Aufbewahrung der Waagen-Fotos in Tagen (Vorgabe 60). `0` schaltet das Beschneiden ab. Gelöscht wird
 # nur die DATEI — die Messung bleibt, und `imagePrunedAt` hält fest, dass es einmal ein Foto gab.
 WEIGHT_PHOTO_RETENTION_DAYS=60     # optional
@@ -353,7 +347,6 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/app/components/WeightRow.tsx` — eine WIEGUNG als Zeile, geteilt von der Liste in der Statistik-Karte (Träger) und der Eintragsliste der Keyholderin, in die die Messungen chronologisch eingemischt sind. Dazu `src/lib/weightRows.ts` (`loadWeightRows`/`withDeltas`): das Laden samt Veränderung zum Vorwert — **nie** eine zweite Delta-Rechnung je Anzeige, sie liefe an einem der beiden Orte auseinander
 - `src/app/components/inputStyles.ts` → `listRowCls`/`listRowButtonCls` — Mass und Klickfläche EINER Verlaufs-Zeile, geteilt von `EntryRow` und `WeightRow`. Beide stehen in der Eintragsliste unmittelbar untereinander; driften Polsterung oder Hover-Fläche, sieht man es nicht in der Zeile, sondern im Rhythmus der Liste
 - `src/lib/weightSeries.ts` → `withinRange()` — der Zeitraum-Ausschnitt über den Tagesschlüssel, geteilt von Diagramm und Liste
-- `src/lib/healthIngest.ts` — der Zugang für gemeldete Wiegungen: ein Token JE TRÄGER, als HMAC über den Benutzernamen abgeleitet statt gespeichert. **Nicht das Muster von `boxSync.ts` kopieren**, wo ein Instanz-Secret genügt: dort spricht ein Server des Betreibers, hier liegt der Zugang auf dem Handy des Trägers — mit einem gemeinsamen Secret schriebe er Werte für JEDEN anderen der Instanz
 - `src/lib/weightRelease.ts` + `weightReleaseService.ts` — die Freigabe-Vorgabe (docs/gewicht-freigabe-konzept.md): das Gewicht öffnet das nächste Orgasmus-Fenster. Der RECHENKERN ist datenbankfrei (Schwelle des Tages, Mittel-Prüfung), der Dienst hält alles, was den Bestand braucht — derselbe Schnitt wie zwischen `checkTask()` und `writeTask()`. **Eine neue Schranke gehört in `evaluateRelease`**, nicht in eine zweite Bedingungskette daneben; die MCP-Vorschau ruft dieselbe Funktion. Ausgewertet wird NUR die erste Messung eines Tages (`recordWeight`: `replaced === false`) — sonst wiegt der Träger so lange nach, bis das Mittel passt
 - `src/app/dashboard/EntryActions.tsx` — Drei-Punkte-Menü (Edit + optional Delete)
 

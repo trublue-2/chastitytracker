@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Scale, Camera, Smartphone } from "lucide-react";
+import { Scale, Camera } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
@@ -68,11 +68,6 @@ export default function WeightRow({
           <span className="text-sm font-semibold text-foreground tabular-nums whitespace-nowrap">{show(row.weightKg)}</span>
           {delta && <span className="text-xs text-foreground-muted tabular-nums">{delta}</span>}
           {row.imageUrl && <Camera size={12} className="text-foreground-faint flex-shrink-0" />}
-          {/* Vom Gerät gemeldet: kein Foto, und das soll man sehen. Die Keyholderin unterscheidet
-              damit belegte von unbelegten Werten, ohne jede Zeile aufklappen zu müssen. */}
-          {row.source === "health" && (
-            <Smartphone size={12} className="text-foreground-faint flex-shrink-0" aria-label={t("sourceHealth")} />
-          )}
           {!row.inWindow && (
             <span className="hidden sm:inline text-xs text-foreground-faint flex-shrink-0">{t("outsideWindow")}</span>
           )}
@@ -133,9 +128,7 @@ export default function WeightRow({
               {row.source !== "user" && (
                 <DetailField label={t("sourceLabel")}>
                   <p className="text-sm text-foreground-muted">
-                    {t(row.source === "keyholder" ? "sourceKeyholder"
-                      : row.source === "health" ? "sourceHealth"
-                      : "sourceAgent")}
+                    {t(row.source === "keyholder" ? "sourceKeyholder" : "sourceAgent")}
                   </p>
                 </DetailField>
               )}

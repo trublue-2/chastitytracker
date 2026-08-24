@@ -43,15 +43,8 @@ export const WEIGHT_USER_SELECT = {
   targetWeightKeyholderSetAt: true,
 } as const;
 
-/**
- * Wer die Zeile anlegt. Bestimmt die Foto-Pflicht: nur der Träger steht vor der Waage.
- *
- * `health` ist die Waage selbst, über einen Kurzbefehl aus Apple Health (docs/gewicht-health.md).
- * Ohne Foto — der Wert kommt von dem Gerät, das das Foto belegen sollte. Dafür steht die Quelle in
- * jeder Anzeige: die Keyholderin sieht, welche Werte einen Beleg tragen und welche nicht, statt es
- * verboten oder verschwiegen zu bekommen.
- */
-export type WeightSource = "user" | "keyholder" | "agent" | "health";
+/** Wer die Zeile anlegt. Bestimmt die Foto-Pflicht: nur der Träger steht vor der Waage. */
+export type WeightSource = "user" | "keyholder" | "agent";
 
 export interface RecordWeightParams {
   /** Immer metrisch — die Umrechnung passiert in der Oberfläche (`weight.ts`). */
@@ -128,9 +121,6 @@ export async function recordWeight(
       // hat, meldet MIT NOTIZ und die Zeile bleibt beleglos (`imageUrl` null). Ein harter Riegel
       // ohne Ausweg erzeugt genau die Lücke, die er verhindern soll — nämlich gar keine Meldung.
       // Für die Keyholderin und die KI gilt sie nicht: die stehen nicht vor seiner Waage.
-      // Die Beleg-Pflicht trifft den TRÄGER, der von Hand einträgt. Nicht die Keyholderin (sie
-      // sitzt nicht vor seiner Waage), nicht die KI — und nicht die Waage selbst: ein Foto von dem
-      // Gerät zu verlangen, das den Wert gerade gemeldet hat, wäre ein Beleg für den Beleg.
       if (params.source === "user" && !params.imageUrl && !note) throw fail("WEIGHT_PROOF_REQUIRED");
 
       const tz = user.timezone || APP_TZ;
