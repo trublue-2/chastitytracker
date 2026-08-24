@@ -1,0 +1,216 @@
+<!doctype html><html lang='de'><head><meta charset='utf-8'><title>bauteile-hell</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: Archivo, system-ui, sans-serif; background: #e9e4e6; display: flex; justify-content: center; }
+    a { color: #c3002b; } a:hover { color: #a00023; }
+    .sw { height: 56px; border-radius: 8px; display: flex; align-items: flex-end; padding: 8px; box-sizing: border-box; }
+    .swl { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; }
+    .lbl { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #7d656d; }
+    .cap { font-size: 12px; color: #7d656d; line-height: 1.5; margin-top: 8px; }
+    .box { border-top: 1px solid rgba(45,29,38,0.12); padding-top: 22px; margin-top: 34px; }
+    .n { font-variant-numeric: tabular-nums; }
+    .ratio { font-size: 10px; font-weight: 600; color: #7d656d; letter-spacing: 0.02em; }
+  </style></head><body>
+
+<div style="width: 760px; background: #fcf7f8; box-sizing: border-box; color: #2d1d26; padding: 36px 34px 44px;">
+
+  <div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 32px; letter-spacing: -0.01em;">Bauteile und Regeln — helle Fassung</div>
+  <div style="font-size: 14px; color: #634d55; margin-top: 10px; line-height: 1.6; max-width: 62ch;">Dieselben drei Bedeutungen, dieselbe Textskala, dasselbe Raster. Was sich ändert, ist eine einzige Sache — und die ändert alles: auf Hell schafft <strong>keine</strong> der drei Farben die 4,5:1 als Text.</div>
+
+  <!-- DIE EINE NEUE REGEL -->
+  <div class="box">
+    <div class="lbl">Die eine Regel, die es nur auf Hell gibt</div>
+    <div style="font-size: 17px; font-weight: 600; margin-top: 14px; line-height: 1.45;">Jede Bedeutungsfarbe zerfällt in <span style="color: #c3002b;">Fläche</span> und <span style="color: #c3002b;">Tinte</span>.</div>
+    <div style="font-size: 14px; color: #634d55; margin-top: 10px; line-height: 1.65; max-width: 68ch;">Im Dunkeln trägt eine einzige Farbe beides: Rosa steht mit 5,9:1 auf dem Grund, Gold mit 10,6:1, Koralle mit 8,7:1. Auf Weiss kippt das — Gold liegt bei 1,9:1, Koralle bei 2,3:1, Rosa bei 3,2:1. Man kann sie nicht dunkler <em>machen</em>, ohne sie zu ändern; also bekommen sie eine zweite Gestalt.</div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 22px; margin-top: 20px;">
+      <div style="background: #f6eef1; border-radius: 10px; padding: 16px 18px;">
+        <div style="font-size: 13px; font-weight: 600;">Fläche — der volle Ton</div>
+        <div class="cap" style="margin-top: 6px;">Füllungen, Marken, Punkte, Icons ab 2 px. Trägt dunklen Text, nie weissen. Kodiert nie Intensität.</div>
+      </div>
+      <div style="background: #f6eef1; border-radius: 10px; padding: 16px 18px;">
+        <div style="font-size: 13px; font-weight: 600;">Tinte — die Tiefen-Variante</div>
+        <div class="cap" style="margin-top: 6px;">Alles, was Text ist, alles unter 2 px, alles Gefüllte mit weisser Schrift. Gleicher Farbton, gesenkte Helligkeit, 5,9:1 — genau der Wert, den die Farbe im Dunkeln hatte.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FARBE -->
+  <div class="box">
+    <div class="lbl">Farbe — drei Bedeutungen, je zwei Gestalten</div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px;">
+      <div>
+        <div style="display: flex; gap: 6px;">
+          <div class="sw" style="background: #ff3d68; flex-grow: 1;"><span class="swl" style="color: #3d0518;">#ff3d68</span></div>
+          <div class="sw" style="background: #c3002b; flex-grow: 1;"><span class="swl" style="color: #ffffff;">#c3002b</span></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 5px;"><span class="ratio">Fläche 3,2:1</span><span class="ratio">Tinte 5,9:1</span></div>
+        <div style="font-size: 14px; font-weight: 600; margin-top: 8px;">Rosa — der Zustand</div>
+        <div class="cap">Verschlossen, laufend, aktiv. Je Bildschirm genau einmal gross.</div>
+      </div>
+      <div>
+        <div style="display: flex; gap: 6px;">
+          <div class="sw" style="background: #e8b44a; flex-grow: 1;"><span class="swl" style="color: #3d2a05;">#e8b44a</span></div>
+          <div class="sw" style="background: #7f5a10; flex-grow: 1;"><span class="swl" style="color: #ffffff;">#7f5a10</span></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 5px;"><span class="ratio">Fläche 1,8:1</span><span class="ratio">Tinte 5,9:1</span></div>
+        <div style="font-size: 14px; font-weight: 600; margin-top: 8px;">Gold — die Auszeichnung</div>
+        <div class="cap">Ziel erreicht, Rekord, orgasmusfreie Zeit. <strong>Der schwierige Fall:</strong> die Tinte ist Bronze, kein Gold — siehe unten.</div>
+      </div>
+      <div>
+        <div style="display: flex; gap: 6px;">
+          <div class="sw" style="background: #ff8a5c; flex-grow: 1;"><span class="swl" style="color: #451605;">#ff8a5c</span></div>
+          <div class="sw" style="background: #b23200; flex-grow: 1;"><span class="swl" style="color: #ffffff;">#b23200</span></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 5px;"><span class="ratio">Fläche 2,2:1</span><span class="ratio">Tinte 5,9:1</span></div>
+        <div style="font-size: 14px; font-weight: 600; margin-top: 8px;">Koralle — die Aufmerksamkeit</div>
+        <div class="cap">Zu spät, Vergehen, Frist läuft ab. Nie dekorativ.</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 26px;">
+      <div><div class="sw" style="background: #fcf7f8; border: 1px solid rgba(45,29,38,0.14); height: 44px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 7px;">Grund</div></div>
+      <div><div class="sw" style="background: #f6eef1; height: 44px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 7px;">Erhöht</div></div>
+      <div><div class="sw" style="background: #f0e5e9; height: 44px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 7px;">Feld</div></div>
+      <div><div class="sw" style="background: #7d656d; height: 44px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 7px;">Text leise</div></div>
+      <div><div class="sw" style="background: #634d55; height: 44px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 7px;">Text mitte</div></div>
+      <div><div class="sw" style="background: #2d1d26; height: 44px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 7px;">Text hoch</div></div>
+    </div>
+    <div class="cap" style="margin-top: 14px;">Textstufen 15,1:1 · 7,3:1 · 5,0:1 — dieselben Verhältnisse wie im Dunkeln (19 · 10,5 · 5,9), auf das Maximum von Hell heruntergezogen. Alle drei über 4,5:1.</div>
+  </div>
+
+  <!-- INTENSITÄT -->
+  <div class="box">
+    <div class="lbl">Intensität — dieselbe Rampe, gespiegelt</div>
+    <div style="display: flex; gap: 5px; margin-top: 16px; align-items: flex-end;">
+      <div style="flex-grow: 1;"><div style="height: 40px; background: #faecef; border-radius: 5px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 8px; text-align: center;">0</div></div>
+      <div style="flex-grow: 1;"><div style="height: 40px; background: #f3cfd7; border-radius: 5px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 8px; text-align: center;">&lt;25</div></div>
+      <div style="flex-grow: 1;"><div style="height: 40px; background: #e8a2b2; border-radius: 5px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 8px; text-align: center;">25–40</div></div>
+      <div style="flex-grow: 1;"><div style="height: 40px; background: #df7b91; border-radius: 5px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 8px; text-align: center;">40–65</div></div>
+      <div style="flex-grow: 1;"><div style="height: 40px; background: #c3022d; border-radius: 5px;"></div><div style="font-size: 11px; color: #7d656d; margin-top: 8px; text-align: center;">&gt;65 %</div></div>
+    </div>
+    <div class="cap" style="margin-top: 14px;">Jede Stufe trifft <strong>denselben Kontrast zum Grund</strong> wie ihre dunkle Entsprechung: 1,08 · 1,35 · 1,93 · 2,68 · 5,9. Die Richtung dreht sich — im Dunkeln wird „mehr" heller, auf Hell wird „mehr" dunkler. Die Rampe endet deshalb auf der <strong>Tinte</strong>, nicht auf der Marken-Rose: auf Weiss ist die satte Farbe nicht der stärkste Punkt, sondern die tiefste.</div>
+    <div style="display: flex; gap: 5px; margin-top: 18px; opacity: 0.85;">
+      <div style="flex-grow: 1;"><div style="height: 26px; background: #1a1013; border-radius: 5px;"></div></div>
+      <div style="flex-grow: 1;"><div style="height: 26px; background: #4a1226; border-radius: 5px;"></div></div>
+      <div style="flex-grow: 1;"><div style="height: 26px; background: #7a1836; border-radius: 5px;"></div></div>
+      <div style="flex-grow: 1;"><div style="height: 26px; background: #a11f45; border-radius: 5px;"></div></div>
+      <div style="flex-grow: 1;"><div style="height: 26px; background: #ff3d68; border-radius: 5px;"></div></div>
+    </div>
+    <div class="cap" style="margin-top: 8px;">Zum Vergleich die dunkle Rampe.</div>
+  </div>
+
+  <!-- DER GOLD-FALL -->
+  <div class="box">
+    <div class="lbl">Der Gold-Fall — der einzige echte Verlust</div>
+    <div style="font-size: 14px; color: #634d55; margin-top: 12px; line-height: 1.65; max-width: 68ch;">Gold ist definitionsgemäss hell. Senkt man es auf 5,9:1, ist es Bronze — und eine Auszeichnung in Bronze liest sich als zweiter Platz. Drei Wege, in absteigender Treue zur Bedeutung:</div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-top: 18px; align-items: start;">
+      <div style="background: #f6eef1; border-radius: 10px; padding: 16px;">
+        <div style="display: inline-flex; align-items: center; gap: 7px; background: #e8b44a; border-radius: 8px; padding: 5px 11px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3d2a05" stroke-width="2.8" stroke-linecap="round"><path d="M4 12.5l5 5L20 6.5"></path></svg>
+          <span style="font-size: 12px; font-weight: 600; color: #3d2a05;">Erfüllt</span>
+        </div>
+        <div style="font-size: 13px; font-weight: 600; margin-top: 12px;">A · Gold als Plakette</div>
+        <div class="cap">Volle Fläche, dunkler Text darauf (9,0:1). Gold bleibt Gold. Kostet mehr Platz und ist lauter als die dunkle Fassung.</div>
+      </div>
+      <div style="background: #f6eef1; border-radius: 10px; padding: 16px;">
+        <div style="display: inline-flex; align-items: center; gap: 7px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f5a10" stroke-width="2.6" stroke-linecap="round"><path d="M4 12.5l5 5L20 6.5"></path></svg>
+          <span style="font-size: 13px; font-weight: 600; color: #7f5a10;">Erfüllt</span>
+        </div>
+        <div style="font-size: 13px; font-weight: 600; margin-top: 12px;">B · Bronze-Tinte</div>
+        <div class="cap">Struktur unverändert, nur der Ton wandert. Leise und lesbar — aber es ist nicht mehr Gold.</div>
+      </div>
+      <div style="background: #f6eef1; border-radius: 10px; padding: 16px;">
+        <div style="display: inline-flex; align-items: center; gap: 7px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f5a10" stroke-width="2.6" stroke-linecap="round"><path d="M4 12.5l5 5L20 6.5"></path></svg>
+          <span style="font-size: 13px; font-weight: 600; color: #7f5a10; background: rgba(232,180,74,0.34); border-radius: 7px; padding: 2px 9px;">Erfüllt</span>
+        </div>
+        <div style="font-size: 13px; font-weight: 600; margin-top: 12px;">C · Bronze auf Gold-Hauch</div>
+        <div class="cap">Tinte für die Schrift, Gold als Tönung dahinter. Beides zugleich; die Regel „keine Karten" biegt sich hier zum Chip.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KNÖPFE -->
+  <div class="box">
+    <div class="lbl">Knöpfe — genau einer gefüllt je Bildschirm</div>
+    <div style="display: flex; gap: 12px; margin-top: 18px; align-items: center; flex-wrap: wrap;">
+      <span style="background: #c3002b; color: #ffffff; font-size: 14px; font-weight: 600; border-radius: 10px; padding: 11px 22px;">Verschliessen</span>
+      <span style="border: 1px solid rgba(45,29,38,0.20); color: #2d1d26; font-size: 14px; font-weight: 500; border-radius: 10px; padding: 10px 20px;">Kontrolle</span>
+      <span style="color: #c3002b; font-size: 14px; font-weight: 500; padding: 10px 4px;">Alle Statistiken →</span>
+      <span style="background: #f0e5e9; color: #7d656d; font-size: 14px; font-weight: 500; border-radius: 10px; padding: 11px 22px;">Gesperrt</span>
+    </div>
+    <div class="cap" style="margin-top: 14px;">Der gefüllte Knopf nimmt die <strong>Tinte</strong>, nicht die Marken-Rose: Weiss auf <span class="n">#ff3d68</span> ergibt 3,4:1 und fällt bei 14 px durch — auf <span class="n">#c3002b</span> sind es 6,3:1.</div>
+  </div>
+
+  <!-- LEUCHTEN -->
+  <div class="box">
+    <div class="lbl">Was auf Hell nicht funktioniert</div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; margin-top: 16px;">
+      <div>
+        <div style="height: 120px; border-radius: 10px; background: #0b0609; position: relative; overflow: hidden;">
+          <div style="position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 300px; height: 220px; background: radial-gradient(circle, rgba(150,20,55,0.50) 0%, rgba(11,6,9,0) 68%);"></div>
+          <div class="n" style="position: relative; text-align: center; padding-top: 40px; font-size: 34px; font-weight: 600; color: #fdf7f8; letter-spacing: -0.04em;">5:40:16</div>
+        </div>
+        <div class="cap">Dunkel: das Leuchten trägt die Zahl.</div>
+      </div>
+      <div>
+        <div style="height: 120px; border-radius: 10px; background: #fcf7f8; position: relative; overflow: hidden; border: 1px solid rgba(45,29,38,0.10);">
+          <div style="position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 300px; height: 220px; background: radial-gradient(circle, rgba(255,61,104,0.17) 0%, rgba(252,247,248,0) 68%);"></div>
+          <div class="n" style="position: relative; text-align: center; padding-top: 40px; font-size: 34px; font-weight: 600; color: #2d1d26; letter-spacing: -0.04em;">5:40:16</div>
+        </div>
+        <div class="cap">Hell: aus dem Leuchten wird eine <strong>Tönung</strong>. Ein heller Grund kann nicht strahlen — er kann sich nur einfärben. Die Regel „nur eine Stelle leuchtet" gilt weiter, sie heisst hier nur anders.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROLLE IM GRUND -->
+  <div class="box">
+    <div class="lbl">Die Rolle sitzt weiter im Grund</div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; margin-top: 16px;">
+      <div>
+        <div style="height: 96px; border-radius: 10px; background: #fcf7f8; border: 1px solid rgba(45,29,38,0.12); display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <span class="n" style="font-size: 11px; color: #7d656d;">#fcf7f8</span>
+          <span style="font-size: 14px; font-weight: 600; color: #2d1d26;">Träger — warm</span>
+        </div>
+        <div class="cap">Ein Hauch Rose im Weiss. Textstufen warm getönt (<span class="n">#2d1d26 · #634d55 · #7d656d</span>).</div>
+      </div>
+      <div>
+        <div style="height: 96px; border-radius: 10px; background: #f7f8fc; border: 1px solid rgba(29,33,48,0.12); display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <span class="n" style="font-size: 11px; color: #646b7b;">#f7f8fc</span>
+          <span style="font-size: 14px; font-weight: 600; color: #1d2130;">Keyholder — kühl</span>
+        </div>
+        <div class="cap">Ein Hauch Indigo. Textstufen kühl (<span class="n">#1d2130 · #4d5363 · #646b7b</span>), Rollen-Tinte <span class="n">#4e45e8</span>.</div>
+      </div>
+    </div>
+    <div class="cap" style="margin-top: 14px;">Der Unterschied ist auf Hell <strong>deutlich feiner als im Dunkeln</strong> — 1,3 % Helligkeitsdifferenz gegen die 8 %, die zwischen den beiden dunklen Gründen liegen. Ob er trägt, entscheidet sich an den beiden Bildschirmen daneben, nicht an diesen zwei Kacheln.</div>
+  </div>
+
+  <!-- ZUSTÄNDE -->
+  <div class="box">
+    <div class="lbl">Zeilen und Zustände</div>
+    <div style="margin-top: 16px;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid rgba(45,29,38,0.10);">
+        <span style="width: 7px; height: 7px; border-radius: 999px; background: #ff3d68; flex-shrink: 0;"></span>
+        <div style="flex-grow: 1;"><div class="n" style="font-size: 14px; font-weight: 500;">21.08.2026</div><div class="n" style="font-size: 12px; color: #7d656d; margin-top: 3px;">15:49</div></div>
+        <span style="font-size: 12px; font-weight: 500; color: #c3002b; background: rgba(255,61,104,0.16); border-radius: 7px; padding: 4px 10px;">noch verschlossen</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid rgba(45,29,38,0.10);">
+        <span style="width: 7px; height: 7px; border-radius: 999px; background: rgba(45,29,38,0.26); flex-shrink: 0;"></span>
+        <div style="flex-grow: 1;"><div class="n" style="font-size: 14px; font-weight: 500;">20. – 21.08.2026</div></div>
+        <span class="n" style="font-size: 14px; font-weight: 600;">29:52</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 11px 13px; background: rgba(178,50,0,0.10); border-radius: 10px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b23200" stroke-width="2" stroke-linecap="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5"></path><circle cx="12" cy="16.3" r="0.7" fill="#b23200"></circle></svg>
+        <span style="font-size: 13px; color: #2d1d26; flex-grow: 1;">Reinigung überzogen</span>
+        <span style="font-size: 12px; font-weight: 600; color: #b23200;">urteilen</span>
+      </div>
+      <div style="text-align: center; padding: 26px 0 6px;">
+        <div style="font-size: 14px; color: #634d55;">Noch nichts erfasst</div>
+        <div class="cap" style="margin-top: 4px;">Der erste Verschluss startet die Zählung.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body></html>

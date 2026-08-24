@@ -23,6 +23,9 @@ Alles Weitere unten folgt daraus.
 
 Mehr Bedeutungsfarben gibt es nicht. Alles andere ist neutral.
 
+Auf **hellem** Grund schafft keine der drei die 4,5:1 als Text; dort zerfällt jede in eine Fläche und
+eine Tinte. Die Werte und die Begründung stehen in [`hell.md`](hell.md).
+
 **Intensität läuft über Helligkeit, nicht über den Farbton** — eine einzige Rampe von fast schwarz
 bis zum vollen Rosa, gültig für Kalender, Balken und Ringe:
 
@@ -51,6 +54,10 @@ In `vorschau/` liegen beide Fassungen nebeneinander (`keyholder-uebersicht.html`
 `#f4f5fb` hoch · `#bcbed3` mitte · `#8c8ea6` leise — alle drei über 4,5:1 auf dem Grund.
 Eine frühere Fassung lag bei „leise“ auf etwa 3:1 und wirkte deshalb flau.
 
+An fünf Stellen steht allerdings eine **vierte, undokumentierte Stufe** (`#7d6b73`, 4,04:1) — sie
+fällt durch die eigene Zusage. Beim Bau der hellen Fassung aufgefallen, dort weggelassen; die
+dunkle braucht dieselbe Korrektur (siehe [`hell.md`](hell.md), Befunde).
+
 ## Schrift
 
 - **Archivo** für alles Laufende, **Instrument Serif** für Überschriften und die Wortmarke.
@@ -78,6 +85,7 @@ Eine frühere Fassung lag bei „leise“ auf etwa 3:1 und wirkte deshalb flau.
 | `statistik.html` | Kennzahlen, Kalender in der Helligkeits-Rampe, orgasmusfreie Zeit |
 | `keyholder-uebersicht.html` | Alle Subs auf einen Blick, nach dem sortiert, was eine Entscheidung braucht |
 | `keyholder-sub.html` | Ein Sub im Detail: Zustand, „Wartet auf dich“, die zwölf Hebel, private Notizen |
+| `*-hell.html` | Die hellen Fassungen von `bauteile`, `dashboard-verschlossen` und `keyholder-uebersicht` — siehe [`hell.md`](hell.md) |
 
 ### Die Umkehrung beim Keyholder
 
@@ -133,5 +141,5 @@ Die verworfenen Stände liegen als Artifacts:
 - Erfassen-Formulare samt Fotoaufnahme
 - Nachrichten und Posteingang
 - Der Kalender-Kategorie-Umschalter und die Wochenprozente in der Statistik
-- Helle Fassung des neuen Systems — heute existiert nur die dunkle
+- Helle Fassung der übrigen sechs Bildschirme (drei stehen — siehe [`hell.md`](hell.md))
 - Bewegung: was passiert beim Verschliessen, beim Ablauf einer Frist
