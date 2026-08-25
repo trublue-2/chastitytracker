@@ -13,8 +13,19 @@
 
 // ── Die drei Bedeutungen ─────────────────────────────────────────────────────
 // Mehr gibt es nicht. Alles andere ist neutral — das ist der Kern des Entwurfs.
+// Der Identitäts-Farbton ist umschaltbar, damit man ihn AM ECHTEN BILDSCHIRM vergleichen kann
+// statt an einer Beschreibung. `IDENTITAET=gruen node …` erzeugt die grüne Welt.
+const IDENTITAET = process.env.IDENTITAET === 'gruen' ? 'gruen' : 'rosa'
+
+const ZUSTAND = {
+  // Die Rose des Entwurfs.
+  rosa:  { dunkel: '#ff3d68', hell: '#c3002b', flaeche: '#ff3d68' },
+  // Das Grün der bisherigen App, auf dasselbe Kontrast-Profil gebracht.
+  gruen: { dunkel: '#34d399', hell: '#067a45', flaeche: '#34d399' },
+}
+
 const BEDEUTUNG = {
-  rosa:    { dunkel: '#ff3d68', hell: '#c3002b', flaeche: '#ff3d68' },  // der Zustand
+  rosa:    ZUSTAND[IDENTITAET],                                         // der Zustand
   gold:    { dunkel: '#e8b44a', hell: '#7f5a10', flaeche: '#e8b44a' },  // die Auszeichnung
   koralle: { dunkel: '#ff8a5c', hell: '#b23200', flaeche: '#ff8a5c' },  // die Aufmerksamkeit
 }
@@ -49,7 +60,7 @@ const FAMILIE = {
 //
 // Also beides: die Temperatur des Grunds UND ein Umgebungs-Akzent je Rolle.
 const ROLLE = {
-  traeger:   { dunkel: '#ff3d68', hell: '#c3002b' },   // dieselbe Rose wie der Zustand
+  traeger:   ZUSTAND[IDENTITAET],                       // derselbe Ton wie der Zustand
   keyholder: { dunkel: '#8f88ff', hell: '#4e45e8' },   // Indigo — im Entwurf der Schein des
                                                         // Keyholder-Bildschirms
 }
