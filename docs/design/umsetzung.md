@@ -162,6 +162,51 @@ weil dort die Stellenzahl springt.
 *Die Schriftstufe wächst mit.* `clamp(2.25rem, 11vw, 3.75rem)` statt fester 60 px — der Entwurf
 zeigte „5:40:16", unser Format ist seit Etappe A wortteilig und damit deutlich breiter.
 
+## Der erste echte UX-Schritt: Ziele bewerten statt zählen
+
+Bis hierhin war alles Gestaltung — Struktur, Farbe, Typografie. Nichts davon ändert, **was die App
+dem Benutzer sagt**. Der erste Schritt, der das tut:
+
+Eine Zielzeile trug „8h 41min / 20h · 43 %". Um 09 Uhr sind 43 % hervorragend, um 22 Uhr ist der
+Tag verloren — dieselbe Zahl, zwei völlig verschiedene Lagen. Die App kennt die Uhrzeit und das
+Ende des Zeitraums. Sie sagte es nur nicht; der Benutzer musste die Bewertung jedes Mal selbst
+machen.
+
+**Der Platz dafür war frei.** Der Balken zeigt den Anteil, die Prozentzahl daneben sagte dasselbe
+ein zweites Mal. Die Spalte trägt jetzt die Auskunft:
+
+| Lage | Anzeige | Farbe |
+|---|---|---|
+| erreicht | „geschafft" | Gold — die Auszeichnung |
+| erreichbar mit Luft | „noch 10h 47min" | neutral, kein Signal nötig |
+| nur knapp erreichbar | „noch 14h · knapp" | Koralle — es will etwas von dir |
+| nicht mehr erreichbar | „23h 30min fehlen" | Koralle |
+
+Die Rohwerte bleiben stehen: sie sind der Beleg für die Auskunft. Sie treten nur zurück.
+
+**Die Herleitung ist eine Subtraktion und steht deshalb in `goalOutlook.ts`, nicht in der Anzeige:**
+
+    Puffer = verbleibende Zeit im Zeitraum − noch fehlende Stunden
+
+Ist er negativ, ist das Ziel rechnerisch nicht mehr erreichbar — auch bei durchgehendem Tragen ab
+sofort. Sieben Tests decken die Lagen ab, inklusive des Falls, um den es geht: dieselben 8h41 von
+20h sind morgens `ahead` und abends `missed`.
+
+Drei Dinge, die beim Bauen dazukamen:
+
+- **Die Knapp-Schwelle braucht beides, absolut und anteilig.** Eine Stunde Puffer ist bei einem
+  Tagesziel knapp und bei einem Jahresziel bedeutungslos; zehn Prozent von 200 fehlenden Stunden
+  sind dagegen 20 Stunden und damit nicht knapp. Genommen wird der grössere Wert, gedeckelt auf
+  einen halben Tag.
+- **Ab einem Tag wird auf volle Stunden gerundet.** „noch 106h 48min" ist für ein Monatsziel eine
+  Scheingenauigkeit und bricht ausserdem die Spalte um. Die Minute bleibt beim Tagesziel, wo sie
+  über heute entscheidet.
+- **Die Restzeit läuft am selben Takt wie die Stunden.** Zwei Intervalle, die sich um
+  Millisekunden verschieben, lassen benachbarte Zeilen unterschiedlich springen.
+
+Geprüft nicht nur im Test, sondern **an der laufenden App in allen vier Lagen** — durch Verstellen
+des Tagesziels, bis jede Lage einmal auf dem Schirm stand.
+
 ## Was noch nicht steht
 
 - **Die Typo-Skala ist definiert, aber nicht migriert.** Die sechs Stufen existieren; die 468

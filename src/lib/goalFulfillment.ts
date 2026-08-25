@@ -81,6 +81,19 @@ export function periodBounds(period: GoalPeriod, now: Date, tz: string): { start
  * innen: ein Ziel, das genau um Mitternacht beginnt, ist der angestrebte Normalfall aus Regel 1 —
  * es teilt den Tag nicht, es beginnt mit ihm.
  */
+/**
+ * Das Ende jedes Zeitraums als Zeitstempel — die zweite Hälfte dessen, was `goalOutlook` braucht.
+ *
+ * Muss serverseitig entstehen: die Grenzen hängen an der Zeitzone des Trägers, und die kennt der
+ * Browser nicht zwingend (ein Sub kann auf Reisen sein, während seine Vorgaben in seiner
+ * Heimatzone gelten).
+ */
+export function periodEndsMs(now: Date, tz: string): ByPeriod<number> {
+  return Object.fromEntries(
+    GOAL_PERIODS.map((p) => [p, periodBounds(p, now, tz).end.getTime()]),
+  ) as ByPeriod<number>;
+}
+
 export function goalBoundaryInPeriod(periodStart: Date, periodEnd: Date, goal: GoalWindow): boolean {
   const start = periodStart.getTime();
   const end = periodEnd.getTime();

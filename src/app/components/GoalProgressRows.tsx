@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import GoalProgressRow from "@/app/components/GoalProgressRow";
+import { useNowMs } from "@/app/hooks/useLiveHours";
 import { GOAL_PERIODS, type ByPeriod } from "@/lib/goalFulfillment";
 
 /**
@@ -21,15 +22,31 @@ import { GOAL_PERIODS, type ByPeriod } from "@/lib/goalFulfillment";
 export default function GoalProgressRows({
   actual,
   targetH,
+  periodEndMs,
+  serverNow,
   tone,
 }: {
   /** Ist-Stunden je Periode. */
   actual: ByPeriod<number>;
   /** Ziel-Stunden je Periode zum BEWERTEN — `null`, wo nichts gesetzt oder die Periode geteilt ist. */
   targetH: ByPeriod<number | null>;
+  /** Ende jedes Zeitraums (Epoch-ms), serverseitig aus der Zeitzone des Trägers gerechnet.
+   *  Fehlt es, bleibt es beim reinen Prozentwert. */
+  periodEndMs?: ByPeriod<number>;
+  serverNow?: string;
   tone?: "onSurface" | "onAccent";
 }) {
   const t = useTranslations("dashboard");
+  // Derselbe Takt, den die Stunden schon benutzen: die Restzeit schrumpft, während die Stunden
+  // wachsen, und beides muss im selben Augenblick stimmen — sonst zeigt eine Zeile kurzzeitig
+  // „noch 0min" und die nächste rechnet schon mit dem Folgetag.
+  const nowMs = useNowMs(serverNow ?? "");
+  const labels = {
+    reached: t("goalReached"),
+    remaining: (time: string) => t("goalRemaining", { time }),
+    tight: (time: string) => t("goalTight", { time }),
+    missing: (time: string) => t("goalMissing", { time }),
+  };
   return (
     <>
       {GOAL_PERIODS.map((period) => {
@@ -42,6 +59,8 @@ export default function GoalProgressRows({
             label={t(period)}
             actual={actual[period]}
             target={target}
+            remainingMs={periodEndMs && serverNow ? periodEndMs[period] - nowMs : undefined}
+            outlookLabels={periodEndMs && serverNow ? labels : undefined}
           />
         );
       })}

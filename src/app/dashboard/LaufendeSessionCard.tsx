@@ -11,7 +11,7 @@ import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
 import type { SessionEvent } from "@/lib/sessionHelpers";
 import { inspectionHref } from "@/lib/entryFormRoute";
-import { hasVisibleGoalRow, type VorgabeTargets } from "@/lib/goalFulfillment";
+import { hasVisibleGoalRow, periodEndsMs, type VorgabeTargets } from "@/lib/goalFulfillment";
 
 interface Props {
   sessionStart: Date;
@@ -156,6 +156,7 @@ export default async function LaufendeSessionCard({
         {hasVorgabe && (
           <LiveTrainingGoals
             serverNow={now.toISOString()}
+            periodEndMs={periodEndsMs(now, tz ?? APP_TZ)}
             tagH={tagH}
             wocheH={wocheH}
             monatH={monatH}

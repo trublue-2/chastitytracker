@@ -65,3 +65,18 @@ export function useLiveHours(
   const deltaH = (nowMs - serverNowMs) / 3_600_000;
   return baseH + deltaH;
 }
+
+/**
+ * Derselbe Takt, aber als ZEITPUNKT statt als Stundenzuwachs.
+ *
+ * Gebraucht von allem, was gegen die Uhr rechnet statt nur Stunden zu addieren — etwa „wie viel
+ * vom Tag ist noch übrig". Bewusst hier und nicht als eigener Interval: zwei Takte, die sich um
+ * Millisekunden verschieben, lassen benachbarte Zeilen unterschiedlich springen.
+ *
+ * Auf dem Server liefert der Store 0; dann gilt die Server-Zeit. Damit rendert die Seite mit einem
+ * Wert, der stimmt, statt mit einem, der erst nach der Hydration stimmt.
+ */
+export function useNowMs(serverNowIso: string): number {
+  const tick = useSyncExternalStore(subscribe, getSnapshot, () => 0);
+  return tick || new Date(serverNowIso).getTime();
+}

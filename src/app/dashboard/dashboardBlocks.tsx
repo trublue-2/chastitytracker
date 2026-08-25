@@ -358,9 +358,10 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           : null;
       return { wearSessions, entries, kgGoal };
     },
-    render: ({ wearSessions, entries, kgGoal }, { userId }) => (
+    render: ({ wearSessions, entries, kgGoal }, { userId, tz }) => (
       <CategoryGoalsToday
         userId={userId}
+        tz={tz}
         activeWearSessions={wearSessions}
         entries={entries}
         includeCategories={deviceCategoriesEnabled()}

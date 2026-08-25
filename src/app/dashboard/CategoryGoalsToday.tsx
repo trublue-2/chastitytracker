@@ -1,8 +1,12 @@
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { type SegmentEntry } from "@/lib/sessionModel";
+import { periodEndsMs } from "@/lib/goalFulfillment";
 import CategoryGoalsLive, { type KgGoalRow } from "./CategoryGoalsLive";
 
 interface Props {
+  /** Zeitzone des Trägers — entscheidet, wann Tag/Woche/Monat enden. Ohne sie könnte die
+   *  Zielauskunft den Tag zur falschen Stunde für beendet erklären. */
+  tz: string;
   userId: string;
   /** Currently-running wear sessions (already fetched by the dashboard page) — their categories tick
    *  live. Omitted by the admin view, which then shows render-time values without live ticking. */
@@ -21,7 +25,7 @@ interface Props {
  *  with at least one period target) and hands them to the live client renderer. Categories with a
  *  running wear session tick up live there. Trägt zusätzlich optional das KG-Ziel als führende Zeile.
  *  Hidden when neither a KG goal nor any category goal is present. */
-export default async function CategoryGoalsToday({ userId, activeWearSessions = [], entries, kgGoal = null, includeCategories = true }: Props) {
+export default async function CategoryGoalsToday({ userId, tz, activeWearSessions = [], entries, kgGoal = null, includeCategories = true }: Props) {
   const now = new Date();
   const activeCategoryIds = new Set(activeWearSessions.map((s) => s.categoryId));
 
@@ -32,5 +36,5 @@ export default async function CategoryGoalsToday({ userId, activeWearSessions = 
     : [];
   if (!kgGoal && rows.length === 0) return null;
 
-  return <CategoryGoalsLive rows={rows} kgGoal={kgGoal} serverNow={now.toISOString()} />;
+  return <CategoryGoalsLive rows={rows} kgGoal={kgGoal} serverNow={now.toISOString()} periodEndMs={periodEndsMs(now, tz)} />;
 }

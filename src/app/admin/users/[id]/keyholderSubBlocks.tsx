@@ -320,7 +320,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
 
   // Ohne Prop-Werk: die Karte lädt ihre Kategorie-Ziele selbst — hier ohne Live-Ticken, weil die
   // Keyholderin keine laufenden Sessions mitzählen lässt.
-  categoryGoals: async ({ subjectId }) => <CategoryGoalsToday userId={subjectId} />,
+  categoryGoals: async ({ subjectId, subjectTz }) => <CategoryGoalsToday userId={subjectId} tz={subjectTz} />,
 
   sessionList: block({
     load: ({ subjectId, nowMs }) => sessionListDataCached(subjectId, nowMs, "keyholder"),

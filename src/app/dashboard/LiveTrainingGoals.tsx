@@ -3,10 +3,12 @@
 import { useTranslations } from "next-intl";
 import GoalProgressRows from "@/app/components/GoalProgressRows";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
-import type { VorgabeTargets } from "@/lib/goalFulfillment";
+import type { ByPeriod, VorgabeTargets } from "@/lib/goalFulfillment";
 
 interface Props {
   serverNow: string;
+  /** Ende jedes Zeitraums — serverseitig, weil die Grenzen an der Zeitzone des Trägers hängen. */
+  periodEndMs: ByPeriod<number>;
   tagH: number;
   wocheH: number;
   monatH: number;
@@ -14,7 +16,7 @@ interface Props {
   activeVorgabe: VorgabeTargets;
 }
 
-export default function LiveTrainingGoals({ serverNow, tagH: baseTagH, wocheH: baseWocheH, monatH: baseMonatH, jahrH: baseJahrH, activeVorgabe }: Props) {
+export default function LiveTrainingGoals({ serverNow, periodEndMs, tagH: baseTagH, wocheH: baseWocheH, monatH: baseMonatH, jahrH: baseJahrH, activeVorgabe }: Props) {
   const t = useTranslations("dashboard");
   const tagH = useLiveHours(baseTagH, serverNow, true);
   const wocheH = useLiveHours(baseWocheH, serverNow, true);
@@ -31,6 +33,8 @@ export default function LiveTrainingGoals({ serverNow, tagH: baseTagH, wocheH: b
       <GoalProgressRows
         actual={{ day: tagH, week: wocheH, month: monatH, year: jahrH }}
         targetH={activeVorgabe.targetH}
+        periodEndMs={periodEndMs}
+        serverNow={serverNow}
       />
     </section>
   );
