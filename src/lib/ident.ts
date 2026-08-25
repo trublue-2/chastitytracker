@@ -1,24 +1,49 @@
 /**
- * Der Identitäts-Farbton — Rosa oder Grün — als Umschalter am Gerät.
+ * Die Farbwelt als Umschalter am Gerät.
  *
  * Die Entscheidung steht noch aus, und sie lässt sich nicht an einer Beschreibung treffen: die
- * App war grün, der Entwurf schlägt Rosa vor, und beides sieht man erst am eigenen Bildschirm mit
- * den eigenen Daten. Deshalb liegen BEIDE Fassungen im Blatt (`docs/design/tokens.mjs --write`
- * erzeugt sie), und dieses Modul entscheidet zur Laufzeit, welche gilt.
+ * App war grün, der Entwurf schlägt Rosa vor, und eine dritte Fassung gibt jeder Rolle ihre eigene
+ * Farbe. Das sieht man erst am eigenen Bildschirm mit den eigenen Daten. Deshalb liegen ALLE
+ * Fassungen im Blatt (`docs/design/tokens.mjs --write` erzeugt sie), und dieses Modul entscheidet
+ * zur Laufzeit, welche gilt.
  *
  * Getrennt von `theme.ts`, obwohl es dasselbe Muster hat: `theme.ts` beschreibt eine dauerhafte
  * Einstellung, dies hier eine Frage, die einmal beantwortet und dann samt Umschalter entfernt
  * wird. Was wieder verschwindet, soll man in einer Datei finden.
  */
 
-export type Ident = "rosa" | "gruen";
+/**
+ * `rosa` und `gruen` sind zwei Fassungen derselben Idee: EIN Identitäts-Ton für die ganze App,
+ * der Keyholder-Bereich als Gegenpol in Indigo.
+ *
+ * `geteilt` ist die andere Idee — die ROLLE selbst wird die Farbe: Grün beim Träger, Rot bei der
+ * Keyholderin. „Verschlossen" bleibt dabei in beiden Bereichen grün; es ist dieselbe Tatsache,
+ * egal wer hinsieht.
+ */
+export type Ident = "rosa" | "gruen" | "geteilt";
+
+/**
+ * Die Welten samt Beschriftung — EINE Quelle für den Umschalter und für die Prüfung.
+ *
+ * Sie muss zur `WELTEN`-Tabelle in `docs/design/tokens.mjs` passen; erzwingen lässt sich das von
+ * hier aus nicht (die eine Seite ist ein Build-Skript, die andere App-Code). Dafür hält
+ * `ident.test.ts` beide gegen die `[data-ident="…"]`-Selektoren, die tatsächlich im Blatt stehen —
+ * eine Welt ohne Regeln wäre sonst ein Knopf, der nichts tut.
+ */
+export const IDENT_LABELS: Record<Ident, string> = {
+  rosa: "Rosa",
+  gruen: "Grün",
+  geteilt: "Geteilt",
+};
+
+export const IDENTS = Object.keys(IDENT_LABELS) as Ident[];
 
 export const IDENT_STORAGE_KEY = "design-ident";
 export const IDENT_ATTRIBUTE = "data-ident";
 export const IDENT_DEFAULT: Ident = "rosa";
 
 function isIdent(value: unknown): value is Ident {
-  return value === "rosa" || value === "gruen";
+  return IDENTS.includes(value as Ident);
 }
 
 export function readStoredIdent(): Ident {

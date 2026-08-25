@@ -15,14 +15,39 @@ import fs from 'node:fs'
 
 // ── Die drei Bedeutungen ─────────────────────────────────────────────────────
 // Mehr gibt es nicht. Alles andere ist neutral — das ist der Kern des Entwurfs.
-// Der Identitäts-Farbton ist umschaltbar, damit man ihn AM ECHTEN BILDSCHIRM vergleichen kann
-// statt an einer Beschreibung.
+// Die Farbwelt ist umschaltbar, damit man sie AM ECHTEN BILDSCHIRM vergleichen kann statt an
+// einer Beschreibung. Alle Welten stehen gleichzeitig im Blatt: `--write` schreibt die Vorgabe in
+// die vier Theme-Blöcke und jede weitere als ABWEICHUNG in einen eigenen Abschnitt unter
+// `[data-ident="…"]`. Umgeschaltet wird am Gerät, nicht im Generator — nur so vergleicht man
+// Fassungen desselben Bildschirms, ohne zwischen Bauten zu wechseln und dabei zu vergessen, wie
+// die vorige aussah.
+
+// ── Die drei Welten ──────────────────────────────────────────────────────────
+// Eine Welt legt vier Dinge fest: welchen Ton der ZUSTAND trägt („verschlossen"), welchen Ton die
+// beiden ROLLEN in ihrer Umgebung tragen (Kopfzeile, Navigation, Hauptknopf), und wie warm oder
+// kühl der GRUND der beiden Bereiche steht.
 //
-// Beide Welten stehen im Blatt: `--write` schreibt den rosa Bestand in die vier Theme-Blöcke und
-// die grünen ABWEICHUNGEN in einen eigenen Abschnitt unter `[data-ident="gruen"]`. Umgeschaltet
-// wird dann am Gerät, nicht im Generator — nur so vergleicht man zwei Fassungen desselben
-// Bildschirms, ohne zwischen zwei Bauten zu wechseln und dabei zu vergessen, wie die erste aussah.
-let IDENTITAET = process.env.IDENTITAET === 'gruen' ? 'gruen' : 'rosa'
+// `rosa` und `gruen` sind zwei Fassungen derselben Idee: EIN Identitäts-Ton für die ganze App,
+// der Keyholder-Bereich als Gegenpol in Indigo. `geteilt` ist die andere Idee — die Rolle SELBST
+// wird die Farbe: Grün beim Träger, Rot bei der Keyholderin.
+//
+// Der Zustand kann in `geteilt` nicht mehr der Identitäts-Ton sein, denn es gibt zwei davon. Er
+// wird Grün, und zwar in BEIDEN Bereichen: „verschlossen" ist dieselbe Tatsache, egal wer
+// hinsieht — das war schon immer so und ist der Grund, warum die Bedeutungsfarben nie an der
+// Rolle hingen. Rot bliebe damit der Keyholderin allein, als Umgebung.
+const WELTEN = {
+  rosa:    { zustand: 'rosa',  rolle: { traeger: 'rosa',  keyholder: 'indigo' }, grund: { traeger: 'rosa',  keyholder: 'kuehl' } },
+  gruen:   { zustand: 'gruen', rolle: { traeger: 'gruen', keyholder: 'indigo' }, grund: { traeger: 'gruen', keyholder: 'kuehl' } },
+  geteilt: { zustand: 'gruen', rolle: { traeger: 'gruen', keyholder: 'rosa'   }, grund: { traeger: 'gruen', keyholder: 'warm'  } },
+}
+
+/** Die Welt, die in den vier Theme-Blöcken selbst steht. Alle anderen kommen als Abweichung
+ *  darunter — siehe `weltenAbschnitt()`. */
+const WELT_VORGABE = 'rosa'
+
+// `Object.hasOwn`, nicht `WELTEN[x]`: `IDENTITAET=constructor` wäre sonst truthy und liefe erst
+// später auf einen Absturz in `grundVon`.
+let IDENTITAET = Object.hasOwn(WELTEN, process.env.IDENTITAET ?? '') ? process.env.IDENTITAET : WELT_VORGABE
 
 const ZUSTAND = {
   // Die Rose des Entwurfs.
@@ -33,8 +58,20 @@ const ZUSTAND = {
   gruen: { dunkel: '#34d399', hell: '#067a45', flaeche: '#34d399', rampe: '#067a45' },
 }
 
+/** Alle Töne, die eine Welt vergeben kann — die Zustands-Töne plus Indigo.
+ *
+ *  EINE Tabelle, damit `WELTEN[…].zustand` und `WELTEN[…].rolle.*` denselben Schlüsselraum
+ *  benutzen. Vorher wählte ein `name === 'indigo'` zwischen zwei Tabellen, und ein vierter
+ *  Rollen-Ton hätte entweder ein zweites `if` gebraucht oder wäre versehentlich auch als
+ *  ZUSTANDS-Ton wählbar geworden. Indigo hat keine `rampe`: es färbt nie den Tragekalender,
+ *  weil das eine Angabe über den Träger ist. */
+const TOENE = {
+  ...ZUSTAND,
+  indigo: { dunkel: '#8f88ff', hell: '#4e45e8' },  // im Entwurf der Schein des Keyholder-Bildschirms
+}
+
 const BEDEUTUNG = {
-  rosa:    ZUSTAND[IDENTITAET],                                         // der Zustand
+  rosa:    TOENE[WELTEN[IDENTITAET].zustand],                           // der Zustand
   gold:    { dunkel: '#e8b44a', hell: '#7f5a10', flaeche: '#e8b44a' },  // die Auszeichnung
   koralle: { dunkel: '#ff8a5c', hell: '#b23200', flaeche: '#ff8a5c' },  // die Aufmerksamkeit
 }
@@ -69,9 +106,8 @@ const FAMILIE = {
 //
 // Also beides: die Temperatur des Grunds UND ein Umgebungs-Akzent je Rolle.
 const ROLLE = {
-  traeger:   ZUSTAND[IDENTITAET],                       // derselbe Ton wie der Zustand
-  keyholder: { dunkel: '#8f88ff', hell: '#4e45e8' },   // Indigo — im Entwurf der Schein des
-                                                        // Keyholder-Bildschirms
+  traeger:   TOENE[WELTEN[IDENTITAET].rolle.traeger],
+  keyholder: TOENE[WELTEN[IDENTITAET].rolle.keyholder],
 }
 
 /** Schaltet den Identitäts-Ton für alle folgenden Aufrufe um.
@@ -80,11 +116,12 @@ const ROLLE = {
  *  abhängige Zeile neu zu setzen, statt jede Ableitung zu parametrisieren. Alles andere im
  *  Generator bleibt unberührt und kann von der Umschaltung nichts mitbekommen. */
 export function setIdentitaet(ident) {
-  IDENTITAET = ident === 'gruen' ? 'gruen' : 'rosa'
-  BEDEUTUNG.rosa = ZUSTAND[IDENTITAET]
-  ROLLE.traeger = ZUSTAND[IDENTITAET]
-  Object.assign(THEMES['user'], TRAEGER_GRUND[IDENTITAET].hell)
-  Object.assign(THEMES['user-dark'], TRAEGER_GRUND[IDENTITAET].dunkel)
+  IDENTITAET = Object.hasOwn(WELTEN, ident ?? '') ? ident : WELT_VORGABE
+  const w = WELTEN[IDENTITAET]
+  BEDEUTUNG.rosa = TOENE[w.zustand]
+  ROLLE.traeger = TOENE[w.rolle.traeger]
+  ROLLE.keyholder = TOENE[w.rolle.keyholder]
+  for (const th of Object.values(THEMES)) Object.assign(th, grundVon(th.rolle, th.hell))
 }
 
 // Der GRUND des Träger-Bereichs hängt am Identitäts-Ton, nicht nur der Akzent.
@@ -104,13 +141,27 @@ const TRAEGER_GRUND = {
   },
 }
 
+/** Der Grund des KEYHOLDER-Bereichs. `kuehl` gehört zu Indigo; `warm` zu einem roten Rollen-Ton —
+ *  ein kühl-blauer Raum unter einer roten Kopfzeile liest sich als zwei Entwürfe übereinander. */
+const KEYHOLDER_GRUND = {
+  kuehl: {
+    hell:   { grund: '#f7f8fc', erhoeht: '#eef1f8', feld: '#e5eaf3', text: ['#1d2130', '#4d5363', '#646b7b'], tinte: '29,33,48' },
+    dunkel: { grund: '#070810', erhoeht: '#0f1119', feld: '#181b26', text: ['#f4f5fb', '#bcbed3', '#8c8ea6'], tinte: '255,255,255' },
+  },
+  warm: {
+    hell:   { grund: '#fcf8f8', erhoeht: '#f6eff0', feld: '#f0e6e7', text: ['#2b1d1f', '#614d50', '#7b6568'], tinte: '43,29,31' },
+    dunkel: { grund: '#0b0708', erhoeht: '#140e0f', feld: '#241b1c', text: ['#fdf8f8', '#c9b9ba', '#9a888a'], tinte: '255,255,255' },
+  },
+}
+
+const grundVon = (rolle, hell) => (rolle === 'traeger' ? TRAEGER_GRUND : KEYHOLDER_GRUND)
+  [WELTEN[IDENTITAET].grund[rolle]][hell ? 'hell' : 'dunkel']
+
 const THEMES = {
   'user':        { hell: true,  rolle: 'traeger',   ...TRAEGER_GRUND.rosa.hell },
   'user-dark':   { hell: false, rolle: 'traeger',   ...TRAEGER_GRUND.rosa.dunkel },
-  'admin-light': { hell: true,  rolle: 'keyholder', grund: '#f7f8fc', erhoeht: '#eef1f8', feld: '#e5eaf3',
-                   text: ['#1d2130', '#4d5363', '#646b7b'], tinte: '29,33,48' },
-  'admin':       { hell: false, rolle: 'keyholder', grund: '#070810', erhoeht: '#0f1119', feld: '#181b26',
-                   text: ['#f4f5fb', '#bcbed3', '#8c8ea6'], tinte: '255,255,255' },
+  'admin-light': { hell: true,  rolle: 'keyholder', ...KEYHOLDER_GRUND.kuehl.hell },
+  'admin':       { hell: false, rolle: 'keyholder', ...KEYHOLDER_GRUND.kuehl.dunkel },
 }
 
 // ── Farbrechnen ──────────────────────────────────────────────────────────────
@@ -171,14 +222,37 @@ export function themeTokens(themeName) {
   //
   // `feld` ist in beiden Richtungen die entfernteste Fläche — hell die dunkelste, dunkel die
   // hellste. Wer dort trägt, trägt überall.
-  const stufe = (ton, ziel, auf = th.feld) => {
+  const stufe = (ton, ziel) => {
     let c = ton
     for (let t = 0; t <= 0.6; t += 0.01) {
       c = mix(ton, th.text[0], t)
-      if (kontrast(c, auf) >= ziel) break
+      if (ALLE_FLAECHEN.every((f) => kontrast(c, f) >= ziel)) break
     }
     return c
   }
+  // Die Flächen, gegen die die leisen Textstufen kalibriert werden.
+  //
+  // Genau hier ist die Falle dieser Datei schon dreimal zugeschnappt: eine Textstufe gilt nur für
+  // den Untergrund, gegen den sie gemessen wurde. Erst fiel die leise Stufe auf `surface-raised`
+  // durch, dann auf der aktiven Navigationsfläche, dann auf der Kopfzeile — jedes Mal einzeln
+  // geflickt, jedes Mal in genau einer der vier Fassungen.
+  //
+  // Die Menge listet die Flächen, die diese Tokens WIRKLICH TRAGEN, nicht alle getönten. Der
+  // Unterschied ist nicht akademisch: die Avatar-Kachel (`rollig(0.26)`) ist die dunkelste von
+  // allen und wäre damit immer die bindende — sie trägt aber ausschliesslich `--header-avatar-text`
+  // (die volle Vordergrundfarbe). Gegen sie zu kalibrieren hob die leise Stufe so weit an, dass der
+  // Abstand zwischen PRIMÄR und SEKUNDÄR auf 1,32 zusammenfiel. Eine Stufe, die auf einer Fläche
+  // trägt, auf der sie nie steht, bezahlt das mit der Hierarchie überall sonst.
+  const rollig = (anteil) => mix(th.grund, rollenton, anteil * (th.hell ? 1 : 0.68))
+  // Die Glut hinter der grossen Zahl in ihrem Maximum — ein `rgba` über dem Grund, also derselbe
+  // Wert wie eine Mischung. Sie gehört dazu, weil die laufende Session ihre Nebenzeilen genau
+  // darauf setzt (`LaufendeSessionCard`, `text-foreground-muted`/`-faint`); ohne sie fiel die
+  // leise Stufe im dunklen Träger-Theme der grünen Welten auf 4,41:1 durch. Getrennt von `rollig`,
+  // weil das Leuchten seine eigene Leiter hat und nicht die Rollen-Tönung ist.
+  const glutAnteil = th.hell ? 0.13 : 0.20
+  const glut = mix(th.grund, rollenton, glutAnteil)
+  const ALLE_FLAECHEN = [th.feld, rollig(0.09), rollig(0.16), glut]
+
   setze('foreground', th.text[0])
   setze('foreground-muted', stufe(th.text[1], 7))
   setze('foreground-faint', stufe(th.text[2], 4.5))
@@ -215,8 +289,14 @@ export function themeTokens(themeName) {
   // Also beides: die Temperatur des Grunds UND ein Umgebungs-Akzent. Die Anteile sind gemessen,
   // nicht gegriffen — bei diesen Werten liegt der Unterschied bei ΔE ≈ 10, der Schwelle für „ohne
   // Vergleich erkennbar", und die Fläche bleibt mit 1,17 zum Grund eine Tönung statt eines Balkens.
-  const akzent = BEDEUTUNG.rosa[art]
-  const rollig = (anteil) => mix(th.grund, rollenton, anteil * (th.hell ? 1 : 0.68))
+  // Der Akzent ist der ROLLEN-Ton, nicht der Zustands-Ton.
+  //
+  // In den Ein-Ton-Welten sind das für den Träger dieselbe Farbe, und der Unterschied fiel deshalb
+  // nie auf — der Hauptknopf der Keyholderin trug dort dennoch schon die falsche Herkunft. In
+  // `geteilt` treten die beiden auseinander, und dann ist es sichtbar falsch: ihr Hauptknopf
+  // stünde grün in einem roten Raum. „Die Rolle sitzt in der Umgebung — Kopfzeile, Navigation,
+  // Hauptknopf" (umsetzung.md); der Knopf gehört also zur Rolle, nicht zum Zustand.
+  const akzent = rollenton
   setze('header-bg', rollig(0.09))
   setze('header-border', rollig(0.20))
   setze('header-text', th.text[0])
@@ -236,7 +316,11 @@ export function themeTokens(themeName) {
   // vorkommen (Leiste, aktiver Eintrag, Symbol-Kachel). Gegen die Leiste allein gemessen kam
   // 4,55:1 heraus und die Beschriftung fiel trotzdem mit 4,41:1 durch, weil sie stellenweise auf
   // der aktiven Fläche sitzt. Wer auf der ungünstigsten trägt, trägt auf allen.
-  setze('nav-inactive-text', stufe(th.text[2], 4.5, rollig(0.16)))
+  // Dieselbe Stufe wie `--foreground-faint`: die Navigationsfläche steht in `ALLE_FLAECHEN`, die
+  // Rechnung ist also schon gemacht. Der Token bleibt trotzdem eigen — die Navigation ist die eine
+  // Fläche, deren Tönung sich mit der Rolle ändert, und wer sie später anders stimmen will, findet
+  // hier die Stelle statt sie aus `foreground-faint` herausschälen zu müssen.
+  setze('nav-inactive-text', stufe(th.text[2], 4.5))
   setze('nav-inactive-hover', th.text[0])
   setze('nav-icon-bg', th.feld); setze('nav-icon-active-bg', akzent)
   setze('focus-ring', rollenton)
@@ -275,7 +359,7 @@ export function themeTokens(themeName) {
   // kann — und sie ist der einzige Ort je Bildschirm, an dem etwas strahlen darf.
   {
     const [r, g, b] = px(rollenton)
-    setze('hero-glow', `rgba(${r},${g},${b},${th.hell ? 0.13 : 0.20})`)
+    setze('hero-glow', `rgba(${r},${g},${b},${glutAnteil})`)
   }
   // Der Vollbild-Bildbetrachter bleibt schwarz — ein Foto beurteilt man nicht auf Farbe. Als
   // Token, damit die Stelle auffindbar ist und nicht als `#000` im Style-Objekt versteckt liegt.
@@ -306,10 +390,13 @@ function tokensIn(ident, name) {
   return themeTokens(name)
 }
 
-/** Nur die Tokens, in denen sich Grün von Rosa unterscheidet. */
-function gruenAbweichung(name) {
-  const rosa = new Map(tokensIn('rosa', name))
-  return tokensIn('gruen', name).filter(([k, v]) => rosa.get(k) !== v)
+/** Die Welten, die als Abweichung ins Blatt kommen — alle ausser der Vorgabe. */
+const NEBENWELTEN = Object.keys(WELTEN).filter((w) => w !== WELT_VORGABE)
+
+/** Nur die Tokens, in denen sich `welt` von der Vorgabe unterscheidet. */
+function abweichung(welt, name) {
+  const basis = new Map(tokensIn(WELT_VORGABE, name))
+  return tokensIn(welt, name).filter(([k, v]) => basis.get(k) !== v)
 }
 
 /** Die Selektoren, unter denen die grüne Abweichung gilt.
@@ -318,43 +405,71 @@ function gruenAbweichung(name) {
  *  klebt) und am Bereichs-Wrapper. `data-ident` sitzt nur an `<html>` — die Abweichung muss also
  *  beide Träger erreichen, den einen als Kombination, den anderen als Nachfahren.
  *
- *  KEIN `:root[data-ident="gruen"]` für das helle Träger-Theme, obwohl es ohne Attribut gilt: das
+ *  KEIN `:root[data-ident="…"]` für das helle Träger-Theme, obwohl es ohne Attribut gilt: das
  *  Inline-Skript setzt `data-theme` und `data-ident` in derselben Anweisung, ein Wurzelelement mit
  *  Ton und ohne Theme gibt es also nicht. Der Selektor hätte nur die Spezifität (0,2,0) in den
  *  Ring geworfen und damit von der Reihenfolge der Blöcke abhängig gemacht, welche Welt eine
  *  Keyholder-Seite bekommt. */
-function identSelektoren(name) {
-  return [`[data-ident="gruen"][data-theme="${name}"]`, `[data-ident="gruen"] [data-theme="${name}"]`]
+function identSelektoren(welt, name) {
+  return [`[data-ident="${welt}"][data-theme="${name}"]`, `[data-ident="${welt}"] [data-theme="${name}"]`]
 }
 
-const MARKE_AUF = '/* ══ ERZEUGT von docs/design/tokens.mjs — der grüne Identitäts-Ton ══'
+/** Das PRÄFIX der Anfangsmarke — nicht ihr voller Text.
+ *
+ *  Der volle Text stand einmal als Suchbegriff hier, und dann wurde er umformuliert („der grüne
+ *  Identitäts-Ton" → „die übrigen Farbwelten"). Der Schreiber fand den alten Abschnitt danach
+ *  nicht mehr, liess ihn stehen und hängte den neuen dahinter: 226 Zeilen veralteter Werte im
+ *  Blatt, die nur deshalb nichts anrichteten, weil der neue Block später kommt und gewinnt. Wer
+ *  seinen eigenen Marker nach dem Titel sucht, verliert ihn beim ersten Umformulieren. */
+const MARKE_PRAEFIX = '/* ══ ERZEUGT von docs/design/tokens.mjs'
+const MARKE_AUF = `${MARKE_PRAEFIX} — die übrigen Farbwelten ══`
 const MARKE_ZU = '/* ══ Ende des erzeugten Bereichs ══ */'
 
-function gruenAbschnitt() {
+function weltenAbschnitt() {
   const teile = [
     MARKE_AUF,
-    '   Nur die Tokens, die sich vom rosa Bestand unterscheiden — der Rest erbt aus den vier',
-    '   Theme-Blöcken oben. Umgeschaltet wird am Gerät (Einstellungen → Farbwelt); so liegen beide',
-    '   Fassungen desselben Bildschirms nebeneinander statt in zwei Bauten.',
+    `   Nur die Tokens, die sich von der Vorgabe (${WELT_VORGABE}) unterscheiden — der Rest erbt aus den`,
+    '   vier Theme-Blöcken oben. Umgeschaltet wird am Gerät (Einstellungen → Farbwelt); so liegen die',
+    '   Fassungen desselben Bildschirms nebeneinander statt in mehreren Bauten.',
     '   ═════════════════════════════════════════════════════════════════════════════════════ */',
   ]
-  for (const name of Object.keys(THEMES)) {
-    teile.push('', identSelektoren(name).join(',\n') + ' {')
-    for (const t of gruenAbweichung(name)) teile.push(zeile(t))
-    teile.push('}')
+  // Nach INHALT gruppiert, nicht nach Welt: `geteilt` benutzt für den Träger dieselben Werte wie
+  // `gruen`, und ausgeschrieben wären das zweimal 81 Zeilen für denselben Block. Jede weitere
+  // Welt, die eine bestehende Bereichs-Fassung wiederverwendet, spart hier ihre Duplikate mit.
+  const bloecke = new Map()
+  for (const welt of NEBENWELTEN) {
+    for (const name of Object.keys(THEMES)) {
+      const tokens = abweichung(welt, name)
+      if (tokens.length === 0) continue
+      const rumpf = tokens.map(zeile).join('\n')
+      const schluessel = `${name}\u0000${rumpf}`
+      if (!bloecke.has(schluessel)) bloecke.set(schluessel, { rumpf, selektoren: [] })
+      bloecke.get(schluessel).selektoren.push(...identSelektoren(welt, name))
+    }
+  }
+  for (const { rumpf, selektoren } of bloecke.values()) {
+    teile.push('', selektoren.join(',\n') + ' {', rumpf, '}')
   }
   teile.push('', MARKE_ZU)
   return teile.join('\n')
 }
 
-/** Schneidet den erzeugten grünen Abschnitt heraus: `[vor der Marke, nach der Endmarke]`.
+/** Schneidet den erzeugten Welten-Abschnitt heraus: `[vor der Marke, nach der Endmarke]`.
  *  Fehlt er, ist der Rumpf das ganze Blatt und der Schwanz leer. */
-function trenneGruenAb(css) {
-  const auf = css.indexOf(MARKE_AUF)
-  if (auf < 0) return [css, '']
-  const zu = css.indexOf(MARKE_ZU, auf)
-  if (zu < 0) throw new Error('Anfangsmarke ohne Endmarke — von Hand nachsehen')
-  return [css.slice(0, auf).replace(/\s*$/, '\n'), css.slice(zu + MARKE_ZU.length)]
+function trenneWeltenAb(css) {
+  // ALLE markierten Abschnitte, nicht nur den ersten: fand ein früherer Lauf seinen Marker nicht,
+  // liegt mehr als einer im Blatt, und ein Schreiber, der nur einen einsammelt, verewigt den Rest.
+  let erster = null
+  for (;;) {
+    const auf = css.indexOf(MARKE_PRAEFIX)
+    if (auf < 0) break
+    const zu = css.indexOf(MARKE_ZU, auf)
+    if (zu < 0) throw new Error('Anfangsmarke ohne Endmarke — von Hand nachsehen')
+    if (erster === null) erster = auf
+    css = css.slice(0, auf) + css.slice(zu + MARKE_ZU.length)
+  }
+  if (erster === null) return [css, '']
+  return [css.slice(0, erster).replace(/\s*$/, '\n'), css.slice(erster)]
 }
 
 /** Ersetzt den Rumpf eines Theme-Blocks im Blatt. Bricht ab, wenn der Block nicht eindeutig ist. */
@@ -384,10 +499,10 @@ function schreibe(pfad) {
   // `--background:`, und damit fand der Filter unten ZWEI Blöcke statt einem und brach ab. Das
   // Blatt liess sich danach nicht mehr neu erzeugen. Wer nichts sucht, was er gerade selbst
   // geschrieben hat, kann sich auch nicht daran verschlucken.
-  const [rumpf, schwanz] = trenneGruenAb(css)
+  const [rumpf, schwanz] = trenneWeltenAb(css)
   css = rumpf
-  for (const name of Object.keys(THEMES)) css = ersetzeBlock(css, name, tokensIn('rosa', name))
-  css = css.replace(/\s*$/, '\n') + '\n\n' + gruenAbschnitt() + schwanz
+  for (const name of Object.keys(THEMES)) css = ersetzeBlock(css, name, tokensIn(WELT_VORGABE, name))
+  css = css.replace(/\s*$/, '\n') + '\n\n' + weltenAbschnitt() + schwanz
 
   fs.writeFileSync(pfad, css)
   return css
@@ -397,8 +512,11 @@ if (process.argv[1]?.endsWith('tokens.mjs')) {
   if (process.argv.includes('--write')) {
     const pfad = new URL('../../src/app/globals.css', import.meta.url).pathname
     schreibe(pfad)
-    const zahlen = Object.keys(THEMES).map((n) => `${n}: ${gruenAbweichung(n).length}`)
-    console.log(`globals.css geschrieben — vier Theme-Blöcke, grüne Abweichungen (${zahlen.join(', ')})`)
+    for (const welt of NEBENWELTEN) {
+      const zahlen = Object.keys(THEMES).map((n) => `${n}: ${abweichung(welt, n).length}`)
+      console.log(`  ${welt} — Abweichungen (${zahlen.join(', ')})`)
+    }
+    console.log('globals.css geschrieben — vier Theme-Blöcke plus die Welten oben.')
   } else {
     for (const name of Object.keys(THEMES)) {
       console.log(`\n[data-theme="${name}"] {`)

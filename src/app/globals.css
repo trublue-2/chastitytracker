@@ -34,8 +34,8 @@
   --border-subtle:          #eae3e5;
   --border-strong:          #bdaeb3;
   --foreground:             #2d1d26;
-  --foreground-muted:       #5b464e;
-  --foreground-faint:       #7a626a;
+  --foreground-muted:       #503c45;
+  --foreground-faint:       #6f5860;
   --foreground-invert:      #ffffff;
   --color-lock:             #c3002b;
   --color-lock-bg:          #fcf0f2;
@@ -203,10 +203,10 @@
   --nav-inactive-text:      #8c8ea6;
   --nav-inactive-hover:     #f4f5fb;
   --nav-icon-bg:            #181b26;
-  --nav-icon-active-bg:     #ff3d68;
+  --nav-icon-active-bg:     #8f88ff;
   --focus-ring:             #8f88ff;
-  --btn-primary-bg:         #ff3d68;
-  --btn-primary-hover:      #ff6083;
+  --btn-primary-bg:         #8f88ff;
+  --btn-primary-hover:      #a39dff;
   --btn-primary-text:       #2b0410;
   --btn-lock:               #ff3d68;
   --btn-sperrzeit:          #ff3d68;
@@ -348,8 +348,8 @@
   --border-subtle:          #e2e4ea;
   --border-strong:          #aeb2bc;
   --foreground:             #1d2130;
-  --foreground-muted:       #474d5c;
-  --foreground-faint:       #626979;
+  --foreground-muted:       #404555;
+  --foreground-faint:       #5b6272;
   --foreground-invert:      #ffffff;
   --color-lock:             #c3002b;
   --color-lock-bg:          #f7f1f6;
@@ -413,10 +413,10 @@
   --nav-inactive-text:      #5b6272;
   --nav-inactive-hover:     #1d2130;
   --nav-icon-bg:            #e5eaf3;
-  --nav-icon-active-bg:     #c3002b;
+  --nav-icon-active-bg:     #4e45e8;
   --focus-ring:             #4e45e8;
-  --btn-primary-bg:         #c3002b;
-  --btn-primary-hover:      #a00023;
+  --btn-primary-bg:         #4e45e8;
+  --btn-primary-hover:      #4039be;
   --btn-primary-text:       #ffffff;
   --btn-lock:               #c3002b;
   --btn-sperrzeit:          #c3002b;
@@ -438,14 +438,16 @@
 }
 
 
-/* ══ ERZEUGT von docs/design/tokens.mjs — der grüne Identitäts-Ton ══
-   Nur die Tokens, die sich vom rosa Bestand unterscheiden — der Rest erbt aus den vier
-   Theme-Blöcken oben. Umgeschaltet wird am Gerät (Einstellungen → Farbwelt); so liegen beide
-   Fassungen desselben Bildschirms nebeneinander statt in zwei Bauten.
+/* ══ ERZEUGT von docs/design/tokens.mjs — die übrigen Farbwelten ══
+   Nur die Tokens, die sich von der Vorgabe (rosa) unterscheiden — der Rest erbt aus den
+   vier Theme-Blöcken oben. Umgeschaltet wird am Gerät (Einstellungen → Farbwelt); so liegen die
+   Fassungen desselben Bildschirms nebeneinander statt in mehreren Bauten.
    ═════════════════════════════════════════════════════════════════════════════════════ */
 
 [data-ident="gruen"][data-theme="user"],
-[data-ident="gruen"] [data-theme="user"] {
+[data-ident="gruen"] [data-theme="user"],
+[data-ident="geteilt"][data-theme="user"],
+[data-ident="geteilt"] [data-theme="user"] {
   --background:             #f7faf8;
   --background-subtle:      #f3f7f4;
   --surface:                #eef4f0;
@@ -455,8 +457,8 @@
   --border-subtle:          #e3e7e4;
   --border-strong:          #aeb7b2;
   --foreground:             #1d2a23;
-  --foreground-muted:       #425149;
-  --foreground-faint:       #5f6d65;
+  --foreground-muted:       #3d4b43;
+  --foreground-faint:       #59675f;
   --color-lock:             #067a45;
   --color-lock-bg:          #e9f7f1;
   --color-lock-border:      #a4e9cf;
@@ -530,7 +532,9 @@
 }
 
 [data-ident="gruen"][data-theme="user-dark"],
-[data-ident="gruen"] [data-theme="user-dark"] {
+[data-ident="gruen"] [data-theme="user-dark"],
+[data-ident="geteilt"][data-theme="user-dark"],
+[data-ident="geteilt"] [data-theme="user-dark"] {
   --background:             #060907;
   --background-subtle:      #0a0e0b;
   --surface:                #0e130f;
@@ -541,7 +545,7 @@
   --border-strong:          #464e48;
   --foreground:             #f5fbf7;
   --foreground-muted:       #b7c6bd;
-  --foreground-faint:       #869388;
+  --foreground-faint:       #88958a;
   --color-lock:             #34d399;
   --color-lock-bg:          #08130e;
   --color-lock-border:      #195b43;
@@ -596,7 +600,7 @@
   --nav-border:             #0c241b;
   --nav-active-bg:          #0b1f17;
   --nav-active-text:        #f5fbf7;
-  --nav-inactive-text:      #869388;
+  --nav-inactive-text:      #88958a;
   --nav-inactive-hover:     #f5fbf7;
   --nav-icon-bg:            #1a211c;
   --nav-icon-active-bg:     #34d399;
@@ -631,9 +635,6 @@
   --wear-2:                 #8cc0ab;
   --wear-3:                 #5da887;
   --wear-4:                 #067a45;
-  --nav-icon-active-bg:     #067a45;
-  --btn-primary-bg:         #067a45;
-  --btn-primary-hover:      #056439;
   --btn-lock:               #067a45;
   --btn-sperrzeit:          #067a45;
   --color-lock-grad-b:      #bbeddd;
@@ -656,12 +657,179 @@
   --wear-2:                 #15483b;
   --wear-3:                 #1a604b;
   --wear-4:                 #289d74;
-  --nav-icon-active-bg:     #34d399;
-  --btn-primary-bg:         #34d399;
-  --btn-primary-hover:      #59dbab;
   --btn-lock:               #34d399;
   --btn-sperrzeit:          #34d399;
   --color-lock-grad-b:      #10332d;
+}
+
+[data-ident="geteilt"][data-theme="admin-light"],
+[data-ident="geteilt"] [data-theme="admin-light"] {
+  --background:             #fcf8f8;
+  --background-subtle:      #f9f4f4;
+  --surface:                #f6eff0;
+  --surface-raised:         #f0e6e7;
+  --surface-overlay:        #fcf8f8e6;
+  --border:                 #d8cfd0;
+  --border-subtle:          #eae3e4;
+  --border-strong:          #bcafb0;
+  --foreground:             #2b1d1f;
+  --foreground-muted:       #503e41;
+  --foreground-faint:       #6e595c;
+  --color-lock:             #067a45;
+  --color-lock-bg:          #eef5f2;
+  --color-lock-border:      #a7e8d0;
+  --color-lock-muted:       #135938;
+  --color-lock-text:        #135938;
+  --color-sperrzeit:        #067a45;
+  --color-sperrzeit-bg:     #eef5f2;
+  --color-sperrzeit-border: #a7e8d0;
+  --color-sperrzeit-muted:  #135938;
+  --color-sperrzeit-text:   #135938;
+  --color-inspect-bg:       #fcf1ef;
+  --color-inspect-border:   #fdd1c1;
+  --color-inspect-muted:    #832b0b;
+  --color-inspect-text:     #832b0b;
+  --color-request-bg:       #fcf1ef;
+  --color-request-border:   #fdd1c1;
+  --color-request-muted:    #832b0b;
+  --color-request-text:     #832b0b;
+  --color-warn-bg:          #fcf1ef;
+  --color-warn-border:      #fdd1c1;
+  --color-warn-muted:       #832b0b;
+  --color-warn-text:        #832b0b;
+  --color-ok-bg:            #faf2ea;
+  --color-ok-border:        #f2d8a5;
+  --color-ok-muted:         #624515;
+  --color-ok-text:          #624515;
+  --color-unlock:           #614d50;
+  --color-unlock-bg:        #f7f2f3;
+  --color-unlock-border:    #e0d9d9;
+  --color-unlock-muted:     #4e3c3f;
+  --color-unlock-text:      #4e3c3f;
+  --color-orgasm:           #614d50;
+  --color-orgasm-bg:        #f7f2f3;
+  --color-orgasm-border:    #e0d9d9;
+  --color-orgasm-muted:     #4e3c3f;
+  --color-orgasm-text:      #4e3c3f;
+  --wear-0:                 #eef1ee;
+  --wear-1:                 #c8ddd2;
+  --wear-2:                 #8fc0a9;
+  --wear-3:                 #5fa886;
+  --wear-4:                 #067a45;
+  --wear-0-text:            #7b6568;
+  --wear-1-text:            #614d50;
+  --wear-2-text:            #2b1d1f;
+  --wear-3-text:            #2b1d1f;
+  --header-bg:              #f7e2e6;
+  --header-border:          #f1c6cf;
+  --header-text:            #2b1d1f;
+  --header-avatar-bg:       #edb8c3;
+  --header-avatar-text:     #2b1d1f;
+  --nav-bg:                 #f7e2e6;
+  --nav-border:             #f1c6cf;
+  --nav-active-bg:          #f3d0d7;
+  --nav-active-text:        #2b1d1f;
+  --nav-inactive-text:      #6e595c;
+  --nav-inactive-hover:     #2b1d1f;
+  --nav-icon-bg:            #f0e6e7;
+  --nav-icon-active-bg:     #c3002b;
+  --focus-ring:             #c3002b;
+  --btn-primary-bg:         #c3002b;
+  --btn-primary-hover:      #a00023;
+  --btn-lock:               #067a45;
+  --btn-sperrzeit:          #067a45;
+  --btn-unlock:             #614d50;
+  --btn-orgasm:             #614d50;
+  --color-lock-grad-a:      #f6eff0;
+  --color-lock-grad-b:      #beeddb;
+  --color-lock-on:          #2b1d1f;
+  --color-lock-on-muted:    #614d50;
+  --hero-glow:              rgba(195,0,43,0.13);
+}
+
+[data-ident="geteilt"][data-theme="admin"],
+[data-ident="geteilt"] [data-theme="admin"] {
+  --background:             #0b0708;
+  --background-subtle:      #100b0c;
+  --surface:                #140e0f;
+  --surface-raised:         #241b1c;
+  --surface-overlay:        #0b0708e6;
+  --border:                 #332b2c;
+  --border-subtle:          #1f191a;
+  --border-strong:          #534849;
+  --foreground:             #fdf8f8;
+  --foreground-muted:       #c9b9ba;
+  --foreground-faint:       #9a888a;
+  --color-lock:             #34d399;
+  --color-lock-bg:          #0d1210;
+  --color-lock-border:      #1c5b43;
+  --color-lock-muted:       #7ae0ba;
+  --color-lock-text:        #7ae0ba;
+  --color-sperrzeit:        #34d399;
+  --color-sperrzeit-bg:     #0d1210;
+  --color-sperrzeit-border: #1c5b43;
+  --color-sperrzeit-muted:  #7ae0ba;
+  --color-sperrzeit-text:   #7ae0ba;
+  --color-inspect-bg:       #190e0d;
+  --color-inspect-border:   #78422e;
+  --color-inspect-muted:    #feb193;
+  --color-inspect-text:     #feb193;
+  --color-request-bg:       #190e0d;
+  --color-request-border:   #78422e;
+  --color-request-muted:    #feb193;
+  --color-request-text:     #feb193;
+  --color-warn-bg:          #190e0d;
+  --color-warn-border:      #78422e;
+  --color-warn-muted:       #feb193;
+  --color-warn-text:        #feb193;
+  --color-ok-bg:            #16100b;
+  --color-ok-border:        #644d23;
+  --color-ok-muted:         #efcc87;
+  --color-ok-text:          #efcc87;
+  --color-unlock:           #c9b9ba;
+  --color-unlock-bg:        #141011;
+  --color-unlock-border:    #594e4f;
+  --color-unlock-muted:     #dbcfd0;
+  --color-unlock-text:      #dbcfd0;
+  --color-orgasm:           #c9b9ba;
+  --color-orgasm-bg:        #141011;
+  --color-orgasm-border:    #594e4f;
+  --color-orgasm-muted:     #dbcfd0;
+  --color-orgasm-text:      #dbcfd0;
+  --wear-0:                 #0e1512;
+  --wear-1:                 #122c22;
+  --wear-2:                 #184836;
+  --wear-3:                 #1d6047;
+  --wear-4:                 #299d72;
+  --wear-0-text:            #9a888a;
+  --wear-1-text:            #c9b9ba;
+  --wear-2-text:            #c9b9ba;
+  --wear-3-text:            #fdf8f8;
+  --header-bg:              #1a0a0e;
+  --header-border:          #2c0e15;
+  --header-text:            #fdf8f8;
+  --header-avatar-bg:       #361119;
+  --header-avatar-text:     #fdf8f8;
+  --nav-bg:                 #1a0a0e;
+  --nav-border:             #2c0e15;
+  --nav-active-bg:          #260d12;
+  --nav-active-text:        #fdf8f8;
+  --nav-inactive-text:      #9a888a;
+  --nav-inactive-hover:     #fdf8f8;
+  --nav-icon-bg:            #241b1c;
+  --nav-icon-active-bg:     #ff3d68;
+  --focus-ring:             #ff3d68;
+  --btn-primary-bg:         #ff3d68;
+  --btn-primary-hover:      #ff6083;
+  --btn-lock:               #34d399;
+  --btn-sperrzeit:          #34d399;
+  --btn-unlock:             #c9b9ba;
+  --btn-orgasm:             #c9b9ba;
+  --color-lock-grad-a:      #140e0f;
+  --color-lock-grad-b:      #143227;
+  --color-lock-on:          #fdf8f8;
+  --color-lock-on-muted:    #c9b9ba;
+  --hero-glow:              rgba(255,61,104,0.2);
 }
 
 /* ══ Ende des erzeugten Bereichs ══ */
@@ -1080,13 +1248,5 @@ body {
     scroll-behavior: auto !important;
   }
 }
-
-
-
-
-
-
-
-
 
 

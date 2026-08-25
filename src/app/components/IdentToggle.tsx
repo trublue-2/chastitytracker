@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 import SegmentedControl from "@/app/components/SegmentedControl";
-import { readStoredIdent, setStoredIdent, type Ident } from "@/lib/ident";
+import { IDENTS, IDENT_LABELS, readStoredIdent, setStoredIdent, type Ident } from "@/lib/ident";
 
 /**
- * Der Umschalter zwischen den beiden Farbwelten — Rosa oder Grün.
+ * Der Umschalter zwischen den Farbwelten.
  *
  * Steht neben den Design-Umschaltern in den Einstellungen und nicht als schwebende Taste über der
  * App: er soll die Bildschirme vergleichbar machen, nicht auf jedem davon mit im Bild stehen.
  *
  * Er verschwindet mit der Entscheidung. Bis dahin ist er die einzige Art, die Frage zu
- * beantworten, ohne zwei Bauten nebeneinander zu halten.
+ * beantworten, ohne mehrere Bauten nebeneinander zu halten.
  */
 export default function IdentToggle({ label }: { label: string }) {
   const [ident, setIdent] = useState<Ident>("rosa");
@@ -26,10 +26,7 @@ export default function IdentToggle({ label }: { label: string }) {
         {label}
       </span>
       <SegmentedControl
-        options={[
-          { value: "rosa", label: "Rosa" },
-          { value: "gruen", label: "Grün" },
-        ]}
+        options={IDENTS.map((value) => ({ value, label: IDENT_LABELS[value] }))}
         value={ident}
         onChange={(v) => {
           const next = v as Ident;
