@@ -277,13 +277,13 @@ export function VersionCheckerMockDemo() {
   return (
     <div className="relative rounded-xl overflow-hidden">
       {/* Static rebuild of VersionChecker "outdated" state */}
-      <div className="bg-gray-900 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl">
-        <RefreshCw size={18} className="flex-shrink-0 text-gray-300 animate-spin" style={{ animationDuration: "2s" }} />
+      <div className="bg-[var(--surface-raised)] text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl">
+        <RefreshCw size={18} className="flex-shrink-0 text-foreground-muted animate-spin" style={{ animationDuration: "2s" }} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">Neue Version verfügbar</p>
-          <p className="text-xs text-gray-400">Seite neu laden für Update</p>
+          <p className="text-xs text-foreground-faint">Seite neu laden für Update</p>
         </div>
-        <button className="flex-shrink-0 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-xl">
+        <button className="flex-shrink-0 bg-white text-foreground text-xs font-bold px-3 py-1.5 rounded-xl">
           Aktualisieren
         </button>
       </div>
@@ -318,7 +318,7 @@ export function LaufendeSessionCardMockDemo() {
     <div className="flex flex-col gap-3">
       <div className="bg-surface rounded-2xl overflow-hidden shadow-card border border-border">
         {/* ── Green status header ── */}
-        <div className="bg-gradient-to-br from-emerald-600 to-emerald-500 text-white px-5 py-4">
+        <div className="bg-gradient-to-br from-[var(--color-lock-grad-a)] to-[var(--color-lock-grad-b)] text-white px-5 py-4">
           <div className="flex items-start gap-3">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10 mt-0.5">
               <Lock size={24} />
@@ -354,7 +354,7 @@ export function LaufendeSessionCardMockDemo() {
 
           {/* ── Trainingsvorgaben ── */}
           <div className="mt-4 pt-3 border-t border-white/20 flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-100/70 mb-1">Trainingsvorgaben</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lock-on)] opacity-70 mb-1">Trainingsvorgaben</p>
             <div className="flex items-center gap-3">
               <span className="text-xs text-white/70 w-12 shrink-0">Tag</span>
               <div className="flex-1 bg-white/15 rounded-full h-1.5 overflow-hidden">

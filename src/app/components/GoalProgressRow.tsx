@@ -21,6 +21,10 @@ import { goalPct } from "@/lib/percent";
  * Die Prozent-Spalte ist fest und breit genug für dreistellige Werte: `goalPct` klemmt bewusst
  * nicht, und 433 % ist bei einem Jahresziel keine Ausnahme.
  */
+// `onAccent` heisst: die Zeile steht auf der grossen Zustandsfläche, nicht auf dem Grund. Sie nahm
+// dafür Weiss — auf der Marken-Rose sind das 3,4:1 und damit bei 12 px durchgefallen. Die Fläche
+// bringt ihre eigene Schriftfarbe mit (`--color-lock-on`), und die ist je Fassung eine andere:
+// dunkel ein tiefes Weinrot, hell tatsächlich Weiss.
 export default function GoalProgressRow({
   label,
   actual,
@@ -38,22 +42,28 @@ export default function GoalProgressRow({
   if (pct === null) return null;
 
   const onAccent = tone === "onAccent";
-  const fill = onAccent
-    ? pct >= 100 ? "bg-white" : pct >= 70 ? "bg-white/70" : "bg-white/40"
-    : pct >= 100 ? "bg-ok" : pct >= 70 ? "bg-foreground-muted" : "bg-foreground-faint";
+
+  // EINE Füllung für beide Untergründe. Vorher stand auf der Akzentfläche `bg-white` — das war
+  // schon auf der alten grünen Fläche nur knapp lesbar und auf einer hellen Tönung unsichtbar.
+  // Seit die Fläche eine Tönung und kein Farbblock mehr ist, braucht es die Sonderbehandlung
+  // ohnehin nicht: die Rampe trägt auf beiden Gründen.
+  //
+  // Die Stufen sagen dabei etwas: erreicht ist eine AUSZEICHNUNG (Gold), alles darunter ist
+  // Intensität — dieselbe Helligkeits-Rampe wie im Tragekalender, nicht eine zweite Sprache.
+  const fill = pct >= 100 ? "bg-ok" : pct >= 70 ? "bg-[var(--wear-4)]" : "bg-[var(--wear-3)]";
 
   return (
     <div className="flex items-center gap-2">
-      <span className={`text-xs shrink-0 w-11 ${onAccent ? "text-white/70" : "text-foreground-faint"}`}>
+      <span className={`text-xs shrink-0 w-11 ${onAccent ? "text-[var(--color-lock-on-muted)]" : "text-foreground-faint"}`}>
         {label}
       </span>
-      <div className={`w-12 sm:w-20 shrink-0 rounded-full h-1.5 overflow-hidden ${onAccent ? "bg-white/15" : "bg-background-subtle"}`}>
+      <div className={`w-12 sm:w-20 shrink-0 rounded-full h-1.5 overflow-hidden ${onAccent ? "bg-background-subtle" : "bg-background-subtle"}`}>
         <div className={`h-1.5 rounded-full transition-all ${fill}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
-      <span className={`text-xs tabular-nums flex-1 min-w-0 text-right ${onAccent ? "text-white/60" : "text-foreground-muted"}`}>
+      <span className={`text-xs tabular-nums flex-1 min-w-0 text-right ${onAccent ? "text-[var(--color-lock-on-muted)]" : "text-foreground-muted"}`}>
         {formatTotalHours(actual)} / {formatTotalHours(target)}
       </span>
-      <span className={`text-xs font-semibold tabular-nums w-12 text-right shrink-0 ${onAccent ? "text-white" : "text-foreground"}`}>
+      <span className={`text-xs font-semibold tabular-nums w-12 text-right shrink-0 ${onAccent ? "text-[var(--color-lock-on)]" : "text-foreground"}`}>
         {pct}%
       </span>
     </div>

@@ -22,8 +22,8 @@ export default function LiveTrainingGoals({ serverNow, tagH: baseTagH, wocheH: b
   const jahrH = useLiveHours(baseJahrH, serverNow, true);
 
   return (
-    <div className="mt-4 pt-3 border-t border-white/20 flex flex-col gap-2">
-      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-100/70 mb-1">
+    <div className="mt-4 pt-3 border-t border-border-subtle flex flex-col gap-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lock-on-muted)] mb-1">
         {t("kgGoals")}
       </p>
       <GoalProgressRows

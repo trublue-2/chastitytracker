@@ -228,8 +228,10 @@ describe("Theme-Wrapper bleiben Containing-Block-frei", () => {
     const blocks = themeBlocks().filter((b) =>
       b.selektoren.some((x) => x.startsWith("[data-theme")),
     );
-    // Vier Themes plus ein geteilter Block, den sich die beiden DUNKLEN teilen.
-    expect(blocks.length).toBe(5);
+    // Vier Themes plus zwei geteilte Blöcke für die DeviceCategory-Palette — je einer für die
+    // beiden hellen und die beiden dunklen Fassungen. Die Kategorie-Farbe ist eine andere Achse
+    // als die drei Bedeutungsfarben und wird deshalb getrennt gehalten.
+    expect(blocks.length).toBe(6);
 
     for (const { deklarationen } of blocks)
       for (const d of deklarationen) expect(d.startsWith("--")).toBe(true);

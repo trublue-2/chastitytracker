@@ -161,7 +161,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   // Reinigung → compact inline row with optional modal
   if (ev.type === "reinigung") {
     const reinigungPill = (
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-unlock-text)] bg-[var(--color-unlock-bg)] border border-[var(--color-unlock-border)] px-2 py-0.5 rounded-full">
         <LockOpen size={10} />{t("sessionReinigung")}
       </span>
     );
@@ -181,8 +181,8 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
             {photo.mainUrl ?? photo.boxUrl ? (
               <PhotoThumb url={(photo.mainUrl ?? photo.boxUrl)!} alt="" size="lg" />
             ) : (
-              <div className="w-full h-full bg-sky-50 flex items-center justify-center rounded-xl">
-                <LockOpen size={18} className="text-sky-400" />
+              <div className="w-full h-full bg-[var(--color-unlock-bg)] flex items-center justify-center rounded-xl">
+                <LockOpen size={18} className="text-[var(--color-unlock)]" />
               </div>
             )}
           </div>
@@ -196,7 +196,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
               <span className="hidden sm:inline-flex shrink-0 items-center gap-1.5">{reinigungPill}{keyPill}</span>
             </div>
             {ev.pauseDurationStr && (
-              <p className="text-xs text-sky-500 mt-0.5">{ev.pauseDurationStr}</p>
+              <p className="text-xs text-[var(--color-unlock-text)] mt-0.5">{ev.pauseDurationStr}</p>
             )}
             {ev.note && <p className="text-xs text-foreground-faint italic mt-0.5 truncate">„{ev.note}"</p>}
             {ev.codeImageUrl && (

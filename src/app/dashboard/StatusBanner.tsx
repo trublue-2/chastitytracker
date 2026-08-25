@@ -38,7 +38,7 @@ export default function StatusBanner({ type, since, tz = APP_TZ }: Props) {
 
   const bg = isVerschlossen
     ? "bg-gradient-to-br from-[var(--color-lock)] to-[var(--color-lock-muted)]"
-    : "bg-gradient-to-br from-slate-700 to-slate-600";
+    : "bg-gradient-to-br from-[var(--surface-raised)] to-[var(--surface)]";
 
   return (
     <div className={`${bg} rounded-2xl text-background px-4 py-4 flex items-start gap-3`}>

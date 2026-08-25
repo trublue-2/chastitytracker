@@ -325,7 +325,7 @@ function HoldRemaining({ until }: { until: string }) {
   // geliefert (Uhren-Drift zwischen Handy und Server, oder offline). „noch 0min" wäre dann eine
   // Aufforderung zu warten, die nie endet — der schlichte Satz stimmt in beiden Fällen.
   return (
-    <span suppressHydrationWarning>
+    <span suppressHydrationWarning className="tabular-nums">
       {remainingMs === 0
         ? t("nextStepHoldOver")
         : t("nextStepHold", { remaining: formatElapsedMs(remainingMs, locale) })}

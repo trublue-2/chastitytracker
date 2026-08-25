@@ -81,7 +81,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
                           triggerRef.current = e.currentTarget;
                           setSelected(dayData);
                         }}
-                        className={`relative rounded aspect-square flex items-center justify-center w-full ${dayData.colorClass} ${dayData.dailyGoalMet === true ? "ring-2 ring-emerald-400" : ""} ${hasData ? "cursor-pointer hover:opacity-75 active:scale-95 transition-all" : "cursor-default"}`}
+                        className={`relative rounded aspect-square flex items-center justify-center w-full ${dayData.colorClass} ${dayData.dailyGoalMet === true ? "ring-2 ring-[var(--color-ok)]" : ""} ${hasData ? "cursor-pointer hover:opacity-75 active:scale-95 transition-all" : "cursor-default"}`}
                         title={dayData.wearHours > 0 ? formatTotalHours(dayData.wearHours) : undefined}
                       >
                         <span className="text-xs font-medium leading-none">{dayData.day}</span>
@@ -123,9 +123,9 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
             </div>
 
             {selected.wearHours > 0 && (
-              <div className="flex items-center justify-between bg-blue-50 rounded-xl px-4 py-3">
-                <span className="text-sm text-blue-700 font-medium">{t("wearTime")}</span>
-                <span className="text-sm font-bold text-blue-900 tabular-nums">{formatTotalHours(selected.wearHours)}</span>
+              <div className="flex items-center justify-between bg-[var(--color-lock-bg)] rounded-xl px-4 py-3">
+                <span className="text-sm text-[var(--color-lock-text)] font-medium">{t("wearTime")}</span>
+                <span className="text-sm font-bold text-[var(--color-lock-text)] tabular-nums">{formatTotalHours(selected.wearHours)}</span>
               </div>
             )}
 

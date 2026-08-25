@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
-import { JetBrains_Mono } from "next/font/google";
+import { Geist, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Heartbeat from "@/app/components/Heartbeat";
@@ -17,6 +16,16 @@ import { isValidLocale } from "@/lib/constants";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+});
+
+// Instrument Serif trägt die Titel und die Wortmarke. Der Kontrast zwischen einer Grotesk fürs
+// Laufende und einer Serif fürs Benannte ist das, was den Bildschirmen ihre Hierarchie gibt —
+// ohne dass dafür Farbe oder Fläche herhalten muss.
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -101,7 +110,7 @@ export default async function RootLayout({
           />
         ))}
       </head>
-      <body className={`${geistSans.variable} ${jetbrainsMono.variable} antialiased`} suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} antialiased`} suppressHydrationWarning>
         <NextIntlClientProvider messages={messages}>
           <ToastProvider>
             {localeToAdopt && <LocaleCookieSync locale={localeToAdopt} />}

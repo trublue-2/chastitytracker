@@ -26,7 +26,7 @@ export default async function Header() {
         <Link href="/dashboard" className={headerBrandCls}>
           KG-Tracker
           {hostname && (
-            <span className="text-xs font-normal text-header-text/60 tracking-normal">
+            <span className="text-xs font-normal text-foreground-faint tracking-normal">
               {hostname}
             </span>
           )}

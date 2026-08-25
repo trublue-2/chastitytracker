@@ -25,10 +25,10 @@ export default function WearCalendarSwitcher({ variants }: { variants: CalendarV
       header={(active) => (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground-muted">
           <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-surface-raised border border-border inline-block" />{t("notWorn")}</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-100 inline-block" />&lt;25%</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 inline-block" />25–40%</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-400 inline-block" />40–65%</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-600 inline-block" />&gt;65%</span>
+          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--wear-1)] inline-block" />&lt;25%</span>
+          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--wear-2)] inline-block" />25–40%</span>
+          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--wear-3)] inline-block" />40–65%</span>
+          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--wear-4)] inline-block" />&gt;65%</span>
           {active.isKG && (
             <span className="flex items-center gap-1.5">
               <span className="relative inline-flex w-4 h-4 items-center justify-center">
@@ -38,8 +38,8 @@ export default function WearCalendarSwitcher({ variants }: { variants: CalendarV
               {t("orgasm")}
             </span>
           )}
-          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-blue-200 ring-2 ring-emerald-400 inline-block" />{t("dailyGoalReached")}</span>
-          <span className="flex items-center gap-1.5"><span className="font-bold text-emerald-500">✓</span>{t("weeklyGoalReached")}</span>
+          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--wear-2)] ring-2 ring-[var(--color-ok)] inline-block" />{t("dailyGoalReached")}</span>
+          <span className="flex items-center gap-1.5"><span className="font-bold text-[var(--color-ok)]">✓</span>{t("weeklyGoalReached")}</span>
         </div>
       )}
     >

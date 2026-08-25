@@ -30,16 +30,20 @@ const spinnerSize: Record<ButtonSize, "sm" | "default"> = {
   lg:      "default",
 };
 
+// Kein `shadow-card` mehr in irgendeinem Zweig. Es stand hier viermal und machte allein die
+// Hälfte aller Schatten der App aus — ein Knopf, der sich von der Seite abhebt, konkurriert mit
+// der einen Stelle, die das je Bildschirm tun darf. Ein gefüllter Knopf trägt seine Bedeutung in
+// der Fläche, nicht in der Höhe.
 function variantClasses(variant: ButtonVariant, semantic?: SemanticColor): string {
   switch (variant) {
     case "primary":
-      return "bg-btn-primary text-btn-primary-text hover:bg-btn-primary-hover active:bg-btn-primary-hover shadow-card hover:shadow-raised";
+      return "bg-btn-primary text-btn-primary-text hover:bg-btn-primary-hover active:bg-btn-primary-hover";
     case "secondary":
-      return "bg-surface text-foreground border border-border hover:bg-background-subtle active:bg-background-subtle shadow-card";
+      return "bg-surface text-foreground border border-border hover:bg-background-subtle active:bg-background-subtle";
     case "ghost":
       return "bg-transparent text-foreground-muted hover:bg-background-subtle active:bg-background-subtle";
     case "danger":
-      return "bg-warn text-white hover:opacity-90 active:opacity-80 shadow-card";
+      return "bg-warn text-btn-primary-text hover:opacity-90 active:opacity-80";
     case "semantic": {
       if (!semantic) return variantClasses("primary");
       const semanticBgMap: Record<SemanticColor, string> = {
@@ -52,7 +56,9 @@ function variantClasses(variant: ButtonVariant, semantic?: SemanticColor): strin
         warn:      "bg-btn-warn",
         ok:        "bg-btn-ok",
       };
-      return `${semanticBgMap[semantic]} text-white hover:opacity-90 active:opacity-80 shadow-card`;
+      // `text-white` wäre auf den hellen Fassungen falsch: weiss auf der Marken-Rose sind
+      // 3,4:1 und fallen bei 14 px durch. `--btn-primary-text` kennt die Fassung.
+      return `${semanticBgMap[semantic]} text-btn-primary-text hover:opacity-90 active:opacity-80`;
     }
     default:
       return "";

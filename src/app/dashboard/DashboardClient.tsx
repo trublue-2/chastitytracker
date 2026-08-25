@@ -140,7 +140,7 @@ export default function DashboardClient(props: DashboardProps) {
            kehrt die Anzeige von selbst zum normalen „geöffnet" zurück (Timer im Effekt oben). */}
       {isOpen && (
         <div className="rounded-2xl overflow-hidden border border-unlock-border">
-          <div className="px-5 py-4 text-white bg-gradient-to-br from-sky-600 to-sky-500">
+          <div className="px-5 py-4 text-white bg-gradient-to-br from-[var(--color-unlock-border)] to-[var(--color-unlock)]">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10">
                 <LockOpen size={28} strokeWidth={2} />

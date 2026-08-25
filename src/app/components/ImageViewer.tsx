@@ -169,7 +169,7 @@ export function FullscreenImageModal({
         position: "fixed",
         inset: 0,
         zIndex: 99999,
-        backgroundColor: "#000",
+        backgroundColor: "var(--lightbox-bg)",
         display: "flex",
         flexDirection: "column",
         isolation: "isolate",

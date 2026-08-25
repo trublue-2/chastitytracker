@@ -27,6 +27,27 @@ const paddingClasses: Record<CardPadding, string> = {
   none: "",
 };
 
+/** Fläche und Rahmen je Bedeutung — AUSGESCHRIEBEN, nicht zusammengesetzt.
+ *
+ *  Vorher stand hier `` `bg-${semantic}-bg border-[var(--color-${semantic}-border)]` ``. Tailwind
+ *  liest den Quelltext statisch; eine so gebaute Klasse sieht es NIE. Dass die Karten trotzdem
+ *  Farbe hatten, war Zufall: dieselben Namen standen wörtlich in `Pill` und `Badge`, und davon
+ *  lebten die 26 semantischen Karten mit. Wer diese Klassen dort entfernt hätte — genau das
+ *  steht beim Redesign an — hätte den Karten still den Hintergrund genommen, ohne dass ein Test
+ *  oder der Compiler etwas gemerkt hätte.
+ *
+ *  Ein `Record` über den Union-Typ erzwingt ausserdem, dass eine neue Bedeutung hier auftaucht. */
+const SEMANTIC_SURFACE: Record<NonNullable<CardProps["semantic"]>, string> = {
+  lock:      "rounded-xl border border-[var(--color-lock-border)] bg-lock-bg",
+  unlock:    "rounded-xl border border-[var(--color-unlock-border)] bg-unlock-bg",
+  inspect:   "rounded-xl border border-[var(--color-inspect-border)] bg-inspect-bg",
+  orgasm:    "rounded-xl border border-[var(--color-orgasm-border)] bg-orgasm-bg",
+  request:   "rounded-xl border border-[var(--color-request-border)] bg-request-bg",
+  sperrzeit: "rounded-xl border border-[var(--color-sperrzeit-border)] bg-sperrzeit-bg",
+  warn:      "rounded-xl border border-[var(--color-warn-border)] bg-warn-bg",
+  ok:        "rounded-xl border border-[var(--color-ok-border)] bg-ok-bg",
+};
+
 export default function Card({
   variant = "default",
   semantic,
@@ -35,30 +56,26 @@ export default function Card({
   children,
   ...rest
 }: CardProps) {
-  const baseClasses = [
-    "rounded-xl border",
-    paddingClasses[padding],
-  ];
+  // Kein Rahmen, kein Radius mehr in der Basis: Abschnitte trennen sich durch Haarlinien und
+  // Raum. Was einen Rahmen BRAUCHT, sagt es über `variant` — alles andere ist jetzt eine Fläche
+  // im Fluss der Seite. Das macht nebenbei die 14 Aufrufstellen gegenstandslos, die bisher
+  // `overflow-hidden` mitgeben mussten, nur weil der Radius Listen abschnitt.
+  const baseClasses = [paddingClasses[padding]];
 
   switch (variant) {
     case "outlined":
-      baseClasses.push("border-border bg-transparent");
+      baseClasses.push("rounded-xl border border-border bg-transparent");
       break;
     case "semantic":
-      if (semantic) {
-        baseClasses.push(
-          `bg-${semantic}-bg border-[var(--color-${semantic}-border)]`,
-        );
-      }
+      if (semantic) baseClasses.push(SEMANTIC_SURFACE[semantic]);
       break;
     case "interactive":
-      baseClasses.push(
-        "border-border bg-surface shadow-card",
-        "transition-all hover:shadow-raised hover:-translate-y-0.5",
-      );
+      // Der Hover-Lift und der Schatten sind entfallen: "Leuchten gibt es nur an der runden
+      // Taste." Was anklickbar ist, zeigt das über den Zeiger und eine Flächenaufhellung.
+      baseClasses.push("rounded-xl bg-surface transition-colors hover:bg-surface-raised");
       break;
     default:
-      baseClasses.push("border-border bg-surface");
+      baseClasses.push("bg-surface");
       break;
   }
 

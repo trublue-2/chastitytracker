@@ -4,7 +4,7 @@ import {
 } from "@/lib/utils";
 import { periodTarget } from "@/lib/goalFulfillment";
 import { coveragePct, goalPct } from "@/lib/percent";
-import { wearIntensityLevel, WEAR_LEVEL_BG } from "@/lib/wearIntensity";
+import { wearIntensityLevel, WEAR_LEVEL_BG, WEAR_LEVEL_TEXT } from "@/lib/wearIntensity";
 import type {
   MonthStat, CalendarMonthData, CalendarDayData, DayEntry, DayVorgabe, HeatmapDay, YearHeatmapData,
 } from "@/lib/statsTypes";
@@ -84,12 +84,10 @@ function formatCalendarDate(y: number, m: number, d: number, dl: string, opts: I
 const DAY_LABEL_OPTS: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" };
 const MONTH_YEAR_OPTS: Intl.DateTimeFormatOptions = { month: "long", year: "numeric" };
 
-/** Textfarbe je Intensitätsstufe, damit die Tageszahl auf dem Blau lesbar bleibt. Der Hintergrund
- *  kommt aus `WEAR_LEVEL_BG` — geteilt mit der Jahres-Heatmap und deren Legende. */
-const CALENDAR_LEVEL_TEXT = [
-  "text-foreground-faint", "text-blue-900", "text-blue-900", "text-white", "text-white",
-];
-const calendarLevelClass = (level: number) => `${WEAR_LEVEL_BG[level]} ${CALENDAR_LEVEL_TEXT[level]}`;
+// Fläche UND Ziffer kommen jetzt aus derselben Quelle (`wearIntensity.ts`). Vorher stand die
+// Textfarbe hier und die Fläche dort — zwei Dateien, die nur gemeinsam stimmen, und genau so ist
+// die Kalender-Ziffer auf der dunkelsten Stufe unlesbar geworden.
+const calendarLevelClass = (level: number) => `${WEAR_LEVEL_BG[level]} ${WEAR_LEVEL_TEXT[level]}`;
 
 /** Tages-Karte: Schlüssel `"<jahr>-<monat0>-<tag>"` → getragene Stunden + Orgasmus-Markierung. */
 export type DailyData = Map<string, { hours: number; hasOrgasm: boolean }>;

@@ -131,11 +131,11 @@ export default function Heartbeat({ buildDate, initialUserId }: { buildDate: str
 
   return (
     <div className="fixed bottom-[var(--bottom-nav-space)] left-4 right-4 sm:left-auto sm:right-6 sm:w-80 z-50">
-      <div className="bg-gray-900 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl">
-        <RefreshCw size={18} className="flex-shrink-0 text-gray-300 animate-spin" style={{ animationDuration: "2s" }} />
+      <div className="bg-[var(--surface-raised)] text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl">
+        <RefreshCw size={18} className="flex-shrink-0 text-foreground-muted animate-spin" style={{ animationDuration: "2s" }} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">{tv("title")}</p>
-          <p className="text-xs text-gray-400">{tv("subtitle")}</p>
+          <p className="text-xs text-foreground-faint">{tv("subtitle")}</p>
         </div>
         <button
           onClick={async () => {
@@ -146,7 +146,7 @@ export default function Heartbeat({ buildDate, initialUserId }: { buildDate: str
             window.location.reload();
           }}
           disabled={reloading}
-          className="flex-shrink-0 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-gray-100 transition disabled:opacity-60"
+          className="flex-shrink-0 bg-white text-foreground text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-surface-raised transition disabled:opacity-60"
         >
           {tv("reload")}
         </button>

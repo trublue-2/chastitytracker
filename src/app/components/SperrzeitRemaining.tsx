@@ -22,7 +22,9 @@ export default function SperrzeitRemaining({
   if (remainingMs === 0) return null;
 
   return (
-    <span suppressHydrationWarning className={className}>
+    // `tabular-nums` gehört HIERHER, nicht in die zwei Aufrufer: die Zahl tickt jede Minute,
+    // und eine Ziffernbreite, die sich beim Ticken ändert, lässt die Zeile zappeln.
+    <span suppressHydrationWarning className={`tabular-nums ${className ?? ""}`}>
       {t("sperrzeitRemainingPrefix")} {formatElapsedMs(remainingMs, locale)}
     </span>
   );

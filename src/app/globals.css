@@ -25,113 +25,424 @@
    ───────────────────────────────────────────── */
 :root,
 [data-theme="user"] {
+  --background:             #fcf7f8;
+  --background-subtle:      #f9f3f5;
+  --surface:                #f6eef1;
+  --surface-raised:         #f0e5e9;
+  --surface-overlay:        #fcf7f8e6;
+  --border:                 #d8ced1;
+  --border-subtle:          #eae3e5;
+  --border-strong:          #bdaeb3;
+  --foreground:             #2d1d26;
+  --foreground-muted:       #5b464e;
+  --foreground-faint:       #7a626a;
+  --foreground-invert:      #ffffff;
+  --color-lock:             #c3002b;
+  --color-lock-bg:          #fcf0f2;
+  --color-lock-border:      #fdced8;
+  --color-lock-muted:       #8f0a29;
+  --color-lock-text:        #8f0a29;
+  --color-sperrzeit:        #c3002b;
+  --color-sperrzeit-bg:     #fcf0f2;
+  --color-sperrzeit-border: #fdced8;
+  --color-sperrzeit-muted:  #8f0a29;
+  --color-sperrzeit-text:   #8f0a29;
+  --color-inspect:          #b23200;
+  --color-inspect-bg:       #fcf0ef;
+  --color-inspect-border:   #fdd0c1;
+  --color-inspect-muted:    #832b0d;
+  --color-inspect-text:     #832b0d;
+  --color-request:          #b23200;
+  --color-request-bg:       #fcf0ef;
+  --color-request-border:   #fdd0c1;
+  --color-request-muted:    #832b0d;
+  --color-request-text:     #832b0d;
+  --color-warn:             #b23200;
+  --color-warn-bg:          #fcf0ef;
+  --color-warn-border:      #fdd0c1;
+  --color-warn-muted:       #832b0d;
+  --color-warn-text:        #832b0d;
+  --color-ok:               #7f5a10;
+  --color-ok-bg:            #faf1e9;
+  --color-ok-border:        #f2d7a4;
+  --color-ok-muted:         #624518;
+  --color-ok-text:          #624518;
+  --color-unlock:           #634d55;
+  --color-unlock-bg:        #f7f1f3;
+  --color-unlock-border:    #e1d8da;
+  --color-unlock-muted:     #503c45;
+  --color-unlock-text:      #503c45;
+  --color-orgasm:           #634d55;
+  --color-orgasm-bg:        #f7f1f3;
+  --color-orgasm-border:    #e1d8da;
+  --color-orgasm-muted:     #503c45;
+  --color-orgasm-text:      #503c45;
+  --wear-0:                 #f9ecef;
+  --wear-1:                 #f3cfd7;
+  --wear-2:                 #e8a2b2;
+  --wear-3:                 #df7b91;
+  --wear-4:                 #c3022d;
+  --wear-0-text:            #7d656d;
+  --wear-1-text:            #634d55;
+  --wear-2-text:            #2d1d26;
+  --wear-3-text:            #2d1d26;
+  --wear-4-text:            #ffffff;
+  --header-bg:              #f6eef1;
+  --header-border:          #e0d7d9;
+  --header-text:            #2d1d26;
+  --header-avatar-bg:       #fdced8;
+  --header-avatar-text:     #2d1d26;
+  --nav-bg:                 #f6eef1;
+  --nav-border:             #e0d7d9;
+  --nav-active-bg:          #f0e5e9;
+  --nav-active-text:        #2d1d26;
+  --nav-inactive-text:      #7d656d;
+  --nav-inactive-hover:     #2d1d26;
+  --nav-icon-bg:            #f0e5e9;
+  --nav-icon-active-bg:     #c3002b;
+  --focus-ring:             #c3002b;
+  --btn-primary-bg:         #c3002b;
+  --btn-primary-hover:      #a00023;
+  --btn-primary-text:       #ffffff;
+  --btn-lock:               #c3002b;
+  --btn-sperrzeit:          #c3002b;
+  --btn-inspect:            #b23200;
+  --btn-request:            #b23200;
+  --btn-warn:               #b23200;
+  --btn-ok:                 #7f5a10;
+  --btn-unlock:             #634d55;
+  --btn-orgasm:             #634d55;
+  --color-lock-grad-a:      #f6eef1;
+  --color-lock-grad-b:      #fcdae1;
+  --color-lock-on:          #2d1d26;
+  --color-lock-on-muted:    #634d55;
+  --lightbox-bg:            #000000;
+  --shadow-card:            none;
+  --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.06);
+  --shadow-overlay:         0 16px 32px -8px rgb(0 0 0 / 0.18);
+}
 
-  /* Canvas */
-  --background:        #f8f9fb;
-  --background-subtle: #f1f3f7;
-  --surface:           #ffffff;
-  --surface-raised:    #f1f3f7;
-  --surface-overlay:   #ffffffcc;
 
-  /* Borders */
-  --border:            #e5e7eb;
-  --border-subtle:     #f3f4f6;
-  --border-strong:     #d1d5db;
+/* ─────────────────────────────────────────────
+   ADMIN THEME  (dark, authoritative, controlled)
+   Applied to: [data-theme="admin"]
+   ───────────────────────────────────────────── */
+[data-theme="admin"] {
+  --background:             #070810;
+  --background-subtle:      #0b0d15;
+  --surface:                #0f1119;
+  --surface-raised:         #181b26;
+  --surface-overlay:        #070810e6;
+  --border:                 #2c2e3a;
+  --border-subtle:          #1a1b25;
+  --border-strong:          #4a4b5b;
+  --foreground:             #f4f5fb;
+  --foreground-muted:       #bcbed3;
+  --foreground-faint:       #8c8ea6;
+  --foreground-invert:      #2b0410;
+  --color-lock:             #ff3d68;
+  --color-lock-bg:          #1c0c17;
+  --color-lock-border:      #952642;
+  --color-lock-muted:       #fb7d9b;
+  --color-lock-text:        #fb7d9b;
+  --color-sperrzeit:        #ff3d68;
+  --color-sperrzeit-bg:     #1c0c17;
+  --color-sperrzeit-border: #952642;
+  --color-sperrzeit-muted:  #fb7d9b;
+  --color-sperrzeit-text:   #fb7d9b;
+  --color-inspect:          #ff8a5c;
+  --color-inspect-bg:       #151014;
+  --color-inspect-border:   #774332;
+  --color-inspect-muted:    #fbaf94;
+  --color-inspect-text:     #fbaf94;
+  --color-request:          #ff8a5c;
+  --color-request-bg:       #151014;
+  --color-request-border:   #774332;
+  --color-request-muted:    #fbaf94;
+  --color-request-text:     #fbaf94;
+  --color-warn:             #ff8a5c;
+  --color-warn-bg:          #151014;
+  --color-warn-border:      #774332;
+  --color-warn-muted:       #fbaf94;
+  --color-warn-text:        #fbaf94;
+  --color-ok:               #e8b44a;
+  --color-ok-bg:            #121113;
+  --color-ok-border:        #624e28;
+  --color-ok-muted:         #eccb88;
+  --color-ok-text:          #eccb88;
+  --color-unlock:           #bcbed3;
+  --color-unlock-bg:        #10111a;
+  --color-unlock-border:    #4e5060;
+  --color-unlock-muted:     #d0d1e1;
+  --color-unlock-text:      #d0d1e1;
+  --color-orgasm:           #bcbed3;
+  --color-orgasm-bg:        #10111a;
+  --color-orgasm-border:    #4e5060;
+  --color-orgasm-muted:     #d0d1e1;
+  --color-orgasm-text:      #d0d1e1;
+  --wear-0:                 #200d19;
+  --wear-1:                 #481627;
+  --wear-2:                 #762037;
+  --wear-3:                 #9d2845;
+  --wear-4:                 #ff3d68;
+  --wear-0-text:            #8c8ea6;
+  --wear-1-text:            #8c8ea6;
+  --wear-2-text:            #bcbed3;
+  --wear-3-text:            #f4f5fb;
+  --wear-4-text:            #3d0518;
+  --header-bg:              #0f1119;
+  --header-border:          #242531;
+  --header-text:            #f4f5fb;
+  --header-avatar-bg:       #952642;
+  --header-avatar-text:     #f4f5fb;
+  --nav-bg:                 #0f1119;
+  --nav-border:             #242531;
+  --nav-active-bg:          #181b26;
+  --nav-active-text:        #f4f5fb;
+  --nav-inactive-text:      #8c8ea6;
+  --nav-inactive-hover:     #f4f5fb;
+  --nav-icon-bg:            #181b26;
+  --nav-icon-active-bg:     #ff3d68;
+  --focus-ring:             #ff3d68;
+  --btn-primary-bg:         #ff3d68;
+  --btn-primary-hover:      #ff6083;
+  --btn-primary-text:       #2b0410;
+  --btn-lock:               #ff3d68;
+  --btn-sperrzeit:          #ff3d68;
+  --btn-inspect:            #ff8a5c;
+  --btn-request:            #ff8a5c;
+  --btn-warn:               #ff8a5c;
+  --btn-ok:                 #e8b44a;
+  --btn-unlock:             #bcbed3;
+  --btn-orgasm:             #bcbed3;
+  --color-lock-grad-a:      #0f1119;
+  --color-lock-grad-b:      #52182b;
+  --color-lock-on:          #f4f5fb;
+  --color-lock-on-muted:    #bcbed3;
+  --lightbox-bg:            #000000;
+  --shadow-card:            none;
+  --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.5);
+  --shadow-overlay:         0 16px 32px -8px rgb(0 0 0 / 0.7);
+}
 
-  /* Text */
-  --foreground:        #111827;
-  --foreground-muted:  #4b5563;
-  --foreground-faint:  #9ca3af;
-  --foreground-invert: #ffffff;
 
-  /* ── Semantic: VERSCHLUSS (locked) ──────────
-     Hue 152° emerald-green
-     Accent:  hsl(152, 72%, 30%)  → #146645  — 6.8:1 on #ecfdf5
-     Text:    hsl(152, 76%, 20%)  → #0b4530  — 10.2:1 on bg
-     ─────────────────────────────────────────── */
-  --color-lock:        #0d9151;
-  --color-lock-bg:     #ecfdf5;
-  --color-lock-border: #a7f3d0;
-  --color-lock-muted:  #6ee7b7;
-  --color-lock-text:   #065f46;
+/* ─────────────────────────────────────────────
+   USER DARK THEME  (dark canvas, emerald accent)
+   Applied to: [data-theme="user-dark"]
+   Inherits dark canvas from admin, emerald accent from user
+   ───────────────────────────────────────────── */
+[data-theme="user-dark"] {
+  --background:             #0b0609;
+  --background-subtle:      #100a0d;
+  --surface:                #140d10;
+  --surface-raised:         #241a1e;
+  --surface-overlay:        #0b0609e6;
+  --border:                 #332a2e;
+  --border-subtle:          #1f181c;
+  --border-strong:          #53464c;
+  --foreground:             #fdf7f8;
+  --foreground-muted:       #c9b7bd;
+  --foreground-faint:       #9a868e;
+  --foreground-invert:      #2b0410;
+  --color-lock:             #ff3d68;
+  --color-lock-bg:          #1e0a10;
+  --color-lock-border:      #95253f;
+  --color-lock-muted:       #fe7e9a;
+  --color-lock-text:        #fe7e9a;
+  --color-sperrzeit:        #ff3d68;
+  --color-sperrzeit-bg:     #1e0a10;
+  --color-sperrzeit-border: #95253f;
+  --color-sperrzeit-muted:  #fe7e9a;
+  --color-sperrzeit-text:   #fe7e9a;
+  --color-inspect:          #ff8a5c;
+  --color-inspect-bg:       #190d0e;
+  --color-inspect-border:   #79412e;
+  --color-inspect-muted:    #feb093;
+  --color-inspect-text:     #feb093;
+  --color-request:          #ff8a5c;
+  --color-request-bg:       #190d0e;
+  --color-request-border:   #79412e;
+  --color-request-muted:    #feb093;
+  --color-request-text:     #feb093;
+  --color-warn:             #ff8a5c;
+  --color-warn-bg:          #190d0e;
+  --color-warn-border:      #79412e;
+  --color-warn-muted:       #feb093;
+  --color-warn-text:        #feb093;
+  --color-ok:               #e8b44a;
+  --color-ok-bg:            #160f0c;
+  --color-ok-border:        #644c23;
+  --color-ok-muted:         #efcb87;
+  --color-ok-text:          #efcb87;
+  --color-unlock:           #c9b7bd;
+  --color-unlock-bg:        #150f12;
+  --color-unlock-border:    #5a4d52;
+  --color-unlock-muted:     #dbcdd2;
+  --color-unlock-text:      #dbcdd2;
+  --color-orgasm:           #c9b7bd;
+  --color-orgasm-bg:        #150f12;
+  --color-orgasm-border:    #5a4d52;
+  --color-orgasm-muted:     #dbcdd2;
+  --color-orgasm-text:      #dbcdd2;
+  --wear-0:                 #230b12;
+  --wear-1:                 #491421;
+  --wear-2:                 #771e33;
+  --wear-3:                 #9d2742;
+  --wear-4:                 #ff3d68;
+  --wear-0-text:            #9a868e;
+  --wear-1-text:            #c9b7bd;
+  --wear-2-text:            #c9b7bd;
+  --wear-3-text:            #fdf7f8;
+  --wear-4-text:            #3d0518;
+  --header-bg:              #140d10;
+  --header-border:          #2a2226;
+  --header-text:            #fdf7f8;
+  --header-avatar-bg:       #95253f;
+  --header-avatar-text:     #fdf7f8;
+  --nav-bg:                 #140d10;
+  --nav-border:             #2a2226;
+  --nav-active-bg:          #241a1e;
+  --nav-active-text:        #fdf7f8;
+  --nav-inactive-text:      #9a868e;
+  --nav-inactive-hover:     #fdf7f8;
+  --nav-icon-bg:            #241a1e;
+  --nav-icon-active-bg:     #ff3d68;
+  --focus-ring:             #ff3d68;
+  --btn-primary-bg:         #ff3d68;
+  --btn-primary-hover:      #ff6083;
+  --btn-primary-text:       #2b0410;
+  --btn-lock:               #ff3d68;
+  --btn-sperrzeit:          #ff3d68;
+  --btn-inspect:            #ff8a5c;
+  --btn-request:            #ff8a5c;
+  --btn-warn:               #ff8a5c;
+  --btn-ok:                 #e8b44a;
+  --btn-unlock:             #c9b7bd;
+  --btn-orgasm:             #c9b7bd;
+  --color-lock-grad-a:      #140d10;
+  --color-lock-grad-b:      #541625;
+  --color-lock-on:          #fdf7f8;
+  --color-lock-on-muted:    #c9b7bd;
+  --lightbox-bg:            #000000;
+  --shadow-card:            none;
+  --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.5);
+  --shadow-overlay:         0 16px 32px -8px rgb(0 0 0 / 0.7);
+}
 
-  /* ── Semantic: OEFFNEN (unlocked) ───────────
-     Hue 204° sky-blue
-     Accent:  hsl(204, 88%, 32%)  → #096da8  — 5.1:1 on #f0f9ff
-     Text:    hsl(204, 90%, 22%)  → #064a72  — 8.9:1 on bg
-     ─────────────────────────────────────────── */
-  --color-unlock:      #0369a1;
-  --color-unlock-bg:   #f0f9ff;
-  --color-unlock-border:#bae6fd;
-  --color-unlock-muted:#7dd3fc;
-  --color-unlock-text: #0c4a6e;
 
-  /* ── Semantic: PRUEFUNG / Inspection ────────
-     Hue 32° orange
-     Accent:  hsl(32, 95%, 38%)   → #bb6100  — 5.2:1 on #fff7ed
-     Text:    hsl(20, 90%, 28%)   → #872608  — 8.1:1 on bg
-     ─────────────────────────────────────────── */
-  --color-inspect:     #c2610a;
-  --color-inspect-bg:  #fff7ed;
-  --color-inspect-border:#fed7aa;
-  --color-inspect-muted:#fdba74;
-  --color-inspect-text:#92400e;
+/* ─────────────────────────────────────────────
+   ADMIN LIGHT THEME  (light canvas, indigo accent)
+   Applied to: [data-theme="admin-light"]
+   Inherits light canvas from user, indigo accent from admin
+   ───────────────────────────────────────────── */
+[data-theme="admin-light"] {
+  --background:             #f7f8fc;
+  --background-subtle:      #f3f5fa;
+  --surface:                #eef1f8;
+  --surface-raised:         #e5eaf3;
+  --surface-overlay:        #f7f8fce6;
+  --border:                 #ced1d8;
+  --border-subtle:          #e2e4ea;
+  --border-strong:          #aeb2bc;
+  --foreground:             #1d2130;
+  --foreground-muted:       #474d5c;
+  --foreground-faint:       #626979;
+  --foreground-invert:      #ffffff;
+  --color-lock:             #c3002b;
+  --color-lock-bg:          #f7f1f6;
+  --color-lock-border:      #f9cfdc;
+  --color-lock-muted:       #890c2d;
+  --color-lock-text:        #890c2d;
+  --color-sperrzeit:        #c3002b;
+  --color-sperrzeit-bg:     #f7f1f6;
+  --color-sperrzeit-border: #f9cfdc;
+  --color-sperrzeit-muted:  #890c2d;
+  --color-sperrzeit-text:   #890c2d;
+  --color-inspect:          #b23200;
+  --color-inspect-bg:       #f8f1f1;
+  --color-inspect-border:   #fad1c4;
+  --color-inspect-muted:    #7e2c11;
+  --color-inspect-text:     #7e2c11;
+  --color-request:          #b23200;
+  --color-request-bg:       #f8f1f1;
+  --color-request-border:   #fad1c4;
+  --color-request-muted:    #7e2c11;
+  --color-request-text:     #7e2c11;
+  --color-warn:             #b23200;
+  --color-warn-bg:          #f8f1f1;
+  --color-warn-border:      #fad1c4;
+  --color-warn-muted:       #7e2c11;
+  --color-warn-text:        #7e2c11;
+  --color-ok:               #7f5a10;
+  --color-ok-bg:            #f6f2ed;
+  --color-ok-border:        #f0d7a7;
+  --color-ok-muted:         #5d461b;
+  --color-ok-text:          #5d461b;
+  --color-unlock:           #4d5363;
+  --color-unlock-bg:        #f1f3f7;
+  --color-unlock-border:    #d7dae0;
+  --color-unlock-muted:     #3c4251;
+  --color-unlock-text:      #3c4251;
+  --color-orgasm:           #4d5363;
+  --color-orgasm-bg:        #f1f3f7;
+  --color-orgasm-border:    #d7dae0;
+  --color-orgasm-muted:     #3c4251;
+  --color-orgasm-text:      #3c4251;
+  --wear-0:                 #f5edf3;
+  --wear-1:                 #eed0da;
+  --wear-2:                 #e5a3b5;
+  --wear-3:                 #dd7c94;
+  --wear-4:                 #c3022d;
+  --wear-0-text:            #646b7b;
+  --wear-1-text:            #4d5363;
+  --wear-2-text:            #1d2130;
+  --wear-3-text:            #1d2130;
+  --wear-4-text:            #ffffff;
+  --header-bg:              #eef1f8;
+  --header-border:          #d7d9e0;
+  --header-text:            #1d2130;
+  --header-avatar-bg:       #f9cfdc;
+  --header-avatar-text:     #1d2130;
+  --nav-bg:                 #eef1f8;
+  --nav-border:             #d7d9e0;
+  --nav-active-bg:          #e5eaf3;
+  --nav-active-text:        #1d2130;
+  --nav-inactive-text:      #646b7b;
+  --nav-inactive-hover:     #1d2130;
+  --nav-icon-bg:            #e5eaf3;
+  --nav-icon-active-bg:     #c3002b;
+  --focus-ring:             #c3002b;
+  --btn-primary-bg:         #c3002b;
+  --btn-primary-hover:      #a00023;
+  --btn-primary-text:       #ffffff;
+  --btn-lock:               #c3002b;
+  --btn-sperrzeit:          #c3002b;
+  --btn-inspect:            #b23200;
+  --btn-request:            #b23200;
+  --btn-warn:               #b23200;
+  --btn-ok:                 #7f5a10;
+  --btn-unlock:             #4d5363;
+  --btn-orgasm:             #4d5363;
+  --color-lock-grad-a:      #eef1f8;
+  --color-lock-grad-b:      #f8dbe5;
+  --color-lock-on:          #1d2130;
+  --color-lock-on-muted:    #4d5363;
+  --lightbox-bg:            #000000;
+  --shadow-card:            none;
+  --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.06);
+  --shadow-overlay:         0 16px 32px -8px rgb(0 0 0 / 0.18);
+}
 
-  /* ── Semantic: ORGASMUS ──────────────────────
-     Hue 335° rose-pink
-     Accent:  hsl(335, 78%, 40%)  → #b81c53  — 5.6:1 on #fff1f2
-     Text:    hsl(335, 80%, 28%)  → #81103a  — 9.4:1 on bg
-     ─────────────────────────────────────────── */
-  --color-orgasm:      #be185d;
-  --color-orgasm-bg:   #fdf2f8;
-  --color-orgasm-border:#fbcfe8;
-  --color-orgasm-muted:#f9a8d4;
-  --color-orgasm-text: #9d174d;
-
-  /* ── Semantic: VERSCHLUSS-ANFORDERUNG ────────
-     Hue 245° indigo
-     Accent:  hsl(245, 68%, 42%)  → #3a34c4  — 6.1:1 on #eef2ff
-     Text:    hsl(245, 70%, 30%)  → #29248c  — 10.0:1 on bg
-     ─────────────────────────────────────────── */
-  --color-request:     #4338ca;
-  --color-request-bg:  #eef2ff;
-  --color-request-border:#c7d2fe;
-  --color-request-muted:#a5b4fc;
-  --color-request-text:#3730a3;
-
-  /* ── Semantic: WARNING / overdue ─────────────
-     Hue 16° red-orange
-     Accent:  hsl(16, 90%, 40%)   → #c23412  — 5.8:1 on #fff5f0
-     Text:    hsl(16, 88%, 26%)   → #7d210b  — 9.9:1 on bg
-     ─────────────────────────────────────────── */
-  --color-warn:        #c2410c;
-  --color-warn-bg:     #fff5f0;
-  --color-warn-border: #fed7aa;
-  --color-warn-muted:  #fdba74;
-  --color-warn-text:   #9a3412;
-
-  /* ── Semantic: SPERRZEIT ─────────────────────
-     Hue 272° purple-violet  (distinct from orgasm-rose and request-indigo)
-     Accent:  hsl(272, 62%, 38%)  → #6622a8  — 6.5:1 on #faf5ff
-     Text:    hsl(272, 65%, 26%)  → #461674  — 10.8:1 on bg
-     ─────────────────────────────────────────── */
-  --color-sperrzeit:   #7c3aed;
-  --color-sperrzeit-bg:#faf5ff;
-  --color-sperrzeit-border:#ddd6fe;
-  --color-sperrzeit-muted:#c4b5fd;
-  --color-sperrzeit-text:#5b21b6;
-
-  /* ── Semantic: OK / compliant ────────────────
-     Hue 152° emerald-green — same family as lock
-     ─────────────────────────────────────────── */
-  --color-ok:          #0d9151;
-  --color-ok-bg:       #ecfdf5;
-  --color-ok-border:   #a7f3d0;
-  --color-ok-muted:    #6ee7b7;
-  --color-ok-text:     #065f46;
-
-  /* ── DeviceCategory palette (UI Designer P2 spec, light theme) ────
-     12 user-pickable category colors. cat-steel reserved for KG built-in. */
+/* ─────────────────────────────────────────────
+   DeviceCategory-Palette, hell — für BEIDE hellen Themes
+   ─────────────────────────────────────────────
+   Steht getrennt von den Theme-Blöcken, weil die Kategorie-Farbe eine ANDERE Achse ist: sie sagt,
+   WELCHE Kategorie das ist, nicht was gerade los ist. Die drei Bedeutungsfarben des Systems
+   bleiben davon unberührt — sonst hiesse „Plug" plötzlich „Aufmerksamkeit".
+   ───────────────────────────────────────────── */
+:root,
+[data-theme="user"],
+[data-theme="admin-light"] {
   --color-cat-steel-bg:     #eef2f7;  --color-cat-steel-border:   #cbd5e1;  --color-cat-steel-text:   #334155;  --color-cat-steel-muted:   #94a3b8;
   --color-cat-graphite-bg:  #f1f1f3;  --color-cat-graphite-border:#c9c9cf;  --color-cat-graphite-text:#3f3f46;  --color-cat-graphite-muted:#a1a1aa;
   --color-cat-leather-bg:   #f5efe7;  --color-cat-leather-border: #d6c4ad;  --color-cat-leather-text: #6b4f2a;  --color-cat-leather-muted: #b08a5d;
@@ -144,422 +455,6 @@
   --color-cat-plum-bg:      #f1e9f3;  --color-cat-plum-border:    #cdb7d3;  --color-cat-plum-text:    #5b2a66;  --color-cat-plum-muted:    #9d7aa6;
   --color-cat-sand-bg:      #f4ede0;  --color-cat-sand-border:    #dcc9a4;  --color-cat-sand-text:    #6b542a;  --color-cat-sand-muted:    #b59c6c;
   --color-cat-slate-bg:     #eef0f3;  --color-cat-slate-border:   #c4cad2;  --color-cat-slate-text:   #3a4452;  --color-cat-slate-muted:   #8b95a3;
-
-  /* Header — Emerald accent (user) */
-  --header-bg:          #ecfdf5;
-  --header-border:      #a7f3d0;
-  --header-text:        #065f46;
-  --header-avatar-bg:   #d1fae5;
-  --header-avatar-text: #065f46;
-
-  /* Navigation — Emerald accent (user) */
-  --nav-bg:            #ecfdf5;
-  --nav-border:        #a7f3d0;
-  --nav-active-bg:     #d1fae5;
-  --nav-active-text:   #065f46;
-  --nav-inactive-text: #065f46aa;
-  --nav-inactive-hover:#065f46;
-  --nav-icon-bg:       #d1fae5;
-  --nav-icon-active-bg:#059669;
-
-  /* Interactive */
-  --focus-ring:        #6366f1;
-  --btn-primary-bg:    #059669;
-  --btn-primary-hover: #047857;
-  --btn-primary-text:  #ffffff;
-
-  /* Semantic button fills — brighter than accent colors for readable white text */
-  --btn-lock:          #059669;
-  --btn-unlock:        #0284c7;
-  --btn-inspect:       #d97706;
-  --btn-orgasm:        #db2777;
-  --btn-request:       #4f46e5;
-  --btn-sperrzeit:     #7c3aed;
-  --btn-warn:          #dc2626;
-  --btn-ok:            #059669;
-
-  /* Elevation */
-  --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.05);
-  --shadow-raised: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  --shadow-overlay:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.07);
-}
-
-
-/* ─────────────────────────────────────────────
-   ADMIN THEME  (dark, authoritative, controlled)
-   Applied to: [data-theme="admin"]
-   ───────────────────────────────────────────── */
-[data-theme="admin"] {
-
-  /* Canvas */
-  --background:        #0d0f14;
-  --background-subtle: #151821;
-  --surface:           #1c1f2a;
-  --surface-raised:    #232737;
-  --surface-overlay:   #1c1f2acc;
-
-  /* Borders */
-  --border:            #2d3144;
-  --border-subtle:     #222535;
-  --border-strong:     #3d4257;
-
-  /* Text */
-  --foreground:        #f1f5f9;
-  --foreground-muted:  #94a3b8;
-  --foreground-faint:  #64748b;
-  --foreground-invert: #0d0f14;
-
-  /* ── Semantic: VERSCHLUSS (locked) ──────────
-     Hue 152° emerald-green — same hue as user theme
-     Accent:  hsl(152, 68%, 50%)  → #29c47a  — 7.4:1 on #0f1c17
-     Text:    hsl(152, 72%, 72%)  → #87e8bb  — 9.1:1 on bg
-     ─────────────────────────────────────────── */
-  --color-lock:        #34d399;
-  --color-lock-bg:     #0b1912;
-  --color-lock-border: #065f46;
-  --color-lock-muted:  #6ee7b7;
-  --color-lock-text:   #6ee7b7;
-
-  /* ── Semantic: OEFFNEN (unlocked) ───────────
-     Hue 204° sky-blue — same hue as user theme
-     Accent:  hsl(204, 86%, 60%)  → #38b6f0  — 5.2:1 on #0b1a24
-     Text:    hsl(204, 90%, 76%)  → #8dd8f8  — 8.8:1 on bg
-     ─────────────────────────────────────────── */
-  --color-unlock:      #38bdf8;
-  --color-unlock-bg:   #0c1c27;
-  --color-unlock-border:#0c4a6e;
-  --color-unlock-muted:#7dd3fc;
-  --color-unlock-text: #7dd3fc;
-
-  /* ── Semantic: PRUEFUNG / Inspection ─────────
-     Hue 32° orange — same hue as user theme
-     Accent:  hsl(32, 98%, 58%)   → #f89620  — 4.6:1 on #1c1505
-     Text:    hsl(38, 95%, 74%)   → #fcd06a  — 7.8:1 on bg
-     ─────────────────────────────────────────── */
-  --color-inspect:     #fb923c;
-  --color-inspect-bg:  #1c1505;
-  --color-inspect-border:#92400e;
-  --color-inspect-muted:#fcd34d;
-  --color-inspect-text:#fcd34d;
-
-  /* ── Semantic: ORGASMUS ──────────────────────
-     Hue 335° rose-pink — same hue as user theme
-     Accent:  hsl(335, 90%, 68%)  → #f56094  — 5.8:1 on #1c0a11
-     Text:    hsl(335, 88%, 82%)  → #f8a8c4  — 9.3:1 on bg
-     ─────────────────────────────────────────── */
-  --color-orgasm:      #f472b6;
-  --color-orgasm-bg:   #1c0a14;
-  --color-orgasm-border:#9d174d;
-  --color-orgasm-muted:#fbcfe8;
-  --color-orgasm-text: #fbcfe8;
-
-  /* ── Semantic: VERSCHLUSS-ANFORDERUNG ────────
-     Hue 245° indigo — same hue as user theme
-     Accent:  hsl(245, 80%, 70%)  → #8b7cf8  — 5.5:1 on #10102a
-     Text:    hsl(245, 90%, 82%)  → #b8b0fc  — 8.7:1 on bg
-     ─────────────────────────────────────────── */
-  --color-request:     #818cf8;
-  --color-request-bg:  #0f0f28;
-  --color-request-border:#3730a3;
-  --color-request-muted:#c7d2fe;
-  --color-request-text:#c7d2fe;
-
-  /* ── Semantic: WARNING / overdue ─────────────
-     Hue 16° red-orange — same hue as user theme
-     Accent:  hsl(16, 94%, 62%)   → #f76032  — 4.6:1 on #1c0c08
-     Text:    hsl(20, 92%, 78%)   → #fab090  — 7.5:1 on bg
-     ─────────────────────────────────────────── */
-  --color-warn:        #f97316;
-  --color-warn-bg:     #1c0e08;
-  --color-warn-border: #9a3412;
-  --color-warn-muted:  #fdba74;
-  --color-warn-text:   #fdba74;
-
-  /* ── Semantic: SPERRZEIT ─────────────────────
-     Hue 272° purple-violet — same hue as user theme
-     Accent:  hsl(272, 78%, 68%)  → #b070f0  — 5.3:1 on #110d1c
-     Text:    hsl(272, 80%, 82%)  → #d0aef8  — 8.6:1 on bg
-     ─────────────────────────────────────────── */
-  --color-sperrzeit:   #a855f7;
-  --color-sperrzeit-bg:#110c1e;
-  --color-sperrzeit-border:#6b21a8;
-  --color-sperrzeit-muted:#d8b4fe;
-  --color-sperrzeit-text:#d8b4fe;
-
-  /* ── Semantic: OK / compliant ────────────────
-     Hue 152° emerald-green — same family as lock
-     ─────────────────────────────────────────── */
-  --color-ok:          #34d399;
-  --color-ok-bg:       #0b1912;
-  --color-ok-border:   #065f46;
-  --color-ok-muted:    #6ee7b7;
-  --color-ok-text:     #6ee7b7;
-
-  /* Header — Indigo accent (admin) */
-  --header-bg:          #131336;
-  --header-border:      #3730a3;
-  --header-text:        #eef2ff;
-  --header-avatar-bg:   #272566;
-  --header-avatar-text: #a5b4fc;
-
-  /* Navigation — Indigo accent (admin) */
-  --nav-bg:            #131336;
-  --nav-border:        #3730a3;
-  --nav-active-bg:     #272566;
-  --nav-active-text:   #eef2ff;
-  --nav-inactive-text: #a5b4fcaa;
-  --nav-inactive-hover:#a5b4fc;
-  --nav-icon-bg:       #272566;
-  --nav-icon-active-bg:#4f46e5;
-
-  /* Interactive */
-  --focus-ring:        #818cf8;
-  --btn-primary-bg:    #4f46e5;
-  --btn-primary-hover: #4338ca;
-  --btn-primary-text:  #ffffff;
-
-  /* Semantic button fills — slightly brighter for dark backgrounds */
-  --btn-lock:          #10b981;
-  --btn-unlock:        #0ea5e9;
-  --btn-inspect:       #f59e0b;
-  --btn-orgasm:        #ec4899;
-  --btn-request:       #6366f1;
-  --btn-sperrzeit:     #8b5cf6;
-  --btn-warn:          #ef4444;
-  --btn-ok:            #10b981;
-
-  /* Elevation — glowing inner edges on dark surfaces */
-  --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
-  --shadow-raised: 0 4px 12px 0 rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.05);
-  --shadow-overlay:0 16px 32px 0 rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.06);
-}
-
-
-/* ─────────────────────────────────────────────
-   USER DARK THEME  (dark canvas, emerald accent)
-   Applied to: [data-theme="user-dark"]
-   Inherits dark canvas from admin, emerald accent from user
-   ───────────────────────────────────────────── */
-[data-theme="user-dark"] {
-
-  /* Canvas — same as admin */
-  --background:        #0d0f14;
-  --background-subtle: #151821;
-  --surface:           #1c1f2a;
-  --surface-raised:    #232737;
-  --surface-overlay:   #1c1f2acc;
-
-  /* Borders — same as admin */
-  --border:            #2d3144;
-  --border-subtle:     #222535;
-  --border-strong:     #3d4257;
-
-  /* Text — same as admin */
-  --foreground:        #f1f5f9;
-  --foreground-muted:  #94a3b8;
-  --foreground-faint:  #64748b;
-  --foreground-invert: #0d0f14;
-
-  /* Semantic colors — same as admin dark */
-  --color-lock:        #34d399;
-  --color-lock-bg:     #0b1912;
-  --color-lock-border: #065f46;
-  --color-lock-muted:  #6ee7b7;
-  --color-lock-text:   #6ee7b7;
-
-  --color-unlock:      #38bdf8;
-  --color-unlock-bg:   #0c1c27;
-  --color-unlock-border:#0c4a6e;
-  --color-unlock-muted:#7dd3fc;
-  --color-unlock-text: #7dd3fc;
-
-  --color-inspect:     #fb923c;
-  --color-inspect-bg:  #1c1505;
-  --color-inspect-border:#92400e;
-  --color-inspect-muted:#fcd34d;
-  --color-inspect-text:#fcd34d;
-
-  --color-orgasm:      #f472b6;
-  --color-orgasm-bg:   #1c0a14;
-  --color-orgasm-border:#9d174d;
-  --color-orgasm-muted:#fbcfe8;
-  --color-orgasm-text: #fbcfe8;
-
-  --color-request:     #818cf8;
-  --color-request-bg:  #0f0f28;
-  --color-request-border:#3730a3;
-  --color-request-muted:#c7d2fe;
-  --color-request-text:#c7d2fe;
-
-  --color-warn:        #f97316;
-  --color-warn-bg:     #1c0e08;
-  --color-warn-border: #9a3412;
-  --color-warn-muted:  #fdba74;
-  --color-warn-text:   #fdba74;
-
-  --color-sperrzeit:   #a855f7;
-  --color-sperrzeit-bg:#110c1e;
-  --color-sperrzeit-border:#6b21a8;
-  --color-sperrzeit-muted:#d8b4fe;
-  --color-sperrzeit-text:#d8b4fe;
-
-  --color-ok:          #34d399;
-  --color-ok-bg:       #0b1912;
-  --color-ok-border:   #065f46;
-  --color-ok-muted:    #6ee7b7;
-  --color-ok-text:     #6ee7b7;
-
-  /* Header — Emerald accent (user) on dark */
-  --header-bg:          #062e1e;
-  --header-border:      #065f46;
-  --header-text:        #ecfdf5;
-  --header-avatar-bg:   #0b4d35;
-  --header-avatar-text: #6ee7b7;
-
-  /* Navigation — Emerald accent (user) on dark */
-  --nav-bg:            #062e1e;
-  --nav-border:        #065f46;
-  --nav-active-bg:     #0b4d35;
-  --nav-active-text:   #ecfdf5;
-  --nav-inactive-text: #6ee7b7aa;
-  --nav-inactive-hover:#6ee7b7;
-  --nav-icon-bg:       #0b4d35;
-  --nav-icon-active-bg:#059669;
-
-  /* Interactive — Emerald primary */
-  --focus-ring:        #34d399;
-  --btn-primary-bg:    #059669;
-  --btn-primary-hover: #047857;
-  --btn-primary-text:  #ffffff;
-
-  /* Semantic button fills — same as admin dark */
-  --btn-lock:          #10b981;
-  --btn-unlock:        #0ea5e9;
-  --btn-inspect:       #f59e0b;
-  --btn-orgasm:        #ec4899;
-  --btn-request:       #6366f1;
-  --btn-sperrzeit:     #8b5cf6;
-  --btn-warn:          #ef4444;
-  --btn-ok:            #10b981;
-
-  /* Elevation — same as admin dark */
-  --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
-  --shadow-raised: 0 4px 12px 0 rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.05);
-  --shadow-overlay:0 16px 32px 0 rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.06);
-}
-
-
-/* ─────────────────────────────────────────────
-   ADMIN LIGHT THEME  (light canvas, indigo accent)
-   Applied to: [data-theme="admin-light"]
-   Inherits light canvas from user, indigo accent from admin
-   ───────────────────────────────────────────── */
-[data-theme="admin-light"] {
-
-  /* Canvas — same as user light */
-  --background:        #f8f9fb;
-  --background-subtle: #f1f3f7;
-  --surface:           #ffffff;
-  --surface-raised:    #f1f3f7;
-  --surface-overlay:   #ffffffcc;
-
-  /* Borders — same as user light */
-  --border:            #e5e7eb;
-  --border-subtle:     #f3f4f6;
-  --border-strong:     #d1d5db;
-
-  /* Text — same as user light */
-  --foreground:        #111827;
-  --foreground-muted:  #4b5563;
-  --foreground-faint:  #9ca3af;
-  --foreground-invert: #ffffff;
-
-  /* Semantic colors — same as user light */
-  --color-lock:        #0d9151;
-  --color-lock-bg:     #ecfdf5;
-  --color-lock-border: #a7f3d0;
-  --color-lock-muted:  #6ee7b7;
-  --color-lock-text:   #065f46;
-
-  --color-unlock:      #0369a1;
-  --color-unlock-bg:   #f0f9ff;
-  --color-unlock-border:#bae6fd;
-  --color-unlock-muted:#7dd3fc;
-  --color-unlock-text: #0c4a6e;
-
-  --color-inspect:     #c2610a;
-  --color-inspect-bg:  #fff7ed;
-  --color-inspect-border:#fed7aa;
-  --color-inspect-muted:#fdba74;
-  --color-inspect-text:#92400e;
-
-  --color-orgasm:      #be185d;
-  --color-orgasm-bg:   #fdf2f8;
-  --color-orgasm-border:#fbcfe8;
-  --color-orgasm-muted:#f9a8d4;
-  --color-orgasm-text: #9d174d;
-
-  --color-request:     #4338ca;
-  --color-request-bg:  #eef2ff;
-  --color-request-border:#c7d2fe;
-  --color-request-muted:#a5b4fc;
-  --color-request-text:#3730a3;
-
-  --color-warn:        #c2410c;
-  --color-warn-bg:     #fff5f0;
-  --color-warn-border: #fed7aa;
-  --color-warn-muted:  #fdba74;
-  --color-warn-text:   #9a3412;
-
-  --color-sperrzeit:   #7c3aed;
-  --color-sperrzeit-bg:#faf5ff;
-  --color-sperrzeit-border:#ddd6fe;
-  --color-sperrzeit-muted:#c4b5fd;
-  --color-sperrzeit-text:#5b21b6;
-
-  --color-ok:          #0d9151;
-  --color-ok-bg:       #ecfdf5;
-  --color-ok-border:   #a7f3d0;
-  --color-ok-muted:    #6ee7b7;
-  --color-ok-text:     #065f46;
-
-  /* Header — Indigo accent (admin) on light */
-  --header-bg:          #eef2ff;
-  --header-border:      #c7d2fe;
-  --header-text:        #3730a3;
-  --header-avatar-bg:   #ddd6fe;
-  --header-avatar-text: #3730a3;
-
-  /* Navigation — Indigo accent (admin) on light */
-  --nav-bg:            #eef2ff;
-  --nav-border:        #c7d2fe;
-  --nav-active-bg:     #ddd6fe;
-  --nav-active-text:   #3730a3;
-  --nav-inactive-text: #3730a3aa;
-  --nav-inactive-hover:#3730a3;
-  --nav-icon-bg:       #ddd6fe;
-  --nav-icon-active-bg:#4f46e5;
-
-  /* Interactive — Indigo primary */
-  --focus-ring:        #6366f1;
-  --btn-primary-bg:    #4f46e5;
-  --btn-primary-hover: #4338ca;
-  --btn-primary-text:  #ffffff;
-
-  /* Semantic button fills — same as user light */
-  --btn-lock:          #059669;
-  --btn-unlock:        #0284c7;
-  --btn-inspect:       #d97706;
-  --btn-orgasm:        #db2777;
-  --btn-request:       #4f46e5;
-  --btn-sperrzeit:     #7c3aed;
-  --btn-warn:          #dc2626;
-  --btn-ok:            #059669;
-
-  /* Elevation — same as user light */
-  --shadow-card:   0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.05);
-  --shadow-raised: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  --shadow-overlay:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.07);
 }
 
 /* ─────────────────────────────────────────────
@@ -761,6 +656,27 @@
 
   /* Typography */
   --font-sans:      var(--font-geist-sans);
+  --font-serif:     var(--font-instrument-serif), Georgia, 'Times New Roman', serif;
+
+  /* ── Typo-Skala ───────────────────────────────────────────────────────────
+     Sechs Stufen mit je EINER Aufgabe. Vorher trug `text-xs` gleichzeitig Rubrik, Nebeninfo,
+     Kennzahl und Fliesstext — 523 Vorkommen, vier Bedeutungen, kein Weg, eine davon zu ändern
+     ohne die anderen drei zu treffen. Deshalb heissen die Stufen nach ihrer AUFGABE, nicht nach
+     ihrer Grösse: `text-rubrik` lässt sich neu vermessen, `text-xs` nicht.
+
+     Die Zeilenhöhen stehen mit dabei, weil eine Stufe ohne sie nur eine halbe Entscheidung ist. */
+  --text-zahl:      3.75rem;   /* 60px — die eine grosse Zahl je Bildschirm */
+  --text-zahl--line-height: 0.94;
+  --text-titel:     2rem;      /* 32px — Serif, benennt den Bildschirm */
+  --text-titel--line-height: 1.15;
+  --text-zeile:     1rem;      /* 16px — die Primärzeile einer Liste */
+  --text-zeile--line-height: 1.4;
+  --text-fliess:    0.875rem;  /* 14px — Fliesstext, Beschriftungen */
+  --text-fliess--line-height: 1.55;
+  --text-neben:     0.75rem;   /* 12px — Nebeninfo, Zeitstempel, Hinweise */
+  --text-neben--line-height: 1.45;
+  --text-rubrik:    0.6875rem; /* 11px — versale Abschnitts-Überschrift */
+  --text-rubrik--line-height: 1.3;
   --font-mono:      var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
   /* Elevation */
@@ -921,86 +837,7 @@ body {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   PROTOTYP — NICHT FÜR DEN MERGE. Etappe D, Entscheidungsvorlage.
-   Umschalten: document.documentElement.setAttribute('data-variant','drei'|'acht')
-   Der zweite Selektor je Regel ist nötig, weil der Theme-Wrapper `[data-theme]`
-   dieselbe Spezifität hat und sonst innerhalb des Wrappers gewinnt.
-   ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Gemeinsam: der neue Grund und die neuen Textstufen ────────────────────── */
-[data-variant], [data-variant] [data-theme] {
-  --background:        #0b0609;
-  --background-subtle: #100a0d;
-  --surface:           #140d10;
-  --surface-raised:    #1c1317;
-  --surface-overlay:   #0b0609e6;
-  --border:            #241a1e;
-  --border-subtle:     #180f13;
-  --border-strong:     #3a2b31;
-  --foreground:        #fdf7f8;
-  --foreground-muted:  #c9b7bd;
-  --foreground-faint:  #9a868e;
-  --foreground-invert: #2b0410;
 
-  /* Die Rolle sitzt im Grund, nicht im Akzent — Kopf und Navigation werden neutral. */
-  --header-bg:          #100a0d;
-  --header-border:      #241a1e;
-  --header-text:        #fdf7f8;
-  --header-avatar-bg:   #2a1218;
-  --header-avatar-text: #ff8ba0;
-  --nav-bg:             #100a0d;
-  --nav-border:         #241a1e;
-  --nav-active-bg:      #2a1218;
-  --nav-active-text:    #fdf7f8;
-  --nav-inactive-text:  #9a868e;
-  --nav-inactive-hover: #fdf7f8;
-  --nav-icon-bg:        #1c1317;
-  --nav-icon-active-bg: #ff3d68;
-}
 
-/* ── Variante DREI: nur Zustand, Auszeichnung, Aufmerksamkeit ──────────────── */
-[data-variant="drei"], [data-variant="drei"] [data-theme] {
-  /* Rosa — der Zustand */
-  --color-lock:#ff3d68; --color-lock-bg:#1a1013; --color-lock-border:#7a1836; --color-lock-muted:#ff8ba0; --color-lock-text:#ff8ba0;
-  /* Gold — die Auszeichnung */
-  --color-ok:#e8b44a; --color-ok-bg:#1a1405; --color-ok-border:#7a5410; --color-ok-muted:#f0cd85; --color-ok-text:#f0cd85;
-  /* Koralle — die Aufmerksamkeit. Kontrolle UND Verspätung sind dasselbe Signal. */
-  --color-warn:#ff8a5c; --color-warn-bg:#1c1108; --color-warn-border:#8a3a18; --color-warn-muted:#ffb598; --color-warn-text:#ffb598;
-  --color-inspect:#ff8a5c; --color-inspect-bg:#1c1108; --color-inspect-border:#8a3a18; --color-inspect-muted:#ffb598; --color-inspect-text:#ffb598;
-  /* Alles Übrige ist neutral — kein eigener Farbton mehr. */
-  --color-unlock:#c9b7bd; --color-unlock-bg:#140d10; --color-unlock-border:#2e2226; --color-unlock-muted:#9a868e; --color-unlock-text:#c9b7bd;
-  --color-orgasm:#c9b7bd; --color-orgasm-bg:#140d10; --color-orgasm-border:#2e2226; --color-orgasm-muted:#9a868e; --color-orgasm-text:#c9b7bd;
-  --color-request:#c9b7bd; --color-request-bg:#140d10; --color-request-border:#2e2226; --color-request-muted:#9a868e; --color-request-text:#c9b7bd;
-  --color-sperrzeit:#c9b7bd; --color-sperrzeit-bg:#140d10; --color-sperrzeit-border:#2e2226; --color-sperrzeit-muted:#9a868e; --color-sperrzeit-text:#c9b7bd;
-}
-
-/* ── Variante ACHT: alle acht behalten einen eigenen Farbton ───────────────── */
-[data-variant="acht"], [data-variant="acht"] [data-theme] {
-  --color-lock:#ff3d68; --color-lock-bg:#1a1013; --color-lock-border:#7a1836; --color-lock-muted:#ff8ba0; --color-lock-text:#ff8ba0;
-  --color-ok:#e8b44a; --color-ok-bg:#1a1405; --color-ok-border:#7a5410; --color-ok-muted:#f0cd85; --color-ok-text:#f0cd85;
-  --color-warn:#ff8a5c; --color-warn-bg:#1c1108; --color-warn-border:#8a3a18; --color-warn-muted:#ffb598; --color-warn-text:#ffb598;
-  /* Ab hier muss das System Farbtöne borgen, die es nicht besitzt. */
-  --color-inspect:#f0a830; --color-inspect-bg:#1a1305; --color-inspect-border:#7d5510; --color-inspect-muted:#f7cd82; --color-inspect-text:#f7cd82;
-  --color-unlock:#5cc8f0; --color-unlock-bg:#07161c; --color-unlock-border:#155e75; --color-unlock-muted:#9fdcf7; --color-unlock-text:#9fdcf7;
-  --color-request:#8b91f5; --color-request-bg:#0e0e20; --color-request-border:#3f3f9e; --color-request-muted:#c2c5fb; --color-request-text:#c2c5fb;
-  --color-sperrzeit:#c07ef5; --color-sperrzeit-bg:#140a1e; --color-sperrzeit-border:#61309a; --color-sperrzeit-muted:#dfbcfb; --color-sperrzeit-text:#dfbcfb;
-  --color-orgasm:#f56fa8; --color-orgasm-bg:#1c0a14; --color-orgasm-border:#9c2a5c; --color-orgasm-muted:#fbb6d2; --color-orgasm-text:#fbb6d2;
-}
-
-/* Prototyp: die lauteste Fläche des Bildschirms hängt heute an KEINEM Token
-   (`bg-gradient-to-br from-emerald-600 to-emerald-500`). Für den Vergleich
-   provisorisch tokenisiert — im echten Umbau gehört das in die Komponente. */
-[data-variant], [data-variant] [data-theme] {
-  --color-lock-grad-a: #7a1836;
-  --color-lock-grad-b: #ff3d68;
-  --color-lock-on:     #2b0410;
-  --btn-primary-bg:    #ff3d68;
-  --btn-primary-hover: #d81b52;
-  --btn-primary-text:  #2b0410;
-}
-[data-variant="acht"], [data-variant="acht"] [data-theme] {
-  --color-lock-grad-a: #7a1836;
-  --color-lock-grad-b: #ff3d68;
-}
 
