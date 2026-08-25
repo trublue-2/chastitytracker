@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+
 // Erzeugt die vier Theme-Blöcke von globals.css aus EINER Beschreibung.
 //
 //   node docs/design/tokens.mjs            # gibt die Blöcke aus
@@ -14,14 +16,21 @@
 // ── Die drei Bedeutungen ─────────────────────────────────────────────────────
 // Mehr gibt es nicht. Alles andere ist neutral — das ist der Kern des Entwurfs.
 // Der Identitäts-Farbton ist umschaltbar, damit man ihn AM ECHTEN BILDSCHIRM vergleichen kann
-// statt an einer Beschreibung. `IDENTITAET=gruen node …` erzeugt die grüne Welt.
-const IDENTITAET = process.env.IDENTITAET === 'gruen' ? 'gruen' : 'rosa'
+// statt an einer Beschreibung.
+//
+// Beide Welten stehen im Blatt: `--write` schreibt den rosa Bestand in die vier Theme-Blöcke und
+// die grünen ABWEICHUNGEN in einen eigenen Abschnitt unter `[data-ident="gruen"]`. Umgeschaltet
+// wird dann am Gerät, nicht im Generator — nur so vergleicht man zwei Fassungen desselben
+// Bildschirms, ohne zwischen zwei Bauten zu wechseln und dabei zu vergessen, wie die erste aussah.
+let IDENTITAET = process.env.IDENTITAET === 'gruen' ? 'gruen' : 'rosa'
 
 const ZUSTAND = {
   // Die Rose des Entwurfs.
-  rosa:  { dunkel: '#ff3d68', hell: '#c3002b', flaeche: '#ff3d68' },
+  // `rampe` ist die Spitze des Tragekalenders auf HELL. Sie steht getrennt, weil die Rampe eine
+  // Fläche einfärbt statt Text zu tragen und deshalb gesättigter sein darf als der Textton.
+  rosa:  { dunkel: '#ff3d68', hell: '#c3002b', flaeche: '#ff3d68', rampe: '#c3022d' },
   // Das Grün der bisherigen App, auf dasselbe Kontrast-Profil gebracht.
-  gruen: { dunkel: '#34d399', hell: '#067a45', flaeche: '#34d399' },
+  gruen: { dunkel: '#34d399', hell: '#067a45', flaeche: '#34d399', rampe: '#067a45' },
 }
 
 const BEDEUTUNG = {
@@ -65,11 +74,39 @@ const ROLLE = {
                                                         // Keyholder-Bildschirms
 }
 
+/** Schaltet den Identitäts-Ton für alle folgenden Aufrufe um.
+ *
+ *  Die beiden Tabellen sind Objekte, keine Bindungen — deshalb genügt es, ihre eine identitäts-
+ *  abhängige Zeile neu zu setzen, statt jede Ableitung zu parametrisieren. Alles andere im
+ *  Generator bleibt unberührt und kann von der Umschaltung nichts mitbekommen. */
+export function setIdentitaet(ident) {
+  IDENTITAET = ident === 'gruen' ? 'gruen' : 'rosa'
+  BEDEUTUNG.rosa = ZUSTAND[IDENTITAET]
+  ROLLE.traeger = ZUSTAND[IDENTITAET]
+  Object.assign(THEMES['user'], TRAEGER_GRUND[IDENTITAET].hell)
+  Object.assign(THEMES['user-dark'], TRAEGER_GRUND[IDENTITAET].dunkel)
+}
+
+// Der GRUND des Träger-Bereichs hängt am Identitäts-Ton, nicht nur der Akzent.
+//
+// Die Temperatur des Raums ist auf die Rose gestimmt: ein warmer, ins Rötliche gezogener Grund.
+// Steht darauf ein grüner Akzent, ist es nicht die grüne Welt, sondern die rosa Welt mit grünen
+// Knöpfen — und der Unterschied fällt genau dort auf, wo die Fläche gross ist (Kopfzeile,
+// Navigation). Der Keyholder-Bereich bleibt unberührt: dessen Indigo steht nicht zur Wahl.
+const TRAEGER_GRUND = {
+  rosa:  {
+    hell:   { grund: '#fcf7f8', erhoeht: '#f6eef1', feld: '#f0e5e9', text: ['#2d1d26', '#634d55', '#7d656d'], tinte: '45,29,38' },
+    dunkel: { grund: '#0b0609', erhoeht: '#140d10', feld: '#241a1e', text: ['#fdf7f8', '#c9b7bd', '#9a868e'], tinte: '255,255,255' },
+  },
+  gruen: {
+    hell:   { grund: '#f7faf8', erhoeht: '#eef4f0', feld: '#e5ede8', text: ['#1d2a23', '#4d5c54', '#65736b'], tinte: '29,42,35' },
+    dunkel: { grund: '#060907', erhoeht: '#0e130f', feld: '#1a211c', text: ['#f5fbf7', '#b7c6bd', '#869388'], tinte: '255,255,255' },
+  },
+}
+
 const THEMES = {
-  'user':        { hell: true,  rolle: 'traeger',   grund: '#fcf7f8', erhoeht: '#f6eef1', feld: '#f0e5e9',
-                   text: ['#2d1d26', '#634d55', '#7d656d'], tinte: '45,29,38' },
-  'user-dark':   { hell: false, rolle: 'traeger',   grund: '#0b0609', erhoeht: '#140d10', feld: '#241a1e',
-                   text: ['#fdf7f8', '#c9b7bd', '#9a868e'], tinte: '255,255,255' },
+  'user':        { hell: true,  rolle: 'traeger',   ...TRAEGER_GRUND.rosa.hell },
+  'user-dark':   { hell: false, rolle: 'traeger',   ...TRAEGER_GRUND.rosa.dunkel },
   'admin-light': { hell: true,  rolle: 'keyholder', grund: '#f7f8fc', erhoeht: '#eef1f8', feld: '#e5eaf3',
                    text: ['#1d2130', '#4d5363', '#646b7b'], tinte: '29,33,48' },
   'admin':       { hell: false, rolle: 'keyholder', grund: '#070810', erhoeht: '#0f1119', feld: '#181b26',
@@ -152,7 +189,7 @@ export function themeTokens(themeName) {
   // Blau `unlock`, also ausgerechnet das Gegenteil von "viel getragen". Jetzt eine Helligkeits-
   // rampe derselben Rosa-Familie, auf dasselbe Kontrast-Profil wie dunkel/hell gespiegelt.
   const rampeZiele = [1.08, 1.35, 1.93, 2.68, th.hell ? 5.88 : 5.86]
-  const spitze = th.hell ? '#c3022d' : BEDEUTUNG.rosa.flaeche
+  const spitze = th.hell ? BEDEUTUNG.rosa.rampe : BEDEUTUNG.rosa.flaeche
   rampeZiele.forEach((ziel, i) => setze(`wear-${i}`, beiKontrast(th.grund, spitze, ziel)))
   // Die Ziffer richtet sich nach IHRER Zelle, nicht nach dem Grund (siehe hell.md).
   const aufZelle = (zelle) => {
@@ -255,10 +292,118 @@ export function themeTokens(themeName) {
   return out
 }
 
-if (process.argv[1]?.endsWith('tokens.mjs')) {
+// ── Ins Blatt schreiben ──────────────────────────────────────────────────────
+// Von Hand einsetzen war die stille Fehlerquelle: der Generator lief, die Werte sahen im Terminal
+// richtig aus, und im Blatt stand weiter der alte Stand. Deshalb schreibt er selbst — und prüft
+// hinterher nach, dass jeder Block wirklich getroffen wurde. Eine Ersetzung, die ins Leere läuft,
+// muss abbrechen, nicht schweigen.
+
+const zeile = ([k, v]) => `  ${(k + ':').padEnd(26)}${v};`
+
+/** Die Tokens eines Themes in der gewünschten Identität. */
+function tokensIn(ident, name) {
+  setIdentitaet(ident)
+  return themeTokens(name)
+}
+
+/** Nur die Tokens, in denen sich Grün von Rosa unterscheidet. */
+function gruenAbweichung(name) {
+  const rosa = new Map(tokensIn('rosa', name))
+  return tokensIn('gruen', name).filter(([k, v]) => rosa.get(k) !== v)
+}
+
+/** Die Selektoren, unter denen die grüne Abweichung gilt.
+ *
+ *  Zwei, weil `data-theme` an ZWEI Stellen hängt: an `<html>` (für alles, was per Portal am Body
+ *  klebt) und am Bereichs-Wrapper. `data-ident` sitzt nur an `<html>` — die Abweichung muss also
+ *  beide Träger erreichen, den einen als Kombination, den anderen als Nachfahren.
+ *
+ *  KEIN `:root[data-ident="gruen"]` für das helle Träger-Theme, obwohl es ohne Attribut gilt: das
+ *  Inline-Skript setzt `data-theme` und `data-ident` in derselben Anweisung, ein Wurzelelement mit
+ *  Ton und ohne Theme gibt es also nicht. Der Selektor hätte nur die Spezifität (0,2,0) in den
+ *  Ring geworfen und damit von der Reihenfolge der Blöcke abhängig gemacht, welche Welt eine
+ *  Keyholder-Seite bekommt. */
+function identSelektoren(name) {
+  return [`[data-ident="gruen"][data-theme="${name}"]`, `[data-ident="gruen"] [data-theme="${name}"]`]
+}
+
+const MARKE_AUF = '/* ══ ERZEUGT von docs/design/tokens.mjs — der grüne Identitäts-Ton ══'
+const MARKE_ZU = '/* ══ Ende des erzeugten Bereichs ══ */'
+
+function gruenAbschnitt() {
+  const teile = [
+    MARKE_AUF,
+    '   Nur die Tokens, die sich vom rosa Bestand unterscheiden — der Rest erbt aus den vier',
+    '   Theme-Blöcken oben. Umgeschaltet wird am Gerät (Einstellungen → Farbwelt); so liegen beide',
+    '   Fassungen desselben Bildschirms nebeneinander statt in zwei Bauten.',
+    '   ═════════════════════════════════════════════════════════════════════════════════════ */',
+  ]
   for (const name of Object.keys(THEMES)) {
-    console.log(`\n[data-theme="${name}"] {`)
-    for (const [k, v] of themeTokens(name)) console.log(`  ${(k + ':').padEnd(26)}${v};`)
-    console.log('}')
+    teile.push('', identSelektoren(name).join(',\n') + ' {')
+    for (const t of gruenAbweichung(name)) teile.push(zeile(t))
+    teile.push('}')
+  }
+  teile.push('', MARKE_ZU)
+  return teile.join('\n')
+}
+
+/** Schneidet den erzeugten grünen Abschnitt heraus: `[vor der Marke, nach der Endmarke]`.
+ *  Fehlt er, ist der Rumpf das ganze Blatt und der Schwanz leer. */
+function trenneGruenAb(css) {
+  const auf = css.indexOf(MARKE_AUF)
+  if (auf < 0) return [css, '']
+  const zu = css.indexOf(MARKE_ZU, auf)
+  if (zu < 0) throw new Error('Anfangsmarke ohne Endmarke — von Hand nachsehen')
+  return [css.slice(0, auf).replace(/\s*$/, '\n'), css.slice(zu + MARKE_ZU.length)]
+}
+
+/** Ersetzt den Rumpf eines Theme-Blocks im Blatt. Bricht ab, wenn der Block nicht eindeutig ist. */
+function ersetzeBlock(css, name, tokens) {
+  const kopf = `[data-theme="${name}"] {`
+  // Der Kopf allein ist nicht eindeutig: `[data-theme="user-dark"] {` steht auch als zweite Zeile
+  // des dunklen Kategorie-Blocks. Zwei Schranken zusammen machen ihn es: er muss am ZEILENANFANG
+  // stehen (sonst trifft er die Kombinations-Selektoren `[data-ident="…"][data-theme="…"]`), und
+  // der Block dahinter muss den Grund definieren.
+  const treffer = [...css.matchAll(new RegExp('^' + kopf.replace(/[[\]{}]/g, '\\$&'), 'gm'))]
+    .filter((m) => css.slice(m.index, css.indexOf('\n}', m.index)).includes('--background:'))
+  if (treffer.length !== 1) throw new Error(`${name}: ${treffer.length} Blockköpfe gefunden, genau einer erwartet`)
+  const start = treffer[0].index + kopf.length
+  const ende = css.indexOf('\n}', start)
+  if (ende < 0) throw new Error(`${name}: kein Blockende gefunden`)
+  return css.slice(0, start) + '\n' + tokens.map(zeile).join('\n') + css.slice(ende)
+}
+
+function schreibe(pfad) {
+  let css = fs.readFileSync(pfad, 'utf8')
+
+  // ZUERST den erzeugten Abschnitt herausnehmen, DANN die Theme-Blöcke ersetzen.
+  //
+  // Andersherum lief es genau einmal: der grüne Abschnitt trägt für `user` den Kopf
+  // `[data-ident="gruen"][data-theme="user"] {` — darin steckt die Zeichenkette
+  // `[data-theme="user"] {`. Seit der Grund identitätsabhängig ist, steht in diesem Block auch
+  // `--background:`, und damit fand der Filter unten ZWEI Blöcke statt einem und brach ab. Das
+  // Blatt liess sich danach nicht mehr neu erzeugen. Wer nichts sucht, was er gerade selbst
+  // geschrieben hat, kann sich auch nicht daran verschlucken.
+  const [rumpf, schwanz] = trenneGruenAb(css)
+  css = rumpf
+  for (const name of Object.keys(THEMES)) css = ersetzeBlock(css, name, tokensIn('rosa', name))
+  css = css.replace(/\s*$/, '\n') + '\n\n' + gruenAbschnitt() + schwanz
+
+  fs.writeFileSync(pfad, css)
+  return css
+}
+
+if (process.argv[1]?.endsWith('tokens.mjs')) {
+  if (process.argv.includes('--write')) {
+    const pfad = new URL('../../src/app/globals.css', import.meta.url).pathname
+    schreibe(pfad)
+    const zahlen = Object.keys(THEMES).map((n) => `${n}: ${gruenAbweichung(n).length}`)
+    console.log(`globals.css geschrieben — vier Theme-Blöcke, grüne Abweichungen (${zahlen.join(', ')})`)
+  } else {
+    for (const name of Object.keys(THEMES)) {
+      console.log(`\n[data-theme="${name}"] {`)
+      for (const [k, v] of tokensIn(IDENTITAET, name)) console.log(zeile([k, v]))
+      console.log('}')
+    }
   }
 }

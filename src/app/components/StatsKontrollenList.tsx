@@ -1,5 +1,7 @@
 "use client";
 
+import Badge from "@/app/components/Badge";
+import { blockInsetCls } from "@/app/components/inputStyles";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { LIST_PAGE_SIZE } from "@/lib/constants";
@@ -27,12 +29,12 @@ export default function StatsKontrollenList({ rows }: { rows: StatsKontrolleRow[
     <>
       <div className="divide-y divide-border-subtle">
         {visible.map((k) => (
-          <div key={k.id} className="px-4 py-3 flex flex-col gap-1">
+          <div key={k.id} className={`${blockInsetCls} py-3 flex flex-col gap-1`}>
             <div className="flex items-center gap-2 flex-wrap">
               {k.pillLabel && k.pillCls && (
-                <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${k.pillCls}`}>{k.pillLabel}</span>
+                <Badge size="sm" tone={k.pillCls} label={k.pillLabel} className="flex-shrink-0" />
               )}
-              {k.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{k.code}</span>}
+              {k.code && <span className="font-mono font-semibold text-foreground text-fliess">{k.code}</span>}
             </div>
             <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
               <span>{k.primaryLine}</span>

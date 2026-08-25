@@ -86,11 +86,17 @@ export default async function LaufendeSessionCard({
     <section className="relative">
       {/* Eine Tönung statt eines Kastens. Ein heller Grund kann nicht leuchten, ein dunkler soll es
           nur an einer Stelle — beides erledigt dieselbe radiale Einfärbung, die zum Grund hin
-          ausläuft. Sie liegt HINTER dem Inhalt und fängt keine Klicks. */}
+          ausläuft. Sie liegt HINTER dem Inhalt und fängt keine Klicks.
+
+          Sie bleibt IM eigenen Block (`inset-0`) und ihr hellster Punkt liegt darin, nicht an
+          seiner Kante. Vorher begann sie 6 rem über dem Abschnitt und hatte ihr Maximum bei
+          `50% 0%` — also ausserhalb: die Tönung lag über dem Block DARÜBER (dem Kontroll-Banner)
+          und riss dort sichtbar ab. Ein Leuchten, dessen Quelle man nicht sieht, liest sich nicht
+          als Licht, sondern als Fehler. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 -top-24 h-[26rem]"
-        style={{ background: "radial-gradient(60% 55% at 50% 0%, var(--hero-glow), transparent 70%)" }}
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "radial-gradient(65% 60% at 50% 32%, var(--hero-glow), transparent 72%)" }}
       />
 
       <div className="relative px-5 pt-8 pb-7 text-center">

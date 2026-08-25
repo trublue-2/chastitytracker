@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ImageOff, CheckCircle2, ScanLine, Lock, Check, AlertTriangle } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
+import { blockInsetCls } from "@/app/components/inputStyles";
 import DetailField from "@/app/components/DetailField";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
@@ -108,7 +109,9 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
   const thumbUrl = row.imageUrl ?? row.boxImageUrl;
   if (!thumbUrl) {
     return (
-      <div className="flex-shrink-0 size-10 rounded-xl bg-surface-raised flex items-center justify-center">
+      // Kein Foto: das Zeichen steht frei. Eine getönte Fläche in Bildgrösse ohne Bild darin
+      // liest sich als Ladefehler, nicht als „gibt es nicht".
+      <div className="flex-shrink-0 size-10 flex items-center justify-center">
         <ImageOff size={16} className="text-foreground-faint" />
       </div>
     );
@@ -128,14 +131,14 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
             <span className="flex items-center gap-1.5">
               <CheckCircle2 size={14} />
               {row.username && <span className="font-semibold">{row.username}</span>}
-              {row.code && <span className="font-mono font-bold text-[var(--color-inspect)]">{row.code}</span>}
+              {row.code && <span className="font-mono font-semibold text-foreground">{row.code}</span>}
             </span>
           }
           panel={
             <div className="flex flex-col gap-3">
               <PhotoChoice photo={photo} />
               {row.pillLabel && (
-                <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 self-start ${row.pillCls}`}>{row.pillLabel}</span>
+                <Badge size="sm" tone={row.pillCls ?? undefined} label={row.pillLabel} className="self-start" />
               )}
               {row.target && (
                 <DetailField label={t("kontrolleTarget")}>
@@ -203,13 +206,13 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
     <>
       <div className="divide-y divide-border-subtle">
         {visible.map((row, i) => (
-          <div key={i} className="px-4 py-3 flex items-start gap-3">
+          <div key={i} className={`${blockInsetCls} py-3 flex items-start gap-3`}>
             <AdminKontrolleThumb row={row} labels={labels} />
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
               {(row.username || row.pillLabel) && (
                 <div className="flex items-center gap-2 flex-wrap">
                   {row.username && <span className="font-semibold text-foreground text-sm">{row.username}</span>}
-                  {row.pillLabel && <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${row.pillCls}`}>{row.pillLabel}</span>}
+                  {row.pillLabel && <Badge size="sm" tone={row.pillCls ?? undefined} label={row.pillLabel} />}
                 </div>
               )}
               {row.verifikationReasonStr && (

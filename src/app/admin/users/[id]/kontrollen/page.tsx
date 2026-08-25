@@ -6,8 +6,8 @@ import { toDateLocale, APP_TZ } from "@/lib/utils";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ClipboardCheck } from "lucide-react";
 import KontrolleButton from "@/app/admin/KontrolleButton";
-import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
+import Section from "@/app/components/Section";
 import AdminKontrolleListClient from "@/app/admin/kontrollen/AdminKontrolleListClient";
 import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { buildKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen";
@@ -72,32 +72,22 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
       {targets.length > 0 && <KontrolleButton userId={id} hasEmail={!!user.email} targets={targets} />}
 
       {sortedOffene.length > 0 && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-5 py-3 border-b border-border-subtle">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{ta("openRequests")}</p>
-          </div>
+        <Section title={ta("openRequests")}>
           <AdminKontrolleListClient items={sortedOffene.map((r) => mapKontrolleRow(r, mapOpts))} labels={labels} />
-        </Card>
+        </Section>
       )}
 
       {sortedPruefungen.length > 0 && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-5 py-3 border-b border-border-subtle">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">
-              {ta("inspectionsCount", { count: sortedPruefungen.length })}
-            </p>
-          </div>
+        <Section title={ta("inspectionsCount", { count: sortedPruefungen.length })}>
           <AdminKontrolleListClient items={sortedPruefungen.map((r) => mapKontrolleRow(r, mapOpts))} labels={labels} />
-        </Card>
+        </Section>
       )}
 
       {sortedOffene.length === 0 && sortedPruefungen.length === 0 && (
-        <Card padding="none">
-          <EmptyState
-            icon={<ClipboardCheck size={32} />}
-            title={ta("noKontrollenYet")}
-          />
-        </Card>
+        <EmptyState
+          icon={<ClipboardCheck size={32} />}
+          title={ta("noKontrollenYet")}
+        />
       )}
     </>
   );

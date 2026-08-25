@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
+import Section from "@/app/components/Section";
+import { blockInsetCls } from "@/app/components/inputStyles";
 import StatsCard from "@/app/components/StatsCard";
 import FieldTabs from "@/app/components/FieldTabs";
 import MeasurementChart from "@/app/components/MeasurementChart";
@@ -181,30 +183,27 @@ export default function WeightStatsCard({
               den von der Waage gelesenen Wert. Zusammen in einer Karte, weil beides derselbe
               Zeitraum ist — wer den Tab umlegt, bewegt Kurve und Liste zugleich. */}
           {rowsInRange.length > 0 && (
-            <Card padding="none">
-              <p className="px-5 pt-4 pb-2 text-xs font-semibold uppercase tracking-wider text-foreground-faint">
-                {tList("title")}
-              </p>
+            <Section title={tList("title")}>
               <div className="divide-y divide-border-subtle border-t border-border-subtle">
                 {rowsInRange.slice(0, shown).map((row) => (
                   <WeightRow key={row.id} row={row} locale={locale} tz={tz} unitSystem={unitSystem} />
                 ))}
               </div>
               {rowsInRange.length > shown && (
-                <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
-                  <span className="text-xs text-foreground-faint tabular-nums">
+                <div className={`flex items-center justify-between ${blockInsetCls} py-3 border-t border-border-subtle`}>
+                  <span className="text-neben text-foreground-faint tabular-nums">
                     {tList("countHint", { shown, total: rowsInRange.length })}
                   </span>
                   <button
                     type="button"
                     onClick={() => setShown((n) => n + LIST_CHUNK)}
-                    className="text-xs font-medium text-accent hover:opacity-80"
+                    className="text-neben font-medium text-accent hover:opacity-80"
                   >
                     {tList("showMore")}
                   </button>
                 </div>
               )}
-            </Card>
+            </Section>
           )}
         </>
       )}

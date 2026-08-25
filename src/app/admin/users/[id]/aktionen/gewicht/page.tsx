@@ -28,7 +28,6 @@ export default async function AdminWeightPage({ params }: { params: Promise<{ id
       userId={id}
       backLabel={ta("aktionen")}
       icon={<Scale size={20} strokeWidth={2} />}
-      iconBg="var(--background-subtle)"
       iconColor="var(--foreground)"
       title={t("titleAdmin")}
     >

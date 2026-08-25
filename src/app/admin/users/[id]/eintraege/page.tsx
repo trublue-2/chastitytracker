@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
@@ -8,8 +7,9 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { weightTrackingEnabled } from "@/lib/constants";
 import { loadWeightRows } from "@/lib/weightRows";
 import { weightText, type UnitSystem } from "@/lib/weight";
-import Link from "next/link";
 import EntryRow from "@/app/components/EntryRow";
+import DayGroups from "@/app/components/DayGroups";
+import ListPagerLinks from "@/app/components/ListPagerLinks";
 import WeightRow from "@/app/components/WeightRow";
 import WeightRowActions from "@/app/admin/WeightRowActions";
 import EntryActions from "@/app/dashboard/EntryActions";
@@ -117,6 +117,7 @@ export default async function AdminUserEintraegePage({
       node: (
         <EntryRow
           key={e.id}
+          timeOnly
           entry={{
             ...e,
             category: e.device?.category && !e.device.category.isBuiltIn
@@ -136,6 +137,7 @@ export default async function AdminUserEintraegePage({
       node: (
         <WeightRow
           key={w.id}
+          timeOnly
           row={w}
           locale={dl}
           tz={tz}
@@ -159,46 +161,33 @@ export default async function AdminUserEintraegePage({
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">{tStats("allEntries")}</h2>
-        <span className="text-xs text-foreground-faint tabular-nums">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="font-serif text-titel text-foreground">{tStats("allEntries")}</h2>
+        <span className="text-neben text-foreground-faint tabular-nums">
           {total} {t("total")}
           {weightTotal > 0 && ` · ${tWeight("countInList", { count: weightTotal })}`}
         </span>
       </div>
 
       {rows.length === 0 ? (
-        <div className="bg-surface rounded-2xl border border-border py-12 text-center">
-          <p className="text-foreground-faint text-sm">{t("noEntriesYet")}</p>
-        </div>
+        <p className="py-12 text-center text-fliess text-foreground-faint">{t("noEntriesYet")}</p>
       ) : (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
-          <div className="divide-y divide-border-subtle">
-            {rows.map((row) => row.node)}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border-subtle">
-              <Link
-                href={page > 0 ? `${base}?page=${page - 1}` : "#"}
-                aria-disabled={page === 0}
-                className={`flex items-center gap-1 text-xs font-medium transition ${page === 0 ? "text-foreground-faint pointer-events-none" : "text-foreground-muted hover:text-foreground"}`}
-              >
-                <ChevronLeft size={14} /> {t("previous")}
-              </Link>
-              <span className="text-xs text-foreground-faint tabular-nums">
-                {page + 1} / {totalPages}
-              </span>
-              <Link
-                href={page < totalPages - 1 ? `${base}?page=${page + 1}` : "#"}
-                aria-disabled={page >= totalPages - 1}
-                className={`flex items-center gap-1 text-xs font-medium transition ${page >= totalPages - 1 ? "text-foreground-faint pointer-events-none" : "text-foreground-muted hover:text-foreground"}`}
-              >
-                {t("next")} <ChevronRight size={14} />
-              </Link>
-            </div>
-          )}
-        </div>
+        <>
+          <DayGroups
+            rows={rows}
+            locale={dl}
+            tz={tz}
+            today={t("today")}
+            yesterday={t("yesterday")}
+          />
+          <ListPagerLinks
+            page={page}
+            totalPages={totalPages}
+            href={(p) => `${base}?page=${p}`}
+            previousLabel={t("previous")}
+            nextLabel={t("next")}
+          />
+        </>
       )}
     </>
   );

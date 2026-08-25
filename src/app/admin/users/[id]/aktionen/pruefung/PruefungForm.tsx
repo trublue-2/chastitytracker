@@ -25,7 +25,6 @@ export default function PruefungForm({ userId, tz, nowDefault }: { userId: strin
       userId={userId}
       backLabel={t("aktionen")}
       icon={<ClipboardCheck size={20} strokeWidth={2} />}
-      iconBg="var(--color-inspect-bg)"
       iconColor="var(--color-inspect)"
       title={tInspection("title")}
     >

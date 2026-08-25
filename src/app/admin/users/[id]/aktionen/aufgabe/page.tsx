@@ -52,7 +52,6 @@ export default async function AdminTaskPage({
       userId={userId}
       backLabel={t("aktionen")}
       icon={<ClipboardList size={20} strokeWidth={2} />}
-      iconBg="var(--background-subtle)"
       iconColor="var(--foreground)"
       title={offenseRef ? tt("actionTitlePenalty") : tt("actionTitle")}
     >

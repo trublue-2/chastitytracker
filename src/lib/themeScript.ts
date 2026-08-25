@@ -6,6 +6,7 @@
  */
 
 import { STORAGE_KEYS, SELECTORS, resolveTheme, THEME_ROLES, type ThemeRole } from "@/lib/theme";
+import { IDENT_ATTRIBUTE, IDENT_DEFAULT, IDENT_STORAGE_KEY } from "@/lib/ident";
 
 // Abgeleitet statt abgeschrieben: nur der SKRIPT-TEXT muss ohne Modulsystem auskommen, dieses Modul
 // selbst laeuft serverseitig ganz normal und kann resolveTheme aufrufen. Vorher standen dieselben
@@ -25,5 +26,16 @@ export function getThemeInitScript(role: ThemeRole) {
   // Reihenfolge, Selektor-Wahl (`body.querySelector`) und der Wrapper-Vorbehalt müssen mitwandern,
   // wenn sich das drüben ändert; hier liegt der Wrapper zwar immer vor (dieses Skript steht IN
   // ihm), aber zwei Regeln für dieselbe Sache driften sonst irgendwann auseinander.
-  return `(function(){try{var e=document.body.querySelector("${selector}");if(!e)return;var m=localStorage.getItem("${storageKey}")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);var t=d?"${darkTheme}":"${lightTheme}";document.documentElement.setAttribute("data-theme",t);e.setAttribute("data-theme",t);}catch(e){}})();`;
+  // Der Identitäts-Ton hängt am selben Skript statt an einem zweiten: er muss aus demselben Grund
+  // vor der Hydration stehen (sonst blitzt die andere Farbwelt auf), und ein zweites Inline-Skript
+  // wäre eine zweite Stelle, die man beim Entfernen der Farbfrage übersieht.
+  //
+  // Er steht VOR dem Wrapper-Vorbehalt, weil er am Wurzelelement hängt und nichts vom Wrapper
+  // braucht. Heute macht das keinen Unterschied — dieses Skript rendert IM Wrapper, `e` liegt also
+  // immer vor. Es ist die Reihenfolge, die stimmt, wenn der Vorbehalt einmal greift.
+  //
+  // Was der Ton damit NICHT erreicht: die Seiten ausserhalb beider Bereiche (Anmeldung,
+  // Passwort-Reset, Info) binden dieses Skript gar nicht ein und bleiben in der rosa Fassung. Für
+  // einen Vergleich der beiden Welten ist das hinnehmbar; wer den Ton behält, muss es ändern.
+  return `(function(){try{var i=localStorage.getItem("${IDENT_STORAGE_KEY}");if(i&&i!=="${IDENT_DEFAULT}")document.documentElement.setAttribute("${IDENT_ATTRIBUTE}",i);var e=document.body.querySelector("${selector}");if(!e)return;var m=localStorage.getItem("${storageKey}")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);var t=d?"${darkTheme}":"${lightTheme}";document.documentElement.setAttribute("data-theme",t);e.setAttribute("data-theme",t);}catch(e){}})();`;
 }

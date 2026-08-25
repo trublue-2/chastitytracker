@@ -11,10 +11,21 @@ import type { ReactNode } from "react";
  *
  * `children` statt eines `title`-Strings: manche Köpfe tragen ein Icon vor dem Text.
  */
-export default function BlockHeading({ children, className = "" }: { children: ReactNode; className?: string }) {
+export default function BlockHeading({ as: Tag = "h2", children, className = "" }: {
+  /** Die Ebene. `h2` ist die Vorgabe (ein Block IST ein Abschnitt); `h3` für eine Gruppe INNERHALB
+   *  eines Blocks (Tagesköpfe), `span` für Tabellen-Spaltenköpfe, die keine Abschnitte benennen und
+   *  in der Überschriften-Navigation nichts verloren haben.
+   *
+   *  Ergänzt, weil die Klassenkette sonst genau dort von Hand kopiert wurde, wo eine andere Ebene
+   *  gebraucht war — siebenmal, in derselben Sitzung, in der dieses Bauteil die eine Quelle sein
+   *  sollte. Ein Bauteil, das nur EINE Ebene kann, erzeugt Kopien statt sie zu verhindern. */
+  as?: "h2" | "h3" | "span";
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <h2 className={`text-xs font-semibold uppercase tracking-wider text-foreground-faint ${className}`}>
+    <Tag className={`text-rubrik font-semibold uppercase tracking-wider text-foreground-faint ${className}`}>
       {children}
-    </h2>
+    </Tag>
   );
 }

@@ -83,7 +83,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
               />
             </button>
           ) : imgError ? (
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-surface-raised flex items-center justify-center text-foreground-faint">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center text-foreground-faint">
               <ImageOff size={20} />
             </div>
           ) : null}
@@ -127,7 +127,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
                 </button>
               </div>
               {oeffnen.oeffnenGrund && (
-                <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text self-start">
+                <span className="inline-flex items-center text-neben font-semibold text-foreground-muted self-start">
                   {GRUND_I18N_KEYS[oeffnen.oeffnenGrund as keyof typeof GRUND_I18N_KEYS] ? tOpen(GRUND_I18N_KEYS[oeffnen.oeffnenGrund as keyof typeof GRUND_I18N_KEYS]) : oeffnen.oeffnenGrund}
                 </span>
               )}
@@ -138,7 +138,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
               )}
             </>
           ) : active ? (
-            <span className="inline-flex items-center text-xs font-semibold text-[var(--color-lock-text)] bg-[var(--color-lock-bg)] border border-[var(--color-lock-border)] px-2 py-0.5 rounded-full self-start">
+            <span className="inline-flex items-center text-neben font-semibold text-lock self-start">
               {td("stillLocked")}
             </span>
           ) : (

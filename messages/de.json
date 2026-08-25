@@ -252,6 +252,8 @@
     "unlocking": "Prüfe…"
   },
   "common": {
+    "today": "Heute",
+    "yesterday": "Gestern",
     "save": "Speichern",
     "unitKg": "kg",
     "unitLbs": "lbs",
@@ -1171,6 +1173,7 @@
     "keyholdersNoCandidates": "Keine zuweisbaren Nutzer — als Keyholder kommen nur Nicht-Admins in Frage (Admins kontrollieren ohnehin alle Subs). Lege dafür einen Nutzer mit der Rolle Benutzer an.",
     "keyholderSelect": "User wählen …",
     "keyholderAdd": "Hinzufügen",
+    "designTon": "Farbwelt",
     "designAdmin": "Admin-Design",
     "designUser": "Benutzer-Design",
     "usernameLabel": "Benutzername",

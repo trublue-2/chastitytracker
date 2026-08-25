@@ -22,11 +22,36 @@ const trendColors: Record<TrendDirection, string> = {
 };
 
 const trendArrows: Record<TrendDirection, string> = {
-  up: "\u2191",
-  down: "\u2193",
-  neutral: "\u2192",
+  up: "↑",
+  down: "↓",
+  neutral: "→",
 };
 
+/** Wert- und Balkenfarbe je Bedeutung — AUSGESCHRIEBEN, nicht zusammengesetzt.
+ *
+ *  Hier stand `` `text-${color}` `` und `` `bg-${color}` ``. Tailwind liest den Quelltext statisch
+ *  und sieht so gebaute Klassen nie: die Kennzahl „ohne Foto" war seit jeher farblos, obwohl sie
+ *  `color="warn"` mitgab. Anders als bei `Card` fiel es nicht einmal zufällig auf, weil kein
+ *  anderes Bauteil `text-warn` wörtlich trug. Ein `Record` über den Union-Typ erzwingt, dass eine
+ *  neue Bedeutung hier auftaucht — dasselbe Muster wie `SEMANTIC_SURFACE`. */
+const VALUE_COLOR: Record<SemanticColor, string> = {
+  lock: "text-lock", unlock: "text-unlock", inspect: "text-inspect", orgasm: "text-orgasm",
+  request: "text-request", sperrzeit: "text-sperrzeit", warn: "text-warn", ok: "text-ok",
+};
+const BAR_COLOR: Record<SemanticColor, string> = {
+  lock: "bg-lock", unlock: "bg-unlock", inspect: "bg-inspect", orgasm: "bg-orgasm",
+  request: "bg-request", sperrzeit: "bg-sperrzeit", warn: "bg-warn", ok: "bg-ok",
+};
+
+/**
+ * Eine Kennzahl — die Zahl trägt sie, nicht der Kasten um sie herum.
+ *
+ * Vorher sass jede in einer eigenen Karte mit Rahmen, Radius und Fläche; vier davon nebeneinander
+ * ergaben ein Gitter aus vier Zäunen, in dem die Zahlen kleiner wirkten als ihre Umrandung. Jetzt
+ * steht die Zahl gross und frei, die Beschriftung leise darunter, und die Trennung übernimmt der
+ * Abstand. Was Rahmen brauchte, war nie die Zahl, sondern die Unsicherheit, ob sie für sich stehen
+ * kann.
+ */
 export default function StatsCard({
   value,
   label,
@@ -37,40 +62,33 @@ export default function StatsCard({
   icon,
   className = "",
 }: StatsCardProps) {
-  const valueColor = color ? `text-${color}` : "text-foreground";
-
   return (
-    <div className={`rounded-xl border border-border bg-surface p-4 sm:p-5 ${className}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-col min-w-0">
-          <span className={`text-2xl font-bold tabular-nums ${valueColor}`}>
-            {value}
-          </span>
-          <span className="text-sm text-foreground-muted mt-0.5">{label}</span>
-        </div>
+    <div className={`flex flex-col gap-1 ${className}`}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className={`text-kennzahl font-semibold tabular-nums ${color ? VALUE_COLOR[color] : "text-foreground"}`}>
+          {value}
+        </span>
         {icon && (
           <span className="text-foreground-faint shrink-0" aria-hidden="true">
             {icon}
           </span>
         )}
       </div>
+      <span className="text-neben text-foreground-faint">{label}</span>
 
       {variant === "progress" && progress != null && (
-        <div className="mt-3">
-          <div className="h-2 rounded-full bg-background-subtle overflow-hidden">
+        <div className="mt-1">
+          <div className="h-1 rounded-full bg-border-subtle overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${color ? `bg-${color}` : "bg-btn-primary"}`}
+              className={`h-full rounded-full transition-all ${color ? BAR_COLOR[color] : "bg-btn-primary"}`}
               style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
             />
           </div>
-          <span className="text-xs text-foreground-faint mt-1 block tabular-nums">
-            {Math.round(progress)}%
-          </span>
         </div>
       )}
 
       {variant === "trend" && trend && (
-        <div className={`flex items-center gap-1 mt-2 text-sm font-medium ${trendColors[trend.direction]}`}>
+        <div className={`flex items-center gap-1 text-neben font-medium ${trendColors[trend.direction]}`}>
           <span>{trendArrows[trend.direction]}</span>
           <span>{trend.label}</span>
         </div>

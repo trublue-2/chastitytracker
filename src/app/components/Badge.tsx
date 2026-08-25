@@ -5,6 +5,12 @@ type BadgeSize = "sm" | "default";
 
 interface BadgeProps {
   variant?: BadgeVariant;
+  /** Ein fertiger Farbton statt einer Variante — für Zustände, die ihre Farbe schon als Klasse
+   *  mitbringen (`kontrollePills.ts` rechnet sie aus Anforderungs- und Verifikations-Status aus).
+   *  ERSETZT `variant`, steht nicht daneben: zwei `text-*`-Klassen am selben Element entscheidet
+   *  die Reihenfolge im erzeugten Stylesheet, nicht die im Attribut — das ist keine Wahl, das ist
+   *  ein Würfel. */
+  tone?: string;
   size?: BadgeSize;
   icon?: ReactNode;
   label: string;
@@ -13,25 +19,34 @@ interface BadgeProps {
   className?: string;
 }
 
+/**
+ * Der Ton eines Abzeichens — nur noch SCHRIFT, keine Fläche und kein Rahmen.
+ *
+ * Ein Abzeichen ist eine Beschriftung, die etwas über die Zeile daneben sagt. Als gefüllte Pille
+ * mit Rahmen war es dreimal ausgezeichnet — Farbe, Fläche, Umrandung — für eine Aussage von zwei
+ * Wörtern, und auf einer Liste standen zwölf davon untereinander. Was übrig bleibt, ist die
+ * Farbe; sie allein trägt die Aussage, und sie trägt sie nur, wenn sie selten ist.
+ */
 const colorMap: Record<BadgeVariant, string> = {
-  lock:      "bg-lock-bg text-lock-text border-lock-border",
-  unlock:    "bg-unlock-bg text-unlock-text border-unlock-border",
-  inspect:   "bg-inspect-bg text-inspect-text border-inspect-border",
-  orgasm:    "bg-orgasm-bg text-orgasm-text border-orgasm-border",
-  request:   "bg-request-bg text-request-text border-request-border",
-  sperrzeit: "bg-sperrzeit-bg text-sperrzeit-text border-sperrzeit-border",
-  warn:      "bg-warn-bg text-warn-text border-warn-border",
-  ok:        "bg-ok-bg text-ok-text border-ok-border",
-  neutral:   "bg-background-subtle text-foreground-muted border-border",
+  lock:      "text-lock",
+  unlock:    "text-unlock",
+  inspect:   "text-inspect",
+  orgasm:    "text-orgasm",
+  request:   "text-request",
+  sperrzeit: "text-sperrzeit",
+  warn:      "text-warn",
+  ok:        "text-ok",
+  neutral:   "text-foreground-muted",
 };
 
 const sizeClasses: Record<BadgeSize, string> = {
-  sm:      "h-5 text-xs px-2 gap-1",
-  default: "h-6 text-sm px-2.5 gap-1.5",
+  sm:      "text-rubrik gap-1",
+  default: "text-neben gap-1.5",
 };
 
 export default function Badge({
   variant = "neutral",
+  tone,
   size = "default",
   icon,
   label,
@@ -41,9 +56,9 @@ export default function Badge({
   return (
     <span
       className={[
-        "inline-flex items-center font-medium rounded-full border whitespace-nowrap",
+        "inline-flex items-center font-semibold whitespace-nowrap",
         sizeClasses[size],
-        colorMap[variant],
+        tone ?? colorMap[variant],
         className,
       ].join(" ")}
     >

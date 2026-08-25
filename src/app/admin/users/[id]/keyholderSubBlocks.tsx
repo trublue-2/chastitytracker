@@ -36,7 +36,8 @@ import TaskCardStack from "@/app/components/TaskCardStack";
 import KeyholderTaskCard from "@/app/admin/tasks/KeyholderTaskCard";
 import WithdrawButton from "@/app/admin/WithdrawButton";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
-import Card from "@/app/components/Card";
+import Section from "@/app/components/Section";
+import StatsCard from "@/app/components/StatsCard";
 
 /**
  * **Die Blöcke der Keyholder-Detailseite — je mit eigener Datenbeschaffung.**
@@ -259,33 +260,30 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
     render: (data, { subjectId, dl, t, ts, fmtDual }) => {
       const orgasmusFreiDisplay = data.orgasmusFreiMs ? formatDurationMs(data.orgasmusFreiMs, dl) : null;
       return (
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("statsTitle")}</p>
-            <Link href={`/admin/users/${subjectId}/stats`} className="text-xs text-foreground-faint hover:text-foreground-muted transition">
+        // Drei Zahlen, drei Kacheln, eine Karte drumherum — vier Kästen für drei Werte. Jetzt
+        // tragen die Zahlen selbst, und `StatsCard` ist dasselbe Bauteil wie auf der
+        // Statistik-Seite: dieselbe Grösse für dieselbe Art Angabe, egal wer hinschaut.
+        <Section
+          title={t("statsTitle")}
+          action={
+            <Link href={`/admin/users/${subjectId}/stats`} className="text-neben text-foreground-faint hover:text-foreground-muted transition">
               {t("allStats")} →
             </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-surface-raised px-4 py-3">
-              <p className="text-xs text-foreground-faint mb-0.5">{ts("entries")}</p>
-              <p className="text-2xl font-bold text-foreground tracking-tight">{data.sessions}</p>
-            </div>
-            <div className="rounded-xl bg-surface-raised px-4 py-3">
-              <p className="text-xs text-foreground-faint mb-0.5">{ts("totalDuration")}</p>
-              <p className="text-2xl font-bold text-foreground tracking-tight">
-                {data.closed ? formatTotalMs(data.totalMs) : "–"}
-              </p>
-            </div>
+          }
+        >
+          <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+            <StatsCard label={ts("entries")} value={String(data.sessions)} />
+            <StatsCard label={ts("totalDuration")} value={data.closed ? formatTotalMs(data.totalMs) : "–"} />
             {orgasmusFreiDisplay !== null && (
-              <div className="rounded-xl bg-orgasm-bg border border-orgasm-border px-4 py-3 col-span-2 sm:col-span-1">
-                <p className="text-xs text-orgasm-text font-semibold mb-0.5 uppercase tracking-wider">{ts("orgasmFreeTime")}</p>
-                <p className="text-2xl font-bold text-orgasm tracking-tight">{orgasmusFreiDisplay}</p>
-                {data.lastOrgasmus && <p className="text-xs text-orgasm-text opacity-60 mt-0.5">{ts("lastOrgasm")}: {fmtDual(data.lastOrgasmus.startTime)}</p>}
+              <div className="col-span-2 sm:col-span-1">
+                <StatsCard label={ts("orgasmFreeTime")} value={orgasmusFreiDisplay} />
+                {data.lastOrgasmus && (
+                  <p className="text-neben text-foreground-faint mt-0.5">{ts("lastOrgasm")}: {fmtDual(data.lastOrgasmus.startTime)}</p>
+                )}
               </div>
             )}
           </div>
-        </Card>
+        </Section>
       );
     },
   }),
@@ -293,15 +291,16 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
   goalOverview: block({
     load: ({ subjectId, nowMs }) => activeVorgabeCached(subjectId, nowMs),
     render: (activeVorgabe, { subjectId, subjectTz, dl, t, ts, tc, td }) => activeVorgabe && (
-      <Card>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{ts("trainingGoals")}</p>
-          <Link href={`/admin/users/${subjectId}/einstellungen`} className="text-xs text-foreground-faint hover:text-foreground-muted transition flex items-center gap-0.5">
+      <Section
+        title={ts("trainingGoals")}
+        action={
+          <Link href={`/admin/users/${subjectId}/einstellungen`} className="text-neben text-foreground-faint hover:text-foreground-muted transition inline-flex items-center gap-0.5">
             {tc("all")} <ChevronRight size={12} />
           </Link>
-        </div>
+        }
+      >
         <div className="flex items-start gap-3">
-          <span className="text-xs font-bold text-request-text bg-request-bg border border-request-border px-2 py-0.5 rounded-full mt-0.5 flex-shrink-0">{t("vorgabeActive")}</span>
+          <span className="text-neben font-semibold text-foreground-muted mt-0.5 flex-shrink-0">{t("vorgabeActive")}</span>
           <div>
             <p className="text-sm font-semibold text-foreground">
               {formatDate(activeVorgabe.gueltigAb, dl, subjectTz)} → {activeVorgabe.gueltigBis ? formatDate(activeVorgabe.gueltigBis, dl, subjectTz) : tc("open")}
@@ -311,10 +310,10 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
               {activeVorgabe.minProWocheH != null && <span className="text-xs text-foreground-muted">{td("week")}: <strong className="text-foreground">{formatTotalHours(activeVorgabe.minProWocheH)}</strong></span>}
               {activeVorgabe.minProMonatH != null && <span className="text-xs text-foreground-muted">{td("month")}: <strong className="text-foreground">{formatTotalHours(activeVorgabe.minProMonatH)}</strong></span>}
             </div>
-            {activeVorgabe.notiz && <p className="text-xs text-foreground-faint italic mt-0.5">{activeVorgabe.notiz}</p>}
+            {activeVorgabe.notiz && <p className="text-neben text-foreground-faint italic mt-0.5">{activeVorgabe.notiz}</p>}
           </div>
         </div>
-      </Card>
+      </Section>
     ),
   }),
 
@@ -356,15 +355,14 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
   inspectionHistory: block({
     load: async ({ subjectId, nowMs }) => (await keyholderPairsCached(subjectId, nowMs)).items,
     render: (kontrollItems, { subjectId, t, ts, tc, fmtDual }) => kontrollItems.length > 0 && (
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1.5">
-            <ClipboardList size={12} />{ts("inspections")}
-          </p>
-          <Link href={`/admin/users/${subjectId}/kontrollen`} className="text-xs text-foreground-faint hover:text-foreground-muted transition flex items-center gap-0.5">
+      <Section
+        title={<span className="flex items-center gap-1.5"><ClipboardList size={12} />{ts("inspections")}</span>}
+        action={
+          <Link href={`/admin/users/${subjectId}/kontrollen`} className="text-neben text-foreground-faint hover:text-foreground-muted transition inline-flex items-center gap-0.5">
             {tc("all")} <ChevronRight size={12} />
           </Link>
-        </div>
+        }
+      >
         <KontrolleItemListClient
           imageAlt={ts("inspections")}
           items={[...kontrollItems].sort((a, b) => b.time.getTime() - a.time.getTime()).slice(0, 5).map((k): KontrolleItemData => {
@@ -384,7 +382,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
             };
           })}
         />
-      </Card>
+      </Section>
     ),
   }),
 
@@ -396,12 +394,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       return { orgasmusEntries, orgasmCfg };
     },
     render: ({ orgasmusEntries, orgasmCfg }, { subjectId, subjectTz, dl, td, tOrgasm }) => orgasmusEntries.length > 0 && (
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint flex items-center gap-1.5">
-            <Droplets size={12} />{td("orgasms")}
-          </p>
-        </div>
+      <Section title={<span className="flex items-center gap-1.5"><Droplets size={12} />{td("orgasms")}</span>}>
         <OrgasmenListClient
           items={orgasmusEntries.slice(0, 5).map((e): OrgasmusItemData => ({
             id: e.id,
@@ -412,7 +405,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
             editHref: `/dashboard/edit/${e.id}?from=admin&userId=${subjectId}`,
           }))}
         />
-      </Card>
+      </Section>
     ),
   }),
 };

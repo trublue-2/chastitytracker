@@ -5,7 +5,6 @@ import { toDateLocale, APP_TZ } from "@/lib/utils";
 import Link from "next/link";
 import { ClipboardCheck } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import AdminKontrolleListClient from "./AdminKontrolleListClient";
 import { buildKontrolleRows, isKontrolleAlarm, mapKontrolleRow } from "@/lib/kontrollen";
@@ -90,16 +89,12 @@ export default async function AdminKontrollenPage({
       </div>
 
       {items.length === 0 ? (
-        <Card padding="none">
-          <EmptyState
-            icon={<ClipboardCheck size={32} />}
-            title={t("noKontrollenYet")}
-          />
-        </Card>
+        <EmptyState
+          icon={<ClipboardCheck size={32} />}
+          title={t("noKontrollenYet")}
+        />
       ) : (
-        <Card padding="none" className="overflow-hidden">
-          <AdminKontrolleListClient items={items} allItems={allItems} labels={labels} />
-        </Card>
+        <AdminKontrolleListClient items={items} allItems={allItems} labels={labels} />
       )}
     </main>
   );

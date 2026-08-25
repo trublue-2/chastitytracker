@@ -26,7 +26,6 @@ export default function OeffnenForm({ userId, grundOptions, tz, nowDefault }: { 
       userId={userId}
       backLabel={t("aktionen")}
       icon={<LockOpen size={20} strokeWidth={2} />}
-      iconBg="var(--color-unlock-bg)"
       iconColor="var(--color-unlock)"
       title={tOffen("title")}
     >

@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { Lock, LockOpen, ClipboardList, Droplets, Camera, Play, Square } from "lucide-react";
-import { formatDateTime, APP_TZ } from "@/lib/utils";
-import { TYPE_COLORS, TYPE_STATS_KEYS } from "@/lib/constants";
+import { formatDateTime, formatTime, APP_TZ } from "@/lib/utils";
+import { TYPE_STATS_KEYS } from "@/lib/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { categoryStyle } from "@/lib/categoryConstants";
-import { listRowCls, listRowButtonCls } from "@/app/components/inputStyles";
+import { listRowCls, listRowButtonCls, listRowTimeCls } from "@/app/components/inputStyles";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -50,9 +50,13 @@ interface Props {
   openingLabel?: string | null;
   /** Optional action slot (e.g. EntryActions menu) */
   actions?: ReactNode;
+  /** Nur die Uhrzeit statt Datum und Uhrzeit — für Listen, die ihre Tage schon überschreiben
+   *  (`DayGroups`). Ohne Tageskopf drumherum wäre eine reine Uhrzeit nicht datierbar, deshalb
+   *  bleibt das volle Datum der Standard. */
+  timeOnly?: boolean;
 }
 
-export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel, openingLabel, actions }: Props) {
+export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel, openingLabel, actions, timeOnly }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const tStats = useTranslations("stats");
 
@@ -79,36 +83,47 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
           onClick={() => setShowDetail(true)}
           className={listRowButtonCls}
         >
-          {isWear && e.category ? (
-            <span
-              className="flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0"
-              style={{ color: categoryStyle(e.category.color).color }}
-              title={wearLabel}
-            >
-              <CategoryIconRender name={e.category.icon} className="size-3" />
-              <span className="truncate">{e.category.name}</span>
-              <span className="ml-0.5 text-[0.65rem] uppercase tracking-wider opacity-70">{wearActionLabel}</span>
-            </span>
-          ) : (
-            <span className={`flex items-center gap-1 text-xs font-semibold w-24 flex-shrink-0 ${TYPE_COLORS[e.type] ?? "text-foreground-muted"}`}>
-              {typeIcon(e.type, 12)}
-              {tStats(TYPE_STATS_KEYS[e.type] ?? "lock")}
-            </span>
-          )}
-          <span className="text-sm text-foreground tabular-nums">
-            {formatDateTime(startTime, locale, tz)}
+          {/* Die Zeit führt die Zeile an, nicht die Art. In einer nach Tagen gruppierten Liste ist
+              sie die einzige Spalte, die jede Zeile hat und die geordnet ist — an ihr entlang liest
+              man. Feste Breite, damit die Arten darunter auf einer Kante stehen. */}
+          <span className={listRowTimeCls}>
+            {timeOnly ? formatTime(startTime, locale, tz) : formatDateTime(startTime, locale, tz)}
           </span>
+
+          {/* Die Art ist neutral. Farbe heisst in diesem System „das will jetzt etwas von dir" —
+              ein vergangener Eintrag will nichts mehr. Zwölf korallene „Kontrolle" untereinander
+              haben genau deshalb aufgehört, etwas zu bedeuten. Die einzige Farbe, die bleibt, ist
+              die der Kategorie: sie sagt WELCHE, nicht ob — und sie sitzt nur noch im Zeichen. */}
+          <span className="flex items-center gap-1.5 min-w-0 text-fliess text-foreground">
+            {isWear && e.category ? (
+              <>
+                <CategoryIconRender
+                  name={e.category.icon}
+                  className="size-3.5 flex-shrink-0"
+                  style={{ color: categoryStyle(e.category.color).color }}
+                />
+                <span className="truncate">{e.category.name}</span>
+                <span className="text-foreground-faint whitespace-nowrap">{wearActionLabel}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-foreground-faint flex-shrink-0">{typeIcon(e.type, 13)}</span>
+                <span className="truncate">{tStats(TYPE_STATS_KEYS[e.type] ?? "lock")}</span>
+              </>
+            )}
+          </span>
+
           {e.imageUrl && (
             <Camera size={12} className="text-foreground-faint flex-shrink-0" />
           )}
           {e.orgasmusArt && (
-            <span className="text-xs text-[var(--color-orgasm)] font-medium">{orgasmusLabel ?? e.orgasmusArt}</span>
+            <span className="text-neben text-foreground-muted whitespace-nowrap">{orgasmusLabel ?? e.orgasmusArt}</span>
           )}
           {e.type === "VERSCHLUSS" && e.kontrollCode && (
-            <span className="text-xs text-[var(--color-lock)] font-mono tabular-nums">#{e.kontrollCode}</span>
+            <span className="text-neben text-foreground-faint font-mono tabular-nums">#{e.kontrollCode}</span>
           )}
           {e.note && (
-            <span className="text-xs text-foreground-faint italic truncate min-w-0">„{e.note}"</span>
+            <span className="text-neben text-foreground-faint italic truncate min-w-0">„{e.note}"</span>
           )}
         </button>
         {actions && <div className="flex-shrink-0">{actions}</div>}

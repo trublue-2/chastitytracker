@@ -137,7 +137,6 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
       userId={userId}
       backLabel={t("aktionen")}
       icon={<Droplets size={20} strokeWidth={2} />}
-      iconBg="var(--color-orgasm-bg)"
       iconColor="var(--color-orgasm)"
       title={t("requestOrgasm")}
     >

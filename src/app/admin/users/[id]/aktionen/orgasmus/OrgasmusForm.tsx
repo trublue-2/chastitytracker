@@ -26,7 +26,6 @@ export default function OrgasmusForm({ userId, artOptions, tz, nowDefault }: { u
       userId={userId}
       backLabel={t("aktionen")}
       icon={<Droplets size={20} strokeWidth={2} />}
-      iconBg="var(--color-orgasm-bg)"
       iconColor="var(--color-orgasm)"
       title={tOrgasm("title")}
     >

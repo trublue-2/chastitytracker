@@ -102,7 +102,7 @@ export default function UserContextBar({ userId, username, currentStatus, since,
                 : <LockOpen size={14} strokeWidth={1.75} className="text-foreground-faint flex-shrink-0" />
               }
               {u.id === userId && (
-                <span className="text-xs text-foreground-faint bg-surface border border-border px-2 py-0.5 rounded-full flex-shrink-0">{t("active")}</span>
+                <span className="text-neben text-foreground-faint flex-shrink-0">{t("active")}</span>
               )}
             </button>
           ))}

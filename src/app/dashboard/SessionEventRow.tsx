@@ -5,6 +5,7 @@ import { Lock, LockOpen, CheckCircle2, Droplets, MoreVertical, Camera, AlertTria
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import Badge from "@/app/components/Badge";
 import DetailField from "@/app/components/DetailField";
 import SealedCodePhoto from "./SealedCodePhoto";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
@@ -148,23 +149,23 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
 
   // Grün = Schlüssel nachgewiesen, Warn-Optik = kein Schlüssel erkannt (siehe `keyDetected`). Der
   // grüne Fall nennt seine Quelle (`keyProofFor` in `lib/boxKeyProof.ts`).
-  const keyPill = ev.keyDetected == null ? null : ev.keyDetected ? (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-lock-text)] bg-[var(--color-lock-bg)] border border-[var(--color-lock-border)] px-2 py-0.5 rounded-full">
-      <KeyRound size={10} />{t(ev.keyProofSource === "telemetry" ? "keyDetectedTelemetry" : "keyDetected")}
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-warn-text bg-warn-bg border border-[var(--color-warn-border)] px-2 py-0.5 rounded-full">
-      <KeyRound size={10} />{t("keyNotDetected")}
-    </span>
+  // Der NACHWEIS ist der Normalfall und deshalb neutral; nur sein Fehlen ist eine Aussage. Vorher
+  // war es umgekehrt gewichtet: der erbrachte Nachweis leuchtete grün, das Fehlen rot — zwei
+  // Signale, wo eines gemeint ist.
+  const keyPill = ev.keyDetected == null ? null : (
+    <Badge
+      size="sm"
+      variant={ev.keyDetected ? "neutral" : "warn"}
+      icon={<KeyRound size={11} />}
+      label={ev.keyDetected
+        ? t(ev.keyProofSource === "telemetry" ? "keyDetectedTelemetry" : "keyDetected")
+        : t("keyNotDetected")}
+    />
   );
 
   // Reinigung → compact inline row with optional modal
   if (ev.type === "reinigung") {
-    const reinigungPill = (
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-unlock-text)] bg-[var(--color-unlock-bg)] border border-[var(--color-unlock-border)] px-2 py-0.5 rounded-full">
-        <LockOpen size={10} />{t("sessionReinigung")}
-      </span>
-    );
+    const reinigungPill = <Badge size="sm" icon={<LockOpen size={11} />} label={t("sessionReinigung")} />;
 
     return (
       <>
@@ -181,8 +182,8 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
             {photo.mainUrl ?? photo.boxUrl ? (
               <PhotoThumb url={(photo.mainUrl ?? photo.boxUrl)!} alt="" size="lg" />
             ) : (
-              <div className="w-full h-full bg-[var(--color-unlock-bg)] flex items-center justify-center rounded-xl">
-                <LockOpen size={18} className="text-[var(--color-unlock)]" />
+              <div className="w-full h-full flex items-center justify-center text-foreground-faint">
+                <LockOpen size={18} />
               </div>
             )}
           </div>
@@ -237,18 +238,15 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
     );
   }
 
+  // Der Verschluss und der Orgasmus sind EINTRAGSARTEN, keine Signale — sie sagen, was passiert
+  // ist, nicht dass etwas zu tun wäre. Nur die Kontrolle trägt eine Farbe, und die kommt aus ihrem
+  // Zustand (`kombiniertePillCls`): offen und überfällig fallen auf, erledigt nicht.
   const typePill = ev.type === "verschluss" ? (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-lock-text)] bg-[var(--color-lock-bg)] border border-[var(--color-lock-border)] px-2 py-0.5 rounded-full">
-      <Lock size={10} />{t("lock")}
-    </span>
+    <Badge size="sm" icon={<Lock size={11} />} label={t("lock")} />
   ) : ev.type === "kontrolle" ? (
-    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${ev.kombiniertePillCls ?? "bg-surface-raised text-foreground-muted border-border"}`}>
-      <CheckCircle2 size={10} />{ev.kombiniertePillLabel ?? t("sessionKontrolle")}
-    </span>
+    <Badge size="sm" icon={<CheckCircle2 size={11} />} label={ev.kombiniertePillLabel ?? t("sessionKontrolle")} tone={ev.kombiniertePillCls ?? undefined} />
   ) : (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-sperrzeit)] bg-[var(--color-sperrzeit-bg)] border border-[var(--color-sperrzeit-border)] px-2 py-0.5 rounded-full">
-      <Droplets size={10} />{t("sessionOrgasmus")}
-    </span>
+    <Badge size="sm" icon={<Droplets size={11} />} label={t("sessionOrgasmus")} />
   );
 
   // Geräte-Zeile (getragenes Gerät) — dieselbe Darstellung an zwei Positionen im Detail-Panel:
@@ -305,7 +303,10 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
           {photo.mainUrl ?? photo.boxUrl ? (
             <PhotoThumb url={(photo.mainUrl ?? photo.boxUrl)!} alt="" size="lg" />
           ) : (
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-surface-raised flex items-center justify-center">
+            /* Ohne Foto steht das Zeichen frei statt in einer leeren Kachel. Eine Fläche in
+               Bildgrösse, in der kein Bild ist, sieht aus wie ein Bild, das nicht geladen hat —
+               und sie stellt einen Kasten in eine Zeile, die schon in einer Liste steht. */
+            <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center text-foreground-faint">
               {icon}
             </div>
           )}

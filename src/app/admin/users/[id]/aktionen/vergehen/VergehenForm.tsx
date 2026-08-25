@@ -66,7 +66,6 @@ export default function VergehenForm({ userId, tz, nowDefault }: { userId: strin
       backLabel={t("strafbuch")}
       backHref={target}
       icon={<Gavel size={20} strokeWidth={2} />}
-      iconBg="var(--color-warn-bg)"
       iconColor="var(--color-warn)"
       title={t("recordOffense")}
     >

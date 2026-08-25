@@ -5,6 +5,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { type CategoryIcon } from "@/lib/categoryConstants";
+import type { CSSProperties } from "react";
 
 const ICON_MAP: Record<CategoryIcon, LucideIcon> = {
   Lock, KeyRound, ShieldCheck, Circle, Diamond, Gem, Sparkles,
@@ -16,10 +17,14 @@ interface Props {
   /** Icon name from CATEGORY_ICONS. Falls back to Tag if unknown (defensive: stored DB values). */
   name: string;
   className?: string;
+  /** Für die Kategorie-Farbe: sie kommt aus der Datenbank und kann deshalb keine Klasse sein.
+   *  Seit die Farbe nur noch im Zeichen sitzt und nicht mehr auf der Beschriftung, braucht sie
+   *  hier einen Weg hinein. */
+  style?: CSSProperties;
 }
 
 /** Renders a lucide-react icon by category-icon name. Use for DeviceCategory display. */
-export default function CategoryIconRender({ name, className }: Props) {
+export default function CategoryIconRender({ name, className, style }: Props) {
   const Icon = ICON_MAP[name as CategoryIcon] ?? ICON_MAP.Tag;
-  return <Icon className={className} aria-hidden />;
+  return <Icon className={className} style={style} aria-hidden />;
 }

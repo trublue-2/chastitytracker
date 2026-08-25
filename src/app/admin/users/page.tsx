@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { assertAdmin } from "@/lib/authGuards";
 import { getTranslations } from "next-intl/server";
-import Card from "@/app/components/Card";
 import Badge from "@/app/components/Badge";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
@@ -30,16 +29,13 @@ export default async function UserManagementPage() {
       </div>
 
       {users.length === 0 ? (
-        <Card padding="none">
-          <EmptyState
-            icon={<Users size={36} />}
-            title={t("noUsers")}
-            description={t("noUsersDesc")}
-          />
-        </Card>
+        <EmptyState
+          icon={<Users size={36} />}
+          title={t("noUsers")}
+          description={t("noUsersDesc")}
+        />
       ) : (
-        <Card padding="none">
-          <ul className="divide-y divide-border-subtle">
+        <ul className="divide-y divide-border-subtle">
             {users.map((u) => (
               <li key={u.id}>
                 <Link
@@ -62,8 +58,7 @@ export default async function UserManagementPage() {
                 </Link>
               </li>
             ))}
-          </ul>
-        </Card>
+        </ul>
       )}
 
       <Link href="/admin/users/new">

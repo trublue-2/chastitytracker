@@ -1,20 +1,38 @@
+/**
+ * **Die Pillen sind Beschriftungen geworden — Farbe, keine Fläche und kein Rahmen.**
+ *
+ * `cls` trug bisher Fläche, Schrift und Rand einer gefüllten Pille. Auf einer Kontroll-Liste
+ * standen davon zwölf untereinander, jede in ihrem eigenen kleinen Kasten. Was übrig bleibt, ist
+ * die Textfarbe.
+ *
+ * Und sie fällt sparsamer aus als vorher, nach EINER Regel: **Farbe sagt, dass etwas jetzt etwas
+ * will.** Eine offene Kontrolle will (Koralle), eine überfällige oder abgelehnte will dringend
+ * (Warn) — eine erfüllte und geprüfte will nichts mehr und ist deshalb neutral. Sie war bisher
+ * grün, also die auffälligste Farbe der Liste ausgerechnet für den Normalfall.
+ */
+const AUFMERKSAM = "text-inspect";
+const DRINGEND   = "text-warn";
+/** Erledigt, geprüft, zurückgezogen — Vergangenes. Trägt keine Farbe. */
+const ERLEDIGT   = "text-foreground-muted";
+const LEISE      = "text-foreground-faint";
+
 export const ANFORDERUNG_PILLS: Record<string, { labelKey: string; cls: string }> = {
-  open:      { labelKey: "pillOpen",      cls: "bg-[var(--color-inspect-bg)] text-[var(--color-inspect-text)] border-[var(--color-inspect-border)]" },
-  overdue:   { labelKey: "pillOverdue",   cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
-  fulfilled: { labelKey: "pillFulfilled", cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
-  late:      { labelKey: "pillLate",      cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
-  withdrawn: { labelKey: "pillWithdrawn", cls: "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]" },
-  scheduled: { labelKey: "pillScheduled", cls: "bg-[var(--color-inspect-bg)] text-[var(--color-inspect-text)] border-[var(--color-inspect-border)]" },
-  missed:    { labelKey: "pillMissed",    cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
+  open:      { labelKey: "pillOpen",      cls: AUFMERKSAM },
+  overdue:   { labelKey: "pillOverdue",   cls: DRINGEND },
+  fulfilled: { labelKey: "pillFulfilled", cls: ERLEDIGT },
+  late:      { labelKey: "pillLate",      cls: DRINGEND },
+  withdrawn: { labelKey: "pillWithdrawn", cls: LEISE },
+  scheduled: { labelKey: "pillScheduled", cls: AUFMERKSAM },
+  missed:    { labelKey: "pillMissed",    cls: DRINGEND },
 };
 
 export const VERIFIKATION_PILLS: Record<string, { labelKey: string; cls: string }> = {
-  unverified: { labelKey: "pillUnverified", cls: "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]" },
-  not_required: { labelKey: "pillNotRequired", cls: "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]" },
-  pending:    { labelKey: "pillPending",    cls: "bg-[var(--color-inspect-bg)] text-[var(--color-inspect-text)] border-[var(--color-inspect-border)]" },
-  ai:         { labelKey: "pillAi",         cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
-  manual:     { labelKey: "pillManual",     cls: "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" },
-  rejected:   { labelKey: "pillRejected",   cls: "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]" },
+  unverified:   { labelKey: "pillUnverified",  cls: LEISE },
+  not_required: { labelKey: "pillNotRequired", cls: LEISE },
+  pending:      { labelKey: "pillPending",     cls: AUFMERKSAM },
+  ai:           { labelKey: "pillAi",          cls: ERLEDIGT },
+  manual:       { labelKey: "pillManual",      cls: ERLEDIGT },
+  rejected:     { labelKey: "pillRejected",    cls: DRINGEND },
 };
 
 // Combined for backwards compatibility
@@ -23,10 +41,12 @@ export const KONTROLLE_PILLS: Record<string, { labelKey: string; cls: string }> 
   ...VERIFIKATION_PILLS,
 };
 
-const GREEN  = "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]";
-const ORANGE = "bg-[var(--color-inspect-bg)] text-[var(--color-inspect-text)] border-[var(--color-inspect-border)]";
-const RED    = "bg-[var(--color-warn-bg)] text-[var(--color-warn-text)] border-[var(--color-warn-border)]";
-const GRAY   = "bg-[var(--surface-raised)] text-[var(--foreground-muted)] border-[var(--border)]";
+/** Dieselben vier Töne wie oben, unter den Namen, unter denen die Kombinationslogik sie kennt.
+ *  „Grün" heisst hier neutral: der geprüfte Normalfall ist kein Signal. */
+const GREEN  = ERLEDIGT;
+const ORANGE = AUFMERKSAM;
+const RED    = DRINGEND;
+const GRAY   = LEISE;
 
 const ANFORDERUNG_KEYS: Record<string, string> = {
   open:        "pillOpen",

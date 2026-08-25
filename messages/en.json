@@ -252,6 +252,8 @@
     "unlocking": "Checking…"
   },
   "common": {
+    "today": "Today",
+    "yesterday": "Yesterday",
     "save": "Save",
     "unitKg": "kg",
     "unitLbs": "lbs",
@@ -1171,6 +1173,7 @@
     "keyholdersNoCandidates": "No assignable users — only non-admins can be keyholders (admins already control every sub). Create a user with the User role for this.",
     "keyholderSelect": "Choose user …",
     "keyholderAdd": "Add",
+    "designTon": "Colour world",
     "designAdmin": "Admin theme",
     "designUser": "User theme",
     "usernameLabel": "Username",

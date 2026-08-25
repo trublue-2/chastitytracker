@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import Card from "@/app/components/Card";
 import FormActions from "@/app/components/FormActions";
 
 /**
- * Einheitliche Hülle aller Erfassungs-/Bearbeitungs-Formulare: die Felder stehen in einer Card,
+ * Einheitliche Hülle aller Erfassungs-/Bearbeitungs-Formulare: die Felder stehen als Stapel,
  * darunter die (auf Mobile klebende) Aktions-Zeile via {@link FormActions}. Vorher baute jedes
  * Formular diese Hülle selbst — mit Drift (Card-Abstand, `<form>` vs `<div>`). Diese Komponente
  * hält Struktur und Abstände an EINER Stelle, damit alle (+)-Formulare identisch aussehen.
@@ -35,7 +34,10 @@ export default function EntryFormShell({
 }) {
   const body = (
     <>
-      <Card className="flex flex-col gap-5">{children}</Card>
+      {/* Ohne Kasten: ein Formular ist keine Karte, sondern der Inhalt der Seite. Der Rahmen um
+          die Felder trennte sie von nichts — links und rechts davon stand ohnehin nur der
+          Seitenrand. Was die Felder gruppiert, ist ihr Abstand. */}
+      <div className="flex flex-col gap-5">{children}</div>
       <FormActions onCancel={onCancel} cancelLabel={cancelLabel}>
         {actions}
       </FormActions>

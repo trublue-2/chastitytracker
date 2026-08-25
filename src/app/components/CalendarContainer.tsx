@@ -55,7 +55,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-semibold text-foreground capitalize">{m.label}</p>
               {m.monthGoalMet !== null && (
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${m.monthGoalMet ? "bg-ok-bg text-ok-text border-ok-border" : "bg-surface-raised text-foreground-faint border-border"}`}>
+                <span className={`text-neben font-semibold ${m.monthGoalMet ? "text-ok" : "text-foreground-faint"}`}>
                   {m.monthGoalMet ? t("monthGoal") : `${m.monthGoalPct}%`}
                 </span>
               )}
@@ -122,43 +122,46 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
               <button onClick={() => setSelected(null)} aria-label={tc("close")} className="text-foreground-faint hover:text-foreground-muted text-lg leading-none px-1 transition">✕</button>
             </div>
 
+            {/* Zwei getönte Kästen im selben Fenster, für zwei Angaben, die beide nur berichten,
+                was an diesem Tag war. Die Tragezeit ist die Antwort — sie steht gross und frei;
+                die Vorgabe daneben ist der Massstab und bekommt eine Rubrik statt eines Rahmens. */}
             {selected.wearHours > 0 && (
-              <div className="flex items-center justify-between bg-[var(--color-lock-bg)] rounded-xl px-4 py-3">
-                <span className="text-sm text-[var(--color-lock-text)] font-medium">{t("wearTime")}</span>
-                <span className="text-sm font-bold text-[var(--color-lock-text)] tabular-nums">{formatTotalHours(selected.wearHours)}</span>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-fliess text-foreground-muted">{t("wearTime")}</span>
+                <span className="text-kennzahl font-semibold text-foreground tabular-nums">{formatTotalHours(selected.wearHours)}</span>
               </div>
             )}
 
             {selected.vorgabe && (
-              <div className="bg-request-bg rounded-xl px-4 py-3 flex flex-col gap-1.5 border border-request-border">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-request)] mb-0.5">{t("validGoal")}</p>
+              <div className="flex flex-col gap-1.5 border-t border-border-subtle pt-3">
+                <p className="text-rubrik font-semibold uppercase tracking-wider text-foreground-faint mb-0.5">{t("validGoal")}</p>
                 {selected.vorgabe.minProTagH != null && (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-request-text">{t("minPerDay")}</span>
-                    <span className={`text-xs font-bold ${selected.wearHours >= selected.vorgabe.minProTagH ? "text-ok" : "text-[var(--color-request)]"}`}>
+                    <span className="text-neben text-foreground-muted">{t("minPerDay")}</span>
+                    <span className={`text-neben font-semibold ${selected.wearHours >= selected.vorgabe.minProTagH ? "text-ok" : "text-foreground"}`}>
                       {selected.wearHours >= selected.vorgabe.minProTagH ? "✓ " : ""}{formatTotalHours(selected.vorgabe.minProTagH)}
                     </span>
                   </div>
                 )}
                 {selected.vorgabe.minProWocheH != null && (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-request-text">{t("minPerWeek")}</span>
-                    <span className="text-xs font-bold text-[var(--color-request)]">{formatTotalHours(selected.vorgabe.minProWocheH)}</span>
+                    <span className="text-neben text-foreground-muted">{t("minPerWeek")}</span>
+                    <span className="text-neben font-semibold text-foreground">{formatTotalHours(selected.vorgabe.minProWocheH)}</span>
                   </div>
                 )}
                 {selected.vorgabe.minProMonatH != null && (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-request-text">{t("minPerMonth")}</span>
-                    <span className="text-xs font-bold text-[var(--color-request)]">{formatTotalHours(selected.vorgabe.minProMonatH)}</span>
+                    <span className="text-neben text-foreground-muted">{t("minPerMonth")}</span>
+                    <span className="text-neben font-semibold text-foreground">{formatTotalHours(selected.vorgabe.minProMonatH)}</span>
                   </div>
                 )}
                 {selected.vorgabe.minProJahrH != null && (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-request-text">{t("minPerYear")}</span>
-                    <span className="text-xs font-bold text-[var(--color-request)]">{formatTotalHours(selected.vorgabe.minProJahrH)}</span>
+                    <span className="text-neben text-foreground-muted">{t("minPerYear")}</span>
+                    <span className="text-neben font-semibold text-foreground">{formatTotalHours(selected.vorgabe.minProJahrH)}</span>
                   </div>
                 )}
-                {selected.vorgabe.notiz && <p className="text-xs text-request-text italic mt-0.5 opacity-70">{selected.vorgabe.notiz}</p>}
+                {selected.vorgabe.notiz && <p className="text-neben text-foreground-faint italic mt-0.5">{selected.vorgabe.notiz}</p>}
               </div>
             )}
 

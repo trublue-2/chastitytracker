@@ -530,15 +530,6 @@ export const EMAIL_BUTTON_COLORS = {
   orgasm: "#be185d",
 } as const;
 
-export const TYPE_COLORS: Record<string, string> = {
-  VERSCHLUSS: "text-foreground-muted",
-  OEFFNEN: "text-foreground-muted",
-  PRUEFUNG: "text-[var(--color-inspect)]",
-  ORGASMUS: "text-[var(--color-orgasm)]",
-  WEAR_BEGIN: "text-foreground-muted",
-  WEAR_END: "text-foreground-muted",
-};
-
 /** Zustands-Ton einer Aufgabe — geteilt von der Karte und der Aufgaben-Liste. `warn` bleibt den
  *  echten Fehlschlägen vorbehalten: eine noch offene Bedingung ist kein Alarm, und eine ausstehende
  *  Sichtung erst recht nicht (der Sub hat dort getan, was er konnte).

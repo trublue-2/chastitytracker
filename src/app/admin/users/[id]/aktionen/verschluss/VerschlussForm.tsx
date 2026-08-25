@@ -26,7 +26,6 @@ export default function VerschlussForm({ userId, devices = [], tz, nowDefault }:
       userId={userId}
       backLabel={t("aktionen")}
       icon={<Lock size={20} strokeWidth={2} />}
-      iconBg="var(--color-lock-bg)"
       iconColor="var(--color-lock)"
       title={tLock("title")}
     >

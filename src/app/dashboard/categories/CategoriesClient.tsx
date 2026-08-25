@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { formatTotalHours } from "@/lib/utils";
 import { Plus, Pencil, Trash2, Tag, ChevronUp, ChevronDown } from "lucide-react";
-import Card from "@/app/components/Card";
+import Section from "@/app/components/Section";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import Badge from "@/app/components/Badge";
@@ -253,15 +253,6 @@ function CategoryList({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{title}</h2>
-      {children}
-    </div>
-  );
-}
-
 function CategoryRowItem({
   category: c,
   onEdit,
@@ -287,19 +278,16 @@ function CategoryRowItem({
       ? t("featuresKg")
       : t("featuresWear");
   return (
-    <li>
-      <Card>
-        <div className="flex items-start gap-3 p-4">
-          <div
-            className="shrink-0 size-10 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: style.backgroundColor, color: style.color }}
-            aria-hidden
-          >
-            <CategoryIconRender name={c.icon} className="size-5" />
-          </div>
+    // Kein Kasten je Kategorie: die Liste trennt durch Haarlinien. Ein Rahmen um jede Zeile
+    // wiederholt nur, was die Zeile selbst schon ist.
+    <li className="border-b border-border-subtle last:border-b-0">
+      <div className="flex items-start gap-3 py-3 px-1">
+          {/* Die Kategorie-Farbe sitzt im Zeichen statt auf einer getönten Kachel darunter: sie
+              soll sagen, WELCHE Kategorie das ist, und dafür genügt das Zeichen. */}
+          <CategoryIconRender name={c.icon} className="size-5 shrink-0 mt-0.5" style={{ color: style.color }} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-base font-medium text-foreground truncate">{c.name}</span>
+              <span className="text-zeile font-medium text-foreground truncate">{c.name}</span>
               {c.isBuiltIn && <Badge variant="lock" size="sm" label={t("builtInBadge")} />}
             </div>
             {/* Der fehlende Schritt als eigene Zeile ÜBER dem Bestand, statt ihn zu ersetzen: die
@@ -307,12 +295,12 @@ function CategoryRowItem({
                 Löschwächter zählt archivierte Geräte und historische Vorgaben mit
                 (`api/categories/[id]`). Verdrängte der Hinweis sie, bliebe von der Absage nur ein
                 unerklärliches „wird verwendet" (Issue #49). */}
-            {c.needsDevice && <p className="text-xs text-warn-text mt-0.5">{t("noDevice")}</p>}
-            <p className="text-xs text-foreground-muted mt-0.5">
+            {c.needsDevice && <p className="text-neben text-warn mt-0.5">{t("noDevice")}</p>}
+            <p className="text-neben text-foreground-muted mt-0.5">
               {t("usageStats", { devices: c.deviceCount, vorgaben: c.vorgabeCount })}
               {c.trackingEnabled && c.weeklyHours > 0 && ` · ${t("weekly", { hours: formatTotalHours(c.weeklyHours) })}`}
             </p>
-            <p className="text-xs text-foreground-faint mt-0.5">{featureLine}</p>
+            <p className="text-neben text-foreground-faint mt-0.5">{featureLine}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {(onMoveUp || onMoveDown) && (
@@ -356,8 +344,7 @@ function CategoryRowItem({
               </button>
             )}
           </div>
-        </div>
-      </Card>
+      </div>
     </li>
   );
 }

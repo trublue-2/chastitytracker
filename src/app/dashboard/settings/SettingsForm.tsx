@@ -5,18 +5,18 @@ import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { User } from "lucide-react";
-import Card from "@/app/components/Card";
+import Section from "@/app/components/Section";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import FormSuccess from "@/app/components/FormSuccess";
-import Divider from "@/app/components/Divider";
 import ExpandRow from "@/app/components/ExpandRow";
 import Toggle from "@/app/components/Toggle";
 import PushManager from "@/app/components/PushManager";
 import PasskeyManager from "@/app/components/PasskeyManager";
 import ThemeToggle from "@/app/components/ThemeToggle";
+import IdentToggle from "@/app/components/IdentToggle";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
 import { LOCALES_LONG } from "@/lib/constants";
@@ -223,11 +223,9 @@ export default function SettingsForm({ username, email, locale, timezone, startP
         {email && <p className="text-xs text-foreground-faint">{email}</p>}
       </div>
 
-      {/* Account section */}
-      <Card padding="none">
-        <p className="px-5 pt-4 pb-1 text-[10px] font-semibold text-foreground-faint uppercase tracking-widest">
-          {t("account")}
-        </p>
+      {/* Account section — ohne Kasten: die Rubrik und die Haarlinien zwischen den Zeilen
+          gliedern schon. Der Rahmen darum trennte die Liste von nichts. */}
+      <Section title={t("account")}>
         <div className="divide-y divide-border-subtle">
 
           {/* Password change */}
@@ -301,6 +299,11 @@ export default function SettingsForm({ username, email, locale, timezone, startP
           ) : (
             <ThemeToggle role="user" />
           )}
+
+          {/* Die offene Farbfrage: Rosa oder Grün. Steht hier, weil sie eine Design-Einstellung
+              ist wie die drei darüber — und verschwindet mitsamt `IdentToggle` und dem erzeugten
+              Abschnitt in `globals.css`, sobald sie entschieden ist. */}
+          <IdentToggle label={ta("designTon")} />
 
           {/* Language */}
           <ExpandRow
@@ -400,18 +403,12 @@ export default function SettingsForm({ username, email, locale, timezone, startP
           </button>
 
         </div>
-      </Card>
-
-      <Divider />
+      </Section>
 
       {/* App section */}
-      <Card padding="none">
-        <p className="px-5 pt-4 pb-1 text-[10px] font-semibold text-foreground-faint uppercase tracking-widest">
-          {t("app")}
-        </p>
+      <Section title={t("app")}>
         <div className="divide-y divide-border-subtle">
           <PushManager />
-          <Divider />
           <PasskeyManager />
           <div className="flex items-center justify-between px-5 py-4">
             <span className="text-sm text-foreground">{t("version")}</span>
@@ -422,7 +419,7 @@ export default function SettingsForm({ username, email, locale, timezone, startP
             <span className="text-sm text-foreground-faint">{buildDate ?? t("buildDateLocal")}</span>
           </div>
         </div>
-      </Card>
+      </Section>
 
     </main>
   );

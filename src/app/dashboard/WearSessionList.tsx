@@ -1,6 +1,7 @@
 "use client";
 
-import BlockHeading from "@/app/components/BlockHeading";
+import Section from "@/app/components/Section";
+import { blockInsetCls } from "@/app/components/inputStyles";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Timer } from "lucide-react";
@@ -31,18 +32,12 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
   if (sessions.length === 0) return null;
 
   return (
-    <div className="bg-surface rounded-2xl border border-border overflow-hidden">
-      <div className="px-5 py-3 border-b border-border-subtle">
-        <BlockHeading>
-          {t("otherCategorySessions")}
-        </BlockHeading>
-      </div>
-
+    <Section title={t("otherCategorySessions")}>
       <div className="divide-y divide-border-subtle">
         {visible.map((s) => {
           const sameDay = s.startDateStr === s.endDateStr;
           return (
-            <div key={s.id} className="flex items-center gap-3 px-5 py-3">
+            <div key={s.id} className={`flex items-center gap-3 ${blockInsetCls} py-3`}>
               {/* Beim Trage-Beginn aufgenommenes Foto — Klick öffnet es gross. Ohne Foto bleibt das
                   Kategorie-Symbol stehen; die Kategorie ist über Name und Farbe ohnehin kenntlich. */}
               <CategoryPhotoThumb
@@ -69,7 +64,7 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
                     : `${s.startDateStr}, ${s.startTimeStr} – ${s.endDateStr}, ${s.endTimeStr}`}
                 </p>
               </div>
-              <span className="text-xs font-mono text-foreground-muted bg-surface-raised border border-border px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+              <span className="text-neben text-foreground-muted tabular-nums flex items-center gap-1 shrink-0">
                 <Timer size={10} />{s.durationStr}
               </span>
             </div>
@@ -88,10 +83,9 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
           // Datum/Zeit und Gerät. Hier tritt die Kategorie an die Stelle des Eintragstyps.
           title={
             <span
-              className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border"
-              style={categoryStyle(openRow.categoryColor)}
+              className="inline-flex items-center gap-1.5 text-fliess font-semibold text-foreground"
             >
-              <CategoryIconRender name={openRow.categoryIcon} className="size-2.5" />
+              <CategoryIconRender name={openRow.categoryIcon} className="size-3.5" style={{ color: categoryStyle(openRow.categoryColor).color }} />
               {openRow.categoryName}
             </span>
           }
@@ -112,6 +106,6 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
           }
         />
       )}
-    </div>
+    </Section>
   );
 }

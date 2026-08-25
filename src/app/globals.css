@@ -437,6 +437,235 @@
   --shadow-overlay:         0 16px 32px -8px rgb(0 0 0 / 0.18);
 }
 
+
+/* ══ ERZEUGT von docs/design/tokens.mjs — der grüne Identitäts-Ton ══
+   Nur die Tokens, die sich vom rosa Bestand unterscheiden — der Rest erbt aus den vier
+   Theme-Blöcken oben. Umgeschaltet wird am Gerät (Einstellungen → Farbwelt); so liegen beide
+   Fassungen desselben Bildschirms nebeneinander statt in zwei Bauten.
+   ═════════════════════════════════════════════════════════════════════════════════════ */
+
+[data-ident="gruen"][data-theme="user"],
+[data-ident="gruen"] [data-theme="user"] {
+  --background:             #f7faf8;
+  --background-subtle:      #f3f7f4;
+  --surface:                #eef4f0;
+  --surface-raised:         #e5ede8;
+  --surface-overlay:        #f7faf8e6;
+  --border:                 #ced4d1;
+  --border-subtle:          #e3e7e4;
+  --border-strong:          #aeb7b2;
+  --foreground:             #1d2a23;
+  --foreground-muted:       #425149;
+  --foreground-faint:       #5f6d65;
+  --color-lock:             #067a45;
+  --color-lock-bg:          #e9f7f1;
+  --color-lock-border:      #a4e9cf;
+  --color-lock-muted:       #0e5e39;
+  --color-lock-text:        #0e5e39;
+  --color-sperrzeit:        #067a45;
+  --color-sperrzeit-bg:     #e9f7f1;
+  --color-sperrzeit-border: #a4e9cf;
+  --color-sperrzeit-muted:  #0e5e39;
+  --color-sperrzeit-text:   #0e5e39;
+  --color-inspect-bg:       #f7f3ef;
+  --color-inspect-border:   #fad3c1;
+  --color-inspect-muted:    #7e2f0c;
+  --color-inspect-text:     #7e2f0c;
+  --color-request-bg:       #f7f3ef;
+  --color-request-border:   #fad3c1;
+  --color-request-muted:    #7e2f0c;
+  --color-request-text:     #7e2f0c;
+  --color-warn-bg:          #f7f3ef;
+  --color-warn-border:      #fad3c1;
+  --color-warn-muted:       #7e2f0c;
+  --color-warn-text:        #7e2f0c;
+  --color-ok-bg:            #f6f4e9;
+  --color-ok-border:        #f0d9a5;
+  --color-ok-muted:         #5d4917;
+  --color-ok-text:          #5d4917;
+  --color-unlock:           #4d5c54;
+  --color-unlock-bg:        #f1f5f2;
+  --color-unlock-border:    #d7dcd9;
+  --color-unlock-muted:     #3c4b43;
+  --color-unlock-text:      #3c4b43;
+  --color-orgasm:           #4d5c54;
+  --color-orgasm-bg:        #f1f5f2;
+  --color-orgasm-border:    #d7dcd9;
+  --color-orgasm-muted:     #3c4b43;
+  --color-orgasm-text:      #3c4b43;
+  --wear-0:                 #e9f3ee;
+  --wear-1:                 #c3dfd2;
+  --wear-2:                 #8cc1a9;
+  --wear-3:                 #5ea986;
+  --wear-4:                 #067a45;
+  --wear-0-text:            #4d5c54;
+  --wear-1-text:            #4d5c54;
+  --wear-2-text:            #1d2a23;
+  --wear-3-text:            #1d2a23;
+  --header-bg:              #e1eee8;
+  --header-border:          #c7e0d4;
+  --header-text:            #1d2a23;
+  --header-avatar-bg:       #b8d9c9;
+  --header-avatar-text:     #1d2a23;
+  --nav-bg:                 #e1eee8;
+  --nav-border:             #c7e0d4;
+  --nav-active-bg:          #d0e6db;
+  --nav-active-text:        #1d2a23;
+  --nav-inactive-text:      #59675f;
+  --nav-inactive-hover:     #1d2a23;
+  --nav-icon-bg:            #e5ede8;
+  --nav-icon-active-bg:     #067a45;
+  --focus-ring:             #067a45;
+  --btn-primary-bg:         #067a45;
+  --btn-primary-hover:      #056439;
+  --btn-lock:               #067a45;
+  --btn-sperrzeit:          #067a45;
+  --btn-unlock:             #4d5c54;
+  --btn-orgasm:             #4d5c54;
+  --color-lock-grad-a:      #eef4f0;
+  --color-lock-grad-b:      #bceedb;
+  --color-lock-on:          #1d2a23;
+  --color-lock-on-muted:    #4d5c54;
+  --hero-glow:              rgba(6,122,69,0.13);
+}
+
+[data-ident="gruen"][data-theme="user-dark"],
+[data-ident="gruen"] [data-theme="user-dark"] {
+  --background:             #060907;
+  --background-subtle:      #0a0e0b;
+  --surface:                #0e130f;
+  --surface-raised:         #1a211c;
+  --surface-overlay:        #060907e6;
+  --border:                 #2a302b;
+  --border-subtle:          #181c19;
+  --border-strong:          #464e48;
+  --foreground:             #f5fbf7;
+  --foreground-muted:       #b7c6bd;
+  --foreground-faint:       #869388;
+  --color-lock:             #34d399;
+  --color-lock-bg:          #08130e;
+  --color-lock-border:      #195b43;
+  --color-lock-muted:       #78e1ba;
+  --color-lock-text:        #78e1ba;
+  --color-sperrzeit:        #34d399;
+  --color-sperrzeit-bg:     #08130e;
+  --color-sperrzeit-border: #195b43;
+  --color-sperrzeit-muted:  #78e1ba;
+  --color-sperrzeit-text:   #78e1ba;
+  --color-inspect-bg:       #14100c;
+  --color-inspect-border:   #77432d;
+  --color-inspect-muted:    #fcb292;
+  --color-inspect-text:     #fcb292;
+  --color-request-bg:       #14100c;
+  --color-request-border:   #77432d;
+  --color-request-muted:    #fcb292;
+  --color-request-text:     #fcb292;
+  --color-warn-bg:          #14100c;
+  --color-warn-border:      #77432d;
+  --color-warn-muted:       #fcb292;
+  --color-warn-text:        #fcb292;
+  --color-ok-bg:            #11120a;
+  --color-ok-border:        #614e22;
+  --color-ok-muted:         #edcd87;
+  --color-ok-text:          #edcd87;
+  --color-unlock:           #b7c6bd;
+  --color-unlock-bg:        #0e1210;
+  --color-unlock-border:    #4a534c;
+  --color-unlock-muted:     #cdd9d1;
+  --color-unlock-text:      #cdd9d1;
+  --color-orgasm:           #b7c6bd;
+  --color-orgasm-bg:        #0e1210;
+  --color-orgasm-border:    #4a534c;
+  --color-orgasm-muted:     #cdd9d1;
+  --color-orgasm-text:      #cdd9d1;
+  --wear-0:                 #091610;
+  --wear-1:                 #0e2d21;
+  --wear-2:                 #154935;
+  --wear-3:                 #1a6046;
+  --wear-4:                 #289d72;
+  --wear-0-text:            #869388;
+  --wear-1-text:            #869388;
+  --wear-2-text:            #b7c6bd;
+  --wear-3-text:            #f5fbf7;
+  --header-bg:              #091510;
+  --header-border:          #0c241b;
+  --header-text:            #f5fbf7;
+  --header-avatar-bg:       #0e2d21;
+  --header-avatar-text:     #f5fbf7;
+  --nav-bg:                 #091510;
+  --nav-border:             #0c241b;
+  --nav-active-bg:          #0b1f17;
+  --nav-active-text:        #f5fbf7;
+  --nav-inactive-text:      #869388;
+  --nav-inactive-hover:     #f5fbf7;
+  --nav-icon-bg:            #1a211c;
+  --nav-icon-active-bg:     #34d399;
+  --focus-ring:             #34d399;
+  --btn-primary-bg:         #34d399;
+  --btn-primary-hover:      #59dbab;
+  --btn-lock:               #34d399;
+  --btn-sperrzeit:          #34d399;
+  --btn-unlock:             #b7c6bd;
+  --btn-orgasm:             #b7c6bd;
+  --color-lock-grad-a:      #0e130f;
+  --color-lock-grad-b:      #103325;
+  --color-lock-on:          #f5fbf7;
+  --color-lock-on-muted:    #b7c6bd;
+  --hero-glow:              rgba(52,211,153,0.2);
+}
+
+[data-ident="gruen"][data-theme="admin-light"],
+[data-ident="gruen"] [data-theme="admin-light"] {
+  --color-lock:             #067a45;
+  --color-lock-bg:          #e9f5f5;
+  --color-lock-border:      #a2e8d1;
+  --color-lock-muted:       #0e5b3e;
+  --color-lock-text:        #0e5b3e;
+  --color-sperrzeit:        #067a45;
+  --color-sperrzeit-bg:     #e9f5f5;
+  --color-sperrzeit-border: #a2e8d1;
+  --color-sperrzeit-muted:  #0e5b3e;
+  --color-sperrzeit-text:   #0e5b3e;
+  --wear-0:                 #e9f1f1;
+  --wear-1:                 #c4ddd5;
+  --wear-2:                 #8cc0ab;
+  --wear-3:                 #5da887;
+  --wear-4:                 #067a45;
+  --nav-icon-active-bg:     #067a45;
+  --btn-primary-bg:         #067a45;
+  --btn-primary-hover:      #056439;
+  --btn-lock:               #067a45;
+  --btn-sperrzeit:          #067a45;
+  --color-lock-grad-b:      #bbeddd;
+}
+
+[data-ident="gruen"][data-theme="admin"],
+[data-ident="gruen"] [data-theme="admin"] {
+  --color-lock:             #34d399;
+  --color-lock-bg:          #091317;
+  --color-lock-border:      #195b48;
+  --color-lock-muted:       #77dfbb;
+  --color-lock-text:        #77dfbb;
+  --color-sperrzeit:        #34d399;
+  --color-sperrzeit-bg:     #091317;
+  --color-sperrzeit-border: #195b48;
+  --color-sperrzeit-muted:  #77dfbb;
+  --color-sperrzeit-text:   #77dfbb;
+  --wear-0:                 #0a1519;
+  --wear-1:                 #0f2c28;
+  --wear-2:                 #15483b;
+  --wear-3:                 #1a604b;
+  --wear-4:                 #289d74;
+  --nav-icon-active-bg:     #34d399;
+  --btn-primary-bg:         #34d399;
+  --btn-primary-hover:      #59dbab;
+  --btn-lock:               #34d399;
+  --btn-sperrzeit:          #34d399;
+  --color-lock-grad-b:      #10332d;
+}
+
+/* ══ Ende des erzeugten Bereichs ══ */
+
 /* ─────────────────────────────────────────────
    DeviceCategory-Palette, hell — für BEIDE hellen Themes
    ─────────────────────────────────────────────
@@ -677,6 +906,13 @@
   --text-zahl--line-height: 0.94;
   --text-titel:     2rem;      /* 32px — Serif, benennt den Bildschirm */
   --text-titel--line-height: 1.15;
+  /* Die Kennzahl einer Statistik-Zeile. Eigene Stufe statt `text-titel`, weil sie WÄCHST: unsere
+     Werte sind wortteilige Dauern („11T 5h 50min", 13 Zeichen), keine kurzen Zahlen. Bei festen
+     32 px bricht so ein Wert auf einem 375-px-Schirm zweizeilig um — und eine Kennzahl, die
+     umbricht, ist keine Kennzahl mehr, sondern ein Absatz. Dieselbe Herleitung wie bei
+     `--text-zahl`, nur eine Oktave tiefer; oben läuft sie auf `--text-titel` aus. */
+  --text-kennzahl:  clamp(1.5rem, 6.4vw, 2rem);
+  --text-kennzahl--line-height: 1.1;
   --text-zeile:     1rem;      /* 16px — die Primärzeile einer Liste */
   --text-zeile--line-height: 1.4;
   --text-fliess:    0.875rem;  /* 14px — Fliesstext, Beschriftungen */

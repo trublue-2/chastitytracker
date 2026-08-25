@@ -47,7 +47,7 @@ export default function EntryDetailPanel({
 
       {oeffnenGrund && (
         <DetailField label={tc("reason")}>
-          <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border border-unlock-border bg-unlock-bg text-unlock-text">
+          <span className="inline-flex items-center text-fliess font-semibold text-foreground">
             {openingLabel
               ?? (GRUND_I18N_KEYS[oeffnenGrund as keyof typeof GRUND_I18N_KEYS]
                 ? tOpen(GRUND_I18N_KEYS[oeffnenGrund as keyof typeof GRUND_I18N_KEYS])
@@ -64,7 +64,7 @@ export default function EntryDetailPanel({
 
       {kontrollCode && (
         <DetailField label={tc("controlCode")}>
-          <p className="text-sm font-mono font-bold text-[var(--color-inspect)]">
+          <p className="text-fliess font-mono font-semibold text-foreground">
             {kontrollCode}
             {/* Zustand → Beschriftung, nicht „pending oder gut". `rejected` ist ein regulär
                 geschriebener Wert (`verifikationStatusFor`), fiel unter der alten Fassung aber in den

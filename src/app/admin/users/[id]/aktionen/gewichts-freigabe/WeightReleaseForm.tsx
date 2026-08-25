@@ -147,7 +147,6 @@ export default function WeightReleaseForm({
       userId={userId}
       backLabel={tc("back")}
       icon={<Scale size={20} strokeWidth={2} />}
-      iconBg="var(--color-surface-raised)"
       iconColor="var(--color-foreground-muted)"
       title={t("releaseTitle")}
     >

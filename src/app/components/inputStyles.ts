@@ -54,6 +54,30 @@ export const headerBrandCls =
  * Veränderung und der von der Waage gelesene Wert auf der anderen), und eine Hülle müsste ihn samt
  * Modal-Panel als Slots durchreichen — mehr Gerüst als Ersparnis (Muster: `CARD_BODY_STRIPED`).
  */
-export const listRowCls = "px-5 py-3 flex items-center gap-3";
+/**
+ * Der linke und rechte Rand ALLER Zeilen und Rubriken innerhalb eines `Section`-Abschnitts.
+ *
+ * Solange jede Liste in einer Karte sass, garantierte deren Rahmen die Flucht: alles darin begann
+ * an derselben Kante, egal welchen Innenabstand die Zeile mitbrachte. Ohne Karte entscheidet ihn
+ * jede Zeile selbst — und dann liegen auf einem Bildschirm vier verschiedene linke Kanten
+ * übereinander (gemessen: `px-0`, `px-1`, `px-4`, `px-5` auf der Statistik-Seite). Das ist der
+ * Preis, den das Entfernen eines Rahmens verlangt: wofür er einstand, muss jetzt benannt sein.
+ *
+ * Der Wert ist klein, weil die Spalte ihren Seitenrand schon hat (`px-4` am Container). Was hier
+ * steht, ist nur die optische Luft, damit Buchstaben nicht auf der Kante kleben.
+ */
+export const blockInsetCls = "px-1";
+
+export const listRowCls = `${blockInsetCls} py-2.5 flex items-center gap-3`;
+
+/**
+ * Die Zeit-Spalte, die eine Verlaufs-Zeile anführt.
+ *
+ * Feste Breite, damit die Arten darunter auf einer Kante stehen — und geteilt von `EntryRow` und
+ * `WeightRow` aus demselben Grund wie `listRowCls` selbst: die beiden stehen in der Eintragsliste
+ * der Keyholderin chronologisch gemischt untereinander. Zwei Zeitspalten, die um zwei Pixel
+ * auseinanderliegen, sieht man nicht in der Zeile, sondern als Zittern in der Kolonne.
+ */
+export const listRowTimeCls = "w-11 flex-shrink-0 text-neben tabular-nums text-foreground-faint";
 export const listRowButtonCls =
   "flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-surface-raised/60 -mx-2 px-2 -my-1 py-1 rounded-lg transition";

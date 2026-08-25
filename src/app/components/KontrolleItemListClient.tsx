@@ -7,6 +7,8 @@ import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
+import Badge from "@/app/components/Badge";
+import { blockInsetCls } from "@/app/components/inputStyles";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { LIST_PAGE_SIZE } from "@/lib/constants";
@@ -68,10 +70,10 @@ function KontrolleThumb({ k, imageAlt }: { k: KontrolleItemData; imageAlt: strin
               {(k.pill1Label || k.pill2Label) && (
                 <div className="flex gap-2 flex-wrap">
                   {k.pill1Label && (
-                    <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${k.pill1Cls}`}>{k.pill1Label}</span>
+                    <Badge size="sm" tone={k.pill1Cls ?? undefined} label={k.pill1Label} />
                   )}
                   {k.pill2Label && (
-                    <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 ${k.pill2Cls}`}>{k.pill2Label}</span>
+                    <Badge size="sm" tone={k.pill2Cls ?? undefined} label={k.pill2Label} />
                   )}
                 </div>
               )}
@@ -114,21 +116,17 @@ export default function KontrolleItemListClient({
     <>
       <div className="divide-y divide-border-subtle">
         {visible.map((k) => (
-          <div key={k.id} className="px-4 py-3 flex items-start gap-3">
+          <div key={k.id} className={`${blockInsetCls} py-3 flex items-start gap-3`}>
             <KontrolleThumb k={k} imageAlt={imageAlt} />
             <div className="flex-1 min-w-0 flex flex-col gap-1">
               <div className="flex items-center gap-2 flex-wrap">
                 {k.pill1Label && (
-                  <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${k.pill1Cls}`}>
-                    {k.pill1Label}
-                  </span>
+                  <Badge size="sm" tone={k.pill1Cls ?? undefined} label={k.pill1Label} className="flex-shrink-0" />
                 )}
                 {k.pill2Label && (
-                  <span className={`text-xs font-medium border rounded-lg px-2 py-0.5 flex-shrink-0 ${k.pill2Cls}`}>
-                    {k.pill2Label}
-                  </span>
+                  <Badge size="sm" tone={k.pill2Cls ?? undefined} label={k.pill2Label} className="flex-shrink-0" />
                 )}
-                {k.code && <span className="font-mono font-bold text-[var(--color-inspect)] text-sm">{k.code}</span>}
+                {k.code && <span className="font-mono font-semibold text-foreground text-fliess">{k.code}</span>}
               </div>
               <div className="flex items-center gap-3 text-xs text-foreground-faint flex-wrap">
                 <span>{k.dateTimePrefix ? `${k.dateTimePrefix} ` : ""}{k.dateTimeStr}</span>

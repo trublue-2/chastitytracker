@@ -30,7 +30,8 @@ import DeviceUsageSwitcher, { type DeviceUsageVariant } from "./DeviceUsageSwitc
 import WearCalendarSwitcher, { type CalendarVariant } from "./WearCalendarSwitcher";
 import YearHeatmap from "./YearHeatmap";
 import MonthStats from "./MonthStats";
-import Card from "./Card";
+import Section from "./Section";
+import { blockInsetCls } from "./inputStyles";
 import StatsCard from "./StatsCard";
 import StatsKontrollenList, { type StatsKontrolleRow } from "./StatsKontrollenList";
 import WeightStatsCard from "./WeightStatsCard";
@@ -107,9 +108,9 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
   heading: async ({ heading, backHref, backLabel }) => (
     <div>
       {backHref && (
-        <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
+        <a href={backHref} className="text-neben text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
       )}
-      <h1 className={`text-xl font-bold text-foreground ${backHref ? "mt-1" : ""}`}>{heading}</h1>
+      <h1 className={`font-serif text-titel text-foreground ${backHref ? "mt-1" : ""}`}>{heading}</h1>
     </div>
   ),
 
@@ -121,18 +122,21 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
       return { ...counts, missingPhotos: entries.filter((e) => e.type === "VERSCHLUSS" && !e.imageUrl).length };
     },
     render: ({ sessions, closed, totalMs, avgMs, missingPhotos }, { t, dl }) => (
-      <section className="flex flex-col gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{t("kgWearOverview")}</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <Section title={t("kgWearOverview")}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5">
           <StatsCard label={t("entries")} value={String(sessions)} />
           {/* Summe und Durchschnitt können nur zählen, was abgeschlossen ist — die laufende
               Session steckt in der Anzahl, hat aber noch keine Dauer. Beim Mittelwert steht das
               in der Beschriftung: sonst sieht die Karte aus, als ginge ihre Rechnung nicht auf. */}
           <StatsCard label={t("totalDuration")} value={closed ? formatTotalMs(totalMs) : "–"} />
           <StatsCard label={t("avgDurationCompleted")} value={closed ? formatDurationMs(avgMs, dl) : "–"} />
-          <StatsCard label={t("noPhoto")} value={String(missingPhotos)} color={missingPhotos > 0 ? "warn" : undefined} />
+          {/* Ohne Farbe: die Zahl zählt Vergangenes, an dem sich nichts mehr ändern lässt. Sie trug
+              bisher `color="warn"` — wirkungslos, weil die Klasse zusammengesetzt war und Tailwind
+              sie nie erzeugt hat. Mit dem Fix an `StatsCard` wäre sie plötzlich das lauteste
+              Element der Seite geworden. */}
+          <StatsCard label={t("noPhoto")} value={String(missingPhotos)} />
         </div>
-      </section>
+      </Section>
     ),
   }),
 
@@ -140,28 +144,20 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
   orgasmFree: block({
     load: async ({ userId }) => (await orgasmEntriesCached(userId))[0] ?? null,
     render: (lastOrgasmus, { now, t, dl, tz }) => lastOrgasmus ? (
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-6 py-4 border-b border-orgasm-border">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-orgasm)]">{t("orgasmFreeTime")}</p>
-        </div>
-        <div className="px-6 py-4 flex items-center justify-between gap-4">
-          <p className="text-sm text-orgasm-text">
-            {t("lastOrgasm")}: <span className="font-semibold">{formatDateTime(lastOrgasmus.startTime, dl, tz)}</span>
-          </p>
-          <span className="text-xl sm:text-2xl font-bold text-[var(--color-orgasm)] whitespace-nowrap tabular-nums">
-            {formatDurationMs(now.getTime() - lastOrgasmus.startTime.getTime(), dl)}
-          </span>
-        </div>
-      </Card>
+      <Section title={t("orgasmFreeTime")}>
+        {/* Die Dauer trägt die Zeile, das Datum steht leise darunter — dieselbe Ordnung wie beim
+            Helden der Übersicht: erst die Antwort, dann der Beleg. */}
+        <p className="text-kennzahl font-semibold text-foreground whitespace-nowrap tabular-nums">
+          {formatDurationMs(now.getTime() - lastOrgasmus.startTime.getTime(), dl)}
+        </p>
+        <p className="text-neben text-foreground-faint">
+          {t("lastOrgasm")}: {formatDateTime(lastOrgasmus.startTime, dl, tz)}
+        </p>
+      </Section>
     ) : (
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-6 py-4 border-b border-border-subtle">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("orgasmFreeTime")}</p>
-        </div>
-        <div className="px-6 py-4">
-          <p className="text-sm text-foreground-faint font-semibold">{t("noEntry")}</p>
-        </div>
-      </Card>
+      <Section title={t("orgasmFreeTime")}>
+        <p className="text-fliess text-foreground-faint">{t("noEntry")}</p>
+      </Section>
     ),
   }),
 
@@ -176,19 +172,16 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
       return vs.length > os.length ? vs[0] ?? null : null;
     },
     render: (activeEntry, { now, t, dl, tz }) => activeEntry && (
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-6 py-4 border-b border-lock-border">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lock)]">{t("currentSession")}</p>
-        </div>
-        <div className="px-6 py-4 flex items-center justify-between gap-4">
-          <p className="text-sm text-[var(--color-lock-text)]">
-            {t("lockedSince")} <span className="font-semibold">{formatDateTime(activeEntry.startTime, dl, tz)}</span>
-          </p>
-          <span className="text-xl sm:text-2xl font-bold text-[var(--color-lock-text)] whitespace-nowrap tabular-nums">
-            {formatDurationMs(now.getTime() - activeEntry.startTime.getTime(), dl)}
-          </span>
-        </div>
-      </Card>
+      <Section title={t("currentSession")}>
+        {/* Die einzige farbige Zahl der Seite: sie beschreibt einen ZUSTAND, der gerade gilt.
+            Was vorbei ist, steht daneben in Neutral. */}
+        <p className="text-kennzahl font-semibold text-lock whitespace-nowrap tabular-nums">
+          {formatDurationMs(now.getTime() - activeEntry.startTime.getTime(), dl)}
+        </p>
+        <p className="text-neben text-foreground-faint">
+          {t("lockedSince")} {formatDateTime(activeEntry.startTime, dl, tz)}
+        </p>
+      </Section>
     ),
   }),
 
@@ -228,25 +221,23 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
     render: (goalCards, { t, tc }) => goalCards.map((g) => {
       const style = g.color ? categoryStyle(g.color) : null;
       return (
-        <Card key={g.id} padding="none" className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-[var(--color-request-border)] flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
+        <Section
+          key={g.id}
+          title={
+            <span className="flex items-center gap-1.5 min-w-0">
+              {/* Die Kategorie-Farbe sitzt im Zeichen, nicht auf einer Kachel dahinter: sie sagt
+                  WELCHE Kategorie, und dafür genügt ein Zeichen. */}
               {style && g.icon && (
-                <div
-                  className="size-6 rounded-md flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: style.backgroundColor, color: style.color }}
-                  aria-hidden
-                >
-                  <CategoryIconRender name={g.icon} className="size-3.5" />
-                </div>
+                <CategoryIconRender name={g.icon} className="size-3.5 shrink-0" style={{ color: style.color }} />
               )}
-              <p className="text-sm font-bold text-foreground truncate">
-                {t("trainingGoalFor", { name: g.name })}
-              </p>
-            </div>
-            <span className="text-xs font-bold text-[var(--color-request-text)] bg-[var(--color-request-bg)] border border-[var(--color-request-border)] px-2 py-0.5 rounded-full shrink-0">{tc("active")}</span>
-          </div>
-          <div className="px-6 py-4 flex flex-col gap-4">
+              <span className="truncate">{t("trainingGoalFor", { name: g.name })}</span>
+            </span>
+          }
+          /* Kein „aktiv"-Abzeichen mehr: die Karte erscheint AUSSCHLIESSLICH für aktive Vorgaben
+             (`activeVorgaben`). Ein Etikett, das immer dasselbe sagt, sagt nichts — und es trug
+             ausgerechnet Koralle, die Farbe für „das will jetzt etwas von dir". */
+        >
+          <div className="flex flex-col gap-4">
             {GOAL_PERIODS.map((period) => {
               const target = g.goal.targetH[period];
               if (!target) return null;
@@ -257,9 +248,9 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
                   reachedLabel={t("reached")} />
               );
             })}
-            {g.notiz && <p className="text-xs text-[var(--color-request)] italic">{g.notiz}</p>}
+            {g.notiz && <p className="text-neben text-foreground-muted italic">{g.notiz}</p>}
           </div>
-        </Card>
+        </Section>
       );
     }),
   }),
@@ -322,15 +313,12 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
   records: block({
     load: ({ userId }) => sessionRecords(userId),
     render: ({ count, longest, shortest }, { t, dl, tz }) => count > 0 && (
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-6 py-4 border-b border-border-subtle">
-          <p className="text-sm font-bold text-foreground">{t("records")}</p>
-        </div>
+      <Section title={t("records")}>
         <div className="divide-y divide-border-subtle">
           <RecordRow label={t("longestSession")} value={formatDurationMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl, tz)} />
           <RecordRow label={t("shortestSession")} value={formatDurationMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl, tz)} />
         </div>
-      </Card>
+      </Section>
     ),
   }),
 
@@ -426,12 +414,9 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
       });
     },
     render: (rows, { t }) => rows.length > 0 && (
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-6 py-4 border-b border-border-subtle">
-          <p className="text-sm font-bold text-foreground">{t("inspections")}</p>
-        </div>
+      <Section title={t("inspections")}>
         <StatsKontrollenList rows={rows} />
-      </Card>
+      </Section>
     ),
   }),
 
@@ -470,25 +455,31 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
       return [...strafbuch.unauthorizedOpenings].sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
     },
     render: (openings, { t, dl, tz }) => openings.length > 0 && (
-      <Card padding="none" className="overflow-hidden">
-        <div className="px-6 py-4 border-b border-[var(--color-warn-border)] flex items-center gap-2">
-          <ShieldAlert size={15} className="text-warn shrink-0" />
-          <p className="text-sm font-bold text-warn-text">{t("unlawfulOpenings")} ({openings.length})</p>
-        </div>
-        <div className="divide-y divide-[var(--color-warn-border)]">
+      <Section
+        title={
+          <span className="flex items-center gap-1.5 text-warn">
+            <ShieldAlert size={13} className="shrink-0" />
+            {t("unlawfulOpenings")} ({openings.length})
+          </span>
+        }
+      >
+        {/* Die einzige Liste der Seite, die farbig bleiben DARF: unerlaubte Öffnungen sind
+            Vergehen. Aber nur die Rubrik trägt die Farbe — stünde sie auch auf jeder Zeile,
+            wäre sie wieder eine Sorten-Angabe statt eines Signals. */}
+        <div className="divide-y divide-border-subtle">
           {openings.map((e) => (
-            <div key={e.id} className="px-5 py-3 flex items-center gap-3">
-              <span className="text-sm tabular-nums text-warn-text font-medium shrink-0">
+            <div key={e.id} className={`${blockInsetCls} py-2.5 flex items-center gap-3`}>
+              <span className="text-fliess tabular-nums text-foreground shrink-0">
                 {formatDateTime(e.startTime, dl, tz)}
               </span>
               {e.note
-                ? <span className="text-sm text-warn italic truncate">„{e.note}"</span>
-                : <span className="text-sm text-foreground-faint">–</span>
+                ? <span className="text-neben text-foreground-faint italic truncate">„{e.note}"</span>
+                : <span className="text-neben text-foreground-faint">–</span>
               }
             </div>
           ))}
         </div>
-      </Card>
+      </Section>
     ),
   }),
 };
@@ -498,12 +489,12 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
 
 function RecordRow({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 px-6 py-4">
+    <div className={`flex items-center justify-between gap-4 ${blockInsetCls} py-3`}>
       <div>
-        <p className="text-sm font-semibold text-foreground-muted">{label}</p>
-        <p className="text-xs text-foreground-faint mt-0.5">{sub}</p>
+        <p className="text-fliess text-foreground">{label}</p>
+        <p className="text-neben text-foreground-faint mt-0.5">{sub}</p>
       </div>
-      <span className="font-mono text-sm font-bold text-foreground whitespace-nowrap">{value}</span>
+      <span className="text-fliess font-semibold text-foreground tabular-nums whitespace-nowrap">{value}</span>
     </div>
   );
 }
@@ -520,14 +511,17 @@ function GoalBar({ label, actual, target, sub, reachedLabel }: { label: string; 
   const reached = actual >= target;
   return (
     <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-sm font-semibold text-foreground-muted">{label}</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${reached ? "bg-[var(--color-lock-bg)] text-[var(--color-lock-text)] border-[var(--color-lock-border)]" : "bg-surface-raised text-foreground-muted border-border"}`}>
+      {/* Die Lage steht als WORT da, nicht als Abzeichen: „geschafft" oder der Prozentwert, in
+          derselben Zeile wie die Beschriftung. Ein Pillen-Rahmen um zwei Zeichen ist der kleinste
+          Kasten der App und trotzdem einer. */}
+      <div className="flex items-baseline justify-between gap-2 mb-1.5">
+        <span className="text-fliess text-foreground">{label}</span>
+        <span className={`text-neben font-semibold tabular-nums ${reached ? "text-ok" : "text-foreground-faint"}`}>
           {reached ? reachedLabel : `${pct}%`}
         </span>
       </div>
-      <div className="h-2.5 bg-surface-raised rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${reached ? "bg-[var(--color-lock)]" : "bg-[var(--color-request)]"}`} style={{ width: `${Math.min(100, pct)}%` }} />
+      <div className="h-1.5 bg-surface-raised rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${reached ? "bg-ok" : "bg-border-strong"}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
       <p className="text-xs text-foreground-faint mt-1">{sub}</p>
     </div>

@@ -39,7 +39,6 @@ export default async function AdminWearEndPage({
       userId={userId}
       backLabel={t("aktionen")}
       icon={<Circle size={20} strokeWidth={2} />}
-      iconBg="var(--background-subtle)"
       iconColor="var(--foreground)"
       title={tw("titleEnd")}
     >

@@ -5,8 +5,8 @@ import { Scale, Camera } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
-import { listRowCls, listRowButtonCls } from "@/app/components/inputStyles";
-import { formatDateTime, APP_TZ } from "@/lib/utils";
+import { listRowCls, listRowButtonCls, listRowTimeCls } from "@/app/components/inputStyles";
+import { formatDateTime, formatTime, APP_TZ } from "@/lib/utils";
 import { weightText, type UnitSystem } from "@/lib/weight";
 import type { WeightRowData } from "@/lib/weightRows";
 
@@ -22,7 +22,7 @@ import type { WeightRowData } from "@/lib/weightRows";
  * Pfund, während er in Kilogramm einträgt (docs/gewicht-konzept.md, Abschnitt 2).
  */
 export default function WeightRow({
-  row, locale, tz = APP_TZ, unitSystem, actions,
+  row, locale, tz = APP_TZ, unitSystem, actions, timeOnly,
 }: {
   row: WeightRowData;
   locale: string;
@@ -30,6 +30,8 @@ export default function WeightRow({
   tz?: string;
   unitSystem: UnitSystem;
   actions?: React.ReactNode;
+  /** Wie bei `EntryRow`: in einer nach Tagen gruppierten Liste trägt der Tageskopf das Datum. */
+  timeOnly?: boolean;
 }) {
   const t = useTranslations("weightList");
   const tc = useTranslations("common");
@@ -57,27 +59,31 @@ export default function WeightRow({
           onClick={() => setShowDetail(true)}
           className={listRowButtonCls}
         >
-          {/* Auf schmalen Bildschirmen trägt das Waage-Zeichen die Art allein: mit Beschriftung
-              bleibt neben Datum und Wert kein Platz, und die Zeile bricht mitten in „74,4 kg" um.
-              Ab `sm` steht sie da und fluchtet mit der Typ-Spalte von `EntryRow`. */}
-          <span className="flex items-center gap-1 text-xs font-semibold w-4 sm:w-24 flex-shrink-0 text-foreground-muted">
-            <Scale size={12} />
+          {/* Dieselbe Spaltenfolge wie `EntryRow`: erst die Zeit, dann die Art, dann der Wert.
+              In der gemischten Liste stehen beide Sorten untereinander — eine Zeile mit anderer
+              Ordnung liest sich dort als Fremdkörper. */}
+          <span className={listRowTimeCls}>
+            {timeOnly ? formatTime(measuredAt, locale, tz) : formatDateTime(measuredAt, locale, tz)}
+          </span>
+          <span className="flex items-center gap-1.5 text-fliess text-foreground flex-shrink-0">
+            <Scale size={13} className="text-foreground-faint" />
+            {/* Auf schmalen Bildschirmen trägt das Zeichen die Art allein: mit Beschriftung bleibt
+                neben Zeit und Wert kein Platz, und die Zeile bricht mitten in „74,4 kg" um. */}
             <span className="hidden sm:inline">{t("typeLabel")}</span>
           </span>
-          <span className="text-sm text-foreground tabular-nums whitespace-nowrap">{formatDateTime(measuredAt, locale, tz)}</span>
-          <span className="text-sm font-semibold text-foreground tabular-nums whitespace-nowrap">{show(row.weightKg)}</span>
-          {delta && <span className="text-xs text-foreground-muted tabular-nums">{delta}</span>}
+          <span className="text-fliess font-semibold text-foreground tabular-nums whitespace-nowrap">{show(row.weightKg)}</span>
+          {delta && <span className="text-neben text-foreground-muted tabular-nums">{delta}</span>}
           {row.imageUrl && <Camera size={12} className="text-foreground-faint flex-shrink-0" />}
           {!row.inWindow && (
-            <span className="hidden sm:inline text-xs text-foreground-faint flex-shrink-0">{t("outsideWindow")}</span>
+            <span className="hidden sm:inline text-neben text-foreground-faint flex-shrink-0">{t("outsideWindow")}</span>
           )}
           {mismatchKg !== null && (
-            <span className="hidden sm:inline text-xs text-warn flex-shrink-0 tabular-nums">
+            <span className="hidden sm:inline text-neben text-warn flex-shrink-0 tabular-nums">
               {t("detectedShort", { value: show(mismatchKg) })}
             </span>
           )}
           {row.note && (
-            <span className="hidden sm:inline text-xs text-foreground-faint italic truncate min-w-0">„{row.note}"</span>
+            <span className="hidden sm:inline text-neben text-foreground-faint italic truncate min-w-0">„{row.note}"</span>
           )}
         </button>
         {actions && <div className="flex-shrink-0">{actions}</div>}

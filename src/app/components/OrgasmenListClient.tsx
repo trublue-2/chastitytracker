@@ -1,6 +1,7 @@
 "use client";
 
 import ListPager from "@/app/components/ListPager";
+import { blockInsetCls } from "@/app/components/inputStyles";
 import usePagedList from "@/app/hooks/usePagedList";
 import { LIST_PAGE_SIZE } from "@/lib/constants";
 
@@ -21,7 +22,7 @@ export default function OrgasmenListClient({ items }: { items: OrgasmusItemData[
     <>
       <div className="divide-y divide-border-subtle">
         {visible.map((e) => (
-          <div key={e.id} className="px-5 py-3 flex items-start gap-3 hover:bg-surface-raised/60 transition">
+          <div key={e.id} className={`${blockInsetCls} py-3 flex items-start gap-3 hover:bg-surface-raised/60 transition`}>
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-foreground tabular-nums">{e.dateStr}</span>
               {" "}<span className="text-xs text-foreground-faint tabular-nums">{e.timeStr}</span>
