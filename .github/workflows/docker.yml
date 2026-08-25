@@ -28,6 +28,15 @@ on:
         required: false
         type: boolean
         default: false
+      publishAs:
+        # Ein SEITENKANAL neben den drei Ringen — für Arbeit, die getestet werden soll, ohne den
+        # :feature-Ring zu belegen. Der Anlass: :feature trägt inzwischen fremde Mittester, und ein
+        # halbfertiges Redesign dorthin zu schieben trifft Leute, die etwas anderes erwarten.
+        #
+        # Ersetzt :feature für diesen Build, ergänzt es nicht — sonst wäre nichts gewonnen.
+        description: "Diesen Build als eigenen rollenden Kanal veröffentlichen STATT als :feature (z.B. design). Leer = :feature wie bisher. Nur auf Nicht-main-Zweigen."
+        required: false
+        default: ""
 
 env:
   REGISTRY: ghcr.io
@@ -120,7 +129,8 @@ jobs:
           tags: |
             type=raw,value=v${{ env.NEW_VERSION }},enable={{is_default_branch}}
             type=raw,value=portal,enable={{is_default_branch}}
-            type=raw,value=feature,enable=${{ github.ref_name != 'main' || inputs.tagFeature }}
+            type=raw,value=feature,enable=${{ (github.ref_name != 'main' || inputs.tagFeature) && inputs.publishAs == '' }}
+            type=raw,value=${{ inputs.publishAs || 'unbenutzt' }},enable=${{ inputs.publishAs != '' && github.ref_name != 'main' }}
             type=sha,prefix=sha-
 
       # Einzige Quelle dafür, welche rollenden Kanäle dieser Build bewegt: die Tags, die
@@ -134,13 +144,29 @@ jobs:
         id: pins
         env:
           META_TAGS: ${{ steps.meta.outputs.tags }}
+          PUBLISH_AS: ${{ inputs.publishAs }}
         run: |
           set -euo pipefail
+
+          # Der Seitenkanal darf KEIN Ring-Name sein. Ohne diese Schranke veröffentlichte ein
+          # Build von einem beliebigen Zweig direkt nach :portal oder :latest — vorbei an der
+          # Regel, dass :portal nur von `main` kommt und :latest ausschliesslich über
+          # promote.yml (Digest-Retag eines bereits ausgerollten Images). Das ist der einzige
+          # Grund, warum die Ringe überhaupt etwas garantieren.
+          if [ -n "$PUBLISH_AS" ]; then
+            case "$PUBLISH_AS" in
+              portal|latest|feature|v*|sha-*)
+                echo "⚠ publishAs='$PUBLISH_AS' ist reserviert — Abbruch."; exit 1 ;;
+              *[!a-z0-9-]*|-*|"")
+                echo "⚠ publishAs='$PUBLISH_AS' ist kein gültiger Kanalname (a-z, 0-9, Bindestrich) — Abbruch."; exit 1 ;;
+            esac
+          fi
+
           # `latest` steht bewusst in der Liste, obwohl dieser Workflow es nicht (mehr) taggt:
           # sollte es je wieder gebaut werden, müssen die darauf gepinnten Instanzen mitkommen —
           # ein stilles Übersehen wäre schlimmer als ein Zweig, der heute nie greift.
           VALUE=$(printf '%s\n' "$META_TAGS" | sed 's#.*:##' \
-            | { grep -Ex 'portal|feature|latest' || true; } | paste -sd, -)
+            | { grep -Ex "portal|feature|latest${PUBLISH_AS:+|$PUBLISH_AS}" || true; } | paste -sd, -)
           echo "value=$VALUE" >> "$GITHUB_OUTPUT"
           echo "Bewegte Kanäle: ${VALUE:-<keine>}"
 

@@ -4,35 +4,50 @@ Stand: 25.08.2026 · Zweig `design/entwurf` · aufsetzend auf `main` v5.3.10
 
 ## Der eine Befehl
 
+Baut das Image und veröffentlicht es als `:design`. **Keine Instanz wird angefasst** — das
+`docker-compose.yml` ziehst du selbst nach:
+
 ```bash
-gh workflow run docker.yml --ref design/entwurf -f instances=trublue
+gh workflow run docker.yml --ref design/entwurf -f publishAs=design -f deploy=false
 ```
 
-Das baut das Image, taggt es als `:feature` und startet **nur trublues Instanz** neu. Danach:
+Lauf verfolgen:
 
 ```bash
 gh run watch "$(gh run list --workflow=docker.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
 ```
 
-Grün heisst: `typecheck`, `build-and-push` und `deploy` sind durch.
+Danach in der `docker-compose.yml` der Instanz:
 
-## Bevor du das tust — eine Sache, die nicht abschaltbar ist
+```yaml
+image: ghcr.io/trublue-2/chastitytracker:design
+```
 
-**Jeder Build von einem anderen Zweig als `main` verschiebt den `:feature`-Tag.** Das steht fest im
-Workflow (`enable=${{ github.ref_name != 'main' || inputs.tagFeature }}`) und lässt sich über keine
-Dispatch-Eingabe verhindern.
+und `docker compose pull && docker compose up -d`.
 
-`instances=trublue` steuert nur, **wer sofort neu gestartet wird**. Der Tag wandert trotzdem — und
-jede fremde Instanz, die auf `:feature` gepinnt ist, zieht diesen Stand beim nächsten Neustart ihres
-Containers.
+Soll der Workflow das Umpinnen und den Neustart selbst übernehmen, geht auch:
 
-Das ist hier relevant, weil das Redesign **nicht fertig** ist: von zehn Bildschirmen sind zwei
-überarbeitet. Wer mittestet, bekommt eine Anwendung, die zur Hälfte neu und zur Hälfte alt aussieht.
+```bash
+gh workflow run docker.yml --ref design/entwurf -f publishAs=design -f channel=design -f instances=trublue
+```
 
-Wenn das nicht sein soll, gibt es genau zwei Wege:
+## Warum ein eigener Kanal
 
-1. Vorher ankündigen, dass auf `:feature` gerade ein Redesign liegt.
-2. Warten, bis mehr Bildschirme fertig sind.
+Ein Build von einem Nicht-`main`-Zweig taggt normalerweise `:feature`. Auf diesem Ring sitzen
+inzwischen auch fremde Mittester — ein halbfertiges Redesign dorthin zu schieben trifft Leute, die
+etwas anderes erwarten, und zwar beim nächsten Neustart ihres Containers, ohne dass sie es wählen.
+
+`publishAs=design` veröffentlicht **statt** `:feature` einen eigenen rollenden Kanal. `:feature`
+bleibt unberührt.
+
+Reservierte Namen (`portal`, `latest`, `feature`, `v*`, `sha-*`) brechen den Lauf ab. Ohne diese
+Schranke veröffentlichte ein Zweig-Build direkt in die Portal-Flotte oder den Release — die Ringe
+garantieren nur etwas, solange das nicht geht.
+
+## Zurück auf den alten Stand
+
+Im `docker-compose.yml` wieder auf `:feature` (oder `:portal`) zeigen und neu ziehen. Ein Neustart,
+keine Datenmigration, kein Datenverlust — dieser Zweig ändert weder Schema noch Daten.
 
 ## Warum der Deploy risikoarm ist
 
@@ -47,14 +62,6 @@ Geprüft gegen `main`:
 
 Es gibt also **nichts zurückzurollen ausser dem Image**. Keine Datenbank wird angefasst, keine
 bestehenden Daten werden umgeschrieben.
-
-## Zurück zum alten Stand
-
-```bash
-gh workflow run docker.yml --ref main -f tagFeature=true
-```
-
-Baut `main` und zieht `:feature` darauf zurück. Ein Neustart, keine Datenmigration, kein Datenverlust.
 
 ## Welchen Build fahre ich gerade?
 

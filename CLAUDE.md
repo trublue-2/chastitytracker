@@ -73,6 +73,20 @@ Drei Workflows, alle `workflow_dispatch` (kein Auto-Deploy bei Push):
 | `:latest` | alle, inkl. Self-Hoster — der **offizielle Release** | nur durch `promote.yml` |
 | `:v<version>`, `:sha-<sha>` | unveränderliche Referenz zum Pinnen, Promoten, Rollback | pro `main`-Build (`v…`) bzw. pro Build (`sha-…`) |
 
+**Daneben: Seitenkanäle (`publishAs`).** Ein Build von einem Nicht-`main`-Zweig taggt normalerweise `:feature` — und trifft damit ALLE, die dort mittesten. Für Arbeit, die über längere Zeit getestet werden soll, ohne den Ring zu belegen, veröffentlicht `-f publishAs=<name>` **statt** `:feature` einen eigenen rollenden Kanal:
+
+```bash
+# Erstmalig: Kanal bauen UND die eigene Instanz darauf umpinnen
+gh workflow run docker.yml --ref <branch> -f publishAs=design -f channel=design -f instances=trublue
+
+# Danach: nur bauen, die gepinnte Instanz zieht mit
+gh workflow run docker.yml --ref <branch> -f publishAs=design
+```
+
+`publishAs` ERSETZT `:feature` für diesen Build — sonst wäre nichts gewonnen. Reservierte Namen (`portal`, `latest`, `feature`, `v*`, `sha-*`) und alles ausserhalb von `[a-z0-9-]` brechen den Lauf ab: ohne diese Schranke veröffentlichte ein beliebiger Zweig direkt nach `:portal` oder `:latest` und höbe damit die einzige Garantie der Ringe auf.
+
+`deploy.yml` brauchte dafür keine Änderung — es nimmt jeden validen Kanalnamen entgegen.
+
 Ein `main`-Build veröffentlicht also **nichts** an Self-Hoster — das ist der Punkt der Kanäle. `:latest` bewegt sich erst, wenn du promotest, und dann per Digest-Retag: der Release ist bitgleich das Image, das die Portal-Flotte schon fährt.
 
 ⚠️ **`:feature` ist nicht mehr nur die eigene Instanz.** Auf dem Kanal sitzen inzwischen auch Nutzer, die freiwillig mittesten. Ein Feature-Dispatch startet damit fremde Produktiv-Instanzen neu und spielt ihnen unfertigen Stand ein — das ist gewollt, aber es ist kein folgenloser Test mehr. Wer hier dispatcht, tut es im Wissen, dass nicht nur der eigene Container betroffen ist; welche Instanzen das sind, sagt der Pin in ihrer `docker-compose.yml`, nicht diese Datei (Instanznamen Dritter gehören nicht ins öffentliche Repo).
