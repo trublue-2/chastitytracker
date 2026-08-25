@@ -411,7 +411,16 @@ function abweichung(welt, name) {
  *  Ring geworfen und damit von der Reihenfolge der Blöcke abhängig gemacht, welche Welt eine
  *  Keyholder-Seite bekommt. */
 function identSelektoren(welt, name) {
-  return [`[data-ident="${welt}"][data-theme="${name}"]`, `[data-ident="${welt}"] [data-theme="${name}"]`]
+  const sel = [`[data-ident="${welt}"][data-theme="${name}"]`, `[data-ident="${welt}"] [data-theme="${name}"]`]
+  // Das helle Träger-Theme gilt auch OHNE `data-theme` — es ist `:root`. Diesen Fall gibt es
+  // wirklich: Anmeldung, Passwort-Reset und Info liegen ausserhalb beider Bereiche und binden das
+  // Theme-Skript nicht ein; dort steht die Farbwelt am Wurzelelement, das Theme nicht.
+  //
+  // `:not([data-theme])` und nicht `:root` allein: sonst stünde die helle Träger-Welt mit
+  // Spezifität (0,2,0) im Ring gegen die Keyholder-Blöcke, und welche Welt eine Admin-Seite
+  // bekommt, entschiede die Reihenfolge der Blöcke. So schliessen sich die beiden Fälle aus.
+  if (name === 'user') sel.unshift(`:root[data-ident="${welt}"]:not([data-theme])`)
+  return sel
 }
 
 /** Das PRÄFIX der Anfangsmarke — nicht ihr voller Text.

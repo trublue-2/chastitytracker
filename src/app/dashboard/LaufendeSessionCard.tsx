@@ -103,9 +103,13 @@ export default async function LaufendeSessionCard({
         {/* Der Zustand: EIN Wort. Vorher stand hier dreimal dasselbe — „Laufende Tragezeit",
             „Verschlossen" und „Dauer:" beantworten alle die Frage, die die Zahl darunter längst
             beantwortet. Übrig bleibt das Wort, das der Träger sucht, in der Zustandsfarbe. */}
-        <p className="inline-flex items-center gap-2 text-rubrik font-semibold uppercase tracking-[0.16em] text-lock">
+        {/* Klein und in Versalien, aber NICHT als Rubrik gesetzt: eine Rubrik benennt einen
+            Abschnitt, dieses Wort ist der WERT — die Antwort, die die Zahl darunter beziffert.
+            Deshalb trägt es die Zustandsfarbe und die volle Schriftstärke, während die Rubriken
+            der Seite leise und grau bleiben. Über einer 60-px-Zahl ist das laut genug. */}
+        <p className="inline-flex items-center gap-2 text-fliess font-semibold tracking-[0.02em] text-lock">
           {t("locked")}
-          <Lock size={13} strokeWidth={2.4} className="shrink-0" />
+          <Lock size={15} strokeWidth={2.2} className="shrink-0" />
         </p>
 
         {/* Die Zahl IST der Bildschirm. Sie stand vorher in 20 px hinter einer Beschriftung. */}

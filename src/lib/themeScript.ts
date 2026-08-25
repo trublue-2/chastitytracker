@@ -26,16 +26,23 @@ export function getThemeInitScript(role: ThemeRole) {
   // Reihenfolge, Selektor-Wahl (`body.querySelector`) und der Wrapper-Vorbehalt müssen mitwandern,
   // wenn sich das drüben ändert; hier liegt der Wrapper zwar immer vor (dieses Skript steht IN
   // ihm), aber zwei Regeln für dieselbe Sache driften sonst irgendwann auseinander.
-  // Der Identitäts-Ton hängt am selben Skript statt an einem zweiten: er muss aus demselben Grund
-  // vor der Hydration stehen (sonst blitzt die andere Farbwelt auf), und ein zweites Inline-Skript
-  // wäre eine zweite Stelle, die man beim Entfernen der Farbfrage übersieht.
-  //
-  // Er steht VOR dem Wrapper-Vorbehalt, weil er am Wurzelelement hängt und nichts vom Wrapper
-  // braucht. Heute macht das keinen Unterschied — dieses Skript rendert IM Wrapper, `e` liegt also
-  // immer vor. Es ist die Reihenfolge, die stimmt, wenn der Vorbehalt einmal greift.
-  //
-  // Was der Ton damit NICHT erreicht: die Seiten ausserhalb beider Bereiche (Anmeldung,
-  // Passwort-Reset, Info) binden dieses Skript gar nicht ein und bleiben in der rosa Fassung. Für
-  // einen Vergleich der beiden Welten ist das hinnehmbar; wer den Ton behält, muss es ändern.
-  return `(function(){try{var i=localStorage.getItem("${IDENT_STORAGE_KEY}");if(i&&i!=="${IDENT_DEFAULT}")document.documentElement.setAttribute("${IDENT_ATTRIBUTE}",i);var e=document.body.querySelector("${selector}");if(!e)return;var m=localStorage.getItem("${storageKey}")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);var t=d?"${darkTheme}":"${lightTheme}";document.documentElement.setAttribute("data-theme",t);e.setAttribute("data-theme",t);}catch(e){}})();`;
+  return `(function(){try{var e=document.body.querySelector("${selector}");if(!e)return;var m=localStorage.getItem("${storageKey}")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);var t=d?"${darkTheme}":"${lightTheme}";document.documentElement.setAttribute("data-theme",t);e.setAttribute("data-theme",t);}catch(e){}})();`;
+}
+
+/**
+ * Die Farbwelt — ein eigenes Skript, im WURZEL-Layout statt in den Bereichs-Layouts.
+ *
+ * Sie hing zuerst am Theme-Skript oben, und das kostete die Ränder: Anmeldung, Passwort-Reset und
+ * die Info-Seite binden jenes Skript gar nicht ein (es rendert im Bereichs-Wrapper, den es dort
+ * nicht gibt) — mit „Grün" eingestellt blieben ausgerechnet die ersten Bildschirme rosa.
+ *
+ * Getrennt und nicht einfach hochgezogen, weil die beiden verschiedene Bedingungen haben: das
+ * Theme braucht den Wrapper (es beschreibt ihn mit), die Farbwelt nicht — sie hängt nur an
+ * `<html>`. Ein Skript, das beides täte, müsste den Wrapper-Vorbehalt für die eine Hälfte
+ * durchbrechen.
+ *
+ * Vor der Hydration, aus demselben Grund wie das Theme: sonst blitzt die andere Welt auf.
+ */
+export function getIdentInitScript() {
+  return `(function(){try{var i=localStorage.getItem("${IDENT_STORAGE_KEY}");if(i&&i!=="${IDENT_DEFAULT}")document.documentElement.setAttribute("${IDENT_ATTRIBUTE}",i);}catch(e){}})();`;
 }

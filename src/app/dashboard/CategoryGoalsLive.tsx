@@ -1,8 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
-import Card from "@/app/components/Card";
+import Section from "@/app/components/Section";
 import GoalProgressRows from "@/app/components/GoalProgressRows";
 import { categoryStyle } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
@@ -35,48 +37,62 @@ export default function CategoryGoalsLive({ rows, kgGoal = null, serverNow, peri
   const t = useTranslations("dashboard");
   return (
     <DashboardBlock>
-      <Card>
-        <div className="p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-muted mb-3">
-            {t("categoryGoals")}
-          </h3>
-          <ul className="flex flex-col gap-4">
-            {kgGoal && <KgRow goal={kgGoal} serverNow={serverNow} periodEndMs={periodEndMs} />}
-            {rows.map((r) => (
-              <CategoryRow key={r.categoryId} row={r} serverNow={serverNow} periodEndMs={periodEndMs} />
-            ))}
-          </ul>
-        </div>
-      </Card>
+      <Section title={t("categoryGoals")}>
+        <ul className="flex flex-col gap-4">
+          {kgGoal && <KgRow goal={kgGoal} serverNow={serverNow} periodEndMs={periodEndMs} />}
+          {rows.map((r) => (
+            <CategoryRow key={r.categoryId} row={r} serverNow={serverNow} periodEndMs={periodEndMs} />
+          ))}
+        </ul>
+      </Section>
     </DashboardBlock>
   );
 }
 
-/** Die KG-Zeile — gleiche Zeilen-/Balken-Optik wie eine Kategorie, aber mit Schloss-Icon (KG ist
- *  keine der Wear-Kategorien) und ohne Live-Tick (nur im offenen Zustand gezeigt). */
+/**
+ * Eine Ziel-Gruppe: Zeichen und Name, darunter die Zielzeilen.
+ *
+ * Herausgezogen, weil KG-Zeile und Kategorie-Zeile nach dem Wegfall der getönten Kachel bis auf
+ * Zeichen, Name und Ist-Werte identisch waren. Was sie NICHT teilen können, ist das Beschaffen der
+ * Werte: `useLiveHours` ist ein Hook und darf nicht bedingt laufen — deshalb bleibt `CategoryRow`
+ * als dünner Aufrufer stehen und diese Zeile ist rein darstellend.
+ *
+ * Der Einzug der Zielzeilen kommt aus DEMSELBEN Raster wie der Kopf, statt als nachgerechnetes
+ * `pl-6` (Zeichenbreite plus Abstand). Ein Literal, das eine Ableitung ist, rutscht lautlos
+ * daneben, sobald jemand die Zeichengrösse anfasst.
+ */
+function GoalRow({ icon, name, actual, targetH, serverNow, periodEndMs }: {
+  icon: ReactNode;
+  name: string;
+  actual: ByPeriod<number>;
+  targetH: KgGoalRow["goal"]["targetH"];
+  serverNow: string;
+  periodEndMs: ByPeriod<number>;
+}) {
+  return (
+    <li className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-2">
+      {icon}
+      <p className="text-fliess font-medium text-foreground truncate">{name}</p>
+      <div className="col-start-2 flex flex-col gap-3.5">
+        <GoalProgressRows periodEndMs={periodEndMs} serverNow={serverNow} actual={actual} targetH={targetH} />
+      </div>
+    </li>
+  );
+}
+
+/** Die KG-Zeile — dieselbe Gruppe wie eine Kategorie, aber mit Schloss-Zeichen (KG ist keine der
+ *  Wear-Kategorien) und ohne Live-Tick (nur im offenen Zustand gezeigt). */
 function KgRow({ goal, serverNow, periodEndMs }: { goal: KgGoalRow; serverNow: string; periodEndMs: ByPeriod<number> }) {
   const t = useTranslations("dashboard");
   return (
-    <li className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <div
-          className="size-7 rounded-md flex items-center justify-center shrink-0"
-          style={{ backgroundColor: "var(--color-lock-bg)", color: "var(--color-lock)" }}
-          aria-hidden
-        >
-          <Lock className="size-3.5" />
-        </div>
-        <p className="text-sm font-medium text-foreground truncate">{t("kgGoalLabel")}</p>
-      </div>
-      <div className="pl-9 flex flex-col gap-1">
-        <GoalProgressRows
-          periodEndMs={periodEndMs}
-          serverNow={serverNow}
-          actual={{ day: goal.tagH, week: goal.wocheH, month: goal.monatH, year: goal.jahrH }}
-          targetH={goal.goal.targetH}
-        />
-      </div>
-    </li>
+    <GoalRow
+      icon={<Lock className="size-4 shrink-0 text-lock" aria-hidden />}
+      name={t("kgGoalLabel")}
+      actual={{ day: goal.tagH, week: goal.wocheH, month: goal.monatH, year: goal.jahrH }}
+      targetH={goal.goal.targetH}
+      serverNow={serverNow}
+      periodEndMs={periodEndMs}
+    />
   );
 }
 
@@ -88,26 +104,14 @@ function CategoryRow({ row, serverNow, periodEndMs }: { row: CategoryGoalRow; se
   const style = categoryStyle(row.color);
 
   return (
-    <li className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <div
-          className="size-7 rounded-md flex items-center justify-center shrink-0"
-          style={{ backgroundColor: style.backgroundColor, color: style.color }}
-          aria-hidden
-        >
-          <CategoryIconRender name={row.icon} className="size-3.5" />
-        </div>
-        <p className="text-sm font-medium text-foreground truncate">{row.name}</p>
-      </div>
-      <div className="pl-9 flex flex-col gap-1">
-        <GoalProgressRows
-          periodEndMs={periodEndMs}
-          serverNow={serverNow}
-          actual={{ day: tagH, week: wocheH, month: monatH, year: jahrH }}
-          targetH={row.goal.targetH}
-        />
-      </div>
-    </li>
+    <GoalRow
+      icon={<CategoryIconRender name={row.icon} className="size-4 shrink-0" style={{ color: style.color }} />}
+      name={row.name}
+      actual={{ day: tagH, week: wocheH, month: monatH, year: jahrH }}
+      targetH={row.goal.targetH}
+      serverNow={serverNow}
+      periodEndMs={periodEndMs}
+    />
   );
 }
 

@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import TimerDisplay from "@/app/components/TimerDisplay";
 import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
-import BlockHeading from "@/app/components/BlockHeading";
+import Section from "@/app/components/Section";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { formatTotalHours } from "@/lib/utils";
 import { coveragePct } from "@/lib/percent";
@@ -176,37 +176,43 @@ export default function DashboardClient(props: DashboardProps) {
            Sperrzeit-Banner entfernt — steht bereits im Sperrzeit-Footer der LaufendeSessionCard. */}
 
       {/* ── Stats Summary ── */}
-      <div className="rounded-xl border border-border bg-surface p-4 sm:p-5">
-        <div className="flex items-center justify-between mb-3">
-          <BlockHeading>
-            {t("statsTitle")}
-          </BlockHeading>
-          <Link href="/dashboard/stats" className="text-xs text-foreground-faint hover:text-foreground-muted transition">
+      <Section
+        title={t("statsTitle")}
+        action={
+          <Link href="/dashboard/stats" className="text-neben text-foreground-faint hover:text-foreground-muted transition">
             {t("allStats")} →
           </Link>
-        </div>
-        {/* Die Zahl ist auf dem Handy eine Stufe kleiner als ab `sm:`. Mit der Wort-Schreibweise
-            (Etappe A) ist „17T 14h 46min" schlicht zu lang für ein Drittel von 375 px: bei
-            `text-xl` brach sie auf DREI Zeilen. Zwei Zeilen mit engem Durchschuss sind der
-            ehrliche Kompromiss, bis Etappe E den Block ohnehin anfasst. */}
+        }
+      >
+        {/* Weder ein Kasten um den Block noch drei Kacheln darin — vier Zäune für drei Zahlen.
+            Die Zahlen tragen sich selbst, der Abstand trennt sie.
+
+            Die Kennzahl-Stufe gilt erst ab `sm`. Sie ist für eine DRITTEL-Spalte zu gross: mit der
+            Wort-Schreibweise ist „475h 5min" bei 25 px breiter als 110 px und bricht zweizeilig um.
+            Eine Zahl, die umbricht, ist keine Zahl mehr — dieselbe Regel wie beim Helden, nur
+            andersherum angewandt. Darunter trägt `text-zeile`.
+
+            `whitespace-nowrap` als Riegel dahinter: der Monatswert kann bis 1000 h die Minuten
+            mitführen („744h 30min"), und dann ist der Rand auch bei 16 px dünn. Lieber überläuft
+            die Spalte sichtbar, als dass die Zahl still zweizeilig wird. */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl bg-surface-raised px-3 py-3">
-            <p className="text-base sm:text-xl leading-tight font-bold text-lock tabular-nums">{formatTotalHours(tagH)}</p>
-            <p className="text-xs text-foreground-faint mt-0.5">{t("wearToday")}</p>
+          <div>
+            <p className="text-zeile sm:text-kennzahl font-semibold text-lock tabular-nums whitespace-nowrap">{formatTotalHours(tagH)}</p>
+            <p className="text-neben text-foreground-faint mt-0.5">{t("wearToday")}</p>
             <WearPercent wornH={tagH} elapsedH={elapsedTagH} periodKey="coverageDay" />
           </div>
-          <div className="rounded-xl bg-surface-raised px-3 py-3">
-            <p className="text-base sm:text-xl leading-tight font-bold text-lock tabular-nums">{formatTotalHours(wocheH)}</p>
-            <p className="text-xs text-foreground-faint mt-0.5">{t("wearWeek")}</p>
+          <div>
+            <p className="text-zeile sm:text-kennzahl font-semibold text-lock tabular-nums whitespace-nowrap">{formatTotalHours(wocheH)}</p>
+            <p className="text-neben text-foreground-faint mt-0.5">{t("wearWeek")}</p>
             <WearPercent wornH={wocheH} elapsedH={elapsedWocheH} periodKey="coverageWeek" />
           </div>
-          <div className="rounded-xl bg-surface-raised px-3 py-3">
-            <p className="text-base sm:text-xl leading-tight font-bold text-lock tabular-nums">{formatTotalHours(monatH)}</p>
-            <p className="text-xs text-foreground-faint mt-0.5">{t("wearMonth")}</p>
+          <div>
+            <p className="text-zeile sm:text-kennzahl font-semibold text-lock tabular-nums whitespace-nowrap">{formatTotalHours(monatH)}</p>
+            <p className="text-neben text-foreground-faint mt-0.5">{t("wearMonth")}</p>
             <WearPercent wornH={monatH} elapsedH={elapsedMonatH} periodKey="coverageMonth" />
           </div>
         </div>
-      </div>
+      </Section>
 
       {/* Actions accessible via Neu-Button in bottom nav */}
 

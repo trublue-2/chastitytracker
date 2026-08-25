@@ -444,8 +444,10 @@
    Fassungen desselben Bildschirms nebeneinander statt in mehreren Bauten.
    ═════════════════════════════════════════════════════════════════════════════════════ */
 
+:root[data-ident="gruen"]:not([data-theme]),
 [data-ident="gruen"][data-theme="user"],
 [data-ident="gruen"] [data-theme="user"],
+:root[data-ident="geteilt"]:not([data-theme]),
 [data-ident="geteilt"][data-theme="user"],
 [data-ident="geteilt"] [data-theme="user"] {
   --background:             #f7faf8;
@@ -1248,5 +1250,3 @@ body {
     scroll-behavior: auto !important;
   }
 }
-
-

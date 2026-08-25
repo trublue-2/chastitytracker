@@ -1,3 +1,4 @@
+import { getIdentInitScript } from "@/lib/themeScript";
 import type { Metadata, Viewport } from "next";
 import { Geist, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
@@ -100,6 +101,9 @@ export default async function RootLayout({
         {/* Prevent iOS WebKit from auto-linking phone numbers / dates / addresses
             — those DOM mutations happen before React hydration and cause #418 */}
         <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
+        {/* Die Farbwelt gilt für JEDE Seite, auch die ausserhalb der beiden Bereiche (Anmeldung,
+            Passwort-Reset, Info) — deshalb hier und nicht in den Bereichs-Layouts. */}
+        <script dangerouslySetInnerHTML={{ __html: getIdentInitScript() }} />
         {/* iOS splash screens — portrait only */}
         {splashScreens.map(({ w, h, r, src }) => (
           <link

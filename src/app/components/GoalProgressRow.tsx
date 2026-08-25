@@ -3,7 +3,7 @@ import { goalPct } from "@/lib/percent";
 import { goalOutlook } from "@/lib/goalOutlook";
 
 /**
- * Eine Zielzeile: Beschriftung – Balken – `ist / soll` – **Auskunft**.
+ * Eine Zielzeile: Beschriftung – `ist / soll` – **Auskunft**, darunter der Balken als Grundlinie.
  *
  * Die letzte Spalte trug bis v5.4 den Prozentwert. Der sagte dasselbe wie der Balken daneben — und
  * beantwortete die eigentliche Frage nicht: „8h 41min / 20h · 43 %" ist um 09 Uhr hervorragend und
@@ -17,11 +17,10 @@ import { goalOutlook } from "@/lib/goalOutlook";
  * Die dritte Zielanzeige (`StatsMain`) ist bewusst NICHT hier: sie ist zweizeilig, mit Pille statt
  * Prozentzahl und einer Unterzeile — eine andere Form, nicht dieselbe mit anderer Farbe.
  *
- * **Die `ist / soll`-Spalte darf umbrechen, der Balken hat feste Breite.** Umgekehrt war es zuerst
- * — und im laufenden Bild kippte daran die Jahres-Zeile: `222T 10h 29min / 51T 8h 52min` drückte
- * den mitwachsenden Balken auf einen Stummel und schob die Prozentzahl aus dem Bild. Mit der
- * Wort-Schreibweise schwankt diese Spalte eben stark (`20h` gegen `51T 8h 52min`), also bekommt
- * sie den Rest und darf zweizeilig werden, statt die Nachbarn zu verdrängen.
+ * **Der Balken liegt UNTER der Zeile, nicht darin.** In der Reihe hatte er feste Breite, und die
+ * Jahres-Zeile kippte trotzdem: `222T 10h 29min / 51T 8h 52min` drückte alles andere zusammen und
+ * schob die letzte Spalte aus dem Bild. Als Grundlinie über die volle Breite konkurriert er mit
+ * keiner Spalte mehr — und er zeigt den Anteil besser, weil er länger ist.
  *
  * Der Prozentwert lebt weiter — als Balkenbreite und als Rückfall, wenn die Zeile ihre Restzeit
  * nicht kennt (dann bleibt es beim alten Verhalten statt bei einer leeren Spalte).
@@ -91,22 +90,31 @@ export default function GoalProgressRow({
     : { text: outlookLabels.remaining(fehlend(outlook.missingH)), cls: onAccent ? "text-[var(--color-lock-on)]" : "text-foreground" };
 
   return (
-    <div className="flex items-center gap-2">
-      <span className={`text-xs shrink-0 w-11 ${onAccent ? "text-[var(--color-lock-on-muted)]" : "text-foreground-faint"}`}>
-        {label}
-      </span>
-      <div className={`w-12 sm:w-20 shrink-0 rounded-full h-1.5 overflow-hidden ${onAccent ? "bg-background-subtle" : "bg-background-subtle"}`}>
-        <div className={`h-1.5 rounded-full transition-all ${fill}`} style={{ width: `${Math.min(100, pct)}%` }} />
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline gap-3">
+        <span className={`text-fliess shrink-0 ${onAccent ? "text-[var(--color-lock-on-muted)]" : "text-foreground-muted"}`}>
+          {label}
+        </span>
+        {/* Die Rohwerte bleiben: sie sind der Beleg für die Auskunft daneben. Sie treten aber
+            zurück — vorher standen sie gleichwertig neben einem Prozentwert, jetzt tragen sie eine
+            Aussage, die aus ihnen folgt. */}
+        <span className={`text-neben tabular-nums ml-auto text-right ${onAccent ? "text-[var(--color-lock-on-muted)]" : "text-foreground-faint"}`}>
+          {formatTotalHours(actual)} / {formatTotalHours(target)}
+        </span>
+        <span className={`text-neben font-semibold tabular-nums shrink-0 text-right ${auskunft ? auskunft.cls : onAccent ? "text-[var(--color-lock-on)]" : "text-foreground"}`}>
+          {auskunft ? auskunft.text : `${pct}%`}
+        </span>
       </div>
-      {/* Die Rohwerte bleiben: sie sind der Beleg für die Auskunft daneben. Sie treten aber
-          zurück — vorher standen sie gleichwertig neben einem Prozentwert, jetzt tragen sie eine
-          Aussage, die aus ihnen folgt. */}
-      <span className={`text-xs tabular-nums shrink-0 ${onAccent ? "text-[var(--color-lock-on-muted)]" : "text-foreground-faint"}`}>
-        {formatTotalHours(actual)} / {formatTotalHours(target)}
-      </span>
-      <span className={`text-xs font-semibold tabular-nums flex-1 min-w-0 text-right ${auskunft ? auskunft.cls : onAccent ? "text-[var(--color-lock-on)]" : "text-foreground"}`}>
-        {auskunft ? auskunft.text : `${pct}%`}
-      </span>
+      {/* Der Balken ist die GRUNDLINIE der Zeile, kein Element neben den anderen.
+          
+          Vorher hatte er eine feste Breite und stand mitten in der Reihe — und genau daran kippte
+          die Zeile: die `ist / soll`-Spalte schwankt mit der Wort-Schreibweise zwischen „20h" und
+          „51T 8h 52min", also musste irgendwer nachgeben. Als Unterstreichung nimmt er die volle
+          Breite, konkurriert mit niemandem mehr, und die Zeile darüber teilt sich den Platz nach
+          der einzigen Regel, die zählt: Beschriftung links, Auskunft rechts. */}
+      <div className={`h-0.5 w-full overflow-hidden rounded-full ${onAccent ? "bg-[var(--color-lock-on-muted)]/25" : "bg-border-subtle"}`}>
+        <div className={`h-full rounded-full transition-all ${fill}`} style={{ width: `${Math.min(100, pct)}%` }} />
+      </div>
     </div>
   );
 }
