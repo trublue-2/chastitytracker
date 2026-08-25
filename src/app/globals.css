@@ -96,7 +96,7 @@
   --nav-border:             #f1c6cf;
   --nav-active-bg:          #f3cfd7;
   --nav-active-text:        #2d1d26;
-  --nav-inactive-text:      #7d656d;
+  --nav-inactive-text:      #6f5860;
   --nav-inactive-hover:     #2d1d26;
   --nav-icon-bg:            #f0e5e9;
   --nav-icon-active-bg:     #c3002b;
@@ -410,7 +410,7 @@
   --nav-border:             #d5d4f8;
   --nav-active-bg:          #dcdbf9;
   --nav-active-text:        #1d2130;
-  --nav-inactive-text:      #646b7b;
+  --nav-inactive-text:      #5b6272;
   --nav-inactive-hover:     #1d2130;
   --nav-icon-bg:            #e5eaf3;
   --nav-icon-active-bg:     #c3002b;
@@ -844,6 +844,8 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+
 
 
 

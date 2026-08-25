@@ -11,7 +11,6 @@ import KontrolleBanner from "@/app/components/KontrolleBanner";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
-import Card from "@/app/components/Card";
 import EmptyState from "@/app/components/EmptyState";
 import UserAvatar from "@/app/components/UserAvatar";
 import { Lock, LockOpen, Users, ShieldAlert, CalendarClock, ChevronRight } from "lucide-react";
@@ -170,49 +169,65 @@ export default async function AdminPage() {
   const usersWithStats = users.map(u => ({ ...u, stats: getUserStats(u.id) }));
 
   const lockedCount = usersWithStats.filter(u => u.stats.currentStatus === "VERSCHLUSS").length;
-  const alarmCount = usersWithStats.filter(u => u.stats.offeneKontrolle || u.stats.hasOffeneAnforderung).length;
+
+  /**
+   * **Wer braucht dich, und wer nicht.**
+   *
+   * Der Bildschirm zählte bisher auf, was es gibt: alle Subs gleich gross, gleich schwer, jeder in
+   * seinem Kasten. Die Frage, mit der man ihn öffnet, lautet aber nicht „wen habe ich", sondern
+   * „wo werde ich gebraucht" — und die musste man sich aus den Karten selbst zusammensuchen.
+   *
+   * „Braucht dich" heisst: etwas ist offen und wartet auf eine Entscheidung oder eine Handlung von
+   * DIR. Eine laufende Sperrzeit gehört ausdrücklich NICHT dazu — sie läuft ja, wie angeordnet.
+   * Eine geplante Direktive ebenso wenig; sie ist bereits entschieden und wartet nur auf ihren
+   * Zeitpunkt.
+   */
+  const brauchtEntscheidung = (st: ReturnType<typeof getUserStats>) =>
+    !!st.offeneKontrolle || st.hasOffeneAnforderung || !!st.offeneOrgasmusAnforderung;
+
+  const wartend = usersWithStats.filter(u => brauchtEntscheidung(u.stats));
+  const ruhig = usersWithStats.filter(u => !brauchtEntscheidung(u.stats));
+  const alarmCount = wartend.length;
 
   return (
     <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
 
-      {/* ── Summary Header ── */}
-      <div className="flex items-start justify-between mb-6 gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold text-foreground">{t("overviewTitle")}</h1>
-          <p className="text-sm text-foreground-muted mt-1">{t("overviewDesc")}</p>
-          <div className="flex items-center gap-4 mt-2">
-            <span className="flex items-center gap-1.5 text-sm text-foreground-muted">
-              <Users size={14} strokeWidth={1.75} />
-              <span className="font-semibold text-foreground">{users.length}</span>{" "}
-              {t("usersRegistered", { count: users.length }).replace(/\d+\s*/, "")}
-            </span>
-            <span className={`flex items-center gap-1.5 text-sm ${lockedCount > 0 ? "text-lock" : "text-foreground-faint"}`}>
-              <Lock size={14} strokeWidth={1.75} />
-              <span className="font-semibold">{lockedCount}</span> {t("locked")}
-            </span>
-            {alarmCount > 0 && (
-              <span className="flex items-center gap-1.5 text-sm text-warn">
-                <ShieldAlert size={14} strokeWidth={1.75} />
-                <span className="font-semibold">{alarmCount}</span> {t("alarmeCount", { count: alarmCount }).replace(/\d+\s*/, "")}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* ── Die Antwort, nicht die Aufzählung ──────────────────────────────────
+          Vorher stand hier eine Überschrift, ein Erklärsatz, den niemand zweimal liest, und drei
+          Zählwerte nebeneinander („2 Benutzer registriert · 1 Verschlossen · 1 Alarm"). Keiner
+          davon beantwortete die Frage, mit der man diesen Bildschirm öffnet.
 
-{/* ── User cards grid ── */}
-      {users.length === 0 ? (
-        <Card padding="none">
-          <EmptyState
-            icon={<Users size={36} />}
-            title={t("noUsers")}
-            description={t("noUsersDesc")}
-            action={isGlobalAdmin ? { label: t("title"), href: "/admin/users" } : undefined}
-          />
-        </Card>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {usersWithStats.map((u) => {
+          Jetzt steht dort EINE Zahl: wie viele deiner Subs gerade eine Entscheidung von dir
+          brauchen. Ist es keine, sagt der Bildschirm das ausdrücklich — „nichts offen" ist eine
+          Auskunft, kein leerer Platz. */}
+      <header className="pt-2 pb-8">
+        {alarmCount > 0 ? (
+          <>
+            <p className="text-zahl font-semibold tabular-nums leading-none tracking-[-0.04em] text-warn">
+              {alarmCount}
+            </p>
+            <p className="text-zeile font-medium mt-3">{t("needsYouTitle", { count: alarmCount })}</p>
+          </>
+        ) : (
+          <>
+            <p className="text-titel font-serif leading-tight">{t("allCalmTitle")}</p>
+            <p className="text-neben text-foreground-faint mt-2">{t("allCalmHint")}</p>
+          </>
+        )}
+        {/* Die Zählwerte bleiben erreichbar, treten aber zurück: sie beantworten eine Frage, die
+            man selten stellt. */}
+        <p className="text-neben text-foreground-faint mt-4">
+          {t("usersRegistered", { count: users.length })} · {lockedCount} {t("locked")}
+        </p>
+      </header>
+
+{/* ── Wer etwas braucht, und wer nicht ─────────────────────────────────────
+          Vorher lagen alle Subs gleichwertig in einem Raster aus Karten — der eine mit einer
+          überfälligen Kontrolle sah aus wie der andere ohne alles. Jetzt trägt die Reihenfolge
+          eine Aussage: oben steht, was wartet, ausgeklappt und mit der Handlung daneben; darunter
+          als leise Zeile, wer gerade nichts braucht. Erreichbar bleibt beides. */}
+        <div className="flex flex-col">
+          {wartend.map((u) => {
             const rowTz = u.timezone; // this row's sub governs its own timestamps
             const isLocked = u.stats.currentStatus === "VERSCHLUSS";
             const sinceDisplay = u.stats.since
@@ -234,11 +249,14 @@ export default async function AdminPage() {
                 {/* Stretched link — covers whole card for navigation */}
                 <Link
                   href={`/admin/users/${u.id}`}
-                  className="absolute inset-0 z-10 rounded-2xl"
+                  className="absolute inset-0 z-10"
                   aria-label={u.username}
                 />
 
-                <Card padding="default" className="transition group-hover:bg-surface-raised">
+                {/* Kein Kasten mehr. Ein Abschnitt trennt sich durch eine Haarlinie und Raum —
+                    dieselbe Sprache wie die ruhige Liste darunter, damit der Bildschirm EINE
+                    Ordnung hat statt zweier. */}
+                <div className="border-t border-border-subtle py-5 transition-colors group-hover:bg-surface-raised">
                   <div className="flex flex-col gap-3">
                     {/* Header: avatar + name + status icon */}
                     <div className="flex items-start gap-3">
@@ -383,12 +401,63 @@ export default async function AdminPage() {
                       />
                     </div>
                   </div>
-                </Card>
+                </div>
               </div>
             );
           })}
         </div>
-      )}
+
+        {/* Die Ruhigen: eine Zeile je Sub statt einer Karte. Sie sind nicht weniger wichtig — sie
+            wollen gerade nur nichts. Eine Karte für „alles in Ordnung" kostet denselben Platz wie
+            eine für „überfällig", und genau diese Gleichbehandlung machte den Bildschirm zu einer
+            Aufzählung. Der Weg in den Sub bleibt derselbe. */}
+        {ruhig.length > 0 && (
+          <section className={wartend.length > 0 ? "mt-10" : ""}>
+            <p className="text-rubrik font-semibold uppercase tracking-[0.16em] text-foreground-faint pb-1">
+              {wartend.length > 0 ? t("calmSectionTitle") : t("yourSubsTitle")}
+            </p>
+            {ruhig.map((u) => {
+              const isLocked = u.stats.currentStatus === "VERSCHLUSS";
+              const seit = u.stats.since ? formatDurationBetween(u.stats.since, now, dl) : null;
+              return (
+                <Link
+                  key={u.id}
+                  href={`/admin/users/${u.id}`}
+                  className="flex items-center gap-3 py-3 border-t border-border-subtle transition-colors hover:bg-surface-raised"
+                >
+                  <UserAvatar username={u.username} size="sm" locked={isLocked} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-zeile font-medium truncate">{u.username}</span>
+                    <span className={`block text-neben ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
+                      {isLocked
+                        ? `${t("locked")}${seit ? ` · ${seit}` : ""}`
+                        : u.stats.currentStatus
+                          ? `${t("opened")}${seit ? ` · ${t("since")} ${seit}` : ""}`
+                          : t("noEntry")}
+                    </span>
+                  </span>
+                  {/* Geplantes ist entschieden und wartet nur — es gehört nicht zu „braucht dich",
+                      darf aber nicht unsichtbar werden. Deshalb ein Vermerk, keine Karte. */}
+                  {u.stats.scheduled.length > 0 && (
+                    <span className="text-neben text-foreground-faint shrink-0 inline-flex items-center gap-1">
+                      <CalendarClock size={12} />{u.stats.scheduled.length}
+                    </span>
+                  )}
+                  <ChevronRight size={16} className="text-foreground-faint shrink-0" aria-hidden />
+                </Link>
+              );
+            })}
+          </section>
+        )}
+
+        {users.length === 0 && (
+          <EmptyState
+            icon={<Users size={36} />}
+            title={t("noUsers")}
+            description={t("noUsersDesc")}
+            action={isGlobalAdmin ? { label: t("title"), href: "/admin/users" } : undefined}
+          />
+        )}
     </main>
   );
 }

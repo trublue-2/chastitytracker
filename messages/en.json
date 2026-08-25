@@ -926,6 +926,11 @@
   "admin": {
     "title": "User management",
     "overviewTitle": "Overview",
+    "needsYouTitle": "{count, plural, one {needs your decision} other {need your decision}}",
+    "allCalmTitle": "Nothing open",
+    "allCalmHint": "None of your subs is waiting on you right now.",
+    "calmSectionTitle": "Nothing else open",
+    "yourSubsTitle": "Your subs",
     "backToOverview": "← Overview",
     "overviewDesc": "Live status of all subs you control — with quick actions for inspections and locks.",
     "userManagementDesc": "Create users, set their role and keyholders, or delete them.",

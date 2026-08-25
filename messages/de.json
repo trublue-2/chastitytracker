@@ -926,6 +926,11 @@
   "admin": {
     "title": "Benutzerverwaltung",
     "overviewTitle": "Übersicht",
+    "needsYouTitle": "{count, plural, one {braucht deine Entscheidung} other {brauchen deine Entscheidung}}",
+    "allCalmTitle": "Nichts offen",
+    "allCalmHint": "Keiner deiner Subs wartet gerade auf dich.",
+    "calmSectionTitle": "Sonst nichts offen",
+    "yourSubsTitle": "Deine Subs",
     "backToOverview": "← Übersicht",
     "overviewDesc": "Live-Status aller Subs, die du kontrollierst – mit schnellen Aktionen für Kontrollen und Sperren.",
     "userManagementDesc": "Benutzer anlegen, ihre Rolle und Keyholder festlegen oder löschen.",

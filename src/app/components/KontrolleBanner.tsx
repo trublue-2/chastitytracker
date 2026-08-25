@@ -72,21 +72,28 @@ export default function KontrolleBanner({
 
   if (variant === "compact") {
     return (
-      <div className={`px-3 py-2 text-xs font-medium flex flex-col gap-1 ${colorCls}`}>
-        <div className="flex items-center gap-1.5">
+      // Ein fliessender Satz statt sechs Teile in einer starren Zeile.
+      //
+      // Vorher lagen Icon, Gerät, Frist, Code und Rückzug nebeneinander in EINEM `items-center`-
+      // Flex. Auf 390 px riss das mitten im Gerätenamen um („Modell Stahl ·" allein auf einer
+      // Zeile, daneben das Datum) — es sah aus wie zwei Angaben, wo eine steht. Jetzt trägt der
+      // Satz die Aussage und darf umbrechen, wo Text eben umbricht; nur der Rückzug bleibt aussen.
+      <div className={`px-3 py-2 text-neben ${colorCls}`}>
+        <div className="flex items-start gap-1.5">
           {overdue
-            ? <AlertCircle size={13} className="flex-shrink-0 text-warn" />
-            : <AlertTriangle size={13} className="flex-shrink-0 text-inspect" />
+            ? <AlertCircle size={13} className="mt-0.5 flex-shrink-0 text-warn" />
+            : <AlertTriangle size={13} className="mt-0.5 flex-shrink-0 text-inspect" />
           }
-          {/* Trennzeichen IM Span: zwischen zwei JSX-Ausdrücken auf eigenen Zeilen verwirft JSX
-              den Whitespace, „Plug" und „bis" liefen sonst zusammen. */}
-          {target && <span className="font-semibold">{target} · </span>}
-          {overdue ? t("overdue") : t("until")}
-          {" "}{deadlineStr}
-          {code && <span className="font-mono text-xs opacity-60 ml-auto">#{code}</span>}
+          <span className="flex-1 min-w-0">
+            <span className="font-semibold">{overdue ? t("overdue") : t("until")} {deadlineStr}</span>
+            {/* Trennzeichen IM Span: zwischen zwei JSX-Ausdrücken auf eigenen Zeilen verwirft JSX
+                den Whitespace, die Teile liefen sonst zusammen. */}
+            {target && <span className="opacity-80">{" · "}{target}</span>}
+            {code && <span className="font-mono opacity-60">{" · "}#{code}</span>}
+          </span>
           {withdrawAction && <div className="relative z-20 flex-shrink-0">{withdrawAction}</div>}
         </div>
-        {kommentar && <p className="opacity-80">{t("instruction")}: {kommentar}</p>}
+        {kommentar && <p className="opacity-80 mt-1">{t("instruction")}: {kommentar}</p>}
       </div>
     );
   }

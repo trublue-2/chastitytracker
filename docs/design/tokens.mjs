@@ -134,11 +134,11 @@ export function themeTokens(themeName) {
   //
   // `feld` ist in beiden Richtungen die entfernteste Fläche — hell die dunkelste, dunkel die
   // hellste. Wer dort trägt, trägt überall.
-  const stufe = (ton, ziel) => {
+  const stufe = (ton, ziel, auf = th.feld) => {
     let c = ton
     for (let t = 0; t <= 0.6; t += 0.01) {
       c = mix(ton, th.text[0], t)
-      if (kontrast(c, th.feld) >= ziel) break
+      if (kontrast(c, auf) >= ziel) break
     }
     return c
   }
@@ -190,7 +190,17 @@ export function themeTokens(themeName) {
   setze('nav-bg', rollig(0.09))
   setze('nav-border', rollig(0.20))
   setze('nav-active-bg', rollig(0.16)); setze('nav-active-text', th.text[0])
-  setze('nav-inactive-text', th.text[2]); setze('nav-inactive-hover', th.text[0])
+  // Gegen die NAVIGATIONSFLÄCHE kalibriert, nicht gegen den Grund. Seit die Navigation die Rolle
+  // trägt, ist sie getönt — und die leise Stufe, die auf dem Grund 5,0:1 schafft, fiel dort auf
+  // 4,41:1 durch. Sieben Beschriftungen auf einmal, in genau einer der vier Fassungen. Das ist
+  // dieselbe Falle wie bei den erhöhten Flächen: eine Stufe gilt nur für den Untergrund, gegen den
+  // sie gemessen wurde.
+  // Gegen die AKTIVE Navigationsfläche kalibriert — die ist die dunkelste der drei, die dort
+  // vorkommen (Leiste, aktiver Eintrag, Symbol-Kachel). Gegen die Leiste allein gemessen kam
+  // 4,55:1 heraus und die Beschriftung fiel trotzdem mit 4,41:1 durch, weil sie stellenweise auf
+  // der aktiven Fläche sitzt. Wer auf der ungünstigsten trägt, trägt auf allen.
+  setze('nav-inactive-text', stufe(th.text[2], 4.5, rollig(0.16)))
+  setze('nav-inactive-hover', th.text[0])
   setze('nav-icon-bg', th.feld); setze('nav-icon-active-bg', akzent)
   setze('focus-ring', rollenton)
 
