@@ -36,14 +36,32 @@ const FAMILIE = {
 // ── Die vier Fassungen ───────────────────────────────────────────────────────
 // Die Rolle sitzt im GRUND, nicht im Akzent: man erkennt den Bereich an der Temperatur des Raums,
 // den Sachverhalt an der Farbe des Signals.
+// ── Die Rolle ────────────────────────────────────────────────────────────────
+// Der Bereich, in dem man steht, muss OHNE Vergleich erkennbar sein — man sieht die beiden nie
+// nebeneinander. Ein warmer gegen einen kühlen Grund misst ΔE 2,9; das erkennt man nur, wenn
+// beide gleichzeitig auf dem Schirm liegen (so lag es auf dem Entwurfsblatt). Im Betrieb ist es
+// kein Signal.
+//
+// Der Entwurf verwarf den Akzent mit der Begründung, „verschlossen" hiesse dann beim Träger rosa
+// und beim Keyholder indigo. Das traf nicht zu: die Bedeutungsfarben waren in beiden Rollen schon
+// immer identisch (`--color-lock` war in beiden `#0d9151`). Die Rolle sass nur in der UMGEBUNG —
+// Kopfzeile, Navigation, Hauptknopf. Das ist der Unterschied, um den es geht, und er bleibt.
+//
+// Also beides: die Temperatur des Grunds UND ein Umgebungs-Akzent je Rolle.
+const ROLLE = {
+  traeger:   { dunkel: '#ff3d68', hell: '#c3002b' },   // dieselbe Rose wie der Zustand
+  keyholder: { dunkel: '#8f88ff', hell: '#4e45e8' },   // Indigo — im Entwurf der Schein des
+                                                        // Keyholder-Bildschirms
+}
+
 const THEMES = {
-  'user':        { hell: true,  grund: '#fcf7f8', erhoeht: '#f6eef1', feld: '#f0e5e9',
+  'user':        { hell: true,  rolle: 'traeger',   grund: '#fcf7f8', erhoeht: '#f6eef1', feld: '#f0e5e9',
                    text: ['#2d1d26', '#634d55', '#7d656d'], tinte: '45,29,38' },
-  'user-dark':   { hell: false, grund: '#0b0609', erhoeht: '#140d10', feld: '#241a1e',
+  'user-dark':   { hell: false, rolle: 'traeger',   grund: '#0b0609', erhoeht: '#140d10', feld: '#241a1e',
                    text: ['#fdf7f8', '#c9b7bd', '#9a868e'], tinte: '255,255,255' },
-  'admin-light': { hell: true,  grund: '#f7f8fc', erhoeht: '#eef1f8', feld: '#e5eaf3',
+  'admin-light': { hell: true,  rolle: 'keyholder', grund: '#f7f8fc', erhoeht: '#eef1f8', feld: '#e5eaf3',
                    text: ['#1d2130', '#4d5363', '#646b7b'], tinte: '29,33,48' },
-  'admin':       { hell: false, grund: '#070810', erhoeht: '#0f1119', feld: '#181b26',
+  'admin':       { hell: false, rolle: 'keyholder', grund: '#070810', erhoeht: '#0f1119', feld: '#181b26',
                    text: ['#f4f5fb', '#bcbed3', '#8c8ea6'], tinte: '255,255,255' },
 }
 
@@ -87,6 +105,7 @@ function familieTokens(name, bedeutung, th) {
 export function themeTokens(themeName) {
   const th = THEMES[themeName]
   const art = th.hell ? 'hell' : 'dunkel'
+  const rollenton = ROLLE[th.rolle][art]
   const out = []
   const setze = (k, v) => out.push([`--${k}`, v])
   setze('background', th.grund); setze('background-subtle', mix(th.grund, th.erhoeht, 0.5))
@@ -133,23 +152,36 @@ export function themeTokens(themeName) {
   }
   rampeZiele.forEach((ziel, i) => setze(`wear-${i}-text`, aufZelle(beiKontrast(th.grund, spitze, ziel))))
 
-  // ── Kopfzeile und Navigation ───────────────────────────────────────────────
-  // Hier wird die Kernregel des Entwurfs wirksam: die ROLLE sitzt im Grund, nicht im Akzent.
-  // Vorher war der Träger-Bereich durchgehend grün und der Keyholder-Bereich indigo — dieselbe
-  // Tatsache trug damit in zwei Bereichen zwei Farben. Jetzt sind Kopf und Navigation neutrale
-  // Flächen; man erkennt den Bereich an der Temperatur des Raums.
+  // ── Kopfzeile und Navigation: hier sitzt die ROLLE ─────────────────────────
+  //
+  // Der Entwurf wollte die Rolle allein in der Temperatur des Grunds haben und den Akzent
+  // freihalten. Begründung dort: sonst hiesse „verschlossen" beim Träger rosa und beim Keyholder
+  // indigo — dieselbe Tatsache in zwei Farben.
+  //
+  // Der Einwand traf nicht zu. Die Bedeutungsfarben waren in beiden Rollen schon immer identisch
+  // (`--color-lock` war in beiden `#0d9151`); die Rolle sass nur in der UMGEBUNG. Und der Grund
+  // allein trägt sie nicht: warm gegen kühl misst ΔE 2,9, und das erkennt man nur, wenn beide
+  // Bereiche gleichzeitig auf dem Schirm liegen. Genau so lagen sie auf dem Entwurfsblatt — im
+  // Betrieb sieht man immer nur einen.
+  //
+  // Also beides: die Temperatur des Grunds UND ein Umgebungs-Akzent. Die Anteile sind gemessen,
+  // nicht gegriffen — bei diesen Werten liegt der Unterschied bei ΔE ≈ 10, der Schwelle für „ohne
+  // Vergleich erkennbar", und die Fläche bleibt mit 1,17 zum Grund eine Tönung statt eines Balkens.
   const akzent = BEDEUTUNG.rosa[art]
-  setze('header-bg', th.erhoeht); setze('header-border', mix(th.grund, th.text[2], 0.22))
+  const rollig = (anteil) => mix(th.grund, rollenton, anteil * (th.hell ? 1 : 0.68))
+  setze('header-bg', rollig(0.09))
+  setze('header-border', rollig(0.20))
   setze('header-text', th.text[0])
-  setze('header-avatar-bg', beiKontrast(th.grund, BEDEUTUNG.rosa.flaeche, PROFIL.border[art]))
-  // Die Schrift steht auf der getönten Kachel, nicht auf dem Grund — der Akzent selbst hätte dort
-  // nur 2,3:1. Die hohe Textstufe trägt in beiden Fassungen.
+  setze('header-avatar-bg', rollig(0.26))
+  // Die Schrift steht auf der getönten Kachel, nicht auf dem Grund — der Rollenton selbst hätte
+  // dort zu wenig. Die hohe Textstufe trägt in beiden Fassungen.
   setze('header-avatar-text', th.text[0])
-  setze('nav-bg', th.erhoeht); setze('nav-border', mix(th.grund, th.text[2], 0.22))
-  setze('nav-active-bg', th.feld); setze('nav-active-text', th.text[0])
+  setze('nav-bg', rollig(0.09))
+  setze('nav-border', rollig(0.20))
+  setze('nav-active-bg', rollig(0.16)); setze('nav-active-text', th.text[0])
   setze('nav-inactive-text', th.text[2]); setze('nav-inactive-hover', th.text[0])
   setze('nav-icon-bg', th.feld); setze('nav-icon-active-bg', akzent)
-  setze('focus-ring', akzent)
+  setze('focus-ring', rollenton)
 
   // ── Knöpfe ────────────────────────────────────────────────────────────────
   // "Genau ein gefüllter Knopf je Bildschirm" — der gefüllte trägt Rosa. Auf HELL nimmt er die
@@ -183,7 +215,10 @@ export function themeTokens(themeName) {
   setze('color-lock-on-muted', th.text[1])
   // Die Tönung hinter der grossen Zahl. Sie ersetzt das Leuchten, das ein heller Grund nicht
   // kann — und sie ist der einzige Ort je Bildschirm, an dem etwas strahlen darf.
-  setze('hero-glow', th.hell ? 'rgba(255,61,104,0.13)' : 'rgba(255,61,104,0.16)')
+  {
+    const [r, g, b] = px(rollenton)
+    setze('hero-glow', `rgba(${r},${g},${b},${th.hell ? 0.13 : 0.20})`)
+  }
   // Der Vollbild-Bildbetrachter bleibt schwarz — ein Foto beurteilt man nicht auf Farbe. Als
   // Token, damit die Stelle auffindbar ist und nicht als `#000` im Style-Objekt versteckt liegt.
   setze('lightbox-bg', '#000000')

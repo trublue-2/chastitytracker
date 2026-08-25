@@ -207,6 +207,40 @@ Drei Dinge, die beim Bauen dazukamen:
 Geprüft nicht nur im Test, sondern **an der laufenden App in allen vier Lagen** — durch Verstellen
 des Tagesziels, bis jede Lage einmal auf dem Schirm stand.
 
+## Zurückgenommen: die Rolle gehört in die Umgebung
+
+Der Entwurf verlangt, die Rolle allein über die Temperatur des Grunds zu zeigen und den Akzent
+freizuhalten. Seine Begründung: sonst hiesse „verschlossen" beim Träger rosa und beim Keyholder
+indigo — dieselbe Tatsache in zwei Farben.
+
+**Der Einwand traf nicht zu.** Die Bedeutungsfarben waren in beiden Rollen schon immer identisch —
+`--color-lock` war in `user` wie in `admin-light` derselbe Wert `#0d9151`, ebenso `warn`, `ok`,
+`inspect`. Die Rolle sass nie in der Semantik, sondern immer nur in der UMGEBUNG: Kopfzeile,
+Navigation, Hauptknopf. Der Entwurf argumentierte gegen ein Problem, das die App nicht hatte — und
+ich bin dem gefolgt und habe ein funktionierendes Signal entfernt.
+
+**Wie schlecht, ist messbar.** ΔE2000 sagt, ob ein Mensch einen Unterschied sieht (unter 2: nie;
+2–10: nur im direkten Vergleich; über 10: auf den ersten Blick):
+
+| | ΔE |
+|---|---|
+| vorher, Kopfzeile grün ↔ indigo | **12,3** |
+| vorher, Hauptknopf | **49,8** |
+| nur Grund-Temperatur (mein erster Versuch) | **2,9** |
+| jetzt, Kopfzeile und Navigation | **10,4** hell · **10,6** dunkel |
+
+Entscheidend ist dabei nicht die Zahl, sondern eine Beobachtung: **man sieht die beiden Bereiche
+nie nebeneinander.** Ein Unterschied von 2,9 ist nur im Vergleich erkennbar — und genau so lagen
+die Bildschirme auf dem Entwurfsblatt, nebeneinander. Im Betrieb gibt es diese Bedingung nie.
+
+Jetzt gilt beides: die Temperatur des Grunds als leise Schicht, **und** ein Umgebungs-Ton je Rolle
+in Kopfzeile und Navigation — dort, weil das die einzigen Flächen sind, die auf jedem Bildschirm
+des Bereichs stehen. Der Keyholder-Ton ist Indigo, wie im Entwurf der Schein seines Bildschirms.
+Die drei Bedeutungsfarben bleiben in beiden Rollen gleich; das war nie das Problem.
+
+Die Anteile sind gemessen und nicht gegriffen: bei 9 % Tönung liegt der Unterschied bei ΔE ≈ 10,
+und die Fläche bleibt mit 1,17 zum Grund eine Tönung statt eines Farbbalkens.
+
 ## Was noch nicht steht
 
 - **Die Typo-Skala ist definiert, aber nicht migriert.** Die sechs Stufen existieren; die 468
