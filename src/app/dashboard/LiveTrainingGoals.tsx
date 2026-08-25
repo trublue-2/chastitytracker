@@ -22,15 +22,16 @@ export default function LiveTrainingGoals({ serverNow, tagH: baseTagH, wocheH: b
   const jahrH = useLiveHours(baseJahrH, serverNow, true);
 
   return (
-    <div className="mt-4 pt-3 border-t border-border-subtle flex flex-col gap-2">
-      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lock-on-muted)] mb-1">
+    // Ein benannter Abschnitt auf dem Grund, keine Zeile im Kartenkopf. `tone` entfällt: seit der
+    // Held keine Akzentfläche mehr ist, steht hier nichts mehr "auf" etwas.
+    <section className="pt-5 flex flex-col gap-2">
+      <p className="text-rubrik font-semibold uppercase tracking-[0.16em] text-foreground-faint mb-1">
         {t("kgGoals")}
       </p>
       <GoalProgressRows
-        tone="onAccent"
         actual={{ day: tagH, week: wocheH, month: monatH, year: jahrH }}
         targetH={activeVorgabe.targetH}
       />
-    </div>
+    </section>
   );
 }

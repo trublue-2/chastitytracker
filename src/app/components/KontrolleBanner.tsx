@@ -63,12 +63,16 @@ export default function KontrolleBanner({
   const deadlineStr = formatDateTimeDual(deadline, dl, viewerTz, tz, t("subTimePrefix"));
 
   const colorCls = overdue
-    ? "bg-warn-bg border-warn-border border-l-[3px] border-l-warn text-warn-text"
-    : "bg-inspect-bg border-inspect-border border-l-[3px] border-l-inspect text-inspect-text";
+    // Kein Rahmen, kein Streifen, kein Radius mehr: eine Tönung und eine Haarlinie oben. Der
+    // dicke Balken links war der Versuch, Dringlichkeit über Gewicht zu erzeugen — das leistet
+    // hier die Farbe, und ein Kasten mit drei Rändern konkurriert mit der grossen Zahl darunter,
+    // statt sie zu ergänzen.
+    ? "bg-warn-bg border-t border-[var(--color-warn-border)] text-warn-text"
+    : "bg-inspect-bg border-t border-[var(--color-inspect-border)] text-inspect-text";
 
   if (variant === "compact") {
     return (
-      <div className={`rounded-xl px-3 py-2 text-xs font-medium flex flex-col gap-1 border ${colorCls}`}>
+      <div className={`px-3 py-2 text-xs font-medium flex flex-col gap-1 ${colorCls}`}>
         <div className="flex items-center gap-1.5">
           {overdue
             ? <AlertCircle size={13} className="flex-shrink-0 text-warn" />
@@ -118,7 +122,7 @@ export default function KontrolleBanner({
     </>
   );
 
-  const cls = `rounded-2xl px-5 py-4 flex items-center gap-3 border ${colorCls}`;
+  const cls = `-mx-[var(--block-gutter,1rem)] px-5 py-4 flex items-center gap-3 ${colorCls}`;
   const card = href
     ? <Link href={href} className={cls}>{inner}</Link>
     : <div className={cls}>{inner}</div>;

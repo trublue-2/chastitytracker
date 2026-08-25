@@ -76,7 +76,6 @@ export default async function LaufendeSessionCard({
   const scheduledForStr = sperrzeitScheduledFor ? formatDateTime(sperrzeitScheduledFor, dl, tz) : null;
   const runningSinceStr = sperrzeitRunningSince ? formatDateTime(sperrzeitRunningSince, dl, tz) : null;
   /** Die Nebenangaben der Sperr-Zeile — Restzeit und erreichter Beginn stehen gleichrangig. */
-  const sperrzeitDetailCls = "text-xs font-medium text-sperrzeit-text opacity-80";
   const showSperrzeit = sperrzeitStr !== null || sperrzeitUnbefristet || scheduledForStr !== null || runningSinceStr !== null;
 
   // Nicht „hat die Vorgabe Ziele?", sondern „bleibt eine bewertbare Zeile übrig?" — sonst stünde
@@ -84,62 +83,76 @@ export default async function LaufendeSessionCard({
   const hasVorgabe = activeVorgabe != null && hasVisibleGoalRow(activeVorgabe.targetH);
 
   return (
-    <div className="bg-surface rounded-2xl overflow-hidden shadow-card border border-border">
-      {/* ── Green status header ── */}
-      <div className="px-5 py-4" style={{ background: "linear-gradient(to bottom right, var(--color-lock-grad-a), var(--color-lock-grad-b))", color: "var(--color-lock-on)" }}>
-        <div className="flex items-start gap-3">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10 mt-0.5">
-            <Lock size={24} strokeWidth={2} />
-          </div>
-          <div className="flex-1 min-w-0">
-            {/* Mobile: stacked */}
-            <div className="sm:hidden">
-              <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("sessionTitle")}</p>
-              <p className="text-2xl font-bold leading-tight">{t("locked")}</p>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-xs font-semibold uppercase tracking-widest opacity-60">{tCommon("duration")}:</span>
-                <span className="text-xl font-bold tabular-nums">
-                  <SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />
-                </span>
-              </div>
-            </div>
-            {/* Desktop: side by side */}
-            <div className="hidden sm:flex items-start justify-between gap-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{t("sessionTitle")}</p>
-                <p className="text-2xl font-bold">{t("locked")}</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">{tCommon("duration")}</p>
-                <p className="text-3xl font-bold tabular-nums leading-tight">
-                  <SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />
-                </p>
-              </div>
-            </div>
-            <p className="text-xs opacity-60 mt-1">
-              {t("sessionSince")} {sessionStartStr}
-            </p>
-            {/* Schlüssel-Deklaration des laufenden Verschlusses. „Nicht in der Box" ist die
-                Ausnahme und muss auffallen: sie heisst, dass der Verschluss gerade NICHT
-                hardware-gesichert ist. Volle Deckkraft statt der opacity-60 der Zeile darüber —
-                das ist keine Fussnote. `null` (keine Box, Alt-Eintrag) = keine Zeile. */}
-            {keyInBox != null && (
-              keyInBox ? (
-                <p className="text-xs font-semibold opacity-80 mt-1 inline-flex items-center gap-1">
-                  <KeyRound size={12} className="shrink-0" />{t("keyInBoxYes")}
-                </p>
-              ) : (
-                // Als Pille auf hellem Grund: rote Schrift auf dem grünen Verlauf wäre kaum
-                // lesbar — die Aussage muss aber genau hier auffallen.
-                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-warn-bg px-2 py-0.5 text-xs font-bold text-warn-text">
-                  <KeyRound size={12} className="shrink-0" />{t("keyInBoxNo")}
-                </span>
-              )
-            )}
-          </div>
-        </div>
+    <section className="relative">
+      {/* Eine Tönung statt eines Kastens. Ein heller Grund kann nicht leuchten, ein dunkler soll es
+          nur an einer Stelle — beides erledigt dieselbe radiale Einfärbung, die zum Grund hin
+          ausläuft. Sie liegt HINTER dem Inhalt und fängt keine Klicks. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 -top-24 h-[26rem]"
+        style={{ background: "radial-gradient(60% 55% at 50% 0%, var(--hero-glow), transparent 70%)" }}
+      />
 
-        {/* Trainingsvorgaben – live-updating client component */}
+      <div className="relative px-5 pt-8 pb-7 text-center">
+        {/* Der Zustand: EIN Wort. Vorher stand hier dreimal dasselbe — „Laufende Tragezeit",
+            „Verschlossen" und „Dauer:" beantworten alle die Frage, die die Zahl darunter längst
+            beantwortet. Übrig bleibt das Wort, das der Träger sucht, in der Zustandsfarbe. */}
+        <p className="inline-flex items-center gap-2 text-rubrik font-semibold uppercase tracking-[0.16em] text-lock">
+          {t("locked")}
+          <Lock size={13} strokeWidth={2.4} className="shrink-0" />
+        </p>
+
+        {/* Die Zahl IST der Bildschirm. Sie stand vorher in 20 px hinter einer Beschriftung. */}
+        <p className="mt-3 text-zahl font-semibold tabular-nums tracking-[-0.045em] text-foreground">
+          <SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />
+        </p>
+
+        {/* Herkunft und Schlüssel: eine leise Zeile, kein eigener Block. Beides beantwortet
+            „woher kommt diese Zahl", und das ist eine Fussnote, keine zweite Aussage. */}
+        <p className="mt-3 text-neben text-foreground-muted">
+          {t("sessionSince")} {sessionStartStr}
+        </p>
+        {keyInBox != null && (
+          keyInBox ? (
+            <p className="mt-1.5 inline-flex items-center gap-1.5 text-neben text-foreground-faint">
+              <KeyRound size={12} className="shrink-0" />{t("keyInBoxYes")}
+            </p>
+          ) : (
+            // „Nicht in der Box" ist die Ausnahme und heisst: dieser Verschluss ist gerade NICHT
+            // hardware-gesichert. Das ist keine Fussnote — es bekommt die Aufmerksamkeitsfarbe.
+            <p className="mt-1.5 inline-flex items-center gap-1.5 text-neben font-semibold text-warn">
+              <KeyRound size={12} className="shrink-0" />{t("keyInBoxNo")}
+            </p>
+          )
+        )}
+
+        {/* Die Sperrzeit gehört zum Zustand, nicht in einen Fuss am anderen Ende der Karte: sie
+            sagt, wie lange dieser Zustand noch gilt. */}
+        {showSperrzeit && (
+          <p className="mt-3 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-neben text-foreground-muted">
+            <Lock size={12} className="shrink-0 text-lock" />
+            <span className="font-semibold text-foreground">
+              {scheduledForStr
+                ? <>{ta("scheduledForLabel")}: {scheduledForStr}</>
+                : sperrzeitStr ? <>{t("sessionLockedUntil")} {sperrzeitStr}</> : t("sessionLockedIndefinite")}
+            </span>
+            {!scheduledForStr && !sperrzeitStr && runningSinceStr && (
+              <span>{ta("lockRunningSince", { time: runningSinceStr })}</span>
+            )}
+            {!scheduledForStr && sperrzeitEndetAt && (
+              <SperrzeitRemaining endetAt={sperrzeitEndetAt.toISOString()} />
+            )}
+            {sperrzeitNachricht && <span className="truncate">· {sperrzeitNachricht}</span>}
+            {cleaningNote && <span className="shrink-0">· {cleaningNote}</span>}
+          </p>
+        )}
+      </div>
+
+      <div className="px-5">
+        {/* Trainingsvorgaben als eigener, benannter Abschnitt — vorher hingen sie namenlos unter
+            dem Kartenkopf und sahen aus wie ein Teil des Zustands. Sie sind aber die Antwort auf
+            eine andere Frage: nicht „wie ist es gerade", sondern „wie stehe ich zu dem, was
+            verlangt ist". */}
         {hasVorgabe && (
           <LiveTrainingGoals
             serverNow={now.toISOString()}
@@ -220,34 +233,6 @@ export default async function LaufendeSessionCard({
         storageScope="active"
       />
 
-      {/* ── Sperrzeit footer ── */}
-      {showSperrzeit && (
-        <div className="bg-sperrzeit-bg border-t border-sperrzeit-border px-5 py-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-b-2xl">
-          <Lock size={13} className="text-sperrzeit shrink-0" />
-          <span className="text-sm font-semibold text-sperrzeit-text">
-            {scheduledForStr
-              ? <>{ta("scheduledForLabel")}: {scheduledForStr}</>
-              : sperrzeitStr ? <>{t("sessionLockedUntil")} {sperrzeitStr}</> : t("sessionLockedIndefinite")}
-          </span>
-          {/* Eine unbefristete Sperre nennt sonst keinen einzigen Zeitpunkt. Nur dort, denn eine
-              befristete trägt ihre Frist schon in der Zeile darüber. */}
-          {!scheduledForStr && !sperrzeitStr && runningSinceStr && (
-            <span className={sperrzeitDetailCls}>{ta("lockRunningSince", { time: runningSinceStr })}</span>
-          )}
-          {!scheduledForStr && sperrzeitEndetAt && (
-            <SperrzeitRemaining
-              endetAt={sperrzeitEndetAt.toISOString()}
-              className={sperrzeitDetailCls}
-            />
-          )}
-          {sperrzeitNachricht && (
-            <span className="text-xs text-sperrzeit truncate">· {sperrzeitNachricht}</span>
-          )}
-          {cleaningNote && (
-            <span className="text-xs text-sperrzeit shrink-0">· {cleaningNote}</span>
-          )}
-        </div>
-      )}
-    </div>
+    </section>
   );
 }

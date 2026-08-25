@@ -44,7 +44,12 @@ describe("Dashboard-Block-Register", () => {
   it("jede der vier Oberflächen ist belegt", () => {
     // Hält die Zahlen fest: ein Block, der beim Umbau verlorenginge, fiele hier auf und nicht
     // erst dem Nutzer.
-    expect(blocksOf("subDashboard").length).toBe(16);
+    //
+    // 16 → 15 mit dem Redesign: die Begrüssungszeile ist entfallen. Sie schrieb „Benutzer: <Name>"
+    // als Überschrift über einen Bildschirm, auf dem der Name ohnehin in der Kopfzeile steht —
+    // eine Zeile, die niemand liest und die den Platz der einen grossen Aussage besetzte. Eine
+    // gespeicherte Reihenfolge verträgt das: `mergeOrder` lässt verschwundene Ids weg (Fall 1).
+    expect(blocksOf("subDashboard").length).toBe(15);
     expect(blocksOf("subStats").length).toBe(13);
     expect(blocksOf("keyholderStats").length).toBe(13);
     expect(blocksOf("keyholderSub").length).toBe(14);

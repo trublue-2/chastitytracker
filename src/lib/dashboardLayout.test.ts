@@ -69,9 +69,11 @@ describe("resolveLayout", () => {
   });
 
   it("ein alwaysOn-Block lässt sich nicht wegschalten", () => {
-    // Ohne die Begrüssungszeile gäbe es keinen Weg zurück in den Bearbeiten-Modus.
-    const r = resolveLayout({ subDashboard: { hidden: ["greeting"] } }, "subDashboard");
-    expect(r.visible.map((b) => b.id)).toContain("greeting");
+    // Die Statistik-Überschrift: eine Auswertung ohne Titel begänne ohne Anfang. (Der frühere
+    // Fall war die Begrüssungszeile des Dashboards — die ist entfallen, weil sie den
+    // Benutzernamen wiederholte, der in der Kopfzeile ohnehin steht.)
+    const r = resolveLayout({ subStats: { hidden: ["heading"] } }, "subStats");
+    expect(r.visible.map((b) => b.id)).toContain("heading");
     expect(r.hiddenCount).toBe(0);
   });
 });
@@ -113,7 +115,7 @@ describe("checkLayoutPatch — die Schreibseite", () => {
   });
 
   it("filtert alwaysOn still heraus, statt den ganzen Vorgang abzulehnen", () => {
-    const res = checkLayoutPatch({ subDashboard: { hidden: ["greeting", "boxStatus"] } }, "sub");
-    expect(res).toEqual({ layout: { subDashboard: { hidden: ["boxStatus"], order: [] } } });
+    const res = checkLayoutPatch({ subStats: { hidden: ["heading", "calendar"] } }, "sub");
+    expect(res).toEqual({ layout: { subStats: { hidden: ["calendar"], order: [] } } });
   });
 });

@@ -181,6 +181,9 @@ export function themeTokens(themeName) {
   setze('color-lock-grad-b', beiKontrast(th.grund, BEDEUTUNG.rosa.flaeche, th.hell ? 1.22 : 1.45))
   setze('color-lock-on', th.text[0])
   setze('color-lock-on-muted', th.text[1])
+  // Die Tönung hinter der grossen Zahl. Sie ersetzt das Leuchten, das ein heller Grund nicht
+  // kann — und sie ist der einzige Ort je Bildschirm, an dem etwas strahlen darf.
+  setze('hero-glow', th.hell ? 'rgba(255,61,104,0.13)' : 'rgba(255,61,104,0.16)')
   // Der Vollbild-Bildbetrachter bleibt schwarz — ein Foto beurteilt man nicht auf Farbe. Als
   // Token, damit die Stelle auffindbar ist und nicht als `#000` im Style-Objekt versteckt liegt.
   setze('lightbox-bg', '#000000')

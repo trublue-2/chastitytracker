@@ -47,7 +47,6 @@ export interface DashboardBlockDef {
  * zugleich das Prüfkriterium dieser Etappe: der Bildschirm sieht danach exakt gleich aus.
  */
 export const SUB_DASHBOARD_BLOCKS = [
-  { id: "greeting", surface: "subDashboard", role: "sub", labelKey: "blockGreeting", alwaysOn: true },
   { id: "alerts", surface: "subDashboard", role: "sub", labelKey: "blockAlerts" },
   { id: "boxStatus", surface: "subDashboard", role: "sub", labelKey: "blockBoxStatus" },
   { id: "openTasks", surface: "subDashboard", role: "sub", labelKey: "blockOpenTasks" },

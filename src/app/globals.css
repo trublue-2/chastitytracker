@@ -116,6 +116,7 @@
   --color-lock-grad-b:      #fcdae1;
   --color-lock-on:          #2d1d26;
   --color-lock-on-muted:    #634d55;
+  --hero-glow:              rgba(255,61,104,0.13);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.06);
@@ -219,6 +220,7 @@
   --color-lock-grad-b:      #52182b;
   --color-lock-on:          #f4f5fb;
   --color-lock-on-muted:    #bcbed3;
+  --hero-glow:              rgba(255,61,104,0.16);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.5);
@@ -323,6 +325,7 @@
   --color-lock-grad-b:      #541625;
   --color-lock-on:          #fdf7f8;
   --color-lock-on-muted:    #c9b7bd;
+  --hero-glow:              rgba(255,61,104,0.16);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.5);
@@ -427,6 +430,7 @@
   --color-lock-grad-b:      #f8dbe5;
   --color-lock-on:          #1d2130;
   --color-lock-on-muted:    #4d5363;
+  --hero-glow:              rgba(255,61,104,0.13);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.06);
@@ -665,7 +669,11 @@
      ihrer Grösse: `text-rubrik` lässt sich neu vermessen, `text-xs` nicht.
 
      Die Zeilenhöhen stehen mit dabei, weil eine Stufe ohne sie nur eine halbe Entscheidung ist. */
-  --text-zahl:      3.75rem;   /* 60px — die eine grosse Zahl je Bildschirm */
+  /* Die grosse Zahl wächst mit der Breite. Fest auf 60 px bricht „3T 10h 22min 04s" auf einem
+     375-px-Schirm zweizeilig um — und eine Zahl, die umbricht, ist keine grosse Zahl mehr,
+     sondern ein Absatz. Der Entwurf zeigte „5:40:16"; unser Format ist seit Etappe A wortteilig
+     und damit deutlich breiter. Untergrenze so gewählt, dass der längste Fall einzeilig bleibt. */
+  --text-zahl:      clamp(2.25rem, 11vw, 3.75rem);
   --text-zahl--line-height: 0.94;
   --text-titel:     2rem;      /* 32px — Serif, benennt den Bildschirm */
   --text-titel--line-height: 1.15;
@@ -836,6 +844,8 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+
 
 
 

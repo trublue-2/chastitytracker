@@ -113,12 +113,6 @@ const taskCardsOf = (ctx: SubDashboardCtx) =>
   taskCardsCached(ctx.userId, ctx.nowMs, ctx.tTasks("requirementKgLocked"), "sub");
 
 export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<SubDashboardCtx>> = {
-  greeting: async ({ t, username }) => (
-    <DashboardBlock>
-      <h1 className="text-xl font-bold text-foreground">{t("userTitle", { name: username })}</h1>
-    </DashboardBlock>
-  ),
-
   // Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte.
   alerts: block({
     load: async ({ userId, nowMs }) => {

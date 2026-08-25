@@ -122,6 +122,46 @@ Ein Hinweis für den nächsten Durchgang: der Browser liefert für Deckkraft-Mod
 `oklab(…)` statt `rgb(…)`. Ein Parser, der die drei Zahlen als RGB liest, meldet Fehler, die es
 nicht gibt — deshalb rechnet der Abzug jede Farbe über ein Hilfs-Canvas um, statt sie zu zerlegen.
 
+## Der Fehler, der dabei gemacht wurde — und was daraus folgt
+
+Der erste Anlauf hat die Tokens umgestellt und **die Struktur nicht angefasst**. Ergebnis: derselbe
+Bildschirm, neu angemalt. Das ist die naheliegende Falle bei einem Redesign, weil Farbe messbar
+ist und Struktur nicht — man optimiert Kontrastwerte und hält das für Fortschritt.
+
+Der Träger-Bildschirm sagte den Zustand **dreimal**, bevor die Zahl kam:
+
+```
+LAUFENDE TRAGEZEIT        ← Rubrik
+Verschlossen              ← 24 px
+DAUER: 3T 10h 12min 46s   ← die Zahl, 20 px, hinter einer Beschriftung
+```
+
+Alle drei beantworten dieselbe Frage. Der Entwurf beantwortet sie einmal: ein kleines Wort in der
+Zustandsfarbe, darunter die Zahl in 60 px auf dem Grund. **Die Arbeit bestand nicht darin,
+etwas umzufärben, sondern zwei von drei Beschriftungen zu löschen und den Kasten wegzunehmen.**
+
+Konkret entfallen:
+
+- die Karte um den Helden (Rahmen, Radius, Schatten, getönter Kopf)
+- „LAUFENDE TRAGEZEIT" und „DAUER:" — die Zahl sagt beides
+- die Überschrift „Benutzer: <Name>" — sie stand über einem Bildschirm, auf dem der Name ohnehin
+  in der Kopfzeile steht, und besetzte den Platz der einen grossen Aussage. Der Block ist aus dem
+  Register entfernt; gespeicherte Reihenfolgen vertragen das (`mergeOrder`, Fall 1)
+- der dicke Randstreifen am Warn-Kasten: eine Tönung über die volle Breite mit einer Haarlinie
+  oben, kein Kasten mit drei Rändern neben der grossen Zahl
+- die getrennten Handy- und Desktop-Fassungen des Kopfs — eine zentrierte Anordnung trägt beide
+
+**Zwei Entscheidungen, die erst der gebaute Bildschirm erzwungen hat:**
+
+*Die Sekunde verschwindet ab einer Stunde.* „3T 10h 22min 40s" braucht 16 Stellen und bricht auf
+einem 375-px-Schirm zweizeilig um — und eine Zahl, die umbricht, ist keine grosse Zahl mehr,
+sondern ein Absatz. Bei drei Tagen trägt die Sekundenstelle ohnehin nichts bei; in der ersten
+Stunde ist das Ticken dagegen genau das, was man sehen will. Die Schwelle liegt bei einer Stunde,
+weil dort die Stellenzahl springt.
+
+*Die Schriftstufe wächst mit.* `clamp(2.25rem, 11vw, 3.75rem)` statt fester 60 px — der Entwurf
+zeigte „5:40:16", unser Format ist seit Etappe A wortteilig und damit deutlich breiter.
+
 ## Was noch nicht steht
 
 - **Die Typo-Skala ist definiert, aber nicht migriert.** Die sechs Stufen existieren; die 468

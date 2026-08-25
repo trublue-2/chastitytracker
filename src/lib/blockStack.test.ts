@@ -36,33 +36,36 @@ describe("renderStack", () => {
 
     expect(log).not.toContain("sessionList:x");
     expect(log).not.toContain("taskList:x");
-    expect(log).toContain("greeting:x");
+    expect(log).toContain("alerts:x");
     expect(log).toHaveLength(SUB_DASHBOARD_BLOCKS.length - 2);
     expect(out.map((b) => b.id)).not.toContain("sessionList");
   });
 
   it("rendert in der wirksamen Reihenfolge, nicht in der des Registers", async () => {
     const log: string[] = [];
-    const layout = resolveLayout({ subDashboard: { order: ["taskList", "greeting"] } }, "subDashboard");
+    const layout = resolveLayout({ subDashboard: { order: ["taskList", "alerts"] } }, "subDashboard");
 
     const out = await renderStack(layout, { marke: "x" }, spyTable(log));
 
     expect(out[0].id).toBe("taskList");
-    expect(out[1].id).toBe("greeting");
+    expect(out[1].id).toBe("alerts");
     expect(out.map((b) => b.node)).toEqual(out.map((b) => b.id));
   });
 
   it("ein Block ohne eigene Abfrage bekommt den Kontext", async () => {
-    const layout = resolveLayout({ subDashboard: { hidden: SUB_DASHBOARD_BLOCKS.map((b) => b.id) } }, "subDashboard");
+    // Alles ausser EINEM ausblenden. Vorher stand hier `alwaysOn`, was den Test unbemerkt an
+    // einen bestimmten Block band — fiel der weg, fiel der Test mit, obwohl er die Maschinerie
+    // prüft und keinen Inhalt.
+    const alleAusserEinem = SUB_DASHBOARD_BLOCKS.map((b) => b.id).filter((id) => id !== "runningSession");
+    const layout = resolveLayout({ subDashboard: { hidden: alleAusserEinem } }, "subDashboard");
     const table: Record<SubDashboardBlockId, StackBlock<Ctx>> = {
       ...spyTable([]),
-      greeting: async (ctx) => `hallo ${ctx.marke}`,
+      runningSession: async (ctx) => `hallo ${ctx.marke}`,
     };
 
     const out = await renderStack(layout, { marke: "welt" }, table);
 
-    // `greeting` ist `alwaysOn` — es bleibt als einziger Block stehen.
-    expect(out).toEqual([{ id: "greeting", node: "hallo welt" }]);
+    expect(out).toEqual([{ id: "runningSession", node: "hallo welt" }]);
   });
 });
 
@@ -74,7 +77,9 @@ describe("resolveLayout.shows", () => {
   });
 
   it("ein `alwaysOn`-Block bleibt sichtbar, auch wenn er ausgeblendet gespeichert wurde", () => {
-    const layout = resolveLayout({ subDashboard: { hidden: ["greeting"] } }, "subDashboard");
-    expect(layout.shows("greeting")).toBe(true);
+    // Die Statistik-Überschrift ist der verbliebene `alwaysOn`-Block: eine Auswertung ohne Titel
+    // liesse den Bildschirm ohne Anfang beginnen.
+    const layout = resolveLayout({ subStats: { hidden: ["heading"] } }, "subStats");
+    expect(layout.shows("heading")).toBe(true);
   });
 });
