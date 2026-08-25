@@ -76,12 +76,30 @@ Drei Workflows, alle `workflow_dispatch` (kein Auto-Deploy bei Push):
 **Daneben: Seitenkanäle (`publishAs`).** Ein Build von einem Nicht-`main`-Zweig taggt normalerweise `:feature` — und trifft damit ALLE, die dort mittesten. Für Arbeit, die über längere Zeit getestet werden soll, ohne den Ring zu belegen, veröffentlicht `-f publishAs=<name>` **statt** `:feature` einen eigenen rollenden Kanal:
 
 ```bash
-# Erstmalig: Kanal bauen UND die eigene Instanz darauf umpinnen
-gh workflow run docker.yml --ref <branch> -f publishAs=design -f channel=design -f instances=trublue
+# Erstmalig: Kanal bauen UND die eigene Instanz darauf umpinnen.
+# `pinnedTo` nennt den ALTEN Pin — ohne ihn schlägt der Lauf fehl, siehe unten.
+gh workflow run docker.yml --ref <branch> -f publishAs=design \
+  -f channel=design -f instances=trublue -f pinnedTo=feature
 
 # Danach: nur bauen, die gepinnte Instanz zieht mit
 gh workflow run docker.yml --ref <branch> -f publishAs=design
 ```
+
+⚠ **Beim ERSTEN Mal gehört `pinnedTo` dazu, und zwar mit dem ALTEN Pin.** Der Pin-Filter läuft
+*vor* dem Umpinnen — er wählt nach dem Tag, auf dem die Instanz gerade steht, und erst danach
+schreibt `channel` den neuen hinein (`deploy.yml`, „Pin-Filter"). Ohne `pinnedTo` leitet der
+Workflow den Filter aus den GEBAUTEN Tags ab, also aus dem Kanal, auf dem noch niemand steht:
+
+```
+→ Pin-Filter :design — 0 von 1 Instanzen betroffen.
+⚠ Keine Instanz passt auf die Auswahl — es wurde NICHTS deployt.
+```
+
+Das Image ist dann trotzdem gebaut und gepusht — nur deployt wurde nichts. Dasselbe Muster
+bewegt die ganze Flotte von einem Ring zum nächsten: `-f channel=portal -f pinnedTo=latest`.
+
+*Vorfall 25.08.2026:* zwei Läufe genau daran verbrannt, weil dieser Abschnitt den Erstbefehl ohne
+`pinnedTo` nannte.
 
 `publishAs` ERSETZT `:feature` für diesen Build — sonst wäre nichts gewonnen. Reservierte Namen (`portal`, `latest`, `feature`, `v*`, `sha-*`) und alles ausserhalb von `[a-z0-9-]` brechen den Lauf ab: ohne diese Schranke veröffentlichte ein beliebiger Zweig direkt nach `:portal` oder `:latest` und höbe damit die einzige Garantie der Ringe auf.
 

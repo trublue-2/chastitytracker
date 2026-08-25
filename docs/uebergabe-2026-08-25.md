@@ -189,8 +189,23 @@ aufheben und wiederverwenden.
 ## Testbild bauen
 
 ```bash
+# Der Normalfall, sobald die Instanz auf :design gepinnt ist:
+gh workflow run docker.yml --ref design/entwurf -f publishAs=design
+
+# Nur bauen, ohne die Instanz anzufassen:
 gh workflow run docker.yml --ref design/entwurf -f publishAs=design -f deploy=false
 ```
+
+**Steht die Instanz noch NICHT auf `:design`, gehört `pinnedTo` mit dem ALTEN Pin dazu** — der
+Pin-Filter wählt vor dem Umpinnen, also nach dem Tag, auf dem die Instanz gerade steht:
+
+```bash
+gh workflow run docker.yml --ref design/entwurf -f publishAs=design \
+  -f channel=design -f instances=trublue -f pinnedTo=feature
+```
+
+(Erledigt am 25.08.2026 — die Instanz steht seither auf `:design` und nicht mehr auf `:feature`,
+zieht also keine `:feature`-Builds mehr.)
 
 `publishAs` ist neu (dieser Zweig): es veröffentlicht einen eigenen rollenden Kanal **statt**
 `:feature`. Grund: auf `:feature` sitzen fremde Mittester, und der Tag wandert unabhängig davon,
