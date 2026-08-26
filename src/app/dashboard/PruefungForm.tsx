@@ -81,7 +81,15 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
       boxConfirm={boxConfirm}
       isEdit={!!initial}
       submitFn={submitFn}
-      onSuccess={() => router.push(target)}
+      // `refresh()` VOR dem Wechsel: Formular und Ziel teilen sich `dashboard/layout.tsx`, und ein
+      // geteiltes Layout wird bei einer Client-Navigation NICHT neu gerendert. Ohne den Anstoss
+      // trüge der (+)-Knopf nach dem Absenden weiter „Offene Anforderung · Code 48219" und führte
+      // auf eine Anforderung, die gerade beantwortet wurde — ein zweiter Versuch darüber hakt
+      // nichts mehr ab. Der Heartbeat holte es binnen 30 s nach; das ist zu spät für den Finger,
+      // der schon unterwegs ist.
+      //
+      // Nur beim Erfolg. Abbrechen ändert nichts, was das Layout wissen müsste.
+      onSuccess={() => { router.refresh(); router.push(target); }}
       onCancel={() => router.push(target)}
       submitVariant="semantic"
     />

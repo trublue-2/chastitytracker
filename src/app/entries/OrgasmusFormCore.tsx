@@ -118,7 +118,13 @@ export default function OrgasmusFormCore({
 
       {subArtOptions.length > 0 && (
         <Select
-          label={t("subType")}
+          // Benannt nach der GEWÄHLTEN Hauptart, nicht noch einmal „Art": zwei Felder mit
+          // derselben Beschriftung untereinander liessen niemanden erkennen, welches welches ist —
+          // wer nur das zweite sah (beim Scrollen, beim Zurückspringen nach einem Fehler), füllte
+          // das falsche. Fehlt die Hauptart, bleibt die neutrale Frage.
+          label={mainOptions.find((m) => m.value === art)
+            ? t("subTypeFor", { type: mainOptions.find((m) => m.value === art)!.label })
+            : t("subType")}
           value={subCode}
           onChange={(e) => setSubCode(e.target.value)}
           placeholder={t("noSubType")}

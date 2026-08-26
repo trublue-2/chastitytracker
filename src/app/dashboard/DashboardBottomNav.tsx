@@ -12,9 +12,11 @@ interface Props {
   categoryRows?: NewEntryCategoryRow[];
   bildersafe?: boolean;
   weight?: boolean;
+  /** Die dringendste offene Kontroll-Anforderung — Begründung in `NewEntrySheet`. */
+  openInspection?: { code: string | null; href: string } | null;
 }
 
-export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, version, categoryRows, bildersafe, weight }: Props) {
+export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, version, categoryRows, bildersafe, weight, openInspection }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
@@ -33,6 +35,7 @@ export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, ver
         categoryRows={categoryRows}
         bildersafe={bildersafe}
         weight={weight}
+        openInspection={openInspection}
       />
     </>
   );

@@ -10,7 +10,7 @@ import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
   deviceCountCached, entriesCached, evaluatedTasksCached, latestKgEntryCached, lockRequestCached,
   orgasmConfigCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
-  subSperrzeitCached, subVisibleInspectionsCached, taskCardsCached, trackingCategoriesCached,
+  subSperrzeitCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
 } from "@/lib/dashboardData";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
@@ -26,7 +26,7 @@ import { resolveGoalTargets, hasVisibleGoalRow } from "@/lib/goalFulfillment";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
 import { resolveReasonLabel } from "@/lib/reasonsService";
 import { categoryNeedsDevice } from "@/lib/categoryConstants";
-import { inspectionHref } from "@/lib/entryFormRoute";
+import { inspectionHref, openInspections } from "@/lib/entryFormRoute";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { belongsOnDashboard, isHeldByTask } from "@/lib/taskIntervals";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
@@ -117,7 +117,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   alerts: block({
     load: async ({ userId, nowMs }) => {
       const [anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg] = await Promise.all([
-        subVisibleInspectionsCached(userId, nowMs), lockRequestCached(userId, nowMs),
+        subVisibleInspectionsNow(userId), lockRequestCached(userId, nowMs),
         subOrgasmRequestCached(userId, nowMs), userRowCached(userId), orgasmConfigCached(userId),
       ]);
       return { anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg };
@@ -125,9 +125,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
     render: ({ anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg }, { now, tz, dl, t, tOrgasm }) => {
       // ALLE offenen — je Ziel kann eine laufen (v5.0.1). Dringendste zuerst, damit das Banner mit
       // der knappsten Frist oben steht.
-      const offeneKontrollen = anforderungen
-        .filter((k) => !k.entryId && !k.withdrawnAt)
-        .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+      const offeneKontrollen = openInspections(anforderungen);
 
       const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
         ? resolveReasonLabel(offeneOrgasmusAnf.vorgegebeneArt, orgasmCfg, "orgasm", tOrgasm)

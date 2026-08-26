@@ -1,4 +1,4 @@
-import { checkLayoutPatch } from "@/lib/dashboardLayout";
+import { checkLayoutPatch, mergeLayout } from "@/lib/dashboardLayout";
 import { userSelfFieldRoute } from "@/lib/userSelfField";
 
 /**
@@ -26,12 +26,15 @@ export const PATCH = userSelfFieldRoute(
     const res = checkLayoutPatch(value, roleOf(session.user.role));
     return "error" in res ? res.error : null;
   },
-  (value, session) => {
+  (value, session, current) => {
     const res = checkLayoutPatch(value, roleOf(session.user.role));
     if ("error" in res) return null; // unerreichbar — `validate` hat schon abgelehnt
+    // Über den BESTAND legen, nicht ihn ersetzen: der Client schickt nur die Oberfläche, die er
+    // gerade bearbeitet, und die Spalte hält alle vier. Begründung in `mergeLayout`.
+    const layout = mergeLayout(current, res.layout);
     // `null` heisst „zurück auf Standard". Ein leeres Objekt wäre gleichbedeutend, aber eine leere
     // Spalte sagt es deutlicher und spart beim Lesen die Auflösung.
-    const leer = Object.values(res.layout).every((s) => !s?.hidden?.length && !s?.order?.length);
-    return leer ? null : JSON.stringify(res.layout);
+    const leer = Object.values(layout).every((s) => !s?.hidden?.length && !s?.order?.length);
+    return leer ? null : JSON.stringify(layout);
   },
 );

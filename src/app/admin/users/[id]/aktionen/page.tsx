@@ -42,12 +42,24 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
       <ActionRowGroup title={t("aktionenAnforderungen")}>
         {/* Kontrollen brauchen ein LAUFENDES Ziel — verschlossen ODER etwas getragen (v5.0.1).
             Ohne beides gäbe es nichts zu zeigen, und `requestKontrolle` würde ablehnen. */}
+        {/* Fehlt die E-Mail, bleibt die Zeile ANKLICKBAR und führt dorthin, wo der Mangel behoben
+            wird. Vorher stand sie ausgegraut mit „Keine E-Mail hinterlegt" da — das ist keine
+            Beschriftung, sondern eine Fehlermeldung ohne Behebung: kein Link, kein Hinweis wohin.
+            Wer nicht erriet, dass die Lösung unter Einstellungen → Konto liegt, sass vor der
+            Funktion, für die er die App benutzt.
+
+            Das fehlende ZIEL (nichts verschlossen, nichts getragen) bleibt dagegen gesperrt: das
+            behebt keine Einstellung, sondern nur der Träger. */}
         <ActionRow
-          href={hasEmail && hasInspectionTarget ? `${base}/kontrolle` : undefined}
+          href={
+            !hasEmail ? `/admin/users/${id}/einstellungen`
+            : hasInspectionTarget ? `${base}/kontrolle`
+            : undefined
+          }
           icon={<Bell size={20} strokeWidth={2} />}
           iconStyle={tone("inspect")}
           title={t("requestInspection")}
-          hint={hasEmail && hasInspectionTarget ? t("requestInspectionHint") : !hasEmail ? t("noEmail") : t("entryOnlyIfLockedOrWorn")}
+          hint={hasEmail && hasInspectionTarget ? t("requestInspectionHint") : !hasEmail ? t("noEmailFix") : t("entryOnlyIfLockedOrWorn")}
         />
 
         {/* Verschluss anfordern — mehrere offene Anforderungen sind erlaubt, kein Gate darauf */}

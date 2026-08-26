@@ -8,6 +8,8 @@ import DashboardBottomNav from "./DashboardBottomNav";
 import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth";
 import { getIsLocked } from "@/lib/queries";
+import { subVisibleInspectionsNow } from "@/lib/dashboardData";
+import { pendingInspection } from "@/lib/entryFormRoute";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
 import { bildersafeEnabled, weightTrackingEnabled } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
@@ -28,7 +30,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // so the keyholder nav entry appears exactly when access actually works. No extra DB query.
   const isKeyholder = (user as { controlsSubs?: boolean } | undefined)?.controlsSubs ?? false;
 
-  const [isLocked, categoryRows, weightUser] = await Promise.all([
+  const [isLocked, categoryRows, weightUser, inspections] = await Promise.all([
     userId ? getIsLocked(userId) : Promise.resolve(false),
     userId ? buildNewEntryCategoryRows(userId) : Promise.resolve([]),
     // Die (+)-Zeile „Gewicht" erscheint nur, wenn BEIDE Schalter stehen. Nur gefragt, wenn die
@@ -36,8 +38,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
     userId && weightTrackingEnabled()
       ? prisma.user.findUnique({ where: { id: userId }, select: { weightTrackingEnabled: true } })
       : Promise.resolve(null),
+    // Die offenen Kontroll-Anforderungen — für die (+)-Zeile, die sonst einen NEUEN Code würfelt
+    // und die anstehende Anforderung unbeantwortet lässt. Sie gehört ins Layout, weil der (+) auf
+    // JEDER Dashboard-Seite steht.
+    //
+    // Über `…Now` und nicht mit eigenem `Date.now()`: die Abfrage ist auf den Zeitpunkt
+    // memoisiert, zwei verschiedene Zeitpunkte lösen also zwei identische Abfragen aus. Mit dem
+    // gemeinsamen Zeitpunkt teilt sich das Layout die Abfrage mit dem Alarm-Block der Übersicht —
+    // dort, wo sie ohnehin läuft, kostet sie nichts.
+    userId ? subVisibleInspectionsNow(userId) : Promise.resolve([]),
   ]);
   const weight = !!weightUser?.weightTrackingEnabled;
+
+  const openInspection = pendingInspection(inspections);
 
   return (
     // Gleiche Begründung wie im Admin-Layout: das Inline-Skript setzt `data-theme` vor der
@@ -55,6 +68,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         categoryRows={categoryRows}
         bildersafe={bildersafeEnabled()}
         weight={weight}
+        openInspection={openInspection}
       />
 
       {/* Content area: offset for sidebar on desktop. Der Platz für die fixe Bottom-Nav (Mobile)
@@ -76,6 +90,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         categoryRows={categoryRows}
         bildersafe={bildersafeEnabled()}
         weight={weight}
+        openInspection={openInspection}
       />
       <InstallBanner />
     </div>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SUB_DASHBOARD_BLOCKS } from "@/lib/dashboardBlockRegistry";
-import { checkLayoutPatch, mergeOrder, parseDashboardLayout, resolveLayout } from "@/lib/dashboardLayout";
+import { checkLayoutPatch, mergeLayout, mergeOrder, parseDashboardLayout, resolveLayout } from "@/lib/dashboardLayout";
 
 const DEFAULT_IDS = SUB_DASHBOARD_BLOCKS.map((b) => b.id) as string[];
 
@@ -117,5 +117,49 @@ describe("checkLayoutPatch — die Schreibseite", () => {
   it("filtert alwaysOn still heraus, statt den ganzen Vorgang abzulehnen", () => {
     const res = checkLayoutPatch({ subStats: { hidden: ["heading", "calendar"] } }, "sub");
     expect(res).toEqual({ layout: { subStats: { hidden: ["calendar"], order: [] } } });
+  });
+});
+
+/**
+ * Vier Oberflächen teilen sich EINE Spalte, der Client bearbeitet immer nur eine. Der Test hält
+ * fest, was ohne den Merge passierte: „Fertig" auf der Statistik setzte die Dashboard-Reihenfolge
+ * auf Standard zurück — ohne Meldung, ohne Spur.
+ */
+describe("mergeLayout — eine Oberfläche speichern lässt die anderen stehen", () => {
+  const bestand = JSON.stringify({
+    subDashboard: { hidden: ["categoriesPromo"], order: ["alerts", "runningSession"] },
+    subStats: { hidden: [], order: ["heading", "overview"] },
+  });
+
+  it("die gesendete Oberfläche ersetzt nur sich selbst", () => {
+    const raus = mergeLayout(bestand, { subStats: { hidden: [], order: ["overview", "heading"] } });
+    expect(raus.subStats?.order).toEqual(["overview", "heading"]);
+    expect(raus.subDashboard?.order).toEqual(["alerts", "runningSession"]);
+    expect(raus.subDashboard?.hidden).toEqual(["categoriesPromo"]);
+  });
+
+  it("eine noch unbekannte Oberfläche kommt dazu, statt die anderen zu verdrängen", () => {
+    const raus = mergeLayout(bestand, { keyholderSub: { hidden: [], order: ["openInspection"] } });
+    expect(Object.keys(raus).sort()).toEqual(["keyholderSub", "subDashboard", "subStats"]);
+  });
+
+  it("ohne Bestand kommt genau der Patch heraus", () => {
+    expect(mergeLayout(null, { subStats: { hidden: [], order: ["heading"] } }))
+      .toEqual({ subStats: { hidden: [], order: ["heading"] } });
+    expect(mergeLayout("", { subStats: { hidden: [], order: [] } }))
+      .toEqual({ subStats: { hidden: [], order: [] } });
+  });
+
+  /** Lieber die drei anderen Oberflächen verlieren, als die eine nicht speichern zu können. */
+  it("unlesbarer Bestand zählt wie kein Bestand", () => {
+    expect(mergeLayout("{kaputt", { subStats: { hidden: [], order: ["heading"] } }))
+      .toEqual({ subStats: { hidden: [], order: ["heading"] } });
+    expect(mergeLayout("[1,2,3]", { subStats: { hidden: [], order: [] } }))
+      .toEqual({ subStats: { hidden: [], order: [] } });
+  });
+
+  it("hidden und order einer Oberfläche wandern als EIN Zustand", () => {
+    const raus = mergeLayout(bestand, { subDashboard: { hidden: [], order: ["runningSession"] } });
+    expect(raus.subDashboard).toEqual({ hidden: [], order: ["runningSession"] });
   });
 });

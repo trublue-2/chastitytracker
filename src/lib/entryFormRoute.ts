@@ -41,6 +41,46 @@ export function inspectionHref(
   return `${entryFormBase(opts?.adminUserId)}/pruefung${query ? `?${query}` : ""}`;
 }
 
+/** Das Nötigste einer Kontroll-Anforderung, um zu entscheiden, ob sie noch offen ist. */
+export interface PendingInspectionLike {
+  code: string | null;
+  deadline: Date;
+  entryId?: string | null;
+  withdrawnAt?: Date | null;
+  kommentar?: string | null;
+  categoryId?: string | null;
+}
+
+/**
+ * Die DRINGENDSTE offene Kontroll-Anforderung samt fertigem Formular-Weg — oder `null`.
+ *
+ * Sie steht hier und nicht im Layout, weil sie eine Entscheidung ist und keine Anzeige: „offen"
+ * heisst kein Eintrag und nicht zurückgezogen, „dringendste" heisst knappste Frist. Beides stand
+ * schon einmal im Dashboard-Block und musste für den (+)-Knopf ein zweites Mal getroffen werden —
+ * und zwei Auslegungen von „offen" laufen irgendwann auseinander, ausgerechnet zwischen dem
+ * Banner, das eine Anforderung meldet, und dem Knopf, der sie beantworten soll.
+ *
+ * Der Anlass: der (+) führte auf das nackte Formular, und das WÜRFELT einen Code. Wer der
+ * Einladung folgte, reichte eine Selbstkontrolle ein, während die Anforderung weiterlief.
+ */
+export function openInspections<T extends PendingInspectionLike>(inspections: readonly T[]): T[] {
+  return inspections
+    .filter((k) => !k.entryId && !k.withdrawnAt)
+    .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+}
+
+export function pendingInspection(
+  inspections: readonly PendingInspectionLike[],
+): { code: string | null; href: string } | null {
+  const offen = openInspections(inspections)[0];
+  if (!offen) return null;
+  return {
+    code: offen.code,
+    href: inspectionHref(offen.code, { kommentar: offen.kommentar, categoryId: offen.categoryId }),
+  };
+}
+
+
 /** Wurzel der Erfassungs-Formulare: der Sub erfasst unter `/dashboard/new`, die Keyholderin für ihn
  *  unter `/admin/users/<id>/aktionen`. Dieselbe Umschaltung braucht `wearActionHref`
  *  (categoryConstants.ts) — hier steht sie EINMAL, statt in jedem Link-Bauplatz erneut. */

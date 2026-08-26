@@ -321,8 +321,14 @@ export default function PruefungFormCore({
               ? <InspectionCodePushButton controlId={codePushControlId} />
               : ownCodePushButton}
           </div>
+          {/* Was mit der Zahl zu tun ist — an der ANZEIGE, nicht am Eingabefeld.
+              Der Hinweis hing bisher nur am `Input` darunter, also ausgerechnet im Fall der
+              freiwilligen Selbstkontrolle. Kam der Code aus einer Anforderung — mit Frist, mit
+              Strafe —, stand er als grosse Zahl ohne ein Wort dazu da, und der einzige Ausweg war
+              die FAQ ausserhalb der App, bei laufender Frist und ohne Rückweg. */}
+          <p className="text-neben text-foreground-muted mt-2">{t("controlCodeWriteHint")}</p>
           {sealRequired && (
-            <p className="text-xs text-foreground-muted mt-2">{t("sealAlsoRequired")}</p>
+            <p className="text-neben text-foreground-muted mt-1">{t("sealAlsoRequired")}</p>
           )}
         </Card>
       )}

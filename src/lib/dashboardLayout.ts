@@ -180,3 +180,29 @@ export function checkLayoutPatch(
   }
   return { layout: out };
 }
+
+/**
+ * Legt die gesendeten Oberflächen über den BESTAND — je Oberfläche ersetzend, nie die ganze Spalte.
+ *
+ * Vier Oberflächen teilen sich eine Spalte, der Client bearbeitet immer nur eine. Wer das
+ * übersieht, schreibt beim Speichern der Statistik-Reihenfolge die Dashboard-Reihenfolge weg. Genau
+ * das ist passiert: „Fertig" auf einem Bildschirm setzte die drei anderen auf Standard zurück, ohne
+ * Meldung. Aus Sicht des Nutzers verschob sich die Reihenfolge scheinbar von selbst.
+ *
+ * Ersetzend je Oberfläche und nicht tief mischend: `hidden` und `order` sind zusammen EIN Zustand.
+ * Eine halb übernommene Reihenfolge wäre schlimmer als eine ganz verworfene.
+ *
+ * `bestand` kommt als roher Spaltenwert (JSON-Text oder `null`) — unlesbarer Text zählt wie kein
+ * Bestand: lieber die drei anderen Oberflächen verlieren, als die eine nicht speichern zu können.
+ */
+export function mergeLayout(bestand: unknown, patch: DashboardLayout): DashboardLayout {
+  let vorher: DashboardLayout = {};
+  if (typeof bestand === "string" && bestand.trim() !== "") {
+    try {
+      const roh = JSON.parse(bestand);
+      if (roh && typeof roh === "object" && !Array.isArray(roh)) vorher = roh as DashboardLayout;
+    } catch { /* unlesbar — wie kein Bestand behandeln */ }
+  }
+  return { ...vorher, ...patch };
+}
+

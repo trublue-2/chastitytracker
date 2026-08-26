@@ -166,6 +166,22 @@ const inspectionsOf = cache(async (userId: string, nowMs: number, audience: Bloc
 );
 
 /**
+ * Die dem TRÄGER sichtbaren Anforderungen, OHNE dass der Aufrufer einen Zeitpunkt nennen muss.
+ *
+ * `inspectionsOf` ist auf `nowMs` memoisiert — zwei Aufrufer mit zwei `Date.now()` treffen also
+ * nie denselben Eintrag und lösen zwei identische Abfragen aus. Genau das passierte, als der
+ * (+)-Knopf im Layout die offene Anforderung brauchte: dieselbe `findMany` mit denselben Includes
+ * lief pro Dashboard-Aufruf zweimal.
+ *
+ * `cache()` um die Zeit herum löst es: der erste Aufrufer je Anfrage legt den Zeitpunkt fest, alle
+ * weiteren erben ihn. Wer einen BESTIMMTEN Zeitpunkt braucht (Tests, Rückdatierung), ruft weiter
+ * `subVisibleInspectionsCached` direkt — die Wahl bleibt, sie ist nur nicht mehr die Vorgabe.
+ */
+const requestNowMs = cache(() => Date.now());
+export const subVisibleInspectionsNow = (userId: string) =>
+  subVisibleInspectionsCached(userId, requestNowMs());
+
+/**
  * Die Kontroll-Anforderungen, die dem TRÄGER sichtbar sind — zeitversetzt geplante bleiben verborgen.
  *
  * „Sub-sichtbar" beschreibt den INHALT, nicht den Betrachter: die Statistik zeigt diese Auswahl

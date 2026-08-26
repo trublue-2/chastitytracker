@@ -73,6 +73,20 @@ export default auth(async (req) => {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
+  // `/dashboard/new` ist KEINE Seite — das Erfassen beginnt im (+)-Blatt der Navigation, und das
+  // ist ein Zustand, keine Adresse. Der Ordner existiert trotzdem (er hält die Formulare darunter),
+  // und Next lieferte darauf eine nackte „This page could not be found": ohne Kopfzeile, ohne
+  // Navigation, ohne Rückweg — mitten im angemeldeten Bereich, wo eine 404 immer eine Sackgasse
+  // ist. Getroffen hat das jeden, der die Adresse kürzt oder einem alten Verlaufs-Treffer folgt.
+  //
+  // Die Umleitung steht HIER und nicht als `redirect()` in einer `page.tsx`: das Dashboard-Segment
+  // hat ein `loading.tsx`, also geht der 200 raus, bevor die Seite überhaupt läuft — eine
+  // Umleitung von dort ist nur noch eine Anweisung im Strom, die der Client anwenden muss. Der
+  // Proxy entscheidet davor und antwortet mit einer echten Weiterleitung.
+  if (pathname === "/dashboard/new") {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
   // Keyholders (controlsSubs, non-admin) get a surgical allowance into /admin:
   // (a) any /api/admin/* route (each route self-guards via requireKeyholderOrAdminApi;
   //     instance-level routes keep requireAdminApi), (b) the bare /admin landing,

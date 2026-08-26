@@ -30,6 +30,19 @@ interface Props {
   /** Gesetzt = Keyholder-Sicht: das Sheet erfasst FÜR diesen Sub und zeigt auf dessen
    *  Aktionen-Formulare statt auf `/dashboard/new`. Ungesetzt = der Sub erfasst für sich selbst. */
   adminUserId?: string;
+  /**
+   * Die dringendste OFFENE Kontroll-Anforderung des Trägers, falls es eine gibt.
+   *
+   * Ohne sie führte die Kontroll-Zeile auf das nackte Formular, und das WÜRFELT einen Code. Der
+   * Träger sah auf dem Dashboard „Kontrolle überfällig · Code 48219", tippte auf (+) → Kontrolle,
+   * bekam 67984, schrieb den aufs Papier, fotografierte, speicherte — und die Anforderung lief
+   * weiter in „zu spät". Er hatte genau das getan, was die App ihm angeboten hat.
+   *
+   * NUR auf dem Sub-Pfad. Erfasst die Keyholderin für ihren Träger, hakt das die Anforderung
+   * ohnehin nicht ab (`entryFulfilment.ts`: die Kontroll-Anforderung erfüllt nur der Sub selbst) —
+   * dort wäre ein vorbelegter Code ein falsches Versprechen.
+   */
+  openInspection?: { code: string | null; href: string } | null;
 }
 
 /** Eine anwählbare Zeile des Sheets. Zeilen-Layout und Hover-Verhalten stehen NUR hier — die
@@ -63,7 +76,7 @@ function SheetActionRow({
   );
 }
 
-export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false, weight = false, adminUserId }: Props) {
+export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false, weight = false, adminUserId, openInspection }: Props) {
   const t = useTranslations("newEntry");
   const tw = useTranslations("wearForm");
   const router = useRouter();
@@ -94,10 +107,18 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
       type: "pruefung",
       icon: ClipboardCheck,
       label: t("inspection"),
-      desc: t("inspectionSubtitle"),
+      // Liegt eine Anforderung an, führt die Zeile DORTHIN und sagt es auch. Sonst wie bisher:
+      // die freiwillige Selbstkontrolle mit frisch gewürfeltem Code.
+      desc: openInspection
+        ? (openInspection.code
+            // Ohne Code-Pflicht trägt die Anforderung keine Zahl — dann nennt die Zeile sie eben
+            // nicht, führt aber trotzdem dorthin. Der Weg ist das Wichtige, nicht die Ziffer.
+            ? t("inspectionOpenSubtitle", { code: openInspection.code })
+            : t("inspectionOpenPlain"))
+        : t("inspectionSubtitle"),
       disabled: false,
       color: "text-inspect",
-      href: inspectionHref(null, { adminUserId }),
+      href: openInspection?.href ?? inspectionHref(null, { adminUserId }),
     },
     {
       type: "orgasmus",

@@ -54,11 +54,15 @@ export const SUB_DASHBOARD_BLOCKS = [
   { id: "weightRelease", surface: "subDashboard", role: "sub", labelKey: "blockWeightRelease" },
   { id: "runningSession", surface: "subDashboard", role: "sub", labelKey: "blockRunningSession" },
   { id: "activeWearSessions", surface: "subDashboard", role: "sub", labelKey: "blockActiveWear" },
-  { id: "categoriesPromo", surface: "subDashboard", role: "sub", labelKey: "blockCategoriesPromo" },
   { id: "incompleteCategories", surface: "subDashboard", role: "sub", labelKey: "blockIncompleteCategories" },
   { id: "categoryGoals", surface: "subDashboard", role: "sub", labelKey: "blockCategoryGoals" },
   { id: "inactiveCategories", surface: "subDashboard", role: "sub", labelKey: "blockInactiveCategories" },
   { id: "statusAndStats", surface: "subDashboard", role: "sub", labelKey: "blockStatusAndStats" },
+  // Die Werbung steht bewusst HINTER `statusAndStats` — dort sitzt der Willkommen-Block eines
+  // leeren Kontos. Davor gestellt bewarb der erste Bildschirm der App eine Zusatzfunktion
+  // („Tracke mehr als nur KG"), bevor er die Grundfunktion erklärte: wer neu ist, weiss noch
+  // nicht, was ein Eintrag ist, und wurde als Erstes eingeladen, Kategorien zu verwalten.
+  { id: "categoriesPromo", surface: "subDashboard", role: "sub", labelKey: "blockCategoriesPromo" },
   { id: "sessionList", surface: "subDashboard", role: "sub", labelKey: "blockSessionList" },
   { id: "wearSessionList", surface: "subDashboard", role: "sub", labelKey: "blockWearSessionList" },
   { id: "taskList", surface: "subDashboard", role: "sub", labelKey: "blockTaskList" },
