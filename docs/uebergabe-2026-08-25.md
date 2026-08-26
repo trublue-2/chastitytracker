@@ -128,6 +128,66 @@ warten auf seine Entscheidung:
   „Weitere sechs: …".
 - **Eine zweite leise Zeile unter der Dauer**: „Schlüssel in der Box · Akku 82 %".
 
+## Der UX-Durchgang vom 26.08.2026
+
+Drei spezialisierte Durchgänge durch die laufende App — einmal quer über beide Rollen, einmal nur
+der Posteingang, einmal nur der Block-Stapel von Dashboard und Statistik. Was sich als
+Beschriftung oder kleine Umstellung lösen liess, ist mit dem Stand vom 26.08. **erledigt**:
+
+- Der (+)-Knopf beantwortet die offene Kontrolle, statt einen neuen Code zu würfeln.
+- Eine Ansicht zu speichern löscht die drei anderen nicht mehr (`mergeLayout`).
+- `/dashboard/new` ist keine 404-Sackgasse mehr.
+- Der Code-Hinweis sitzt an der Anzeige, „Unverifiziert" heisst „Nicht geprüft", das zweite
+  „Art"-Feld hat einen eigenen Namen, „← Neu" heisst „← Übersicht", die Kategorien-Werbung steht
+  hinter dem Willkommen-Block, und „Kontrolle anfordern" ohne E-Mail führt zur Behebung.
+
+**Alles Übrige liegt als Issue.** Sie tragen die Herleitung mit — jede beschreibt die Situation, in
+der jemand hängenbleibt, nicht ein Prinzip:
+
+**Träger und Keyholderin, allgemein**
+
+- ✨ [#55](https://github.com/trublue-2/chastitytracker/issues/55) — Keyholder-Übersicht: „braucht deine Entscheidung“ bietet keine Entscheidung an
+- 🐞 [#56](https://github.com/trublue-2/chastitytracker/issues/56) — Dashboard und Statistik: dieselbe Zahl, zwei Balken mit gegenteiliger Aussage
+- ✨ [#57](https://github.com/trublue-2/chastitytracker/issues/57) — Kontrollen-Liste: „81 Alarme“, und der eine echte steht zwischen achtzig harmlosen
+- 🐞 [#58](https://github.com/trublue-2/chastitytracker/issues/58) — Aktionen-Liste: der Untertitel bedeutet zweierlei und wird abgeschnitten
+- ✨ [#59](https://github.com/trublue-2/chastitytracker/issues/59) — Einträge-Liste zeigt den Prüf-Status einer Kontrolle nicht
+- ✨ [#74](https://github.com/trublue-2/chastitytracker/issues/74) — Träger sieht nie, was ihm angelastet wurde
+- ✨ [#75](https://github.com/trublue-2/chastitytracker/issues/75) — Was darf die Keyholderin, wenn eine Frist verstreicht?
+
+**Posteingang**
+
+- 🐞 [#60](https://github.com/trublue-2/chastitytracker/issues/60) — Posteingang: Auswahl-Einstieg liegt unter der Liste und springt beim Antippen weg
+- 🐞 [#61](https://github.com/trublue-2/chastitytracker/issues/61) — Posteingang: kein „alles markieren“, und die Auswahl fällt beim Blättern stumm weg
+- 🐞 [#62](https://github.com/trublue-2/chastitytracker/issues/62) — Posteingang: das Kästchen ist 20 px breit — wer danebengreift, quittiert die Nachricht
+- 🐞 [#63](https://github.com/trublue-2/chastitytracker/issues/63) — Posteingang: „Alle als gelesen markieren“ ignoriert den aktiven Filter
+- ✨ [#64](https://github.com/trublue-2/chastitytracker/issues/64) — Posteingang: der Zähler steht nur in der Glocke, nie auf der Seite
+- 🐞 [#65](https://github.com/trublue-2/chastitytracker/issues/65) — Posteingang: nach „Weiter“ landet man mitten in der neuen Seite
+- ✨ [#66](https://github.com/trublue-2/chastitytracker/issues/66) — Posteingang: 14 von 19 Zeilen tragen Warnfarbe — die eine mit Forderung sticht nicht hervor
+- 🐞 [#67](https://github.com/trublue-2/chastitytracker/issues/67) — Posteingang: Sammel-Löschen warnt weniger als Einzel-Löschen, und danach fehlt die Rückmeldung
+
+**Dashboard und Statistik zusammenstellen**
+
+- 🐞 [#68](https://github.com/trublue-2/chastitytracker/issues/68) — Dashboard anpassen: kein Abbrechen, kein Weg zurück auf Standard
+- ✨ [#69](https://github.com/trublue-2/chastitytracker/issues/69) — Dashboard anpassen: die Liste nennt 15 Blöcke, der Bildschirm zeigt 5 Rubriken — mit anderen Wörtern
+- 🐞 [#70](https://github.com/trublue-2/chastitytracker/issues/70) — Dashboard anpassen: ein Block mit Frist lässt sich stumm wegschalten
+- ✨ [#71](https://github.com/trublue-2/chastitytracker/issues/71) — Dashboard anpassen: heisst überall gleich, steht überall ganz unten, gilt aber je Ansicht anderes
+- ✨ [#72](https://github.com/trublue-2/chastitytracker/issues/72) — Dashboard anpassen: Umsortieren jagt den Knopf über den Schirm
+- ✨ [#73](https://github.com/trublue-2/chastitytracker/issues/73) — Keyholder-Sub-Ansicht: die offene Kontrolle steht erst an fünfter Stelle
+
+**Desktop**
+
+- 🐞 [#76](https://github.com/trublue-2/chastitytracker/issues/76) — Desktop: Inhalte zerfliessen über die volle Fensterbreite, Abstände sind uneinheitlich
+
+Zwei davon sind **Produkt-Entscheidungen**, keine UI-Fragen, und blockieren die Bildschirme
+darüber: [#74](https://github.com/trublue-2/chastitytracker/issues/74) (bekommt der Träger Einsicht
+in seine Akte?) und [#75](https://github.com/trublue-2/chastitytracker/issues/75) (was darf die
+Keyholderin, wenn eine Frist verstreicht?). Solange #75 offen ist, bricht jeder Bildschirm sein
+Versprechen, der „braucht deine Entscheidung" sagt.
+
+**Und ein Befund, der keiner UX-Prüfung entsprang, sondern dem Nachmessen:** `useLiveHours`
+rechnete auf dem Server mit `nowMs = 0` und schrieb „496 602h fehlen" ins ausgelieferte HTML — die
+Epoche in Stunden, mit Vorzeichen. Behoben. Die Lehre steht unten bei den Fallen.
+
 ## Werkzeuge in `docs/design/`
 
 | Datei | Was |
