@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
+import { blockInsetCls } from "@/app/components/inputStyles";
 import DetailField from "@/app/components/DetailField";
 import SealedCodePhoto from "./SealedCodePhoto";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
@@ -174,7 +175,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
           tabIndex={0}
           onClick={() => setOpen(true)}
           onKeyDown={(e) => e.key === "Enter" && setOpen(true)}
-          className="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-surface-raised/60 transition active:bg-border-subtle/60 cursor-pointer"
+          className={`w-full flex items-center gap-4 ${blockInsetCls} py-3 text-left hover:bg-surface-raised/60 transition active:bg-border-subtle/60 cursor-pointer`}
         >
           <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden">
             {/* Foto des WIEDERVERSCHLUSSES; fehlt es, aber ein Box-Foto ist da, zeigt die Zeile
@@ -261,7 +262,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   if (ev.captureHref) {
     const textCls = ev.isOverdue ? "text-warn-text" : "text-[var(--color-warn)]";
     return (
-      <div className={`px-5 py-3 flex items-center gap-3 border-t border-b bg-warn-bg border-[var(--color-warn-border)] ${textCls}`}>
+      <div className={`${blockInsetCls} py-3 flex items-center gap-3 border-t border-b bg-warn-bg border-[var(--color-warn-border)] ${textCls}`}>
         {ev.isOverdue
           ? <AlertCircle size={20} className="flex-shrink-0 text-warn" />
           : <AlertTriangle size={20} className="flex-shrink-0 text-[var(--color-warn)]" />
@@ -296,7 +297,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
         tabIndex={0}
         onClick={() => setOpen(true)}
         onKeyDown={(e) => e.key === "Enter" && setOpen(true)}
-        className="w-full flex items-start gap-4 px-5 py-4 text-left hover:bg-surface-raised/60 transition active:bg-border-subtle/60 cursor-pointer"
+        className={`w-full flex items-start gap-4 ${blockInsetCls} py-4 text-left hover:bg-surface-raised/60 transition active:bg-border-subtle/60 cursor-pointer`}
       >
         {/* Foto — ohne Haupt-Foto das Box-Foto, sonst das Typ-Icon. */}
         <div className="shrink-0">

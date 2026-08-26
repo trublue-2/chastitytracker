@@ -519,6 +519,7 @@
     "summaryReinigungen": "{n, plural, =1 {# cleaning} other {# cleanings}}",
     "summaryOrgasmen": "{n, plural, =1 {# orgasm} other {# orgasms}}",
     "summaryVerschlusse": "{n, plural, =1 {# lock} other {# locks}}",
+    "currentWearTime": "This session",
     "sessions": "KG wear periods",
     "otherCategorySessions": "Wear periods in other categories",
     "allStats": "All statistics",

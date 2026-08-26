@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { ChevronRight, Lock, CheckCircle2, Droplets, LockOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import SessionEventRow, { type SessionEventData } from "./SessionEventRow";
+import { blockInsetCls } from "@/app/components/inputStyles";
 import {
   groupEventsIntoBuckets,
   shouldRenderBucketHeaders,
@@ -99,7 +100,7 @@ function BucketSection({
         onClick={toggle}
         aria-expanded={expanded}
         aria-controls={panelId}
-        className="relative w-full block px-5 py-3 pr-16 min-h-[48px] hover:bg-surface-raised transition text-left border-b border-border-subtle"
+        className={`relative w-full block ${blockInsetCls} py-3 pr-16 min-h-[48px] hover:bg-surface-raised transition text-left border-b border-border-subtle`}
       >
         <div className="flex items-center gap-2 h-6">
           <span className="font-semibold text-fliess text-foreground leading-none">{titleLabel}</span>
@@ -110,7 +111,7 @@ function BucketSection({
         {!expanded && summaryParts.length > 0 && (
           <div className="text-neben text-foreground-muted mt-1 truncate pr-2">{summaryParts.join(" · ")}</div>
         )}
-        <span className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+        <span className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-2">
           <span className="text-neben text-foreground-faint tabular-nums leading-none">
             {bucket.counts.total}
           </span>

@@ -6,6 +6,7 @@ import { getKombinierterPill } from "@/lib/kontrollePills";
 import SessionDurationBadge from "./SessionDurationBadge";
 import type { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
+import Section from "@/app/components/Section";
 import LiveTrainingGoals from "./LiveTrainingGoals";
 import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
@@ -158,7 +159,7 @@ export default async function LaufendeSessionCard({
         )}
       </div>
 
-      <div className="px-5">
+      <div>
         {/* Trainingsvorgaben als eigener, benannter Abschnitt — vorher hingen sie namenlos unter
             dem Kartenkopf und sahen aus wie ein Teil des Zustands. Sie sind aber die Antwort auf
             eine andere Frage: nicht „wie ist es gerade", sondern „wie stehe ich zu dem, was
@@ -176,7 +177,12 @@ export default async function LaufendeSessionCard({
         )}
       </div>
 
-      {/* ── Timeline (buckets + flat fallback for short sessions) ── */}
+      {/* ── Was in DIESER Tragezeit passiert ist ──
+          Die Liste stand vorher ohne jede Beschriftung da: nach den Zielen begannen einfach
+          Zeilen. Wer sie zum ersten Mal sieht, kann nicht wissen, ob das alle Einträge sind oder
+          nur die dieser Session — und die Antwort ändert alles. Die Rubrik ist der Unterschied
+          zwischen einer Liste und einer Auskunft. */}
+      <Section title={t("currentWearTime")} className="pt-6">
       <SessionTimeline
         tz={tz}
         events={events.map<SessionEventData>((ev) => {
@@ -243,6 +249,7 @@ export default async function LaufendeSessionCard({
         mode="active"
         storageScope="active"
       />
+      </Section>
 
     </section>
   );

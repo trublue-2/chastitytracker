@@ -519,6 +519,7 @@
     "summaryReinigungen": "{n, plural, =1 {# Reinigung} other {# Reinigungen}}",
     "summaryOrgasmen": "{n, plural, =1 {# Orgasmus} other {# Orgasmen}}",
     "summaryVerschlusse": "{n, plural, =1 {# Verschluss} other {# Verschlüsse}}",
+    "currentWearTime": "Diese Tragezeit",
     "sessions": "KG-Tragezeiten",
     "otherCategorySessions": "Tragezeiten anderer Kategorien",
     "allStats": "Alle Statistiken",

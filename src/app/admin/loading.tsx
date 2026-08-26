@@ -4,7 +4,7 @@ export default function AdminLoading() {
   return (
     <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-2xl border border-border bg-surface p-5 flex flex-col gap-4">
+        <div key={i} className="flex flex-col gap-4">
           {/* User header */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-background-subtle animate-shimmer flex-shrink-0" />
@@ -16,7 +16,7 @@ export default function AdminLoading() {
           </div>
 
           {/* Status row */}
-          <div className="rounded-xl bg-background-subtle px-4 py-3 flex items-center justify-between gap-3">
+          <div className="rounded-xl bg-background-subtle px-1 py-3 flex items-center justify-between gap-3">
             <Skeleton variant="text" width="60%" />
             <Skeleton variant="text" width="80px" className="h-7" />
           </div>

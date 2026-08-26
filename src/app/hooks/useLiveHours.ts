@@ -58,10 +58,22 @@ export function useLiveHours(
   serverNowIso: string,
   active: boolean,
 ): number {
-  const nowMs = useSyncExternalStore(subscribe, getSnapshot, () => 0);
+  const tick = useSyncExternalStore(subscribe, getSnapshot, () => 0);
 
   if (!active) return baseH;
   const serverNowMs = new Date(serverNowIso).getTime();
+  // Auf dem SERVER liefert der Store 0 — dort gilt die Server-Zeit, also kein Zuwachs.
+  //
+  // Ohne diesen Rückfall rechnete die Zeile `(0 - serverNowMs)` und kam auf rund minus 497 000
+  // Stunden: die Epoche, in Stunden, mit Vorzeichen. Im ausgelieferten HTML stand daraufhin
+  // „496 602h fehlen" statt „noch 44min" — sichtbar im ersten Bild jedes Aufrufs und dauerhaft
+  // ohne JavaScript. Dass es niemandem auffiel, lag nur daran, dass die Hydration den Wert
+  // meistens innerhalb eines Frames ersetzt.
+  //
+  // `useNowMs` weiter unten macht genau das schon richtig und begründet es auch — die beiden
+  // Haken hätten von Anfang an dieselbe Zeile haben müssen.
+  const nowMs = tick || serverNowMs;
+  if (!Number.isFinite(nowMs)) return baseH;
   const deltaH = (nowMs - serverNowMs) / 3_600_000;
   return baseH + deltaH;
 }

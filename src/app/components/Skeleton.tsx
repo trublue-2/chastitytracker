@@ -8,6 +8,30 @@ interface SkeletonProps {
   className?: string;
 }
 
+/**
+ * EIN pulsierender Balken — der Baustein, aus dem die Seiten-Skelette ihre Form bauen.
+ *
+ * Exportiert, weil `Skeleton` ihn nicht durchreicht: dessen `className` landet am WRAPPER, und der
+ * Balken darin ist fest `h-4`. Wer ein Skelett mit `<Skeleton className="h-0.5">` baut, bekommt
+ * einen 16-px-Puls in einem 2-px-Kasten, der 14 px in die nächste Zeile hängt — sichtbar falsch,
+ * und im Diff nicht zu erkennen. Ein Balken, dessen Höhe man setzen kann, muss also ein eigenes
+ * Bauteil sein.
+ *
+ * Ohne `role="status"`: das gehört EINMAL um das ganze Skelett, nicht an jeden Balken. Ein Dutzend
+ * Regionen, die alle „Laden…" melden, ist für einen Screenreader keine Auskunft, sondern Lärm.
+ */
+export function SkeletonBar({
+  width, height, rounded = "rounded-lg", className = "",
+}: { width?: string; height?: string; rounded?: string; className?: string }) {
+  return (
+    <div
+      className={`bg-background-subtle animate-shimmer ${rounded} ${className}`}
+      style={{ width, height }}
+      aria-hidden="true"
+    />
+  );
+}
+
 function SkeletonPulse({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
