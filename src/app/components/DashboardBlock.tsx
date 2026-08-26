@@ -15,7 +15,7 @@ import { type ReactNode } from "react";
  *  = `px-4`). Eine Seite, die ihre Spalte SELBST aufspannt, überschreibt sie per `--block-col` /
  *  `--block-gutter` auf ihrem Container — sonst brächte jeder geteilte Block die schmalere
  *  Sub-Spalte plus einen zweiten Seitenrand mit und sässe eingerückt zwischen seinen Nachbarn.
- *  Einziger solcher Fall heute: `admin/users/[id]/layout.tsx` (`max-w-5xl`).
+ *  Einziger solcher Fall heute: `admin/users/[id]/layout.tsx` (`wideColCls`).
  *
  *  Bewusst über CSS-Variablen statt über ein Prop: die Spaltenbreite ist eine Eigenschaft der
  *  Seite, nicht des Blocks. Als Prop wäre sie durch drei geteilte Blöcke und teils zwei Ebenen zu

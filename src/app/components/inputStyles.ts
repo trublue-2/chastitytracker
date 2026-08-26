@@ -68,6 +68,25 @@ export const headerBrandCls =
  */
 export const blockInsetCls = "px-1";
 
+/**
+ * Die Spalte einer Inhaltsseite — das LESEMASS, nicht die Fensterbreite.
+ *
+ * Das Redesign ist durchgehend gegen 390 px geprüft worden, und auf dem Handy stellt sich die Frage
+ * nicht: die Spalte IST der Bildschirm. Auf dem Desktop stellte sie sich und blieb unbeantwortet.
+ * Gemessen bei 1440 px: der Träger-Bereich stand auf 672 px und las sich gut, der Keyholder-Bereich
+ * auf 1024 px — dieselben Zeilen, 976 px breit. Ein Name ganz links, ein Chevron einen Meter weiter
+ * rechts, dazwischen nichts. Genau das ist mit „zerfliesst" gemeint.
+ *
+ * Warum die beiden trotzdem verschieden bleiben: der Keyholder-Bereich trägt Zeilen mit Bild,
+ * Beschriftung UND Aktionsmenü, der Träger-Bereich nicht. Zwei Stufen derselben Skala statt einer
+ * Zahl für alles — aber eben zwei benannte, nicht zwölf gewachsene.
+ *
+ * Beide sind bewusst schmaler als der Platz, den es gäbe. Eine Spalte, die den Platz füllt, weil er
+ * da ist, ist keine Entscheidung.
+ */
+export const readingColCls = "w-full max-w-2xl mx-auto px-4";
+export const wideColCls = "w-full max-w-3xl mx-auto px-4 sm:px-6";
+
 export const listRowCls = `${blockInsetCls} py-2.5 flex items-center gap-3`;
 
 /**

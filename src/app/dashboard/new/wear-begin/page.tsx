@@ -8,6 +8,7 @@ import { deviceFormHref } from "@/lib/categoryConstants";
 import { getActiveWearSessionForCategory, getMobileDesktopMode } from "@/lib/queries";
 import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/utils";
 import WearForm from "../../WearForm";
+import { readingColCls } from "@/app/components/inputStyles";
 
 export default async function NewWearBeginPage({ searchParams }: { searchParams: Promise<{ category?: string; device?: string; redirectTo?: string }> }) {
   if (!deviceCategoriesEnabled()) notFound();
@@ -51,7 +52,7 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
 
   if (devices.length === 0) {
     return (
-      <div className="w-full max-w-2xl mx-auto px-4 py-6">
+      <div className={`${readingColCls} py-6`}>
         <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
         <div className="mt-4 p-6 rounded-xl border border-border bg-surface text-center">
           <p className="text-sm text-foreground-muted mb-3">{t("noDevicesInCategory", { name: category.name })}</p>
@@ -64,7 +65,7 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6">
+    <div className={`${readingColCls} py-6`}>
       <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("titleBegin")}</h1>
       <WearForm

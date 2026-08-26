@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { Lock, LockOpen, CheckCircle2, Droplets, MoreVertical, Camera, AlertTriangle, AlertCircle, KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -138,6 +138,43 @@ function CaptureButton({ href }: { href: string }) {
   );
 }
 
+/**
+ * Der Kopf einer Ereignis-Zeile: Art, Datum, Uhrzeit — und rechts, wo eine gebraucht wird, eine
+ * Handlung.
+ *
+ * Er stand zweimal im Baum, in den beiden Zweigen unten, und lief bereits auseinander: der
+ * Reinigungs-Zweig setzte die Uhrzeit fest auf `text-foreground-faint` und übersah dabei
+ * `timeCorrected` — ein Feld, das `SessionEventData` ihm garantiert liefert. Eine nachträglich
+ * korrigierte Uhrzeit wurde dort also stillschweigend als normale angezeigt. Genau diese Klasse
+ * von Abweichung meint Issue #54 („Session-Zeilen werden zweimal gebaut — optionale Felder fallen
+ * still durch"); hier fällt sie für den Kopf weg.
+ *
+ * Die ART steht ÜBER dem Datum, auf jeder Breite. Sie stand auf dem Handy dort und ab `sm` am
+ * rechten Zeilenende — eine Karten-Entscheidung: in einem Kasten von 400 px ist „rechts" nah. In
+ * einer Spalte von 720 px ist es einen halben Meter weit weg, und die Zeile zerfällt in zwei
+ * Inseln mit einem Loch dazwischen. Was zusammengehört, bleibt zusammen; der freie Platz bleibt am
+ * Rand, wo er niemanden stört.
+ */
+function EventRowHead({ pills, dateStr, timeStr, timeCorrected, action }: {
+  pills: ReactNode;
+  dateStr: string;
+  timeStr: string;
+  timeCorrected?: boolean;
+  /** Rechts aussen, nur wo es etwas zu tun gibt. Fehlt sie, bleibt der Platz einfach leer. */
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <div className="min-w-0">
+        <div className="mb-0.5 flex flex-wrap items-center gap-1.5">{pills}</div>
+        <span className="block text-fliess font-semibold text-foreground tabular-nums">{dateStr}</span>
+        <span className={`block text-neben tabular-nums ${timeCorrected ? "text-warn font-medium" : "text-foreground-faint"}`}>{timeStr}</span>
+      </div>
+      {action}
+    </div>
+  );
+}
+
 export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; icon: React.ReactNode }) {
   const t = useTranslations("dashboard");
   const tc = useTranslations("common");
@@ -189,18 +226,16 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
             )}
           </div>
           <div className="flex-1 min-w-0 pt-0.5">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="mb-0.5 flex flex-wrap items-center gap-1.5 sm:hidden">{reinigungPill}{keyPill}</div>
-                <span className="block text-sm font-semibold text-foreground tabular-nums">{ev.dateStr}</span>
-                <span className="block text-xs text-foreground-faint tabular-nums">{ev.timeStr}</span>
-              </div>
-              <span className="hidden sm:inline-flex shrink-0 items-center gap-1.5">{reinigungPill}{keyPill}</span>
-            </div>
+            <EventRowHead
+              pills={<>{reinigungPill}{keyPill}</>}
+              dateStr={ev.dateStr}
+              timeStr={ev.timeStr}
+              timeCorrected={ev.timeCorrected}
+            />
             {ev.pauseDurationStr && (
-              <p className="text-xs text-[var(--color-unlock-text)] mt-0.5">{ev.pauseDurationStr}</p>
+              <p className="text-neben text-foreground-muted mt-0.5">{ev.pauseDurationStr}</p>
             )}
-            {ev.note && <p className="text-xs text-foreground-faint italic mt-0.5 truncate">„{ev.note}"</p>}
+            {ev.note && <p className="text-neben text-foreground-faint italic mt-0.5 truncate">„{ev.note}"</p>}
             {ev.codeImageUrl && (
               <div onClick={(e) => e.stopPropagation()}>
                 <SealedCodePhoto url={ev.codeImageUrl} revealed={ev.codeRevealed} />
@@ -272,13 +307,13 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
             {ev.isOverdue ? t("inspectionOverdue") : t("inspectionRequired")}
           </p>
           {ev.deadlineStr && (
-            <p className="text-xs opacity-80">
+            <p className="text-neben opacity-80">
               {ev.isOverdue ? t("overduePrefix") : t("untilPrefix")} {ev.deadlineStr}
               {ev.kontrolleCode && <> · <span className="font-mono font-bold">{ev.kontrolleCode}</span></>}
             </p>
           )}
           {ev.kontrolleKommentar && (
-            <p className="text-xs font-medium mt-1 opacity-90">{ev.kontrolleKommentar}</p>
+            <p className="text-neben font-medium mt-1 opacity-90">{ev.kontrolleKommentar}</p>
           )}
         </div>
         {!ev.captureDisabled && (
@@ -313,33 +348,31 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
           )}
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0 pt-0.5">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="mb-0.5 flex flex-wrap items-center gap-1.5 sm:hidden">{typePill}{keyPill}</div>
-              <span className="block text-sm font-semibold text-foreground tabular-nums">{ev.dateStr}</span>
-              <span className={`block text-xs tabular-nums ${ev.timeCorrected ? "text-warn font-medium" : "text-foreground-faint"}`}>{ev.timeStr}</span>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="hidden sm:inline-flex items-center gap-1.5">{typePill}{keyPill}</span>
-              {/* Zweite Aufrufstelle desselben Knopfes. Heute unerreichbar (der Banner-Zweig oben
-                  kehrt zurück, sobald `captureHref` gesetzt ist) — trotzdem mit demselben Riegel:
-                  eine Regel, die nur an einer von zwei Stellen steht, ist keine Regel, und ein
-                  Verengen der Bedingung oben brächte den Keyholder-Knopf sonst durch die Hintertür
-                  zurück. */}
-              {ev.captureHref && !ev.captureDisabled && (
-                <div onClick={(e) => e.stopPropagation()}>
-                  <CaptureButton href={ev.captureHref} />
-                </div>
-              )}
-            </div>
-          </div>
-          {verifyReasonStr && <p className="text-xs text-warn mt-0.5">{verifyReasonStr}</p>}
-          {ev.exifStr && <p className="text-xs text-[var(--color-warn)] mt-0.5">{tc("exifDate")}: {ev.exifStr}</p>}
-          {ev.orgasmusArt && <p className="text-xs text-[var(--color-orgasm)] mt-0.5">{ev.orgasmusArt}</p>}
-          {ev.kontrolleKommentar && <p className="text-xs text-[var(--color-warn)] mt-0.5 truncate">{ev.kontrolleKommentar}</p>}
-          {ev.note && <p className="text-xs text-foreground-faint italic mt-0.5 truncate">„{ev.note}"</p>}
+          <EventRowHead
+            pills={<>{typePill}{keyPill}</>}
+            dateStr={ev.dateStr}
+            timeStr={ev.timeStr}
+            timeCorrected={ev.timeCorrected}
+            /* Zweite Aufrufstelle desselben Knopfes. Heute unerreichbar (der Banner-Zweig oben
+               kehrt zurück, sobald `captureHref` gesetzt ist) — trotzdem mit demselben Riegel:
+               eine Regel, die nur an einer von zwei Stellen steht, ist keine Regel, und ein
+               Verengen der Bedingung oben brächte den Keyholder-Knopf sonst durch die Hintertür
+               zurück.
+
+               Der Riegel sitzt jetzt am Behälter statt darin: vorher stand hier bei JEDER Zeile
+               ein leerer Flex-Kasten, weil die Bedingung nie zutreffen kann. */
+            action={ev.captureHref && !ev.captureDisabled ? (
+              <div className="flex items-center gap-1.5 shrink-0 ml-auto" onClick={(e) => e.stopPropagation()}>
+                <CaptureButton href={ev.captureHref} />
+              </div>
+            ) : undefined}
+          />
+          {verifyReasonStr && <p className="text-neben text-warn mt-0.5">{verifyReasonStr}</p>}
+          {ev.exifStr && <p className="text-neben text-[var(--color-warn)] mt-0.5">{tc("exifDate")}: {ev.exifStr}</p>}
+          {ev.orgasmusArt && <p className="text-neben text-[var(--color-orgasm)] mt-0.5">{ev.orgasmusArt}</p>}
+          {ev.kontrolleKommentar && <p className="text-neben text-[var(--color-warn)] mt-0.5 truncate">{ev.kontrolleKommentar}</p>}
+          {ev.note && <p className="text-neben text-foreground-faint italic mt-0.5 truncate">„{ev.note}"</p>}
           {ev.type === "verschluss" && ev.codeImageUrl && (
             <div onClick={(e) => e.stopPropagation()}>
               <SealedCodePhoto url={ev.codeImageUrl} revealed={ev.codeRevealed} />

@@ -120,7 +120,7 @@ export default function DashboardClient(props: DashboardProps) {
 
   if (!hasEntries) {
     return (
-      <DashboardBlock as="main" className="flex flex-col gap-5">
+      <DashboardBlock as="main" className="flex flex-col gap-4">
         <EmptyState
           icon={<Lock size={48} />}
           title={t("welcomeTitle")}
@@ -132,7 +132,7 @@ export default function DashboardClient(props: DashboardProps) {
   }
 
   return (
-    <DashboardBlock as="main" className="flex flex-col gap-5">
+    <DashboardBlock as="main" className="flex flex-col gap-4">
 
       {/* ── Status Hero (only when OPEN — when locked, LaufendeSessionCard handles this) ──
            Während einer laufenden Reinigungspause zeigt derselbe Platz die verbleibende Frist statt

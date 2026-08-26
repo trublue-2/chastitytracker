@@ -8,6 +8,7 @@ import { getBoxFormContext, getOpenKontrollen, getMobileDesktopMode } from "@/li
 import { resolveInspectionTarget, isKgTarget, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { getTranslations } from "next-intl/server";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
+import { readingColCls } from "@/app/components/inputStyles";
 
 export default async function NewPruefungPage({ searchParams }: { searchParams: Promise<{ code?: string; kommentar?: string; cat?: string }> }) {
   const [{ code, kommentar, cat }, session] = await Promise.all([searchParams, auth()]);
@@ -51,7 +52,7 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
   const tn = await getTranslations("newEntry");
   const tf = await getTranslations("inspectionForm");
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6">
+    <div className={`${readingColCls} py-6`}>
       <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
       <PruefungForm

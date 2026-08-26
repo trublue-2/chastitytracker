@@ -1,3 +1,4 @@
+import { wideColCls } from "@/app/components/inputStyles";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getLatestKgEntry } from "@/lib/queries";
@@ -63,8 +64,13 @@ export default async function AdminUserLayout({
       />
       <UserSubNav userId={id} />
       {/* Diese Seite spannt ihre Spalte selbst auf — die geteilten Dashboard-Blöcke sollen sie
-          füllen statt ihre eigene mitzubringen. Begründung in `DashboardBlock`. */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4 [--block-col:100%] [--block-gutter:0px]">
+          füllen statt ihre eigene mitzubringen. Begründung in `DashboardBlock`.
+
+          Die Spalte trägt das LESEMASS (`wideColCls`), nicht die Fensterbreite. Sie stand auf
+          1024 px, und die Zeilen darin auf 976: ein Name links, ein Chevron einen Meter weiter
+          rechts. Kopfzeile und Reiter darüber bleiben breit — sie rahmen die Seite, sie werden
+          nicht gelesen. */}
+      <main className={`flex-1 ${wideColCls} py-6 flex flex-col gap-4 [--block-col:100%] [--block-gutter:0px]`}>
         {children}
       </main>
     </>

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import DevicesClient from "./DevicesClient";
 import { CATEGORY_QUERY_KEY } from "@/lib/categoryConstants";
+import { readingColCls } from "@/app/components/inputStyles";
 
 export default async function DevicesPage({
   searchParams,
@@ -42,7 +43,7 @@ export default async function DevicesPage({
   ]);
 
   return (
-    <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
+    <main className={`flex-1 ${readingColCls} py-6`}>
       <DevicesClient
         devices={devices.map((d) => ({
           id: d.id,

@@ -14,5 +14,5 @@ export default async function AdminUserStatsPage({ params }: { params: Promise<{
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/stats`);
 
-  return <StatsMain userId={id} surface="keyholderStats" />;
+  return <StatsMain userId={id} surface="keyholderStats" column="inherit" />;
 }

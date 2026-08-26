@@ -1,3 +1,4 @@
+import { wideColCls } from "@/app/components/inputStyles";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -18,6 +19,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDurationBetween, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel } from "@/lib/constants";
+import BlockHeading from "@/app/components/BlockHeading";
 
 /** Wie eine geplante Direktive in der Liste erscheint — Beschriftung, Rückzug-Endpunkt, Tönung.
  *  Eine Zeile je `kind`; eine neue terminierbare Direktive ergänzt hier einen Eintrag und ist damit
@@ -190,7 +192,7 @@ export default async function AdminPage() {
   const alarmCount = wartend.length;
 
   return (
-    <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
+    <main className={`flex-1 ${wideColCls} py-6 flex flex-col gap-4`}>
 
       {/* ── Die Antwort, nicht die Aufzählung ──────────────────────────────────
           Vorher stand hier eine Überschrift, ein Erklärsatz, den niemand zweimal liest, und drei
@@ -413,9 +415,9 @@ export default async function AdminPage() {
             Aufzählung. Der Weg in den Sub bleibt derselbe. */}
         {ruhig.length > 0 && (
           <section className={wartend.length > 0 ? "mt-10" : ""}>
-            <p className="text-rubrik font-semibold uppercase tracking-[0.16em] text-foreground-faint pb-1">
+            <BlockHeading className="pb-1">
               {wartend.length > 0 ? t("calmSectionTitle") : t("yourSubsTitle")}
-            </p>
+            </BlockHeading>
             {ruhig.map((u) => {
               const isLocked = u.stats.currentStatus === "VERSCHLUSS";
               const seit = u.stats.since ? formatDurationBetween(u.stats.since, now, dl) : null;

@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { getIsLocked, getMobileDesktopMode } from "@/lib/queries";
 import { bildersafeEnabled } from "@/lib/constants";
 import BildersafeSealForm from "./BildersafeSealForm";
+import { readingColCls } from "@/app/components/inputStyles";
 
 export default async function NewBildersafePage() {
   const session = await auth();
@@ -21,7 +22,7 @@ export default async function NewBildersafePage() {
 
   const tn = await getTranslations("newEntry");
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6">
+    <div className={`${readingColCls} py-6`}>
       <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-2">{tn("bildersafeTitle")}</h1>
       <p className="text-sm text-foreground-muted mb-6">{tn("bildersafeSubtitle")}</p>

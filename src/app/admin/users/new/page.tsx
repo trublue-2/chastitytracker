@@ -12,6 +12,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
+import { readingColCls } from "@/app/components/inputStyles";
 
 export default function NewUserPage() {
   const t = useTranslations("admin");
@@ -60,8 +61,11 @@ export default function NewUserPage() {
     { value: "admin", label: t("roleAdmin") },
   ];
 
+  // Lesemass, obwohl die Seite im Keyholder-Bereich liegt: ein Formular ist Fliesstext mit Feldern,
+  // keine Liste mit Bild und Aktionsmenü. Sie stand als einzige Seite im Baum auf einer dritten
+  // Kombination (Lesebreite + breiter Seitenrand) und wich damit von beiden Massen ab.
   return (
-    <main className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-6">
+    <main className={`flex-1 ${readingColCls} py-6`}>
       <Link href="/admin/users" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{t("backToUsers")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("newUser")}</h1>
 

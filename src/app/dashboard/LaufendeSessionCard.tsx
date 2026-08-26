@@ -7,6 +7,7 @@ import SessionDurationBadge from "./SessionDurationBadge";
 import type { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
 import Section from "@/app/components/Section";
+import { blockInsetCls } from "@/app/components/inputStyles";
 import LiveTrainingGoals from "./LiveTrainingGoals";
 import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
@@ -84,7 +85,17 @@ export default async function LaufendeSessionCard({
   const hasVorgabe = activeVorgabe != null && hasVisibleGoalRow(activeVorgabe.targetH);
 
   return (
-    <section className="relative">
+    // `gap-4` — DERSELBE Abstand, der zwischen den Blöcken der Seite steht.
+    //
+    // Der Block hatte keinen. Jeder Abschnitt darin trug stattdessen sein eigenes `pt-` von Hand:
+    // die Ziele 20 px, die Tragezeit 24 px, alles Weitere nichts. Drei Masse in dem einen Block,
+    // den der Träger zuerst sieht, während die achtzehn Abschnitte darunter auf 16 px liegen — das
+    // ist der Grund, warum die Seite auf dem Schreibtisch „zerfliesst": nicht zu wenig Abstand,
+    // sondern kein durchgehender. Ein Rhythmus, der einmal aussetzt, ist keiner mehr.
+    //
+    // Der Held behält sein grosszügigeres `pb-7` — das ist Luft INNERHALB des Helden, um die Zahl
+    // herum, und nicht der Abstand zum nächsten Abschnitt.
+    <section className="relative flex flex-col gap-4">
       {/* Eine Tönung statt eines Kastens. Ein heller Grund kann nicht leuchten, ein dunkler soll es
           nur an einer Stelle — beides erledigt dieselbe radiale Einfärbung, die zum Grund hin
           ausläuft. Sie liegt HINTER dem Inhalt und fängt keine Klicks.
@@ -97,10 +108,10 @@ export default async function LaufendeSessionCard({
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
-        style={{ background: "radial-gradient(65% 60% at 50% 32%, var(--hero-glow), transparent 72%)" }}
+        style={{ background: "radial-gradient(65% 60% at 34% 30%, var(--hero-glow), transparent 72%)" }}
       />
 
-      <div className="relative px-5 pt-8 pb-7 text-center">
+      <div className={`relative ${blockInsetCls} pt-8 pb-2`}>
         {/* Der Zustand: EIN Wort. Vorher stand hier dreimal dasselbe — „Laufende Tragezeit",
             „Verschlossen" und „Dauer:" beantworten alle die Frage, die die Zahl darunter längst
             beantwortet. Übrig bleibt das Wort, das der Träger sucht, in der Zustandsfarbe. */}
@@ -140,7 +151,7 @@ export default async function LaufendeSessionCard({
         {/* Die Sperrzeit gehört zum Zustand, nicht in einen Fuss am anderen Ende der Karte: sie
             sagt, wie lange dieser Zustand noch gilt. */}
         {showSperrzeit && (
-          <p className="mt-3 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-neben text-foreground-muted">
+          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-neben text-foreground-muted">
             <Lock size={12} className="shrink-0 text-lock" />
             <span className="font-semibold text-foreground">
               {scheduledForStr
@@ -159,30 +170,28 @@ export default async function LaufendeSessionCard({
         )}
       </div>
 
-      <div>
-        {/* Trainingsvorgaben als eigener, benannter Abschnitt — vorher hingen sie namenlos unter
-            dem Kartenkopf und sahen aus wie ein Teil des Zustands. Sie sind aber die Antwort auf
-            eine andere Frage: nicht „wie ist es gerade", sondern „wie stehe ich zu dem, was
-            verlangt ist". */}
-        {hasVorgabe && (
-          <LiveTrainingGoals
-            serverNow={now.toISOString()}
-            periodEndMs={periodEndsMs(now, tz ?? APP_TZ)}
-            tagH={tagH}
-            wocheH={wocheH}
-            monatH={monatH}
-            jahrH={jahrH}
-            activeVorgabe={activeVorgabe}
-          />
-        )}
-      </div>
+      {/* Trainingsvorgaben als eigener, benannter Abschnitt — vorher hingen sie namenlos unter
+          dem Kartenkopf und sahen aus wie ein Teil des Zustands. Sie sind aber die Antwort auf
+          eine andere Frage: nicht „wie ist es gerade", sondern „wie stehe ich zu dem, was
+          verlangt ist". */}
+      {hasVorgabe && (
+        <LiveTrainingGoals
+          serverNow={now.toISOString()}
+          periodEndMs={periodEndsMs(now, tz ?? APP_TZ)}
+          tagH={tagH}
+          wocheH={wocheH}
+          monatH={monatH}
+          jahrH={jahrH}
+          activeVorgabe={activeVorgabe}
+        />
+      )}
 
       {/* ── Was in DIESER Tragezeit passiert ist ──
           Die Liste stand vorher ohne jede Beschriftung da: nach den Zielen begannen einfach
           Zeilen. Wer sie zum ersten Mal sieht, kann nicht wissen, ob das alle Einträge sind oder
           nur die dieser Session — und die Antwort ändert alles. Die Rubrik ist der Unterschied
           zwischen einer Liste und einer Auskunft. */}
-      <Section title={t("currentWearTime")} className="pt-6">
+      <Section title={t("currentWearTime")}>
       <SessionTimeline
         tz={tz}
         events={events.map<SessionEventData>((ev) => {
@@ -191,11 +200,17 @@ export default async function LaufendeSessionCard({
           const exifStr = ev.imageExifTime && hasExifMismatch(ev.imageExifTime, ev.time)
             ? formatDateTime(ev.imageExifTime, dl, tz)
             : null;
-          const kombiniertePill = getKombinierterPill(
-            ev.kontrolleAnforderungStatus ?? null,
-            ev.kontrolleVerifikationStatus ?? null,
-            ta,
-          );
+          // Nur die Kontroll-Zeile liest diese Pille (`SessionEventRow`). Für Verschluss,
+          // Orgasmus und Reinigung sind beide Status null, und `getKombinierterPill` schlug
+          // trotzdem einen Text nach und legte ein Ergebnis an, das niemand las.
+          const timeCorrected = isTimeCorrected(ev.time, ev.submittedAt);
+          const kombiniertePill = ev.type === "kontrolle"
+            ? getKombinierterPill(
+                ev.kontrolleAnforderungStatus ?? null,
+                ev.kontrolleVerifikationStatus ?? null,
+                ta,
+              )
+            : null;
           return {
             type: ev.type,
             timeIso: ev.time.toISOString(),
@@ -233,9 +248,8 @@ export default async function LaufendeSessionCard({
             verifyFailure: ev.kontrolleVerifikationFailure ?? null,
             orgasmusArt: ev.orgasmusArt ?? null,
             pauseDurationStr: ev.pauseDurationStr ?? null,
-            timeCorrected: isTimeCorrected(ev.time, ev.submittedAt),
-            timeCorrectedSystemStr: isTimeCorrected(ev.time, ev.submittedAt)
-              ? formatDateTime(ev.submittedAt!, dl, tz) : null,
+            timeCorrected,
+            timeCorrectedSystemStr: timeCorrected ? formatDateTime(ev.submittedAt!, dl, tz) : null,
             deviceName: ev.deviceName ?? null,
             showDevice: userHasDevices,
             keyDetected: ev.keyDetected ?? null,

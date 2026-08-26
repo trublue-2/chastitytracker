@@ -9,6 +9,7 @@ import EmptyState from "@/app/components/EmptyState";
 import EntryRow from "@/app/components/EntryRow";
 import DayGroups from "@/app/components/DayGroups";
 import ListPagerLinks from "@/app/components/ListPagerLinks";
+import { readingColCls } from "@/app/components/inputStyles";
 
 const PAGE_SIZE = 20;
 
@@ -53,7 +54,7 @@ export default async function EintraegePage({
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <main className="w-full max-w-2xl mx-auto px-4 py-6 flex flex-col gap-2">
+    <main className={`${readingColCls} py-6 flex flex-col gap-2`}>
       {/* Der Titel steht in der Serif und ohne Kasten darunter: die Liste IST die Seite. Ein
           Rahmen um sie herum sagt nichts, was der Rand der Spalte nicht schon sagt. */}
       <h1 className="font-serif text-titel text-foreground">{t("entriesTitle")}</h1>

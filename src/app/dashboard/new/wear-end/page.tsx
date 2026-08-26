@@ -8,6 +8,7 @@ import { getActiveWearSessionForCategory } from "@/lib/queries";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getTasksBlocking } from "@/lib/taskIntervals";
 import WearForm from "../../WearForm";
+import { readingColCls } from "@/app/components/inputStyles";
 
 export default async function NewWearEndPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
   if (!deviceCategoriesEnabled()) notFound();
@@ -36,7 +37,7 @@ export default async function NewWearEndPage({ searchParams }: { searchParams: P
     deviceId: active.deviceId,
   });
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6">
+    <div className={`${readingColCls} py-6`}>
       <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("titleEnd")}</h1>
       <WearForm

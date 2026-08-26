@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import BlockHeading from "@/app/components/BlockHeading";
+import Section from "@/app/components/Section";
 import GoalProgressRows from "@/app/components/GoalProgressRows";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 import type { ByPeriod, VorgabeTargets } from "@/lib/goalFulfillment";
@@ -27,14 +27,19 @@ export default function LiveTrainingGoals({ serverNow, periodEndMs, tagH: baseTa
   return (
     // Ein benannter Abschnitt auf dem Grund, keine Zeile im Kartenkopf. `tone` entfällt: seit der
     // Held keine Akzentfläche mehr ist, steht hier nichts mehr "auf" etwas.
-    <section className="pt-5 flex flex-col gap-3.5">
-      <BlockHeading className="tracking-[0.16em]">{t("kgGoals")}</BlockHeading>
+    //
+    // `Section` statt eines von Hand gebauten `<section>` mit eigener Rubrik: die Abweichung war
+    // messbar, nicht theoretisch — 14 px zwischen Rubrik und Inhalt statt 8, und eine Laufweite von
+    // 0,16 em auf der Überschrift gegen `tracking-wider` (0,05 em) bei allen anderen. Dieselbe
+    // Figur dreimal anders gesetzt liest sich als Schludrigkeit, auch wenn niemand die Werte
+    // benennen kann.
+    <Section title={t("kgGoals")}>
       <GoalProgressRows
         actual={{ day: tagH, week: wocheH, month: monatH, year: jahrH }}
         targetH={activeVorgabe.targetH}
         periodEndMs={periodEndMs}
         serverNow={serverNow}
       />
-    </section>
+    </Section>
   );
 }

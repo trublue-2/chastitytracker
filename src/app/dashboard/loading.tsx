@@ -50,7 +50,7 @@ export default function DashboardLoading() {
         </Section>
 
         {/* Die Ereignisse der laufenden Tragezeit. */}
-        <Section title={<SkeletonBar width="110px" height="11px" />} className="pt-6">
+        <Section title={<SkeletonBar width="110px" height="11px" />}>
           <div className="divide-y divide-border-subtle">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="py-3 flex items-center gap-3">

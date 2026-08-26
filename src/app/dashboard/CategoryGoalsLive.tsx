@@ -73,7 +73,7 @@ function GoalRow({ icon, name, actual, targetH, serverNow, periodEndMs }: {
     <li className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-2">
       {icon}
       <p className="text-fliess font-medium text-foreground truncate">{name}</p>
-      <div className="col-start-2 flex flex-col gap-3.5">
+      <div className="col-start-2">
         <GoalProgressRows periodEndMs={periodEndMs} serverNow={serverNow} actual={actual} targetH={targetH} />
       </div>
     </li>

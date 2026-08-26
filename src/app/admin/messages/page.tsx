@@ -1,3 +1,4 @@
+import { wideColCls } from "@/app/components/inputStyles";
 import { getLocale, getTranslations } from "next-intl/server";
 import { assertController } from "@/lib/authGuards";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
@@ -57,7 +58,7 @@ export default async function AdminMessagesPage({
     // spannt im Admin-Bereich JEDE Seite selbst auf, das Layout gibt nur die Kopfzeile und die Nav.
     // Ohne ihn sass die Überschrift bündig unter der klebenden Kopfzeile und die Spalte war schmaler
     // als überall sonst.
-    <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
+    <main className={`flex-1 ${wideColCls} py-6 flex flex-col gap-4`}>
       <div>
         <h1 className="text-lg font-semibold text-foreground mb-1">{t(MESSAGE_SCOPES[SCOPE].titleKey)}</h1>
         <p className="text-xs text-foreground-faint">{t(MESSAGE_SCOPES[SCOPE].introKey)}</p>

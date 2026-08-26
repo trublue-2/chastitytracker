@@ -47,8 +47,12 @@ export default function GoalProgressRows({
     tight: (time: string) => t("goalTight", { time }),
     missing: (time: string) => t("goalMissing", { time }),
   };
+  // Der Abstand ZWISCHEN den Zeilen gehört hierher, nicht an die Aufrufstelle. Er stand an zweien
+  // und war an beiden ein anderer: die KG-Ziele erbten die 8 px ihres `Section`, die
+  // Kategorie-Ziele brachten 14 px mit. Dieselbe Figur, zwei Takte, auf einem Bildschirm
+  // untereinander.
   return (
-    <>
+    <div className="flex flex-col gap-3">
       {GOAL_PERIODS.map((period) => {
         const target = targetH[period];
         if (!target) return null;
@@ -64,6 +68,6 @@ export default function GoalProgressRows({
           />
         );
       })}
-    </>
+    </div>
   );
 }

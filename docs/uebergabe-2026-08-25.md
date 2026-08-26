@@ -174,9 +174,31 @@ der jemand hängenbleibt, nicht ein Prinzip:
 - ✨ [#72](https://github.com/trublue-2/chastitytracker/issues/72) — Dashboard anpassen: Umsortieren jagt den Knopf über den Schirm
 - ✨ [#73](https://github.com/trublue-2/chastitytracker/issues/73) — Keyholder-Sub-Ansicht: die offene Kontrolle steht erst an fünfter Stelle
 
-**Desktop**
+**Desktop** — [#76](https://github.com/trublue-2/chastitytracker/issues/76) ist **erledigt.**
 
-- 🐞 [#76](https://github.com/trublue-2/chastitytracker/issues/76) — Desktop: Inhalte zerfliessen über die volle Fensterbreite, Abstände sind uneinheitlich
+Der Kern war nicht die Breite, sondern dass es kein Mass GAB. Zwei sind es jetzt, benannt in
+`components/inputStyles.ts`: `readingColCls` (672 px — Fliesstext, Formulare, die ganze
+Träger-Seite) und `wideColCls` (768 px — Listen mit Bild und Aktionsmenü im Keyholder-Bereich).
+Neunzehn Stellen schrieben ihr Mass vorher selbst hin.
+
+Der zweite Teil, die „uneinheitlichen Abstände", war ein Block ohne `gap`: jeder Abschnitt darin
+setzte seinen Abstand von Hand (20 px, 24 px), während die achtzehn Abschnitte darunter auf 16 px
+lagen. Ein Rhythmus, der einmal aussetzt, ist keiner mehr. Dazu kam eine Rubrik mit eigener
+Laufweite (0,16 em gegen 0,05 em überall sonst) — sie war als einziger von 82 Abschnitten nicht
+über `Section` gebaut.
+
+**Damit das nicht zurückkommt:** `src/lib/pageMeasures.test.ts`. Er verbietet, dass eine Seite ihre
+eigene Spalte aufspannt, und dass jemand die Block-Rubrik von Hand nachbaut. Die Abweichung ist
+sonst unsichtbar — 672 gegen 768 px fällt in keinem Review auf, und auf 390 px, wogegen dieses
+Redesign entstanden ist, fällt sie gar nicht erst an.
+
+Was dabei aufgeschlagen ist und eigene Fäden bekam:
+
+- ✨ [#77](https://github.com/trublue-2/chastitytracker/issues/77) — die Spalte gehört ins Bereichs-Layout, nicht auf jede Seite (braucht eine Produkt-Entscheidung: welche Seite ist Liste, welche Formular)
+- ✨ [#78](https://github.com/trublue-2/chastitytracker/issues/78) — 14 Dateien bauen `BlockHeading` von Hand nach; der Test hält den fünfzehnten auf, räumt die vierzehn nicht weg
+- ✨ [#79](https://github.com/trublue-2/chastitytracker/issues/79) — die Datums-Formatierer bauen pro Aufruf ein neues `Intl`-Objekt (40–100 je Darstellung)
+- 🐞 [#80](https://github.com/trublue-2/chastitytracker/issues/80) — `StatusBanner` behält die Zwei-Inseln-Aufteilung, die der Rest abgelegt hat
+- ✨ [#81](https://github.com/trublue-2/chastitytracker/issues/81) — zwei Blöcke bauen `Section` nach, und stellen dabei die Frage, ob `Section` seine Rubrik einrücken soll
 
 Zwei davon sind **Produkt-Entscheidungen**, keine UI-Fragen, und blockieren die Bildschirme
 darüber: [#74](https://github.com/trublue-2/chastitytracker/issues/74) (bekommt der Träger Einsicht
