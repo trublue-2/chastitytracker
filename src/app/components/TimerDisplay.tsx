@@ -11,8 +11,10 @@ interface TimerDisplayProps {
   targetDate: Date | string;
   mode?: TimerMode;
   format?: TimerFormat;
-  warningThreshold?: number;
-  criticalThreshold?: number;
+  /** Ab wann die verbleibende Zeit Aufmerksamkeit bekommt (ms). Nur für `countdown`. */
+  warnAtMs?: number;
+  /** Ab wann sie dringlich wird (ms). Nur für `countdown`. */
+  criticalAtMs?: number;
   className?: string;
   onExpire?: () => void;
 }
@@ -30,19 +32,31 @@ function formatShort(totalMs: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function getPhaseColor(remainingRatio: number | null): string {
-  if (remainingRatio === null) return "text-lock";
-  if (remainingRatio > 0.5) return "text-lock";
-  if (remainingRatio > 0.1) return "text-inspect";
-  return "text-warn";
+/**
+ * Die Farbe eines Countdowns nach der VERBLEIBENDEN ZEIT, nicht nach einem Anteil.
+ *
+ * Vorher rechnete die Komponente einen Anteil aus — und zwar `diffMs / (|diffMs| + diffMs)`, also
+ * mathematisch **immer exakt 0.5**. Die Farbe stand damit konstant auf einer Stufe und eskalierte
+ * nie: eine 15-Minuten-Frist war bei 14:59 dieselbe Farbe wie bei 00:05, und die Warnfarbe kam
+ * erst, wenn die Frist schon abgelaufen war. Der Fehler war jahrelang unsichtbar, weil die einzige
+ * Aufrufstelle mit `!text-white` darüberschrieb.
+ *
+ * Ein Anteil bräuchte die GESAMTDAUER des Fensters, und die kennt diese Komponente nicht — sie
+ * bekommt nur ein Ziel. Absolute Schwellen beantworten dieselbe Frage ehrlich: „noch fünf Minuten"
+ * ist dringend, egal ob das Fenster eine Stunde oder einen Tag lang war.
+ */
+function phaseColor(remainingMs: number, warnAtMs: number, criticalAtMs: number): string {
+  if (remainingMs <= criticalAtMs) return "text-warn";
+  if (remainingMs <= warnAtMs) return "text-inspect";
+  return "";
 }
 
 export default function TimerDisplay({
   targetDate,
   mode = "countup",
   format = "long",
-  warningThreshold = 0.5,
-  criticalThreshold = 0.1,
+  warnAtMs = 30 * 60_000,
+  criticalAtMs = 5 * 60_000,
   className = "",
   onExpire,
 }: TimerDisplayProps) {
@@ -57,20 +71,15 @@ export default function TimerDisplay({
     : target.getTime() - now.getTime();
 
   // For countdown: calculate remaining ratio for phase colors
-  let remainingRatio: number | null = null;
-  if (mode === "countdown") {
-    const totalDuration = target.getTime() - (target.getTime() - Math.abs(diffMs + now.getTime() - target.getTime()));
-    if (totalDuration > 0) {
-      remainingRatio = Math.max(0, diffMs) / totalDuration;
-    }
-    if (diffMs <= 0 && onExpire) {
-      onExpire();
-    }
+  if (mode === "countdown" && diffMs <= 0 && onExpire) {
+    onExpire();
   }
 
-  const colorClass = mode === "countdown"
-    ? getPhaseColor(diffMs > 0 ? diffMs / Math.max(1, Math.abs(target.getTime() - now.getTime()) + diffMs) : 0)
-    : "text-lock";
+  // Farbe NUR beim Countdown: dort bedeutet sie etwas — die Phasenfarbe wird lauter, je weniger
+  // Zeit bleibt, also markiert sie eine Frist, die etwas will. Beim Hochzählen bedeutet sie nichts,
+  // und ein fest verdrahtetes `text-lock` machte jede laufende Dauer zur Signalfarbe, egal wofür
+  // sie steht: die Zeit seit dem ÖFFNEN erschien damit in der Farbe für „verschlossen".
+  const colorClass = mode === "countdown" ? phaseColor(Math.max(0, diffMs), warnAtMs, criticalAtMs) : "";
 
   const isExpired = mode === "countdown" && diffMs <= 0;
   const displayMs = isExpired ? 0 : Math.abs(diffMs);
@@ -81,12 +90,29 @@ export default function TimerDisplay({
   const prefix = isExpired && mode === "countdown" ? "-" : "";
 
   return (
+    // Weder `font-mono` noch `font-bold` in der Basis: die Schnitt-Entscheidung gehört dorthin, wo
+    // die Zahl steht. Als Held trägt sie `text-zahl font-semibold`, in der Kopfleiste die
+    // Fliesstext-Grösse — eine fest verdrahtete Monoschrift machte aus jeder Dauer eine
+    // Maschinenanzeige.
+    //
+    // `tabular-nums` bleibt HIER und wird nicht der Aufrufstelle überlassen, obwohl zwei von drei
+    // es ohnehin mitbringen: gleich breite Ziffern sind bei einer tickenden Zahl kein Stil, sondern
+    // die Bedingung dafür, dass sie nicht zappelt. Eine Eigenschaft, ohne die das Bauteil falsch
+    // aussieht, gehört ins Bauteil.
+    //
+    // KEIN `aria-live`: es sass auf einem Element, dessen Inhalt im Sekundentakt neu geschrieben
+    // wird. Der Screenreader sagte die Dauer endlos an und unterbrach sich dabei selbst — auf dem
+    // Dashboard mit laufender Session war nichts anderes mehr hörbar. Der Wert steht im Text und
+    // `aria-label` benennt ihn; wer hinnavigiert, bekommt ihn.
     <span
-      className={`font-mono font-bold tabular-nums ${colorClass} ${className}`}
-      aria-live="polite"
-      aria-label={`${tc(mode === "countdown" ? "remaining" : "elapsed")}: ${formatted}`}
+      className={["tabular-nums", colorClass, className].filter(Boolean).join(" ")}
       suppressHydrationWarning
     >
+      {/* Als sr-only-TEXT, nicht als `aria-label`: das Element ist ein `<span>` ohne Rolle
+          (`role=generic`), und dort ist `aria-label` nach ARIA 1.2 unzulässig — VoiceOver und NVDA
+          verwerfen es. Ohne diesen Vorspann wären Hoch- und Herunterzählen akustisch nicht mehr zu
+          unterscheiden: beide sagten nur „4T 9h 43min". */}
+      <span className="sr-only">{tc(mode === "countdown" ? "remaining" : "elapsed")}: </span>
       {prefix}{formatted}
     </span>
   );

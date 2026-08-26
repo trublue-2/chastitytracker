@@ -21,6 +21,9 @@ import Toggle from "@/app/components/Toggle";
 import type { SessionEventData } from "@/app/dashboard/SessionEventRow";
 import SessionEventRow from "@/app/dashboard/SessionEventRow";
 import SessionDurationBadge from "@/app/dashboard/SessionDurationBadge";
+import Section from "@/app/components/Section";
+import StateHero from "@/app/components/StateHero";
+import GoalProgressRows from "@/app/components/GoalProgressRows";
 
 import {
   MOCK_CALENDAR_MONTHS,
@@ -316,53 +319,29 @@ export function LaufendeSessionCardMockDemo() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="bg-surface rounded-2xl overflow-hidden shadow-card border border-border">
-        {/* ── Green status header ── */}
-        <div className="bg-gradient-to-br from-[var(--color-lock-grad-a)] to-[var(--color-lock-grad-b)] text-white px-5 py-4">
-          <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10 mt-0.5">
-              <Lock size={24} />
-            </div>
-            <div className="flex-1 min-w-0">
-              {/* Zustand und Dauer untereinander, auf jeder Breite — dieselbe Aufteilung wie im
-                  echten `StatusBanner`, und aus demselben Grund dort abgelegt: "rechts" ist in
-                  einem Kasten von 400 px nah und in einer Spalte von 768 px einen halben Meter
-                  weit weg, wo die Zeile in zwei Inseln mit einem Loch dazwischen zerfällt. Die
-                  Schau zeigt, was die App tut — zöge sie hier die alte Fassung weiter, wäre sie
-                  genau die Vorlage, von der wieder jemand abschriebe. */}
-              <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">Laufende Session</p>
-              <p className="text-2xl font-bold leading-tight">Verschlossen</p>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-xs font-semibold uppercase tracking-widest opacity-60">Dauer:</span>
-                <span className="text-xl font-bold tabular-nums">
-                  <SessionDurationBadge since={sessionSince} pausedMs={0} />
-                </span>
-              </div>
-              <p className="text-xs opacity-60 mt-1">Seit 30.03.2026, 08:15</p>
-            </div>
-          </div>
+      <div className="flex flex-col gap-4">
+        {/* Die ECHTEN Bauteile, nicht ihr Nachbau. Hier stand zuerst der alte Verlaufskasten und
+            danach eine Handkopie der neuen Figur — beides falsch: eine Schau, die etwas anderes
+            zeigt als das Produkt, ist die Vorlage, von der wieder jemand abschreibt. Die Handkopie
+            lief prompt schon auseinander (zwei Füllstufen statt drei, `--wear-4` fehlte).
 
-          {/* ── Trainingsvorgaben ── */}
-          <div className="mt-4 pt-3 border-t border-white/20 flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lock-on)] opacity-70 mb-1">Trainingsvorgaben</p>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-white/70 w-12 shrink-0">Tag</span>
-              <div className="flex-1 bg-white/15 rounded-full h-1.5 overflow-hidden">
-                <div className="h-1.5 rounded-full bg-white" style={{ width: "100%" }} />
-              </div>
-              <span className="text-xs text-white/60 w-16 text-right shrink-0">14.2h / 12h</span>
-              <span className="text-xs font-semibold text-white w-9 text-right shrink-0">100%</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-white/70 w-12 shrink-0">Woche</span>
-              <div className="flex-1 bg-white/15 rounded-full h-1.5 overflow-hidden">
-                <div className="h-1.5 rounded-full bg-white/70" style={{ width: "72%" }} />
-              </div>
-              <span className="text-xs text-white/60 w-16 text-right shrink-0">43.2h / 60h</span>
-              <span className="text-xs font-semibold text-white w-9 text-right shrink-0">72%</span>
-            </div>
-          </div>
-        </div>
+            `LaufendeSessionCard` selbst geht hier nicht — sie ist eine Server-Komponente, die
+            Schau ist `"use client"`. `StateHero` und `GoalProgressRows` sind es nicht und tragen
+            genau die Figuren, um die es geht. */}
+        <StateHero
+          tone="lock"
+          word="Verschlossen"
+          icon={<Lock size={15} strokeWidth={2.2} className="shrink-0" />}
+          value={<SessionDurationBadge since={sessionSince} pausedMs={0} />}
+          footnote="Seit 30.03.2026, 08:15"
+        />
+
+        <Section title="KG-Ziele">
+          <GoalProgressRows
+            actual={{ day: 14.2, week: 43.2, month: 180, year: 900 }}
+            targetH={{ day: 12, week: 60, month: null, year: null }}
+          />
+        </Section>
 
         {/* ── Timeline: echte SessionEventRow-Komponenten ── */}
         <div className="divide-y divide-border-subtle">
@@ -480,7 +459,10 @@ export function LaufendeSessionCardMockDemo() {
         </div>
 
         {/* ── Sperrzeit footer ── */}
-        <div className="bg-sperrzeit-bg border-t border-sperrzeit-border px-5 py-3 flex items-center gap-2 rounded-b-2xl">
+        {/* Ohne `rounded-b-2xl` und ohne `border-t`: die Karte, an deren Unterkante dieser Fuss
+            sass, gibt es nicht mehr. Er schwebte danach als Streifen mit abgerundeten UNTEREN Ecken
+            auf dem Seitengrund. */}
+        <div className="bg-sperrzeit-bg px-5 py-3 flex items-center gap-2 rounded-xl">
           <Lock size={13} className="text-sperrzeit shrink-0" />
           <span className="text-sm font-semibold text-sperrzeit-text">
             Verschlossen bis 04.04.2026, 09:00
@@ -489,7 +471,7 @@ export function LaufendeSessionCardMockDemo() {
         </div>
       </div>
       <p className="text-[10px] text-foreground-faint">
-        Nachbau mit echten Sub-Komponenten (SessionDurationBadge, SessionEventRow). Header + ProgressBar + Sperrzeit-Footer sind statisch (echte Komponente ist async Server Component).
+        Echte Bauteile: StateHero, GoalProgressRows, SessionDurationBadge, SessionEventRow. Nur der Sperrzeit-Fuss ist statisch — die vollständige `LaufendeSessionCard` ist eine async Server-Komponente und lässt sich hier nicht rendern.
       </p>
     </div>
   );

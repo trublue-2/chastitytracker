@@ -117,6 +117,7 @@
   --color-lock-on:          #2d1d26;
   --color-lock-on-muted:    #634d55;
   --hero-glow:              rgba(195,0,43,0.13);
+  --hero-glow-warn:         rgba(178,50,0,0.13);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.06);
@@ -221,6 +222,7 @@
   --color-lock-on:          #f4f5fb;
   --color-lock-on-muted:    #bcbed3;
   --hero-glow:              rgba(143,136,255,0.2);
+  --hero-glow-warn:         rgba(255,138,92,0.2);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.5);
@@ -326,6 +328,7 @@
   --color-lock-on:          #fdf7f8;
   --color-lock-on-muted:    #c9b7bd;
   --hero-glow:              rgba(255,61,104,0.2);
+  --hero-glow-warn:         rgba(255,138,92,0.2);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.5);
@@ -431,6 +434,7 @@
   --color-lock-on:          #1d2130;
   --color-lock-on-muted:    #4d5363;
   --hero-glow:              rgba(78,69,232,0.13);
+  --hero-glow-warn:         rgba(178,50,0,0.13);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.06);

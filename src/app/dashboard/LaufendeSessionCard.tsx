@@ -7,7 +7,7 @@ import SessionDurationBadge from "./SessionDurationBadge";
 import type { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
 import Section from "@/app/components/Section";
-import { blockInsetCls } from "@/app/components/inputStyles";
+import StateHero from "@/app/components/StateHero";
 import LiveTrainingGoals from "./LiveTrainingGoals";
 import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
@@ -95,54 +95,29 @@ export default async function LaufendeSessionCard({
     //
     // Der Held behält sein grosszügigeres `pb-7` — das ist Luft INNERHALB des Helden, um die Zahl
     // herum, und nicht der Abstand zum nächsten Abschnitt.
-    <section className="relative flex flex-col gap-4">
-      {/* Eine Tönung statt eines Kastens. Ein heller Grund kann nicht leuchten, ein dunkler soll es
-          nur an einer Stelle — beides erledigt dieselbe radiale Einfärbung, die zum Grund hin
-          ausläuft. Sie liegt HINTER dem Inhalt und fängt keine Klicks.
+    <section className="flex flex-col gap-4">
+      {/* Der Held: EIN Wort, eine grosse Zahl, eine leise Zeile. Über `StateHero`, weil dieselbe
+          Figur auch den offenen Zustand und die Keyholder-Sicht trägt — sie stand kurzzeitig
+          viermal zeichengleich im Baum und lief schon in den Innenabständen auseinander.
 
-          Sie bleibt IM eigenen Block (`inset-0`) und ihr hellster Punkt liegt darin, nicht an
-          seiner Kante. Vorher begann sie 6 rem über dem Abschnitt und hatte ihr Maximum bei
-          `50% 0%` — also ausserhalb: die Tönung lag über dem Block DARÜBER (dem Kontroll-Banner)
-          und riss dort sichtbar ab. Ein Leuchten, dessen Quelle man nicht sieht, liest sich nicht
-          als Licht, sondern als Fehler. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{ background: "radial-gradient(65% 60% at 34% 30%, var(--hero-glow), transparent 72%)" }}
-      />
-
-      <div className={`relative ${blockInsetCls} pt-8 pb-2`}>
-        {/* Der Zustand: EIN Wort. Vorher stand hier dreimal dasselbe — „Laufende Tragezeit",
-            „Verschlossen" und „Dauer:" beantworten alle die Frage, die die Zahl darunter längst
-            beantwortet. Übrig bleibt das Wort, das der Träger sucht, in der Zustandsfarbe. */}
-        {/* Klein und in Versalien, aber NICHT als Rubrik gesetzt: eine Rubrik benennt einen
-            Abschnitt, dieses Wort ist der WERT — die Antwort, die die Zahl darunter beziffert.
-            Deshalb trägt es die Zustandsfarbe und die volle Schriftstärke, während die Rubriken
-            der Seite leise und grau bleiben. Über einer 60-px-Zahl ist das laut genug. */}
-        <p className="inline-flex items-center gap-2 text-fliess font-semibold tracking-[0.02em] text-lock">
-          {t("locked")}
-          <Lock size={15} strokeWidth={2.2} className="shrink-0" />
-        </p>
-
-        {/* Die Zahl IST der Bildschirm. Sie stand vorher in 20 px hinter einer Beschriftung. */}
-        <p className="mt-3 text-zahl font-semibold tabular-nums tracking-[-0.045em] text-foreground">
-          <SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />
-        </p>
-
-        {/* Herkunft und Schlüssel: eine leise Zeile, kein eigener Block. Beides beantwortet
-            „woher kommt diese Zahl", und das ist eine Fussnote, keine zweite Aussage. */}
-        <p className="mt-3 text-neben text-foreground-muted">
-          {t("sessionSince")} {sessionStartStr}
-        </p>
+          Vorher stand hier dreimal dasselbe: „Laufende Tragezeit", „Verschlossen" und „Dauer:"
+          beantworten alle die Frage, die die Zahl darunter längst beantwortet. */}
+      <StateHero
+        tone="lock"
+        word={t("locked")}
+        icon={<Lock size={15} strokeWidth={2.2} className="shrink-0" />}
+        value={<SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />}
+        footnote={`${t("sessionSince")} ${sessionStartStr}`}
+      >
         {keyInBox != null && (
           keyInBox ? (
-            <p className="mt-1.5 inline-flex items-center gap-1.5 text-neben text-foreground-faint">
+            <p className="relative mt-1.5 inline-flex items-center gap-1.5 text-neben text-foreground-faint">
               <KeyRound size={12} className="shrink-0" />{t("keyInBoxYes")}
             </p>
           ) : (
             // „Nicht in der Box" ist die Ausnahme und heisst: dieser Verschluss ist gerade NICHT
             // hardware-gesichert. Das ist keine Fussnote — es bekommt die Aufmerksamkeitsfarbe.
-            <p className="mt-1.5 inline-flex items-center gap-1.5 text-neben font-semibold text-warn">
+            <p className="relative mt-1.5 inline-flex items-center gap-1.5 text-neben font-semibold text-warn">
               <KeyRound size={12} className="shrink-0" />{t("keyInBoxNo")}
             </p>
           )
@@ -151,7 +126,7 @@ export default async function LaufendeSessionCard({
         {/* Die Sperrzeit gehört zum Zustand, nicht in einen Fuss am anderen Ende der Karte: sie
             sagt, wie lange dieser Zustand noch gilt. */}
         {showSperrzeit && (
-          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-neben text-foreground-muted">
+          <p className="relative mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-neben text-foreground-muted">
             <Lock size={12} className="shrink-0 text-lock" />
             <span className="font-semibold text-foreground">
               {scheduledForStr
@@ -168,7 +143,7 @@ export default async function LaufendeSessionCard({
             {cleaningNote && <span className="shrink-0">· {cleaningNote}</span>}
           </p>
         )}
-      </div>
+      </StateHero>
 
       {/* Trainingsvorgaben als eigener, benannter Abschnitt — vorher hingen sie namenlos unter
           dem Kartenkopf und sahen aus wie ein Teil des Zustands. Sie sind aber die Antwort auf

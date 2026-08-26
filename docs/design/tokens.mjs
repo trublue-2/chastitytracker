@@ -361,6 +361,15 @@ export function themeTokens(themeName) {
     const [r, g, b] = px(rollenton)
     setze('hero-glow', `rgba(${r},${g},${b},${glutAnteil})`)
   }
+  // Dasselbe Leuchten in der Aufmerksamkeitsfarbe — für den Helden, hinter dem eine FRIST läuft
+  // (die Reinigungspause). Es braucht einen eigenen Token und nicht `color-warn-bg`: das ist eine
+  // deckende Fläche, und ein deckender Kern in einem `transparent`-Verlauf übermalt den Grund,
+  // statt ihn zu tönen — ein Fleck statt eines Leuchtens. Derselbe Glut-Anteil, damit beide Helden
+  // gleich hell strahlen.
+  {
+    const [r, g, b] = px(th.hell ? BEDEUTUNG.koralle.hell : BEDEUTUNG.koralle.dunkel)
+    setze('hero-glow-warn', `rgba(${r},${g},${b},${glutAnteil})`)
+  }
   // Der Vollbild-Bildbetrachter bleibt schwarz — ein Foto beurteilt man nicht auf Farbe. Als
   // Token, damit die Stelle auffindbar ist und nicht als `#000` im Style-Objekt versteckt liegt.
   setze('lightbox-bg', '#000000')

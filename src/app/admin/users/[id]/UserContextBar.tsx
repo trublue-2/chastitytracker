@@ -65,12 +65,11 @@ export default function UserContextBar({ userId, username, currentStatus, since,
                  jede andere Stelle der App `4T 9h 43min` schreibt. Eine Oberfläche, die dieselbe
                  Dauer in zwei Sprachen nennt, zwingt zum Kopfrechnen.
 
-                 Monoschrift und Zustandsfarbe bleiben: `TimerDisplay` setzt beides fest (`font-mono`
-                 und `text-lock` bei `mode="countup"`), sie liessen sich von hier gar nicht abwählen.
-                 Für sich genommen wäre die tickende Uhr in Signalfarbe einen zweiten Blick wert —
-                 aber sie umzubauen träfe jede andere Verwendung mit, und das ist eine eigene
-                 Entscheidung, kein Nebeneffekt dieser Zeile. */
-              ? <><Lock size={11} strokeWidth={2} />{since && <TimerDisplay targetDate={since} mode="countup" format="long" />}</>
+                 Monoschrift und Zustandsfarbe sind mit weg: `TimerDisplay` setzte beides fest, obwohl
+                 die Farbe beim Hochzählen nichts bedeutet. Die umgebende Zeile trägt die
+                 Zustandsfarbe ohnehin — dort steht sie richtig, weil sie am Schloss-Zeichen hängt
+                 und nicht an der Zahl. */
+              ? <><Lock size={11} strokeWidth={2} />{since && <TimerDisplay targetDate={since} mode="countup" format="long" className="font-semibold" />}</>
               : currentStatus
                 ? <><LockOpen size={11} strokeWidth={2} /> {t("opened")}</>
                 : <span className="text-foreground-faint">–</span>

@@ -839,10 +839,8 @@
     "tooltip": "Neuere Version verfügbar: v{version}"
   },
   "statusBanner": {
-    "status": "Status",
     "locked": "Verschlossen",
     "opened": "Geöffnet",
-    "duration": "Dauer",
     "noEntry": "Noch kein Eintrag vorhanden",
     "since": "seit"
   },

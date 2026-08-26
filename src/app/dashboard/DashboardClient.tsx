@@ -13,6 +13,7 @@ import Section from "@/app/components/Section";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { formatTotalHours } from "@/lib/utils";
 import { coveragePct } from "@/lib/percent";
+import StateHero from "@/app/components/StateHero";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 
 // ── Types ────────────────────────────────────
@@ -157,38 +158,41 @@ export default function DashboardClient(props: DashboardProps) {
            Während einer laufenden Reinigungspause zeigt derselbe Platz die verbleibende Frist statt
            „Geöffnet seit": die Session ist nicht beendet, sie ist unterbrochen. Läuft die Frist ab,
            kehrt die Anzeige von selbst zum normalen „geöffnet" zurück (Timer im Effekt oben). */}
-      {isOpen && (
-        <div className="rounded-2xl overflow-hidden border border-unlock-border">
-          <div className="px-5 py-4 text-white bg-gradient-to-br from-[var(--color-unlock-border)] to-[var(--color-unlock)]">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10">
-                <LockOpen size={28} strokeWidth={2} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-widest opacity-60">
-                  {cleaningPauseUntil ? t("cleaningPauseLabel") : t("openSince")}
-                </p>
-                {heroTimer && <TimerDisplay {...heroTimer} className="!text-white text-2xl font-bold" />}
-              </div>
-            </div>
-            {/* Die Folge, bevor sie eintritt. Der Countdown darüber sagt, wie lange die Session
-                fortgeführt wird; wo die STRAFFRIST früher endet (Reinigungsfenster kürzer als das
-                Kontingent), muss diese Zeile das sagen — sonst verschliesst er bei grünem Countdown
-                und hat ein Vergehen, das er sich nicht erklären kann. */}
-            {cleaningRelockWarnTime && (
-              <p className="mt-3 text-sm font-medium text-white/90">
-                {t(cleaningRelockWarnPassed ? "cleaningRelockWarnPassed" : "cleaningRelockWarn", { time: cleaningRelockWarnTime })}
-              </p>
-            )}
-            {cleaningPauseUntil && (
-              <Link href="/dashboard/new/verschluss" className="mt-4 block">
-                <Button variant="semantic" semantic="lock" fullWidth icon={<Lock size={16} />}>
-                  {t("cleaningPauseRelock")}
-                </Button>
-              </Link>
-            )}
-          </div>
-        </div>
+      {/* Der Held des OFFENEN Zustands — dieselbe Figur wie beim verschlossenen, deshalb dasselbe
+          Bauteil (`StateHero`). Hier stand bis v6 die alte App: Verlaufskasten mit Rahmen, Zeichen
+          in einer getönten Kachel, „OFFEN SEIT" über einer 24-px-Zahl in Weiss.
+
+          `tone`: offen sein WILL nichts, also `quiet` — keine Farbe, kein Leuchten. Läuft eine
+          Reinigungspause, gibt es eine Frist, und die will etwas: dann `warn`, die Restzeit statt
+          der verstrichenen Zeit, und der Knopf, der die Frist beendet.
+
+          Ohne `heroTimer` wird gar nichts gerendert: `currentStatus` kommt aus dem letzten
+          KG-Eintrag, `hasEntries` aus ALLEN Eintragsarten — wer nur Orgasmen und Kontrollen erfasst
+          hat, bekäme sonst eine Kopfzeile über einer fehlenden Zahl. */}
+      {isOpen && heroTimer && (
+        <StateHero
+          tone={cleaningPauseUntil ? "warn" : "quiet"}
+          word={cleaningPauseUntil ? t("cleaningPauseLabel") : t("openSince")}
+          icon={<LockOpen size={15} strokeWidth={2.2} className="shrink-0" />}
+          value={<TimerDisplay {...heroTimer} />}
+          /* Die Folge, bevor sie eintritt. Der Countdown darüber sagt, wie lange die Session
+             fortgeführt wird; wo die STRAFFRIST früher endet (Reinigungsfenster kürzer als das
+             Kontingent), muss diese Zeile das sagen — sonst verschliesst er bei laufendem
+             Countdown und hat ein Vergehen, das er sich nicht erklären kann. */
+          footnote={cleaningRelockWarnTime && (
+            <span className="font-medium text-warn">
+              {t(cleaningRelockWarnPassed ? "cleaningRelockWarnPassed" : "cleaningRelockWarn", { time: cleaningRelockWarnTime })}
+            </span>
+          )}
+        >
+          {cleaningPauseUntil && (
+            <Link href="/dashboard/new/verschluss" className="relative mt-4 block">
+              <Button variant="semantic" semantic="lock" fullWidth icon={<Lock size={16} />}>
+                {t("cleaningPauseRelock")}
+              </Button>
+            </Link>
+          )}
+        </StateHero>
       )}
 
       {/* Anforderungs-Banner: siehe `DashboardAlerts` (eigener Block ganz oben).
