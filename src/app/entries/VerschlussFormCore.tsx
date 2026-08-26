@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Lock } from "lucide-react";
+
 import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
@@ -23,6 +23,7 @@ import Card from "@/app/components/Card";
 import Toggle from "@/app/components/Toggle";
 import type { DeviceOption } from "@/lib/queries";
 import type { VerschlussPayload, SubmitResult } from "./types";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 /** Die zwei strukturgleichen Rückfragen vor dem Speichern — nur die Texte unterscheiden sie
  *  (gleiches Muster wie HINT_CARDS/MISMATCH_CARDS im Kontroll-Formular). */
@@ -205,7 +206,7 @@ export default function VerschlussFormCore({
           fullWidth
           loading={saving || uploading || codePhoto.uploading || boxPhoto.uploading}
           disabled={bildersafe && (!codeUrl || codeReadable === false)}
-          icon={submitVariant === "primary" ? <Lock size={16} /> : undefined}
+          icon={submitVariant === "primary" ? <LockClosedIcon size={16} /> : undefined}
         >
           {submitLabel ?? defaultLabel}
         </Button>
@@ -290,7 +291,7 @@ export default function VerschlussFormCore({
             <button type="button" onClick={codePhoto.clearPhoto} className="text-left w-full">
               <Card variant="semantic" semantic={codeReadable === false ? "warn" : "sperrzeit"}>
                 <div className="flex items-start gap-2.5">
-                  <Lock size={16} className={`flex-shrink-0 mt-0.5 ${codeReadable === false ? "text-warn" : "text-sperrzeit"}`} />
+                  <LockClosedIcon size={16} className={`flex-shrink-0 mt-0.5 ${codeReadable === false ? "text-warn" : "text-sperrzeit"}`} />
                   <div className="text-neben flex-1">
                     <p className={`font-bold ${codeReadable === false ? "text-warn-text" : "text-sperrzeit-text"}`}>{tForm("codePhotoSealed")}</p>
                     <p className={`mt-0.5 ${codeReadable === false ? "text-warn" : "text-sperrzeit"}`}>

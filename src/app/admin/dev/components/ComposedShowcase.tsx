@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Lock, Plus, Download, X, RefreshCw,
-  ChevronLeft, ArrowLeftRight, ChevronRight, CheckCircle2, Droplets,
-} from "lucide-react";
+import { Plus, Download, X, RefreshCw, ChevronLeft, ArrowLeftRight, ChevronRight, CheckCircle2, Droplets } from "lucide-react";
 
 import Button from "@/app/components/Button";
 import CalendarContainer from "@/app/components/CalendarContainer";
@@ -24,7 +21,7 @@ import SessionDurationBadge from "@/app/dashboard/SessionDurationBadge";
 import Section from "@/app/components/Section";
 import StateHero from "@/app/components/StateHero";
 import GoalProgressRows from "@/app/components/GoalProgressRows";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 import {
   MOCK_CALENDAR_MONTHS,
@@ -82,7 +79,7 @@ export function SessionEventRowDemo() {
     <div className="bg-surface rounded-2xl border border-border overflow-hidden divide-y divide-border-subtle">
       <p className="px-5 pt-3 text-[10px] text-foreground-faint font-mono">type=&quot;verschluss&quot;</p>
       <SessionEventRow
-        icon={<Lock size={18} className="text-lock" />}
+        icon={<LockClosedIcon size={18} className="text-lock" />}
         ev={{
           ...demoEvent,
           type: "verschluss", dateStr: "02.04.2026", timeStr: "23:47",
@@ -332,7 +329,7 @@ export function LaufendeSessionCardMockDemo() {
         <StateHero
           tone="lock"
           word="Verschlossen"
-          icon={<Lock size={15} strokeWidth={2.2} className="shrink-0" />}
+          icon={<LockClosedIcon size={15} strokeWidth={2.2} className="shrink-0" />}
           value={<SessionDurationBadge since={sessionSince} pausedMs={0} />}
           footnote="Seit 30.03.2026, 08:15"
         />
@@ -346,9 +343,9 @@ export function LaufendeSessionCardMockDemo() {
 
         {/* ── Timeline: echte SessionEventRow-Komponenten ── */}
         <div className="divide-y divide-border-subtle">
-          {/* Verschluss (Lock entry) */}
+          {/* Verschluss (LockClosedIcon entry) */}
           <SessionEventRow
-            icon={<Lock size={18} className="text-lock" />}
+            icon={<LockClosedIcon size={18} className="text-lock" />}
             ev={{
               ...demoEvent,
               type: "verschluss",
@@ -464,7 +461,7 @@ export function LaufendeSessionCardMockDemo() {
             sass, gibt es nicht mehr. Er schwebte danach als Streifen mit abgerundeten UNTEREN Ecken
             auf dem Seitengrund. */}
         <div className="bg-sperrzeit-bg px-5 py-3 flex items-center gap-2 rounded-xl">
-          <Lock size={13} className="text-sperrzeit shrink-0" />
+          <LockClosedIcon size={13} className="text-sperrzeit shrink-0" />
           <span className="text-sm font-semibold text-sperrzeit-text">
             Verschlossen bis 04.04.2026, 09:00
           </span>
@@ -493,7 +490,7 @@ export function AdminFABMockDemo() {
         {MOCK_USERS.map((u) => (
           <div key={u.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-raised">
             {u.isLocked ? (
-              <Lock size={14} className="text-lock flex-shrink-0" />
+              <LockClosedIcon size={14} className="text-lock flex-shrink-0" />
             ) : (
               <LockOpenIcon size={14} className="text-unlock flex-shrink-0" />
             )}

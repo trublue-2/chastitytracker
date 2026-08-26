@@ -1,5 +1,5 @@
 import { assertAdmin } from "@/lib/authGuards";
-import { Lock, ClipboardCheck, Droplets, Clipboard, Shield, BarChart3 } from "lucide-react";
+import { ClipboardCheck, Droplets, Clipboard, Shield, BarChart3 } from "lucide-react";
 
 import FormError from "@/app/components/FormError";
 import FormField from "@/app/components/FormField";
@@ -21,7 +21,7 @@ import {
   TimerDisplayDemo, ToastDemo,
 } from "./InteractiveShowcase";
 import WorldGrid from "./WorldGrid";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 import {
   PhotoCaptureDemo, ImageViewerDemo,
@@ -183,7 +183,7 @@ export default async function ComponentsShowcase() {
                 <p className="text-xs text-foreground-muted">Nur Border</p>
               </Card>
               <Card variant="semantic" semantic="lock">
-                <p className="text-sm font-medium text-lock-text">Semantic (Lock)</p>
+                <p className="text-sm font-medium text-lock-text">Semantic (LockClosedIcon)</p>
                 <p className="text-xs text-lock-text">Farbiger Hintergrund</p>
               </Card>
               <Card variant="interactive">
@@ -212,7 +212,7 @@ export default async function ComponentsShowcase() {
           <ThemePair>
             <div>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="lock" label="Verschlossen" icon={<Lock size={12} />} />
+                <Badge variant="lock" label="Verschlossen" icon={<LockClosedIcon size={12} />} />
                 <Badge variant="unlock" label="Offen" icon={<LockOpenIcon size={12} />} />
                 <Badge variant="inspect" label="Kontrolle" icon={<ClipboardCheck size={12} />} />
                 <Badge variant="orgasm" label="Orgasmus" icon={<Droplets size={12} />} />
@@ -380,7 +380,7 @@ export default async function ComponentsShowcase() {
           <ThemePairClient component={LocaleSwitcherDemo} />
         </Section>
 
-        <Section title="UserContextBar" description="Admin: User + Lock-Status + User-Wechsel (sticky, hier contained).">
+        <Section title="UserContextBar" description="Admin: User + LockClosedIcon-Status + User-Wechsel (sticky, hier contained).">
           <ThemePairClient component={UserContextBarDemo} />
         </Section>
 

@@ -17,6 +17,13 @@ import { createLucideIcon } from "lucide-react";
  * und über `createLucideIcon` gebaut — sie sind damit echte `LucideIcon` und stehen in `ICON_MAP`
  * neben den übrigen, ohne Sonderbehandlung.
  *
+ * **Die Regel, an der hier alles hängt — sie gilt für jedes handgezeichnete Zeichen dieser App:**
+ * ein Zwischenraum trägt erst, wenn er breiter ist als der Strich daneben. Bei Strichstärke 2 im
+ * 24er-Raster und einer Anzeige mit 14 px ist eine Einheit 0,58 px und der Strich selbst 1,17 px —
+ * zwei Einheiten Weiss laufen also mit Antialiasing zu, und aus zwei Konturen wird eine dicke.
+ * Faustregel: mindestens drei Einheiten, sonst verschwindet die Aussage genau bei der Grösse, in
+ * der das Zeichen wirklich vorkommt. `LockOpenIcon` ist an derselben Rechnung entstanden.
+ *
  * Die Formen sind am Bildschirm ausgewählt worden, nicht am Papier: je drei Entwürfe in 14, 18, 24
  * und 44 px nebeneinander. Was dabei ausschied, ist so lehrreich wie das, was blieb — ein Ring aus
  * zwei konzentrischen Kreisen liest sich als Zielscheibe, ein liegendes Oval als Auge (und das ist

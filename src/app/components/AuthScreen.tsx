@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Lock } from "lucide-react";
+
 import type { ReactNode } from "react";
 import { DEFAULT_WORLD } from "@/lib/theme";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {
   /** Benennt den Bildschirm. Auf der Anmeldeseite ist das die Wortmarke selbst — dort gibt es
@@ -43,7 +44,7 @@ export default function AuthScreen({ title, subtitle, children, footer }: Props)
       <div className="w-full max-w-sm flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="flex items-center justify-center gap-2.5 text-foreground">
-            <Lock size={22} strokeWidth={2} className="flex-shrink-0" aria-hidden="true" />
+            <LockClosedIcon size={22} strokeWidth={2} className="flex-shrink-0" aria-hidden="true" />
             <h1 className="font-serif text-titel text-balance">{title}</h1>
           </div>
           {subtitle && <p className="text-fliess text-foreground-muted">{subtitle}</p>}

@@ -3,12 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ArrowLeftRight, Lock } from "lucide-react";
+import { ChevronLeft, ArrowLeftRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "@/app/components/Sheet";
 import TimerDisplay from "@/app/components/TimerDisplay";
 import UserAvatar from "@/app/components/UserAvatar";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 interface UserEntry {
   id: string;
@@ -88,7 +88,7 @@ export default function UserContextBar({ userId, username, currentStatus, since,
                  die Farbe beim Hochzählen nichts bedeutet. Die umgebende Zeile trägt die
                  Zustandsfarbe ohnehin — dort steht sie richtig, weil sie am Schloss-Zeichen hängt
                  und nicht an der Zahl. */
-              ? <><Lock size={11} strokeWidth={2} />{since && <TimerDisplay targetDate={since} mode="countup" format="long" className="font-semibold" />}</>
+              ? <><LockClosedIcon size={11} strokeWidth={2} />{since && <TimerDisplay targetDate={since} mode="countup" format="long" className="font-semibold" />}</>
               : currentStatus
                 ? <><LockOpenIcon size={11} strokeWidth={2} /> {t("opened")}</>
                 : <span className="text-foreground-faint">–</span>
@@ -131,7 +131,7 @@ export default function UserContextBar({ userId, username, currentStatus, since,
               {u.isLocked === undefined
                 ? null
                 : u.isLocked
-                  ? <Lock size={14} strokeWidth={1.75} className="text-lock flex-shrink-0" />
+                  ? <LockClosedIcon size={14} strokeWidth={1.75} className="text-lock flex-shrink-0" />
                   : <LockOpenIcon size={14} strokeWidth={1.75} className="text-unlock flex-shrink-0" />
               }
               {u.id === userId && (

@@ -1,4 +1,4 @@
-import { Lock, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected, APP_TZ } from "@/lib/utils";
 export type { SessionEvent } from "@/lib/sessionHelpers";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -14,6 +14,7 @@ import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 import type { SessionEvent } from "@/lib/sessionHelpers";
 import { inspectionHref } from "@/lib/entryFormRoute";
 import { hasVisibleGoalRow, periodEndsMs, type VorgabeTargets } from "@/lib/goalFulfillment";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {
   sessionStart: Date;
@@ -105,7 +106,7 @@ export default async function LaufendeSessionCard({
       <StateHero
         tone="lock"
         word={t("locked")}
-        icon={<Lock size={15} strokeWidth={2.2} className="shrink-0" />}
+        icon={<LockClosedIcon size={15} strokeWidth={2.2} className="shrink-0" />}
         value={<SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />}
         footnote={`${t("sessionSince")} ${sessionStartStr}`}
       >
@@ -127,7 +128,7 @@ export default async function LaufendeSessionCard({
             sagt, wie lange dieser Zustand noch gilt. */}
         {showSperrzeit && (
           <p className="relative mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-neben text-foreground-muted">
-            <Lock size={12} className="shrink-0 text-lock" />
+            <LockClosedIcon size={12} className="shrink-0 text-lock" />
             <span className="font-semibold text-foreground">
               {scheduledForStr
                 ? <>{ta("scheduledForLabel")}: {scheduledForStr}</>

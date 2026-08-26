@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Lock, ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
+import { ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
@@ -10,7 +10,7 @@ import CategoryIconRender from "@/app/components/CategoryIcon";
 import Section from "@/app/components/Section";
 import { getTranslations } from "next-intl/server";
 import ActionRow from "./ActionRow";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 export default async function AktionenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -66,7 +66,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           {/* Verschluss anfordern — mehrere offene Anforderungen sind erlaubt, kein Gate darauf */}
           <ActionRow
             href={!isLocked && hasEmail ? `${base}/verschluss-anforderung` : undefined}
-            icon={<Lock className="size-4" />}
+            icon={<LockClosedIcon className="size-4" />}
             title={t("requestLock")}
             description={t("requestLockHint")}
             lockedReason={isLocked ? t("alreadyLocked") : !hasEmail ? t("noEmail") : undefined}
@@ -76,14 +76,14 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           {isLocked && activeSperrzeit ? (
             <ActionRow
               href={`${base}/sperrdauer-edit`}
-              icon={<Lock className="size-4" />}
+              icon={<LockClosedIcon className="size-4" />}
               title={t("editLockDuration")}
               description={t("editLockDurationHint")}
             />
           ) : (
             <ActionRow
               href={isLocked ? `${base}/verschluss-anforderung` : undefined}
-              icon={<Lock className="size-4" />}
+              icon={<LockClosedIcon className="size-4" />}
               title={t("setLockDuration")}
               description={t("setLockDurationHint")}
               lockedReason={isLocked ? undefined : t("entryOnlyIfLocked")}
@@ -139,7 +139,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
         <div className="divide-y divide-border-subtle">
           <ActionRow
             href={isLocked ? undefined : `${base}/verschluss`}
-            icon={<Lock className="size-4" />}
+            icon={<LockClosedIcon className="size-4" />}
             title={t("entryVerschluss")}
             description={t("entryVerschlussDesc")}
             lockedReason={isLocked ? t("alreadyLocked") : undefined}

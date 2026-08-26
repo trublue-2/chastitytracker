@@ -3,12 +3,12 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
+
 import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
 import StateHero from "@/app/components/StateHero";
 import TimerDisplay from "@/app/components/TimerDisplay";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 /**
  * Der Held des OFFENEN Zustands — das Gegenstück zu `LaufendeSessionCard`.
@@ -80,7 +80,7 @@ export default function OpenStateHero({
     >
       {cleaningPauseUntil && (
         <Link href="/dashboard/new/verschluss" className="relative mt-4 block">
-          <Button variant="semantic" semantic="lock" fullWidth icon={<Lock size={16} />}>
+          <Button variant="semantic" semantic="lock" fullWidth icon={<LockClosedIcon size={16} />}>
             {t("cleaningPauseRelock")}
           </Button>
         </Link>

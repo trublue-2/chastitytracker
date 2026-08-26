@@ -1,5 +1,5 @@
-import { ClipboardList, Play, Square, Lock, ClipboardCheck, Droplets, Circle, Scale, KeyRound, ShowerHead, Eye } from "lucide-react";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { ClipboardList, Play, Square, ClipboardCheck, Droplets, Circle, Scale, KeyRound, ShowerHead, Eye } from "lucide-react";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 /**
  * Das Zeichen einer Erfassungs-Handlung: Symbol und Farbe, in einer Grösse.
@@ -35,8 +35,8 @@ export type ActionSignKey =
 
 /** Die Farben stehen als CSS-Variable und nicht als Tailwind-Klasse, weil die Hülle sie als
  *  `style`-Wert setzt: das Zeichen färbt sich, ohne dass die Hülle die Palette kennen muss. */
-const SIGNS: Record<ActionSignKey, { Icon: typeof Lock; color: string }> = {
-  VERSCHLUSS: { Icon: Lock, color: "var(--color-lock)" },
+const SIGNS: Record<ActionSignKey, { Icon: typeof LockClosedIcon; color: string }> = {
+  VERSCHLUSS: { Icon: LockClosedIcon, color: "var(--color-lock)" },
   OEFFNEN: { Icon: LockOpenIcon, color: "var(--color-unlock)" },
   PRUEFUNG: { Icon: ClipboardCheck, color: "var(--color-inspect)" },
   ORGASMUS: { Icon: Droplets, color: "var(--color-orgasm)" },
@@ -83,6 +83,6 @@ export function actionSign(key: string): { icon: React.ReactNode; iconColor: str
  * `undefined` für eine unbekannte Art, weil die Aufrufer teils rohe Zeichenketten aus der Datenbank
  * hereinreichen; sie zeigen dann kein Zeichen statt zu stürzen.
  */
-export function actionIcon(key: string): typeof Lock | undefined {
+export function actionIcon(key: string): typeof LockClosedIcon | undefined {
   return SIGNS[key as ActionSignKey]?.Icon;
 }

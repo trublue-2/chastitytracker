@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Settings, LogOut, Lock, ScrollText, Users } from "lucide-react";
+import { Settings, LogOut, ScrollText, Users } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { clearSwUserCache } from "@/lib/swMessages";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {
   username: string;
@@ -70,7 +71,7 @@ export default function AvatarMenu({ username, settingsHref, theme, version, isG
             {theme === "user" && (
               <>
                 <Link href="/dashboard/geraete" onClick={() => setOpen(false)} className={itemNormal}>
-                  <Lock size={16} strokeWidth={1.75} />
+                  <LockClosedIcon size={16} strokeWidth={1.75} />
                   {t("devices")}
                 </Link>
                 <Link href="/dashboard/regeln" onClick={() => setOpen(false)} className={itemNormal}>

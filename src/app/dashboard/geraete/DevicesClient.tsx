@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Lock, Plus, Pencil, Trash2, ArchiveRestore, Tags } from "lucide-react";
+import { Plus, Pencil, Trash2, ArchiveRestore, Tags } from "lucide-react";
 import Card from "@/app/components/Card";
 import DeviceReferencesManager from "./DeviceReferencesManager";
 import Button from "@/app/components/Button";
@@ -16,6 +16,7 @@ import useToast from "@/app/hooks/useToast";
 import DeviceForm from "./DeviceFormSheet";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 export interface DeviceRow {
   id: string;
@@ -247,7 +248,7 @@ export default function DevicesClient({ devices: initialDevices, categories, use
       {/* Device list — grouped by category when filter = all and >1 category */}
       {visibleDevices.length === 0 ? (
         <EmptyState
-          icon={<Lock size={40} />}
+          icon={<LockClosedIcon size={40} />}
           title={t("empty")}
           description={t("emptyDescription")}
           action={{ label: t("addDevice"), onClick: openAdd }}
@@ -328,7 +329,7 @@ function DeviceCard({
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={device.imageUrl} alt={device.name} className="w-full h-full object-cover" />
           ) : (
-            <Lock size={24} className="text-foreground-faint" />
+            <LockClosedIcon size={24} className="text-foreground-faint" />
           )}
         </div>
 

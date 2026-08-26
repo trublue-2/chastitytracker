@@ -3,14 +3,14 @@
 import Section from "@/app/components/Section";
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronDown, ChevronUp, Lock, Timer } from "lucide-react";
+import { ChevronDown, ChevronUp, Timer } from "lucide-react";
 import { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { BLOCK_PAGE_SIZE } from "@/lib/constants";
 import { toDateLocale } from "@/lib/utils";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 interface OeffnenFooter {
   dateStr: string;
@@ -104,7 +104,7 @@ export default function SessionListClient({ sessions, tz }: { sessions: SessionL
                 Einzäunung auf demselben Bildschirm. */}
             {isOpen && (
               <div className="pl-4 pb-4 border-l-2 border-border-subtle ml-1">
-                <SessionMarker icon={<Lock size={11} />} label={t("sessionStart")} tone="lock">
+                <SessionMarker icon={<LockClosedIcon size={11} />} label={t("sessionStart")} tone="lock">
                   {session.dateStr}, {session.timeStr}
                 </SessionMarker>
 
@@ -128,7 +128,7 @@ export default function SessionListClient({ sessions, tz }: { sessions: SessionL
                     </span>
                   </SessionMarker>
                 ) : (
-                  <SessionMarker icon={<Lock size={11} />} label={t("stillLocked")} tone="lock" />
+                  <SessionMarker icon={<LockClosedIcon size={11} />} label={t("stillLocked")} tone="lock" />
                 )}
               </div>
             )}

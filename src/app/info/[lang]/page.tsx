@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Lock, LayoutDashboard, PlusCircle, BarChart2, ClipboardCheck, LogIn, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, PlusCircle, BarChart2, ClipboardCheck, LogIn, ShieldCheck } from "lucide-react";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 type Lang = "de" | "en";
 
@@ -38,7 +39,7 @@ const content = {
           { src: "/screenshots/info/01-dashboard-c.png", alt: "Dashboard – Ältere Einträge" },
         ],
         features: [
-          { icon: Lock, color: "text-emerald-500", text: "Echtzeit-Status: Verschlossen / Geöffnet mit laufender Zeitanzeige" },
+          { icon: LockClosedIcon, color: "text-emerald-500", text: "Echtzeit-Status: Verschlossen / Geöffnet mit laufender Zeitanzeige" },
           { icon: LayoutDashboard, color: "text-gray-400", text: "Alle Einschlusspaare mit Zeitstempel und Foto in chronologischer Liste" },
           { icon: ClipboardCheck, color: "text-orange-500", text: "Offene Kontrollen werden als prominentes Banner hervorgehoben" },
         ],
@@ -55,8 +56,8 @@ const content = {
           { src: "/screenshots/info/03-verschluss.png", alt: "Verschluss-Formular" },
         ],
         features: [
-          { icon: Lock, color: "text-emerald-500", text: "Verschluss: Datum, Uhrzeit und obligatorisches Foto" },
-          { icon: Lock, color: "text-gray-400", text: "Öffnen: Nur möglich bei aktivem Verschluss, mit optionaler Notiz" },
+          { icon: LockClosedIcon, color: "text-emerald-500", text: "Verschluss: Datum, Uhrzeit und obligatorisches Foto" },
+          { icon: LockClosedIcon, color: "text-gray-400", text: "Öffnen: Nur möglich bei aktivem Verschluss, mit optionaler Notiz" },
           { icon: ClipboardCheck, color: "text-orange-500", text: "Kontrolle: Foto mit handgeschriebenem Code, KI-gestützte Verifikation" },
           { icon: PlusCircle, color: "text-rose-500", text: "Orgasmus: Art (Dropdown) und optionale Notiz" },
         ],
@@ -76,7 +77,7 @@ const content = {
         features: [
           { icon: BarChart2, color: "text-indigo-500", text: "Trainingsziele für Tag, Woche und Monat mit Fortschrittsbalken" },
           { icon: LayoutDashboard, color: "text-gray-400", text: "Farbcodierter Tragekalender: Traganteil pro Tag auf einen Blick" },
-          { icon: Lock, color: "text-amber-500", text: "Rekorde: Längste und kürzeste Session" },
+          { icon: LockClosedIcon, color: "text-amber-500", text: "Rekorde: Längste und kürzeste Session" },
         ],
       },
       {
@@ -125,7 +126,7 @@ const content = {
   en: {
     meta: {
       title: "KG-Tracker – App Overview",
-      description: "KG-Tracker: Chastity belt tracking for wearers and keyholders. Lock periods, checks, and statistics at a glance.",
+      description: "KG-Tracker: Chastity belt tracking for wearers and keyholders. LockClosedIcon periods, checks, and statistics at a glance.",
     },
     login: "Log in",
     langSwitch: { label: "DE", href: "/info/de" },
@@ -137,7 +138,7 @@ const content = {
       { id: "admin",       label: "Admin" },
     ],
     hero: {
-      subtitle: "Chastity belt tracking for couples. Lock periods, checks, and statistics — clearly at a glance.",
+      subtitle: "Chastity belt tracking for couples. LockClosedIcon periods, checks, and statistics — clearly at a glance.",
       cta: "Log in now",
     },
     sections: [
@@ -150,11 +151,11 @@ const content = {
         flip: false,
         shots: [
           { src: "/screenshots/info/01-dashboard-a.png", alt: "Dashboard – Status and Stats" },
-          { src: "/screenshots/info/01-dashboard-b.png", alt: "Dashboard – Lock List" },
+          { src: "/screenshots/info/01-dashboard-b.png", alt: "Dashboard – LockClosedIcon List" },
           { src: "/screenshots/info/01-dashboard-c.png", alt: "Dashboard – Older Entries" },
         ],
         features: [
-          { icon: Lock, color: "text-emerald-500", text: "Real-time status: Locked / Opened with live time display" },
+          { icon: LockClosedIcon, color: "text-emerald-500", text: "Real-time status: Locked / Opened with live time display" },
           { icon: LayoutDashboard, color: "text-gray-400", text: "All lock pairs with timestamp and photo in chronological list" },
           { icon: ClipboardCheck, color: "text-orange-500", text: "Open checks are highlighted as a prominent banner" },
         ],
@@ -168,11 +169,11 @@ const content = {
         flip: true,
         shots: [
           { src: "/screenshots/info/02-new-entry.png", alt: "New Entry – Type Selection" },
-          { src: "/screenshots/info/03-verschluss.png", alt: "Lock Form" },
+          { src: "/screenshots/info/03-verschluss.png", alt: "LockClosedIcon Form" },
         ],
         features: [
-          { icon: Lock, color: "text-emerald-500", text: "Lock: Date, time, and mandatory photo" },
-          { icon: Lock, color: "text-gray-400", text: "Opening: Only possible with an active lock, with optional note" },
+          { icon: LockClosedIcon, color: "text-emerald-500", text: "LockClosedIcon: Date, time, and mandatory photo" },
+          { icon: LockClosedIcon, color: "text-gray-400", text: "Opening: Only possible with an active lock, with optional note" },
           { icon: ClipboardCheck, color: "text-orange-500", text: "Check: Photo with handwritten code, AI-assisted verification" },
           { icon: PlusCircle, color: "text-rose-500", text: "Orgasm: Type (dropdown) and optional note" },
         ],
@@ -192,7 +193,7 @@ const content = {
         features: [
           { icon: BarChart2, color: "text-indigo-500", text: "Training goals for day, week and month with progress bars" },
           { icon: LayoutDashboard, color: "text-gray-400", text: "Color-coded wear calendar: daily wear share at a glance" },
-          { icon: Lock, color: "text-amber-500", text: "Records: Longest and shortest session" },
+          { icon: LockClosedIcon, color: "text-amber-500", text: "Records: Longest and shortest session" },
         ],
       },
       {
@@ -334,7 +335,7 @@ export default async function InfoPage({ params }: { params: Promise<{ lang: str
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-gray-900 rounded-lg flex items-center justify-center">
-              <Lock size={14} className="text-white" />
+              <LockClosedIcon size={14} className="text-white" />
             </div>
             <span className="font-bold text-gray-900">KG-Tracker</span>
           </div>
@@ -374,7 +375,7 @@ export default async function InfoPage({ params }: { params: Promise<{ lang: str
         {/* Hero */}
         <section className="flex flex-col items-center text-center gap-6 py-4">
           <div className="w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center">
-            <Lock size={28} className="text-white" />
+            <LockClosedIcon size={28} className="text-white" />
           </div>
           <div className="flex flex-col gap-3">
             <h1 className="text-4xl font-bold text-gray-900">KG-Tracker</h1>

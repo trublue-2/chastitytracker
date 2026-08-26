@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { ChevronRight, Lock, CheckCircle2, Droplets } from "lucide-react";
+import { ChevronRight, CheckCircle2, Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
 import SessionEventRow, { type SessionEventData } from "./SessionEventRow";
 import { blockInsetCls } from "@/app/components/inputStyles";
 import { actionIcon } from "@/app/entries/actionSign";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 import {
   groupEventsIntoBuckets,
   shouldRenderBucketHeaders,

@@ -13,14 +13,14 @@ import { KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import EmptyState from "@/app/components/EmptyState";
 import UserAvatar from "@/app/components/UserAvatar";
-import { Lock, Users, ShieldAlert, CalendarClock, ChevronRight } from "lucide-react";
+import { Users, ShieldAlert, CalendarClock, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDurationBetween, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel } from "@/lib/constants";
 import BlockHeading from "@/app/components/BlockHeading";
 import Section from "@/app/components/Section";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 /** Wie eine geplante Direktive in der Liste erscheint — Beschriftung, Rückzug-Endpunkt, Tönung.
  *  Eine Zeile je `kind`; eine neue terminierbare Direktive ergänzt hier einen Eintrag und ist damit
@@ -295,7 +295,7 @@ export default async function AdminPage() {
                       </div>
                       <div className={`flex-shrink-0 mt-1 flex items-center gap-1 ${stateCls}`}>
                         {isLocked
-                          ? <Lock size={18} strokeWidth={1.75} />
+                          ? <LockClosedIcon size={18} strokeWidth={1.75} />
                           : <LockOpenIcon size={18} strokeWidth={1.75} />
                         }
                         {/* Das BLEIBENDE Zeichen, dass die Karte irgendwohin führt — der Hover-Zustand

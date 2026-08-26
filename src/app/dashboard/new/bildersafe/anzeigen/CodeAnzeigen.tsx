@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 export default function CodeAnzeigen({
   codeImageUrl,
@@ -23,7 +24,7 @@ export default function CodeAnzeigen({
     return (
       <Card variant="semantic" semantic="sperrzeit">
         <div className="flex items-start gap-2.5">
-          <Lock size={18} className="text-sperrzeit mt-0.5 shrink-0" />
+          <LockClosedIcon size={18} className="text-sperrzeit mt-0.5 shrink-0" />
           <div>
             <p className="text-fliess font-bold text-sperrzeit-text">{t("bildersafeShowSealed")}</p>
             <p className="text-neben text-sperrzeit mt-0.5">{t("bildersafeShowSealedHint")}</p>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 /**
  * Zeigt das versiegelte Schlüsselbox-Code-Foto (Bildersafe). Die Sichtbarkeit entscheidet der
@@ -39,7 +40,7 @@ export default function SealedCodePhoto({ url, revealed }: { url: string; reveal
   if (state === "sealed") {
     return (
       <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-sperrzeit border border-[var(--color-sperrzeit-border)] bg-[var(--color-sperrzeit-bg)] px-2 py-1 rounded-lg">
-        <Lock size={12} /> {t("codeSealed")}
+        <LockClosedIcon size={12} /> {t("codeSealed")}
       </div>
     );
   }

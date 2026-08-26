@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Lock } from "lucide-react";
+import { Bell } from "lucide-react";
 import ActionModal from "@/app/components/ActionModal";
 import FormField from "@/app/components/FormField";
 import FormError from "@/app/components/FormError";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 export default function ActionModalDemo() {
   const [openA, setOpenA] = useState(false);
@@ -47,7 +48,7 @@ export default function ActionModalDemo() {
         open={openB}
         onClose={() => setOpenB(false)}
         title="Verschluss anfordern"
-        icon={<Lock size={20} strokeWidth={2} style={{ color: "var(--color-request)" }} />}
+        icon={<LockClosedIcon size={20} strokeWidth={2} style={{ color: "var(--color-request)" }} />}
         iconBg="var(--color-request-bg)"
       >
         <FormField label="Nachricht (optional)">
@@ -56,7 +57,7 @@ export default function ActionModalDemo() {
         </FormField>
         <FormError message={null} />
         <button className="flex items-center justify-center gap-2 text-sm font-medium text-btn-primary-text bg-[var(--color-request)] rounded-xl px-4 py-3 transition hover:opacity-80">
-          <Lock size={16} /> Senden
+          <LockClosedIcon size={16} /> Senden
         </button>
       </ActionModal>
     </div>

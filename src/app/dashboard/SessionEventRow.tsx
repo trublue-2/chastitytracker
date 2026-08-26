@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { Lock, CheckCircle2, Droplets, MoreVertical, Camera, AlertTriangle, AlertCircle, KeyRound, ShowerHead } from "lucide-react";
+import { CheckCircle2, Droplets, MoreVertical, Camera, AlertTriangle, AlertCircle, KeyRound, ShowerHead } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
@@ -13,6 +13,7 @@ import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
 import { formatVerifyReason, type VerifyFailure } from "@/lib/verifyReason";
 import type { KeyProofSource } from "@/lib/boxKeyProof";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 /**
  * Die Daten EINER Zeitleisten-Zeile.
@@ -283,7 +284,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   // ist, nicht dass etwas zu tun wäre. Nur die Kontrolle trägt eine Farbe, und die kommt aus ihrem
   // Zustand (`kombiniertePillCls`): offen und überfällig fallen auf, erledigt nicht.
   const typePill = ev.type === "verschluss" ? (
-    <Badge size="sm" icon={<Lock size={11} />} label={t("lock")} />
+    <Badge size="sm" icon={<LockClosedIcon size={11} />} label={t("lock")} />
   ) : ev.type === "kontrolle" ? (
     <Badge size="sm" icon={<CheckCircle2 size={11} />} label={ev.kombiniertePillLabel ?? t("sessionKontrolle")} tone={ev.kombiniertePillCls ?? undefined} />
   ) : (

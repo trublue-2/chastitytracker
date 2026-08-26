@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, ClipboardList, Droplets, Camera, Play, Square } from "lucide-react";
+import { ClipboardList, Droplets, Camera, Play, Square } from "lucide-react";
 import { formatDateTime, formatTime, APP_TZ } from "@/lib/utils";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
@@ -12,6 +12,7 @@ import { listRowCls, listRowButtonCls, listRowTimeCls } from "@/app/components/i
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { actionIcon } from "@/app/entries/actionSign";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 /**
  * Das Zeichen einer Eintragsart — aus der geteilten Registratur, nicht aus einer eigenen Tabelle.

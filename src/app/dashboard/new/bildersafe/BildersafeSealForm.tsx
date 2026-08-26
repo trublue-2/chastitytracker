@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import PhotoCapture from "@/app/components/PhotoCapture";
@@ -10,6 +10,7 @@ import Button from "@/app/components/Button";
 import EntryFormShell from "@/app/components/EntryFormShell";
 import useToast from "@/app/hooks/useToast";
 import { parseApiError } from "@/lib/apiClient";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 /**
  * Standalone-Aufnahme eines versiegelten Schlüsselbox-Code-Fotos (Bildersafe), die das Foto an den
@@ -83,7 +84,7 @@ export default function BildersafeSealForm({ mobileDesktopMode }: { mobileDeskto
         <button type="button" onClick={code.clearPhoto} className="text-left w-full">
           <Card variant="semantic" semantic={readable === false ? "warn" : "sperrzeit"}>
             <div className="flex items-start gap-2.5">
-              <Lock size={16} className={`mt-0.5 shrink-0 ${readable === false ? "text-warn" : "text-sperrzeit"}`} />
+              <LockClosedIcon size={16} className={`mt-0.5 shrink-0 ${readable === false ? "text-warn" : "text-sperrzeit"}`} />
               <div className="text-neben flex-1">
                 <p className={`font-bold ${readable === false ? "text-warn-text" : "text-sperrzeit-text"}`}>{t("codePhotoSealed")}</p>
                 <p className={`mt-0.5 ${readable === false ? "text-warn" : "text-sperrzeit"}`}>

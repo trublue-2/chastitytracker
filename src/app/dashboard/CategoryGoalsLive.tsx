@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 import { useTranslations } from "next-intl";
-import { Lock } from "lucide-react";
+
 import Section from "@/app/components/Section";
 import GoalProgressRows from "@/app/components/GoalProgressRows";
 import { categoryStyle } from "@/lib/categoryConstants";
@@ -12,6 +12,7 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 import type { CategoryWearGoal } from "@/lib/categoryGoals";
 import type { ByPeriod, VorgabeTargets } from "@/lib/goalFulfillment";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 export interface CategoryGoalRow extends CategoryWearGoal {
   /** True while a wear session for this category is running — its hours tick live. */
@@ -86,7 +87,7 @@ function KgRow({ goal, serverNow, periodEndMs }: { goal: KgGoalRow; serverNow: s
   const t = useTranslations("dashboard");
   return (
     <GoalRow
-      icon={<Lock className="size-4 shrink-0 text-lock" aria-hidden />}
+      icon={<LockClosedIcon className="size-4 shrink-0 text-lock" aria-hidden />}
       name={t("kgGoalLabel")}
       actual={{ day: goal.tagH, week: goal.wocheH, month: goal.monatH, year: goal.jahrH }}
       targetH={goal.goal.targetH}

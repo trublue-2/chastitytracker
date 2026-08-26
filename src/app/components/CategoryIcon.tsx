@@ -1,17 +1,16 @@
-import {
-  Lock, KeyRound, ShieldCheck, Circle, Diamond, Gem, Sparkles,
-  Link, Link2, Anchor, Crown, Heart, Bookmark, Shirt, Feather,
-  Watch, Cpu, Footprints, Glasses, Tag,
-  type LucideIcon,
-} from "lucide-react";
+import { KeyRound, ShieldCheck, Circle, Diamond, Gem, Sparkles, Link, Link2, Anchor, Crown, Heart, Bookmark, Shirt, Feather, Watch, Cpu, Footprints, Glasses, Tag, type LucideIcon } from "lucide-react";
 import { PlugIcon, HandcuffsIcon, RingOIcon, GagIcon } from "@/app/components/deviceIcons";
 import { type CategoryIcon } from "@/lib/categoryConstants";
 import type { CSSProperties } from "react";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 const ICON_MAP: Record<CategoryIcon, LucideIcon> = {
-  // Die vier eigenen zuerst: sie benennen die Sache, die übrigen sind Anleihen.
+  // Die eigenen Zeichnungen zuerst: sie benennen die Sache, die übrigen sind Anleihen. Der
+  // Schlüssel heisst weiterhin `Lock` — er steht so in den Datensätzen der Nutzer —, zeigt aber
+  // aufs eigene geschlossene Schloss, damit das Kategorie-Zeichen und der Zustand dasselbe sind.
+  Lock: LockClosedIcon,
   Plug: PlugIcon, Handcuffs: HandcuffsIcon, RingO: RingOIcon, Gag: GagIcon,
-  Lock, KeyRound, ShieldCheck, Circle, Diamond, Gem, Sparkles,
+  KeyRound, ShieldCheck, Circle, Diamond, Gem, Sparkles,
   Link, Link2, Anchor, Crown, Heart, Bookmark, Shirt, Feather,
   Watch, Cpu, Footprints, Glasses, Tag,
 };

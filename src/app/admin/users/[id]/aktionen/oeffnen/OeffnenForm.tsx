@@ -8,7 +8,7 @@ import type { OeffnenPayload, SubmitResult } from "@/app/entries/types";
 import { submitAdminEntry } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { ResolvedReason } from "@/lib/reasonsService";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockOpenIcon } from "@/app/components/lockIcons";
 
 export default function OeffnenForm({ userId, grundOptions, tz, nowDefault }: { userId: string; grundOptions: ResolvedReason[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");

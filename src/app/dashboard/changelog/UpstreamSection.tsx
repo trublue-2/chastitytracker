@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles, Bug, Lock, Zap, Wrench, Palette, Download } from "lucide-react";
+import { Sparkles, Bug, Zap, Wrench, Palette, Download } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import { fetchUpstreamChangelog, type UpstreamRelease } from "@/lib/upstreamChangelog";
 import { compareVersions } from "@/lib/semver";
 import { pickChangelogText } from "@/lib/changelogText";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";
 
 const TYPE_STYLE: Record<EntryType, { icon: React.ElementType; color: string }> = {
   feat: { icon: Sparkles, color: "text-[var(--color-request)]" },
   fix: { icon: Bug, color: "text-[var(--color-inspect)]" },
-  security: { icon: Lock, color: "text-[var(--color-warn)]" },
+  security: { icon: LockClosedIcon, color: "text-[var(--color-warn)]" },
   perf: { icon: Zap, color: "text-[var(--color-lock)]" },
   chore: { icon: Wrench, color: "text-foreground-muted" },
   ui: { icon: Palette, color: "text-foreground-muted" },

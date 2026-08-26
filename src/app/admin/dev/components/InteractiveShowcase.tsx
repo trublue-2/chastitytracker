@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Bell, Lock, ClipboardCheck, Droplets, Settings, Search,
-  Shield, BarChart3, Calendar, FileText,
-} from "lucide-react";
+import { Bell, ClipboardCheck, Droplets, Settings, Search, Shield, BarChart3, Calendar, FileText } from "lucide-react";
 
 import Button from "@/app/components/Button";
 import Input from "@/app/components/Input";
@@ -20,6 +17,7 @@ import Pill from "@/app/components/Pill";
 import TimerDisplay from "@/app/components/TimerDisplay";
 import useToast from "@/app/hooks/useToast";
 import WorldGrid from "./WorldGrid";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 export function ThemePairClient<P extends Record<string, unknown>>({
   component: Component,
@@ -44,7 +42,7 @@ export function ButtonDemo() {
         <Button variant="secondary">Secondary</Button>
         <Button variant="ghost">Ghost</Button>
         <Button variant="danger">Danger</Button>
-        <Button variant="semantic" semantic="lock" icon={<Lock size={16} />}>Lock</Button>
+        <Button variant="semantic" semantic="lock" icon={<LockClosedIcon size={16} />}>LockClosedIcon</Button>
         <Button variant="semantic" semantic="inspect" icon={<Bell size={16} />}>Inspect</Button>
       </div>
       <p className="text-xs text-foreground-faint font-mono">Groessen</p>
@@ -226,7 +224,7 @@ export function ModalSheetDemo() {
 
 // ── Pill Demo ─────────────────────────────────
 export function PillDemo() {
-  const [pills, setPills] = useState(["Lock", "Inspect", "Orgasm"]);
+  const [pills, setPills] = useState(["LockClosedIcon", "Inspect", "Orgasm"]);
   const variants: Array<"lock" | "inspect" | "orgasm"> = ["lock", "inspect", "orgasm"];
 
   return (
@@ -240,7 +238,7 @@ export function PillDemo() {
         />
       ))}
       {pills.length === 0 && (
-        <Button variant="ghost" size="sm" onClick={() => setPills(["Lock", "Inspect", "Orgasm"])}>
+        <Button variant="ghost" size="sm" onClick={() => setPills(["LockClosedIcon", "Inspect", "Orgasm"])}>
           Reset
         </Button>
       )}

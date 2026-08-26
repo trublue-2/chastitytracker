@@ -1,10 +1,11 @@
 "use client";
 
-import { Lock, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import Select from "@/app/components/Select";
 import { categoryStyle } from "@/lib/categoryConstants";
 import type { TaskRequirementInput } from "@/lib/taskService";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 export interface PickerCategory {
   id: string;
@@ -71,7 +72,7 @@ export default function TaskRequirementPicker({
           selected={kgSelected}
           onToggle={toggleKg}
           name={kgLabel}
-          icon={<Lock className="size-5" />}
+          icon={<LockClosedIcon className="size-5" />}
           iconStyle={{ backgroundColor: "var(--color-lock-bg)", color: "var(--color-lock)" }}
         />
         {categories.map((c) => {

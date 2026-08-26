@@ -1,13 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Lock, ClipboardCheck, Droplets, KeyRound, Scale, type LucideIcon } from "lucide-react";
+import { ClipboardCheck, Droplets, KeyRound, Scale, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import { entryFormBase, inspectionHref } from "@/lib/entryFormRoute";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 import { Eye } from "lucide-react";
 
 export interface NewEntryCategoryRow {
@@ -87,7 +87,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
   const options = [
     {
       type: "verschluss",
-      icon: Lock,
+      icon: LockClosedIcon,
       label: t("lock"),
       desc: t("lockSubtitle"),
       disabled: isLocked,

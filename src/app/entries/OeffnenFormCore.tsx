@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Lock } from "lucide-react";
+
 import { toDatetimeLocal, fromDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { type OeffnenGrund } from "@/lib/constants";
 import type { ResolvedReason } from "@/lib/reasonsService";
@@ -20,7 +20,7 @@ import Card from "@/app/components/Card";
 import RiskConfirmSheet from "@/app/components/RiskConfirmSheet";
 import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "./types";
 import type { BoxHold } from "@/lib/boxOpenOutlook";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 interface Props {
   initial?: { startTime: string; note?: string | null; oeffnenGrund?: string | null };
@@ -215,7 +215,7 @@ export default function OeffnenFormCore({
         {isGesperrtBlockiert && (
           <Card variant="semantic" semantic="sperrzeit">
             <div className="flex items-start gap-2.5">
-              <Lock size={16} className="flex-shrink-0 text-sperrzeit mt-0.5" />
+              <LockClosedIcon size={16} className="flex-shrink-0 text-sperrzeit mt-0.5" />
               <div>
                 <p className="text-fliess font-bold text-sperrzeit-text">{t("lockedWarningTitle")}</p>
                 <p className="text-neben text-sperrzeit mt-0.5">
@@ -248,7 +248,7 @@ export default function OeffnenFormCore({
         {zeigeBoxHalt && (
           <Card variant="semantic" semantic="warn" padding="compact">
             <div className="flex items-start gap-2">
-              <Lock size={15} className="text-warn shrink-0 mt-0.5" />
+              <LockClosedIcon size={15} className="text-warn shrink-0 mt-0.5" />
               <div className="flex flex-col gap-1">
                 <p className="text-neben font-bold text-warn-text">{t("boxWontOpenTitle")}</p>
                 <p className="text-neben text-warn-text">

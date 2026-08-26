@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
+
 import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
 import VerschlussAnforderungFields from "@/app/admin/verschluss-anforderung/VerschlussAnforderungFields";
 import type { DeviceOption } from "@/lib/queries";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {
   userId: string;
@@ -29,7 +30,7 @@ export default function VerschlussAnforderungForm({ userId, art, devices = [], t
       open={true}
       onClose={close}
       title={isSperrzeit ? t("setLockDuration") : t("requestLock")}
-      icon={<Lock size={20} strokeWidth={2} style={{ color: accentColor }} />}
+      icon={<LockClosedIcon size={20} strokeWidth={2} style={{ color: accentColor }} />}
       iconBg={accentBg}
     >
       <VerschlussAnforderungFields

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock } from "lucide-react";
+
 import { useTranslations } from "next-intl";
 import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
 import DateTimePicker from "@/app/components/DateTimePicker";
@@ -17,6 +17,7 @@ import ScheduleFields, { initialSchedule, scheduleIsPast, schedulePayload, type 
 import type { DeviceOption } from "@/lib/queries";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 /**
  * Shared form body for "Verschluss anfordern" (ANFORDERUNG) and "Sperrdauer setzen" (SPERRZEIT).
@@ -245,7 +246,7 @@ export default function VerschlussAnforderungFields({
         semantic={isSperrzeit ? "sperrzeit" : "request"}
         fullWidth
         loading={saving}
-        icon={<Lock size={16} />}
+        icon={<LockClosedIcon size={16} />}
       >
         {saving ? t("sending") : t("submit")}
       </Button>

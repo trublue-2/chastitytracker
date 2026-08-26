@@ -2,7 +2,7 @@
 
 
 import Link from "next/link";
-import { Lock } from "lucide-react";
+
 import { useTranslations } from "next-intl";
 import EmptyState from "@/app/components/EmptyState";
 import Section from "@/app/components/Section";
@@ -10,6 +10,7 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import { formatTotalHours } from "@/lib/utils";
 import { coveragePct } from "@/lib/percent";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 // ── Types ────────────────────────────────────
 export interface DashboardProps {
@@ -104,7 +105,7 @@ export default function DashboardClient(props: DashboardProps) {
     return (
       <DashboardBlock className="flex flex-col gap-4">
         <EmptyState
-          icon={<Lock size={48} />}
+          icon={<LockClosedIcon size={48} />}
           title={t("welcomeTitle")}
           description={t("welcomeDesc")}
           action={{ label: t("welcomeCta"), href: "/dashboard/new/verschluss" }}

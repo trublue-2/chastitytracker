@@ -2,7 +2,7 @@
 
 import type { DeviceCheckStatus } from "@/lib/deviceCheck";
 import { useState } from "react";
-import { ImageOff, CheckCircle2, ScanLine, Lock, Check, AlertTriangle } from "lucide-react";
+import { ImageOff, CheckCircle2, ScanLine, Check, AlertTriangle } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import { blockInsetCls } from "@/app/components/inputStyles";
@@ -15,6 +15,7 @@ import { LIST_PAGE_SIZE } from "@/lib/constants";
 import KontrolleActions from "./KontrolleActions";
 import { useTranslations } from "next-intl";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 /**
  * Geräte-Fakt aus dem Kontroll-Check: erkanntes Gerät + Abgleich gegen das erwartete (verschlossene).
@@ -33,7 +34,7 @@ function DeviceFact({ t, row }: { t: ReturnType<typeof useTranslations>; row: Ad
   // Das „erwartet"-Suffix ergänzt einen ABWEICHENDEN Befund; bei pending gibt es keinen.
   const showExpected = !isOk && !isPending && row.deviceCheckExpected;
   return (
-    <Badge variant={isOk ? "ok" : isPending ? "inspect" : "warn"} size="sm" icon={<Lock size={12} />} label={t("deviceLabel")}>
+    <Badge variant={isOk ? "ok" : isPending ? "inspect" : "warn"} size="sm" icon={<LockClosedIcon size={12} />} label={t("deviceLabel")}>
       {isPending
         ? <span className="italic opacity-80">{t("devicePendingLabel")}</span>
         : isError

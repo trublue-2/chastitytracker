@@ -1,4 +1,4 @@
-import { ArrowLeft, Zap, Bug, Lock, Wrench, Sparkles, Palette } from "lucide-react";
+import { ArrowLeft, Zap, Bug, Wrench, Sparkles, Palette } from "lucide-react";
 import Link from "next/link";
 import pkg from "../../../../package.json";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -6,6 +6,7 @@ import { toDateLocale } from "@/lib/utils";
 import releasesData from "@/data/changelog.json";
 import UpstreamSection from "./UpstreamSection";
 import { pickChangelogText, type ChangelogText } from "@/lib/changelogText";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";
 
@@ -29,7 +30,7 @@ function formatDate(iso: string, locale: string) {
 const TYPE_STYLE: Record<EntryType, { icon: React.ElementType; color: string; dot: string }> = {
   feat: { icon: Sparkles, color: "text-[var(--color-request)]", dot: "bg-[var(--color-request)]" },
   fix: { icon: Bug, color: "text-[var(--color-inspect)]", dot: "bg-[var(--color-inspect)]" },
-  security: { icon: Lock, color: "text-[var(--color-warn)]", dot: "bg-[var(--color-warn)]" },
+  security: { icon: LockClosedIcon, color: "text-[var(--color-warn)]", dot: "bg-[var(--color-warn)]" },
   perf: { icon: Zap, color: "text-[var(--color-lock)]", dot: "bg-[var(--color-lock)]" },
   chore: { icon: Wrench, color: "text-foreground-muted", dot: "bg-foreground-faint" },
   ui: { icon: Palette, color: "text-foreground-muted", dot: "bg-foreground-faint" },

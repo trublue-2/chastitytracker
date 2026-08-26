@@ -1,12 +1,12 @@
 "use client";
 
-import { HelpCircle, Lock } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import StateHero from "@/app/components/StateHero";
 import SessionDurationBadge from "@/app/dashboard/SessionDurationBadge";
 import { blockInsetCls } from "@/app/components/inputStyles";
 import { toDateLocale, APP_TZ } from "@/lib/utils";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 interface Props {
   type: "VERSCHLUSS" | "OEFFNEN" | null;
@@ -60,7 +60,7 @@ export default function StatusBanner({ type, since, tz = APP_TZ }: Props) {
       tone={isVerschlossen ? "lock" : "unlock"}
       word={isVerschlossen ? t("locked") : t("opened")}
       icon={isVerschlossen
-        ? <Lock size={15} strokeWidth={2.2} className="shrink-0" />
+        ? <LockClosedIcon size={15} strokeWidth={2.2} className="shrink-0" />
         : <LockOpenIcon size={15} strokeWidth={2.2} className="shrink-0" />}
       /* Über `SessionDurationBadge`, nicht über eine eigene Rechnung: die Komponente bringt Takt,
          Formatierung und `suppressHydrationWarning` schon mit. Hier standen dafür ein

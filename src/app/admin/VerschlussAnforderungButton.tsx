@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
+
 import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
 import VerschlussAnforderungFields from "./verschluss-anforderung/VerschlussAnforderungFields";
 import type { DeviceOption } from "@/lib/queries";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {
   userId: string;
@@ -64,7 +65,7 @@ export default function VerschlussAnforderungButton({
         onClick={() => setOpen(true)}
         className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-2.5 py-2 transition ${btnBase}`}
       >
-        <Lock size={11} />
+        <LockClosedIcon size={11} />
         {label}
       </button>
 
@@ -72,7 +73,7 @@ export default function VerschlussAnforderungButton({
         open={open}
         onClose={close}
         title={label}
-        icon={<Lock size={20} strokeWidth={2} style={{ color: accentColor }} />}
+        icon={<LockClosedIcon size={20} strokeWidth={2} style={{ color: accentColor }} />}
         iconBg={accentBg}
       >
         <VerschlussAnforderungFields

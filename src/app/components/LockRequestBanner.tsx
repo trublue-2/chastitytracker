@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Lock, Droplets } from "lucide-react";
+import { Droplets } from "lucide-react";
 import { APP_TZ, formatDayTimeDual } from "@/lib/utils";
 import type { ComponentType, ReactNode } from "react";
 import SperrzeitRemaining from "./SperrzeitRemaining";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 type ColorScheme = "request" | "sperrzeit" | "orgasm";
 
@@ -32,8 +33,8 @@ const COLORS: Record<ColorScheme, { bg: string; border: string; leftAccent: stri
 
 /** Icon per color scheme — keeps the banner self-contained (no icon prop needed). */
 const SCHEME_ICON: Record<ColorScheme, ComponentType<{ size?: number; className?: string }>> = {
-  request: Lock,
-  sperrzeit: Lock,
+  request: LockClosedIcon,
+  sperrzeit: LockClosedIcon,
   orgasm: Droplets,
 };
 

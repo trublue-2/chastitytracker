@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { Lock } from "lucide-react";
+
 import ActionModal from "@/app/components/ActionModal";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
+import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {
   userId: string;
@@ -63,7 +64,7 @@ export default function SperrdauerEditForm({ userId, sperrzeitId, endetAt, nachr
       open={true}
       onClose={close}
       title={t("editLockDurationTitle")}
-      icon={<Lock size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />}
+      icon={<LockClosedIcon size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />}
       iconBg="var(--color-sperrzeit-bg)"
     >
       <div className="flex flex-col gap-4 p-5">

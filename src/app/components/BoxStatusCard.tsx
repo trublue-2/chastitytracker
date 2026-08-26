@@ -1,12 +1,12 @@
 "use client";
 
-import { Lock, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDateTimeDual, toDateLocale, joinParts, APP_TZ } from "@/lib/utils";
 import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxBatteryLabel, boxReinigungLabel, boxReinigungQuotaLabel, boxFailsafeWarnings, boxFailsafeLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import DashboardBlock from "@/app/components/DashboardBlock";
-import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 /** Reine Status-Anzeige der Heimdall-Box(en) (Ist + Soll + Frische). Keine Box-Kommandos — die Box
  *  folgt den Verschluss-/Öffnen-Einträgen. Pollt `/api/box` (self-hiding, wenn keine Box existiert
@@ -56,7 +56,7 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
           const scheme = conflict
             ? { bg: "bg-warn-bg", border: "border-warn-border", accent: "text-warn", text: "text-warn-text", Icon: AlertTriangle }
             : istLocked
-              ? { bg: "bg-sperrzeit-bg", border: "border-sperrzeit-border", accent: "text-sperrzeit", text: "text-sperrzeit-text", Icon: Lock }
+              ? { bg: "bg-sperrzeit-bg", border: "border-sperrzeit-border", accent: "text-sperrzeit", text: "text-sperrzeit-text", Icon: LockClosedIcon }
               // Der NORMALFALL, und deshalb durchgehend leise: eine offene Box, für die nichts
               // anderes verlangt ist, meldet nichts — sie berichtet. `text-unlock` stand hier,
               // solange die Farbe grau war; seit sie die Zustandsfarbe „offen" ist, las sich die
