@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDashboardTasks, evaluateTasks } from "@/lib/taskIntervals";
-import { getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
+import { getIsLocked, getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { visionConfigured } from "@/lib/vision";
 
@@ -14,7 +14,8 @@ const SETTLING_WINDOW_MS = 10 * 60_000;
  * einen eigenen Timer/Endpoint hatten:
  *  - buildDate     → neue App-Version verfügbar (Reload-Banner)
  *  - sessionUserId → Account-Wechsel in einem anderen Tab (Hard-Reload)
- *  - pendingSig    → Signatur der offenen keyholder-initiierten Anforderungen (router.refresh,
+ *  - pendingSig    → Signatur des Verschluss-Zustands und der offenen keyholder-initiierten
+ *                    Anforderungen (router.refresh,
  *                    damit z.B. neu angeforderte Kontrollen ohne manuellen Reload erscheinen)
  *                    + offene Aufgaben MIT ihrem abgeleiteten Zustand (siehe `taskSig` unten)
  *                    + wartende KI-Verifikationen (verifikationStatus "pending") und wartende
@@ -88,7 +89,15 @@ export async function GET() {
     .sort()
     .join(",");
 
+  // Der VERSCHLUSS-Zustand gehört seit v6 in die Signatur, obwohl er keine „offene Anforderung" ist:
+  // aus ihm leitet sich die Farbwelt der ganzen Oberfläche ab (`subWorld`). Schliesst die
+  // Keyholderin von ihrem Gerät aus zu, während der Träger sein Dashboard offen hat, sah er sonst
+  // bis zur nächsten eigenen Navigation eine rosa App, obwohl er verschlossen ist. Vorher war das
+  // eine Verzögerung im Inhalt, jetzt wäre es die ganze Fläche.
+  const isLocked = await getIsLocked(userId);
+
   const pendingSig = [
+    "l:" + (isLocked ? "1" : "0"),
     "t:" + taskSig,
     "k:" + kontrollen.map((k) => k.id).sort().join(","),
     "v:" + anforderungen.map((a) => a.id).sort().join(","),

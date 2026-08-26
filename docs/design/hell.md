@@ -1,3 +1,9 @@
+> **Historisch — der helle Modus ist mit v6 entfallen.**
+>
+> Alle drei Welten sind dunkel, und es gibt keinen Umschalter mehr. Dieses Blatt bleibt, weil es
+> die `hell:`-Zweige in `tokens.mjs` erklaert: jede Bedeutung ist als PAAR hergeleitet, und ohne
+> diese Herleitung waere eine spaetere helle Fassung ein Neubau statt eines Wiedereinschaltens.
+
 # Die helle Fassung — Etappe D0
 
 Der Gestaltungs-Entwurf in [`README.md`](README.md) existierte nur dunkel. Diese Datei ergänzt die

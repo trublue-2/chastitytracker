@@ -29,9 +29,9 @@ interface Props {
  * an der EIGENEN Stelle im React-Baum aus. So erbt jedes Modal die CSS-Variablen des Bereichs, in
  * dem es wirklich steht — was die Komponenten-Schau braucht, die beide Themes nebeneinander
  * stellt. Auf einer Seite ohne Wrapper bleibt `document.body` übrig; dort erbt das Modal, was
- * `<html>` trägt (`applyTheme`) — und ohne das eben `:root`, genau wie der Rest jener Seite.
- * Eine `theme`-Prop gibt es deshalb nicht: sie konnte nur die Rolle ausdrücken, nie hell/dunkel,
- * und stand an drei Aufrufstellen falsch.
+ * `<html>` trägt (`ThemeRootSync`) — und ohne das eben `:root`, genau wie der Rest jener Seite.
+ * Eine `theme`-Prop gibt es deshalb nicht: sie konnte nur die Rolle ausdrücken, nie die Welt, und
+ * stand an drei Aufrufstellen falsch.
  *
  * Fixed-Positioning setzt voraus, dass die Wrapper schlichte Divs bleiben — sitzt ein Modal am
  * falschen Fleck statt über dem Fenster, ist einer von ihnen (oder ein Vorfahre) Containing-Block

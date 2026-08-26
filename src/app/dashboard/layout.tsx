@@ -2,7 +2,7 @@ import Header from "@/app/Header";
 import DesktopSidebar from "@/app/components/DesktopSidebar";
 import InstallBanner from "@/app/components/InstallBanner";
 import OfflineIndicator from "@/app/components/OfflineIndicator";
-import ThemeApplicator from "@/app/components/ThemeApplicator";
+import ThemeRootSync from "@/app/components/ThemeRootSync";
 import DashboardBottomNav from "./DashboardBottomNav";
 import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth";
@@ -12,7 +12,7 @@ import { pendingInspection } from "@/lib/entryFormRoute";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
 import { bildersafeEnabled, weightTrackingEnabled } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { getThemeInitScript } from "@/lib/themeScript";
+import { subWorld } from "@/lib/theme";
 import pkg from "../../../package.json";
 import { readingColCls } from "@/app/components/inputStyles";
 
@@ -53,12 +53,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const openInspection = pendingInspection(inspections);
 
   return (
-    // Gleiche Begründung wie im Admin-Layout: das Inline-Skript setzt `data-theme` vor der
-    // Hydration aus localStorage. Hier fiel es nur seltener auf — serverseitig steht `user`, was
-    // dem HELLEN Theme entspricht, die Abweichung trat also nur im Dunkel-Modus auf.
-    <div className="min-h-screen bg-background" data-theme="user" suppressHydrationWarning>
-      <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("user") }} />
-      <ThemeApplicator role="user" />
+    // Die Welt kommt aus dem Verschluss-Zustand, den dieses Layout ohnehin schon lädt — kein
+    // `suppressHydrationWarning` mehr, weil der Server den Wert jetzt KENNT. Vorher stand hier ein
+    // Inline-Skript, das ihn vor der Hydration aus `localStorage` nachtrug; das war nötig, solange
+    // die Welt eine Einstellung war, und ist der Grund, warum sie am Handy eine andere sein konnte
+    // als am Rechner.
+    <div className="min-h-screen bg-background" data-theme={subWorld(isLocked)}>
+      <ThemeRootSync world={subWorld(isLocked)} />
       <Header />
       <DesktopSidebar
         isAdmin={user?.role === "admin"}

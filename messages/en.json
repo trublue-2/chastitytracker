@@ -1186,9 +1186,6 @@
     "keyholdersNoCandidates": "No assignable users — only non-admins can be keyholders (admins already control every sub). Create a user with the User role for this.",
     "keyholderSelect": "Choose user …",
     "keyholderAdd": "Add",
-    "designTon": "Colour world",
-    "designAdmin": "Admin theme",
-    "designUser": "User theme",
     "usernameLabel": "Username",
     "passwordLabel": "Password",
     "sectionAccount": "Account",
@@ -1505,12 +1502,6 @@
     "deleteConfirm": "Remove this passkey?",
     "delete": "Remove",
     "authFailed": "Passkey authentication failed"
-  },
-  "theme": {
-    "label": "Theme",
-    "light": "Light",
-    "dark": "Dark",
-    "system": "System"
   },
   "wearForm": {
     "titleBegin": "Begin wearing",

@@ -234,7 +234,17 @@ export default async function AdminPage() {
         <div className="flex flex-col">
           {wartend.map((u) => {
             const rowTz = u.timezone; // this row's sub governs its own timestamps
+            // Grün verschlossen, Rosa offen. Für „offen" stand hier Grau, und das war unter der
+            // alten Regel richtig („die Abwesenheit eines Zustands ist kein Signal") — seit die
+            // Farbwelt den Zustand SAGT, sind es zwei Zustände statt einer und seines Fehlens.
+            //
+            // DREI Ausgänge, nicht zwei: `currentStatus === null` heisst „von diesem Träger liegt
+            // noch nichts vor". Der Text sagte das schon immer („noch kein Eintrag"), die Farbe
+            // sagte seit dem Wechsel „offen" — ein frisch angelegtes Konto leuchtete rosa, als
+            // hätte jemand gerade aufgeschlossen. `undefined` an `UserAvatar` ist genau dafür da.
+            const hasState = u.stats.currentStatus !== null;
             const isLocked = u.stats.currentStatus === "VERSCHLUSS";
+            const stateCls = !hasState ? "text-foreground-faint" : isLocked ? "text-lock" : "text-unlock";
             const sinceDisplay = u.stats.since
               ? formatDurationBetween(u.stats.since, now, dl)
               : null;
@@ -265,7 +275,7 @@ export default async function AdminPage() {
                   <div className="flex flex-col gap-3">
                     {/* Header: avatar + name + status icon */}
                     <div className="flex items-start gap-3">
-                      <UserAvatar username={u.username} size="lg" locked={isLocked} />
+                      <UserAvatar username={u.username} size="lg" locked={hasState ? isLocked : undefined} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-foreground truncate">{u.username}</p>
@@ -273,7 +283,7 @@ export default async function AdminPage() {
                             <span className="w-2 h-2 rounded-full bg-warn flex-shrink-0" />
                           )}
                         </div>
-                        <p className={`text-xs mt-0.5 font-medium ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
+                        <p className={`text-xs mt-0.5 font-medium ${stateCls}`}>
                           {isLocked
                             ? `${t("locked")}${sinceDisplay ? ` · ${sinceDisplay}` : ""}`
                             : u.stats.currentStatus
@@ -281,7 +291,7 @@ export default async function AdminPage() {
                               : t("noEntry")}
                         </p>
                       </div>
-                      <div className={`flex-shrink-0 mt-1 flex items-center gap-1 ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
+                      <div className={`flex-shrink-0 mt-1 flex items-center gap-1 ${stateCls}`}>
                         {isLocked
                           ? <Lock size={18} strokeWidth={1.75} />
                           : <LockOpen size={18} strokeWidth={1.75} />
@@ -422,7 +432,10 @@ export default async function AdminPage() {
               {wartend.length > 0 ? t("calmSectionTitle") : t("yourSubsTitle")}
             </BlockHeading>
             {ruhig.map((u) => {
+              // Dieselben DREI Ausgänge wie in den Karten oben — Begründung dort.
+              const hasState = u.stats.currentStatus !== null;
               const isLocked = u.stats.currentStatus === "VERSCHLUSS";
+              const stateCls = !hasState ? "text-foreground-faint" : isLocked ? "text-lock" : "text-unlock";
               const seit = u.stats.since ? formatDurationBetween(u.stats.since, now, dl) : null;
               return (
                 <Link
@@ -430,10 +443,10 @@ export default async function AdminPage() {
                   href={`/admin/users/${u.id}`}
                   className="flex items-center gap-3 py-3 border-t border-border-subtle transition-colors hover:bg-surface-raised"
                 >
-                  <UserAvatar username={u.username} size="sm" locked={isLocked} />
+                  <UserAvatar username={u.username} size="sm" locked={hasState ? isLocked : undefined} />
                   <span className="flex-1 min-w-0">
                     <span className="block text-zeile font-medium truncate">{u.username}</span>
-                    <span className={`block text-neben ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
+                    <span className={`block text-neben ${stateCls}`}>
                       {isLocked
                         ? `${t("locked")}${seit ? ` · ${seit}` : ""}`
                         : u.stats.currentStatus

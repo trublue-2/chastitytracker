@@ -76,7 +76,7 @@ async function generate() {
         width,
         height,
         channels: 4,
-        background: { r: 248, g: 249, b: 251, alpha: 1 }, // #f8f9fb — matches manifest background_color
+        background: { r: 11, g: 6, b: 9, alpha: 1 }, // #0b0609 — muss `background_color` im Manifest treffen
       },
     })
       .composite([

@@ -1,10 +1,10 @@
 import AdminHeader from "@/app/AdminHeader";
 import AdminBottomNav from "@/app/components/AdminBottomNav";
 import AdminDesktopSidebar from "@/app/components/AdminDesktopSidebar";
-import ThemeApplicator from "@/app/components/ThemeApplicator";
+import ThemeRootSync from "@/app/components/ThemeRootSync";
 import { auth } from "@/lib/auth";
 import { ownTrackerHidden } from "@/lib/ownTracker";
-import { getThemeInitScript } from "@/lib/themeScript";
+import { keyholderWorld } from "@/lib/theme";
 import pkg from "../../../package.json";
 import { wideColCls } from "@/app/components/inputStyles";
 
@@ -21,15 +21,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const hideOwnTracker = await ownTrackerHidden(user);
 
   return (
-    // suppressHydrationWarning gilt NUR für die Attribute dieses einen Elements (nicht für Kinder)
-    // und genau dafür ist es hier da: das Inline-Skript unten setzt `data-theme` aus localStorage,
-    // BEVOR React hydriert. Der Server kann diesen Wert nicht kennen, also weicht das gerenderte
-    // Attribut planmässig ab — React meldete das bisher als Hydration-Fehler („data-theme='admin'
-    // vs 'admin-light'"). Beim Admin schlug das bei JEDEM hellen Aufruf zu, weil das serverseitige
-    // `admin` das DUNKLE Theme ist und das Skript auf `admin-light` korrigiert.
-    <div id="admin-root" data-theme="admin" suppressHydrationWarning className="min-h-screen bg-background text-foreground">
-      <script dangerouslySetInnerHTML={{ __html: getThemeInitScript("admin") }} />
-      <ThemeApplicator role="admin" />
+    // Immer Indigo — der Keyholder-Bereich hat keinen eigenen Zustand, und den der Träger trägt er
+    // als Akzent je Zeile. Kein `suppressHydrationWarning` mehr: das Attribut ist serverseitig
+    // endgültig, wo es früher ein Vorabwert war, den ein Inline-Skript aus `localStorage` korrigierte.
+    <div id="admin-root" data-theme={keyholderWorld()} className="min-h-screen bg-background text-foreground">
+      <ThemeRootSync world={keyholderWorld()} />
       <AdminHeader username={user?.name ?? ""} actor={user} hideOwnTracker={hideOwnTracker} />
       <AdminDesktopSidebar version={pkg.version} isGlobalAdmin={isGlobalAdmin} hideOwnTracker={hideOwnTracker} />
 

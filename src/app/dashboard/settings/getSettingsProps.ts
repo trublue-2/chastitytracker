@@ -15,7 +15,7 @@ export interface SettingsFormProps {
   locale: string;
   timezone: string;
   startPage: string;
-  /** Nur Keyholder/Admins (= haben das blaue Portal): steuert Startseiten-Wahl + Admin-Theme-Umschalter. */
+  /** Nur Keyholder/Admins (= haben das blaue Portal): steuert die Startseiten-Wahl. */
   showStartPage: boolean;
   /** Subs, die als konkrete Startseite (Detailseite) wählbar sind — leer für normale Subs. */
   controlledSubs: { id: string; username: string }[];

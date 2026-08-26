@@ -115,17 +115,18 @@ export function messageCategory(bodyKey: string | null): MessageCategory {
  * Projekts: `size="sm"` ist `h-5 text-xs` und damit das, was in den Listen überall steht — `Pill` ist
  * mit `h-7 text-sm` + Entfernen-Kreuz ein Filter-Chip und würde die Metazeile dominieren.
  * Semantik: Kontrolle = inspect (Aufmerksamkeit), Sperre = sperrzeit, Orgasmus = orgasm,
- * Vergehen = unlock (Feststellung), Strafe = warn (Forderung), System = neutral.
+ * Vergehen = neutral (Feststellung), Strafe = warn (Forderung), System = neutral.
  */
 export const MESSAGE_CATEGORY_PILLS: Record<MessageCategory, { labelKey: string; variant: BadgeVariant }> = {
   inspection: { labelKey: "catInspection", variant: "inspect" },
   lock:       { labelKey: "catLock",       variant: "sperrzeit" },
   orgasm:     { labelKey: "catOrgasm",     variant: "orgasm" },
-  // Nicht `warn`: die Warnfarbe gehört der Strafe, und beide können in der LISTE direkt untereinander
-  // stehen (in der Filterleiste steht nur der Text). `unlock` heisst app-weit sonst „geöffnet" — die
-  // Doppelbelegung ist bewusst in Kauf genommen, frei waren nur `lock`, `unlock` und `ok`, und die
-  // beiden grünen sagen bei einem Vergehen das Falsche.
-  offense:    { labelKey: "catOffense",    variant: "unlock" },
+  // Nicht `warn`: die Warnfarbe gehört der Strafe, und beide können in der LISTE direkt
+  // untereinander stehen (in der Filterleiste steht nur der Text). Vorher stand hier `unlock`, weil
+  // es die einzige freie Farbe war — frei war sie aber nur, weil sie GRAU war. Seit v6 heisst
+  // `unlock` „offen", und ein Vergehen trüge damit die Zustandsfarbe eines geöffneten Verschlusses.
+  // Also neutral, aus demselben Grund, aus dem `weight` es ist.
+  offense:    { labelKey: "catOffense",    variant: "neutral" },
   penalty:    { labelKey: "catPenalty",    variant: "warn" },
   task:       { labelKey: "catTask",       variant: "request" },
   // Eigene Kategorie und ausdrücklich NICHT `offense`: das erreichte oder verfehlte Ziel meldet eine

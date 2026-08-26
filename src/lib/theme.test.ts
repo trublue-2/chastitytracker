@@ -1,136 +1,83 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
-import { resolveTheme, applyTheme, STORAGE_KEYS, SELECTORS } from "./theme";
-import { getThemeInitScript } from "./themeScript";
+import { subWorld, keyholderWorld, WORLDS, DEFAULT_WORLD } from "./theme";
 
-// Die Theme-NAMEN sind asymmetrisch benannt, und daraus entstand der Hydration-Mismatch vom
-// 24.07.2026: `user` ist das HELLE User-Theme, `admin` aber das DUNKLE Admin-Theme. Beide Layouts
-// rendern serverseitig den Namen OHNE Suffix — für den User trifft das den Hell-Fall (kein
-// Mismatch), für den Admin den Dunkel-Fall. Ein hell eingestellter Admin bekam deshalb bei JEDEM
-// Seitenaufruf eine Abweichung zwischen Server-HTML und dem, was das Inline-Skript setzt.
-// Diese Tests halten das Mapping fest, damit ein späteres Umbenennen nicht still die Seite
-// wechselt, auf der die Abweichung auftritt.
-describe("resolveTheme — Rolle × Modus → Theme-Name", () => {
-  it("User: hell heisst `user`, dunkel heisst `user-dark`", () => {
-    expect(resolveTheme("light", "user")).toBe("user");
-    expect(resolveTheme("dark", "user")).toBe("user-dark");
+/**
+ * Die drei Welten und ihre Blöcke.
+ *
+ * Bis v6 stand hier die Auflösung eines UMSCHALTERS: Rolle × Modus → Theme-Name, dazu ein
+ * Inline-Skript, das den gespeicherten Wert vor der Hydration ans Dokument schrieb. Die Tests
+ * hielten vor allem eine Asymmetrie fest — `user` war das HELLE Träger-Theme, `admin` das DUNKLE
+ * Keyholder-Theme —, und aus genau dieser Asymmetrie kam der Hydration-Mismatch vom 24.07.2026.
+ *
+ * Beides gibt es nicht mehr: die Welt ist eine Ableitung aus dem Verschluss-Zustand, alle drei
+ * sind dunkel, und der Server kennt sie beim Rendern. Was bleibt, ist die Frage, die auch damals
+ * die wichtigere war — führen alle Welten dieselben Tokens?
+ *
+ * `WORLDS` kommt aus dem Modul und steht NICHT hier noch einmal: eine abgeschriebene Liste liefe an
+ * einer vierten Welt vorbei, ohne rot zu werden — der Union-Typ merkt nichts, weil eine Teilmenge
+ * zuweisbar bleibt. Genau die Lücke, gegen die diese Datei geschrieben ist.
+ */
+
+
+describe("Die Welt folgt dem Zustand", () => {
+  it("verschlossen ist grün, offen ist rosa", () => {
+    expect(subWorld(true)).toBe("sub-locked");
+    expect(subWorld(false)).toBe("sub-open");
   });
 
-  it("Admin: dunkel heisst `admin` (NICHT `admin-dark`), hell heisst `admin-light`", () => {
-    expect(resolveTheme("dark", "admin")).toBe("admin");
-    expect(resolveTheme("light", "admin")).toBe("admin-light");
-  });
-});
-
-// Das Init-Skript deckt nur den ersten Aufschlag ab; jeder spätere Wechsel läuft über applyTheme.
-// Beide schreiben `<html>` — und `<html>` gehört BEIDEN Bereichen, deshalb steht hier dieselbe
-// Bedingung wie im Skript.
-describe("applyTheme — welche Elemente das Theme bekommen", () => {
-  const fake = () => ({
-    theme: undefined as string | undefined,
-    getAttribute: () => null,
-    setAttribute(k: string, v: string) { if (k === "data-theme") this.theme = v; },
+  it("der Keyholder-Bereich hat immer dieselbe Welt", () => {
+    expect(keyholderWorld()).toBe("keyholder");
   });
 
-  function run(role: "user" | "admin", wrapper: ReturnType<typeof fake> | null) {
-    const root = fake();
-    // `readStoredMode` gibt ohne `window` pauschal "system" zurück — in der Node-Umgebung der
-    // Tests muss es also existieren, damit die gespeicherte Wahl überhaupt gelesen wird.
-    vi.stubGlobal("window", {});
-    vi.stubGlobal("localStorage", { getItem: () => "dark" });
-    vi.stubGlobal("document", { documentElement: root, body: { querySelector: () => wrapper } });
-    applyTheme(role);
-    return root.theme;
-  }
-
-  afterEach(() => vi.unstubAllGlobals());
-
-  it("schreibt Wrapper UND Wurzelelement, wenn der Bereich auf dem Schirm ist", () => {
-    const wrapper = fake();
-    expect(run("user", wrapper)).toBe(resolveTheme("dark", "user"));
-    expect(wrapper.theme).toBe(resolveTheme("dark", "user"));
+  /**
+   * Der Generator und der Typ müssen dieselben Welten kennen.
+   *
+   * `docs/design/tokens.mjs` erzeugt die Blöcke, `World` benennt sie im Code — und niemand hält die
+   * beiden zusammen. Eine vierte Welt im Generator, die niemand in `World` nachträgt, fiele heute
+   * nur auf, wenn jemand `--write` laufen liesse und die Blatt-Prüfung darunter griffe. Ein Blatt
+   * ohne frischen Lauf verschweigt sie.
+   */
+  it("der Generator kennt genau diese Welten", () => {
+    const src = readFileSync("docs/design/tokens.mjs", "utf8");
+    const tabelle = src.slice(src.indexOf("const WELTEN = {"), src.indexOf("\n}", src.indexOf("const WELTEN = {")));
+    const namen = [...tabelle.matchAll(/^\s*'([a-z-]+)':/gm)].map((m) => m[1]).sort();
+    expect(namen, "WELTEN in tokens.mjs und WORLDS in theme.ts laufen auseinander")
+      .toEqual([...WORLDS].sort());
   });
 
-  // Der Fall aus der Einstellungsseite: ein Keyholder stellt unter `/dashboard/settings` das
-  // ADMIN-Design ein. Ohne diesen Vorbehalt bekäme die grüne Seite, auf der er steht, das dunkle
-  // Adminportal-Theme auf `<html>` — dauerhaft, denn der `ThemeApplicator` der User-Rolle
-  // überhört das `theme-changed`-Ereignis der fremden Rolle.
-  it("lässt das Wurzelelement in Ruhe, wenn der Wrapper der Rolle fehlt", () => {
-    expect(run("admin", null)).toBeUndefined();
-  });
-});
-
-describe("getThemeInitScript — was das Inline-Skript vor der Hydration setzt", () => {
-  it("nutzt pro Rolle den passenden Storage-Key und Selektor", () => {
-    expect(getThemeInitScript("admin")).toContain(STORAGE_KEYS.admin);
-    expect(getThemeInitScript("admin")).toContain(SELECTORS.admin);
-    expect(getThemeInitScript("user")).toContain(STORAGE_KEYS.user);
-    expect(getThemeInitScript("user")).toContain(SELECTORS.user);
-  });
-
-  // Das Skript AUSFÜHREN statt seinen Text gegen resolveTheme zu vergleichen: seit die Namen aus
-  // resolveTheme abgeleitet werden, wäre ein Textvergleich tautologisch. Hier läuft der generierte
-  // Code gegen ein Mini-DOM und muss dasselbe Ergebnis liefern wie die Runtime nach der Hydration —
-  // driften die beiden, sieht man es sonst erst als Hydration-Meldung im Browser.
-  //
-  // `new Function` ist hier unbedenklich und bleibt auf diese Testdatei beschränkt: ausgeführt wird
-  // ausschliesslich der Text aus `getThemeInitScript`, der nur aus Modul-Konstanten dieses Repos
-  // zusammengesetzt ist (STORAGE_KEYS, SELECTORS, resolveTheme). Es fliesst keine Eingabe von aussen
-  // in den Funktionsrumpf — die Testparameter gehen als ARGUMENTE hinein, nicht als String.
-  const fakeEl = () => ({
-    theme: undefined as string | undefined,
-    setAttribute(k: string, v: string) { if (k === "data-theme") this.theme = v; },
+  /**
+   * `:root` MUSS die Vorgabewelt mitführen.
+   *
+   * Die Zeile `:root,` vor `[data-theme="sub-open"] {` steht von Hand im Blatt — der Generator
+   * ersetzt nur den Rumpf dahinter und schreibt den Kopf nie. Fällt sie weg, bleibt alles grün:
+   * `tsc`, der Build und jede andere Prüfung hier sehen ausschliesslich `[data-theme="…"]`.
+   *
+   * Sichtbar würde es an den Rändern — Anmeldung, `/info`, `/oauth/authorize`, die Startseite und
+   * jedes Portal-Overlay im Moment vor dem `ThemeRootSync`-Effekt. Die fielen dann auf
+   * Tailwind-Vorgaben zurück: `body { background: var(--background) }` wird durchsichtig,
+   * `text-foreground` bleibt ungesetzt.
+   */
+  it(":root trägt dieselben Tokens wie die Vorgabewelt", () => {
+    const gesetzt = (selektor: string) =>
+      new Set(
+        themeBlocks()
+          .filter((b) => b.selektoren.includes(selektor))
+          .flatMap((b) => b.deklarationen.map((d) => d.split(":")[0].trim())),
+      );
+    const vorgabe = gesetzt(`[data-theme="${DEFAULT_WORLD}"]`);
+    const wurzel = gesetzt(":root");
+    expect(vorgabe.size).toBeGreaterThan(100);
+    const fehlend = [...vorgabe].filter((t) => !wurzel.has(t)).sort();
+    expect(fehlend, `:root führt die Welt ${DEFAULT_WORLD} nicht mehr mit — die Ränder der App (Anmeldung, /info) verlieren damit ihre Farben`)
+      .toEqual([]);
   });
 
-  function runInitScript(role: "user" | "admin", storedMode: string | null, systemDark: boolean) {
-    const wrapper = fakeEl();
-    const root = fakeEl();
-    const localStorage = { getItem: (k: string) => (k === STORAGE_KEYS[role] ? storedMode : null) };
-    const matchMedia = () => ({ matches: systemDark });
-    const document = {
-      documentElement: root,
-      body: { querySelector: (sel: string) => (sel === SELECTORS[role] ? wrapper : null) },
-    };
-    new Function("localStorage", "matchMedia", "document", getThemeInitScript(role))(localStorage, matchMedia, document);
-    return { wrapper: wrapper.theme, root: root.theme };
-  }
-
-  it("setzt bei ausdrücklicher Wahl dasselbe Theme wie resolveTheme", () => {
-    expect(runInitScript("admin", "light", false).wrapper).toBe(resolveTheme("light", "admin"));
-    expect(runInitScript("admin", "dark", false).wrapper).toBe(resolveTheme("dark", "admin"));
-    expect(runInitScript("user", "light", false).wrapper).toBe(resolveTheme("light", "user"));
-    expect(runInitScript("user", "dark", false).wrapper).toBe(resolveTheme("dark", "user"));
-  });
-
-  it("folgt bei „system\" (und ohne gespeicherte Wahl) der Systemeinstellung", () => {
-    expect(runInitScript("admin", "system", true).wrapper).toBe(resolveTheme("dark", "admin"));
-    expect(runInitScript("admin", "system", false).wrapper).toBe(resolveTheme("light", "admin"));
-    expect(runInitScript("admin", null, true).wrapper).toBe(resolveTheme("dark", "admin"));
-    expect(runInitScript("admin", null, false).wrapper).toBe(resolveTheme("light", "admin"));
-  });
-
-  // `<html>` ist die Quelle für alles, was per Portal an `document.body` hängt (Toasts,
-  // Vollbild-Bilder): dort endet die Vererbung sonst bei `:root`, und `:root` IST das helle
-  // User-Theme. Bleibt das Wurzelelement ungesetzt, sind solche Overlays im Dunkeln wieder hell.
-  it("setzt dasselbe Theme auch auf das Wurzelelement", () => {
-    expect(runInitScript("admin", "dark", false).root).toBe(resolveTheme("dark", "admin"));
-    expect(runInitScript("user", "dark", false).root).toBe(resolveTheme("dark", "user"));
-    expect(runInitScript("user", "light", false).root).toBe(resolveTheme("light", "user"));
-  });
-
-  // Ohne passenden Wrapper bleibt AUCH das Wurzelelement unangetastet. `<html>` ist zwischen den
-  // Bereichen geteilt: die Einstellungsseite schaltet beide Designs um, ein Keyholder stellt unter
-  // `/dashboard/settings` also das Admin-Theme ein, ohne im Adminportal zu stehen. Würde dabei das
-  // Wurzelelement beschrieben, färbte sich die Seite um, auf der er gerade ist.
-  it("rührt nichts an, wenn der Wrapper der Rolle fehlt", () => {
-    const foreign = fakeEl();
-    const root = fakeEl();
-    const document = { documentElement: root, body: { querySelector: () => null } };
-    new Function("localStorage", "matchMedia", "document", getThemeInitScript("admin"))(
-      { getItem: () => "light" }, () => ({ matches: false }), document,
-    );
-    expect(foreign.theme).toBeUndefined();
-    expect(root.theme).toBeUndefined();
+  it("jede Welt hat einen Block im Blatt", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+    for (const w of WORLDS) {
+      expect(css, `[data-theme="${w}"] fehlt in globals.css`).toContain(`[data-theme="${w}"] {`);
+    }
   });
 });
 
@@ -197,9 +144,12 @@ describe("Theme-Wrapper bleiben Containing-Block-frei", () => {
     // gesenkt — der Test gated das Deploy, die Meldung muss also sagen, was zu tun ist.
     expect(WRAPPER_FILES.length, `nur ${WRAPPER_FILES.length} Wrapper-Dateien gefunden — Suche kaputt, oder ein Wrapper ist planmässig entfallen (dann diese Zahl senken)`)
       // 7 → 5: die drei Auth-Seiten setzten `data-theme` je einzeln und teilen sich seit #84 die
-      // Hülle `AuthScreen`, die es einmal setzt. Genau der Fall, den der Meldungstext oben meint —
-      // ein Wrapper ist planmässig entfallen, also sinkt die Zahl mit.
-      .toBeGreaterThanOrEqual(5);
+      // Hülle `AuthScreen`, die es einmal setzt.
+      // 5 → 4: die Bauteil-Schau hatte zwei Raster, ein Server- und ein Client-Bauteil, mit
+      // demselben Div; sie teilen sich jetzt `WorldGrid`, und nur die eine Datei setzt noch das
+      // Attribut. Beides genau der Fall, den der Meldungstext oben meint — ein Wrapper ist
+      // planmässig entfallen, also sinkt die Zahl mit.
+      .toBeGreaterThanOrEqual(4);
   });
 
   it.each(WRAPPER_FILES)("%s", (file) => {
@@ -231,39 +181,44 @@ describe("Theme-Wrapper bleiben Containing-Block-frei", () => {
     const blocks = themeBlocks().filter((b) =>
       b.selektoren.some((x) => x.startsWith("[data-theme")),
     );
-    // Vier Themes plus zwei geteilte Blöcke für die DeviceCategory-Palette — je einer für die
-    // beiden hellen und die beiden dunklen Fassungen. Die Kategorie-Farbe ist eine andere Achse
-    // als die drei Bedeutungsfarben und wird deshalb getrennt gehalten.
-    expect(blocks.length).toBe(6);
+    // Drei Welten plus EIN geteilter Block für die DeviceCategory-Palette. Es waren sechs, solange
+    // es vier Themes gab und die Kategorie-Palette in einer hellen und einer dunklen Fassung
+    // danebenstand; mit dem hellen Modus ist die helle Fassung entfallen. Die Kategorie-Farbe
+    // bleibt eine andere Achse als die drei Bedeutungsfarben und deshalb ein eigener Block.
+    expect(blocks.length).toBe(4);
 
     for (const { deklarationen } of blocks)
       for (const d of deklarationen) expect(d.startsWith("--")).toBe(true);
   });
 
-  // Der Fall, der das hier ausgelöst hat: die dunkle DeviceCategory-Palette stand nur im
-  // `admin`-Block. `user-dark` erbte deshalb die HELLEN Werte und zeigte im Träger-Dunkelmodus
-  // helle Chips auf dunklem Grund — in zehn Komponenten, und niemandem fiel es auf.
-  //
-  // Die Prüfung richtet sich NUR an die dunklen Themes, und das ist kein Versehen: der Block
-  // `:root, [data-theme="user"]` IST das helle Träger-Theme. Ein helles Theme darf von dort
-  // erben, ein dunkles nie — was es nicht selbst setzt, bekommt es hell.
-  //
-  // Grundmenge ist bewusst dieser Block und nicht jedes `:root`: die übrigen `:root`-Blöcke
-  // tragen Abstände, Dauern und Kurven, die für alle Themes gleich gelten sollen.
-  it("jedes Farbtoken des hellen Themes ist in BEIDEN dunklen gesetzt", () => {
-    const gesetzt = (name: string) =>
+  /**
+   * Jede Welt führt dieselbe Token-MENGE.
+   *
+   * Der Fall, der das hier ausgelöst hat: die dunkle DeviceCategory-Palette stand nur im
+   * Keyholder-Block. Der Träger-Dunkelmodus erbte deshalb die HELLEN Werte aus `:root` und zeigte
+   * helle Chips auf dunklem Grund — in zehn Komponenten, und niemandem fiel es auf.
+   *
+   * Früher lief die Prüfung hell → dunkel, weil `:root` das helle Träger-Theme WAR und ein dunkles
+   * Theme von dort nichts erben durfte. Jetzt ist `:root` die Welt `sub-open`, und die Frage ist
+   * eine allgemeinere: keine Welt darf ein Token führen, das einer anderen fehlt. Ein Token, das
+   * nur in zweien steht, fällt in der dritten auf `:root` zurück — also auf die Farben von
+   * `sub-open`, und das sieht in `sub-locked` grün-neben-rosa aus statt kaputt.
+   */
+  it("alle Welten führen dieselben Tokens", () => {
+    const gesetzt = (selektor: string) =>
       new Set(
         themeBlocks()
-          .filter((b) => b.selektoren.includes(name))
+          .filter((b) => b.selektoren.includes(selektor))
           .flatMap((b) => b.deklarationen.map((d) => d.split(":")[0].trim())),
       );
 
-    const hell = gesetzt('[data-theme="user"]');
-    expect(hell.size).toBeGreaterThan(100);
+    const mengen = new Map(WORLDS.map((w) => [w, gesetzt(`[data-theme="${w}"]`)]));
+    const alle = new Set([...mengen.values()].flatMap((m) => [...m]));
+    expect(alle.size).toBeGreaterThan(100);
 
-    for (const dunkel of ['[data-theme="admin"]', '[data-theme="user-dark"]']) {
-      const fehlend = [...hell].filter((t) => !gesetzt(dunkel).has(t)).sort();
-      expect(fehlend, `${dunkel} erbt diese Tokens hell aus :root`).toEqual([]);
+    for (const [welt, tokens] of mengen) {
+      const fehlend = [...alle].filter((t) => !tokens.has(t)).sort();
+      expect(fehlend, `${welt} führt diese Tokens nicht und erbt sie aus :root`).toEqual([]);
     }
   });
 });

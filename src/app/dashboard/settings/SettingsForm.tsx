@@ -15,8 +15,6 @@ import ExpandRow from "@/app/components/ExpandRow";
 import Toggle from "@/app/components/Toggle";
 import PushManager from "@/app/components/PushManager";
 import PasskeyManager from "@/app/components/PasskeyManager";
-import ThemeToggle from "@/app/components/ThemeToggle";
-import IdentToggle from "@/app/components/IdentToggle";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
 import { LOCALES_LONG } from "@/lib/constants";
@@ -321,22 +319,10 @@ export default function SettingsForm({ username, email, locale, timezone, startP
             )}
           </ExpandRow>
 
-          {/* Theme — Keyholder/Admins (haben das blaue Portal, gleiche Bedingung wie showStartPage)
-              stellen beide Designs ein: Admin-Portal (blau) UND eigener Tracker (grün). Reine Subs
-              sehen nur ihr eigenes. So sind die Einstellungen in grüner und blauer Ansicht identisch. */}
-          {showStartPage ? (
-            <>
-              <ThemeToggle role="admin" label={ta("designAdmin")} />
-              <ThemeToggle role="user" label={ta("designUser")} />
-            </>
-          ) : (
-            <ThemeToggle role="user" />
-          )}
-
-          {/* Die offene Farbfrage: Rosa oder Grün. Steht hier, weil sie eine Design-Einstellung
-              ist wie die drei darüber — und verschwindet mitsamt `IdentToggle` und dem erzeugten
-              Abschnitt in `globals.css`, sobald sie entschieden ist. */}
-          <IdentToggle label={ta("designTon")} />
+          {/* HIER stand die Design-Einstellung: hell/dunkel je Bereich und der Farbton der App.
+              Beides ist entfallen, nicht verschoben. Die Farbwelt ist ab v6 keine Vorliebe mehr,
+              sondern eine Ansage — dunkel, und der Ton sagt, ob verschlossen ist. Eine Einstellung
+              daneben hiesse, man könne die Aussage abschalten. */}
 
           {/* Language */}
           <ExpandRow

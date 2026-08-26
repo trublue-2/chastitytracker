@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import type { ReactNode } from "react";
+import { DEFAULT_WORLD } from "@/lib/theme";
 
 interface Props {
   /** Benennt den Bildschirm. Auf der Anmeldeseite ist das die Wortmarke selbst — dort gibt es
@@ -36,7 +37,7 @@ export default function AuthScreen({ title, subtitle, children, footer }: Props)
     /* `main`, weil das Wurzel-Layout keine Landmarke setzt — diese Seiten stehen ausserhalb des
        Dashboard-Layouts und hatten deshalb bisher gar keine. */
     <main
-      data-theme="user"
+      data-theme={DEFAULT_WORLD}
       className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-10"
     >
       <div className="w-full max-w-sm flex flex-col gap-6">

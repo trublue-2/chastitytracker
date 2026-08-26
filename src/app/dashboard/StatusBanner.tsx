@@ -28,9 +28,16 @@ interface Props {
  * und hier stehengeblieben. Die Keyholderin wechselte damit zwischen zwei Subs und wechselte dabei
  * die App-Generation.
  *
- * **Farbe nur beim Verschluss.** Ein offener Sub verlangt nichts — kein Alarm, keine Frist —, und
- * die Regel des Entwurfs sagt, Farbe markiert, was gerade etwas will. Offen steht deshalb ruhig da,
- * verschlossen in der Zustandsfarbe. Das ist derselbe Schnitt, den das Träger-Dashboard macht.
+ * **Beide Zustände tragen Farbe** — grün verschlossen, rosa offen. Hier stand einmal die Regel
+ * „Farbe markiert, was gerade etwas will", und offen deshalb in Grau. Sie galt, solange die
+ * Farbwelt eine Vorliebe war; seit sie den Zustand SAGT, sind es zwei Zustände statt einer und
+ * seines Fehlens.
+ *
+ * Der Unterschied zum Träger-Dashboard ist kein Widerspruch, sondern der Kern der Sache: dort sagt
+ * die FLÄCHE, ob offen ist, und der Held bleibt ruhig (`OpenStateHero` mit `quiet`). Hier sieht die
+ * Keyholderin mehrere Träger nacheinander in ein und derselben Indigo-Welt — der Zustand kann
+ * deshalb nur im Akzent stehen, und Grau liesse offen, ob da niemand verschlossen ist oder nur
+ * niemand nachgesehen hat.
  */
 export default function StatusBanner({ type, since, tz = APP_TZ }: Props) {
   const t = useTranslations("statusBanner");
@@ -49,7 +56,7 @@ export default function StatusBanner({ type, since, tz = APP_TZ }: Props) {
 
   return (
     <StateHero
-      tone={isVerschlossen ? "lock" : "quiet"}
+      tone={isVerschlossen ? "lock" : "unlock"}
       word={isVerschlossen ? t("locked") : t("opened")}
       icon={isVerschlossen
         ? <Lock size={15} strokeWidth={2.2} className="shrink-0" />

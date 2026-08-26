@@ -1,3 +1,8 @@
+> **Nachtrag v6:** die hier als "Geruest" beschriebene Farbwelt-Wahl ist entschieden und samt
+> `IdentToggle`, `src/lib/ident.ts` und dem erzeugten `[data-ident]`-Abschnitt entfernt. Auch der
+> helle Modus ist weg. Die Welt leitet sich seither aus dem Verschluss-Zustand ab
+> (`src/lib/theme.ts`): gruen verschlossen, rosa offen, indigo fuer die Keyholderin.
+
 # Übergabe — Stand 25.08.2026, abends
 
 Das Redesign ist vom Dokument in den Code gekommen und deckt jetzt die Fläche: keine Kästen mehr,

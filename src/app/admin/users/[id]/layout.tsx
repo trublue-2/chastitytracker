@@ -39,10 +39,17 @@ export default async function AdminUserLayout({
 
   const vMap = new Map(lastVerschluss.map((r) => [r.userId, r._max.startTime]));
   const oMap = new Map(lastOeffnen.map((r) => [r.userId, r._max.startTime]));
+  // `isLocked: undefined` heisst „von diesem Träger liegt noch nichts vor" und ist NICHT dasselbe
+  // wie `false`. Seit die Farbe beide Zustände trägt (grün verschlossen, rosa offen), leuchtete ein
+  // frisch angelegtes Konto sonst rosa, als hätte jemand gerade aufgeschlossen.
   const userLockStatuses = allUsers.map((u) => {
     const vTime = vMap.get(u.id);
     const oTime = oMap.get(u.id);
-    return { id: u.id, username: u.username, isLocked: !!vTime && (!oTime || vTime > oTime) };
+    return {
+      id: u.id,
+      username: u.username,
+      isLocked: !vTime && !oTime ? undefined : !!vTime && (!oTime || vTime > oTime),
+    };
   });
 
   const currentStatus = latestLockEntry?.type === "VERSCHLUSS"

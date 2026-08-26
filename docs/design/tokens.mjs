@@ -1,53 +1,68 @@
 import fs from 'node:fs'
 
-// Erzeugt die vier Theme-Blöcke von globals.css aus EINER Beschreibung.
+// Erzeugt die drei Welten-Blöcke von globals.css aus EINER Beschreibung.
 //
 //   node docs/design/tokens.mjs            # gibt die Blöcke aus
 //   node docs/design/tokens.mjs --write    # schreibt sie in src/app/globals.css
 //
-// Warum generiert und nicht von Hand gepflegt: vier Themes × rund 130 Tokens sind 520 Werte, die
-// von Hand konsistent zu halten sind. Genau daran ist es schon einmal gescheitert — die dunkle
+// Warum generiert und nicht von Hand gepflegt: drei Welten × rund 100 Tokens sind 300 Werte, die
+// von Hand konsistent zu halten sind (vor v6 waren es vier Themes und rund 520). Genau daran ist es schon einmal gescheitert — die dunkle
 // Kategorie-Palette stand nur in einem der beiden dunklen Themes, und der Träger-Dunkelmodus zeigte
 // deshalb helle Chips. Was aus einer Quelle kommt, kann nicht halb gepflegt werden.
 //
 // Die HERLEITUNG steht in docs/design/README.md (dunkel) und hell.md (hell). Hier stehen nur die
 // Entscheidungen als Daten.
+//
+// ── Zu den `hell:`-Zweigen ───────────────────────────────────────────────────
+// Alle drei Welten sind DUNKEL (`hell: false`), jeder `hell:`-Zweig in diesem Skript ist also
+// unerreichbar: die Einträge in TOENE/ZUSTAND/BEDEUTUNG, `TRAEGER_GRUND.*.hell`,
+// `KEYHOLDER_GRUND.kuehl.hell`, `PROFIL.*.hell`, die `rampe`-Werte und rund ein Dutzend
+// Ternär-Zweige in `themeTokens`. Sie bleiben mit Absicht stehen: jede Bedeutung ist als PAAR
+// hergeleitet (hell.md), und ein Rückbau wäre ein Neubau, sobald jemand wieder eine helle Fassung
+// will. Wer hier etwas ändert, ändert deshalb den dunklen Zweig und lässt den hellen in Ruhe.
 
 // ── Die drei Bedeutungen ─────────────────────────────────────────────────────
 // Mehr gibt es nicht. Alles andere ist neutral — das ist der Kern des Entwurfs.
-// Die Farbwelt ist umschaltbar, damit man sie AM ECHTEN BILDSCHIRM vergleichen kann statt an
-// einer Beschreibung. Alle Welten stehen gleichzeitig im Blatt: `--write` schreibt die Vorgabe in
-// die vier Theme-Blöcke und jede weitere als ABWEICHUNG in einen eigenen Abschnitt unter
-// `[data-ident="…"]`. Umgeschaltet wird am Gerät, nicht im Generator — nur so vergleicht man
-// Fassungen desselben Bildschirms, ohne zwischen Bauten zu wechseln und dabei zu vergessen, wie
-// die vorige aussah.
+// Jede Welt bekommt genau einen Block im Blatt; welcher gilt, entscheidet der Server aus dem
+// Zustand des Trägers (`src/lib/theme.ts`). Es gibt keinen Umschalter und keinen Abweichungs-
+// Abschnitt mehr — solange die Farbwelt zur Wahl stand, mussten alle Fassungen gleichzeitig im
+// Blatt liegen; jetzt sind es drei vollständige Blöcke und sonst nichts.
 
 // ── Die drei Welten ──────────────────────────────────────────────────────────
 // Eine Welt legt vier Dinge fest: welchen Ton der ZUSTAND trägt („verschlossen"), welchen Ton die
 // beiden ROLLEN in ihrer Umgebung tragen (Kopfzeile, Navigation, Hauptknopf), und wie warm oder
 // kühl der GRUND der beiden Bereiche steht.
 //
-// `rosa` und `gruen` sind zwei Fassungen derselben Idee: EIN Identitäts-Ton für die ganze App,
-// der Keyholder-Bereich als Gegenpol in Indigo. `geteilt` ist die andere Idee — die Rolle SELBST
-// wird die Farbe: Grün beim Träger, Rot bei der Keyholderin.
+// **Die Welt ist keine Einstellung mehr, sie ist eine Tatsache.** Bis hierher konnte man am Gerät
+// zwischen drei Fassungen wählen, um sie am echten Bildschirm zu vergleichen; die Wahl ist
+// getroffen, und was übrig bleibt, ist eine Ableitung aus dem Zustand:
 //
-// Der Zustand kann in `geteilt` nicht mehr der Identitäts-Ton sein, denn es gibt zwei davon. Er
-// wird Grün, und zwar in BEIDEN Bereichen: „verschlossen" ist dieselbe Tatsache, egal wer
-// hinsieht — das war schon immer so und ist der Grund, warum die Bedeutungsfarben nie an der
-// Rolle hingen. Rot bliebe damit der Keyholderin allein, als Umgebung.
+//   sub-open    Der Träger ist NICHT verschlossen — die Rose.
+//   sub-locked  Der Träger IST verschlossen — Grün.
+//   keyholder   Der Keyholder-Bereich — immer Indigo, unabhängig davon, wie viele Träger
+//               verschlossen sind. Deren Zustand erscheint dort als Akzent je Zeile, nicht als
+//               Welt: eine Keyholderin sieht mehrere Träger gleichzeitig, und eine Fläche kann
+//               nicht zwei Zustände gleichzeitig tragen.
+//
+// Alle drei sind DUNKEL. Der helle Modus ist entfallen; die hellen Werte bleiben in den Tabellen
+// stehen, weil sie die Herleitung tragen (jede Bedeutung ist als Paar gedacht) und weil ein
+// Rückbau sonst ein Neubau wäre.
+//
+// `zustand` steht in allen drei Welten auf Grün, und das ist kein Versehen: „verschlossen" ist
+// dieselbe Tatsache, egal wo man sie liest. In `sub-locked` fällt der Zustands-Ton deshalb mit dem
+// Grund zusammen — das IST die Aussage der Welt. In `sub-open` steht ein grüner Verschluss-Eintrag
+// auf rosa Grund und hebt sich gerade dadurch ab; stünde er dort rosa, verschwände jede Historie
+// im Hintergrund.
 const WELTEN = {
-  rosa:    { zustand: 'rosa',  rolle: { traeger: 'rosa',  keyholder: 'indigo' }, grund: { traeger: 'rosa',  keyholder: 'kuehl' } },
-  gruen:   { zustand: 'gruen', rolle: { traeger: 'gruen', keyholder: 'indigo' }, grund: { traeger: 'gruen', keyholder: 'kuehl' } },
-  geteilt: { zustand: 'gruen', rolle: { traeger: 'gruen', keyholder: 'rosa'   }, grund: { traeger: 'gruen', keyholder: 'warm'  } },
+  'sub-open':   { zustand: 'gruen', rolle: { traeger: 'rosa',  keyholder: 'indigo' }, grund: { traeger: 'rosa',  keyholder: 'kuehl' } },
+  'sub-locked': { zustand: 'gruen', rolle: { traeger: 'gruen', keyholder: 'indigo' }, grund: { traeger: 'gruen', keyholder: 'kuehl' } },
+  'keyholder':  { zustand: 'gruen', rolle: { traeger: 'rosa',  keyholder: 'indigo' }, grund: { traeger: 'rosa',  keyholder: 'kuehl' } },
 }
 
-/** Die Welt, die in den vier Theme-Blöcken selbst steht. Alle anderen kommen als Abweichung
- *  darunter — siehe `weltenAbschnitt()`. */
-const WELT_VORGABE = 'rosa'
+/** Die Welt, unter der ein Theme-Block erzeugt wird. Eins zu eins — jede Welt IST ein Block. */
+const WELT_VORGABE = 'sub-open'
 
-// `Object.hasOwn`, nicht `WELTEN[x]`: `IDENTITAET=constructor` wäre sonst truthy und liefe erst
-// später auf einen Absturz in `grundVon`.
-let IDENTITAET = Object.hasOwn(WELTEN, process.env.IDENTITAET ?? '') ? process.env.IDENTITAET : WELT_VORGABE
+let IDENTITAET = WELT_VORGABE
 
 const ZUSTAND = {
   // Die Rose des Entwurfs.
@@ -71,7 +86,8 @@ const TOENE = {
 }
 
 const BEDEUTUNG = {
-  rosa:    TOENE[WELTEN[IDENTITAET].zustand],                           // der Zustand
+  rosa:    TOENE[WELTEN[IDENTITAET].zustand],                           // der Zustand: verschlossen
+  offen:   TOENE.rosa,                                                  // der Gegenzustand: offen
   gold:    { dunkel: '#e8b44a', hell: '#7f5a10', flaeche: '#e8b44a' },  // die Auszeichnung
   koralle: { dunkel: '#ff8a5c', hell: '#b23200', flaeche: '#ff8a5c' },  // die Aufmerksamkeit
 }
@@ -86,11 +102,16 @@ const FAMILIE = {
   request:   'koralle',   // eine Anforderung ebenso
   warn:      'koralle',   // zu spät, Vergehen — dieselbe Aufforderung, dringlicher
   ok:        'gold',      // geschafft
-  unlock:    'neutral',   // die Abwesenheit eines Zustands ist kein Signal
+  // War 'neutral', mit der Begründung „die Abwesenheit eines Zustands ist kein Signal". Das galt,
+  // solange die Farbwelt eine Vorliebe war. Seit v6 sagt sie den Zustand, und dann sind es ZWEI
+  // Zustände, nicht einer und sein Fehlen: Grün heisst verschlossen, Rosa heisst offen. Die
+  // Keyholderin braucht das Paar am dringendsten — sie sieht mehrere Träger nebeneinander, und
+  // „grau" liesse offen, ob da niemand verschlossen ist oder nur niemand nachgesehen hat.
+  unlock:    'offen',
   orgasm:    'neutral',   // eine Eintragsart, kein Zustand und keine Aufforderung
 }
 
-// ── Die vier Fassungen ───────────────────────────────────────────────────────
+// ── Die Rolle im Grund ───────────────────────────────────────────────────────
 // Die Rolle sitzt im GRUND, nicht im Akzent: man erkennt den Bereich an der Temperatur des Raums,
 // den Sachverhalt an der Farbe des Signals.
 // ── Die Rolle ────────────────────────────────────────────────────────────────
@@ -148,20 +169,17 @@ const KEYHOLDER_GRUND = {
     hell:   { grund: '#f7f8fc', erhoeht: '#eef1f8', feld: '#e5eaf3', text: ['#1d2130', '#4d5363', '#646b7b'], tinte: '29,33,48' },
     dunkel: { grund: '#070810', erhoeht: '#0f1119', feld: '#181b26', text: ['#f4f5fb', '#bcbed3', '#8c8ea6'], tinte: '255,255,255' },
   },
-  warm: {
-    hell:   { grund: '#fcf8f8', erhoeht: '#f6eff0', feld: '#f0e6e7', text: ['#2b1d1f', '#614d50', '#7b6568'], tinte: '43,29,31' },
-    dunkel: { grund: '#0b0708', erhoeht: '#140e0f', feld: '#241b1c', text: ['#fdf8f8', '#c9b9ba', '#9a888a'], tinte: '255,255,255' },
-  },
 }
 
 const grundVon = (rolle, hell) => (rolle === 'traeger' ? TRAEGER_GRUND : KEYHOLDER_GRUND)
   [WELTEN[IDENTITAET].grund[rolle]][hell ? 'hell' : 'dunkel']
 
+// Ein Theme je Welt, gleichnamig — die Trennung zwischen „Welt" und „Theme" gab es nur, solange
+// eine Welt mehrere Themes bedienen musste (hell/dunkel × Träger/Keyholder).
 const THEMES = {
-  'user':        { hell: true,  rolle: 'traeger',   ...TRAEGER_GRUND.rosa.hell },
-  'user-dark':   { hell: false, rolle: 'traeger',   ...TRAEGER_GRUND.rosa.dunkel },
-  'admin-light': { hell: true,  rolle: 'keyholder', ...KEYHOLDER_GRUND.kuehl.hell },
-  'admin':       { hell: false, rolle: 'keyholder', ...KEYHOLDER_GRUND.kuehl.dunkel },
+  'sub-open':   { hell: false, rolle: 'traeger',   ...TRAEGER_GRUND.rosa.dunkel },
+  'sub-locked': { hell: false, rolle: 'traeger',   ...TRAEGER_GRUND.gruen.dunkel },
+  'keyholder':  { hell: false, rolle: 'keyholder', ...KEYHOLDER_GRUND.kuehl.dunkel },
 }
 
 // ── Farbrechnen ──────────────────────────────────────────────────────────────
@@ -209,7 +227,7 @@ export function themeTokens(themeName) {
   const setze = (k, v) => out.push([`--${k}`, v])
   setze('background', th.grund); setze('background-subtle', mix(th.grund, th.erhoeht, 0.5))
   setze('surface', th.erhoeht); setze('surface-raised', th.feld)
-  setze('surface-overlay', th.grund + (th.hell ? 'e6' : 'e6'))
+  setze('surface-overlay', th.grund + 'e6')
   setze('border', mix(th.grund, th.text[2], 0.28))
   setze('border-subtle', mix(th.grund, th.text[2], 0.14))
   setze('border-strong', mix(th.grund, th.text[2], 0.5))
@@ -393,43 +411,10 @@ export function themeTokens(themeName) {
 
 const zeile = ([k, v]) => `  ${(k + ':').padEnd(26)}${v};`
 
-/** Die Tokens eines Themes in der gewünschten Identität. */
-function tokensIn(ident, name) {
-  setIdentitaet(ident)
+/** Die Tokens einer Welt. Welt und Theme heissen seit v6 gleich — eine Welt IST ein Block. */
+function tokensIn(name) {
+  setIdentitaet(name)
   return themeTokens(name)
-}
-
-/** Die Welten, die als Abweichung ins Blatt kommen — alle ausser der Vorgabe. */
-const NEBENWELTEN = Object.keys(WELTEN).filter((w) => w !== WELT_VORGABE)
-
-/** Nur die Tokens, in denen sich `welt` von der Vorgabe unterscheidet. */
-function abweichung(welt, name) {
-  const basis = new Map(tokensIn(WELT_VORGABE, name))
-  return tokensIn(welt, name).filter(([k, v]) => basis.get(k) !== v)
-}
-
-/** Die Selektoren, unter denen die grüne Abweichung gilt.
- *
- *  Zwei, weil `data-theme` an ZWEI Stellen hängt: an `<html>` (für alles, was per Portal am Body
- *  klebt) und am Bereichs-Wrapper. `data-ident` sitzt nur an `<html>` — die Abweichung muss also
- *  beide Träger erreichen, den einen als Kombination, den anderen als Nachfahren.
- *
- *  KEIN `:root[data-ident="…"]` für das helle Träger-Theme, obwohl es ohne Attribut gilt: das
- *  Inline-Skript setzt `data-theme` und `data-ident` in derselben Anweisung, ein Wurzelelement mit
- *  Ton und ohne Theme gibt es also nicht. Der Selektor hätte nur die Spezifität (0,2,0) in den
- *  Ring geworfen und damit von der Reihenfolge der Blöcke abhängig gemacht, welche Welt eine
- *  Keyholder-Seite bekommt. */
-function identSelektoren(welt, name) {
-  const sel = [`[data-ident="${welt}"][data-theme="${name}"]`, `[data-ident="${welt}"] [data-theme="${name}"]`]
-  // Das helle Träger-Theme gilt auch OHNE `data-theme` — es ist `:root`. Diesen Fall gibt es
-  // wirklich: Anmeldung, Passwort-Reset und Info liegen ausserhalb beider Bereiche und binden das
-  // Theme-Skript nicht ein; dort steht die Farbwelt am Wurzelelement, das Theme nicht.
-  //
-  // `:not([data-theme])` und nicht `:root` allein: sonst stünde die helle Träger-Welt mit
-  // Spezifität (0,2,0) im Ring gegen die Keyholder-Blöcke, und welche Welt eine Admin-Seite
-  // bekommt, entschiede die Reihenfolge der Blöcke. So schliessen sich die beiden Fälle aus.
-  if (name === 'user') sel.unshift(`:root[data-ident="${welt}"]:not([data-theme])`)
-  return sel
 }
 
 /** Das PRÄFIX der Anfangsmarke — nicht ihr voller Text.
@@ -440,40 +425,18 @@ function identSelektoren(welt, name) {
  *  Blatt, die nur deshalb nichts anrichteten, weil der neue Block später kommt und gewinnt. Wer
  *  seinen eigenen Marker nach dem Titel sucht, verliert ihn beim ersten Umformulieren. */
 const MARKE_PRAEFIX = '/* ══ ERZEUGT von docs/design/tokens.mjs'
-const MARKE_AUF = `${MARKE_PRAEFIX} — die übrigen Farbwelten ══`
 const MARKE_ZU = '/* ══ Ende des erzeugten Bereichs ══ */'
 
-function weltenAbschnitt() {
-  const teile = [
-    MARKE_AUF,
-    `   Nur die Tokens, die sich von der Vorgabe (${WELT_VORGABE}) unterscheiden — der Rest erbt aus den`,
-    '   vier Theme-Blöcken oben. Umgeschaltet wird am Gerät (Einstellungen → Farbwelt); so liegen die',
-    '   Fassungen desselben Bildschirms nebeneinander statt in mehreren Bauten.',
-    '   ═════════════════════════════════════════════════════════════════════════════════════ */',
-  ]
-  // Nach INHALT gruppiert, nicht nach Welt: `geteilt` benutzt für den Träger dieselben Werte wie
-  // `gruen`, und ausgeschrieben wären das zweimal 81 Zeilen für denselben Block. Jede weitere
-  // Welt, die eine bestehende Bereichs-Fassung wiederverwendet, spart hier ihre Duplikate mit.
-  const bloecke = new Map()
-  for (const welt of NEBENWELTEN) {
-    for (const name of Object.keys(THEMES)) {
-      const tokens = abweichung(welt, name)
-      if (tokens.length === 0) continue
-      const rumpf = tokens.map(zeile).join('\n')
-      const schluessel = `${name}\u0000${rumpf}`
-      if (!bloecke.has(schluessel)) bloecke.set(schluessel, { rumpf, selektoren: [] })
-      bloecke.get(schluessel).selektoren.push(...identSelektoren(welt, name))
-    }
-  }
-  for (const { rumpf, selektoren } of bloecke.values()) {
-    teile.push('', selektoren.join(',\n') + ' {', rumpf, '}')
-  }
-  teile.push('', MARKE_ZU)
-  return teile.join('\n')
-}
-
-/** Schneidet den erzeugten Welten-Abschnitt heraus: `[vor der Marke, nach der Endmarke]`.
- *  Fehlt er, ist der Rumpf das ganze Blatt und der Schwanz leer. */
+/**
+ * Schneidet den früher erzeugten Welten-Abschnitt heraus: `[vor der Marke, nach der Endmarke]`.
+ * Fehlt er, ist der Rumpf das ganze Blatt und der Schwanz leer.
+ *
+ * Er wird nur noch ENTFERNT, nie wieder geschrieben. Solange die Farbwelt zur Wahl stand, lagen
+ * alle Fassungen gleichzeitig im Blatt und die zusätzlichen als Abweichung unter `[data-ident]`;
+ * jetzt ist jede Welt ein eigener, vollständiger Block. Die Funktion bleibt, damit ein Blatt aus
+ * der Zeit davor sich noch einmal sauber neu erzeugen lässt — und weil ein zurückgelassener
+ * Abschnitt die neuen Blöcke überschriebe, ohne dass es jemandem auffiele.
+ */
 function trenneWeltenAb(css) {
   // ALLE markierten Abschnitte, nicht nur den ersten: fand ein früherer Lauf seinen Marker nicht,
   // liegt mehr als einer im Blatt, und ein Schreiber, der nur einen einsammelt, verewigt den Rest.
@@ -493,10 +456,14 @@ function trenneWeltenAb(css) {
 /** Ersetzt den Rumpf eines Theme-Blocks im Blatt. Bricht ab, wenn der Block nicht eindeutig ist. */
 function ersetzeBlock(css, name, tokens) {
   const kopf = `[data-theme="${name}"] {`
-  // Der Kopf allein ist nicht eindeutig: `[data-theme="user-dark"] {` steht auch als zweite Zeile
-  // des dunklen Kategorie-Blocks. Zwei Schranken zusammen machen ihn es: er muss am ZEILENANFANG
-  // stehen (sonst trifft er die Kombinations-Selektoren `[data-ident="…"][data-theme="…"]`), und
-  // der Block dahinter muss den Grund definieren.
+  // Der Kopf allein ist nicht eindeutig: `[data-theme="keyholder"] {` steht auch als LETZTE
+  // Selektorzeile des geteilten Kategorie-Blocks. Was ihn eindeutig macht, ist der `--background:`-
+  // Filter darunter — die Kategorie-Palette führt keinen Grund. Die beiden Träger-Welten entkommen
+  // ohnehin, weil ihre Zeilen dort auf ein Komma enden.
+  //
+  // ⚠ Damit hängt die Eindeutigkeit an der REIHENFOLGE jener vier Selektoren. Sortiert sie jemand
+  // so um, dass `[data-theme="sub-open"] {` die letzte wird, bricht dieser Lauf mit „2 Blockköpfe
+  // gefunden" ab — sichtbar und laut, aber die Ursache stünde dann woanders als der Fehler.
   const treffer = [...css.matchAll(new RegExp('^' + kopf.replace(/[[\]{}]/g, '\\$&'), 'gm'))]
     .filter((m) => css.slice(m.index, css.indexOf('\n}', m.index)).includes('--background:'))
   if (treffer.length !== 1) throw new Error(`${name}: ${treffer.length} Blockköpfe gefunden, genau einer erwartet`)
@@ -511,16 +478,15 @@ function schreibe(pfad) {
 
   // ZUERST den erzeugten Abschnitt herausnehmen, DANN die Theme-Blöcke ersetzen.
   //
-  // Andersherum lief es genau einmal: der grüne Abschnitt trägt für `user` den Kopf
-  // `[data-ident="gruen"][data-theme="user"] {` — darin steckt die Zeichenkette
-  // `[data-theme="user"] {`. Seit der Grund identitätsabhängig ist, steht in diesem Block auch
-  // `--background:`, und damit fand der Filter unten ZWEI Blöcke statt einem und brach ab. Das
-  // Blatt liess sich danach nicht mehr neu erzeugen. Wer nichts sucht, was er gerade selbst
+  // Andersherum lief es genau einmal, damals mit dem Abweichungs-Abschnitt: dessen Köpfe
+  // (`[data-ident="gruen"][data-theme="user"] {`) enthielten die Zeichenkette, nach der der
+  // Ersetzer suchte, und trugen selbst ein `--background:` — der Filter fand ZWEI Blöcke statt
+  // einem und brach ab. Das Blatt liess sich danach nicht mehr neu erzeugen. Den Abschnitt gibt es
+  // nicht mehr, die Reihenfolge bleibt trotzdem: wer nichts sucht, was er gerade selbst
   // geschrieben hat, kann sich auch nicht daran verschlucken.
   const [rumpf, schwanz] = trenneWeltenAb(css)
-  css = rumpf
-  for (const name of Object.keys(THEMES)) css = ersetzeBlock(css, name, tokensIn(WELT_VORGABE, name))
-  css = css.replace(/\s*$/, '\n') + '\n\n' + weltenAbschnitt() + schwanz
+  css = rumpf + schwanz
+  for (const name of Object.keys(THEMES)) css = ersetzeBlock(css, name, tokensIn(name))
 
   fs.writeFileSync(pfad, css)
   return css
@@ -530,15 +496,12 @@ if (process.argv[1]?.endsWith('tokens.mjs')) {
   if (process.argv.includes('--write')) {
     const pfad = new URL('../../src/app/globals.css', import.meta.url).pathname
     schreibe(pfad)
-    for (const welt of NEBENWELTEN) {
-      const zahlen = Object.keys(THEMES).map((n) => `${n}: ${abweichung(welt, n).length}`)
-      console.log(`  ${welt} — Abweichungen (${zahlen.join(', ')})`)
-    }
-    console.log('globals.css geschrieben — vier Theme-Blöcke plus die Welten oben.')
+    for (const name of Object.keys(THEMES)) console.log(`  ${name}: ${tokensIn(name).length} Tokens`)
+    console.log('globals.css geschrieben — drei Theme-Blöcke, keine Abweichungen mehr.')
   } else {
     for (const name of Object.keys(THEMES)) {
       console.log(`\n[data-theme="${name}"] {`)
-      for (const [k, v] of tokensIn(IDENTITAET, name)) console.log(zeile([k, v]))
+      for (const [k, v] of tokensIn(name)) console.log(zeile([k, v]))
       console.log('}')
     }
   }

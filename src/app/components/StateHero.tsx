@@ -2,14 +2,18 @@ import type { ReactNode } from "react";
 import { blockInsetCls } from "@/app/components/inputStyles";
 
 /** Der Ton des Zustands — bestimmt Farbe des Wortes UND ob ein Leuchten dahinterliegt. */
-export type StateHeroTone = "lock" | "warn" | "quiet";
+export type StateHeroTone = "lock" | "unlock" | "warn" | "quiet";
 
 const TONE: Record<StateHeroTone, { word: string; glow: string | null }> = {
   // Verschlossen: die Zustandsfarbe, mit dem Leuchten, das sie im Grund spiegelt.
   lock: { word: "text-lock", glow: "var(--hero-glow)" },
   // Eine Frist läuft — das will etwas, also bekommt es Aufmerksamkeit.
   warn: { word: "text-warn", glow: "var(--hero-glow-warn)" },
-  // Offen ohne Frist. Verlangt nichts, trägt deshalb keine Farbe und kein Leuchten.
+  // Offen — der GEGENZUSTAND, nicht die Abwesenheit eines Zustands. Farbe ja, Leuchten nein: das
+  // Leuchten spiegelt den Ton im Grund, und in der Keyholder-Welt (Indigo) gehört ihm der Grund
+  // nicht. Für den Träger sagt seine eigene Welt bereits „offen"; dort bleibt `quiet` richtig.
+  unlock: { word: "text-unlock", glow: null },
+  // Kein Zustand, sondern gar keine Aussage — der Träger, von dem noch nichts vorliegt.
   quiet: { word: "text-foreground-muted", glow: null },
 };
 

@@ -31,7 +31,11 @@ const colorMap: Record<ToastType, { bg: string; border: string; text: string; ic
   success: { bg: "bg-ok-bg", border: "border-ok-border", text: "text-ok-text", icon: "text-ok" },
   error:   { bg: "bg-warn-bg", border: "border-warn-border", text: "text-warn-text", icon: "text-warn" },
   warning: { bg: "bg-inspect-bg", border: "border-inspect-border", text: "text-inspect-text", icon: "text-inspect" },
-  info:    { bg: "bg-unlock-bg", border: "border-unlock-border", text: "text-unlock-text", icon: "text-unlock" },
+  // NEUTRAL, nicht `unlock`. Die drei darüber tragen eine Bedeutung; `info` trägt keine — es lieh
+  // sich `unlock` nur, solange das grau war. Seit v6 ist `unlock` die Zustandsfarbe „offen": eine
+  // Meldung „Vorgang gespeichert" behauptete damit optisch „geöffnet", und auf dem offenen
+  // Träger-Dashboard war sie ausserdem von der Primärfarbe nicht mehr zu unterscheiden.
+  info:    { bg: "bg-surface-raised", border: "border-border", text: "text-foreground", icon: "text-foreground-muted" },
 };
 
 const defaultDurations: Record<ToastType, number> = {

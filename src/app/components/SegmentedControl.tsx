@@ -6,7 +6,7 @@ interface Option {
 }
 
 /**
- * `sm` ist die kompakte Fassung für kleine Umschalter, die für sich stehen (Sprache, Theme).
+ * `sm` ist die kompakte Fassung für kleine Umschalter, die für sich stehen (Sprache, Filter).
  * `md` trifft die Höhe von `Select` und `Input` (`h-11`) — für Steuerungen, die in einer Reihe MIT
  * solchen Feldern stehen. Ungleich hohe Bedienelemente nebeneinander sind der häufigste Grund,
  * warum eine Leiste unaufgeräumt wirkt.

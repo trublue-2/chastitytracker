@@ -1186,9 +1186,6 @@
     "keyholdersNoCandidates": "Keine zuweisbaren Nutzer — als Keyholder kommen nur Nicht-Admins in Frage (Admins kontrollieren ohnehin alle Subs). Lege dafür einen Nutzer mit der Rolle Benutzer an.",
     "keyholderSelect": "User wählen …",
     "keyholderAdd": "Hinzufügen",
-    "designTon": "Farbwelt",
-    "designAdmin": "Admin-Design",
-    "designUser": "Benutzer-Design",
     "usernameLabel": "Benutzername",
     "passwordLabel": "Passwort",
     "sectionAccount": "Konto",
@@ -1505,12 +1502,6 @@
     "deleteConfirm": "Diesen Passkey wirklich entfernen?",
     "delete": "Entfernen",
     "authFailed": "Passkey-Anmeldung fehlgeschlagen"
-  },
-  "theme": {
-    "label": "Design",
-    "light": "Hell",
-    "dark": "Dunkel",
-    "system": "System"
   },
   "wearForm": {
     "titleBegin": "Tragen beginnen",

@@ -3,8 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#111827" />
+  <meta name="theme-color" content="#0b0609" />
   <title>KG Tracker – Offline</title>
+  <!-- Die Werte sind aus der Vorgabewelt `sub-open` abgeschrieben (globals.css) und NICHT geteilt:
+       diese Seite liefert der Service Worker ohne die App und damit ohne Stylesheet. Wer die Welt
+       dort ändert, ändert sie hier mit — sonst steht der Offline-Bildschirm als einziger im alten
+       Anstrich da. -->
   <style>
     body {
       margin: 0;
@@ -15,21 +19,21 @@
       justify-content: center;
       gap: 16px;
       font-family: sans-serif;
-      background: #f8f9fb;
-      color: #374151;
+      background: #0b0609;
+      color: #fdf7f8;
       text-align: center;
       padding: 24px;
     }
     svg { opacity: .4; }
     h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
-    p  { margin: 0; font-size: 0.95rem; color: #6b7280; }
+    p  { margin: 0; font-size: 0.95rem; color: #c9b7bd; }
     button {
       margin-top: 8px;
       padding: 10px 24px;
       border-radius: 8px;
       border: none;
-      background: #111827;
-      color: #fff;
+      background: #ff3d68;
+      color: #2b0410;
       font-size: 0.95rem;
       cursor: pointer;
     }

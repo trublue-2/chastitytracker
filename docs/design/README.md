@@ -1,7 +1,14 @@
 # Gestaltungs-Entwurf
 
-Ein Vorschlag für das Aussehen der App — **kein umgesetzter Stand**. Nichts hiervon ist im Code;
-die Dateien hier sind Entwürfe zum Anschauen und Weiterentwickeln.
+Der Entwurf, aus dem das Aussehen der App entstanden ist. Er war einmal **ein Vorschlag ohne
+Umsetzung**; das gilt nicht mehr — der Stand im Code steht in `umsetzung.md`, und wo die beiden
+auseinandergehen, hat der Code recht.
+
+Die Blätter hier bleiben als HERLEITUNG: sie erklären, warum die Werte sind, wie sie sind. Zwei
+Dinge darin sind mit v6 entfallen und stehen nur noch historisch da — der **helle Modus**
+(`hell.md`) und die Wahl zwischen mehreren **Farbwelten**. Die Welt ist keine Einstellung mehr,
+sondern eine Ableitung aus dem Zustand: gruen verschlossen, rosa offen, indigo fuer die
+Keyholderin.
 
 Öffne irgendeine Datei in [`vorschau/`](vorschau/) im Browser. Die Quellen in [`quelle/`](quelle/)
 sind dieselben Bildschirme im Artboard-Format des Design-Werkzeugs.
@@ -33,7 +40,7 @@ bis zum vollen Rosa, gültig für Kalender, Balken und Ringe:
 
 ### Die Rolle sitzt im Grund
 
-Die App unterscheidet heute schon vier Themes (`user`, `user-dark`, `admin`, `admin-light` in
+Die App unterscheidet drei Welten (`sub-open`, `sub-locked`, `keyholder` in
 `src/lib/theme.ts`) — Träger grün, Keyholder indigo. Diese Trennung bleibt, aber sie wandert vom
 Akzent auf den **Grund**:
 

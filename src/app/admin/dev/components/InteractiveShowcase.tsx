@@ -19,11 +19,8 @@ import Sheet from "@/app/components/Sheet";
 import Pill from "@/app/components/Pill";
 import TimerDisplay from "@/app/components/TimerDisplay";
 import useToast from "@/app/hooks/useToast";
+import WorldGrid from "./WorldGrid";
 
-// ── Theme Pair Wrappers (Client) ─────────────
-
-/** Dual-theme wrapper for interactive demos that need independent state per column.
- *  Pass a component reference + props — it gets instantiated twice. */
 export function ThemePairClient<P extends Record<string, unknown>>({
   component: Component,
   props,
@@ -32,18 +29,7 @@ export function ThemePairClient<P extends Record<string, unknown>>({
   props?: P;
 }) {
   const p = (props ?? {}) as P;
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div data-theme="user" className="bg-background rounded-xl border border-border p-4">
-        <p className="text-[10px] font-mono text-foreground-faint mb-3 uppercase tracking-wider">User (Light)</p>
-        <Component {...p} />
-      </div>
-      <div data-theme="admin" className="bg-background rounded-xl border border-border p-4">
-        <p className="text-[10px] font-mono text-foreground-faint mb-3 uppercase tracking-wider">Admin (Dark)</p>
-        <Component {...p} />
-      </div>
-    </div>
-  );
+  return <WorldGrid><Component {...p} /></WorldGrid>;
 }
 
 // ── Button Demos ──────────────────────────────

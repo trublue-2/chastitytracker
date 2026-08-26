@@ -18,13 +18,13 @@ zurücknehmen.
 
 ### Die Tokens kommen aus einem Generator
 
-[`tokens.mjs`](tokens.mjs) erzeugt alle vier Theme-Blöcke aus einer Beschreibung.
+[`tokens.mjs`](tokens.mjs) erzeugt alle drei Welten-Blöcke aus einer Beschreibung.
 
 ```bash
 node docs/design/tokens.mjs          # ansehen
 ```
 
-Vier Themes mal rund 90 Tokens sind 360 Werte. Von Hand konsistent zu halten ist genau das, woran
+Drei Welten mal rund 100 Tokens sind 360 Werte. Von Hand konsistent zu halten ist genau das, woran
 es vorher gescheitert ist: die dunkle Kategorie-Palette stand nur in einem der beiden dunklen
 Themes, und der Träger-Dunkelmodus zeigte deshalb helle Chips auf dunklem Grund — in zehn
 Komponenten, monatelang, ohne dass es jemandem auffiel.
@@ -214,7 +214,7 @@ freizuhalten. Seine Begründung: sonst hiesse „verschlossen" beim Träger rosa
 indigo — dieselbe Tatsache in zwei Farben.
 
 **Der Einwand traf nicht zu.** Die Bedeutungsfarben waren in beiden Rollen schon immer identisch —
-`--color-lock` war in `user` wie in `admin-light` derselbe Wert `#0d9151`, ebenso `warn`, `ok`,
+`--color-lock` war in jeder Rolle derselbe Wert `#0d9151`, ebenso `warn`, `ok`,
 `inspect`. Die Rolle sass nie in der Semantik, sondern immer nur in der UMGEBUNG: Kopfzeile,
 Navigation, Hauptknopf. Der Entwurf argumentierte gegen ein Problem, das die App nicht hatte — und
 ich bin dem gefolgt und habe ein funktionierendes Signal entfernt.

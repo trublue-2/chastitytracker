@@ -12,7 +12,8 @@ import UserAvatar from "@/app/components/UserAvatar";
 interface UserEntry {
   id: string;
   username: string;
-  isLocked: boolean;
+  /** `undefined` heisst „noch kein Eintrag" — nicht „offen". Siehe `UserAvatar`. */
+  isLocked?: boolean;
 }
 
 interface Props {
@@ -71,7 +72,11 @@ export default function UserContextBar({ userId, username, currentStatus, since,
 
               Die Klassen bleiben unverändert — das Aussehen ändert sich nicht. */}
           <h1 className="font-bold text-foreground text-sm truncate">{username}</h1>
-          <span className={`flex items-center gap-1 text-xs font-medium flex-shrink-0 ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
+          {/* Grün verschlossen, Rosa offen — das PAAR ist die Aussage. Hier stand für „offen"
+              vorher Grau; die Keyholderin sieht mehrere Träger nebeneinander, und Grau liesse
+              offen, ob da niemand verschlossen ist oder nur niemand nachgesehen hat. Ihre eigene
+              Welt bleibt davon unberührt: sie ist immer Indigo, der Zustand ist Akzent, nie Fläche. */}
+          <span className={`flex items-center gap-1 text-xs font-medium flex-shrink-0 ${isLocked ? "text-lock" : "text-unlock"}`}>
             {isLocked
               /* `format="long"`, nicht `short`: `short` faltet die Tage in die Stunden (siehe
                  `formatShort` in `TimerDisplay`), und die Keyholderin las hier `105:43:09`, während
@@ -119,9 +124,14 @@ export default function UserContextBar({ userId, username, currentStatus, since,
                   {u.username}
                 </p>
               </div>
-              {u.isLocked
-                ? <Lock size={14} strokeWidth={1.75} className="text-lock flex-shrink-0" />
-                : <LockOpen size={14} strokeWidth={1.75} className="text-foreground-faint flex-shrink-0" />
+              {/* Drei Ausgänge: verschlossen, offen — und „noch nichts vorliegend", das gar kein
+                  Schloss-Zeichen bekommt. Ein rosa offenes Schloss an einem frisch angelegten Konto
+                  behauptete, jemand hätte aufgeschlossen. */}
+              {u.isLocked === undefined
+                ? null
+                : u.isLocked
+                  ? <Lock size={14} strokeWidth={1.75} className="text-lock flex-shrink-0" />
+                  : <LockOpen size={14} strokeWidth={1.75} className="text-unlock flex-shrink-0" />
               }
               {u.id === userId && (
                 <span className="text-neben text-foreground-faint flex-shrink-0">{t("active")}</span>

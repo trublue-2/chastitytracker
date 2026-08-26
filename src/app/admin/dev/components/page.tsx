@@ -20,6 +20,7 @@ import {
   ModalSheetDemo, PillDemo,
   TimerDisplayDemo, ToastDemo,
 } from "./InteractiveShowcase";
+import WorldGrid from "./WorldGrid";
 
 import {
   PhotoCaptureDemo, ImageViewerDemo,
@@ -433,17 +434,7 @@ function Section({ title, description, children }: { title: string; description:
   );
 }
 
+/** Server-Fassung des Schau-Rasters: derselbe Kindbaum in jeder Welt. */
 function ThemePair({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div data-theme="user" className="bg-background rounded-xl border border-border p-4">
-        <p className="text-[10px] font-mono text-foreground-faint mb-3 uppercase tracking-wider">User (Light)</p>
-        {children}
-      </div>
-      <div data-theme="admin" className="bg-background rounded-xl border border-border p-4">
-        <p className="text-[10px] font-mono text-foreground-faint mb-3 uppercase tracking-wider">Admin (Dark)</p>
-        {children}
-      </div>
-    </div>
-  );
+  return <WorldGrid>{children}</WorldGrid>;
 }
