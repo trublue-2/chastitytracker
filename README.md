@@ -85,6 +85,16 @@ environment variables. Everything above is on by default.
   becomes visible during a permitted opening (cleaning / orgasm window) or after
   the lock ends; the keyholder can always see it. Opt-in via `ENABLE_BILDERSAFE`
   (default **off**).
+- **Weight tracking** — weigh-ins with a photo of the scale (the configured
+  vision provider reads the display and suggests the value), weighing windows per
+  weekday, a target weight from wearer and keyholder, a history chart, and an
+  optional release condition that ties the next orgasm to the weight trend. Opt-in
+  via `ENABLE_WEIGHT_TRACKING` (default **off**). **It takes two switches:** the
+  environment variable only makes the feature available on the instance — the
+  keyholder still has to enable it per sub under User → Settings. Only then do the
+  weigh-in form, the chart, the weighing windows and the "Weight report missed"
+  rule show up anywhere, including in the wearer's own rule list. Concept:
+  `docs/gewicht-konzept.md`, release condition: `docs/gewicht-freigabe-konzept.md`.
 - **MCP keyholder interface** & **Heimdall physical box** — two larger opt-in
   integrations, documented under [Advanced integrations](#advanced-integrations).
 
@@ -196,6 +206,7 @@ MCP_TOKEN=<static-bearer-token>    # optional static bearer token (alternative t
 # Feature flags
 ENABLE_DEVICE_CATEGORIES=false     # multi-category wear tracking (default on; false = KG only)
 ENABLE_BILDERSAFE=true             # sealed key-box code photo (default off)
+ENABLE_WEIGHT_TRACKING=true        # weight tracking (default off; the keyholder still enables it per sub)
 
 # Optional integrations
 PORTAL_SHARED_SECRET=<secret>      # JWT secret for the self-service portal's login flow
@@ -383,6 +394,9 @@ VAPID_SUBJECT=mailto:admin@example.com
 # --- Optional ---
 # USE_ADMIN_RELATIONSHIPS=true      # enable n:m admin↔user supervision
 # ENABLE_BILDERSAFE=true            # enable the sealed key-box code photo feature (default off)
+# ENABLE_WEIGHT_TRACKING=true       # enable weight tracking (default off). Makes the feature available
+#                                   #   only — the keyholder switches it on per sub in their settings
+#                                   #   tab, and nothing weight-related shows up before that
 # DISABLE_FEEDBACK=true             # hide the in-app feedback button entirely
 # FEEDBACK_UPSTREAM_URL=<url>       # send in-app feedback to your own inbox instead of the project portal
 # DISABLE_UPDATE_CENSUS=true        # opt out of the anonymous deployment census (see docs/update-check.md)
@@ -597,6 +611,23 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | `PATCH` | `/api/tasks/[id]` | Wearer reports the task done |
 | `PATCH` | `/api/tasks/proofs/[id]` | Wearer submits a proof photo |
 
+### Weight
+
+Gated by `ENABLE_WEIGHT_TRACKING` **and** the per-user switch: without the flag every route
+answers `404`, with the flag but without the sub's switch `403` (`WEIGHT_TRACKING_DISABLED`).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/weight` | Log a weigh-in — for yourself (photo of the scale required) or as keyholder for a sub |
+| `PATCH` | `/api/weight/[id]` | Keyholder: correct value or note of a weigh-in (photo, EXIF time and detected value stay) |
+| `DELETE` | `/api/weight/[id]` | Keyholder: delete a weigh-in |
+| `POST` | `/api/detect-weight` | Read the scale display from a photo — a suggestion for the form, nothing is stored |
+| `PATCH` | `/api/settings/weight` | Own height, unit system and own target weight |
+| `POST/DELETE` | `/api/admin/weight-release` | Keyholder: set / withdraw the release condition tying the next orgasm to weight |
+
+> The keyholder's own weight settings (enable per sub, weighing windows, her target weight) go
+> through `PATCH /api/admin/users/[id]` like the rest of the per-sub settings.
+
 ### Offenses & Penalties
 
 | Method | Endpoint | Description |
@@ -682,6 +713,9 @@ The keyholder inbox mirrors these under `/api/admin/messages` (`GET`, `[id]`, `[
 | `VerschlussAnforderung` | Lock requests (`ANFORDERUNG`) and lock periods (`SPERRZEIT`); optional device requirement and `reinigungErlaubt` flag |
 | `OrgasmusAnforderung` | Orgasm requirement / window for a user (optional required type, permitted opening) |
 | `Task` / `TaskRequirement` / `TaskProof` | Tasks with their conditions and proof photos (own due time, review state, capture time from EXIF) |
+| `WeightEntry` | Weigh-ins: value (always stored metric), day key in the wearer's timezone, optional scale photo with EXIF time and the value read from the display |
+| `WeightRelease` | Release condition — threshold, averaging window and lead time that turn a weight trend into an orgasm window |
+| `HeightChange` | History of the wearer's height entries |
 | `StrafeRecord` | Verdicts on offenses — the offense itself is derived live from the entries; this record holds what the keyholder decided (punished, dismissed, done), optionally with a penalty task |
 | `ManualOffense` | Offenses recorded by hand — the only kind not derived from entries |
 | `OffenseRuleChange` | Append-only history of which kinds of offense count for a sub, with `effectiveFrom` |
