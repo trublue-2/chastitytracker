@@ -54,7 +54,7 @@ export default function UpstreamSection({ currentVersion, locale }: { currentVer
           <div key={release.version} className="rounded-2xl border border-[var(--color-request)] bg-surface p-4">
             <div className="flex items-center gap-2 mb-3">
               <span className="font-mono font-bold text-sm text-foreground">v{release.version}</span>
-              <span className="text-[10px] font-semibold bg-[var(--color-request)] text-white px-1.5 py-0.5 rounded-full">
+              <span className="text-[10px] font-semibold bg-[var(--color-request)] text-btn-primary-text px-1.5 py-0.5 rounded-full">
                 {t("upstreamBadge")}
               </span>
               <span className="text-xs text-foreground-faint">{formatDate(release.date)}</span>

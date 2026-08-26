@@ -46,10 +46,15 @@ export default function Toggle({
         ].filter(Boolean).join(" ")}
         aria-hidden="true"
       >
+        {/* Der Knopf nimmt die Schrift-Farbe der Primärfläche, nicht Weiss.
+            Weiss auf `--btn-primary` mass 3,4 (rosa), 2,9 (indigo) und 1,9 (grün) — der
+            EINGESCHALTETE Zustand war damit schlechter ablesbar als der ausgeschaltete (8,6 auf
+            `border-strong`), und in der grünen Welt verschwamm der Knopf mit seiner Schiene. Genau
+            verkehrt herum: der Zustand, der etwas aussagt, muss der deutlichere sein. */}
         <span
           className={[
-            "block w-6 h-6 mt-0.5 rounded-full bg-white shadow-card transition-transform duration-fast",
-            checked ? "translate-x-[22px]" : "translate-x-0.5",
+            "block w-6 h-6 mt-0.5 rounded-full shadow-card transition-transform duration-fast",
+            checked ? "bg-btn-primary-text translate-x-[22px]" : "bg-foreground translate-x-0.5",
           ].join(" ")}
         />
       </span>

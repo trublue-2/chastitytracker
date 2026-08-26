@@ -6,6 +6,7 @@ import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import { activateWaitingSw } from "@/lib/swMessages";
+import Button from "@/app/components/Button";
 
 const POLL_INTERVAL_MS = 30_000;
 /** Takt, solange der Server eine laufende Erkennung meldet (`settling`). Die KI-Urteile fallen in
@@ -131,13 +132,24 @@ export default function Heartbeat({ buildDate, initialUserId }: { buildDate: str
 
   return (
     <div className="fixed bottom-[var(--bottom-nav-space)] left-4 right-4 sm:left-auto sm:right-6 sm:w-80 z-50">
-      <div className="bg-[var(--surface-raised)] text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl">
+      {/* `text-foreground` statt `text-white`: die feste Farbe stammt aus der Zeit, als es genau ein
+          dunkles Theme gab. Ein Rahmen dazu, damit die Fläche sich vom Grund abhebt — sie schwebt
+          über der Seite und ist die einzige Stelle, an der `surface-raised` ohne Nachbarn steht. */}
+      <div className="bg-surface-raised text-foreground border border-border rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl">
         <RefreshCw size={18} className="flex-shrink-0 text-foreground-muted animate-spin" style={{ animationDuration: "2s" }} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">{tv("title")}</p>
           <p className="text-xs text-foreground-faint">{tv("subtitle")}</p>
         </div>
-        <button
+        {/* Der geteilte Knopf statt eines eigenen: der hier trug `bg-white text-foreground`, und
+            `text-foreground` ist in allen drei Welten nahezu weiss — die Beschriftung stand weiss
+            auf weiss und der Knopf war eine leere Fläche. Beides feste Farben aus der Zeit vor den
+            Welten. `Button` bringt ausserdem den Ladezustand mit, den diese Stelle von Hand als
+            `disabled` plus Deckkraft nachbaute. */}
+        <Button
+          size="sm"
+          loading={reloading}
+          className="flex-shrink-0"
           onClick={async () => {
             // reloadingRef stoppt zusätzlich den Poll, damit er nicht in den Reload hineinläuft.
             reloadingRef.current = true;
@@ -145,11 +157,9 @@ export default function Heartbeat({ buildDate, initialUserId }: { buildDate: str
             await activateWaitingSw();
             window.location.reload();
           }}
-          disabled={reloading}
-          className="flex-shrink-0 bg-white text-foreground text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-surface-raised transition disabled:opacity-60"
         >
           {tv("reload")}
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -292,7 +292,7 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
                   <button
                     type="button"
                     onClick={toggleTorch}
-                    className={`p-1.5 rounded-lg transition ${torchOn ? "bg-warn text-white" : "text-foreground-faint hover:text-foreground-muted"}`}
+                    className={`p-1.5 rounded-lg transition ${torchOn ? "bg-warn text-btn-primary-text" : "text-foreground-faint hover:text-foreground-muted"}`}
                     aria-label={torchOn ? t("torchOff") : t("torchOn")}
                   >
                     {torchOn ? <FlashlightOff size={18} /> : <Flashlight size={18} />}

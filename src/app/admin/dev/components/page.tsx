@@ -30,7 +30,7 @@ import {
   LocaleSwitcherDemo, UserContextBarDemo, UserSubNavDemo,
   LaufendeSessionCardMockDemo, SessionEventRowDemo,
   AdminFABMockDemo, InstallBannerMockDemo,
-  VersionCheckerMockDemo, PushManagerMockDemo,
+  HeartbeatMockDemo, PushManagerMockDemo,
 } from "./ComposedShowcase";
 
 export default async function ComponentsShowcase() {
@@ -398,7 +398,7 @@ export default async function ComponentsShowcase() {
         </Section>
 
         <Section title="VersionChecker" description="App-Update-Banner. Pollt /api/version alle 5 Min. Statischer Nachbau.">
-          <ThemePairClient component={VersionCheckerMockDemo} />
+          <ThemePairClient component={HeartbeatMockDemo} />
         </Section>
 
         <Section title="PushManager" description="Push-Notification Toggle. Benötigt Service Worker. Statischer Nachbau.">

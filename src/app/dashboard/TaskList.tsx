@@ -1,6 +1,6 @@
 "use client";
 
-import BlockHeading from "@/app/components/BlockHeading";
+import Section from "@/app/components/Section";
 import { useState } from "react";
 import IconTile from "@/app/components/IconTile";
 import { ListChecks } from "lucide-react";
@@ -62,13 +62,11 @@ export default function TaskList({
     // Sprungziel des Aufgaben-Badges an `OffenseCard` (Begründung an `TASK_LIST_ANCHOR`).
     // `scroll-mt-20` hält den Listenkopf frei: der Dashboard-Header ist `sticky` und deckte die
     // Überschrift sonst genau nach dem Sprung ab.
-    <div id={TASK_LIST_ANCHOR} className="scroll-mt-20 bg-surface rounded-2xl border border-border overflow-hidden">
-      <div className="px-5 py-3 border-b border-border-subtle">
-        <BlockHeading>
-          {t("listTitle")}
-        </BlockHeading>
-      </div>
-
+    /* `Section` statt Kasten mit getöntem Kopf: das war die letzte Stelle, an der die alte Figur
+       auf dem Träger-Dashboard stand — Fläche, Rahmen, Radius und eine eigene Kopfzeile mit
+       Trennlinie darunter. Neben lauter rahmenlosen Blöcken sah damit ausgerechnet der
+       Aufgaben-Block aus wie ein Fremdkörper. */
+    <Section id={TASK_LIST_ANCHOR} className="scroll-mt-20" title={t("listTitle")}>
       <div className="divide-y divide-border-subtle">
         {visible.map((task) => {
           const deadline = deadlineOf(task);
@@ -99,6 +97,6 @@ export default function TaskList({
       <Sheet open={openTask !== null} onClose={() => setOpenTask(null)} title={t("listTitle")}>
         {openTask && <TaskCard task={openTask} viewerTz={viewerTz} subTz={tz} subLabel={subLabel} />}
       </Sheet>
-    </div>
+    </Section>
   );
 }

@@ -88,7 +88,7 @@ export default function InstallBanner() {
       {platform === "android" && (
         <button
           onClick={install}
-          className="flex items-center gap-1.5 bg-[var(--color-inspect)] hover:opacity-90 text-white text-xs font-semibold px-3 py-2 rounded-lg flex-shrink-0"
+          className="flex items-center gap-1.5 bg-[var(--color-inspect)] hover:opacity-90 text-btn-primary-text text-xs font-semibold px-3 py-2 rounded-lg flex-shrink-0"
         >
           <Download size={14} />
           {t("install")}

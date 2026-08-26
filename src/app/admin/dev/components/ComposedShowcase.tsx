@@ -261,7 +261,7 @@ export function InstallBannerMockDemo() {
           <p className="font-semibold text-sm">App installieren</p>
           <p className="text-xs opacity-70 mt-0.5">Zum Homescreen hinzufügen für schnelleren Zugriff.</p>
         </div>
-        <button className="flex items-center gap-1.5 bg-[var(--color-inspect)] text-white text-xs font-semibold px-3 py-2 rounded-lg flex-shrink-0">
+        <button className="flex items-center gap-1.5 bg-[var(--color-inspect)] text-btn-primary-text text-xs font-semibold px-3 py-2 rounded-lg flex-shrink-0">
           <Download size={14} />
           Installieren
         </button>
@@ -276,19 +276,19 @@ export function InstallBannerMockDemo() {
   );
 }
 
-export function VersionCheckerMockDemo() {
+export function HeartbeatMockDemo() {
   return (
     <div className="relative rounded-xl overflow-hidden">
-      {/* Static rebuild of VersionChecker "outdated" state */}
-      <div className="bg-[var(--surface-raised)] text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl">
+      {/* Static rebuild of Heartbeat "outdated" state */}
+      <div className="bg-surface-raised text-foreground border border-border rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl">
         <RefreshCw size={18} className="flex-shrink-0 text-foreground-muted animate-spin" style={{ animationDuration: "2s" }} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">Neue Version verfügbar</p>
           <p className="text-xs text-foreground-faint">Seite neu laden für Update</p>
         </div>
-        <button className="flex-shrink-0 bg-white text-foreground text-xs font-bold px-3 py-1.5 rounded-xl">
+        <Button size="sm" className="flex-shrink-0">
           Aktualisieren
-        </button>
+        </Button>
       </div>
       <p className="text-[10px] text-foreground-faint mt-2">
         Statischer Nachbau — echte Komponente pollt /api/version alle 5 Min.
@@ -482,7 +482,7 @@ export function AdminFABMockDemo() {
     <div className="flex flex-col items-start gap-3">
       {/* Static rebuild of AdminFAB button */}
       <div className="flex items-center gap-2">
-        <button className="w-14 h-14 rounded-full bg-[var(--btn-primary-bg)] text-white flex items-center justify-center shadow-lg">
+        <button className="w-14 h-14 rounded-full bg-btn-primary text-btn-primary-text flex items-center justify-center shadow-lg">
           <Plus size={24} />
         </button>
         <span className="text-xs text-foreground-faint">FAB → User-Picker Sheet</span>

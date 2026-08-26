@@ -55,7 +55,7 @@ export default function ActionModalDemo() {
             className="w-full text-sm bg-surface-raised border border-border rounded-xl px-3 py-2 text-foreground resize-none" />
         </FormField>
         <FormError message={null} />
-        <button className="flex items-center justify-center gap-2 text-sm font-medium text-white bg-[var(--color-request)] rounded-xl px-4 py-3 transition hover:opacity-80">
+        <button className="flex items-center justify-center gap-2 text-sm font-medium text-btn-primary-text bg-[var(--color-request)] rounded-xl px-4 py-3 transition hover:opacity-80">
           <Lock size={16} /> Senden
         </button>
       </ActionModal>

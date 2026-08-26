@@ -53,7 +53,7 @@ export default async function OAuthAuthorizePage({ searchParams }: Props) {
         <Card>
           <div className="flex flex-col items-center gap-5 p-6">
             <div className="w-14 h-14 rounded-2xl bg-lock flex items-center justify-center">
-              <ShieldCheck size={28} className="text-white" />
+              <ShieldCheck size={28} className="text-btn-primary-text" />
             </div>
 
             <div className="text-center">

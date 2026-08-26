@@ -446,7 +446,10 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             {labels.strafbuchAbbrechen}
           </button>
           <button type="submit" disabled={saving}
-            className={`text-xs font-semibold text-white px-3 py-1.5 rounded-lg disabled:opacity-50 flex items-center gap-1 transition hover:opacity-90 ${submitClass}`}>
+            /* `text-btn-primary-text`, nicht `text-white`: die Fläche darunter ist eine
+               Bedeutungsfarbe, und der Token kennt je Welt die Schrift, die darauf trägt. Weiss
+               war für die eine helle Fassung von damals gewählt. */
+            className={`text-xs font-semibold text-btn-primary-text px-3 py-1.5 rounded-lg disabled:opacity-50 flex items-center gap-1 transition hover:opacity-90 ${submitClass}`}>
             {submitIcon}
             {saving ? "…" : submitLabel}
           </button>

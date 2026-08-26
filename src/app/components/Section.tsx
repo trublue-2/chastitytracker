@@ -33,15 +33,18 @@ export default function Section({
   action,
   children,
   className = "",
+  id,
 }: {
   title: ReactNode;
   /** Rechts neben der Rubrik — ein Zähler, ein Schalter, ein „alle anzeigen". */
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Sprungziel, wenn irgendwo in der App ein Anker auf diesen Abschnitt zeigt. */
+  id?: string;
 }) {
   return (
-    <section className={`flex flex-col ${className}`}>
+    <section id={id} className={`flex flex-col ${className}`}>
       <div className="flex items-baseline justify-between gap-3 pb-1.5 border-b border-border">
         <BlockHeading tone="block">{title}</BlockHeading>
         {action}
