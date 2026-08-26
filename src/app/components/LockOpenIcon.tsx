@@ -21,6 +21,14 @@ import { createLucideIcon } from "lucide-react";
  * 24 und 44 px nebeneinander gegen das geschlossene Schloss. Alle Varianten, die den Bügel an
  * seinem Platz liessen und nur öffneten, waren bei 14 px vom geschlossenen nicht zu unterscheiden.
  *
+ * Die Öffnung liegt LINKS, nicht rechts. Das ist die Richtung, in der offene Vorhängeschlösser
+ * üblicherweise gezeichnet werden; gespiegelt liest es sich bei 14 px genauso gut.
+ *
+ * Eine echte DREHUNG des Bogens um den Bügel-Ansatz — der naheliegende Gedanke, weil ein Schloss so
+ * aufgeht — scheidet aus: der Angelpunkt liegt oben am festen Schenkel, und der Bogen schwenkt
+ * dabei nach unten IN den Korpus. Bei 55 und 70 Grad sieht das aus, als steckte der Bügel im
+ * Schloss, nicht als wäre es offen.
+ *
  * Gebaut über `createLucideIcon` und nicht als eigenes `<svg>`: so ist es ein echtes `LucideIcon`
  * mit derselben Schnittstelle (`size`, `strokeWidth`, `absoluteStrokeWidth`, Ref-Weitergabe) und
  * passt in die Tabellen, die einen solchen Typ verlangen — `actionSign.tsx` und `NewEntrySheet`
@@ -29,7 +37,7 @@ import { createLucideIcon } from "lucide-react";
 const LockOpenIcon = createLucideIcon("lock-open-offset", [
   // Der Korpus ist Zeichen für Zeichen der von lucide — nur der Bügel ist neu.
   ["rect", { width: "18", height: "11", x: "3", y: "11", rx: "2", ry: "2", key: "body" }],
-  ["path", { d: "M9 11V6a4 4 0 1 1 8 0", key: "shackle" }],
+  ["path", { d: "M15 11V6a4 4 0 1 0-8 0", key: "shackle" }],
 ]);
 
 export default LockOpenIcon;

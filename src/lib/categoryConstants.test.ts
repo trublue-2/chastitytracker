@@ -25,8 +25,11 @@ describe("CATEGORY_COLORS / CATEGORY_ICONS", () => {
     }
   });
 
-  it("has 20 icons", () => {
-    expect(CATEGORY_ICONS).toHaveLength(20);
+  // 20 → 24: vier eigene Zeichnungen für Dinge, die lucide nicht führt (Plug, Handschellen, Ring,
+  // Knebel). Die Zahl steht hier, damit ein VERSEHENTLICHES Entfernen auffällt — ein Name, der aus
+  // der Liste fällt, steht weiterhin in den Datensätzen der Nutzer und fiele dort auf `Tag` zurück.
+  it("has 24 icons", () => {
+    expect(CATEGORY_ICONS).toHaveLength(24);
   });
 
   it("reserves cat-steel as the first (KG default) color", () => {

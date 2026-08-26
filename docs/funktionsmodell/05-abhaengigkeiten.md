@@ -441,7 +441,7 @@ flowchart LR
 | Oberfläche | `DeviceCategory.name` | Anzeigename der Kategorie; frei änderbar, der `slug` bleibt. | — |
 | Oberfläche | `DeviceCategory.sortOrder` | Reihenfolge in Listen und Auswahlfeldern. | — |
 | Oberfläche | `DeviceCategory.color` | Farbmarke der Kategorie (CSS-Variablen-Suffix). | — |
-| Oberfläche | `DeviceCategory.icon` | Symbol der Kategorie (lucide-Name). | — |
+| Oberfläche | `DeviceCategory.icon` | Symbol der Kategorie (Name aus CATEGORY_ICONS). | — |
 | Einträge | *feste Regel* | Das massgebliche Gerät eines Segments ist das EFFEKTIVE: bei einem Konflikt zwischen Bild und Deklaration gewinnt das Bild — ausser innerhalb eines Lookalike-Clusters. | `sessionModel.ts:effectiveDevice` |
 
 ## Box
@@ -690,7 +690,7 @@ flowchart LR
 | Geräte | `DeviceCategory.name` | Anzeigename der Kategorie; frei änderbar, der `slug` bleibt. | — |
 | Geräte | `DeviceCategory.sortOrder` | Reihenfolge in Listen und Auswahlfeldern. | — |
 | Geräte | `DeviceCategory.color` | Farbmarke der Kategorie (CSS-Variablen-Suffix). | — |
-| Geräte | `DeviceCategory.icon` | Symbol der Kategorie (lucide-Name). | — |
+| Geräte | `DeviceCategory.icon` | Symbol der Kategorie (Name aus CATEGORY_ICONS). | — |
 
 ### Wirkt auf
 

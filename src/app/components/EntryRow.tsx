@@ -70,9 +70,20 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
     ? `${e.category.name} · ${wearActionLabel}`
     : tStats(TYPE_STATS_KEYS[e.type] ?? "lock");
 
+  /* Bei einer Tragezeit steht das Zeichen der KATEGORIE, nicht das der Eintragsart.
+     Die Zeile darunter macht es längst so; nur dieser Titel — er läuft in die Detail-Ansicht und
+     in die Fusszeile des Bild-Betrachters — zeigte weiter `Play`/`Square` der Art. „Plug · Ende"
+     stand deshalb neben einem leeren Quadrat, das wie ein unausgefülltes Kästchen aussah, während
+     die Kategorie einen Anker führt. */
   const typeTitle = (
     <span className="flex items-center gap-1.5">
-      {typeIcon(e.type, 14)}
+      {isWear && e.category ? (
+        <CategoryIconRender
+          name={e.category.icon}
+          className="size-3.5 flex-shrink-0"
+          style={{ color: categoryStyle(e.category.color).color }}
+        />
+      ) : typeIcon(e.type, 14)}
       {wearLabel}
     </span>
   );
@@ -134,7 +145,10 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
       {showDetail && (
         <FullscreenImageModal
           src={e.imageUrl ?? ""}
-          alt={tStats(TYPE_STATS_KEYS[e.type] ?? "lock")}
+          /* `wearLabel` und nicht die blosse Art: der Titel daneben nennt bei einer Tragezeit die
+             Kategorie („Plug · Ende"), und die Bildbeschreibung sagte „Tragezeit-Ende". Wer nur sie
+             hört, erfährt sonst nicht, worum es geht. */
+          alt={wearLabel}
           onClose={() => setShowDetail(false)}
           title={typeTitle}
           panel={

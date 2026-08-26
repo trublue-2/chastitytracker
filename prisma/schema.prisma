@@ -592,7 +592,7 @@ model DeviceCategory {
   name            String // user-editable display name
   slug            String // stable identifier; "kg" for built-in
   color           String // CSS-variable suffix (e.g. "cat-steel", "cat-plum")
-  icon            String // lucide-react icon name (e.g. "Lock", "Crown")
+  icon            String // Name aus CATEGORY_ICONS (meist lucide, vier eigene Zeichnungen) (e.g. "Lock", "Crown")
   isBuiltIn       Boolean  @default(false) // true only for KG; cannot be deleted
   trackingEnabled Boolean  @default(true) // when false: inventory-only, no wear sessions
   requirePhoto    Boolean  @default(false) // when true: WEAR_BEGIN entries require an imageUrl

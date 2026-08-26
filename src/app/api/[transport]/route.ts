@@ -1626,7 +1626,7 @@ function registerTools(server: McpServer) {
           id: z.string().optional().describe("Bestehende Kategorie bearbeiten; weglassen = neue anlegen."),
           name: z.string().optional().describe(`Anzeigename (Pflicht beim Anlegen, max. ${CATEGORY_NAME_MAX_LENGTH} Zeichen).`),
           color: z.enum(CATEGORY_COLORS).optional().describe("Farb-Token der Kategorie."),
-          icon: z.enum(CATEGORY_ICONS).optional().describe("Symbol-Name (lucide)."),
+          icon: z.enum(CATEGORY_ICONS).optional().describe("Symbol-Name aus CATEGORY_ICONS. Die meisten sind lucide-Namen, vier sind eigene Zeichnungen (Plug, Handcuffs, RingO, Gag)."),
           sortOrder: z.number().int().optional().describe("Sortierung in den Listen (kleiner = weiter oben)."),
           trackingEnabled: z.boolean().optional().describe("false = Inventar-Kategorie ohne Zeiterfassung. Nicht an der KG-Kategorie setzbar."),
           requirePhoto: z.boolean().optional().describe("true = ein Trage-Beginn verlangt ein Foto. Nicht an der KG-Kategorie setzbar."),

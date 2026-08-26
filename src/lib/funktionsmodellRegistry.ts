@@ -576,7 +576,7 @@ export const FM_REGISTRY: FmEntry[] = [
   }),
   s({
     model: "DeviceCategory", field: "icon", domain: "geraete", scope: "standing",
-    effect: "Symbol der Kategorie (lucide-Name).",
+    effect: "Symbol der Kategorie (Name aus CATEGORY_ICONS).",
     writers: ["sub", "admin", "mcp"], affects: ["Oberfläche"],
   }),
   pk("DeviceCategory"),

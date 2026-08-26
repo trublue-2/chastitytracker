@@ -41,18 +41,28 @@ export const CATEGORY_COLOR_HEX: Record<CategoryColor, string> = {
 };
 
 /** Curated lucide-react icon set for DeviceCategory. Suggestion mappings only —
- *  user picks freely. All names must be valid lucide-react component names. */
+ *  user picks freely.
+ *
+ *  Die meisten Namen sind lucide-Bauteile; die vier ersten nach `ShieldCheck` sind EIGENE
+ *  Zeichnungen (`components/deviceIcons.tsx`) für Dinge, die lucide nicht führt. Der Name landet so
+ *  in der Datenbank — wer einen entfernt, lässt die Kategorien der Nutzer auf `Tag` zurückfallen.
+ *  `ICON_MAP` in `CategoryIcon.tsx` ist ein `Record` über diese Liste und erzwingt, dass jeder Name
+ *  dort ein Bauteil hat. */
 export const CATEGORY_ICONS = [
   "Lock",         // KG / chastity
   "KeyRound",
   "ShieldCheck",
-  "Circle",       // plug
+  "Plug",         // Plug — eigene Zeichnung, siehe `components/deviceIcons.tsx`
+  "Handcuffs",    // Handschellen — dito
+  "RingO",        // Ring — dito
+  "Gag",          // Knebel — dito
+  "Circle",
   "Diamond",
   "Gem",          // jewelry
   "Sparkles",
-  "Link",         // cuffs
+  "Link",
   "Link2",
-  "Anchor",       // harness
+  "Anchor",       // Harness
   "Crown",        // collar
   "Heart",
   "Bookmark",     // corset

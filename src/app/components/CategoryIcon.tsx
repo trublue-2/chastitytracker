@@ -4,10 +4,13 @@ import {
   Watch, Cpu, Footprints, Glasses, Tag,
   type LucideIcon,
 } from "lucide-react";
+import { PlugIcon, HandcuffsIcon, RingOIcon, GagIcon } from "@/app/components/deviceIcons";
 import { type CategoryIcon } from "@/lib/categoryConstants";
 import type { CSSProperties } from "react";
 
 const ICON_MAP: Record<CategoryIcon, LucideIcon> = {
+  // Die vier eigenen zuerst: sie benennen die Sache, die übrigen sind Anleihen.
+  Plug: PlugIcon, Handcuffs: HandcuffsIcon, RingO: RingOIcon, Gag: GagIcon,
   Lock, KeyRound, ShieldCheck, Circle, Diamond, Gem, Sparkles,
   Link, Link2, Anchor, Crown, Heart, Bookmark, Shirt, Feather,
   Watch, Cpu, Footprints, Glasses, Tag,

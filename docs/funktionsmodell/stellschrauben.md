@@ -151,7 +151,7 @@ Steckbrief: [55-geraete.md](55-geraete.md)
 |---|---|---|---|---|---|---|---|
 | `DeviceCategory.name` | String | (keiner) | dauerhaft | Anzeigename der Kategorie; frei änderbar, der `slug` bleibt. | Sub, Keyholder (UI), Keyholder (MCP) | Oberfläche | — |
 | `DeviceCategory.color` | String | (keiner) | dauerhaft | Farbmarke der Kategorie (CSS-Variablen-Suffix). | Sub, Keyholder (UI), Keyholder (MCP) | Oberfläche | — |
-| `DeviceCategory.icon` | String | (keiner) | dauerhaft | Symbol der Kategorie (lucide-Name). | Sub, Keyholder (UI), Keyholder (MCP) | Oberfläche | — |
+| `DeviceCategory.icon` | String | (keiner) | dauerhaft | Symbol der Kategorie (Name aus CATEGORY_ICONS). | Sub, Keyholder (UI), Keyholder (MCP) | Oberfläche | — |
 | `DeviceCategory.trackingEnabled` | Boolean | `true` | dauerhaft | Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung. Bei der eingebauten Kategorie unveränderlich. | Keyholder (UI), Keyholder (MCP) | Sessions/Statistik, Geräte, Einträge | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
 | `DeviceCategory.requirePhoto` | Boolean | `false` | dauerhaft | Ein Trage-Beginn dieser Kategorie verlangt ein Bild. Bei der eingebauten Kategorie unveränderlich. | Keyholder (UI), Keyholder (MCP) | Einträge, Geräte | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
 | `DeviceCategory.allowVorgaben` | Boolean | `true` | dauerhaft | Aus = die Kategorie lässt sich in keinem Trainingsziel verwenden — deshalb Keyholder-Feld: der Träger könnte sonst das Ziel aus der Hand nehmen. Bei der eingebauten Kategorie unveränderlich. | Keyholder (UI), Keyholder (MCP) | Trainingsziele | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
