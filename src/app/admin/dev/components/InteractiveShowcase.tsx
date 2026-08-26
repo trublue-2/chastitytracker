@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import {
-  Bell, Lock, LockOpen, ClipboardCheck, Droplets, Settings,
-  Search, Shield, BarChart3, Calendar, FileText,
+  Bell, Lock, ClipboardCheck, Droplets, Settings, Search,
+  Shield, BarChart3, Calendar, FileText,
 } from "lucide-react";
 
 import Button from "@/app/components/Button";

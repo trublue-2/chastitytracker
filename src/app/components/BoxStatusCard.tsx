@@ -1,11 +1,12 @@
 "use client";
 
-import { Lock, LockOpen, AlertTriangle } from "lucide-react";
+import { Lock, AlertTriangle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDateTimeDual, toDateLocale, joinParts, APP_TZ } from "@/lib/utils";
 import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxBatteryLabel, boxReinigungLabel, boxReinigungQuotaLabel, boxFailsafeWarnings, boxFailsafeLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 /** Reine Status-Anzeige der Heimdall-Box(en) (Ist + Soll + Frische). Keine Box-Kommandos — die Box
  *  folgt den Verschluss-/Öffnen-Einträgen. Pollt `/api/box` (self-hiding, wenn keine Box existiert
@@ -62,7 +63,7 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
               // ganze Karte als Alarm (Zeichen, Firmware, Ist-Zeile und Soll-Zeile in Rot), obwohl
               // sie nur den Stand wiedergibt. Alarm ist der Zweig ganz oben — der ist Rot, weil
               // dort Ist und Soll auseinanderfallen.
-              : { bg: "bg-background-subtle", border: "border-border", accent: "text-foreground-muted", text: "text-foreground", Icon: LockOpen };
+              : { bg: "bg-background-subtle", border: "border-border", accent: "text-foreground-muted", text: "text-foreground", Icon: LockOpenIcon };
           const Icon = scheme.Icon;
           return (
             <div key={b.boxId} className={`@container flex flex-col gap-1.5 ${scheme.bg} border ${scheme.border} rounded-2xl px-5 py-4`}>

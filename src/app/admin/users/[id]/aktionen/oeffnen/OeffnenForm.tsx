@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LockOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
@@ -9,6 +8,7 @@ import type { OeffnenPayload, SubmitResult } from "@/app/entries/types";
 import { submitAdminEntry } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { ResolvedReason } from "@/lib/reasonsService";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 export default function OeffnenForm({ userId, grundOptions, tz, nowDefault }: { userId: string; grundOptions: ResolvedReason[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
@@ -25,7 +25,7 @@ export default function OeffnenForm({ userId, grundOptions, tz, nowDefault }: { 
     <AdminActionFormShell
       userId={userId}
       backLabel={t("aktionen")}
-      icon={<LockOpen size={20} strokeWidth={2} />}
+      icon={<LockOpenIcon size={20} strokeWidth={2} />}
       iconColor="var(--color-unlock)"
       title={tOffen("title")}
     >

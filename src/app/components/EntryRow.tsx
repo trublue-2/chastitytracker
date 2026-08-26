@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, LockOpen, ClipboardList, Droplets, Camera, Play, Square } from "lucide-react";
+import { Lock, ClipboardList, Droplets, Camera, Play, Square } from "lucide-react";
 import { formatDateTime, formatTime, APP_TZ } from "@/lib/utils";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
@@ -11,17 +11,19 @@ import { categoryStyle } from "@/lib/categoryConstants";
 import { listRowCls, listRowButtonCls, listRowTimeCls } from "@/app/components/inputStyles";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { actionIcon } from "@/app/entries/actionSign";
 
+/**
+ * Das Zeichen einer Eintragsart — aus der geteilten Registratur, nicht aus einer eigenen Tabelle.
+ *
+ * Hier stand eine zweite Zuordnung, und sie war schon abgedriftet: die Prüfung trug `ClipboardList`
+ * und damit dasselbe Zeichen wie eine Aufgabe, während `actionSign` ihr `ClipboardCheck` gibt.
+ * Genau so laufen zwei Tabellen für dieselbe Frage auseinander — unbemerkt, weil beide für sich
+ * plausibel aussehen.
+ */
 function typeIcon(type: string, size: number): ReactNode {
-  const icons: Record<string, ReactNode> = {
-    VERSCHLUSS: <Lock size={size} />,
-    OEFFNEN: <LockOpen size={size} />,
-    PRUEFUNG: <ClipboardList size={size} />,
-    ORGASMUS: <Droplets size={size} />,
-    WEAR_BEGIN: <Play size={size} />,
-    WEAR_END: <Square size={size} />,
-  };
-  return icons[type];
+  const Icon = actionIcon(type);
+  return Icon ? <Icon size={size} /> : null;
 }
 
 interface Entry {

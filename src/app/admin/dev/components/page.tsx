@@ -1,5 +1,5 @@
 import { assertAdmin } from "@/lib/authGuards";
-import { Lock, LockOpen, ClipboardCheck, Droplets, Clipboard, Shield, BarChart3 } from "lucide-react";
+import { Lock, ClipboardCheck, Droplets, Clipboard, Shield, BarChart3 } from "lucide-react";
 
 import FormError from "@/app/components/FormError";
 import FormField from "@/app/components/FormField";
@@ -21,6 +21,7 @@ import {
   TimerDisplayDemo, ToastDemo,
 } from "./InteractiveShowcase";
 import WorldGrid from "./WorldGrid";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 import {
   PhotoCaptureDemo, ImageViewerDemo,
@@ -212,7 +213,7 @@ export default async function ComponentsShowcase() {
             <div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="lock" label="Verschlossen" icon={<Lock size={12} />} />
-                <Badge variant="unlock" label="Offen" icon={<LockOpen size={12} />} />
+                <Badge variant="unlock" label="Offen" icon={<LockOpenIcon size={12} />} />
                 <Badge variant="inspect" label="Kontrolle" icon={<ClipboardCheck size={12} />} />
                 <Badge variant="orgasm" label="Orgasmus" icon={<Droplets size={12} />} />
                 <Badge variant="request" label="Anforderung" />

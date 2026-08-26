@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Lock, LockOpen, ClipboardCheck, Droplets, KeyRound, Scale, type LucideIcon } from "lucide-react";
+import { Lock, ClipboardCheck, Droplets, KeyRound, Scale, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import { entryFormBase, inspectionHref } from "@/lib/entryFormRoute";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
+import { Eye } from "lucide-react";
 
 export interface NewEntryCategoryRow {
   id: string;
@@ -95,7 +97,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
     },
     {
       type: "oeffnen",
-      icon: LockOpen,
+      icon: LockOpenIcon,
       label: t("open"),
       desc: t("openSubtitle"),
       disabled: !isLocked,
@@ -217,9 +219,14 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
             )}
             {/* Anzeigen bewusst OHNE `isLocked` — sonst ist der eigene Code nach dem Erfassen des
                 Aufschlusses unerreichbar (Lockout, issue #53). */}
+            {/* `Eye` und neutral, nicht das offene Schloss in der Zustandsfarbe: der Bildersafe hat
+                mit dem Verschluss nichts zu tun. Diese Zeile trug dasselbe Zeichen und dieselbe
+                Farbe wie „Verschluss öffnen" weiter oben im selben Blatt — solange das offene
+                Schloss nichtssagend war, fiel es nicht auf; seit es deutlich ist, behauptet es
+                „aufgeschlossen". */}
             <SheetActionRow
-              icon={LockOpen}
-              iconClass="text-unlock"
+              icon={Eye}
+              iconClass="text-foreground-muted"
               label={t("bildersafeShowAction")}
               desc={t("bildersafeShowActionDesc")}
               onSelect={() => handleSelect(`${base}/bildersafe/anzeigen`)}

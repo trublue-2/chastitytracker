@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { ChevronRight, Lock, CheckCircle2, Droplets, LockOpen } from "lucide-react";
+import { ChevronRight, Lock, CheckCircle2, Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
 import SessionEventRow, { type SessionEventData } from "./SessionEventRow";
 import { blockInsetCls } from "@/app/components/inputStyles";
+import { actionIcon } from "@/app/entries/actionSign";
 import {
   groupEventsIntoBuckets,
   shouldRenderBucketHeaders,
@@ -32,12 +33,17 @@ interface Props {
 /** Das Zeichen steht dort, wo sonst das Foto stünde — es vertritt eines, das es nicht gibt, und
  *  ist deshalb leise. Die ART sagt daneben die Beschriftung; das Zeichen sie ein zweites Mal in
  *  vier Farben zu sagen, machte aus einer Liste ein Farbmuster. */
+/** Die Schlüssel dieser Liste sind klein geschrieben; die Registratur kennt die Erfassungs-Arten. */
+const EVENT_SIGN: Record<SessionEventData["type"], string> = {
+  verschluss: "VERSCHLUSS",
+  kontrolle: "PRUEFUNG",
+  reinigung: "REINIGUNG",
+  orgasmus: "ORGASMUS",
+};
+
 function iconFor(type: SessionEventData["type"]) {
-  const cls = "text-foreground-faint";
-  return type === "verschluss" ? <Lock size={18} className={cls} /> :
-    type === "kontrolle" ? <CheckCircle2 size={18} className={cls} /> :
-    type === "reinigung" ? <LockOpen size={18} className={cls} /> :
-    <Droplets size={18} className={cls} />;
+  const Icon = actionIcon(EVENT_SIGN[type]) ?? Droplets;
+  return <Icon size={18} className="text-foreground-faint" />;
 }
 
 function FlatEvents({ items }: { items: SessionEventData[] }) {

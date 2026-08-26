@@ -3,11 +3,12 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Lock, LockOpen } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
 import StateHero from "@/app/components/StateHero";
 import TimerDisplay from "@/app/components/TimerDisplay";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 /**
  * Der Held des OFFENEN Zustands — das Gegenstück zu `LaufendeSessionCard`.
@@ -65,7 +66,7 @@ export default function OpenStateHero({
     <StateHero
       tone={cleaningPauseUntil ? "warn" : "quiet"}
       word={cleaningPauseUntil ? t("cleaningPauseLabel") : t("openSince")}
-      icon={<LockOpen size={15} strokeWidth={2.2} className="shrink-0" />}
+      icon={<LockOpenIcon size={15} strokeWidth={2.2} className="shrink-0" />}
       value={<TimerDisplay {...timer} />}
       /* Die Folge, bevor sie eintritt. Der Countdown darüber sagt, wie lange die Session
          fortgeführt wird; wo die STRAFFRIST früher endet (Reinigungsfenster kürzer als das

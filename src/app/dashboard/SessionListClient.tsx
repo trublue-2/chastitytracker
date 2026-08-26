@@ -3,13 +3,14 @@
 import Section from "@/app/components/Section";
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronDown, ChevronUp, Lock, LockOpen, Timer } from "lucide-react";
+import { ChevronDown, ChevronUp, Lock, Timer } from "lucide-react";
 import { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { BLOCK_PAGE_SIZE } from "@/lib/constants";
 import { toDateLocale } from "@/lib/utils";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 interface OeffnenFooter {
   dateStr: string;
@@ -119,7 +120,7 @@ export default function SessionListClient({ sessions, tz }: { sessions: SessionL
                 />
 
                 {session.oeffnen ? (
-                  <SessionMarker icon={<LockOpen size={11} />} label={t("sessionEnd")}>
+                  <SessionMarker icon={<LockOpenIcon size={11} />} label={t("sessionEnd")}>
                     <span className="flex items-center gap-2 flex-wrap">
                       <span className="tabular-nums">{session.oeffnen.dateStr}, {session.oeffnen.timeStr}</span>
                       {session.oeffnen.grundLabel && <span>{session.oeffnen.grundLabel}</span>}

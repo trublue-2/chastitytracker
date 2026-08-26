@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, LockOpen, Timer, ImageOff } from "lucide-react";
+import { Lock, Timer, ImageOff } from "lucide-react";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";
 import { GRUND_I18N_KEYS } from "@/lib/constants";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 function splitDT(iso: string, dl: string) {
   const d = new Date(iso);
@@ -172,7 +173,7 @@ export default function PairRow({ verschluss, oeffnen, active, duration, photoSt
           src={oeffnen.imageUrl ?? ""}
           alt={tc("photo")}
           onClose={() => setShowOeffnen(false)}
-          title={<span className="flex items-center gap-1.5"><LockOpen size={14} />{td("opening")}</span>}
+          title={<span className="flex items-center gap-1.5"><LockOpenIcon size={14} />{td("opening")}</span>}
           panel={entryDetailPanel(oeffnen, dl)}
         />
       )}

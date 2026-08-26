@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { Lock, LockOpen, CheckCircle2, Droplets, MoreVertical, Camera, AlertTriangle, AlertCircle, KeyRound } from "lucide-react";
+import { Lock, CheckCircle2, Droplets, MoreVertical, Camera, AlertTriangle, AlertCircle, KeyRound, ShowerHead } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
@@ -203,7 +203,10 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
 
   // Reinigung → compact inline row with optional modal
   if (ev.type === "reinigung") {
-    const reinigungPill = <Badge size="sm" icon={<LockOpen size={11} />} label={t("sessionReinigung")} />;
+    // `ShowerHead`, nicht das offene Schloss: dieselbe Liste zeigt es weiter unten für das ENDE
+    // einer Tragezeit, und dasselbe Zeichen hiesse dann einmal „Unterbrechung, es geht weiter" und
+    // einmal „vorbei".
+    const reinigungPill = <Badge size="sm" icon={<ShowerHead size={11} />} label={t("sessionReinigung")} />;
 
     return (
       <>
@@ -221,7 +224,9 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
               <PhotoThumb url={(photo.mainUrl ?? photo.boxUrl)!} alt="" size="lg" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-foreground-faint">
-                <LockOpen size={18} />
+                {/* Dasselbe Zeichen wie das Abzeichen dieser Zeile — es vertritt ein fehlendes Foto,
+                    also muss es dieselbe Sache benennen. */}
+                <ShowerHead size={18} />
               </div>
             )}
           </div>

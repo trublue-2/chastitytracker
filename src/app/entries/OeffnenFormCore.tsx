@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Lock, LockOpen } from "lucide-react";
+import { Lock } from "lucide-react";
 import { toDatetimeLocal, fromDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { type OeffnenGrund } from "@/lib/constants";
 import type { ResolvedReason } from "@/lib/reasonsService";
@@ -20,6 +20,7 @@ import Card from "@/app/components/Card";
 import RiskConfirmSheet from "@/app/components/RiskConfirmSheet";
 import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "./types";
 import type { BoxHold } from "@/lib/boxOpenOutlook";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 interface Props {
   initial?: { startTime: string; note?: string | null; oeffnenGrund?: string | null };
@@ -200,7 +201,7 @@ export default function OeffnenFormCore({
             semantic={submitVariant === "semantic" ? "unlock" : undefined}
             fullWidth
             loading={saving}
-            icon={submitVariant === "primary" ? <LockOpen size={16} /> : undefined}
+            icon={submitVariant === "primary" ? <LockOpenIcon size={16} /> : undefined}
           >
             {submitLabel ?? defaultLabel}
           </Button>

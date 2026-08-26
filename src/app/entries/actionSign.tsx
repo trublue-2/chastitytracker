@@ -1,4 +1,5 @@
-import { ClipboardList, Play, Square, Lock, LockOpen, ClipboardCheck, Droplets, Circle, Scale, KeyRound } from "lucide-react";
+import { ClipboardList, Play, Square, Lock, ClipboardCheck, Droplets, Circle, Scale, KeyRound, ShowerHead, Eye } from "lucide-react";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 /**
  * Das Zeichen einer Erfassungs-Handlung: Symbol und Farbe, in einer Grösse.
@@ -29,13 +30,14 @@ export type ActionSignKey =
   | "WEIGHT"
   | "BILDERSAFE_SEAL"
   | "BILDERSAFE_SHOW"
+  | "REINIGUNG"
   | "TASK";
 
 /** Die Farben stehen als CSS-Variable und nicht als Tailwind-Klasse, weil die Hülle sie als
  *  `style`-Wert setzt: das Zeichen färbt sich, ohne dass die Hülle die Palette kennen muss. */
 const SIGNS: Record<ActionSignKey, { Icon: typeof Lock; color: string }> = {
   VERSCHLUSS: { Icon: Lock, color: "var(--color-lock)" },
-  OEFFNEN: { Icon: LockOpen, color: "var(--color-unlock)" },
+  OEFFNEN: { Icon: LockOpenIcon, color: "var(--color-unlock)" },
   PRUEFUNG: { Icon: ClipboardCheck, color: "var(--color-inspect)" },
   ORGASMUS: { Icon: Droplets, color: "var(--color-orgasm)" },
   // Play/Square statt zweimal Circle: die Eintragsliste unterscheidet die beiden längst so
@@ -45,7 +47,13 @@ const SIGNS: Record<ActionSignKey, { Icon: typeof Lock; color: string }> = {
   WEAR_END: { Icon: Square, color: "var(--foreground)" },
   WEIGHT: { Icon: Scale, color: "var(--foreground)" },
   BILDERSAFE_SEAL: { Icon: KeyRound, color: "var(--color-lock)" },
-  BILDERSAFE_SHOW: { Icon: LockOpen, color: "var(--color-unlock)" },
+  // `Eye` und NICHT das offene Schloss: der Bildersafe hat mit dem Verschluss nichts zu tun, und
+  // seit das offene Schloss ein deutliches eigenes Zeichen ist, behauptete es hier „aufgeschlossen".
+  // Was der Vorgang bedeutet, ist „die Bilder sind sichtbar".
+  BILDERSAFE_SHOW: { Icon: Eye, color: "var(--foreground)" },
+  // Eine Reinigung ist zwar eine Öffnung, aber in derselben Liste stand ihr Zeichen sonst auch für
+  // „Session vorbei" — dasselbe Glyph für „Unterbrechung, es geht weiter" und für das Ende.
+  REINIGUNG: { Icon: ShowerHead, color: "var(--foreground)" },
   TASK: { Icon: ClipboardList, color: "var(--foreground)" },
 };
 
@@ -62,4 +70,19 @@ export function actionSign(key: string): { icon: React.ReactNode; iconColor: str
   if (!sign) return { icon: null, iconColor: "var(--foreground)" };
   const { Icon, color } = sign;
   return { icon: <Icon size={20} strokeWidth={2} />, iconColor: color };
+}
+
+/**
+ * Nur das ZEICHEN einer Art, ohne Farbe — für Listen, die ihre Farbe selbst bestimmen.
+ *
+ * Es gab drei Tabellen für dieselbe Zuordnung: diese hier, `typeIcon` in `EntryRow` und `iconFor`
+ * in `SessionTimeline`. Sie waren bereits auseinandergelaufen — die Prüfung trug in der einen
+ * `ClipboardCheck`, in der anderen `ClipboardList`, also dasselbe Zeichen wie eine Aufgabe. Wer
+ * eine Art umzeichnet, soll das an EINER Stelle tun.
+ *
+ * `undefined` für eine unbekannte Art, weil die Aufrufer teils rohe Zeichenketten aus der Datenbank
+ * hereinreichen; sie zeigen dann kein Zeichen statt zu stürzen.
+ */
+export function actionIcon(key: string): typeof Lock | undefined {
+  return SIGNS[key as ActionSignKey]?.Icon;
 }

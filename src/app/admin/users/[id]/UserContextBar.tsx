@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ArrowLeftRight, Lock, LockOpen } from "lucide-react";
+import { ChevronLeft, ArrowLeftRight, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "@/app/components/Sheet";
 import TimerDisplay from "@/app/components/TimerDisplay";
 import UserAvatar from "@/app/components/UserAvatar";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 interface UserEntry {
   id: string;
@@ -89,7 +90,7 @@ export default function UserContextBar({ userId, username, currentStatus, since,
                  und nicht an der Zahl. */
               ? <><Lock size={11} strokeWidth={2} />{since && <TimerDisplay targetDate={since} mode="countup" format="long" className="font-semibold" />}</>
               : currentStatus
-                ? <><LockOpen size={11} strokeWidth={2} /> {t("opened")}</>
+                ? <><LockOpenIcon size={11} strokeWidth={2} /> {t("opened")}</>
                 : <span className="text-foreground-faint">–</span>
             }
           </span>
@@ -131,7 +132,7 @@ export default function UserContextBar({ userId, username, currentStatus, since,
                 ? null
                 : u.isLocked
                   ? <Lock size={14} strokeWidth={1.75} className="text-lock flex-shrink-0" />
-                  : <LockOpen size={14} strokeWidth={1.75} className="text-unlock flex-shrink-0" />
+                  : <LockOpenIcon size={14} strokeWidth={1.75} className="text-unlock flex-shrink-0" />
               }
               {u.id === userId && (
                 <span className="text-neben text-foreground-faint flex-shrink-0">{t("active")}</span>

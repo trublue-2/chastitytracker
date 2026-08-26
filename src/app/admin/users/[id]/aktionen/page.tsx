@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Lock, LockOpen, ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
+import { Lock, ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
@@ -10,6 +10,7 @@ import CategoryIconRender from "@/app/components/CategoryIcon";
 import Section from "@/app/components/Section";
 import { getTranslations } from "next-intl/server";
 import ActionRow from "./ActionRow";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 export default async function AktionenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -146,7 +147,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
 
           <ActionRow
             href={isLocked ? `${base}/oeffnen` : undefined}
-            icon={<LockOpen className="size-4" />}
+            icon={<LockOpenIcon className="size-4" />}
             title={t("entryOeffnen")}
             description={t("entryOeffnenDesc")}
             lockedReason={isLocked ? undefined : t("entryOnlyIfLocked")}

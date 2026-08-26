@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  Lock, LockOpen, Plus, Download, X, RefreshCw,
+  Lock, Plus, Download, X, RefreshCw,
   ChevronLeft, ArrowLeftRight, ChevronRight, CheckCircle2, Droplets,
 } from "lucide-react";
 
@@ -24,6 +24,7 @@ import SessionDurationBadge from "@/app/dashboard/SessionDurationBadge";
 import Section from "@/app/components/Section";
 import StateHero from "@/app/components/StateHero";
 import GoalProgressRows from "@/app/components/GoalProgressRows";
+import LockOpenIcon from "@/app/components/LockOpenIcon";
 
 import {
   MOCK_CALENDAR_MONTHS,
@@ -131,7 +132,7 @@ export function SessionEventRowDemo() {
       />
       <p className="px-5 pt-3 text-[10px] text-foreground-faint font-mono">type=&quot;reinigung&quot; — mit Pausendauer</p>
       <SessionEventRow
-        icon={<LockOpen size={18} className="text-[var(--color-unlock)]" />}
+        icon={<LockOpenIcon size={18} className="text-[var(--color-unlock)]" />}
         ev={{
           ...demoEvent,
           type: "reinigung", dateStr: "03.04.2026", timeStr: "07:00",
@@ -413,7 +414,7 @@ export function LaufendeSessionCardMockDemo() {
           />
           {/* Reinigung (Unterbrechung) */}
           <SessionEventRow
-            icon={<LockOpen size={18} className="text-[var(--color-unlock)]" />}
+            icon={<LockOpenIcon size={18} className="text-[var(--color-unlock)]" />}
             ev={{
               ...demoEvent,
               type: "reinigung",
@@ -494,7 +495,7 @@ export function AdminFABMockDemo() {
             {u.isLocked ? (
               <Lock size={14} className="text-lock flex-shrink-0" />
             ) : (
-              <LockOpen size={14} className="text-unlock flex-shrink-0" />
+              <LockOpenIcon size={14} className="text-unlock flex-shrink-0" />
             )}
             <span className="text-sm font-medium text-foreground">{u.username}</span>
             <ChevronRight size={14} className="text-foreground-faint ml-auto" />
