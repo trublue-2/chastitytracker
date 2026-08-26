@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Tags, X } from "lucide-react";
-import Card from "@/app/components/Card";
 import DashboardBlock from "@/app/components/DashboardBlock";
 
 const DISMISS_KEY = "categories-promo-dismissed-v1";
@@ -33,8 +32,9 @@ export default function CategoriesPromoCard({ show }: Props) {
 
   return (
     <DashboardBlock>
-      <Card>
-        <div className="flex items-start gap-3 p-4">
+      {/* Keine Fläche: ein Hinweis zwischen rahmenlosen Blöcken sah als einziger wie eine Karte aus.
+          Auch keine `Section` — er hat keine Rubrik, er IST der Satz. */}
+      <div className="flex items-start gap-3 py-2">
           <div className="size-10 rounded-lg flex items-center justify-center shrink-0 bg-background-subtle text-foreground-muted" aria-hidden>
             <Tags size={18} />
           </div>
@@ -56,8 +56,7 @@ export default function CategoriesPromoCard({ show }: Props) {
           >
             <X size={16} />
           </button>
-        </div>
-      </Card>
+      </div>
     </DashboardBlock>
   );
 }

@@ -38,7 +38,7 @@ export default function AuthScreen({ title, subtitle, children, footer }: Props)
        Dashboard-Layouts und hatten deshalb bisher gar keine. */
     <main
       data-theme={DEFAULT_WORLD}
-      className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-10"
+      className="world-glow min-h-screen bg-background flex flex-col items-center justify-center px-4 py-10"
     >
       <div className="w-full max-w-sm flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">

@@ -4,9 +4,10 @@ import AvatarMenu from "@/app/components/AvatarMenu";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import HeaderMessages from "@/app/components/HeaderMessages";
 import SkipLink from "@/app/components/SkipLink";
-import { headerActionsCls, headerBarCls, headerBrandCls, headerRowCls } from "@/app/components/inputStyles";
+import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerNameCls, headerRowCls } from "@/app/components/inputStyles";
 import { ownTrackerHidden } from "@/lib/ownTracker";
 import pkg from "../../package.json";
+import { instanceHostname } from "@/lib/appMeta";
 
 export default async function Header() {
   const session = await auth();
@@ -17,9 +18,7 @@ export default async function Header() {
   // trotzdem erreicht: /dashboard/settings und /dashboard/changelog sind vom Rauswurf ausgenommen.
   const hideOwnTracker = await ownTrackerHidden(user);
 
-  const hostname = process.env.NEXTAUTH_URL
-    ? (() => { try { return new URL(process.env.NEXTAUTH_URL!).hostname; } catch { return null; } })()
-    : null;
+  const hostname = instanceHostname();
 
   return (
     <header className={headerBarCls}>
@@ -28,12 +27,8 @@ export default async function Header() {
       <SkipLink />
       <div className={headerRowCls}>
         <Link href="/dashboard" className={headerBrandCls}>
-          KG-Tracker
-          {hostname && (
-            <span className="text-xs font-normal text-foreground-faint tracking-normal">
-              {hostname}
-            </span>
-          )}
+          <span className={headerNameCls}>KG-Tracker</span>
+          {hostname && <span className={headerHostCls}>{hostname}</span>}
         </Link>
 
         <div className={headerActionsCls}>

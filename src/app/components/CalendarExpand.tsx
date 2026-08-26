@@ -15,10 +15,14 @@ export default function CalendarExpand({ months }: { months: CalendarMonthData[]
     <>
       <CalendarContainer months={visible} />
       {!showAll && remaining > 0 && (
-        <div className="px-6 py-4 border-t border-border-subtle">
+        <div className="pt-2">
           <button
             onClick={() => setShowAll(true)}
-            className="w-full text-sm text-[var(--color-request)] hover:text-[var(--color-request-text)] font-medium transition"
+            /* Leise, nicht in einer Bedeutungsfarbe — und dieselbe Fassung wie der Zwilling in
+               `MonthStats`. „Zwei weitere Monate anzeigen" fordert nichts und meldet nichts, es
+               klappt auf; in `--color-request` (Orange) stand es zwischen lauter erledigten
+               Monaten wie eine offene Anforderung. */
+            className="w-full text-sm text-foreground-muted hover:text-foreground font-medium transition"
           >
             {t("showMore", { count: remaining })}
           </button>

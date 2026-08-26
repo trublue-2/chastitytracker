@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 import { SkeletonBar } from "@/app/components/Skeleton";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import Section from "@/app/components/Section";
-import { listRowCls } from "@/app/components/inputStyles";
+import { blockStackCls, listRowCls } from "@/app/components/inputStyles";
 
 /**
  * Der Platzhalter der Träger-Übersicht.
@@ -28,11 +28,14 @@ export default function DashboardLoading() {
   const t = useTranslations("common");
 
   return (
-    // Gleiches Gerüst wie die echte Seite (`dashboard/page.tsx`): `py-6` aussen, `gap-4` zwischen
-    // den Blöcken — sonst springt das Layout im Moment des Austauschs.
+    // Gleiches Gerüst wie die echte Seite (`dashboard/page.tsx`): `py-6` aussen, `blockStackCls`
+    // zwischen den Blöcken — sonst springt das Layout im Moment des Austauschs. Genau das ist
+    // passiert, als der Blockabstand wuchs und diese Zeile auf `gap-4` stehen blieb: der Kommentar
+    // beschrieb die Regel, der Code brach sie. Deshalb jetzt die geteilte Konstante statt einer
+    // abgeschriebenen Zahl — eine Zahl, die zweimal stimmen muss, stimmt irgendwann einmal nicht.
     // Der Name der Ladezone stand fest auf Deutsch — der einzige Text, den ein Screenreader hier
     // überhaupt bekommt, weil alle Balken `aria-hidden` sind.
-    <div className="flex flex-col gap-4 py-6" role="status" aria-label={t("loading")}>
+    <div className={`${blockStackCls} py-6`} role="status" aria-label={t("loading")}>
       <DashboardBlock className="flex flex-col gap-4">
         {/* Der Held: leises Wort, grosse Zahl, leise Zeile — zentriert, ohne Kasten. */}
         <div className="flex flex-col items-center gap-4 pt-8 pb-7">

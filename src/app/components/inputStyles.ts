@@ -46,7 +46,25 @@ export const headerBarCls = "bg-header-bg border-b border-header-border sticky t
 export const headerRowCls = "px-4 h-14 flex items-center justify-between gap-3";
 export const headerActionsCls = "flex items-center gap-2";
 export const headerBrandCls =
-  "font-bold text-header-text hover:opacity-80 transition text-lg tracking-tight flex items-baseline gap-2";
+  "font-bold text-header-text hover:opacity-80 transition text-lg tracking-tight flex items-baseline gap-2 min-w-0";
+
+/**
+ * Der NAME in der Kopfzeile — bricht nie um.
+ *
+ * „KG-Tracker" landete auf schmalen Geräten zweizeilig, sobald die Adresse daneben Platz forderte;
+ * die Kopfzeile ist aber auf eine Zeilenhöhe festgelegt (`h-14`), also stand der Name halb
+ * abgeschnitten da. Der Name hat Vorrang, die Adresse gibt nach — deshalb `shrink-0` hier und
+ * `truncate` dort.
+ */
+export const headerNameCls = "whitespace-nowrap shrink-0";
+
+/**
+ * Die Adresse der Instanz neben dem Namen — leise, und sie gibt als Erste nach.
+ *
+ * Sie steht in BEIDEN Bereichen: wer mehrere Instanzen betreut, sieht der Kopfzeile sonst nicht an,
+ * auf welcher er gerade ist. Vorher trug sie nur der Träger-Bereich.
+ */
+export const headerHostCls = "text-xs font-normal text-foreground-faint tracking-normal truncate";
 
 /**
  * Eine Zeile der Verlaufs-Listen und ihre Klickfläche — geteilt von `EntryRow` und `WeightRow`.
@@ -148,3 +166,22 @@ export const busyDimCls = "aria-disabled:opacity-50";
  * Zeilenhöhe der Listen darf sich davon nicht bewegen.
  */
 export const iconButtonCls = "min-w-6 min-h-6 flex items-center justify-center";
+
+
+/**
+ * Der Abstand ZWISCHEN zwei gestapelten Blöcken.
+ *
+ * Die Zahl ist keine Geschmacksfrage: die Grenze muss deutlich grösser sein als der grösste Abstand
+ * INNERHALB eines Blocks, sonst kehrt sich die Nähe um und das Auge findet die Grenze nicht mehr.
+ * Genau das war der Fall — gemessen 24 px zwischen zwei Blöcken gegen 42 px Zeilenabstand in einem
+ * Block. Mit 32/40 px liegt das Verhältnis wieder über 2:1.
+ *
+ * Mobil eine Stufe kleiner, und zwar aus Proportion, nicht aus Sparsamkeit: eine Grenze wird
+ * relativ zu der Breite gelesen, die sie überspannt, und 40 px über 358 px wirken grösser als über
+ * 640 px.
+ *
+ * Geteilt, weil es fünf Stapel gibt (Träger-Dashboard, Keyholder-Sub-Seite, Statistik und die zwei
+ * Skelette) — und weil sie vorher DREI verschiedene Werte trugen. Ein Skelett mit anderem Abstand
+ * als seine Seite springt im Moment des Austauschs sichtbar.
+ */
+export const blockStackCls = "flex flex-col gap-8 sm:gap-10";

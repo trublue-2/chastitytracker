@@ -2,8 +2,9 @@
 
 import { Children, isValidElement, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import BlockHeading from "@/app/components/BlockHeading";
+import Section from "@/app/components/Section";
 import ExpandToggle from "@/app/components/ExpandToggle";
+import { blockInsetCls } from "@/app/components/inputStyles";
 
 /** Wie viele Aufgaben offen ausliegen, bevor der Rest zusammenklappt. Eine Aufgabe mit Frist ist das
  *  Dringendste auf der Seite — aber fünf davon wären eine Wand statt eines Signals. */
@@ -36,7 +37,7 @@ export default function TaskCardStack({ children }: { children: ReactNode }) {
   const hidden = items.length - visible.length;
 
   return (
-    <div>
+    <Section className={blockInsetCls} title={t("currentTitle", { count: items.length })}>
       {/* Der Kopf trägt die ANZAHL, weil dieser Stapel deckelt: ohne sie sieht das Eingeklappte wie
           Vollständigkeit aus — und genau so ging eine frisch zugestellte Aufgabe unter (sortiert wird
           nach Dringlichkeit, eine späte Frist landet also hinter dem Deckel). Er steht HIER und nicht
@@ -45,7 +46,6 @@ export default function TaskCardStack({ children }: { children: ReactNode }) {
           „Jetzt zu tun" und nicht „Offen": der Stapel zeigt, was `belongsOnDashboard` durchlässt —
           darunter auch versäumte Aufgaben und solche, die auf die Sichtung der Keyholderin warten.
           Die Karten schreiben das selbst hin; ein Kopf, der sie „offen" nennt, widerspräche ihnen. */}
-      <BlockHeading className="px-1 mb-2">{t("currentTitle", { count: items.length })}</BlockHeading>
       <ul className="flex flex-col gap-2">
         {/* Der Key der Karte selbst, nicht die Position: aufklappen ändert die Reihenfolge nicht,
             aber eine verschwundene Aufgabe würde sonst den Zustand ihrer Nachbarin erben. */}
@@ -66,6 +66,6 @@ export default function TaskCardStack({ children }: { children: ReactNode }) {
           />
         </div>
       )}
-    </div>
+    </Section>
   );
 }

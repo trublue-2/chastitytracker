@@ -52,3 +52,24 @@ export async function deployCutoff(
   console.error(`${o.logPrefix} Kein Stichtag in AppMeta ("${o.key}") — ${o.fallbackNote}`);
   return now;
 }
+
+
+/**
+ * Der Hostname dieser Instanz, wie ihn die Kopfzeile zeigt — `null`, wenn er nicht bestimmbar ist.
+ *
+ * Steht hier und nicht zweimal in den beiden Kopfzeilen: seit auch der Keyholder-Bereich ihn
+ * zeigt, brauchten ihn zwei Dateien, und eine `new URL(...)`-Zeile mit eigenem `try` ist genau die
+ * Sorte Code, die beim zweiten Mal leicht anders aussieht.
+ *
+ * `NEXTAUTH_URL` ist die Quelle, weil sie auf jeder Instanz gesetzt ist und die Adresse benennt,
+ * unter der die App tatsächlich erreichbar ist — nicht die, unter der ein einzelner Aufruf kam.
+ */
+export function instanceHostname(): string | null {
+  const raw = process.env.NEXTAUTH_URL;
+  if (!raw) return null;
+  try {
+    return new URL(raw).hostname;
+  } catch {
+    return null;
+  }
+}

@@ -90,8 +90,26 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
     ).not.toMatch(SPALTE);
   });
 
-  /** Die Rubrik gehört `BlockHeading`; Formular-Beschriftungen sind eine eigene Familie. */
-  const RUBRIK = /uppercase[^"'`]*tracking-wider[^"'`]*text-foreground-faint|text-foreground-faint[^"'`]*uppercase[^"'`]*tracking-wider/;
+  /**
+   * Die Rubrik gehört `BlockHeading`; Formular-Beschriftungen sind eine eigene Familie.
+   *
+   * BEIDE Lautstärken von `BlockHeading`, nicht nur die leise: seit es ein `tone` hat, ist die
+   * laute Fassung die für einen ganzen Block — und damit die, die man am ehesten von Hand
+   * abschreibt. Ein Wächter, der nur die alte Farbe kennt, sieht der neuen beim Auseinanderlaufen
+   * zu.
+   *
+   * Die LEISE Fassung ist an ihrer Farbe erkennbar (`faint` benutzt sonst niemand mit Versalien).
+   * Die LAUTE teilt sich `uppercase tracking-wider text-foreground-muted` mit der
+   * Feld-Beschriftung von `Input`/`Select`/`Textarea` und unterscheidet sich allein in der Grösse:
+   * `text-neben` gegen `text-xs`. Deshalb die zwei Zweige — nach Farbe allein gesucht, meldete
+   * dieser Test jedes Eingabefeld der App als Rubrik-Nachbau (sieben Treffer, alle falsch); nach
+   * Grösse allein gesucht, verlor er die zwölf Altfälle, die ihre Grösse roh hinschreiben.
+   */
+  const MIT = (...klassen: string[]) => klassen.map((k) => `(?=[^"'\`]*${k})`).join("");
+  const RUBRIK = new RegExp(
+    `${MIT("uppercase", "tracking-wider")}[^"'\`]*(?:text-foreground-faint|text-neben[^"'\`]*text-foreground-muted)`
+    + `|${MIT("uppercase", "tracking-wider", "text-neben", "text-foreground-muted")}[^"'\`]*`,
+  );
 
   /**
    * Der Rückstand, Stand 26.08.2026 — diese Liste darf nur SCHRUMPFEN.
@@ -118,7 +136,6 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
     "src/app/components/FormField.tsx",
     "src/app/components/TaskCard.tsx",
     "src/app/components/WeightStatsCard.tsx",
-    "src/app/dashboard/WeightReleaseCard.tsx",
     "src/app/dashboard/geraete/DevicesClient.tsx",
   ]);
 

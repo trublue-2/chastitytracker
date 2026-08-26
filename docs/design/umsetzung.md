@@ -241,6 +241,39 @@ Die drei Bedeutungsfarben bleiben in beiden Rollen gleich; das war nie das Probl
 Die Anteile sind gemessen und nicht gegriffen: bei 9 % Tönung liegt der Unterschied bei ΔE ≈ 10,
 und die Fläche bleibt mit 1,17 zum Grund eine Tönung statt eines Farbbalkens.
 
+## Die Block-Figur: Rubrik, Haarlinie, Raum
+
+Ein Block ist **keine Karte**. Er besteht aus drei Dingen, und lange gab es davon nur zwei:
+
+1. eine **Rubrik** — Versalien, leise, aber lauter als der Fliesstext darunter (`BlockHeading`
+   `tone="block"`: `text-neben text-foreground-muted`),
+2. eine **Haarlinie** unmittelbar darunter (`--border`, 6 px unter der Schrift, 12 px bis zum
+   Inhalt) — sie liest sich als Unterstreichung der Überschrift, nicht als frei schwebender
+   Trenner,
+3. **Raum** zu den Nachbarn: `blockStackCls`, also 32 px mobil und 40 px ab `sm`.
+
+Die Linie fehlte, und der Raum war zu knapp. Gemessen am gebauten Stand: **24 px zwischen zwei
+Blöcken gegen 42 px Zeilenabstand innerhalb eines Blocks** — die Nähe war umgekehrt, und kein Auge
+kann eine Grenze finden, die enger sitzt als der Inhalt, den sie trennt. Daraus folgt die Regel:
+**die Grenze muss mindestens doppelt so gross sein wie der grösste Abstand im Block.**
+
+Zwei Linienwerte, streng getrennt — sonst wird die Seite ein Gitter:
+
+| | Token | wo | wie viele |
+|---|---|---|---|
+| zwischen Blöcken | `--border` | direkt unter der Rubrik | genau eine je Block |
+| innerhalb | `--border-subtle` | zwischen gleichwertigen Zeilen | viele, gleichmässig |
+
+Zwei Blöcke tragen bewusst KEINE Rubrik und damit keine Linie: der Zustands-Held und die Alarme.
+Der Held steht in 40 px Luft und ist damit sichtbar die eine grosse Sache.
+
+**Eine Fläche ist die Ausnahme.** Sie steht einem einzelnen adressierbaren Objekt in einem Stapel
+gleichartiger zu (`CARD_BODY_STRIPED`), einer Fläche, die selbst die Aussage ist
+(`variant="semantic"`), und dem Fall, wo eine Umrandung WENIGER bedeutet (`variant="outlined"`,
+archivierte Geräte). Alarme behalten ihre Form, weil sie innerhalb der Spalte stehen: eine Tönung
+mit Haarlinie oben setzt voraus, dass sie bis an den Rand läuft, und eine, die 16 px vorher aufhört,
+ist ein scharfeckiger Farbklotz.
+
 ## Was noch nicht steht
 
 - **Die Typo-Skala ist definiert, aber nicht migriert.** Die sechs Stufen existieren; die 468
@@ -252,10 +285,18 @@ und die Fläche bleibt mit 1,17 zum Grund eine Tönung statt eines Farbbalkens.
   Farbe für „Kontrolle" — Farbe sollte markieren, was JETZT etwas will, nicht welche Art Eintrag
   das war. Die Fundstellen sind erhoben und stehen bereit.
 - **Die Serif ist geladen, aber unbenutzt.** Kein Titel nimmt sie bisher.
-- **Karten-Nachbauten** in acht `loading.tsx`-Skeletten und den drei Auth-Seiten haben ihre Rahmen
-  von Hand und wurden von der `Card`-Änderung nicht erfasst.
-- **`StatsCard`, `MonthStats`, `DashboardStack`, `YearHeatmap`, `FormError`/`FormSuccess`,
-  `EntryFormShell`** bauen ihre Flächen selbst und brauchen denselben Schnitt wie `Card`.
+- **Karten-Nachbauten** in den `loading.tsx`-Skeletten (`Skeleton.tsx` `CardSkeleton` zeichnet
+  weiter `rounded-xl border`) haben ihre Rahmen von Hand und wurden von der `Card`-Änderung nicht erfasst.
+- **`DashboardStack`, `FormError`/`FormSuccess`, `EntryFormShell`** bauen ihre Flächen selbst und
+  brauchen denselben Schnitt wie `Card`. (`StatsCard`, `MonthStats` und `YearHeatmap` sind
+  erledigt — die beiden letzten nehmen `Section`.)
+- **Weitere Kasten-Nachbauten auf Block-Ebene**, erhoben nach der Umstellung und noch offen:
+  `dashboard/TaskList.tsx`, `admin/users/[id]/strafbuch/StrafbuchClient.tsx` (drei Hüllen),
+  `admin/CreateDemoUserButton.tsx`, `admin/tasks/TaskProofPicker.tsx` und
+  `TaskRequirementPicker.tsx` (zwei weitere Checklisten-Ringe), `dashboard/changelog/UpstreamSection.tsx`.
+- **Stapel, die noch nicht auf `blockStackCls` stehen:** `dashboard/settings/SettingsForm.tsx`,
+  `dashboard/categories/CategoriesClient.tsx`, `admin/page.tsx`, `admin/kontrollen/page.tsx` samt
+  ihren Skeletten. Sie sind in sich stimmig, nur eben mit einem anderen Wert.
 - **Die zwölf Kategorie-Farben** sind unverändert. Sie sind eine andere Achse — sie sagen, WELCHE
   Kategorie das ist, nicht was los ist — passen in ihrer Sättigung aber noch nicht zur neuen
   Zurückhaltung.

@@ -2,7 +2,7 @@
 
 import { Scale } from "lucide-react";
 import { useTranslations } from "next-intl";
-import Card from "@/app/components/Card";
+import Section from "@/app/components/Section";
 import DetailField from "@/app/components/DetailField";
 import { weightText, type UnitSystem } from "@/lib/weight";
 
@@ -41,10 +41,9 @@ export default function WeightReleaseCard({
   const show = (kg: number) => `${weightText(kg, unitSystem, locale)} ${unitLabel}`;
 
   return (
-    <Card className="flex flex-col gap-3">
-      <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-foreground-faint">
-        <Scale size={14} /> {t("title")}
-      </p>
+    /* `Section` statt `Card` mit handgebauter Rubrik: das ist ein Abschnitt des Bildschirms, kein
+       Objekt in einer Liste — und die Rubrik stand hier als vierte Kopie derselben Klassenkette. */
+    <Section title={<span className="flex items-center gap-2"><Scale size={14} /> {t("title")}</span>}>
 
       <DetailField label={t("required", { days: averageDays })}>
         <p className="text-sm font-semibold text-foreground tabular-nums">
@@ -77,6 +76,6 @@ export default function WeightReleaseCard({
       {nextThresholdKg !== null && (
         <p className="text-xs text-foreground-faint">{t("tomorrow", { value: show(nextThresholdKg) })}</p>
       )}
-    </Card>
+    </Section>
   );
 }

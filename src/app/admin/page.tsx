@@ -19,6 +19,7 @@ import { toDateLocale, formatDurationBetween, formatDateTimeDual, nowDatetimeLoc
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel } from "@/lib/constants";
 import BlockHeading from "@/app/components/BlockHeading";
+import Section from "@/app/components/Section";
 
 /** Wie eine geplante Direktive in der Liste erscheint — Beschriftung, Rückzug-Endpunkt, Tönung.
  *  Eine Zeile je `kind`; eine neue terminierbare Direktive ergänzt hier einen Eintrag und ist damit
@@ -426,11 +427,14 @@ export default async function AdminPage() {
             wollen gerade nur nichts. Eine Karte für „alles in Ordnung" kostet denselben Platz wie
             eine für „überfällig", und genau diese Gleichbehandlung machte den Bildschirm zu einer
             Aufzählung. Der Weg in den Sub bleibt derselbe. */}
+        {/* `Section` statt `<section>` mit handgebauter Rubrik und handgebautem Abstand: so trug
+            der einzige Abschnitt dieser Seite die LEISE Rubrik und keine Trennlinie, während jeder
+            Block der übrigen Bildschirme beides bekam. */}
         {ruhig.length > 0 && (
-          <section className={wartend.length > 0 ? "mt-10" : ""}>
-            <BlockHeading className="pb-1">
-              {wartend.length > 0 ? t("calmSectionTitle") : t("yourSubsTitle")}
-            </BlockHeading>
+          <Section
+            className={wartend.length > 0 ? "mt-10" : ""}
+            title={wartend.length > 0 ? t("calmSectionTitle") : t("yourSubsTitle")}
+          >
             {ruhig.map((u) => {
               // Dieselben DREI Ausgänge wie in den Karten oben — Begründung dort.
               const hasState = u.stats.currentStatus !== null;
@@ -465,7 +469,7 @@ export default async function AdminPage() {
                 </Link>
               );
             })}
-          </section>
+          </Section>
         )}
 
         {users.length === 0 && (

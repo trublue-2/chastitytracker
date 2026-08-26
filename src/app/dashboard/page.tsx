@@ -6,6 +6,7 @@ import { viewerLayout } from "@/lib/viewerLayout";
 import { renderStack } from "@/lib/blockStack";
 import BlockStack from "@/app/components/BlockStack";
 import { SUB_DASHBOARD_BLOCK_TABLE, type SubDashboardCtx } from "./dashboardBlocks";
+import { blockStackCls } from "@/app/components/inputStyles";
 
 /**
  * Das Träger-Dashboard.
@@ -59,7 +60,7 @@ export default async function DashboardPage() {
     // Fehlerklasse wie bei den Fristen in ausblendbaren Blöcken: was das Gerüst der Seite trägt,
     // darf nicht Teil ihres Inhalts sein. Der statische Wächter in `pageMeasures.test.ts` sieht das
     // nicht, weil er die Datei liest und nicht die gespeicherte Konfiguration.
-    <main className="flex flex-col gap-4 py-6">
+    <main className={`${blockStackCls} py-6`}>
       {/* Unsichtbar, weil dieser Entwurf die Übersicht bewusst ohne Titelzeile beginnen lässt — der
           erste Block ist die Antwort, nicht ein Etikett darüber. Ohne sie begänne die
           Überschriftenliste auf Ebene 2 (jeder `BlockHeading` ist ein `h2`): eine Gliederung ohne

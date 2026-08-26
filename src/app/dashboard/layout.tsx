@@ -58,7 +58,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // Inline-Skript, das ihn vor der Hydration aus `localStorage` nachtrug; das war nötig, solange
     // die Welt eine Einstellung war, und ist der Grund, warum sie am Handy eine andere sein konnte
     // als am Rechner.
-    <div className="min-h-screen bg-background" data-theme={subWorld(isLocked)}>
+    <div className="world-glow min-h-screen bg-background" data-theme={subWorld(isLocked)}>
       <ThemeRootSync world={subWorld(isLocked)} />
       <Header />
       <DesktopSidebar
@@ -87,7 +87,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
           seine eigene Spalte MIT in eine, die es schon gibt, und jeder geteilte Block sässe
           doppelt eingerückt zwischen seinen Nachbarn. Dasselbe Paar setzt schon
           `admin/users/[id]/layout.tsx` — das war das Vorbild, hier ist es die Regel. */}
-      <div className="lg:ml-64 min-h-[calc(100vh-3.5rem)] overscroll-y-contain">
+      {/* `xl:pr-64` spiegelt die Breite der Seitenleiste auf die andere Seite.
+
+          Ohne sie zentriert sich die Spalte im Bereich NEBEN der Leiste — gemessen bei 1440 px:
+          272 px links, 272 px rechts, rechnerisch also mittig. Fürs Auge zählt die Leiste aber mit,
+          und dann stehen links 528 px gegen rechts 272 px: der Inhalt wirkt nach rechts geschoben.
+          Mit dem gespiegelten Rand liegt die Spalte in der Mitte des FENSTERS.
+
+          Erst ab `xl`, nicht ab `lg`: bei 1024 px blieben sonst 512 px für eine 672-px-Spalte übrig,
+          und sie würde schmaler statt mittiger. Ab 1280 px passt beides. */}
+      <div className="lg:ml-64 xl:pr-64 min-h-[calc(100vh-3.5rem)] overscroll-y-contain">
         <div className={`${readingColCls} [--block-col:100%] [--block-gutter:0px]`}>
           <OfflineIndicator />
           {children}

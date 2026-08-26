@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import Card from "@/app/components/Card";
+import Section from "@/app/components/Section";
 import { WEAR_LEVEL_UPPER, WEAR_LEVEL_BG } from "@/lib/wearIntensity";
 import { ratioPct } from "@/lib/percent";
 import type { HeatmapDay, YearHeatmapData } from "@/lib/statsTypes";
@@ -145,10 +145,11 @@ export default function YearHeatmap({
   if (!data) return null;
 
   return (
-    <Card padding="none" className="overflow-hidden">
-      <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-sm font-bold text-foreground">{t("yearlyHeatmap")}</p>
-        {years.length > 1 && (
+    /* Kein Kasten mehr, und der Jahres-Umschalter steht im `action`-Platz der Rubrik statt in einem
+       getönten Kopfbalken — dieselbe Figur wie bei jedem anderen Abschnitt. */
+    <Section
+      title={t("yearlyHeatmap")}
+      action={years.length > 1 && (
           <div className="flex items-center gap-1" role="group" aria-label={t("selectYear")}>
             {years.map((y) => (
               <button
@@ -167,12 +168,11 @@ export default function YearHeatmap({
             ))}
           </div>
         )}
-      </div>
-
+    >
       {/* Container-Query nach KARTEN-Breite (nicht Viewport): schmale Karte → vertikales Grid mit
           Legende rechts; breite Karte → horizontales GitHub-Grid, Legende ebenfalls rechts. Das
           53-Wochen-Grid hat overflow-x-auto als Sicherheitsnetz, falls die Karte grenzwertig schmal ist. */}
-      <div className="@container px-6 py-4">
+      <div className="@container">
         <div className="@[760px]:hidden">
           <VerticalGrid data={data} weekdayLabels={weekdayLabels} />
         </div>
@@ -180,6 +180,6 @@ export default function YearHeatmap({
           <HorizontalGrid data={data} weekdayLabels={weekdayLabels} />
         </div>
       </div>
-    </Card>
+    </Section>
   );
 }

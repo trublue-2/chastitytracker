@@ -3,7 +3,7 @@ import { type ReactNode } from "react";
 /** Ein gestapelter Block der Dashboard-Spalte: zentrierte Spaltenbreite + Seitenrand, sonst nichts.
  *
  *  BEWUSST OHNE vertikale Abstände: der Abstand zwischen zwei Blöcken kommt vom `gap` des Elters
- *  (`dashboard/page.tsx`: `flex flex-col gap-4`; Keyholder-Sicht: das `gap-4` des `<main>` in
+ *  (`blockStackCls` — `dashboard/page.tsx`, `StatsMain` und das `<main>` in
  *  `admin/users/[id]/layout.tsx`, wo ActiveWearSessions und CategoryGoalsLive ebenfalls landen).
  *  Blöcke, die sich selbst ausblenden (`return null`), sind dann kein Flex-Item mehr und
  *  überspringen ihren Abstand automatisch. Trügen die Blöcke ihr eigenes `pt-`/`pb-`, müsste jeder

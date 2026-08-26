@@ -56,7 +56,13 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
             ? { bg: "bg-warn-bg", border: "border-warn-border", accent: "text-warn", text: "text-warn-text", Icon: AlertTriangle }
             : istLocked
               ? { bg: "bg-sperrzeit-bg", border: "border-sperrzeit-border", accent: "text-sperrzeit", text: "text-sperrzeit-text", Icon: Lock }
-              : { bg: "bg-background-subtle", border: "border-border", accent: "text-unlock", text: "text-foreground", Icon: LockOpen };
+              // Der NORMALFALL, und deshalb durchgehend leise: eine offene Box, für die nichts
+              // anderes verlangt ist, meldet nichts — sie berichtet. `text-unlock` stand hier,
+              // solange die Farbe grau war; seit sie die Zustandsfarbe „offen" ist, las sich die
+              // ganze Karte als Alarm (Zeichen, Firmware, Ist-Zeile und Soll-Zeile in Rot), obwohl
+              // sie nur den Stand wiedergibt. Alarm ist der Zweig ganz oben — der ist Rot, weil
+              // dort Ist und Soll auseinanderfallen.
+              : { bg: "bg-background-subtle", border: "border-border", accent: "text-foreground-muted", text: "text-foreground", Icon: LockOpen };
           const Icon = scheme.Icon;
           return (
             <div key={b.boxId} className={`@container flex flex-col gap-1.5 ${scheme.bg} border ${scheme.border} rounded-2xl px-5 py-4`}>

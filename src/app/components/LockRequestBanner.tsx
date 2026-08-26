@@ -140,6 +140,11 @@ export default function LockRequestBanner(props: Props) {
     </>
   );
 
+  /* Rahmen und Radius sind hier ZURÜCK, anders als bei den Blöcken. Die Regel „Tönung über die
+     volle Breite mit einer Haarlinie oben" setzt voraus, dass die Fläche wirklich bis an den Rand
+     läuft — innerhalb der Block-Spalte hört sie 16 px vorher auf, und dann steht ein scharfeckiger
+     Farbklotz frei in der Seite. Ein Alarm ist kein Block, sondern ein Einschub: er darf eine Form
+     haben. Was WIRKLICH nach Alarm aussah, war die Farbe, und die ist im Normalfall jetzt leise. */
   const cls = `flex flex-col gap-1.5 ${c.bg} border ${c.border} ${c.leftAccent} rounded-2xl px-5 py-4`;
   return href ? <Link href={href} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>;
 }

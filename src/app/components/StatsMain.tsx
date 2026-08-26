@@ -8,6 +8,7 @@ import { STATS_BLOCK_TABLE, type StatsCtx } from "@/app/components/statsBlocks";
 import Card from "./Card";
 import EmptyState from "./EmptyState";
 import { BarChart2 } from "lucide-react";
+import { blockStackCls } from "@/app/components/inputStyles";
 
 /**
  * Die Statistik-Seite — geteilt vom Träger (`/dashboard/stats`) und der Keyholderin
@@ -59,7 +60,7 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
   //
   // Ein Bauteil, das an zwei Orten hängt, soll seine Umgebung nicht raten müssen: es füllt, was da
   // ist.
-  const wrapper = "flex-1 py-6 flex flex-col gap-6";
+  const wrapper = `flex-1 py-6 ${blockStackCls}`;
 
   // Ohne einen einzigen Eintrag hat die Seite nichts zu zeigen — und keiner ihrer Blöcke etwas zu
   // laden. Der Leer-Zustand steht deshalb VOR dem Stapel.

@@ -121,7 +121,6 @@
   --color-lock-on:          #fdf7f8;
   --color-lock-on-muted:    #c9b7bd;
   --hero-glow:              rgba(255,61,104,0.2);
-  --hero-glow-warn:         rgba(255,138,92,0.2);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.5);
@@ -230,7 +229,6 @@
   --color-lock-on:          #f4f5fb;
   --color-lock-on-muted:    #bcbed3;
   --hero-glow:              rgba(143,136,255,0.2);
-  --hero-glow-warn:         rgba(255,138,92,0.2);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.5);
@@ -339,7 +337,6 @@
   --color-lock-on:          #f5fbf7;
   --color-lock-on-muted:    #b7c6bd;
   --hero-glow:              rgba(52,211,153,0.2);
-  --hero-glow-warn:         rgba(255,138,92,0.2);
   --lightbox-bg:            #000000;
   --shadow-card:            none;
   --shadow-raised:          0 1px 2px 0 rgb(0 0 0 / 0.5);
@@ -615,6 +612,43 @@
 /* ─────────────────────────────────────────────
    BASE STYLES
    ───────────────────────────────────────────── */
+/**
+ * Das Licht der Welt — ein weicher Schein oben links, der beim Scrollen STEHEN BLEIBT.
+ *
+ * Er sass vorher im Zustands-Helden und wanderte mit der Zahl aus dem Bild. Fixiert liess er sich
+ * dort nicht anbringen: als Kind eines Blocks liegt er entweder hinter dem Seitengrund (unsichtbar)
+ * oder über den Blöcken darunter.
+ *
+ * Er hängt deshalb am BEREICHS-WRAPPER, nicht am `body`: der Wrapper trägt die Welt (`data-theme`)
+ * und damit `--hero-glow`, und sein eigener `bg-background` würde ein Pseudo-Element des `body`
+ * ohnehin zudecken. Alle drei Wrapper setzen die Klasse — die beiden Bereichs-Layouts und
+ * `AuthScreen`; fehlt sie einem, hat jener Bildschirm eine Welt, aber kein Licht.
+ *
+ * `--hero-glow` ist der ROLLEN-Ton der Welt, der Schein folgt also von selbst dem Zustand: rosa
+ * wenn offen, grün wenn verschlossen, indigo bei der Keyholderin. Er ist damit kein Schmuck am
+ * Block, sondern die Beleuchtung des Raums, in dem man steht.
+ *
+ * Weiter oben und kleiner als die frühere Fassung: er bezieht sich jetzt aufs Fenster statt auf
+ * einen Block von 200 px Höhe, und bei gleicher Grösse hätte er die halbe Seite eingefärbt.
+ */
+.world-glow {
+  /* `isolate` ist hier tragend, nicht Vorsicht: das Leuchten unten hängt an `z-index: -1`, und eine
+     negative Ebene malt UNTER den Hintergründen aller Nachfahren im selben Stapel. Ohne einen
+     eigenen Stapel deckte der `bg-background` dieses Wrappers den Schein vollständig zu — die Regel
+     galt, der Verlauf stand im berechneten Stil, und zu sehen war nichts. */
+  position: relative;
+  isolation: isolate;
+}
+
+.world-glow::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(48% 42% at 38% 22%, var(--hero-glow), transparent 70%);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

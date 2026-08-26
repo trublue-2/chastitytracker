@@ -28,7 +28,10 @@ import { TASK_STATE_COLOR } from "@/lib/constants";
  *  absichtlich. */
 function ChecklistBox({ children }: { children: React.ReactNode }) {
   return (
-    <ul className="flex flex-col rounded-xl border border-border-subtle divide-y divide-border-subtle overflow-hidden">
+    /* Ohne Rahmen und Radius: die Karte hat schon einen, und ein Ring darin ist Kasten im Kasten —
+       das war der Grossteil dessen, was als „Aufgaben haben einen Rand" auffiel. Die Zeilentrenner
+       bleiben, sie sind die richtige Linie für „innerhalb". */
+    <ul className="flex flex-col divide-y divide-border-subtle">
       {children}
     </ul>
   );

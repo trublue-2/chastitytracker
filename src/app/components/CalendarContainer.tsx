@@ -38,7 +38,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
 
   return (
     <>
-      <div className="px-4 py-4 grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="py-1 grid grid-cols-1 sm:grid-cols-2 gap-6">
         {months.map((m, mi) => (
           <div key={mi}>
             <div className="flex items-center justify-between mb-2">

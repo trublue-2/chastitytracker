@@ -304,7 +304,7 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 
 **Components:**
 - `src/app/components/AdminActionFormShell.tsx` — Wrapper für Admin-Aktionsformulare (Back-Link + Card mit Icon-Header)
-- `src/app/components/DashboardBlock.tsx` — ein gestapelter Block der Dashboard-Spalte. Breite und Seitenrand kommen aus `--block-col`/`--block-gutter` mit der Sub-Dashboard-Spalte als Vorgabe (`max-w-2xl`/`px-4`); eine Seite, die ihre Spalte selbst aufspannt, überschreibt sie auf ihrem Container (heute nur `admin/users/[id]/layout.tsx`). **Trägt bewusst KEINE vertikalen Abstände** — der Abstand kommt vom `gap` des Elters (`dashboard/page.tsx`: `flex flex-col gap-4`), damit sich selbst ausblendende Blöcke ihren Abstand automatisch überspringen. Neue Dashboard-Blöcke nutzen ihn und ergänzen **kein** `pt-`/`pb-`/`py-`
+- `src/app/components/DashboardBlock.tsx` — ein gestapelter Block der Dashboard-Spalte. Breite und Seitenrand kommen aus `--block-col`/`--block-gutter` mit der Sub-Dashboard-Spalte als Vorgabe (`max-w-2xl`/`px-4`); eine Seite, die ihre Spalte selbst aufspannt, überschreibt sie auf ihrem Container (heute nur `admin/users/[id]/layout.tsx`). **Trägt bewusst KEINE vertikalen Abstände** — der Abstand kommt vom `gap` des Elters (`blockStackCls` in `inputStyles.ts`, heute `gap-8 sm:gap-10`), damit sich selbst ausblendende Blöcke ihren Abstand automatisch überspringen. Neue Dashboard-Blöcke nutzen ihn und ergänzen **kein** `pt-`/`pb-`/`py-`
 - `src/app/components/DateTimePicker.tsx` — Datetime-Input mit Label, Error, Hint, ARIA (statt `<Input type="datetime-local">`)
 - `src/app/components/ScheduleFields.tsx` — die TERMINIERUNG einer Direktive (sofort / verzögert / Zeitpunkt) samt `initialSchedule()`, `scheduleIsPast()` und `schedulePayload()` (→ `delayMinutes`/`wirksamAbAt`). Geteilt von Verschluss-Anforderung und Aufgabe; nur die beiden Hinweis-Sätze kommen als Prop, weil sie die Direktive benennen. **Ein drittes terminierbares Formular nimmt dieses Bauteil**, statt die drei Modi erneut herzuleiten
 - `src/app/components/DetailField.tsx` — beschriftetes Feld im Detail-Panel (Label über dem Wert, `tone="warn"` für Warn-Label); der Wert kommt als `children` und bleibt bewusst frei gestaltbar
@@ -316,7 +316,8 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/app/components/LockRequestBanner.tsx` — Verschluss-Anforderung-Banner
 - `src/app/components/FormError.tsx` — Styled Error-Card für Formulare
 - `src/app/components/FormSuccess.tsx` — Styled Success-Card
-- `src/app/components/Card.tsx` — Standard-Card mit optionalem Padding
+- `src/app/components/Section.tsx` — **die Vorgabe-Figur eines Blocks**: leise Rubrik, Haarlinie darunter, Inhalt. KEIN Kasten. Die Linie gehört dazu und ist nicht Zierde — ohne sie war die Grenze zwischen zwei Blöcken kleiner als der Zeilenabstand INNERHALB eines Blocks, und die Blöcke flossen ineinander. Zwei Linienwerte, streng getrennt: `--border` nur als Rubrik-Unterstreichung eines Blocks, `--border-subtle` nur zwischen gleichwertigen Zeilen darin
+- `src/app/components/Card.tsx` — eine Fläche ist die AUSNAHME, nicht die Vorgabe: sie steht einem einzelnen adressierbaren Objekt in einem Stapel gleichartiger zu (`CARD_BODY_STRIPED`), einer Fläche, die selbst die Aussage ist (`variant="semantic"`), und dem Sonderfall, wo eine Umrandung WENIGER bedeutet (`variant="outlined"`, archivierte Geräte). Ein Block nimmt `Section`
 - `src/app/components/Button.tsx` — Button mit Loading-State und Icon
 - `src/app/components/ImageViewer.tsx` — Bild-Anzeige + Vollbild-Modal
 - `src/app/components/Input.tsx` — Styled Text-Input

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import Card from "./Card";
+import Section from "./Section";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle } from "@/lib/categoryConstants";
 
@@ -14,8 +14,8 @@ export interface CategoryVariant {
   icon: string;
 }
 
-/** Card mit Kategorie-Umschalter (KG + Geräte-Kategorien) — geteilt von Tragekalender und
- *  Device-Nutzung. Die Card besitzt die Auswahl; der Aufrufer rendert nur den Körper zur aktiven
+/** Abschnitt mit Kategorie-Umschalter (KG + Geräte-Kategorien) — geteilt von Tragekalender und
+ *  Device-Nutzung. Der Abschnitt besitzt die Auswahl; der Aufrufer rendert nur den Körper zur aktiven
  *  Variante. Der Pillen-Streifen bleibt verborgen, solange es nur eine Variante gibt: wer nur KG
  *  trackt, hat nichts umzuschalten.
  *
@@ -32,9 +32,11 @@ export default function CategorySwitcherCard<T extends CategoryVariant>({ title,
   const active = variants.find((v) => v.id === activeId) ?? variants[0];
 
   return (
-    <Card padding="none" className="overflow-hidden">
-      <div className="px-6 py-4 border-b border-border-subtle flex flex-col gap-3">
-        <p className="text-sm font-bold text-foreground">{title}</p>
+    /* `Section` statt `Card padding="none"` mit getöntem Kopf: das war der ZWEITE Überschriften-Stil
+       der App (`text-sm font-bold` gegen die Rubrik überall sonst) und der sichtbare Grund, warum
+       die Statistik-Seite zwei Sorten Kopf zeigte. Pillen-Reihe und Legende sind jetzt gewöhnlicher
+       Inhalt. Der Kasten fällt mit — ein Block hat keine Fläche. */
+    <Section title={title}>
 
         {variants.length > 1 && (
           <div className="flex flex-wrap gap-2" role="tablist" aria-label={title}>
@@ -62,10 +64,9 @@ export default function CategorySwitcherCard<T extends CategoryVariant>({ title,
           </div>
         )}
 
-        {header?.(active)}
-      </div>
+      {header?.(active)}
 
       {children(active)}
-    </Card>
+    </Section>
   );
 }

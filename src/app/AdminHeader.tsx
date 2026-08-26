@@ -4,9 +4,10 @@ import AvatarMenu from "@/app/components/AvatarMenu";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import HeaderMessages from "@/app/components/HeaderMessages";
 import SkipLink from "@/app/components/SkipLink";
-import { headerActionsCls, headerBarCls, headerBrandCls, headerRowCls } from "@/app/components/inputStyles";
+import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerNameCls, headerRowCls } from "@/app/components/inputStyles";
 import type { OwnTrackerActor } from "@/lib/ownTracker";
 import pkg from "../../package.json";
+import { instanceHostname } from "@/lib/appMeta";
 
 interface Props {
   username: string;
@@ -27,6 +28,7 @@ export default async function AdminHeader({ username, actor, hideOwnTracker }: P
   // Ein reiner Keyholder (role=user, kontrolliert Subs) landet im selben blauen Bereich wie ein Admin —
   // der Titel benennt aber die tatsächliche Rolle, damit „Adminportal" niemanden fälschlich zum Admin macht.
   const portalTitle = isGlobalAdmin ? t("portalAdmin") : t("portalKeyholder");
+  const hostname = instanceHostname();
 
   return (
     <header className={headerBarCls}>
@@ -35,7 +37,8 @@ export default async function AdminHeader({ username, actor, hideOwnTracker }: P
       <SkipLink />
       <div className={headerRowCls}>
         <Link href="/admin" className={headerBrandCls}>
-          {portalTitle}
+          <span className={headerNameCls}>{portalTitle}</span>
+          {hostname && <span className={headerHostCls}>{hostname}</span>}
         </Link>
 
         <div className={headerActionsCls}>

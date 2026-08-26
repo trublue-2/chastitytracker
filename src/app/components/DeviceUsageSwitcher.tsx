@@ -34,7 +34,7 @@ export default function DeviceUsageSwitcher({ variants }: { variants: DeviceUsag
       {(active) => (
         <div className="divide-y divide-border-subtle">
           {active.rows.map((row) => (
-            <div key={row.id ?? "_none"} className="px-6 py-4 flex flex-col gap-1.5">
+            <div key={row.id ?? "_none"} className="py-2 flex flex-col gap-1.5">
               <div className="flex items-center justify-between gap-3">
                 <span className={`text-sm font-semibold ${row.id ? "text-foreground" : "text-foreground-faint"}`}>
                   {row.name}

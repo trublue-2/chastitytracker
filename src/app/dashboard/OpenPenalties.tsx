@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import BlockHeading from "@/app/components/BlockHeading";
+import Section from "@/app/components/Section";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import OffenseList from "@/app/components/OffenseList";
 import { prisma } from "@/lib/prisma";
@@ -95,8 +95,11 @@ export default async function OpenPenalties({
 
   return (
     <DashboardBlock>
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <BlockHeading>{t("openTitle")}</BlockHeading>
+      {/* `Section` statt einer von Hand gebauten Kopfzeile: die trug die LEISE Rubrik, und damit
+          stand ausgerechnet „Offene Strafen" kleiner und blasser da als jeder Abschnitt daneben. */}
+      <Section
+        title={t("openTitle")}
+        action={<>
         {/* Ins POSTFACH, nicht mehr auf eine eigene Strafbuch-Seite: dort werden festgestellte
             Vergehen und ihr Ausgang seit v5.1 als Nachrichten gemeldet — anders als eine Anzeige auf
             der Live-Ableitung können die nicht mehr still verschwinden. (Vergehen von VOR dem
@@ -120,9 +123,10 @@ export default async function OpenPenalties({
         >
           {t("viewAll")} →
         </Link>
-      </div>
-
-      <OffenseList offenses={rows} tz={tz} />
+        </>}
+      >
+        <OffenseList offenses={rows} tz={tz} />
+      </Section>
     </DashboardBlock>
   );
 }

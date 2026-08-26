@@ -10,8 +10,25 @@ import type { ReactNode } from "react";
  * die übrigen seien keine Abschnitte. Deshalb die gemeinsame Komponente statt einer weiteren Kopie.
  *
  * `children` statt eines `title`-Strings: manche Köpfe tragen ein Icon vor dem Text.
+ *
+ * **Zwei Lautstärken, und der Unterschied ist nicht Geschmack.** `block` benennt einen ganzen
+ * Abschnitt des Bildschirms, `label` eine Spalte oder eine Gruppe INNERHALB eines Blocks. Beide
+ * sahen gleich aus, und dadurch war die Rubrik eines Blocks leiser als der Fliesstext darunter —
+ * genau die Rückmeldung „Titel sind teilweise kleiner als der Inhalt". Den Ausschlag gibt dabei
+ * weniger die Grösse (11 → 12 px) als die Farbe: `faint` liegt bei 5,4:1 zum Grund, `muted` bei
+ * rund 10:1.
+ *
+ * NICHT auf `text-fliess` (14) oder `text-zeile` (16) angehoben: dort stünde die Rubrik gleich laut
+ * neben der Primärzeile der Liste, und der Block hätte zwei gleich wichtige Dinge.
  */
-export default function BlockHeading({ as: Tag = "h2", children, className = "" }: {
+const TONE = {
+  /** Die Rubrik eines ganzen Blocks. */
+  block: "text-neben text-foreground-muted",
+  /** Ein Spalten- oder Gruppenkopf innerhalb eines Blocks — bleibt leiser als sein Block. */
+  label: "text-rubrik text-foreground-faint",
+} as const;
+
+export default function BlockHeading({ as: Tag = "h2", tone = "label", children, className = "" }: {
   /** Die Ebene. `h2` ist die Vorgabe (ein Block IST ein Abschnitt); `h3` für eine Gruppe INNERHALB
    *  eines Blocks (Tagesköpfe), `span` für Tabellen-Spaltenköpfe, die keine Abschnitte benennen und
    *  in der Überschriften-Navigation nichts verloren haben.
@@ -20,11 +37,13 @@ export default function BlockHeading({ as: Tag = "h2", children, className = "" 
    *  gebraucht war — siebenmal, in derselben Sitzung, in der dieses Bauteil die eine Quelle sein
    *  sollte. Ein Bauteil, das nur EINE Ebene kann, erzeugt Kopien statt sie zu verhindern. */
   as?: "h2" | "h3" | "span";
+  /** Vorgabe `label`: die grosse Fassung setzt `Section`, und alles andere ist innerhalb eines Blocks. */
+  tone?: keyof typeof TONE;
   children: ReactNode;
   className?: string;
 }) {
   return (
-    <Tag className={`text-rubrik font-semibold uppercase tracking-wider text-foreground-faint ${className}`}>
+    <Tag className={`font-semibold uppercase tracking-wider ${TONE[tone]} ${className}`}>
       {children}
     </Tag>
   );
