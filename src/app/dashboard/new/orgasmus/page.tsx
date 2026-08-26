@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { getTranslations } from "next-intl/server";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { effectiveOrgasmusArten, resolveOrgasmusOptions } from "@/lib/reasonsService";
-import { readingColCls } from "@/app/components/inputStyles";
 
 export default async function NewOrgasmusPage() {
   const session = await auth();
@@ -15,7 +14,7 @@ export default async function NewOrgasmusPage() {
   const user = await prisma.user.findUnique({ where: { id: session!.user.id }, select: { orgasmusArtenConfig: true } });
   const artOptions = resolveOrgasmusOptions(effectiveOrgasmusArten(user?.orgasmusArtenConfig), tf);
   return (
-    <div className={`${readingColCls} py-6`}>
+    <div className="py-6">
       <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
       <OrgasmusForm artOptions={artOptions} tz={tz} nowDefault={nowDatetimeLocal(tz)} />

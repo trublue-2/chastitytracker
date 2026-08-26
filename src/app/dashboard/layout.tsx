@@ -3,7 +3,6 @@ import DesktopSidebar from "@/app/components/DesktopSidebar";
 import InstallBanner from "@/app/components/InstallBanner";
 import OfflineIndicator from "@/app/components/OfflineIndicator";
 import ThemeApplicator from "@/app/components/ThemeApplicator";
-import DashboardBlock from "@/app/components/DashboardBlock";
 import DashboardBottomNav from "./DashboardBottomNav";
 import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth";
@@ -15,6 +14,7 @@ import { bildersafeEnabled, weightTrackingEnabled } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
+import { readingColCls } from "@/app/components/inputStyles";
 
 // SECURITY: user-spezifisch (auth() → Rolle/Avatar/Daten). Nie statisch/geteilt cachen — erzwingt
 // per-Request-Rendering inkl. der RSC-Navigations-Payloads. Härtet gegen einen fehlkonfigurierten
@@ -74,11 +74,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Content area: offset for sidebar on desktop. Der Platz für die fixe Bottom-Nav (Mobile)
           kommt vom BottomNavSpacer am Fluss-Ende — er entfällt auf den Erfassungs-Seiten, wo die Nav
           ausgeblendet ist, sodass sich dort ihr Platz nicht mit dem der fixen Aktionsleiste stapelt. */}
+      {/* **Die Spalte gehört HIERHER, nicht auf jede Seite.**
+
+          Sie stand zwanzigmal von Hand in den Seiten darunter — erst als vier verschiedene Masse,
+          dann (seit dem Desktop-Durchgang) als zwanzigmal dieselbe Konstante. Auch das ist noch
+          eine Regel, die man vergessen kann: eine neue Seite, die den Import unterlässt, läuft
+          über die volle Fensterbreite, und niemand merkt es beim Bauen — auf dem Handy fällt die
+          Frage gar nicht an.
+
+          `--block-col`/`--block-gutter` werden dabei neutralisiert: `DashboardBlock` bringt sonst
+          seine eigene Spalte MIT in eine, die es schon gibt, und jeder geteilte Block sässe
+          doppelt eingerückt zwischen seinen Nachbarn. Dasselbe Paar setzt schon
+          `admin/users/[id]/layout.tsx` — das war das Vorbild, hier ist es die Regel. */}
       <div className="lg:ml-64 min-h-[calc(100vh-3.5rem)] overscroll-y-contain">
-        <DashboardBlock>
+        <div className={`${readingColCls} [--block-col:100%] [--block-gutter:0px]`}>
           <OfflineIndicator />
-        </DashboardBlock>
-        {children}
+          {children}
+        </div>
         <BottomNavSpacer />
       </div>
 

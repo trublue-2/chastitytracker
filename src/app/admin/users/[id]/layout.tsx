@@ -1,4 +1,3 @@
-import { wideColCls } from "@/app/components/inputStyles";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getLatestKgEntry } from "@/lib/queries";
@@ -70,7 +69,7 @@ export default async function AdminUserLayout({
           1024 px, und die Zeilen darin auf 976: ein Name links, ein Chevron einen Meter weiter
           rechts. Kopfzeile und Reiter darüber bleiben breit — sie rahmen die Seite, sie werden
           nicht gelesen. */}
-      <main className={`flex-1 ${wideColCls} py-6 flex flex-col gap-4 [--block-col:100%] [--block-gutter:0px]`}>
+      <main className="flex-1 py-6 flex flex-col gap-4 [--block-col:100%] [--block-gutter:0px]">
         {children}
       </main>
     </>

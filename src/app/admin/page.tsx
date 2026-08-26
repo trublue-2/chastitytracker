@@ -1,4 +1,3 @@
-import { wideColCls } from "@/app/components/inputStyles";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -192,7 +191,7 @@ export default async function AdminPage() {
   const alarmCount = wartend.length;
 
   return (
-    <main className={`flex-1 ${wideColCls} py-6 flex flex-col gap-4`}>
+    <main className="flex-1 py-6 flex flex-col gap-4">
 
       {/* ── Die Antwort, nicht die Aufzählung ──────────────────────────────────
           Vorher stand hier eine Überschrift, ein Erklärsatz, den niemand zweimal liest, und drei

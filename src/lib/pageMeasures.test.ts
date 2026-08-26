@@ -58,6 +58,11 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
   // die mit der Seitenbreite nichts zu tun haben.
   const SPALTE = /max-w-(?:xs|sm|md|lg|\d?xl)[^"'`]*\bmx-auto|mx-auto[^"'`]*\bmax-w-(?:xs|sm|md|lg|\d?xl)/;
 
+  // Nach dem Umbau (#77) spannt KEINE Seite mehr eine Spalte auf: die beiden Bereichs-Layouts tun
+  // es, und die eine Ausnahme — das Formular im breiten Keyholder-Bereich — hat mit `formColCls`
+  // einen Namen. Beides steht in `inputStyles.ts` und wird von dieser Regex nicht getroffen (sie
+  // sucht die ausgeschriebene Tailwind-Kette, nicht die Konstante). Genau so soll es sein: wer die
+  // Kette wieder von Hand schreibt, fällt auf.
   it.each([...SPALTE_ERLAUBT])("%s ist zu Recht ausgenommen", (file) => {
     expect(
       stripComments(readFileSync(file, "utf8")),

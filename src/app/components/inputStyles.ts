@@ -87,6 +87,21 @@ export const blockInsetCls = "px-1";
 export const readingColCls = "w-full max-w-2xl mx-auto px-4";
 export const wideColCls = "w-full max-w-3xl mx-auto px-4 sm:px-6";
 
+/**
+ * Verengung auf das LESEMASS innerhalb einer breiteren Spalte.
+ *
+ * Für Formularseiten im Keyholder-Bereich, dessen Layout auf `wideColCls` steht: ein Formular ist
+ * Fliesstext mit Feldern und liest sich schmaler besser. Bewusst OHNE `px-*` — der Seitenrand kommt
+ * von der Spalte darüber; ein zweiter machte die alte Doppel-Einrückung wieder auf.
+ *
+ * `AdminActionFormShell` trägt dieselbe Verengung fest eingebaut; das hier ist für die drei Seiten,
+ * die keine Aktions-Hülle haben (Instanz-Einstellungen, neuer Benutzer, Sub-Einstellungen).
+ */
+// `w-full` gehört dazu: die Verengung landet oft als Kind eines Flex-Containers (die Reiter-Hülle
+// `admin/users/[id]/layout.tsx` ist eine `flex flex-col`), und ein Flex-Kind ohne Breitenangabe
+// schrumpft auf seinen INHALT statt auf das Mass. Gemessen: 364 px statt 672.
+export const formColCls = "w-full max-w-2xl mx-auto";
+
 export const listRowCls = `${blockInsetCls} py-2.5 flex items-center gap-3`;
 
 /**

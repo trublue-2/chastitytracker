@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { ownTrackerHidden } from "@/lib/ownTracker";
 import { getThemeInitScript } from "@/lib/themeScript";
 import pkg from "../../../package.json";
+import { wideColCls } from "@/app/components/inputStyles";
 
 // SECURITY: admin-only, user-spezifisch — nie statisch/geteilt cachen (per-Request inkl. RSC).
 // Gleiche Härtung wie das Dashboard-Layout gegen vorgeschaltete Shared-Caches.
@@ -32,9 +33,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <AdminHeader username={user?.name ?? ""} actor={user} hideOwnTracker={hideOwnTracker} />
       <AdminDesktopSidebar version={pkg.version} isGlobalAdmin={isGlobalAdmin} hideOwnTracker={hideOwnTracker} />
 
-      {/* Content */}
+      {/* Content — die Spalte kommt von HIER, Begründung in `dashboard/layout.tsx`.
+
+          Im Keyholder-Bereich ist BREIT der Normalfall: seine Zeilen tragen Bild, Beschriftung und
+          Aktionsmenü. Die Ausnahme ist das Formular, und die hat einen Namen statt einer Regel —
+          `AdminActionFormShell` verengt auf das Lesemass, innerhalb dieser Spalte. */}
       <div className="lg:ml-64 min-h-screen pb-[var(--bottom-nav-space)] lg:pb-0">
-        {children}
+        <div className={`${wideColCls} [--block-col:100%] [--block-gutter:0px]`}>
+          {children}
+        </div>
       </div>
 
       <AdminBottomNav version={pkg.version} isGlobalAdmin={isGlobalAdmin} hideOwnTracker={hideOwnTracker} />

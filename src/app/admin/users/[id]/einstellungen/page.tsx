@@ -30,6 +30,7 @@ import VorgabeForm from "../VorgabeForm";
 import VorgabeRow from "../VorgabeRow";
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale, formatDate } from "@/lib/utils";
+import { formColCls } from "@/app/components/inputStyles";
 
 function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }): boolean {
   const now = new Date();
@@ -87,7 +88,8 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
   const openingBuiltinLabels = Object.fromEntries(OEFFNEN_GRUENDE.map((c) => [c, tOpen(GRUND_I18N_KEYS[c])]));
 
   return (
-    <div className="flex flex-col gap-6">
+    // Lesemass: eine Reihe von Einstellungsfeldern ist Fliesstext mit Schaltern, kein Listenraster.
+    <div className={`${formColCls} flex flex-col gap-6`}>
       {/* Konto */}
       <AccountSection
         userId={user.id}

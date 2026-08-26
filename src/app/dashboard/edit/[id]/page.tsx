@@ -14,7 +14,6 @@ import { entryManageAccess } from "@/lib/keyholder";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/reasonsService";
-import { readingColCls } from "@/app/components/inputStyles";
 
 export default async function EditEntryPage({
   params,
@@ -99,7 +98,7 @@ export default async function EditEntryPage({
   const backLabel = from === "admin" ? tCommon("back") : from === "eintraege" ? t("entries") : t("overview");
 
   return (
-    <div className={`${readingColCls} py-6`}>
+    <div className="py-6">
       <Link href={redirectTo} className="text-sm text-foreground-faint hover:text-foreground-muted transition">← {backLabel}</Link>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">
         {tStats(TYPE_STATS_KEYS[entry.type] ?? "lock")} {tCommon("edit").toLowerCase()}

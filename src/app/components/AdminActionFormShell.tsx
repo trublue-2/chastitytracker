@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { formColCls } from "@/app/components/inputStyles";
 
 interface Props {
   userId: string;
@@ -24,7 +25,16 @@ export default function AdminActionFormShell({ userId, backLabel, icon, iconColo
        Lesemass IM breiten Mass — 672 px in 768, Seitenrand doppelt, `py-6` doppelt (48 px oben).
        Das Formular ist damit etwas breiter als vorher; es steht dafür auf derselben Kante wie die
        Reiterleiste darüber und wie jeder andere Reiter. */
-    <div className="flex flex-col gap-4">
+    /* Die eine benannte Ausnahme von der breiten Keyholder-Spalte.
+    
+       Ein Formular ist Fliesstext mit Feldern — es liest sich auf 672 px besser als auf 768. Das
+       ist KEINE zweite Spalte neben der des Layouts (das war der Fehler, der hier stand: `main` in
+       `main`, Seitenrand doppelt, `py-6` doppelt), sondern eine Verengung INNERHALB. Deshalb nur
+       `max-w-2xl mx-auto`: kein eigener Seitenrand, keine eigene Landmarke.
+    
+       Und deshalb als Bauteil statt als Regel: elf Formulare teilen sich diese Hülle, das zwölfte
+       bekommt sie durch Benutzung statt durch Erinnerung. */
+    <div className={`${formColCls} flex flex-col gap-4`}>
       <Link href={backHref ?? `/admin/users/${userId}/aktionen`} className="text-neben text-foreground-faint hover:text-foreground transition">
         ← {backLabel}
       </Link>

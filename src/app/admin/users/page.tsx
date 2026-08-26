@@ -7,7 +7,6 @@ import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import UserAvatar from "@/app/components/UserAvatar";
 import { Users, UserPlus, ChevronRight } from "lucide-react";
-import { wideColCls } from "@/app/components/inputStyles";
 
 // SECURITY: instance-management, admin-only — nie statisch/geteilt cachen.
 export const dynamic = "force-dynamic";
@@ -23,7 +22,7 @@ export default async function UserManagementPage() {
   });
 
   return (
-    <main className={`flex-1 ${wideColCls} py-6 flex flex-col gap-4`}>
+    <main className="flex-1 py-6 flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
         <p className="text-sm text-foreground-muted mt-1">{t("userManagementDesc")}</p>

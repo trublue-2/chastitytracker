@@ -1,9 +1,8 @@
-import { wideColCls } from "@/app/components/inputStyles";
 import Skeleton from "@/app/components/Skeleton";
 
 export default function AdminKontrollenLoading() {
   return (
-    <main className={`flex-1 ${wideColCls} py-6 flex flex-col gap-4`}>
+    <main className="flex-1 py-6 flex flex-col gap-4">
       <Skeleton variant="text" width="120px" className="h-7" />
 
       <div className="flex flex-col gap-2">

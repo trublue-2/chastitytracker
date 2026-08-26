@@ -6,7 +6,6 @@ import { toDateLocale } from "@/lib/utils";
 import releasesData from "@/data/changelog.json";
 import UpstreamSection from "./UpstreamSection";
 import { pickChangelogText, type ChangelogText } from "@/lib/changelogText";
-import { readingColCls } from "@/app/components/inputStyles";
 
 type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";
 
@@ -52,7 +51,7 @@ export default async function ChangelogPage() {
   };
 
   return (
-    <div className={`${readingColCls} py-6`}>
+    <div className="py-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Link

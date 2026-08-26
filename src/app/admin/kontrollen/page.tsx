@@ -1,4 +1,3 @@
-import { wideColCls } from "@/app/components/inputStyles";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { assertAdmin } from "@/lib/authGuards";
@@ -72,7 +71,7 @@ export default async function AdminKontrollenPage({
   };
 
   return (
-    <main className={`flex-1 ${wideColCls} py-6 flex flex-col gap-4`}>
+    <main className="flex-1 py-6 flex flex-col gap-4">
       <div className="mb-6">
         {user ? (
           <Link href={`/admin/users/${user.id}`} className="text-sm text-foreground-faint hover:text-foreground-muted transition">

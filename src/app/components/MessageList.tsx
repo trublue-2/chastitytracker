@@ -388,9 +388,16 @@ export default function MessageList({
         {selected !== null && (
           // Die Aktionsleiste steht ÜBER der Liste, nicht darunter: sie gehört zur Auswahl, und wer
           // in einer langen Liste ankreuzt, soll nicht ans Ende scrollen müssen, um sie zu finden.
-          // Kein `flex-1`-Platzhalter zwischen Zählung und Knöpfen: auf 390 px schob er den ersten
-          // Knopf an den rechten Rand und riss ein Loch in die erste Zeile.
-          <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-border-subtle bg-surface-raised">
+          //
+          // **Die Aktionen erscheinen erst, wenn sie etwas können.** Vorher standen sie von der
+          // ersten Sekunde des Auswahlmodus an da — als `ghost`-Knöpfe im deaktivierten Zustand,
+          // also grauer Text ohne Kante und ohne Fläche. Das ist optisch kein Knopf, das ist eine
+          // Beschriftung: der Nutzer las „Als gelesen · Als ungelesen · Löschen" als Aufzählung
+          // dessen, was hier passieren KANN, und suchte den Knopf dazu. Ein sichtbarer Knopf muss
+          // ein benutzbarer Knopf sein — sonst muss man raten, ob etwas ausgegraut oder bloss Text
+          // ist. Nebenbei fällt damit der rund 250 px hohe graue Block weg, der auf 390 px die
+          // halbe erste Bildschirmhöhe frass, bevor die erste Nachricht kam.
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 border-b border-border-subtle bg-surface-raised">
             {/* Die Beschriftung nennt die GRENZE: `load` leert die Auswahl bei jedem Seiten- und
                 Filterwechsel, ein blosses „Alle" verspräche also den ganzen Posteingang. */}
             <Checkbox
@@ -399,24 +406,33 @@ export default function MessageList({
               disabled={saving || messages.length === 0}
               onChange={() => setSelected(allOnPageSelected ? new Set() : new Set(messages.map((m) => m.id)))}
             />
-            <span className="text-xs font-medium text-foreground-muted tabular-nums">
-              {t("selectedCount", { count: selected.size })}
-            </span>
-            <Button variant="ghost" size="sm" disabled={selected.size === 0 || saving} onClick={() => bulk("read")}>
-              {t("bulkRead")}
-            </Button>
-            <Button variant="ghost" size="sm" disabled={selected.size === 0 || saving} onClick={() => bulk("unread")}>
-              {t("bulkUnread")}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Trash2 size={16} />}
-              disabled={selected.size === 0 || saving}
-              onClick={() => setConfirmDelete("bulk")}
-            >
-              {tc("delete")}
-            </Button>
+            {selected.size > 0 && (
+              <>
+                <span className="text-neben font-medium text-foreground-muted tabular-nums">
+                  {t("selectedCount", { count: selected.size })}
+                </span>
+                {/* `secondary`, nicht `ghost`: diese Knöpfe brauchen eine Kante, damit sie als
+                    Knöpfe gelesen werden. Sie stehen auf einer getönten Leiste, auf der ein
+                    rahmenloser Knopf mit dem Grund verschwimmt. */}
+                <Button variant="secondary" size="sm" disabled={saving} onClick={() => bulk("read")}>
+                  {t("bulkRead")}
+                </Button>
+                <Button variant="secondary" size="sm" disabled={saving} onClick={() => bulk("unread")}>
+                  {t("bulkUnread")}
+                </Button>
+                {/* Löschen ist endgültig und trägt deshalb als einzige der drei Aktionen Farbe —
+                    die Regel des Entwurfs, in klein: Farbe markiert, was Folgen hat. */}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  icon={<Trash2 size={16} />}
+                  disabled={saving}
+                  onClick={() => setConfirmDelete("bulk")}
+                >
+                  {tc("delete")}
+                </Button>
+              </>
+            )}
           </div>
         )}
 

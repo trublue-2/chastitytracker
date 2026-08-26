@@ -1,9 +1,8 @@
-import { wideColCls } from "@/app/components/inputStyles";
 import Skeleton from "@/app/components/Skeleton";
 
 export default function AdminLoading() {
   return (
-    <div className={`flex-1 ${wideColCls} py-6 flex flex-col gap-4`}>
+    <div className="flex-1 py-6 flex flex-col gap-4">
       {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="flex flex-col gap-4">
           {/* User header */}

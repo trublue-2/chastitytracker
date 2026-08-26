@@ -1,11 +1,10 @@
-import { readingColCls } from "@/app/components/inputStyles";
 import Skeleton from "@/app/components/Skeleton";
 
 export default function EintraegeLoading() {
   return (
     // Dieselbe Hülle wie die Seite (`eintraege/page.tsx`): ohne `flex-1`, mit `gap-2`. Das Skelett
     // stand auf `gap-4` und war damit um 8 px je Zeile lockerer als die Liste, die es ankündigt.
-    <main className={`${readingColCls} py-6 flex flex-col gap-2`}>
+    <main className="py-6 flex flex-col gap-2">
       <Skeleton variant="text" width="140px" className="h-7" />
 
       <div className="flex flex-col gap-2">

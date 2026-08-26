@@ -25,7 +25,7 @@ import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import WeightSettings from "./WeightSettings";
 import type { SettingsFormProps } from "./getSettingsProps";
-import { readingColCls } from "@/app/components/inputStyles";
+import { formColCls } from "@/app/components/inputStyles";
 
 export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageNotify, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
   const t = useTranslations("settings");
@@ -212,8 +212,12 @@ export default function SettingsForm({ username, email, locale, timezone, startP
     }
   }
 
+  // `formColCls`: dieselbe Maske trägt `/dashboard/settings` UND `/admin/settings`. Im
+  // Träger-Bereich ist die Verengung wirkungslos (die Spalte hat schon das Lesemass), im
+  // Keyholder-Bereich, der auf `wideColCls` steht, greift sie. Eine geteilte Komponente kann sich
+  // nicht darauf verlassen, in welcher Spalte sie landet.
   return (
-    <main className={`flex-1 ${readingColCls} py-6 flex flex-col gap-4`}>
+    <main className={`${formColCls} flex-1 py-6 flex flex-col gap-4`}>
 
       {/* Avatar / User Info */}
       <div className="flex flex-col items-center gap-2 pt-4 pb-2">
