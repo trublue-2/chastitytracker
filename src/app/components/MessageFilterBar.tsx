@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import SegmentedControl from "@/app/components/SegmentedControl";
 import Select from "@/app/components/Select";
+import LiveStatus from "@/app/components/LiveStatus";
 import {
   MESSAGE_CATEGORIES, MESSAGE_CATEGORY_PILLS, MESSAGE_SENDER_KINDS, senderLabel, type MessageFilter,
 } from "@/lib/messageCategories";
@@ -22,14 +23,25 @@ const ANY = "";
 export default function MessageFilterBar({
   filter,
   onChange,
-  disabled,
+  busy,
+  announcement,
   scope,
   aiSenderAvailable,
   keyholderName,
 }: {
   filter: MessageFilter;
   onChange: (filter: MessageFilter) => void;
-  disabled?: boolean;
+  /** Läuft gerade ein Nachladen? Heisst NICHT `disabled`, und die Felder bekommen das Attribut auch
+   *  nicht: ein Element, das unter dem Fokus `disabled` wird, kann ihn nicht halten — der Browser
+   *  gibt ihn an `<body>`. Wer die Kategorie per Tastatur wechselte, stand danach am Seitenanfang
+   *  und musste sich zur Leiste zurücktabben, für jeden Wechsel erneut. Stattdessen bleiben die
+   *  Felder bedienbar und die Handler lassen den Wechsel während des Ladens fallen. */
+  busy?: boolean;
+  /**
+   * Was der letzte Filterwechsel gebracht hat, als fertiger Satz samt Zähler — der Rückgabewert von
+   * `useAnnouncement()` beim Aufrufer. Er kennt das Ergebnis, diese Leiste kennt nur die Auswahl.
+   */
+  announcement?: { children: React.ReactNode; seq: number };
   /** WESSEN Posteingang gefiltert wird — entscheidet, ob es die Absender-Achse überhaupt gibt. */
   scope: MessageScope;
   /** Kann auf dieser Instanz überhaupt eine KI schreiben (MCP eingerichtet)? Sonst fehlt der Eintrag
@@ -61,13 +73,14 @@ export default function MessageFilterBar({
        weil die Felder ihrer Beschriftung nach unterschiedlich breit waren, franste die Leiste aus.
        Stattdessen zwei Gruppen — der Umschalter, und die beiden Auswahlfelder als Paar, das sich den
        Rest teilt. Schmal untereinander, ab `sm` nebeneinander. */
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3" aria-busy={busy}>
+      <LiveStatus {...announcement} />
+
       {/* `self-start`: als Flex-Kind einer Spalte zöge sich der Umschalter sonst über die volle
           Breite und stünde mit leerem Raum rechts da. Er ist so breit wie seine zwei Wörter. */}
       <div className="self-start sm:self-auto">
       <SegmentedControl
         size="md"
-        disabled={disabled}
         options={[
           { value: "all", label: t("filterAll") },
           { value: "unread", label: t("filterUnread") },
@@ -79,9 +92,16 @@ export default function MessageFilterBar({
 
       <div className="flex gap-2 flex-1 min-w-0">
       <div className="flex-1 min-w-0">
+      {/* Die Felder bleiben während eines Ladevorgangs BEDIENBAR.
+          
+          Sie waren erst gesperrt, und das war in beide Richtungen falsch: ein `<select>` lässt sich
+          mit `aria-disabled` gar nicht sperren, also verwarf der Handler die Änderung — React stellte
+          den alten Wert wieder her, und die Auswahl sprang dem Nutzer kommentarlos zurück. Seit
+          `MessageList.loadLatest` einen Wechsel während eines laufenden Abrufs NACHSTELLT statt ihn
+          zu verwerfen, gibt es nichts mehr zu sperren. Dass gerade geladen wird, sagt das `aria-busy`
+          der Leiste. */}
       <Select
         aria-label={t("filterCategoryLabel")}
-        disabled={disabled}
         value={filter.category ?? ANY}
         options={[
           { value: ANY, label: t("filterAllCategories") },
@@ -100,7 +120,6 @@ export default function MessageFilterBar({
       <div className="flex-1 min-w-0">
       <Select
         aria-label={t("filterSenderLabel")}
-        disabled={disabled}
         value={filter.senderKind ?? ANY}
         options={[
           { value: ANY, label: t("filterAllSenders") },

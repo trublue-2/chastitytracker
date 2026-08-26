@@ -350,7 +350,8 @@
     "reason": "Grund",
     "from": "von",
     "imageUnavailable": "Bild nicht verfügbar",
-    "actions": "Aktionen"
+    "actions": "Aktionen",
+    "requiredField": "Pflichtfeld"
   },
   "adminNav": {
     "overview": "Übersicht",
@@ -371,7 +372,9 @@
     "stats_tab": "Statistik",
     "strafbuch_tab": "Strafbuch",
     "devices_tab": "Geräte",
-    "tasks_tab": "Aufgaben"
+    "tasks_tab": "Aufgaben",
+    "mainNavLabel": "Hauptnavigation",
+    "userTabsLabel": "Bereiche dieses Benutzers"
   },
   "nav": {
     "overview": "Übersicht",
@@ -392,7 +395,9 @@
     "adminDesign": "Admin",
     "menu": "Menü öffnen",
     "devices": "Meine Geräte",
-    "rules": "Meine Regeln"
+    "rules": "Meine Regeln",
+    "skipToContent": "Zum Inhalt springen",
+    "mainNavLabel": "Hauptnavigation"
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",
@@ -556,7 +561,8 @@
     "cleaningRelockWarnPassed": "Die Frist um {time} ist verstrichen — der Wiederverschluss gilt als versäumt.",
     "lockNow": "Jetzt einschliessen",
     "editLayoutReset": "Auf Standard zurücksetzen",
-    "editLayoutLocked": "Trägt eine Frist — bleibt sichtbar"
+    "editLayoutLocked": "Trägt eine Frist — bleibt sichtbar",
+    "editLayoutMoved": "{name} ist jetzt an Position {position} von {total}."
   },
   "newEntry": {
     "title": "Neu erfassen",
@@ -1656,7 +1662,11 @@
     "resetFilter": "Filter zurücksetzen",
     "bulkDoneDelete": "{count, plural, =1 {Eine Nachricht gelöscht} other {# Nachrichten gelöscht}}",
     "bulkDoneRead": "{count, plural, =1 {Eine Nachricht als gelesen markiert} other {# Nachrichten als gelesen markiert}}",
-    "bulkDoneUnread": "{count, plural, =1 {Eine Nachricht als ungelesen markiert} other {# Nachrichten als ungelesen markiert}}"
+    "bulkDoneUnread": "{count, plural, =1 {Eine Nachricht als ungelesen markiert} other {# Nachrichten als ungelesen markiert}}",
+    "selectModeOn": "Auswahlmodus aktiv. Nichts ausgewählt.",
+    "selectModeOff": "Auswahlmodus beendet.",
+    "filterResult": "Filter geändert: {count, plural, =0 {keine Nachrichten} one {eine Nachricht} other {# Nachrichten}}.",
+    "filterResultPaged": "Filter geändert: {count, plural, one {eine Nachricht} other {# Nachrichten}} auf Seite 1 von {pages}."
   },
   "emails": {
     "greeting": "Hallo {username},",

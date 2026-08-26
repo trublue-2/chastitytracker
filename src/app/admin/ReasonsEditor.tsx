@@ -94,7 +94,10 @@ export default function ReasonsEditor({
     void commit(next);
   }
 
-  const inputCls = "flex-1 min-w-0 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
+  // Ohne Fokus-Klassen: den Ring setzt die ungeschichtete `:focus-visible`-Regel in `globals.css`,
+  // die jede Tailwind-Utility schlägt. Ein eigener `focus:ring-*` wäre ein `box-shadow` — den entfernt
+  // der Windows-Kontrastmodus ersatzlos, und `focus:` zeigte ihn zusätzlich beim blossen Mausklick.
+  const inputCls = "flex-1 min-w-0 border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised";
 
   return (
     <div className="flex flex-col gap-2">

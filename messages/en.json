@@ -350,7 +350,8 @@
     "reason": "Reason",
     "from": "from",
     "imageUnavailable": "Image unavailable",
-    "actions": "Actions"
+    "actions": "Actions",
+    "requiredField": "required"
   },
   "adminNav": {
     "overview": "Overview",
@@ -371,7 +372,9 @@
     "stats_tab": "Statistics",
     "strafbuch_tab": "Log",
     "devices_tab": "Devices",
-    "tasks_tab": "Tasks"
+    "tasks_tab": "Tasks",
+    "mainNavLabel": "Main navigation",
+    "userTabsLabel": "Sections for this user"
   },
   "nav": {
     "overview": "Overview",
@@ -392,7 +395,9 @@
     "adminDesign": "Admin",
     "menu": "Open menu",
     "devices": "My Devices",
-    "rules": "My rules"
+    "rules": "My rules",
+    "skipToContent": "Skip to content",
+    "mainNavLabel": "Main navigation"
   },
   "login": {
     "subtitle": "Sign in to continue",
@@ -556,7 +561,8 @@
     "cleaningRelockWarnPassed": "The {time} deadline has passed — the relock counts as missed.",
     "lockNow": "Lock up now",
     "editLayoutReset": "Reset to default",
-    "editLayoutLocked": "Carries a deadline — stays visible"
+    "editLayoutLocked": "Carries a deadline — stays visible",
+    "editLayoutMoved": "{name} is now at position {position} of {total}."
   },
   "newEntry": {
     "title": "New entry",
@@ -1656,7 +1662,11 @@
     "resetFilter": "Reset filter",
     "bulkDoneDelete": "{count, plural, =1 {One message deleted} other {# messages deleted}}",
     "bulkDoneRead": "{count, plural, =1 {One message marked as read} other {# messages marked as read}}",
-    "bulkDoneUnread": "{count, plural, =1 {One message marked as unread} other {# messages marked as unread}}"
+    "bulkDoneUnread": "{count, plural, =1 {One message marked as unread} other {# messages marked as unread}}",
+    "selectModeOn": "Selection mode on. Nothing selected.",
+    "selectModeOff": "Selection mode off.",
+    "filterResult": "Filter changed: {count, plural, =0 {no messages} one {one message} other {# messages}}.",
+    "filterResultPaged": "Filter changed: {count, plural, one {one message} other {# messages}} on page 1 of {pages}."
   },
   "emails": {
     "greeting": "Hi {username},",

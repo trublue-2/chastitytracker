@@ -3,6 +3,7 @@
 import { useState, Fragment, useRef } from "react";
 import { toDateLocale, formatTotalHours } from "@/lib/utils";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
+import { iconButtonCls } from "@/app/components/inputStyles";
 import { useDialogBehaviour } from "@/app/hooks/useDialogBehaviour";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -106,7 +107,9 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
             {/* Header sticky, damit ✕ bei vielen Einträgen erreichbar bleibt; Body scrollt (max-h). */}
             <div className="sticky top-0 z-10 -mx-5 -mt-5 px-5 pt-5 pb-3 bg-surface flex items-center justify-between">
               <p id="calendar-modal-title" className="font-bold text-foreground">{selected.dateLabel}</p>
-              <button onClick={() => setSelected(null)} aria-label={tc("close")} className="text-foreground-faint hover:text-foreground-muted text-lg leading-none px-1 transition">✕</button>
+              <button onClick={() => setSelected(null)} aria-label={tc("close")}
+                className={`${iconButtonCls} text-foreground-faint hover:text-foreground-muted text-lg leading-none transition`}
+              >✕</button>
             </div>
 
             {/* Zwei getönte Kästen im selben Fenster, für zwei Angaben, die beide nur berichten,

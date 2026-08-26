@@ -109,7 +109,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       {...rest}
     >
       {loading ? (
-        <Spinner size={spinnerSize[size]} label="Laden…" />
+        // Der Ladehinweis des Knopfes war fest deutsch. Er ersetzt für einen Screenreader die
+        // Beschriftung, solange gespeichert wird — also genau der Text, den niemand sieht und den
+        // deshalb auch niemand als unübersetzt bemerkt.
+        <Spinner size={spinnerSize[size]} />
       ) : icon ? (
         <span className="shrink-0" aria-hidden="true">{icon}</span>
       ) : null}

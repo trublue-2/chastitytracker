@@ -304,7 +304,10 @@ const FACT_CLS = "text-xs text-foreground-faint";
 /** Freitext — Notiz des Subs, Anweisung, Ablehnungsgrund. */
 const NOTE_CLS = "text-xs text-foreground-faint italic";
 
-const fieldCls ="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
+// Ohne Fokus-Klassen — aus demselben Grund wie in `VorgabeForm`: die ungeschichtete
+// `:focus-visible`-Regel in `globals.css` gewinnt gegen jede Utility, die Kombination hier war also
+// wirkungslos und verschwieg zugleich den Abstand, den die globale Regel setzt.
+const fieldCls ="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground transition";
 
 /**
  * Ein von Hand notiertes Vergehen zurückziehen — der Weg zurück für einen Fehleintrag. Die Route

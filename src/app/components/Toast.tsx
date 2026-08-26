@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { iconButtonCls } from "@/app/components/inputStyles";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -40,6 +42,7 @@ const defaultDurations: Record<ToastType, number> = {
 };
 
 export default function Toast({ toast, onDismiss }: ToastProps) {
+  const t = useTranslations("common");
   const [exiting, setExiting] = useState(false);
   const Icon = icons[toast.type];
   const colors = colorMap[toast.type];
@@ -81,13 +84,15 @@ export default function Toast({ toast, onDismiss }: ToastProps) {
           </button>
         )}
       </div>
+      {/* Trefferfläche über `iconButtonCls`: `p-1` um ein 14-px-Zeichen ergab 22 px und lag
+          damit unter dem AA-Minimum. */}
       <button
         type="button"
         onClick={() => setExiting(true)}
-        className="shrink-0 p-1 rounded-md text-foreground-faint hover:text-foreground transition-colors"
-        aria-label="Schliessen"
+        className={`shrink-0 ${iconButtonCls} rounded-md text-foreground-faint hover:text-foreground transition-colors`}
+        aria-label={t("close")}
       >
-        <X size={14} />
+        <X size={14} aria-hidden="true" />
       </button>
     </div>
   );

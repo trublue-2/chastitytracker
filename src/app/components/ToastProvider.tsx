@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import Toast, { type ToastData, type ToastType } from "./Toast";
 
 const MAX_TOASTS = 3;
@@ -24,6 +25,7 @@ export const ToastContext = createContext<ToastAPI | null>(null);
 let counter = 0;
 
 export default function ToastProvider({ children }: { children: ReactNode }) {
+  const t = useTranslations("common");
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [mounted, setMounted] = useState(false);
 
@@ -54,17 +56,20 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
+      {/* Der Name dieser Live-Region stand fest auf Deutsch, auch wenn die Oberfläche auf Englisch
+          lief. Dass das niemandem auffiel, liegt an der Rolle des Textes: gesehen wird er nie,
+          gehört wird er immer — ein hartkodierter String ohne Kontrollblick. */}
       {mounted &&
         createPortal(
           <div
             className="fixed left-1/2 -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0 z-[9999] flex flex-col gap-2 items-center sm:items-end w-full max-w-sm px-4 sm:px-0 pointer-events-none"
             style={{ top: "calc(1rem + env(safe-area-inset-top, 0px))" }}
             aria-live="polite"
-            aria-label="Benachrichtigungen"
+            aria-label={t("notifications")}
           >
-            {toasts.map((t) => (
-              <div key={t.id} className="pointer-events-auto w-full">
-                <Toast toast={t} onDismiss={dismiss} />
+            {toasts.map((toast) => (
+              <div key={toast.id} className="pointer-events-auto w-full">
+                <Toast toast={toast} onDismiss={dismiss} />
               </div>
             ))}
           </div>,

@@ -238,6 +238,13 @@ export default function SettingsForm({ username, email, locale, timezone, startP
   // nicht darauf verlassen, in welcher Spalte sie landet.
   return (
     <main className={`${formColCls} flex-1 py-6 flex flex-col gap-4`}>
+      {/* Ebene 1 dieser Seite, bewusst UNSICHTBAR: die Maske hatte bisher gar keine Überschrift,
+          ihre Abschnitte begannen also auf Ebene 2 und die Gliederung hatte keine Wurzel — wer per
+          Überschriften springt, erfuhr nicht, auf welchem Bildschirm er gelandet ist. Sichtbar
+          gehört sie nicht her: der Entwurf lässt die Maske mit dem Konto beginnen, nicht mit einem
+          Etikett. Die Maske trägt `/dashboard/settings` UND `/admin/settings` — deshalb ein
+          neutraler Titel, der für beide stimmt. */}
+      <h1 className="sr-only">{t("title")}</h1>
 
       {/* Avatar / User Info */}
       <div className="flex flex-col items-center gap-2 pt-4 pb-2">

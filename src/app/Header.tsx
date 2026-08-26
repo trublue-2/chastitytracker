@@ -3,6 +3,7 @@ import Link from "next/link";
 import AvatarMenu from "@/app/components/AvatarMenu";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import HeaderMessages from "@/app/components/HeaderMessages";
+import SkipLink from "@/app/components/SkipLink";
 import { headerActionsCls, headerBarCls, headerBrandCls, headerRowCls } from "@/app/components/inputStyles";
 import { ownTrackerHidden } from "@/lib/ownTracker";
 import pkg from "../../package.json";
@@ -22,6 +23,9 @@ export default async function Header() {
 
   return (
     <header className={headerBarCls}>
+      {/* Als ERSTES fokussierbares Element der Seite — steht er weiter unten, hat der Tab-Weg die
+          Navigation schon durchlaufen, die er abkürzen soll. */}
+      <SkipLink />
       <div className={headerRowCls}>
         <Link href="/dashboard" className={headerBrandCls}>
           KG-Tracker

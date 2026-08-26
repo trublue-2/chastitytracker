@@ -31,6 +31,10 @@ export default function AdminBottomNav({ version, isGlobalAdmin, hideOwnTracker 
       <Link
         key={tab.href}
         href={tab.href}
+        /* `aria-current`, weil der aktive Reiter sonst NUR über Farbe und Strichstärke codiert ist:
+           für einen Screenreader sind alle Einträge gleich, und wer Farben nicht unterscheidet,
+           sieht ebenfalls keinen Unterschied (WCAG 1.3.1 und 1.4.1). */
+        aria-current={active ? "page" : undefined}
         className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors h-full ${
           active ? "text-nav-active-text" : "text-nav-inactive-text hover:text-nav-inactive-hover"
         }`}
@@ -42,7 +46,7 @@ export default function AdminBottomNav({ version, isGlobalAdmin, hideOwnTracker 
   };
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
+    <nav aria-label={t("mainNavLabel")} className="lg:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
       <div className="flex h-16 items-center">
         {leftTabs.map(renderTab)}
         <AdminFAB isGlobalAdmin={isGlobalAdmin} />

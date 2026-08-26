@@ -1212,13 +1212,30 @@ body {
   0%   { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+/* Der Wischer eines Ladebalkens. Zwei Fehler steckten in der alten Fassung:
+ *
+ * 1. Die Aufhellung war fest `rgba(255,255,255,0.05)` — weiss. Auf den DUNKLEN Fassungen hebt das
+ *    ab, auf den hellen liegt Weiss auf Weiss: dort stand der Ladezustand still. Ein Skelett ohne
+ *    Bewegung ist von einer eingefrorenen Seite nicht zu unterscheiden.
+ *    Statt einer neuen Farbe nimmt der Verlauf jetzt `--border-subtle`. Dieser Token ist genau als
+ *    „der kleinste noch sichtbare Schritt weg von der Fläche" definiert — also die Amplitude, die
+ *    ein Wischer will —, und er ist in JEDER Fassung gesetzt. Damit dreht sich die Richtung von
+ *    selbst: in den hellen Welten wischt es dunkler, in den dunklen heller. Ein eigener Token wäre
+ *    dieselbe Aussage ein zweites Mal, und `docs/design/tokens.mjs` erzeugt die Blöcke — von Hand
+ *    dazugeschrieben überlebte er die nächste Erzeugung nicht.
+ *
+ * 2. `background` (Kurzform) statt `background-image`. Die Kurzform setzt `background-color` auf
+ *    `initial` zurück, und weil diese Regel ausserhalb jeder `@layer` steht, schlägt sie die
+ *    Tailwind-Utility `bg-background-subtle` der Balken — die Grundfläche war schlicht weg. Die
+ *    Langform lässt sie stehen; der Verlauf legt sich darüber, statt sie zu ersetzen. */
 .animate-shimmer {
-  background: linear-gradient(
+  background-image: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.05) 50%,
+    var(--border-subtle) 50%,
     transparent 100%
   );
+  background-repeat: no-repeat;
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }

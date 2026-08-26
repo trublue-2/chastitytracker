@@ -37,7 +37,9 @@ export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }:
   ];
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
+    // Der Name der Landmarke: ohne ihn heisst sie in der Landmarken-Liste nur „Navigation" — und
+    // die Seite trägt mehrere davon (Seitenleiste, Reiter des Trägers).
+    <nav aria-label={t("mainNavLabel")} className="lg:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
       <div className="flex h-16">
         {tabs.map((tab) => {
           if ("action" in tab && tab.action) {
@@ -65,6 +67,10 @@ export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }:
             <ViewTransitionLink
               key={tab.href}
               href={tab.href}
+              // Der aktive Reiter war allein über Farbe und Strichstärke erkennbar. Ein
+              // Screenreader las fünf gleichwertige Einträge vor, und wer Farben nicht
+              // unterscheidet, sah sie ebenso.
+              aria-current={active ? "page" : undefined}
               onClick={hapticLight}
               className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
                 active ? "text-nav-active-text" : "text-nav-inactive-text hover:text-nav-inactive-hover"

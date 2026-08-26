@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 type SkeletonVariant = "text" | "text-block" | "card" | "avatar" | "image" | "stat";
 
 interface SkeletonProps {
@@ -78,10 +80,17 @@ export default function Skeleton({
   count = 1,
   className = "",
 }: SkeletonProps) {
+  // `useTranslations` und nicht `getTranslations`: die Datei trägt kein `"use client"` und wird von
+  // beiden Seiten benutzt — von den `loading.tsx` (Server) und aus der Komponenten-Schau. Der Hook
+  // läuft in beiden Umgebungen, die asynchrone Fassung nur serverseitig und nur in `async`-Bauteilen.
+  const t = useTranslations("common");
   const items = Array.from({ length: count }, (_, i) => i);
 
   return (
-    <div className={`space-y-3 ${className}`} role="status" aria-label="Laden…">
+    // Der Name der Ladezone stand fest auf Deutsch. Er ist der EINZIGE Text, den ein Screenreader
+    // hier bekommt — die Balken selbst sind `aria-hidden` —, also fällt die fehlende Übersetzung
+    // niemandem beim Hinsehen auf, sondern nur dem, der zuhört.
+    <div className={`space-y-3 ${className}`} role="status" aria-label={t("loading")}>
       {items.map((i) => {
         switch (variant) {
           case "text":
@@ -100,7 +109,7 @@ export default function Skeleton({
             return <SkeletonPulse key={i} className="h-4" style={{ width, height }} />;
         }
       })}
-      <span className="sr-only">Laden…</span>
+      <span className="sr-only">{t("loading")}</span>
     </div>
   );
 }

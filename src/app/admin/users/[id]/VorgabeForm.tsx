@@ -16,7 +16,10 @@ function toHours(value: string, unit: string, basis: number): number | null {
   return unit === "%" ? (n / 100) * basis : n;
 }
 
-const fieldCls = "bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-focus-ring transition";
+// Ohne Fokus-Klassen: `globals.css` setzt den Ring ungeschichtet auf `:focus-visible` und schlägt
+// damit jede Utility aus `@layer utilities`. Die frühere Kombination war schon deshalb wirkungslos —
+// und liess den Abstand (`outline-offset`) weg, den die globale Regel mitbringt.
+const fieldCls = "bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground transition";
 
 function InputWithUnit({
   label, value, unit, onValue, onUnit, basis, max,

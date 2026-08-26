@@ -23,7 +23,11 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
       htmlFor={id}
       className={[
         "inline-flex items-center gap-3 min-h-[48px] cursor-pointer select-none",
-        disabled ? "opacity-50 cursor-not-allowed" : "",
+        // `aria-disabled` zählt hier mit: die Klassen dieses Bauteils hängen an der BESCHRIFTUNG,
+        // das Attribut geht per Rest ans Eingabefeld — eine `aria-disabled:`-Variante von aussen
+        // griffe deshalb am falschen Element. Ohne diese Zeile musste jede Aufrufstelle die
+        // Dämpfung selbst als Klasse mitgeben und den Grund dafür danebenschreiben.
+        disabled || rest["aria-disabled"] ? "opacity-50 cursor-not-allowed" : "",
         className,
       ].filter(Boolean).join(" ")}
     >

@@ -182,7 +182,9 @@ Einziger relevanter Breakpoint: **lg (1024px)** — schaltet zwischen Sidebar + 
 
 | Komponente | Typ | Beschreibung |
 |------------|-----|--------------|
-| **FormField** | Server | Label-Wrapper für Formularfelder |
+| **FormField** | Client | Label-Wrapper für Formularfelder (seit #98 Client: der Pflicht-Stern trägt einen übersetzten `sr-only`-Text) |
+| **LiveStatus** | Server | `sr-only`-Zeile, die Zustandsänderungen für die Assistenztechnik ansagt |
+| **SkipLink** | Client | „Zum Inhalt springen"; sucht die `<main>`-Landmarke beim Klick |
 | **FormError** | Server | Fehleranzeige; Varianten: `card`, `inline`, `compact` |
 | **DateTimePicker** | Client | `datetime-local` Input mit Label/Error/Hint |
 | **PhotoCapture** | Client | Foto-Upload mit Kamera-Support; Mobile: Direktaufnahme, Desktop: Datei + Webcam-Modal; Varianten: `emerald`, `orange` |

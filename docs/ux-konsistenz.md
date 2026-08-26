@@ -125,7 +125,11 @@ verschiedene Knopf-Anordnungen im Bestätigungs-Dialog.
 **Barrierefreiheit:** `SegmentedControl` hat **kein einziges** ARIA-Attribut — drei namenlose
 Schaltflächen ohne Hinweis, welche gewählt ist. Die Zwillings-Komponente `Tabs` macht es vollständig
 richtig (`role`, Pfeiltasten, Fokusring). Ausserdem: fest verdrahtetes Deutsch in geteilten
-Primitiven (`Button`, `Spinner`, `Pill`) — die eine Schicht, die kein Aufrufer überschreiben kann.
+Primitiven — die eine Schicht, die kein Aufrufer überschreiben kann.
+
+> Teilweise erledigt (Issue #98): `Button` und `Spinner` lösen ihre Texte inzwischen über
+> `useTranslations`; `Pill` steht noch aus. `SegmentedControl` hat `aria-disabled` bekommen, die
+> fehlende Auswahl-Ansage bleibt offen.
 
 ### 3.5 Verwaiste Erklär-Orte
 
@@ -145,7 +149,7 @@ Vier Orte für Erklärungen, drei davon ungenutzt: es fehlt nicht das Werkzeug, 
 | ~~**P1**~~ | ~~**Zeit.**~~ **ERLEDIGT (v5.1.6)**, siehe §7. Schnellwahl-Knöpfe von `TaskFields` nach `DurationInput` (dann haben ALLE Fristen Zwei-Tap-Bedienung) · `ScheduleFields` auf `DurationInput` · Verschluss-Frist angleichen · Einheiten-Vokabular auf `common`, Regel „Einheit im Reiter ODER als Suffix, nie in der Feldbeschriftung" | ~½ Tag | eine Art, eine Dauer einzugeben; grösster Handy-Gewinn |
 | **P2** | **Schalter zu Ende beschriften.** `Checkbox` bekommt `description` · sechs bis acht „Aus: …"-Texte durch Zwei-Zustands-Bedienung ersetzen · zwei rohe 16-px-Kästchen ersetzen | klein–mittel | schafft eine ganze TEXTKLASSE ab |
 | **P3** | **Listen.** `SettingsSection` um Zähler/Aktion erweitern, sieben Kopfzeilen darauf ziehen · zwei handgebaute Pager durch `ListPager` (behebt a11y) · **Strafbuch bekommt einen Pager** | mittel | räumt Radius- und Padding-Bruch mit ab |
-| **P4** | **Bestätigen & Löschen.** Acht `confirm()` auf `ConfirmDialog` · EINE Zielform für Löschen · `SegmentedControl` bekommt ARIA · Deutsch aus den Primitiven | klein–mittel | der Code behauptet die Regel bereits |
+| **P4** | **Bestätigen & Löschen.** Acht `confirm()` auf `ConfirmDialog` · EINE Zielform für Löschen · `SegmentedControl` bekommt ARIA · ~~Deutsch aus den Primitiven~~ (bis auf `Pill` erledigt, #98) | klein–mittel | der Code behauptet die Regel bereits |
 | **P5** | **Texte umlagern.** 13 → 4 Abschnitts-Beschreibungen · `HelpLink` konsequent · `/dashboard/regeln` als Heimat · Entscheidung über `/info` | mittel | ~130 Wörter allein von einer Seite |
 
 Reihenfolge innerhalb P1: Schnellwahl → `ScheduleFields` → Verschluss-Frist → Vokabular. Sie hängen

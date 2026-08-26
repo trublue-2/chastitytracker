@@ -1,8 +1,14 @@
 /** Geteilte Klassen der schmalen Inline-Eingaben in den Admin-Settings-Toggles (Zahl + Uhrzeit)
  *  und ihrer Beschriftungen. Eine Quelle für `NumberInput`, `TimeField` und `InlineSettingRow`,
- *  damit die Felder einer Zeile nicht auseinanderdriften. Rahmen, Polsterung und Fokus-Ring sind
- *  für beide identisch — sie unterscheiden sich NUR in der Breite, siehe unten. */
-const inlineInputBaseCls = "border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised focus:outline-none focus:ring-2 focus:ring-foreground/20";
+ *  damit die Felder einer Zeile nicht auseinanderdriften. Rahmen und Polsterung sind für beide
+ *  identisch — sie unterscheiden sich NUR in der Breite, siehe unten.
+ *
+ *  BEWUSST ohne eigene Fokus-Klassen: der Ring kommt aus der ungeschichteten `:focus-visible`-Regel
+ *  in `globals.css`. Die stand hier vorher als `focus:outline-none focus:ring-2 focus:ring-foreground/20`
+ *  und war in drei Punkten schlechter — `focus:` zeigt den Ring auch beim Mausklick, 20 % Deckung
+ *  reissen den 3:1-Kontrast aus WCAG 2.4.11 nicht, und ein `ring` ist ein `box-shadow`, den der
+ *  Windows-Kontrastmodus ersatzlos entfernt: dort wäre der Fokus danach unsichtbar gewesen. */
+const inlineInputBaseCls = "border border-border rounded-lg px-2 py-1.5 text-sm text-foreground bg-surface-raised";
 
 /** Zahl-Felder (`30`, `1`): zwei bis drei Ziffern, mehr Breite wäre nur Leerraum. */
 export const inlineInputCls = `w-16 ${inlineInputBaseCls}`;
@@ -115,3 +121,30 @@ export const listRowCls = `${blockInsetCls} py-2.5 flex items-center gap-3`;
 export const listRowTimeCls = "w-11 flex-shrink-0 text-neben tabular-nums text-foreground-faint";
 export const listRowButtonCls =
   "flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-surface-raised/60 -mx-2 px-2 -my-1 py-1 rounded-lg transition";
+
+/**
+ * Die Dämpfung eines Bedienelements, das gerade NICHT verfügbar ist, aber trotzdem im Tab-Weg
+ * bleibt (`aria-disabled` statt `disabled`).
+ *
+ * Warum es diese Bauform überhaupt gibt: ein `disabled` schaltet auch den Knopf ab, den der Nutzer
+ * gerade gedrückt hält — wer sich mit „Weiter" bis zur letzten Seite klickt oder einen Block bis
+ * ganz nach oben schiebt, verliert im selben Durchlauf den Fokus, weil ein deaktiviertes Element
+ * ihn nicht halten kann. Der Browser gibt ihn dann an den Dokumentanfang, und man tabbt sich vom
+ * Seitenkopf zurück. Mit `aria-disabled` bleibt der Knopf fokussierbar und ist trotzdem als nicht
+ * verfügbar angesagt; die Handlung unterbleibt, weil der Handler sie abfängt. **Die Schranke im
+ * Handler ist dabei Pflicht, nicht Zierde** — ein `aria-disabled`-Knopf ist weiterhin klickbar.
+ *
+ * Geteilt, weil vier Listen sie inzwischen brauchen und drei davon je einen eigenen Wert gewählt
+ * hatten: die Blätter-Zeile, der Posteingang, seine Filterleiste und der Block-Stapel stehen teils
+ * auf demselben Bildschirm.
+ */
+export const busyDimCls = "aria-disabled:opacity-50";
+
+/**
+ * Ein Symbol-Knopf in einer Zeile oder Kopfleiste — Schliessen, Menü, Entfernen.
+ *
+ * Die 24 px sind kein Gestaltungsmass, sondern das AA-Minimum für Trefferflächen (WCAG 2.5.8). Sie
+ * stehen als `min-*`, damit das Symbol seine Grösse behält und nur die Fläche wächst: die
+ * Zeilenhöhe der Listen darf sich davon nicht bewegen.
+ */
+export const iconButtonCls = "min-w-6 min-h-6 flex items-center justify-center";

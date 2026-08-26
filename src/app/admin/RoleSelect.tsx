@@ -35,7 +35,10 @@ export default function RoleSelect({
       value={role}
       onChange={handleChange}
       disabled={saving}
-      className={`text-xs font-semibold px-2 py-0.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-foreground-muted cursor-pointer transition ${
+      // Kein `focus:outline-none` mehr: das Feld hatte damit nur noch einen `ring`, also einen
+      // `box-shadow` — im Windows-Kontrastmodus fällt der ersatzlos weg und der Fokus wäre auf einem
+      // randlosen Element (`border-0`) gar nicht mehr zu sehen. Den Ring liefert jetzt `globals.css`.
+      className={`text-xs font-semibold px-2 py-0.5 rounded-full border-0 cursor-pointer transition ${
         role === "admin"
           ? "bg-[var(--color-request-bg)] text-[var(--color-request-text)]"
           : "bg-surface-raised text-foreground-faint"

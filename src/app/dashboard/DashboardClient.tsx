@@ -92,6 +92,7 @@ export default function DashboardClient(props: DashboardProps) {
   const isLocked = currentStatus?.type === "VERSCHLUSS";
 
 
+
   const tagH = useLiveHours(baseTagH, serverNow, isLocked);
   const wocheH = useLiveHours(baseWocheH, serverNow, isLocked);
   const monatH = useLiveHours(baseMonatH, serverNow, isLocked);
@@ -101,7 +102,7 @@ export default function DashboardClient(props: DashboardProps) {
 
   if (!hasEntries) {
     return (
-      <DashboardBlock as="main" className="flex flex-col gap-4">
+      <DashboardBlock className="flex flex-col gap-4">
         <EmptyState
           icon={<Lock size={48} />}
           title={t("welcomeTitle")}
@@ -113,8 +114,7 @@ export default function DashboardClient(props: DashboardProps) {
   }
 
   return (
-    <DashboardBlock as="main" className="flex flex-col gap-4">
-
+    <DashboardBlock className="flex flex-col gap-4">
       {/* Anforderungs-Banner: siehe `DashboardAlerts` (eigener Block ganz oben).
            Sperrzeit-Banner entfernt — steht bereits im Sperrzeit-Footer der LaufendeSessionCard. */}
 

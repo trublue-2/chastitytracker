@@ -35,7 +35,18 @@ interface ShellProps {
 
 /** Rücklink, Zeichen + Titel, optionaler Untertitel, Formular. Der Teil, der für beide Rollen
  *  gleich ist — er steht genau einmal, damit er nicht wieder auseinanderlaufen kann. */
-function ShellBody({ backHref, backLabel, icon, iconColor, title, subtitle, children }: ShellProps) {
+function ShellBody({ backHref, backLabel, icon, iconColor, title, subtitle, children, isLandmark }: ShellProps & {
+  /**
+   * Schreibt diese Hülle die Ebene-1-Überschrift ihrer Seite?
+   *
+   * Ja im Träger-Bereich, wo sie selbst das `<main>` aufspannt. Nein im Keyholder-Bereich: dort
+   * trägt `admin/users/[id]/layout.tsx` mit dem Namen des Trägers bereits eine `h1`, und die elf
+   * Aktions-Formulare gäben der Seite sonst eine zweite Wurzel. Dieselbe Frage also, die der
+   * Unterschied zwischen den beiden Hüllen ohnehin beantwortet — `main` oder `div`.
+   */
+  isLandmark: boolean;
+}) {
+  const H = isLandmark ? "h1" : "h2";
   return (
     <>
       <Link href={backHref} className="text-neben text-foreground-faint hover:text-foreground transition">
@@ -47,7 +58,7 @@ function ShellBody({ backHref, backLabel, icon, iconColor, title, subtitle, chil
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2.5">
           <span className="flex-shrink-0" style={{ color: iconColor }}>{icon}</span>
-          <h1 className="font-serif text-titel text-foreground text-balance">{title}</h1>
+          <H className="font-serif text-titel text-foreground text-balance">{title}</H>
         </div>
         {subtitle && <p className="text-fliess text-foreground-muted">{subtitle}</p>}
       </div>
@@ -83,7 +94,7 @@ export default function AdminActionFormShell({
 }) {
   return (
     <div className={`${formColCls} flex flex-col gap-4`}>
-      <ShellBody {...rest} backHref={backHref ?? `/admin/users/${userId}/aktionen`} />
+      <ShellBody {...rest} isLandmark={false} backHref={backHref ?? `/admin/users/${userId}/aktionen`} />
     </div>
   );
 }
@@ -123,7 +134,7 @@ export function EntryActionFormShell({ backHref, backLabel, ...rest }: Omit<Shel
   const t = useTranslations("nav");
   return (
     <main className={`${formColCls} py-6 flex flex-col gap-4`}>
-      <ShellBody backHref={backHref ?? "/dashboard"} backLabel={backLabel ?? t("overview")} {...rest} />
+      <ShellBody isLandmark backHref={backHref ?? "/dashboard"} backLabel={backLabel ?? t("overview")} {...rest} />
     </main>
   );
 }

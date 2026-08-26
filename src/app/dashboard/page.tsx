@@ -26,11 +26,12 @@ export default async function DashboardPage() {
   // Erst die Konfiguration: sie entscheidet, welche Loader überhaupt laufen. Die Benutzerzeile, aus
   // der sie kommt, ist dieselbe, die die Blöcke gleich weiterverwenden — sie kostet also nichts
   // Zusätzliches. `userId` mitgeben, damit `auth()` nicht ein zweites Mal läuft.
-  const [layout, t, tOrgasm, tTasks, locale] = await Promise.all([
+  const [layout, t, tOrgasm, tTasks, tNav, locale] = await Promise.all([
     viewerLayout("subDashboard", userId),
     getTranslations("dashboard"),
     getTranslations("orgasmForm"),
     getTranslations("tasks"),
+    getTranslations("nav"),
     getLocale(),
   ]);
 
@@ -50,8 +51,22 @@ export default async function DashboardPage() {
   return (
     // Der Abstand zwischen den Blöcken kommt AUSSCHLIESSLICH von diesem `gap-4`, nie aus pt-/pb- der
     // Blöcke selbst — Begründung in `DashboardBlock`.
-    <div className="flex flex-col gap-4 py-6">
+    //
+    // Landmarke und Überschrift stehen HIER und nicht in einem Block. Beide hingen zuvor an
+    // `statusAndStats` (`DashboardClient` mit `as="main"`), und der ist abschaltbar: wer ihn unter
+    // „Dashboard anpassen" ausblendet, hatte danach eine Übersicht ganz ohne Hauptbereich — der
+    // Sprunglink zeigte ins Leere, und die Fokus-Rückgabe der Dialoge fand kein Ziel mehr. Dieselbe
+    // Fehlerklasse wie bei den Fristen in ausblendbaren Blöcken: was das Gerüst der Seite trägt,
+    // darf nicht Teil ihres Inhalts sein. Der statische Wächter in `pageMeasures.test.ts` sieht das
+    // nicht, weil er die Datei liest und nicht die gespeicherte Konfiguration.
+    <main className="flex flex-col gap-4 py-6">
+      {/* Unsichtbar, weil dieser Entwurf die Übersicht bewusst ohne Titelzeile beginnen lässt — der
+          erste Block ist die Antwort, nicht ein Etikett darüber. Ohne sie begänne die
+          Überschriftenliste auf Ebene 2 (jeder `BlockHeading` ist ein `h2`): eine Gliederung ohne
+          Wurzel, und keine Ansage, auf welchem Bildschirm man steht. Der Text kommt aus dem
+          Navigations-Eintrag dieser Seite — Reiter und Überschrift MÜSSEN dasselbe sagen. */}
+      <h1 className="sr-only">{tNav("overview")}</h1>
       <BlockStack layout={layout} nodes={nodes} />
-    </div>
+    </main>
   );
 }

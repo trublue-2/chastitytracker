@@ -64,6 +64,15 @@ export interface StatsCtx {
   heading: string;
   backHref?: string;
   backLabel?: string;
+  /**
+   * Ist DIESE Auswertung der Hauptbereich ihrer Seite?
+   *
+   * Auf `/dashboard/stats` ja — die Überschrift ist dann die Ebene 1 der Seite. Im Keyholder-Reiter
+   * nein: dort spannt `admin/users/[id]/layout.tsx` die Landmarke auf und trägt mit dem Namen des
+   * Trägers bereits eine `h1`. Eine zweite hier gäbe der Seite zwei Wurzeln, und die
+   * Überschriften-Navigation zeigte zwei gleichrangige Einstiege für einen Bildschirm.
+   */
+  isLandmark: boolean;
 }
 
 /**
@@ -105,14 +114,17 @@ const usageOf = (sessions: Session[]): UsageSession[] =>
   deviceWearingsOf(sessions).map((w) => ({ deviceId: w.device.id, durationMs: w.durationMs, start: w.start }));
 
 export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
-  heading: async ({ heading, backHref, backLabel }) => (
-    <div>
-      {backHref && (
-        <a href={backHref} className="text-neben text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
-      )}
-      <h1 className={`font-serif text-titel text-foreground ${backHref ? "mt-1" : ""}`}>{heading}</h1>
-    </div>
-  ),
+  heading: async ({ heading, backHref, backLabel, isLandmark }) => {
+    const H = isLandmark ? "h1" : "h2";
+    return (
+      <div>
+        {backHref && (
+          <a href={backHref} className="text-neben text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
+        )}
+        <H className={`font-serif text-titel text-foreground ${backHref ? "mt-1" : ""}`}>{heading}</H>
+      </div>
+    );
+  },
 
   // Übersicht KG-Tragen. Gezählt wird nach `wearCountsCached` — derselben Regel, nach der die
   // Keyholder-Übersicht zählt; zwei Zahlen für dieselbe Frage waren ein Fehler.

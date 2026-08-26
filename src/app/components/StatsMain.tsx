@@ -72,7 +72,9 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
         {backHref && (
           <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
         )}
-        <h1 className="text-xl font-bold text-foreground">{pageHeading}</h1>
+        {Tag === "main"
+          ? <h1 className="text-xl font-bold text-foreground">{pageHeading}</h1>
+          : <h2 className="text-xl font-bold text-foreground">{pageHeading}</h2>}
         <Card padding="default">
           <EmptyState icon={<BarChart2 size={32} />} title={t("noEntries")} />
         </Card>
@@ -92,6 +94,9 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
     dl: toDateLocale(locale),
     t, tc, ta,
     heading: pageHeading, backHref, backLabel,
+    // Dieselbe Frage, die `as` schon beantwortet: wer die Landmarke aufspannt, schreibt auch die
+    // Ebene-1-Überschrift. Im Keyholder-Reiter tut das Layout beides.
+    isLandmark: Tag === "main",
   };
 
   const nodes = await renderStack(layout, ctx, STATS_BLOCK_TABLE);

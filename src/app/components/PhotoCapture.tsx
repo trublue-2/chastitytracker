@@ -276,7 +276,9 @@ export default function PhotoCapture({ onFile, uploading, variant = "emerald", c
                 <select
                   value={selectedDeviceId}
                   onChange={(e) => handleDeviceChange(e.target.value)}
-                  className="text-sm text-foreground-muted bg-surface-raised border border-border rounded-lg px-3 py-1.5 focus:outline-none"
+                  // Kein `focus:outline-none`: hier stand kein Ersatz-Ring dahinter, die Kamera-Wahl
+                  // wäre per Tastatur also gar nicht mehr auffindbar gewesen. Den Ring setzt `globals.css`.
+                  className="text-sm text-foreground-muted bg-surface-raised border border-border rounded-lg px-3 py-1.5"
                 >
                   {devices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>{d.label}</option>

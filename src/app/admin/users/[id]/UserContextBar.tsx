@@ -57,7 +57,20 @@ export default function UserContextBar({ userId, username, currentStatus, since,
 
         {/* User + status */}
         <div className="flex-1 flex items-center gap-2 min-w-0">
-          <span className="font-bold text-foreground text-sm truncate">{username}</span>
+          {/* Die EINE Ebene-1-Überschrift dieses ganzen Bereichs.
+              
+              Sie steht hier, weil dieses Bauteil im Layout hängt und damit auf allen ~25
+              Unterseiten erscheint — vorher hatte keine davon eine Wurzel, die
+              Überschriften-Navigation begann mitten im Inhalt. Der Name des Trägers ist auch das
+              richtige Thema: die Unterseiten sind seine Reiter, nicht eigene Bildschirme.
+
+              Daraus folgt die Regel für alles, was DARUNTER rendert: die Aktions-Hülle, die
+              Auswertung und die Geräte-Seiten schreiben in diesem Bereich `h2` statt `h1` — sonst
+              hätte die Seite zwei Wurzeln. Dieselben Bauteile schreiben im Träger-Bereich weiterhin
+              `h1`, weil sie dort selbst die Landmarke aufspannen.
+
+              Die Klassen bleiben unverändert — das Aussehen ändert sich nicht. */}
+          <h1 className="font-bold text-foreground text-sm truncate">{username}</h1>
           <span className={`flex items-center gap-1 text-xs font-medium flex-shrink-0 ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
             {isLocked
               /* `format="long"`, nicht `short`: `short` faltet die Tage in die Stunden (siehe

@@ -38,6 +38,13 @@ export interface RowAction {
  *  - Bewusst OHNE `role="menu"`: das verspricht Pfeiltasten-Navigation, die es hier nicht gibt, und
  *    schaltet Screenreader in einen Modus, in dem sie nur eigene `menuitem`-Kinder aufzählen. Als
  *    schlichte Liste aus Link und Knopf wird der Inhalt korrekt angekündigt.
+ *  - Und aus demselben Grund ohne `aria-haspopup`: `="true"` ist laut ARIA gleichbedeutend mit
+ *    `="menu"` und gibt damit über den Knopf genau das Versprechen zurück, das die Zeile darüber
+ *    bewusst nicht einlöst — der Screenreader sagt „Menü öffnen", der Nutzer greift zu den
+ *    Pfeiltasten und findet nichts. Ein zutreffender Wert steht nicht zur Wahl: `dialog`,
+ *    `listbox`, `tree` und `grid` beschreiben alle etwas anderes als eine Handvoll Links und
+ *    Knöpfe. Was hier wirklich passiert, sagt `aria-expanded` schon vollständig: ein
+ *    Aufklapp-Knopf, der einen Bereich zeigt und wieder verbirgt.
  *
  * Was NICHT hierher gehört: Rückfragen und Modals. Die bleiben beim Aufrufer, weil jede Zeile andere
  * Folgen erklärt (Kettenbruch beim Eintrag, verlorener Straftext bei der Nachricht).
@@ -111,7 +118,6 @@ export default function RowActionsMenu({ items, ariaLabel }: { items: RowAction[
         onClick={toggle}
         className="w-6 h-6 flex items-center justify-center rounded-lg text-foreground-faint hover:text-foreground hover:bg-surface-raised active:bg-border transition"
         aria-label={ariaLabel ?? t("actions")}
-        aria-haspopup="true"
         aria-expanded={open}
       >
         <MoreVertical size={16} />

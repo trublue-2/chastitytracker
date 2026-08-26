@@ -1,12 +1,12 @@
 "use client";
 
 import { type SVGProps } from "react";
+import { useTranslations } from "next-intl";
 
 type SpinnerSize = "sm" | "default" | "lg";
 
 interface SpinnerProps extends Omit<SVGProps<SVGSVGElement>, "children"> {
   size?: SpinnerSize;
-  label?: string;
 }
 
 const sizeMap: Record<SpinnerSize, number> = {
@@ -17,10 +17,17 @@ const sizeMap: Record<SpinnerSize, number> = {
 
 export default function Spinner({
   size = "default",
-  label = "Laden…",
   className = "",
   ...rest
 }: SpinnerProps) {
+  // Der Name kam aus dem Code statt aus den Sprachdateien und war damit auf jeder englischen
+  // Oberfläche deutsch. Er fällt nicht auf, weil ihn nur die Assistenztechnik liest — die
+  // i18n-Pflicht gilt trotzdem, gerade dort.
+  //
+  // KEIN `label`-Prop mehr: es hatte genau einen Aufrufer (`Button`), und der übergab denselben
+  // Text noch einmal aus demselben Namensraum. Ein Prop, das nur die Vorgabe wiederholt, ist eine
+  // zweite Stelle, an der derselbe Name auseinanderlaufen kann.
+  const t = useTranslations("common");
   const px = sizeMap[size];
 
   return (
@@ -31,7 +38,7 @@ export default function Spinner({
       fill="none"
       className={`animate-spin ${className}`}
       role="status"
-      aria-label={label}
+      aria-label={t("loading")}
       {...rest}
     >
       <circle

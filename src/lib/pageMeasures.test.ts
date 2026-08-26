@@ -172,13 +172,16 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
  * oder zwei — und beides sieht im Bild vollkommen normal aus.
  *
  * **Was ein statischer Test hier leisten kann — und was nicht.** Regel 1 hängt am Pfad, Regel 2
- * ebenso, Regel 3 an einem Tag im JSX: das ist lesbar. Nicht lesbar ist eine Landmarke, die über
- * eine Laufzeit-Registry hereinkommt — `dashboard/page.tsx` rendert einen `BlockStack`, dessen
- * Blöcke eine gespeicherte Konfiguration auswählt, und `DashboardClient` (mit `as="main"`) ist
- * einer davon. Diesen Fall kann der Test nicht auflösen. Er weicht dafür aber nicht die Regel für
- * alle auf, sondern führt ihn namentlich in `INDIREKT_UNPRUEFBAR` — eine kurze Liste, die man
- * beim Lesen mitprüft, ist ehrlicher als ein Test, der so lange verallgemeinert, bis er nichts
- * mehr behauptet.
+ * ebenso, Regel 3 an einem Tag im JSX: das ist lesbar. Nicht lesbar wäre eine Landmarke, die über
+ * eine Laufzeit-Registry hereinkommt. Genau die gab es einmal — die Träger-Übersicht bezog ihr
+ * `<main>` aus dem Block `statusAndStats`, den der Nutzer unter „Dashboard anpassen" abschalten
+ * kann. Der Test führte diesen Fall als benannte Ausnahme, und die Ausnahme verdeckte einen
+ * echten Defekt: mit ausgeblendetem Block hatte die Seite gar keinen Hauptbereich. Seither steht
+ * die Landmarke in `dashboard/page.tsx` selbst, und es gibt keine Ausnahme mehr.
+ *
+ * Die Lehre dahinter gilt über diesen Test hinaus: **was das Gerüst einer Seite trägt, darf nicht
+ * Teil ihres abschaltbaren Inhalts sein.** Eine Ausnahmeliste ist der richtige Ort für etwas, das
+ * man nicht prüfen KANN — nicht für etwas, das man anders bauen sollte.
  *
  * Geprüft werden nur `/dashboard` und `/admin`. Die öffentlichen Seiten (Login, Passwort,
  * `/info`) stehen ausserhalb beider Bereichs-Layouts und holen ihre Landmarke aus `AuthScreen`;
@@ -236,12 +239,6 @@ describe("Jede Seite hat genau eine Landmarke", () => {
   const nutztHuelle = (code: string) =>
     Object.keys(HUELLEN_MIT_MAIN).some((tag) => code.includes(`<${tag}`));
 
-  /**
-   * Landmarke vorhanden, aber nicht statisch nachweisbar (Begründung oben). Nur für
-   * Laufzeit-Indirektion — NICHT als bequemer Ort für eine Seite, die wirklich keine hat.
-   */
-  const INDIREKT_UNPRUEFBAR = new Set(["src/app/dashboard/page.tsx"]);
-
   it.each(Object.entries(HUELLEN_MIT_MAIN))("%s bringt wirklich ein <main> mit", (tag, file) => {
     expect(
       exportBody(file, tag),
@@ -253,17 +250,9 @@ describe("Jede Seite hat genau eine Landmarke", () => {
     ).not.toHaveLength(0);
   });
 
-  // Ohne diese beiden Prüfungen wären die Listen die bequemste Stelle, an der der Test still
-  // stirbt: wer die Erkennung kaputtmacht, bekommt eine grüne Suite UND zwei Listen, die weiterhin
-  // nach Aufsicht aussehen.
-  it.each([...INDIREKT_UNPRUEFBAR])("%s ist zu Recht nicht statisch prüfbar", (file) => {
-    const code = src(file);
-    expect(
-      SETZT_MAIN.test(code) || nutztHuelle(code),
-      `${file} setzt seine Landmarke inzwischen sichtbar — aus INDIREKT_UNPRUEFBAR streichen`,
-    ).toBe(false);
-  });
-
+  // Ohne diese Prüfung wäre die Liste die bequemste Stelle, an der der Test still stirbt: wer die
+  // Erkennung kaputtmacht, bekommt eine grüne Suite UND eine Liste, die weiterhin nach Aufsicht
+  // aussieht.
   it.each(MIT_AS_PROP)("%s setzt sein as-Prop wirklich um", (tag) => {
     const file = ALL.find((f) => f.endsWith(`/${tag}.tsx`));
     expect(file, `${tag} gibt es nicht mehr — aus MIT_AS_PROP streichen`).toBeDefined();
@@ -287,10 +276,7 @@ describe("Jede Seite hat genau eine Landmarke", () => {
     },
   );
 
-  it.each(PAGES.filter((f) =>
-    !f.startsWith(LAYOUT_STELLT_MAIN)
-    && !INDIREKT_UNPRUEFBAR.has(f)
-  ))("%s bringt seine Landmarke selbst mit", (file) => {
+  it.each(PAGES.filter((f) => !f.startsWith(LAYOUT_STELLT_MAIN)))("%s bringt seine Landmarke selbst mit", (file) => {
     const code = src(file);
     expect(
       SETZT_MAIN.test(code) || nutztHuelle(code),

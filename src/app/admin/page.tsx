@@ -207,11 +207,15 @@ export default async function AdminPage() {
             <p className="text-zahl font-semibold tabular-nums leading-none tracking-[-0.04em] text-warn">
               {alarmCount}
             </p>
-            <p className="text-zeile font-medium mt-3">{t("needsYouTitle", { count: alarmCount })}</p>
+            {/* Sichtbar statt `sr-only`, weil hier schon ein Titel STAND — er war nur ein `p`, und
+                die Überschriftenliste dieser Seite begann damit auf Ebene 2. Beide Zweige tragen
+                ihn, damit die Seite in JEDEM Zustand genau eine Ebene 1 hat. Die Klassen bleiben
+                unverändert; die grosse Zahl darüber ist der Wert, nicht der Titel. */}
+            <h1 className="text-zeile font-medium mt-3">{t("needsYouTitle", { count: alarmCount })}</h1>
           </>
         ) : (
           <>
-            <p className="text-titel font-serif leading-tight">{t("allCalmTitle")}</p>
+            <h1 className="text-titel font-serif leading-tight">{t("allCalmTitle")}</h1>
             <p className="text-neben text-foreground-faint mt-2">{t("allCalmHint")}</p>
           </>
         )}

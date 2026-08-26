@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 /**
  * Die kleine Beschriftung über einem Formular-Abschnitt — „Frist", „Zeit zum Anlegen", „Anzeige".
  *
@@ -24,12 +26,30 @@ export default function FieldLabel({
   htmlFor?: string;
   /** Pflichtfeld-Stern wie bei {@link Input}/{@link DateTimePicker} — dieselbe Auszeichnung, damit
    *  eine Gruppe nicht optional AUSSIEHT, bloss weil ihr Feld seine Beschriftung von aussen bekommt.
-   *  Der Stern ist die Ankündigung; durchgesetzt wird die Pflicht am Feld selbst. */
+   *  Der Stern ist die Ankündigung; durchgesetzt wird die Pflicht am Feld selbst.
+   *
+   *  Und genau deshalb steht neben dem Stern ein unsichtbarer Text: `Input` hängt sein `required`
+   *  im selben Aufruf ans `<input>`, diese Beschriftung kennt ihr Feld aber nicht einmal — bei
+   *  `FieldTabs` beschriftet sie sogar eine Gruppe, deren Pflicht am Feld DARUNTER hängt. Bliebe es
+   *  beim Stern, stünde die Pflicht nur im Bild und nirgends im Vorlesetext. */
   required?: boolean;
   children: React.ReactNode;
 }) {
+  const tc = useTranslations("common");
   const className = "text-xs text-foreground-faint";
-  const content = <>{children}{required && <span className="text-warn ml-0.5">*</span>}</>;
+  // `aria-hidden` am Stern, damit die Pflicht nicht doppelt ankommt („Stern Pflichtfeld") — er ist
+  // ab jetzt reine Tinte, die Aussage steckt im Text daneben.
+  const content = (
+    <>
+      {children}
+      {required && (
+        <>
+          <span className="text-warn ml-0.5" aria-hidden="true">*</span>
+          <span className="sr-only">{tc("requiredField")}</span>
+        </>
+      )}
+    </>
+  );
   return htmlFor
     ? <label id={id} htmlFor={htmlFor} className={className}>{content}</label>
     : <span id={id} className={className}>{content}</span>;

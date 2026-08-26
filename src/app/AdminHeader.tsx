@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import AvatarMenu from "@/app/components/AvatarMenu";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import HeaderMessages from "@/app/components/HeaderMessages";
+import SkipLink from "@/app/components/SkipLink";
 import { headerActionsCls, headerBarCls, headerBrandCls, headerRowCls } from "@/app/components/inputStyles";
 import type { OwnTrackerActor } from "@/lib/ownTracker";
 import pkg from "../../package.json";
@@ -29,6 +30,9 @@ export default async function AdminHeader({ username, actor, hideOwnTracker }: P
 
   return (
     <header className={headerBarCls}>
+      {/* Begründung in `Header.tsx`: der Sprunglink hängt an der Kopfzeile, damit er auf keiner
+          Seite fehlt — der Keyholder-Bereich hat dieselbe Seitenleiste vor dem Inhalt. */}
+      <SkipLink />
       <div className={headerRowCls}>
         <Link href="/admin" className={headerBrandCls}>
           {portalTitle}

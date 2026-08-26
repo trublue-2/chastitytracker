@@ -193,7 +193,13 @@ export default function DevicesClient({ devices: initialDevices, categories, use
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{title}</h1>
+        {/* `h2` im Keyholder-Reiter: dort trägt `admin/users/[id]/layout.tsx` mit dem Namen des
+            Trägers schon die Ebene 1, und eine zweite gäbe der Seite zwei Wurzeln. `userId` ist
+            genau dieses Signal — es ist gesetzt, wenn hier fremde Geräte verwaltet werden, und
+            steuert wenige Zeilen höher schon die Ziel-Adressen. */}
+        {userId
+          ? <h2 className="text-xl font-bold text-foreground">{title}</h2>
+          : <h1 className="text-xl font-bold text-foreground">{title}</h1>}
         <Button variant="primary" size="sm" onClick={openAdd}>
           <Plus size={16} className="mr-1.5" />
           {t("addDevice")}

@@ -28,23 +28,18 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   size?: SegmentedSize;
-  /** Wie bei `Select`/`Input`: während eines laufenden Vorgangs gesperrt. Ohne das schützte ein
-   *  `disabled` an einer Filterleiste zwei von drei Bedienelementen — ausgerechnet den
-   *  meistgeklickten nicht. */
-  disabled?: boolean;
 }
 
-export default function SegmentedControl({ options, value, onChange, size = "sm", disabled }: Props) {
+export default function SegmentedControl({ options, value, onChange, size = "sm" }: Props) {
   return (
     <div className={`flex items-center bg-surface-raised rounded-lg ${BOX[size]}`}>
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
-          disabled={disabled}
           onClick={() => onChange(opt.value)}
           className={[
-            "rounded-md font-medium transition-colors disabled:opacity-50",
+            "rounded-md font-medium transition-colors",
             ITEM[size],
             value === opt.value
               ? "bg-surface text-foreground shadow-sm"

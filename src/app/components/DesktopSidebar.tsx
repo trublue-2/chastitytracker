@@ -42,7 +42,9 @@ export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, version
       <NewEntrySheet open={sheetOpen} onClose={() => setSheetOpen(false)} isLocked={isLocked} categoryRows={categoryRows} bildersafe={bildersafe} weight={weight} openInspection={openInspection} />
 
       <aside className="hidden lg:flex fixed left-0 top-14 bottom-0 w-64 bg-nav-bg border-r border-nav-border flex-col z-20">
-        <nav className="flex-1 flex flex-col gap-0.5 p-3 pt-4 overflow-y-auto">
+        {/* Benannte Landmarke: die Seite trägt mehrere `nav`-Bereiche, und ohne Namen heissen sie
+            in der Landmarken-Liste alle gleich. */}
+        <nav aria-label={t("mainNavLabel")} className="flex-1 flex flex-col gap-0.5 p-3 pt-4 overflow-y-auto">
           {/* Neu Button */}
           <button
             type="button"
@@ -62,6 +64,9 @@ export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, version
               <ViewTransitionLink
                 key={item.href}
                 href={item.href}
+                // Ohne dies ist der aktive Eintrag nur eingefärbt — für einen Screenreader und für
+                // farbunsichere Augen sind alle Einträge gleich.
+                aria-current={active ? "page" : undefined}
                 className={[
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   active

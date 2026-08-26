@@ -9,6 +9,13 @@ interface Props {
   children: ReactNode;
   className?: string;
   onClick?: () => void;
+  /** Der aktive Eintrag einer Navigation.
+   *
+   *  Muss hier durchgereicht werden, und zwar AUSDRÜCKLICH: TypeScript prüft JSX-Attribute mit
+   *  Bindestrich nicht gegen die Props: `<ViewTransitionLink aria-current="page">` compiliert
+   *  anstandslos und wird beim Rendern stillschweigend weggeworfen. Der Fehler ist damit weder im
+   *  Build noch im Bild zu sehen — nur der Screenreader schweigt weiter. */
+  "aria-current"?: "page";
 }
 
 /**
@@ -17,7 +24,7 @@ interface Props {
  *
  * Falls back to standard Link behavior on unsupported browsers.
  */
-export default function ViewTransitionLink({ href, children, className, onClick }: Props) {
+export default function ViewTransitionLink({ href, children, className, onClick, "aria-current": ariaCurrent }: Props) {
   const { navigateWithTransition } = useViewTransition();
 
   function handleClick(e: MouseEvent<HTMLAnchorElement>) {
@@ -30,7 +37,7 @@ export default function ViewTransitionLink({ href, children, className, onClick 
   }
 
   return (
-    <Link href={href} className={className} onClick={handleClick}>
+    <Link href={href} className={className} onClick={handleClick} aria-current={ariaCurrent}>
       {children}
     </Link>
   );

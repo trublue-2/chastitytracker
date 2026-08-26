@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { SkeletonBar } from "@/app/components/Skeleton";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import Section from "@/app/components/Section";
@@ -21,10 +22,17 @@ import { listRowCls } from "@/app/components/inputStyles";
  * ist in der echten Seite gefallen und hier mit.
  */
 export default function DashboardLoading() {
+  // `useTranslations` statt `getTranslations`: der Hook läuft auch in einer Server-Komponente,
+  // solange sie nicht `async` ist — und diese ist es nicht. `getTranslations` erzwänge ein `await`
+  // und damit ein `async`-Skelett, also genau die Verzögerung, die ein Ladezustand nicht haben darf.
+  const t = useTranslations("common");
+
   return (
     // Gleiches Gerüst wie die echte Seite (`dashboard/page.tsx`): `py-6` aussen, `gap-4` zwischen
     // den Blöcken — sonst springt das Layout im Moment des Austauschs.
-    <div className="flex flex-col gap-4 py-6" role="status" aria-label="Laden…">
+    // Der Name der Ladezone stand fest auf Deutsch — der einzige Text, den ein Screenreader hier
+    // überhaupt bekommt, weil alle Balken `aria-hidden` sind.
+    <div className="flex flex-col gap-4 py-6" role="status" aria-label={t("loading")}>
       <DashboardBlock className="flex flex-col gap-4">
         {/* Der Held: leises Wort, grosse Zahl, leise Zeile — zentriert, ohne Kasten. */}
         <div className="flex flex-col items-center gap-4 pt-8 pb-7">
@@ -91,7 +99,7 @@ export default function DashboardLoading() {
           </div>
         </Section>
       </DashboardBlock>
-      <span className="sr-only">Laden…</span>
+      <span className="sr-only">{t("loading")}</span>
     </div>
   );
 }
