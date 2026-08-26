@@ -2,10 +2,12 @@
 
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreVertical, CheckCircle2, X, MinusCircle, Trash2 } from "lucide-react";
+import { CheckCircle2, X, MinusCircle, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
+import RowActionsMenu, { type RowAction } from "@/app/components/RowActionsMenu";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 
 interface Props {
@@ -20,44 +22,31 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
   const tc = useTranslations("common");
   const apiError = useApiError();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, right: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
   const canWithdraw = !!kontrolleId && (anforderungStatus === "open" || anforderungStatus === "overdue" || anforderungStatus === "scheduled");
   const canDelete = !!kontrolleId && anforderungStatus === "withdrawn";
   const canManuallyVerify = !!entryId && verifikationStatus !== "manual" && verifikationStatus !== "ai";
   const canReject = !!entryId && verifikationStatus !== "rejected";
 
-  function openMenu() {
-    if (btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
-    }
-    setOpen(true);
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    function onOutside(e: MouseEvent | TouchEvent) {
-      if (
-        menuRef.current && !menuRef.current.contains(e.target as Node) &&
-        btnRef.current && !btnRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    }
-    document.addEventListener("mousedown", onOutside);
-    document.addEventListener("touchstart", onOutside);
-    return () => {
-      document.removeEventListener("mousedown", onOutside);
-      document.removeEventListener("touchstart", onOutside);
-    };
-  }, [open]);
-
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Rückfrage vor dem Ablehnen — die einzige Aktion dieses Menüs, die dem TRÄGER etwas antut.
+   *
+   * Die Regel, nach der sie hier steht und nicht anderswo: **eine Rückfrage gehört dorthin, wo eine
+   * Handlung für einen ANDEREN Folgen hat — nicht nur dorthin, wo Daten verschwinden.** Der
+   * Adminbereich hatte sie bis hierher genau umgekehrt verteilt: gefragt wurde vor dem Löschen von
+   * Nutzer, Rolle und Vorgabe, also dort, wo Datensätze verschwinden, und nicht vor dem Ablehnen,
+   * das dem Träger ein Vergehen einträgt. Wer die nächste Aktion dieser Art baut, misst sie an
+   * dieser Regel und nicht an „ist hier etwas unwiederbringlich".
+   *
+   * Zurückziehen und Löschen bleiben bewusst ohne: das Zurückziehen NIMMT eine Forderung zurück, und
+   * gelöscht werden kann nur eine bereits zurückgezogene Anforderung — beides entlastet den Träger,
+   * statt ihn zu belasten.
+   */
+  const [confirmReject, setConfirmReject] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+
   async function doAction(action: string) {
-    setOpen(false);
     setError(null);
     try {
       let res: Response | undefined;
@@ -97,72 +86,82 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
     }
   }
 
+  /**
+   * Die Rückfrage schliesst hier AUCH im Fehlerfall — anders als im Posteingang, wo sie bewusst
+   * stehen bleibt.
+   *
+   * Der Grund ist derselbe wie dort, nur mit umgekehrtem Ergebnis: massgeblich ist, wo die
+   * Fehlerzeile steht. Im Posteingang liegt sie am Listenkopf, womöglich ausserhalb des Bildes —
+   * ein geschlossener Dialog liesse den Nutzer vor einer unveränderten Liste ohne Grund zurück.
+   * Hier steht sie direkt an der Zeile, deren Menü er gerade geöffnet hat. Offen zu bleiben hiesse
+   * hingegen, sie unter dem Dialog zu verstecken: `ConfirmDialog` hat keinen Fehler-Slot, der Nutzer
+   * sähe nur einen Knopf, der aufhört zu drehen, und nichts weiter.
+   */
+  async function runReject() {
+    setRejecting(true);
+    await doAction("reject");
+    setRejecting(false);
+    setConfirmReject(false);
+  }
+
+  /**
+   * Die Einträge des Menüs. Über `RowActionsMenu`, nicht von Hand: hier stand der Zwilling dieser
+   * Komponente — dieselbe gemessene `fixed`-Position, derselbe Aussen-Klick-Hänger, dieselbe
+   * vierfach wiederholte Knopf-Zeile — nur ohne Escape, ohne `aria-haspopup`, ohne Schliessen beim
+   * Scrollen und ohne Fokus-Rückgabe an den Auslöser. Letzteres war hier folgenreich: das Menü hängte
+   * sich beim Ablehnen im selben Durchlauf aus, in dem die Rückfrage einzog, und der Fokus stand
+   * beim Öffnen des Dialogs schon auf `<body>` — die Rückgabe lief also ins Leere. Das geteilte Menü
+   * gibt den Fokus vor dem Auswählen an seinen Knopf zurück, und der Dialog findet ihn dort.
+   */
+  const items: RowAction[] = [
+    canManuallyVerify && {
+      label: t("kontrolleVerifyBtn"), icon: <CheckCircle2 size={14} />, ok: true,
+      onSelect: () => doAction("manuallyVerify"),
+    },
+    canReject && {
+      label: t("kontrolleRejectBtn"), icon: <X size={14} />, danger: true,
+      onSelect: () => setConfirmReject(true),
+    },
+    canWithdraw && {
+      label: t("kontrolleWithdrawBtn"), icon: <MinusCircle size={14} />,
+      onSelect: () => doAction("withdraw"),
+    },
+    canDelete && {
+      label: t("kontrolleDeleteBtn"), icon: <Trash2 size={14} />, danger: true,
+      onSelect: () => doAction("delete"),
+    },
+  ].filter(Boolean) as RowAction[];
+
+  if (items.length === 0) return null;
+
   return (
     <div className="relative flex-shrink-0">
       {error && (
         <p className="absolute right-0 top-full mt-1 text-xs text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-lg px-2 py-1 whitespace-nowrap z-50">{error}</p>
       )}
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={openMenu}
-        aria-label={t("kontrolleAriaActions")}
-        className="size-6 flex items-center justify-center rounded-lg text-foreground-faint hover:text-foreground-muted hover:bg-surface-raised active:bg-surface-raised transition"
-      >
-        <MoreVertical size={16} />
-      </button>
+      <RowActionsMenu items={items} ariaLabel={t("kontrolleAriaActions")} />
 
-      {open && (
-        <div
-          ref={menuRef}
-          style={{ top: pos.top, right: pos.right }}
-          className="fixed w-44 bg-surface border border-border rounded-xl shadow-overlay z-50 overflow-hidden"
-        >
-          {canManuallyVerify && (
-            <button
-              type="button"
-              onClick={() => doAction("manuallyVerify")}
-              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-[var(--color-ok)] hover:bg-ok-bg transition"
-            >
-              <CheckCircle2 size={14} />
-              {t("kontrolleVerifyBtn")}
-            </button>
-          )}
-          {canReject && (
-            <>
-              {canManuallyVerify && <div className="border-t border-border-subtle" />}
-              <button
-                type="button"
-                onClick={() => doAction("reject")}
-                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-warn hover:bg-warn-bg transition"
-              >
-                <X size={14} />
-                {t("kontrolleRejectBtn")}
-              </button>
-            </>
-          )}
-          {canWithdraw && (
-            <button
-              type="button"
-              onClick={() => doAction("withdraw")}
-              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground-muted hover:bg-surface-raised transition"
-            >
-              <MinusCircle size={14} />
-              {t("kontrolleWithdrawBtn")}
-            </button>
-          )}
-          {canDelete && (
-            <button
-              type="button"
-              onClick={() => doAction("delete")}
-              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-warn hover:bg-warn-bg transition"
-            >
-              <Trash2 size={14} />
-              {t("kontrolleDeleteBtn")}
-            </button>
-          )}
-        </div>
-      )}
+      {/* Der Text richtet sich danach, ob überhaupt ein Vergehen entstehen kann — eine Rückfrage darf
+          nicht mehr behaupten, als stimmt. Das Vergehen `rejected_control` leitet das Strafbuch aus
+          den ANFORDERUNGEN ab (`kontrollAnforderungen.filter(k => k.entry?.verifikationStatus ===
+          "rejected")`); eine freiwillige Selbstkontrolle hat keine — sie ist genau der Fall, in dem
+          `kontrolleId` null ist. Ihre Ablehnung ist deshalb nur eine Meldung.
+
+          Was auch die belastende Fassung nicht behauptet: dass das Vergehen sicher gezählt wird. Die
+          Art ist je Sub abschaltbar (`OFFENSE_RULE_MODES.rejected_control`), und diese Komponente
+          weiss davon nichts — der Vorbehalt steht deshalb im Satz statt in einer Bedingung, die hier
+          gar nicht zu prüfen wäre. */}
+      <ConfirmDialog
+        open={confirmReject}
+        title={t("kontrolleRejectConfirmTitle")}
+        message={t(kontrolleId ? "kontrolleRejectConfirmTextRequested" : "kontrolleRejectConfirmTextVoluntary")}
+        confirmLabel={t("kontrolleRejectBtn")}
+        danger
+        loading={rejecting}
+        icon={<X size={20} style={{ color: "var(--color-warn)" }} />}
+        onConfirm={runReject}
+        onCancel={() => setConfirmReject(false)}
+      />
     </div>
   );
 }

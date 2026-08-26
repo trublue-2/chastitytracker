@@ -23,15 +23,20 @@ import { type ReactNode } from "react";
  *  setzen. Über `className` ginge es gar nicht zuverlässig: welches `max-w-*` gewinnt, entscheidet
  *  bei Tailwind v4 die Reihenfolge im erzeugten Stylesheet, nicht die im Klassen-String.
  *
- *  (Nicht zu verwechseln mit `StatsMain`, das dieselbe Frage über ein `compact`-Prop löst — das
- *  IST das `<main>` seiner Seite und wechselt zusätzlich die Abstands-Skala, ist also kein
- *  gestapelter Block.) */
+ *  (Nicht zu verwechseln mit `StatsMain`: das ist kein gestapelter Block, sondern ein ganzer
+ *  Seiteninhalt. Es bekommt seine Spalte ebenfalls von aussen und trägt dasselbe `as`-Prop — dort
+ *  aber, um auf `/dashboard/stats` selbst die Landmarke zu sein, während es im Keyholder-Reiter
+ *  ein `div` bleibt, weil das Layout dort schon eines setzt.) */
 export default function DashboardBlock({
   as: Tag = "div",
   className = "",
   children,
 }: {
-  /** `main` für den einen Landmark-Block der Seite (DashboardClient), sonst `div`. */
+  /**
+   * `main` für den EINEN Block, der die Landmarke seiner Seite ist, sonst `div`. Das sind heute
+   * drei: das Dashboard (`DashboardClient`) sowie die Regel- und die Posteingang-Seite. Eine Seite
+   * darf genau ein `<main>` haben — `pageMeasures.test.ts` wacht darüber.
+   */
   as?: "div" | "main";
   className?: string;
   children: ReactNode;

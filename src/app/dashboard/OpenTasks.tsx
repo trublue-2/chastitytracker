@@ -8,6 +8,7 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import TaskCard from "@/app/components/TaskCard";
 import TaskCardStack from "@/app/components/TaskCardStack";
 import Button from "@/app/components/Button";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { parseApiErrorCode } from "@/lib/apiClient";
@@ -56,6 +57,21 @@ function MarkDoneButton({ taskId }: { taskId: string }) {
   const { offlineFetch } = useOfflineQueue();
   const [saving, setSaving] = useState(false);
 
+  /**
+   * Rückfrage vor der Selbstmeldung.
+   *
+   * Die Regel, aus der sie folgt: **eine Rückfrage gehört dorthin, wo eine Handlung für einen
+   * ANDEREN Folgen hat — nicht nur dorthin, wo Daten verschwinden.** Die App hat sie lange umgekehrt
+   * angewandt: vor dem Löschen einer Nachricht wurde gefragt, vor dieser Meldung nicht, obwohl sie
+   * eine Auskunft über sich selbst ist, an der die Keyholderin ihr Urteil festmacht.
+   *
+   * Warum sie hier schwerer wiegt als anderswo: **es gibt keinen Weg zurück.** `completeTask` kennt
+   * nur das Setzen von `completedAt` (eine erneute Meldung rückt den Zeitstempel höchstens vor);
+   * eine Aktion, die ihn wieder auf `null` setzt, existiert weder für den Träger noch für die
+   * Keyholderin. Und der Knopf sitzt auf dem Dashboard, wo auf 390 px ein Fehltipper genügt.
+   */
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   async function handle() {
     setSaving(true);
     try {
@@ -84,12 +100,29 @@ function MarkDoneButton({ taskId }: { taskId: string }) {
   return (
     <div className="flex flex-col gap-1.5">
       {/* Primär, nicht sekundär: das ist die letzte Handlung der Aufgabe, nicht eine Nebenoption. */}
-      <Button type="button" variant="primary" fullWidth loading={saving} onClick={handle} icon={<Check size={16} />}>
+      <Button type="button" variant="primary" fullWidth loading={saving} onClick={() => setConfirmOpen(true)} icon={<Check size={16} />}>
         {t("markDone")}
       </Button>
       {/* Wofür der Knopf da ist. Ohne diesen Satz war unklar, was er über die abgehakten Bedingungen
           hinaus noch behauptet — nämlich das, was die App gar nicht messen kann. */}
       <p className="text-xs text-foreground-faint">{t("markDoneHint")}</p>
+
+      {/* KEIN `danger`: die Meldung ist der vorgesehene Abschluss der Aufgabe, kein Zerstören. Rot
+          wäre hier eine Warnung vor der richtigen Antwort.
+
+          Die Rückfrage schliesst VOR dem Abruf, nicht danach: die Rückmeldung dieses Knopfes ist der
+          Toast, und der stünde mit dem Modal auf derselben Ebene (beide `z-[9999]`) — Erfolg wie
+          Fehler könnten hinter dem Dialog liegen. Sichtbar bleibt der Fortschritt trotzdem: der
+          Spinner sitzt am Knopf der Karte, nicht im Dialog. */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title={t("markDoneConfirmTitle")}
+        message={t("markDoneConfirmText")}
+        confirmLabel={t("markDone")}
+        icon={<Check size={20} style={{ color: "var(--color-warn)" }} />}
+        onConfirm={() => { setConfirmOpen(false); void handle(); }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 }

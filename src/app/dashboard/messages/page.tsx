@@ -56,7 +56,15 @@ export default async function MessagesPage({
   const aiSenderAvailable = aiKeyholderActiveFor(session.user.name);
 
   return (
-    <DashboardBlock>
+    // `as="main"`, weil `dashboard/layout.tsx` — anders als `admin/users/[id]/layout.tsx` — KEINE
+    // Landmarke setzt: jede Seite darunter muss ihre eigene mitbringen, und diese hier tat es als
+    // eine der letzten nicht (#82). Ausgerechnet hier fiel das am meisten ins Gewicht — vor dem
+    // Inhalt stehen Kopfzeile, Seitenleiste und die Filterleiste der Liste, also genau der Weg,
+    // den „zum Hauptbereich springen" abkürzen soll. Ohne Ziel landete der Sprung wieder oben.
+    //
+    // Über das `as` des Blocks statt eines zusätzlichen `<main>` aussen herum: ein Wrapper brächte
+    // eine zweite Ebene zwischen Spalte und Block, und der Block IST hier schon der ganze Inhalt.
+    <DashboardBlock as="main">
       <h1 className="text-lg font-semibold text-foreground mb-1">{t(MESSAGE_SCOPES[SCOPE].titleKey)}</h1>
       {/* Der Posteingang beantwortet „Was wurde mir gesagt?" — die Banner auf dem Dashboard
           „Was muss ich JETZT tun?". Deshalb hier bewusst kein Countdown und keine Dringlichkeit. */}

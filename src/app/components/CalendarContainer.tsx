@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, Fragment, useEffect, useRef } from "react";
+import { useState, Fragment, useRef } from "react";
 import { toDateLocale, formatTotalHours } from "@/lib/utils";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
+import { useDialogBehaviour } from "@/app/hooks/useDialogBehaviour";
 import { useLocale, useTranslations } from "next-intl";
 
 import type { DayEntry, DayVorgabe, CalendarDayData, CalendarMonthData } from "@/lib/statsTypes";
@@ -13,27 +14,14 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
   const tc = useTranslations("common");
   const [selected, setSelected] = useState<CalendarDayData | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  // Focus the dialog when it opens; restore focus when it closes
-  useEffect(() => {
-    if (selected) {
-      dialogRef.current?.focus();
-    } else if (triggerRef.current) {
-      triggerRef.current.focus();
-      triggerRef.current = null;
-    }
-  }, [selected]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!selected) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setSelected(null);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selected]);
+  // Autofokus, Escape, Fokus-Rückgabe, Fokus-Falle und Scroll-Sperre über den geteilten Hook.
+  // Hier standen zwei handgeschriebene Effekte, die den dritten Nachbau derselben Mechanik
+  // bildeten — mit zwei Lücken, die man mit der Maus nie bemerkt: es gab KEINE Fokus-Falle (Tab
+  // lief hinter dem offenen Tag-Fenster durch den ganzen Kalender weiter) und der Hänger reagierte
+  // auch dann auf Escape, wenn darüber noch ein Dialog stand. Die Rückgabe an den Auslöser kam der
+  // Hook ohnehin mit, also fällt `triggerRef` weg.
+  useDialogBehaviour(dialogRef, { open: selected !== null, onClose: () => setSelected(null) });
 
   const TYPE_LABELS: Record<string, string> = {
     VERSCHLUSS: t("typeVerschluss"),
@@ -76,9 +64,8 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
                     return (
                       <button
                         key={`${wi}-${di}`}
-                        onClick={(e) => {
+                        onClick={() => {
                           if (!hasData) return;
-                          triggerRef.current = e.currentTarget;
                           setSelected(dayData);
                         }}
                         className={`relative rounded aspect-square flex items-center justify-center w-full ${dayData.colorClass} ${dayData.dailyGoalMet === true ? "ring-2 ring-[var(--color-ok)]" : ""} ${hasData ? "cursor-pointer hover:opacity-75 active:scale-95 transition-all" : "cursor-default"}`}

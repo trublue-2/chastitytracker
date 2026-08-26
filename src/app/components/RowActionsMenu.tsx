@@ -14,6 +14,13 @@ export interface RowAction {
   onSelect?: () => void;
   /** Warnfarbe für zerstörende Einträge (Löschen). */
   danger?: boolean;
+  /**
+   * Bestätigungsfarbe für den einen Eintrag, der etwas ABSCHLIESST statt es zu entfernen (eine
+   * Kontrolle von Hand anerkennen). Bewusst nur diese eine Zusatzfarbe: sie steht in denselben
+   * Menüs unmittelbar über einem `danger`-Eintrag, und die beiden gegenläufigen Ausgänge — anerkennen
+   * oder ablehnen — dürfen nicht gleich aussehen.
+   */
+  ok?: boolean;
 }
 
 /**
@@ -87,11 +94,13 @@ export default function RowActionsMenu({ items, ariaLabel }: { items: RowAction[
     };
   }, [open]);
 
-  const itemCls = (danger?: boolean, first?: boolean) =>
+  const itemCls = (item: RowAction, first: boolean) =>
     [
       "w-full flex items-center gap-2.5 px-4 py-3 text-sm transition",
       first ? "" : "border-t border-border-subtle",
-      danger ? "text-warn hover:bg-warn-bg" : "text-foreground-muted hover:bg-surface-raised",
+      item.danger ? "text-warn hover:bg-warn-bg"
+        : item.ok ? "text-[var(--color-ok)] hover:bg-ok-bg"
+        : "text-foreground-muted hover:bg-surface-raised",
     ].filter(Boolean).join(" ");
 
   return (
@@ -116,7 +125,7 @@ export default function RowActionsMenu({ items, ariaLabel }: { items: RowAction[
         >
           {items.map((item, i) =>
             item.href ? (
-              <Link key={item.label} href={item.href} onClick={close} className={itemCls(item.danger, i === 0)}>
+              <Link key={item.label} href={item.href} onClick={close} className={itemCls(item, i === 0)}>
                 {item.icon}
                 {item.label}
               </Link>
@@ -125,7 +134,7 @@ export default function RowActionsMenu({ items, ariaLabel }: { items: RowAction[
                 key={item.label}
                 type="button"
                 onClick={() => { close(); item.onSelect?.(); }}
-                className={itemCls(item.danger, i === 0)}
+                className={itemCls(item, i === 0)}
               >
                 {item.icon}
                 {item.label}

@@ -24,6 +24,14 @@ import Sheet from "@/app/components/Sheet";
  *
  * `Sheet` statt eines nativen `confirm()` aus demselben Grund wie überall sonst: das native steht
  * ausserhalb des Design-Systems und ist nicht beschriftbar.
+ *
+ * **Die Grenze zu {@link ConfirmDialog}:** nicht „hat Folgen" — die haben beide, und ein
+ * `ConfirmDialog` benennt seine Nebenwirkung genauso im Text. Massgeblich ist, welche Antwort
+ * wahrscheinlich die richtige ist. Hier ist es das ZURÜCKTRETEN: der Nutzer ist auf die Schranke
+ * gestossen, statt sie zu suchen, und erfährt erst in dieser Rückfrage, was er gerade täte. Deshalb
+ * die umgekehrte Hierarchie. Wo er den Schritt bewusst angestossen hat und nur noch bestätigt —
+ * Passwort setzen, Aufgabe abhaken, Nachricht löschen —, bleibt `ConfirmDialog` richtig, auch wenn
+ * die Meldung dort vor einer Nebenwirkung warnt.
  */
 export default function RiskConfirmSheet({
   open,
@@ -49,7 +57,10 @@ export default function RiskConfirmSheet({
   children: ReactNode;
 }) {
   return (
-    <Sheet open={open} onClose={onClose} title="">
+    /* `label` statt `title`: die Überschrift steht hier neben dem Warnsymbol und wird von der
+       Komponente selbst gesetzt — `Sheet` soll sie nicht ein zweites Mal darüber schreiben. Ohne
+       `label` hätte der Dialog dann gar keinen Namen. */
+    <Sheet open={open} onClose={onClose} label={title} busy={proceeding}>
       <div className="flex flex-col gap-5">
         <div className="flex items-start gap-3">
           <AlertCircle size={28} className="flex-shrink-0 text-warn mt-0.5" />
@@ -59,7 +70,7 @@ export default function RiskConfirmSheet({
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <Button type="button" variant="primary" fullWidth onClick={onClose}>
+          <Button type="button" variant="primary" fullWidth disabled={proceeding} onClick={onClose}>
             {stayLabel}
           </Button>
           <Button type="button" variant="secondary" fullWidth loading={proceeding} onClick={onProceed}>

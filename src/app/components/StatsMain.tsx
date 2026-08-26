@@ -16,13 +16,26 @@ import { BarChart2 } from "lucide-react";
  * Die Blöcke samt ihrer Datenbeschaffung stehen in `statsBlocks.tsx`; hier bleibt, was beide
  * Sichten gemeinsam haben: wer, wann, in welcher Zone, und der Rahmen drumherum.
  */
-export default async function StatsMain({ userId, surface, heading, backHref, backLabel }: {
+export default async function StatsMain({ userId, surface, heading, backHref, backLabel, as: Tag = "div" }: {
   userId: string;
   /** Wessen Sicht das ist. Bestimmt, welche Konfiguration gilt — die des Betrachters. */
   surface: "subStats" | "keyholderStats";
   heading?: string;
   backHref?: string;
   backLabel?: string;
+  /**
+   * Welches Element die Fassung aufspannt.
+   *
+   * `div` ist die Vorgabe, weil diese Komponente an ZWEI Orten hängt: als Reiter im
+   * Keyholder-Bereich liegt sie in dem `<main>`, das `admin/users/[id]/layout.tsx` schon rendert —
+   * ein zweites darin wären zwei Landmarken desselben Typs, und „Hauptbereich" würde für einen
+   * Screenreader zur Frage statt zur Antwort.
+   *
+   * Auf `/dashboard/stats` ist sie dagegen die ganze Seite, und `dashboard/layout.tsx` setzt keine
+   * Landmarke. Dort stand deshalb gar keine — auffällig nur daneben: das SKELETT der Seite hatte
+   * eins, die fertige Seite nicht.
+   */
+  as?: "div" | "main";
 }) {
   const now = new Date();
   const [t, tc, ta, locale, user, entries, hasWeight] = await Promise.all([
@@ -36,7 +49,7 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
   ]);
 
   const pageHeading = heading ?? t("title");
-  // KEINE eigene Spalte und KEINE eigene Landmarke.
+  // KEINE eigene Spalte — und die Landmarke nur auf Ansage (`as="main"`).
   //
   // Beides kommt von aussen, seit die Bereichs-Layouts das Mass setzen (#77): `/dashboard/stats`
   // erbt das Lesemass, der Keyholder-Reiter die breite Spalte. Vorher wählte diese Komponente
@@ -55,7 +68,7 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
   // etwas verschlossen hat, hat sehr wohl eine Statistik.
   if (entries.length === 0 && !hasWeight) {
     return (
-      <div className={wrapper}>
+      <Tag className={wrapper}>
         {backHref && (
           <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
         )}
@@ -63,7 +76,7 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
         <Card padding="default">
           <EmptyState icon={<BarChart2 size={32} />} title={t("noEntries")} />
         </Card>
-      </div>
+      </Tag>
     );
   }
 
@@ -84,8 +97,8 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
   const nodes = await renderStack(layout, ctx, STATS_BLOCK_TABLE);
 
   return (
-    <div className={wrapper}>
+    <Tag className={wrapper}>
       <BlockStack layout={layout} nodes={nodes} />
-    </div>
+    </Tag>
   );
 }

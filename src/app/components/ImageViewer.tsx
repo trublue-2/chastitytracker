@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { X, ImageOff, Maximize2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useDialogBehaviour } from "@/app/hooks/useDialogBehaviour";
 
 // ─── Pinch-zoom image ────────────────────────────────────────────────────────
 
@@ -107,6 +108,7 @@ export function FullscreenImageModal({
   const t = useTranslations("common");
   const [imgError, setImgError] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Fehlerzustand gehört zum BILD, nicht zum Modal: seit das Panel zwischen Eintrags- und Box-Foto
   // umschalten kann, wechselt `src` bei offenem Modal. Ohne diesen Reset bliebe „Bild nicht
@@ -119,26 +121,16 @@ export function FullscreenImageModal({
     setMounted(true);
   }, []);
 
-  // Scroll-lock: prevent the page behind from scrolling while modal is open.
-  // Also hides the body scrollbar so the underlying page doesn't shift.
-  useEffect(() => {
-    if (!mounted) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [mounted]);
-
-  // Keyboard: close on Escape.
-  useEffect(() => {
-    if (!mounted) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [mounted, onClose]);
+  // Escape, Scroll-Sperre, Autofokus, Fokus-Falle und Fokus-Rückgabe über den geteilten Hook.
+  //
+  // Hier stand der VIERTE Nachbau derselben Mechanik, und der folgenreichste: das Vollbild liegt
+  // auf `z-index: 99999` über allem, hatte aber als einziger Dialog gar keine Fokus-Falle. Wer es
+  // mit der Tastatur öffnete, tabbte anschliessend unsichtbar durch die Seite dahinter. Die eigene
+  // Scroll-Sperre merkte sich ausserdem ihren eigenen Vorwert — lag das Vollbild über einem Sheet
+  // (Aufgaben-Nachweis: `TaskList` → `TaskCard`), gab sie beim Schliessen `"hidden"` zurück und die
+  // Seite liess sich bis zum Neuladen nicht mehr scrollen. Der Hook zählt die offenen Dialoge
+  // stattdessen an einer Stelle.
+  useDialogBehaviour(dialogRef, { open: mounted, onClose });
 
   if (!mounted) return null;
 
@@ -161,9 +153,13 @@ export function FullscreenImageModal({
      *   spelling and would behave identically.
      */
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={alt}
+      /* `tabIndex={-1}`: der Hook gibt dem Dialog selbst den Fokus, damit der Screenreader beim
+         Öffnen Rolle und Bildbeschreibung ansagt. */
+      tabIndex={-1}
       onClick={onClose}
       style={{
         position: "fixed",

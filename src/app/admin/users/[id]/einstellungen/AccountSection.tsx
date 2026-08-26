@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, KeyRound } from "lucide-react";
 import SettingsSection from "@/app/components/SettingsSection";
 import Input from "@/app/components/Input";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
 import { useApiError } from "@/app/hooks/useApiError";
 
 interface Props {
@@ -31,9 +32,42 @@ export default function AccountSection({ userId, username, email, role, isSelf }
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
+  /**
+   * Hinweis am Feld UND Rückfrage — beides, und das ist eine Entscheidung, keine Vorsicht auf Vorrat.
+   *
+   * Der Hinweis allein reicht nicht. Ein Dialog, der eine Überraschung bestätigt, ist immer noch
+   * eine Überraschung — deshalb steht der Satz VOR dem Tippen am Feld. Aber ein Satz unter einem
+   * Passwortfeld wird beim Ausfüllen überlesen, und die Folge trifft hier nicht den Handelnden: sie
+   * trägt sich in die Akte eines ANDEREN ein, der davon nichts mitbekommt. Genau dafür ist die
+   * Rückfrage da — sie ist der Moment, in dem die Keyholderin sich fragt, ob gerade eine Sperrzeit
+   * läuft, was ihr sonst niemand sagt.
+   *
+   * Die Regel dahinter, für die nächste Handlung dieser Art: **eine Rückfrage gehört dorthin, wo
+   * eine Handlung für einen ANDEREN Folgen hat — nicht nur dorthin, wo Daten verschwinden.** Dieses
+   * Formular war das reinste Beispiel für die umgekehrte Anwendung: der Löschen-Knopf desselben
+   * Bereichs fragte nach, das Passwortfeld sagte kein Wort.
+   *
+   * Die E-Mail-Änderung daneben bleibt bewusst ohne beides: sie erzeugt keinen Eintrag.
+   */
+  const [pwConfirm, setPwConfirm] = useState(false);
 
-  async function handlePassword(e: React.FormEvent) {
-    e.preventDefault();
+  /**
+   * Kann dieser Passwortwechsel einen Strafbuch-Eintrag auslösen?
+   *
+   * `recordAdminPasswordChange` schreibt nur, wenn das ZIEL ein Admin-Konto ist — und dann eine
+   * Zeile je Träger, für den gerade eine Sperrzeit läuft. Der Eintrag landet also in fremden Akten,
+   * nicht in der des Kontos, dessen Passwort hier steht.
+   *
+   * Die zweite Bedingung (läuft überhaupt eine Sperrzeit?) kann diese Seite nicht beantworten: sie
+   * gilt für ALLE Träger der Instanz, nicht nur für den, dessen Einstellungen offen sind. Genau
+   * deshalb steht sie im Text als Vorbehalt und nicht als Bedingung im Code — behauptet würde sonst
+   * mehr, als hier zu wissen ist. Bei einem gewöhnlichen Konto entsteht nie ein Eintrag; dort wäre
+   * jeder Hinweis eine Warnung vor nichts.
+   */
+  const passwordMayBeRecorded = role === "admin";
+
+  /** Setzt das Passwort — aufgerufen entweder direkt oder aus der Rückfrage. */
+  async function submitPassword() {
     setPwError(null);
     setPwSaving(true);
     const res = await fetch(`/api/admin/users/${userId}`, {
@@ -49,6 +83,15 @@ export default function AccountSection({ userId, username, email, role, isSelf }
       const data = await res.json();
       setPwError(apiError(data.error));
     }
+  }
+
+  function handlePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (passwordMayBeRecorded) {
+      setPwConfirm(true);
+      return;
+    }
+    void submitPassword();
   }
 
   // Email
@@ -152,6 +195,9 @@ export default function AccountSection({ userId, username, email, role, isSelf }
                     required
                     minLength={8}
                     autoComplete="new-password"
+                    // Der Hinweis gehört ans FELD und nicht nur in die Rückfrage: er soll gelesen
+                    // werden, bevor jemand ein Passwort tippt, nicht erst, wenn es dasteht.
+                    hint={passwordMayBeRecorded ? t("passwordChangeOffenseHint") : undefined}
                   />
                   <FormError message={pwError} />
                   <Button type="submit" variant="primary" fullWidth loading={pwSaving}>
@@ -164,6 +210,22 @@ export default function AccountSection({ userId, username, email, role, isSelf }
         </div>
 
       </div>
+
+      {/* KEIN `danger`: das Passwort zu setzen ist erlaubt und oft nötig — Rot wäre eine Warnung vor
+          einer gültigen Handlung. Gewarnt wird vor der NEBENWIRKUNG, und die steht im Text.
+
+          Vor dem Abruf schliessen, nicht danach: die Fehlerzeile (`FormError`) steht unmittelbar
+          unter dem Feld, also dort, wo der Nutzer nach dem Schliessen ohnehin hinsieht — und
+          `ConfirmDialog` hat keinen Platz für sie. */}
+      <ConfirmDialog
+        open={pwConfirm}
+        title={ts("changePassword")}
+        message={t("passwordChangeConfirmText")}
+        confirmLabel={tc("save")}
+        icon={<KeyRound size={20} style={{ color: "var(--color-warn)" }} />}
+        onConfirm={() => { setPwConfirm(false); void submitPassword(); }}
+        onCancel={() => setPwConfirm(false)}
+      />
     </SettingsSection>
   );
 }

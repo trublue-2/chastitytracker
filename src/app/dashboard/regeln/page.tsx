@@ -84,7 +84,11 @@ export default async function RulesPage() {
   const hasFixedWindow = !!auto && !!fixedWindowMinutes(auto);
 
   return (
-    <DashboardBlock>
+    // `as="main"`: `dashboard/layout.tsx` setzt keine Landmarke, jede Seite darunter bringt ihre
+    // eigene mit (#82). Für eine reine Lese-Seite ist das kein Nebenschauplatz — wer sie mit dem
+    // Screenreader durchgeht, will an den Regeln entlanglesen und nicht jedes Mal zuerst durch
+    // Kopfzeile und Seitenleiste.
+    <DashboardBlock as="main">
       <h1 className="text-lg font-semibold text-foreground mb-1">{t("title")}</h1>
       <p className="text-xs text-foreground-faint mb-4">{t("intro")}</p>
 

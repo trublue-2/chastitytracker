@@ -1393,7 +1393,12 @@
     "weightKeyholderTargetHint": "Applies as long as you have set one. Leave empty: then his applies.",
     "weightSubTarget": "The wearer aims for {value}.",
     "weightSubTargetNone": "The wearer has not set a target yet.",
-    "weightTargetUnderweightWarning": "For him this target is underweight (BMI below 18.5). You can still set it."
+    "weightTargetUnderweightWarning": "For him this target is underweight (BMI below 18.5). You can still set it.",
+    "kontrolleRejectConfirmTitle": "Reject inspection?",
+    "kontrolleRejectConfirmTextRequested": "The sub is notified, and the rejected inspection counts as an offence in the punishment log — provided that kind of offence is switched on for him. The only way back is to confirm the inspection afterwards.",
+    "kontrolleRejectConfirmTextVoluntary": "The sub is notified. No offence comes of it: only the rejection of a requested inspection counts, and this one is a voluntary self-inspection.",
+    "passwordChangeOffenseHint": "This is an admin account: changing the password while a lock period is running shows up in the affected sub's punishment log.",
+    "passwordChangeConfirmText": "If a lock period is running for a sub, this password change is recorded in his punishment log — even if you are only changing your own account."
   },
   "forgotPassword": {
     "pageTitle": "Reset password",
@@ -1945,7 +1950,9 @@
     "sectionOpen": "Open",
     "sectionClosed": "Done & withdrawn",
     "deleteTaskConfirmTitle": "Delete task?",
-    "deleteTaskConfirmText": "The withdrawn task is removed for good, along with its conditions and proof photos. Messages about it stay in the inbox."
+    "deleteTaskConfirmText": "The withdrawn task is removed for good, along with its conditions and proof photos. Messages about it stay in the inbox.",
+    "markDoneConfirmTitle": "Report as done?",
+    "markDoneConfirmText": "This report cannot be taken back. Only report what has actually been done."
   },
   "offenses": {
     "unauthorizedOpening": {

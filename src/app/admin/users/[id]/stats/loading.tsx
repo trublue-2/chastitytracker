@@ -2,8 +2,9 @@ import Skeleton from "@/app/components/Skeleton";
 
 export default function AdminStatsLoading() {
   return (
-    // Dieselbe Hülle wie `StatsMain column="inherit"`: die Spalte kommt vom Layout, hier steht nur
-    // der Stapel. `flex-1` gehört dazu, sonst schrumpft das Skelett auf seinen Inhalt.
+    // Dieselbe Hülle wie `StatsMain` in diesem Reiter: die Spalte kommt vom Layout, die Landmarke
+    // auch — hier steht nur der Stapel. `flex-1` gehört dazu, sonst schrumpft das Skelett auf
+    // seinen Inhalt.
     <div className="flex-1 flex flex-col gap-6">
       {/* Back link + title */}
       <div className="flex flex-col gap-1">

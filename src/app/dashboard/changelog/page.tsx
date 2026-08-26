@@ -51,7 +51,14 @@ export default async function ChangelogPage() {
   };
 
   return (
-    <div className="py-6">
+    // `main` statt `div`: `dashboard/layout.tsx` setzt keine Landmarke (nur
+    // `admin/users/[id]/layout.tsx` tut das), also muss die Seite sie selbst mitbringen — wie es
+    // `eintraege`, `categories` und `geraete` nebenan schon tun. Ohne sie zeigte „zum Hauptbereich
+    // springen" ins Leere und warf den Nutzer zurück an den Seitenkopf (#82).
+    //
+    // Ein reines `main` und kein `DashboardBlock`: die Spalte kommt vom Layout, der Block hätte
+    // hier nichts hinzuzufügen.
+    <main className="py-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Link
@@ -129,6 +136,6 @@ export default async function ChangelogPage() {
           );
         })}
       </div>
-    </div>
+    </main>
   );
 }

@@ -5,5 +5,5 @@ export default async function StatsPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  return <StatsMain userId={userId} surface="subStats" />;
+  return <StatsMain userId={userId} surface="subStats" as="main" />;
 }

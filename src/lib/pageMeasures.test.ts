@@ -1,6 +1,25 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "fs";
 
+// Auf Modul-Ebene, weil der zweite Block unten (Landmarken) beides genauso braucht: über den Baum
+// lesen statt eine Dateiliste pflegen, und vor jedem Vergleich die Kommentare entfernen — die
+// Begründungen in diesem Baum enthalten die gesuchten Muster reihenweise selbst.
+// Die Ausnahme `[^:]` rettet `https://…`: ohne sie kappte die Zeilen-Regel jede Zeile ab dem
+// Doppelschrägstrich einer URL und liesse JSX dahinter verschwinden — ein Muster fände sich dann
+// nicht mehr, und der Test wäre still zu lasch.
+//
+// Was sie NICHT kann: Zeichenketten unterscheiden. Ein `"<main>"` in einem String oder in
+// `dangerouslySetInnerHTML` gilt hier als Code. Für diesen Baum ist das heute folgenlos (geprüft),
+// aber die Erkennung ist eine Textsuche und keine Syntax-Analyse — wer sie schärfer braucht, nimmt
+// einen Parser statt ein weiteres Muster.
+const stripComments = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+const ALL = readdirSync("src", { recursive: true, encoding: "utf8" })
+  .filter((f: string) => f.endsWith(".tsx"))
+  .map((f: string) => `src/${f}`)
+  .sort();
+
 /**
  * Die geteilten Masse dürfen nicht neben sich selbst noch einmal von Hand stehen.
  *
@@ -24,14 +43,6 @@ import { readdirSync, readFileSync } from "fs";
  * kaputte Suche nicht als grün durchgeht.
  */
 describe("Seiten-Masse kommen aus einer Quelle", () => {
-  const stripComments = (src: string) =>
-    src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-
-  const ALL = readdirSync("src", { recursive: true, encoding: "utf8" })
-    .filter((f: string) => f.endsWith(".tsx"))
-    .map((f: string) => `src/${f}`)
-    .sort();
-
   it("liest den Baum wirklich", () => {
     expect(ALL.length, `nur ${ALL.length} .tsx-Dateien gefunden — die Suche ist kaputt`)
       .toBeGreaterThanOrEqual(150);
@@ -133,5 +144,159 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
       stripComments(readFileSync(file, "utf8")),
       `${file} baut keine Rubrik mehr von Hand — aus RUBRIK_RUECKSTAND streichen`,
     ).toMatch(RUBRIK);
+  });
+});
+
+/**
+ * Jede Seite hat GENAU EINE `<main>`-Landmarke — nicht keine, und nicht zwei.
+ *
+ * Anlass (#82): drei Dashboard-Seiten hatten gar keine. Der Screenreader bietet „zum Hauptbereich
+ * springen" trotzdem an — die Ansage hängt am Angebot, nicht am Ziel. Der Sprung landete also
+ * wieder am Seitenkopf, zwischen Navigation und Filterleiste. Auf `/dashboard/messages` genau vor
+ * dem Weg, den er abkürzen soll.
+ *
+ * Warum das ohne Test wiederkommt: die Landmarke stammt in diesem Baum aus DREI Richtungen, und
+ * welche gilt, hängt am Bereich.
+ *
+ *   1. `admin/users/[id]/layout.tsx` rendert ein `<main>`. Alles darunter erbt es und darf KEINS
+ *      eigenes setzen.
+ *   2. `dashboard/layout.tsx` und `admin/layout.tsx` rendern keins. Jede Seite darunter muss eins
+ *      mitbringen.
+ *   3. Manche bringen es nicht selbst, sondern über eine Hülle — `EntryActionFormShell` für die
+ *      Erfassungs-Formulare, `SettingsForm` für die beiden Einstellungs-Seiten.
+ *
+ * Deshalb ist DIESELBE Hülle je nach Ort anders gebaut, und genau daran verrechnet man sich:
+ * `AdminActionFormShell` (Regel 1) ist ein `div`, seine Schwester `EntryActionFormShell` (Regel 2)
+ * ein `main`, und `StatsMain` ist trotz seines Namens ein `div`, das seine Landmarke von aussen
+ * erwartet. Wer für eine neue Seite die falsche Nachbarschaft abschreibt, bekommt keine Landmarke
+ * oder zwei — und beides sieht im Bild vollkommen normal aus.
+ *
+ * **Was ein statischer Test hier leisten kann — und was nicht.** Regel 1 hängt am Pfad, Regel 2
+ * ebenso, Regel 3 an einem Tag im JSX: das ist lesbar. Nicht lesbar ist eine Landmarke, die über
+ * eine Laufzeit-Registry hereinkommt — `dashboard/page.tsx` rendert einen `BlockStack`, dessen
+ * Blöcke eine gespeicherte Konfiguration auswählt, und `DashboardClient` (mit `as="main"`) ist
+ * einer davon. Diesen Fall kann der Test nicht auflösen. Er weicht dafür aber nicht die Regel für
+ * alle auf, sondern führt ihn namentlich in `INDIREKT_UNPRUEFBAR` — eine kurze Liste, die man
+ * beim Lesen mitprüft, ist ehrlicher als ein Test, der so lange verallgemeinert, bis er nichts
+ * mehr behauptet.
+ *
+ * Geprüft werden nur `/dashboard` und `/admin`. Die öffentlichen Seiten (Login, Passwort,
+ * `/info`) stehen ausserhalb beider Bereichs-Layouts und holen ihre Landmarke aus `AuthScreen`;
+ * sie folgen einer eigenen Regel und würden die hiesige nur verwässern.
+ */
+describe("Jede Seite hat genau eine Landmarke", () => {
+  const PAGES = ALL.filter(
+    (f) => (f.startsWith("src/app/dashboard/") || f.startsWith("src/app/admin/"))
+      && f.endsWith("/page.tsx"),
+  );
+
+  it("findet die Seiten wirklich", () => {
+    expect(PAGES.length, `nur ${PAGES.length} Seiten gefunden — die Suche ist kaputt`)
+      .toBeGreaterThanOrEqual(45);
+  });
+
+  /** Der eine Bereich, dessen Layout die Landmarke für alle seine Seiten stellt. */
+  const LAYOUT_STELLT_MAIN = "src/app/admin/users/[id]/";
+
+  /** Hüllen, die die Landmarke ihrer Seite mitbringen — Name des Tags → wo er wohnt. */
+  const HUELLEN_MIT_MAIN: Record<string, string> = {
+    EntryActionFormShell: "src/app/components/AdminActionFormShell.tsx",
+    SettingsForm: "src/app/dashboard/settings/SettingsForm.tsx",
+  };
+
+  /**
+   * `as="main"` zählt als Landmarke — aber nur an den Bauteilen, die das Prop auch umsetzen. Ein
+   * blosses `as="main"` irgendwo im Code färbte den Test sonst grün, ohne dass eine Landmarke
+   * entsteht: `<Card as="main">` oder `<Section as="main">` reichen das Prop nirgends an ein
+   * Element weiter, und die Seite hätte weiterhin keinen Hauptbereich.
+   *
+   * Ein drittes Bauteil mit diesem Prop gehört in diese Aufzählung — und die Prüfung darunter
+   * merkt es an, wenn eines davon das Prop verliert.
+   */
+  const MIT_AS_PROP = ["DashboardBlock", "StatsMain"] as const;
+  const SETZT_MAIN = new RegExp(`<main[\\s>]|<(?:${MIT_AS_PROP.join("|")})[^>]*\\sas="main"`);
+  const src = (f: string) => stripComments(readFileSync(f, "utf8"));
+
+  /**
+   * Der Rumpf EINER benannten Export-Funktion, nicht die ganze Datei.
+   *
+   * `AdminActionFormShell.tsx` beherbergt beide Hüllen: die für den Keyholder-Reiter (ein `div`,
+   * weil das Layout dort schon eine Landmarke stellt) und die für die Erfassungs-Seiten (ein
+   * `<main>`). Eine Suche über die Datei fände das `<main>` der einen auch dann noch, wenn jemand
+   * die Tags der beiden vertauscht — der Test bliebe grün, während zehn Erfassungs-Seiten ihre
+   * Landmarke verlören und die Keyholder-Formularseiten eine zweite bekämen.
+   */
+  const exportBody = (file: string, name: string) => {
+    const code = src(file);
+    const at = code.search(new RegExp(`^export (?:default )?function ${name}\\b`, "m"));
+    expect(at, `${name} ist in ${file} keine benannte Export-Funktion mehr`).toBeGreaterThanOrEqual(0);
+    const next = code.slice(at + 1).search(/^export /m);
+    return next === -1 ? code.slice(at) : code.slice(at, at + 1 + next);
+  };
+  const nutztHuelle = (code: string) =>
+    Object.keys(HUELLEN_MIT_MAIN).some((tag) => code.includes(`<${tag}`));
+
+  /**
+   * Landmarke vorhanden, aber nicht statisch nachweisbar (Begründung oben). Nur für
+   * Laufzeit-Indirektion — NICHT als bequemer Ort für eine Seite, die wirklich keine hat.
+   */
+  const INDIREKT_UNPRUEFBAR = new Set(["src/app/dashboard/page.tsx"]);
+
+  it.each(Object.entries(HUELLEN_MIT_MAIN))("%s bringt wirklich ein <main> mit", (tag, file) => {
+    expect(
+      exportBody(file, tag),
+      `${tag} in ${file} rendert kein <main> mehr — aus HUELLEN_MIT_MAIN streichen`,
+    ).toMatch(/<main[\s>]/);
+    expect(
+      PAGES.filter((p) => src(p).includes(`<${tag}`)),
+      `keine Seite unter /dashboard oder /admin nutzt ${tag} noch — aus HUELLEN_MIT_MAIN streichen`,
+    ).not.toHaveLength(0);
+  });
+
+  // Ohne diese beiden Prüfungen wären die Listen die bequemste Stelle, an der der Test still
+  // stirbt: wer die Erkennung kaputtmacht, bekommt eine grüne Suite UND zwei Listen, die weiterhin
+  // nach Aufsicht aussehen.
+  it.each([...INDIREKT_UNPRUEFBAR])("%s ist zu Recht nicht statisch prüfbar", (file) => {
+    const code = src(file);
+    expect(
+      SETZT_MAIN.test(code) || nutztHuelle(code),
+      `${file} setzt seine Landmarke inzwischen sichtbar — aus INDIREKT_UNPRUEFBAR streichen`,
+    ).toBe(false);
+  });
+
+  it.each(MIT_AS_PROP)("%s setzt sein as-Prop wirklich um", (tag) => {
+    const file = ALL.find((f) => f.endsWith(`/${tag}.tsx`));
+    expect(file, `${tag} gibt es nicht mehr — aus MIT_AS_PROP streichen`).toBeDefined();
+    expect(
+      /as:\s*Tag|as\s*=\s*"div"/.test(readFileSync(file!, "utf8")),
+      `${tag} nimmt kein \`as\`-Prop mehr entgegen — aus MIT_AS_PROP streichen, sonst zählt der `
+        + `Landmarken-Test ein Prop, das nirgends ankommt`,
+    ).toBe(true);
+  });
+
+  it.each(PAGES.filter((f) => f.startsWith(LAYOUT_STELLT_MAIN)))(
+    "%s überlässt die Landmarke seinem Layout",
+    (file) => {
+      const code = src(file);
+      expect(
+        SETZT_MAIN.test(code) || nutztHuelle(code),
+        `${file} setzt eine zweite Landmarke — `
+          + `\`admin/users/[id]/layout.tsx\` rendert bereits ein <main>. Ein \`div\` nehmen `
+          + `(so wie \`AdminActionFormShell\` und \`StatsMain\` es für genau diesen Ort tun).`,
+      ).toBe(false);
+    },
+  );
+
+  it.each(PAGES.filter((f) =>
+    !f.startsWith(LAYOUT_STELLT_MAIN)
+    && !INDIREKT_UNPRUEFBAR.has(f)
+  ))("%s bringt seine Landmarke selbst mit", (file) => {
+    const code = src(file);
+    expect(
+      SETZT_MAIN.test(code) || nutztHuelle(code),
+      `${file} hat keinen Hauptbereich — weder \`dashboard/layout.tsx\` noch `
+        + `\`admin/layout.tsx\` setzt einen. Ein \`<main>\` rendern, \`<DashboardBlock as="main">\` `
+        + `nehmen oder eine Hülle, die eins mitbringt (${Object.keys(HUELLEN_MIT_MAIN).join(", ")}).`,
+    ).toBe(true);
   });
 });

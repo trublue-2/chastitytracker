@@ -1393,7 +1393,12 @@
     "weightKeyholderTargetHint": "Gilt, solange du eines gesetzt hast. Leer lassen: dann gilt seines.",
     "weightSubTarget": "Der Träger hat sich {value} vorgenommen.",
     "weightSubTargetNone": "Der Träger hat sich noch kein Ziel vorgenommen.",
-    "weightTargetUnderweightWarning": "Dieses Ziel liegt für ihn im Untergewicht (BMI unter 18,5). Du kannst es trotzdem setzen."
+    "weightTargetUnderweightWarning": "Dieses Ziel liegt für ihn im Untergewicht (BMI unter 18,5). Du kannst es trotzdem setzen.",
+    "kontrolleRejectConfirmTitle": "Kontrolle ablehnen?",
+    "kontrolleRejectConfirmTextRequested": "Der Sub bekommt eine Meldung, und die abgelehnte Kontrolle zählt als Vergehen im Strafbuch — sofern diese Vergehensart bei ihm eingeschaltet ist. Zurücknehmen kannst du die Ablehnung nur, indem du die Kontrolle danach doch bestätigst.",
+    "kontrolleRejectConfirmTextVoluntary": "Der Sub bekommt eine Meldung. Ein Vergehen entsteht daraus nicht: gezählt wird nur die Ablehnung einer angeforderten Kontrolle, und dies hier ist eine freiwillige Selbstkontrolle.",
+    "passwordChangeOffenseHint": "Dies ist ein Admin-Konto: Wird das Passwort geändert, während eine Sperrzeit läuft, erscheint das im Strafbuch des betroffenen Subs.",
+    "passwordChangeConfirmText": "Läuft gerade für einen Sub eine Sperrzeit, wird dieser Passwortwechsel in seinem Strafbuch vermerkt — auch wenn du nur dein eigenes Konto änderst."
   },
   "forgotPassword": {
     "pageTitle": "Passwort zurücksetzen",
@@ -1945,7 +1950,9 @@
     "sectionOpen": "Offen",
     "sectionClosed": "Erledigt & zurückgezogen",
     "deleteTaskConfirmTitle": "Aufgabe löschen?",
-    "deleteTaskConfirmText": "Die zurückgezogene Aufgabe wird mit ihren Bedingungen und Nachweis-Fotos endgültig entfernt. Meldungen dazu bleiben im Posteingang stehen."
+    "deleteTaskConfirmText": "Die zurückgezogene Aufgabe wird mit ihren Bedingungen und Nachweis-Fotos endgültig entfernt. Meldungen dazu bleiben im Posteingang stehen.",
+    "markDoneConfirmTitle": "Als erledigt melden?",
+    "markDoneConfirmText": "Die Meldung lässt sich nicht zurücknehmen. Melde nur, was wirklich ausgeführt ist."
   },
   "offenses": {
     "unauthorizedOpening": {

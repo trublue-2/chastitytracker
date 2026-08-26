@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
-import { User } from "lucide-react";
+import { KeyRound, User } from "lucide-react";
 import Section from "@/app/components/Section";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
@@ -23,6 +23,7 @@ import { LOCALES_LONG } from "@/lib/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
 import WeightSettings from "./WeightSettings";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
@@ -47,10 +48,29 @@ export default function SettingsForm({ username, email, locale, timezone, startP
   const [pwSuccess, setPwSuccess] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
 
-  async function handlePassword(e: React.FormEvent) {
+  /**
+   * Der ZWEITE Weg zu demselben Strafbuch-Eintrag.
+   *
+   * `/api/settings/password` ruft dieselbe `recordAdminPasswordChange` wie der Admin-Bereich, und
+   * die schreibt, wenn das ZIEL ein Admin-Konto ist — hier also, sobald die Keyholderin ihr eigenes
+   * Passwort ändert. Die Zeilen landen in fremden Akten, nicht in ihrer eigenen. Ohne Hinweis und
+   * Rückfrage passierte das an dieser Stelle still, während der Admin-Bereich für exakt denselben
+   * Vorgang beides zeigt. Text und Vorbehalt kommen aus dem `admin`-Namensraum — es ist dieselbe
+   * Aussage, und eine zweite Fassung liefe irgendwann auseinander.
+   */
+  const passwordMayBeRecorded = isAdmin;
+  const [pwConfirm, setPwConfirm] = useState(false);
+
+  function handlePassword(e: React.FormEvent) {
     e.preventDefault();
     setPwError(null);
     if (next !== confirm) { setPwError(t("passwordMismatch")); return; }
+    if (passwordMayBeRecorded) { setPwConfirm(true); return; }
+    void submitPassword();
+  }
+
+  async function submitPassword() {
+    setPwError(null);
     setPwSaving(true);
     const res = await fetch("/api/settings/password", {
       method: "PATCH",
@@ -259,6 +279,7 @@ export default function SettingsForm({ username, email, locale, timezone, startP
                   onChange={(e) => setConfirm(e.target.value)}
                   required
                   autoComplete="new-password"
+                  hint={passwordMayBeRecorded ? ta("passwordChangeOffenseHint") : undefined}
                 />
                 <FormError message={pwError} />
                 <Button type="submit" variant="primary" fullWidth loading={pwSaving}>
@@ -426,6 +447,18 @@ export default function SettingsForm({ username, email, locale, timezone, startP
         </div>
       </Section>
 
+      {/* KEIN `danger` und vor dem Abruf schliessen — dieselbe Begründung wie im Admin-Bereich:
+          das Passwort zu setzen ist erlaubt, gewarnt wird vor der Nebenwirkung, und die Fehlerzeile
+          steht unmittelbar unter dem Feld. */}
+      <ConfirmDialog
+        open={pwConfirm}
+        title={t("changePassword")}
+        message={ta("passwordChangeConfirmText")}
+        confirmLabel={t("saveBtn")}
+        icon={<KeyRound size={20} style={{ color: "var(--color-warn)" }} />}
+        onConfirm={() => { setPwConfirm(false); void submitPassword(); }}
+        onCancel={() => setPwConfirm(false)}
+      />
     </main>
   );
 }
