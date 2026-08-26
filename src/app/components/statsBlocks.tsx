@@ -245,6 +245,7 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
               return (
                 <GoalBar key={period} label={t(GOAL_BAR_LABEL_KEY[period])} actual={actual} target={target}
                   sub={`${formatTotalHours(actual)} ${tc("of")} ${formatTotalHours(target)}`}
+                  shareLabel={(percent) => t(GOAL_BAR_SHARE_KEY[period], { percent })}
                   reachedLabel={t("reached")} />
               );
             })}
@@ -506,18 +507,44 @@ const GOAL_BAR_LABEL_KEY: Record<GoalPeriod, "today" | "thisWeek" | "thisMonth" 
   day: "today", week: "thisWeek", month: "thisMonth", year: "thisYear",
 };
 
-function GoalBar({ label, actual, target, sub, reachedLabel }: { label: string; actual: number; target: number; sub: string; reachedLabel: string }) {
-  const pct = goalPct(actual, target) ?? 0;
+/**
+ * Der NENNER der Prozentzahl, je Periode — „46 % des Tagesziels" statt eines nackten „46 %".
+ *
+ * Dieselbe Tragezeit steht auf dem Dashboard ein zweites Mal, dort aber als Anteil der bisher
+ * VERSTRICHENEN Tageszeit (`dashboard.coverageDay`). Beide Zahlen sind richtig, und sie sagen
+ * Gegenteiliges: 100 % der bisherigen Tageszeit gegen 46 % des Tagesziels. Wer nur die Zahlen
+ * liest, hält eine von beiden für einen Fehler — und im schlimmeren Fall die falsche für die
+ * Erlaubnis, abzulegen. Die Regel dazu steht in `percent.ts`: eine Prozentzahl ohne ihren Nenner
+ * ist unfertig, und wo die Umgebung ihn nicht ohnehin nennt, gehört er in die Beschriftung.
+ *
+ * Die Texte kommen wie bei `GoalProgressRow` als fertige Funktion von aussen — die Bauteile am
+ * Ende dieser Datei haben keinen i18n-Zugang.
+ */
+const GOAL_BAR_SHARE_KEY: Record<GoalPeriod, "goalShareDay" | "goalShareWeek" | "goalShareMonth" | "goalShareYear"> = {
+  day: "goalShareDay", week: "goalShareWeek", month: "goalShareMonth", year: "goalShareYear",
+};
+
+function GoalBar({ label, actual, target, sub, shareLabel, reachedLabel }: { label: string; actual: number; target: number; sub: string; shareLabel: (percent: number) => string; reachedLabel: string }) {
   const reached = actual >= target;
+  // Bei 19h 58min von 20h rundet `goalPct` auf 100 — die Zeile schriebe „100 % des Tagesziels",
+  // während „geschafft" ausbleibt und der Balken sichtbar nicht voll ist. Drei Angaben, zwei
+  // Aussagen. Solange das Ziel nicht erreicht IST, wird deshalb abgeschnitten statt gerundet: 99
+  // ist die höchste Zahl, die ein unerreichtes Ziel nennen darf.
+  const roh = goalPct(actual, target) ?? 0;
+  const pct = reached ? roh : Math.min(99, roh);
   return (
     <div>
       {/* Die Lage steht als WORT da, nicht als Abzeichen: „geschafft" oder der Prozentwert, in
           derselben Zeile wie die Beschriftung. Ein Pillen-Rahmen um zwei Zeichen ist der kleinste
-          Kasten der App und trotzdem einer. */}
+          Kasten der App und trotzdem einer.
+
+          Der Prozentwert nennt seinen Nenner mit („46 % des Tagesziels") — Begründung an
+          `GOAL_BAR_SHARE_KEY`. „geschafft" braucht ihn nicht: das Wort bezieht sich auf das Ziel
+          und auf nichts sonst. */}
       <div className="flex items-baseline justify-between gap-2 mb-1.5">
         <span className="text-fliess text-foreground">{label}</span>
-        <span className={`text-neben font-semibold tabular-nums ${reached ? "text-ok" : "text-foreground-faint"}`}>
-          {reached ? reachedLabel : `${pct}%`}
+        <span className={`text-neben font-semibold tabular-nums text-right ${reached ? "text-ok" : "text-foreground-faint"}`}>
+          {reached ? reachedLabel : shareLabel(pct)}
         </span>
       </div>
       <div className="h-1.5 bg-surface-raised rounded-full overflow-hidden">

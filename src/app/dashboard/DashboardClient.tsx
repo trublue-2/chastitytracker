@@ -50,20 +50,39 @@ export interface DashboardProps {
  * wenige Zeilen darüber in der Session-Karte ein „87 %" für dieselbe Dauer (dort gegen das
  * Tagesziel gerechnet). Zwei richtige Zahlen, kein Hinweis, wovon sie ein Anteil sind.
  *
- * Deshalb trägt diese Zahl ihren Nenner jetzt im Text (`{percent} % des Tages`) — wie es die
- * Jahresübersicht mit `percentLocked` schon immer tat. Die Zielbalken brauchen das nicht: dort
- * steht das `ist / soll` unmittelbar daneben.
+ * Deshalb trägt diese Zahl ihren Nenner jetzt im Text (`{percent} % der bisherigen Tageszeit`) —
+ * wie es die Jahresübersicht mit `percentLocked` schon immer tat. Die Zielbalken brauchen das
+ * nicht: dort steht das `ist / soll` unmittelbar daneben.
+ *
+ * Der Text allein reichte nicht. Gelesen wird die FORM, nicht die 10-px-Zeile darunter: oben ein
+ * zu einem Drittel gefüllter Ziel-Balken, 400 px tiefer ein randvoller für dieselbe Dauer — wer
+ * scrollt, hält das Tagesziel für erfüllt und legt den Gürtel ab. Deshalb ist der verstrichene
+ * Anteil keine Balkenform mehr.
  */
 function WearPercent({ wornH, elapsedH, periodKey }: { wornH: number; elapsedH: number; periodKey: "coverageDay" | "coverageWeek" | "coverageMonth" }) {
   const t = useTranslations("dashboard");
   const pct = coveragePct(wornH, elapsedH);
   if (pct === null) return null;
+  // Zehn Punkte = zehn Zehntel der bisher VERSTRICHENEN Periode. Ein Balken ist eine Füllgeste, er
+  // läuft auf ein Ende zu, und ein volles Ende liest sich als „erreicht" — genau die Lesart, die
+  // hier falsch ist. Eine Punktreihe ist abzählbar statt gefüllt. Dazu gedämpft statt in der
+  // Zustandsfarbe: Vergangenes will nichts vom Nutzer, und Farbe trägt in diesem Entwurf nur, was
+  // gerade etwas will. Damit unterscheiden sich die beiden Anzeigen doppelt — Form UND Farbe.
+  //
+  // Bewusst grob: der Zeitanteil ist eine Textur, die genaue Auskunft steht in der Zeile darunter.
+  // `ceil` unten, Deckel oben: `round` liess die Reihe an BEIDEN Enden lügen. 95 % ergaben zehn von
+  // zehn Punkten — also genau das Bild von 100 % und damit wieder das „voll heisst erreicht", gegen
+  // das diese Form überhaupt gebaut wurde. Und 3 % ergaben null Punkte, ununterscheidbar von „gar
+  // nicht getragen". Voll ist die Reihe jetzt nur bei 100.
+  const filledDots = pct >= 100 ? 10 : Math.min(9, Math.max(1, Math.ceil(pct / 10)));
   return (
     <div className="mt-2">
-      <div className="h-1.5 rounded-full bg-border overflow-hidden">
-        <div className="h-full rounded-full bg-lock" style={{ width: `${pct}%` }} />
+      <div className="flex gap-1" aria-hidden="true">
+        {Array.from({ length: 10 }, (_, i) => (
+          <span key={i} className={`size-1.5 rounded-full ${i < filledDots ? "bg-border-strong" : "bg-border-subtle"}`} />
+        ))}
       </div>
-      <p className="text-[10px] text-foreground-faint mt-0.5 tabular-nums">{t(periodKey, { percent: pct })}</p>
+      <p className="text-[10px] text-foreground-faint mt-1 tabular-nums">{t(periodKey, { percent: pct })}</p>
     </div>
   );
 }

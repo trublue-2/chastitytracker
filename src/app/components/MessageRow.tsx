@@ -65,10 +65,15 @@ export default function MessageRow({
   // Ein Bezug (Text oder Fehl-Hinweis) ist optional — viele Nachrichten haben bewusst keinen
   // (siehe orgasmusAnforderungService: Rückzug ohne refId).
   const hasRef = Boolean(m.refText) || m.refMissing;
+  // Im Auswahlmodus ruht das Aufklappen (siehe unten), also zeigt die Zeile dort auch wieder die
+  // Vorschau — sonst stünde ein Eintrag, der beim Moduswechsel gerade offen war, mit vollem Text
+  // und ohne Panel zwischen lauter kurzen Zeilen und wäre ohne sichtbaren Grund doppelt so hoch.
+  // Eine Auswahlliste lebt davon, dass ihre Zeilen gleich hoch sind.
+  const expanded = open && !selecting;
   // Gemessen wird nur im ZUGEKLAPPTEN Zustand — offen ist der Text nicht mehr beschnitten, die
   // Messung ergäbe „passt", und die Zeile verlöre ihren Knopf unter dem Finger. Der Hook hält den
   // letzten Messwert, solange nicht gemessen wird; ein `|| open` als Ausgleich braucht es nicht.
-  const [textRef, textClamped] = useIsClamped(!open);
+  const [textRef, textClamped] = useIsClamped(!expanded);
   const expandable = hasRef || Boolean(m.refHref) || textClamped;
 
   const title = (
@@ -86,7 +91,7 @@ export default function MessageRow({
         {/* Zu ist die Zeile eine Vorschau, offen der ganze Text — der Text steht deshalb GENAU
             EINMAL da und wird im Panel nicht wiederholt. line-clamp statt truncate: ein „…" mitten
             im Straftext schnitte genau die Begründung ab, wegen der es den Posteingang gibt. */}
-        <span ref={textRef} className={open ? "whitespace-pre-wrap" : "line-clamp-2"}>{m.text}</span>
+        <span ref={textRef} className={expanded ? "whitespace-pre-wrap" : "line-clamp-2"}>{m.text}</span>
       </span>
     </span>
   );
@@ -135,11 +140,19 @@ export default function MessageRow({
 
   const row = (
     <ExpandRow
-      open={open}
+      open={expanded}
       // Kein `onToggle` = kein Aufklappen: `ExpandRow` lässt Knopf, Chevron und Panel weg und
       // behält Geometrie und Aktions-Spalte. Ein Aufklapp-Knopf ist ein Versprechen — hier gäbe es
       // nichts einzulösen.
-      onToggle={expandable ? onToggle : undefined}
+      //
+      // Im AUSWAHLMODUS gilt dasselbe für JEDE Zeile: dort ist die ganze Zeile das Kästchen (siehe
+      // unten), das Aufklappen ruht. Damit verschwindet auch das Chevron, das sonst ein Aufklappen
+      // verspräche, das der Klick nicht mehr einlöst. Und ein Eintrag, der beim Wechsel in den
+      // Modus schon offen war, klappt von selbst zu — ohne `onToggle` rendert `ExpandRow` kein
+      // Panel. Das ist die gewünschte Auflösung von `selecting && open`: das offene Panel trägt
+      // einen Link, und ein Link in einer Zeile, die als Ganzes umschaltet, wäre eine zweite
+      // Bedeutung für denselben Griff.
+      onToggle={!selecting && expandable ? onToggle : undefined}
       actions={selecting ? undefined : actions}
       label={title}
       subtitle={meta}
@@ -178,12 +191,49 @@ export default function MessageRow({
 
   if (!selecting) return row;
 
+  /* IM AUSWAHLMODUS IST DIE GANZE ZEILE DAS KÄSTCHEN.
+   *
+   * Vorher war nur das Kästchen selbst die Trefferfläche — 20 px breit in einer 358 px breiten
+   * Zeile. Jeder Fehlgriff landete auf der Aufklapp-Fläche, und Aufklappen IST das Lesen. „Gelesen"
+   * ist bei einer Nachricht mit Frist keine Anzeige, sondern eine Behauptung mit Folgen, die die
+   * Keyholderin sieht. Zurücknehmen ginge nur über das ⋮-Menü der Zeile — und genau das blendet
+   * dieser Modus aus (`actions={selecting ? undefined : actions}`). Man müsste also den Modus
+   * verlassen, um den Unfall zu reparieren, den der Modus verursacht hat. Deshalb darf er ihn gar
+   * nicht erst verursachen: ein Klick in die Zeile wählt aus, sonst nichts. So macht es jede
+   * Mail-App.
+   *
+   * `role="checkbox"` auf einem `div` statt eines zweiten Knopfes oder eines umschliessenden
+   * `label`: der Zeileninhalt bringt einen Absatz mit (`ExpandRow` setzt die Metazeile als `<p>`),
+   * und `<p>` in `<button>`/`<label>` ist ungültiges Markup. Das `div` hat diese Einschränkung
+   * nicht und ist mit Rolle, `aria-checked`, `tabIndex` und Leertaste ein vollwertiger Umschalter.
+   * Sein Name entsteht aus dem Inhalt — der Screenreader sagt also die Meldung selbst an, nicht ein
+   * farbloses „Nachricht auswählen". Fokussierbare Nachfahren hat er keine: ohne `onToggle` und
+   * ohne `actions` besteht die Zeile nur noch aus Text.
+   */
   return (
-    <div className="flex items-start">
-      <div className="pl-4 pt-2">
-        {/* Die Beschriftung wandert zum Screenreader: sichtbar steht der Meldungstext daneben, und
-            eine zweite Beschriftung im Kreuzchen wiederholte ihn nur. */}
-        <Checkbox label={t("selectRow")} labelHidden checked={checked} onChange={onCheck} />
+    <div
+      role="checkbox"
+      aria-checked={checked}
+      tabIndex={0}
+      onClick={onCheck}
+      // Leertaste, nicht Enter: das ist die Taste, die die angesagte Rolle verspricht — ein natives
+      // Kontrollkästchen tut auf Enter ebenfalls nichts. `preventDefault` hält die Seite darunter
+      // an, die sonst beim Umschalten wegscrollte.
+      onKeyDown={(e) => {
+        if (e.key === " ") {
+          e.preventDefault();
+          onCheck();
+        }
+      }}
+      className="flex items-start cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+    >
+      {/* Das Kästchen ist hier nur noch ANZEIGE. `pointer-events-none`, weil ein Treffer darauf
+          sonst zweimal zählte — Zeile schaltet um, Kästchen schaltet um, Ergebnis: nichts passiert.
+          `aria-hidden` samt `tabIndex={-1}`, damit für dieselbe Zeile nicht zwei Kontrollkästchen
+          angesagt und angesteuert werden; umgeschaltet wird ausschliesslich über die Zeile.
+          `readOnly` nur, damit React ein gesteuertes Feld ohne `onChange` nicht anmahnt. */}
+      <div className="pl-4 pt-2 pointer-events-none" aria-hidden="true">
+        <Checkbox label={t("selectRow")} labelHidden checked={checked} readOnly tabIndex={-1} />
       </div>
       <div className="min-w-0 flex-1">{row}</div>
     </div>

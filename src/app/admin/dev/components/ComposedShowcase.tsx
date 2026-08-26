@@ -324,29 +324,19 @@ export function LaufendeSessionCardMockDemo() {
               <Lock size={24} />
             </div>
             <div className="flex-1 min-w-0">
-              {/* Mobile: stacked */}
-              <div className="sm:hidden">
-                <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">Laufende Session</p>
-                <p className="text-2xl font-bold leading-tight">Verschlossen</p>
-                <div className="flex items-baseline gap-1.5 mt-1">
-                  <span className="text-xs font-semibold uppercase tracking-widest opacity-60">Dauer:</span>
-                  <span className="text-xl font-bold tabular-nums">
-                    <SessionDurationBadge since={sessionSince} pausedMs={0} />
-                  </span>
-                </div>
-              </div>
-              {/* Desktop: side by side */}
-              <div className="hidden sm:flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">Laufende Session</p>
-                  <p className="text-2xl font-bold">Verschlossen</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">Dauer</p>
-                  <p className="text-3xl font-bold tabular-nums leading-tight">
-                    <SessionDurationBadge since={sessionSince} pausedMs={0} />
-                  </p>
-                </div>
+              {/* Zustand und Dauer untereinander, auf jeder Breite — dieselbe Aufteilung wie im
+                  echten `StatusBanner`, und aus demselben Grund dort abgelegt: "rechts" ist in
+                  einem Kasten von 400 px nah und in einer Spalte von 768 px einen halben Meter
+                  weit weg, wo die Zeile in zwei Inseln mit einem Loch dazwischen zerfällt. Die
+                  Schau zeigt, was die App tut — zöge sie hier die alte Fassung weiter, wäre sie
+                  genau die Vorlage, von der wieder jemand abschriebe. */}
+              <p className="text-xs font-semibold uppercase tracking-widest opacity-60 mb-0.5">Laufende Session</p>
+              <p className="text-2xl font-bold leading-tight">Verschlossen</p>
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="text-xs font-semibold uppercase tracking-widest opacity-60">Dauer:</span>
+                <span className="text-xl font-bold tabular-nums">
+                  <SessionDurationBadge since={sessionSince} pausedMs={0} />
+                </span>
               </div>
               <p className="text-xs opacity-60 mt-1">Seit 30.03.2026, 08:15</p>
             </div>

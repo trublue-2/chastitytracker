@@ -2,7 +2,7 @@ import { wideColCls } from "@/app/components/inputStyles";
 import { getLocale, getTranslations } from "next-intl/server";
 import { assertController } from "@/lib/authGuards";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
-import { keyholderInbox, listMessages, unreadCountForKeyholderCached } from "@/lib/messageService";
+import { keyholderInbox, listMessages, unreadCountForKeyholderCached, unreadCount } from "@/lib/messageService";
 import { presentMessages } from "@/lib/messagePresenter";
 import { messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
 import { MESSAGE_SCOPES } from "@/lib/messageScope";
@@ -34,11 +34,12 @@ export default async function AdminMessagesPage({
 
   const filter = parseMessageFilterFrom(await searchParams);
 
-  const [page, unread, locale, t] = await Promise.all([
+  const [page, unread, unreadInFilter, locale, t] = await Promise.all([
     listMessages(keyholderInbox(readerId, subs), { filter }),
     // Derselbe Zähler wie in der Kopfzeile — memoisiert läuft er im Request nur einmal, und er teilt
     // sich mit `assertController()` oben die eine Träger-Abfrage.
     unreadCountForKeyholderCached(readerId, session.user.role),
+    unreadCount(keyholderInbox(readerId, subs), [], filter),
     getLocale(),
     getTranslations("messages"),
   ]);
@@ -71,6 +72,7 @@ export default async function AdminMessagesPage({
         initial={await presentMessages(page.messages, locale)}
         initialPageCount={page.pageCount}
         initialUnread={unread}
+        initialUnreadInFilter={unreadInFilter}
         initialFilter={filter}
         scope={SCOPE}
         aiSenderAvailable={aiSenderAvailable}

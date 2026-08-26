@@ -3,7 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { soleControllerName } from "@/lib/keyholder";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
-import { listMessages, subInbox, unreadCountCached } from "@/lib/messageService";
+import { listMessages, subInbox, unreadCountCached, unreadCount } from "@/lib/messageService";
 import { presentMessages } from "@/lib/messagePresenter";
 import { messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
 import { MESSAGE_SCOPES } from "@/lib/messageScope";
@@ -40,9 +40,10 @@ export default async function MessagesPage({
   // Der Filter geht AUCH an die Abfrage, nicht nur an die Liste: bekäme der Client nur den
   // Startwert, stünde beim ersten Bild die ungefilterte Seite da und spränge erst nach einem
   // Nachladen um — bei „Alle ansehen" also genau die Mischliste, aus der der Link herausführen soll.
-  const [page, unread, locale, t, keyholderName] = await Promise.all([
+  const [page, unread, unreadInFilter, locale, t, keyholderName] = await Promise.all([
     listMessages(subInbox(userId), { filter }),
     unreadCountCached(userId),
+    unreadCount(subInbox(userId), [], filter),
     getLocale(),
     getTranslations("messages"),
     // Für die Beschriftung des Absender-Filters. Muss VON HIER kommen: die Filterleiste ist eine
@@ -71,6 +72,7 @@ export default async function MessagesPage({
         initial={await presentMessages(page.messages, locale)}
         initialPageCount={page.pageCount}
         initialUnread={unread}
+        initialUnreadInFilter={unreadInFilter}
         initialFilter={filter}
         scope={SCOPE}
         aiSenderAvailable={aiSenderAvailable}

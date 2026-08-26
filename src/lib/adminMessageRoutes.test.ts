@@ -63,7 +63,7 @@ const ROUTES: [name: string, call: () => Promise<Response>][] = [
   ["DELETE /api/admin/messages/[id]", () => deleteMessageRoute(getReq(), { params: idParams("m1") })],
   ["POST /api/admin/messages/[id]/read", () => markReadRoute(getReq(), { params: idParams("m1") })],
   ["DELETE /api/admin/messages/[id]/read", () => markUnreadRoute(getReq(), { params: idParams("m1") })],
-  ["POST /api/admin/messages/read-all", () => readAllRoute()],
+  ["POST /api/admin/messages/read-all", () => readAllRoute(getReq())],
   ["POST /api/admin/messages/bulk", () => bulkRoute(jsonReq({ ids: ["m1"], action: "read" }))],
 ];
 

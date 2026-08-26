@@ -60,7 +60,17 @@ export default function UserContextBar({ userId, username, currentStatus, since,
           <span className="font-bold text-foreground text-sm truncate">{username}</span>
           <span className={`flex items-center gap-1 text-xs font-medium flex-shrink-0 ${isLocked ? "text-lock" : "text-foreground-faint"}`}>
             {isLocked
-              ? <><Lock size={11} strokeWidth={2} />{since && <TimerDisplay targetDate={since} mode="countup" format="short" className="font-mono tabular-nums" />}</>
+              /* `format="long"`, nicht `short`: `short` faltet die Tage in die Stunden (siehe
+                 `formatShort` in `TimerDisplay`), und die Keyholderin las hier `105:43:09`, während
+                 jede andere Stelle der App `4T 9h 43min` schreibt. Eine Oberfläche, die dieselbe
+                 Dauer in zwei Sprachen nennt, zwingt zum Kopfrechnen.
+
+                 Monoschrift und Zustandsfarbe bleiben: `TimerDisplay` setzt beides fest (`font-mono`
+                 und `text-lock` bei `mode="countup"`), sie liessen sich von hier gar nicht abwählen.
+                 Für sich genommen wäre die tickende Uhr in Signalfarbe einen zweiten Blick wert —
+                 aber sie umzubauen träfe jede andere Verwendung mit, und das ist eine eigene
+                 Entscheidung, kein Nebeneffekt dieser Zeile. */
+              ? <><Lock size={11} strokeWidth={2} />{since && <TimerDisplay targetDate={since} mode="countup" format="long" />}</>
               : currentStatus
                 ? <><LockOpen size={11} strokeWidth={2} /> {t("opened")}</>
                 : <span className="text-foreground-faint">–</span>

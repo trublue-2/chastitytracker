@@ -867,13 +867,16 @@ export async function listMessages(
 async function visibleUnreadRows(
   scope: InboxScope,
   alsoVisible: (string | null)[] = [],
+  /** Zusätzlich einschränken — für „alles Sichtbare quittieren" UNTER einem aktiven Filter. Ohne
+   *  ihn zählt und quittiert dieser Pfad den ganzen Posteingang. */
+  filter: MessageFilter = {},
 ): Promise<{ id: string }[]> {
   // Leere Träger-Liste = garantiert leeres Ergebnis (siehe `InboxScope`).
   if (scope.subjectUserIds.length === 0) return [];
   const rows = await prisma.message.findMany({
     // Über `messageWhere`, nicht von Hand: Zähler und Liste müssen denselben Ausschnitt meinen. Eine
     // zweite Abbildung Scope → Where liefe beim nächsten Filter-Feld lautlos auseinander.
-    where: messageWhere(scope, { unreadOnly: true }),
+    where: messageWhere(scope, { ...filter, unreadOnly: true }),
     // Nur, was über die Sichtbarkeit entscheidet — kein Text, kein Zeitstempel: dieser Pfad läuft
     // im Header auf JEDER Dashboard-Seite. `bodyKey` ist Teil davon, seit die Verwerfungs-Meldung
     // anders verschwindet als die Feststellung auf derselben Referenz; `subjectUserId`, seit der
@@ -898,8 +901,26 @@ async function visibleUnreadRows(
  * mischen machte sie wertlos, sie stünde auf 0, während eine Kontrolle läuft.
  *
  * Immer frisch — für JEDEN Aufruf NACH einem Schreibvorgang der richtige Weg.
+ *
+ * `filter` beantwortet die zweite Frage, die derselbe Zähler beantworten muss: **wie viele davon
+ * zeigt der aktive Filter?** Die Rückfrage vor „Alle als gelesen" braucht sie — ohne sie stand
+ * dort die Zahl des ganzen Posteingangs über einer Liste mit einer einzigen Zeile („9 Nachrichten
+ * als gelesen markieren?" bei genau einer sichtbaren). Ohne Filter ist beides dieselbe Zahl.
+ *
+ * Bewusst ein Parameter und keine zweite Funktion: die stand hier kurzzeitig daneben und war
+ * Zeile für Zeile dieselbe — Leer-Prüfung, `hidesFromReader`-Zweig, `visibleUnreadRows` —, nur mit
+ * einem Spread mehr. Zwei Zähler auf denselben Ausschnitt laufen beim nächsten Filter-Feld
+ * auseinander, und zwar lautlos.
+ *
+ * Die Unschärfe des `count`-Zweigs (siehe {@link listMessages}) geht in die sichere Richtung: die
+ * Rückfrage nennt höchstens zu viele, quittiert aber nur, was `markAllRead` mit demselben Filter
+ * findet.
  */
-export async function unreadCount(scope: InboxScope, alsoCount: (string | null)[] = []): Promise<number> {
+export async function unreadCount(
+  scope: InboxScope,
+  alsoCount: (string | null)[] = [],
+  filter: MessageFilter = {},
+): Promise<number> {
   // Leere Träger-Liste = garantiert leeres Ergebnis (siehe `InboxScope`).
   if (scope.subjectUserIds.length === 0) return 0;
   // Wo nichts zu verbergen ist, ist der Zähler eine ZÄHLUNG: `count` beantwortet sie aus dem
@@ -907,9 +928,9 @@ export async function unreadCount(scope: InboxScope, alsoCount: (string | null)[
   // davon nur `.length` zu nehmen. `alsoCount` braucht dieser Zweig nicht — es holt ausschliesslich
   // Zeilen zurück, die der Verbergen-Filter entfernt hätte, und der läuft hier gar nicht.
   if (!hidesFromReader(scope)) {
-    return prisma.message.count({ where: messageWhere(scope, { unreadOnly: true }) });
+    return prisma.message.count({ where: messageWhere(scope, { ...filter, unreadOnly: true }) });
   }
-  return (await visibleUnreadRows(scope, alsoCount)).length;
+  return (await visibleUnreadRows(scope, alsoCount, filter)).length;
 }
 
 /**
@@ -1112,12 +1133,12 @@ const MARK_ALL_MAX_CHUNKS = 50;
  * blockweiser Lauf käme an den verborgenen Zeilen nie vorbei — sie bleiben ungelesen und stünden im
  * nächsten Block wieder da.
  */
-export async function markAllRead(scope: InboxScope): Promise<number> {
+export async function markAllRead(scope: InboxScope, filter: MessageFilter = {}): Promise<number> {
   // Leere Träger-Liste = garantiert leeres Ergebnis (siehe `InboxScope`).
   if (scope.subjectUserIds.length === 0) return 0;
 
   if (!hidesFromReader(scope)) {
-    const where = messageWhere(scope, { unreadOnly: true });
+    const where = messageWhere(scope, { ...filter, unreadOnly: true });
     for (let block = 0; block < MARK_ALL_MAX_CHUNKS; block++) {
       // Nur die Ids, nur ein Block: die quittierten Zeilen fallen aus DIESER Bedingung heraus, der
       // nächste Durchlauf holt also den nächsten Block statt derselben Zeilen noch einmal.
@@ -1129,8 +1150,8 @@ export async function markAllRead(scope: InboxScope): Promise<number> {
     return unreadCount(scope);
   }
 
-  const unread = await visibleUnreadRows(scope);
-  if (unread.length === 0) return 0;
+  const unread = await visibleUnreadRows(scope, [], filter);
+  if (unread.length === 0) return unreadCount(scope);
   await markRowsRead(scope.readerId, unread.map((m) => m.id));
   // Frisch gezählt statt hart 0: sichtbare Nachrichten sind jetzt quittiert, aber der Zähler ist
   // die einzige ehrliche Quelle dafür — verborgene Zeilen bleiben stehen.

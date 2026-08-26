@@ -94,7 +94,6 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
   const RUBRIK_RUECKSTAND = new Set([
     "src/app/admin/page.tsx",
     "src/app/admin/users/[id]/VorgabeForm.tsx",
-    "src/app/admin/users/[id]/aktionen/ActionRow.tsx",
     "src/app/admin/users/[id]/einstellungen/NotificationToggles.tsx",
     "src/app/admin/users/[id]/einstellungen/page.tsx",
     "src/app/admin/users/[id]/strafbuch/StrafbuchClient.tsx",

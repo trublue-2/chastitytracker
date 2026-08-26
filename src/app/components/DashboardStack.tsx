@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useCallback, useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronUp, Eye, EyeOff, SlidersHorizontal } from "lucide-react";
+import Badge from "@/app/components/Badge";
 import Button from "@/app/components/Button";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { parseApiErrorCode } from "@/lib/apiClient";
@@ -15,8 +16,22 @@ export interface StackBlockMeta {
   id: string;
   label: string;
   hidden: boolean;
-  /** Lässt sich nicht ausblenden (trägt den Bearbeiten-Knopf). */
+  /** Lässt sich nicht ausblenden — entweder weil der Block das Gerüst trägt (den Bearbeiten-Knopf)
+   *  oder weil er eine FRIST zeigt. Wegschaltbare Fristen sind der Fehler aus Issue #70: der Block
+   *  steht meistens leer, wer ihn deshalb einmal ausblendet, sieht die überfällige Kontrolle nie
+   *  wieder und erwirbt Strafen für etwas, das ihm niemand angezeigt hat. */
   alwaysOn?: boolean;
+}
+
+/**
+ * Reihenfolge UND Sichtbarkeit als eine vergleichbare Zeichenkette.
+ *
+ * Der Vergleich darf NICHT an der Array-Identität hängen: `move()` und `toggle()` bauen bei jedem
+ * Klick ein neues Array mit neuen Objekten, auch wenn zwei Klicks einander aufheben und am Ende
+ * wieder genau der Ausgangsstand dasteht. Wer Identitäten vergleicht, hielte das für eine Änderung.
+ */
+function layoutSignature(blocks: StackBlockMeta[]): string {
+  return blocks.map((b) => `${b.id}:${b.hidden ? "0" : "1"}`).join(",");
 }
 
 /**
@@ -34,6 +49,12 @@ export interface StackBlockMeta {
  *
  * Kein Drag-and-drop: auf dem Handy fummelig, mit Tastatur oder Screenreader kaum bedienbar.
  * Pfeiltasten sind beides.
+ *
+ * **Der Modus hat drei Ausgänge, und nur einer schreibt.** „Fertig" speichert, „Abbrechen" (und
+ * Escape) verwirft, „Auf Standard zurücksetzen" löscht die gespeicherte Anordnung ganz. Das ist
+ * kein Komfort, sondern nötig: `save()` schreibt immer die VOLLE Reihenfolge, ein Nutzer, der den
+ * Modus nur neugierig öffnet und bestätigt, friert damit sonst die heutige Voreinstellung für
+ * immer ein — eine später verbesserte Standard-Reihenfolge erreichte ihn nie wieder.
  */
 export default function DashboardStack({
   surface,
@@ -47,10 +68,13 @@ export default function DashboardStack({
   children: ReactNode;
 }) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const router = useRouter();
   const apiError = useApiError();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(meta);
+  /** Der Stand beim BETRETEN des Modus — das Mass dafür, ob es überhaupt etwas zu schreiben gibt. */
+  const [baseline, setBaseline] = useState(() => layoutSignature(meta));
   const [error, setError] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
 
@@ -73,41 +97,88 @@ export default function DashboardStack({
     setDraft((prev) => prev.map((b, i) => (i === index && !b.alwaysOn ? { ...b, hidden: !b.hidden } : b)));
   }
 
-  async function save() {
+  function openEditor() {
+    setDraft(meta);
+    setBaseline(layoutSignature(meta));
+    setError(null);
+    setEditing(true);
+  }
+
+  // `useCallback`, weil die Escape-Taste denselben Weg nimmt und der Effekt sonst bei jedem
+  // Tastendruck neu anhängen müsste.
+  const cancel = useCallback(() => {
+    setDraft(meta);
+    setError(null);
+    setEditing(false);
+  }, [meta]);
+
+  // Escape ist der Ausgang, den jeder blind versucht. Tut er nichts, bleibt als einziger Weg der,
+  // der schreibt — und ein blosser Versuch wird verbindlich.
+  useEffect(() => {
+    if (!editing) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") cancel();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [editing, cancel]);
+
+  /** Der eine Schreibweg — „Fertig" und „Zurücksetzen" unterscheiden sich nur in der Nutzlast. */
+  async function patchLayout(layout: { hidden: string[]; order: string[] }) {
     setError(null);
     try {
       const res = await fetch("/api/settings/dashboard-layout", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dashboardLayout: {
-            [surface]: {
-              hidden: draft.filter((b) => b.hidden).map((b) => b.id),
-              order: draft.map((b) => b.id),
-            },
-          },
-        }),
+        body: JSON.stringify({ dashboardLayout: { [surface]: layout } }),
       });
       if (!res.ok) {
         setError(apiError(await parseApiErrorCode(res)));
         return;
       }
-      setEditing(false);
-      // Der Server stellt den Stapel neu zusammen — er allein kennt die Inhalte der Blöcke, die
-      // gerade wieder eingeblendet wurden.
-      startSaving(() => router.refresh());
+      // Erst neu laden, DANN schliessen. Andersherum war `saving` nur wahr, während der Editor
+      // schon zu war — der Ladehinweis auf „Fertig" also unerreichbar, und in dem Fenster zeigte
+      // der Stapel weiter die ALTE Reihenfolge. Wer in diesem Moment noch einmal „Dashboard
+      // anpassen" tippte, bekam den veralteten `meta`-Stand als Entwurf UND als Vergleichsmass:
+      // seine Änderung sah aus wie zurückgenommen, und ein zweites „Fertig" fiel still durch die
+      // Gleichstands-Prüfung.
+      startSaving(() => {
+        router.refresh();
+        setEditing(false);
+      });
     } catch {
       setError(apiError(null));
     }
+  }
+
+  async function save() {
+    // Wer nichts angefasst hat, schreibt auch nichts. Sonst würde allein das Öffnen und Bestätigen
+    // die heutige Standard-Reihenfolge dauerhaft festschreiben (siehe Kopf-Kommentar).
+    if (layoutSignature(draft) === baseline) {
+      cancel();
+      return;
+    }
+    await patchLayout({
+      hidden: draft.filter((b) => b.hidden).map((b) => b.id),
+      order: draft.map((b) => b.id),
+    });
+  }
+
+  /** Leere Listen heissen „keine eigene Anordnung" — der Nutzer folgt danach wieder der Vorgabe. */
+  async function resetToDefault() {
+    await patchLayout({ hidden: [], order: [] });
   }
 
   if (editing) {
     return (
       <DashboardBlock>
         <div className="rounded-xl border border-border bg-surface overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <p className="text-sm font-semibold text-foreground">{t("editLayoutTitle")}</p>
-            <Button variant="secondary" onClick={save} loading={saving}>{t("editLayoutDone")}</Button>
+          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
+            <p className="text-sm font-semibold text-foreground truncate">{t("editLayoutTitle")}</p>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button variant="ghost" size="sm" onClick={cancel}>{tc("cancel")}</Button>
+              <Button variant="secondary" size="sm" onClick={save} loading={saving}>{t("editLayoutDone")}</Button>
+            </div>
           </div>
 
           {error && <p className="px-4 py-3 text-sm text-warn bg-warn-bg">{error}</p>}
@@ -119,6 +190,10 @@ export default function DashboardStack({
                   type="button"
                   onClick={() => toggle(i)}
                   disabled={b.alwaysOn}
+                  // Ein gesperrter Schalter muss sagen, warum. Blöcke mit Frist bleiben sichtbar
+                  // (`alwaysOn`) — sonst verschwände die überfällige Kontrolle samt Knopf, und der
+                  // Träger erwürbe Strafen für etwas, das ihm nie angezeigt wurde. Ohne diesen Satz
+                  // steht der Schalter einfach tot da und liest sich als Fehler.
                   aria-label={b.hidden ? t("editLayoutShow", { name: b.label }) : t("editLayoutHide", { name: b.label })}
                   aria-pressed={!b.hidden}
                   className="size-9 shrink-0 rounded-lg flex items-center justify-center text-foreground-muted hover:bg-surface-raised transition disabled:opacity-40"
@@ -126,6 +201,7 @@ export default function DashboardStack({
                   {b.hidden ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
                 <span className="flex-1 min-w-0 text-sm text-foreground truncate">{b.label}</span>
+                {b.alwaysOn && <Badge size="sm" label={t("editLayoutLocked")} />}
                 <button
                   type="button"
                   onClick={() => move(i, -1)}
@@ -147,6 +223,16 @@ export default function DashboardStack({
               </li>
             ))}
           </ul>
+
+          {/* Leise am Fuss: der Weg zurück zur Vorgabe ist selten nötig und soll die beiden
+              Ausgänge oben nicht überstimmen. */}
+          <button
+            type="button"
+            onClick={resetToDefault}
+            className="w-full px-4 py-3 text-left text-xs text-foreground-faint hover:text-foreground-muted border-t border-border-subtle transition"
+          >
+            {t("editLayoutReset")}
+          </button>
         </div>
       </DashboardBlock>
     );
@@ -160,7 +246,7 @@ export default function DashboardStack({
       <DashboardBlock>
         <button
           type="button"
-          onClick={() => { setDraft(meta); setEditing(true); }}
+          onClick={openEditor}
           className="w-full flex items-center gap-2 px-1 py-2 text-xs text-foreground-faint hover:text-foreground-muted transition"
         >
           <SlidersHorizontal size={14} />

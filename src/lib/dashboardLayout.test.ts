@@ -76,6 +76,41 @@ describe("resolveLayout", () => {
     expect(r.visible.map((b) => b.id)).toContain("heading");
     expect(r.hiddenCount).toBe(0);
   });
+
+  /**
+   * **Der Kern von #70: das Flag muss HEILEN, nicht nur ab jetzt gelten.**
+   *
+   * Die Fristen-Blöcke bekamen `alwaysOn` erst, nachdem Nutzer sie längst weggeschaltet haben
+   * konnten. Würde `resolveLayout` dem gespeicherten `hidden` glauben und sich darauf verlassen,
+   * dass der Bearbeiten-Modus das Wegschalten künftig nicht mehr anbietet, wirkte das Flag nur
+   * für neue Konten — und genau die, denen die überfällige Kontrolle schon fehlt, sähen sie
+   * weiterhin nie. Deshalb wird der Bestand hier übergangen und nicht erst beim nächsten
+   * Speichern bereinigt.
+   */
+  it("heilt einen Bestand, in dem ein Fristen-Block ausgeblendet gespeichert ist", () => {
+    const r = resolveLayout({ subDashboard: { hidden: ["alerts", "categoriesPromo"] } }, "subDashboard");
+    expect(r.visible.map((b) => b.id)).toContain("alerts");
+    expect(r.shows("alerts")).toBe(true);
+    // Der Nachbar im selben gespeicherten `hidden` bleibt weg — geheilt wird gezielt, nicht alles.
+    expect(r.visible.map((b) => b.id)).not.toContain("categoriesPromo");
+    expect(r.hiddenCount).toBe(1);
+  });
+
+  it("dasselbe für die Fristen-Blöcke der Keyholderin", () => {
+    // Eine offene Kontrolle und eine wartende Orgasmus-Anfrage warten auf IHRE Entscheidung —
+    // ein weggeschalteter Block liesse den Träger ins Leere warten.
+    const r = resolveLayout({ keyholderSub: { hidden: ["openInspection", "orgasmRequest"] } }, "keyholderSub");
+    expect(r.shows("openInspection")).toBe(true);
+    expect(r.shows("orgasmRequest")).toBe(true);
+    expect(r.hiddenCount).toBe(0);
+  });
+
+  it("`alwaysOn` bindet den Block an die Sichtbarkeit, nicht an seinen Platz", () => {
+    // Verschieben bleibt erlaubt: der Block muss stehen, nicht oben stehen.
+    const r = resolveLayout({ subDashboard: { order: ["taskList", "alerts"] } }, "subDashboard");
+    expect(r.visible[0].id).toBe("taskList");
+    expect(r.visible[1].id).toBe("alerts");
+  });
 });
 
 describe("checkLayoutPatch — die Schreibseite", () => {

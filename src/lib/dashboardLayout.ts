@@ -109,10 +109,15 @@ export function mergeOrder(defaults: readonly string[], saved: readonly string[]
  * ist die Zusage an jeden, der nie etwas einstellt, und sie ist hier eine Eigenschaft der
  * Funktion, keine Behauptung: `saved` leer → `mergeOrder` liefert `defaults` unverändert.
  *
- * `alwaysOn`-Blöcke lassen sich nicht ausblenden. Die Begründung lautete lange, dieser Block trage
- * den Bearbeiten-Knopf — das stimmt seit `DashboardStack` nicht mehr, der Knopf steht dort am Ende
- * des Stapels und hängt an keinem Block. Übrig bleibt die Überschrift der Statistik, die ohne
- * Titel nicht auskommt.
+ * **`alwaysOn`-Blöcke lassen sich nicht ausblenden — und zwar auch dann nicht, wenn sie im
+ * gespeicherten Wert als versteckt stehen.** Das ist keine Beiläufigkeit, sondern der Sinn der
+ * Sache: das Flag kommt später als die gespeicherten Konfigurationen. Würde hier bloss das
+ * Anbieten unterbunden und der Bestand geglaubt, wirkte es nur für neue Nutzer, während genau
+ * die, denen der Block schon fehlt, ihn weiter nicht sähen. Der Bestand wird deshalb hier
+ * übergangen, nicht erst beim nächsten Speichern bereinigt.
+ *
+ * Warum ein Block das Flag trägt, steht am Register (`DashboardBlockDef.alwaysOn`): Gerüst oder
+ * Frist. Die Reihenfolge berührt das Flag nicht — verschieben bleibt erlaubt.
  */
 export function resolveLayout<S extends BlockSurface>(layout: DashboardLayout, surface: S): ResolvedLayout<S> {
   const registry = blocksOf(surface) as readonly SurfaceBlockDef<S>[];

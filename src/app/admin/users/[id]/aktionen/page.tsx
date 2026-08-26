@@ -7,11 +7,9 @@ import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
 import { weightTrackingEnabled } from "@/lib/constants";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
+import Section from "@/app/components/Section";
 import { getTranslations } from "next-intl/server";
-import ActionRow, { ActionRowGroup } from "./ActionRow";
-
-/** Icon-Kachel-Ton aus den Semantik-Tokens — `tone("lock")` = Schloss-Farbe auf Schloss-Hintergrund. */
-const tone = (name: string) => ({ backgroundColor: `var(--color-${name}-bg)`, color: `var(--color-${name})` });
+import ActionRow from "./ActionRow";
 
 export default async function AktionenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -39,159 +37,167 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
 
   return (
     <>
-      <ActionRowGroup title={t("aktionenAnforderungen")}>
-        {/* Kontrollen brauchen ein LAUFENDES Ziel — verschlossen ODER etwas getragen (v5.0.1).
-            Ohne beides gäbe es nichts zu zeigen, und `requestKontrolle` würde ablehnen. */}
-        {/* Fehlt die E-Mail, bleibt die Zeile ANKLICKBAR und führt dorthin, wo der Mangel behoben
-            wird. Vorher stand sie ausgegraut mit „Keine E-Mail hinterlegt" da — das ist keine
-            Beschriftung, sondern eine Fehlermeldung ohne Behebung: kein Link, kein Hinweis wohin.
-            Wer nicht erriet, dass die Lösung unter Einstellungen → Konto liegt, sass vor der
-            Funktion, für die er die App benutzt.
+      <Section title={t("aktionenAnforderungen")}>
+        <div className="divide-y divide-border-subtle">
+          {/* Kontrollen brauchen ein LAUFENDES Ziel — verschlossen ODER etwas getragen (v5.0.1).
+              Ohne beides gäbe es nichts zu zeigen, und `requestKontrolle` würde ablehnen. */}
+          {/* Fehlt die E-Mail, bleibt die Zeile ANKLICKBAR und führt dorthin, wo der Mangel behoben
+              wird. Vorher stand sie ausgegraut mit „Keine E-Mail hinterlegt" da — das ist keine
+              Beschriftung, sondern eine Fehlermeldung ohne Behebung: kein Link, kein Hinweis wohin.
+              Wer nicht erriet, dass die Lösung unter Einstellungen → Konto liegt, sass vor der
+              Funktion, für die er die App benutzt. Weil die Zeile dann WOANDERS hinführt, tritt der
+              Weg zur E-Mail an die Stelle der Beschreibung — er beschreibt, was der Tipp tut.
 
-            Das fehlende ZIEL (nichts verschlossen, nichts getragen) bleibt dagegen gesperrt: das
-            behebt keine Einstellung, sondern nur der Träger. */}
-        <ActionRow
-          href={
-            !hasEmail ? `/admin/users/${id}/einstellungen`
-            : hasInspectionTarget ? `${base}/kontrolle`
-            : undefined
-          }
-          icon={<Bell size={20} strokeWidth={2} />}
-          iconStyle={tone("inspect")}
-          title={t("requestInspection")}
-          hint={hasEmail && hasInspectionTarget ? t("requestInspectionHint") : !hasEmail ? t("noEmailFix") : t("entryOnlyIfLockedOrWorn")}
-        />
-
-        {/* Verschluss anfordern — mehrere offene Anforderungen sind erlaubt, kein Gate darauf */}
-        <ActionRow
-          href={!isLocked && hasEmail ? `${base}/verschluss-anforderung` : undefined}
-          icon={<Lock size={20} strokeWidth={2} />}
-          iconStyle={tone("request")}
-          title={t("requestLock")}
-          hint={!isLocked && hasEmail ? t("requestLockHint") : isLocked ? t("alreadyLocked") : t("noEmail")}
-        />
-
-        {/* Sperrdauer: bestehende bearbeiten, sonst neu setzen — beides nur im verschlossenen Zustand */}
-        {isLocked && activeSperrzeit ? (
+              Das fehlende ZIEL (nichts verschlossen, nichts getragen) bleibt dagegen gesperrt: das
+              behebt keine Einstellung, sondern nur der Träger. */}
           <ActionRow
-            href={`${base}/sperrdauer-edit`}
-            icon={<Lock size={20} strokeWidth={2} />}
-            iconStyle={tone("sperrzeit")}
-            title={t("editLockDuration")}
-            hint={t("editLockDurationHint")}
+            href={
+              !hasEmail ? `/admin/users/${id}/einstellungen`
+              : hasInspectionTarget ? `${base}/kontrolle`
+              : undefined
+            }
+            icon={<Bell className="size-4" />}
+            title={t("requestInspection")}
+            description={hasEmail ? t("requestInspectionHint") : t("noEmailFix")}
+            lockedReason={hasEmail && !hasInspectionTarget ? t("entryOnlyIfLockedOrWorn") : undefined}
           />
-        ) : (
+
+          {/* Verschluss anfordern — mehrere offene Anforderungen sind erlaubt, kein Gate darauf */}
           <ActionRow
-            href={isLocked ? `${base}/verschluss-anforderung` : undefined}
-            icon={<Lock size={20} strokeWidth={2} />}
-            iconStyle={tone("sperrzeit")}
-            title={t("setLockDuration")}
-            hint={isLocked ? t("setLockDurationHint") : t("entryOnlyIfLocked")}
+            href={!isLocked && hasEmail ? `${base}/verschluss-anforderung` : undefined}
+            icon={<Lock className="size-4" />}
+            title={t("requestLock")}
+            description={t("requestLockHint")}
+            lockedReason={isLocked ? t("alreadyLocked") : !hasEmail ? t("noEmail") : undefined}
           />
-        )}
 
-        {/* Freigabe-Vorgabe: das Gewicht öffnet das nächste Fenster. Neben der Orgasmus-Anweisung,
-            weil sie dasselbe Fenster stellt — nur an eine Bedingung geknüpft statt an einen
-            Zeitpunkt. Ohne Gewichtstracking gibt es sie nicht (die Seite würde umleiten). */}
-        {weightTrackingEnabled() && user.weightTrackingEnabled && (
-          <ActionRow
-            href={`${base}/gewichts-freigabe`}
-            icon={<Scale size={20} strokeWidth={2} />}
-            iconStyle={tone("orgasm")}
-            title={t("releaseTitle")}
-            hint={t("releaseHint")}
-          />
-        )}
-
-        <ActionRow
-          href={`${base}/orgasmus-anforderung`}
-          icon={<Droplets size={20} strokeWidth={2} />}
-          iconStyle={tone("orgasm")}
-          title={t("requestOrgasm")}
-          hint={t("requestOrgasmHint")}
-        />
-
-        {/* Kein Kategorien-Gate: „KG verschlossen" und reine Freitext-Aufgaben gehen auch ohne
-            Gerätekategorien — siehe `aufgaben/page.tsx`. */}
-        <ActionRow
-          href={`${base}/aufgabe`}
-          icon={<ClipboardList size={20} strokeWidth={2} />}
-          iconStyle={{ backgroundColor: "var(--color-surface-raised)", color: "var(--color-foreground-muted)" }}
-          title={tt("actionTitle")}
-          hint={tt("actionHint")}
-        />
-
-        {/* Steht bei den Anforderungen und nicht bei den Einträgen: die Zeilen dort legen einen
-            `Entry` an, ein notiertes Vergehen ist gerade die Art, die NICHT aus Einträgen
-            abgeleitet wird (`offenseTypes.ts`). Kein Gate — es hat keine Vorbedingung. */}
-        <ActionRow
-          href={`${base}/vergehen`}
-          icon={<Gavel size={20} strokeWidth={2} />}
-          iconStyle={tone("warn")}
-          title={t("recordOffense")}
-          hint={t("recordOffenseHint")}
-        />
-      </ActionRowGroup>
-
-      <ActionRowGroup title={t("aktionenItems")}>
-        <ActionRow
-          href={isLocked ? undefined : `${base}/verschluss`}
-          icon={<Lock size={20} strokeWidth={2} />}
-          iconStyle={tone("lock")}
-          title={t("entryVerschluss")}
-          hint={isLocked ? t("entryOnlyIfOpen") : t("entryVerschlussDesc")}
-        />
-
-        <ActionRow
-          href={isLocked ? `${base}/oeffnen` : undefined}
-          icon={<LockOpen size={20} strokeWidth={2} />}
-          iconStyle={tone("unlock")}
-          title={t("entryOeffnen")}
-          hint={isLocked ? t("entryOeffnenDesc") : t("entryOnlyIfLocked")}
-        />
-
-        <ActionRow
-          href={`${base}/pruefung`}
-          icon={<ClipboardCheck size={20} strokeWidth={2} />}
-          iconStyle={tone("inspect")}
-          title={t("entryPruefung")}
-          hint={t("entryPruefungDesc")}
-        />
-
-        <ActionRow
-          href={`${base}/orgasmus`}
-          icon={<Droplets size={20} strokeWidth={2} />}
-          iconStyle={tone("orgasm")}
-          title={t("entryOrgasmus")}
-          hint={t("entryOrgasmusDesc")}
-        />
-
-        {/* Gewicht — nur mit Freischaltung. Ohne sie führte die Zeile auf eine Seite, die umleitet. */}
-        {weightTrackingEnabled() && user.weightTrackingEnabled && (
-          <ActionRow
-            href={`${base}/gewicht`}
-            icon={<Scale size={20} strokeWidth={2} />}
-            iconStyle={{ backgroundColor: "var(--color-surface-raised)", color: "var(--color-foreground-muted)" }}
-            title={t("entryWeight")}
-            hint={t("entryWeightDesc")}
-          />
-        )}
-
-        {categories.map((c) => {
-          const active = c.activeDeviceName;
-          const style = categoryStyle(c.color);
-          return (
+          {/* Sperrdauer: bestehende bearbeiten, sonst neu setzen — beides nur im verschlossenen Zustand */}
+          {isLocked && activeSperrzeit ? (
             <ActionRow
-              key={c.id}
-              href={wearActionHref({ categoryId: c.id, active: !!active, adminUserId: id })}
-              icon={<CategoryIconRender name={c.icon} className="size-5" />}
-              iconStyle={{ backgroundColor: style.backgroundColor, color: style.color }}
-              title={c.name}
-              hint={active ? `${tw("endShort")} · ${active}` : tw("titleBegin")}
+              href={`${base}/sperrdauer-edit`}
+              icon={<Lock className="size-4" />}
+              title={t("editLockDuration")}
+              description={t("editLockDurationHint")}
             />
-          );
-        })}
-      </ActionRowGroup>
+          ) : (
+            <ActionRow
+              href={isLocked ? `${base}/verschluss-anforderung` : undefined}
+              icon={<Lock className="size-4" />}
+              title={t("setLockDuration")}
+              description={t("setLockDurationHint")}
+              lockedReason={isLocked ? undefined : t("entryOnlyIfLocked")}
+            />
+          )}
+
+          {/* Freigabe-Vorgabe: das Gewicht öffnet das nächste Fenster. Neben der Orgasmus-Anweisung,
+              weil sie dasselbe Fenster stellt — nur an eine Bedingung geknüpft statt an einen
+              Zeitpunkt. Ohne Gewichtstracking gibt es sie nicht (die Seite würde umleiten). */}
+          {weightTrackingEnabled() && user.weightTrackingEnabled && (
+            <ActionRow
+              href={`${base}/gewichts-freigabe`}
+              icon={<Scale className="size-4" />}
+              title={t("releaseTitle")}
+              description={t("releaseHint")}
+            />
+          )}
+
+          <ActionRow
+            href={`${base}/orgasmus-anforderung`}
+            icon={<Droplets className="size-4" />}
+            title={t("requestOrgasm")}
+            description={t("requestOrgasmHint")}
+          />
+
+          {/* Kein Kategorien-Gate: „KG verschlossen" und reine Freitext-Aufgaben gehen auch ohne
+              Gerätekategorien — siehe `aufgaben/page.tsx`. */}
+          <ActionRow
+            href={`${base}/aufgabe`}
+            icon={<ClipboardList className="size-4" />}
+            title={tt("actionTitle")}
+            description={tt("actionHint")}
+          />
+
+          {/* Steht bei den Anforderungen und nicht bei den Einträgen: die Zeilen dort legen einen
+              `Entry` an, ein notiertes Vergehen ist gerade die Art, die NICHT aus Einträgen
+              abgeleitet wird (`offenseTypes.ts`). Kein Gate — es hat keine Vorbedingung. */}
+          <ActionRow
+            href={`${base}/vergehen`}
+            icon={<Gavel className="size-4" />}
+            title={t("recordOffense")}
+            description={t("recordOffenseHint")}
+          />
+        </div>
+      </Section>
+
+      {/* Die Beschreibungen dieser Gruppe sagen, was ERFASST wird, nicht wie es um den Träger
+          steht. Unter „Öffnen" stand „Gürtel abgelegt" — das liest sich wie eine Tatsache über den
+          Träger, und wer den Schirm überfliegt, glaubt, der Gürtel sei ab. Gemeint war das
+          Formular. Deshalb durchgehend die Handlung („Öffnung erfassen"): sie kann gar nicht als
+          Zustandsmeldung missverstanden werden, weil sie noch nicht geschehen ist. */}
+      <Section title={t("aktionenItems")}>
+        <div className="divide-y divide-border-subtle">
+          <ActionRow
+            href={isLocked ? undefined : `${base}/verschluss`}
+            icon={<Lock className="size-4" />}
+            title={t("entryVerschluss")}
+            description={t("entryVerschlussDesc")}
+            lockedReason={isLocked ? t("alreadyLocked") : undefined}
+          />
+
+          <ActionRow
+            href={isLocked ? `${base}/oeffnen` : undefined}
+            icon={<LockOpen className="size-4" />}
+            title={t("entryOeffnen")}
+            description={t("entryOeffnenDesc")}
+            lockedReason={isLocked ? undefined : t("entryOnlyIfLocked")}
+          />
+
+          <ActionRow
+            href={`${base}/pruefung`}
+            icon={<ClipboardCheck className="size-4" />}
+            title={t("entryPruefung")}
+            description={t("entryPruefungDesc")}
+          />
+
+          <ActionRow
+            href={`${base}/orgasmus`}
+            icon={<Droplets className="size-4" />}
+            title={t("entryOrgasmus")}
+            description={t("entryOrgasmusDesc")}
+          />
+
+          {/* Gewicht — nur mit Freischaltung. Ohne sie führte die Zeile auf eine Seite, die umleitet. */}
+          {weightTrackingEnabled() && user.weightTrackingEnabled && (
+            <ActionRow
+              href={`${base}/gewicht`}
+              icon={<Scale className="size-4" />}
+              title={t("entryWeight")}
+              description={t("entryWeightDesc")}
+            />
+          )}
+
+          {/* Die Kategorie behält ihre Farbe, wo alle anderen Zeichen grau sind: sie sagt WELCHE
+              Kategorie, nicht dass etwas dringend wäre — dieselbe Ausnahme wie in `EntryRow`. */}
+          {categories.map((c) => {
+            const active = c.activeDeviceName;
+            return (
+              <ActionRow
+                key={c.id}
+                href={wearActionHref({ categoryId: c.id, active: !!active, adminUserId: id })}
+                icon={
+                  <CategoryIconRender
+                    name={c.icon}
+                    className="size-4"
+                    style={{ color: categoryStyle(c.color).color }}
+                  />
+                }
+                title={c.name}
+                description={active ? `${tw("endShort")} · ${active}` : tw("titleBegin")}
+              />
+            );
+          })}
+        </div>
+      </Section>
     </>
   );
 }

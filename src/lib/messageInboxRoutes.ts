@@ -55,7 +55,7 @@ export interface InboxRoutes {
   /** `DELETE …/[id]/read` */
   markUnread: (req: NextRequest, ctx: IdContext) => Promise<NextResponse>;
   /** `POST …/read-all` */
-  readAll: () => Promise<NextResponse>;
+  readAll: (req: NextRequest) => Promise<NextResponse>;
   /** `POST …/bulk` */
   bulk: (req: NextRequest) => Promise<NextResponse>;
 }
@@ -80,17 +80,25 @@ export function makeInboxRoutes(resolveScope: ScopeResolver): InboxRoutes {
       if (scope instanceof NextResponse) return scope;
 
       // Die Filter liest `parseMessageFilter` — dieselbe Stelle, an der der Client sie schreibt.
-      const [result, locale] = await Promise.all([
+      const filter = parseMessageFilter(req.nextUrl.searchParams);
+      // Der Ausschnitts-Zähler MIT in die Runde: seriell danach kostete er auf der Träger-Seite
+      // mit Filter einen zweiten vollständigen Sichtbarkeits-Durchlauf, bei jedem Blättern.
+      const [result, locale, unreadInFilter] = await Promise.all([
         listMessages(scope, {
           page: Number(req.nextUrl.searchParams.get("page") ?? 1),
-          filter: parseMessageFilter(req.nextUrl.searchParams),
+          filter,
         }),
         getLocale(),
+        unreadCount(scope, [], filter),
       ]);
       return NextResponse.json({
         messages: await presentMessages(result.messages, locale),
         page: result.page,
         pageCount: result.pageCount,
+        // Wie viele UNGELESENE der wirksame Filter zeigt. Die Rückfrage vor „Alle als gelesen"
+        // nennt diese Zahl — der Glocken-Stand daneben meint den ganzen Posteingang, und unter
+        // einem Filter sind das zwei verschiedene Dinge.
+        unreadInFilter,
       });
     },
 
@@ -109,13 +117,20 @@ export function makeInboxRoutes(resolveScope: ScopeResolver): InboxRoutes {
     markRead: (_req, ctx) => setReadState(true, ctx),
     markUnread: (_req, ctx) => setReadState(false, ctx),
 
-    async readAll() {
+    async readAll(req) {
       const scope = await resolveScope();
       if (scope instanceof NextResponse) return scope;
       // Bewusste Handlung (die Oberfläche fragt vorher nach), nie ein Nebeneffekt des Listen-Aufrufs.
       // `markAllRead` quittiert NUR die sichtbaren Zeilen und liefert den daraus folgenden Stand —
       // eine hart gesetzte 0 hätte behauptet, auch das Verborgene sei gesehen.
-      return NextResponse.json({ ok: true, unread: await markAllRead(scope) });
+      //
+      // Und nur, was der AKTIVE FILTER zeigt: derselbe `parseMessageFilter`, den `list` benutzt.
+      // Vorher quittierte der Knopf den ganzen Posteingang, egal was auf dem Schirm stand — unter
+      // „Ungelesen + Gewicht" mit einer sichtbaren Zeile waren das neun. Acht Kontroll- und
+      // Straf-Meldungen galten damit als gesehen, ohne dass sie jemand gesehen hatte, und genau
+      // das liest die Keyholderin auf der anderen Seite ab.
+      const filter = parseMessageFilter(req.nextUrl.searchParams);
+      return NextResponse.json({ ok: true, unread: await markAllRead(scope, filter) });
     },
 
     async bulk(req) {

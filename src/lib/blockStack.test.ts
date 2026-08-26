@@ -55,7 +55,8 @@ describe("renderStack", () => {
   it("ein Block ohne eigene Abfrage bekommt den Kontext", async () => {
     // Alles ausser EINEM ausblenden. Vorher stand hier `alwaysOn`, was den Test unbemerkt an
     // einen bestimmten Block band — fiel der weg, fiel der Test mit, obwohl er die Maschinerie
-    // prüft und keinen Inhalt.
+    // prüft und keinen Inhalt. Aus demselben Grund wird hier nicht auf die GANZE Liste geprüft:
+    // `alwaysOn`-Blöcke lassen sich nicht wegschalten und stehen deshalb mit da.
     const alleAusserEinem = SUB_DASHBOARD_BLOCKS.map((b) => b.id).filter((id) => id !== "runningSession");
     const layout = resolveLayout({ subDashboard: { hidden: alleAusserEinem } }, "subDashboard");
     const table: Record<SubDashboardBlockId, StackBlock<Ctx>> = {
@@ -65,7 +66,7 @@ describe("renderStack", () => {
 
     const out = await renderStack(layout, { marke: "welt" }, table);
 
-    expect(out).toEqual([{ id: "runningSession", node: "hallo welt" }]);
+    expect(out.find((b) => b.id === "runningSession")).toEqual({ id: "runningSession", node: "hallo welt" });
   });
 });
 
@@ -77,7 +78,7 @@ describe("resolveLayout.shows", () => {
   });
 
   it("ein `alwaysOn`-Block bleibt sichtbar, auch wenn er ausgeblendet gespeichert wurde", () => {
-    // Die Statistik-Überschrift ist der verbliebene `alwaysOn`-Block: eine Auswertung ohne Titel
+    // Die Statistik-Überschrift trägt das Flag, weil sie Gerüst ist: eine Auswertung ohne Titel
     // liesse den Bildschirm ohne Anfang beginnen.
     const layout = resolveLayout({ subStats: { hidden: ["heading"] } }, "subStats");
     expect(layout.shows("heading")).toBe(true);

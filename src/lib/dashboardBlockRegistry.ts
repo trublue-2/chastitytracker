@@ -34,8 +34,19 @@ export interface DashboardBlockDef {
   /** Beschriftung im Bearbeiten-Modus. Schlüssel im `dashboard`-Namespace. */
   readonly labelKey: string;
   /**
-   * Gesetzt, wenn der Block sich nicht abschalten lässt — nicht aus Bevormundung, sondern weil er
-   * kein Inhalt ist: die Begrüssungszeile trägt den Bearbeiten-Knopf selbst.
+   * Gesetzt, wenn der Block sich nicht abschalten lässt. Zwei Gründe, und beide sind keine
+   * Bevormundung:
+   *
+   * 1. **Der Block ist kein Inhalt, sondern Gerüst** — die Überschrift der Statistik, ohne die die
+   *    Auswertung ohne Anfang begänne.
+   * 2. **Der Block trägt eine FRIST.** Er steht ohnehin nur da, wenn etwas offen ist; die übrige
+   *    Zeit ist er leer. Genau das macht ihn gefährlich abschaltbar: wer ihn wegschaltet, WEIL er
+   *    leer aussieht, bekommt Wochen später die überfällige Kontrolle nicht mehr zu sehen und
+   *    erwirbt Strafen für etwas, das ihm nie angezeigt wurde. Ein Block, dessen Abwesenheit
+   *    Konsequenzen hat, darf nicht stumm verschwinden können.
+   *
+   * Betrifft NUR die Sichtbarkeit, nicht die Reihenfolge: ein `alwaysOn`-Block lässt sich weiterhin
+   * beliebig verschieben — er muss stehen, nicht oben stehen.
    */
   readonly alwaysOn?: true;
 }
@@ -47,7 +58,9 @@ export interface DashboardBlockDef {
  * zugleich das Prüfkriterium dieser Etappe: der Bildschirm sieht danach exakt gleich aus.
  */
 export const SUB_DASHBOARD_BLOCKS = [
-  { id: "alerts", surface: "subDashboard", role: "sub", labelKey: "blockAlerts" },
+  // `alwaysOn`, weil hier die überfällige Kontrolle samt „Jetzt erfassen“ steht — siehe die
+  // Begründung an `DashboardBlockDef.alwaysOn`.
+  { id: "alerts", surface: "subDashboard", role: "sub", labelKey: "blockAlerts", alwaysOn: true },
   { id: "boxStatus", surface: "subDashboard", role: "sub", labelKey: "blockBoxStatus" },
   { id: "openTasks", surface: "subDashboard", role: "sub", labelKey: "blockOpenTasks" },
   { id: "openPenalties", surface: "subDashboard", role: "sub", labelKey: "blockOpenPenalties" },
@@ -111,8 +124,10 @@ export const KEYHOLDER_SUB_BLOCKS = [
   { id: "tasks", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenTasks" },
   { id: "sessionOrStatus", surface: "keyholderSub", role: "keyholder", labelKey: "blockRunningSession" },
   { id: "wearSessions", surface: "keyholderSub", role: "keyholder", labelKey: "blockActiveWear" },
-  { id: "openInspection", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenInspection" },
-  { id: "orgasmRequest", surface: "keyholderSub", role: "keyholder", labelKey: "blockOrgasmRequest" },
+  // Die beiden Fristen-Blöcke der Keyholderin: eine offene Kontrolle und eine wartende Anfrage
+  // warten auf IHRE Entscheidung. Schaltet sie den leeren Block weg, wartet der Sub ins Leere.
+  { id: "openInspection", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenInspection", alwaysOn: true },
+  { id: "orgasmRequest", surface: "keyholderSub", role: "keyholder", labelKey: "blockOrgasmRequest", alwaysOn: true },
   { id: "statsCompact", surface: "keyholderSub", role: "keyholder", labelKey: "blockStatusAndStats" },
   { id: "goalOverview", surface: "keyholderSub", role: "keyholder", labelKey: "blockStatsGoals" },
   { id: "categoryGoals", surface: "keyholderSub", role: "keyholder", labelKey: "blockCategoryGoals" },
