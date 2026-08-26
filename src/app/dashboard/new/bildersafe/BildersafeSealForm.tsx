@@ -84,7 +84,7 @@ export default function BildersafeSealForm({ mobileDesktopMode }: { mobileDeskto
           <Card variant="semantic" semantic={readable === false ? "warn" : "sperrzeit"}>
             <div className="flex items-start gap-2.5">
               <Lock size={16} className={`mt-0.5 shrink-0 ${readable === false ? "text-warn" : "text-sperrzeit"}`} />
-              <div className="text-xs flex-1">
+              <div className="text-neben flex-1">
                 <p className={`font-bold ${readable === false ? "text-warn-text" : "text-sperrzeit-text"}`}>{t("codePhotoSealed")}</p>
                 <p className={`mt-0.5 ${readable === false ? "text-warn" : "text-sperrzeit"}`}>
                   {checking ? t("codePhotoChecking") : readable === false ? t("codePhotoUnreadable") : readable === true ? t("codePhotoReadable") : t("codePhotoNoCheck")}
@@ -96,13 +96,13 @@ export default function BildersafeSealForm({ mobileDesktopMode }: { mobileDeskto
         </button>
       ) : (
         <>
-          <p className="text-xs text-foreground-faint">{t("codePhotoHint")}</p>
+          <p className="text-neben text-foreground-faint">{t("codePhotoHint")}</p>
           <PhotoCapture onFile={code.handleFile} uploading={code.uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
-          {code.uploadError && !code.uploading && <p className="text-xs text-warn mt-1">{code.uploadError}</p>}
+          {code.uploadError && !code.uploading && <p className="text-neben text-warn mt-1">{code.uploadError}</p>}
         </>
       )}
 
-      {error && <p className="text-xs text-warn">{error}</p>}
+      {error && <p className="text-neben text-warn">{error}</p>}
     </EntryFormShell>
   );
 }

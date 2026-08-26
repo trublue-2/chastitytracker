@@ -6,6 +6,9 @@ import TaskProofFormCore from "@/app/entries/TaskProofFormCore";
 import { ownProofWhere, proofSubmitBlocked } from "@/lib/taskProofService";
 import { ownProofDeadline } from "@/lib/tasks";
 import { APP_TZ } from "@/lib/utils";
+import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
+import { actionSign } from "@/app/entries/actionSign";
+import { getTranslations } from "next-intl/server";
 
 /**
  * Aufnahme-Seite für EIN gefordertes Nachweis-Foto (Issue #39, Etappe 3).
@@ -63,7 +66,17 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
   // dann hat die Schranke oben ohnehin schon entschieden, ob diese Seite überhaupt aufgeht.
   const dueAt = ownProofDeadline(proof, proof.task, proof.task.holdUntil);
 
+  const [tTasks] = await Promise.all([getTranslations("tasks")]);
+
   return (
+    // Die elfte Erfassungs-Seite. Sie stand als einzige noch nackt da: kein Rücklink, kein Titel
+    // und damit — nach der Begradigung der übrigen zehn — die letzte Seite unter `/dashboard/new/`
+    // ohne Hauptbereichs-Landmarke. Wer die Nachweis-Meldung antippte, landete auf einem Bildschirm
+    // ohne Überschrift und ohne Angabe, wo er ist.
+    <EntryActionFormShell
+      {...actionSign("TASK")}
+      title={tTasks("proofsLabel")}
+    >
     <TaskProofFormCore
       proofId={proof.id}
       description={proof.description}
@@ -82,5 +95,6 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
       tz={session.user.timezone ?? APP_TZ}
       mobileDesktopMode={mobileDesktopMode}
     />
+    </EntryActionFormShell>
   );
 }

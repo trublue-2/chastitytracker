@@ -157,7 +157,7 @@ export default function WeightFormCore({
 
         {windowHint && (
           <Card padding="compact">
-            <p className="text-sm text-foreground-muted">{windowHint}</p>
+            <p className="text-fliess text-foreground-muted">{windowHint}</p>
           </Card>
         )}
 
@@ -185,32 +185,32 @@ export default function WeightFormCore({
             <div className="flex items-start gap-4">
               <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />
               <div className="flex flex-col gap-2 flex-1 pt-1">
-                {imageExifTime && <p className="text-xs text-foreground-faint">{tc("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>}
-                {exifWarning && !uploading && <p className="text-xs text-warn font-medium">{exifWarning}</p>}
+                {imageExifTime && <p className="text-neben text-foreground-faint">{tc("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>}
+                {exifWarning && !uploading && <p className="text-neben text-warn font-medium">{exifWarning}</p>}
                 <PhotoCapture onFile={handleFile} uploading={uploading} compact mobileDesktopMode={mobileDesktopMode} />
               </div>
             </div>
           ) : (
             <>
               <PhotoCapture onFile={handleFile} uploading={uploading} mobileDesktopMode={mobileDesktopMode} />
-              {uploadError && !uploading && <p className="text-xs text-warn font-medium mt-1">{uploadError}</p>}
-              {proofRequired && <p className="text-xs text-foreground-faint mt-1">{t("photoOrNote")}</p>}
+              {uploadError && !uploading && <p className="text-neben text-warn font-medium mt-1">{uploadError}</p>}
+              {proofRequired && <p className="text-neben text-foreground-faint mt-1">{t("photoOrNote")}</p>}
             </>
           )}
         </FormField>
 
         {scaleState === "detecting" && (
-          <p className="text-xs text-foreground-muted">{t("detecting")}</p>
+          <p className="text-neben text-foreground-muted">{t("detecting")}</p>
         )}
         {/* „Gelesen: X" nur, wenn X auch als Gewicht durchgeht. Sonst gilt dieselbe Meldung wie bei
             einem unscharfen Foto — die Anzeige war nicht lesbar, und er trägt von Hand ein. */}
         {scaleState === "detected" && detected !== null && (
-          <p className="text-xs text-foreground-muted">
+          <p className="text-neben text-foreground-muted">
             {t("detected", { value: `${weightText(detected, unitSystem, dl)} ${unitLabel}` })}
           </p>
         )}
         {(scaleState === "not-detected" || (scaleState === "detected" && detected === null)) && (
-          <p className="text-xs text-foreground-faint">{t("notDetected")}</p>
+          <p className="text-neben text-foreground-faint">{t("notDetected")}</p>
         )}
 
         <Textarea
@@ -220,7 +220,7 @@ export default function WeightFormCore({
           rows={3}
         />
 
-        {attempted && proofMissing && <p className="text-xs text-warn font-medium">{t("proofMissing")}</p>}
+        {attempted && proofMissing && <p className="text-neben text-warn font-medium">{t("proofMissing")}</p>}
 
         <FormError message={error} />
       </EntryFormShell>

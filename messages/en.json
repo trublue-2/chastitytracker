@@ -399,12 +399,10 @@
     "username": "Username",
     "password": "Password",
     "submit": "Sign in",
-    "submitting": "Signing in…",
     "invalidCredentials": "Invalid credentials",
     "loginFailed": "Sign-in failed. Please try again later.",
     "accountLocked": "Too many failed attempts. Please try again in 15 minutes.",
-    "forgotPassword": "Forgot password?",
-    "language": "Language"
+    "forgotPassword": "Forgot password?"
   },
   "dashboard": {
     "title": "KG Tracker",
@@ -435,7 +433,7 @@
     "blockOpenTasks": "Tasks",
     "blockOpenPenalties": "Open penalties",
     "blockWeightRelease": "Release condition",
-    "blockRunningSession": "Current wear period",
+    "blockRunningSession": "State and duration",
     "blockActiveWear": "Worn categories",
     "blockCategoriesPromo": "Categories hint",
     "blockIncompleteCategories": "Categories without device",
@@ -590,7 +588,6 @@
     "orgasmSubtitle": "Type & comment",
     "weight": "Weight",
     "weightSubtitle": "Record a reading from the scale",
-    "back": "← Overview",
     "notCaptured": "Not captured"
   },
   "boxStatus": {
@@ -1399,28 +1396,18 @@
     "weightTargetUnderweightWarning": "For him this target is underweight (BMI below 18.5). You can still set it."
   },
   "forgotPassword": {
-    "title": "Forgot password",
     "pageTitle": "Reset password",
-    "subtitle": "Enter your email address and we will send you a link to reset your password.",
-    "email": "Email address",
     "usernameLabel": "Username",
-    "submit": "Send link",
     "sendLink": "Send reset link",
-    "submitting": "Sending…",
-    "success": "Email sent. Check your inbox.",
     "successMessage": "If an account with this username exists and an email address is on file, an email has been sent.",
     "backToLogin": "← Back to login"
   },
   "resetPassword": {
-    "title": "Reset password",
     "pageTitle": "New password",
     "newPassword": "New password",
     "confirmPassword": "Confirm password",
     "mismatch": "Passwords do not match",
-    "submit": "Save password",
     "setPassword": "Set password",
-    "submitting": "Saving…",
-    "success": "Password changed successfully.",
     "backToLogin": "← Back to login",
     "invalidLink": "Invalid link."
   },

@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
+import { actionSign } from "@/app/entries/actionSign";
 import VerschlussForm from "../../VerschlussForm";
 import OeffnenForm from "../../OeffnenForm";
 import PruefungForm from "../../PruefungForm";
@@ -98,11 +99,14 @@ export default async function EditEntryPage({
   const backLabel = from === "admin" ? tCommon("back") : from === "eintraege" ? t("entries") : t("overview");
 
   return (
-    <div className="py-6">
-      <Link href={redirectTo} className="text-sm text-foreground-faint hover:text-foreground-muted transition">← {backLabel}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">
-        {tStats(TYPE_STATS_KEYS[entry.type] ?? "lock")} {tCommon("edit").toLowerCase()}
-      </h1>
+    <EntryActionFormShell
+      // Dasselbe Zeichen wie beim Erfassen derselben Art — das Bearbeiten ist kein anderer
+      // Vorgang, sondern derselbe noch einmal.
+      {...actionSign(entry.type)}
+      backHref={redirectTo}
+      backLabel={backLabel}
+      title={`${tStats(TYPE_STATS_KEYS[entry.type] ?? "lock")} ${tCommon("edit").toLowerCase()}`}
+    >
       <div>
       {entry.type === "OEFFNEN" && (
         <OeffnenForm initial={{ id: entry.id, startTime: entry.startTime.toISOString(), note: entry.note, oeffnenGrund: entry.oeffnenGrund }} grundOptions={grundOptions} maxTime={maxTime} tz={tz} nowDefault={nowDefault} redirectTo={redirectTo} />
@@ -151,6 +155,6 @@ export default async function EditEntryPage({
         />
       )}
       </div>
-    </div>
+    </EntryActionFormShell>
   );
 }

@@ -93,7 +93,11 @@ export default function PasskeyLoginButton() {
   if (!supported) return null;
 
   return (
-    <div className="flex flex-col gap-2">
+    // Die Haarlinie gehört HIERHER, nicht an die Aufrufstelle: sie trennt diese zweite Anmeldeart
+    // von der ersten, und wenn es die zweite nicht gibt, gibt es nichts zu trennen. Im Login stand
+    // sie in einem Wrapper und rendete deshalb auch dann, wenn dieser Knopf `null` liefert — also
+    // beim ersten Bild immer, weil `supported` erst im Effekt gesetzt wird.
+    <div className="flex flex-col gap-2 pt-4 border-t border-border-subtle">
       <Button
         type="button"
         variant="secondary"

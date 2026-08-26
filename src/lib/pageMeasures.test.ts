@@ -109,7 +109,6 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
     "src/app/components/WeightStatsCard.tsx",
     "src/app/dashboard/WeightReleaseCard.tsx",
     "src/app/dashboard/geraete/DevicesClient.tsx",
-    "src/app/login/page.tsx",
   ]);
 
   it.each(ALL.filter((f) =>

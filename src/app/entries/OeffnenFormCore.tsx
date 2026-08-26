@@ -154,7 +154,7 @@ export default function OeffnenFormCore({
         onProceed={handleReinigungLimitConfirm}
         proceeding={saving}
       >
-        <p className="text-sm text-foreground-muted">
+        <p className="text-fliess text-foreground-muted">
           {t("reinigungLimitSubtext", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}
         </p>
       </RiskConfirmSheet>
@@ -170,7 +170,7 @@ export default function OeffnenFormCore({
         onProceed={() => { setShowWarning(false); doSave(forcedReinigung); }}
         proceeding={saving}
       >
-        <p className="text-sm text-foreground-muted">
+        <p className="text-fliess text-foreground-muted">
           {grund !== "REINIGUNG" ? t("modalSubtext") : reinigungHintText}
         </p>
         {/* Der Eintrag dokumentiert die Öffnung — er vollzieht sie nicht. Bei einem VERBOTENEN
@@ -178,9 +178,9 @@ export default function OeffnenFormCore({
             Dokumentieren des Verstosses den Verstoss). Ohne diesen Satz liest der Sub
             „Konsequenzen" und denkt ans Strafbuch, nicht an den Notschlüssel. */}
         {hasBox && (
-          <p className="text-sm font-semibold text-warn mt-1">{t("modalBoxStaysLocked")}</p>
+          <p className="text-fliess font-semibold text-warn mt-1">{t("modalBoxStaysLocked")}</p>
         )}
-        <p className="text-xs text-sperrzeit font-semibold mt-1">
+        <p className="text-neben text-sperrzeit font-semibold mt-1">
           {sperrzeitUnbefristet
             ? t("modalLockedIndefinite")
             : sperrzeitEndetAt
@@ -216,8 +216,8 @@ export default function OeffnenFormCore({
             <div className="flex items-start gap-2.5">
               <Lock size={16} className="flex-shrink-0 text-sperrzeit mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-sperrzeit-text">{t("lockedWarningTitle")}</p>
-                <p className="text-xs text-sperrzeit mt-0.5">
+                <p className="text-fliess font-bold text-sperrzeit-text">{t("lockedWarningTitle")}</p>
+                <p className="text-neben text-sperrzeit mt-0.5">
                   {sperrzeitUnbefristet
                     ? t("lockedWarningTextIndefinite")
                     : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz }) })}
@@ -249,14 +249,14 @@ export default function OeffnenFormCore({
             <div className="flex items-start gap-2">
               <Lock size={15} className="text-warn shrink-0 mt-0.5" />
               <div className="flex flex-col gap-1">
-                <p className="text-xs font-bold text-warn-text">{t("boxWontOpenTitle")}</p>
-                <p className="text-xs text-warn-text">
+                <p className="text-neben font-bold text-warn-text">{t("boxWontOpenTitle")}</p>
+                <p className="text-neben text-warn-text">
                   {boxHold!.until
                     ? t("boxHoldsUntil", { date: new Date(boxHold!.until).toLocaleString(dl, { hour: "2-digit", minute: "2-digit", timeZone: tz }) })
                     : t("boxHoldsIndefinitely")}
                   {reinigung?.nextWindow ? " " + t("boxNextWindow", { start: reinigung.nextWindow.start, end: reinigung.nextWindow.end }) : ""}
                 </p>
-                <p className="text-xs text-warn-text">
+                <p className="text-neben text-warn-text">
                   {grund === "REINIGUNG" ? t("boxStillCountsCleaning") : t("boxStillCounts")}
                 </p>
               </div>
@@ -267,9 +267,9 @@ export default function OeffnenFormCore({
         {grund === "REINIGUNG" && (
           <Card variant="semantic" semantic={isReinigungLimitReached ? "warn" : "inspect"} padding="compact">
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-inspect-text">{reinigungHintText}</p>
+              <p className="text-neben text-inspect-text">{reinigungHintText}</p>
               {reinigungMaxProTag > 0 && (
-                <p className={`text-xs font-semibold ${isReinigungLimitReached ? "text-warn" : "text-inspect-text"}`}>
+                <p className={`text-neben font-semibold ${isReinigungLimitReached ? "text-warn" : "text-inspect-text"}`}>
                   {t("reinigungLimitHint", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}
                 </p>
               )}

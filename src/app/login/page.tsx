@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
-import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
+import AuthScreen, { AuthLink } from "@/app/components/AuthScreen";
+import Button from "@/app/components/Button";
+import FormError from "@/app/components/FormError";
+import Input from "@/app/components/Input";
 import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 import PasskeyLoginButton from "@/app/components/PasskeyLoginButton";
 import { clearSwUserCache } from "@/lib/swMessages";
@@ -63,76 +65,48 @@ export default function LoginPage() {
   }
 
   return (
-    <div data-theme="user" className="min-h-screen flex flex-col items-center justify-center px-4 bg-background">
-      <div className="w-full max-w-sm">
-        {/* Brand */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-foreground text-background">
-            <Lock size={32} strokeWidth={2} />
-          </div>
-          <h1 className="mt-4 text-2xl font-bold text-foreground tracking-tight">KG Tracker</h1>
-          <p className="mt-1 text-sm text-foreground-muted">{t("subtitle")}</p>
-        </div>
-
-        <div className="bg-surface rounded-3xl shadow-sm border border-border p-8">
-          <div className="flex justify-center mb-6">
-            <LocaleSwitcher current={locale} />
-          </div>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            <div>
-              <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
-                {t("username")}
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                autoComplete="username"
-                autoCapitalize="none"
-                className="w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2">
-                {t("password")}
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                className="w-full bg-surface-raised border border-border rounded-xl px-4 py-3.5 text-base text-foreground placeholder:text-foreground-faint focus:outline-none focus:ring-2 focus:ring-foreground-muted focus:border-transparent transition"
-              />
-            </div>
-
-            {error && (
-              <div className="bg-warn-bg border border-warn-border rounded-xl px-4 py-3 text-sm text-warn-text text-center">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-1 w-full bg-foreground text-background rounded-xl py-3.5 text-base font-semibold hover:opacity-80 active:scale-[0.98] disabled:opacity-50 transition-all"
-            >
-              {loading ? t("submitting") : t("submit")}
-            </button>
-          </form>
-
-          {/* Passkey login — only shown on supported browsers */}
-          <div className="mt-4 pt-4 border-t border-border">
-            <PasskeyLoginButton />
-          </div>
-        </div>
-        <div className="mt-4 px-1">
-          <Link href="/forgot-password" className="text-sm text-foreground-faint hover:text-foreground-muted transition">
-            {t("forgotPassword")}
-          </Link>
-        </div>
+    /* Der Titel IST hier die Wortmarke: auf diesem Bildschirm gibt es nichts zu benennen ausser der
+       App selbst. Sie steht deshalb in der Serif, die anderswo die Titel trägt — vorher stand sie
+       fett in der Grotesk und war damit die einzige Überschrift der App, die nicht mitspielte. */
+    <AuthScreen
+      title="KG Tracker"
+      subtitle={t("subtitle")}
+      footer={<AuthLink href="/forgot-password">{t("forgotPassword")}</AuthLink>}
+    >
+      <div className="flex justify-center">
+        <LocaleSwitcher current={locale} />
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Input
+          label={t("username")}
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+          autoComplete="username"
+          autoCapitalize="none"
+        />
+        <Input
+          label={t("password")}
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+        />
+        <FormError message={error} />
+        <Button type="submit" variant="primary" fullWidth loading={loading}>
+          {t("submit")}
+        </Button>
+      </form>
+
+      {/* Passkey nur auf Browsern, die ihn können — und die Haarlinie MIT ihm. Sie stand hier im
+          Wrapper und rendete deshalb immer, während der Knopf `null` liefert, solange WebAuthn
+          fehlt oder noch nicht geprüft ist (das ist beim ersten Bild IMMER so, `supported` wird
+          erst im Effekt gesetzt). Übrig blieb ein freistehender Strich am Fuss des Formulars, der
+          nichts von nichts trennte. Die Trennung gehört zu dem, was sie abtrennt. */}
+      <PasskeyLoginButton />
+    </AuthScreen>
   );
 }

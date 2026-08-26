@@ -1,6 +1,6 @@
-import Link from "next/link";
+import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
+import { actionSign } from "@/app/entries/actionSign";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getIsLocked, getMobileDesktopMode } from "@/lib/queries";
@@ -19,13 +19,14 @@ export default async function NewBildersafePage() {
   // Versiegeln nur im verschlossenen Zustand (das Code-Foto hängt am aktuellen Verschluss).
   if (!isLocked) redirect("/dashboard");
 
-  const tn = await getTranslations("newEntry");
+  const [tn] = await Promise.all([getTranslations("newEntry")]);
   return (
-    <div className="py-6">
-      <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-2">{tn("bildersafeTitle")}</h1>
-      <p className="text-sm text-foreground-muted mb-6">{tn("bildersafeSubtitle")}</p>
+    <EntryActionFormShell
+      {...actionSign("BILDERSAFE_SEAL")}
+      title={tn("bildersafeTitle")}
+      subtitle={tn("bildersafeSubtitle")}
+    >
       <BildersafeSealForm mobileDesktopMode={mobileDesktopMode} />
-    </div>
+    </EntryActionFormShell>
   );
 }

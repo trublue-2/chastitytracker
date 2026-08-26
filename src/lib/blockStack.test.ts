@@ -72,9 +72,12 @@ describe("renderStack", () => {
 
 describe("resolveLayout.shows", () => {
   it("beantwortet die Sichtbarkeit eines einzelnen Blocks", () => {
-    const layout = resolveLayout({ subDashboard: { hidden: ["runningSession"] } }, "subDashboard");
-    expect(layout.shows("runningSession")).toBe(false);
-    expect(layout.shows("categoryGoals")).toBe(true);
+    // Nicht `runningSession`: der trägt seit #100 beide Zustände samt Reinigungs-Frist und ist
+    // deshalb `alwaysOn` — er kann gar nicht mehr verborgen sein und taugte hier nur, solange er
+    // es konnte.
+    const layout = resolveLayout({ subDashboard: { hidden: ["categoryGoals"] } }, "subDashboard");
+    expect(layout.shows("categoryGoals")).toBe(false);
+    expect(layout.shows("sessionList")).toBe(true);
   });
 
   it("ein `alwaysOn`-Block bleibt sichtbar, auch wenn er ausgeblendet gespeichert wurde", () => {

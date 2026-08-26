@@ -1,3 +1,5 @@
+import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
+import { actionSign } from "@/app/entries/actionSign";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -43,30 +45,34 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
   const preferred = devices.findIndex((d) => d.id === wantedDevice);
   if (preferred > 0) devices.unshift(...devices.splice(preferred, 1));
 
-  const [tn, t, mobileDesktopMode] = await Promise.all([
-    getTranslations("newEntry"),
+  const [t, mobileDesktopMode] = await Promise.all([
     getTranslations("wearForm"),
     getMobileDesktopMode(session.user.id),
   ]);
 
+  // Kopf einmal, für beide Ausgänge unten: der Leerfall ist derselbe Bildschirm, nur ohne Geräte —
+  // ein zweiter, von Hand gleich gehaltener Kopf wäre genau die Stelle, an der die zwei
+  // auseinanderlaufen.
+  const shell = { ...actionSign("WEAR_BEGIN"), title: t("titleBegin") };
+
+  // Auch der Leerfall bekommt Kopf und Titel. Vorher stand hier eine Seite aus Rücklink und Kasten,
+  // ohne zu sagen, WELCHE Handlung gerade nicht möglich ist — nur der Kategorie-Name im Satz
+  // verriet es.
   if (devices.length === 0) {
     return (
-      <div className="py-6">
-        <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
-        <div className="mt-4 p-6 rounded-xl border border-border bg-surface text-center">
-          <p className="text-sm text-foreground-muted mb-3">{t("noDevicesInCategory", { name: category.name })}</p>
-          <Link href={deviceFormHref(category.id)} className="text-sm font-medium text-foreground underline">
+      <EntryActionFormShell {...shell}>
+        <div className="p-6 rounded-xl border border-border bg-surface text-center">
+          <p className="text-fliess text-foreground-muted mb-3">{t("noDevicesInCategory", { name: category.name })}</p>
+          <Link href={deviceFormHref(category.id)} className="text-fliess font-medium text-foreground underline">
             {t("addDeviceLink")}
           </Link>
         </div>
-      </div>
+      </EntryActionFormShell>
     );
   }
 
   return (
-    <div className="py-6">
-      <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("titleBegin")}</h1>
+    <EntryActionFormShell {...shell}>
       <WearForm
         kind="begin"
         mobileDesktopMode={mobileDesktopMode}
@@ -76,6 +82,6 @@ export default async function NewWearBeginPage({ searchParams }: { searchParams:
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
       />
-    </div>
+    </EntryActionFormShell>
   );
 }

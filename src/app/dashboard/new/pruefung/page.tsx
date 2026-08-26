@@ -1,7 +1,7 @@
-import Link from "next/link";
+import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
+import { actionSign } from "@/app/entries/actionSign";
 import PruefungForm from "../../PruefungForm";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { generateKontrollCode } from "@/lib/utils";
 import { getBoxFormContext, getOpenKontrollen, getMobileDesktopMode } from "@/lib/queries";
@@ -48,12 +48,9 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
   // beweist, dass die Schlüsselbox unberührt ist — reine KG-Semantik; eine Trage-Kontrolle hat
   // keine Box, und `lockEntry` ist dort null.
   const sealRequired = sealRequiredForCode(effectiveCode, target?.lockEntry ?? null, codeRequired);
-  const tn = await getTranslations("newEntry");
   const tf = await getTranslations("inspectionForm");
   return (
-    <div className="py-6">
-      <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
+    <EntryActionFormShell {...actionSign("PRUEFUNG")} title={tf("title")}>
       <PruefungForm
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
@@ -72,6 +69,6 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
         mobileDesktopMode={mobileDesktopMode}
         boxConfirm={box?.boxConfirm ?? false}
       />
-    </div>
+    </EntryActionFormShell>
   );
 }

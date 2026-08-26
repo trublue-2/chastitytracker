@@ -1,33 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Lock, LockOpen } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
-import TimerDisplay from "@/app/components/TimerDisplay";
-import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import Section from "@/app/components/Section";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { formatTotalHours } from "@/lib/utils";
 import { coveragePct } from "@/lib/percent";
-import StateHero from "@/app/components/StateHero";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 
 // ── Types ────────────────────────────────────
 export interface DashboardProps {
   currentStatus: { type: "VERSCHLUSS" | "OEFFNEN"; since: string } | null;
-  /** Ende der laufenden Reinigungspause (ISO) — bis dahin führt ein Wiederverschluss dieselbe
-   *  Session fort. `null`, wenn keine läuft. Reine Anzeige: der Verschluss-Zustand ist unberührt. */
-  cleaningPauseUntil: string | null;
-  /** Die STRAFFRIST als fertige Uhrzeit in der Zone des Subs — nur gesetzt, wenn sie FRÜHER liegt
-   *  als der Countdown, sonst sagt der Countdown schon alles. Ableitung in `dashboard/page.tsx`. */
-  cleaningRelockWarnTime: string | null;
-  /** Ist sie bereits verstrichen? Dann sagt die Zeile das im Perfekt statt eine Frist zu versprechen,
-   *  die es nicht mehr gibt — die Pause läuft ja noch weiter. */
-  cleaningRelockWarnPassed: boolean;
   hasEntries: boolean;
 
   // Die Anforderungen mit Frist (Kontrolle, Einschliessen, Orgasmus) stehen NICHT hier, sondern
@@ -93,9 +79,6 @@ export default function DashboardClient(props: DashboardProps) {
   const t = useTranslations("dashboard");
   const {
     currentStatus,
-    cleaningPauseUntil,
-    cleaningRelockWarnTime,
-    cleaningRelockWarnPassed,
     hasEntries,
     tagH: baseTagH,
     wocheH: baseWocheH,
@@ -106,30 +89,8 @@ export default function DashboardClient(props: DashboardProps) {
     elapsedMonatH: baseElapsedMonatH,
   } = props;
 
-  const router = useRouter();
   const isLocked = currentStatus?.type === "VERSCHLUSS";
 
-  // Nach Fristablauf zurück in den normalen „offen"-Zustand — EIN Timer, ausgelöst vom Effekt.
-  // Nicht über `onExpire` von TimerDisplay: das feuert aus dem Render heraus und im Sekundentakt,
-  // was React verbietet (setState einer fremden Komponente während des Renderns) und bei einer
-  // vorgehenden Client-Uhr sekündlich einen vollständigen Server-Render auslösen würde.
-  useEffect(() => {
-    if (!cleaningPauseUntil) return;
-    const restMs = new Date(cleaningPauseUntil).getTime() - Date.now();
-    // Schon abgelaufen (Uhr-Versatz): einmal refreshen, nicht wiederholt.
-    const timer = setTimeout(() => router.refresh(), Math.max(0, restMs) + 1000);
-    return () => clearTimeout(timer);
-  }, [cleaningPauseUntil, router]);
-  const isOpen = !isLocked;
-
-  // Der Timer im Status-Hero: während einer Reinigungspause die Restfrist, sonst die Dauer seit dem
-  // Öffnen. `format="short"` (mm:ss) für den Countdown — `long` zeigt unter einer Stunde nur volle
-  // Minuten und stünde die letzte, entscheidende Minute lang auf „0m".
-  const heroTimer = cleaningPauseUntil
-    ? { targetDate: cleaningPauseUntil, mode: "countdown" as const, format: "short" as const }
-    : currentStatus
-      ? { targetDate: currentStatus.since, mode: "countup" as const, format: "long" as const }
-      : null;
 
   const tagH = useLiveHours(baseTagH, serverNow, isLocked);
   const wocheH = useLiveHours(baseWocheH, serverNow, isLocked);
@@ -153,47 +114,6 @@ export default function DashboardClient(props: DashboardProps) {
 
   return (
     <DashboardBlock as="main" className="flex flex-col gap-4">
-
-      {/* ── Status Hero (only when OPEN — when locked, LaufendeSessionCard handles this) ──
-           Während einer laufenden Reinigungspause zeigt derselbe Platz die verbleibende Frist statt
-           „Geöffnet seit": die Session ist nicht beendet, sie ist unterbrochen. Läuft die Frist ab,
-           kehrt die Anzeige von selbst zum normalen „geöffnet" zurück (Timer im Effekt oben). */}
-      {/* Der Held des OFFENEN Zustands — dieselbe Figur wie beim verschlossenen, deshalb dasselbe
-          Bauteil (`StateHero`). Hier stand bis v6 die alte App: Verlaufskasten mit Rahmen, Zeichen
-          in einer getönten Kachel, „OFFEN SEIT" über einer 24-px-Zahl in Weiss.
-
-          `tone`: offen sein WILL nichts, also `quiet` — keine Farbe, kein Leuchten. Läuft eine
-          Reinigungspause, gibt es eine Frist, und die will etwas: dann `warn`, die Restzeit statt
-          der verstrichenen Zeit, und der Knopf, der die Frist beendet.
-
-          Ohne `heroTimer` wird gar nichts gerendert: `currentStatus` kommt aus dem letzten
-          KG-Eintrag, `hasEntries` aus ALLEN Eintragsarten — wer nur Orgasmen und Kontrollen erfasst
-          hat, bekäme sonst eine Kopfzeile über einer fehlenden Zahl. */}
-      {isOpen && heroTimer && (
-        <StateHero
-          tone={cleaningPauseUntil ? "warn" : "quiet"}
-          word={cleaningPauseUntil ? t("cleaningPauseLabel") : t("openSince")}
-          icon={<LockOpen size={15} strokeWidth={2.2} className="shrink-0" />}
-          value={<TimerDisplay {...heroTimer} />}
-          /* Die Folge, bevor sie eintritt. Der Countdown darüber sagt, wie lange die Session
-             fortgeführt wird; wo die STRAFFRIST früher endet (Reinigungsfenster kürzer als das
-             Kontingent), muss diese Zeile das sagen — sonst verschliesst er bei laufendem
-             Countdown und hat ein Vergehen, das er sich nicht erklären kann. */
-          footnote={cleaningRelockWarnTime && (
-            <span className="font-medium text-warn">
-              {t(cleaningRelockWarnPassed ? "cleaningRelockWarnPassed" : "cleaningRelockWarn", { time: cleaningRelockWarnTime })}
-            </span>
-          )}
-        >
-          {cleaningPauseUntil && (
-            <Link href="/dashboard/new/verschluss" className="relative mt-4 block">
-              <Button variant="semantic" semantic="lock" fullWidth icon={<Lock size={16} />}>
-                {t("cleaningPauseRelock")}
-              </Button>
-            </Link>
-          )}
-        </StateHero>
-      )}
 
       {/* Anforderungs-Banner: siehe `DashboardAlerts` (eigener Block ganz oben).
            Sperrzeit-Banner entfernt — steht bereits im Sperrzeit-Footer der LaufendeSessionCard. */}

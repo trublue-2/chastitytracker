@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
+import { actionSign } from "@/app/entries/actionSign";
 import OeffnenForm from "../../OeffnenForm";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -38,17 +39,13 @@ export default async function NewOeffnenPage() {
     box: box ? { lockUntil: box.lockUntil?.toISOString() ?? null } : null,
     now,
   });
-
-  const tn = await getTranslations("newEntry");
   const tf = await getTranslations("openForm");
   // Öffnen bricht jede Aufgabe ab, die den KG verschlossen verlangt — vorher warnen und rückfragen.
   const taskWarnings = await getTasksBlocking(userId, now, { kg: true });
   const grundOptions = resolveReasonList(effectiveOeffnenGruende(user?.oeffnenGruendeConfig), "opening", tf);
 
   return (
-    <div className="py-6">
-      <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tf("title")}</h1>
+    <EntryActionFormShell {...actionSign("OEFFNEN")} title={tf("title")}>
       <OeffnenForm
         grundOptions={grundOptions}
         taskWarnings={taskWarnings}
@@ -80,6 +77,6 @@ export default async function NewOeffnenPage() {
         boxHold={boxHold}
         hasBox={!!box}
       />
-    </div>
+    </EntryActionFormShell>
   );
 }

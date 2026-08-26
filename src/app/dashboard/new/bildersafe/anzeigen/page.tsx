@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
+import { actionSign } from "@/app/entries/actionSign";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -12,14 +13,15 @@ export default async function ShowBildersafeCodePage() {
   if (!bildersafeEnabled()) redirect("/dashboard");
 
   const latest = await getCurrentSealedCode(userId);
-  const tn = await getTranslations("newEntry");
+  const [tn] = await Promise.all([getTranslations("newEntry")]);
   const revealed = latest ? await isCodePhotoRevealed({ userId, startTime: latest.startTime }) : false;
 
   return (
-    <div className="py-6">
-      <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{tn("bildersafeShowTitle")}</h1>
+    <EntryActionFormShell
+      {...actionSign("BILDERSAFE_SHOW")}
+      title={tn("bildersafeShowTitle")}
+    >
       <CodeAnzeigen codeImageUrl={latest?.codeImageUrl ?? null} revealed={revealed} />
-    </div>
+    </EntryActionFormShell>
   );
 }

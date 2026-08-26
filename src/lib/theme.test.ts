@@ -196,7 +196,10 @@ describe("Theme-Wrapper bleiben Containing-Block-frei", () => {
     // Suite trotzdem grün) nicht. Fällt ein Wrapper planmässig weg, gehört die Zahl mit ihm
     // gesenkt — der Test gated das Deploy, die Meldung muss also sagen, was zu tun ist.
     expect(WRAPPER_FILES.length, `nur ${WRAPPER_FILES.length} Wrapper-Dateien gefunden — Suche kaputt, oder ein Wrapper ist planmässig entfallen (dann diese Zahl senken)`)
-      .toBeGreaterThanOrEqual(7);
+      // 7 → 5: die drei Auth-Seiten setzten `data-theme` je einzeln und teilen sich seit #84 die
+      // Hülle `AuthScreen`, die es einmal setzt. Genau der Fall, den der Meldungstext oben meint —
+      // ein Wrapper ist planmässig entfallen, also sinkt die Zahl mit.
+      .toBeGreaterThanOrEqual(5);
   });
 
   it.each(WRAPPER_FILES)("%s", (file) => {

@@ -108,10 +108,10 @@ export default function TaskProofFormCore({
       }
     >
       <Card variant="semantic" semantic="inspect">
-        <p className="text-sm font-semibold text-foreground break-words">{taskTitle}</p>
-        <p className="text-sm text-foreground break-words mt-1">{description}</p>
+        <p className="text-fliess font-semibold text-foreground break-words">{taskTitle}</p>
+        <p className="text-fliess text-foreground break-words mt-1">{description}</p>
         {code && (
-          <p className="text-sm mt-2">
+          <p className="text-fliess mt-2">
             <span className="text-foreground-muted">{t("proofCodeLabel")}: </span>
             <span className="font-mono tracking-widest text-[var(--color-inspect)] font-semibold">{code}</span>
           </p>
@@ -121,14 +121,14 @@ export default function TaskProofFormCore({
             trotzdem hierher (verspätet einreichen ist erlaubt), und dann ist die Warnfarbe die
             ehrliche: die Zeile ist keine Ankündigung mehr, sondern der Grund für den Satz darunter. */}
         {dueAt && (
-          <p className={`text-xs font-medium mt-2 tabular-nums ${late ? "text-warn-text" : "text-foreground-muted"}`}>
+          <p className={`text-neben font-medium mt-2 tabular-nums ${late ? "text-warn-text" : "text-foreground-muted"}`}>
             {t("proofDueLine", { value: formatDateTime(dueAt, toDateLocale(locale), tz) })}
           </p>
         )}
         {/* Vor dem Auslöser und nicht erst danach: er soll wissen, worauf er sich einlässt, BEVOR er
             fotografiert — sein Nachweis hängt jetzt an einem Urteil, nicht mehr an der Uhr. */}
-        {late && <p className="text-xs font-medium text-warn-text mt-1">{t("proofLateHint")}</p>}
-        <p className="text-xs text-foreground-faint mt-2">
+        {late && <p className="text-neben font-medium text-warn-text mt-1">{t("proofLateHint")}</p>}
+        <p className="text-neben text-foreground-faint mt-2">
           {orderMatters
             ? t(code ? "proofCaptureHintCode" : "proofCaptureHint")
             : t(code ? "proofCaptureHintCodeNoOrder" : "proofCaptureHintNoOrder")}
@@ -152,7 +152,7 @@ export default function TaskProofFormCore({
               mobileDesktopMode={mobileDesktopMode}
             />
             {photo.uploadError && !photo.uploading && (
-              <p className="text-xs text-warn font-medium mt-1">{photo.uploadError}</p>
+              <p className="text-neben text-warn font-medium mt-1">{photo.uploadError}</p>
             )}
           </>
         )}
@@ -164,7 +164,7 @@ export default function TaskProofFormCore({
           genau wie die Sichtung, vor der sie warnt (`evaluateProofs`). */}
       {orderMatters && photo.imageUrl && !photo.imageExifTime && (
         <Card variant="semantic" semantic="warn">
-          <p className="text-sm text-warn-text">{t("proofNoExifWarning")}</p>
+          <p className="text-fliess text-warn-text">{t("proofNoExifWarning")}</p>
         </Card>
       )}
 

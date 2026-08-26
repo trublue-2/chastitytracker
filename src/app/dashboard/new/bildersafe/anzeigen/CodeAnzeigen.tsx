@@ -17,7 +17,7 @@ export default function CodeAnzeigen({
   const [open, setOpen] = useState(false);
 
   if (!codeImageUrl) {
-    return <p className="text-sm text-foreground-muted">{t("bildersafeShowNoCode")}</p>;
+    return <p className="text-fliess text-foreground-muted">{t("bildersafeShowNoCode")}</p>;
   }
   if (!revealed) {
     return (
@@ -25,8 +25,8 @@ export default function CodeAnzeigen({
         <div className="flex items-start gap-2.5">
           <Lock size={18} className="text-sperrzeit mt-0.5 shrink-0" />
           <div>
-            <p className="text-sm font-bold text-sperrzeit-text">{t("bildersafeShowSealed")}</p>
-            <p className="text-xs text-sperrzeit mt-0.5">{t("bildersafeShowSealedHint")}</p>
+            <p className="text-fliess font-bold text-sperrzeit-text">{t("bildersafeShowSealed")}</p>
+            <p className="text-neben text-sperrzeit mt-0.5">{t("bildersafeShowSealedHint")}</p>
           </div>
         </div>
       </Card>
@@ -35,12 +35,12 @@ export default function CodeAnzeigen({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-foreground-muted">{t("bildersafeShowReadHint")}</p>
+      <p className="text-fliess text-foreground-muted">{t("bildersafeShowReadHint")}</p>
       <button type="button" onClick={() => setOpen(true)} className="block w-full">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={codeImageUrl} alt={t("bildersafeShowTitle")} className="w-full rounded-2xl border border-border object-contain max-h-[70vh] bg-surface" />
       </button>
-      <p className="inline-flex items-center gap-1.5 text-xs text-foreground-faint">
+      <p className="inline-flex items-center gap-1.5 text-neben text-foreground-faint">
         <KeyRound size={12} /> {t("bildersafeShowTapHint")}
       </p>
       {open && <FullscreenImageModal src={codeImageUrl} alt={t("bildersafeShowTitle")} onClose={() => setOpen(false)} />}

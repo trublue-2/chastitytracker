@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
+import { actionSign } from "@/app/entries/actionSign";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
@@ -22,12 +23,10 @@ export default async function NewWeightPage() {
   const props = await getWeightFormProps(userId, userId);
   if (!props) redirect("/dashboard");
 
-  const [tn, t] = await Promise.all([getTranslations("newEntry"), getTranslations("weightForm")]);
+  const [t] = await Promise.all([getTranslations("weightForm")]);
   return (
-    <div className="py-6">
-      <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("title")}</h1>
+    <EntryActionFormShell {...actionSign("WEIGHT")} title={t("title")}>
       <WeightForm {...props} windowHint={weighingWindowHint(props, t)} />
-    </div>
+    </EntryActionFormShell>
   );
 }

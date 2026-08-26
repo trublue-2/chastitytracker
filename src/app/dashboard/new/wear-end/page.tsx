@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
+import { actionSign } from "@/app/entries/actionSign";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
@@ -27,8 +28,6 @@ export default async function NewWearEndPage({ searchParams }: { searchParams: P
   const active = await getActiveWearSessionForCategory(session.user.id, categoryId);
   // No active session → redirect to begin form
   if (!active) redirect(`/dashboard/new/wear-begin?category=${categoryId}`);
-
-  const tn = await getTranslations("newEntry");
   const t = await getTranslations("wearForm");
   // Warnung VOR dem Ablegen: ohne sie wären es zwei Taps von „Aufgabe läuft" zu „Vergehen".
   const taskWarnings = await getTasksBlocking(session.user.id, new Date(), {
@@ -36,9 +35,7 @@ export default async function NewWearEndPage({ searchParams }: { searchParams: P
     deviceId: active.deviceId,
   });
   return (
-    <div className="py-6">
-      <Link href="/dashboard" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{tn("back")}</Link>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("titleEnd")}</h1>
+    <EntryActionFormShell {...actionSign("WEAR_END")} title={t("titleEnd")}>
       <WearForm
         kind="end"
         category={{ id: category.id, name: category.name, color: category.color, icon: category.icon }}
@@ -51,6 +48,6 @@ export default async function NewWearEndPage({ searchParams }: { searchParams: P
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
       />
-    </div>
+    </EntryActionFormShell>
   );
 }

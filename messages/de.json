@@ -399,12 +399,10 @@
     "username": "Benutzername",
     "password": "Passwort",
     "submit": "Anmelden",
-    "submitting": "Anmelden…",
     "invalidCredentials": "Ungültige Anmeldedaten",
     "loginFailed": "Anmeldung fehlgeschlagen. Bitte später erneut versuchen.",
     "accountLocked": "Zu viele Fehlversuche. Bitte versuche es in 15 Minuten erneut.",
-    "forgotPassword": "Passwort vergessen?",
-    "language": "Sprache"
+    "forgotPassword": "Passwort vergessen?"
   },
   "dashboard": {
     "title": "KG Tracker",
@@ -435,7 +433,7 @@
     "blockOpenTasks": "Aufgaben",
     "blockOpenPenalties": "Offene Strafen",
     "blockWeightRelease": "Freigabe-Vorgabe",
-    "blockRunningSession": "Laufende Tragezeit",
+    "blockRunningSession": "Zustand und Dauer",
     "blockActiveWear": "Getragene Kategorien",
     "blockCategoriesPromo": "Hinweis zu Kategorien",
     "blockIncompleteCategories": "Kategorien ohne Gerät",
@@ -590,7 +588,6 @@
     "orgasmSubtitle": "Art & Kommentar",
     "weight": "Gewicht",
     "weightSubtitle": "Messung von der Waage eintragen",
-    "back": "← Übersicht",
     "notCaptured": "nicht erfasst"
   },
   "boxStatus": {
@@ -1399,28 +1396,18 @@
     "weightTargetUnderweightWarning": "Dieses Ziel liegt für ihn im Untergewicht (BMI unter 18,5). Du kannst es trotzdem setzen."
   },
   "forgotPassword": {
-    "title": "Passwort vergessen",
     "pageTitle": "Passwort zurücksetzen",
-    "subtitle": "Gib deine E-Mail-Adresse ein und wir senden dir einen Link zum Zurücksetzen des Passworts.",
-    "email": "E-Mail-Adresse",
     "usernameLabel": "Benutzername",
-    "submit": "Link senden",
     "sendLink": "Reset-Link senden",
-    "submitting": "Wird gesendet…",
-    "success": "E-Mail gesendet. Prüfe deinen Posteingang.",
     "successMessage": "Falls ein Konto mit diesem Benutzernamen existiert und eine E-Mail-Adresse hinterlegt ist, wurde eine Mail versendet.",
     "backToLogin": "← Zurück zum Login"
   },
   "resetPassword": {
-    "title": "Passwort zurücksetzen",
     "pageTitle": "Neues Passwort",
     "newPassword": "Neues Passwort",
     "confirmPassword": "Passwort bestätigen",
     "mismatch": "Passwörter stimmen nicht überein",
-    "submit": "Passwort speichern",
     "setPassword": "Passwort setzen",
-    "submitting": "Wird gespeichert…",
-    "success": "Passwort erfolgreich geändert.",
     "backToLogin": "← Zum Login",
     "invalidLink": "Ungültiger Link."
   },

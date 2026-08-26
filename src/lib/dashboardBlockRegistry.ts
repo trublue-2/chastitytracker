@@ -65,7 +65,13 @@ export const SUB_DASHBOARD_BLOCKS = [
   { id: "openTasks", surface: "subDashboard", role: "sub", labelKey: "blockOpenTasks" },
   { id: "openPenalties", surface: "subDashboard", role: "sub", labelKey: "blockOpenPenalties" },
   { id: "weightRelease", surface: "subDashboard", role: "sub", labelKey: "blockWeightRelease" },
-  { id: "runningSession", surface: "subDashboard", role: "sub", labelKey: "blockRunningSession" },
+  // `alwaysOn`, seit dieser Block BEIDE Zustände trägt (#100) — und damit auch die Reinigungspause:
+  // Countdown, Straffrist-Zeile und der Knopf „Wieder verschliessen". Die hingen vorher an
+  // `statusAndStats`. Wer irgendwann „Laufende Tragezeit" ausgeblendet hat, weil ihm die grosse
+  // Karte zu viel war, verlöre damit nach dem Update eine FRIST, die er nie ausgeblendet hat — und
+  // kassierte ein Vergehen für etwas, das ihm niemand gezeigt hat. Gespeichert ist die Kennung,
+  // nicht die Beschriftung: die Umbenennung des Labels warnt niemanden.
+  { id: "runningSession", surface: "subDashboard", role: "sub", labelKey: "blockRunningSession", alwaysOn: true },
   { id: "activeWearSessions", surface: "subDashboard", role: "sub", labelKey: "blockActiveWear" },
   { id: "incompleteCategories", surface: "subDashboard", role: "sub", labelKey: "blockIncompleteCategories" },
   { id: "categoryGoals", surface: "subDashboard", role: "sub", labelKey: "blockCategoryGoals" },

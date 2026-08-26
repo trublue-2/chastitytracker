@@ -2,8 +2,11 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
+import AuthScreen, { AuthLink } from "@/app/components/AuthScreen";
+import Button from "@/app/components/Button";
+import FormError from "@/app/components/FormError";
+import Input from "@/app/components/Input";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
 
@@ -42,42 +45,36 @@ function ResetPasswordForm() {
     }
   }
 
+  // Ohne Token gibt es kein Formular, nur die Auskunft warum. Sie kommt als Fehler-Karte statt als
+  // loser roter Satz — es ist derselbe Rang wie ein abgelehnter Versuch, also dieselbe Darstellung.
   if (!token) {
-    return <p className="text-sm text-warn">{t("invalidLink")}</p>;
+    return <FormError message={t("invalidLink")} />;
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-4">
-      <div>
-        <label className="block text-xs font-semibold text-foreground-faint mb-1">{t("newPassword")}</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={8}
-          autoFocus
-          className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-surface-raised text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted"
-        />
-      </div>
-      <div>
-        <label className="block text-xs font-semibold text-foreground-faint mb-1">{t("confirmPassword")}</label>
-        <input
-          type="password"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          required
-          className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-surface-raised text-foreground focus:outline-none focus:ring-2 focus:ring-foreground-muted"
-        />
-      </div>
-      {error && <p className="text-xs text-warn">{error}</p>}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-foreground text-background text-sm font-semibold py-2.5 rounded-xl hover:opacity-80 transition disabled:opacity-50"
-      >
-        {loading ? t("submitting") : t("setPassword")}
-      </button>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <Input
+        label={t("newPassword")}
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+        minLength={8}
+        autoFocus
+        autoComplete="new-password"
+      />
+      <Input
+        label={t("confirmPassword")}
+        type="password"
+        value={confirm}
+        onChange={(e) => setConfirm(e.target.value)}
+        required
+        autoComplete="new-password"
+      />
+      <FormError message={error} />
+      <Button type="submit" variant="primary" fullWidth loading={loading}>
+        {t("setPassword")}
+      </Button>
     </form>
   );
 }
@@ -85,16 +82,13 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   const t = useTranslations("resetPassword");
   return (
-    <div data-theme="user" className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-sm bg-surface rounded-2xl border border-border-subtle shadow-sm px-8 py-10">
-        <h1 className="text-xl font-bold text-foreground mb-1">{t("pageTitle")}</h1>
-        <Suspense>
-          <ResetPasswordForm />
-        </Suspense>
-        <Link href="/login" className="mt-4 block text-center text-xs text-foreground-faint hover:text-foreground-muted transition">
-          {t("backToLogin")}
-        </Link>
-      </div>
-    </div>
+    <AuthScreen
+      title={t("pageTitle")}
+      footer={<AuthLink href="/login">{t("backToLogin")}</AuthLink>}
+    >
+      <Suspense>
+        <ResetPasswordForm />
+      </Suspense>
+    </AuthScreen>
   );
 }

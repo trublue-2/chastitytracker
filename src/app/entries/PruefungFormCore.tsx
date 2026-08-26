@@ -278,7 +278,7 @@ export default function PruefungFormCore({
         <Card variant="semantic" semantic="warn">
           <div className="flex items-start gap-2.5">
             <WifiOff size={16} className="flex-shrink-0 text-warn mt-0.5" />
-            <p className="text-sm text-warn-text">{tOffline("photoRequiresConnection")}</p>
+            <p className="text-fliess text-warn-text">{tOffline("photoRequiresConnection")}</p>
           </div>
         </Card>
       )}
@@ -297,16 +297,20 @@ export default function PruefungFormCore({
 
       {initialKommentar && (
         <Card variant="semantic" semantic="warn">
-          <p className="text-xs font-semibold text-warn-text uppercase tracking-wider mb-1">{t("instruction")}</p>
-          <p className="text-sm text-warn-text">{initialKommentar}</p>
+          <p className="text-rubrik font-semibold text-warn-text uppercase tracking-wider mb-1">{t("instruction")}</p>
+          <p className="text-fliess text-warn-text">{initialKommentar}</p>
         </Card>
       )}
 
       {hasPrefilledCode && (
         <Card padding="compact">
-          <div className="flex items-center gap-3">
+          {/* `flex-wrap`, weil die Keyholderin die Codelänge bestimmt: bei acht Ziffern
+              (`INSPECTION_CODE_LENGTH.max`) misst die Zeile auf 390 px rund 342 px gegen 334 px
+              verfügbare Breite, und die Ziffernkette hat keine Umbruchstelle. Lieber ein Umbruch
+              als ein Code, der aus dem Bild läuft — er ist das Einzige, was auf dieses Foto muss. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <Badge variant="inspect" label={t("controlCode")} size="sm" />
-            <span className="font-mono font-bold text-xl text-inspect tracking-widest">
+            <span className="font-mono font-bold text-[1.5rem] leading-tight text-inspect tracking-widest">
               {kontrollCode || "–"}
             </span>
             {/* Der Weg, den Code zurück auf die Smartwatch zu holen — hier, weil das Handy gleich
@@ -348,41 +352,41 @@ export default function PruefungFormCore({
           <div className="flex items-start gap-4">
             <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />
             <div className="flex flex-col gap-2 flex-1 pt-1">
-              {imageExifTime && <p className="text-xs text-foreground-faint">{tc("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>}
-              {exifWarning && !uploading && <p className="text-xs text-warn font-medium">{exifWarning}</p>}
+              {imageExifTime && <p className="text-neben text-foreground-faint">{tc("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>}
+              {exifWarning && !uploading && <p className="text-neben text-warn font-medium">{exifWarning}</p>}
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact mobileDesktopMode={mobileDesktopMode} />
             </div>
           </div>
         ) : (
           <>
             <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" mobileDesktopMode={mobileDesktopMode} />
-            {uploadError && !uploading && <p className="text-xs text-warn font-medium mt-1">{uploadError}</p>}
+            {uploadError && !uploading && <p className="text-neben text-warn font-medium mt-1">{uploadError}</p>}
           </>
         )}
       </FormField>
 
       {verifyStatus === "pending" && (
-        <div className="flex items-center gap-2 text-sm text-foreground-muted">
+        <div className="flex items-center gap-2 text-fliess text-foreground-muted">
           <Spinner size="sm" /> {t("verifying")}
         </div>
       )}
       {verifyStatus === "match" && <Badge variant="ok" label={t("codeMatch")} />}
       {(verifyStatus === "mismatch" || verifyStatus === "sealMismatch") && (
         <Card variant="semantic" semantic="warn">
-          <p className="text-sm text-warn-text font-medium">{t(MISMATCH_CARDS[verifyStatus].title)}</p>
-          {verifyReason && <p className="text-xs text-warn mt-0.5">{formatVerifyReason(verifyReason.code, verifyReason.detected, t)}</p>}
-          <p className="text-xs text-warn mt-1">{t(MISMATCH_CARDS[verifyStatus].hint)}</p>
+          <p className="text-fliess text-warn-text font-medium">{t(MISMATCH_CARDS[verifyStatus].title)}</p>
+          {verifyReason && <p className="text-neben text-warn mt-0.5">{formatVerifyReason(verifyReason.code, verifyReason.detected, t)}</p>}
+          <p className="text-neben text-warn mt-1">{t(MISMATCH_CARDS[verifyStatus].hint)}</p>
         </Card>
       )}
       {(verifyStatus === "policy" || verifyStatus === "error") && (
         <Card padding="compact">
-          <p className="text-sm text-foreground-muted font-medium">{t(HINT_CARDS[verifyStatus].title)}</p>
-          <p className="text-xs text-foreground-faint mt-0.5">{t(HINT_CARDS[verifyStatus].hint)}</p>
+          <p className="text-fliess text-foreground-muted font-medium">{t(HINT_CARDS[verifyStatus].title)}</p>
+          <p className="text-neben text-foreground-faint mt-0.5">{t(HINT_CARDS[verifyStatus].hint)}</p>
         </Card>
       )}
 
       {!codeRequired && (
-        <p className="text-xs text-foreground-muted">{t("noCodeNeeded")}</p>
+        <p className="text-neben text-foreground-muted">{t("noCodeNeeded")}</p>
       )}
 
       {!hasPrefilledCode && codeRequired && (
@@ -395,7 +399,12 @@ export default function PruefungFormCore({
             onChange={(e) => setKontrollCode(e.target.value.replace(/\D/g, "").slice(0, INSPECTION_CODE_LENGTH.max))}
             maxLength={INSPECTION_CODE_LENGTH.max}
             placeholder="–"
-            className="font-mono tracking-widest text-inspect font-bold text-xl"
+            /* NICHT `text-kennzahl`: das ist `clamp(1.5rem, 6.4vw, 2rem)` und damit ab rund 500 px
+               Fensterbreite 32 px — in einem Feld, dem `Input` mit `h-11` feste 44 px gibt, wird
+               der Zeichenkörper der Monoschrift dann unten abgeschnitten. Die Skala hat zwischen
+               `zeile` (16) und `kennzahl` (24–32) keine Stufe; hier zählt, dass die Ziffern gross
+               und STABIL sind, nicht dass sie mitwachsen. */
+            className="font-mono tracking-widest text-inspect font-bold text-[1.25rem]"
           />
           {/* Sobald die Zahl als Code taugt, steht der Knopf da — vorher schickte er etwas, das die
               Route ohnehin abweist. Auch hier gilt: das Handy wird gleich die Kamera, der Code

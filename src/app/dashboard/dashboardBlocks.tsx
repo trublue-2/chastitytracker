@@ -35,6 +35,7 @@ import OpenTasks from "./OpenTasks";
 import OpenPenalties from "./OpenPenalties";
 import TaskList from "./TaskList";
 import LaufendeSessionCard from "./LaufendeSessionCard";
+import OpenStateHero from "./OpenStateHero";
 import SessionList from "./SessionList";
 import WearSessionList from "./WearSessionList";
 import ActiveWearSessions from "./ActiveWearSessions";
@@ -106,6 +107,75 @@ const sessionCardOnScreen = (ctx: SubDashboardCtx): Promise<boolean> | boolean =
 const runningSessionCard = async (ctx: SubDashboardCtx) => {
   const running = await subRunningSessionCached(ctx.userId, ctx.nowMs, ctx.dl);
   return running && running.events.length > 0 ? running : null;
+};
+
+/**
+ * Der OFFENE Zustand: seit wann, und läuft gerade eine Reinigungspause?
+ *
+ * Stand bis #100 in der Ladefunktion von `statusAndStats` — dort, wo der offene Held gerendert
+ * wurde. Er gehört inzwischen zum Zustands-Block (`runningSession`, siehe dort), also gehört die
+ * Ableitung mit; `statusAndStats` braucht davon nichts mehr.
+ */
+const openStateData = async ({ userId, now, tz }: SubDashboardCtx) => {
+  const [latest, cleaning, activeSperrzeit] = await Promise.all([
+    latestKgEntryCached(userId), cleaningRulesCached(userId), subSperrzeitCached(userId),
+  ]);
+  if (!latest || latest.type === "VERSCHLUSS") return null;
+
+    // Reinigungspause: der jüngste KG-Eintrag ist eine Reinigungsöffnung, deren Wiederverschluss
+    // die Session noch fortführen würde. Ohne diese Ableitung sah der Sub in dieser Zeit
+    // „Geöffnet seit …" — nicht von einer wirklich beendeten Session zu unterscheiden
+    // (Rückmeldung 15.07.2026).
+    //
+    // Die Frist kommt aus `runningCleaningPauseUntil` — DERSELBEN Regel, nach der `buildPairs`
+    // die Öffnung als blosse Unterbrechung verbucht. Das ist der Kern: der Countdown beantwortet
+    // genau die Frage, die der Sub stellt („bleibt das dieselbe Session?"), und kann dem
+    // Zeitstrahl darunter gar nicht widersprechen. Die Strafbuch-Frist
+    // (`cleaningRelockObligation`) ist eine ANDERE Frist — siehe die Warnung an beiden Funktionen.
+    //
+    // BEWUSST nur Anzeige: `isLocked`, die Box-Kopplung und jede Statistik bleiben unberührt —
+    // die Box IST offen, und ein erzwungenes „verschlossen" bräche das Wiederverschluss-Formular
+    // und die Entry-Guards.
+    const cleaningPauseUntil = runningCleaningPauseUntil(latest, cleaning.rules, now);
+
+    // Die STRAFFRIST daneben, und zwar nur, wenn sie FRÜHER liegt als der Countdown oben.
+    //
+    // Der Countdown beantwortet „bleibt das dieselbe Session?" und darf das auch weiter
+    // (Begründung oben). Aber die Frist, gegen die BESTRAFT wird, ist eine andere: bei
+    // konfiguriertem Reinigungsfenster reicht sie bis ans Fensterende, und der Kommentar an
+    // `cleaningInterruptionDeadline` nimmt an, das sei immer SPÄTER. Es kann früher sein —
+    // Öffnung 21:55, Fenster bis 22:00, Kontingent 15 Minuten: der Countdown lief bis 22:10, das
+    // Vergehen entstand um 22:00. Wer bei grünem Countdown um 22:05 verschloss, hatte ein
+    // Vergehen und keine Ahnung warum. Die strengere Frist gehört ihm gesagt, nicht die bequemere.
+    //
+    // Die Sperrzeit, die zur ÖFFNUNGSZEIT schon galt — nicht die, die jetzt gilt. Das Strafbuch
+    // nimmt ebenfalls die damalige (`findActiveSperrzeit` prüft `openTime >= s.createdAt`). Eine
+    // erst nach der Öffnung angelegte Sperrzeit ergäbe hier eine Drohung, der im Strafbuch nichts
+    // entspricht.
+    const sperreBeiOeffnung = latest && activeSperrzeit && activeSperrzeit.createdAt <= latest.startTime
+      ? activeSperrzeit
+      : null;
+    const cleaningRelockDeadline = latest && cleaningPauseUntil
+      // Die Fassung, die zur ÖFFNUNG galt — dieselbe, nach der `buildPairs` und das Strafbuch
+      // diese Pause beurteilen, und ALLE Felder aus ihr: käme das Fenster aus der heutigen
+      // Spalte, liefen Countdown und Vergehens-Frist für dieselbe Pause auseinander.
+      ? await (async () => {
+          const settings = cleaning.at(latest.startTime);
+          return cleaningRelockObligation(
+            latest,
+            sperreBeiOeffnung,
+            cleaningPermissionUserAt(settings, tz),
+            settings.maxMinutes,
+            await cleaningWindowEnforcedFrom(now),
+          );
+        })()
+      : null;
+    const cleaningRelockWarnUntil =
+      cleaningRelockDeadline && cleaningPauseUntil && cleaningRelockDeadline < cleaningPauseUntil
+        ? cleaningRelockDeadline
+        : null;
+
+  return { since: latest.startTime, cleaningPauseUntil, cleaningRelockWarnUntil };
 };
 
 /** Kürzel für die geteilte Herleitung — die KG-Beschriftung steckt in jeder Aufgaben-Auswertung. */
@@ -247,18 +317,60 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
     render: (props) => props && <WeightReleaseCard {...props} />,
   }),
 
+  /**
+   * **Der Zustands-Block.** Er beantwortet die Leitfrage des Bildschirms — „in welchem Zustand bin
+   * ich, seit wann" — und zwar in BEIDEN Zuständen: verschlossen die laufende Session, sonst der
+   * offene Held.
+   *
+   * Bis #100 tat das nur die verschlossene Hälfte. Der offene Held steckte in `statusAndStats` an
+   * Position 11, während dieser Block an Position 6 steht: wer öffnete, sah dieselbe Auskunft von
+   * oben nach unten springen.
+   *
+   * **Die Kennung bleibt `runningSession`, obwohl der Name jetzt zu eng ist.** Eine neue Kennung
+   * liefe durch `mergeOrder` und würde bei jedem Nutzer mit gespeicherter Anordnung neu einsortiert
+   * — ein Block, den er nie verschoben hat, wanderte dabei. Der Preis ist ein Name, der die Hälfte
+   * seiner Aufgabe verschweigt; die Beschriftung in der Anpassen-Liste sagt es dafür richtig.
+   */
   runningSession: block({
     load: async (ctx) => {
       const { userId, nowMs, tz } = ctx;
       const running = await runningSessionCard(ctx);
-      if (!running) return null;
+      // Keine laufende Session heisst nicht „nichts anzeigen", sondern „den anderen Zustand
+      // anzeigen". Das war der Fehler: `null` hier liess den Platz leer und der offene Held suchte
+      // sich einen eigenen weiter unten.
+      //
+      // `null`, wenn es AUCH keinen offenen Zustand gibt (Konto ohne KG-Eintrag): `blockStack`
+      // schreibt vor, dass die Ladefunktion das entscheidet und nicht das Rendern. Eine zweite
+      // Abbruchbedingung dort wäre für jeden ausserhalb unsichtbar — `sessionCardOnScreen` und
+      // jeder künftige Block, der sich auf diesen bezieht, bekäme „ist sichtbar" für einen leeren
+      // Platz gemeldet.
+      if (!running) {
+        const open = await openStateData(ctx);
+        return open && ({ open } as const);
+      }
       const [activeSperrzeit, user, activeVorgabe, hours, deviceCount] = await Promise.all([
         subSperrzeitCached(userId), userRowCached(userId), activeVorgabeCached(userId, nowMs),
         wearingHoursCached(userId, nowMs, tz), deviceCountCached(userId),
       ]);
-      return { ...running, activeSperrzeit, user, activeVorgabe, hours, deviceCount };
+      // `open: null` als Unterscheidungsmerkmal — mit `"open" in data` müsste jede Verwendung
+      // darunter noch einmal auf `undefined` prüfen, obwohl der Zweig sie ausschliesst.
+      return { open: null, ...running, activeSperrzeit, user, activeVorgabe, hours, deviceCount };
     },
-    render: (data, { now, tz, t }) => data && (
+    render: (data, { now, tz, dl, t }) => data && (
+      data.open ? (
+        <DashboardBlock>
+          <OpenStateHero
+            since={data.open.since.toISOString()}
+            cleaningPauseUntil={data.open.cleaningPauseUntil?.toISOString() ?? null}
+            /* FERTIG formatiert und in der Zone des SUBS: die Frist ist ein Fensterende in seiner
+               Wanduhrzeit. Im Client formatiert stünde dort die Gerätezone des Betrachters — und
+               beim Server-Rendering die des Containers, was zusätzlich einen Hydration-Unterschied
+               ergäbe. */
+            cleaningRelockWarnTime={data.open.cleaningRelockWarnUntil ? formatTime(data.open.cleaningRelockWarnUntil, dl, tz) : null}
+            cleaningRelockWarnPassed={!!data.open.cleaningRelockWarnUntil && data.open.cleaningRelockWarnUntil < now}
+          />
+        </DashboardBlock>
+      ) : (
       <DashboardBlock>
         <LaufendeSessionCard
           sessionStart={data.activePair.verschluss.startTime}
@@ -285,6 +397,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           userHasDevices={data.deviceCount > 0}
         />
       </DashboardBlock>
+      )
     ),
   }),
 
@@ -386,78 +499,18 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   }),
 
   statusAndStats: block({
-    load: async ({ userId, nowMs, now, tz }) => {
-      const [entries, latest, cleaning, activeSperrzeit, hours] = await Promise.all([
-        entriesCached(userId), latestKgEntryCached(userId), cleaningRulesCached(userId),
-        subSperrzeitCached(userId), wearingHoursCached(userId, nowMs, tz),
+    load: async ({ userId, nowMs, tz }) => {
+      const [entries, latest, hours] = await Promise.all([
+        entriesCached(userId), latestKgEntryCached(userId), wearingHoursCached(userId, nowMs, tz),
       ]);
 
-      // Reinigungspause: der jüngste KG-Eintrag ist eine Reinigungsöffnung, deren Wiederverschluss
-      // die Session noch fortführen würde. Ohne diese Ableitung sah der Sub in dieser Zeit
-      // „Geöffnet seit …" — nicht von einer wirklich beendeten Session zu unterscheiden
-      // (Rückmeldung 15.07.2026).
-      //
-      // Die Frist kommt aus `runningCleaningPauseUntil` — DERSELBEN Regel, nach der `buildPairs`
-      // die Öffnung als blosse Unterbrechung verbucht. Das ist der Kern: der Countdown beantwortet
-      // genau die Frage, die der Sub stellt („bleibt das dieselbe Session?"), und kann dem
-      // Zeitstrahl darunter gar nicht widersprechen. Die Strafbuch-Frist
-      // (`cleaningRelockObligation`) ist eine ANDERE Frist — siehe die Warnung an beiden Funktionen.
-      //
-      // BEWUSST nur Anzeige: `isLocked`, die Box-Kopplung und jede Statistik bleiben unberührt —
-      // die Box IST offen, und ein erzwungenes „verschlossen" bräche das Wiederverschluss-Formular
-      // und die Entry-Guards.
-      const cleaningPauseUntil = runningCleaningPauseUntil(latest, cleaning.rules, now);
-
-      // Die STRAFFRIST daneben, und zwar nur, wenn sie FRÜHER liegt als der Countdown oben.
-      //
-      // Der Countdown beantwortet „bleibt das dieselbe Session?" und darf das auch weiter
-      // (Begründung oben). Aber die Frist, gegen die BESTRAFT wird, ist eine andere: bei
-      // konfiguriertem Reinigungsfenster reicht sie bis ans Fensterende, und der Kommentar an
-      // `cleaningInterruptionDeadline` nimmt an, das sei immer SPÄTER. Es kann früher sein —
-      // Öffnung 21:55, Fenster bis 22:00, Kontingent 15 Minuten: der Countdown lief bis 22:10, das
-      // Vergehen entstand um 22:00. Wer bei grünem Countdown um 22:05 verschloss, hatte ein
-      // Vergehen und keine Ahnung warum. Die strengere Frist gehört ihm gesagt, nicht die bequemere.
-      //
-      // Die Sperrzeit, die zur ÖFFNUNGSZEIT schon galt — nicht die, die jetzt gilt. Das Strafbuch
-      // nimmt ebenfalls die damalige (`findActiveSperrzeit` prüft `openTime >= s.createdAt`). Eine
-      // erst nach der Öffnung angelegte Sperrzeit ergäbe hier eine Drohung, der im Strafbuch nichts
-      // entspricht.
-      const sperreBeiOeffnung = latest && activeSperrzeit && activeSperrzeit.createdAt <= latest.startTime
-        ? activeSperrzeit
-        : null;
-      const cleaningRelockDeadline = latest && cleaningPauseUntil
-        // Die Fassung, die zur ÖFFNUNG galt — dieselbe, nach der `buildPairs` und das Strafbuch
-        // diese Pause beurteilen, und ALLE Felder aus ihr: käme das Fenster aus der heutigen
-        // Spalte, liefen Countdown und Vergehens-Frist für dieselbe Pause auseinander.
-        ? await (async () => {
-            const settings = cleaning.at(latest.startTime);
-            return cleaningRelockObligation(
-              latest,
-              sperreBeiOeffnung,
-              cleaningPermissionUserAt(settings, tz),
-              settings.maxMinutes,
-              await cleaningWindowEnforcedFrom(now),
-            );
-          })()
-        : null;
-      const cleaningRelockWarnUntil =
-        cleaningRelockDeadline && cleaningPauseUntil && cleaningRelockDeadline < cleaningPauseUntil
-          ? cleaningRelockDeadline
-          : null;
-
-      return { hasEntries: entries.length > 0, latest, cleaningPauseUntil, cleaningRelockWarnUntil, hours };
+      return { hasEntries: entries.length > 0, latest, hours };
     },
-    render: (data, { now, tz, dl }) => {
+    render: (data, { now, tz }) => {
       const clientProps: DashboardProps = {
         currentStatus: data.latest
           ? { type: data.latest.type as "VERSCHLUSS" | "OEFFNEN", since: data.latest.startTime.toISOString() }
           : null,
-        cleaningPauseUntil: data.cleaningPauseUntil?.toISOString() ?? null,
-        // FERTIG formatiert und in der Zone des SUBS: die Frist ist ein Fensterende in seiner
-        // Wanduhrzeit. Im Client formatiert stünde dort die Gerätezone des Betrachters — und beim
-        // Server-Rendering die des Containers, was zusätzlich einen Hydration-Unterschied ergäbe.
-        cleaningRelockWarnTime: data.cleaningRelockWarnUntil ? formatTime(data.cleaningRelockWarnUntil, dl, tz) : null,
-        cleaningRelockWarnPassed: !!data.cleaningRelockWarnUntil && data.cleaningRelockWarnUntil < now,
         hasEntries: data.hasEntries,
 
         tagH: data.hours.tagH,

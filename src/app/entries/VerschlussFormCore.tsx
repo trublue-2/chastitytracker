@@ -217,7 +217,7 @@ export default function VerschlussFormCore({
         <div className="flex flex-col gap-2">
           {anforderungDeviceId && (
             <Card variant="semantic" semantic="request">
-              <p className="text-sm text-request-text font-medium">
+              <p className="text-fliess text-request-text font-medium">
                 {tForm("requiredDevice", { name: devices.find((d) => d.id === anforderungDeviceId)?.name ?? "?" })}
               </p>
             </Card>
@@ -233,19 +233,19 @@ export default function VerschlussFormCore({
             hint={devices.length >= 2 && !anforderungDeviceId ? tForm("selectDeviceHint") : undefined}
           />
           {!deviceId && deviceDetectionState !== "detecting" && (
-            <p className="text-xs text-warn font-medium">{tForm("noDeviceWarning")}</p>
+            <p className="text-neben text-warn font-medium">{tForm("noDeviceWarning")}</p>
           )}
           {deviceDetectionState === "detecting" && (
-            <p className="text-xs text-foreground-faint">{tForm("deviceDetecting")}</p>
+            <p className="text-neben text-foreground-faint">{tForm("deviceDetecting")}</p>
           )}
           {deviceDetectionState === "detected" && deviceSuggestion && (
-            <p className="text-xs text-lock">{tForm("deviceDetected", { name: deviceSuggestion.deviceName })}</p>
+            <p className="text-neben text-lock">{tForm("deviceDetected", { name: deviceSuggestion.deviceName })}</p>
           )}
           {deviceDetectionState === "not-detected" && (
-            <p className="text-xs text-foreground-faint">{tForm("deviceNotDetected")}</p>
+            <p className="text-neben text-foreground-faint">{tForm("deviceNotDetected")}</p>
           )}
           {wrongDevice && (
-            <p className="text-xs text-warn font-medium">{tForm("wrongDeviceWarning")}</p>
+            <p className="text-neben text-warn font-medium">{tForm("wrongDeviceWarning")}</p>
           )}
         </div>
       )}
@@ -264,13 +264,13 @@ export default function VerschlussFormCore({
             <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />
             <div className="flex flex-col gap-2 flex-1 pt-1">
               {imageExifTime && (
-                <p className="text-xs text-foreground-faint">{t("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>
+                <p className="text-neben text-foreground-faint">{t("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>
               )}
               {exifWarning && !uploading && (
-                <p className="text-xs text-warn font-medium">{exifWarning}</p>
+                <p className="text-neben text-warn font-medium">{exifWarning}</p>
               )}
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact mobileDesktopMode={mobileDesktopMode} />
-              <button type="button" onClick={clearPhoto} className="text-xs text-warn hover:opacity-80 w-fit transition">
+              <button type="button" onClick={clearPhoto} className="text-neben text-warn hover:opacity-80 w-fit transition">
                 {t("removePhoto")}
               </button>
             </div>
@@ -278,7 +278,7 @@ export default function VerschlussFormCore({
         ) : (
           <>
             <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
-            {uploadError && !uploading && <p className="text-xs text-warn font-medium mt-1">{uploadError}</p>}
+            {uploadError && !uploading && <p className="text-neben text-warn font-medium mt-1">{uploadError}</p>}
           </>
         )}
       </FormField>
@@ -291,7 +291,7 @@ export default function VerschlussFormCore({
               <Card variant="semantic" semantic={codeReadable === false ? "warn" : "sperrzeit"}>
                 <div className="flex items-start gap-2.5">
                   <Lock size={16} className={`flex-shrink-0 mt-0.5 ${codeReadable === false ? "text-warn" : "text-sperrzeit"}`} />
-                  <div className="text-xs flex-1">
+                  <div className="text-neben flex-1">
                     <p className={`font-bold ${codeReadable === false ? "text-warn-text" : "text-sperrzeit-text"}`}>{tForm("codePhotoSealed")}</p>
                     <p className={`mt-0.5 ${codeReadable === false ? "text-warn" : "text-sperrzeit"}`}>
                       {codeChecking
@@ -309,9 +309,9 @@ export default function VerschlussFormCore({
             </button>
           ) : (
             <>
-              <p className="text-xs text-foreground-faint mb-1.5">{tForm("codePhotoHint")}</p>
+              <p className="text-neben text-foreground-faint mb-1.5">{tForm("codePhotoHint")}</p>
               <PhotoCapture onFile={codePhoto.handleFile} uploading={codePhoto.uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
-              {codePhoto.uploadError && !codePhoto.uploading && <p className="text-xs text-warn font-medium mt-1">{codePhoto.uploadError}</p>}
+              {codePhoto.uploadError && !codePhoto.uploading && <p className="text-neben text-warn font-medium mt-1">{codePhoto.uploadError}</p>}
             </>
           )}
         </FormField>
@@ -328,16 +328,16 @@ export default function VerschlussFormCore({
           placeholder={tForm("sealNumberHint")}
           className="font-mono"
         />
-        {sealState === "detecting" && <p className="text-xs text-foreground-faint">{tForm("sealDetecting")}</p>}
-        {sealState === "detected" && <p className="text-xs text-lock">{tForm("sealDetected", { code: sealNumber })}</p>}
-        {sealState === "not-detected" && !sealNumber && <p className="text-xs text-foreground-faint">{tForm("sealNotDetected")}</p>}
+        {sealState === "detecting" && <p className="text-neben text-foreground-faint">{tForm("sealDetecting")}</p>}
+        {sealState === "detected" && <p className="text-neben text-lock">{tForm("sealDetected", { code: sealNumber })}</p>}
+        {sealState === "not-detected" && !sealNumber && <p className="text-neben text-foreground-faint">{tForm("sealNotDetected")}</p>}
       </div>
 
       {boxConfirm && (
         <div className="flex flex-col gap-2">
           <Card variant="semantic" semantic="sperrzeit" padding="compact">
             {boxName && (
-              <p className="mb-2 text-xs font-medium text-foreground-muted">{tForm("keyInBoxName", { name: boxName })}</p>
+              <p className="mb-2 text-neben font-medium text-foreground-muted">{tForm("keyInBoxName", { name: boxName })}</p>
             )}
             <Toggle
               label={tForm("keyInBoxLabel")}
