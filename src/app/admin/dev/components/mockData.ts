@@ -110,8 +110,12 @@ export const MOCK_KONTROLLE_ITEMS: KontrolleItemData[] = [
     id: "k1",
     imageUrl: null,
     kommentar: "Bitte Siegel prüfen",
-    pill1Label: "Offen",
-    pill1Cls: "bg-inspect-bg text-inspect-text border border-inspect-border",
+    // Wortlaut und Klasse aus `ANFORDERUNG_PILLS.open` abgeschrieben, nicht erfunden: die Schau
+    // zeigte noch „Offen" in der alten, gefüllten Kachel (`bg-`/`border-`), die es im schlichten
+    // Aufkleber des Entwurfs gar nicht mehr gibt — sie behauptete also ein Aussehen, das die App
+    // nirgends hat. Eine Bauteil-Schau, die vom Bestand abweicht, ist schlimmer als keine.
+    pill1Label: "Ausstehend",
+    pill1Cls: "text-inspect",
     pill2Label: null,
     pill2Cls: null,
     code: "48291",

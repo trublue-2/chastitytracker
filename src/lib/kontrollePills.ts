@@ -17,6 +17,12 @@ const ERLEDIGT   = "text-foreground-muted";
 const LEISE      = "text-foreground-faint";
 
 export const ANFORDERUNG_PILLS: Record<string, { labelKey: string; cls: string }> = {
+  // Der Aufkleber sagt bewusst NICHT „Offen" — der Schlüssel heisst nur so, weil er den Zustand
+  // `open` benennt. „Offen" wurde als „erledigt sich von selbst" gelesen und stand ausserdem in
+  // derselben App für den GEÖFFNETEN Verschluss; die Erinnerungs-Mail sagte längst „ausstehend".
+  // Wer den Text hier ändert, ändert ihn auch an der Sektions-Überschrift (`admin.openRequests`),
+  // am Banner (`kontrolleBanner.openTitle`) und an der Schnellaktion (`newEntry.inspectionOpen*`):
+  // die vier stehen paarweise im selben Blickfeld.
   open:      { labelKey: "pillOpen",      cls: AUFMERKSAM },
   overdue:   { labelKey: "pillOverdue",   cls: DRINGEND },
   fulfilled: { labelKey: "pillFulfilled", cls: ERLEDIGT },
