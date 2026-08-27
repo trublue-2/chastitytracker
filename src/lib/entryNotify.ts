@@ -6,7 +6,7 @@ import { getControllersOfUser } from "@/lib/keyholder";
 import { getEventChannelsAny } from "@/lib/notificationPrefs";
 import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/utils";
-import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, type NotificationEventType } from "@/lib/constants";
+import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, type NotificationEventType, APP_NAME } from "@/lib/constants";
 
 export interface EntryNotifyParams {
   /** Der Träger, dessen Eintrag gemeldet wird. */
@@ -242,7 +242,7 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
       );
 
       for (const r of group) {
-        if (r.email) void sendMailSafe(r.email, `KG-Tracker – ${title}`, emailHtml);
+        if (r.email) void sendMailSafe(r.email, `${APP_NAME} – ${title}`, emailHtml);
       }
     }
   } catch { /* ignore notification errors */ }

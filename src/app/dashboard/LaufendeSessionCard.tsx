@@ -31,6 +31,17 @@ interface Props {
    *  unbefristete Sperre sonst gar keinen Zeitpunkt nennt — sie hat den Beginn selbst gesetzt und
    *  soll sehen, dass er erreicht ist. Bei befristeten Sperren steht die Frist ohnehin da. */
   sperrzeitRunningSince?: Date | null;
+  /** Was passiert, wenn diese Sperrzeit gebrochen wird? Fertig übersetzt, vom Aufrufer, und
+   *  weglassen heisst nicht anzeigen — dieselbe Konvention wie `cleaningNote` darunter, und aus
+   *  demselben Grund.
+   *
+   *  Diese Zeile stand kurzzeitig fest verdrahtet in der Karte („Früher öffnen wird als Vergehen
+   *  erfasst."). Das war falsch, gleich dreifach: `unauthorized_opening` ist je Sub abschaltbar
+   *  (`offenseRules.ts`), eine erlaubte Reinigungsöffnung ist ausgenommen — der Hinweis dazu steht
+   *  eine Zeile darüber und widersprach ihr direkt —, und die Karte rendert auch in der
+   *  Keyholder-Sicht, wo die Keyholderin gelesen hätte, dass eine Regel gilt, die sie selbst
+   *  gerade abgeschaltet hat. Nur der Aufrufer kennt die geltende Regel. */
+  lockBreakNote?: string | null;
   /** Erlaubt diese Sperre Reinigungsöffnungen? Fertig übersetzt (i18n bleibt beim Aufrufer).
    *  Weglassen = nicht anzeigen — ein Sub, der grundsätzlich nicht reinigen darf, soll keine Zeile
    *  über etwas lesen, das seine Einstellung ohnehin verbietet. */
@@ -57,6 +68,7 @@ export default async function LaufendeSessionCard({
   sperrzeitEndetAt,
   sperrzeitUnbefristet = false,
   sperrzeitNachricht,
+  lockBreakNote,
   sperrzeitScheduledFor = null,
   sperrzeitRunningSince = null,
   cleaningNote,
@@ -143,6 +155,16 @@ export default async function LaufendeSessionCard({
             {sperrzeitNachricht && <span className="truncate">· {sperrzeitNachricht}</span>}
             {cleaningNote && <span className="shrink-0">· {cleaningNote}</span>}
           </p>
+        )}
+        {/* Was eine Sperrzeit von einer Tragezeit unterscheidet, steht hier — und nicht im Wort.
+            Beide heissen „…zeit“, und der Prüfer im Durchgang „neuer Träger“ wusste deshalb nicht,
+            „welches davon endet, wenn ich öffne“. Antwort: die Tragezeit endet, die Sperrzeit wird
+            GEBROCHEN (Issue #93). Den Text liefert der Aufrufer, weil nur er die geltende Regel
+            kennt — Begründung an `lockBreakNote`.
+
+            Nicht bei `scheduledForStr`: eine erst geplante Sperrzeit bindet noch nichts. */}
+        {showSperrzeit && !scheduledForStr && lockBreakNote && (
+          <p className="relative mt-1 text-neben text-foreground-faint">{lockBreakNote}</p>
         )}
       </StateHero>
 

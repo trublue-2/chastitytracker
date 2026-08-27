@@ -38,6 +38,7 @@ import WithdrawButton from "@/app/admin/WithdrawButton";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import Section from "@/app/components/Section";
 import StatsCard from "@/app/components/StatsCard";
+import { getOffenseRules } from "@/lib/offenseRulesService";
 
 /**
  * **Die Blöcke der Keyholder-Detailseite — je mit eigener Datenbeschaffung.**
@@ -123,17 +124,28 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
   }),
 
   sessionOrStatus: block({
-    load: async ({ subjectId, nowMs, dl, subjectTz }) => {
+    load: async ({ subjectId, nowMs, now, dl, subjectTz }) => {
       const running = await keyholderRunningSessionCached(subjectId, nowMs, dl);
       // Läuft keine Session, steht hier nur der Status-Balken — dann braucht es weder Ziele noch
       // Stundenrechnung. Letztere paart die ganze Historie und wird von keinem anderen Block
       // dieser Seite gebraucht.
       if (!running) return { running: null, latest: await latestKgEntryCached(subjectId) };
-      const [sperrzeit, activeVorgabe, hours, deviceCount] = await Promise.all([
+      const [sperrzeit, activeVorgabe, hours, deviceCount, offenseRules] = await Promise.all([
         keyholderSperrzeitCached(subjectId), activeVorgabeCached(subjectId, nowMs),
         wearingHoursCached(subjectId, nowMs, subjectTz), deviceCountCached(subjectId),
+        // Ob ein früheres Öffnen geahndet wird, ist je Sub schaltbar — und SIE hat den Schalter.
+        // Ohne diese Abfrage läse die Keyholderin auf ihrer eigenen Karte, dass eine Regel gilt,
+        // die sie gerade selbst abgeschaltet hat.
+        getOffenseRules(subjectId, now),
       ]);
-      return { running, sperrzeit, activeVorgabe, hours, deviceCount, latest: null };
+      // Fertig übersetzt schon hier: die Zeichenkette liegt im `dashboard`-Namensraum, den der
+      // Seiten-Kontext nicht führt (er trägt `admin`). Die Karte bekommt sie als Text — dieselbe
+      // Konvention wie `cleaningNote`, und sie hält die Regel-Kenntnis beim Aufrufer.
+      const tDash = await getTranslations("dashboard");
+      const lockBreakNote = offenseRules.unauthorized_opening === "off"
+        ? null
+        : tDash(sperrzeit?.reinigungErlaubt ? "sessionLockedConsequenceCleaning" : "sessionLockedConsequence");
+      return { running, sperrzeit, activeVorgabe, hours, deviceCount, lockBreakNote, latest: null };
     },
     render: (data, { now, subjectTz, t }) =>
       data.running ? (
@@ -155,6 +167,9 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den Benutzer-
           // Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
           cleaningNote={data.sperrzeit ? t(data.sperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
+          // Nur wenn die Regel gilt, und mit der Reinigungs-Ausnahme im Text, wo die Sperre sie
+          // zulässt (Herleitung in der Ladefunktion).
+          lockBreakNote={data.lockBreakNote}
           keyInBox={data.running.activePair.verschluss.keyInBox ?? null}
           activeVorgabe={data.activeVorgabe ? resolveGoalTargets(data.activeVorgabe, now, subjectTz) : null}
           tagH={data.hours.tagH}

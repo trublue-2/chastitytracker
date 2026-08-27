@@ -3,6 +3,7 @@
 // Uses @simplewebauthn/server for all crypto operations.
 // ---------------------------------------------------------------------------
 import crypto from "crypto";
+import { APP_NAME } from "@/lib/constants";
 
 /**
  * Relying Party (RP) configuration.
@@ -13,7 +14,9 @@ import crypto from "crypto";
  */
 export function getRpConfig() {
   const rpId = process.env.WEBAUTHN_RP_ID ?? "localhost";
-  const rpName = "KG Tracker";
+  // Anzeige-Name im Passkey-Dialog des Betriebssystems. NICHT die Identität — das ist `rpId`;
+  // ein Wechsel hier entwertet also keine bestehenden Passkeys.
+  const rpName = APP_NAME;
   const rpOrigin = process.env.WEBAUTHN_RP_ORIGIN ?? "http://localhost:3000";
 
   return { rpId, rpName, rpOrigin };

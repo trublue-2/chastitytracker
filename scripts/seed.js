@@ -70,7 +70,11 @@ async function ensureKgCategory(userId) {
     create: {
       id: categoryId,
       userId,
-      name: "KG",
+      // Muss `KG_BUILTIN_NAME` aus `src/lib/deviceCategories.ts` spiegeln — `appName.test.ts`
+      // hält die beiden zusammen. Wichtig, weil `docker-entrypoint.sh` erst `migrate deploy`
+      // und DANN den Seed fährt: auf einer neuen Instanz läuft die Umbenennungs-Migration über
+      // eine leere Tabelle, und was der Seed danach schreibt, korrigiert sie nie mehr.
+      name: "Chastity Device",
       slug: "kg",
       color: "cat-steel",
       icon: "Lock",

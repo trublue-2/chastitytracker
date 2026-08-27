@@ -9,8 +9,8 @@ type Lang = "de" | "en";
 const content = {
   de: {
     meta: {
-      title: "KG-Tracker – App-Übersicht",
-      description: "KG-Tracker: Keuschheitsgürtel-Tracking für Keuschheitsträger:innen und Schlüsselhalter:innen. Einschlüsse, Kontrollen und Statistiken auf einen Blick.",
+      title: "Chastity Tracker – App-Übersicht",
+      description: "Chastity Tracker: Keuschheitsgürtel-Tracking für Keuschheitsträger:innen und Schlüsselhalter:innen. Einschlüsse, Kontrollen und Statistiken auf einen Blick.",
     },
     login: "Anmelden",
     langSwitch: { label: "EN", href: "/info/en" },
@@ -121,12 +121,12 @@ const content = {
       subtitle: "Melde dich mit deinen Zugangsdaten an, um fortzufahren.",
       btn: "Zur Anmeldung",
     },
-    footer: `KG-Tracker · © ${new Date().getFullYear()} trublue-2 · Lizenziert unter PolyForm Noncommercial 1.0.0`,
+    footer: `Chastity Tracker · © ${new Date().getFullYear()} trublue-2 · Lizenziert unter PolyForm Noncommercial 1.0.0`,
   },
   en: {
     meta: {
-      title: "KG-Tracker – App Overview",
-      description: "KG-Tracker: Chastity belt tracking for wearers and keyholders. LockClosedIcon periods, checks, and statistics at a glance.",
+      title: "Chastity Tracker – App Overview",
+      description: "Chastity Tracker: Chastity belt tracking for wearers and keyholders. Lock periods, inspections and statistics at a glance.",
     },
     login: "Log in",
     langSwitch: { label: "DE", href: "/info/de" },
@@ -237,7 +237,7 @@ const content = {
       subtitle: "Sign in with your credentials to continue.",
       btn: "Go to login",
     },
-    footer: `KG-Tracker · © ${new Date().getFullYear()} trublue-2 · Licensed under PolyForm Noncommercial 1.0.0`,
+    footer: `Chastity Tracker · © ${new Date().getFullYear()} trublue-2 · Licensed under PolyForm Noncommercial 1.0.0`,
   },
 } as const;
 
@@ -337,7 +337,7 @@ export default async function InfoPage({ params }: { params: Promise<{ lang: str
             <div className="w-7 h-7 bg-gray-900 rounded-lg flex items-center justify-center">
               <LockClosedIcon size={14} className="text-white" />
             </div>
-            <span className="font-bold text-gray-900">KG-Tracker</span>
+            <span className="font-bold text-gray-900">Chastity Tracker</span>
           </div>
           <div className="flex items-center gap-2">
             <Link
@@ -378,7 +378,7 @@ export default async function InfoPage({ params }: { params: Promise<{ lang: str
             <LockClosedIcon size={28} className="text-white" />
           </div>
           <div className="flex flex-col gap-3">
-            <h1 className="text-4xl font-bold text-gray-900">KG-Tracker</h1>
+            <h1 className="text-4xl font-bold text-gray-900">Chastity Tracker</h1>
             <p className="text-base text-gray-500 leading-relaxed max-w-lg mx-auto">{c.hero.subtitle}</p>
           </div>
           <Link

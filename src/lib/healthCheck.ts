@@ -3,6 +3,7 @@ import { visionHealthProbe } from "@/lib/vision/local";
 import { embedAvailable, embedHealthProbe } from "@/lib/embed";
 import { sendMail, escHtml } from "@/lib/mail";
 import { structuredLog } from "@/lib/serverLog";
+import { APP_NAME } from "@/lib/constants";
 
 /**
  * Health-Check für die SELFHOSTED-KI (Vision-Modell + Embedding-Dienst). Läuft im bestehenden
@@ -95,13 +96,13 @@ async function checkBackend(b: Backend, nowMs: number, states: Record<string, Ba
   if (action === "none") return;
   if (action === "recovered") {
     hlog("recovered", { backend: b.key, latencyMs: res.latencyMs });
-    await alertEmail(`KG-Tracker: ${b.label} wieder erreichbar`, `<p>Der selfhosted <strong>${escHtml(b.label)}</strong> antwortet wieder (Latenz ${res.latencyMs} ms).</p>`);
+    await alertEmail(`${APP_NAME}: ${b.label} wieder erreichbar`, `<p>Der selfhosted <strong>${escHtml(b.label)}</strong> antwortet wieder (Latenz ${res.latencyMs} ms).</p>`);
     return;
   }
   // "down" | "still_down"
   hlog(action, { backend: b.key, error: res.error, latencyMs: res.latencyMs });
   await alertEmail(
-    `KG-Tracker: ${b.label} nicht erreichbar`,
+    `${APP_NAME}: ${b.label} nicht erreichbar`,
     `<p>Der selfhosted <strong>${escHtml(b.label)}</strong> antwortet nicht.</p><p>Fehler: ${escHtml(res.error ?? "unbekannt")}</p>`,
   );
 }

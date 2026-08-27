@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// KG Tracker – Service Worker v2
+// Chastity Tracker – Service Worker v2
 // Versioned caches, fetch routing, push notifications, offline support
 // ---------------------------------------------------------------------------
 
@@ -80,7 +80,10 @@ self.addEventListener('activate', (e) => {
 // Push Notifications
 // ---------------------------------------------------------------------------
 self.addEventListener('push', (e) => {
-  let data = { title: 'KG-Tracker', body: '', url: '/' };
+  // Rückfall-Titel einer Push-Meldung ohne eigenen Titel — er steht in der Systemmeldung des
+  // Geräts. Muss `APP_NAME` spiegeln; ein Service Worker kann nichts importieren, deshalb hält
+  // `appName.test.ts` die beiden zusammen.
+  let data = { title: 'Chastity Tracker', body: '', url: '/' };
   try {
     if (e.data) data = { ...data, ...JSON.parse(e.data.text()) };
   } catch (_) { /* ignore malformed payload */ }

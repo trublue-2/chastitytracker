@@ -54,6 +54,29 @@ export const LOCALES_LONG = [
   { value: "en", label: "English" },
 ] as const;
 
+/**
+ * Wie die App heisst — EINE Quelle.
+ *
+ * Sie hiess bis v6 „KG Tracker“ — an elf Stellen hart im Code und in ZWEI Schreibweisen, vom
+ * Anmeldebildschirm über sechs Mail-Betreffe bis in den Passkey-Dialog. Ab v6 heisst sie wie
+ * das Produkt, unter dem sie veröffentlicht wird.
+ *
+ * Drei Träger können die Konstante NICHT importieren und führen den Wert als Literal:
+ * `public/manifest.webmanifest` (der Name unter dem Icon auf dem Home-Bildschirm),
+ * `public/sw.js` (Rückfall-Titel einer Push-Meldung) und `public/offline.html`.
+ * `appName.test.ts` hält sie gegen diese Konstante — sie waren beim ersten Umbau übersehen
+ * worden, und der Nutzer las den alten Namen im Installations-Dialog, während die App bereits
+ * den neuen zeigte.
+ *
+ * Der Name wird NICHT übersetzt — deshalb eine Konstante und kein i18n-Schlüssel. Die Metadaten in
+ * `layout.tsx` könnten einen Schlüssel ohnehin nicht ohne Weiteres lesen.
+ *
+ * **Er ist länger als der alte.** Die Kopfzeile setzt ihn mit `whitespace-nowrap`
+ * (`headerNameCls`) — er bricht also nicht um, sondern drängt die Instanz-Adresse daneben. Wer ihn
+ * ändert, prüft die Kopfzeile bei 320 px mit gesetztem Hostnamen nach.
+ */
+export const APP_NAME = "Chastity Tracker";
+
 export const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS", "WEAR_BEGIN", "WEAR_END"] as const;
 /** Entry types restricted to KG (the built-in DeviceCategory). */
 export const KG_ENTRY_TYPES: ReadonlySet<string> = new Set(["VERSCHLUSS", "OEFFNEN"]);

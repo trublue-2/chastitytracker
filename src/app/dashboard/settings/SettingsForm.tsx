@@ -200,7 +200,7 @@ export default function SettingsForm({ username, email, locale, timezone, startP
     ...(isAdmin ? [{ value: "users", label: t("startPageUsers") }] : []),
     // Direkt auf die Detailseite eines bestimmten Subs landen.
     ...controlledSubs.map((s) => ({ value: s.id, label: t("startPageSub", { name: s.username }) })),
-    // "Eigener KG-Tracker" entfällt bei "kein eigener Tracker" — dieser Nutzer hat keinen grünen Bereich.
+    // "Eigener Tracker" entfällt bei "kein eigener Tracker" — dieser Nutzer hat keinen grünen Bereich.
     ...(hideOwnValue ? [] : [{ value: "dashboard", label: t("startPageDashboard") }]),
   ];
 
@@ -218,7 +218,7 @@ export default function SettingsForm({ username, email, locale, timezone, startP
         const data = await res.json();
         setHideOwnError(apiError(data.error));
       } else {
-        // "Eigener KG-Tracker" als Startseite ergibt ohne grünen Bereich keinen Sinn und verschwindet aus
+        // "Eigener Tracker" als Startseite ergibt ohne grünen Bereich keinen Sinn und verschwindet aus
         // dem Select → gespeicherte Präferenz auf "auto" zurücksetzen, damit kein optionsloser Wert bleibt.
         if (checked && startPageValue === "dashboard") await handleStartPage("auto");
         // Nav (Meine Sicht) + Routing lesen hideOwnTracker frisch server-seitig → sofort wirksam machen.

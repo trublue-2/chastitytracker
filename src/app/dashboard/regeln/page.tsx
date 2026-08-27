@@ -90,7 +90,14 @@ export default async function RulesPage() {
     // Kopfzeile und Seitenleiste.
     <DashboardBlock as="main">
       <h1 className="text-lg font-semibold text-foreground mb-1">{t("title")}</h1>
-      <p className="text-xs text-foreground-faint mb-4">{t("intro")}</p>
+      <p className="text-xs text-foreground-faint mb-2">{t("intro")}</p>
+      {/* Die EINE Stelle, an der „KG“ aufgelöst wird (Issue #93). Bewusst hier und nicht als
+          Glossar oder Onboarding-Schritt: das ist laut dem Prüfer die einzige Seite, auf der
+          steht, wonach der Träger beurteilt wird — also die, die er aufschlägt, wenn er etwas
+          nicht versteht. Ein Onboarding-Hinweis sieht nur, wer neu ist, und nur einmal.
+          Die Abkürzung selbst bleibt in der Oberfläche stehen; sie ist eingeführt. Was fehlte,
+          war ein Ort, an dem sie einmal ausgeschrieben steht. */}
+      <p className="text-xs text-foreground-faint mb-4">{t("glossary")}</p>
 
       <div className="flex flex-col gap-4">
         <SettingsSection title={ta("sectionReinigung")} description={t("cleaningDesc")} bodyPadded>

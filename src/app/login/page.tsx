@@ -12,6 +12,7 @@ import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 import PasskeyLoginButton from "@/app/components/PasskeyLoginButton";
 import { clearSwUserCache } from "@/lib/swMessages";
 import { syncLocaleCookieFromLogin } from "@/lib/locale";
+import { APP_NAME } from "@/lib/constants";
 
 export default function LoginPage() {
   const t = useTranslations("login");
@@ -69,7 +70,7 @@ export default function LoginPage() {
        App selbst. Sie steht deshalb in der Serif, die anderswo die Titel trägt — vorher stand sie
        fett in der Grotesk und war damit die einzige Überschrift der App, die nicht mitspielte. */
     <AuthScreen
-      title="KG Tracker"
+      title={APP_NAME}
       subtitle={t("subtitle")}
       footer={<AuthLink href="/forgot-password">{t("forgotPassword")}</AuthLink>}
     >

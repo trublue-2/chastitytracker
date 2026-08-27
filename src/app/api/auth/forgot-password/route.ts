@@ -5,6 +5,7 @@ import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hashToken } from "@/lib/oauth";
 import crypto from "crypto";
+import { APP_NAME } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   const ip =
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
   const t = await emailT(user.locale);
   await sendMailSafe(
     user.email,
-    `KG-Tracker – ${t("passwordResetSubject")}`,
+    `${APP_NAME} – ${t("passwordResetSubject")}`,
     `
     ${emailGreeting(t, user.username)}
     <p>${escHtml(t("passwordResetIntro"))}</p>

@@ -7,7 +7,7 @@ import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { actorColumn, recordMessageAndBadge, type MessageActor, type MessageRef } from "@/lib/messageService";
 import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
-import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H, isValidInspectionCode } from "@/lib/constants";
+import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H, isValidInspectionCode, APP_NAME } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { type PrismaTx, getOpenKontrollen } from "@/lib/queries";
@@ -475,7 +475,7 @@ async function sendInspectionMail(o: {
 
   await sendMailSafe(
     to,
-    `KG-Tracker – ${t("inspectionRequestedSubject")}`,
+    `${APP_NAME} – ${t("inspectionRequestedSubject")}`,
     dashboardEmailHtml(
       t("inspectionRequestedSubject"),
       `${emailGreeting(t, username)}

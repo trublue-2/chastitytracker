@@ -4,7 +4,7 @@ import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
 import { recordMessageAndBadge, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messageService";
 import { getMessageChannels } from "@/lib/notificationPrefs";
-import { ALL_CHANNELS, type NotificationChannels } from "@/lib/constants";
+import { ALL_CHANNELS, type NotificationChannels, APP_NAME } from "@/lib/constants";
 
 /**
  * Was an einer Posteingangs-Zeile hängt, unabhängig davon, WESSEN Posteingang gemeint ist —
@@ -183,7 +183,7 @@ async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): 
   if (user.email && channels.mail) {
     await sendMailSafe(
       user.email,
-      `KG-Tracker – ${subject}`,
+      `${APP_NAME} – ${subject}`,
       dashboardEmailHtml(subject, `${emailGreeting(t, user.username)}<p>${escHtml(message)}</p>`, t("dashboardButton")),
     );
   }

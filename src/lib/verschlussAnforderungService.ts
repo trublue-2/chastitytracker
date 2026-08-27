@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { LOCK_ENDED_REASON } from "@/lib/constants";
+import { LOCK_ENDED_REASON, APP_NAME } from "@/lib/constants";
 import { sendMailSafe, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { notifyUser, type NotifyContent, type NotifyInbox } from "@/lib/notify";
 import { actorColumn, recordMessageAndBadge, type MessageActor } from "@/lib/messageService";
@@ -272,7 +272,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
       : `<p><strong>${t("lockDurationLabel")}</strong> ${t("lockIndefinite")}</p>`;
     await sendMailSafe(
       user.email,
-      `KG-Tracker – ${t("lockPeriodSetSubject")}`,
+      `${APP_NAME} – ${t("lockPeriodSetSubject")}`,
       dashboardEmailHtml(t("lockPeriodSetSubject"),
         `${greeting}
         <p>${escHtml(t("lockPeriodSetBody"))}</p>
@@ -293,7 +293,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
       : "";
     await sendMailSafe(
       user.email,
-      `KG-Tracker – ${t("lockRequestSubject")}`,
+      `${APP_NAME} – ${t("lockRequestSubject")}`,
       dashboardEmailHtml(t("lockRequestSubject"),
         `${greeting}
         <p>${escHtml(t("lockRequestBody"))}</p>

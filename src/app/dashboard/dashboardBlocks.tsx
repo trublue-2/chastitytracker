@@ -46,6 +46,7 @@ import IncompleteCategories from "./IncompleteCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import WeightReleaseCard from "./WeightReleaseCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import { getOffenseRules } from "@/lib/offenseRulesService";
 
 /**
  * **Die Blöcke des Träger-Dashboards — jeder mit seiner eigenen Datenbeschaffung.**
@@ -333,7 +334,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
    */
   runningSession: block({
     load: async (ctx) => {
-      const { userId, nowMs, tz } = ctx;
+      const { userId, nowMs, now, tz } = ctx;
       const running = await runningSessionCard(ctx);
       // Keine laufende Session heisst nicht „nichts anzeigen", sondern „den anderen Zustand
       // anzeigen". Das war der Fehler: `null` hier liess den Platz leer und der offene Held suchte
@@ -348,13 +349,16 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         const open = await openStateData(ctx);
         return open && ({ open } as const);
       }
-      const [activeSperrzeit, user, activeVorgabe, hours, deviceCount] = await Promise.all([
+      const [activeSperrzeit, user, activeVorgabe, hours, deviceCount, offenseRules] = await Promise.all([
         subSperrzeitCached(userId), userRowCached(userId), activeVorgabeCached(userId, nowMs),
         wearingHoursCached(userId, nowMs, tz), deviceCountCached(userId),
+        // Für die Folge-Zeile unter der Sperrzeit: OB ein früheres Öffnen geahndet wird, ist je Sub
+        // schaltbar. Ohne diese Abfrage behauptete die Karte eine Regel, die abgeschaltet sein kann.
+        getOffenseRules(userId, now),
       ]);
       // `open: null` als Unterscheidungsmerkmal — mit `"open" in data` müsste jede Verwendung
       // darunter noch einmal auf `undefined` prüfen, obwohl der Zweig sie ausschliesst.
-      return { open: null, ...running, activeSperrzeit, user, activeVorgabe, hours, deviceCount };
+      return { open: null, ...running, activeSperrzeit, user, activeVorgabe, hours, deviceCount, offenseRules };
     },
     render: (data, { now, tz, dl, t }) => data && (
       data.open ? (
@@ -386,6 +390,16 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             data.activeSperrzeit && data.user?.reinigungErlaubt
               ? t(data.activeSperrzeit.reinigungErlaubt ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
               : null
+          }
+          // Nur wenn die Regel wirklich gilt — sie ist je Sub abschaltbar. Und wenn eine
+          // Reinigungsöffnung erlaubt ist, nennt der Text die Ausnahme: sonst stünde die Behauptung
+          // eine Zeile unter dem Hinweis, dass Reinigen erlaubt ist, und widerspräche ihm.
+          lockBreakNote={
+            data.offenseRules.unauthorized_opening === "off"
+              ? null
+              : t(data.activeSperrzeit?.reinigungErlaubt && data.user?.reinigungErlaubt
+                  ? "sessionLockedConsequenceCleaning"
+                  : "sessionLockedConsequence")
           }
           keyInBox={data.activePair.verschluss.keyInBox ?? null}
           activeVorgabe={data.activeVorgabe ? resolveGoalTargets(data.activeVorgabe, now, tz) : null}

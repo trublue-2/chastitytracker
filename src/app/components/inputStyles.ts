@@ -51,10 +51,11 @@ export const headerBrandCls =
 /**
  * Der NAME in der Kopfzeile — bricht nie um.
  *
- * „KG-Tracker" landete auf schmalen Geräten zweizeilig, sobald die Adresse daneben Platz forderte;
- * die Kopfzeile ist aber auf eine Zeilenhöhe festgelegt (`h-14`), also stand der Name halb
- * abgeschnitten da. Der Name hat Vorrang, die Adresse gibt nach — deshalb `shrink-0` hier und
- * `truncate` dort.
+ * Der Name (`APP_NAME`) landete auf schmalen Geräten zweizeilig, sobald die Adresse daneben
+ * Platz forderte; die Kopfzeile ist aber auf eine Zeilenhöhe festgelegt (`h-14`), also stand er
+ * halb abgeschnitten da. Der Name hat Vorrang, die Adresse gibt nach — deshalb `shrink-0` hier
+ * und `truncate` dort, zusammen mit `min-w-0` am Behälter. Das trägt auch den längeren Namen
+ * ab v6 (`APP_NAME`): er bricht nicht um, die Adresse kürzt sich nur früher.
  */
 export const headerNameCls = "whitespace-nowrap shrink-0";
 

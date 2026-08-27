@@ -2,6 +2,7 @@ import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { type SegmentEntry } from "@/lib/sessionModel";
 import { periodEndsMs } from "@/lib/goalFulfillment";
 import CategoryGoalsLive, { type KgGoalRow } from "./CategoryGoalsLive";
+import { KG_CATEGORY_META } from "@/lib/deviceCategories";
 
 interface Props {
   /** Zeitzone des Trägers — entscheidet, wann Tag/Woche/Monat enden. Ohne sie könnte die
@@ -36,5 +37,9 @@ export default async function CategoryGoalsToday({ userId, tz, activeWearSession
     : [];
   if (!kgGoal && rows.length === 0) return null;
 
-  return <CategoryGoalsLive rows={rows} kgGoal={kgGoal} serverNow={now.toISOString()} periodEndMs={periodEndsMs(now, tz)} />;
+  // Der Vorgabe-Name der eingebauten Kategorie, vom Server gereicht — die Client-Komponente darf
+  // `deviceCategories.ts` nicht importieren (Prisma). Bekannte Grenze: wer seine Kategorie selbst
+  // umbenannt hat, sieht hier trotzdem die Vorgabe; der Umbau auf die DB-Zeile steht in
+  // `docs/design/begriffe.md` als Rest.
+  return <CategoryGoalsLive rows={rows} kgGoal={kgGoal} kgName={KG_CATEGORY_META.name} serverNow={now.toISOString()} periodEndMs={periodEndsMs(now, tz)} />;
 }

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMailSafe, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
-import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS } from "@/lib/constants";
+import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS, APP_NAME } from "@/lib/constants";
 import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten } from "@/lib/reasonsService";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { computeDelayedTrigger, isHiddenFromSub, parseTriggerAt } from "@/lib/delayedTrigger";
@@ -286,7 +286,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
     const oeffnenHtml = oeffnenErlaubt ? `<p><strong>${t("orgasmOpenAllowedLabel")}</strong> ${t("orgasmOpenAllowedText")}</p>` : "";
     await sendMailSafe(
       user.email,
-      `KG-Tracker – ${betreff}`,
+      `${APP_NAME} – ${betreff}`,
       dashboardEmailHtml(
         escHtml(betreff),
         `${emailGreeting(t, user.username)}

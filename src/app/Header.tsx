@@ -8,6 +8,7 @@ import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerNa
 import { ownTrackerHidden } from "@/lib/ownTracker";
 import pkg from "../../package.json";
 import { instanceHostname } from "@/lib/appMeta";
+import { APP_NAME } from "@/lib/constants";
 
 export default async function Header() {
   const session = await auth();
@@ -27,7 +28,7 @@ export default async function Header() {
       <SkipLink />
       <div className={headerRowCls}>
         <Link href="/dashboard" className={headerBrandCls}>
-          <span className={headerNameCls}>KG-Tracker</span>
+          <span className={headerNameCls}>{APP_NAME}</span>
           {hostname && <span className={headerHostCls}>{hostname}</span>}
         </Link>
 

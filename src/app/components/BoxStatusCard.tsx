@@ -85,7 +85,10 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
                   Frische-Zeile. Genau die muss aber ihren festen Platz haben. */}
               <div className="grid grid-cols-1 gap-x-6 gap-y-1.5 @xl:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <p className={`text-xs ${scheme.accent}`}>{t("sollLabel")}: {boxSollLabel(b, t, fmtDateTime)}</p>
+                  {/* Ohne „Soll:"-Präfix: das war die Sprache einer Steuerung, nicht die einer Auskunft.
+                      Die Werte sind seit v6 eigenständige Sätze („Die Box soll zu sein bis …"),
+                      das Präfix trug nichts mehr bei und der Schlüssel ist entfallen. */}
+                  <p className={`text-xs ${scheme.accent}`}>{boxSollLabel(b, t, fmtDateTime)}</p>
                   {/* Übergangs-Zustand (Präsenz-Gate): sofort nach dem Eintrag sichtbar (pendingCommand,
                       tracker-lokal), danach über den Soll/Ist-Mismatch bis zur Riegel-Bestätigung —
                       dieselbe Sprache wie die Heimdall-Karte. (Am Consume-Sync selbst kann die Zeile

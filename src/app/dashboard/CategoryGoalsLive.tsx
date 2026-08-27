@@ -34,13 +34,13 @@ export interface KgGoalRow {
 /** Client renderer for the per-category training goals. Mirrors the KG goal (LiveTrainingGoals):
  *  when a category has a running session, its today/week/month hours tick up live so the bar
  *  matches a fresh server/MCP computation instead of freezing at page-render time. */
-export default function CategoryGoalsLive({ rows, kgGoal = null, serverNow, periodEndMs }: { rows: CategoryGoalRow[]; kgGoal?: KgGoalRow | null; serverNow: string; periodEndMs: ByPeriod<number> }) {
+export default function CategoryGoalsLive({ rows, kgGoal = null, kgName, serverNow, periodEndMs }: { rows: CategoryGoalRow[]; kgGoal?: KgGoalRow | null; kgName: string; serverNow: string; periodEndMs: ByPeriod<number> }) {
   const t = useTranslations("dashboard");
   return (
     <DashboardBlock>
       <Section title={t("categoryGoals")}>
         <ul className="flex flex-col gap-4">
-          {kgGoal && <KgRow goal={kgGoal} serverNow={serverNow} periodEndMs={periodEndMs} />}
+          {kgGoal && <KgRow goal={kgGoal} kgName={kgName} serverNow={serverNow} periodEndMs={periodEndMs} />}
           {rows.map((r) => (
             <CategoryRow key={r.categoryId} row={r} serverNow={serverNow} periodEndMs={periodEndMs} />
           ))}
@@ -82,13 +82,18 @@ function GoalRow({ icon, name, actual, targetH, serverNow, periodEndMs }: {
 }
 
 /** Die KG-Zeile — dieselbe Gruppe wie eine Kategorie, aber mit Schloss-Zeichen (KG ist keine der
- *  Wear-Kategorien) und ohne Live-Tick (nur im offenen Zustand gezeigt). */
-function KgRow({ goal, serverNow, periodEndMs }: { goal: KgGoalRow; serverNow: string; periodEndMs: ByPeriod<number> }) {
-  const t = useTranslations("dashboard");
+ *  Wear-Kategorien) und ohne Live-Tick (nur im offenen Zustand gezeigt).
+ *
+ *  Der NAME kommt als Prop vom Server. Vorher stand hier `t("kgGoalLabel")` — eine hart
+ *  hinterlegte Beschriftung, unmittelbar neben Kategorien, die ihren Namen aus der Datenbank
+ *  holen. Die beiden Kopien in de/en waren schon einmal auseinandergelaufen (EN sagte „CB",
+ *  während die DB-Zeile „KG" hiess). Die Konstante direkt zu importieren geht nicht: dieses
+ *  Modul ist `"use client"`, und `deviceCategories.ts` bringt Prisma mit. */
+function KgRow({ goal, kgName, serverNow, periodEndMs }: { goal: KgGoalRow; kgName: string; serverNow: string; periodEndMs: ByPeriod<number> }) {
   return (
     <GoalRow
       icon={<LockClosedIcon className="size-4 shrink-0 text-lock" aria-hidden />}
-      name={t("kgGoalLabel")}
+      name={kgName}
       actual={{ day: goal.tagH, week: goal.wocheH, month: goal.monatH, year: goal.jahrH }}
       targetH={goal.goal.targetH}
       serverNow={serverNow}

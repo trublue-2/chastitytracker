@@ -20,36 +20,54 @@ Wort genau eine Sache geben** — und die Wörter streichen, die keine eigene Sa
 
 ---
 
-## 1. Das Gerät — „KG" verschwindet aus der Oberfläche
+## 1. Das Gerät — „KG“ bleibt, wird aber aufgelöst
 
-**Befund.** 28 sichtbare Stellen sagen „KG", ohne es je aufzulösen. Die englische Seite ist
-schlimmer: `KG` 7×, `CB` 8×, `chastity` 7×, `device` 64× — **vier** Namen für eine Sache, und `CB`
-ist eine Abkürzung, die im Deutschen nie erklärt wird und im Englischen auch nicht.
+**Befund.** 28 sichtbare Stellen sagen „KG“, ohne es je aufzulösen. Die englische Seite ist
+schlimmer: `KG` 7×, `CB` 8×, `chastity` 7×, `device` 64× — **vier** Namen für eine Sache.
 
-**Entscheidung.** Die Abkürzung fällt weg, ersatzlos. Sie wird nicht durch ein langes Wort ersetzt,
-sondern meist durch gar nichts:
+**Entscheidung (trublue, 27.08.2026).** Der erste Entwurf wollte die Abkürzung ersatzlos streichen
+und durch „Gerät“ ersetzen. Verworfen: sie ist unter Nutzern eingeführt, und der Ersatz wäre
+kühl — „Welches Gerät trägst du?“ klingt nach Inventar. Stattdessen:
 
-| Alt | Neu | Warum |
+- **„KG“ bleibt in der Oberfläche** — die 26 Fundstellen werden NICHT umgeschrieben.
+- **Aufgelöst wird es genau einmal, auf `/dashboard/regeln`.** Das ist laut dem Prüfer die einzige
+  Seite, auf der steht, wonach der Träger beurteilt wird — also der Ort, den ein neuer Nutzer
+  ohnehin aufschlägt, wenn er etwas nicht versteht. Ein Satz, kein Glossar.
+- **Die englische Seite verliert `CB`.** Zwei Abkürzungen für dieselbe Sache sind eine zu viel; wo
+  `CB` steht, steht künftig `KG` oder gar nichts.
+
+### Die eingebaute Kategorie heisst „Chastity Device“
+
+Der Datenbank-Wert `"KG"` ist **nicht** unsichtbar, wie der erste Entwurf annahm:
+`CategoryGoalsLive.tsx:91` rendert eine hart hinterlegte Beschriftung als NAMEN, direkt neben
+Kategorien, die ihren Namen aus der Datenbank holen.
+
+**Entscheidung: beides umstellen, per Migration, auf `"Chastity Device"`.**
+
+Warum ausgerechnet dieser Wert — und warum englisch, obwohl die Oberfläche deutsch ist: Der
+Unterschied dieser Kategorie zu allen anderen liegt nicht im Ding, sondern in dem, **was erfasst
+wird**. Alles liegt in derselben Tabelle (`Entry`), getrennt allein durch den Typ:
+
+| Kategorie | Typen | Bedeutung |
 |---|---|---|
-| „KG-Ziele" | „Ziele" | Auf dem Träger-Dashboard ist der Zusammenhang der Gürtel. Das Präfix trägt keine Information. |
-| „KG-Tragezeiten" | „Tragezeiten" | dito |
-| „Aktuelle KG-Tragezeit" | „Aktuelle Tragezeit" | dito |
-| „Welchen KG trägst du?" | „Welches Gerät trägst du?" | Hier muss die Sache benannt werden — und die Auswahl zeigt ohnehin Kategorie und Gerätenamen. |
-| „KG ist verschlossen" | „Du bist verschlossen" | Der Zustand gehört dem Träger, nicht dem Ding. |
-| „Tracke mehr als nur KG" | „Tracke mehr als den Gürtel" | Werbezeile — hier ist das Wort der Punkt. |
-| EN `CB` / `KG` | `belt` bzw. weglassen | Eine Abkürzung weniger, nicht eine andere. |
+| die eingebaute | `VERSCHLUSS` / `OEFFNEN` | **eingeschlossen** und wieder geöffnet |
+| alle anderen | `WEAR_BEGIN` / `WEAR_END` | **getragen**, von–bis (`deviceId` ist Pflicht) |
 
-**Das generische Wort ist „Gerät" (EN `device`).** Es steht ohnehin schon 64× im englischen Blatt,
-die Datenmodelle heissen so (`Device`, `DeviceCategory`), und es deckt ab, was die App seit den
-Kategorien wirklich verwaltet: Gürtel, Käfige, Plugs, Ringe, Knebel. „Keuschheitsgürtel"
-ausgeschrieben wäre für die Mehrzahl der Geräte schlicht falsch.
+`KG_ENTRY_TYPES` und `WEAR_ENTRY_TYPES` (`lib/constants.ts`) halten das auseinander, und es gibt
+eine eigene Fehlermeldung dafür. Die anderen Kategorien werden getragen — diese eine schliesst
+ein. Der Name muss also die Sache benennen, nicht die Bauform: „Belt“ wäre für Käfig-Träger
+falsch, „Cage“ für Gürtel-Träger, und die Migration kann nicht wissen, wer was trägt. Englisch,
+weil neue Bezeichner in diesem Projekt englisch sind und der Produktname das Wort ohnehin führt.
 
-**Was NICHT angefasst wird:** der Slug `kg` (`KG_BUILTIN_SLUG`) und der `name`-Wert `"KG"` der
-eingebauten Kategorie in der Datenbank. Der steht in den Datensätzen jeder Instanz, ist von den
-Nutzern umbenennbar, und ein Rename wäre eine Migration über fremde Bestände — für null sichtbaren
-Gewinn, weil die Kategorienliste den Namen zeigt, den der Nutzer gesetzt hat.
+**Die Migration darf keine fremde Wahl überschreiben.** Sie fasst den Bestand von 26 Instanzen an;
+umbenannt wird nur, was noch exakt `"KG"` heisst — wer die Kategorie längst selbst benannt hat,
+behält seinen Namen.
 
----
+### Und der App-Name
+
+Der Kopf sagte „KG Tracker“, das Produkt heisst „Chastity Tracker“. Ab v6 sagen beide dasselbe.
+Der Umbruch auf schmalen Bildschirmen ist dabei neu zu prüfen — der längere Name war der Grund,
+warum der Kopf diese Woche überhaupt angefasst wurde.
 
 ## 2. Zeiträume — vier Sachen, vier Wörter
 
@@ -64,8 +82,21 @@ Das sind **keine** Synonyme:
 | Ein angeordneter Zeitraum mit Ende | **Sperrzeit** | Anordnung der Keyholderin. Hat ein Ende, das der Träger kennt. |
 | Der Zeitpunkt, bis zu dem etwas zu tun ist | **Frist** | Gehört einer Forderung, nicht einem Zustand. |
 
-**Entscheidung.** Alle vier bleiben — sie benennen vier verschiedene Dinge. Was geht, ist das
-fünfte Wort:
+**Entscheidung (trublue, 27.08.2026).** Alle vier bleiben — sie benennen vier verschiedene Dinge.
+
+Der Einwand gegen den ersten Entwurf: „Sperrzeit“ durch „eingeschlossen bis …“ zu ersetzen
+verliert etwas. **Eine Sperrzeit ist verbindlich — sie zu brechen ist ein Vergehen.** Das ist der
+Unterschied zur Tragezeit, die nur gezählt wird.
+
+Damit bleibt zwar bestehen, dass beide „-zeit“-Wörter sind. Gelöst wird das nicht durch
+Umbenennen, sondern indem **die Folge überall danebensteht, wo eine Sperrzeit erscheint**:
+
+> Sperrzeit bis Sonntag 20:00 — früher öffnen wird als Vergehen erfasst.
+
+Der Träger im Issue wusste nicht, „welches davon endet, wenn er öffnet“. Die Antwort steht danach
+im Text und nicht im Wortende: die **Tragezeit** endet, die **Sperrzeit** wird gebrochen.
+
+Was zusätzlich geht, ist das fünfte Wort:
 
 > **„Verschluss" als Hauptwort für einen Zeitraum fällt weg.** Es bleibt ausschliesslich Zustand
 > und Tätigkeit: *verschlossen sein*, *verschliessen*. Wo heute „der Verschluss" einen Zeitraum
@@ -128,6 +159,47 @@ den Sachverhalt. Der Sachverhalt ist: **das Foto wurde nicht jetzt aufgenommen.*
 
 **Und die Einordnung gehört dazu**, denn genau die fehlte: der Hinweis sagt künftig, was er ist —
 eine Beobachtung, die der Keyholderin angezeigt wird, kein automatisches Vergehen.
+
+---
+
+## Was noch offen ist
+
+Die Entscheidungen oben sind umgesetzt, aber nicht erschöpfend. Was beim Durchgang auffiel und
+bewusst liegen bleibt — damit es nicht als „erledigt" durchgeht:
+
+**Die Folge einer Sperrzeit steht erst an einer Stelle.** Dieses Dokument verlangt sie „überall, wo
+eine Sperrzeit erscheint". Umgesetzt ist die laufende Session (Träger- und Keyholder-Sicht), und
+zwar korrekt an die geltende Regel gehängt (`unauthorized_opening` ist je Sub abschaltbar, eine
+erlaubte Reinigungsöffnung ist ausgenommen). Ohne Folge bleiben: die **Mail, mit der die Sperrzeit
+angekündigt wird** (`emails.lockPeriodSetBody` — nach der eigenen Begründung eigentlich der ERSTE
+Ort), die Box-Karte und die Keyholder-Übersicht.
+
+**Die eingebaute Kategorie hat im Deutschen weiter drei Namen.** „KG" (18 Werte, bleibt per
+Beschluss), „Chastity Device" (der Kategoriename) und „Keuschheitsgürtel" in
+`admin.kontrolleTargetKg` und `errors.TASK_REQUIREMENT_KG_CATEGORY` — genau die Bauform-Benennung,
+die Kapitel 1 verwirft. Dazu im Englischen uneinheitliche Grossschreibung („Chastity device" gegen
+„Chastity Device") und zwei verbliebene „belt" (`errors.WEAR_DEVICE_KG`, `devices.emptyDescription`).
+
+**Fünftes und sechstes Wort für den Sperr-Zeitraum.** Neben „Sperrzeit" stehen „Sperrdauer" in acht
+und „Sperre" in sechs Werten, alle auf der Keyholder-Seite. `admin.alreadyHasSperrzeit` heisst im
+Schlüssel Sperrzeit und im Wert „Sperrdauer bereits aktiv". Das ist derselbe Defekt, den Kapitel 3
+für „Vorgabe" behebt — nur eine Oberfläche weiter.
+
+**„Riegel" / „bolt" überleben in der Träger-Sicht.** `openForm.modalBoxStaysLocked` und
+`openForm.boxStaysShutBreak`. Kapitel 4 lässt die Bauteil-Wörter nur in der Keyholder- und der
+Diagnose-Ansicht zu; das Öffnen-Formular ist keine von beiden.
+
+**Die Ziel-Zeile zeigt den Vorgabe-Namen, nicht den des Nutzers.** `CategoryGoalsLive` bekommt
+`KG_CATEGORY_META.name` als Prop — besser als die zwei i18n-Kopien vorher (die schon einmal
+auseinandergelaufen waren: EN sagte „CB", während die DB-Zeile „KG" hiess), aber wer seine
+Kategorie selbst umbenannt hat, sieht dort weiterhin nicht seinen Namen. Richtig wäre die
+`DeviceCategory`-Zeile, wie sie die Schwester-Zeile `CategoryRow` schon nutzt; dafür muss der Name
+durch `KgGoalRow` gereicht werden. Dasselbe gilt für `statsBlocks.tsx` und die `?? "KG"`-Rückfälle
+in `mcpWrite.ts` und `taskIntervals.ts`.
+
+**Neun Mail-Betreffe bauen dieselbe Figur von Hand.** `${APP_NAME} – …` steht in sieben Dateien,
+dazu zweimal `${APP_NAME}: …` in `healthCheck.ts` — zwei Trennzeichen ohne erkennbaren Grund. Das
+gehört als `appSubject()` neben `dashboardEmailHtml()` in `src/lib/mail.ts`.
 
 ---
 

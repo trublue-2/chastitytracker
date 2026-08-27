@@ -11,7 +11,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { cookies } from "next/headers";
 import { auth } from "@/lib/auth";
-import { isValidLocale } from "@/lib/constants";
+import { isValidLocale, APP_NAME } from "@/lib/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,13 +34,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KG Tracker",
+  title: APP_NAME,
   description: "Keuschheitsgürtel Tracking",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "KG Tracker",
+    title: APP_NAME,
   },
   icons: {
     icon: "/icon.svg",
