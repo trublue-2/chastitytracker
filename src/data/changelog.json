@@ -6,29 +6,50 @@
       {
         "type": "ui",
         "text": {
-          "de": "Die Farbe zeigt jetzt den Zustand statt einer Vorliebe: Grün heisst verschlossen, Rosa heisst offen, der Keyholder-Bereich ist Indigo. Der Hell/Dunkel-Schalter und die Farbwelt-Auswahl sind deshalb aus den Einstellungen verschwunden.",
-          "en": "Colour now shows your state instead of your taste: green means locked, pink means open, the keyholder area is indigo. The light/dark switch and the colour theme picker are gone from the settings as a result."
+          "de": "Die Oberfläche ist neu gestaltet — ruhiger, dunkel, mit mehr Luft. Was gerade zählt, steht oben und darf Platz beanspruchen; was Nachschlagewerk ist, ordnet sich darunter ein.",
+          "en": "The interface has been redesigned — calmer, dark, with more room to breathe. What matters right now sits at the top and is allowed to take up space; what is reference material settles below."
         }
       },
       {
         "type": "ui",
         "text": {
-          "de": "Das Schloss unterscheidet offen und geschlossen an der Form, nicht mehr nur am Ton — auch bei Rot-Grün-Schwäche lesbar. Plug, Handschellen, Ring der O und Knebel haben eigene Zeichen bekommen.",
-          "en": "The lock tells open from closed by its shape now, not just by its tone — legible with red-green colour blindness too. Plug, cuffs, ring and gag got icons of their own."
+          "de": "Die Abschnitte haben ihre Rahmen verloren: statt Kästen ein durchgehendes Raster, in dem Abstände die Ordnung machen — bei einem Dutzend Kästen sah vorher alles gleich wichtig aus. Ein paar Ecken, das Strafbuch darunter, sind noch nicht umgestellt.",
+          "en": "Sections lost their frames: instead of boxes, one continuous grid where spacing does the ordering — with a dozen boxes everything used to look equally important. A few corners, the penalty log among them, are not converted yet."
         }
       },
       {
         "type": "ui",
         "text": {
-          "de": "Die Abschnitte haben ihre Rahmen verloren und stehen in einem durchgehenden Raster. Abstände ordnen den Inhalt, nicht Umrandungen.",
-          "en": "Sections lost their frames and sit in one continuous grid. Spacing does the ordering now, not outlines."
+          "de": "Die Farbe sagt jetzt, woran du bist: Grün heisst verschlossen, Rosa heisst offen, Indigo ist der Keyholder-Bereich. Sie wechselt mit dem Zustand — du siehst ihn, bevor du ein Wort gelesen hast.",
+          "en": "Colour now tells you where you stand: green means locked, pink means open, indigo is the keyholder area. It changes with your state — you see it before you have read a word."
         }
       },
       {
         "type": "ui",
         "text": {
-          "de": "Begriffe vereinheitlicht: „KG“ wird auf der Regeln-Seite einmal aufgelöst, aus „Trainingsvorgabe“ wird „Trainingsziel“, und die Box sagt, was los ist, statt „Soll“ und „Riegel“.",
-          "en": "Vocabulary cleaned up: “KG” is spelled out once on the rules page, “training requirement” became “training goal”, and the box says what is going on instead of talking about targets and bolts."
+          "de": "Der Hell/Dunkel-Schalter und die Farbwelt-Auswahl sind aus den Einstellungen verschwunden — wo die Farbe eine Aussage ist, gibt es nichts mehr zu wählen.",
+          "en": "The light/dark switch and the colour theme picker are gone from the settings — where colour is a statement, there is nothing left to choose."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Das Schloss unterscheidet offen und geschlossen an der Form, nicht mehr nur am Ton — auch bei Rot-Grün-Schwäche eindeutig. Plug, Handschellen, Ring der O und Knebel haben eigene Zeichen bekommen, statt sich einen Platzhalter zu teilen.",
+          "en": "The lock tells open from closed by its shape now, not just by its tone — unambiguous with red-green colour blindness too. Plug, cuffs, the ring of O and gag got icons of their own instead of sharing a placeholder."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Ein Wort pro Sache: „KG“ wird auf der Regeln-Seite einmal ausgeschrieben, aus „Trainingsvorgabe“ wird „Trainingsziel“, und „EXIF“ heisst jetzt schlicht Aufnahmezeit. Auch die App selbst heisst nun wie das Produkt: Chastity Tracker.",
+          "en": "One word per thing: the “CB” and “KG” abbreviations are gone, “EXIF” is simply called capture time, and the box says what is going on instead of talking about targets and bolts. The app itself now goes by the product's name: Chastity Tracker."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine Zielzeile sagt jetzt, wie du dastehst, statt nur zu zählen: „geschafft“, „noch 2h 40min“ oder „knapp“. Dieselben 43 % sind am Morgen gut und am Abend zu wenig — das rechnet die App jetzt selbst aus.",
+          "en": "A goal row now tells you how you are doing instead of just counting: “done”, “2h 40m to go” or “tight”. The same 43 % is good in the morning and too little at night — the app works that out for you now."
         }
       }
     ]
