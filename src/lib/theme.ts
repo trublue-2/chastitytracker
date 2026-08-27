@@ -16,9 +16,13 @@
  * Handy und Rechner auseinanderläuft (der Fehler, der als #88 gemeldet war).
  *
  * **Die Welt wechselt mitten in der Sitzung.** Schliesst der Träger auf, wird die App rosa;
- * schliesst er zu, grün. Eine Reinigungs- oder Gesundheitspause öffnet den Verschluss und zählt
- * deshalb als „offen" — das ist eine bewusste Entscheidung gegen die Alternative, laufende
- * Sitzungen durchgehend grün zu lassen: die Farbe soll sagen, was JETZT ist.
+ * schliesst er zu, grün. Eine Reinigungspause öffnet den Verschluss und zählt deshalb als
+ * „offen" — das ist eine bewusste Entscheidung gegen die Alternative, laufende Sitzungen
+ * durchgehend grün zu lassen: die Farbe soll sagen, was JETZT ist.
+ *
+ * Ein **Gesundheits-Halt** gehört ausdrücklich NICHT dazu: er setzt Pflichten aus, erzeugt aber
+ * keinen Öffnungs-Eintrag und berührt `getIsLocked()` nicht. Die App bleibt dabei grün, und das
+ * ist richtig — der Träger ist ja verschlossen.
  */
 
 export type World = "sub-open" | "sub-locked" | "keyholder";

@@ -79,6 +79,10 @@ const BLOCK_USER_SELECT = {
   inspectionAutoMarkEnabled: true,
   inspectionAutoMarkDelayMinutes: true,
   inspectionReminderDelayMinutes: true,
+  // Für den Umstellungs-Hinweis (`ChangeoverNoticeGate`). Steht MIT drin aus demselben Grund wie
+  // `dashboardLayout`: die Zeile wird ohnehin geladen, eine zweite Abfrage dafür kostete
+  // gemessene ~215 µs auf dem kritischen Pfad, die Spalte kostet nichts.
+  noticeSeenVersion: true,
 } as const;
 
 /** Die Benutzerzeile eines Trägers, wie die Blöcke sie sehen. */

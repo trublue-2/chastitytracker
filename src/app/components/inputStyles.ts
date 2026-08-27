@@ -57,6 +57,13 @@ export const headerBrandCls =
  * und `truncate` dort, zusammen mit `min-w-0` am Behälter. Das trägt auch den längeren Namen
  * ab v6 (`APP_NAME`): er bricht nicht um, die Adresse kürzt sich nur früher.
  */
+/** Ein leiser Link neben etwas Wichtigerem — Rücklink, Nebenweg, „mehr dazu".
+ *
+ *  Stand zeichengleich an drei Stellen (`AuthScreen`, `AdminActionFormShell`, `ChangeoverNotice`).
+ *  Der Hover ist der Punkt, an dem solche Ketten auseinanderlaufen: im Baum stehen daneben acht
+ *  Rücklinks mit `hover:text-foreground-muted` statt `hover:text-foreground` (Issue #101). */
+export const quietLinkCls = "text-neben text-foreground-faint hover:text-foreground transition";
+
 export const headerNameCls = "whitespace-nowrap shrink-0";
 
 /**

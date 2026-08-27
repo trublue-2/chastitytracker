@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 132 Kanten über 18 Mechaniken, davon 19 fest verdrahtet.
+Insgesamt 133 Kanten über 18 Mechaniken, davon 19 fest verdrahtet.
 
 ## Einträge
 
@@ -596,6 +596,7 @@ Nichts wirkt hier hinein — diese Mechanik lässt sich für sich allein betrach
 | Auto-Kontrollen | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
 | Sessions/Statistik | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
 | Oberfläche | `User.startPage` | Startseite nach der Anmeldung; `auto` wählt sie nach Rolle. | `userSelfField.ts` |
+| Oberfläche | `User.noticeSeenVersion` | Welche Umstellung dieser Nutzer quittiert hat, als Versionsnummer. Leer = der Hinweis zur laufenden Umstellung erscheint beim nächsten Aufruf. Reine Anzeige-Quittung: er ändert nichts an Regeln, Fristen oder Beurteilung. | `notice.ts:NOTICE_VERSION` |
 | Oberfläche | `User.dashboardLayout` | Abweichungen vom Standard-Dashboard (ausgeblendete Blöcke, eigene Reihenfolge) als JSON je Oberfläche. Leer = Standard. | `dashboardLayout.ts:resolveLayout` |
 | Oberfläche | `User.hideOwnTracker` | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | `ownTracker.ts` |
 | Oberfläche | `User.locale` | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | `emailI18n.ts` |
@@ -680,6 +681,7 @@ flowchart LR
 |---|---|---|---|
 | Einträge | `User.mobileDesktopUpload` | Erlaubt auf Mobilgeräten die Dateiauswahl statt nur die Kamera — schwächt jeden Foto-Nachweis, deshalb Admin-Feld. | — |
 | Zugang | `User.startPage` | Startseite nach der Anmeldung; `auto` wählt sie nach Rolle. | `userSelfField.ts` |
+| Zugang | `User.noticeSeenVersion` | Welche Umstellung dieser Nutzer quittiert hat, als Versionsnummer. Leer = der Hinweis zur laufenden Umstellung erscheint beim nächsten Aufruf. Reine Anzeige-Quittung: er ändert nichts an Regeln, Fristen oder Beurteilung. | `notice.ts:NOTICE_VERSION` |
 | Zugang | `User.dashboardLayout` | Abweichungen vom Standard-Dashboard (ausgeblendete Blöcke, eigene Reihenfolge) als JSON je Oberfläche. Leer = Standard. | `dashboardLayout.ts:resolveLayout` |
 | Zugang | `User.hideOwnTracker` | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | `ownTracker.ts` |
 | Zugang | `User.locale` | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | `emailI18n.ts` |

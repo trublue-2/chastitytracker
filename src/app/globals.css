@@ -241,8 +241,9 @@
    Gilt für: [data-theme="sub-locked"]
    ─────────────────────────────────────────────
    Grund UND Zustands-Ton sind hier grün, und genau das ist die Aussage: die Fläche selbst sagt
-   „verschlossen". Der Wechsel folgt `getIsLocked()` — eine Reinigungs- oder Gesundheitspause
-   öffnet den Verschluss und färbt die App zurück auf die Rose.
+   „verschlossen". Der Wechsel folgt `getIsLocked()` — eine Reinigungspause öffnet den Verschluss
+   und färbt die App zurück auf die Rose. Ein Gesundheits-Halt tut das NICHT: er setzt Pflichten
+   aus, ohne den Verschluss zu öffnen, und lässt die Fläche deshalb grün.
    ───────────────────────────────────────────── */
 [data-theme="sub-locked"] {
   --background:             #060907;

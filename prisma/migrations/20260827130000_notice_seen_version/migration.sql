@@ -1,0 +1,13 @@
+-- Welche Umstellung dieser Nutzer quittiert hat (Issue #87).
+--
+-- v6 ändert die BEDEUTUNG von Farbe: sie sagt jetzt den Zustand statt einer Vorliebe. Wer die App
+-- vorher benutzt hat, hat Grün als „alles in Ordnung" gelernt und liest es ab jetzt als
+-- „verschlossen". Das ist eine gelernte Bedeutung, die wegfällt, und niemand sagt es ihm.
+--
+-- NULL heisst „hat noch nichts quittiert" — auch für Bestandsnutzer, die den Hinweis also beim
+-- ersten Aufruf nach dem Update sehen. Ein neuer Nutzer sieht ihn ebenfalls einmal; das ist
+-- hinnehmbar, denn die Regel gilt für ihn genauso, er hat nur nichts zu verlernen.
+--
+-- Eine VERSION statt eines Booleans, damit derselbe Merker den nächsten Umstellungs-Hinweis mit
+-- trägt: verglichen wird gegen `NOTICE_VERSION` (`src/lib/notice.ts`).
+ALTER TABLE "User" ADD COLUMN "noticeSeenVersion" TEXT;

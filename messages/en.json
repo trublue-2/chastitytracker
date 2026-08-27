@@ -242,7 +242,8 @@
     "RELEASE_INVALID_DIRECTION": "Invalid direction for the release condition",
     "RELEASE_NOT_BEFORE_MUST_BE_FUTURE": "The earliest date must be in the future",
     "RELEASE_TOO_MANY_MEASUREMENTS": "More measurements are required than the period has days",
-    "RELEASE_UNDERWEIGHT": "That threshold is in the underweight range (BMI below 18.5)"
+    "RELEASE_UNDERWEIGHT": "That threshold is in the underweight range (BMI below 18.5)",
+    "invalidNoticeVersion": "Unknown notice version"
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -2039,5 +2040,15 @@
     "autoInspectionsDesc": "Inspection requests the system sends you on its own.",
     "autoInspectionsEnabledLabel": "Automatic inspections active",
     "offensesDesc": "Which kinds of offence count for you. What does not count here is not held against you."
+  },
+  "notice": {
+    "title": "The app looks new — and the colour now means something",
+    "intro": "It used to be a matter of taste: light or dark, plus a colour theme to pick from. From this version on it shows the state — which is why both switches are gone from the settings. There is nothing left to choose.",
+    "legendLocked": "Green means locked.",
+    "legendOpen": "Pink means not locked. The keyholder area is indigo.",
+    "caveats": "Two things belong with that: pink also shows during a cleaning break — a permitted opening is still an opening. And the lock tells open from closed by its shape, not only by its tone, so it still reads if green and pink are hard to tell apart.",
+    "unchanged": "No function is missing and nothing was switched off. The app does exactly what it did before.",
+    "understood": "Got it",
+    "whatElse": "What else is new"
   }
 }

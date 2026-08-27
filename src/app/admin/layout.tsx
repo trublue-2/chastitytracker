@@ -7,6 +7,7 @@ import { ownTrackerHidden } from "@/lib/ownTracker";
 import { keyholderWorld } from "@/lib/theme";
 import pkg from "../../../package.json";
 import { wideColCls } from "@/app/components/inputStyles";
+import ChangeoverNoticeGate from "@/app/components/ChangeoverNoticeGate";
 
 // SECURITY: admin-only, user-spezifisch — nie statisch/geteilt cachen (per-Request inkl. RSC).
 // Gleiche Härtung wie das Dashboard-Layout gegen vorgeschaltete Shared-Caches.
@@ -44,6 +45,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           jeden Abstand an der Leiste. Ab 1536 px sind es 1024 px und damit wieder 128 px Luft. */}
       <div className="lg:ml-64 2xl:pr-64 min-h-screen pb-[var(--bottom-nav-space)] lg:pb-0">
         <div className={`${wideColCls} [--block-col:100%] [--block-gutter:0px]`}>
+          {/* Siehe `dashboard/layout.tsx` — und ebenfalls INNERHALB der Spalte. */}
+          {user?.id && <ChangeoverNoticeGate userId={user.id} />}
           {children}
         </div>
       </div>

@@ -1,6 +1,6 @@
 {
   "name": "kg-app",
-  "version": "5.3.10",
+  "version": "6.0.0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE.md",
   "scripts": {

@@ -242,7 +242,8 @@
     "RELEASE_INVALID_DIRECTION": "Ungültige Richtung der Freigabe-Bedingung",
     "RELEASE_NOT_BEFORE_MUST_BE_FUTURE": "Der früheste Zeitpunkt muss in der Zukunft liegen",
     "RELEASE_TOO_MANY_MEASUREMENTS": "Es werden mehr Messungen verlangt, als der Zeitraum Tage hat",
-    "RELEASE_UNDERWEIGHT": "Diese Schwelle liegt im Untergewicht (BMI unter 18,5)"
+    "RELEASE_UNDERWEIGHT": "Diese Schwelle liegt im Untergewicht (BMI unter 18,5)",
+    "invalidNoticeVersion": "Unbekannte Hinweis-Version"
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -2039,5 +2040,15 @@
     "autoInspectionsDesc": "Kontroll-Aufforderungen, die das System von sich aus an dich schickt.",
     "autoInspectionsEnabledLabel": "Automatische Kontrollen aktiv",
     "offensesDesc": "Welche Vergehensarten bei dir zählen. Was hier nicht zählt, wird dir auch nicht angelastet."
+  },
+  "notice": {
+    "title": "Die App sieht neu aus — und die Farbe sagt jetzt etwas",
+    "intro": "Bisher war sie Geschmackssache: hell oder dunkel, dazu eine Farbwelt zur Auswahl. Ab dieser Version zeigt sie den Zustand — und deshalb sind beide Schalter aus den Einstellungen verschwunden. Es gibt nichts mehr zu wählen.",
+    "legendLocked": "Grün heisst: verschlossen.",
+    "legendOpen": "Rosa heisst: nicht verschlossen. Der Keyholder-Bereich ist Indigo.",
+    "caveats": "Zwei Dinge gehören dazu: Rosa erscheint auch während einer Reinigungspause — eine erlaubte Öffnung ist immer noch eine Öffnung. Und das Schloss unterscheidet offen von geschlossen an der Form, nicht nur am Ton; wer Grün und Rosa schlecht auseinanderhält, liest es trotzdem.",
+    "unchanged": "Es fehlt keine Funktion und nichts ist abgeschaltet. Die App kann genau dasselbe wie vorher.",
+    "understood": "Verstanden",
+    "whatElse": "Was sonst neu ist"
   }
 }

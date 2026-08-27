@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { formColCls } from "@/app/components/inputStyles";
+import { quietLinkCls } from "@/app/components/inputStyles";
 
 /**
  * Der Kopf eines Aktions-/Erfassungs-Formulars — Rücklink, Zeichen, Titel — und darunter das
@@ -49,7 +50,7 @@ function ShellBody({ backHref, backLabel, icon, iconColor, title, subtitle, chil
   const H = isLandmark ? "h1" : "h2";
   return (
     <>
-      <Link href={backHref} className="text-neben text-foreground-faint hover:text-foreground transition">
+      <Link href={backHref} className={quietLinkCls}>
         ← {backLabel}
       </Link>
       {/* Kein Kasten um das Formular und keine getönte Kachel um sein Zeichen. Der Titel benennt

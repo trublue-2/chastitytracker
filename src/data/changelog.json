@@ -1,5 +1,39 @@
 [
   {
+    "version": "6.0.0",
+    "date": "2026-08-27",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Farbe zeigt jetzt den Zustand statt einer Vorliebe: Grün heisst verschlossen, Rosa heisst offen, der Keyholder-Bereich ist Indigo. Der Hell/Dunkel-Schalter und die Farbwelt-Auswahl sind deshalb aus den Einstellungen verschwunden.",
+          "en": "Colour now shows your state instead of your taste: green means locked, pink means open, the keyholder area is indigo. The light/dark switch and the colour theme picker are gone from the settings as a result."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Das Schloss unterscheidet offen und geschlossen an der Form, nicht mehr nur am Ton — auch bei Rot-Grün-Schwäche lesbar. Plug, Handschellen, Ring der O und Knebel haben eigene Zeichen bekommen.",
+          "en": "The lock tells open from closed by its shape now, not just by its tone — legible with red-green colour blindness too. Plug, cuffs, ring and gag got icons of their own."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Abschnitte haben ihre Rahmen verloren und stehen in einem durchgehenden Raster. Abstände ordnen den Inhalt, nicht Umrandungen.",
+          "en": "Sections lost their frames and sit in one continuous grid. Spacing does the ordering now, not outlines."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Begriffe vereinheitlicht: „KG“ wird auf der Regeln-Seite einmal aufgelöst, aus „Trainingsvorgabe“ wird „Trainingsziel“, und die Box sagt, was los ist, statt „Soll“ und „Riegel“.",
+          "en": "Vocabulary cleaned up: “KG” is spelled out once on the rules page, “training requirement” became “training goal”, and the box says what is going on instead of talking about targets and bolts."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.10",
     "date": "2026-08-24",
     "changes": [

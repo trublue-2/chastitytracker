@@ -75,6 +75,14 @@ model User {
   // also exakt die vorgegebene Reihenfolge mit allen Blöcken. Bewusst Abweichungen statt der
   // Blockliste: sonst bliebe jeder künftig hinzukommende Block bei Bestandsnutzern unsichtbar.
   dashboardLayout                String?
+  // Welche Umstellung dieser Nutzer zuletzt quittiert hat, als Versionsnummer ("6.0.0").
+  //
+  // Eine VERSION und kein Boolean: derselbe Merker trägt damit auch den nächsten
+  // Umstellungs-Hinweis, statt dass jeder eine eigene Spalte bekommt. Und am `User` und nicht in
+  // `localStorage`, weil der Hinweis einmal pro PERSON gelesen werden soll — nicht einmal pro
+  // Gerät. Genau das war der Fehler, den #88 beschrieb: eine Anzeige-Entscheidung im
+  // Gerätespeicher läuft zwischen Handy und Rechner auseinander.
+  noticeSeenVersion              String?
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
   mcpKeyholderInstructions       String?
   // ── Gewichtstracking (docs/gewicht-konzept.md) ────────────────────────────────────────────────

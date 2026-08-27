@@ -386,6 +386,11 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["sub"], affects: ["Oberfläche"], anchor: "userSelfField.ts",
   }),
   s({
+    model: "User", field: "noticeSeenVersion", domain: "konto", scope: "standing",
+    effect: "Welche Umstellung dieser Nutzer quittiert hat, als Versionsnummer. Leer = der Hinweis zur laufenden Umstellung erscheint beim nächsten Aufruf. Reine Anzeige-Quittung: er ändert nichts an Regeln, Fristen oder Beurteilung.",
+    writers: ["sub"], affects: ["Oberfläche"], anchor: "notice.ts:NOTICE_VERSION",
+  }),
+  s({
     model: "User", field: "dashboardLayout", domain: "konto", scope: "standing",
     effect: "Abweichungen vom Standard-Dashboard (ausgeblendete Blöcke, eigene Reihenfolge) als JSON je Oberfläche. Leer = Standard.",
     writers: ["sub"], affects: ["Oberfläche"], anchor: "dashboardLayout.ts:resolveLayout",

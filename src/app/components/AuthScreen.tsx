@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { DEFAULT_WORLD } from "@/lib/theme";
 import { LockClosedIcon } from "@/app/components/lockIcons";
+import { quietLinkCls } from "@/app/components/inputStyles";
 
 interface Props {
   /** Benennt den Bildschirm. Auf der Anmeldeseite ist das die Wortmarke selbst — dort gibt es
@@ -63,7 +64,7 @@ export default function AuthScreen({ title, subtitle, children, footer }: Props)
  *  Bedeutungsfarbe. */
 export function AuthLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link href={href} className="text-neben text-foreground-faint hover:text-foreground transition">
+    <Link href={href} className={quietLinkCls}>
       {children}
     </Link>
   );
