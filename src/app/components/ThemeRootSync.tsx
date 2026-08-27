@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { rememberWorld } from "@/lib/nativeWorld";
 import type { World } from "@/lib/theme";
 
 /**
@@ -15,6 +16,10 @@ import type { World } from "@/lib/theme";
  * warum hier früher ein Inline-Skript vor der Hydration stand — es musste einen Wechsel zwischen
  * Hell und Dunkel verhindern, und den gibt es nicht mehr.
  *
+ * Derselbe Effekt versorgt den zweiten Abnehmer, der den Wrapper nicht lesen kann: den nativen
+ * Sperrbildschirm der iOS-Hülle. Warum er einen hinterlegten Wert braucht und was der nicht kann,
+ * steht in `nativeWorld.ts` — hier nicht ein zweites Mal, sonst müssten beide Fassungen stimmen.
+ *
  * Aufgeräumt wird NICHT: `<html>` behält die zuletzt gesetzte Welt, bis der nächste Bereich sie
  * überschreibt. Ein Zurücksetzen beim Verlassen fiele in die Lücke zwischen zwei Seiten und liesse
  * dort kurz `:root` gelten.
@@ -22,6 +27,7 @@ import type { World } from "@/lib/theme";
 export default function ThemeRootSync({ world }: { world: World }) {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", world);
+    rememberWorld(world);
   }, [world]);
 
   return null;

@@ -103,6 +103,33 @@ func application(_ application: UIApplication,
 }
 ```
 
+### AppDelegate.swift — Farbwelt des Sperrbildschirms
+
+Der native Sperrbildschirm (`LockScreenView`) zeichnet, BEVOR die WebView existiert — er hat weder
+Sitzung noch Netz und kann den Zustand des Trägers nicht erfragen. Die Web-App hinterlegt ihn
+deshalb bei jedem Bereichs-Rendern (`src/lib/nativeWorld.ts`), der Sperrbildschirm liest ihn:
+
+```swift
+UserDefaults.standard.string(forKey: "CapacitorStorage.world")
+```
+
+**Der Vertrag ist der Schlüsselname UND die Wertemenge.** Gültig sind genau drei Werte; alles
+andere, auch ein fehlender Wert, fällt auf `sub-open` zurück — dieselbe Welt, die im Blatt auf
+`:root` steht und die Bildschirme ohne Zustand tragen (Anmeldung, Info):
+
+| Wert | Bedeutung | Sperrbildschirm |
+|---|---|---|
+| `sub-locked` | Träger verschlossen | Grün, `lock.fill` |
+| `sub-open` | Träger nicht verschlossen | Rosa, `lock.open.fill` |
+| `keyholder` | Keyholder-Bereich | Indigo, `lock.fill` |
+
+Dieser Abschnitt steht hier, weil `AppDelegate.swift` **nicht im Repo liegt** (`/ios/` ist
+gitignoriert, das Xcode-Projekt erzeugt `npx cap add ios` lokal). Kein Compiler und kein Test kann
+die Swift-Seite gegen die TypeScript-Seite halten — also steht der Vertrag im Repo, so wie beim
+APNs-Schnipsel darüber. `theme.test.ts` prüft, dass diese Tabelle und `WORLDS` nicht auseinander-
+laufen; eine vierte Welt fällt dort rot auf, statt den Sperrbildschirm still auf die Vorgabe zu
+werfen.
+
 ---
 
 ## Apple App Site Association (AASA)

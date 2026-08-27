@@ -303,3 +303,59 @@ describe("Jede Seite hat genau eine Landmarke", () => {
     ).toBe(true);
   });
 });
+
+/**
+ * Ein Behälter mit `divide-y` trägt keine eigene Oberkante.
+ *
+ * `divide-y` zieht Linien ZWISCHEN Kindern — „keine Linie über der ersten Zeile" fällt gratis an.
+ * Ein `border-t` daneben hebt genau diese Eigenschaft wieder auf und setzt die Linie zurück, die
+ * das Idiom vermeidet.
+ *
+ * Das ist kein theoretischer Fall. Er stand zweimal im Baum, und beide Male sah man ihn nur, wenn
+ * man das Bild danebenhielt: `admin/page.tsx` zog unter der Rubrik „DEINE SUBS" zwei Linien
+ * übereinander (als Zeilen-`border-t` geschrieben, gemeldet vom Nutzer), und `WeightStatsCard`
+ * dasselbe auf der Statistik-Seite — bemerkt hat es dort niemand, obwohl der Träger sie öfter
+ * sieht als die Keyholder-Übersicht. Ein Block hat genau EINE Rule: die unter seiner Überschrift.
+ *
+ * Warum ein Test und keine Disziplin: die zweite Linie liegt 1 px unter der ersten und ist auf
+ * einem Bildschirm, den man beim Bauen offen hat, schlicht nicht zu sehen. Sie fällt auf einem
+ * Handy-Foto auf — also erst beim Nutzer.
+ *
+ * Bauart wie im Block darüber: über den Baum lesen statt eine Liste pflegen, Kommentare vorher
+ * entfernen (dieser hier nennt die verbotene Kombination selbst), Ausnahmen benannt und einzeln
+ * begründet, und eine Untergrenze, damit eine kaputte Suche nicht als grün durchgeht.
+ */
+describe("Ein divide-y-Behälter zieht keine eigene Oberkante", () => {
+  /** Legitim: die Liste folgt anderem Inhalt, die Linie trennt dort wirklich zwei Dinge —
+   *  sie steht nicht unter einer Rubrik, die schon eine gezogen hat. */
+  const OBERKANTE_ERLAUBT = new Map([
+    ["src/app/admin/users/[id]/einstellungen/page.tsx",
+     "steht unter VorgabeForm, nicht unter einer Rubrik — die Linie trennt Formular und Liste"],
+  ]);
+
+  const mitDivide = (file: string) =>
+    [...stripComments(readFileSync(file, "utf8")).matchAll(/className=\{?["`]([^"`]*divide-y[^"`]*)["`]/g)]
+      .map((m) => m[1]);
+
+  const TREFFER = ALL.filter((f) => mitDivide(f).length > 0);
+
+  it("findet die divide-y-Behälter wirklich", () => {
+    // Untergrenze statt einer festen Zahl: der Baum wächst, aber unter 30 ist die Suche kaputt.
+    expect(TREFFER.length, "die Suche nach divide-y findet fast nichts — vermutlich kaputt").toBeGreaterThan(30);
+  });
+
+  it.each([...OBERKANTE_ERLAUBT.keys()])("%s ist zu Recht ausgenommen", (file) => {
+    expect(TREFFER, `${file} steht in der Ausnahmeliste, hat aber gar kein divide-y mehr`).toContain(file);
+    expect(mitDivide(file).some((c) => /\bborder-t\b/.test(c)),
+      `${file} steht in der Ausnahmeliste, verstösst aber gar nicht mehr — Eintrag entfernen`).toBe(true);
+  });
+
+  it.each(TREFFER.filter((f) => !OBERKANTE_ERLAUBT.has(f)))("%s trägt keine doppelte Linie", (file) => {
+    const verstoesse = mitDivide(file).filter((c) => /\bborder-t\b/.test(c));
+    expect(verstoesse,
+      `${file}: ein divide-y-Behälter trägt zusätzlich border-t. Steht er als erstes Kind in einem ` +
+      `Section, liegt seine Oberkante als zweite Linie direkt unter der Rubrik-Unterstreichung. ` +
+      `Entweder border-t streichen — oder, wenn die Liste wirklich anderem Inhalt folgt, mit ` +
+      `Begründung in OBERKANTE_ERLAUBT eintragen.`).toEqual([]);
+  });
+});

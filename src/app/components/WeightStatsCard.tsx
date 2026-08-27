@@ -184,7 +184,7 @@ export default function WeightStatsCard({
               Zeitraum ist — wer den Tab umlegt, bewegt Kurve und Liste zugleich. */}
           {rowsInRange.length > 0 && (
             <Section title={tList("title")}>
-              <div className="divide-y divide-border-subtle border-t border-border-subtle">
+              <div className="divide-y divide-border-subtle">
                 {rowsInRange.slice(0, shown).map((row) => (
                   <WeightRow key={row.id} row={row} locale={locale} tz={tz} unitSystem={unitSystem} />
                 ))}

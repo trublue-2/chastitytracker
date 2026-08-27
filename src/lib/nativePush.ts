@@ -1,26 +1,7 @@
 // Native (Capacitor) Push-Logik — getrennt von der UI (PushManager). Alle Capacitor-Module werden
 // dynamisch importiert, damit nichts auf dem Server oder im reinen Browser ohne Bridge läuft.
 
-// ---------------------------------------------------------------------------
-// Capacitor Preferences — ein get/set für alle Keys (set(null) = remove).
-// ---------------------------------------------------------------------------
-async function prefGet(key: string): Promise<string | null> {
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    return (await Preferences.get({ key })).value ?? null;
-  } catch {
-    return null;
-  }
-}
-async function prefSet(key: string, value: string | null): Promise<void> {
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    if (value === null) await Preferences.remove({ key });
-    else await Preferences.set({ key, value });
-  } catch {
-    /* ignore — Push funktioniert weiter, nur ohne Persistenz */
-  }
-}
+import { prefGet, prefSet } from "@/lib/capacitorPrefs";
 
 // Der gespeicherte Token IST der Registrierungs-Zustand — kein separates Flag (sonst zwei Quellen
 // für eine Wahrheit, die auseinanderlaufen können). Vorhanden = Push für dieses Gerät aktiv.

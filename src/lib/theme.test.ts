@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { subWorld, keyholderWorld, WORLDS, DEFAULT_WORLD } from "./theme";
+import { WORLD_PREF_KEY } from "./nativeWorld";
 
 /**
  * Die drei Welten und ihre Blöcke.
@@ -43,6 +44,40 @@ describe("Die Welt folgt dem Zustand", () => {
     const tabelle = src.slice(src.indexOf("const WELTEN = {"), src.indexOf("\n}", src.indexOf("const WELTEN = {")));
     const namen = [...tabelle.matchAll(/^\s*'([a-z-]+)':/gm)].map((m) => m[1]).sort();
     expect(namen, "WELTEN in tokens.mjs und WORLDS in theme.ts laufen auseinander")
+      .toEqual([...WORLDS].sort());
+  });
+
+  /**
+   * Der vierte Abnehmer der Welten ist der NATIVE Sperrbildschirm — und er ist der einzige, den
+   * kein Compiler und kein Test erreichen kann: `AppDelegate.swift` liegt nicht im Repo, `/ios/`
+   * ist gitignoriert. Ein Test, der die Swift-Datei liest, wäre in CI und in jedem frischen Klon
+   * rot; das ist kein Nachteil dieses Ansatzes, das ist sein Ausschlussgrund.
+   *
+   * Deshalb prüft dieser Test das, was IM Repo liegt: den Vertrag in `TESTFLIGHT.md`. Dieselbe
+   * Bauart nutzt die Datei schon für die APNs-Callbacks — unversionierter Swift-Code, dessen
+   * Bedingung im Repo dokumentiert ist. Wer eine vierte Welt einführt oder eine umbenennt, muss
+   * hier vorbei, statt drei grüne Häkchen zu bekommen, während der Sperrbildschirm still auf seine
+   * Vorgabefarben zurückfällt.
+   *
+   * Geprüft wird BEIDES, weil der Vertrag aus beidem besteht: der Schlüsselname und die Wertemenge.
+   */
+  it("der Vertrag mit dem nativen Sperrbildschirm ist dokumentiert und vollständig", () => {
+    const doc = readFileSync("TESTFLIGHT.md", "utf8");
+
+    expect(doc, `TESTFLIGHT.md nennt den Preferences-Schlüssel nicht — die Swift-Seite liest ihn als CapacitorStorage.${WORLD_PREF_KEY}`)
+      .toContain(`CapacitorStorage.${WORLD_PREF_KEY}`);
+
+    // Nur der Abschnitt zum Sperrbildschirm, nicht das ganze Dokument: die Welten-Namen dürfen
+    // anderswo vorkommen, ohne dass das als „dokumentiert" zählt.
+    const von = doc.indexOf("Farbwelt des Sperrbildschirms");
+    expect(von, "der Abschnitt zum Sperrbildschirm fehlt in TESTFLIGHT.md").toBeGreaterThan(-1);
+    // `indexOf` kann -1 liefern, wenn der Abschnitt der letzte im Dokument ist — dann schnitte
+    // `slice(von, -1)` still das letzte Zeichen ab und prüfte einen fast richtigen Ausschnitt.
+    const bis = doc.indexOf("\n---", von);
+    const abschnitt = doc.slice(von, bis === -1 ? undefined : bis);
+
+    const genannt = [...WORLDS].filter((w) => abschnitt.includes(`\`${w}\``)).sort();
+    expect(genannt, "TESTFLIGHT.md und WORLDS laufen auseinander — der Sperrbildschirm kennt nicht alle Welten")
       .toEqual([...WORLDS].sort());
   });
 

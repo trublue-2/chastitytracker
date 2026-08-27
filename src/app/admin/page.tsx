@@ -436,40 +436,46 @@ export default async function AdminPage() {
             className={wartend.length > 0 ? "mt-10" : ""}
             title={wartend.length > 0 ? t("calmSectionTitle") : t("yourSubsTitle")}
           >
-            {ruhig.map((u) => {
-              // Dieselben DREI Ausgänge wie in den Karten oben — Begründung dort.
-              const hasState = u.stats.currentStatus !== null;
-              const isLocked = u.stats.currentStatus === "VERSCHLUSS";
-              const stateCls = !hasState ? "text-foreground-faint" : isLocked ? "text-lock" : "text-unlock";
-              const seit = u.stats.since ? formatDurationBetween(u.stats.since, now, dl) : null;
-              return (
-                <Link
-                  key={u.id}
-                  href={`/admin/users/${u.id}`}
-                  className="flex items-center gap-3 py-3 border-t border-border-subtle transition-colors hover:bg-surface-raised"
-                >
-                  <UserAvatar username={u.username} size="sm" locked={hasState ? isLocked : undefined} />
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-zeile font-medium truncate">{u.username}</span>
-                    <span className={`block text-neben ${stateCls}`}>
-                      {isLocked
-                        ? `${t("locked")}${seit ? ` · ${seit}` : ""}`
-                        : u.stats.currentStatus
-                          ? `${t("opened")}${seit ? ` · ${t("since")} ${seit}` : ""}`
-                          : t("noEntry")}
+            {/* `divide-y` am Behälter statt `border-t` je Zeile: das Idiom zieht die Linie nur
+                ZWISCHEN Kinder, und damit gibt es die doppelte Linie unter der Rubrik gar nicht
+                erst — der Abschnitt zieht seine, die Liste ihre nur nach innen. So löst es
+                `TaskList` und 48 weitere Stellen im Baum. */}
+            <div className="divide-y divide-border-subtle">
+              {ruhig.map((u) => {
+                // Dieselben DREI Ausgänge wie in den Karten oben — Begründung dort.
+                const hasState = u.stats.currentStatus !== null;
+                const isLocked = u.stats.currentStatus === "VERSCHLUSS";
+                const stateCls = !hasState ? "text-foreground-faint" : isLocked ? "text-lock" : "text-unlock";
+                const seit = u.stats.since ? formatDurationBetween(u.stats.since, now, dl) : null;
+                return (
+                  <Link
+                    key={u.id}
+                    href={`/admin/users/${u.id}`}
+                    className="flex items-center gap-3 py-3 transition-colors hover:bg-surface-raised"
+                  >
+                    <UserAvatar username={u.username} size="sm" locked={hasState ? isLocked : undefined} />
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-zeile font-medium truncate">{u.username}</span>
+                      <span className={`block text-neben ${stateCls}`}>
+                        {isLocked
+                          ? `${t("locked")}${seit ? ` · ${seit}` : ""}`
+                          : u.stats.currentStatus
+                            ? `${t("opened")}${seit ? ` · ${t("since")} ${seit}` : ""}`
+                            : t("noEntry")}
+                      </span>
                     </span>
-                  </span>
-                  {/* Geplantes ist entschieden und wartet nur — es gehört nicht zu „braucht dich",
-                      darf aber nicht unsichtbar werden. Deshalb ein Vermerk, keine Karte. */}
-                  {u.stats.scheduled.length > 0 && (
-                    <span className="text-neben text-foreground-faint shrink-0 inline-flex items-center gap-1">
-                      <CalendarClock size={12} />{u.stats.scheduled.length}
-                    </span>
-                  )}
-                  <ChevronRight size={16} className="text-foreground-faint shrink-0" aria-hidden />
-                </Link>
-              );
-            })}
+                    {/* Geplantes ist entschieden und wartet nur — es gehört nicht zu „braucht dich",
+                        darf aber nicht unsichtbar werden. Deshalb ein Vermerk, keine Karte. */}
+                    {u.stats.scheduled.length > 0 && (
+                      <span className="text-neben text-foreground-faint shrink-0 inline-flex items-center gap-1">
+                        <CalendarClock size={12} />{u.stats.scheduled.length}
+                      </span>
+                    )}
+                    <ChevronRight size={16} className="text-foreground-faint shrink-0" aria-hidden />
+                  </Link>
+                );
+              })}
+            </div>
           </Section>
         )}
 
