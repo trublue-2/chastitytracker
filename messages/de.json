@@ -850,8 +850,8 @@
   "kontrolleBanner": {
     "overdue": "Kontrolle überfällig seit",
     "until": "Kontrolle bis",
-    "overdueTitle": "Kontrolle überfällig!",
-    "openTitle": "Kontrolle ausstehend",
+    "overdueTitle": "Kontrolle überfällig",
+    "openTitle": "Kontrolle",
     "overduePrefix": "Überfällig seit",
     "untilPrefix": "Bis",
     "code": "Code",

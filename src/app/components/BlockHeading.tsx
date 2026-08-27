@@ -20,15 +20,21 @@ import type { ReactNode } from "react";
  *
  * NICHT auf `text-fliess` (14) oder `text-zeile` (16) angehoben: dort stünde die Rubrik gleich laut
  * neben der Primärzeile der Liste, und der Block hätte zwei gleich wichtige Dinge.
+ *
+ * **Grösse und Farbe stehen getrennt**, weil ein Aufrufer die FARBE ersetzen können muss, ohne die
+ * Lautstärke mitzunehmen: ein Abschnitt mit Bedeutung (`Section tone="warn"`) trägt dieselbe
+ * Rubrik-Grösse, aber nicht `foreground-muted`. Beides in einer Zeichenkette zwang die Aufrufstelle,
+ * ein zweites `text-*` HINTEN anzuhängen — und dann entscheidet die Reihenfolge im erzeugten
+ * Stylesheet, nicht die im String. Genau der Würfel, den `Badge` schon protokolliert hat.
  */
 const TONE = {
   /** Die Rubrik eines ganzen Blocks. */
-  block: "text-neben text-foreground-muted",
+  block: { size: "text-neben", color: "text-foreground-muted" },
   /** Ein Spalten- oder Gruppenkopf innerhalb eines Blocks — bleibt leiser als sein Block. */
-  label: "text-rubrik text-foreground-faint",
+  label: { size: "text-rubrik", color: "text-foreground-faint" },
 } as const;
 
-export default function BlockHeading({ as: Tag = "h2", tone = "label", children, className = "" }: {
+export default function BlockHeading({ as: Tag = "h2", tone = "label", colorCls, children, className = "" }: {
   /** Die Ebene. `h2` ist die Vorgabe (ein Block IST ein Abschnitt); `h3` für eine Gruppe INNERHALB
    *  eines Blocks (Tagesköpfe), `span` für Tabellen-Spaltenköpfe, die keine Abschnitte benennen und
    *  in der Überschriften-Navigation nichts verloren haben.
@@ -39,11 +45,14 @@ export default function BlockHeading({ as: Tag = "h2", tone = "label", children,
   as?: "h2" | "h3" | "span";
   /** Vorgabe `label`: die grosse Fassung setzt `Section`, und alles andere ist innerhalb eines Blocks. */
   tone?: keyof typeof TONE;
+  /** ERSETZT die Farbe des Tons (nicht ergänzen — siehe Docblock von `TONE`). Für Rubriken, die
+   *  eine Bedeutung tragen. */
+  colorCls?: string;
   children: ReactNode;
   className?: string;
 }) {
   return (
-    <Tag className={`font-semibold uppercase tracking-wider ${TONE[tone]} ${className}`}>
+    <Tag className={`font-semibold uppercase tracking-wider ${TONE[tone].size} ${colorCls ?? TONE[tone].color} ${className}`}>
       {children}
     </Tag>
   );

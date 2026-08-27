@@ -4,31 +4,19 @@ import { APP_TZ, formatDayTimeDual } from "@/lib/utils";
 import type { ComponentType, ReactNode } from "react";
 import SperrzeitRemaining from "./SperrzeitRemaining";
 import { LockClosedIcon } from "@/app/components/lockIcons";
+import Section from "@/app/components/Section";
+import type { SectionTone } from "@/app/components/Section";
+import { cardActionCls } from "@/app/components/inputStyles";
 
 type ColorScheme = "request" | "sperrzeit" | "orgasm";
 
-const COLORS: Record<ColorScheme, { bg: string; border: string; leftAccent: string; text: string; accent: string }> = {
-  request: {
-    bg: "bg-request-bg",
-    border: "border-request-border",
-    leftAccent: "border-l-[3px] border-l-request",
-    text: "text-request-text",
-    accent: "text-request",
-  },
-  sperrzeit: {
-    bg: "bg-sperrzeit-bg",
-    border: "border-sperrzeit-border",
-    leftAccent: "border-l-[3px] border-l-sperrzeit",
-    text: "text-sperrzeit-text",
-    accent: "text-sperrzeit",
-  },
-  orgasm: {
-    bg: "bg-orgasm-bg",
-    border: "border-orgasm-border",
-    leftAccent: "border-l-[3px] border-l-orgasm",
-    text: "text-orgasm-text",
-    accent: "text-orgasm",
-  },
+/** Farbe der Nebenzeilen und des Zeichens — mehr braucht die Figur nicht, seit Grund, Rahmen und
+ *  Radius weg sind. KEIN `tone`-Feld: es wäre die Identität des eigenen Schlüssels, und der Ton
+ *  steht ohnehin schon als `overdue ? "warn" : colorScheme` an der Aufrufstelle. */
+const COLORS: Record<ColorScheme, { text: string; accent: string }> = {
+  request:   { text: "text-request-text",   accent: "text-request" },
+  sperrzeit: { text: "text-sperrzeit-text", accent: "text-sperrzeit" },
+  orgasm:    { text: "text-orgasm-text",    accent: "text-orgasm" },
 };
 
 /** Icon per color scheme — keeps the banner self-contained (no icon prop needed). */
@@ -38,13 +26,7 @@ const SCHEME_ICON: Record<ColorScheme, ComponentType<{ size?: number; className?
   orgasm: Droplets,
 };
 
-const WARN = {
-  bg: "bg-warn-bg",
-  border: "border-warn-border",
-  leftAccent: "border-l-[3px] border-l-warn",
-  text: "text-warn-text",
-  accent: "text-warn",
-};
+const WARN = { text: "text-warn-text", accent: "text-warn" };
 
 interface CompactProps {
   variant: "compact";
@@ -97,8 +79,11 @@ export default function LockRequestBanner(props: Props) {
     const c = overdue ? WARN : COLORS[colorScheme];
     const Icon = SCHEME_ICON[colorScheme];
 
+    // Eine Zeile, kein Kasten — dieselbe Figur wie beim Kontroll-Banner daneben. Sie steht in einer
+    // Liste, die sonst nur Haarlinien kennt; zwei Alarme untereinander in zwei Bauformen waren die
+    // Hälfte des Fremdkörper-Eindrucks. Überfällig trägt links die Kante aus `OffenseCard`.
     return (
-      <div className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${c.bg} border ${c.border} ${c.leftAccent}`}>
+      <div className={`flex items-center justify-between gap-2 text-neben ${overdue ? "border-l-2 border-warn pl-3 font-semibold" : ""}`}>
         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           <Icon size={11} className={`flex-shrink-0 ${c.accent}`} />
           <span className={`text-xs font-medium truncate ${c.text}`}>{label}</span>
@@ -126,26 +111,32 @@ export default function LockRequestBanner(props: Props) {
   const c = overdue ? WARN : COLORS[colorScheme];
   const Icon = SCHEME_ICON[colorScheme];
 
-  const inner = (
-    <>
-      <div className="flex items-center gap-2">
-        <Icon size={15} className={`${c.accent} shrink-0`} />
-        <p className={`text-sm font-bold ${c.text}`}>{label}</p>
-        {href && actionLabel && (
-          <span className={`ml-auto text-xs font-semibold opacity-70 ${c.text}`}>{actionLabel}</span>
-        )}
-      </div>
-      {nachricht && <p className={`text-sm ${c.accent}`}>{nachricht}</p>}
-      {endetAtLabel && <p className={`text-xs ${c.accent}`}>{endetAtLabel}</p>}
-      {cleaningNote && <p className={`text-xs ${c.accent}`}>{cleaningNote}</p>}
-    </>
-  );
+  /* Abschnitt statt Karte — dieselbe Figur wie das Kontroll-Banner, mit dem zusammen dieses hier
+     im selben Stapel steht.
 
-  /* Rahmen und Radius sind hier ZURÜCK, anders als bei den Blöcken. Die Regel „Tönung über die
-     volle Breite mit einer Haarlinie oben" setzt voraus, dass die Fläche wirklich bis an den Rand
-     läuft — innerhalb der Block-Spalte hört sie 16 px vorher auf, und dann steht ein scharfeckiger
-     Farbklotz frei in der Seite. Ein Alarm ist kein Block, sondern ein Einschub: er darf eine Form
-     haben. Was WIRKLICH nach Alarm aussah, war die Farbe, und die ist im Normalfall jetzt leise. */
-  const cls = `flex flex-col gap-1.5 ${c.bg} border ${c.border} ${c.leftAccent} rounded-2xl px-5 py-4`;
-  return href ? <Link href={href} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>;
+     Die alte Begründung („ein Alarm ist ein Einschub, er darf eine Form haben") war die Reaktion
+     darauf, dass die Tönung nicht bis an die Spaltenkante lief. Der Grund dafür ist inzwischen
+     benannt: `--block-gutter` steht in allen drei Layouts auf `0px`, der negative Rand des
+     Schwester-Bauteils griff nie. Statt einer Form für die halbe Fläche gibt es jetzt gar keine
+     Fläche — die Bedeutung trägt der Ton der Rubrik und ihrer Haarlinie.
+
+     Anklickbar ist die beschriftete Aktion, nicht die ganze Fläche: eine Fläche, die es nicht mehr
+     gibt, kann kein Klickziel sein. */
+  // EIN Ausdruck für den Ton, nicht zwei: derselbe steht sieben Zeilen tiefer für die Aktion.
+  const tone: SectionTone = overdue ? "warn" : colorScheme;
+  return (
+    <Section
+      tone={tone}
+      title={<span className="inline-flex items-center gap-1.5"><Icon size={13} aria-hidden />{label}</span>}
+    >
+      {nachricht && <p className={`text-neben ${c.accent}`}>{nachricht}</p>}
+      {endetAtLabel && <p className="text-neben text-foreground-muted">{endetAtLabel}</p>}
+      {cleaningNote && <p className="text-neben text-foreground-muted">{cleaningNote}</p>}
+      {href && actionLabel && (
+        <Link href={href} className={`${cardActionCls(tone)} self-start mt-1`}>
+          {actionLabel}
+        </Link>
+      )}
+    </Section>
+  );
 }

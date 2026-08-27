@@ -149,6 +149,19 @@ export const listRowButtonCls =
   "flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-surface-raised/60 -mx-2 px-2 -my-1 py-1 rounded-lg transition";
 
 /**
+ * Die getönte Fläche einer ganzen Zeile, die als Klickziel dient — der Gegenpart zu
+ * `listRowButtonCls` für Zeilen, deren Klickziel ein GESTRECKTER Link ist und die die Tönung
+ * deshalb nicht selbst tragen können.
+ *
+ * Der Ausbruch (`-mx-3 px-3`) gehört ins Mass, nicht an die Aufrufstelle: ohne ihn beginnt die
+ * Fläche genau dort, wo der Inhalt beginnt, und Avatar wie Knöpfe kleben auf ihrer Kante
+ * (gemeldet 27.08.2026). Mit ihm wächst die Fläche nach aussen, während der Inhalt auf der
+ * Fluchtlinie von `blockInsetCls` stehen bleibt — die Polsterung ist um genau diese 4 px grösser
+ * als der Gegenrand.
+ */
+export const rowHoverCls = `-mx-3 px-4 rounded-lg transition-colors hover:bg-surface-raised`;
+
+/**
  * Die Dämpfung eines Bedienelements, das gerade NICHT verfügbar ist, aber trotzdem im Tab-Weg
  * bleibt (`aria-disabled` statt `disabled`).
  *
@@ -193,3 +206,35 @@ export const iconButtonCls = "min-w-6 min-h-6 flex items-center justify-center";
  * als seine Seite springt im Moment des Austauschs sichtbar.
  */
 export const blockStackCls = "flex flex-col gap-8 sm:gap-10";
+
+/**
+ * Die Aussehens-Zeile einer BESCHRIFTETEN Aktion an einem Block — Rückzug-Knopf, „Jetzt erfassen",
+ * „Jetzt einschliessen".
+ *
+ * Sie stand bis eben in `admin/WithdrawButton.tsx`, und das war nicht nur unordentlich: die Datei
+ * ist `"use client"`, während `LockRequestBanner` keine Direktive trägt und aus SERVER-Komponenten
+ * gerendert wird (`DashboardAlerts`, `admin/page`). Eine schlichte Funktion aus einem Client-Modul
+ * ist im Server-Render eine Client-Referenz und nicht aufrufbar. Hier, in einem reinen Modul, ist
+ * sie es überall.
+ */
+const actionColorClasses = {
+  inspect:   "text-[var(--color-inspect)] hover:bg-[var(--color-inspect-bg)]",
+  sperrzeit: "text-[var(--color-sperrzeit)] hover:bg-[var(--color-sperrzeit-bg)]",
+  orgasm:    "text-[var(--color-orgasm)] hover:bg-[var(--color-orgasm-bg)]",
+  request:   "text-[var(--color-request)] hover:bg-[var(--color-request-bg)]",
+  warn:      "text-[var(--color-warn)] hover:bg-[var(--color-warn-bg)]",
+  neutral:   "text-foreground-muted hover:bg-surface-raised",
+} as const;
+
+/** Die Bedeutungen, die eine beschriftete Aktion tragen kann. Breiter als das, was ein einzelner
+ *  Aufrufer braucht — `WithdrawButton` hält seine eigene Prop bewusst schmaler. */
+export type ActionColorToken = keyof typeof actionColorClasses;
+
+export function cardActionCls(colorToken: ActionColorToken): string {
+  return `flex items-center gap-1.5 min-h-12 px-3 text-sm font-medium rounded-full active:scale-90 disabled:opacity-50 transition ${actionColorClasses[colorToken]}`;
+}
+
+/** Die kompakte, unbeschriftete Fassung derselben Aktion (nur ein Zeichen). */
+export function iconActionCls(colorToken: ActionColorToken): string {
+  return `flex items-center rounded-full active:scale-90 disabled:opacity-50 transition p-1.5 -m-1 ${actionColorClasses[colorToken]}`;
+}

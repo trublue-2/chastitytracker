@@ -74,7 +74,6 @@ export default async function DashboardAlerts({
           autoMarkAt={k.autoMarkAt ? new Date(k.autoMarkAt) : null}
           variant="large"
           href={k.href}
-          openLabel={t("inspectionRequired")}
           helpHref={inspectionHelpUrl(locale)}
           tz={tz}
         />

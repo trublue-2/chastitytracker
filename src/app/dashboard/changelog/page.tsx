@@ -127,7 +127,11 @@ export default async function ChangelogPage() {
                     return (
                       <li key={j} className="flex items-start gap-2 text-sm text-foreground-muted">
                         <Icon size={14} strokeWidth={2} className={`mt-0.5 flex-shrink-0 ${cfg.color}`} />
-                        {pickChangelogText(change.text, locale)}
+                        {/* `min-w-0 break-words`: ein Eintrag ohne Leerzeichen (Bezeichner aus einer
+                            alten Zeile) hat kein Umbruch-Angebot und schob auf 390 px die ganze
+                            Seite quer — der Text stand als nacktes Flex-Kind da, das nicht unter
+                            seine Min-Content-Breite schrumpfen darf. */}
+                        <span className="min-w-0 break-words">{pickChangelogText(change.text, locale)}</span>
                       </li>
                     );
                   })}

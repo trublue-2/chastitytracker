@@ -850,8 +850,8 @@
   "kontrolleBanner": {
     "overdue": "Inspection overdue since",
     "until": "Inspection due by",
-    "overdueTitle": "Inspection overdue!",
-    "openTitle": "Inspection pending",
+    "overdueTitle": "Inspection overdue",
+    "openTitle": "Inspection",
     "overduePrefix": "Overdue since",
     "untilPrefix": "By",
     "code": "Code",

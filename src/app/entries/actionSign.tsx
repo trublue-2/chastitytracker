@@ -83,6 +83,8 @@ export function actionSign(key: string): { icon: React.ReactNode; iconColor: str
  * `undefined` für eine unbekannte Art, weil die Aufrufer teils rohe Zeichenketten aus der Datenbank
  * hereinreichen; sie zeigen dann kein Zeichen statt zu stürzen.
  */
+export function actionIcon(key: ActionSignKey): typeof LockClosedIcon;
+export function actionIcon(key: string): typeof LockClosedIcon | undefined;
 export function actionIcon(key: string): typeof LockClosedIcon | undefined {
   return SIGNS[key as ActionSignKey]?.Icon;
 }

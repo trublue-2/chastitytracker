@@ -19,3 +19,4 @@ export default function useRemainingMs(endsAt: string, intervalMs = 60_000): num
   useTick(remaining > 0 ? intervalMs : 0);
   return remaining;
 }
+

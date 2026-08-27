@@ -5,7 +5,7 @@ import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ConfirmDialog from "@/app/components/ConfirmDialog";
 import FormError from "@/app/components/FormError";
-import { cardActionCls } from "@/app/admin/WithdrawButton";
+import { cardActionCls } from "@/app/components/inputStyles";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";

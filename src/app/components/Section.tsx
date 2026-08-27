@@ -2,6 +2,24 @@ import type { ReactNode } from "react";
 import BlockHeading from "@/app/components/BlockHeading";
 
 /**
+ * Der Ton eines Abschnitts, der etwas BEDEUTET — er färbt genau zwei Dinge: die Rubrik und die
+ * Haarlinie. Kein Grund, kein Rahmen, kein Radius; sonst wäre es wieder ein Kasten.
+ *
+ * Ausgeschrieben und nicht zusammengesetzt: ein `text-${ton}` sieht Tailwind statisch NIE. Genau
+ * dieser Fehler steht in `Card.tsx` protokolliert („Dass die Karten trotzdem Farbe hatten, war
+ * Zufall"). Der Record erzwingt ausserdem, dass eine neue Bedeutung hier auftaucht.
+ */
+const TON = {
+  warn:      { rubrik: "text-warn",      linie: "border-warn-border" },
+  inspect:   { rubrik: "text-inspect",   linie: "border-inspect-border" },
+  request:   { rubrik: "text-request",   linie: "border-request-border" },
+  sperrzeit: { rubrik: "text-sperrzeit", linie: "border-sperrzeit-border" },
+  orgasm:    { rubrik: "text-orgasm",    linie: "border-orgasm-border" },
+} as const;
+
+export type SectionTone = keyof typeof TON;
+
+/**
  * Ein Abschnitt: eine leise Rubrik, darunter der Inhalt. Kein Kasten.
  *
  * Der Bestand baute diese Figur als `<Card padding="none">` mit einer getönten Kopfzeile darin —
@@ -28,12 +46,14 @@ import BlockHeading from "@/app/components/BlockHeading";
  * unter einem Wort ist eine Überschrift, eine Linie zwischen zwei Zeilen ist ein Trenner, und das
  * löst das Auge nur auf, solange die beiden nicht gleich hell sind.
  */
+
 export default function Section({
   title,
   action,
   children,
   className = "",
   id,
+  tone,
 }: {
   title: ReactNode;
   /** Rechts neben der Rubrik — ein Zähler, ein Schalter, ein „alle anzeigen". */
@@ -42,11 +62,15 @@ export default function Section({
   className?: string;
   /** Sprungziel, wenn irgendwo in der App ein Anker auf diesen Abschnitt zeigt. */
   id?: string;
+  /** Bedeutungs-Ton für Abschnitte, die eine Aussage tragen (offene Kontrolle, laufende Sperre).
+   *  Ohne ihn bleibt der Abschnitt tonlos — das ist die Vorgabe und gilt für alle Bestandsaufrufe. */
+  tone?: SectionTone;
 }) {
+  const ton = tone ? TON[tone] : null;
   return (
     <section id={id} className={`flex flex-col ${className}`}>
-      <div className="flex items-baseline justify-between gap-3 pb-1.5 border-b border-border">
-        <BlockHeading tone="block">{title}</BlockHeading>
+      <div className={`flex items-baseline justify-between gap-3 pb-1.5 border-b ${ton ? ton.linie : "border-border"}`}>
+        <BlockHeading tone="block" colorCls={ton?.rubrik}>{title}</BlockHeading>
         {action}
       </div>
       {/* `gap-2` gehört HIERHER und nicht an die Aufrufstellen: es stand am `<section>`, und beim

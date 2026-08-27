@@ -67,7 +67,8 @@ export default function UpstreamSection({ currentVersion, locale }: { currentVer
                 return (
                   <li key={j} className="flex items-start gap-2 text-sm text-foreground-muted">
                     <Icon size={14} strokeWidth={2} className={`mt-0.5 flex-shrink-0 ${cfg.color}`} />
-                    {pickChangelogText(change.text, appLocale)}
+                    {/* Begründung wie in `changelog/page.tsx` — dieselbe Zeile, dieselbe Falle. */}
+                    <span className="min-w-0 break-words">{pickChangelogText(change.text, appLocale)}</span>
                   </li>
                 );
               })}

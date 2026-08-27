@@ -1,25 +1,5 @@
 [
   {
-    "version": "6.0.1",
-    "date": "2026-08-27",
-    "changes": [
-      {
-        "type": "fix",
-        "text": {
-          "de": "Die Schnellaktionen stehen in der Keyholder-Übersicht wieder bei jedem Sub — auch bei denen, die gerade nichts brauchen.",
-          "en": "The quick actions are back on every sub in the keyholder overview — including the ones that need nothing right now."
-        }
-      },
-      {
-        "type": "fix",
-        "text": {
-          "de": "„Verschluss anfordern“ geht jetzt auch ohne hinterlegte E-Mail-Adresse: der Sub sieht die Anforderung im Posteingang und auf seinem Dashboard.",
-          "en": "“Request lock” now works without an email address on file: the sub sees the request in their inbox and on their dashboard."
-        }
-      }
-    ]
-  },
-  {
     "version": "6.0.0",
     "date": "2026-08-27",
     "changes": [
@@ -70,6 +50,34 @@
         "text": {
           "de": "Eine Zielzeile sagt jetzt, wie du dastehst, statt nur zu zählen: „geschafft“, „noch 2h 40min“ oder „knapp“. Dieselben 43 % sind am Morgen gut und am Abend zu wenig — das rechnet die App jetzt selbst aus.",
           "en": "A goal row now tells you how you are doing instead of just counting: “done”, “2h 40m to go” or “tight”. The same 43 % is good in the morning and too little at night — the app works that out for you now."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Schnellaktionen stehen in der Keyholder-Übersicht wieder bei jedem Sub — auch bei denen, die gerade nichts brauchen.",
+          "en": "The quick actions are back on every sub in the keyholder overview — including the ones that need nothing right now."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "„Verschluss anfordern“ geht jetzt auch ohne hinterlegte E-Mail-Adresse: der Sub sieht die Anforderung im Posteingang und auf seinem Dashboard.",
+          "en": "“Request lock” now works without an email address on file: the sub sees the request in their inbox and on their dashboard."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Hinweise zu Kontrollen und Sperren sind keine farbigen Kästen mehr, sondern Abschnitte wie der Rest der Seite — und die Frist steht jetzt gross da statt kleingedruckt.",
+          "en": "The notices for inspections and lock periods are no longer coloured boxes but sections like the rest of the page — and the deadline is now large instead of fine print."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Das Erfassen-Blatt schliesst sich mit einem Tipp auf den Griff oben oder einem Wisch nach unten.",
+          "en": "The entry sheet closes with a tap on the handle at the top or a swipe down."
         }
       }
     ]

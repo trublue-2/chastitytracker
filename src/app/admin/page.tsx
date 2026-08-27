@@ -19,6 +19,7 @@ import { toDateLocale, formatDurationBetween, formatDateTimeDual, nowDatetimeLoc
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel } from "@/lib/constants";
 import Section from "@/app/components/Section";
+import { rowHoverCls } from "@/app/components/inputStyles";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 /** Wie eine geplante Direktive in der Liste erscheint — Beschriftung, Rückzug-Endpunkt, Tönung.
@@ -281,10 +282,18 @@ export default async function AdminPage() {
                   // wuchs die einspaltige Spur dadurch auf 748 px und schob die GANZE Seite nach rechts —
                   // Kopfzeile und Karten links angeschnitten, weisser Streifen rechts. Die Karten-Innereien
                   // brechen und kürzen längst korrekt (v4.52.3); es fehlte allein die Erlaubnis zu schrumpfen.
-                  // `group` trägt den Hover-Zustand: der Link darüber ist unsichtbar und deckt die ganze
-                  // Karte, kann sie also nicht selbst einfärben. Ohne das gab die Karte auf keine Weise zu
-                  // erkennen, dass sie ein Klickziel ist (Rückmeldung 15.08.2026).
-                  <div key={u.id} className="group relative min-w-0">
+                  //
+                  // Kein Kasten mehr: eine Zeile trennt sich von der nächsten durch die Haarlinie
+                  // des `divide-y` und durch Raum. Tönung, Ausbruch und Radius kommen aus
+                  // `rowHoverCls` — dieselbe Figur trägt `listRowButtonCls` für Zeilen, die ihr
+                  // Klickziel selbst sind.
+                  //
+                  // Die Tönung sitzt am BEHÄLTER, nicht an einem Geschwister des gestreckten
+                  // Links: als dessen Vorfahr reagiert er auf `hover` überall in der Zeile, und
+                  // die `group`-Indirektion samt zweitem Knoten entfällt. Ohne diese Tönung gab die
+                  // Zeile auf keine Weise zu erkennen, dass sie ein Klickziel ist (Rückmeldung
+                  // 15.08.2026) — der Link darüber ist unsichtbar.
+                  <div key={u.id} className={`relative min-w-0 py-5 ${rowHoverCls}`}>
                     {/* Stretched link — covers whole card for navigation */}
                     <Link
                       href={`/admin/users/${u.id}`}
@@ -292,10 +301,7 @@ export default async function AdminPage() {
                       aria-label={u.username}
                     />
 
-                    {/* Kein Kasten mehr: eine Zeile trennt sich von der nächsten durch die Haarlinie
-                        des `divide-y` und durch Raum. */}
-                    <div className="py-5 transition-colors group-hover:bg-surface-raised">
-                      <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3">
                         {/* Header: avatar + name + status icon */}
                         <div className="flex items-start gap-3">
                           <UserAvatar username={u.username} size="lg" locked={hasState ? isLocked : undefined} />
@@ -455,7 +461,6 @@ export default async function AdminPage() {
                             minNow={nowDatetimeLocal(rowTz)}
                           />
                         </div>
-                      </div>
                     </div>
                   </div>
                 );
