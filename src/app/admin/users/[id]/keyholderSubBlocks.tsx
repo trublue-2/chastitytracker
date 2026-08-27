@@ -215,16 +215,27 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       (await keyholderInspectionsCached(subjectId, nowMs)).find(
         (k) => !k.entryId && !k.withdrawnAt && !isScheduledDirective(k.wirksamAb, now),
       ) ?? null,
-    render: (offeneKontrolle, { now, subjectTz, viewerTz }) => offeneKontrolle && (
+    render: (offeneKontrolle, { now, subjectTz, viewerTz, t }) => offeneKontrolle && (
       <KontrolleBanner
         deadline={offeneKontrolle.deadline}
-        code={offeneKontrolle.code}
-        kommentar={offeneKontrolle.kommentar}
         target={inspectionTargetLabel(offeneKontrolle)}
         overdue={offeneKontrolle.deadline < now}
         variant="large"
         tz={subjectTz}
         viewerTz={viewerTz}
+        // Beschriftet, nicht nur das Zeichen: `showLabel` gibt es genau für diesen Fall — an einem
+        // Block ist ein 16-px-Symbol ohne Wort keine erkennbare Aktion. `inspect` auch bei
+        // überfällig: der Rückzug ändert seine Bedeutung nicht, wenn die Frist reisst, und rot
+        // gefärbt läse er sich wie eine Strafe.
+        withdrawAction={
+          <WithdrawButton
+            id={offeneKontrolle.id}
+            apiPath="/api/admin/kontrollen"
+            title={t("withdrawKontrolleTitle")}
+            showLabel
+            colorToken="inspect"
+          />
+        }
       />
     ),
   }),

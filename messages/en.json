@@ -422,6 +422,7 @@
     "orgasmRequiredArt": "Requested: {art}",
     "locked": "Locked",
     "inspectionRequired": "Inspection required",
+    "moreInspections": "{count, plural, one {One more inspection is open} other {# more inspections are open}}",
     "entries": "Wear periods",
     "totalDuration": "Total duration",
     "coverageDay": "{percent}% of the day so far",
@@ -622,12 +623,9 @@
     "failsafeOfflineDue": "Box out of contact for {hours} h — the emergency opening has happened or is imminent.",
     "failsafeBatteryWarn": "Battery {percent}% — at {opensAt}% the box opens itself. Charge it.",
     "failsafeBatteryDue": "Battery {percent}% — the box may open itself at any moment (threshold {opensAt}%). Charge it now.",
-    "cleaningBlockedByLockPeriod": "This lock period allows no cleaning",
     "cleaningWindowOpen": "Cleaning window open until {until}",
-    "cleaningWindowNext": "Next cleaning window: {start}–{end}",
-    "cleaningNoWindows": "Cleaning not tied to specific times",
-    "cleaningQuota": "{count} of {max} used today",
-    "subTimePrefix": "sub"
+    "subTimePrefix": "sub",
+    "deviceInfo": "Device details"
   },
   "lockForm": {
     "title": "Log lock",
@@ -854,12 +852,10 @@
     "openTitle": "Inspection",
     "overduePrefix": "Overdue since",
     "untilPrefix": "By",
-    "code": "Code",
     "subTimePrefix": "sub",
-    "instruction": "Instruction",
-    "capture": "→ Submit now",
-    "help": "How does an inspection work?",
-    "autoMarkWarn": "Without proof by {time}, the device is booked as removed automatically."
+    "capture": "Submit now",
+    "code": "Code",
+    "autoMarkWarn": "Without proof, the device is then booked as removed automatically."
   },
   "stats": {
     "title": "Statistics",

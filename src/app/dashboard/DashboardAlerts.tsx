@@ -1,8 +1,7 @@
-import { getTranslations, getLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import DashboardBlock from "@/app/components/DashboardBlock";
-import { inspectionHelpUrl } from "@/lib/constants";
 
 /** Die Anforderungen mit Frist — Kontrolle, Einschliessen, Orgasmus.
  *
@@ -17,11 +16,9 @@ export interface DashboardAlertsProps {
   /** ALLE offenen Kontrollen, dringendste zuerst. Seit v5.0.1 kann je Ziel eine laufen (KG und
    *  Plug parallel) — eine einzelne würde die andere verschweigen, samt ihrer Frist. */
   offeneKontrollen: {
-    id: string;
     deadline: string;
     /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
     code: string | null;
-    kommentar: string | null;
     /** Ziel (Geräte-/Kategoriename), null = KG. */
     target: string | null;
     overdue: boolean;
@@ -59,25 +56,30 @@ export default async function DashboardAlerts({
   if (offeneKontrollen.length === 0 && !offeneVerschlussAnf && !offeneOrgasmusAnf) return null;
 
   const t = await getTranslations("dashboard");
-  const locale = await getLocale();
 
   return (
     <DashboardBlock className="flex flex-col gap-4">
-      {offeneKontrollen.map((k) => (
+      {/* NUR die nächste fällige — die Liste kommt dringendste zuerst. Zwei grosse Zahlen
+          untereinander ergeben keine Rangfolge, sondern verdoppeln die Frage „was zuerst".
+          Dass es weitere gibt, verschweigt der Bildschirm trotzdem nicht: die Zeile darunter
+          sagt es, leise. */}
+      {offeneKontrollen[0] && (
         <KontrolleBanner
-          key={k.id}
-          deadline={new Date(k.deadline)}
-          code={k.code}
-          kommentar={k.kommentar}
-          target={k.target}
-          overdue={k.overdue}
-          autoMarkAt={k.autoMarkAt ? new Date(k.autoMarkAt) : null}
+          deadline={new Date(offeneKontrollen[0].deadline)}
+          code={offeneKontrollen[0].code}
+          target={offeneKontrollen[0].target}
+          overdue={offeneKontrollen[0].overdue}
+          autoMarkAt={offeneKontrollen[0].autoMarkAt ? new Date(offeneKontrollen[0].autoMarkAt) : null}
           variant="large"
-          href={k.href}
-          helpHref={inspectionHelpUrl(locale)}
+          href={offeneKontrollen[0].href}
           tz={tz}
         />
-      ))}
+      )}
+      {offeneKontrollen.length > 1 && (
+        <p className="text-neben text-foreground-faint">
+          {t("moreInspections", { count: offeneKontrollen.length - 1 })}
+        </p>
+      )}
 
       {offeneVerschlussAnf && (
         <LockRequestBanner

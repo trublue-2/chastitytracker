@@ -238,3 +238,48 @@ export function cardActionCls(colorToken: ActionColorToken): string {
 export function iconActionCls(colorToken: ActionColorToken): string {
   return `flex items-center rounded-full active:scale-90 disabled:opacity-50 transition p-1.5 -m-1 ${actionColorClasses[colorToken]}`;
 }
+
+/**
+ * Die GEFÜLLTE Aktion an einem Block — die Schwester von `cardActionCls`, und der Grund, warum es
+ * beide gibt.
+ *
+ * `cardActionCls` färbt nur die Schrift und bringt seinen Grund erst im Hover mit. Auf dem Handy
+ * gibt es kein Hover: dort blieb farbiger Text übrig, und der Nutzer fand das Bedienelement nicht
+ * („wo muss ich klicken", Rückmeldung 27.08.2026). Wo eine Aktion die ANTWORT auf einen Block ist —
+ * „Jetzt erfassen" unter einer laufenden Frist —, braucht sie eine Füllung.
+ *
+ * Sie tritt der runden Taste der unteren Leiste nicht ins Gehege: die ist rund, trägt die
+ * Weltfarbe und nur ein Zeichen; diese hier ist rechteckig, trägt die BEDEUTUNGS-Farbe und nur ein
+ * Wort. Kein `shadow` — Leuchten gibt es im Entwurf nur an der runden Taste.
+ *
+ * Es ist die Zeichenketten-Fassung von `Button variant="semantic"`, weil das Ziel ein `<Link>` ist:
+ * ein `<button>` in einem `<a>` wäre ungültiges Markup und für den Screenreader zwei ineinander
+ * gesteckte Bedienelemente.
+ */
+/** Ausgeschrieben, NICHT zusammengesetzt: ein `bg-btn-${token}` sieht Tailwind statisch nie —
+ *  derselbe Fehler, den `Card.tsx` protokolliert hat („dass die Karten trotzdem Farbe hatten, war
+ *  Zufall"). Teilmenge von `Button`s `semanticBgMap`: nur die Bedeutungen, die als BLOCK-Aktion
+ *  vorkommen. */
+const filledActionBg = {
+  inspect:   "bg-btn-inspect",
+  warn:      "bg-btn-warn",
+  request:   "bg-btn-request",
+  sperrzeit: "bg-btn-sperrzeit",
+  orgasm:    "bg-btn-orgasm",
+} as const;
+
+export function filledActionCls(colorToken: keyof typeof filledActionBg): string {
+  // Basis WÖRTLICH wie `Button` (`transition-all select-none active:scale-[0.97]`, Hover-Dämpfung
+  // und Fokusring): sie stand hier ohne `focus-visible` und ohne Hover — damit wäre der einzige
+  // gefüllte Knopf der App entstanden, den man mit der Tastatur nicht sieht.
+  return `inline-flex items-center justify-center gap-2 min-h-12 px-5 rounded-lg text-sm font-medium transition-all select-none active:scale-[0.97] hover:opacity-90 active:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring text-btn-primary-text ${filledActionBg[colorToken]}`;
+}
+
+/**
+ * Die Kante links an etwas, das eine Frist gerissen hat.
+ *
+ * Sie stand wörtlich an drei Stellen (`OffenseCard`, beide Alarm-Banner) — dieselbe Geste an
+ * derselben Farbe, dreimal abgeschrieben. Zwei Pixel und nicht vier: die vierte Breite gehört
+ * `PairRow`, wo sie eine KARTE markiert und nicht eine Zeile.
+ */
+export const warnEdgeCls = "border-l-2 border-warn pl-3";

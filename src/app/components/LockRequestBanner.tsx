@@ -6,7 +6,7 @@ import SperrzeitRemaining from "./SperrzeitRemaining";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 import Section from "@/app/components/Section";
 import type { SectionTone } from "@/app/components/Section";
-import { cardActionCls } from "@/app/components/inputStyles";
+import { filledActionCls, warnEdgeCls } from "@/app/components/inputStyles";
 
 type ColorScheme = "request" | "sperrzeit" | "orgasm";
 
@@ -83,7 +83,7 @@ export default function LockRequestBanner(props: Props) {
     // Liste, die sonst nur Haarlinien kennt; zwei Alarme untereinander in zwei Bauformen waren die
     // Hälfte des Fremdkörper-Eindrucks. Überfällig trägt links die Kante aus `OffenseCard`.
     return (
-      <div className={`flex items-center justify-between gap-2 text-neben ${overdue ? "border-l-2 border-warn pl-3 font-semibold" : ""}`}>
+      <div className={`flex items-center justify-between gap-2 text-neben ${overdue ? `${warnEdgeCls} font-semibold` : ""}`}>
         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           <Icon size={11} className={`flex-shrink-0 ${c.accent}`} />
           <span className={`text-xs font-medium truncate ${c.text}`}>{label}</span>
@@ -133,7 +133,7 @@ export default function LockRequestBanner(props: Props) {
       {endetAtLabel && <p className="text-neben text-foreground-muted">{endetAtLabel}</p>}
       {cleaningNote && <p className="text-neben text-foreground-muted">{cleaningNote}</p>}
       {href && actionLabel && (
-        <Link href={href} className={`${cardActionCls(tone)} self-start mt-1`}>
+        <Link href={href} className={`${filledActionCls(tone)} self-start mt-1`}>
           {actionLabel}
         </Link>
       )}

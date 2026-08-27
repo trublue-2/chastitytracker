@@ -294,11 +294,11 @@ export default async function ComponentsShowcase() {
           <ThemePair>
             <div className="flex flex-col gap-3">
               <p className="text-xs text-foreground-faint font-mono">compact — offen</p>
-              <KontrolleBanner deadline={inFuture} code="48291" overdue={false} variant="compact" />
+              <KontrolleBanner deadline={inFuture} overdue={false} variant="compact" />
               <p className="text-xs text-foreground-faint font-mono">compact — ueberfaellig</p>
-              <KontrolleBanner deadline={inPast} code="48291" kommentar="Bitte sofort pruefen" overdue={true} variant="compact" />
+              <KontrolleBanner deadline={inPast} overdue={true} variant="compact" />
               <p className="text-xs text-foreground-faint font-mono">large — offen</p>
-              <KontrolleBanner deadline={inFuture} code="48291" overdue={false} variant="large" />
+              <KontrolleBanner deadline={inFuture} overdue={false} variant="large" />
             </div>
           </ThemePair>
         </Section>

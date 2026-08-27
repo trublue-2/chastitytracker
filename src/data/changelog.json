@@ -79,6 +79,20 @@
           "de": "Das Erfassen-Blatt schliesst sich mit einem Tipp auf den Griff oben oder einem Wisch nach unten.",
           "en": "The entry sheet closes with a tap on the handle at the top or a swipe down."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Kontroll-Hinweis führt jetzt: die Frist steht gross da, darunter Zeitpunkt und Code zum Abschreiben, und „Jetzt erfassen“ ist ein richtiger Knopf statt farbiger Text.",
+          "en": "The inspection notice now guides you: the deadline is large, below it the time and the code to copy, and “Submit now” is a real button instead of coloured text."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Box-Block ist auf eine Zeile geschrumpft. Seriennummer und Firmware stehen hinter einem ⓘ, Reinigungsfenster und Akkustand melden sich nur noch, wenn sie etwas zu sagen haben.",
+          "en": "The box block has shrunk to one line. Serial number and firmware sit behind an ⓘ; cleaning windows and battery level only speak up when they have something to say."
+        }
       }
     ]
   },

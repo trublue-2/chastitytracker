@@ -16,6 +16,11 @@ interface TimerDisplayProps {
   /** Ab wann sie dringlich wird (ms). Nur für `countdown`. */
   criticalAtMs?: number;
   className?: string;
+  /** Den `sr-only`-Vorspann („Verbleibend"/„Vergangen") weglassen, wenn der Aufrufer die Richtung
+   *  bereits im sichtbaren Text sagt. Ohne das las ein Screenreader „Kontrolle bis Verbleibend:
+   *  1h 59min" — zweimal dieselbe Auskunft in einem Satz. Vorgabe: der Vorspann steht, denn ohne
+   *  ihn sind Hoch- und Herunterzählen akustisch nicht zu unterscheiden. */
+  srPrefix?: boolean;
   onExpire?: () => void;
 }
 
@@ -58,12 +63,17 @@ export default function TimerDisplay({
   warnAtMs = 30 * 60_000,
   criticalAtMs = 5 * 60_000,
   className = "",
+  srPrefix = true,
   onExpire,
 }: TimerDisplayProps) {
   const target = typeof targetDate === "string" ? new Date(targetDate) : targetDate;
   const locale = useLocale();
   const tc = useTranslations("common");
-  useTick(1000);
+  // Der Takt folgt der ANZEIGE: `format="long"` zeigt Minuten (`formatElapsedMs` ohne Sekunden),
+  // ein Sekundentakt erzeugte dort 59 von 60 Renders mit zeichengleicher Ausgabe. Der Preis war
+  // nicht Rechenzeit, sondern ein 1-Hz-Aufwachen, das den Faden nie zur Ruhe kommen liess — auf
+  // dem Handy ist das Akku.
+  useTick(format === "short" ? 1000 : 60_000);
   const now = new Date();
 
   const diffMs = mode === "countup"
@@ -112,7 +122,7 @@ export default function TimerDisplay({
           (`role=generic`), und dort ist `aria-label` nach ARIA 1.2 unzulässig — VoiceOver und NVDA
           verwerfen es. Ohne diesen Vorspann wären Hoch- und Herunterzählen akustisch nicht mehr zu
           unterscheiden: beide sagten nur „4T 9h 43min". */}
-      <span className="sr-only">{tc(mode === "countdown" ? "remaining" : "elapsed")}: </span>
+      {srPrefix && <span className="sr-only">{tc(mode === "countdown" ? "remaining" : "elapsed")}: </span>}
       {prefix}{formatted}
     </span>
   );

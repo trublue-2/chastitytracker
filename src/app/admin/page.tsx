@@ -149,8 +149,8 @@ export default async function AdminPage() {
       since: latestTime ?? null,
       offeneKontrolle: offeneKontrolle
         ? {
-            id: offeneKontrolle.id, deadline: offeneKontrolle.deadline, code: offeneKontrolle.code,
-            kommentar: offeneKontrolle.kommentar, overdue: offeneKontrolle.deadline < now,
+            id: offeneKontrolle.id, deadline: offeneKontrolle.deadline,
+            overdue: offeneKontrolle.deadline < now,
             target: inspectionTargetLabel(offeneKontrolle),
           }
         : null,
@@ -346,13 +346,9 @@ export default async function AdminPage() {
                         {u.stats.offeneKontrolle && (
                           <KontrolleBanner
                             deadline={u.stats.offeneKontrolle.deadline}
-                            code={u.stats.offeneKontrolle.code}
-                            kommentar={u.stats.offeneKontrolle.kommentar}
                             target={u.stats.offeneKontrolle.target}
                             overdue={u.stats.offeneKontrolle.overdue}
                             variant="compact"
-                            tz={rowTz}
-                            viewerTz={viewerTz}
                             withdrawAction={<WithdrawButton id={u.stats.offeneKontrolle.id} apiPath="/api/admin/kontrollen" title={t("withdrawKontrolleTitle")} colorToken="inspect" />}
                           />
                         )}

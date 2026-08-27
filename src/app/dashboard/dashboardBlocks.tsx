@@ -206,10 +206,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         tz,
 
         offeneKontrollen: offeneKontrollen.map((k) => ({
-          id: k.id,
           deadline: k.deadline.toISOString(),
           code: k.code,
-          kommentar: k.kommentar,
           target: inspectionTargetLabel(k),
           overdue: k.deadline < now,
           href: inspectionHref(k.code, { kommentar: k.kommentar, categoryId: k.categoryId }),

@@ -63,29 +63,20 @@ export function toPendingCommand(raw: string | null | undefined): "lock" | "open
 }
 
 /**
- * Die Zeile „wann gibt die Box den Schlüssel frei". null = nichts anzuzeigen (Reinigung ist für
- * diesen Sub kein Begriff).
+ * Das gerade OFFENE Reinigungsfenster — und nur das.
  *
- * Verbietet die AKTIVE Sperrzeit Reinigung, nennt die Zeile genau das — sonst lüde sie zu einer
- * Öffnung ein, die der Server als Sperrbruch wertet. Ein noch nicht offenes Fenster blendet nichts
- * aus: dort zeigt die Karte wie bisher das nächste.
+ * Es ist das einzige Stück aus der Reinigungs-Familie, das ins Dauerbild der Box gehört: eine
+ * Gelegenheit mit ABLAUF. Das nächste Fenster ist ein Kalendereintrag, das Kontingent eine Regel,
+ * und „diese Sperrzeit verbietet Reinigung" die Antwort auf eine Frage, die auf dem Dashboard
+ * niemand stellt. Alle drei stehen auf `/dashboard/regeln`, und den Grund nennt ausserdem das
+ * Öffnen-Formular am Ort der Handlung (`OeffnenFormCore`).
  *
- * Reihenfolge nach Dringlichkeit: Sperre zuerst (nichts geht), dann offenes Fenster (jetzt handeln),
- * sonst das nächste, sonst der Hinweis, dass keine Fenster konfiguriert sind (= nicht zeitgebunden).
+ * Die Vorgängerin beantwortete alle vier Fälle in einem Rückgabewert und zwang die Karte damit,
+ * dauerhaft eine Zeile dafür freizuhalten — auch für „es gibt keine Fenster".
  */
-export function boxReinigungLabel(r: BoxReinigungView | null, t: Translate): string | null {
-  if (!r?.allowed) return null;
-  if (r.blockedBy === "lockPeriodForbids") return t("cleaningBlockedByLockPeriod");
-  if (r.windowOpenNow) return t("cleaningWindowOpen", { until: r.windowOpenNow.until });
-  if (r.nextWindow) return t("cleaningWindowNext", { start: r.nextWindow.start, end: r.nextWindow.end });
-  return t("cleaningNoWindows");
-}
-
-/** „Heute 1 von 2 Reinigungsöffnungen" — null ohne Tages-Limit, und null während einer Sperrzeit,
- *  die Reinigung ohnehin verbietet: ein Kontingent, das niemand ausschöpfen darf, ist kein Angebot. */
-export function boxReinigungQuotaLabel(r: BoxReinigungView | null, t: Translate): string | null {
-  if (!r?.allowed || r.blockedBy === "lockPeriodForbids" || r.maxPausesPerDay === null) return null;
-  return t("cleaningQuota", { count: r.usedToday, max: r.maxPausesPerDay });
+export function boxCleaningWindowOpenLabel(r: BoxReinigungView | null, t: Translate): string | null {
+  if (!r?.allowed || r.blockedBy) return null;
+  return r.windowOpenNow ? t("cleaningWindowOpen", { until: r.windowOpenNow.until }) : null;
 }
 
 /** Frischer als das → „gerade aktiv"; darüber → „zuletzt online vor X". */
@@ -332,10 +323,19 @@ export function boxFailsafeLabel(w: BoxFailsafeWarning, t: Translate): string {
  * ACHTUNG beim Lesen: der Wert ist so alt wie der letzte Kontakt. Deshalb steht er auf der Karte in
  * DERSELBEN Zeile wie die Frische — „zuletzt online vor 19 Std · Akku niedrig" liest die Alterung mit.
  */
-export function boxBatteryLabel(
-  b: Pick<BoxRow, "battery" | "charging" | "lowBatteryOpenPercent">,
-  t: Translate,
-): string | null {
+export type BoxBatteryLevel = "critical" | "low" | "medium" | "full";
+
+/**
+ * Die STUFE des Akkus — als Wert, nicht als Text.
+ *
+ * Sie gab es nur als übersetzte Zeichenkette, und eine Aufrufstelle, die wissen wollte „ist der
+ * Akku knapp?", verglich deshalb gegen `t("batteryLow")`. Das ist doppelt falsch: es koppelt Logik
+ * an eine Übersetzung, und es geht bei geladenem Akku IMMER daneben, weil das Label dann
+ * „· lädt" anhängt. Bei 5 % am Ladekabel wäre die Warnung damit stillschweigend ausgeblieben.
+ */
+export function boxBatteryLevel(
+  b: Pick<BoxRow, "battery" | "lowBatteryOpenPercent">,
+): BoxBatteryLevel | null {
   if (b.battery == null) return null;
   const opensAt = batteryOpenThreshold(b.lowBatteryOpenPercent);
   // Die Anzeige-Grenzen weichen der Schwelle AUS, statt fix zu bleiben: sonst stünde bei einer hoch
@@ -343,15 +343,32 @@ export function boxBatteryLabel(
   // Selbst-Öffnung ankündigt. Alles, was die Warnung erreicht (Schwelle + Vorwarn-Abstand), ist
   // mindestens „niedrig"; die oberen Stufen rutschen entsprechend nach oben.
   const lowEdge = Math.max(BATTERY_MID_PCT, opensAt === null ? 0 : opensAt + BATTERY_WARN_MARGIN_PCT + 1);
+  if (opensAt !== null && b.battery <= opensAt) return "critical";
+  if (b.battery < lowEdge) return "low";
+  return b.battery < Math.max(BATTERY_FULL_PCT, lowEdge + 1) ? "medium" : "full";
+}
+
+/** Knapp genug, dass es der Träger wissen muss — die eine Frage, die die Oberfläche stellt. */
+export function boxBatteryIsLow(b: Pick<BoxRow, "battery" | "lowBatteryOpenPercent">): boolean {
+  const level = boxBatteryLevel(b);
+  return level === "low" || level === "critical";
+}
+
+export function boxBatteryLabel(
+  b: Pick<BoxRow, "battery" | "charging" | "lowBatteryOpenPercent">,
+  t: Translate,
+): string | null {
+  const level = boxBatteryLevel(b);
+  if (level === null) return null;
   // Literale Keys, kein zusammengesetzter String: sonst taucht kein einziger davon im Quelltext auf
   // — weder für ein grep noch für einen Rename — und ein in `en.json` fehlender Key würde als roher
   // Schlüsselname in der Oberfläche landen, ohne dass ein Test anschlägt.
-  const key =
-    opensAt !== null && b.battery <= opensAt ? "batteryCritical"
-      : b.battery < lowEdge ? "batteryLow"
-      : b.battery < Math.max(BATTERY_FULL_PCT, lowEdge + 1) ? "batteryMedium"
-      : "batteryFull";
-  const label = t(key);
+  const label = t(
+    level === "critical" ? "batteryCritical"
+      : level === "low" ? "batteryLow"
+      : level === "medium" ? "batteryMedium"
+      : "batteryFull",
+  );
   return b.charging ? `${label} · ${t("batteryCharging")}` : label;
 }
 

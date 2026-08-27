@@ -4,6 +4,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import Card, { CARD_BODY_STRIPED } from "@/app/components/Card";
 import Badge, { type BadgeVariant } from "@/app/components/Badge";
 import IconTile from "@/app/components/IconTile";
+import { warnEdgeCls } from "@/app/components/inputStyles";
 import DetailField from "@/app/components/DetailField";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { TASK_LIST_ANCHOR } from "@/lib/constants";
@@ -84,7 +85,7 @@ export default async function OffenseCard({ offense: o, tz }: { offense: SubOffe
             <span className="font-medium">{t("dismissReasonLabel")}:</span> {o.judgmentText}
           </p>
         ) : (
-          <div className="border-l-2 border-warn pl-3">
+          <div className={warnEdgeCls}>
             <DetailField label={t("penaltyLabel")}>
               <p className="text-sm text-foreground whitespace-pre-wrap break-words">{o.judgmentText}</p>
             </DetailField>

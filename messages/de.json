@@ -422,6 +422,7 @@
     "orgasmRequiredArt": "Gewünscht: {art}",
     "locked": "Verschlossen",
     "inspectionRequired": "Kontrolle erforderlich",
+    "moreInspections": "{count, plural, one {Eine weitere Kontrolle ist offen} other {# weitere Kontrollen sind offen}}",
     "entries": "Tragezeiten",
     "totalDuration": "Gesamtdauer",
     "coverageDay": "{percent} % der bisherigen Tageszeit",
@@ -622,12 +623,9 @@
     "failsafeOfflineDue": "Box seit {hours} Std ohne Kontakt — die Not-Öffnung ist erfolgt oder steht unmittelbar bevor.",
     "failsafeBatteryWarn": "Akku {percent} % — ab {opensAt} % öffnet sich die Box von selbst. Laden.",
     "failsafeBatteryDue": "Akku {percent} % — die Box öffnet sich jederzeit von selbst (Schwelle {opensAt} %). Sofort laden.",
-    "cleaningBlockedByLockPeriod": "Diese Sperrzeit erlaubt keine Reinigung",
     "cleaningWindowOpen": "Reinigungsfenster offen bis {until}",
-    "cleaningWindowNext": "Nächstes Reinigungsfenster: {start}–{end}",
-    "cleaningNoWindows": "Reinigung nicht an Uhrzeiten gebunden",
-    "cleaningQuota": "heute {count} von {max}",
-    "subTimePrefix": "Sub"
+    "subTimePrefix": "Sub",
+    "deviceInfo": "Angaben zum Gerät"
   },
   "lockForm": {
     "title": "Verschluss erfassen",
@@ -854,12 +852,10 @@
     "openTitle": "Kontrolle",
     "overduePrefix": "Überfällig seit",
     "untilPrefix": "Bis",
-    "code": "Code",
     "subTimePrefix": "Sub",
-    "instruction": "Anweisung",
-    "capture": "→ Jetzt erfassen",
-    "help": "Wie funktioniert eine Kontrolle?",
-    "autoMarkWarn": "Ohne Nachweis bis {time} wird das Gerät automatisch als abgelegt gebucht."
+    "capture": "Jetzt erfassen",
+    "code": "Code",
+    "autoMarkWarn": "Ohne Nachweis wird das Gerät danach automatisch als abgelegt gebucht."
   },
   "stats": {
     "title": "Statistik",
