@@ -11,7 +11,6 @@ import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {
   userId: string;
-  hasEmail: boolean;
   isLocked: boolean;
   hasActiveSperrzeit: boolean;
   /** Governing timezone of this row's sub (data owner). */
@@ -21,7 +20,7 @@ interface Props {
 }
 
 export default function VerschlussAnforderungButton({
-  userId, hasEmail, isLocked, hasActiveSperrzeit, tz, minNow,
+  userId, isLocked, hasActiveSperrzeit, tz, minNow,
 }: Props) {
   const t = useTranslations("admin");
   const router = useRouter();
@@ -44,10 +43,9 @@ export default function VerschlussAnforderungButton({
   const accentColor = isAnforderung ? "var(--color-request)" : "var(--color-sperrzeit)";
   const accentBg = isAnforderung ? "var(--color-request-bg)" : "var(--color-sperrzeit-bg)";
 
-  // Mehrere offene Anforderungen sind erlaubt — der Button bleibt sichtbar, solange der Sub offen ist
-  // und eine E-Mail hat. (Die SPERRZEIT bleibt exklusiv: dort greift hasActiveSperrzeit.)
-  if (isAnforderung && (isLocked || !hasEmail)) return null;
-  if (!isAnforderung && (!isLocked || hasActiveSperrzeit)) return null;
+  // Exklusiv ist allein die Sperrzeit — eine zweite überschriebe die laufende. Dass die
+  // Anforderung keine E-Mail mehr verlangt: Begründung im Dienst.
+  if (isLocked && hasActiveSperrzeit) return null;
 
   const close = () => {
     setOpen(false);

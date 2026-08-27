@@ -45,6 +45,7 @@ import { notifyUser } from "@/lib/notify";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { getIsLocked } from "@/lib/queries";
 import { firePush } from "@/lib/push";
+import { sendMailSafe } from "@/lib/mail";
 
 const findUniqueMock = prisma.verschlussAnforderung.findUnique as unknown as ReturnType<typeof vi.fn>;
 const updateMock = prisma.verschlussAnforderung.update as unknown as ReturnType<typeof vi.fn>;
@@ -256,6 +257,22 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
       if (res.ok) throw new Error("erwartet: Fehler");
       expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
       expect(tx.verschlussAnforderung.create).not.toHaveBeenCalled();
+    });
+
+    it("ANFORDERUNG an einen Sub OHNE E-Mail entsteht trotzdem — nur die Mail entfällt", async () => {
+      // Bis v6 lehnte der Dienst hier mit `USER_NO_EMAIL` ab, und die Oberfläche versteckte
+      // deshalb „Verschluss anfordern" für jeden Sub ohne Adresse. Der Sub erfährt die Anforderung
+      // über den Posteingang und das Banner auf seinem Dashboard; die Mail ist die Beigabe.
+      // Gemeldet aus dem Betrieb (27.08.2026). Die Kontrolle behält ihre Pflicht — dort geht ein
+      // CODE per Mail.
+      userMock.mockResolvedValue({ id: "u1", email: null, username: "sub", locale: "de" });
+      isLockedMock.mockResolvedValue(false); // eine ANFORDERUNG geht nur an einen offenen User
+
+      const res = await createVerschlussAnforderung({ userId: "u1", art: "ANFORDERUNG", fristH: 4 }, "herrin");
+
+      expect(res.ok).toBe(true);
+      expect(tx.verschlussAnforderung.create).toHaveBeenCalledTimes(1);
+      expect(sendMailSafe).not.toHaveBeenCalled();
     });
 
     it("ANFORDERUNG: die Einschliess-FRIST ist kein Sperr-Ende und bleibt ungeprüft", async () => {

@@ -63,13 +63,14 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
             lockedReason={hasEmail && !hasInspectionTarget ? t("entryOnlyIfLockedOrWorn") : undefined}
           />
 
-          {/* Verschluss anfordern — mehrere offene Anforderungen sind erlaubt, kein Gate darauf */}
+          {/* Mehrere offene Anforderungen sind erlaubt, und eine E-Mail verlangt sie nicht —
+              Begründung im Dienst. */}
           <ActionRow
-            href={!isLocked && hasEmail ? `${base}/verschluss-anforderung` : undefined}
+            href={!isLocked ? `${base}/verschluss-anforderung` : undefined}
             icon={<LockClosedIcon className="size-4" />}
             title={t("requestLock")}
             description={t("requestLockHint")}
-            lockedReason={isLocked ? t("alreadyLocked") : !hasEmail ? t("noEmail") : undefined}
+            lockedReason={isLocked ? t("alreadyLocked") : undefined}
           />
 
           {/* Sperrdauer: bestehende bearbeiten, sonst neu setzen — beides nur im verschlossenen Zustand */}

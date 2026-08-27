@@ -1,5 +1,25 @@
 [
   {
+    "version": "6.0.1",
+    "date": "2026-08-27",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Schnellaktionen stehen in der Keyholder-Übersicht wieder bei jedem Sub — auch bei denen, die gerade nichts brauchen.",
+          "en": "The quick actions are back on every sub in the keyholder overview — including the ones that need nothing right now."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "„Verschluss anfordern“ geht jetzt auch ohne hinterlegte E-Mail-Adresse: der Sub sieht die Anforderung im Posteingang und auf seinem Dashboard.",
+          "en": "“Request lock” now works without an email address on file: the sub sees the request in their inbox and on their dashboard."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.0",
     "date": "2026-08-27",
     "changes": [

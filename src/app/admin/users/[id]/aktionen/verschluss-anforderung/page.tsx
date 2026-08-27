@@ -9,7 +9,7 @@ export default async function AdminVerschlussAnforderungPage({ params }: { param
   const { id } = await params;
   await assertKeyholderOrAdmin(id);
 
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await prisma.user.findUnique({ where: { id }, select: { id: true } });
   if (!user) redirect("/admin");
 
   const [isLocked, activeSperrzeit, devices, tz] = await Promise.all([
@@ -19,18 +19,10 @@ export default async function AdminVerschlussAnforderungPage({ params }: { param
     getUserTimezone(id),
   ]);
 
-  const hasEmail = !!user.email;
-  const hasActiveSperrzeit = !!activeSperrzeit;
-
   const art = isLocked ? "SPERRZEIT" : "ANFORDERUNG";
-  // Mehrere offene Anforderungen sind erlaubt — kein Gate darauf. Die SPERRZEIT bleibt exklusiv.
-  const canSubmit = art === "ANFORDERUNG"
-    ? (!isLocked && hasEmail)
-    : (isLocked && !hasActiveSperrzeit);
-
-  if (!canSubmit) {
-    redirect(`/admin/users/${id}/aktionen`);
-  }
+  // Mehrere offene Anforderungen sind erlaubt, und eine E-Mail verlangt die Anforderung nicht
+  // (Begründung im Dienst). Exklusiv ist allein die SPERRZEIT.
+  if (isLocked && activeSperrzeit) redirect(`/admin/users/${id}/aktionen`);
 
   return <VerschlussAnforderungForm userId={id} art={art} devices={devices} tz={tz} minNow={nowDatetimeLocal(tz)} />;
 }

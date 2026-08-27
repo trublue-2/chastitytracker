@@ -100,9 +100,12 @@ export async function createVerschlussAnforderung(
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
-  if (art === "ANFORDERUNG" && !user.email) {
-    return serviceFail(400, "USER_NO_EMAIL");
-  }
+  // KEINE E-Mail-Pflicht: der Sub erfährt die Anforderung über den Posteingang
+  // (`recordMessageAndBadge`, weiter unten und unbedingt) und über das Banner auf seinem
+  // Dashboard, das aus der Zeile selbst kommt. Die Mail ist die Beigabe. Bis v6 stand hier ein
+  // `USER_NO_EMAIL`, und es sperrte der Keyholderin die Hauptaktion für jeden Sub ohne Adresse —
+  // gemeldet aus dem Betrieb. `kontrolleService` behält seine Prüfung: dort geht ein CODE per
+  // Mail, ohne Adresse käme er nirgends an.
 
   const now = new Date();
 

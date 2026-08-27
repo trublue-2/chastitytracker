@@ -101,6 +101,20 @@ bewegt die ganze Flotte von einem Ring zum nächsten: `-f channel=portal -f pinn
 *Vorfall 25.08.2026:* zwei Läufe genau daran verbrannt, weil dieser Abschnitt den Erstbefehl ohne
 `pinnedTo` nannte.
 
+⚠️ **Ein Seitenkanal bleibt nicht privat.** `:design` trug beim Anlegen nur die eigene Instanz;
+inzwischen ist eine zweite darauf gepinnt, mit echten Nutzern. Ein Dispatch dorthin startet also
+fremde Produktiv-Instanzen neu und spielt ihnen unfertigen Stand ein — dieselbe Lage wie bei
+`:feature`, nur unauffälliger, weil der Kanal als „für mich allein" gedacht war. Wer wirklich
+wissen will, wen er trifft, fragt die Pins ab statt diese Datei:
+
+```bash
+ssh www-data@kink 'grep -h "image:" ~/instances/*/docker-compose.yml | sed "s/.*chastitytracker://" | sort | uniq -c'
+```
+
+*Vorfall 27.08.2026:* der v6-Umbau nahm der Keyholder-Übersicht die Schnellaktionen für alle
+ruhigen Subs. Gemeldet hat es nicht der Autor, sondern die Keyholderin einer Fremd-Instanz auf
+`:design` — sie brauchte „Kontrolle anfordern" und kam nicht mehr daran.
+
 `publishAs` ERSETZT `:feature` für diesen Build — sonst wäre nichts gewonnen. Reservierte Namen (`portal`, `latest`, `feature`, `v*`, `sha-*`) und alles ausserhalb von `[a-z0-9-]` brechen den Lauf ab: ohne diese Schranke veröffentlichte ein beliebiger Zweig direkt nach `:portal` oder `:latest` und höbe damit die einzige Garantie der Ringe auf.
 
 `deploy.yml` brauchte dafür keine Änderung — es nimmt jeden validen Kanalnamen entgegen.
