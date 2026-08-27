@@ -105,6 +105,7 @@
   --nav-icon-bg:            #241a1e;
   --nav-icon-active-bg:     #ff3d68;
   --focus-ring:             #ff3d68;
+  --role-keyholder:         #8f88ff;
   --btn-primary-bg:         #ff3d68;
   --btn-primary-hover:      #ff6083;
   --btn-primary-text:       #2b0410;
@@ -213,6 +214,7 @@
   --nav-icon-bg:            #181b26;
   --nav-icon-active-bg:     #8f88ff;
   --focus-ring:             #8f88ff;
+  --role-keyholder:         #8f88ff;
   --btn-primary-bg:         #8f88ff;
   --btn-primary-hover:      #a39dff;
   --btn-primary-text:       #2b0410;
@@ -322,6 +324,7 @@
   --nav-icon-bg:            #1a211c;
   --nav-icon-active-bg:     #34d399;
   --focus-ring:             #34d399;
+  --role-keyholder:         #8f88ff;
   --btn-primary-bg:         #34d399;
   --btn-primary-hover:      #59dbab;
   --btn-primary-text:       #2b0410;
@@ -542,6 +545,9 @@
   --color-btn-primary-hover:  var(--btn-primary-hover);
   --color-btn-primary-text:   var(--btn-primary-text);
   --color-focus-ring:         var(--focus-ring);
+  /* Der Ton der KEYHOLDER-Rolle in JEDER Welt — für Stellen, die ÜBER den Bereich sprechen,
+     statt in ihm zu stehen. Begründung am Erzeuger (`docs/design/tokens.mjs`). */
+  --color-role-keyholder:     var(--role-keyholder);
 
   /* Semantic button fills */
   --color-btn-lock:            var(--btn-lock);
@@ -665,6 +671,48 @@ body {
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* ...aber NICHT um die zwei Behälter, die den Fokus nur bekommen, um die LESEPOSITION zu setzen.
+   Beide tragen `tabindex="-1"`, liegen also nie im Tab-Weg, und beide werden ausschliesslich
+   programmatisch fokussiert:
+
+   `<main>`  — von ZWEI unabhängigen Stellen: dem Sprunglink (`SkipLink`) und `restoreFocus()`
+               (`useDialogBehaviour`), wenn nach dem Schliessen eines Dialogs der Auslöser nicht
+               mehr da ist. Genau deshalb steht die Regel hier und nicht im Hook: der Hook besitzt
+               den Sprunglink nicht, und eine Behebung dort hätte ihn nicht mitgenommen.
+   `[role="dialog"]` — vom Hook beim Öffnen, damit der Screenreader Rolle und Titel liest statt
+               bloss „Schaltfläche".
+
+   Ohne diese Regel zog der Ring einen 2 px starken Rahmen um den GANZEN Inhalt. Gemeldet als
+   „die grüne Umrandung bleibt stehen", nachdem ein Blatt geschlossen wurde — und grün war sie,
+   weil `--focus-ring` die Farbe der Welt trägt. Reproduziert: nach `main.focus()` steht dort
+   `outline: 2px solid rgb(52, 211, 153)`.
+
+   WCAG 2.4.7 verlangt den Ring für BEDIENELEMENTE. Ein Landmark und ein Dialog-Rahmen sind
+   keine; die Rückmeldung für den Nutzer ist der Ring am nächsten Element, das er per Tab
+   erreicht, und der bleibt.
+
+   Bewusst NICHT als pauschales `[tabindex="-1"]:focus-visible`: beim Roving-Tabindex tragen
+   ECHTE Bedienelemente `-1`, und dort ist der Ring die einzige Anzeige, wo man steht. Das Muster
+   steht bereits im Baum — `Tabs.tsx` gibt nur dem aktiven Reiter `0` und bewegt den Fokus mit den
+   Pfeiltasten. Der Schaden wäre also real und nicht hypothetisch; die Reiter setzen ihren Ring
+   zwar zusätzlich selbst (`focus-visible:outline-2`), aber darauf soll sich die Regel nicht
+   verlassen.
+
+   `[role="alertdialog"]` steht mit drin, obwohl es heute keines gibt: es ist die naheliegende
+   Schwester-Rolle für genau die Rückfragen, die dieser Hook bedient, und wer sie korrekt
+   auszeichnet, holte sich sonst den Rahmen zurück.
+
+   Was die Regel BEWUSST mitnimmt: auch das Ziel des Sprunglinks trägt danach keinen Ring mehr.
+   Ein sehender Tastatur-Nutzer sieht die Bestätigung erst am nächsten Tab-Halt. Das ist gängige
+   Praxis (GOV.UK macht es genauso) und hier der günstigere Tausch — die Alternative wäre, die
+   zwei Fokus-Wege auf `<main>` per Datenattribut zu unterscheiden, also eine eigene Mechanik für
+   einen Grenzfall. */
+main:focus-visible,
+[role="dialog"]:focus-visible,
+[role="alertdialog"]:focus-visible {
+  outline: none;
 }
 
 /* Safe area for iOS standalone PWA */

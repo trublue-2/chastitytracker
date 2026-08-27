@@ -51,18 +51,34 @@ export default function ChangeoverNotice() {
         <p className="text-fliess text-foreground-muted">{t("intro")}</p>
 
         {/* Die Regel als Legende statt als Satz: sie ist eine Zuordnung, und eine Zuordnung liest
-            man schneller als Fliesstext. Die Zeichen sind dieselben, die überall in der App
-            stehen — wer den Hinweis wegklickt, hat sie hier schon einmal gesehen. */}
-        <ul className="flex flex-col gap-1.5">
+            man schneller als Fliesstext.
+
+            JEDE Zeile trägt ein Farbmuster, auch Indigo — „nicht alle wissen, wie Indigo
+            aussieht" (gemeldet), und das gilt für einen Farbnamen ganz allgemein: ein Wort für
+            eine Farbe ist keine Farbe. Die zwei Zustands-Zeilen tragen ZUSÄTZLICH das Schloss,
+            weil dort die Form Teil der Neuerung ist; der Keyholder-Bereich ist ein Ort und hat
+            keine. */}
+        <ul className="flex flex-col gap-2">
           <li className="flex items-start gap-2 text-fliess">
+            <span className="shrink-0 mt-1 size-3 rounded-sm bg-lock" aria-hidden />
             <LockClosedIcon size={16} className="shrink-0 mt-0.5 text-lock" aria-hidden />
             <span className="text-foreground">{t("legendLocked")}</span>
           </li>
           <li className="flex items-start gap-2 text-fliess">
+            <span className="shrink-0 mt-1 size-3 rounded-sm bg-unlock" aria-hidden />
             <LockOpenIcon size={16} className="shrink-0 mt-0.5 text-unlock" aria-hidden />
             <span className="text-foreground">{t("legendOpen")}</span>
           </li>
+          <li className="flex items-start gap-2 text-fliess">
+            <span className="shrink-0 mt-1 size-3 rounded-sm bg-role-keyholder" aria-hidden />
+            {/* Kein Schloss: hier steht kein Zustand. Der Platz bleibt leer, damit die drei
+                Farbmuster in einer Spalte stehen. */}
+            <span className="size-4 shrink-0" aria-hidden />
+            <span className="text-foreground">{t("legendKeyholder")}</span>
+          </li>
         </ul>
+
+
 
         <p className="text-neben text-foreground-faint">{t("caveats")}</p>
         <p className="text-neben text-foreground-faint">{t("unchanged")}</p>

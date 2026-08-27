@@ -74,7 +74,7 @@ export default function ActionModal({ open, onClose, title, icon, iconBg, busy =
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
-            className="bg-background rounded-2xl border border-border w-full max-w-md shadow-2xl flex flex-col max-h-[calc(100dvh-2rem)] focus:outline-none"
+            className="bg-background rounded-2xl border border-border w-full max-w-md shadow-2xl flex flex-col max-h-[calc(100dvh-2rem)]"
           >
             <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between gap-3 flex-shrink-0">
               <div className="flex items-center gap-3">

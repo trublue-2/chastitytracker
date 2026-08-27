@@ -343,6 +343,20 @@ export function themeTokens(themeName) {
   setze('nav-icon-bg', th.feld); setze('nav-icon-active-bg', akzent)
   setze('focus-ring', rollenton)
 
+  // Der Ton der KEYHOLDER-Rolle, und zwar in JEDER Welt — nicht der Ton der Rolle, in der man
+  // gerade steht (das ist `rollenton` darüber).
+  //
+  // Gebraucht, wo über den Keyholder-Bereich GESPROCHEN wird, statt in ihm zu stehen: der
+  // Umstellungs-Hinweis erklärt „Indigo ist der Keyholder-Bereich" und steht dabei im
+  // Träger-Bereich. Ein Farbmuster aus `--btn-primary-bg` wäre dort grün oder rosa gewesen —
+  // also ausgerechnet die Verwechslung, die der Satz auflösen soll. Und ohne Muster muss man
+  // wissen, wie Indigo aussieht; das weiss nicht jeder.
+  //
+  // `WELTEN[…].rolle.keyholder` ist in allen drei Welten `indigo`, der Wert ist also überall
+  // derselbe. Er kommt trotzdem aus der Tabelle statt als Literal: eine vierte Welt, die ihre
+  // Keyholder-Rolle anders färbt, zöge ihn automatisch mit.
+  setze('role-keyholder', ROLLE.keyholder[art])
+
   // ── Knöpfe ────────────────────────────────────────────────────────────────
   // "Genau ein gefüllter Knopf je Bildschirm" — der gefüllte trägt Rosa. Auf HELL nimmt er die
   // TINTE, nicht die Marken-Rose: weiss auf #ff3d68 sind 3,4:1 und fallen bei 14 px durch.

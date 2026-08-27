@@ -19,7 +19,7 @@ import en from "../../messages/en.json";
  * fängt — und dieselbe Bauart, mit der `appName.test.ts` und `changelogVersion.test.ts` ihre
  * Kopplungen halten.
  */
-const NOTICE_FINGERPRINT = "563e5be864781d84";
+const NOTICE_FINGERPRINT = "9022d82553efc93d";
 
 function fingerprint(block: Record<string, string>): string {
   const canonical = Object.keys(block).sort().map((k) => `${k}=${block[k]}`).join("\n");

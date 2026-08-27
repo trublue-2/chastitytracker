@@ -76,7 +76,7 @@ export default function Sheet({ open, onClose, title, label, busy = false, child
         aria-modal="true"
         {...(title ? { "aria-labelledby": titleId } : { "aria-label": label })}
         tabIndex={-1}
-        className="absolute bottom-0 left-0 right-0 max-h-[90vh] overflow-y-auto bg-surface rounded-t-2xl outline-none animate-slide-up"
+        className="absolute bottom-0 left-0 right-0 max-h-[90vh] overflow-y-auto bg-surface rounded-t-2xl animate-slide-up"
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1">

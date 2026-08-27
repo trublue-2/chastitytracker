@@ -32,6 +32,13 @@
  * Fehler, den niemand meldet, weil man nicht vermisst, was man nie gesehen hat. `notice.test.ts`
  * hält die beiden zusammen.
  *
+ * Die EINZIGE Ausnahme ist eine Version, die noch gar nicht ausgeliefert wurde: dann gibt es
+ * niemanden, der sie quittiert haben könnte, und eine Wortkorrektur darf den Abdruck im Test
+ * allein nachziehen. Nicht „Korrektur statt neuer Hinweis" ist das Kriterium — diese
+ * Unterscheidung trägt nicht, denn `ChangeoverNoticeGate` prüft auf GLEICHHEIT, nicht auf
+ * Reihenfolge; ein „kleines" Nachreichen an bereits Quittierte gibt es nicht. Das Kriterium ist,
+ * ob die Version draussen war.
+ *
  * Ein fehlender Merker (`null`) heisst „noch nie quittiert" — auch für einen frisch angelegten
  * Nutzer. Er hat nichts zu verlernen, aber die Regel gilt für ihn genauso, und ein einmaliger
  * Bildschirm ist der billigere Fehler als eine Farbe, deren Bedeutung niemand nennt.

@@ -101,7 +101,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
             aria-modal="true"
             aria-labelledby="calendar-modal-title"
             tabIndex={-1}
-            className="relative bg-surface rounded-2xl shadow-overlay border border-border w-full max-w-sm max-h-[85dvh] overflow-y-auto p-5 flex flex-col gap-4 outline-none"
+            className="relative bg-surface rounded-2xl shadow-overlay border border-border w-full max-w-sm max-h-[85dvh] overflow-y-auto p-5 flex flex-col gap-4"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header sticky, damit ✕ bei vielen Einträgen erreichbar bleibt; Body scrollt (max-h). */}
