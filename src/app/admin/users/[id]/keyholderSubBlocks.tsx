@@ -11,7 +11,7 @@ import {
   wearingHoursCached, wearSessionRowsCached,
 } from "@/lib/dashboardData";
 import { heimdallEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
-import { isScheduledDirective } from "@/lib/queries";
+import { getIsLocked, isScheduledDirective } from "@/lib/queries";
 import { buildBoxReinigungView } from "@/lib/boxReinigung";
 import { resolveGoalTargets } from "@/lib/goalFulfillment";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
@@ -103,10 +103,15 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       const [user, entries, sperre] = await Promise.all([
         userRowCached(ctx.subjectId), entriesCached(ctx.subjectId), effectiveSperrzeit(ctx),
       ]);
-      return buildBoxReinigungView(user, entries, sperre, ctx.now, ctx.subjectTz);
+      return {
+        reinigung: buildBoxReinigungView(user, entries, sperre, ctx.now, ctx.subjectTz),
+        // Siehe `dashboardBlocks`: ohne den Träger-Zustand liesse sich „Riegel zu, obwohl niemand
+        // verschlossen ist" nicht vom Normalfall unterscheiden.
+        wearerLocked: await getIsLocked(ctx.subjectId),
+      };
     },
-    render: (reinigung, { subjectId, subjectTz, viewerTz }) => heimdallEnabled() && (
-      <BoxStatusCard userId={subjectId} tz={subjectTz} viewerTz={viewerTz} reinigung={reinigung} />
+    render: (data, { subjectId }) => heimdallEnabled() && data !== null && (
+      <BoxStatusCard userId={subjectId} reinigung={data.reinigung} wearerLocked={data.wearerLocked} />
     ),
   }),
 
@@ -147,9 +152,15 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
         : tDash(sperrzeit?.reinigungErlaubt ? "sessionLockedConsequenceCleaning" : "sessionLockedConsequence");
       return { running, sperrzeit, activeVorgabe, hours, deviceCount, lockBreakNote, latest: null };
     },
-    render: (data, { now, subjectTz, t }) =>
+    render: (data, { now, subjectTz, viewerTz, subLabel, subjectId, t }) =>
       data.running ? (
         <LaufendeSessionCard
+          // Zwei Zonen für die Sperr-Frist und die Box DIESES Subs: die Karte zeigte die Frist
+          // unbeschriftet in Sub-Zeit, während die Box-Zeile darüber denselben Augenblick
+          // zweizonig nannte.
+          viewerTz={viewerTz}
+          subLabel={subLabel}
+          subjectId={subjectId}
           sessionStart={data.running.activePair.verschluss.startTime}
           interruptionPausedMs={interruptionPauseMs(data.running.activePair.interruptions)}
           now={now}

@@ -82,7 +82,9 @@ export const SUB_DASHBOARD_BLOCKS = [
   // `alwaysOn`, weil hier die überfällige Kontrolle samt „Jetzt erfassen“ steht — siehe die
   // Begründung an `DashboardBlockDef.alwaysOn`.
   { id: "alerts", surface: "subDashboard", role: "sub", labelKey: "blockAlerts", alwaysOn: true },
-  { id: "boxStatus", surface: "subDashboard", role: "sub", labelKey: "blockBoxStatus" },
+  // `alwaysOn`, seit der Block nur noch STÖRUNGEN zeigt: wer ihn ausblendet, verliert die
+  // Vorwarnung vor der Not-Öffnung — und die lässt sich nur rechtzeitig verhindern (heimdall#1).
+  { id: "boxStatus", surface: "subDashboard", role: "sub", labelKey: "blockBoxStatus", alwaysOn: true },
   { id: "openTasks", surface: "subDashboard", role: "sub", labelKey: "blockOpenTasks", collapsible: true },
   { id: "openPenalties", surface: "subDashboard", role: "sub", labelKey: "blockOpenPenalties", collapsible: true },
   { id: "weightRelease", surface: "subDashboard", role: "sub", labelKey: "blockWeightRelease", collapsible: true },
@@ -147,7 +149,7 @@ export const KEYHOLDER_STATS_BLOCKS = statsBlocksFor("keyholderStats", "keyholde
 
 /** Die Sub-Detailseite der Keyholderin — ihr Gegenstück zum Träger-Dashboard. */
 export const KEYHOLDER_SUB_BLOCKS = [
-  { id: "boxStatus", surface: "keyholderSub", role: "keyholder", labelKey: "blockBoxStatus" },
+  { id: "boxStatus", surface: "keyholderSub", role: "keyholder", labelKey: "blockBoxStatus", alwaysOn: true },
   { id: "tasks", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenTasks" },
   { id: "sessionOrStatus", surface: "keyholderSub", role: "keyholder", labelKey: "blockRunningSession" },
   { id: "wearSessions", surface: "keyholderSub", role: "keyholder", labelKey: "blockActiveWear" },

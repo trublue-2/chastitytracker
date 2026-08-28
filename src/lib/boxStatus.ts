@@ -79,8 +79,36 @@ export function boxCleaningWindowOpenLabel(r: BoxReinigungView | null, t: Transl
   return r.windowOpenNow ? t("cleaningWindowOpen", { until: r.windowOpenNow.until }) : null;
 }
 
+/**
+ * Steht die Box offen, obwohl etwas sie zu haben will?
+ *
+ * Die EINE Ableitung für beide Leser: der Störblock meldet den Konflikt laut, die Hardware-Zeile im
+ * Zustands-Helden schweigt dann. Vorher stand die Bedingung nur im Block, und der Held sagte trotzdem
+ * „Riegel offen" — dieselbe Tatsache zweimal auf einem Bildschirm, also genau die Dublette, deren
+ * Beseitigung der Umbau versprach.
+ *
+ * PHYSISCH offen, nicht SOLL-offen: eine erst scharfgestellte Öffnung (Riegel noch zu, wartet auf
+ * den Knopf) ist kein Alarm — dafür gibt es die Übergangs-Zeile.
+ */
+export function boxHasConflict(b: BoxRow): boolean {
+  return !boxIsPhysicallyLocked(b) && boxSollLocked(b);
+}
+
 /** Frischer als das → „gerade aktiv"; darüber → „zuletzt online vor X". */
 const LIVE_THRESHOLD_MS = 2 * 60_000;
+
+/**
+ * Meldet sich die Box gerade? — als WERT, nicht als Textvergleich.
+ *
+ * Eine Aufrufstelle wollte wissen, ob die Frische überhaupt erwähnenswert ist, und verglich dafür
+ * `boxFreshnessLabel(...) === t("live")`. Das ist derselbe Griff, an dem die Akku-Stufe gescheitert
+ * ist: er hält nur, solange das Label nie einen Zusatz anhängt. `boxFreshnessLabel` benutzt diese
+ * Funktion jetzt selbst, damit die beiden gar nicht auseinanderlaufen können.
+ */
+export function boxIsLive(lastSyncAt: string | null, now: number): boolean {
+  if (!lastSyncAt) return false;
+  return Math.max(0, now - new Date(lastSyncAt).getTime()) < LIVE_THRESHOLD_MS;
+}
 
 /** Physisches IST der Box: das gemeldete `reportedLocked`, bei Alt-Zeilen ohne Meldung das SOLL. */
 export const boxIsPhysicallyLocked = (b: Pick<BoxRow, "locked" | "reportedLocked">): boolean => b.reportedLocked ?? b.locked;
@@ -108,7 +136,14 @@ export function boxPendingTransition(b: BoxRow): "closing" | "opening" | null {
  *  Nutzt das ECHTE IST — seit dem Präsenz-Guard kann die Box offen stehen, obwohl sie zu sein soll. */
 export function boxIstLabel(b: BoxRow, t: Translate): string {
   if (!boxIsPhysicallyLocked(b)) return t("istOpen");
-  return b.simpleLock ? t("istLockedBolt") : t("istLocked");
+  // Kein Zusatz mehr für `simpleLock`. Der alte Text lautete „Verschlossen · mechanisch bestätigt"
+  // und war eine vierte Lesart des Wortes „Verschlossen" — dem Wort, das seit v6 allein dem Träger
+  // gehört. Er war ausserdem sachlich schief: `simpleLock` heisst laut Funktionsmodell „einfache
+  // lokale Verriegelung ohne Frist", ist also ein VERRIEGELUNGS-MODUS und wird von `boxSollLocked`
+  // auch genau so gelesen — keine Aussage darüber, ob das Gerät eine echte Riegelmeldung liefert.
+  // Die stünde in `boltPos`, das nie nach `BoxRow` gemappt wurde. Bis das jemand entscheidet, sagt
+  // die Zeile über die Bauform lieber nichts.
+  return t("istLocked");
 }
 
 /**
@@ -375,8 +410,8 @@ export function boxBatteryLabel(
 /** Frische aus `lastSyncAt`: „gerade aktiv" (< 2 Min), sonst „zuletzt online vor X"; null → nie gesynct. */
 export function boxFreshnessLabel(lastSyncAt: string | null, now: number, t: Translate): string {
   if (!lastSyncAt) return t("neverSynced");
+  if (boxIsLive(lastSyncAt, now)) return t("live");
   const ageMs = Math.max(0, now - new Date(lastSyncAt).getTime());
-  if (ageMs < LIVE_THRESHOLD_MS) return t("live");
   const min = Math.floor(ageMs / 60_000);
   if (min < 60) return t("lastSeenMinutes", { count: min });
   const hours = Math.floor(min / 60);

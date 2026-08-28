@@ -1,5 +1,4 @@
-import { KeyRound } from "lucide-react";
-import { formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected, APP_TZ } from "@/lib/utils";
+import { formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected, APP_TZ, formatDateTimeDual } from "@/lib/utils";
 export type { SessionEvent } from "@/lib/sessionHelpers";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getKombinierterPill } from "@/lib/kontrollePills";
@@ -7,7 +6,9 @@ import SessionDurationBadge from "./SessionDurationBadge";
 import type { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
 import Section from "@/app/components/Section";
+import { KeyRound } from "lucide-react";
 import StateHero from "@/app/components/StateHero";
+import BoxHardwareLine from "@/app/components/BoxHardwareLine";
 import LiveTrainingGoals from "./LiveTrainingGoals";
 import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
 
@@ -50,6 +51,12 @@ interface Props {
   /** Schlüssel-Deklaration des laufenden Verschlusses: liegt er in der Box? `null`/undefined =
    *  keine Box oder Alt-Eintrag → keine Zeile (statt einer Behauptung ins Blaue). */
   keyInBox?: boolean | null;
+  /** Betrachter-Zeitzone (nur Keyholder-Sicht). Ohne sie bleibt die Frist einzonig. */
+  viewerTz?: string;
+  /** Beschriftung des Sub-Zusatzes, z.B. „Sub". Nur zusammen mit `viewerTz` wirksam. */
+  subLabel?: string;
+  /** Wessen Box — gesetzt in der Keyholder-Sicht. */
+  subjectId?: string;
   activeVorgabe: VorgabeTargets | null;
   tagH: number;
   wocheH: number;
@@ -74,6 +81,9 @@ export default async function LaufendeSessionCard({
   sperrzeitRunningSince = null,
   cleaningNote,
   keyInBox = null,
+  viewerTz,
+  subLabel = "",
+  subjectId,
   activeVorgabe,
   tagH,
   wocheH,
@@ -88,7 +98,16 @@ export default async function LaufendeSessionCard({
   const dl = toDateLocale(await getLocale());
 
   const sessionStartStr = formatDateTime(sessionStart, dl, tz);
-  const sperrzeitStr = sperrzeitEndetAt ? formatDateTime(sperrzeitEndetAt, dl, tz) : null;
+  // Zwei Zonen, sobald eine Keyholderin zusieht: die Frist ist ein absoluter Zeitpunkt, und
+  // unbeschriftet in Sub-Zeit gelesen plant sie in einer anderen Zone um den Versatz falsch. Der
+  // Fehler war bisher unsichtbar, weil die Box-Zeile darüber dasselbe Datum SCHON zweizonig zeigte
+  // — derselbe Augenblick, zwei verschiedene Uhrzeiten, eine davon unbeschriftet.
+  //
+  // Ohne `viewerTz` fällt `formatDateTimeDual` selbst auf den reinen Primärwert zurück; ein
+  // Ternär davor wäre ein Nulleffekt gewesen.
+  const sperrzeitStr = sperrzeitEndetAt
+    ? formatDateTimeDual(sperrzeitEndetAt, dl, viewerTz, tz, subLabel)
+    : null;
   const scheduledForStr = sperrzeitScheduledFor ? formatDateTime(sperrzeitScheduledFor, dl, tz) : null;
   const runningSinceStr = sperrzeitRunningSince ? formatDateTime(sperrzeitRunningSince, dl, tz) : null;
   /** Die Nebenangaben der Sperr-Zeile — Restzeit und erreichter Beginn stehen gleichrangig. */
@@ -123,25 +142,17 @@ export default async function LaufendeSessionCard({
         value={<SessionDurationBadge since={sessionStart.toISOString()} pausedMs={interruptionPausedMs} />}
         footnote={`${t("sessionSince")} ${sessionStartStr}`}
       >
-        {keyInBox != null && (
-          keyInBox ? (
-            <p className="relative mt-1.5 inline-flex items-center gap-1.5 text-neben text-foreground-faint">
-              <KeyRound size={12} className="shrink-0" />{t("keyInBoxYes")}
-            </p>
-          ) : (
-            // „Nicht in der Box" ist die Ausnahme und heisst: dieser Verschluss ist gerade NICHT
-            // hardware-gesichert. Das ist keine Fussnote — es bekommt die Aufmerksamkeitsfarbe.
-            <p className="relative mt-1.5 inline-flex items-center gap-1.5 text-neben font-semibold text-warn">
-              <KeyRound size={12} className="shrink-0" />{t("keyInBoxNo")}
-            </p>
-          )
-        )}
+        {/* Die Sperrzeit steht VOR der Hardware-Zeile und eine Stufe lauter (`text-fliess`).
+            Sie war die kleinste Schrift des Bildschirms, obwohl sie das Einzige ist, was die
+            Keyholderin selbst gesetzt hat — „Ist eine Sperrzeit gesetzt?" war die erste Frage, die
+            der Bildschirm nicht beantwortete (gemeldet 28.08.2026).
 
-        {/* Die Sperrzeit gehört zum Zustand, nicht in einen Fuss am anderen Ende der Karte: sie
-            sagt, wie lange dieser Zustand noch gilt. */}
+            „Gesperrt bis" und nicht mehr „Verschlossen bis": das Wort „verschlossen" gehört dem
+            TRÄGER. Es stand dreimal auf einem Bildschirm und meinte dreimal etwas anderes — den
+            Riegel der Box, den Träger im Gürtel und diese Anordnung hier. */}
         {showSperrzeit && (
-          <p className="relative mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-neben text-foreground-muted">
-            <LockClosedIcon size={12} className="shrink-0 text-lock" />
+          <p className="relative mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-fliess text-foreground-muted">
+            <LockClosedIcon size={13} className="shrink-0 text-sperrzeit" />
             <span className="font-semibold text-foreground">
               {scheduledForStr
                 ? <>{ta("scheduledForLabel")}: {scheduledForStr}</>
@@ -167,6 +178,20 @@ export default async function LaufendeSessionCard({
         {showSperrzeit && !scheduledForStr && lockBreakNote && (
           <p className="relative mt-1 text-neben text-foreground-faint">{lockBreakNote}</p>
         )}
+
+        {/* Wie FEST der Verschluss ist — zuletzt, weil es die leiseste der drei Auskünfte ist.
+            Schlüssel und Riegel in einer Zeile: sie waren zwei Blöcke, und der obere sagte
+            „Verschlossen" über den Riegel, während der Held zwei Zeilen tiefer dasselbe Wort über
+            den Träger sagte.
+
+            Der Negativfall bleibt HIER und wird server-gerendert: er liest die Box gar nicht, und
+            als Client-Insel pollte er alle fünf Sekunden für nichts — im Reise-Fall wochenlang. */}
+        {keyInBox === false && (
+          <p className="relative mt-1.5 inline-flex items-center gap-1.5 text-neben font-semibold text-warn">
+            <KeyRound size={12} className="shrink-0" aria-hidden />{t("keyInBoxNo")}
+          </p>
+        )}
+        {keyInBox === true && <BoxHardwareLine userId={subjectId} />}
       </StateHero>
 
       {/* Trainingsvorgaben als eigener, benannter Abschnitt — vorher hingen sie namenlos unter

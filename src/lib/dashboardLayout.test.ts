@@ -61,8 +61,8 @@ describe("resolveLayout", () => {
   });
 
   it("blendet aus, was ausgeblendet ist — und zählt es", () => {
-    const r = resolveLayout({ subDashboard: { hidden: ["boxStatus", "taskList"] } }, "subDashboard");
-    expect(r.visible.map((b) => b.id)).not.toContain("boxStatus");
+    const r = resolveLayout({ subDashboard: { hidden: ["categoriesPromo", "taskList"] } }, "subDashboard");
+    expect(r.visible.map((b) => b.id)).not.toContain("categoriesPromo");
     expect(r.hiddenCount).toBe(2);
     // `all` behält beide, damit der Bearbeiten-Modus sie zeigen kann.
     expect(r.all.length).toBe(DEFAULT_IDS.length);
@@ -115,8 +115,8 @@ describe("resolveLayout", () => {
 
 describe("checkLayoutPatch — die Schreibseite", () => {
   it("nimmt eine gültige Konfiguration an und normalisiert sie", () => {
-    const res = checkLayoutPatch({ subDashboard: { hidden: ["boxStatus", "boxStatus"], order: ["alerts"] } }, "sub");
-    expect(res).toEqual({ layout: { subDashboard: { hidden: ["boxStatus"], order: ["alerts"], collapsed: [] } } });
+    const res = checkLayoutPatch({ subDashboard: { hidden: ["categoriesPromo", "categoriesPromo"], order: ["alerts"] } }, "sub");
+    expect(res).toEqual({ layout: { subDashboard: { hidden: ["categoriesPromo"], order: ["alerts"], collapsed: [] } } });
   });
 
   it("lehnt eine unbekannte Block-Id ab, statt sie still zu schlucken", () => {

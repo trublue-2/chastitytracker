@@ -2,15 +2,13 @@
 
 import type { ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
-import { formatDateTimeDual, toDateLocale, APP_TZ } from "@/lib/utils";
-import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLabel, boxSollLocked, boxFreshnessLabel, boxBatteryLabel, boxBatteryIsLow, boxFailsafeWarnings, boxFailsafeLabel, boxCleaningWindowOpenLabel, type BoxReinigungView } from "@/lib/boxStatus";
+import { useTranslations } from "next-intl";
+import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLocked, boxBatteryLabel, boxBatteryIsLow, boxFailsafeWarnings, boxFailsafeLabel, boxCleaningWindowOpenLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import Card from "@/app/components/Card";
 import BlockHeading from "@/app/components/BlockHeading";
 import InfoDot from "@/app/components/InfoDot";
-import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 /** Die eine Warn-Zeile dieses Blocks — Konflikt, Failsafe und knapper Akku sehen gleich aus, weil
  *  sie dasselbe sagen: hier stimmt etwas nicht. Lokal, weil es (noch) keine zweite Datei gibt, die
@@ -63,18 +61,28 @@ function WarnZeile({ children }: { children: ReactNode }) {
  *  - Akku „voll"/„mittel" → ersatzlos. Ein Akkustand, der in Ordnung ist, ist keine Auskunft, die
  *    jemand sucht; niedrig und kritisch melden sich weiterhin.
  *
- *  `tz` ist IMMER die Zone des Subs. `viewerTz` (nur Keyholder-Sicht) blendet zusätzlich die eigene
- *  Zeit ein: das Sperr-Ende ist ein absoluter Zeitpunkt, und unbeschriftet in Sub-Zeit gelesen plant
- *  eine Keyholderin in einer anderen Zone die Freigabe um den Zonen-Versatz falsch. */
-export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz }: { tz?: string; reinigung?: BoxReinigungView | null; userId?: string; viewerTz?: string }) {
+ *  KEINE Zeitzonen mehr: das einzige Datum dieser Karte war das Sperr-Ende, und das nennt jetzt der
+ *  Zustands-Held — dort zweizonig, wo es hingehört. Hier stand es ein zweites Mal, in einer anderen
+ *  Zone formatiert als dort. */
+export default function BoxStatusCard({ reinigung, userId, wearerLocked = true }: {
+  reinigung?: BoxReinigungView | null;
+  userId?: string;
+  /**
+   * Trägt der Sub gerade? Die Karte sieht die Sitzung sonst nicht — und ohne sie liesse sich der
+   * eine Fall nicht von seinem Gegenteil unterscheiden: „Riegel zu, obwohl niemand verschlossen
+   * ist" ist eine Lage, „Riegel zu, während der Verschluss läuft" der Normalfall.
+   *
+   * Vorgabe `true` = „nimm den Normalfall an", damit ein Aufrufer ohne diese Kenntnis den Block
+   * nicht versehentlich dauerhaft aufmacht.
+   */
+  wearerLocked?: boolean;
+}) {
   const t = useTranslations("boxStatus");
   const tBlock = useTranslations("dashboard");
-  const dl = toDateLocale(useLocale());
   const { boxes, now } = useBoxStatus(userId);
 
   if (boxes.length === 0) return null;
 
-  const fmtDateTime = (iso: string) => formatDateTimeDual(iso, dl, viewerTz, tz, t("subTimePrefix"));
   const mehrere = boxes.length > 1;
 
   const fensterOffen = boxCleaningWindowOpenLabel(reinigung ?? null, t);
@@ -102,6 +110,30 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
   const hatWarnung = zustaende.some((z) => z.conflict || z.batterieKnapp || z.failsafes.some((w) => w.severity !== "info"));
   const hatUebergang = zustaende.some((z) => z.transition);
   const semantik = hatWarnung ? "warn" : hatUebergang ? "sperrzeit" : null;
+
+  // Die LEISE Vorwarnung (`severity: "info"` — die Hälfte des Funkstille-Fensters ist um) zählt für
+  // die Sichtbarkeit mit, auch wenn sie den Ton nicht färbt. Ohne das wäre der Block genau für die
+  // Warnung unabschaltbar geworden, die er im selben Zug verloren hätte: `hatWarnung` prüft
+  // ausdrücklich `!== "info"`, der Frühausstieg hätte sie also nie erreicht.
+  const hatLeiseWarnung = zustaende.some((z) => z.failsafes.length > 0);
+  // Die Box hält den Schlüssel, obwohl NIEMAND verschlossen ist. Nach einer Sperrbruch-Öffnung
+  // bleibt der Riegel zu (`boxCommandForEntry` schickt dann bewusst kein Kommando): der Träger
+  // steht auf „offen" und hätte sonst nirgends mehr die Auskunft, dass sein Schlüssel weiter
+  // festsitzt — die Hardware-Zeile im Helden gibt es nur bei laufendem Verschluss.
+  //
+  // `!wearerLocked` ist die entscheidende Hälfte. Ohne sie träfe die Bedingung auch den
+  // NORMALFALL: ein Verschluss ohne Sperrzeit hat kein Soll, und der Block stünde wieder dauerhaft
+  // da — samt „Riegel zu" ein zweites Mal neben der Hardware-Zeile.
+  const haeltOhneAnlass = !wearerLocked && zustaende.some((z) => z.istLocked);
+
+  // **Im Ruhefall rendert dieser Block gar nichts mehr.** Der Dauerzustand der Hardware ist ein
+  // Qualifikator des Verschlusses und steht als eine Zeile im Zustands-Helden
+  // (`BoxHardwareLine`); was hier bleibt, sind EREIGNISSE — Riegel steht falsch, Knopfdruck steht
+  // aus, Funkstille, knapper Akku. Damit löst sich der Rang-Konflikt von selbst, den der Docblock
+  // oben beschreibt: der Block ist keine Auskunft mehr, die lauter wäre als eine offene Frist.
+  //
+  // Das offene Reinigungsfenster zählt mit: es läuft ab, ist also auch ein Ereignis.
+  if (!semantik && !fensterOffen && !hatLeiseWarnung && !haeltOhneAnlass) return null;
 
   return (
     <DashboardBlock>
@@ -135,27 +167,27 @@ export default function BoxStatusCard({ tz = APP_TZ, reinigung, userId, viewerTz
         </div>
 
         {zustaende.map(({ b, istLocked, conflict, transition, failsafes, batterieKnapp, batteryLabel }) => {
-          const Icon = istLocked ? LockClosedIcon : LockOpenIcon;
           return (
             <div key={b.boxId} className="flex flex-col gap-0.5">
-              <p className={`${zeileCls} text-fliess text-foreground`}>
-                <Icon size={14} className={`shrink-0 ${conflict ? "text-warn" : "text-foreground-muted"}`} aria-hidden />
-                <span className="min-w-0">
-                  {mehrere && <span className="text-foreground-muted">{b.name} · </span>}
-                  {boxIstLabel(b, t)}
-                  {/* Das Soll-ENDE als Nachsatz statt als zweite Zeile: im Normalfall ist das Soll
-                      deckungsgleich mit dem Ist und sagte dasselbe ein zweites Mal. Was es
-                      ZUSÄTZLICH trägt, ist der Zeitpunkt. */}
-                  {!conflict && boxSollLocked(b) && b.lockUntil && (
-                    <span className="text-foreground-muted">{" — "}{fmtDateTime(b.lockUntil)}</span>
-                  )}
-                  {/* Die Funk-Frische als Nachsatz: die Box ist ein Funkgerät, ihre Stille muss
-                      ablesbar bleiben — nur eben ohne eigene Zeile. */}
-                  <span className="text-foreground-faint">{" · "}{boxFreshnessLabel(b.lastSyncAt, now, t)}</span>
-                </span>
-              </p>
-              {/* Im Konflikt bekommt das Soll seine Zeile zurück: dort IST es die Nachricht. */}
-              {conflict && <WarnZeile>{boxSollLabel(b, t, fmtDateTime)}</WarnZeile>}
+              {/* KEINE Ist-Zeile mehr. Sie sagte „Verschlossen" über den Riegel, während der
+                  Zustands-Held zwei Zeilen tiefer dasselbe Wort über den TRÄGER sagte — und sie
+                  hängte das Sperr-Ende an, das der Held ebenfalls nennt. Kein Zufall: `/api/box`
+                  überschreibt `lockUntil` mit dem `endetAt` der Sperrzeit, es war buchstäblich
+                  dasselbe Feld, in zwei verschiedenen Zeitzonen formatiert. Der Riegel steht jetzt
+                  als Nachsatz im Helden, das Sperr-Ende nur dort. */}
+              {/* Im Konflikt IST der Riegel die Nachricht. Das Sperr-Ende steht bewusst NICHT
+                  dabei: `/api/box` setzt `lockUntil` auf das `endetAt` der Sperrzeit, es wäre
+                  buchstäblich dasselbe Datum, das der Held eine Zeile tiefer lauter zeigt. */}
+              {conflict && (
+                <WarnZeile>{mehrere ? `${b.name} · ` : ""}{boxIstLabel(b, t)}</WarnZeile>
+              )}
+              {/* Riegel zu, obwohl niemand verschlossen ist — leise, es ist keine Störung, nur
+                  eine Auskunft, die sonst niemand gäbe. */}
+              {!wearerLocked && istLocked && (
+                <p className={`${zeileCls} text-neben text-foreground-muted`}>
+                  {mehrere ? `${b.name} · ` : ""}{boxIstLabel(b, t)}
+                </p>
+              )}
               {transition && (
                 <p className={`${zeileCls} text-neben font-medium text-sperrzeit-text`}>
                   {transition === "closing" ? t("pendingCloseAtDevice") : t("pendingOpenAtDevice")}

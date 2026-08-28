@@ -100,6 +100,20 @@
           "de": "Abschnitte lassen sich zuklappen — tippe auf die Überschrift. Unter „Dashboard anpassen“ legst du fest, welche beim Öffnen schon zugeklappt sein sollen.",
           "en": "Sections can be collapsed — tap the heading. Under “Customise dashboard” you decide which ones start collapsed."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Ein Wort pro Sache: „Verschlossen“ meint jetzt nur noch dich, die Box hat einen „Riegel“, und eine Sperrzeit heisst „Gesperrt bis“. Vorher stand dasselbe Wort für drei verschiedene Dinge.",
+          "en": "One word per thing: “Locked” now refers only to you, the box has a “bolt”, and a lock period reads “Held until”. The same word used to stand for three different things."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Box-Block meldet sich nur noch, wenn etwas nicht stimmt. Im Normalfall steht der Zustand als eine Zeile unter der Tragezeit, mit den Geräte-Angaben hinter dem ⓘ.",
+          "en": "The box block only speaks up when something is wrong. Normally its state sits as a single line under the wear time, with the device details behind the ⓘ."
+        }
       }
     ]
   },

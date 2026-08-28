@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { getIsLocked } from "@/lib/queries";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { block, type StackBlock } from "@/lib/blockStack";
@@ -256,11 +257,21 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       const [user, entries, activeSperrzeit] = await Promise.all([
         userRowCached(userId), entriesCached(userId), subSperrzeitCached(userId),
       ]);
-      return buildBoxReinigungView(user, entries, activeSperrzeit, now, tz);
+      // Der Zustand des TRÄGERS gehört dazu: nur mit ihm kann die Karte „Riegel zu, obwohl
+      // niemand verschlossen ist" von „Riegel zu, während der Verschluss läuft" unterscheiden.
+      // Das ist EINE zusätzliche indizierte Abfrage (`getLatestKgEntry`), nicht gratis — aber die
+      // Alternative wäre, den Zustand aus `entries` nachzurechnen und damit eine zweite Fassung
+      // derselben Regel zu führen.
+      return {
+        reinigung: buildBoxReinigungView(user, entries, activeSperrzeit, now, tz),
+        wearerLocked: await getIsLocked(userId),
+      };
     },
     // `null` heisst hier „ohne Reinigungs-Zeilen", nicht „ohne Karte" — die Karte selbst hängt an
     // Heimdall, und ohne den lief der Loader gar nicht erst.
-    render: (reinigung, { tz }) => heimdallEnabled() && <BoxStatusCard tz={tz} reinigung={reinigung} />,
+    render: (data) => heimdallEnabled() && data !== null && (
+      <BoxStatusCard reinigung={data.reinigung} wearerLocked={data.wearerLocked} />
+    ),
   }),
 
   openTasks: block({
