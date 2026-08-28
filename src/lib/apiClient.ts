@@ -1,4 +1,91 @@
+import { codedError, codeOf } from "@/lib/codedError";
+import { reportReachable, reportStalled } from "@/lib/connectionHealth";
+
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
+
+/**
+ * Zeitlimit einer gewöhnlichen Client-Anfrage.
+ *
+ * **Warum es das überhaupt braucht.** `fetch` hat von sich aus KEINES. Bei schlechter Abdeckung
+ * steht die Verbindung, es fliesst nur nichts — die Promise bleibt dann offen, bis das
+ * Betriebssystem irgendwann aufgibt, oft Minuten. Sie WIRFT nicht, und deshalb sprang die
+ * Offline-Warteschlange nicht an: die fängt einen Fehler, und einen Fehler gab es nie.
+ *
+ * Acht Sekunden sind grosszügig für eine JSON-Mutation auf eine Instanz mit SQLite und knapp genug,
+ * dass niemand sie für „hängt" hält. Server-seitig gilt dieselbe Disziplin längst
+ * (`nativePush` 8 s, `heimdallNotify` 3 s, `upstream-changelog` 10 s) — nur der Client hatte sie
+ * nirgends.
+ */
+export const CLIENT_TIMEOUT_MS = 8_000;
+
+/**
+ * Zeitlimit für Anfragen, die ein Bild tragen. Ein Foto vom Handy geht über denselben schlechten
+ * Kanal, braucht aber ein Vielfaches der Zeit — mit `CLIENT_TIMEOUT_MS` bräche jeder Upload über
+ * Mobilfunk ab, den es vorher gab.
+ */
+export const UPLOAD_TIMEOUT_MS = 60_000;
+
+/** Code des Fehlers, den {@link fetchWithTimeout} beim Ablauf wirft. Modul-privat: die Aufrufer
+ *  reihen bei JEDEM Fehlschlag ein und müssen den Grund gar nicht unterscheiden. */
+const FETCH_TIMEOUT = "FETCH_TIMEOUT";
+
+/** Ob dieser Fehler eine abgelaufene Anfrage ist (und nicht irgendein anderer Netzwerk-Defekt). */
+function isTimeout(e: unknown): boolean {
+  return codeOf(e) === FETCH_TIMEOUT;
+}
+
+/**
+ * `fetch` mit Zeitlimit — die einzige Form, in der der Client eine Anfrage stellen sollte.
+ *
+ * Läuft die Zeit ab, wird die Anfrage abgebrochen und ein `codedError(FETCH_TIMEOUT)` geworfen;
+ * `isTimeout(e)` erkennt ihn. Das ist der Unterschied, der die vorhandene Offline-Maschinerie
+ * überhaupt greifen lässt: aus „hängt für immer" wird ein Fehler, den ein `catch` sieht.
+ *
+ * Ein `signal` des Aufrufers bleibt wirksam — es wird an denselben Abbruch gehängt, statt
+ * überschrieben zu werden. `PruefungFormCore` bricht seine Vision-Abfrage so ab, wenn der Nutzer
+ * das Bild wechselt. Diese Weiterreichung ist nicht optional: ohne sie überschriebe das `...init`
+ * das Signal des Aufrufers, und sein Abbruch ginge STILL verloren — der schlimmste Ausgang, weil
+ * der Aufrufer weiter glaubt, abgebrochen zu haben.
+ *
+ * **Grenze, die man kennen muss:** das Zeitlimit deckt bis zu den Antwort-Kopfzeilen. Bleibt die
+ * Leitung erst beim Lesen des Rumpfes stehen (`res.json()` beim Aufrufer), greift es nicht mehr.
+ * Für die kleinen JSON-Antworten hier kommt der Rumpf praktisch mit den Kopfzeilen; bei einer
+ * grossen Antwort wäre eine `fetchJsonWithTimeout` nötig, die den Rumpf noch innerhalb der Frist
+ * liest.
+ *
+ * Nebenwirkung mit Absicht: jede Antwort und jeder Ablauf melden sich bei `connectionHealth`. Das
+ * ist die einzige Stelle, an der die App zuverlässig erfährt, ob die Leitung trägt — an den
+ * Aufrufern verteilt, wäre die Meldung irgendwo vergessen worden.
+ */
+export async function fetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  ms: number = CLIENT_TIMEOUT_MS,
+): Promise<Response> {
+  const ctrl = new AbortController();
+  const caller = init.signal;
+  if (caller?.aborted) throw caller.reason;
+
+  const forward = () => ctrl.abort(caller!.reason);
+  caller?.addEventListener("abort", forward);
+  const timer = setTimeout(() => ctrl.abort(codedError(FETCH_TIMEOUT)), ms);
+
+  try {
+    const res = await fetch(url, { ...init, signal: ctrl.signal });
+    // Auch ein 500er zählt als erreichbar: die Frage ist, ob Pakete fliessen.
+    reportReachable();
+    return res;
+  } catch (e) {
+    // NUR das Zeitlimit färbt die Verbindung. Ein Abbruch durch den Aufrufer sagt nichts über sie
+    // aus, und ein `TypeError` bei ausgeschaltetem Netz ist der Fall, den `navigator.onLine`
+    // bereits korrekt meldet.
+    if (isTimeout(e)) reportStalled();
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    caller?.removeEventListener("abort", forward);
+  }
+}
 
 /**
  * Liest das `error`-Feld aus einer fehlgeschlagenen API-Antwort (nie werfend — ein nicht-JSON-Body
@@ -33,7 +120,7 @@ export function entryRequest(entryId: string | null | undefined, payload: unknow
 
 /** Legt einen Eintrag für einen fremden User an (Keyholder/Admin-Aktionen). */
 export function postAdminEntry(userId: string, payload: object): Promise<Response> {
-  return fetch("/api/admin/entries", {
+  return fetchWithTimeout("/api/admin/entries", {
     method: "POST",
     headers: JSON_HEADERS,
     body: JSON.stringify({ userId, ...payload }),

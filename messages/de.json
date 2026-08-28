@@ -352,7 +352,8 @@
     "from": "von",
     "imageUnavailable": "Bild nicht verfügbar",
     "actions": "Aktionen",
-    "requiredField": "Pflichtfeld"
+    "requiredField": "Pflichtfeld",
+    "retry": "Erneut versuchen"
   },
   "adminNav": {
     "overview": "Übersicht",
@@ -1479,7 +1480,8 @@
     "syncFailed": "Synchronisierung fehlgeschlagen",
     "photoRequiresConnection": "Foto-Upload benötigt eine Internetverbindung.",
     "pendingEntries": "{count, plural, =1 {1 Eintrag wartet auf Synchronisierung} other {# Einträge warten auf Synchronisierung}}",
-    "savedOffline": "Offline gespeichert — wird bei Verbindung synchronisiert"
+    "savedOffline": "Offline gespeichert — wird bei Verbindung synchronisiert",
+    "poorConnection": "Verbindung stockt"
   },
   "passkey": {
     "title": "Passkeys",

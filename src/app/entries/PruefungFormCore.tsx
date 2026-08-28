@@ -25,6 +25,7 @@ import InspectionCodePushButton from "@/app/components/InspectionCodePushButton"
 import type { PruefungPayload, SubmitResult } from "./types";
 import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
 import { INSPECTION_CODE_LENGTH, isValidInspectionCode } from "@/lib/constants";
+import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/apiClient";
 
 /** Ruhezeit (ms) nach Tippen/Rotieren, bevor ein Live-Code-Check gefeuert wird (entprellt Abbruch-Stürme). */
 const LIVE_CHECK_DEBOUNCE_MS = 600;
@@ -171,12 +172,18 @@ export default function PruefungFormCore({
       setVerifyStatus("pending");
       setVerifyReason(null);
       setAiMatch(null);
-      fetch("/api/verify-kontrolle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl, expectedCode: kontrollCode, rotation }),
-        signal: controller.signal,
-      })
+      // Bild-Frist: dahinter steckt eine Vision-Abfrage. Der eigene Controller bleibt wirksam —
+      // `fetchWithTimeout` hängt sein Zeitlimit DANEBEN, statt das Signal zu überschreiben.
+      fetchWithTimeout(
+        "/api/verify-kontrolle",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl, expectedCode: kontrollCode, rotation }),
+          signal: controller.signal,
+        },
+        UPLOAD_TIMEOUT_MS,
+      )
         .then((r) => r.json())
         .then((v) => {
           if (v.error === "policy") setVerifyStatus("policy");

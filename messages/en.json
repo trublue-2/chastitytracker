@@ -352,7 +352,8 @@
     "from": "from",
     "imageUnavailable": "Image unavailable",
     "actions": "Actions",
-    "requiredField": "required"
+    "requiredField": "required",
+    "retry": "Try again"
   },
   "adminNav": {
     "overview": "Overview",
@@ -1479,7 +1480,8 @@
     "syncFailed": "Sync failed",
     "photoRequiresConnection": "Photo upload requires an internet connection.",
     "pendingEntries": "{count, plural, =1 {1 entry waiting to sync} other {# entries waiting to sync}}",
-    "savedOffline": "Saved offline — will sync when connected"
+    "savedOffline": "Saved offline — will sync when connected",
+    "poorConnection": "Poor connection"
   },
   "passkey": {
     "title": "Passkeys",

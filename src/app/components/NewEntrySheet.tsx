@@ -1,14 +1,17 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ClipboardCheck, Droplets, KeyRound, Scale, type LucideIcon } from "lucide-react";
+import { useCallback, useEffect, type ReactNode } from "react";
+import { ClipboardCheck, Droplets, Eye, KeyRound, Scale, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
+import useGuardedNavigation from "@/app/hooks/useGuardedNavigation";
+import { busyDimCls } from "@/app/components/inputStyles";
+import Spinner from "@/app/components/Spinner";
+import PoorConnectionNote from "@/app/components/PoorConnectionNote";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import { entryFormBase, inspectionHref } from "@/lib/entryFormRoute";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
-import { Eye } from "lucide-react";
 
 export interface NewEntryCategoryRow {
   id: string;
@@ -47,31 +50,80 @@ interface Props {
   openInspection?: { code: string | null; href: string } | null;
 }
 
-/** Eine anwählbare Zeile des Sheets. Zeilen-Layout und Hover-Verhalten stehen NUR hier — die
- *  `options`-Liste und die Bildersafe-Zeilen teilen sie sich, damit eine Abstands- oder
- *  Fokus-Änderung nicht drei Kopien treffen muss. */
+/** Das Zeilen-Mass — steht hier EINMAL, weil es die anwählbare und die gesperrte Zeile teilen. */
+const ROW_CLS = "flex items-center gap-4 px-4 py-3.5 rounded-xl";
+
+/**
+ * Eine Zeile des Blatts. Layout, Hover und Laufzustand stehen NUR hier — die `options`-Liste, die
+ * Kategorie-Zeilen, die Bildersafe-Zeilen UND die gesperrte Darstellung teilen sie sich.
+ *
+ * Die Farbe kommt als `tone` und wird von Zeichen und Ladezeichen gemeinsam benutzt. Vorher trug
+ * der Aufrufer sie zweimal (im fertigen Knoten und in `spinnerCls`), und eine der fünf Stellen
+ * hatte die zweite schon vergessen — dort wäre beim Warten die Bedeutung der Zeile umgesprungen.
+ * `leading` gibt es nur noch für die Kategorien, die statt eines Strichzeichens ein eingefärbtes
+ * Kästchen tragen.
+ *
+ * Die Zeile kennt ihr eigenes Ziel (`href`) und das gerade laufende (`navTarget`) — daraus leitet
+ * sie ab, ob SIE unterwegs ist oder auf eine andere wartet. Als zwei Wahrheitswerte an fünf
+ * Aufrufstellen wäre genau das die Sorte Zustand, die an einer davon vergessen wird.
+ */
 function SheetActionRow({
   icon: Icon,
-  iconClass,
+  leading,
+  tone = "text-foreground-muted",
   label,
   desc,
+  href,
+  navTarget,
   onSelect,
+  disabled = false,
 }: {
-  icon: LucideIcon;
-  iconClass: string;
+  icon?: LucideIcon;
+  /** Nur für Zeichen, die kein Strich-Icon sind (Kategorie-Kachel). Schlägt `icon`. */
+  leading?: ReactNode;
+  /** Farbe von Zeichen UND Ladezeichen — die Zeile behält beim Warten ihre Bedeutung. */
+  tone?: string;
   label: string;
   desc: string;
-  onSelect: () => void;
+  href: string;
+  /** Das Ziel, dessen Seite gerade geholt wird — `null`, wenn nichts läuft. */
+  navTarget: string | null;
+  onSelect: (href: string) => void;
+  /** Die Aktion ist gerade nicht möglich (Verschluss bei geschlossenem KG und umgekehrt). */
+  disabled?: boolean;
 }) {
+  const loading = navTarget === href;
+  const zeichen = leading ?? (Icon ? <Icon size={22} className={`${tone} shrink-0`} /> : null);
+
+  // Gesperrt heisst: kein Ziel, keine Trefferfläche, kein Knopf. Das war einmal ein eigener Block
+  // 120 Zeilen weiter unten — mit demselben Zeilen-Mass, von Hand abgeschrieben.
+  if (disabled) {
+    return (
+      <div className={`${ROW_CLS} opacity-40 cursor-not-allowed`}>
+        {Icon && <Icon size={22} className="text-foreground-faint shrink-0" />}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          <p className="text-xs text-foreground-faint">{desc}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
-      onClick={onSelect}
-      className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
+      onClick={() => onSelect(href)}
+      // `aria-disabled` statt `disabled`: die getippte Zeile hält gerade den Fokus, und ein
+      // `disabled` schöbe ihn an den Dokumentanfang. Die Schranke sitzt im Handler des Aufrufers.
+      aria-disabled={navTarget !== null || undefined}
+      className={`${ROW_CLS} hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full ${navTarget !== null && !loading ? busyDimCls : ""}`}
     >
-      <Icon size={22} className={`${iconClass} shrink-0`} />
+      {loading ? <Spinner size="default" className={`${tone} shrink-0`} /> : zeichen}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground">{label}</p>
+        {/* Bewusst OHNE `truncate`: die Kategorie-Zeilen hatten es, die übrigen nicht. Umbrechen
+            verbirgt nie etwas, Abschneiden schon — und hinter einer dieser Zeilen steht der
+            Kontroll-Code. */}
         <p className="text-xs text-foreground-muted">{desc}</p>
       </div>
     </button>
@@ -81,7 +133,8 @@ function SheetActionRow({
 export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false, weight = false, adminUserId, openInspection }: Props) {
   const t = useTranslations("newEntry");
   const tw = useTranslations("wearForm");
-  const router = useRouter();
+  // Das Blatt schliesst erst, wenn die Seite wirklich gewechselt hat — nicht schon beim Tippen.
+  const nav = useGuardedNavigation(onClose);
   const base = entryFormBase(adminUserId);
 
   const options = [
@@ -133,42 +186,51 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
     },
   ];
 
-  function handleSelect(href: string) {
-    onClose();
-    router.push(href);
-  }
+  // Das Blatt bleibt gemountet, sein Zustand überlebt also das Schliessen. Ohne dieses Zurücksetzen
+  // fände der Nutzer beim nächsten Öffnen die alte Warnung vor und alle Zeilen gedämpft — mit dem
+  // „Erneut versuchen" eines Ziels, das er längst aufgegeben hat.
+  useEffect(() => {
+    if (!open) nav.reset();
+  }, [open, nav.reset]);
+
+  const handleSelect = useCallback((href: string) => {
+    // Solange eine Seite unterwegs ist, nimmt das Blatt keinen zweiten Auftrag an — sonst stünden
+    // zwei Ziele im Rennen und das gewinnende wäre Zufall.
+    if (nav.pending) return;
+    nav.go(href);
+  }, [nav.pending, nav.go]);
+
+  // Der Durchstich, den JEDE Zeile braucht. Einmal gebaut statt fünfmal getippt: die sechste Zeile
+  // hätte ihn sonst vergessen und lautlos weder Ladezeichen noch Dämpfung bekommen.
+  const rowNav = { navTarget: nav.target, onSelect: handleSelect };
 
   return (
-    <Sheet open={open} onClose={onClose} title={t("title")}>
+    // `busy` nur, SOLANGE es läuft: das Blatt soll sich nicht unter der laufenden Navigation
+    // wegklicken. Steht es fest, gibt es die Sperre wieder frei — sonst sässe der Nutzer in einem
+    // Blatt, das sich nicht mehr schliessen lässt, und das wäre schlimmer als der Fehler selbst.
+    <Sheet open={open} onClose={onClose} title={t("title")} busy={nav.pending}>
+      {/* Der Inhalt entsteht nur im offenen Zustand. `Sheet` wirft ihn geschlossen ohnehin weg —
+          aber zwei dieser Blätter hängen dauerhaft in jedem Dashboard-Layout (Seitenleiste und
+          Fussleiste), und beide bauten bei JEDEM Render die ganze Zeilenliste samt Übersetzungen
+          für niemanden. Nicht `return null` im Blatt selbst: dann verlöre `Sheet` seine
+          Fokus-Rückgabe beim Schliessen. */}
+      {open && (
       <div className="flex flex-col gap-2">
-        {options.map((opt) => {
-          const Icon = opt.icon;
-          if (opt.disabled) {
-            return (
-              <div
-                key={opt.type}
-                className="flex items-center gap-4 px-4 py-3.5 rounded-xl opacity-40 cursor-not-allowed"
-              >
-                <Icon size={22} className="text-foreground-faint shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{opt.label}</p>
-                  <p className="text-xs text-foreground-faint">{opt.disabledText ?? opt.desc}</p>
-                </div>
-              </div>
-            );
-          }
-
-          return (
-            <SheetActionRow
-              key={opt.type}
-              icon={Icon}
-              iconClass={opt.color}
-              label={opt.label}
-              desc={opt.desc}
-              onSelect={() => handleSelect(opt.href)}
-            />
-          );
-        })}
+        {/* Die Auskunft, die vorher fehlte. Sie ersetzt die Zeilen nicht, sie steht über ihnen —
+            der Nutzer soll sehen, WAS er getippt hat und dass es klemmt. */}
+        {nav.stalled && <PoorConnectionNote onRetry={nav.retry} />}
+        {options.map((opt) => (
+          <SheetActionRow
+            key={opt.type}
+            {...rowNav}
+            icon={opt.icon}
+            tone={opt.color}
+            label={opt.label}
+            desc={opt.disabled ? (opt.disabledText ?? opt.desc) : opt.desc}
+            href={opt.href}
+            disabled={opt.disabled}
+          />
+        ))}
 
         {/* Per-Category wear actions (begin or end based on state). */}
         {categoryRows.map((c) => {
@@ -179,24 +241,22 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
             : tw("titleBegin");
           const style = categoryStyle(c.color);
           return (
-            <button
+            <SheetActionRow
               key={c.id}
-              type="button"
-              onClick={() => handleSelect(href)}
-              className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-background-subtle active:bg-background-subtle transition-colors text-left w-full"
-            >
-              <span
-                className="size-7 rounded-md flex items-center justify-center shrink-0"
-                style={{ backgroundColor: style.backgroundColor, color: style.color }}
-                aria-hidden
-              >
-                <CategoryIconRender name={c.icon} className="size-4" />
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{c.name}</p>
-                <p className="text-xs text-foreground-muted truncate">{desc}</p>
-              </div>
-            </button>
+              {...rowNav}
+              leading={
+                <span
+                  className="size-7 rounded-md flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: style.backgroundColor, color: style.color }}
+                  aria-hidden
+                >
+                  <CategoryIconRender name={c.icon} className="size-4" />
+                </span>
+              }
+              label={c.name}
+              desc={desc}
+              href={href}
+            />
           );
         })}
 
@@ -210,11 +270,12 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
                 damit auch das Neu-Versiegeln nach einer Reinigungsöffnung ab. */}
             {isLocked && (
               <SheetActionRow
+                {...rowNav}
                 icon={KeyRound}
-                iconClass="text-lock"
+                tone="text-lock"
                 label={t("bildersafeAction")}
                 desc={t("bildersafeActionDesc")}
-                onSelect={() => handleSelect(`${base}/bildersafe`)}
+                href={`${base}/bildersafe`}
               />
             )}
             {/* Anzeigen bewusst OHNE `isLocked` — sonst ist der eigene Code nach dem Erfassen des
@@ -225,11 +286,11 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
                 Schloss nichtssagend war, fiel es nicht auf; seit es deutlich ist, behauptet es
                 „aufgeschlossen". */}
             <SheetActionRow
+              {...rowNav}
               icon={Eye}
-              iconClass="text-foreground-muted"
               label={t("bildersafeShowAction")}
               desc={t("bildersafeShowActionDesc")}
-              onSelect={() => handleSelect(`${base}/bildersafe/anzeigen`)}
+              href={`${base}/bildersafe/anzeigen`}
             />
           </>
         )}
@@ -239,11 +300,12 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
             Ohne Freischaltung erscheint die Zeile gar nicht; die Seite dahinter prüft es erneut. */}
         {weight && (
           <SheetActionRow
+            {...rowNav}
             icon={Scale}
-            iconClass="text-foreground-faint"
+            tone="text-foreground-faint"
             label={t("weight")}
             desc={t("weightSubtitle")}
-            onSelect={() => handleSelect(`${base}/gewicht`)}
+            href={`${base}/gewicht`}
           />
         )}
 
@@ -251,6 +313,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
             Box-Status + Sonderzustände wohnen auf der BoxStatusCard (Dashboard); das
             Notfall-Öffnen/Verschliessen bleibt in Heimdall. */}
       </div>
+      )}
     </Sheet>
   );
 }

@@ -114,6 +114,20 @@
           "de": "Der Box-Block meldet sich nur noch, wenn etwas nicht stimmt. Im Normalfall steht der Zustand als eine Zeile unter der Tragezeit, mit den Geräte-Angaben hinter dem ⓘ.",
           "en": "The box block only speaks up when something is wrong. Normally its state sits as a single line under the wear time, with the device details behind the ⓘ."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bei schlechtem Empfang tat ein Tipp auf „Neu erfassen“ nichts — kein Hinweis, keine Seite. Jetzt zeigt die getippte Zeile, dass sie lädt, und meldet nach wenigen Sekunden „Verbindung stockt“ mit einem Knopf zum erneuten Versuchen.",
+          "en": "On a weak connection, tapping an entry type did nothing — no feedback, no page. The tapped row now shows that it is loading and, after a few seconds, reports a poor connection with a retry button."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Speichern wartet nicht mehr endlos auf eine Leitung, die steht, aber nichts durchlässt: Nach kurzer Zeit landet der Eintrag in der Warteschlange und geht später von selbst raus. Das galt bisher nur bei ganz abgeschaltetem Netz.",
+          "en": "Saving no longer waits forever on a connection that is up but not carrying anything: after a short while the entry goes into the queue and syncs later on its own. Until now that only worked with the network fully off."
+        }
       }
     ]
   },

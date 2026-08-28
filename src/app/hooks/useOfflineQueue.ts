@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { addToQueue, getQueue, clearQueueItem, getQueueCount } from "@/lib/idb";
+import { fetchWithTimeout } from "@/lib/apiClient";
+import { registerBackgroundSync } from "@/lib/swMessages";
 import useToast from "@/app/hooks/useToast";
 import { useTranslations } from "next-intl";
 
@@ -29,14 +31,19 @@ export default function useOfflineQueue() {
 
   // ── Drain queue (FIFO) ──
   const drainQueue = useCallback(async () => {
+    // Der Wächter wird SYNCHRON gesetzt, unmittelbar nach der Prüfung. Stünde zwischen beiden ein
+    // `await` (etwa das Nachsehen in der Warteschlange), kämen zwei dicht aufeinanderfolgende
+    // `online`-Ereignisse beide durch — und schickten dieselben Einträge zweimal an den Server.
     if (syncingRef.current) return;
     syncingRef.current = true;
-    setIsSyncing(true);
 
     try {
+      // Nachsehen vor dem Anzeige-Zustand: jedes `online`-Ereignis ruft das hier — im Zug beliebig
+      // oft —, und bei leerer Warteschlange kostete es zwei Renders für nichts.
       const queue = await getQueue();
       if (queue.length === 0) return;
 
+      setIsSyncing(true);
       toast.info(t("syncing"));
 
       let synced = 0;
@@ -44,7 +51,10 @@ export default function useOfflineQueue() {
 
       for (const item of queue) {
         try {
-          const res = await fetch(item.url, {
+          // Mit Zeitlimit, sonst wedgt eine einzige hängende Anfrage die ganze Warteschlange: das
+          // `await` käme nie zurück, `finally` liefe nie, `syncingRef` bliebe für die Lebensdauer
+          // der Seite auf `true` — und jeder weitere Versuch stiege oben sofort wieder aus.
+          const res = await fetchWithTimeout(item.url, {
             method: item.method,
             headers: { "Content-Type": "application/json" },
             body: item.body,
@@ -66,8 +76,10 @@ export default function useOfflineQueue() {
         }
       }
 
-      const remaining = await getQueueCount();
-      setPendingCount(remaining);
+      // Frisch aus der Datenbank, NICHT `queue.length - synced`: während des Abarbeitens kann der
+      // Nutzer weiter erfassen. Die Rechnung übersähe das Neue und könnte auf 0 fallen, während
+      // noch etwas wartet — der Hinweis verschwände über wartenden Einträgen.
+      setPendingCount(await getQueueCount());
 
       if (synced > 0) {
         toast.success(t("synced"));
@@ -106,13 +118,15 @@ export default function useOfflineQueue() {
   // ── Offline-aware fetch ──
   const offlineFetch = useCallback(
     async (url: string, init: RequestInit): Promise<Response | null> => {
-      // Online: try normal fetch
+      // `onLine === false` heisst zuverlässig „kein Netz" — dann gar nicht erst acht Sekunden
+      // warten. Unzuverlässig ist nur das `true`: bei einem Balken Empfang steht es, während nichts
+      // durchkommt. Deshalb entscheidet es hier nur noch über die Abkürzung, nicht mehr darüber, ob
+      // eingereiht wird — genau diese Verwechslung liess die Warteschlange unterwegs schlafen.
       if (navigator.onLine) {
         try {
-          const res = await fetch(url, init);
-          return res;
+          return await fetchWithTimeout(url, init);
         } catch {
-          // Network error despite onLine — fall through to queue
+          // Zeitlimit abgelaufen oder Netzwerkfehler trotz `onLine` — einreihen statt verlieren.
         }
       }
 
@@ -130,14 +144,9 @@ export default function useOfflineQueue() {
       const count = await getQueueCount();
       setPendingCount(count);
 
-      // Register Background Sync if available (Android Chrome)
-      // Falls back to online-event drain on unsupported browsers
-      if ("serviceWorker" in navigator && "SyncManager" in window) {
-        try {
-          const reg = await navigator.serviceWorker.ready;
-          await (reg as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register("offline-queue");
-        } catch { /* ignore — falls back to online event */ }
-      }
+      // Anmelden und weitergehen — die Erfolgsmeldung darf nicht daran hängen. Warum das eine harte
+      // Regel ist und nicht nur eine Vorliebe, steht bei `registerBackgroundSync`.
+      registerBackgroundSync("offline-queue");
 
       toast.info(t("savedOffline"));
 

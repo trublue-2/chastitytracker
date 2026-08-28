@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import { activateWaitingSw } from "@/lib/swMessages";
 import Button from "@/app/components/Button";
+import { fetchWithTimeout } from "@/lib/apiClient";
 
 const POLL_INTERVAL_MS = 30_000;
 /** Takt, solange der Server eine laufende Erkennung meldet (`settling`). Die KI-Urteile fallen in
@@ -71,7 +72,11 @@ export default function Heartbeat({ buildDate, initialUserId }: { buildDate: str
       if (reloadingRef.current || inFlightRef.current) return;
       inFlightRef.current = true;
       try {
-        const res = await fetch("/api/heartbeat", { cache: "no-store" });
+        // Über `fetchWithTimeout`, und das ist mehr als Hygiene: dieser Poller läuft ohnehin
+        // regelmässig und ist damit die einzige Quelle, die „die Leitung trägt wieder" MELDEN kann,
+        // ohne dass der Nutzer etwas tut. Ohne ihn bliebe die Warnzeile stehen, bis jemand zufällig
+        // speichert — eine Warnung, die nicht von selbst verschwindet, wird nach zweimal ignoriert.
+        const res = await fetchWithTimeout("/api/heartbeat", { cache: "no-store" });
         if (!res.ok) return;
         const data = (await res.json()) as { buildDate?: string; sessionUserId?: string | null; pendingSig?: string; settling?: boolean };
         settlingRef.current = !!data.settling;

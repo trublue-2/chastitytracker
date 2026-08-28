@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import { compressImage } from "@/lib/compressImage";
 import type { Rotation } from "@/lib/constants";
+import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/apiClient";
 
 export type SealState = "idle" | "detecting" | "detected" | "not-detected";
 /** Zustand der Waagen-Erkennung — dieselben vier Schritte wie bei der Siegel-Erkennung. */
@@ -75,11 +76,18 @@ export function usePhotoUpload({
     setDeviceDetectionState("detecting");
     setDeviceSuggestion(null);
     try {
-      const res = await fetch("/api/detect-device", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: url }),
-      });
+      const res = await fetchWithTimeout(
+        "/api/detect-device",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: url }),
+        },
+        // Bild-Frist, nicht die gewöhnliche: dahinter steckt eine Vision-Abfrage, die auf der
+        // selbstgehosteten Box gut und gern eine halbe Minute braucht. Mit `CLIENT_TIMEOUT_MS`
+        // hätte diese Korrektur die Erkennung abgewürgt, die vorher funktionierte.
+        UPLOAD_TIMEOUT_MS,
+      );
       if (res.ok) {
         const { deviceId, deviceName } = await res.json() as { deviceId: string | null; deviceName: string | null };
         if (deviceId && deviceName) {
@@ -99,11 +107,15 @@ export function usePhotoUpload({
   const runScaleDetection = useCallback(async (url: string, rot: Rotation) => {
     setScaleState("detecting");
     try {
-      const res = await fetch("/api/detect-weight", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: url, rotation: rot, unit: scaleUnitSystem }),
-      });
+      const res = await fetchWithTimeout(
+        "/api/detect-weight",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: url, rotation: rot, unit: scaleUnitSystem }),
+        },
+        UPLOAD_TIMEOUT_MS,
+      );
       if (!res.ok) { setScaleState("not-detected"); return; }
       const { detectedKg } = await res.json() as { detectedKg: number | null };
       setScaleKg(detectedKg);
@@ -116,11 +128,15 @@ export function usePhotoUpload({
   const runSealDetection = useCallback(async (url: string, rot: Rotation) => {
     setSealState("detecting");
     try {
-      const detectRes = await fetch("/api/detect-seal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: url, rotation: rot }),
-      });
+      const detectRes = await fetchWithTimeout(
+        "/api/detect-seal",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: url, rotation: rot }),
+        },
+        UPLOAD_TIMEOUT_MS,
+      );
       if (detectRes.ok) {
         const { detected } = await detectRes.json() as { detected: string | null };
         if (detected) {
@@ -170,7 +186,7 @@ export function usePhotoUpload({
       const fd = new FormData();
       fd.append("file", compressed);
       if (clientExifTime) fd.append("clientExifTime", clientExifTime);
-      res = await fetch("/api/upload", { method: "POST", body: fd });
+      res = await fetchWithTimeout("/api/upload", { method: "POST", body: fd }, UPLOAD_TIMEOUT_MS);
     } catch {
       abortUpload();
       return;

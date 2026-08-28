@@ -87,3 +87,24 @@ async function applyBadge(unread: number): Promise<void> {
   if (unread > 0) await nav.setAppBadge?.(unread);
   else await nav.clearAppBadge?.();
 }
+
+/**
+ * Background Sync anmelden — die Warteschlange soll auch dann leerlaufen, wenn die App längst
+ * geschlossen ist. Gibt es nur in Android-Chrome; überall sonst zieht der `online`-Ereignis-Pfad.
+ *
+ * Steht HIER, weil jeder Zugriff auf `navigator.serviceWorker` hierher gehört: die Härtung gegen
+ * die Umgebungen ohne Service Worker (iOS-WKWebView der Capacitor-App, Privatfenster) ist sonst an
+ * jeder Aufrufstelle einzeln nachzubauen, und genau das war passiert.
+ *
+ * **Nie `await`en.** `navigator.serviceWorker.ready` löst NIE auf, solange kein Worker die Seite
+ * kontrolliert — kein Fehler, kein Abbruch, einfach ein Promise, das offenbleibt. Ein `try/catch`
+ * fängt das nicht. Der Aufrufer hatte deshalb einmal seine Erfolgsmeldung verloren, obwohl der
+ * Eintrag längst sicher in der Warteschlange lag (28.08.2026). Die Anmeldung ist eine Verbesserung,
+ * keine Bedingung — sie darf nichts aufhalten.
+ */
+export function registerBackgroundSync(tag: string): void {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator) || !("SyncManager" in window)) return;
+  navigator.serviceWorker.ready
+    .then((reg) => (reg as ServiceWorkerRegistration & { sync: { register: (t: string) => Promise<void> } }).sync.register(tag))
+    .catch(() => { /* ignorieren — der `online`-Pfad bleibt */ });
+}
