@@ -564,7 +564,9 @@
     "lockNow": "Lock up now",
     "editLayoutReset": "Reset to default",
     "editLayoutLocked": "Carries a deadline — stays visible",
-    "editLayoutMoved": "{name} is now at position {position} of {total}."
+    "editLayoutMoved": "{name} is now at position {position} of {total}.",
+    "editLayoutStartOpen": "Show “{name}” expanded on open",
+    "editLayoutStartClosed": "Show “{name}” collapsed on open"
   },
   "newEntry": {
     "title": "New entry",

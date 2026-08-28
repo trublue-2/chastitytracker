@@ -93,6 +93,13 @@
           "de": "Der Box-Block ist auf eine Zeile geschrumpft. Seriennummer und Firmware stehen hinter einem ⓘ, Reinigungsfenster und Akkustand melden sich nur noch, wenn sie etwas zu sagen haben.",
           "en": "The box block has shrunk to one line. Serial number and firmware sit behind an ⓘ; cleaning windows and battery level only speak up when they have something to say."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Abschnitte lassen sich zuklappen — tippe auf die Überschrift. Unter „Dashboard anpassen“ legst du fest, welche beim Öffnen schon zugeklappt sein sollen.",
+          "en": "Sections can be collapsed — tap the heading. Under “Customise dashboard” you decide which ones start collapsed."
+        }
       }
     ]
   },

@@ -265,7 +265,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
   openTasks: block({
     load: async (ctx) => (await taskCardsOf(ctx)).open,
-    render: (tasks, { tz }) => <OpenTasks tasks={tasks} tz={tz} />,
+    render: (tasks, { tz, collapseDefault }) => <OpenTasks tasks={tasks} tz={tz} defaultCollapsed={collapseDefault} />,
   }),
 
   // UNTER den Aufgaben: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand.
@@ -283,9 +283,9 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         evaluated.filter((e) => belongsOnDashboard(e, new Date(nowMs))).map((e) => e.task.id),
       );
     },
-    render: (dashboardTaskIds, { userId, tz, now }) => (
+    render: (dashboardTaskIds, { userId, tz, now, collapseDefault }) => (
       <Suspense fallback={null}>
-        <OpenPenalties userId={userId} tz={tz} now={now} dashboardTaskIds={dashboardTaskIds} />
+        <OpenPenalties userId={userId} tz={tz} now={now} dashboardTaskIds={dashboardTaskIds} defaultCollapsed={collapseDefault} />
       </Suspense>
     ),
   }),
@@ -313,7 +313,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         locale: dl,
       };
     },
-    render: (props) => props && <WeightReleaseCard {...props} />,
+    render: (props, { collapseDefault }) => props && <WeightReleaseCard {...props} defaultCollapsed={collapseDefault} />,
   }),
 
   /**
@@ -481,10 +481,11 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           : null;
       return { wearSessions, entries, kgGoal };
     },
-    render: ({ wearSessions, entries, kgGoal }, { userId, tz }) => (
+    render: ({ wearSessions, entries, kgGoal }, { userId, tz, collapseDefault }) => (
       <CategoryGoalsToday
         userId={userId}
         tz={tz}
+        defaultCollapsed={collapseDefault}
         activeWearSessions={wearSessions}
         entries={entries}
         includeCategories={deviceCategoriesEnabled()}
@@ -539,9 +540,10 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
   sessionList: block({
     load: ({ userId, nowMs }) => sessionListDataCached(userId, nowMs, "sub"),
-    render: (data, { tz }) => data.pairs.length > 0 ? (
+    render: (data, { tz, collapseDefault }) => data.pairs.length > 0 ? (
       <DashboardBlock>
         <SessionList
+          defaultCollapsed={collapseDefault}
           pairs={data.pairs}
           orgasmusEntries={data.orgasmusEntries}
           userHasDevices={data.deviceCount > 0}
@@ -556,9 +558,9 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
   wearSessionList: block({
     load: ({ userId, nowMs, dl }) => wearSessionRowsCached(userId, nowMs, dl),
-    render: (rows) => rows.length > 0 ? (
+    render: (rows, { collapseDefault }) => rows.length > 0 ? (
       <DashboardBlock>
-        <WearSessionList sessions={rows} />
+        <WearSessionList sessions={rows} defaultCollapsed={collapseDefault} />
       </DashboardBlock>
     ) : null,
   }),
@@ -567,9 +569,9 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   // gerade zu tun ist.
   taskList: block({
     load: async (ctx) => (await taskCardsOf(ctx)).all,
-    render: (tasks, { tz }) => tasks.length > 0 ? (
+    render: (tasks, { tz, collapseDefault }) => tasks.length > 0 ? (
       <DashboardBlock>
-        <TaskList tasks={tasks} tz={tz} />
+        <TaskList tasks={tasks} tz={tz} defaultCollapsed={collapseDefault} />
       </DashboardBlock>
     ) : null,
   }),

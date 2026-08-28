@@ -27,6 +27,7 @@ import { taskDeadlineLine, type TaskCardData } from "@/lib/taskView";
  * bewusst OHNE Formular-Links: gehandelt wird oben am Aufgaben-Block, hier wird nachgesehen.
  */
 export default function TaskList({
+  defaultCollapsed,
   tasks,
   tz,
   viewerTz,
@@ -35,6 +36,8 @@ export default function TaskList({
   tasks: TaskCardData[];
   /** Zeitzone des Subs — es sind seine Fristen. */
   tz: string;
+  /** Startet der Abschnitt zugeklappt? Vorgabe aus „Dashboard anpassen" — siehe `Section`. */
+  defaultCollapsed?: boolean;
   /** Zeitzone des Betrachters, wo das eine andere ist (Keyholder-Sicht). Fehlt sie, steht überall
    *  die Sub-Zeit — auf dem Sub-Dashboard genau richtig, auf einer Keyholder-Seite ein stiller
    *  Wechsel der Uhr mitten in der Spalte. */
@@ -66,7 +69,7 @@ export default function TaskList({
        auf dem Träger-Dashboard stand — Fläche, Rahmen, Radius und eine eigene Kopfzeile mit
        Trennlinie darunter. Neben lauter rahmenlosen Blöcken sah damit ausgerechnet der
        Aufgaben-Block aus wie ein Fremdkörper. */
-    <Section id={TASK_LIST_ANCHOR} className="scroll-mt-20" title={t("listTitle")}>
+    <Section id={TASK_LIST_ANCHOR} className="scroll-mt-20" title={t("listTitle")} defaultCollapsed={defaultCollapsed}>
       <div className="divide-y divide-border-subtle">
         {visible.map((task) => {
           const deadline = deadlineOf(task);

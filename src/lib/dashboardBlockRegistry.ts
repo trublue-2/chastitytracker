@@ -49,6 +49,27 @@ export interface DashboardBlockDef {
    * beliebig verschieben — er muss stehen, nicht oben stehen.
    */
   readonly alwaysOn?: true;
+  /**
+   * Gesetzt, wenn der Block sich ZUKLAPPEN lässt — seine Rubrik wird dann zum Schalter.
+   *
+   * **Nie zusammen mit `alwaysOn`**, und die Begründung dort gilt wörtlich weiter: ein Block,
+   * dessen Abwesenheit Konsequenzen hat, darf nicht stumm verschwinden können — und zugeklappt ist
+   * er verschwunden. Wer eine überfällige Kontrolle wegklappt, sieht sie so wenig wie einer, der
+   * sie ausgeblendet hat. Erzwungen wird das von `dashboardBlockRegistry.test.ts`, nicht vom
+   * Kommentar: die beiden standen als unabhängige Felder nebeneinander, und prompt war ein Block
+   * zuklappbar, für den die Anpassen-Ansicht keinen Schalter anbot.
+   *
+   * **Wer es heute NICHT trägt, und warum das keine Produktregel ist.** Acht Blöcke sind nicht
+   * zuklappbar. Zwei davon aus gutem Grund (`alwaysOn`). Die übrigen sechs — Box, getragene
+   * Kategorien, die drei Kategorie-Hinweise, Zustand und Statistik — nur deshalb, weil sie aus
+   * `Card`, `StateHero` oder eigenem Markup gebaut sind und damit keine Rubrik haben, an der man
+   * ziehen könnte. Das ist eine Umsetzungsgrenze im Kostüm einer Regel: inhaltlich spricht gegen
+   * das Zuklappen der Box gar nichts, sie ist reine Auskunft. OFFEN: entweder bekommen sie einen
+   * Griff, dann ist „zuklappbar" schlicht das Gegenstück zu `alwaysOn` — oder die Grenze wird
+   * bewusst gezogen und begründet. Solange beides aussteht, ist die Liste unten eine Aufzählung
+   * und keine Aussage.
+   */
+  readonly collapsible?: true;
 }
 
 /**
@@ -62,9 +83,9 @@ export const SUB_DASHBOARD_BLOCKS = [
   // Begründung an `DashboardBlockDef.alwaysOn`.
   { id: "alerts", surface: "subDashboard", role: "sub", labelKey: "blockAlerts", alwaysOn: true },
   { id: "boxStatus", surface: "subDashboard", role: "sub", labelKey: "blockBoxStatus" },
-  { id: "openTasks", surface: "subDashboard", role: "sub", labelKey: "blockOpenTasks" },
-  { id: "openPenalties", surface: "subDashboard", role: "sub", labelKey: "blockOpenPenalties" },
-  { id: "weightRelease", surface: "subDashboard", role: "sub", labelKey: "blockWeightRelease" },
+  { id: "openTasks", surface: "subDashboard", role: "sub", labelKey: "blockOpenTasks", collapsible: true },
+  { id: "openPenalties", surface: "subDashboard", role: "sub", labelKey: "blockOpenPenalties", collapsible: true },
+  { id: "weightRelease", surface: "subDashboard", role: "sub", labelKey: "blockWeightRelease", collapsible: true },
   // `alwaysOn`, seit dieser Block BEIDE Zustände trägt (#100) — und damit auch die Reinigungspause:
   // Countdown, Straffrist-Zeile und der Knopf „Wieder verschliessen". Die hingen vorher an
   // `statusAndStats`. Wer irgendwann „Laufende Tragezeit" ausgeblendet hat, weil ihm die grosse
@@ -74,7 +95,7 @@ export const SUB_DASHBOARD_BLOCKS = [
   { id: "runningSession", surface: "subDashboard", role: "sub", labelKey: "blockRunningSession", alwaysOn: true },
   { id: "activeWearSessions", surface: "subDashboard", role: "sub", labelKey: "blockActiveWear" },
   { id: "incompleteCategories", surface: "subDashboard", role: "sub", labelKey: "blockIncompleteCategories" },
-  { id: "categoryGoals", surface: "subDashboard", role: "sub", labelKey: "blockCategoryGoals" },
+  { id: "categoryGoals", surface: "subDashboard", role: "sub", labelKey: "blockCategoryGoals", collapsible: true },
   { id: "inactiveCategories", surface: "subDashboard", role: "sub", labelKey: "blockInactiveCategories" },
   { id: "statusAndStats", surface: "subDashboard", role: "sub", labelKey: "blockStatusAndStats" },
   // Die Werbung steht bewusst HINTER `statusAndStats` — dort sitzt der Willkommen-Block eines
@@ -82,9 +103,9 @@ export const SUB_DASHBOARD_BLOCKS = [
   // („Tracke mehr als nur KG"), bevor er die Grundfunktion erklärte: wer neu ist, weiss noch
   // nicht, was ein Eintrag ist, und wurde als Erstes eingeladen, Kategorien zu verwalten.
   { id: "categoriesPromo", surface: "subDashboard", role: "sub", labelKey: "blockCategoriesPromo" },
-  { id: "sessionList", surface: "subDashboard", role: "sub", labelKey: "blockSessionList" },
-  { id: "wearSessionList", surface: "subDashboard", role: "sub", labelKey: "blockWearSessionList" },
-  { id: "taskList", surface: "subDashboard", role: "sub", labelKey: "blockTaskList" },
+  { id: "sessionList", surface: "subDashboard", role: "sub", labelKey: "blockSessionList", collapsible: true },
+  { id: "wearSessionList", surface: "subDashboard", role: "sub", labelKey: "blockWearSessionList", collapsible: true },
+  { id: "taskList", surface: "subDashboard", role: "sub", labelKey: "blockTaskList", collapsible: true },
 ] as const satisfies readonly DashboardBlockDef[];
 
 export type SubDashboardBlockId = (typeof SUB_DASHBOARD_BLOCKS)[number]["id"];

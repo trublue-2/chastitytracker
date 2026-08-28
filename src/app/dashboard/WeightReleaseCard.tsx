@@ -15,6 +15,9 @@ import { weightText, type UnitSystem } from "@/lib/weight";
  * nur „noch nicht", sondern die Zahl, die ihm fehlt — und, wenn die Schwelle wandert, die von morgen.
  */
 export interface WeightReleaseCardProps {
+  /** Vorgabe aus der Dashboard-Konfiguration — siehe `Section`. */
+  defaultCollapsed?: boolean;
+
   thresholdKg: number;
   nextThresholdKg: number | null;
   averageKg: number | null;
@@ -31,6 +34,7 @@ export interface WeightReleaseCardProps {
 }
 
 export default function WeightReleaseCard({
+  defaultCollapsed,
   thresholdKg, nextThresholdKg, averageKg, averageDays, direction, remainingKg, reason,
   notBeforeLabel, unitSystem, locale,
 }: WeightReleaseCardProps) {
@@ -43,7 +47,7 @@ export default function WeightReleaseCard({
   return (
     /* `Section` statt `Card` mit handgebauter Rubrik: das ist ein Abschnitt des Bildschirms, kein
        Objekt in einer Liste — und die Rubrik stand hier als vierte Kopie derselben Klassenkette. */
-    <Section title={<span className="flex items-center gap-2"><Scale size={14} /> {t("title")}</span>}>
+    <Section title={<span className="flex items-center gap-2"><Scale size={14} /> {t("title")}</span>} defaultCollapsed={defaultCollapsed}>
 
       <DetailField label={t("required", { days: averageDays })}>
         <p className="text-sm font-semibold text-foreground tabular-nums">

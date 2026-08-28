@@ -19,7 +19,7 @@ const EXPANDED = 2;
  * dabei weg, sodass dort jede offene und jede auf Sichtung wartende Aufgabe in voller Höhe stand.
  * Ausstehende Sichtungen altern nie aus, der Stapel wuchs also monoton.
  */
-export default function TaskCardStack({ children }: { children: ReactNode }) {
+export default function TaskCardStack({ children, defaultCollapsed }: { children: ReactNode; defaultCollapsed?: boolean }) {
   const t = useTranslations("tasks");
   const [showAll, setShowAll] = useState(false);
 
@@ -37,7 +37,7 @@ export default function TaskCardStack({ children }: { children: ReactNode }) {
   const hidden = items.length - visible.length;
 
   return (
-    <Section className={blockInsetCls} title={t("currentTitle", { count: items.length })}>
+    <Section className={blockInsetCls} title={t("currentTitle", { count: items.length })} defaultCollapsed={defaultCollapsed}>
       {/* Der Kopf trägt die ANZAHL, weil dieser Stapel deckelt: ohne sie sieht das Eingeklappte wie
           Vollständigkeit aus — und genau so ging eine frisch zugestellte Aufgabe unter (sortiert wird
           nach Dringlichkeit, eine späte Frist landet also hinter dem Deckel). Er steht HIER und nicht

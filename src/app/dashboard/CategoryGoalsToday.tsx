@@ -5,6 +5,9 @@ import CategoryGoalsLive, { type KgGoalRow } from "./CategoryGoalsLive";
 import { KG_CATEGORY_META } from "@/lib/deviceCategories";
 
 interface Props {
+  /** Vorgabe aus der Dashboard-Konfiguration — siehe `Section`. */
+  defaultCollapsed?: boolean;
+
   /** Zeitzone des Trägers — entscheidet, wann Tag/Woche/Monat enden. Ohne sie könnte die
    *  Zielauskunft den Tag zur falschen Stunde für beendet erklären. */
   tz: string;
@@ -26,7 +29,7 @@ interface Props {
  *  with at least one period target) and hands them to the live client renderer. Categories with a
  *  running wear session tick up live there. Trägt zusätzlich optional das KG-Ziel als führende Zeile.
  *  Hidden when neither a KG goal nor any category goal is present. */
-export default async function CategoryGoalsToday({ userId, tz, activeWearSessions = [], entries, kgGoal = null, includeCategories = true }: Props) {
+export default async function CategoryGoalsToday({ userId, tz, activeWearSessions = [], entries, kgGoal = null, includeCategories = true, defaultCollapsed }: Props) {
   const now = new Date();
   const activeCategoryIds = new Set(activeWearSessions.map((s) => s.categoryId));
 
@@ -41,5 +44,5 @@ export default async function CategoryGoalsToday({ userId, tz, activeWearSession
   // `deviceCategories.ts` nicht importieren (Prisma). Bekannte Grenze: wer seine Kategorie selbst
   // umbenannt hat, sieht hier trotzdem die Vorgabe; der Umbau auf die DB-Zeile steht in
   // `docs/design/begriffe.md` als Rest.
-  return <CategoryGoalsLive rows={rows} kgGoal={kgGoal} kgName={KG_CATEGORY_META.name} serverNow={now.toISOString()} periodEndMs={periodEndsMs(now, tz)} />;
+  return <CategoryGoalsLive rows={rows} kgGoal={kgGoal} kgName={KG_CATEGORY_META.name} serverNow={now.toISOString()} periodEndMs={periodEndsMs(now, tz)} defaultCollapsed={defaultCollapsed} />;
 }

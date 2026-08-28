@@ -21,7 +21,7 @@ export type { WearSessionRow } from "@/lib/wearSessionRows";
 /** Read-only list of completed non-KG wear sessions, grouped by category icon
  *  and sorted by start time (newest first). Active sessions live in
  *  ActiveWearSessions at the top of the dashboard — they're filtered out here. */
-export default function WearSessionList({ sessions }: { sessions: WearSessionRow[] }) {
+export default function WearSessionList({ sessions, defaultCollapsed }: { sessions: WearSessionRow[]; defaultCollapsed?: boolean }) {
   const { page, setPage, totalPages, visible } = usePagedList(sessions, BLOCK_PAGE_SIZE);
   // Ein Modal für die ganze Liste statt eines je Zeile — es kann ohnehin nur eines offen sein.
   // Die ganze Zeile im State, weil das Detail-Panel Kategorie, Zeit und Gerät daraus zieht.
@@ -32,7 +32,7 @@ export default function WearSessionList({ sessions }: { sessions: WearSessionRow
   if (sessions.length === 0) return null;
 
   return (
-    <Section title={t("otherCategorySessions")}>
+    <Section title={t("otherCategorySessions")} defaultCollapsed={defaultCollapsed}>
       <div className="divide-y divide-border-subtle">
         {visible.map((s) => {
           const sameDay = s.startDateStr === s.endDateStr;

@@ -17,6 +17,7 @@ import { hasVisibleGoalRow, periodEndsMs, type VorgabeTargets } from "@/lib/goal
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {
+
   sessionStart: Date;
   interruptionPausedMs?: number;
   now: Date;

@@ -34,11 +34,11 @@ export interface KgGoalRow {
 /** Client renderer for the per-category training goals. Mirrors the KG goal (LiveTrainingGoals):
  *  when a category has a running session, its today/week/month hours tick up live so the bar
  *  matches a fresh server/MCP computation instead of freezing at page-render time. */
-export default function CategoryGoalsLive({ rows, kgGoal = null, kgName, serverNow, periodEndMs }: { rows: CategoryGoalRow[]; kgGoal?: KgGoalRow | null; kgName: string; serverNow: string; periodEndMs: ByPeriod<number> }) {
+export default function CategoryGoalsLive({ rows, kgGoal = null, kgName, serverNow, periodEndMs, defaultCollapsed }: { rows: CategoryGoalRow[]; kgGoal?: KgGoalRow | null; kgName: string; serverNow: string; periodEndMs: ByPeriod<number>; defaultCollapsed?: boolean }) {
   const t = useTranslations("dashboard");
   return (
     <DashboardBlock>
-      <Section title={t("categoryGoals")}>
+      <Section title={t("categoryGoals")} defaultCollapsed={defaultCollapsed}>
         <ul className="flex flex-col gap-4">
           {kgGoal && <KgRow goal={kgGoal} kgName={kgName} serverNow={serverNow} periodEndMs={periodEndMs} />}
           {rows.map((r) => (

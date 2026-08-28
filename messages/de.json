@@ -564,7 +564,9 @@
     "lockNow": "Jetzt einschliessen",
     "editLayoutReset": "Auf Standard zurücksetzen",
     "editLayoutLocked": "Trägt eine Frist — bleibt sichtbar",
-    "editLayoutMoved": "{name} ist jetzt an Position {position} von {total}."
+    "editLayoutMoved": "{name} ist jetzt an Position {position} von {total}.",
+    "editLayoutStartOpen": "„{name}“ beim Öffnen aufgeklappt zeigen",
+    "editLayoutStartClosed": "„{name}“ beim Öffnen zugeklappt zeigen"
   },
   "newEntry": {
     "title": "Neu erfassen",

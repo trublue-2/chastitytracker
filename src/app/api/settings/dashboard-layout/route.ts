@@ -1,4 +1,4 @@
-import { checkLayoutPatch, mergeLayout } from "@/lib/dashboardLayout";
+import { checkLayoutPatch, isEmptySurface, mergeLayout } from "@/lib/dashboardLayout";
 import { userSelfFieldRoute } from "@/lib/userSelfField";
 
 /**
@@ -34,7 +34,7 @@ export const PATCH = userSelfFieldRoute(
     const layout = mergeLayout(current, res.layout);
     // `null` heisst „zurück auf Standard". Ein leeres Objekt wäre gleichbedeutend, aber eine leere
     // Spalte sagt es deutlicher und spart beim Lesen die Auflösung.
-    const leer = Object.values(layout).every((s) => !s?.hidden?.length && !s?.order?.length);
+    const leer = Object.values(layout).every(isEmptySurface);
     return leer ? null : JSON.stringify(layout);
   },
 );

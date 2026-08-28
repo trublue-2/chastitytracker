@@ -32,6 +32,7 @@ export default async function BlockStack<S extends BlockSurface>({
       surface={layout.surface}
       meta={layout.all.map(({ block, hidden }) => ({
         id: block.id, label: t(block.labelKey), hidden, alwaysOn: block.alwaysOn,
+        collapsed: layout.collapseDefault(block.id),
       }))}
     >
       {nodes.map(({ id, node }) => (

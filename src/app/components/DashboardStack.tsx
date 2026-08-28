@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition, type ReactNode } from "react";
-import { busyDimCls } from "@/app/components/inputStyles";
+import { busyDimCls, metaRowButtonCls } from "@/app/components/inputStyles";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ChevronDown, ChevronUp, Eye, EyeOff, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, EyeOff, SlidersHorizontal, ChevronRight } from "lucide-react";
 import Badge from "@/app/components/Badge";
 import Button from "@/app/components/Button";
 import DashboardBlock from "@/app/components/DashboardBlock";
@@ -23,6 +23,12 @@ export interface StackBlockMeta {
    *  steht meistens leer, wer ihn deshalb einmal ausblendet, sieht die überfällige Kontrolle nie
    *  wieder und erwirbt Strafen für etwas, das ihm niemand angezeigt hat. */
   alwaysOn?: boolean;
+  /**
+   * Die Zuklapp-VORGABE — `undefined` heisst „nicht zuklappbar", und nur dann fehlt der dritte
+   * Schalter. Ein Feld statt zweier: `collapsible` daneben liesse den unmöglichen Zustand
+   * „nicht zuklappbar, aber zugeklappt" zu.
+   */
+  collapsed?: boolean;
 }
 
 /**
@@ -33,7 +39,7 @@ export interface StackBlockMeta {
  * wieder genau der Ausgangsstand dasteht. Wer Identitäten vergleicht, hielte das für eine Änderung.
  */
 function layoutSignature(blocks: StackBlockMeta[]): string {
-  return blocks.map((b) => `${b.id}:${b.hidden ? "0" : "1"}`).join(",");
+  return blocks.map((b) => `${b.id}:${b.hidden ? "0" : "1"}${b.collapsed ? "c" : ""}`).join(",");
 }
 
 /**
@@ -133,8 +139,16 @@ export default function DashboardStack({
     setMovedId(id);
   }
 
-  function toggle(index: number) {
-    setDraft((prev) => prev.map((b, i) => (i === index && !b.alwaysOn ? { ...b, hidden: !b.hidden } : b)));
+  /** Ein Umschalter für beide Spalten: `hidden` und `collapsed` unterscheiden sich nur im Feld
+   *  und im Wächter, und eine dritte Vorgabe wäre sonst die dritte Kopie derselben Figur. */
+  function toggleFlag(index: number, feld: "hidden" | "collapsed") {
+    setDraft((prev) => prev.map((b, i) => {
+      if (i !== index) return b;
+      // Gesperrt ist, was der Block nicht kann: `alwaysOn` blockiert das Ausblenden, eine fehlende
+      // Vorgabe (`undefined`) das Zuklappen.
+      if (feld === "hidden" ? b.alwaysOn : b.collapsed === undefined) return b;
+      return { ...b, [feld]: !b[feld] };
+    }));
   }
 
   function openEditor() {
@@ -168,7 +182,7 @@ export default function DashboardStack({
   }, [editing, cancel]);
 
   /** Der eine Schreibweg — „Fertig" und „Zurücksetzen" unterscheiden sich nur in der Nutzlast. */
-  async function patchLayout(layout: { hidden: string[]; order: string[] }) {
+  async function patchLayout(layout: { hidden: string[]; order: string[]; collapsed: string[] }) {
     setError(null);
     try {
       const res = await fetch("/api/settings/dashboard-layout", {
@@ -205,12 +219,13 @@ export default function DashboardStack({
     await patchLayout({
       hidden: draft.filter((b) => b.hidden).map((b) => b.id),
       order: draft.map((b) => b.id),
+      collapsed: draft.filter((b) => b.collapsed).map((b) => b.id),
     });
   }
 
   /** Leere Listen heissen „keine eigene Anordnung" — der Nutzer folgt danach wieder der Vorgabe. */
   async function resetToDefault() {
-    await patchLayout({ hidden: [], order: [] });
+    await patchLayout({ hidden: [], order: [], collapsed: [] });
   }
 
   if (editing) {
@@ -234,7 +249,7 @@ export default function DashboardStack({
               <li key={b.id} className={`flex items-center gap-2 px-3 py-2.5 ${b.hidden ? "opacity-50" : ""}`}>
                 <button
                   type="button"
-                  onClick={() => toggle(i)}
+                  onClick={() => toggleFlag(i, "hidden")}
                   disabled={b.alwaysOn}
                   // Ein gesperrter Schalter muss sagen, warum. Blöcke mit Frist bleiben sichtbar
                   // (`alwaysOn`) — sonst verschwände die überfällige Kontrolle samt Knopf, und der
@@ -242,12 +257,31 @@ export default function DashboardStack({
                   // steht der Schalter einfach tot da und liest sich als Fehler.
                   aria-label={b.hidden ? t("editLayoutShow", { name: b.label }) : t("editLayoutHide", { name: b.label })}
                   aria-pressed={!b.hidden}
-                  className="size-9 shrink-0 rounded-lg flex items-center justify-center text-foreground-muted hover:bg-surface-raised transition disabled:opacity-40"
+                  className={metaRowButtonCls}
                 >
                   {b.hidden ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
                 <span className="flex-1 min-w-0 text-sm text-foreground truncate">{b.label}</span>
                 {b.alwaysOn && <Badge size="sm" label={t("editLayoutLocked")} />}
+                {/* Der dritte Schalter: in welchem Zustand der Block STARTET. Nur für Blöcke, die
+                    eine eigene Rubrik haben — sie ist der Griff, und ohne sie gäbe es nichts
+                    anzutippen. `alwaysOn`-Blöcke tragen ihn nie: zugeklappt ist verschwunden, und
+                    die Begründung gegen das Ausblenden gilt dafür wörtlich weiter.
+                    Er steht NUR hier und nicht auch am Block selbst gespeichert: was der Nutzer
+                    zur Laufzeit klappt, gilt für den Besuch. */}
+                {b.collapsed !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => toggleFlag(i, "collapsed")}
+                    aria-label={b.collapsed
+                      ? t("editLayoutStartOpen", { name: b.label })
+                      : t("editLayoutStartClosed", { name: b.label })}
+                    aria-pressed={b.collapsed}
+                    className={metaRowButtonCls}
+                  >
+                    {b.collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                )}
                 {/* `aria-disabled` statt `disabled`, Handlung unterdrückt `move()` über seinen
                     Bereichs-Test — Begründung bei `busyDimCls`. Hier ist die Sperre die FOLGE der
                     eigenen Betätigung: wer einen Block bis nach oben schiebt, deaktiviert mit dem
@@ -261,7 +295,7 @@ export default function DashboardStack({
                   onClick={() => move(b.id, -1)}
                   aria-disabled={i === 0}
                   aria-label={t("editLayoutUp", { name: b.label })}
-                  className={`size-9 shrink-0 rounded-lg flex items-center justify-center text-foreground-muted hover:bg-surface-raised transition ${busyDimCls}`}
+                  className={`${metaRowButtonCls} ${busyDimCls}`}
                 >
                   <ChevronUp size={16} />
                 </button>
@@ -270,7 +304,7 @@ export default function DashboardStack({
                   onClick={() => move(b.id, 1)}
                   aria-disabled={i === draft.length - 1}
                   aria-label={t("editLayoutDown", { name: b.label })}
-                  className={`size-9 shrink-0 rounded-lg flex items-center justify-center text-foreground-muted hover:bg-surface-raised transition ${busyDimCls}`}
+                  className={`${metaRowButtonCls} ${busyDimCls}`}
                 >
                   <ChevronDown size={16} />
                 </button>

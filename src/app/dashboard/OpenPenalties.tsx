@@ -26,11 +26,14 @@ const DASHBOARD_LIMIT = 3;
  * Strafen" wäre eine Zeile, die nie etwas mitteilt.
  */
 export default async function OpenPenalties({
+  defaultCollapsed,
   userId,
   tz,
   now,
   dashboardTaskIds,
 }: {
+  /** Vorgabe aus der Dashboard-Konfiguration — siehe `Section`. */
+  defaultCollapsed?: boolean;
   userId: string;
   tz: string;
   /** Die Uhr der Seite — alle Ableitungen des Dashboards teilen sie sich. */
@@ -98,6 +101,7 @@ export default async function OpenPenalties({
       {/* `Section` statt einer von Hand gebauten Kopfzeile: die trug die LEISE Rubrik, und damit
           stand ausgerechnet „Offene Strafen" kleiner und blasser da als jeder Abschnitt daneben. */}
       <Section
+      defaultCollapsed={defaultCollapsed}
         title={t("openTitle")}
         action={<>
         {/* Ins POSTFACH, nicht mehr auf eine eigene Strafbuch-Seite: dort werden festgestellte

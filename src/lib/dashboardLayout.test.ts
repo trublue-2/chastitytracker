@@ -116,7 +116,7 @@ describe("resolveLayout", () => {
 describe("checkLayoutPatch — die Schreibseite", () => {
   it("nimmt eine gültige Konfiguration an und normalisiert sie", () => {
     const res = checkLayoutPatch({ subDashboard: { hidden: ["boxStatus", "boxStatus"], order: ["alerts"] } }, "sub");
-    expect(res).toEqual({ layout: { subDashboard: { hidden: ["boxStatus"], order: ["alerts"] } } });
+    expect(res).toEqual({ layout: { subDashboard: { hidden: ["boxStatus"], order: ["alerts"], collapsed: [] } } });
   });
 
   it("lehnt eine unbekannte Block-Id ab, statt sie still zu schlucken", () => {
@@ -140,7 +140,7 @@ describe("checkLayoutPatch — die Schreibseite", () => {
 
   it("die Keyholderin darf ihre eigenen Oberflächen setzen", () => {
     expect(checkLayoutPatch({ keyholderStats: { hidden: ["records"] } }, "keyholder"))
-      .toEqual({ layout: { keyholderStats: { hidden: ["records"], order: [] } } });
+      .toEqual({ layout: { keyholderStats: { hidden: ["records"], order: [], collapsed: [] } } });
   });
 
   it("lehnt Unsinn ab", () => {
@@ -151,7 +151,7 @@ describe("checkLayoutPatch — die Schreibseite", () => {
 
   it("filtert alwaysOn still heraus, statt den ganzen Vorgang abzulehnen", () => {
     const res = checkLayoutPatch({ subStats: { hidden: ["heading", "calendar"] } }, "sub");
-    expect(res).toEqual({ layout: { subStats: { hidden: ["calendar"], order: [] } } });
+    expect(res).toEqual({ layout: { subStats: { hidden: ["calendar"], order: [], collapsed: [] } } });
   });
 });
 
@@ -160,6 +160,42 @@ describe("checkLayoutPatch — die Schreibseite", () => {
  * fest, was ohne den Merge passierte: „Fertig" auf der Statistik setzte die Dashboard-Reihenfolge
  * auf Standard zurück — ohne Meldung, ohne Spur.
  */
+describe("collapsed — die Vorgabe, nicht der Zustand", () => {
+  it("ein zuklappbarer Block startet zugeklappt, wenn er in der Liste steht", () => {
+    const r = resolveLayout({ subDashboard: { collapsed: ["sessionList"] } }, "subDashboard");
+    expect(r.collapseDefault("sessionList")).toBe(true);
+    expect(r.collapseDefault("wearSessionList")).toBe(false);
+    // Ein Block ohne die Fähigkeit liefert `undefined`, nicht `false` — der Unterschied zwischen
+    // „kein Schalter" und „Schalter, aber offen".
+    expect(r.collapseDefault("boxStatus")).toBeUndefined();
+  });
+
+  it("ohne Konfiguration startet nichts zugeklappt", () => {
+    const r = resolveLayout({}, "subDashboard");
+    expect(r.collapseDefault("sessionList")).toBe(false);
+  });
+
+  it("ein Block OHNE `collapsible` ist gar nicht zuklappbar — auch wenn der Bestand ihn zuklappt", () => {
+    // Dieselbe Übergehung wie bei `alwaysOn` und aus demselben Grund: das Flag kommt später als
+    // die gespeicherten Konfigurationen. Würde hier der Bestand geglaubt, bliebe ein Block bei
+    // genau den Nutzern zugeklappt, die ihn nie wieder aufbekommen.
+    // `undefined` und nicht `false`: die drei Zustände sind Absicht — kein Schalter / Schalter,
+    // startet offen / Schalter, startet zu. `Section` liest genau das.
+    const r = resolveLayout({ subDashboard: { collapsed: ["alerts"] } }, "subDashboard");
+    expect(r.collapseDefault("alerts")).toBeUndefined();
+  });
+
+  it("die Schreibseite filtert nicht-zuklappbare Ids still heraus", () => {
+    const res = checkLayoutPatch({ subDashboard: { collapsed: ["sessionList", "alerts"] } }, "sub");
+    expect(res).toEqual({ layout: { subDashboard: { hidden: [], order: [], collapsed: ["sessionList"] } } });
+  });
+
+  it("eine unbekannte Id im `collapsed` wird abgelehnt, nicht verworfen", () => {
+    expect(checkLayoutPatch({ subDashboard: { collapsed: ["gibtsNicht"] } }, "sub"))
+      .toEqual({ error: "layoutUnknownBlock" });
+  });
+});
+
 describe("mergeLayout — eine Oberfläche speichern lässt die anderen stehen", () => {
   const bestand = JSON.stringify({
     subDashboard: { hidden: ["categoriesPromo"], order: ["alerts", "runningSession"] },

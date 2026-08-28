@@ -60,6 +60,9 @@ interface Pair {
 }
 
 interface Props {
+  /** Vorgabe aus der Dashboard-Konfiguration — siehe `Section`. */
+  defaultCollapsed?: boolean;
+
   pairs: Pair[];
   orgasmusEntries: Entry[];
   /** Whether the user has any devices — gates the "Gerät: —" row on lock entries.
@@ -83,7 +86,7 @@ interface Props {
   telemetryKeyProof?: ReadonlySet<string>;
 }
 
-export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ, orgasmusArtenConfig = null, oeffnenGruendeConfig = null, keyholderView = false, telemetryKeyProof = NO_TELEMETRY_KEY_PROOF }: Props) {
+export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ, orgasmusArtenConfig = null, oeffnenGruendeConfig = null, keyholderView = false, telemetryKeyProof = NO_TELEMETRY_KEY_PROOF, defaultCollapsed }: Props) {
   const locale = await getLocale();
   const dl = toDateLocale(locale);
   const ta = await getTranslations("admin");
@@ -306,5 +309,5 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
     };
   });
 
-  return <SessionListClient sessions={sessions} tz={tz} />;
+  return <SessionListClient sessions={sessions} tz={tz} defaultCollapsed={defaultCollapsed} />;
 }

@@ -283,3 +283,14 @@ export function filledActionCls(colorToken: keyof typeof filledActionBg): string
  * `PairRow`, wo sie eine KARTE markiert und nicht eine Zeile.
  */
 export const warnEdgeCls = "border-l-2 border-warn pl-3";
+
+/**
+ * Ein Symbol-Knopf in einer BEARBEITEN-Zeile — Auge, Pfeile, Klapp-Vorgabe.
+ *
+ * Die Kette stand viermal in `DashboardStack` und zweimal in `CategoriesClient`, und die vierte
+ * Kopie (der Klapp-Schalter) hatte `disabled:opacity-40` bereits verloren. Vier Knöpfe in einer
+ * Zeile, deren Geometrie nur noch zufällig übereinstimmt, sind kein Stil-Thema: sie sind die
+ * Trefferflächen einer Reihe, und eine davon anders zu machen merkt niemand beim Lesen.
+ */
+export const metaRowButtonCls =
+  "size-9 shrink-0 rounded-lg flex items-center justify-center text-foreground-muted hover:bg-surface-raised transition disabled:opacity-40";

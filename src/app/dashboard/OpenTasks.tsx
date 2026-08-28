@@ -21,12 +21,12 @@ import { nextTaskStep, type TaskCardData } from "@/lib/taskView";
  * Begründung der Platzierung: eine Aufgabe mit Frist ist das Einzige auf der Seite, das in den
  * nächsten Stunden zu einem Vergehen werden kann.
  */
-export default function OpenTasks({ tasks, tz }: { tasks: TaskCardData[]; tz: string }) {
+export default function OpenTasks({ tasks, tz, defaultCollapsed }: { tasks: TaskCardData[]; tz: string; defaultCollapsed?: boolean }) {
   if (tasks.length === 0) return null;
 
   return (
     <DashboardBlock>
-      <TaskCardStack>
+      <TaskCardStack defaultCollapsed={defaultCollapsed}>
         {tasks.map((task) => (
           <TaskCard key={task.id} task={task} subTz={tz} subLabel="">
             {/* Der Knopf steht GENAU dann, wenn die Karte darüber die Selbstmeldung als nächsten

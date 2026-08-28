@@ -37,7 +37,7 @@ export interface SessionListData {
 
 
 /** `tz` wird nur an `SessionTimeline` durchgereicht — Begründung dort. */
-export default function SessionListClient({ sessions, tz }: { sessions: SessionListData[]; tz: string }) {
+export default function SessionListClient({ sessions, tz, defaultCollapsed }: { sessions: SessionListData[]; tz: string; defaultCollapsed?: boolean }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const t = useTranslations("dashboard");
   const locale = useLocale();
@@ -48,7 +48,7 @@ export default function SessionListClient({ sessions, tz }: { sessions: SessionL
   const { page, setPage, totalPages, visible } = usePagedList(sessions, BLOCK_PAGE_SIZE);
 
   return (
-    <Section title={t("sessions")}>
+    <Section title={t("sessions")} defaultCollapsed={defaultCollapsed}>
       <div className="divide-y divide-border-subtle">
       {sessions.length === 0 && (
         <div className="py-16 text-center text-foreground-faint text-fliess">{t("noEntries")}</div>

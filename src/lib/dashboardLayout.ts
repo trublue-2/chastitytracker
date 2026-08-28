@@ -18,6 +18,28 @@ export interface SurfaceLayout {
   hidden?: string[];
   /** Die Reihenfolge, wie der Nutzer sie zuletzt gesetzt hat. Darf unvollständig und veraltet sein. */
   order?: string[];
+  /**
+   * Ids, deren VORGABE-Zustand „zugeklappt" ist. Wie `hidden` eine Abweichungs-Liste: wer nichts
+   * einstellt, bekommt alles offen.
+   *
+   * Die Vorgabe, nicht der Zustand: das Auf- und Zuklappen zur Laufzeit wird bewusst NICHT
+   * gespeichert. Es gälte sonst für den Besuch und für die Einstellung zugleich, und die
+   * Anpassen-Ansicht zeigte etwas anderes als das, was der letzte Fingertipp bewirkt hat.
+   */
+  collapsed?: string[];
+}
+
+/**
+ * Hat diese Oberfläche überhaupt eine Abweichung? Steht HIER und nicht in der Route: die Route
+ * zählte die Felder einzeln auf, mit einem Kommentar „jedes neue Feld gehört in diese Zeile" —
+ * also einer Bitte statt eines Mechanismus. Vergisst sie jemand, wird die Einstellung gespeichert,
+ * zu `null` gemacht und ist beim nächsten Laden weg: kein Fehler, kein Log, nur Verlust. Genau das
+ * ist mit `collapsed` passiert.
+ *
+ * Über die WERTE statt über benannte Felder — damit jedes künftige Listenfeld von selbst zählt.
+ */
+export function isEmptySurface(s: SurfaceLayout | undefined): boolean {
+  return Object.values(s ?? {}).every((v) => !v?.length);
 }
 
 /** Der gesamte gespeicherte Wert: je Oberfläche ein Eintrag. */
@@ -39,6 +61,14 @@ export interface ResolvedLayout<S extends BlockSurface = BlockSurface> {
   /** Nur die sichtbaren, in derselben Reihenfolge. */
   visible: SurfaceBlockDef<S>[];
   hiddenCount: number;
+  /**
+   * Die Zuklapp-Vorgabe eines Blocks — `undefined`, wenn er gar nicht zuklappbar ist.
+   *
+   * Die drei Zustände sind Absicht und werden von `Section` genau so gelesen: `undefined` = kein
+   * Schalter, `false` = Schalter, startet offen, `true` = Schalter, startet zu. Ein blosses
+   * `boolean` hätte jeden Block zuklappbar gemacht, sobald ihn eine Oberfläche durchreicht.
+   */
+  collapseDefault: (id: BlockIdOf<S>) => boolean | undefined;
   /**
    * Steht dieser Block? Gebraucht, wo ein Block dem anderen ausweicht (das KG-Ziel der
    * Session-Karte). Hier statt in jedem Seiten-Kontext: die Frage ist eine Eigenschaft der
@@ -127,6 +157,11 @@ export function resolveLayout<S extends BlockSurface>(layout: DashboardLayout, s
   const order = mergeOrder(registry.map((b) => b.id), cleanIds(saved.order));
   const hiddenIds = new Set(cleanIds(saved.hidden));
 
+  // Dieselbe Übergehung wie bei `alwaysOn` und aus demselben Grund: das `collapsible`-Flag kommt
+  // später als die gespeicherten Konfigurationen. Ein Block, der es nicht trägt, startet offen —
+  // auch wenn im Bestand etwas anderes steht.
+  const collapsedIds = new Set(cleanIds(saved.collapsed));
+
   const all = order.map((id) => {
     const block = byId.get(id)!;
     return { block, hidden: !block.alwaysOn && hiddenIds.has(id) };
@@ -140,6 +175,8 @@ export function resolveLayout<S extends BlockSurface>(layout: DashboardLayout, s
     visible,
     hiddenCount: all.length - visible.length,
     shows: (id) => visibleIds.has(id),
+    collapseDefault: (id) =>
+      byId.get(id as string)?.collapsible ? collapsedIds.has(id as string) : undefined,
   };
 }
 
@@ -169,9 +206,12 @@ export function checkLayoutPatch(
     if (registry[0].role !== role) return { error: "layoutForeignBlock" };
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "layoutInvalid" };
 
-    const { hidden, order } = raw as SurfaceLayout;
+    const { hidden, order, collapsed } = raw as SurfaceLayout;
+    // Einmal säubern, dreimal benutzt: die Listen wurden vorher je zweimal durchgerechnet, und die
+    // zweite Stelle ist die, die man beim vierten Feld vergisst.
+    const [sauberHidden, sauberOrder, sauberCollapsed] = [hidden, order, collapsed].map(cleanIds);
     const allowed = new Map(registry.map((b) => [b.id, b]));
-    for (const id of [...cleanIds(hidden), ...cleanIds(order)]) {
+    for (const id of [...sauberHidden, ...sauberOrder, ...sauberCollapsed]) {
       const block = allowed.get(id);
       if (!block) return { error: "layoutUnknownBlock" };
       if (block.role !== role) return { error: "layoutForeignBlock" };
@@ -179,8 +219,11 @@ export function checkLayoutPatch(
     // `alwaysOn` lässt sich nicht wegschalten — still herausfiltern statt abzulehnen: der Client
     // hat es gar nicht erst angeboten, ein Fehler wäre hier eine Falle ohne Nutzen.
     out[surface as BlockSurface] = {
-      hidden: cleanIds(hidden).filter((id) => !allowed.get(id)!.alwaysOn),
-      order: cleanIds(order),
+      hidden: sauberHidden.filter((id) => !allowed.get(id)!.alwaysOn),
+      order: sauberOrder,
+      // Still herausfiltern statt abzulehnen — dieselbe Begründung wie bei `alwaysOn`: der Client
+      // bietet es gar nicht erst an, ein Fehler wäre hier eine Falle ohne Nutzen.
+      collapsed: sauberCollapsed.filter((id) => allowed.get(id)!.collapsible),
     };
   }
   return { layout: out };
