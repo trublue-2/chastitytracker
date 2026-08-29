@@ -752,7 +752,8 @@
     "reasonCodeMissing": "No code visible",
     "reasonCodeWrong": "Wrong code visible: {detected}",
     "reasonSealMissing": "Seal number not visible",
-    "reasonSealWrong": "Wrong seal number: {detected}"
+    "reasonSealWrong": "Wrong seal number: {detected}",
+    "reasonCheckUnreliable": "Automatic check not reliable — verify by hand"
   },
   "orgasmForm": {
     "title": "Log orgasm",

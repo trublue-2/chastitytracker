@@ -298,6 +298,11 @@ fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt
   \`verifikationFailure\` (\`reason\`: codeMissing = kein Code lesbar · codeWrong = andere Ziffern
   gelesen (\`detected\`) · sealMissing/sealWrong analog fürs Siegel). Ohne diesen Grund ist \`null\`
   nicht deutbar: ein unlesbares Foto sieht dann aus wie ein falscher Code.
+- \`reason: "checkUnreliable"\` ist eine Aussage über die PRÜFUNG, nicht über den Träger. Die
+  Bilderkennung hat in der Gegenprobe auch eine Zahl bestätigt, die gar nicht im Foto steht — ihr
+  Urteil ist damit wertlos, das positive zuerst. Über den Code sagt das nichts: er kann da sein oder
+  nicht. Diese Kontrolle gehört von Hand angeschaut (Foto ansehen, \`resolve_inspection\`), und der
+  Träger trifft daran keine Schuld.
 - \`verifikationStatus: "not_required"\` heisst: es war NICHTS zu prüfen. Das getragene Gerät verlangt
   keinen Kontroll-Code (\`Device.requireInspectionCode: false\`), und es lief auch keine Siegel-Prüfung.
   Nicht mit \`null\` („unverifiziert" — geprüft und nicht bestätigt) und nicht mit \`ai\`/\`manual\`

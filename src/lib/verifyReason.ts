@@ -6,8 +6,18 @@
 
 /** Stable, language-agnostic reason code for a failed check. The UI maps it to a localized string
  *  (inspectionForm.reason*) — the model is NOT asked for free German text, so the reason follows
- *  the user's language like the rest of the app. `*Wrong` carries the detected number. */
-export type VerifyReason = "codeMissing" | "codeWrong" | "sealMissing" | "sealWrong";
+ *  the user's language like the rest of the app. `*Wrong` carries the detected number.
+ *
+ *  `checkUnreliable` is the odd one out: it says nothing about the PHOTO, only about the check. The
+ *  decoy probe (see `decoyEcho` in `verifyCode.ts`) caught the model confirming a number that isn't
+ *  in the image at all, so its "found it" is worthless — the positive one first. Hence its own code
+ *  rather than `codeMissing`: what is unknown here is the verdict, not the photo.
+ *
+ *  Deliberately a REASON and not the `error` channel of `VerifyDetailedResult`, even though it is
+ *  the check that failed: both readers of that column need a non-null reason to move on. A task
+ *  proof without one counts as „check still running" and would hang in `checking` forever
+ *  (`evaluateProofs`), and an inspection without one is the dead end this module exists to avoid. */
+export type VerifyReason = "codeMissing" | "codeWrong" | "sealMissing" | "sealWrong" | "checkUnreliable";
 
 /** Reason code → i18n key in the `inspectionForm` namespace. Single source shared by the wearer's
  *  live check (PruefungFormCore) and the admin/keyholder inspection list (kontrollen.ts), so both
@@ -17,6 +27,7 @@ export const VERIFY_REASON_KEYS: Record<VerifyReason, string> = {
   codeWrong: "reasonCodeWrong",
   sealMissing: "reasonSealMissing",
   sealWrong: "reasonSealWrong",
+  checkUnreliable: "reasonCheckUnreliable",
 };
 
 /** Der Nicht-Match-Grund, wie ihn die MCP-Sichten führen: der stabile Code plus, bei den

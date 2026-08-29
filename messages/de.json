@@ -752,7 +752,8 @@
     "reasonCodeMissing": "Kein Code sichtbar",
     "reasonCodeWrong": "Falscher Code sichtbar: {detected}",
     "reasonSealMissing": "Siegel-Nummer nicht sichtbar",
-    "reasonSealWrong": "Falsche Siegel-Nummer: {detected}"
+    "reasonSealWrong": "Falsche Siegel-Nummer: {detected}",
+    "reasonCheckUnreliable": "Automatische Prüfung nicht verlässlich — von Hand prüfen"
   },
   "orgasmForm": {
     "title": "Orgasmus erfassen",
