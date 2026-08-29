@@ -285,12 +285,34 @@ export function filledActionCls(colorToken: keyof typeof filledActionBg): string
 export const warnEdgeCls = "border-l-2 border-warn pl-3";
 
 /**
- * Ein Symbol-Knopf in einer BEARBEITEN-Zeile — Auge, Pfeile, Klapp-Vorgabe.
+ * Ein Symbol-Knopf in einer BEARBEITEN-Zeile — heute das Auge in `DashboardStack`.
  *
- * Die Kette stand viermal in `DashboardStack` und zweimal in `CategoriesClient`, und die vierte
- * Kopie (der Klapp-Schalter) hatte `disabled:opacity-40` bereits verloren. Vier Knöpfe in einer
- * Zeile, deren Geometrie nur noch zufällig übereinstimmt, sind kein Stil-Thema: sie sind die
- * Trefferflächen einer Reihe, und eine davon anders zu machen merkt niemand beim Lesen.
+ * Die Kette stand einmal viermal in derselben Datei, und eine Kopie hatte `disabled:opacity-40`
+ * bereits verloren. Knöpfe in einer Zeile, deren Geometrie nur noch zufällig übereinstimmt, sind
+ * kein Stil-Thema: sie sind die Trefferflächen einer Reihe, und eine davon anders zu machen merkt
+ * niemand beim Lesen.
  */
 export const metaRowButtonCls =
   "size-9 shrink-0 rounded-lg flex items-center justify-center text-foreground-muted hover:bg-surface-raised transition disabled:opacity-40";
+
+/**
+ * Die BESCHRIFTETE Fassung von {@link metaRowButtonCls} — derselbe Knopf, aber mit einem Wort statt
+ * nur einem Zeichen, und deshalb mitwachsend statt quadratisch (`min-h-9 px-2` statt `size-9`).
+ *
+ * Dasselbe Paar wie `cardActionCls` / `iconActionCls`. Es steht hier und nicht in der Komponente,
+ * weil die Pille in derselben Zeile sitzt wie das Auge: die Höhe der beiden ist keine Geschmacks-
+ * frage, und eine als Literal wiederholte `9` springt beim nächsten Mass nicht mit.
+ *
+ * `text-fliess` und NICHT `text-rubrik`: elf Pixel sind die versale Abschnitts-Überschrift, und
+ * „Offen"/„Zu" ist keine Rubrik, sondern die Beschriftung eines Bedienelements.
+ */
+export const metaRowChipCls =
+  "inline-flex items-center gap-1 shrink-0 min-h-9 px-2 rounded-lg text-fliess font-medium text-foreground-muted hover:bg-surface-raised transition";
+
+/**
+ * Ein NICHT bedienbarer Platzhalter in derselben Reihe — hält das Mass von
+ * {@link metaRowButtonCls}, ohne dessen Knopf-Versprechen (`hover`, `disabled`) zu erben. Ein
+ * Zeichen, das unter dem Zeiger aufleuchtet, kündigt einen Klick an, den es nicht gibt.
+ */
+export const metaRowSlotCls =
+  "size-9 shrink-0 flex items-center justify-center text-foreground-faint";

@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition, type ReactNode } from "react";
-import { busyDimCls, metaRowButtonCls } from "@/app/components/inputStyles";
+import { swapAt } from "@/lib/utils";
+import { metaRowButtonCls, metaRowChipCls, metaRowSlotCls } from "@/app/components/inputStyles";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ChevronDown, ChevronUp, Eye, EyeOff, SlidersHorizontal, ChevronRight } from "lucide-react";
-import Badge from "@/app/components/Badge";
+import { Eye, EyeOff, SlidersHorizontal, ChevronRight } from "lucide-react";
+import { LockClosedIcon } from "@/app/components/lockIcons";
+import ReorderButtons from "@/app/components/ReorderButtons";
 import Button from "@/app/components/Button";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import LiveStatus from "@/app/components/LiveStatus";
@@ -128,11 +130,10 @@ export default function DashboardStack({
       // und diesem Aufruf kann eine zweite Betätigung liegen, und ein Index aus dem alten Entwurf
       // vertauschte dann die falschen beiden Zeilen.
       const from = prev.findIndex((b) => b.id === id);
-      const target = from + delta;
-      if (from < 0 || target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[from], next[target]] = [next[target], next[from]];
-      return next;
+      // `swapAt` bringt die Randprüfung mit (ausserhalb der Liste gibt es `prev` unverändert
+      // zurück) — sie hier ein zweites Mal hinzuschreiben ist genau das, was sein Docblock den
+      // Aufrufern erspart. Bei `from === -1` fällt sie ebenfalls durch.
+      return swapAt(prev, from, from + delta);
     });
     // Merkt sich WEN es zuletzt getroffen hat; die neue Position liest die Ansage unten aus dem
     // fertigen Entwurf. Sie hier auszurechnen hiesse, die Vertauschung ein zweites Mal nachzubauen.
@@ -240,29 +241,43 @@ export default function DashboardStack({
             </div>
           </div>
 
+          {/* Was der Dialog kann, in einem Satz — einmal oben statt fünfzehnmal in den Zeilen. */}
+          <p className="px-4 py-2 text-neben text-foreground-faint">{t("editLayoutIntro")}</p>
+
           {error && <p className="px-4 py-3 text-sm text-warn bg-warn-bg">{error}</p>}
 
           <LiveStatus>{movedAnnounce}</LiveStatus>
 
           <ul className="divide-y divide-border-subtle">
+            {/* Die Zeile ist mit `py-1` genau so hoch wie vorher mit `py-2.5` (56 px) — das Mass
+                hängt jetzt an der gestapelten Pfeil-Spalte (2 × 24 px, WCAG 2.5.8), nicht mehr am
+                Abstand. Wer den Abstand „aufräumt", macht die Liste höher. */}
             {draft.map((b, i) => (
-              <li key={b.id} className={`flex items-center gap-2 px-3 py-2.5 ${b.hidden ? "opacity-50" : ""}`}>
-                <button
-                  type="button"
-                  onClick={() => toggleFlag(i, "hidden")}
-                  disabled={b.alwaysOn}
-                  // Ein gesperrter Schalter muss sagen, warum. Blöcke mit Frist bleiben sichtbar
-                  // (`alwaysOn`) — sonst verschwände die überfällige Kontrolle samt Knopf, und der
-                  // Träger erwürbe Strafen für etwas, das ihm nie angezeigt wurde. Ohne diesen Satz
-                  // steht der Schalter einfach tot da und liest sich als Fehler.
-                  aria-label={b.hidden ? t("editLayoutShow", { name: b.label }) : t("editLayoutHide", { name: b.label })}
-                  aria-pressed={!b.hidden}
-                  className={metaRowButtonCls}
-                >
-                  {b.hidden ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+              <li key={b.id} className={`flex items-center gap-2 px-3 py-1 ${b.hidden ? "opacity-50" : ""}`}>
+                {/* Der Slot ist IMMER gefüllt — Auge oder Schloss. Das frühere Badge („Trägt eine
+                    Frist — bleibt sichtbar") war 206 px breit und frass auf dem Handy den ganzen
+                    Blocknamen; die Erklärung steht deshalb einmal am Fuss. */}
+                {b.alwaysOn ? (
+                  // `role="img"` mit Namen, NICHT `aria-hidden`: sonst verschwindet die Sperre für
+                  // nicht-sehende Nutzer restlos. Vorher trug die Zeile den Satz als Badge-TEXT und
+                  // einen abgeblendeten Knopf — beides ist weg, und die Fussnote allein verwiese auf
+                  // ein Zeichen, das im Accessibility-Tree gar nicht existiert (lucide setzt jedem
+                  // Icon ohne aria-Prop selbst `aria-hidden`).
+                  <span className={metaRowSlotCls} role="img" aria-label={t("editLayoutLocked")}>
+                    <LockClosedIcon size={16} />
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toggleFlag(i, "hidden")}
+                    aria-label={b.hidden ? t("editLayoutShow", { name: b.label }) : t("editLayoutHide", { name: b.label })}
+                    aria-pressed={!b.hidden}
+                    className={metaRowButtonCls}
+                  >
+                    {b.hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                )}
                 <span className="flex-1 min-w-0 text-sm text-foreground truncate">{b.label}</span>
-                {b.alwaysOn && <Badge size="sm" label={t("editLayoutLocked")} />}
                 {/* Der dritte Schalter: in welchem Zustand der Block STARTET. Nur für Blöcke, die
                     eine eigene Rubrik haben — sie ist der Griff, und ohne sie gäbe es nichts
                     anzutippen. `alwaysOn`-Blöcke tragen ihn nie: zugeklappt ist verschwunden, und
@@ -273,44 +288,40 @@ export default function DashboardStack({
                   <button
                     type="button"
                     onClick={() => toggleFlag(i, "collapsed")}
+                    // Der Name nennt den ZUSTAND und enthält das sichtbare Wort — beides nötig.
+                    // Vorher beschrieb er die HANDLUNG („aufgeklappt zeigen") und daneben stand
+                    // `aria-pressed`, das den Zustand meint: im zugeklappten Fall sagte die Ansage
+                    // „aufgeklappt zeigen … gedrückt", also das Gegenteil dessen, was die Pille
+                    // zeigte. Und ohne das sichtbare Wort im Namen greift keine Sprachsteuerung
+                    // („Klick Offen" fand nichts) — WCAG 2.5.3.
                     aria-label={b.collapsed
-                      ? t("editLayoutStartOpen", { name: b.label })
-                      : t("editLayoutStartClosed", { name: b.label })}
-                    aria-pressed={b.collapsed}
-                    className={metaRowButtonCls}
+                      ? t("editLayoutStartsClosed", { name: b.label })
+                      : t("editLayoutStartsOpen", { name: b.label })}
+                    className={metaRowChipCls}
                   >
-                    {b.collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                    <ChevronRight size={14} className={b.collapsed ? "" : "rotate-90"} />
+                    {b.collapsed ? t("editLayoutStateClosed") : t("editLayoutStateOpen")}
                   </button>
                 )}
-                {/* `aria-disabled` statt `disabled`, Handlung unterdrückt `move()` über seinen
-                    Bereichs-Test — Begründung bei `busyDimCls`. Hier ist die Sperre die FOLGE der
-                    eigenen Betätigung: wer einen Block bis nach oben schiebt, deaktiviert mit dem
-                    letzten Klick den Knopf unter seinem Finger. Weil die Zeilen mit `b.id`
-                    verschlüsselt sind, wandert der Knopf beim Umsortieren mit seinem Block mit —
-                    der Nutzer bleibt am selben Element und kann weiterdrücken.
-                    Der Sichtbarkeits-Schalter oben bleibt `disabled`: sein `alwaysOn` ist eine
-                    Eigenschaft des Blocks und ändert sich nie unter dem Fokus. */}
-                <button
-                  type="button"
-                  onClick={() => move(b.id, -1)}
-                  aria-disabled={i === 0}
-                  aria-label={t("editLayoutUp", { name: b.label })}
-                  className={`${metaRowButtonCls} ${busyDimCls}`}
-                >
-                  <ChevronUp size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => move(b.id, 1)}
-                  aria-disabled={i === draft.length - 1}
-                  aria-label={t("editLayoutDown", { name: b.label })}
-                  className={`${metaRowButtonCls} ${busyDimCls}`}
-                >
-                  <ChevronDown size={16} />
-                </button>
+                <ReorderButtons
+                  index={i}
+                  count={draft.length}
+                  onMove={(dir) => move(b.id, dir)}
+                  upLabel={t("editLayoutUp", { name: b.label })}
+                  downLabel={t("editLayoutDown", { name: b.label })}
+                />
               </li>
             ))}
           </ul>
+
+          {/* Nur wenn es die Zeilen überhaupt gibt — sonst erklärt der Satz ein Zeichen, das
+              nirgends steht. */}
+          {draft.some((b) => b.alwaysOn) && (
+            <p className="flex items-center gap-1.5 px-4 py-2 text-neben text-foreground-faint border-t border-border-subtle">
+              <LockClosedIcon size={12} className="shrink-0" />
+              {t("editLayoutLockedNote")}
+            </p>
+          )}
 
           {/* Leise am Fuss: der Weg zurück zur Vorgabe ist selten nötig und soll die beiden
               Ausgänge oben nicht überstimmen. */}
