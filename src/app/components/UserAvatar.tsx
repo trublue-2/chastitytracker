@@ -24,12 +24,12 @@ const SIZE_CLASSES: Record<NonNullable<Props["size"]>, string> = {
 /** Round initial-avatar for a user. Extracted so the admin overview, the Benutzerverwaltung list
  *  and the sub context bar share one source instead of re-inlining the same circle. */
 export default function UserAvatar({ username, size = "md", locked }: Props) {
-  const zustand = locked === undefined
+  const stateCls = locked === undefined
     ? "bg-surface-raised text-foreground-muted"
     : locked ? "bg-lock-bg text-lock" : "bg-unlock-bg text-unlock";
   return (
     <div
-      className={`${SIZE_CLASSES[size]} rounded-full flex items-center justify-center font-bold flex-shrink-0 ${zustand}`}
+      className={`${SIZE_CLASSES[size]} rounded-full flex items-center justify-center font-bold flex-shrink-0 ${stateCls}`}
     >
       {username[0]?.toUpperCase()}
     </div>

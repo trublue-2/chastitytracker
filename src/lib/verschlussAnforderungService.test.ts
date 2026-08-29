@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * `isHiddenFromSub` = `wirksamAb !== null && benachrichtigtAt === null`. Jede Meldung an den Sub
  * hängt daran; sie vorher zu senden verriete die geplante Direktive, was die Terminierung gerade
  * verhindern soll. Gemeldet als Bug am 14.07.2026: ein `edit_lock_period` auf eine drei Wochen voraus
- * geplante Sperrzeit schickte sofort eine „Sperrzeit geändert"-Mail.
+ * geplante Sperrzeit schickte immediate eine „Sperrzeit geändert"-Mail.
  *
  * Die naheliegende Fassung „`benachrichtigtAt === null` = unbekannt" wäre FALSCH gewesen — siehe den
  * Test zur auto-erzeugten Sperrzeit unten. Der Unterschied ist der ganze Fix.
@@ -53,27 +53,27 @@ const notifyMock = notifyUser as unknown as ReturnType<typeof vi.fn>;
 const heimdallMock = notifyHeimdallForUserId as unknown as ReturnType<typeof vi.fn>;
 
 const AUSGELOEST = new Date("2026-07-14T12:00:00Z");
-const ZUKUNFT = new Date("2026-08-10T00:00:00Z");
-/** Ein gültiges neues Ende: nach `jetzt` UND nach dem `wirksamAb` der geplanten Zeile (= ZUKUNFT).
+const FUTURE = new Date("2026-08-10T00:00:00Z");
+/** Ein gültiges neues Ende: nach `jetzt` UND nach dem `wirksamAb` der geplanten Zeile (= FUTURE).
  *  Ein Ende VOR der Auslösung lehnt der Service ab — siehe „Sperr-Ende muss nach der Auslösung liegen". */
-const NEUES_ENDE = new Date("2026-09-01T00:00:00Z");
+const NEW_END = new Date("2026-09-01T00:00:00Z");
 
 /** Terminiert, noch nicht ausgelöst → für den Sub unsichtbar. */
-const geplant = { wirksamAb: ZUKUNFT, benachrichtigtAt: null };
+const scheduled = { wirksamAb: FUTURE, benachrichtigtAt: null };
 /** Terminiert und vom Poller ausgelöst → der Sub hat die Mail bekommen. */
-const ausgeloest = { wirksamAb: new Date("2026-07-01T00:00:00Z"), benachrichtigtAt: AUSGELOEST };
+const triggered = { wirksamAb: new Date("2026-07-01T00:00:00Z"), benachrichtigtAt: AUSGELOEST };
 /** Sofort angelegt, Mail ging beim Anlegen raus (`createVerschlussAnforderung`). */
-const sofort = { wirksamAb: null, benachrichtigtAt: AUSGELOEST };
+const immediate = { wirksamAb: null, benachrichtigtAt: AUSGELOEST };
 /**
  * DIE FALLE: die Sperrzeit, die `entries/route.ts` automatisch anlegt, wenn der Sub eine
  * Verschluss-Anforderung erfüllt. Sie trägt WEDER `wirksamAb` NOCH `benachrichtigtAt` — niemand
- * musste eine Mail schicken, der Sub hat sich ja selbst eingeschlossen. Sie ist trotzdem sofort
+ * musste eine Mail schicken, der Sub hat sich ja selbst eingeschlossen. Sie ist trotzdem immediate
  * aktiv und ihm bestens bekannt.
  */
-const autoErzeugt = { wirksamAb: null, benachrichtigtAt: null };
+const autoCreated = { wirksamAb: null, benachrichtigtAt: null };
 
 /** Eine SPERRZEIT-Zeile, wie updateSperrzeitEnde sie liest. */
-const sz = (zustand: object) => ({ userId: "u1", art: "SPERRZEIT", withdrawnAt: null, ...zustand });
+const sz = (overrides: object) => ({ userId: "u1", art: "SPERRZEIT", withdrawnAt: null, ...overrides });
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const isLockedMock = getIsLocked as unknown as ReturnType<typeof vi.fn>;
@@ -92,33 +92,33 @@ beforeEach(() => {
 
 describe("updateSperrzeitEnde", () => {
   it("BUG 14.07.: eine GEPLANTE Sperrzeit zu ändern schickt KEINE Mail", async () => {
-    findUniqueMock.mockResolvedValue(sz(geplant));
-    const res = await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin");
+    findUniqueMock.mockResolvedValue(sz(scheduled));
+    const res = await updateSperrzeitEnde("s1", NEW_END, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(false);
     expect(notifyMock).not.toHaveBeenCalled();
     // Das neue Ende wird trotzdem gespeichert — der Poller liefert es bei Fälligkeit mit aus.
-    expect(updateMock).toHaveBeenCalledWith({ where: { id: "s1" }, data: { endetAt: NEUES_ENDE } });
+    expect(updateMock).toHaveBeenCalledWith({ where: { id: "s1" }, data: { endetAt: NEW_END } });
   });
 
   it("REGRESSION: die AUTO-ERZEUGTE Sperrzeit hat kein benachrichtigtAt — und muss trotzdem melden", async () => {
     // Hätte der Fix nur auf `benachrichtigtAt` geschaut, wäre für die häufigste Sperrzeit überhaupt
     // jede Meldung verschluckt worden: der Sub bliebe verschlossen im Glauben, eine längst
     // geänderte/zurückgezogene Sperre laufe noch weiter.
-    findUniqueMock.mockResolvedValue(sz(autoErzeugt));
-    const res = await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin");
+    findUniqueMock.mockResolvedValue(sz(autoCreated));
+    const res = await updateSperrzeitEnde("s1", NEW_END, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(true);
     expect(notifyMock).toHaveBeenCalledTimes(1);
   });
 
-  it("eine ausgelöste oder sofort angelegte Sperrzeit meldet wie bisher", async () => {
-    for (const zustand of [ausgeloest, sofort]) {
+  it("eine ausgelöste oder immediate angelegte Sperrzeit meldet wie bisher", async () => {
+    for (const overrides of [triggered, immediate]) {
       notifyMock.mockClear();
-      findUniqueMock.mockResolvedValue(sz(zustand));
-      const res = await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin");
+      findUniqueMock.mockResolvedValue(sz(overrides));
+      const res = await updateSperrzeitEnde("s1", NEW_END, "herrin");
       if (!res.ok) throw new Error("erwartet: ok");
       expect(res.data.notified).toBe(true);
       expect(notifyMock).toHaveBeenCalledTimes(1);
@@ -126,13 +126,13 @@ describe("updateSperrzeitEnde", () => {
   });
 
   it("auf unbefristet setzen folgt derselben Regel", async () => {
-    findUniqueMock.mockResolvedValue(sz(geplant));
+    findUniqueMock.mockResolvedValue(sz(scheduled));
     const still = await updateSperrzeitEnde("s1", null, "herrin");
     if (!still.ok) throw new Error("erwartet: ok");
     expect(still.data.notified).toBe(false);
     expect(notifyMock).not.toHaveBeenCalled();
 
-    findUniqueMock.mockResolvedValue(sz(ausgeloest));
+    findUniqueMock.mockResolvedValue(sz(triggered));
     const laut = await updateSperrzeitEnde("s1", null, "herrin");
     if (!laut.ok) throw new Error("erwartet: ok");
     expect(laut.data.notified).toBe(true);
@@ -141,15 +141,15 @@ describe("updateSperrzeitEnde", () => {
 
   it("die Guards greifen vor allem anderen — kein Schreiben, keine Meldung", async () => {
     findUniqueMock.mockResolvedValue(null);
-    expect((await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin")).ok).toBe(false);
+    expect((await updateSperrzeitEnde("s1", NEW_END, "herrin")).ok).toBe(false);
 
-    findUniqueMock.mockResolvedValue(sz({ ...sofort, art: "ANFORDERUNG" }));
-    expect((await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin")).ok).toBe(false);
+    findUniqueMock.mockResolvedValue(sz({ ...immediate, art: "ANFORDERUNG" }));
+    expect((await updateSperrzeitEnde("s1", NEW_END, "herrin")).ok).toBe(false);
 
-    findUniqueMock.mockResolvedValue(sz({ ...sofort, withdrawnAt: new Date() }));
-    expect((await updateSperrzeitEnde("s1", NEUES_ENDE, "herrin")).ok).toBe(false);
+    findUniqueMock.mockResolvedValue(sz({ ...immediate, withdrawnAt: new Date() }));
+    expect((await updateSperrzeitEnde("s1", NEW_END, "herrin")).ok).toBe(false);
 
-    findUniqueMock.mockResolvedValue(sz(sofort));
+    findUniqueMock.mockResolvedValue(sz(immediate));
     expect((await updateSperrzeitEnde("s1", new Date("2020-01-01"), "herrin")).ok).toBe(false); // Ende in der Vergangenheit
 
     expect(notifyMock).not.toHaveBeenCalled();
@@ -206,10 +206,10 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
     });
 
     it("bereits ausgelöst: es zählt wieder `jetzt`, nicht das vergangene wirksamAb", async () => {
-      findUniqueMock.mockResolvedValue(sz(ausgeloest));
+      findUniqueMock.mockResolvedValue(sz(triggered));
       expect((await updateSperrzeitEnde("s1", MORGEN, "herrin")).ok).toBe(true); // verkürzen auf morgen: legitim
 
-      findUniqueMock.mockResolvedValue(sz(ausgeloest));
+      findUniqueMock.mockResolvedValue(sz(triggered));
       const past = await updateSperrzeitEnde("s1", new Date("2026-07-13T12:00:00Z"), "herrin");
       if (past.ok) throw new Error("erwartet: Fehler");
       expect(past.error).toBe("LOCK_PERIOD_END_MUST_BE_FUTURE");
@@ -295,11 +295,11 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
  */
 describe("withdrawVerschlussAnforderung (per art)", () => {
   it("nur GEPLANTE storniert → kein Wort an den Sub (er wusste nie davon)", async () => {
-    tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...geplant }]);
+    tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...scheduled }]);
     const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
-    expect(res.data).toEqual({ count: 1, hidden: 1, notified: false, rows: [{ id: "a1", ...geplant }] });
+    expect(res.data).toEqual({ count: 1, hidden: 1, notified: false, rows: [{ id: "a1", ...scheduled }] });
     expect(notifyMock).not.toHaveBeenCalled();
     expect(tx.verschlussAnforderung.updateMany).toHaveBeenCalledTimes(1); // storniert wird sie trotzdem
   });
@@ -308,7 +308,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
     // Die Asymmetrie ist der Kern: der Sub darf nichts erfahren, die BOX schon. Legt jemand die
     // beiden Guards zusammen (`if (notified)`), behielte eine hardware-erzwungene Box eine Sperre,
     // die es nicht mehr gibt — und der Sub bliebe physisch verschlossen.
-    tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...geplant }]);
+    tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...scheduled }]);
     await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
 
     expect(notifyMock).not.toHaveBeenCalled();
@@ -316,17 +316,17 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
   });
 
   it("eine bekannte Direktive storniert → Meldung wie bisher", async () => {
-    tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...ausgeloest }]);
+    tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...triggered }]);
     const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
-    expect(res.data).toEqual({ count: 1, hidden: 0, notified: true, rows: [{ id: "a1", ...ausgeloest }] });
+    expect(res.data).toEqual({ count: 1, hidden: 0, notified: true, rows: [{ id: "a1", ...triggered }] });
     expect(notifyMock).toHaveBeenCalledTimes(1);
     expect(heimdallMock).toHaveBeenCalledWith("u1");
   });
 
   it("die auto-erzeugte Sperrzeit gilt als bekannt → Meldung", async () => {
-    tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...autoErzeugt }]);
+    tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...autoCreated }]);
     const res = await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
@@ -334,17 +334,17 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
     expect(notifyMock).toHaveBeenCalledTimes(1);
   });
 
-  it("gemischt (eine bekannt, eine geplant) → EINE Meldung, nicht zwei und nicht keine", async () => {
+  it("gemischt (eine bekannt, eine scheduled) → EINE Meldung, nicht zwei und nicht keine", async () => {
     tx.verschlussAnforderung.findMany.mockResolvedValue([
-      { id: "a1", ...geplant },
-      { id: "a2", ...ausgeloest },
+      { id: "a1", ...scheduled },
+      { id: "a2", ...triggered },
     ]);
     const res = await withdrawVerschlussAnforderung("u1", "ANFORDERUNG", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     // `rows` sind exakt die in der Transaktion gelesenen Zeilen — der Aufrufer benennt sie damit,
     // ohne sie draussen (und damit potentiell abweichend) nachzuschlagen.
-    expect(res.data).toEqual({ count: 2, hidden: 1, notified: true, rows: [{ id: "a1", ...geplant }, { id: "a2", ...ausgeloest }] });
+    expect(res.data).toEqual({ count: 2, hidden: 1, notified: true, rows: [{ id: "a1", ...scheduled }, { id: "a2", ...triggered }] });
     expect(notifyMock).toHaveBeenCalledTimes(1);
   });
 
@@ -377,7 +377,7 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
   it("Lesen und Stornieren laufen in EINER Transaktion", async () => {
     // Sonst könnte der Poller dazwischen auslösen: er stempelt `benachrichtigtAt` nach unserem Lesen,
     // wir schwiegen — und der Sub hielte eine ihm gerade gemeldete Sperrzeit für weiter aktiv.
-    tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...geplant }]);
+    tx.verschlussAnforderung.findMany.mockResolvedValue([{ id: "a1", ...scheduled }]);
     await withdrawVerschlussAnforderung("u1", "SPERRZEIT", "herrin");
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
@@ -385,10 +385,10 @@ describe("withdrawVerschlussAnforderung (per art)", () => {
 
 /** Der Admin-UI-Pfad: dieselben Regeln, sonst hätte die Oberfläche denselben Bug wie der MCP. */
 describe("withdrawVerschlussAnforderungById (Admin-UI)", () => {
-  const va = (zustand: object) => ({ userId: "u1", art: "SPERRZEIT", withdrawnAt: null, ...zustand });
+  const va = (overrides: object) => ({ userId: "u1", art: "SPERRZEIT", withdrawnAt: null, ...overrides });
 
   it("eine GEPLANTE Zeile wegklicken meldet nichts — pusht aber an Heimdall", async () => {
-    findUniqueMock.mockResolvedValue(va(geplant));
+    findUniqueMock.mockResolvedValue(va(scheduled));
     const res = await withdrawVerschlussAnforderungById("s1", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
@@ -398,7 +398,7 @@ describe("withdrawVerschlussAnforderungById (Admin-UI)", () => {
   });
 
   it("eine bekannte Zeile wegklicken meldet", async () => {
-    findUniqueMock.mockResolvedValue(va(ausgeloest));
+    findUniqueMock.mockResolvedValue(va(triggered));
     const res = await withdrawVerschlussAnforderungById("s1", "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
@@ -410,7 +410,7 @@ describe("withdrawVerschlussAnforderungById (Admin-UI)", () => {
     findUniqueMock.mockResolvedValue(null);
     expect((await withdrawVerschlussAnforderungById("s1", "herrin")).ok).toBe(false);
 
-    findUniqueMock.mockResolvedValue(va({ ...ausgeloest, withdrawnAt: new Date() }));
+    findUniqueMock.mockResolvedValue(va({ ...triggered, withdrawnAt: new Date() }));
     expect((await withdrawVerschlussAnforderungById("s1", "herrin")).ok).toBe(false);
 
     expect(notifyMock).not.toHaveBeenCalled();
@@ -489,11 +489,11 @@ describe("updateLockRequest", () => {
   const IN_DREI_WOCHEN = new Date("2026-08-04T12:00:00Z");
 
   /** Eine ANFORDERUNGs-Zeile, wie updateLockRequest sie liest (inkl. user für die Zustellung). */
-  const anf = (zustand: object) => ({
+  const anf = (overrides: object) => ({
     id: "a1", userId: "u1", art: "ANFORDERUNG", endetAt: SPAETER, nachricht: null, dauerH: null,
     sperrEndetAt: null, deviceId: null, reinigungErlaubt: false, fulfilledAt: null, withdrawnAt: null,
     user: { id: "u1", email: "sub@example.invalid", username: "sub", locale: "de" },
-    ...zustand,
+    ...overrides,
   });
 
   beforeEach(() => {
@@ -513,7 +513,7 @@ describe("updateLockRequest", () => {
   });
 
   it("eine bereits ausgelöste Anforderung meldet die Änderung", async () => {
-    findUniqueMock.mockResolvedValue(anf(ausgeloest));
+    findUniqueMock.mockResolvedValue(anf(triggered));
     const res = await updateLockRequest("a1", { endetAt: SPAETER }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
@@ -521,7 +521,7 @@ describe("updateLockRequest", () => {
     expect(notifyMock).toHaveBeenCalledWith("u1", expect.objectContaining({ subjectKey: "lockRequestChangedSubject" }));
   });
 
-  it("auf sofort gezogen: die reguläre Zustellung geht JETZT raus, nicht erst beim nächsten Poller-Tick", async () => {
+  it("auf immediate gezogen: die reguläre Zustellung geht JETZT raus, nicht erst beim nächsten Poller-Tick", async () => {
     isLockedMock.mockResolvedValue(false); // eine Einschliess-Anforderung geht nur an einen offenen Sub
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
     const res = await updateLockRequest("a1", { wirksamAb: null }, "herrin");
@@ -551,7 +551,7 @@ describe("updateLockRequest", () => {
     expect(updateMock.mock.calls[0][0].data.benachrichtigtAt).toBeUndefined();
   });
 
-  it("sofort zustellen an einen bereits VERSCHLOSSENEN Sub wird abgelehnt", async () => {
+  it("immediate zustellen an einen bereits VERSCHLOSSENEN Sub wird abgelehnt", async () => {
     // Dieselbe Regel wie beim Anlegen und im Poller: eine Einschliess-Anweisung an einen, der schon
     // verschlossen ist, wäre unerfüllbar und zählte später als „zu spät verschlossen".
     isLockedMock.mockResolvedValue(true);
@@ -565,14 +565,14 @@ describe("updateLockRequest", () => {
   });
 
   it("Mindestdauer und absolutes Sperr-Ende verdrängen einander, statt still zu koexistieren", async () => {
-    findUniqueMock.mockResolvedValue(anf({ ...ausgeloest, dauerH: 24 }));
+    findUniqueMock.mockResolvedValue(anf({ ...triggered, dauerH: 24 }));
     await updateLockRequest("a1", { sperrEndetAt: IN_DREI_WOCHEN }, "herrin");
 
     expect(updateMock.mock.calls[0][0].data).toMatchObject({ dauerH: null, sperrEndetAt: IN_DREI_WOCHEN });
   });
 
   it("beides gleichzeitig zu setzen ist ein Fehler, kein stiller Vorrang", async () => {
-    findUniqueMock.mockResolvedValue(anf(ausgeloest));
+    findUniqueMock.mockResolvedValue(anf(triggered));
     const res = await updateLockRequest("a1", { dauerH: 12, sperrEndetAt: IN_DREI_WOCHEN }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
@@ -581,7 +581,7 @@ describe("updateLockRequest", () => {
   });
 
   it("das Reinigungs-Flag ohne Sperr-Vorgabe fällt weg (es hätte nichts zu erlauben)", async () => {
-    findUniqueMock.mockResolvedValue(anf(ausgeloest));
+    findUniqueMock.mockResolvedValue(anf(triggered));
     await updateLockRequest("a1", { reinigungErlaubt: true }, "herrin");
 
     expect(updateMock.mock.calls[0][0].data.reinigungErlaubt).toBe(false);
@@ -597,13 +597,13 @@ describe("updateLockRequest", () => {
   });
 
   it("die Guards greifen vor allem anderen — Sperrzeit, erfüllt, zurückgezogen, unbekannt", async () => {
-    findUniqueMock.mockResolvedValue({ ...anf(ausgeloest), art: "SPERRZEIT" });
+    findUniqueMock.mockResolvedValue({ ...anf(triggered), art: "SPERRZEIT" });
     expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
 
-    findUniqueMock.mockResolvedValue(anf({ ...ausgeloest, fulfilledAt: JETZT }));
+    findUniqueMock.mockResolvedValue(anf({ ...triggered, fulfilledAt: JETZT }));
     expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
 
-    findUniqueMock.mockResolvedValue(anf({ ...ausgeloest, withdrawnAt: JETZT }));
+    findUniqueMock.mockResolvedValue(anf({ ...triggered, withdrawnAt: JETZT }));
     expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(null);

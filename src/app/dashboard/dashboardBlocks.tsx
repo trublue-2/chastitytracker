@@ -154,7 +154,7 @@ const openStateData = async ({ userId, now, tz }: SubDashboardCtx) => {
     // nimmt ebenfalls die damalige (`findActiveSperrzeit` prüft `openTime >= s.createdAt`). Eine
     // erst nach der Öffnung angelegte Sperrzeit ergäbe hier eine Drohung, der im Strafbuch nichts
     // entspricht.
-    const sperreBeiOeffnung = latest && activeSperrzeit && activeSperrzeit.createdAt <= latest.startTime
+    const lockPeriodAtOpening = latest && activeSperrzeit && activeSperrzeit.createdAt <= latest.startTime
       ? activeSperrzeit
       : null;
     const cleaningRelockDeadline = latest && cleaningPauseUntil
@@ -165,7 +165,7 @@ const openStateData = async ({ userId, now, tz }: SubDashboardCtx) => {
           const settings = cleaning.at(latest.startTime);
           return cleaningRelockObligation(
             latest,
-            sperreBeiOeffnung,
+            lockPeriodAtOpening,
             cleaningPermissionUserAt(settings, tz),
             settings.maxMinutes,
             await cleaningWindowEnforcedFrom(now),
@@ -197,7 +197,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
     render: ({ anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg }, { now, tz, dl, t, tOrgasm }) => {
       // ALLE offenen — je Ziel kann eine laufen (v5.0.1). Dringendste zuerst, damit das Banner mit
       // der knappsten Frist oben steht.
-      const offeneKontrollen = openInspections(anforderungen);
+      const pendingInspections = openInspections(anforderungen);
 
       const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
         ? resolveReasonLabel(offeneOrgasmusAnf.vorgegebeneArt, orgasmCfg, "orgasm", tOrgasm)
@@ -206,7 +206,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       const alertProps: DashboardAlertsProps = {
         tz,
 
-        offeneKontrollen: offeneKontrollen.map((k) => ({
+        pendingInspections: pendingInspections.map((k) => ({
           deadline: k.deadline.toISOString(),
           code: k.code,
           target: inspectionTargetLabel(k),

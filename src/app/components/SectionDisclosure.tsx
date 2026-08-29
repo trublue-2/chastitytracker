@@ -34,8 +34,8 @@ export default function SectionDisclosure({
   defaultCollapsed?: boolean;
   children: ReactNode;
 }) {
-  const [zu, setZu] = useState(!!defaultCollapsed);
-  const inhaltId = useId();
+  const [collapsed, setCollapsed] = useState(!!defaultCollapsed);
+  const panelId = useId();
 
   // `useState` ist ein INITIALISIERER — der Wert wird genau einmal gelesen. „Dashboard anpassen"
   // speichert aber mit `router.refresh()`, und dabei bleibt diese Komponente dieselbe Instanz: die
@@ -43,26 +43,26 @@ export default function SectionDisclosure({
   // Fertig — und nichts geschah, bis er hart neu lud.
   //
   // Nachziehen WÄHREND des Renderns (nicht in einem Effekt): so ist der neue Wert schon im ersten
-  // Bild da, statt einen Rahmen lang den alten zu zeigen. Das ist das von React dafür vorgesehene
+  // Bild da, statt einen Rahmen lang den alten collapsed zeigen. Das ist das von React dafür vorgesehene
   // Muster; der Vergleichswert muss mitgeführt werden, sonst überschriebe der Abgleich bei jedem
   // Render das, was der Nutzer gerade selbst angetippt hat.
-  const [zuletztVorgegeben, setZuletztVorgegeben] = useState(defaultCollapsed);
-  if (zuletztVorgegeben !== defaultCollapsed) {
-    setZuletztVorgegeben(defaultCollapsed);
-    setZu(!!defaultCollapsed);
+  const [lastDefault, setLastDefault] = useState(defaultCollapsed);
+  if (lastDefault !== defaultCollapsed) {
+    setLastDefault(defaultCollapsed);
+    setCollapsed(!!defaultCollapsed);
   }
 
   return (
     <section id={id} className={className}>
       <div className={headerCls}>
         {/* Die ganze Rubrik ist die Trefferfläche, nicht nur das Zeichen daneben: ein 11-px-Wort
-            mit einem 14-px-Pfeil rechts wäre zweimal zu klein. `flex-1`, damit der Knopf die Zeile
+            mit einem 14-px-Pfeil rechts wäre zweimal collapsed klein. `flex-1`, damit der Knopf die Zeile
             trägt, wie die Rubrik es ohne ihn täte. */}
         <button
           type="button"
-          onClick={() => setZu((v) => !v)}
-          aria-expanded={!zu}
-          aria-controls={inhaltId}
+          onClick={() => setCollapsed((v) => !v)}
+          aria-expanded={!collapsed}
+          aria-controls={panelId}
           className="flex-1 min-w-0 flex items-center gap-1.5 text-left"
         >
           {heading}
@@ -72,7 +72,7 @@ export default function SectionDisclosure({
           <ChevronRight
             size={14}
             aria-hidden
-            className={`shrink-0 text-foreground-faint transition-transform ${zu ? "" : "rotate-90"}`}
+            className={`shrink-0 text-foreground-faint transition-transform ${collapsed ? "" : "rotate-90"}`}
           />
         </button>
         {action}
@@ -83,7 +83,7 @@ export default function SectionDisclosure({
           wegen der Browsersuche: die findet `display:none` nicht, dafür bräuchte es
           `hidden="until-found"` samt `onbeforematch`. Zuklappen spart also Bildschirmfläche, keine
           Arbeit; wer Ladezeit sparen will, blendet den Block aus. */}
-      <div id={inhaltId} hidden={zu} className={bodyCls}>
+      <div id={panelId} hidden={collapsed} className={bodyCls}>
         {children}
       </div>
     </section>

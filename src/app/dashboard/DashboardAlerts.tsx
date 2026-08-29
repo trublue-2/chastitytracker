@@ -15,7 +15,7 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 export interface DashboardAlertsProps {
   /** ALLE offenen Kontrollen, dringendste zuerst. Seit v5.0.1 kann je Ziel eine laufen (KG und
    *  Plug parallel) — eine einzelne würde die andere verschweigen, samt ihrer Frist. */
-  offeneKontrollen: {
+  pendingInspections: {
     deadline: string;
     /** null = Kontrolle ohne Code-Pflicht (Gerät mit `requireInspectionCode: false`). */
     code: string | null;
@@ -48,12 +48,12 @@ export interface DashboardAlertsProps {
 }
 
 export default async function DashboardAlerts({
-  offeneKontrollen,
+  pendingInspections,
   offeneVerschlussAnf,
   offeneOrgasmusAnf,
   tz,
 }: DashboardAlertsProps) {
-  if (offeneKontrollen.length === 0 && !offeneVerschlussAnf && !offeneOrgasmusAnf) return null;
+  if (pendingInspections.length === 0 && !offeneVerschlussAnf && !offeneOrgasmusAnf) return null;
 
   const t = await getTranslations("dashboard");
 
@@ -63,21 +63,21 @@ export default async function DashboardAlerts({
           untereinander ergeben keine Rangfolge, sondern verdoppeln die Frage „was zuerst".
           Dass es weitere gibt, verschweigt der Bildschirm trotzdem nicht: die Zeile darunter
           sagt es, leise. */}
-      {offeneKontrollen[0] && (
+      {pendingInspections[0] && (
         <KontrolleBanner
-          deadline={new Date(offeneKontrollen[0].deadline)}
-          code={offeneKontrollen[0].code}
-          target={offeneKontrollen[0].target}
-          overdue={offeneKontrollen[0].overdue}
-          autoMarkAt={offeneKontrollen[0].autoMarkAt ? new Date(offeneKontrollen[0].autoMarkAt) : null}
+          deadline={new Date(pendingInspections[0].deadline)}
+          code={pendingInspections[0].code}
+          target={pendingInspections[0].target}
+          overdue={pendingInspections[0].overdue}
+          autoMarkAt={pendingInspections[0].autoMarkAt ? new Date(pendingInspections[0].autoMarkAt) : null}
           variant="large"
-          href={offeneKontrollen[0].href}
+          href={pendingInspections[0].href}
           tz={tz}
         />
       )}
-      {offeneKontrollen.length > 1 && (
+      {pendingInspections.length > 1 && (
         <p className="text-neben text-foreground-faint">
-          {t("moreInspections", { count: offeneKontrollen.length - 1 })}
+          {t("moreInspections", { count: pendingInspections.length - 1 })}
         </p>
       )}
 

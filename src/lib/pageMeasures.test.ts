@@ -56,7 +56,7 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
    * Ausnahme, die nichts ausnimmt, liest sich wie eine begründete Entscheidung und ist keine —
    * deshalb prüft der Test unten, dass jeder Eintrag noch etwas ausnimmt.
    */
-  const SPALTE_ERLAUBT = new Set([
+  const COLUMN_ALLOWED = new Set([
     // Öffentliche Seiten stehen bewusst ausserhalb der App-Spalte.
     "src/app/Footer.tsx",
     "src/app/info/[lang]/page.tsx",
@@ -67,27 +67,27 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
   // `max-w-*` ZUSAMMEN mit `mx-auto` ist eine Spalte. `max-w-*` allein ist eine Kappung (ein
   // Knopf, ein Bild, eine Sprechblase) und bleibt erlaubt — sonst würde der Test Dinge verbieten,
   // die mit der Seitenbreite nichts zu tun haben.
-  const SPALTE = /max-w-(?:xs|sm|md|lg|\d?xl)[^"'`]*\bmx-auto|mx-auto[^"'`]*\bmax-w-(?:xs|sm|md|lg|\d?xl)/;
+  const COLUMN = /max-w-(?:xs|sm|md|lg|\d?xl)[^"'`]*\bmx-auto|mx-auto[^"'`]*\bmax-w-(?:xs|sm|md|lg|\d?xl)/;
 
   // Nach dem Umbau (#77) spannt KEINE Seite mehr eine Spalte auf: die beiden Bereichs-Layouts tun
   // es, und die eine Ausnahme — das Formular im breiten Keyholder-Bereich — hat mit `formColCls`
   // einen Namen. Beides steht in `inputStyles.ts` und wird von dieser Regex nicht getroffen (sie
   // sucht die ausgeschriebene Tailwind-Kette, nicht die Konstante). Genau so soll es sein: wer die
   // Kette wieder von Hand schreibt, fällt auf.
-  it.each([...SPALTE_ERLAUBT])("%s ist zu Recht ausgenommen", (file) => {
+  it.each([...COLUMN_ALLOWED])("%s ist zu Recht ausgenommen", (file) => {
     expect(
       stripComments(readFileSync(file, "utf8")),
-      `${file} spannt keine eigene Spalte mehr auf — aus SPALTE_ERLAUBT streichen`,
-    ).toMatch(SPALTE);
+      `${file} spannt keine eigene Spalte mehr auf — aus COLUMN_ALLOWED streichen`,
+    ).toMatch(COLUMN);
   });
 
-  it.each(ALL.filter((f) => !SPALTE_ERLAUBT.has(f)))("%s spannt keine eigene Spalte auf", (file) => {
+  it.each(ALL.filter((f) => !COLUMN_ALLOWED.has(f)))("%s spannt keine eigene Spalte auf", (file) => {
     expect(
       stripComments(readFileSync(file, "utf8")),
       `${file} schreibt sein Spaltenmass selbst — `
         + `\`readingColCls\` (Fliesstext, Formulare) oder \`wideColCls\` (Listen mit Bild und `
         + `Aktionsmenü) aus \`components/inputStyles.ts\` nehmen`,
-    ).not.toMatch(SPALTE);
+    ).not.toMatch(COLUMN);
   });
 
   /**
@@ -105,10 +105,10 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
    * dieser Test jedes Eingabefeld der App als Rubrik-Nachbau (sieben Treffer, alle falsch); nach
    * Grösse allein gesucht, verlor er die zwölf Altfälle, die ihre Grösse roh hinschreiben.
    */
-  const MIT = (...klassen: string[]) => klassen.map((k) => `(?=[^"'\`]*${k})`).join("");
-  const RUBRIK = new RegExp(
-    `${MIT("uppercase", "tracking-wider")}[^"'\`]*(?:text-foreground-faint|text-neben[^"'\`]*text-foreground-muted)`
-    + `|${MIT("uppercase", "tracking-wider", "text-neben", "text-foreground-muted")}[^"'\`]*`,
+  const WITH = (...klassen: string[]) => klassen.map((k) => `(?=[^"'\`]*${k})`).join("");
+  const HEADING = new RegExp(
+    `${WITH("uppercase", "tracking-wider")}[^"'\`]*(?:text-foreground-faint|text-neben[^"'\`]*text-foreground-muted)`
+    + `|${WITH("uppercase", "tracking-wider", "text-neben", "text-foreground-muted")}[^"'\`]*`,
   );
 
   /**
@@ -125,7 +125,7 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
    * Feld ist keine Abschnitts-Überschrift und hat in der Überschriften-Navigation nichts verloren.
    * Die brauchen ein eigenes benanntes Bauteil, nicht `BlockHeading`.
    */
-  const RUBRIK_RUECKSTAND = new Set([
+  const HEADING_BACKLOG = new Set([
     "src/app/admin/page.tsx",
     "src/app/admin/users/[id]/VorgabeForm.tsx",
     "src/app/admin/users/[id]/einstellungen/NotificationToggles.tsx",
@@ -142,25 +142,25 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
   it.each(ALL.filter((f) =>
     f !== "src/app/components/BlockHeading.tsx"
     && !f.startsWith("src/app/admin/dev/")
-    && !RUBRIK_RUECKSTAND.has(f)
+    && !HEADING_BACKLOG.has(f)
   ))(
     "%s baut keine eigene Rubrik",
     (file) => {
       expect(
         stripComments(readFileSync(file, "utf8")),
         `${file} setzt eine Rubrik von Hand — \`BlockHeading\` nehmen (es kann h2/h3/span)`,
-      ).not.toMatch(RUBRIK);
+      ).not.toMatch(HEADING);
     },
   );
 
   // Ohne diese Prüfung wäre der Rückstand die bequemste Stelle, an der der Test still stirbt: wer
   // die Regex kaputtmacht, bekommt eine grüne Suite UND eine Liste, die weiterhin nach Aufsicht
   // aussieht. Also muss jeder Eintrag darin auch wirklich noch ein Treffer sein.
-  it.each([...RUBRIK_RUECKSTAND])("%s steht zu Recht im Rückstand", (file) => {
+  it.each([...HEADING_BACKLOG])("%s steht zu Recht im Rückstand", (file) => {
     expect(
       stripComments(readFileSync(file, "utf8")),
-      `${file} baut keine Rubrik mehr von Hand — aus RUBRIK_RUECKSTAND streichen`,
-    ).toMatch(RUBRIK);
+      `${file} baut keine Rubrik mehr von Hand — aus HEADING_BACKLOG streichen`,
+    ).toMatch(HEADING);
   });
 });
 
@@ -216,10 +216,10 @@ describe("Jede Seite hat genau eine Landmarke", () => {
   });
 
   /** Der eine Bereich, dessen Layout die Landmarke für alle seine Seiten stellt. */
-  const LAYOUT_STELLT_MAIN = "src/app/admin/users/[id]/";
+  const LAYOUT_PROVIDES_MAIN = "src/app/admin/users/[id]/";
 
   /** Hüllen, die die Landmarke ihrer Seite mitbringen — Name des Tags → wo er wohnt. */
-  const HUELLEN_MIT_MAIN: Record<string, string> = {
+  const SHELLS_WITH_MAIN: Record<string, string> = {
     EntryActionFormShell: "src/app/components/AdminActionFormShell.tsx",
     SettingsForm: "src/app/dashboard/settings/SettingsForm.tsx",
   };
@@ -233,8 +233,8 @@ describe("Jede Seite hat genau eine Landmarke", () => {
    * Ein drittes Bauteil mit diesem Prop gehört in diese Aufzählung — und die Prüfung darunter
    * merkt es an, wenn eines davon das Prop verliert.
    */
-  const MIT_AS_PROP = ["DashboardBlock", "StatsMain"] as const;
-  const SETZT_MAIN = new RegExp(`<main[\\s>]|<(?:${MIT_AS_PROP.join("|")})[^>]*\\sas="main"`);
+  const WITH_AS_PROP = ["DashboardBlock", "StatsMain"] as const;
+  const SETS_MAIN = new RegExp(`<main[\\s>]|<(?:${WITH_AS_PROP.join("|")})[^>]*\\sas="main"`);
   const src = (f: string) => stripComments(readFileSync(f, "utf8"));
 
   /**
@@ -253,39 +253,39 @@ describe("Jede Seite hat genau eine Landmarke", () => {
     const next = code.slice(at + 1).search(/^export /m);
     return next === -1 ? code.slice(at) : code.slice(at, at + 1 + next);
   };
-  const nutztHuelle = (code: string) =>
-    Object.keys(HUELLEN_MIT_MAIN).some((tag) => code.includes(`<${tag}`));
+  const usesShell = (code: string) =>
+    Object.keys(SHELLS_WITH_MAIN).some((tag) => code.includes(`<${tag}`));
 
-  it.each(Object.entries(HUELLEN_MIT_MAIN))("%s bringt wirklich ein <main> mit", (tag, file) => {
+  it.each(Object.entries(SHELLS_WITH_MAIN))("%s bringt wirklich ein <main> mit", (tag, file) => {
     expect(
       exportBody(file, tag),
-      `${tag} in ${file} rendert kein <main> mehr — aus HUELLEN_MIT_MAIN streichen`,
+      `${tag} in ${file} rendert kein <main> mehr — aus SHELLS_WITH_MAIN streichen`,
     ).toMatch(/<main[\s>]/);
     expect(
       PAGES.filter((p) => src(p).includes(`<${tag}`)),
-      `keine Seite unter /dashboard oder /admin nutzt ${tag} noch — aus HUELLEN_MIT_MAIN streichen`,
+      `keine Seite unter /dashboard oder /admin nutzt ${tag} noch — aus SHELLS_WITH_MAIN streichen`,
     ).not.toHaveLength(0);
   });
 
   // Ohne diese Prüfung wäre die Liste die bequemste Stelle, an der der Test still stirbt: wer die
   // Erkennung kaputtmacht, bekommt eine grüne Suite UND eine Liste, die weiterhin nach Aufsicht
   // aussieht.
-  it.each(MIT_AS_PROP)("%s setzt sein as-Prop wirklich um", (tag) => {
+  it.each(WITH_AS_PROP)("%s setzt sein as-Prop wirklich um", (tag) => {
     const file = ALL.find((f) => f.endsWith(`/${tag}.tsx`));
-    expect(file, `${tag} gibt es nicht mehr — aus MIT_AS_PROP streichen`).toBeDefined();
+    expect(file, `${tag} gibt es nicht mehr — aus WITH_AS_PROP streichen`).toBeDefined();
     expect(
       /as:\s*Tag|as\s*=\s*"div"/.test(readFileSync(file!, "utf8")),
-      `${tag} nimmt kein \`as\`-Prop mehr entgegen — aus MIT_AS_PROP streichen, sonst zählt der `
+      `${tag} nimmt kein \`as\`-Prop mehr entgegen — aus WITH_AS_PROP streichen, sonst zählt der `
         + `Landmarken-Test ein Prop, das nirgends ankommt`,
     ).toBe(true);
   });
 
-  it.each(PAGES.filter((f) => f.startsWith(LAYOUT_STELLT_MAIN)))(
+  it.each(PAGES.filter((f) => f.startsWith(LAYOUT_PROVIDES_MAIN)))(
     "%s überlässt die Landmarke seinem Layout",
     (file) => {
       const code = src(file);
       expect(
-        SETZT_MAIN.test(code) || nutztHuelle(code),
+        SETS_MAIN.test(code) || usesShell(code),
         `${file} setzt eine zweite Landmarke — `
           + `\`admin/users/[id]/layout.tsx\` rendert bereits ein <main>. Ein \`div\` nehmen `
           + `(so wie \`AdminActionFormShell\` und \`StatsMain\` es für genau diesen Ort tun).`,
@@ -293,13 +293,13 @@ describe("Jede Seite hat genau eine Landmarke", () => {
     },
   );
 
-  it.each(PAGES.filter((f) => !f.startsWith(LAYOUT_STELLT_MAIN)))("%s bringt seine Landmarke selbst mit", (file) => {
+  it.each(PAGES.filter((f) => !f.startsWith(LAYOUT_PROVIDES_MAIN)))("%s bringt seine Landmarke selbst mit", (file) => {
     const code = src(file);
     expect(
-      SETZT_MAIN.test(code) || nutztHuelle(code),
+      SETS_MAIN.test(code) || usesShell(code),
       `${file} hat keinen Hauptbereich — weder \`dashboard/layout.tsx\` noch `
         + `\`admin/layout.tsx\` setzt einen. Ein \`<main>\` rendern, \`<DashboardBlock as="main">\` `
-        + `nehmen oder eine Hülle, die eins mitbringt (${Object.keys(HUELLEN_MIT_MAIN).join(", ")}).`,
+        + `nehmen oder eine Hülle, die eins mitbringt (${Object.keys(SHELLS_WITH_MAIN).join(", ")}).`,
     ).toBe(true);
   });
 });
@@ -328,34 +328,34 @@ describe("Jede Seite hat genau eine Landmarke", () => {
 describe("Ein divide-y-Behälter zieht keine eigene Oberkante", () => {
   /** Legitim: die Liste folgt anderem Inhalt, die Linie trennt dort wirklich zwei Dinge —
    *  sie steht nicht unter einer Rubrik, die schon eine gezogen hat. */
-  const OBERKANTE_ERLAUBT = new Map([
+  const TOP_EDGE_ALLOWED = new Map([
     ["src/app/admin/users/[id]/einstellungen/page.tsx",
      "steht unter VorgabeForm, nicht unter einer Rubrik — die Linie trennt Formular und Liste"],
   ]);
 
-  const mitDivide = (file: string) =>
+  const withDivide = (file: string) =>
     [...stripComments(readFileSync(file, "utf8")).matchAll(/className=\{?["`]([^"`]*divide-y[^"`]*)["`]/g)]
       .map((m) => m[1]);
 
-  const TREFFER = ALL.filter((f) => mitDivide(f).length > 0);
+  const HITS = ALL.filter((f) => withDivide(f).length > 0);
 
   it("findet die divide-y-Behälter wirklich", () => {
     // Untergrenze statt einer festen Zahl: der Baum wächst, aber unter 30 ist die Suche kaputt.
-    expect(TREFFER.length, "die Suche nach divide-y findet fast nichts — vermutlich kaputt").toBeGreaterThan(30);
+    expect(HITS.length, "die Suche nach divide-y findet fast nichts — vermutlich kaputt").toBeGreaterThan(30);
   });
 
-  it.each([...OBERKANTE_ERLAUBT.keys()])("%s ist zu Recht ausgenommen", (file) => {
-    expect(TREFFER, `${file} steht in der Ausnahmeliste, hat aber gar kein divide-y mehr`).toContain(file);
-    expect(mitDivide(file).some((c) => /\bborder-t\b/.test(c)),
+  it.each([...TOP_EDGE_ALLOWED.keys()])("%s ist zu Recht ausgenommen", (file) => {
+    expect(HITS, `${file} steht in der Ausnahmeliste, hat aber gar kein divide-y mehr`).toContain(file);
+    expect(withDivide(file).some((c) => /\bborder-t\b/.test(c)),
       `${file} steht in der Ausnahmeliste, verstösst aber gar nicht mehr — Eintrag entfernen`).toBe(true);
   });
 
-  it.each(TREFFER.filter((f) => !OBERKANTE_ERLAUBT.has(f)))("%s trägt keine doppelte Linie", (file) => {
-    const verstoesse = mitDivide(file).filter((c) => /\bborder-t\b/.test(c));
-    expect(verstoesse,
+  it.each(HITS.filter((f) => !TOP_EDGE_ALLOWED.has(f)))("%s trägt keine doppelte Linie", (file) => {
+    const violations = withDivide(file).filter((c) => /\bborder-t\b/.test(c));
+    expect(violations,
       `${file}: ein divide-y-Behälter trägt zusätzlich border-t. Steht er als erstes Kind in einem ` +
       `Section, liegt seine Oberkante als zweite Linie direkt unter der Rubrik-Unterstreichung. ` +
       `Entweder border-t streichen — oder, wenn die Liste wirklich anderem Inhalt folgt, mit ` +
-      `Begründung in OBERKANTE_ERLAUBT eintragen.`).toEqual([]);
+      `Begründung in TOP_EDGE_ALLOWED eintragen.`).toEqual([]);
   });
 });

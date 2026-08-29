@@ -207,7 +207,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
     // `ShowerHead`, nicht das offene Schloss: dieselbe Liste zeigt es weiter unten für das ENDE
     // einer Tragezeit, und dasselbe Zeichen hiesse dann einmal „Unterbrechung, es geht weiter" und
     // einmal „vorbei".
-    const reinigungPill = <Badge size="sm" icon={<ShowerHead size={11} />} label={t("sessionReinigung")} />;
+    const cleaningPill = <Badge size="sm" icon={<ShowerHead size={11} />} label={t("sessionReinigung")} />;
 
     return (
       <>
@@ -233,7 +233,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
           </div>
           <div className="flex-1 min-w-0 pt-0.5">
             <EventRowHead
-              pills={<>{reinigungPill}{keyPill}</>}
+              pills={<>{cleaningPill}{keyPill}</>}
               dateStr={ev.dateStr}
               timeStr={ev.timeStr}
               timeCorrected={ev.timeCorrected}
@@ -255,7 +255,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
             src={photo.src}
             alt=""
             onClose={() => setOpen(false)}
-            title={reinigungPill}
+            title={cleaningPill}
             panel={
               <div className="flex flex-col gap-3">
                 <PhotoChoice photo={photo} />

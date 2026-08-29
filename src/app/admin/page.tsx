@@ -236,16 +236,20 @@ export default async function AdminPage() {
   // je Nutzer aus und Reihenfolge, Kopfzahl und Punkt lesen alle denselben Wert.
   //
   // ZWEI Merkmale, nicht eines: `hasAlarm` beschriftet und zählt („braucht deine Entscheidung"),
-  // `sortiertHoch` ordnet. Der offene Riegel gehört nur ins zweite — er soll oben stehen, ohne eine
+  // `sortFirst` ordnet. Der offene Riegel gehört nur ins zweite — er soll oben stehen, ohne eine
   // Entscheidung zu behaupten, die es nicht gibt.
-  const markiert = usersWithStats.map(u => ({
+  const usersWithFlags = usersWithStats.map(u => ({
     ...u,
     hasAlarm: needsDecision(u.stats),
-    sortiertHoch: needsDecision(u.stats) || u.stats.boltOpen,
+    sortFirst: needsDecision(u.stats) || u.stats.boltOpen,
   }));
-  const wartend = markiert.filter(u => u.sortiertHoch);
-  const subsSortiert = [...wartend, ...markiert.filter(u => !u.sortiertHoch)];
-  const alarmCount = markiert.filter(u => u.hasAlarm).length;
+  // Die Teilung ist EIN Ausdruck: eine Zwischenvariable müsste eine Hälfte einer Partition benennen,
+  // und jeder Name dafür („wartend") behauptet mehr, als die Sortierung meint.
+  const subsSorted = [
+    ...usersWithFlags.filter(u => u.sortFirst),
+    ...usersWithFlags.filter(u => !u.sortFirst),
+  ];
+  const alarmCount = usersWithFlags.filter(u => u.hasAlarm).length;
 
   return (
     <main className="flex-1 py-6 flex flex-col gap-4">
@@ -305,7 +309,7 @@ export default async function AdminPage() {
         ) : (
           <Section title={t("yourSubsTitle")}>
             <div className="divide-y divide-border-subtle">
-              {subsSortiert.map((u) => {
+              {subsSorted.map((u) => {
                 const rowTz = u.timezone; // this row's sub governs its own timestamps
                 // Grün verschlossen, Rosa offen. Für „offen" stand hier Grau, und das war unter der
                 // alten Regel richtig („die Abwesenheit eines Zustands ist kein Signal") — seit die

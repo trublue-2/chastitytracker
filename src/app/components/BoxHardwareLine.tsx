@@ -58,7 +58,7 @@ export default function BoxHardwareLine({
   // Dieselbe Rangfolge wie die Karte: schweigt bei JEDER Riegel-Aussage, nicht nur beim Konflikt.
   // Vorher kannte die Zeile nur `boxHasConflict` und sagte im Versäumnis-Fall leise „Riegel offen",
   // während die Karte darunter laut warnte.
-  const zeigtRiegel = box !== null && boxBoltAlert(box, keyInBox) === null;
+  const showBolt = box !== null && boxBoltAlert(box, keyInBox) === null;
 
   return (
     <p className="relative mt-1.5 inline-flex flex-wrap items-center gap-x-1.5 text-neben text-foreground-faint">
@@ -66,7 +66,7 @@ export default function BoxHardwareLine({
       {tDash("keyInBoxYes")}
       {/* Der Riegel als Nachsatz derselben Zeile, nicht als eigener Block: er qualifiziert die
           Aussage („Schlüssel drin — und die Box hält ihn auch"), er ist keine zweite. */}
-      {zeigtRiegel && <span>{" · "}{boxIstLabel(box, t)}</span>}
+      {showBolt && <span>{" · "}{boxIstLabel(box, t)}</span>}
       {box && !boxIsLive(box.lastSyncAt, now) && (
         <span>{" · "}{boxFreshnessLabel(box.lastSyncAt, now, t)}</span>
       )}

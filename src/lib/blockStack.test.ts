@@ -12,7 +12,7 @@ import { SUB_DASHBOARD_BLOCKS, type SubDashboardBlockId } from "@/lib/dashboardB
  * wird die Maschinerie, nicht der Inhalt einer Oberfläche.
  */
 
-type Ctx = { marke: string };
+type Ctx = { mark: string };
 
 /** Eine vollständige Tabelle über das Träger-Dashboard, deren Loader nur protokollieren. */
 function spyTable(log: string[]): Record<SubDashboardBlockId, StackBlock<Ctx>> {
@@ -20,7 +20,7 @@ function spyTable(log: string[]): Record<SubDashboardBlockId, StackBlock<Ctx>> {
     SUB_DASHBOARD_BLOCKS.map((b) => [
       b.id,
       block({
-        load: async (ctx: Ctx) => { log.push(`${b.id}:${ctx.marke}`); return b.id; },
+        load: async (ctx: Ctx) => { log.push(`${b.id}:${ctx.mark}`); return b.id; },
         render: (id) => id,
       }),
     ]),
@@ -32,7 +32,7 @@ describe("renderStack", () => {
     const log: string[] = [];
     const layout = resolveLayout({ subDashboard: { hidden: ["sessionList", "taskList"] } }, "subDashboard");
 
-    const out = await renderStack(layout, { marke: "x" }, spyTable(log));
+    const out = await renderStack(layout, { mark: "x" }, spyTable(log));
 
     expect(log).not.toContain("sessionList:x");
     expect(log).not.toContain("taskList:x");
@@ -45,7 +45,7 @@ describe("renderStack", () => {
     const log: string[] = [];
     const layout = resolveLayout({ subDashboard: { order: ["taskList", "alerts"] } }, "subDashboard");
 
-    const out = await renderStack(layout, { marke: "x" }, spyTable(log));
+    const out = await renderStack(layout, { mark: "x" }, spyTable(log));
 
     expect(out[0].id).toBe("taskList");
     expect(out[1].id).toBe("alerts");
@@ -57,14 +57,14 @@ describe("renderStack", () => {
     // einen bestimmten Block band — fiel der weg, fiel der Test mit, obwohl er die Maschinerie
     // prüft und keinen Inhalt. Aus demselben Grund wird hier nicht auf die GANZE Liste geprüft:
     // `alwaysOn`-Blöcke lassen sich nicht wegschalten und stehen deshalb mit da.
-    const alleAusserEinem = SUB_DASHBOARD_BLOCKS.map((b) => b.id).filter((id) => id !== "runningSession");
-    const layout = resolveLayout({ subDashboard: { hidden: alleAusserEinem } }, "subDashboard");
+    const allButOne = SUB_DASHBOARD_BLOCKS.map((b) => b.id).filter((id) => id !== "runningSession");
+    const layout = resolveLayout({ subDashboard: { hidden: allButOne } }, "subDashboard");
     const table: Record<SubDashboardBlockId, StackBlock<Ctx>> = {
       ...spyTable([]),
-      runningSession: async (ctx) => `hallo ${ctx.marke}`,
+      runningSession: async (ctx) => `hallo ${ctx.mark}`,
     };
 
-    const out = await renderStack(layout, { marke: "welt" }, table);
+    const out = await renderStack(layout, { mark: "welt" }, table);
 
     expect(out.find((b) => b.id === "runningSession")).toEqual({ id: "runningSession", node: "hallo welt" });
   });

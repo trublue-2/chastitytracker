@@ -11,7 +11,7 @@ import InfoDot from "@/app/components/InfoDot";
 
 /** Eine Zeile dieser Karte. Die Kette stand fünfmal wörtlich darin — `listRowCls` passt nicht,
  *  weil es `blockInsetCls` mitbringt und die Karte ihre Polsterung selbst hat. */
-const zeileCls = "flex items-center gap-2";
+const boxRowCls = "flex items-center gap-2";
 
 /** Reine Status-Anzeige der Heimdall-Box(en). Keine Box-Kommandos — die Box folgt den
  *  Verschluss-/Öffnen-Einträgen. Pollt `/api/box` (self-hiding, wenn keine Box existiert oder
@@ -73,12 +73,12 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true, 
 
   if (boxes.length === 0) return null;
 
-  const mehrere = boxes.length > 1;
+  const multiBox = boxes.length > 1;
 
-  const fensterOffen = boxCleaningWindowOpenLabel(reinigung ?? null, t);
+  const windowOpen = boxCleaningWindowOpenLabel(reinigung ?? null, t);
 
-  const zustaende = boxes.map((b) => {
-    const istLocked = boxIsPhysicallyLocked(b);
+  const boxRows = boxes.map((b) => {
+    const isLocked = boxIsPhysicallyLocked(b);
     // Die EINE Riegel-Aussage samt Rangfolge — sie steht in `boxBoltAlert`, damit der Zustands-Held
     // dieselbe liest und nicht leise sagt, was hier laut steht.
     const boltAlert = boxBoltAlert(b, keyInBox);
@@ -89,22 +89,22 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true, 
     const batteryLabel = failsafes.some((w) => w.kind === "lowBatteryOpen") ? null : boxBatteryLabel(b, t);
     // Die STUFE aus dem Wert, nicht aus dem übersetzten Text: `boxBatteryLabel` hängt bei geladenem
     // Akku „· lädt" an, ein Vergleich auf „Akku niedrig" ginge dann immer daneben.
-    const batterieKnapp = batteryLabel !== null && boxBatteryIsLow(b);
-    return { b, istLocked, boltAlert, transition, failsafes, batterieKnapp, batteryLabel };
+    const batteryLow = batteryLabel !== null && boxBatteryIsLow(b);
+    return { b, isLocked, boltAlert, transition, failsafes, batteryLow, batteryLabel };
   });
 
   // Die Fläche richtet sich nach der lautesten Box. Im Normalfall die STILLE Karte (kein Rahmen,
   // keine Bedeutungsfarbe) — sie hebt sich durch die Fläche allein ab, und das reicht für eine
   // Auskunft. Erst wenn etwas nicht stimmt, wird sie zur semantischen Karte.
-  const hatWarnung = zustaende.some((z) => z.boltAlert !== null || z.batterieKnapp || z.failsafes.some((w) => w.severity !== "info"));
-  const hatUebergang = zustaende.some((z) => z.transition);
-  const semantik = hatWarnung ? "warn" : hatUebergang ? "sperrzeit" : null;
+  const hasWarning = boxRows.some((s) => s.boltAlert !== null || s.batteryLow || s.failsafes.some((w) => w.severity !== "info"));
+  const hasTransition = boxRows.some((s) => s.transition);
+  const semantic = hasWarning ? "warn" : hasTransition ? "sperrzeit" : null;
 
   // Die LEISE Vorwarnung (`severity: "info"` — die Hälfte des Funkstille-Fensters ist um) zählt für
   // die Sichtbarkeit mit, auch wenn sie den Ton nicht färbt. Ohne das wäre der Block genau für die
-  // Warnung unabschaltbar geworden, die er im selben Zug verloren hätte: `hatWarnung` prüft
+  // Warnung unabschaltbar geworden, die er im selben Zug verloren hätte: `hasWarning` prüft
   // ausdrücklich `!== "info"`, der Frühausstieg hätte sie also nie erreicht.
-  const hatLeiseWarnung = zustaende.some((z) => z.failsafes.length > 0);
+  const hasQuietWarning = boxRows.some((s) => s.failsafes.length > 0);
   // Die Box hält den Schlüssel, obwohl NIEMAND verschlossen ist. Nach einer Sperrbruch-Öffnung
   // bleibt der Riegel zu (`boxCommandForEntry` schickt dann bewusst kein Kommando): der Träger
   // steht auf „offen" und hätte sonst nirgends mehr die Auskunft, dass sein Schlüssel weiter
@@ -113,7 +113,7 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true, 
   // `!wearerLocked` ist die entscheidende Hälfte. Ohne sie träfe die Bedingung auch den
   // NORMALFALL: ein Verschluss ohne Sperrzeit hat kein Soll, und der Block stünde wieder dauerhaft
   // da — samt „Riegel zu" ein zweites Mal neben der Hardware-Zeile.
-  const haeltOhneAnlass = !wearerLocked && zustaende.some((z) => z.istLocked);
+  const hasUnexplainedHold = !wearerLocked && boxRows.some((s) => s.isLocked);
 
   // **Im Ruhefall rendert dieser Block gar nichts mehr.** Der Dauerzustand der Hardware ist ein
   // Qualifikator des Verschlusses und steht als eine Zeile im Zustands-Helden
@@ -122,13 +122,13 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true, 
   // oben beschreibt: der Block ist keine Auskunft mehr, die lauter wäre als eine offene Frist.
   //
   // Das offene Reinigungsfenster zählt mit: es läuft ab, ist also auch ein Ereignis.
-  if (!semantik && !fensterOffen && !hatLeiseWarnung && !haeltOhneAnlass) return null;
+  if (!semantic && !windowOpen && !hasQuietWarning && !hasUnexplainedHold) return null;
 
   return (
     <DashboardBlock>
       <Card
-        variant={semantik ? "semantic" : "default"}
-        semantic={semantik ?? undefined}
+        variant={semantic ? "semantic" : "default"}
+        semantic={semantic ?? undefined}
         padding="compact"
         // `rounded-xl` statt einer eigenen Variante: `default` bringt die Fläche schon mit, es
         // fehlt nur der Radius. Eine fünfte Variante für ein Utility mit einem Aufrufer hätte die
@@ -155,8 +155,8 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true, 
           </InfoDot>
         </div>
 
-        {zustaende.map(({ b, istLocked, boltAlert, transition, failsafes, batterieKnapp, batteryLabel }) => {
-          const prefix = mehrere ? `${b.name} · ` : "";
+        {boxRows.map(({ b, isLocked, boltAlert, transition, failsafes, batteryLow, batteryLabel }) => {
+          const prefix = multiBox ? `${b.name} · ` : "";
           return (
             <div key={b.boxId} className="flex flex-col gap-0.5">
               {/* KEINE Ist-Zeile mehr. Sie sagte „Verschlossen" über den Riegel, während der
@@ -180,11 +180,11 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true, 
               )}
               {/* Riegel zu, obwohl niemand verschlossen ist — leise, es ist keine Störung, nur
                   eine Auskunft, die sonst niemand gäbe. */}
-              {!wearerLocked && istLocked && (
-                <p className={`${zeileCls} text-neben text-foreground-muted`}>{prefix}{boxIstLabel(b, t)}</p>
+              {!wearerLocked && isLocked && (
+                <p className={`${boxRowCls} text-neben text-foreground-muted`}>{prefix}{boxIstLabel(b, t)}</p>
               )}
               {transition && (
-                <p className={`${zeileCls} text-neben font-medium text-sperrzeit-text`}>
+                <p className={`${boxRowCls} text-neben font-medium text-sperrzeit-text`}>
                   {transition === "closing" ? t("pendingCloseAtDevice") : t("pendingOpenAtDevice")}
                 </p>
               )}
@@ -193,16 +193,16 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true, 
                   (heimdall#1) — und verhindern lässt er sich nur rechtzeitig. */}
               {failsafes.map((w) => (
                 w.severity === "info"
-                  ? <p key={w.kind} className={`${zeileCls} text-neben text-foreground-muted`}>{boxFailsafeLabel(w, t)}</p>
+                  ? <p key={w.kind} className={`${boxRowCls} text-neben text-foreground-muted`}>{boxFailsafeLabel(w, t)}</p>
                   : <WarnLine key={w.kind}>{boxFailsafeLabel(w, t)}</WarnLine>
               ))}
               {/* Ein knapper Akku ohne Failsafe-Warnung: das Band zwischen „niedrig" und der
                   Not-Öffnungs-Schwelle hätte sonst gar keine Stimme mehr. */}
-              {batterieKnapp && batteryLabel && <WarnLine>{batteryLabel}</WarnLine>}
+              {batteryLow && batteryLabel && <WarnLine>{batteryLabel}</WarnLine>}
             </div>
           );
         })}
-        {fensterOffen && <p className="text-neben text-foreground-muted">{fensterOffen}</p>}
+        {windowOpen && <p className="text-neben text-foreground-muted">{windowOpen}</p>}
       </Card>
     </DashboardBlock>
   );

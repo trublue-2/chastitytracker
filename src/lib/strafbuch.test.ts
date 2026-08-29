@@ -296,11 +296,11 @@ describe("buildStrafbuch — das Reinigungs-Kontingent zählt den Kalendertag de
  */
 describe("buildStrafbuch — nie zugestellte Anforderungen sind keine Versäumnisse", () => {
   const JETZT = new Date("2026-07-31T18:00:00Z");
-  const ABGELAUFEN = new Date("2026-07-31T12:00:00Z");
+  const EXPIRED = new Date("2026-07-31T12:00:00Z");
 
   /** Eine ausgelöste, aber nie zugestellte Anforderung (`wirksamAb` gesetzt, `benachrichtigtAt` null). */
   const anforderung = (over: object = {}) => ({
-    id: "a1", art: "ANFORDERUNG", endetAt: ABGELAUFEN, fulfilledAt: null, nachricht: null,
+    id: "a1", art: "ANFORDERUNG", endetAt: EXPIRED, fulfilledAt: null, nachricht: null,
     wirksamAb: new Date("2026-07-31T17:00:00Z"), benachrichtigtAt: null, withdrawnAt: null, ...over,
   });
 
@@ -499,11 +499,11 @@ describe("buildStrafbuch — der Beleg zum Aufgaben-Vergehen", () => {
   /** Verschlossen seit 08:00, nie geöffnet — die KG-Bedingung hält durchgehend. */
   const VERSCHLUSS = { id: "v1", type: "VERSCHLUSS", startTime: START, oeffnenGrund: null, note: null, source: "user" };
 
-  const KG_BEDINGUNG = { id: "r1", type: "KG_LOCKED", categoryId: null, deviceId: null, sortOrder: 0, category: null, device: null };
+  const KG_CONDITION = { id: "r1", type: "KG_LOCKED", categoryId: null, deviceId: null, sortOrder: 0, category: null, device: null };
 
   /** Eine laufende Aufgabe mit einem Nachweis, dessen EIGENE Frist (09:00) längst verstrichen ist —
    *  die Haltefrist selbst läuft noch bis 18:00. */
-  const aufgabe = (requirements: unknown[]) => [{
+  const task = (requirements: unknown[]) => [{
     id: "t1", title: "Foto schicken", description: null,
     holdUntil: new Date("2026-08-10T18:00:00Z"), startGraceMin: 30, holdDurationMin: null,
     proofOrderMatters: false, isPunishment: false, penaltyReason: null,
@@ -526,7 +526,7 @@ describe("buildStrafbuch — der Beleg zum Aufgaben-Vergehen", () => {
   });
 
   it("durchgehalten, Nachweis-Frist verstrichen: Versäumnis MIT Beginn", async () => {
-    db.task.findMany.mockResolvedValue(aufgabe([KG_BEDINGUNG]));
+    db.task.findMany.mockResolvedValue(task([KG_CONDITION]));
 
     const [t] = (await buildStrafbuch("u1", NOW)).unfulfilledTasks;
     expect(t.state).toBe("missed");
@@ -539,7 +539,7 @@ describe("buildStrafbuch — der Beleg zum Aufgaben-Vergehen", () => {
 
   it("nie verschlossen: dasselbe Versäumnis, aber OHNE Beginn", async () => {
     mockVerschluesse([]);
-    db.task.findMany.mockResolvedValue(aufgabe([KG_BEDINGUNG]));
+    db.task.findMany.mockResolvedValue(task([KG_CONDITION]));
 
     const [t] = (await buildStrafbuch("u1", NOW)).unfulfilledTasks;
     expect(t.state).toBe("missed");
@@ -551,7 +551,7 @@ describe("buildStrafbuch — der Beleg zum Aufgaben-Vergehen", () => {
    *  Ohne `hasRequirements` wäre sie von „nie begonnen" nicht zu unterscheiden — und genau das ist
    *  ein Vorwurf, den es bei ihr gar nicht geben kann. */
   it("ohne Bedingungen: kein Beginn, aber auch nichts zu beginnen", async () => {
-    db.task.findMany.mockResolvedValue(aufgabe([]));
+    db.task.findMany.mockResolvedValue(task([]));
 
     const [t] = (await buildStrafbuch("u1", NOW)).unfulfilledTasks;
     expect(t.state).toBe("missed");
@@ -674,11 +674,11 @@ describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
  * sich erst im Strafbuch eines fremden Subs. Diese beiden Fälle nageln es fest.
  */
 describe("buildStrafbuch — die Sperrzeit, die im Moment der Öffnung endet", () => {
-  const AUF = new Date("2026-07-10T12:00:00Z");
+  const OPENED_AT = new Date("2026-07-10T12:00:00Z");
   const NOW = new Date("2026-07-10T22:00:00Z");
 
   /** Sperrzeit, die den Zeitpunkt der Öffnung umschliesst — beendet wird sie je Fall anders. */
-  const sperreBeendetAm = (withdrawnAt: Date) => ({
+  const lockEndingAt = (withdrawnAt: Date) => ({
     id: "s1",
     createdAt: new Date("2026-07-09T22:00:00Z"),
     endetAt: new Date("2026-07-11T22:00:00Z"),
@@ -689,7 +689,7 @@ describe("buildStrafbuch — die Sperrzeit, die im Moment der Öffnung endet", (
     fulfilledAt: null,
   });
 
-  const oeffnungOhneGrund = { id: "e1", type: "OEFFNEN", startTime: AUF, oeffnenGrund: "KEYHOLDER", note: null, source: "user" };
+  const keyholderOpening = { id: "e1", type: "OEFFNEN", startTime: OPENED_AT, oeffnenGrund: "KEYHOLDER", note: null, source: "user" };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -698,18 +698,18 @@ describe("buildStrafbuch — die Sperrzeit, die im Moment der Öffnung endet", (
       reinigungsFenster: [], timezone: "Europe/Zurich",
     });
     mockStichtag("2026-07-01T00:00:00Z");
-    mockOeffnungen([oeffnungOhneGrund]);
+    mockOeffnungen([keyholderOpening]);
   });
 
   it("gleicher Zeitstempel: die Öffnung ist KEIN Vergehen", async () => {
-    mockSperrzeiten([sperreBeendetAm(AUF)]);
+    mockSperrzeiten([lockEndingAt(OPENED_AT)]);
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
   });
 
   it("eine Millisekunde später beendet: die Sperrzeit galt noch, also IST es eines", async () => {
     // Die Gegenprobe. Ohne sie belegte der Test oben nur, dass gerade nichts anschlägt — nicht,
     // dass der Zeitstempel den Ausschlag gibt.
-    mockSperrzeiten([sperreBeendetAm(new Date(AUF.getTime() + 1))]);
+    mockSperrzeiten([lockEndingAt(new Date(OPENED_AT.getTime() + 1))]);
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
   });
 });

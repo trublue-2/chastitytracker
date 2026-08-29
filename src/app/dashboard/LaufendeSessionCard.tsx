@@ -105,13 +105,13 @@ export default async function LaufendeSessionCard({
   //
   // Ohne `viewerTz` fällt `formatDateTimeDual` selbst auf den reinen Primärwert zurück; ein
   // Ternär davor wäre ein Nulleffekt gewesen.
-  const sperrzeitStr = sperrzeitEndetAt
+  const lockUntilStr = sperrzeitEndetAt
     ? formatDateTimeDual(sperrzeitEndetAt, dl, viewerTz, tz, subLabel)
     : null;
   const scheduledForStr = sperrzeitScheduledFor ? formatDateTime(sperrzeitScheduledFor, dl, tz) : null;
   const runningSinceStr = sperrzeitRunningSince ? formatDateTime(sperrzeitRunningSince, dl, tz) : null;
   /** Die Nebenangaben der Sperr-Zeile — Restzeit und erreichter Beginn stehen gleichrangig. */
-  const showSperrzeit = sperrzeitStr !== null || sperrzeitUnbefristet || scheduledForStr !== null || runningSinceStr !== null;
+  const showSperrzeit = lockUntilStr !== null || sperrzeitUnbefristet || scheduledForStr !== null || runningSinceStr !== null;
 
   // Nicht „hat die Vorgabe Ziele?", sondern „bleibt eine bewertbare Zeile übrig?" — sonst stünde
   // die Überschrift „KG-Ziele" am Starttag einer Vorgabe über einer leeren Liste.
@@ -156,9 +156,9 @@ export default async function LaufendeSessionCard({
             <span className="font-semibold text-foreground">
               {scheduledForStr
                 ? <>{ta("scheduledForLabel")}: {scheduledForStr}</>
-                : sperrzeitStr ? <>{t("sessionLockedUntil")} {sperrzeitStr}</> : t("sessionLockedIndefinite")}
+                : lockUntilStr ? <>{t("sessionLockedUntil")} {lockUntilStr}</> : t("sessionLockedIndefinite")}
             </span>
-            {!scheduledForStr && !sperrzeitStr && runningSinceStr && (
+            {!scheduledForStr && !lockUntilStr && runningSinceStr && (
               <span>{ta("lockRunningSince", { time: runningSinceStr })}</span>
             )}
             {!scheduledForStr && sperrzeitEndetAt && (

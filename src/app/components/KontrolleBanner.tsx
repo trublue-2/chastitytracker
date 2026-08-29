@@ -12,7 +12,7 @@ import { actionIcon } from "@/app/entries/actionSign";
 
 /** Das Zeichen DIESER Sache aus der Registratur, nicht das Warndreieck der Gattung Alarm — und auf
  *  Modulebene, weil es konstant ist. */
-const ZEICHEN = actionIcon("PRUEFUNG");
+const InspectionIcon = actionIcon("PRUEFUNG");
 
 /**
  * **Die Stufe an EINER Stelle** — Ton, Rubrik, Richtungswort, Kante.
@@ -20,15 +20,15 @@ const ZEICHEN = actionIcon("PRUEFUNG");
  * Die Fallunterscheidung stand einmal zweimal in dieser Datei, je Variante als Ternär-Kette, und
  * war bereits auseinandergelaufen. Die Varianten entscheiden nur noch über die DICHTE.
  */
-const STUFE = {
-  laufend: {
-    ton: "inspect" as SectionTone, rubrik: "openTitle", richtung: "untilPrefix", kurz: "until",
-    kante: "", gewicht: "", zeichenCls: "text-inspect", zahlCls: "text-foreground", satzCls: "text-foreground-muted",
+const URGENCY = {
+  running: {
+    tone: "inspect" as SectionTone, titleKey: "openTitle", prefixKey: "untilPrefix", shortKey: "until",
+    edgeCls: "", weightCls: "", iconCls: "text-inspect", numberCls: "text-foreground", textCls: "text-foreground-muted",
   },
-  ueberfaellig: {
-    ton: "warn" as SectionTone, rubrik: "overdueTitle", richtung: "overduePrefix", kurz: "overdue",
-    kante: warnEdgeCls, gewicht: "font-semibold", zeichenCls: "text-warn",
-    zahlCls: "text-warn", satzCls: "text-warn-text",
+  overdue: {
+    tone: "warn" as SectionTone, titleKey: "overdueTitle", prefixKey: "overduePrefix", shortKey: "overdue",
+    edgeCls: warnEdgeCls, weightCls: "font-semibold", iconCls: "text-warn",
+    numberCls: "text-warn", textCls: "text-warn-text",
   },
 } as const;
 
@@ -93,17 +93,17 @@ export default function KontrolleBanner({
 }: Props) {
   const t = useTranslations("kontrolleBanner");
   const dl = toDateLocale(useLocale());
-  const stufe = overdue ? STUFE.ueberfaellig : STUFE.laufend;
-  const rubrik = `${t(stufe.rubrik)}${target ? ` · ${target}` : ""}`;
+  const urgency = overdue ? URGENCY.overdue : URGENCY.running;
+  const titleKey = `${t(urgency.titleKey)}${target ? ` · ${target}` : ""}`;
 
   if (variant === "compact") {
     // Eine Zeile, kein Streifen. Die Spanne ist RELATIV: die Keyholderin überfliegt diese Liste,
     // und „seit 3h 20min" rangiert, „27.08.2026, 22:01" nicht. Nebeneffekt, der zählt — eine
     // relative Spanne ist zeitzonenfrei, damit fallen drei Zeitangaben für eine Tatsache weg.
     return (
-      <div className={`text-neben ${stufe.kante} ${stufe.gewicht}`}>
+      <div className={`text-neben ${urgency.edgeCls} ${urgency.weightCls}`}>
         <div className="flex items-start gap-1.5">
-          <ZEICHEN size={13} className={`mt-0.5 flex-shrink-0 ${stufe.zeichenCls}`} aria-hidden />
+          <InspectionIcon size={13} className={`mt-0.5 flex-shrink-0 ${urgency.iconCls}`} aria-hidden />
           <span className="flex-1 min-w-0">
             {/* Kein `sr-only`-Vorspann für die Kante: der sichtbare Satz beginnt bereits mit
                 „Kontrolle überfällig seit …". Er stand hier und ergab vorgelesen „Kontrolle
@@ -114,8 +114,8 @@ export default function KontrolleBanner({
                 sich damit als „Kontrolle bis –", ohne Fehler und ohne leeren Platz. Dazu tickt
                 das Bauteil und ist hydrations-sicher; ein `new Date()` beim Rendern fror die
                 Spanne ein und wich zwischen Server und Client ab. */}
-            <span className={stufe.satzCls}>
-              {t(stufe.kurz)}{" "}
+            <span className={urgency.textCls}>
+              {t(urgency.shortKey)}{" "}
               <TimerDisplay targetDate={deadline} mode={overdue ? "countup" : "countdown"} format="long" srPrefix={false} />
             </span>
             {target && <span className="text-foreground-muted">{" · "}{target}</span>}
@@ -129,35 +129,35 @@ export default function KontrolleBanner({
   // Überfällig UND Automatik an: die Zahl zählt auf die Buchung, nicht auf eine verstrichene Frist.
   // Als DATUM geführt, nicht als Boolean — sonst bräuchte die Zeile darunter eine
   // Non-Null-Behauptung für einen Wert, den TypeScript selbst einengen kann.
-  const buchung = overdue ? autoMarkAt ?? null : null;
+  const autoMark = overdue ? autoMarkAt ?? null : null;
 
   return (
-    <Section tone={stufe.ton} className={stufe.kante}
-      title={<span className="inline-flex items-center gap-1.5"><ZEICHEN size={13} aria-hidden />{rubrik}</span>}
+    <Section tone={urgency.tone} className={urgency.edgeCls}
+      title={<span className="inline-flex items-center gap-1.5"><InspectionIcon size={13} aria-hidden />{titleKey}</span>}
     >
       {/* `TimerDisplay` bringt Takt, Formatierung, `tabular-nums`, `suppressHydrationWarning` und
           den `sr-only`-Vorspann „verbleibend/vergangen" mit. Kein `aria-live` — der Vorfall steht
           in `LiveStatus`. `whitespace-nowrap` wie beim `StateHero`. */}
       <TimerDisplay
-        targetDate={buchung ?? deadline}
-        mode={overdue && !buchung ? "countup" : "countdown"}
+        targetDate={autoMark ?? deadline}
+        mode={overdue && !autoMark ? "countup" : "countdown"}
         format="long"
         /* KEINE eigene Farbe beim Countdown: `TimerDisplay` färbt dort selbst nach Restzeit
            (`phaseColor`), und zwei `text-*` am selben Element entscheidet die Reihenfolge im
            erzeugten Stylesheet — nicht die im String. Beim Hochzählen färbt das Bauteil nicht,
            dort trägt die Warnfarbe der Stufe. */
         className={`block text-kennzahl font-semibold leading-none whitespace-nowrap ${
-          overdue && !buchung ? stufe.zahlCls : ""
+          overdue && !autoMark ? urgency.numberCls : ""
         }`}
       />
-      {buchung ? (
+      {autoMark ? (
         // Die Folge, bevor sie eintritt — ohne Zeitangabe im Text: die Zahl darüber IST sie.
         <p className="text-neben font-semibold text-warn-text">{t("autoMarkWarn")}</p>
       ) : (
         // Tag und Uhrzeit, kein Volldatum: bei einer Ein-Stunden-Frist war das Jahr im Zeitstempel
         // schlicht falsch dimensioniert.
         <p className="text-neben text-foreground-muted">
-          {t(stufe.richtung)} {formatDayTimeDual(deadline, dl, viewerTz, tz, t("subTimePrefix"))}
+          {t(urgency.prefixKey)} {formatDayTimeDual(deadline, dl, viewerTz, tz, t("subTimePrefix"))}
         </p>
       )}
       {/* Zum ABSCHREIBEN gebaut, nicht zum Überfliegen: Monoschrift und weite Sperrung, damit
