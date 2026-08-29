@@ -13,7 +13,7 @@ import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stat
 import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
-import { toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, type BoxFailsafeWarning } from "@/lib/boxStatus";
+import { toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, boxBoltOpenDespiteLocked, type BoxFailsafeWarning } from "@/lib/boxStatus";
 import { getEvaluatedTasks, loadTaskProofViews, type EvaluatedTask, type TaskProofView } from "@/lib/taskIntervals";
 import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike } from "@/lib/tasks";
 import { taskProofState } from "@/lib/taskView";
@@ -69,6 +69,14 @@ export interface BoxStateView {
    *  "reported-open" (reportedLocked:false), "key-not-in-box" (keyInBox:false), "open-armed"
    *  (openArmed:true), "stale-lock" (staleLock:true). */
   hardwareEnforcedReason: HardwareEnforcedReason | null;
+  /** Der Riegel steht offen, obwohl die Box zu sein soll, und es wartet KEIN Kommando mehr darauf —
+   *  der Knopfdruck am Gerät fehlt. Beide menschlichen Sichten warnen darauf; über dieselbe
+   *  Funktion (`boxBoltOpenDespiteLocked`), damit hier keine zweite Rechnung danebensteht.
+   *
+   *  Nicht dasselbe wie `hardwareEnforcedReason: "reported-open"`: das feuert bei JEDEM offenen
+   *  Riegel, auch bei einem legitim offenen und bei einem Kommando, das noch unterwegs ist. Wer
+   *  darauf ein Versäumnis stützt, hält jede offene Box für eines. */
+  boltOpenDespiteLocked: boolean;
   /** Die Öffnung ist SCHARFGESTELLT: die Box ist (laut IST) zu, aber die Frist ist verstrichen oder
    *  das SOLL steht auf offen — seit FW 0.2.34 öffnet sie dann nicht mehr von selbst, sondern beim
    *  nächsten Knopf/USB-Kontakt, ohne weitere Prüfung. „Hält" zählt das ehrlicherweise nicht mehr. */
@@ -612,6 +620,7 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
     lockUntil: iso(box.lockUntil),
     hardwareEnforced,
     hardwareEnforcedReason,
+    boltOpenDespiteLocked: boxBoltOpenDespiteLocked(box, keyInBox),
     openArmed,
     staleLock,
     keyInBox,

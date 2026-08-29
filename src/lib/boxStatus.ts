@@ -94,6 +94,29 @@ export function boxHasConflict(b: BoxRow): boolean {
   return !boxIsPhysicallyLocked(b) && boxSollLocked(b);
 }
 
+/**
+ * Welche EINE Aussage über den Riegel gilt — oder keine.
+ *
+ * Es gibt zwei Arten, wie ein Riegel falsch steht, und sie überschneiden sich fast, aber nicht
+ * ganz: `boxHasConflict` fragt „etwas will die Box zu, sie steht offen" über `boxSollLocked`
+ * (Sperrzeit, Frist, lokale Verriegelung), {@link boxBoltOpenDespiteLocked} fragt es über den
+ * gespiegelten `locked`-Entscheid und schliesst ein noch wartendes Kommando aus.
+ *
+ * **Warum die Rangfolge hierher gehört und nicht in die Karte.** Sie hatte sie als Negativ-Wächter
+ * an der unterlegenen Zeile stehen (`conflict && !boltOpen`), und der Zustands-Held wusste nichts
+ * davon: er schwieg über den Riegel nur bei `boxHasConflict`. In der Lage, in der die beiden
+ * auseinandergehen, sagte er darum leise „Riegel offen", während die Karte darunter laut warnte —
+ * dieselbe Tatsache zweimal, also genau die Dublette, deren Beseitigung `boxHasConflict` verspricht.
+ * Jetzt lesen beide dieselbe Reihenfolge.
+ *
+ * `"omission"` gewinnt, weil es dasselbe sagt wie `"conflict"` plus den Grund und die Handlung.
+ */
+export function boxBoltAlert(b: BoxRow, keyInBox: boolean | null): "omission" | "conflict" | null {
+  if (boxBoltOpenDespiteLocked(b, keyInBox)) return "omission";
+  if (boxHasConflict(b)) return "conflict";
+  return null;
+}
+
 /** Frischer als das → „gerade aktiv"; darüber → „zuletzt online vor X". */
 const LIVE_THRESHOLD_MS = 2 * 60_000;
 
@@ -115,21 +138,64 @@ export const boxIsPhysicallyLocked = (b: Pick<BoxRow, "locked" | "reportedLocked
 
 /**
  * Laufender Übergang, den erst ein Knopfdruck an der Box vollzieht (Präsenz-Gate, FW ≥ 0.2.34):
- * `"closing"`/`"opening"` — oder null, wenn Soll und Ist übereinstimmen.
+ * `"closing"`/`"opening"` — oder null, wenn nichts unterwegs ist.
  *
  * Zwei Quellen: SOFORT nach dem Eintrag das tracker-lokale `pendingCommand` (der Spiegel weiss
- * noch nichts); nach dem nächsten Box-Sync der Soll/Ist-Mismatch aus dem Spiegel (`locked` vs
- * `reportedLocked`), bis der Riegel bestätigt ist. `pendingCommand` gewinnt: es ist die jüngere
- * Absicht. Am Consume-Sync selbst (Kommando abgeholt, Push mit dem Mismatch noch nicht da) kann
- * der Übergang für einen Poll-Takt kurz auf null fallen — kosmetisch, kein Zustandsverlust.
+ * noch nichts); danach der Soll/Ist-Mismatch in der Richtung „soll offen, Riegel noch zu".
+ * `pendingCommand` gewinnt: es ist die jüngere Absicht.
+ *
+ * Nur diese Richtung: eine scharfgestellte Öffnung vollzieht der Träger von selbst (er will raus).
+ * Das ausstehende SCHLIESSEN tut er gerade nicht — das ist kein Übergang, sondern ein Versäumnis,
+ * siehe {@link boxBoltOpenDespiteLocked}.
  */
 export function boxPendingTransition(b: BoxRow): "closing" | "opening" | null {
   if (b.pendingCommand === "lock") return "closing";
   if (b.pendingCommand === "open") return "opening";
-  if (b.reportedLocked === null) return null; // Alt-Zeile: kein IST bekannt → kein Mismatch ableitbar
-  if (b.locked && !b.reportedLocked) return "closing";
+  // KEIN `reportedLocked === null`-Ausstieg mehr: den brauchte nur die entfernte Gegenrichtung
+  // (`locked && !reportedLocked` wäre bei `null` wahr geworden). Der verbliebene Zweig ist bei
+  // `null` von sich aus falsch. In `boxBoltOpenDespiteLocked` ist derselbe Guard dagegen tragend.
   if (!b.locked && b.reportedLocked) return "opening";
   return null;
+}
+
+/**
+ * Der Riegel steht offen, obwohl er zu sein soll — und es wartet kein Kommando mehr darauf.
+ *
+ * **Warum das ein eigener Zustand ist und kein Übergang.** Ein anstehendes `lock` löst sich von
+ * selbst: die Box holt es beim nächsten Sync ab, jemand drückt den Knopf, fertig. Hier ist das
+ * Kommando längst abgeholt (`/api/integration/box/status` löscht es beim Consume) und der Riegel
+ * steht trotzdem offen. Es fehlt der Knopfdruck am Gerät, und der kommt nicht von allein — das
+ * Präsenz-Gate (FW 0.2.34) verlangt jemanden davor.
+ *
+ * Bewusst OHNE Dauer: es gibt keinen Zeitstempel für den Beginn dieses Zustands. `pendingCommandAt`
+ * wird beim Consume-Sync gelöscht, also genau dann, wenn er anfängt. „Offen seit …" liesse sich nur
+ * mit einem neuen Feld sagen.
+ */
+export function boxBoltOpenDespiteLocked(
+  // `pendingCommand` als ROHER `string | null`: geprüft wird nur, OB eines aussteht — welches, ist
+  // hier gleichgültig. So passt auch eine unverengte Prisma-Zeile hinein, ohne dass die Aufrufstelle
+  // die Whitelist aus `toPendingCommand` ein zweites Mal von Hand hinschreibt.
+  b: Pick<BoxRow, "locked" | "reportedLocked"> & { pendingCommand: string | null },
+  /** Liegt der Schlüssel überhaupt in der Box? `false` schliesst das Versäumnis aus, `null` (nicht
+   *  bekannt) nicht — siehe unten. Bewusst ein PFLICHT-Argument: eine Vorgabe hätte an jeder neuen
+   *  Aufrufstelle still die falsche Hälfte gewählt. */
+  keyInBox: boolean | null,
+): boolean {
+  // **Der Reisefall ist kein Versäumnis.** Verschliesst sich der Träger und behält den Schlüssel
+  // (`keyInBox: false`), schickt `boxCommandForEntry` bewusst KEIN Kommando — die Box bleibt offen,
+  // völlig zu Recht. Eine Keyholder-Sperrzeit zieht Heimdall trotzdem als Dauerauftrag, `locked`
+  // steht also auf zu. Ohne diese Zeile läse das jede Sicht als Versäumnis: der Träger bekäme
+  // wochenlang „JETZT Knopf drücken!" für einen Knopf, der tausend Kilometer entfernt ist, und die
+  // Keyholderin sähe ihn die ganze Zeit unter den auffälligen Trägern. Jede andere Riegel-Aussage
+  // im Projekt rechnet den Fall heraus (`hardwareEnforced`, `keySecured`, `hardwareEnforcedReason`).
+  if (keyInBox === false) return false;
+  // Noch unterwegs ist kein Versäumnis — erst wenn niemand mehr darauf wartet. Über
+  // `toPendingCommand`, damit ein Wert ausserhalb der Whitelist hier genauso zählt wie an den
+  // Ausgabestellen: sonst schwiege diese Ableitung über einen Junk-Wert, den `/api/box` und der MCP
+  // längst als `null` weiterreichen — dieselbe Zeile, zwei Lesarten.
+  if (toPendingCommand(b.pendingCommand)) return false;
+  if (b.reportedLocked === null) return false; // Alt-Zeile ohne IST → nichts ableitbar
+  return b.locked && !b.reportedLocked;
 }
 
 /** Ist-Zustand der Box (Hardware-Wahrheit): offen, oder verschlossen (mit/ohne bestätigten Riegel).

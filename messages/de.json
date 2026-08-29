@@ -617,6 +617,8 @@
     "batteryCritical": "Akku kritisch",
     "batteryCharging": "lädt",
     "pendingCloseAtDevice": "Schliessen angefordert — der Riegel bleibt offen, bis jemand den Knopf an der Box drückt. Dass die Box online ist, schliesst ihn nicht.",
+    "boltOpenSelf": "Die Box ist nicht verschlossen. JETZT Knopf drücken!",
+    "boltOpenKeyholder": "Die Box ist nicht verschlossen — der Riegel steht offen, und es wartet kein Befehl mehr darauf. Der Knopfdruck am Gerät fehlt.",
     "pendingOpenAtDevice": "Öffnung freigegeben — der Riegel bleibt zu, bis jemand den Knopf an der Box drückt. Von selbst öffnet er nicht.",
     "failsafeOfflineWarn": "Box seit {hours} Std ohne Kontakt — Not-Öffnung in {left} Std. Netz in Reichweite bringen.",
     "failsafeOfflineDue": "Box seit {hours} Std ohne Kontakt — die Not-Öffnung ist erfolgt oder steht unmittelbar bevor.",
@@ -936,6 +938,7 @@
   "admin": {
     "title": "Benutzerverwaltung",
     "needsYouTitle": "{count, plural, one {braucht deine Entscheidung} other {brauchen deine Entscheidung}}",
+    "boltOpenOverview": "Box nicht verschlossen — Riegel offen",
     "needsYouRow": "braucht deine Entscheidung",
     "allCalmTitle": "Nichts offen",
     "allCalmHint": "Keiner deiner Subs wartet gerade auf dich.",

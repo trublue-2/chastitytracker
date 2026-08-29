@@ -53,6 +53,11 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   der Sub hat den Schlüssel behalten). `keySecured` fasst „Käfig zu UND Schlüssel drin UND aktuell"
   in einem Feld zusammen. Ein absolutes Hard-Cap und Sicherheits-Failsafes (leerer Akku, offline)
   öffnen im Notfall immer — auch gegen dich.
+- **`boltOpenDespiteLocked: true`** heisst: der Riegel steht offen, obwohl die Box zu sein soll, und
+  es wartet kein Befehl mehr darauf — es fehlt der Knopfdruck am Gerät. Der Sub hat ihn vergessen,
+  oder er unterlässt ihn. Beide menschlichen Sichten warnen darauf; du siehst dasselbe Feld. Nicht
+  zu verwechseln mit `hardwareEnforcedReason: "reported-open"`, das bei JEDEM offenen Riegel steht,
+  auch bei einem völlig legitimen. Der Reisefall (Schlüssel beim Sub) ist ausgenommen.
 - **`failsafeWarnings`** kündigt die beiden Sicherheits-Failsafes an, BEVOR sie zuschlagen: wie lange
   die Box schon ohne Serverkontakt ist und wann sie deshalb von selbst aufgeht (`offlineOpen`), bzw.
   wie nah der Akku an der Schwelle ist (`lowBatteryOpen`). Nur diese beiden — eine scharfgestellte

@@ -2,7 +2,7 @@
 
 import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { boxIstLabel, boxFreshnessLabel, boxIsLive, boxHasConflict } from "@/lib/boxStatus";
+import { boxIstLabel, boxFreshnessLabel, boxIsLive, boxBoltAlert } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import InfoDot from "@/app/components/InfoDot";
 
@@ -24,7 +24,7 @@ import InfoDot from "@/app/components/InfoDot";
  * die Stille zählt.
  *
  * **Im Konflikt schweigt die Zeile über den Riegel.** Dann meldet ihn der Box-Block laut, und beide
- * zugleich sagten dasselbe zweimal. Die Bedingung ist DIESELBE Funktion (`boxHasConflict`), nicht
+ * zugleich sagten dasselbe zweimal. Die Bedingung ist DIESELBE Funktion (`boxBoltAlert`), nicht
  * eine nachgebaute — sonst behauptete der Kommentar die Arbeitsteilung, die es nicht gibt.
  *
  * **Das ⓘ hängt hier.** Es sass am Box-Block — und der ist im Ruhefall verschwunden, womit
@@ -38,9 +38,14 @@ import InfoDot from "@/app/components/InfoDot";
  */
 export default function BoxHardwareLine({
   userId,
+  keyInBox = true,
 }: {
   /** Gesetzt = Sicht auf einen fremden Sub (Keyholderin). */
   userId?: string;
+  /** Liegt der Schlüssel in der Box? Reicht die Rangfolge in `boxBoltAlert` durch — ohne ihn
+   *  schwiege die Zeile im Reisefall über einen Riegel, den zu Recht niemand geschlossen hat.
+   *  Vorgabe `true`: der einzige Aufrufer rendert sie ohnehin nur dann. */
+  keyInBox?: boolean | null;
 }) {
   const t = useTranslations("boxStatus");
   const tDash = useTranslations("dashboard");
@@ -50,7 +55,10 @@ export default function BoxHardwareLine({
   // zweien schlicht falsch. Gibt es mehrere, schweigt die Zeile über den Riegel und überlässt ihn
   // dem Block, der die Namen mitführt.
   const box = boxes.length === 1 ? boxes[0] : null;
-  const zeigtRiegel = box !== null && !boxHasConflict(box);
+  // Dieselbe Rangfolge wie die Karte: schweigt bei JEDER Riegel-Aussage, nicht nur beim Konflikt.
+  // Vorher kannte die Zeile nur `boxHasConflict` und sagte im Versäumnis-Fall leise „Riegel offen",
+  // während die Karte darunter laut warnte.
+  const zeigtRiegel = box !== null && boxBoltAlert(box, keyInBox) === null;
 
   return (
     <p className="relative mt-1.5 inline-flex flex-wrap items-center gap-x-1.5 text-neben text-foreground-faint">

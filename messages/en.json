@@ -617,6 +617,8 @@
     "batteryCritical": "Battery critical",
     "batteryCharging": "charging",
     "pendingCloseAtDevice": "Closing requested — the bolt stays open until someone presses the button on the box. The box being online does not close it.",
+    "boltOpenSelf": "The box is not locked. Press the button NOW!",
+    "boltOpenKeyholder": "The box is not locked — the bolt is open, and no command is waiting on it. The button press on the device is missing.",
     "pendingOpenAtDevice": "Opening approved — the bolt stays closed until someone presses the button on the box. It will not open by itself.",
     "failsafeOfflineWarn": "Box out of contact for {hours} h — emergency opening in {left} h. Get it back into network range.",
     "failsafeOfflineDue": "Box out of contact for {hours} h — the emergency opening has happened or is imminent.",
@@ -936,6 +938,7 @@
   "admin": {
     "title": "User management",
     "needsYouTitle": "{count, plural, one {needs your decision} other {need your decision}}",
+    "boltOpenOverview": "Box not locked — bolt open",
     "needsYouRow": "needs your decision",
     "allCalmTitle": "Nothing open",
     "allCalmHint": "None of your subs is waiting on you right now.",

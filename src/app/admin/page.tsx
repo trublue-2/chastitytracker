@@ -18,10 +18,12 @@ import { Users, CalendarClock, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDurationBetween, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
-import { orgasmusAnforderungArtLabel } from "@/lib/constants";
+import { orgasmusAnforderungArtLabel, heimdallEnabled } from "@/lib/constants";
 import Section from "@/app/components/Section";
 import { rowHoverCls } from "@/app/components/inputStyles";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
+import { boxBoltOpenDespiteLocked } from "@/lib/boxStatus";
+import WarnLine from "@/app/components/WarnLine";
 
 /** Wie eine geplante Direktive in der Liste erscheint — Beschriftung, Rückzug-Endpunkt, Tönung.
  *  Eine Zeile je `kind`; eine neue terminierbare Direktive ergänzt hier einen Eintrag und ist damit
@@ -74,8 +76,8 @@ export default async function AdminPage() {
   const userIds = users.map(u => u.id);
   const now = new Date();
 
-  // Bulk-fetch all data in 5 queries instead of 5×N
-  const [latestVerschluss, latestOeffnen, allKontrolle, allVerschlussAnf, allSperrzeiten, allOrgasmusAnf] = await Promise.all([
+  // Bulk-fetch all data in 8 queries instead of 8×N
+  const [latestVerschluss, latestOeffnen, allKontrolle, allVerschlussAnf, allSperrzeiten, allOrgasmusAnf, allBoxes, allKeyInBox] = await Promise.all([
     prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.kontrollAnforderung.findMany({
@@ -92,6 +94,30 @@ export default async function AdminPage() {
     }),
     getKeyholderSperrzeiten({ userIds }),
     getKeyholderOrgasmusAnforderungen(userIds),
+    // Nur die drei Spalten, die über den Riegel entscheiden. Der Rest des Box-Zustands gehört auf
+    // die Detailseite — hier geht es allein um die Frage, ob eine Box offen steht, die zu sein soll.
+    //
+    // Hinter dem Heimdall-Tor wie JEDE andere Box-Abfrage im Projekt. Nicht bloss gespart: ohne
+    // Sync-Secret gibt es die Box-Oberfläche nicht, auch wenn noch alte `BoxStatus`-Zeilen liegen
+    // (`heimdallEnabled`). Ungetort baute die Übersicht aus so einer Alt-Zeile einen Riegel-Alarm
+    // und sortierte den Träger nach oben, während die Box-Karte daneben gar nicht erst rendert.
+    heimdallEnabled()
+      ? prisma.boxStatus.findMany({
+          where: { userId: { in: userIds } },
+          select: { userId: true, locked: true, reportedLocked: true, pendingCommand: true },
+        })
+      : [],
+    // Der Schlüssel-Zustand des jüngsten Verschlusses. Ohne ihn läse die Übersicht den Reisefall
+    // (Träger behielt den Schlüssel, Box bleibt zu Recht offen) als Versäumnis — siehe
+    // `boxBoltOpenDespiteLocked`. `distinct` liefert je Träger genau die neueste Zeile, eine Abfrage.
+    heimdallEnabled()
+      ? prisma.entry.findMany({
+          where: { type: "VERSCHLUSS", userId: { in: userIds } },
+          orderBy: { startTime: "desc" },
+          distinct: ["userId"],
+          select: { userId: true, keyInBox: true },
+        })
+      : [],
   ]);
 
   // Build lookup maps from groupBy results
@@ -104,6 +130,11 @@ export default async function AdminPage() {
     for (const r of rows) (m.get(r.userId) ?? m.set(r.userId, []).get(r.userId)!).push(r);
     return m;
   };
+  // Ein Träger kann mehrere Boxen haben — eine einzige offene reicht für den Hinweis.
+  const keyInBoxByUser = new Map(allKeyInBox.map((e) => [e.userId, e.keyInBox]));
+  const boltOpenByUser = new Set(
+    allBoxes.filter((b) => boxBoltOpenDespiteLocked(b, keyInBoxByUser.get(b.userId) ?? null)).map((b) => b.userId),
+  );
   const kontrolleByUser = groupByUser(allKontrolle);
   const anforderungByUser = groupByUser(allVerschlussAnf);
   const sperrzeitByUser = groupByUser(allSperrzeiten);
@@ -157,6 +188,7 @@ export default async function AdminPage() {
         : null,
       hasOffeneAnforderung: offeneVerschlussAnforderungen.length > 0,
       hasActiveSperrzeit: !!activeSperrzeit,
+      boltOpen: boltOpenByUser.has(userId),
       offeneAnforderungen: offeneVerschlussAnforderungen.map(a => ({
         id: a.id, endetAt: a.endetAt, overdue: !!a.endetAt && a.endetAt < now,
       })),
@@ -185,8 +217,14 @@ export default async function AdminPage() {
    * DIR. Eine laufende Sperrzeit gehört ausdrücklich NICHT dazu — sie läuft ja, wie angeordnet.
    * Eine geplante Direktive ebenso wenig; sie ist bereits entschieden und wartet nur auf ihren
    * Zeitpunkt.
+   *
+   * **Der offene Riegel zählt hier NICHT mit** — er sortiert nur. Er wartet auf den Träger: den
+   * Knopf am Gerät drückt niemand sonst, und die Zeile in der Übersicht trägt deshalb bewusst keine
+   * Aktion. Stünde er in dieser Zahl, läse die Keyholderin „1 · braucht deine Entscheidung", fände
+   * in der Zeile nichts zu entscheiden — und der Screenreader sagte ihr dasselbe an. Die Zahl darf
+   * nur zählen, wofür es auch einen Griff gibt.
    */
-  const brauchtEntscheidung = (st: ReturnType<typeof getUserStats>) =>
+  const needsDecision = (st: ReturnType<typeof getUserStats>) =>
     !!st.offeneKontrolle || st.hasOffeneAnforderung || !!st.offeneOrgasmusAnforderung;
 
   // Die Teilung ist eine REIHENFOLGE, keine zwei Darstellungen — v6 hatte daraus zwei Figuren
@@ -194,12 +232,20 @@ export default async function AdminPage() {
   // deren Subs gerade alle ruhig sind (der Normalfall), kam damit an „Kontrolle anfordern" nicht
   // mehr heran. Gemeldet aus dem Betrieb.
   //
-  // Das Merkmal hängt am Nutzer, nicht am Abschnitt: so wertet `brauchtEntscheidung` genau EINMAL
+  // Das Merkmal hängt am Nutzer, nicht am Abschnitt: so wertet `needsDecision` genau EINMAL
   // je Nutzer aus und Reihenfolge, Kopfzahl und Punkt lesen alle denselben Wert.
-  const markiert = usersWithStats.map(u => ({ ...u, hasAlarm: brauchtEntscheidung(u.stats) }));
-  const wartend = markiert.filter(u => u.hasAlarm);
-  const subsSortiert = [...wartend, ...markiert.filter(u => !u.hasAlarm)];
-  const alarmCount = wartend.length;
+  //
+  // ZWEI Merkmale, nicht eines: `hasAlarm` beschriftet und zählt („braucht deine Entscheidung"),
+  // `sortiertHoch` ordnet. Der offene Riegel gehört nur ins zweite — er soll oben stehen, ohne eine
+  // Entscheidung zu behaupten, die es nicht gibt.
+  const markiert = usersWithStats.map(u => ({
+    ...u,
+    hasAlarm: needsDecision(u.stats),
+    sortiertHoch: needsDecision(u.stats) || u.stats.boltOpen,
+  }));
+  const wartend = markiert.filter(u => u.sortiertHoch);
+  const subsSortiert = [...wartend, ...markiert.filter(u => !u.sortiertHoch)];
+  const alarmCount = markiert.filter(u => u.hasAlarm).length;
 
   return (
     <main className="flex-1 py-6 flex flex-col gap-4">
@@ -344,6 +390,9 @@ export default async function AdminPage() {
                         </div>
 
                         {/* Alarm banners */}
+                        {/* Ohne Aktion, weil es hier nichts zu drücken gibt: den Knopf am Gerät
+                            kann nur der Träger drücken. */}
+                        {u.stats.boltOpen && <WarnLine>{t("boltOpenOverview")}</WarnLine>}
                         {u.stats.offeneKontrolle && (
                           <KontrolleBanner
                             deadline={u.stats.offeneKontrolle.deadline}

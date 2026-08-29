@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { boxBatteryLabel, boxFailsafeWarnings, boxPendingTransition, boxSollLabel, boxSollLocked, type BoxRow } from "./boxStatus";
+import { boxBatteryLabel, boxBoltAlert, boxBoltOpenDespiteLocked, boxHasConflict, boxFailsafeWarnings, boxPendingTransition, boxSollLabel, boxSollLocked, type BoxRow } from "./boxStatus";
 
 // Der Übergangs-Zustand (Präsenz-Gate, FW ≥ 0.2.34) speist die Box-Karte aus zwei nahtlos
 // ineinander übergehenden Quellen: sofort nach dem Eintrag das tracker-lokale pendingCommand,
@@ -32,8 +32,8 @@ describe("boxPendingTransition", () => {
     expect(boxPendingTransition(row({ pendingCommand: "open", locked: true, reportedLocked: true }))).toBe("opening");
   });
 
-  it("Spiegel-Mismatch SOLL zu / IST offen → closing (wartet auf Knopf)", () => {
-    expect(boxPendingTransition(row({ locked: true, reportedLocked: false }))).toBe("closing");
+  it("SOLL zu / IST offen ist KEIN Übergang mehr — das ist ein Versäumnis", () => {
+    expect(boxPendingTransition(row({ locked: true, reportedLocked: false }))).toBeNull();
   });
 
   it("Spiegel-Mismatch SOLL offen / IST zu → opening (scharfgestellt)", () => {
@@ -47,6 +47,43 @@ describe("boxPendingTransition", () => {
 
   it("Alt-Zeile ohne IST-Meldung → kein Mismatch ableitbar, kein Übergang", () => {
     expect(boxPendingTransition(row({ locked: true, reportedLocked: null }))).toBeNull();
+  });
+});
+
+describe("boxBoltOpenDespiteLocked", () => {
+  it("SOLL zu, Riegel offen, kein Kommando → der Knopfdruck fehlt", () => {
+    expect(boxBoltOpenDespiteLocked(row({ locked: true, reportedLocked: false }), true)).toBe(true);
+  });
+
+  it("solange ein Kommando unterwegs ist, ist es kein Versäumnis", () => {
+    // Würde hier schon gewarnt, bekäme JEDER Verschluss für einen Sync-Takt eine Warnung — und
+    // eine Warnung, die im Normalfall erscheint, liest bald niemand mehr.
+    expect(boxBoltOpenDespiteLocked(row({ locked: true, reportedLocked: false, pendingCommand: "lock" }), true)).toBe(false);
+  });
+
+  it("der REISEFALL ist kein Versäumnis — der Schlüssel liegt gar nicht in der Box", () => {
+    // Der Träger verschliesst sich und behält den Schlüssel (`keyInBox: false`). `boxCommandForEntry`
+    // schickt dann bewusst kein Kommando, der Riegel bleibt zu Recht offen — eine Keyholder-Sperrzeit
+    // zieht Heimdall aber trotzdem als Dauerauftrag, `locked` steht also auf zu. Ohne diese Schranke
+    // bekäme er wochenlang „JETZT Knopf drücken!" für einen Knopf, der tausend Kilometer weg ist.
+    expect(boxBoltOpenDespiteLocked(row({ locked: true, reportedLocked: false }), false)).toBe(false);
+    // Unbekannt ist NICHT dasselbe wie „nicht drin": eine Instanz ohne die Angabe soll die Warnung
+    // weiterhin bekommen, sonst verschwände sie für alle Altbestände still.
+    expect(boxBoltOpenDespiteLocked(row({ locked: true, reportedLocked: false }), null)).toBe(true);
+  });
+
+  it("bestätigter Riegel ist kein Versäumnis", () => {
+    expect(boxBoltOpenDespiteLocked(row({ locked: true, reportedLocked: true }), true)).toBe(false);
+  });
+
+  it("wer gar nicht zu sein soll, versäumt nichts", () => {
+    expect(boxBoltOpenDespiteLocked(row({ locked: false, reportedLocked: false }), true)).toBe(false);
+  });
+
+  it("Alt-Zeile ohne IST-Meldung warnt NICHT", () => {
+    // Sonst stünde sie bei jedem Träger mit alter Firmware dauerhaft, ohne dass er etwas
+    // dagegen tun könnte.
+    expect(boxBoltOpenDespiteLocked(row({ locked: true, reportedLocked: null }), true)).toBe(false);
   });
 });
 
@@ -241,5 +278,35 @@ describe("boxBatteryLabel — Stufen weichen der gemeldeten Schwelle aus", () =>
     expect(boxFailsafeWarnings(
       row({ locked: true, reportedLocked: true, battery: 0, lowBatteryOpenPercent: 0 }), Date.now(),
     )).toEqual([]);
+  });
+});
+
+describe("boxBoltAlert — die Rangfolge der Riegel-Aussagen", () => {
+  it("das Versäumnis schlägt den Konflikt", () => {
+    // Beide treffen zu (Sperrzeit hält, Riegel offen, kein Kommando). Es darf trotzdem nur EINE
+    // Zeile erscheinen — sonst steht dieselbe Tatsache zweimal auf dem Bildschirm.
+    const b = row({ locked: true, reportedLocked: false, keyholderLocked: true });
+    expect(boxBoltOpenDespiteLocked(b, true)).toBe(true);
+    expect(boxBoltAlert(b, true)).toBe("omission");
+  });
+
+  it("ohne Versäumnis bleibt der Konflikt", () => {
+    // Sperrzeit hält, Riegel offen — aber das Kommando ist noch unterwegs, also kein Versäumnis.
+    expect(boxBoltAlert(row({ locked: false, reportedLocked: false, keyholderLocked: true, pendingCommand: "lock" }), true))
+      .toBe("conflict");
+  });
+
+  it("stimmt alles, schweigen beide", () => {
+    expect(boxBoltAlert(row({ locked: true, reportedLocked: true, keyholderLocked: true }), true)).toBeNull();
+  });
+
+  it("ist die EINE Quelle, aus der auch der Zustands-Held liest", () => {
+    // Der Held (`BoxHardwareLine`) schweigt über den Riegel, sobald hier etwas steht. Vorher las er
+    // nur `boxHasConflict` und sagte im Versäumnis-Fall leise „Riegel offen", während die Karte
+    // darunter laut warnte. Genau diese Lage:
+    const b = row({ locked: true, reportedLocked: false, keyholderLocked: false, lockUntil: null, simpleLock: false });
+    // Der Nachweis, dass die Lagen wirklich auseinandergehen — sonst prüfte der Test nichts:
+    expect(boxHasConflict(b)).toBe(false);
+    expect(boxBoltAlert(b, true)).toBe("omission");
   });
 });

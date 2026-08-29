@@ -1,30 +1,17 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { boxIsPhysicallyLocked, boxIstLabel, boxPendingTransition, boxSollLocked, boxBatteryLabel, boxBatteryIsLow, boxFailsafeWarnings, boxFailsafeLabel, boxCleaningWindowOpenLabel, type BoxReinigungView } from "@/lib/boxStatus";
+import { boxIsPhysicallyLocked, boxIstLabel, boxBoltAlert, boxPendingTransition, boxBatteryLabel, boxBatteryIsLow, boxFailsafeWarnings, boxFailsafeLabel, boxCleaningWindowOpenLabel, type BoxReinigungView } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import Card from "@/app/components/Card";
+import WarnLine from "@/app/components/WarnLine";
 import BlockHeading from "@/app/components/BlockHeading";
 import InfoDot from "@/app/components/InfoDot";
 
-/** Die eine Warn-Zeile dieses Blocks — Konflikt, Failsafe und knapper Akku sehen gleich aus, weil
- *  sie dasselbe sagen: hier stimmt etwas nicht. Lokal, weil es (noch) keine zweite Datei gibt, die
- *  sie braucht. */
 /** Eine Zeile dieser Karte. Die Kette stand fünfmal wörtlich darin — `listRowCls` passt nicht,
  *  weil es `blockInsetCls` mitbringt und die Karte ihre Polsterung selbst hat. */
 const zeileCls = "flex items-center gap-2";
-
-function WarnZeile({ children }: { children: ReactNode }) {
-  return (
-    <p className={`${zeileCls} text-neben font-medium text-warn`}>
-      <AlertTriangle size={14} className="shrink-0" aria-hidden />
-      {children}
-    </p>
-  );
-}
 
 /** Reine Status-Anzeige der Heimdall-Box(en). Keine Box-Kommandos — die Box folgt den
  *  Verschluss-/Öffnen-Einträgen. Pollt `/api/box` (self-hiding, wenn keine Box existiert oder
@@ -64,9 +51,12 @@ function WarnZeile({ children }: { children: ReactNode }) {
  *  KEINE Zeitzonen mehr: das einzige Datum dieser Karte war das Sperr-Ende, und das nennt jetzt der
  *  Zustands-Held — dort zweizonig, wo es hingehört. Hier stand es ein zweites Mal, in einer anderen
  *  Zone formatiert als dort. */
-export default function BoxStatusCard({ reinigung, userId, wearerLocked = true }: {
+export default function BoxStatusCard({ reinigung, userId, wearerLocked = true, keyInBox = null }: {
   reinigung?: BoxReinigungView | null;
   userId?: string;
+  /** Liegt der Schlüssel in der Box? `false` = Reisefall (der Träger behielt ihn) — dann ist ein
+   *  offener Riegel kein Versäumnis, sondern die verabredete Lage. Siehe `boxBoltOpenDespiteLocked`. */
+  keyInBox?: boolean | null;
   /**
    * Trägt der Sub gerade? Die Karte sieht die Sitzung sonst nicht — und ohne sie liesse sich der
    * eine Fall nicht von seinem Gegenteil unterscheiden: „Riegel zu, obwohl niemand verschlossen
@@ -88,11 +78,10 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true }
   const fensterOffen = boxCleaningWindowOpenLabel(reinigung ?? null, t);
 
   const zustaende = boxes.map((b) => {
-    // „Steht offen, obwohl eine Sperre verschlossen verlangt" (z.B. Reinigungspause). PHYSISCH
-    // offen, nicht SOLL-offen: eine erst scharfgestellte Öffnung (Riegel noch zu, wartet auf den
-    // Knopf) ist kein Alarm — dafür gibt es die Übergangs-Zeile.
     const istLocked = boxIsPhysicallyLocked(b);
-    const conflict = !istLocked && boxSollLocked(b);
+    // Die EINE Riegel-Aussage samt Rangfolge — sie steht in `boxBoltAlert`, damit der Zustands-Held
+    // dieselbe liest und nicht leise sagt, was hier laut steht.
+    const boltAlert = boxBoltAlert(b, keyInBox);
     const transition = boxPendingTransition(b);
     const failsafes = boxFailsafeWarnings(b, now);
     // Sobald die Failsafe-Warnung steht, entfällt die grobe Stufe: die Warnung sagt dasselbe mit
@@ -101,13 +90,13 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true }
     // Die STUFE aus dem Wert, nicht aus dem übersetzten Text: `boxBatteryLabel` hängt bei geladenem
     // Akku „· lädt" an, ein Vergleich auf „Akku niedrig" ginge dann immer daneben.
     const batterieKnapp = batteryLabel !== null && boxBatteryIsLow(b);
-    return { b, istLocked, conflict, transition, failsafes, batterieKnapp, batteryLabel };
+    return { b, istLocked, boltAlert, transition, failsafes, batterieKnapp, batteryLabel };
   });
 
   // Die Fläche richtet sich nach der lautesten Box. Im Normalfall die STILLE Karte (kein Rahmen,
   // keine Bedeutungsfarbe) — sie hebt sich durch die Fläche allein ab, und das reicht für eine
   // Auskunft. Erst wenn etwas nicht stimmt, wird sie zur semantischen Karte.
-  const hatWarnung = zustaende.some((z) => z.conflict || z.batterieKnapp || z.failsafes.some((w) => w.severity !== "info"));
+  const hatWarnung = zustaende.some((z) => z.boltAlert !== null || z.batterieKnapp || z.failsafes.some((w) => w.severity !== "info"));
   const hatUebergang = zustaende.some((z) => z.transition);
   const semantik = hatWarnung ? "warn" : hatUebergang ? "sperrzeit" : null;
 
@@ -166,7 +155,8 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true }
           </InfoDot>
         </div>
 
-        {zustaende.map(({ b, istLocked, conflict, transition, failsafes, batterieKnapp, batteryLabel }) => {
+        {zustaende.map(({ b, istLocked, boltAlert, transition, failsafes, batterieKnapp, batteryLabel }) => {
+          const prefix = mehrere ? `${b.name} · ` : "";
           return (
             <div key={b.boxId} className="flex flex-col gap-0.5">
               {/* KEINE Ist-Zeile mehr. Sie sagte „Verschlossen" über den Riegel, während der
@@ -175,18 +165,23 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true }
                   überschreibt `lockUntil` mit dem `endetAt` der Sperrzeit, es war buchstäblich
                   dasselbe Feld, in zwei verschiedenen Zeitzonen formatiert. Der Riegel steht jetzt
                   als Nachsatz im Helden, das Sperr-Ende nur dort. */}
-              {/* Im Konflikt IST der Riegel die Nachricht. Das Sperr-Ende steht bewusst NICHT
-                  dabei: `/api/box` setzt `lockUntil` auf das `endetAt` der Sperrzeit, es wäre
-                  buchstäblich dasselbe Datum, das der Held eine Zeile tiefer lauter zeigt. */}
-              {conflict && (
-                <WarnZeile>{mehrere ? `${b.name} · ` : ""}{boxIstLabel(b, t)}</WarnZeile>
+              {/* Das Versäumnis sagt dasselbe wie der Konflikt, plus den Grund und die Handlung —
+                  deshalb gilt genau eines von beiden. Der Träger liest eine Aufforderung (er steht
+                  am Gerät und kann es beheben), die Keyholderin eine Feststellung. Das Sperr-Ende
+                  steht bei keinem: `/api/box` setzt `lockUntil` auf das `endetAt` der Sperrzeit, es
+                  wäre dasselbe Datum, das der Held eine Zeile tiefer lauter zeigt. */}
+              {boltAlert && (
+                <WarnLine>
+                  {prefix}
+                  {boltAlert === "omission"
+                    ? (userId ? t("boltOpenKeyholder") : t("boltOpenSelf"))
+                    : boxIstLabel(b, t)}
+                </WarnLine>
               )}
               {/* Riegel zu, obwohl niemand verschlossen ist — leise, es ist keine Störung, nur
                   eine Auskunft, die sonst niemand gäbe. */}
               {!wearerLocked && istLocked && (
-                <p className={`${zeileCls} text-neben text-foreground-muted`}>
-                  {mehrere ? `${b.name} · ` : ""}{boxIstLabel(b, t)}
-                </p>
+                <p className={`${zeileCls} text-neben text-foreground-muted`}>{prefix}{boxIstLabel(b, t)}</p>
               )}
               {transition && (
                 <p className={`${zeileCls} text-neben font-medium text-sperrzeit-text`}>
@@ -199,11 +194,11 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true }
               {failsafes.map((w) => (
                 w.severity === "info"
                   ? <p key={w.kind} className={`${zeileCls} text-neben text-foreground-muted`}>{boxFailsafeLabel(w, t)}</p>
-                  : <WarnZeile key={w.kind}>{boxFailsafeLabel(w, t)}</WarnZeile>
+                  : <WarnLine key={w.kind}>{boxFailsafeLabel(w, t)}</WarnLine>
               ))}
               {/* Ein knapper Akku ohne Failsafe-Warnung: das Band zwischen „niedrig" und der
                   Not-Öffnungs-Schwelle hätte sonst gar keine Stimme mehr. */}
-              {batterieKnapp && batteryLabel && <WarnZeile>{batteryLabel}</WarnZeile>}
+              {batterieKnapp && batteryLabel && <WarnLine>{batteryLabel}</WarnLine>}
             </div>
           );
         })}

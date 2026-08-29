@@ -191,7 +191,7 @@ export default async function LaufendeSessionCard({
             <KeyRound size={12} className="shrink-0" aria-hidden />{t("keyInBoxNo")}
           </p>
         )}
-        {keyInBox === true && <BoxHardwareLine userId={subjectId} />}
+        {keyInBox === true && <BoxHardwareLine userId={subjectId} keyInBox={keyInBox} />}
       </StateHero>
 
       {/* Trainingsvorgaben als eigener, benannter Abschnitt — vorher hingen sie namenlos unter
