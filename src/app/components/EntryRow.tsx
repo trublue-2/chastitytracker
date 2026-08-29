@@ -13,6 +13,8 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { actionIcon } from "@/app/entries/actionSign";
 import { LockClosedIcon } from "@/app/components/lockIcons";
+import Badge from "@/app/components/Badge";
+import type { KontrollePill } from "@/lib/kontrollePills";
 
 /**
  * Das Zeichen einer Eintragsart — aus der geteilten Registratur, nicht aus einer eigenen Tabelle.
@@ -37,7 +39,6 @@ interface Entry {
   imageUrl?: string | null;
   imageExifTime?: Date | string | null;
   oeffnenGrund?: string | null;
-  verifikationStatus?: string | null;
   /** Category info for WEAR_BEGIN/WEAR_END entries — derived via Entry.device.category. */
   category?: { name: string; color: string; icon: string } | null;
 }
@@ -51,6 +52,10 @@ interface Props {
    *  omitted, the raw stored value (orgasmusArt) / built-in i18n (oeffnenGrund) is shown. */
   orgasmusLabel?: string | null;
   openingLabel?: string | null;
+  /** Fertig beschriftete und eingefärbte Kontroll-Pille; kommt vom Server-Elternteil über
+   *  `entryInspectionPill()` (das braucht die verknüpfte Anforderung, also eine Abfrage).
+   *  Warum es sie gibt, steht dort. */
+  inspectionPill?: KontrollePill | null;
   /** Optional action slot (e.g. EntryActions menu) */
   actions?: ReactNode;
   /** Nur die Uhrzeit statt Datum und Uhrzeit — für Listen, die ihre Tage schon überschreiben
@@ -59,7 +64,7 @@ interface Props {
   timeOnly?: boolean;
 }
 
-export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel, openingLabel, actions, timeOnly }: Props) {
+export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel, openingLabel, inspectionPill, actions, timeOnly }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const tStats = useTranslations("stats");
 
@@ -136,6 +141,10 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
           {e.type === "VERSCHLUSS" && e.kontrollCode && (
             <span className="text-neben text-foreground-faint font-mono tabular-nums">#{e.kontrollCode}</span>
           )}
+          {/* Über `Badge`, nicht als eigenes `span`: dieselbe Pille rendern Zeitachse,
+              Kontroll-Listen und Statistik alle darüber. Von Hand gebaut fehlte ihr das
+              `font-semibold` — derselbe Vorgang hätte in dieser Liste anders ausgesehen. */}
+          {inspectionPill && <Badge label={inspectionPill.label} tone={inspectionPill.cls} />}
           {e.note && (
             <span className="text-neben text-foreground-faint italic truncate min-w-0">„{e.note}"</span>
           )}
@@ -163,7 +172,7 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
               openingLabel={openingLabel}
               orgasmusLabel={orgasmusLabel}
               kontrollCode={e.kontrollCode}
-              verifikationStatus={e.verifikationStatus}
+              inspectionPill={inspectionPill}
               note={e.note}
             />
           }

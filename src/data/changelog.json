@@ -149,6 +149,13 @@
           "de": "Neuer Knopf „Sofort aufschliessen“ in der Keyholder-Übersicht: beendet die Sperrzeit, öffnet die Box und trägt die Öffnung ein — in einem Tipp. Auf Wunsch mit erlaubtem Orgasmus.",
           "en": "New “Unlock now” button in the keyholder overview: ends the lock period, opens the box and records the opening — in one tap. Optionally with an orgasm allowed."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Einträge-Liste zeigt bei einer Kontrolle jetzt auch, was daraus geworden ist — angenommen, abgelehnt, noch offen. Bisher stand dort nur „Kontrolle“, und man musste dieselbe Kontrolle in einer anderen Liste suchen.",
+          "en": "The entries list now also shows what became of an inspection — accepted, rejected, still open. It used to say just “inspection”, so you had to look the same one up in another list."
+        }
       }
     ]
   },

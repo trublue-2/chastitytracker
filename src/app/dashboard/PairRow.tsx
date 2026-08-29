@@ -36,6 +36,9 @@ interface Props {
   photoStatus: "no-photo" | "exif-mismatch" | "ok";
 }
 
+/** Ohne Kontroll-Pille: dieses Paar zeigt VERSCHLUSS und OEFFNEN, ein Prüf-Status gehört einer
+ *  PRUEFUNG. Vorher stand hier `verifikationStatus`, das an einem Verschluss ohnehin nie gesetzt
+ *  ist — alle vier Zweige des Panels liefen ins Leere. */
 function entryDetailPanel(entry: PairEntry, dl: string) {
   return (
     <EntryDetailPanel
@@ -44,7 +47,6 @@ function entryDetailPanel(entry: PairEntry, dl: string) {
       imageExifTime={entry.imageExifTime}
       oeffnenGrund={entry.oeffnenGrund}
       kontrollCode={entry.kontrollCode}
-      verifikationStatus={entry.verifikationStatus}
       note={entry.note}
     />
   );

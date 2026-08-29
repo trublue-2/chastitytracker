@@ -462,10 +462,16 @@ const weekdayFormatters = new Map<string, Intl.DateTimeFormat>();
  *  Hier und nicht in den Fenster-Bausteinen: „wie spät ist es in Zone X" ist keine Regel der
  *  Reinigung und keine des Wiegens. Die Trennung, die `weightWindows.ts` gegenüber
  *  `reinigungService.ts` verteidigt, betrifft die REGELN der Fenster — nicht die Uhr. */
+const hhmmFormatters = new Map<string, Intl.DateTimeFormat>();
 export function hhmmInTZ(at: Date, tz: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).format(at);
+  // Gecacht: die Reinigungs- und Wiege-Fenster fragen das je Eintrag, und die Strafbuch-Ableitung
+  // geht über die ganze Historie. Ein Wegwerf-Formatter je Aufruf war dort der teuerste Teil.
+  //
+  // Die Sprache spielt hier keine Rolle — `hourCycle: "h23"` nagelt die Uhr fest, unabhängig davon.
+  // Vorher stand `en-GB` da; gemessen über 288 Zonen-/Zeit-Kombinationen liefert `en-US` dasselbe.
+  // Deshalb braucht `memoFormatter` KEINEN Sprach-Parameter: einer wäre eine Stellschraube, die
+  // nichts stellt, und ein Cache-Schlüssel ohne sie wäre die Falle dazu.
+  return memoFormatter(hhmmFormatters, tz, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(at);
 }
 
 /** „HH:MM" → Minuten seit Mitternacht (0–1439). */
@@ -1207,11 +1213,13 @@ export function safeInternalPath(path: string | undefined | null): string | null
   return path;
 }
 
+const datetimeLocalFormatters = new Map<string, Intl.DateTimeFormat>();
 export function toDatetimeLocal(date: Date | string | null | undefined, tz = APP_TZ): string {
   if (!date) return "";
   const d = new Date(date);
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
+  // Auch hier ohne Sprach-Angabe: die Teile werden EINZELN gelesen und selbst zusammengesetzt, die
+  // Reihenfolge und die Trennzeichen der Sprache kommen also nie zum Tragen. Vorher `en-CA`.
+  const parts = memoFormatter(datetimeLocalFormatters, tz, {
     year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit", hour12: false,
   }).formatToParts(d);

@@ -8,6 +8,7 @@ import { weightTrackingEnabled } from "@/lib/constants";
 import { loadWeightRows } from "@/lib/weightRows";
 import { weightText, type UnitSystem } from "@/lib/weight";
 import EntryRow from "@/app/components/EntryRow";
+import { entryInspectionPill, INSPECTION_PILL_SELECT } from "@/lib/kontrollePills";
 import DayGroups from "@/app/components/DayGroups";
 import ListPagerLinks from "@/app/components/ListPagerLinks";
 import WeightRow from "@/app/components/WeightRow";
@@ -32,15 +33,17 @@ export default async function AdminUserEintraegePage({
   if (!user) redirect("/admin");
   const tz = user.timezone;
 
-  const [locale, t, tStats, tOrgasm, tOpen, tWeight] = await Promise.all([
+  const [locale, t, tStats, tOrgasm, tOpen, tWeight, ta] = await Promise.all([
     getLocale(),
     getTranslations("common"),
     getTranslations("stats"),
     getTranslations("orgasmForm"),
     getTranslations("openForm"),
     getTranslations("weightList"),
+    getTranslations("admin"),
   ]);
   const dl = toDateLocale(locale);
+  const now = new Date();
   const orgasmCfg = effectiveOrgasmusArten(user.orgasmusArtenConfig);
   const openCfg = effectiveOeffnenGruende(user.oeffnenGruendeConfig);
 
@@ -55,6 +58,8 @@ export default async function AdminUserEintraegePage({
       take: PAGE_SIZE,
       include: {
         device: { select: { category: { select: { name: true, color: true, icon: true, isBuiltIn: true } } } },
+        // Ohne die Anforderung hiesse jede Kontrolle „Selbstkontrolle", auch die angeforderte.
+        kontrollAnforderung: { select: INSPECTION_PILL_SELECT },
       },
     }),
     // Die Anzeige-Einheit DER KEYHOLDERIN: die Gewichts-Zeilen stehen in ihrer Einheit, nicht in
@@ -128,6 +133,7 @@ export default async function AdminUserEintraegePage({
           tz={tz}
           orgasmusLabel={resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm)}
           openingLabel={e.oeffnenGrund ? resolveReasonLabel(e.oeffnenGrund, openCfg, "opening", tOpen) : null}
+          inspectionPill={entryInspectionPill(e, ta, now)}
           actions={<EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=admin&userId=${id}`} tz={tz} />}
         />
       ),

@@ -4,6 +4,8 @@ import { formatDateTime, APP_TZ } from "@/lib/utils";
 import { GRUND_I18N_KEYS } from "@/lib/constants";
 import { useTranslations } from "next-intl";
 import DetailField from "@/app/components/DetailField";
+import Badge from "@/app/components/Badge";
+import type { KontrollePill } from "@/lib/kontrollePills";
 
 interface Props {
   startTime: Date;
@@ -18,13 +20,15 @@ interface Props {
   openingLabel?: string | null;
   orgasmusLabel?: string | null;
   kontrollCode?: string | null;
-  verifikationStatus?: string | null;
+  /** Die Kontroll-Pille der Zeile darüber — DIESELBE, nicht eine zweite Ableitung. Begründung
+   *  unten am Kontroll-Code. */
+  inspectionPill?: KontrollePill | null;
   note?: string | null;
 }
 
 export default function EntryDetailPanel({
   startTime, locale, tz = APP_TZ, imageExifTime, oeffnenGrund, orgasmusArt,
-  openingLabel, orgasmusLabel, kontrollCode, verifikationStatus, note,
+  openingLabel, orgasmusLabel, kontrollCode, inspectionPill, note,
 }: Props) {
   const tc = useTranslations("common");
   const tOpen = useTranslations("openForm");
@@ -66,23 +70,16 @@ export default function EntryDetailPanel({
         <DetailField label={tc("controlCode")}>
           <p className="text-fliess font-mono font-semibold text-foreground">
             {kontrollCode}
-            {/* Zustand → Beschriftung, nicht „pending oder gut". `rejected` ist ein regulär
-                geschriebener Wert (`verifikationStatusFor`), fiel unter der alten Fassung aber in den
-                Sonst-Zweig: eine ABGELEHNTE Kontrolle stand grün als „Verifiziert" da, während
-                daneben das Vergehen lief. Von zwei widersprechenden Auskünften glaubt man die grüne.
-                `not_required` sagt es ausdrücklich statt zu schweigen — ein Code ganz ohne Badge
-                wäre sonst nicht von einem fehlgeschlagenen Check zu unterscheiden. */}
-            {verifikationStatus === "pending" && (
-              <span className="ml-2 text-xs font-sans font-medium text-foreground-muted">{tc("verifying")}</span>
-            )}
-            {verifikationStatus === "rejected" && (
-              <span className="ml-2 text-xs font-sans font-medium text-warn-text">{tc("rejected")}</span>
-            )}
-            {(verifikationStatus === "ai" || verifikationStatus === "manual") && (
-              <span className="ml-2 text-xs font-sans font-medium text-ok-text">✓ {tc("verified")}</span>
-            )}
-            {verifikationStatus === "not_required" && (
-              <span className="ml-2 text-xs font-sans font-medium text-foreground-faint">{tc("notVerified")}</span>
+            {/* DIESELBE Pille wie in der Zeile darüber, nicht ein zweites Vokabular.
+                Hier standen vier eigene Zweige aus dem `common`-Namensraum, und seit die Zeile den
+                Status zeigt, widersprachen sie ihr auf einen Tipp Abstand: die Zeile sagte
+                „Angenommen (KI)" in Grau, das Panel „✓ Verifiziert" in Grün — obwohl der geprüfte
+                Normalfall bewusst KEINE Farbe mehr trägt (`kontrollePills.ts`). Und `not_required`
+                hiess oben „Kein Code nötig", unten „Nicht verifiziert".
+                Das war Issue #59 auf kürzester Distanz: zwei Auskünfte über denselben Vorgang,
+                gleichzeitig sichtbar. Von zwei widersprechenden glaubt man die grüne. */}
+            {inspectionPill && (
+              <Badge size="sm" label={inspectionPill.label} tone={inspectionPill.cls} className="ml-2" />
             )}
           </p>
         </DetailField>

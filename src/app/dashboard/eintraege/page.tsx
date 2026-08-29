@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale, APP_TZ } from "@/lib/utils";
+import { entryInspectionPill, INSPECTION_PILL_SELECT } from "@/lib/kontrollePills";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { ClipboardList } from "lucide-react";
 import EmptyState from "@/app/components/EmptyState";
@@ -25,12 +26,13 @@ export default async function EintraegePage({
   const { page: pageStr } = await searchParams;
   const page = Math.max(0, parseInt(pageStr ?? "0", 10) || 0);
 
-  const [locale, t, tCommon, tOrgasm, tOpen] = await Promise.all([
+  const [locale, t, tCommon, tOrgasm, tOpen, ta] = await Promise.all([
     getLocale(),
     getTranslations("settings"),
     getTranslations("common"),
     getTranslations("orgasmForm"),
     getTranslations("openForm"),
+    getTranslations("admin"),
   ]);
   const dl = toDateLocale(locale);
 
@@ -43,11 +45,14 @@ export default async function EintraegePage({
       take: PAGE_SIZE,
       include: {
         device: { select: { category: { select: { name: true, color: true, icon: true, isBuiltIn: true } } } },
+        // Ohne die Anforderung hiesse jede Kontrolle „Selbstkontrolle", auch die angeforderte.
+        kontrollAnforderung: { select: INSPECTION_PILL_SELECT },
       },
     }),
     prisma.user.findUnique({ where: { id: userId }, select: { orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
   ]);
 
+  const now = new Date();
   const orgasmCfg = effectiveOrgasmusArten(cfgUser?.orgasmusArtenConfig);
   const openCfg = effectiveOeffnenGruende(cfgUser?.oeffnenGruendeConfig);
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -87,6 +92,7 @@ export default async function EintraegePage({
                   tz={tz}
                   orgasmusLabel={resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm)}
                   openingLabel={e.oeffnenGrund ? resolveReasonLabel(e.oeffnenGrund, openCfg, "opening", tOpen) : null}
+                  inspectionPill={entryInspectionPill(e, ta, now)}
                 />
               ),
             }))}

@@ -1,3 +1,5 @@
+import { mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
+
 /**
  * **Die Pillen sind Beschriftungen geworden — Farbe, keine Fläche und kein Rahmen.**
  *
@@ -41,12 +43,6 @@ export const VERIFIKATION_PILLS: Record<string, { labelKey: string; cls: string 
   rejected:     { labelKey: "pillRejected",    cls: DRINGEND },
 };
 
-// Combined for backwards compatibility
-export const KONTROLLE_PILLS: Record<string, { labelKey: string; cls: string }> = {
-  ...ANFORDERUNG_PILLS,
-  ...VERIFIKATION_PILLS,
-};
-
 /** Dieselben vier Töne wie oben, unter den Namen, unter denen die Kombinationslogik sie kennt.
  *  „Grün" heisst hier neutral: der geprüfte Normalfall ist kein Signal. */
 const GREEN  = ERLEDIGT;
@@ -83,7 +79,7 @@ export function getKombinierterPill(
   anforderungStatus: string | null,
   verifikationStatus: string | null,
   t: (key: string) => string,
-): { label: string; cls: string } | null {
+): KontrollePill | null {
   // Offene / Überfällige / Versäumte / Zurückgezogene: keine Verifikation vorhanden
   if (anforderungStatus === "open")      return { label: t("pillOpen"),         cls: ORANGE };
   if (anforderungStatus === "overdue")   return { label: t("pillOverdue"),      cls: RED };
@@ -126,4 +122,59 @@ export function getKombinierterPill(
   }
 
   return null;
+}
+
+/**
+ * Das `select` der verknüpften Anforderung — der VERTRAG von {@link entryInspectionPill}, nicht nur
+ * seine Beschreibung.
+ *
+ * Er stand kurz in beiden Einträge-Seiten abgeschrieben. Zwei der sechs Felder sind in
+ * `mapAnforderungStatus` optional (`fulfilledAt`, `wirksamAb`): liesse eine Seite eines davon weg,
+ * passte das Objekt strukturell trotzdem, und die Pille kippte still von „zu spät" auf „erfüllt".
+ * Als Konstante neben der Funktion kann das nicht passieren — und eine dritte Liste erbt sie.
+ */
+export const INSPECTION_PILL_SELECT = {
+  withdrawnAt: true, entryId: true, deadline: true,
+  fulfilledAt: true, wirksamAb: true, autoMarkedRemovedAt: true,
+} as const;
+
+/** Beschriftung samt fertiger Farbklasse — die Rückgabeform beider Pillen-Bauer. */
+export interface KontrollePill {
+  label: string;
+  cls: string;
+}
+
+/** Die Felder, die {@link entryInspectionPill} an einem Eintrag braucht. */
+export interface InspectionPillEntry {
+  type: string;
+  verifikationStatus: string | null;
+  /** Die verknüpfte Anforderung, falls die Kontrolle angefordert war. `null` = Selbstkontrolle. */
+  kontrollAnforderung: Parameters<typeof mapAnforderungStatus>[0] | null;
+}
+
+/**
+ * Die Kontroll-Pille EINES Eintrags — die eine Ableitung „Eintrag → Aufkleber".
+ *
+ * **Warum als Funktion und nicht je Liste hingeschrieben.** Genau das war Issue #59: derselbe
+ * Vorgang hiess in der Zeitachse „Selbstkontrolle – Angenommen (KI)" und in der Einträge-Liste
+ * schlicht „Kontrolle", weil die eine Liste den Status ableitete und die andere nicht. Wer die
+ * Ableitung an der zweiten Liste erneut hinschreibt, baut denselben Unterschied an anderer Stelle
+ * wieder auf — die Träger-Liste hätte ihn dann und die Keyholder-Liste desselben Subs nicht.
+ *
+ * `null` für alles, was keine Kontrolle ist: eine Öffnung hat keinen Prüf-Status.
+ */
+export function entryInspectionPill(
+  e: InspectionPillEntry,
+  /** Übersetzer aus dem `admin`-Namensraum — dort wohnen die `pill*`-Schlüssel, die auch Zeitachse
+   *  und Keyholder-Liste benutzen. Die Zusicherung steht HIER, damit sie nicht an jeder
+   *  Aufrufstelle als Kommentar mitreisen muss. */
+  t: (key: string) => string,
+  now: Date,
+): KontrollePill | null {
+  if (e.type !== "PRUEFUNG") return null;
+  return getKombinierterPill(
+    e.kontrollAnforderung ? mapAnforderungStatus(e.kontrollAnforderung, null, now) : null,
+    mapVerifikationStatus(e.verifikationStatus),
+    t,
+  );
 }

@@ -284,7 +284,14 @@ export default async function ComponentsShowcase() {
             <div className="bg-surface rounded-2xl border border-border overflow-hidden divide-y divide-border-subtle">
               <EntryRow entry={mockEntry("VERSCHLUSS", { kontrollCode: "12345", note: "Siegel intakt" })} locale="de-CH" />
               <EntryRow entry={mockEntry("OEFFNEN", { note: "Reinigung" })} locale="de-CH" />
-              <EntryRow entry={mockEntry("PRUEFUNG", { kontrollCode: "67890" })} locale="de-CH" />
+              {/* MIT Pille — so sieht eine Kontrolle in beiden Einträge-Listen aus. Wortlaut aus
+                  `ANFORDERUNG_PILLS`/`VERIFIKATION_PILLS` abgeschrieben, nicht erfunden: eine
+                  Bauteil-Schau, die vom Bestand abweicht, ist schlimmer als keine. */}
+              <EntryRow
+                entry={mockEntry("PRUEFUNG", { kontrollCode: "67890" })}
+                locale="de-CH"
+                inspectionPill={{ label: "Erfüllt – Angenommen (KI)", cls: "text-foreground-muted" }}
+              />
               <EntryRow entry={mockEntry("ORGASMUS", { orgasmusArt: "ruinierter Orgasmus" })} locale="de-CH" />
             </div>
           </ThemePair>
