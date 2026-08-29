@@ -9,3 +9,8 @@ public/uploads
 *.md
 playwright-report
 test-results
+
+# Native Projekte: gehen ins Repo, aber nicht ins Image. Bis das iOS-Projekt versioniert
+# wurde, fehlten sie im CI-Checkout ohnehin — jetzt wären sie sonst in jeder Schicht.
+ios
+android
