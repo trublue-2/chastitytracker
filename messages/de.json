@@ -1397,7 +1397,14 @@
     "kontrolleRejectConfirmTextRequested": "Der Sub bekommt eine Meldung, und die abgelehnte Kontrolle zählt als Vergehen im Strafbuch — sofern diese Vergehensart bei ihm eingeschaltet ist. Zurücknehmen kannst du die Ablehnung nur, indem du die Kontrolle danach doch bestätigst.",
     "kontrolleRejectConfirmTextVoluntary": "Der Sub bekommt eine Meldung. Ein Vergehen entsteht daraus nicht: gezählt wird nur die Ablehnung einer angeforderten Kontrolle, und dies hier ist eine freiwillige Selbstkontrolle.",
     "passwordChangeOffenseHint": "Dies ist ein Admin-Konto: Wird das Passwort geändert, während eine Sperrzeit läuft, erscheint das im Strafbuch des betroffenen Subs.",
-    "passwordChangeConfirmText": "Läuft gerade für einen Sub eine Sperrzeit, wird dieser Passwortwechsel in seinem Strafbuch vermerkt — auch wenn du nur dein eigenes Konto änderst."
+    "passwordChangeConfirmText": "Läuft gerade für einen Sub eine Sperrzeit, wird dieser Passwortwechsel in seinem Strafbuch vermerkt — auch wenn du nur dein eigenes Konto änderst.",
+    "releaseNow": "Sofort aufschliessen",
+    "releaseNowConfirm": "Jetzt aufschliessen",
+    "releaseNowEndsLockPeriod": "Die laufende Sperrzeit endet.",
+    "releaseNowOpensBox": "Die Box bekommt den Befehl zu öffnen — ist sie ausser Reichweite, erst beim nächsten Kontakt.",
+    "releaseNowRecordsOpening": "Die Öffnung wird sofort eingetragen, mit der aktuellen Zeit.",
+    "releaseNowAllowOrgasm": "Orgasmus erlauben ({hours} Stunden)",
+    "releaseNowHint": "Eine beendete Sperrzeit kommt nicht von selbst zurück — für eine neue Sperre setzt du sie neu."
   },
   "forgotPassword": {
     "pageTitle": "Passwort zurücksetzen",
@@ -1807,7 +1814,9 @@
     "offenseDetectedMessage": "Ein Vergehen wurde festgestellt: {offense}. Ob und wie es beurteilt wird, entscheidet der Keyholder.",
     "offenseDetectedMessageTitled": "Ein Vergehen wurde festgestellt: {offense} — „{title}“. Ob und wie es beurteilt wird, entscheidet der Keyholder.",
     "offenseDismissedMessage": "Der Keyholder hat ein festgestelltes Vergehen fallengelassen.",
-    "wrongDeviceMessage": "Du hast mit einem anderen Gerät verschlossen als angefordert. Das wurde als Vergehen erfasst."
+    "wrongDeviceMessage": "Du hast mit einem anderen Gerät verschlossen als angefordert. Das wurde als Vergehen erfasst.",
+    "releasedNowSubject": "Sofort aufgeschlossen",
+    "releasedNowMessage": "Deine Keyholderin hat dich sofort aufgeschlossen. Eine laufende Sperrzeit wurde dabei beendet."
   },
   "tasks": {
     "titleLabel": "Titel",

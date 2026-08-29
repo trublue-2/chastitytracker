@@ -95,6 +95,7 @@ export const MESSAGE_BODY_KEYS = [
   "weightReleaseSetMessage",
   "weightReleaseWithdrawnMessage",
   "weightReleaseOpenedMessageKeyholder",
+  "releasedNowMessage",
 ] as const;
 
 export type MessageBodyKey = (typeof MESSAGE_BODY_KEYS)[number];

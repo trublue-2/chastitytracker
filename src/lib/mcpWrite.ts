@@ -42,6 +42,8 @@ import en from "../../messages/en.json";
 import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/taskProofService";
 import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
+import { releaseNow, previewReleaseNow } from "@/lib/releaseNowService";
+import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
 
 /**
  * dryRun (K-01, leichte Variante): validiert Referenzen/Werte und zeigt die effektiven Argumente,
@@ -289,6 +291,49 @@ export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs
     };
   }
   return { ok: true, id: data.id, scheduledFor: null, message: "Lock period set; the user was notified by e-mail + push." };
+}
+
+export interface ReleaseNowArgs {
+  /** Zusätzlich ein Orgasmus-Fenster öffnen. */
+  allowOrgasm?: boolean;
+  /** Freitext am Eintrag. */
+  note?: string;
+  dryRun?: boolean;
+}
+
+/**
+ * „Sofort aufschliessen" über den MCP — dieselbe Handlung wie der Knopf, derselbe Dienst.
+ *
+ * Die Vorschau ruft `previewReleaseNow()`, also genau die Prüfung, die der Vollzug benutzt. Eine
+ * eigene Nachrechnung hier verspräche irgendwann einen Erfolg, der mit 400 endet.
+ */
+export async function mcpReleaseNow(username: string, args: ReleaseNowArgs) {
+  const userId = await resolveTargetUserId(username);
+  if (args.dryRun) {
+    const p = await previewReleaseNow(userId);
+    return dryRunPreview("release_now", p.blockedReason ?? undefined, {
+      endsLockPeriods: p.endingLockPeriods,
+      opensBox: p.opensBox,
+      recordsOpening: true,
+      opensOrgasmWindowHours: args.allowOrgasm ? RELEASE_ORGASM_WINDOW_H : null,
+    });
+  }
+  const data = unwrap(await releaseNow({
+    userId,
+    actor: AI_AUTHOR,
+    allowOrgasm: args.allowOrgasm,
+    note: args.note,
+  }));
+  return {
+    ok: true,
+    entryId: data.entryId,
+    endedLockPeriods: data.endedLockPeriods,
+    boxCommanded: data.boxCommanded,
+    orgasmWindowId: data.orgasmWindowId,
+    message: data.boxCommanded
+      ? "Unlocked: lock period ended, box commanded to open, opening recorded. The box acts on its next contact if it is out of range."
+      : "Unlocked: lock period ended and the opening was recorded. No box is attached to this user.",
+  };
 }
 
 export interface RequestInspectionArgs {

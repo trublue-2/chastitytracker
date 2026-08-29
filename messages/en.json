@@ -1397,7 +1397,14 @@
     "kontrolleRejectConfirmTextRequested": "The sub is notified, and the rejected inspection counts as an offence in the punishment log — provided that kind of offence is switched on for him. The only way back is to confirm the inspection afterwards.",
     "kontrolleRejectConfirmTextVoluntary": "The sub is notified. No offence comes of it: only the rejection of a requested inspection counts, and this one is a voluntary self-inspection.",
     "passwordChangeOffenseHint": "This is an admin account: changing the password while a lock period is running shows up in the affected sub's punishment log.",
-    "passwordChangeConfirmText": "If a lock period is running for a sub, this password change is recorded in his punishment log — even if you are only changing your own account."
+    "passwordChangeConfirmText": "If a lock period is running for a sub, this password change is recorded in his punishment log — even if you are only changing your own account.",
+    "releaseNow": "Unlock now",
+    "releaseNowConfirm": "Unlock now",
+    "releaseNowEndsLockPeriod": "The running lock period ends.",
+    "releaseNowOpensBox": "The box is told to open — if it is out of range, at its next contact.",
+    "releaseNowRecordsOpening": "The opening is recorded immediately, with the current time.",
+    "releaseNowAllowOrgasm": "Allow an orgasm ({hours} hours)",
+    "releaseNowHint": "An ended lock period does not come back by itself — set a new one if you want to lock again."
   },
   "forgotPassword": {
     "pageTitle": "Reset password",
@@ -1807,7 +1814,9 @@
     "offenseDetectedMessage": "An offense was recorded: {offense}. Whether and how it is judged is up to the keyholder.",
     "offenseDetectedMessageTitled": "An offense was recorded: {offense} — \"{title}\". Whether and how it is judged is up to the keyholder.",
     "offenseDismissedMessage": "The keyholder has dismissed a recorded offense.",
-    "wrongDeviceMessage": "You locked with a different device than the one requested. This has been recorded as an offense."
+    "wrongDeviceMessage": "You locked with a different device than the one requested. This has been recorded as an offense.",
+    "releasedNowSubject": "Unlocked right now",
+    "releasedNowMessage": "Your keyholder has unlocked you right now. Any running lock period has ended."
   },
   "tasks": {
     "titleLabel": "Title",

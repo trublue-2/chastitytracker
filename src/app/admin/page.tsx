@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import KontrolleButton from "./KontrolleButton";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
+import ReleaseNowButton from "./ReleaseNowButton";
 import WithdrawButton from "./WithdrawButton";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
@@ -456,6 +457,12 @@ export default async function AdminPage() {
                             tz={rowTz}
                             minNow={nowDatetimeLocal(rowTz)}
                           />
+                          {/* Das Gegenstück zur Sperrzeit steht NEBEN ihr, nicht in einem Menü —
+                              das war die Rückmeldung, aus der es entstand. Die Sichtbarkeit
+                              entscheidet der Aufrufer, wie beim `KontrolleButton` darüber. */}
+                          {isLocked && (
+                            <ReleaseNowButton userId={u.id} hasActiveSperrzeit={u.stats.hasActiveSperrzeit} />
+                          )}
                         </div>
                     </div>
                   </div>

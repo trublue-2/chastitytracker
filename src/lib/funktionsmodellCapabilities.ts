@@ -171,6 +171,13 @@ export const FM_CAPABILITIES: FmCapability[] = [
     actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"], tools: ["edit_lock_period"],
   }),
   c({
+    id: "release-now", mechanic: "Sperrzeit", title: "Sofort aufschliessen",
+    what: "Das Gegenstück zur Sperrzeit, in einem Griff: beendet eine laufende Sperrzeit, öffnet die Box und erfasst die Öffnung — wahlweise mit einem Orgasmus-Fenster.",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/release-now"], tools: ["release_now"],
+    note: "Die beendete Sperrzeit gilt als freigegeben, nicht als gebrochen — die Öffnung ist deshalb kein Vergehen.",
+  }),
+  c({
     id: "withdraw", mechanic: "Sperrzeit", title: "Direktive zurückziehen",
     what: "Nimmt eine Sperrzeit, Anforderung, Kontrolle, Orgasmus-Direktive, Aufgabe oder ein notiertes Vergehen zurück.",
     actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"], tools: ["withdraw"],

@@ -324,7 +324,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `VerschlussAnforderung.createdAt` | Datensatz | Anlage-Zeitpunkt. |
 | `VerschlussAnforderung.fulfilledAt` | Laufzeitzustand | Gesetzt, wenn der Sub sich eingeschlossen hat. |
 | `VerschlussAnforderung.withdrawnAt` | Laufzeitzustand | Gesetzt beim Zurückziehen oder beim Bruch durch eine Öffnung. |
-| `VerschlussAnforderung.endedReason` | Nachweis | WARUM zurückgezogen: `keyholder` (bewusst) oder `opening` (vom Sub gebrochen). Ohne das Feld sähe beides gleich aus. |
+| `VerschlussAnforderung.endedReason` | Nachweis | WARUM zurückgezogen: `keyholder` (bewusst), `released` (vorzeitig freigegeben per Sofort-Aufschluss), `opening` (vom Sub gebrochen) oder `obsolete` (beim Auslösen schon gegenstandslos). Ohne das Feld sähen alle gleich aus; nur `opening` speist die Anzeige der gebrochenen Sperrzeit. |
 | `VerschlussAnforderung.benachrichtigtAt` | Laufzeitzustand | Wann die Zustellung rausging. |
 | `KontrollAnforderung.id` | Identität | Primärschlüssel. |
 | `KontrollAnforderung.userId` | Identität | Eigentümer der Zeile. |

@@ -40,6 +40,11 @@ export const SHARED_SERVICE_CODES = [
   "INVALID_ORGASM_TYPE",
   "USER_NO_EMAIL",
   "INVALID_DATETIME",
+  // Ebenfalls aus `entryErrors.ts` MITBENUTZT statt dupliziert (samt Übersetzung): „muss nach dem
+  // vorherigen Eintrag liegen" wirft `createOeffnenEntryTx`, und den Dienst rufen inzwischen auch
+  // Pfade ausserhalb der Entry-Routen (`releaseNowService`). Ohne den Code hier fiele ihre
+  // Fehlertabelle durch und eine gewöhnliche Ablehnung endete als 500.
+  "TIME_BEFORE",
   // Wie `NOT_FOUND` und `INVALID_IMAGE_URL` schon bei den Entry-Routen deklariert und hier bewusst
   // MITBENUTZT statt dupliziert: „Zeitpunkt darf nicht in der Zukunft liegen" ist derselbe Satz,
   // egal ob ein Eintrag oder ein notiertes Vergehen vordatiert wird.

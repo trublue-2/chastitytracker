@@ -638,7 +638,7 @@ export const FM_REGISTRY: FmEntry[] = [
   x("runtime", "VerschlussAnforderung", "fulfilledAt", "Gesetzt, wenn der Sub sich eingeschlossen hat."),
   x("runtime", "VerschlussAnforderung", "withdrawnAt", "Gesetzt beim Zurückziehen oder beim Bruch durch eine Öffnung."),
   x("audit", "VerschlussAnforderung", "endedReason",
-    "WARUM zurückgezogen: `keyholder` (bewusst) oder `opening` (vom Sub gebrochen). Ohne das Feld sähe beides gleich aus."),
+    "WARUM zurückgezogen: `keyholder` (bewusst), `released` (vorzeitig freigegeben per Sofort-Aufschluss), `opening` (vom Sub gebrochen) oder `obsolete` (beim Auslösen schon gegenstandslos). Ohne das Feld sähen alle gleich aus; nur `opening` speist die Anzeige der gebrochenen Sperrzeit."),
   x("runtime", "VerschlussAnforderung", "benachrichtigtAt", "Wann die Zustellung rausging."),
 
   // ── KontrollAnforderung ────────────────────────────────────────────────────────────────────

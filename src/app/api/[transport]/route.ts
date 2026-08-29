@@ -8,7 +8,8 @@ import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { OFFENSE_RULE_MODES } from "@/lib/offenseRules";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
-  checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
+  checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod,
+  mcpReleaseNow, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetWeightTracking, mcpSetWeightRelease, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
@@ -761,6 +762,26 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runWriteTool("request_lock", extra, args, (u) => mcpRequestLock(u, args)),
+    );
+
+    server.registerTool(
+      "release_now",
+      {
+        title: "Unlock right now",
+        description:
+          "The opposite of a lock period, in one step: ends any running lock period, commands the box " +
+          "to open, and records the opening — all with the same timestamp, so the opening does NOT " +
+          "count as an unauthorized one. Only valid while the user is locked. Optionally opens an " +
+          "orgasm window (a permission, not an obligation). This is not the emergency release: that " +
+          "one lives in the box firmware and stays distinguishable in its log." + KEYHOLDER_NOTE,
+        inputSchema: {
+          allowOrgasm: z.boolean().optional().describe("Also open an orgasm window (GELEGENHEIT, a permission) for the next few hours."),
+          note: z.string().optional().describe("Free text stored on the opening entry."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("release_now", extra, args, (u) => mcpReleaseNow(u, args)),
     );
 
     server.registerTool(

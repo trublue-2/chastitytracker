@@ -50,6 +50,7 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   inspectionAutoRemovedMessageKeyholderWear: "inspection",
   inspectionAutoRemovedMessageKeyholderWearNoCode: "inspection",
 
+  releasedNowMessage: "lock",
   lockRequestBody: "lock",
   lockPeriodSetBody: "lock",
   lockRequestChangedMessage: "lock",

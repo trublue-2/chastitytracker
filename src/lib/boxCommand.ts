@@ -20,12 +20,16 @@ export async function setBoxCommandForUser(
   tx: Prisma.TransactionClient,
   userId: string,
   cmd: "lock" | "open",
-): Promise<void> {
-  if (!heimdallEnabled()) return;
-  await tx.boxStatus.updateMany({
+): Promise<boolean> {
+  // Gibt zurück, ob wirklich ein Kommando ansteht. Wer das aus einer Zeilenzahl daneben ableitet,
+  // meldet auf einer Installation ohne Heimdall „Box beauftragt", wo nichts geschrieben wurde —
+  // dieselbe Regel wie bei `boxCommandForEntry`: EINE Entscheidung speist Pull und Push.
+  if (!heimdallEnabled()) return false;
+  const { count } = await tx.boxStatus.updateMany({
     where: { userId },
     data: { pendingCommand: cmd, pendingCommandAt: new Date() },
   });
+  return count > 0;
 }
 
 export interface BoxCommandInput {

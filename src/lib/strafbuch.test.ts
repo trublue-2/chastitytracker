@@ -660,3 +660,56 @@ describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
   });
 });
+
+/**
+ * Der Vertrag, auf dem „Sofort aufschliessen" ruht.
+ *
+ * `releaseNow` beendet die Sperrzeit mit GENAU dem Zeitstempel, den die Öffnung trägt — und darauf,
+ * dass ein Gleichstand nicht mehr als „aktiv" zählt, hängt die ganze Konstruktion: sonst stünde
+ * jede von der Keyholderin ausgelöste Öffnung als unerlaubte im Strafbuch, obwohl sie selbst sie
+ * ausgelöst hat.
+ *
+ * Die Regel lebt in einem einzigen `>` in `findActiveSperrzeit`. Wer daraus ein `>=` macht, kippt
+ * das Verhalten lautlos — in der Ableitung sieht es aus wie eine Härtung, und die Wirkung zeigt
+ * sich erst im Strafbuch eines fremden Subs. Diese beiden Fälle nageln es fest.
+ */
+describe("buildStrafbuch — die Sperrzeit, die im Moment der Öffnung endet", () => {
+  const AUF = new Date("2026-07-10T12:00:00Z");
+  const NOW = new Date("2026-07-10T22:00:00Z");
+
+  /** Sperrzeit, die den Zeitpunkt der Öffnung umschliesst — beendet wird sie je Fall anders. */
+  const sperreBeendetAm = (withdrawnAt: Date) => ({
+    id: "s1",
+    createdAt: new Date("2026-07-09T22:00:00Z"),
+    endetAt: new Date("2026-07-11T22:00:00Z"),
+    withdrawnAt,
+    // Bewusst OHNE Reinigungserlaubnis: sonst entschiede die Fenster-Regel statt des Zeitstempels.
+    reinigungErlaubt: false,
+    wirksamAb: null,
+    fulfilledAt: null,
+  });
+
+  const oeffnungOhneGrund = { id: "e1", type: "OEFFNEN", startTime: AUF, oeffnenGrund: "KEYHOLDER", note: null, source: "user" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.user.findUnique.mockResolvedValue({
+      reinigungErlaubt: false, reinigungMaxProTag: 0, reinigungMaxMinuten: 15,
+      reinigungsFenster: [], timezone: "Europe/Zurich",
+    });
+    mockStichtag("2026-07-01T00:00:00Z");
+    mockOeffnungen([oeffnungOhneGrund]);
+  });
+
+  it("gleicher Zeitstempel: die Öffnung ist KEIN Vergehen", async () => {
+    mockSperrzeiten([sperreBeendetAm(AUF)]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
+  });
+
+  it("eine Millisekunde später beendet: die Sperrzeit galt noch, also IST es eines", async () => {
+    // Die Gegenprobe. Ohne sie belegte der Test oben nur, dass gerade nichts anschlägt — nicht,
+    // dass der Zeitstempel den Ausschlag gibt.
+    mockSperrzeiten([sperreBeendetAm(new Date(AUF.getTime() + 1))]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+  });
+});

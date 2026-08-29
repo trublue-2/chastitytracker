@@ -24,9 +24,13 @@ export interface CreateOeffnenResult {
  * auto-mark stage, which must atomically re-check the KontrollAnforderung row alongside creating
  * the entry) can call this directly instead of nesting `prisma.$transaction` calls (Prisma does
  * not support that — each would open its own connection). Throws `{ _code: "NOT_LOCKED" |
- * "TIME_BEFORE" }` on invalid state. The only current caller is autoMarkInspectionRemoved(); if a
- * second caller needs its own top-level transaction, wrap this with `prisma.$transaction((tx) =>
- * createOeffnenEntryTx(tx, params))` rather than reintroducing an unused convenience wrapper.
+ * "TIME_BEFORE" }` on invalid state — wer ihn ruft, muss BEIDE Codes in seiner Fehlertabelle haben,
+ * sonst wird aus einer gewöhnlichen Ablehnung ein 500.
+ *
+ * Aufrufer: `autoMarkInspectionRemoved()` (System-Pfad) und `releaseNowService` („Sofort
+ * aufschliessen", eigene Top-Level-Transaktion). Was dieser Kern bewusst NICHT tut: er meldet
+ * nichts an die Kontrolleure und ruft kein `applyEntryFulfilment` — das erledigen die Eintrags-
+ * Routen. Wer ihn direkt nimmt, übernimmt beides selbst.
  */
 export async function createOeffnenEntryTx(tx: PrismaTx, params: CreateOeffnenParams): Promise<CreateOeffnenResult> {
   const { userId, startTime, oeffnenGrund, note, source } = params;

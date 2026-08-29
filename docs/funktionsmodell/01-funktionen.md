@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-98 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+99 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -50,6 +50,7 @@ Steckbrief: [10-sperrzeit.md](10-sperrzeit.md)
 | **Anforderung ändern** | Verschiebt Frist, Dauer oder Zielgerät einer offenen Einschliess-Anforderung. | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/verschluss-anforderung/[id]` `edit_lock_request` |
 | **Sperrzeit setzen** | Ordnet unmittelbar eine Sperrzeit an — befristet oder unbefristet, wahlweise mit Reinigungserlaubnis. <br>*Läuft über dieselbe Route wie die Anforderung; die Box hält daraufhin den Schlüssel fest.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `set_lock_period` |
 | **Sperrzeit ändern** | Verlängert, verkürzt oder öffnet die Reinigung einer laufenden Sperrzeit. | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `edit_lock_period` |
+| **Sofort aufschliessen** | Das Gegenstück zur Sperrzeit, in einem Griff: beendet eine laufende Sperrzeit, öffnet die Box und erfasst die Öffnung — wahlweise mit einem Orgasmus-Fenster. <br>*Die beendete Sperrzeit gilt als freigegeben, nicht als gebrochen — die Öffnung ist deshalb kein Vergehen.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/release-now` `release_now` |
 | **Direktive zurückziehen** | Nimmt eine Sperrzeit, Anforderung, Kontrolle, Orgasmus-Direktive, Aufgabe oder ein notiertes Vergehen zurück. <br>*Ein Rückzug wird nie ein Vergehen. Bei Kontrollen gezielt per id, sonst trifft er auch ungesehene.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `withdraw` |
 
 ## Reinigung

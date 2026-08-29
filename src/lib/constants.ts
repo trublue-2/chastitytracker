@@ -201,6 +201,16 @@ export function orgasmusArtLabel(art: string, t: (key: string) => string): strin
 }
 /** Charakter einer Orgasmus-Aufforderung: ANWEISUNG = Pflicht, GELEGENHEIT = Erlaubnis. */
 export const ORGASMUS_ANFORDERUNG_ARTEN = ["ANWEISUNG", "GELEGENHEIT"] as const;
+
+/**
+ * Wie lange das Orgasmus-Fenster offensteht, das „Sofort aufschliessen" auf Wunsch mit öffnet.
+ *
+ * Steht HIER und nicht im Dienst: das Häkchen im Bestätigungs-Blatt nennt die Zahl, und der Dienst
+ * zieht Prisma nach sich — ein Import von dort machte aus dem Knopf ein Client-Bündel mit dem
+ * halben Server darin (Build-Fehler „next/headers in Pages Router"). Eine zweite Zahl im
+ * Übersetzungstext wäre die Alternative gewesen; die läuft beim ersten Ändern auseinander.
+ */
+export const RELEASE_ORGASM_WINDOW_H = 12;
 export type OrgasmusAnforderungArt = typeof ORGASMUS_ANFORDERUNG_ARTEN[number];
 /** Translates an OrgasmusAnforderung `art` (ANWEISUNG/GELEGENHEIT) via the admin namespace.
  *  Shared by the request form and the admin banners (overview + user detail) to avoid a
@@ -247,6 +257,15 @@ export const LOCK_ENDED_REASON = {
   opening: "opening",
   /** Vom Poller verworfen, weil sie im Moment ihrer Auslösung schon gegenstandslos war. */
   obsolete: "obsolete",
+  /**
+   * Von der Keyholderin vorzeitig FREIGEGEBEN („Sofort aufschliessen").
+   *
+   * Ein eigener Grund neben `keyholder` und `opening`, weil beide etwas anderes bedeuten würden:
+   * `opening` heisst „vom Sub aufgebrochen" und speist `getInterruptedSperrzeit`, also die Anzeige
+   * „gebrochene Sperrzeit" — eine Freigabe ist kein Bruch. `keyholder` heisst „zurückgezogen", und
+   * das stimmt zwar, verschweigt aber, dass im selben Griff aufgeschlossen wurde.
+   */
+  released: "released",
 } as const;
 export type LockEndedReason = typeof LOCK_ENDED_REASON[keyof typeof LOCK_ENDED_REASON];
 

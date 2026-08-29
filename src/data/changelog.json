@@ -142,6 +142,13 @@
           "de": "Ein Eintrag kann nicht mehr doppelt entstehen, wenn die Verbindung beim Speichern abreisst und er später aus der Warteschlange nachgeliefert wird.",
           "en": "An entry can no longer be created twice when the connection drops while saving and the queue delivers it later."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Neuer Knopf „Sofort aufschliessen“ in der Keyholder-Übersicht: beendet die Sperrzeit, öffnet die Box und trägt die Öffnung ein — in einem Tipp. Auf Wunsch mit erlaubtem Orgasmus.",
+          "en": "New “Unlock now” button in the keyholder overview: ends the lock period, opens the box and records the opening — in one tap. Optionally with an orgasm allowed."
+        }
       }
     ]
   },
