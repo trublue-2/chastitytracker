@@ -275,6 +275,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `User.autoInspectionPlannedFor` | Laufzeitzustand | Merker des Planers: bis wann der Tagesplan gewürfelt ist. Wird vom Poller gesetzt, nicht von Hand. |
 | `User.weightReminderMark` | Laufzeitzustand | Für welches Wiege-Fenster zuletzt erinnert wurde (`<Tag>#<Startzeit>`). Kein Schalter, sondern die Merkfähigkeit des Minuten-Pollers: sie verhindert die Wiederholung und erlaubt zugleich das Nachholen nach einem Neustart. |
 | `Entry.id` | Identität | Primärschlüssel. |
+| `Entry.clientRequestId` | Laufzeitzustand | Merkfähigkeit gegen die doppelte Zustellung: erkennt einen wiederholten Anlege-Versuch als denselben, statt einen zweiten Eintrag zu schreiben. Kein Teil dessen, was der Eintrag festhält — leer, wo der Versuch nicht wiederholbar ist. |
 | `Entry.userId` | Identität | Eigentümer der Zeile. |
 | `Entry.type` | Datensatz | VERSCHLUSS \| OEFFNEN \| PRUEFUNG \| ORGASMUS \| WEAR_BEGIN \| WEAR_END — die Art des Ereignisses, nicht einstellbar. |
 | `Entry.imageUrl` | Datensatz | Foto des Geräts bzw. des Siegels. |

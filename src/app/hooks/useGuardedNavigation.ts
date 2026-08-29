@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CLIENT_TIMEOUT_MS } from "@/lib/apiClient";
+import { reportReachable, reportStalled } from "@/lib/connectionHealth";
 
 /**
  * Nach wie vielen ms ohne Seitenwechsel die Navigation als steckengeblieben gilt.
@@ -34,8 +35,18 @@ export const NAV_STALL_MS = CLIENT_TIMEOUT_MS / 2;
  * `retry()` machen kann. Die laufende Anfrage wird dabei NICHT abgebrochen — kommt sie doch noch
  * an, wechselt die Seite wie gewollt.
  *
- * Bewusst mit `router.push` statt `useViewTransition`: das (+)-Blatt hatte nie einen
- * Seitenübergang, und eine Robustheits-Korrektur ist der falsche Ort, um das Aussehen zu ändern.
+ * **Er meldet auch an `connectionHealth`.** Eine hängende RSC-Nutzlast ist dieselbe Aussage über
+ * dieselbe Leitung wie eine hängende `fetch`-Anfrage — der Store kannte sie nur bisher nicht. Damit
+ * zeigt die vorhandene Zustandszeile über dem Dashboard „Verbindung stockt", ohne dass irgendein
+ * Aufrufer dafür etwas anzeigen müsste. Das ist der Grund, warum hier KEIN Toast steht: den Satz
+ * gestaltet `PoorConnectionNote`, und zwar an einer Stelle.
+ *
+ * **Wer ihn benutzt.** Direkt das (+)-Blatt, das zusätzlich seine eigene Zeile zeigt (Ladezeichen an
+ * der getippten Zeile, „Erneut versuchen"). Und `useViewTransition`, durch das jeder
+ * `ViewTransitionLink` läuft.
+ *
+ * Der Sprung selbst ist hier `router.push` ohne Übergang: den legt `useViewTransition` darum,
+ * statt dass dieser Hook eine Animation erzwingt, die das (+)-Blatt nie hatte.
  */
 export default function useGuardedNavigation(onArrive?: () => void) {
   const router = useRouter();
@@ -84,6 +95,9 @@ export default function useGuardedNavigation(onArrive?: () => void) {
     // davor, käme die Seite nach der Meldung zwar an, aber niemand merkte es mehr: das Blatt bliebe
     // mit „Verbindung stockt" über der bereits gewechselten Seite stehen.
     if (pathname !== from.current) {
+      // Angekommen heisst: die Nutzlast kam durch. Das ist eine Aussage über die Leitung, und der
+      // Store lebt davon, dass auch das Aufhören gemeldet wird.
+      reportReachable();
       reset();
       // Der Aufrufer erfährt das Ankommen — das (+)-Blatt schliesst sich erst JETZT. Vorher schloss
       // es sofort beim Tippen, und genau das liess ein hängendes Ziel wie „nichts passiert"
@@ -95,7 +109,10 @@ export default function useGuardedNavigation(onArrive?: () => void) {
     // denen sie neu laufen soll (Start und erneuter Versuch über `go`). Steht es schon, ist die
     // Meldung draussen und es gibt nichts mehr zu melden.
     if (stalled) return;
-    const timer = setTimeout(() => setStalled(true), NAV_STALL_MS);
+    const timer = setTimeout(() => {
+      setStalled(true);
+      reportStalled();
+    }, NAV_STALL_MS);
     return () => clearTimeout(timer);
   }, [target, stalled, pathname, reset]);
 

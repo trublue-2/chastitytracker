@@ -10,6 +10,13 @@ import { useTranslations } from "next-intl";
 /**
  * useOfflineQueue — queues mutations when offline and syncs on reconnect.
  *
+ * **Regel: was hier durchgeht, MUSS mehrfach zustellbar sein.** Eine eingereihte Anfrage kann den
+ * Server zweimal erreichen — einmal vor dem Zeitlimit, einmal beim Abarbeiten —, und die
+ * Warteschlange kann das nicht wissen. Heute erfüllen das beide Ziele auf verschiedene Weise:
+ * `POST /api/entries` über den Stempel aus `entryRequest()`, `PATCH /api/tasks/[id]` von Natur aus
+ * (`completeTask` ist idempotent, siehe Docblock der Route). Ein drittes Ziel muss sich für einen
+ * der beiden Wege entscheiden, bevor es hier landet.
+ *
  * Usage:
  *   const { offlineFetch, pendingCount, isSyncing } = useOfflineQueue();
  *   // Use offlineFetch instead of fetch for mutations

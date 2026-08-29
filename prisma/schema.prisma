@@ -1049,6 +1049,11 @@ model BoxStatus {
 
 model Entry {
   id                            String               @id @default(cuid())
+  // Stempel des Client-Versuchs, der diese Zeile angelegt hat. Wozu: siehe `entryRequest()`.
+  // Eindeutig NUR JE NUTZER (`@@unique` unten), nicht global — sonst müsste die Route den
+  // Fremdtreffer als eigenen Fehlerfall behandeln, samt Code und Übersetzung, für eine
+  // UUID-Kollision. So steckt die Sichtbarkeitsregel im Index statt in einer Laufzeit-Prüfung.
+  clientRequestId               String?
   userId                        String
   user                          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   type                          String               @default("VERSCHLUSS")
@@ -1103,6 +1108,9 @@ model Entry {
 
   @@index([userId])
   @@index([userId, type, startTime(sort: Desc)])
+  // Ein Stempel gilt je Nutzer. Mehrere NULL nebeneinander erlaubt SQLite in einem UNIQUE-Index,
+  // Einträge ohne Stempel bleiben also unberührt — es braucht keine Rückfüllung.
+  @@unique([userId, clientRequestId])
 }
 
 // Keyholder-Aufforderung für einen Orgasmus innerhalb eines Zeitfensters.

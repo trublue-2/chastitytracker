@@ -2,7 +2,6 @@
 
 import { type ReactNode, type MouseEvent } from "react";
 import Link from "next/link";
-import useViewTransition from "@/app/hooks/useViewTransition";
 
 interface Props {
   href: string;
@@ -16,6 +15,16 @@ interface Props {
    *  anstandslos und wird beim Rendern stillschweigend weggeworfen. Der Fehler ist damit weder im
    *  Build noch im Bild zu sehen — nur der Screenreader schweigt weiter. */
   "aria-current"?: "page";
+  /**
+   * Der Sprung selbst — kommt von `useViewTransition()` des Aufrufers, NICHT aus einem eigenen Hook.
+   *
+   * Der Hook bringt seit der Netz-Wache eine kleine Zustandsmaschine mit (laufendes Ziel, Frist,
+   * Meldung an `connectionHealth`). Rief ihn jede Verknüpfung selbst, gäbe es sechs bis acht davon
+   * je Seite — beide Hauptnavigationen sind gleichzeitig gemountet, CSS blendet nur eine aus. Es
+   * kann aber immer nur EIN Sprung laufen. Der Aufrufer hält die Wache also einmal und reicht sie
+   * an seine Verknüpfungen durch.
+   */
+  navigate: (href: string) => void;
 }
 
 /**
@@ -24,16 +33,14 @@ interface Props {
  *
  * Falls back to standard Link behavior on unsupported browsers.
  */
-export default function ViewTransitionLink({ href, children, className, onClick, "aria-current": ariaCurrent }: Props) {
-  const { navigateWithTransition } = useViewTransition();
-
+export default function ViewTransitionLink({ href, children, className, onClick, "aria-current": ariaCurrent, navigate }: Props) {
   function handleClick(e: MouseEvent<HTMLAnchorElement>) {
     // Let modified clicks (cmd+click, ctrl+click) behave normally
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
 
     e.preventDefault();
     onClick?.();
-    navigateWithTransition(href);
+    navigate(href);
   }
 
   return (

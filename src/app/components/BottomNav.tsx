@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, ClipboardList, Plus, BarChart2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
+import useViewTransition from "@/app/hooks/useViewTransition";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 import { adminNavEntry } from "@/lib/adminNavEntry";
 import { isEntryFormRoute } from "@/lib/entryFormRoute";
@@ -21,6 +22,10 @@ interface BottomNavProps {
 export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }: BottomNavProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
+  // EINMAL für die ganze Leiste, nicht je Verknüpfung — Begründung an der `navigate`-Prop von
+  // `ViewTransitionLink`. Muss VOR dem `return null` unten stehen: Hooks dürfen nicht bedingt
+  // laufen.
+  const { navigateWithTransition } = useViewTransition();
 
   // Auf den Erfassungs-/Bearbeitungs-Seiten die fixe Leiste ausblenden. Sonst verdeckte sie am
   // unteren Rand (Mobile) den „Speichern"-Button, der dort selbst in einer fixen Aktionsleiste sitzt.
@@ -65,6 +70,7 @@ export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }:
 
           return (
             <ViewTransitionLink
+              navigate={navigateWithTransition}
               key={tab.href}
               href={tab.href}
               // Der aktive Reiter war allein über Farbe und Strichstärke erkennbar. Ein

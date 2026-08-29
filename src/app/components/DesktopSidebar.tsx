@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import { signOut } from "next-auth/react";
 import NewEntrySheet, { type NewEntryCategoryRow } from "./NewEntrySheet";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
+import useViewTransition from "@/app/hooks/useViewTransition";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 import { adminNavEntry } from "@/lib/adminNavEntry";
 
@@ -28,6 +29,8 @@ interface Props {
 export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, version, categoryRows, bildersafe, weight, openInspection }: Props) {
   const t = useTranslations("nav");
   const pathname = usePathname();
+  // EINMAL für die ganze Seitenleiste — Begründung an der `navigate`-Prop von `ViewTransitionLink`.
+  const { navigateWithTransition } = useViewTransition();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const navItems = [
@@ -62,6 +65,7 @@ export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, version
             const Icon = item.icon;
             return (
               <ViewTransitionLink
+                navigate={navigateWithTransition}
                 key={item.href}
                 href={item.href}
                 // Ohne dies ist der aktive Eintrag nur eingefärbt — für einen Screenreader und für

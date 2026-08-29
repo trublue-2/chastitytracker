@@ -735,6 +735,8 @@ export const FM_REGISTRY: FmEntry[] = [
   x("record", "Entry", "boxImageUrl", "Aufnahme durch das Sichtfenster der Box als Schlüssel-Nachweis."),
   x("runtime", "Entry", "keyDetected",
     "Hat die Bilderkennung im Sichtfenster einen Schlüssel gesehen? Beratend, blockiert nichts — und erkennt 'ein Schlüssel', nicht 'der richtige'."),
+  x("runtime", "Entry", "clientRequestId",
+    "Merkfähigkeit gegen die doppelte Zustellung: erkennt einen wiederholten Anlege-Versuch als denselben, statt einen zweiten Eintrag zu schreiben. Kein Teil dessen, was der Eintrag festhält — leer, wo der Versuch nicht wiederholbar ist."),
   x("record", "Entry", "note", "Freitext des Erfassenden."),
   x("record", "Entry", "orgasmusArt", "Art des Orgasmus; die Auswahlliste steuert `User.orgasmusArtenConfig`."),
   x("runtime", "Entry", "kontrollCode", "Der bei dieser Kontrolle geforderte Code."),

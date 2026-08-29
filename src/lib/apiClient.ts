@@ -110,11 +110,52 @@ export async function parseApiError(res: Response, fallback: string): Promise<st
   return (await parseApiErrorCode(res)) ?? fallback;
 }
 
-/** URL + RequestInit für einen Eintrag: `entryId` gesetzt = Bearbeiten (PATCH), sonst Anlegen (POST). */
+/**
+ * Ein einmaliger Stempel für einen Anlege-Versuch — oder `null`, wenn der Browser keinen sicheren
+ * Zufall hat.
+ *
+ * Dann lieber GAR KEINEN Stempel als einen schwachen: zwei kollidierende Werte desselben Nutzers
+ * liessen seinen zweiten Eintrag als vermeintliche Wiederholung des ersten verschwinden — ein
+ * VERLORENER Eintrag, also schlimmer als der doppelte, gegen den der Stempel gebaut ist. Ohne
+ * Stempel greift die Idempotenz eben nicht; das ist der Zustand von vorher. (Die Konstruktion
+ * `Date.now()+Math.random()` hat das Projekt bei `generateUploadFilename` schon einmal ersetzt.)
+ *
+ * `crypto.randomUUID` gibt es nur in sicheren Kontexten; die App läuft ausschliesslich über HTTPS
+ * bzw. localhost, der Fall ist also theoretisch.
+ */
+function requestStamp(): string | null {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : null;
+}
+
+/**
+ * URL + RequestInit für einen Eintrag: `entryId` gesetzt = Bearbeiten (PATCH), sonst Anlegen (POST).
+ *
+ * **Beim ANLEGEN trägt der Rumpf einen `clientRequestId`-Stempel.** Er ist der Schutz gegen die
+ * Dublette, die entsteht, wenn der Server schreibt und die Antwort das Zeitlimit reisst: die
+ * Offline-Warteschlange speichert den fertigen Rumpf und schickt ihn später erneut — mit demselben
+ * Stempel, an dem `/api/entries` ihn wiedererkennt.
+ *
+ * Er sitzt HIER und nicht in `offlineFetch`, weil hier bekannt ist, wohin die Anfrage geht. Dort
+ * stempelte er jede eingereihte Mutation, auch `PATCH /api/tasks/[id]`, wo die Route das Feld nicht
+ * kennt — Kosten überall, Nutzen an einer Stelle.
+ *
+ * Ein PATCH bekommt keinen: eine Bearbeitung wird nicht eingereiht (`initial ? fetch : offlineFetch`
+ * in den Formularen), es gibt also keinen zweiten Versuch, den man wiedererkennen müsste. Der
+ * Keyholder-Pfad (`postAdminEntry`) aus demselben Grund nicht.
+ */
 export function entryRequest(entryId: string | null | undefined, payload: unknown): [string, RequestInit] {
+  // Ein mitgegebener Stempel gewinnt. Heute gibt keiner einen mit — aber ein Aufrufer, der einen
+  // Versuch bewusst wiederholt, hätte ihn sonst stillschweigend verloren, und damit ausgerechnet
+  // die Zusage, für die es den Stempel gibt.
+  const vorhanden = (payload as { clientRequestId?: unknown } | null)?.clientRequestId;
+  const stamp = entryId ? null : (typeof vorhanden === "string" && vorhanden ? vorhanden : requestStamp());
   return [
     entryId ? `/api/entries/${entryId}` : "/api/entries",
-    { method: entryId ? "PATCH" : "POST", headers: JSON_HEADERS, body: JSON.stringify(payload) },
+    {
+      method: entryId ? "PATCH" : "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify(stamp ? { ...(payload as object), clientRequestId: stamp } : payload),
+    },
   ];
 }
 

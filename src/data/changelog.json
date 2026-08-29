@@ -128,6 +128,20 @@
           "de": "Speichern wartet nicht mehr endlos auf eine Leitung, die steht, aber nichts durchlässt: Nach kurzer Zeit landet der Eintrag in der Warteschlange und geht später von selbst raus. Das galt bisher nur bei ganz abgeschaltetem Netz.",
           "en": "Saving no longer waits forever on a connection that is up but not carrying anything: after a short while the entry goes into the queue and syncs later on its own. Until now that only worked with the network fully off."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Auch die Reiter unten und die Seitenleiste sagen jetzt Bescheid, wenn eine Seite bei schlechtem Empfang nicht kommt — bisher tat das nur „Neu erfassen“.",
+          "en": "The bottom tabs and the sidebar now also speak up when a page fails to arrive on a weak connection — until now only the new-entry sheet did."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein Eintrag kann nicht mehr doppelt entstehen, wenn die Verbindung beim Speichern abreisst und er später aus der Warteschlange nachgeliefert wird.",
+          "en": "An entry can no longer be created twice when the connection drops while saving and the queue delivers it later."
+        }
       }
     ]
   },

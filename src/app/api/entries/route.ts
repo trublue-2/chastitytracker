@@ -11,6 +11,7 @@ import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "@/lib/inspectionTarget";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
+import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   // verifikationStatus is never accepted from client – set server-side only
-  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, deviceId, imageRotation, codeImageUrl, codeReadable, keyInBox, boxImageUrl, boxImageRotation } = body;
+  const { type, startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, deviceId, imageRotation, codeImageUrl, codeReadable, keyInBox, boxImageUrl, boxImageRotation, clientRequestId } = body;
 
   const devBypass = isDevBypassEnabled(req.headers.get("host"));
   // Reason-Codes gegen die (ggf. angepasste) Liste DES SESSION-USERS validieren; null-Config → Built-ins.
@@ -62,6 +63,20 @@ export async function POST(req: NextRequest) {
   // EINE Normalisierung für Persistenz UND Box-Kommando — sonst könnte die Box einem Wert folgen, den
   // der Eintrag nicht dokumentiert. Nicht-Boolean ist oben ausgeschlossen; bleibt: fehlt = null.
   const keyInBoxDeclared: boolean | null = keyInBox ?? null;
+
+  // Dieselbe Normalisierung für Prüfung UND Persistenz. Zweimal hingeschrieben könnte die Prüfung
+  // einen Wert nachschlagen, den die Zeile gar nicht speichert.
+  const requestKey: string | null = typeof clientRequestId === "string" && clientRequestId ? clientRequestId : null;
+
+  // Derselbe Versuch, ein zweites Mal? Dann den vorhandenen Eintrag zurückgeben statt einen neuen
+  // anzulegen. Wozu der Stempel da ist, steht bei `entryRequest()`.
+  //
+  // Antwort ohne 201: angelegt wurde in DIESEM Aufruf nichts. Der Client sieht trotzdem Erfolg, und
+  // das ist richtig — sein Wunsch ist erfüllt, nur eben beim ersten Versuch.
+  if (requestKey) {
+    const schonDa = await prisma.entry.findFirst({ where: { clientRequestId: requestKey, userId: session.user.id } });
+    if (schonDa) return NextResponse.json(schonDa);
+  }
 
   // Replay-Schutz fürs Box-Foto: dieselbe Aufnahme darf nicht ein zweites Mal als Nachweis dienen.
   // Ohne diese Prüfung könnte der Sub die URL seines ersten Fotos aus dem Request-Body abschreiben
@@ -169,6 +184,9 @@ export async function POST(req: NextRequest) {
       const created = await tx.entry.create({
         data: {
           userId: session.user.id,
+          // Der Stempel wandert MIT in die Zeile — er ist der einzige Grund, warum der zweite
+          // Versuch oben als derselbe erkannt wird.
+          clientRequestId: requestKey,
           type,
           startTime: new Date(startTime),
           imageUrl: imageUrl || null,
@@ -235,6 +253,17 @@ export async function POST(req: NextRequest) {
       return created;
     });
   } catch (e: unknown) {
+    // Zwei gleiche Versuche GLEICHZEITIG: die Vorabprüfung oben sieht beide leer, beide schreiben,
+    // der zweite läuft in den Index. Real, seit der Client abbricht — die erste Anfrage läuft
+    // serverseitig weiter, während die Warteschlange dieselbe schon nachschickt.
+    //
+    // Ohne diesen Zweig käme ein P2002 im generischen `entryGuardCode(e)` an, das für ihn
+    // `undefined` liefert: eine 400-Antwort mit leerem Fehlerfeld für einen Eintrag, der in
+    // Wahrheit angelegt wurde.
+    if (requestKey && isUniqueConstraintOn(e, "clientRequestId")) {
+      const schonDa = await prisma.entry.findFirst({ where: { clientRequestId: requestKey, userId: session.user.id } });
+      if (schonDa) return NextResponse.json(schonDa);
+    }
     return NextResponse.json({ error: entryGuardCode(e) }, { status: 400 });
   }
 
