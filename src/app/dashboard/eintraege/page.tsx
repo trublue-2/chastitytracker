@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale, APP_TZ } from "@/lib/utils";
-import { entryInspectionPill, INSPECTION_PILL_SELECT } from "@/lib/kontrollePills";
+import { INSPECTION_PILL_SELECT, entryInspectionPill } from "@/lib/kontrollePills";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { ClipboardList } from "lucide-react";
 import EmptyState from "@/app/components/EmptyState";
@@ -32,9 +32,12 @@ export default async function EintraegePage({
     getTranslations("common"),
     getTranslations("orgasmForm"),
     getTranslations("openForm"),
+    // Die `pill*`-Schlüssel wohnen im `admin`-Namensraum, auch wo der Träger sie liest.
     getTranslations("admin"),
   ]);
   const dl = toDateLocale(locale);
+  // EINE Uhr für die ganze Liste — sonst würden zwei gleich alte Fristen verschieden beurteilt.
+  const now = new Date();
 
   const [total, entries, cfgUser] = await Promise.all([
     prisma.entry.count({ where: { userId } }),
@@ -52,7 +55,6 @@ export default async function EintraegePage({
     prisma.user.findUnique({ where: { id: userId }, select: { orgasmusArtenConfig: true, oeffnenGruendeConfig: true } }),
   ]);
 
-  const now = new Date();
   const orgasmCfg = effectiveOrgasmusArten(cfgUser?.orgasmusArtenConfig);
   const openCfg = effectiveOeffnenGruende(cfgUser?.oeffnenGruendeConfig);
   const totalPages = Math.ceil(total / PAGE_SIZE);

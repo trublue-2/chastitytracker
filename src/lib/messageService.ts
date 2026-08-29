@@ -701,7 +701,7 @@ async function refDetails(rows: RefRow[], scope: InboxScope): Promise<Map<string
     // Ein Ziel gibt es NUR bei der offenen Kontrolle — dort steht eine Handlung an. Erfüllt,
     // abgelaufen, zurückgezogen oder noch nicht ausgelöst: kein Ziel, das etwas beiträgt. Der
     // Zustand kommt aus `mapAnforderungStatus` statt aus einer zweiten Handableitung.
-    const open = mapAnforderungStatus(c, null, now) === "open";
+    const open = mapAnforderungStatus(c, now) === "open";
     details.set(refKey(c.userId, "control", c.id), {
       text: c.kommentar,
       actionCode: open ? c.code : null,

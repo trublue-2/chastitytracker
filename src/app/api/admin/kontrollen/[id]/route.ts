@@ -18,7 +18,7 @@ export async function DELETE(
   // `withdrawnAt`, trägt aber das Vergehen (`autoMarkedRemovedAt`) — sie zu löschen tilgte einen
   // Strafbuch-Eintrag. Die UI blendet die Aktion dort bereits aus; die Route darf sich darauf
   // nicht verlassen.
-  if (mapAnforderungStatus(ka, null, new Date()) !== "withdrawn") {
+  if (mapAnforderungStatus(ka, new Date()) !== "withdrawn") {
     return errorResponse(400, "INSPECTION_NOT_WITHDRAWN");
   }
 

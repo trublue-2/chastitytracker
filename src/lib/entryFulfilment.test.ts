@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
 
 /**
  * `applyEntryFulfilment` ist die eine Erfüllungs-Logik beider Erfassungs-Pfade. Ihr einziger
@@ -217,5 +218,89 @@ describe("Typ-Trennung", () => {
     expect(txMock.verschlussAnforderung.findMany).not.toHaveBeenCalled();
     expect(txMock.kontrollAnforderung.findFirst).not.toHaveBeenCalled();
     expect(txMock.orgasmusAnforderung.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Der Header oben beschreibt die Asymmetrie der beiden Pfade — geprüft wurde bisher nur, dass
+ * `applyEntryFulfilment` das übergebene `at` treu verarbeitet. WELCHES `at` die Routen übergeben,
+ * prüfte niemand, und genau dort sitzt die Sicherheitseigenschaft aus `bb818d2c`: übergäbe der
+ * Sub-Pfad `created.startTime` statt der Server-Uhr, wäre die Rückdatier-Lücke zurück — jeder Test
+ * dieser Datei bliebe grün, weil die Funktion ja weiterhin korrekt rechnet.
+ *
+ * Bauart nach `appName.test.ts`: die Aufrufstelle wird als TEXT gelesen. Die Alternative wäre ein
+ * Routen-Test mit Attrappen für Prisma, Auth, Box und Benachrichtigungen — viel Gerüst für eine
+ * Eigenschaft, die aus einem Argument besteht.
+ *
+ * **Warum die Argumente zerlegt werden, statt im ganzen Aufruf nach Text zu suchen.** Beides war
+ * hier schon falsch gebaut und fiel erst im Review auf:
+ *
+ *   1. Ein Ausschnitt bis zur ersten `);` endet mitten im Aufruf, sobald ein KOMMENTAR darin ein
+ *      `foo();` enthält. Die belastende Zeile liegt dann ausserhalb — und eine `not.toMatch`-Zusage
+ *      wird GRÜN, gerade weil der Text fehlt. Klammer-Tiefe kennt dieses Versagen nicht: ein
+ *      Kommentar mit `foo();` ist ausgeglichen.
+ *   2. `toContain("new Date()")` über den ganzen Aufruf sagt nur, dass irgendwo eine Server-Uhr
+ *      steht — nicht, dass sie das `at`-Argument IST. `submittedAt: new Date()` im Options-Objekt
+ *      erfüllt die Zusage, während `at` längst die frei gewählte Nutzer-Zeit trägt.
+ *
+ * Deshalb: Argumente über die Klammer-Tiefe trennen und das LETZTE exakt vergleichen. Geht die
+ * Zerlegung schief, stimmt die Argument-Zahl nicht mehr und der Wächter wird ROT — die Richtung,
+ * in die ein Wächter versagen muss.
+ */
+describe("Welche Uhr die Erfassungs-Routen an applyEntryFulfilment geben", () => {
+  /**
+   * Die Argumente eines Aufrufs als Quelltext, über die Klammer-Tiefe getrennt.
+   * Der Import (`import { applyEntryFulfilment, … }`) kann nicht getroffen werden: dort folgt dem
+   * Bezeichner nie eine öffnende Klammer.
+   */
+  function callArgs(file: string): string[] {
+    const src = readFileSync(file, "utf8");
+    const at = src.indexOf("applyEntryFulfilment(");
+    expect(at, `kein Aufruf von applyEntryFulfilment( in ${file}`).toBeGreaterThan(-1);
+
+    const args: string[] = [];
+    let cur = "";
+    let depth = 0;
+    for (let i = at + "applyEntryFulfilment".length; i < src.length; i++) {
+      const c = src[i];
+      if (c === "(" || c === "{" || c === "[") {
+        if (++depth === 1) continue;
+      } else if (c === ")" || c === "}" || c === "]") {
+        if (--depth === 0) { args.push(cur); break; }
+      } else if (c === "," && depth === 1) {
+        args.push(cur); cur = ""; continue;
+      }
+      cur += c;
+    }
+    return args.map((a) => a.trim()).filter((a) => a.length > 0);
+  }
+
+  const sub = callArgs("src/app/api/entries/route.ts");
+  const admin = callArgs("src/app/api/admin/entries/route.ts");
+
+  it("zerlegt beide Aufrufe vollständig", () => {
+    // Der Selbsttest des Wächters: stimmt die Zahl nicht, ist die Zerlegung an einer Klammer
+    // gescheitert und JEDE Aussage darunter wertlos. Lieber hier rot als unten falsch grün.
+    expect(sub, "Sub-Pfad: (tx, created, opts, at)").toHaveLength(4);
+    expect(admin, "Keyholder-Pfad: (tx, created, opts, at)").toHaveLength(4);
+  });
+
+  it("der Sub-Pfad übergibt die SERVER-Uhr, nie eine Zeit aus dem Eintrag", () => {
+    // Exakt das letzte Argument, nicht „irgendwo im Aufruf": `created.startTime` ist die frei
+    // gewählte Zeit, und `new Date(startTime)` — in derselben Datei dreimal vorhanden — wäre
+    // dieselbe Lücke in Tarnung. Beide fallen hier durch.
+    // Wird das Argument je zu einer Variablen (`const at = new Date()` darüber), schlägt dieser
+    // Test an: dann prüfen, ob sie WIRKLICH die Server-Uhr trägt, und den Vergleich nachziehen.
+    expect(sub[3]).toBe("new Date()");
+  });
+
+  it("der Keyholder-Pfad darf rückdatieren — ausser er erfasst für sich selbst", () => {
+    expect(admin[3]).toBe("fulfilAt");
+    // Die RICHTUNG des Ternärs ist die Eigenschaft, nicht sein Vorhandensein: erfasst die
+    // Keyholderin für SICH, ist sie der Sub und es gilt die Server-Uhr. Vertauscht bedeutete
+    // dieselbe Zeile das Gegenteil — und wäre die offene Hintertür.
+    const decl = readFileSync("src/app/api/admin/entries/route.ts", "utf8")
+      .match(/const fulfilAt = .*/)?.[0] ?? "";
+    expect(decl).toMatch(/userId === session\.user\.id\s*\?\s*new Date\(\)\s*:\s*entryTime/);
   });
 });

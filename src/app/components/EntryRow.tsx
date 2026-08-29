@@ -54,7 +54,7 @@ interface Props {
   openingLabel?: string | null;
   /** Fertig beschriftete und eingefärbte Kontroll-Pille; kommt vom Server-Elternteil über
    *  `entryInspectionPill()` (das braucht die verknüpfte Anforderung, also eine Abfrage).
-   *  Warum es sie gibt, steht dort. */
+   *  Warum es sie gibt, steht in `kontrollePills.ts`. */
   inspectionPill?: KontrollePill | null;
   /** Optional action slot (e.g. EntryActions menu) */
   actions?: ReactNode;

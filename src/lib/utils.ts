@@ -589,16 +589,27 @@ export function isPastDeadlineUnfulfilled(deadline: Date, completedAt: Date | nu
   return completedAt ? completedAt > deadline : deadline < now;
 }
 
-/** Derives AnforderungStatus: was the kontrolle submitted, and was it on time?
- *  fulfilledAt is server-set at submission time and immutable – never use entryTime for deadline comparison.
- *  `scheduled`: keyholder-set, not yet triggered (wirksamAb in the future) — only ever surfaced in
- *  keyholder views (the Sub never sees scheduled directives).
- *  `missed`: die Eskalation (Stufe 2) hat die Kontrolle als versäumt abgeschlossen und das Gerät
- *  auto-entfernt. Sie setzt AUCH `withdrawnAt` (damit die Zeile aus der Fällig-Query fällt) — die
- *  Prüfung muss deshalb VOR `withdrawn` stehen, sonst sähe ein Versäumnis aus wie ein Rückzug. */
+/**
+ * Wurde die Kontrolle eingereicht, und war sie pünktlich?
+ *
+ * **Die Pünktlichkeit entscheidet `fulfilledAt`, NIE die Eintragszeit.** Auf dem Kontroll-Pfad
+ * setzt der Server `fulfilledAt` auf seine eigene Uhr; die Eintragszeit dagegen wählt der Sub im
+ * Formular selbst — solange der Status sie las, war „ich datiere mich vor die Frist" eine gültige
+ * Ausrede. (Als Eigenschaft der SPALTE gilt das nicht: die Verschluss-Anforderung kennt den
+ * Nachtrag bewusst. Die Asymmetrie steht in `entryFulfilment.ts`, geprüft wird sie in dessen Test.)
+ *
+ * Wo die Eintragszeit legitim gegen die Frist läuft, heisst das auch so — `backdated` in
+ * `strafbuch.ts` stellt genau diese Rückdatierung fest, statt sie in den Status zu mischen.
+ *
+ * `scheduled`: vom Keyholder gesetzt, noch nicht ausgelöst (`wirksamAb` in der Zukunft) — nur in
+ * Keyholder-Sichten sichtbar, der Sub sieht terminierte Direktiven nie.
+ *
+ * `missed`: die Eskalation (Stufe 2) hat die Kontrolle als versäumt abgeschlossen und das Gerät
+ * auto-entfernt. Sie setzt AUCH `withdrawnAt` (damit die Zeile aus der Fällig-Query fällt) — die
+ * Prüfung muss deshalb VOR `withdrawn` stehen, sonst sähe ein Versäumnis aus wie ein Rückzug.
+ */
 export function mapAnforderungStatus(
   k: { withdrawnAt: Date | null; entryId: string | null; deadline: Date; fulfilledAt?: Date | null; wirksamAb?: Date | null; autoMarkedRemovedAt: Date | null },
-  _entryTime: Date | null,
   now: Date
 ): AnforderungStatus {
   if (k.autoMarkedRemovedAt) return "missed";
@@ -1155,7 +1166,7 @@ export function buildKontrolleItems(
       deadline: k.deadline,
       kommentar: k.kommentar ?? null,
       note: k.entry?.note ?? null,
-      anforderungStatus: mapAnforderungStatus(k, k.entry?.startTime ?? null, now),
+      anforderungStatus: mapAnforderungStatus(k, now),
       verifikationStatus: k.entry ? mapVerifikationStatus(k.entry.verifikationStatus) : null,
       // ROH-Status, nicht der gemappte: `mapVerifikationStatus` macht aus `null` bereits
       // "unverified", und `toVerifyFailure` würde den Grund dann als überholt verwerfen.

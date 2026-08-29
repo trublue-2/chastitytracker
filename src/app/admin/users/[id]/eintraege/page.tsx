@@ -8,7 +8,7 @@ import { weightTrackingEnabled } from "@/lib/constants";
 import { loadWeightRows } from "@/lib/weightRows";
 import { weightText, type UnitSystem } from "@/lib/weight";
 import EntryRow from "@/app/components/EntryRow";
-import { entryInspectionPill, INSPECTION_PILL_SELECT } from "@/lib/kontrollePills";
+import { INSPECTION_PILL_SELECT, entryInspectionPill } from "@/lib/kontrollePills";
 import DayGroups from "@/app/components/DayGroups";
 import ListPagerLinks from "@/app/components/ListPagerLinks";
 import WeightRow from "@/app/components/WeightRow";
@@ -40,9 +40,11 @@ export default async function AdminUserEintraegePage({
     getTranslations("orgasmForm"),
     getTranslations("openForm"),
     getTranslations("weightList"),
+    // Die `pill*`-Schlüssel wohnen im `admin`-Namensraum, auch wo der Träger sie liest.
     getTranslations("admin"),
   ]);
   const dl = toDateLocale(locale);
+  // EINE Uhr für die ganze Liste — sonst würden zwei gleich alte Fristen verschieden beurteilt.
   const now = new Date();
   const orgasmCfg = effectiveOrgasmusArten(user.orgasmusArtenConfig);
   const openCfg = effectiveOeffnenGruende(user.oeffnenGruendeConfig);

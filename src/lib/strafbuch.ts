@@ -860,7 +860,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const data: StrafbuchData = {
     unauthorizedOpenings,
     lateControls: kontrollAnforderungen
-      .filter((k) => mapAnforderungStatus(k, k.entry?.startTime ?? null, now) === "late")
+      .filter((k) => mapAnforderungStatus(k, now) === "late")
       .map(toControl),
     rejectedControls: kontrollAnforderungen
       .filter((k) => k.entry?.verifikationStatus === "rejected")

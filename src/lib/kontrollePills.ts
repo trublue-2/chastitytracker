@@ -162,18 +162,20 @@ export interface InspectionPillEntry {
  * wieder auf — die Träger-Liste hätte ihn dann und die Keyholder-Liste desselben Subs nicht.
  *
  * `null` für alles, was keine Kontrolle ist: eine Öffnung hat keinen Prüf-Status.
+ *
+ * Nimmt den Übersetzer entgegen, statt ihn zu holen — die Aufrufer haben ihn ohnehin. Welcher es
+ * sein muss, sagt der Parameter-Kommentar unten: die `pill*`-Schlüssel wohnen im `admin`-Raum,
+ * auch dort, wo der Träger sie liest. Der falsche `t` zeigt rohe Schlüsselnamen, nicht einen Fehler.
  */
 export function entryInspectionPill(
   e: InspectionPillEntry,
-  /** Übersetzer aus dem `admin`-Namensraum — dort wohnen die `pill*`-Schlüssel, die auch Zeitachse
-   *  und Keyholder-Liste benutzen. Die Zusicherung steht HIER, damit sie nicht an jeder
-   *  Aufrufstelle als Kommentar mitreisen muss. */
+  /** Übersetzer aus dem `admin`-Namensraum — dort wohnen die `pill*`-Schlüssel. */
   t: (key: string) => string,
   now: Date,
 ): KontrollePill | null {
   if (e.type !== "PRUEFUNG") return null;
   return getKombinierterPill(
-    e.kontrollAnforderung ? mapAnforderungStatus(e.kontrollAnforderung, null, now) : null,
+    e.kontrollAnforderung ? mapAnforderungStatus(e.kontrollAnforderung, now) : null,
     mapVerifikationStatus(e.verifikationStatus),
     t,
   );
