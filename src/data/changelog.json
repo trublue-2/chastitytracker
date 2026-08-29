@@ -1,5 +1,18 @@
 [
   {
+    "version": "5.3.11",
+    "date": "2026-08-29",
+    "changes": [
+      {
+        "type": "security",
+        "text": {
+          "de": "Die automatische Code-Pr\u00fcfung best\u00e4tigt eine Kontrolle nur noch, wenn die Bilderkennung den Code wirklich gelesen hat. Best\u00e4tigt sie in einer Gegenprobe auch eine erfundene Zahl, gilt die Kontrolle als ungepr\u00fcft und geht zur Sichtung.",
+          "en": "The automatic code check now confirms an inspection only when the image recognition really read the code. If a counter-check shows it confirms a made-up number too, the inspection counts as unverified and goes to review."
+        }
+      }
+    ]
+  },
+  {
     "version": "5.3.10",
     "date": "2026-08-24",
     "changes": [

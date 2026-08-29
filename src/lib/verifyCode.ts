@@ -3,10 +3,11 @@ import { join, basename } from "path";
 import sharp from "sharp";
 import { visionMaxImagePx, type Rotation } from "@/lib/constants";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
-import { IMAGE_MEDIA_TYPES } from "@/lib/imageUtils";
+import { IMAGE_MEDIA_TYPES, type ImageData } from "@/lib/imageUtils";
 import { visionComplete, visionConfigured, visionProvider } from "@/lib/vision";
 import { parseJsonObject } from "@/lib/vision/parse";
 import { localReadDigits } from "@/lib/ocr";
+import { randomInt } from "@/lib/utils";
 
 /** Beschreibung der zulaessigen Code-Quellen — wird in beiden Vision-Prompts verwendet
  *  damit Vokabular nicht zwischen verifyKontrolleCodeDetailed und detectSealNumber driftet. */
@@ -80,6 +81,10 @@ function buildVerifyPrompt(expectedCode: string, effectiveSeal: string | null): 
   ].join("\n");
 }
 
+/** Wortlaute, an denen eine ANTHROPIC-Verweigerung erkennbar ist (explizitere Fotos). Kleingeschrieben
+ *  gehalten, damit der Vergleich die Antwort nur EINMAL kleinschreiben muss statt je Stichwort. */
+const POLICY_KEYWORDS = ["i'm unable", "i cannot", "i can't", "inappropriate", "violates", "policy", "explicit", "sorry, i"];
+
 /** Erkennt „das Modell meldet KEINE Erkennung": mal als JSON-null/undefined, mal als Wort-Sentinel
  *  ("null"/"none") IM String. Für die Auswertung selbst genügt `digitsOf` (Sentinels enthalten keine
  *  Ziffern); gebraucht wird die Unterscheidung nur noch dort, wo „nichts gelesen" und „unbrauchbar
@@ -127,7 +132,7 @@ function vlog(label: string, fields: Record<string, unknown>) {
 async function loadImageBuffer(
   imageUrl: string,
   rotation: Rotation
-): Promise<{ base64: string; mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" } | null> {
+): Promise<ImageData | null> {
   const filename = basename(imageUrl);
   if (!filename || filename.includes("..") || filename.includes("/")) {
     vlog("loadImageBuffer:reject_filename", { filename, imageUrl });
@@ -178,11 +183,13 @@ function isConfusable(x: string, y: string): boolean {
   return CONFUSABLE_DIGIT_PAIRS.includes(x + y) || CONFUSABLE_DIGIT_PAIRS.includes(y + x);
 }
 
-/** Ziffernweiser Vergleich mit Toleranz für die klassischen Handschrift-Verwechslungen.
+/** Ziffernweiser Vergleich mit Toleranz für die klassischen Handschrift-Verwechslungen. Exportiert
+ *  für Tests (wie `evaluateVerifyResponse`) — die Köder-Gegenprobe hängt daran, dass ihr Köder dem
+ *  echten Code auch unter DIESER Toleranz nicht gleicht, und das gehört gepinnt.
  *  Vorbedingung: gleich lange Ziffernfolgen — die `every`-Schleife allein würde ein kürzeres `a`
  *  als Präfix-Treffer durchgehen lassen, deshalb bleibt der Längen-Guard hier stehen, auch wenn
  *  der einzige Aufrufer die Länge bereits geprüft hat. */
-function fuzzyMatch(a: string, b: string): boolean {
+export function fuzzyMatch(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   return a.split("").every((ch, i) => ch === b[i] || isConfusable(ch, b[i]));
 }
@@ -292,6 +299,117 @@ export function evaluateVerifyResponse(
   };
 }
 
+/** Ergebnis EINER Anfrage an das Code-Prompt: die geparste Antwort, oder warum keine vorliegt. */
+type CodeVisionRead =
+  | { kind: "json"; parsed: Record<string, unknown> }
+  | { kind: "policy" }
+  | { kind: "unusable" };
+
+/** Eine Anfrage an das Code-Prompt samt Antwort-Parsing. Geteilt von der eigentlichen Prüfung und
+ *  der Köder-Gegenprobe: beide schicken dasselbe Prompt-Format an dasselbe Bild und müssen die
+ *  Antwort identisch lesen — läse die Gegenprobe anders, prüfte sie etwas anderes als die Prüfung.
+ *  `tag` trennt die beiden im Log (`verify:` bzw. `decoy:`). */
+async function askCodeVision(
+  img: ImageData,
+  expectedCode: string,
+  sealCode: string | null,
+  tag: "verify" | "decoy",
+): Promise<CodeVisionRead> {
+  const response = await visionComplete({
+    task: "code-verify",
+    // Prompt-Form und Token-Budget hängen zusammen (die Dual-Antwort trägt zwei Zahlen) und werden
+    // deshalb hier gemeinsam abgeleitet — nicht an den Aufrufstellen, wo sie auseinanderlaufen und
+    // die Gegenprobe still etwas anderes fragen würden als die Prüfung.
+    maxTokens: sealCode ? 200 : 150,
+    content: [
+      { type: "image", mediaType: img.mediaType, base64: img.base64 },
+      { type: "text", text: buildVerifyPrompt(expectedCode, sealCode) },
+    ],
+  });
+  const text = response.text;
+  vlog(`${tag}:vision_response`, { requestId: response.requestId, stopReason: response.stopReason, textPreview: redactDigits(text.slice(0, 200)) });
+
+  // Policy-Refusal ist eine ANTHROPIC-Eigenheit (verweigert explizitere Fotos). Ein lokales Modell
+  // kennt das nicht — ein „I cannot read…" ist dort ein normaler Lesefehler, kein Policy-Block.
+  if (visionProvider() === "anthropic" && !text.includes("{")) {
+    const lower = text.toLowerCase();
+    if (POLICY_KEYWORDS.some((kw) => lower.includes(kw))) {
+      vlog(`${tag}:policy_block`, { textPreview: redactDigits(text.slice(0, 200)) });
+      return { kind: "policy" };
+    }
+  }
+
+  const parsed = parseJsonObject<Record<string, unknown>>(text);
+  if (!parsed) {
+    vlog(`${tag}:no_json_in_response`, { textPreview: redactDigits(text.slice(0, 200)) });
+    return { kind: "unusable" };
+  }
+  return { kind: "json", parsed };
+}
+
+/** Eine Zufallszahl der geforderten Länge, die weder dem erwarteten Code noch der Siegel-Nummer
+ *  gleicht — auch nicht unter der Fuzzy-Toleranz. Ohne diesen Abstand könnte eine ECHTE Lesung als
+ *  Echo zählen und eine korrekte Kontrolle verwerfen. `null`, wenn sich in den Versuchen keine
+ *  passende Zahl fand (praktisch unerreichbar; die Gegenprobe entfällt dann, statt zu raten). */
+function decoyCodeFor(expected: string, sealCode: string | null): string | null {
+  for (let i = 0; i < 20; i++) {
+    const candidate = Array.from({ length: expected.length }, () => String(randomInt(0, 9))).join("");
+    if (fuzzyMatch(candidate, expected)) continue;
+    if (sealCode && fuzzyMatch(candidate, sealCode)) continue;
+    return candidate;
+  }
+  return null;
+}
+
+/**
+ * Die KÖDER-GEGENPROBE: dieselbe Frage noch einmal, aber nach einer Zahl, die es nicht gibt.
+ *
+ * Der Prompt nennt dem Modell den gesuchten Code — er muss es, sonst fände es unter den anderen
+ * Zahlen im Bild (Barcode, Siegel, Preisschild) nicht die richtige. Damit steht die erwartete
+ * Antwort aber in der Frage, und ein Modell, das nicht lesen kann, schreibt sie ab. Ein solches
+ * Echo ist von einer echten Lesung nicht zu unterscheiden: gleiche Ziffern, gleiche Länge, `match`
+ * true. Das Stellenzahl-Gate und der Server-Vergleich in {@link evaluateDetected} greifen nicht —
+ * sie prüfen, OB die Ziffern stimmen, nicht, ob sie gelesen wurden.
+ *
+ * Unterscheidbar wird es erst durch eine zweite Frage, deren richtige Antwort „nichts gefunden"
+ * ist. Bestätigt das Modell auch die erfundene Zahl, bestätigt es alles — dann ist sein Urteil über
+ * den echten Code wertlos, und zwar gerade dann, wenn es positiv ausfiel.
+ *
+ * *Vorfall 29.08.2026:* eine Kontrolle ohne jeden Code im Foto galt als geprüft. Die Nachmessung an
+ * neun Fotos: bei dreien bestätigte das Modell eine frei erfundene Zahl — reproduzierbar.
+ *
+ * Läuft NUR nach einem Treffer: ein Nicht-Treffer ist bereits das strenge Ergebnis, und die
+ * Gegenprobe kostet einen zweiten Vision-Aufruf. Bewusst immer in der EINZEL-Form (ohne Siegel):
+ * geprüft wird die Eigenschaft „bestätigt Zahlen, die im Prompt stehen" — die hängt am Modell und
+ * am Bild, nicht daran, welches Feld gerade gefragt ist.
+ *
+ * Kann die Gegenprobe nichts sagen (keine Antwort, Policy-Block), bleibt der Treffer stehen: das
+ * ist der Stand von vorher, und ein stummer Fehlschlag darf nicht jede Kontrolle verwerfen. Ein
+ * Träger kann ihn ohnehin nicht auslösen.
+ */
+async function decoyEcho(img: ImageData, expectedCode: string, sealCode: string | null): Promise<boolean> {
+  const decoy = decoyCodeFor(expectedCode, sealCode);
+  if (!decoy) {
+    vlog("decoy:no_candidate", { codeLen: expectedCode.length });
+    return false;
+  }
+  // Eigenes try/catch, NICHT das der Hauptprüfung: dort landete ein Timeout der Box als Fehlschlag
+  // der ganzen Verifikation (→ `null`, also „nicht geprüft" ohne Grund) und entwertete damit einen
+  // Treffer, der längst vorlag. Die Gegenprobe kann nur BELASTEN, nie zum Fehlschlag führen.
+  let read: CodeVisionRead;
+  try {
+    read = await askCodeVision(img, decoy, null, "decoy");
+  } catch (e) {
+    vlog("decoy:exception", { message: (e as Error).message });
+    return false;
+  }
+  // Keine verwertbare Antwort → keine Aussage; den Ausgang hat `askCodeVision` bereits geloggt.
+  if (read.kind !== "json") return false;
+  const probe = evaluateVerifyResponse(read.parsed, decoy, null);
+  vlog("decoy:result", { echoed: probe.match, rawLen: probe.rawLen ?? 0, hasDetected: probe.detected !== null });
+  return probe.match;
+}
+
 export async function verifyKontrolleCodeDetailed(
   imageUrl: string,
   expectedCode: string,
@@ -316,44 +434,13 @@ export async function verifyKontrolleCodeDetailed(
     }
 
     vlog("verify:vision_call", { codeLen, mediaType: img.mediaType, rotation, sealChecked: !!effectiveSeal });
-    const response = await visionComplete({
-      task: "code-verify",
-      maxTokens: effectiveSeal ? 200 : 150,
-      content: [
-        { type: "image", mediaType: img.mediaType, base64: img.base64 },
-        { type: "text", text: buildVerifyPrompt(expectedCode, effectiveSeal) },
-      ],
-    });
+    const read = await askCodeVision(img, expectedCode, effectiveSeal, "verify");
+    if (read.kind === "policy") return { detected: null, match: false, reason: null, error: "policy" };
+    if (read.kind === "unusable") return { detected: null, match: false, reason: null };
 
-    const text = response.text;
-    vlog("verify:vision_response", { requestId: response.requestId, stopReason: response.stopReason, textPreview: redactDigits(text.slice(0, 200)) });
-
-    // Policy-Refusal ist eine ANTHROPIC-Eigenheit (verweigert explizitere Fotos). Ein lokales Modell
-    // kennt das nicht — ein „I cannot read…" ist dort ein normaler Lesefehler, kein Policy-Block.
-    if (visionProvider() === "anthropic") {
-      const policyKeywords = ["I'm unable", "I cannot", "I can't", "inappropriate", "violates", "policy", "explicit", "sorry, I"];
-      if (!text.includes("{") && policyKeywords.some(kw => text.toLowerCase().includes(kw.toLowerCase()))) {
-        vlog("verify:policy_block", { textPreview: redactDigits(text.slice(0, 200)) });
-        return { detected: null, match: false, reason: null, error: "policy" };
-      }
-    }
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      vlog("verify:no_json_in_response", { textPreview: redactDigits(text.slice(0, 200)) });
-      return { detected: null, match: false, reason: null };
-    }
-
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(jsonMatch[0]);
-    } catch (e) {
-      vlog("verify:json_parse_failed", { jsonRawLen: jsonMatch[0].length, error: (e as Error).message });
-      return { detected: null, match: false, reason: null };
-    }
     // Normalisierung/Fuzzy/Override (Modell liest richtige Ziffern, meldet aber match=false —
     // beobachtet 2026-05) stecken zentral in evaluateVerifyResponse/evaluateDetected.
-    const result = evaluateVerifyResponse(parsed, expectedCode, effectiveSeal);
+    const result = evaluateVerifyResponse(read.parsed, expectedCode, effectiveSeal);
     vlog("verify:result", {
       codeLen,
       hasDetected: result.detected !== null,
@@ -369,6 +456,18 @@ export async function verifyKontrolleCodeDetailed(
       hasSealDetected: result.sealDetected != null,
       reason: result.reason,
     });
+    // Nur ein Treffer wird gegengeprobt — warum, steht an `decoyEcho`.
+    if (result.match && await decoyEcho(img, expectedCode, effectiveSeal)) {
+      // Jede Behauptung des Modells über gelesene Zahlen fällt mit: sie ist genau das, was die
+      // Gegenprobe soeben widerlegt hat. Die Stellenzahlen (`rawLen`) bleiben — sie sind Beobachtung,
+      // keine Behauptung.
+      //
+      // `sealMatch` bleibt UNGESETZT statt `false`: „kein Urteil" ist nicht „Siegel falsch". Das
+      // Formular liest `sealMatch === false` als Siegel-Fehlschlag und zeigte sonst die Karte
+      // „Siegel-Nummer stimmt nicht" — bei einem Gerät ganz ohne Siegel eine Warnung über etwas,
+      // das es nicht gibt, und darunter die widersprechende Grund-Zeile.
+      return { ...result, detected: null, sealDetected: null, sealMatch: undefined, match: false, reason: "checkUnreliable" };
+    }
     return result;
   } catch (e) {
     const err = e as { status?: number; message?: string; name?: string };
