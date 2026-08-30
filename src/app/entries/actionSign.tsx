@@ -1,4 +1,4 @@
-import { ClipboardList, Play, Square, ClipboardCheck, Droplets, Circle, Scale, KeyRound, ShowerHead, Eye } from "lucide-react";
+import { ClipboardList, Play, Square, ClipboardCheck, Droplets, Scale, KeyRound, ShowerHead, Eye } from "lucide-react";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 /**

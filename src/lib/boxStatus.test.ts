@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { boxBatteryLabel, boxBoltAlert, boxBoltOpenDespiteLocked, boxHasConflict, boxFailsafeWarnings, boxPendingTransition, boxSollLabel, boxSollLocked, type BoxRow } from "./boxStatus";
+import { boxBatteryLabel, boxBoltAlert, boxBoltOpenDespiteLocked, boxHasConflict, boxFailsafeWarnings, boxPendingTransition, boxSollLocked, type BoxRow } from "./boxStatus";
 
 // Der Übergangs-Zustand (Präsenz-Gate, FW ≥ 0.2.34) speist die Box-Karte aus zwei nahtlos
 // ineinander übergehenden Quellen: sofort nach dem Eintrag das tracker-lokale pendingCommand,
@@ -92,13 +92,9 @@ describe("boxBoltOpenDespiteLocked", () => {
 // VOR dem Eintrag, während daneben schon „Öffnung freigegeben" stand. Das SOLL muss demselben
 // Vorrang folgen wie der Übergang: das anstehende Kommando ist die jüngere Absicht.
 describe("boxSollLocked — anstehendes Kommando vor gespiegeltem SOLL", () => {
-  const t = (key: string) => key;
-  const fmt = (iso: string) => iso;
-
   it("anstehendes open entwertet den gespiegelten SOLL", () => {
     const b = row({ pendingCommand: "open", simpleLock: true, locked: true });
     expect(boxSollLocked(b)).toBe(false);
-    expect(boxSollLabel(b, t, fmt)).toBe("sollNone");
   });
 
   // Die Sperrzeit wird von /api/box bei jedem Poll live aus der Tracker-DB überlagert, ist also
@@ -113,13 +109,11 @@ describe("boxSollLocked — anstehendes Kommando vor gespiegeltem SOLL", () => {
   it("… auch nicht in Kombination mit einem veralteten simpleLock", () => {
     const b = row({ pendingCommand: "open", keyholderLocked: true, simpleLock: true, locked: true });
     expect(boxSollLocked(b)).toBe(true);
-    expect(boxSollLabel(b, t, fmt)).toBe("sollLockedIndefinite");
   });
 
   it("anstehendes lock erfindet KEIN Soll — die Details kennt erst der nächste Push", () => {
     const b = row({ pendingCommand: "lock" });
     expect(boxSollLocked(b)).toBe(false);
-    expect(boxSollLabel(b, t, fmt)).toBe("sollNone");
   });
 
   // Ein Sperrbruch erzeugt gar kein open-Kommando (boxCommandForEntry → null), der Spiegel bleibt
@@ -128,12 +122,15 @@ describe("boxSollLocked — anstehendes Kommando vor gespiegeltem SOLL", () => {
     expect(boxSollLocked(row({ pendingCommand: null, keyholderLocked: true }))).toBe(true);
   });
 
+  // Der Spiegel selbst, ohne anstehendes Kommando. Prüfte einmal die Beschriftung; die ist mit
+  // `boxSollLabel` entfallen (die Karte zeigt seit v6 keine Soll-Zeile mehr). Die Regel dahinter
+  // bleibt geprüft — sie ist es, an der `boxHasConflict` hängt.
   it("ohne anstehendes Kommando gilt der Spiegel unverändert", () => {
-    expect(boxSollLabel(row({ simpleLock: true }), t, fmt)).toBe("sollIndefinite");
-    expect(boxSollLabel(row({ keyholderLocked: true }), t, fmt)).toBe("sollLockedIndefinite");
-    expect(boxSollLabel(row({ keyholderLocked: true, lockUntil: "x" }), t, fmt)).toBe("sollLockedUntil");
-    expect(boxSollLabel(row({ lockUntil: "x" }), t, fmt)).toBe("sollUntil");
-    expect(boxSollLabel(row({}), t, fmt)).toBe("sollNone");
+    expect(boxSollLocked(row({ simpleLock: true }))).toBe(true);
+    expect(boxSollLocked(row({ keyholderLocked: true }))).toBe(true);
+    expect(boxSollLocked(row({ keyholderLocked: true, lockUntil: "x" }))).toBe(true);
+    expect(boxSollLocked(row({ lockUntil: "x" }))).toBe(true);
+    expect(boxSollLocked(row({}))).toBe(false);
   });
 });
 

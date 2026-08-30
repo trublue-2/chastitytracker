@@ -410,7 +410,6 @@
   },
   "dashboard": {
     "title": "Chastity Tracker",
-    "userTitle": "Benutzer: {name}",
     "lockRequested": "Einschliessen angefordert",
     "lockDevicePrefix": "KG: {name}",
     "lockUntil": "Bitte bis {date} einschliessen",
@@ -431,7 +430,6 @@
     "goalTight": "noch {time} · knapp",
     "goalMissing": "{time} fehlen",
     "categoryGoals": "Kategorie-Ziele",
-    "blockGreeting": "Begrüssung",
     "blockAlerts": "Offene Anforderungen",
     "blockBoxStatus": "Box",
     "blockOpenTasks": "Aufgaben",
@@ -490,7 +488,6 @@
     "year": "Jahr",
     "notCaptured": "nicht erfasst",
     "stillLocked": "noch verschlossen",
-    "sessionTitle": "Laufende Tragezeit",
     "sessionSince": "Seit",
     "sessionLockedUntil": "Gesperrt bis",
     "sessionLockedIndefinite": "Gesperrt, unbefristet",
@@ -567,9 +564,7 @@
     "editLayoutLocked": "Trägt eine Frist — bleibt sichtbar",
     "editLayoutMoved": "{name} ist jetzt an Position {position} von {total}.",
     "editLayoutStartsOpen": "„{name}\": startet Offen — antippen, damit der Block zugeklappt startet",
-    "editLayoutStartsClosed": "„{name}\": startet Zu — antippen, damit der Block offen startet",
-    "editLayoutStartOpen": "„{name}“ beim Öffnen aufgeklappt zeigen",
-    "editLayoutStartClosed": "„{name}“ beim Öffnen zugeklappt zeigen"
+    "editLayoutStartsClosed": "„{name}\": startet Zu — antippen, damit der Block offen startet"
   },
   "newEntry": {
     "title": "Neu erfassen",
@@ -606,11 +601,6 @@
   "boxStatus": {
     "istOpen": "Riegel offen",
     "istLocked": "Riegel zu",
-    "sollLockedUntil": "Die Box soll bis {date} zu bleiben",
-    "sollLockedIndefinite": "Die Box soll zu bleiben — Sperrzeit ohne Zeitlimit",
-    "sollUntil": "Die Box soll bis {date} zu bleiben",
-    "sollIndefinite": "Die Box soll zu bleiben — ohne Zeitlimit",
-    "sollNone": "Die Box darf offen sein",
     "neverSynced": "noch nie gesynct",
     "live": "gerade aktiv",
     "lastSeenMinutes": "zuletzt online vor {count} Min",
