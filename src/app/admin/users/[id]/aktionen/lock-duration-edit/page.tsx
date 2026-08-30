@@ -21,7 +21,7 @@ export default async function AdminLockDurationEditPage({ params }: { params: Pr
       userId={id}
       lockPeriodId={activeLockPeriod.id}
       endsAt={activeLockPeriod.endsAt}
-      nachricht={activeLockPeriod.nachricht}
+      message={activeLockPeriod.message}
       tz={tz}
     />
   );

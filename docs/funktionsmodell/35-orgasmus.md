@@ -16,7 +16,7 @@ Der Unterschied steckt vollständig in diesem einen Feld — sonst ist die Mecha
 ## Stellschrauben
 
 Sieben, alle je Direktive: `art`, `beginntAt`, `endsAt`, `vorgegebeneArt`, `oeffnenErlaubt`,
-`wirksamAb`, `nachricht`. Siehe [stellschrauben.md](stellschrauben.md).
+`wirksamAb`, `message`. Siehe [stellschrauben.md](stellschrauben.md).
 
 ## `oeffnenErlaubt`: der einzige geplante Sperrbruch
 

@@ -29,7 +29,7 @@ export interface DashboardAlertsProps {
   }[];
 
   offeneVerschlussAnf: {
-    nachricht: string | null;
+    message: string | null;
     deadlineLabel: string | null;
     /** Frist verstrichen — das Banner wechselt auf Warnfarbe. */
     overdue: boolean;
@@ -39,7 +39,7 @@ export interface DashboardAlertsProps {
 
   offeneOrgasmusAnf: {
     label: string;
-    nachricht: string | null;
+    message: string | null;
     windowLabel: string;
   } | null;
 
@@ -86,7 +86,7 @@ export default async function DashboardAlerts({
           variant="large"
           colorScheme="request"
           label={t("lockRequested")}
-          nachricht={offeneVerschlussAnf.nachricht}
+          message={offeneVerschlussAnf.message}
           deadlineLabel={offeneVerschlussAnf.deadlineLabel}
           overdue={offeneVerschlussAnf.overdue}
           href={offeneVerschlussAnf.href}
@@ -99,7 +99,7 @@ export default async function DashboardAlerts({
           variant="large"
           colorScheme="orgasm"
           label={offeneOrgasmusAnf.label}
-          nachricht={offeneOrgasmusAnf.nachricht}
+          message={offeneOrgasmusAnf.message}
           deadlineLabel={offeneOrgasmusAnf.windowLabel}
         />
       )}

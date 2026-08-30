@@ -176,14 +176,14 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
     })),
     missedOrgasmInstructions: sb.missedOrgasmInstructions.map((m) => ({
       windowEndedAt: fmt(m.endsAt),
-      message: m.nachricht,
+      message: m.message,
       requiredType: m.requiredArt,
       ...judge("missed_orgasm", m.id),
     })),
     lateLocks: sb.lateLocks.map((a) => ({
       deadline: fmt(a.endsAt),
       fulfilledAt: a.fulfilledAt ? fmt(a.fulfilledAt) : null,
-      message: a.nachricht,
+      message: a.message,
       ...judge("late_lock", a.id),
     })),
     cleaningNotRelocked: sb.cleaningNotRelocked.map((c) => ({

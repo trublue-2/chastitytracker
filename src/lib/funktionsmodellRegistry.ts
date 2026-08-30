@@ -624,7 +624,7 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin", "mcp"], affects: ["Sperrzeit", "Benachrichtigungen"],
   }),
   s({
-    model: "VerschlussAnforderung", field: "nachricht", domain: "sperrzeit", scope: "directive",
+    model: "VerschlussAnforderung", field: "message", domain: "sperrzeit", scope: "directive",
     effect: "Begleittext an den Sub; erscheint in der Meldung und im Posteingang.",
     writers: ["admin", "mcp"], affects: ["Nachrichten"],
   }),
@@ -786,7 +786,7 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin", "mcp"], affects: ["Orgasmus"], anchor: "delayedTrigger.ts",
   }),
   s({
-    model: "OrgasmusAnforderung", field: "nachricht", domain: "orgasmus", scope: "directive",
+    model: "OrgasmusAnforderung", field: "message", domain: "orgasmus", scope: "directive",
     effect: "Begleittext an den Sub.",
     writers: ["admin", "mcp"], affects: ["Nachrichten"],
   }),

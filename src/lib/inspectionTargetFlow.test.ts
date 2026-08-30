@@ -43,7 +43,7 @@ vi.mock("@/lib/messageService", async (importOriginal) => ({
   recordMessageAndBadge: vi.fn(async () => 0),
 }));
 vi.mock("@/lib/mail", () => ({
-  sendMailSafe: vi.fn(), escHtml: (s: string) => s, appBaseUrl: () => "https://x", noticeBoxHtml: () => "", dashboardEmailHtml: () => "",
+  sendMailSafe: vi.fn(), escHtml: (s: string) => s, appBaseUrl: () => "https://x", noticeBoxHtml: () => "", optionalNoticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
 vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));

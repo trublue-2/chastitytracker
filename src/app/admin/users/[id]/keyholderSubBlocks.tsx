@@ -171,7 +171,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           // drei Sperr-Angaben leer laufen, und damit verschwand die ganze Zeile aus IHRER Karte,
           // während der Träger sie sah.
           lockPeriodIndefinite={!!data.lockPeriod && data.lockPeriod.endsAt === null}
-          lockPeriodMessage={data.lockPeriod?.nachricht ?? null}
+          lockPeriodMessage={data.lockPeriod?.message ?? null}
           lockPeriodScheduledFor={data.lockPeriod?.wirksamAb && data.lockPeriod.wirksamAb > now ? data.lockPeriod.wirksamAb : null}
           // Der erreichte Beginn — die Karte zeigt ihn nur, wo sonst kein Zeitpunkt stünde.
           lockPeriodRunningSince={data.lockPeriod?.wirksamAb && data.lockPeriod.wirksamAb <= now ? data.lockPeriod.wirksamAb : null}

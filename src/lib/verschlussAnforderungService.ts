@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON, APP_NAME } from "@/lib/constants";
-import { sendMailSafe, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
+import { sendMailSafe, escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { notifyUser, type NotifyContent, type NotifyInbox } from "@/lib/notify";
 import { actorColumn, recordMessageAndBadge, type MessageActor } from "@/lib/messageService";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
@@ -14,7 +14,7 @@ import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from 
 export interface CreateVerschlussAnforderungParams {
   userId: string;
   art: "ANFORDERUNG" | "SPERRZEIT";
-  nachricht?: string | null;
+  message?: string | null;
   /** Absolute end (ISO string or Date). Takes precedence over fristH. */
   endsAt?: string | Date | null;
   /** Relative deadline/duration in hours, used when endsAt is absent. */
@@ -91,7 +91,7 @@ export async function createVerschlussAnforderung(
   params: CreateVerschlussAnforderungParams,
   actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
-  const { userId, art, nachricht, endsAt, fristH, dauerH, lockEndsAt, deviceId, reinigungErlaubt, delayMinutes, wirksamAbAt } = params;
+  const { userId, art, message, endsAt, fristH, dauerH, lockEndsAt, deviceId, reinigungErlaubt, delayMinutes, wirksamAbAt } = params;
 
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
   if (art !== "ANFORDERUNG" && art !== "SPERRZEIT") {
@@ -196,7 +196,7 @@ export async function createVerschlussAnforderung(
         data: {
           userId,
           art,
-          nachricht: nachricht?.trim() || null,
+          message: message?.trim() || null,
           endsAt: endsAtDate,
           dauerH: effectiveDauerH,
           lockEndsAt: lockEndsAtDate,
@@ -216,7 +216,7 @@ export async function createVerschlussAnforderung(
 
   // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
   if (!wirksamAb) {
-    await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endsAtDate, dauerH, lockEndsAtDate, requestId: anforderung.id, actor });
+    await sendVerschlussAnforderungNotifications({ userId, user, art, message, endsAtDate, dauerH, lockEndsAtDate, requestId: anforderung.id, actor });
   }
 
   // Instant-Push: Heimdall re-pullt die Config (neue/geänderte Sperre) für eine LIVE Box sofort.
@@ -231,7 +231,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   userId: string;
   user: { email: string | null; username: string; locale: string };
   art: "ANFORDERUNG" | "SPERRZEIT";
-  nachricht?: string | null;
+  message?: string | null;
   endsAtDate: Date | null;
   dauerH?: number | null;
   /** ANFORDERUNG mit absolutem Sperr-Ende (statt dauerH): fürs „Gesperrt bis" in Mail/Push. */
@@ -251,7 +251,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
    */
   actor: MessageActor;
 }) {
-  const { userId, user, art, nachricht, endsAtDate, dauerH, lockEndsAtDate, requestId, actor } = opts;
+  const { userId, user, art, message, endsAtDate, dauerH, lockEndsAtDate, requestId, actor } = opts;
 
   // Die Anforderungs-Nachricht des Keyholders wird NICHT mitkopiert: der Posteingang zeigt auf die
   // Direktive und liest sie beim Anzeigen frisch von dort. Eine spätere Korrektur über
@@ -266,7 +266,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     once: true,
   });
   const t = await emailT(user.locale);
-  const nachrichtHtml = nachricht?.trim() ? noticeBoxHtml(t("lockNoticeLabel"), nachricht.trim()) : "";
+  const messageHtml = optionalNoticeBoxHtml(t("lockNoticeLabel"), message);
   const greeting = emailGreeting(t, user.username);
 
   if (art === "SPERRZEIT" && user.email) {
@@ -279,7 +279,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
       dashboardEmailHtml(t("lockPeriodSetSubject"),
         `${greeting}
         <p>${escHtml(t("lockPeriodSetBody"))}</p>
-        ${nachrichtHtml}
+        ${messageHtml}
         ${bisHtml}`, t("dashboardButton")),
     );
   }
@@ -300,7 +300,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
       dashboardEmailHtml(t("lockRequestSubject"),
         `${greeting}
         <p>${escHtml(t("lockRequestBody"))}</p>
-        ${nachrichtHtml}
+        ${messageHtml}
         ${deadlineHtml}
         ${dauerHtml}
         ${sperrBisHtml}`, t("dashboardButton")),
@@ -317,7 +317,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   } else {
     pushParts.push(endsAtDate ? t("lockPushUntil", { date: formatDateTime(endsAtDate) }) : t("lockIndefinite"));
   }
-  if (nachricht?.trim()) pushParts.push(nachricht.trim());
+  if (message?.trim()) pushParts.push(message.trim());
   firePush(userId, pushTitle, pushParts.join(" · "), "/dashboard", badge);
 }
 
@@ -366,7 +366,7 @@ export async function updateLockPeriodEnd(
  * (Nachricht, Gerät, Sperr-Vorgabe) bzw. macht die Auslösung sofort (`wirksamAb`).
  */
 export interface UpdateLockRequestParams {
-  nachricht?: string | null;
+  message?: string | null;
   /** Frist zum Einschliessen (absolut). Kein `null`: eine Anforderung ohne Frist gibt es nicht. */
   endsAt?: Date;
   /** Mindest-Tragedauer (h) nach dem Einschliessen. Schliesst `lockEndsAt` aus. */
@@ -390,7 +390,7 @@ function effectiveCleaningAllowed(flag: boolean | null | undefined, spec: { isLo
 
 /** Das Ergebnis von {@link mergeLockRequestPatch} — die Zeile, wie sie nach dem Patch aussieht. */
 export interface MergedLockRequest {
-  nachricht: string | null;
+  message: string | null;
   endsAt: Date | null;
   dauerH: number | null;
   lockEndsAt: Date | null;
@@ -410,13 +410,13 @@ export interface MergedLockRequest {
  * Mindestdauer bliebe wirkungslos.
  */
 export function mergeLockRequestPatch(
-  current: { nachricht: string | null; endsAt: Date | null; dauerH: number | null; lockEndsAt: Date | null; deviceId: string | null; reinigungErlaubt: boolean; wirksamAb: Date | null },
+  current: { message: string | null; endsAt: Date | null; dauerH: number | null; lockEndsAt: Date | null; deviceId: string | null; reinigungErlaubt: boolean; wirksamAb: Date | null },
   patch: UpdateLockRequestParams,
 ): MergedLockRequest {
   const dauerH = patch.dauerH !== undefined ? patch.dauerH : (patch.lockEndsAt != null ? null : current.dauerH);
   const lockEndsAt = patch.lockEndsAt !== undefined ? patch.lockEndsAt : (patch.dauerH != null ? null : current.lockEndsAt);
   return {
-    nachricht: patch.nachricht !== undefined ? (patch.nachricht?.trim() || null) : current.nachricht,
+    message: patch.message !== undefined ? (patch.message?.trim() || null) : current.message,
     endsAt: patch.endsAt ?? current.endsAt,
     dauerH,
     lockEndsAt,
@@ -486,7 +486,7 @@ export async function updateLockRequest(
   if (deliverNow) {
     await sendVerschlussAnforderungNotifications({
       userId: va.userId, user: va.user, art: "ANFORDERUNG",
-      nachricht: next.nachricht, endsAtDate: next.endsAt,
+      message: next.message, endsAtDate: next.endsAt,
       dauerH: next.dauerH, lockEndsAtDate: next.lockEndsAt,
       requestId: va.id,
       // Die Anforderung selbst nennt ihren ANORDNENDEN, nicht den, der sie vorgezogen hat — genau
@@ -532,7 +532,7 @@ export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT", actor
 export interface DueLockRequest extends LockPeriodFromRequest {
   id: string;
   userId: string;
-  nachricht: string | null;
+  message: string | null;
   reinigungErlaubt: boolean;
   /** Wer die Anforderung angeordnet hat — wird an die daraus entstehende Sperrzeit VERERBT und ist
    *  der Absender ihrer Meldung. Der Poller kennt sonst niemanden, den er nennen könnte. */
@@ -564,7 +564,7 @@ export interface DueLockRequest extends LockPeriodFromRequest {
 export async function carryOverLockPeriodOnAlreadyLocked(
   va: DueLockRequest,
   now: Date,
-): Promise<{ lockPeriodId: string; endsAt: Date; nachricht: string | null; createdBy: string | null } | null> {
+): Promise<{ lockPeriodId: string; endsAt: Date; message: string | null; createdBy: string | null } | null> {
   // Ein Ende in der Vergangenheit trifft nur den absoluten Fall (`lockEndsAt`) — ein aus `dauerH`
   // gerechnetes liegt per Konstruktion vorn. Eine tote Sperre anzulegen hilft niemandem.
   const endsAt = lockPeriodEndFromRequest(va, now);
@@ -575,7 +575,7 @@ export async function carryOverLockPeriodOnAlreadyLocked(
       data: {
         userId: va.userId,
         art: "SPERRZEIT",
-        nachricht: va.nachricht,
+        message: va.message,
         endsAt,
         reinigungErlaubt: va.reinigungErlaubt,
         // Die Sperre ist die Anordnung DERSELBEN Person, nur später wirksam — der Autor wandert mit,
@@ -586,7 +586,7 @@ export async function carryOverLockPeriodOnAlreadyLocked(
         // liegt hinter dem Commit — ihn vorab zu setzen behauptete eine Zustellung, die scheitern kann.
         wirksamAb: null,
       },
-      select: { id: true, nachricht: true, createdBy: true },
+      select: { id: true, message: true, createdBy: true },
     });
     await tx.verschlussAnforderung.update({ where: { id: va.id }, data: { fulfilledAt: now } });
     return created;
@@ -598,7 +598,7 @@ export async function carryOverLockPeriodOnAlreadyLocked(
   // Anforderung (die Zeile erbt beides), und genau deshalb kostet die Regel hier nichts —
   // auseinanderlaufen könnten sie erst, wenn jemand die Vererbung ändert, und dann liest der
   // Aufrufer weiter richtig, statt still die Quelle zu nennen.
-  return { lockPeriodId: lockPeriod.id, endsAt, nachricht: lockPeriod.nachricht, createdBy: lockPeriod.createdBy };
+  return { lockPeriodId: lockPeriod.id, endsAt, message: lockPeriod.message, createdBy: lockPeriod.createdBy };
 }
 
 /**
@@ -655,7 +655,7 @@ export interface WithdrawnDirective {
   wirksamAb: Date | null;
   benachrichtigtAt: Date | null;
   endsAt: Date | null;
-  nachricht: string | null;
+  message: string | null;
 }
 
 export async function withdrawVerschlussAnforderung(
@@ -674,7 +674,7 @@ export async function withdrawVerschlussAnforderung(
   const { rows, hidden, notified } = await prisma.$transaction(async (tx) => {
     const rows: WithdrawnDirective[] = await tx.verschlussAnforderung.findMany({
       where,
-      select: { id: true, wirksamAb: true, benachrichtigtAt: true, endsAt: true, nachricht: true },
+      select: { id: true, wirksamAb: true, benachrichtigtAt: true, endsAt: true, message: true },
     });
     if (rows.length === 0) return { rows, hidden: 0, notified: false };
     await tx.verschlussAnforderung.updateMany({

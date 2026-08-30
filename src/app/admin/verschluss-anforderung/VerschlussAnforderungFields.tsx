@@ -46,7 +46,7 @@ export default function VerschlussAnforderungFields({
   const isLockPeriod = art === "SPERRZEIT";
   const accentColor = isLockPeriod ? "var(--color-sperrzeit)" : "var(--color-request)";
 
-  const [nachricht, setNachricht] = useState("");
+  const [message, setMessage] = useState("");
   const [mode, setMode] = useState<"duration" | "datetime">("duration");
   const defaultDurationH = isLockPeriod ? 24 : 4;
   const [deadlineH, setDeadlineH] = useState(String(defaultDurationH));
@@ -95,7 +95,7 @@ export default function VerschlussAnforderungFields({
     try {
       const payload: Record<string, unknown> = {
         userId, art,
-        nachricht: nachricht.trim() || undefined,
+        message: message.trim() || undefined,
         ...schedulePayload(schedule, tz),
       };
       if (mode === "datetime" && endsAt) {
@@ -146,8 +146,8 @@ export default function VerschlussAnforderungFields({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <Textarea
         label={t("kontrolleInstruction")}
-        value={nachricht}
-        onChange={(e) => setNachricht(e.target.value)}
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
         placeholder={t("kontrolleInstruction")}
         rows={2}
       />

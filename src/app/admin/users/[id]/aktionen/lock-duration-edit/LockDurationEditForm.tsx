@@ -14,7 +14,7 @@ interface Props {
   userId: string;
   lockPeriodId: string;
   endsAt: Date | null;
-  nachricht: string | null;
+  message: string | null;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
 }
@@ -24,7 +24,7 @@ interface Props {
  *  - "Ersetzen": PATCH withdraw, then redirect to verschluss-anforderung form
  *    (which only renders SPERRZEIT mode when no active sperrzeit exists — so the
  *    withdraw must complete first). */
-export default function LockDurationEditForm({ userId, lockPeriodId, endsAt, nachricht, tz = APP_TZ }: Props) {
+export default function LockDurationEditForm({ userId, lockPeriodId, endsAt, message, tz = APP_TZ }: Props) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -70,7 +70,7 @@ export default function LockDurationEditForm({ userId, lockPeriodId, endsAt, nac
       <div className="flex flex-col gap-4 p-5">
         <div className="text-sm text-foreground-muted flex flex-col gap-1">
           <p>{endsLabel}</p>
-          {nachricht && <p className="italic text-foreground-faint">„{nachricht}"</p>}
+          {message && <p className="italic text-foreground-faint">„{message}"</p>}
         </div>
         <FormError message={error} />
         <div className="flex flex-col gap-2">

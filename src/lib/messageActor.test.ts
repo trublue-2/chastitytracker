@@ -44,7 +44,7 @@ vi.mock("@/lib/prisma", () => ({
 // Die Blätter von `notifyUser` — Mail und Push sind für die Absender-Frage ohne Belang.
 vi.mock("@/lib/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, appBaseUrl: () => "https://x",
-  noticeBoxHtml: () => "", dashboardEmailHtml: () => "",
+  noticeBoxHtml: () => "", optionalNoticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
 vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
 vi.mock("@/lib/notificationPrefs", () => ({ getMessageChannels: vi.fn(async () => ({ mail: true, push: true })) }));

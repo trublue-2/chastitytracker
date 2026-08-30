@@ -60,6 +60,20 @@ export function noticeBoxHtml(label: string, text: string): string {
   return `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin:16px 0"><p style="margin:0 0 4px 0;font-size:13px;font-weight:bold;color:#713f12">${label}</p><p style="margin:0;font-size:15px;color:#422006">${escHtml(text)}</p></div>`;
 }
 
+/**
+ * Wie {@link noticeBoxHtml}, aber für einen Freitext, den es geben KANN — leer oder nur Leerraum
+ * ergibt nichts statt eines leeren gelben Kastens.
+ *
+ * Die drei Aufrufer (Verschluss-Anforderung, Orgasmus-Anforderung, Kontrolle) schrieben dieselbe
+ * Zeile; zwei davon mit `.trim()`, die dritte ohne — dort erzeugte ein Kommentar aus reinem
+ * Leerraum einen leeren Kasten. Solange das Feld an zwei Stellen `nachricht` und an der dritten
+ * `kommentar` hiess, sah man die Gleichheit nicht.
+ */
+export function optionalNoticeBoxHtml(label: string, text: string | null | undefined): string {
+  const trimmed = text?.trim();
+  return trimmed ? noticeBoxHtml(label, trimmed) : "";
+}
+
 export interface EmailFrameOptions {
   /** Button-Hintergrund (Default: `EMAIL_BUTTON_COLORS.default`). Werte aus `EMAIL_BUTTON_COLORS`. */
   buttonColor?: string;

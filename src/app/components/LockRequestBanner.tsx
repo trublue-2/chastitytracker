@@ -55,7 +55,7 @@ interface LargeProps {
   variant: "large";
   colorScheme: ColorScheme;
   label: string;
-  nachricht?: string | null;
+  message?: string | null;
   /** Pre-formatted date string for endsAt display */
   deadlineLabel?: string | null;
   /** Siehe {@link CompactProps.cleaningNote}. */
@@ -107,7 +107,7 @@ export default function LockRequestBanner(props: Props) {
   }
 
   // Large variant (dashboard)
-  const { colorScheme, label, nachricht, deadlineLabel, cleaningNote, overdue, href, actionLabel } = props;
+  const { colorScheme, label, message, deadlineLabel, cleaningNote, overdue, href, actionLabel } = props;
   const c = overdue ? WARN : COLORS[colorScheme];
   const Icon = SCHEME_ICON[colorScheme];
 
@@ -129,7 +129,7 @@ export default function LockRequestBanner(props: Props) {
       tone={tone}
       title={<span className="inline-flex items-center gap-1.5"><Icon size={13} aria-hidden />{label}</span>}
     >
-      {nachricht && <p className={`text-neben ${c.accent}`}>{nachricht}</p>}
+      {message && <p className={`text-neben ${c.accent}`}>{message}</p>}
       {deadlineLabel && <p className="text-neben text-foreground-muted">{deadlineLabel}</p>}
       {cleaningNote && <p className="text-neben text-foreground-muted">{cleaningNote}</p>}
       {href && actionLabel && (

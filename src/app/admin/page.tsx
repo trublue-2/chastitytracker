@@ -171,9 +171,9 @@ export default async function AdminPage() {
 
     const scheduled = [
       ...userKontrollen.filter(k => isScheduled(k.wirksamAb)).map(k => ({ id: k.id, kind: "inspection" as const, wirksamAb: k.wirksamAb!, message: k.kommentar })),
-      ...userAnforderungen.filter(v => isScheduled(v.wirksamAb)).map(v => ({ id: v.id, kind: "lock_request" as const, wirksamAb: v.wirksamAb!, message: v.nachricht })),
-      ...userLockPeriods.filter(s => isScheduled(s.wirksamAb)).map(s => ({ id: s.id, kind: "lock_period" as const, wirksamAb: s.wirksamAb!, message: s.nachricht })),
-      ...userOrgasmusAnf.filter(o => isScheduled(o.wirksamAb)).map(o => ({ id: o.id, kind: "orgasm" as const, wirksamAb: o.wirksamAb!, message: o.nachricht })),
+      ...userAnforderungen.filter(v => isScheduled(v.wirksamAb)).map(v => ({ id: v.id, kind: "lock_request" as const, wirksamAb: v.wirksamAb!, message: v.message })),
+      ...userLockPeriods.filter(s => isScheduled(s.wirksamAb)).map(s => ({ id: s.id, kind: "lock_period" as const, wirksamAb: s.wirksamAb!, message: s.message })),
+      ...userOrgasmusAnf.filter(o => isScheduled(o.wirksamAb)).map(o => ({ id: o.id, kind: "orgasm" as const, wirksamAb: o.wirksamAb!, message: o.message })),
     ].sort((a, b) => a.wirksamAb.getTime() - b.wirksamAb.getTime());
 
     return {
@@ -193,7 +193,8 @@ export default async function AdminPage() {
         id: a.id, endsAt: a.endsAt, overdue: !!a.endsAt && a.endsAt < now,
       })),
       activeLockPeriod: activeLockPeriod
-        ? { id: activeLockPeriod.id, nachricht: activeLockPeriod.nachricht, endsAt: activeLockPeriod.endsAt, reinigungErlaubt: activeLockPeriod.reinigungErlaubt }
+        // Ohne `message`: der kompakte Banner hat keinen Textslot, das Feld wurde nur mitgeschleppt.
+        ? { id: activeLockPeriod.id, endsAt: activeLockPeriod.endsAt, reinigungErlaubt: activeLockPeriod.reinigungErlaubt }
         : null,
       offeneOrgasmusAnforderung: offeneOrgasmusAnforderung
         ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endsAt: offeneOrgasmusAnforderung.endsAt, expired: offeneOrgasmusAnforderung.endsAt < now }

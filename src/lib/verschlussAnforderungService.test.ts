@@ -31,7 +31,7 @@ vi.mock("@/lib/queries", async (importOriginal) => {
   return { ...actual, getIsLocked: vi.fn(async () => true), validateDeviceOwnership: vi.fn() };
 });
 vi.mock("@/lib/mail", () => ({
-  sendMailSafe: vi.fn(), escHtml: (s: string) => s, noticeBoxHtml: () => "", dashboardEmailHtml: () => "",
+  sendMailSafe: vi.fn(), escHtml: (s: string) => s, noticeBoxHtml: () => "", optionalNoticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
 vi.mock("@/lib/emailI18n", () => ({ emailT: async () => (k: string) => k, emailGreeting: () => "" }));
 vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
@@ -490,7 +490,7 @@ describe("updateLockRequest", () => {
 
   /** Eine ANFORDERUNGs-Zeile, wie updateLockRequest sie liest (inkl. user für die Zustellung). */
   const anf = (overrides: object) => ({
-    id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: SPAETER, nachricht: null, dauerH: null,
+    id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: SPAETER, message: null, dauerH: null,
     lockEndsAt: null, deviceId: null, reinigungErlaubt: false, fulfilledAt: null, withdrawnAt: null,
     user: { id: "u1", email: "sub@example.invalid", username: "sub", locale: "de" },
     ...overrides,
@@ -504,7 +504,7 @@ describe("updateLockRequest", () => {
 
   it("eine GEPLANTE Anforderung zu ändern schickt KEINE Mail", async () => {
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endsAt: IN_DREI_WOCHEN }));
-    const res = await updateLockRequest("a1", { nachricht: "neu" }, "herrin");
+    const res = await updateLockRequest("a1", { message: "neu" }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(false);
@@ -540,7 +540,7 @@ describe("updateLockRequest", () => {
     // Zustellung dem Poller (er liest den frischen Stand beim nächsten Tick).
     const VERGANGEN = new Date("2026-07-14T11:59:00Z"); // knapp vor JETZT
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: VERGANGEN, benachrichtigtAt: null, endsAt: SPAETER }));
-    const res = await updateLockRequest("a1", { nachricht: "neu" }, "herrin");
+    const res = await updateLockRequest("a1", { message: "neu" }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(false);
@@ -598,16 +598,16 @@ describe("updateLockRequest", () => {
 
   it("die Guards greifen vor allem anderen — Sperrzeit, erfüllt, zurückgezogen, unbekannt", async () => {
     findUniqueMock.mockResolvedValue({ ...anf(triggered), art: "SPERRZEIT" });
-    expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
+    expect((await updateLockRequest("a1", { message: "x" }, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(anf({ ...triggered, fulfilledAt: JETZT }));
-    expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
+    expect((await updateLockRequest("a1", { message: "x" }, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(anf({ ...triggered, withdrawnAt: JETZT }));
-    expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
+    expect((await updateLockRequest("a1", { message: "x" }, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(null);
-    expect((await updateLockRequest("a1", { nachricht: "x" }, "herrin")).ok).toBe(false);
+    expect((await updateLockRequest("a1", { message: "x" }, "herrin")).ok).toBe(false);
 
     expect(updateMock).not.toHaveBeenCalled();
     expect(notifyMock).not.toHaveBeenCalled();
@@ -615,7 +615,7 @@ describe("updateLockRequest", () => {
 
   it("LOAD-BEARING: der Heimdall-Push läuft auch bei der stillen Änderung", async () => {
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endsAt: IN_DREI_WOCHEN }));
-    await updateLockRequest("a1", { nachricht: "neu" }, "herrin");
+    await updateLockRequest("a1", { message: "neu" }, "herrin");
 
     expect(heimdallMock).toHaveBeenCalledWith("u1");
   });

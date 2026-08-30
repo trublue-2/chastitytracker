@@ -219,7 +219,7 @@ export async function mcpRequestLock(username: string, args: RequestLockArgs) {
   const data = unwrap(await createVerschlussAnforderung({
     userId,
     art: "ANFORDERUNG",
-    nachricht: args.message,
+    message: args.message,
     endsAt: args.deadlineAt,
     fristH: args.deadlineHours,
     dauerH: args.minDurationHours,
@@ -275,7 +275,7 @@ export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs
   const data = unwrap(await createVerschlussAnforderung({
     userId,
     art: "SPERRZEIT",
-    nachricht: args.message,
+    message: args.message,
     endsAt: args.indefinite ? null : args.untilAt,
     fristH: args.indefinite ? null : args.durationHours,
     reinigungErlaubt: args.reinigungErlaubt,
@@ -478,7 +478,7 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
   const data = unwrap(await createOrgasmusAnforderung({
     userId,
     art: args.art,
-    nachricht: args.message,
+    message: args.message,
     beginntAt: beginnt,
     endsAt: endet,
     vorgegebeneArt: args.requiredType,
@@ -576,7 +576,7 @@ async function assertOwnedDirective(id: string, userId: string, target: Withdraw
   const art = target === "lock_request" ? "ANFORDERUNG" : "SPERRZEIT";
   const row = await prisma.verschlussAnforderung.findUnique({
     where: { id },
-    select: { id: true, userId: true, art: true, wirksamAb: true, benachrichtigtAt: true, endsAt: true, nachricht: true },
+    select: { id: true, userId: true, art: true, wirksamAb: true, benachrichtigtAt: true, endsAt: true, message: true },
   });
   if (!row || row.userId !== userId || row.art !== art) throw new Error(`No open ${target} with id ${id}.`);
   return row;
@@ -608,7 +608,7 @@ function singleWithdrawn(
   id: string,
   label: string | null,
   endsAt: string | null,
-  message: string,
+  resultMessage: string,
   /** Der geplante Auslöse-Zeitpunkt, solange die Zeile den Sub noch nicht erreicht hat. */
   scheduledFor: string | null = null,
 ) {
@@ -619,7 +619,10 @@ function singleWithdrawn(
     withdrawnItems: [{
       id, status: scheduledFor ? "scheduled" : "triggered", scheduledFor, endsAt, message: label, code: null,
     }] satisfies WithdrawnItem[],
-    message,
+    // Der AUSGABE-Schlüssel heisst `message` — MCP-Vertrag. Umbenannt ist nur der Parameter, weil
+    // in dieser Funktion sonst zweimal `message` stünde: einmal der Keyholder-Freitext (`label`),
+    // einmal die Antwort des Werkzeugs an die KI.
+    message: resultMessage,
   };
 }
 
@@ -1687,7 +1690,7 @@ export interface EditLockPeriodArgs {
 }
 
 /** Eine offene Direktive, die ein Edit-Tool treffen kann (Sperrzeit ODER Anforderung). */
-type OpenDirective = { id: string; wirksamAb: Date | null; benachrichtigtAt: Date | null; endsAt: Date | null; nachricht: string | null };
+type OpenDirective = { id: string; wirksamAb: Date | null; benachrichtigtAt: Date | null; endsAt: Date | null; message: string | null };
 
 /** Eine offene Direktive als Auswahl-Zeile: welche (id), kennt der Sub sie schon (triggered) oder
  *  ist sie noch geplant (scheduled), wann löst sie aus / endet sie, und die Nachricht als
@@ -1708,7 +1711,7 @@ function directiveRow(s: OpenDirective, iso: Iso): DirectiveRow {
     status: isHiddenFromSub(s) ? "scheduled" : "triggered",
     scheduledFor: iso(s.wirksamAb),
     endsAt: iso(s.endsAt),
-    message: s.nachricht,
+    message: s.message,
   };
 }
 
@@ -1841,7 +1844,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
 
   const patch: UpdateLockRequestParams = {
     ...(endsAt ? { endsAt } : {}),
-    ...(args.message !== undefined ? { nachricht: args.message } : {}),
+    ...(args.message !== undefined ? { message: args.message } : {}),
     ...(deviceId !== undefined ? { deviceId } : {}),
     ...(args.cleaningAllowed !== undefined ? { reinigungErlaubt: args.cleaningAllowed } : {}),
     ...(args.clearLockPeriod ? { dauerH: null, lockEndsAt: null } : {}),
@@ -1863,7 +1866,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
       : checkLockEnd(next.lockEndsAt, next.wirksamAb, now) ?? undefined;
     const fields = (row: MergedLockRequest, deviceName: string | null): Record<string, unknown> => ({
       deadlineAt: iso(row.endsAt),
-      message: row.nachricht,
+      message: row.message,
       device: deviceName,
       minDurationHours: row.dauerH,
       lockUntilAt: iso(row.lockEndsAt),

@@ -130,14 +130,14 @@ export interface VerschlussVersaeumtRow {
   endsAtStr: string;
   /** null = nie eingeschlossen; sonst der verspätete Zeitpunkt. */
   fulfilledAtStr: string | null;
-  nachricht: string | null;
+  message: string | null;
 }
 
 /** Abgelaufene Orgasmus-Anweisung ohne passenden Orgasmus. */
 export interface OrgasmusVersaeumtRow {
   id: string;
   endsAtStr: string;
-  nachricht: string | null;
+  message: string | null;
   /** Vorgegebene Art, falls die Anweisung eine verlangte. */
   requiredArt: string | null;
 }
@@ -810,7 +810,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
               ? <>{labels.strafbuchVerschlussZuSpaet} {a.fulfilledAtStr}</>
               : labels.strafbuchVerschlussNieErfuellt,
           )}
-          {a.nachricht && <span className={NOTE_CLS}>{labels.instructionLabel}: {a.nachricht}</span>}
+          {a.message && <span className={NOTE_CLS}>{labels.instructionLabel}: {a.message}</span>}
         </>
       ),
     }))),
@@ -825,7 +825,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
               ? <>{labels.strafbuchOrgasmusVorgegeben}: {m.requiredArt}</>
               : labels.strafbuchOrgasmusVersaeumt,
           )}
-          {m.nachricht && <span className={NOTE_CLS}>{labels.instructionLabel}: {m.nachricht}</span>}
+          {m.message && <span className={NOTE_CLS}>{labels.instructionLabel}: {m.message}</span>}
         </>
       ),
     }))),

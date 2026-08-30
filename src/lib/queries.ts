@@ -981,7 +981,7 @@ export async function getInterruptedLockPeriod(userId: string, now: Date) {
   return prisma.verschlussAnforderung.findFirst({
     where: { ...notYetElapsed, endedReason: LOCK_ENDED_REASON.opening },
     orderBy: { withdrawnAt: "desc" },
-    select: { endsAt: true, withdrawnAt: true, nachricht: true },
+    select: { endsAt: true, withdrawnAt: true, message: true },
   });
 }
 

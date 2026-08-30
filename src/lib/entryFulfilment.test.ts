@@ -50,7 +50,7 @@ beforeEach(() => {
 /** Die eine offene Anordnung mit Frist 20:00 und 24 h Sperre. */
 function openLockRequest() {
   txMock.verschlussAnforderung.findMany.mockResolvedValue([
-    { id: "a1", deviceId: null, nachricht: "24h drin bleiben", reinigungErlaubt: true, dauerH: 24, lockEndsAt: null },
+    { id: "a1", deviceId: null, message: "24h drin bleiben", reinigungErlaubt: true, dauerH: 24, lockEndsAt: null },
   ]);
 }
 
@@ -115,8 +115,8 @@ describe("Verschluss-Anforderung — `at` entscheidet über das Vergehen", () =>
 
   it("gibt die geforderten Geräte zurück (Grundlage der Falsch-Gerät-Ahndung)", async () => {
     txMock.verschlussAnforderung.findMany.mockResolvedValue([
-      { id: "a1", deviceId: "d1", nachricht: null, reinigungErlaubt: false, dauerH: null, lockEndsAt: null },
-      { id: "a2", deviceId: null, nachricht: null, reinigungErlaubt: false, dauerH: null, lockEndsAt: null },
+      { id: "a1", deviceId: "d1", message: null, reinigungErlaubt: false, dauerH: null, lockEndsAt: null },
+      { id: "a2", deviceId: null, message: null, reinigungErlaubt: false, dauerH: null, lockEndsAt: null },
     ]);
     const required = await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
     expect(required).toEqual(["d1"]);

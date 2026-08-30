@@ -128,7 +128,7 @@ flowchart LR
 | Geräte | `VerschlussAnforderung.deviceId` | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | — |
 | Strafbuch | `VerschlussAnforderung.deviceId` | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | — |
 | Benachrichtigungen | `VerschlussAnforderung.wirksamAb` | Terminierte Auslösung. Bis dahin existiert die Direktive für den Sub nicht: keine Anzeige, keine Meldung, keine laufende Frist. | — |
-| Nachrichten | `VerschlussAnforderung.nachricht` | Begleittext an den Sub; erscheint in der Meldung und im Posteingang. | — |
+| Nachrichten | `VerschlussAnforderung.message` | Begleittext an den Sub; erscheint in der Meldung und im Posteingang. | — |
 | Box | *feste Regel* | Läuft eine Sperrzeit, hält die Box den Schlüssel fest. Die Sperre ist damit mehr als ein Datenbank-Eintrag. | `boxCommand.ts` |
 
 ## Reinigung
@@ -262,7 +262,7 @@ flowchart LR
 | Einträge | `OrgasmusAnforderung.vorgegebeneArt` | Verlangt eine bestimmte Orgasmus-Art; leer = beliebig. Nur ein passender Eintrag erfüllt. | — |
 | Sperrzeit | `OrgasmusAnforderung.oeffnenErlaubt` | Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen. | — |
 | Strafbuch | `OrgasmusAnforderung.oeffnenErlaubt` | Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen. | — |
-| Nachrichten | `OrgasmusAnforderung.nachricht` | Begleittext an den Sub. | — |
+| Nachrichten | `OrgasmusAnforderung.message` | Begleittext an den Sub. | — |
 
 ## Aufgaben
 
@@ -496,9 +496,9 @@ flowchart LR
 |---|---|---|---|
 | Gewicht | `User.targetWeightKg` | Zielgewicht, das sich der Träger selbst vorgenommen hat. Wirksam, solange die Keyholderin keines führt; erreicht oder wieder verloren meldet es ihr — sie entscheidet, ob etwas folgt. | `weight.ts:effectiveTarget` |
 | Gewicht | `User.targetWeightKeyholderKg` | Zielgewicht der Keyholderin. Es GILT, solange sie eines führt — auch wenn es strenger ist als seines; seines bleibt daneben sichtbar. Zurückgenommen gilt wieder seines. | `weight.ts:effectiveTarget` |
-| Sperrzeit | `VerschlussAnforderung.nachricht` | Begleittext an den Sub; erscheint in der Meldung und im Posteingang. | — |
+| Sperrzeit | `VerschlussAnforderung.message` | Begleittext an den Sub; erscheint in der Meldung und im Posteingang. | — |
 | Kontrollen | `KontrollAnforderung.kommentar` | Begleittext an den Sub. | — |
-| Orgasmus | `OrgasmusAnforderung.nachricht` | Begleittext an den Sub. | — |
+| Orgasmus | `OrgasmusAnforderung.message` | Begleittext an den Sub. | — |
 | Strafbuch | `ManualOffense.title` | Worum es geht. Für alles, was der Tracker nicht sehen kann — gebrochene Abmachung, Unhöflichkeit. | — |
 | Zugang | `AdminUserRelationship.adminId` | Wer diesen Sub steuern darf. Ohne Zeile sieht ein Admin ihn nicht — die Zuordnung ist die eigentliche Berechtigung. | — |
 | Strafbuch | *feste Regel* | Erkannte, bestrafte und verworfene Vergehen werden beiden Seiten gemeldet — abgeleitete aber erst ab dem Stichtag der Instanz, sonst kippte das erste Update die ganze Historie in den Posteingang. | `offenseAnnounce.ts` |

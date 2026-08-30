@@ -51,7 +51,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
   const [endsAt, setEndsAt] = useState("");
   const [vorgegebeneArt, setVorgegebeneArt] = useState("");
   const [oeffnenErlaubt, setOeffnenErlaubt] = useState(false);
-  const [nachricht, setNachricht] = useState("");
+  const [message, setMessage] = useState("");
   // Terminierung — dasselbe Bauteil und dieselben zwei Felder wie an Aufgabe und
   // Verschluss-Anforderung. Bis zur Auslösung ist die Anweisung für den Träger unsichtbar: sie
   // steht nicht im Dashboard, erlaubt kein Öffnen und erfüllt sich nicht.
@@ -119,7 +119,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
           endsAt: endet.toISOString(),
           vorgegebeneArt: vorgegebeneArt || undefined,
           oeffnenErlaubt,
-          nachricht: nachricht.trim() || undefined,
+          message: message.trim() || undefined,
           ...schedulePayload(schedule, tz),
         }),
       });
@@ -204,8 +204,8 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
         </div>
         <Textarea
           label={t("orgasmReqMessage")}
-          value={nachricht}
-          onChange={(e) => setNachricht(e.target.value)}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
           rows={2}
         />
 

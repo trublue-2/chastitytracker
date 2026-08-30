@@ -514,7 +514,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
     // und die Keyholderin plante ahnungslos eine zweite, die die erste stumm verdrängt.
     prisma.orgasmusAnforderung.findMany({
       where: { userId, ...pendingDispatchWhere, fulfilledAt: null },
-      select: { id: true, nachricht: true, wirksamAb: true, endsAt: true },
+      select: { id: true, message: true, wirksamAb: true, endsAt: true },
     }),
   ]);
   const out: ScheduledDirective[] = [
@@ -523,7 +523,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       kind: (a.art === "SPERRZEIT" ? "lock_period" : "lock_request") as ScheduledDirective["kind"],
       wirksamAb: iso(a.wirksamAb)!,
       endsAt: iso(a.endsAt),
-      message: a.nachricht,
+      message: a.message,
       reinigungErlaubt: a.reinigungErlaubt,
     })),
     ...kontrollen.map((k) => ({
@@ -547,7 +547,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       kind: "orgasm" as const,
       wirksamAb: iso(o.wirksamAb)!,
       endsAt: iso(o.endsAt),
-      message: o.nachricht,
+      message: o.message,
       reinigungErlaubt: null,
     })),
   ];

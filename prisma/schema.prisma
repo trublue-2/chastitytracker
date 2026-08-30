@@ -744,7 +744,7 @@ model VerschlussAnforderung {
   userId           String
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   art              String // "ANFORDERUNG" | "SPERRZEIT"
-  nachricht        String?
+  message          String?  @map("nachricht")
   /// Username des Keyholders/Admins, der die Direktive gestellt hat, bzw. `ai` über den MCP —
   /// dieselbe Spalte und dieselbe Begründung wie `KontrollAnforderung.createdBy`: eine terminierte
   /// Anforderung/Sperrzeit stellt der Poller zu, und nur diese Spalte sagt ihm, wer sie angeordnet hat.
@@ -1121,7 +1121,7 @@ model OrgasmusAnforderung {
   userId         String
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   art            String // "ANWEISUNG" | "GELEGENHEIT"
-  nachricht      String?
+  message        String?   @map("nachricht")
   beginntAt      DateTime // Fenster-Start
   endsAt         DateTime @map("endetAt") // Fenster-Ende
   vorgegebeneArt String? // erforderliche orgasmusArt-Basis (aus ORGASMUS_ARTEN); null = egal

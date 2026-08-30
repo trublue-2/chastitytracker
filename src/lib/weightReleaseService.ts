@@ -317,7 +317,7 @@ export async function applyWeightRelease(userId: string, now: Date = new Date())
     // GELEGENHEIT, nicht ANWEISUNG: die Freigabe ist ein Preis, keine Pflicht. Ungenutzt bleibt sie
     // folgenlos — eine ANWEISUNG würde daraus ein `missed_orgasm`-Vergehen machen.
     art: "GELEGENHEIT",
-    nachricht: status.release.message,
+    message: status.release.message,
     beginntAt: now,
     endsAt: new Date(now.getTime() + status.release.windowHours * 3600_000),
     oeffnenErlaubt: status.release.openingAllowed,

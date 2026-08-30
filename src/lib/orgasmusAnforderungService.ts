@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendMailSafe, escHtml, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
+import { sendMailSafe, escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS, APP_NAME } from "@/lib/constants";
@@ -72,7 +72,7 @@ export function checkOrgasmusAnforderung(
 export interface CreateOrgasmusAnforderungParams {
   userId: string;
   art: "ANWEISUNG" | "GELEGENHEIT";
-  nachricht?: string | null;
+  message?: string | null;
   /** Window start (ISO string or Date). */
   beginntAt: string | Date;
   /** Window end (ISO string or Date). Must be after beginntAt. */
@@ -102,7 +102,7 @@ export async function createOrgasmusAnforderung(
   params: CreateOrgasmusAnforderungParams,
   actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
-  const { userId, art, nachricht, beginntAt, endsAt, vorgegebeneArt, oeffnenErlaubt } = params;
+  const { userId, art, message, beginntAt, endsAt, vorgegebeneArt, oeffnenErlaubt } = params;
 
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
   const now = new Date();
@@ -138,7 +138,7 @@ export async function createOrgasmusAnforderung(
       data: {
         userId,
         art,
-        nachricht: nachricht?.trim() || null,
+        message: message?.trim() || null,
         beginntAt: beginnt,
         endsAt: endsAtDate,
         vorgegebeneArt: vorgegebeneArt || null,
@@ -154,7 +154,7 @@ export async function createOrgasmusAnforderung(
   // das, was die Terminierung verbergen soll (`isHiddenFromSub`).
   if (!wirksamAb) {
     await sendOrgasmusAnforderungNotifications({
-      userId, user, art, nachricht, beginnt, endsAtDate, vorgegebeneArt, oeffnenErlaubt: Boolean(oeffnenErlaubt),
+      userId, user, art, message, beginnt, endsAtDate, vorgegebeneArt, oeffnenErlaubt: Boolean(oeffnenErlaubt),
       directiveId: anforderung.id, actor,
     });
   } else if (replacedVisible) {
@@ -188,11 +188,11 @@ export function orgasmusWithdrawNotice(actor: MessageActor, refId?: string): Not
 export async function withdrawOrgasmusAnforderung(
   userId: string,
   actor: MessageActor,
-): Promise<ServiceResult<{ count: number; rows: { id: string; endsAt: Date; nachricht: string | null }[] }>> {
+): Promise<ServiceResult<{ count: number; rows: { id: string; endsAt: Date; message: string | null }[] }>> {
   const rows = await prisma.$transaction(async (tx) => {
     const open = await tx.orgasmusAnforderung.findMany({
       where: { userId, fulfilledAt: null, withdrawnAt: null },
-      select: { id: true, endsAt: true, nachricht: true, wirksamAb: true, benachrichtigtAt: true },
+      select: { id: true, endsAt: true, message: true, wirksamAb: true, benachrichtigtAt: true },
     });
     if (open.length > 0) {
       await tx.orgasmusAnforderung.updateMany({
@@ -246,7 +246,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   userId: string;
   user: { email: string | null; username: string; orgasmusArtenConfig: string | null; locale: string };
   art: "ANWEISUNG" | "GELEGENHEIT";
-  nachricht?: string | null;
+  message?: string | null;
   beginnt: Date;
   endsAtDate: Date;
   vorgegebeneArt?: string | null;
@@ -256,7 +256,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   /** WER die Anweisung gestellt hat — der Absender ihrer Meldung. */
   actor: MessageActor;
 }) {
-  const { userId, user, art, nachricht, beginnt, endsAtDate, vorgegebeneArt, oeffnenErlaubt, directiveId, actor } = opts;
+  const { userId, user, art, message, beginnt, endsAtDate, vorgegebeneArt, oeffnenErlaubt, directiveId, actor } = opts;
   const istAnweisung = art === "ANWEISUNG";
 
   // Nachricht des Keyholders bleibt an der Direktive; der Posteingang verlinkt sie nur.
@@ -281,7 +281,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
     : null;
 
   if (user.email) {
-    const nachrichtHtml = nachricht?.trim() ? noticeBoxHtml(t("orgasmNoticeLabel"), nachricht.trim()) : "";
+    const messageHtml = optionalNoticeBoxHtml(t("orgasmNoticeLabel"), message);
     const artHtml = artLabel ? `<p><strong>${t("orgasmArtLabel")}</strong> ${escHtml(artLabel)}</p>` : "";
     const oeffnenHtml = oeffnenErlaubt ? `<p><strong>${t("orgasmOpenAllowedLabel")}</strong> ${t("orgasmOpenAllowedText")}</p>` : "";
     await sendMailSafe(
@@ -291,7 +291,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
         escHtml(betreff),
         `${emailGreeting(t, user.username)}
           <p>${escHtml(einleitung)}</p>
-          ${nachrichtHtml}
+          ${messageHtml}
           <p><strong>${t("orgasmWindowLabel")}</strong> ${windowStr}</p>
           ${artHtml}
           ${oeffnenHtml}`,
@@ -303,6 +303,6 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
 
   const pushParts: string[] = [`${t("orgasmWindowLabel")} ${windowStr}`];
   if (artLabel) pushParts.push(artLabel);
-  if (nachricht?.trim()) pushParts.push(nachricht.trim());
+  if (message?.trim()) pushParts.push(message.trim());
   firePush(userId, betreff, pushParts.join(" · "), "/dashboard", badge);
 }

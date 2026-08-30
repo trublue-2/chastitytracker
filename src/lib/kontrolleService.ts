@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { generateKontrollCode } from "@/lib/utils";
-import { sendMailSafe, escHtml, appBaseUrl, noticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
+import { sendMailSafe, escHtml, appBaseUrl, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime, formatDate, formatTime } from "@/lib/utils";
 import { firePush, hasPushTarget } from "@/lib/push";
 import { markLastAction } from "@/lib/appMeta";
@@ -456,7 +456,7 @@ async function sendInspectionMail(o: {
 }): Promise<void> {
   const { to, t, locale, username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath, targetLabel } = o;
   const intro = inspectionIntro(t, deadline.getTime() - Date.now());
-  const kommentarHtml = kommentar ? noticeBoxHtml(t("inspectionAdminLabel"), kommentar) : "";
+  const kommentarHtml = optionalNoticeBoxHtml(t("inspectionAdminLabel"), kommentar);
 
   const link = `${appBaseUrl()}${formPath}`;
   const helpUrl = inspectionHelpUrl(locale);

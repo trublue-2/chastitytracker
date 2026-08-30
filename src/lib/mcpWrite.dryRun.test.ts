@@ -713,7 +713,7 @@ describe("dryRun liefert diff (B-05: Vorschau statt Ja/Nein bei Edits eines best
 describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
   /** Eine offene ANFORDERUNGs-Zeile, wie getKeyholderLockRequests sie liefert. */
   const anf = (over: object = {}) => ({
-    id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: MORGEN, nachricht: null, dauerH: null,
+    id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: MORGEN, message: null, dauerH: null,
     lockEndsAt: null, deviceId: null, device: null, reinigungErlaubt: false,
     fulfilledAt: null, withdrawnAt: null, wirksamAb: null, benachrichtigtAt: JETZT, ...over,
   });
@@ -780,7 +780,7 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
   });
 
   it("withdraw mit id trifft genau eine Zeile — und prüft, dass sie zum Sub und zur Art gehört", async () => {
-    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u1", art: "ANFORDERUNG", wirksamAb: null, benachrichtigtAt: null, endsAt: null, nachricht: null });
+    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u1", art: "ANFORDERUNG", wirksamAb: null, benachrichtigtAt: null, endsAt: null, message: null });
     (withdrawVerschlussAnforderungById as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, data: { userId: "u1", notified: true } });
 
     const r = await mcpWithdraw("sub", { target: "lock_request", id: "a1" }) as { withdrawn: number };
@@ -788,13 +788,13 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
     expect(withdrawVerschlussAnforderungById).toHaveBeenCalledWith("a1", "ai");
 
     // Fremder Sub / falsche Art / bereits weg → gar kein Rückzug, statt stillem Erfolg.
-    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u2", art: "ANFORDERUNG", wirksamAb: null, benachrichtigtAt: null, endsAt: null, nachricht: null });
+    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u2", art: "ANFORDERUNG", wirksamAb: null, benachrichtigtAt: null, endsAt: null, message: null });
     await expect(mcpWithdraw("sub", { target: "lock_request", id: "a1" })).rejects.toThrow(/No open lock_request/);
-    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u1", art: "SPERRZEIT", wirksamAb: null, benachrichtigtAt: null, endsAt: null, nachricht: null });
+    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u1", art: "SPERRZEIT", wirksamAb: null, benachrichtigtAt: null, endsAt: null, message: null });
     await expect(mcpWithdraw("sub", { target: "lock_request", id: "a1" })).rejects.toThrow(/No open lock_request/);
     // „Bereits zurückgezogen" beurteilt der Service (eine Wahrheit, eine Stelle) — der Guard hier
     // beantwortet nur „gehört die Zeile diesem Sub und dieser Art?".
-    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u1", art: "ANFORDERUNG", wirksamAb: null, benachrichtigtAt: null, endsAt: null, nachricht: null });
+    vaFindUniqueMock.mockResolvedValue({ id: "a1", userId: "u1", art: "ANFORDERUNG", wirksamAb: null, benachrichtigtAt: null, endsAt: null, message: null });
     (withdrawVerschlussAnforderungById as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValue({ ok: false, status: 400, error: "LOCK_PERIOD_ALREADY_WITHDRAWN" });
     await expect(mcpWithdraw("sub", { target: "lock_request", id: "a1" })).rejects.toThrow(/already/);
@@ -804,8 +804,8 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
   it("withdraw dryRun ohne id listet die betroffenen Anforderungen (id + Status + Nachricht), nicht nur die Zahl", async () => {
     // Bei mehreren offenen sagt eine blosse „2" nicht, WELCHE ein id-loser Rückzug träfe — die Liste
     // macht die gezielte Einzel-Rücknahme überhaupt erst wählbar.
-    const geplant = anf({ id: "a2", nachricht: "später", wirksamAb: new Date("2026-08-04T12:00:00Z"), benachrichtigtAt: null });
-    lockPeriodFindManyMock.mockResolvedValue([geplant, anf({ nachricht: "jetzt" })]);
+    const geplant = anf({ id: "a2", message: "später", wirksamAb: new Date("2026-08-04T12:00:00Z"), benachrichtigtAt: null });
+    lockPeriodFindManyMock.mockResolvedValue([geplant, anf({ message: "jetzt" })]);
 
     const r = await mcpWithdraw("sub", { target: "lock_request", dryRun: true }) as {
       preview: { willWithdraw: number; targets: { id: string; status: string; message: string | null }[] };

@@ -24,13 +24,13 @@ const X = new Date("2026-07-31T14:00:00Z");
 const STUNDE = 60 * 60 * 1000;
 
 const anforderung = (over: Partial<{ dauerH: number | null; lockEndsAt: Date | null; createdBy: string | null }> = {}) => ({
-  id: "a1", userId: "u1", nachricht: "24h drin bleiben", reinigungErlaubt: true,
+  id: "a1", userId: "u1", message: "24h drin bleiben", reinigungErlaubt: true,
   dauerH: 24, lockEndsAt: null, createdBy: "herrin", ...over,
 });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  txMock.verschlussAnforderung.create.mockResolvedValue({ id: "s-neu", nachricht: "24h drin bleiben" });
+  txMock.verschlussAnforderung.create.mockResolvedValue({ id: "s-neu", message: "24h drin bleiben" });
   txMock.verschlussAnforderung.update.mockResolvedValue({});
 });
 
@@ -59,7 +59,7 @@ describe("carryOverLockPeriodOnAlreadyLocked", () => {
 
     const { data } = txMock.verschlussAnforderung.create.mock.calls[0][0] as { data: Record<string, unknown> };
     expect(data).toMatchObject({
-      userId: "u1", art: "SPERRZEIT", nachricht: "24h drin bleiben", reinigungErlaubt: true,
+      userId: "u1", art: "SPERRZEIT", message: "24h drin bleiben", reinigungErlaubt: true,
       endsAt: new Date(X.getTime() + 24 * STUNDE),
       // Sofort gültig ⇒ nicht vor dem Sub verborgen. KEIN `benachrichtigtAt`: der Stempel meint
       // „Mail/Push ging raus", und der Versand liegt hinter dem Commit (der Poller schickt).
@@ -70,7 +70,7 @@ describe("carryOverLockPeriodOnAlreadyLocked", () => {
 
   it("gibt die Nachricht der GESCHRIEBENEN Zeile zurück — die Meldung zitiert die Sperrzeit", async () => {
     const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung(), X))!;
-    expect(r.nachricht).toBe("24h drin bleiben");
+    expect(r.message).toBe("24h drin bleiben");
   });
 
   it("verbucht die Anforderung als ERFÜLLT, nicht als zurückgezogen", async () => {

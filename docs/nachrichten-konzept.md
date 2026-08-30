@@ -115,7 +115,7 @@ Es existiert weder eine Route noch eine Tabelle noch eine Seite für Nachrichten
 
 | Richtung | Umfang |
 |---|---|
-| Keyholder / KI → Sub | 16 Typen. Vier tragen echten Keyholder-Freitext: `KontrollAnforderung.kommentar`, `VerschlussAnforderung.nachricht`, `OrgasmusAnforderung.nachricht`, `StrafeRecord.reason` — dazu in v5 `Task.description` und `Task.penaltyReason` |
+| Keyholder / KI → Sub | 16 Typen. Vier tragen echten Keyholder-Freitext: `KontrollAnforderung.kommentar`, `VerschlussAnforderung.message`, `OrgasmusAnforderung.message`, `StrafeRecord.reason` — dazu in v5 `Task.description` und `Task.penaltyReason` |
 | Sub → Keyholder | **Kein Nachrichtenkanal.** Es gibt nur Ereignismeldungen über Handlungen (`src/app/api/entries/route.ts:301-430`) |
 | System → beide | Mahnungen, Auto-Buchungen, Aufgaben-Ergebnisse, Passwort-Reset |
 

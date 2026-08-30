@@ -663,8 +663,8 @@ async function refDetails(rows: RefRow[], scope: InboxScope): Promise<Map<string
     }) : [],
     // wirksamAb/benachrichtigtAt mitlesen: dieselbe Zeile beantwortet Text UND Sichtbarkeit — sonst
     // fragte der Listen-Pfad diese Tabelle zweimal (einmal hier, einmal über hiddenRefKeys).
-    lockIds.length ? prisma.verschlussAnforderung.findMany({ where: { id: { in: lockIds }, userId: subjectUserId }, select: { id: true, userId: true, nachricht: true, wirksamAb: true, benachrichtigtAt: true } }) : [],
-    orgasmIds.length ? prisma.orgasmusAnforderung.findMany({ where: { id: { in: orgasmIds }, userId: subjectUserId }, select: { id: true, userId: true, nachricht: true } }) : [],
+    lockIds.length ? prisma.verschlussAnforderung.findMany({ where: { id: { in: lockIds }, userId: subjectUserId }, select: { id: true, userId: true, message: true, wirksamAb: true, benachrichtigtAt: true } }) : [],
+    orgasmIds.length ? prisma.orgasmusAnforderung.findMany({ where: { id: { in: orgasmIds }, userId: subjectUserId }, select: { id: true, userId: true, message: true } }) : [],
     // Die BESCHREIBUNG, nicht der Titel: sie ist der Freitext der Keyholderin — die eigentliche
     // Anweisung („die Wohnung, nicht nur das Wohnzimmer"). Sie stand im Posteingang bisher gar
     // nicht, und ohne sie ist eine Aufgabe dort nicht nachlesbar, sondern nur benannt.
@@ -709,8 +709,8 @@ async function refDetails(rows: RefRow[], scope: InboxScope): Promise<Map<string
       hidden: isHiddenFromSub(c),
     });
   }
-  for (const l of lockRequests) details.set(refKey(l.userId, "lockRequest", l.id), { text: l.nachricht, actionCode: null, hidden: isHiddenFromSub(l) });
-  for (const d of orgasmDirectives) details.set(refKey(d.userId, "orgasmDirective", d.id), { text: d.nachricht, actionCode: null, hidden: false });
+  for (const l of lockRequests) details.set(refKey(l.userId, "lockRequest", l.id), { text: l.message, actionCode: null, hidden: isHiddenFromSub(l) });
+  for (const d of orgasmDirectives) details.set(refKey(d.userId, "orgasmDirective", d.id), { text: d.message, actionCode: null, hidden: false });
   // Die Aufgabe IST terminierbar (`Task.wirksamAb` seit B1) — hier stand einmal ein festes
   // `hidden: false` mit der Begründung, sie kenne keine Terminierung. Dieselbe Ableitung wie bei
   // Kontrolle und Verschluss-Anforderung, und aus demselben Grund: siehe {@link hiddenRefKeys}.

@@ -156,7 +156,7 @@ export function mapOpenKontrolle(
 export interface ActiveLockPeriodView { endsAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null; reinigungErlaubt: boolean; deviceName: string | null }
 
 export function mapActiveLockPeriod(
-  s: { endsAt: Date | null; nachricht: string | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
+  s: { endsAt: Date | null; message: string | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): ActiveLockPeriodView | null {
   if (!s) return null;
@@ -164,7 +164,7 @@ export function mapActiveLockPeriod(
     endsAt: s.endsAt ? fmt(s.endsAt) : null,
     indefinite: s.endsAt === null,
     remainingMinutes: s.endsAt ? minutesUntil(s.endsAt, now) : null,
-    message: s.nachricht,
+    message: s.message,
     reinigungErlaubt: s.reinigungErlaubt,
     deviceName: s.device?.name ?? null,
   };
@@ -186,7 +186,7 @@ export interface OpenLockRequestView {
 }
 
 export function mapOpenLockRequest(
-  a: { id: string; endsAt: Date | null; nachricht: string | null; dauerH: number | null; lockEndsAt: Date | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
+  a: { id: string; endsAt: Date | null; message: string | null; dauerH: number | null; lockEndsAt: Date | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): OpenLockRequestView | null {
   if (!a) return null;
@@ -195,7 +195,7 @@ export function mapOpenLockRequest(
     endsAt: a.endsAt ? fmt(a.endsAt) : null,
     overdue: a.endsAt ? a.endsAt < now : false,
     remainingMinutes: a.endsAt ? minutesUntil(a.endsAt, now) : null,
-    message: a.nachricht,
+    message: a.message,
     dauerH: a.dauerH,
     lockUntilAt: a.lockEndsAt ? fmt(a.lockEndsAt) : null,
     reinigungErlaubt: a.reinigungErlaubt,
@@ -206,7 +206,7 @@ export function mapOpenLockRequest(
 export interface OpenOrgasmusAnforderungView { art: string; beginntAt: string; endsAt: string; active: boolean; requiredType: string | null; message: string | null; remainingMinutes: number }
 
 export function mapOpenOrgasmusAnforderung(
-  o: { art: string; beginntAt: Date; endsAt: Date; vorgegebeneArt: string | null; nachricht: string | null } | null,
+  o: { art: string; beginntAt: Date; endsAt: Date; vorgegebeneArt: string | null; message: string | null } | null,
   now: Date, fmt: Fmt,
 ): OpenOrgasmusAnforderungView | null {
   if (!o) return null;
@@ -216,7 +216,7 @@ export function mapOpenOrgasmusAnforderung(
     endsAt: fmt(o.endsAt),
     active: o.beginntAt <= now,
     requiredType: o.vorgegebeneArt,
-    message: o.nachricht,
+    message: o.message,
     remainingMinutes: minutesUntil(o.endsAt, now),
   };
 }
@@ -257,7 +257,7 @@ export interface InterruptedLockPeriodView {
  * Neutral formuliert: ob die Öffnung erlaubt war, steht hier bewusst NICHT — das weiss das Strafbuch.
  */
 export function mapInterruptedLockPeriod(
-  s: { endsAt: Date | null; withdrawnAt: Date | null; nachricht: string | null } | null,
+  s: { endsAt: Date | null; withdrawnAt: Date | null; message: string | null } | null,
   fmt: Fmt,
 ): InterruptedLockPeriodView | null {
   if (!s?.withdrawnAt) return null;
@@ -265,6 +265,6 @@ export function mapInterruptedLockPeriod(
     originalEndsAt: s.endsAt ? fmt(s.endsAt) : null,
     indefinite: s.endsAt === null,
     interruptedAt: fmt(s.withdrawnAt),
-    message: s.nachricht,
+    message: s.message,
   };
 }

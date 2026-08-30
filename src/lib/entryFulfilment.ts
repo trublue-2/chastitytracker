@@ -169,7 +169,7 @@ export async function applyEntryFulfilment(
         ? [{
             userId,
             art: "SPERRZEIT",
-            nachricht: a.nachricht,
+            message: a.message,
             endsAt,
             reinigungErlaubt: a.reinigungErlaubt,
             // Der Anordnende wandert mit (wie in `carryOverLockPeriodOnAlreadyLocked`): die Sperrzeit

@@ -63,7 +63,7 @@ export interface StrafbuchData {
   missedOrgasmInstructions: {
     id: string;
     endsAt: Date;
-    nachricht: string | null;
+    message: string | null;
     requiredArt: string | null;
   }[];
   /** Verschluss-Anforderungen (lock requests) whose deadline (`endsAt`) passed without a timely VERSCHLUSS. */
@@ -71,7 +71,7 @@ export interface StrafbuchData {
     id: string;
     endsAt: Date;
     fulfilledAt: Date | null;
-    nachricht: string | null;
+    message: string | null;
   }[];
   /** REINIGUNG-Öffnungen during an active, cleaning-permitted Sperrzeit whose re-lock deadline
    *  (active daily cleaning window's end, or open time + reinigungMaxMinuten as fallback) passed
@@ -788,7 +788,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     .filter((a) => !isHiddenFromSub(a))
     .filter((a): a is typeof a & { endsAt: Date } => a.endsAt !== null)
     .filter((a) => isLateLock(a, now))
-    .map((a) => ({ id: a.id, endsAt: a.endsAt, fulfilledAt: a.fulfilledAt, nachricht: a.nachricht }));
+    .map((a) => ({ id: a.id, endsAt: a.endsAt, fulfilledAt: a.fulfilledAt, message: a.message }));
 
   // Cleaning not relocked — a REINIGUNG opening during an active, cleaning-permitted Sperrzeit
   // whose re-lock deadline passed without a timely VERSCHLUSS. No offense if the Sperrzeit itself
@@ -877,7 +877,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       // sonst genau die unverdiente Strafe, gegen die schon `checkOrgasmWindowEnd` gebaut ist.
       .filter((a) => a.art === "ANWEISUNG" && a.withdrawnAt === null && a.fulfilledAt === null && a.endsAt < now && !isHiddenFromSub(a))
       .sort((a, b) => b.endsAt.getTime() - a.endsAt.getTime())
-      .map((a) => ({ id: a.id, endsAt: a.endsAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
+      .map((a) => ({ id: a.id, endsAt: a.endsAt, message: a.message, requiredArt: a.vorgegebeneArt })),
     lateLocks,
     cleaningNotRelocked,
     unfulfilledTasks,

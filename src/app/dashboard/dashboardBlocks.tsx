@@ -220,9 +220,9 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         })),
 
         offeneVerschlussAnf: offeneVerschlussAnf ? {
-          nachricht: joinParts(
+          message: joinParts(
             offeneVerschlussAnf.device ? t("lockDevicePrefix", { name: offeneVerschlussAnf.device.name }) : null,
-            offeneVerschlussAnf.nachricht,
+            offeneVerschlussAnf.message,
           ),
           deadlineLabel: offeneVerschlussAnf.endsAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endsAt, dl, tz) }) : null,
           // Verstrichen heisst: es läuft bereits ein Vergehen (`late_lock`). Das Banner sah bisher
@@ -236,9 +236,9 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
         offeneOrgasmusAnf: offeneOrgasmusAnf ? {
           label: offeneOrgasmusAnf.art === "ANWEISUNG" ? t("orgasmInstructed") : t("orgasmOpportunity"),
-          nachricht: joinParts(
+          message: joinParts(
             orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null,
-            offeneOrgasmusAnf.nachricht,
+            offeneOrgasmusAnf.message,
           ),
           windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginntAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endsAt, dl, tz) }),
         } : null,
@@ -392,7 +392,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           events={data.events}
           lockPeriodEndsAt={data.activeLockPeriod?.endsAt ?? null}
           lockPeriodIndefinite={!!data.activeLockPeriod && data.activeLockPeriod.endsAt === null}
-          lockPeriodMessage={data.activeLockPeriod?.nachricht ?? null}
+          lockPeriodMessage={data.activeLockPeriod?.message ?? null}
           // Sub-Sicht: nur wenn er grundsätzlich reinigen darf. Sonst verspräche die Zeile etwas,
           // das seine Benutzer-Einstellung ohnehin verbietet.
           cleaningNote={

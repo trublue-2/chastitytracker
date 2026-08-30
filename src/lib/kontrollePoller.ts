@@ -299,8 +299,8 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         // Gegenstandslos heisst nicht wertlos: eine ANFORDERUNG an einen bereits verschlossenen Sub
         // ist ERFÜLLT, und die Sperrzeit, die sie mitbringt, bleibt gewollt. Warum und mit welchem
         // Anker steht bei `carryOverLockPeriodOnAlreadyLocked`; `null` = nichts zu übernehmen.
-        const uebernommen = art === "ANFORDERUNG" ? await carryOverLockPeriodOnAlreadyLocked(va, now) : null;
-        if (!uebernommen) {
+        const carriedOver = art === "ANFORDERUNG" ? await carryOverLockPeriodOnAlreadyLocked(va, now) : null;
+        if (!carriedOver) {
           await prisma.verschlussAnforderung.update({
             where: { id: va.id },
             data: { withdrawnAt: new Date(), endedReason: LOCK_ENDED_REASON.obsolete },
@@ -314,13 +314,13 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
           userId: va.userId,
           user: va.user,
           art: "SPERRZEIT",
-          nachricht: uebernommen.nachricht,
-          endsAtDate: uebernommen.endsAt,
-          requestId: uebernommen.lockPeriodId,
+          message: carriedOver.message,
+          endsAtDate: carriedOver.endsAt,
+          requestId: carriedOver.lockPeriodId,
           // Aus der ÜBERNOMMENEN Zeile, wie ihr Text daneben: die Meldung gehört zur Sperrzeit und
           // nennt deshalb, was in IHR steht. Dass die Anordnende dieselbe ist wie an der Anforderung,
           // ist die Vererbung in `carryOverLockPeriodOnAlreadyLocked` — und die steht dort, nicht hier.
-          actor: uebernommen.createdBy,
+          actor: carriedOver.createdBy,
         });
         continue;
       }
@@ -329,7 +329,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         userId: va.userId,
         user: va.user,
         art,
-        nachricht: va.nachricht,
+        message: va.message,
         endsAtDate: va.endsAt,
         dauerH: va.dauerH,
         lockEndsAtDate: va.lockEndsAt,
@@ -384,7 +384,7 @@ async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
         userId: oa.userId,
         user: oa.user,
         art: oa.art as "ANWEISUNG" | "GELEGENHEIT",
-        nachricht: oa.nachricht,
+        message: oa.message,
         beginnt,
         endsAtDate,
         vorgegebeneArt: oa.vorgegebeneArt,

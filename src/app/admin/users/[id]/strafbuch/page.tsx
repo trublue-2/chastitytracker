@@ -93,13 +93,13 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     id: a.id,
     endsAtStr: fmtDual(a.endsAt),
     fulfilledAtStr: a.fulfilledAt ? fmtDual(a.fulfilledAt) : null,
-    nachricht: a.nachricht,
+    message: a.message,
   }));
 
   const orgasmusVersaeumt: OrgasmusVersaeumtRow[] = sb.missedOrgasmInstructions.map((m) => ({
     id: m.id,
     endsAtStr: fmtDual(m.endsAt),
-    nachricht: m.nachricht,
+    message: m.message,
     requiredArt: m.requiredArt,
   }));
 
