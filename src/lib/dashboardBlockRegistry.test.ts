@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { BLOCK_SURFACES, blocksOf } from "./dashboardBlockRegistry";
+import de from "../../messages/de.json";
+import en from "../../messages/en.json";
+import { BLOCK_SURFACES, DASHBOARD_BLOCKS, blocksOf } from "./dashboardBlockRegistry";
 
 /**
  * Wächter über das Register selbst.
@@ -26,6 +28,25 @@ describe("das Block-Register", () => {
       const ids = blocksOf(surface).map((b) => b.id);
       expect([...new Set(ids)]).toHaveLength(ids.length);
     }
+  });
+
+  it("jeder Block hat eine Beschriftung in beiden Sprachen", () => {
+    // Ohne diesen Test fällt eine fehlende Beschriftung erst im Bearbeiten-Modus auf — und dort als
+    // roher Schlüsselname, nicht als Fehler. `labelKey` ist ein blosser `string`, der Compiler
+    // sieht es also auch nicht.
+    for (const [lang, messages] of [["de", de], ["en", en]] as const) {
+      const namespace = messages.dashboard as Record<string, string>;
+      const fehlt = DASHBOARD_BLOCKS.filter((b) => !namespace[b.labelKey]).map((b) => b.labelKey);
+      expect(fehlt, `\nFehlende Beschriftung in messages/${lang}.json (Namespace "dashboard"):\n  ${fehlt.join("\n  ")}\n`).toEqual([]);
+    }
+  });
+
+  it("blocksOf trennt die Oberflächen sauber", () => {
+    // Fängt den Block, der gar keiner Oberfläche zugeordnet ist oder eine vertippte trägt: er fiele
+    // aus jedem `blocksOf` heraus und wäre in der Anpassen-Ansicht unsichtbar, ohne dass etwas
+    // fehlschlägt.
+    const summe = BLOCK_SURFACES.reduce((n, s) => n + blocksOf(s).length, 0);
+    expect(summe).toBe(DASHBOARD_BLOCKS.length);
   });
 
   it("eine Oberfläche gehört als GANZE einer Rolle", () => {

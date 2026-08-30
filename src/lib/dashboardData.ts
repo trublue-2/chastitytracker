@@ -203,8 +203,14 @@ const inspectionsOf = cache(async (userId: string, nowMs: number, audience: Bloc
  * `cache()` um die Zeit herum löst es: der erste Aufrufer je Anfrage legt den Zeitpunkt fest, alle
  * weiteren erben ihn. Wer einen BESTIMMTEN Zeitpunkt braucht (Tests, Rückdatierung), ruft weiter
  * `subVisibleInspectionsCached` direkt — die Wahl bleibt, sie ist nur nicht mehr die Vorgabe.
+ *
+ * **`requestNowMs` ist deshalb DIE Uhr der Anfrage, nicht eine zweite daneben.** Die Seite muss ihr
+ * `now` daraus nehmen (`new Date(requestNowMs())`), sonst hat sie wieder zwei Zeitpunkte: das
+ * Layout wertet diesen hier aus, während es seine Abfragen zusammenstellt, die Seite käme
+ * Millisekunden später zu ihrem eigenen — zwei Schlüssel, und die teure `findMany` liefe erneut
+ * zweimal. Genau so war es nach der ersten Fassung, nur eine Ebene weiter oben.
  */
-const requestNowMs = cache(() => Date.now());
+export const requestNowMs = cache(() => Date.now());
 export const subVisibleInspectionsNow = (userId: string) =>
   subVisibleInspectionsCached(userId, requestNowMs());
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "@/lib/apiClient";
 
 /**
  * Die Mechanik einer Listen-Aktion, die per `PATCH` etwas an einer Zeile ändert: Laufzustand,
@@ -33,7 +34,7 @@ export function useActionPatch() {
   async function run(url: string, body?: unknown, method: "PATCH" | "DELETE" = "PATCH"): Promise<Response | null> {
     setSaving(true);
     try {
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method,
         ...(body === undefined ? {} : {
           headers: { "Content-Type": "application/json" },

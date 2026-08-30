@@ -60,6 +60,11 @@ vi.mock("@/lib/orgasmusAnforderungService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/orgasmusAnforderungService")>();
   return { ...actual, createOrgasmusAnforderung: vi.fn(), withdrawOrgasmusAnforderung: vi.fn() };
 });
+vi.mock("@/lib/releaseNowService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/releaseNowService")>();
+  // `previewReleaseNow` bleibt ECHT — sie ist genau das, was hier geprüft wird.
+  return { ...actual, releaseNow: vi.fn() };
+});
 vi.mock("@/lib/strafurteilService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/strafurteilService")>();
   return { ...actual, judgeOffense: vi.fn(), requireDetectedOffense: vi.fn() };
@@ -74,7 +79,7 @@ import {
   mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpRequestOrgasm, mcpSetTrainingGoal,
   mcpWithdraw, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpResolveInspection,
   mcpEditLockPeriod, mcpEditLockRequest, mcpJudgeOffense, mcpCreateTask, mcpEditTask, mcpSetAutoInspections,
-  mcpReviewTaskProof,
+  mcpReviewTaskProof, mcpReleaseNow,
 } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
 import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
@@ -84,6 +89,7 @@ import { setCleaningSettings } from "@/lib/cleaningService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
+import { releaseNow } from "@/lib/releaseNowService";
 import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
 import { taskRow } from "@/test/taskRow";
 import { taskProofRow } from "@/test/taskProofRow";
@@ -236,6 +242,17 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
     }) as { wouldSucceed: boolean; problem?: string };
     expect(r.wouldSucceed).toBe(false);
     expect(r.problem).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
+  });
+
+  it("release_now: nicht verschlossener User wird auch im dryRun abgelehnt — mit dem Code der SCHNITTSTELLE", async () => {
+    // entryFindFirstMock steht per Default auf NICHT_VERSCHLOSSEN.
+    // Der Punkt dieses Tests ist der NAME: `createOeffnenEntryTx` wirft intern `NOT_LOCKED`, und
+    // genau der stand hier einmal. Die Vorschau muss denselben Code nennen wie der Vollzug —
+    // `NOT_LOCKED` trägt im errors-Namensraum TRÄGER-Text und gehört einer Keyholderin nie vorgelegt.
+    const r = await mcpReleaseNow("sub", { dryRun: true }) as { wouldSucceed: boolean; problem?: string };
+    expect(r.wouldSucceed).toBe(false);
+    expect(r.problem).toBe("USER_NOT_LOCKED");
+    expect(releaseNow).not.toHaveBeenCalled();
   });
 
   it("request_inspection: nicht verschlossener User wird auch im dryRun abgelehnt", async () => {

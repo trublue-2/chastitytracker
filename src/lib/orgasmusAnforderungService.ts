@@ -139,7 +139,7 @@ export async function createOrgasmusAnforderung(
         userId,
         art,
         message: message?.trim() || null,
-        beginsAt: beginsAt,
+        beginsAt: beginsAtDate,
         endsAt: endsAtDate,
         requiredType: requiredType || null,
         openingAllowed: Boolean(openingAllowed),

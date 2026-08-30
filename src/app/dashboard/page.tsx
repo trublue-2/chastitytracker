@@ -3,6 +3,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { APP_TZ, toDateLocale } from "@/lib/utils";
 import { viewerLayout } from "@/lib/viewerLayout";
+import { requestNowMs } from "@/lib/dashboardData";
 import { renderStack } from "@/lib/blockStack";
 import BlockStack from "@/app/components/BlockStack";
 import { SUB_DASHBOARD_BLOCK_TABLE, type SubDashboardCtx } from "./dashboardBlocks";
@@ -22,7 +23,9 @@ export default async function DashboardPage() {
     redirect("/login");
   }
   const userId = session.user.id;
-  const now = new Date();
+  // DIESELBE Uhr, die `subVisibleInspectionsNow` benutzt — sonst tragen Layout und Seite zwei
+  // Zeitpunkte, und die auf `nowMs` memoisierte Kontroll-Abfrage liefe je Aufbau zweimal.
+  const now = new Date(requestNowMs());
 
   // Erst die Konfiguration: sie entscheidet, welche Loader überhaupt laufen. Die Benutzerzeile, aus
   // der sie kommt, ist dieselbe, die die Blöcke gleich weiterverwenden — sie kostet also nichts
