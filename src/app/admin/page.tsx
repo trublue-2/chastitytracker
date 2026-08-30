@@ -194,7 +194,7 @@ export default async function AdminPage() {
       })),
       activeLockPeriod: activeLockPeriod
         // Ohne `message`: der kompakte Banner hat keinen Textslot, das Feld wurde nur mitgeschleppt.
-        ? { id: activeLockPeriod.id, endsAt: activeLockPeriod.endsAt, reinigungErlaubt: activeLockPeriod.reinigungErlaubt }
+        ? { id: activeLockPeriod.id, endsAt: activeLockPeriod.endsAt, cleaningAllowed: activeLockPeriod.cleaningAllowed }
         : null,
       offeneOrgasmusAnforderung: offeneOrgasmusAnforderung
         ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endsAt: offeneOrgasmusAnforderung.endsAt, expired: offeneOrgasmusAnforderung.endsAt < now }
@@ -435,7 +435,7 @@ export default async function AdminPage() {
                             showRemaining={!!u.stats.activeLockPeriod.endsAt}
                             // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den
                             // Benutzer-Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
-                            cleaningNote={t(u.stats.activeLockPeriod.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning")}
+                            cleaningNote={t(u.stats.activeLockPeriod.cleaningAllowed ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning")}
                             withdrawAction={<WithdrawButton id={u.stats.activeLockPeriod.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />}
                           />
                         )}

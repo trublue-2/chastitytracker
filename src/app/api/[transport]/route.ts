@@ -452,7 +452,7 @@ function registerTools(server: McpServer) {
           "verbindlichen Freitext-Regeln des menschlichen Keyholders — vor jeder Direktive lesen und " +
           "befolgen, nicht nur zur Kenntnis nehmen. Ausserdem: currentRun vs. Personal Best, was JETZT " +
           "getragen wird (KG + alle Kategorien), nextRelevant (offene Kontrolle / aktive Sperrzeit inkl. " +
-          "reinigungErlaubt = erlaubt die Sperre Reinigungsöffnungen? / offenes Orgasmus-Fenster), " +
+          "cleaningAllowed = erlaubt die Sperre Reinigungsöffnungen? / offenes Orgasmus-Fenster), " +
           "Ziele + Adhärenz (Tag/Woche/Monat-Erfüllung), offene Vergehen (Top 5), gepinnte " +
           "standingDirectives + boundaries (fallen nie aus einem Recency-Fenster), scheduledDirectives " +
           "(vom Keyholder TERMINIERTE, noch nicht ausgelöste lock_request/lock_period/manuelle inspection — " +
@@ -796,7 +796,7 @@ function registerTools(server: McpServer) {
           untilAt: z.string().optional().describe("Lock until this absolute time (ISO 8601)."),
           durationHours: z.number().positive().optional().describe("Lock for this many hours. Counts from when the lock period starts (after any delay)."),
           indefinite: z.boolean().optional().describe("Lock indefinitely (no end). Overrides untilAt/durationHours."),
-          reinigungErlaubt: z.boolean().optional().describe("Allow cleaning openings without breaking the lock period."),
+          cleaningAllowed: z.boolean().optional().describe("Allow cleaning openings without breaking the lock period."),
           message: z.string().optional().describe("Message shown to the user."),
           delayMinutes: z.coerce.number().optional().describe("Delay before the lock period starts/sends, in minutes. Omit/0 = immediate."),
           scheduledAt: z.string().optional().describe("Absolute start/send time (ISO 8601). Overrides delayMinutes."),

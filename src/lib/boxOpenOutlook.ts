@@ -12,7 +12,7 @@
  * Was hier bewusst NICHT einfliesst: die erlaubte Reinigungsöffnung. Sie öffnet den Riegel trotz
  * laufender Sperrzeit, weil der Tracker `open` sendet und Heimdall daraufhin seinen Dauerauftrag
  * aussetzt (`holdOpen`). Ob DIESE Öffnung erlaubt ist, hängt aber am gewählten Grund — den kennt
- * erst das Formular. Wie Punkt 1 gehört auch das dorthin: `istErlaubteReinigungsOeffnung` verrechnet
+ * erst das Formular. Wie Punkt 1 gehört auch das dorthin: `isPermittedCleaningOpening` verrechnet
  * das Ergebnis (OeffnenFormCore.tsx). Hier steht nur die grund-unabhängige Hälfte.
  */
 

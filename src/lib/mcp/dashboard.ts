@@ -482,7 +482,7 @@ export interface ScheduledDirective {
   message: string | null;
   /** Nur lock_request/lock_period: erlaubt die (geplante) Sperre Reinigungsöffnungen? Deckt die
    *  „Text sagt Reinigung erlaubt, Flag steht aber auf false"-Falle auf. null bei inspection. */
-  reinigungErlaubt: boolean | null;
+  cleaningAllowed: boolean | null;
 }
 
 /** Lädt die vom Keyholder terminierten, noch nicht ausgelösten Direktiven (wirksamAb > now):
@@ -524,7 +524,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       wirksamAb: iso(a.wirksamAb)!,
       endsAt: iso(a.endsAt),
       message: a.message,
-      reinigungErlaubt: a.reinigungErlaubt,
+      cleaningAllowed: a.cleaningAllowed,
     })),
     ...kontrollen.map((k) => ({
       id: k.id,
@@ -532,7 +532,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       wirksamAb: iso(k.wirksamAb)!,
       endsAt: iso(k.deadline),
       message: k.kommentar,
-      reinigungErlaubt: null,
+      cleaningAllowed: null,
     })),
     ...tasks.map((t) => ({
       id: t.id,
@@ -540,7 +540,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       wirksamAb: iso(t.wirksamAb)!,
       endsAt: iso(t.holdUntil),
       message: t.title,
-      reinigungErlaubt: null,
+      cleaningAllowed: null,
     })),
     ...orgasmWindows.map((o) => ({
       id: o.id,
@@ -548,7 +548,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       wirksamAb: iso(o.wirksamAb)!,
       endsAt: iso(o.endsAt),
       message: o.message,
-      reinigungErlaubt: null,
+      cleaningAllowed: null,
     })),
   ];
   return out.sort((a, b) => a.wirksamAb.localeCompare(b.wirksamAb));
@@ -684,9 +684,9 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const fmt: Fmt = makeFmt(trackingCtx.timezone);
   // Paare EINMAL bauen und an buildSessions + buildLockState durchreichen (deren `prePairs`-Doku
   // erklärt das Sharing).
-  const pairs = buildPairs<TrackingEntry, never>(trackingCtx.entries, [], trackingCtx.reinigung);
+  const pairs = buildPairs<TrackingEntry, never>(trackingCtx.entries, [], trackingCtx.cleaning);
   // Sessions EINMAL bauen und teilen (records + dataDiscrepancies), statt buildSessions doppelt.
-  const sessions = buildSessions(trackingCtx.entries, trackingCtx.reinigung, now, trackingCtx.devices, pairs);
+  const sessions = buildSessions(trackingCtx.entries, trackingCtx.cleaning, now, trackingCtx.devices, pairs);
 
   // Live-Zustand direkt aus der Helfer-Schicht (mcp/liveState.ts) — nicht mehr durch die fertige
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
@@ -708,7 +708,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     loadScheduledDirectives(trackingCtx.userId, now, iso),
   ]);
 
-  const lock = buildLockState(trackingCtx.entries, trackingCtx.reinigung, now, fmt, pairs);
+  const lock = buildLockState(trackingCtx.entries, trackingCtx.cleaning, now, fmt, pairs);
   // N-2: das MASSGEBLICHE Gerät des laufenden KG-Segments (deviceEffective — bei image-conflict
   // gewinnt das Bild), aus derselben Session-Segmentierung wie die Deep-Views. `lock.deviceName`
   // trägt nur das DEKLARIERTE Gerät; ohne diese Überlagerung sagte das Dashboard als einziger
@@ -759,7 +759,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     // an?". Eine terminierte, noch nicht zugestellte Aufgabe steht bei ihm nicht an — sie steht in
     // `scheduledDirectives`, wo auch die übrigen geplanten Direktiven stehen.
     audience: "sub",
-    kgEntries: trackingCtx.entries, wearEntries: trackingCtx.entries, reinigung: trackingCtx.reinigung,
+    kgEntries: trackingCtx.entries, wearEntries: trackingCtx.entries, cleaning: trackingCtx.cleaning,
   });
   // Beschreibung und Zustand der Nachweise hängen nicht am Auswertungs-Include — eine Abfrage über
   // die sichtbaren Aufgaben, damit `review_task_proof` überhaupt eine Adresse hat.

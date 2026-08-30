@@ -30,7 +30,7 @@ import {
   mondayIndexOfLocalDate,
   midnightOfLocalDate,
   calculateWearingHoursByRange,
-  type ReinigungSettings,
+  type CleaningPauseAllowance,
 } from "./utils";
 
 // ─── Test fixtures ─────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ const mkEntry = (id: string, type: string, time: string, oeffnenGrund?: string):
   oeffnenGrund: oeffnenGrund ?? null,
 });
 
-const reinigung: ReinigungSettings = { erlaubt: true, maxMinuten: 30 };
+const cleaning: CleaningPauseAllowance = { allowed: true, maxMinutes: 30 };
 
 // ─── buildPairs — basic pairing ────────────────────────────────────────────
 
@@ -142,14 +142,14 @@ describe("buildPairs", () => {
 // ─── buildPairs — Reinigungs-Interruption ──────────────────────────────────
 
 describe("buildPairs — Reinigungs-Interruption", () => {
-  it("treats short REINIGUNG as interruption (within maxMinuten)", () => {
+  it("treats short REINIGUNG as interruption (within maxMinutes)", () => {
     const entries = [
       mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"),
       mkEntry("o1", "OEFFNEN", "2026-05-01T11:00:00Z", "REINIGUNG"),
       mkEntry("v2", "VERSCHLUSS", "2026-05-01T11:15:00Z"), // 15min later → within 30min
       mkEntry("o2", "OEFFNEN", "2026-05-01T14:00:00Z"),
     ];
-    const result = buildPairs(entries, [], reinigung);
+    const result = buildPairs(entries, [], cleaning);
     expect(result).toHaveLength(1);
     expect(result[0].verschluss.id).toBe("v1");
     expect(result[0].oeffnen?.id).toBe("o2");
@@ -158,13 +158,13 @@ describe("buildPairs — Reinigungs-Interruption", () => {
     expect(result[0].interruptions[0].verschluss.id).toBe("v2");
   });
 
-  it("closes session when REINIGUNG re-lock is past maxMinuten (timeout)", () => {
+  it("closes session when REINIGUNG re-lock is past maxMinutes (timeout)", () => {
     const entries = [
       mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"),
       mkEntry("o1", "OEFFNEN", "2026-05-01T11:00:00Z", "REINIGUNG"),
       mkEntry("v2", "VERSCHLUSS", "2026-05-01T12:00:00Z"), // 60min later → past 30min
     ];
-    const result = buildPairs(entries, [], reinigung);
+    const result = buildPairs(entries, [], cleaning);
     expect(result).toHaveLength(2);
     // Newest first: v2 is the active session
     expect(result[0].verschluss.id).toBe("v2");
@@ -182,7 +182,7 @@ describe("buildPairs — Reinigungs-Interruption", () => {
       mkEntry("o1", "OEFFNEN", "2026-05-01T11:00:00Z", "REINIGUNG"),
       mkEntry("v2", "VERSCHLUSS", "2026-05-01T11:15:00Z"),
     ];
-    const result = buildPairs(entries, [], { erlaubt: false, maxMinuten: 30 });
+    const result = buildPairs(entries, [], { allowed: false, maxMinutes: 30 });
     expect(result).toHaveLength(2);
     expect(result[0].verschluss.id).toBe("v2");
     expect(result[1].verschluss.id).toBe("v1");
@@ -196,7 +196,7 @@ describe("buildPairs — Reinigungs-Interruption", () => {
       mkEntry("v2", "VERSCHLUSS", "2026-05-01T11:15:00Z"),
       mkEntry("o2", "OEFFNEN", "2026-05-01T11:25:00Z", "ALLTAG"),
     ];
-    const result = buildPairs(entries, [], reinigung);
+    const result = buildPairs(entries, [], cleaning);
     expect(result).toHaveLength(1);
     expect(result[0].verschluss.id).toBe("v1");
     expect(result[0].oeffnen?.id).toBe("o2");
@@ -208,20 +208,20 @@ describe("buildPairs — Reinigungs-Interruption", () => {
       mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"),
       mkEntry("o1", "OEFFNEN", "2026-05-01T11:00:00Z", "REINIGUNG"),
     ];
-    const result = buildPairs(entries, [], reinigung);
+    const result = buildPairs(entries, [], cleaning);
     expect(result).toHaveLength(1);
     expect(result[0].verschluss.id).toBe("v1");
     expect(result[0].oeffnen?.id).toBe("o1");
     expect(result[0].active).toBe(false);
   });
 
-  it("treats REINIGUNG re-lock at exactly maxMinuten as interruption (boundary inclusive)", () => {
+  it("treats REINIGUNG re-lock at exactly maxMinutes as interruption (boundary inclusive)", () => {
     const entries = [
       mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"),
       mkEntry("o1", "OEFFNEN", "2026-05-01T11:00:00Z", "REINIGUNG"),
       mkEntry("v2", "VERSCHLUSS", "2026-05-01T11:30:00Z"), // exactly 30min
     ];
-    const result = buildPairs(entries, [], reinigung);
+    const result = buildPairs(entries, [], cleaning);
     expect(result).toHaveLength(1);
     expect(result[0].interruptions).toHaveLength(1);
     expect(result[0].active).toBe(true);
@@ -234,7 +234,7 @@ describe("buildPairs — Reinigungs-Interruption", () => {
       mkEntry("v2", "VERSCHLUSS", "2026-05-01T11:15:00Z"),
       mkEntry("o2", "OEFFNEN", "2026-05-01T14:00:00Z"),
     ];
-    const result = buildPairs(entries, [], { reinigung });
+    const result = buildPairs(entries, [], { cleaning });
     expect(result).toHaveLength(1);
     expect(result[0].interruptions).toHaveLength(1);
   });
@@ -248,7 +248,7 @@ describe("buildPairs — Reinigungs-Interruption", () => {
       mkEntry("v3", "VERSCHLUSS", "2026-05-01T15:20:00Z"),
       mkEntry("o3", "OEFFNEN", "2026-05-01T20:00:00Z"),
     ];
-    const result = buildPairs(entries, [], reinigung);
+    const result = buildPairs(entries, [], cleaning);
     expect(result).toHaveLength(1);
     expect(result[0].verschluss.id).toBe("v1");
     expect(result[0].oeffnen?.id).toBe("o3");
@@ -269,8 +269,8 @@ describe("buildPairs — die Reinigungs-Regeln je Zeitpunkt", () => {
   const UMSTELLUNG = new Date("2026-06-01T00:00:00Z");
   /** Bis zum 01.06. erlaubt (30 min), danach verboten. */
   const rules = (at: Date) => at < UMSTELLUNG
-    ? { erlaubt: true, maxMinuten: 30 }
-    : { erlaubt: false, maxMinuten: 30 };
+    ? { allowed: true, maxMinutes: 30 }
+    : { allowed: false, maxMinutes: 30 };
 
   const pauseAm = (tag: string) => [
     mkEntry("v1", "VERSCHLUSS", `${tag}T10:00:00Z`),
@@ -316,7 +316,7 @@ describe("buildPairs — die Reinigungs-Regeln je Zeitpunkt", () => {
   });
 
   it("ein festes Einstellungs-Objekt gilt weiterhin für jeden Zeitpunkt", () => {
-    const result = buildPairs(pauseAm("2026-06-10"), [], { erlaubt: true, maxMinuten: 30 });
+    const result = buildPairs(pauseAm("2026-06-10"), [], { allowed: true, maxMinutes: 30 });
     expect(result).toHaveLength(1);
     expect(result[0].interruptions).toHaveLength(1);
   });
@@ -325,43 +325,43 @@ describe("buildPairs — die Reinigungs-Regeln je Zeitpunkt", () => {
 describe("runningCleaningPauseUntil — dieselbe Frist, nach der buildPairs die Session fortführt", () => {
   const open = mkEntry("o1", "OEFFNEN", "2026-05-01T11:00:00Z", "REINIGUNG");
 
-  it("liefert Öffnung + maxMinuten, solange die Frist läuft", () => {
-    const until = runningCleaningPauseUntil(open, reinigung, t("2026-05-01T11:10:00Z"));
+  it("liefert Öffnung + maxMinutes, solange die Frist läuft", () => {
+    const until = runningCleaningPauseUntil(open, cleaning, t("2026-05-01T11:10:00Z"));
     expect(until?.toISOString()).toBe("2026-05-01T11:30:00.000Z");
   });
 
   it("genau diese Frist ist die Grenze, an der buildPairs noch verschmilzt", () => {
-    const until = runningCleaningPauseUntil(open, reinigung, t("2026-05-01T11:10:00Z"))!;
+    const until = runningCleaningPauseUntil(open, cleaning, t("2026-05-01T11:10:00Z"))!;
     // Wiederverschluss exakt auf der Frist → noch eine Unterbrechung …
     const amLimit = buildPairs([mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"), open,
-      { id: "v2", type: "VERSCHLUSS", startTime: until, oeffnenGrund: null }], [], reinigung);
+      { id: "v2", type: "VERSCHLUSS", startTime: until, oeffnenGrund: null }], [], cleaning);
     expect(amLimit).toHaveLength(1);
     expect(amLimit[0].interruptions).toHaveLength(1);
     // … eine Sekunde später nicht mehr: zwei Sessions.
     const nachLimit = buildPairs([mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"), open,
-      { id: "v2", type: "VERSCHLUSS", startTime: new Date(until.getTime() + 1000), oeffnenGrund: null }], [], reinigung);
+      { id: "v2", type: "VERSCHLUSS", startTime: new Date(until.getTime() + 1000), oeffnenGrund: null }], [], cleaning);
     expect(nachLimit).toHaveLength(2);
   });
 
   it("null nach Fristablauf — die Session ist dann wirklich beendet", () => {
-    expect(runningCleaningPauseUntil(open, reinigung, t("2026-05-01T11:31:00Z"))).toBeNull();
+    expect(runningCleaningPauseUntil(open, cleaning, t("2026-05-01T11:31:00Z"))).toBeNull();
   });
 
   it("auf der Frist selbst läuft die Pause noch — dieselbe Grenze wie buildPairs", () => {
     const grenze = t("2026-05-01T11:30:00Z");
-    expect(runningCleaningPauseUntil(open, reinigung, grenze)?.toISOString()).toBe(grenze.toISOString());
-    expect(runningCleaningPauseUntil(open, reinigung, new Date(grenze.getTime() + 1))).toBeNull();
+    expect(runningCleaningPauseUntil(open, cleaning, grenze)?.toISOString()).toBe(grenze.toISOString());
+    expect(runningCleaningPauseUntil(open, cleaning, new Date(grenze.getTime() + 1))).toBeNull();
   });
 
   it("null, wenn Reinigung gar nicht erlaubt ist", () => {
-    expect(runningCleaningPauseUntil(open, { erlaubt: false, maxMinuten: 30 }, t("2026-05-01T11:10:00Z"))).toBeNull();
+    expect(runningCleaningPauseUntil(open, { allowed: false, maxMinutes: 30 }, t("2026-05-01T11:10:00Z"))).toBeNull();
   });
 
   it("null bei anderem Öffnungsgrund, bei VERSCHLUSS und ohne Eintrag", () => {
     const now = t("2026-05-01T11:10:00Z");
-    expect(runningCleaningPauseUntil({ ...open, oeffnenGrund: "KEYHOLDER" }, reinigung, now)).toBeNull();
-    expect(runningCleaningPauseUntil(mkEntry("v1", "VERSCHLUSS", "2026-05-01T11:00:00Z"), reinigung, now)).toBeNull();
-    expect(runningCleaningPauseUntil(null, reinigung, now)).toBeNull();
+    expect(runningCleaningPauseUntil({ ...open, oeffnenGrund: "KEYHOLDER" }, cleaning, now)).toBeNull();
+    expect(runningCleaningPauseUntil(mkEntry("v1", "VERSCHLUSS", "2026-05-01T11:00:00Z"), cleaning, now)).toBeNull();
+    expect(runningCleaningPauseUntil(null, cleaning, now)).toBeNull();
   });
 });
 
@@ -532,7 +532,7 @@ describe("buildPairs — WEAR_PAIR", () => {
     ];
     const result = buildPairs(entries, [], {
       types: WEAR_PAIR,
-      reinigung: { erlaubt: true, maxMinuten: 30 },
+      cleaning: { allowed: true, maxMinutes: 30 },
     });
     // Two separate pairs — no merge, because reinigung is gated to KG_PAIR
     expect(result).toHaveLength(2);

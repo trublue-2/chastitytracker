@@ -1,10 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { buildPairs, filterAndSortPairEntries, mergeWearPairs, KG_PAIR, WEAR_PAIR, type ReinigungRules, type WearPair } from "@/lib/utils";
+import { buildPairs, filterAndSortPairEntries, mergeWearPairs, KG_PAIR, WEAR_PAIR, type CleaningPauseRules, type WearPair } from "@/lib/utils";
 import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice, type SegmentEntry } from "@/lib/sessionModel";
 import { SESSION_ENTRY_SELECT } from "@/lib/queries";
-import { CLEANING_USER_SELECT } from "@/lib/reinigungService";
-import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
+import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
+import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
 import { evaluateTask, coversPoint, isTaskOffense, isTaskOpen, needsKeyholderReview, type Interval, type ProofLike, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks";
 
 /**
@@ -118,7 +118,7 @@ export interface TaskEntrySource {
   /** Die Reinigungs-Regeln des Nutzers — als Fassung je Zeitpunkt, wo der Aufrufer sie hat
    *  (`cleaningRulesFrom`). Dieselbe Abkürzung wie bei den Einträgen: wer sie ohnehin geladen hat
    *  (Dashboard, Strafbuch, MCP-Dashboard), spart die beiden zusätzlichen Abfragen. */
-  reinigung?: ReinigungRules;
+  cleaning?: CleaningPauseRules;
 }
 
 /** Wie weit zurück eine ABGESCHLOSSENE Aufgabe noch als „kürzlich" gilt — die Alterung, ohne die die
@@ -519,9 +519,9 @@ export async function evaluateTasks(
     // Die Reinigungs-Regeln des Nutzers — siehe die Begründung bei `kgPairs`. Fassung zur Tatzeit
     // statt heutiger Stand (Begründung am Modell `CleaningRuleChange`); beide Abfragen parallel,
     // damit der Poller-Pfad keinen zweiten Roundtrip in Reihe bekommt.
-    !needsKg || opts.reinigung ? Promise.resolve(null)
+    !needsKg || opts.cleaning ? Promise.resolve(null)
       : prisma.user.findUnique({ where: { id: userId }, select: CLEANING_USER_SELECT }),
-    !needsKg || opts.reinigung ? Promise.resolve([])
+    !needsKg || opts.cleaning ? Promise.resolve([])
       : prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
   ]);
 
@@ -531,10 +531,10 @@ export async function evaluateTasks(
   // sonst bekäme der Sub ein Vergehen für ein Verhalten, das ihm ausdrücklich erlaubt ist, und das
   // Strafbuch beurteilte dieselbe Öffnung an zwei Stellen gegensätzlich.
   // Wer die Regeln schon geladen hat, reicht sie durch; sonst stehen sie oben aus der Historie
-  // bereit. Ohne beides (keine Aufgabe braucht den KG) übernimmt `reinigungAt` den Ausweichwert.
-  const reinigungSettings: ReinigungRules | undefined =
-    opts.reinigung ?? (needsKg ? reinigungRulesAt(cleaningRulesFrom(cleaningChanges, cleaningUser)) : undefined);
-  const kgPairs: WearPair[] = buildPairs(kgEntries as KgEntry[], [], reinigungSettings)
+  // bereit. Ohne beides (keine Aufgabe braucht den KG) übernimmt `cleaningAt` den Ausweichwert.
+  const cleaningSettings: CleaningPauseRules | undefined =
+    opts.cleaning ?? (needsKg ? cleaningRulesAt(cleaningRulesFrom(cleaningChanges, cleaningUser)) : undefined);
+  const kgPairs: WearPair[] = buildPairs(kgEntries as KgEntry[], [], cleaningSettings)
     .filter((p) => !p.orphaned)
     .map((p) => ({ start: p.verschluss.startTime, end: p.oeffnen?.startTime ?? now }));
   const wearSessions = buildWearSessions(wearEntries, now);

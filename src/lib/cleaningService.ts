@@ -10,20 +10,20 @@ import {
   HHMM, INVALID_TIME, NO_FIELDS_TO_UPDATE, TIME_RANGE_INVALID,
 } from "@/lib/constants";
 
-export interface ReinigungsFenster {
+export interface CleaningWindows {
   start: string; // "HH:MM"
   end: string;   // "HH:MM"
 }
 
-export interface SetReinigungParams {
+export interface SetCleaningParams {
   /** Allow cleaning pauses (short opening without an entry). */
-  erlaubt?: boolean;
+  allowed?: boolean;
   /** Max minutes per cleaning pause. */
-  maxMinuten?: number;
+  maxMinutes?: number;
   /** Max cleaning pauses per day (0 = unlimited). */
-  maxProTag?: number;
+  maxPerDay?: number;
   /** Daily cleaning windows; raw input, validated/normalised before storing. */
-  fenster?: unknown;
+  windows?: unknown;
   /** Username dessen, der ändert (bzw. `ai`) — Audit-Feld der Historie. */
   changedBy?: string;
   /** Testbarkeit: ab wann die neue Fassung gilt. Default `new Date()`. */
@@ -39,9 +39,9 @@ const MIDNIGHT_END = "24:00";
 /** Die LESE-Regel EINES Fenster-Paares: Form + aufsteigende Reihenfolge, sonst `null`. Bewusst
  *  tolerant gegenüber der Uhrzeit selbst — sie beurteilt BESTAND, und ein einmal gespeichertes
  *  Fenster nachträglich strenger zu lesen hiesse, es dem Sub lautlos wegzunehmen. Die strengere
- *  SCHREIB-Regel setzt darauf auf: {@link reinigungsFensterProblem} lässt nur eine Teilmenge davon
+ *  SCHREIB-Regel setzt darauf auf: {@link cleaningWindowProblem} lässt nur eine Teilmenge davon
  *  durch (per Test gepinnt), damit kein angenommener Schreibvorgang beim Lesen wieder verschwindet. */
-function fensterShape(f: unknown): ReinigungsFenster | null {
+function windowShape(f: unknown): CleaningWindows | null {
   const start = (f as { start?: unknown })?.start;
   const end = (f as { end?: unknown })?.end;
   if (typeof start !== "string" || typeof end !== "string") return null;
@@ -56,7 +56,7 @@ function fensterShape(f: unknown): ReinigungsFenster | null {
  * Falle: „19:00–18:00" käme als `ok` zurück und hätte in Wahrheit ein Fenster GELÖSCHT. Dieselbe
  * Haltung wie beim Geschwister-Service (`setAutoKontrolleSettings` → `INVALID_TIME`).
  */
-export function reinigungsFensterProblem(f: unknown): ServiceErrorCode | null {
+export function cleaningWindowProblem(f: unknown): ServiceErrorCode | null {
   const start = (f as { start?: unknown })?.start;
   const end = (f as { end?: unknown })?.end;
   if (typeof start !== "string" || !HHMM.test(start)) return INVALID_TIME;
@@ -68,11 +68,11 @@ export function reinigungsFensterProblem(f: unknown): ServiceErrorCode | null {
 /** Die SCHREIB-Regel der GANZEN Liste: Array, Länge, jedes Paar. Liefert den stabilen Fehler-Code
  *  plus — wo es eines gibt — den Index des schuldigen Paares: der Service braucht nur den Code, ein
  *  MCP-Agent auch die Stelle. EINE Prüfung für beide, statt einer Kopie je Aufrufer. */
-export function reinigungsFensterListProblem(raw: unknown): { code: ServiceErrorCode; index?: number } | null {
+export function cleaningWindowListProblem(raw: unknown): { code: ServiceErrorCode; index?: number } | null {
   if (!Array.isArray(raw)) return { code: INVALID_TIME };
   if (raw.length > CLEANING_WINDOWS_MAX) return { code: CLEANING_WINDOWS_TOO_MANY };
   for (const [index, f] of raw.entries()) {
-    const code = reinigungsFensterProblem(f);
+    const code = cleaningWindowProblem(f);
     if (code) return { code, index };
   }
   return null;
@@ -80,22 +80,22 @@ export function reinigungsFensterListProblem(raw: unknown): { code: ServiceError
 
 /** Ein Fenster als eine Zeile („19:00-20:00") — für Meldungen und Feld-Diffs, wo eine Liste von
  *  Objekten unlesbar wäre. */
-export function formatReinigungsFenster(f: ReinigungsFenster): string {
+export function formatCleaningWindows(f: CleaningWindows): string {
   return `${f.start}-${f.end}`;
 }
 
-/** Parst + validiert die Fenster-Liste aus User.reinigungsFenster (JSON-String ODER Array;
+/** Parst + validiert die Fenster-Liste aus User.cleaningWindows (JSON-String ODER Array;
  *  tolerant: Murks → []). SQLite/Prisma 5 speichert das Feld als TEXT, daher String-Pfad. */
-export function parseReinigungsFenster(raw: unknown): ReinigungsFenster[] {
+export function parseCleaningWindows(raw: unknown): CleaningWindows[] {
   let arr: unknown = raw;
   if (typeof raw === "string") {
     try { arr = JSON.parse(raw); } catch { return []; }
   }
   if (!Array.isArray(arr)) return [];
-  const out: ReinigungsFenster[] = [];
+  const out: CleaningWindows[] = [];
   for (const f of arr) {
-    const fenster = fensterShape(f);
-    if (fenster) out.push(fenster);
+    const windows = windowShape(f);
+    if (windows) out.push(windows);
   }
   return out;
 }
@@ -103,9 +103,9 @@ export function parseReinigungsFenster(raw: unknown): ReinigungsFenster[] {
 /** „HH:MM" der aktuellen Uhrzeit in `tz` (default APP_TZ; 24h, fix mit ":" für lexikalischen Vergleich). */
 /** Liegt `now` (Sub-Lokalzeit `tz`, default APP_TZ) in einem Reinigungs-Fenster? Liefert dessen Ende „HH:MM", sonst null.
  *  Die Fenster sind Wanduhrzeit des Subs — deshalb muss `tz` die Sub-Zeitzone sein, nicht die des Betrachters. */
-export function aktivesReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): string | null {
+export function activeCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): string | null {
   const hhmm = hhmmInTZ(now, tz);
-  for (const f of parseReinigungsFenster(raw)) {
+  for (const f of parseCleaningWindows(raw)) {
     if (f.start <= hhmm && hhmm < f.end) return f.end;
   }
   return null;
@@ -116,14 +116,14 @@ export function aktivesReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): 
  * des Tages (dann liegt es morgen). null, wenn keine Fenster konfiguriert sind (= nicht zeitgebunden).
  *
  * Läuft `now` gerade IN einem Fenster, liefert das trotzdem das darauffolgende: „aktuell offen"
- * beantwortet {@link aktivesReinigungsFenster}, hier geht es um „wann wieder".
+ * beantwortet {@link activeCleaningWindow}, hier geht es um „wann wieder".
  */
-export function nextReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): ReinigungsFenster | null {
-  const fenster = parseReinigungsFenster(raw);
-  if (fenster.length === 0) return null;
+export function nextCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): CleaningWindows | null {
+  const windows = parseCleaningWindows(raw);
+  if (windows.length === 0) return null;
   const hhmm = hhmmInTZ(now, tz);
-  const sortiert = [...fenster].sort((a, b) => a.start.localeCompare(b.start));
-  return sortiert.find((f) => f.start > hhmm) ?? sortiert[0];
+  const sorted = [...windows].sort((a, b) => a.start.localeCompare(b.start));
+  return sorted.find((f) => f.start > hhmm) ?? sorted[0];
 }
 
 /** Heute (Sub-Kalendertag in `tz`, default APP_TZ) bereits verbrauchte Reinigungs-Öffnungen — gezählt
@@ -131,7 +131,7 @@ export function nextReinigungsFenster(raw: unknown, now: Date, tz = APP_TZ): Rei
  *  solche Events werden nie geschrieben, `usedToday` war real immer 0 und das Tages-Limit griff nie.)
  *  Der DB-Pfad, für Aufrufer OHNE geladene Einträge; aus geladenen Einträgen zählt
  *  {@link countCleaningUsedToday}. */
-export async function reinigungVerbrauchtHeute(userId: string, now: Date, tz = APP_TZ): Promise<number> {
+export async function cleaningUsedToday(userId: string, now: Date, tz = APP_TZ): Promise<number> {
   return prisma.entry.count({
     where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: midnightInTZ(now, tz) } },
   });
@@ -145,7 +145,7 @@ export interface CleaningCountEntry {
   startTime: Date;
 }
 
-/** Dasselbe Ergebnis wie {@link reinigungVerbrauchtHeute}, nur aus bereits geladenen Einträgen
+/** Dasselbe Ergebnis wie {@link cleaningUsedToday}, nur aus bereits geladenen Einträgen
  *  statt aus einer eigenen Abfrage. Bewusst dieselbe Grenze (`>= midnightInTZ`, nach oben offen)
  *  wie das Prisma-`where` daneben — die beiden Zählungen dürfen nie auseinanderlaufen.
  *
@@ -164,54 +164,54 @@ export function countCleaningUsedToday(allEntries: CleaningCountEntry[], now: Da
  *  maxPausesPerDay = max Öffnungen/Tag (COUNT, null = unbegrenzt); usedToday = heute verbraucht;
  *  windows = erlaubte Tages-Zeitfenster (leer = nicht zeitgebunden); windowOpenNow = aktuell offenes
  *  Fenster (until = dessen Ende HH:MM) oder null. */
-export interface ReinigungView {
+export interface CleaningView {
   allowed: boolean;
   maxMinutesPerBreak: number;
   maxPausesPerDay: number | null;
   usedToday: number;
-  windows: ReinigungsFenster[];
+  windows: CleaningWindows[];
   windowOpenNow: { until: string } | null;
 }
 
-/** Prisma-Select genau der Spalten von {@link ReinigungUserFields} — damit Lese- und Schreibseite
+/** Prisma-Select genau der Spalten von {@link CleaningUserFields} — damit Lese- und Schreibseite
  *  (und das Strafbuch, das sie für die Historie braucht) nicht getrennt voneinander veralten. */
 export const CLEANING_USER_SELECT = {
-  reinigungErlaubt: true,
-  reinigungMaxMinuten: true,
-  reinigungMaxProTag: true,
-  reinigungsFenster: true,
+  cleaningAllowed: true,
+  cleaningMaxMinutes: true,
+  cleaningMaxPerDay: true,
+  cleaningWindows: true,
 } as const;
 
-/** User-Reinigungs-Spalten, die `buildReinigungView` braucht (für Prisma-Select bei den Aufrufern). */
-export interface ReinigungUserFields {
-  reinigungErlaubt: boolean | null;
-  reinigungMaxMinuten: number | null;
-  reinigungMaxProTag: number | null;
-  reinigungsFenster: unknown;
+/** User-Reinigungs-Spalten, die `buildCleaningView` braucht (für Prisma-Select bei den Aufrufern). */
+export interface CleaningUserFields {
+  cleaningAllowed: boolean | null;
+  cleaningMaxMinutes: number | null;
+  cleaningMaxPerDay: number | null;
+  cleaningWindows: unknown;
 }
 
-/** Die load-bearing Null-Sentinel-Regel für `reinigungMaxProTag`: `0` (der Spalten-Default) heisst
+/** Die load-bearing Null-Sentinel-Regel für `cleaningMaxPerDay`: `0` (der Spalten-Default) heisst
  *  „unbegrenzt" — nach aussen (get_context.cleaning, MCP dryRun-Previews) immer als `null` zeigen,
  *  nie als die Zahl `0`, sonst liest sich dieselbe Bedeutung an zwei Stellen unterschiedlich (siehe
- *  buildReinigungView, mcpSetCleaning-dryRun). EINE Stelle statt der Ausdruck mehrfach hingeschrieben. */
+ *  buildCleaningView, mcpSetCleaning-dryRun). EINE Stelle statt der Ausdruck mehrfach hingeschrieben. */
 export function maxPausesPerDaySentinel(raw: number | null | undefined): number | null {
-  const maxProTag = raw ?? 0;
-  return maxProTag > 0 ? maxProTag : null;
+  const maxPerDay = raw ?? 0;
+  return maxPerDay > 0 ? maxPerDay : null;
 }
 
-/** Baut die ReinigungView aus den User-Feldern + heute-verbraucht + jetzt. Kapselt die load-bearing
- *  Null-Sentinel-Regel (maxProTag>0 ? : null) und die windowOpenNow-Ableitung an EINER Stelle.
+/** Baut die CleaningView aus den User-Feldern + heute-verbraucht + jetzt. Kapselt die load-bearing
+ *  Null-Sentinel-Regel (maxPerDay>0 ? : null) und die windowOpenNow-Ableitung an EINER Stelle.
  *  `tz` = Sub-Zeitzone (default APP_TZ) — governiert das Wanduhr-Fenster; explizit übergeben statt aus
  *  `user` gelesen, damit ein fehlendes Select nicht still auf APP_TZ zurückfällt (Konsistenz mit den
  *  übrigen tz-Callsites). */
-export function buildReinigungView(user: ReinigungUserFields, usedToday: number, now: Date, tz = APP_TZ): ReinigungView {
-  const windowEnd = aktivesReinigungsFenster(user.reinigungsFenster, now, tz); // "HH:MM" oder null
+export function buildCleaningView(user: CleaningUserFields, usedToday: number, now: Date, tz = APP_TZ): CleaningView {
+  const windowEnd = activeCleaningWindow(user.cleaningWindows, now, tz); // "HH:MM" oder null
   return {
-    allowed: user.reinigungErlaubt ?? false,
-    maxMinutesPerBreak: user.reinigungMaxMinuten ?? 15,
-    maxPausesPerDay: maxPausesPerDaySentinel(user.reinigungMaxProTag),
+    allowed: user.cleaningAllowed ?? false,
+    maxMinutesPerBreak: user.cleaningMaxMinutes ?? 15,
+    maxPausesPerDay: maxPausesPerDaySentinel(user.cleaningMaxPerDay),
     usedToday,
-    windows: parseReinigungsFenster(user.reinigungsFenster),
+    windows: parseCleaningWindows(user.cleaningWindows),
     windowOpenNow: windowEnd ? { until: windowEnd } : null,
   };
 }
@@ -224,20 +224,20 @@ export function buildReinigungView(user: ReinigungUserFields, usedToday: number,
  * beschnitten zu werden: ein verworfenes Paar wäre für den Aufrufer nicht von „gespeichert" zu
  * unterscheiden — er hätte ein Fenster gelöscht und ein `ok` bekommen.
  */
-export async function setReinigungSettings(userId: string, params: SetReinigungParams): Promise<ServiceResult<null>> {
+export async function setCleaningSettings(userId: string, params: SetCleaningParams): Promise<ServiceResult<null>> {
   const data: {
-    reinigungErlaubt?: boolean; reinigungMaxMinuten?: number; reinigungMaxProTag?: number;
-    reinigungsFenster?: string;
+    cleaningAllowed?: boolean; cleaningMaxMinutes?: number; cleaningMaxPerDay?: number;
+    cleaningWindows?: string;
   } = {};
 
-  if (params.erlaubt !== undefined) data.reinigungErlaubt = params.erlaubt;
-  if (params.maxMinuten !== undefined) data.reinigungMaxMinuten = clamp(params.maxMinuten, CLEANING_MAX_MINUTES_RANGE);
-  if (params.maxProTag !== undefined) data.reinigungMaxProTag = clamp(params.maxProTag, CLEANING_MAX_PER_DAY_RANGE);
-  if (params.fenster !== undefined) {
-    const problem = reinigungsFensterListProblem(params.fenster);
+  if (params.allowed !== undefined) data.cleaningAllowed = params.allowed;
+  if (params.maxMinutes !== undefined) data.cleaningMaxMinutes = clamp(params.maxMinutes, CLEANING_MAX_MINUTES_RANGE);
+  if (params.maxPerDay !== undefined) data.cleaningMaxPerDay = clamp(params.maxPerDay, CLEANING_MAX_PER_DAY_RANGE);
+  if (params.windows !== undefined) {
+    const problem = cleaningWindowListProblem(params.windows);
     if (problem) return serviceFail(400, problem.code);
     // Als JSON-String ablegen (TEXT-Spalte).
-    data.reinigungsFenster = JSON.stringify(parseReinigungsFenster(params.fenster));
+    data.cleaningWindows = JSON.stringify(parseCleaningWindows(params.windows));
   }
 
   if (Object.keys(data).length === 0) return serviceFail(400, NO_FIELDS_TO_UPDATE);
@@ -245,7 +245,7 @@ export async function setReinigungSettings(userId: string, params: SetReinigungP
   const now = params.now ?? new Date();
 
   // Bestand lesen, Historie schreiben und Spalten setzen in EINER Transaktion. Die Oberfläche
-  // schickt je Feld einen eigenen PATCH (`ReinigungToggle`), zwei davon können sich überlappen —
+  // schickt je Feld einen eigenen PATCH (`CleaningToggle`), zwei davon können sich überlappen —
   // ausserhalb der Transaktion gelesen sähen beide denselben Bestand und schrieben zwei Grundzeilen
   // bzw. eine falsche Vorher-Fassung. Und bräche sie nach der Spalten-Änderung ab, stünde der neue
   // Wert ohne Historie da: das Strafbuch beurteilte die Vergangenheit wieder nach dem heutigen
@@ -255,10 +255,10 @@ export async function setReinigungSettings(userId: string, params: SetReinigungP
       await tx.user.findUnique({ where: { id: userId }, select: CLEANING_USER_SELECT }),
     );
     const after: CleaningSettings = {
-      allowed: data.reinigungErlaubt ?? before.allowed,
-      maxMinutes: data.reinigungMaxMinuten ?? before.maxMinutes,
-      maxPerDay: data.reinigungMaxProTag ?? before.maxPerDay,
-      windows: data.reinigungsFenster ?? before.windows,
+      allowed: data.cleaningAllowed ?? before.allowed,
+      maxMinutes: data.cleaningMaxMinutes ?? before.maxMinutes,
+      maxPerDay: data.cleaningMaxPerDay ?? before.maxPerDay,
+      windows: data.cleaningWindows ?? before.windows,
     };
     // Die Historie hält Änderungen fest, nicht Klicks: ein Speichern, das nichts bewegt, schreibt
     // keine Zeile — sonst nennte `changedBy` irgendwann den, der zuletzt bestätigt hat, statt den,

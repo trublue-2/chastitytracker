@@ -21,7 +21,7 @@ import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
  * sie die Reinigung nicht bewegt. Der Preis ist diese Datei — rund dreissig Zeilen ähnlicher
  * Zeitarithmetik.
  *
- * **Für `/simplify`: die Doppelung ist gesehen und gewollt.** Wer sie mit `reinigungService.ts`
+ * **Für `/simplify`: die Doppelung ist gesehen und gewollt.** Wer sie mit `cleaningService.ts`
  * zusammenlegt, ändert die Reinigungslogik — eine eigene Entscheidung, keine Aufräumarbeit nebenbei
  * (siehe docs/gewicht-konzept.md, Abschnitt 4.1).
  *
@@ -107,7 +107,7 @@ export function parseWeighingWindows(raw: unknown): WeighingWindow[] {
  * Der Lese-Pfad verwirft Murks still; für einen Schreiber wäre genau das die Falle — ein Fenster
  * über Mitternacht käme als `ok` zurück und wäre in Wahrheit gelöscht.
  *
- * Der `index` sagt, WELCHES Fenster stört (Vorbild `reinigungsFensterListProblem`). Ohne ihn bekommt
+ * Der `index` sagt, WELCHES Fenster stört (Vorbild `cleaningWindowListProblem`). Ohne ihn bekommt
  * eine Agentin, die fünf Fenster auf einmal setzt, ein blosses „Invalid time" und muss raten.
  */
 export function weighingWindowsProblem(raw: unknown): { code: ServiceErrorCode; index?: number } | null {

@@ -163,7 +163,7 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
     lateControls: sb.lateControls.map(toControlRow("late_control")),
     rejectedControls: sb.rejectedControls.map(toControlRow("rejected_control")),
     autoRemovedControls: sb.autoRemovedControls.map(toControlRow("auto_removed_control")),
-    cleaningLimitViolations: sb.reinigungLimitViolations.map((v) => ({
+    cleaningLimitViolations: sb.cleaningLimitViolations.map((v) => ({
       time: v.startTime ? fmt(v.startTime) : null,
       note: v.note,
       ...judge("cleaning_limit", v.entryId),

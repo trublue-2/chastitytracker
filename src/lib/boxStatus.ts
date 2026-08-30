@@ -2,7 +2,7 @@
 // Dashboard-Box-Status-Karte (BoxStatusCard). Keine Server-Imports — reine Formatierung; i18n bleibt
 // beim Aufrufer (Labels via übergebenem `t`).
 
-import type { ReinigungView, ReinigungsFenster } from "@/lib/reinigungService";
+import type { CleaningView, CleaningWindows } from "@/lib/cleaningService";
 import type { CleaningBlockReason } from "@/lib/queries";
 
 export type BoxRow = {
@@ -41,13 +41,13 @@ export type BoxRow = {
   fwVersion: string | null;
 };
 
-/** Reinigungs-Regeln des Subs: die `ReinigungView` des Servers plus das nächste Fenster.
- *  Nicht neu deklariert — sonst müsste ein neues Feld in `buildReinigungView` hier von Hand
+/** Reinigungs-Regeln des Subs: die `CleaningView` des Servers plus das nächste Fenster.
+ *  Nicht neu deklariert — sonst müsste ein neues Feld in `buildCleaningView` hier von Hand
  *  nachgezogen werden und die Karte läse still `undefined`. `import type` wird zur Laufzeit
  *  gelöscht, zieht also kein Prisma in dieses client-sichere Modul. */
-export type BoxReinigungView = ReinigungView & {
-  nextWindow: ReinigungsFenster | null;
-  /** Das Live-Urteil des Servers (`cleaningBlockReason`), inklusive der AKTIVEN Sperrzeit. `allowed`
+export type BoxCleaningView = CleaningView & {
+  nextWindow: CleaningWindows | null;
+  /** Das Live-Urteil des Servers (`cleaningBlockReason`), inklusive der AKTIVEN Sperrzeit. `erlaubt`
    *  allein kennt sie nicht — deshalb versprach die Karte Fenster, die eine reinigungsverbietende
    *  Sperre längst gesperrt hatte. */
   blockedBy: CleaningBlockReason | null;
@@ -74,7 +74,7 @@ export function toPendingCommand(raw: string | null | undefined): "lock" | "open
  * Die Vorgängerin beantwortete alle vier Fälle in einem Rückgabewert und zwang die Karte damit,
  * dauerhaft eine Zeile dafür freizuhalten — auch für „es gibt keine Fenster".
  */
-export function boxCleaningWindowOpenLabel(r: BoxReinigungView | null, t: Translate): string | null {
+export function boxCleaningWindowOpenLabel(r: BoxCleaningView | null, t: Translate): string | null {
   if (!r?.allowed || r.blockedBy) return null;
   return r.windowOpenNow ? t("cleaningWindowOpen", { until: r.windowOpenNow.until }) : null;
 }

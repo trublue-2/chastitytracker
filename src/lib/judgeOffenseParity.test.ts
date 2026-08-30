@@ -325,7 +325,7 @@ describe("Zwei Vergehen an derselben Referenz", () => {
     mock(buildStrafbuch).mockResolvedValue({
       ...emptyOffenseLists(),
       unauthorizedOpenings: [{ id: ENTRY, startTime: NOW }],
-      reinigungLimitViolations: [{ entryId: ENTRY, startTime: NOW }],
+      cleaningLimitViolations: [{ entryId: ENTRY, startTime: NOW }],
     });
   });
 

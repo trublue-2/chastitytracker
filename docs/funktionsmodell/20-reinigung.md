@@ -17,8 +17,8 @@ Erlaubnis ist zweistufig, und das ist die häufigste Verwechslung:
 
 | Feld | Gilt | Bedeutung |
 |---|---|---|
-| `User.reinigungErlaubt` | dauerhaft | darf dieser Sub grundsätzlich reinigen |
-| `VerschlussAnforderung.reinigungErlaubt` | je Sperrzeit | bricht eine Reinigungsöffnung DIESE Sperre nicht |
+| `User.cleaningAllowed` | dauerhaft | darf dieser Sub grundsätzlich reinigen |
+| `VerschlussAnforderung.cleaningAllowed` | je Sperrzeit | bricht eine Reinigungsöffnung DIESE Sperre nicht |
 
 **Beide müssen zutreffen**, und bei mehreren aktiven Sperrzeiten müssen es **alle** erlauben.
 
@@ -38,7 +38,7 @@ Ahndung entscheidet der Keyholder.
 
 ## Zeitfenster: wann sie überhaupt binden
 
-`reinigungsFenster` bindet **nur während einer aktiven Sperrzeit, die die Reinigung erlaubt**.
+`cleaningWindows` bindet **nur während einer aktiven Sperrzeit, die die Reinigung erlaubt**.
 Ausserhalb dieses Kontexts ist eine Reinigungsöffnung immer erlaubt, egal was die Fenster sagen —
 `cleaningWindowBindingStatus` nennt den Grund (`no-active-lock-period`, `user-not-allowed`,
 `lock-period-forbids`, `no-windows-configured`).
@@ -46,7 +46,7 @@ Ausserhalb dieses Kontexts ist eine Reinigungsöffnung immer erlaubt, egal was d
 Zwei Fallen:
 
 - **Leere Fensterliste ist kein Verbot**, sondern „nicht an eine Tageszeit gebunden". Verboten wird
-  mit `reinigungErlaubt: false`.
+  mit `cleaningAllowed: false`.
 - **Ein Fenster wrappt nicht über Mitternacht.** `22:00–06:00` braucht zwei Einträge.
 
 Die Fenster sind Wanduhrzeit **des Subs** (`User.timezone`), nicht Serverzeit.
@@ -90,9 +90,9 @@ geöffnet werden darf.
 ## Code
 
 `queries.ts` (`cleaningBlockReason`, `cleaningWindowOpen`, `cleaningWindowBindingStatus`,
-`isAllowedCleaningOpen`), `reinigungService.ts`, `cleaningRules.ts`, `boxReinigung.ts`.
+`isAllowedCleaningOpen`), `cleaningService.ts`, `cleaningRules.ts`, `boxCleaning.ts`.
 
 ## Tests
 
-`cleaningRules.test.ts`, `reinigungService.test.ts`, `reinigungRuleHistory.test.ts`,
+`cleaningRules.test.ts`, `reinigungService.test.ts`, `cleaningRuleHistory.test.ts`,
 `queries.test.ts`, `cleaningRelockInspection.test.ts`, `lockPeriodInterruption.test.ts`.

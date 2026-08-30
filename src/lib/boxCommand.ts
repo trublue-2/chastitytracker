@@ -10,7 +10,7 @@ import { heimdallEnabled } from "@/lib/constants";
  * Zwei Kommandos, keine Frist. Eine Reinigungspause ist OEFFNEN(Grund Reinigung) + späteres
  * VERSCHLUSS: das `open` setzt in Heimdall den aus der Sperrzeit gezogenen Dauerauftrag aus
  * (`holdOpen`), das `lock` nimmt ihn zurück. WANN wiederverschlossen sein muss, entscheidet allein
- * der Tracker (Strafbuch, `reinigungRelockDeadline`). Die Box bekommt diese Frist bewusst nicht —
+ * der Tracker (Strafbuch, `cleaningRelockDeadline`). Die Box bekommt diese Frist bewusst nicht —
  * sie würde den Riegel bei deren Ablauf unbeaufsichtigt zufahren.
  *
  * No-op ohne Heimdall (`HEIMDALL_SYNC_SECRET` nicht gesetzt) und für User ohne Box (updateMany trifft 0

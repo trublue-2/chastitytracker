@@ -12,10 +12,9 @@ import {
   fixedWindowMinutes,
 } from "@/lib/autoKontrolleService";
 import {
-  formatReinigungsFenster,
+  formatCleaningWindows,
   maxPausesPerDaySentinel,
-  parseReinigungsFenster,
-} from "@/lib/reinigungService";
+  parseCleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import {
   OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS, switchableOffenseTypesFor,
 } from "@/lib/offenseLabels";
@@ -26,7 +25,7 @@ import { weightText, type UnitSystem } from "@/lib/weight";
 import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/utils";
 
 /** Ein „von–bis"-Paar als eine Zeile. Die Seite zeigt drei Sorten davon (Uhrzeiten, Minuten,
- *  Anzahl) — `formatReinigungsFenster` bleibt beim Reinigungs-Fenster, dessen Form es kennt. */
+ *  Anzahl) — `formatCleaningWindows` bleibt beim Reinigungs-Fenster, dessen Form es kennt. */
 function range(from: string | number, to: string | number): string {
   return `${from}–${to}`;
 }
@@ -49,10 +48,7 @@ export default async function RulesPage() {
     prisma.user.findUnique({
       where: { id: userId },
       select: {
-        reinigungErlaubt: true,
-        reinigungMaxMinuten: true,
-        reinigungMaxProTag: true,
-        reinigungsFenster: true,
+        ...CLEANING_USER_SELECT,
         weightTrackingEnabled: true,
         unitSystem: true,
         ...AUTO_KONTROLLE_SETTINGS_SELECT,
@@ -76,7 +72,7 @@ export default async function RulesPage() {
   const releaseUnitLabel = viewerUnit === "imperial" ? tc("unitLbs") : tc("unitKg");
   const tz = user?.timezone || APP_TZ;
 
-  const cleaningWindows = parseReinigungsFenster(user?.reinigungsFenster);
+  const cleaningWindows = parseCleaningWindows(user?.cleaningWindows);
   const auto = user ? autoKontrolleSettingsFromUser(user) : null;
   // Ein festes Auslöse-Fenster gilt nur, wenn beide Zeiten stehen und aufsteigend sind — genau die
   // Frage, die der Planer stellt. Über seinen Helfer statt über „beide Felder nicht leer", sonst
@@ -104,16 +100,16 @@ export default async function RulesPage() {
           <div className="flex flex-col gap-3">
             <DetailField label={t("cleaningAllowedLabel")}>
               <p className="text-sm font-semibold text-foreground">
-                {user?.reinigungErlaubt ? tc("yes") : tc("no")}
+                {user?.cleaningAllowed ? tc("yes") : tc("no")}
               </p>
             </DetailField>
             {/* Die Parameter nur bei erlaubter Reinigung — abgeschaltet beschreiben sie nichts,
                 was gälte, und liessen die Seite strenger aussehen als die Regel ist. */}
-            {user?.reinigungErlaubt && (
+            {user?.cleaningAllowed && (
               <>
                 <DetailField label={ta("reinigungMaxLabel")}>
                   <p className="text-sm text-foreground-muted">
-                    {user.reinigungMaxMinuten} {tc("minutesUnit")}
+                    {user.cleaningMaxMinutes} {tc("minutesUnit")}
                   </p>
                 </DetailField>
                 <DetailField label={ta("reinigungMaxProTagLabel")}>
@@ -121,7 +117,7 @@ export default async function RulesPage() {
                       gespeicherte `0` „unbegrenzt" HEISST, ist eine Regel und keine Formatierung —
                       sie steht bewusst an genau einer Stelle (Begründung dort). */}
                   <p className="text-sm text-foreground-muted">
-                    {maxPausesPerDaySentinel(user.reinigungMaxProTag) ?? t("unlimited")}
+                    {maxPausesPerDaySentinel(user.cleaningMaxPerDay) ?? t("unlimited")}
                   </p>
                 </DetailField>
                 <DetailField label={ta("reinigungFensterLabel")}>
@@ -132,7 +128,7 @@ export default async function RulesPage() {
                       {/* Index als Schlüssel: zwei identische Fenster sind erlaubt (der Editor
                           verhindert sie nicht), die Liste ist rein lesend und ändert sich nicht. */}
                       {cleaningWindows.map((f, i) => (
-                        <li key={i}>{formatReinigungsFenster(f)}</li>
+                        <li key={i}>{formatCleaningWindows(f)}</li>
                       ))}
                     </ul>
                   )}

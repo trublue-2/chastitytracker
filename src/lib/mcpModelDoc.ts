@@ -47,7 +47,7 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   und ihre Sperrzeit wird trotzdem gesetzt (Mindest-Tragedauer ab dem Auslöse-Zeitpunkt, ein
   absolutes Sperr-Ende unverändert). Der Sub bekommt sie als normale Sperrzeit gemeldet; die
   Anforderung selbst hat er nie gesehen. Kein \`late_lock\` — er hat nichts versäumt.
-- **\`reinigungErlaubt\` auf der Sperrzeit** ist der Schalter: nur wenn gesetzt, ist ein Öffnen zur
+- **\`cleaningAllowed\` auf der Sperrzeit** ist der Schalter: nur wenn gesetzt, ist ein Öffnen zur
   Reinigung (oder ein Gerätewechsel) während DIESER Sperre rechtmässig.
 - **Box** = die physische Schlüssel-Lockbox hinter einer Sperre. **Während einer Sperrzeit hält die
   Box den Schlüssel fest** — eine Sperre ist nicht bloss ein Tracker-Eintrag, sondern ein echter
@@ -122,7 +122,7 @@ direkt aus, ohne Rückfrage oder Bestätigung.
 ## 4. Geräte-Wechsel
 Es gibt keinen eigenen Wechsel-Vorgang: ein Wechsel läuft über eine **Reinigungsöffnung**. Folgen: er
 verbraucht das Tages-Reinigungskontingent, und während einer Sperre ist er nur rechtmässig, wenn die
-Sperre \`reinigungErlaubt\` hat. Freie Wechsel erlauben ⇒ \`reinigungErlaubt\` setzen UND
+Sperre \`cleaningAllowed\` hat. Freie Wechsel erlauben ⇒ \`cleaningAllowed\` setzen UND
 \`maxPausesPerDay\` hoch genug halten.
 
 ## 5. Vergehen: ERKANNT ≠ BESTRAFT

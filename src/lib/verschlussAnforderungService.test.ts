@@ -491,7 +491,7 @@ describe("updateLockRequest", () => {
   /** Eine ANFORDERUNGs-Zeile, wie updateLockRequest sie liest (inkl. user für die Zustellung). */
   const anf = (overrides: object) => ({
     id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: SPAETER, message: null, dauerH: null,
-    lockEndsAt: null, deviceId: null, reinigungErlaubt: false, fulfilledAt: null, withdrawnAt: null,
+    lockEndsAt: null, deviceId: null, cleaningAllowed: false, fulfilledAt: null, withdrawnAt: null,
     user: { id: "u1", email: "sub@example.invalid", username: "sub", locale: "de" },
     ...overrides,
   });
@@ -582,9 +582,9 @@ describe("updateLockRequest", () => {
 
   it("das Reinigungs-Flag ohne Sperr-Vorgabe fällt weg (es hätte nichts zu erlauben)", async () => {
     findUniqueMock.mockResolvedValue(anf(triggered));
-    await updateLockRequest("a1", { reinigungErlaubt: true }, "herrin");
+    await updateLockRequest("a1", { cleaningAllowed: true }, "herrin");
 
-    expect(updateMock.mock.calls[0][0].data.reinigungErlaubt).toBe(false);
+    expect(updateMock.mock.calls[0][0].data.cleaningAllowed).toBe(false);
   });
 
   it("ein Sperr-Ende vor der Auslösung wird abgelehnt (dieselbe Regel wie beim Anlegen)", async () => {

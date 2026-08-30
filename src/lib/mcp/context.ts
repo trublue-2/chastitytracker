@@ -3,7 +3,7 @@ import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArr
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser, autoInspectionsView, type AutoInspectionsView } from "@/lib/autoKontrolleService";
 import { weightReleaseStatus } from "@/lib/weightReleaseService";
-import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
+import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { getActiveLockPeriod, cleaningWindowBindingStatus, type WindowsBindingReason } from "@/lib/queries";
 import { type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 import { getOffenseRules } from "@/lib/offenseRulesService";
@@ -33,11 +33,11 @@ export async function loadActiveHealthHold(userId: string, isoFn: Iso = iso): Pr
   return h ? { id: h.id, active: true, reason: h.reason, since: isoFn(h.createdAt)! } : null;
 }
 
-/** MCP-Erweiterung der geteilten `ReinigungView` (auch von `src/app/dashboard/page.tsx` genutzt) um
- *  die drei A-02-Felder. Bewusst NICHT Teil von `ReinigungView` selbst: die binden nur im
+/** MCP-Erweiterung der geteilten `CleaningView` (auch von `src/app/dashboard/page.tsx` genutzt) um
+ *  die drei A-02-Felder. Bewusst NICHT Teil von `CleaningView` selbst: die binden nur im
  *  Sperrzeit-Kontext, den nur der MCP-Layer hier ohnehin schon lädt — dieselbe Erweiterungs-Technik
- *  wie `BoxReinigungView` in `src/lib/boxStatus.ts`. */
-export type ContextReinigungView = ReinigungView & {
+ *  wie `BoxCleaningView` in `src/lib/boxStatus.ts`. */
+export type ContextCleaningView = CleaningView & {
   windowsBinding: boolean;
   windowsBindingReason: WindowsBindingReason;
   openingAllowedNow: boolean;
@@ -87,7 +87,7 @@ export interface ContextResult extends Envelope {
   autoInspections: AutoInspectionsView;
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung), plus
    *  windowsBinding/windowsBindingReason/openingAllowedNow (A-02). */
-  cleaning: ContextReinigungView;
+  cleaning: ContextCleaningView;
   /**
    * Welche Vergehensarten bei diesem Sub GERADE gelten: `off`/`on`, bei `unauthorized_orgasm`
    * zusätzlich `lockedOnly` (nur während einer Sperrzeit) und `always`.
@@ -130,7 +130,7 @@ export interface ContextResult extends Envelope {
 
 const contextUserSelect = {
   id: true, timezone: true,
-  reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true,
+  ...CLEANING_USER_SELECT,
   autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true, autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
   autoKontrolleNurBeiSperre: true,
@@ -157,11 +157,11 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     gte: parseIsoDate(opts.appointmentsFrom, "appointmentsFrom") ?? now,
     ...(apptTo ? { lte: apptTo } : {}),
   };
-  const [healthHold, recurring, appts, cleaningUsedToday, lockPeriod, offenseRules, release] = await Promise.all([
+  const [healthHold, recurring, appts, cleaningUsedTodayCount, lockPeriod, offenseRules, release] = await Promise.all([
     loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: apptWhen }, orderBy: { when: "asc" } }),
-    reinigungVerbrauchtHeute(userId, now, user.timezone ?? APP_TZ),
+    cleaningUsedToday(userId, now, user.timezone ?? APP_TZ),
     getActiveLockPeriod(userId),
     // Über den Service, nicht über eine eigene Abfrage: dort steht `CHANGE_SELECT` ausdrücklich,
     // „damit die Lese- und die Schreib-Abfrage nicht getrennt voneinander veralten" — eine Kopie
@@ -173,7 +173,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
   // Auto-Kontroll-Einstellungen + Reinigung über die geteilten Helfer der jeweiligen Services.
   const auto = autoKontrolleSettingsFromUser(user);
   const binding = cleaningWindowBindingStatus(
-    { reinigungErlaubt: user.reinigungErlaubt ?? false, reinigungsFenster: user.reinigungsFenster, timezone: user.timezone ?? APP_TZ },
+    { cleaningAllowed: user.cleaningAllowed ?? false, cleaningWindows: user.cleaningWindows, timezone: user.timezone ?? APP_TZ },
     lockPeriod,
     now,
   );
@@ -184,7 +184,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     ...buildEnvelope(now, iso, user.timezone ?? APP_TZ),
     healthHold,
     autoInspections: autoInspectionsView(auto),
-    cleaning: { ...buildReinigungView(user, cleaningUsedToday, now, user.timezone ?? APP_TZ), ...binding },
+    cleaning: { ...buildCleaningView(user, cleaningUsedTodayCount, now, user.timezone ?? APP_TZ), ...binding },
     inspectionEscalation: {
       reminderEnabled: user.inspectionReminderEnabled,
       reminderDelayMinutes: user.inspectionReminderDelayMinutes,

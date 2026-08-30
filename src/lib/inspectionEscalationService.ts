@@ -237,7 +237,7 @@ export async function setInspectionEscalationSettings(
     data.inspectionAutoMarkDelayMinutes = clamp(params.autoMarkDelayMinutes, INSPECTION_AUTO_MARK_DELAY_RANGE);
   }
 
-  // Gleicher Kontrakt wie setReinigungSettings/setAutoKontrolleSettings: ein leerer Patch ist ein
+  // Gleicher Kontrakt wie setCleaningSettings/setAutoKontrolleSettings: ein leerer Patch ist ein
   // Aufruferfehler. Reine Geschwister-Konsistenz — über die Route unerreichbar (sie prüft vorher
   // „mind. ein Feld"), aber ihr Ergebnis wird dort ausgewertet und durchgereicht.
   if (Object.keys(data).length === 0) return serviceFail(400, NO_FIELDS_TO_UPDATE);

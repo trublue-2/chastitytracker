@@ -202,7 +202,7 @@ function sessionView(s: TaggedSession, notesByEntity: Map<string, NoteDTO[]>, is
  *  deviceBreakdown und inline verknüpften Notes. Throws, wenn der User unbekannt ist. */
 export async function getSession(username: string, opts: GetSessionOptions = {}): Promise<SessionListResult> {
   const userId = await resolveUserId(username);
-  const [{ entries, reinigung, devices, timezone }, { nameById, kgName }] = await Promise.all([
+  const [{ entries, cleaning, devices, timezone }, { nameById, kgName }] = await Promise.all([
     loadTrackingData(userId),
     loadCategoryNames(userId),
   ]);
@@ -220,7 +220,7 @@ export async function getSession(username: string, opts: GetSessionOptions = {})
   // wird gebaut, auch wenn nur eine sessionId gefragt ist. Bei sehr langer Historie der dominante
   // Kostenfaktor; ein Zeitfenster-Cut wäre die Optimierung, falls dieser Pfad heiss wird.
   const all: TaggedSession[] = [
-    ...buildSessions(entries, reinigung, now, devices).map((s) => tag(s, kgName)),
+    ...buildSessions(entries, cleaning, now, devices).map((s) => tag(s, kgName)),
     ...buildWearSessions(entries, now).map((s) => tag(s, null)),
   ].sort((a, b) => b.start.getTime() - a.start.getTime());
 

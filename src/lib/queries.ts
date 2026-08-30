@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund, EntrySource } from "@/lib/constants";
 import { LOCK_ENDED_REASON, heimdallEnabled } from "@/lib/constants";
-import { aktivesReinigungsFenster, parseReinigungsFenster } from "@/lib/reinigungService";
+import { activeCleaningWindow, parseCleaningWindows } from "@/lib/cleaningService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { APP_TZ } from "@/lib/utils";
 
@@ -564,11 +564,11 @@ function lockPeriodUserFilter(userId: string | { userIds: string[] }) {
  * - `endsAt`: unbefristet schlägt alles, sonst das SPÄTESTE Ende. Nähme man die zuletzt angelegte
  *   (das tat `findFirst` + `orderBy createdAt desc`), liefe die Box beim frühesten Ende auf — die
  *   längere Sperre der Keyholderin wäre stillschweigend verkürzt, physisch.
- * - `reinigungErlaubt`: nur wenn JEDE aktive Sperre es erlaubt (dieselbe UND-Regel wie
+ * - `cleaningAllowed`: nur wenn JEDE aktive Sperre es erlaubt (dieselbe UND-Regel wie
  *   {@link cleaningBlockReason}, das deshalb eine Liste nimmt).
  * Die übrigen Felder (Nachricht, Gerät, id) stammen aus der durchsetzenden Zeile.
  */
-export function foldActiveLockPeriods<T extends { endsAt: Date | null; reinigungErlaubt: boolean }>(
+export function foldActiveLockPeriods<T extends { endsAt: Date | null; cleaningAllowed: boolean }>(
   rows: T[],
 ): T | null {
   if (rows.length === 0) return null;
@@ -577,7 +577,7 @@ export function foldActiveLockPeriods<T extends { endsAt: Date | null; reinigung
     if (b.endsAt === null) return b;
     return b.endsAt > a.endsAt ? b : a;      // sonst das spätere Ende
   });
-  return { ...enforcing, reinigungErlaubt: rows.every((r) => r.reinigungErlaubt) };
+  return { ...enforcing, cleaningAllowed: rows.every((r) => r.cleaningAllowed) };
 }
 
 /** ALLE aktuell OFFENEN (noch nicht eingereichten) Kontroll-Anforderungen, dringendste Frist zuerst.
@@ -736,9 +736,9 @@ export async function getKeyholderOrgasmusAnforderungen(userIds: string[]) {
  *  Reinigungsöffnung ein Verstoss. Einzige Quelle für diese Frage — von `isAllowedCleaningOpen`
  *  (Öffnen bricht die Sperrzeit?) und `isOpeningPermittedNow` (Bildersafe-Gate) geteilt, die sonst
  *  auseinanderliefen. `tz` ist die Zone des SUBS: die Fenster sind seine Wanduhrzeit. */
-export function cleaningWindowOpen(reinigungsFenster: unknown, at: Date, tz: string): boolean {
-  const fenster = parseReinigungsFenster(reinigungsFenster);
-  return fenster.length === 0 || aktivesReinigungsFenster(fenster, at, tz) !== null;
+export function cleaningWindowOpen(cleaningWindows: unknown, at: Date, tz: string): boolean {
+  const fenster = parseCleaningWindows(cleaningWindows);
+  return fenster.length === 0 || activeCleaningWindow(fenster, at, tz) !== null;
 }
 
 /**
@@ -752,10 +752,10 @@ export async function isOpeningPermittedNow(userId: string, now: Date = new Date
 
   // Erlaubte Reinigungsöffnung — dieselbe Quelle wie Durchsetzung und Strafbuch. Der äussere Guard
   // spart nur die User-Abfrage, wenn die Sperrzeit Reinigung ohnehin verbietet.
-  if (lockPeriod.reinigungErlaubt) {
+  if (lockPeriod.cleaningAllowed) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { reinigungErlaubt: true, reinigungsFenster: true, timezone: true },
+      select: { cleaningAllowed: true, cleaningWindows: true, timezone: true },
     });
     if (user && cleaningBlockReason(user, [lockPeriod], now) === null) return true;
   }
@@ -819,9 +819,9 @@ export async function isCodePhotoRevealed(
 /** Der Teil des Users, den die Reinigungs-Erlaubnis braucht. Aufrufer, die ihn ohnehin geladen
  *  haben, reichen ihn durch (spart den Refetch); sonst lädt {@link releaseLockPeriodsOnOpen} ihn. */
 export interface CleaningPermissionUser {
-  reinigungErlaubt: boolean;
-  /** JSON-String ODER Array — `parseReinigungsFenster` ist tolerant. Leer = nicht zeitgebunden. */
-  reinigungsFenster: unknown;
+  cleaningAllowed: boolean;
+  /** JSON-String ODER Array — `parseCleaningWindows` ist tolerant. Leer = nicht zeitgebunden. */
+  cleaningWindows: unknown;
   /** IANA-Zone des SUBS: die Fenster sind seine Wanduhrzeit, nicht die des Betrachters. */
   timezone: string;
 }
@@ -849,17 +849,17 @@ export type CleaningBlockReason = "userNotAllowed" | "lockPeriodForbids" | "outs
  * rückdatierte `startTime` die Schranke sonst aushebelte. Das Strafbuch prüft `startTime`, weil es
  * Buch über die Vergangenheit führt.
  *
- * Das Tageskontingent (`reinigungMaxProTag`) gehört bewusst NICHT hierher: es wird nur erkannt, nicht
+ * Das Tageskontingent (`cleaningMaxPerDay`) gehört bewusst NICHT hierher: es wird nur erkannt, nicht
  * durchgesetzt — die Keyholderin entscheidet über die Ahndung.
  */
 export function cleaningBlockReason(
   user: CleaningPermissionUser,
-  activeLockPeriods: { reinigungErlaubt: boolean }[],
+  activeLockPeriods: { cleaningAllowed: boolean }[],
   at: Date,
 ): CleaningBlockReason | null {
-  if (!user.reinigungErlaubt) return "userNotAllowed";
-  if (!activeLockPeriods.every((s) => s.reinigungErlaubt)) return "lockPeriodForbids";
-  if (!cleaningWindowOpen(user.reinigungsFenster, at, user.timezone)) return "outsideWindow";
+  if (!user.cleaningAllowed) return "userNotAllowed";
+  if (!activeLockPeriods.every((s) => s.cleaningAllowed)) return "lockPeriodForbids";
+  if (!cleaningWindowOpen(user.cleaningWindows, at, user.timezone)) return "outsideWindow";
   return null;
 }
 
@@ -887,7 +887,7 @@ export type WindowsBindingReason = "no-active-lock-period" | "user-not-allowed" 
  */
 export function cleaningWindowBindingStatus(
   user: CleaningPermissionUser,
-  lockPeriod: { reinigungErlaubt: boolean } | null,
+  lockPeriod: { cleaningAllowed: boolean } | null,
   at: Date,
 ): { windowsBinding: boolean; windowsBindingReason: WindowsBindingReason; openingAllowedNow: boolean } {
   if (!lockPeriod) {
@@ -896,7 +896,7 @@ export function cleaningWindowBindingStatus(
   const reason = cleaningBlockReason(user, [lockPeriod], at);
   if (reason === "userNotAllowed") return { windowsBinding: false, windowsBindingReason: "user-not-allowed", openingAllowedNow: false };
   if (reason === "lockPeriodForbids") return { windowsBinding: false, windowsBindingReason: "lock-period-forbids", openingAllowedNow: false };
-  if (parseReinigungsFenster(user.reinigungsFenster).length === 0) {
+  if (parseCleaningWindows(user.cleaningWindows).length === 0) {
     // Keine Fenster konfiguriert: cleaningWindowOpen liest das als "immer offen" — korrekt für
     // openingAllowedNow, aber windows binden hier nichts, unabhängig vom Ergebnis.
     return { windowsBinding: false, windowsBindingReason: "no-windows-configured", openingAllowedNow: true };
@@ -911,7 +911,7 @@ function isAllowedCleaningOpen(
   oeffnenGrund: OeffnenGrund | string | null | undefined,
   now: Date,
   user: CleaningPermissionUser,
-  activeLockPeriods: { reinigungErlaubt: boolean }[],
+  activeLockPeriods: { cleaningAllowed: boolean }[],
 ): boolean {
   return oeffnenGrund === "REINIGUNG" && cleaningBlockReason(user, activeLockPeriods, now) === null;
 }
@@ -948,14 +948,14 @@ export async function releaseLockPeriodsOnOpen(
   const now = new Date();
   const activeLockPeriods = await tx.verschlussAnforderung.findMany({
     where: activeLockPeriodWhere(userId, now),
-    select: { id: true, reinigungErlaubt: true },
+    select: { id: true, cleaningAllowed: true },
   });
   if (activeLockPeriods.length === 0) return false;
 
   const effectiveUser = user ?? await tx.user.findUnique({
     where: { id: userId },
-    select: { reinigungErlaubt: true, reinigungsFenster: true, timezone: true },
-  }) ?? { reinigungErlaubt: false, reinigungsFenster: null, timezone: APP_TZ };
+    select: { cleaningAllowed: true, cleaningWindows: true, timezone: true },
+  }) ?? { cleaningAllowed: false, cleaningWindows: null, timezone: APP_TZ };
 
   if (isAllowedCleaningOpen(oeffnenGrund, now, effectiveUser, activeLockPeriods)) return false;
 

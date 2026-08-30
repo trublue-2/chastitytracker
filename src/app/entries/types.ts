@@ -8,7 +8,7 @@
  */
 
 // `import type` — zur Laufzeit gelöscht, zieht also kein Prisma in das Client-Bundle.
-import type { ReinigungsFenster } from "@/lib/reinigungService";
+import type { CleaningWindows } from "@/lib/cleaningService";
 import type { CleaningBlockReason } from "@/lib/queries";
 export type SubmitResult =
   | { ok: true; offline?: boolean }
@@ -69,7 +69,7 @@ export interface OeffnenPayload {
   oeffnenGrund: string;
   note: string | null;
   /** Only set when user confirmed the Reinigung-limit-bypass sheet. */
-  forcedReinigung?: boolean;
+  forcedCleaning?: boolean;
 }
 
 export interface WearBeginPayload {
@@ -93,9 +93,9 @@ export interface WearEndPayload {
 /** Bundled user-cleaning config (kept together to avoid prop sprawl). Enthält bewusst KEIN
  *  `erlaubt`-Flag mehr: ob gereinigt werden darf, beantwortet `cleaningBlock` vollständig — samt
  *  Grund. Zwei Quellen für dieselbe Frage waren der Ursprung dieser ganzen Fehlerfamilie. */
-export interface ReinigungConfig {
-  maxMinuten: number;
-  maxProTag: number;
+export interface CleaningConfig {
+  maxMinutes: number;
+  maxPerDay: number;
   heuteAnzahl: number;
   /** Serverseitig gefälltes Urteil (eine Uhr, Sub-Zeitzone): darf JETZT gereinigt werden, und wenn
    *  nein — warum nicht? `null` = erlaubt. Kommt aus `cleaningBlockReason()`, derselben Regel, die
@@ -103,11 +103,11 @@ export interface ReinigungConfig {
    *  gilt „nicht blockieren": dort ist der Grund nie REINIGUNG bzw. wird nichts neu geöffnet. */
   cleaningBlock?: CleaningBlockReason | null;
   /** Das nächste beginnende Reinigungsfenster — rein informativ. */
-  nextWindow?: ReinigungsFenster | null;
+  nextWindow?: CleaningWindows | null;
 }
 
 /** Bundled Sperrzeit state (user-dashboard only — admin skips these warnings). Das Sperr-Flag
- *  `reinigungErlaubt` steckt in `ReinigungConfig.cleaningBlock`, wo es mit dem User-Flag und dem
+ *  `cleaningAllowed` steckt in `CleaningConfig.cleaningBlock`, wo es mit dem User-Flag und dem
  *  Zeitfenster zu EINEM Urteil verrechnet ist. */
 export interface LockPeriodState {
   endsAt: string | null;

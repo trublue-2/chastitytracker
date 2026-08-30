@@ -461,7 +461,7 @@ const weekdayFormatters = new Map<string, Intl.DateTimeFormat>();
  *
  *  Hier und nicht in den Fenster-Bausteinen: „wie spät ist es in Zone X" ist keine Regel der
  *  Reinigung und keine des Wiegens. Die Trennung, die `weightWindows.ts` gegenüber
- *  `reinigungService.ts` verteidigt, betrifft die REGELN der Fenster — nicht die Uhr. */
+ *  `cleaningService.ts` verteidigt, betrifft die REGELN der Fenster — nicht die Uhr. */
 const hhmmFormatters = new Map<string, Intl.DateTimeFormat>();
 export function hhmmInTZ(at: Date, tz: string): string {
   // Gecacht: die Reinigungs- und Wiege-Fenster fragen das je Eintrag, und die Strafbuch-Ableitung
@@ -655,7 +655,7 @@ export function effectiveAt<T extends { effectiveFrom: Date }, F>(rows: T[], at:
   return found;
 }
 
-export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
+export type CleaningPauseAllowance = { allowed: boolean; maxMinutes: number };
 
 /**
  * Die Reinigungs-Regeln als das, was sie sind: ein Stand, der sich ÄNDERN kann.
@@ -668,12 +668,12 @@ export type ReinigungSettings = { erlaubt: boolean; maxMinuten: number };
  * Session unterbricht oder beendet, und das ist eine Eigenschaft der Öffnung, nicht des späteren
  * Wiederverschlusses.
  */
-export type ReinigungRules = ReinigungSettings | ((at: Date) => ReinigungSettings);
+export type CleaningPauseRules = CleaningPauseAllowance | ((at: Date) => CleaningPauseAllowance);
 
 /** Die Fassung, die zu `at` galt. Ohne Regeln gilt „keine Reinigung" — derselbe Ausweichwert wie
  *  bisher, wenn ein Aufrufer sie gar nicht mitgibt. */
-export function reinigungAt(rules: ReinigungRules | undefined, at: Date): ReinigungSettings {
-  if (!rules) return { erlaubt: false, maxMinuten: 0 };
+export function cleaningAt(rules: CleaningPauseRules | undefined, at: Date): CleaningPauseAllowance {
+  if (!rules) return { allowed: false, maxMinutes: 0 };
   return typeof rules === "function" ? rules(at) : rules;
 }
 
@@ -703,7 +703,7 @@ export const WEAR_PAIR: PairTypes = { close: "WEAR_BEGIN", open: "WEAR_END" };
 export type BuildPairsOptions = {
   types?: PairTypes;
   /** Only honored when `types === KG_PAIR`. Ignored for WEAR_PAIR. */
-  reinigung?: ReinigungRules;
+  cleaning?: CleaningPauseRules;
 };
 
 type PairResult<E, K> = {
@@ -722,19 +722,19 @@ type PairResult<E, K> = {
 
 /** True iff the legacy 3rd arg shape (bare Regeln statt Options-Objekt) was passed. Eine FUNKTION
  *  ist immer die Legacy-Form: ein Options-Objekt ist nie aufrufbar. */
-function isLegacyReinigungArg(arg: unknown): arg is ReinigungRules {
+function isLegacyCleaningArg(arg: unknown): arg is CleaningPauseRules {
   if (typeof arg === "function") return true;
   return !!arg && typeof arg === "object"
-    && "erlaubt" in arg
-    && !("types" in arg) && !("reinigung" in arg);
+    && "allowed" in arg
+    && !("types" in arg) && !("cleaning" in arg);
 }
 
 function normalizeBuildPairsOptions(
-  arg?: ReinigungRules | BuildPairsOptions,
-): { types: PairTypes; reinigung: ReinigungRules | undefined } {
-  if (!arg) return { types: KG_PAIR, reinigung: undefined };
-  if (isLegacyReinigungArg(arg)) return { types: KG_PAIR, reinigung: arg };
-  return { types: arg.types ?? KG_PAIR, reinigung: arg.reinigung };
+  arg?: CleaningPauseRules | BuildPairsOptions,
+): { types: PairTypes; cleaning: CleaningPauseRules | undefined } {
+  if (!arg) return { types: KG_PAIR, cleaning: undefined };
+  if (isLegacyCleaningArg(arg)) return { types: KG_PAIR, cleaning: arg };
+  return { types: arg.types ?? KG_PAIR, cleaning: arg.cleaning };
 }
 
 /** Filters entries to the given pair-types, then sorts ascending by startTime.
@@ -750,15 +750,15 @@ export function filterAndSortPairEntries<E extends { type: string; startTime: Da
 }
 
 /** Frist, bis zu der ein Wiederverschluss eine Reinigungsöffnung als blosse UNTERBRECHUNG der
- *  laufenden Session fortführt — danach zerfällt sie in zwei Sessions. Öffnung + `maxMinuten`.
+ *  laufenden Session fortführt — danach zerfällt sie in zwei Sessions. Öffnung + `maxMinutes`.
  *
  *  Bewusst NICHT dieselbe Frist wie {@link import("./strafbuch").cleaningRelockObligation}: die
  *  beantwortet die Strafbuch-Frage („gibt es dafür ein Vergehen?"), hängt an einer aktiven
  *  Sperrzeit und reicht bei konfigurierten Fenstern bis ans Fensterende — bei einem 20–22-Uhr-
  *  Fenster also Stunden über diese Frist hinaus. Wer die beiden vertauscht, zeigt dem Sub einen
  *  Countdown, nach dessen Ablauf seine Session längst geteilt ist. Zwei Fragen, zwei Regeln. */
-export function cleaningInterruptionDeadline(openStartTime: Date, maxMinuten: number): Date {
-  return new Date(openStartTime.getTime() + maxMinuten * 60_000);
+export function cleaningInterruptionDeadline(openStartTime: Date, maxMinutes: number): Date {
+  return new Date(openStartTime.getTime() + maxMinutes * 60_000);
 }
 
 /** Läuft gerade eine Reinigungspause — und bis wann? `null`, wenn der jüngste KG-Eintrag keine
@@ -769,15 +769,15 @@ export function cleaningInterruptionDeadline(openStartTime: Date, maxMinuten: nu
  *  in der Seite: sonst beantworten Anzeige und Session-Modell dieselbe Frage verschieden. */
 export function runningCleaningPauseUntil(
   latest: { type: string; oeffnenGrund?: string | null; startTime: Date } | null,
-  reinigung: ReinigungRules,
+  cleaning: CleaningPauseRules,
   now: Date,
 ): Date | null {
   if (latest?.type !== KG_PAIR.open || latest.oeffnenGrund !== "REINIGUNG") return null;
   // Die Fassung DIESER Öffnung, wie in `buildPairs` — eine Pause, die beim Öffnen erlaubt war,
   // bleibt es bis zu ihrem Ende, auch wenn die Keyholderin zwischendurch umstellt.
-  const rules = reinigungAt(reinigung, latest.startTime);
-  if (!rules.erlaubt) return null;
-  const until = cleaningInterruptionDeadline(latest.startTime, rules.maxMinuten);
+  const rules = cleaningAt(cleaning, latest.startTime);
+  if (!rules.allowed) return null;
+  const until = cleaningInterruptionDeadline(latest.startTime, rules.maxMinutes);
   // `>=`, nicht `>`: {@link buildPairs} verschmilzt einen Wiederverschluss noch, der EXAKT auf der
   // Frist liegt. Mit `>` zeigte die Anzeige in dieser Millisekunde „beendet", während das Modell
   // die Session fortführt — genau der Widerspruch, den diese Ableitung ausschliessen soll.
@@ -789,7 +789,7 @@ export function runningCleaningPauseUntil(
  *  dann aber je GERÄT (siehe `buildWearSessions`), nie über eine ganze Kategorie hinweg.
  *  Reinigungs-interruption only applies to KG pairs.
  *
- *  Backward-compat: a bare `ReinigungSettings` as the 3rd arg is accepted (legacy callers). */
+ *  Backward-compat: a bare `CleaningPauseAllowance` as the 3rd arg is accepted (legacy callers). */
 export function buildPairs<
   E extends {
     id: string;
@@ -802,16 +802,16 @@ export function buildPairs<
 >(
   entries: E[],
   kontrollen: K[],
-  reinigungOrOptions?: ReinigungRules | BuildPairsOptions,
+  reinigungOrOptions?: CleaningPauseRules | BuildPairsOptions,
 ): PairResult<E, K>[] {
-  const { types, reinigung } = normalizeBuildPairsOptions(reinigungOrOptions);
+  const { types, cleaning } = normalizeBuildPairsOptions(reinigungOrOptions);
   /** Unterbricht eine Reinigungsöffnung zu IHRER Zeit die Session — und wenn ja, wie lange? Die
    *  Regeln je Öffnung statt einmal für die ganze Liste: sonst schriebe die heutige Fassung die
    *  Sessions der Vergangenheit um. Für WEAR_PAIR gibt es keine Reinigungspausen. */
-  const cleaningPause = (o: E): ReinigungSettings | null => {
+  const cleaningPause = (o: E): CleaningPauseAllowance | null => {
     if (types !== KG_PAIR) return null;
-    const rules = reinigungAt(reinigung, o.startTime);
-    return rules.erlaubt ? rules : null;
+    const rules = cleaningAt(cleaning, o.startTime);
+    return rules.allowed ? rules : null;
   };
 
   const asc = filterAndSortPairEntries(entries, types);
@@ -820,20 +820,20 @@ export function buildPairs<
   let pending: E | null = null;
   /** Die angenommene Reinigungspause SAMT der Fassung, unter der sie angenommen wurde — die Frist
    *  des Wiederverschlusses gehört zur Öffnung, nicht zum Zeitpunkt des Verschlusses. */
-  let pendingReinigung: { entry: E; maxMinuten: number } | null = null;
+  let pendingCleaning: { entry: E; maxMinutes: number } | null = null;
   let currentInterruptions: { oeffnen: E; verschluss: E }[] = [];
 
   for (const e of asc) {
     if (e.type === types.close) {
-      if (pendingReinigung && pending) {
-        if (e.startTime <= cleaningInterruptionDeadline(pendingReinigung.entry.startTime, pendingReinigung.maxMinuten)) {
+      if (pendingCleaning && pending) {
+        if (e.startTime <= cleaningInterruptionDeadline(pendingCleaning.entry.startTime, pendingCleaning.maxMinutes)) {
           // Valid interruption – continue session
-          currentInterruptions.push({ oeffnen: pendingReinigung.entry, verschluss: e });
-          pendingReinigung = null;
+          currentInterruptions.push({ oeffnen: pendingCleaning.entry, verschluss: e });
+          pendingCleaning = null;
         } else {
           // Timeout – close session at reinigung OEFFNEN, start new session
-          pairs.push({ verschluss: pending, oeffnen: pendingReinigung.entry, active: false, kontrollen: [], interruptions: currentInterruptions });
-          pendingReinigung = null;
+          pairs.push({ verschluss: pending, oeffnen: pendingCleaning.entry, active: false, kontrollen: [], interruptions: currentInterruptions });
+          pendingCleaning = null;
           currentInterruptions = [];
           pending = e;
         }
@@ -853,12 +853,12 @@ export function buildPairs<
     } else if (e.type === types.open && pending) {
       const pause = e.oeffnenGrund === "REINIGUNG" ? cleaningPause(e) : null;
       if (pause) {
-        pendingReinigung = { entry: e, maxMinuten: pause.maxMinuten };
+        pendingCleaning = { entry: e, maxMinutes: pause.maxMinutes };
       } else {
-        if (pendingReinigung) {
+        if (pendingCleaning) {
           // Pending reinigung never got a re-lock in time → close at reinigung OEFFNEN
-          pairs.push({ verschluss: pending, oeffnen: pendingReinigung.entry, active: false, kontrollen: [], interruptions: currentInterruptions });
-          pendingReinigung = null;
+          pairs.push({ verschluss: pending, oeffnen: pendingCleaning.entry, active: false, kontrollen: [], interruptions: currentInterruptions });
+          pendingCleaning = null;
           currentInterruptions = [];
           pending = null;
         } else {
@@ -872,10 +872,10 @@ export function buildPairs<
 
   // Handle open session (still wearing or pending reinigung)
   if (pending) {
-    if (pendingReinigung) {
+    if (pendingCleaning) {
       // Device is currently open for cleaning – show session as ended at reinigung OEFFNEN.
-      // If user re-locks within maxMinuten, the next page load will merge it as an interruption.
-      pairs.push({ verschluss: pending, oeffnen: pendingReinigung.entry, active: false, kontrollen: [], interruptions: currentInterruptions });
+      // If user re-locks within maxMinutes, the next page load will merge it as an interruption.
+      pairs.push({ verschluss: pending, oeffnen: pendingCleaning.entry, active: false, kontrollen: [], interruptions: currentInterruptions });
     } else {
       pairs.push({ verschluss: pending, oeffnen: null, active: true, kontrollen: [], interruptions: currentInterruptions });
     }

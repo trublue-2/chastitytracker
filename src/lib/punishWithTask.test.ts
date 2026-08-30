@@ -210,7 +210,7 @@ describe("Strafaufgabe als zweiter Browser-Eingang", () => {
     strafbuch.mockResolvedValue({
       ...emptyOffenseLists(),
       unauthorizedOpenings: [{ id: "e-9", startTime: HOLD_UNTIL }],
-      reinigungLimitViolations: [{ entryId: "e-9", startTime: HOLD_UNTIL }],
+      cleaningLimitViolations: [{ entryId: "e-9", startTime: HOLD_UNTIL }],
     });
 
     const res = await punishWithTask(

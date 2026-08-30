@@ -25,11 +25,11 @@ const FENSTER = [{ start: "19:00", end: "20:00" }];
 const IM_FENSTER = new Date("2026-07-10T17:30:00Z");
 const NACHTS = new Date("2026-07-10T01:00:00Z"); // 03:00 Ortszeit
 
-const SPERRZEIT_ERLAUBT = [{ id: "s1", reinigungErlaubt: true }];
+const SPERRZEIT_ERLAUBT = [{ id: "s1", cleaningAllowed: true }];
 
 const user = (over: Partial<CleaningPermissionUser> = {}): CleaningPermissionUser => ({
-  reinigungErlaubt: true,
-  reinigungsFenster: FENSTER,
+  cleaningAllowed: true,
+  cleaningWindows: FENSTER,
   timezone: TZ,
   ...over,
 });
@@ -86,30 +86,30 @@ describe("cleaningWindowOpen", () => {
 });
 
 describe("cleaningBlockReason", () => {
-  const erlaubt = [{ reinigungErlaubt: true }];
+  const allowed = [{ cleaningAllowed: true }];
 
   it("alles erfüllt → null", () => {
-    expect(cleaningBlockReason(user(), erlaubt, IM_FENSTER)).toBeNull();
+    expect(cleaningBlockReason(user(), allowed, IM_FENSTER)).toBeNull();
   });
 
   it("User darf nicht reinigen → userNotAllowed (das Speziellere gewinnt)", () => {
     // Auch ausserhalb des Fensters und bei verbietender Sperre: wer gar nicht reinigen darf,
     // braucht keinen Fenster-Hinweis.
-    expect(cleaningBlockReason(user({ reinigungErlaubt: false }), [{ reinigungErlaubt: false }], NACHTS))
+    expect(cleaningBlockReason(user({ cleaningAllowed: false }), [{ cleaningAllowed: false }], NACHTS))
       .toBe("userNotAllowed");
   });
 
   it("eine Sperrzeit verbietet Reinigung → lockPeriodForbids, auch im Fenster", () => {
-    expect(cleaningBlockReason(user(), [{ reinigungErlaubt: true }, { reinigungErlaubt: false }], IM_FENSTER))
+    expect(cleaningBlockReason(user(), [{ cleaningAllowed: true }, { cleaningAllowed: false }], IM_FENSTER))
       .toBe("lockPeriodForbids");
   });
 
   it("ausserhalb eines konfigurierten Fensters → outsideWindow", () => {
-    expect(cleaningBlockReason(user(), erlaubt, NACHTS)).toBe("outsideWindow");
+    expect(cleaningBlockReason(user(), allowed, NACHTS)).toBe("outsideWindow");
   });
 
   it("ohne konfigurierte Fenster → null (nicht zeitgebunden)", () => {
-    expect(cleaningBlockReason(user({ reinigungsFenster: [] }), erlaubt, NACHTS)).toBeNull();
+    expect(cleaningBlockReason(user({ cleaningWindows: [] }), allowed, NACHTS)).toBeNull();
   });
 
   it("ohne aktive Sperrzeit entscheiden nur User-Flag und Fenster", () => {
@@ -132,7 +132,7 @@ describe("cleaningWindowBindingStatus (A-02)", () => {
   });
 
   it("aktive Sperrzeit erlaubt Reinigen, aber ausserhalb des Fensters → Fenster binden, Öffnung nicht erlaubt", () => {
-    expect(cleaningWindowBindingStatus(user(), { reinigungErlaubt: true }, NACHTS)).toEqual({
+    expect(cleaningWindowBindingStatus(user(), { cleaningAllowed: true }, NACHTS)).toEqual({
       windowsBinding: true,
       windowsBindingReason: null,
       openingAllowedNow: false,
@@ -140,7 +140,7 @@ describe("cleaningWindowBindingStatus (A-02)", () => {
   });
 
   it("aktive Sperrzeit verbietet Reinigen → Fenster binden nicht (Grund liegt vorher), Öffnung nicht erlaubt", () => {
-    expect(cleaningWindowBindingStatus(user(), { reinigungErlaubt: false }, NACHTS)).toEqual({
+    expect(cleaningWindowBindingStatus(user(), { cleaningAllowed: false }, NACHTS)).toEqual({
       windowsBinding: false,
       windowsBindingReason: "lock-period-forbids",
       openingAllowedNow: false,
@@ -148,7 +148,7 @@ describe("cleaningWindowBindingStatus (A-02)", () => {
   });
 
   it("User darf grundsätzlich nicht reinigen → Fenster binden nicht, Öffnung nicht erlaubt", () => {
-    expect(cleaningWindowBindingStatus(user({ reinigungErlaubt: false }), { reinigungErlaubt: true }, NACHTS)).toEqual({
+    expect(cleaningWindowBindingStatus(user({ cleaningAllowed: false }), { cleaningAllowed: true }, NACHTS)).toEqual({
       windowsBinding: false,
       windowsBindingReason: "user-not-allowed",
       openingAllowedNow: false,
@@ -156,7 +156,7 @@ describe("cleaningWindowBindingStatus (A-02)", () => {
   });
 
   it("aktive Sperrzeit + innerhalb des Fensters → Fenster binden, Öffnung erlaubt", () => {
-    expect(cleaningWindowBindingStatus(user(), { reinigungErlaubt: true }, IM_FENSTER)).toEqual({
+    expect(cleaningWindowBindingStatus(user(), { cleaningAllowed: true }, IM_FENSTER)).toEqual({
       windowsBinding: true,
       windowsBindingReason: null,
       openingAllowedNow: true,
@@ -168,7 +168,7 @@ describe("cleaningWindowBindingStatus (A-02)", () => {
   // windowsBinding muss die beiden Fälle unterscheiden — ohne konfigurierte Fenster gibt es nichts,
   // das binden könnte, auch bei einer aktiven, erlaubten Sperrzeit.
   it("aktive Sperrzeit erlaubt Reinigen, aber KEINE Fenster konfiguriert → Fenster binden nicht", () => {
-    expect(cleaningWindowBindingStatus(user({ reinigungsFenster: [] }), { reinigungErlaubt: true }, NACHTS)).toEqual({
+    expect(cleaningWindowBindingStatus(user({ cleaningWindows: [] }), { cleaningAllowed: true }, NACHTS)).toEqual({
       windowsBinding: false,
       windowsBindingReason: "no-windows-configured",
       openingAllowedNow: true,
@@ -198,7 +198,7 @@ describe("releaseLockPeriodsOnOpen", () => {
 
   it("ohne konfigurierte Fenster ist Reinigung nicht zeitgebunden — auch nachts erlaubt", async () => {
     jetzt(NACHTS);
-    expect(await releaseLockPeriodsOnOpen("u1", "REINIGUNG", tx(), "user", user({ reinigungsFenster: [] }))).toBe(false);
+    expect(await releaseLockPeriodsOnOpen("u1", "REINIGUNG", tx(), "user", user({ cleaningWindows: [] }))).toBe(false);
     expect(updateMany).not.toHaveBeenCalled();
   });
 
@@ -209,12 +209,12 @@ describe("releaseLockPeriodsOnOpen", () => {
 
   it("User darf gar nicht reinigen: Verstoss, egal welches Fenster", async () => {
     jetzt(IM_FENSTER);
-    expect(await releaseLockPeriodsOnOpen("u1", "REINIGUNG", tx(), "user", user({ reinigungErlaubt: false }))).toBe(true);
+    expect(await releaseLockPeriodsOnOpen("u1", "REINIGUNG", tx(), "user", user({ cleaningAllowed: false }))).toBe(true);
   });
 
   it("eine der aktiven Sperrzeiten verbietet Reinigung: Verstoss (jede muss zustimmen)", async () => {
     jetzt(IM_FENSTER);
-    findMany.mockResolvedValue([{ id: "s1", reinigungErlaubt: true }, { id: "s2", reinigungErlaubt: false }]);
+    findMany.mockResolvedValue([{ id: "s1", cleaningAllowed: true }, { id: "s2", cleaningAllowed: false }]);
     expect(await releaseLockPeriodsOnOpen("u1", "REINIGUNG", tx(), "user", user())).toBe(true);
     expect(updateMany).toHaveBeenCalledOnce();
   });
@@ -235,7 +235,7 @@ describe("releaseLockPeriodsOnOpen", () => {
  * hierher die zuletzt ANGELEGTE. Das ist keine Regel, das ist die Sortierung.
  */
 describe("foldActiveLockPeriods — die effektive (strengste) Sperre", () => {
-  const sz = (endsAt: Date | null, reinigungErlaubt = true, id = "x") => ({ id, endsAt, reinigungErlaubt });
+  const sz = (endsAt: Date | null, cleaningAllowed = true, id = "x") => ({ id, endsAt, cleaningAllowed });
   const FRUEH = new Date("2026-07-20T00:00:00Z");
   const SPAET = new Date("2026-08-11T00:00:00Z");
 
@@ -260,7 +260,7 @@ describe("foldActiveLockPeriods — die effektive (strengste) Sperre", () => {
     // Sonst erlaubte die durchsetzende Zeile eine Reinigungsöffnung, die eine zweite aktive Sperre
     // verbietet — der Sub öffnet im guten Glauben und kassiert einen Strafbuch-Eintrag.
     const fold = foldActiveLockPeriods([sz(SPAET, true), sz(FRUEH, false)])!;
-    expect(fold.reinigungErlaubt).toBe(false);
+    expect(fold.cleaningAllowed).toBe(false);
     expect(fold.endsAt).toEqual(SPAET); // die strengere Reinigungs-Regel kippt das Ende nicht
   });
 
@@ -359,8 +359,8 @@ describe("getEntryNeighbors", () => {
  */
 
 /** Eine aktive Sperrzeit-Zeile, wie `getActiveLockPeriod` sie lädt und faltet. */
-const lockPeriod = (reinigungErlaubt: boolean) =>
-  [{ id: "sz1", endsAt: new Date("2026-08-01T00:00:00Z"), reinigungErlaubt }];
+const lockPeriod = (cleaningAllowed: boolean) =>
+  [{ id: "sz1", endsAt: new Date("2026-08-01T00:00:00Z"), cleaningAllowed }];
 
 /** Baseline beider Gate-describes: keine Sperre, User darf reinigen (keine Fenster), kein
  *  Orgasmus-Fenster. `isCodePhotoRevealed` delegiert an `isOpeningPermittedNow` — es IST
@@ -368,7 +368,7 @@ const lockPeriod = (reinigungErlaubt: boolean) =>
 function stubGateDefaults() {
   vi.clearAllMocks();
   db.verschlussAnforderung.findMany.mockResolvedValue([]);
-  db.user.findUnique.mockResolvedValue(user({ reinigungsFenster: null }));
+  db.user.findUnique.mockResolvedValue(user({ cleaningWindows: null }));
   db.orgasmusAnforderung.findFirst.mockResolvedValue(null);
 }
 
@@ -391,7 +391,7 @@ describe("isOpeningPermittedNow — darf der Sub JETZT öffnen?", () => {
 
   it("Sperrzeit erlaubt Reinigung, aber User-Flag aus → verboten", async () => {
     db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(true));
-    db.user.findUnique.mockResolvedValue(user({ reinigungErlaubt: false, reinigungsFenster: null }));
+    db.user.findUnique.mockResolvedValue(user({ cleaningAllowed: false, cleaningWindows: null }));
     expect(await isOpeningPermittedNow("u1", NACHTS)).toBe(false);
   });
 
@@ -408,7 +408,7 @@ describe("isOpeningPermittedNow — darf der Sub JETZT öffnen?", () => {
   });
 
   it("zwei aktive Sperren, EINE verbietet Reinigung → verboten, auch im Fenster (UND-Regel)", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue([...lockPeriod(true), { id: "sz2", endsAt: null, reinigungErlaubt: false }]);
+    db.verschlussAnforderung.findMany.mockResolvedValue([...lockPeriod(true), { id: "sz2", endsAt: null, cleaningAllowed: false }]);
     db.user.findUnique.mockResolvedValue(user());
     expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(false);
   });

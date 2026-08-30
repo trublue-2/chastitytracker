@@ -52,7 +52,7 @@ const entry = (type: string, time: string, device: object | null) => ({
 function ctx(entries: object[]) {
   return {
     userId: "u1", timezone: "Europe/Zurich", now: NOW,
-    reinigung: { erlaubt: false, maxMinuten: 15 },
+    cleaning: { allowed: false, maxMinutes: 15 },
     keyholderInstructions: null,
     entries: [...entries].sort((a, b) => (b as { startTime: Date }).startTime.getTime() - (a as { startTime: Date }).startTime.getTime()),
     devices: [
@@ -201,7 +201,7 @@ describe("device_stats — gezählt werden SESSIONS, nicht Segmente", () => {
   /** Wie `ctx`, aber mit erlaubter Reinigung — sonst beendet jede REINIGUNG-Öffnung die Session. */
   const cleaningCtx = (entries: object[]) => ({
     ...ctx(entries),
-    reinigung: { erlaubt: true, maxMinuten: 30 },
+    cleaning: { allowed: true, maxMinutes: 30 },
   });
 
   const cleaningOpen = (time: string, device: object | null) => ({
@@ -261,7 +261,7 @@ describe("device_stats — gezählt werden SESSIONS, nicht Segmente", () => {
 // ─── A-14: die ehrliche Dauertrage-Marke ist ein SEGMENT, keine SESSION ────────
 
 describe("records — longestUnbrokenSegmentHours (A-14, MCP-Befundliste 2026-07-17)", () => {
-  const cleaningCtx = (entries: object[]) => ({ ...ctx(entries), reinigung: { erlaubt: true, maxMinuten: 30 } });
+  const cleaningCtx = (entries: object[]) => ({ ...ctx(entries), cleaning: { allowed: true, maxMinutes: 30 } });
   const cleaningOpen = (time: string, device: object | null) => ({ ...entry("OEFFNEN", time, device), oeffnenGrund: "REINIGUNG" });
 
   it("eine Session mit mehreren Segmenten schlägt eine lückenlose Session als Bruttosumme — aber NICHT als Bestmarke", async () => {

@@ -35,7 +35,7 @@ Wer eine **Tragedauer** meint, nimmt `dauerH`. Wer einen **Termin** meint, `lock
 ## Wirkt auf
 
 - **Box** — währenddessen bleibt der Schlüssel eingeschlossen.
-- **Reinigung** — nur wenn `reinigungErlaubt` DIESER Sperrzeit gesetzt ist. Und damit auch auf
+- **Reinigung** — nur wenn `cleaningAllowed` DIESER Sperrzeit gesetzt ist. Und damit auch auf
   **Gerätewechsel**, denn der läuft über den Reinigungspfad.
 - **Strafbuch** — eine Öffnung ohne Deckung ist ein erkanntes Vergehen; die Sperrzeit selbst wird
   dabei aufgehoben (`endedReason: "opening"`).
@@ -50,7 +50,7 @@ aktiv), und schliesst der Sub sich danach über eine Anforderung wieder ein, ent
 `foldActiveLockPeriods` faltet sie **nach der strengsten Regel, nicht nach der neuesten Zeile**:
 
 - `endsAt`: unbefristet schlägt alles, sonst das **späteste** Ende.
-- `reinigungErlaubt`: nur wenn **jede** aktive Sperre es erlaubt.
+- `cleaningAllowed`: nur wenn **jede** aktive Sperre es erlaubt.
 
 Die frühere Umsetzung nahm die zuletzt angelegte Zeile. Folge: die Box lief beim frühesten Ende auf,
 die längere Sperre war stillschweigend verkürzt — physisch.

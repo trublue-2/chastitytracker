@@ -59,7 +59,7 @@ export default function WeightToggle({
   }
 
   // Fenster erst lokal übernehmen, wenn der Server den Stand angenommen hat — sonst zeigte die
-  // Liste nach einem abgelehnten Patch weiter den ungespeicherten Zustand (Muster: ReinigungToggle).
+  // Liste nach einem abgelehnten Patch weiter den ungespeicherten Zustand (Muster: CleaningToggle).
   async function saveWindows(next: WeighingWindow[]): Promise<boolean> {
     const ok = await save({ weighingWindows: next });
     if (ok) setWindows(next);

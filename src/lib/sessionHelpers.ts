@@ -3,7 +3,7 @@ import type { VerifyFailure } from "@/lib/verifyReason";
 import { keyProofFor, NO_TELEMETRY_KEY_PROOF, type KeyProofSource } from "@/lib/boxKeyProof";
 
 export interface SessionEvent {
-  type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
+  type: "verschluss" | "kontrolle" | "orgasmus" | "cleaning";
   time: Date;
   imageUrl: string | null;
   /** Bildersafe (VERSCHLUSS): versiegeltes Schlüsselbox-Code-Foto. Sichtbarkeit entscheidet der Server (403-Gate). */
@@ -110,7 +110,7 @@ export function buildSessionEvents(
         orgasmusArt: resolveOrgasmus ? resolveOrgasmus(e.orgasmusArt) : e.orgasmusArt,
       })),
     ...activePair.interruptions.map(intr => ({
-      type: "reinigung" as const,
+      type: "cleaning" as const,
       time: intr.oeffnen.startTime,
       imageUrl: intr.verschluss.imageUrl,
       codeImageUrl: intr.verschluss.codeImageUrl ?? null,

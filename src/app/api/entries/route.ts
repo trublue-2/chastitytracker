@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
   let lockStartTime: Date | null = null;
   // Schliesst dieser VERSCHLUSS eine Reinigungspause ab? In der Transaktion aus demselben
   // Lock-Eintrag abgeleitet, den der Guard ohnehin liest — nach dem Commit löst er die Kontrolle aus.
-  let beendetReinigungspause = false;
+  let endsCleaningPause = false;
   let requiredAnforderungDeviceIds: string[] = [];
   // In der Transaktion abgeleitet (braucht den Lock-Eintrag), NACH dem Commit für die eigentliche
   // Prüfung wiederverwendet — deshalb hier draussen. null = keine PRUEFUNG mit Foto.
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         if (latest?.type === "OEFFNEN" && new Date(startTime) <= latest.startTime) {
           throw entryGuardError("TIME_BEFORE");
         }
-        beendetReinigungspause = latest?.type === "OEFFNEN" && latest.oeffnenGrund === "REINIGUNG";
+        endsCleaningPause = latest?.type === "OEFFNEN" && latest.oeffnenGrund === "REINIGUNG";
       }
       if (type === "OEFFNEN") {
         const latest = await getLatestKgEntry(session.user.id, tx);
@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
   // drin bist"). Fire-and-forget wie der Geräte-Check: die Planung ist eine Poller-Vorbereitung,
   // keine Voraussetzung der Antwort. Die Regel selbst (Verzögerung, ersetzte Plan-Zeile,
   // Schlaf-Fenster-Sonderfall) liegt in autoKontrolleService.
-  if (beendetReinigungspause) {
+  if (endsCleaningPause) {
     void scheduleCleaningRelockInspection(session.user.id).catch((e) =>
       console.error("[autoKontrolle:cleaningRelock]", (e as Error).message));
   }

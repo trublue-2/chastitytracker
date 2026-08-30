@@ -32,7 +32,7 @@ import { LockClosedIcon } from "@/app/components/lockIcons";
  * beiden Bauer nicht — es macht sie nur ungefährlich, bis sie kommt.
  */
 export interface SessionEventData {
-  type: "verschluss" | "kontrolle" | "orgasmus" | "reinigung";
+  type: "verschluss" | "kontrolle" | "orgasmus" | "cleaning";
   /** Raw ISO timestamp — used by SessionTimeline for bucket grouping. */
   timeIso: string | undefined;
   dateStr: string;
@@ -203,7 +203,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   );
 
   // Reinigung → compact inline row with optional modal
-  if (ev.type === "reinigung") {
+  if (ev.type === "cleaning") {
     // `ShowerHead`, nicht das offene Schloss: dieselbe Liste zeigt es weiter unten für das ENDE
     // einer Tragezeit, und dasselbe Zeichen hiesse dann einmal „Unterbrechung, es geht weiter" und
     // einmal „vorbei".

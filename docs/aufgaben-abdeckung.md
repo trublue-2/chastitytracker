@@ -172,8 +172,8 @@ verneinte Bedingung prüfen müsste. → *Lücke I*
 
 **Abbildung — hier braucht es gar keine Aufgabe.**
 
-- **Reinigungsregel**: erlaubt, `maxMinuten = 20`, Tages-Fenster auf die Zeit nach dem Sport,
-  `maxProTag = 1`.
+- **Reinigungsregel**: erlaubt, `maxMinutes = 20`, Tages-Fenster auf die Zeit nach dem Sport,
+  `maxPerDay = 1`.
 - Die Kontrolle mit Code entsteht **von selbst**: auf jeden Wiederverschluss nach einer Reinigungspause
   folgt selbsttätig eine Kontrolle. Feste Regel, keine Einstellung.
 

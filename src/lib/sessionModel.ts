@@ -1,6 +1,6 @@
 import { effectiveDeviceCheckStatus, sameLookalikeCluster, type DeviceCheckStatus } from "@/lib/deviceCheck";
 import { toVerifyFailure, type VerifyFailure } from "@/lib/verifyReason";
-import { buildPairs, mergeWearPairs, msToHours, type ReinigungRules, WEAR_PAIR, type WearPair } from "@/lib/utils";
+import { buildPairs, mergeWearPairs, msToHours, type CleaningPauseRules, WEAR_PAIR, type WearPair } from "@/lib/utils";
 
 /**
  * Das Session-Modell — EINE Definition von „Session", geteilt von der MCP-Schicht und der UI.
@@ -345,8 +345,8 @@ function sessionOfPair(pair: SessionPair, controls: SegmentEntry[], now: Date, l
  *  (leer = keine Cluster-Softening). `prePairs`: schon gebaute `buildPairs`-Paare
  *  (z.B. von einem Aufrufer, der sie auch für `buildLockState` braucht) wiederverwenden statt
  *  `buildPairs` erneut über dieselben Entries laufen zu lassen. */
-export function buildSessions(entries: SegmentEntry[], reinigung: ReinigungRules, now: Date = new Date(), devices: DeviceMeta[] = [], prePairs?: SessionPair[]): Session[] {
-  const pairs = prePairs ?? buildPairs<SegmentEntry, never>(entries, [], reinigung);
+export function buildSessions(entries: SegmentEntry[], cleaning: CleaningPauseRules, now: Date = new Date(), devices: DeviceMeta[] = [], prePairs?: SessionPair[]): Session[] {
+  const pairs = prePairs ?? buildPairs<SegmentEntry, never>(entries, [], cleaning);
   const lookups = buildDeviceLookups(devices);
   // Einmal chronologisch sortieren; linkControls filtert je Segment ordnungserhaltend.
   const controls = entries

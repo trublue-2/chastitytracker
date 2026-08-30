@@ -300,7 +300,7 @@ export const TYPE_EMAIL_COLORS: Record<string, string> = {
 
 /** User-Spalten, die ein Nutzer über den generischen `userSelfFieldRoute`-Handler SELBST ändern
  *  darf. Bewusst eng gehalten und compilerseitig erzwungen: admin-gesetzte Felder (`role`,
- *  `reinigungErlaubt`, `mobileDesktopUpload`, …) gehören NICHT hierher — die brauchen laut
+ *  `cleaningAllowed`, `mobileDesktopUpload`, …) gehören NICHT hierher — die brauchen laut
  *  CLAUDE.md („Admin-Felder in User-Settings") zwingend `requireAdminApi()`.
  *  `email`/`passwordHash` sind ebenfalls Self-Felder, laufen aber über eigene Handler
  *  (Trim/409 bzw. anderer Body-Key + bcrypt) und stehen deshalb nicht in dieser Liste. */
@@ -317,7 +317,7 @@ export const SELF_EDITABLE_USER_FIELDS = [
 export type SelfEditableUserField = (typeof SELF_EDITABLE_USER_FIELDS)[number];
 
 /** Stabiler Fehler-Code der Settings-Services, wenn ein Patch kein einziges Feld setzt. Geteilt von
- *  setReinigungSettings / setAutoKontrolleSettings / setInspectionEscalationSettings, damit die
+ *  setCleaningSettings / setAutoKontrolleSettings / setInspectionEscalationSettings, damit die
  *  drei Geschwister nicht auseinanderlaufen. Der Client löst ihn über den `errors`-Namespace auf. */
 export const NO_FIELDS_TO_UPDATE = "noFieldsToUpdate";
 
@@ -362,7 +362,7 @@ export const CLEANING_MAX_MINUTES_RANGE = { min: 1, max: 120, fallback: 15 } as 
 /** Reinigungspausen pro Tag (0 = unbegrenzt). */
 export const CLEANING_MAX_PER_DAY_RANGE = { min: 0, max: 20, fallback: 0 } as const satisfies NumberRange;
 /** Höchstzahl der Reinigungs-Fenster eines Tages (Listen-Länge, kein Zahlen-Feld → kein `NumberRange`).
- *  Durchgesetzt in `setReinigungSettings`, also für JEDEN Schreiber der Spalte. */
+ *  Durchgesetzt in `setCleaningSettings`, also für JEDEN Schreiber der Spalte. */
 export const CLEANING_WINDOWS_MAX = 12;
 /** Stabiler Fehler-Code, wenn ein Schreibvorgang mehr als {@link CLEANING_WINDOWS_MAX} Fenster setzt.
  *  Nennt die Zahl bewusst nicht — dafür bräuchte die Meldung einen ICU-Parameter (siehe DEVICE_CODES). */

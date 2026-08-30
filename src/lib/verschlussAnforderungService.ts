@@ -25,7 +25,7 @@ export interface CreateVerschlussAnforderungParams {
    *  auto-created SPERRZEIT.endsAt on fulfill — a late lock does NOT shift it. Alternative to dauerH. */
   lockEndsAt?: string | Date | null;
   deviceId?: string | null;
-  reinigungErlaubt?: boolean;
+  cleaningAllowed?: boolean;
   /** Verzögerte Auslösung in Minuten (>0). Fehlt/0 = sofort (sofern kein wirksamAbAt). */
   delayMinutes?: number | null;
   /** Absoluter Versandzeitpunkt (ISO-String oder Date). Hat Vorrang vor delayMinutes. */
@@ -91,7 +91,7 @@ export async function createVerschlussAnforderung(
   params: CreateVerschlussAnforderungParams,
   actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
-  const { userId, art, message, endsAt, fristH, dauerH, lockEndsAt, deviceId, reinigungErlaubt, delayMinutes, wirksamAbAt } = params;
+  const { userId, art, message, endsAt, fristH, dauerH, lockEndsAt, deviceId, cleaningAllowed, delayMinutes, wirksamAbAt } = params;
 
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
   if (art !== "ANFORDERUNG" && art !== "SPERRZEIT") {
@@ -188,7 +188,7 @@ export async function createVerschlussAnforderung(
       }
 
       const effectiveDauerH = art === "ANFORDERUNG" ? (dauerH || null) : null;
-      const effectiveReinigung = effectiveCleaningAllowed(reinigungErlaubt, {
+      const effectiveCleaning = effectiveCleaningAllowed(cleaningAllowed, {
         isLockPeriod: art === "SPERRZEIT", dauerH: effectiveDauerH, lockEndsAt: lockEndsAtDate,
       });
 
@@ -201,7 +201,7 @@ export async function createVerschlussAnforderung(
           dauerH: effectiveDauerH,
           lockEndsAt: lockEndsAtDate,
           deviceId: art === "ANFORDERUNG" ? (deviceId || null) : null,
-          reinigungErlaubt: effectiveReinigung,
+          cleaningAllowed: effectiveCleaning,
           createdBy: actorColumn(actor),
           wirksamAb,
           benachrichtigtAt, // sofort = jetzt benachrichtigt; geplant = Poller
@@ -374,7 +374,7 @@ export interface UpdateLockRequestParams {
   /** Absolutes Sperr-Ende nach dem Einschliessen. Schliesst `dauerH` aus. */
   lockEndsAt?: Date | null;
   deviceId?: string | null;
-  reinigungErlaubt?: boolean;
+  cleaningAllowed?: boolean;
   /** Geplanter Auslöse-Zeitpunkt. `null` = sofort (löst die Zustellung hier aus). */
   wirksamAb?: Date | null;
 }
@@ -395,7 +395,7 @@ export interface MergedLockRequest {
   dauerH: number | null;
   lockEndsAt: Date | null;
   deviceId: string | null;
-  reinigungErlaubt: boolean;
+  cleaningAllowed: boolean;
   wirksamAb: Date | null;
 }
 
@@ -410,7 +410,7 @@ export interface MergedLockRequest {
  * Mindestdauer bliebe wirkungslos.
  */
 export function mergeLockRequestPatch(
-  current: { message: string | null; endsAt: Date | null; dauerH: number | null; lockEndsAt: Date | null; deviceId: string | null; reinigungErlaubt: boolean; wirksamAb: Date | null },
+  current: { message: string | null; endsAt: Date | null; dauerH: number | null; lockEndsAt: Date | null; deviceId: string | null; cleaningAllowed: boolean; wirksamAb: Date | null },
   patch: UpdateLockRequestParams,
 ): MergedLockRequest {
   const dauerH = patch.dauerH !== undefined ? patch.dauerH : (patch.lockEndsAt != null ? null : current.dauerH);
@@ -421,7 +421,7 @@ export function mergeLockRequestPatch(
     dauerH,
     lockEndsAt,
     deviceId: patch.deviceId !== undefined ? patch.deviceId : current.deviceId,
-    reinigungErlaubt: effectiveCleaningAllowed(patch.reinigungErlaubt ?? current.reinigungErlaubt, { isLockPeriod: false, dauerH, lockEndsAt }),
+    cleaningAllowed: effectiveCleaningAllowed(patch.cleaningAllowed ?? current.cleaningAllowed, { isLockPeriod: false, dauerH, lockEndsAt }),
     wirksamAb: patch.wirksamAb !== undefined ? patch.wirksamAb : current.wirksamAb,
   };
 }
@@ -533,7 +533,7 @@ export interface DueLockRequest extends LockPeriodFromRequest {
   id: string;
   userId: string;
   message: string | null;
-  reinigungErlaubt: boolean;
+  cleaningAllowed: boolean;
   /** Wer die Anforderung angeordnet hat — wird an die daraus entstehende Sperrzeit VERERBT und ist
    *  der Absender ihrer Meldung. Der Poller kennt sonst niemanden, den er nennen könnte. */
   createdBy: string | null;
@@ -577,7 +577,7 @@ export async function carryOverLockPeriodOnAlreadyLocked(
         art: "SPERRZEIT",
         message: va.message,
         endsAt,
-        reinigungErlaubt: va.reinigungErlaubt,
+        cleaningAllowed: va.cleaningAllowed,
         // Die Sperre ist die Anordnung DERSELBEN Person, nur später wirksam — der Autor wandert mit,
         // damit ihre Meldung (und jede spätere Änderung daran) denselben Absender nennt.
         createdBy: va.createdBy,

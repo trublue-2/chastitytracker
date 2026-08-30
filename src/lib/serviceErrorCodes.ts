@@ -273,7 +273,7 @@ export const OFFENSE_RULE_CODES = [
   "OFFENSE_MODE_INVALID",
 ] as const;
 
-/** reinigungService / autoKontrolleService / inspectionEscalationService. These predate the registry
+/** cleaningService / autoKontrolleService / inspectionEscalationService. These predate the registry
  *  and are camelCase; their message keys are already shipped, so they keep their spelling rather
  *  than churn both locale files for cosmetics. New codes use the SCREAMING_SNAKE form above. */
 export const SETTINGS_CODES = [

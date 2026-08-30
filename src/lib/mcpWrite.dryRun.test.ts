@@ -52,9 +52,9 @@ vi.mock("@/lib/autoKontrolleService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/autoKontrolleService")>();
   return { ...actual, setAutoKontrolleSettings: vi.fn() };
 });
-vi.mock("@/lib/reinigungService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/reinigungService")>();
-  return { ...actual, setReinigungSettings: vi.fn() };
+vi.mock("@/lib/cleaningService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/cleaningService")>();
+  return { ...actual, setCleaningSettings: vi.fn() };
 });
 vi.mock("@/lib/orgasmusAnforderungService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/orgasmusAnforderungService")>();
@@ -80,7 +80,7 @@ import { prisma } from "@/lib/prisma";
 import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
-import { setReinigungSettings } from "@/lib/reinigungService";
+import { setCleaningSettings } from "@/lib/cleaningService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
@@ -120,7 +120,7 @@ beforeEach(() => {
   // Eine Zeile für beide Settings-Tools: set_cleaning liest die Reinigungs-, set_auto_inspections
   // die Auto-Kontroll-Spalten desselben Users.
   userFindUniqueOrThrowMock.mockResolvedValue({
-    reinigungErlaubt: false, reinigungMaxMinuten: 15, reinigungMaxProTag: 0, reinigungsFenster: JSON.stringify([{ start: "19:00", end: "20:00" }]),
+    cleaningAllowed: false, cleaningMaxMinutes: 15, cleaningMaxPerDay: 0, cleaningWindows: JSON.stringify([{ start: "19:00", end: "20:00" }]),
     id: "u1", timezone: "Europe/Zurich", autoKontrolleAktiv: true,
     autoKontrollePerDayMin: 2, autoKontrollePerDayMax: 4, autoKontrolleRuheVon: "22:00", autoKontrolleRuheBis: "06:00",
     autoKontrolleFristVon: 15, autoKontrolleFristBis: 60, autoKontrolleFensterVon: "", autoKontrolleFensterBis: "",
@@ -163,7 +163,7 @@ describe("dryRun committet nichts", () => {
   it("set_cleaning", async () => {
     const r = await mcpSetCleaning("sub", { dryRun: true, maxMinutes: 30 });
     expect((r as { dryRun: boolean }).dryRun).toBe(true);
-    expect(setReinigungSettings).not.toHaveBeenCalled();
+    expect(setCleaningSettings).not.toHaveBeenCalled();
   });
 
   it("set_auto_inspections", async () => {
@@ -635,7 +635,7 @@ describe("dryRun liefert diff (B-05: Vorschau statt Ja/Nein bei Edits eines best
   });
 
   it("set_cleaning: diff zeigt den Bestandswert gegen den GEKLEMMTEN neuen Wert", async () => {
-    userFindUniqueOrThrowMock.mockResolvedValue({ reinigungErlaubt: false, reinigungMaxMinuten: 15, reinigungMaxProTag: 0 });
+    userFindUniqueOrThrowMock.mockResolvedValue({ cleaningAllowed: false, cleaningMaxMinutes: 15, cleaningMaxPerDay: 0 });
     const r = await mcpSetCleaning("sub", { dryRun: true, maxMinutes: 9999 }) as { diff: Record<string, [unknown, unknown]> };
     expect(r.diff.maxMinutes).toEqual([15, 120]);
   });
@@ -714,7 +714,7 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
   /** Eine offene ANFORDERUNGs-Zeile, wie getKeyholderLockRequests sie liefert. */
   const anf = (over: object = {}) => ({
     id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: MORGEN, message: null, dauerH: null,
-    lockEndsAt: null, deviceId: null, device: null, reinigungErlaubt: false,
+    lockEndsAt: null, deviceId: null, device: null, cleaningAllowed: false,
     fulfilledAt: null, withdrawnAt: null, wirksamAb: null, benachrichtigtAt: JETZT, ...over,
   });
 
@@ -843,34 +843,34 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
  * parseReinigungsFenster — genau das wäre hier eine unbemerkte Löschung).
  */
 describe("set_cleaning: Reinigungs-Fenster", () => {
-  const setReinigungMock = setReinigungSettings as unknown as ReturnType<typeof vi.fn>;
-  beforeEach(() => setReinigungMock.mockResolvedValue({ ok: true, data: null }));
+  const setCleaningMock = setCleaningSettings as unknown as ReturnType<typeof vi.fn>;
+  beforeEach(() => setCleaningMock.mockResolvedValue({ ok: true, data: null }));
 
   it("ersetzt die ganze Liste — der Service bekommt genau die übergebenen Fenster", async () => {
     const windows = [{ start: "07:00", end: "08:00" }, { start: "19:00", end: "20:30" }];
     const r = await mcpSetCleaning("sub", { windows }) as { message: string };
     // `changedBy` steht mit dabei: die Reinigungs-Historie hält fest, wer geändert hat — über den
     // MCP ist das die KI.
-    expect(setReinigungMock).toHaveBeenCalledWith("u1", { erlaubt: undefined, maxMinuten: undefined, maxProTag: undefined, fenster: windows, changedBy: "ai" });
+    expect(setCleaningMock).toHaveBeenCalledWith("u1", { allowed: undefined, maxMinutes: undefined, maxPerDay: undefined, windows: windows, changedBy: "ai" });
     expect(r.message).toContain("07:00-08:00, 19:00-20:30");
   });
 
   it("windows:[] löscht alle Fenster — und die Meldung sagt, dass das die Reinigung NICHT verbietet", async () => {
     const r = await mcpSetCleaning("sub", { windows: [] }) as { message: string };
-    expect(setReinigungMock).toHaveBeenCalledWith("u1", expect.objectContaining({ fenster: [] }));
+    expect(setCleaningMock).toHaveBeenCalledWith("u1", expect.objectContaining({ windows: [] }));
     expect(r.message).toMatch(/no longer restricted to times of day/);
     expect(r.message).toMatch(/allowed:false/);
   });
 
   it("ohne windows bleiben die Fenster unberührt (undefined, nicht [])", async () => {
     await mcpSetCleaning("sub", { maxMinutes: 20 });
-    expect(setReinigungMock).toHaveBeenCalledWith("u1", expect.objectContaining({ fenster: undefined }));
+    expect(setCleaningMock).toHaveBeenCalledWith("u1", expect.objectContaining({ windows: undefined }));
   });
 
   it("ein ungültiges Paar wird mit Index + Grund abgelehnt, statt still zu verschwinden", async () => {
     await expect(mcpSetCleaning("sub", { windows: [{ start: "07:00", end: "08:00" }, { start: "19:00", end: "18:00" }] }))
       .rejects.toThrow(/windows\[1\] \{"start":"19:00","end":"18:00"\}: The end must be after the start/);
-    expect(setReinigungMock).not.toHaveBeenCalled();
+    expect(setCleaningMock).not.toHaveBeenCalled();
   });
 
   it("dieselbe Ablehnung schon im dryRun — der Preview darf nichts versprechen, was der Commit ablehnt", async () => {
@@ -881,7 +881,7 @@ describe("set_cleaning: Reinigungs-Fenster", () => {
   it("zu viele Fenster werden abgelehnt — ohne Index, die Liste als Ganzes ist zu lang", async () => {
     const windows = Array.from({ length: CLEANING_WINDOWS_MAX + 1 }, () => ({ start: "07:00", end: "08:00" }));
     await expect(mcpSetCleaning("sub", { windows })).rejects.toThrow(/^windows: Too many cleaning windows$/);
-    expect(setReinigungMock).not.toHaveBeenCalled();
+    expect(setCleaningMock).not.toHaveBeenCalled();
   });
 
   it("ganz ohne Feld: der Hinweis nennt windows mit", async () => {
@@ -894,7 +894,7 @@ describe("set_cleaning: Reinigungs-Fenster", () => {
     };
     expect(r.preview.windows).toEqual(["06:00-07:00"]);
     expect(r.diff.windows).toEqual([["19:00-20:00"], ["06:00-07:00"]]);
-    expect(setReinigungMock).not.toHaveBeenCalled();
+    expect(setCleaningMock).not.toHaveBeenCalled();
   });
 
   it("dryRun ohne windows: kein Fenster-Diff (unberührt heisst unberührt)", async () => {

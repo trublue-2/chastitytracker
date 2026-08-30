@@ -12,7 +12,7 @@ import {
 } from "@/lib/dashboardData";
 import { heimdallEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
 import { getIsLocked, isScheduledDirective } from "@/lib/queries";
-import { buildBoxReinigungView } from "@/lib/boxReinigung";
+import { buildBoxCleaningView } from "@/lib/boxCleaning";
 import { resolveGoalTargets } from "@/lib/goalFulfillment";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
@@ -104,14 +104,14 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
         userRowCached(ctx.subjectId), entriesCached(ctx.subjectId), effectiveLockPeriod(ctx),
       ]);
       return {
-        reinigung: buildBoxReinigungView(user, entries, lockPeriod, ctx.now, ctx.subjectTz),
+        cleaning: buildBoxCleaningView(user, entries, lockPeriod, ctx.now, ctx.subjectTz),
         // Siehe `dashboardBlocks`: ohne den Träger-Zustand liesse sich „Riegel zu, obwohl niemand
         // verschlossen ist" nicht vom Normalfall unterscheiden.
         wearerLocked: await getIsLocked(ctx.subjectId),
       };
     },
     render: (data, { subjectId }) => heimdallEnabled() && data !== null && (
-      <BoxStatusCard userId={subjectId} reinigung={data.reinigung} wearerLocked={data.wearerLocked} />
+      <BoxStatusCard userId={subjectId} cleaning={data.cleaning} wearerLocked={data.wearerLocked} />
     ),
   }),
 
@@ -149,7 +149,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       const tDash = await getTranslations("dashboard");
       const lockBreakNote = offenseRules.unauthorized_opening === "off"
         ? null
-        : tDash(lockPeriod?.reinigungErlaubt ? "sessionLockedConsequenceCleaning" : "sessionLockedConsequence");
+        : tDash(lockPeriod?.cleaningAllowed ? "sessionLockedConsequenceCleaning" : "sessionLockedConsequence");
       return { running, lockPeriod, activeVorgabe, hours, deviceCount, lockBreakNote, latest: null };
     },
     render: (data, { now, subjectTz, viewerTz, subLabel, subjectId, t }) =>
@@ -177,7 +177,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           lockPeriodRunningSince={data.lockPeriod?.wirksamAb && data.lockPeriod.wirksamAb <= now ? data.lockPeriod.wirksamAb : null}
           // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den Benutzer-
           // Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
-          cleaningNote={data.lockPeriod ? t(data.lockPeriod.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
+          cleaningNote={data.lockPeriod ? t(data.lockPeriod.cleaningAllowed ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
           // Nur wenn die Regel gilt, und mit der Reinigungs-Ausnahme im Text, wo die Sperre sie
           // zulässt (Herleitung in der Ladefunktion).
           lockBreakNote={data.lockBreakNote}

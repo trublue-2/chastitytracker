@@ -369,7 +369,7 @@ export function autoKontrolleSettingsFromUser(u: AutoKontrolleUserFields): AutoK
  * Dieselben Einstellungen in MCP-Sprache — die Sicht, die `get_context.autoInspections` liefert und
  * gegen die `set_auto_inspections` seinen Diff zeigt. Hier neben {@link autoKontrolleSettingsFromUser}
  * statt im MCP-Lese-Modul, damit die Schreib-Seite dafür nicht die Lese-Seite importieren muss
- * (dieselbe Aufteilung wie `buildReinigungView` in `reinigungService`).
+ * (dieselbe Aufteilung wie `buildCleaningView` in `cleaningService`).
  *
  * `type` statt `interface`: nur ein Alias trägt die implizite Index-Signatur, die `diffFields`
  * (Record<string, unknown>) auf der Schreib-Seite verlangt.

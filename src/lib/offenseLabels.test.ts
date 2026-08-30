@@ -41,10 +41,10 @@ describe("Vergehens-Bezeichnungen sind in beiden Sprachen vollständig", () => {
   });
 
   it("der Namensraum trägt keine Leichen — jeder Eintrag gehört zu einer Art", () => {
-    const erlaubt = new Set(Object.values(OFFENSE_TYPE_I18N_KEYS));
+    const allowed = new Set(Object.values(OFFENSE_TYPE_I18N_KEYS));
     for (const loc of LOCALES) {
       for (const key of Object.keys(messages[loc].offenses ?? {})) {
-        expect(erlaubt.has(key), `${loc}: offenses.${key} gehört zu keiner Vergehensart`).toBe(true);
+        expect(allowed.has(key), `${loc}: offenses.${key} gehört zu keiner Vergehensart`).toBe(true);
       }
     }
   });

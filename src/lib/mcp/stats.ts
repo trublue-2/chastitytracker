@@ -139,7 +139,7 @@ function collectSessions(byDevice: Map<string, DeviceAgg>, sessions: Session[], 
  * `get_session` — die Statistik zählt sie nur zusammen.
  */
 export async function deviceStats(username: string, ctx?: TrackingContext): Promise<DeviceStatsResult> {
-  const { userId, entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
+  const { userId, entries, cleaning, devices, now, timezone } = await ctxOf(username, ctx);
   const iso = makeIso(timezone);
   // Stichtag für A-09: das früheste Geräte-`createdAt`. Strecken davor konnten kein Gerät haben
   // (Projektgeschichte), Strecken danach ohne Gerät sind eine Erfassungslücke. Ohne Geräte im
@@ -156,7 +156,7 @@ export async function deviceStats(username: string, ctx?: TrackingContext): Prom
   // orphaned ausschliessen (siehe records()): eine verwaiste Session läuft bis `now` weiter und
   // würde sonst Phantom-Stunden in die Geräte-Summe schreiben (buildWearSessions filtert das
   // bereits selbst, siehe sessionModel.ts).
-  collectSessions(byDevice, buildSessions(entries, reinigung, now, devices).filter((s) => !s.orphaned), () => kgName, cutoffMs);
+  collectSessions(byDevice, buildSessions(entries, cleaning, now, devices).filter((s) => !s.orphaned), () => kgName, cutoffMs);
 
   // ── Nicht-KG: dieselben Trage-Sessions, die auch `get_session` zeigt ──
   collectSessions(byDevice, buildWearSessions(entries, now),
@@ -243,10 +243,10 @@ function longestOrgasmGapMs(times: Date[], now: Date): number | null {
 }
 
 export async function records(username: string, ctx?: TrackingContext, presessions?: Session[]): Promise<RecordsResult> {
-  const { entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
+  const { entries, cleaning, devices, now, timezone } = await ctxOf(username, ctx);
   const iso = makeIso(timezone);
   // Vorgebaute Sessions (vom Dashboard) wiederverwenden, statt buildSessions doppelt zu rechnen.
-  const sessions = presessions ?? buildSessions(entries, reinigung, now, devices);
+  const sessions = presessions ?? buildSessions(entries, cleaning, now, devices);
 
   // orphaned ausschliessen (weder "offen" noch "geschlossen" im echten Sinn — eine verwaiste,
   // niemals real beendete Session soll weder als aktueller Lauf noch als Bestmarken-Kandidat zählen).
@@ -352,12 +352,12 @@ function deviceContextAt(segs: FlatSegment[], t: number): string | null {
 }
 
 export async function denialTrend(username: string, opts: { limit?: number } = {}, ctx?: TrackingContext): Promise<DenialTrendResult> {
-  const { entries, reinigung, devices, now, timezone } = await ctxOf(username, ctx);
+  const { entries, cleaning, devices, now, timezone } = await ctxOf(username, ctx);
   const iso = makeIso(timezone);
   // orphaned ausschliessen: eine verwaiste Session endet (Segment-seitig) nie und würde die
   // "überlappungsfrei & sortiert"-Annahme von flattenSegments/deviceContextAt verletzen, sobald
   // gleichzeitig eine echte offene Session existiert (beide enden dann bei `now`).
-  const sessions = buildSessions(entries, reinigung, now, devices).filter((s) => !s.orphaned);
+  const sessions = buildSessions(entries, cleaning, now, devices).filter((s) => !s.orphaned);
   const segs = flattenSegments(sessions, now);
   const times = orgasmTimes(entries);
 
@@ -468,7 +468,7 @@ export const periodGoal = (actual: ByPeriod<number>, goal: VorgabeTargets): Peri
 /** Tag/Woche/Monat für KG und je Kategorie inkl. Ziel-Erfüllung. KG nutzt die geteilte
  *  Tracker-Berechnung; Kategorien die geteilte buildCategoryWearGoals. */
 export async function periodSummary(username: string, ctx?: TrackingContext): Promise<PeriodSummaryResult> {
-  const { userId, entries, reinigung, now, timezone } = await ctxOf(username, ctx);
+  const { userId, entries, cleaning, now, timezone } = await ctxOf(username, ctx);
   const iso = makeIso(timezone);
 
   const [kgVorgabe, categoryGoals] = await Promise.all([

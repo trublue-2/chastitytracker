@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { deployCutoff } from "@/lib/appMeta";
 import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ, hhmmToMinutes } from "@/lib/utils";
 import { cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
-import { aktivesReinigungsFenster, CLEANING_USER_SELECT } from "@/lib/reinigungService";
+import { activeCleaningWindow, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
@@ -11,7 +11,7 @@ import { missedWeightBlocks, missedWeightRef } from "@/lib/weightObligation";
 import { addWeightDays, endOfWeightDay, weightDayKey } from "@/lib/weight";
 import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
 import {
-  CLEANING_RULE_CHANGE_SELECT, cleaningPermissionUserAt, cleaningRulesFrom, reinigungRulesAt,
+  CLEANING_RULE_CHANGE_SELECT, cleaningPermissionUserAt, cleaningRulesFrom, cleaningRulesAt,
   type CleaningSettingsResolver,
 } from "@/lib/cleaningRules";
 import { TIMEZONE_CHANGE_SELECT, timezoneRulesFrom, type TimezoneResolver } from "@/lib/timezoneRules";
@@ -47,7 +47,7 @@ export interface StrafbuchData {
    *  markiert (siehe inspectionEscalationService.ts). Nie zusammen mit lateControls/rejectedControls
    *  für dieselbe Zeile, da autoMarkedRemovedAt niemals mit gesetztem entryId koexistiert. */
   autoRemovedControls: StrafbuchControlOffense[];
-  reinigungLimitViolations: {
+  cleaningLimitViolations: {
     entryId: string;
     startTime: Date | null;
     note: string | null;
@@ -74,7 +74,7 @@ export interface StrafbuchData {
     message: string | null;
   }[];
   /** REINIGUNG-Öffnungen during an active, cleaning-permitted Sperrzeit whose re-lock deadline
-   *  (active daily cleaning window's end, or open time + reinigungMaxMinuten as fallback) passed
+   *  (active daily cleaning window's end, or open time + cleaningMaxMinutes as fallback) passed
    *  without (or with a late) following VERSCHLUSS. */
   cleaningNotRelocked: {
     entryId: string;
@@ -271,7 +271,7 @@ export const OFFENSE_LISTS = {
   late_control: spec("lateControls", (k) => k.id, (k) => k.entryStartTime ?? k.deadline),
   rejected_control: spec("rejectedControls", (k) => k.id, (k) => k.entryStartTime ?? k.deadline),
   auto_removed_control: spec("autoRemovedControls", (k) => k.id, (k) => k.entryStartTime ?? k.deadline),
-  cleaning_limit: spec("reinigungLimitViolations", (v) => v.entryId, (v) => v.startTime),
+  cleaning_limit: spec("cleaningLimitViolations", (v) => v.entryId, (v) => v.startTime),
   wrong_device: spec("wrongDeviceViolations", (v) => v.entryId, (v) => v.startTime),
   missed_orgasm: spec("missedOrgasmInstructions", (m) => m.id, (m) => m.endsAt),
   late_lock: spec("lateLocks", (a) => a.id, (a) => a.fulfilledAt ?? a.endsAt),
@@ -393,7 +393,7 @@ function healthHoldDayKeys(
  * Filter, Sortierung und Schleife über den ganzen Bestand.
  */
 function cleaningLimitViolations(
-  oeffnungen: { id: string; startTime: Date; oeffnenGrund: string | null; note: string | null }[],
+  openings: { id: string; startTime: Date; oeffnenGrund: string | null; note: string | null }[],
   cleaningAt: CleaningSettingsResolver,
   tzAt: TimezoneResolver,
   quotaEverSet: boolean,
@@ -401,12 +401,12 @@ function cleaningLimitViolations(
   if (!quotaEverSet) return [];
   const violations: { entryId: string; startTime: Date | null; note: string | null }[] = [];
   const perDay = new Map<string, number>();
-  const reinigungAsc = oeffnungen
+  const cleaningAsc = openings
     .filter((o) => o.oeffnenGrund === "REINIGUNG")
     .slice()
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-  for (const o of reinigungAsc) {
-    // Sub-Tag, nicht CH-Tag — dieselbe Grenze, die `reinigungVerbrauchtHeute` (midnightInTZ mit
+  for (const o of cleaningAsc) {
+    // Sub-Tag, nicht CH-Tag — dieselbe Grenze, die `cleaningUsedToday` (midnightInTZ mit
     // der Sub-Zeitzone) beim Zählen auf der Box-Karte zieht. In der Zone, die DAMALS galt: sonst
     // schöbe eine spätere Umstellung vergangene Öffnungen über eine Tagesgrenze und liesse ein
     // Kontingent rückwirkend überschritten (oder eingehalten) aussehen.
@@ -427,16 +427,16 @@ export function isLateLock(a: { endsAt: Date; fulfilledAt: Date | null }, now: D
 
 /** Re-lock deadline for a REINIGUNG-Öffnung: the end of the active daily cleaning window (`fenster`)
  *  if one was open at `openStartTime`, else open time + the user's max minutes per pause. A window
- *  configured but not covering `openStartTime` also falls back to `maxMinuten` — never silently
+ *  configured but not covering `openStartTime` also falls back to `maxMinutes` — never silently
  *  skipped, since that case isn't otherwise detected as an offense. Windows never span midnight
- *  (`parseReinigungsFenster` requires start < end), so the window end is always the same calendar
+ *  (`parseCleaningWindows` requires start < end), so the window end is always the same calendar
  *  day as `openStartTime`. `dateAtLocalMinutes` resolves the window-end wall-clock time DST-safely
  *  (a flat millisecond offset from midnight would be wrong on the ~2 days/year a DST transition
  *  falls between midnight and the window end). */
-export function reinigungRelockDeadline(openStartTime: Date, maxMinuten: number, fenster: unknown, tz: string): Date {
-  const windowEnd = aktivesReinigungsFenster(fenster, openStartTime, tz);
+export function cleaningRelockDeadline(openStartTime: Date, maxMinutes: number, windows: unknown, tz: string): Date {
+  const windowEnd = activeCleaningWindow(windows, openStartTime, tz);
   if (windowEnd) return dateAtLocalMinutes(openStartTime, hhmmToMinutes(windowEnd), tz);
-  return new Date(openStartTime.getTime() + maxMinuten * 60 * 1000);
+  return new Date(openStartTime.getTime() + maxMinutes * 60 * 1000);
 }
 
 /** True if a REINIGUNG-Öffnung was not (or too late) followed by a VERSCHLUSS within `deadline`. */
@@ -499,15 +499,15 @@ export function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
  *
  *  Shared by unauthorizedOpenings (inverted: an opening that ISN'T allowed is unauthorized) and
  *  cleaningNotRelocked (only allowed openings can incur a missed-re-lock offense). */
-function isAllowedReinigungOpening(
+function isAllowedCleaningOpening(
   o: { oeffnenGrund: string | null; startTime: Date },
-  lockPeriod: { reinigungErlaubt: boolean } | undefined,
+  lockPeriod: { cleaningAllowed: boolean } | undefined,
   user: CleaningPermissionUser,
   enforcedFrom: Date,
 ): boolean {
   if (!lockPeriod || o.oeffnenGrund !== "REINIGUNG") return false;
   const grandfathered = o.startTime < enforcedFrom;
-  const effectiveUser = grandfathered ? { ...user, reinigungsFenster: null } : user;
+  const effectiveUser = grandfathered ? { ...user, cleaningWindows: null } : user;
   return cleaningBlockReason(effectiveUser, [lockPeriod], o.startTime) === null;
 }
 
@@ -527,13 +527,13 @@ function isAllowedReinigungOpening(
  */
 export function cleaningRelockObligation(
   opening: { oeffnenGrund: string | null; startTime: Date },
-  lockPeriod: { reinigungErlaubt: boolean; endsAt: Date | null } | null,
+  lockPeriod: { cleaningAllowed: boolean; endsAt: Date | null } | null,
   user: CleaningPermissionUser,
-  maxMinuten: number,
+  maxMinutes: number,
   enforcedFrom: Date,
 ): Date | null {
-  if (!lockPeriod || !isAllowedReinigungOpening(opening, lockPeriod, user, enforcedFrom)) return null;
-  const deadline = reinigungRelockDeadline(opening.startTime, maxMinuten, user.reinigungsFenster, user.timezone);
+  if (!lockPeriod || !isAllowedCleaningOpening(opening, lockPeriod, user, enforcedFrom)) return null;
+  const deadline = cleaningRelockDeadline(opening.startTime, maxMinutes, user.cleaningWindows, user.timezone);
   const lockPeriodCoversDeadline = lockPeriod.endsAt === null || lockPeriod.endsAt >= deadline;
   return lockPeriodCoversDeadline ? deadline : null;
 }
@@ -567,7 +567,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
 
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, cleaningRuleChanges, timezoneChanges, user, oeffnungen, verschluesse, lockPeriods, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw, weightRows, healthHolds] = await Promise.all([
+  const [enforcedFrom, cleaningRuleChanges, timezoneChanges, user, openings, verschluesse, lockPeriods, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw, weightRows, healthHolds] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
     prisma.timezoneChange.findMany({ where: { userId }, select: TIMEZONE_CHANGE_SELECT }),
@@ -631,7 +631,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const cleaningAt: CleaningSettingsResolver = cleaningRulesFrom(cleaningRuleChanges, user);
   /** Galt bei diesem Sub je ein Tageskontingent? Meist nein (Spalten-Default 0) — siehe
    *  {@link cleaningLimitViolations}. */
-  const quotaEverSet = (user?.reinigungMaxProTag ?? 0) > 0 || cleaningRuleChanges.some((c) => c.maxPerDay > 0);
+  const quotaEverSet = (user?.cleaningMaxPerDay ?? 0) > 0 || cleaningRuleChanges.some((c) => c.maxPerDay > 0);
 
   // Aufgabe → Vergehen, dessen Strafe sie ist. Aus den ohnehin geladenen Urteils-Zeilen, also ohne
   // eine einzige zusätzliche Abfrage.
@@ -640,10 +640,10 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   );
 
   const unfulfilledTasks = (await evaluateTasks(userId, tasks, now, {
-    kgEntries: [...oeffnungen, ...verschluesse],
+    kgEntries: [...openings, ...verschluesse],
     // Auch hier die Fassung von damals: sonst zerfiele eine Aufgabe rückwirkend an einer
     // Reinigungspause, die zu ihrer Zeit erlaubt war, und würde zum Vergehen „nicht erfüllt".
-    reinigung: reinigungRulesAt(cleaningAt),
+    cleaning: cleaningRulesAt(cleaningAt),
   }))
     .sort((a, b) => b.task.holdUntil.getTime() - a.task.holdUntil.getTime())
     // `flatMap` statt `filter` + `map`: der Type-Guard verengt `e.evaluation.state` nur INNERHALB
@@ -711,11 +711,11 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     return { entryId: r.refId, startTime: entry?.startTime ?? null, note: entry?.note ?? null, deviceName: entry?.device?.name ?? null };
   });
 
-  const reinigungLimitViolations = cleaningLimitViolations(oeffnungen, cleaningAt, tzAt, quotaEverSet);
+  const cleaningLimitRows = cleaningLimitViolations(openings, cleaningAt, tzAt, quotaEverSet);
 
   // Each OEFFNEN paired with the Sperrzeit active at its startTime (if any) — computed once,
   // shared by unauthorizedOpenings and cleaningNotRelocked below.
-  const openingsWithLockPeriod = oeffnungen.map((o) => ({ o, lockPeriod: findActiveLockPeriod(o.startTime, lockPeriods) }));
+  const openingsWithLockPeriod = openings.map((o) => ({ o, lockPeriod: findActiveLockPeriod(o.startTime, lockPeriods) }));
 
   // Unauthorized openings — an OEFFNEN inside an active Sperrzeit. A REINIGUNG opening is
   // permitted when both the user flag and the Sperrzeit allow cleaning. System-authored openings
@@ -725,7 +725,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const unauthorizedOpenings = openingsWithLockPeriod
     .filter(({ o, lockPeriod }) =>
       o.source !== "system" &&
-      !!lockPeriod && !isAllowedReinigungOpening(o, lockPeriod, cleaningPermissionUserAt(cleaningAt(o.startTime), tzAt(o.startTime)), enforcedFrom) && !isOrgasmusOpenAllowed(o.startTime),
+      !!lockPeriod && !isAllowedCleaningOpening(o, lockPeriod, cleaningPermissionUserAt(cleaningAt(o.startTime), tzAt(o.startTime)), enforcedFrom) && !isOrgasmusOpenAllowed(o.startTime),
     )
     .map(({ o, lockPeriod }) => ({
       id: o.id,
@@ -868,7 +868,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     autoRemovedControls: kontrollAnforderungen
       .filter((k) => k.autoMarkedRemovedAt !== null)
       .map(toAutoRemovedControl),
-    reinigungLimitViolations,
+    cleaningLimitViolations: cleaningLimitRows,
     wrongDeviceViolations,
     missedOrgasmInstructions: orgasmusAnforderungen
       // `!isHiddenFromSub`: eine terminierte Anweisung, die nie zugestellt wurde, ist kein Versäumnis

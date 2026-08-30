@@ -24,7 +24,7 @@ const X = new Date("2026-07-31T14:00:00Z");
 const STUNDE = 60 * 60 * 1000;
 
 const anforderung = (over: Partial<{ dauerH: number | null; lockEndsAt: Date | null; createdBy: string | null }> = {}) => ({
-  id: "a1", userId: "u1", message: "24h drin bleiben", reinigungErlaubt: true,
+  id: "a1", userId: "u1", message: "24h drin bleiben", cleaningAllowed: true,
   dauerH: 24, lockEndsAt: null, createdBy: "herrin", ...over,
 });
 
@@ -59,7 +59,7 @@ describe("carryOverLockPeriodOnAlreadyLocked", () => {
 
     const { data } = txMock.verschlussAnforderung.create.mock.calls[0][0] as { data: Record<string, unknown> };
     expect(data).toMatchObject({
-      userId: "u1", art: "SPERRZEIT", message: "24h drin bleiben", reinigungErlaubt: true,
+      userId: "u1", art: "SPERRZEIT", message: "24h drin bleiben", cleaningAllowed: true,
       endsAt: new Date(X.getTime() + 24 * STUNDE),
       // Sofort gültig ⇒ nicht vor dem Sub verborgen. KEIN `benachrichtigtAt`: der Stempel meint
       // „Mail/Push ging raus", und der Versand liegt hinter dem Commit (der Poller schickt).

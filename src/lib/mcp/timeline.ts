@@ -49,7 +49,7 @@ const WEAR_EVENT: Record<string, TimelineEventType> = { WEAR_BEGIN: "wear_begin"
 
 export async function timeline(username: string, opts: TimelineOptions = {}): Promise<TimelineResult> {
   const userId = await resolveUserId(username);
-  const { entries, reinigung, devices, timezone } = await loadTrackingData(userId);
+  const { entries, cleaning, devices, timezone } = await loadTrackingData(userId);
   const iso = makeIso(timezone);
   const now = new Date();
   const from = parseIsoDate(opts.from, "from");
@@ -59,7 +59,7 @@ export async function timeline(username: string, opts: TimelineOptions = {}): Pr
   const raw: RawEvent[] = [];
 
   // KG-Backbone aus Segmenten: lock je Segment-Start, unlock je Segment-Ende (+ endedBy).
-  for (const s of buildSessions(entries, reinigung, now, devices)) {
+  for (const s of buildSessions(entries, cleaning, now, devices)) {
     for (const seg of s.segments) {
       raw.push({ at: seg.start, type: "lock", deviceName: seg.deviceEffective.name, detail: { sessionId: s.id, segmentIndex: seg.index, deviceConfidence: seg.deviceConfidence } });
       if (seg.end) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPairs, type ReinigungSettings } from "@/lib/utils";
+import { buildPairs, type CleaningPauseAllowance } from "@/lib/utils";
 import {
   buildLockState, mapOpenKontrolle, mapActiveLockPeriod, mapOpenOrgasmusAnforderung,
   mapActiveWearSessions, type LockEntry,
@@ -10,7 +10,7 @@ const NOW = D("2026-07-10T12:00:00Z");
 /** Testformat: ISO ohne Millisekunden — die Mapper reichen `fmt` nur durch. */
 const fmt = (d: Date) => d.toISOString();
 
-const reinigung: ReinigungSettings = { erlaubt: true, maxMinuten: 30 };
+const cleaning: CleaningPauseAllowance = { allowed: true, maxMinutes: 30 };
 
 let seq = 0;
 const e = (type: string, iso: string, deviceName?: string, oeffnenGrund?: string): LockEntry => ({
@@ -31,7 +31,7 @@ describe("buildLockState", () => {
     const lock = buildLockState(desc([
       e("VERSCHLUSS", "2026-07-08T10:00:00Z", "Ring A"),
       e("OEFFNEN", "2026-07-09T10:00:00Z", undefined, "KEYHOLDER"),
-    ]), reinigung, NOW, fmt);
+    ]), cleaning, NOW, fmt);
 
     expect(lock.isLocked).toBe(false);
     expect(lock.currentDurationHours).toBeNull();
@@ -40,7 +40,7 @@ describe("buildLockState", () => {
   });
 
   it("verschlossen: Dauer zählt ab Session-Start", () => {
-    const lock = buildLockState(desc([e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A")]), reinigung, NOW, fmt);
+    const lock = buildLockState(desc([e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A")]), cleaning, NOW, fmt);
     expect(lock.isLocked).toBe(true);
     expect(lock.currentDurationHours).toBe(12);
     expect(lock.deviceName).toBe("Ring A");
@@ -50,26 +50,26 @@ describe("buildLockState", () => {
   });
 
   it("eine Reinigungspause wird von der Tragedauer ABGEZOGEN", () => {
-    // 00:00 verschlossen, 04:00–04:20 Reinigung (innerhalb maxMinuten=30), danach wieder zu.
+    // 00:00 verschlossen, 04:00–04:20 Reinigung (innerhalb maxMinutes=30), danach wieder zu.
     // Bis 12:00 → 12 h minus 20 min Pause = 11.67 h, auf eine Nachkommastelle gerundet.
     const lock = buildLockState(desc([
       e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A"),
       e("OEFFNEN", "2026-07-10T04:00:00Z", undefined, "REINIGUNG"),
       e("VERSCHLUSS", "2026-07-10T04:20:00Z", "Ring A"),
-    ]), reinigung, NOW, fmt);
+    ]), cleaning, NOW, fmt);
 
     expect(lock.isLocked).toBe(true);
     expect(lock.currentDurationHours).toBe(11.7);
   });
 
-  it("eine Pause LÄNGER als reinigungMaxMinuten ist keine Unterbrechung — sie beendet die Session", () => {
-    // 60 min > maxMinuten=30: buildPairs zählt das nicht als Reinigungspause, sondern trennt die
+  it("eine Pause LÄNGER als cleaningMaxMinutes ist keine Unterbrechung — sie beendet die Session", () => {
+    // 60 min > maxMinutes=30: buildPairs zählt das nicht als Reinigungspause, sondern trennt die
     // Session. Die Dauer läuft daher erst ab dem Wiederverschluss (05:00 → 12:00 = 7 h).
     const lock = buildLockState(desc([
       e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A"),
       e("OEFFNEN", "2026-07-10T04:00:00Z", undefined, "REINIGUNG"),
       e("VERSCHLUSS", "2026-07-10T05:00:00Z", "Ring A"),
-    ]), reinigung, NOW, fmt);
+    ]), cleaning, NOW, fmt);
 
     expect(lock.currentDurationHours).toBe(7);
   });
@@ -77,13 +77,13 @@ describe("buildLockState", () => {
   it("REGRESSION: nach einem Gerätewechsel während der Reinigungspause zählt das NEUE Gerät", () => {
     // Der Session-Kopf trägt „Ring A", wiederverschlossen wurde mit „Ring B". Wer nur
     // activePair.verschluss liest, meldet fälschlich das Gerät vom Session-Start (Changelog 4.x).
-    // Die Pause muss dafür INNERHALB von maxMinuten liegen — sonst gäbe es gar keine Unterbrechung
+    // Die Pause muss dafür INNERHALB von maxMinutes liegen — sonst gäbe es gar keine Unterbrechung
     // und der Test wäre aus dem falschen Grund grün.
     const lock = buildLockState(desc([
       e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A"),
       e("OEFFNEN", "2026-07-10T04:00:00Z", undefined, "REINIGUNG"),
       e("VERSCHLUSS", "2026-07-10T04:20:00Z", "Ring B"),
-    ]), reinigung, NOW, fmt);
+    ]), cleaning, NOW, fmt);
 
     expect(lock.deviceName).toBe("Ring B");
     // Die Session läuft über die Pause hinweg durch: Dauer ab Session-Start minus Pause.
@@ -95,14 +95,14 @@ describe("buildLockState", () => {
   });
 
   it("ohne Einträge ist nichts verschlossen", () => {
-    const lock = buildLockState([], reinigung, NOW, fmt);
+    const lock = buildLockState([], cleaning, NOW, fmt);
     expect(lock).toEqual({ isLocked: false, since: null, currentSegmentSince: null, currentDurationHours: null, currentSegmentDurationHours: null, deviceName: null, keyInBox: null });
   });
 
   it("keyInBox:false wird gemeldet — der Verschluss ist erklärt, aber nicht hardware-vollstreckt", () => {
     const lock = buildLockState(
       desc([{ ...e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A"), keyInBox: false }]),
-      reinigung, NOW, fmt,
+      cleaning, NOW, fmt,
     );
     expect(lock.isLocked).toBe(true);
     expect(lock.keyInBox).toBe(false);
@@ -112,7 +112,7 @@ describe("buildLockState", () => {
     const lock = buildLockState(desc([
       { ...e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A"), keyInBox: false },
       e("OEFFNEN", "2026-07-10T04:00:00Z"),
-    ]), reinigung, NOW, fmt);
+    ]), cleaning, NOW, fmt);
     expect(lock.isLocked).toBe(false);
     expect(lock.keyInBox).toBeNull();
   });
@@ -124,12 +124,12 @@ describe("buildLockState", () => {
       { ...e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A"), keyInBox: true },
       e("OEFFNEN", "2026-07-10T04:00:00Z", undefined, "REINIGUNG"),
       { ...e("VERSCHLUSS", "2026-07-10T04:20:00Z", "Ring A"), keyInBox: false },
-    ]), reinigung, NOW, fmt);
+    ]), cleaning, NOW, fmt);
     expect(lock.keyInBox).toBe(false);
   });
 
   it("ohne Angabe bleibt keyInBox null — ein Alt-Eintrag ist kein „nein\"", () => {
-    const lock = buildLockState(desc([e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A")]), reinigung, NOW, fmt);
+    const lock = buildLockState(desc([e("VERSCHLUSS", "2026-07-10T00:00:00Z", "Ring A")]), cleaning, NOW, fmt);
     expect(lock.keyInBox).toBeNull();
   });
 
@@ -156,7 +156,7 @@ describe("mapOpenKontrolle", () => {
 
 describe("mapActiveLockPeriod", () => {
   it("ohne Ende ist die Sperre unbefristet — keine Restzeit", () => {
-    const s = mapActiveLockPeriod({ endsAt: null, message: null, reinigungErlaubt: true, device: null }, NOW, fmt)!;
+    const s = mapActiveLockPeriod({ endsAt: null, message: null, cleaningAllowed: true, device: null }, NOW, fmt)!;
     expect(s.indefinite).toBe(true);
     expect(s.endsAt).toBeNull();
     expect(s.remainingMinutes).toBeNull();
@@ -164,11 +164,11 @@ describe("mapActiveLockPeriod", () => {
 
   it("mit Ende: Restzeit in Minuten, Gerätename durchgereicht", () => {
     const s = mapActiveLockPeriod(
-      { endsAt: D("2026-07-10T13:00:00Z"), message: "bis morgen", reinigungErlaubt: false, device: { name: "Ring A" } },
+      { endsAt: D("2026-07-10T13:00:00Z"), message: "bis morgen", cleaningAllowed: false, device: { name: "Ring A" } },
       NOW, fmt)!;
     expect(s.indefinite).toBe(false);
     expect(s.remainingMinutes).toBe(60);
-    expect(s.reinigungErlaubt).toBe(false);
+    expect(s.cleaningAllowed).toBe(false);
     expect(s.deviceName).toBe("Ring A");
   });
 });

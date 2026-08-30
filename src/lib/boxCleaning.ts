@@ -1,7 +1,7 @@
 import { heimdallEnabled } from "@/lib/constants";
-import { buildReinigungView, countCleaningUsedToday, nextReinigungsFenster, type CleaningCountEntry, type ReinigungUserFields } from "@/lib/reinigungService";
+import { buildCleaningView, countCleaningUsedToday, nextCleaningWindow, type CleaningCountEntry, type CleaningUserFields } from "@/lib/cleaningService";
 import { cleaningBlockReason } from "@/lib/queries";
-import type { BoxReinigungView } from "@/lib/boxStatus";
+import type { BoxCleaningView } from "@/lib/boxStatus";
 
 /**
  * Die Reinigungs-Zeilen der Box-Status-Karte (Fenster + Kontingent + Live-Urteil) für EINEN Sub.
@@ -23,20 +23,20 @@ import type { BoxReinigungView } from "@/lib/boxStatus";
  * {@link countCleaningUsedToday} das Tageskontingent daraus statt mit einer eigenen DB-Runde —
  * deshalb ist das hier keine async-Funktion.
  */
-export function buildBoxReinigungView(
-  user: ReinigungUserFields | null,
+export function buildBoxCleaningView(
+  user: CleaningUserFields | null,
   allEntries: CleaningCountEntry[],
-  lockPeriod: { reinigungErlaubt: boolean } | null,
+  lockPeriod: { cleaningAllowed: boolean } | null,
   now: Date,
   tz: string,
-): BoxReinigungView | null {
+): BoxCleaningView | null {
   // Ohne Heimdall gibt es keine Box-Karte — dann auch keine Zählung dafür.
   if (!heimdallEnabled() || !user) return null;
   return {
-    ...buildReinigungView(user, countCleaningUsedToday(allEntries, now, tz), now, tz),
-    nextWindow: nextReinigungsFenster(user.reinigungsFenster, now, tz),
+    ...buildCleaningView(user, countCleaningUsedToday(allEntries, now, tz), now, tz),
+    nextWindow: nextCleaningWindow(user.cleaningWindows, now, tz),
     blockedBy: cleaningBlockReason(
-      { reinigungErlaubt: user.reinigungErlaubt ?? false, reinigungsFenster: user.reinigungsFenster, timezone: tz },
+      { cleaningAllowed: user.cleaningAllowed ?? false, cleaningWindows: user.cleaningWindows, timezone: tz },
       lockPeriod ? [lockPeriod] : [],
       now,
     ),

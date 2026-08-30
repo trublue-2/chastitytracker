@@ -25,9 +25,9 @@ const fmt = (d: Date) => d.toISOString();
 
 beforeEach(() => {
   vi.clearAllMocks();
-  tx.verschlussAnforderung.findMany.mockReset().mockResolvedValue([{ id: "s1", reinigungErlaubt: false }]);
+  tx.verschlussAnforderung.findMany.mockReset().mockResolvedValue([{ id: "s1", cleaningAllowed: false }]);
   tx.verschlussAnforderung.updateMany.mockReset().mockResolvedValue({ count: 1 });
-  tx.user.findUnique.mockReset().mockResolvedValue({ reinigungErlaubt: false, reinigungsFenster: null, timezone: "Europe/Zurich" });
+  tx.user.findUnique.mockReset().mockResolvedValue({ cleaningAllowed: false, cleaningWindows: null, timezone: "Europe/Zurich" });
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

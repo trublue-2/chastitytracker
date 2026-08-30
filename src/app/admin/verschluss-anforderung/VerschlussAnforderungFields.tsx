@@ -69,7 +69,7 @@ export default function VerschlussAnforderungFields({
     toDatetimeLocal(new Date(nowBaseMs + 24 * 60 * 60 * 1000), tz)
   );
   const [deviceId, setDeviceId] = useState("");
-  const [reinigungErlaubt, setReinigungErlaubt] = useState(false);
+  const [cleaningAllowed, setCleaningAllowed] = useState(false);
   // Terminierung: sofort (default), relative Verzögerung, oder absoluter Zeitpunkt — dasselbe
   // Bauteil, das auch die Aufgabe verwendet.
   const [schedule, setSchedule] = useState<ScheduleValue>(() => initialSchedule(minNow, tz));
@@ -114,7 +114,7 @@ export default function VerschlussAnforderungFields({
         payload.deviceId = deviceId;
       }
       if (isLockPeriod || withMinDauer) {
-        payload.reinigungErlaubt = reinigungErlaubt;
+        payload.cleaningAllowed = cleaningAllowed;
       }
 
       const res = await fetch("/api/admin/verschluss-anforderung", {
@@ -131,10 +131,10 @@ export default function VerschlussAnforderungFields({
     }
   }
 
-  const reinigungCheckbox = (
+  const cleaningCheckbox = (
     <div className="flex flex-col gap-1">
       <label className="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" checked={reinigungErlaubt} onChange={(e) => setReinigungErlaubt(e.target.checked)}
+        <input type="checkbox" checked={cleaningAllowed} onChange={(e) => setCleaningAllowed(e.target.checked)}
           className="w-4 h-4" style={{ accentColor }} />
         <span className="text-xs text-foreground-faint">{t("reinigungErlaubtLabel")}</span>
       </label>
@@ -210,13 +210,13 @@ export default function VerschlussAnforderungFields({
                   hint={t("sperrUntilHint")}
                 />
               )}
-              <div className="mt-1">{reinigungCheckbox}</div>
+              <div className="mt-1">{cleaningCheckbox}</div>
             </div>
           )}
         </div>
       )}
 
-      {isLockPeriod && reinigungCheckbox}
+      {isLockPeriod && cleaningCheckbox}
 
       {!isLockPeriod && devices.length > 0 && (
         <Select

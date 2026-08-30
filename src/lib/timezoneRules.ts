@@ -58,12 +58,12 @@ export const fixedTimezone = (tz: string): TimezoneResolver => () => tz;
  * Stellt die Zone um und hält die Umstellung fest — der einzige Schreibweg.
  *
  * Lesen, Historie schreiben und Spalte setzen in EINER Transaktion, aus demselben Grund wie bei
- * `setReinigungSettings`: bräche sie nach der Spalten-Änderung ab, stünde die neue Zone ohne Historie
+ * `setCleaningSettings`: bräche sie nach der Spalten-Änderung ab, stünde die neue Zone ohne Historie
  * da, und das Strafbuch beurteilte die Vergangenheit wieder nach dem heutigen Stand — also genau der
  * Fehler, gegen den die Tabelle gebaut ist.
  *
  * Eine Umstellung, die nichts bewegt, schreibt keine Zeile: eine Historie hält Änderungen fest, nicht
- * Klicks (gleiche Regel wie in `setReinigungSettings` und `setOffenseRule`).
+ * Klicks (gleiche Regel wie in `setCleaningSettings` und `setOffenseRule`).
  */
 export async function setUserTimezone(
   userId: string,

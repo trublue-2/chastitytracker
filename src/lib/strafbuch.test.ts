@@ -5,7 +5,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { isLateLock, reinigungRelockDeadline, isCleaningNotRelocked, cleaningRelockObligation, buildStrafbuch, cleaningWindowEnforcedFrom } from "./strafbuch";
+import { isLateLock, cleaningRelockDeadline, isCleaningNotRelocked, cleaningRelockObligation, buildStrafbuch, cleaningWindowEnforcedFrom } from "./strafbuch";
 import { prisma } from "@/lib/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
@@ -33,24 +33,24 @@ describe("isLateLock", () => {
   });
 });
 
-describe("reinigungRelockDeadline", () => {
+describe("cleaningRelockDeadline", () => {
   const tz = "Europe/Zurich"; // UTC+2 (CEST) in July
 
-  it("falls back to open time + maxMinuten when no window is configured", () => {
+  it("falls back to open time + maxMinutes when no window is configured", () => {
     const openStart = new Date("2026-07-09T18:00:00Z"); // 20:00 Zurich
-    expect(reinigungRelockDeadline(openStart, 15, [], tz).toISOString()).toBe("2026-07-09T18:15:00.000Z");
+    expect(cleaningRelockDeadline(openStart, 15, [], tz).toISOString()).toBe("2026-07-09T18:15:00.000Z");
   });
 
   it("uses the active window's end when the opening falls inside a configured window", () => {
     const openStart = new Date("2026-07-09T18:00:00Z"); // 20:00 Zurich
     const fenster = [{ start: "20:00", end: "22:00" }];
-    expect(reinigungRelockDeadline(openStart, 15, fenster, tz).toISOString()).toBe("2026-07-09T20:00:00.000Z");
+    expect(cleaningRelockDeadline(openStart, 15, fenster, tz).toISOString()).toBe("2026-07-09T20:00:00.000Z");
   });
 
-  it("falls back to maxMinuten when windows are configured but the opening falls outside all of them", () => {
+  it("falls back to maxMinutes when windows are configured but the opening falls outside all of them", () => {
     const openStart = new Date("2026-07-09T18:00:00Z"); // 20:00 Zurich
     const fenster = [{ start: "08:00", end: "09:00" }];
-    expect(reinigungRelockDeadline(openStart, 15, fenster, tz).toISOString()).toBe("2026-07-09T18:15:00.000Z");
+    expect(cleaningRelockDeadline(openStart, 15, fenster, tz).toISOString()).toBe("2026-07-09T18:15:00.000Z");
   });
 
   it("resolves a window end correctly across a same-day DST transition (spring-forward)", () => {
@@ -59,7 +59,7 @@ describe("reinigungRelockDeadline", () => {
     // (offset +2). A naive flat-ms-from-midnight calculation would misresolve this.
     const openStart = new Date("2026-03-29T00:30:00Z"); // 01:30 CET
     const fenster = [{ start: "01:30", end: "04:00" }];
-    expect(reinigungRelockDeadline(openStart, 15, fenster, tz).toISOString()).toBe("2026-03-29T02:00:00.000Z"); // 04:00 CEST
+    expect(cleaningRelockDeadline(openStart, 15, fenster, tz).toISOString()).toBe("2026-03-29T02:00:00.000Z"); // 04:00 CEST
   });
 });
 
@@ -67,8 +67,8 @@ describe("cleaningRelockObligation — dieselbe Regel für Strafbuch UND Dashboa
   const tz = "Europe/Zurich";
   const enforcedFrom = new Date("2026-01-01T00:00:00Z");
   const opening = { oeffnenGrund: "REINIGUNG", startTime: new Date("2026-07-09T18:00:00Z") }; // 20:00 Zürich
-  const user = { reinigungErlaubt: true, reinigungsFenster: [{ start: "20:00", end: "22:00" }], timezone: tz };
-  const lockPeriod = { reinigungErlaubt: true, endsAt: null };
+  const user = { cleaningAllowed: true, cleaningWindows: [{ start: "20:00", end: "22:00" }], timezone: tz };
+  const lockPeriod = { cleaningAllowed: true, endsAt: null };
 
   it("liefert die Fenster-Frist, wenn die Öffnung erlaubt ist", () => {
     const d = cleaningRelockObligation(opening, lockPeriod, user, 15, enforcedFrom);
@@ -80,7 +80,7 @@ describe("cleaningRelockObligation — dieselbe Regel für Strafbuch UND Dashboa
   });
 
   it("keine Pflicht, wenn die Sperrzeit Reinigung verbietet (die Öffnung ist dann unerlaubt)", () => {
-    expect(cleaningRelockObligation(opening, { reinigungErlaubt: false, endsAt: null }, user, 15, enforcedFrom)).toBeNull();
+    expect(cleaningRelockObligation(opening, { cleaningAllowed: false, endsAt: null }, user, 15, enforcedFrom)).toBeNull();
   });
 
   it("keine Pflicht ausserhalb der konfigurierten Fenster", () => {
@@ -89,11 +89,11 @@ describe("cleaningRelockObligation — dieselbe Regel für Strafbuch UND Dashboa
   });
 
   it("keine Pflicht, wenn der Nutzer gar nicht reinigen darf", () => {
-    expect(cleaningRelockObligation(opening, lockPeriod, { ...user, reinigungErlaubt: false }, 15, enforcedFrom)).toBeNull();
+    expect(cleaningRelockObligation(opening, lockPeriod, { ...user, cleaningAllowed: false }, 15, enforcedFrom)).toBeNull();
   });
 
   it("keine Pflicht, wenn die Sperrzeit VOR der Frist endet — es bliebe nichts zu verletzen", () => {
-    const kurz = { reinigungErlaubt: true, endsAt: new Date("2026-07-09T19:00:00Z") }; // vor dem Fensterende
+    const kurz = { cleaningAllowed: true, endsAt: new Date("2026-07-09T19:00:00Z") }; // vor dem Fensterende
     expect(cleaningRelockObligation(opening, kurz, user, 15, enforcedFrom)).toBeNull();
   });
 
@@ -165,10 +165,10 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
   const TZ = "Europe/Zurich";
 
   const USER = {
-    reinigungErlaubt: true,
-    reinigungMaxProTag: 0, // 0 = unbegrenzt → kein Kontingent-Verstoss dazwischen
-    reinigungMaxMinuten: 15,
-    reinigungsFenster: [{ start: "19:00", end: "20:00" }],
+    cleaningAllowed: true,
+    cleaningMaxPerDay: 0, // 0 = unbegrenzt → kein Kontingent-Verstoss dazwischen
+    cleaningMaxMinutes: 15,
+    cleaningWindows: [{ start: "19:00", end: "20:00" }],
     timezone: TZ,
   };
 
@@ -183,7 +183,7 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
     createdAt: new Date("2026-07-09T22:00:00Z"),
     endsAt: new Date("2026-07-11T22:00:00Z"),
     withdrawnAt: null,
-    reinigungErlaubt: true,
+    cleaningAllowed: true,
     wirksamAb: null,
     fulfilledAt: null,
   };
@@ -215,7 +215,7 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
   });
 
   it("ohne konfigurierte Fenster ist Reinigung nicht zeitgebunden — auch nachts erlaubt", async () => {
-    db.user.findUnique.mockResolvedValue({ ...USER, reinigungsFenster: [] });
+    db.user.findUnique.mockResolvedValue({ ...USER, cleaningWindows: [] });
     mockOeffnung(oeffnung(NACHTS));
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
   });
@@ -235,20 +235,20 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
   });
 
   it("die Sperrzeit verbietet Reinigung: unerlaubtes Öffnen, auch im Fenster", async () => {
-    mockLockPeriods([{ ...SPERRE, reinigungErlaubt: false }]);
+    mockLockPeriods([{ ...SPERRE, cleaningAllowed: false }]);
     mockOeffnung(oeffnung(IM_FENSTER));
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
   });
 
   it("der User darf gar nicht reinigen: unerlaubtes Öffnen, auch im Fenster", async () => {
-    db.user.findUnique.mockResolvedValue({ ...USER, reinigungErlaubt: false });
+    db.user.findUnique.mockResolvedValue({ ...USER, cleaningAllowed: false });
     mockOeffnung(oeffnung(IM_FENSTER));
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
   });
 });
 
 /**
- * Das Tageskontingent zählt die Box-Karte über `reinigungVerbrauchtHeute` (midnightInTZ mit der
+ * Das Tageskontingent zählt die Box-Karte über `cleaningUsedToday` (midnightInTZ mit der
  * Sub-Zeitzone). Das Strafbuch bucketete dieselben Öffnungen nach CH-Tag — für eine Sub ausserhalb
  * Europe/Zurich gab dieselbe Regel damit zwei verschiedene Antworten: eine Öffnung nahe der lokalen
  * Mitternacht fiel im Buch in einen anderen Tag als in der Zählung.
@@ -262,7 +262,7 @@ describe("buildStrafbuch — das Reinigungs-Kontingent zählt den Kalendertag de
 
   /** Nur diese zwei Felder tragen hier: ohne gemockte Sperrzeit steht die Fenster-Regel gar nicht
    *  zur Debatte, es zählt allein das Kontingent gegen den Kalendertag. */
-  const USER = { reinigungMaxProTag: 1, timezone: "Pacific/Auckland" };
+  const USER = { cleaningMaxPerDay: 1, timezone: "Pacific/Auckland" };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -274,15 +274,15 @@ describe("buildStrafbuch — das Reinigungs-Kontingent zählt den Kalendertag de
 
   it("zwei Öffnungen am selben Sub-Tag: die zweite sprengt das Kontingent", async () => {
     const s = await buildStrafbuch("u1", NOW);
-    expect(s.reinigungLimitViolations).toHaveLength(1);
-    expect(s.reinigungLimitViolations[0].startTime).toEqual(SECOND);
+    expect(s.cleaningLimitViolations).toHaveLength(1);
+    expect(s.cleaningLimitViolations[0].startTime).toEqual(SECOND);
   });
 
   it("dieselben Öffnungen bei einer Zürcher Sub: zwei Tage, kein Verstoss", async () => {
     // Die Gegenprobe hält den Beweis fest, dass die SUB-Zeitzone entscheidet — und nicht der
     // Zufall, dass die Öffnungen ohnehin ein Vergehen ergäben.
     db.user.findUnique.mockResolvedValue({ ...USER, timezone: "Europe/Zurich" });
-    expect((await buildStrafbuch("u1", NOW)).reinigungLimitViolations).toHaveLength(0);
+    expect((await buildStrafbuch("u1", NOW)).cleaningLimitViolations).toHaveLength(0);
   });
 });
 
@@ -312,8 +312,8 @@ describe("buildStrafbuch — nie zugestellte Anforderungen sind keine Versäumni
   beforeEach(() => {
     mockOeffnungen([]);
     db.user.findUnique.mockResolvedValue({
-      reinigungErlaubt: false, reinigungMaxProTag: 0, reinigungMaxMinuten: 15,
-      reinigungsFenster: null, timezone: "Europe/Zurich",
+      cleaningAllowed: false, cleaningMaxPerDay: 0, cleaningMaxMinutes: 15,
+      cleaningWindows: null, timezone: "Europe/Zurich",
     });
   });
 
@@ -410,8 +410,8 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
   beforeEach(() => {
     vi.clearAllMocks();
     db.user.findUnique.mockResolvedValue({
-      reinigungErlaubt: false, reinigungMaxProTag: 0, reinigungMaxMinuten: 15,
-      reinigungsFenster: null, timezone: "Europe/Zurich",
+      cleaningAllowed: false, cleaningMaxPerDay: 0, cleaningMaxMinutes: 15,
+      cleaningWindows: null, timezone: "Europe/Zurich",
     });
     mockLockPeriods([]);
     mockStichtag("2026-07-01T00:00:00Z");
@@ -519,8 +519,8 @@ describe("buildStrafbuch — der Beleg zum Aufgaben-Vergehen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     db.user.findUnique.mockResolvedValue({
-      reinigungErlaubt: false, reinigungMaxProTag: 0, reinigungMaxMinuten: 15,
-      reinigungsFenster: null, timezone: "Europe/Zurich",
+      cleaningAllowed: false, cleaningMaxPerDay: 0, cleaningMaxMinutes: 15,
+      cleaningWindows: null, timezone: "Europe/Zurich",
     });
     mockVerschluesse([VERSCHLUSS]);
   });
@@ -575,10 +575,10 @@ describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
 
   /** Heutiger Stand: gesenkt auf eine Öffnung pro Tag. */
   const USER = {
-    reinigungErlaubt: true,
-    reinigungMaxProTag: 1,
-    reinigungMaxMinuten: 15,
-    reinigungsFenster: null,
+    cleaningAllowed: true,
+    cleaningMaxPerDay: 1,
+    cleaningMaxMinutes: 15,
+    cleaningWindows: null,
     timezone: TZ,
   };
 
@@ -609,26 +609,26 @@ describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
 
   it("die zweite Öffnung von damals bleibt straffrei — damals waren zwei erlaubt", async () => {
     mockOeffnungen(DAMALS);
-    expect((await buildStrafbuch("u1", NOW)).reinigungLimitViolations).toHaveLength(0);
+    expect((await buildStrafbuch("u1", NOW)).cleaningLimitViolations).toHaveLength(0);
   });
 
   it("nach der Senkung ist die zweite Öffnung desselben Tages ein Vergehen", async () => {
     mockOeffnungen(HEUTE);
-    const violations = (await buildStrafbuch("u1", NOW)).reinigungLimitViolations;
+    const violations = (await buildStrafbuch("u1", NOW)).cleaningLimitViolations;
     expect(violations).toHaveLength(1);
     expect(violations[0].entryId).toBe("neu2");
   });
 
   it("beide Tage zusammen: nur der Tag nach der Senkung schlägt an", async () => {
     mockOeffnungen([...DAMALS, ...HEUTE]);
-    const violations = (await buildStrafbuch("u1", NOW)).reinigungLimitViolations;
+    const violations = (await buildStrafbuch("u1", NOW)).cleaningLimitViolations;
     expect(violations.map((v) => v.entryId)).toEqual(["neu2"]);
   });
 
   it("ohne Historie gilt der heutige Stand — sonst wäre nie etwas ein Vergehen", async () => {
     db.cleaningRuleChange.findMany.mockResolvedValue([]);
     mockOeffnungen(DAMALS);
-    expect((await buildStrafbuch("u1", NOW)).reinigungLimitViolations).toHaveLength(1);
+    expect((await buildStrafbuch("u1", NOW)).cleaningLimitViolations).toHaveLength(1);
   });
 
   it("Kontingent 0 heisst unbegrenzt — auch wenn es zur Tatzeit galt", async () => {
@@ -636,13 +636,13 @@ describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
       { allowed: true, maxMinutes: 15, maxPerDay: 0, windows: null, effectiveFrom: new Date(0) },
     ]);
     mockOeffnungen([...DAMALS, ...HEUTE]);
-    expect((await buildStrafbuch("u1", NOW)).reinigungLimitViolations).toHaveLength(0);
+    expect((await buildStrafbuch("u1", NOW)).cleaningLimitViolations).toHaveLength(0);
   });
 
   it("später abgeschaltete Reinigung macht frühere Öffnungen nicht nachträglich unerlaubt", async () => {
     // Die grössere Fassung desselben Fehlers: aus einer erlaubten Reinigungspause würde sonst
     // rückwirkend ein Sperrzeit-Bruch.
-    db.user.findUnique.mockResolvedValue({ ...USER, reinigungErlaubt: false });
+    db.user.findUnique.mockResolvedValue({ ...USER, cleaningAllowed: false });
     db.cleaningRuleChange.findMany.mockResolvedValue([
       { allowed: true, maxMinutes: 15, maxPerDay: 2, windows: null, effectiveFrom: new Date(0) },
       { allowed: false, maxMinutes: 15, maxPerDay: 2, windows: null, effectiveFrom: GESENKT_AM },
@@ -652,7 +652,7 @@ describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
       createdAt: new Date("2026-08-01T00:00:00Z"),
       endsAt: new Date("2026-08-31T00:00:00Z"),
       withdrawnAt: null,
-      reinigungErlaubt: true,
+      cleaningAllowed: true,
       wirksamAb: null,
       fulfilledAt: null,
     }]);
@@ -684,7 +684,7 @@ describe("buildStrafbuch — die Sperrzeit, die im Moment der Öffnung endet", (
     endsAt: new Date("2026-07-11T22:00:00Z"),
     withdrawnAt,
     // Bewusst OHNE Reinigungserlaubnis: sonst entschiede die Fenster-Regel statt des Zeitstempels.
-    reinigungErlaubt: false,
+    cleaningAllowed: false,
     wirksamAb: null,
     fulfilledAt: null,
   });
@@ -694,8 +694,8 @@ describe("buildStrafbuch — die Sperrzeit, die im Moment der Öffnung endet", (
   beforeEach(() => {
     vi.clearAllMocks();
     db.user.findUnique.mockResolvedValue({
-      reinigungErlaubt: false, reinigungMaxProTag: 0, reinigungMaxMinuten: 15,
-      reinigungsFenster: [], timezone: "Europe/Zurich",
+      cleaningAllowed: false, cleaningMaxPerDay: 0, cleaningMaxMinutes: 15,
+      cleaningWindows: [], timezone: "Europe/Zurich",
     });
     mockStichtag("2026-07-01T00:00:00Z");
     mockOeffnungen([keyholderOpening]);

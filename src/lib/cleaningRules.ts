@@ -1,6 +1,6 @@
-import type { ReinigungUserFields } from "@/lib/reinigungService";
+import type { CleaningUserFields } from "@/lib/cleaningService";
 import type { CleaningPermissionUser } from "@/lib/queries";
-import { effectiveAt, type ReinigungSettings } from "@/lib/utils";
+import { effectiveAt, type CleaningPauseAllowance } from "@/lib/utils";
 
 /**
  * Der vollständige Reinigungs-Stand eines Subs zu EINEM Zeitpunkt — die vier Werte, die darüber
@@ -10,13 +10,11 @@ import { effectiveAt, type ReinigungSettings } from "@/lib/utils";
  * am 13.08. um 09:41". Ein Delta müsste die Antwort erst wieder über die ganze Historie
  * zusammensetzen — an jeder Aufrufstelle.
  */
-export interface CleaningSettings {
-  allowed: boolean;
-  maxMinutes: number;
+export interface CleaningSettings extends CleaningPauseAllowance {
   /** 0 = unbegrenzt (der Spalten-Default), siehe `maxPausesPerDaySentinel`. */
   maxPerDay: number;
-  /** Roh wie `User.reinigungsFenster`: JSON-String oder null. Die Leser parsen selbst
-   *  (`parseReinigungsFenster`, `cleaningWindowOpen`) — hier wird nichts vorverdaut, damit die
+  /** Roh wie `User.cleaningWindows`: JSON-String oder null. Die Leser parsen selbst
+   *  (`parseCleaningWindows`, `cleaningWindowOpen`) — hier wird nichts vorverdaut, damit die
    *  gespeicherte Zeile bitgleich das ist, was die Spalte trug. */
   windows: string | null;
 }
@@ -47,19 +45,19 @@ export const CLEANING_RULES_EPOCH = new Date(0);
 
 /** Der heutige Stand aus den User-Spalten — die Ausweichantwort des Resolvers und zugleich das, was
  *  der Schreibpfad als Grundzeile festhält. Die Fallbacks sind dieselben wie in
- *  `buildReinigungView`: fehlt die Spalte, gilt der Spalten-Default. */
-export function cleaningSettingsFromUser(user: Partial<ReinigungUserFields> | null | undefined): CleaningSettings {
+ *  `buildCleaningView`: fehlt die Spalte, gilt der Spalten-Default. */
+export function cleaningSettingsFromUser(user: Partial<CleaningUserFields> | null | undefined): CleaningSettings {
   return {
-    allowed: user?.reinigungErlaubt ?? false,
-    maxMinutes: user?.reinigungMaxMinuten ?? 15,
-    maxPerDay: user?.reinigungMaxProTag ?? 0,
-    windows: normalizeWindows(user?.reinigungsFenster),
+    allowed: user?.cleaningAllowed ?? false,
+    maxMinutes: user?.cleaningMaxMinutes ?? 15,
+    maxPerDay: user?.cleaningMaxPerDay ?? 0,
+    windows: normalizeWindows(user?.cleaningWindows),
   };
 }
 
 /** Die Fenster als das, was in der Spalte steht: ein JSON-String. Aus der DB kommt genau der; eine
  *  bereits geparste Liste (In-Memory-Aufrufer, Tests) wird zurückverwandelt, statt sie zu verwerfen —
- *  `parseReinigungsFenster` auf der Lese-Seite nimmt beides, der Vergleich zweier Fassungen und die
+ *  `parseCleaningWindows` auf der Lese-Seite nimmt beides, der Vergleich zweier Fassungen und die
  *  TEXT-Spalte der Historie brauchen aber eine Form. */
 function normalizeWindows(raw: unknown): string | null {
   if (raw === null || raw === undefined) return null;
@@ -82,7 +80,7 @@ export function cleaningSettingsEqual(a: CleaningSettings, b: CleaningSettings):
  */
 export function cleaningRulesFrom(
   changes: CleaningRuleChangeRow[],
-  user: Partial<ReinigungUserFields> | null | undefined,
+  user: Partial<CleaningUserFields> | null | undefined,
 ): CleaningSettingsResolver {
   return cleaningSettingsResolver(changes, cleaningSettingsFromUser(user));
 }
@@ -97,15 +95,15 @@ export function cleaningSettingsResolver(
 }
 
 /**
- * Der Resolver in der Form, die das Session-Modell versteht (`ReinigungRules` in `utils.ts`).
+ * Der Resolver in der Form, die das Session-Modell versteht (`CleaningRules` in `utils.ts`).
  *
  * Zwei Formen, weil zwei Schichten: die Historie führt alle vier Werte, `buildPairs` interessieren
  * nur „erlaubt" und die Höchstdauer. Die Umrechnung steht hier statt an jeder Lade-Stelle.
  */
-export function reinigungRulesAt(resolve: CleaningSettingsResolver): (at: Date) => ReinigungSettings {
+export function cleaningRulesAt(resolve: CleaningSettingsResolver): (at: Date) => CleaningPauseAllowance {
   return (at) => {
     const s = resolve(at);
-    return { erlaubt: s.allowed, maxMinuten: s.maxMinutes };
+    return { allowed: s.allowed, maxMinutes: s.maxMinutes };
   };
 }
 
@@ -118,5 +116,5 @@ export function reinigungRulesAt(resolve: CleaningSettingsResolver): (at: Date) 
  * Die Zeitzone gehört nicht dazu: sie ist eine Eigenschaft des Subs, keine Regel der Keyholderin.
  */
 export function cleaningPermissionUserAt(settings: CleaningSettings, timezone: string): CleaningPermissionUser {
-  return { reinigungErlaubt: settings.allowed, reinigungsFenster: settings.windows, timezone };
+  return { cleaningAllowed: settings.allowed, cleaningWindows: settings.windows, timezone };
 }

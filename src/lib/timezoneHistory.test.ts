@@ -6,7 +6,7 @@
  * Historie las es die HEUTIGE Zone — eine Umstellung bewertete damit die ganze Vergangenheit neu,
  * und weil der Träger sie selbst setzen darf, war das eine selbstbediente Neubeurteilung.
  *
- * Der Doppelgänger unten folgt `reinigungRuleHistory.test.ts`: hier steht der Schreibpfad zur
+ * Der Doppelgänger unten folgt `cleaningRuleHistory.test.ts`: hier steht der Schreibpfad zur
  * Prüfung, und die Transaktion muss dieselben Modell-Mocks durchreichen, damit sichtbar wird, was
  * INNEN geschrieben wurde.
  */
@@ -90,7 +90,7 @@ describe("Zeitzone umstellen", () => {
 
   it("schreibt keine Zeile, wenn sich nichts ändert", async () => {
     // Eine Historie hält Änderungen fest, nicht Klicks — sonst nennte `changedBy` irgendwann den,
-    // der zuletzt bestätigt hat (gleiche Regel wie in `setReinigungSettings`).
+    // der zuletzt bestätigt hat (gleiche Regel wie in `setCleaningSettings`).
     await setUserTimezone("u1", "Europe/Zurich", { now: at("2026-06-01T00:00:00Z") });
     expect(prisma.timezoneChange.createMany).not.toHaveBeenCalled();
     expect(prisma.user.update).toHaveBeenCalled();

@@ -24,7 +24,7 @@ import {
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
 import { resolveGoalTargets, hasVisibleGoalRow } from "@/lib/goalFulfillment";
-import { buildBoxReinigungView } from "@/lib/boxReinigung";
+import { buildBoxCleaningView } from "@/lib/boxCleaning";
 import { resolveReasonLabel } from "@/lib/reasonsService";
 import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import { inspectionHref, openInspections } from "@/lib/entryFormRoute";
@@ -252,7 +252,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
     // Ohne Heimdall gibt es keine Box-Karte — dann auch keine Abfragen für sie.
     load: async ({ userId, now, tz }) => {
       if (!heimdallEnabled()) return null;
-      // Die Reinigungs-Regeln der Box-Karte (Begründung in `buildBoxReinigungView`) zählen ihr
+      // Die Reinigungs-Regeln der Box-Karte (Begründung in `buildBoxCleaningView`) zählen ihr
       // Tageskontingent aus den ohnehin geladenen Einträgen — ohne eigene DB-Runde.
       const [user, entries, activeLockPeriod] = await Promise.all([
         userRowCached(userId), entriesCached(userId), subLockPeriodCached(userId),
@@ -263,14 +263,14 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       // Alternative wäre, den Zustand aus `entries` nachzurechnen und damit eine zweite Fassung
       // derselben Regel zu führen.
       return {
-        reinigung: buildBoxReinigungView(user, entries, activeLockPeriod, now, tz),
+        cleaning: buildBoxCleaningView(user, entries, activeLockPeriod, now, tz),
         wearerLocked: await getIsLocked(userId),
       };
     },
     // `null` heisst hier „ohne Reinigungs-Zeilen", nicht „ohne Karte" — die Karte selbst hängt an
     // Heimdall, und ohne den lief der Loader gar nicht erst.
     render: (data) => heimdallEnabled() && data !== null && (
-      <BoxStatusCard reinigung={data.reinigung} wearerLocked={data.wearerLocked} />
+      <BoxStatusCard cleaning={data.cleaning} wearerLocked={data.wearerLocked} />
     ),
   }),
 
@@ -396,8 +396,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           // Sub-Sicht: nur wenn er grundsätzlich reinigen darf. Sonst verspräche die Zeile etwas,
           // das seine Benutzer-Einstellung ohnehin verbietet.
           cleaningNote={
-            data.activeLockPeriod && data.user?.reinigungErlaubt
-              ? t(data.activeLockPeriod.reinigungErlaubt ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
+            data.activeLockPeriod && data.user?.cleaningAllowed
+              ? t(data.activeLockPeriod.cleaningAllowed ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
               : null
           }
           // Nur wenn die Regel wirklich gilt — sie ist je Sub abschaltbar. Und wenn eine
@@ -406,7 +406,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           lockBreakNote={
             data.offenseRules.unauthorized_opening === "off"
               ? null
-              : t(data.activeLockPeriod?.reinigungErlaubt && data.user?.reinigungErlaubt
+              : t(data.activeLockPeriod?.cleaningAllowed && data.user?.cleaningAllowed
                   ? "sessionLockedConsequenceCleaning"
                   : "sessionLockedConsequence")
           }

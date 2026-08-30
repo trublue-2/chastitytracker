@@ -17,7 +17,7 @@ describe("boxHoldOutlook", () => {
   });
 
   it("DER STILLE FALL: die Box hält ihre Frist, obwohl der Tracker `open` sendet", () => {
-    // Reale Lage am 10.07. um 12:24: Sperrzeit bis 17:19 mit reinigungErlaubt=true. Eine
+    // Reale Lage am 10.07. um 12:24: Sperrzeit bis 17:19 mit cleaningAllowed=true. Eine
     // Reinigungsöffnung bricht nichts, der Tracker sendet brav `open` — und nichts passiert.
     expect(boxHoldOutlook({
       ...base,

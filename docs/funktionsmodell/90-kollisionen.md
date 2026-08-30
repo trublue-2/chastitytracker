@@ -9,7 +9,7 @@ verstanden sind.
 
 ## Erlaubnis-Ketten (etwas ist erlaubt, passiert aber nicht)
 
-**Reinigung braucht zwei Ja.** `User.reinigungErlaubt` **und** `reinigungErlaubt` der Sperrzeit.
+**Reinigung braucht zwei Ja.** `User.cleaningAllowed` **und** `cleaningAllowed` der Sperrzeit.
 Bei mehreren aktiven Sperrzeiten müssen **alle** erlauben — die UND-Regel in
 `foldActiveLockPeriods`, nicht die neueste Zeile.
 
@@ -18,7 +18,7 @@ aktiven, reinigungserlaubenden Sperrzeit gar nichts. Wer „nur zwischen 19 und 
 will und keine Sperrzeit laufen hat, hat nichts durchgesetzt.
 
 **Leere Fensterliste ist kein Verbot**, sondern „nicht an eine Tageszeit gebunden". Verboten wird
-mit `reinigungErlaubt: false`.
+mit `cleaningAllowed: false`.
 
 **Ein Fenster wrappt nicht über Mitternacht.** `22:00–06:00` als ein Eintrag ist ungültig; es
 braucht zwei.
@@ -56,7 +56,7 @@ Summe beider Verzögerungen.
 
 ## Erkannt ≠ durchgesetzt
 
-**Das Reinigungs-Tageskontingent wird nur erkannt.** `reinigungMaxProTag` verhindert keine Öffnung;
+**Das Reinigungs-Tageskontingent wird nur erkannt.** `cleaningMaxPerDay` verhindert keine Öffnung;
 es erzeugt ein Vergehen. Die Ahndung ist Sache des Keyholders.
 
 **Ein Bild-gegen-Deklaration-Konflikt ist kein Vergehen.** „Falsches Gerät" entsteht ausschliesslich

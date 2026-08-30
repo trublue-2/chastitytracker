@@ -2,9 +2,9 @@ import { cache } from "react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
-import { CLEANING_USER_SELECT } from "@/lib/reinigungService";
+import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { weightTrackingEnabled } from "@/lib/constants";
-import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, reinigungRulesAt } from "@/lib/cleaningRules";
+import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
 import {
@@ -147,7 +147,7 @@ export const cleaningRulesCached = cache(async (userId: string) => {
     userRowCached(userId),
   ]);
   const at = cleaningRulesFrom(changes, user);
-  return { at, rules: reinigungRulesAt(at) };
+  return { at, rules: cleaningRulesAt(at) };
 });
 
 /**
@@ -277,7 +277,7 @@ export const keyholderRunningSessionCached = (userId: string, nowMs: number, dl:
 export const evaluatedTasksCached = cache(async (userId: string, nowMs: number, kgLabel: string, audience: BlockAudience) => {
   const [entries, { rules }] = await Promise.all([entriesCached(userId), cleaningRulesCached(userId)]);
   return getEvaluatedTaskHistory(userId, new Date(nowMs), {
-    audience, kgLabel, kgEntries: entries, wearEntries: entries, reinigung: rules,
+    audience, kgLabel, kgEntries: entries, wearEntries: entries, cleaning: rules,
   });
 });
 

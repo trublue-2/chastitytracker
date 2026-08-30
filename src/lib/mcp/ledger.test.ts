@@ -65,7 +65,7 @@ function rawStrafbuchWithOneOfEach() {
     lateControls: [{ id: "k1", ...one }],
     rejectedControls: [{ id: "k2", ...one }],
     autoRemovedControls: [{ id: "k3", ...one }],
-    reinigungLimitViolations: [{ entryId: "e1", ...one }],
+    cleaningLimitViolations: [{ entryId: "e1", ...one }],
     wrongDeviceViolations: [{ entryId: "e2", ...one }],
     missedOrgasmInstructions: [{ id: "m1", ...one }],
     lateLocks: [{ id: "v1", ...one }],

@@ -31,7 +31,7 @@ export interface StrafeRecordData {
   erledigtAtStr: string | null;
 }
 
-export interface ReinigungLimitRow {
+export interface CleaningLimitRow {
   entryId: string;
   startTimeStr: string;
   note: string | null;
@@ -263,7 +263,7 @@ interface Props {
   zuSpaet: KontrollRow[];
   abgelehnt: KontrollRow[];
   autoEntfernt: KontrollRow[];
-  reinigungLimitVergehen: ReinigungLimitRow[];
+  cleaningLimitOffenses: CleaningLimitRow[];
   unfulfilledTasks: AufgabeRow[];
   nichtVerschlossen: NichtVerschlossenRow[];
   verschlussVersaeumt: VerschlussVersaeumtRow[];
@@ -362,7 +362,7 @@ function ZurueckziehenButton({ id, label, networkError, resolveError, onDone }: 
   );
 }
 
-export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, reinigungLimitVergehen, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, missedWeightReports, manuelleVergehen, strafeRecords, labels }: Props) {
+export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, cleaningLimitOffenses, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, missedWeightReports, manuelleVergehen, strafeRecords, labels }: Props) {
   const router = useRouter();
   // Beide Routen dieser Seite (`/api/admin/offense`, `/api/admin/strafe`) liefern stabile
   // Fehler-CODES — übersetzt wird hier.
@@ -771,7 +771,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       };
     })),
 
-    sec("cleaning_limit", labels.strafbuchReinigungLimit, reinigungLimitVergehen.map((r) => ({
+    sec("cleaning_limit", labels.strafbuchReinigungLimit, cleaningLimitOffenses.map((r) => ({
       refId: r.entryId,
       anlass: `${r.startTimeStr}`,
       body: (judged) => (

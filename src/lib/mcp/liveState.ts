@@ -1,4 +1,4 @@
-import { buildPairs, getOpenPair, interruptionPauseMs, msToHours, type ReinigungRules } from "@/lib/utils";
+import { buildPairs, getOpenPair, interruptionPauseMs, msToHours, type CleaningPauseRules } from "@/lib/utils";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 
 /**
@@ -76,12 +76,12 @@ type LockPair<E> = {
  *  Paare wie bisher selbst. */
 export function buildLockState<E extends LockEntry>(
   entries: E[],
-  reinigung: ReinigungRules,
+  cleaning: CleaningPauseRules,
   now: Date,
   fmt: Fmt,
   prePairs?: LockPair<E>[],
 ): LockState {
-  const pairs: LockPair<E>[] = prePairs ?? buildPairs(entries, [], reinigung);
+  const pairs: LockPair<E>[] = prePairs ?? buildPairs(entries, [], cleaning);
   const latest = entries.find((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN") ?? null;
   const isLocked = latest?.type === "VERSCHLUSS";
 
@@ -153,10 +153,10 @@ export function mapOpenKontrolle(
   };
 }
 
-export interface ActiveLockPeriodView { endsAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null; reinigungErlaubt: boolean; deviceName: string | null }
+export interface ActiveLockPeriodView { endsAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null; cleaningAllowed: boolean; deviceName: string | null }
 
 export function mapActiveLockPeriod(
-  s: { endsAt: Date | null; message: string | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
+  s: { endsAt: Date | null; message: string | null; cleaningAllowed: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): ActiveLockPeriodView | null {
   if (!s) return null;
@@ -165,7 +165,7 @@ export function mapActiveLockPeriod(
     indefinite: s.endsAt === null,
     remainingMinutes: s.endsAt ? minutesUntil(s.endsAt, now) : null,
     message: s.message,
-    reinigungErlaubt: s.reinigungErlaubt,
+    cleaningAllowed: s.cleaningAllowed,
     deviceName: s.device?.name ?? null,
   };
 }
@@ -181,12 +181,12 @@ export interface OpenLockRequestView {
   dauerH: number | null;
   /** Absolutes Sperr-Ende nach dem Einschliessen (Alternative zu dauerH), oder null. */
   lockUntilAt: string | null;
-  reinigungErlaubt: boolean;
+  cleaningAllowed: boolean;
   deviceName: string | null;
 }
 
 export function mapOpenLockRequest(
-  a: { id: string; endsAt: Date | null; message: string | null; dauerH: number | null; lockEndsAt: Date | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
+  a: { id: string; endsAt: Date | null; message: string | null; dauerH: number | null; lockEndsAt: Date | null; cleaningAllowed: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): OpenLockRequestView | null {
   if (!a) return null;
@@ -198,7 +198,7 @@ export function mapOpenLockRequest(
     message: a.message,
     dauerH: a.dauerH,
     lockUntilAt: a.lockEndsAt ? fmt(a.lockEndsAt) : null,
-    reinigungErlaubt: a.reinigungErlaubt,
+    cleaningAllowed: a.cleaningAllowed,
     deviceName: a.device?.name ?? null,
   };
 }

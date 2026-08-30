@@ -15,12 +15,12 @@ model User {
   role                           String                   @default("user")
   email                          String?                  @unique
   createdAt                      DateTime                 @default(now())
-  reinigungErlaubt               Boolean                  @default(false)
-  reinigungMaxMinuten            Int                      @default(15)
-  reinigungMaxProTag             Int                      @default(0)
+  cleaningAllowed                Boolean                  @default(false) @map("reinigungErlaubt")
+  cleaningMaxMinutes             Int                      @default(15) @map("reinigungMaxMinuten")
+  cleaningMaxPerDay              Int                      @default(0) @map("reinigungMaxProTag")
   // Tägliche Öffnungs-Fenster für Reinigung als JSON-String, z.B. [{"start":"19:00","end":"20:00"}]
   // (CH-Lokalzeit). SQLite/Prisma 5 kennt kein Json → TEXT; parseReinigungsFenster deserialisiert.
-  reinigungsFenster              String?
+  cleaningWindows                String?                  @map("reinigungsFenster")
   // Automatische Kontrollen: pro Tag zufällig X Kontrollen, wobei X selbst zufällig aus
   // [PerDayMin, PerDayMax] gewürfelt wird. Frist darf nicht ins Schlaf-Fenster (RuheVon–RuheBis,
   // CH-Lokalzeit) fallen; Erfüllungsdauer zufällig in [FristVon, FristBis] Min.
@@ -759,7 +759,7 @@ model VerschlussAnforderung {
   lockEndsAt       DateTime? @map("sperrEndetAt") // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endsAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu dauerH.
   deviceId         String?
   device           Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
-  reinigungErlaubt Boolean   @default(false) // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit dauerH: wird auf erzeugte SPERRZEIT vererbt.
+  cleaningAllowed  Boolean   @default(false) @map("reinigungErlaubt") // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit dauerH: wird auf erzeugte SPERRZEIT vererbt.
   createdAt        DateTime  @default(now())
   fulfilledAt      DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
   withdrawnAt      DateTime?

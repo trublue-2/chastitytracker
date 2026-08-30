@@ -127,12 +127,12 @@ export function SessionEventRowDemo() {
           kombiniertePillLabel: null, kombiniertePillCls: null, orgasmusArt: null,
         }}
       />
-      <p className="px-5 pt-3 text-[10px] text-foreground-faint font-mono">type=&quot;reinigung&quot; — mit Pausendauer</p>
+      <p className="px-5 pt-3 text-[10px] text-foreground-faint font-mono">type=&quot;cleaning&quot; — mit Pausendauer</p>
       <SessionEventRow
         icon={<LockOpenIcon size={18} className="text-[var(--color-unlock)]" />}
         ev={{
           ...demoEvent,
-          type: "reinigung", dateStr: "03.04.2026", timeStr: "07:00",
+          type: "cleaning", dateStr: "03.04.2026", timeStr: "07:00",
           imageUrl: null, exifStr: null, note: null, entryId: "demo-r",
           captureHref: null, deadlineStr: null, isOverdue: false,
           kontrolleCode: null, kontrolleKommentar: null,
@@ -414,7 +414,7 @@ export function LaufendeSessionCardMockDemo() {
             icon={<LockOpenIcon size={18} className="text-[var(--color-unlock)]" />}
             ev={{
               ...demoEvent,
-              type: "reinigung",
+              type: "cleaning",
               dateStr: "01.04.2026",
               timeStr: "07:00",
               imageUrl: null,

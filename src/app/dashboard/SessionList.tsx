@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, formatDurationBetween, formatDurationMs, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, buildLockPoints, wornDeviceNameAt, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type ReinigungSettings } from "@/lib/utils";
+import { toDateLocale, formatDurationBetween, formatDurationMs, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, buildLockPoints, wornDeviceNameAt, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type CleaningPauseAllowance } from "@/lib/utils";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import type { VerifyFailure } from "@/lib/verifyReason";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
@@ -252,7 +252,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         timeCorrected: false,
       })),
       ...(pair.interruptions ?? []).map((intr) => ({
-        type: "reinigung" as const,
+        type: "cleaning" as const,
         // Wie beim Orgasmus-Zweig: was hier nicht zutrifft, steht jetzt da.
         captureDisabled: false,
         verifyFailure: null,

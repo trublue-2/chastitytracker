@@ -44,7 +44,7 @@ Pfeil auf eine *Entscheidung*, nicht auf eine Buchung.
 | Verlauf sehen | ja | **alle** Keyholder dieses Subs, jederzeit, vollständig |
 | Über MCP | — | lesen und schreiben |
 
-**Nur die Keyholderin schaltet frei** — wie `reinigungErlaubt`. Es gibt keinen Selbst-Tracker-Modus
+**Nur die Keyholderin schaltet frei** — wie `cleaningAllowed`. Es gibt keinen Selbst-Tracker-Modus
 ohne Keyholderin; das hielte zwei Betriebsarten in einem Feature.
 
 **Alle Keyholder eines Subs sehen die Werte**, nicht nur die freischaltende. Einschlüsse,
@@ -196,7 +196,7 @@ Kurve die Tageszeit mit.
 
 ### 4.1 Eigener Baustein — die Reinigung wird nicht angefasst
 
-Die Reinigungsfenster (`reinigungsFenster`, `src/lib/reinigungService.ts`) sehen von aussen gleich
+Die Reinigungsfenster (`cleaningWindows`, `src/lib/cleaningService.ts`) sehen von aussen gleich
 aus: JSON-Liste aus `{start,end}` in Sub-Lokalzeit. **Sie bleiben, wie sie sind.** Kein Umbenennen,
 kein Herausziehen gemeinsamer Helfer, kein Re-Export. Die Wiege-Fenster bekommen einen eigenen,
 geschlossenen Baustein (`src/lib/weightWindows.ts`), der von `reinigungService` nichts benutzt und
@@ -438,7 +438,7 @@ eines, oder wann das nächste beginnt.
 **Einstellungen:** Sub über das Avatar-Menü → `/dashboard/settings` (Grösse mit
 Korrigiert/Geändert-Unterscheidung, Referenzangabe, Einheit, eigener Korridor). Keyholder in
 `/admin/users/[id]/einstellungen` (Gate, Wiege-Fenster, Nachbesserung der Grenzen, Vergehensregel) —
-dort liegen `reinigungErlaubt`, die Reinigungsfenster und der Vergehens-Abschnitt bereits.
+dort liegen `cleaningAllowed`, die Reinigungsfenster und der Vergehens-Abschnitt bereits.
 
 ## 11. Statistik
 

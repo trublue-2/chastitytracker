@@ -20,7 +20,7 @@ export interface TimelineBucket {
     verschluss: number;
     kontrolle: number;
     orgasmus: number;
-    reinigung: number;
+    cleaning: number;
     total: number;
   };
 }
@@ -31,7 +31,7 @@ function addDaysMs(d: Date, days: number): Date {
 }
 
 function countEvents(items: SessionEventData[]): TimelineBucket["counts"] {
-  const c = { verschluss: 0, kontrolle: 0, orgasmus: 0, reinigung: 0, total: items.length };
+  const c = { verschluss: 0, kontrolle: 0, orgasmus: 0, cleaning: 0, total: items.length };
   for (const it of items) c[it.type]++;
   return c;
 }

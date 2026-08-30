@@ -8,7 +8,7 @@ import { getActiveLockPeriod, getIsLocked } from "@/lib/queries";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { recordAdminPasswordChange } from "@/lib/passwordAudit";
-import { setReinigungSettings } from "@/lib/reinigungService";
+import { setCleaningSettings } from "@/lib/cleaningService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { setReasonConfig } from "@/lib/reasonsService";
@@ -100,19 +100,19 @@ export async function PATCH(
   }
 
   if (
-    body.reinigungErlaubt !== undefined || body.reinigungMaxMinuten !== undefined ||
-    body.reinigungMaxProTag !== undefined || body.reinigungsFenster !== undefined
+    body.cleaningAllowed !== undefined || body.cleaningMaxMinutes !== undefined ||
+    body.cleaningMaxPerDay !== undefined || body.cleaningWindows !== undefined
   ) {
     // Zweiter Guard-Aufruf in der Actor-Variante, aus demselben Grund wie beim Passwort oben: die
     // Historie hält fest, WER das Kontingent gesenkt hat, und der Guard am Anfang der Route reicht
     // die Sitzung nicht durch. Kostet bei der JWT-Strategie nur ein Cookie-Decode.
     const actor = await requireKeyholderOrAdminActor(id);
     if (actor instanceof NextResponse) return actor;
-    return serviceResponse(await setReinigungSettings(id, {
-      erlaubt: body.reinigungErlaubt !== undefined ? Boolean(body.reinigungErlaubt) : undefined,
-      maxMinuten: body.reinigungMaxMinuten !== undefined ? Number(body.reinigungMaxMinuten) : undefined,
-      maxProTag: body.reinigungMaxProTag !== undefined ? Number(body.reinigungMaxProTag) : undefined,
-      fenster: body.reinigungsFenster, // roh — der Service validiert/normalisiert
+    return serviceResponse(await setCleaningSettings(id, {
+      allowed: body.cleaningAllowed !== undefined ? Boolean(body.cleaningAllowed) : undefined,
+      maxMinutes: body.cleaningMaxMinutes !== undefined ? Number(body.cleaningMaxMinutes) : undefined,
+      maxPerDay: body.cleaningMaxPerDay !== undefined ? Number(body.cleaningMaxPerDay) : undefined,
+      windows: body.cleaningWindows, // roh — der Service validiert/normalisiert
       changedBy: sessionActor(actor),
     }));
   }

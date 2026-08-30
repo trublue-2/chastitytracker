@@ -1,7 +1,7 @@
 /**
  * Die Bedeutungs-Schicht des Funktionsmodells: was jedes Feld STEUERT.
  *
- * Warum das nicht im Schema steht: `schema.prisma` weiss, dass `reinigungErlaubt` ein Boolean mit
+ * Warum das nicht im Schema steht: `schema.prisma` weiss, dass `cleaningAllowed` ein Boolean mit
  * Default `false` ist. Es weiss nicht, dass nur der Keyholder es setzen darf, dass eine aktive
  * Sperrzeit es zusätzlich erlauben muss und dass ein Gerätewechsel daran hängt. Genau diese
  * Zusammenhänge sind es, die im Betrieb als „unlogisch“ auffallen — also stehen sie hier, in einer
@@ -29,8 +29,8 @@ export type FmTarget =
   | "Benachrichtigungen" | "Nachrichten" | "MCP" | "Oberfläche" | "Zugang" | "Bildersafe" | "Gewicht";
 
 /**
- * Wie lange ein Wert gilt. Die Unterscheidung ist load-bearing: `User.reinigungErlaubt` ist ein
- * Dauerzustand, `VerschlussAnforderung.reinigungErlaubt` gilt für GENAU EINE Sperrzeit. Beide heissen
+ * Wie lange ein Wert gilt. Die Unterscheidung ist load-bearing: `User.cleaningAllowed` ist ein
+ * Dauerzustand, `VerschlussAnforderung.cleaningAllowed` gilt für GENAU EINE Sperrzeit. Beide heissen
  * gleich, beide müssen zutreffen, und wer sie verwechselt, sucht den Fehler an der falschen Stelle.
  *
  * `entry` ist die dritte Form: ein Wert, den der Träger BEIM ERFASSEN mitgibt und der von dort aus
@@ -129,7 +129,7 @@ export const FM_SCANNED_MODELS = [
 export const FM_DOMAINS: FmDomain[] = [
   { id: "eintraege", title: "Einträge & Sessions", doc: "15-eintraege.md", mechanic: "Einträge" },
   { id: "sperrzeit", title: "Sperrzeit & Verschluss", doc: "10-sperrzeit.md", mechanic: "Sperrzeit" },
-  { id: "reinigung", title: "Reinigung", doc: "20-reinigung.md", mechanic: "Reinigung" },
+  { id: "cleaning", title: "Reinigung", doc: "20-reinigung.md", mechanic: "Reinigung" },
   { id: "kontrollen", title: "Kontrollen", doc: "30-kontrollen.md", mechanic: "Kontrollen" },
   { id: "orgasmus", title: "Orgasmus-Direktive", doc: "35-orgasmus.md", mechanic: "Orgasmus" },
   { id: "aufgaben", title: "Aufgaben", doc: "40-aufgaben.md", mechanic: "Aufgaben" },
@@ -268,25 +268,25 @@ const stamp = (model: string, field = "createdAt") => x("record", model, field, 
 export const FM_REGISTRY: FmEntry[] = [
   // ── User: Reinigung ────────────────────────────────────────────────────────────────────────
   s({
-    model: "User", field: "reinigungErlaubt", domain: "reinigung", scope: "standing",
+    model: "User", field: "cleaningAllowed", domain: "cleaning", scope: "standing",
     effect: "Ob Reinigungspausen überhaupt erlaubt sind. Notwendig, nicht hinreichend — eine aktive Sperrzeit muss es zusätzlich erlauben.",
     writers: ["admin", "mcp"], affects: ["Reinigung", "Sperrzeit", "Box", "Strafbuch", "Geräte"],
     anchor: "queries.ts:cleaningBlockReason",
   }),
   s({
-    model: "User", field: "reinigungMaxMinuten", domain: "reinigung", scope: "standing",
+    model: "User", field: "cleaningMaxMinutes", domain: "cleaning", scope: "standing",
     effect: "Höchstdauer EINER Pause. Darüber hinaus zählt die Pause als Tragezeit-Unterbrechung und wird zum erkannten Vergehen.",
     writers: ["admin", "mcp"], affects: ["Reinigung", "Strafbuch", "Sessions/Statistik"],
-    anchor: "cleaningRules.ts:reinigungRulesAt",
+    anchor: "cleaningRules.ts:cleaningRulesAt",
   }),
   s({
-    model: "User", field: "reinigungMaxProTag", domain: "reinigung", scope: "standing",
+    model: "User", field: "cleaningMaxPerDay", domain: "cleaning", scope: "standing",
     effect: "ANZAHL Öffnungen pro Kalendertag des Subs (kein Minutenbudget). 0 = unbegrenzt. Wird nur erkannt, nie durchgesetzt.",
     writers: ["admin", "mcp"], affects: ["Reinigung", "Strafbuch"],
-    anchor: "reinigungService.ts:maxPausesPerDaySentinel",
+    anchor: "cleaningService.ts:maxPausesPerDaySentinel",
   }),
   s({
-    model: "User", field: "reinigungsFenster", domain: "reinigung", scope: "standing",
+    model: "User", field: "cleaningWindows", domain: "cleaning", scope: "standing",
     effect: "Tages-Zeitfenster (JSON-Liste). Binden NUR während einer Sperrzeit, die die Reinigung erlaubt. Leere Liste = nicht zeitgebunden, kein Verbot.",
     writers: ["admin", "mcp"], affects: ["Reinigung", "Box"],
     anchor: "queries.ts:cleaningWindowBindingStatus",
@@ -592,7 +592,7 @@ export const FM_REGISTRY: FmEntry[] = [
 
   // ── VerschlussAnforderung: Sperrzeit & Einschliess-Anforderung ─────────────────────────────
   s({
-    model: "VerschlussAnforderung", field: "reinigungErlaubt", domain: "sperrzeit", scope: "directive",
+    model: "VerschlussAnforderung", field: "cleaningAllowed", domain: "sperrzeit", scope: "directive",
     effect: "Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit", "Reinigung", "Box", "Geräte"],
     anchor: "queries.ts:foldActiveLockPeriods",
@@ -1046,10 +1046,10 @@ export const FM_REGISTRY: FmEntry[] = [
   pk("CleaningRuleChange"),
   owner("CleaningRuleChange"),
   x("record", "CleaningRuleChange", "allowed",
-    "Abbild von `User.reinigungErlaubt` in dieser Fassung. Gesetzt wird über die User-Spalte, nie hier."),
-  x("record", "CleaningRuleChange", "maxMinutes", "Abbild von `User.reinigungMaxMinuten`."),
-  x("record", "CleaningRuleChange", "maxPerDay", "Abbild von `User.reinigungMaxProTag`."),
-  x("record", "CleaningRuleChange", "windows", "Abbild von `User.reinigungsFenster`."),
+    "Abbild von `User.cleaningAllowed` in dieser Fassung. Gesetzt wird über die User-Spalte, nie hier."),
+  x("record", "CleaningRuleChange", "maxMinutes", "Abbild von `User.cleaningMaxMinutes`."),
+  x("record", "CleaningRuleChange", "maxPerDay", "Abbild von `User.cleaningMaxPerDay`."),
+  x("record", "CleaningRuleChange", "windows", "Abbild von `User.cleaningWindows`."),
   x("record", "CleaningRuleChange", "effectiveFrom",
     "Ab wann die Fassung gilt. Die Grundzeile trägt Epoch, damit keine Lücke bleibt, in die eine Öffnung fallen könnte."),
   x("audit", "CleaningRuleChange", "changedBy", "Wer geändert hat; leer bei der Grundzeile, die niemand gesetzt hat."),

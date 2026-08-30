@@ -2,13 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import RoleSelect from "@/app/admin/RoleSelect";
-import ReinigungToggle from "@/app/admin/ReinigungToggle";
+import CleaningToggle from "@/app/admin/CleaningToggle";
 import AutoKontrolleToggle from "@/app/admin/AutoKontrolleToggle";
 import InspectionEscalationToggle from "@/app/admin/InspectionEscalationToggle";
 import OffenseRulesEditor from "@/app/admin/OffenseRulesEditor";
 import { getOffenseRules } from "@/lib/offenseRulesService";
 import { switchableOffenseTypesFor } from "@/lib/offenseLabels";
-import { parseReinigungsFenster } from "@/lib/reinigungService";
+import { parseCleaningWindows } from "@/lib/cleaningService";
 import { parseWeighingWindows } from "@/lib/weightWindows";
 import { weightTrackingEnabled } from "@/lib/constants";
 import WeightToggle from "@/app/admin/WeightToggle";
@@ -120,12 +120,12 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
       {/* Reinigung */}
       <SettingsSection title={t("sectionReinigung")} description={t("sectionReinigungDesc")} bodyPadded>
-        <ReinigungToggle
+        <CleaningToggle
           userId={user.id}
-          initialErlaubt={user.reinigungErlaubt}
-          initialMaxMinuten={user.reinigungMaxMinuten}
-          initialMaxProTag={user.reinigungMaxProTag}
-          initialFenster={parseReinigungsFenster(user.reinigungsFenster)}
+          initialAllowed={user.cleaningAllowed}
+          initialMaxMinutes={user.cleaningMaxMinutes}
+          initialMaxPerDay={user.cleaningMaxPerDay}
+          initialWindows={parseCleaningWindows(user.cleaningWindows)}
         />
       </SettingsSection>
 

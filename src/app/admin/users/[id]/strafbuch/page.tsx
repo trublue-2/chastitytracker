@@ -7,7 +7,7 @@ import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { missedWeightRef } from "@/lib/weightObligation";
 import { getLocale, getTranslations } from "next-intl/server";
-import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type ReinigungLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow } from "./StrafbuchClient";
+import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type CleaningLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow } from "./StrafbuchClient";
 
 export default async function StrafbuchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -28,7 +28,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   const sb = await buildStrafbuch(id, now);
 
-  const reinigungLimitVergehen: ReinigungLimitRow[] = sb.reinigungLimitViolations.map((v) => ({
+  const cleaningLimitOffenses: CleaningLimitRow[] = sb.cleaningLimitViolations.map((v) => ({
     entryId: v.entryId,
     startTimeStr: v.startTime ? fmtDual(v.startTime) : "–",
     note: v.note,
@@ -229,7 +229,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       zuSpaet={zuSpaet}
       abgelehnt={abgelehnt}
       autoEntfernt={autoEntfernt}
-      reinigungLimitVergehen={reinigungLimitVergehen}
+      cleaningLimitOffenses={cleaningLimitOffenses}
       missedWeightReports={missedWeightReports}
       unfulfilledTasks={aufgaben}
       nichtVerschlossen={nichtVerschlossen}

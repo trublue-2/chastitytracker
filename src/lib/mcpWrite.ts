@@ -5,7 +5,7 @@ import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, me
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
-import { setReinigungSettings, maxPausesPerDaySentinel, parseReinigungsFenster, reinigungsFensterListProblem, formatReinigungsFenster, type ReinigungsFenster } from "@/lib/reinigungService";
+import { setCleaningSettings, maxPausesPerDaySentinel, parseCleaningWindows, cleaningWindowListProblem, formatCleaningWindows, type CleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { openWeightRelease, setWeightRelease, weightReleaseStatus, withdrawWeightRelease } from "@/lib/weightReleaseService";
 import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
 import { setOffenseRule, getOffenseRules } from "@/lib/offenseRulesService";
@@ -224,7 +224,7 @@ export async function mcpRequestLock(username: string, args: RequestLockArgs) {
     fristH: args.deadlineHours,
     dauerH: args.minDurationHours,
     lockEndsAt: args.lockUntilAt,
-    reinigungErlaubt: args.cleaningAllowed,
+    cleaningAllowed: args.cleaningAllowed,
     deviceId,
     delayMinutes: args.delayMinutes,
     wirksamAbAt: args.scheduledAt,
@@ -251,7 +251,7 @@ export interface SetLockPeriodArgs {
   untilAt?: string;
   durationHours?: number;
   indefinite?: boolean;
-  reinigungErlaubt?: boolean;
+  cleaningAllowed?: boolean;
   message?: string;
   /** Delay before the lock period is sent/starts, in minutes (>0). Omit/0 = immediate. */
   delayMinutes?: number;
@@ -270,7 +270,7 @@ export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs
     // Advisory (siehe request_lock): SPERRZEIT verlangt einen BEREITS verschlossenen User. checkLockEnd
     // ist dieselbe reine Prüfung, die createVerschlussAnforderung auf dem echten Pfad aufruft.
     const problem = !(await getIsLocked(userId)) ? "USER_NOT_LOCKED" : (checkLockEnd(endsAtDate, wirksamAb, now) ?? undefined);
-    return dryRunPreview("set_lock_period", problem, { art: "SPERRZEIT", endsAt: iso(endsAtDate), durationHours: isIndefinite ? null : (args.durationHours ?? null), reinigungErlaubt: args.reinigungErlaubt ?? false, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
+    return dryRunPreview("set_lock_period", problem, { art: "SPERRZEIT", endsAt: iso(endsAtDate), durationHours: isIndefinite ? null : (args.durationHours ?? null), cleaningAllowed: args.cleaningAllowed ?? false, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
   }
   const data = unwrap(await createVerschlussAnforderung({
     userId,
@@ -278,7 +278,7 @@ export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs
     message: args.message,
     endsAt: args.indefinite ? null : args.untilAt,
     fristH: args.indefinite ? null : args.durationHours,
-    reinigungErlaubt: args.reinigungErlaubt,
+    cleaningAllowed: args.cleaningAllowed,
     delayMinutes: args.delayMinutes,
     wirksamAbAt: args.scheduledAt,
   }, AI_AUTHOR));
@@ -1040,12 +1040,12 @@ export interface SetCleaningArgs {
 }
 
 /**
- * Wirft die Fenster-Regel des Services ({@link reinigungsFensterListProblem}) als Satz — mit der
+ * Wirft die Fenster-Regel des Services ({@link cleaningWindowListProblem}) als Satz — mit der
  * STELLE, an der es klemmt. Der Service lehnt dieselbe Liste ohnehin ab; hier vorab, damit auch der
  * dryRun sie sieht und der Agent das schuldige Paar nicht raten muss.
  */
 function assertCleaningWindows(windows: { start: string; end: string }[]): void {
-  const problem = reinigungsFensterListProblem(windows);
+  const problem = cleaningWindowListProblem(windows);
   if (!problem) return;
   const stelle = problem.index === undefined ? "windows" : `windows[${problem.index}] ${JSON.stringify(windows[problem.index])}`;
   throw new Error(`${stelle}: ${enErrorText(problem.code)}`);
@@ -1060,10 +1060,10 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
   if (windows) assertCleaningWindows(windows);
   if (args.dryRun) {
     // Zeigt den GEKLEMMTEN Wert, nicht den rohen Input — sonst täuscht der Preview genau die
-    // stille Klemmung vor, die er aufdecken soll (setReinigungSettings klemmt intern identisch).
+    // stille Klemmung vor, die er aufdecken soll (setCleaningSettings klemmt intern identisch).
     const current = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true },
+      select: CLEANING_USER_SELECT,
     });
     const clampedMinutes = args.maxMinutes !== undefined ? clamp(args.maxMinutes, CLEANING_MAX_MINUTES_RANGE) : undefined;
     const clampedPerDay = args.maxPerDay !== undefined ? clamp(args.maxPerDay, CLEANING_MAX_PER_DAY_RANGE) : undefined;
@@ -1072,15 +1072,15 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
     // Die Fenster als "HH:MM-HH:MM"-Zeilen: der Diff soll die ganze ALTE gegen die ganze NEUE Liste
     // zeigen (die Ersetzung ist der Punkt), und eine Liste von Objekten liest dort niemand.
     const before: Record<string, unknown> = {
-      allowed: current.reinigungErlaubt, maxMinutes: current.reinigungMaxMinuten,
-      maxPerDay: maxPausesPerDaySentinel(current.reinigungMaxProTag),
-      windows: parseReinigungsFenster(current.reinigungsFenster).map(formatReinigungsFenster),
+      allowed: current.cleaningAllowed, maxMinutes: current.cleaningMaxMinutes,
+      maxPerDay: maxPausesPerDaySentinel(current.cleaningMaxPerDay),
+      windows: parseCleaningWindows(current.cleaningWindows).map(formatCleaningWindows),
     };
     const after: Record<string, unknown> = {
       allowed: args.allowed ?? before.allowed,
       maxMinutes: clampedMinutes ?? before.maxMinutes,
       maxPerDay: clampedPerDay !== undefined ? maxPausesPerDaySentinel(clampedPerDay) : before.maxPerDay,
-      windows: windows ? windows.map(formatReinigungsFenster) : before.windows,
+      windows: windows ? windows.map(formatCleaningWindows) : before.windows,
     };
     return dryRunPreview("set_cleaning", undefined, {
       ...after,
@@ -1088,11 +1088,11 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
       ...(args.maxPerDay !== undefined && clampedPerDay !== args.maxPerDay ? { maxPerDayClampedFrom: args.maxPerDay } : {}),
     }, diffFields(before, after));
   }
-  unwrap(await setReinigungSettings(userId, {
-    erlaubt: args.allowed,
-    maxMinuten: args.maxMinutes,
-    maxProTag: args.maxPerDay,
-    fenster: windows,
+  unwrap(await setCleaningSettings(userId, {
+    allowed: args.allowed,
+    maxMinutes: args.maxMinutes,
+    maxPerDay: args.maxPerDay,
+    windows: windows,
     changedBy: AI_AUTHOR,
   }));
   return { ok: true, message: `Cleaning settings updated.${windowsNote(windows)}` };
@@ -1101,10 +1101,10 @@ export async function mcpSetCleaning(username: string, args: SetCleaningArgs) {
 /** Der Zusatz zur Erfolgsmeldung, wenn die Fenster ersetzt wurden. Eine geleerte Liste bekommt einen
  *  eigenen Satz: „keine Fenster" heisst NICHT „keine Reinigung", sondern „jederzeit" — dieselbe
  *  Verwechslung, vor der die Tool-Beschreibung warnt, hier noch einmal am Ergebnis. */
-function windowsNote(windows: ReinigungsFenster[] | undefined): string {
+function windowsNote(windows: CleaningWindows[] | undefined): string {
   if (!windows) return "";
   if (windows.length === 0) return " All cleaning windows removed — cleaning is no longer restricted to times of day (use allowed:false to forbid it).";
-  return ` Cleaning windows replaced (${windows.length}): ${windows.map(formatReinigungsFenster).join(", ")}.`;
+  return ` Cleaning windows replaced (${windows.length}): ${windows.map(formatCleaningWindows).join(", ")}.`;
 }
 
 // ── Weight tracking settings ───────────────────────────────────────────────
@@ -1846,7 +1846,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
     ...(endsAt ? { endsAt } : {}),
     ...(args.message !== undefined ? { message: args.message } : {}),
     ...(deviceId !== undefined ? { deviceId } : {}),
-    ...(args.cleaningAllowed !== undefined ? { reinigungErlaubt: args.cleaningAllowed } : {}),
+    ...(args.cleaningAllowed !== undefined ? { cleaningAllowed: args.cleaningAllowed } : {}),
     ...(args.clearLockPeriod ? { dauerH: null, lockEndsAt: null } : {}),
     ...(args.minDurationHours != null ? { dauerH: args.minDurationHours } : {}),
     ...(args.lockUntilAt ? { lockEndsAt: parseIsoDate(args.lockUntilAt, "lockUntilAt") } : {}),
@@ -1870,7 +1870,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
       device: deviceName,
       minDurationHours: row.dauerH,
       lockUntilAt: iso(row.lockEndsAt),
-      cleaningAllowed: row.reinigungErlaubt,
+      cleaningAllowed: row.cleaningAllowed,
       scheduledFor: iso(row.wirksamAb),
     });
     const before = fields(target, target.device?.name ?? null);

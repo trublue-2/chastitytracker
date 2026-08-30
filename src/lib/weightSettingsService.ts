@@ -114,7 +114,7 @@ export async function setWeightSettingsSelf(userId: string, params: SelfWeightPa
   const now = params.now ?? new Date();
 
   // Lesen, prüfen und schreiben in EINER Transaktion — dieselbe Begründung wie bei
-  // `setReinigungSettings`: die Oberfläche schickt je Feld einen eigenen PATCH, zwei davon können
+  // `setCleaningSettings`: die Oberfläche schickt je Feld einen eigenen PATCH, zwei davon können
   // sich überlappen. Ausserhalb der Transaktion sähen beide denselben Bestand und schrieben zwei
   // Grundzeilen in die Grössen-Historie.
   try {

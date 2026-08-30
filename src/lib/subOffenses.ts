@@ -22,7 +22,7 @@ import { offenseState, type OffenseCanonicalType, type OffenseState } from "@/li
  *
  * WAS SICH DABEI ÄNDERN KANN: Erkennungen sind LIVE aus den Einträgen abgeleitet. Sie ändern sich,
  * ohne dass jemand etwas tut — ein korrigierter Eintrag lässt ein Vergehen verschwinden, ein
- * gesenktes Reinigungs-Kontingent lässt rückwirkend welche entstehen (`reinigungLimitViolations`
+ * gesenktes Reinigungs-Kontingent lässt rückwirkend welche entstehen (`cleaningLimitViolations`
  * zählt gegen den HEUTIGEN Wert über die ganze Historie). Beurteilte Zeilen sind ausgenommen: sie
  * überleben jede Änderung (`judgedRefs` in `applyOffenseRules`).
  */

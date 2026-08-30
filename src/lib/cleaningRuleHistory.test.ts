@@ -21,7 +21,7 @@ vi.mock("@/lib/prisma", () => {
   };
 });
 
-import { setReinigungSettings } from "./reinigungService";
+import { setCleaningSettings } from "./cleaningService";
 import { prisma } from "@/lib/prisma";
 
 const db = prisma as unknown as {
@@ -31,16 +31,16 @@ const db = prisma as unknown as {
 
 const NOW = new Date("2026-08-19T07:00:00Z");
 const BESTAND = {
-  reinigungErlaubt: true,
-  reinigungMaxMinuten: 15,
-  reinigungMaxProTag: 2,
-  reinigungsFenster: null,
+  cleaningAllowed: true,
+  cleaningMaxMinutes: 15,
+  cleaningMaxPerDay: 2,
+  cleaningWindows: null,
 };
 
 /** Die Zeilen, die `createMany` bekommen hat — in der Reihenfolge, in der sie geschrieben wurden. */
 const geschriebeneZeilen = () => db.cleaningRuleChange.createMany.mock.calls[0]?.[0]?.data ?? [];
 
-describe("setReinigungSettings — die Historie der Reinigungs-Regeln", () => {
+describe("setCleaningSettings — die Historie der Reinigungs-Regeln", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     db.user.findUnique.mockResolvedValue(BESTAND);
@@ -48,7 +48,7 @@ describe("setReinigungSettings — die Historie der Reinigungs-Regeln", () => {
   });
 
   it("die erste Änderung schreibt den Ausgangsstand mit — sonst fiele die Vergangenheit auf den neuen Wert", async () => {
-    await setReinigungSettings("u1", { maxProTag: 1, changedBy: "lady", now: NOW });
+    await setCleaningSettings("u1", { maxPerDay: 1, changedBy: "lady", now: NOW });
 
     const zeilen = geschriebeneZeilen();
     expect(zeilen).toHaveLength(2);
@@ -60,7 +60,7 @@ describe("setReinigungSettings — die Historie der Reinigungs-Regeln", () => {
 
   it("mit bestehender Historie kommt keine zweite Grundzeile dazu", async () => {
     db.cleaningRuleChange.count.mockResolvedValue(1);
-    await setReinigungSettings("u1", { maxProTag: 1, now: NOW });
+    await setCleaningSettings("u1", { maxPerDay: 1, now: NOW });
 
     const zeilen = geschriebeneZeilen();
     expect(zeilen).toHaveLength(1);
@@ -68,28 +68,28 @@ describe("setReinigungSettings — die Historie der Reinigungs-Regeln", () => {
   });
 
   it("ein Speichern, das nichts ändert, schreibt keine Zeile", async () => {
-    await setReinigungSettings("u1", { maxProTag: 2, changedBy: "lady", now: NOW });
+    await setCleaningSettings("u1", { maxPerDay: 2, changedBy: "lady", now: NOW });
 
     expect(db.cleaningRuleChange.createMany).not.toHaveBeenCalled();
     expect(db.user.update).toHaveBeenCalled();
   });
 
   it("die neue Zeile trägt ALLE vier Werte, nicht nur den geänderten", async () => {
-    await setReinigungSettings("u1", { erlaubt: false, now: NOW });
+    await setCleaningSettings("u1", { allowed: false, now: NOW });
 
     const [, neu] = geschriebeneZeilen();
     expect(neu).toMatchObject({ allowed: false, maxMinutes: 15, maxPerDay: 2, windows: null });
   });
 
   it("die Fenster gehen als JSON-String in die Historie — dieselbe Form wie in der Spalte", async () => {
-    await setReinigungSettings("u1", { fenster: [{ start: "19:00", end: "20:00" }], now: NOW });
+    await setCleaningSettings("u1", { windows: [{ start: "19:00", end: "20:00" }], now: NOW });
 
     const [, neu] = geschriebeneZeilen();
     expect(neu.windows).toBe('[{"start":"19:00","end":"20:00"}]');
   });
 
   it("eine ungültige Fenster-Liste wird abgelehnt, bevor irgendetwas geschrieben wird", async () => {
-    const r = await setReinigungSettings("u1", { fenster: [{ start: "19:00", end: "18:00" }], now: NOW });
+    const r = await setCleaningSettings("u1", { windows: [{ start: "19:00", end: "18:00" }], now: NOW });
 
     expect(r.ok).toBe(false);
     expect(db.cleaningRuleChange.createMany).not.toHaveBeenCalled();

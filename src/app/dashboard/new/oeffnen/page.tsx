@@ -9,7 +9,7 @@ import { getTranslations } from "next-intl/server";
 import { getIsLocked, getActiveLockPeriod, cleaningBlockReason } from "@/lib/queries";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
-import { reinigungVerbrauchtHeute, nextReinigungsFenster } from "@/lib/reinigungService";
+import { cleaningUsedToday, nextCleaningWindow, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { boxHoldOutlook } from "@/lib/boxOpenOutlook";
 import { getTasksBlocking } from "@/lib/taskIntervals";
 
@@ -21,12 +21,12 @@ export default async function NewOeffnenPage() {
   if (!(await getIsLocked(userId))) redirect("/dashboard");
 
   const now = new Date();
-  // Tages-Zählung über `reinigungVerbrauchtHeute` — dieselbe Kalendertag-Regel wie die
+  // Tages-Zählung über `cleaningUsedToday` — dieselbe Kalendertag-Regel wie die
   // Strafbuch-Ableitung (buildStrafbuch), statt sie hier ein zweites Mal auszuformulieren.
-  const [activeLockPeriod, user, reinigungHeute, box] = await Promise.all([
+  const [activeLockPeriod, user, cleaningToday, box] = await Promise.all([
     getActiveLockPeriod(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, oeffnenGruendeConfig: true } }),
-    reinigungVerbrauchtHeute(userId, now, tz),
+    prisma.user.findUnique({ where: { id: userId }, select: { ...CLEANING_USER_SELECT, oeffnenGruendeConfig: true } }),
+    cleaningUsedToday(userId, now, tz),
     // Die Selbstauskunft der Box: ihre eigene Frist.
     prisma.boxStatus.findFirst({ where: { userId }, orderBy: { name: "asc" }, select: { lockUntil: true } }),
   ]);
@@ -60,10 +60,10 @@ export default async function NewOeffnenPage() {
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
         lockPeriod={lockPeriodState}
-        reinigung={{
-          maxMinuten: user?.reinigungMaxMinuten ?? 15,
-          maxProTag: user?.reinigungMaxProTag ?? 0,
-          heuteAnzahl: reinigungHeute,
+        cleaning={{
+          maxMinutes: user?.cleaningMaxMinutes ?? 15,
+          maxPerDay: user?.cleaningMaxPerDay ?? 0,
+          heuteAnzahl: cleaningToday,
           // Das Urteil fällt der Server, aus derselben Regel wie die Durchsetzung. Der Client
           // bekommt den Grund, damit er ihn nennen kann — nicht die Zutaten, um ihn nachzurechnen.
           //
@@ -72,12 +72,12 @@ export default async function NewOeffnenPage() {
           // Gegenstand. Nur `userNotAllowed` gilt immer — dem Sub fehlt die Erlaubnis so oder so.
           cleaningBlock: activeLockPeriod
             ? cleaningBlockReason(
-                { reinigungErlaubt: user?.reinigungErlaubt ?? false, reinigungsFenster: user?.reinigungsFenster, timezone: tz },
+                { cleaningAllowed: user?.cleaningAllowed ?? false, cleaningWindows: user?.cleaningWindows, timezone: tz },
                 [activeLockPeriod],
                 now,
               )
-            : (user?.reinigungErlaubt ? null : "userNotAllowed"),
-          nextWindow: nextReinigungsFenster(user?.reinigungsFenster, now, tz),
+            : (user?.cleaningAllowed ? null : "userNotAllowed"),
+          nextWindow: nextCleaningWindow(user?.cleaningWindows, now, tz),
         }}
         boxHold={boxHold}
         hasBox={!!box}

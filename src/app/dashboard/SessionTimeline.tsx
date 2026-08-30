@@ -38,7 +38,7 @@ interface Props {
 const EVENT_SIGN: Record<SessionEventData["type"], string> = {
   verschluss: "VERSCHLUSS",
   kontrolle: "PRUEFUNG",
-  reinigung: "REINIGUNG",
+  cleaning: "REINIGUNG",
   orgasmus: "ORGASMUS",
 };
 
@@ -96,7 +96,7 @@ function BucketSection({
   const panelId = `bucket-panel-${bucket.id}`;
   const summaryParts: string[] = [];
   if (bucket.counts.kontrolle > 0) summaryParts.push(t("summaryKontrollen", { n: bucket.counts.kontrolle }));
-  if (bucket.counts.reinigung > 0) summaryParts.push(t("summaryReinigungen", { n: bucket.counts.reinigung }));
+  if (bucket.counts.cleaning > 0) summaryParts.push(t("summaryReinigungen", { n: bucket.counts.cleaning }));
   if (bucket.counts.orgasmus > 0) summaryParts.push(t("summaryOrgasmen", { n: bucket.counts.orgasmus }));
   if (bucket.counts.verschluss > 0) summaryParts.push(t("summaryVerschlusse", { n: bucket.counts.verschluss }));
 

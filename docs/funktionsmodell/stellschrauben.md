@@ -8,7 +8,7 @@ Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beide
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
 **Gilt** unterscheidet den Dauerschalter am Konto von dem Wert, der nur für EINE Direktive gilt.
-Die beiden `reinigungErlaubt` sind der Fall, an dem das regelmässig schiefgeht: beide müssen zutreffen.
+Die beiden `cleaningAllowed` sind der Fall, an dem das regelmässig schiefgeht: beide müssen zutreffen.
 
 ## Einträge & Sessions
 
@@ -35,7 +35,7 @@ Steckbrief: [10-sperrzeit.md](10-sperrzeit.md)
 | `VerschlussAnforderung.dauerH` | Float? | — | je Direktive | Mindest-Tragedauer einer Anforderung; die Uhr startet beim tatsächlichen Verschluss. Alternative zu `lockEndsAt`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
 | `VerschlussAnforderung.lockEndsAt` | DateTime? | — | je Direktive | Absolutes Sperr-Ende einer Anforderung (feste Wanduhr). Ein später Verschluss verschiebt es NICHT — anders als `dauerH`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
 | `VerschlussAnforderung.deviceId` | String? | — | je Direktive | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Geräte, Strafbuch | — |
-| `VerschlussAnforderung.reinigungErlaubt` | Boolean | `false` | je Direktive | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Reinigung, Box, Geräte | `queries.ts:foldActiveLockPeriods` |
+| `VerschlussAnforderung.cleaningAllowed` | Boolean | `false` | je Direktive | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Reinigung, Box, Geräte | `queries.ts:foldActiveLockPeriods` |
 | `VerschlussAnforderung.wirksamAb` | DateTime? | — | je Direktive | Terminierte Auslösung. Bis dahin existiert die Direktive für den Sub nicht: keine Anzeige, keine Meldung, keine laufende Frist. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Benachrichtigungen | — |
 
 ## Reinigung
@@ -44,10 +44,10 @@ Steckbrief: [20-reinigung.md](20-reinigung.md)
 
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
-| `User.reinigungErlaubt` | Boolean | `false` | dauerhaft | Ob Reinigungspausen überhaupt erlaubt sind. Notwendig, nicht hinreichend — eine aktive Sperrzeit muss es zusätzlich erlauben. | Keyholder (UI), Keyholder (MCP) | Reinigung, Sperrzeit, Box, Strafbuch, Geräte | `queries.ts:cleaningBlockReason` |
-| `User.reinigungMaxMinuten` | Int | `15` | dauerhaft | Höchstdauer EINER Pause. Darüber hinaus zählt die Pause als Tragezeit-Unterbrechung und wird zum erkannten Vergehen. | Keyholder (UI), Keyholder (MCP) | Reinigung, Strafbuch, Sessions/Statistik | `cleaningRules.ts:reinigungRulesAt` |
-| `User.reinigungMaxProTag` | Int | `0` | dauerhaft | ANZAHL Öffnungen pro Kalendertag des Subs (kein Minutenbudget). 0 = unbegrenzt. Wird nur erkannt, nie durchgesetzt. | Keyholder (UI), Keyholder (MCP) | Reinigung, Strafbuch | `reinigungService.ts:maxPausesPerDaySentinel` |
-| `User.reinigungsFenster` | String? | — | dauerhaft | Tages-Zeitfenster (JSON-Liste). Binden NUR während einer Sperrzeit, die die Reinigung erlaubt. Leere Liste = nicht zeitgebunden, kein Verbot. | Keyholder (UI), Keyholder (MCP) | Reinigung, Box | `queries.ts:cleaningWindowBindingStatus` |
+| `User.cleaningAllowed` | Boolean | `false` | dauerhaft | Ob Reinigungspausen überhaupt erlaubt sind. Notwendig, nicht hinreichend — eine aktive Sperrzeit muss es zusätzlich erlauben. | Keyholder (UI), Keyholder (MCP) | Reinigung, Sperrzeit, Box, Strafbuch, Geräte | `queries.ts:cleaningBlockReason` |
+| `User.cleaningMaxMinutes` | Int | `15` | dauerhaft | Höchstdauer EINER Pause. Darüber hinaus zählt die Pause als Tragezeit-Unterbrechung und wird zum erkannten Vergehen. | Keyholder (UI), Keyholder (MCP) | Reinigung, Strafbuch, Sessions/Statistik | `cleaningRules.ts:cleaningRulesAt` |
+| `User.cleaningMaxPerDay` | Int | `0` | dauerhaft | ANZAHL Öffnungen pro Kalendertag des Subs (kein Minutenbudget). 0 = unbegrenzt. Wird nur erkannt, nie durchgesetzt. | Keyholder (UI), Keyholder (MCP) | Reinigung, Strafbuch | `cleaningService.ts:maxPausesPerDaySentinel` |
+| `User.cleaningWindows` | String? | — | dauerhaft | Tages-Zeitfenster (JSON-Liste). Binden NUR während einer Sperrzeit, die die Reinigung erlaubt. Leere Liste = nicht zeitgebunden, kein Verbot. | Keyholder (UI), Keyholder (MCP) | Reinigung, Box | `queries.ts:cleaningWindowBindingStatus` |
 
 ## Kontrollen
 
@@ -400,10 +400,10 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `OffenseRuleChange.createdAt` | Datensatz | Anlage-Zeitpunkt. |
 | `CleaningRuleChange.id` | Identität | Primärschlüssel. |
 | `CleaningRuleChange.userId` | Identität | Eigentümer der Zeile. |
-| `CleaningRuleChange.allowed` | Datensatz | Abbild von `User.reinigungErlaubt` in dieser Fassung. Gesetzt wird über die User-Spalte, nie hier. |
-| `CleaningRuleChange.maxMinutes` | Datensatz | Abbild von `User.reinigungMaxMinuten`. |
-| `CleaningRuleChange.maxPerDay` | Datensatz | Abbild von `User.reinigungMaxProTag`. |
-| `CleaningRuleChange.windows` | Datensatz | Abbild von `User.reinigungsFenster`. |
+| `CleaningRuleChange.allowed` | Datensatz | Abbild von `User.cleaningAllowed` in dieser Fassung. Gesetzt wird über die User-Spalte, nie hier. |
+| `CleaningRuleChange.maxMinutes` | Datensatz | Abbild von `User.cleaningMaxMinutes`. |
+| `CleaningRuleChange.maxPerDay` | Datensatz | Abbild von `User.cleaningMaxPerDay`. |
+| `CleaningRuleChange.windows` | Datensatz | Abbild von `User.cleaningWindows`. |
 | `CleaningRuleChange.effectiveFrom` | Datensatz | Ab wann die Fassung gilt. Die Grundzeile trägt Epoch, damit keine Lücke bleibt, in die eine Öffnung fallen könnte. |
 | `CleaningRuleChange.changedBy` | Nachweis | Wer geändert hat; leer bei der Grundzeile, die niemand gesetzt hat. |
 | `CleaningRuleChange.createdAt` | Datensatz | Anlage-Zeitpunkt. |

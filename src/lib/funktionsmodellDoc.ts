@@ -204,7 +204,7 @@ export function renderStellschrauben(schema: SchemaFields): string {
   lines.push("Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.");
   lines.push("");
   lines.push("**Gilt** unterscheidet den Dauerschalter am Konto von dem Wert, der nur für EINE Direktive gilt.");
-  lines.push("Die beiden `reinigungErlaubt` sind der Fall, an dem das regelmässig schiefgeht: beide müssen zutreffen.");
+  lines.push("Die beiden `cleaningAllowed` sind der Fall, an dem das regelmässig schiefgeht: beide müssen zutreffen.");
   lines.push("");
 
   for (const domain of FM_DOMAINS) {

@@ -18,7 +18,7 @@ import Button from "@/app/components/Button";
 import EntryFormShell from "@/app/components/EntryFormShell";
 import Card from "@/app/components/Card";
 import RiskConfirmSheet from "@/app/components/RiskConfirmSheet";
-import type { OeffnenPayload, ReinigungConfig, LockPeriodState, SubmitResult } from "./types";
+import type { OeffnenPayload, CleaningConfig, LockPeriodState, SubmitResult } from "./types";
 import type { BoxHold } from "@/lib/boxOpenOutlook";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
@@ -31,7 +31,7 @@ interface Props {
   tz: string;
   nowDefault: string;
   lockPeriod?: LockPeriodState;
-  reinigung?: ReinigungConfig;
+  cleaning?: CleaningConfig;
   /** Serverseitig gefälltes Urteil: hält die Box? null = der Riegel folgt (oder es gibt keine Box). */
   boxHold?: BoxHold | null;
   /** Hat der Sub überhaupt eine Box? `boxHold` taugt dafür nicht: es ist auch `null`, wenn eine Box
@@ -49,7 +49,7 @@ interface Props {
 }
 
 export default function OeffnenFormCore({
-  initial, grundOptions, maxTime, tz, nowDefault, lockPeriod, reinigung, boxHold, hasBox = false,
+  initial, grundOptions, maxTime, tz, nowDefault, lockPeriod, cleaning, boxHold, hasBox = false,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel, defaultGrund,
   taskWarnings = [],
 }: Props) {
@@ -59,31 +59,31 @@ export default function OeffnenFormCore({
 
   const lockPeriodEndsAt = lockPeriod?.endsAt ?? null;
   const lockPeriodIndefinite = lockPeriod?.indefinite ?? false;
-  const reinigungMaxMinuten = reinigung?.maxMinuten ?? 15;
-  const reinigungMaxProTag = reinigung?.maxProTag ?? 0;
-  const reinigungHeuteAnzahl = reinigung?.heuteAnzahl ?? 0;
-  // Ohne `reinigung`-Prop (Admin-Formular, Edit-Seite) gibt es keine Schranke — dort greifen die
+  const cleaningMaxMinutes = cleaning?.maxMinutes ?? 15;
+  const cleaningMaxPerDay = cleaning?.maxPerDay ?? 0;
+  const cleaningTodayCount = cleaning?.heuteAnzahl ?? 0;
+  // Ohne `cleaning`-Prop (Admin-Formular, Edit-Seite) gibt es keine Schranke — dort greifen die
   // Sub-Warnungen ohnehin nicht, und ein Grund würde jede Reinigungsöffnung als Bruch anzeigen.
-  const cleaningBlock = reinigung?.cleaningBlock ?? null;
+  const cleaningBlock = cleaning?.cleaningBlock ?? null;
 
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [grund, setGrund] = useState<OeffnenGrund | "">((initial?.oeffnenGrund as OeffnenGrund) ?? defaultGrund ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [showWarning, setShowWarning] = useState(false);
-  const [showReinigungLimitWarning, setShowReinigungLimitWarning] = useState(false);
-  const [forcedReinigung, setForcedReinigung] = useState(false);
+  const [showCleaningLimitWarning, setShowCleaningLimitWarning] = useState(false);
+  const [forcedCleaning, setForcedCleaning] = useState(false);
   const { saving, error, setError, submit } = useEntrySubmit<OeffnenPayload>(submitFn, onSuccess);
 
-  const isReinigungLimitReached = !initial && reinigungMaxProTag > 0 && grund === "REINIGUNG" && reinigungHeuteAnzahl >= reinigungMaxProTag;
+  const isCleaningLimitReached = !initial && cleaningMaxPerDay > 0 && grund === "REINIGUNG" && cleaningTodayCount >= cleaningMaxPerDay;
   const hasActiveLockPeriod = lockPeriodIndefinite || !!(lockPeriodEndsAt && new Date(lockPeriodEndsAt) > new Date());
   // Das Urteil kommt fertig vom Server (`cleaningBlockReason`) — dieselbe Regel, die über den
   // Sperrzeit-Bruch entscheidet. Hier nachzurechnen (User-Flag, Sperr-Flag, Fenster) hiesse, sie ein
   // viertes Mal zu formulieren; genau so ist die Fenster-Prüfung anderswo verlorengegangen.
-  const istErlaubteReinigungsOeffnung = grund === "REINIGUNG" && cleaningBlock === null;
-  const openingBlockedByLockPeriod = hasActiveLockPeriod && !istErlaubteReinigungsOeffnung;
+  const isPermittedCleaningOpening = grund === "REINIGUNG" && cleaningBlock === null;
+  const openingBlockedByLockPeriod = hasActiveLockPeriod && !isPermittedCleaningOpening;
 
   /** Warum steht bei Grund „Reinigung" kein „max. X Minuten" da? Der Server nennt den Grund. */
-  const reinigungHintKey =
+  const cleaningHintKey =
     cleaningBlock === "lockPeriodForbids" ? "reinigungHintLockPeriod"
     : cleaningBlock === "outsideWindow" ? "reinigungHintOutsideWindow"
     : cleaningBlock === "userNotAllowed" ? "reinigungHintNoConfig"
@@ -91,17 +91,17 @@ export default function OeffnenFormCore({
   /** Der Reinigungs-Hinweistext (Sheet + Inline-Karte teilen ihn). Ist die Öffnung ausserhalb des
    *  Fensters, hängt „Nächstes Reinigungsfenster …" an — sonst weiss der Sub nicht, wann es wieder
    *  geht. `nextWindow` ist dieselbe Quelle wie die Box-Karte auf der Übersicht. */
-  const reinigungHintText =
-    (reinigungHintKey ? t(reinigungHintKey) : t("modalSubtextReinigung", { minutes: reinigungMaxMinuten })) +
-    (cleaningBlock === "outsideWindow" && reinigung?.nextWindow
-      ? " " + t("boxNextWindow", { start: reinigung.nextWindow.start, end: reinigung.nextWindow.end })
+  const cleaningHintText =
+    (cleaningHintKey ? t(cleaningHintKey) : t("modalSubtextReinigung", { minutes: cleaningMaxMinutes })) +
+    (cleaningBlock === "outsideWindow" && cleaning?.nextWindow
+      ? " " + t("boxNextWindow", { start: cleaning.nextWindow.start, end: cleaning.nextWindow.end })
       : "");
 
   // Hält die Box? Das Urteil kommt fertig vom Server (eine Uhr, Sub-Zeitzone). Bei einer erlaubten
   // Reinigungsöffnung folgt der Riegel trotz laufender Sperrzeit (der Tracker setzt den Dauerauftrag
   // in Heimdall aus) — dann wäre die Halte-Warnung falsch. Der Bruch-Fall gehört `openingBlockedByLockPeriod`
   // und wird von der Sperrzeit-Karte plus dem Absende-Sheet abgedeckt.
-  const zeigeBoxHalt = !initial && !!boxHold && !openingBlockedByLockPeriod && !istErlaubteReinigungsOeffnung;
+  const zeigeBoxHalt = !initial && !!boxHold && !openingBlockedByLockPeriod && !isPermittedCleaningOpening;
 
   async function doSave(forced = false) {
     const payload: OeffnenPayload = {
@@ -110,7 +110,7 @@ export default function OeffnenFormCore({
       oeffnenGrund: grund,
       note: note.trim() || null,
     };
-    if (forced) payload.forcedReinigung = true;
+    if (forced) payload.forcedCleaning = true;
     await submit(payload);
   }
 
@@ -120,7 +120,7 @@ export default function OeffnenFormCore({
     e.preventDefault();
     if (!grund) { setError(t("grundRequired")); return; }
     if (!note.trim()) { setError(t("commentRequired")); return; }
-    if (isReinigungLimitReached) { setShowReinigungLimitWarning(true); return; }
+    if (isCleaningLimitReached) { setShowCleaningLimitWarning(true); return; }
     if (openingBlockedByLockPeriod) { setShowWarning(true); return; }
     // Zuletzt die Aufgaben-Rückfrage: die anderen Warnungen betreffen das Öffnen selbst, diese die
     // Folge für eine laufende Aufgabe.
@@ -128,9 +128,9 @@ export default function OeffnenFormCore({
     await doSave();
   }
 
-  function handleReinigungLimitConfirm() {
-    setShowReinigungLimitWarning(false);
-    setForcedReinigung(true);
+  function handleCleaningLimitConfirm() {
+    setShowCleaningLimitWarning(false);
+    setForcedCleaning(true);
     if (openingBlockedByLockPeriod) setShowWarning(true);
     else doSave(true);
   }
@@ -147,16 +147,16 @@ export default function OeffnenFormCore({
   return (
     <>
       <RiskConfirmSheet
-        open={showReinigungLimitWarning}
-        onClose={() => setShowReinigungLimitWarning(false)}
+        open={showCleaningLimitWarning}
+        onClose={() => setShowCleaningLimitWarning(false)}
         title={t("reinigungLimitTitle")}
         stayLabel={t("reinigungLimitStay")}
         proceedLabel={t("reinigungLimitOpenAnyway")}
-        onProceed={handleReinigungLimitConfirm}
+        onProceed={handleCleaningLimitConfirm}
         proceeding={saving}
       >
         <p className="text-fliess text-foreground-muted">
-          {t("reinigungLimitSubtext", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}
+          {t("reinigungLimitSubtext", { count: cleaningTodayCount, max: cleaningMaxPerDay })}
         </p>
       </RiskConfirmSheet>
 
@@ -168,11 +168,11 @@ export default function OeffnenFormCore({
         // Mit Box trägt der Knopf nur ein — er öffnet nichts. Ohne Box ist der Eintrag die ganze
         // Wahrheit, dort bleibt „Trotzdem öffnen" richtig.
         proceedLabel={t(hasBox ? "modalRecordAnyway" : "modalOpenAnyway")}
-        onProceed={() => { setShowWarning(false); doSave(forcedReinigung); }}
+        onProceed={() => { setShowWarning(false); doSave(forcedCleaning); }}
         proceeding={saving}
       >
         <p className="text-fliess text-foreground-muted">
-          {grund !== "REINIGUNG" ? t("modalSubtext") : reinigungHintText}
+          {grund !== "REINIGUNG" ? t("modalSubtext") : cleaningHintText}
         </p>
         {/* Der Eintrag dokumentiert die Öffnung — er vollzieht sie nicht. Bei einem VERBOTENEN
             Öffnen sendet der Server bewusst kein Box-Kommando (sonst vollstreckte das
@@ -255,7 +255,7 @@ export default function OeffnenFormCore({
                   {boxHold!.until
                     ? t("boxHoldsUntil", { date: new Date(boxHold!.until).toLocaleString(dl, { hour: "2-digit", minute: "2-digit", timeZone: tz }) })
                     : t("boxHoldsIndefinitely")}
-                  {reinigung?.nextWindow ? " " + t("boxNextWindow", { start: reinigung.nextWindow.start, end: reinigung.nextWindow.end }) : ""}
+                  {cleaning?.nextWindow ? " " + t("boxNextWindow", { start: cleaning.nextWindow.start, end: cleaning.nextWindow.end }) : ""}
                 </p>
                 <p className="text-neben text-warn-text">
                   {grund === "REINIGUNG" ? t("boxStillCountsCleaning") : t("boxStillCounts")}
@@ -266,12 +266,12 @@ export default function OeffnenFormCore({
         )}
 
         {grund === "REINIGUNG" && (
-          <Card variant="semantic" semantic={isReinigungLimitReached ? "warn" : "inspect"} padding="compact">
+          <Card variant="semantic" semantic={isCleaningLimitReached ? "warn" : "inspect"} padding="compact">
             <div className="flex flex-col gap-1">
-              <p className="text-neben text-inspect-text">{reinigungHintText}</p>
-              {reinigungMaxProTag > 0 && (
-                <p className={`text-neben font-semibold ${isReinigungLimitReached ? "text-warn" : "text-inspect-text"}`}>
-                  {t("reinigungLimitHint", { count: reinigungHeuteAnzahl, max: reinigungMaxProTag })}
+              <p className="text-neben text-inspect-text">{cleaningHintText}</p>
+              {cleaningMaxPerDay > 0 && (
+                <p className={`text-neben font-semibold ${isCleaningLimitReached ? "text-warn" : "text-inspect-text"}`}>
+                  {t("reinigungLimitHint", { count: cleaningTodayCount, max: cleaningMaxPerDay })}
                 </p>
               )}
             </div>

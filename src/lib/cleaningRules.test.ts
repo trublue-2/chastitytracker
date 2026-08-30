@@ -58,13 +58,13 @@ describe("cleaningSettingsFromUser", () => {
 
   it("reicht den JSON-String der Fenster durch, wie er in der Spalte steht", () => {
     const windows = '[{"start":"19:00","end":"20:00"}]';
-    expect(cleaningSettingsFromUser({ reinigungsFenster: windows }).windows).toBe(windows);
+    expect(cleaningSettingsFromUser({ cleaningWindows: windows }).windows).toBe(windows);
   });
 
   it("verwandelt eine bereits geparste Liste zurück, statt sie zu verwerfen", () => {
     // In-Memory-Aufrufer und Tests reichen die Fenster als Array — würde das zu `null`, verlöre die
     // Vergangenheit ihre Fenster-Schranke und jede nächtliche Öffnung wäre nachträglich erlaubt.
-    expect(cleaningSettingsFromUser({ reinigungsFenster: [{ start: "19:00", end: "20:00" }] }).windows)
+    expect(cleaningSettingsFromUser({ cleaningWindows: [{ start: "19:00", end: "20:00" }] }).windows)
       .toBe('[{"start":"19:00","end":"20:00"}]');
   });
 });
