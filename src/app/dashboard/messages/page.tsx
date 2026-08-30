@@ -5,7 +5,7 @@ import { soleControllerName } from "@/lib/keyholder";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import { listMessages, subInbox, unreadCountCached, unreadCount } from "@/lib/messageService";
 import { presentMessages } from "@/lib/messagePresenter";
-import { messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
+import { isMessageFiltered, messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
 import { MESSAGE_SCOPES } from "@/lib/messageScope";
 import { APP_TZ } from "@/lib/utils";
 import DashboardBlock from "@/app/components/DashboardBlock";
@@ -43,7 +43,11 @@ export default async function MessagesPage({
   const [page, unread, unreadInFilter, locale, t, keyholderName] = await Promise.all([
     listMessages(subInbox(userId), { filter }),
     unreadCountCached(userId),
-    unreadCount(subInbox(userId), [], filter),
+    // Nur wenn ein Filter greift: ohne ihn ist der Ausschnitts-Zähler derselbe wie der Gesamtstand
+    // eine Zeile höher — und die Sub-Sicht verbirgt Zeilen, ihr Zähler ist also keine `count`, sondern
+    // die ganze Sichtbarkeits-Kette (bis zu fünf Abfragen). Der Weg von der Glocke führt auf den
+    // NACKTEN Posteingang, das ist der Normalfall.
+    isMessageFiltered(filter) ? unreadCount(subInbox(userId), [], filter) : unreadCountCached(userId),
     getLocale(),
     getTranslations("messages"),
     // Für die Beschriftung des Absender-Filters. Muss VON HIER kommen: die Filterleiste ist eine

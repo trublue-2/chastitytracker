@@ -383,8 +383,6 @@ export function themeTokens(themeName) {
   //
   // Den Zustand trägt jetzt die Schrift (Rosa-Tinte) statt der Fläche. Genau so meint es der
   // Entwurf: „Man erkennt den Sachverhalt an der Farbe des Signals", nicht an der Grundfläche.
-  setze('color-lock-grad-a', th.erhoeht)
-  setze('color-lock-grad-b', beiKontrast(th.grund, BEDEUTUNG.rosa.flaeche, th.hell ? 1.22 : 1.45))
   setze('color-lock-on', th.text[0])
   setze('color-lock-on-muted', th.text[1])
   // Die Tönung hinter der grossen Zahl. Sie ersetzt das Leuchten, das ein heller Grund nicht

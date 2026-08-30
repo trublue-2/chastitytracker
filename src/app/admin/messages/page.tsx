@@ -3,7 +3,7 @@ import { assertController } from "@/lib/authGuards";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import { keyholderInbox, listMessages, unreadCountForKeyholderCached, unreadCount } from "@/lib/messageService";
 import { presentMessages } from "@/lib/messagePresenter";
-import { messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
+import { isMessageFiltered, messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
 import { MESSAGE_SCOPES } from "@/lib/messageScope";
 import { APP_TZ } from "@/lib/utils";
 import MessageList from "@/app/components/MessageList";
@@ -38,7 +38,11 @@ export default async function AdminMessagesPage({
     // Derselbe Zähler wie in der Kopfzeile — memoisiert läuft er im Request nur einmal, und er teilt
     // sich mit `assertController()` oben die eine Träger-Abfrage.
     unreadCountForKeyholderCached(readerId, session.user.role),
-    unreadCount(keyholderInbox(readerId, subs), [], filter),
+    // Gleiche Überlegung wie im Träger-Posteingang: ohne Filter ist das derselbe Wert wie die
+    // Zeile darüber, und der ist memoisiert.
+    isMessageFiltered(filter)
+      ? unreadCount(keyholderInbox(readerId, subs), [], filter)
+      : unreadCountForKeyholderCached(readerId, session.user.role),
     getLocale(),
     getTranslations("messages"),
   ]);

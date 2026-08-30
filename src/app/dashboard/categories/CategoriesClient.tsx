@@ -8,6 +8,7 @@ import { formatTotalHours } from "@/lib/utils";
 import { Plus, Pencil, Trash2, Tag, ChevronUp, ChevronDown } from "lucide-react";
 import Section from "@/app/components/Section";
 import Button from "@/app/components/Button";
+import PageTitle from "@/app/components/PageTitle";
 import EmptyState from "@/app/components/EmptyState";
 import Badge from "@/app/components/Badge";
 import ActionModal from "@/app/components/ActionModal";
@@ -161,13 +162,7 @@ export default function CategoriesClient({ categories: initial, userId, username
         ← {t("backToDevices")}
       </Link>
       <div className="flex items-center justify-between">
-        {/* `h2` im Keyholder-Reiter: dort trägt `admin/users/[id]/layout.tsx` mit dem Namen des
-            Trägers schon die Ebene 1, und eine zweite gäbe der Seite zwei Wurzeln. `userId` ist
-            genau dieses Signal — es ist gesetzt, wenn hier fremde Geräte verwaltet werden, und
-            steuert wenige Zeilen höher schon die Ziel-Adressen. */}
-        {userId
-          ? <h2 className="text-xl font-bold text-foreground">{title}</h2>
-          : <h1 className="text-xl font-bold text-foreground">{title}</h1>}
+        <PageTitle title={title} subjectId={userId} />
         <Button variant="primary" size="sm" onClick={openAdd} icon={<Plus size={16} />}>
           {t("addCategory")}
         </Button>

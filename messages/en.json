@@ -410,7 +410,6 @@
   },
   "dashboard": {
     "title": "Chastity Tracker",
-    "userTitle": "User: {name}",
     "lockRequested": "Lock-up requested",
     "lockDevicePrefix": "Device: {name}",
     "lockUntil": "Please lock by {date}",
@@ -431,7 +430,6 @@
     "goalTight": "{time} to go · tight",
     "goalMissing": "{time} short",
     "categoryGoals": "Category goals",
-    "blockGreeting": "Greeting",
     "blockAlerts": "Open requirements",
     "blockBoxStatus": "Box",
     "blockOpenTasks": "Tasks",
@@ -490,7 +488,6 @@
     "year": "Year",
     "notCaptured": "Not captured",
     "stillLocked": "still locked",
-    "sessionTitle": "Current wear period",
     "sessionSince": "Since",
     "sessionLockedUntil": "Held until",
     "sessionLockedIndefinite": "Held, open-ended",
@@ -567,9 +564,7 @@
     "editLayoutLocked": "Carries a deadline — stays visible",
     "editLayoutMoved": "{name} is now at position {position} of {total}.",
     "editLayoutStartsOpen": "\"{name}\": starts Open — tap so the block starts collapsed",
-    "editLayoutStartsClosed": "\"{name}\": starts Closed — tap so the block starts expanded",
-    "editLayoutStartOpen": "Show “{name}” expanded on open",
-    "editLayoutStartClosed": "Show “{name}” collapsed on open"
+    "editLayoutStartsClosed": "\"{name}\": starts Closed — tap so the block starts expanded"
   },
   "newEntry": {
     "title": "New entry",
@@ -606,11 +601,6 @@
   "boxStatus": {
     "istOpen": "Bolt open",
     "istLocked": "Bolt closed",
-    "sollLockedUntil": "The box should stay closed until {date}",
-    "sollLockedIndefinite": "The box should stay closed — lock period with no time limit",
-    "sollUntil": "The box should be closed until {date}",
-    "sollIndefinite": "The box should stay closed — no time limit",
-    "sollNone": "The box may stay open",
     "neverSynced": "never synced",
     "live": "active now",
     "lastSeenMinutes": "last online {count} min ago",

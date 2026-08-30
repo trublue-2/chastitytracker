@@ -254,14 +254,6 @@ export function boxSollLocked(b: BoxRow): boolean {
   return b.simpleLock;
 }
 
-/** Soll-Zustand (Keyholder-Wahrheit): Sperre bis / ohne Zeitlimit / eigene Frist / kein Soll. */
-export function boxSollLabel(b: BoxRow, t: Translate, fmtDateTime: (iso: string) => string): string {
-  if (!boxSollLocked(b)) return t("sollNone");
-  if (b.keyholderLocked) return b.lockUntil ? t("sollLockedUntil", { date: fmtDateTime(b.lockUntil) }) : t("sollLockedIndefinite");
-  if (b.lockUntil) return t("sollUntil", { date: fmtDateTime(b.lockUntil) });
-  return t("sollIndefinite");
-}
-
 /**
  * Vorwarnung vor den Failsafes, die die Box AUTONOM öffnen — ohne Knopfdruck, ohne Server, ohne
  * dass jemand am Gerät ist. Es sind genau zwei (`firmware/src/failsafe.h`): Funkstille

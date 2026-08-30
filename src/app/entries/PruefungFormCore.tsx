@@ -7,6 +7,7 @@ import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import PhotoCapture from "@/app/components/PhotoCapture";
+import { PhotoExifNotes, PhotoUploadError } from "@/app/components/PhotoUploadNotes";
 import RotatableImagePreview from "@/app/components/RotatableImagePreview";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
@@ -359,15 +360,14 @@ export default function PruefungFormCore({
           <div className="flex items-start gap-4">
             <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />
             <div className="flex flex-col gap-2 flex-1 pt-1">
-              {imageExifTime && <p className="text-neben text-foreground-faint">{tc("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>}
-              {exifWarning && !uploading && <p className="text-neben text-warn font-medium">{exifWarning}</p>}
+              <PhotoExifNotes imageExifTime={imageExifTime} exifWarning={exifWarning} uploading={uploading} dl={dl} tz={tz} />
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" compact mobileDesktopMode={mobileDesktopMode} />
             </div>
           </div>
         ) : (
           <>
             <PhotoCapture onFile={handleFile} uploading={uploading} variant="orange" mobileDesktopMode={mobileDesktopMode} />
-            {uploadError && !uploading && <p className="text-neben text-warn font-medium mt-1">{uploadError}</p>}
+            <PhotoUploadError uploadError={uploadError} uploading={uploading} />
           </>
         )}
       </FormField>
