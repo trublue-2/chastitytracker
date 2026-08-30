@@ -9,7 +9,7 @@ import type { SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
 import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
-  deviceCountCached, entriesCached, evaluatedTasksCached, latestKgEntryCached, lockRequestCached,
+  deviceCountCached, entriesCached, evaluatedTasksCached, latestKeyInBox, latestKgEntryCached, lockRequestCached,
   orgasmConfigCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
   subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
@@ -265,12 +265,15 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       return {
         cleaning: buildBoxCleaningView(user, entries, activeLockPeriod, now, tz),
         wearerLocked: await getIsLocked(userId),
+        // Ohne diesen Wert läse die Karte den Reisefall als Versäumnis — Begründung an
+        // `latestKeyInBox` und `boxBoltOpenDespiteLocked`. Kommt aus `entries`, kostet nichts.
+        keyInBox: latestKeyInBox(entries),
       };
     },
     // `null` heisst hier „ohne Reinigungs-Zeilen", nicht „ohne Karte" — die Karte selbst hängt an
     // Heimdall, und ohne den lief der Loader gar nicht erst.
     render: (data) => heimdallEnabled() && data !== null && (
-      <BoxStatusCard cleaning={data.cleaning} wearerLocked={data.wearerLocked} />
+      <BoxStatusCard cleaning={data.cleaning} wearerLocked={data.wearerLocked} keyInBox={data.keyInBox} />
     ),
   }),
 

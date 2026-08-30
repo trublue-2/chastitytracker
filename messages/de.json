@@ -420,7 +420,6 @@
     "orgasmRequiredArt": "Gewünscht: {art}",
     "locked": "Verschlossen",
     "inspectionRequired": "Kontrolle erforderlich",
-    "moreInspections": "{count, plural, one {Eine weitere Kontrolle ist offen} other {# weitere Kontrollen sind offen}}",
     "entries": "Tragezeiten",
     "totalDuration": "Gesamtdauer",
     "coverageDay": "{percent} % der bisherigen Tageszeit",

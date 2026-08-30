@@ -138,7 +138,7 @@ const content = {
       { id: "admin",       label: "Admin" },
     ],
     hero: {
-      subtitle: "Chastity belt tracking for couples. LockClosedIcon periods, checks, and statistics — clearly at a glance.",
+      subtitle: "Chastity belt tracking for couples. Lock periods, checks, and statistics — clearly at a glance.",
       cta: "Log in now",
     },
     sections: [
@@ -151,7 +151,7 @@ const content = {
         flip: false,
         shots: [
           { src: "/screenshots/info/01-dashboard-a.png", alt: "Dashboard – Status and Stats" },
-          { src: "/screenshots/info/01-dashboard-b.png", alt: "Dashboard – LockClosedIcon List" },
+          { src: "/screenshots/info/01-dashboard-b.png", alt: "Dashboard – Lock List" },
           { src: "/screenshots/info/01-dashboard-c.png", alt: "Dashboard – Older Entries" },
         ],
         features: [
@@ -169,10 +169,10 @@ const content = {
         flip: true,
         shots: [
           { src: "/screenshots/info/02-new-entry.png", alt: "New Entry – Type Selection" },
-          { src: "/screenshots/info/03-verschluss.png", alt: "LockClosedIcon Form" },
+          { src: "/screenshots/info/03-verschluss.png", alt: "Lock Form" },
         ],
         features: [
-          { icon: LockClosedIcon, color: "text-emerald-500", text: "LockClosedIcon: Date, time, and mandatory photo" },
+          { icon: LockClosedIcon, color: "text-emerald-500", text: "Lock: Date, time, and mandatory photo" },
           { icon: LockClosedIcon, color: "text-gray-400", text: "Opening: Only possible with an active lock, with optional note" },
           { icon: ClipboardCheck, color: "text-orange-500", text: "Check: Photo with handwritten code, AI-assisted verification" },
           { icon: PlusCircle, color: "text-rose-500", text: "Orgasm: Type (dropdown) and optional note" },

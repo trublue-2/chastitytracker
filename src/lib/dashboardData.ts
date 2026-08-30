@@ -137,6 +137,19 @@ export const latestKgEntryCached = cache(async (userId: string) =>
 );
 
 /**
+ * Der Schlüssel-Zustand des jüngsten Verschlusses — die zweite Hälfte, ohne die
+ * `boxBoltOpenDespiteLocked` den Reisefall (Träger behielt den Schlüssel, die Box bleibt zu Recht
+ * offen) als Versäumnis liest und dem Träger wochenlang „JETZT Knopf drücken!" zeigt.
+ *
+ * Nimmt die ohnehin geladene, absteigend sortierte Eintragsliste statt selbst zu fragen — die
+ * Box-Blöcke halten sie bereits. `/admin` holt denselben Wert für viele Träger auf einmal
+ * (`distinct` auf die jüngste VERSCHLUSS-Zeile); dies hier ist dieselbe Regel für EINEN.
+ */
+export function latestKeyInBox(entries: { type: string; keyInBox: boolean | null }[]): boolean | null {
+  return entries.find((e) => e.type === KG_PAIR.close)?.keyInBox ?? null;
+}
+
+/**
  * Die Reinigungs-Regeln des Trägers: `at(zeitpunkt)` gibt die damals geltende Fassung, `rules` die
  * Form, die `buildPairs` und die Box-Karte erwarten. Begründung der Historisierung am Modell
  * `CleaningRuleChange`.

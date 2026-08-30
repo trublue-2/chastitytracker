@@ -420,7 +420,6 @@
     "orgasmRequiredArt": "Requested: {art}",
     "locked": "Locked",
     "inspectionRequired": "Inspection required",
-    "moreInspections": "{count, plural, one {One more inspection is open} other {# more inspections are open}}",
     "entries": "Wear periods",
     "totalDuration": "Total duration",
     "coverageDay": "{percent}% of the day so far",

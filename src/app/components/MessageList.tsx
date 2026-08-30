@@ -276,40 +276,25 @@ export default function MessageList({
   }
 
   /**
-   * Eine Seite holen — der EINE Weg, über den Blättern und Filtern laufen.
+   * EIN Abruf, ohne Rücksicht auf andere — nur `load` ruft sie, und nur, wenn die Bahn frei ist.
+   * Die Marke und das Nachstellen liegen dort; hier steht nur, was eine Seite ausmacht.
    *
    * Die Seite kommt aus der Antwort zurück, nicht aus der Anfrage: der Server klemmt sie ans Ende,
    * wenn die angefragte hinter dem letzten Eintrag liegt (nach dem Löschen der letzten Zeile einer
    * Seite). Die Auswahl fällt dabei weg — angekreuzt wurde auf der Seite, die man verlässt.
    *
    * Gibt die geladene Seite zurück, damit der Aufrufer sie ansagen kann; `undefined` heisst „nicht
-   * geladen" (Fehler, oder ein NEUERER Abruf hat übernommen).
+   * geladen" (Fehler).
    */
-  async function load(
+  async function loadOnce(
     nextPage: number,
-    nextFilter: MessageFilter = filter,
-    opts: { quiet?: boolean } = {},
+    nextFilter: MessageFilter,
+    opts: { quiet?: boolean },
   ): Promise<LoadedPage | undefined> {
-    // Zweimal schnell auf „Weiter" wären zwei vollständige Runden; träfen die Antworten verkehrt
-    // herum ein, zeigte die Liste eine andere Seite als der Zähler daneben.
-    //
-    // Der zweite Aufruf wird deshalb nicht VERWORFEN, sondern nachgestellt. Verwerfen war die
-    // erste Fassung, und sie liess die Oberfläche lügen: `applyFilter` hatte den Filter schon
-    // gesetzt, der Abruf fiel weg — die Leiste zeigte den neuen Filter, die Liste den Inhalt des
-    // alten, und es kam keine Ansage. Zu treffen war das mit zwei Wechseln in Folge, also genau
-    // dann, wenn jemand sucht.
-    if (loadInFlight.current) {
-      queuedLoad.current = { nextPage, nextFilter, opts };
-      return;
-    }
-    loadInFlight.current = true;
-    setSaving(true);
     // Serialisierung aus `messageCategories` — dieselbe Quelle, die die Route wieder einliest.
     const params = messageFilterToParams(nextFilter);
     params.set("page", String(nextPage + 1));
     const data = await request<LoadedPage>(`${apiBase}?${params.toString()}`);
-    loadInFlight.current = false;
-    setSaving(false);
     if (!data) return;
     setMessages(data.messages);
     setPage(data.page - 1);
@@ -333,18 +318,60 @@ export default function MessageList({
 
   /**
    * Der letzte Abruf, der während eines laufenden kam — höchstens einer, denn nur der jüngste
-   * Wunsch zählt. `loadLatest` führt ihn aus, sobald der laufende fertig ist, und gibt SEIN
-   * Ergebnis zurück; die Ansage beschreibt damit das, was am Ende auf dem Bildschirm steht.
+   * Wunsch zählt. Der laufende `load` arbeitet ihn ab, sobald er fertig ist.
    */
   const queuedLoad = useRef<{ nextPage: number; nextFilter: MessageFilter; opts: { quiet?: boolean } } | null>(null);
+  /**
+   * Wer nachgestellt hat, wartet hier auf das Ergebnis der Abarbeitung — statt selbst abzuarbeiten.
+   * Alle bekommen dieselbe, LETZTE Seite: die Ansage beschreibt damit das, was am Ende wirklich auf
+   * dem Bildschirm steht.
+   */
+  const queuedWaiters = useRef<Array<(data: LoadedPage | undefined) => void>>([]);
 
-  async function loadLatest(nextPage: number, nextFilter?: MessageFilter): Promise<LoadedPage | undefined> {
-    let data = await load(nextPage, nextFilter);
+  /**
+   * Eine Seite holen — der EINE Weg, über den Blättern und Filtern laufen.
+   *
+   * Zweimal schnell auf „Weiter" wären zwei vollständige Runden; träfen die Antworten verkehrt
+   * herum ein, zeigte die Liste eine andere Seite als der Zähler daneben. Der zweite Aufruf wird
+   * deshalb nicht VERWORFEN, sondern nachgestellt. Verwerfen war die erste Fassung, und sie liess
+   * die Oberfläche lügen: `applyFilter` hatte den Filter schon gesetzt, der Abruf fiel weg — die
+   * Leiste zeigte den neuen Filter, die Liste den Inhalt des alten, und es kam keine Ansage. Zu
+   * treffen war das mit zwei Wechseln in Folge, also genau dann, wenn jemand sucht.
+   *
+   * **Das Abarbeiten gehört zu DIESER Funktion, nicht zu einer zweiten daneben.** Sie hält die
+   * Marke, ist also die Einzige, die weiss, wann die Bahn wieder frei wird. Genau daran scheiterte
+   * die erste Fassung: ein zweites `loadLatest`, das während eines laufenden Abrufs betreten wurde,
+   * stellte seinen eigenen Wunsch nach, holte ihn sofort selbst wieder aus der Schlange und
+   * bekam erneut nur die Warte-Antwort — eine Schleife über bereits erfüllte Zusagen, die nie an
+   * die Ereignisschlange abgab. Der laufende `fetch` konnte damit nie fertig werden und der Tab
+   * stand, bis er neu geladen wurde. Erreichbar war das ohne jedes schnelle Klicken: „Alle als
+   * gelesen" oder ein Seitenwechsel hält die Marke, und die Filterleiste bleibt bedienbar.
+   */
+  async function load(
+    nextPage: number,
+    nextFilter: MessageFilter = filter,
+    opts: { quiet?: boolean } = {},
+  ): Promise<LoadedPage | undefined> {
+    if (loadInFlight.current) {
+      queuedLoad.current = { nextPage, nextFilter, opts };
+      return new Promise((resolve) => { queuedWaiters.current.push(resolve); });
+    }
+    loadInFlight.current = true;
+    setSaving(true);
+    let data = await loadOnce(nextPage, nextFilter, opts);
+    // Jeder Durchgang wartet auf einen echten Abruf — die Schleife gibt also ab und kann den
+    // laufenden nicht aushungern.
     while (queuedLoad.current) {
       const q = queuedLoad.current;
       queuedLoad.current = null;
-      data = await load(q.nextPage, q.nextFilter, q.opts);
+      data = await loadOnce(q.nextPage, q.nextFilter, q.opts);
     }
+    loadInFlight.current = false;
+    setSaving(false);
+    // Erst wenn nichts mehr nachkommt: alle Wartenden auf denselben Endstand wecken.
+    const waiters = queuedWaiters.current;
+    queuedWaiters.current = [];
+    for (const resolve of waiters) resolve(data);
     return data;
   }
 
@@ -352,7 +379,7 @@ export default function MessageList({
     setFilter(next);
     // Immer zurück auf die erste Seite: ein Filter, der die Liste kürzt, liesse einen sonst auf
     // einer Seite stehen, die es nicht mehr gibt.
-    const data = await loadLatest(0, next);
+    const data = await load(0, next);
     // Ein Filterwechsel ist sonst stumm: die Liste tauscht ihren Inhalt aus, wer sie nicht SIEHT,
     // erfährt davon nichts — nicht einmal, dass der Filter überhaupt gegriffen hat. Die Seitenzahl
     // gehört in denselben Satz, sonst klänge „12 Nachrichten" nach dem ganzen Ergebnis, obwohl es
