@@ -203,9 +203,9 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
     expect(r.wouldSucceed).toBe(true);
   });
 
-  it("request_orgasm: explizites endsAt vor beginsAt wird auch im dryRun abgelehnt (code-review-Fund)", async () => {
+  it("request_orgasm: explizites endsAt vor beginnt wird auch im dryRun abgelehnt (code-review-Fund)", async () => {
     // Beide Zeiten liegen in der Zukunft (checkOrgasmWindowEnd allein würde das durchwinken) —
-    // aber endsAt < beginsAt ist strukturell ungültig, dieselbe Regel wie beim echten Commit.
+    // aber endsAt < beginnt ist strukturell ungültig, dieselbe Regel wie beim echten Commit.
     const r = await mcpRequestOrgasm("sub", {
       dryRun: true, art: "GELEGENHEIT",
       beginsAt: new Date("2026-07-20T10:00:00Z").toISOString(),
@@ -840,7 +840,7 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
  * set_cleaning.windows: die Reinigungs-Fenster über den MCP umlegen, ergänzen, löschen. Die Liste
  * ERSETZT den Stand — deshalb muss der Agent sehen, was er dabei verdrängt (diff), und darf keine
  * Fenster still verlieren, wenn ein Paar Murks ist (der Lese-Pfad verwirft solche Paare, siehe
- * parseReinigungsFenster — genau das wäre hier eine unbemerkte Löschung).
+ * parseCleaningWindows — genau das wäre hier eine unbemerkte Löschung).
  */
 describe("set_cleaning: Reinigungs-Fenster", () => {
   const setCleaningMock = setCleaningSettings as unknown as ReturnType<typeof vi.fn>;

@@ -24,7 +24,7 @@ describe("activeCleaningWindow — per-user timezone", () => {
   });
 });
 
-describe("nextReinigungsFenster", () => {
+describe("nextCleaningWindow", () => {
   const fenster = [{ start: "17:30", end: "18:00" }, { start: "05:30", end: "07:00" }];
   const TZ = "Europe/Zurich";
 

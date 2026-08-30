@@ -31,7 +31,7 @@ export interface SetCleaningParams {
 }
 
 /** Form eines GESPEICHERTEN Fensters: zwei „HH:MM"-Strings, aufsteigend. Bewusst toleranter als
- *  {@link HHMM} (die Schreib-Regel) — siehe {@link fensterShape}. */
+ *  {@link HHMM} (die Schreib-Regel) — siehe {@link windowShape}. */
 const HHMM_SHAPE = /^\d{2}:\d{2}$/;
 /** Als ENDE zusätzlich erlaubt: „bis Mitternacht". Als Start sinnlos (nichts läge danach). */
 const MIDNIGHT_END = "24:00";
@@ -220,7 +220,7 @@ export function buildCleaningView(user: CleaningUserFields, usedToday: number, n
  * Updates a user's cleaning-pause (Reinigung) settings. Only provided fields change; numeric
  * fields are clamped to their valid ranges. Shared by PATCH /api/admin/users/[id] and the MCP tool.
  *
- * `fenster` ERSETZT die Liste als Ganzes (`[]` löscht sie) und wird abgelehnt, statt still
+ * `windows` ERSETZT die Liste als Ganzes (`[]` löscht sie) und wird abgelehnt, statt still
  * beschnitten zu werden: ein verworfenes Paar wäre für den Aufrufer nicht von „gespeichert" zu
  * unterscheiden — er hätte ein Fenster gelöscht und ein `ok` bekommen.
  */

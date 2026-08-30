@@ -15,10 +15,10 @@ Der Unterschied steckt vollständig in diesem einen Feld — sonst ist die Mecha
 
 ## Stellschrauben
 
-Sieben, alle je Direktive: `art`, `beginsAt`, `endsAt`, `requiredType`, `oeffnenErlaubt`,
+Sieben, alle je Direktive: `art`, `beginsAt`, `endsAt`, `requiredType`, `openingAllowed`,
 `wirksamAb`, `message`. Siehe [stellschrauben.md](stellschrauben.md).
 
-## `oeffnenErlaubt`: der einzige geplante Sperrbruch
+## `openingAllowed`: der einzige geplante Sperrbruch
 
 Ist es gesetzt, darf der Sub sich im Fenster öffnen, ohne dass das als unautorisierte Öffnung zählt.
 Das ist der **einzige** Weg, eine laufende Sperrzeit gezielt und folgenlos zu durchbrechen — jeder
@@ -45,7 +45,7 @@ kein Öffnen, und es erfüllt sich nicht.
 
 ## Wirkt auf
 
-- **Sperrzeit** — über `oeffnenErlaubt`.
+- **Sperrzeit** — über `openingAllowed`.
 - **Strafbuch** — eine versäumte ANWEISUNG wird erkannt (nicht automatisch bestraft). Ein Orgasmus
   ohne deckende Direktive kann als `unauthorized_orgasm` zählen; ob überhaupt, entscheidet die
   Vergehensregel, und die steht standardmässig auf aus.

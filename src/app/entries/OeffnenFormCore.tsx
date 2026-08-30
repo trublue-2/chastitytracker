@@ -61,7 +61,7 @@ export default function OeffnenFormCore({
   const lockPeriodIndefinite = lockPeriod?.indefinite ?? false;
   const cleaningMaxMinutes = cleaning?.maxMinutes ?? 15;
   const cleaningMaxPerDay = cleaning?.maxPerDay ?? 0;
-  const cleaningTodayCount = cleaning?.heuteAnzahl ?? 0;
+  const cleaningTodayCount = cleaning?.usedToday ?? 0;
   // Ohne `cleaning`-Prop (Admin-Formular, Edit-Seite) gibt es keine Schranke — dort greifen die
   // Sub-Warnungen ohnehin nicht, und ein Grund würde jede Reinigungsöffnung als Bruch anzeigen.
   const cleaningBlock = cleaning?.cleaningBlock ?? null;

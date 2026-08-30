@@ -266,7 +266,7 @@
       {
         "type": "fix",
         "text": {
-          "de": "Eine Periode, in der ein Trainingsziel beginsAt oder endet, bleibt jetzt vollständig unbewertet. Vorher stand dort noch ein anteilig gekürzter Zielwert, der sich versehentlich mit den Stunden der ganzen Periode vergleichen liess.",
+          "de": "Eine Periode, in der ein Trainingsziel beginnt oder endet, bleibt jetzt vollständig unbewertet. Vorher stand dort noch ein anteilig gekürzter Zielwert, der sich versehentlich mit den Stunden der ganzen Periode vergleichen liess.",
           "en": "A period in which a training goal starts or ends is now left entirely unrated. Until now it still carried a scaled-down target that invited comparison with the hours of the whole period."
         }
       },
@@ -900,7 +900,7 @@
       {
         "type": "feat",
         "text": {
-          "de": "Beim ersten Start lässt sich die Sprache des Administrator-Kontos vorgeben. Eine neu eingerichtete Instanz beginsAt damit in der Sprache, in der sie bestellt wurde, statt immer auf Deutsch.",
+          "de": "Beim ersten Start lässt sich die Sprache des Administrator-Kontos vorgeben. Eine neu eingerichtete Instanz beginnt damit in der Sprache, in der sie bestellt wurde, statt immer auf Deutsch.",
           "en": "The language of the administrator account can now be set on first start. A newly created instance therefore begins in the language it was ordered in, instead of always in German."
         }
       }
@@ -1564,7 +1564,7 @@
       {
         "type": "ui",
         "text": {
-          "de": "Der Posteingang ist wieder lesbar. Die Meldung ist jetzt deutlich grösser als Absender und Datum, statt dass alles gleich aussah. Der aufgeklappte Inhalt beginsAt auf derselben Kante wie die Meldung darüber und nicht mehr links davor, und eine Trennlinie zeigt, wo das Aufgeklappte anfängt. Ausserdem stand der Text einer kurzen Nachricht zweimal da — einmal reicht: zu siehst du die ersten zwei Zeilen, offen den ganzen Text.",
+          "de": "Der Posteingang ist wieder lesbar. Die Meldung ist jetzt deutlich grösser als Absender und Datum, statt dass alles gleich aussah. Der aufgeklappte Inhalt beginnt auf derselben Kante wie die Meldung darüber und nicht mehr links davor, und eine Trennlinie zeigt, wo das Aufgeklappte anfängt. Ausserdem stand der Text einer kurzen Nachricht zweimal da — einmal reicht: zu siehst du die ersten zwei Zeilen, offen den ganzen Text.",
           "en": "The inbox is readable again. The message is now clearly larger than sender and date, instead of everything looking the same. The expanded content starts on the same edge as the message above it rather than to the left of it, and a divider shows where the expanded part begins. Short messages also used to show their text twice — once is enough: collapsed you see the first two lines, expanded the whole text."
         }
       },
@@ -4450,7 +4450,7 @@
       {
         "type": "ui",
         "text": {
-          "de": "Farbskala angepasst: das dunkelste Blau (voller Tag) beginsAt erst ab 80% Tragezeit pro Tag statt 65% — einheitlich in Jahres-Heatmap und Monatskalender.",
+          "de": "Farbskala angepasst: das dunkelste Blau (voller Tag) beginnt erst ab 80% Tragezeit pro Tag statt 65% — einheitlich in Jahres-Heatmap und Monatskalender.",
           "en": "Color scale adjusted: the darkest blue (full day) now starts at 80% wear time per day instead of 65% — consistent across the year heatmap and month calendar."
         }
       }
@@ -7333,7 +7333,7 @@
       {
         "type": "chore",
         "text": {
-          "de": "OeffnenFormCore-Props entkrampft: reinigung (erlaubt/maxMinuten/maxProTag/heuteAnzahl) und sperrzeit (endetAt/unbefristet) jetzt als strukturierte Objekte statt acht flacher Props",
+          "de": "OeffnenFormCore-Props entkrampft: reinigung (erlaubt/maxMinuten/maxProTag/usedToday) und sperrzeit (endetAt/unbefristet) jetzt als strukturierte Objekte statt acht flacher Props",
           "en": "Untangled OeffnenFormCore props: cleaning (allowed/maxMinutes/maxPerDay/countToday) and lockPeriod (endsAt/indefinite) are now structured objects instead of eight flat props"
         }
       },

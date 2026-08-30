@@ -456,31 +456,31 @@ export interface RequestOrgasmArgs {
 export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs) {
   const userId = await resolveTargetUserId(username);
   const iso = await isoForUser(userId);
-  const beginsAt = args.beginsAt ? parseIsoDate(args.beginsAt, "beginsAt") : new Date();
-  let endet: Date;
+  const beginsAtDate = args.beginsAt ? parseIsoDate(args.beginsAt, "beginsAt") : new Date();
+  let endsAtDate: Date;
   if (args.endsAt) {
-    endet = parseIsoDate(args.endsAt, "endsAt");
+    endsAtDate = parseIsoDate(args.endsAt, "endsAt");
   } else if (args.windowHours && args.windowHours > 0) {
-    endet = new Date(beginsAt.getTime() + args.windowHours * 60 * 60 * 1000);
+    endsAtDate = new Date(beginsAtDate.getTime() + args.windowHours * 60 * 60 * 1000);
   } else {
     throw new Error("Provide endsAt (ISO date) or windowHours (> 0).");
   }
   if (args.dryRun) {
-    // Dieselbe Reihenfolge wie createOrgasmusAnforderung: erst endet<=beginnt (Struktur), dann
-    // endet<=now (B-01) — sonst könnte ein explizites endsAt vor beginsAt hier fälschlich als
+    // Dieselbe Reihenfolge wie createOrgasmusAnforderung: erst endsAtDate<=beginsAtDate (Struktur), dann
+    // endsAtDate<=now (B-01) — sonst könnte ein explizites endsAt vor beginsAtDate hier fälschlich als
     // "würde gelingen" durchgehen, obwohl der echte Commit mit ORGASM_END_BEFORE_START ablehnt.
     // Gegen den AUSLÖSE-Zeitpunkt, wie der Dienst: ein Fenster, das vor seiner eigenen Zustellung
-    // endet, kommt beim Sub als bereits verstrichene Frist an.
+    // endsAtDate, kommt beim Sub als bereits verstrichene Frist an.
     const trigger = computeDelayedTrigger(new Date(), { delayMinutes: args.delayMinutes, wirksamAbAt: args.scheduledAt ? parseIsoDate(args.scheduledAt, "scheduledAt") : null });
-    const problem = endet <= beginsAt ? "ORGASM_END_BEFORE_START" : (checkOrgasmWindowEnd(endet, trigger.wirksamAb ?? new Date()) ?? undefined);
-    return dryRunPreview("request_orgasm", problem, { art: args.art, beginsAt: iso(beginsAt)!, endsAt: iso(endet)!, requiredType: args.requiredType ?? null, openingAllowed: !!args.openingAllowed, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
+    const problem = endsAtDate <= beginsAtDate ? "ORGASM_END_BEFORE_START" : (checkOrgasmWindowEnd(endsAtDate, trigger.wirksamAb ?? new Date()) ?? undefined);
+    return dryRunPreview("request_orgasm", problem, { art: args.art, beginsAt: iso(beginsAtDate)!, endsAt: iso(endsAtDate)!, requiredType: args.requiredType ?? null, openingAllowed: !!args.openingAllowed, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
   }
   const data = unwrap(await createOrgasmusAnforderung({
     userId,
     art: args.art,
     message: args.message,
-    beginsAt: beginsAt,
-    endsAt: endet,
+    beginsAt: beginsAtDate,
+    endsAt: endsAtDate,
     requiredType: args.requiredType,
     openingAllowed: args.openingAllowed,
     delayMinutes: args.delayMinutes,
@@ -492,13 +492,13 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
       ok: true,
       id: data.id,
       scheduledFor: data.scheduledFor,
-      message: `Orgasm ${kind} scheduled (window ${iso(beginsAt)} – ${iso(endet)}) — it will reach the user at ${data.scheduledFor}. The user cannot see it until it triggers.`,
+      message: `Orgasm ${kind} scheduled (window ${iso(beginsAtDate)} – ${iso(endsAtDate)}) — it will reach the user at ${data.scheduledFor}. The user cannot see it until it triggers.`,
     };
   }
   return {
     ok: true,
     id: data.id,
-    message: `Orgasm ${kind} set (window ${iso(beginsAt)} – ${iso(endet)}); the user was notified by e-mail + push.`,
+    message: `Orgasm ${kind} set (window ${iso(beginsAtDate)} – ${iso(endsAtDate)}); the user was notified by e-mail + push.`,
   };
 }
 

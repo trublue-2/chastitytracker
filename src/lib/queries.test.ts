@@ -79,7 +79,7 @@ describe("cleaningWindowOpen", () => {
     expect(cleaningWindowOpen(FENSTER, IM_FENSTER, "Europe/London")).toBe(false);
   });
 
-  it("verwirft ungültige und über Mitternacht laufende Fenster (parseReinigungsFenster)", () => {
+  it("verwirft ungültige und über Mitternacht laufende Fenster (parseCleaningWindows)", () => {
     // Beide Paare fallen weg → leere Liste → nicht zeitgebunden.
     expect(cleaningWindowOpen([{ start: "22:00", end: "02:00" }, { start: "quatsch", end: "07:00" }], NACHTS, TZ)).toBe(true);
   });
@@ -425,7 +425,7 @@ describe("isOpeningPermittedNow — darf der Sub JETZT öffnen?", () => {
     expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(false);
   });
 
-  it("Orgasmus-Fenster, das erst in der Zukunft beginsAt → verboten", async () => {
+  it("Orgasmus-Fenster, das erst in der Zukunft beginnt → verboten", async () => {
     db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
     db.orgasmusAnforderung.findFirst.mockResolvedValue({ openingAllowed: true, beginsAt: new Date("2026-07-11T00:00:00Z") });
     expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(false);

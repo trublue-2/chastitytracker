@@ -199,7 +199,7 @@ Kurve die Tageszeit mit.
 Die Reinigungsfenster (`cleaningWindows`, `src/lib/cleaningService.ts`) sehen von aussen gleich
 aus: JSON-Liste aus `{start,end}` in Sub-Lokalzeit. **Sie bleiben, wie sie sind.** Kein Umbenennen,
 kein Herausziehen gemeinsamer Helfer, kein Re-Export. Die Wiege-Fenster bekommen einen eigenen,
-geschlossenen Baustein (`src/lib/weightWindows.ts`), der von `reinigungService` nichts benutzt und
+geschlossenen Baustein (`src/lib/weightWindows.ts`), der von `cleaningService` nichts benutzt und
 nichts an ihm ändert.
 
 **Warum das trotz Doppelung richtig ist.** Zeitlich ähneln sich die Fenster, fachlich nicht:
@@ -517,7 +517,7 @@ Meldung darunter (Abschnitt 7). Beide brauchen die Angabe nicht.
 |---|---|---|
 | 1 | Schema + Migration (`WeightEntry`, `HeightChange`, User-Felder), **Gate je Sub + ENV**, `src/lib/weight.ts` (BMI, Umrechnung, Rundung, Ziel-Prüfung), Einstellungen beidseitig, API-Routen | Fleissarbeit nach Muster |
 | 2 | Erfassung: (+)-Zeile, Formular Sub (Foto-Pflicht, 3-kg-Nachfrage), Aktion KH, Upload, EXIF | viele kleine Dateien |
-| 3 | `src/lib/weightWindows.ts` — eigener Baustein, `reinigungService` bleibt unberührt | in sich geschlossen |
+| 3 | `src/lib/weightWindows.ts` — eigener Baustein, `cleaningService` bleibt unberührt | in sich geschlossen |
 | 4 ✅ | Pflicht und Vergehen: `missed_weight_report`, Drei-Tage-Blöcke, `HealthHold`-Pause, Regel-Historisierung, Kopplung an den Gate, Tests | **die heikelste Etappe** — nur hier kann ein Fehler rückwirkend Vergehen erzeugen |
 | 5 ✅ | Grenz-Meldung (einmal je Austritt) | wenig Code, existierende Wege. **Ohne Verweis ins Aufgaben-Formular:** Nachrichten tragen im Bestand keine Ziel-Links (die `ref` dient nur der Einmal-Zusage), und eine Link-Auflösung im Posteingang wäre ein eigener Umbau. Die Keyholderin handelt von der Sub-Seite aus. |
 | 6 ✅ | Diagramm-Komponente + Statistik-Karte | Zeichenarbeit, keine Logik |

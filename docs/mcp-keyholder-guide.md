@@ -180,7 +180,7 @@ Sperre `cleaningAllowed` hat. Freie Wechsel erlauben ⇒ `cleaningAllowed` setze
 ## 6. Orgasmus-Direktive (`request_orgasm`)
 Ein Orgasmus-Fenster mit zwei Charakteren: **ANWEISUNG** = Pflicht (ungenutzt ⇒ `missed_orgasm`,
 erkannt, nicht automatisch bestraft); **GELEGENHEIT** = Erlaubnis (ungenutzt ⇒ keine Folge).
-`openAllowed` erlaubt dem Sub, sich im Fenster zu öffnen, ohne dass das als unautorisierte Öffnung
+`openingAllowed` erlaubt dem Sub, sich im Fenster zu öffnen, ohne dass das als unautorisierte Öffnung
 zählt. Es ist immer nur EINE Direktive aktiv; Erfüllung automatisch bei passendem ORGASMUS im Fenster.
 
 ## 6a. Aufgaben (`create_task`)

@@ -924,12 +924,12 @@ describe("getMonthStart/getYearStart — Periodenanfang jenseits von UTC+12", ()
     new Intl.DateTimeFormat("en-CA", { timeZone: tz, dateStyle: "short" }).format(d);
 
   for (const tz of ["Europe/Zurich", "America/New_York", "Pacific/Auckland", "Pacific/Kiritimati"]) {
-    it(`${tz}: der Monat beginsAt am Ersten und endet am Ersten des Folgemonats`, () => {
+    it(`${tz}: der Monat beginnt am Ersten und endet am Ersten des Folgemonats`, () => {
       expect(localDate(getMonthStart(now, tz), tz)).toBe("2026-07-01");
       expect(localDate(getMonthEnd(now, tz), tz)).toBe("2026-08-01");
     });
 
-    it(`${tz}: das Jahr beginsAt am 1. Januar und endet am 1. Januar des Folgejahres`, () => {
+    it(`${tz}: das Jahr beginnt am 1. Januar und endet am 1. Januar des Folgejahres`, () => {
       expect(localDate(getYearStart(now, tz), tz)).toBe("2026-01-01");
       expect(localDate(getYearEnd(now, tz), tz)).toBe("2027-01-01");
     });

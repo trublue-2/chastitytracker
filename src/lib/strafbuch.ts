@@ -425,7 +425,7 @@ export function isLateLock(a: { endsAt: Date; fulfilledAt: Date | null }, now: D
   return isPastDeadlineUnfulfilled(a.endsAt, a.fulfilledAt, now);
 }
 
-/** Re-lock deadline for a REINIGUNG-Öffnung: the end of the active daily cleaning window (`fenster`)
+/** Re-lock deadline for a REINIGUNG-Öffnung: the end of the active daily cleaning window (`windows`)
  *  if one was open at `openStartTime`, else open time + the user's max minutes per pause. A window
  *  configured but not covering `openStartTime` also falls back to `maxMinutes` — never silently
  *  skipped, since that case isn't otherwise detected as an offense. Windows never span midnight
@@ -690,9 +690,9 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     at >= w.beginsAt && at <= w.endsAt
     && (w.withdrawnAt === null || w.withdrawnAt > at)
     && (w.wirksamAb === null || w.wirksamAb <= at);
-  const oeffnenErlaubtWindows = orgasmusAnforderungen.filter((a) => a.openingAllowed);
+  const openingAllowedWindows = orgasmusAnforderungen.filter((a) => a.openingAllowed);
   const isOrgasmusOpenAllowed = (openTime: Date): boolean =>
-    oeffnenErlaubtWindows.some((w) => windowCovers(w, openTime));
+    openingAllowedWindows.some((w) => windowCovers(w, openTime));
   const resolveRule = offenseRuleResolver(offenseRuleChanges);
 
   // Wrong-device: StrafeRecord.refId points at the offending VERSCHLUSS entry (für Geräte-Namen laden).

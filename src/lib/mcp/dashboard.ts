@@ -242,16 +242,19 @@ export interface DashboardResult extends Envelope {
    *  Teil der v6-Umstellung: die MCP-Oberfläche spricht durchgehend Englisch. Der Box-Vertrag zu
    *  Heimdall behält `endetAt` — das ist Hardware, kein MCP.
    *
-   *  v18: drei weitere Felder folgen dem Eingang, mit dem sie GESCHRIEBEN werden —
-   *  `openLockRequest(s).minDurationHours` → `minDurationHours`, `openOrgasmWindow.beginsAt` → `beginsAt`,
-   *  und `requiredType` heisst dort schon so, trägt aber jetzt dieselbe Quelle. Vorher las die KI
-   *  einen Wert unter einem Namen und musste ihn unter einem anderen zurückschreiben; bei
-   *  `beginsAt`/`beginsAt` trennten die beiden zwei Buchstaben, was beim Lesen nicht auffällt und
-   *  beim Schreiben zu spät.
+   *  v18: zwei Felder folgen dem Eingang, mit dem sie GESCHRIEBEN werden — `openLockRequest(s)`
+   *  hiess `dauerH` und heisst `minDurationHours`, `openOrgasmWindow` hiess `beginntAt` und heisst
+   *  `beginsAt`. Vorher las die KI einen Wert unter einem Namen und musste ihn unter einem anderen
+   *  zurückschreiben; bei `beginntAt`/`beginsAt` trennten die beiden zwei Buchstaben, was beim Lesen
+   *  nicht auffällt und beim Schreiben zu spät.
+   *
+   *  (Dieser Absatz stand einmal ohne die ALTEN Namen da — der Renamer desselben Durchgangs hatte
+   *  sie mitübersetzt und den Hinweis damit für jeden wertlos gemacht, der von v17 migriert.)
    *
    *  v19: `scheduledDirectives[].wirksamAb` heisst `scheduledFor` — derselbe Name, den die Antwort
-   *  eines Schreibvorgangs schon trug (`mcpWrite.ts`). Er war der letzte deutsche Schlüssel dieser
-   *  Nutzlast. Der Eingang heisst weiter `scheduledAt` — fünf Werkzeug-Schemata dafür zu brechen
+   *  eines Schreibvorgangs schon trug (`mcpWrite.ts`). Damit bleibt in dieser Nutzlast nur noch
+   *  `openOrgasmWindow.art` deutsch — bewusst: seine WERTE (`ANWEISUNG`/`GELEGENHEIT`) sind es auch,
+   *  und ein `type: "ANWEISUNG"` wäre keine Verbesserung. Der Eingang heisst weiter `scheduledAt` — fünf Werkzeug-Schemata dafür zu brechen
    *  wäre unverhältnismässig.
    *
    *  Dass diese Asymmetrie harmlos ist, liegt NICHT daran, dass beide Wörter englisch sind, sondern

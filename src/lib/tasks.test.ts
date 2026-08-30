@@ -49,7 +49,7 @@ describe("intersectAll — alle Bedingungen gleichzeitig", () => {
     expect(intersectAll([[iv("2026-07-25T12:00:00Z", "2026-07-25T15:00:00Z")], []])).toEqual([]);
   });
 
-  it("drei Bedingungen — der Schnitt beginsAt mit der letzten und endet mit der ersten", () => {
+  it("drei Bedingungen — der Schnitt beginnt mit der letzten und endet mit der ersten", () => {
     const r = intersectAll([
       [iv("2026-07-25T12:00:00Z", "2026-07-25T15:00:00Z")], // KG
       [iv("2026-07-25T12:10:00Z", "2026-07-25T15:30:00Z")], // Halsband

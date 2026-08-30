@@ -49,8 +49,8 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
   // `switchEndMode`). Ein beim Seitenaufruf gerechnetes Ende wäre nach zehn Minuten
   // Formularausfüllen zehn Minuten zu früh.
   const [endsAt, setEndsAt] = useState("");
-  const [requiredType, setVorgegebeneArt] = useState("");
-  const [openingAllowed, setOeffnenErlaubt] = useState(false);
+  const [requiredType, setRequiredType] = useState("");
+  const [openingAllowed, setOpeningAllowed] = useState(false);
   const [message, setMessage] = useState("");
   // Terminierung — dasselbe Bauteil und dieselben zwei Felder wie an Aufgabe und
   // Verschluss-Anforderung. Bis zur Auslösung ist die Anweisung für den Träger unsichtbar: sie
@@ -191,14 +191,14 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
           label={t("orgasmReqArt")}
           options={requiredTypeOptions}
           value={requiredType}
-          onChange={(e) => setVorgegebeneArt(e.target.value)}
+          onChange={(e) => setRequiredType(e.target.value)}
           hint={t("orgasmReqArtHint")}
         />
         <div className="flex flex-col gap-1">
           <Checkbox
             label={t("orgasmReqOpenAllowedLabel")}
             checked={openingAllowed}
-            onChange={(e) => setOeffnenErlaubt(e.target.checked)}
+            onChange={(e) => setOpeningAllowed(e.target.checked)}
           />
           <span className="text-xs text-foreground-faint">{t("orgasmReqOpenAllowedHint")}</span>
         </div>

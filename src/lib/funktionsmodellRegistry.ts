@@ -348,7 +348,7 @@ export const FM_REGISTRY: FmEntry[] = [
   // ── User: Kontroll-Eskalation ──────────────────────────────────────────────────────────────
   s({
     model: "User", field: "inspectionReminderEnabled", domain: "kontrollen", scope: "standing",
-    effect: "Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginsAt Stufe 2 nie.",
+    effect: "Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie.",
     writers: ["admin", "mcp"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionEscalationService.ts",
   }),
   s({
@@ -874,7 +874,7 @@ export const FM_REGISTRY: FmEntry[] = [
   }),
   s({
     model: "Task", field: "startGraceMin", domain: "aufgaben", scope: "directive",
-    effect: "Kulanz zum Anlegen ab dem Nullpunkt. Wer später beginsAt, hat nicht durchgehend gehalten — sonst wäre 'kurz vor Schluss alles anlegen' eine Erfüllung.",
+    effect: "Kulanz zum Anlegen ab dem Nullpunkt. Wer später beginnt, hat nicht durchgehend gehalten — sonst wäre 'kurz vor Schluss alles anlegen' eine Erfüllung.",
     writers: ["admin", "mcp"], affects: ["Aufgaben"], anchor: "tasks.ts:taskAnchor",
   }),
   s({

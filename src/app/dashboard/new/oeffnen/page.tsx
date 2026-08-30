@@ -63,7 +63,7 @@ export default async function NewOeffnenPage() {
         cleaning={{
           maxMinutes: user?.cleaningMaxMinutes ?? 15,
           maxPerDay: user?.cleaningMaxPerDay ?? 0,
-          heuteAnzahl: cleaningToday,
+          usedToday: cleaningToday,
           // Das Urteil fällt der Server, aus derselben Regel wie die Durchsetzung. Der Client
           // bekommt den Grund, damit er ihn nennen kann — nicht die Zutaten, um ihn nachzurechnen.
           //

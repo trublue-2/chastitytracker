@@ -162,7 +162,7 @@ describe("buildCalendarMonths", () => {
     expect(months[3].label).toMatch(/April 2026/);
   });
 
-  it("jede Woche hat sieben Zellen, und der Monat beginsAt am richtigen Wochentag", () => {
+  it("jede Woche hat sieben Zellen, und der Monat beginnt am richtigen Wochentag", () => {
     const months = buildCalendarMonths(base);
     const juli = months[0];
     for (const week of juli.weeks) expect(week).toHaveLength(7);
@@ -281,7 +281,7 @@ describe("Zeitzonen ab UTC+12", () => {
     expect(rows[0].wearHours).toBeCloseTo(24, 6);
   });
 
-  it.each(ZONEN)("der Monat beginsAt am richtigen Wochentag ($tz)", ({ tz }) => {
+  it.each(ZONEN)("der Monat beginnt am richtigen Wochentag ($tz)", ({ tz }) => {
     const januar = kalender(tz);
     expect(januar.label).toMatch(/Januar 2026/);
     // 1. Januar 2026 ist ein Donnerstag → drei Leerzellen. Vorher waren es vier (Freitag),

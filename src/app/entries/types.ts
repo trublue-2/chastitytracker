@@ -96,7 +96,7 @@ export interface WearEndPayload {
 export interface CleaningConfig {
   maxMinutes: number;
   maxPerDay: number;
-  heuteAnzahl: number;
+  usedToday: number;
   /** Serverseitig gefälltes Urteil (eine Uhr, Sub-Zeitzone): darf JETZT gereinigt werden, und wenn
    *  nein — warum nicht? `null` = erlaubt. Kommt aus `cleaningBlockReason()`, derselben Regel, die
    *  serverseitig über den Sperrzeit-Bruch entscheidet. Fehlt die Prop (Admin-Formular, Edit-Seite),

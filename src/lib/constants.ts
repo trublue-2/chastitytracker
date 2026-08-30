@@ -330,7 +330,7 @@ export const TIME_RANGE_INVALID = "timeRangeInvalid";
 /** Eine Uhrzeit des Tages, „HH:MM" im 24-Stunden-Format. EINE Quelle für alle Wanduhr-Felder
  *  (Schlaf-/Auslöse-Fenster der Auto-Kontrollen, Reinigungs-Fenster) — hier statt in einem der
  *  Services, weil beide dieselbe Regel brauchen und ein Import zwischen ihnen einen Modul-Zyklus
- *  schlösse (reinigungService → autoKontrolleService → queries → reinigungService). */
+ *  schlösse (cleaningService → autoKontrolleService → queries → cleaningService). */
 export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /** Zulässiger Wertebereich EINES Zahlen-Feldes. `fallback` = Wert bei fehlender Eingabe — NICHT die

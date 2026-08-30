@@ -57,7 +57,7 @@ die längere Sperre war stillschweigend verkürzt — physisch.
 
 ## Unterdrückt / aufgehoben von
 
-- Ein Orgasmus-Fenster mit `openAllowed` erlaubt das Öffnen, ohne dass es als unautorisiert zählt.
+- Ein Orgasmus-Fenster mit `openingAllowed` erlaubt das Öffnen, ohne dass es als unautorisiert zählt.
 - Eine **erlaubte** Reinigungsöffnung hebt die Sperrzeit nicht auf (siehe
   [20-reinigung.md](20-reinigung.md)).
 - Die Buchung durch die Kontroll-Eskalation hebt sie bewusst **nicht** auf — sonst räumte ein

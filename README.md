@@ -596,7 +596,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/admin/verschluss-anforderung` | Create lock request or lock period (admin). Supports `minDurationHours` (min wear), `deviceId` (required device), `reinigungErlaubt` (allow cleaning openings) |
+| `POST` | `/api/admin/verschluss-anforderung` | Create lock request or lock period (admin). Supports `minDurationHours` (min wear), `deviceId` (required device), `cleaningAllowed` (allow cleaning openings) |
 | `PATCH` | `/api/admin/verschluss-anforderung/[id]` | Withdraw a lock request or period (admin) |
 | `POST` | `/api/admin/orgasmus-anforderung` | Create an orgasm requirement / window for a user (admin) |
 | `PATCH` | `/api/admin/orgasmus-anforderung/[id]` | Withdraw an orgasm requirement (admin) |
@@ -710,7 +710,7 @@ The keyholder inbox mirrors these under `/api/admin/messages` (`GET`, `[id]`, `[
 | `DeviceReferenceImage` | Reference photos per device for automatic recognition |
 | `TrainingVorgabe` | Admin-set wear-time goals per user per period |
 | `KontrollAnforderung` | Inspection requests with 5-digit code and deadline |
-| `VerschlussAnforderung` | Lock requests (`ANFORDERUNG`) and lock periods (`SPERRZEIT`); optional device requirement and `reinigungErlaubt` flag |
+| `VerschlussAnforderung` | Lock requests (`ANFORDERUNG`) and lock periods (`SPERRZEIT`); optional device requirement and `cleaningAllowed` flag |
 | `OrgasmusAnforderung` | Orgasm requirement / window for a user (optional required type, permitted opening) |
 | `Task` / `TaskRequirement` / `TaskProof` | Tasks with their conditions and proof photos (own due time, review state, capture time from EXIF) |
 | `WeightEntry` | Weigh-ins: value (always stored metric), day key in the wearer's timezone, optional scale photo with EXIF time and the value read from the display |

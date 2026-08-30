@@ -19,7 +19,7 @@ model User {
   cleaningMaxMinutes             Int                      @default(15) @map("reinigungMaxMinuten")
   cleaningMaxPerDay              Int                      @default(0) @map("reinigungMaxProTag")
   // Tägliche Öffnungs-Fenster für Reinigung als JSON-String, z.B. [{"start":"19:00","end":"20:00"}]
-  // (CH-Lokalzeit). SQLite/Prisma 5 kennt kein Json → TEXT; parseReinigungsFenster deserialisiert.
+  // (CH-Lokalzeit). SQLite/Prisma 5 kennt kein Json → TEXT; parseCleaningWindows deserialisiert.
   cleaningWindows                String?                  @map("reinigungsFenster")
   // Automatische Kontrollen: pro Tag zufällig X Kontrollen, wobei X selbst zufällig aus
   // [PerDayMin, PerDayMax] gewürfelt wird. Frist darf nicht ins Schlaf-Fenster (RuheVon–RuheBis,
@@ -306,7 +306,7 @@ model CleaningRuleChange {
   allowed       Boolean
   maxMinutes    Int
   maxPerDay     Int
-  /// Wie `User.reinigungsFenster`: JSON-Liste der Tages-Fenster, null = keine gesetzt.
+  /// Wie `User.cleaningWindows`: JSON-Liste der Tages-Fenster, null = keine gesetzt.
   windows       String?
   effectiveFrom DateTime
   /// Username dessen, der geändert hat (bzw. `ai`). Null nur bei der Grundzeile.
@@ -750,16 +750,16 @@ model VerschlussAnforderung {
   /// Anforderung/Sperrzeit stellt der Poller zu, und nur diese Spalte sagt ihm, wer sie angeordnet hat.
   ///
   /// Vererbt an jede SPERRZEIT, die aus einer ANFORDERUNG entsteht — beim Einschliessen des Subs
-  /// (`entryFulfilment.ts`) wie bei der Übernahme am Poller (`carryOverSperrzeitOnAlreadyLocked`):
+  /// (`entryFulfilment.ts`) wie bei der Übernahme am Poller (`carryOverLockPeriodOnAlreadyLocked`):
   /// die Sperre ist die Anordnung DERSELBEN Person, nur später wirksam. `null` = Altbestand bzw.
   /// keine Person feststellbar → die Meldung bleibt eine System-Zeile.
   createdBy        String?
   endsAt           DateTime? @map("endetAt") // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
   minDurationHours Float?    @map("dauerH") // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT (relativ zur Verschlusszeit)
-  lockEndsAt       DateTime? @map("sperrEndetAt") // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endsAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu dauerH.
+  lockEndsAt       DateTime? @map("sperrEndetAt") // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endsAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu minDurationHours.
   deviceId         String?
   device           Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
-  cleaningAllowed  Boolean   @default(false) @map("reinigungErlaubt") // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit dauerH: wird auf erzeugte SPERRZEIT vererbt.
+  cleaningAllowed  Boolean   @default(false) @map("reinigungErlaubt") // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit minDurationHours: wird auf erzeugte SPERRZEIT vererbt.
   createdAt        DateTime  @default(now())
   fulfilledAt      DateTime? // ANFORDERUNG: gesetzt wenn User VERSCHLUSS erstellt
   withdrawnAt      DateTime?
@@ -767,7 +767,7 @@ model VerschlussAnforderung {
   // exakt aus wie eine, die die Keyholderin bewusst zurückgezogen hat — und wie eine, die es nie
   // gab. Die Konsequenz verschwand spurlos aus dem Dashboard.
   //   "keyholder" = bewusst zurückgezogen (withdraw / Admin-UI)
-  //   "opening"   = durch eine Öffnung des Subs unterbrochen (releaseSperrzeitenOnOpen)
+  //   "opening"   = durch eine Öffnung des Subs unterbrochen (releaseLockPeriodsOnOpen)
   // null = noch aktiv, ODER Altbestand vor v4.50.30 (dann ist die Endart nicht mehr rekonstruierbar).
   endedReason      String?
   // Zeitversetzte Auslösung: null = sofort. Gesetzt = geplant; bis dahin für den Sub

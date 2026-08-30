@@ -175,12 +175,12 @@ Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <r
 **Auth flow:** `src/proxy.ts` schützt alle `/dashboard`- und `/api`-Routen (außer `/api/auth`). Credentials werden gegen DB-User mit bcrypt geprüft. `role`-Feld: `"user"` oder `"admin"`. (Next.js 16: `proxy.ts` statt `middleware.ts`)
 
 **DB-Modelle:**
-- `User` – username, email, passwordHash, role (`user`/`admin`), reinigungErlaubt, mobileDesktopUpload
+- `User` – username, email, passwordHash, role (`user`/`admin`), cleaningAllowed, mobileDesktopUpload
 - `Entry` – type (`VERSCHLUSS`|`OEFFNEN`|`PRUEFUNG`|`ORGASMUS`), startTime, imageUrl, imageExifTime, note, orgasmusArt, kontrollCode, verifikationStatus, oeffnenGrund
 - `TrainingVorgabe` – Zeitraum mit min. Tragedauer pro Tag/Woche/Monat, pro User
 - `KontrollAnforderung` – code (5-stellig), deadline (Vorgabe 1h, im Formular in Stunden oder Minuten wählbar), userId, fulfilledAt, withdrawnAt, kommentar
 - `VerschlussAnforderung` – art (`ANFORDERUNG`/`SPERRZEIT`), userId, message, endsAt, minDurationHours, fulfilledAt, withdrawnAt
-- `OrgasmusAnforderung` – art, userId, message, beginsAt, endsAt, requiredType, oeffnenErlaubt
+- `OrgasmusAnforderung` – art, userId, message, beginsAt, endsAt, requiredType, openingAllowed
 - `StrafeRecord` – userId, offenseType (`KONTROLLANFORDERUNG`|`OEFFNEN_ENTRY`), refId, bestraftDatum, notiz
 - `NotificationPreference` – userId, eventType, mail, push (pro Event-Typ)
 - `PushSubscription` – userId, endpoint, p256dh, auth (Web Push VAPID)

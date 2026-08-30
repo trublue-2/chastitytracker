@@ -49,7 +49,7 @@ disables the feature).
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| `GET` | `/api/integration/box/config?username=<name>` | Tracker → Heimdall **intent**: the active keyholder lock period (`{ sperrzeit: { endetAt, indefinite, cleaningAllowed } \| null }`), which Heimdall folds into its own `lockUntil`. Nothing else — the cleaning rules (permission, windows, quota, max duration) stay in the tracker, which decides whether an opening is allowed and sends `open`. The box must not second-guess that: two rule sets over one question drift apart. |
+| `GET` | `/api/integration/box/config?username=<name>` | Tracker → Heimdall **intent**: the active keyholder lock period (`{ sperrzeit: { endetAt, indefinite, reinigungErlaubt } \| null }`), which Heimdall folds into its own `lockUntil`. Nothing else — the cleaning rules (permission, windows, quota, max duration) stay in the tracker, which decides whether an opening is allowed and sends `open`. The box must not second-guess that: two rule sets over one question drift apart. |
 | `POST` | `/api/integration/box/status` | Heimdall pushes the live box state on every sync (`username, boxId, name, locked` + optional `lockUntil, simpleLock, keyholderLocked, battery, charging, boltPos, fwVersion, lastSyncAt, offlineOpenHours, lowBatteryOpenPercent`). Upserts `BoxStatus`. Returns any `pendingCommand` and **deletes it on read** (consume-on-read; no ack). |
 | `POST` | `/api/integration/box/event` | Heimdall reports real box transitions: `type ∈ {LOCKED, UNLOCKED, EARLY_OPEN, UNAUTHORIZED_OPEN}` + optional `wakeReason, battery, fwVersion, at`. Stored as `BoxEvent`. |
 

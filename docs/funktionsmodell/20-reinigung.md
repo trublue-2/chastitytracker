@@ -94,5 +94,5 @@ geöffnet werden darf.
 
 ## Tests
 
-`cleaningRules.test.ts`, `reinigungService.test.ts`, `cleaningRuleHistory.test.ts`,
+`cleaningRules.test.ts`, `cleaningService.test.ts`, `cleaningRuleHistory.test.ts`,
 `queries.test.ts`, `cleaningRelockInspection.test.ts`, `lockPeriodInterruption.test.ts`.
