@@ -1,7 +1,7 @@
 /** Known unique-constrained columns we currently catch P2002 on. The literal union
  *  enables IDE autocomplete and prevents typos like `"emaill"` from silently returning
  *  false. Add new fields here when extending the helper to new routes. */
-type KnownUniqueField = "username" | "email" | "refId";
+type KnownUniqueField = "username" | "email" | "refId" | "clientRequestId";
 
 /** True if `err` is a Prisma `P2002` unique-constraint violation on the given field.
  *

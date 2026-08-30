@@ -47,7 +47,7 @@ export type BoxRow = {
  *  gelöscht, zieht also kein Prisma in dieses client-sichere Modul. */
 export type BoxCleaningView = CleaningView & {
   nextWindow: CleaningWindows | null;
-  /** Das Live-Urteil des Servers (`cleaningBlockReason`), inklusive der AKTIVEN Sperrzeit. `erlaubt`
+  /** Das Live-Urteil des Servers (`cleaningBlockReason`), inklusive der AKTIVEN Sperrzeit. `allowed`
    *  allein kennt sie nicht — deshalb versprach die Karte Fenster, die eine reinigungsverbietende
    *  Sperre längst gesperrt hatte. */
   blockedBy: CleaningBlockReason | null;

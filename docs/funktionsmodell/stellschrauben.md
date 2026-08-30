@@ -31,7 +31,7 @@ Steckbrief: [10-sperrzeit.md](10-sperrzeit.md)
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
 | `VerschlussAnforderung.message` | String? | — | je Direktive | Begleittext an den Sub; erscheint in der Meldung und im Posteingang. | Keyholder (UI), Keyholder (MCP) | Nachrichten | — |
-| `VerschlussAnforderung.endsAt` | DateTime? | — | je Direktive | Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Box, Strafbuch | `queries.ts:foldActiveLockPeriods` |
+| `VerschlussAnforderung.endsAt` | DateTime? | — | je Direktive | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Box, Strafbuch | `queries.ts:foldActiveLockPeriods` |
 | `VerschlussAnforderung.minDurationHours` | Float? | — | je Direktive | Mindest-Tragedauer einer Anforderung; die Uhr startet beim tatsächlichen Verschluss. Alternative zu `lockEndsAt`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
 | `VerschlussAnforderung.lockEndsAt` | DateTime? | — | je Direktive | Absolutes Sperr-Ende einer Anforderung (feste Wanduhr). Ein später Verschluss verschiebt es NICHT — anders als `minDurationHours`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
 | `VerschlussAnforderung.deviceId` | String? | — | je Direktive | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Geräte, Strafbuch | — |
@@ -537,7 +537,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `PortalTokenUsed.usedAt` | Laufzeitzustand | Wann eingelöst. Zusammen der Wiedereinspielungs-Schutz des Portal-Logins. |
 | `RateLimit.key` | Identität | Zähler-Schlüssel, meist Route plus Client-IP. |
 | `RateLimit.count` | Laufzeitzustand | Versuche im laufenden Fenster. |
-| `RateLimit.resetAt` | Laufzeitzustand | Wann das Fenster neu beginsAt. |
+| `RateLimit.resetAt` | Laufzeitzustand | Wann das Fenster neu beginnt. |
 | `OAuthClient.id` | Identität | Primärschlüssel. |
 | `OAuthClient.clientId` | Identität | Kennung der verbundenen Anwendung. |
 | `OAuthClient.clientName` | Datensatz | Anzeigename der Anwendung. |

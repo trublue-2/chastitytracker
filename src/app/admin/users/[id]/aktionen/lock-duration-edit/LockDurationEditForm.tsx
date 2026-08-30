@@ -8,6 +8,7 @@ import ActionModal from "@/app/components/ActionModal";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/apiClient";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {
@@ -29,28 +30,32 @@ export default function LockDurationEditForm({ userId, lockPeriodId, endsAt, mes
   const tc = useTranslations("common");
   const router = useRouter();
   const dl = toDateLocale(useLocale());
-  const [busy, setBusy] = useState<"withdraw" | "replace" | null>(null);
+  const [saving, setSaving] = useState<"withdraw" | "replace" | null>(null);
   const [error, setError] = useState("");
 
   async function withdraw(replace: boolean) {
-    setBusy(replace ? "replace" : "withdraw");
+    setSaving(replace ? "replace" : "withdraw");
     setError("");
     try {
-      const res = await fetch(`/api/admin/verschluss-anforderung/${lockPeriodId}`, {
+      const res = await fetchWithTimeout(`/api/admin/verschluss-anforderung/${lockPeriodId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "withdraw" }),
       });
       if (!res.ok) throw new Error();
+      // `refresh()` VOR dem Wechsel, wie im Hausmuster (`PruefungForm`): das Ziel zeigt den
+      // SPERRZEIT-Modus nur, wenn keine aktive Sperrzeit mehr existiert. Danach angestossen,
+      // rennt der Anstoss gegen den Abruf der Zielroute — und der Rückzug hat zwar geklappt,
+      // die Keyholderin steht aber auf einem Formular ohne diese Wahl.
+      router.refresh();
       router.push(
         replace
           ? `/admin/users/${userId}/aktionen/verschluss-anforderung`
           : `/admin/users/${userId}/aktionen`,
       );
-      router.refresh();
     } catch {
       setError(tc("networkError"));
-      setBusy(null);
+      setSaving(null);
     }
   }
 
@@ -76,8 +81,8 @@ export default function LockDurationEditForm({ userId, lockPeriodId, endsAt, mes
         <div className="flex flex-col gap-2">
           <Button
             onClick={() => withdraw(true)}
-            disabled={busy !== null}
-            loading={busy === "replace"}
+            disabled={saving !== null}
+            loading={saving === "replace"}
             variant="primary"
             fullWidth
           >
@@ -85,8 +90,8 @@ export default function LockDurationEditForm({ userId, lockPeriodId, endsAt, mes
           </Button>
           <Button
             onClick={() => withdraw(false)}
-            disabled={busy !== null}
-            loading={busy === "withdraw"}
+            disabled={saving !== null}
+            loading={saving === "withdraw"}
             variant="secondary"
             fullWidth
           >

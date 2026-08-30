@@ -123,8 +123,8 @@ flowchart LR
 | Reinigung | `VerschlussAnforderung.cleaningAllowed` | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | `queries.ts:foldActiveLockPeriods` |
 | Box | `VerschlussAnforderung.cleaningAllowed` | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | `queries.ts:foldActiveLockPeriods` |
 | Geräte | `VerschlussAnforderung.cleaningAllowed` | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | `queries.ts:foldActiveLockPeriods` |
-| Box | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
-| Strafbuch | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
+| Box | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
+| Strafbuch | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
 | Geräte | `VerschlussAnforderung.deviceId` | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | — |
 | Strafbuch | `VerschlussAnforderung.deviceId` | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | — |
 | Benachrichtigungen | `VerschlussAnforderung.wirksamAb` | Terminierte Auslösung. Bis dahin existiert die Direktive für den Sub nicht: keine Anzeige, keine Meldung, keine laufende Frist. | — |
@@ -360,7 +360,7 @@ flowchart LR
 | Kontrollen | `User.autoKontrolleAktiv` | Hauptschalter der Automatik. Aus schaltet BEIDES ab: den gewürfelten Tagesplan und die Kontrolle nach dem Wiederverschluss. | `autoKontrolleService.ts` |
 | Kontrollen | `User.inspectionAutoMarkEnabled` | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | `queries.ts:releaseLockPeriodsOnOpen` |
 | Geräte | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen. | `mcp/devices.ts:set_device_meta` |
-| Sperrzeit | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
+| Sperrzeit | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
 | Sperrzeit | `VerschlussAnforderung.deviceId` | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | — |
 | Kontrollen | `KontrollAnforderung.deadline` | Erfüllungsfrist. Nach Ablauf verschwindet die Kontrolle nicht, sie wird überfällig — und ist der Startpunkt der Eskalation. | `inspectionEscalationService.ts` |
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
@@ -464,7 +464,7 @@ flowchart LR
 | Reinigung | `User.cleaningAllowed` | Ob Reinigungspausen überhaupt erlaubt sind. Notwendig, nicht hinreichend — eine aktive Sperrzeit muss es zusätzlich erlauben. | `queries.ts:cleaningBlockReason` |
 | Reinigung | `User.cleaningWindows` | Tages-Zeitfenster (JSON-Liste). Binden NUR während einer Sperrzeit, die die Reinigung erlaubt. Leere Liste = nicht zeitgebunden, kein Verbot. | `queries.ts:cleaningWindowBindingStatus` |
 | Sperrzeit | `VerschlussAnforderung.cleaningAllowed` | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | `queries.ts:foldActiveLockPeriods` |
-| Sperrzeit | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
+| Sperrzeit | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
 | Einträge | `Entry.keyInBox` | Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt. | `boxCommand.ts` |
 | Einträge | *feste Regel* | Die Box folgt den Einträgen: aus Verschluss und Öffnen leitet der Tracker ihr Kommando ab. Eine VERBOTENE Öffnung bekommt keines — sonst vollzöge er das Vergehen, das er dokumentiert. | `boxCommand.ts` |
 | Sperrzeit | *feste Regel* | Läuft eine Sperrzeit, hält die Box den Schlüssel fest. Die Sperre ist damit mehr als ein Datenbank-Eintrag. | `boxCommand.ts` |
