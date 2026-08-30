@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { isInQuietMinutes, generateAutoKontrollen, fillFreeGaps, triggerWindowAllQuiet, type AutoKontrolleSettings } from "./autoKontrolleService";
+import { isInQuietMinutes, generateAutoKontrollen, fillFreeGaps, triggerWindowAllQuiet, settingsForDay, type AutoKontrolleSettings } from "./autoKontrolleService";
 import { hhmmToMinutes } from "./utils";
+import { ALL_WEEKDAYS, weekdayMaskOf } from "./weekdays";
 import { dateAtLocalMinutes, midnightInTZ, formatTime } from "./utils";
 
 /** Alle Tests dieser Datei rechnen in der Zeitzone einer CH-Sub. */
@@ -41,7 +42,7 @@ describe("generateAutoKontrollen", () => {
   const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), TZ);
   const dayBase = midnightInTZ(now, TZ).getTime();
   // Min == Max ⇒ fixe Anzahl (Verhalten wie vor der Min–Max-Erweiterung).
-  const base: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false };
+  const base: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: null };
 
   const deadlineMin = (s: { deadline: Date }) => Math.round((s.deadline.getTime() - dayBase) / 60_000);
   const durationMin = (s: { wirksamAb: Date; deadline: Date }) => Math.round((s.deadline.getTime() - s.wirksamAb.getTime()) / 60_000);
@@ -107,7 +108,7 @@ describe("generateAutoKontrollen", () => {
 describe("generateAutoKontrollen — zufällige Tages-Anzahl aus [Min, Max]", () => {
   // now = CH-Mitternacht → ganzer Tag Zukunft, Segmente gross genug → slots.length == gewürfelte Anzahl.
   const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), TZ);
-  const range: AutoKontrolleSettings = { aktiv: true, perDayMin: 2, perDayMax: 6, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false };
+  const range: AutoKontrolleSettings = { aktiv: true, perDayMin: 2, perDayMax: 6, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: null };
 
   it("rand→0 wählt die Min-Anzahl", () => {
     expect(generateAutoKontrollen(range, now, () => 0)).toHaveLength(2);
@@ -134,7 +135,7 @@ describe("generateAutoKontrollen — zufällige Tages-Anzahl aus [Min, Max]", ()
 });
 
 describe("generateAutoKontrollen — per-user timezone anchor", () => {
-  const settings: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false };
+  const settings: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: null };
 
   it("anchors the day + awake window to the given tz (New York)", () => {
     const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), "America/New_York");
@@ -196,7 +197,7 @@ describe("generateAutoKontrollen — festes Auslöse-Fenster", () => {
   const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), tz); // ganzer Tag Zukunft
   const win: AutoKontrolleSettings = {
     aktiv: true, perDayMin: 3, perDayMax: 3, ruheVon: "22:00", ruheBis: "06:00",
-    fristVon: 15, fristBis: 60, fensterVon: "10:00", fensterBis: "16:00", nurBeiSperre: false,
+    fristVon: 15, fristBis: 60, fensterVon: "10:00", fensterBis: "16:00", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: null,
   };
 
   it("legt alle Auslösungen INS Fenster (10:00–16:00), Frist danach", () => {
@@ -275,7 +276,7 @@ describe("fillFreeGaps — Nachplanen an zugestellten Kontrollen vorbei", () => 
   const minuteOf = (d: Date) => Math.round((d.getTime() - midnightInTZ(now, tz).getTime()) / 60_000);
   const base: AutoKontrolleSettings = {
     aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00",
-    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false,
+    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: null,
   };
   const win: AutoKontrolleSettings = { ...base, fensterVon: "10:00", fensterBis: "16:00" };
 
@@ -373,7 +374,7 @@ describe("fillFreeGaps — Nachplanen an zugestellten Kontrollen vorbei", () => 
 describe("triggerWindowAllQuiet", () => {
   const base: AutoKontrolleSettings = {
     aktiv: true, perDayMin: 2, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00",
-    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false,
+    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: null,
   };
   const withWindow = (von: string, bis: string, ruhe: [string, string] = ["22:00", "06:00"]) =>
     ({ ...base, fensterVon: von, fensterBis: bis, ruheVon: ruhe[0], ruheBis: ruhe[1] });
@@ -400,5 +401,68 @@ describe("triggerWindowAllQuiet", () => {
 
   it("ohne Schlaf-Fenster (von == bis) ist kein Fenster je verschlafen", () => {
     expect(triggerWindowAllQuiet(withWindow("02:00", "04:00", ["06:00", "06:00"]))).toBe(false);
+  });
+});
+
+
+/**
+ * `settingsForDay` ist die EINE Stelle, an der ein Wochentag den Planer erreicht: sie beantwortet
+ * „wird heute überhaupt geplant" und „mit welchen Fenstern" in einem Zug. Getrennt gestellt wäre der
+ * Ruhetag genau die Prüfung, die an einem der beiden Einstiegspunkte fehlt.
+ */
+describe("settingsForDay — Ruhetage und Tages-Ausnahmen", () => {
+  const TZ_ = "Europe/Zurich";
+  // 2026-06-15 ist ein MONTAG (ISO 1), 2026-06-16 ein Dienstag.
+  const montag = new Date("2026-06-15T10:00:00Z");
+  const dienstag = new Date("2026-06-16T10:00:00Z");
+  const base: AutoKontrolleSettings = {
+    aktiv: true, perDayMin: 2, perDayMax: 2, ruheVon: "22:00", ruheBis: "06:00",
+    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false,
+    days: ALL_WEEKDAYS, dayRules: null,
+  };
+
+  it("ein Tag ausserhalb der Plan-Tage wird gar nicht geplant", () => {
+    const ohneMontag = { ...base, days: weekdayMaskOf([2, 3, 4, 5, 6, 7]) };
+    expect(settingsForDay(ohneMontag, montag, TZ_)).toBeNull();
+    expect(settingsForDay(ohneMontag, dienstag, TZ_)).not.toBeNull();
+  });
+
+  it("die abgeschaltete Automatik bleibt abgeschaltet, unabhängig vom Tag", () => {
+    expect(settingsForDay({ ...base, aktiv: false }, montag, TZ_)).toBeNull();
+    expect(settingsForDay({ ...base, perDayMax: 0, perDayMin: 0 }, montag, TZ_)).toBeNull();
+  });
+
+  it("die Ausnahme des Tages ersetzt die Fenster, alles andere bleibt", () => {
+    const mitAusnahme = {
+      ...base,
+      dayRules: JSON.stringify([{ days: weekdayMaskOf([2]), ruheVon: "19:00", ruheBis: "06:00", fensterVon: "", fensterBis: "" }]),
+    };
+    expect(settingsForDay(mitAusnahme, dienstag, TZ_)).toMatchObject({ ruheVon: "19:00", perDayMin: 2 });
+    // Montag greift sie nicht.
+    expect(settingsForDay(mitAusnahme, montag, TZ_)).toMatchObject({ ruheVon: "22:00" });
+  });
+
+  it("liest den Wochentag in der Zone des SUBS", () => {
+    // 2026-06-15T23:30Z ist in Zürich schon Dienstag (01:30), in New York noch Montag (19:30).
+    const nachts = new Date("2026-06-15T23:30:00Z");
+    const nurDienstag = { ...base, days: weekdayMaskOf([2]) };
+    expect(settingsForDay(nurDienstag, nachts, "Europe/Zurich")).not.toBeNull();
+    expect(settingsForDay(nurDienstag, nachts, "America/New_York")).toBeNull();
+  });
+
+  it("das Wach-Fenster der Ausnahme wirkt wirklich auf den Tagesplan", () => {
+    // Dienstags Schlaf ab 19:00 ⇒ keine Auslösung und keine Frist nach 19:00.
+    const mitAusnahme = {
+      ...base, perDayMin: 4, perDayMax: 4,
+      dayRules: JSON.stringify([{ days: weekdayMaskOf([2]), ruheVon: "19:00", ruheBis: "06:00", fensterVon: "", fensterBis: "" }]),
+    };
+    const dienstagMitternacht = midnightInTZ(dienstag, TZ_);
+    const heute = settingsForDay(mitAusnahme, dienstagMitternacht, TZ_)!;
+    const slots = generateAutoKontrollen(heute, dienstagMitternacht, () => 0.5, TZ_);
+    expect(slots.length).toBeGreaterThan(0);
+    for (const slot of slots) {
+      expect(formatTime(slot.deadline, "de-CH", TZ_) <= "19:00").toBe(true);
+      expect(formatTime(slot.wirksamAb, "de-CH", TZ_) >= "06:00").toBe(true);
+    }
   });
 });

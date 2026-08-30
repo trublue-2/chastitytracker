@@ -18,6 +18,8 @@ import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;
 
+import { weekdayMaskOf } from "@/lib/weekdays";
+
 const TZ = "Europe/Zurich";
 const FENSTER = [{ start: "19:00", end: "20:00" }];
 
@@ -77,6 +79,18 @@ describe("cleaningWindowOpen", () => {
     // 17:30 UTC ist 19:30 in Zürich (im Fenster), aber 17:30 in London (ausserhalb).
     expect(cleaningWindowOpen(FENSTER, IM_FENSTER, "Europe/Zurich")).toBe(true);
     expect(cleaningWindowOpen(FENSTER, IM_FENSTER, "Europe/London")).toBe(false);
+  });
+
+  it("ein Wochentag, den kein Fenster abdeckt, ist ein GESCHLOSSENER Tag", () => {
+    // Die eine Entscheidung der Tages-Fenster: „leer" meint die ganze Liste, nicht den heutigen Tag.
+    // Läse diese Frage stattdessen „gilt heute ein Fenster", höbe ausgerechnet das Setzen von
+    // Wochentagen die Regel an allen übrigen Tagen auf — das Gegenteil der Einstellung.
+    // 2026-07-10 ist ein Freitag (ISO 5); das Fenster gilt nur montags.
+    const nurMontags = [{ start: "19:00", end: "20:00", days: weekdayMaskOf([1]) }];
+    expect(cleaningWindowOpen(nurMontags, IM_FENSTER, TZ)).toBe(false);
+    expect(cleaningWindowOpen(nurMontags, NACHTS, TZ)).toBe(false);
+    // Und am Montag derselben Uhrzeit greift es wieder.
+    expect(cleaningWindowOpen(nurMontags, new Date("2026-07-13T17:30:00Z"), TZ)).toBe(true);
   });
 
   it("verwirft ungültige und über Mitternacht laufende Fenster (parseCleaningWindows)", () => {

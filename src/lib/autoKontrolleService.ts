@@ -8,6 +8,11 @@ import {
 } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/utils";
 import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere } from "@/lib/queries";
+import {
+  autoInspectionDayRulesProblem, formatAutoInspectionDayRule, parseAutoInspectionDayRules, timesForDay,
+  type AutoInspectionDayTimes,
+} from "@/lib/autoKontrolleDayRules";
+import { isoWeekdayInTZ, weekdayMaskHas, weekdayMaskKeys, weekdayMaskValid } from "@/lib/weekdays";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -29,9 +34,23 @@ export interface AutoKontrolleSettings {
   fensterVon: string; // "HH:MM" optionales festes Auslöse-Fenster Start ("" = aus)
   fensterBis: string; // "HH:MM" optionales festes Auslöse-Fenster Ende ("" = aus)
   nurBeiSperre: boolean; // true = nur zustellen, während eine aktive Sperrzeit läuft (Dispatch-Gate, nicht Planung)
+  days: number; // Bitmaske der Wochentage, an denen überhaupt geplant wird (`weekdays.ts`)
+  /** Die Tages-Ausnahmen ROH, wie sie in der Spalte stehen: JSON-String oder null.
+   *
+   *  Bewusst nicht vorverdaut — aus zwei Gründen. Erstens dieselbe Haltung wie bei
+   *  `CleaningSettings.windows`: die Settings sollen bitgleich das tragen, was gespeichert ist.
+   *  Zweitens, und hier load-bearing: {@link planningChanged} und der Änderungs-Vergleich in
+   *  {@link setAutoKontrolleSettings} prüfen mit `!==`. Ein Array wäre dabei IMMER ungleich sich
+   *  selbst — jedes Speichern würfelte den laufenden Tagesplan neu, auch das, welches nichts ändert. */
+  dayRules: string | null;
 }
 
-export type SetAutoKontrolleParams = Partial<AutoKontrolleSettings>;
+/** Wie {@link AutoKontrolleSettings}, aber `dayRules` roh von aussen (Formular, MCP-Argumente): die
+ *  Liste wird geprüft und normalisiert, statt als fertiger String erwartet zu werden — dieselbe
+ *  Aufteilung wie `SetCleaningParams.windows`. */
+export type SetAutoKontrolleParams = Partial<Omit<AutoKontrolleSettings, "dayRules">> & {
+  dayRules?: unknown;
+};
 
 /** Ein geplanter Slot auf der Tages-Achse (Instants, wie sie in der DB stehen). */
 export interface AutoKontrolleSlot {
@@ -101,7 +120,7 @@ export function isInQuietMinutes(vonMin: number, bisMin: number, min: number): b
 /** Parst das optionale feste Auslöse-Fenster (HH:MM–HH:MM). Gültig NUR, wenn beide Zeiten valide sind
  *  UND Von < Bis (ein festes Fenster wrappt bewusst nicht über Mitternacht); sonst null → Fallback aufs
  *  Wach-Fenster. "" (leer, Default) → null. */
-export function fixedWindowMinutes(s: AutoKontrolleSettings): { start: number; end: number } | null {
+export function fixedWindowMinutes(s: AutoInspectionDayTimes): { start: number; end: number } | null {
   if (!HHMM.test(s.fensterVon) || !HHMM.test(s.fensterBis)) return null;
   const start = hhmmToMinutes(s.fensterVon);
   const end = hhmmToMinutes(s.fensterBis);
@@ -112,7 +131,7 @@ export function fixedWindowMinutes(s: AutoKontrolleSettings): { start: number; e
  *  Trigger (`isInQuietMinutes`) und der Tag bleibt lautlos leer. Die Schreib-Seite
  *  (`set_auto_inspections`) lehnt so eine Kombination damit ab, statt sie stumm wirkungslos zu
  *  speichern. Das Fenster wrappt bewusst nicht (siehe `fixedWindowMinutes`), das Schlaf-Fenster schon. */
-export function triggerWindowAllQuiet(s: AutoKontrolleSettings): boolean {
+export function triggerWindowAllQuiet(s: AutoInspectionDayTimes): boolean {
   const fixed = fixedWindowMinutes(s);
   if (!fixed) return false;
   const von = hhmmToMinutes(s.ruheVon);
@@ -342,6 +361,8 @@ export interface AutoKontrolleUserFields {
   autoKontrolleFristVon: number; autoKontrolleFristBis: number;
   autoKontrolleFensterVon: string; autoKontrolleFensterBis: string;
   autoKontrolleNurBeiSperre: boolean;
+  autoKontrolleDays: number;
+  autoKontrolleDayRules: string | null;
 }
 
 /** Eine User-Zeile, wie sie {@link AUTO_KONTROLLE_SETTINGS_SELECT} lädt: Settings plus die Identität
@@ -362,6 +383,8 @@ export function autoKontrolleSettingsFromUser(u: AutoKontrolleUserFields): AutoK
     fensterVon: u.autoKontrolleFensterVon,
     fensterBis: u.autoKontrolleFensterBis,
     nurBeiSperre: u.autoKontrolleNurBeiSperre,
+    days: u.autoKontrolleDays,
+    dayRules: u.autoKontrolleDayRules,
   };
 }
 
@@ -385,6 +408,12 @@ export type AutoInspectionsView = {
   triggerWindowFrom: string | null;
   triggerWindowUntil: string | null;
   onlyDuringLockPeriod: boolean;
+  /** An welchen Wochentagen überhaupt geplant wird: „daily" oder „mon,tue,…". */
+  planDays: string;
+  /** Die Tages-AUSNAHMEN, je eine Zeile („tue quiet 19:00-06:00"). Leer = überall der Grundstand.
+   *  Als Zeilen statt als Objekte, aus demselben Grund wie bei den Reinigungs-Fenstern: der Diff
+   *  soll die ganze alte gegen die ganze neue Liste zeigen, und Objekte liest dort niemand. */
+  dayRules: string[];
 };
 
 /** Domänen-Settings → {@link AutoInspectionsView}. EINE Übersetzung für die Lese-Seite (get_context)
@@ -403,6 +432,8 @@ export function autoInspectionsView(s: AutoKontrolleSettings): AutoInspectionsVi
     triggerWindowFrom: s.fensterVon || null,
     triggerWindowUntil: s.fensterBis || null,
     onlyDuringLockPeriod: s.nurBeiSperre,
+    planDays: weekdayMaskKeys(s.days),
+    dayRules: parseAutoInspectionDayRules(s.dayRules).map(formatAutoInspectionDayRule),
   };
 }
 
@@ -414,7 +445,8 @@ export const AUTO_KONTROLLE_SETTINGS_SELECT = {
   autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true,
   autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
-  autoKontrolleNurBeiSperre: true, autoInspectionPlannedFor: true,
+  autoKontrolleNurBeiSperre: true, autoKontrolleDays: true, autoKontrolleDayRules: true,
+  autoInspectionPlannedFor: true,
 } as const;
 
 /** Die Felder, an denen der TAGESPLAN hängt: ändert sich eines, wird der Tag neu gewürfelt.
@@ -425,6 +457,8 @@ const PLANNING_FIELDS = [
   "autoKontrolleRuheVon", "autoKontrolleRuheBis",
   "autoKontrolleFristVon", "autoKontrolleFristBis",
   "autoKontrolleFensterVon", "autoKontrolleFensterBis",
+  // Beide sind Planung: die Maske entscheidet, OB der Tag geplant wird, die Ausnahmen, WANN.
+  "autoKontrolleDays", "autoKontrolleDayRules",
 ] as const satisfies readonly (keyof AutoKontrolleUserFields)[];
 
 /** Jede Auto-Kontroll-Einstellung ist entweder Planung oder bewusst keine — wer eine neue hinzufügt,
@@ -440,6 +474,7 @@ type _AllSettingsClassified = AssertNever<
  *  Listen nicht auseinanderlaufen können. Wer nur die Spalten-Liste pflegte, bekäme hier den Compiler. */
 const PLANNING_SETTINGS = [
   "aktiv", "perDayMin", "perDayMax", "ruheVon", "ruheBis", "fristVon", "fristBis", "fensterVon", "fensterBis",
+  "days", "dayRules",
 ] as const satisfies readonly (keyof AutoKontrolleSettings)[];
 type _AllSettingsViewClassified = AssertNever<
   Exclude<keyof AutoKontrolleSettings, (typeof PLANNING_SETTINGS)[number] | "nurBeiSperre">
@@ -474,8 +509,17 @@ async function createAutoKontrollen(
  *  aus Minuten-Arithmetik ab einem Anker: hier wird EIN Zeitpunkt beurteilt, kein Plan aufgespannt,
  *  und die Formatierung ist auch an Umstellungstagen exakt (siehe `minuteAxis` für den Plan-Fall). */
 export function isSleepingAt(settings: AutoKontrolleSettings, at: Date, tz: string): boolean {
+  // Die Tages-Ausnahme gilt auch hier: schläft der Träger dienstags ab 19 Uhr, darf ihn die
+  // Wiederverschluss-Kontrolle dienstags um 20 Uhr genauso wenig wecken wie eine geplante.
+  //
+  // Der RUHETAG dagegen nicht — deshalb `timesForDay` statt {@link settingsForDay}. Er stellt den
+  // Tagesplan frei; die Kontrolle nach einer Reinigungspause ist keine geplante, sondern die
+  // Antwort auf eine Handlung des Trägers (feste Regel, keine Einstellung). Sie an den Ruhetagen
+  // mit abzuschalten hiesse, sich an genau den Tagen selbst öffnen zu können, an denen niemand
+  // hinsieht.
+  const today = timesForDay(settings, settings.dayRules, isoWeekdayInTZ(at, tz));
   return isInQuietMinutes(
-    hhmmToMinutes(settings.ruheVon), hhmmToMinutes(settings.ruheBis),
+    hhmmToMinutes(today.ruheVon), hhmmToMinutes(today.ruheBis),
     hhmmToMinutes(formatTime(at, "de-CH", tz)),
   );
 }
@@ -571,12 +615,38 @@ function autoPlanningOff(settings: AutoKontrolleSettings): boolean {
   return !settings.aktiv || perDayRange(settings).max <= 0;
 }
 
+/**
+ * **Die eine Stelle, an der ein Wochentag Einfluss auf die Planung bekommt.** Liefert die
+ * Einstellungen, die an DIESEM Tag gelten — oder `null`, wenn an ihm gar nicht geplant wird.
+ *
+ * Beides zusammen, weil beide Einstiegspunkte (Tagesplanung und Neuwurf) beide Fragen stellen und
+ * sich über beide einig sein müssen. Getrennt gestellt wäre der Ruhetag genau die Art Prüfung, die
+ * an einer der zwei Stellen fehlt und dort still weiterplant.
+ *
+ * Der Ruhetag ist bewusst ein eigenes Feld und kein 24-Stunden-Schlaf-Fenster: `RuheVon == RuheBis`
+ * liest der Planer als „kein Schlaf" (siehe {@link isInQuietMinutes}), ein ganztägiger Ruhetag wäre
+ * über die Von/Bis-Spalten also gar nicht sagbar.
+ *
+ * Nach dem `null` bleibt für den Planer alles wie bisher: er bekommt genau EIN Schlaf- und EIN
+ * Auslöse-Fenster, nur eben womöglich die des Tages. Deshalb steht die Auflösung hier und nicht in
+ * der Arithmetik darunter.
+ */
+export function settingsForDay(settings: AutoKontrolleSettings, at: Date, tz: string): AutoKontrolleSettings | null {
+  if (autoPlanningOff(settings)) return null;
+  const isoDay = isoWeekdayInTZ(at, tz);
+  if (!weekdayMaskHas(settings.days, isoDay)) return null;
+  return timesForDay(settings, settings.dayRules, isoDay);
+}
+
 /** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent über den Tages-Merker. (Vom Poller,
  *  einmal pro Tag der Sub.) */
 export async function ensureDailyAutoKontrollenForUser(user: AutoKontrolleUser, now: Date): Promise<number> {
-  const settings = autoKontrolleSettingsFromUser(user);
-  if (autoPlanningOff(settings)) return 0;
   const tz = user.timezone ?? APP_TZ;
+  const settings = settingsForDay(autoKontrolleSettingsFromUser(user), now, tz);
+  // Kein Merker an einem Ruhetag: er hielte fest, dass „geplant wurde", und wäre damit von einem
+  // gewürfelten 0-Tag nicht zu unterscheiden. Ein Ruhetag braucht ihn auch nicht — die Frage stellt
+  // sich am nächsten Tick genauso schnell neu.
+  if (!settings) return 0;
   const day = midnightInTZ(now, tz);
   if (user.autoInspectionPlannedFor?.getTime() === day.getTime()) return 0;
 
@@ -628,8 +698,11 @@ export async function rerollTodayAutoKontrollenForUser(
     where: { ...todaysAutoPlanWhere(userId, day), benachrichtigtAt: null, withdrawnAt: null },
   });
 
+  // Der Ruhetag greift NACH dem Löschen oben: wer den Sonntag gerade freigestellt hat, will die
+  // schon gewürfelten Sonntags-Kontrollen los sein, nicht bloss keine neuen dazubekommen.
+  const today = settingsForDay(settings, now, tz);
   let slots: AutoKontrolleSlot[] = [];
-  if (!autoPlanningOff(settings)) {
+  if (today) {
     // Aufs Kontingent zählt, was der Sub heute WIRKLICH bekommen hat: zugestellt und nicht
     // zurückgenommen. Eine versäumte zählt mit (sie hat stattgefunden, das Vergehen hängt daran),
     // eine vom Keyholder zurückgezogene nicht — genau die Rangfolge von `GENUINELY_WITHDRAWN_WHERE`.
@@ -641,12 +714,12 @@ export async function rerollTodayAutoKontrollenForUser(
       },
       select: { wirksamAb: true, deadline: true },
     });
-    const { min, max } = perDayRange(settings);
+    const { min, max } = perDayRange(today);
     // `createAutoKontrollen` setzt immer ein `wirksamAb`; eine Zeile ohne ist nicht auf der Zeitachse
     // verortbar und kann deshalb keinen Zeitraum belegen (aufs Kontingent zählt sie trotzdem).
     const occupied = delivered.flatMap((d) => (d.wirksamAb ? [{ wirksamAb: d.wirksamAb, deadline: d.deadline }] : []));
     const remaining = randomInt(min, max, Math.random) - delivered.length;
-    slots = fillFreeGaps(settings, occupied, remaining, now, Math.random, tz);
+    slots = fillFreeGaps(today, occupied, remaining, now, Math.random, tz);
   }
 
   const created = await createAutoKontrollen(userId, slots);
@@ -726,6 +799,27 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
     data.autoKontrolleFensterBis = params.fensterBis;
   }
   if (params.nurBeiSperre !== undefined) data.autoKontrolleNurBeiSperre = Boolean(params.nurBeiSperre);
+  // Die Plan-Tage: `0` wäre eine zweite, stille Art, die Automatik abzuschalten — dafür gibt es
+  // `aktiv`. Eine Einstellung, die dasselbe auf zwei Wegen sagt, widerspricht sich irgendwann
+  // (`active: true` bei null Tagen liest sich in `get_context` wie ein Defekt).
+  if (params.days !== undefined) {
+    if (!weekdayMaskValid(params.days)) return serviceFail(400, INVALID_TIME);
+    data.autoKontrolleDays = params.days;
+  }
+  if (params.dayRules !== undefined) {
+    const problem = autoInspectionDayRulesProblem(params.dayRules);
+    if (problem) return serviceFail(400, problem.code);
+    const rules = parseAutoInspectionDayRules(params.dayRules);
+    // Die BEDEUTUNGS-Prüfung steht hier und nicht im Regel-Modul: sie braucht die Fenster-Arithmetik
+    // des Planers (`triggerWindowAllQuiet` — dieselbe Funktion, die das Fenster später liest), und
+    // eine zweite Herleitung daneben liefe irgendwann gegen eine Regel, die der Planer nicht hat.
+    if (rules.some((r) => triggerWindowAllQuiet(r))) {
+      return serviceFail(400, "INSPECTION_TRIGGER_WINDOW_ALL_QUIET");
+    }
+    // Normalisiert ablegen (wie bei den Reinigungs-Fenstern): so vergleicht der Änderungs-Test
+    // unten Zeichenkette gegen Zeichenkette und nicht Formatierung gegen Formatierung.
+    data.autoKontrolleDayRules = JSON.stringify(rules);
+  }
   // „Bis" nie unter „Von" — nur wenn beide in diesem Patch bekannt (Von-/Bis-Paare: PerDay & Frist).
   // Nur die vorhandenen Bis-Keys anfassen, sonst würde undefined den „keine Felder"-Guard aushebeln.
   if (data.autoKontrollePerDayMax !== undefined) data.autoKontrollePerDayMax = raiseMaxToMin(data.autoKontrollePerDayMin, data.autoKontrollePerDayMax);

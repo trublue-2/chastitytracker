@@ -9,10 +9,31 @@ import {
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, CLEANING_WINDOWS_TOO_MANY,
   HHMM, INVALID_TIME, NO_FIELDS_TO_UPDATE, TIME_RANGE_INVALID,
 } from "@/lib/constants";
+import { isoWeekdayInTZ, parseWeekdayMask, weekdayMaskHas, weekdayMaskValid } from "@/lib/weekdays";
 
 export interface CleaningWindows {
   start: string; // "HH:MM"
   end: string;   // "HH:MM"
+  /**
+   * An welchen Wochentagen dieses Fenster gilt — Bitmaske aus `weekdays.ts`, dasselbe Feld wie bei
+   * den Wiege-Fenstern. Fehlt es im Bestand, liest {@link parseWeekdayMask} „alle Tage": ein vor der
+   * Umstellung gesetztes Fenster darf sich nicht dadurch ändern, dass es die Frage nicht kannte.
+   */
+  days: number;
+}
+
+/**
+ * {@link nextCleaningWindow} plus die Angabe, an welchem der nächsten Tage es liegt (0 = heute noch,
+ * 1 = morgen). Ohne sie sagte der Hinweis „wieder ab 06:00" — und meinte den Montag.
+ */
+export interface NextCleaningWindow extends CleaningWindows {
+  /** 0 = heute noch, 1 = morgen, … 7 = derselbe Wochentag in einer Woche. */
+  inDays: number;
+  /** Der ISO-Wochentag (1 = Montag … 7 = Sonntag), an dem es liegt. Beides, weil beides gebraucht
+   *  wird und keins das andere hergibt: `inDays === 0` entscheidet, OB ein Tag genannt werden muss,
+   *  `isoDay` sagt WELCHER — und den könnte die Anzeige sonst nur aus der Zeitzone des Trägers
+   *  zurückrechnen, die sie im Browser gar nicht hat. */
+  isoDay: number;
 }
 
 export interface SetCleaningParams {
@@ -46,7 +67,7 @@ function windowShape(f: unknown): CleaningWindows | null {
   const end = (f as { end?: unknown })?.end;
   if (typeof start !== "string" || typeof end !== "string") return null;
   if (!HHMM_SHAPE.test(start) || !HHMM_SHAPE.test(end) || start >= end) return null;
-  return { start, end };
+  return { start, end, days: parseWeekdayMask((f as { days?: unknown })?.days) };
 }
 
 /**
@@ -62,6 +83,11 @@ export function cleaningWindowProblem(f: unknown): ServiceErrorCode | null {
   if (typeof start !== "string" || !HHMM.test(start)) return INVALID_TIME;
   if (typeof end !== "string" || !(HHMM.test(end) || end === MIDNIGHT_END)) return INVALID_TIME;
   if (start >= end) return TIME_RANGE_INVALID;
+  // `days` darf FEHLEN (dann alle Tage — so kommt jedes Fenster aus der Zeit vor den Wochentagen),
+  // aber nicht falsch sein: eine Null-Maske wäre ein Fenster, das nie gilt, und stünde trotzdem in
+  // der Liste wie eine Regel. Dieselbe Haltung wie bei den Wiege-Fenstern.
+  const days = (f as { days?: unknown })?.days;
+  if (days !== undefined && !weekdayMaskValid(days)) return INVALID_TIME;
   return null;
 }
 
@@ -105,25 +131,42 @@ export function parseCleaningWindows(raw: unknown): CleaningWindows[] {
  *  Die Fenster sind Wanduhrzeit des Subs — deshalb muss `tz` die Sub-Zeitzone sein, nicht die des Betrachters. */
 export function activeCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): string | null {
   const hhmm = hhmmInTZ(now, tz);
+  const isoDay = isoWeekdayInTZ(now, tz);
   for (const f of parseCleaningWindows(raw)) {
-    if (f.start <= hhmm && hhmm < f.end) return f.end;
+    if (weekdayMaskHas(f.days, isoDay) && f.start <= hhmm && hhmm < f.end) return f.end;
   }
   return null;
 }
 
 /**
- * Das nächste Reinigungs-Fenster, das nach `now` (Sub-Lokalzeit `tz`) BEGINNT — sonst das früheste
- * des Tages (dann liegt es morgen). null, wenn keine Fenster konfiguriert sind (= nicht zeitgebunden).
+ * Das nächste Reinigungs-Fenster, das nach `now` (Sub-Lokalzeit `tz`) BEGINNT — samt der Angabe, an
+ * welchem Tag. null, wenn keine Fenster konfiguriert sind (= nicht zeitgebunden) oder keines je gilt.
  *
  * Läuft `now` gerade IN einem Fenster, liefert das trotzdem das darauffolgende: „aktuell offen"
  * beantwortet {@link activeCleaningWindow}, hier geht es um „wann wieder".
+ *
+ * **Erst heute, dann die kommenden Tage der Reihe nach** — dasselbe Vorgehen wie bei den
+ * Wiege-Fenstern. Ein blosses „sonst das früheste der Liste" wäre seit den Wochentagen falsch: wer
+ * freitagabends auf ein Werktags-Fenster schaut, bekäme „wieder ab 06:00", und das gilt erst am
+ * Montag. Gezählt wird bis 7, nicht bis 6: liegt heute nur noch ein bereits verstrichenes Fenster,
+ * ist der nächste Termin derselbe Wochentag in einer Woche.
+ *
+ * Der Wochentag wird dabei gerechnet (`+ inDays` modulo 7) und nicht aus `now + inDays * 24h`
+ * abgeleitet: 24 Stunden sind an den Umstellungstagen kein Kalendertag, und dicht an Mitternacht
+ * übersprünge diese Addition einen Tag.
  */
-export function nextCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): CleaningWindows | null {
+export function nextCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): NextCleaningWindow | null {
   const windows = parseCleaningWindows(raw);
   if (windows.length === 0) return null;
   const hhmm = hhmmInTZ(now, tz);
+  const today = isoWeekdayInTZ(now, tz);
   const sorted = [...windows].sort((a, b) => a.start.localeCompare(b.start));
-  return sorted.find((f) => f.start > hhmm) ?? sorted[0];
+  for (let inDays = 0; inDays <= 7; inDays++) {
+    const isoDay = ((today - 1 + inDays) % 7) + 1;
+    const hit = sorted.find((f) => weekdayMaskHas(f.days, isoDay) && (inDays > 0 || f.start > hhmm));
+    if (hit) return { ...hit, inDays, isoDay };
+  }
+  return null;
 }
 
 /** Heute (Sub-Kalendertag in `tz`, default APP_TZ) bereits verbrauchte Reinigungs-Öffnungen — gezählt
@@ -162,8 +205,9 @@ export function countCleaningUsedToday(allEntries: CleaningCountEntry[], now: Da
 /** Stabile MCP-Sicht der Reinigungs-(Cleaning-)Regeln. Eine Quelle für
  *  get_context.cleaning (V2): allowed = Öffnungen erlaubt; maxMinutesPerBreak = max Minuten je Öffnung;
  *  maxPausesPerDay = max Öffnungen/Tag (COUNT, null = unbegrenzt); usedToday = heute verbraucht;
- *  windows = erlaubte Tages-Zeitfenster (leer = nicht zeitgebunden); windowOpenNow = aktuell offenes
- *  Fenster (until = dessen Ende HH:MM) oder null. */
+ *  windows = erlaubte Tages-Zeitfenster (leer = nicht zeitgebunden; `days` = Wochentags-Bitmaske
+ *  aus `weekdays.ts`, Mo = Bit 0); windowOpenNow = aktuell offenes Fenster (until = dessen Ende
+ *  HH:MM) oder null. */
 export interface CleaningView {
   allowed: boolean;
   maxMinutesPerBreak: number;

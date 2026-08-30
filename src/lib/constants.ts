@@ -361,9 +361,15 @@ export interface NumberRange {
 export const CLEANING_MAX_MINUTES_RANGE = { min: 1, max: 120, fallback: 15 } as const satisfies NumberRange;
 /** Reinigungspausen pro Tag (0 = unbegrenzt). */
 export const CLEANING_MAX_PER_DAY_RANGE = { min: 0, max: 20, fallback: 0 } as const satisfies NumberRange;
-/** Höchstzahl der Reinigungs-Fenster eines Tages (Listen-Länge, kein Zahlen-Feld → kein `NumberRange`).
- *  Durchgesetzt in `setCleaningSettings`, also für JEDEN Schreiber der Spalte. */
-export const CLEANING_WINDOWS_MAX = 12;
+/** Höchstzahl der Reinigungs-Fenster (Listen-Länge, kein Zahlen-Feld → kein `NumberRange`).
+ *  Durchgesetzt in `setCleaningSettings`, also für JEDEN Schreiber der Spalte.
+ *
+ *  **Seit die Fenster Wochentage tragen, zählt die Liste die WOCHE, nicht den Tag.** Die frühere 12
+ *  war als Tages-Grenze grosszügig und wäre als Wochen-Grenze knapp: drei Fenster an jedem der
+ *  sieben Tage sind ein gewöhnlicher Plan und brauchen 21. Wer gleiche Zeiten teilt, kommt weiter
+ *  mit einer Zeile aus (eine Maske deckt mehrere Tage ab) — die Grenze trifft nur den, dessen Woche
+ *  wirklich an jedem Tag anders aussieht. */
+export const CLEANING_WINDOWS_MAX = 21;
 /** Stabiler Fehler-Code, wenn ein Schreibvorgang mehr als {@link CLEANING_WINDOWS_MAX} Fenster setzt.
  *  Nennt die Zahl bewusst nicht — dafür bräuchte die Meldung einen ICU-Parameter (siehe DEVICE_CODES). */
 export const CLEANING_WINDOWS_TOO_MANY = "CLEANING_WINDOWS_TOO_MANY";

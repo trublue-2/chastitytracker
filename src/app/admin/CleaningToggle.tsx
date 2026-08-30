@@ -4,14 +4,16 @@ import type { CleaningWindows } from "@/lib/cleaningService";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import Toggle from "@/app/components/Toggle";
 import TimeInput from "@/app/components/TimeInput";
+import WeekdayPicker from "@/app/components/WeekdayPicker";
 import NumberInput from "@/app/components/NumberInput";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
 import { inlineLabelCls as faintCls } from "@/app/components/inputStyles";
-import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE } from "@/lib/constants";
+import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX } from "@/lib/constants";
+import { ALL_WEEKDAYS } from "@/lib/weekdays";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 
 
@@ -95,37 +97,58 @@ export default function CleaningToggle({
             {windows.length === 0 && (
               <span className={`${faintCls} italic`}>{t("reinigungFensterEmpty")}</span>
             )}
-            {windows.map((f, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <TimeInput
-                  value={f.start}
-                  disabled={saving}
-                  ariaLabel={`${t("reinigungFensterLabel")} ${tc("from")}`}
-                  onCommit={(v) => saveWindows(windows.map((x, j) => (j === i ? { ...x, start: v } : x)))}
-                />
-                <span className={faintCls}>–</span>
-                <TimeInput
-                  value={f.end}
-                  disabled={saving}
-                  ariaLabel={`${t("reinigungFensterLabel")} ${tc("to")}`}
-                  onCommit={(v) => saveWindows(windows.map((x, j) => (j === i ? { ...x, end: v } : x)))}
-                />
-                <RemoveRowButton
-                  onClick={() => saveWindows(windows.filter((_, j) => j !== i))}
-                  disabled={saving}
-                  ariaLabel={t("reinigungFensterRemove")}
-                  tone="neutral"
-                />
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => saveWindows([...windows, { start: "19:00", end: "20:00" }])}
-              disabled={saving}
-              className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground disabled:opacity-50 w-fit"
-            >
-              <Plus size={14} /> {t("reinigungFensterAdd")}
-            </button>
+            {windows.length > 0 && (
+              <span className={`${faintCls} italic`}>{t("reinigungFensterClosedDayHint")}</span>
+            )}
+            {windows.map((f, i) => {
+              // Ein Fenster wird immer als GANZES gespeichert: die Zeile schickt den Stand, den sie
+              // gerade zeigt, mit genau einem geänderten Feld — dasselbe Vorgehen wie bei den
+              // Wiege-Fenstern. Getrennte Patches je Feld liessen zwischen Anfang, Ende und Tagen
+              // einen Zustand entstehen, den niemand eingestellt hat.
+              const patch = (change: Partial<CleaningWindows>) =>
+                saveWindows(windows.map((x, j) => (j === i ? { ...x, ...change } : x)));
+              return (
+                <div key={i} className="flex flex-col gap-2 rounded-xl border border-border-subtle p-3">
+                  <div className="flex items-center gap-2">
+                    <TimeInput
+                      value={f.start}
+                      disabled={saving}
+                      ariaLabel={`${t("reinigungFensterLabel")} ${tc("from")}`}
+                      onCommit={(v) => patch({ start: v })}
+                    />
+                    <span className={faintCls}>–</span>
+                    <TimeInput
+                      value={f.end}
+                      disabled={saving}
+                      ariaLabel={`${t("reinigungFensterLabel")} ${tc("to")}`}
+                      onCommit={(v) => patch({ end: v })}
+                    />
+                    <RemoveRowButton
+                      onClick={() => saveWindows(windows.filter((_, j) => j !== i))}
+                      disabled={saving}
+                      ariaLabel={t("reinigungFensterRemove")}
+                      tone="neutral"
+                    />
+                  </div>
+                  <WeekdayPicker
+                    mask={f.days}
+                    disabled={saving}
+                    ariaLabel={t("reinigungFensterDays")}
+                    onChange={(next) => patch({ days: next })}
+                  />
+                </div>
+              );
+            })}
+            {windows.length < CLEANING_WINDOWS_MAX && (
+              <button
+                type="button"
+                onClick={() => saveWindows([...windows, { start: "19:00", end: "20:00", days: ALL_WEEKDAYS }])}
+                disabled={saving}
+                className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground disabled:opacity-50 w-fit"
+              >
+                <Plus size={14} /> {t("reinigungFensterAdd")}
+              </button>
+            )}
           </div>
         </>
       )}

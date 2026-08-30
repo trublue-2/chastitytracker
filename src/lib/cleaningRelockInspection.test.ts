@@ -19,6 +19,8 @@ const TAGS = new Date("2026-06-15T12:00:00Z");
 /** 2026-06-15T22:30Z = 00:30 Zürcher Ortszeit — mitten im Schlaf-Fenster (22:00–06:00). */
 const NACHTS = new Date("2026-06-15T22:30:00Z");
 
+const { ALL_WEEKDAYS } = await import("./weekdays");
+
 const USER = {
   id: "u1", timezone: TZ, autoKontrolleAktiv: true,
   autoKontrollePerDayMin: 4, autoKontrollePerDayMax: 4,
@@ -26,6 +28,7 @@ const USER = {
   autoKontrolleFristVon: 15, autoKontrolleFristBis: 60,
   autoKontrolleFensterVon: "", autoKontrolleFensterBis: "",
   autoKontrolleNurBeiSperre: false,
+  autoKontrolleDays: ALL_WEEKDAYS, autoKontrolleDayRules: null as string | null,
 };
 
 /** Die eine Zeile, die die Funktion anlegt (über `createAutoKontrollen` → `createMany`). */
@@ -161,6 +164,32 @@ describe("isSleepingAt — die Frage, an der Eskalationsstufe 2 hängt", () => {
     expect(isSleepingAt(settings, new Date("2026-06-15T20:30:00Z"), TZ)).toBe(true);    // 22:30
     expect(isSleepingAt(settings, TAGS, TZ)).toBe(false);                               // 14:00
     expect(isSleepingAt(settings, new Date("2026-06-15T04:00:00Z"), TZ)).toBe(false);   // 06:00, Ende exklusiv
+  });
+
+  it("die Tages-Ausnahme verschiebt den Schlaf mit", () => {
+    // Schläft er dienstags ab 19:00, darf ihn die Wiederverschluss-Kontrolle dienstags um 20:00
+    // genauso wenig wecken wie eine geplante. 2026-06-16 ist ein Dienstag.
+    const mitAusnahme = autoKontrolleSettingsFromUser({
+      ...USER,
+      autoKontrolleDayRules: JSON.stringify([
+        { days: 0b10, ruheVon: "19:00", ruheBis: "06:00", fensterVon: "", fensterBis: "" },
+      ]),
+    });
+    const dienstagAbend = new Date("2026-06-16T18:00:00Z");  // 20:00 Ortszeit, Dienstag
+    const montagAbend = new Date("2026-06-15T18:00:00Z");    // 20:00 Ortszeit, Montag
+    expect(isSleepingAt(mitAusnahme, dienstagAbend, TZ)).toBe(true);
+    expect(isSleepingAt(mitAusnahme, montagAbend, TZ)).toBe(false);
+    // Ohne Ausnahme gilt der Grundstand an beiden Tagen.
+    expect(isSleepingAt(settings, dienstagAbend, TZ)).toBe(false);
+  });
+
+  it("ein RUHETAG lässt den Schlaf unberührt — er stellt den Tagesplan frei, nicht die Nacht", () => {
+    // Der Ruhetag gilt für die geplanten Kontrollen. Die nach einem Wiederverschluss antwortet auf
+    // eine Handlung des Trägers; sie mit abzuschalten hiesse, sich an genau den Tagen selbst öffnen
+    // zu können, an denen niemand hinsieht.
+    const ruhetags = autoKontrolleSettingsFromUser({ ...USER, autoKontrolleDays: 0b1 }); // nur Montag
+    expect(isSleepingAt(ruhetags, NACHTS, TZ)).toBe(true);
+    expect(isSleepingAt(ruhetags, TAGS, TZ)).toBe(false);
   });
 
   it("ein verschobenes Schlaf-Fenster wirkt sofort auf dieselbe Zeile", () => {

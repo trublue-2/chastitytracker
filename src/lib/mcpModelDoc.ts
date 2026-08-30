@@ -101,6 +101,10 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   \`windows: []\` löscht alle und verbietet damit NICHTS: ohne Fenster ist die Reinigung nur nicht mehr
   an eine Tageszeit gebunden — verbieten tut \`allowed: false\`. Zeiten sind Wanduhrzeit der Sub, und
   ein Fenster kann nicht über Mitternacht laufen (dann zwei: \`22:00–24:00\` und \`00:00–06:00\`).
+- **Jedes Fenster gilt an bestimmten Wochentagen** (\`days\`, ISO-Liste 1 = Montag … 7 = Sonntag; ohne
+  Angabe täglich). Sobald ÜBERHAUPT ein Fenster gesetzt ist, ist ein Wochentag, den keines abdeckt,
+  ein GESCHLOSSENER Tag: Reinigung ist dort den ganzen Tag verboten, nicht unbeschränkt. So verbietest
+  du sie an einem einzelnen Tag — nicht durch Löschen der Fenster.
 
 ## 3a. Kontrollen (\`request_inspection\`)
 - Eine Kontrolle hat ein **Ziel**: ohne Angabe der Keuschheitsgürtel (der Sub muss dafür verschlossen
@@ -126,6 +130,14 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   schaltet ALLES ab, auch die Kontrolle nach dem Wiederverschluss (Abschnitt 3); \`perDayMax: 0\`
   nimmt nur den Tagesplan weg. Eine Änderung an der Planung würfelt den Rest des heutigen Tages neu
   — bereits zugestellte Kontrollen bleiben.
+- **Wochentage gibt es dabei zweimal.** \`planDays\` sagt, an welchen Tagen überhaupt ein Plan
+  gewürfelt wird; ein ausgelassener Tag bleibt still, und nimmst du HEUTE heraus, fallen auch die
+  schon geplanten Kontrollen von heute weg. \`dayRules\` sind Tages-AUSNAHMEN: sie ersetzen an ihren
+  Wochentagen Schlaf- und Auslöse-Fenster, die erste passende gewinnt, und was keine Regel trifft,
+  behält die Grundwerte. Beide ersetzen die ganze Liste. Willst du ihn an einem Abend in Ruhe lassen,
+  gib dem Tag einen früheren Schlaf-Beginn (\`days:[2], sleepFrom:"19:00"\`) statt ihn ganz zu streichen
+  — der Ruhetag nimmt ihm den Tagesplan, die Kontrolle nach einem Wiederverschluss bleibt in beiden
+  Fällen.
 
 ## 4. Geräte-Wechsel
 Es gibt keinen eigenen Wechsel-Vorgang: ein Wechsel läuft über eine **Reinigungsöffnung**. Folgen: er

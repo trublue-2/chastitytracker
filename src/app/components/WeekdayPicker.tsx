@@ -13,8 +13,11 @@ import { WEEKDAY_KEYS, toggleWeekday, weekdayMaskHas } from "@/lib/weekdays";
  * Auslöse-Fenster) und die Reinigungsfenster, sobald jemand sie nachrüstet. Die Komponente kennt
  * eine Bitmaske und sonst nichts — was ein gesetzter Tag auslöst, entscheidet der Aufrufer.
  *
- * Ein Tag, den niemand angehakt hat, ist kein Sonderfall: die leere Maske gilt an keinem Tag. Wer
- * das will, löscht die Regel — die Schreib-Prüfung des Aufrufers weist `0` deshalb ab.
+ * **Der letzte Tag lässt sich nicht abwählen, und zwar hier statt bei jedem Aufrufer.** Eine leere
+ * Maske gilt an keinem Tag; eine Regel, die nie greift, sähe in der Liste trotzdem nach einer Regel
+ * aus. Wer sie loswerden will, löscht die Zeile — die Schreib-Prüfung weist `0` ohnehin ab. Drei
+ * Aufrufer hatten dieselbe Wache samt derselben Begründung selbst gebaut; der vierte hätte sie
+ * vergessen, und das Ergebnis wäre eine gespeicherte Einstellung ohne Wirkung.
  *
  * Die Beschriftungen kommen aus {@link buildWeekdayLabels} — derselbe Generator, der die Jahres-
  * Heatmap beschriftet. Eigene Übersetzungs-Schlüssel wären eine zweite, von Hand gepflegte Quelle
@@ -39,7 +42,10 @@ export default function WeekdayPicker({ mask, disabled, onChange, ariaLabel }: {
             type="button"
             disabled={disabled}
             aria-pressed={on}
-            onClick={() => onChange(toggleWeekday(mask, isoDay))}
+            onClick={() => {
+              const next = toggleWeekday(mask, isoDay);
+              if (next !== 0) onChange(next);
+            }}
             className={[
               // min-h-12 wie Button/Checkbox/Toggle und der segmentierte `Tabs` — darunter liegt
               // die Trefferfläche unter dem Haus-Mindestmass.

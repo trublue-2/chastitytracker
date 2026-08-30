@@ -68,3 +68,33 @@ export function parseWeekdayMask(raw: unknown): number {
 export function weekdayMaskValid(raw: unknown): boolean {
   return typeof raw === "number" && Number.isInteger(raw) && raw > 0 && raw <= ALL_WEEKDAYS;
 }
+
+/**
+ * Die Maske als stabile Kürzel-Zeile für MASCHINEN-Sichten: „mon,tue" — und `daily` für alle sieben,
+ * weil „mon,tue,wed,thu,fri,sat,sun" die Vorschau einer Agentin mit sieben Wörtern füllt, die nichts
+ * unterscheiden.
+ *
+ * Bewusst NICHT übersetzt und deshalb nicht `buildWeekdayLabels`: Empfänger sind die MCP-Vorschau
+ * und die Erfolgsmeldung, und die sollen über Sprachumgebungen hinweg gleich lauten. Was ein Mensch
+ * liest, beschriftet die Oberfläche.
+ */
+export function weekdayMaskKeys(mask: number): string {
+  if (mask === ALL_WEEKDAYS) return "daily";
+  return WEEKDAY_KEYS.filter((_, i) => weekdayMaskHas(mask, i + 1)).join(",");
+}
+
+/**
+ * Die Maske als Beschriftung für MENSCHEN: „Mo, Di, Mi" — und `allLabel` für alle sieben.
+ *
+ * Die Wörter kommen von aussen ({@link WEEKDAY_KEYS} sind Schlüssel, keine Sprache): `labels` aus
+ * `buildWeekdayLabels` in der Sprache des Betrachters, `allLabel` als übersetztes „täglich". Damit
+ * bleibt dieses Modul frei von i18n und die Zusammensetzung steht trotzdem nur einmal da —
+ * Keyholder-Editor und Träger-Seite zeigen dieselbe Liste.
+ */
+export function weekdayMaskLabel(mask: number, labels: readonly string[], allLabel: string): string {
+  if (mask === ALL_WEEKDAYS) return allLabel;
+  return WEEKDAY_KEYS.map((_, i) => i + 1)
+    .filter((isoDay) => weekdayMaskHas(mask, isoDay))
+    .map((isoDay) => labels[isoDay - 1])
+    .join(", ");
+}

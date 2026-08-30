@@ -40,6 +40,18 @@ model User {
   // werden weiter für jeden Tag geplant; wird eine bei Fälligkeit ohne aktive Sperrzeit angetroffen,
   // zieht der Poller sie zurück (kein Nachholen — dieselbe Behandlung wie eine Auslösung bei offenem KG).
   autoKontrolleNurBeiSperre      Boolean                  @default(false)
+  // An welchen Wochentagen überhaupt geplant wird — Bitmaske aus `weekdays.ts` (Mo = Bit 0),
+  // Vorgabe 127 = alle sieben. `0` heisst „nie" und schaltet die Auto-Kontrollen damit ebenso ab wie
+  // `autoKontrolleAktiv: false`; das ist Absicht (ein Ruhetags-Plan ohne Tage IST keiner).
+  // Bewusst KEIN 24-Stunden-Schlaf-Fenster als Ersatz: `RuheVon == RuheBis` liest der Planer als
+  // „kein Schlaf", ein ganztägiger Ruhetag wäre über die Von/Bis-Spalten also gar nicht sagbar.
+  autoKontrolleDays              Int                      @default(127)
+  // Tages-AUSNAHMEN vom Grundstand darüber, als JSON-Liste in der Reihenfolge ihrer Priorität:
+  // [{"days":2,"ruheVon":"19:00","ruheBis":"06:00","fensterVon":"","fensterBis":""}].
+  // Die erste Regel, deren Maske den Wochentag enthält, gewinnt; greift keine, gelten die Spalten.
+  // Aufgelöst wird EINMAL je Planungstag (`settingsForDay`) — die Planungs-Arithmetik sieht deshalb
+  // weiterhin genau ein Schlaf- und ein Auslöse-Fenster. SQLite/Prisma 5 kennt kein Json → TEXT.
+  autoKontrolleDayRules          String?
   // Der Tag, für den der Auto-Kontroll-Plan zuletzt gewürfelt wurde: Instant der Sub-lokalen
   // Mitternacht (`midnightInTZ`). Hält auch einen Wurf auf NULL Kontrollen fest, der keine Zeile
   // hinterlässt — warum das die Spalte rechtfertigt, steht bei `markDayPlanned`.

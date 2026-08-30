@@ -24,6 +24,7 @@ const user = (over: Record<string, unknown> = {}) => ({
   autoKontrolleFristVon: 30, autoKontrolleFristBis: 120,
   autoKontrolleFensterVon: "", autoKontrolleFensterBis: "",
   autoKontrolleNurBeiSperre: false, autoInspectionPlannedFor: null,
+  autoKontrolleDays: 0b111_1111, autoKontrolleDayRules: null,
   timezone: "UTC",
   ...over,
 }) as Parameters<typeof predictAutoMarkAt>[1];

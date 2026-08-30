@@ -118,12 +118,7 @@ export default function WeightToggle({
                     mask={w.days}
                     disabled={saving}
                     ariaLabel={t("weighingWindowDays")}
-                    onChange={(next) => {
-                      // Der letzte Tag lässt sich nicht abwählen: ein Fenster ohne Tag gilt nie und
-                      // sähe in der Liste trotzdem nach einer Regel aus. Wer es loswerden will,
-                      // löscht die Zeile.
-                      if (next !== 0) patch({ days: next });
-                    }}
+                    onChange={(next) => patch({ days: next })}
                   />
                   <Checkbox
                     label={t("weighingWindowRemind")}

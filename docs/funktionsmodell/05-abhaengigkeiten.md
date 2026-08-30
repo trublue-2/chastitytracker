@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 140 Kanten über 18 Mechaniken, davon 19 fest verdrahtet.
+Insgesamt 142 Kanten über 18 Mechaniken, davon 19 fest verdrahtet.
 
 ## Einträge
 
@@ -224,6 +224,8 @@ flowchart LR
 | Auto-Kontrollen | `User.autoKontrolleFristBis` | Obergrenze derselben Frist; je Kontrolle wird zufällig aus der Spanne gezogen. | `autoKontrolleService.ts:clampFrist` |
 | Auto-Kontrollen | `User.autoKontrolleFensterVon` | Beginn eines optionalen festen Auslöse-Fensters. Leer = ganzes Wach-Fenster. Wrappt bewusst nicht über Mitternacht. | `autoKontrolleService.ts:fixedWindowMinutes` |
 | Auto-Kontrollen | `User.autoKontrolleFensterBis` | Ende desselben Fensters. Liegt es vollständig im Schlaf-Fenster, wird die Kombination abgelehnt statt wirkungslos gespeichert. | `autoKontrolleService.ts:triggerWindowAllQuiet` |
+| Auto-Kontrollen | `User.autoKontrolleDays` | Wochentage, an denen überhaupt ein Tagesplan gewürfelt wird (Bitmaske). Ein ausgelassener Tag bleibt still; die Kontrolle nach einem Wiederverschluss bleibt davon unberührt. | `autoKontrolleService.ts:settingsForDay` |
+| Auto-Kontrollen | `User.autoKontrolleDayRules` | Tages-Ausnahmen: ersetzen an ihren Wochentagen Schlaf- und Auslöse-Fenster. Die erste passende Regel gewinnt; ohne Treffer gelten die Grundwerte. | `autoKontrolleDayRules.ts:timesForDay` |
 | Auto-Kontrollen | `User.autoKontrolleNurBeiSperre` | Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss. | `autoKontrolleService.ts` |
 | Sperrzeit | `User.autoKontrolleNurBeiSperre` | Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss. | `autoKontrolleService.ts` |
 | Benachrichtigungen | `User.inspectionReminderEnabled` | Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie. | `inspectionEscalationService.ts` |
@@ -669,6 +671,8 @@ flowchart LR
 | Kontrollen | `User.autoKontrolleFristBis` | Obergrenze derselben Frist; je Kontrolle wird zufällig aus der Spanne gezogen. | `autoKontrolleService.ts:clampFrist` |
 | Kontrollen | `User.autoKontrolleFensterVon` | Beginn eines optionalen festen Auslöse-Fensters. Leer = ganzes Wach-Fenster. Wrappt bewusst nicht über Mitternacht. | `autoKontrolleService.ts:fixedWindowMinutes` |
 | Kontrollen | `User.autoKontrolleFensterBis` | Ende desselben Fensters. Liegt es vollständig im Schlaf-Fenster, wird die Kombination abgelehnt statt wirkungslos gespeichert. | `autoKontrolleService.ts:triggerWindowAllQuiet` |
+| Kontrollen | `User.autoKontrolleDays` | Wochentage, an denen überhaupt ein Tagesplan gewürfelt wird (Bitmaske). Ein ausgelassener Tag bleibt still; die Kontrolle nach einem Wiederverschluss bleibt davon unberührt. | `autoKontrolleService.ts:settingsForDay` |
+| Kontrollen | `User.autoKontrolleDayRules` | Tages-Ausnahmen: ersetzen an ihren Wochentagen Schlaf- und Auslöse-Fenster. Die erste passende Regel gewinnt; ohne Treffer gelten die Grundwerte. | `autoKontrolleDayRules.ts:timesForDay` |
 | Kontrollen | `User.autoKontrolleNurBeiSperre` | Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss. | `autoKontrolleService.ts` |
 | Zugang | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
 | Kontrollen | `KontrollAnforderung.wirksamAb` | Terminierte Zustellung; bis dahin für den Sub unsichtbar und ohne laufende Frist. Auch der Weg, auf dem der Tagesplan vorab angelegt wird. | — |

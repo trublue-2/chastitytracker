@@ -11,6 +11,7 @@ import {
   autoKontrolleSettingsFromUser,
   fixedWindowMinutes,
 } from "@/lib/autoKontrolleService";
+import { parseAutoInspectionDayRules } from "@/lib/autoKontrolleDayRules";
 import {
   formatCleaningWindows,
   maxPausesPerDaySentinel,
@@ -23,6 +24,8 @@ import { weightTrackingEnabled } from "@/lib/constants";
 import { weightReleaseStatus } from "@/lib/weightReleaseService";
 import { weightText, type UnitSystem } from "@/lib/weight";
 import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/utils";
+import { buildWeekdayLabels } from "@/lib/statsBuilders";
+import { ALL_WEEKDAYS, weekdayMaskLabel } from "@/lib/weekdays";
 
 /** Ein „von–bis"-Paar als eine Zeile. Die Seite zeigt drei Sorten davon (Uhrzeiten, Minuten,
  *  Anzahl) — `formatCleaningWindows` bleibt beim Reinigungs-Fenster, dessen Form es kennt. */
@@ -73,7 +76,10 @@ export default async function RulesPage() {
   const tz = user?.timezone || APP_TZ;
 
   const cleaningWindows = parseCleaningWindows(user?.cleaningWindows);
+  // Dieselben sieben Kürzel, die die Jahres-Heatmap und der Wochentags-Wähler beschriften.
+  const weekdayLabels = buildWeekdayLabels(toDateLocale(locale));
   const auto = user ? autoKontrolleSettingsFromUser(user) : null;
+  const dayRules = parseAutoInspectionDayRules(auto?.dayRules);
   // Ein festes Auslöse-Fenster gilt nur, wenn beide Zeiten stehen und aufsteigend sind — genau die
   // Frage, die der Planer stellt. Über seinen Helfer statt über „beide Felder nicht leer", sonst
   // stünde hier ein Fenster, nach dem sich die Auslösungen gar nicht richten.
@@ -128,9 +134,16 @@ export default async function RulesPage() {
                       {/* Index als Schlüssel: zwei identische Fenster sind erlaubt (der Editor
                           verhindert sie nicht), die Liste ist rein lesend und ändert sich nicht. */}
                       {cleaningWindows.map((f, i) => (
-                        <li key={i}>{formatCleaningWindows(f)}</li>
+                        <li key={i}>
+                          {formatCleaningWindows(f)}
+                          {" · "}
+                          {weekdayMaskLabel(f.days, weekdayLabels, tc("daily"))}
+                        </li>
                       ))}
                     </ul>
+                  )}
+                  {cleaningWindows.length > 0 && (
+                    <p className="text-xs text-foreground-muted italic">{ta("reinigungFensterClosedDayHint")}</p>
                   )}
                 </DetailField>
               </>
@@ -161,6 +174,31 @@ export default async function RulesPage() {
                     <p className="text-sm text-foreground-muted">
                       {range(auto.fensterVon, auto.fensterBis)}
                     </p>
+                  </DetailField>
+                )}
+                {/* Nur wenn eingeschränkt: „täglich" ist der Normalfall und keine Regel, die der
+                    Träger nachschlagen müsste. */}
+                {auto.days !== ALL_WEEKDAYS && (
+                  <DetailField label={ta("autoKontrolleDaysLabel")}>
+                    <p className="text-sm text-foreground-muted">
+                      {weekdayMaskLabel(auto.days, weekdayLabels, tc("daily"))}
+                    </p>
+                  </DetailField>
+                )}
+                {dayRules.length > 0 && (
+                  <DetailField label={ta("autoKontrolleDayRulesLabel")}>
+                    <ul className="text-sm text-foreground-muted">
+                      {dayRules.map((r, i) => (
+                        <li key={i}>
+                          {weekdayMaskLabel(r.days, weekdayLabels, tc("daily"))}
+                          {": "}
+                          {ta("autoKontrolleRuheLabel")} {range(r.ruheVon, r.ruheBis)}
+                          {r.fensterVon && r.fensterBis
+                            ? ` · ${ta("autoKontrolleFensterLabel")} ${range(r.fensterVon, r.fensterBis)}`
+                            : ""}
+                        </li>
+                      ))}
+                    </ul>
                   </DetailField>
                 )}
                 {/* Nur wenn gesetzt: die Einschränkung als Regel benannt, erklärt mit demselben Satz,

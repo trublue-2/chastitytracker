@@ -81,6 +81,12 @@ export const INSPECTION_CODES = [
   // lang). Nur auf dem Weg, auf dem der Code vom Aufrufer kommt — bei einer Anforderung hat ihn der
   // Server selbst vergeben.
   "INSPECTION_CODE_INVALID",
+  // Tages-Ausnahmen der Auto-Kontrollen: mehr Regeln als die Woche Tage hat, und die Regel, die den
+  // Tag stumm schaltet, weil ihr Auslöse-Fenster ganz im Schlaf liegt. Beide bekommen einen eigenen
+  // Code statt `timeRangeInvalid` — dessen Satz („Ende muss nach dem Start liegen") schickte die
+  // Keyholderin auf die Suche nach einem Tippfehler, den sie nicht gemacht hat.
+  "INSPECTION_DAY_RULES_TOO_MANY",
+  "INSPECTION_TRIGGER_WINDOW_ALL_QUIET",
 ] as const;
 
 /** vorgabeService (training goals). `INVALID_CATEGORY` sass hier, solange der vorgabeService der

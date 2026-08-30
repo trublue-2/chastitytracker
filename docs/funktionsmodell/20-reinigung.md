@@ -43,13 +43,19 @@ Ausserhalb dieses Kontexts ist eine Reinigungsöffnung immer erlaubt, egal was d
 `cleaningWindowBindingStatus` nennt den Grund (`no-active-lock-period`, `user-not-allowed`,
 `lock-period-forbids`, `no-windows-configured`).
 
-Zwei Fallen:
+Drei Fallen:
 
 - **Leere Fensterliste ist kein Verbot**, sondern „nicht an eine Tageszeit gebunden". Verboten wird
   mit `cleaningAllowed: false`.
 - **Ein Fenster wrappt nicht über Mitternacht.** `22:00–06:00` braucht zwei Einträge.
+- **„Leer" meint die GANZE Liste, nicht den heutigen Tag.** Jedes Fenster trägt eine
+  Wochentags-Maske (`days`); ein Tag, den keines abdeckt, ist ein GESCHLOSSENER Tag. Läse
+  `cleaningWindowOpen` die Frage stattdessen als „gilt heute ein Fenster", höbe ausgerechnet das
+  Setzen von Wochentagen die Regel an allen übrigen Tagen auf. Der Unterschied ist genau eine
+  `.length`-Prüfung — deshalb hängt ein Test daran.
 
-Die Fenster sind Wanduhrzeit **des Subs** (`User.timezone`), nicht Serverzeit.
+Die Fenster sind Wanduhrzeit **des Subs** (`User.timezone`), nicht Serverzeit. Ein Fenster ohne
+`days` gilt täglich: so kommt jedes Fenster aus der Zeit vor den Wochentagen aus der Spalte.
 
 ## Auslöser
 

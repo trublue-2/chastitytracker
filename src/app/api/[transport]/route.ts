@@ -6,6 +6,7 @@ import { listEntries } from "@/lib/mcp/entries";
 import { loadMcpImage, mcpImageToolVisible } from "@/lib/mcp/entryImage";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { OFFENSE_RULE_MODES } from "@/lib/offenseRules";
+import { AUTO_INSPECTION_DAY_RULES_MAX } from "@/lib/autoKontrolleDayRules";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod,
@@ -222,8 +223,9 @@ const MCP_SERVER_INSTRUCTIONS =
   "Reinigungs-Regeln ab, auch die Tages-Fenster (`windows` — ersetzt die ganze Liste, `[]` löst die Reinigung von der " +
   "Uhrzeit statt sie zu verbieten). Eine EINZELNE Kontrolle veranlasst du weiterhin von Hand über " +
   "`request_inspection`; die REGELN der automatischen Kontrollen (Hauptschalter, Anzahl/Tag, Schlaf-Fenster, " +
-  "Fristen, festes Auslöse-Fenster, nur-bei-Sperrzeit) ändert `set_auto_inspections` — Bestand lesen in " +
-  "get_context.autoInspections. Zusätzlich zum Tagesplan folgt auf jeden " +
+  "Fristen, festes Auslöse-Fenster, nur-bei-Sperrzeit, Wochentage) ändert `set_auto_inspections` — Bestand lesen in " +
+  "get_context.autoInspections. Wochentage gibt es dort zweimal: `planDays` (an welchen Tagen überhaupt " +
+  "geplant wird) und `dayRules` (Tages-Ausnahmen für Schlaf- und Auslöse-Fenster). Zusätzlich zum Tagesplan folgt auf jeden " +
   "Wiederverschluss nach einer Reinigungspause selbsttätig eine Kontrolle — feste Regel, keine Einstellung " +
   "(Details: `explain_model`, Abschnitt 3).\n" +
   "• INVENTAR: Geräte und Kategorien pflegst du selbst — `upsert_device` (anlegen/umbenennen, " +
@@ -1041,7 +1043,9 @@ function registerTools(server: McpServer) {
           "permitted. Only provided fields change; read the current values from get_context.cleaning first. " +
           "`windows` REPLACES the whole list (that is how a window is retimed, added or deleted) — pass every " +
           "window you want to keep, not just the new one. `windows:[]` clears them, which does NOT forbid " +
-          "cleaning: with no windows it is simply no longer tied to a time of day. Use allowed:false to forbid " +
+          "cleaning: with no windows it is simply no longer tied to a time of day. Once ANY window exists, a " +
+          "weekday none of them covers is closed all day — that is how you forbid cleaning on a single day. " +
+          "Use allowed:false to forbid " +
           "it. Windows only bind while a lock period that permits cleaning is running " +
           "(get_context.cleaning.windowsBinding)." + KEYHOLDER_SILENT,
         inputSchema: {
@@ -1051,9 +1055,13 @@ function registerTools(server: McpServer) {
           windows: z.array(z.object({
             start: z.string().describe(`Window start, "HH:MM" in the sub's local time (00:00–23:59).`),
             end: z.string().describe(`Window end, "HH:MM" in the sub's local time, after start (up to "24:00").`),
+            days: z.array(z.number().int().min(1).max(7)).optional().describe(
+              "Weekdays it applies to, ISO numbers (1 = Monday … 7 = Sunday). Omit = every day. An empty list is rejected: a window that never applies is not a rule.",
+            ),
           })).optional().describe(
-            `The complete new list of daily cleaning windows (max ${CLEANING_WINDOWS_MAX}), replacing the current one. ` +
-            `A window cannot cross midnight — split it (e.g. 22:00–24:00 plus 00:00–06:00).`,
+            `The complete new list of cleaning windows (max ${CLEANING_WINDOWS_MAX}), replacing the current one. ` +
+            `A window cannot cross midnight — split it (e.g. 22:00–24:00 plus 00:00–06:00). ` +
+            `A weekday that no window covers is a CLOSED day: cleaning is forbidden all day, not unrestricted.`,
           ),
           reason: reasonField,
           dryRun: dryRunFieldV1,
@@ -1075,7 +1083,10 @@ function registerTools(server: McpServer) {
           "field re-rolls what is still pending TODAY (already delivered inspections stay). This does not " +
           "issue an inspection — a single one on demand is request_inspection. Two rules are NOT settings: " +
           "the inspection after a cleaning relock (hangs on `active` alone), and that a random inspection " +
-          "needs the sub to be locked." + KEYHOLDER_SILENT,
+          "needs the sub to be locked. Weekdays: `planDays` says on which days a plan is rolled at all " +
+          "(a day left out gets none), `dayRules` are per-weekday EXCEPTIONS that replace the sleep and " +
+          "trigger windows on those days — everything not covered by a rule keeps the base values above." +
+          KEYHOLDER_SILENT,
         inputSchema: {
           active: z.boolean().optional().describe("Master switch. false = no automatic inspections at all (including the one after a cleaning relock)."),
           perDayMin: rangeField(AUTO_INSPECTION_PER_DAY_RANGE, "Lower bound of the random count per day"),
@@ -1087,6 +1098,26 @@ function registerTools(server: McpServer) {
           triggerWindowFrom: z.string().nullable().optional().describe(`Fixed trigger window start, "HH:MM", or null to switch the window off (then triggers spread over the whole waking window). Both ends belong together.`),
           triggerWindowUntil: z.string().nullable().optional().describe(`Fixed trigger window end, "HH:MM" after the start (it cannot cross midnight), or null to switch the window off.`),
           onlyDuringLockPeriod: z.boolean().optional().describe("true = a due inspection is only delivered while an active lock period (SPERRZEIT) runs, otherwise it is withdrawn (never caught up). false = any running lock is enough."),
+          planDays: z.array(z.number().int().min(1).max(7)).optional().describe(
+            "The weekdays on which a daily plan is rolled at all, ISO numbers (1 = Monday … 7 = Sunday). REPLACES the selection. " +
+            "A day left out stays quiet: no planned inspections, and today's pending ones are dropped if you take today out. " +
+            "An empty list is rejected — use active:false to switch the automatic inspections off. " +
+            "The inspection after a cleaning relock is NOT affected: it answers an action of his, not a plan.",
+          ),
+          dayRules: z.array(z.object({
+            days: z.array(z.number().int().min(1).max(7)).optional().describe(
+              "Weekdays this exception applies to, ISO numbers. Omit = every day, which makes it the new base.",
+            ),
+            sleepFrom: z.string().describe(`Sleep window start on those days, "HH:MM" in the sub's local time.`),
+            sleepUntil: z.string().describe(`Sleep window end on those days, "HH:MM".`),
+            triggerWindowFrom: z.string().nullable().optional().describe(`Fixed trigger window start on those days, "HH:MM"; omit or null = no fixed window that day (triggers spread over the whole waking window).`),
+            triggerWindowUntil: z.string().nullable().optional().describe(`Fixed trigger window end on those days, "HH:MM" after the start.`),
+          })).optional().describe(
+            `The complete new list of per-weekday exceptions (max ${AUTO_INSPECTION_DAY_RULES_MAX}, one per weekday), replacing the current one. ` +
+            "The FIRST rule matching a weekday wins, so put the specific one before the general one. " +
+            "`dayRules:[]` clears them and the base sleep/trigger windows apply again everywhere. " +
+            `To keep him out of inspections on an evening, give that day an earlier sleep start (e.g. days:[2], sleepFrom:"19:00").`,
+          ),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },

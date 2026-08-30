@@ -8,7 +8,7 @@
  */
 
 // `import type` — zur Laufzeit gelöscht, zieht also kein Prisma in das Client-Bundle.
-import type { CleaningWindows } from "@/lib/cleaningService";
+import type { NextCleaningWindow } from "@/lib/cleaningService";
 import type { CleaningBlockReason } from "@/lib/queries";
 export type SubmitResult =
   | { ok: true; offline?: boolean }
@@ -102,8 +102,8 @@ export interface CleaningConfig {
    *  serverseitig über den Sperrzeit-Bruch entscheidet. Fehlt die Prop (Admin-Formular, Edit-Seite),
    *  gilt „nicht blockieren": dort ist der Grund nie REINIGUNG bzw. wird nichts neu geöffnet. */
   cleaningBlock?: CleaningBlockReason | null;
-  /** Das nächste beginnende Reinigungsfenster — rein informativ. */
-  nextWindow?: CleaningWindows | null;
+  /** Das nächste beginnende Reinigungsfenster — rein informativ, samt dem Tag, an dem es liegt. */
+  nextWindow?: NextCleaningWindow | null;
 }
 
 /** Bundled Sperrzeit state (user-dashboard only — admin skips these warnings). Das Sperr-Flag

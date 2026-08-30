@@ -85,7 +85,8 @@ describe("setCleaningSettings — die Historie der Reinigungs-Regeln", () => {
     await setCleaningSettings("u1", { windows: [{ start: "19:00", end: "20:00" }], now: NOW });
 
     const [, neu] = geschriebeneZeilen();
-    expect(neu.windows).toBe('[{"start":"19:00","end":"20:00"}]');
+    // Mit den Wochentagen — die Historie hält die Fenster so fest, wie sie in der Spalte stehen.
+    expect(neu.windows).toBe('[{"start":"19:00","end":"20:00","days":127}]');
   });
 
   it("eine ungültige Fenster-Liste wird abgelehnt, bevor irgendetwas geschrieben wird", async () => {

@@ -809,7 +809,13 @@ export async function getKeyholderOrgasmusAnforderungen(userIds: string[]) {
  *  ebenfalls). Sind Fenster gesetzt, sind sie eine echte Schranke: ausserhalb ist eine
  *  Reinigungsöffnung ein Verstoss. Einzige Quelle für diese Frage — von `isAllowedCleaningOpen`
  *  (Öffnen bricht die Sperrzeit?) und `isOpeningPermittedNow` (Bildersafe-Gate) geteilt, die sonst
- *  auseinanderliefen. `tz` ist die Zone des SUBS: die Fenster sind seine Wanduhrzeit. */
+ *  auseinanderliefen. `tz` ist die Zone des SUBS: die Fenster sind seine Wanduhrzeit.
+ *
+ *  **„Leer" meint die GANZE Liste, nicht den heutigen Tag.** Seit die Fenster Wochentage tragen,
+ *  gibt es Tage, an denen keines gilt — dort ist die Reinigung VERBOTEN, nicht unbeschränkt.
+ *  Andernfalls höbe ausgerechnet das Setzen von Wochentagen die Regel an allen übrigen Tagen auf,
+ *  also das Gegenteil dessen, was der Keyholder gerade eingestellt hat. Der Unterschied ist genau
+ *  diese `length`-Prüfung; ein Test nagelt ihn fest. */
 export function cleaningWindowOpen(cleaningWindows: unknown, at: Date, tz: string): boolean {
   const fenster = parseCleaningWindows(cleaningWindows);
   return fenster.length === 0 || activeCleaningWindow(fenster, at, tz) !== null;
@@ -973,6 +979,11 @@ export function cleaningWindowBindingStatus(
   if (parseCleaningWindows(user.cleaningWindows).length === 0) {
     // Keine Fenster konfiguriert: cleaningWindowOpen liest das als "immer offen" — korrekt für
     // openingAllowedNow, aber windows binden hier nichts, unabhängig vom Ergebnis.
+    //
+    // Bewusst die GANZE Liste und nicht „gilt heute eines": ein Tag, an dem kein Fenster gilt, ist
+    // ein geschlossener Tag — die Fenster binden dort also gerade besonders (siehe
+    // `cleaningWindowOpen`). Auf „heute" umgestellt meldete diese Zeile für den freien Tag
+    // „keine Fenster konfiguriert" und damit `openingAllowedNow: true`.
     return { windowsBinding: false, windowsBindingReason: "no-windows-configured", openingAllowedNow: true };
   }
   // reason ist hier "outsideWindow" oder null — in beiden Fällen wurde ein KONFIGURIERTES Fenster

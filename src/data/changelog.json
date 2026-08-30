@@ -1,5 +1,25 @@
 [
   {
+    "version": "6.0.2",
+    "date": "2026-08-30",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Reinigungsfenster gelten jetzt je Wochentag. Sobald überhaupt eines gesetzt ist, ist ein Tag ohne Fenster ein geschlossener Tag.",
+          "en": "Cleaning windows now apply per weekday. Once any window exists, a day without one is a closed day."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Automatische Kontrollen kennen Ruhetage und tagesabhängige Schlaf- und Auslöse-Fenster. Die Kontrolle nach einem Wiederverschluss bleibt davon unberührt.",
+          "en": "Automatic inspections now know rest days and per-weekday sleep and trigger windows. The inspection after a relock is unaffected."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.1",
     "date": "2026-08-30",
     "changes": [

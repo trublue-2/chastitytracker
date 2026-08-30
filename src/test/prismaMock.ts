@@ -79,4 +79,6 @@ export const TEST_USER = {
   autoKontrolleFensterVon: "",
   autoKontrolleFensterBis: "",
   autoKontrolleNurBeiSperre: false,
+  autoKontrolleDays: 0b111_1111,
+  autoKontrolleDayRules: null as string | null,
 };

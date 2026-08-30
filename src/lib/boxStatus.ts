@@ -2,7 +2,7 @@
 // Dashboard-Box-Status-Karte (BoxStatusCard). Keine Server-Imports — reine Formatierung; i18n bleibt
 // beim Aufrufer (Labels via übergebenem `t`).
 
-import type { CleaningView, CleaningWindows } from "@/lib/cleaningService";
+import type { CleaningView, NextCleaningWindow } from "@/lib/cleaningService";
 import type { CleaningBlockReason } from "@/lib/queries";
 
 export type BoxRow = {
@@ -46,7 +46,7 @@ export type BoxRow = {
  *  nachgezogen werden und die Karte läse still `undefined`. `import type` wird zur Laufzeit
  *  gelöscht, zieht also kein Prisma in dieses client-sichere Modul. */
 export type BoxCleaningView = CleaningView & {
-  nextWindow: CleaningWindows | null;
+  nextWindow: NextCleaningWindow | null;
   /** Das Live-Urteil des Servers (`cleaningBlockReason`), inklusive der AKTIVEN Sperrzeit. `allowed`
    *  allein kennt sie nicht — deshalb versprach die Karte Fenster, die eine reinigungsverbietende
    *  Sperre längst gesperrt hatte. */

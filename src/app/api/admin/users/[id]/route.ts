@@ -124,7 +124,8 @@ export async function PATCH(
     body.autoKontrolleRuheVon !== undefined || body.autoKontrolleRuheBis !== undefined ||
     body.autoKontrolleFristVon !== undefined || body.autoKontrolleFristBis !== undefined ||
     body.autoKontrolleFensterVon !== undefined || body.autoKontrolleFensterBis !== undefined ||
-    body.autoKontrolleNurBeiSperre !== undefined
+    body.autoKontrolleNurBeiSperre !== undefined ||
+    body.autoKontrolleDays !== undefined || body.autoKontrolleDayRules !== undefined
   ) {
     // Felder roh durchreichen — setAutoKontrolleSettings klemmt/validiert (HH:MM, Bereiche, Bis≥Von).
     return serviceResponse(await setAutoKontrolleSettings(id, {
@@ -133,6 +134,8 @@ export async function PATCH(
       fristVon: body.autoKontrolleFristVon, fristBis: body.autoKontrolleFristBis,
       fensterVon: body.autoKontrolleFensterVon, fensterBis: body.autoKontrolleFensterBis,
       nurBeiSperre: body.autoKontrolleNurBeiSperre,
+      days: body.autoKontrolleDays,
+      dayRules: body.autoKontrolleDayRules, // roh — der Service validiert/normalisiert
     }));
   }
 

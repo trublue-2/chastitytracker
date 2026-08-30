@@ -13,6 +13,14 @@ import {
   type NumberRange,
 } from "@/lib/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
+import WeekdayPicker from "@/app/components/WeekdayPicker";
+import RemoveRowButton from "@/app/components/RemoveRowButton";
+import SettingLabel from "@/app/components/SettingLabel";
+import { Plus } from "lucide-react";
+import { ALL_WEEKDAYS } from "@/lib/weekdays";
+import {
+  AUTO_INSPECTION_DAY_RULES_MAX, parseAutoInspectionDayRules, type AutoInspectionDayRule,
+} from "@/lib/autoKontrolleDayRules";
 
 /** Beschriftung der beiden Felder einer „von – bis"-Zeile: die sichtbare Beschriftung steht nur
  *  einmal vor dem Paar, für Screenreader braucht jedes Feld seine eigene. */
@@ -71,6 +79,8 @@ interface AutoKontrolleForm {
   fensterVon: string; // "" = kein festes Auslöse-Fenster
   fensterBis: string;
   nurBeiSperre: boolean;
+  days: number; // Wochentage, an denen überhaupt geplant wird
+  dayRules: AutoInspectionDayRule[];
 }
 
 /** Vorschlag beim EINSCHALTEN des festen Fensters — nur, wenn noch nichts gesetzt ist. */
@@ -93,6 +103,8 @@ export default function AutoKontrolleToggle({
   initialFensterVon,
   initialFensterBis,
   initialNurBeiSperre,
+  initialDays,
+  initialDayRules,
 }: {
   userId: string;
   initialAktiv: boolean;
@@ -105,6 +117,10 @@ export default function AutoKontrolleToggle({
   initialFensterVon: string;
   initialFensterBis: string;
   initialNurBeiSperre: boolean;
+  initialDays: number;
+  /** Roh aus der Spalte (JSON-String oder null) — geparst wird hier, mit demselben tolerant lesenden
+   *  Parser wie der Server. */
+  initialDayRules: unknown;
 }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
@@ -113,12 +129,16 @@ export default function AutoKontrolleToggle({
     aktiv: initialAktiv, perDayMin: initialPerDayMin, perDayMax: initialPerDayMax,
     ruheVon: initialRuheVon, ruheBis: initialRuheBis, fristVon: initialFristVon, fristBis: initialFristBis,
     fensterVon: initialFensterVon, fensterBis: initialFensterBis, nurBeiSperre: initialNurBeiSperre,
+    days: initialDays, dayRules: parseAutoInspectionDayRules(initialDayRules),
   };
   const [form, setForm] = useState(initial);
   // Der zuletzt vom Server angenommene Stand — Referenz für „geändert?". Ein abgelehnter Patch (z.B.
   // leere Uhrzeit) lässt ihn stehen, das Formular bleibt dirty und der Keyholder kann korrigieren.
   const [saved, setSaved] = useState(initial);
-  const dirty = (Object.keys(form) as (keyof AutoKontrolleForm)[]).some((k) => form[k] !== saved[k]);
+  // Über den serialisierten Wert, nicht über `!==`: die Tages-Ausnahmen sind ein Array und wären
+  // sonst immer ungleich sich selbst — das Formular stünde dauerhaft auf „geändert".
+  const dirty = (Object.keys(form) as (keyof AutoKontrolleForm)[])
+    .some((k) => JSON.stringify(form[k]) !== JSON.stringify(saved[k]));
 
   function set<K extends keyof AutoKontrolleForm>(key: K, value: AutoKontrolleForm[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -141,6 +161,10 @@ export default function AutoKontrolleToggle({
       fristBis: Math.max(form.fristVon, form.fristBis),
       fensterVon: fensterComplete ? form.fensterVon : "",
       fensterBis: fensterComplete ? form.fensterBis : "",
+      // Dieselbe Regel je Ausnahme — ein halbes Fenster lehnt der Service ab, statt es still als
+      // „kein Fenster" zu speichern. Hier vollständig machen, damit der Keyholder nicht wegen einer
+      // versehentlich geleerten Uhrzeit eine Fehlermeldung für die ganze Liste bekommt.
+      dayRules: form.dayRules.map((r) => (r.fensterVon && r.fensterBis ? r : { ...r, fensterVon: "", fensterBis: "" })),
     };
     const ok = await save({
       autoKontrolleAktiv: normalized.aktiv,
@@ -153,6 +177,8 @@ export default function AutoKontrolleToggle({
       autoKontrolleFensterVon: normalized.fensterVon,
       autoKontrolleFensterBis: normalized.fensterBis,
       autoKontrolleNurBeiSperre: normalized.nurBeiSperre,
+      autoKontrolleDays: normalized.days,
+      autoKontrolleDayRules: normalized.dayRules,
     });
     if (ok) {
       setForm(normalized);
@@ -226,6 +252,91 @@ export default function AutoKontrolleToggle({
               disabled={saving}
             />
           )}
+
+          {/* An welchen Wochentagen überhaupt geplant wird. */}
+          <div className="flex flex-col gap-2 pl-1">
+            <SettingLabel label={t("autoKontrolleDaysLabel")} description={t("autoKontrolleDaysDesc")} />
+            <WeekdayPicker
+              mask={form.days}
+              disabled={saving}
+              ariaLabel={t("autoKontrolleDaysLabel")}
+              // „An keinem Tag" wäre eine zweite, stille Art, die Automatik abzuschalten — dafür
+              // ist der Schalter ganz oben da. Die Wache dagegen steht im `WeekdayPicker`.
+              onChange={(next) => set("days", next)}
+            />
+          </div>
+
+          {/* Tages-Ausnahmen: ersetzen an ihren Tagen Schlaf- und Auslöse-Fenster. */}
+          <div className="flex flex-col gap-2 pl-1">
+            <SettingLabel label={t("autoKontrolleDayRulesLabel")} description={t("autoKontrolleDayRulesDesc")} />
+            {form.dayRules.length === 0 && (
+              <span className={`${faintCls} italic`}>{t("autoKontrolleDayRulesEmpty")}</span>
+            )}
+            {form.dayRules.map((r, i) => {
+              // Eine Ausnahme wird immer als GANZES ersetzt — dasselbe Vorgehen wie bei den
+              // Reinigungs- und Wiege-Fenstern.
+              const patch = (change: Partial<AutoInspectionDayRule>) =>
+                set("dayRules", form.dayRules.map((x, j) => (j === i ? { ...x, ...change } : x)));
+              const ruleWindowOn = r.fensterVon !== "" || r.fensterBis !== "";
+              return (
+                <div key={i} className="flex flex-col gap-2 rounded-xl border border-border-subtle p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <WeekdayPicker
+                      mask={r.days}
+                      disabled={saving}
+                      ariaLabel={t("autoKontrolleDayRuleDays")}
+                      onChange={(next) => patch({ days: next })}
+                    />
+                    <RemoveRowButton
+                      onClick={() => set("dayRules", form.dayRules.filter((_, j) => j !== i))}
+                      disabled={saving}
+                      ariaLabel={t("autoKontrolleDayRuleRemove")}
+                      tone="neutral"
+                    />
+                  </div>
+                  <TimeRangeRow
+                    label={t("autoKontrolleRuheLabel")}
+                    from={r.ruheVon} to={r.ruheBis}
+                    setFrom={(v) => patch({ ruheVon: v })} setTo={(v) => patch({ ruheBis: v })}
+                    disabled={saving}
+                  />
+                  <Toggle
+                    label={t("autoKontrolleFensterLabel")}
+                    checked={ruleWindowOn}
+                    disabled={saving}
+                    onChange={(on) => patch({
+                      fensterVon: on ? (r.fensterVon || FENSTER_DEFAULT.von) : "",
+                      fensterBis: on ? (r.fensterBis || FENSTER_DEFAULT.bis) : "",
+                    })}
+                  />
+                  {ruleWindowOn && (
+                    <TimeRangeRow
+                      label={t("autoKontrolleFensterLabel")}
+                      from={r.fensterVon} to={r.fensterBis}
+                      setFrom={(v) => patch({ fensterVon: v })} setTo={(v) => patch({ fensterBis: v })}
+                      disabled={saving}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            {form.dayRules.length < AUTO_INSPECTION_DAY_RULES_MAX && (
+              <button
+                type="button"
+                onClick={() => set("dayRules", [...form.dayRules, {
+                  // Der Grundstand als Ausgangspunkt: die Ausnahme entsteht als Kopie dessen, was
+                  // ohnehin gilt, und der Keyholder ändert daran genau das eine, was abweichen soll.
+                  days: ALL_WEEKDAYS,
+                  ruheVon: form.ruheVon, ruheBis: form.ruheBis,
+                  fensterVon: form.fensterVon, fensterBis: form.fensterBis,
+                }])}
+                disabled={saving}
+                className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground disabled:opacity-50 w-fit"
+              >
+                <Plus size={14} /> {t("autoKontrolleDayRuleAdd")}
+              </button>
+            )}
+          </div>
         </>
       )}
       <Button size="sm" onClick={handleSave} loading={saving} disabled={!dirty} className="w-fit">

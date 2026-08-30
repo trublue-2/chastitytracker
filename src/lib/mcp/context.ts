@@ -150,7 +150,7 @@ const contextUserSelect = {
   ...CLEANING_USER_SELECT,
   autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
   autoKontrolleFristVon: true, autoKontrolleFristBis: true, autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
-  autoKontrolleNurBeiSperre: true,
+  autoKontrolleNurBeiSperre: true, autoKontrolleDays: true, autoKontrolleDayRules: true,
   inspectionReminderEnabled: true, inspectionReminderDelayMinutes: true,
   inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
   lockRequiresBolt: true,

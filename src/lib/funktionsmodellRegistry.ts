@@ -340,6 +340,16 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin", "mcp"], affects: ["Auto-Kontrollen"], anchor: "autoKontrolleService.ts:triggerWindowAllQuiet",
   }),
   s({
+    model: "User", field: "autoKontrolleDays", domain: "kontrollen", scope: "standing",
+    effect: "Wochentage, an denen überhaupt ein Tagesplan gewürfelt wird (Bitmaske). Ein ausgelassener Tag bleibt still; die Kontrolle nach einem Wiederverschluss bleibt davon unberührt.",
+    writers: ["admin", "mcp"], affects: ["Auto-Kontrollen"], anchor: "autoKontrolleService.ts:settingsForDay",
+  }),
+  s({
+    model: "User", field: "autoKontrolleDayRules", domain: "kontrollen", scope: "standing",
+    effect: "Tages-Ausnahmen: ersetzen an ihren Wochentagen Schlaf- und Auslöse-Fenster. Die erste passende Regel gewinnt; ohne Treffer gelten die Grundwerte.",
+    writers: ["admin", "mcp"], affects: ["Auto-Kontrollen"], anchor: "autoKontrolleDayRules.ts:timesForDay",
+  }),
+  s({
     model: "User", field: "autoKontrolleNurBeiSperre", domain: "kontrollen", scope: "standing",
     effect: "Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss.",
     writers: ["admin", "mcp"], affects: ["Auto-Kontrollen", "Sperrzeit"], anchor: "autoKontrolleService.ts",

@@ -91,6 +91,7 @@ import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
 import { releaseNow } from "@/lib/releaseNowService";
 import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
+import { ALL_WEEKDAYS, weekdayMaskOf } from "@/lib/weekdays";
 import { taskRow } from "@/test/taskRow";
 import { taskProofRow } from "@/test/taskProofRow";
 
@@ -867,9 +868,25 @@ describe("set_cleaning: Reinigungs-Fenster", () => {
     const windows = [{ start: "07:00", end: "08:00" }, { start: "19:00", end: "20:30" }];
     const r = await mcpSetCleaning("sub", { windows }) as { message: string };
     // `changedBy` steht mit dabei: die Reinigungs-Historie hält fest, wer geändert hat — über den
-    // MCP ist das die KI.
-    expect(setCleaningMock).toHaveBeenCalledWith("u1", { allowed: undefined, maxMinutes: undefined, maxPerDay: undefined, windows: windows, changedBy: "ai" });
-    expect(r.message).toContain("07:00-08:00, 19:00-20:30");
+    // MCP ist das die KI. Die Wochentage sind zu diesem Zeitpunkt bereits Maske: der MCP nimmt sie
+    // als ISO-Liste entgegen, der Service kennt nur die Speicherform.
+    const gespeichert = windows.map((w) => ({ ...w, days: ALL_WEEKDAYS }));
+    expect(setCleaningMock).toHaveBeenCalledWith("u1", { allowed: undefined, maxMinutes: undefined, maxPerDay: undefined, windows: gespeichert, changedBy: "ai" });
+    expect(r.message).toContain("07:00-08:00 daily, 19:00-20:30 daily");
+  });
+
+  it("Wochentage kommen als ISO-Liste und gehen als Maske weiter", async () => {
+    const r = await mcpSetCleaning("sub", { windows: [{ start: "06:00", end: "07:00", days: [1, 2] }] }) as { message: string };
+    expect(setCleaningMock).toHaveBeenCalledWith("u1", expect.objectContaining({
+      windows: [{ start: "06:00", end: "07:00", days: weekdayMaskOf([1, 2]) }],
+    }));
+    expect(r.message).toContain("06:00-07:00 mon,tue");
+  });
+
+  it("eine leere Tages-Liste wird abgelehnt — eine Regel, die nie gilt, ist keine", async () => {
+    await expect(mcpSetCleaning("sub", { windows: [{ start: "06:00", end: "07:00", days: [] }] }))
+      .rejects.toThrow(/windows\[0\].*Invalid time/);
+    expect(setCleaningMock).not.toHaveBeenCalled();
   });
 
   it("windows:[] löscht alle Fenster — und die Meldung sagt, dass das die Reinigung NICHT verbietet", async () => {
@@ -886,7 +903,7 @@ describe("set_cleaning: Reinigungs-Fenster", () => {
 
   it("ein ungültiges Paar wird mit Index + Grund abgelehnt, statt still zu verschwinden", async () => {
     await expect(mcpSetCleaning("sub", { windows: [{ start: "07:00", end: "08:00" }, { start: "19:00", end: "18:00" }] }))
-      .rejects.toThrow(/windows\[1\] \{"start":"19:00","end":"18:00"\}: The end must be after the start/);
+      .rejects.toThrow(/windows\[1\] \{"start":"19:00","end":"18:00","days":127\}: The end must be after the start/);
     expect(setCleaningMock).not.toHaveBeenCalled();
   });
 
@@ -909,8 +926,8 @@ describe("set_cleaning: Reinigungs-Fenster", () => {
     const r = await mcpSetCleaning("sub", { dryRun: true, windows: [{ start: "06:00", end: "07:00" }] }) as {
       preview: { windows: string[] }; diff: Record<string, [unknown, unknown]>;
     };
-    expect(r.preview.windows).toEqual(["06:00-07:00"]);
-    expect(r.diff.windows).toEqual([["19:00-20:00"], ["06:00-07:00"]]);
+    expect(r.preview.windows).toEqual(["06:00-07:00 daily"]);
+    expect(r.diff.windows).toEqual([["19:00-20:00 daily"], ["06:00-07:00 daily"]]);
     expect(setCleaningMock).not.toHaveBeenCalled();
   });
 

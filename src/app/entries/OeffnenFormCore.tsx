@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { toDatetimeLocal, fromDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { type OeffnenGrund } from "@/lib/constants";
 import type { ResolvedReason } from "@/lib/reasonsService";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
@@ -88,14 +89,23 @@ export default function OeffnenFormCore({
     : cleaningBlock === "outsideWindow" ? "reinigungHintOutsideWindow"
     : cleaningBlock === "userNotAllowed" ? "reinigungHintNoConfig"
     : null;
+  /** „ Nächstes Reinigungsfenster: …" — EIN Satz für beide Stellen, die ihn anhängen (Hinweistext
+   *  und Box-Halte-Karte). Der Wochentag steht nur dabei, wenn das Fenster NICHT mehr heute kommt:
+   *  „Mo 19:00–20:00" wäre am Montagmittag eine Irreführung. Leerer String = nichts anzuhängen. */
+  const nextWindowText = (() => {
+    const next = cleaning?.nextWindow;
+    if (!next) return "";
+    const values = { start: next.start, end: next.end };
+    if (next.inDays === 0) return " " + t("boxNextWindow", values);
+    return " " + t("boxNextWindowOn", { ...values, day: buildWeekdayLabels(dl)[next.isoDay - 1] });
+  })();
+
   /** Der Reinigungs-Hinweistext (Sheet + Inline-Karte teilen ihn). Ist die Öffnung ausserhalb des
    *  Fensters, hängt „Nächstes Reinigungsfenster …" an — sonst weiss der Sub nicht, wann es wieder
    *  geht. `nextWindow` ist dieselbe Quelle wie die Box-Karte auf der Übersicht. */
   const cleaningHintText =
     (cleaningHintKey ? t(cleaningHintKey) : t("modalSubtextReinigung", { minutes: cleaningMaxMinutes })) +
-    (cleaningBlock === "outsideWindow" && cleaning?.nextWindow
-      ? " " + t("boxNextWindow", { start: cleaning.nextWindow.start, end: cleaning.nextWindow.end })
-      : "");
+    (cleaningBlock === "outsideWindow" ? nextWindowText : "");
 
   // Hält die Box? Das Urteil kommt fertig vom Server (eine Uhr, Sub-Zeitzone). Bei einer erlaubten
   // Reinigungsöffnung folgt der Riegel trotz laufender Sperrzeit (der Tracker setzt den Dauerauftrag
@@ -255,7 +265,7 @@ export default function OeffnenFormCore({
                   {boxHold!.until
                     ? t("boxHoldsUntil", { date: new Date(boxHold!.until).toLocaleString(dl, { hour: "2-digit", minute: "2-digit", timeZone: tz }) })
                     : t("boxHoldsIndefinitely")}
-                  {cleaning?.nextWindow ? " " + t("boxNextWindow", { start: cleaning.nextWindow.start, end: cleaning.nextWindow.end }) : ""}
+                  {nextWindowText}
                 </p>
                 <p className="text-neben text-warn-text">
                   {grund === "REINIGUNG" ? t("boxStillCountsCleaning") : t("boxStillCounts")}

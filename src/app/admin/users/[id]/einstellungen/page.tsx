@@ -198,6 +198,8 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           initialFensterVon={user.autoKontrolleFensterVon}
           initialFensterBis={user.autoKontrolleFensterBis}
           initialNurBeiSperre={user.autoKontrolleNurBeiSperre}
+          initialDays={user.autoKontrolleDays}
+          initialDayRules={user.autoKontrolleDayRules}
         />
       </SettingsSection>
 

@@ -489,6 +489,10 @@ default and not required for a standard install:
   `VERSCHLUSS` entry becomes the *call* to close the box, and only the bolt report
   makes it count. Covers the decisions, the two chokepoints it hangs on, and the
   keyholder's switch (which doubles as the way out of a dead box).
+- **[Tagesspezifische Fenster](docs/tagesfenster-konzept.md)** — cleaning windows and
+  automatic-inspection windows can differ per weekday. Covers why a weekday without a
+  cleaning window is a *closed* day, why the inspection planner stayed untouched, and
+  what a rest day does not switch off.
 
 ## Project Structure
 

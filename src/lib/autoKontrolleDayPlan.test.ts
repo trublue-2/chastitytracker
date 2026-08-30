@@ -19,6 +19,8 @@ const { ensureDailyAutoKontrollenForUser, rerollTodayAutoKontrollenForUser, auto
   await import("./autoKontrolleService");
 const { midnightInTZ, dateAtLocalMinutes } = await import("./utils");
 
+const { ALL_WEEKDAYS, weekdayMaskOf } = await import("./weekdays");
+
 const TZ = "Europe/Zurich";
 /** Lokale Mitternacht — ab hier liegt der ganze Tag in der Zukunft. */
 const MIDNIGHT = midnightInTZ(new Date("2026-06-15T12:00:00Z"), TZ);
@@ -34,6 +36,7 @@ const USER = {
   autoKontrolleFristVon: 10, autoKontrolleFristBis: 10,
   autoKontrolleFensterVon: "06:20", autoKontrolleFensterBis: "07:00",
   autoKontrolleNurBeiSperre: false,
+  autoKontrolleDays: ALL_WEEKDAYS, autoKontrolleDayRules: null as string | null,
 };
 
 /** Eine User-Zeile, deren Merker der Code über `user.update` wirklich fortschreibt — sonst prüfte der
@@ -204,5 +207,36 @@ describe("rerollTodayAutoKontrollenForUser — Neuwurf nach einer Settings-Ände
     expect(await rerollTodayAutoKontrollenForUser("u1", autoKontrolleSettingsFromUser(user), MIDNIGHT, TZ)).toBe(0);
     expect(prismaMock.kontrollAnforderung.deleteMany).toHaveBeenCalledTimes(1);
     expect(prismaMock.kontrollAnforderung.createMany).not.toHaveBeenCalled();
+  });
+
+  // MIDNIGHT liegt auf einem MONTAG (2026-06-15).
+  it("ein Ruhetag räumt den schon gewürfelten Plan ab, statt ihn nur nicht zu ergänzen", async () => {
+    // Wer den Montag gerade freigestellt hat, will die Montags-Kontrollen los sein — nicht bloss
+    // keine neuen dazubekommen. Deshalb greift der Ruhetag NACH dem Löschen.
+    const user = userWithMarker({ autoKontrolleDays: weekdayMaskOf([2, 3, 4, 5, 6, 7]) });
+    expect(await rerollTodayAutoKontrollenForUser("u1", autoKontrolleSettingsFromUser(user), MIDNIGHT, TZ)).toBe(0);
+    expect(prismaMock.kontrollAnforderung.deleteMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.kontrollAnforderung.createMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("Ruhetage in der Tagesplanung", () => {
+  it("an einem Ruhetag wird nicht geplant — und kein Merker gesetzt", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const user = userWithMarker({ autoKontrolleDays: weekdayMaskOf([2, 3, 4, 5, 6, 7]) });
+
+    expect(await ensureDailyAutoKontrollenForUser(user, MIDNIGHT)).toBe(0);
+    expect(prismaMock.kontrollAnforderung.createMany).not.toHaveBeenCalled();
+    // Kein Merker: er wäre von einem gewürfelten 0-Tag nicht zu unterscheiden, und ein Ruhetag
+    // braucht ihn nicht — die Frage stellt sich am nächsten Tick genauso schnell neu.
+    expect(user.autoInspectionPlannedFor).toBeNull();
+  });
+
+  it("am Tag darauf plant derselbe Sub wieder", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const user = userWithMarker({ autoKontrolleDays: weekdayMaskOf([2, 3, 4, 5, 6, 7]) });
+    const dienstag = new Date(MIDNIGHT.getTime() + 30 * 60 * 60_000); // Dienstagmorgen
+
+    expect(await ensureDailyAutoKontrollenForUser(user, dienstag)).toBeGreaterThan(0);
   });
 });

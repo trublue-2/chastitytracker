@@ -30,6 +30,7 @@ const BESTAND = {
   autoKontrolleFristVon: 15, autoKontrolleFristBis: 60,
   autoKontrolleFensterVon: "", autoKontrolleFensterBis: "",
   autoKontrolleNurBeiSperre: false, autoInspectionPlannedFor: null,
+  autoKontrolleDays: 0b111_1111, autoKontrolleDayRules: null as string | null,
 };
 
 /** Der Stand, den der Service zu schreiben bekommt. */
@@ -53,6 +54,9 @@ describe("set_auto_inspections — Patch auf den Bestand", () => {
     expect(gespeichert()).toEqual({
       aktiv: true, perDayMin: 2, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00",
       fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: true,
+      // `dayRules` bleibt undefined, wenn der Aufruf keine setzt — der Dienst lässt die Spalte dann
+      // in Ruhe. Der Bestand steckt schon in `after`, ein Zurückschreiben wäre nur Rauschen.
+      days: 0b111_1111, dayRules: undefined,
     });
   });
 
@@ -168,5 +172,73 @@ describe("set_auto_inspections — dryRun", () => {
   it("lehnt eine ungültige Kombination schon im Preview ab, statt Erfolg zu versprechen", async () => {
     await expect(mcpSetAutoInspections("sub", { dryRun: true, triggerWindowFrom: "23:00", triggerWindowUntil: "23:30" }))
       .rejects.toThrow(/entirely inside the sleep window/);
+  });
+});
+
+
+/**
+ * Die Wochentage über den MCP: ISO-Listen nach aussen, Bitmaske und JSON-String nach innen. Die
+ * Übersetzung steht in `toDayRule`/`weekdayMaskOf` — hier wird geprüft, dass sie stattfindet und
+ * dass der Agent die Ablehnungen mit STELLE bekommt statt eines nackten „Invalid time".
+ */
+describe("set_auto_inspections — Wochentage", () => {
+  it("planDays kommt als ISO-Liste und geht als Maske weiter", async () => {
+    const r = await mcpSetAutoInspections("sub", { planDays: [1, 2, 3, 4, 5] }) as { message: string };
+    expect(gespeichert().days).toBe(0b11111);
+    expect(r.message).toContain("Planned on mon,tue,wed,thu,fri only.");
+  });
+
+  it("alle sieben Tage stehen NICHT in der Meldung — das ist der Normalfall, kein Ergebnis", async () => {
+    const r = await mcpSetAutoInspections("sub", { planDays: [1, 2, 3, 4, 5, 6, 7] }) as { message: string };
+    expect(r.message).not.toContain("Planned on");
+  });
+
+  it("dayRules gehen als LISTE an den Dienst, nicht als JSON-String", async () => {
+    // Die Speicher-Form (String) trägt Diff und `planningChanged`; der Dienst nimmt die Liste und
+    // prüft sie selbst. Bekäme er den String, lehnte er mit `invalidTime` ab — und zwar jeden
+    // Aufruf, der Ausnahmen setzt. Der Mock des Dienstes verdeckt das, deshalb steht es hier.
+    const r = await mcpSetAutoInspections("sub", {
+      dayRules: [{ days: [2], sleepFrom: "19:00", sleepUntil: "06:00" }],
+    }) as { message: string };
+    expect(gespeichert().dayRules).toEqual([
+      { days: 0b10, ruheVon: "19:00", ruheBis: "06:00", fensterVon: "", fensterBis: "" },
+    ]);
+    expect(r.message).toContain("Day exceptions: tue quiet 19:00-06:00.");
+  });
+
+  it("dayRules:[] löscht die Ausnahmen — dann gilt überall der Grundstand", async () => {
+    const r = await mcpSetAutoInspections("sub", { dayRules: [] }) as { message: string };
+    expect(gespeichert().dayRules).toEqual([]);
+    expect(r.message).not.toContain("Day exceptions");
+  });
+
+  it("ohne dayRules bleibt die Spalte unberührt (undefined, nicht der Bestands-String)", async () => {
+    await mcpSetAutoInspections("sub", { perDayMin: 3 });
+    expect(gespeichert().dayRules).toBeUndefined();
+  });
+
+  it("eine Ausnahme, deren Auslöse-Fenster ganz im Schlaf liegt, wird mit STELLE abgelehnt", async () => {
+    await expect(mcpSetAutoInspections("sub", {
+      dayRules: [
+        { days: [1], sleepFrom: "22:00", sleepUntil: "06:00" },
+        { days: [2], sleepFrom: "22:00", sleepUntil: "06:00", triggerWindowFrom: "23:00", triggerWindowUntil: "23:30" },
+      ],
+    })).rejects.toThrow(/dayRules\[1\].*entirely inside the sleep window/);
+    expect(setSettingsMock).not.toHaveBeenCalled();
+  });
+
+  it("dieselbe Ablehnung schon im dryRun", async () => {
+    await expect(mcpSetAutoInspections("sub", {
+      dryRun: true, dayRules: [{ days: [2], sleepFrom: "99:00", sleepUntil: "06:00" }],
+    })).rejects.toThrow(/dayRules\[0\]/);
+  });
+
+  it("der dryRun zeigt die alten gegen die neuen Ausnahmen", async () => {
+    const r = await mcpSetAutoInspections("sub", {
+      dryRun: true, dayRules: [{ days: [2], sleepFrom: "19:00", sleepUntil: "06:00" }],
+    }) as { preview: { dayRules: string[] }; diff: Record<string, [unknown, unknown]> };
+    expect(r.preview.dayRules).toEqual(["tue quiet 19:00-06:00"]);
+    expect(r.diff.dayRules).toEqual([[], ["tue quiet 19:00-06:00"]]);
+    expect(setSettingsMock).not.toHaveBeenCalled();
   });
 });
