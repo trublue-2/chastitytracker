@@ -1,3 +1,6 @@
+// Der Antwort-Schlüssel heisst `sperrzeit` und BLEIBT so: er ist Teil des Heimdall-Vertrags
+// (docs/heimdall-box.md, GET /api/integration/box/config). Die Box liest ihn — eine Umbenennung
+// hier bricht die Hardware, nicht nur einen Test.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
@@ -28,7 +31,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env.HEIMDALL_SYNC_SECRET = SECRET;
   db.user.findUnique.mockResolvedValue({ id: "u1" });
-  db.verschlussAnforderung.findMany.mockResolvedValue([]); // getActiveSperrzeit (faltet die aktiven)
+  db.verschlussAnforderung.findMany.mockResolvedValue([]); // getActiveLockPeriod (faltet die aktiven)
 });
 
 describe("GET /api/integration/box/config — Vertrag zur Box", () => {

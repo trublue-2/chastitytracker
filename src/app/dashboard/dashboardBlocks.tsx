@@ -11,7 +11,7 @@ import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
   deviceCountCached, entriesCached, evaluatedTasksCached, latestKgEntryCached, lockRequestCached,
   orgasmConfigCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
-  subSperrzeitCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
+  subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
 } from "@/lib/dashboardData";
 import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
@@ -119,8 +119,8 @@ const runningSessionCard = async (ctx: SubDashboardCtx) => {
  * Ableitung mit; `statusAndStats` braucht davon nichts mehr.
  */
 const openStateData = async ({ userId, now, tz }: SubDashboardCtx) => {
-  const [latest, cleaning, activeSperrzeit] = await Promise.all([
-    latestKgEntryCached(userId), cleaningRulesCached(userId), subSperrzeitCached(userId),
+  const [latest, cleaning, activeLockPeriod] = await Promise.all([
+    latestKgEntryCached(userId), cleaningRulesCached(userId), subLockPeriodCached(userId),
   ]);
   if (!latest || latest.type === "VERSCHLUSS") return null;
 
@@ -151,11 +151,11 @@ const openStateData = async ({ userId, now, tz }: SubDashboardCtx) => {
     // Vergehen und keine Ahnung warum. Die strengere Frist gehört ihm gesagt, nicht die bequemere.
     //
     // Die Sperrzeit, die zur ÖFFNUNGSZEIT schon galt — nicht die, die jetzt gilt. Das Strafbuch
-    // nimmt ebenfalls die damalige (`findActiveSperrzeit` prüft `openTime >= s.createdAt`). Eine
+    // nimmt ebenfalls die damalige (`findActiveLockPeriod` prüft `openTime >= s.createdAt`). Eine
     // erst nach der Öffnung angelegte Sperrzeit ergäbe hier eine Drohung, der im Strafbuch nichts
     // entspricht.
-    const lockPeriodAtOpening = latest && activeSperrzeit && activeSperrzeit.createdAt <= latest.startTime
-      ? activeSperrzeit
+    const lockPeriodAtOpening = latest && activeLockPeriod && activeLockPeriod.createdAt <= latest.startTime
+      ? activeLockPeriod
       : null;
     const cleaningRelockDeadline = latest && cleaningPauseUntil
       // Die Fassung, die zur ÖFFNUNG galt — dieselbe, nach der `buildPairs` und das Strafbuch
@@ -254,8 +254,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       if (!heimdallEnabled()) return null;
       // Die Reinigungs-Regeln der Box-Karte (Begründung in `buildBoxReinigungView`) zählen ihr
       // Tageskontingent aus den ohnehin geladenen Einträgen — ohne eigene DB-Runde.
-      const [user, entries, activeSperrzeit] = await Promise.all([
-        userRowCached(userId), entriesCached(userId), subSperrzeitCached(userId),
+      const [user, entries, activeLockPeriod] = await Promise.all([
+        userRowCached(userId), entriesCached(userId), subLockPeriodCached(userId),
       ]);
       // Der Zustand des TRÄGERS gehört dazu: nur mit ihm kann die Karte „Riegel zu, obwohl
       // niemand verschlossen ist" von „Riegel zu, während der Verschluss läuft" unterscheiden.
@@ -263,7 +263,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       // Alternative wäre, den Zustand aus `entries` nachzurechnen und damit eine zweite Fassung
       // derselben Regel zu führen.
       return {
-        reinigung: buildBoxReinigungView(user, entries, activeSperrzeit, now, tz),
+        reinigung: buildBoxReinigungView(user, entries, activeLockPeriod, now, tz),
         wearerLocked: await getIsLocked(userId),
       };
     },
@@ -358,8 +358,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         const open = await openStateData(ctx);
         return open && ({ open } as const);
       }
-      const [activeSperrzeit, user, activeVorgabe, hours, deviceCount, offenseRules] = await Promise.all([
-        subSperrzeitCached(userId), userRowCached(userId), activeVorgabeCached(userId, nowMs),
+      const [activeLockPeriod, user, activeVorgabe, hours, deviceCount, offenseRules] = await Promise.all([
+        subLockPeriodCached(userId), userRowCached(userId), activeVorgabeCached(userId, nowMs),
         wearingHoursCached(userId, nowMs, tz), deviceCountCached(userId),
         // Für die Folge-Zeile unter der Sperrzeit: OB ein früheres Öffnen geahndet wird, ist je Sub
         // schaltbar. Ohne diese Abfrage behauptete die Karte eine Regel, die abgeschaltet sein kann.
@@ -367,7 +367,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       ]);
       // `open: null` als Unterscheidungsmerkmal — mit `"open" in data` müsste jede Verwendung
       // darunter noch einmal auf `undefined` prüfen, obwohl der Zweig sie ausschliesst.
-      return { open: null, ...running, activeSperrzeit, user, activeVorgabe, hours, deviceCount, offenseRules };
+      return { open: null, ...running, activeLockPeriod, user, activeVorgabe, hours, deviceCount, offenseRules };
     },
     render: (data, { now, tz, dl, t }) => data && (
       data.open ? (
@@ -390,14 +390,14 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           interruptionPausedMs={interruptionPauseMs(data.activePair.interruptions)}
           now={now}
           events={data.events}
-          sperrzeitEndetAt={data.activeSperrzeit?.endetAt ?? null}
-          sperrzeitUnbefristet={!!data.activeSperrzeit && data.activeSperrzeit.endetAt === null}
-          sperrzeitNachricht={data.activeSperrzeit?.nachricht ?? null}
+          lockPeriodEndsAt={data.activeLockPeriod?.endetAt ?? null}
+          lockPeriodIndefinite={!!data.activeLockPeriod && data.activeLockPeriod.endetAt === null}
+          lockPeriodMessage={data.activeLockPeriod?.nachricht ?? null}
           // Sub-Sicht: nur wenn er grundsätzlich reinigen darf. Sonst verspräche die Zeile etwas,
           // das seine Benutzer-Einstellung ohnehin verbietet.
           cleaningNote={
-            data.activeSperrzeit && data.user?.reinigungErlaubt
-              ? t(data.activeSperrzeit.reinigungErlaubt ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
+            data.activeLockPeriod && data.user?.reinigungErlaubt
+              ? t(data.activeLockPeriod.reinigungErlaubt ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
               : null
           }
           // Nur wenn die Regel wirklich gilt — sie ist je Sub abschaltbar. Und wenn eine
@@ -406,7 +406,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           lockBreakNote={
             data.offenseRules.unauthorized_opening === "off"
               ? null
-              : t(data.activeSperrzeit?.reinigungErlaubt && data.user?.reinigungErlaubt
+              : t(data.activeLockPeriod?.reinigungErlaubt && data.user?.reinigungErlaubt
                   ? "sessionLockedConsequenceCleaning"
                   : "sessionLockedConsequence")
           }

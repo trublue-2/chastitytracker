@@ -38,7 +38,7 @@ export interface BoxCommandInput {
    *  Admin-Pfad, Alt-Client) → wie bisher: die Box folgt. */
   keyInBox?: boolean | null;
   /** Hat diese Öffnung eine Sperrzeit gebrochen? Dann war sie verboten. */
-  brokeSperrzeit: boolean;
+  brokeLockPeriod: boolean;
 }
 
 /**
@@ -53,9 +53,9 @@ export interface BoxCommandInput {
  * 2. **Gebrochene Sperrzeit** — die Öffnung war verboten. Sie zu dokumentieren darf sie nicht
  *    vollstrecken: der Riegel bleibt zu, der Eintrag steht trotzdem im Strafbuch.
  */
-export function boxCommandForEntry({ type, keyInBox, brokeSperrzeit }: BoxCommandInput): "lock" | "open" | null {
+export function boxCommandForEntry({ type, keyInBox, brokeLockPeriod }: BoxCommandInput): "lock" | "open" | null {
   // Nur ein ausdrückliches `false` hält die Box zurück — `null`/`undefined` heisst „nicht erklärt".
   if (type === "VERSCHLUSS") return keyInBox === false ? null : "lock";
-  if (type === "OEFFNEN") return brokeSperrzeit ? null : "open";
+  if (type === "OEFFNEN") return brokeLockPeriod ? null : "open";
   return null;
 }

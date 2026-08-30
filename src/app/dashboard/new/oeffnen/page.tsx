@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getIsLocked, getActiveSperrzeit, cleaningBlockReason } from "@/lib/queries";
+import { getIsLocked, getActiveLockPeriod, cleaningBlockReason } from "@/lib/queries";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
 import { reinigungVerbrauchtHeute, nextReinigungsFenster } from "@/lib/reinigungService";
@@ -22,8 +22,8 @@ export default async function NewOeffnenPage() {
   const now = new Date();
   // Tages-Zählung über `reinigungVerbrauchtHeute` — dieselbe Kalendertag-Regel wie die
   // Strafbuch-Ableitung (buildStrafbuch), statt sie hier ein zweites Mal auszuformulieren.
-  const [activeSperrzeit, user, reinigungHeute, box] = await Promise.all([
-    getActiveSperrzeit(userId),
+  const [activeLockPeriod, user, reinigungHeute, box] = await Promise.all([
+    getActiveLockPeriod(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { reinigungErlaubt: true, reinigungMaxMinuten: true, reinigungMaxProTag: true, reinigungsFenster: true, oeffnenGruendeConfig: true } }),
     reinigungVerbrauchtHeute(userId, now, tz),
     // Die Selbstauskunft der Box: ihre eigene Frist.
@@ -35,7 +35,7 @@ export default async function NewOeffnenPage() {
   // Server-Render und Hydration. `box.lockUntil` ist die Selbstauskunft der Box — nicht das
   // Sperrzeit-Ende, das sie erst beim nächsten Sync einfaltet.
   const boxHold = boxHoldOutlook({
-    sperrzeit: activeSperrzeit ? { endetAt: activeSperrzeit.endetAt?.toISOString() ?? null, unbefristet: activeSperrzeit.endetAt === null } : null,
+    lockPeriod: activeLockPeriod ? { endetAt: activeLockPeriod.endetAt?.toISOString() ?? null, indefinite: activeLockPeriod.endetAt === null } : null,
     box: box ? { lockUntil: box.lockUntil?.toISOString() ?? null } : null,
     now,
   });
@@ -51,9 +51,9 @@ export default async function NewOeffnenPage() {
         taskWarnings={taskWarnings}
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
-        sperrzeit={{
-          endetAt: activeSperrzeit?.endetAt?.toISOString() ?? null,
-          unbefristet: !!activeSperrzeit && activeSperrzeit.endetAt === null,
+        lockPeriod={{
+          endetAt: activeLockPeriod?.endetAt?.toISOString() ?? null,
+          indefinite: !!activeLockPeriod && activeLockPeriod.endetAt === null,
         }}
         reinigung={{
           maxMinuten: user?.reinigungMaxMinuten ?? 15,
@@ -65,10 +65,10 @@ export default async function NewOeffnenPage() {
           // Ohne aktive Sperrzeit gibt es nichts zu brechen: Fenster und Sperr-Flag sind dann
           // bedeutungslos, und ein „ausserhalb des Reinigungsfensters" wäre eine Mahnung ohne
           // Gegenstand. Nur `userNotAllowed` gilt immer — dem Sub fehlt die Erlaubnis so oder so.
-          cleaningBlock: activeSperrzeit
+          cleaningBlock: activeLockPeriod
             ? cleaningBlockReason(
                 { reinigungErlaubt: user?.reinigungErlaubt ?? false, reinigungsFenster: user?.reinigungsFenster, timezone: tz },
-                [activeSperrzeit],
+                [activeLockPeriod],
                 now,
               )
             : (user?.reinigungErlaubt ? null : "userNotAllowed"),

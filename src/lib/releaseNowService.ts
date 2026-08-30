@@ -22,7 +22,7 @@ import type { MessageActor } from "@/lib/messageService";
  *
  * **Die Reihenfolge ist der ganze Trick.** Die Sperrzeit endet ZUERST, und zwar mit demselben
  * Zeitstempel, den die Öffnung trägt. Das Strafbuch sucht die Sperrzeit, die zur Öffnungszeit aktiv
- * war (`findActiveSperrzeit`), und zählt eine als aktiv, solange `withdrawnAt > openTime`. Bei
+ * war (`findActiveLockPeriod`), und zählt eine als aktiv, solange `withdrawnAt > openTime`. Bei
  * Gleichstand ist sie es nicht mehr — die Öffnung ist damit sauber, ohne dass die Ableitung einen
  * Sonderfall für diesen Knopf bräuchte. In der UMGEKEHRTEN Reihenfolge (erst erfassen, dann
  * zurückziehen) stünde sie als „unerlaubte Öffnung" im Strafbuch, obwohl die Keyholderin sie selbst
@@ -37,7 +37,7 @@ import type { MessageActor } from "@/lib/messageService";
  * der Öffnung endet") — samt Gegenprobe eine Millisekunde daneben.
  *
  * Aus demselben Grund ein EIGENER Endgrund (`released`): `opening` heisst „vom Sub aufgebrochen"
- * und speist `getInterruptedSperrzeit`, also die Anzeige „gebrochene Sperrzeit". Eine Freigabe ist
+ * und speist `getInterruptedLockPeriod`, also die Anzeige „gebrochene Sperrzeit". Eine Freigabe ist
  * kein Bruch.
  *
  * **Was der Knopf NICHT ist:** die Not-Öffnung. Die bleibt in Heimdall und soll im Box-Protokoll
@@ -170,12 +170,12 @@ export async function releaseNow(params: ReleaseNowParams): Promise<ServiceResul
       //    Die EIGENE Frist der Box (`BoxStatus.lockUntil`) wird hier bewusst NICHT angefasst: die
       //    Spalte ist die Selbstauskunft der Box, die `/api/integration/box/status` bei jedem Sync
       //    überschreibt — hineinzuschreiben hiesse, in den Spiegel zu schreiben. Gestellt wird die
-      //    Frist über `/api/integration/box/config`, und das leitet sie aus `getActiveSperrzeit`
+      //    Frist über `/api/integration/box/config`, und das leitet sie aus `getActiveLockPeriod`
       //    ab; nach Schritt 1 also aus nichts.
       //    Das Kommando kommt aus `boxCommandForEntry`, nicht als Literal: dort steht die EINE
       //    Regel, welchem Eintrag die Box folgt (und die zwei Fälle, in denen sie es nicht tut).
       //    Ein hartes „open" hier wäre die Stelle, die eine dort ergänzte dritte Regel verpasst.
-      const cmd = boxCommandForEntry({ type: "OEFFNEN", brokeSperrzeit: false });
+      const cmd = boxCommandForEntry({ type: "OEFFNEN", brokeLockPeriod: false });
       const boxCommanded = cmd ? await setBoxCommandForUser(tx, userId, cmd) : false;
 
       return { entryId, entryAt: now, endedLockPeriods, boxCommanded };

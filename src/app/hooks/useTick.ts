@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
  *
  * `intervalMs <= 0` schaltet den Takt ab, ohne dass der Aufrufer den Hook bedingt aufrufen müsste
  * (was React verbietet). Dafür gibt es einen Grund: ein abgelaufener Countdown zeigt einen festen
- * Text, tickte aber bis zum Unmount weiter — im Fall von `SperrzeitRemaining` sogar in eine
+ * Text, tickte aber bis zum Unmount weiter — im Fall von `LockPeriodRemaining` sogar in eine
  * Komponente hinein, die nichts mehr rendert.
  */
 export default function useTick(intervalMs: number): void {

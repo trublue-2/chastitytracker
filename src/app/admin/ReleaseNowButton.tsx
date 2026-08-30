@@ -15,7 +15,7 @@ import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
 interface Props {
   userId: string;
   /** Läuft gerade eine Sperrzeit? Dann sagt das Blatt, dass sie mit endet. */
-  hasActiveSperrzeit: boolean;
+  hasActiveLockPeriod: boolean;
 }
 
 /**
@@ -26,7 +26,7 @@ interface Props {
  * Wirkungen nach sich, von denen zwei unsichtbar sind — die Box und der Eintrag. Wer nur „Sofort
  * aufschliessen" liest, rechnet mit einer davon.
  */
-export default function ReleaseNowButton({ userId, hasActiveSperrzeit }: Props) {
+export default function ReleaseNowButton({ userId, hasActiveLockPeriod }: Props) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const apiError = useApiError();
@@ -86,7 +86,7 @@ export default function ReleaseNowButton({ userId, hasActiveSperrzeit }: Props) 
           {/* Was gleich passiert, in der Reihenfolge, in der es passiert. Zwei der drei Wirkungen
               sieht die Keyholderin sonst nirgends. */}
           <ul className="flex flex-col gap-1.5 text-sm text-foreground-muted list-disc pl-5">
-            {hasActiveSperrzeit && <li>{t("releaseNowEndsLockPeriod")}</li>}
+            {hasActiveLockPeriod && <li>{t("releaseNowEndsLockPeriod")}</li>}
             <li>{t("releaseNowOpensBox")}</li>
             <li>{t("releaseNowRecordsOpening")}</li>
           </ul>

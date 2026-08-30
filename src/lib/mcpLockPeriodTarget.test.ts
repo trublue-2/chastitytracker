@@ -14,23 +14,23 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/queries", () => ({
   getUserDeviceOptions: vi.fn(),
-  getKeyholderSperrzeiten: vi.fn(),
+  getKeyholderLockPeriods: vi.fn(),
 }));
 vi.mock("@/lib/verschlussAnforderungService", () => ({
   createVerschlussAnforderung: vi.fn(),
-  updateSperrzeitEnde: vi.fn(),
+  updateLockPeriodEnd: vi.fn(),
   withdrawVerschlussAnforderung: vi.fn(),
   withdrawVerschlussAnforderungById: vi.fn(),
 }));
 
 import { mcpEditLockPeriod, mcpWithdraw } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { getKeyholderSperrzeiten } from "@/lib/queries";
-import { updateSperrzeitEnde, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, type WithdrawnDirective } from "@/lib/verschlussAnforderungService";
+import { getKeyholderLockPeriods } from "@/lib/queries";
+import { updateLockPeriodEnd, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, type WithdrawnDirective } from "@/lib/verschlussAnforderungService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
-const openMock = getKeyholderSperrzeiten as unknown as ReturnType<typeof vi.fn>;
-const updateEndeMock = updateSperrzeitEnde as unknown as ReturnType<typeof vi.fn>;
+const openMock = getKeyholderLockPeriods as unknown as ReturnType<typeof vi.fn>;
+const updateEndeMock = updateLockPeriodEnd as unknown as ReturnType<typeof vi.fn>;
 const withdrawMock = withdrawVerschlussAnforderung as unknown as ReturnType<typeof vi.fn>;
 const withdrawByIdMock = withdrawVerschlussAnforderungById as unknown as ReturnType<typeof vi.fn>;
 const vaFindUnique = prisma.verschlussAnforderung.findUnique as unknown as ReturnType<typeof vi.fn>;

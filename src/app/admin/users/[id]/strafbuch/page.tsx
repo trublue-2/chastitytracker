@@ -44,8 +44,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     id: o.id,
     startTimeStr: fmtDual(o.startTime),
     note: o.note,
-    sperrzeitEndetAtStr: o.sperrzeitEndetAt ? fmtDual(o.sperrzeitEndetAt) : null,
-    sperrzeitUnbefristet: o.sperrzeitIndefinite,
+    lockPeriodEndsAtStr: o.lockPeriodEndsAt ? fmtDual(o.lockPeriodEndsAt) : null,
+    lockPeriodIndefinite: o.lockPeriodIndefinite,
   }));
 
   const toKontrollRow = (k: StrafbuchControlOffense, backdated: boolean): KontrollRow => ({
@@ -115,7 +115,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     atStr: fmtDual(p.at),
     adminUsername: p.adminUsername,
     via: p.via,
-    sperrzeitEndetAtStr: p.sperrzeitEndetAt ? fmtDual(p.sperrzeitEndetAt) : null,
+    lockPeriodEndsAtStr: p.lockPeriodEndsAt ? fmtDual(p.lockPeriodEndsAt) : null,
   }));
 
   const unerlaubteOrgasmen: UnerlaubterOrgasmusRow[] = sb.unauthorizedOrgasms.map((o) => ({
@@ -123,8 +123,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     startTimeStr: fmtDual(o.startTime),
     orgasmusArt: o.orgasmusArt,
     note: o.note,
-    sperrzeitEndetAtStr: o.sperrzeitEndetAt ? fmtDual(o.sperrzeitEndetAt) : null,
-    sperrzeitUnbefristet: o.sperrzeitIndefinite,
+    lockPeriodEndsAtStr: o.lockPeriodEndsAt ? fmtDual(o.lockPeriodEndsAt) : null,
+    lockPeriodIndefinite: o.lockPeriodIndefinite,
   }));
 
   const manuelleVergehen: ManuellesVergehenRow[] = sb.manualOffenses.map((m) => ({

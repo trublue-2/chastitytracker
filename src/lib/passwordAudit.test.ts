@@ -6,15 +6,15 @@ vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
-vi.mock("@/lib/queries", () => ({ subsWithActiveSperrzeit: vi.fn() }));
+vi.mock("@/lib/queries", () => ({ subsWithActiveLockPeriod: vi.fn() }));
 
 import { buildAdminPasswordChangeRows } from "./passwordAudit";
 import { prisma } from "@/lib/prisma";
-import { subsWithActiveSperrzeit } from "@/lib/queries";
+import { subsWithActiveLockPeriod } from "@/lib/queries";
 import { type PrismaMock } from "@/test/prismaMock";
 
 const prismaMock = prisma as unknown as PrismaMock;
-const activeLocks = vi.mocked(subsWithActiveSperrzeit);
+const activeLocks = vi.mocked(subsWithActiveLockPeriod);
 
 const ADMIN = { id: "a1", username: "Admin", role: "admin" };
 const SUB = { id: "s1", username: "Sub", role: "user" };
@@ -38,8 +38,8 @@ describe("buildAdminPasswordChangeRows", () => {
       adminUsername: "Admin",
       via: "reset_token",
       actorUserId: null,
-      sperrzeitId: "sp1",
-      sperrzeitEndetAt: LAUFENDE_SPERRZEIT[0].endetAt,
+      lockPeriodId: "sp1",
+      lockPeriodEndsAt: LAUFENDE_SPERRZEIT[0].endetAt,
     }]);
   });
 

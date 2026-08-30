@@ -178,7 +178,7 @@ export const FM_WIRED_EDGES: FmWiredEdge[] = [
   {
     from: "Einträge", to: "Sperrzeit",
     rule: "Eine Öffnung ohne Deckung hebt JEDE aktive Sperrzeit auf. Eine erlaubte Reinigungsöffnung und ein Orgasmus-Öffnungsfenster tun das nicht.",
-    anchor: "queries.ts:releaseSperrzeitenOnOpen",
+    anchor: "queries.ts:releaseLockPeriodsOnOpen",
   },
   {
     from: "Einträge", to: "Sessions/Statistik",
@@ -360,7 +360,7 @@ export const FM_REGISTRY: FmEntry[] = [
     model: "User", field: "inspectionAutoMarkEnabled", domain: "kontrollen", scope: "standing",
     effect: "Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf.",
     writers: ["admin", "mcp"], affects: ["Kontrollen", "Einträge", "Sessions/Statistik", "Strafbuch"],
-    anchor: "queries.ts:releaseSperrzeitenOnOpen",
+    anchor: "queries.ts:releaseLockPeriodsOnOpen",
   }),
   s({
     model: "User", field: "inspectionAutoMarkDelayMinutes", domain: "kontrollen", scope: "standing",
@@ -595,21 +595,21 @@ export const FM_REGISTRY: FmEntry[] = [
     model: "VerschlussAnforderung", field: "reinigungErlaubt", domain: "sperrzeit", scope: "directive",
     effect: "Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit", "Reinigung", "Box", "Geräte"],
-    anchor: "queries.ts:foldActiveSperrzeiten",
+    anchor: "queries.ts:foldActiveLockPeriods",
   }),
   s({
     model: "VerschlussAnforderung", field: "endetAt", domain: "sperrzeit", scope: "directive",
-    effect: "Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen.",
+    effect: "Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit", "Box", "Strafbuch"],
-    anchor: "queries.ts:foldActiveSperrzeiten",
+    anchor: "queries.ts:foldActiveLockPeriods",
   }),
   s({
     model: "VerschlussAnforderung", field: "dauerH", domain: "sperrzeit", scope: "directive",
-    effect: "Mindest-Tragedauer einer Anforderung; die Uhr startet beim tatsächlichen Verschluss. Alternative zu `sperrEndetAt`.",
+    effect: "Mindest-Tragedauer einer Anforderung; die Uhr startet beim tatsächlichen Verschluss. Alternative zu `lockEndsAt`.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit"], anchor: "entryFulfilment.ts",
   }),
   s({
-    model: "VerschlussAnforderung", field: "sperrEndetAt", domain: "sperrzeit", scope: "directive",
+    model: "VerschlussAnforderung", field: "lockEndsAt", domain: "sperrzeit", scope: "directive",
     effect: "Absolutes Sperr-Ende einer Anforderung (feste Wanduhr). Ein später Verschluss verschiebt es NICHT — anders als `dauerH`.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit"], anchor: "entryFulfilment.ts",
   }),
@@ -1038,8 +1038,8 @@ export const FM_REGISTRY: FmEntry[] = [
   x("audit", "AdminPasswordChange", "via",
     "`reset_token` (über das Postfach Zugang verschafft), `self` oder `set_by_other`. Der interessante Fall ist der erste."),
   x("audit", "AdminPasswordChange", "actorUserId", "Wer ausgelöst hat; leer beim Token-Weg, dort gibt es keine Sitzung."),
-  x("record", "AdminPasswordChange", "sperrzeitId", "Die damals laufende Sperrzeit — für die Anzeige, ohne Fremdschlüssel-Zwang."),
-  x("record", "AdminPasswordChange", "sperrzeitEndetAt", "Deren Ende zum Zeitpunkt des Vorgangs."),
+  x("record", "AdminPasswordChange", "lockPeriodId", "Die damals laufende Sperrzeit — für die Anzeige, ohne Fremdschlüssel-Zwang."),
+  x("record", "AdminPasswordChange", "lockPeriodEndsAt", "Deren Ende zum Zeitpunkt des Vorgangs."),
   stamp("AdminPasswordChange"),
 
   // ── CleaningRuleChange: Abbild, nicht Schalter ─────────────────────────────────────────────

@@ -4,9 +4,9 @@ import { pruneWeightPhotos } from "@/lib/weightService";
 import { sendDueWeighingReminders } from "@/lib/weightReminder";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";
-import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
+import { getIsLocked, getActiveLockPeriod } from "@/lib/queries";
 import { resolveInspectionTarget, inspectionTargetLabel, isKgTarget } from "@/lib/inspectionTarget";
-import { sendVerschlussAnforderungNotifications, checkLockEnd, carryOverSperrzeitOnAlreadyLocked } from "@/lib/verschlussAnforderungService";
+import { sendVerschlussAnforderungNotifications, checkLockEnd, carryOverLockPeriodOnAlreadyLocked } from "@/lib/verschlussAnforderungService";
 import { sendOrgasmusAnforderungNotifications, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt, autoKontrolleSettingsFromUser, AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
 import { APP_TZ } from "@/lib/utils";
@@ -94,7 +94,7 @@ async function processDue(): Promise<void> {
         // `!ka.cleaningRelock`: für die Kontrolle nach einer Reinigungspause gilt der Schalter nicht —
         // ihr Anlass ist die Reinigung selbst, nicht der Tagesplan, und ohne laufende Sperrzeit ist
         // sie genauso berechtigt.
-        if (ka.auto && !ka.cleaningRelock && ka.user.autoKontrolleNurBeiSperre && !(await getActiveSperrzeit(ka.userId))) {
+        if (ka.auto && !ka.cleaningRelock && ka.user.autoKontrolleNurBeiSperre && !(await getActiveLockPeriod(ka.userId))) {
           await withdrawKa(ka.id);
           continue;
         }
@@ -298,8 +298,8 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
       if (obsolete) {
         // Gegenstandslos heisst nicht wertlos: eine ANFORDERUNG an einen bereits verschlossenen Sub
         // ist ERFÜLLT, und die Sperrzeit, die sie mitbringt, bleibt gewollt. Warum und mit welchem
-        // Anker steht bei `carryOverSperrzeitOnAlreadyLocked`; `null` = nichts zu übernehmen.
-        const uebernommen = art === "ANFORDERUNG" ? await carryOverSperrzeitOnAlreadyLocked(va, now) : null;
+        // Anker steht bei `carryOverLockPeriodOnAlreadyLocked`; `null` = nichts zu übernehmen.
+        const uebernommen = art === "ANFORDERUNG" ? await carryOverLockPeriodOnAlreadyLocked(va, now) : null;
         if (!uebernommen) {
           await prisma.verschlussAnforderung.update({
             where: { id: va.id },
@@ -316,10 +316,10 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
           art: "SPERRZEIT",
           nachricht: uebernommen.nachricht,
           endetAtDate: uebernommen.endetAt,
-          requestId: uebernommen.sperrzeitId,
+          requestId: uebernommen.lockPeriodId,
           // Aus der ÜBERNOMMENEN Zeile, wie ihr Text daneben: die Meldung gehört zur Sperrzeit und
           // nennt deshalb, was in IHR steht. Dass die Anordnende dieselbe ist wie an der Anforderung,
-          // ist die Vererbung in `carryOverSperrzeitOnAlreadyLocked` — und die steht dort, nicht hier.
+          // ist die Vererbung in `carryOverLockPeriodOnAlreadyLocked` — und die steht dort, nicht hier.
           actor: uebernommen.createdBy,
         });
         continue;
@@ -332,7 +332,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         nachricht: va.nachricht,
         endetAtDate: va.endetAt,
         dauerH: va.dauerH,
-        sperrEndetAtDate: va.sperrEndetAt,
+        lockEndsAtDate: va.lockEndsAt,
         requestId: va.id,
         // Wie bei der Kontrolle: genannt wird, wer die Direktive angeordnet hat, nicht der Bote.
         actor: va.createdBy,

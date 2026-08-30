@@ -11,34 +11,34 @@ import { boxCommandForEntry } from "./boxCommand";
  */
 describe("boxCommandForEntry", () => {
   it("VERSCHLUSS mit Schlüssel in der Box → verriegeln", () => {
-    expect(boxCommandForEntry({ type: "VERSCHLUSS", keyInBox: true, brokeSperrzeit: false })).toBe("lock");
+    expect(boxCommandForEntry({ type: "VERSCHLUSS", keyInBox: true, brokeLockPeriod: false })).toBe("lock");
   });
 
   it("KERN-BUG 11.07.: VERSCHLUSS OHNE Schlüssel in der Box → die Box rührt sich NICHT", () => {
     // Der Eintrag wird trotzdem gespeichert — er ist wahr. Nur die leere Box spielt keinen Riegel.
-    expect(boxCommandForEntry({ type: "VERSCHLUSS", keyInBox: false, brokeSperrzeit: false })).toBeNull();
+    expect(boxCommandForEntry({ type: "VERSCHLUSS", keyInBox: false, brokeLockPeriod: false })).toBeNull();
   });
 
   it("fehlendes keyInBox → verriegeln wie bisher (keine Box, Admin-Pfad, Alt-Client)", () => {
-    expect(boxCommandForEntry({ type: "VERSCHLUSS", brokeSperrzeit: false })).toBe("lock");
+    expect(boxCommandForEntry({ type: "VERSCHLUSS", brokeLockPeriod: false })).toBe("lock");
   });
 
   it("erlaubtes OEFFNEN → öffnen", () => {
-    expect(boxCommandForEntry({ type: "OEFFNEN", brokeSperrzeit: false })).toBe("open");
+    expect(boxCommandForEntry({ type: "OEFFNEN", brokeLockPeriod: false })).toBe("open");
   });
 
   it("VERBOTENES OEFFNEN (Sperrzeit gebrochen) → die Box bleibt zu", () => {
     // Sonst vollstreckte das Dokumentieren des Verstosses den Verstoss.
-    expect(boxCommandForEntry({ type: "OEFFNEN", brokeSperrzeit: true })).toBeNull();
+    expect(boxCommandForEntry({ type: "OEFFNEN", brokeLockPeriod: true })).toBeNull();
   });
 
   it("keyInBox gilt NUR für VERSCHLUSS — ein Öffnen bleibt ein Öffnen", () => {
-    expect(boxCommandForEntry({ type: "OEFFNEN", keyInBox: false, brokeSperrzeit: false })).toBe("open");
+    expect(boxCommandForEntry({ type: "OEFFNEN", keyInBox: false, brokeLockPeriod: false })).toBe("open");
   });
 
   it("andere Eintragstypen lassen die Box in Ruhe", () => {
     for (const type of ["PRUEFUNG", "ORGASMUS", "WEAR_BEGIN", "WEAR_END"]) {
-      expect(boxCommandForEntry({ type, brokeSperrzeit: false })).toBeNull();
+      expect(boxCommandForEntry({ type, brokeLockPeriod: false })).toBeNull();
     }
   });
 });

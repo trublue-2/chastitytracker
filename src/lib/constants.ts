@@ -261,7 +261,7 @@ export const LOCK_ENDED_REASON = {
    * Von der Keyholderin vorzeitig FREIGEGEBEN („Sofort aufschliessen").
    *
    * Ein eigener Grund neben `keyholder` und `opening`, weil beide etwas anderes bedeuten würden:
-   * `opening` heisst „vom Sub aufgebrochen" und speist `getInterruptedSperrzeit`, also die Anzeige
+   * `opening` heisst „vom Sub aufgebrochen" und speist `getInterruptedLockPeriod`, also die Anzeige
    * „gebrochene Sperrzeit" — eine Freigabe ist kein Bruch. `keyholder` heisst „zurückgezogen", und
    * das stimmt zwar, verschweigt aber, dass im selben Griff aufgeschlossen wurde.
    */

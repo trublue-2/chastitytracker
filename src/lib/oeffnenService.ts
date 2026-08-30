@@ -1,4 +1,4 @@
-import { releaseSperrzeitenOnOpen, getLatestKgEntry, type PrismaTx } from "@/lib/queries";
+import { releaseLockPeriodsOnOpen, getLatestKgEntry, type PrismaTx } from "@/lib/queries";
 import { codedError } from "@/lib/codedError";
 
 export interface CreateOeffnenParams {
@@ -15,7 +15,7 @@ export interface CreateOeffnenParams {
 
 export interface CreateOeffnenResult {
   entryId: string;
-  withdrawnSperrzeit: boolean;
+  withdrawnLockPeriod: boolean;
 }
 
 /**
@@ -44,11 +44,11 @@ export async function createOeffnenEntryTx(tx: PrismaTx, params: CreateOeffnenPa
     throw codedError("TIME_BEFORE");
   }
 
-  const withdrawnSperrzeit = await releaseSperrzeitenOnOpen(userId, oeffnenGrund, tx, source);
+  const withdrawnLockPeriod = await releaseLockPeriodsOnOpen(userId, oeffnenGrund, tx, source);
 
   const created = await tx.entry.create({
     data: { userId, type: "OEFFNEN", startTime, oeffnenGrund, note, source },
   });
 
-  return { entryId: created.id, withdrawnSperrzeit };
+  return { entryId: created.id, withdrawnLockPeriod };
 }

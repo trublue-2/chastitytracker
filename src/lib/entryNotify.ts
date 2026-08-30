@@ -19,7 +19,7 @@ export interface EntryNotifyParams {
   type: string;
   startTime: Date;
   /** Öffnung während einer zurückgezogenen Sperrzeit — steuert nur die Empfänger-Auswahl. */
-  withdrawnSperrzeit?: boolean;
+  withdrawnLockPeriod?: boolean;
   oeffnenGrund?: string | null;
   orgasmusArt?: string | null;
   kontrollCode?: string | null;
@@ -42,7 +42,7 @@ export interface EntryNotifyParams {
 function eventTypesFor(p: EntryNotifyParams): NotificationEventType[] {
   switch (p.type) {
     case "VERSCHLUSS": return ["VERSCHLUSS"];
-    case "OEFFNEN": return p.withdrawnSperrzeit ? ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"] : ["OEFFNUNG_IMMER"];
+    case "OEFFNEN": return p.withdrawnLockPeriod ? ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"] : ["OEFFNUNG_IMMER"];
     case "ORGASMUS": return ["ORGASMUS"];
     case "PRUEFUNG": return [p.kontrollCode ? "KONTROLLE_ANGEFORDERT" : "KONTROLLE_FREIWILLIG"];
     case "WEAR_BEGIN": return ["WEAR_BEGIN_ANY"];

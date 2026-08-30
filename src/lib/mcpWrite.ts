@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { getUserDeviceOptions, getKeyholderSperrzeiten, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/queries";
+import { getUserDeviceOptions, getKeyholderLockPeriods, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { isHiddenFromSub, computeDelayedTrigger } from "@/lib/delayedTrigger";
-import { createVerschlussAnforderung, updateSperrzeitEnde, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
+import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
@@ -223,7 +223,7 @@ export async function mcpRequestLock(username: string, args: RequestLockArgs) {
     endetAt: args.deadlineAt,
     fristH: args.deadlineHours,
     dauerH: args.minDurationHours,
-    sperrEndetAt: args.lockUntilAt,
+    lockEndsAt: args.lockUntilAt,
     reinigungErlaubt: args.cleaningAllowed,
     deviceId,
     delayMinutes: args.delayMinutes,
@@ -710,13 +710,13 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
     // Bei den id-fähigen Zielen (lock_request/lock_period) OHNE id die betroffenen Zeilen EINZELN
     // auflisten — die blosse Anzahl sagt nicht, WELCHE getroffen würde, und bei mehreren offenen ist
     // genau das die Frage vor einem gezielten Einzel-Rückzug. `getKeyholderLockRequests`/
-    // `getKeyholderSperrzeiten` liefern exakt die Zeilen, die withdrawVerschlussAnforderung(art) auch
+    // `getKeyholderLockPeriods` liefern exakt die Zeilen, die withdrawVerschlussAnforderung(art) auch
     // stornieren würde (identisches where), also ist targets.length == willWithdraw garantiert.
     if (!args.id && (args.target === "lock_request" || args.target === "lock_period")) {
       const iso = await isoForUser(userId);
       const open = args.target === "lock_request"
         ? await getKeyholderLockRequests(userId)
-        : await getKeyholderSperrzeiten(userId);
+        : await getKeyholderLockPeriods(userId);
       const targets = open.map((s) => directiveRow(s, iso));
       return { dryRun: true, tool: "withdraw", wouldSucceed: true, preview: { target: args.target, willWithdraw: targets.length, targets } } satisfies DryRunPreview;
     }
@@ -1754,7 +1754,7 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
   if (!args.indefinite && !args.untilAt) throw new Error("Provide untilAt (ISO date) or indefinite=true.");
   const endetAt = args.indefinite ? null : parseIsoDate(args.untilAt!, "untilAt");
 
-  const open = await getKeyholderSperrzeiten(userId); // aktive UND geplante, neueste zuerst
+  const open = await getKeyholderLockPeriods(userId); // aktive UND geplante, neueste zuerst
   const { target, untouched, ambiguity } = pickEditTarget(open, args.id, iso, "lock period");
 
   if (args.dryRun) {
@@ -1769,7 +1769,7 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
     } satisfies DryRunPreview;
   }
 
-  const { notified } = unwrap(await updateSperrzeitEnde(target.id, endetAt, AI_AUTHOR));
+  const { notified } = unwrap(await updateLockPeriodEnd(target.id, endetAt, AI_AUTHOR));
   const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${iso(endetAt)}.`;
   return {
     ok: true,
@@ -1844,9 +1844,9 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
     ...(args.message !== undefined ? { nachricht: args.message } : {}),
     ...(deviceId !== undefined ? { deviceId } : {}),
     ...(args.cleaningAllowed !== undefined ? { reinigungErlaubt: args.cleaningAllowed } : {}),
-    ...(args.clearLockPeriod ? { dauerH: null, sperrEndetAt: null } : {}),
+    ...(args.clearLockPeriod ? { dauerH: null, lockEndsAt: null } : {}),
     ...(args.minDurationHours != null ? { dauerH: args.minDurationHours } : {}),
-    ...(args.lockUntilAt ? { sperrEndetAt: parseIsoDate(args.lockUntilAt, "lockUntilAt") } : {}),
+    ...(args.lockUntilAt ? { lockEndsAt: parseIsoDate(args.lockUntilAt, "lockUntilAt") } : {}),
     ...(args.triggerNow || args.scheduledAt ? { wirksamAb } : {}),
   };
 
@@ -1858,15 +1858,15 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
     // Denselben Ausschluss wie der Commit (updateLockRequest → LOCK_DURATION_OR_END) und wie
     // request_lock: sonst meldete die Vorschau „wouldSucceed" für eine Eingabe, die der Commit
     // ablehnt — genau die Divergenz, die mergeLockRequestPatch zu verhindern beansprucht.
-    const problem = (patch.dauerH != null && patch.sperrEndetAt != null)
+    const problem = (patch.dauerH != null && patch.lockEndsAt != null)
       ? "LOCK_DURATION_OR_END"
-      : checkLockEnd(next.sperrEndetAt, next.wirksamAb, now) ?? undefined;
+      : checkLockEnd(next.lockEndsAt, next.wirksamAb, now) ?? undefined;
     const fields = (row: MergedLockRequest, deviceName: string | null): Record<string, unknown> => ({
       deadlineAt: iso(row.endetAt),
       message: row.nachricht,
       device: deviceName,
       minDurationHours: row.dauerH,
-      lockUntilAt: iso(row.sperrEndetAt),
+      lockUntilAt: iso(row.lockEndsAt),
       cleaningAllowed: row.reinigungErlaubt,
       scheduledFor: iso(row.wirksamAb),
     });

@@ -68,10 +68,10 @@ describe("cleaningRelockObligation — dieselbe Regel für Strafbuch UND Dashboa
   const enforcedFrom = new Date("2026-01-01T00:00:00Z");
   const opening = { oeffnenGrund: "REINIGUNG", startTime: new Date("2026-07-09T18:00:00Z") }; // 20:00 Zürich
   const user = { reinigungErlaubt: true, reinigungsFenster: [{ start: "20:00", end: "22:00" }], timezone: tz };
-  const sperre = { reinigungErlaubt: true, endetAt: null };
+  const lockPeriod = { reinigungErlaubt: true, endetAt: null };
 
   it("liefert die Fenster-Frist, wenn die Öffnung erlaubt ist", () => {
-    const d = cleaningRelockObligation(opening, sperre, user, 15, enforcedFrom);
+    const d = cleaningRelockObligation(opening, lockPeriod, user, 15, enforcedFrom);
     expect(d?.toISOString()).toBe("2026-07-09T20:00:00.000Z"); // Fensterende 22:00 Zürich
   });
 
@@ -85,11 +85,11 @@ describe("cleaningRelockObligation — dieselbe Regel für Strafbuch UND Dashboa
 
   it("keine Pflicht ausserhalb der konfigurierten Fenster", () => {
     const spaet = { oeffnenGrund: "REINIGUNG", startTime: new Date("2026-07-09T21:00:00Z") }; // 23:00 Zürich
-    expect(cleaningRelockObligation(spaet, sperre, user, 15, enforcedFrom)).toBeNull();
+    expect(cleaningRelockObligation(spaet, lockPeriod, user, 15, enforcedFrom)).toBeNull();
   });
 
   it("keine Pflicht, wenn der Nutzer gar nicht reinigen darf", () => {
-    expect(cleaningRelockObligation(opening, sperre, { ...user, reinigungErlaubt: false }, 15, enforcedFrom)).toBeNull();
+    expect(cleaningRelockObligation(opening, lockPeriod, { ...user, reinigungErlaubt: false }, 15, enforcedFrom)).toBeNull();
   });
 
   it("keine Pflicht, wenn die Sperrzeit VOR der Frist endet — es bliebe nichts zu verletzen", () => {
@@ -98,7 +98,7 @@ describe("cleaningRelockObligation — dieselbe Regel für Strafbuch UND Dashboa
   });
 
   it("andere Öffnungsgründe begründen keine Pflicht", () => {
-    expect(cleaningRelockObligation({ ...opening, oeffnenGrund: "KEYHOLDER" }, sperre, user, 15, enforcedFrom)).toBeNull();
+    expect(cleaningRelockObligation({ ...opening, oeffnenGrund: "KEYHOLDER" }, lockPeriod, user, 15, enforcedFrom)).toBeNull();
   });
 });
 
@@ -137,7 +137,7 @@ const oeffnung = (startTime: Date, id = "e1") => ({
 
 /** Zwei findMany auf derselben Tabelle (SPERRZEIT + ANFORDERUNG) — nach `art` unterscheiden,
  *  statt sich auf die Aufrufreihenfolge im Promise.all zu verlassen. */
-const mockSperrzeiten = (rows: unknown[]) =>
+const mockLockPeriods = (rows: unknown[]) =>
   db.verschlussAnforderung.findMany.mockImplementation((args: { where?: { art?: string } }) =>
     Promise.resolve(args?.where?.art === "SPERRZEIT" ? rows : []),
   );
@@ -157,7 +157,7 @@ const mockStichtag = (iso: string) =>
 /**
  * Das Strafbuch muss dieselbe Regel anwenden wie die Durchsetzung. Einmal tat es das nicht: es prüfte
  * das User-Flag und das Sperrzeit-Flag, aber NICHT das Reinigungsfenster. Eine Reinigungsöffnung
- * ausserhalb des Fensters zog die Sperrzeit zurück (`releaseSperrzeitenOnOpen`) und galt hier
+ * ausserhalb des Fensters zog die Sperrzeit zurück (`releaseLockPeriodsOnOpen`) und galt hier
  * trotzdem als erlaubt — kein unerlaubtes Öffnen, stattdessen eine Wiederverschluss-Frist. Die Sperre
  * brach, und nichts stand im Buch.
  */
@@ -193,7 +193,7 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
   beforeEach(() => {
     vi.clearAllMocks();
     db.user.findUnique.mockResolvedValue(USER);
-    mockSperrzeiten([SPERRE]);
+    mockLockPeriods([SPERRE]);
     // Stichtag festnageln: hier steht die FENSTER-Regel zur Prüfung, nicht der Stichtag. Läge er
     // nach den Öffnungen dieses Blocks (10.07.), wären sie pauschal straffrei — der Test prüfte
     // dann nichts mehr.
@@ -235,7 +235,7 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
   });
 
   it("die Sperrzeit verbietet Reinigung: unerlaubtes Öffnen, auch im Fenster", async () => {
-    mockSperrzeiten([{ ...SPERRE, reinigungErlaubt: false }]);
+    mockLockPeriods([{ ...SPERRE, reinigungErlaubt: false }]);
     mockOeffnung(oeffnung(IM_FENSTER));
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
   });
@@ -413,7 +413,7 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
       reinigungErlaubt: false, reinigungMaxProTag: 0, reinigungMaxMinuten: 15,
       reinigungsFenster: null, timezone: "Europe/Zurich",
     });
-    mockSperrzeiten([]);
+    mockLockPeriods([]);
     mockStichtag("2026-07-01T00:00:00Z");
     // Zurücksetzen, nicht dem Nachlass überlassen: `vi.clearAllMocks()` löscht die Aufrufe, nicht die
     // Implementierungen (siehe die Warnung am Kopf dieser Datei).
@@ -647,7 +647,7 @@ describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
       { allowed: true, maxMinutes: 15, maxPerDay: 2, windows: null, effectiveFrom: new Date(0) },
       { allowed: false, maxMinutes: 15, maxPerDay: 2, windows: null, effectiveFrom: GESENKT_AM },
     ]);
-    mockSperrzeiten([{
+    mockLockPeriods([{
       id: "s1",
       createdAt: new Date("2026-08-01T00:00:00Z"),
       endetAt: new Date("2026-08-31T00:00:00Z"),
@@ -669,7 +669,7 @@ describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
  * jede von der Keyholderin ausgelöste Öffnung als unerlaubte im Strafbuch, obwohl sie selbst sie
  * ausgelöst hat.
  *
- * Die Regel lebt in einem einzigen `>` in `findActiveSperrzeit`. Wer daraus ein `>=` macht, kippt
+ * Die Regel lebt in einem einzigen `>` in `findActiveLockPeriod`. Wer daraus ein `>=` macht, kippt
  * das Verhalten lautlos — in der Ableitung sieht es aus wie eine Härtung, und die Wirkung zeigt
  * sich erst im Strafbuch eines fremden Subs. Diese beiden Fälle nageln es fest.
  */
@@ -702,14 +702,14 @@ describe("buildStrafbuch — die Sperrzeit, die im Moment der Öffnung endet", (
   });
 
   it("gleicher Zeitstempel: die Öffnung ist KEIN Vergehen", async () => {
-    mockSperrzeiten([lockEndingAt(OPENED_AT)]);
+    mockLockPeriods([lockEndingAt(OPENED_AT)]);
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
   });
 
   it("eine Millisekunde später beendet: die Sperrzeit galt noch, also IST es eines", async () => {
     // Die Gegenprobe. Ohne sie belegte der Test oben nur, dass gerade nichts anschlägt — nicht,
     // dass der Zeitstempel den Ausschlag gibt.
-    mockSperrzeiten([lockEndingAt(new Date(OPENED_AT.getTime() + 1))]);
+    mockLockPeriods([lockEndingAt(new Date(OPENED_AT.getTime() + 1))]);
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
   });
 });

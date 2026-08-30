@@ -41,8 +41,8 @@ export interface UnerlaubteOeffnungRow {
   id: string;
   startTimeStr: string;
   note: string | null;
-  sperrzeitEndetAtStr: string | null;
-  sperrzeitUnbefristet: boolean;
+  lockPeriodEndsAtStr: string | null;
+  lockPeriodIndefinite: boolean;
 }
 
 /** Ein versäumter Drei-Tage-Block ohne Gewichts-Meldung. `refId` kommt aus dem Tagesschlüssel —
@@ -156,7 +156,7 @@ export interface AdminPasswortRow {
   atStr: string;
   adminUsername: string;
   via: string;
-  sperrzeitEndetAtStr: string | null;
+  lockPeriodEndsAtStr: string | null;
 }
 
 /** Orgasmus ohne deckende Direktive. Die Sperrzeit-Angaben sind nur im Modus `lockedOnly` gesetzt —
@@ -166,8 +166,8 @@ export interface UnerlaubterOrgasmusRow {
   startTimeStr: string;
   orgasmusArt: string | null;
   note: string | null;
-  sperrzeitEndetAtStr: string | null;
-  sperrzeitUnbefristet: boolean;
+  lockPeriodEndsAtStr: string | null;
+  lockPeriodIndefinite: boolean;
 }
 
 /** Von Hand notiertes Vergehen. */
@@ -694,14 +694,14 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
    * bei der Öffnung nichts (ohne Sperrzeit gäbe es das Vergehen nicht), beim Orgasmus der Hinweis
    * auf das fehlende Fenster (Modus `always` ahndet auch bei offenem KG).
    */
-  const sperrzeitQualifier = (
-    row: { sperrzeitEndetAtStr: string | null; sperrzeitUnbefristet: boolean },
+  const lockPeriodQualifier = (
+    row: { lockPeriodEndsAtStr: string | null; lockPeriodIndefinite: boolean },
     fallback: string | null = null,
   ): string | null =>
-    row.sperrzeitUnbefristet
+    row.lockPeriodIndefinite
       ? labels.strafbuchTrotzUnbefristet
-      : row.sperrzeitEndetAtStr
-        ? `${labels.strafbuchSperreLiefBis} ${row.sperrzeitEndetAtStr}`
+      : row.lockPeriodEndsAtStr
+        ? `${labels.strafbuchSperreLiefBis} ${row.lockPeriodEndsAtStr}`
         : fallback;
 
   const sections = [
@@ -709,7 +709,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       refId: o.id,
       anlass: `${labels.strafbuchGeoeffnetAm} ${o.startTimeStr}`,
       body: (judged) => {
-        const qualifier = sperrzeitQualifier(o);
+        const qualifier = lockPeriodQualifier(o);
         return (
           <>
             <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
@@ -852,7 +852,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             <>{labels.strafbuchOrgasmusAm} {o.startTimeStr}{o.orgasmusArt ? ` (${o.orgasmusArt})` : ""}</>,
             // Lief eine Sperrzeit, ist SIE der schwerere Teil des Vorwurfs; sonst bleibt es beim
             // fehlenden Fenster.
-            sperrzeitQualifier(o, labels.strafbuchOhneDirektive),
+            lockPeriodQualifier(o, labels.strafbuchOhneDirektive),
           )}
           {o.note && <span className={NOTE_CLS}>„{o.note}"</span>}
         </>
@@ -894,9 +894,9 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchAdminPasswortAm} {p.atStr}</>,
-            // `sperrzeitEndetAt: null` heisst hier unbefristet — die Zeile entsteht nur, wenn eine
+            // `lockPeriodEndsAt: null` heisst hier unbefristet — die Zeile entsteht nur, wenn eine
             // Sperrzeit lief (`AdminPasswordChange`), es gibt also keinen dritten Fall.
-            sperrzeitQualifier({ sperrzeitEndetAtStr: p.sperrzeitEndetAtStr, sperrzeitUnbefristet: p.sperrzeitEndetAtStr === null }),
+            lockPeriodQualifier({ lockPeriodEndsAtStr: p.lockPeriodEndsAtStr, lockPeriodIndefinite: p.lockPeriodEndsAtStr === null }),
           )}
           <p className={FACT_CLS}>
             {labels.strafbuchAdminPasswortKonto}: {p.adminUsername} · {p.via}

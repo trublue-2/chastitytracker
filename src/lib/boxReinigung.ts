@@ -12,8 +12,8 @@ import type { BoxReinigungView } from "@/lib/boxStatus";
  *
  * `blockedBy` kommt aus derselben Regel wie die Durchsetzung und kennt als einziges die AKTIVE
  * Sperrzeit: ohne es versprach die Karte Fenster, die eine reinigungsverbietende Sperre längst
- * gesperrt hatte. `sperre` muss deshalb eine wirklich AKTIVE sein (`getActiveSperrzeit`, bereits
- * über `foldActiveSperrzeiten` zusammengefaltet) — eine erst geplante darf hier nicht mitzählen,
+ * gesperrt hatte. `lockPeriod` muss deshalb eine wirklich AKTIVE sein (`getActiveLockPeriod`, bereits
+ * über `foldActiveLockPeriods` zusammengefaltet) — eine erst geplante darf hier nicht mitzählen,
  * sonst sperrt die Anzeige zu früh.
  *
  * Geteilt vom Sub-Dashboard und der Keyholder-Detailseite: beide zeigen dieselbe Karte, also darf
@@ -26,7 +26,7 @@ import type { BoxReinigungView } from "@/lib/boxStatus";
 export function buildBoxReinigungView(
   user: ReinigungUserFields | null,
   allEntries: CleaningCountEntry[],
-  sperre: { reinigungErlaubt: boolean } | null,
+  lockPeriod: { reinigungErlaubt: boolean } | null,
   now: Date,
   tz: string,
 ): BoxReinigungView | null {
@@ -37,7 +37,7 @@ export function buildBoxReinigungView(
     nextWindow: nextReinigungsFenster(user.reinigungsFenster, now, tz),
     blockedBy: cleaningBlockReason(
       { reinigungErlaubt: user.reinigungErlaubt ?? false, reinigungsFenster: user.reinigungsFenster, timezone: tz },
-      sperre ? [sperre] : [],
+      lockPeriod ? [lockPeriod] : [],
       now,
     ),
   };

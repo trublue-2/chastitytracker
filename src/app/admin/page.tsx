@@ -17,7 +17,7 @@ import UserAvatar from "@/app/components/UserAvatar";
 import { Users, CalendarClock, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDurationBetween, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
-import { getKeyholderSperrzeiten, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveSperrzeiten, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
+import { getKeyholderLockPeriods, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveLockPeriods, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel, heimdallEnabled } from "@/lib/constants";
 import Section from "@/app/components/Section";
 import { rowHoverCls } from "@/app/components/inputStyles";
@@ -77,7 +77,7 @@ export default async function AdminPage() {
   const now = new Date();
 
   // Bulk-fetch all data in 8 queries instead of 8×N
-  const [latestVerschluss, latestOeffnen, allKontrolle, allVerschlussAnf, allSperrzeiten, allOrgasmusAnf, allBoxes, allKeyInBox] = await Promise.all([
+  const [latestVerschluss, latestOeffnen, allKontrolle, allVerschlussAnf, allLockPeriods, allOrgasmusAnf, allBoxes, allKeyInBox] = await Promise.all([
     prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.kontrollAnforderung.findMany({
@@ -92,7 +92,7 @@ export default async function AdminPage() {
       where: openLockRequestWhere({ userIds }),
       orderBy: LOCK_REQUEST_ORDER,
     }),
-    getKeyholderSperrzeiten({ userIds }),
+    getKeyholderLockPeriods({ userIds }),
     getKeyholderOrgasmusAnforderungen(userIds),
     // Nur die drei Spalten, die über den Riegel entscheiden. Der Rest des Box-Zustands gehört auf
     // die Detailseite — hier geht es allein um die Frage, ob eine Box offen steht, die zu sein soll.
@@ -137,7 +137,7 @@ export default async function AdminPage() {
   );
   const kontrolleByUser = groupByUser(allKontrolle);
   const anforderungByUser = groupByUser(allVerschlussAnf);
-  const sperrzeitByUser = groupByUser(allSperrzeiten);
+  const lockPeriodByUser = groupByUser(allLockPeriods);
   const orgasmusAnfByUser = groupByUser(allOrgasmusAnf);
 
   const isScheduled = (wirksamAb: Date | null) => isScheduledDirective(wirksamAb, now);
@@ -153,7 +153,7 @@ export default async function AdminPage() {
     // Alarm, aber sichtbar + stornierbar. Aktive Banner zeigen nur bereits ausgelöste Direktiven.
     const userKontrollen = kontrolleByUser.get(userId) ?? [];
     const userAnforderungen = anforderungByUser.get(userId) ?? [];
-    const userSperrzeiten = sperrzeitByUser.get(userId) ?? [];
+    const userLockPeriods = lockPeriodByUser.get(userId) ?? [];
     const userOrgasmusAnf = orgasmusAnfByUser.get(userId) ?? [];
     // Die neueste bereits AUSGELÖSTE — eine geplante steht wie ihre drei Geschwister unten in
     // `scheduled` und nicht als laufendes Banner. Als Banner wäre sie von einer zugestellten nicht
@@ -167,12 +167,12 @@ export default async function AdminPage() {
     // Mehrere aktive Sperrzeiten können koexistieren — die Liste zeigt dieselbe EFFEKTIVE, gegen die
     // der Sub verschlossen ist (spätestes Ende, Reinigung nur wenn alle sie erlauben). Die erste Zeile
     // zu nehmen hiesse: ein anderes Ende anzeigen, als die Box durchsetzt.
-    const activeSperrzeit = foldActiveSperrzeiten(userSperrzeiten.filter(s => !isScheduled(s.wirksamAb)));
+    const activeLockPeriod = foldActiveLockPeriods(userLockPeriods.filter(s => !isScheduled(s.wirksamAb)));
 
     const scheduled = [
       ...userKontrollen.filter(k => isScheduled(k.wirksamAb)).map(k => ({ id: k.id, kind: "inspection" as const, wirksamAb: k.wirksamAb!, message: k.kommentar })),
       ...userAnforderungen.filter(v => isScheduled(v.wirksamAb)).map(v => ({ id: v.id, kind: "lock_request" as const, wirksamAb: v.wirksamAb!, message: v.nachricht })),
-      ...userSperrzeiten.filter(s => isScheduled(s.wirksamAb)).map(s => ({ id: s.id, kind: "lock_period" as const, wirksamAb: s.wirksamAb!, message: s.nachricht })),
+      ...userLockPeriods.filter(s => isScheduled(s.wirksamAb)).map(s => ({ id: s.id, kind: "lock_period" as const, wirksamAb: s.wirksamAb!, message: s.nachricht })),
       ...userOrgasmusAnf.filter(o => isScheduled(o.wirksamAb)).map(o => ({ id: o.id, kind: "orgasm" as const, wirksamAb: o.wirksamAb!, message: o.nachricht })),
     ].sort((a, b) => a.wirksamAb.getTime() - b.wirksamAb.getTime());
 
@@ -187,13 +187,13 @@ export default async function AdminPage() {
           }
         : null,
       hasOffeneAnforderung: offeneVerschlussAnforderungen.length > 0,
-      hasActiveSperrzeit: !!activeSperrzeit,
+      hasActiveLockPeriod: !!activeLockPeriod,
       boltOpen: boltOpenByUser.has(userId),
       offeneAnforderungen: offeneVerschlussAnforderungen.map(a => ({
         id: a.id, endetAt: a.endetAt, overdue: !!a.endetAt && a.endetAt < now,
       })),
-      activeSperrzeit: activeSperrzeit
-        ? { id: activeSperrzeit.id, nachricht: activeSperrzeit.nachricht, endetAt: activeSperrzeit.endetAt, reinigungErlaubt: activeSperrzeit.reinigungErlaubt }
+      activeLockPeriod: activeLockPeriod
+        ? { id: activeLockPeriod.id, nachricht: activeLockPeriod.nachricht, endetAt: activeLockPeriod.endetAt, reinigungErlaubt: activeLockPeriod.reinigungErlaubt }
         : null,
       offeneOrgasmusAnforderung: offeneOrgasmusAnforderung
         ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endetAt: offeneOrgasmusAnforderung.endetAt, expired: offeneOrgasmusAnforderung.endetAt < now }
@@ -421,21 +421,21 @@ export default async function AdminPage() {
                             withdrawAction={<WithdrawButton id={a.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />}
                           />
                         ))}
-                        {u.stats.activeSperrzeit && (
+                        {u.stats.activeLockPeriod && (
                           <LockRequestBanner
                             variant="compact"
                             colorScheme="sperrzeit"
-                            label={u.stats.activeSperrzeit.endetAt ? t("lockedUntil") : t("lockedIndefinite")}
+                            label={u.stats.activeLockPeriod.endetAt ? t("lockedUntil") : t("lockedIndefinite")}
                             locale={dl}
                             tz={rowTz}
                             viewerTz={viewerTz}
                             subTimePrefix={subLabel}
-                            endetAt={u.stats.activeSperrzeit.endetAt}
-                            showRemaining={!!u.stats.activeSperrzeit.endetAt}
+                            endetAt={u.stats.activeLockPeriod.endetAt}
+                            showRemaining={!!u.stats.activeLockPeriod.endetAt}
                             // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den
                             // Benutzer-Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
-                            cleaningNote={t(u.stats.activeSperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning")}
-                            withdrawAction={<WithdrawButton id={u.stats.activeSperrzeit.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />}
+                            cleaningNote={t(u.stats.activeLockPeriod.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning")}
+                            withdrawAction={<WithdrawButton id={u.stats.activeLockPeriod.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />}
                           />
                         )}
                         {u.stats.offeneOrgasmusAnforderung && (
@@ -506,7 +506,7 @@ export default async function AdminPage() {
                           <VerschlussAnforderungButton
                             userId={u.id}
                             isLocked={isLocked}
-                            hasActiveSperrzeit={u.stats.hasActiveSperrzeit}
+                            hasActiveLockPeriod={u.stats.hasActiveLockPeriod}
                             tz={rowTz}
                             minNow={nowDatetimeLocal(rowTz)}
                           />
@@ -514,7 +514,7 @@ export default async function AdminPage() {
                               das war die Rückmeldung, aus der es entstand. Die Sichtbarkeit
                               entscheidet der Aufrufer, wie beim `KontrolleButton` darüber. */}
                           {isLocked && (
-                            <ReleaseNowButton userId={u.id} hasActiveSperrzeit={u.stats.hasActiveSperrzeit} />
+                            <ReleaseNowButton userId={u.id} hasActiveLockPeriod={u.stats.hasActiveLockPeriod} />
                           )}
                         </div>
                     </div>

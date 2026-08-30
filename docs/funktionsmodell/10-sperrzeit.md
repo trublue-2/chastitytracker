@@ -19,9 +19,9 @@ Die zwei Fristformen sind die wichtigste Unterscheidung:
 | Feld | Nullpunkt | Ein später Verschluss … |
 |---|---|---|
 | `dauerH` | der tatsächliche Verschluss | … verschiebt das Ende mit |
-| `sperrEndetAt` | feste Wanduhr | … verkürzt die Sperre |
+| `lockEndsAt` | feste Wanduhr | … verkürzt die Sperre |
 
-Wer eine **Tragedauer** meint, nimmt `dauerH`. Wer einen **Termin** meint, `sperrEndetAt`.
+Wer eine **Tragedauer** meint, nimmt `dauerH`. Wer einen **Termin** meint, `lockEndsAt`.
 
 ## Auslöser
 
@@ -30,7 +30,7 @@ Wer eine **Tragedauer** meint, nimmt `dauerH`. Wer einen **Termin** meint, `sper
   Verschluss-Eintrag (`entryFulfilment.ts`).
 - Der Poller stellt eine terminierte Anforderung zu (`wirksamAb`). Trifft sie einen bereits
   verschlossenen Sub, gilt sie als erfüllt und ihre Sperrzeit wird trotzdem gesetzt
-  (`carryOverSperrzeitOnAlreadyLocked`) — der Sub hat nichts versäumt.
+  (`carryOverLockPeriodOnAlreadyLocked`) — der Sub hat nichts versäumt.
 
 ## Wirkt auf
 
@@ -47,7 +47,7 @@ Wer eine **Tragedauer** meint, nimmt `dauerH`. Wer einen **Termin** meint, `sper
 Mehrere aktive Sperrzeiten sind normal — eine terminierte überlebt eine Öffnung (sie war noch nicht
 aktiv), und schliesst der Sub sich danach über eine Anforderung wieder ein, entsteht eine zweite.
 
-`foldActiveSperrzeiten` faltet sie **nach der strengsten Regel, nicht nach der neuesten Zeile**:
+`foldActiveLockPeriods` faltet sie **nach der strengsten Regel, nicht nach der neuesten Zeile**:
 
 - `endetAt`: unbefristet schlägt alles, sonst das **späteste** Ende.
 - `reinigungErlaubt`: nur wenn **jede** aktive Sperre es erlaubt.
@@ -72,7 +72,7 @@ Anzeige, keine Meldung, keine laufende Frist.
 
 ## Code
 
-`queries.ts` (`foldActiveSperrzeiten`, `releaseSperrzeitenOnOpen`, `getActiveSperrzeit`),
+`queries.ts` (`foldActiveLockPeriods`, `releaseLockPeriodsOnOpen`, `getActiveLockPeriod`),
 `verschlussAnforderungService.ts`, `entryFulfilment.ts`, Modell `VerschlussAnforderung`.
 
 ## Tests

@@ -31,11 +31,11 @@ Steckbrief: [10-sperrzeit.md](10-sperrzeit.md)
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
 | `VerschlussAnforderung.nachricht` | String? | — | je Direktive | Begleittext an den Sub; erscheint in der Meldung und im Posteingang. | Keyholder (UI), Keyholder (MCP) | Nachrichten | — |
-| `VerschlussAnforderung.endetAt` | DateTime? | — | je Direktive | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Box, Strafbuch | `queries.ts:foldActiveSperrzeiten` |
-| `VerschlussAnforderung.dauerH` | Float? | — | je Direktive | Mindest-Tragedauer einer Anforderung; die Uhr startet beim tatsächlichen Verschluss. Alternative zu `sperrEndetAt`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
-| `VerschlussAnforderung.sperrEndetAt` | DateTime? | — | je Direktive | Absolutes Sperr-Ende einer Anforderung (feste Wanduhr). Ein später Verschluss verschiebt es NICHT — anders als `dauerH`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
+| `VerschlussAnforderung.endetAt` | DateTime? | — | je Direktive | Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Box, Strafbuch | `queries.ts:foldActiveLockPeriods` |
+| `VerschlussAnforderung.dauerH` | Float? | — | je Direktive | Mindest-Tragedauer einer Anforderung; die Uhr startet beim tatsächlichen Verschluss. Alternative zu `lockEndsAt`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
+| `VerschlussAnforderung.lockEndsAt` | DateTime? | — | je Direktive | Absolutes Sperr-Ende einer Anforderung (feste Wanduhr). Ein später Verschluss verschiebt es NICHT — anders als `dauerH`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
 | `VerschlussAnforderung.deviceId` | String? | — | je Direktive | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Geräte, Strafbuch | — |
-| `VerschlussAnforderung.reinigungErlaubt` | Boolean | `false` | je Direktive | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Reinigung, Box, Geräte | `queries.ts:foldActiveSperrzeiten` |
+| `VerschlussAnforderung.reinigungErlaubt` | Boolean | `false` | je Direktive | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Reinigung, Box, Geräte | `queries.ts:foldActiveLockPeriods` |
 | `VerschlussAnforderung.wirksamAb` | DateTime? | — | je Direktive | Terminierte Auslösung. Bis dahin existiert die Direktive für den Sub nicht: keine Anzeige, keine Meldung, keine laufende Frist. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Benachrichtigungen | — |
 
 ## Reinigung
@@ -67,7 +67,7 @@ Steckbrief: [30-kontrollen.md](30-kontrollen.md)
 | `User.autoKontrolleNurBeiSperre` | Boolean | `false` | dauerhaft | Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen, Sperrzeit | `autoKontrolleService.ts` |
 | `User.inspectionReminderEnabled` | Boolean | `false` | dauerhaft | Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
 | `User.inspectionReminderDelayMinutes` | Int | `5` | dauerhaft | Verzug bis zur Mahnung, gemessen ab dem Ablauf der Kontroll-Frist. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
-| `User.inspectionAutoMarkEnabled` | Boolean | `false` | dauerhaft | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Einträge, Sessions/Statistik, Strafbuch | `queries.ts:releaseSperrzeitenOnOpen` |
+| `User.inspectionAutoMarkEnabled` | Boolean | `false` | dauerhaft | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Einträge, Sessions/Statistik, Strafbuch | `queries.ts:releaseLockPeriodsOnOpen` |
 | `User.inspectionAutoMarkDelayMinutes` | Int | `60` | dauerhaft | Verzug bis zu dieser Buchung, gemessen ab dem Stempel der Stufe 1. | Keyholder (UI), Keyholder (MCP) | Kontrollen | `inspectionEscalationService.ts` |
 | `KontrollAnforderung.categoryId` | String? | — | je Direktive | ZIEL der Kontrolle: leer = der KG (verlangt einen aktiven Verschluss), gesetzt = eine Trage-Kategorie. Je Ziel darf nur eine Kontrolle laufen. | Keyholder (UI), Keyholder (MCP) | Kontrollen | `kontrolleService.ts:hasActiveKontrolle` |
 | `KontrollAnforderung.deviceId` | String? | — | je Direktive | Verengt das Ziel auf genau ein Gerät und hat Vorrang vor der Kategorie. Es muss das getragene sein, sonst ist die Kontrolle nicht erfüllbar. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Geräte | — |
@@ -419,8 +419,8 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `AdminPasswordChange.adminUsername` | Nachweis | Abbild des Namens; überlebt Umbenennung und Löschung. |
 | `AdminPasswordChange.via` | Nachweis | `reset_token` (über das Postfach Zugang verschafft), `self` oder `set_by_other`. Der interessante Fall ist der erste. |
 | `AdminPasswordChange.actorUserId` | Nachweis | Wer ausgelöst hat; leer beim Token-Weg, dort gibt es keine Sitzung. |
-| `AdminPasswordChange.sperrzeitId` | Datensatz | Die damals laufende Sperrzeit — für die Anzeige, ohne Fremdschlüssel-Zwang. |
-| `AdminPasswordChange.sperrzeitEndetAt` | Datensatz | Deren Ende zum Zeitpunkt des Vorgangs. |
+| `AdminPasswordChange.lockPeriodId` | Datensatz | Die damals laufende Sperrzeit — für die Anzeige, ohne Fremdschlüssel-Zwang. |
+| `AdminPasswordChange.lockPeriodEndsAt` | Datensatz | Deren Ende zum Zeitpunkt des Vorgangs. |
 | `AdminPasswordChange.createdAt` | Datensatz | Anlage-Zeitpunkt. |
 | `BoxStatus.id` | Identität | Primärschlüssel. |
 | `BoxStatus.userId` | Identität | Eigentümer der Zeile. |

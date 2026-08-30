@@ -10,7 +10,7 @@ import { KeyRound } from "lucide-react";
 import StateHero from "@/app/components/StateHero";
 import BoxHardwareLine from "@/app/components/BoxHardwareLine";
 import LiveTrainingGoals from "./LiveTrainingGoals";
-import SperrzeitRemaining from "@/app/components/SperrzeitRemaining";
+import LockPeriodRemaining from "@/app/components/LockPeriodRemaining";
 
 import type { SessionEvent } from "@/lib/sessionHelpers";
 import { inspectionHref } from "@/lib/entryFormRoute";
@@ -23,16 +23,16 @@ interface Props {
   interruptionPausedMs?: number;
   now: Date;
   events: SessionEvent[];
-  sperrzeitEndetAt: Date | null;
-  sperrzeitUnbefristet?: boolean;
-  sperrzeitNachricht?: string | null;
+  lockPeriodEndsAt: Date | null;
+  lockPeriodIndefinite?: boolean;
+  lockPeriodMessage?: string | null;
   /** Nur Keyholder-Sicht: geplante (noch nicht ausgelöste) Sperrzeit → Footer zeigt "geplant für"
    *  statt "gesperrt bis". Sub-Sichten setzen dies NIE (geplante bleiben für den Sub unsichtbar). */
-  sperrzeitScheduledFor?: Date | null;
+  lockPeriodScheduledFor?: Date | null;
   /** Nur Keyholder-Sicht: eine terminierte Sperre, die inzwischen LÄUFT. Gebraucht, weil eine
    *  unbefristete Sperre sonst gar keinen Zeitpunkt nennt — sie hat den Beginn selbst gesetzt und
    *  soll sehen, dass er erreicht ist. Bei befristeten Sperren steht die Frist ohnehin da. */
-  sperrzeitRunningSince?: Date | null;
+  lockPeriodRunningSince?: Date | null;
   /** Was passiert, wenn diese Sperrzeit gebrochen wird? Fertig übersetzt, vom Aufrufer, und
    *  weglassen heisst nicht anzeigen — dieselbe Konvention wie `cleaningNote` darunter, und aus
    *  demselben Grund.
@@ -73,12 +73,12 @@ export default async function LaufendeSessionCard({
   interruptionPausedMs = 0,
   now,
   events,
-  sperrzeitEndetAt,
-  sperrzeitUnbefristet = false,
-  sperrzeitNachricht,
+  lockPeriodEndsAt,
+  lockPeriodIndefinite = false,
+  lockPeriodMessage,
   lockBreakNote,
-  sperrzeitScheduledFor = null,
-  sperrzeitRunningSince = null,
+  lockPeriodScheduledFor = null,
+  lockPeriodRunningSince = null,
   cleaningNote,
   keyInBox = null,
   viewerTz,
@@ -105,13 +105,13 @@ export default async function LaufendeSessionCard({
   //
   // Ohne `viewerTz` fällt `formatDateTimeDual` selbst auf den reinen Primärwert zurück; ein
   // Ternär davor wäre ein Nulleffekt gewesen.
-  const lockUntilStr = sperrzeitEndetAt
-    ? formatDateTimeDual(sperrzeitEndetAt, dl, viewerTz, tz, subLabel)
+  const lockUntilStr = lockPeriodEndsAt
+    ? formatDateTimeDual(lockPeriodEndsAt, dl, viewerTz, tz, subLabel)
     : null;
-  const scheduledForStr = sperrzeitScheduledFor ? formatDateTime(sperrzeitScheduledFor, dl, tz) : null;
-  const runningSinceStr = sperrzeitRunningSince ? formatDateTime(sperrzeitRunningSince, dl, tz) : null;
+  const scheduledForStr = lockPeriodScheduledFor ? formatDateTime(lockPeriodScheduledFor, dl, tz) : null;
+  const runningSinceStr = lockPeriodRunningSince ? formatDateTime(lockPeriodRunningSince, dl, tz) : null;
   /** Die Nebenangaben der Sperr-Zeile — Restzeit und erreichter Beginn stehen gleichrangig. */
-  const showSperrzeit = lockUntilStr !== null || sperrzeitUnbefristet || scheduledForStr !== null || runningSinceStr !== null;
+  const showLockPeriod = lockUntilStr !== null || lockPeriodIndefinite || scheduledForStr !== null || runningSinceStr !== null;
 
   // Nicht „hat die Vorgabe Ziele?", sondern „bleibt eine bewertbare Zeile übrig?" — sonst stünde
   // die Überschrift „KG-Ziele" am Starttag einer Vorgabe über einer leeren Liste.
@@ -150,7 +150,7 @@ export default async function LaufendeSessionCard({
             „Gesperrt bis" und nicht mehr „Verschlossen bis": das Wort „verschlossen" gehört dem
             TRÄGER. Es stand dreimal auf einem Bildschirm und meinte dreimal etwas anderes — den
             Riegel der Box, den Träger im Gürtel und diese Anordnung hier. */}
-        {showSperrzeit && (
+        {showLockPeriod && (
           <p className="relative mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-fliess text-foreground-muted">
             <LockClosedIcon size={13} className="shrink-0 text-sperrzeit" />
             <span className="font-semibold text-foreground">
@@ -161,10 +161,10 @@ export default async function LaufendeSessionCard({
             {!scheduledForStr && !lockUntilStr && runningSinceStr && (
               <span>{ta("lockRunningSince", { time: runningSinceStr })}</span>
             )}
-            {!scheduledForStr && sperrzeitEndetAt && (
-              <SperrzeitRemaining endetAt={sperrzeitEndetAt.toISOString()} />
+            {!scheduledForStr && lockPeriodEndsAt && (
+              <LockPeriodRemaining endetAt={lockPeriodEndsAt.toISOString()} />
             )}
-            {sperrzeitNachricht && <span className="truncate">· {sperrzeitNachricht}</span>}
+            {lockPeriodMessage && <span className="truncate">· {lockPeriodMessage}</span>}
             {cleaningNote && <span className="shrink-0">· {cleaningNote}</span>}
           </p>
         )}
@@ -175,7 +175,7 @@ export default async function LaufendeSessionCard({
             kennt — Begründung an `lockBreakNote`.
 
             Nicht bei `scheduledForStr`: eine erst geplante Sperrzeit bindet noch nichts. */}
-        {showSperrzeit && !scheduledForStr && lockBreakNote && (
+        {showLockPeriod && !scheduledForStr && lockBreakNote && (
           <p className="relative mt-1 text-neben text-foreground-faint">{lockBreakNote}</p>
         )}
 

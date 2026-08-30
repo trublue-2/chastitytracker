@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminActor } from "@/lib/authGuards";
 import { validateEntryPayload, DEVICE_BEARING_TYPES } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, getKgNeighbors } from "@/lib/queries";
+import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, getKgNeighbors } from "@/lib/queries";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { applyEntryFulfilment } from "@/lib/entryFulfilment";
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   let entry;
   // In der Transaktion ermittelt, nach dem Commit für Meldung bzw. Ahndung wiederverwendet.
-  let brokeSperrzeit = false;
+  let brokeLockPeriod = false;
   try {
     entry = await prisma.$transaction(async (tx) => {
       // Validate deviceId ownership inside transaction to avoid TOCTOU
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
           if (!prev || prev.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
           // Admin-opened entries must release the lock period too, otherwise the
           // user still appears locked. Reinigungs-Regeln aus dem vorab geladenen User.
-          brokeSperrzeit = await releaseSperrzeitenOnOpen(userId, oeffnenGrund, tx, "user", user);
+          brokeLockPeriod = await releaseLockPeriodsOnOpen(userId, oeffnenGrund, tx, "user", user);
         }
       }
 
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
     username: user.username,
     type,
     startTime: entry.startTime,
-    withdrawnSperrzeit: brokeSperrzeit,
+    withdrawnLockPeriod: brokeLockPeriod,
     oeffnenGrund: entry.oeffnenGrund,
     orgasmusArt: entry.orgasmusArt,
     kontrollCode: entry.kontrollCode,

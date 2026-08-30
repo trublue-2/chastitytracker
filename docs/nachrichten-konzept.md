@@ -52,7 +52,7 @@ Posteingang-Eintrag entsteht in **allen** Fällen; genau das ist der Gewinn der 
 | Einschliess-Anforderung gestellt | `createVerschlussAnforderung` (sofort) · Poller bei `wirksamAb` | `lockRequestBody` | ✔ | ✔ | **nein** | Poller zieht zurück statt zu senden, wenn der Sub inzwischen verschlossen ist |
 | Sperrzeit gesetzt | dito, `art=SPERRZEIT` | `lockPeriodSetBody` | ✔ | ✔ | **nein** | Poller zieht zurück, wenn der Sub offen ist oder das Sperr-Ende schon vorbei |
 | Anforderung geändert | `updateLockRequest` | `lockRequestChangedMessage` | ✔ | ✔ | **nein** | nur wenn bereits sichtbar. Verborgen + neu „sofort" ⇒ volle Zustellung als `lockRequestBody`; verborgen + weiter terminiert ⇒ **stumm**, der Poller stellt den frischen Stand zu |
-| Sperr-Ende geändert | `updateSperrzeitEnde` | `lockPeriodChangedMessage` | ✔ | ✔ | **nein** | nur wenn `!isHiddenFromSub` |
+| Sperr-Ende geändert | `updateLockPeriodEnd` | `lockPeriodChangedMessage` | ✔ | ✔ | **nein** | nur wenn `!isHiddenFromSub` |
 | Sperr-Ende auf unbefristet | dito, `endetAt = null` | `lockPeriodChangedMessageIndefinite` | ✔ | ✔ | **nein** | dito |
 | Anforderung zurückgezogen | `withdrawVerschlussAnforderung(ById)` | `lockRequestWithdrawnMessage` | ✔ | ✔ | ja | nur wenn der Sub von mindestens einer der stornierten Zeilen wusste |
 | Sperrzeit zurückgezogen | dito | `lockPeriodWithdrawnMessage` | ✔ | ✔ | ja | dito |

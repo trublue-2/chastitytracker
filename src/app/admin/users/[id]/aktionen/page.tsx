@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { getIsLocked, getActiveSperrzeit } from "@/lib/queries";
+import { getIsLocked, getActiveLockPeriod } from "@/lib/queries";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
 import { weightTrackingEnabled } from "@/lib/constants";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
@@ -24,9 +24,9 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect("/admin");
 
-  const [isLocked, activeSperrzeit, categories] = await Promise.all([
+  const [isLocked, activeLockPeriod, categories] = await Promise.all([
     getIsLocked(id),
-    getActiveSperrzeit(id),
+    getActiveLockPeriod(id),
     buildNewEntryCategoryRows(id),
   ]);
 
@@ -74,9 +74,9 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           />
 
           {/* Sperrdauer: bestehende bearbeiten, sonst neu setzen — beides nur im verschlossenen Zustand */}
-          {isLocked && activeSperrzeit ? (
+          {isLocked && activeLockPeriod ? (
             <ActionRow
-              href={`${base}/sperrdauer-edit`}
+              href={`${base}/lock-duration-edit`}
               icon={<LockClosedIcon className="size-4" />}
               title={t("editLockDuration")}
               description={t("editLockDurationHint")}

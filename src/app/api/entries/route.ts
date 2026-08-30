@@ -8,7 +8,7 @@ import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVer
 import { DEVICE_BEARING_TYPES, validateEntryPayload, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { validateDeviceOwnership, releaseSperrzeitenOnOpen, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
+import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "@/lib/inspectionTarget";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
@@ -16,7 +16,7 @@ import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
 import { scheduleCleaningRelockInspection } from "@/lib/autoKontrolleService";
-import { sperrzeitEndeFromRequest } from "@/lib/verschlussAnforderungService";
+import { lockPeriodEndFromRequest } from "@/lib/verschlussAnforderungService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
 import { notifyControllersAboutEntry } from "@/lib/entryNotify";
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   // In der Transaktion entschieden, ausserhalb für den Instant-Push wiederverwendet.
   let boxCmd: "lock" | "open" | null = null;
 
-  let withdrawnSperrzeit = false;
+  let withdrawnLockPeriod = false;
   let lockStartTime: Date | null = null;
   // Schliesst dieser VERSCHLUSS eine Reinigungspause ab? In der Transaktion aus demselben
   // Lock-Eintrag abgeleitet, den der Guard ohnehin liest — nach dem Commit löst er die Kontrolle aus.
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (type === "OEFFNEN") {
-        withdrawnSperrzeit = await releaseSperrzeitenOnOpen(session.user.id, oeffnenGrund, tx, "user");
+        withdrawnLockPeriod = await releaseLockPeriodsOnOpen(session.user.id, oeffnenGrund, tx, "user");
       }
 
       // WELCHES ZIEL beantwortet diese Einreichung? Ohne Gerät der KG (Bestandsverhalten), mit
@@ -247,7 +247,7 @@ export async function POST(req: NextRequest) {
 
       // Box-Kopplung: die Heimdall-Box folgt dem Eintrag. Die Regel — samt der zwei Fälle, in denen
       // sie ihm NICHT folgt — steht in `boxCommandForEntry`. No-op ohne Heimdall/Box.
-      boxCmd = boxCommandForEntry({ type, keyInBox: keyInBoxDeclared, brokeSperrzeit: withdrawnSperrzeit });
+      boxCmd = boxCommandForEntry({ type, keyInBox: keyInBoxDeclared, brokeLockPeriod: withdrawnLockPeriod });
       if (boxCmd) await setBoxCommandForUser(tx, session.user.id, boxCmd);
 
       return created;
@@ -318,7 +318,7 @@ export async function POST(req: NextRequest) {
     username: session.user.name ?? "User",
     type,
     startTime: new Date(startTime),
-    withdrawnSperrzeit,
+    withdrawnLockPeriod,
     oeffnenGrund,
     orgasmusArt,
     kontrollCode,

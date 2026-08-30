@@ -38,7 +38,7 @@ vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
 
 import {
   createVerschlussAnforderung, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById,
-  updateSperrzeitEnde, updateLockRequest,
+  updateLockPeriodEnd, updateLockRequest,
 } from "./verschlussAnforderungService";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
@@ -72,7 +72,7 @@ const immediate = { wirksamAb: null, benachrichtigtAt: AUSGELOEST };
  */
 const autoCreated = { wirksamAb: null, benachrichtigtAt: null };
 
-/** Eine SPERRZEIT-Zeile, wie updateSperrzeitEnde sie liest. */
+/** Eine SPERRZEIT-Zeile, wie updateLockPeriodEnd sie liest. */
 const sz = (overrides: object) => ({ userId: "u1", art: "SPERRZEIT", withdrawnAt: null, ...overrides });
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
@@ -90,10 +90,10 @@ beforeEach(() => {
   isLockedMock.mockReset().mockResolvedValue(true); // SPERRZEIT setzt einen verschlossenen User voraus
 });
 
-describe("updateSperrzeitEnde", () => {
+describe("updateLockPeriodEnd", () => {
   it("BUG 14.07.: eine GEPLANTE Sperrzeit zu ändern schickt KEINE Mail", async () => {
     findUniqueMock.mockResolvedValue(sz(scheduled));
-    const res = await updateSperrzeitEnde("s1", NEW_END, "herrin");
+    const res = await updateLockPeriodEnd("s1", NEW_END, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(false);
@@ -107,7 +107,7 @@ describe("updateSperrzeitEnde", () => {
     // jede Meldung verschluckt worden: der Sub bliebe verschlossen im Glauben, eine längst
     // geänderte/zurückgezogene Sperre laufe noch weiter.
     findUniqueMock.mockResolvedValue(sz(autoCreated));
-    const res = await updateSperrzeitEnde("s1", NEW_END, "herrin");
+    const res = await updateLockPeriodEnd("s1", NEW_END, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(true);
@@ -118,22 +118,22 @@ describe("updateSperrzeitEnde", () => {
     for (const overrides of [triggered, immediate]) {
       notifyMock.mockClear();
       findUniqueMock.mockResolvedValue(sz(overrides));
-      const res = await updateSperrzeitEnde("s1", NEW_END, "herrin");
+      const res = await updateLockPeriodEnd("s1", NEW_END, "herrin");
       if (!res.ok) throw new Error("erwartet: ok");
       expect(res.data.notified).toBe(true);
       expect(notifyMock).toHaveBeenCalledTimes(1);
     }
   });
 
-  it("auf unbefristet setzen folgt derselben Regel", async () => {
+  it("auf indefinite setzen folgt derselben Regel", async () => {
     findUniqueMock.mockResolvedValue(sz(scheduled));
-    const still = await updateSperrzeitEnde("s1", null, "herrin");
+    const still = await updateLockPeriodEnd("s1", null, "herrin");
     if (!still.ok) throw new Error("erwartet: ok");
     expect(still.data.notified).toBe(false);
     expect(notifyMock).not.toHaveBeenCalled();
 
     findUniqueMock.mockResolvedValue(sz(triggered));
-    const laut = await updateSperrzeitEnde("s1", null, "herrin");
+    const laut = await updateLockPeriodEnd("s1", null, "herrin");
     if (!laut.ok) throw new Error("erwartet: ok");
     expect(laut.data.notified).toBe(true);
     expect(notifyMock).toHaveBeenCalledTimes(1);
@@ -141,16 +141,16 @@ describe("updateSperrzeitEnde", () => {
 
   it("die Guards greifen vor allem anderen — kein Schreiben, keine Meldung", async () => {
     findUniqueMock.mockResolvedValue(null);
-    expect((await updateSperrzeitEnde("s1", NEW_END, "herrin")).ok).toBe(false);
+    expect((await updateLockPeriodEnd("s1", NEW_END, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(sz({ ...immediate, art: "ANFORDERUNG" }));
-    expect((await updateSperrzeitEnde("s1", NEW_END, "herrin")).ok).toBe(false);
+    expect((await updateLockPeriodEnd("s1", NEW_END, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(sz({ ...immediate, withdrawnAt: new Date() }));
-    expect((await updateSperrzeitEnde("s1", NEW_END, "herrin")).ok).toBe(false);
+    expect((await updateLockPeriodEnd("s1", NEW_END, "herrin")).ok).toBe(false);
 
     findUniqueMock.mockResolvedValue(sz(immediate));
-    expect((await updateSperrzeitEnde("s1", new Date("2020-01-01"), "herrin")).ok).toBe(false); // Ende in der Vergangenheit
+    expect((await updateLockPeriodEnd("s1", new Date("2020-01-01"), "herrin")).ok).toBe(false); // Ende in der Vergangenheit
 
     expect(notifyMock).not.toHaveBeenCalled();
     expect(updateMock).not.toHaveBeenCalled();
@@ -174,10 +174,10 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  describe("updateSperrzeitEnde", () => {
+  describe("updateLockPeriodEnd", () => {
     it("terminiert: ein Ende VOR dem Auslösezeitpunkt wird abgelehnt (auch wenn es in der Zukunft liegt)", async () => {
       findUniqueMock.mockResolvedValue(sz({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null }));
-      const res = await updateSperrzeitEnde("s1", MORGEN, "herrin");
+      const res = await updateLockPeriodEnd("s1", MORGEN, "herrin");
 
       if (res.ok) throw new Error("erwartet: Fehler");
       expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
@@ -187,7 +187,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
 
     it("terminiert: ein Ende NACH dem Auslösezeitpunkt bleibt erlaubt", async () => {
       findUniqueMock.mockResolvedValue(sz({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null }));
-      const res = await updateSperrzeitEnde("s1", DANACH, "herrin");
+      const res = await updateLockPeriodEnd("s1", DANACH, "herrin");
 
       expect(res.ok).toBe(true);
       expect(updateMock).toHaveBeenCalledWith({ where: { id: "s1" }, data: { endetAt: DANACH } });
@@ -195,22 +195,22 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
 
     it("Ende GENAU auf dem Auslösezeitpunkt ist eine Sperre der Länge null → abgelehnt", async () => {
       findUniqueMock.mockResolvedValue(sz({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null }));
-      const res = await updateSperrzeitEnde("s1", IN_DREI_WOCHEN, "herrin");
+      const res = await updateLockPeriodEnd("s1", IN_DREI_WOCHEN, "herrin");
       if (res.ok) throw new Error("erwartet: Fehler");
       expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");
     });
 
-    it("unbefristet (null) bleibt bei einer terminierten Sperrzeit erlaubt", async () => {
+    it("Unbefristet (null) bleibt bei einer terminierten Sperrzeit erlaubt", async () => {
       findUniqueMock.mockResolvedValue(sz({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null }));
-      expect((await updateSperrzeitEnde("s1", null, "herrin")).ok).toBe(true);
+      expect((await updateLockPeriodEnd("s1", null, "herrin")).ok).toBe(true);
     });
 
     it("bereits ausgelöst: es zählt wieder `jetzt`, nicht das vergangene wirksamAb", async () => {
       findUniqueMock.mockResolvedValue(sz(triggered));
-      expect((await updateSperrzeitEnde("s1", MORGEN, "herrin")).ok).toBe(true); // verkürzen auf morgen: legitim
+      expect((await updateLockPeriodEnd("s1", MORGEN, "herrin")).ok).toBe(true); // verkürzen auf morgen: legitim
 
       findUniqueMock.mockResolvedValue(sz(triggered));
-      const past = await updateSperrzeitEnde("s1", new Date("2026-07-13T12:00:00Z"), "herrin");
+      const past = await updateLockPeriodEnd("s1", new Date("2026-07-13T12:00:00Z"), "herrin");
       if (past.ok) throw new Error("erwartet: Fehler");
       expect(past.error).toBe("LOCK_PERIOD_END_MUST_BE_FUTURE");
     });
@@ -251,7 +251,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
     it("ANFORDERUNG: das absolute Sperr-Ende (wird beim Erfüllen zur SPERRZEIT) gilt dieselbe Regel", async () => {
       const res = await createVerschlussAnforderung({
         userId: "u1", art: "ANFORDERUNG",
-        wirksamAbAt: IN_DREI_WOCHEN, fristH: 4, sperrEndetAt: MORGEN,
+        wirksamAbAt: IN_DREI_WOCHEN, fristH: 4, lockEndsAt: MORGEN,
       }, "herrin");
 
       if (res.ok) throw new Error("erwartet: Fehler");
@@ -420,7 +420,7 @@ describe("withdrawVerschlussAnforderungById (Admin-UI)", () => {
 
 /**
  * Mehrere Einschliess-Anforderungen dürfen koexistieren — anders als bei der SPERRZEIT, wo die neue
- * die alte ablöst (sonst setzte `foldActiveSperrzeiten` stumm das spätere Ende durch und eine
+ * die alte ablöst (sonst setzte `foldActiveLockPeriods` stumm das spätere Ende durch und eine
  * Verkürzung bliebe wirkungslos). Bei Anforderungen ist Koexistenz gerade der Punkt: eine Pipeline
  * terminierter Anweisungen, die EIN Verschluss gemeinsam erfüllt.
  */
@@ -491,7 +491,7 @@ describe("updateLockRequest", () => {
   /** Eine ANFORDERUNGs-Zeile, wie updateLockRequest sie liest (inkl. user für die Zustellung). */
   const anf = (overrides: object) => ({
     id: "a1", userId: "u1", art: "ANFORDERUNG", endetAt: SPAETER, nachricht: null, dauerH: null,
-    sperrEndetAt: null, deviceId: null, reinigungErlaubt: false, fulfilledAt: null, withdrawnAt: null,
+    lockEndsAt: null, deviceId: null, reinigungErlaubt: false, fulfilledAt: null, withdrawnAt: null,
     user: { id: "u1", email: "sub@example.invalid", username: "sub", locale: "de" },
     ...overrides,
   });
@@ -566,14 +566,14 @@ describe("updateLockRequest", () => {
 
   it("Mindestdauer und absolutes Sperr-Ende verdrängen einander, statt still zu koexistieren", async () => {
     findUniqueMock.mockResolvedValue(anf({ ...triggered, dauerH: 24 }));
-    await updateLockRequest("a1", { sperrEndetAt: IN_DREI_WOCHEN }, "herrin");
+    await updateLockRequest("a1", { lockEndsAt: IN_DREI_WOCHEN }, "herrin");
 
-    expect(updateMock.mock.calls[0][0].data).toMatchObject({ dauerH: null, sperrEndetAt: IN_DREI_WOCHEN });
+    expect(updateMock.mock.calls[0][0].data).toMatchObject({ dauerH: null, lockEndsAt: IN_DREI_WOCHEN });
   });
 
   it("beides gleichzeitig zu setzen ist ein Fehler, kein stiller Vorrang", async () => {
     findUniqueMock.mockResolvedValue(anf(triggered));
-    const res = await updateLockRequest("a1", { dauerH: 12, sperrEndetAt: IN_DREI_WOCHEN }, "herrin");
+    const res = await updateLockRequest("a1", { dauerH: 12, lockEndsAt: IN_DREI_WOCHEN }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("LOCK_DURATION_OR_END");
@@ -589,7 +589,7 @@ describe("updateLockRequest", () => {
 
   it("ein Sperr-Ende vor der Auslösung wird abgelehnt (dieselbe Regel wie beim Anlegen)", async () => {
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
-    const res = await updateLockRequest("a1", { sperrEndetAt: SPAETER }, "herrin");
+    const res = await updateLockRequest("a1", { lockEndsAt: SPAETER }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_AFTER_TRIGGER");

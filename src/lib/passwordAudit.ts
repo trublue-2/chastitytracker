@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { subsWithActiveSperrzeit } from "@/lib/queries";
+import { subsWithActiveLockPeriod } from "@/lib/queries";
 import type { Prisma } from "@prisma/client";
 
 /** Auf welchem Weg das Passwort gesetzt wurde. `reset_token` ist der Fall, um den es geht: Wer
@@ -31,18 +31,18 @@ export async function buildAdminPasswordChangeRows(
   });
   if (target?.role !== "admin") return [];
 
-  const sperrzeiten = await subsWithActiveSperrzeit();
+  const lockPeriods = await subsWithActiveLockPeriod();
   // Der Admin selbst kann einen Sub-Eintrag haben (Admin trägt auch eigene Zeiten) — ein
   // Passwortwechsel am eigenen Konto während der EIGENEN Sperrzeit ist genau der gemeinte Fall
   // und wird deshalb nicht ausgenommen.
-  return sperrzeiten.map((s) => ({
+  return lockPeriods.map((s) => ({
     subUserId: s.userId,
     adminUserId: target.id,
     adminUsername: target.username,
     via,
     actorUserId,
-    sperrzeitId: s.id,
-    sperrzeitEndetAt: s.endetAt,
+    lockPeriodId: s.id,
+    lockPeriodEndsAt: s.endetAt,
   }));
 }
 

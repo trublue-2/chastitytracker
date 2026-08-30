@@ -83,7 +83,7 @@ zu treffen. `text-rubrik` lässt sich neu vermessen, `text-xs` nicht.
 
 ### Tickende Zahlen springen nicht mehr
 
-`SperrzeitRemaining`, `SessionDurationBadge` und der Aufgaben-Countdown besitzen ihre
+`LockPeriodRemaining`, `SessionDurationBadge` und der Aufgaben-Countdown besitzen ihre
 tabellarischen Ziffern jetzt selbst. Vorher hing es daran, dass jeder Aufrufer daran dachte —
 `SessionDurationBadge` funktionierte nur, weil zufällig alle drei es taten.
 

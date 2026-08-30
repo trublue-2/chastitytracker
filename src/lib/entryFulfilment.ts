@@ -12,7 +12,7 @@ import {
   LOCK_REQUEST_ORDER,
   type PrismaTx,
 } from "@/lib/queries";
-import { sperrzeitEndeFromRequest } from "@/lib/verschlussAnforderungService";
+import { lockPeriodEndFromRequest } from "@/lib/verschlussAnforderungService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 
 /** Der Eintrag, wie ihn die Erfüllung braucht — bewusst die schmale Form statt des Prisma-Modells,
@@ -154,7 +154,7 @@ export async function applyEntryFulfilment(
       // also nicht dadurch entwertet, dass daneben eine geräte-freie Anforderung offen ist.
       requiredAnforderungDeviceIds = offeneAnforderungen.map((a) => a.deviceId).filter((d): d is string => d !== null);
     }
-    // SPERRZEIT-Ende je Anforderung: absolutes sperrEndetAt (Wanduhr) gewinnt und bleibt fix, egal
+    // SPERRZEIT-Ende je Anforderung: absolutes lockEndsAt (Wanduhr) gewinnt und bleibt fix, egal
     // wann tatsächlich verschlossen wurde; sonst dauerH relativ zur Verschlusszeit (Bestandsverhalten).
     //
     // Anders als `createVerschlussAnforderung` (Keyholder-Pfad) zieht das hier KEINE bestehenden
@@ -162,17 +162,17 @@ export async function applyEntryFulfilment(
     // handelt der Sub, und dass er sich zwischendurch selbst einschliesst, darf eine geplante
     // Anweisung der Keyholderin nicht stillschweigend löschen — er kennt sie ja nicht einmal,
     // es fiele also niemandem auf. Dasselbe gilt für mehrere hier erzeugte Sperrzeiten: wie sie
-    // zur EFFEKTIVEN aufgelöst werden, steht bei `foldActiveSperrzeiten` (queries.ts).
-    const neueSperrzeiten = offeneAnforderungen.flatMap((a) => {
-      const sperrEnde = sperrzeitEndeFromRequest(a, at); // Anker: der Verschluss selbst
-      return sperrEnde
+    // zur EFFEKTIVEN aufgelöst werden, steht bei `foldActiveLockPeriods` (queries.ts).
+    const newLockPeriods = offeneAnforderungen.flatMap((a) => {
+      const lockEnd = lockPeriodEndFromRequest(a, at); // Anker: der Verschluss selbst
+      return lockEnd
         ? [{
             userId,
             art: "SPERRZEIT",
             nachricht: a.nachricht,
-            endetAt: sperrEnde,
+            endetAt: lockEnd,
             reinigungErlaubt: a.reinigungErlaubt,
-            // Der Anordnende wandert mit (wie in `carryOverSperrzeitOnAlreadyLocked`): die Sperrzeit
+            // Der Anordnende wandert mit (wie in `carryOverLockPeriodOnAlreadyLocked`): die Sperrzeit
             // ist seine Anweisung, auch wenn erst der Verschluss des Subs sie auslöst.
             createdBy: a.createdBy,
           }]
@@ -180,8 +180,8 @@ export async function applyEntryFulfilment(
     });
     // Ein Insert statt einer je Anforderung — der POST-Pfad des Subs ist heiss genug, dass sich
     // N Round-Trips innerhalb der Transaktion nicht lohnen.
-    if (neueSperrzeiten.length > 0) {
-      await tx.verschlussAnforderung.createMany({ data: neueSperrzeiten });
+    if (newLockPeriods.length > 0) {
+      await tx.verschlussAnforderung.createMany({ data: newLockPeriods });
     }
   }
 

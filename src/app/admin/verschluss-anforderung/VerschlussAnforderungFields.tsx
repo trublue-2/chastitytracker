@@ -43,12 +43,12 @@ export default function VerschlussAnforderungFields({
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const apiError = useApiError();
-  const isSperrzeit = art === "SPERRZEIT";
-  const accentColor = isSperrzeit ? "var(--color-sperrzeit)" : "var(--color-request)";
+  const isLockPeriod = art === "SPERRZEIT";
+  const accentColor = isLockPeriod ? "var(--color-sperrzeit)" : "var(--color-request)";
 
   const [nachricht, setNachricht] = useState("");
   const [mode, setMode] = useState<"duration" | "datetime">("duration");
-  const defaultDurationH = isSperrzeit ? 24 : 4;
+  const defaultDurationH = isLockPeriod ? 24 : 4;
   const [deadlineH, setDeadlineH] = useState(String(defaultDurationH));
   // Die Frist ist eine Dauer wie die Kontroll-Frist und wird auch so eingegeben: Stunden ODER
   // Minuten, im 5-Minuten-Raster. Vorher stand hier ein nacktes Stundenfeld — ist eine Kontrolle
@@ -62,10 +62,10 @@ export default function VerschlussAnforderungFields({
     toDatetimeLocal(new Date(nowBaseMs + defaultDurationH * 60 * 60 * 1000), tz)
   );
   const [withMinDauer, setWithMinDauer] = useState(false);
-  // Min-Sperre nach dem Verschliessen: relative Dauer (dauerH) ODER absolutes Ende (sperrEndetAt).
-  const [sperrMode, setSperrMode] = useState<"duration" | "datetime">("duration");
+  // Min-Sperre nach dem Verschliessen: relative Dauer (dauerH) ODER absolutes Ende (lockEndsAt).
+  const [lockEndMode, setLockEndMode] = useState<"duration" | "datetime">("duration");
   const [minDauerH, setMinDauerH] = useState("24");
-  const [sperrEndetAt, setSperrEndetAt] = useState(() =>
+  const [lockEndsAt, setLockEndsAt] = useState(() =>
     toDatetimeLocal(new Date(nowBaseMs + 24 * 60 * 60 * 1000), tz)
   );
   const [deviceId, setDeviceId] = useState("");
@@ -86,7 +86,7 @@ export default function VerschlussAnforderungFields({
       setError(t("scheduleFutureRequired"));
       return;
     }
-    if (!isSperrzeit && withMinDauer && sperrMode === "datetime" && sperrEndetAt && fromDatetimeLocal(sperrEndetAt, tz) <= new Date()) {
+    if (!isLockPeriod && withMinDauer && lockEndMode === "datetime" && lockEndsAt && fromDatetimeLocal(lockEndsAt, tz) <= new Date()) {
       setError(t("futureDateRequired"));
       return;
     }
@@ -103,17 +103,17 @@ export default function VerschlussAnforderungFields({
       } else {
         payload.fristH = durationHoursOr(deadlineH, deadlineUnit, defaultDurationH);
       }
-      if (!isSperrzeit && withMinDauer) {
-        if (sperrMode === "datetime" && sperrEndetAt) {
-          payload.sperrEndetAt = fromDatetimeLocal(sperrEndetAt, tz).toISOString();
+      if (!isLockPeriod && withMinDauer) {
+        if (lockEndMode === "datetime" && lockEndsAt) {
+          payload.lockEndsAt = fromDatetimeLocal(lockEndsAt, tz).toISOString();
         } else {
           payload.dauerH = parseFloat(minDauerH) || 24;
         }
       }
-      if (!isSperrzeit && deviceId) {
+      if (!isLockPeriod && deviceId) {
         payload.deviceId = deviceId;
       }
-      if (isSperrzeit || withMinDauer) {
+      if (isLockPeriod || withMinDauer) {
         payload.reinigungErlaubt = reinigungErlaubt;
       }
 
@@ -165,17 +165,17 @@ export default function VerschlussAnforderungFields({
         onDurationChange={(value, unit) => { setDeadlineH(value); setDeadlineUnit(unit); }}
         // Eine Sperrzeit wird in Stunden bis Tagen beantwortet, eine Einschliess-Frist in Minuten
         // bis Stunden — die Skala folgt der Vorgabe daneben (24 h gegen 4 h).
-        quick={isSperrzeit ? DURATION_QUICK_HOURS.long : DURATION_QUICK_HOURS.short}
+        quick={isLockPeriod ? DURATION_QUICK_HOURS.long : DURATION_QUICK_HOURS.short}
         datetime={endetAt}
         onDatetimeChange={setEndetAt}
         datetimeMin={minNow}
-        datetimeHint={isSperrzeit ? t("endetHintSperrzeit") : t("endetHintAnforderung")}
+        datetimeHint={isLockPeriod ? t("endetHintSperrzeit") : t("endetHintAnforderung")}
         // Die Frist zählt ab JETZT — anders als beim Orgasmus-Fenster gibt es keinen eigenen Start.
         anchorMs={() => Date.now()}
         tz={tz}
       />
 
-      {!isSperrzeit && (
+      {!isLockPeriod && (
         <div className="flex flex-col gap-2">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={withMinDauer} onChange={(e) => setWithMinDauer(e.target.checked)}
@@ -190,22 +190,22 @@ export default function VerschlussAnforderungFields({
                   nicht in der Reiter-Beschriftung. */}
               <FieldTabs
                 label={t("sperrEndeLabel")}
-                value={sperrMode}
-                onChange={setSperrMode}
+                value={lockEndMode}
+                onChange={setLockEndMode}
                 options={[
                   { value: "duration", label: tc("duration") },
                   { value: "datetime", label: tc("pointInTime") },
                 ]}
               />
-              {sperrMode === "duration" ? (
+              {lockEndMode === "duration" ? (
                 <>
                   <HoursInput value={minDauerH} onChange={setMinDauerH} min={1} step={1} unit={tc("hoursUnit")} />
                   <span className="text-xs text-foreground-faint">{t("minDurationHint")}</span>
                 </>
               ) : (
                 <DateTimePicker
-                  value={sperrEndetAt}
-                  onChange={(e) => setSperrEndetAt(e.target.value)}
+                  value={lockEndsAt}
+                  onChange={(e) => setLockEndsAt(e.target.value)}
                   min={minNow}
                   hint={t("sperrUntilHint")}
                 />
@@ -216,9 +216,9 @@ export default function VerschlussAnforderungFields({
         </div>
       )}
 
-      {isSperrzeit && reinigungCheckbox}
+      {isLockPeriod && reinigungCheckbox}
 
-      {!isSperrzeit && devices.length > 0 && (
+      {!isLockPeriod && devices.length > 0 && (
         <Select
           label={t("selectDeviceLabel")}
           options={[
@@ -243,7 +243,7 @@ export default function VerschlussAnforderungFields({
       <Button
         type="submit"
         variant="semantic"
-        semantic={isSperrzeit ? "sperrzeit" : "request"}
+        semantic={isLockPeriod ? "sperrzeit" : "request"}
         fullWidth
         loading={saving}
         icon={<LockClosedIcon size={16} />}

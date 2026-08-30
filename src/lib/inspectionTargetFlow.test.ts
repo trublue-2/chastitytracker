@@ -31,7 +31,7 @@ vi.mock("@/lib/queries", () => ({
   getLatestKgEntry: vi.fn(),
   getActiveWearSessionForCategory: vi.fn(),
   prepareWearEntry: vi.fn(),
-  releaseSperrzeitenOnOpen: vi.fn(),
+  releaseLockPeriodsOnOpen: vi.fn(),
 }));
 vi.mock("@/lib/oeffnenService", () => ({ createOeffnenEntryTx: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
@@ -123,7 +123,7 @@ describe("autoMarkInspectionRemoved — Stufe 2 folgt dem Ziel", () => {
 
   it("KG-Kontrolle → OEFFNEN-Eintrag (Bestandsverhalten)", async () => {
     tx.kontrollAnforderung.findUnique.mockResolvedValue({ ...baseRow, categoryId: null });
-    createOeffnenMock.mockResolvedValue({ entryId: "e-open", withdrawnSperrzeit: false });
+    createOeffnenMock.mockResolvedValue({ entryId: "e-open", withdrawnLockPeriod: false });
 
     const r = await autoMarkInspectionRemoved({ id: "ka1", userId: "u1" });
 

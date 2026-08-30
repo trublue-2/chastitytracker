@@ -315,7 +315,7 @@ export default async function ComponentsShowcase() {
             <div className="flex flex-col gap-3">
               <p className="text-xs text-foreground-faint font-mono">request — compact</p>
               <LockRequestBanner variant="compact" colorScheme="request" label="Verschluss angefordert" endetAt={inFuture} locale="de-CH" />
-              <p className="text-xs text-foreground-faint font-mono">sperrzeit — compact</p>
+              <p className="text-xs text-foreground-faint font-mono">lockPeriod — compact</p>
               <LockRequestBanner variant="compact" colorScheme="sperrzeit" label="Verschlossen bis 15.04. 08:00" locale="de-CH" />
               <p className="text-xs text-foreground-faint font-mono">request — large</p>
               <LockRequestBanner variant="large" colorScheme="request" label="Einschliessen angefordert" nachricht="Bitte umgehend einschliessen." endetAtLabel="Bitte einschliessen bis: 15.04.2026, 18:00" />

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildPairs, type ReinigungSettings } from "@/lib/utils";
 import {
-  buildLockState, mapOpenKontrolle, mapActiveSperrzeit, mapOpenOrgasmusAnforderung,
+  buildLockState, mapOpenKontrolle, mapActiveLockPeriod, mapOpenOrgasmusAnforderung,
   mapActiveWearSessions, type LockEntry,
 } from "./liveState";
 
@@ -154,16 +154,16 @@ describe("mapOpenKontrolle", () => {
   });
 });
 
-describe("mapActiveSperrzeit", () => {
+describe("mapActiveLockPeriod", () => {
   it("ohne Ende ist die Sperre unbefristet — keine Restzeit", () => {
-    const s = mapActiveSperrzeit({ endetAt: null, nachricht: null, reinigungErlaubt: true, device: null }, NOW, fmt)!;
+    const s = mapActiveLockPeriod({ endetAt: null, nachricht: null, reinigungErlaubt: true, device: null }, NOW, fmt)!;
     expect(s.indefinite).toBe(true);
     expect(s.endetAt).toBeNull();
     expect(s.remainingMinutes).toBeNull();
   });
 
   it("mit Ende: Restzeit in Minuten, Gerätename durchgereicht", () => {
-    const s = mapActiveSperrzeit(
+    const s = mapActiveLockPeriod(
       { endetAt: D("2026-07-10T13:00:00Z"), nachricht: "bis morgen", reinigungErlaubt: false, device: { name: "Ring A" } },
       NOW, fmt)!;
     expect(s.indefinite).toBe(false);

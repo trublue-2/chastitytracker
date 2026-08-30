@@ -127,7 +127,7 @@ describe("notifyControllersAboutEntry", () => {
    * genannt werden. Nennte diese Meldung nur den spezielleren, bliebe der allgemeine wirkungslos.
    */
   it("nennt alle Schalter, die der Eintrag auslöst", async () => {
-    await notifyControllersAboutEntry({ ...BASE, type: "OEFFNEN", withdrawnSperrzeit: true });
+    await notifyControllersAboutEntry({ ...BASE, type: "OEFFNEN", withdrawnLockPeriod: true });
 
     expect(prefs).toHaveBeenCalledWith("sub1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]);
   });

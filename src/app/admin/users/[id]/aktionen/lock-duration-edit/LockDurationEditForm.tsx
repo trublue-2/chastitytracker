@@ -12,7 +12,7 @@ import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {
   userId: string;
-  sperrzeitId: string;
+  lockPeriodId: string;
   endetAt: Date | null;
   nachricht: string | null;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
@@ -24,7 +24,7 @@ interface Props {
  *  - "Ersetzen": PATCH withdraw, then redirect to verschluss-anforderung form
  *    (which only renders SPERRZEIT mode when no active sperrzeit exists — so the
  *    withdraw must complete first). */
-export default function SperrdauerEditForm({ userId, sperrzeitId, endetAt, nachricht, tz = APP_TZ }: Props) {
+export default function LockDurationEditForm({ userId, lockPeriodId, endetAt, nachricht, tz = APP_TZ }: Props) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -36,7 +36,7 @@ export default function SperrdauerEditForm({ userId, sperrzeitId, endetAt, nachr
     setBusy(replace ? "replace" : "withdraw");
     setError("");
     try {
-      const res = await fetch(`/api/admin/verschluss-anforderung/${sperrzeitId}`, {
+      const res = await fetch(`/api/admin/verschluss-anforderung/${lockPeriodId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "withdraw" }),

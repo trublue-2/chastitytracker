@@ -19,9 +19,9 @@ interface Props {
 export default function VerschlussAnforderungForm({ userId, art, devices = [], tz, minNow }: Props) {
   const t = useTranslations("admin");
   const router = useRouter();
-  const isSperrzeit = art === "SPERRZEIT";
-  const accentColor = isSperrzeit ? "var(--color-sperrzeit)" : "var(--color-request)";
-  const accentBg = isSperrzeit ? "var(--color-sperrzeit-bg)" : "var(--color-request-bg)";
+  const isLockPeriod = art === "SPERRZEIT";
+  const accentColor = isLockPeriod ? "var(--color-sperrzeit)" : "var(--color-request)";
+  const accentBg = isLockPeriod ? "var(--color-sperrzeit-bg)" : "var(--color-request-bg)";
 
   const close = () => router.push(`/admin/users/${userId}/aktionen`);
 
@@ -29,7 +29,7 @@ export default function VerschlussAnforderungForm({ userId, art, devices = [], t
     <ActionModal
       open={true}
       onClose={close}
-      title={isSperrzeit ? t("setLockDuration") : t("requestLock")}
+      title={isLockPeriod ? t("setLockDuration") : t("requestLock")}
       icon={<LockClosedIcon size={20} strokeWidth={2} style={{ color: accentColor }} />}
       iconBg={accentBg}
     >

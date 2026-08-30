@@ -153,12 +153,12 @@ export function mapOpenKontrolle(
   };
 }
 
-export interface ActiveSperrzeitView { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null; reinigungErlaubt: boolean; deviceName: string | null }
+export interface ActiveLockPeriodView { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null; reinigungErlaubt: boolean; deviceName: string | null }
 
-export function mapActiveSperrzeit(
+export function mapActiveLockPeriod(
   s: { endetAt: Date | null; nachricht: string | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
-): ActiveSperrzeitView | null {
+): ActiveLockPeriodView | null {
   if (!s) return null;
   return {
     endetAt: s.endetAt ? fmt(s.endetAt) : null,
@@ -186,7 +186,7 @@ export interface OpenLockRequestView {
 }
 
 export function mapOpenLockRequest(
-  a: { id: string; endetAt: Date | null; nachricht: string | null; dauerH: number | null; sperrEndetAt: Date | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
+  a: { id: string; endetAt: Date | null; nachricht: string | null; dauerH: number | null; lockEndsAt: Date | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): OpenLockRequestView | null {
   if (!a) return null;
@@ -197,7 +197,7 @@ export function mapOpenLockRequest(
     remainingMinutes: a.endetAt ? minutesUntil(a.endetAt, now) : null,
     message: a.nachricht,
     dauerH: a.dauerH,
-    lockUntilAt: a.sperrEndetAt ? fmt(a.sperrEndetAt) : null,
+    lockUntilAt: a.lockEndsAt ? fmt(a.lockEndsAt) : null,
     reinigungErlaubt: a.reinigungErlaubt,
     deviceName: a.device?.name ?? null,
   };
@@ -239,7 +239,7 @@ export function mapActiveWearSessions(
 
 // ── Unterbrochene Sperrzeit ───────────────────────────────────────────────────
 
-export interface InterruptedSperrzeitView {
+export interface InterruptedLockPeriodView {
   /** Das ursprüngliche Ende, das die Keyholderin gesetzt hatte. null = war unbefristet. */
   originalEndetAt: string | null;
   indefinite: boolean;
@@ -256,10 +256,10 @@ export interface InterruptedSperrzeitView {
  *
  * Neutral formuliert: ob die Öffnung erlaubt war, steht hier bewusst NICHT — das weiss das Strafbuch.
  */
-export function mapInterruptedSperrzeit(
+export function mapInterruptedLockPeriod(
   s: { endetAt: Date | null; withdrawnAt: Date | null; nachricht: string | null } | null,
   fmt: Fmt,
-): InterruptedSperrzeitView | null {
+): InterruptedLockPeriodView | null {
   if (!s?.withdrawnAt) return null;
   return {
     originalEndetAt: s.endetAt ? fmt(s.endetAt) : null,

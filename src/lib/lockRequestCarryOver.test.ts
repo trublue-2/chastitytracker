@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Sie ist damit erfüllt — bisher verfiel sie aber als `obsolete`, und mit ihr die SPERRZEIT, die sie
  * mitbrachte: die entsteht sonst erst beim Erfüllen im Entries-Pfad, den ein schon verschlossener
  * Sub nie durchläuft. Der Keyholder verlor die Sperre ausgerechnet dann, wenn der Sub alles richtig
- * gemacht hatte. `carryOverSperrzeitOnAlreadyLocked` übernimmt sie stattdessen.
+ * gemacht hatte. `carryOverLockPeriodOnAlreadyLocked` übernimmt sie stattdessen.
  */
 
 const txMock = {
@@ -17,15 +17,15 @@ vi.mock("@/lib/prisma", () => ({
 // Heimdall-Push ist fire-and-forget und für die Regel unerheblich.
 vi.mock("@/lib/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
 
-import { carryOverSperrzeitOnAlreadyLocked, sperrzeitEndeFromRequest } from "./verschlussAnforderungService";
+import { carryOverLockPeriodOnAlreadyLocked, lockPeriodEndFromRequest } from "./verschlussAnforderungService";
 
 /** X — der Auslöse-Zeitpunkt der terminierten Anforderung. */
 const X = new Date("2026-07-31T14:00:00Z");
 const STUNDE = 60 * 60 * 1000;
 
-const anforderung = (over: Partial<{ dauerH: number | null; sperrEndetAt: Date | null; createdBy: string | null }> = {}) => ({
+const anforderung = (over: Partial<{ dauerH: number | null; lockEndsAt: Date | null; createdBy: string | null }> = {}) => ({
   id: "a1", userId: "u1", nachricht: "24h drin bleiben", reinigungErlaubt: true,
-  dauerH: 24, sperrEndetAt: null, createdBy: "herrin", ...over,
+  dauerH: 24, lockEndsAt: null, createdBy: "herrin", ...over,
 });
 
 beforeEach(() => {
@@ -34,27 +34,27 @@ beforeEach(() => {
   txMock.verschlussAnforderung.update.mockResolvedValue({});
 });
 
-describe("sperrzeitEndeFromRequest — die eine Regel beider Pfade", () => {
+describe("lockPeriodEndFromRequest — die eine Regel beider Pfade", () => {
   it("absolutes Sperr-Ende gewinnt und bleibt unabhängig vom Anker fix", () => {
     const fix = new Date("2026-08-05T10:00:00Z");
-    const a = { dauerH: 24, sperrEndetAt: fix };
-    expect(sperrzeitEndeFromRequest(a, X)).toEqual(fix);
-    expect(sperrzeitEndeFromRequest(a, new Date("2026-07-01T00:00:00Z"))).toEqual(fix);
+    const a = { dauerH: 24, lockEndsAt: fix };
+    expect(lockPeriodEndFromRequest(a, X)).toEqual(fix);
+    expect(lockPeriodEndFromRequest(a, new Date("2026-07-01T00:00:00Z"))).toEqual(fix);
   });
 
   it("sonst zählt dauerH ab dem übergebenen Anker", () => {
-    expect(sperrzeitEndeFromRequest({ dauerH: 24, sperrEndetAt: null }, X))
+    expect(lockPeriodEndFromRequest({ dauerH: 24, lockEndsAt: null }, X))
       .toEqual(new Date(X.getTime() + 24 * STUNDE));
   });
 
   it("ohne beides: keine Sperrzeit", () => {
-    expect(sperrzeitEndeFromRequest({ dauerH: null, sperrEndetAt: null }, X)).toBeNull();
+    expect(lockPeriodEndFromRequest({ dauerH: null, lockEndsAt: null }, X)).toBeNull();
   });
 });
 
-describe("carryOverSperrzeitOnAlreadyLocked", () => {
+describe("carryOverLockPeriodOnAlreadyLocked", () => {
   it("legt die Sperrzeit an — dauerH ab X, nicht ab dem länger zurückliegenden Verschluss", async () => {
-    const r = (await carryOverSperrzeitOnAlreadyLocked(anforderung(), X))!;
+    const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung(), X))!;
     expect(r.endetAt).toEqual(new Date(X.getTime() + 24 * STUNDE));
 
     const { data } = txMock.verschlussAnforderung.create.mock.calls[0][0] as { data: Record<string, unknown> };
@@ -69,12 +69,12 @@ describe("carryOverSperrzeitOnAlreadyLocked", () => {
   });
 
   it("gibt die Nachricht der GESCHRIEBENEN Zeile zurück — die Meldung zitiert die Sperrzeit", async () => {
-    const r = (await carryOverSperrzeitOnAlreadyLocked(anforderung(), X))!;
+    const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung(), X))!;
     expect(r.nachricht).toBe("24h drin bleiben");
   });
 
   it("verbucht die Anforderung als ERFÜLLT, nicht als zurückgezogen", async () => {
-    await carryOverSperrzeitOnAlreadyLocked(anforderung(), X);
+    await carryOverLockPeriodOnAlreadyLocked(anforderung(), X);
     expect(txMock.verschlussAnforderung.update).toHaveBeenCalledWith({
       where: { id: "a1" }, data: { fulfilledAt: X },
     });
@@ -82,25 +82,25 @@ describe("carryOverSperrzeitOnAlreadyLocked", () => {
 
   it("absolutes Sperr-Ende wird 1:1 übernommen", async () => {
     const fix = new Date("2026-08-05T10:00:00Z");
-    const r = (await carryOverSperrzeitOnAlreadyLocked(anforderung({ dauerH: null, sperrEndetAt: fix }), X))!;
+    const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung({ dauerH: null, lockEndsAt: fix }), X))!;
     expect(r.endetAt).toEqual(fix);
   });
 
   it("ohne mitgebrachte Sperrzeit: null — der Aufrufer zieht wie bisher zurück", async () => {
-    expect(await carryOverSperrzeitOnAlreadyLocked(anforderung({ dauerH: null, sperrEndetAt: null }), X)).toBeNull();
+    expect(await carryOverLockPeriodOnAlreadyLocked(anforderung({ dauerH: null, lockEndsAt: null }), X)).toBeNull();
     expect(txMock.verschlussAnforderung.create).not.toHaveBeenCalled();
     expect(txMock.verschlussAnforderung.update).not.toHaveBeenCalled();
   });
 
   it("bereits abgelaufenes absolutes Sperr-Ende: null statt einer toten Sperre", async () => {
     const vergangen = new Date(X.getTime() - STUNDE);
-    expect(await carryOverSperrzeitOnAlreadyLocked(anforderung({ dauerH: null, sperrEndetAt: vergangen }), X)).toBeNull();
+    expect(await carryOverLockPeriodOnAlreadyLocked(anforderung({ dauerH: null, lockEndsAt: vergangen }), X)).toBeNull();
     expect(txMock.verschlussAnforderung.create).not.toHaveBeenCalled();
   });
 
   it("Anlegen und Erfüllt-Setzen laufen in EINER Transaktion", async () => {
     const { prisma } = await import("@/lib/prisma");
-    await carryOverSperrzeitOnAlreadyLocked(anforderung(), X);
+    await carryOverLockPeriodOnAlreadyLocked(anforderung(), X);
     expect((prisma as unknown as { $transaction: ReturnType<typeof vi.fn> }).$transaction).toHaveBeenCalledTimes(1);
   });
 });

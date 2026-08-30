@@ -285,7 +285,7 @@ export function ToastDemo() {
       <Button variant="semantic" semantic="inspect" size="sm" onClick={() => toast.warning("Reinigungszeit fast abgelaufen")}>
         Warning Toast
       </Button>
-      <Button variant="semantic" semantic="unlock" size="sm" onClick={() => toast.info("KI-Verifikation laeuft...")}>
+      <Button variant="semantic" semantic="unlock" size="sm" onClick={() => toast.info("KI-Verifikation running...")}>
         Info Toast
       </Button>
     </div>

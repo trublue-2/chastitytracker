@@ -71,7 +71,7 @@ function rawStrafbuchWithOneOfEach() {
     lateLocks: [{ id: "v1", ...one }],
     cleaningNotRelocked: [{ entryId: "e1", ...one }],
     unfulfilledTasks: [{ id: "t1", title: "Staubsaugen", holdUntil: null, state: "aborted", failedAt: null, ...one }],
-    adminPasswordChanges: [{ id: "p1", at: null, adminUsername: "Admin", via: "reset_token", sperrzeitEndetAt: null }],
+    adminPasswordChanges: [{ id: "p1", at: null, adminUsername: "Admin", via: "reset_token", lockPeriodEndsAt: null }],
     unauthorizedOrgasms: [{ id: "g1", ...one }],
     missedWeightReports: [{ dayKey: "2026-08-22", at: null, days: 3 }],
     manualOffenses: [{ id: "n1", occurredAt: null, title: "Abmachung gebrochen" }],

@@ -13,7 +13,7 @@ Stand: v5.1.2 · erstellt 15.08.2026 · **reine Bestandsaufnahme, nichts davon i
 | Instrument | Kann | Kann nicht |
 |---|---|---|
 | **Aufgabe** | Text · 0..n Bedingungen (Gerät/Kategorie/KG verschlossen) · Nachweis-Fotos mit Code · Frist als Zeitpunkt ODER Tragezeit ab dem Anlegen · Kulanz zum Anlegen · Straf-Kennzeichen · Selbstmeldung mit Notiz | **terminieren** · wiederholen · Bedingung verneinen · Bedingungen mit verschiedenen Enden · ohne Frist auskommen |
-| **Verschluss-Anforderung** | Frist zum Einschliessen · `dauerH` = Mindest-Tragedauer **ab dem tatsächlichen Verschluss** · `sperrEndetAt` = festes Ende · bestimmtes Gerät · **terminierbar** | nur der KG, keine anderen Kategorien |
+| **Verschluss-Anforderung** | Frist zum Einschliessen · `dauerH` = Mindest-Tragedauer **ab dem tatsächlichen Verschluss** · `lockEndsAt` = festes Ende · bestimmtes Gerät · **terminierbar** | nur der KG, keine anderen Kategorien |
 | **Sperrzeit** | „darf bis X nicht öffnen" · Reinigungsausnahme wahlweise · **terminierbar** | nur der KG |
 | **Kontrolle** | Foto-Beweis mit Code, Frist · Ziel = KG **oder** Kategorie **oder** genau ein Gerät · **terminierbar** · Eskalationsstufen | keine Dauer, nur ein Zeitpunkt |
 | **Auto-Kontrollen** | n Stück pro Tag, gewürfelt, mit Schlaf-Fenster und festem Auslöse-Fenster | nur KG-Kontrollen, kein Kategorie-Ziel |

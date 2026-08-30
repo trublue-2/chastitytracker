@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
-import { getActiveSperrzeit } from "@/lib/queries";
+import { getActiveLockPeriod } from "@/lib/queries";
 import { heimdallEnabled } from "@/lib/constants";
 import { toPendingCommand } from "@/lib/boxStatus";
 
@@ -33,13 +33,13 @@ export async function GET(req: NextRequest) {
     if (denied) return denied;
   }
 
-  const [boxes, sperre] = await Promise.all([
+  const [boxes, lockPeriod] = await Promise.all([
     prisma.boxStatus.findMany({
       where: { userId },
       orderBy: { name: "asc" },
       select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true, offlineOpenHours: true, battery: true, charging: true, lowBatteryOpenPercent: true, fwVersion: true },
     }),
-    getActiveSperrzeit(userId),
+    getActiveLockPeriod(userId),
   ]);
 
   // Tracker-eigene Sperrzeit sofort überlagern — der gepushte BoxStatus hinkt ihr nach (Heimdall
@@ -57,8 +57,8 @@ export async function GET(req: NextRequest) {
       // damit den Übergang („angefordert — Knopfdruck vollzieht") ohne auf Heimdall zu warten.
       pendingCommand: toPendingCommand(b.pendingCommand),
       simpleLock: b.simpleLock,
-      keyholderLocked: b.keyholderLocked || !!sperre,
-      lockUntil: (sperre ? sperre.endetAt : b.lockUntil)?.toISOString() ?? null,
+      keyholderLocked: b.keyholderLocked || !!lockPeriod,
+      lockUntil: (lockPeriod ? lockPeriod.endetAt : b.lockUntil)?.toISOString() ?? null,
       // Frische: wann die Box zuletzt gesynct hat (für „gerade aktiv / zuletzt online vor X").
       lastSyncAt: b.lastSyncAt?.toISOString() ?? null,
       // Failsafe-Vorwarnung (boxFailsafeWarnings) + Dauer-Akkuanzeige (boxBatteryLabel): die beiden

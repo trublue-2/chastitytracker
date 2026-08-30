@@ -18,7 +18,7 @@ import Button from "@/app/components/Button";
 import EntryFormShell from "@/app/components/EntryFormShell";
 import Card from "@/app/components/Card";
 import RiskConfirmSheet from "@/app/components/RiskConfirmSheet";
-import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "./types";
+import type { OeffnenPayload, ReinigungConfig, LockPeriodState, SubmitResult } from "./types";
 import type { BoxHold } from "@/lib/boxOpenOutlook";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
@@ -30,7 +30,7 @@ interface Props {
   maxTime?: string;
   tz: string;
   nowDefault: string;
-  sperrzeit?: SperrzeitState;
+  lockPeriod?: LockPeriodState;
   reinigung?: ReinigungConfig;
   /** Serverseitig gefälltes Urteil: hält die Box? null = der Riegel folgt (oder es gibt keine Box). */
   boxHold?: BoxHold | null;
@@ -49,7 +49,7 @@ interface Props {
 }
 
 export default function OeffnenFormCore({
-  initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold, hasBox = false,
+  initial, grundOptions, maxTime, tz, nowDefault, lockPeriod, reinigung, boxHold, hasBox = false,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel, defaultGrund,
   taskWarnings = [],
 }: Props) {
@@ -57,8 +57,8 @@ export default function OeffnenFormCore({
   const tCommon = useTranslations("common");
   const dl = toDateLocale(useLocale());
 
-  const sperrzeitEndetAt = sperrzeit?.endetAt ?? null;
-  const sperrzeitUnbefristet = sperrzeit?.unbefristet ?? false;
+  const lockPeriodEndsAt = lockPeriod?.endetAt ?? null;
+  const lockPeriodIndefinite = lockPeriod?.indefinite ?? false;
   const reinigungMaxMinuten = reinigung?.maxMinuten ?? 15;
   const reinigungMaxProTag = reinigung?.maxProTag ?? 0;
   const reinigungHeuteAnzahl = reinigung?.heuteAnzahl ?? 0;
@@ -75,12 +75,12 @@ export default function OeffnenFormCore({
   const { saving, error, setError, submit } = useEntrySubmit<OeffnenPayload>(submitFn, onSuccess);
 
   const isReinigungLimitReached = !initial && reinigungMaxProTag > 0 && grund === "REINIGUNG" && reinigungHeuteAnzahl >= reinigungMaxProTag;
-  const isGesperrt = sperrzeitUnbefristet || !!(sperrzeitEndetAt && new Date(sperrzeitEndetAt) > new Date());
+  const hasActiveLockPeriod = lockPeriodIndefinite || !!(lockPeriodEndsAt && new Date(lockPeriodEndsAt) > new Date());
   // Das Urteil kommt fertig vom Server (`cleaningBlockReason`) — dieselbe Regel, die über den
   // Sperrzeit-Bruch entscheidet. Hier nachzurechnen (User-Flag, Sperr-Flag, Fenster) hiesse, sie ein
   // viertes Mal zu formulieren; genau so ist die Fenster-Prüfung anderswo verlorengegangen.
   const istErlaubteReinigungsOeffnung = grund === "REINIGUNG" && cleaningBlock === null;
-  const isGesperrtBlockiert = isGesperrt && !istErlaubteReinigungsOeffnung;
+  const openingBlockedByLockPeriod = hasActiveLockPeriod && !istErlaubteReinigungsOeffnung;
 
   /** Warum steht bei Grund „Reinigung" kein „max. X Minuten" da? Der Server nennt den Grund. */
   const reinigungHintKey =
@@ -99,9 +99,9 @@ export default function OeffnenFormCore({
 
   // Hält die Box? Das Urteil kommt fertig vom Server (eine Uhr, Sub-Zeitzone). Bei einer erlaubten
   // Reinigungsöffnung folgt der Riegel trotz laufender Sperrzeit (der Tracker setzt den Dauerauftrag
-  // in Heimdall aus) — dann wäre die Halte-Warnung falsch. Der Bruch-Fall gehört `isGesperrtBlockiert`
+  // in Heimdall aus) — dann wäre die Halte-Warnung falsch. Der Bruch-Fall gehört `openingBlockedByLockPeriod`
   // und wird von der Sperrzeit-Karte plus dem Absende-Sheet abgedeckt.
-  const zeigeBoxHalt = !initial && !!boxHold && !isGesperrtBlockiert && !istErlaubteReinigungsOeffnung;
+  const zeigeBoxHalt = !initial && !!boxHold && !openingBlockedByLockPeriod && !istErlaubteReinigungsOeffnung;
 
   async function doSave(forced = false) {
     const payload: OeffnenPayload = {
@@ -121,7 +121,7 @@ export default function OeffnenFormCore({
     if (!grund) { setError(t("grundRequired")); return; }
     if (!note.trim()) { setError(t("commentRequired")); return; }
     if (isReinigungLimitReached) { setShowReinigungLimitWarning(true); return; }
-    if (isGesperrtBlockiert) { setShowWarning(true); return; }
+    if (openingBlockedByLockPeriod) { setShowWarning(true); return; }
     // Zuletzt die Aufgaben-Rückfrage: die anderen Warnungen betreffen das Öffnen selbst, diese die
     // Folge für eine laufende Aufgabe.
     if (taskGate.armed()) return;
@@ -131,7 +131,7 @@ export default function OeffnenFormCore({
   function handleReinigungLimitConfirm() {
     setShowReinigungLimitWarning(false);
     setForcedReinigung(true);
-    if (isGesperrtBlockiert) setShowWarning(true);
+    if (openingBlockedByLockPeriod) setShowWarning(true);
     else doSave(true);
   }
 
@@ -182,10 +182,10 @@ export default function OeffnenFormCore({
           <p className="text-fliess font-semibold text-warn mt-1">{t("modalBoxStaysLocked")}</p>
         )}
         <p className="text-neben text-sperrzeit font-semibold mt-1">
-          {sperrzeitUnbefristet
+          {lockPeriodIndefinite
             ? t("modalLockedIndefinite")
-            : sperrzeitEndetAt
-              ? t("modalLockedUntil", { date: new Date(sperrzeitEndetAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz }) })
+            : lockPeriodEndsAt
+              ? t("modalLockedUntil", { date: new Date(lockPeriodEndsAt).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz }) })
               : null}
         </p>
       </RiskConfirmSheet>
@@ -212,16 +212,16 @@ export default function OeffnenFormCore({
         {taskGate.warningCard}
         {taskGate.modal}
 
-        {isGesperrtBlockiert && (
+        {openingBlockedByLockPeriod && (
           <Card variant="semantic" semantic="sperrzeit">
             <div className="flex items-start gap-2.5">
               <LockClosedIcon size={16} className="flex-shrink-0 text-sperrzeit mt-0.5" />
               <div>
                 <p className="text-fliess font-bold text-sperrzeit-text">{t("lockedWarningTitle")}</p>
                 <p className="text-neben text-sperrzeit mt-0.5">
-                  {sperrzeitUnbefristet
+                  {lockPeriodIndefinite
                     ? t("lockedWarningTextIndefinite")
-                    : t("lockedWarningText", { date: new Date(sperrzeitEndetAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz }) })}
+                    : t("lockedWarningText", { date: new Date(lockPeriodEndsAt!).toLocaleString(dl, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz }) })}
                 </p>
               </div>
             </div>

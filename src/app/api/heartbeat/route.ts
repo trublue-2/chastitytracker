@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDashboardTasks, evaluateTasks } from "@/lib/taskIntervals";
-import { getIsLocked, getActiveSperrzeit, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
+import { getIsLocked, getActiveLockPeriod, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { visionConfigured } from "@/lib/vision";
 
@@ -35,7 +35,7 @@ export async function GET() {
 
   const userId = session.user.id;
   const now = new Date();
-  const [kontrollen, anforderungen, sperrzeit, orgasmus, pendingVerifications, pendingKeyChecks, openTasks] = await Promise.all([
+  const [kontrollen, anforderungen, lockPeriod, orgasmus, pendingVerifications, pendingKeyChecks, openTasks] = await Promise.all([
     prisma.kontrollAnforderung.findMany({
       where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
       select: { id: true },
@@ -48,7 +48,7 @@ export async function GET() {
       select: { id: true },
       orderBy: LOCK_REQUEST_ORDER,
     }),
-    getActiveSperrzeit(userId),
+    getActiveLockPeriod(userId),
     getActiveOrgasmusAnforderung(userId, now),
     // Nutzt den bestehenden Index [userId, type, startTime desc]; verifikationStatus ist nicht
     // indiziert, aber pending-Fälle sind normalerweise wenige und kurzlebig (KI-Check läuft
@@ -101,7 +101,7 @@ export async function GET() {
     "t:" + taskSig,
     "k:" + kontrollen.map((k) => k.id).sort().join(","),
     "v:" + anforderungen.map((a) => a.id).sort().join(","),
-    "s:" + (sperrzeit?.id ?? ""),
+    "s:" + (lockPeriod?.id ?? ""),
     "o:" + (orgasmus?.id ?? ""),
     "p:" + pendingVerifications.map((p) => p.id).sort().join(","),
     "b:" + pendingKeyChecks.map((p) => p.id).sort().join(","),

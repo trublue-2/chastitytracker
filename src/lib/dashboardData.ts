@@ -22,7 +22,7 @@ import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import {
   CATEGORY_LIST_ORDER, aktiveKontrolleWhere, keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE,
-  getActiveVorgabe, getActiveSperrzeit, getKeyholderSperrzeit, getActiveWearSessions,
+  getActiveVorgabe, getActiveLockPeriod, getKeyholderLockPeriod, getActiveWearSessions,
   getNonKgTrackingCategories, getActiveOrgasmusAnforderung, getKeyholderOrgasmusAnforderung,
   getOpenLockRequest,
 } from "@/lib/queries";
@@ -337,10 +337,10 @@ export const activeVorgabeCached = cache((userId: string, nowMs: number) =>
 );
 
 /** Die für den Träger wirksame Sperrzeit. */
-export const subSperrzeitCached = cache((userId: string) => getActiveSperrzeit(userId));
+export const subLockPeriodCached = cache((userId: string) => getActiveLockPeriod(userId));
 
 /** Die Sperrzeit in Keyholder-Sicht — auch eine erst GEPLANTE, damit sie sie zurückziehen kann. */
-export const keyholderSperrzeitCached = cache((userId: string) => getKeyholderSperrzeit(userId));
+export const keyholderLockPeriodCached = cache((userId: string) => getKeyholderLockPeriod(userId));
 
 /** Die offene Verschluss-Anforderung des Trägers (bei mehreren die dringendste). */
 export const lockRequestCached = cache((userId: string, nowMs: number) =>

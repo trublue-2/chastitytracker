@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminApi, requireKeyholderOrAdminApi, requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { isValidEmail, passwordErrorCode, isValidLocale } from "@/lib/constants";
-import { getActiveSperrzeit, getIsLocked } from "@/lib/queries";
+import { getActiveLockPeriod, getIsLocked } from "@/lib/queries";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { recordAdminPasswordChange } from "@/lib/passwordAudit";
@@ -28,7 +28,7 @@ export async function GET(
 
   // `categoryRows`: die „Neu erfassen"-Auswahl der Keyholder-Sicht (AdminFAB) — dieselbe Ableitung
   // wie im Sub-Dashboard, nur für den betrachteten Sub.
-  const [user, isLocked, offeneAnforderung, activeSperrzeit, categoryRows] = await Promise.all([
+  const [user, isLocked, offeneAnforderung, activeLockPeriod, categoryRows] = await Promise.all([
     prisma.user.findUnique({
       where: { id },
       select: { username: true, email: true, weightTrackingEnabled: true },
@@ -37,7 +37,7 @@ export async function GET(
     prisma.verschlussAnforderung.findFirst({
       where: { userId: id, art: "ANFORDERUNG", withdrawnAt: null, fulfilledAt: null },
     }),
-    getActiveSperrzeit(id),
+    getActiveLockPeriod(id),
     buildNewEntryCategoryRows(id),
   ]);
 
@@ -48,7 +48,7 @@ export async function GET(
     email: user.email,
     isLocked,
     hasOffeneAnforderung: !!offeneAnforderung,
-    hasActiveSperrzeit: !!activeSperrzeit,
+    hasActiveLockPeriod: !!activeLockPeriod,
     categoryRows,
     // Für die (+)-Zeile der Keyholder-Sicht: beide Schalter zu EINER Antwort verrechnet, damit der
     // Client nicht selbst wissen muss, dass es zwei sind.

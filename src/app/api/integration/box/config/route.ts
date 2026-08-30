@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBoxSync } from "@/lib/boxSync";
-import { getActiveSperrzeit } from "@/lib/queries";
+import { getActiveLockPeriod } from "@/lib/queries";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,13 +31,13 @@ export async function GET(req: NextRequest) {
   });
   if (!user) return NextResponse.json({ error: "Unknown user" }, { status: 404 });
 
-  const sperre = await getActiveSperrzeit(user.id);
+  const lockPeriod = await getActiveLockPeriod(user.id);
 
   return NextResponse.json({
-    sperrzeit: sperre
+    sperrzeit: lockPeriod
       ? {
-          endetAt: sperre.endetAt?.toISOString() ?? null,
-          indefinite: sperre.endetAt === null,
+          endetAt: lockPeriod.endetAt?.toISOString() ?? null,
+          indefinite: lockPeriod.endetAt === null,
         }
       : null,
   });

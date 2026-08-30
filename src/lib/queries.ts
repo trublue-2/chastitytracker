@@ -502,11 +502,11 @@ export async function validateDeviceOwnership(
 
 /** Shared base `where` for KEYHOLDER Sperrzeit-Sichten: nicht zurückgezogen, noch nicht beendet —
  *  ABER OHNE wirksamAb-Gate, damit GEPLANTE Sperrzeiten dem Keyholder sichtbar/stornierbar sind.
- *  `activeSperrzeitWhere` baut darauf auf und ergänzt das wirksamAb-Gate für Sub/Enforcement. */
-function keyholderSperrzeitWhere(userIdFilter: string | { in: string[] } | undefined, now: Date) {
+ *  `activeLockPeriodWhere` baut darauf auf und ergänzt das wirksamAb-Gate für Sub/Enforcement. */
+function keyholderLockPeriodWhere(userIdFilter: string | { in: string[] } | undefined, now: Date) {
   return {
     // `undefined` = kein User-Filter, also über ALLE Subs. Prisma lässt ein undefined-Feld weg,
-    // statt auf null zu prüfen — genau das ist hier gewollt (siehe `subsWithActiveSperrzeit`).
+    // statt auf null zu prüfen — genau das ist hier gewollt (siehe `subsWithActiveLockPeriod`).
     userId: userIdFilter,
     art: "SPERRZEIT" as const,
     withdrawnAt: null,
@@ -515,10 +515,10 @@ function keyholderSperrzeitWhere(userIdFilter: string | { in: string[] } | undef
 }
 
 /** Shared `where` for currently-active Sperrzeiten (not withdrawn, already triggered, not ended).
- *  Erweitert `keyholderSperrzeitWhere` um das `wirksamAb`-Gate: schliesst geplante (zukünftige)
+ *  Erweitert `keyholderLockPeriodWhere` um das `wirksamAb`-Gate: schliesst geplante (zukünftige)
  *  Sperrzeiten aus — sie dürfen vor ihrem Versand das Öffnen nicht blockieren. */
-function activeSperrzeitWhere(userIdFilter: string | { in: string[] } | undefined, now: Date) {
-  const { OR, ...base } = keyholderSperrzeitWhere(userIdFilter, now);
+function activeLockPeriodWhere(userIdFilter: string | { in: string[] } | undefined, now: Date) {
+  const { OR, ...base } = keyholderLockPeriodWhere(userIdFilter, now);
   return {
     ...base,
     AND: [
@@ -532,11 +532,11 @@ function activeSperrzeitWhere(userIdFilter: string | { in: string[] } | undefine
  *
  *  Ohne User-Filter, weil der Aufrufer den Sub noch nicht kennt: Das Passwort-Audit hängt an einem
  *  ADMIN-Konto, das Vergehen aber am Sub (`AdminPasswordChange.subUserId`). Bewusst über
- *  `activeSperrzeitWhere`, damit „läuft gerade" hier dieselbe Bedeutung hat wie überall sonst —
+ *  `activeLockPeriodWhere`, damit „läuft gerade" hier dieselbe Bedeutung hat wie überall sonst —
  *  inklusive `wirksamAb`-Gate, damit eine erst geplante Sperrzeit kein Vergehen auslöst. */
-export async function subsWithActiveSperrzeit(now: Date = new Date()) {
+export async function subsWithActiveLockPeriod(now: Date = new Date()) {
   return prisma.verschlussAnforderung.findMany({
-    where: activeSperrzeitWhere(undefined, now),
+    where: activeLockPeriodWhere(undefined, now),
     select: { id: true, userId: true, endetAt: true },
     orderBy: { createdAt: "asc" },
   });
@@ -549,26 +549,14 @@ export function isScheduledDirective(wirksamAb: Date | null, now: Date = new Dat
 }
 
 /** Ein User oder eine User-Menge → Prisma-Filter. Geteilt von den Sperrzeit-Listen-Queries. */
-function sperrzeitUserFilter(userId: string | { userIds: string[] }) {
+function lockPeriodUserFilter(userId: string | { userIds: string[] }) {
   return typeof userId === "string" ? userId : { in: userId.userIds };
-}
-
-/** Returns all currently-active Sperrzeiten for a user (or all users if `userIds` given). */
-export async function getActiveSperrzeiten(
-  userId: string | { userIds: string[] },
-  tx?: PrismaTx,
-) {
-  const client = tx ?? prisma;
-  return client.verschlussAnforderung.findMany({
-    where: activeSperrzeitWhere(sperrzeitUserFilter(userId), new Date()),
-    orderBy: { createdAt: "desc" },
-  });
 }
 
 /**
  * Faltet mehrere gleichzeitig AKTIVE Sperrzeiten zur EFFEKTIVEN Sperre zusammen — der einen, die
  * durchsetzt. Denn mehrere können koexistieren: eine für später geplante Sperrzeit überlebt eine
- * Öffnung (sie ist noch nicht aktiv, `releaseSperrzeitenOnOpen` greift nur aktive), und schliesst
+ * Öffnung (sie ist noch nicht aktiv, `releaseLockPeriodsOnOpen` greift nur aktive), und schliesst
  * der Sub sich danach über eine Verschluss-Anforderung wieder ein, legt `entries/route.ts` eine
  * zweite an. Löst die geplante dann aus, laufen zwei gleichzeitig.
  *
@@ -580,12 +568,12 @@ export async function getActiveSperrzeiten(
  *   {@link cleaningBlockReason}, das deshalb eine Liste nimmt).
  * Die übrigen Felder (Nachricht, Gerät, id) stammen aus der durchsetzenden Zeile.
  */
-export function foldActiveSperrzeiten<T extends { endetAt: Date | null; reinigungErlaubt: boolean }>(
+export function foldActiveLockPeriods<T extends { endetAt: Date | null; reinigungErlaubt: boolean }>(
   rows: T[],
 ): T | null {
   if (rows.length === 0) return null;
   const enforcing = rows.reduce((a, b) => {
-    if (a.endetAt === null) return a;          // unbefristet gewinnt
+    if (a.endetAt === null) return a;          // indefinite gewinnt
     if (b.endetAt === null) return b;
     return b.endetAt > a.endetAt ? b : a;      // sonst das spätere Ende
   });
@@ -608,9 +596,9 @@ export async function getOpenKontrollen(userId: string, now: Date = new Date()) 
 
 /** Offen = weder erfüllt noch zurückgezogen. Ohne Zeit-Gate — wer nur die bereits ausgelösten
  *  will, ergänzt `activeVerschlussAnforderungWhere`. Nimmt einen User ODER eine User-Menge (wie
- *  `getKeyholderSperrzeiten`), damit die Admin-Übersicht dasselbe Fragment teilt. */
+ *  `getKeyholderLockPeriods`), damit die Admin-Übersicht dasselbe Fragment teilt. */
 export function openLockRequestWhere(userId: string | { userIds: string[] }): Prisma.VerschlussAnforderungWhereInput {
-  return { userId: sperrzeitUserFilter(userId), art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null };
+  return { userId: lockPeriodUserFilter(userId), art: "ANFORDERUNG", fulfilledAt: null, withdrawnAt: null };
 }
 
 /** Dringendste zuerst: frühste Frist gewinnt, bei gleicher Frist die neuere. Seit mehrere
@@ -634,7 +622,7 @@ export const LOCK_REQUEST_ORDER: Prisma.VerschlussAnforderungOrderByWithRelation
 /** Die offenen Anforderungen, dringendste zuerst. `now` gesetzt = nur bereits AUSGELÖSTE (Sub-/
  *  Enforcement-Sicht: eine geplante steht schon in `scheduledDirectives` und der Sub weiss noch
  *  nichts von ihr); `now = null` = auch die terminierten (KEYHOLDER-Sicht, damit sie sich gezielt
- *  ändern/zurückziehen lassen — Gegenstück zu {@link getKeyholderSperrzeiten}). Dieselbe Query,
+ *  ändern/zurückziehen lassen — Gegenstück zu {@link getKeyholderLockPeriods}). Dieselbe Query,
  *  ein Zeit-Gate Unterschied. */
 export async function getOpenLockRequests(userId: string, now: Date | null = new Date()) {
   return prisma.verschlussAnforderung.findMany({
@@ -656,48 +644,48 @@ export function getKeyholderLockRequests(userId: string) {
 }
 
 /** Die EFFEKTIVE aktive Sperre eines Users, oder null — mehrere gleichzeitig aktive werden über
- *  {@link foldActiveSperrzeiten} zur strengsten zusammengefaltet (spätestes Ende, Reinigung nur wenn
+ *  {@link foldActiveLockPeriods} zur strengsten zusammengefaltet (spätestes Ende, Reinigung nur wenn
  *  alle sie erlauben). Jeder Aufrufer, der „die Sperrzeit" meint — Box-Durchsetzung, Öffnen-Gate,
  *  Dashboard —, bekommt so dieselbe Antwort. */
-export async function getActiveSperrzeit(userId: string, tx?: PrismaTx) {
+export async function getActiveLockPeriod(userId: string, tx?: PrismaTx) {
   const client = tx ?? prisma;
   const rows = await client.verschlussAnforderung.findMany({
-    where: activeSperrzeitWhere(userId, new Date()),
+    where: activeLockPeriodWhere(userId, new Date()),
     orderBy: { createdAt: "desc" },
     // device additiv mitladen — für den deviceName der Sperrzeit genutzt, für alle
     // anderen Aufrufer harmlos (lesen nur Skalarfelder).
     include: { device: { select: { name: true } } },
   });
-  return foldActiveSperrzeiten(rows);
+  return foldActiveLockPeriods(rows);
 }
 
 /** Die EINE Sperrzeit für eine KEYHOLDER-Sicht (aktiv ODER geplant), oder null. Anders als
- *  {@link getActiveSperrzeit} zeigt sie auch eine erst geplante (wirksamAb > now), damit der
+ *  {@link getActiveLockPeriod} zeigt sie auch eine erst geplante (wirksamAb > now), damit der
  *  Keyholder sie sehen und stornieren kann.
  *
  *  Läuft eine, gewinnt die AKTIVE — und zwar dieselbe EFFEKTIVE, die die Box durchsetzt
- *  ({@link foldActiveSperrzeiten}). Sonst zeigte die Admin-Oberfläche ein anderes Ende an als das,
+ *  ({@link foldActiveLockPeriods}). Sonst zeigte die Admin-Oberfläche ein anderes Ende an als das,
  *  gegen das der Sub tatsächlich verschlossen ist. Nur wenn KEINE aktiv ist, kommt die neueste
  *  geplante. */
-export async function getKeyholderSperrzeit(userId: string, tx?: PrismaTx) {
+export async function getKeyholderLockPeriod(userId: string, tx?: PrismaTx) {
   const client = tx ?? prisma;
   const now = new Date();
   const rows = await client.verschlussAnforderung.findMany({
-    where: keyholderSperrzeitWhere(userId, now),
+    where: keyholderLockPeriodWhere(userId, now),
     orderBy: { createdAt: "desc" },
     include: { device: { select: { name: true } } },
   });
-  return foldActiveSperrzeiten(rows.filter((s) => !isScheduledDirective(s.wirksamAb, now)))
+  return foldActiveLockPeriods(rows.filter((s) => !isScheduledDirective(s.wirksamAb, now)))
     ?? rows[0] ?? null;
 }
 
 /** Returns all OFFENEN Sperrzeiten (aktiv ODER geplant) für eine KEYHOLDER-Sicht — für EINEN User
  *  oder über mehrere. Bewusst eine LISTE, nicht „die" Sperrzeit: mehrere offene sind normal (siehe
- *  {@link foldActiveSperrzeiten}), und der MCP muss die Mehrdeutigkeit sehen können, um sie dem
+ *  {@link foldActiveLockPeriods}), und der MCP muss die Mehrdeutigkeit sehen können, um sie dem
  *  Keyholder zu melden. Neueste zuerst. */
-export async function getKeyholderSperrzeiten(userId: string | { userIds: string[] }) {
+export async function getKeyholderLockPeriods(userId: string | { userIds: string[] }) {
   return prisma.verschlussAnforderung.findMany({
-    where: keyholderSperrzeitWhere(sperrzeitUserFilter(userId), new Date()),
+    where: keyholderLockPeriodWhere(lockPeriodUserFilter(userId), new Date()),
     orderBy: { createdAt: "desc" },
   });
 }
@@ -719,7 +707,7 @@ export async function getActiveOrgasmusAnforderung(userId: string, now: Date = n
  *  zurückgezogen) — ABER OHNE endetAt-Gate, damit ein bereits abgelaufenes, noch nicht aufgeräumtes
  *  Fenster dem Keyholder weiterhin sichtbar/stornierbar ist. `getActiveOrgasmusAnforderung` (Sub/
  *  Enforcement-Sicht, z.B. Öffnen-Gate) filtert bewusst `endetAt: { gte: now }` — dasselbe Muster wie
- *  `keyholderSperrzeitWhere` vs. `activeSperrzeitWhere`. */
+ *  `keyholderLockPeriodWhere` vs. `activeLockPeriodWhere`. */
 function keyholderOrgasmusAnforderungWhere(userIdFilter: string | { in: string[] }) {
   return { userId: userIdFilter, fulfilledAt: null, withdrawnAt: null } as const;
 }
@@ -759,17 +747,17 @@ export function cleaningWindowOpen(reinigungsFenster: unknown, at: Date, tz: str
  * Öffnungsfenster. Genutzt fürs Bildersafe-Foto-Freigabe-Gate.
  */
 export async function isOpeningPermittedNow(userId: string, now: Date = new Date()): Promise<boolean> {
-  const sperre = await getActiveSperrzeit(userId);
-  if (!sperre) return true;
+  const lockPeriod = await getActiveLockPeriod(userId);
+  if (!lockPeriod) return true;
 
   // Erlaubte Reinigungsöffnung — dieselbe Quelle wie Durchsetzung und Strafbuch. Der äussere Guard
   // spart nur die User-Abfrage, wenn die Sperrzeit Reinigung ohnehin verbietet.
-  if (sperre.reinigungErlaubt) {
+  if (lockPeriod.reinigungErlaubt) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { reinigungErlaubt: true, reinigungsFenster: true, timezone: true },
     });
-    if (user && cleaningBlockReason(user, [sperre], now) === null) return true;
+    if (user && cleaningBlockReason(user, [lockPeriod], now) === null) return true;
   }
 
   // Orgasmus-Öffnungsfenster (oeffnenErlaubt + im Zeitfenster)
@@ -829,7 +817,7 @@ export async function isCodePhotoRevealed(
 }
 
 /** Der Teil des Users, den die Reinigungs-Erlaubnis braucht. Aufrufer, die ihn ohnehin geladen
- *  haben, reichen ihn durch (spart den Refetch); sonst lädt {@link releaseSperrzeitenOnOpen} ihn. */
+ *  haben, reichen ihn durch (spart den Refetch); sonst lädt {@link releaseLockPeriodsOnOpen} ihn. */
 export interface CleaningPermissionUser {
   reinigungErlaubt: boolean;
   /** JSON-String ODER Array — `parseReinigungsFenster` ist tolerant. Leer = nicht zeitgebunden. */
@@ -857,7 +845,7 @@ export type CleaningBlockReason = "userNotAllowed" | "lockPeriodForbids" | "outs
  * Sperrzeit fällt, das Strafbuch bucht, und die Box bekommt kein Kommando.
  *
  * `at` ist NICHT dasselbe für alle Aufrufer: die Durchsetzung
- * ({@link releaseSperrzeitenOnOpen}) prüft `now`, weil der Riegel in DIESEM Moment auffährt und eine
+ * ({@link releaseLockPeriodsOnOpen}) prüft `now`, weil der Riegel in DIESEM Moment auffährt und eine
  * rückdatierte `startTime` die Schranke sonst aushebelte. Das Strafbuch prüft `startTime`, weil es
  * Buch über die Vergangenheit führt.
  *
@@ -866,11 +854,11 @@ export type CleaningBlockReason = "userNotAllowed" | "lockPeriodForbids" | "outs
  */
 export function cleaningBlockReason(
   user: CleaningPermissionUser,
-  activeSperrzeiten: { reinigungErlaubt: boolean }[],
+  activeLockPeriods: { reinigungErlaubt: boolean }[],
   at: Date,
 ): CleaningBlockReason | null {
   if (!user.reinigungErlaubt) return "userNotAllowed";
-  if (!activeSperrzeiten.every((s) => s.reinigungErlaubt)) return "lockPeriodForbids";
+  if (!activeLockPeriods.every((s) => s.reinigungErlaubt)) return "lockPeriodForbids";
   if (!cleaningWindowOpen(user.reinigungsFenster, at, user.timezone)) return "outsideWindow";
   return null;
 }
@@ -890,7 +878,7 @@ export type WindowsBindingReason = "no-active-lock-period" | "user-not-allowed" 
  * ein, die tatsächlich gestellt wird — beurteilt nichts neu. `cleaningBlockReason` selbst prüft das
  * Fenster nur, wenn eine aktive Sperrzeit übergeben wird; die vorgelagerte "keine aktive Sperrzeit"-
  * Frage kennt es nicht (dieselbe Lücke, die {@link isOpeningPermittedNow} und
- * {@link releaseSperrzeitenOnOpen} mit einem eigenen `if (!sperre)`/`if (activeSperrzeiten.length
+ * {@link releaseLockPeriodsOnOpen} mit einem eigenen `if (!lockPeriod)`/`if (activeLockPeriods.length
  * === 0)`-Guard vor jedem Aufruf schließen) — hier also genauso, statt sie ein drittes Mal woanders
  * zu wiederholen. Ebenso unterscheidet `cleaningBlockReason`s `null`-Rückgabe NICHT zwischen "im
  * konfigurierten Fenster" und "gar keine Fenster konfiguriert" (beides macht `cleaningWindowOpen`
@@ -899,13 +887,13 @@ export type WindowsBindingReason = "no-active-lock-period" | "user-not-allowed" 
  */
 export function cleaningWindowBindingStatus(
   user: CleaningPermissionUser,
-  sperre: { reinigungErlaubt: boolean } | null,
+  lockPeriod: { reinigungErlaubt: boolean } | null,
   at: Date,
 ): { windowsBinding: boolean; windowsBindingReason: WindowsBindingReason; openingAllowedNow: boolean } {
-  if (!sperre) {
+  if (!lockPeriod) {
     return { windowsBinding: false, windowsBindingReason: "no-active-lock-period", openingAllowedNow: true };
   }
-  const reason = cleaningBlockReason(user, [sperre], at);
+  const reason = cleaningBlockReason(user, [lockPeriod], at);
   if (reason === "userNotAllowed") return { windowsBinding: false, windowsBindingReason: "user-not-allowed", openingAllowedNow: false };
   if (reason === "lockPeriodForbids") return { windowsBinding: false, windowsBindingReason: "lock-period-forbids", openingAllowedNow: false };
   if (parseReinigungsFenster(user.reinigungsFenster).length === 0) {
@@ -923,9 +911,9 @@ function isAllowedCleaningOpen(
   oeffnenGrund: OeffnenGrund | string | null | undefined,
   now: Date,
   user: CleaningPermissionUser,
-  activeSperrzeiten: { reinigungErlaubt: boolean }[],
+  activeLockPeriods: { reinigungErlaubt: boolean }[],
 ): boolean {
-  return oeffnenGrund === "REINIGUNG" && cleaningBlockReason(user, activeSperrzeiten, now) === null;
+  return oeffnenGrund === "REINIGUNG" && cleaningBlockReason(user, activeLockPeriods, now) === null;
 }
 
 /**
@@ -945,7 +933,7 @@ function isAllowedCleaningOpen(
  * Buchung darf keine Sperrzeit aufheben: sonst räumte ausgerechnet ein Versäumnis die Konsequenz aus
  * dem Weg, die es nach sich ziehen soll (gemeldet 11.07.2026 — eine 14-Tage-Sperre verschwand).
  */
-export async function releaseSperrzeitenOnOpen(
+export async function releaseLockPeriodsOnOpen(
   userId: string,
   oeffnenGrund: OeffnenGrund | string | null | undefined,
   tx: PrismaTx,
@@ -958,21 +946,21 @@ export async function releaseSperrzeitenOnOpen(
 
   // EINE Uhr für beide Fragen: welche Sperrzeiten laufen, und ist ein Fenster offen.
   const now = new Date();
-  const activeSperrzeiten = await tx.verschlussAnforderung.findMany({
-    where: activeSperrzeitWhere(userId, now),
+  const activeLockPeriods = await tx.verschlussAnforderung.findMany({
+    where: activeLockPeriodWhere(userId, now),
     select: { id: true, reinigungErlaubt: true },
   });
-  if (activeSperrzeiten.length === 0) return false;
+  if (activeLockPeriods.length === 0) return false;
 
   const effectiveUser = user ?? await tx.user.findUnique({
     where: { id: userId },
     select: { reinigungErlaubt: true, reinigungsFenster: true, timezone: true },
   }) ?? { reinigungErlaubt: false, reinigungsFenster: null, timezone: APP_TZ };
 
-  if (isAllowedCleaningOpen(oeffnenGrund, now, effectiveUser, activeSperrzeiten)) return false;
+  if (isAllowedCleaningOpen(oeffnenGrund, now, effectiveUser, activeLockPeriods)) return false;
 
   await tx.verschlussAnforderung.updateMany({
-    where: { id: { in: activeSperrzeiten.map((s) => s.id) } },
+    where: { id: { in: activeLockPeriods.map((s) => s.id) } },
     data: { withdrawnAt: now, endedReason: LOCK_ENDED_REASON.opening },
   });
   return true;
@@ -986,10 +974,10 @@ export async function releaseSperrzeitenOnOpen(
  * ohne sie bedeutete `activeLockPeriod: null` gleichermassen „abgelaufen", „zurückgezogen" und „es
  * gab nie eine". Genau diese Ununterscheidbarkeit war der Bug.
  */
-export async function getInterruptedSperrzeit(userId: string, now: Date) {
+export async function getInterruptedLockPeriod(userId: string, now: Date) {
   // Dieselbe „SPERRZEIT, deren Ende noch nicht verstrichen ist"-Definition wie die aktive Sicht —
   // nur eben zurückgezogen statt laufend. `withdrawnAt: null` fällt weg, `endedReason` tritt hinzu.
-  const { withdrawnAt: _stillRunning, ...notYetElapsed } = keyholderSperrzeitWhere(userId, now);
+  const { withdrawnAt: _stillRunning, ...notYetElapsed } = keyholderLockPeriodWhere(userId, now);
   return prisma.verschlussAnforderung.findFirst({
     where: { ...notYetElapsed, endedReason: LOCK_ENDED_REASON.opening },
     orderBy: { withdrawnAt: "desc" },

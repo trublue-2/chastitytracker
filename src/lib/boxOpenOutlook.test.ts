@@ -3,13 +3,13 @@ import { boxHoldOutlook, type BoxHoldParams } from "./boxOpenOutlook";
 
 const NOW = new Date("2026-07-10T12:24:00+02:00");
 
-const base: BoxHoldParams = { sperrzeit: null, box: null, now: NOW };
+const base: BoxHoldParams = { lockPeriod: null, box: null, now: NOW };
 
 describe("boxHoldOutlook", () => {
   it("ohne Box gibt es nichts vorherzusagen", () => {
     expect(boxHoldOutlook(base)).toBeNull();
     // auch nicht bei laufender Sperrzeit — ohne Hardware ist der Eintrag die ganze Wahrheit
-    expect(boxHoldOutlook({ ...base, sperrzeit: { endetAt: null, unbefristet: true } })).toBeNull();
+    expect(boxHoldOutlook({ ...base, lockPeriod: { endetAt: null, indefinite: true } })).toBeNull();
   });
 
   it("Box ohne eigene Frist: der Riegel folgt", () => {
@@ -21,7 +21,7 @@ describe("boxHoldOutlook", () => {
     // Reinigungsöffnung bricht nichts, der Tracker sendet brav `open` — und nichts passiert.
     expect(boxHoldOutlook({
       ...base,
-      sperrzeit: { endetAt: "2026-07-10T17:19:48+02:00", unbefristet: false },
+      lockPeriod: { endetAt: "2026-07-10T17:19:48+02:00", indefinite: false },
       box: { lockUntil: "2026-07-10T17:19:48+02:00" },
     })).toEqual({ until: "2026-07-10T17:19:48+02:00" });
   });
@@ -35,7 +35,7 @@ describe("boxHoldOutlook", () => {
     // meldet „öffnet" — und beruhigt genau dann falsch, wenn die Box am längsten hält.
     expect(boxHoldOutlook({
       ...base,
-      sperrzeit: { endetAt: null, unbefristet: true },
+      lockPeriod: { endetAt: null, indefinite: true },
       box: { lockUntil: null },
     })).toEqual({ until: null });
   });
@@ -45,7 +45,7 @@ describe("boxHoldOutlook", () => {
     // zeigen, wäre eine Zusage, die die Keyholderin nie gemacht hat.
     expect(boxHoldOutlook({
       ...base,
-      sperrzeit: { endetAt: null, unbefristet: true },
+      lockPeriod: { endetAt: null, indefinite: true },
       box: { lockUntil: "2026-07-11T20:00:00+02:00" },
     })).toEqual({ until: null });
   });
@@ -53,7 +53,7 @@ describe("boxHoldOutlook", () => {
   it("eine ABGELAUFENE Sperrzeit hält nichts mehr — es zählt allein die Box-Frist", () => {
     expect(boxHoldOutlook({
       ...base,
-      sperrzeit: { endetAt: "2026-07-10T11:00:00+02:00", unbefristet: false },
+      lockPeriod: { endetAt: "2026-07-10T11:00:00+02:00", indefinite: false },
       box: { lockUntil: "2026-07-10T11:00:00+02:00" },
     })).toBeNull();
   });
@@ -61,7 +61,7 @@ describe("boxHoldOutlook", () => {
   it("Sperrzeit abgelaufen, Box hält trotzdem (eigene Frist) → sie hält", () => {
     expect(boxHoldOutlook({
       ...base,
-      sperrzeit: { endetAt: "2026-07-10T11:00:00+02:00", unbefristet: false },
+      lockPeriod: { endetAt: "2026-07-10T11:00:00+02:00", indefinite: false },
       box: { lockUntil: "2026-07-10T18:00:00+02:00" },
     })).toEqual({ until: "2026-07-10T18:00:00+02:00" });
   });

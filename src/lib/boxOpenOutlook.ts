@@ -23,7 +23,7 @@ export interface BoxHold {
 
 export interface BoxHoldParams {
   /** Aktive Sperrzeit des Subs, oder null. */
-  sperrzeit: { endetAt: string | null; unbefristet: boolean } | null;
+  lockPeriod: { endetAt: string | null; indefinite: boolean } | null;
   /** Die Box, so wie sie sich zuletzt gemeldet hat. null = keine Box registriert. */
   box: { lockUntil: string | null } | null;
   now: Date;
@@ -37,8 +37,8 @@ export function boxHoldOutlook(p: BoxHoldParams): BoxHold | null {
   // Eine UNBEFRISTETE Sperrzeit hat kein `endetAt`. Nur aus dem fehlenden Datum auf „öffnet" zu
   // schliessen hiesse, den Sub genau falsch herum zu beruhigen: gerade dann hält die Box am
   // längsten. Deshalb zählt hier die Sperrzeit selbst, nicht ihr Enddatum.
-  const laeuft = !!p.sperrzeit && (p.sperrzeit.unbefristet || (!!p.sperrzeit.endetAt && new Date(p.sperrzeit.endetAt) > p.now));
-  if (laeuft && p.sperrzeit!.unbefristet) return { until: null };
+  const running = !!p.lockPeriod && (p.lockPeriod.indefinite || (!!p.lockPeriod.endetAt && new Date(p.lockPeriod.endetAt) > p.now));
+  if (running && p.lockPeriod!.indefinite) return { until: null };
 
   const frist = p.box.lockUntil;
   return frist && new Date(frist) > p.now ? { until: frist } : null;

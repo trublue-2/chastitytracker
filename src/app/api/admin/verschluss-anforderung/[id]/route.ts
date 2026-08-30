@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { updateSperrzeitEnde, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
+import { updateLockPeriodEnd, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 export async function PATCH(
@@ -35,7 +35,7 @@ export async function PATCH(
     if (!body.indefinite && Number.isNaN(endetAt!.getTime())) {
       return errorResponse(400, "INVALID_DATETIME");
     }
-    const result = await updateSperrzeitEnde(id, endetAt, sessionActor(actor));
+    const result = await updateLockPeriodEnd(id, endetAt, sessionActor(actor));
     if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true });
   }

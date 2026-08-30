@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
-import type { OeffnenPayload, ReinigungConfig, SperrzeitState, SubmitResult } from "@/app/entries/types";
+import type { OeffnenPayload, ReinigungConfig, LockPeriodState, SubmitResult } from "@/app/entries/types";
 import type { BoxHold } from "@/lib/boxOpenOutlook";
 import { entryRequest, parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
@@ -18,7 +18,7 @@ interface Props {
   maxTime?: string;
   tz: string;
   nowDefault: string;
-  sperrzeit?: SperrzeitState;
+  lockPeriod?: LockPeriodState;
   reinigung?: ReinigungConfig;
   boxHold?: BoxHold | null;
   hasBox?: boolean;
@@ -26,7 +26,7 @@ interface Props {
   taskWarnings?: TaskWarning[];
 }
 
-export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, sperrzeit, reinigung, boxHold, hasBox, redirectTo, taskWarnings }: Props) {
+export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, lockPeriod, reinigung, boxHold, hasBox, redirectTo, taskWarnings }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -56,7 +56,7 @@ export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDef
       maxTime={maxTime}
       tz={tz}
       nowDefault={nowDefault}
-      sperrzeit={sperrzeit}
+      lockPeriod={lockPeriod}
       reinigung={reinigung}
       boxHold={boxHold}
       hasBox={hasBox}

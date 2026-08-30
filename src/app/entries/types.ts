@@ -109,7 +109,7 @@ export interface ReinigungConfig {
 /** Bundled Sperrzeit state (user-dashboard only — admin skips these warnings). Das Sperr-Flag
  *  `reinigungErlaubt` steckt in `ReinigungConfig.cleaningBlock`, wo es mit dem User-Flag und dem
  *  Zeitfenster zu EINEM Urteil verrechnet ist. */
-export interface SperrzeitState {
+export interface LockPeriodState {
   endetAt: string | null;
-  unbefristet: boolean;
+  indefinite: boolean;
 }

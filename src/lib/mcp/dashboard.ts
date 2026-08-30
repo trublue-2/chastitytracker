@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { getOpenKontrollen, getActiveSperrzeit, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedSperrzeit, getCurrentLockKeyInBox, getOpenLockRequests } from "@/lib/queries";
+import { getOpenKontrollen, getActiveLockPeriod, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedLockPeriod, getCurrentLockKeyInBox, getOpenLockRequests } from "@/lib/queries";
 import {
-  buildLockState, mapOpenKontrolle, mapActiveSperrzeit, mapOpenOrgasmusAnforderung,
-  mapActiveWearSessions, mapInterruptedSperrzeit, mapOpenLockRequest,
-  type Fmt, type OpenKontrolleView, type ActiveSperrzeitView, type OpenOrgasmusAnforderungView,
-  type InterruptedSperrzeitView, type OpenLockRequestView,
+  buildLockState, mapOpenKontrolle, mapActiveLockPeriod, mapOpenOrgasmusAnforderung,
+  mapActiveWearSessions, mapInterruptedLockPeriod, mapOpenLockRequest,
+  type Fmt, type OpenKontrolleView, type ActiveLockPeriodView, type OpenOrgasmusAnforderungView,
+  type InterruptedLockPeriodView, type OpenLockRequestView,
 } from "@/lib/mcp/liveState";
 import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContext, type Envelope, type Iso, type NoteDTO, type TrackingEntry } from "@/lib/mcp/common";
 import { buildPairs } from "@/lib/utils";
@@ -310,7 +310,7 @@ export interface DashboardResult extends Envelope {
     /** ALLE offenen Kontrollen, dringendste Frist zuerst — je Ziel kann eine laufen (v5.0.1).
      *  Leeres Array = keine offen. Welches Ziel gemeint ist, steht in `target`. */
     openControls: OpenKontrolleView[];
-    activeLockPeriod: ActiveSperrzeitView | null;
+    activeLockPeriod: ActiveLockPeriodView | null;
     /** Eine durch eine ÖFFNUNG beendete Sperrzeit, deren ursprüngliches Ende noch nicht verstrichen
      *  ist. Sie wird gerade NICHT vollstreckt (`activeLockPeriod` bleibt null) — aber die Konsequenz
      *  der Keyholderin ist damit auch nicht erledigt. Ohne dieses Feld verschwand sie spurlos, und
@@ -319,7 +319,7 @@ export interface DashboardResult extends Envelope {
      *  Das Feld sagt WIE sie endete, nicht OB sich der Sub etwas zuschulden kommen liess: auch eine
      *  erlaubte Öffnung (z.B. ein offenes Orgasmus-Fenster) beendet sie und erscheint hier. Ob die
      *  Öffnung ein Vergehen war, beantwortet allein `get_offenses` — nicht dieses Feld. */
-    interruptedLockPeriod: InterruptedSperrzeitView | null;
+    interruptedLockPeriod: InterruptedLockPeriodView | null;
     openOrgasmWindow: OpenOrgasmusAnforderungView | null;
     /** Offene Verschluss-ANFORDERUNG: der Sub SOLL sich einschliessen, hat es aber noch nicht getan
      *  (`overdue: true`, wenn die Frist verstrichen ist). Nicht zu verwechseln mit `activeLockPeriod`
@@ -677,12 +677,12 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // Live-Zustand direkt aus der Helfer-Schicht (mcp/liveState.ts) — nicht mehr durch die fertige
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
   // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
-  const [openKontrolleRows, activeSperrzeitRow, openLockRequestRows, interruptedSperrzeitRow, activeWearRows, openOrgasmusRow,
+  const [openKontrolleRows, activeLockPeriodRow, openLockRequestRows, interruptedLockPeriodRow, activeWearRows, openOrgasmusRow,
          rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives] = await Promise.all([
     getOpenKontrollen(trackingCtx.userId, now),
-    getActiveSperrzeit(trackingCtx.userId),
+    getActiveLockPeriod(trackingCtx.userId),
     getOpenLockRequests(trackingCtx.userId, now),
-    getInterruptedSperrzeit(trackingCtx.userId, now),
+    getInterruptedLockPeriod(trackingCtx.userId, now),
     getActiveWearSessions(trackingCtx.userId),
     getActiveOrgasmusAnforderung(trackingCtx.userId, now),
     records(username, trackingCtx, sessions),
@@ -806,13 +806,13 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     wornNow,
     nextRelevant: {
       openControls: openKontrolleRows.map((k) => mapOpenKontrolle(k, now, fmt)!),
-      activeLockPeriod: mapActiveSperrzeit(activeSperrzeitRow, now, fmt),
+      activeLockPeriod: mapActiveLockPeriod(activeLockPeriodRow, now, fmt),
       // Eine laufende Sperrzeit LÖST die unterbrochene AB: die Keyholderin hat auf den Bruch
       // geantwortet, die alte muss nicht weiter angemahnt werden. Ohne diese Ablösung bliebe eine
       // UNBEFRISTETE unterbrochene Sperrzeit (`endetAt: null`) für immer stehen — sie läuft nie ab,
       // und jeder Withdraw-Pfad filtert auf `withdrawnAt: null`, greift bei ihr also nicht mehr.
       // Sie wäre ein Dauer-Gespenst im Dashboard, das niemand mehr wegbekommt.
-      interruptedLockPeriod: activeSperrzeitRow ? null : mapInterruptedSperrzeit(interruptedSperrzeitRow, fmt),
+      interruptedLockPeriod: activeLockPeriodRow ? null : mapInterruptedLockPeriod(interruptedLockPeriodRow, fmt),
       openOrgasmWindow: mapOpenOrgasmusAnforderung(openOrgasmusRow, now, fmt),
       openTasks,
       // Die dringendste zuerst (getOpenLockRequests sortiert danach) — sie steht zusätzlich einzeln,

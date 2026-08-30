@@ -17,8 +17,8 @@ const tx = {
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 
-import { releaseSperrzeitenOnOpen } from "./queries";
-import { mapInterruptedSperrzeit } from "./mcp/liveState";
+import { releaseLockPeriodsOnOpen } from "./queries";
+import { mapInterruptedLockPeriod } from "./mcp/liveState";
 
 const NOW = new Date("2026-07-11T17:53:00+02:00");
 const fmt = (d: Date) => d.toISOString();
@@ -33,13 +33,13 @@ beforeEach(() => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const asTx = () => tx as any;
 
-describe("releaseSperrzeitenOnOpen", () => {
+describe("releaseLockPeriodsOnOpen", () => {
   it("KERN-BUG 11.07.: eine SYSTEM-Öffnung bricht die Sperrzeit NICHT", async () => {
     // Die Eskalation bucht das Gerät als „vermutlich abgenommen", weil der Sub eine Kontrolle nie
     // beantwortet hat. Das ist keine Handlung des Subs (das Strafbuch schliesst sie aus den
     // unerlaubten Öffnungen aus) und sie öffnet die Box nicht einmal. Zöge sie die Sperrzeit zurück,
     // räumte ausgerechnet ein Versäumnis die Konsequenz aus dem Weg, die es nach sich ziehen soll.
-    const broke = await releaseSperrzeitenOnOpen("u1", "AUTO_ENTFERNT", asTx(), "system");
+    const broke = await releaseLockPeriodsOnOpen("u1", "AUTO_ENTFERNT", asTx(), "system");
 
     expect(broke).toBe(false);
     expect(tx.verschlussAnforderung.updateMany).not.toHaveBeenCalled();
@@ -47,7 +47,7 @@ describe("releaseSperrzeitenOnOpen", () => {
   });
 
   it("eine willentliche Öffnung bricht sie — und markiert sie als unterbrochen, nicht als zurückgezogen", async () => {
-    const broke = await releaseSperrzeitenOnOpen("u1", "ANDERES", asTx(), "user");
+    const broke = await releaseLockPeriodsOnOpen("u1", "ANDERES", asTx(), "user");
 
     expect(broke).toBe(true);
     expect(tx.verschlussAnforderung.updateMany).toHaveBeenCalledWith({
@@ -58,14 +58,14 @@ describe("releaseSperrzeitenOnOpen", () => {
 
   it("ohne laufende Sperrzeit passiert nichts", async () => {
     tx.verschlussAnforderung.findMany.mockResolvedValue([]);
-    expect(await releaseSperrzeitenOnOpen("u1", "ANDERES", asTx(), "user")).toBe(false);
+    expect(await releaseLockPeriodsOnOpen("u1", "ANDERES", asTx(), "user")).toBe(false);
     expect(tx.verschlussAnforderung.updateMany).not.toHaveBeenCalled();
   });
 });
 
-describe("mapInterruptedSperrzeit", () => {
+describe("mapInterruptedLockPeriod", () => {
   it("zeigt das URSPRÜNGLICHE Ende und den Zeitpunkt des Aufbrechens", async () => {
-    const view = mapInterruptedSperrzeit(
+    const view = mapInterruptedLockPeriod(
       { endetAt: new Date("2026-07-25T00:00:00+02:00"), withdrawnAt: NOW, nachricht: "14 Tage, Konsequenz" },
       fmt,
     )!;
@@ -76,14 +76,14 @@ describe("mapInterruptedSperrzeit", () => {
   });
 
   it("eine unbefristete Sperrzeit trägt indefinite=true", () => {
-    const view = mapInterruptedSperrzeit({ endetAt: null, withdrawnAt: NOW, nachricht: null }, fmt)!;
+    const view = mapInterruptedLockPeriod({ endetAt: null, withdrawnAt: NOW, nachricht: null }, fmt)!;
     expect(view.indefinite).toBe(true);
     expect(view.originalEndetAt).toBeNull();
   });
 
   it("null bleibt null", () => {
-    expect(mapInterruptedSperrzeit(null, fmt)).toBeNull();
+    expect(mapInterruptedLockPeriod(null, fmt)).toBeNull();
     // Ohne withdrawnAt gibt es nichts zu unterbrechen — defensiv, die Query filtert bereits.
-    expect(mapInterruptedSperrzeit({ endetAt: null, withdrawnAt: null, nachricht: null }, fmt)).toBeNull();
+    expect(mapInterruptedLockPeriod({ endetAt: null, withdrawnAt: null, nachricht: null }, fmt)).toBeNull();
   });
 });

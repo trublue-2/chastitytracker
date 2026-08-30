@@ -23,7 +23,7 @@ export interface CreateVerschlussAnforderungParams {
   dauerH?: number | null;
   /** ANFORDERUNG only: absolute lock end (wall clock, ISO string or Date). Taken 1:1 as the
    *  auto-created SPERRZEIT.endetAt on fulfill — a late lock does NOT shift it. Alternative to dauerH. */
-  sperrEndetAt?: string | Date | null;
+  lockEndsAt?: string | Date | null;
   deviceId?: string | null;
   reinigungErlaubt?: boolean;
   /** Verzögerte Auslösung in Minuten (>0). Fehlt/0 = sofort (sofern kein wirksamAbAt). */
@@ -56,15 +56,15 @@ export function checkLockEnd(
 }
 
 /** Die Felder EINER Anforderung, aus denen die mitgebrachte Sperrzeit entsteht. */
-export interface LockRequestSperrzeit {
+export interface LockPeriodFromRequest {
   dauerH: number | null;
-  sperrEndetAt: Date | null;
+  lockEndsAt: Date | null;
 }
 
 /**
  * Das Ende der Sperrzeit, die diese Anforderung mitbringt — `null` heisst: sie bringt keine mit.
  *
- * Zwei Wege, EINE Regel: ein absolutes Sperr-Ende (`sperrEndetAt`, Wanduhr) gewinnt und bleibt fix,
+ * Zwei Wege, EINE Regel: ein absolutes Sperr-Ende (`lockEndsAt`, Wanduhr) gewinnt und bleibt fix,
  * egal wann die Sperre zustande kommt; sonst zählt `dauerH` ab `abZeitpunkt`. Was dieser Zeitpunkt
  * ist, entscheidet der Aufrufer und ist der einzige Unterschied zwischen den beiden Wegen, auf denen
  * eine Sperrzeit entsteht: beim Erfüllen ist es der Verschluss des Subs (`entryFulfilment.ts`), bei
@@ -72,8 +72,8 @@ export interface LockRequestSperrzeit {
  * (`kontrollePoller.ts`) — dort wäre der lange zurückliegende Verschluss der falsche Anker: eine
  * 24h-Sperre wäre bei einem seit 30h verschlossenen Sub im Moment ihrer Entstehung schon abgelaufen.
  */
-export function sperrzeitEndeFromRequest(a: LockRequestSperrzeit, abZeitpunkt: Date): Date | null {
-  return a.sperrEndetAt ?? (a.dauerH ? new Date(abZeitpunkt.getTime() + a.dauerH * 60 * 60 * 1000) : null);
+export function lockPeriodEndFromRequest(a: LockPeriodFromRequest, abZeitpunkt: Date): Date | null {
+  return a.lockEndsAt ?? (a.dauerH ? new Date(abZeitpunkt.getTime() + a.dauerH * 60 * 60 * 1000) : null);
 }
 
 /**
@@ -91,7 +91,7 @@ export async function createVerschlussAnforderung(
   params: CreateVerschlussAnforderungParams,
   actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
-  const { userId, art, nachricht, endetAt, fristH, dauerH, sperrEndetAt, deviceId, reinigungErlaubt, delayMinutes, wirksamAbAt } = params;
+  const { userId, art, nachricht, endetAt, fristH, dauerH, lockEndsAt, deviceId, reinigungErlaubt, delayMinutes, wirksamAbAt } = params;
 
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
   if (art !== "ANFORDERUNG" && art !== "SPERRZEIT") {
@@ -129,22 +129,22 @@ export async function createVerschlussAnforderung(
   }
 
   // Mindestdauer und absolutes Sperr-Ende schliessen einander aus — dieselbe Regel wie beim Ändern
-  // (updateLockRequest). Beides zugleich hiesse: beim Erfüllen gewinnt stumm `sperrEndetAt`, und die
+  // (updateLockRequest). Beides zugleich hiesse: beim Erfüllen gewinnt stumm `lockEndsAt`, und die
   // Stundenangabe verschwindet wirkungslos.
-  if (dauerH != null && sperrEndetAt != null) return serviceFail(400, "LOCK_DURATION_OR_END");
+  if (dauerH != null && lockEndsAt != null) return serviceFail(400, "LOCK_DURATION_OR_END");
 
   // Absolutes Sperr-Ende (nur ANFORDERUNG, Alternative zu dauerH). Wird beim Fulfill 1:1 zur SPERRZEIT.
-  let sperrEndetAtDate: Date | null = null;
-  if (art === "ANFORDERUNG" && sperrEndetAt) {
-    sperrEndetAtDate = new Date(sperrEndetAt);
-    if (Number.isNaN(sperrEndetAtDate.getTime())) return serviceFail(400, "LOCK_INVALID_LOCK_END");
+  let lockEndsAtDate: Date | null = null;
+  if (art === "ANFORDERUNG" && lockEndsAt) {
+    lockEndsAtDate = new Date(lockEndsAt);
+    if (Number.isNaN(lockEndsAtDate.getTime())) return serviceFail(400, "LOCK_INVALID_LOCK_END");
   }
 
   // Siehe checkLockEnd(). Geprüft wird das Sperr-Ende: bei der SPERRZEIT ihr `endetAt`, bei der
-  // ANFORDERUNG das absolute `sperrEndetAt` (das beim Erfüllen 1:1 zum Sperr-Ende wird). Die
+  // ANFORDERUNG das absolute `lockEndsAt` (das beim Erfüllen 1:1 zum Sperr-Ende wird). Die
   // ANFORDERUNGS-Frist (`endetAt`) bleibt aussen vor — sie ist eine Einschliess-Frist, kein
   // Sperr-Ende, und aus `fristH` ohnehin ab `wirksamAb` gerechnet.
-  const lockEnd = art === "SPERRZEIT" ? endetAtDate : sperrEndetAtDate;
+  const lockEnd = art === "SPERRZEIT" ? endetAtDate : lockEndsAtDate;
   const lockEndError = checkLockEnd(lockEnd, wirksamAb, now);
   if (lockEndError) return serviceFail(400, lockEndError);
 
@@ -176,7 +176,7 @@ export async function createVerschlussAnforderung(
       }
 
       // Nur die SPERRZEIT ist exklusiv: eine neue Sperre ERSETZT die bestehende, sonst hätte die
-      // Keyholderin zwei konkurrierende Enden, von denen `foldActiveSperrzeiten` stumm das spätere
+      // Keyholderin zwei konkurrierende Enden, von denen `foldActiveLockPeriods` stumm das spätere
       // durchsetzte — eine Verkürzung wäre wirkungslos geblieben. ANFORDERUNGen dürfen dagegen
       // koexistieren: mehrere (typisch terminierte) Einschliess-Anweisungen sind eine Pipeline, und
       // ein Verschluss erfüllt sie alle auf einmal (siehe POST /api/entries).
@@ -189,7 +189,7 @@ export async function createVerschlussAnforderung(
 
       const effectiveDauerH = art === "ANFORDERUNG" ? (dauerH || null) : null;
       const effectiveReinigung = effectiveCleaningAllowed(reinigungErlaubt, {
-        isLockPeriod: art === "SPERRZEIT", dauerH: effectiveDauerH, sperrEndetAt: sperrEndetAtDate,
+        isLockPeriod: art === "SPERRZEIT", dauerH: effectiveDauerH, lockEndsAt: lockEndsAtDate,
       });
 
       return tx.verschlussAnforderung.create({
@@ -199,7 +199,7 @@ export async function createVerschlussAnforderung(
           nachricht: nachricht?.trim() || null,
           endetAt: endetAtDate,
           dauerH: effectiveDauerH,
-          sperrEndetAt: sperrEndetAtDate,
+          lockEndsAt: lockEndsAtDate,
           deviceId: art === "ANFORDERUNG" ? (deviceId || null) : null,
           reinigungErlaubt: effectiveReinigung,
           createdBy: actorColumn(actor),
@@ -216,7 +216,7 @@ export async function createVerschlussAnforderung(
 
   // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
   if (!wirksamAb) {
-    await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate, requestId: anforderung.id, actor });
+    await sendVerschlussAnforderungNotifications({ userId, user, art, nachricht, endetAtDate, dauerH, lockEndsAtDate, requestId: anforderung.id, actor });
   }
 
   // Instant-Push: Heimdall re-pullt die Config (neue/geänderte Sperre) für eine LIVE Box sofort.
@@ -235,7 +235,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   endetAtDate: Date | null;
   dauerH?: number | null;
   /** ANFORDERUNG mit absolutem Sperr-Ende (statt dauerH): fürs „Gesperrt bis" in Mail/Push. */
-  sperrEndetAtDate?: Date | null;
+  lockEndsAtDate?: Date | null;
   /** Die Zeile, auf die die Nachricht im Posteingang zeigt. */
   requestId: string;
   /**
@@ -251,7 +251,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
    */
   actor: MessageActor;
 }) {
-  const { userId, user, art, nachricht, endetAtDate, dauerH, sperrEndetAtDate, requestId, actor } = opts;
+  const { userId, user, art, nachricht, endetAtDate, dauerH, lockEndsAtDate, requestId, actor } = opts;
 
   // Die Anforderungs-Nachricht des Keyholders wird NICHT mitkopiert: der Posteingang zeigt auf die
   // Direktive und liest sie beim Anzeigen frisch von dort. Eine spätere Korrektur über
@@ -291,8 +291,8 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     const dauerHtml = dauerH
       ? `<p><strong>${t("lockMinWearLabel")}</strong> ${escHtml(formatDurationHours(dauerH, user.locale))}</p>`
       : "";
-    const sperrBisHtml = sperrEndetAtDate
-      ? `<p><strong>${t("lockedUntilLabel")}</strong> ${formatDateTime(sperrEndetAtDate)}</p>`
+    const sperrBisHtml = lockEndsAtDate
+      ? `<p><strong>${t("lockedUntilLabel")}</strong> ${formatDateTime(lockEndsAtDate)}</p>`
       : "";
     await sendMailSafe(
       user.email,
@@ -313,7 +313,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   if (art === "ANFORDERUNG") {
     pushParts.push(t("lockPushRequestBody"));
     if (endetAtDate) pushParts.push(t("lockPushDeadline", { date: formatDateTime(endetAtDate) }));
-    if (sperrEndetAtDate) pushParts.push(t("lockPushUntil", { date: formatDateTime(sperrEndetAtDate) }));
+    if (lockEndsAtDate) pushParts.push(t("lockPushUntil", { date: formatDateTime(lockEndsAtDate) }));
   } else {
     pushParts.push(endetAtDate ? t("lockPushUntil", { date: formatDateTime(endetAtDate) }) : t("lockIndefinite"));
   }
@@ -328,7 +328,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
  * `notified` sagt dem Aufrufer, ob der Sub davon erfahren hat — die MCP-Antwort darf nicht
  * behaupten, es sei eine Mail rausgegangen, wenn keine rausging.
  */
-export async function updateSperrzeitEnde(
+export async function updateLockPeriodEnd(
   id: string,
   endetAt: Date | null,
   actor: MessageActor,
@@ -369,10 +369,10 @@ export interface UpdateLockRequestParams {
   nachricht?: string | null;
   /** Frist zum Einschliessen (absolut). Kein `null`: eine Anforderung ohne Frist gibt es nicht. */
   endetAt?: Date;
-  /** Mindest-Tragedauer (h) nach dem Einschliessen. Schliesst `sperrEndetAt` aus. */
+  /** Mindest-Tragedauer (h) nach dem Einschliessen. Schliesst `lockEndsAt` aus. */
   dauerH?: number | null;
   /** Absolutes Sperr-Ende nach dem Einschliessen. Schliesst `dauerH` aus. */
-  sperrEndetAt?: Date | null;
+  lockEndsAt?: Date | null;
   deviceId?: string | null;
   reinigungErlaubt?: boolean;
   /** Geplanter Auslöse-Zeitpunkt. `null` = sofort (löst die Zustellung hier aus). */
@@ -384,8 +384,8 @@ export interface UpdateLockRequestParams {
  * ANFORDERUNG nur, wenn aus ihr eine entsteht (Mindestdauer ODER absolutes Sperr-Ende). Ohne
  * Sperr-Vorgabe hätte es nichts zu erlauben und stünde als leeres Versprechen in der Zeile.
  */
-function effectiveCleaningAllowed(flag: boolean | null | undefined, spec: { isLockPeriod: boolean; dauerH: number | null; sperrEndetAt: Date | null }): boolean {
-  return Boolean(flag && (spec.isLockPeriod || spec.dauerH !== null || spec.sperrEndetAt !== null));
+function effectiveCleaningAllowed(flag: boolean | null | undefined, spec: { isLockPeriod: boolean; dauerH: number | null; lockEndsAt: Date | null }): boolean {
+  return Boolean(flag && (spec.isLockPeriod || spec.dauerH !== null || spec.lockEndsAt !== null));
 }
 
 /** Das Ergebnis von {@link mergeLockRequestPatch} — die Zeile, wie sie nach dem Patch aussieht. */
@@ -393,7 +393,7 @@ export interface MergedLockRequest {
   nachricht: string | null;
   endetAt: Date | null;
   dauerH: number | null;
-  sperrEndetAt: Date | null;
+  lockEndsAt: Date | null;
   deviceId: string | null;
   reinigungErlaubt: boolean;
   wirksamAb: Date | null;
@@ -410,18 +410,18 @@ export interface MergedLockRequest {
  * Mindestdauer bliebe wirkungslos.
  */
 export function mergeLockRequestPatch(
-  current: { nachricht: string | null; endetAt: Date | null; dauerH: number | null; sperrEndetAt: Date | null; deviceId: string | null; reinigungErlaubt: boolean; wirksamAb: Date | null },
+  current: { nachricht: string | null; endetAt: Date | null; dauerH: number | null; lockEndsAt: Date | null; deviceId: string | null; reinigungErlaubt: boolean; wirksamAb: Date | null },
   patch: UpdateLockRequestParams,
 ): MergedLockRequest {
-  const dauerH = patch.dauerH !== undefined ? patch.dauerH : (patch.sperrEndetAt != null ? null : current.dauerH);
-  const sperrEndetAt = patch.sperrEndetAt !== undefined ? patch.sperrEndetAt : (patch.dauerH != null ? null : current.sperrEndetAt);
+  const dauerH = patch.dauerH !== undefined ? patch.dauerH : (patch.lockEndsAt != null ? null : current.dauerH);
+  const lockEndsAt = patch.lockEndsAt !== undefined ? patch.lockEndsAt : (patch.dauerH != null ? null : current.lockEndsAt);
   return {
     nachricht: patch.nachricht !== undefined ? (patch.nachricht?.trim() || null) : current.nachricht,
     endetAt: patch.endetAt ?? current.endetAt,
     dauerH,
-    sperrEndetAt,
+    lockEndsAt,
     deviceId: patch.deviceId !== undefined ? patch.deviceId : current.deviceId,
-    reinigungErlaubt: effectiveCleaningAllowed(patch.reinigungErlaubt ?? current.reinigungErlaubt, { isLockPeriod: false, dauerH, sperrEndetAt }),
+    reinigungErlaubt: effectiveCleaningAllowed(patch.reinigungErlaubt ?? current.reinigungErlaubt, { isLockPeriod: false, dauerH, lockEndsAt }),
     wirksamAb: patch.wirksamAb !== undefined ? patch.wirksamAb : current.wirksamAb,
   };
 }
@@ -450,14 +450,14 @@ export async function updateLockRequest(
   });
   if (!va || va.art !== "ANFORDERUNG") return serviceFail(404, "LOCK_REQUEST_NOT_FOUND");
   if (va.fulfilledAt || va.withdrawnAt) return serviceFail(400, "LOCK_REQUEST_NOT_EDITABLE");
-  if (patch.dauerH != null && patch.sperrEndetAt != null) return serviceFail(400, "LOCK_DURATION_OR_END");
+  if (patch.dauerH != null && patch.lockEndsAt != null) return serviceFail(400, "LOCK_DURATION_OR_END");
 
   const now = new Date();
   const next = mergeLockRequestPatch(va, patch);
   // Die Frist selbst bleibt ungeprüft — sie ist eine Einschliess-Frist, kein Sperr-Ende, und darf
   // (wie beim Anlegen) auch vor der Auslösung liegen. Nur „gar keine Frist" ist keine Anforderung.
   if (!next.endetAt) return serviceFail(400, "LOCK_DEADLINE_REQUIRED");
-  const lockEndError = checkLockEnd(next.sperrEndetAt, next.wirksamAb, now);
+  const lockEndError = checkLockEnd(next.lockEndsAt, next.wirksamAb, now);
   if (lockEndError) return serviceFail(400, lockEndError);
 
   if (next.deviceId && next.deviceId !== va.deviceId && !(await validateDeviceOwnership(next.deviceId, va.userId))) {
@@ -487,7 +487,7 @@ export async function updateLockRequest(
     await sendVerschlussAnforderungNotifications({
       userId: va.userId, user: va.user, art: "ANFORDERUNG",
       nachricht: next.nachricht, endetAtDate: next.endetAt,
-      dauerH: next.dauerH, sperrEndetAtDate: next.sperrEndetAt,
+      dauerH: next.dauerH, lockEndsAtDate: next.lockEndsAt,
       requestId: va.id,
       // Die Anforderung selbst nennt ihren ANORDNENDEN, nicht den, der sie vorgezogen hat — genau
       // wie auf dem Poller-Weg, der dieselbe Meldung verschickt. OHNE Ausweichen auf `actor`: eine
@@ -528,8 +528,8 @@ export function verschlussWithdrawNotice(art: "ANFORDERUNG" | "SPERRZEIT", actor
     : { subjectKey: "lockRequestWithdrawnSubject", messageKey: "lockRequestWithdrawnMessage", inbox };
 }
 
-/** Die Felder, die {@link carryOverSperrzeitOnAlreadyLocked} von der fälligen Anforderung braucht. */
-export interface DueLockRequest extends LockRequestSperrzeit {
+/** Die Felder, die {@link carryOverLockPeriodOnAlreadyLocked} von der fälligen Anforderung braucht. */
+export interface DueLockRequest extends LockPeriodFromRequest {
   id: string;
   userId: string;
   nachricht: string | null;
@@ -551,26 +551,26 @@ export interface DueLockRequest extends LockRequestSperrzeit {
  * solange die Frist noch läuft; ein absolutes `endetAt` darf vor dem Auslöse-Zeitpunkt liegen),
  * sondern weil das Strafbuch eine nie zugestellte Anforderung gar nicht erst als verspätet zählt.
  *
- * Die Sperrzeit zählt ab `now`, dem Auslöse-Zeitpunkt (siehe {@link sperrzeitEndeFromRequest}), und
+ * Die Sperrzeit zählt ab `now`, dem Auslöse-Zeitpunkt (siehe {@link lockPeriodEndFromRequest}), und
  * ist sofort aktiv (`wirksamAb: null` ⇒ nicht vor dem Sub verborgen). Sie zieht — wie der
  * Erfüllungs-Pfad und anders als `createVerschlussAnforderung` — KEINE bestehende Sperrzeit zurück:
- * welche von mehreren gilt, entscheidet `foldActiveSperrzeiten`.
+ * welche von mehreren gilt, entscheidet `foldActiveLockPeriods`.
  *
  * Liefert die neue Sperrzeit, oder `null`, wenn es nichts zu übernehmen gab (keine Sperrzeit an der
  * Anforderung, oder ihr absolutes Ende liegt schon in der Vergangenheit) — dann bleibt es beim
  * bisherigen Rückzug als `obsolete`. Benachrichtigt wird NICHT hier: die Meldung gehört hinter den
  * Commit, der Aufrufer schickt sie (Notifications sind nicht transaktional).
  */
-export async function carryOverSperrzeitOnAlreadyLocked(
+export async function carryOverLockPeriodOnAlreadyLocked(
   va: DueLockRequest,
   now: Date,
-): Promise<{ sperrzeitId: string; endetAt: Date; nachricht: string | null; createdBy: string | null } | null> {
-  // Ein Ende in der Vergangenheit trifft nur den absoluten Fall (`sperrEndetAt`) — ein aus `dauerH`
+): Promise<{ lockPeriodId: string; endetAt: Date; nachricht: string | null; createdBy: string | null } | null> {
+  // Ein Ende in der Vergangenheit trifft nur den absoluten Fall (`lockEndsAt`) — ein aus `dauerH`
   // gerechnetes liegt per Konstruktion vorn. Eine tote Sperre anzulegen hilft niemandem.
-  const endetAt = sperrzeitEndeFromRequest(va, now);
+  const endetAt = lockPeriodEndFromRequest(va, now);
   if (!endetAt || endetAt <= now) return null;
 
-  const sperrzeit = await prisma.$transaction(async (tx) => {
+  const lockPeriod = await prisma.$transaction(async (tx) => {
     const created = await tx.verschlussAnforderung.create({
       data: {
         userId: va.userId,
@@ -598,7 +598,7 @@ export async function carryOverSperrzeitOnAlreadyLocked(
   // Anforderung (die Zeile erbt beides), und genau deshalb kostet die Regel hier nichts —
   // auseinanderlaufen könnten sie erst, wenn jemand die Vererbung ändert, und dann liest der
   // Aufrufer weiter richtig, statt still die Quelle zu nennen.
-  return { sperrzeitId: sperrzeit.id, endetAt, nachricht: sperrzeit.nachricht, createdBy: sperrzeit.createdBy };
+  return { lockPeriodId: lockPeriod.id, endetAt, nachricht: lockPeriod.nachricht, createdBy: lockPeriod.createdBy };
 }
 
 /**
@@ -642,7 +642,7 @@ export async function withdrawVerschlussAnforderungById(
  *
  * `hidden` (Teilmenge von `count`) zählt die stornierten TERMINIERTEN, noch nicht ausgelösten. Ein
  * blosses `count: 2` verschwiege der Keyholderin, dass sie neben der laufenden Sperrzeit auch eine
- * geplante mitgenommen hat — und mehrere offene sind normal (siehe `foldActiveSperrzeiten`).
+ * geplante mitgenommen hat — und mehrere offene sind normal (siehe `foldActiveLockPeriods`).
  *
  * `rows` sind die tatsächlich stornierten Zeilen, gelesen INNERHALB derselben Transaktion. Der
  * Aufrufer soll sie benennen können (MCP `withdraw` → `withdrawnItems`), ohne sie ein zweites Mal

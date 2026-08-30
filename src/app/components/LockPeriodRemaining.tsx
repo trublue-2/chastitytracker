@@ -8,7 +8,7 @@ import useRemainingMs from "@/app/hooks/useRemainingMs";
  * Live countdown für die verbleibende Sperrzeit. Tickt jede Minute.
  * Zeigt nichts wenn endetAt in der Vergangenheit liegt.
  */
-export default function SperrzeitRemaining({
+export default function LockPeriodRemaining({
   endetAt,
   className,
 }: {

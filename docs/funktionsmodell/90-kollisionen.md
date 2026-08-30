@@ -11,7 +11,7 @@ verstanden sind.
 
 **Reinigung braucht zwei Ja.** `User.reinigungErlaubt` **und** `reinigungErlaubt` der Sperrzeit.
 Bei mehreren aktiven Sperrzeiten müssen **alle** erlauben — die UND-Regel in
-`foldActiveSperrzeiten`, nicht die neueste Zeile.
+`foldActiveLockPeriods`, nicht die neueste Zeile.
 
 **Zeitfenster binden nur unter Sperrzeit.** Ein gesetztes Reinigungsfenster tut ausserhalb einer
 aktiven, reinigungserlaubenden Sperrzeit gar nichts. Wer „nur zwischen 19 und 20 Uhr" durchsetzen
@@ -44,7 +44,7 @@ laufende Frist. Sie fehlt deshalb auch in „offene Direktiven"-Ansichten — da
 
 ## Fristen und Nullpunkte
 
-**`dauerH` gegen `sperrEndetAt`.** Mindest-Tragedauer ab dem tatsächlichen Verschluss gegen feste
+**`dauerH` gegen `lockEndsAt`.** Mindest-Tragedauer ab dem tatsächlichen Verschluss gegen feste
 Wanduhr. Ein später Verschluss verschiebt die eine mit und verkürzt die andere. Wer eine Tragedauer
 meint und ein festes Ende setzt, gibt nachweislich weniger, als er gesagt hat.
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Droplets } from "lucide-react";
 import { APP_TZ, formatDayTimeDual } from "@/lib/utils";
 import type { ComponentType, ReactNode } from "react";
-import SperrzeitRemaining from "./SperrzeitRemaining";
+import LockPeriodRemaining from "./LockPeriodRemaining";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 import Section from "@/app/components/Section";
 import type { SectionTone } from "@/app/components/Section";
@@ -95,7 +95,7 @@ export default function LockRequestBanner(props: Props) {
             </span>
           )}
           {showRemaining && endetAt && (
-            <SperrzeitRemaining endetAt={new Date(endetAt).toISOString()} className={`text-xs opacity-70 ${c.accent}`} />
+            <LockPeriodRemaining endetAt={new Date(endetAt).toISOString()} className={`text-xs opacity-70 ${c.accent}`} />
           )}
           {cleaningNote && (
             <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>· {cleaningNote}</span>

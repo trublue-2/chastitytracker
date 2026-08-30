@@ -4,7 +4,7 @@ import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/l
 import { autoKontrolleSettingsFromUser, autoInspectionsView, type AutoInspectionsView } from "@/lib/autoKontrolleService";
 import { weightReleaseStatus } from "@/lib/weightReleaseService";
 import { reinigungVerbrauchtHeute, buildReinigungView, type ReinigungView } from "@/lib/reinigungService";
-import { getActiveSperrzeit, cleaningWindowBindingStatus, type WindowsBindingReason } from "@/lib/queries";
+import { getActiveLockPeriod, cleaningWindowBindingStatus, type WindowsBindingReason } from "@/lib/queries";
 import { type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 import { getOffenseRules } from "@/lib/offenseRulesService";
 
@@ -157,12 +157,12 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     gte: parseIsoDate(opts.appointmentsFrom, "appointmentsFrom") ?? now,
     ...(apptTo ? { lte: apptTo } : {}),
   };
-  const [healthHold, recurring, appts, cleaningUsedToday, sperre, offenseRules, release] = await Promise.all([
+  const [healthHold, recurring, appts, cleaningUsedToday, lockPeriod, offenseRules, release] = await Promise.all([
     loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: apptWhen }, orderBy: { when: "asc" } }),
     reinigungVerbrauchtHeute(userId, now, user.timezone ?? APP_TZ),
-    getActiveSperrzeit(userId),
+    getActiveLockPeriod(userId),
     // Über den Service, nicht über eine eigene Abfrage: dort steht `CHANGE_SELECT` ausdrücklich,
     // „damit die Lese- und die Schreib-Abfrage nicht getrennt voneinander veralten" — eine Kopie
     // hier wäre genau die Trennung, die er verhindern soll.
@@ -174,7 +174,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
   const auto = autoKontrolleSettingsFromUser(user);
   const binding = cleaningWindowBindingStatus(
     { reinigungErlaubt: user.reinigungErlaubt ?? false, reinigungsFenster: user.reinigungsFenster, timezone: user.timezone ?? APP_TZ },
-    sperre,
+    lockPeriod,
     now,
   );
 

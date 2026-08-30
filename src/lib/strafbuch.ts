@@ -38,8 +38,8 @@ export interface StrafbuchData {
     id: string;
     startTime: Date;
     note: string | null;
-    sperrzeitEndetAt: Date | null;
-    sperrzeitIndefinite: boolean;
+    lockPeriodEndsAt: Date | null;
+    lockPeriodIndefinite: boolean;
   }[];
   lateControls: StrafbuchControlOffense[];
   rejectedControls: StrafbuchControlOffense[];
@@ -119,7 +119,7 @@ export interface StrafbuchData {
     at: Date;
     adminUsername: string;
     via: string;
-    sperrzeitEndetAt: Date | null;
+    lockPeriodEndsAt: Date | null;
   }[];
   /** ORGASMUS-Einträge ohne deckende Orgasmus-Direktive. Ob und in welcher Reichweite das zählt,
    *  entscheidet die Regel `unauthorized_orgasm` (aus / nur bei Sperrzeit / immer) — Default ist AUS,
@@ -130,8 +130,8 @@ export interface StrafbuchData {
     orgasmusArt: string | null;
     note: string | null;
     /** Die zur Tatzeit laufende Sperrzeit, wenn es eine gab — sonst null (Modus `always`). */
-    sperrzeitEndetAt: Date | null;
-    sperrzeitIndefinite: boolean;
+    lockPeriodEndsAt: Date | null;
+    lockPeriodIndefinite: boolean;
   }[];
   /**
    * Versäumte Gewichts-Meldungen: je angebrochenem Drei-Tage-Block ohne Angabe eine Zeile.
@@ -446,10 +446,10 @@ export function isCleaningNotRelocked(deadline: Date, relockAt: Date | null, now
 
 /** Finds the Sperrzeit active at `openTime` (if any) — shared by unauthorizedOpenings and
  *  cleaningNotRelocked, which both need to know whether an OEFFNEN fell inside an active lock period. */
-function findActiveSperrzeit<S extends { createdAt: Date; endetAt: Date | null; withdrawnAt: Date | null }>(
-  openTime: Date, sperrzeiten: S[],
+function findActiveLockPeriod<S extends { createdAt: Date; endetAt: Date | null; withdrawnAt: Date | null }>(
+  openTime: Date, lockPeriods: S[],
 ): S | undefined {
-  return sperrzeiten.find((s) =>
+  return lockPeriods.find((s) =>
     openTime >= s.createdAt &&
     (s.endetAt === null || openTime < s.endetAt) &&
     (s.withdrawnAt === null || s.withdrawnAt > openTime),
@@ -486,7 +486,7 @@ export function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
   });
 }
 
-/** True if a REINIGUNG opening inside `sperre` doesn't break the Sperrzeit. Delegates to
+/** True if a REINIGUNG opening inside `lockPeriod` doesn't break the Sperrzeit. Delegates to
  *  {@link cleaningBlockReason} — the same rule the live enforcement applies — rather than restating
  *  it. Restating it is exactly how the cleaning WINDOW went missing here: an opening outside the
  *  window withdrew the Sperrzeit but was booked as neither an unauthorized opening nor anything
@@ -501,14 +501,14 @@ export function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
  *  cleaningNotRelocked (only allowed openings can incur a missed-re-lock offense). */
 function isAllowedReinigungOpening(
   o: { oeffnenGrund: string | null; startTime: Date },
-  sperre: { reinigungErlaubt: boolean } | undefined,
+  lockPeriod: { reinigungErlaubt: boolean } | undefined,
   user: CleaningPermissionUser,
   enforcedFrom: Date,
 ): boolean {
-  if (!sperre || o.oeffnenGrund !== "REINIGUNG") return false;
+  if (!lockPeriod || o.oeffnenGrund !== "REINIGUNG") return false;
   const grandfathered = o.startTime < enforcedFrom;
   const effectiveUser = grandfathered ? { ...user, reinigungsFenster: null } : user;
-  return cleaningBlockReason(effectiveUser, [sperre], o.startTime) === null;
+  return cleaningBlockReason(effectiveUser, [lockPeriod], o.startTime) === null;
 }
 
 /**
@@ -527,15 +527,15 @@ function isAllowedReinigungOpening(
  */
 export function cleaningRelockObligation(
   opening: { oeffnenGrund: string | null; startTime: Date },
-  sperre: { reinigungErlaubt: boolean; endetAt: Date | null } | null,
+  lockPeriod: { reinigungErlaubt: boolean; endetAt: Date | null } | null,
   user: CleaningPermissionUser,
   maxMinuten: number,
   enforcedFrom: Date,
 ): Date | null {
-  if (!sperre || !isAllowedReinigungOpening(opening, sperre, user, enforcedFrom)) return null;
+  if (!lockPeriod || !isAllowedReinigungOpening(opening, lockPeriod, user, enforcedFrom)) return null;
   const deadline = reinigungRelockDeadline(opening.startTime, maxMinuten, user.reinigungsFenster, user.timezone);
-  const sperrzeitCoversDeadline = sperre.endetAt === null || sperre.endetAt >= deadline;
-  return sperrzeitCoversDeadline ? deadline : null;
+  const lockPeriodCoversDeadline = lockPeriod.endetAt === null || lockPeriod.endetAt >= deadline;
+  return lockPeriodCoversDeadline ? deadline : null;
 }
 
 /** Computes the Strafbuch for a user: unauthorized openings during Sperrzeiten, late and
@@ -567,7 +567,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
 
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, cleaningRuleChanges, timezoneChanges, user, oeffnungen, verschluesse, sperrzeiten, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw, weightRows, healthHolds] = await Promise.all([
+  const [enforcedFrom, cleaningRuleChanges, timezoneChanges, user, oeffnungen, verschluesse, lockPeriods, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw, weightRows, healthHolds] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
     prisma.timezoneChange.findMany({ where: { userId }, select: TIMEZONE_CHANGE_SELECT }),
@@ -715,24 +715,24 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
 
   // Each OEFFNEN paired with the Sperrzeit active at its startTime (if any) — computed once,
   // shared by unauthorizedOpenings and cleaningNotRelocked below.
-  const oeffnungenMitSperre = oeffnungen.map((o) => ({ o, sperre: findActiveSperrzeit(o.startTime, sperrzeiten) }));
+  const openingsWithLockPeriod = oeffnungen.map((o) => ({ o, lockPeriod: findActiveLockPeriod(o.startTime, lockPeriods) }));
 
   // Unauthorized openings — an OEFFNEN inside an active Sperrzeit. A REINIGUNG opening is
   // permitted when both the user flag and the Sperrzeit allow cleaning. System-authored openings
   // (source="system", the inspection-escalation auto-mark) are EXCLUDED: that's the sub's
   // presumed removal already counted once as `autoRemovedControls` — it's not a willful action by
   // the sub, so flagging it a second time here would double-punish a single ambiguous event.
-  const unauthorizedOpenings = oeffnungenMitSperre
-    .filter(({ o, sperre }) =>
+  const unauthorizedOpenings = openingsWithLockPeriod
+    .filter(({ o, lockPeriod }) =>
       o.source !== "system" &&
-      !!sperre && !isAllowedReinigungOpening(o, sperre, cleaningPermissionUserAt(cleaningAt(o.startTime), tzAt(o.startTime)), enforcedFrom) && !isOrgasmusOpenAllowed(o.startTime),
+      !!lockPeriod && !isAllowedReinigungOpening(o, lockPeriod, cleaningPermissionUserAt(cleaningAt(o.startTime), tzAt(o.startTime)), enforcedFrom) && !isOrgasmusOpenAllowed(o.startTime),
     )
-    .map(({ o, sperre }) => ({
+    .map(({ o, lockPeriod }) => ({
       id: o.id,
       startTime: o.startTime,
       note: o.note,
-      sperrzeitEndetAt: sperre!.endetAt,
-      sperrzeitIndefinite: sperre!.endetAt === null,
+      lockPeriodEndsAt: lockPeriod!.endetAt,
+      lockPeriodIndefinite: lockPeriod!.endetAt === null,
     }));
 
   // Die bereits beurteilten Vergehen — einmal gebaut, zweimal gebraucht: hier für die
@@ -765,15 +765,15 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     const judged = judgedRefs.has(o.id);
     if (!judged && mode === "off") return [];
     if (orgasmusAnforderungen.some((w) => windowCovers(w, o.startTime))) return [];
-    const sperre = findActiveSperrzeit(o.startTime, sperrzeiten);
-    if (!judged && mode === "lockedOnly" && !sperre) return [];
+    const lockPeriod = findActiveLockPeriod(o.startTime, lockPeriods);
+    if (!judged && mode === "lockedOnly" && !lockPeriod) return [];
     return [{
       id: o.id,
       startTime: o.startTime,
       orgasmusArt: o.orgasmusArt,
       note: o.note,
-      sperrzeitEndetAt: sperre?.endetAt ?? null,
-      sperrzeitIndefinite: sperre !== undefined && sperre.endetAt === null,
+      lockPeriodEndsAt: lockPeriod?.endetAt ?? null,
+      lockPeriodIndefinite: lockPeriod !== undefined && lockPeriod.endetAt === null,
     }];
   });
 
@@ -794,10 +794,10 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   // whose re-lock deadline passed without a timely VERSCHLUSS. No offense if the Sperrzeit itself
   // already ended before the deadline: once the Sperrzeit is over there's no further re-lock
   // obligation left to violate, whether or not (or how late) the user eventually re-locks.
-  const cleaningNotRelocked = oeffnungenMitSperre
-    .flatMap(({ o, sperre }) => {
+  const cleaningNotRelocked = openingsWithLockPeriod
+    .flatMap(({ o, lockPeriod }) => {
       const settings = cleaningAt(o.startTime);
-      const deadline = cleaningRelockObligation(o, sperre ?? null, cleaningPermissionUserAt(settings, tzAt(o.startTime)), settings.maxMinutes, enforcedFrom);
+      const deadline = cleaningRelockObligation(o, lockPeriod ?? null, cleaningPermissionUserAt(settings, tzAt(o.startTime)), settings.maxMinutes, enforcedFrom);
       if (!deadline) return [];
       const relockAt = verschluesse.find((v) => v.startTime > o.startTime)?.startTime ?? null;
       return isCleaningNotRelocked(deadline, relockAt, now)
@@ -886,7 +886,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       at: p.createdAt,
       adminUsername: p.adminUsername,
       via: p.via,
-      sperrzeitEndetAt: p.sperrzeitEndetAt,
+      lockPeriodEndsAt: p.lockPeriodEndsAt,
     })),
     unauthorizedOrgasms,
     missedWeightReports,

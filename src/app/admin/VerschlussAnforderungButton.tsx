@@ -12,7 +12,7 @@ import { LockClosedIcon } from "@/app/components/lockIcons";
 interface Props {
   userId: string;
   isLocked: boolean;
-  hasActiveSperrzeit: boolean;
+  hasActiveLockPeriod: boolean;
   /** Governing timezone of this row's sub (data owner). */
   tz: string;
   /** Server-computed "now" wall-clock in the sub's tz — datetime-local min (hydration-safe). */
@@ -20,7 +20,7 @@ interface Props {
 }
 
 export default function VerschlussAnforderungButton({
-  userId, isLocked, hasActiveSperrzeit, tz, minNow,
+  userId, isLocked, hasActiveLockPeriod, tz, minNow,
 }: Props) {
   const t = useTranslations("admin");
   const router = useRouter();
@@ -45,7 +45,7 @@ export default function VerschlussAnforderungButton({
 
   // Exklusiv ist allein die Sperrzeit — eine zweite überschriebe die laufende. Dass die
   // Anforderung keine E-Mail mehr verlangt: Begründung im Dienst.
-  if (isLocked && hasActiveSperrzeit) return null;
+  if (isLocked && hasActiveLockPeriod) return null;
 
   const close = () => {
     setOpen(false);

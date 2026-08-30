@@ -6,7 +6,7 @@ import type { KeyholderSubBlockId } from "@/lib/dashboardBlockRegistry";
 import {
   activeVorgabeCached, activeWearSessionsCached, deviceCountCached, entriesCached,
   keyholderInspectionsCached, keyholderOrgasmRequestCached, keyholderPairsCached,
-  keyholderRunningSessionCached, keyholderSperrzeitCached, latestKgEntryCached, orgasmConfigCached,
+  keyholderRunningSessionCached, keyholderLockPeriodCached, latestKgEntryCached, orgasmConfigCached,
   orgasmEntriesCached, sessionListDataCached, taskCardsCached, userRowCached, wearCountsCached,
   wearingHoursCached, wearSessionRowsCached,
 } from "@/lib/dashboardData";
@@ -79,16 +79,16 @@ const taskCardsOf = (ctx: KeyholderSubCtx) =>
 /**
  * Die Sperrzeit, die für die REINIGUNGS-Frage zählt.
  *
- * `getKeyholderSperrzeit` zeigt auch eine erst GEPLANTE (damit die Keyholderin sie stornieren
+ * `getKeyholderLockPeriod` zeigt auch eine erst GEPLANTE (damit die Keyholderin sie stornieren
  * kann) — hier zählt nur die bereits wirksame, sonst meldet die Box-Karte „durch Sperrzeit
  * blockiert", bevor die Sperre überhaupt läuft.
  *
- * Das Ergebnis ist dasselbe, das `getActiveSperrzeit` liefern würde; abgeleitet statt abgefragt,
+ * Das Ergebnis ist dasselbe, das `getActiveLockPeriod` liefern würde; abgeleitet statt abgefragt,
  * weil die Seite die Keyholder-Zeilen ohnehin geladen hat und eine zweite Runde nichts brächte.
  */
-async function effectiveSperrzeit(ctx: KeyholderSubCtx) {
-  const sperre = await keyholderSperrzeitCached(ctx.subjectId);
-  return sperre && !isScheduledDirective(sperre.wirksamAb, ctx.now) ? sperre : null;
+async function effectiveLockPeriod(ctx: KeyholderSubCtx) {
+  const lockPeriod = await keyholderLockPeriodCached(ctx.subjectId);
+  return lockPeriod && !isScheduledDirective(lockPeriod.wirksamAb, ctx.now) ? lockPeriod : null;
 }
 
 export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<KeyholderSubCtx>> = {
@@ -100,11 +100,11 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       // Das Tageskontingent zählt aus den ohnehin geladenen Einträgen — ohne eigene DB-Runde. Nur
       // der Schlüssel-Nachweis aus der Telemetrie fragt noch ab, damit die Keyholderin dieselben
       // Pillen sieht wie der Sub.
-      const [user, entries, sperre] = await Promise.all([
-        userRowCached(ctx.subjectId), entriesCached(ctx.subjectId), effectiveSperrzeit(ctx),
+      const [user, entries, lockPeriod] = await Promise.all([
+        userRowCached(ctx.subjectId), entriesCached(ctx.subjectId), effectiveLockPeriod(ctx),
       ]);
       return {
-        reinigung: buildBoxReinigungView(user, entries, sperre, ctx.now, ctx.subjectTz),
+        reinigung: buildBoxReinigungView(user, entries, lockPeriod, ctx.now, ctx.subjectTz),
         // Siehe `dashboardBlocks`: ohne den Träger-Zustand liesse sich „Riegel zu, obwohl niemand
         // verschlossen ist" nicht vom Normalfall unterscheiden.
         wearerLocked: await getIsLocked(ctx.subjectId),
@@ -135,8 +135,8 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       // Stundenrechnung. Letztere paart die ganze Historie und wird von keinem anderen Block
       // dieser Seite gebraucht.
       if (!running) return { running: null, latest: await latestKgEntryCached(subjectId) };
-      const [sperrzeit, activeVorgabe, hours, deviceCount, offenseRules] = await Promise.all([
-        keyholderSperrzeitCached(subjectId), activeVorgabeCached(subjectId, nowMs),
+      const [lockPeriod, activeVorgabe, hours, deviceCount, offenseRules] = await Promise.all([
+        keyholderLockPeriodCached(subjectId), activeVorgabeCached(subjectId, nowMs),
         wearingHoursCached(subjectId, nowMs, subjectTz), deviceCountCached(subjectId),
         // Ob ein früheres Öffnen geahndet wird, ist je Sub schaltbar — und SIE hat den Schalter.
         // Ohne diese Abfrage läse die Keyholderin auf ihrer eigenen Karte, dass eine Regel gilt,
@@ -149,8 +149,8 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       const tDash = await getTranslations("dashboard");
       const lockBreakNote = offenseRules.unauthorized_opening === "off"
         ? null
-        : tDash(sperrzeit?.reinigungErlaubt ? "sessionLockedConsequenceCleaning" : "sessionLockedConsequence");
-      return { running, sperrzeit, activeVorgabe, hours, deviceCount, lockBreakNote, latest: null };
+        : tDash(lockPeriod?.reinigungErlaubt ? "sessionLockedConsequenceCleaning" : "sessionLockedConsequence");
+      return { running, lockPeriod, activeVorgabe, hours, deviceCount, lockBreakNote, latest: null };
     },
     render: (data, { now, subjectTz, viewerTz, subLabel, subjectId, t }) =>
       data.running ? (
@@ -165,19 +165,19 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           interruptionPausedMs={interruptionPauseMs(data.running.activePair.interruptions)}
           now={now}
           events={data.running.events}
-          sperrzeitEndetAt={data.sperrzeit?.endetAt ?? null}
+          lockPeriodEndsAt={data.lockPeriod?.endetAt ?? null}
           // Unbefristet ist unbefristet — auch wenn die Sperre terminiert wurde. Die frühere
           // Zusatzbedingung `!wirksamAb` liess bei einer TERMINIERTEN unbefristeten Sperre alle
           // drei Sperr-Angaben leer laufen, und damit verschwand die ganze Zeile aus IHRER Karte,
           // während der Träger sie sah.
-          sperrzeitUnbefristet={!!data.sperrzeit && data.sperrzeit.endetAt === null}
-          sperrzeitNachricht={data.sperrzeit?.nachricht ?? null}
-          sperrzeitScheduledFor={data.sperrzeit?.wirksamAb && data.sperrzeit.wirksamAb > now ? data.sperrzeit.wirksamAb : null}
+          lockPeriodIndefinite={!!data.lockPeriod && data.lockPeriod.endetAt === null}
+          lockPeriodMessage={data.lockPeriod?.nachricht ?? null}
+          lockPeriodScheduledFor={data.lockPeriod?.wirksamAb && data.lockPeriod.wirksamAb > now ? data.lockPeriod.wirksamAb : null}
           // Der erreichte Beginn — die Karte zeigt ihn nur, wo sonst kein Zeitpunkt stünde.
-          sperrzeitRunningSince={data.sperrzeit?.wirksamAb && data.sperrzeit.wirksamAb <= now ? data.sperrzeit.wirksamAb : null}
+          lockPeriodRunningSince={data.lockPeriod?.wirksamAb && data.lockPeriod.wirksamAb <= now ? data.lockPeriod.wirksamAb : null}
           // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den Benutzer-
           // Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
-          cleaningNote={data.sperrzeit ? t(data.sperrzeit.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
+          cleaningNote={data.lockPeriod ? t(data.lockPeriod.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
           // Nur wenn die Regel gilt, und mit der Reinigungs-Ausnahme im Text, wo die Sperre sie
           // zulässt (Herleitung in der Ladefunktion).
           lockBreakNote={data.lockBreakNote}
