@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronRight, KeyRound } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import SettingsSection from "@/app/components/SettingsSection";
 import Input from "@/app/components/Input";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
-import ConfirmDialog from "@/app/components/ConfirmDialog";
+import PasswordChangeConfirm from "@/app/components/PasswordChangeConfirm";
 import { useApiError } from "@/app/hooks/useApiError";
 
 interface Props {
@@ -217,12 +217,9 @@ export default function AccountSection({ userId, username, email, role, isSelf }
           Vor dem Abruf schliessen, nicht danach: die Fehlerzeile (`FormError`) steht unmittelbar
           unter dem Feld, also dort, wo der Nutzer nach dem Schliessen ohnehin hinsieht — und
           `ConfirmDialog` hat keinen Platz für sie. */}
-      <ConfirmDialog
+      <PasswordChangeConfirm
         open={pwConfirm}
-        title={ts("changePassword")}
-        message={t("passwordChangeConfirmText")}
         confirmLabel={tc("save")}
-        icon={<KeyRound size={20} style={{ color: "var(--color-warn)" }} />}
         onConfirm={() => { setPwConfirm(false); void submitPassword(); }}
         onCancel={() => setPwConfirm(false)}
       />

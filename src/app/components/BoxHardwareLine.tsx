@@ -4,7 +4,7 @@ import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { boxIstLabel, boxFreshnessLabel, boxIsLive, boxBoltAlert } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
-import InfoDot from "@/app/components/InfoDot";
+import BoxDeviceInfo from "@/app/components/BoxDeviceInfo";
 
 /**
  * Wie fest dieser Verschluss ist — EINE Zeile am Fuss des Zustands-Helden.
@@ -70,17 +70,7 @@ export default function BoxHardwareLine({
       {box && !boxIsLive(box.lastSyncAt, now) && (
         <span>{" · "}{boxFreshnessLabel(box.lastSyncAt, now, t)}</span>
       )}
-      {boxes.length > 0 && (
-        <InfoDot label={t("deviceInfo")}>
-          <span className="flex flex-col gap-0.5">
-            {boxes.map((b) => (
-              <span key={b.boxId} className="font-mono">
-                {b.name}{b.fwVersion ? ` · ${b.fwVersion}` : ""}
-              </span>
-            ))}
-          </span>
-        </InfoDot>
-      )}
+      <BoxDeviceInfo boxes={boxes} />
     </p>
   );
 }

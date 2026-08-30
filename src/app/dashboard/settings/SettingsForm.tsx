@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
-import { KeyRound, User } from "lucide-react";
+import { User } from "lucide-react";
 import Section from "@/app/components/Section";
 import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
@@ -21,7 +21,7 @@ import { LOCALES_LONG } from "@/lib/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
-import ConfirmDialog from "@/app/components/ConfirmDialog";
+import PasswordChangeConfirm from "@/app/components/PasswordChangeConfirm";
 import WeightSettings from "./WeightSettings";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
@@ -443,12 +443,9 @@ export default function SettingsForm({ username, email, locale, timezone, startP
       {/* KEIN `danger` und vor dem Abruf schliessen — dieselbe Begründung wie im Admin-Bereich:
           das Passwort zu setzen ist erlaubt, gewarnt wird vor der Nebenwirkung, und die Fehlerzeile
           steht unmittelbar unter dem Feld. */}
-      <ConfirmDialog
+      <PasswordChangeConfirm
         open={pwConfirm}
-        title={t("changePassword")}
-        message={ta("passwordChangeConfirmText")}
         confirmLabel={t("saveBtn")}
-        icon={<KeyRound size={20} style={{ color: "var(--color-warn)" }} />}
         onConfirm={() => { setPwConfirm(false); void submitPassword(); }}
         onCancel={() => setPwConfirm(false)}
       />

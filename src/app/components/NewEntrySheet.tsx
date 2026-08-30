@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, type ReactNode } from "react";
-import { ClipboardCheck, Droplets, Eye, KeyRound, Scale, type LucideIcon } from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import useGuardedNavigation from "@/app/hooks/useGuardedNavigation";
 import { busyDimCls } from "@/app/components/inputStyles";
@@ -11,7 +11,7 @@ import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import { entryFormBase, inspectionHref } from "@/lib/entryFormRoute";
-import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
+import { actionIcon } from "@/app/entries/actionSign";
 
 export interface NewEntryCategoryRow {
   id: string;
@@ -140,7 +140,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
   const options = [
     {
       type: "verschluss",
-      icon: LockClosedIcon,
+      icon: actionIcon("VERSCHLUSS"),
       label: t("lock"),
       desc: t("lockSubtitle"),
       disabled: isLocked,
@@ -150,7 +150,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
     },
     {
       type: "oeffnen",
-      icon: LockOpenIcon,
+      icon: actionIcon("OEFFNEN"),
       label: t("open"),
       desc: t("openSubtitle"),
       disabled: !isLocked,
@@ -160,7 +160,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
     },
     {
       type: "pruefung",
-      icon: ClipboardCheck,
+      icon: actionIcon("PRUEFUNG"),
       label: t("inspection"),
       // Liegt eine Anforderung an, führt die Zeile DORTHIN und sagt es auch. Sonst wie bisher:
       // die freiwillige Selbstkontrolle mit frisch gewürfeltem Code.
@@ -177,7 +177,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
     },
     {
       type: "orgasmus",
-      icon: Droplets,
+      icon: actionIcon("ORGASMUS"),
       label: t("orgasm"),
       desc: t("orgasmSubtitle"),
       disabled: false,
@@ -271,7 +271,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
             {isLocked && (
               <SheetActionRow
                 {...rowNav}
-                icon={KeyRound}
+                icon={actionIcon("BILDERSAFE_SEAL")}
                 tone="text-lock"
                 label={t("bildersafeAction")}
                 desc={t("bildersafeActionDesc")}
@@ -287,7 +287,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
                 „aufgeschlossen". */}
             <SheetActionRow
               {...rowNav}
-              icon={Eye}
+              icon={actionIcon("BILDERSAFE_SHOW")}
               label={t("bildersafeShowAction")}
               desc={t("bildersafeShowActionDesc")}
               href={`${base}/bildersafe/anzeigen`}
@@ -301,7 +301,7 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
         {weight && (
           <SheetActionRow
             {...rowNav}
-            icon={Scale}
+            icon={actionIcon("WEIGHT")}
             tone="text-foreground-faint"
             label={t("weight")}
             desc={t("weightSubtitle")}

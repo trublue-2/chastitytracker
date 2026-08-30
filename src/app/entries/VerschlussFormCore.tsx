@@ -7,6 +7,7 @@ import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import PhotoCapture from "@/app/components/PhotoCapture";
+import { PhotoExifNotes, PhotoUploadError } from "@/app/components/PhotoUploadNotes";
 import RotatableImagePreview from "@/app/components/RotatableImagePreview";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
@@ -264,12 +265,7 @@ export default function VerschlussFormCore({
           <div className="flex items-start gap-4">
             <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />
             <div className="flex flex-col gap-2 flex-1 pt-1">
-              {imageExifTime && (
-                <p className="text-neben text-foreground-faint">{t("exifDate")}: {formatDateTime(imageExifTime, dl, tz)}</p>
-              )}
-              {exifWarning && !uploading && (
-                <p className="text-neben text-warn font-medium">{exifWarning}</p>
-              )}
+              <PhotoExifNotes imageExifTime={imageExifTime} exifWarning={exifWarning} uploading={uploading} dl={dl} tz={tz} />
               <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" compact mobileDesktopMode={mobileDesktopMode} />
               <button type="button" onClick={clearPhoto} className="text-neben text-warn hover:opacity-80 w-fit transition">
                 {t("removePhoto")}
@@ -279,7 +275,7 @@ export default function VerschlussFormCore({
         ) : (
           <>
             <PhotoCapture onFile={handleFile} uploading={uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
-            {uploadError && !uploading && <p className="text-neben text-warn font-medium mt-1">{uploadError}</p>}
+            <PhotoUploadError uploadError={uploadError} uploading={uploading} />
           </>
         )}
       </FormField>
@@ -312,7 +308,7 @@ export default function VerschlussFormCore({
             <>
               <p className="text-neben text-foreground-faint mb-1.5">{tForm("codePhotoHint")}</p>
               <PhotoCapture onFile={codePhoto.handleFile} uploading={codePhoto.uploading} variant="emerald" mobileDesktopMode={mobileDesktopMode} />
-              {codePhoto.uploadError && !codePhoto.uploading && <p className="text-neben text-warn font-medium mt-1">{codePhoto.uploadError}</p>}
+              <PhotoUploadError uploadError={codePhoto.uploadError} uploading={codePhoto.uploading} />
             </>
           )}
         </FormField>

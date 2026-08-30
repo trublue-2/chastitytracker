@@ -7,7 +7,7 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import Card from "@/app/components/Card";
 import WarnLine from "@/app/components/WarnLine";
 import BlockHeading from "@/app/components/BlockHeading";
-import InfoDot from "@/app/components/InfoDot";
+import BoxDeviceInfo from "@/app/components/BoxDeviceInfo";
 
 /** Eine Zeile dieser Karte. Die Kette stand fünfmal wörtlich darin — `listRowCls` passt nicht,
  *  weil es `blockInsetCls` mitbringt und die Karte ihre Polsterung selbst hat. */
@@ -144,15 +144,7 @@ export default function BoxStatusCard({ cleaning, userId, wearerLocked = true, k
           <BlockHeading tone="label">{tBlock("blockBoxStatus")}</BlockHeading>
           {/* Das ⓘ NICHT in der Rubrik: `BlockHeading` ist eine Überschrift, und der aufgeklappte
               Inhalt läge damit im Überschriftentext. */}
-          <InfoDot label={t("deviceInfo")} align="right">
-            <span className="flex flex-col gap-0.5">
-              {boxes.map((b) => (
-                <span key={b.boxId} className="font-mono">
-                  {b.name}{b.fwVersion ? ` · ${b.fwVersion}` : ""}
-                </span>
-              ))}
-            </span>
-          </InfoDot>
+          <BoxDeviceInfo boxes={boxes} align="right" />
         </div>
 
         {boxRows.map(({ b, isLocked, boltAlert, transition, failsafes, batteryLow, batteryLabel }) => {
