@@ -137,17 +137,27 @@ export const latestKgEntryCached = cache(async (userId: string) =>
 );
 
 /**
- * Der Schlüssel-Zustand des jüngsten Verschlusses — die zweite Hälfte, ohne die
+ * Schlüssel-Deklaration des LAUFENDEN Verschlusses — die zweite Hälfte, ohne die
  * `boxBoltOpenDespiteLocked` den Reisefall (Träger behielt den Schlüssel, die Box bleibt zu Recht
  * offen) als Versäumnis liest und dem Träger wochenlang „JETZT Knopf drücken!" zeigt.
  *
- * Nimmt die ohnehin geladene, absteigend sortierte Eintragsliste statt selbst zu fragen — die
- * Box-Blöcke halten sie bereits. `/admin` holt denselben Wert für viele Träger auf einmal
- * (`distinct` auf die jüngste VERSCHLUSS-Zeile); dies hier ist dieselbe Regel für EINEN.
+ * **Dieselbe Regel wie `getCurrentLockKeyInBox` (`queries.ts`), nur aus dem Speicher:** der jüngste
+ * KG-Eintrag IST der Lock-Zustand, und nur wenn der ein VERSCHLUSS ist, wurde überhaupt etwas über
+ * den Schlüssel erklärt. Über den jüngsten VERSCHLUSS zu suchen wäre eine ZWEITE Semantik — sie
+ * griffe durch ein späteres OEFFNEN hindurch und wendete die Erklärung eines längst beendeten
+ * Verschlusses an, während die Keyholder-Sichten über `queries.ts` bereits `null` sähen.
+ *
+ * Kostet nichts: `latestKgEntryCached` leitet aus den ohnehin geladenen Einträgen ab.
+ *
+ * ⚠ `/admin` (Keyholder-Übersicht) beantwortet dieselbe Frage für VIELE Träger auf einmal und tut
+ * es bis heute anders — `distinct` auf die jüngste VERSCHLUSS-Zeile, ohne ein späteres OEFFNEN zu
+ * beachten. Für einen gerade GEÖFFNETEN Träger können Übersicht und Detailsicht deshalb noch
+ * auseinanderlaufen. Zusammenführen heisst, dort eine Stapel-Fassung dieser Regel zu bauen.
  */
-export function latestKeyInBox(entries: { type: string; keyInBox: boolean | null }[]): boolean | null {
-  return entries.find((e) => e.type === KG_PAIR.close)?.keyInBox ?? null;
-}
+export const latestKeyInBoxCached = cache(async (userId: string) => {
+  const latest = await latestKgEntryCached(userId);
+  return latest?.type === KG_PAIR.close ? latest.keyInBox : null;
+});
 
 /**
  * Die Reinigungs-Regeln des Trägers: `at(zeitpunkt)` gibt die damals geltende Fassung, `rules` die

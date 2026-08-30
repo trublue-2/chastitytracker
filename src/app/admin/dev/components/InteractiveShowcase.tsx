@@ -224,7 +224,7 @@ export function ModalSheetDemo() {
 
 // ── Pill Demo ─────────────────────────────────
 export function PillDemo() {
-  const [pills, setPills] = useState(["LockClosedIcon", "Inspect", "Orgasm"]);
+  const [pills, setPills] = useState(["Lock", "Inspect", "Orgasm"]);
   const variants: Array<"lock" | "inspect" | "orgasm"> = ["lock", "inspect", "orgasm"];
 
   return (
@@ -238,7 +238,7 @@ export function PillDemo() {
         />
       ))}
       {pills.length === 0 && (
-        <Button variant="ghost" size="sm" onClick={() => setPills(["LockClosedIcon", "Inspect", "Orgasm"])}>
+        <Button variant="ghost" size="sm" onClick={() => setPills(["Lock", "Inspect", "Orgasm"])}>
           Reset
         </Button>
       )}

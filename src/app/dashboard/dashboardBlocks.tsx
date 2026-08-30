@@ -9,7 +9,7 @@ import type { SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
 import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
-  deviceCountCached, entriesCached, evaluatedTasksCached, latestKeyInBox, latestKgEntryCached, lockRequestCached,
+  deviceCountCached, entriesCached, evaluatedTasksCached, latestKeyInBoxCached, latestKgEntryCached, lockRequestCached,
   orgasmConfigCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
   subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
@@ -266,8 +266,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         cleaning: buildBoxCleaningView(user, entries, activeLockPeriod, now, tz),
         wearerLocked: await getIsLocked(userId),
         // Ohne diesen Wert läse die Karte den Reisefall als Versäumnis — Begründung an
-        // `latestKeyInBox` und `boxBoltOpenDespiteLocked`. Kommt aus `entries`, kostet nichts.
-        keyInBox: latestKeyInBox(entries),
+        // `latestKeyInBoxCached` und `boxBoltOpenDespiteLocked`. Leitet aus den geladenen Einträgen ab.
+        keyInBox: await latestKeyInBoxCached(userId),
       };
     },
     // `null` heisst hier „ohne Reinigungs-Zeilen", nicht „ohne Karte" — die Karte selbst hängt an

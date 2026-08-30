@@ -38,14 +38,14 @@ import InfoDot from "@/app/components/InfoDot";
  */
 export default function BoxHardwareLine({
   userId,
-  keyInBox = true,
+  keyInBox,
 }: {
   /** Gesetzt = Sicht auf einen fremden Sub (Keyholderin). */
   userId?: string;
   /** Liegt der Schlüssel in der Box? Reicht die Rangfolge in `boxBoltAlert` durch — ohne ihn
    *  schwiege die Zeile im Reisefall über einen Riegel, den zu Recht niemand geschlossen hat.
    *  Vorgabe `true`: der einzige Aufrufer rendert sie ohnehin nur dann. */
-  keyInBox?: boolean | null;
+  keyInBox: boolean | null;
 }) {
   const t = useTranslations("boxStatus");
   const tDash = useTranslations("dashboard");

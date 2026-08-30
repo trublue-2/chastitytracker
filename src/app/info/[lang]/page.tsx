@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { LayoutDashboard, PlusCircle, BarChart2, ClipboardCheck, LogIn, ShieldCheck } from "lucide-react";
 import { LockClosedIcon } from "@/app/components/lockIcons";
+import { APP_NAME } from "@/lib/constants";
 
 type Lang = "de" | "en";
 
@@ -337,7 +338,7 @@ export default async function InfoPage({ params }: { params: Promise<{ lang: str
             <div className="w-7 h-7 bg-gray-900 rounded-lg flex items-center justify-center">
               <LockClosedIcon size={14} className="text-white" />
             </div>
-            <span className="font-bold text-gray-900">Chastity Tracker</span>
+            <span className="font-bold text-gray-900">{APP_NAME}</span>
           </div>
           <div className="flex items-center gap-2">
             <Link
@@ -378,7 +379,7 @@ export default async function InfoPage({ params }: { params: Promise<{ lang: str
             <LockClosedIcon size={28} className="text-white" />
           </div>
           <div className="flex flex-col gap-3">
-            <h1 className="text-4xl font-bold text-gray-900">Chastity Tracker</h1>
+            <h1 className="text-4xl font-bold text-gray-900">{APP_NAME}</h1>
             <p className="text-base text-gray-500 leading-relaxed max-w-lg mx-auto">{c.hero.subtitle}</p>
           </div>
           <Link

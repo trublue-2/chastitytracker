@@ -57,7 +57,10 @@ interface Props {
   /** Betrachter-Zeitzone (Keyholder). Weicht sie von `tz` ab, wird die Sub-Lokalzeit als Zusatz
    *  gezeigt. Nur im Admin-Portal gesetzt; im grünen Dashboard weglassen → reine Sub-Zeit. */
   viewerTz?: string;
-  /** large only – Ziel des Erfassungs-Knopfes (Träger-Sicht). */
+  /** Ziel des Erfassungs-Knopfes (Träger-Sicht) — nur die GROSSE Fassung rendert ihn selbst. Die
+   *  kompakte Zeile trägt keinen Knopf; wo sie anklickbar sein soll, umschliesst die Aufrufstelle
+   *  sie mit einem `Link` und `rowHoverCls` (so die weiteren offenen Kontrollen in
+   *  `DashboardAlerts`). Beides in dieses Bauteil zu ziehen lohnt erst beim zweiten solchen Ort. */
   href?: string;
   /** Der Rückzug. In der kompakten Zeile das Zeichen allein, in der grossen Fassung beschriftet —
    *  die Sub-Detailseite der Keyholderin hatte bis v6 GAR KEINE Aktion an diesem Block. */

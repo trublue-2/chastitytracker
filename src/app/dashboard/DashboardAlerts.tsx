@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import { rowHoverCls } from "@/app/components/inputStyles";
 
 /** Die Anforderungen mit Frist — Kontrolle, Einschliessen, Orgasmus.
  *
@@ -82,11 +83,7 @@ export default async function DashboardAlerts({
           (+)-Sheet folgt ebenfalls nur der ersten. Wer sie übersah, verlor das Gerät an die
           Eskalation. Der Code steckt in der `href` — das Formular zeigt ihn. */}
       {pendingInspections.slice(1).map((k, i) => (
-        <Link
-          key={`${k.href}-${i}`}
-          href={k.href}
-          className="block -m-1 p-1 rounded-lg transition hover:bg-surface-raised"
-        >
+        <Link key={i} href={k.href} className={`block ${rowHoverCls}`}>
           <KontrolleBanner
             deadline={new Date(k.deadline)}
             target={k.target}

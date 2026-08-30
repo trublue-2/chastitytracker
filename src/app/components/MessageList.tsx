@@ -112,10 +112,11 @@ export default function MessageList({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
-  // Die In-Flight-Marke als REF, nicht als State: `saving` stammt aus dem Render und ist für zwei
-  // Klicks aus demselben Render in beiden `false` — eine Schranke darauf lässt genau den Doppel-
-  // Abruf durch, den sie verhindern soll. Das Ref ist sofort nach dem ersten Klick gesetzt.
-  const loadInFlight = useRef(false);
+  // Der LAUFENDE Vorgang, als REF und nicht als State: `saving` stammt aus dem Render und ist für
+  // zwei Klicks aus demselben Render in beiden `false` — eine Schranke darauf lässt genau den
+  // Doppel-Abruf durch, den sie verhindern soll. Das Ref steht sofort nach dem ersten Klick, und es
+  // hält zugleich die Zusage, die ein nachstellender Aufrufer zurückbekommt.
+  const running = useRef<Promise<LoadedPage | undefined> | null>(null);
   // Sprungziel nach einem Seitenwechsel: wer auf „Weiter" tippt, stand am ENDE der alten Seite und
   // landete ohne das mitten in der neuen — sichtbar war Zeile 15 von 20, der Kopf lag oberhalb.
   const listRef = useRef<HTMLDivElement>(null);
@@ -256,7 +257,7 @@ export default function MessageList({
     // eine Seitenzahl, die weiter „1 / 3" behauptet, während der Server keine drei Seiten mehr hat.
     // `bulk` macht es an derselben Stelle schon richtig; hier fehlte die Symmetrie.
     if (filter.unreadOnly) {
-      await load(page, filter, { quiet: true });
+      await load(page, filter, true);
       return;
     }
     setMessages((prev) => prev.map((x) => ({ ...x, read: true })));
@@ -289,7 +290,7 @@ export default function MessageList({
   async function loadOnce(
     nextPage: number,
     nextFilter: MessageFilter,
-    opts: { quiet?: boolean },
+    quiet: boolean,
   ): Promise<LoadedPage | undefined> {
     // Serialisierung aus `messageCategories` — dieselbe Quelle, die die Route wieder einliest.
     const params = messageFilterToParams(nextFilter);
@@ -307,7 +308,7 @@ export default function MessageList({
     setUnreadInFilter(data.unreadInFilter);
     // Die Auswahl galt für die Seite, die man verlässt — sie stumm fallen zu lassen sah aus wie ein
     // Fehler: die Kreuzchen waren weg, die Zählung stand auf null, und niemand hatte etwas getan.
-    if (!opts.quiet && (selected?.size ?? 0) > 0) toast.info(t("selectionCleared"));
+    if (!quiet && (selected?.size ?? 0) > 0) toast.info(t("selectionCleared"));
     setSelected((prev) => (prev === null ? null : new Set()));
     setOpenId(null);
     // Nur beim echten Seitenwechsel: nach einem Filterwechsel auf derselben Seitennummer steht man
@@ -320,13 +321,7 @@ export default function MessageList({
    * Der letzte Abruf, der während eines laufenden kam — höchstens einer, denn nur der jüngste
    * Wunsch zählt. Der laufende `load` arbeitet ihn ab, sobald er fertig ist.
    */
-  const queuedLoad = useRef<{ nextPage: number; nextFilter: MessageFilter; opts: { quiet?: boolean } } | null>(null);
-  /**
-   * Wer nachgestellt hat, wartet hier auf das Ergebnis der Abarbeitung — statt selbst abzuarbeiten.
-   * Alle bekommen dieselbe, LETZTE Seite: die Ansage beschreibt damit das, was am Ende wirklich auf
-   * dem Bildschirm steht.
-   */
-  const queuedWaiters = useRef<Array<(data: LoadedPage | undefined) => void>>([]);
+  const queuedLoad = useRef<{ nextPage: number; nextFilter: MessageFilter; quiet: boolean } | null>(null);
 
   /**
    * Eine Seite holen — der EINE Weg, über den Blättern und Filtern laufen.
@@ -338,40 +333,52 @@ export default function MessageList({
    * Leiste zeigte den neuen Filter, die Liste den Inhalt des alten, und es kam keine Ansage. Zu
    * treffen war das mit zwei Wechseln in Folge, also genau dann, wenn jemand sucht.
    *
-   * **Das Abarbeiten gehört zu DIESER Funktion, nicht zu einer zweiten daneben.** Sie hält die
-   * Marke, ist also die Einzige, die weiss, wann die Bahn wieder frei wird. Genau daran scheiterte
-   * die erste Fassung: ein zweites `loadLatest`, das während eines laufenden Abrufs betreten wurde,
-   * stellte seinen eigenen Wunsch nach, holte ihn sofort selbst wieder aus der Schlange und
-   * bekam erneut nur die Warte-Antwort — eine Schleife über bereits erfüllte Zusagen, die nie an
-   * die Ereignisschlange abgab. Der laufende `fetch` konnte damit nie fertig werden und der Tab
-   * stand, bis er neu geladen wurde. Erreichbar war das ohne jedes schnelle Klicken: „Alle als
-   * gelesen" oder ein Seitenwechsel hält die Marke, und die Filterleiste bleibt bedienbar.
+   * **Das Abarbeiten gehört zu DIESER Funktion, nicht zu einer zweiten daneben.** Sie hält den
+   * laufenden Vorgang, ist also die Einzige, die weiss, wann die Bahn wieder frei wird. Genau daran
+   * scheiterte die erste Fassung: ein zweites `loadLatest`, das während eines laufenden Abrufs
+   * betreten wurde, stellte seinen eigenen Wunsch nach, holte ihn sofort selbst wieder aus der
+   * Schlange und bekam erneut nur die Warte-Antwort — eine Schleife über bereits erfüllte Zusagen,
+   * die nie an die Ereignisschlange abgab. Der laufende `fetch` konnte damit nie fertig werden und
+   * der Tab stand, bis er neu geladen wurde. Erreichbar war das ohne jedes schnelle Klicken: „Alle
+   * als gelesen" oder ein Seitenwechsel hält den Vorgang, und die Filterleiste bleibt bedienbar.
+   *
+   * Wer nachstellt, bekommt die Zusage des LAUFENDEN Vorgangs zurück — die beschreibt bereits den
+   * Endstand, denn sie wird erst nach der Abarbeitung erfüllt. Eine eigene Liste von Wartenden
+   * bräuchte es nur, wenn es diese Zusage nicht gäbe.
    */
-  async function load(
+  function load(
     nextPage: number,
     nextFilter: MessageFilter = filter,
-    opts: { quiet?: boolean } = {},
+    quiet = false,
   ): Promise<LoadedPage | undefined> {
-    if (loadInFlight.current) {
-      queuedLoad.current = { nextPage, nextFilter, opts };
-      return new Promise((resolve) => { queuedWaiters.current.push(resolve); });
+    if (running.current) {
+      queuedLoad.current = { nextPage, nextFilter, quiet };
+      return running.current;
     }
-    loadInFlight.current = true;
+    const p = drain(nextPage, nextFilter, quiet);
+    running.current = p;
+    return p;
+  }
+
+  /** Der laufende Vorgang samt Abarbeitung. Ausschliesslich von `load` gestartet. */
+  async function drain(
+    nextPage: number,
+    nextFilter: MessageFilter,
+    quiet: boolean,
+  ): Promise<LoadedPage | undefined> {
     setSaving(true);
-    let data = await loadOnce(nextPage, nextFilter, opts);
+    let data = await loadOnce(nextPage, nextFilter, quiet);
     // Jeder Durchgang wartet auf einen echten Abruf — die Schleife gibt also ab und kann den
     // laufenden nicht aushungern.
     while (queuedLoad.current) {
       const q = queuedLoad.current;
       queuedLoad.current = null;
-      data = await loadOnce(q.nextPage, q.nextFilter, q.opts);
+      data = await loadOnce(q.nextPage, q.nextFilter, q.quiet);
     }
-    loadInFlight.current = false;
+    // Kein `await` zwischen der letzten Prüfung und dem Freigeben: es kann sich nichts mehr
+    // einreihen, das dieser Vorgang nicht mehr sähe.
+    running.current = null;
     setSaving(false);
-    // Erst wenn nichts mehr nachkommt: alle Wartenden auf denselben Endstand wecken.
-    const waiters = queuedWaiters.current;
-    queuedWaiters.current = [];
-    for (const resolve of waiters) resolve(data);
     return data;
   }
 
@@ -446,7 +453,7 @@ export default function MessageList({
     if (action === "delete" || filter.unreadOnly) {
       // `quiet`: die Auswahl ist hier nicht verlorengegangen, sie wurde gerade ausgeführt — die
       // Notiz von oben wäre eine zweite, widersprüchliche Meldung neben „3 gelöscht".
-      await load(page, filter, { quiet: true });
+      await load(page, filter, true);
       return;
     }
     const touched = new Set(ids);
