@@ -6,92 +6,29 @@
       {
         "type": "ui",
         "text": {
-          "de": "Die Oberfläche ist neu gestaltet — ruhiger, dunkel, mit mehr Luft. Was gerade zählt, steht oben und darf Platz beanspruchen; was Nachschlagewerk ist, ordnet sich darunter ein.",
-          "en": "The interface has been redesigned — calmer, dark, with more room to breathe. What matters right now sits at the top and is allowed to take up space; what is reference material settles below."
+          "de": "Die Oberfläche ist neu gestaltet — ruhiger, dunkel, mit mehr Luft. Die Kästen sind weg: statt einem Dutzend gleich wichtiger Rahmen ordnet jetzt der Abstand. Ein paar Ecken, das Strafbuch darunter, folgen noch.",
+          "en": "The interface has been redesigned — calmer, dark, with more room to breathe. The boxes are gone: instead of a dozen equally important frames, spacing now does the ordering. A few corners, the penalty log among them, are still to follow."
         }
       },
       {
         "type": "ui",
         "text": {
-          "de": "Die Abschnitte haben ihre Rahmen verloren: statt Kästen ein durchgehendes Raster, in dem Abstände die Ordnung machen — bei einem Dutzend Kästen sah vorher alles gleich wichtig aus. Ein paar Ecken, das Strafbuch darunter, sind noch nicht umgestellt.",
-          "en": "Sections lost their frames: instead of boxes, one continuous grid where spacing does the ordering — with a dozen boxes everything used to look equally important. A few corners, the penalty log among them, are not converted yet."
+          "de": "Die Farbe sagt, woran du bist: Grün heisst verschlossen, Rosa heisst offen, Indigo ist der Keyholder-Bereich. Sie wechselt mit dem Zustand — deshalb gibt es den Hell/Dunkel-Schalter und die Farbwelt-Auswahl nicht mehr.",
+          "en": "Colour tells you where you stand: green means locked, pink means open, indigo is the keyholder area. It changes with your state — which is why the light/dark switch and the colour theme picker are gone."
         }
       },
       {
         "type": "ui",
         "text": {
-          "de": "Die Farbe sagt jetzt, woran du bist: Grün heisst verschlossen, Rosa heisst offen, Indigo ist der Keyholder-Bereich. Sie wechselt mit dem Zustand — du siehst ihn, bevor du ein Wort gelesen hast.",
-          "en": "Colour now tells you where you stand: green means locked, pink means open, indigo is the keyholder area. It changes with your state — you see it before you have read a word."
+          "de": "Das Schloss unterscheidet offen und geschlossen an der Form, nicht nur am Ton — auch bei Rot-Grün-Schwäche eindeutig. Plug, Handschellen, Ring der O und Knebel haben eigene Zeichen statt eines gemeinsamen Platzhalters.",
+          "en": "The lock tells open from closed by shape, not just by colour — unambiguous with red-green deficiency too. Plug, handcuffs, O-ring and gag have their own icons instead of sharing one placeholder."
         }
       },
       {
         "type": "ui",
         "text": {
-          "de": "Der Hell/Dunkel-Schalter und die Farbwelt-Auswahl sind aus den Einstellungen verschwunden — wo die Farbe eine Aussage ist, gibt es nichts mehr zu wählen.",
-          "en": "The light/dark switch and the colour theme picker are gone from the settings — where colour is a statement, there is nothing left to choose."
-        }
-      },
-      {
-        "type": "ui",
-        "text": {
-          "de": "Das Schloss unterscheidet offen und geschlossen an der Form, nicht mehr nur am Ton — auch bei Rot-Grün-Schwäche eindeutig. Plug, Handschellen, Ring der O und Knebel haben eigene Zeichen bekommen, statt sich einen Platzhalter zu teilen.",
-          "en": "The lock tells open from closed by its shape now, not just by its tone — unambiguous with red-green colour blindness too. Plug, cuffs, the ring of O and gag got icons of their own instead of sharing a placeholder."
-        }
-      },
-      {
-        "type": "ui",
-        "text": {
-          "de": "Ein Wort pro Sache: „KG“ wird auf der Regeln-Seite einmal ausgeschrieben, aus „Trainingsvorgabe“ wird „Trainingsziel“, und „EXIF“ heisst jetzt schlicht Aufnahmezeit. Auch die App selbst heisst nun wie das Produkt: Chastity Tracker.",
-          "en": "One word per thing: the “CB” and “KG” abbreviations are gone, “EXIF” is simply called capture time, and the box says what is going on instead of talking about targets and bolts. The app itself now goes by the product's name: Chastity Tracker."
-        }
-      },
-      {
-        "type": "feat",
-        "text": {
-          "de": "Eine Zielzeile sagt jetzt, wie du dastehst, statt nur zu zählen: „geschafft“, „noch 2h 40min“ oder „knapp“. Dieselben 43 % sind am Morgen gut und am Abend zu wenig — das rechnet die App jetzt selbst aus.",
-          "en": "A goal row now tells you how you are doing instead of just counting: “done”, “2h 40m to go” or “tight”. The same 43 % is good in the morning and too little at night — the app works that out for you now."
-        }
-      },
-      {
-        "type": "fix",
-        "text": {
-          "de": "Die Schnellaktionen stehen in der Keyholder-Übersicht wieder bei jedem Sub — auch bei denen, die gerade nichts brauchen.",
-          "en": "The quick actions are back on every sub in the keyholder overview — including the ones that need nothing right now."
-        }
-      },
-      {
-        "type": "fix",
-        "text": {
-          "de": "„Verschluss anfordern“ geht jetzt auch ohne hinterlegte E-Mail-Adresse: der Sub sieht die Anforderung im Posteingang und auf seinem Dashboard.",
-          "en": "“Request lock” now works without an email address on file: the sub sees the request in their inbox and on their dashboard."
-        }
-      },
-      {
-        "type": "ui",
-        "text": {
-          "de": "Die Hinweise zu Kontrollen und Sperren sind keine farbigen Kästen mehr, sondern Abschnitte wie der Rest der Seite — und die Frist steht jetzt gross da statt kleingedruckt.",
-          "en": "The notices for inspections and lock periods are no longer coloured boxes but sections like the rest of the page — and the deadline is now large instead of fine print."
-        }
-      },
-      {
-        "type": "ui",
-        "text": {
-          "de": "Das Erfassen-Blatt schliesst sich mit einem Tipp auf den Griff oben oder einem Wisch nach unten.",
-          "en": "The entry sheet closes with a tap on the handle at the top or a swipe down."
-        }
-      },
-      {
-        "type": "ui",
-        "text": {
-          "de": "Der Kontroll-Hinweis führt jetzt: die Frist steht gross da, darunter Zeitpunkt und Code zum Abschreiben, und „Jetzt erfassen“ ist ein richtiger Knopf statt farbiger Text.",
-          "en": "The inspection notice now guides you: the deadline is large, below it the time and the code to copy, and “Submit now” is a real button instead of coloured text."
-        }
-      },
-      {
-        "type": "ui",
-        "text": {
-          "de": "Der Box-Block ist auf eine Zeile geschrumpft. Seriennummer und Firmware stehen hinter einem ⓘ, Reinigungsfenster und Akkustand melden sich nur noch, wenn sie etwas zu sagen haben.",
-          "en": "The box block has shrunk to one line. Serial number and firmware sit behind an ⓘ; cleaning windows and battery level only speak up when they have something to say."
+          "de": "Ein Wort pro Sache: „Verschlossen“ meint nur noch dich, die Box hat einen „Riegel“, eine Sperrzeit heisst „Gesperrt bis“. Aus „Trainingsvorgabe“ wird „Trainingsziel“, „EXIF“ heisst Aufnahmezeit, und die App heisst wie das Produkt: Chastity Tracker.",
+          "en": "One word per thing: “Locked” now means only you, the box has a “bolt”, a lock period reads “Locked until”. “Training requirement” becomes “training goal”, “EXIF” is simply capture time, and the app is now named after the product: Chastity Tracker."
         }
       },
       {
@@ -102,59 +39,45 @@
         }
       },
       {
-        "type": "ui",
+        "type": "feat",
         "text": {
-          "de": "Ein Wort pro Sache: „Verschlossen“ meint jetzt nur noch dich, die Box hat einen „Riegel“, und eine Sperrzeit heisst „Gesperrt bis“. Vorher stand dasselbe Wort für drei verschiedene Dinge.",
-          "en": "One word per thing: “Locked” now refers only to you, the box has a “bolt”, and a lock period reads “Held until”. The same word used to stand for three different things."
-        }
-      },
-      {
-        "type": "ui",
-        "text": {
-          "de": "Der Box-Block meldet sich nur noch, wenn etwas nicht stimmt. Im Normalfall steht der Zustand als eine Zeile unter der Tragezeit, mit den Geräte-Angaben hinter dem ⓘ.",
-          "en": "The box block only speaks up when something is wrong. Normally its state sits as a single line under the wear time, with the device details behind the ⓘ."
-        }
-      },
-      {
-        "type": "fix",
-        "text": {
-          "de": "Bei schlechtem Empfang tat ein Tipp auf „Neu erfassen“ nichts — kein Hinweis, keine Seite. Jetzt zeigt die getippte Zeile, dass sie lädt, und meldet nach wenigen Sekunden „Verbindung stockt“ mit einem Knopf zum erneuten Versuchen.",
-          "en": "On a weak connection, tapping an entry type did nothing — no feedback, no page. The tapped row now shows that it is loading and, after a few seconds, reports a poor connection with a retry button."
-        }
-      },
-      {
-        "type": "fix",
-        "text": {
-          "de": "Speichern wartet nicht mehr endlos auf eine Leitung, die steht, aber nichts durchlässt: Nach kurzer Zeit landet der Eintrag in der Warteschlange und geht später von selbst raus. Das galt bisher nur bei ganz abgeschaltetem Netz.",
-          "en": "Saving no longer waits forever on a connection that is up but not carrying anything: after a short while the entry goes into the queue and syncs later on its own. Until now that only worked with the network fully off."
-        }
-      },
-      {
-        "type": "fix",
-        "text": {
-          "de": "Auch die Reiter unten und die Seitenleiste sagen jetzt Bescheid, wenn eine Seite bei schlechtem Empfang nicht kommt — bisher tat das nur „Neu erfassen“.",
-          "en": "The bottom tabs and the sidebar now also speak up when a page fails to arrive on a weak connection — until now only the new-entry sheet did."
-        }
-      },
-      {
-        "type": "fix",
-        "text": {
-          "de": "Ein Eintrag kann nicht mehr doppelt entstehen, wenn die Verbindung beim Speichern abreisst und er später aus der Warteschlange nachgeliefert wird.",
-          "en": "An entry can no longer be created twice when the connection drops while saving and the queue delivers it later."
+          "de": "Eine Zielzeile sagt, wie du dastehst, statt nur zu zählen: „geschafft“, „noch 2h 40min“ oder „knapp“. Dieselben 43 % sind am Morgen gut und am Abend zu wenig.",
+          "en": "A goal line tells you how you stand instead of just counting: “done”, “2h 40min to go” or “tight”. The same 43 % is good in the morning and not enough in the evening."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "Neuer Knopf „Sofort aufschliessen“ in der Keyholder-Übersicht: beendet die Sperrzeit, öffnet die Box und trägt die Öffnung ein — in einem Tipp. Auf Wunsch mit erlaubtem Orgasmus.",
-          "en": "New “Unlock now” button in the keyholder overview: ends the lock period, opens the box and records the opening — in one tap. Optionally with an orgasm allowed."
+          "de": "Neuer Knopf „Sofort aufschliessen“ in der Keyholder-Übersicht: beendet die Sperrzeit, öffnet die Box und trägt die Öffnung ein — in einem Tipp, auf Wunsch mit erlaubtem Orgasmus.",
+          "en": "New “Release now” button in the keyholder overview: ends the lock period, opens the box and records the opening — in one tap, optionally with an orgasm allowed."
         }
       },
       {
         "type": "ui",
         "text": {
-          "de": "Die Einträge-Liste zeigt bei einer Kontrolle jetzt auch, was daraus geworden ist — angenommen, abgelehnt, noch offen. Bisher stand dort nur „Kontrolle“, und man musste dieselbe Kontrolle in einer anderen Liste suchen.",
-          "en": "The entries list now also shows what became of an inspection — accepted, rejected, still open. It used to say just “inspection”, so you had to look the same one up in another list."
+          "de": "Der Box-Block meldet sich nur noch, wenn etwas nicht stimmt. Im Normalfall steht der Zustand als eine Zeile unter der Tragezeit; Seriennummer, Firmware, Reinigungsfenster und Akkustand liegen hinter einem ⓘ.",
+          "en": "The box block speaks up only when something is wrong. Normally its state is one line below the wear time; serial number, firmware, cleaning windows and battery sit behind an ⓘ."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Kontroll- und Sperr-Hinweise sind keine farbigen Kästen mehr, sondern Abschnitte wie der Rest der Seite. Die Frist steht gross da, darunter Zeitpunkt und Code zum Abschreiben, und „Jetzt erfassen“ ist ein richtiger Knopf.",
+          "en": "Inspection and lock notices are no longer coloured boxes but sections like the rest of the page. The deadline is shown large, with the exact time and the code to copy below it, and “Record now” is a real button."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Schlechter Empfang führt nicht mehr ins Leere: „Neu erfassen“, die Reiter unten und die Seitenleiste zeigen, dass sie laden, und melden „Verbindung stockt“. Speichern wartet nicht mehr endlos, sondern legt den Eintrag in die Warteschlange — und liefert ihn später ohne Dublette nach.",
+          "en": "Poor reception no longer leads nowhere: “New entry”, the bottom tabs and the sidebar show that they are loading and report “connection stalling”. Saving no longer waits forever but queues the entry — and delivers it later without creating a duplicate."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "„Verschluss anfordern“ geht auch ohne hinterlegte E-Mail-Adresse — der Sub sieht die Anforderung im Posteingang und auf dem Dashboard. Und die Schnellaktionen stehen in der Keyholder-Übersicht wieder bei jedem Sub.",
+          "en": "“Request lock” works without a stored e-mail address — the sub sees the request in the inbox and on the dashboard. And the quick actions are back on every sub in the keyholder overview."
         }
       }
     ]
@@ -166,7 +89,7 @@
       {
         "type": "security",
         "text": {
-          "de": "Die automatische Code-Pr\u00fcfung best\u00e4tigt eine Kontrolle nur noch, wenn die Bilderkennung den Code wirklich gelesen hat. Best\u00e4tigt sie in einer Gegenprobe auch eine erfundene Zahl, gilt die Kontrolle als ungepr\u00fcft und geht zur Sichtung.",
+          "de": "Die automatische Code-Prüfung bestätigt eine Kontrolle nur noch, wenn die Bilderkennung den Code wirklich gelesen hat. Bestätigt sie in einer Gegenprobe auch eine erfundene Zahl, gilt die Kontrolle als ungeprüft und geht zur Sichtung.",
           "en": "The automatic code check now confirms an inspection only when the image recognition really read the code. If a counter-check shows it confirms a made-up number too, the inspection counts as unverified and goes to review."
         }
       }
@@ -179,8 +102,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "Erwischt das Foto der Waage statt des Gewichts einen anderen Wert \u2014 BMI, K\u00f6rperfett \u2014, gilt die Anzeige jetzt als nicht lesbar. Vorher stand die fremde Zahl als Widerspruch zur Eingabe in der Liste.",
-          "en": "If the photo of the scale catches another value instead of the weight \u2014 BMI, body fat \u2014 the reading now counts as unreadable. Until now that stray number showed up as contradicting the entry."
+          "de": "Erwischt das Foto der Waage statt des Gewichts einen anderen Wert — BMI, Körperfett —, gilt die Anzeige jetzt als nicht lesbar. Vorher stand die fremde Zahl als Widerspruch zur Eingabe in der Liste.",
+          "en": "If the photo of the scale catches another value instead of the weight — BMI, body fat — the reading now counts as unreadable. Until now that stray number showed up as contradicting the entry."
         }
       }
     ]
@@ -192,8 +115,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "Die Keyholderin kann eine Wiegung korrigieren \u2014 Wert und Notiz, ohne dass Foto und Zeitpunkt verloren gehen.",
-          "en": "The keyholder can correct a weigh-in \u2014 value and note, without losing the photo or the timestamp."
+          "de": "Die Keyholderin kann eine Wiegung korrigieren — Wert und Notiz, ohne dass Foto und Zeitpunkt verloren gehen.",
+          "en": "The keyholder can correct a weigh-in — value and note, without losing the photo or the timestamp."
         }
       }
     ]
@@ -205,14 +128,14 @@
       {
         "type": "feat",
         "text": {
-          "de": "Einzelne Wiegungen lassen sich l\u00f6schen \u2014 in der Eintragsliste der Keyholderin, samt Foto und Notiz.",
-          "en": "Individual weigh-ins can be deleted \u2014 in the keyholder's entry list, photo and note included."
+          "de": "Einzelne Wiegungen lassen sich löschen — in der Eintragsliste der Keyholderin, samt Foto und Notiz.",
+          "en": "Individual weigh-ins can be deleted — in the keyholder's entry list, photo and note included."
         }
       },
       {
         "type": "fix",
         "text": {
-          "de": "Eine gestellte Freigabe-Vorgabe l\u00e4sst sich zur\u00fcckziehen. Bisher kam man an sie nur heran, indem man eine neue stellte.",
+          "de": "Eine gestellte Freigabe-Vorgabe lässt sich zurückziehen. Bisher kam man an sie nur heran, indem man eine neue stellte.",
           "en": "A release condition can be withdrawn. Until now the only way to it was to set a new one."
         }
       }
@@ -225,35 +148,35 @@
       {
         "type": "ui",
         "text": {
-          "de": "Gewichte stehen jetzt \u00fcberall mit Komma statt mit Punkt.",
+          "de": "Gewichte stehen jetzt überall mit Komma statt mit Punkt.",
           "en": "Weights are now written with the local decimal separator throughout."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "Die Keyholderin kann den n\u00e4chsten Orgasmus an das Gewicht kn\u00fcpfen: freigegeben wird er, sobald das Mittel der letzten Tage eine Schwelle erreicht. Der Tr\u00e4ger sieht jederzeit, wie weit er davon entfernt ist.",
+          "de": "Die Keyholderin kann den nächsten Orgasmus an das Gewicht knüpfen: freigegeben wird er, sobald das Mittel der letzten Tage eine Schwelle erreicht. Der Träger sieht jederzeit, wie weit er davon entfernt ist.",
           "en": "The keyholder can tie the next orgasm to weight: it is released once the average of the last few days reaches a threshold. The wearer can see how far off they are at any time."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "Die einzelnen Wiegungen sind jetzt einsehbar \u2014 beim Tr\u00e4ger unter der Verlaufskurve, bei der Keyholderin eingemischt in die Eintr\u00e4ge. Mit Foto, Notiz und dem Wert, den die Waagen-Erkennung gelesen hat.",
-          "en": "Individual weigh-ins are now visible \u2014 for the wearer below the chart, for the keyholder mixed into the entries. With photo, note and the value the scale detection read."
+          "de": "Die einzelnen Wiegungen sind jetzt einsehbar — beim Träger unter der Verlaufskurve, bei der Keyholderin eingemischt in die Einträge. Mit Foto, Notiz und dem Wert, den die Waagen-Erkennung gelesen hat.",
+          "en": "Individual weigh-ins are now visible — for the wearer below the chart, for the keyholder mixed into the entries. With photo, note and the value the scale detection read."
         }
       },
       {
         "type": "fix",
         "text": {
-          "de": "Fotos der Waage liessen sich nicht \u00f6ffnen. Sie werden jetzt ausgeliefert \u2014 dem Tr\u00e4ger und seinen Keyholdern.",
-          "en": "Photos of the scale could not be opened. They are now served \u2014 to the wearer and their keyholders."
+          "de": "Fotos der Waage liessen sich nicht öffnen. Sie werden jetzt ausgeliefert — dem Träger und seinen Keyholdern.",
+          "en": "Photos of the scale could not be opened. They are now served — to the wearer and their keyholders."
         }
       },
       {
         "type": "ui",
         "text": {
-          "de": "Die Regel zur vers\u00e4umten Gewichts-Meldung erscheint nur noch, wenn das Gewichtstracking \u00fcberhaupt eingeschaltet ist. Vorher stand ihr Schalter auch dort, wo er nichts bewirkte.",
+          "de": "Die Regel zur versäumten Gewichts-Meldung erscheint nur noch, wenn das Gewichtstracking überhaupt eingeschaltet ist. Vorher stand ihr Schalter auch dort, wo er nichts bewirkte.",
           "en": "The missed weight report rule now only appears when weight tracking is switched on at all. Its toggle used to show even where it had no effect."
         }
       }
@@ -394,7 +317,7 @@
       {
         "type": "feat",
         "text": {
-          "de": "Dashboard und Statistik lassen sich jetzt selbst zusammenstellen: Bl\u00f6cke ausblenden und sortieren, je Ansicht getrennt. Der Knopf daf\u00fcr steht am Fuss der Seite. Wer nichts einstellt, sieht alles wie bisher.",
+          "de": "Dashboard und Statistik lassen sich jetzt selbst zusammenstellen: Blöcke ausblenden und sortieren, je Ansicht getrennt. Der Knopf dafür steht am Fuss der Seite. Wer nichts einstellt, sieht alles wie bisher.",
           "en": "The dashboard and statistics can now be arranged to taste: hide and reorder blocks, separately per view. The button sits at the foot of the page. Anyone who changes nothing sees everything as before."
         }
       }
@@ -407,14 +330,14 @@
       {
         "type": "fix",
         "text": {
-          "de": "Zusammengez\u00e4hlte Zeiten werden nicht mehr in Tagen angegeben. \u201eDiese Woche 3T 2h 36min\" stimmte zwar rechnerisch, es waren aber 74 Stunden \u00fcber f\u00fcnf Tage verteilt \u2014 jetzt steht dort \u201e74h 36min\". Eine durchgehende Tragezeit z\u00e4hlt weiterhin in Tagen.",
-          "en": "Accumulated time is no longer shown in days. \"This week 3d 2h 36min\" was arithmetically correct but it was 74 hours spread over five days \u2014 it now reads \"74h 36min\". A continuous wear period is still counted in days."
+          "de": "Zusammengezählte Zeiten werden nicht mehr in Tagen angegeben. „Diese Woche 3T 2h 36min\" stimmte zwar rechnerisch, es waren aber 74 Stunden über fünf Tage verteilt — jetzt steht dort „74h 36min\". Eine durchgehende Tragezeit zählt weiterhin in Tagen.",
+          "en": "Accumulated time is no longer shown in days. \"This week 3d 2h 36min\" was arithmetically correct but it was 74 hours spread over five days — it now reads \"74h 36min\". A continuous wear period is still counted in days."
         }
       },
       {
         "type": "ui",
         "text": {
-          "de": "Trainingsziele stehen jetzt in der Einheit, in der sie eingetragen wurden: \u201e88h 59min von 130h\" statt \u201e3T 14h 59min von 5T 10h\".",
+          "de": "Trainingsziele stehen jetzt in der Einheit, in der sie eingetragen wurden: „88h 59min von 130h\" statt „3T 14h 59min von 5T 10h\".",
           "en": "Training goals now appear in the unit they were entered in: \"88h 59min of 130h\" instead of \"3d 14h 59min of 5d 10h\"."
         }
       }
@@ -427,14 +350,14 @@
       {
         "type": "ui",
         "text": {
-          "de": "Zeitangaben stehen jetzt \u00fcberall in derselben Schreibweise, etwa \u201e2T 3h 14min\". Und jede Prozentzahl sagt dazu, worauf sie sich bezieht \u2014 bisher konnte dieselbe Tragezeit auf einem Bildschirm 87 % und 81 % ergeben, ohne dass daran stand, wovon.",
-          "en": "Durations now use one and the same notation everywhere, such as \"2d 3h 14min\". And every percentage says what it refers to \u2014 the same wear time could previously show as 87% and 81% on one screen with nothing saying what of."
+          "de": "Zeitangaben stehen jetzt überall in derselben Schreibweise, etwa „2T 3h 14min\". Und jede Prozentzahl sagt dazu, worauf sie sich bezieht — bisher konnte dieselbe Tragezeit auf einem Bildschirm 87 % und 81 % ergeben, ohne dass daran stand, wovon.",
+          "en": "Durations now use one and the same notation everywhere, such as \"2d 3h 14min\". And every percentage says what it refers to — the same wear time could previously show as 87% and 81% on one screen with nothing saying what of."
         }
       },
       {
         "type": "fix",
         "text": {
-          "de": "Tragezeiten wurden an der Tagesgrenze aufgerundet: 23 h 59 min stand als \u201e24h\" da. Sehr kurze Zeiten fehlten in Statistik und Rekorden ganz, und der laufende Z\u00e4hler im offenen Zustand war auch auf Deutsch englisch beschriftet.",
+          "de": "Tragezeiten wurden an der Tagesgrenze aufgerundet: 23 h 59 min stand als „24h\" da. Sehr kurze Zeiten fehlten in Statistik und Rekorden ganz, und der laufende Zähler im offenen Zustand war auch auf Deutsch englisch beschriftet.",
           "en": "Wear times were rounded up at the day boundary: 23 h 59 min read as \"24h\". Very short times were missing from statistics and records entirely, and the running counter in the open state was labelled in English even in German."
         }
       }
@@ -460,22 +383,22 @@
       {
         "type": "fix",
         "text": {
-          "de": "Die Regeln einer Kategorie \u2014 Zeiterfassung, Pflichtfoto und ob Trainingsziele darauf erlaubt sind \u2014 setzt jetzt nur noch die Keyholderin. Vorher konnte der Tr\u00e4ger sie an seinen eigenen Kategorien selbst umlegen.",
-          "en": "A category\u2019s rules \u2014 time tracking, required photo, and whether training goals may use it \u2014 are now set by the keyholder only. Before, the wearer could change them on their own categories."
+          "de": "Die Regeln einer Kategorie — Zeiterfassung, Pflichtfoto und ob Trainingsziele darauf erlaubt sind — setzt jetzt nur noch die Keyholderin. Vorher konnte der Träger sie an seinen eigenen Kategorien selbst umlegen.",
+          "en": "A category’s rules — time tracking, required photo, and whether training goals may use it — are now set by the keyholder only. Before, the wearer could change them on their own categories."
         }
       },
       {
         "type": "fix",
         "text": {
-          "de": "Eine Zeitzonen-Umstellung wirkt nur noch ab jetzt. Vergangene Reinigungs\u00f6ffnungen werden weiterhin nach der Zone beurteilt, die damals galt.",
+          "de": "Eine Zeitzonen-Umstellung wirkt nur noch ab jetzt. Vergangene Reinigungsöffnungen werden weiterhin nach der Zone beurteilt, die damals galt.",
           "en": "Changing your time zone now only takes effect from that moment on. Past cleaning openings are still judged by the zone that applied back then."
         }
       },
       {
         "type": "feat",
         "text": {
-          "de": "Das Strafbuch zeigt jetzt, wer ein Vergehen bestraft oder verworfen hat \u2014 sichtbar dort, wo mehrere Personen urteilen k\u00f6nnen.",
-          "en": "The penalty ledger now shows who punished or dismissed an offence \u2014 visible where more than one person can judge."
+          "de": "Das Strafbuch zeigt jetzt, wer ein Vergehen bestraft oder verworfen hat — sichtbar dort, wo mehrere Personen urteilen können.",
+          "en": "The penalty ledger now shows who punished or dismissed an offence — visible where more than one person can judge."
         }
       },
       {
@@ -494,8 +417,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "Die Einstellung \u201eDateiauswahl auf Mobile\u201c wirkt jetzt auch beim Foto zum Tragen-Beginn. Vorher erzwang das Handy dort die Kamera, obwohl alle anderen Nachweis-Formulare der Einstellung folgten.",
-          "en": "The \u201cfile picker on mobile\u201d setting now also applies to the photo when starting to wear. Before, the phone forced the camera there, even though every other proof form followed the setting."
+          "de": "Die Einstellung „Dateiauswahl auf Mobile“ wirkt jetzt auch beim Foto zum Tragen-Beginn. Vorher erzwang das Handy dort die Kamera, obwohl alle anderen Nachweis-Formulare der Einstellung folgten.",
+          "en": "The “file picker on mobile” setting now also applies to the photo when starting to wear. Before, the phone forced the camera there, even though every other proof form followed the setting."
         }
       }
     ]
@@ -527,8 +450,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "Der versiegelte Schl\u00fcsselbox-Code bleibt erreichbar, nachdem der Aufschluss erfasst ist \u2014 \u00fcber das Plus-Men\u00fc und an jedem Verschluss in der Session-Liste. Vorher war er ab dem Erfassen verschwunden, obwohl er gespeichert blieb.",
-          "en": "The sealed lockbox code stays reachable after the unlock has been recorded \u2014 via the plus menu and on every lock-up in the session list. Before, it vanished the moment you recorded it, even though it was still stored."
+          "de": "Der versiegelte Schlüsselbox-Code bleibt erreichbar, nachdem der Aufschluss erfasst ist — über das Plus-Menü und an jedem Verschluss in der Session-Liste. Vorher war er ab dem Erfassen verschwunden, obwohl er gespeichert blieb.",
+          "en": "The sealed lockbox code stays reachable after the unlock has been recorded — via the plus menu and on every lock-up in the session list. Before, it vanished the moment you recorded it, even though it was still stored."
         }
       }
     ]

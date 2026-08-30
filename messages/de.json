@@ -823,6 +823,8 @@
     "title": "Changelog",
     "currentVersion": "Aktuelle Version",
     "currentBadge": "aktuell",
+    "majorTitle": "Version {major}",
+    "majorCount": "{count, plural, =1 {1 Release} other {# Releases}}",
     "feat": "Neu",
     "fix": "Fix",
     "security": "Security",

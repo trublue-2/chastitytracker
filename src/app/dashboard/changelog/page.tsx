@@ -5,6 +5,8 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
 import releasesData from "@/data/changelog.json";
 import UpstreamSection from "./UpstreamSection";
+import Section from "@/app/components/Section";
+import { blockStackCls } from "@/app/components/inputStyles";
 import { pickChangelogText, type ChangelogText } from "@/lib/changelogText";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
@@ -23,6 +25,27 @@ interface Release {
 
 const releases = releasesData as Release[];
 
+const majorOf = (version: string) => version.split(".")[0];
+
+/**
+ * Die Releases nach HAUPT-Version gebündelt, in der Reihenfolge ihres ersten Auftretens.
+ *
+ * Über eine Map und nicht über einen Lauf durch die sortierte Liste: die Liste ist nach DATUM
+ * geordnet, und eine Fehlerbehebung auf der alten Hauptlinie erscheint dort nach einer neueren
+ * Haupt-Version (v5.3.11 vom 29.08. steht hinter v6.0.0 vom 27.08.). Sequenziell gruppiert ergäbe
+ * das zwei v5-Blöcke; so bleibt es einer.
+ */
+function groupByMajor(list: Release[]): { major: string; releases: Release[] }[] {
+  const groups = new Map<string, Release[]>();
+  for (const release of list) {
+    const major = majorOf(release.version);
+    const bucket = groups.get(major);
+    if (bucket) bucket.push(release);
+    else groups.set(major, [release]);
+  }
+  return [...groups].map(([major, releases]) => ({ major, releases }));
+}
+
 function formatDate(iso: string, locale: string) {
   return new Date(iso).toLocaleDateString(locale, { day: "2-digit", month: "long", year: "numeric" });
 }
@@ -39,6 +62,8 @@ const TYPE_STYLE: Record<EntryType, { icon: React.ElementType; color: string; do
 export default async function ChangelogPage() {
   const t = await getTranslations("changelog");
   const currentVersion = pkg.version;
+  const currentMajor = majorOf(currentVersion);
+  const majorGroups = groupByMajor(releases);
   const locale = await getLocale();
   const dl = toDateLocale(locale);
 
@@ -91,14 +116,29 @@ export default async function ChangelogPage() {
 
       <UpstreamSection currentVersion={currentVersion} locale={dl} />
 
-      {/* Releases */}
-      <div className="flex flex-col gap-6">
-        {releases.map((release, i) => {
+      {/* Releases, nach Haupt-Version gebündelt.
+          Sie standen als EINE offene Liste da — inzwischen sind das 536 Releases, allein 404 davon
+          aus v4. Wer wissen will, was die aktuelle Haupt-Version gebracht hat, scrollte an der
+          gesamten Geschichte vorbei. Die laufende steht offen, die älteren zugeklappt.
+
+          Über `Section` und nicht über eine eigene Klapp-Mechanik: die Zuklapp-Fähigkeit des Hauses
+          hängt an der ANWESENHEIT von `defaultCollapsed` (Begründung dort), und `SectionDisclosure`
+          bringt Zustand, ARIA und Schalter-Rubrik bereits mit. */}
+      <div className={blockStackCls}>
+        {majorGroups.map(({ major, releases: group }) => (
+          <Section
+            key={major}
+            title={t("majorTitle", { major })}
+            action={<span className="text-xs text-foreground-faint">{t("majorCount", { count: group.length })}</span>}
+            defaultCollapsed={major !== currentMajor}
+          >
+            <div className="flex flex-col gap-6">
+        {group.map((release, i) => {
           const isCurrent = release.version === currentVersion;
           return (
             <div key={release.version} className="relative flex gap-4">
               {/* Timeline line */}
-              {i < releases.length - 1 && (
+              {i < group.length - 1 && (
                 <div className="absolute left-[11px] top-7 bottom-[-1.5rem] w-px bg-border-subtle" />
               )}
 
@@ -140,6 +180,9 @@ export default async function ChangelogPage() {
             </div>
           );
         })}
+            </div>
+          </Section>
+        ))}
       </div>
     </main>
   );
