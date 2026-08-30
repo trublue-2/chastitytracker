@@ -900,7 +900,7 @@ function registerTools(server: McpServer) {
         description:
           "Withdraws the user's currently open lock request, active lock period, open inspection, or orgasm directive. " +
           "Also cancels SCHEDULED (not yet triggered) directives of the same kind — a lock_request/lock_period/" +
-          "inspection whose wirksamAb is still in the future (see keyholder_dashboard.scheduledDirectives). " +
+          "inspection whose scheduledFor is still in the future (see keyholder_dashboard.scheduledDirectives). " +
           "Without id this hits ALL open ones of that kind — since several lock requests can be open at once, " +
           "pass id to cancel exactly one. For lock_request/lock_period, a dryRun without id lists each open one " +
           "(id, status, message, dates) so you can see which to pick. " +

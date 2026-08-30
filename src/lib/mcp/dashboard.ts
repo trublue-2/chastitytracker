@@ -247,8 +247,19 @@ export interface DashboardResult extends Envelope {
    *  und `requiredType` heisst dort schon so, trägt aber jetzt dieselbe Quelle. Vorher las die KI
    *  einen Wert unter einem Namen und musste ihn unter einem anderen zurückschreiben; bei
    *  `beginsAt`/`beginsAt` trennten die beiden zwei Buchstaben, was beim Lesen nicht auffällt und
-   *  beim Schreiben zu spät. */
-  schemaVersion: 18;
+   *  beim Schreiben zu spät.
+   *
+   *  v19: `scheduledDirectives[].wirksamAb` heisst `scheduledFor` — derselbe Name, den die Antwort
+   *  eines Schreibvorgangs schon trug (`mcpWrite.ts`). Er war der letzte deutsche Schlüssel dieser
+   *  Nutzlast. Der Eingang heisst weiter `scheduledAt` — fünf Werkzeug-Schemata dafür zu brechen
+   *  wäre unverhältnismässig.
+   *
+   *  Dass diese Asymmetrie harmlos ist, liegt NICHT daran, dass beide Wörter englisch sind, sondern
+   *  an `makeInputsStrict`: jedes Eingabe-Schema ist ein `z.strictObject`, ein unter dem Lese-Namen
+   *  zurückgeschriebener Wert wird also ABGEWIESEN und benannt, statt still zu verschwinden. Fiele
+   *  diese Schranke je weg, wäre die Asymmetrie sofort wieder der stille „löst sofort aus"-Fehler,
+   *  gegen den v18 argumentiert. */
+  schemaVersion: 19;
   user: string;
   /**
    * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
@@ -359,7 +370,7 @@ export interface DashboardResult extends Envelope {
   };
   goals: { kg: PeriodSummaryResult["kg"]; categories: PeriodSummaryResult["categories"] };
   openOffenses: { count: number; pendingPenalties: number; top: OffenseRow[] };
-  /** Vom Keyholder TERMINIERTE, noch nicht ausgelöste Direktiven (wirksamAb in der Zukunft):
+  /** Vom Keyholder TERMINIERTE, noch nicht ausgelöste Direktiven (`scheduledFor` in der Zukunft):
    *  Sperrzeit/Einschliess-Anforderung (lock_period/lock_request), MANUELLE Kontrollen (auto:false)
    *  und Aufgaben (task). Diese sind für den Sub noch unsichtbar — der Keyholder sieht hier, was in
    *  der Pipeline liegt, und kann sie via `withdraw` stornieren. Auto-/Zufalls-Kontrollen
@@ -480,7 +491,7 @@ export interface ScheduledDirective {
    *  Kontrolle · task = terminierte Aufgabe · orgasm = terminierte Orgasmus-Anweisung. */
   kind: "lock_request" | "lock_period" | "inspection" | "task" | "orgasm";
   /** Geplanter Auslöse-Zeitpunkt (ISO-8601 mit Offset). */
-  wirksamAb: string;
+  scheduledFor: string;
   /** Frist/Sperrzeit-Ende (ISO) — bei Kontrollen die Erfüllungs-Frist, bei Sperrzeit das Ende, bei
    *  einer Aufgabe ihr (spätestmögliches) Ende, bei der Orgasmus-Anweisung das Fenster-Ende, sonst
    *  null. */
@@ -505,7 +516,7 @@ export interface ScheduledDirective {
  *  jüngsten gedeckelt, eine weit in der Zukunft terminierte Aufgabe darf daran nicht hängen. */
 async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Promise<ScheduledDirective[]> {
   const [anforderungen, kontrollen, tasks, orgasmWindows] = await Promise.all([
-    // Kein per-Query orderBy — die zusammengeführte Liste wird unten ohnehin nach wirksamAb sortiert.
+    // Kein per-Query orderBy — die zusammengeführte Liste wird unten ohnehin nach `scheduledFor` sortiert.
     prisma.verschlussAnforderung.findMany({
       where: { userId, withdrawnAt: null, fulfilledAt: null, wirksamAb: { gt: now } },
     }),
@@ -528,7 +539,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
     ...anforderungen.map((a) => ({
       id: a.id,
       kind: (a.art === "SPERRZEIT" ? "lock_period" : "lock_request") as ScheduledDirective["kind"],
-      wirksamAb: iso(a.wirksamAb)!,
+      scheduledFor: iso(a.wirksamAb)!,
       endsAt: iso(a.endsAt),
       message: a.message,
       cleaningAllowed: a.cleaningAllowed,
@@ -536,7 +547,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
     ...kontrollen.map((k) => ({
       id: k.id,
       kind: "inspection" as const,
-      wirksamAb: iso(k.wirksamAb)!,
+      scheduledFor: iso(k.wirksamAb)!,
       endsAt: iso(k.deadline),
       message: k.kommentar,
       cleaningAllowed: null,
@@ -544,7 +555,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
     ...tasks.map((t) => ({
       id: t.id,
       kind: "task" as const,
-      wirksamAb: iso(t.wirksamAb)!,
+      scheduledFor: iso(t.wirksamAb)!,
       endsAt: iso(t.holdUntil),
       message: t.title,
       cleaningAllowed: null,
@@ -552,13 +563,13 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
     ...orgasmWindows.map((o) => ({
       id: o.id,
       kind: "orgasm" as const,
-      wirksamAb: iso(o.wirksamAb)!,
+      scheduledFor: iso(o.wirksamAb)!,
       endsAt: iso(o.endsAt),
       message: o.message,
       cleaningAllowed: null,
     })),
   ];
-  return out.sort((a, b) => a.wirksamAb.localeCompare(b.wirksamAb));
+  return out.sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));
 }
 
 /** Toleranz beim Vergleich zweier auf 0.1 h gerundeter Stundenwerte (halbe Bucket-Breite). */
@@ -804,7 +815,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const weight = await weightSummary(trackingCtx.userId);
 
   return {
-    schemaVersion: 18,
+    schemaVersion: 19,
     user: username,
     weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),

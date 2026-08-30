@@ -93,7 +93,7 @@ Notable V2 read fields:
 - `keyholder_dashboard` — `keyholderInstructions` (the human keyholder's binding
   rules, surfaced **first**), plus `scheduledDirectives`: the keyholder's
   time-delayed/scheduled directives that have not fired yet (`lock_request` /
-  `lock_period` / manual `inspection`, with `wirksamAb`), each cancelable via
+  `lock_period` / manual `inspection`, with `scheduledFor`), each cancelable via
   `withdraw`. Auto/random inspections are deliberately **not** listed (surprise).
 - `get_context` — `autoInspections` (the automatic-inspection settings:
   active / perDay / sleep window / deadline window / trigger window; written via
