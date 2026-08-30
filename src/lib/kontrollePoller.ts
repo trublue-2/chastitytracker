@@ -331,7 +331,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         art,
         message: va.message,
         endsAtDate: va.endsAt,
-        dauerH: va.dauerH,
+        minDurationHours: va.minDurationHours,
         lockEndsAtDate: va.lockEndsAt,
         requestId: va.id,
         // Wie bei der Kontrolle: genannt wird, wer die Direktive angeordnet hat, nicht der Bote.
@@ -378,7 +378,7 @@ async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
       // dem er davon erfährt. Pünktlich (Regelfall: Sekunden) verschiebt sich praktisch nichts.
       const sentAt = new Date();
       const lateMs = Math.max(0, sentAt.getTime() - (oa.wirksamAb?.getTime() ?? sentAt.getTime()));
-      const beginnt = new Date(oa.beginntAt.getTime() + lateMs);
+      const beginnt = new Date(oa.beginsAt.getTime() + lateMs);
       const endsAtDate = new Date(oa.endsAt.getTime() + lateMs);
       await sendOrgasmusAnforderungNotifications({
         userId: oa.userId,
@@ -387,7 +387,7 @@ async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
         message: oa.message,
         beginnt,
         endsAtDate,
-        vorgegebeneArt: oa.vorgegebeneArt,
+        requiredType: oa.requiredType,
         oeffnenErlaubt: oa.oeffnenErlaubt,
         directiveId: oa.id,
         // Wie bei Kontrolle und Verschluss: genannt wird, wer die Anweisung angeordnet hat, nicht der Bote.
@@ -397,7 +397,7 @@ async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
       // Zeiten, eine Zeile mit alten Werten wäre ab hier eine Lüge gegenüber dem Träger.
       await prisma.orgasmusAnforderung.update({
         where: { id: oa.id },
-        data: { beginntAt: beginnt, endsAt: endsAtDate, benachrichtigtAt: sentAt },
+        data: { beginsAt: beginnt, endsAt: endsAtDate, benachrichtigtAt: sentAt },
       });
     } catch (e) {
       console.error(`[kontrollePoller] Orgasmus-Auslösung fehlgeschlagen (${oa.id}):`, (e as Error).message);

@@ -12,7 +12,7 @@ export default async function AdminOrgasmusAnforderungPage({ params }: { params:
   await assertKeyholderOrAdmin(id);
 
   // The directive sets times FOR the sub → the sub's tz governs the datetime-local defaults + submit.
-  // The vorgegebeneArt list is the SUB's resolved orgasm types (their custom config, or built-in defaults).
+  // The requiredType list is the SUB's resolved orgasm types (their custom config, or built-in defaults).
   const [user, tz, tOrgasm] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { orgasmusArtenConfig: true } }),
     getUserTimezone(id),

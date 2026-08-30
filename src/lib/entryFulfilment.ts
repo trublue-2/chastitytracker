@@ -155,7 +155,7 @@ export async function applyEntryFulfilment(
       requiredAnforderungDeviceIds = offeneAnforderungen.map((a) => a.deviceId).filter((d): d is string => d !== null);
     }
     // SPERRZEIT-Ende je Anforderung: absolutes lockEndsAt (Wanduhr) gewinnt und bleibt fix, egal
-    // wann tatsächlich verschlossen wurde; sonst dauerH relativ zur Verschlusszeit (Bestandsverhalten).
+    // wann tatsächlich verschlossen wurde; sonst minDurationHours relativ zur Verschlusszeit (Bestandsverhalten).
     //
     // Anders als `createVerschlussAnforderung` (Keyholder-Pfad) zieht das hier KEINE bestehenden
     // Sperrzeiten zurück — bewusst. Dort ERSETZT die Keyholderin ihre eigene Direktive; hier
@@ -195,7 +195,7 @@ export async function applyEntryFulfilment(
         userId,
         fulfilledAt: null,
         withdrawnAt: null,
-        beginntAt: { lte: entry.startTime },
+        beginsAt: { lte: entry.startTime },
         endsAt: { gte: entry.startTime },
         // Eine terminierte Anweisung, die noch nicht ausgelöst hat, ist für den Sub nicht da — sie
         // darf sich auch nicht erfüllen. Sonst hakte ein zufällig passender Orgasmus eine Anweisung
@@ -210,8 +210,8 @@ export async function applyEntryFulfilment(
     });
     if (
       offeneAnforderung &&
-      (!offeneAnforderung.vorgegebeneArt ||
-        offeneAnforderung.vorgegebeneArt === parseOrgasmusArtBase(entry.orgasmusArt))
+      (!offeneAnforderung.requiredType ||
+        offeneAnforderung.requiredType === parseOrgasmusArtBase(entry.orgasmusArt))
     ) {
       await tx.orgasmusAnforderung.update({
         where: { id: offeneAnforderung.id },

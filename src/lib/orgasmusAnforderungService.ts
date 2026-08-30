@@ -14,7 +14,7 @@ import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 /** `endsAt` in der Vergangenheit → Reject (B-01, MCP-Befundliste 2026-07-17): der einzige gefundene
  *  Pfad, auf dem der Tracker eine unverdiente Strafe erzeugt — mit `art:"ANWEISUNG"` wird ein bereits
  *  verstrichenes Fenster sofort zu einem `missed_orgasm`-Vergehen für eine Frist, die der Sub nie
- *  erfüllen konnte. `beginntAt` in der Vergangenheit bleibt zulässig (eine rückwirkend geöffnete
+ *  erfüllen konnte. `beginsAt` in der Vergangenheit bleibt zulässig (eine rückwirkend geöffnete
  *  Anforderung ist ein legitimer Fall) — nur das Ende muss in der Zukunft liegen. Analog zu
  *  {@link checkLockEnd} (verschlussAnforderungService.ts), das dieselbe Regel für Sperrzeiten zieht. */
 export function checkOrgasmWindowEnd(endsAt: Date, now: Date): "ORGASM_END_MUST_BE_FUTURE" | null {
@@ -48,8 +48,8 @@ export function checkOrgasmusAnforderung(
   if (!(ORGASMUS_ANFORDERUNG_ARTEN as readonly string[]).includes(p.art)) {
     return { ok: false, code: "ORGASM_INVALID_ART" };
   }
-  if (!p.beginntAt || !p.endsAt) return { ok: false, code: "ORGASM_WINDOW_REQUIRED" };
-  const beginnt = new Date(p.beginntAt);
+  if (!p.beginsAt || !p.endsAt) return { ok: false, code: "ORGASM_WINDOW_REQUIRED" };
+  const beginnt = new Date(p.beginsAt);
   const endsAtDate = new Date(p.endsAt);
   if (Number.isNaN(beginnt.getTime()) || Number.isNaN(endsAtDate.getTime())) {
     return { ok: false, code: "INVALID_DATETIME" };
@@ -74,11 +74,11 @@ export interface CreateOrgasmusAnforderungParams {
   art: "ANWEISUNG" | "GELEGENHEIT";
   message?: string | null;
   /** Window start (ISO string or Date). */
-  beginntAt: string | Date;
-  /** Window end (ISO string or Date). Must be after beginntAt. */
+  beginsAt: string | Date;
+  /** Window end (ISO string or Date). Must be after beginsAt. */
   endsAt: string | Date;
   /** Required orgasm type base (from ORGASMUS_ARTEN); null/undefined = any orgasm counts. */
-  vorgegebeneArt?: string | null;
+  requiredType?: string | null;
   /** Whether opening to perform the orgasm during the window is permitted (no Sperre break / penalty). */
   oeffnenErlaubt?: boolean;
   /** Terminierung — dieselben zwei Felder wie bei Kontrolle, Verschluss und Aufgabe
@@ -102,7 +102,7 @@ export async function createOrgasmusAnforderung(
   params: CreateOrgasmusAnforderungParams,
   actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
-  const { userId, art, message, beginntAt, endsAt, vorgegebeneArt, oeffnenErlaubt } = params;
+  const { userId, art, message, beginsAt, endsAt, requiredType, oeffnenErlaubt } = params;
 
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
   const now = new Date();
@@ -111,8 +111,8 @@ export async function createOrgasmusAnforderung(
   const { beginnt, endsAtDate, wirksamAb, benachrichtigtAt } = checked.window;
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
-  // vorgegebeneArt gegen die (ggf. angepasste) Orgasmus-Liste des Ziel-Subs prüfen; null-Config → Built-ins.
-  if (vorgegebeneArt && !orgasmusValueAllowed(vorgegebeneArt, user.orgasmusArtenConfig)) {
+  // requiredType gegen die (ggf. angepasste) Orgasmus-Liste des Ziel-Subs prüfen; null-Config → Built-ins.
+  if (requiredType && !orgasmusValueAllowed(requiredType, user.orgasmusArtenConfig)) {
     return serviceFail(400, "INVALID_ORGASM_TYPE");
   }
 
@@ -139,9 +139,9 @@ export async function createOrgasmusAnforderung(
         userId,
         art,
         message: message?.trim() || null,
-        beginntAt: beginnt,
+        beginsAt: beginnt,
         endsAt: endsAtDate,
-        vorgegebeneArt: vorgegebeneArt || null,
+        requiredType: requiredType || null,
         oeffnenErlaubt: Boolean(oeffnenErlaubt),
         createdBy: actor ?? null,
         wirksamAb,
@@ -154,7 +154,7 @@ export async function createOrgasmusAnforderung(
   // das, was die Terminierung verbergen soll (`isHiddenFromSub`).
   if (!wirksamAb) {
     await sendOrgasmusAnforderungNotifications({
-      userId, user, art, message, beginnt, endsAtDate, vorgegebeneArt, oeffnenErlaubt: Boolean(oeffnenErlaubt),
+      userId, user, art, message, beginnt, endsAtDate, requiredType, oeffnenErlaubt: Boolean(oeffnenErlaubt),
       directiveId: anforderung.id, actor,
     });
   } else if (replacedVisible) {
@@ -249,14 +249,14 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   message?: string | null;
   beginnt: Date;
   endsAtDate: Date;
-  vorgegebeneArt?: string | null;
+  requiredType?: string | null;
   oeffnenErlaubt: boolean;
   /** Die Zeile, auf die die Nachricht im Posteingang zeigt. */
   directiveId: string;
   /** WER die Anweisung gestellt hat — der Absender ihrer Meldung. */
   actor: MessageActor;
 }) {
-  const { userId, user, art, message, beginnt, endsAtDate, vorgegebeneArt, oeffnenErlaubt, directiveId, actor } = opts;
+  const { userId, user, art, message, beginnt, endsAtDate, requiredType, oeffnenErlaubt, directiveId, actor } = opts;
   const istAnweisung = art === "ANWEISUNG";
 
   // Nachricht des Keyholders bleibt an der Direktive; der Posteingang verlinkt sie nur.
@@ -276,8 +276,8 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   // Reason-Code → Anzeige-Label gegen die Config des Ziel-Subs auflösen (sonst zeigt eine Custom-Art
   // den rohen `c_…`-Code in Mail/Push). In der Sprache des Empfängers, wie der restliche Text.
   const tOrgasm = await getTranslations({ locale, namespace: "orgasmForm" });
-  const artLabel = vorgegebeneArt
-    ? resolveOrgasmusArtDisplay(vorgegebeneArt, effectiveOrgasmusArten(user.orgasmusArtenConfig), tOrgasm) ?? vorgegebeneArt
+  const artLabel = requiredType
+    ? resolveOrgasmusArtDisplay(requiredType, effectiveOrgasmusArten(user.orgasmusArtenConfig), tOrgasm) ?? requiredType
     : null;
 
   if (user.email) {

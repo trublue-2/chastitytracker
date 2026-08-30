@@ -713,7 +713,7 @@ describe("dryRun liefert diff (B-05: Vorschau statt Ja/Nein bei Edits eines best
 describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
   /** Eine offene ANFORDERUNGs-Zeile, wie getKeyholderLockRequests sie liefert. */
   const anf = (over: object = {}) => ({
-    id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: MORGEN, message: null, dauerH: null,
+    id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: MORGEN, message: null, minDurationHours: null,
     lockEndsAt: null, deviceId: null, device: null, cleaningAllowed: false,
     fulfilledAt: null, withdrawnAt: null, wirksamAb: null, benachrichtigtAt: JETZT, ...over,
   });
@@ -726,7 +726,7 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
   });
 
   it("diff zeigt genau die geänderten Felder [alt, neu]", async () => {
-    lockPeriodFindManyMock.mockResolvedValue([anf({ dauerH: 24 })]);
+    lockPeriodFindManyMock.mockResolvedValue([anf({ minDurationHours: 24 })]);
     const r = await mcpEditLockRequest("sub", { dryRun: true, lockUntilAt: MORGEN.toISOString() }) as { diff: Record<string, [unknown, unknown]> };
     expect(r.diff.minDurationHours).toEqual([24, null]); // vom absoluten Ende verdrängt
     expect(r.diff.lockUntilAt).toEqual([null, "2026-07-18T14:00:00+02:00"]);

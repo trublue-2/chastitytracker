@@ -240,8 +240,15 @@ export interface DashboardResult extends Envelope {
    *  sieht die Vorschau einmal ohne Ende; der Apply-Schritt danach ist unberührt.
    *
    *  Teil der v6-Umstellung: die MCP-Oberfläche spricht durchgehend Englisch. Der Box-Vertrag zu
-   *  Heimdall behält `endetAt` — das ist Hardware, kein MCP. */
-  schemaVersion: 17;
+   *  Heimdall behält `endetAt` — das ist Hardware, kein MCP.
+   *
+   *  v18: drei weitere Felder folgen dem Eingang, mit dem sie GESCHRIEBEN werden —
+   *  `openLockRequest(s).minDurationHours` → `minDurationHours`, `openOrgasmWindow.beginsAt` → `beginsAt`,
+   *  und `requiredType` heisst dort schon so, trägt aber jetzt dieselbe Quelle. Vorher las die KI
+   *  einen Wert unter einem Namen und musste ihn unter einem anderen zurückschreiben; bei
+   *  `beginsAt`/`beginsAt` trennten die beiden zwei Buchstaben, was beim Lesen nicht auffällt und
+   *  beim Schreiben zu spät. */
+  schemaVersion: 18;
   user: string;
   /**
    * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
@@ -312,7 +319,7 @@ export interface DashboardResult extends Envelope {
   /** Das als Nächstes Relevante: offene Kontrolle / aktive Sperrzeit / Orgasmus-Fenster.
    *  Zeiten ISO-8601 mit Offset (die liveState-Mapper bekommen das `iso`-Format durchgereicht); zusätzlich
    *  remainingMinutes/overdue für direkte Fristfragen. Beim Orgasmus-Fenster zeigt `active` an,
-   *  ob der Start (`beginntAt`) schon erreicht ist — `active:false` = geplant, läuft noch NICHT
+   *  ob der Start (`beginsAt`) schon erreicht ist — `active:false` = geplant, läuft noch NICHT
    *  (remainingMinutes zählt bis `endsAt`).
    *
    *  Die Sichten aus `mcp/liveState.ts` werden unverändert übernommen, statt sie hier erneut zu
@@ -797,7 +804,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const weight = await weightSummary(trackingCtx.userId);
 
   return {
-    schemaVersion: 17,
+    schemaVersion: 18,
     user: username,
     weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),

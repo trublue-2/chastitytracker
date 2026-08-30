@@ -490,7 +490,7 @@ describe("updateLockRequest", () => {
 
   /** Eine ANFORDERUNGs-Zeile, wie updateLockRequest sie liest (inkl. user für die Zustellung). */
   const anf = (overrides: object) => ({
-    id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: SPAETER, message: null, dauerH: null,
+    id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: SPAETER, message: null, minDurationHours: null,
     lockEndsAt: null, deviceId: null, cleaningAllowed: false, fulfilledAt: null, withdrawnAt: null,
     user: { id: "u1", email: "sub@example.invalid", username: "sub", locale: "de" },
     ...overrides,
@@ -565,15 +565,15 @@ describe("updateLockRequest", () => {
   });
 
   it("Mindestdauer und absolutes Sperr-Ende verdrängen einander, statt still zu koexistieren", async () => {
-    findUniqueMock.mockResolvedValue(anf({ ...triggered, dauerH: 24 }));
+    findUniqueMock.mockResolvedValue(anf({ ...triggered, minDurationHours: 24 }));
     await updateLockRequest("a1", { lockEndsAt: IN_DREI_WOCHEN }, "herrin");
 
-    expect(updateMock.mock.calls[0][0].data).toMatchObject({ dauerH: null, lockEndsAt: IN_DREI_WOCHEN });
+    expect(updateMock.mock.calls[0][0].data).toMatchObject({ minDurationHours: null, lockEndsAt: IN_DREI_WOCHEN });
   });
 
   it("beides gleichzeitig zu setzen ist ein Fehler, kein stiller Vorrang", async () => {
     findUniqueMock.mockResolvedValue(anf(triggered));
-    const res = await updateLockRequest("a1", { dauerH: 12, lockEndsAt: IN_DREI_WOCHEN }, "herrin");
+    const res = await updateLockRequest("a1", { minDurationHours: 12, lockEndsAt: IN_DREI_WOCHEN }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("LOCK_DURATION_OR_END");

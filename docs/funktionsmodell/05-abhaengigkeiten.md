@@ -46,7 +46,7 @@ flowchart LR
 | Kontrollen | `User.inspectionAutoMarkEnabled` | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | `queries.ts:releaseLockPeriodsOnOpen` |
 | Geräte | `DeviceCategory.trackingEnabled` | Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung. Bei der eingebauten Kategorie unveränderlich. | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
 | Geräte | `DeviceCategory.requirePhoto` | Ein Trage-Beginn dieser Kategorie verlangt ein Bild. Bei der eingebauten Kategorie unveränderlich. | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
-| Orgasmus | `OrgasmusAnforderung.vorgegebeneArt` | Verlangt eine bestimmte Orgasmus-Art; leer = beliebig. Nur ein passender Eintrag erfüllt. | — |
+| Orgasmus | `OrgasmusAnforderung.requiredType` | Verlangt eine bestimmte Orgasmus-Art; leer = beliebig. Nur ein passender Eintrag erfüllt. | — |
 | Aufgaben | `TaskRequirement.type` | `KG_LOCKED` (verschlossen bleiben) oder `WEAR` (etwas tragen). Der KG ist bewusst keine Trage-Kategorie. | — |
 | Kontrollen | *feste Regel* | Eskalationsstufe 2 legt selbst einen Öffnen-Eintrag an — ohne Zutun des Subs und ohne dass die Box aufgeht. Eine Sperrzeit hebt sie dabei bewusst nicht auf. | `inspectionEscalationService.ts` |
 | Geräte | *feste Regel* | Das massgebliche Gerät eines Segments ist das EFFEKTIVE: bei einem Konflikt zwischen Bild und Deklaration gewinnt das Bild — ausser innerhalb eines Lookalike-Clusters. | `sessionModel.ts:effectiveDevice` |
@@ -259,7 +259,7 @@ flowchart LR
 |---|---|---|---|
 | Strafbuch | `OrgasmusAnforderung.art` | ANWEISUNG = Pflicht (ungenutzt ist ein Vergehen), GELEGENHEIT = Erlaubnis (ungenutzt folgenlos). Der ganze Unterschied der Direktive. | — |
 | Strafbuch | `OrgasmusAnforderung.endsAt` | Ende des Fensters. Danach ist eine ANWEISUNG versäumt. | — |
-| Einträge | `OrgasmusAnforderung.vorgegebeneArt` | Verlangt eine bestimmte Orgasmus-Art; leer = beliebig. Nur ein passender Eintrag erfüllt. | — |
+| Einträge | `OrgasmusAnforderung.requiredType` | Verlangt eine bestimmte Orgasmus-Art; leer = beliebig. Nur ein passender Eintrag erfüllt. | — |
 | Sperrzeit | `OrgasmusAnforderung.oeffnenErlaubt` | Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen. | — |
 | Strafbuch | `OrgasmusAnforderung.oeffnenErlaubt` | Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen. | — |
 | Nachrichten | `OrgasmusAnforderung.message` | Begleittext an den Sub. | — |

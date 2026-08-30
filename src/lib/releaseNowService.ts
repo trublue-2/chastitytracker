@@ -197,7 +197,7 @@ export async function releaseNow(params: ReleaseNowParams): Promise<ServiceResul
         // GELEGENHEIT, nicht ANWEISUNG: eine Pflicht erzeugte bei Nichterfüllung ein Vergehen
         // (`missed_orgasm`), und ein Vergehen dafür, dass jemand keinen Sex hatte, ist nicht gemeint.
         art: "GELEGENHEIT",
-        beginntAt: jetzt.toISOString(),
+        beginsAt: jetzt.toISOString(),
         endsAt: new Date(jetzt.getTime() + RELEASE_ORGASM_WINDOW_H * 3_600_000).toISOString(),
         oeffnenErlaubt: true,
       }, actor);

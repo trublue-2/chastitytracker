@@ -596,7 +596,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/admin/verschluss-anforderung` | Create lock request or lock period (admin). Supports `dauerH` (min wear), `deviceId` (required device), `reinigungErlaubt` (allow cleaning openings) |
+| `POST` | `/api/admin/verschluss-anforderung` | Create lock request or lock period (admin). Supports `minDurationHours` (min wear), `deviceId` (required device), `reinigungErlaubt` (allow cleaning openings) |
 | `PATCH` | `/api/admin/verschluss-anforderung/[id]` | Withdraw a lock request or period (admin) |
 | `POST` | `/api/admin/orgasmus-anforderung` | Create an orgasm requirement / window for a user (admin) |
 | `PATCH` | `/api/admin/orgasmus-anforderung/[id]` | Withdraw an orgasm requirement (admin) |

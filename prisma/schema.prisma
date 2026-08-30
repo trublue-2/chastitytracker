@@ -166,7 +166,7 @@ model User {
 ///
 /// Eigene Tabelle und kein Feld an `OrgasmusAnforderung`: die Vorgabe steht über viele Tage, die
 /// Anforderung ist ein Fenster mit festem Anfang und Ende. Eine Bedingung in die Anforderung zu
-/// legen hiesse, deren `beginntAt` dynamisch zu machen — und daran hängen Poller, Erfüllung,
+/// legen hiesse, deren `beginsAt` dynamisch zu machen — und daran hängen Poller, Erfüllung,
 /// Rückzug und die Vergehens-Ableitung.
 ///
 /// Sie ist VERBRAUCHT, sobald sie ausgelöst hat (`releasedAt`); die nächste stellt die Keyholderin.
@@ -755,7 +755,7 @@ model VerschlussAnforderung {
   /// keine Person feststellbar → die Meldung bleibt eine System-Zeile.
   createdBy        String?
   endsAt           DateTime? @map("endetAt") // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
-  dauerH           Float? // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT (relativ zur Verschlusszeit)
+  minDurationHours Float?    @map("dauerH") // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT (relativ zur Verschlusszeit)
   lockEndsAt       DateTime? @map("sperrEndetAt") // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endsAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu dauerH.
   deviceId         String?
   device           Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
@@ -1115,16 +1115,16 @@ model Entry {
 
 // Keyholder-Aufforderung für einen Orgasmus innerhalb eines Zeitfensters.
 // art=ANWEISUNG: Pflicht (Versäumnis -> Strafbuch, Phase 2). art=GELEGENHEIT: Erlaubnis, kein Zwang.
-// vorgegebeneArt (optional): erforderliche orgasmusArt-Basis; null = jeder Orgasmus erfüllt.
+// requiredType (optional): erforderliche orgasmusArt-Basis; null = jeder Orgasmus erfüllt.
 model OrgasmusAnforderung {
   id             String    @id @default(cuid())
   userId         String
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   art            String // "ANWEISUNG" | "GELEGENHEIT"
   message        String?   @map("nachricht")
-  beginntAt      DateTime // Fenster-Start
+  beginsAt       DateTime  @map("beginntAt") // Fenster-Start
   endsAt         DateTime @map("endetAt") // Fenster-Ende
-  vorgegebeneArt String? // erforderliche orgasmusArt-Basis (aus ORGASMUS_ARTEN); null = egal
+  requiredType   String?   @map("vorgegebeneArt") // erforderliche orgasmusArt-Basis (aus ORGASMUS_ARTEN); null = egal
   oeffnenErlaubt Boolean   @default(false) // während des Fensters darf zum Orgasmus geöffnet werden, ohne Sperre zu brechen / Strafe
   createdAt      DateTime  @default(now())
   fulfilledAt    DateTime? // gesetzt wenn passender ORGASMUS-Eintrag im Fenster erstellt
@@ -1153,7 +1153,7 @@ model OrgasmusAnforderung {
 // Bewusst eine EIGENE Tabelle statt einer dritten `art` in VerschlussAnforderung: deren Poller
 // (kontrollePoller.ts), Rückzug-Pfad und MCP-Sicht lesen die Tabelle OHNE art-Filter und würden eine
 // Aufgabe still als Sperrzeit behandeln — zurückziehen, falsch melden, falsch anzeigen. Ausserdem
-// trägt dort `dauerH` die Bedeutung „erzeugt beim Einschliessen eine KG-Sperrzeit".
+// trägt dort `minDurationHours` die Bedeutung „erzeugt beim Einschliessen eine KG-Sperrzeit".
 //
 // KEIN gespeicherter Fortschritt (kein startedAt/failedAt): der Zustand wird bei jeder Anzeige aus den
 // Einträgen abgeleitet (src/lib/tasks.ts). Damit bleibt POST /api/entries unangetastet, vom Keyholder

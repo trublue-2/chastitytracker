@@ -50,7 +50,7 @@ beforeEach(() => {
 /** Die eine offene Anordnung mit Frist 20:00 und 24 h Sperre. */
 function openLockRequest() {
   txMock.verschlussAnforderung.findMany.mockResolvedValue([
-    { id: "a1", deviceId: null, message: "24h drin bleiben", cleaningAllowed: true, dauerH: 24, lockEndsAt: null },
+    { id: "a1", deviceId: null, message: "24h drin bleiben", cleaningAllowed: true, minDurationHours: 24, lockEndsAt: null },
   ]);
 }
 
@@ -115,8 +115,8 @@ describe("Verschluss-Anforderung — `at` entscheidet über das Vergehen", () =>
 
   it("gibt die geforderten Geräte zurück (Grundlage der Falsch-Gerät-Ahndung)", async () => {
     txMock.verschlussAnforderung.findMany.mockResolvedValue([
-      { id: "a1", deviceId: "d1", message: null, cleaningAllowed: false, dauerH: null, lockEndsAt: null },
-      { id: "a2", deviceId: null, message: null, cleaningAllowed: false, dauerH: null, lockEndsAt: null },
+      { id: "a1", deviceId: "d1", message: null, cleaningAllowed: false, minDurationHours: null, lockEndsAt: null },
+      { id: "a2", deviceId: null, message: null, cleaningAllowed: false, minDurationHours: null, lockEndsAt: null },
     ]);
     const required = await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
     expect(required).toEqual(["d1"]);
@@ -176,7 +176,7 @@ describe("Kontroll-Anforderung", () => {
 
 describe("Orgasmus-Anforderung", () => {
   it("das FENSTER prüft immer die Eintrags-Zeit, der Stempel folgt `at`", async () => {
-    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", vorgegebeneArt: null });
+    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: null });
     await applyEntryFulfilment(
       txMock as never,
       entry({ type: "ORGASMUS", startTime: ON_TIME }),
@@ -185,16 +185,16 @@ describe("Orgasmus-Anforderung", () => {
     );
 
     const { where } = txMock.orgasmusAnforderung.findFirst.mock.calls[0][0] as {
-      where: { beginntAt: { lte: Date }; endsAt: { gte: Date } };
+      where: { beginsAt: { lte: Date }; endsAt: { gte: Date } };
     };
-    expect(where.beginntAt.lte).toEqual(ON_TIME);
+    expect(where.beginsAt.lte).toEqual(ON_TIME);
     expect(where.endsAt.gte).toEqual(ON_TIME);
     const { data } = txMock.orgasmusAnforderung.update.mock.calls[0][0] as { data: { fulfilledAt: Date } };
     expect(data.fulfilledAt).toEqual(RECORDED_LATER);
   });
 
   it("passt die vorgegebene Art nicht, bleibt die Anforderung offen", async () => {
-    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", vorgegebeneArt: "RUINIERT" });
+    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: "RUINIERT" });
     await applyEntryFulfilment(
       txMock as never,
       entry({ type: "ORGASMUS", orgasmusArt: "VOLL" }),

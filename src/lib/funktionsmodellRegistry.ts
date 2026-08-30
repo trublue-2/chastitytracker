@@ -604,13 +604,13 @@ export const FM_REGISTRY: FmEntry[] = [
     anchor: "queries.ts:foldActiveLockPeriods",
   }),
   s({
-    model: "VerschlussAnforderung", field: "dauerH", domain: "sperrzeit", scope: "directive",
+    model: "VerschlussAnforderung", field: "minDurationHours", domain: "sperrzeit", scope: "directive",
     effect: "Mindest-Tragedauer einer Anforderung; die Uhr startet beim tatsächlichen Verschluss. Alternative zu `lockEndsAt`.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit"], anchor: "entryFulfilment.ts",
   }),
   s({
     model: "VerschlussAnforderung", field: "lockEndsAt", domain: "sperrzeit", scope: "directive",
-    effect: "Absolutes Sperr-Ende einer Anforderung (feste Wanduhr). Ein später Verschluss verschiebt es NICHT — anders als `dauerH`.",
+    effect: "Absolutes Sperr-Ende einer Anforderung (feste Wanduhr). Ein später Verschluss verschiebt es NICHT — anders als `minDurationHours`.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit"], anchor: "entryFulfilment.ts",
   }),
   s({
@@ -761,7 +761,7 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin", "mcp"], affects: ["Orgasmus", "Strafbuch"],
   }),
   s({
-    model: "OrgasmusAnforderung", field: "beginntAt", domain: "orgasmus", scope: "directive",
+    model: "OrgasmusAnforderung", field: "beginsAt", domain: "orgasmus", scope: "directive",
     effect: "Beginn des Fensters. Es ist immer nur EINE Direktive aktiv.",
     writers: ["admin", "mcp"], affects: ["Orgasmus"],
   }),
@@ -771,7 +771,7 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin", "mcp"], affects: ["Orgasmus", "Strafbuch"],
   }),
   s({
-    model: "OrgasmusAnforderung", field: "vorgegebeneArt", domain: "orgasmus", scope: "directive",
+    model: "OrgasmusAnforderung", field: "requiredType", domain: "orgasmus", scope: "directive",
     effect: "Verlangt eine bestimmte Orgasmus-Art; leer = beliebig. Nur ein passender Eintrag erfüllt.",
     writers: ["admin", "mcp"], affects: ["Orgasmus", "Einträge"],
   }),

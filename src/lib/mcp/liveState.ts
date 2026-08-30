@@ -178,15 +178,15 @@ export interface OpenLockRequestView {
   overdue: boolean;
   remainingMinutes: number | null;
   message: string | null;
-  dauerH: number | null;
-  /** Absolutes Sperr-Ende nach dem Einschliessen (Alternative zu dauerH), oder null. */
+  minDurationHours: number | null;
+  /** Absolutes Sperr-Ende nach dem Einschliessen (Alternative zu minDurationHours), oder null. */
   lockUntilAt: string | null;
   cleaningAllowed: boolean;
   deviceName: string | null;
 }
 
 export function mapOpenLockRequest(
-  a: { id: string; endsAt: Date | null; message: string | null; dauerH: number | null; lockEndsAt: Date | null; cleaningAllowed: boolean; device: { name: string } | null } | null,
+  a: { id: string; endsAt: Date | null; message: string | null; minDurationHours: number | null; lockEndsAt: Date | null; cleaningAllowed: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): OpenLockRequestView | null {
   if (!a) return null;
@@ -196,26 +196,26 @@ export function mapOpenLockRequest(
     overdue: a.endsAt ? a.endsAt < now : false,
     remainingMinutes: a.endsAt ? minutesUntil(a.endsAt, now) : null,
     message: a.message,
-    dauerH: a.dauerH,
+    minDurationHours: a.minDurationHours,
     lockUntilAt: a.lockEndsAt ? fmt(a.lockEndsAt) : null,
     cleaningAllowed: a.cleaningAllowed,
     deviceName: a.device?.name ?? null,
   };
 }
 
-export interface OpenOrgasmusAnforderungView { art: string; beginntAt: string; endsAt: string; active: boolean; requiredType: string | null; message: string | null; remainingMinutes: number }
+export interface OpenOrgasmusAnforderungView { art: string; beginsAt: string; endsAt: string; active: boolean; requiredType: string | null; message: string | null; remainingMinutes: number }
 
 export function mapOpenOrgasmusAnforderung(
-  o: { art: string; beginntAt: Date; endsAt: Date; vorgegebeneArt: string | null; message: string | null } | null,
+  o: { art: string; beginsAt: Date; endsAt: Date; requiredType: string | null; message: string | null } | null,
   now: Date, fmt: Fmt,
 ): OpenOrgasmusAnforderungView | null {
   if (!o) return null;
   return {
     art: o.art,
-    beginntAt: fmt(o.beginntAt),
+    beginsAt: fmt(o.beginsAt),
     endsAt: fmt(o.endsAt),
-    active: o.beginntAt <= now,
-    requiredType: o.vorgegebeneArt,
+    active: o.beginsAt <= now,
+    requiredType: o.requiredType,
     message: o.message,
     remainingMinutes: minutesUntil(o.endsAt, now),
   };

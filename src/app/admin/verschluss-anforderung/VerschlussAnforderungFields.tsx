@@ -62,7 +62,7 @@ export default function VerschlussAnforderungFields({
     toDatetimeLocal(new Date(nowBaseMs + defaultDurationH * 60 * 60 * 1000), tz)
   );
   const [withMinDauer, setWithMinDauer] = useState(false);
-  // Min-Sperre nach dem Verschliessen: relative Dauer (dauerH) ODER absolutes Ende (lockEndsAt).
+  // Min-Sperre nach dem Verschliessen: relative Dauer (minDurationHours) ODER absolutes Ende (lockEndsAt).
   const [lockEndMode, setLockEndMode] = useState<"duration" | "datetime">("duration");
   const [minDauerH, setMinDauerH] = useState("24");
   const [lockEndsAt, setLockEndsAt] = useState(() =>
@@ -107,7 +107,7 @@ export default function VerschlussAnforderungFields({
         if (lockEndMode === "datetime" && lockEndsAt) {
           payload.lockEndsAt = fromDatetimeLocal(lockEndsAt, tz).toISOString();
         } else {
-          payload.dauerH = parseFloat(minDauerH) || 24;
+          payload.minDurationHours = parseFloat(minDauerH) || 24;
         }
       }
       if (!isLockPeriod && deviceId) {

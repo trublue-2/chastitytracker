@@ -23,9 +23,9 @@ import { carryOverLockPeriodOnAlreadyLocked, lockPeriodEndFromRequest } from "./
 const X = new Date("2026-07-31T14:00:00Z");
 const STUNDE = 60 * 60 * 1000;
 
-const anforderung = (over: Partial<{ dauerH: number | null; lockEndsAt: Date | null; createdBy: string | null }> = {}) => ({
+const anforderung = (over: Partial<{ minDurationHours: number | null; lockEndsAt: Date | null; createdBy: string | null }> = {}) => ({
   id: "a1", userId: "u1", message: "24h drin bleiben", cleaningAllowed: true,
-  dauerH: 24, lockEndsAt: null, createdBy: "herrin", ...over,
+  minDurationHours: 24, lockEndsAt: null, createdBy: "herrin", ...over,
 });
 
 beforeEach(() => {
@@ -37,23 +37,23 @@ beforeEach(() => {
 describe("lockPeriodEndFromRequest — die eine Regel beider Pfade", () => {
   it("absolutes Sperr-Ende gewinnt und bleibt unabhängig vom Anker fix", () => {
     const fix = new Date("2026-08-05T10:00:00Z");
-    const a = { dauerH: 24, lockEndsAt: fix };
+    const a = { minDurationHours: 24, lockEndsAt: fix };
     expect(lockPeriodEndFromRequest(a, X)).toEqual(fix);
     expect(lockPeriodEndFromRequest(a, new Date("2026-07-01T00:00:00Z"))).toEqual(fix);
   });
 
-  it("sonst zählt dauerH ab dem übergebenen Anker", () => {
-    expect(lockPeriodEndFromRequest({ dauerH: 24, lockEndsAt: null }, X))
+  it("sonst zählt minDurationHours ab dem übergebenen Anker", () => {
+    expect(lockPeriodEndFromRequest({ minDurationHours: 24, lockEndsAt: null }, X))
       .toEqual(new Date(X.getTime() + 24 * STUNDE));
   });
 
   it("ohne beides: keine Sperrzeit", () => {
-    expect(lockPeriodEndFromRequest({ dauerH: null, lockEndsAt: null }, X)).toBeNull();
+    expect(lockPeriodEndFromRequest({ minDurationHours: null, lockEndsAt: null }, X)).toBeNull();
   });
 });
 
 describe("carryOverLockPeriodOnAlreadyLocked", () => {
-  it("legt die Sperrzeit an — dauerH ab X, nicht ab dem länger zurückliegenden Verschluss", async () => {
+  it("legt die Sperrzeit an — minDurationHours ab X, nicht ab dem länger zurückliegenden Verschluss", async () => {
     const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung(), X))!;
     expect(r.endsAt).toEqual(new Date(X.getTime() + 24 * STUNDE));
 
@@ -82,19 +82,19 @@ describe("carryOverLockPeriodOnAlreadyLocked", () => {
 
   it("absolutes Sperr-Ende wird 1:1 übernommen", async () => {
     const fix = new Date("2026-08-05T10:00:00Z");
-    const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung({ dauerH: null, lockEndsAt: fix }), X))!;
+    const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung({ minDurationHours: null, lockEndsAt: fix }), X))!;
     expect(r.endsAt).toEqual(fix);
   });
 
   it("ohne mitgebrachte Sperrzeit: null — der Aufrufer zieht wie bisher zurück", async () => {
-    expect(await carryOverLockPeriodOnAlreadyLocked(anforderung({ dauerH: null, lockEndsAt: null }), X)).toBeNull();
+    expect(await carryOverLockPeriodOnAlreadyLocked(anforderung({ minDurationHours: null, lockEndsAt: null }), X)).toBeNull();
     expect(txMock.verschlussAnforderung.create).not.toHaveBeenCalled();
     expect(txMock.verschlussAnforderung.update).not.toHaveBeenCalled();
   });
 
   it("bereits abgelaufenes absolutes Sperr-Ende: null statt einer toten Sperre", async () => {
     const vergangen = new Date(X.getTime() - STUNDE);
-    expect(await carryOverLockPeriodOnAlreadyLocked(anforderung({ dauerH: null, lockEndsAt: vergangen }), X)).toBeNull();
+    expect(await carryOverLockPeriodOnAlreadyLocked(anforderung({ minDurationHours: null, lockEndsAt: vergangen }), X)).toBeNull();
     expect(txMock.verschlussAnforderung.create).not.toHaveBeenCalled();
   });
 

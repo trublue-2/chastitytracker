@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * `missed_orgasm`-Vergehen für eine Frist, die der Sub nie erfüllen konnte. Der einzige gefundene
  * Pfad, auf dem der Tracker eine unverdiente Strafe erzeugt.
  *
- * `beginntAt` in der Vergangenheit bleibt zulässig (rückwirkende Fensteröffnung ist legitim) —
+ * `beginsAt` in der Vergangenheit bleibt zulässig (rückwirkende Fensteröffnung ist legitim) —
  * nur `endsAt` muss in der Zukunft liegen.
  */
 
@@ -72,7 +72,7 @@ describe("checkOrgasmWindowEnd", () => {
 describe("createOrgasmusAnforderung — Vergangenheits-Fenster (B-01)", () => {
   it("endsAt sechs Tage in der Vergangenheit wird abgelehnt, auch bei GELEGENHEIT", async () => {
     const res = await createOrgasmusAnforderung({
-      userId: "u1", art: "GELEGENHEIT", beginntAt: VOR_SECHS_TAGEN, endsAt: VOR_EINER_STUNDE,
+      userId: "u1", art: "GELEGENHEIT", beginsAt: VOR_SECHS_TAGEN, endsAt: VOR_EINER_STUNDE,
     },
     "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
@@ -84,16 +84,16 @@ describe("createOrgasmusAnforderung — Vergangenheits-Fenster (B-01)", () => {
 
   it("dieselbe Konstellation mit ANWEISUNG wird ebenfalls abgelehnt (verhindert die unverdiente Strafe)", async () => {
     const res = await createOrgasmusAnforderung({
-      userId: "u1", art: "ANWEISUNG", beginntAt: VOR_SECHS_TAGEN, endsAt: VOR_EINER_STUNDE,
+      userId: "u1", art: "ANWEISUNG", beginsAt: VOR_SECHS_TAGEN, endsAt: VOR_EINER_STUNDE,
     },
     "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("ORGASM_END_MUST_BE_FUTURE");
   });
 
-  it("beginntAt in der Vergangenheit + endsAt in der Zukunft bleibt zulässig (rückwirkende Fensteröffnung)", async () => {
+  it("beginsAt in der Vergangenheit + endsAt in der Zukunft bleibt zulässig (rückwirkende Fensteröffnung)", async () => {
     const res = await createOrgasmusAnforderung({
-      userId: "u1", art: "GELEGENHEIT", beginntAt: VOR_SECHS_TAGEN, endsAt: MORGEN,
+      userId: "u1", art: "GELEGENHEIT", beginsAt: VOR_SECHS_TAGEN, endsAt: MORGEN,
     },
     "herrin");
     expect(res.ok).toBe(true);
@@ -109,7 +109,7 @@ describe("createOrgasmusAnforderung — Vergangenheits-Fenster (B-01)", () => {
 describe("createOrgasmusAnforderung — Terminierung", () => {
   it("sofort: benachrichtigt und gemeldet", async () => {
     const res = await createOrgasmusAnforderung({
-      userId: "u1", art: "ANWEISUNG", beginntAt: JETZT, endsAt: MORGEN,
+      userId: "u1", art: "ANWEISUNG", beginsAt: JETZT, endsAt: MORGEN,
     }, "herrin");
     expect(res.ok && res.data.scheduledFor).toBeNull();
     expect(tx.orgasmusAnforderung.create).toHaveBeenCalledWith(
@@ -120,7 +120,7 @@ describe("createOrgasmusAnforderung — Terminierung", () => {
 
   it("verzögert: gespeichert, aber KEINE Meldung — der Poller stellt zu", async () => {
     const res = await createOrgasmusAnforderung({
-      userId: "u1", art: "ANWEISUNG", beginntAt: JETZT, endsAt: MORGEN, delayMinutes: 60,
+      userId: "u1", art: "ANWEISUNG", beginsAt: JETZT, endsAt: MORGEN, delayMinutes: 60,
     }, "herrin");
     expect(res.ok && res.data.scheduledFor).toBe(IN_EINER_STUNDE.toISOString());
     expect(tx.orgasmusAnforderung.create).toHaveBeenCalledWith(
@@ -131,7 +131,7 @@ describe("createOrgasmusAnforderung — Terminierung", () => {
 
   it("ein Fenster, das vor der eigenen Zustellung endet, wird abgelehnt", async () => {
     const res = await createOrgasmusAnforderung({
-      userId: "u1", art: "ANWEISUNG", beginntAt: JETZT, endsAt: IN_EINER_STUNDE, wirksamAbAt: MORGEN,
+      userId: "u1", art: "ANWEISUNG", beginsAt: JETZT, endsAt: IN_EINER_STUNDE, wirksamAbAt: MORGEN,
     }, "herrin");
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("ORGASM_END_MUST_BE_FUTURE");
@@ -148,7 +148,7 @@ describe("createOrgasmusAnforderung — Verdrängung", () => {
   it("terminierte Neue verdrängt eine bekannte Alte → Rückzugs-Meldung", async () => {
     tx.orgasmusAnforderung.findMany.mockResolvedValue([{ wirksamAb: null, benachrichtigtAt: JETZT }]);
     await createOrgasmusAnforderung({
-      userId: "u1", art: "GELEGENHEIT", beginntAt: JETZT, endsAt: MORGEN, delayMinutes: 60,
+      userId: "u1", art: "GELEGENHEIT", beginsAt: JETZT, endsAt: MORGEN, delayMinutes: 60,
     }, "herrin");
     expect(notifyMock).toHaveBeenCalledTimes(1);
   });
@@ -156,7 +156,7 @@ describe("createOrgasmusAnforderung — Verdrängung", () => {
   it("terminierte Neue verdrängt eine ebenfalls verborgene Alte → gar keine Meldung", async () => {
     tx.orgasmusAnforderung.findMany.mockResolvedValue([{ wirksamAb: MORGEN, benachrichtigtAt: null }]);
     await createOrgasmusAnforderung({
-      userId: "u1", art: "GELEGENHEIT", beginntAt: JETZT, endsAt: MORGEN, delayMinutes: 60,
+      userId: "u1", art: "GELEGENHEIT", beginsAt: JETZT, endsAt: MORGEN, delayMinutes: 60,
     }, "herrin");
     expect(notifyMock).not.toHaveBeenCalled();
   });

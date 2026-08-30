@@ -51,7 +51,7 @@ Die Konsequenz ist **Warten**. Sie braucht keinen zusätzlichen Apparat und ende
 
 Eine eigene Tabelle, kein Feld an `OrgasmusAnforderung`: die Vorgabe steht über viele Tage, die
 Anforderung ist ein Fenster mit festem Anfang und Ende. Eine Bedingung in die Anforderung zu legen
-hiesse, deren `beginntAt` dynamisch zu machen — und daran hängen Poller, Erfüllung, Rückzug und die
+hiesse, deren `beginsAt` dynamisch zu machen — und daran hängen Poller, Erfüllung, Rückzug und die
 Vergehens-Ableitung.
 
 ```prisma
@@ -161,7 +161,7 @@ kein Versehen: die Freigabe hängt an einer Meldung, nicht am Kalender.
 ## 7. Was beim Auslösen passiert
 
 `createOrgasmusAnforderung()` — derselbe Dienst, den Oberfläche und MCP benutzen, mit
-`art: "GELEGENHEIT"`, `beginntAt: jetzt`, `endsAt: jetzt + windowHours`, `openingAllowed` und
+`art: "GELEGENHEIT"`, `beginsAt: jetzt`, `endsAt: jetzt + windowHours`, `openingAllowed` und
 `message` aus der Vorgabe, `createdBy: "system"`.
 
 Danach ist es eine gewöhnliche Freigabe: Banner im Dashboard, Erfüllung über einen ORGASMUS-Eintrag

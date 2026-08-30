@@ -44,7 +44,7 @@ laufende Frist. Sie fehlt deshalb auch in „offene Direktiven"-Ansichten — da
 
 ## Fristen und Nullpunkte
 
-**`dauerH` gegen `lockEndsAt`.** Mindest-Tragedauer ab dem tatsächlichen Verschluss gegen feste
+**`minDurationHours` gegen `lockEndsAt`.** Mindest-Tragedauer ab dem tatsächlichen Verschluss gegen feste
 Wanduhr. Ein später Verschluss verschiebt die eine mit und verkürzt die andere. Wer eine Tragedauer
 meint und ein festes Ende setzt, gibt nachweislich weniger, als er gesagt hat.
 

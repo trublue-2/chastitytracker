@@ -179,8 +179,8 @@ Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <r
 - `Entry` – type (`VERSCHLUSS`|`OEFFNEN`|`PRUEFUNG`|`ORGASMUS`), startTime, imageUrl, imageExifTime, note, orgasmusArt, kontrollCode, verifikationStatus, oeffnenGrund
 - `TrainingVorgabe` – Zeitraum mit min. Tragedauer pro Tag/Woche/Monat, pro User
 - `KontrollAnforderung` – code (5-stellig), deadline (Vorgabe 1h, im Formular in Stunden oder Minuten wählbar), userId, fulfilledAt, withdrawnAt, kommentar
-- `VerschlussAnforderung` – art (`ANFORDERUNG`/`SPERRZEIT`), userId, message, endsAt, dauerH, fulfilledAt, withdrawnAt
-- `OrgasmusAnforderung` – art, userId, message, beginntAt, endsAt, vorgegebeneArt, oeffnenErlaubt
+- `VerschlussAnforderung` – art (`ANFORDERUNG`/`SPERRZEIT`), userId, message, endsAt, minDurationHours, fulfilledAt, withdrawnAt
+- `OrgasmusAnforderung` – art, userId, message, beginsAt, endsAt, requiredType, oeffnenErlaubt
 - `StrafeRecord` – userId, offenseType (`KONTROLLANFORDERUNG`|`OEFFNEN_ENTRY`), refId, bestraftDatum, notiz
 - `NotificationPreference` – userId, eventType, mail, push (pro Event-Typ)
 - `PushSubscription` – userId, endpoint, p256dh, auth (Web Push VAPID)

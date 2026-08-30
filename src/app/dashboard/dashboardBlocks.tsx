@@ -199,8 +199,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       // der knappsten Frist oben steht.
       const pendingInspections = openInspections(anforderungen);
 
-      const orgasmusVorgabeLabel = offeneOrgasmusAnf?.vorgegebeneArt
-        ? resolveReasonLabel(offeneOrgasmusAnf.vorgegebeneArt, orgasmCfg, "orgasm", tOrgasm)
+      const orgasmusVorgabeLabel = offeneOrgasmusAnf?.requiredType
+        ? resolveReasonLabel(offeneOrgasmusAnf.requiredType, orgasmCfg, "orgasm", tOrgasm)
         : null;
 
       const alertProps: DashboardAlertsProps = {
@@ -240,7 +240,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null,
             offeneOrgasmusAnf.message,
           ),
-          windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginntAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endsAt, dl, tz) }),
+          windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginsAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endsAt, dl, tz) }),
         } : null,
       };
 

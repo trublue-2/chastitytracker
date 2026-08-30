@@ -5,13 +5,13 @@ import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, art, message, beginntAt, endsAt, vorgegebeneArt, oeffnenErlaubt, delayMinutes, wirksamAbAt } = await req.json();
+    const { userId, art, message, beginsAt, endsAt, requiredType, oeffnenErlaubt, delayMinutes, wirksamAbAt } = await req.json();
 
     const actor = await requireKeyholderOrAdminActor(userId);
     if (actor instanceof NextResponse) return actor;
 
     const result = await createOrgasmusAnforderung(
-      { userId, art, message, beginntAt, endsAt, vorgegebeneArt, oeffnenErlaubt, delayMinutes, wirksamAbAt },
+      { userId, art, message, beginsAt, endsAt, requiredType, oeffnenErlaubt, delayMinutes, wirksamAbAt },
       sessionActor(actor),
     );
     if (!result.ok) return serviceFailure(result);

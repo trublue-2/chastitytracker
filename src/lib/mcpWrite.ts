@@ -222,7 +222,7 @@ export async function mcpRequestLock(username: string, args: RequestLockArgs) {
     message: args.message,
     endsAt: args.deadlineAt,
     fristH: args.deadlineHours,
-    dauerH: args.minDurationHours,
+    minDurationHours: args.minDurationHours,
     lockEndsAt: args.lockUntilAt,
     cleaningAllowed: args.cleaningAllowed,
     deviceId,
@@ -479,9 +479,9 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
     userId,
     art: args.art,
     message: args.message,
-    beginntAt: beginnt,
+    beginsAt: beginnt,
     endsAt: endet,
-    vorgegebeneArt: args.requiredType,
+    requiredType: args.requiredType,
     oeffnenErlaubt: args.openAllowed,
     delayMinutes: args.delayMinutes,
     wirksamAbAt: args.scheduledAt,
@@ -1847,8 +1847,8 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
     ...(args.message !== undefined ? { message: args.message } : {}),
     ...(deviceId !== undefined ? { deviceId } : {}),
     ...(args.cleaningAllowed !== undefined ? { cleaningAllowed: args.cleaningAllowed } : {}),
-    ...(args.clearLockPeriod ? { dauerH: null, lockEndsAt: null } : {}),
-    ...(args.minDurationHours != null ? { dauerH: args.minDurationHours } : {}),
+    ...(args.clearLockPeriod ? { minDurationHours: null, lockEndsAt: null } : {}),
+    ...(args.minDurationHours != null ? { minDurationHours: args.minDurationHours } : {}),
     ...(args.lockUntilAt ? { lockEndsAt: parseIsoDate(args.lockUntilAt, "lockUntilAt") } : {}),
     ...(args.triggerNow || args.scheduledAt ? { wirksamAb } : {}),
   };
@@ -1861,14 +1861,14 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
     // Denselben Ausschluss wie der Commit (updateLockRequest → LOCK_DURATION_OR_END) und wie
     // request_lock: sonst meldete die Vorschau „wouldSucceed" für eine Eingabe, die der Commit
     // ablehnt — genau die Divergenz, die mergeLockRequestPatch zu verhindern beansprucht.
-    const problem = (patch.dauerH != null && patch.lockEndsAt != null)
+    const problem = (patch.minDurationHours != null && patch.lockEndsAt != null)
       ? "LOCK_DURATION_OR_END"
       : checkLockEnd(next.lockEndsAt, next.wirksamAb, now) ?? undefined;
     const fields = (row: MergedLockRequest, deviceName: string | null): Record<string, unknown> => ({
       deadlineAt: iso(row.endsAt),
       message: row.message,
       device: deviceName,
-      minDurationHours: row.dauerH,
+      minDurationHours: row.minDurationHours,
       lockUntilAt: iso(row.lockEndsAt),
       cleaningAllowed: row.cleaningAllowed,
       scheduledFor: iso(row.wirksamAb),

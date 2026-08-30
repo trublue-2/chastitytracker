@@ -318,7 +318,7 @@ export async function applyWeightRelease(userId: string, now: Date = new Date())
     // folgenlos — eine ANWEISUNG würde daraus ein `missed_orgasm`-Vergehen machen.
     art: "GELEGENHEIT",
     message: status.release.message,
-    beginntAt: now,
+    beginsAt: now,
     endsAt: new Date(now.getTime() + status.release.windowHours * 3600_000),
     oeffnenErlaubt: status.release.openingAllowed,
   }, "system");

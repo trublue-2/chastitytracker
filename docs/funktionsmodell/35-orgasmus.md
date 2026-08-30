@@ -15,7 +15,7 @@ Der Unterschied steckt vollständig in diesem einen Feld — sonst ist die Mecha
 
 ## Stellschrauben
 
-Sieben, alle je Direktive: `art`, `beginntAt`, `endsAt`, `vorgegebeneArt`, `oeffnenErlaubt`,
+Sieben, alle je Direktive: `art`, `beginsAt`, `endsAt`, `requiredType`, `oeffnenErlaubt`,
 `wirksamAb`, `message`. Siehe [stellschrauben.md](stellschrauben.md).
 
 ## `oeffnenErlaubt`: der einzige geplante Sperrbruch
@@ -37,7 +37,7 @@ Vorgänge, weil es zwei sind.
 ## Auslöser & Erfüllung
 
 Der Keyholder stellt die Direktive (`request_orgasm` oder Admin-UI). Erfüllt wird sie **automatisch**
-durch einen passenden `ORGASMUS`-Eintrag im Fenster — passend heisst: ist eine `vorgegebeneArt`
+durch einen passenden `ORGASMUS`-Eintrag im Fenster — passend heisst: ist eine `requiredType`
 gesetzt, muss die Art stimmen.
 
 Bei `wirksamAb` existiert die Direktive vorher für den Sub nicht: das Fenster gilt nicht, es erlaubt
@@ -49,7 +49,7 @@ kein Öffnen, und es erfüllt sich nicht.
 - **Strafbuch** — eine versäumte ANWEISUNG wird erkannt (nicht automatisch bestraft). Ein Orgasmus
   ohne deckende Direktive kann als `unauthorized_orgasm` zählen; ob überhaupt, entscheidet die
   Vergehensregel, und die steht standardmässig auf aus.
-- **Einträge** — `vorgegebeneArt` verweist auf dieselbe Werteliste wie `User.orgasmusArtenConfig`.
+- **Einträge** — `requiredType` verweist auf dieselbe Werteliste wie `User.orgasmusArtenConfig`.
 
 ## Sichtbarkeit für den Sub
 

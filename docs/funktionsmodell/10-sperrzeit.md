@@ -18,10 +18,10 @@ Die zwei Fristformen sind die wichtigste Unterscheidung:
 
 | Feld | Nullpunkt | Ein später Verschluss … |
 |---|---|---|
-| `dauerH` | der tatsächliche Verschluss | … verschiebt das Ende mit |
+| `minDurationHours` | der tatsächliche Verschluss | … verschiebt das Ende mit |
 | `lockEndsAt` | feste Wanduhr | … verkürzt die Sperre |
 
-Wer eine **Tragedauer** meint, nimmt `dauerH`. Wer einen **Termin** meint, `lockEndsAt`.
+Wer eine **Tragedauer** meint, nimmt `minDurationHours`. Wer einen **Termin** meint, `lockEndsAt`.
 
 ## Auslöser
 

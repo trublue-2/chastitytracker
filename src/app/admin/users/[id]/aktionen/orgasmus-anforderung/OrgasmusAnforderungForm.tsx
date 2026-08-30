@@ -41,7 +41,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
   const target = `/admin/users/${userId}/aktionen`;
 
   const [art, setArt] = useState<(typeof ORGASMUS_ANFORDERUNG_ARTEN)[number]>("ANWEISUNG");
-  const [beginntAt, setBeginntAt] = useState(nowDefault);
+  const [beginsAt, setBeginntAt] = useState(nowDefault);
   const [endMode, setEndMode] = useState<EndMode>("duration");
   const [windowH, setWindowH] = useState(String(DEFAULT_WINDOW_H));
   const [windowUnit, setWindowUnit] = useState<DurationUnit>("h");
@@ -49,7 +49,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
   // `switchEndMode`). Ein beim Seitenaufruf gerechnetes Ende wäre nach zehn Minuten
   // Formularausfüllen zehn Minuten zu früh.
   const [endsAt, setEndsAt] = useState("");
-  const [vorgegebeneArt, setVorgegebeneArt] = useState("");
+  const [requiredType, setVorgegebeneArt] = useState("");
   const [oeffnenErlaubt, setOeffnenErlaubt] = useState(false);
   const [message, setMessage] = useState("");
   // Terminierung — dasselbe Bauteil und dieselben zwei Felder wie an Aufgabe und
@@ -79,13 +79,13 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
    */
   function endAt(): Date {
     if (endMode === "datetime") return fromDatetimeLocal(endsAt, tz);
-    const start = fromDatetimeLocal(beginntAt, tz);
+    const start = fromDatetimeLocal(beginsAt, tz);
     return new Date(start.getTime() + durationHoursOr(windowH, windowUnit, DEFAULT_WINDOW_H) * 3600_000);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const beginnt = fromDatetimeLocal(beginntAt, tz);
+    const beginnt = fromDatetimeLocal(beginsAt, tz);
     const endet = endAt();
     // In der Zone des SUBS gerechnet, wie jede andere Zeit dieses Formulars. `new Date("…")` las die
     // beiden Felder in der Zone des Browsers — bei einer Keyholderin in einer anderen Zone als ihrem
@@ -115,9 +115,9 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
         body: JSON.stringify({
           userId,
           art,
-          beginntAt: beginnt.toISOString(),
+          beginsAt: beginnt.toISOString(),
           endsAt: endet.toISOString(),
-          vorgegebeneArt: vorgegebeneArt || undefined,
+          requiredType: requiredType || undefined,
           oeffnenErlaubt,
           message: message.trim() || undefined,
           ...schedulePayload(schedule, tz),
@@ -153,7 +153,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
             im Formular bewusst nicht. */}
         <DateTimePicker
           label={t("orgasmReqStart")}
-          value={beginntAt}
+          value={beginsAt}
           onChange={(e) => setBeginntAt(e.target.value)}
           min={nowDefault}
         />
@@ -171,10 +171,10 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
           quick={DURATION_QUICK_HOURS.long}
           datetime={endsAt}
           onDatetimeChange={setEndsAt}
-          datetimeMin={beginntAt}
+          datetimeMin={beginsAt}
           // Der Nullpunkt der Dauer ist der Fenster-START, nicht „jetzt" — er steht als eigenes Feld
           // darüber, und „24 Stunden Zeit" ist eine Aussage über das Fenster.
-          anchorMs={() => fromDatetimeLocal(beginntAt, tz).getTime()}
+          anchorMs={() => fromDatetimeLocal(beginsAt, tz).getTime()}
           tz={tz}
           required
         >
@@ -190,7 +190,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
         <Select
           label={t("orgasmReqArt")}
           options={vorgabeOptions}
-          value={vorgegebeneArt}
+          value={requiredType}
           onChange={(e) => setVorgegebeneArt(e.target.value)}
           hint={t("orgasmReqArtHint")}
         />

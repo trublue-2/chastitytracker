@@ -164,7 +164,7 @@ bauen ihn um — wer sie vorzieht, riskiert das Strafbuch.
 **B6 (Folge-Aktionen)** ist der eigentliche Hebel: die Aufgabe löst an ihren Wendepunkten andere
 Direktiven aus. Alle Auslösepunkte existieren bereits als abgeleiteter Zustand, alle Aktionen als
 Dienst — es ist **kein neuer Mechanismus, nur eine Verdrahtung.** Das Prinzip „Direktive erzeugt
-Direktive" steht dreimal im Bestand (`VerschlussAnforderung.dauerH`, `scheduleCleaningRelockInspection`,
+Direktive" steht dreimal im Bestand (`VerschlussAnforderung.minDurationHours`, `scheduleCleaningRelockInspection`,
 `punishWithTask`).
 
 > **Der eine Punkt, an dem B6 scheitern würde:** der Zustand ist abgeleitet und kann rückwärts gehen.

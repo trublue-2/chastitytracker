@@ -20,9 +20,9 @@ export interface CreateVerschlussAnforderungParams {
   /** Relative deadline/duration in hours, used when endsAt is absent. */
   fristH?: number | null;
   /** ANFORDERUNG only: min wearing duration (h) → inherited by the auto-created SPERRZEIT on lock. */
-  dauerH?: number | null;
+  minDurationHours?: number | null;
   /** ANFORDERUNG only: absolute lock end (wall clock, ISO string or Date). Taken 1:1 as the
-   *  auto-created SPERRZEIT.endsAt on fulfill — a late lock does NOT shift it. Alternative to dauerH. */
+   *  auto-created SPERRZEIT.endsAt on fulfill — a late lock does NOT shift it. Alternative to minDurationHours. */
   lockEndsAt?: string | Date | null;
   deviceId?: string | null;
   cleaningAllowed?: boolean;
@@ -57,7 +57,7 @@ export function checkLockEnd(
 
 /** Die Felder EINER Anforderung, aus denen die mitgebrachte Sperrzeit entsteht. */
 export interface LockPeriodFromRequest {
-  dauerH: number | null;
+  minDurationHours: number | null;
   lockEndsAt: Date | null;
 }
 
@@ -65,7 +65,7 @@ export interface LockPeriodFromRequest {
  * Das Ende der Sperrzeit, die diese Anforderung mitbringt — `null` heisst: sie bringt keine mit.
  *
  * Zwei Wege, EINE Regel: ein absolutes Sperr-Ende (`lockEndsAt`, Wanduhr) gewinnt und bleibt fix,
- * egal wann die Sperre zustande kommt; sonst zählt `dauerH` ab `abZeitpunkt`. Was dieser Zeitpunkt
+ * egal wann die Sperre zustande kommt; sonst zählt `minDurationHours` ab `abZeitpunkt`. Was dieser Zeitpunkt
  * ist, entscheidet der Aufrufer und ist der einzige Unterschied zwischen den beiden Wegen, auf denen
  * eine Sperrzeit entsteht: beim Erfüllen ist es der Verschluss des Subs (`entryFulfilment.ts`), bei
  * einer terminierten Anforderung, die auf einen bereits verschlossenen Sub trifft, die Auslösung
@@ -73,7 +73,7 @@ export interface LockPeriodFromRequest {
  * 24h-Sperre wäre bei einem seit 30h verschlossenen Sub im Moment ihrer Entstehung schon abgelaufen.
  */
 export function lockPeriodEndFromRequest(a: LockPeriodFromRequest, abZeitpunkt: Date): Date | null {
-  return a.lockEndsAt ?? (a.dauerH ? new Date(abZeitpunkt.getTime() + a.dauerH * 60 * 60 * 1000) : null);
+  return a.lockEndsAt ?? (a.minDurationHours ? new Date(abZeitpunkt.getTime() + a.minDurationHours * 60 * 60 * 1000) : null);
 }
 
 /**
@@ -91,7 +91,7 @@ export async function createVerschlussAnforderung(
   params: CreateVerschlussAnforderungParams,
   actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
-  const { userId, art, message, endsAt, fristH, dauerH, lockEndsAt, deviceId, cleaningAllowed, delayMinutes, wirksamAbAt } = params;
+  const { userId, art, message, endsAt, fristH, minDurationHours, lockEndsAt, deviceId, cleaningAllowed, delayMinutes, wirksamAbAt } = params;
 
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
   if (art !== "ANFORDERUNG" && art !== "SPERRZEIT") {
@@ -131,9 +131,9 @@ export async function createVerschlussAnforderung(
   // Mindestdauer und absolutes Sperr-Ende schliessen einander aus — dieselbe Regel wie beim Ändern
   // (updateLockRequest). Beides zugleich hiesse: beim Erfüllen gewinnt stumm `lockEndsAt`, und die
   // Stundenangabe verschwindet wirkungslos.
-  if (dauerH != null && lockEndsAt != null) return serviceFail(400, "LOCK_DURATION_OR_END");
+  if (minDurationHours != null && lockEndsAt != null) return serviceFail(400, "LOCK_DURATION_OR_END");
 
-  // Absolutes Sperr-Ende (nur ANFORDERUNG, Alternative zu dauerH). Wird beim Fulfill 1:1 zur SPERRZEIT.
+  // Absolutes Sperr-Ende (nur ANFORDERUNG, Alternative zu minDurationHours). Wird beim Fulfill 1:1 zur SPERRZEIT.
   let lockEndsAtDate: Date | null = null;
   if (art === "ANFORDERUNG" && lockEndsAt) {
     lockEndsAtDate = new Date(lockEndsAt);
@@ -187,9 +187,9 @@ export async function createVerschlussAnforderung(
         });
       }
 
-      const effectiveDauerH = art === "ANFORDERUNG" ? (dauerH || null) : null;
+      const effectiveMinDurationHours = art === "ANFORDERUNG" ? (minDurationHours || null) : null;
       const effectiveCleaning = effectiveCleaningAllowed(cleaningAllowed, {
-        isLockPeriod: art === "SPERRZEIT", dauerH: effectiveDauerH, lockEndsAt: lockEndsAtDate,
+        isLockPeriod: art === "SPERRZEIT", minDurationHours: effectiveMinDurationHours, lockEndsAt: lockEndsAtDate,
       });
 
       return tx.verschlussAnforderung.create({
@@ -198,7 +198,7 @@ export async function createVerschlussAnforderung(
           art,
           message: message?.trim() || null,
           endsAt: endsAtDate,
-          dauerH: effectiveDauerH,
+          minDurationHours: effectiveMinDurationHours,
           lockEndsAt: lockEndsAtDate,
           deviceId: art === "ANFORDERUNG" ? (deviceId || null) : null,
           cleaningAllowed: effectiveCleaning,
@@ -216,7 +216,7 @@ export async function createVerschlussAnforderung(
 
   // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
   if (!wirksamAb) {
-    await sendVerschlussAnforderungNotifications({ userId, user, art, message, endsAtDate, dauerH, lockEndsAtDate, requestId: anforderung.id, actor });
+    await sendVerschlussAnforderungNotifications({ userId, user, art, message, endsAtDate, minDurationHours, lockEndsAtDate, requestId: anforderung.id, actor });
   }
 
   // Instant-Push: Heimdall re-pullt die Config (neue/geänderte Sperre) für eine LIVE Box sofort.
@@ -233,8 +233,8 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   art: "ANFORDERUNG" | "SPERRZEIT";
   message?: string | null;
   endsAtDate: Date | null;
-  dauerH?: number | null;
-  /** ANFORDERUNG mit absolutem Sperr-Ende (statt dauerH): fürs „Gesperrt bis" in Mail/Push. */
+  minDurationHours?: number | null;
+  /** ANFORDERUNG mit absolutem Sperr-Ende (statt minDurationHours): fürs „Gesperrt bis" in Mail/Push. */
   lockEndsAtDate?: Date | null;
   /** Die Zeile, auf die die Nachricht im Posteingang zeigt. */
   requestId: string;
@@ -251,7 +251,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
    */
   actor: MessageActor;
 }) {
-  const { userId, user, art, message, endsAtDate, dauerH, lockEndsAtDate, requestId, actor } = opts;
+  const { userId, user, art, message, endsAtDate, minDurationHours, lockEndsAtDate, requestId, actor } = opts;
 
   // Die Anforderungs-Nachricht des Keyholders wird NICHT mitkopiert: der Posteingang zeigt auf die
   // Direktive und liest sie beim Anzeigen frisch von dort. Eine spätere Korrektur über
@@ -288,8 +288,8 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     const deadlineHtml = endsAtDate
       ? `<p><strong>${t("lockUntilLabel")}</strong> ${formatDateTime(endsAtDate)}</p>`
       : "";
-    const dauerHtml = dauerH
-      ? `<p><strong>${t("lockMinWearLabel")}</strong> ${escHtml(formatDurationHours(dauerH, user.locale))}</p>`
+    const dauerHtml = minDurationHours
+      ? `<p><strong>${t("lockMinWearLabel")}</strong> ${escHtml(formatDurationHours(minDurationHours, user.locale))}</p>`
       : "";
     const sperrBisHtml = lockEndsAtDate
       ? `<p><strong>${t("lockedUntilLabel")}</strong> ${formatDateTime(lockEndsAtDate)}</p>`
@@ -370,8 +370,8 @@ export interface UpdateLockRequestParams {
   /** Frist zum Einschliessen (absolut). Kein `null`: eine Anforderung ohne Frist gibt es nicht. */
   endsAt?: Date;
   /** Mindest-Tragedauer (h) nach dem Einschliessen. Schliesst `lockEndsAt` aus. */
-  dauerH?: number | null;
-  /** Absolutes Sperr-Ende nach dem Einschliessen. Schliesst `dauerH` aus. */
+  minDurationHours?: number | null;
+  /** Absolutes Sperr-Ende nach dem Einschliessen. Schliesst `minDurationHours` aus. */
   lockEndsAt?: Date | null;
   deviceId?: string | null;
   cleaningAllowed?: boolean;
@@ -384,15 +384,15 @@ export interface UpdateLockRequestParams {
  * ANFORDERUNG nur, wenn aus ihr eine entsteht (Mindestdauer ODER absolutes Sperr-Ende). Ohne
  * Sperr-Vorgabe hätte es nichts zu erlauben und stünde als leeres Versprechen in der Zeile.
  */
-function effectiveCleaningAllowed(flag: boolean | null | undefined, spec: { isLockPeriod: boolean; dauerH: number | null; lockEndsAt: Date | null }): boolean {
-  return Boolean(flag && (spec.isLockPeriod || spec.dauerH !== null || spec.lockEndsAt !== null));
+function effectiveCleaningAllowed(flag: boolean | null | undefined, spec: { isLockPeriod: boolean; minDurationHours: number | null; lockEndsAt: Date | null }): boolean {
+  return Boolean(flag && (spec.isLockPeriod || spec.minDurationHours !== null || spec.lockEndsAt !== null));
 }
 
 /** Das Ergebnis von {@link mergeLockRequestPatch} — die Zeile, wie sie nach dem Patch aussieht. */
 export interface MergedLockRequest {
   message: string | null;
   endsAt: Date | null;
-  dauerH: number | null;
+  minDurationHours: number | null;
   lockEndsAt: Date | null;
   deviceId: string | null;
   cleaningAllowed: boolean;
@@ -410,18 +410,18 @@ export interface MergedLockRequest {
  * Mindestdauer bliebe wirkungslos.
  */
 export function mergeLockRequestPatch(
-  current: { message: string | null; endsAt: Date | null; dauerH: number | null; lockEndsAt: Date | null; deviceId: string | null; cleaningAllowed: boolean; wirksamAb: Date | null },
+  current: { message: string | null; endsAt: Date | null; minDurationHours: number | null; lockEndsAt: Date | null; deviceId: string | null; cleaningAllowed: boolean; wirksamAb: Date | null },
   patch: UpdateLockRequestParams,
 ): MergedLockRequest {
-  const dauerH = patch.dauerH !== undefined ? patch.dauerH : (patch.lockEndsAt != null ? null : current.dauerH);
-  const lockEndsAt = patch.lockEndsAt !== undefined ? patch.lockEndsAt : (patch.dauerH != null ? null : current.lockEndsAt);
+  const minDurationHours = patch.minDurationHours !== undefined ? patch.minDurationHours : (patch.lockEndsAt != null ? null : current.minDurationHours);
+  const lockEndsAt = patch.lockEndsAt !== undefined ? patch.lockEndsAt : (patch.minDurationHours != null ? null : current.lockEndsAt);
   return {
     message: patch.message !== undefined ? (patch.message?.trim() || null) : current.message,
     endsAt: patch.endsAt ?? current.endsAt,
-    dauerH,
+    minDurationHours,
     lockEndsAt,
     deviceId: patch.deviceId !== undefined ? patch.deviceId : current.deviceId,
-    cleaningAllowed: effectiveCleaningAllowed(patch.cleaningAllowed ?? current.cleaningAllowed, { isLockPeriod: false, dauerH, lockEndsAt }),
+    cleaningAllowed: effectiveCleaningAllowed(patch.cleaningAllowed ?? current.cleaningAllowed, { isLockPeriod: false, minDurationHours, lockEndsAt }),
     wirksamAb: patch.wirksamAb !== undefined ? patch.wirksamAb : current.wirksamAb,
   };
 }
@@ -450,7 +450,7 @@ export async function updateLockRequest(
   });
   if (!va || va.art !== "ANFORDERUNG") return serviceFail(404, "LOCK_REQUEST_NOT_FOUND");
   if (va.fulfilledAt || va.withdrawnAt) return serviceFail(400, "LOCK_REQUEST_NOT_EDITABLE");
-  if (patch.dauerH != null && patch.lockEndsAt != null) return serviceFail(400, "LOCK_DURATION_OR_END");
+  if (patch.minDurationHours != null && patch.lockEndsAt != null) return serviceFail(400, "LOCK_DURATION_OR_END");
 
   const now = new Date();
   const next = mergeLockRequestPatch(va, patch);
@@ -487,7 +487,7 @@ export async function updateLockRequest(
     await sendVerschlussAnforderungNotifications({
       userId: va.userId, user: va.user, art: "ANFORDERUNG",
       message: next.message, endsAtDate: next.endsAt,
-      dauerH: next.dauerH, lockEndsAtDate: next.lockEndsAt,
+      minDurationHours: next.minDurationHours, lockEndsAtDate: next.lockEndsAt,
       requestId: va.id,
       // Die Anforderung selbst nennt ihren ANORDNENDEN, nicht den, der sie vorgezogen hat — genau
       // wie auf dem Poller-Weg, der dieselbe Meldung verschickt. OHNE Ausweichen auf `actor`: eine
@@ -565,7 +565,7 @@ export async function carryOverLockPeriodOnAlreadyLocked(
   va: DueLockRequest,
   now: Date,
 ): Promise<{ lockPeriodId: string; endsAt: Date; message: string | null; createdBy: string | null } | null> {
-  // Ein Ende in der Vergangenheit trifft nur den absoluten Fall (`lockEndsAt`) — ein aus `dauerH`
+  // Ein Ende in der Vergangenheit trifft nur den absoluten Fall (`lockEndsAt`) — ein aus `minDurationHours`
   // gerechnetes liegt per Konstruktion vorn. Eine tote Sperre anzulegen hilft niemandem.
   const endsAt = lockPeriodEndFromRequest(va, now);
   if (!endsAt || endsAt <= now) return null;

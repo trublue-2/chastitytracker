@@ -23,7 +23,7 @@ einen Fall gebaut:
 
 | Bestehend | Was passiert |
 |---|---|
-| `VerschlussAnforderung.dauerH` | Die Anforderung erzeugt **beim Verschluss** selbsttätig eine Sperrzeit — relativ zum tatsächlichen Verschlusszeitpunkt |
+| `VerschlussAnforderung.minDurationHours` | Die Anforderung erzeugt **beim Verschluss** selbsttätig eine Sperrzeit — relativ zum tatsächlichen Verschlusszeitpunkt |
 | `scheduleCleaningRelockInspection` | Ein **Eintrag** (Wiederverschluss nach Reinigung) erzeugt selbsttätig eine Kontrolle |
 | `punishWithTask` | Ein **Urteil** erzeugt Aufgabe und Strafeintrag in einem Zug |
 

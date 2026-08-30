@@ -175,8 +175,8 @@ describe("mapActiveLockPeriod", () => {
 
 describe("mapOpenOrgasmusAnforderung", () => {
   const row = (beginnt: string, endet: string) => ({
-    art: "ANFORDERUNG", beginntAt: D(beginnt), endsAt: D(endet),
-    vorgegebeneArt: "RUINIERT", message: "heute Abend",
+    art: "ANFORDERUNG", beginsAt: D(beginnt), endsAt: D(endet),
+    requiredType: "RUINIERT", message: "heute Abend",
   });
 
   it("aktiv, sobald der Start erreicht ist", () => {
@@ -193,7 +193,7 @@ describe("mapOpenOrgasmusAnforderung", () => {
   it("in der Zukunft geplant: noch nicht aktiv, Restzeit zählt bis zum ENDE", () => {
     const o = mapOpenOrgasmusAnforderung(row("2026-07-10T15:00:00Z", "2026-07-10T18:00:00Z"), NOW, fmt)!;
     expect(o.active).toBe(false);
-    expect(o.remainingMinutes).toBe(360); // bis endsAt, nicht bis beginntAt
+    expect(o.remainingMinutes).toBe(360); // bis endsAt, nicht bis beginsAt
   });
 });
 
