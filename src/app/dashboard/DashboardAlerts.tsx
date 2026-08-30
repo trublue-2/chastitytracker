@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import { rowHoverCls } from "@/app/components/inputStyles";
 
 /** Die Anforderungen mit Frist — Kontrolle, Einschliessen, Orgasmus.
  *
@@ -59,10 +61,9 @@ export default async function DashboardAlerts({
 
   return (
     <DashboardBlock className="flex flex-col gap-4">
-      {/* NUR die nächste fällige — die Liste kommt dringendste zuerst. Zwei grosse Zahlen
+      {/* GROSS nur die nächste fällige — die Liste kommt dringendste zuerst. Zwei grosse Zahlen
           untereinander ergeben keine Rangfolge, sondern verdoppeln die Frage „was zuerst".
-          Dass es weitere gibt, verschweigt der Bildschirm trotzdem nicht: die Zeile darunter
-          sagt es, leise. */}
+          Die weiteren stehen darunter, leise, aber vollständig. */}
       {pendingInspections[0] && (
         <KontrolleBanner
           deadline={new Date(pendingInspections[0].deadline)}
@@ -75,11 +76,22 @@ export default async function DashboardAlerts({
           tz={tz}
         />
       )}
-      {pendingInspections.length > 1 && (
-        <p className="text-neben text-foreground-faint">
-          {t("moreInspections", { count: pendingInspections.length - 1 })}
-        </p>
-      )}
+      {/* Die weiteren offenen Kontrollen — kompakt, damit die Rangfolge oben erhalten bleibt, aber
+          jede MIT ihrem Ziel, ihrer Frist und ihrem eigenen Weg ins Formular. Eine blosse Zählzeile
+          stand hier und nannte nichts davon: für eine Kategorie-Kontrolle (Plug) war sie die
+          einzige Spur auf dem ganzen Dashboard, denn die Session-Liste führt nur KG und das
+          (+)-Sheet folgt ebenfalls nur der ersten. Wer sie übersah, verlor das Gerät an die
+          Eskalation. Der Code steckt in der `href` — das Formular zeigt ihn. */}
+      {pendingInspections.slice(1).map((k, i) => (
+        <Link key={i} href={k.href} className={`block ${rowHoverCls}`}>
+          <KontrolleBanner
+            deadline={new Date(k.deadline)}
+            target={k.target}
+            overdue={k.overdue}
+            variant="compact"
+          />
+        </Link>
+      ))}
 
       {offeneVerschlussAnf && (
         <LockRequestBanner

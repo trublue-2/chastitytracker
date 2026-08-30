@@ -6,7 +6,7 @@ import type { KeyholderSubBlockId } from "@/lib/dashboardBlockRegistry";
 import {
   activeVorgabeCached, activeWearSessionsCached, deviceCountCached, entriesCached,
   keyholderInspectionsCached, keyholderOrgasmRequestCached, keyholderPairsCached,
-  keyholderRunningSessionCached, keyholderLockPeriodCached, latestKgEntryCached, orgasmConfigCached,
+  keyholderRunningSessionCached, keyholderLockPeriodCached, latestKeyInBoxCached, latestKgEntryCached, orgasmConfigCached,
   orgasmEntriesCached, sessionListDataCached, taskCardsCached, userRowCached, wearCountsCached,
   wearingHoursCached, wearSessionRowsCached,
 } from "@/lib/dashboardData";
@@ -108,10 +108,13 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
         // Siehe `dashboardBlocks`: ohne den Träger-Zustand liesse sich „Riegel zu, obwohl niemand
         // verschlossen ist" nicht vom Normalfall unterscheiden.
         wearerLocked: await getIsLocked(ctx.subjectId),
+        // Und ohne den Schlüssel-Zustand widerspräche diese Karte der eigenen Übersicht der
+        // Keyholderin: `/admin` nimmt den Reisefall aus, hier fehlte er.
+        keyInBox: await latestKeyInBoxCached(ctx.subjectId),
       };
     },
     render: (data, { subjectId }) => heimdallEnabled() && data !== null && (
-      <BoxStatusCard userId={subjectId} cleaning={data.cleaning} wearerLocked={data.wearerLocked} />
+      <BoxStatusCard userId={subjectId} cleaning={data.cleaning} wearerLocked={data.wearerLocked} keyInBox={data.keyInBox} />
     ),
   }),
 

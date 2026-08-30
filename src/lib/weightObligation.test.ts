@@ -68,7 +68,7 @@ describe("missedWeightBlocks", () => {
     expect(blocks([], addDays(FROM, 9), { pausedDayKeys: alleTage })).toEqual([]);
   });
 
-  it("beginsAt nicht vor dem Stichtag", () => {
+  it("beginnt nicht vor dem Stichtag", () => {
     // Der Zeitraum umfasst nur zwei Tage — vor `fromDayKey` wird nichts geprüft, auch wenn davor
     // nie gemeldet wurde.
     expect(blocks([], addDays(FROM, 1))).toEqual([]);

@@ -137,6 +137,29 @@ export const latestKgEntryCached = cache(async (userId: string) =>
 );
 
 /**
+ * Schlüssel-Deklaration des LAUFENDEN Verschlusses — die zweite Hälfte, ohne die
+ * `boxBoltOpenDespiteLocked` den Reisefall (Träger behielt den Schlüssel, die Box bleibt zu Recht
+ * offen) als Versäumnis liest und dem Träger wochenlang „JETZT Knopf drücken!" zeigt.
+ *
+ * **Dieselbe Regel wie `getCurrentLockKeyInBox` (`queries.ts`), nur aus dem Speicher:** der jüngste
+ * KG-Eintrag IST der Lock-Zustand, und nur wenn der ein VERSCHLUSS ist, wurde überhaupt etwas über
+ * den Schlüssel erklärt. Über den jüngsten VERSCHLUSS zu suchen wäre eine ZWEITE Semantik — sie
+ * griffe durch ein späteres OEFFNEN hindurch und wendete die Erklärung eines längst beendeten
+ * Verschlusses an, während die Keyholder-Sichten über `queries.ts` bereits `null` sähen.
+ *
+ * Kostet nichts: `latestKgEntryCached` leitet aus den ohnehin geladenen Einträgen ab.
+ *
+ * ⚠ `/admin` (Keyholder-Übersicht) beantwortet dieselbe Frage für VIELE Träger auf einmal und tut
+ * es bis heute anders — `distinct` auf die jüngste VERSCHLUSS-Zeile, ohne ein späteres OEFFNEN zu
+ * beachten. Für einen gerade GEÖFFNETEN Träger können Übersicht und Detailsicht deshalb noch
+ * auseinanderlaufen. Zusammenführen heisst, dort eine Stapel-Fassung dieser Regel zu bauen.
+ */
+export const latestKeyInBoxCached = cache(async (userId: string) => {
+  const latest = await latestKgEntryCached(userId);
+  return latest?.type === KG_PAIR.close ? latest.keyInBox : null;
+});
+
+/**
  * Die Reinigungs-Regeln des Trägers: `at(zeitpunkt)` gibt die damals geltende Fassung, `rules` die
  * Form, die `buildPairs` und die Box-Karte erwarten. Begründung der Historisierung am Modell
  * `CleaningRuleChange`.
@@ -180,8 +203,14 @@ const inspectionsOf = cache(async (userId: string, nowMs: number, audience: Bloc
  * `cache()` um die Zeit herum löst es: der erste Aufrufer je Anfrage legt den Zeitpunkt fest, alle
  * weiteren erben ihn. Wer einen BESTIMMTEN Zeitpunkt braucht (Tests, Rückdatierung), ruft weiter
  * `subVisibleInspectionsCached` direkt — die Wahl bleibt, sie ist nur nicht mehr die Vorgabe.
+ *
+ * **`requestNowMs` ist deshalb DIE Uhr der Anfrage, nicht eine zweite daneben.** Die Seite muss ihr
+ * `now` daraus nehmen (`new Date(requestNowMs())`), sonst hat sie wieder zwei Zeitpunkte: das
+ * Layout wertet diesen hier aus, während es seine Abfragen zusammenstellt, die Seite käme
+ * Millisekunden später zu ihrem eigenen — zwei Schlüssel, und die teure `findMany` liefe erneut
+ * zweimal. Genau so war es nach der ersten Fassung, nur eine Ebene weiter oben.
  */
-const requestNowMs = cache(() => Date.now());
+export const requestNowMs = cache(() => Date.now());
 export const subVisibleInspectionsNow = (userId: string) =>
   subVisibleInspectionsCached(userId, requestNowMs());
 

@@ -343,7 +343,7 @@ export function LaufendeSessionCardMockDemo() {
 
         {/* ── Timeline: echte SessionEventRow-Komponenten ── */}
         <div className="divide-y divide-border-subtle">
-          {/* Verschluss (LockClosedIcon entry) */}
+          {/* Verschluss (Lock entry) */}
           <SessionEventRow
             icon={<LockClosedIcon size={18} className="text-lock" />}
             ev={{

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
 
 /**
  * Geteilter Saver für die Admin-Settings-Toggles: PATCH auf `url`.
@@ -34,7 +34,7 @@ export function useSettingsSave(url: string, { refresh = true }: { refresh?: boo
   async function save(patch: Record<string, unknown>): Promise<boolean> {
     setSaving(true);
     try {
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),

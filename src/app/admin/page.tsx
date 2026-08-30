@@ -76,8 +76,8 @@ export default async function AdminPage() {
   const userIds = users.map(u => u.id);
   const now = new Date();
 
-  // Bulk-fetch all data in 8 queries instead of 8×N
-  const [latestVerschluss, latestOeffnen, allKontrolle, allVerschlussAnf, allLockPeriods, allOrgasmusAnf, allBoxes, allKeyInBox] = await Promise.all([
+  // Bulk-fetch all data in 7 queries instead of 7×N
+  const [latestVerschluss, latestOeffnen, allKontrolle, allVerschlussAnf, allLockPeriods, allOrgasmusAnf, allBoxes] = await Promise.all([
     prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN", userId: { in: userIds } }, _max: { startTime: true } }),
     prisma.kontrollAnforderung.findMany({
@@ -107,17 +107,6 @@ export default async function AdminPage() {
           select: { userId: true, locked: true, reportedLocked: true, pendingCommand: true },
         })
       : [],
-    // Der Schlüssel-Zustand des jüngsten Verschlusses. Ohne ihn läse die Übersicht den Reisefall
-    // (Träger behielt den Schlüssel, Box bleibt zu Recht offen) als Versäumnis — siehe
-    // `boxBoltOpenDespiteLocked`. `distinct` liefert je Träger genau die neueste Zeile, eine Abfrage.
-    heimdallEnabled()
-      ? prisma.entry.findMany({
-          where: { type: "VERSCHLUSS", userId: { in: userIds } },
-          orderBy: { startTime: "desc" },
-          distinct: ["userId"],
-          select: { userId: true, keyInBox: true },
-        })
-      : [],
   ]);
 
   // Build lookup maps from groupBy results
@@ -130,6 +119,31 @@ export default async function AdminPage() {
     for (const r of rows) (m.get(r.userId) ?? m.set(r.userId, []).get(r.userId)!).push(r);
     return m;
   };
+  // Der Schlüssel-Zustand des LAUFENDEN Verschlusses. Ohne ihn läse die Übersicht den Reisefall
+  // (Träger behielt den Schlüssel, Box bleibt zu Recht offen) als Versäumnis — siehe
+  // `boxBoltOpenDespiteLocked`.
+  //
+  // DIESELBE Regel wie `getCurrentLockKeyInBox` und `latestKeyInBoxCached`: nur wer gerade
+  // verschlossen ist, hat überhaupt etwas über den Schlüssel erklärt. Hier stand einmal die
+  // jüngste VERSCHLUSS-Zeile ohne Rücksicht auf ein späteres OEFFNEN — für einen gerade geöffneten
+  // Träger widersprach die Übersicht damit seiner eigenen Detailseite und dem MCP.
+  //
+  // Und ausdrücklich NICHT über `distinct: ["userId"]`: Prisma schiebt DISTINCT auf SQLite nicht
+  // ins SQL. Die Abfrage las die GESAMTE Verschluss-Historie aller Träger (gemessen 153 ms bei
+  // 60 000 Zeilen, linear wachsend), um am Ende je Träger eine Zeile zu behalten — auf einer
+  // `force-dynamic`-Seite, bei jedem Aufruf. Der `groupBy` oben kennt die Zeitpunkte bereits,
+  // damit wird daraus eine index-gestützte Punktabfrage über (userId, type, startTime).
+  const laufendeVerschluesse = heimdallEnabled()
+    ? [...verschlussMap].flatMap(([userId, startTime]) => {
+        const lastO = oeffnenMap.get(userId);
+        return startTime && (!lastO || startTime > lastO)
+          ? [{ userId, type: "VERSCHLUSS", startTime }]
+          : [];
+      })
+    : [];
+  const allKeyInBox = laufendeVerschluesse.length > 0
+    ? await prisma.entry.findMany({ where: { OR: laufendeVerschluesse }, select: { userId: true, keyInBox: true } })
+    : [];
   // Ein Träger kann mehrere Boxen haben — eine einzige offene reicht für den Hinweis.
   const keyInBoxByUser = new Map(allKeyInBox.map((e) => [e.userId, e.keyInBox]));
   const boltOpenByUser = new Set(

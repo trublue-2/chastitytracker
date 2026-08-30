@@ -51,12 +51,12 @@ const boxRowCls = "flex items-center gap-2";
  *  KEINE Zeitzonen mehr: das einzige Datum dieser Karte war das Sperr-Ende, und das nennt jetzt der
  *  Zustands-Held — dort zweizonig, wo es hingehört. Hier stand es ein zweites Mal, in einer anderen
  *  Zone formatiert als dort. */
-export default function BoxStatusCard({ cleaning, userId, wearerLocked = true, keyInBox = null }: {
+export default function BoxStatusCard({ cleaning, userId, wearerLocked = true, keyInBox }: {
   cleaning?: BoxCleaningView | null;
   userId?: string;
   /** Liegt der Schlüssel in der Box? `false` = Reisefall (der Träger behielt ihn) — dann ist ein
    *  offener Riegel kein Versäumnis, sondern die verabredete Lage. Siehe `boxBoltOpenDespiteLocked`. */
-  keyInBox?: boolean | null;
+  keyInBox: boolean | null;
   /**
    * Trägt der Sub gerade? Die Karte sieht die Sitzung sonst nicht — und ohne sie liesse sich der
    * eine Fall nicht von seinem Gegenteil unterscheiden: „Riegel zu, obwohl niemand verschlossen

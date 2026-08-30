@@ -599,7 +599,7 @@ export const FM_REGISTRY: FmEntry[] = [
   }),
   s({
     model: "VerschlussAnforderung", field: "endsAt", domain: "sperrzeit", scope: "directive",
-    effect: "Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen.",
+    effect: "Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit", "Box", "Strafbuch"],
     anchor: "queries.ts:foldActiveLockPeriods",
   }),
@@ -1308,7 +1308,7 @@ export const FM_REGISTRY: FmEntry[] = [
   x("runtime", "PortalTokenUsed", "usedAt", "Wann eingelöst. Zusammen der Wiedereinspielungs-Schutz des Portal-Logins."),
   x("identity", "RateLimit", "key", "Zähler-Schlüssel, meist Route plus Client-IP."),
   x("runtime", "RateLimit", "count", "Versuche im laufenden Fenster."),
-  x("runtime", "RateLimit", "resetAt", "Wann das Fenster neu beginsAt."),
+  x("runtime", "RateLimit", "resetAt", "Wann das Fenster neu beginnt."),
 
   pk("OAuthClient"),
   x("identity", "OAuthClient", "clientId", "Kennung der verbundenen Anwendung."),

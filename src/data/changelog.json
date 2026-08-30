@@ -7333,7 +7333,7 @@
       {
         "type": "chore",
         "text": {
-          "de": "OeffnenFormCore-Props entkrampft: reinigung (erlaubt/maxMinuten/maxProTag/usedToday) und sperrzeit (endetAt/unbefristet) jetzt als strukturierte Objekte statt acht flacher Props",
+          "de": "OeffnenFormCore-Props entkrampft: reinigung (erlaubt/maxMinuten/maxProTag/heuteAnzahl) und sperrzeit (endetAt/unbefristet) jetzt als strukturierte Objekte statt acht flacher Props",
           "en": "Untangled OeffnenFormCore props: cleaning (allowed/maxMinutes/maxPerDay/countToday) and lockPeriod (endsAt/indefinite) are now structured objects instead of eight flat props"
         }
       },

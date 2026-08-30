@@ -97,7 +97,7 @@ export default function MessageFilterBar({
           Sie waren erst gesperrt, und das war in beide Richtungen falsch: ein `<select>` lässt sich
           mit `aria-disabled` gar nicht sperren, also verwarf der Handler die Änderung — React stellte
           den alten Wert wieder her, und die Auswahl sprang dem Nutzer kommentarlos zurück. Seit
-          `MessageList.loadLatest` einen Wechsel während eines laufenden Abrufs NACHSTELLT statt ihn
+          `MessageList.load` einen Wechsel während eines laufenden Abrufs NACHSTELLT statt ihn
           zu verwerfen, gibt es nichts mehr zu sperren. Dass gerade geladen wird, sagt das `aria-busy`
           der Leiste. */}
       <Select

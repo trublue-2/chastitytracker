@@ -470,7 +470,7 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
     // endsAtDate<=now (B-01) — sonst könnte ein explizites endsAt vor beginsAtDate hier fälschlich als
     // "würde gelingen" durchgehen, obwohl der echte Commit mit ORGASM_END_BEFORE_START ablehnt.
     // Gegen den AUSLÖSE-Zeitpunkt, wie der Dienst: ein Fenster, das vor seiner eigenen Zustellung
-    // endsAtDate, kommt beim Sub als bereits verstrichene Frist an.
+    // endet, kommt beim Sub als bereits verstrichene Frist an.
     const trigger = computeDelayedTrigger(new Date(), { delayMinutes: args.delayMinutes, wirksamAbAt: args.scheduledAt ? parseIsoDate(args.scheduledAt, "scheduledAt") : null });
     const problem = endsAtDate <= beginsAtDate ? "ORGASM_END_BEFORE_START" : (checkOrgasmWindowEnd(endsAtDate, trigger.wirksamAb ?? new Date()) ?? undefined);
     return dryRunPreview("request_orgasm", problem, { art: args.art, beginsAt: iso(beginsAtDate)!, endsAt: iso(endsAtDate)!, requiredType: args.requiredType ?? null, openingAllowed: !!args.openingAllowed, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });

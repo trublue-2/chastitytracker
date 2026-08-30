@@ -17,11 +17,15 @@ export const WORLD_PREF_KEY = "world";
  * Die zuletzt gültige Farbwelt für den NATIVEN Sperrbildschirm hinterlegen.
  *
  * Der Sperrbildschirm der iOS-Hülle (`ios/App/App/AppDelegate.swift`, `LockScreenView`) liegt vor
- * der WebView. **Diese Datei steht NICHT im Repo** — `/ios/` ist per `.gitignore` ausgenommen, das
- * Xcode-Projekt erzeugt `npx cap add ios` lokal. Wer den Schlüsselnamen unten ändert, bricht also
- * eine Verbindung, die hier weder ein Compiler noch ein Test sieht. Der Sperrbildschirm er zeichnet, bevor überhaupt eine Seite geladen ist, und hat weder Sitzung noch
+ * der WebView. Er zeichnet, bevor überhaupt eine Seite geladen ist, und hat weder Sitzung noch
  * Netz. Er kann die Welt also nicht ERFRAGEN — sie muss beim letzten Mal hinterlegt worden sein.
  * Auf iOS liest er den Wert als `UserDefaults.standard.string(forKey: "CapacitorStorage.world")`.
+ *
+ * **Die Gegenstelle liegt im Repo** (`ios/App/App/AppDelegate.swift`) — sie ist seit dem v6-Zweig
+ * eingecheckt, und `.gitignore` nimmt nur noch `/android/` aus. Wer den Schlüsselnamen unten
+ * ändert, muss sie also mitziehen; ein Compiler oder Test verbindet die beiden nicht. Dieser
+ * Absatz behauptete bis v6 das Gegenteil — er stammte aus der Zeit, als `npx cap add ios` das
+ * Xcode-Projekt nur lokal erzeugte —, und wer ihm glaubte, suchte die Gegenstelle gar nicht erst.
  *
  * **Der Wert ist damit ein Gedächtnis, keine Auskunft.** Öffnet die Keyholderin den Verschluss,
  * während die App geschlossen ist, zeigt der Sperrbildschirm beim nächsten Start noch Grün — bis

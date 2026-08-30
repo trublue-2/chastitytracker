@@ -77,8 +77,17 @@ const endableLockPeriods = (userId: string, now: Date) => ({
 });
 
 export interface ReleaseNowPreview {
-  /** Grund, warum gerade nicht aufgeschlossen werden kann — `null` = es geht. */
-  blockedReason: "NOT_LOCKED" | null;
+  /**
+   * Grund, warum gerade nicht aufgeschlossen werden kann — `null` = es geht.
+   *
+   * Der Code der SCHNITTSTELLE, nicht der intern geworfene: `createOeffnenEntryTx` wirft
+   * `NOT_LOCKED`, die Fehler-Tabelle unten übersetzt das für den Aufrufer zu `USER_NOT_LOCKED`.
+   * Meldete die Vorschau den internen Code, benennte sie dieselbe Absage anders als der Vollzug —
+   * und schlimmer: `NOT_LOCKED` existiert im `errors`-Namensraum mit TRÄGER-Text („Reload the
+   * page…"), den ein Agent der Keyholderin vorlegte. `serviceErrorCodes.test.ts` verbietet genau
+   * diese Vermischung.
+   */
+  blockedReason: "USER_NOT_LOCKED" | null;
   /** Wie viele aktive Sperrzeiten der Knopf beenden würde. */
   endingLockPeriods: number;
   /** Gibt es überhaupt eine Box, die ein Kommando bekommen könnte? */
@@ -102,7 +111,7 @@ export async function previewReleaseNow(userId: string): Promise<ReleaseNowPrevi
     getBoxFormContext(userId),
   ]);
   return {
-    blockedReason: locked ? null : "NOT_LOCKED",
+    blockedReason: locked ? null : "USER_NOT_LOCKED",
     endingLockPeriods,
     opensBox: box.boxConfirm,
   };

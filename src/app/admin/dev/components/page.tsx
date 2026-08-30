@@ -183,7 +183,7 @@ export default async function ComponentsShowcase() {
                 <p className="text-xs text-foreground-muted">Nur Border</p>
               </Card>
               <Card variant="semantic" semantic="lock">
-                <p className="text-sm font-medium text-lock-text">Semantic (LockClosedIcon)</p>
+                <p className="text-sm font-medium text-lock-text">Semantic (Lock)</p>
                 <p className="text-xs text-lock-text">Farbiger Hintergrund</p>
               </Card>
               <Card variant="interactive">
@@ -387,7 +387,7 @@ export default async function ComponentsShowcase() {
           <ThemePairClient component={LocaleSwitcherDemo} />
         </Section>
 
-        <Section title="UserContextBar" description="Admin: User + LockClosedIcon-Status + User-Wechsel (sticky, hier contained).">
+        <Section title="UserContextBar" description="Admin: User + Lock-Status + User-Wechsel (sticky, hier contained).">
           <ThemePairClient component={UserContextBarDemo} />
         </Section>
 
