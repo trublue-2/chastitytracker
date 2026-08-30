@@ -440,6 +440,13 @@ export const FM_CAPABILITIES: FmCapability[] = [
     routes: ["/api/box"], tools: ["get_box_state"],
   }),
   c({
+    id: "box-bolt-gate", mechanic: "Box", title: "Verschluss an den Riegel binden",
+    what: "Ob der Verschluss des Trägers erst gilt, wenn die Box „Riegel zu\" meldet — bis dahin ist sein Eintrag nur der Aufruf.",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/users/[id]"], tools: ["set_box"],
+    note: "Vorgabe aus; sichtbar nur, wo eine Box gemeldet hat. Das ABSCHALTEN vollzieht einen gerade wartenden Aufruf sofort — das ist zugleich der Ausweg, wenn die Box nicht mehr meldet. Details: docs/riegel-konzept.md.",
+  }),
+  c({
     id: "box-relock", mechanic: "Box", title: "Box wieder verriegeln",
     what: "Löst das Verriegeln nach einer Reinigungspause aus.",
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/box/relock"],

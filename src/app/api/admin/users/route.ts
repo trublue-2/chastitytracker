@@ -6,6 +6,7 @@ import { passwordErrorCode, isValidEmail } from "@/lib/constants";
 import { ensureKgCategory } from "@/lib/deviceCategories";
 import { ensureNotificationPreferences } from "@/lib/notificationPrefs";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
+import { latestKgTimesByUser } from "@/lib/queries";
 
 export async function GET() {
   const err = await requireAdminApi();
@@ -18,20 +19,7 @@ export async function GET() {
 
   // Two aggregate queries instead of one per user.
   const userIds = users.map((u) => u.id);
-  const [lastVerschluss, lastOeffnen] = await Promise.all([
-    prisma.entry.groupBy({
-      by: ["userId"],
-      where: { userId: { in: userIds }, type: "VERSCHLUSS" },
-      _max: { startTime: true },
-    }),
-    prisma.entry.groupBy({
-      by: ["userId"],
-      where: { userId: { in: userIds }, type: "OEFFNEN" },
-      _max: { startTime: true },
-    }),
-  ]);
-  const vMap = new Map(lastVerschluss.map((r) => [r.userId, r._max.startTime]));
-  const oMap = new Map(lastOeffnen.map((r) => [r.userId, r._max.startTime]));
+  const { lockedAt: vMap, openedAt: oMap } = await latestKgTimesByUser(userIds);
   const usersWithStatus = users.map((u) => {
     const vTime = vMap.get(u.id);
     const oTime = oMap.get(u.id);

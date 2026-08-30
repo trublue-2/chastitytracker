@@ -73,6 +73,16 @@ There is **no** sub-facing command route. The box has no separate controls: it f
   two-way: a live box gets it instantly over MQTT (`lib/heimdallNotify.ts` →
   Heimdall `/api/tracker/notify`), a sleeping one pulls it on its next `.../status`
   sync, where the tracker returns and clears it (consume-on-read; no ack).
+- **Bolt-gated lock (box → entry), opt-in per wearer:** with
+  `User.lockRequiresBolt` on, that same `VERSCHLUSS` entry is only the **call**.
+  It is written with `boltConfirmedAt: null` and is invisible to every derivation
+  (lock state, sessions, statistics, penalty book) until the box reports the bolt
+  shut — `BoxEvent LOCKED` or a `status` push with `reportedLocked: true`,
+  whichever arrives first. That report completes it (`lib/lockCommit.ts`):
+  start time, fulfilment of lock requests, the re-lock inspection and the
+  keyholder notification all happen then, not at the call. The keyholder's switch
+  is also the way out of a dead box: turning it off completes a waiting call.
+  Full rationale in [riegel-konzept.md](riegel-konzept.md).
 - **Lock-period enforcement (tracker → box):** Heimdall pulls the active keyholder
   lock period via `.../config` and folds `endetAt` into its `lockUntil`. This is a
   **standing order**: the box re-derives "should I be closed?" from it on every
@@ -225,7 +235,8 @@ This is an MVP. Not yet implemented:
   claims the bolt will follow just because a window is open — it only ever
   predicts a hold from the box's own reported `lockUntil`.
 - **Multi-box per user** — the schema allows it (`@@unique([userId, boxId])`), but
-  `get_box_state` only considers the most recently updated box.
+  `get_box_state` only considers the most recently updated box. For the bolt gate
+  the first box to report the bolt wins, and any box reporting it fresh counts.
 - **No command ack** — commands are consume-on-read; idempotency is the sub
   re-issuing.
 

@@ -23,6 +23,10 @@ export interface SegmentEntry {
   id: string;
   type: string;
   startTime: Date;
+  /** Siehe `Entry.boltConfirmedAt`. PFLICHTFELD aus demselben Grund wie `LockEntry.keyInBox`: wäre
+   *  es optional, könnte ein Select die Spalte weglassen und ein noch gar nicht vollzogener
+   *  Verschluss stünde in den Segmenten. */
+  boltConfirmedAt: Date | null;
   oeffnenGrund?: string | null;
   kontrollCode?: string | null;
   verifikationStatus?: string | null;

@@ -328,9 +328,11 @@ describe("getEntryNeighbors", () => {
     const result = await getEntryNeighbors("u1", startTime, ["WEAR_BEGIN", "WEAR_END"], tx);
 
     expect(result).toEqual({ prev: { type: "WEAR_BEGIN" }, next: null });
-    expect(findFirst).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      where: expect.objectContaining({ startTime: { lte: startTime } }),
-    }));
+    // Die Bedingungen liegen seit dem Riegel-Gate in einem `AND` — `effectiveEntryWhere` hängt den
+    // „nicht schwebend"-Zweig daneben, statt ein vorhandenes `OR` zu überschreiben.
+    expect(findFirst.mock.calls[0][0].where.AND[0]).toEqual(
+      expect.objectContaining({ startTime: { lte: startTime } }),
+    );
   });
 
   it("scoped auf categoryId und schliesst excludeId aus", async () => {
@@ -343,9 +345,14 @@ describe("getEntryNeighbors", () => {
       excludeId: "entry1",
     });
 
-    expect(findFirst).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      where: expect.objectContaining({ device: { categoryId: "cat1" }, id: { not: "entry1" } }),
-    }));
+    expect(findFirst.mock.calls[0][0].where.AND[0]).toEqual(
+      expect.objectContaining({ device: { categoryId: "cat1" }, id: { not: "entry1" } }),
+    );
+    // Und der schwebende Aufruf bleibt auch hier draussen: die Nachbar-Suche muss dieselbe Kette
+    // sehen wie `getLatestKgEntry`, sonst widersprechen sich zwei Guards desselben Handlers.
+    expect(findFirst.mock.calls[0][0].where.AND[1]).toEqual({
+      OR: [{ type: { not: "VERSCHLUSS" } }, { boltConfirmedAt: { not: null } }],
+    });
   });
 });
 // ─── Bildersafe-Gate: isOpeningPermittedNow + isCodePhotoRevealed ──────────

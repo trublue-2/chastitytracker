@@ -26,6 +26,10 @@ interface Props {
   open: boolean;
   onClose: () => void;
   isLocked: boolean;
+  /** Wartet ein Verschluss-AUFRUF auf den Riegel (docs/riegel-konzept.md)? Dann ist „Verschluss"
+   *  nicht wählbar — die Route lehnte einen zweiten mit `LOCK_ALREADY_PENDING` ab, und ein Weg, der
+   *  in eine Absage führt, ist schlimmer als keiner. Nur die Träger-Sicht kennt den Fall. */
+  lockCallPending?: boolean;
   /** Non-KG categories with their active-session state. Empty/undefined when feature flag is off. */
   categoryRows?: NewEntryCategoryRow[];
   /** Bildersafe-Instanz: die Schlüsselbox-Code-Aktionen (versiegeln + anzeigen) einblenden. */
@@ -130,7 +134,7 @@ function SheetActionRow({
   );
 }
 
-export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = [], bildersafe = false, weight = false, adminUserId, openInspection }: Props) {
+export default function NewEntrySheet({ open, onClose, isLocked, lockCallPending = false, categoryRows = [], bildersafe = false, weight = false, adminUserId, openInspection }: Props) {
   const t = useTranslations("newEntry");
   const tw = useTranslations("wearForm");
   // Das Blatt schliesst erst, wenn die Seite wirklich gewechselt hat — nicht schon beim Tippen.
@@ -143,8 +147,8 @@ export default function NewEntrySheet({ open, onClose, isLocked, categoryRows = 
       icon: actionIcon("VERSCHLUSS"),
       label: t("lock"),
       desc: t("lockSubtitle"),
-      disabled: isLocked,
-      disabledText: t("lockDisabled"),
+      disabled: isLocked || lockCallPending,
+      disabledText: lockCallPending ? t("lockPending") : t("lockDisabled"),
       color: "text-lock",
       href: `${base}/verschluss`,
     },

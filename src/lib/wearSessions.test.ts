@@ -16,7 +16,7 @@ const COLLAR = { id: "d-collar", name: "Ali-Collar", categoryId: "cat-collar" };
 
 let seq = 0;
 const e = (type: string, time: string, device: object | null) => ({
-  id: `e${++seq}`, type, startTime: new Date(time), device,
+  id: `e${++seq}`, type, startTime: new Date(time), boltConfirmedAt: null, device,
 });
 
 /** Entries kommen aus der DB absteigend (jüngste zuerst) — genau so füttern wir sie. */

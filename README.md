@@ -485,6 +485,10 @@ default and not required for a standard install:
   electronic key box that *physically enforces* lock periods (`hardwareEnforced`).
   Covers the Heimdall-server bridge, the integration endpoints, `HEIMDALL_SYNC_SECRET`,
   the command/status lifecycle, and current limitations.
+- **[Der Riegel entscheidet](docs/riegel-konzept.md)** — optional per wearer: a
+  `VERSCHLUSS` entry becomes the *call* to close the box, and only the bolt report
+  makes it count. Covers the decisions, the two chokepoints it hangs on, and the
+  keyholder's switch (which doubles as the way out of a dead box).
 
 ## Project Structure
 

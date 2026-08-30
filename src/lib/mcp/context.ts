@@ -4,9 +4,10 @@ import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/l
 import { autoKontrolleSettingsFromUser, autoInspectionsView, type AutoInspectionsView } from "@/lib/autoKontrolleService";
 import { weightReleaseStatus } from "@/lib/weightReleaseService";
 import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_SELECT } from "@/lib/cleaningService";
-import { getActiveLockPeriod, cleaningWindowBindingStatus, type WindowsBindingReason } from "@/lib/queries";
+import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/queries";
 import { type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 import { getOffenseRules } from "@/lib/offenseRulesService";
+import { heimdallEnabled } from "@/lib/constants";
 
 /** Kontext & Kalender (explain_model §13) — wiederkehrender Wochen-Kontext, Einzeltermine,
  *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant. MCP-only, additiv. */
@@ -124,6 +125,22 @@ export interface ContextResult extends Envelope {
     autoMarkEnabled: boolean;
     autoMarkDelayMinutes: number;
   };
+  /**
+   * Die Schlüsselbox-Einstellungen — `null`, wenn die Instanz gar keine Box führt.
+   *
+   * `requireBolt` ist die Regel aus docs/riegel-konzept.md: sein „Verschlossen" ist dann erst der
+   * AUFRUF an die Box, und verschlossen ist er, wenn sie den Riegel meldet. Umgelegt wird sie mit
+   * `set_box`; den Zustand der Box selbst liefert `get_box_state`.
+   *
+   * `lockCallWaitingSince` ist die Zahl, die im Zweifel zählt: steht sie seit Stunden, drückt
+   * niemand den Knopf — dann ist entweder die Box tot oder der Träger nicht dort.
+   */
+  box: {
+    requireBolt: boolean;
+    /** Hat für diesen Träger überhaupt eine Box gemeldet? Ohne sie wartet nichts auf einen Riegel. */
+    hasBox: boolean;
+    lockCallWaitingSince: string | null;
+  } | null;
   recurringContext: ReturnType<typeof recurringView>[];
   appointments: ReturnType<typeof apptView>[];
 }
@@ -136,7 +153,18 @@ const contextUserSelect = {
   autoKontrolleNurBeiSperre: true,
   inspectionReminderEnabled: true, inspectionReminderDelayMinutes: true,
   inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
+  lockRequiresBolt: true,
 } as const;
+
+/** Box-Bestand und wartender Aufruf — die Lese-Seite zu `set_box` (docs/riegel-konzept.md).
+ *  Der Schalter selbst kommt aus der ohnehin geladenen User-Zeile. */
+export async function loadBoxSettings(userId: string) {
+  const [hasBox, waitingSince] = await Promise.all([
+    prisma.boxStatus.count({ where: { userId } }),
+    pendingLockCallAt(userId),
+  ]);
+  return { hasBox: hasBox > 0, lockCallWaitingSince: waitingSince?.toISOString() ?? null };
+}
 
 /** Liefert HealthHold + Auto-Kontroll-Einstellungen + Reinigungs-Regeln + Wochen-Kontext + anstehende
  *  Termine (ab jetzt). Throws bei unbekanntem User. */
@@ -157,7 +185,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     gte: parseIsoDate(opts.appointmentsFrom, "appointmentsFrom") ?? now,
     ...(apptTo ? { lte: apptTo } : {}),
   };
-  const [healthHold, recurring, appts, cleaningUsedTodayCount, lockPeriod, offenseRules, release] = await Promise.all([
+  const [healthHold, recurring, appts, cleaningUsedTodayCount, lockPeriod, offenseRules, release, box] = await Promise.all([
     loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: apptWhen }, orderBy: { when: "asc" } }),
@@ -168,6 +196,8 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     // hier wäre genau die Trennung, die er verhindern soll.
     getOffenseRules(userId, now),
     weightReleaseStatus(userId, now),
+    // Führt die Instanz keine Box, wird gar nicht gefragt — `null` ist dann die ganze Antwort.
+    heimdallEnabled() ? loadBoxSettings(userId) : Promise.resolve(null),
   ]);
 
   // Auto-Kontroll-Einstellungen + Reinigung über die geteilten Helfer der jeweiligen Services.
@@ -207,6 +237,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
       remainingKg: release.remainingKg,
       reason: release.reason,
     },
+    box: box && { requireBolt: user.lockRequiresBolt, ...box },
     recurringContext: recurring.map(recurringView),
     appointments: appts.map((a) => apptView(a, iso)),
   };

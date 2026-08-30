@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-99 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+100 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -155,6 +155,7 @@ Steckbrief: [60-box.md](60-box.md)
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
 | **Box-Zustand ansehen** | Verriegelung (Soll und Ist), Akku, Riegelstellung, letzter Kontakt und die Vorwarnungen der Failsafes. | Sub, Keyholder (UI), Keyholder (MCP) | App (Träger), App (Keyholder), MCP | `/api/box` `get_box_state` |
+| **Verschluss an den Riegel binden** | Ob der Verschluss des Trägers erst gilt, wenn die Box „Riegel zu" meldet — bis dahin ist sein Eintrag nur der Aufruf. <br>*Vorgabe aus; sichtbar nur, wo eine Box gemeldet hat. Das ABSCHALTEN vollzieht einen gerade wartenden Aufruf sofort — das ist zugleich der Ausweg, wenn die Box nicht mehr meldet. Details: docs/riegel-konzept.md.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]` `set_box` |
 | **Box wieder verriegeln** | Löst das Verriegeln nach einer Reinigungspause aus. | Sub | App (Träger) | `/api/box/relock` |
 | **Gegenstelle für die Box** | Liefert der Box ihre Konfiguration und nimmt Zustandsmeldungen und Ereignisse entgegen. <br>*Der Tracker konfiguriert die Box nicht — Schwellen und Failsafes kommen von dort.* | System | Gegenstelle | `/api/integration/box/config` `/api/integration/box/status` `/api/integration/box/event` |
 | **Siegel im Foto erkennen** | Prüft, ob das Siegel auf dem Bild unversehrt und lesbar ist. | System | läuft von selbst | `/api/detect-seal` |

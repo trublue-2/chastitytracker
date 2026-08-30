@@ -7,6 +7,8 @@ import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, ge
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { applyEntryFulfilment } from "@/lib/entryFulfilment";
+import { boltFieldsFor } from "@/lib/lockPending";
+import { findPendingLockTx } from "@/lib/lockCommit";
 import { notifyControllersAboutEntry } from "@/lib/entryNotify";
 
 export async function POST(req: NextRequest) {
@@ -65,6 +67,15 @@ export async function POST(req: NextRequest) {
         if (next && next.type === type) throw entryGuardError("INVALID_ORDER");
 
         if (type === "VERSCHLUSS" && prev?.type === "VERSCHLUSS") throw entryGuardError("ALREADY_LOCKED");
+        // Ein wartender Verschluss-AUFRUF des Trägers zählt für die Nachbar-Suche bewusst nicht als
+        // Verschluss — er darf hier trotzdem nicht überschrieben werden: die Keyholderin trüge einen
+        // zweiten ein, die Box meldete danach den Riegel, und der Vollzug setzte einen ZWEITEN
+        // Verschluss unmittelbar hinter ihren — zwei gleichartige Einträge in Folge, also genau die
+        // verwaiste Anomalie, die `INVALID_ORDER` verhindern soll. Sie hat zwei Wege: den Schalter
+        // umlegen (das vollzieht den Aufruf) oder ihn vom Träger zurücknehmen lassen.
+        if (type === "VERSCHLUSS" && await findPendingLockTx(tx, userId)) {
+          throw entryGuardError("LOCK_ALREADY_PENDING");
+        }
 
         if (type === "OEFFNEN") {
           if (!prev || prev.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
@@ -92,6 +103,11 @@ export async function POST(req: NextRequest) {
           deviceId: DEVICE_BEARING_TYPES.includes(type)
             ? (deviceId || null)
             : null,
+          // Der Keyholder-Pfad wartet NIE auf den Riegel (docs/riegel-konzept.md): sie trägt nach,
+          // oft rückdatiert, und ein Riegel, der zu diesem Zeitpunkt zufiele, gibt es nicht. Ohne
+          // diese Zeile bliebe JEDER von ihr erfasste Verschluss dauerhaft schwebend — auf jeder
+          // Instanz, auch ganz ohne Box.
+          ...boltFieldsFor(type, entryTime),
         },
       });
 

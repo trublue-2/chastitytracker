@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.0.1",
+    "date": "2026-08-30",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Verschluss kann jetzt am Riegel der Box hängen: die Keyholderin schaltet es je Träger ein, und dein Eintrag ist dann erst der Aufruf — verschlossen bist du, sobald die Box „Riegel zu“ meldet.",
+          "en": "A lock can now hang on the box's bolt: your keyholder enables it per wearer, and your entry is then only the call — you are locked once the box reports the bolt shut."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.0",
     "date": "2026-08-27",
     "changes": [

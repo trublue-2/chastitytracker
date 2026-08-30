@@ -121,6 +121,9 @@ export interface TrackingEntry {
   id: string;
   type: string;
   startTime: Date;
+  /** Siehe `Entry.boltConfirmedAt` — Pflichtfeld, damit kein Select den schwebenden Verschluss
+   *  durchlässt (dieselbe Begründung wie bei `keyInBox`). */
+  boltConfirmedAt: Date | null;
   oeffnenGrund: string | null;
   orgasmusArt: string | null;
   kontrollCode: string | null;
@@ -168,7 +171,7 @@ export async function loadTrackingData(userId: string): Promise<{ entries: Track
       where: { userId },
       orderBy: { startTime: "desc" },
       select: {
-        id: true, type: true, startTime: true, oeffnenGrund: true, orgasmusArt: true,
+        id: true, type: true, startTime: true, boltConfirmedAt: true, oeffnenGrund: true, orgasmusArt: true,
         kontrollCode: true, verifikationStatus: true,
         verifikationReason: true, verifikationReasonDetected: true,
         deviceCheck: true, deviceCheckNote: true, deviceCheckExpected: true, keyInBox: true,

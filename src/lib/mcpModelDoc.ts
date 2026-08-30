@@ -62,6 +62,14 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   oder er unterlässt ihn. Beide menschlichen Sichten warnen darauf; du siehst dasselbe Feld. Nicht
   zu verwechseln mit \`hardwareEnforcedReason: "reported-open"\`, das bei JEDEM offenen Riegel steht,
   auch bei einem völlig legitimen. Der Reisefall (Schlüssel beim Sub) ist ausgenommen.
+- **Der Riegel entscheidet** (nur wenn \`get_context.box.requireBolt\` an ist, umlegbar mit
+  \`set_box\`): sein „Verschlossen" ist dann bloss der AUFRUF an die Box. Verschlossen ist er, wenn
+  sie den Riegel meldet — bis dahin läuft NICHTS an: keine Sperrzeit aus einer Anforderung, keine
+  erfüllte Anforderung, keine Tragezeit, und die Wiederverschluss-Frist nach einer Reinigungspause
+  läuft weiter. Für dich sieht er in dieser Zeit aus wie offen, obwohl er gehandelt hat — deshalb
+  steht in \`get_box_state\` (und im Dashboard) \`lockCallWaitingSince\`. Steht es seit Stunden,
+  drückt niemand den Knopf: ist die Box tot, ist \`set_box requireBolt:false\` der Ausweg — es
+  vollzieht den wartenden Aufruf mit dem Zeitpunkt des Umlegens.
 - **\`failsafeWarnings\`** kündigt die beiden Sicherheits-Failsafes an, BEVOR sie zuschlagen: wie lange
   die Box schon ohne Serverkontakt ist und wann sie deshalb von selbst aufgeht (\`offlineOpen\`), bzw.
   wie nah der Akku an der Schwelle ist (\`lowBatteryOpen\`). Nur diese beiden — eine scharfgestellte

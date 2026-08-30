@@ -123,12 +123,15 @@ const LIVE_THRESHOLD_MS = 2 * 60_000;
 /**
  * Meldet sich die Box gerade? — als WERT, nicht als Textvergleich.
  *
+ * Nimmt beide Formen des Zeitpunkts — den ISO-String der Karte und das `Date` aus Prisma; dieselbe
+ * Bequemlichkeit wie bei {@link BoxFailsafeInput}, damit niemand für den Aufruf serialisiert.
+ *
  * Eine Aufrufstelle wollte wissen, ob die Frische überhaupt erwähnenswert ist, und verglich dafür
  * `boxFreshnessLabel(...) === t("live")`. Das ist derselbe Griff, an dem die Akku-Stufe gescheitert
  * ist: er hält nur, solange das Label nie einen Zusatz anhängt. `boxFreshnessLabel` benutzt diese
  * Funktion jetzt selbst, damit die beiden gar nicht auseinanderlaufen können.
  */
-export function boxIsLive(lastSyncAt: string | null, now: number): boolean {
+export function boxIsLive(lastSyncAt: string | Date | null, now: number): boolean {
   if (!lastSyncAt) return false;
   return Math.max(0, now - new Date(lastSyncAt).getTime()) < LIVE_THRESHOLD_MS;
 }

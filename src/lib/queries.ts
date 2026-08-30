@@ -4,6 +4,7 @@ import type { OeffnenGrund, EntrySource } from "@/lib/constants";
 import { LOCK_ENDED_REASON, heimdallEnabled } from "@/lib/constants";
 import { activeCleaningWindow, parseCleaningWindows } from "@/lib/cleaningService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
+import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, effectiveEntryWhere } from "@/lib/lockPending";
 import { APP_TZ } from "@/lib/utils";
 
 /**
@@ -126,14 +127,20 @@ export async function getMobileDesktopMode(userId: string): Promise<boolean> {
 /** „Hat dieser Sub eine Heimdall-Box?" (+ deren Name fürs Formular). EINE Ableitung für alle
  *  Formulare, die den Box-Block zeigen — Verschluss und Kontrolle. Stünde sie je Seite einzeln da,
  *  zeigte nach der nächsten Änderung die eine Seite den Block und die andere nicht.
- *  Ohne Heimdall gar keine Abfrage: `boxConfirm=false` ist dann bereits die ganze Antwort. */
-export async function getBoxFormContext(userId: string): Promise<{ boxConfirm: boolean; boxName: string }> {
-  if (!heimdallEnabled()) return { boxConfirm: false, boxName: "" };
+ *  Ohne Heimdall gar keine Abfrage: `boxConfirm=false` ist dann bereits die ganze Antwort.
+ *
+ *  `requiresBolt` gehört mit hierher, weil es dieselbe Frage weiterführt: der Riegel-Schalter der
+ *  Keyholderin wirkt NUR, wo es eine Box gibt. Zwei getrennte Ableitungen liessen den Fall
+ *  „Schalter an, Box abgemeldet" an einer Stelle als gültig durchgehen. */
+export async function getBoxFormContext(userId: string): Promise<{ boxConfirm: boolean; boxName: string; requiresBolt: boolean }> {
+  if (!heimdallEnabled()) return { boxConfirm: false, boxName: "", requiresBolt: false };
   const boxes = await prisma.boxStatus.findMany({ where: { userId }, select: { name: true } });
-  return {
-    boxConfirm: boxes.length > 0,
-    boxName: boxes.map((b) => b.name).filter(Boolean).join(", "),
-  };
+  const boxName = boxes.map((b) => b.name).filter(Boolean).join(", ");
+  // Ohne Box ist `requiresBolt` schon beantwortet — die zweite Abfrage entfällt. Sie träfe sonst
+  // auch die drei Aufrufer, die das Feld gar nicht lesen (Kontroll-Formular, Freigabe, Einstellungen).
+  if (boxes.length === 0) return { boxConfirm: false, boxName, requiresBolt: false };
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { lockRequiresBolt: true } });
+  return { boxConfirm: true, boxName, requiresBolt: user?.lockRequiresBolt ?? false };
 }
 
 /** Returns active (non-archived) KG devices for a user, ordered by creation date.
@@ -159,16 +166,20 @@ export async function getUserDeviceOptions(userId: string): Promise<DeviceOption
  *  Optionaler tx-Client für Transaktionen; in einer Transaktion IMMER `tx` durchreichen, sonst
  *  liest der Aufruf ausserhalb der Transaktion (TOCTOU).
  *
- *  Das schmale `select` trägt genau die Felder, die die Aufrufer brauchen: `type` (Lock-Zustand),
- *  `startTime` (Zeit-Guards), `kontrollCode` (deriveSealCode), `deviceId` (Geräte-Check) und
- *  `keyInBox` (Schlüssel-Deklaration, siehe `getCurrentLockKeyInBox`). */
+ *  Das schmale `select` trägt genau die Felder, die die Aufrufer brauchen: `id` (die Bildersafe-
+ *  Route schreibt auf diese Zeile), `type` (Lock-Zustand), `startTime` (Zeit-Guards),
+ *  `kontrollCode` (deriveSealCode), `deviceId` (Geräte-Check) und `keyInBox` (Schlüssel-
+ *  Deklaration, siehe `getCurrentLockKeyInBox`). */
 export function getLatestKgEntry(
   userId: string,
   tx: PrismaTx | typeof prisma = prisma,
   { at, excludeId }: { at?: Date; excludeId?: string } = {},
 ) {
   return tx.entry.findFirst({
-    where: {
+    // Ein Verschluss, dessen Riegel noch aussteht, ist ein AUFRUF und kein Zustand — er darf hier
+    // nicht auftauchen, sonst gälte der Träger als verschlossen, bevor die Box es meldet
+    // (`lockPending.ts`).
+    where: effectiveEntryWhere({
       userId,
       type: { in: ["VERSCHLUSS", "OEFFNEN"] },
       // `at`: „was galt ZU DIESEM ZEITPUNKT" statt „was gilt jetzt" — nötig auf dem Keyholder-Pfad,
@@ -178,11 +189,11 @@ export function getLatestKgEntry(
       // `getEntryNeighbors`; die Alternative wäre ein als Rundungsfehler getarntes `at - 1ms`).
       ...(at ? { startTime: { lte: at } } : {}),
       ...(excludeId ? { id: { not: excludeId } } : {}),
-    },
+    }),
     orderBy: { startTime: "desc" },
     // `oeffnenGrund` gehört dazu, weil der Lock-Zustand allein nicht sagt, WARUM zuletzt geöffnet
     // wurde — die Kontrolle nach einer Reinigungspause hängt genau daran (entries-Route).
-    select: { type: true, startTime: true, kontrollCode: true, deviceId: true, keyInBox: true, oeffnenGrund: true },
+    select: { id: true, type: true, startTime: true, kontrollCode: true, deviceId: true, keyInBox: true, oeffnenGrund: true },
   });
 }
 
@@ -222,14 +233,17 @@ export async function getEntryNeighbors(
 ): Promise<EntryNeighbors> {
   const categoryFilter = categoryId ? { device: { categoryId } } : {};
   const excludeFilter = excludeId ? { id: { not: excludeId } } : {};
+  // `effectiveEntryWhere`: dieselbe Kette, die `getLatestKgEntry` sieht. Ohne sie widersprächen sich
+  // zwei Guards DESSELBEN Handlers — der eine hielte den schwebenden Aufruf für nicht vorhanden, der
+  // andere sähe ihn in der Reihenfolge und meldete `INVALID_ORDER` statt der zutreffenden Absage.
   const [prev, next] = await Promise.all([
     tx.entry.findFirst({
-      where: { userId, type: { in: [...pairTypes] }, startTime: { lte: startTime }, ...categoryFilter, ...excludeFilter },
+      where: effectiveEntryWhere({ userId, type: { in: [...pairTypes] }, startTime: { lte: startTime }, ...categoryFilter, ...excludeFilter }),
       orderBy: { startTime: "desc" },
       select: { type: true },
     }),
     tx.entry.findFirst({
-      where: { userId, type: { in: [...pairTypes] }, startTime: { gt: startTime }, ...categoryFilter, ...excludeFilter },
+      where: effectiveEntryWhere({ userId, type: { in: [...pairTypes] }, startTime: { gt: startTime }, ...categoryFilter, ...excludeFilter }),
       orderBy: { startTime: "asc" },
       select: { type: true },
     }),
@@ -244,6 +258,66 @@ export function getKgNeighbors(
   tx: PrismaTx | typeof prisma = prisma,
 ): Promise<EntryNeighbors> {
   return getEntryNeighbors(userId, startTime, ["VERSCHLUSS", "OEFFNEN"], tx);
+}
+
+/**
+ * Der jüngste Verschluss- und der jüngste Öffnungs-Zeitpunkt je Träger — die Stapel-Fassung des
+ * Lock-Zustands, für Listen (Keyholder-Übersicht, Kopfzeile der Detailseite, Benutzerliste).
+ *
+ * Drei Seiten hatten dieselben zwei `groupBy`-Abfragen wortgleich stehen, und mit dem Riegel-Gate
+ * hätte jede von ihnen denselben Filter einzeln nachziehen müssen — genau die Sorte Änderung, die
+ * an einer der drei Stellen vergessen wird. Was danach passiert, bleibt bei den Aufrufern: sie
+ * lesen „noch nichts vorhanden" unterschiedlich (`undefined` vs. `false`), und das ist Absicht.
+ *
+ * Zwei `groupBy` statt `distinct`: Prisma schiebt DISTINCT auf SQLite nicht ins SQL (siehe die
+ * ausführliche Begründung in `/admin/page.tsx`).
+ */
+export async function latestKgTimesByUser(userIds: string[]): Promise<{
+  lockedAt: Map<string, Date | null>;
+  openedAt: Map<string, Date | null>;
+}> {
+  const [locks, opens] = await Promise.all([
+    // Ein Verschluss ohne Riegel ist noch nicht passiert — dieselbe Regel wie in
+    // `getLatestKgEntry`, siehe `lockPending.ts`.
+    prisma.entry.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds }, type: "VERSCHLUSS", ...CONFIRMED_LOCK_FILTER },
+      _max: { startTime: true },
+    }),
+    prisma.entry.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds }, type: "OEFFNEN" },
+      _max: { startTime: true },
+    }),
+  ]);
+  return {
+    lockedAt: new Map(locks.map((r) => [r.userId, r._max.startTime])),
+    openedAt: new Map(opens.map((r) => [r.userId, r._max.startTime])),
+  };
+}
+
+/**
+ * Seit wann ein Verschluss-AUFRUF auf den Riegel wartet — `null`, wenn keiner wartet
+ * (docs/riegel-konzept.md).
+ *
+ * Gemessen wird die ERFASSUNG (`createdAt`), nicht `startTime`: bei einem Riegel-Träger zeigt das
+ * Formular gar kein Zeitfeld mehr, dort stünde ein Wert, den niemand gewählt hat.
+ *
+ * EINE Abfrage für drei Sichten (Keyholder-Dashboard, `get_box_state`, `get_context`) — die
+ * Reihenfolge (`createdAt desc`) ist tragend und muss mit der von `commitPendingLock` übereinstimmen.
+ *
+ * BEWUSST ohne `heimdallEnabled()`-Kurzschluss, obwohl ohne Heimdall keiner entstehen KANN: wird
+ * das Geheimnis rotiert, während einer wartet, ist der Zurücknehmen-Knopf des Trägers der einzige
+ * Weg heraus (der Schalter der Keyholderin ist dann 404). Er erscheint nur, solange diese Frage
+ * beantwortet wird. Die Abfrage ist indexiert (`Entry_userId_type_boltConfirmedAt_idx`).
+ */
+export async function pendingLockCallAt(userId: string): Promise<Date | null> {
+  const pending = await prisma.entry.findFirst({
+    where: { userId, ...PENDING_LOCK_FILTER },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  return pending?.createdAt ?? null;
 }
 
 /** Returns true if the user is currently locked (latest VERSCHLUSS/OEFFNEN entry is VERSCHLUSS).
@@ -992,6 +1066,9 @@ export const SESSION_ENTRY_SELECT = {
   id: true,
   type: true,
   startTime: true,
+  // Pflicht, weil `filterAndSortPairEntries` daran den schwebenden Verschluss aussortiert — ohne
+  // die Spalte kompiliert das Paaren gar nicht erst (siehe `lockPending.ts`).
+  boltConfirmedAt: true,
   device: { select: { id: true, categoryId: true } },
 } satisfies Prisma.EntrySelect;
 

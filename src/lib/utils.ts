@@ -1,5 +1,6 @@
 import type { NumberRange } from "@/lib/constants";
 import { toVerifyFailure, type VerifyFailure } from "@/lib/verifyReason";
+import { isEffectiveEntry } from "@/lib/lockPending";
 
 /** Einheiten-Kürzel für „Tage" nach Locale. Prefix-Vergleich, damit auch regionale Tags
  *  (`"en-US"`, `"en-GB"`) als Englisch zählen — `"de-CH"` bleibt bei "T". */
@@ -739,13 +740,19 @@ function normalizeBuildPairsOptions(
 
 /** Filters entries to the given pair-types, then sorts ascending by startTime.
  *  Exported for callers that hand `buildPairs`/`buildWearSessions` a pre-loaded, unsorted entry list
- *  (see `TaskEntrySource`) — they must not re-spell the type literals. */
-export function filterAndSortPairEntries<E extends { type: string; startTime: Date }>(
+ *  (see `TaskEntrySource`) — they must not re-spell the type literals.
+ *
+ *  Hier fällt zugleich der schwebende Verschluss weg — der EINE Trichter der Speicher-Seite, siehe
+ *  `lockPending.ts`. Deshalb ist `boltConfirmedAt` ein PFLICHTFELD der Signatur und nicht optional:
+ *  ein Aufrufer, der die Spalte nicht lädt, bekommt einen Compiler-Fehler statt einer Session, die
+ *  einen noch gar nicht vollzogenen Verschluss enthält. (Für WEAR-Paare ist die Regel wirkungslos —
+ *  sie kennen keinen VERSCHLUSS —, die Spalte mitzuladen kostet dort nichts.) */
+export function filterAndSortPairEntries<E extends { type: string; startTime: Date; boltConfirmedAt: Date | null }>(
   entries: E[],
   types: PairTypes,
 ): E[] {
   return [...entries]
-    .filter((e) => e.type === types.close || e.type === types.open)
+    .filter((e) => (e.type === types.close || e.type === types.open) && isEffectiveEntry(e))
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 }
 
@@ -795,6 +802,9 @@ export function buildPairs<
     id: string;
     type: string;
     startTime: Date;
+    /** Siehe `filterAndSortPairEntries`: Pflichtfeld, damit kein Aufrufer die Spalte weglässt und
+     *  damit still einen noch nicht vollzogenen Verschluss in die Sessions holt. */
+    boltConfirmedAt: Date | null;
     oeffnenGrund?: string | null;
     device?: { categoryId?: string | null } | null;
   },
@@ -1006,7 +1016,7 @@ export type WearPair = { start: Date; end: Date };
  *  Beginn. Deshalb nimmt die Funktion keine `types`/`categoryId` mehr entgegen: die
  *  Trage-Kategorien gehen über `wearHourPairsByCategory` (paart je GERÄT). */
 export function buildKgWearPairs<
-  E extends { type: string; startTime: Date }
+  E extends { type: string; startTime: Date; boltConfirmedAt: Date | null }
 >(entries: E[], now: Date): WearPair[] {
   const asc = filterAndSortPairEntries(entries, KG_PAIR);
   const pairs: WearPair[] = [];
@@ -1065,6 +1075,7 @@ export function calculateWearingHoursByRange<
   E extends {
     type: string;
     startTime: Date;
+    boltConfirmedAt: Date | null;
     oeffnenGrund?: string | null;
   }
 >(

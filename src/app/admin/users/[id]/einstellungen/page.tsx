@@ -11,7 +11,9 @@ import { switchableOffenseTypesFor } from "@/lib/offenseLabels";
 import { parseCleaningWindows } from "@/lib/cleaningService";
 import { parseWeighingWindows } from "@/lib/weightWindows";
 import { weightTrackingEnabled } from "@/lib/constants";
+import { getBoxFormContext } from "@/lib/queries";
 import WeightToggle from "@/app/admin/WeightToggle";
+import BoxLockToggle from "@/app/admin/BoxLockToggle";
 import type { UnitSystem } from "@/lib/weight";
 import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reasonsService";
 import ReasonsEditor from "@/app/admin/ReasonsEditor";
@@ -46,7 +48,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   const { userId: actorId, isGlobalAdmin } = await assertKeyholderOrAdmin(id);
 
-  const [user, vorgaben, categories, keyholders, offenseRules, t, tc, dl, tOrgasm, tOpen, actor] = await Promise.all([
+  const [user, vorgaben, categories, keyholders, offenseRules, t, tc, dl, tOrgasm, tOpen, actor, box] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.trainingVorgabe.findMany({ where: { userId: id, deletedAt: null }, orderBy: { gueltigAb: "desc" } }), // B-04: soft-gelöschte Ziele ausblenden
     // Vorgaben can only be set on KG-built-in or user-categories with allowVorgaben=true.
@@ -69,6 +71,9 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
     weightTrackingEnabled()
       ? prisma.user.findUnique({ where: { id: actorId }, select: { unitSystem: true } })
       : Promise.resolve(null),
+    // Der Riegel-Schalter erscheint nur, wo es überhaupt einen Riegel gibt — dieselbe Bedingung wie
+    // im Verschluss-Formular (`getBoxFormContext`): Heimdall aktiv UND eine Box, die gemeldet hat.
+    getBoxFormContext(id),
   ]);
 
   if (!user) redirect("/admin");
@@ -142,6 +147,13 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             initialTargetKg={user.targetWeightKeyholderKg}
             subHeightCm={user.heightCm}
           />
+        </SettingsSection>
+      )}
+
+      {/* Heimdall-Box — entfällt ganz, wo keine Box gemeldet hat */}
+      {box.boxConfirm && (
+        <SettingsSection title={t("sectionBox")} description={t("sectionBoxDesc")} bodyPadded>
+          <BoxLockToggle userId={user.id} initialEnabled={user.lockRequiresBolt} />
         </SettingsSection>
       )}
 

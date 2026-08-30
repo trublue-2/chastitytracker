@@ -10,6 +10,8 @@ import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { codedError, codeOf } from "@/lib/codedError";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
+import { isPendingLock } from "@/lib/lockPending";
+import { clearBoxCommandForUser } from "@/lib/boxCommand";
 
 export async function PATCH(
   req: NextRequest,
@@ -175,7 +177,12 @@ export async function DELETE(
   const isPair = isKgPair || isWearPair;
 
   // Chain-break detection for paired entries (VERSCHLUSS/OEFFNEN global; WEAR-pair per category)
-  if (isPair && !force) {
+  //
+  // Ein schwebender Verschluss-AUFRUF ist von der Prüfung ausgenommen: er steht per Definition
+  // NICHT in der Kette (`effectiveEntryWhere` blendet ihn überall aus), also kann sein Löschen sie
+  // auch nicht brechen. Ohne diese Ausnahme müsste die Zurücknehmen-Aktion mit `force=true` an
+  // einer Prüfung vorbei, die für sie gar nicht gedacht ist.
+  if (isPair && !force && !isPendingLock(existing)) {
     const pairTypes = isKgPair
       ? (["VERSCHLUSS", "OEFFNEN"] as const)
       : (["WEAR_BEGIN", "WEAR_END"] as const);
@@ -235,6 +242,10 @@ export async function DELETE(
 
   // No chain break, force=true, or non-VO entry: delete normally
   await prisma.$transaction(async (tx) => {
+    // Einen schwebenden Verschluss-Aufruf zurücknehmen heisst auch: die Box steht wieder still.
+    // Über `boxCommand.ts`, dem einzigen Schreiber des Kommando-Paares — samt Heimdall-Guard und
+    // samt der dort dokumentierten Grenze (ein bereits abgeholtes Kommando bleibt abgeholt).
+    if (isPendingLock(existing)) await clearBoxCommandForUser(tx, existing.userId, "lock");
     if (existing.type === "PRUEFUNG") {
       await tx.kontrollAnforderung.updateMany({
         where: { entryId: id },

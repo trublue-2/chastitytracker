@@ -7,6 +7,7 @@ import { weightTrackingEnabled } from "@/lib/constants";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
+import { latestEffectiveKgEntry, isPendingLock } from "@/lib/lockPending";
 import {
   buildKontrolleItems, buildKgWearPairs, buildPairs, calculateWearingHoursByRange,
   completedPairsFrom, getOpenPair, KG_PAIR, pairDurationMs, tzDayKey,
@@ -131,9 +132,20 @@ export const orgasmEntriesCached = cache(async (userId: string) =>
   (await entriesCached(userId)).filter((e) => e.type === "ORGASMUS"),
 );
 
-/** Der jüngste KG-Eintrag — daraus liest die Seite „verschlossen seit" bzw. „geöffnet seit". */
+/** Der jüngste KG-Eintrag — daraus liest die Seite „verschlossen seit" bzw. „geöffnet seit".
+ *
+ *  `isEffectiveEntry`: ein Verschluss, dessen Riegel noch aussteht, ist ein AUFRUF und kein
+ *  Zustand — dieselbe Regel, nach der `getLatestKgEntry` ihn serverseitig auslässt
+ *  (`lockPending.ts`). Ohne sie zeigte das Dashboard „verschlossen seit", während die Box noch
+ *  offen steht. Den Aufruf selbst liefert {@link pendingLockCached}. */
 export const latestKgEntryCached = cache(async (userId: string) =>
-  (await entriesCached(userId)).find((e) => e.type === KG_PAIR.close || e.type === KG_PAIR.open) ?? null,
+  latestEffectiveKgEntry(await entriesCached(userId)),
+);
+
+/** Der schwebende Verschluss-AUFRUF, wenn einer offen ist — die Gegenfrage zu
+ *  {@link latestKgEntryCached}, aus derselben geladenen Liste (jüngster zuerst). */
+export const pendingLockCached = cache(async (userId: string) =>
+  (await entriesCached(userId)).find(isPendingLock) ?? null,
 );
 
 /**

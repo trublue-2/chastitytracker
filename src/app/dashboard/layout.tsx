@@ -6,7 +6,7 @@ import ThemeRootSync from "@/app/components/ThemeRootSync";
 import DashboardBottomNav from "./DashboardBottomNav";
 import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth";
-import { getIsLocked } from "@/lib/queries";
+import { getIsLocked, pendingLockCallAt } from "@/lib/queries";
 import { subVisibleInspectionsNow } from "@/lib/dashboardData";
 import { pendingInspection } from "@/lib/entryFormRoute";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
@@ -31,8 +31,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // so the keyholder nav entry appears exactly when access actually works. No extra DB query.
   const isKeyholder = (user as { controlsSubs?: boolean } | undefined)?.controlsSubs ?? false;
 
-  const [isLocked, categoryRows, weightUser, inspections] = await Promise.all([
+  const [isLocked, lockCallAt, categoryRows, weightUser, inspections] = await Promise.all([
     userId ? getIsLocked(userId) : Promise.resolve(false),
+    // Wartet ein Verschluss-Aufruf auf den Riegel? Dann ist „Verschluss" in der (+)-Auswahl nicht
+    // wählbar — siehe `NewEntrySheet`. Im Layout, weil der (+) auf JEDER Dashboard-Seite steht.
+    userId ? pendingLockCallAt(userId) : Promise.resolve(null),
     userId ? buildNewEntryCategoryRows(userId) : Promise.resolve([]),
     // Die (+)-Zeile „Gewicht" erscheint nur, wenn BEIDE Schalter stehen. Nur gefragt, wenn die
     // Instanz das Feature überhaupt führt — sonst ist die Antwort ohnehin bekannt.
@@ -66,6 +69,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         isAdmin={user?.role === "admin"}
         isKeyholder={isKeyholder}
         isLocked={isLocked}
+        lockCallPending={lockCallAt !== null}
         version={pkg.version}
         categoryRows={categoryRows}
         bildersafe={bildersafeEnabled()}
@@ -116,6 +120,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         isAdmin={user?.role === "admin"}
         isKeyholder={isKeyholder}
         isLocked={isLocked}
+        lockCallPending={lockCallAt !== null}
         version={pkg.version}
         categoryRows={categoryRows}
         bildersafe={bildersafeEnabled()}

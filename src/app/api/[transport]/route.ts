@@ -10,7 +10,7 @@ import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod,
   mcpReleaseNow, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
-  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetWeightTracking, mcpSetWeightRelease, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
+  mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetBox, mcpSetWeightTracking, mcpSetWeightRelease, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
   mcpReviewTaskProof, mcpEditTask,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
@@ -216,7 +216,7 @@ const MCP_SERVER_INSTRUCTIONS =
   "• DIREKTIVEN (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung): `set_lock_period`, " +
   "`request_lock`, `request_inspection`, `request_orgasm`, `judge_offense`, `record_offense`, `set_training_goal`, " +
   "`set_cleaning`, `set_auto_inspections`, `set_offense_rules`, `set_inspection_escalation`, " +
-  "`set_weight_tracking`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … Ein Vergehen, das " +
+  "`set_weight_tracking`, `set_box`, `withdraw`, `edit_lock_period`, `edit_lock_request`, `resolve_inspection`, … Ein Vergehen, das " +
   "der Tracker nicht sehen kann (gebrochene Abmachung, Unhöflichkeit), notierst du mit `record_offense`; " +
   "beurteilt wird es danach wie jedes andere. `set_cleaning` deckt ALLE " +
   "Reinigungs-Regeln ab, auch die Tages-Fenster (`windows` — ersetzt die ganze Liste, `[]` löst die Reinigung von der " +
@@ -1579,6 +1579,28 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runWriteTool("set_weight_tracking", extra, args, (u) => mcpSetWeightTracking(u, args)),
+    );
+
+    server.registerTool(
+      "set_box",
+      {
+        title: "Set key-box settings",
+        description:
+          "Sets what you can decide about his key box. Today that is one rule: `requireBolt`. With it ON his " +
+          "„locked\" entry is only the CALL to the box — he counts as locked when the box reports the bolt shut, " +
+          "and until then NOTHING starts: no lock period, no lock request fulfilled, no wearing time, and the " +
+          "re-lock deadline after a cleaning break keeps running. Read the current state in `get_context.box` " +
+          "and the box itself in `get_box_state`. Switching it OFF completes a call that is waiting right now — " +
+          "that is the way out when the box has stopped reporting; the dry run says whether one is waiting." + KEYHOLDER_SILENT,
+        inputSchema: {
+          requireBolt: z.boolean().optional().describe(
+            "Does his lock take effect only once the box reports the bolt shut? Off = it takes effect the moment he records it.",
+          ),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("set_box", extra, args, (u) => mcpSetBox(u, args)),
     );
 
     server.registerTool(

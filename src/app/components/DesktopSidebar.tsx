@@ -18,6 +18,7 @@ interface Props {
   isAdmin?: boolean;
   isKeyholder?: boolean;
   isLocked: boolean;
+  lockCallPending?: boolean;
   version: string;
   categoryRows?: NewEntryCategoryRow[];
   bildersafe?: boolean;
@@ -26,7 +27,7 @@ interface Props {
   openInspection?: { code: string | null; href: string } | null;
 }
 
-export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, version, categoryRows, bildersafe, weight, openInspection }: Props) {
+export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, lockCallPending, version, categoryRows, bildersafe, weight, openInspection }: Props) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   // EINMAL für die ganze Seitenleiste — Begründung an der `navigate`-Prop von `ViewTransitionLink`.
@@ -42,7 +43,7 @@ export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, version
 
   return (
     <>
-      <NewEntrySheet open={sheetOpen} onClose={() => setSheetOpen(false)} isLocked={isLocked} categoryRows={categoryRows} bildersafe={bildersafe} weight={weight} openInspection={openInspection} />
+      <NewEntrySheet open={sheetOpen} onClose={() => setSheetOpen(false)} isLocked={isLocked} lockCallPending={lockCallPending} categoryRows={categoryRows} bildersafe={bildersafe} weight={weight} openInspection={openInspection} />
 
       <aside className="hidden lg:flex fixed left-0 top-14 bottom-0 w-64 bg-nav-bg border-r border-nav-border flex-col z-20">
         {/* Benannte Landmarke: die Seite trägt mehrere `nav`-Bereiche, und ohne Namen heissen sie

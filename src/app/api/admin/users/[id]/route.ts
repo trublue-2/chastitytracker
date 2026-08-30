@@ -13,7 +13,8 @@ import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { setReasonConfig } from "@/lib/reasonsService";
 import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
-import { weightTrackingEnabled } from "@/lib/constants";
+import { weightTrackingEnabled, heimdallEnabled } from "@/lib/constants";
+import { setLockRequiresBolt } from "@/lib/lockCommit";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { serviceResponse } from "@/lib/serviceResult";
 
@@ -172,6 +173,15 @@ export async function PATCH(
       weighingWindows: body.weighingWindows, // roh — der Service validiert/normalisiert
       targetWeightKeyholderKg: body.targetWeightKeyholderKg,
     }));
+  }
+
+  if (body.lockRequiresBolt !== undefined) {
+    // Wie beim Gewichtstracking: führt die Instanz die Box gar nicht, gibt es die Einstellung
+    // nicht — 404 statt 403, damit die Antwort nicht verrät, dass es sie gäbe.
+    if (!heimdallEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Über den Dienst, nicht per `update`: das Abschalten vollzieht einen wartenden Aufruf.
+    await setLockRequiresBolt(id, Boolean(body.lockRequiresBolt));
+    return NextResponse.json({ ok: true });
   }
 
   if (body.mobileDesktopUpload !== undefined) {

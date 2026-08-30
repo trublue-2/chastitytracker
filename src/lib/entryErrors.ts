@@ -13,6 +13,7 @@ import { codedError, codeOf } from "@/lib/codedError";
 export const ENTRY_GUARD_CODES = [
   "INVALID_DEVICE",
   "ALREADY_LOCKED",
+  "LOCK_ALREADY_PENDING",
   "NOT_LOCKED",
   "TIME_BEFORE",
   "TIME_IN_FUTURE",

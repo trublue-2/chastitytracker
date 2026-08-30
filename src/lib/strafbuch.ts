@@ -7,6 +7,7 @@ import { activeCleaningWindow, CLEANING_USER_SELECT } from "@/lib/cleaningServic
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { triggeredWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
+import { CONFIRMED_LOCK_FILTER } from "@/lib/lockPending";
 import { missedWeightBlocks, missedWeightRef } from "@/lib/weightObligation";
 import { addWeightDays, endOfWeightDay, weightDayKey } from "@/lib/weight";
 import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
@@ -209,6 +210,9 @@ const KG_ENTRY_SELECT = {
   id: true,
   type: true,
   startTime: true,
+  // Siehe `lockPending.ts`: ein Verschluss ohne Riegel ist noch nicht passiert. Das Strafbuch
+  // beurteilt ihn deshalb nicht — die Reinigungs-Frist läuft weiter, bis der Riegel zufällt.
+  boltConfirmedAt: true,
   oeffnenGrund: true,
   note: true,
   source: true,
@@ -573,7 +577,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     prisma.timezoneChange.findMany({ where: { userId }, select: TIMEZONE_CHANGE_SELECT }),
     prisma.user.findUnique({ where: { id: userId }, select: { ...CLEANING_USER_SELECT, timezone: true } }),
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" }, select: KG_ENTRY_SELECT }),
-    prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS" }, orderBy: { startTime: "asc" }, select: KG_ENTRY_SELECT }),
+    prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS", ...CONFIRMED_LOCK_FILTER }, orderBy: { startTime: "asc" }, select: KG_ENTRY_SELECT }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...triggeredWhere(now) } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "ANFORDERUNG", withdrawnAt: null, ...triggeredWhere(now) } }),
     prisma.kontrollAnforderung.findMany({

@@ -55,6 +55,9 @@ interface Props {
   boxConfirm?: boolean;
   /** Name(n) der Box(en) — in der „Schlüssel in Box"-Bestätigung angezeigt. */
   boxName?: string;
+  /** Riegel-Schalter der Keyholderin (docs/riegel-konzept.md): das Speichern ist dann der AUFRUF an
+   *  die Box, und die Startzeit setzt der Riegel — deshalb entfällt die Zeit-Eingabe. */
+  boltGated?: boolean;
   isEdit?: boolean;
   submitFn: (payload: VerschlussPayload) => Promise<SubmitResult>;
   onSuccess?: () => void;
@@ -65,7 +68,7 @@ interface Props {
 
 export default function VerschlussFormCore({
   initial, minTime, tz, nowDefault, mobileDesktopMode, devices = [], anforderungDeviceId, bildersafe = false,
-  boxConfirm = false, boxName,
+  boxConfirm = false, boxName, boltGated = false,
   isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("common");
@@ -87,6 +90,12 @@ export default function VerschlussFormCore({
   const [deviceId, setDeviceId] = useState(defaultDeviceId);
   const showDeviceSelector = devices.length > 0;
   const wrongDevice = Boolean(anforderungDeviceId && deviceId && deviceId !== anforderungDeviceId);
+
+  // Wartet DIESE Eingabe auf den Riegel? `keyInBox` gehört zur Bedingung, weil ein Träger, der den
+  // Schlüssel behält, gar kein Box-Kommando auslöst (`boxCommandForEntry`) — dann gilt der Eintrag
+  // sofort und die Zeit-Eingabe muss zurückkommen. Beim Bearbeiten nie: dort ist der Verschluss
+  // längst vollzogen, und die Keyholderin darf seine Zeit korrigieren.
+  const awaitsBolt = boltGated && keyInBox && !isEdit;
 
   const { saving, error, submit } = useEntrySubmit<VerschlussPayload>(submitFn, onSuccess);
 
@@ -252,13 +261,21 @@ export default function VerschlussFormCore({
         </div>
       )}
 
-      <DateTimePicker
-        label={t("dateTime")}
-        value={startTime}
-        onChange={(e) => setStartTime(e.target.value)}
-        required
-        {...(minTime && { min: minTime })}
-      />
+      {awaitsBolt ? (
+        /* Keine Zeit-Eingabe: den Zeitpunkt setzt der Riegel, nicht das Formular. Ein Feld, dessen
+           Wert gleich überschrieben wird, wäre eine Lüge über die Bedienung. */
+        <FormField label={t("dateTime")}>
+          <p className="text-neben text-foreground-muted">{tForm("boltGateTimeHint")}</p>
+        </FormField>
+      ) : (
+        <DateTimePicker
+          label={t("dateTime")}
+          value={startTime}
+          onChange={(e) => setStartTime(e.target.value)}
+          required
+          {...(minTime && { min: minTime })}
+        />
+      )}
 
       <FormField label={t("photoOptional")}>
         {imagePreview ? (

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { boltFieldsFor } from "@/lib/lockPending";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
@@ -58,7 +59,9 @@ export async function POST() {
   for (const [verschlussDays, durationH, note] of pairs) {
     const verschlussTime = days(verschlussDays);
     await prisma.entry.create({
-      data: { userId: user.id, type: "VERSCHLUSS", startTime: verschlussTime, note },
+      // `boltFieldsFor`: ein Demo-Verschluss ist sofort wirksam — ohne die Spalte wäre die ganze
+      // erzeugte Historie schwebend und damit unsichtbar (docs/riegel-konzept.md).
+      data: { userId: user.id, type: "VERSCHLUSS", startTime: verschlussTime, note, ...boltFieldsFor("VERSCHLUSS", verschlussTime) },
     });
     if (durationH !== null) {
       await prisma.entry.create({

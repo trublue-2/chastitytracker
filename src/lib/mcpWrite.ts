@@ -25,7 +25,7 @@ import {
   fixedWindowMinutes, triggerWindowAllQuiet, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoKontrolleSettings,
 } from "@/lib/autoKontrolleService";
 import {
-  weightTrackingEnabled,
+  weightTrackingEnabled, heimdallEnabled,
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
@@ -44,6 +44,8 @@ import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, merge
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
 import { releaseNow, previewReleaseNow } from "@/lib/releaseNowService";
 import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
+import { setLockRequiresBolt } from "@/lib/lockCommit";
+import { loadBoxSettings } from "@/lib/mcp/context";
 
 /**
  * dryRun (K-01, leichte Variante): validiert Referenzen/Werte und zeigt die effektiven Argumente,
@@ -1219,6 +1221,68 @@ export async function mcpSetWeightTracking(username: string, args: SetWeightTrac
       : "",
   ];
   return { ok: true, message: `Weight settings updated.${parts.join("")}` };
+}
+
+// ── Box settings ───────────────────────────────────────────────────────────
+
+export interface SetBoxArgs {
+  requireBolt?: boolean;
+  dryRun?: boolean;
+}
+
+/**
+ * Die Box-Einstellungen der Keyholderin — heute genau eine: **gilt der Verschluss erst mit dem
+ * Riegel?** (docs/riegel-konzept.md)
+ *
+ * Ein Werkzeug je Einstellungs-FAMILIE, nicht je Feld (`CLAUDE.md`, „MCP-Vollständigkeit") —
+ * deshalb `set_box` und nicht `set_bolt_gate`: die nächste Box-Einstellung kommt hier hinein,
+ * statt ein zweites Werkzeug daneben zu stellen.
+ *
+ * Das Abschalten VOLLZIEHT einen gerade wartenden Aufruf; der Dry-Run sagt das vorher, weil es die
+ * einzige Folge ist, die über das blosse Umlegen hinausgeht — und weil genau darin der Notausgang
+ * bei einer defekten Box liegt.
+ */
+export async function mcpSetBox(username: string, args: SetBoxArgs) {
+  if (!heimdallEnabled()) {
+    throw new Error("The key box is not available on this instance (HEIMDALL_SYNC_SECRET is not set).");
+  }
+  const userId = await resolveTargetUserId(username);
+  requireAnyOf(args, ["requireBolt"]);
+
+  // `loadBoxSettings` ist die Lese-Seite, die `get_context.box` ausgibt — dieselbe Antwort für die
+  // Vorschau wie für das Nachschlagen, statt einer dritten Abschrift derselben zwei Abfragen.
+  const [user, box] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { lockRequiresBolt: true } }),
+    loadBoxSettings(userId),
+  ]);
+
+  if (args.dryRun) {
+    const before = { requireBolt: user.lockRequiresBolt };
+    const after = { requireBolt: args.requireBolt ?? before.requireBolt };
+    return dryRunPreview("set_box", undefined, {
+      ...after,
+      ...box,
+      // Die eine Folge, die über das Umlegen hinausgeht.
+      ...(args.requireBolt === false && box.lockCallWaitingSince ? { alsoCompletesWaitingLockCall: true } : {}),
+    }, diffFields(before, after));
+  }
+
+  if (args.requireBolt !== undefined) await setLockRequiresBolt(userId, args.requireBolt);
+
+  const parts = [
+    args.requireBolt === undefined ? ""
+      : args.requireBolt
+        ? " His lock now takes effect only when the box reports the bolt shut — until then nothing starts: no lock period, no request fulfilled, no wearing time."
+        : " His lock takes effect immediately again when he records it.",
+    args.requireBolt === false && box.lockCallWaitingSince
+      ? " The lock call that was waiting has been completed with the time of this change."
+      : "",
+    // Ohne Box läuft die Einstellung leer — sie ist gesetzt, wirkt aber erst, wenn eine Box meldet.
+    args.requireBolt === true && !box.hasBox
+      ? " NOTE: no box has reported for this wearer yet, so nothing waits for a bolt until one does."
+      : "",
+  ];
+  return { ok: true, message: `Box settings updated.${parts.join("")}` };
 }
 
 export interface SetWeightReleaseArgs {

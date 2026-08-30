@@ -123,6 +123,15 @@ model User {
   /// erlaubt es ihm zugleich, sie nach einem Neustart NACHZUHOLEN, solange das Fenster noch läuft.
   /// Eine eigene Tabelle wäre eine Zeile je Tag und Träger, die nach dem Tag niemanden mehr angeht.
   weightReminderMark             String?
+
+  // ── Heimdall-Box: der Riegel entscheidet (docs/riegel-konzept.md) ─────────────────────────────
+  /// Schalter der Keyholderin je Träger. An = ein VERSCHLUSS-Eintrag ist erst der AUFRUF zum
+  /// Schliessen der Box; wirksam wird er erst, wenn die Box „Riegel zu" meldet
+  /// (`Entry.boltConfirmedAt`). Aus (Vorgabe) = Bestandsverhalten, der Eintrag gilt sofort.
+  ///
+  /// Opt-in wie das Gewichtstracking: nichts ändert sich beim Ausrollen, und ohne Box gibt es
+  /// nichts zu bestätigen — die Oberfläche zeigt den Schalter deshalb nur, wo eine Box gemeldet hat.
+  lockRequiresBolt               Boolean                  @default(false)
   entries                        Entry[]
   notificationPrefs              NotificationPreference[]
   vorgaben                       TrainingVorgabe[]
@@ -1077,6 +1086,18 @@ model Entry {
   // Vision-Provider, oder Prüfung läuft noch). Advisory wie deviceCheck: die Keyholderin sieht es,
   // blockiert aber nichts. Erkennt "ein Schlüssel", NICHT "der richtige Schlüssel".
   keyDetected                   Boolean?
+  /// Wann der Riegel diesen Verschluss VOLLZOGEN hat — nur bei VERSCHLUSS gesetzt.
+  ///
+  /// `null` heisst „der Aufruf steht noch aus": der Träger hat den Verschluss erfasst, die Box hat
+  /// den Riegel aber noch nicht gemeldet. Eine solche Zeile ist für JEDE Ableitung unsichtbar
+  /// (Verschluss-Zustand, Sessions, Statistik, Strafbuch) — sie wird nachgeholt, sobald die Meldung
+  /// eintrifft, und trägt dann dieselbe Zeit auch als `startTime`.
+  ///
+  /// Ein eigenes Feld statt eines Boolean, weil die Keyholderin `startTime` später korrigieren darf:
+  /// dann steht hier weiterhin, wann der Riegel wirklich zufiel. Ohne aktiven Riegel-Schalter
+  /// (`User.lockRequiresBolt`), ohne Box oder auf dem Keyholder-Pfad wird die Zeile sofort vollzogen
+  /// und trägt ihre `startTime`. Siehe `lockCommit.ts` und docs/riegel-konzept.md.
+  boltConfirmedAt               DateTime?
   note                          String?
   oeffnenGrund                  String?
   orgasmusArt                   String?
@@ -1108,6 +1129,13 @@ model Entry {
 
   @@index([userId])
   @@index([userId, type, startTime(sort: Desc)])
+  // Der wartende Verschluss-Aufruf (`lockPending.ts`). Ohne ihn scannte die Frage „wartet einer?"
+  // die GESAMTE Verschluss-Historie des Trägers und prüfte je Zeile `boltConfirmedAt IS NULL` —
+  // und sie wird oft gestellt: bei jedem Box-Sync, jedem `keyholder_dashboard`, jedem Seitenaufbau
+  // des Dashboards. Mit dem Typ VOR der Spalte trifft die Abfrage sofort die eine Zeile, die es
+  // gibt (meistens keine); `boltConfirmedAt` allein hinter `userId` wäre wertlos, weil JEDER
+  // Nicht-Verschluss dort NULL trägt.
+  @@index([userId, type, boltConfirmedAt])
   // Ein Stempel gilt je Nutzer. Mehrere NULL nebeneinander erlaubt SQLite in einem UNIQUE-Index,
   // Einträge ohne Stempel bleiben also unberührt — es braucht keine Rückfüllung.
   @@unique([userId, clientRequestId])

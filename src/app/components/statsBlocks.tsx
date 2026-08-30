@@ -20,6 +20,7 @@ import {
 import { resolveGoalTargets, hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/goalFulfillment";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe } from "@/lib/vorgaben";
+import { isEffectiveEntry, latestEffectiveKgEntry } from "@/lib/lockPending";
 import { categoryStyle } from "@/lib/categoryConstants";
 import { KG_CATEGORY_META } from "@/lib/deviceCategories";
 import { buildSessions, deviceWearingsOf, type Session } from "@/lib/sessionModel";
@@ -131,7 +132,9 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
   overview: block({
     load: async ({ userId }) => {
       const [counts, entries] = await Promise.all([wearCountsCached(userId), entriesCached(userId)]);
-      return { ...counts, missingPhotos: entries.filter((e) => e.type === "VERSCHLUSS" && !e.imageUrl).length };
+      // `isEffectiveEntry`: ein Aufruf, der noch auf den Riegel wartet, ist kein Verschluss ohne
+      // Foto — er ist noch gar keiner (docs/riegel-konzept.md).
+      return { ...counts, missingPhotos: entries.filter((e) => e.type === "VERSCHLUSS" && !e.imageUrl && isEffectiveEntry(e)).length };
     },
     render: ({ sessions, closed, totalMs, avgMs, missingPhotos }, { t, dl }) => (
       <Section title={t("kgWearOverview")}>
@@ -176,12 +179,12 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
   // Aktive Session
   activeSession: block({
     load: async ({ userId }) => {
-      // Verschlüsse ohne Gegenstück heisst: einer läuft noch. Auf der absteigenden Liste ist der
-      // erste Verschluss der jüngste — dasselbe, was die aufsteigende Liste als letzten liefert.
-      const entries = await entriesCached(userId);
-      const vs = entries.filter((e) => e.type === "VERSCHLUSS");
-      const os = entries.filter((e) => e.type === "OEFFNEN");
-      return vs.length > os.length ? vs[0] ?? null : null;
+      // Der jüngste WIRKSAME KG-Eintrag IST der Zustand — dieselbe Ableitung wie im Dashboard und
+      // im MCP (`latestEffectiveKgEntry`). Vorher zählte diese Stelle Verschlüsse gegen Öffnungen,
+      // eine dritte Lesart derselben Frage: sie sah den schwebenden Aufruf als laufende Session und
+      // zeigte „verschlossen seit …", während das Dashboard daneben den offenen Zustand zeigte.
+      const latest = latestEffectiveKgEntry(await entriesCached(userId));
+      return latest?.type === "VERSCHLUSS" ? latest : null;
     },
     render: (activeEntry, { now, t, dl, tz }) => activeEntry && (
       <Section title={t("currentSession")}>

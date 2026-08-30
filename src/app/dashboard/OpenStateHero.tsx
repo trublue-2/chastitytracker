@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useTranslations } from "next-intl";
+import useToast from "@/app/hooks/useToast";
+import { useApiError } from "@/app/hooks/useApiError";
+import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
 import Button from "@/app/components/Button";
 import StateHero from "@/app/components/StateHero";
 import TimerDisplay from "@/app/components/TimerDisplay";
@@ -27,6 +30,7 @@ export default function OpenStateHero({
   cleaningPauseUntil,
   cleaningRelockWarnTime,
   cleaningRelockWarnPassed,
+  lockCall,
 }: {
   /** Beginn des offenen Zustands (ISO). */
   since: string;
@@ -39,9 +43,38 @@ export default function OpenStateHero({
   /** Bereits verstrichen? Dann sagt die Zeile es im Perfekt, statt eine Frist zu versprechen, die
    *  es nicht mehr gibt — die Pause läuft ja weiter. */
   cleaningRelockWarnPassed: boolean;
+  /** Der wartende Verschluss-AUFRUF (docs/riegel-konzept.md): erfasst, aber noch nicht vollzogen —
+   *  es fehlt der Knopfdruck an der Box. `null`, wenn keiner läuft.
+   *
+   *  Er ersetzt den Wiederverschluss-Knopf, und zwar nicht nur der Optik wegen: das Formular
+   *  dahinter lehnt einen zweiten Aufruf ab (`LOCK_ALREADY_PENDING`). Ein Knopf, der in eine Absage
+   *  führt, ist schlimmer als keiner. */
+  lockCall: { id: string; at: string } | null;
 }) {
   const t = useTranslations("dashboard");
   const router = useRouter();
+  const toast = useToast();
+  const apiError = useApiError();
+  const [withdrawing, setWithdrawing] = useState(false);
+
+  /** Den Aufruf zurücknehmen = den Eintrag löschen. Kein eigener Endpunkt: „ist nie passiert" IST
+   *  das Löschen, und die Route räumt dabei auch das noch nicht abgeholte Box-Kommando ab.
+   *
+   *  Ohne `force`: ein schwebender Aufruf steht nicht in der Verschluss-Kette, die Route nimmt ihn
+   *  deshalb von der Ketten-Prüfung aus. Fehler über `parseApiErrorCode`/`useApiError` wie überall,
+   *  statt den Code der Route wegzuwerfen. */
+  async function withdraw(id: string) {
+    setWithdrawing(true);
+    try {
+      const res = await fetchWithTimeout(`/api/entries/${id}`, { method: "DELETE" });
+      if (!res.ok) { toast.error(apiError(await parseApiErrorCode(res))); return; }
+      router.refresh();
+    } catch {
+      toast.error(t("lockCallWithdrawFailed"));
+    } finally {
+      setWithdrawing(false);
+    }
+  }
 
   // Nach Fristablauf zurück in den normalen „offen"-Zustand — EIN Timer, ausgelöst vom Effekt.
   // Nicht über `onExpire` von TimerDisplay: das feuert aus dem Render heraus und im Sekundentakt,
@@ -58,15 +91,26 @@ export default function OpenStateHero({
   // Während der Pause die Restfrist, sonst die Zeit seit dem Öffnen. `format="short"` (mm:ss) für
   // den Countdown — `long` zeigt unter einer Stunde nur volle Minuten und stünde die letzte,
   // entscheidende Minute lang auf „0m".
-  const timer = cleaningPauseUntil
-    ? { targetDate: cleaningPauseUntil, mode: "countdown" as const, format: "short" as const }
-    : { targetDate: since, mode: "countup" as const, format: "long" as const };
+  // **Was der Held zeigt, entscheidet EINE Rangfolge**, nicht fünf einzelne Ternäre: läuft eine
+  // Reinigungspause, ist ihre Frist die Aussage — sie läuft ab, und ihr Ablauf hat Folgen. Wartet
+  // nur ein Aufruf, ist er der Zustand. Sonst: offen seit.
+  //
+  // Zwei bewusste Ausnahmen von dieser Rangfolge, beide unten am Ort:
+  //  • das ZEICHEN folgt dem Aufruf, weil er die jüngere Absicht ist,
+  //  • die HANDLUNG unter dem Helden ebenso (der Wiederverschluss-Knopf führte in eine Absage).
+  const mode = cleaningPauseUntil ? "pause" : lockCall ? "call" : "open";
+
+  const timer = mode === "pause"
+    ? { targetDate: cleaningPauseUntil!, mode: "countdown" as const, format: "short" as const }
+    : { targetDate: mode === "call" ? lockCall!.at : since, mode: "countup" as const, format: "long" as const };
 
   return (
     <StateHero
-      tone={cleaningPauseUntil ? "warn" : "quiet"}
-      word={cleaningPauseUntil ? t("cleaningPauseLabel") : t("openSince")}
-      icon={<LockOpenIcon size={15} strokeWidth={2.2} className="shrink-0" />}
+      tone={mode === "open" ? "quiet" : "warn"}
+      word={mode === "pause" ? t("cleaningPauseLabel") : mode === "call" ? t("lockCallLabel") : t("openSince")}
+      icon={lockCall
+        ? <LockClosedIcon size={15} strokeWidth={2.2} className="shrink-0" />
+        : <LockOpenIcon size={15} strokeWidth={2.2} className="shrink-0" />}
       value={<TimerDisplay {...timer} />}
       /* Die Folge, bevor sie eintritt. Der Countdown darüber sagt, wie lange die Session
          fortgeführt wird; wo die STRAFFRIST früher endet (Reinigungsfenster kürzer als das
@@ -78,7 +122,14 @@ export default function OpenStateHero({
         </span>
       )}
     >
-      {cleaningPauseUntil && (
+      {lockCall ? (
+        <div className="relative mt-4 flex flex-col gap-2">
+          <p className="text-sm font-medium text-warn">{t("lockCallPressButton")}</p>
+          <Button variant="secondary" loading={withdrawing} onClick={() => withdraw(lockCall.id)}>
+            {t("lockCallWithdraw")}
+          </Button>
+        </div>
+      ) : cleaningPauseUntil && (
         <Link href="/dashboard/new/verschluss" className="relative mt-4 block">
           <Button variant="semantic" semantic="lock" fullWidth icon={<LockClosedIcon size={16} />}>
             {t("cleaningPauseRelock")}

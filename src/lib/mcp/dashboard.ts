@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getOpenKontrollen, getActiveLockPeriod, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedLockPeriod, getCurrentLockKeyInBox, getOpenLockRequests } from "@/lib/queries";
+import { getOpenKontrollen, getActiveLockPeriod, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedLockPeriod, getCurrentLockKeyInBox, pendingLockCallAt, getOpenLockRequests } from "@/lib/queries";
 import {
   buildLockState, mapOpenKontrolle, mapActiveLockPeriod, mapOpenOrgasmusAnforderung,
   mapActiveWearSessions, mapInterruptedLockPeriod, mapOpenLockRequest,
@@ -93,6 +93,19 @@ export interface BoxStateView {
    *  Stundenzahl, jetzt über das ungerundete Verhältnis. Deshalb KEIN schemaVersion-Bump — das wäre
    *  die Rundung zur Semantik erklärt; die alte Kante war schlicht ungenauer. */
   staleLock: boolean;
+  /**
+   * Seit wann ein VERSCHLUSS-AUFRUF auf den Riegel wartet (ISO-8601), `null` wenn keiner wartet
+   * (docs/riegel-konzept.md).
+   *
+   * Nur bei einem Träger mit `get_context.box.requireBolt`. Solange dieser Wert steht, ist er
+   * NICHT verschlossen — `currentRun` ist leer, obwohl er den Verschluss längst erfasst hat. Ohne
+   * dieses Feld sähe seine Absicht für dich aus wie Untätigkeit.
+   *
+   * Steht es seit Stunden, drückt niemand den Knopf: entweder ist die Box tot (dann ist
+   * `set_box requireBolt:false` der Ausweg — es vollzieht den wartenden Aufruf) oder der Träger ist
+   * nicht bei ihr.
+   */
+  lockCallWaitingSince: string | null;
   /** Deklaration des Subs beim aktuellen Verschluss: liegt der Schlüssel überhaupt in dieser Box?
    *  `false` = NEIN, er trägt ihn bei sich (z.B. auf Reise) — die Box hat dann bewusst KEIN
    *  lock-Kommando bekommen. Das ERKLÄRT ein `hardwareEnforced: false`, das sonst wie eine Box-Störung
@@ -606,7 +619,7 @@ type BoxRow = Awaited<ReturnType<typeof loadBoxRow>>;
  *  Schlüssel in ihr liegt — nur der Sub hat das erklärt. Deshalb reicht der Aufrufer die Deklaration
  *  durch: das Dashboard hat sie gratis aus dem Lock-Zustand (derselbe Wert wie `currentRun.keyInBox`,
  *  die beiden können so nicht auseinanderlaufen), `get_box_state` lädt sie via `getCurrentLockKeyInBox`. */
-function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null): BoxStateView | null {
+function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null, lockCallAt: Date | null): BoxStateView | null {
   if (!box) return null;
   // Bester bekannter physischer Stand: das gemeldete IST, bei Alt-Zeilen ohne IST-Meldung das SOLL
   // (= bisheriges Verhalten, bis der erste Heimdall-Push nach dem Rollout das Feld füllt). Bewusst
@@ -659,6 +672,7 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null)
     openArmed,
     staleLock,
     keyInBox,
+    lockCallWaitingSince: iso(lockCallAt),
     keySecured: box.reportedLocked === true && keyInBox === true && !openArmed && !staleLock,
     battery: box.battery,
     charging: box.charging,
@@ -687,10 +701,14 @@ export interface BoxStateResult extends Envelope {
 export async function getBoxState(username: string): Promise<BoxStateResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   // Box-Zeile und Schlüssel-Deklaration hängen beide nur an userId — parallel, nicht nacheinander.
-  const [box, keyInBox] = await Promise.all([loadBoxRow(userId), getCurrentLockKeyInBox(userId)]);
+  const [box, keyInBox, lockCall] = await Promise.all([
+    loadBoxRow(userId),
+    getCurrentLockKeyInBox(userId),
+    pendingLockCallAt(userId),
+  ]);
   const now = new Date();
   const iso = makeIso(timezone);
-  return { schemaVersion: 4, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox) };
+  return { schemaVersion: 4, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox, lockCall) };
 }
 
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */
@@ -713,7 +731,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
   // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
   const [openKontrolleRows, activeLockPeriodRow, openLockRequestRows, interruptedLockPeriodRow, activeWearRows, openOrgasmusRow,
-         rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives] = await Promise.all([
+         rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives, lockCall] = await Promise.all([
     getOpenKontrollen(trackingCtx.userId, now),
     getActiveLockPeriod(trackingCtx.userId),
     getOpenLockRequests(trackingCtx.userId, now),
@@ -727,6 +745,10 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     loadBoxRow(trackingCtx.userId),
     loadActiveHealthHold(trackingCtx.userId, iso),
     loadScheduledDirectives(trackingCtx.userId, now, iso),
+    // Eigene Abfrage statt einer Ableitung aus `trackingCtx.entries`: gemessen wird die ERFASSUNG
+    // (`createdAt`), und die trägt die geteilte Eintrags-Auswahl nicht. Sie aus `startTime`
+    // abzuleiten läse einen Wert, den bei einem Riegel-Träger niemand gewählt hat.
+    pendingLockCallAt(trackingCtx.userId),
   ]);
 
   const lock = buildLockState(trackingCtx.entries, trackingCtx.cleaning, now, fmt, pairs);
@@ -742,7 +764,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const activeWearSessions = mapActiveWearSessions(activeWearRows, now, fmt);
   // Die Box-Sicht erbt die Schlüssel-Deklaration aus DEMSELBEN Lock-Zustand wie currentRun — die
   // beiden Felder einer Antwort können so nicht auseinanderlaufen, und es kostet keine Query.
-  const boxState = mapBoxState(boxRow, now, iso, lock.keyInBox);
+  const boxState = mapBoxState(boxRow, now, iso, lock.keyInBox, lockCall);
 
   // wornNow: KG-Lock (falls verschlossen) + aktive Wear-Sessions der Kategorien.
   const wornNow: DashboardResult["wornNow"] = [];

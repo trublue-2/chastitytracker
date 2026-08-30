@@ -8,6 +8,7 @@ interface Props {
   isAdmin?: boolean;
   isKeyholder?: boolean;
   isLocked: boolean;
+  lockCallPending?: boolean;
   version?: string;
   categoryRows?: NewEntryCategoryRow[];
   bildersafe?: boolean;
@@ -16,7 +17,7 @@ interface Props {
   openInspection?: { code: string | null; href: string } | null;
 }
 
-export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, version, categoryRows, bildersafe, weight, openInspection }: Props) {
+export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, lockCallPending, version, categoryRows, bildersafe, weight, openInspection }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
@@ -32,6 +33,7 @@ export default function DashboardBottomNav({ isAdmin, isKeyholder, isLocked, ver
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
         isLocked={isLocked}
+        lockCallPending={lockCallPending}
         categoryRows={categoryRows}
         bildersafe={bildersafe}
         weight={weight}

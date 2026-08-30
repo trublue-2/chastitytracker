@@ -15,6 +15,7 @@ const entry = (type: string, iso: string, device: { id?: string | null; name?: s
   id: `e${++seq}`,
   type,
   startTime: new Date(iso),
+  boltConfirmedAt: type === "VERSCHLUSS" ? new Date(iso) : null,
   oeffnenGrund: null,
   kontrollCode: null,
   verifikationStatus: null,

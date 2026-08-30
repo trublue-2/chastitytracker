@@ -1,5 +1,6 @@
 import { buildPairs, getOpenPair, interruptionPauseMs, msToHours, type CleaningPauseRules } from "@/lib/utils";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { latestEffectiveKgEntry } from "@/lib/lockPending";
 
 /**
  * Der LIVE-Zustand eines Subs — Verschluss, offene Kontrolle, laufende Sperrzeit, offenes
@@ -51,6 +52,8 @@ export type LockEntry = {
   id: string;
   type: string;
   startTime: Date;
+  /** Siehe `Entry.boltConfirmedAt`. Pflichtfeld aus demselben Grund wie `keyInBox` unten. */
+  boltConfirmedAt: Date | null;
   oeffnenGrund: string | null;
   device: { name: string; categoryId?: string | null } | null;
   /** Siehe `Entry.keyInBox` (schema.prisma). Pflichtfeld: wäre es optional, könnte ein Select die
@@ -82,7 +85,9 @@ export function buildLockState<E extends LockEntry>(
   prePairs?: LockPair<E>[],
 ): LockState {
   const pairs: LockPair<E>[] = prePairs ?? buildPairs(entries, [], cleaning);
-  const latest = entries.find((e) => e.type === "VERSCHLUSS" || e.type === "OEFFNEN") ?? null;
+  // Dieselbe Ableitung wie im Dashboard und auf der Statistik-Seite: ein Verschluss, dessen Riegel
+  // noch aussteht, ist ein Aufruf und kein Zustand (`lockPending.ts`).
+  const latest = latestEffectiveKgEntry(entries);
   const isLocked = latest?.type === "VERSCHLUSS";
 
   const activePair = getOpenPair(pairs);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireBoxSync } from "@/lib/boxSync";
 import { BOX_EVENT_TYPES } from "@/lib/constants";
+import { commitPendingLockSafe } from "@/lib/lockCommit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +46,11 @@ export async function POST(req: NextRequest) {
       at: body.at ? new Date(body.at) : new Date(),
     },
   });
+
+  // „Riegel zu" VOLLZIEHT einen wartenden Verschluss-Aufruf (docs/riegel-konzept.md) — hier mit der
+  // Ereigniszeit, die `commitPendingLock` auf [Aufruf, jetzt] klemmt. Gekapselt wie beim Status:
+  // die Meldung selbst ist bereits gespeichert und darf nicht an der Nacharbeit scheitern.
+  if (body.type === "LOCKED") await commitPendingLockSafe(user.id, ev.at, "box/event");
 
   return NextResponse.json({ ok: true, id: ev.id });
 }

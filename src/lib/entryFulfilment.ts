@@ -14,6 +14,9 @@ import {
 } from "@/lib/queries";
 import { lockPeriodEndFromRequest } from "@/lib/verschlussAnforderungService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
+import { scheduleCleaningRelockInspection } from "@/lib/autoKontrolleService";
+import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/entryNotify";
+import { markLastAction } from "@/lib/appMeta";
 
 /** Der Eintrag, wie ihn die Erfüllung braucht — bewusst die schmale Form statt des Prisma-Modells,
  *  damit beide Routen ihn ohne Umweg übergeben können. */
@@ -276,4 +279,38 @@ export async function punishWrongDevice(
       once: true,
     });
   } catch { /* ignore if duplicate — e.g. offline replay */ }
+}
+
+/**
+ * **Was NACH dem Commit eines wirksamen Eintrags passiert** — die vier Schritte in der Reihenfolge,
+ * in der sie zusammengehören: automatische Ahndung, Aktivitäts-Stempel, die Kontrolle nach einer
+ * Reinigungspause, die Meldung an die Keyholder.
+ *
+ * Sie standen zweimal im Baum, seit ein Verschluss auch VERZÖGERT wirksam werden kann
+ * (`lockCommit.ts`): einmal im Anlege-Pfad, einmal im Vollzug — in derselben Reihenfolge, mit
+ * demselben Fire-and-forget-Zuschnitt. Ein fünfter Schritt müsste sonst an beiden Stellen
+ * nachgetragen werden, und würde er im Vollzug vergessen, liefe er für Riegel-Träger stillschweigend
+ * nie. Genau diese Klasse von Auslassung soll die Regel verhindern, nicht erzeugen.
+ *
+ * Wirft nie: jeder Schritt ist eine Nacharbeit zu einer bereits geschriebenen Zeile.
+ */
+export async function applyEntryAftermath(
+  entry: { id: string; userId: string; type: string; deviceId: string | null },
+  opts: {
+    /** Die von erfüllten Anforderungen GEFORDERTEN Geräte (aus `applyEntryFulfilment`). */
+    requiredDeviceIds: string[];
+    /** Schliesst dieser Eintrag eine Reinigungspause ab? Dann folgt eine Kontrolle. */
+    endsCleaningPause: boolean;
+    /** Die Meldung an die Keyholder — `null` heisst „jetzt noch nicht" (der schwebende Aufruf; sie
+     *  geht beim Vollzug raus). */
+    notify: EntryNotifyParams | null;
+  },
+): Promise<void> {
+  await punishWrongDevice(entry, opts.requiredDeviceIds);
+  markLastAction();
+  if (opts.endsCleaningPause) {
+    void scheduleCleaningRelockInspection(entry.userId).catch((e) =>
+      console.error("[autoKontrolle:cleaningRelock]", (e as Error).message));
+  }
+  if (opts.notify) void notifyControllersAboutEntry(opts.notify);
 }

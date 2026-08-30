@@ -32,6 +32,31 @@ export async function setBoxCommandForUser(
   return count > 0;
 }
 
+/**
+ * Ein noch NICHT abgeholtes Kommando streichen — das Gegenstück zu {@link setBoxCommandForUser},
+ * und aus demselben Grund hier: dieses Modul ist der einzige Schreiber des
+ * `pendingCommand`/`pendingCommandAt`-Paares, samt Heimdall-Guard.
+ *
+ * `only` engt auf eine Richtung ein: wer einen Verschluss-AUFRUF zurücknimmt, streicht sein `lock` —
+ * ein zwischenzeitlich gesetztes `open` gehört einem anderen Vorgang und bliebe stehen.
+ *
+ * **Was es NICHT kann:** eine Box, die das Kommando beim letzten Sync bereits gezogen hat, wartet
+ * weiter auf den Knopf. Von hier aus ändert das nichts mehr — sie schliesst dann auf Knopfdruck
+ * ohne Eintrag, derselbe Zustand wie bei jedem von Hand verriegelten Schloss.
+ */
+export async function clearBoxCommandForUser(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  only?: "lock" | "open",
+): Promise<boolean> {
+  if (!heimdallEnabled()) return false;
+  const { count } = await tx.boxStatus.updateMany({
+    where: { userId, ...(only ? { pendingCommand: only } : {}) },
+    data: { pendingCommand: null, pendingCommandAt: null },
+  });
+  return count > 0;
+}
+
 export interface BoxCommandInput {
   type: string;
   /** Liegt der Schlüssel in der Box? `null`/`undefined` = das Formular hat nicht gefragt (keine Box,

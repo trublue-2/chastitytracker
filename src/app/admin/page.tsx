@@ -10,7 +10,7 @@ import ReleaseNowButton from "./ReleaseNowButton";
 import WithdrawButton from "./WithdrawButton";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
-import { KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
+import { KONTROLLE_TARGET_INCLUDE, latestKgTimesByUser } from "@/lib/queries";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import EmptyState from "@/app/components/EmptyState";
 import UserAvatar from "@/app/components/UserAvatar";
@@ -77,9 +77,8 @@ export default async function AdminPage() {
   const now = new Date();
 
   // Bulk-fetch all data in 7 queries instead of 7×N
-  const [latestVerschluss, latestOeffnen, allKontrolle, allVerschlussAnf, allLockPeriods, allOrgasmusAnf, allBoxes] = await Promise.all([
-    prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS", userId: { in: userIds } }, _max: { startTime: true } }),
-    prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN", userId: { in: userIds } }, _max: { startTime: true } }),
+  const [kgTimes, allKontrolle, allVerschlussAnf, allLockPeriods, allOrgasmusAnf, allBoxes] = await Promise.all([
+    latestKgTimesByUser(userIds),
     prisma.kontrollAnforderung.findMany({
       where: { userId: { in: userIds }, entryId: null, withdrawnAt: null, ...keyholderVisibleKontrolleWhere(now) },
       orderBy: { createdAt: "desc" },
@@ -110,8 +109,7 @@ export default async function AdminPage() {
   ]);
 
   // Build lookup maps from groupBy results
-  const verschlussMap = new Map(latestVerschluss.map(v => [v.userId, v._max.startTime]));
-  const oeffnenMap = new Map(latestOeffnen.map(o => [o.userId, o._max.startTime]));
+  const { lockedAt: verschlussMap, openedAt: oeffnenMap } = kgTimes;
 
   // Bucket directives by userId once (O(M)) instead of re-scanning each full array per user (O(N×M)).
   const groupByUser = <T extends { userId: string }>(rows: T[]) => {

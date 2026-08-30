@@ -5,6 +5,7 @@ import { errorResponse } from "@/lib/serviceResult";
 import { heimdallEnabled } from "@/lib/constants";
 import { getIsLocked, getCurrentLockKeyInBox } from "@/lib/queries";
 import { setBoxCommandForUser } from "@/lib/boxCommand";
+import { PENDING_LOCK_FILTER } from "@/lib/lockPending";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +28,21 @@ export async function POST() {
   if (!heimdallEnabled()) return NextResponse.json([]);
   const userId = session.user.id;
 
-  const [locked, keyInBox] = await Promise.all([getIsLocked(userId), getCurrentLockKeyInBox(userId)]);
+  const [locked, keyInBox, pending] = await Promise.all([
+    getIsLocked(userId),
+    getCurrentLockKeyInBox(userId),
+    // Ein wartender Verschluss-Aufruf zählt hier MIT (docs/riegel-konzept.md): genau dann ist die
+    // Box scharfgestellt, aber der Riegel meldet nichts — und genau dann ist dieser Endpunkt der
+    // Reparaturweg. Ohne diese Zeile lehnte er ausgerechnet den Fall ab, für den es ihn gibt.
+    prisma.entry.findFirst({ where: { userId, ...PENDING_LOCK_FILTER }, select: { id: true } }),
+  ]);
   // Nur bei laufendem Verschluss (nicht in Reinigungspause): ohne Session gehört das Schliessen
   // in einen VERSCHLUSS-Eintrag — die Box folgt den Einträgen, das bleibt der Normalweg.
-  if (!locked) return errorResponse(409, "BOX_RELOCK_NOT_LOCKED");
+  if (!locked && !pending) return errorResponse(409, "BOX_RELOCK_NOT_LOCKED");
   // Schlüssel laut Deklaration NICHT in der Box (Reise) → ein lock wäre dieselbe Falschmeldung,
-  // die keyInBox=false gerade verhindert.
+  // die keyInBox=false gerade verhindert. Beim wartenden Aufruf ist `keyInBox` null (er gilt ja
+  // noch nicht) — dort ist die Frage schon beim Anlegen beantwortet: mit `false` wäre gar nicht
+  // erst gewartet worden (`lockAwaitsBolt`).
   if (keyInBox === false) return errorResponse(409, "BOX_RELOCK_KEY_NOT_IN_BOX");
 
   await setBoxCommandForUser(prisma, userId, "lock");

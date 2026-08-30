@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 133 Kanten über 18 Mechaniken, davon 19 fest verdrahtet.
+Insgesamt 140 Kanten über 18 Mechaniken, davon 19 fest verdrahtet.
 
 ## Einträge
 
@@ -68,6 +68,10 @@ flowchart LR
 | Sessions/Statistik | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
 | Box | `Entry.keyInBox` | Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt. | `boxCommand.ts` |
 | Sperrzeit | `Entry.keyInBox` | Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt. | `boxCommand.ts` |
+| Box | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
+| Sperrzeit | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
+| Sessions/Statistik | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
+| Strafbuch | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
 | Geräte | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
 | Sessions/Statistik | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
 | Kontrollen | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
@@ -89,9 +93,9 @@ flowchart LR
   nReinigung["Reinigung"] --> nSperrzeit
   nKontrollen["Kontrollen"] --> nSperrzeit
   nEintrge["Einträge"] --> nSperrzeit
+  nBox["Box"] --> nSperrzeit
   nOrgasmus["Orgasmus"] --> nSperrzeit
   nMCP["MCP"] --> nSperrzeit
-  nBox["Box"] --> nSperrzeit
   nSperrzeit --> nReinigung["Reinigung"]
   nSperrzeit --> nBox["Box"]
   nSperrzeit --> nGerte["Geräte"]
@@ -107,8 +111,10 @@ flowchart LR
 | Reinigung | `User.cleaningAllowed` | Ob Reinigungspausen überhaupt erlaubt sind. Notwendig, nicht hinreichend — eine aktive Sperrzeit muss es zusätzlich erlauben. | `queries.ts:cleaningBlockReason` |
 | Kontrollen | `User.autoKontrolleNurBeiSperre` | Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss. | `autoKontrolleService.ts` |
 | Einträge | `User.oeffnenGruendeConfig` | Auswahlliste der Öffnungsgründe. `REINIGUNG` ist der Grund, an dem die gesamte Reinigungslogik hängt — er lässt sich nicht wegkonfigurieren. | `reasonsService.ts` |
+| Box | `User.lockRequiresBolt` | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | `lockCommit.ts:lockAwaitsBolt` |
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
 | Einträge | `Entry.keyInBox` | Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt. | `boxCommand.ts` |
+| Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
 | Orgasmus | `OrgasmusAnforderung.openingAllowed` | Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen. | — |
 | MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
 | MCP | `RecurringContext.deviceFree` | Der Slot verlangt Gerätefreiheit — die Information, wegen der der Keyholder ihn überhaupt führt. | — |
@@ -340,6 +346,7 @@ flowchart LR
   nStrafbuch["Strafbuch"]
   nReinigung["Reinigung"] --> nStrafbuch
   nKontrollen["Kontrollen"] --> nStrafbuch
+  nBox["Box"] --> nStrafbuch
   nGerte["Geräte"] --> nStrafbuch
   nSperrzeit["Sperrzeit"] --> nStrafbuch
   nEintrge["Einträge"] --> nStrafbuch
@@ -359,11 +366,13 @@ flowchart LR
 | Reinigung | `User.cleaningMaxPerDay` | ANZAHL Öffnungen pro Kalendertag des Subs (kein Minutenbudget). 0 = unbegrenzt. Wird nur erkannt, nie durchgesetzt. | `cleaningService.ts:maxPausesPerDaySentinel` |
 | Kontrollen | `User.autoKontrolleAktiv` | Hauptschalter der Automatik. Aus schaltet BEIDES ab: den gewürfelten Tagesplan und die Kontrolle nach dem Wiederverschluss. | `autoKontrolleService.ts` |
 | Kontrollen | `User.inspectionAutoMarkEnabled` | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | `queries.ts:releaseLockPeriodsOnOpen` |
+| Box | `User.lockRequiresBolt` | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | `lockCommit.ts:lockAwaitsBolt` |
 | Geräte | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen. | `mcp/devices.ts:set_device_meta` |
 | Sperrzeit | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
 | Sperrzeit | `VerschlussAnforderung.deviceId` | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | — |
 | Kontrollen | `KontrollAnforderung.deadline` | Erfüllungsfrist. Nach Ablauf verschwindet die Kontrolle nicht, sie wird überfällig — und ist der Startpunkt der Eskalation. | `inspectionEscalationService.ts` |
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
+| Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
 | Einträge | `Entry.startTime` | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | `entryFulfilment.ts` |
 | Orgasmus | `OrgasmusAnforderung.art` | ANWEISUNG = Pflicht (ungenutzt ist ein Vergehen), GELEGENHEIT = Erlaubnis (ungenutzt folgenlos). Der ganze Unterschied der Direktive. | — |
 | Orgasmus | `OrgasmusAnforderung.endsAt` | Ende des Fensters. Danach ist eine ANWEISUNG versäumt. | — |
@@ -455,6 +464,8 @@ flowchart LR
   nSperrzeit["Sperrzeit"] --> nBox
   nEintrge["Einträge"] --> nBox
   nBox --> nSperrzeit["Sperrzeit"]
+  nBox --> nSessionsStatistik["Sessions/Statistik"]
+  nBox --> nStrafbuch["Strafbuch"]
 ```
 
 ### Hängt ab von
@@ -466,6 +477,7 @@ flowchart LR
 | Sperrzeit | `VerschlussAnforderung.cleaningAllowed` | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | `queries.ts:foldActiveLockPeriods` |
 | Sperrzeit | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
 | Einträge | `Entry.keyInBox` | Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt. | `boxCommand.ts` |
+| Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
 | Einträge | *feste Regel* | Die Box folgt den Einträgen: aus Verschluss und Öffnen leitet der Tracker ihr Kommando ab. Eine VERBOTENE Öffnung bekommt keines — sonst vollzöge er das Vergehen, das er dokumentiert. | `boxCommand.ts` |
 | Sperrzeit | *feste Regel* | Läuft eine Sperrzeit, hält die Box den Schlüssel fest. Die Sperre ist damit mehr als ein Datenbank-Eintrag. | `boxCommand.ts` |
 
@@ -473,6 +485,9 @@ flowchart LR
 
 | Wohin | Wodurch | Was passiert | Anker |
 |---|---|---|---|
+| Sperrzeit | `User.lockRequiresBolt` | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | `lockCommit.ts:lockAwaitsBolt` |
+| Sessions/Statistik | `User.lockRequiresBolt` | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | `lockCommit.ts:lockAwaitsBolt` |
+| Strafbuch | `User.lockRequiresBolt` | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | `lockCommit.ts:lockAwaitsBolt` |
 | Sperrzeit | *feste Regel* | Die Failsafes (leerer Akku, zu lange offline, absolutes Hard-Cap) öffnen physisch auch gegen eine laufende Sperrzeit und gegen den Keyholder. Der Tracker-Zustand ändert sich dabei NICHT — beide laufen dann auseinander. | `boxOpenOutlook.ts` |
 
 ## Nachrichten
@@ -708,6 +723,7 @@ flowchart LR
   nReinigung["Reinigung"] --> nSessionsStatistik
   nKontrollen["Kontrollen"] --> nSessionsStatistik
   nZugang["Zugang"] --> nSessionsStatistik
+  nBox["Box"] --> nSessionsStatistik
   nGerte["Geräte"] --> nSessionsStatistik
   nEintrge["Einträge"] --> nSessionsStatistik
   nTrainingsziele["Trainingsziele"] --> nSessionsStatistik
@@ -720,11 +736,13 @@ flowchart LR
 | Reinigung | `User.cleaningMaxMinutes` | Höchstdauer EINER Pause. Darüber hinaus zählt die Pause als Tragezeit-Unterbrechung und wird zum erkannten Vergehen. | `cleaningRules.ts:cleaningRulesAt` |
 | Kontrollen | `User.inspectionAutoMarkEnabled` | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | `queries.ts:releaseLockPeriodsOnOpen` |
 | Zugang | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
+| Box | `User.lockRequiresBolt` | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | `lockCommit.ts:lockAwaitsBolt` |
 | Geräte | `Device.categoryId` | Zuordnung zur Kategorie — entscheidet, welche Kategorie-Regeln (Tracking, Pflichtfoto, Trainingsziele) für dieses Gerät gelten. | `deviceCategoryService.ts:resolveOwnedCategory` |
 | Geräte | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen. | `mcp/devices.ts:set_device_meta` |
 | Geräte | `Device.archivedAt` | Soft-Delete: gesetzt = archiviert, aus Auswahllisten raus, Historie bleibt. | — |
 | Geräte | `DeviceCategory.trackingEnabled` | Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung. Bei der eingebauten Kategorie unveränderlich. | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
+| Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
 | Einträge | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
 | Einträge | `Entry.startTime` | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | `entryFulfilment.ts` |
 | Trainingsziele | `TrainingVorgabe.minProTagH` | Mindest-Tragestunden pro Tag. Gemessen wird Wanduhr-Zeit der Kategorie, nicht Gerätestunden. | `vorgaben.ts` |

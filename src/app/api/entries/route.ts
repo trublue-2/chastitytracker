@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
-import { markLastAction } from "@/lib/appMeta";
 import { detectKeyInBox } from "@/lib/verifyCode";
 import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVerificationStatus, type InspectionVerification } from "@/lib/kontrolleService";
 import { DEVICE_BEARING_TYPES, validateEntryPayload, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
@@ -15,12 +14,12 @@ import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
 import { notifyHeimdall } from "@/lib/heimdallNotify";
 import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
-import { scheduleCleaningRelockInspection } from "@/lib/autoKontrolleService";
 import { lockPeriodEndFromRequest } from "@/lib/verschlussAnforderungService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
-import { notifyControllersAboutEntry } from "@/lib/entryNotify";
-import { applyEntryFulfilment, punishWrongDevice } from "@/lib/entryFulfilment";
+import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entryFulfilment";
+import { lockAwaitsBolt, findPendingLockTx } from "@/lib/lockCommit";
+import { boltFieldsFor } from "@/lib/lockPending";
 
 export async function GET() {
   const session = await requireApi();
@@ -98,6 +97,10 @@ export async function POST(req: NextRequest) {
   // Schliesst dieser VERSCHLUSS eine Reinigungspause ab? In der Transaktion aus demselben
   // Lock-Eintrag abgeleitet, den der Guard ohnehin liest — nach dem Commit löst er die Kontrolle aus.
   let endsCleaningPause = false;
+  // Wartet dieser Verschluss auf den Riegel? Dann ist er nur der AUFRUF: geschrieben, aber für
+  // jede Ableitung unsichtbar, bis die Box meldet (`lockCommit.ts`, docs/riegel-konzept.md).
+  // In der Transaktion entschieden, danach für die übersprungenen Nacharbeiten gebraucht.
+  let awaitsBolt = false;
   let requiredAnforderungDeviceIds: string[] = [];
   // In der Transaktion abgeleitet (braucht den Lock-Eintrag), NACH dem Commit für die eigentliche
   // Prüfung wiederverwendet — deshalb hier draussen. null = keine PRUEFUNG mit Foto.
@@ -124,10 +127,15 @@ export async function POST(req: NextRequest) {
       if (type === "VERSCHLUSS") {
         const latest = await getLatestKgEntry(session.user.id, tx);
         if (latest?.type === "VERSCHLUSS") throw entryGuardError("ALREADY_LOCKED");
+        // Ein schwebender Aufruf zählt für `getLatestKgEntry` bewusst nicht als Verschluss — der
+        // Guard oben greift für ihn also nicht, und ohne den hier legte der Träger beliebig viele
+        // Aufrufe übereinander an, während die Box auf den ersten wartet.
+        if (await findPendingLockTx(tx, session.user.id)) throw entryGuardError("LOCK_ALREADY_PENDING");
         if (latest?.type === "OEFFNEN" && new Date(startTime) <= latest.startTime) {
           throw entryGuardError("TIME_BEFORE");
         }
         endsCleaningPause = latest?.type === "OEFFNEN" && latest.oeffnenGrund === "REINIGUNG";
+        awaitsBolt = await lockAwaitsBolt(tx, session.user.id, keyInBoxDeclared, new Date());
       }
       if (type === "OEFFNEN") {
         const latest = await getLatestKgEntry(session.user.id, tx);
@@ -206,6 +214,9 @@ export async function POST(req: NextRequest) {
           codeImageUrl: type === "VERSCHLUSS" ? (codeImageUrl || null) : null,
           codeReadable: type === "VERSCHLUSS" && codeImageUrl ? (codeReadable ?? null) : null,
           keyInBox: type === "VERSCHLUSS" ? keyInBoxDeclared : null,
+          // Der Verschluss gilt sofort — ausser er wartet auf den Riegel. Die Regel steht in
+          // `lockPending.ts`, weil JEDER Erzeuger eines VERSCHLUSS sie braucht.
+          ...boltFieldsFor(type, new Date(startTime), awaitsBolt),
           // `keyDetected` bleibt hier ungesetzt (null) — das Urteil fällt nach dem Commit (siehe unten).
           boxImageUrl: BOX_PHOTO_TYPES.has(type) ? (boxImageUrl || null) : null,
         },
@@ -235,7 +246,10 @@ export async function POST(req: NextRequest) {
       // entryFulfilment.ts. `at = new Date()`: die SERVER-Uhr, nie die frei wählbare Eintrags-Zeit
       // (sonst datierte sich jeder Sub aus jeder Frist heraus). Die Ziel-Schranke reist mit, damit
       // ein Plug-Foto keine KG-Kontrolle abhakt.
-      requiredAnforderungDeviceIds = await applyEntryFulfilment(
+      //
+      // Ein schwebender Aufruf hakt NICHTS ab: eine Verschluss-Anforderung ist mit dem Riegel
+      // erfüllt, nicht mit dem Aufruf. Das holt `commitPendingLock` nach, sobald die Box meldet.
+      requiredAnforderungDeviceIds = awaitsBolt ? [] : await applyEntryFulfilment(
         tx,
         created,
         {
@@ -278,22 +292,36 @@ export async function POST(req: NextRequest) {
   // buildStrafbuch abgeleitet); ob sie geahndet wird, entscheidet die Keyholderin. Das
   // Öffnen-Formular warnt weiterhin vorab — forcedReinigung bleibt rein informativ.
 
-  // Auto-create StrafeRecord when user picked a different device than the Anforderung specified.
-  // Automatische Ahndung ohne Urteilsschritt → sofort erledigt (judgedBy=system), damit sie
-  // nicht als offene Strafe im Urteilsloop hängt.
-  // Anderes als das geforderte Gerät → automatische Ahndung (siehe punishWrongDevice).
-  await punishWrongDevice(entry, requiredAnforderungDeviceIds);
-
-  markLastAction();
-
-  // Wiederverschluss nach einer Reinigungspause → Kontrolle in Kürze („zeig mir, dass du wieder
-  // drin bist"). Fire-and-forget wie der Geräte-Check: die Planung ist eine Poller-Vorbereitung,
-  // keine Voraussetzung der Antwort. Die Regel selbst (Verzögerung, ersetzte Plan-Zeile,
-  // Schlaf-Fenster-Sonderfall) liegt in autoKontrolleService.
-  if (endsCleaningPause) {
-    void scheduleCleaningRelockInspection(session.user.id).catch((e) =>
-      console.error("[autoKontrolle:cleaningRelock]", (e as Error).message));
-  }
+  // Was einem wirksamen Eintrag FOLGT: automatische Ahndung eines falschen Geräts, Aktivitäts-
+  // Stempel, die Kontrolle nach einer Reinigungspause („zeig mir, dass du wieder drin bist") und
+  // die Meldung an die Keyholder in DEREN Sprache (Issue #43). Die vier Schritte stehen in
+  // `applyEntryAftermath` (entryFulfilment.ts), weil der VERZÖGERTE Vollzug (`commitPendingLock`)
+  // exakt dieselben braucht — und ein fünfter sonst an einer der beiden Stellen fehlte.
+  //
+  // `awaitsBolt` schaltet genau die zwei Schritte ab, die eine vollzogene Tat behaupten: wieder DRIN
+  // ist der Träger erst mit dem Riegel, und „hat sich eingeschlossen" wäre bis dahin eine Behauptung
+  // über etwas, das noch nicht passiert ist. Beides holt der Vollzug nach.
+  await applyEntryAftermath(entry, {
+    requiredDeviceIds: requiredAnforderungDeviceIds,
+    endsCleaningPause: endsCleaningPause && !awaitsBolt,
+    notify: awaitsBolt ? null : {
+      actorUserId: session.user.id,
+      userId: session.user.id,
+      username: session.user.name ?? "User",
+      type,
+      startTime: new Date(startTime),
+      withdrawnLockPeriod,
+      oeffnenGrund,
+      orgasmusArt,
+      kontrollCode,
+      note,
+      imageUrl,
+      keyInBoxDeclared,
+      lockStartTime,
+      deviceId,
+      reasonConfig: reasonUser,
+    },
+  });
 
   // Kontroll-Geräte-Check (advisory): ist das erwartete Gerät im Kontroll-Foto sichtbar? Welches das
   // ist, steht schon fest — die Ziel-Auflösung in der Transaktion hat es bestimmt, dieselbe Quelle
@@ -309,26 +337,6 @@ export async function POST(req: NextRequest) {
       expectedDeviceId: inspectionExpectedDeviceId,
     });
   }
-
-  // Meldung an die Keyholder — in DEREN Sprache, nicht in der des Servers (Issue #43). Der ganze
-  // Aufbau liegt in `entryNotify.ts`: er hängt am Empfänger, nicht am Schreibpfad, und wirft nie.
-  void notifyControllersAboutEntry({
-    actorUserId: session.user.id,
-    userId: session.user.id,
-    username: session.user.name ?? "User",
-    type,
-    startTime: new Date(startTime),
-    withdrawnLockPeriod,
-    oeffnenGrund,
-    orgasmusArt,
-    kontrollCode,
-    note,
-    imageUrl,
-    keyInBoxDeclared,
-    lockStartTime,
-    deviceId,
-    reasonConfig: reasonUser,
-  });
 
   // Foto-Verifikation (Code bzw. nur Siegel) — der Vorgang inkl. der Pflicht, das oben gesetzte
   // "pending" durch einen Endzustand zu ersetzen, liegt in inspectionVerificationService. Hier steht

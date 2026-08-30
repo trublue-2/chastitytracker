@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireBoxSync } from "@/lib/boxSync";
+import { commitPendingLockSafe } from "@/lib/lockCommit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,6 +69,14 @@ export async function POST(req: NextRequest) {
     create: { userId: user.id, boxId: body.boxId, ...status },
     update: { ...status, ...(pendingCommand ? { pendingCommand: null, pendingCommandAt: null } : {}) },
   });
+
+  // „Riegel zu" VOLLZIEHT einen wartenden Verschluss-Aufruf (docs/riegel-konzept.md). Der zweite
+  // von zwei Auslösern: das Ereignis `LOCKED` ist der schnellere, dieser Status hier der
+  // verlässlichere — wer zuerst kommt, gewinnt, der andere läuft ins Leere.
+  //
+  // Awaited, aber schluckend (siehe `commitPendingLockSafe`): die Box muss ihre Antwort in JEDEM
+  // Fall bekommen, sonst zieht sie ihr Kommando nie ab.
+  if (status.reportedLocked === true) await commitPendingLockSafe(user.id, status.lastSyncAt ?? new Date(), "box/status");
 
   return NextResponse.json({ pendingCommand });
 }

@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 132 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 134 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -21,6 +21,7 @@ Steckbrief: [15-eintraege.md](15-eintraege.md)
 | `User.oeffnenGruendeConfig` | String? | — | dauerhaft | Auswahlliste der Öffnungsgründe. `REINIGUNG` ist der Grund, an dem die gesamte Reinigungslogik hängt — er lässt sich nicht wegkonfigurieren. | Keyholder (UI) | Einträge, Reinigung, Sperrzeit | `reasonsService.ts` |
 | `Entry.startTime` | DateTime | (keiner) | je Eintrag | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | Sub, Keyholder (UI) | Sessions/Statistik, Strafbuch | `entryFulfilment.ts` |
 | `Entry.keyInBox` | Boolean? | — | je Eintrag | Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt. | Sub | Box, Sperrzeit | `boxCommand.ts` |
+| `Entry.boltConfirmedAt` | DateTime? | — | je Eintrag | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | System | Box, Sperrzeit, Sessions/Statistik, Strafbuch | `lockPending.ts` |
 | `Entry.oeffnenGrund` | String? | — | je Eintrag | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | Sub, Keyholder (UI) | Reinigung, Sperrzeit, Strafbuch, Sessions/Statistik | `queries.ts:isAllowedCleaningOpen` |
 | `Entry.deviceId` | String? | — | je Eintrag | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | Sub, Keyholder (UI) | Geräte, Sessions/Statistik, Kontrollen | — |
 
@@ -170,7 +171,9 @@ Steckbrief: [55-geraete.md](55-geraete.md)
 
 Steckbrief: [60-box.md](60-box.md)
 
-Kein einziges einstellbares Feld — was hier passiert, ergibt sich aus anderen Mechaniken.
+| Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
+|---|---|---|---|---|---|---|---|
+| `User.lockRequiresBolt` | Boolean | `false` | dauerhaft | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | Keyholder (UI), Keyholder (MCP) | Box, Sperrzeit, Sessions/Statistik, Strafbuch | `lockCommit.ts:lockAwaitsBolt` |
 
 ## Nachrichten
 

@@ -10,7 +10,7 @@ import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
   deviceCountCached, entriesCached, evaluatedTasksCached, latestKeyInBoxCached, latestKgEntryCached, lockRequestCached,
-  orgasmConfigCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
+  orgasmConfigCached, pendingLockCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
   subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
 } from "@/lib/dashboardData";
@@ -119,8 +119,8 @@ const runningSessionCard = async (ctx: SubDashboardCtx) => {
  * Ableitung mit; `statusAndStats` braucht davon nichts mehr.
  */
 const openStateData = async ({ userId, now, tz }: SubDashboardCtx) => {
-  const [latest, cleaning, activeLockPeriod] = await Promise.all([
-    latestKgEntryCached(userId), cleaningRulesCached(userId), subLockPeriodCached(userId),
+  const [latest, cleaning, activeLockPeriod, pendingLock] = await Promise.all([
+    latestKgEntryCached(userId), cleaningRulesCached(userId), subLockPeriodCached(userId), pendingLockCached(userId),
   ]);
   if (!latest || latest.type === "VERSCHLUSS") return null;
 
@@ -177,7 +177,12 @@ const openStateData = async ({ userId, now, tz }: SubDashboardCtx) => {
         ? cleaningRelockDeadline
         : null;
 
-  return { since: latest.startTime, cleaningPauseUntil, cleaningRelockWarnUntil };
+  // Der wartende Aufruf, gemessen ab seiner ERFASSUNG (`createdAt`) — nicht ab `startTime`: die
+  // wird beim Vollzug ohnehin überschrieben, und bis dahin steht dort ein Wert, den niemand gewählt
+  // hat (das Formular zeigt für einen Riegel-Träger gar kein Zeitfeld mehr).
+  const lockCall = pendingLock ? { id: pendingLock.id, at: pendingLock.createdAt } : null;
+
+  return { since: latest.startTime, cleaningPauseUntil, cleaningRelockWarnUntil, lockCall };
 };
 
 /** Kürzel für die geteilte Herleitung — die KG-Beschriftung steckt in jeder Aufgaben-Auswertung. */
@@ -384,6 +389,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
                ergäbe. */
             cleaningRelockWarnTime={data.open.cleaningRelockWarnUntil ? formatTime(data.open.cleaningRelockWarnUntil, dl, tz) : null}
             cleaningRelockWarnPassed={!!data.open.cleaningRelockWarnUntil && data.open.cleaningRelockWarnUntil < now}
+            lockCall={data.open.lockCall && { id: data.open.lockCall.id, at: data.open.lockCall.at.toISOString() }}
           />
         </DashboardBlock>
       ) : (

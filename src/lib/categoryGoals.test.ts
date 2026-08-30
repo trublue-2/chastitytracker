@@ -26,7 +26,7 @@ describe("buildCategoryWearGoals — Tages- und Wochengrenze in der Zeitzone der
 
   // Durchgehend getragen seit dem 01.07. — die Stunden hängen allein an der Periodengrenze.
   const entries: SegmentEntry[] = [
-    { id: "w1", type: "WEAR_BEGIN", startTime: new Date("2026-07-01T00:00:00Z"), device: DEVICE },
+    { id: "w1", type: "WEAR_BEGIN", startTime: new Date("2026-07-01T00:00:00Z"), boltConfirmedAt: null, device: DEVICE },
   ];
   const NOW = new Date("2026-07-10T23:00:00Z"); // Auckland: 11.07. 11:00 · Zürich: 11.07. 01:00
 

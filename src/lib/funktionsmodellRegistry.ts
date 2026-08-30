@@ -426,6 +426,14 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin"], affects: ["MCP"], anchor: "app/api/[transport]/route.ts",
   }),
 
+  // ── User: Box ──────────────────────────────────────────────────────────────────────────────
+  s({
+    model: "User", field: "lockRequiresBolt", domain: "box", scope: "standing",
+    effect: "Sein „Verschlossen\" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort.",
+    writers: ["admin", "mcp"], affects: ["Box", "Sperrzeit", "Sessions/Statistik", "Strafbuch"],
+    anchor: "lockCommit.ts:lockAwaitsBolt",
+  }),
+
   // ── User: Gewicht ──────────────────────────────────────────────────────────────────────────
   s({
     model: "User", field: "weightTrackingEnabled", domain: "gewicht", scope: "standing",
@@ -713,6 +721,12 @@ export const FM_REGISTRY: FmEntry[] = [
     model: "Entry", field: "keyInBox", domain: "eintraege", scope: "entry",
     effect: "Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt.",
     writers: ["sub"], affects: ["Box", "Sperrzeit"], anchor: "boxCommand.ts",
+  }),
+  s({
+    model: "Entry", field: "boltConfirmedAt", domain: "eintraege", scope: "entry",
+    effect: "Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt.",
+    writers: ["system"], affects: ["Box", "Sperrzeit", "Sessions/Statistik", "Strafbuch"],
+    anchor: "lockPending.ts",
   }),
   s({
     model: "Entry", field: "deviceId", domain: "eintraege", scope: "entry",

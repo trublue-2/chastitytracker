@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { getLatestKgEntry } from "@/lib/queries";
+import { getLatestKgEntry, latestKgTimesByUser } from "@/lib/queries";
 import { getControlledSubs } from "@/lib/keyholder";
 import UserContextBar from "./UserContextBar";
 import UserSubNav from "./UserSubNav";
@@ -31,15 +31,10 @@ export default async function AdminUserLayout({
   ]);
 
   const userIds = allUsers.map(u => u.id);
-  const [lastVerschluss, lastOeffnen] = await Promise.all([
-    prisma.entry.groupBy({ by: ["userId"], where: { type: "VERSCHLUSS", userId: { in: userIds } }, _max: { startTime: true } }),
-    prisma.entry.groupBy({ by: ["userId"], where: { type: "OEFFNEN", userId: { in: userIds } }, _max: { startTime: true } }),
-  ]);
+  const { lockedAt: vMap, openedAt: oMap } = await latestKgTimesByUser(userIds);
 
   if (!user) return <>{children}</>;
 
-  const vMap = new Map(lastVerschluss.map((r) => [r.userId, r._max.startTime]));
-  const oMap = new Map(lastOeffnen.map((r) => [r.userId, r._max.startTime]));
   // `isLocked: undefined` heisst „von diesem Träger liegt noch nichts vor" und ist NICHT dasselbe
   // wie `false`. Seit die Farbe beide Zustände trägt (grün verschlossen, rosa offen), leuchtete ein
   // frisch angelegtes Konto sonst rosa, als hätte jemand gerade aufgeschlossen.
