@@ -65,7 +65,7 @@ Steckbrief: [30-kontrollen.md](30-kontrollen.md)
 | `User.autoKontrolleFensterVon` | String | `""` | dauerhaft | Beginn eines optionalen festen Auslöse-Fensters. Leer = ganzes Wach-Fenster. Wrappt bewusst nicht über Mitternacht. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen | `autoKontrolleService.ts:fixedWindowMinutes` |
 | `User.autoKontrolleFensterBis` | String | `""` | dauerhaft | Ende desselben Fensters. Liegt es vollständig im Schlaf-Fenster, wird die Kombination abgelehnt statt wirkungslos gespeichert. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen | `autoKontrolleService.ts:triggerWindowAllQuiet` |
 | `User.autoKontrolleNurBeiSperre` | Boolean | `false` | dauerhaft | Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen, Sperrzeit | `autoKontrolleService.ts` |
-| `User.inspectionReminderEnabled` | Boolean | `false` | dauerhaft | Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
+| `User.inspectionReminderEnabled` | Boolean | `false` | dauerhaft | Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginsAt Stufe 2 nie. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
 | `User.inspectionReminderDelayMinutes` | Int | `5` | dauerhaft | Verzug bis zur Mahnung, gemessen ab dem Ablauf der Kontroll-Frist. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
 | `User.inspectionAutoMarkEnabled` | Boolean | `false` | dauerhaft | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Einträge, Sessions/Statistik, Strafbuch | `queries.ts:releaseLockPeriodsOnOpen` |
 | `User.inspectionAutoMarkDelayMinutes` | Int | `60` | dauerhaft | Verzug bis zu dieser Buchung, gemessen ab dem Stempel der Stufe 1. | Keyholder (UI), Keyholder (MCP) | Kontrollen | `inspectionEscalationService.ts` |
@@ -87,7 +87,7 @@ Steckbrief: [35-orgasmus.md](35-orgasmus.md)
 | `OrgasmusAnforderung.beginsAt` | DateTime | (keiner) | je Direktive | Beginn des Fensters. Es ist immer nur EINE Direktive aktiv. | Keyholder (UI), Keyholder (MCP) | Orgasmus | — |
 | `OrgasmusAnforderung.endsAt` | DateTime | (keiner) | je Direktive | Ende des Fensters. Danach ist eine ANWEISUNG versäumt. | Keyholder (UI), Keyholder (MCP) | Orgasmus, Strafbuch | — |
 | `OrgasmusAnforderung.requiredType` | String? | — | je Direktive | Verlangt eine bestimmte Orgasmus-Art; leer = beliebig. Nur ein passender Eintrag erfüllt. | Keyholder (UI), Keyholder (MCP) | Orgasmus, Einträge | — |
-| `OrgasmusAnforderung.oeffnenErlaubt` | Boolean | `false` | je Direktive | Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen. | Keyholder (UI), Keyholder (MCP) | Orgasmus, Sperrzeit, Strafbuch | — |
+| `OrgasmusAnforderung.openingAllowed` | Boolean | `false` | je Direktive | Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen. | Keyholder (UI), Keyholder (MCP) | Orgasmus, Sperrzeit, Strafbuch | — |
 | `OrgasmusAnforderung.wirksamAb` | DateTime? | — | je Direktive | Terminierte Auslösung. Vorher gilt das Fenster nicht, erlaubt kein Öffnen und erfüllt sich nicht. | Keyholder (UI), Keyholder (MCP) | Orgasmus | `delayedTrigger.ts` |
 
 ## Aufgaben
@@ -99,7 +99,7 @@ Steckbrief: [40-aufgaben.md](40-aufgaben.md)
 | `Task.title` | String | (keiner) | je Direktive | Was zu tun ist. Der Textteil ist maschinell nicht prüfbar — dafür gibt es die Selbstmeldung. | Keyholder (UI), Keyholder (MCP) | Aufgaben | — |
 | `Task.description` | String? | — | je Direktive | Ausführlichere Fassung des Auftrags. | Keyholder (UI), Keyholder (MCP) | Aufgaben | — |
 | `Task.holdUntil` | DateTime | (keiner) | je Direktive | Festes Ende: bis dahin müssen alle Bedingungen durchgehend gelten. Im Dauer-Modus nur noch die obere Schranke. | Keyholder (UI), Keyholder (MCP) | Aufgaben, Strafbuch | `tasks.ts:effectiveHoldUntil` |
-| `Task.startGraceMin` | Int | `30` | je Direktive | Kulanz zum Anlegen ab dem Nullpunkt. Wer später beginnt, hat nicht durchgehend gehalten — sonst wäre 'kurz vor Schluss alles anlegen' eine Erfüllung. | Keyholder (UI), Keyholder (MCP) | Aufgaben | `tasks.ts:taskAnchor` |
+| `Task.startGraceMin` | Int | `30` | je Direktive | Kulanz zum Anlegen ab dem Nullpunkt. Wer später beginsAt, hat nicht durchgehend gehalten — sonst wäre 'kurz vor Schluss alles anlegen' eine Erfüllung. | Keyholder (UI), Keyholder (MCP) | Aufgaben | `tasks.ts:taskAnchor` |
 | `Task.holdDurationMin` | Int? | — | je Direktive | Dauer-Modus: die Uhr läuft ab dem tatsächlichen Anlegen. Gemeint ist eine Tragezeit — mit festem Ende bekäme der Sub nachweislich weniger. | Keyholder (UI), Keyholder (MCP) | Aufgaben | `tasks.ts:effectiveHoldUntil` |
 | `Task.proofOrderMatters` | Boolean | `true` | je Direktive | Müssen die Aufnahmezeiten der Nachweise ihrer Reihenfolge folgen? Aus entfällt auch die Sichtung wegen fehlender Aufnahmezeit. Nach dem Stellen nicht mehr änderbar. | Keyholder (UI), Keyholder (MCP) | Aufgaben | `taskProofService.ts` |
 | `Task.isPunishment` | Boolean | `false` | je Direktive | Als Strafe gestellt. Rein kennzeichnend — die Verknüpfung zum Urteil steht in `StrafeRecord.taskId`. | Keyholder (UI), Keyholder (MCP) | Aufgaben, Strafbuch | — |
@@ -537,7 +537,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `PortalTokenUsed.usedAt` | Laufzeitzustand | Wann eingelöst. Zusammen der Wiedereinspielungs-Schutz des Portal-Logins. |
 | `RateLimit.key` | Identität | Zähler-Schlüssel, meist Route plus Client-IP. |
 | `RateLimit.count` | Laufzeitzustand | Versuche im laufenden Fenster. |
-| `RateLimit.resetAt` | Laufzeitzustand | Wann das Fenster neu beginnt. |
+| `RateLimit.resetAt` | Laufzeitzustand | Wann das Fenster neu beginsAt. |
 | `OAuthClient.id` | Identität | Primärschlüssel. |
 | `OAuthClient.clientId` | Identität | Kennung der verbundenen Anwendung. |
 | `OAuthClient.clientName` | Datensatz | Anzeigename der Anwendung. |

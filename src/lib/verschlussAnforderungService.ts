@@ -288,7 +288,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     const deadlineHtml = endsAtDate
       ? `<p><strong>${t("lockUntilLabel")}</strong> ${formatDateTime(endsAtDate)}</p>`
       : "";
-    const dauerHtml = minDurationHours
+    const minDurationHtml = minDurationHours
       ? `<p><strong>${t("lockMinWearLabel")}</strong> ${escHtml(formatDurationHours(minDurationHours, user.locale))}</p>`
       : "";
     const sperrBisHtml = lockEndsAtDate
@@ -302,7 +302,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
         <p>${escHtml(t("lockRequestBody"))}</p>
         ${messageHtml}
         ${deadlineHtml}
-        ${dauerHtml}
+        ${minDurationHtml}
         ${sperrBisHtml}`, t("dashboardButton")),
     );
   }

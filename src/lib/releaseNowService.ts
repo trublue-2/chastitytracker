@@ -199,7 +199,7 @@ export async function releaseNow(params: ReleaseNowParams): Promise<ServiceResul
         art: "GELEGENHEIT",
         beginsAt: jetzt.toISOString(),
         endsAt: new Date(jetzt.getTime() + RELEASE_ORGASM_WINDOW_H * 3_600_000).toISOString(),
-        oeffnenErlaubt: true,
+        openingAllowed: true,
       }, actor);
       // Scheitert das Fenster, bleibt das Aufschliessen trotzdem stehen — es zurückzudrehen wäre
       // schlimmer als das fehlende Fenster. Die Id bleibt `null` und sagt es dem Aufrufer.

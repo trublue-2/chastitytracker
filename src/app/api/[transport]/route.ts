@@ -853,7 +853,7 @@ function registerTools(server: McpServer) {
           // Kein statisches Enum: die gültigen Arten sind pro Sub anpassbar (reasonsService). Der
           // Write-Service validiert `requiredType` gegen die effektive Liste des Ziel-Subs.
           requiredType: z.string().optional().describe(`Require a specific orgasm type (must be one of the sub's configured types; built-in defaults: ${ORGASMUS_ARTEN.join(", ")}). Omit = any orgasm counts.`),
-          openAllowed: z.boolean().optional().describe("Allow opening the device to perform the orgasm during the window (no lock break / penalty)."),
+          openingAllowed: z.boolean().optional().describe("Allow opening the device to perform the orgasm during the window (no lock break / penalty)."),
           delayMinutes: z.number().optional().describe("Delay before the directive reaches the user, in minutes. Omit/0 = immediate. Until it triggers the window does not apply: it grants no opening and cannot be fulfilled."),
           scheduledAt: z.string().optional().describe("Absolute send time (ISO 8601). Overrides delayMinutes. The user cannot see the directive until then."),
           message: z.string().optional().describe("Message shown to the user."),

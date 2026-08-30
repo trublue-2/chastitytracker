@@ -100,7 +100,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     id: m.id,
     endsAtStr: fmtDual(m.endsAt),
     message: m.message,
-    requiredArt: m.requiredArt,
+    requiredType: m.requiredType,
   }));
 
   const falschesGeraet: FalschesGeraetRow[] = sb.wrongDeviceViolations.map((v) => ({

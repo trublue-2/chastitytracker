@@ -762,7 +762,7 @@ export async function isOpeningPermittedNow(userId: string, now: Date = new Date
 
   // Orgasmus-Öffnungsfenster (oeffnenErlaubt + im Zeitfenster)
   const orgasm = await getActiveOrgasmusAnforderung(userId, now);
-  if (orgasm?.oeffnenErlaubt && orgasm.beginsAt <= now) return true;
+  if (orgasm?.openingAllowed && orgasm.beginsAt <= now) return true;
 
   return false;
 }

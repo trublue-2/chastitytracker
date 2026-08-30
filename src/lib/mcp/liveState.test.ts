@@ -174,8 +174,8 @@ describe("mapActiveLockPeriod", () => {
 });
 
 describe("mapOpenOrgasmusAnforderung", () => {
-  const row = (beginnt: string, endet: string) => ({
-    art: "ANFORDERUNG", beginsAt: D(beginnt), endsAt: D(endet),
+  const row = (beginsAt: string, endet: string) => ({
+    art: "ANFORDERUNG", beginsAt: D(beginsAt), endsAt: D(endet),
     requiredType: "RUINIERT", message: "heute Abend",
   });
 

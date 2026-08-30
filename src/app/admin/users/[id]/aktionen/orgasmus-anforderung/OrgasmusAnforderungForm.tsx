@@ -41,7 +41,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
   const target = `/admin/users/${userId}/aktionen`;
 
   const [art, setArt] = useState<(typeof ORGASMUS_ANFORDERUNG_ARTEN)[number]>("ANWEISUNG");
-  const [beginsAt, setBeginntAt] = useState(nowDefault);
+  const [beginsAt, setBeginsAt] = useState(nowDefault);
   const [endMode, setEndMode] = useState<EndMode>("duration");
   const [windowH, setWindowH] = useState(String(DEFAULT_WINDOW_H));
   const [windowUnit, setWindowUnit] = useState<DurationUnit>("h");
@@ -50,7 +50,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
   // Formularausfüllen zehn Minuten zu früh.
   const [endsAt, setEndsAt] = useState("");
   const [requiredType, setVorgegebeneArt] = useState("");
-  const [oeffnenErlaubt, setOeffnenErlaubt] = useState(false);
+  const [openingAllowed, setOeffnenErlaubt] = useState(false);
   const [message, setMessage] = useState("");
   // Terminierung — dasselbe Bauteil und dieselben zwei Felder wie an Aufgabe und
   // Verschluss-Anforderung. Bis zur Auslösung ist die Anweisung für den Träger unsichtbar: sie
@@ -63,7 +63,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
     value: a,
     label: orgasmusAnforderungArtLabel(a, t),
   }));
-  const vorgabeOptions = [
+  const requiredTypeOptions = [
     { value: "", label: t("orgasmReqArtAny") },
     ...artOptions.map((r) => ({ value: r.code, label: r.label })),
   ];
@@ -85,12 +85,12 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const beginnt = fromDatetimeLocal(beginsAt, tz);
+    const beginsAtDate = fromDatetimeLocal(beginsAt, tz);
     const endet = endAt();
     // In der Zone des SUBS gerechnet, wie jede andere Zeit dieses Formulars. `new Date("…")` las die
     // beiden Felder in der Zone des Browsers — bei einer Keyholderin in einer anderen Zone als ihrem
     // Sub verglich das zwei verschobene Zeitpunkte.
-    if (Number.isNaN(beginnt.getTime()) || Number.isNaN(endet.getTime()) || endet <= beginnt) {
+    if (Number.isNaN(beginsAtDate.getTime()) || Number.isNaN(endet.getTime()) || endet <= beginsAtDate) {
       setError(t("orgasmReqEndAfterStart"));
       return;
     }
@@ -115,10 +115,10 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
         body: JSON.stringify({
           userId,
           art,
-          beginsAt: beginnt.toISOString(),
+          beginsAt: beginsAtDate.toISOString(),
           endsAt: endet.toISOString(),
           requiredType: requiredType || undefined,
-          oeffnenErlaubt,
+          openingAllowed,
           message: message.trim() || undefined,
           ...schedulePayload(schedule, tz),
         }),
@@ -154,7 +154,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
         <DateTimePicker
           label={t("orgasmReqStart")}
           value={beginsAt}
-          onChange={(e) => setBeginntAt(e.target.value)}
+          onChange={(e) => setBeginsAt(e.target.value)}
           min={nowDefault}
         />
 
@@ -189,7 +189,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
 
         <Select
           label={t("orgasmReqArt")}
-          options={vorgabeOptions}
+          options={requiredTypeOptions}
           value={requiredType}
           onChange={(e) => setVorgegebeneArt(e.target.value)}
           hint={t("orgasmReqArtHint")}
@@ -197,7 +197,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
         <div className="flex flex-col gap-1">
           <Checkbox
             label={t("orgasmReqOpenAllowedLabel")}
-            checked={oeffnenErlaubt}
+            checked={openingAllowed}
             onChange={(e) => setOeffnenErlaubt(e.target.checked)}
           />
           <span className="text-xs text-foreground-faint">{t("orgasmReqOpenAllowedHint")}</span>

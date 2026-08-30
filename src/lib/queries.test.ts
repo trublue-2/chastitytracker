@@ -415,19 +415,19 @@ describe("isOpeningPermittedNow — darf der Sub JETZT öffnen?", () => {
 
   it("strikte Sperrzeit, aber Orgasmus-Fenster mit oeffnenErlaubt läuft → erlaubt", async () => {
     db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    db.orgasmusAnforderung.findFirst.mockResolvedValue({ oeffnenErlaubt: true, beginsAt: new Date("2026-07-10T00:00:00Z") });
+    db.orgasmusAnforderung.findFirst.mockResolvedValue({ openingAllowed: true, beginsAt: new Date("2026-07-10T00:00:00Z") });
     expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(true);
   });
 
   it("Orgasmus-Fenster OHNE oeffnenErlaubt → verboten", async () => {
     db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    db.orgasmusAnforderung.findFirst.mockResolvedValue({ oeffnenErlaubt: false, beginsAt: new Date("2026-07-10T00:00:00Z") });
+    db.orgasmusAnforderung.findFirst.mockResolvedValue({ openingAllowed: false, beginsAt: new Date("2026-07-10T00:00:00Z") });
     expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(false);
   });
 
-  it("Orgasmus-Fenster, das erst in der Zukunft beginnt → verboten", async () => {
+  it("Orgasmus-Fenster, das erst in der Zukunft beginsAt → verboten", async () => {
     db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    db.orgasmusAnforderung.findFirst.mockResolvedValue({ oeffnenErlaubt: true, beginsAt: new Date("2026-07-11T00:00:00Z") });
+    db.orgasmusAnforderung.findFirst.mockResolvedValue({ openingAllowed: true, beginsAt: new Date("2026-07-11T00:00:00Z") });
     expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(false);
   });
 });
@@ -483,7 +483,7 @@ describe("isCodePhotoRevealed — Freigabe des versiegelten Code-Fotos", () => {
 
   it("strikte Sperrzeit, aber laufendes Orgasmus-Fenster mit oeffnenErlaubt → freigegeben", async () => {
     db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    db.orgasmusAnforderung.findFirst.mockResolvedValue({ oeffnenErlaubt: true, beginsAt: new Date("2026-07-10T00:00:00Z") });
+    db.orgasmusAnforderung.findFirst.mockResolvedValue({ openingAllowed: true, beginsAt: new Date("2026-07-10T00:00:00Z") });
     expect(await isCodePhotoRevealed(ENTRY, IM_FENSTER)).toBe(true);
   });
 });

@@ -49,7 +49,7 @@ describe("periodTarget", () => {
     const faelle: [string, GoalWindow, number][] = [
       ["deckt weit über die Periode hinaus", full, 200],
       ["deckt sie genau ab", { gueltigAb: monthStart, gueltigBis: monthEnd }, 200],
-      ["beginnt erst danach", { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null }, 0],
+      ["beginsAt erst danach", { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null }, 0],
       ["endete schon davor", { gueltigAb: D("2026-01-01T00:00:00Z"), gueltigBis: monthStart }, 0],
     ];
     for (const [lage, goal, erwartet] of faelle) {
@@ -66,7 +66,7 @@ describe("periodTarget", () => {
       .toEqual({ targetH: null, changedInPeriod: true });
   });
 
-  it("ein Ziel, das GENAU an der Periodengrenze beginnt, teilt sie nicht", () => {
+  it("ein Ziel, das GENAU an der Periodengrenze beginsAt, teilt sie nicht", () => {
     // Der Normalfall aus Regel 1: ohne validFrom startet ein Ziel an der nächsten Mitternacht.
     expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: monthStart, gueltigBis: null }))
       .toEqual({ targetH: 200, changedInPeriod: false });

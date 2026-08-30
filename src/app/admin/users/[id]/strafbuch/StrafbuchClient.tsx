@@ -139,7 +139,7 @@ export interface OrgasmusVersaeumtRow {
   endsAtStr: string;
   message: string | null;
   /** Vorgegebene Art, falls die Anweisung eine verlangte. */
-  requiredArt: string | null;
+  requiredType: string | null;
 }
 
 /** VERSCHLUSS mit einem anderen als dem angeforderten Gerät. */
@@ -821,8 +821,8 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       body: (judged) => (
         <>
           {titleLine(judged, <>{labels.strafbuchOrgasmusAbgelaufen} {m.endsAtStr}</>,
-            m.requiredArt
-              ? <>{labels.strafbuchOrgasmusVorgegeben}: {m.requiredArt}</>
+            m.requiredType
+              ? <>{labels.strafbuchOrgasmusVorgegeben}: {m.requiredType}</>
               : labels.strafbuchOrgasmusVersaeumt,
           )}
           {m.message && <span className={NOTE_CLS}>{labels.instructionLabel}: {m.message}</span>}

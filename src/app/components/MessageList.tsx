@@ -523,7 +523,7 @@ export default function MessageList({
             {/* Die Beschriftung nennt die GRENZE: `load` leert die Auswahl bei jedem Seiten- und
                 Filterwechsel, ein blosses „Alle" verspräche also den ganzen Posteingang. */}
             {/* Auch hier kein `disabled`: das Kreuzchen sitzt in derselben Leiste und verlöre den
-                Fokus, sobald eine Sammel-Aktion beginnt. */}
+                Fokus, sobald eine Sammel-Aktion beginsAt. */}
             <Checkbox
               label={t("selectPage")}
               checked={allOnPageSelected}

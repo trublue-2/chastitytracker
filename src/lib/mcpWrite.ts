@@ -446,7 +446,7 @@ export interface RequestOrgasmArgs {
   /** Required orgasm type (one of ORGASMUS_ARTEN). Omit = any orgasm counts. */
   requiredType?: string;
   /** Allow opening the device to perform the orgasm during the window (no Sperre break / penalty). */
-  openAllowed?: boolean;
+  openingAllowed?: boolean;
   /** Terminierung — wie bei `request_lock`/`request_inspection`. */
   delayMinutes?: number;
   scheduledAt?: string;
@@ -456,12 +456,12 @@ export interface RequestOrgasmArgs {
 export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs) {
   const userId = await resolveTargetUserId(username);
   const iso = await isoForUser(userId);
-  const beginnt = args.beginsAt ? parseIsoDate(args.beginsAt, "beginsAt") : new Date();
+  const beginsAt = args.beginsAt ? parseIsoDate(args.beginsAt, "beginsAt") : new Date();
   let endet: Date;
   if (args.endsAt) {
     endet = parseIsoDate(args.endsAt, "endsAt");
   } else if (args.windowHours && args.windowHours > 0) {
-    endet = new Date(beginnt.getTime() + args.windowHours * 60 * 60 * 1000);
+    endet = new Date(beginsAt.getTime() + args.windowHours * 60 * 60 * 1000);
   } else {
     throw new Error("Provide endsAt (ISO date) or windowHours (> 0).");
   }
@@ -472,17 +472,17 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
     // Gegen den AUSLÖSE-Zeitpunkt, wie der Dienst: ein Fenster, das vor seiner eigenen Zustellung
     // endet, kommt beim Sub als bereits verstrichene Frist an.
     const trigger = computeDelayedTrigger(new Date(), { delayMinutes: args.delayMinutes, wirksamAbAt: args.scheduledAt ? parseIsoDate(args.scheduledAt, "scheduledAt") : null });
-    const problem = endet <= beginnt ? "ORGASM_END_BEFORE_START" : (checkOrgasmWindowEnd(endet, trigger.wirksamAb ?? new Date()) ?? undefined);
-    return dryRunPreview("request_orgasm", problem, { art: args.art, beginsAt: iso(beginnt)!, endsAt: iso(endet)!, requiredType: args.requiredType ?? null, openAllowed: !!args.openAllowed, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
+    const problem = endet <= beginsAt ? "ORGASM_END_BEFORE_START" : (checkOrgasmWindowEnd(endet, trigger.wirksamAb ?? new Date()) ?? undefined);
+    return dryRunPreview("request_orgasm", problem, { art: args.art, beginsAt: iso(beginsAt)!, endsAt: iso(endet)!, requiredType: args.requiredType ?? null, openingAllowed: !!args.openingAllowed, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
   }
   const data = unwrap(await createOrgasmusAnforderung({
     userId,
     art: args.art,
     message: args.message,
-    beginsAt: beginnt,
+    beginsAt: beginsAt,
     endsAt: endet,
     requiredType: args.requiredType,
-    oeffnenErlaubt: args.openAllowed,
+    openingAllowed: args.openingAllowed,
     delayMinutes: args.delayMinutes,
     wirksamAbAt: args.scheduledAt,
   }, AI_AUTHOR));
@@ -492,13 +492,13 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
       ok: true,
       id: data.id,
       scheduledFor: data.scheduledFor,
-      message: `Orgasm ${kind} scheduled (window ${iso(beginnt)} – ${iso(endet)}) — it will reach the user at ${data.scheduledFor}. The user cannot see it until it triggers.`,
+      message: `Orgasm ${kind} scheduled (window ${iso(beginsAt)} – ${iso(endet)}) — it will reach the user at ${data.scheduledFor}. The user cannot see it until it triggers.`,
     };
   }
   return {
     ok: true,
     id: data.id,
-    message: `Orgasm ${kind} set (window ${iso(beginnt)} – ${iso(endet)}); the user was notified by e-mail + push.`,
+    message: `Orgasm ${kind} set (window ${iso(beginsAt)} – ${iso(endet)}); the user was notified by e-mail + push.`,
   };
 }
 
@@ -885,10 +885,12 @@ function vorgabeSnapshot(v: { categoryId: string | null; gueltigAb: Date; guelti
     categoryId: v.categoryId,
     validFrom: iso(v.gueltigAb),
     validUntil: iso(v.gueltigBis),
-    minProTagH: v.minProTagH,
-    minProWocheH: v.minProWocheH,
-    minProMonatH: v.minProMonatH,
-    minProJahrH: v.minProJahrH,
+    // Dieselben Namen wie der Schreib-Eingang und wie `list_training_goals` — vorher zeigte der
+    // Diff eines Schreibvorgangs andere Feldnamen als die Sicht davor (Vorbild: `autoInspectionsView`).
+    minPerDayHours: v.minProTagH,
+    minPerWeekHours: v.minProWocheH,
+    minPerMonthHours: v.minProMonatH,
+    minPerYearHours: v.minProJahrH,
     note: v.notiz,
   };
 }

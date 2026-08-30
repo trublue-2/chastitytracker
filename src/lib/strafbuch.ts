@@ -64,7 +64,7 @@ export interface StrafbuchData {
     id: string;
     endsAt: Date;
     message: string | null;
-    requiredArt: string | null;
+    requiredType: string | null;
   }[];
   /** Verschluss-Anforderungen (lock requests) whose deadline (`endsAt`) passed without a timely VERSCHLUSS. */
   lateLocks: {
@@ -684,13 +684,13 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
    *  erlauben noch einen Orgasmus decken. Ohne diese Zeile widerspräche das Strafbuch dem
    *  Live-Gate, dessen Regel es spiegeln soll (`isOpeningPermittedNow` über
    *  `getActiveOrgasmusAnforderung`): dort nicht erlaubt, hier verziehen.
-   *  Geteilt von der Öffnungs-Ausnahme (`oeffnenErlaubt`) und der Frage, ob ein Orgasmus überhaupt
+   *  Geteilt von der Öffnungs-Ausnahme (`openingAllowed`) und der Frage, ob ein Orgasmus überhaupt
    *  gedeckt war — zwei Fragen, eine Fenster-Arithmetik. */
   const windowCovers = (w: { beginsAt: Date; endsAt: Date; withdrawnAt: Date | null; wirksamAb: Date | null }, at: Date): boolean =>
     at >= w.beginsAt && at <= w.endsAt
     && (w.withdrawnAt === null || w.withdrawnAt > at)
     && (w.wirksamAb === null || w.wirksamAb <= at);
-  const oeffnenErlaubtWindows = orgasmusAnforderungen.filter((a) => a.oeffnenErlaubt);
+  const oeffnenErlaubtWindows = orgasmusAnforderungen.filter((a) => a.openingAllowed);
   const isOrgasmusOpenAllowed = (openTime: Date): boolean =>
     oeffnenErlaubtWindows.some((w) => windowCovers(w, openTime));
   const resolveRule = offenseRuleResolver(offenseRuleChanges);
@@ -877,7 +877,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       // sonst genau die unverdiente Strafe, gegen die schon `checkOrgasmWindowEnd` gebaut ist.
       .filter((a) => a.art === "ANWEISUNG" && a.withdrawnAt === null && a.fulfilledAt === null && a.endsAt < now && !isHiddenFromSub(a))
       .sort((a, b) => b.endsAt.getTime() - a.endsAt.getTime())
-      .map((a) => ({ id: a.id, endsAt: a.endsAt, message: a.message, requiredArt: a.requiredType })),
+      .map((a) => ({ id: a.id, endsAt: a.endsAt, message: a.message, requiredType: a.requiredType })),
     lateLocks,
     cleaningNotRelocked,
     unfulfilledTasks,

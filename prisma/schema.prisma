@@ -1125,7 +1125,7 @@ model OrgasmusAnforderung {
   beginsAt       DateTime  @map("beginntAt") // Fenster-Start
   endsAt         DateTime @map("endetAt") // Fenster-Ende
   requiredType   String?   @map("vorgegebeneArt") // erforderliche orgasmusArt-Basis (aus ORGASMUS_ARTEN); null = egal
-  oeffnenErlaubt Boolean   @default(false) // während des Fensters darf zum Orgasmus geöffnet werden, ohne Sperre zu brechen / Strafe
+  openingAllowed Boolean   @default(false) @map("oeffnenErlaubt") // während des Fensters darf zum Orgasmus geöffnet werden, ohne Sperre zu brechen / Strafe
   createdAt      DateTime  @default(now())
   fulfilledAt    DateTime? // gesetzt wenn passender ORGASMUS-Eintrag im Fenster erstellt
   entryId        String?   @unique

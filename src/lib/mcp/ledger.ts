@@ -177,7 +177,7 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
     missedOrgasmInstructions: sb.missedOrgasmInstructions.map((m) => ({
       windowEndedAt: fmt(m.endsAt),
       message: m.message,
-      requiredType: m.requiredArt,
+      requiredType: m.requiredType,
       ...judge("missed_orgasm", m.id),
     })),
     lateLocks: sb.lateLocks.map((a) => ({

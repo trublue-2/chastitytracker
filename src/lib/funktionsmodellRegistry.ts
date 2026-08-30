@@ -348,7 +348,7 @@ export const FM_REGISTRY: FmEntry[] = [
   // ── User: Kontroll-Eskalation ──────────────────────────────────────────────────────────────
   s({
     model: "User", field: "inspectionReminderEnabled", domain: "kontrollen", scope: "standing",
-    effect: "Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie.",
+    effect: "Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginsAt Stufe 2 nie.",
     writers: ["admin", "mcp"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionEscalationService.ts",
   }),
   s({
@@ -776,7 +776,7 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin", "mcp"], affects: ["Orgasmus", "Einträge"],
   }),
   s({
-    model: "OrgasmusAnforderung", field: "oeffnenErlaubt", domain: "orgasmus", scope: "directive",
+    model: "OrgasmusAnforderung", field: "openingAllowed", domain: "orgasmus", scope: "directive",
     effect: "Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen.",
     writers: ["admin", "mcp"], affects: ["Orgasmus", "Sperrzeit", "Strafbuch"],
   }),
@@ -874,7 +874,7 @@ export const FM_REGISTRY: FmEntry[] = [
   }),
   s({
     model: "Task", field: "startGraceMin", domain: "aufgaben", scope: "directive",
-    effect: "Kulanz zum Anlegen ab dem Nullpunkt. Wer später beginnt, hat nicht durchgehend gehalten — sonst wäre 'kurz vor Schluss alles anlegen' eine Erfüllung.",
+    effect: "Kulanz zum Anlegen ab dem Nullpunkt. Wer später beginsAt, hat nicht durchgehend gehalten — sonst wäre 'kurz vor Schluss alles anlegen' eine Erfüllung.",
     writers: ["admin", "mcp"], affects: ["Aufgaben"], anchor: "tasks.ts:taskAnchor",
   }),
   s({
@@ -1308,7 +1308,7 @@ export const FM_REGISTRY: FmEntry[] = [
   x("runtime", "PortalTokenUsed", "usedAt", "Wann eingelöst. Zusammen der Wiedereinspielungs-Schutz des Portal-Logins."),
   x("identity", "RateLimit", "key", "Zähler-Schlüssel, meist Route plus Client-IP."),
   x("runtime", "RateLimit", "count", "Versuche im laufenden Fenster."),
-  x("runtime", "RateLimit", "resetAt", "Wann das Fenster neu beginnt."),
+  x("runtime", "RateLimit", "resetAt", "Wann das Fenster neu beginsAt."),
 
   pk("OAuthClient"),
   x("identity", "OAuthClient", "clientId", "Kennung der verbundenen Anwendung."),

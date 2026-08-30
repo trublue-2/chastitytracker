@@ -624,14 +624,14 @@ describe("dryRun liefert diff (B-05: Vorschau statt Ja/Nein bei Edits eines best
   it("edit_training_goal: diff zeigt genau die geänderten Felder [alt, neu]", async () => {
     trainingVorgabeMock.mockResolvedValue({ id: "g1", userId: "u1", categoryId: null, gueltigAb: JETZT, gueltigBis: null, validUntilManual: false, minProTagH: 2, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: "alt" });
     const r = await mcpEditTrainingGoal("sub", { dryRun: true, id: "g1", minPerDayHours: 3 }) as { diff: Record<string, [unknown, unknown]> };
-    expect(r.diff.minProTagH).toEqual([2, 3]);
+    expect(r.diff.minPerDayHours).toEqual([2, 3]);
     expect(r.diff.note).toBeUndefined(); // unverändert (Notiz nicht mitgegeben → Bestand behalten)
   });
 
   it("delete_training_goal: diff zeigt alle Felder als [Wert, undefined] (Objekt verschwindet)", async () => {
     trainingVorgabeMock.mockResolvedValue({ id: "g1", userId: "u1", categoryId: null, gueltigAb: JETZT, gueltigBis: null, validUntilManual: false, minProTagH: 2, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: null });
     const r = await mcpDeleteTrainingGoal("sub", { dryRun: true, id: "g1" }) as { diff: Record<string, [unknown, unknown]> };
-    expect(r.diff.minProTagH).toEqual([2, null]);
+    expect(r.diff.minPerDayHours).toEqual([2, null]);
   });
 
   it("set_cleaning: diff zeigt den Bestandswert gegen den GEKLEMMTEN neuen Wert", async () => {

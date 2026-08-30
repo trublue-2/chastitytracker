@@ -170,7 +170,7 @@ function sessionView(s: TaggedSession, notesByEntity: Map<string, NoteDTO[]>, is
   const segments = s.segments.map((seg) => segmentView(seg, notesByEntity, iso));
   const dataQualityFlags: DataQualityFlag[] = [];
   if (s.orphaned) {
-    dataQualityFlags.push({ code: "orphaned-session", segmentIndex: null, detail: "Diese Session beginnt mit einem verwaisten Schliess-Eintrag ohne dazwischenliegenden Öffnen-Eintrag (Daten-Anomalie, z.B. Backdating) — sie erscheint technisch als offen, ist aber keine echte aktuell laufende Session." });
+    dataQualityFlags.push({ code: "orphaned-session", segmentIndex: null, detail: "Diese Session beginsAt mit einem verwaisten Schliess-Eintrag ohne dazwischenliegenden Öffnen-Eintrag (Daten-Anomalie, z.B. Backdating) — sie erscheint technisch als offen, ist aber keine echte aktuell laufende Session." });
   }
   for (const seg of s.segments) {
     if (seg.deviceConfidence === "image-conflict") {

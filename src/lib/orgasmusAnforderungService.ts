@@ -23,7 +23,7 @@ export function checkOrgasmWindowEnd(endsAt: Date, now: Date): "ORGASM_END_MUST_
 
 /** Das geprüfte Ergebnis: die drei Zeitpunkte, mit denen die Zeile geschrieben wird. */
 export interface CheckedOrgasmWindow {
-  beginnt: Date;
+  beginsAtDate: Date;
   endsAtDate: Date;
   /** null = sofort auslösen (siehe {@link computeDelayedTrigger}). */
   wirksamAb: Date | null;
@@ -49,12 +49,12 @@ export function checkOrgasmusAnforderung(
     return { ok: false, code: "ORGASM_INVALID_ART" };
   }
   if (!p.beginsAt || !p.endsAt) return { ok: false, code: "ORGASM_WINDOW_REQUIRED" };
-  const beginnt = new Date(p.beginsAt);
+  const beginsAtDate = new Date(p.beginsAt);
   const endsAtDate = new Date(p.endsAt);
-  if (Number.isNaN(beginnt.getTime()) || Number.isNaN(endsAtDate.getTime())) {
+  if (Number.isNaN(beginsAtDate.getTime()) || Number.isNaN(endsAtDate.getTime())) {
     return { ok: false, code: "INVALID_DATETIME" };
   }
-  if (endsAtDate <= beginnt) return { ok: false, code: "ORGASM_END_BEFORE_START" };
+  if (endsAtDate <= beginsAtDate) return { ok: false, code: "ORGASM_END_BEFORE_START" };
   // Der Versandzeitpunkt bekommt einen EIGENEN Code, wie bei Verschluss und Aufgabe: sonst ist ein
   // vertipptes `scheduledAt` von einem vertippten Fenster-Datum nicht zu unterscheiden.
   const scheduledAt = parseTriggerAt(p.wirksamAbAt);
@@ -66,7 +66,7 @@ export function checkOrgasmusAnforderung(
   // der Fall, den `checkOrgasmWindowEnd` verhindert; er verschiebt sich mit der Terminierung nur.
   const windowEndError = checkOrgasmWindowEnd(endsAtDate, trigger.wirksamAb ?? now);
   if (windowEndError) return { ok: false, code: windowEndError };
-  return { ok: true, window: { beginnt, endsAtDate, ...trigger } };
+  return { ok: true, window: { beginsAtDate, endsAtDate, ...trigger } };
 }
 
 export interface CreateOrgasmusAnforderungParams {
@@ -80,7 +80,7 @@ export interface CreateOrgasmusAnforderungParams {
   /** Required orgasm type base (from ORGASMUS_ARTEN); null/undefined = any orgasm counts. */
   requiredType?: string | null;
   /** Whether opening to perform the orgasm during the window is permitted (no Sperre break / penalty). */
-  oeffnenErlaubt?: boolean;
+  openingAllowed?: boolean;
   /** Terminierung — dieselben zwei Felder wie bei Kontrolle, Verschluss und Aufgabe
    *  ({@link computeDelayedTrigger}). Ohne beide löst die Anweisung sofort aus. */
   delayMinutes?: number | null;
@@ -102,13 +102,13 @@ export async function createOrgasmusAnforderung(
   params: CreateOrgasmusAnforderungParams,
   actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
-  const { userId, art, message, beginsAt, endsAt, requiredType, oeffnenErlaubt } = params;
+  const { userId, art, message, beginsAt, endsAt, requiredType, openingAllowed } = params;
 
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
   const now = new Date();
   const checked = checkOrgasmusAnforderung(params, now);
   if (!checked.ok) return serviceFail(400, checked.code);
-  const { beginnt, endsAtDate, wirksamAb, benachrichtigtAt } = checked.window;
+  const { beginsAtDate, endsAtDate, wirksamAb, benachrichtigtAt } = checked.window;
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
   // requiredType gegen die (ggf. angepasste) Orgasmus-Liste des Ziel-Subs prüfen; null-Config → Built-ins.
@@ -139,10 +139,10 @@ export async function createOrgasmusAnforderung(
         userId,
         art,
         message: message?.trim() || null,
-        beginsAt: beginnt,
+        beginsAt: beginsAt,
         endsAt: endsAtDate,
         requiredType: requiredType || null,
-        oeffnenErlaubt: Boolean(oeffnenErlaubt),
+        openingAllowed: Boolean(openingAllowed),
         createdBy: actor ?? null,
         wirksamAb,
         benachrichtigtAt,
@@ -154,7 +154,7 @@ export async function createOrgasmusAnforderung(
   // das, was die Terminierung verbergen soll (`isHiddenFromSub`).
   if (!wirksamAb) {
     await sendOrgasmusAnforderungNotifications({
-      userId, user, art, message, beginnt, endsAtDate, requiredType, oeffnenErlaubt: Boolean(oeffnenErlaubt),
+      userId, user, art, message, beginsAtDate, endsAtDate, requiredType, openingAllowed: Boolean(openingAllowed),
       directiveId: anforderung.id, actor,
     });
   } else if (replacedVisible) {
@@ -247,16 +247,16 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   user: { email: string | null; username: string; orgasmusArtenConfig: string | null; locale: string };
   art: "ANWEISUNG" | "GELEGENHEIT";
   message?: string | null;
-  beginnt: Date;
+  beginsAtDate: Date;
   endsAtDate: Date;
   requiredType?: string | null;
-  oeffnenErlaubt: boolean;
+  openingAllowed: boolean;
   /** Die Zeile, auf die die Nachricht im Posteingang zeigt. */
   directiveId: string;
   /** WER die Anweisung gestellt hat — der Absender ihrer Meldung. */
   actor: MessageActor;
 }) {
-  const { userId, user, art, message, beginnt, endsAtDate, requiredType, oeffnenErlaubt, directiveId, actor } = opts;
+  const { userId, user, art, message, beginsAtDate, endsAtDate, requiredType, openingAllowed, directiveId, actor } = opts;
   const istAnweisung = art === "ANWEISUNG";
 
   // Nachricht des Keyholders bleibt an der Direktive; der Posteingang verlinkt sie nur.
@@ -271,7 +271,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   const t = await emailT(locale);
   const betreff = istAnweisung ? t("orgasmAnweisungSubject") : t("orgasmGelegenheitSubject");
   const einleitung = istAnweisung ? t("orgasmAnweisungIntro") : t("orgasmGelegenheitIntro");
-  const windowStr = `${formatDateTime(beginnt)} – ${formatDateTime(endsAtDate)}`;
+  const windowStr = `${formatDateTime(beginsAtDate)} – ${formatDateTime(endsAtDate)}`;
 
   // Reason-Code → Anzeige-Label gegen die Config des Ziel-Subs auflösen (sonst zeigt eine Custom-Art
   // den rohen `c_…`-Code in Mail/Push). In der Sprache des Empfängers, wie der restliche Text.
@@ -283,7 +283,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   if (user.email) {
     const messageHtml = optionalNoticeBoxHtml(t("orgasmNoticeLabel"), message);
     const artHtml = artLabel ? `<p><strong>${t("orgasmArtLabel")}</strong> ${escHtml(artLabel)}</p>` : "";
-    const oeffnenHtml = oeffnenErlaubt ? `<p><strong>${t("orgasmOpenAllowedLabel")}</strong> ${t("orgasmOpenAllowedText")}</p>` : "";
+    const oeffnenHtml = openingAllowed ? `<p><strong>${t("orgasmOpenAllowedLabel")}</strong> ${t("orgasmOpenAllowedText")}</p>` : "";
     await sendMailSafe(
       user.email,
       `${APP_NAME} – ${betreff}`,

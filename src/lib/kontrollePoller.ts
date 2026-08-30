@@ -378,17 +378,17 @@ async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
       // dem er davon erfährt. Pünktlich (Regelfall: Sekunden) verschiebt sich praktisch nichts.
       const sentAt = new Date();
       const lateMs = Math.max(0, sentAt.getTime() - (oa.wirksamAb?.getTime() ?? sentAt.getTime()));
-      const beginnt = new Date(oa.beginsAt.getTime() + lateMs);
+      const beginsAtDate = new Date(oa.beginsAt.getTime() + lateMs);
       const endsAtDate = new Date(oa.endsAt.getTime() + lateMs);
       await sendOrgasmusAnforderungNotifications({
         userId: oa.userId,
         user: oa.user,
         art: oa.art as "ANWEISUNG" | "GELEGENHEIT",
         message: oa.message,
-        beginnt,
+        beginsAtDate,
         endsAtDate,
         requiredType: oa.requiredType,
-        oeffnenErlaubt: oa.oeffnenErlaubt,
+        openingAllowed: oa.openingAllowed,
         directiveId: oa.id,
         // Wie bei Kontrolle und Verschluss: genannt wird, wer die Anweisung angeordnet hat, nicht der Bote.
         actor: oa.createdBy,
@@ -397,7 +397,7 @@ async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
       // Zeiten, eine Zeile mit alten Werten wäre ab hier eine Lüge gegenüber dem Träger.
       await prisma.orgasmusAnforderung.update({
         where: { id: oa.id },
-        data: { beginsAt: beginnt, endsAt: endsAtDate, benachrichtigtAt: sentAt },
+        data: { beginsAt: beginsAtDate, endsAt: endsAtDate, benachrichtigtAt: sentAt },
       });
     } catch (e) {
       console.error(`[kontrollePoller] Orgasmus-Auslösung fehlgeschlagen (${oa.id}):`, (e as Error).message);

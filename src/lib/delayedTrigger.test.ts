@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import { computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, pendingDispatchWhere, isHiddenFromSub } from "./delayedTrigger";
 
 const at = (iso: string) => new Date(iso);
@@ -91,5 +92,45 @@ describe("dueForDispatchWhere", () => {
       withdrawnAt: null,
       entryId: null,
     });
+  });
+});
+
+/**
+ * Das ORGASMUS-Fenster verschiebt der Poller selbst, nicht über `deadlineFromDispatch` — es hat
+ * zwei Enden statt einem, und beide wandern um dieselbe Verspätung. Diese Rechnung steht deshalb
+ * inline in `kontrollePoller.ts` und war von keinem Test gedeckt.
+ *
+ * Beim Umbenennen der Feldnamen habe ich sie versehentlich umgangen (`beginsAtDate: oa.beginsAt`
+ * statt der verschobenen Zeit) — `tsc` und 3252 Tests blieben grün. Der Sub hätte ein Fenster
+ * gemeldet bekommen, dessen Start in der Vergangenheit liegt, während das Ende korrekt mitwandert:
+ * bei `art: "ANWEISUNG"` also weniger Zeit, als ihm zusteht.
+ *
+ * Bauart nach `appName.test.ts`: die Stelle wird als TEXT gelesen. Ein Poller-Test bräuchte
+ * Attrappen für Prisma, Mail, Push und Posteingang — viel Gerüst für zwei Zuweisungen.
+ */
+describe("Der Poller verschiebt das Orgasmus-Fenster mit, wenn er zu spät zustellt", () => {
+  const src = readFileSync("src/lib/kontrollePoller.ts", "utf8");
+  const call = src.slice(
+    src.indexOf("const lateMs"),
+    src.indexOf("});", src.indexOf("sendOrgasmusAnforderungNotifications(")),
+  );
+
+  it("liest die Stelle wirklich", () => {
+    // Untergrenze gegen eine kaputte Textsuche: ein leerer Ausschnitt liesse alles darunter grün.
+    expect(call).toContain("sendOrgasmusAnforderungNotifications(");
+    expect(call).toContain("lateMs");
+  });
+
+  it("meldet die VERSCHOBENEN Zeiten, nicht die geplanten", () => {
+    // Beide Enden kommen aus je einer Variablen, die `lateMs` aufschlägt — nicht aus `oa.*`.
+    expect(call).toMatch(/const beginsAtDate = new Date\(oa\.beginsAt\.getTime\(\) \+ lateMs\)/);
+    expect(call).toMatch(/const endsAtDate = new Date\(oa\.endsAt\.getTime\(\) \+ lateMs\)/);
+    expect(call).not.toMatch(/beginsAtDate:\s*oa\./);
+    expect(call).not.toMatch(/endsAtDate:\s*oa\./);
+  });
+
+  it("schreibt dieselben verschobenen Zeiten auch zurück", () => {
+    // Sonst zeigte die Oberfläche das geplante Fenster und die Mail ein anderes.
+    expect(src).toMatch(/data: \{ beginsAt: beginsAtDate, endsAt: endsAtDate/);
   });
 });
