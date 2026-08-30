@@ -18,7 +18,7 @@ const activeLocks = vi.mocked(subsWithActiveLockPeriod);
 
 const ADMIN = { id: "a1", username: "Admin", role: "admin" };
 const SUB = { id: "s1", username: "Sub", role: "user" };
-const LAUFENDE_SPERRZEIT = [{ id: "sp1", userId: "s1", endetAt: new Date("2026-08-02T10:00:00Z") }];
+const LAUFENDE_SPERRZEIT = [{ id: "sp1", userId: "s1", endsAt: new Date("2026-08-02T10:00:00Z") }];
 
 describe("buildAdminPasswordChangeRows", () => {
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe("buildAdminPasswordChangeRows", () => {
       via: "reset_token",
       actorUserId: null,
       lockPeriodId: "sp1",
-      lockPeriodEndsAt: LAUFENDE_SPERRZEIT[0].endetAt,
+      lockPeriodEndsAt: LAUFENDE_SPERRZEIT[0].endsAt,
     }]);
   });
 
@@ -74,8 +74,8 @@ describe("buildAdminPasswordChangeRows", () => {
   it("erzeugt je laufender Sperrzeit eine Zeile", async () => {
     prismaMock.user.findUnique.mockResolvedValue(ADMIN);
     activeLocks.mockResolvedValue([
-      { id: "sp1", userId: "s1", endetAt: null },
-      { id: "sp2", userId: "s2", endetAt: null },
+      { id: "sp1", userId: "s1", endsAt: null },
+      { id: "sp2", userId: "s2", endsAt: null },
     ]);
 
     const rows = await buildAdminPasswordChangeRows("a1", "set_by_other", "a1");

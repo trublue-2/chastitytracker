@@ -182,7 +182,7 @@ describe("Kontrolle", () => {
 describe("Verschluss-Direktiven", () => {
   const NOTIFY = {
     userId: "u1", user: USER, art: "SPERRZEIT" as const,
-    endetAtDate: new Date("2026-08-13T12:00:00Z"), requestId: "va1",
+    endsAtDate: new Date("2026-08-13T12:00:00Z"), requestId: "va1",
   };
 
   it("von der Keyholderin angeordnet → ihre Zeile, mit Namen", async () => {

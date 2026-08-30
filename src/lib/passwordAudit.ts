@@ -42,7 +42,7 @@ export async function buildAdminPasswordChangeRows(
     via,
     actorUserId,
     lockPeriodId: s.id,
-    lockPeriodEndsAt: s.endetAt,
+    lockPeriodEndsAt: s.endsAt,
   }));
 }
 

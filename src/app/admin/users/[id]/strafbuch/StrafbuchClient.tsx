@@ -127,7 +127,7 @@ export interface NichtVerschlossenRow {
 /** Verschluss-Anforderung, deren Frist ohne rechtzeitigen VERSCHLUSS verstrich. */
 export interface VerschlussVersaeumtRow {
   id: string;
-  endetAtStr: string;
+  endsAtStr: string;
   /** null = nie eingeschlossen; sonst der verspätete Zeitpunkt. */
   fulfilledAtStr: string | null;
   nachricht: string | null;
@@ -136,7 +136,7 @@ export interface VerschlussVersaeumtRow {
 /** Abgelaufene Orgasmus-Anweisung ohne passenden Orgasmus. */
 export interface OrgasmusVersaeumtRow {
   id: string;
-  endetAtStr: string;
+  endsAtStr: string;
   nachricht: string | null;
   /** Vorgegebene Art, falls die Anweisung eine verlangte. */
   requiredArt: string | null;
@@ -802,10 +802,10 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("late_lock", labels.strafbuchVerschlussVersaeumt, verschlussVersaeumt.map((a) => ({
       refId: a.id,
-      anlass: `${labels.strafbuchVerschlussFrist} ${a.endetAtStr}`,
+      anlass: `${labels.strafbuchVerschlussFrist} ${a.endsAtStr}`,
       body: (judged) => (
         <>
-          {titleLine(judged, <>{labels.frist} {a.endetAtStr}</>,
+          {titleLine(judged, <>{labels.frist} {a.endsAtStr}</>,
             a.fulfilledAtStr
               ? <>{labels.strafbuchVerschlussZuSpaet} {a.fulfilledAtStr}</>
               : labels.strafbuchVerschlussNieErfuellt,
@@ -817,10 +817,10 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
     sec("missed_orgasm", labels.strafbuchOrgasmusVersaeumt, orgasmusVersaeumt.map((m) => ({
       refId: m.id,
-      anlass: `${m.endetAtStr}`,
+      anlass: `${m.endsAtStr}`,
       body: (judged) => (
         <>
-          {titleLine(judged, <>{labels.strafbuchOrgasmusAbgelaufen} {m.endetAtStr}</>,
+          {titleLine(judged, <>{labels.strafbuchOrgasmusAbgelaufen} {m.endsAtStr}</>,
             m.requiredArt
               ? <>{labels.strafbuchOrgasmusVorgegeben}: {m.requiredArt}</>
               : labels.strafbuchOrgasmusVersaeumt,

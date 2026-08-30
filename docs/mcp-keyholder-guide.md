@@ -28,7 +28,7 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   `deviceEffective`: bei einem Bild-gegen-Deklaration-Konflikt **gewinnt das Bild**, nicht der Freitext.
 
 ## 2. Sperrzeit & Box
-- **Sperrzeit** = eine von dir angeordnete Sperrperiode (`endetAt` oder unbefristet). Währenddessen
+- **Sperrzeit** = eine von dir angeordnete Sperrperiode (`endsAt` oder unbefristet). Währenddessen
   darf der Sub NICHT selbst öffnen.
 - **Einschliess-Anforderung** (`request_lock`) ist das Gegenstück davor: „schliess dich bis X ein".
   Sie kann die anschliessende Sperrzeit gleich mitbringen — entweder als Mindest-Tragedauer

@@ -235,7 +235,7 @@ describe("releaseLockPeriodsOnOpen", () => {
  * hierher die zuletzt ANGELEGTE. Das ist keine Regel, das ist die Sortierung.
  */
 describe("foldActiveLockPeriods — die effektive (strengste) Sperre", () => {
-  const sz = (endetAt: Date | null, reinigungErlaubt = true, id = "x") => ({ id, endetAt, reinigungErlaubt });
+  const sz = (endsAt: Date | null, reinigungErlaubt = true, id = "x") => ({ id, endsAt, reinigungErlaubt });
   const FRUEH = new Date("2026-07-20T00:00:00Z");
   const SPAET = new Date("2026-08-11T00:00:00Z");
 
@@ -247,13 +247,13 @@ describe("foldActiveLockPeriods — die effektive (strengste) Sperre", () => {
     // Die Liste kommt neueste-zuerst: die kurze Selbst-Sperre des Subs steht vorne. Nähme man sie,
     // liefe die Box drei Wochen zu früh auf und die längere Anweisung der Keyholderin wäre still weg.
     const fold = foldActiveLockPeriods([sz(FRUEH, true, "selbst"), sz(SPAET, true, "keyholder")])!;
-    expect(fold.endetAt).toEqual(SPAET);
+    expect(fold.endsAt).toEqual(SPAET);
     expect(fold.id).toBe("keyholder");
   });
 
   it("Unbefristet schlägt jedes Datum — egal in welcher Reihenfolge", () => {
-    expect(foldActiveLockPeriods([sz(SPAET), sz(null, true, "unbefristet")])!.endetAt).toBeNull();
-    expect(foldActiveLockPeriods([sz(null, true, "unbefristet"), sz(SPAET)])!.endetAt).toBeNull();
+    expect(foldActiveLockPeriods([sz(SPAET), sz(null, true, "unbefristet")])!.endsAt).toBeNull();
+    expect(foldActiveLockPeriods([sz(null, true, "unbefristet"), sz(SPAET)])!.endsAt).toBeNull();
   });
 
   it("Reinigung nur, wenn JEDE aktive Sperre sie erlaubt (UND, nicht Zeile-gewinnt)", () => {
@@ -261,7 +261,7 @@ describe("foldActiveLockPeriods — die effektive (strengste) Sperre", () => {
     // verbietet — der Sub öffnet im guten Glauben und kassiert einen Strafbuch-Eintrag.
     const fold = foldActiveLockPeriods([sz(SPAET, true), sz(FRUEH, false)])!;
     expect(fold.reinigungErlaubt).toBe(false);
-    expect(fold.endetAt).toEqual(SPAET); // die strengere Reinigungs-Regel kippt das Ende nicht
+    expect(fold.endsAt).toEqual(SPAET); // die strengere Reinigungs-Regel kippt das Ende nicht
   });
 
   it("eine einzige Sperre kommt unverändert zurück", () => {
@@ -360,7 +360,7 @@ describe("getEntryNeighbors", () => {
 
 /** Eine aktive Sperrzeit-Zeile, wie `getActiveLockPeriod` sie lädt und faltet. */
 const lockPeriod = (reinigungErlaubt: boolean) =>
-  [{ id: "sz1", endetAt: new Date("2026-08-01T00:00:00Z"), reinigungErlaubt }];
+  [{ id: "sz1", endsAt: new Date("2026-08-01T00:00:00Z"), reinigungErlaubt }];
 
 /** Baseline beider Gate-describes: keine Sperre, User darf reinigen (keine Fenster), kein
  *  Orgasmus-Fenster. `isCodePhotoRevealed` delegiert an `isOpeningPermittedNow` — es IST
@@ -408,7 +408,7 @@ describe("isOpeningPermittedNow — darf der Sub JETZT öffnen?", () => {
   });
 
   it("zwei aktive Sperren, EINE verbietet Reinigung → verboten, auch im Fenster (UND-Regel)", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue([...lockPeriod(true), { id: "sz2", endetAt: null, reinigungErlaubt: false }]);
+    db.verschlussAnforderung.findMany.mockResolvedValue([...lockPeriod(true), { id: "sz2", endsAt: null, reinigungErlaubt: false }]);
     db.user.findUnique.mockResolvedValue(user());
     expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(false);
   });

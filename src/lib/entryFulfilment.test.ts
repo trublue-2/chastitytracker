@@ -102,8 +102,8 @@ describe("Verschluss-Anforderung — `at` entscheidet über das Vergehen", () =>
     openLockRequest();
     await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
 
-    const { data } = txMock.verschlussAnforderung.createMany.mock.calls[0][0] as { data: { endetAt: Date }[] };
-    expect(data[0].endetAt).toEqual(new Date(ON_TIME.getTime() + 24 * HOUR));
+    const { data } = txMock.verschlussAnforderung.createMany.mock.calls[0][0] as { data: { endsAt: Date }[] };
+    expect(data[0].endsAt).toEqual(new Date(ON_TIME.getTime() + 24 * HOUR));
   });
 
   it("ohne offene Anforderung passiert nichts — und es gibt keine Geräte-Vorgabe", async () => {
@@ -185,10 +185,10 @@ describe("Orgasmus-Anforderung", () => {
     );
 
     const { where } = txMock.orgasmusAnforderung.findFirst.mock.calls[0][0] as {
-      where: { beginntAt: { lte: Date }; endetAt: { gte: Date } };
+      where: { beginntAt: { lte: Date }; endsAt: { gte: Date } };
     };
     expect(where.beginntAt.lte).toEqual(ON_TIME);
-    expect(where.endetAt.gte).toEqual(ON_TIME);
+    expect(where.endsAt.gte).toEqual(ON_TIME);
     const { data } = txMock.orgasmusAnforderung.update.mock.calls[0][0] as { data: { fulfilledAt: Date } };
     expect(data.fulfilledAt).toEqual(RECORDED_LATER);
   });

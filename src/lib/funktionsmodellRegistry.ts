@@ -598,7 +598,7 @@ export const FM_REGISTRY: FmEntry[] = [
     anchor: "queries.ts:foldActiveLockPeriods",
   }),
   s({
-    model: "VerschlussAnforderung", field: "endetAt", domain: "sperrzeit", scope: "directive",
+    model: "VerschlussAnforderung", field: "endsAt", domain: "sperrzeit", scope: "directive",
     effect: "Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit", "Box", "Strafbuch"],
     anchor: "queries.ts:foldActiveLockPeriods",
@@ -766,7 +766,7 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin", "mcp"], affects: ["Orgasmus"],
   }),
   s({
-    model: "OrgasmusAnforderung", field: "endetAt", domain: "orgasmus", scope: "directive",
+    model: "OrgasmusAnforderung", field: "endsAt", domain: "orgasmus", scope: "directive",
     effect: "Ende des Fensters. Danach ist eine ANWEISUNG versäumt.",
     writers: ["admin", "mcp"], affects: ["Orgasmus", "Strafbuch"],
   }),

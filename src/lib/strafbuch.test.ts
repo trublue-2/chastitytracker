@@ -10,26 +10,26 @@ import { prisma } from "@/lib/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
 describe("isLateLock", () => {
-  const endetAt = new Date("2026-07-09T18:00:00Z");
+  const endsAt = new Date("2026-07-09T18:00:00Z");
 
   it("is late when still open past the deadline", () => {
     const now = new Date("2026-07-09T18:00:01Z");
-    expect(isLateLock({ endetAt, fulfilledAt: null }, now)).toBe(true);
+    expect(isLateLock({ endsAt, fulfilledAt: null }, now)).toBe(true);
   });
 
   it("is not late when still open before the deadline", () => {
     const now = new Date("2026-07-09T17:59:59Z");
-    expect(isLateLock({ endetAt, fulfilledAt: null }, now)).toBe(false);
+    expect(isLateLock({ endsAt, fulfilledAt: null }, now)).toBe(false);
   });
 
   it("is late when fulfilled after the deadline", () => {
     const fulfilledAt = new Date("2026-07-09T18:00:01Z");
-    expect(isLateLock({ endetAt, fulfilledAt }, new Date("2026-07-10T00:00:00Z"))).toBe(true);
+    expect(isLateLock({ endsAt, fulfilledAt }, new Date("2026-07-10T00:00:00Z"))).toBe(true);
   });
 
   it("is not late when fulfilled on or before the deadline", () => {
     const fulfilledAt = new Date("2026-07-09T18:00:00Z");
-    expect(isLateLock({ endetAt, fulfilledAt }, new Date("2026-07-10T00:00:00Z"))).toBe(false);
+    expect(isLateLock({ endsAt, fulfilledAt }, new Date("2026-07-10T00:00:00Z"))).toBe(false);
   });
 });
 
@@ -68,7 +68,7 @@ describe("cleaningRelockObligation — dieselbe Regel für Strafbuch UND Dashboa
   const enforcedFrom = new Date("2026-01-01T00:00:00Z");
   const opening = { oeffnenGrund: "REINIGUNG", startTime: new Date("2026-07-09T18:00:00Z") }; // 20:00 Zürich
   const user = { reinigungErlaubt: true, reinigungsFenster: [{ start: "20:00", end: "22:00" }], timezone: tz };
-  const lockPeriod = { reinigungErlaubt: true, endetAt: null };
+  const lockPeriod = { reinigungErlaubt: true, endsAt: null };
 
   it("liefert die Fenster-Frist, wenn die Öffnung erlaubt ist", () => {
     const d = cleaningRelockObligation(opening, lockPeriod, user, 15, enforcedFrom);
@@ -80,7 +80,7 @@ describe("cleaningRelockObligation — dieselbe Regel für Strafbuch UND Dashboa
   });
 
   it("keine Pflicht, wenn die Sperrzeit Reinigung verbietet (die Öffnung ist dann unerlaubt)", () => {
-    expect(cleaningRelockObligation(opening, { reinigungErlaubt: false, endetAt: null }, user, 15, enforcedFrom)).toBeNull();
+    expect(cleaningRelockObligation(opening, { reinigungErlaubt: false, endsAt: null }, user, 15, enforcedFrom)).toBeNull();
   });
 
   it("keine Pflicht ausserhalb der konfigurierten Fenster", () => {
@@ -93,7 +93,7 @@ describe("cleaningRelockObligation — dieselbe Regel für Strafbuch UND Dashboa
   });
 
   it("keine Pflicht, wenn die Sperrzeit VOR der Frist endet — es bliebe nichts zu verletzen", () => {
-    const kurz = { reinigungErlaubt: true, endetAt: new Date("2026-07-09T19:00:00Z") }; // vor dem Fensterende
+    const kurz = { reinigungErlaubt: true, endsAt: new Date("2026-07-09T19:00:00Z") }; // vor dem Fensterende
     expect(cleaningRelockObligation(opening, kurz, user, 15, enforcedFrom)).toBeNull();
   });
 
@@ -181,7 +181,7 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
   const SPERRE = {
     id: "s1",
     createdAt: new Date("2026-07-09T22:00:00Z"),
-    endetAt: new Date("2026-07-11T22:00:00Z"),
+    endsAt: new Date("2026-07-11T22:00:00Z"),
     withdrawnAt: null,
     reinigungErlaubt: true,
     wirksamAb: null,
@@ -300,7 +300,7 @@ describe("buildStrafbuch — nie zugestellte Anforderungen sind keine Versäumni
 
   /** Eine ausgelöste, aber nie zugestellte Anforderung (`wirksamAb` gesetzt, `benachrichtigtAt` null). */
   const anforderung = (over: object = {}) => ({
-    id: "a1", art: "ANFORDERUNG", endetAt: EXPIRED, fulfilledAt: null, nachricht: null,
+    id: "a1", art: "ANFORDERUNG", endsAt: EXPIRED, fulfilledAt: null, nachricht: null,
     wirksamAb: new Date("2026-07-31T17:00:00Z"), benachrichtigtAt: null, withdrawnAt: null, ...over,
   });
 
@@ -477,7 +477,7 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
     }]);
     db.orgasmusAnforderung.findMany.mockResolvedValue([{
       id: "d1", art: "GELEGENHEIT", beginntAt: new Date("2026-08-05T00:00:00Z"),
-      endetAt: new Date("2026-08-06T00:00:00Z"), withdrawnAt: null, fulfilledAt: null,
+      endsAt: new Date("2026-08-06T00:00:00Z"), withdrawnAt: null, fulfilledAt: null,
       nachricht: null, oeffnenErlaubt: false, wirksamAb: null, benachrichtigtAt: new Date("2026-08-05T00:00:00Z"),
     }]);
 
@@ -650,7 +650,7 @@ describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
     mockLockPeriods([{
       id: "s1",
       createdAt: new Date("2026-08-01T00:00:00Z"),
-      endetAt: new Date("2026-08-31T00:00:00Z"),
+      endsAt: new Date("2026-08-31T00:00:00Z"),
       withdrawnAt: null,
       reinigungErlaubt: true,
       wirksamAb: null,
@@ -681,7 +681,7 @@ describe("buildStrafbuch — die Sperrzeit, die im Moment der Öffnung endet", (
   const lockEndingAt = (withdrawnAt: Date) => ({
     id: "s1",
     createdAt: new Date("2026-07-09T22:00:00Z"),
-    endetAt: new Date("2026-07-11T22:00:00Z"),
+    endsAt: new Date("2026-07-11T22:00:00Z"),
     withdrawnAt,
     // Bewusst OHNE Reinigungserlaubnis: sonst entschiede die Fenster-Regel statt des Zeitstempels.
     reinigungErlaubt: false,

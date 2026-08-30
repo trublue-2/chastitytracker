@@ -58,7 +58,7 @@ export default function VerschlussAnforderungFields({
   // initializers are deterministic across SSR + hydration.
   const nowBaseMs = fromDatetimeLocal(minNow, tz).getTime();
   // Datetime default = now + default duration, so switching between tabs preserves intent.
-  const [endetAt, setEndetAt] = useState(() =>
+  const [endsAt, setEndsAt] = useState(() =>
     toDatetimeLocal(new Date(nowBaseMs + defaultDurationH * 60 * 60 * 1000), tz)
   );
   const [withMinDauer, setWithMinDauer] = useState(false);
@@ -78,7 +78,7 @@ export default function VerschlussAnforderungFields({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (mode === "datetime" && endetAt && fromDatetimeLocal(endetAt, tz) <= new Date()) {
+    if (mode === "datetime" && endsAt && fromDatetimeLocal(endsAt, tz) <= new Date()) {
       setError(t("futureDateRequired"));
       return;
     }
@@ -98,8 +98,8 @@ export default function VerschlussAnforderungFields({
         nachricht: nachricht.trim() || undefined,
         ...schedulePayload(schedule, tz),
       };
-      if (mode === "datetime" && endetAt) {
-        payload.endetAt = fromDatetimeLocal(endetAt, tz).toISOString();
+      if (mode === "datetime" && endsAt) {
+        payload.endsAt = fromDatetimeLocal(endsAt, tz).toISOString();
       } else {
         payload.fristH = durationHoursOr(deadlineH, deadlineUnit, defaultDurationH);
       }
@@ -166,8 +166,8 @@ export default function VerschlussAnforderungFields({
         // Eine Sperrzeit wird in Stunden bis Tagen beantwortet, eine Einschliess-Frist in Minuten
         // bis Stunden — die Skala folgt der Vorgabe daneben (24 h gegen 4 h).
         quick={isLockPeriod ? DURATION_QUICK_HOURS.long : DURATION_QUICK_HOURS.short}
-        datetime={endetAt}
-        onDatetimeChange={setEndetAt}
+        datetime={endsAt}
+        onDatetimeChange={setEndsAt}
         datetimeMin={minNow}
         datetimeHint={isLockPeriod ? t("endetHintSperrzeit") : t("endetHintAnforderung")}
         // Die Frist zählt ab JETZT — anders als beim Orgasmus-Fenster gibt es keinen eigenen Start.

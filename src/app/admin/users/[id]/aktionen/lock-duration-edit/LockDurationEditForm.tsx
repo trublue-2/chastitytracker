@@ -13,7 +13,7 @@ import { LockClosedIcon } from "@/app/components/lockIcons";
 interface Props {
   userId: string;
   lockPeriodId: string;
-  endetAt: Date | null;
+  endsAt: Date | null;
   nachricht: string | null;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
@@ -24,7 +24,7 @@ interface Props {
  *  - "Ersetzen": PATCH withdraw, then redirect to verschluss-anforderung form
  *    (which only renders SPERRZEIT mode when no active sperrzeit exists — so the
  *    withdraw must complete first). */
-export default function LockDurationEditForm({ userId, lockPeriodId, endetAt, nachricht, tz = APP_TZ }: Props) {
+export default function LockDurationEditForm({ userId, lockPeriodId, endsAt, nachricht, tz = APP_TZ }: Props) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -55,8 +55,8 @@ export default function LockDurationEditForm({ userId, lockPeriodId, endetAt, na
   }
 
   const close = () => router.push(`/admin/users/${userId}/aktionen`);
-  const endsLabel = endetAt
-    ? t("lockDurationActiveUntil", { date: formatDateTime(endetAt, dl, tz) })
+  const endsLabel = endsAt
+    ? t("lockDurationActiveUntil", { date: formatDateTime(endsAt, dl, tz) })
     : t("lockDurationIndefinite");
 
   return (

@@ -162,13 +162,13 @@ export default function BoxStatusCard({ reinigung, userId, wearerLocked = true, 
               {/* KEINE Ist-Zeile mehr. Sie sagte „Verschlossen" über den Riegel, während der
                   Zustands-Held zwei Zeilen tiefer dasselbe Wort über den TRÄGER sagte — und sie
                   hängte das Sperr-Ende an, das der Held ebenfalls nennt. Kein Zufall: `/api/box`
-                  überschreibt `lockUntil` mit dem `endetAt` der Sperrzeit, es war buchstäblich
+                  überschreibt `lockUntil` mit dem `endsAt` der Sperrzeit, es war buchstäblich
                   dasselbe Feld, in zwei verschiedenen Zeitzonen formatiert. Der Riegel steht jetzt
                   als Nachsatz im Helden, das Sperr-Ende nur dort. */}
               {/* Das Versäumnis sagt dasselbe wie der Konflikt, plus den Grund und die Handlung —
                   deshalb gilt genau eines von beiden. Der Träger liest eine Aufforderung (er steht
                   am Gerät und kann es beheben), die Keyholderin eine Feststellung. Das Sperr-Ende
-                  steht bei keinem: `/api/box` setzt `lockUntil` auf das `endetAt` der Sperrzeit, es
+                  steht bei keinem: `/api/box` setzt `lockUntil` auf das `endsAt` der Sperrzeit, es
                   wäre dasselbe Datum, das der Held eine Zeile tiefer lauter zeigt. */}
               {boltAlert && (
                 <WarnLine>

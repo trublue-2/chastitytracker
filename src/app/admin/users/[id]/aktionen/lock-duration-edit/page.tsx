@@ -20,7 +20,7 @@ export default async function AdminLockDurationEditPage({ params }: { params: Pr
     <LockDurationEditForm
       userId={id}
       lockPeriodId={activeLockPeriod.id}
-      endetAt={activeLockPeriod.endetAt}
+      endsAt={activeLockPeriod.endsAt}
       nachricht={activeLockPeriod.nachricht}
       tz={tz}
     />

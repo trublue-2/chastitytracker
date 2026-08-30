@@ -224,11 +224,11 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             offeneVerschlussAnf.device ? t("lockDevicePrefix", { name: offeneVerschlussAnf.device.name }) : null,
             offeneVerschlussAnf.nachricht,
           ),
-          endetAtLabel: offeneVerschlussAnf.endetAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endetAt, dl, tz) }) : null,
+          deadlineLabel: offeneVerschlussAnf.endsAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endsAt, dl, tz) }) : null,
           // Verstrichen heisst: es läuft bereits ein Vergehen (`late_lock`). Das Banner sah bisher
           // aus wie am ersten Tag — der einzige Unterschied war ein Datum, das er selbst mit der
           // Uhr vergleichen musste.
-          overdue: !!offeneVerschlussAnf.endetAt && offeneVerschlussAnf.endetAt < now,
+          overdue: !!offeneVerschlussAnf.endsAt && offeneVerschlussAnf.endsAt < now,
           // Ohne Geräte-Parameter: das Formular liest die offene Anforderung selbst und belegt ihr
           // Gerät vor (`anforderungDeviceId`). Ein zweiter Weg dorthin wäre eine zweite Wahrheit.
           href: "/dashboard/new/verschluss",
@@ -240,7 +240,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null,
             offeneOrgasmusAnf.nachricht,
           ),
-          windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginntAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endetAt, dl, tz) }),
+          windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginntAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endsAt, dl, tz) }),
         } : null,
       };
 
@@ -390,8 +390,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           interruptionPausedMs={interruptionPauseMs(data.activePair.interruptions)}
           now={now}
           events={data.events}
-          lockPeriodEndsAt={data.activeLockPeriod?.endetAt ?? null}
-          lockPeriodIndefinite={!!data.activeLockPeriod && data.activeLockPeriod.endetAt === null}
+          lockPeriodEndsAt={data.activeLockPeriod?.endsAt ?? null}
+          lockPeriodIndefinite={!!data.activeLockPeriod && data.activeLockPeriod.endsAt === null}
           lockPeriodMessage={data.activeLockPeriod?.nachricht ?? null}
           // Sub-Sicht: nur wenn er grundsätzlich reinigen darf. Sonst verspräche die Zeile etwas,
           // das seine Benutzer-Einstellung ohnehin verbietet.

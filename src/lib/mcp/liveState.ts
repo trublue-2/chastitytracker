@@ -153,17 +153,17 @@ export function mapOpenKontrolle(
   };
 }
 
-export interface ActiveLockPeriodView { endetAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null; reinigungErlaubt: boolean; deviceName: string | null }
+export interface ActiveLockPeriodView { endsAt: string | null; indefinite: boolean; remainingMinutes: number | null; message: string | null; reinigungErlaubt: boolean; deviceName: string | null }
 
 export function mapActiveLockPeriod(
-  s: { endetAt: Date | null; nachricht: string | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
+  s: { endsAt: Date | null; nachricht: string | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): ActiveLockPeriodView | null {
   if (!s) return null;
   return {
-    endetAt: s.endetAt ? fmt(s.endetAt) : null,
-    indefinite: s.endetAt === null,
-    remainingMinutes: s.endetAt ? minutesUntil(s.endetAt, now) : null,
+    endsAt: s.endsAt ? fmt(s.endsAt) : null,
+    indefinite: s.endsAt === null,
+    remainingMinutes: s.endsAt ? minutesUntil(s.endsAt, now) : null,
     message: s.nachricht,
     reinigungErlaubt: s.reinigungErlaubt,
     deviceName: s.device?.name ?? null,
@@ -174,7 +174,7 @@ export function mapActiveLockPeriod(
 export interface OpenLockRequestView {
   /** Für `edit_lock_request` / `withdraw` — ohne id lässt sich EINE von mehreren offenen nicht ansprechen. */
   id: string;
-  endetAt: string | null;
+  endsAt: string | null;
   overdue: boolean;
   remainingMinutes: number | null;
   message: string | null;
@@ -186,15 +186,15 @@ export interface OpenLockRequestView {
 }
 
 export function mapOpenLockRequest(
-  a: { id: string; endetAt: Date | null; nachricht: string | null; dauerH: number | null; lockEndsAt: Date | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
+  a: { id: string; endsAt: Date | null; nachricht: string | null; dauerH: number | null; lockEndsAt: Date | null; reinigungErlaubt: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): OpenLockRequestView | null {
   if (!a) return null;
   return {
     id: a.id,
-    endetAt: a.endetAt ? fmt(a.endetAt) : null,
-    overdue: a.endetAt ? a.endetAt < now : false,
-    remainingMinutes: a.endetAt ? minutesUntil(a.endetAt, now) : null,
+    endsAt: a.endsAt ? fmt(a.endsAt) : null,
+    overdue: a.endsAt ? a.endsAt < now : false,
+    remainingMinutes: a.endsAt ? minutesUntil(a.endsAt, now) : null,
     message: a.nachricht,
     dauerH: a.dauerH,
     lockUntilAt: a.lockEndsAt ? fmt(a.lockEndsAt) : null,
@@ -203,21 +203,21 @@ export function mapOpenLockRequest(
   };
 }
 
-export interface OpenOrgasmusAnforderungView { art: string; beginntAt: string; endetAt: string; active: boolean; requiredType: string | null; message: string | null; remainingMinutes: number }
+export interface OpenOrgasmusAnforderungView { art: string; beginntAt: string; endsAt: string; active: boolean; requiredType: string | null; message: string | null; remainingMinutes: number }
 
 export function mapOpenOrgasmusAnforderung(
-  o: { art: string; beginntAt: Date; endetAt: Date; vorgegebeneArt: string | null; nachricht: string | null } | null,
+  o: { art: string; beginntAt: Date; endsAt: Date; vorgegebeneArt: string | null; nachricht: string | null } | null,
   now: Date, fmt: Fmt,
 ): OpenOrgasmusAnforderungView | null {
   if (!o) return null;
   return {
     art: o.art,
     beginntAt: fmt(o.beginntAt),
-    endetAt: fmt(o.endetAt),
+    endsAt: fmt(o.endsAt),
     active: o.beginntAt <= now,
     requiredType: o.vorgegebeneArt,
     message: o.nachricht,
-    remainingMinutes: minutesUntil(o.endetAt, now),
+    remainingMinutes: minutesUntil(o.endsAt, now),
   };
 }
 
@@ -241,7 +241,7 @@ export function mapActiveWearSessions(
 
 export interface InterruptedLockPeriodView {
   /** Das ursprüngliche Ende, das die Keyholderin gesetzt hatte. null = war unbefristet. */
-  originalEndetAt: string | null;
+  originalEndsAt: string | null;
   indefinite: boolean;
   /** Wann die Öffnung sie aufgebrochen hat. */
   interruptedAt: string;
@@ -257,13 +257,13 @@ export interface InterruptedLockPeriodView {
  * Neutral formuliert: ob die Öffnung erlaubt war, steht hier bewusst NICHT — das weiss das Strafbuch.
  */
 export function mapInterruptedLockPeriod(
-  s: { endetAt: Date | null; withdrawnAt: Date | null; nachricht: string | null } | null,
+  s: { endsAt: Date | null; withdrawnAt: Date | null; nachricht: string | null } | null,
   fmt: Fmt,
 ): InterruptedLockPeriodView | null {
   if (!s?.withdrawnAt) return null;
   return {
-    originalEndetAt: s.endetAt ? fmt(s.endetAt) : null,
-    indefinite: s.endetAt === null,
+    originalEndsAt: s.endsAt ? fmt(s.endsAt) : null,
+    indefinite: s.endsAt === null,
     interruptedAt: fmt(s.withdrawnAt),
     message: s.nachricht,
   };

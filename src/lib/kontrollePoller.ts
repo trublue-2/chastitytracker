@@ -294,7 +294,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
       // anlegen noch ändern, ältere können aber noch in der DB liegen.
       const obsolete = art === "ANFORDERUNG"
         ? isLocked
-        : !isLocked || checkLockEnd(va.endetAt, va.wirksamAb, now) !== null;
+        : !isLocked || checkLockEnd(va.endsAt, va.wirksamAb, now) !== null;
       if (obsolete) {
         // Gegenstandslos heisst nicht wertlos: eine ANFORDERUNG an einen bereits verschlossenen Sub
         // ist ERFÜLLT, und die Sperrzeit, die sie mitbringt, bleibt gewollt. Warum und mit welchem
@@ -315,7 +315,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
           user: va.user,
           art: "SPERRZEIT",
           nachricht: uebernommen.nachricht,
-          endetAtDate: uebernommen.endetAt,
+          endsAtDate: uebernommen.endsAt,
           requestId: uebernommen.lockPeriodId,
           // Aus der ÜBERNOMMENEN Zeile, wie ihr Text daneben: die Meldung gehört zur Sperrzeit und
           // nennt deshalb, was in IHR steht. Dass die Anordnende dieselbe ist wie an der Anforderung,
@@ -330,7 +330,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         user: va.user,
         art,
         nachricht: va.nachricht,
-        endetAtDate: va.endetAt,
+        endsAtDate: va.endsAt,
         dauerH: va.dauerH,
         lockEndsAtDate: va.lockEndsAt,
         requestId: va.id,
@@ -366,7 +366,7 @@ async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
 
   for (const oa of due) {
     try {
-      if (checkOrgasmWindowEnd(oa.endetAt, now)) {
+      if (checkOrgasmWindowEnd(oa.endsAt, now)) {
         await prisma.orgasmusAnforderung.update({ where: { id: oa.id }, data: { withdrawnAt: new Date() } });
         continue;
       }
@@ -379,14 +379,14 @@ async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
       const sentAt = new Date();
       const lateMs = Math.max(0, sentAt.getTime() - (oa.wirksamAb?.getTime() ?? sentAt.getTime()));
       const beginnt = new Date(oa.beginntAt.getTime() + lateMs);
-      const endet = new Date(oa.endetAt.getTime() + lateMs);
+      const endsAtDate = new Date(oa.endsAt.getTime() + lateMs);
       await sendOrgasmusAnforderungNotifications({
         userId: oa.userId,
         user: oa.user,
         art: oa.art as "ANWEISUNG" | "GELEGENHEIT",
         nachricht: oa.nachricht,
         beginnt,
-        endet,
+        endsAtDate,
         vorgegebeneArt: oa.vorgegebeneArt,
         oeffnenErlaubt: oa.oeffnenErlaubt,
         directiveId: oa.id,
@@ -397,7 +397,7 @@ async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
       // Zeiten, eine Zeile mit alten Werten wäre ab hier eine Lüge gegenüber dem Träger.
       await prisma.orgasmusAnforderung.update({
         where: { id: oa.id },
-        data: { beginntAt: beginnt, endetAt: endet, benachrichtigtAt: sentAt },
+        data: { beginntAt: beginnt, endsAt: endsAtDate, benachrichtigtAt: sentAt },
       });
     } catch (e) {
       console.error(`[kontrollePoller] Orgasmus-Auslösung fehlgeschlagen (${oa.id}):`, (e as Error).message);

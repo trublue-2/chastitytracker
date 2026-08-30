@@ -56,13 +56,13 @@ describe("GET /api/integration/box/config — Vertrag zur Box", () => {
   });
 
   it("eine befristete Sperrzeit kommt als ISO-Zeitpunkt, indefinite=false", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue([{ endetAt: new Date("2026-07-10T17:19:48+02:00"), reinigungErlaubt: true }]);
+    db.verschlussAnforderung.findMany.mockResolvedValue([{ endsAt: new Date("2026-07-10T17:19:48+02:00"), reinigungErlaubt: true }]);
     const body = await (await GET(req())).json();
     expect(body.sperrzeit).toEqual({ endetAt: "2026-07-10T15:19:48.000Z", indefinite: false });
   });
 
   it("eine unbefristete Sperrzeit trägt indefinite=true und endetAt=null", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue([{ endetAt: null, reinigungErlaubt: false }]);
+    db.verschlussAnforderung.findMany.mockResolvedValue([{ endsAt: null, reinigungErlaubt: false }]);
     const body = await (await GET(req())).json();
     expect(body.sperrzeit).toEqual({ endetAt: null, indefinite: true });
   });
@@ -72,8 +72,8 @@ describe("GET /api/integration/box/config — Vertrag zur Box", () => {
     // neueste-zuerst: nähme die Route die erste Zeile (das tat sie), öffnete die Box drei Wochen zu
     // früh — die längere Anweisung der Keyholderin wäre physisch überschrieben, ohne jede Meldung.
     db.verschlussAnforderung.findMany.mockResolvedValue([
-      { endetAt: new Date("2026-07-20T00:00:00Z"), reinigungErlaubt: true },  // Selbst-Sperre, neuer
-      { endetAt: new Date("2026-08-11T00:00:00Z"), reinigungErlaubt: true },  // Keyholder-Sperre
+      { endsAt: new Date("2026-07-20T00:00:00Z"), reinigungErlaubt: true },  // Selbst-Sperre, neuer
+      { endsAt: new Date("2026-08-11T00:00:00Z"), reinigungErlaubt: true },  // Keyholder-Sperre
     ]);
     const body = await (await GET(req())).json();
     expect(body.sperrzeit).toEqual({ endetAt: "2026-08-11T00:00:00.000Z", indefinite: false });
@@ -81,8 +81,8 @@ describe("GET /api/integration/box/config — Vertrag zur Box", () => {
 
   it("eine unbefristete unter mehreren aktiven macht die Box unbefristet", async () => {
     db.verschlussAnforderung.findMany.mockResolvedValue([
-      { endetAt: new Date("2026-07-20T00:00:00Z"), reinigungErlaubt: true },
-      { endetAt: null, reinigungErlaubt: true },
+      { endsAt: new Date("2026-07-20T00:00:00Z"), reinigungErlaubt: true },
+      { endsAt: null, reinigungErlaubt: true },
     ]);
     const body = await (await GET(req())).json();
     expect(body.sperrzeit).toEqual({ endetAt: null, indefinite: true });

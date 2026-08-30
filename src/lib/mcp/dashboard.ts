@@ -226,8 +226,22 @@ export interface DashboardResult extends Envelope {
    *
    *  v16: `goals` folgt `period_summary` schemaVersion 4 — in einer Periode mit Zielgrenze ist
    *  `goal*H` (Tag, Woche, Monat UND Jahr) `null` statt eines anteilig gekürzten Ziels. Ein
-   *  v15-Wert stand dort als Absolutwert für einen anderen Zeitraum als die Ist-Stunden daneben. */
-  schemaVersion: 16;
+   *  v15-Wert stand dort als Absolutwert für einen anderen Zeitraum als die Ist-Stunden daneben.
+   *
+   *  v17: `endetAt` heisst `endsAt`. Betroffen sind FÜNF Stellen dieser Antwort —
+   *  `activeLockPeriod`, `openLockRequest(s)`, `openOrgasmWindow`, `scheduledDirectives[]` und
+   *  `interruptedLockPeriod.originalEndsAt` (letzteres hiess `originalEndetAt`). Kein
+   *  Bedeutungswechsel, nur der Name; der Bump steht trotzdem, weil ein Feld wegfällt und ein neues
+   *  erscheint — eine Sitzung mit der alten Werkzeugliste läse sonst still `undefined`.
+   *
+   *  Dieselbe Umbenennung traf die dryRun-Vorschauen von `set_lock_period` und `edit_lock_period`
+   *  (`mcpWrite.ts`). Die tragen KEINE schemaVersion, und der `toolsFingerprint` deckt nur
+   *  Eingabe-Schemas — für diese beiden gibt es also kein Signal. Wer eine offene Sitzung hat,
+   *  sieht die Vorschau einmal ohne Ende; der Apply-Schritt danach ist unberührt.
+   *
+   *  Teil der v6-Umstellung: die MCP-Oberfläche spricht durchgehend Englisch. Der Box-Vertrag zu
+   *  Heimdall behält `endetAt` — das ist Hardware, kein MCP. */
+  schemaVersion: 17;
   user: string;
   /**
    * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
@@ -299,7 +313,7 @@ export interface DashboardResult extends Envelope {
    *  Zeiten ISO-8601 mit Offset (die liveState-Mapper bekommen das `iso`-Format durchgereicht); zusätzlich
    *  remainingMinutes/overdue für direkte Fristfragen. Beim Orgasmus-Fenster zeigt `active` an,
    *  ob der Start (`beginntAt`) schon erreicht ist — `active:false` = geplant, läuft noch NICHT
-   *  (remainingMinutes zählt bis `endetAt`).
+   *  (remainingMinutes zählt bis `endsAt`).
    *
    *  Die Sichten aus `mcp/liveState.ts` werden unverändert übernommen, statt sie hier erneut zu
    *  beschreiben und Feld für Feld umzukopieren: sonst müsste jedes neue Feld an zwei Stellen
@@ -463,7 +477,7 @@ export interface ScheduledDirective {
   /** Frist/Sperrzeit-Ende (ISO) — bei Kontrollen die Erfüllungs-Frist, bei Sperrzeit das Ende, bei
    *  einer Aufgabe ihr (spätestmögliches) Ende, bei der Orgasmus-Anweisung das Fenster-Ende, sonst
    *  null. */
-  endetAt: string | null;
+  endsAt: string | null;
   /** Freitext: Kontroll-Kommentar, Anforderungs-/Sperrzeit-Nachricht bzw. der Aufgaben-Titel. */
   message: string | null;
   /** Nur lock_request/lock_period: erlaubt die (geplante) Sperre Reinigungsöffnungen? Deckt die
@@ -500,7 +514,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
     // und die Keyholderin plante ahnungslos eine zweite, die die erste stumm verdrängt.
     prisma.orgasmusAnforderung.findMany({
       where: { userId, ...pendingDispatchWhere, fulfilledAt: null },
-      select: { id: true, nachricht: true, wirksamAb: true, endetAt: true },
+      select: { id: true, nachricht: true, wirksamAb: true, endsAt: true },
     }),
   ]);
   const out: ScheduledDirective[] = [
@@ -508,7 +522,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       id: a.id,
       kind: (a.art === "SPERRZEIT" ? "lock_period" : "lock_request") as ScheduledDirective["kind"],
       wirksamAb: iso(a.wirksamAb)!,
-      endetAt: iso(a.endetAt),
+      endsAt: iso(a.endsAt),
       message: a.nachricht,
       reinigungErlaubt: a.reinigungErlaubt,
     })),
@@ -516,7 +530,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       id: k.id,
       kind: "inspection" as const,
       wirksamAb: iso(k.wirksamAb)!,
-      endetAt: iso(k.deadline),
+      endsAt: iso(k.deadline),
       message: k.kommentar,
       reinigungErlaubt: null,
     })),
@@ -524,7 +538,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       id: t.id,
       kind: "task" as const,
       wirksamAb: iso(t.wirksamAb)!,
-      endetAt: iso(t.holdUntil),
+      endsAt: iso(t.holdUntil),
       message: t.title,
       reinigungErlaubt: null,
     })),
@@ -532,7 +546,7 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
       id: o.id,
       kind: "orgasm" as const,
       wirksamAb: iso(o.wirksamAb)!,
-      endetAt: iso(o.endetAt),
+      endsAt: iso(o.endsAt),
       message: o.nachricht,
       reinigungErlaubt: null,
     })),
@@ -783,7 +797,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   const weight = await weightSummary(trackingCtx.userId);
 
   return {
-    schemaVersion: 16,
+    schemaVersion: 17,
     user: username,
     weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
@@ -809,7 +823,7 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
       activeLockPeriod: mapActiveLockPeriod(activeLockPeriodRow, now, fmt),
       // Eine laufende Sperrzeit LÖST die unterbrochene AB: die Keyholderin hat auf den Bruch
       // geantwortet, die alte muss nicht weiter angemahnt werden. Ohne diese Ablösung bliebe eine
-      // UNBEFRISTETE unterbrochene Sperrzeit (`endetAt: null`) für immer stehen — sie läuft nie ab,
+      // UNBEFRISTETE unterbrochene Sperrzeit (`endsAt: null`) für immer stehen — sie läuft nie ab,
       // und jeder Withdraw-Pfad filtert auf `withdrawnAt: null`, greift bei ihr also nicht mehr.
       // Sie wäre ein Dauer-Gespenst im Dashboard, das niemand mehr wegbekommt.
       interruptedLockPeriod: activeLockPeriodRow ? null : mapInterruptedLockPeriod(interruptedLockPeriodRow, fmt),

@@ -36,8 +36,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     sperrzeit: lockPeriod
       ? {
-          endetAt: lockPeriod.endetAt?.toISOString() ?? null,
-          indefinite: lockPeriod.endetAt === null,
+          // Schlüssel bleibt `endetAt` — Heimdall-Vertrag, siehe Kopf der Datei.
+          endetAt: lockPeriod.endsAt?.toISOString() ?? null,
+          indefinite: lockPeriod.endsAt === null,
         }
       : null,
   });

@@ -319,7 +319,7 @@ export async function applyWeightRelease(userId: string, now: Date = new Date())
     art: "GELEGENHEIT",
     nachricht: status.release.message,
     beginntAt: now,
-    endetAt: new Date(now.getTime() + status.release.windowHours * 3600_000),
+    endsAt: new Date(now.getTime() + status.release.windowHours * 3600_000),
     oeffnenErlaubt: status.release.openingAllowed,
   }, "system");
   if (!created.ok) return null;

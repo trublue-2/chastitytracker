@@ -99,7 +99,7 @@ describe("updateLockPeriodEnd", () => {
     expect(res.data.notified).toBe(false);
     expect(notifyMock).not.toHaveBeenCalled();
     // Das neue Ende wird trotzdem gespeichert — der Poller liefert es bei Fälligkeit mit aus.
-    expect(updateMock).toHaveBeenCalledWith({ where: { id: "s1" }, data: { endetAt: NEW_END } });
+    expect(updateMock).toHaveBeenCalledWith({ where: { id: "s1" }, data: { endsAt: NEW_END } });
   });
 
   it("REGRESSION: die AUTO-ERZEUGTE Sperrzeit hat kein benachrichtigtAt — und muss trotzdem melden", async () => {
@@ -190,7 +190,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
       const res = await updateLockPeriodEnd("s1", DANACH, "herrin");
 
       expect(res.ok).toBe(true);
-      expect(updateMock).toHaveBeenCalledWith({ where: { id: "s1" }, data: { endetAt: DANACH } });
+      expect(updateMock).toHaveBeenCalledWith({ where: { id: "s1" }, data: { endsAt: DANACH } });
     });
 
     it("Ende GENAU auf dem Auslösezeitpunkt ist eine Sperre der Länge null → abgelehnt", async () => {
@@ -220,7 +220,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
     it("terminierte SPERRZEIT mit Ende vor dem Auslösezeitpunkt wird gar nicht erst angelegt", async () => {
       const res = await createVerschlussAnforderung({
         userId: "u1", art: "SPERRZEIT",
-        wirksamAbAt: IN_DREI_WOCHEN, endetAt: MORGEN,
+        wirksamAbAt: IN_DREI_WOCHEN, endsAt: MORGEN,
       }, "herrin");
 
       if (res.ok) throw new Error("erwartet: Fehler");
@@ -230,7 +230,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
 
     it("sofortige SPERRZEIT mit Ende in der Vergangenheit wird abgelehnt", async () => {
       const res = await createVerschlussAnforderung({
-        userId: "u1", art: "SPERRZEIT", endetAt: new Date("2026-07-13T12:00:00Z"),
+        userId: "u1", art: "SPERRZEIT", endsAt: new Date("2026-07-13T12:00:00Z"),
       }, "herrin");
 
       if (res.ok) throw new Error("erwartet: Fehler");
@@ -241,7 +241,7 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
     it("terminierte SPERRZEIT mit Ende nach dem Auslösezeitpunkt entsteht wie bisher", async () => {
       const res = await createVerschlussAnforderung({
         userId: "u1", art: "SPERRZEIT",
-        wirksamAbAt: IN_DREI_WOCHEN, endetAt: DANACH,
+        wirksamAbAt: IN_DREI_WOCHEN, endsAt: DANACH,
       }, "herrin");
 
       expect(res.ok).toBe(true);
@@ -276,12 +276,12 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
     });
 
     it("ANFORDERUNG: die Einschliess-FRIST ist kein Sperr-Ende und bleibt ungeprüft", async () => {
-      // `endetAt` einer ANFORDERUNG ist die Frist zum Einschliessen, nicht das Ende einer Sperre —
+      // `endsAt` einer ANFORDERUNG ist die Frist zum Einschliessen, nicht das Ende einer Sperre —
       // sie darf vor der Auslösung liegen, ohne dass eine abgelaufene Sperre entsteht.
       isLockedMock.mockResolvedValue(false); // eine ANFORDERUNG geht nur an einen offenen User
       const res = await createVerschlussAnforderung({
         userId: "u1", art: "ANFORDERUNG",
-        wirksamAbAt: IN_DREI_WOCHEN, endetAt: MORGEN,
+        wirksamAbAt: IN_DREI_WOCHEN, endsAt: MORGEN,
       }, "herrin");
 
       expect(res.ok).toBe(true);
@@ -490,7 +490,7 @@ describe("updateLockRequest", () => {
 
   /** Eine ANFORDERUNGs-Zeile, wie updateLockRequest sie liest (inkl. user für die Zustellung). */
   const anf = (overrides: object) => ({
-    id: "a1", userId: "u1", art: "ANFORDERUNG", endetAt: SPAETER, nachricht: null, dauerH: null,
+    id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: SPAETER, nachricht: null, dauerH: null,
     lockEndsAt: null, deviceId: null, reinigungErlaubt: false, fulfilledAt: null, withdrawnAt: null,
     user: { id: "u1", email: "sub@example.invalid", username: "sub", locale: "de" },
     ...overrides,
@@ -503,7 +503,7 @@ describe("updateLockRequest", () => {
   afterEach(() => vi.useRealTimers());
 
   it("eine GEPLANTE Anforderung zu ändern schickt KEINE Mail", async () => {
-    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endsAt: IN_DREI_WOCHEN }));
     const res = await updateLockRequest("a1", { nachricht: "neu" }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
@@ -514,7 +514,7 @@ describe("updateLockRequest", () => {
 
   it("eine bereits ausgelöste Anforderung meldet die Änderung", async () => {
     findUniqueMock.mockResolvedValue(anf(triggered));
-    const res = await updateLockRequest("a1", { endetAt: SPAETER }, "herrin");
+    const res = await updateLockRequest("a1", { endsAt: SPAETER }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
     expect(res.data.notified).toBe(true);
@@ -523,7 +523,7 @@ describe("updateLockRequest", () => {
 
   it("auf immediate gezogen: die reguläre Zustellung geht JETZT raus, nicht erst beim nächsten Poller-Tick", async () => {
     isLockedMock.mockResolvedValue(false); // eine Einschliess-Anforderung geht nur an einen offenen Sub
-    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endsAt: IN_DREI_WOCHEN }));
     const res = await updateLockRequest("a1", { wirksamAb: null }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
@@ -539,7 +539,7 @@ describe("updateLockRequest", () => {
     // geladen. Sendeten Edit UND Poller, bekäme der Sub zwei Nachrichten. Also überlässt der Edit die
     // Zustellung dem Poller (er liest den frischen Stand beim nächsten Tick).
     const VERGANGEN = new Date("2026-07-14T11:59:00Z"); // knapp vor JETZT
-    findUniqueMock.mockResolvedValue(anf({ wirksamAb: VERGANGEN, benachrichtigtAt: null, endetAt: SPAETER }));
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: VERGANGEN, benachrichtigtAt: null, endsAt: SPAETER }));
     const res = await updateLockRequest("a1", { nachricht: "neu" }, "herrin");
 
     if (!res.ok) throw new Error("erwartet: ok");
@@ -555,7 +555,7 @@ describe("updateLockRequest", () => {
     // Dieselbe Regel wie beim Anlegen und im Poller: eine Einschliess-Anweisung an einen, der schon
     // verschlossen ist, wäre unerfüllbar und zählte später als „zu spät verschlossen".
     isLockedMock.mockResolvedValue(true);
-    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endsAt: IN_DREI_WOCHEN }));
     const res = await updateLockRequest("a1", { wirksamAb: null }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
@@ -588,7 +588,7 @@ describe("updateLockRequest", () => {
   });
 
   it("ein Sperr-Ende vor der Auslösung wird abgelehnt (dieselbe Regel wie beim Anlegen)", async () => {
-    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endsAt: IN_DREI_WOCHEN }));
     const res = await updateLockRequest("a1", { lockEndsAt: SPAETER }, "herrin");
 
     if (res.ok) throw new Error("erwartet: Fehler");
@@ -614,7 +614,7 @@ describe("updateLockRequest", () => {
   });
 
   it("LOAD-BEARING: der Heimdall-Push läuft auch bei der stillen Änderung", async () => {
-    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endetAt: IN_DREI_WOCHEN }));
+    findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endsAt: IN_DREI_WOCHEN }));
     await updateLockRequest("a1", { nachricht: "neu" }, "herrin");
 
     expect(heimdallMock).toHaveBeenCalledWith("u1");

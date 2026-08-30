@@ -1,6 +1,7 @@
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import OeffnenForm from "../../OeffnenForm";
+import type { LockPeriodState } from "@/app/entries/types";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -34,8 +35,15 @@ export default async function NewOeffnenPage() {
   // Rechnete der Client mit `new Date()` nach, flackerte die Karte an der Fristgrenze zwischen
   // Server-Render und Hydration. `box.lockUntil` ist die Selbstauskunft der Box — nicht das
   // Sperrzeit-Ende, das sie erst beim nächsten Sync einfaltet.
+  // EINE Quelle für beide Verbraucher: dieselben zwei Felder standen hier zweimal wörtlich, einmal
+  // für die Box-Vorschau und einmal fürs Formular. Nullbar ist nur die Übergabe, nicht der Wert.
+  const lockPeriodState: LockPeriodState = {
+    endsAt: activeLockPeriod?.endsAt?.toISOString() ?? null,
+    indefinite: !!activeLockPeriod && activeLockPeriod.endsAt === null,
+  };
+
   const boxHold = boxHoldOutlook({
-    lockPeriod: activeLockPeriod ? { endetAt: activeLockPeriod.endetAt?.toISOString() ?? null, indefinite: activeLockPeriod.endetAt === null } : null,
+    lockPeriod: activeLockPeriod ? lockPeriodState : null,
     box: box ? { lockUntil: box.lockUntil?.toISOString() ?? null } : null,
     now,
   });
@@ -51,10 +59,7 @@ export default async function NewOeffnenPage() {
         taskWarnings={taskWarnings}
         tz={tz}
         nowDefault={nowDatetimeLocal(tz)}
-        lockPeriod={{
-          endetAt: activeLockPeriod?.endetAt?.toISOString() ?? null,
-          indefinite: !!activeLockPeriod && activeLockPeriod.endetAt === null,
-        }}
+        lockPeriod={lockPeriodState}
         reinigung={{
           maxMinuten: user?.reinigungMaxMinuten ?? 15,
           maxProTag: user?.reinigungMaxProTag ?? 0,

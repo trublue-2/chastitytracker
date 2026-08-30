@@ -49,7 +49,7 @@ aktiv), und schliesst der Sub sich danach über eine Anforderung wieder ein, ent
 
 `foldActiveLockPeriods` faltet sie **nach der strengsten Regel, nicht nach der neuesten Zeile**:
 
-- `endetAt`: unbefristet schlägt alles, sonst das **späteste** Ende.
+- `endsAt`: unbefristet schlägt alles, sonst das **späteste** Ende.
 - `reinigungErlaubt`: nur wenn **jede** aktive Sperre es erlaubt.
 
 Die frühere Umsetzung nahm die zuletzt angelegte Zeile. Folge: die Box lief beim frühesten Ende auf,

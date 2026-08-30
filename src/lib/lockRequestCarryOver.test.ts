@@ -55,12 +55,12 @@ describe("lockPeriodEndFromRequest — die eine Regel beider Pfade", () => {
 describe("carryOverLockPeriodOnAlreadyLocked", () => {
   it("legt die Sperrzeit an — dauerH ab X, nicht ab dem länger zurückliegenden Verschluss", async () => {
     const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung(), X))!;
-    expect(r.endetAt).toEqual(new Date(X.getTime() + 24 * STUNDE));
+    expect(r.endsAt).toEqual(new Date(X.getTime() + 24 * STUNDE));
 
     const { data } = txMock.verschlussAnforderung.create.mock.calls[0][0] as { data: Record<string, unknown> };
     expect(data).toMatchObject({
       userId: "u1", art: "SPERRZEIT", nachricht: "24h drin bleiben", reinigungErlaubt: true,
-      endetAt: new Date(X.getTime() + 24 * STUNDE),
+      endsAt: new Date(X.getTime() + 24 * STUNDE),
       // Sofort gültig ⇒ nicht vor dem Sub verborgen. KEIN `benachrichtigtAt`: der Stempel meint
       // „Mail/Push ging raus", und der Versand liegt hinter dem Commit (der Poller schickt).
       wirksamAb: null,
@@ -83,7 +83,7 @@ describe("carryOverLockPeriodOnAlreadyLocked", () => {
   it("absolutes Sperr-Ende wird 1:1 übernommen", async () => {
     const fix = new Date("2026-08-05T10:00:00Z");
     const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung({ dauerH: null, lockEndsAt: fix }), X))!;
-    expect(r.endetAt).toEqual(fix);
+    expect(r.endsAt).toEqual(fix);
   });
 
   it("ohne mitgebrachte Sperrzeit: null — der Aufrufer zieht wie bisher zurück", async () => {

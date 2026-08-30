@@ -165,12 +165,12 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           interruptionPausedMs={interruptionPauseMs(data.running.activePair.interruptions)}
           now={now}
           events={data.running.events}
-          lockPeriodEndsAt={data.lockPeriod?.endetAt ?? null}
+          lockPeriodEndsAt={data.lockPeriod?.endsAt ?? null}
           // Unbefristet ist unbefristet — auch wenn die Sperre terminiert wurde. Die frühere
           // Zusatzbedingung `!wirksamAb` liess bei einer TERMINIERTEN unbefristeten Sperre alle
           // drei Sperr-Angaben leer laufen, und damit verschwand die ganze Zeile aus IHRER Karte,
           // während der Träger sie sah.
-          lockPeriodIndefinite={!!data.lockPeriod && data.lockPeriod.endetAt === null}
+          lockPeriodIndefinite={!!data.lockPeriod && data.lockPeriod.endsAt === null}
           lockPeriodMessage={data.lockPeriod?.nachricht ?? null}
           lockPeriodScheduledFor={data.lockPeriod?.wirksamAb && data.lockPeriod.wirksamAb > now ? data.lockPeriod.wirksamAb : null}
           // Der erreichte Beginn — die Karte zeigt ihn nur, wo sonst kein Zeitpunkt stünde.
@@ -258,7 +258,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       // muss sie zurückziehen können), aber sie läuft nicht: kein Countdown auf ein Fenster, das
       // der Träger nicht kennt, und die Beschriftung sagt, wann sie kommt.
       const scheduled = isScheduledDirective(anforderung.wirksamAb, now);
-      const expired = !scheduled && anforderung.endetAt < now;
+      const expired = !scheduled && anforderung.endsAt < now;
       return (
         <LockRequestBanner
           variant="compact"
@@ -269,7 +269,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
             + (scheduled ? ` · ${t("orgasmAnforderungScheduled", { time: fmtDual(anforderung.wirksamAb!) })}` : "")
           }
           overdue={expired}
-          endetAt={scheduled ? null : anforderung.endetAt}
+          endsAt={scheduled ? null : anforderung.endsAt}
           locale={dl}
           tz={subjectTz}
           viewerTz={viewerTz}

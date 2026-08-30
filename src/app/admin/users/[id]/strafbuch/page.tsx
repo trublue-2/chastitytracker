@@ -91,14 +91,14 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   const verschlussVersaeumt: VerschlussVersaeumtRow[] = sb.lateLocks.map((a) => ({
     id: a.id,
-    endetAtStr: fmtDual(a.endetAt),
+    endsAtStr: fmtDual(a.endsAt),
     fulfilledAtStr: a.fulfilledAt ? fmtDual(a.fulfilledAt) : null,
     nachricht: a.nachricht,
   }));
 
   const orgasmusVersaeumt: OrgasmusVersaeumtRow[] = sb.missedOrgasmInstructions.map((m) => ({
     id: m.id,
-    endetAtStr: fmtDual(m.endetAt),
+    endsAtStr: fmtDual(m.endsAt),
     nachricht: m.nachricht,
     requiredArt: m.requiredArt,
   }));

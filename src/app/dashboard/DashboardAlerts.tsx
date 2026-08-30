@@ -30,7 +30,7 @@ export interface DashboardAlertsProps {
 
   offeneVerschlussAnf: {
     nachricht: string | null;
-    endetAtLabel: string | null;
+    deadlineLabel: string | null;
     /** Frist verstrichen — das Banner wechselt auf Warnfarbe. */
     overdue: boolean;
     /** Ziel des Banners: das Verschluss-Formular, wo möglich mit vorbelegtem Gerät. */
@@ -87,7 +87,7 @@ export default async function DashboardAlerts({
           colorScheme="request"
           label={t("lockRequested")}
           nachricht={offeneVerschlussAnf.nachricht}
-          endetAtLabel={offeneVerschlussAnf.endetAtLabel}
+          deadlineLabel={offeneVerschlussAnf.deadlineLabel}
           overdue={offeneVerschlussAnf.overdue}
           href={offeneVerschlussAnf.href}
           actionLabel={t("lockNow")}
@@ -100,7 +100,7 @@ export default async function DashboardAlerts({
           colorScheme="orgasm"
           label={offeneOrgasmusAnf.label}
           nachricht={offeneOrgasmusAnf.nachricht}
-          endetAtLabel={offeneOrgasmusAnf.windowLabel}
+          deadlineLabel={offeneOrgasmusAnf.windowLabel}
         />
       )}
     </DashboardBlock>

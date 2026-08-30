@@ -6,18 +6,18 @@ import useRemainingMs from "@/app/hooks/useRemainingMs";
 
 /**
  * Live countdown für die verbleibende Sperrzeit. Tickt jede Minute.
- * Zeigt nichts wenn endetAt in der Vergangenheit liegt.
+ * Zeigt nichts wenn endsAt in der Vergangenheit liegt.
  */
 export default function LockPeriodRemaining({
-  endetAt,
+  endsAt,
   className,
 }: {
-  endetAt: string;
+  endsAt: string;
   className?: string;
 }) {
   const locale = useLocale();
   const t = useTranslations("admin");
-  const remainingMs = useRemainingMs(endetAt);
+  const remainingMs = useRemainingMs(endsAt);
 
   if (remainingMs === 0) return null;
 

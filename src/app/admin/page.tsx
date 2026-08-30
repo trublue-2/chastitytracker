@@ -190,13 +190,13 @@ export default async function AdminPage() {
       hasActiveLockPeriod: !!activeLockPeriod,
       boltOpen: boltOpenByUser.has(userId),
       offeneAnforderungen: offeneVerschlussAnforderungen.map(a => ({
-        id: a.id, endetAt: a.endetAt, overdue: !!a.endetAt && a.endetAt < now,
+        id: a.id, endsAt: a.endsAt, overdue: !!a.endsAt && a.endsAt < now,
       })),
       activeLockPeriod: activeLockPeriod
-        ? { id: activeLockPeriod.id, nachricht: activeLockPeriod.nachricht, endetAt: activeLockPeriod.endetAt, reinigungErlaubt: activeLockPeriod.reinigungErlaubt }
+        ? { id: activeLockPeriod.id, nachricht: activeLockPeriod.nachricht, endsAt: activeLockPeriod.endsAt, reinigungErlaubt: activeLockPeriod.reinigungErlaubt }
         : null,
       offeneOrgasmusAnforderung: offeneOrgasmusAnforderung
-        ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endetAt: offeneOrgasmusAnforderung.endetAt, expired: offeneOrgasmusAnforderung.endetAt < now }
+        ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endsAt: offeneOrgasmusAnforderung.endsAt, expired: offeneOrgasmusAnforderung.endsAt < now }
         : null,
       scheduled,
     };
@@ -413,7 +413,7 @@ export default async function AdminPage() {
                             colorScheme="request"
                             label={a.overdue ? t("lockOverdue") : t("lockRequested")}
                             overdue={a.overdue}
-                            endetAt={a.endetAt}
+                            endsAt={a.endsAt}
                             locale={dl}
                             tz={rowTz}
                             viewerTz={viewerTz}
@@ -425,13 +425,13 @@ export default async function AdminPage() {
                           <LockRequestBanner
                             variant="compact"
                             colorScheme="sperrzeit"
-                            label={u.stats.activeLockPeriod.endetAt ? t("lockedUntil") : t("lockedIndefinite")}
+                            label={u.stats.activeLockPeriod.endsAt ? t("lockedUntil") : t("lockedIndefinite")}
                             locale={dl}
                             tz={rowTz}
                             viewerTz={viewerTz}
                             subTimePrefix={subLabel}
-                            endetAt={u.stats.activeLockPeriod.endetAt}
-                            showRemaining={!!u.stats.activeLockPeriod.endetAt}
+                            endsAt={u.stats.activeLockPeriod.endsAt}
+                            showRemaining={!!u.stats.activeLockPeriod.endsAt}
                             // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den
                             // Benutzer-Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
                             cleaningNote={t(u.stats.activeLockPeriod.reinigungErlaubt ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning")}
@@ -447,7 +447,7 @@ export default async function AdminPage() {
                               + (u.stats.offeneOrgasmusAnforderung.expired ? ` · ${t("orgasmAnforderungExpired")}` : "")
                             }
                             overdue={u.stats.offeneOrgasmusAnforderung.expired}
-                            endetAt={u.stats.offeneOrgasmusAnforderung.endetAt}
+                            endsAt={u.stats.offeneOrgasmusAnforderung.endsAt}
                             locale={dl}
                             tz={rowTz}
                             viewerTz={viewerTz}

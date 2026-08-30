@@ -29,13 +29,13 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
-  // setEnd: extend/shorten an active Sperrzeit. indefinite=true → open-ended; else endetAt (ISO).
+  // setEnd: extend/shorten an active Sperrzeit. indefinite=true → open-ended; else endsAt (ISO).
   if (body.action === "setEnd") {
-    const endetAt = body.indefinite ? null : new Date(body.endetAt);
-    if (!body.indefinite && Number.isNaN(endetAt!.getTime())) {
+    const endsAt = body.indefinite ? null : new Date(body.endsAt);
+    if (!body.indefinite && Number.isNaN(endsAt!.getTime())) {
       return errorResponse(400, "INVALID_DATETIME");
     }
-    const result = await updateLockPeriodEnd(id, endetAt, sessionActor(actor));
+    const result = await updateLockPeriodEnd(id, endsAt, sessionActor(actor));
     if (!result.ok) return serviceFailure(result);
     return NextResponse.json({ ok: true });
   }

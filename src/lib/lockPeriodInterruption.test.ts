@@ -66,24 +66,24 @@ describe("releaseLockPeriodsOnOpen", () => {
 describe("mapInterruptedLockPeriod", () => {
   it("zeigt das URSPRÜNGLICHE Ende und den Zeitpunkt des Aufbrechens", async () => {
     const view = mapInterruptedLockPeriod(
-      { endetAt: new Date("2026-07-25T00:00:00+02:00"), withdrawnAt: NOW, nachricht: "14 Tage, Konsequenz" },
+      { endsAt: new Date("2026-07-25T00:00:00+02:00"), withdrawnAt: NOW, nachricht: "14 Tage, Konsequenz" },
       fmt,
     )!;
-    expect(view.originalEndetAt).toBe("2026-07-24T22:00:00.000Z");
+    expect(view.originalEndsAt).toBe("2026-07-24T22:00:00.000Z");
     expect(view.indefinite).toBe(false);
     expect(view.interruptedAt).toBe(NOW.toISOString());
     expect(view.message).toBe("14 Tage, Konsequenz");
   });
 
   it("eine unbefristete Sperrzeit trägt indefinite=true", () => {
-    const view = mapInterruptedLockPeriod({ endetAt: null, withdrawnAt: NOW, nachricht: null }, fmt)!;
+    const view = mapInterruptedLockPeriod({ endsAt: null, withdrawnAt: NOW, nachricht: null }, fmt)!;
     expect(view.indefinite).toBe(true);
-    expect(view.originalEndetAt).toBeNull();
+    expect(view.originalEndsAt).toBeNull();
   });
 
   it("null bleibt null", () => {
     expect(mapInterruptedLockPeriod(null, fmt)).toBeNull();
     // Ohne withdrawnAt gibt es nichts zu unterbrechen — defensiv, die Query filtert bereits.
-    expect(mapInterruptedLockPeriod({ endetAt: null, withdrawnAt: null, nachricht: null }, fmt)).toBeNull();
+    expect(mapInterruptedLockPeriod({ endsAt: null, withdrawnAt: null, nachricht: null }, fmt)).toBeNull();
   });
 });

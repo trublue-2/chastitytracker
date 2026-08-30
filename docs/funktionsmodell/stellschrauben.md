@@ -31,7 +31,7 @@ Steckbrief: [10-sperrzeit.md](10-sperrzeit.md)
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
 | `VerschlussAnforderung.nachricht` | String? | — | je Direktive | Begleittext an den Sub; erscheint in der Meldung und im Posteingang. | Keyholder (UI), Keyholder (MCP) | Nachrichten | — |
-| `VerschlussAnforderung.endetAt` | DateTime? | — | je Direktive | Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Box, Strafbuch | `queries.ts:foldActiveLockPeriods` |
+| `VerschlussAnforderung.endsAt` | DateTime? | — | je Direktive | Bei einer SPERRZEIT das Ende (leer = indefinite), bei einer ANFORDERUNG die Frist zum Einschliessen. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Box, Strafbuch | `queries.ts:foldActiveLockPeriods` |
 | `VerschlussAnforderung.dauerH` | Float? | — | je Direktive | Mindest-Tragedauer einer Anforderung; die Uhr startet beim tatsächlichen Verschluss. Alternative zu `lockEndsAt`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
 | `VerschlussAnforderung.lockEndsAt` | DateTime? | — | je Direktive | Absolutes Sperr-Ende einer Anforderung (feste Wanduhr). Ein später Verschluss verschiebt es NICHT — anders als `dauerH`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
 | `VerschlussAnforderung.deviceId` | String? | — | je Direktive | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Geräte, Strafbuch | — |
@@ -85,7 +85,7 @@ Steckbrief: [35-orgasmus.md](35-orgasmus.md)
 | `OrgasmusAnforderung.art` | String | (keiner) | je Direktive | ANWEISUNG = Pflicht (ungenutzt ist ein Vergehen), GELEGENHEIT = Erlaubnis (ungenutzt folgenlos). Der ganze Unterschied der Direktive. | Keyholder (UI), Keyholder (MCP) | Orgasmus, Strafbuch | — |
 | `OrgasmusAnforderung.nachricht` | String? | — | je Direktive | Begleittext an den Sub. | Keyholder (UI), Keyholder (MCP) | Nachrichten | — |
 | `OrgasmusAnforderung.beginntAt` | DateTime | (keiner) | je Direktive | Beginn des Fensters. Es ist immer nur EINE Direktive aktiv. | Keyholder (UI), Keyholder (MCP) | Orgasmus | — |
-| `OrgasmusAnforderung.endetAt` | DateTime | (keiner) | je Direktive | Ende des Fensters. Danach ist eine ANWEISUNG versäumt. | Keyholder (UI), Keyholder (MCP) | Orgasmus, Strafbuch | — |
+| `OrgasmusAnforderung.endsAt` | DateTime | (keiner) | je Direktive | Ende des Fensters. Danach ist eine ANWEISUNG versäumt. | Keyholder (UI), Keyholder (MCP) | Orgasmus, Strafbuch | — |
 | `OrgasmusAnforderung.vorgegebeneArt` | String? | — | je Direktive | Verlangt eine bestimmte Orgasmus-Art; leer = beliebig. Nur ein passender Eintrag erfüllt. | Keyholder (UI), Keyholder (MCP) | Orgasmus, Einträge | — |
 | `OrgasmusAnforderung.oeffnenErlaubt` | Boolean | `false` | je Direktive | Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen. | Keyholder (UI), Keyholder (MCP) | Orgasmus, Sperrzeit, Strafbuch | — |
 | `OrgasmusAnforderung.wirksamAb` | DateTime? | — | je Direktive | Terminierte Auslösung. Vorher gilt das Fenster nicht, erlaubt kein Öffnen und erfüllt sich nicht. | Keyholder (UI), Keyholder (MCP) | Orgasmus | `delayedTrigger.ts` |

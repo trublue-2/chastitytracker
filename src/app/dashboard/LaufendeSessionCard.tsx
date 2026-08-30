@@ -105,13 +105,13 @@ export default async function LaufendeSessionCard({
   //
   // Ohne `viewerTz` fällt `formatDateTimeDual` selbst auf den reinen Primärwert zurück; ein
   // Ternär davor wäre ein Nulleffekt gewesen.
-  const lockUntilStr = lockPeriodEndsAt
+  const lockPeriodEndsAtStr = lockPeriodEndsAt
     ? formatDateTimeDual(lockPeriodEndsAt, dl, viewerTz, tz, subLabel)
     : null;
   const scheduledForStr = lockPeriodScheduledFor ? formatDateTime(lockPeriodScheduledFor, dl, tz) : null;
   const runningSinceStr = lockPeriodRunningSince ? formatDateTime(lockPeriodRunningSince, dl, tz) : null;
   /** Die Nebenangaben der Sperr-Zeile — Restzeit und erreichter Beginn stehen gleichrangig. */
-  const showLockPeriod = lockUntilStr !== null || lockPeriodIndefinite || scheduledForStr !== null || runningSinceStr !== null;
+  const showLockPeriod = lockPeriodEndsAtStr !== null || lockPeriodIndefinite || scheduledForStr !== null || runningSinceStr !== null;
 
   // Nicht „hat die Vorgabe Ziele?", sondern „bleibt eine bewertbare Zeile übrig?" — sonst stünde
   // die Überschrift „KG-Ziele" am Starttag einer Vorgabe über einer leeren Liste.
@@ -156,13 +156,13 @@ export default async function LaufendeSessionCard({
             <span className="font-semibold text-foreground">
               {scheduledForStr
                 ? <>{ta("scheduledForLabel")}: {scheduledForStr}</>
-                : lockUntilStr ? <>{t("sessionLockedUntil")} {lockUntilStr}</> : t("sessionLockedIndefinite")}
+                : lockPeriodEndsAtStr ? <>{t("sessionLockedUntil")} {lockPeriodEndsAtStr}</> : t("sessionLockedIndefinite")}
             </span>
-            {!scheduledForStr && !lockUntilStr && runningSinceStr && (
+            {!scheduledForStr && !lockPeriodEndsAtStr && runningSinceStr && (
               <span>{ta("lockRunningSince", { time: runningSinceStr })}</span>
             )}
             {!scheduledForStr && lockPeriodEndsAt && (
-              <LockPeriodRemaining endetAt={lockPeriodEndsAt.toISOString()} />
+              <LockPeriodRemaining endsAt={lockPeriodEndsAt.toISOString()} />
             )}
             {lockPeriodMessage && <span className="truncate">· {lockPeriodMessage}</span>}
             {cleaningNote && <span className="shrink-0">· {cleaningNote}</span>}

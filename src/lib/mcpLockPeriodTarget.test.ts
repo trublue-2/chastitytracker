@@ -43,7 +43,7 @@ const geplant = {
   id: "s1",
   wirksamAb: IN_DREI_WOCHEN,
   benachrichtigtAt: null,
-  endetAt: new Date("2026-08-11T00:00:00Z"),
+  endsAt: new Date("2026-08-11T00:00:00Z"),
   nachricht: null,
 };
 /** S2: beim Selbst-Einschluss auto-erzeugt (`entries/route.ts`) — sofort aktiv, dem Sub bekannt. Neuer. */
@@ -51,7 +51,7 @@ const ausgeloest = {
   id: "s2",
   wirksamAb: null,
   benachrichtigtAt: null, // die Falle: auto-erzeugt, trotzdem NICHT verborgen (wirksamAb === null)
-  endetAt: new Date("2026-07-20T00:00:00Z"),
+  endsAt: new Date("2026-07-20T00:00:00Z"),
   nachricht: null,
 };
 

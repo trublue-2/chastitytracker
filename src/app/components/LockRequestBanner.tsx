@@ -33,7 +33,7 @@ interface CompactProps {
   colorScheme: ColorScheme;
   label: string;
   overdue?: boolean;
-  endetAt?: Date | null;
+  endsAt?: Date | null;
   locale: string;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
@@ -43,7 +43,7 @@ interface CompactProps {
   /** Label des Sub-Zusatzes (i18n, z.B. „Sub"). Nur relevant, wenn `viewerTz` von `tz` abweicht. */
   subTimePrefix?: string;
   withdrawAction?: ReactNode;
-  /** Shows a live countdown "Rest: …" next to the date. Requires endetAt. */
+  /** Shows a live countdown "Rest: …" next to the date. Requires endsAt. */
   showRemaining?: boolean;
   /** Erlaubt diese Sperre Reinigungsöffnungen? Fertig übersetzter Text (i18n bleibt beim Aufrufer,
    *  wie bei `label`). Weglassen = nicht anzeigen — der Sub, der grundsätzlich nicht reinigen darf,
@@ -56,8 +56,8 @@ interface LargeProps {
   colorScheme: ColorScheme;
   label: string;
   nachricht?: string | null;
-  /** Pre-formatted date string for endetAt display */
-  endetAtLabel?: string | null;
+  /** Pre-formatted date string for endsAt display */
+  deadlineLabel?: string | null;
   /** Siehe {@link CompactProps.cleaningNote}. */
   cleaningNote?: string | null;
   /** Frist verstrichen → Warnfarbe statt der ruhigen Schema-Farbe. Die compact-Variante konnte das
@@ -75,7 +75,7 @@ type Props = CompactProps | LargeProps;
 
 export default function LockRequestBanner(props: Props) {
   if (props.variant === "compact") {
-    const { colorScheme, label, overdue, endetAt, locale, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining, cleaningNote } = props;
+    const { colorScheme, label, overdue, endsAt, locale, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining, cleaningNote } = props;
     const c = overdue ? WARN : COLORS[colorScheme];
     const Icon = SCHEME_ICON[colorScheme];
 
@@ -87,15 +87,15 @@ export default function LockRequestBanner(props: Props) {
         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           <Icon size={11} className={`flex-shrink-0 ${c.accent}`} />
           <span className={`text-xs font-medium truncate ${c.text}`}>{label}</span>
-          {endetAt && (
+          {endsAt && (
             <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>
               {/* viewerTz wirkt nur mit Label — verhindert ein „· <leer> HH:mm", falls ein Aufrufer
                   viewerTz ohne subTimePrefix übergibt (ohne Label → reine Sub-Zeit). */}
-              bis {formatDayTimeDual(endetAt, locale, subTimePrefix ? viewerTz : undefined, tz, subTimePrefix ?? "")}
+              bis {formatDayTimeDual(endsAt, locale, subTimePrefix ? viewerTz : undefined, tz, subTimePrefix ?? "")}
             </span>
           )}
-          {showRemaining && endetAt && (
-            <LockPeriodRemaining endetAt={new Date(endetAt).toISOString()} className={`text-xs opacity-70 ${c.accent}`} />
+          {showRemaining && endsAt && (
+            <LockPeriodRemaining endsAt={new Date(endsAt).toISOString()} className={`text-xs opacity-70 ${c.accent}`} />
           )}
           {cleaningNote && (
             <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>· {cleaningNote}</span>
@@ -107,7 +107,7 @@ export default function LockRequestBanner(props: Props) {
   }
 
   // Large variant (dashboard)
-  const { colorScheme, label, nachricht, endetAtLabel, cleaningNote, overdue, href, actionLabel } = props;
+  const { colorScheme, label, nachricht, deadlineLabel, cleaningNote, overdue, href, actionLabel } = props;
   const c = overdue ? WARN : COLORS[colorScheme];
   const Icon = SCHEME_ICON[colorScheme];
 
@@ -130,7 +130,7 @@ export default function LockRequestBanner(props: Props) {
       title={<span className="inline-flex items-center gap-1.5"><Icon size={13} aria-hidden />{label}</span>}
     >
       {nachricht && <p className={`text-neben ${c.accent}`}>{nachricht}</p>}
-      {endetAtLabel && <p className="text-neben text-foreground-muted">{endetAtLabel}</p>}
+      {deadlineLabel && <p className="text-neben text-foreground-muted">{deadlineLabel}</p>}
       {cleaningNote && <p className="text-neben text-foreground-muted">{cleaningNote}</p>}
       {href && actionLabel && (
         <Link href={href} className={`${filledActionCls(tone)} self-start mt-1`}>

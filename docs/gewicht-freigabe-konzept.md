@@ -161,7 +161,7 @@ kein Versehen: die Freigabe hängt an einer Meldung, nicht am Kalender.
 ## 7. Was beim Auslösen passiert
 
 `createOrgasmusAnforderung()` — derselbe Dienst, den Oberfläche und MCP benutzen, mit
-`art: "GELEGENHEIT"`, `beginntAt: jetzt`, `endetAt: jetzt + windowHours`, `openingAllowed` und
+`art: "GELEGENHEIT"`, `beginntAt: jetzt`, `endsAt: jetzt + windowHours`, `openingAllowed` und
 `message` aus der Vorgabe, `createdBy: "system"`.
 
 Danach ist es eine gewöhnliche Freigabe: Banner im Dashboard, Erfüllung über einen ORGASMUS-Eintrag

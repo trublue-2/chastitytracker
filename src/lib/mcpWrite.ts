@@ -220,7 +220,7 @@ export async function mcpRequestLock(username: string, args: RequestLockArgs) {
     userId,
     art: "ANFORDERUNG",
     nachricht: args.message,
-    endetAt: args.deadlineAt,
+    endsAt: args.deadlineAt,
     fristH: args.deadlineHours,
     dauerH: args.minDurationHours,
     lockEndsAt: args.lockUntilAt,
@@ -266,17 +266,17 @@ export async function mcpSetLockPeriod(username: string, args: SetLockPeriodArgs
     const now = new Date();
     const iso = await isoForUser(userId);
     const { wirksamAb } = computeDelayedTrigger(now, { delayMinutes: args.delayMinutes, wirksamAbAt: args.scheduledAt ? new Date(args.scheduledAt) : null });
-    const endetAtDate = !isIndefinite && args.untilAt ? new Date(args.untilAt) : null;
+    const endsAtDate = !isIndefinite && args.untilAt ? new Date(args.untilAt) : null;
     // Advisory (siehe request_lock): SPERRZEIT verlangt einen BEREITS verschlossenen User. checkLockEnd
     // ist dieselbe reine Prüfung, die createVerschlussAnforderung auf dem echten Pfad aufruft.
-    const problem = !(await getIsLocked(userId)) ? "USER_NOT_LOCKED" : (checkLockEnd(endetAtDate, wirksamAb, now) ?? undefined);
-    return dryRunPreview("set_lock_period", problem, { art: "SPERRZEIT", endetAt: iso(endetAtDate), durationHours: isIndefinite ? null : (args.durationHours ?? null), reinigungErlaubt: args.reinigungErlaubt ?? false, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
+    const problem = !(await getIsLocked(userId)) ? "USER_NOT_LOCKED" : (checkLockEnd(endsAtDate, wirksamAb, now) ?? undefined);
+    return dryRunPreview("set_lock_period", problem, { art: "SPERRZEIT", endsAt: iso(endsAtDate), durationHours: isIndefinite ? null : (args.durationHours ?? null), reinigungErlaubt: args.reinigungErlaubt ?? false, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
   }
   const data = unwrap(await createVerschlussAnforderung({
     userId,
     art: "SPERRZEIT",
     nachricht: args.message,
-    endetAt: args.indefinite ? null : args.untilAt,
+    endsAt: args.indefinite ? null : args.untilAt,
     fristH: args.indefinite ? null : args.durationHours,
     reinigungErlaubt: args.reinigungErlaubt,
     delayMinutes: args.delayMinutes,
@@ -480,7 +480,7 @@ export async function mcpRequestOrgasm(username: string, args: RequestOrgasmArgs
     art: args.art,
     nachricht: args.message,
     beginntAt: beginnt,
-    endetAt: endet,
+    endsAt: endet,
     vorgegebeneArt: args.requiredType,
     oeffnenErlaubt: args.openAllowed,
     delayMinutes: args.delayMinutes,
@@ -576,7 +576,7 @@ async function assertOwnedDirective(id: string, userId: string, target: Withdraw
   const art = target === "lock_request" ? "ANFORDERUNG" : "SPERRZEIT";
   const row = await prisma.verschlussAnforderung.findUnique({
     where: { id },
-    select: { id: true, userId: true, art: true, wirksamAb: true, benachrichtigtAt: true, endetAt: true, nachricht: true },
+    select: { id: true, userId: true, art: true, wirksamAb: true, benachrichtigtAt: true, endsAt: true, nachricht: true },
   });
   if (!row || row.userId !== userId || row.art !== art) throw new Error(`No open ${target} with id ${id}.`);
   return row;
@@ -1687,7 +1687,7 @@ export interface EditLockPeriodArgs {
 }
 
 /** Eine offene Direktive, die ein Edit-Tool treffen kann (Sperrzeit ODER Anforderung). */
-type OpenDirective = { id: string; wirksamAb: Date | null; benachrichtigtAt: Date | null; endetAt: Date | null; nachricht: string | null };
+type OpenDirective = { id: string; wirksamAb: Date | null; benachrichtigtAt: Date | null; endsAt: Date | null; nachricht: string | null };
 
 /** Eine offene Direktive als Auswahl-Zeile: welche (id), kennt der Sub sie schon (triggered) oder
  *  ist sie noch geplant (scheduled), wann löst sie aus / endet sie, und die Nachricht als
@@ -1707,7 +1707,7 @@ function directiveRow(s: OpenDirective, iso: Iso): DirectiveRow {
     id: s.id,
     status: isHiddenFromSub(s) ? "scheduled" : "triggered",
     scheduledFor: iso(s.wirksamAb),
-    endsAt: iso(s.endetAt),
+    endsAt: iso(s.endsAt),
     message: s.nachricht,
   };
 }
@@ -1752,25 +1752,25 @@ export async function mcpEditLockPeriod(username: string, args: EditLockPeriodAr
   const userId = await resolveTargetUserId(username);
   const iso = await isoForUser(userId);
   if (!args.indefinite && !args.untilAt) throw new Error("Provide untilAt (ISO date) or indefinite=true.");
-  const endetAt = args.indefinite ? null : parseIsoDate(args.untilAt!, "untilAt");
+  const endsAt = args.indefinite ? null : parseIsoDate(args.untilAt!, "untilAt");
 
   const open = await getKeyholderLockPeriods(userId); // aktive UND geplante, neueste zuerst
   const { target, untouched, ambiguity } = pickEditTarget(open, args.id, iso, "lock period");
 
   if (args.dryRun) {
-    const lockEndError = checkLockEnd(endetAt, target.wirksamAb, new Date());
-    const before: Record<string, unknown> = { endetAt: iso(target.endetAt), indefinite: target.endetAt === null };
-    const after: Record<string, unknown> = { endetAt: iso(endetAt), indefinite: !!args.indefinite };
+    const lockEndError = checkLockEnd(endsAt, target.wirksamAb, new Date());
+    const before: Record<string, unknown> = { endsAt: iso(target.endsAt), indefinite: target.endsAt === null };
+    const after: Record<string, unknown> = { endsAt: iso(endsAt), indefinite: !!args.indefinite };
     return {
       dryRun: true, tool: "edit_lock_period", wouldSucceed: !lockEndError,
       ...(lockEndError ? { problem: lockEndError } : {}),
-      preview: { id: target.id, untilAt: after.endetAt, indefinite: after.indefinite, otherOpenCount: open.length - 1 },
+      preview: { id: target.id, untilAt: after.endsAt, indefinite: after.indefinite, otherOpenCount: open.length - 1 },
       diff: diffFields(before, after),
     } satisfies DryRunPreview;
   }
 
-  const { notified } = unwrap(await updateLockPeriodEnd(target.id, endetAt, AI_AUTHOR));
-  const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${iso(endetAt)}.`;
+  const { notified } = unwrap(await updateLockPeriodEnd(target.id, endsAt, AI_AUTHOR));
+  const what = args.indefinite ? "Lock period set to indefinite." : `Lock period end changed to ${iso(endsAt)}.`;
   return {
     ok: true,
     id: target.id,
@@ -1831,7 +1831,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
     : args.scheduledAt ? parseIsoDate(args.scheduledAt, "scheduledAt")
     : target.wirksamAb;
   const deadlineFrom = isScheduledDirective(wirksamAb, now) ? wirksamAb! : now;
-  const endetAt = args.deadlineAt ? parseIsoDate(args.deadlineAt, "deadlineAt")
+  const endsAt = args.deadlineAt ? parseIsoDate(args.deadlineAt, "deadlineAt")
     : args.deadlineHours != null ? new Date(deadlineFrom.getTime() + args.deadlineHours * 60 * 60 * 1000)
     : undefined;
 
@@ -1840,7 +1840,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
     : undefined;
 
   const patch: UpdateLockRequestParams = {
-    ...(endetAt ? { endetAt } : {}),
+    ...(endsAt ? { endsAt } : {}),
     ...(args.message !== undefined ? { nachricht: args.message } : {}),
     ...(deviceId !== undefined ? { deviceId } : {}),
     ...(args.cleaningAllowed !== undefined ? { reinigungErlaubt: args.cleaningAllowed } : {}),
@@ -1862,7 +1862,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
       ? "LOCK_DURATION_OR_END"
       : checkLockEnd(next.lockEndsAt, next.wirksamAb, now) ?? undefined;
     const fields = (row: MergedLockRequest, deviceName: string | null): Record<string, unknown> => ({
-      deadlineAt: iso(row.endetAt),
+      deadlineAt: iso(row.endsAt),
       message: row.nachricht,
       device: deviceName,
       minDurationHours: row.dauerH,
@@ -1877,7 +1877,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
 
   const { notified, deliveredToPoller } = unwrap(await updateLockRequest(target.id, patch, AI_AUTHOR));
   const stillScheduled = isScheduledDirective(wirksamAb, now);
-  const what = `Lock request updated (deadline ${iso(endetAt ?? target.endetAt)}).`;
+  const what = `Lock request updated (deadline ${iso(endsAt ?? target.endsAt)}).`;
   return {
     ok: true,
     id: target.id,

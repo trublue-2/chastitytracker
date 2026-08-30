@@ -59,7 +59,7 @@ function strafbuchWithOneOfEach() {
 
 /** Dieselben Kategorien in der Zähl-Form (`buildStrafbuch`-Rohdaten, nicht MCP-Form). */
 function rawStrafbuchWithOneOfEach() {
-  const one = { startTime: null, deadline: null, entryStartTime: null, endetAt: null, fulfilledAt: null, relockAt: null };
+  const one = { startTime: null, deadline: null, entryStartTime: null, endsAt: null, fulfilledAt: null, relockAt: null };
   return {
     unauthorizedOpenings: [{ id: "o1", ...one }],
     lateControls: [{ id: "k1", ...one }],

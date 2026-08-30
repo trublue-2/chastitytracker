@@ -48,7 +48,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
   // Leer, nicht vorbelegt: gefüllt wird erst, wenn jemand den Zeitpunkt-Reiter wählt (siehe
   // `switchEndMode`). Ein beim Seitenaufruf gerechnetes Ende wäre nach zehn Minuten
   // Formularausfüllen zehn Minuten zu früh.
-  const [endetAt, setEndetAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
   const [vorgegebeneArt, setVorgegebeneArt] = useState("");
   const [oeffnenErlaubt, setOeffnenErlaubt] = useState(false);
   const [nachricht, setNachricht] = useState("");
@@ -78,7 +78,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
    * die Vorgabe zurück und legte ein 24-Stunden-Fenster an, das niemand gewählt hat.
    */
   function endAt(): Date {
-    if (endMode === "datetime") return fromDatetimeLocal(endetAt, tz);
+    if (endMode === "datetime") return fromDatetimeLocal(endsAt, tz);
     const start = fromDatetimeLocal(beginntAt, tz);
     return new Date(start.getTime() + durationHoursOr(windowH, windowUnit, DEFAULT_WINDOW_H) * 3600_000);
   }
@@ -116,7 +116,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
           userId,
           art,
           beginntAt: beginnt.toISOString(),
-          endetAt: endet.toISOString(),
+          endsAt: endet.toISOString(),
           vorgegebeneArt: vorgegebeneArt || undefined,
           oeffnenErlaubt,
           nachricht: nachricht.trim() || undefined,
@@ -169,8 +169,8 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
           unit={windowUnit}
           onDurationChange={(value, unit) => { setWindowH(value); setWindowUnit(unit); }}
           quick={DURATION_QUICK_HOURS.long}
-          datetime={endetAt}
-          onDatetimeChange={setEndetAt}
+          datetime={endsAt}
+          onDatetimeChange={setEndsAt}
           datetimeMin={beginntAt}
           // Der Nullpunkt der Dauer ist der Fenster-START, nicht „jetzt" — er steht als eigenes Feld
           // darüber, und „24 Stunden Zeit" ist eine Aussage über das Fenster.

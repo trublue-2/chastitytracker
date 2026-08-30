@@ -57,7 +57,7 @@ export default function OeffnenFormCore({
   const tCommon = useTranslations("common");
   const dl = toDateLocale(useLocale());
 
-  const lockPeriodEndsAt = lockPeriod?.endetAt ?? null;
+  const lockPeriodEndsAt = lockPeriod?.endsAt ?? null;
   const lockPeriodIndefinite = lockPeriod?.indefinite ?? false;
   const reinigungMaxMinuten = reinigung?.maxMinuten ?? 15;
   const reinigungMaxProTag = reinigung?.maxProTag ?? 0;

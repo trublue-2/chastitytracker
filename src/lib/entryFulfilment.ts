@@ -164,13 +164,13 @@ export async function applyEntryFulfilment(
     // es fiele also niemandem auf. Dasselbe gilt für mehrere hier erzeugte Sperrzeiten: wie sie
     // zur EFFEKTIVEN aufgelöst werden, steht bei `foldActiveLockPeriods` (queries.ts).
     const newLockPeriods = offeneAnforderungen.flatMap((a) => {
-      const lockEnd = lockPeriodEndFromRequest(a, at); // Anker: der Verschluss selbst
-      return lockEnd
+      const endsAt = lockPeriodEndFromRequest(a, at); // Anker: der Verschluss selbst
+      return endsAt
         ? [{
             userId,
             art: "SPERRZEIT",
             nachricht: a.nachricht,
-            endetAt: lockEnd,
+            endsAt,
             reinigungErlaubt: a.reinigungErlaubt,
             // Der Anordnende wandert mit (wie in `carryOverLockPeriodOnAlreadyLocked`): die Sperrzeit
             // ist seine Anweisung, auch wenn erst der Verschluss des Subs sie auslöst.
@@ -196,7 +196,7 @@ export async function applyEntryFulfilment(
         fulfilledAt: null,
         withdrawnAt: null,
         beginntAt: { lte: entry.startTime },
-        endetAt: { gte: entry.startTime },
+        endsAt: { gte: entry.startTime },
         // Eine terminierte Anweisung, die noch nicht ausgelöst hat, ist für den Sub nicht da — sie
         // darf sich auch nicht erfüllen. Sonst hakte ein zufällig passender Orgasmus eine Anweisung
         // ab, von der er nichts wusste, und sie käme nie bei ihm an.

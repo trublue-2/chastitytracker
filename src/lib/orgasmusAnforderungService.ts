@@ -11,20 +11,20 @@ import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { getTranslations } from "next-intl/server";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
-/** `endetAt` in der Vergangenheit → Reject (B-01, MCP-Befundliste 2026-07-17): der einzige gefundene
+/** `endsAt` in der Vergangenheit → Reject (B-01, MCP-Befundliste 2026-07-17): der einzige gefundene
  *  Pfad, auf dem der Tracker eine unverdiente Strafe erzeugt — mit `art:"ANWEISUNG"` wird ein bereits
  *  verstrichenes Fenster sofort zu einem `missed_orgasm`-Vergehen für eine Frist, die der Sub nie
  *  erfüllen konnte. `beginntAt` in der Vergangenheit bleibt zulässig (eine rückwirkend geöffnete
  *  Anforderung ist ein legitimer Fall) — nur das Ende muss in der Zukunft liegen. Analog zu
  *  {@link checkLockEnd} (verschlussAnforderungService.ts), das dieselbe Regel für Sperrzeiten zieht. */
-export function checkOrgasmWindowEnd(endetAt: Date, now: Date): "ORGASM_END_MUST_BE_FUTURE" | null {
-  return endetAt > now ? null : "ORGASM_END_MUST_BE_FUTURE";
+export function checkOrgasmWindowEnd(endsAt: Date, now: Date): "ORGASM_END_MUST_BE_FUTURE" | null {
+  return endsAt > now ? null : "ORGASM_END_MUST_BE_FUTURE";
 }
 
 /** Das geprüfte Ergebnis: die drei Zeitpunkte, mit denen die Zeile geschrieben wird. */
 export interface CheckedOrgasmWindow {
   beginnt: Date;
-  endet: Date;
+  endsAtDate: Date;
   /** null = sofort auslösen (siehe {@link computeDelayedTrigger}). */
   wirksamAb: Date | null;
   benachrichtigtAt: Date | null;
@@ -48,13 +48,13 @@ export function checkOrgasmusAnforderung(
   if (!(ORGASMUS_ANFORDERUNG_ARTEN as readonly string[]).includes(p.art)) {
     return { ok: false, code: "ORGASM_INVALID_ART" };
   }
-  if (!p.beginntAt || !p.endetAt) return { ok: false, code: "ORGASM_WINDOW_REQUIRED" };
+  if (!p.beginntAt || !p.endsAt) return { ok: false, code: "ORGASM_WINDOW_REQUIRED" };
   const beginnt = new Date(p.beginntAt);
-  const endet = new Date(p.endetAt);
-  if (Number.isNaN(beginnt.getTime()) || Number.isNaN(endet.getTime())) {
+  const endsAtDate = new Date(p.endsAt);
+  if (Number.isNaN(beginnt.getTime()) || Number.isNaN(endsAtDate.getTime())) {
     return { ok: false, code: "INVALID_DATETIME" };
   }
-  if (endet <= beginnt) return { ok: false, code: "ORGASM_END_BEFORE_START" };
+  if (endsAtDate <= beginnt) return { ok: false, code: "ORGASM_END_BEFORE_START" };
   // Der Versandzeitpunkt bekommt einen EIGENEN Code, wie bei Verschluss und Aufgabe: sonst ist ein
   // vertipptes `scheduledAt` von einem vertippten Fenster-Datum nicht zu unterscheiden.
   const scheduledAt = parseTriggerAt(p.wirksamAbAt);
@@ -64,9 +64,9 @@ export function checkOrgasmusAnforderung(
   // vor seiner eigenen Zustellung endet, ist im Moment der Mail schon verstrichen — und mit
   // `art: "ANWEISUNG"` sofort ein Vergehen für eine Frist, die der Sub nie erfüllen konnte. Genau
   // der Fall, den `checkOrgasmWindowEnd` verhindert; er verschiebt sich mit der Terminierung nur.
-  const windowEndError = checkOrgasmWindowEnd(endet, trigger.wirksamAb ?? now);
+  const windowEndError = checkOrgasmWindowEnd(endsAtDate, trigger.wirksamAb ?? now);
   if (windowEndError) return { ok: false, code: windowEndError };
-  return { ok: true, window: { beginnt, endet, ...trigger } };
+  return { ok: true, window: { beginnt, endsAtDate, ...trigger } };
 }
 
 export interface CreateOrgasmusAnforderungParams {
@@ -76,7 +76,7 @@ export interface CreateOrgasmusAnforderungParams {
   /** Window start (ISO string or Date). */
   beginntAt: string | Date;
   /** Window end (ISO string or Date). Must be after beginntAt. */
-  endetAt: string | Date;
+  endsAt: string | Date;
   /** Required orgasm type base (from ORGASMUS_ARTEN); null/undefined = any orgasm counts. */
   vorgegebeneArt?: string | null;
   /** Whether opening to perform the orgasm during the window is permitted (no Sperre break / penalty). */
@@ -102,13 +102,13 @@ export async function createOrgasmusAnforderung(
   params: CreateOrgasmusAnforderungParams,
   actor: MessageActor,
 ): Promise<ServiceResult<{ id: string; scheduledFor: string | null }>> {
-  const { userId, art, nachricht, beginntAt, endetAt, vorgegebeneArt, oeffnenErlaubt } = params;
+  const { userId, art, nachricht, beginntAt, endsAt, vorgegebeneArt, oeffnenErlaubt } = params;
 
   if (!userId) return serviceFail(400, "USER_ID_REQUIRED");
   const now = new Date();
   const checked = checkOrgasmusAnforderung(params, now);
   if (!checked.ok) return serviceFail(400, checked.code);
-  const { beginnt, endet, wirksamAb, benachrichtigtAt } = checked.window;
+  const { beginnt, endsAtDate, wirksamAb, benachrichtigtAt } = checked.window;
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
   // vorgegebeneArt gegen die (ggf. angepasste) Orgasmus-Liste des Ziel-Subs prüfen; null-Config → Built-ins.
@@ -140,7 +140,7 @@ export async function createOrgasmusAnforderung(
         art,
         nachricht: nachricht?.trim() || null,
         beginntAt: beginnt,
-        endetAt: endet,
+        endsAt: endsAtDate,
         vorgegebeneArt: vorgegebeneArt || null,
         oeffnenErlaubt: Boolean(oeffnenErlaubt),
         createdBy: actor ?? null,
@@ -154,7 +154,7 @@ export async function createOrgasmusAnforderung(
   // das, was die Terminierung verbergen soll (`isHiddenFromSub`).
   if (!wirksamAb) {
     await sendOrgasmusAnforderungNotifications({
-      userId, user, art, nachricht, beginnt, endet, vorgegebeneArt, oeffnenErlaubt: Boolean(oeffnenErlaubt),
+      userId, user, art, nachricht, beginnt, endsAtDate, vorgegebeneArt, oeffnenErlaubt: Boolean(oeffnenErlaubt),
       directiveId: anforderung.id, actor,
     });
   } else if (replacedVisible) {
@@ -188,11 +188,11 @@ export function orgasmusWithdrawNotice(actor: MessageActor, refId?: string): Not
 export async function withdrawOrgasmusAnforderung(
   userId: string,
   actor: MessageActor,
-): Promise<ServiceResult<{ count: number; rows: { id: string; endetAt: Date; nachricht: string | null }[] }>> {
+): Promise<ServiceResult<{ count: number; rows: { id: string; endsAt: Date; nachricht: string | null }[] }>> {
   const rows = await prisma.$transaction(async (tx) => {
     const open = await tx.orgasmusAnforderung.findMany({
       where: { userId, fulfilledAt: null, withdrawnAt: null },
-      select: { id: true, endetAt: true, nachricht: true, wirksamAb: true, benachrichtigtAt: true },
+      select: { id: true, endsAt: true, nachricht: true, wirksamAb: true, benachrichtigtAt: true },
     });
     if (open.length > 0) {
       await tx.orgasmusAnforderung.updateMany({
@@ -248,7 +248,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   art: "ANWEISUNG" | "GELEGENHEIT";
   nachricht?: string | null;
   beginnt: Date;
-  endet: Date;
+  endsAtDate: Date;
   vorgegebeneArt?: string | null;
   oeffnenErlaubt: boolean;
   /** Die Zeile, auf die die Nachricht im Posteingang zeigt. */
@@ -256,7 +256,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   /** WER die Anweisung gestellt hat — der Absender ihrer Meldung. */
   actor: MessageActor;
 }) {
-  const { userId, user, art, nachricht, beginnt, endet, vorgegebeneArt, oeffnenErlaubt, directiveId, actor } = opts;
+  const { userId, user, art, nachricht, beginnt, endsAtDate, vorgegebeneArt, oeffnenErlaubt, directiveId, actor } = opts;
   const istAnweisung = art === "ANWEISUNG";
 
   // Nachricht des Keyholders bleibt an der Direktive; der Posteingang verlinkt sie nur.
@@ -271,7 +271,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   const t = await emailT(locale);
   const betreff = istAnweisung ? t("orgasmAnweisungSubject") : t("orgasmGelegenheitSubject");
   const einleitung = istAnweisung ? t("orgasmAnweisungIntro") : t("orgasmGelegenheitIntro");
-  const windowStr = `${formatDateTime(beginnt)} – ${formatDateTime(endet)}`;
+  const windowStr = `${formatDateTime(beginnt)} – ${formatDateTime(endsAtDate)}`;
 
   // Reason-Code → Anzeige-Label gegen die Config des Ziel-Subs auflösen (sonst zeigt eine Custom-Art
   // den rohen `c_…`-Code in Mail/Push). In der Sprache des Empfängers, wie der restliche Text.

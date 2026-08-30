@@ -62,14 +62,14 @@ export interface StrafbuchData {
   /** Mandatory orgasm directives (ANWEISUNG) whose window ended without a matching orgasm. */
   missedOrgasmInstructions: {
     id: string;
-    endetAt: Date;
+    endsAt: Date;
     nachricht: string | null;
     requiredArt: string | null;
   }[];
-  /** Verschluss-Anforderungen (lock requests) whose deadline (`endetAt`) passed without a timely VERSCHLUSS. */
+  /** Verschluss-Anforderungen (lock requests) whose deadline (`endsAt`) passed without a timely VERSCHLUSS. */
   lateLocks: {
     id: string;
-    endetAt: Date;
+    endsAt: Date;
     fulfilledAt: Date | null;
     nachricht: string | null;
   }[];
@@ -273,8 +273,8 @@ export const OFFENSE_LISTS = {
   auto_removed_control: spec("autoRemovedControls", (k) => k.id, (k) => k.entryStartTime ?? k.deadline),
   cleaning_limit: spec("reinigungLimitViolations", (v) => v.entryId, (v) => v.startTime),
   wrong_device: spec("wrongDeviceViolations", (v) => v.entryId, (v) => v.startTime),
-  missed_orgasm: spec("missedOrgasmInstructions", (m) => m.id, (m) => m.endetAt),
-  late_lock: spec("lateLocks", (a) => a.id, (a) => a.fulfilledAt ?? a.endetAt),
+  missed_orgasm: spec("missedOrgasmInstructions", (m) => m.id, (m) => m.endsAt),
+  late_lock: spec("lateLocks", (a) => a.id, (a) => a.fulfilledAt ?? a.endsAt),
   cleaning_not_relocked: spec("cleaningNotRelocked", (c) => cleaningNotRelockedRef(c.entryId), (c) => c.relockAt ?? c.deadline),
   // refId = Task.id. Anders als bei den Reinigungs-Vergehen braucht es kein Präfix: die id gehört
   // keiner zweiten Vergehensart, und `StrafeRecord.refId` ist global eindeutig.
@@ -420,9 +420,9 @@ function cleaningLimitViolations(
 }
 
 /** True if a Verschluss-Anforderung (lock request) deadline has passed without a timely
- *  VERSCHLUSS — still open past `endetAt`, or fulfilled after `endetAt`. */
-export function isLateLock(a: { endetAt: Date; fulfilledAt: Date | null }, now: Date): boolean {
-  return isPastDeadlineUnfulfilled(a.endetAt, a.fulfilledAt, now);
+ *  VERSCHLUSS — still open past `endsAt`, or fulfilled after `endsAt`. */
+export function isLateLock(a: { endsAt: Date; fulfilledAt: Date | null }, now: Date): boolean {
+  return isPastDeadlineUnfulfilled(a.endsAt, a.fulfilledAt, now);
 }
 
 /** Re-lock deadline for a REINIGUNG-Öffnung: the end of the active daily cleaning window (`fenster`)
@@ -446,12 +446,12 @@ export function isCleaningNotRelocked(deadline: Date, relockAt: Date | null, now
 
 /** Finds the Sperrzeit active at `openTime` (if any) — shared by unauthorizedOpenings and
  *  cleaningNotRelocked, which both need to know whether an OEFFNEN fell inside an active lock period. */
-function findActiveLockPeriod<S extends { createdAt: Date; endetAt: Date | null; withdrawnAt: Date | null }>(
+function findActiveLockPeriod<S extends { createdAt: Date; endsAt: Date | null; withdrawnAt: Date | null }>(
   openTime: Date, lockPeriods: S[],
 ): S | undefined {
   return lockPeriods.find((s) =>
     openTime >= s.createdAt &&
-    (s.endetAt === null || openTime < s.endetAt) &&
+    (s.endsAt === null || openTime < s.endsAt) &&
     (s.withdrawnAt === null || s.withdrawnAt > openTime),
   );
 }
@@ -527,14 +527,14 @@ function isAllowedReinigungOpening(
  */
 export function cleaningRelockObligation(
   opening: { oeffnenGrund: string | null; startTime: Date },
-  lockPeriod: { reinigungErlaubt: boolean; endetAt: Date | null } | null,
+  lockPeriod: { reinigungErlaubt: boolean; endsAt: Date | null } | null,
   user: CleaningPermissionUser,
   maxMinuten: number,
   enforcedFrom: Date,
 ): Date | null {
   if (!lockPeriod || !isAllowedReinigungOpening(opening, lockPeriod, user, enforcedFrom)) return null;
   const deadline = reinigungRelockDeadline(opening.startTime, maxMinuten, user.reinigungsFenster, user.timezone);
-  const lockPeriodCoversDeadline = lockPeriod.endetAt === null || lockPeriod.endetAt >= deadline;
+  const lockPeriodCoversDeadline = lockPeriod.endsAt === null || lockPeriod.endsAt >= deadline;
   return lockPeriodCoversDeadline ? deadline : null;
 }
 
@@ -686,8 +686,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
    *  `getActiveOrgasmusAnforderung`): dort nicht erlaubt, hier verziehen.
    *  Geteilt von der Öffnungs-Ausnahme (`oeffnenErlaubt`) und der Frage, ob ein Orgasmus überhaupt
    *  gedeckt war — zwei Fragen, eine Fenster-Arithmetik. */
-  const windowCovers = (w: { beginntAt: Date; endetAt: Date; withdrawnAt: Date | null; wirksamAb: Date | null }, at: Date): boolean =>
-    at >= w.beginntAt && at <= w.endetAt
+  const windowCovers = (w: { beginntAt: Date; endsAt: Date; withdrawnAt: Date | null; wirksamAb: Date | null }, at: Date): boolean =>
+    at >= w.beginntAt && at <= w.endsAt
     && (w.withdrawnAt === null || w.withdrawnAt > at)
     && (w.wirksamAb === null || w.wirksamAb <= at);
   const oeffnenErlaubtWindows = orgasmusAnforderungen.filter((a) => a.oeffnenErlaubt);
@@ -731,8 +731,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       id: o.id,
       startTime: o.startTime,
       note: o.note,
-      lockPeriodEndsAt: lockPeriod!.endetAt,
-      lockPeriodIndefinite: lockPeriod!.endetAt === null,
+      lockPeriodEndsAt: lockPeriod!.endsAt,
+      lockPeriodIndefinite: lockPeriod!.endsAt === null,
     }));
 
   // Die bereits beurteilten Vergehen — einmal gebaut, zweimal gebraucht: hier für die
@@ -772,8 +772,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       startTime: o.startTime,
       orgasmusArt: o.orgasmusArt,
       note: o.note,
-      lockPeriodEndsAt: lockPeriod?.endetAt ?? null,
-      lockPeriodIndefinite: lockPeriod !== undefined && lockPeriod.endetAt === null,
+      lockPeriodEndsAt: lockPeriod?.endsAt ?? null,
+      lockPeriodIndefinite: lockPeriod !== undefined && lockPeriod.endsAt === null,
     }];
   });
 
@@ -786,9 +786,9 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   // Sub dafür ein Vergehen, obwohl er von der Anforderung nie erfahren hat.
   const lateLocks = lockRequests
     .filter((a) => !isHiddenFromSub(a))
-    .filter((a): a is typeof a & { endetAt: Date } => a.endetAt !== null)
+    .filter((a): a is typeof a & { endsAt: Date } => a.endsAt !== null)
     .filter((a) => isLateLock(a, now))
-    .map((a) => ({ id: a.id, endetAt: a.endetAt, fulfilledAt: a.fulfilledAt, nachricht: a.nachricht }));
+    .map((a) => ({ id: a.id, endsAt: a.endsAt, fulfilledAt: a.fulfilledAt, nachricht: a.nachricht }));
 
   // Cleaning not relocked — a REINIGUNG opening during an active, cleaning-permitted Sperrzeit
   // whose re-lock deadline passed without a timely VERSCHLUSS. No offense if the Sperrzeit itself
@@ -875,9 +875,9 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       // — der Träger hat von ihr nie erfahren. Der Poller zieht solche Zeilen zwar zurück, sobald ihr
       // Fenster durch ist; stand er (Neustart, Ausfall) über das Fensterende hinaus still, stünde hier
       // sonst genau die unverdiente Strafe, gegen die schon `checkOrgasmWindowEnd` gebaut ist.
-      .filter((a) => a.art === "ANWEISUNG" && a.withdrawnAt === null && a.fulfilledAt === null && a.endetAt < now && !isHiddenFromSub(a))
-      .sort((a, b) => b.endetAt.getTime() - a.endetAt.getTime())
-      .map((a) => ({ id: a.id, endetAt: a.endetAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
+      .filter((a) => a.art === "ANWEISUNG" && a.withdrawnAt === null && a.fulfilledAt === null && a.endsAt < now && !isHiddenFromSub(a))
+      .sort((a, b) => b.endsAt.getTime() - a.endsAt.getTime())
+      .map((a) => ({ id: a.id, endsAt: a.endsAt, nachricht: a.nachricht, requiredArt: a.vorgegebeneArt })),
     lateLocks,
     cleaningNotRelocked,
     unfulfilledTasks,

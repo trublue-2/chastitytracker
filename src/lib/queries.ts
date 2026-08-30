@@ -510,7 +510,7 @@ function keyholderLockPeriodWhere(userIdFilter: string | { in: string[] } | unde
     userId: userIdFilter,
     art: "SPERRZEIT" as const,
     withdrawnAt: null,
-    OR: [{ endetAt: { gt: now } }, { endetAt: null }],
+    OR: [{ endsAt: { gt: now } }, { endsAt: null }],
   };
 }
 
@@ -537,7 +537,7 @@ function activeLockPeriodWhere(userIdFilter: string | { in: string[] } | undefin
 export async function subsWithActiveLockPeriod(now: Date = new Date()) {
   return prisma.verschlussAnforderung.findMany({
     where: activeLockPeriodWhere(undefined, now),
-    select: { id: true, userId: true, endetAt: true },
+    select: { id: true, userId: true, endsAt: true },
     orderBy: { createdAt: "asc" },
   });
 }
@@ -561,21 +561,21 @@ function lockPeriodUserFilter(userId: string | { userIds: string[] }) {
  * zweite an. Löst die geplante dann aus, laufen zwei gleichzeitig.
  *
  * Zusammengefaltet wird nach der STRENGSTEN Regel, nicht nach der neuesten Zeile:
- * - `endetAt`: unbefristet schlägt alles, sonst das SPÄTESTE Ende. Nähme man die zuletzt angelegte
+ * - `endsAt`: unbefristet schlägt alles, sonst das SPÄTESTE Ende. Nähme man die zuletzt angelegte
  *   (das tat `findFirst` + `orderBy createdAt desc`), liefe die Box beim frühesten Ende auf — die
  *   längere Sperre der Keyholderin wäre stillschweigend verkürzt, physisch.
  * - `reinigungErlaubt`: nur wenn JEDE aktive Sperre es erlaubt (dieselbe UND-Regel wie
  *   {@link cleaningBlockReason}, das deshalb eine Liste nimmt).
  * Die übrigen Felder (Nachricht, Gerät, id) stammen aus der durchsetzenden Zeile.
  */
-export function foldActiveLockPeriods<T extends { endetAt: Date | null; reinigungErlaubt: boolean }>(
+export function foldActiveLockPeriods<T extends { endsAt: Date | null; reinigungErlaubt: boolean }>(
   rows: T[],
 ): T | null {
   if (rows.length === 0) return null;
   const enforcing = rows.reduce((a, b) => {
-    if (a.endetAt === null) return a;          // indefinite gewinnt
-    if (b.endetAt === null) return b;
-    return b.endetAt > a.endetAt ? b : a;      // sonst das spätere Ende
+    if (a.endsAt === null) return a;          // indefinite gewinnt
+    if (b.endsAt === null) return b;
+    return b.endsAt > a.endsAt ? b : a;      // sonst das spätere Ende
   });
   return { ...enforcing, reinigungErlaubt: rows.every((r) => r.reinigungErlaubt) };
 }
@@ -605,7 +605,7 @@ export function openLockRequestWhere(userId: string | { userIds: string[] }): Pr
  *  Anforderungen koexistieren dürfen, ist „die eine" immer die dringendste — nicht mehr die
  *  zuletzt angelegte. */
 export const LOCK_REQUEST_ORDER: Prisma.VerschlussAnforderungOrderByWithRelationInput[] = [
-  { endetAt: "asc" },
+  { endsAt: "asc" },
   { createdAt: "desc" },
 ];
 
@@ -698,15 +698,15 @@ export async function getKeyholderLockPeriods(userId: string | { userIds: string
 export async function getActiveOrgasmusAnforderung(userId: string, now: Date = new Date(), tx?: PrismaTx) {
   const client = tx ?? prisma;
   return client.orgasmusAnforderung.findFirst({
-    where: { userId, fulfilledAt: null, withdrawnAt: null, endetAt: { gte: now }, ...triggeredWhere(now) },
+    where: { userId, fulfilledAt: null, withdrawnAt: null, endsAt: { gte: now }, ...triggeredWhere(now) },
     orderBy: { createdAt: "desc" },
   });
 }
 
 /** Shared base `where` for KEYHOLDER OrgasmusAnforderung-Sichten: offen (nicht erfüllt, nicht
- *  zurückgezogen) — ABER OHNE endetAt-Gate, damit ein bereits abgelaufenes, noch nicht aufgeräumtes
+ *  zurückgezogen) — ABER OHNE endsAt-Gate, damit ein bereits abgelaufenes, noch nicht aufgeräumtes
  *  Fenster dem Keyholder weiterhin sichtbar/stornierbar ist. `getActiveOrgasmusAnforderung` (Sub/
- *  Enforcement-Sicht, z.B. Öffnen-Gate) filtert bewusst `endetAt: { gte: now }` — dasselbe Muster wie
+ *  Enforcement-Sicht, z.B. Öffnen-Gate) filtert bewusst `endsAt: { gte: now }` — dasselbe Muster wie
  *  `keyholderLockPeriodWhere` vs. `activeLockPeriodWhere`. */
 function keyholderOrgasmusAnforderungWhere(userIdFilter: string | { in: string[] }) {
   return { userId: userIdFilter, fulfilledAt: null, withdrawnAt: null } as const;
@@ -981,7 +981,7 @@ export async function getInterruptedLockPeriod(userId: string, now: Date) {
   return prisma.verschlussAnforderung.findFirst({
     where: { ...notYetElapsed, endedReason: LOCK_ENDED_REASON.opening },
     orderBy: { withdrawnAt: "desc" },
-    select: { endetAt: true, withdrawnAt: true, nachricht: true },
+    select: { endsAt: true, withdrawnAt: true, nachricht: true },
   });
 }
 

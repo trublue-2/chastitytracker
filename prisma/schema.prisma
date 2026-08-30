@@ -754,9 +754,9 @@ model VerschlussAnforderung {
   /// die Sperre ist die Anordnung DERSELBEN Person, nur später wirksam. `null` = Altbestand bzw.
   /// keine Person feststellbar → die Meldung bleibt eine System-Zeile.
   createdBy        String?
-  endetAt          DateTime? // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
+  endsAt           DateTime? @map("endetAt") // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
   dauerH           Float? // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT (relativ zur Verschlusszeit)
-  lockEndsAt       DateTime? @map("sperrEndetAt") // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endetAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu dauerH.
+  lockEndsAt       DateTime? @map("sperrEndetAt") // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endsAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu dauerH.
   deviceId         String?
   device           Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   reinigungErlaubt Boolean   @default(false) // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit dauerH: wird auf erzeugte SPERRZEIT vererbt.
@@ -1123,7 +1123,7 @@ model OrgasmusAnforderung {
   art            String // "ANWEISUNG" | "GELEGENHEIT"
   nachricht      String?
   beginntAt      DateTime // Fenster-Start
-  endetAt        DateTime // Fenster-Ende
+  endsAt         DateTime @map("endetAt") // Fenster-Ende
   vorgegebeneArt String? // erforderliche orgasmusArt-Basis (aus ORGASMUS_ARTEN); null = egal
   oeffnenErlaubt Boolean   @default(false) // während des Fensters darf zum Orgasmus geöffnet werden, ohne Sperre zu brechen / Strafe
   createdAt      DateTime  @default(now())

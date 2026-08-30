@@ -79,7 +79,7 @@ export function parseTriggerAt(value: string | Date | null | undefined): Date | 
  * Validieren eines vom Client gelieferten Datums gehört an den Rand, in den Service, der die
  * Anfrage besitzt — nicht in eine reine Zeit-Policy.
  *
- * Ebenfalls bewusst NICHT enthalten: das PLANEN der Frist (`deadline`, `endetAt`). Das unterscheidet
+ * Ebenfalls bewusst NICHT enthalten: das PLANEN der Frist (`deadline`, `endsAt`). Das unterscheidet
  * sich je Service (Stunden ab Auslösung vs. absolut-oder-fristH) und bleibt dort. Wohl aber enthalten
  * ist ihre Verschiebung auf den Zustell-Zeitpunkt — siehe {@link deadlineFromDispatch}: die Regel ist
  * für alle terminierten Direktiven dieselbe und gehört deshalb neben die Konvention, die sie erzeugt.
@@ -181,7 +181,7 @@ export function dueForDispatchWhere(now: Date) {
  * gespeicherte Frist gilt unverändert.
  *
  * Benutzt von `KontrollAnforderung` und von `Task` — NICHT von `VerschlussAnforderung`, und das ist
- * kein Versehen: die trägt dasselbe Feldpaar und dieselbe Verspätung, aber ihr `endetAt` kann
+ * kein Versehen: die trägt dasselbe Feldpaar und dieselbe Verspätung, aber ihr `endsAt` kann
  * ENTWEDER relativ (`fristH` ab Auslösung) ODER ein von der Keyholderin gesetzter absoluter
  * Zeitpunkt sein — und die Zeile hält nicht fest, welches von beidem. Ein absolutes Ende zu
  * verschieben wäre schlicht falsch. Diese Funktion dort anzuwenden setzt also voraus, die

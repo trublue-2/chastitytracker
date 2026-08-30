@@ -110,6 +110,6 @@ export interface ReinigungConfig {
  *  `reinigungErlaubt` steckt in `ReinigungConfig.cleaningBlock`, wo es mit dem User-Flag und dem
  *  Zeitfenster zu EINEM Urteil verrechnet ist. */
 export interface LockPeriodState {
-  endetAt: string | null;
+  endsAt: string | null;
   indefinite: boolean;
 }

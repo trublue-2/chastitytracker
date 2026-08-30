@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
       pendingCommand: toPendingCommand(b.pendingCommand),
       simpleLock: b.simpleLock,
       keyholderLocked: b.keyholderLocked || !!lockPeriod,
-      lockUntil: (lockPeriod ? lockPeriod.endetAt : b.lockUntil)?.toISOString() ?? null,
+      lockUntil: (lockPeriod ? lockPeriod.endsAt : b.lockUntil)?.toISOString() ?? null,
       // Frische: wann die Box zuletzt gesynct hat (für „gerade aktiv / zuletzt online vor X").
       lastSyncAt: b.lastSyncAt?.toISOString() ?? null,
       // Failsafe-Vorwarnung (boxFailsafeWarnings) + Dauer-Akkuanzeige (boxBatteryLabel): die beiden

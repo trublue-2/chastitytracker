@@ -156,15 +156,15 @@ describe("mapOpenKontrolle", () => {
 
 describe("mapActiveLockPeriod", () => {
   it("ohne Ende ist die Sperre unbefristet — keine Restzeit", () => {
-    const s = mapActiveLockPeriod({ endetAt: null, nachricht: null, reinigungErlaubt: true, device: null }, NOW, fmt)!;
+    const s = mapActiveLockPeriod({ endsAt: null, nachricht: null, reinigungErlaubt: true, device: null }, NOW, fmt)!;
     expect(s.indefinite).toBe(true);
-    expect(s.endetAt).toBeNull();
+    expect(s.endsAt).toBeNull();
     expect(s.remainingMinutes).toBeNull();
   });
 
   it("mit Ende: Restzeit in Minuten, Gerätename durchgereicht", () => {
     const s = mapActiveLockPeriod(
-      { endetAt: D("2026-07-10T13:00:00Z"), nachricht: "bis morgen", reinigungErlaubt: false, device: { name: "Ring A" } },
+      { endsAt: D("2026-07-10T13:00:00Z"), nachricht: "bis morgen", reinigungErlaubt: false, device: { name: "Ring A" } },
       NOW, fmt)!;
     expect(s.indefinite).toBe(false);
     expect(s.remainingMinutes).toBe(60);
@@ -175,7 +175,7 @@ describe("mapActiveLockPeriod", () => {
 
 describe("mapOpenOrgasmusAnforderung", () => {
   const row = (beginnt: string, endet: string) => ({
-    art: "ANFORDERUNG", beginntAt: D(beginnt), endetAt: D(endet),
+    art: "ANFORDERUNG", beginntAt: D(beginnt), endsAt: D(endet),
     vorgegebeneArt: "RUINIERT", nachricht: "heute Abend",
   });
 
@@ -193,7 +193,7 @@ describe("mapOpenOrgasmusAnforderung", () => {
   it("in der Zukunft geplant: noch nicht aktiv, Restzeit zählt bis zum ENDE", () => {
     const o = mapOpenOrgasmusAnforderung(row("2026-07-10T15:00:00Z", "2026-07-10T18:00:00Z"), NOW, fmt)!;
     expect(o.active).toBe(false);
-    expect(o.remainingMinutes).toBe(360); // bis endetAt, nicht bis beginntAt
+    expect(o.remainingMinutes).toBe(360); // bis endsAt, nicht bis beginntAt
   });
 });
 

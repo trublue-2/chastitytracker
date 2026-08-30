@@ -61,7 +61,7 @@ const errors = serviceErrors({
  * Welche Sperrzeiten der Knopf beendet — EINE Where-Klausel für Vorschau UND Vollzug.
  *
  * Sie stand kurz zweimal da, und die beiden waren schon verschieden: die Vorschau zählte ohne
- * `endetAt`-Filter also auch längst ABGELAUFENE, nie zurückgezogene Sperrzeiten mit. Die
+ * `endsAt`-Filter also auch längst ABGELAUFENE, nie zurückgezogene Sperrzeiten mit. Die
  * Trockenübung versprach damit „beendet 3 Sperrzeiten", der Vollzug beendete eine — genau die
  * Abweichung, gegen die es die Trennung von Vorschau und Vollzug überhaupt gibt.
  *
@@ -73,7 +73,7 @@ const endableLockPeriods = (userId: string, now: Date) => ({
   userId,
   art: "SPERRZEIT",
   withdrawnAt: null,
-  OR: [{ endetAt: null }, { endetAt: { gt: now } }],
+  OR: [{ endsAt: null }, { endsAt: { gt: now } }],
 });
 
 export interface ReleaseNowPreview {
@@ -198,7 +198,7 @@ export async function releaseNow(params: ReleaseNowParams): Promise<ServiceResul
         // (`missed_orgasm`), und ein Vergehen dafür, dass jemand keinen Sex hatte, ist nicht gemeint.
         art: "GELEGENHEIT",
         beginntAt: jetzt.toISOString(),
-        endetAt: new Date(jetzt.getTime() + RELEASE_ORGASM_WINDOW_H * 3_600_000).toISOString(),
+        endsAt: new Date(jetzt.getTime() + RELEASE_ORGASM_WINDOW_H * 3_600_000).toISOString(),
         oeffnenErlaubt: true,
       }, actor);
       // Scheitert das Fenster, bleibt das Aufschliessen trotzdem stehen — es zurückzudrehen wäre
