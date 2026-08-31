@@ -155,6 +155,23 @@ describe("setAutoKontrolleSettings — Wochentage", () => {
     expect(await setAutoKontrolleSettings("u1", { days: 0b101 })).toEqual({ ok: true, data: null });
   });
 
+  it("auch der GRUNDSTAND wird geprüft, nicht nur die Ausnahmen", async () => {
+    // Bis hierher stand diese Prüfung nur im MCP: dieselben Uhrzeiten ergaben je nach Weg 200 oder
+    // 400. Der Planer übergeht so ein Fenster stumm, und die Keyholderin wartet auf Kontrollen.
+    expect(await setAutoKontrolleSettings("u1", { fensterVon: "23:00", fensterBis: "23:30" }))
+      .toEqual({ ok: false, status: 400, error: "INSPECTION_TRIGGER_WINDOW_ALL_QUIET" });
+    expect(await setAutoKontrolleSettings("u1", { fensterVon: "12:00", fensterBis: "09:00" }))
+      .toEqual({ ok: false, status: 400, error: "timeRangeInvalid" });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("eine Änderung ohne Bezug zu den Zeiten sperrt ein schlechtes Bestands-Fenster nicht aus", async () => {
+    // Sonst könnte eine früher gespeicherte Kombination jede unbeteiligte Änderung blockieren, bis
+    // jemand das Fenster repariert.
+    findUniqueMock.mockResolvedValue({ ...SAVED_USER, autoKontrolleFensterVon: "23:00", autoKontrolleFensterBis: "23:30" });
+    expect(await setAutoKontrolleSettings("u1", { perDayMin: 2 })).toEqual({ ok: true, data: null });
+  });
+
   it("die Wochentage sind PLANUNGS-Felder: eine Änderung würfelt den heutigen Tag neu", async () => {
     await setAutoKontrolleSettings("u1", { days: 0b101 });
     expect(deleteManyMock).toHaveBeenCalled();

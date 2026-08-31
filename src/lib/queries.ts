@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund, EntrySource } from "@/lib/constants";
 import { LOCK_ENDED_REASON, heimdallEnabled } from "@/lib/constants";
-import { activeCleaningWindow, parseCleaningWindows } from "@/lib/cleaningService";
+import { activeCleaningWindowIn, parseCleaningWindows } from "@/lib/cleaningService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, effectiveEntryWhere } from "@/lib/lockPending";
 import { APP_TZ } from "@/lib/utils";
@@ -818,7 +818,7 @@ export async function getKeyholderOrgasmusAnforderungen(userIds: string[]) {
  *  diese `length`-Prüfung; ein Test nagelt ihn fest. */
 export function cleaningWindowOpen(cleaningWindows: unknown, at: Date, tz: string): boolean {
   const fenster = parseCleaningWindows(cleaningWindows);
-  return fenster.length === 0 || activeCleaningWindow(fenster, at, tz) !== null;
+  return fenster.length === 0 || activeCleaningWindowIn(fenster, at, tz) !== null;
 }
 
 /**

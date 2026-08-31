@@ -9,9 +9,8 @@ import SettingsSection from "@/app/components/SettingsSection";
 import {
   AUTO_KONTROLLE_SETTINGS_SELECT,
   autoKontrolleSettingsFromUser,
-  fixedWindowMinutes,
 } from "@/lib/autoKontrolleService";
-import { parseAutoInspectionDayRules } from "@/lib/autoKontrolleDayRules";
+import { fixedWindowMinutes, parseAutoInspectionDayRules } from "@/lib/autoKontrolleDayRules";
 import {
   formatCleaningWindows,
   maxPausesPerDaySentinel,
@@ -193,7 +192,10 @@ export default async function RulesPage() {
                           {weekdayMaskLabel(r.days, weekdayLabels, tc("daily"))}
                           {": "}
                           {ta("autoKontrolleRuheLabel")} {range(r.ruheVon, r.ruheBis)}
-                          {r.fensterVon && r.fensterBis
+                          {/* Dieselbe Frage wie für den Grundstand oben (`hasFixedWindow`): ob ein
+                              Fenster WIRKT, beantwortet der Planer, nicht die Nicht-Leerheit zweier
+                              Zeichenketten. */}
+                          {fixedWindowMinutes(r)
                             ? ` · ${ta("autoKontrolleFensterLabel")} ${range(r.fensterVon, r.fensterBis)}`
                             : ""}
                         </li>

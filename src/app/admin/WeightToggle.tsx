@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Plus } from "lucide-react";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
+import AddRowButton from "@/app/components/AddRowButton";
 import Toggle from "@/app/components/Toggle";
 import TimeInput from "@/app/components/TimeInput";
 import NumberInput from "@/app/components/NumberInput";
@@ -13,7 +13,7 @@ import UnderweightNote from "@/app/components/UnderweightNote";
 import Input from "@/app/components/Input";
 import Button from "@/app/components/Button";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
-import { inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import { editRowCardCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
 import { WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE } from "@/lib/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { parseDecimalInput, weightFieldValue, weightText, weightInputToKg, type UnitSystem } from "@/lib/weight";
@@ -92,7 +92,7 @@ export default function WeightToggle({
               const patch = (change: Partial<WeighingWindow>) =>
                 saveWindows(windows.map((x, j) => (j === i ? { ...x, ...change } : x)));
               return (
-                <div key={i} className="flex flex-col gap-2 rounded-xl border border-border-subtle p-3">
+                <div key={i} className={editRowCardCls}>
                   <InlineSettingRow label={t("weighingWindowFrom")}>
                     <TimeInput
                       value={w.start}
@@ -130,17 +130,15 @@ export default function WeightToggle({
               );
             })}
             {windows.length < WEIGHING_WINDOWS_MAX && (
-              <button
-                type="button"
+              <AddRowButton
+                label={t("weighingWindowAdd")}
+                tone="accent"
                 disabled={saving}
                 onClick={() => saveWindows([...windows, {
                   start: "06:00", durationMin: WEIGHING_WINDOW_DURATION_RANGE.fallback,
                   days: ALL_WEEKDAYS, remind: false,
                 }])}
-                className="flex items-center gap-1 text-sm text-accent hover:opacity-80 disabled:opacity-50"
-              >
-                <Plus size={16} /> {t("weighingWindowAdd")}
-              </button>
+              />
             )}
           </div>
 

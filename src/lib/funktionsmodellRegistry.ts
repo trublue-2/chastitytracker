@@ -332,12 +332,12 @@ export const FM_REGISTRY: FmEntry[] = [
   s({
     model: "User", field: "autoKontrolleFensterVon", domain: "kontrollen", scope: "standing",
     effect: "Beginn eines optionalen festen Auslöse-Fensters. Leer = ganzes Wach-Fenster. Wrappt bewusst nicht über Mitternacht.",
-    writers: ["admin", "mcp"], affects: ["Auto-Kontrollen"], anchor: "autoKontrolleService.ts:fixedWindowMinutes",
+    writers: ["admin", "mcp"], affects: ["Auto-Kontrollen"], anchor: "autoKontrolleDayRules.ts:fixedWindowMinutes",
   }),
   s({
     model: "User", field: "autoKontrolleFensterBis", domain: "kontrollen", scope: "standing",
     effect: "Ende desselben Fensters. Liegt es vollständig im Schlaf-Fenster, wird die Kombination abgelehnt statt wirkungslos gespeichert.",
-    writers: ["admin", "mcp"], affects: ["Auto-Kontrollen"], anchor: "autoKontrolleService.ts:triggerWindowAllQuiet",
+    writers: ["admin", "mcp"], affects: ["Auto-Kontrollen"], anchor: "autoKontrolleDayRules.ts:triggerWindowAllQuiet",
   }),
   s({
     model: "User", field: "autoKontrolleDays", domain: "kontrollen", scope: "standing",

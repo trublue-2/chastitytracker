@@ -1,5 +1,5 @@
 import { heimdallEnabled } from "@/lib/constants";
-import { buildCleaningView, countCleaningUsedToday, nextCleaningWindow, type CleaningCountEntry, type CleaningUserFields } from "@/lib/cleaningService";
+import { buildCleaningView, countCleaningUsedToday, type CleaningCountEntry, type CleaningUserFields } from "@/lib/cleaningService";
 import { cleaningBlockReason } from "@/lib/queries";
 import type { BoxCleaningView } from "@/lib/boxStatus";
 
@@ -9,6 +9,10 @@ import type { BoxCleaningView } from "@/lib/boxStatus";
  * Serverseitig einmal je Seitenaufbau — NICHT im 5s-Poll der Karte: die Regeln ändern sich, wenn
  * der Keyholder sie editiert oder eine Reinigung eingetragen wird, nicht im Sekundentakt. Dieselbe
  * Quelle wie `get_context.cleaning` im MCP.
+ *
+ * Das NÄCHSTE Fenster gehört bewusst nicht dazu — die Karte zeigt nur das gerade offene (Begründung
+ * bei `boxCleaningWindowOpenLabel`). Es stand hier trotzdem und wurde in jede Dashboard-Antwort
+ * serialisiert, ohne dass es je jemand las.
  *
  * `blockedBy` kommt aus derselben Regel wie die Durchsetzung und kennt als einziges die AKTIVE
  * Sperrzeit: ohne es versprach die Karte Fenster, die eine reinigungsverbietende Sperre längst
@@ -34,7 +38,6 @@ export function buildBoxCleaningView(
   if (!heimdallEnabled() || !user) return null;
   return {
     ...buildCleaningView(user, countCleaningUsedToday(allEntries, now, tz), now, tz),
-    nextWindow: nextCleaningWindow(user.cleaningWindows, now, tz),
     blockedBy: cleaningBlockReason(
       { cleaningAllowed: user.cleaningAllowed ?? false, cleaningWindows: user.cleaningWindows, timezone: tz },
       lockPeriod ? [lockPeriod] : [],

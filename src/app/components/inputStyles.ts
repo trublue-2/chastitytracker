@@ -316,3 +316,9 @@ export const metaRowChipCls =
  */
 export const metaRowSlotCls =
   "size-9 shrink-0 flex items-center justify-center text-foreground-faint";
+
+/** Die Umrandung EINER bearbeitbaren Zeile in einer Einstellungs-Liste (Reinigungs-Fenster,
+ *  Wiege-Fenster, Tages-Ausnahmen der Kontrollen). Dieselbe Begründung wie bei `listRowCls`: die drei
+ *  Listen stehen in derselben Admin-Spalte untereinander, und driftet Radius oder Polsterung, sieht
+ *  man es nicht an der Zeile, sondern am Rhythmus des Abschnitts. */
+export const editRowCardCls = "flex flex-col gap-2 rounded-xl border border-border-subtle p-3";

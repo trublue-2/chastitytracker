@@ -4,14 +4,14 @@ import type { CleaningWindows } from "@/lib/cleaningService";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus } from "lucide-react";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
+import AddRowButton from "@/app/components/AddRowButton";
 import Toggle from "@/app/components/Toggle";
 import TimeInput from "@/app/components/TimeInput";
 import WeekdayPicker from "@/app/components/WeekdayPicker";
 import NumberInput from "@/app/components/NumberInput";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
-import { inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import { editRowCardCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
 import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX } from "@/lib/constants";
 import { ALL_WEEKDAYS } from "@/lib/weekdays";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
@@ -108,7 +108,7 @@ export default function CleaningToggle({
               const patch = (change: Partial<CleaningWindows>) =>
                 saveWindows(windows.map((x, j) => (j === i ? { ...x, ...change } : x)));
               return (
-                <div key={i} className="flex flex-col gap-2 rounded-xl border border-border-subtle p-3">
+                <div key={i} className={editRowCardCls}>
                   <div className="flex items-center gap-2">
                     <TimeInput
                       value={f.start}
@@ -140,14 +140,11 @@ export default function CleaningToggle({
               );
             })}
             {windows.length < CLEANING_WINDOWS_MAX && (
-              <button
-                type="button"
-                onClick={() => saveWindows([...windows, { start: "19:00", end: "20:00", days: ALL_WEEKDAYS }])}
+              <AddRowButton
+                label={t("reinigungFensterAdd")}
                 disabled={saving}
-                className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground disabled:opacity-50 w-fit"
-              >
-                <Plus size={14} /> {t("reinigungFensterAdd")}
-              </button>
+                onClick={() => saveWindows([...windows, { start: "19:00", end: "20:00", days: ALL_WEEKDAYS }])}
+              />
             )}
           </div>
         </>

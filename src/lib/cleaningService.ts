@@ -5,11 +5,12 @@ import {
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import { APP_TZ, hhmmInTZ, midnightInTZ, clamp } from "@/lib/utils";
+import { listProblem, parseJsonList, type ListProblem } from "@/lib/jsonList";
 import {
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, CLEANING_WINDOWS_TOO_MANY,
   HHMM, INVALID_TIME, NO_FIELDS_TO_UPDATE, TIME_RANGE_INVALID,
 } from "@/lib/constants";
-import { isoWeekdayInTZ, parseWeekdayMask, weekdayMaskHas, weekdayMaskValid } from "@/lib/weekdays";
+import { isoDayPlus, isoWeekdayInTZ, parseWeekdayMask, weekdayMaskHas, weekdayMaskValid } from "@/lib/weekdays";
 
 export interface CleaningWindows {
   start: string; // "HH:MM"
@@ -94,14 +95,12 @@ export function cleaningWindowProblem(f: unknown): ServiceErrorCode | null {
 /** Die SCHREIB-Regel der GANZEN Liste: Array, Länge, jedes Paar. Liefert den stabilen Fehler-Code
  *  plus — wo es eines gibt — den Index des schuldigen Paares: der Service braucht nur den Code, ein
  *  MCP-Agent auch die Stelle. EINE Prüfung für beide, statt einer Kopie je Aufrufer. */
-export function cleaningWindowListProblem(raw: unknown): { code: ServiceErrorCode; index?: number } | null {
-  if (!Array.isArray(raw)) return { code: INVALID_TIME };
-  if (raw.length > CLEANING_WINDOWS_MAX) return { code: CLEANING_WINDOWS_TOO_MANY };
-  for (const [index, f] of raw.entries()) {
-    const code = cleaningWindowProblem(f);
-    if (code) return { code, index };
-  }
-  return null;
+export function cleaningWindowListProblem(raw: unknown): ListProblem | null {
+  return listProblem(
+    raw,
+    { max: CLEANING_WINDOWS_MAX, notAListCode: INVALID_TIME, tooManyCode: CLEANING_WINDOWS_TOO_MANY },
+    cleaningWindowProblem,
+  );
 }
 
 /** Ein Fenster als eine Zeile („19:00-20:00") — für Meldungen und Feld-Diffs, wo eine Liste von
@@ -113,30 +112,34 @@ export function formatCleaningWindows(f: CleaningWindows): string {
 /** Parst + validiert die Fenster-Liste aus User.cleaningWindows (JSON-String ODER Array;
  *  tolerant: Murks → []). SQLite/Prisma 5 speichert das Feld als TEXT, daher String-Pfad. */
 export function parseCleaningWindows(raw: unknown): CleaningWindows[] {
-  let arr: unknown = raw;
-  if (typeof raw === "string") {
-    try { arr = JSON.parse(raw); } catch { return []; }
-  }
-  if (!Array.isArray(arr)) return [];
-  const out: CleaningWindows[] = [];
-  for (const f of arr) {
-    const windows = windowShape(f);
-    if (windows) out.push(windows);
-  }
-  return out;
+  return parseJsonList(raw, windowShape);
 }
 
 /** „HH:MM" der aktuellen Uhrzeit in `tz` (default APP_TZ; 24h, fix mit ":" für lexikalischen Vergleich). */
 /** Liegt `now` (Sub-Lokalzeit `tz`, default APP_TZ) in einem Reinigungs-Fenster? Liefert dessen Ende „HH:MM", sonst null.
  *  Die Fenster sind Wanduhrzeit des Subs — deshalb muss `tz` die Sub-Zeitzone sein, nicht die des Betrachters. */
 export function activeCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): string | null {
+  return activeWindowIn(parseCleaningWindows(raw), now, tz);
+}
+
+/** Dasselbe aus einer BEREITS GEPARSTEN Liste. Für Aufrufer, die ohnehin parsen mussten
+ *  (`cleaningWindowOpen` fragt zuerst nach der Länge) — sonst liefe `windowShape` samt
+ *  `parseWeekdayMask` ein zweites Mal über jedes Fenster.
+ *
+ *  Die Zeit- und Wochentags-Auflösung steht NACH der Leer-Prüfung: wer keine Fenster hat, soll für
+ *  diese Antwort keine zwei `Intl`-Abfragen zahlen. Das Strafbuch stellt sie je Öffnung der ganzen
+ *  Historie (`cleaningRelockDeadline`). */
+function activeWindowIn(windows: CleaningWindows[], now: Date, tz: string): string | null {
+  if (windows.length === 0) return null;
   const hhmm = hhmmInTZ(now, tz);
   const isoDay = isoWeekdayInTZ(now, tz);
-  for (const f of parseCleaningWindows(raw)) {
+  for (const f of windows) {
     if (weekdayMaskHas(f.days, isoDay) && f.start <= hhmm && hhmm < f.end) return f.end;
   }
   return null;
 }
+
+export { activeWindowIn as activeCleaningWindowIn };
 
 /**
  * Das nächste Reinigungs-Fenster, das nach `now` (Sub-Lokalzeit `tz`) BEGINNT — samt der Angabe, an
@@ -151,9 +154,8 @@ export function activeCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): stri
  * Montag. Gezählt wird bis 7, nicht bis 6: liegt heute nur noch ein bereits verstrichenes Fenster,
  * ist der nächste Termin derselbe Wochentag in einer Woche.
  *
- * Der Wochentag wird dabei gerechnet (`+ inDays` modulo 7) und nicht aus `now + inDays * 24h`
- * abgeleitet: 24 Stunden sind an den Umstellungstagen kein Kalendertag, und dicht an Mitternacht
- * übersprünge diese Addition einen Tag.
+ * Der Wochentag wird dabei gerechnet ({@link isoDayPlus}) und nicht aus `now + inDays * 24h`
+ * abgeleitet — Begründung dort.
  */
 export function nextCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): NextCleaningWindow | null {
   const windows = parseCleaningWindows(raw);
@@ -162,7 +164,7 @@ export function nextCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): NextCl
   const today = isoWeekdayInTZ(now, tz);
   const sorted = [...windows].sort((a, b) => a.start.localeCompare(b.start));
   for (let inDays = 0; inDays <= 7; inDays++) {
-    const isoDay = ((today - 1 + inDays) % 7) + 1;
+    const isoDay = isoDayPlus(today, inDays);
     const hit = sorted.find((f) => weekdayMaskHas(f.days, isoDay) && (inDays > 0 || f.start > hhmm));
     if (hit) return { ...hit, inDays, isoDay };
   }

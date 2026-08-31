@@ -177,6 +177,20 @@ describe("cleaningWindowProblem (Schreib-Regel)", () => {
     expect(parseCleaningWindows(geschrieben)).toEqual(geschrieben.map((f) => ({ ...f, days: ALL_WEEKDAYS })));
   });
 
+  it("dieselbe Teilmengen-Regel für die WOCHENTAGE", () => {
+    // Eine angenommene Maske muss den Lese-Pfad unverändert überstehen. Täte sie es nicht, hätte der
+    // Keyholder Tage gespeichert und bekäme andere zurück — dieselbe stille Löschung wie oben,
+    // nur schwerer zu sehen, weil das Fenster ja noch dasteht.
+    const masken = [1, 2, 64, ALL_WEEKDAYS, 0, 128, -1, 1.5];
+    for (const days of masken) {
+      const f = { start: "06:00", end: "07:00", days };
+      if (cleaningWindowProblem(f) !== null) continue;
+      expect(parseCleaningWindows([f])).toEqual([f]);
+    }
+    // Und die Gegenprobe, dass die Schleife nicht alles übersprungen hat.
+    expect(cleaningWindowProblem({ start: "06:00", end: "07:00", days: ALL_WEEKDAYS })).toBeNull();
+  });
+
   it("gespeicherte Alt-Fenster bleiben lesbar, auch wenn die Schreib-Regel sie heute ablehnte", () => {
     // Ein per API abgelegtes „99:00-99:30" ist Bestand — der Lese-Pfad darf es nicht nachträglich
     // löschen, nur neu schreiben lässt es sich nicht mehr.

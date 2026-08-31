@@ -13,19 +13,20 @@ import { isSwitchableOffenseType, isValidOffenseMode, OFFENSE_RULE_MODES, type O
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { parseWeighingWindows, weighingWindowEnd, weighingWindowsProblem, type WeighingWindow } from "@/lib/weightWindows";
 import { effectiveTarget, isUnderweightTarget, keyholderTargetOf, subTargetOf, weightProblem } from "@/lib/weight";
-import { ALL_WEEKDAYS, weekdayMaskKeys, weekdayMaskOf } from "@/lib/weekdays";
+import { ALL_WEEKDAYS, weekdayMaskKeys, weekdayMaskOf, weekdayMaskValid } from "@/lib/weekdays";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
 import { resolveTaskProof } from "@/lib/mcp/taskProofRef";
 import { diffFields } from "@/lib/mcp/writeFramework";
+import type { ListProblem } from "@/lib/jsonList";
 import {
   setAutoKontrolleSettings, autoKontrolleSettingsFromUser, autoInspectionsView, planningChanged,
-  fixedWindowMinutes, triggerWindowAllQuiet, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoKontrolleSettings,
+  AUTO_KONTROLLE_SETTINGS_SELECT, type AutoKontrolleSettings,
 } from "@/lib/autoKontrolleService";
 import {
-  autoInspectionDayRulesProblem, formatAutoInspectionDayRule, parseAutoInspectionDayRules,
+  autoInspectionDayRulesProblem, fixedWindowMinutes, triggerWindowAllQuiet,
   type AutoInspectionDayRule,
 } from "@/lib/autoKontrolleDayRules";
 
@@ -1055,9 +1056,20 @@ export interface SetCleaningArgs {
  * dryRun sie sieht und der Agent das schuldige Paar nicht raten muss.
  */
 function assertCleaningWindows(windows: CleaningWindows[]): void {
-  const problem = cleaningWindowListProblem(windows);
+  assertListOk("windows", windows, cleaningWindowListProblem(windows));
+}
+
+/**
+ * Ein {@link ListProblem} als Satz — mit der STELLE, an der es klemmt, und der schuldigen Zeile im
+ * Klartext. Die drei Fenster-Familien (Reinigung, Wiegen, Tages-Ausnahmen) brauchten dasselbe, und
+ * die dritte Kopie hatte den Klartext bereits vergessen: derselbe Fehler meldete je nach Familie
+ * mehr oder weniger. Die Regel selbst steht im jeweiligen Dienst; hier wird nur ihr Code übersetzt.
+ */
+function assertListOk(field: string, items: unknown[], problem: ListProblem | null): void {
   if (!problem) return;
-  const stelle = problem.index === undefined ? "windows" : `windows[${problem.index}] ${JSON.stringify(windows[problem.index])}`;
+  const stelle = problem.index === undefined
+    ? field
+    : `${field}[${problem.index}] ${JSON.stringify(items[problem.index])}`;
   throw new Error(`${stelle}: ${enErrorText(problem.code)}`);
 }
 
@@ -1399,12 +1411,7 @@ export async function mcpSetWeightRelease(username: string, args: SetWeightRelea
 /** Die Fenster-Liste, mit der Position im Fehlertext — dasselbe Muster wie `assertCleaningWindows`:
  *  wer fünf Fenster auf einmal setzt, soll nicht raten müssen, welches abgelehnt wurde. */
 function assertWeighingWindows(windows: WeighingWindow[]): void {
-  const problem = weighingWindowsProblem(windows);
-  if (!problem) return;
-  const stelle = problem.index === undefined
-    ? "windows"
-    : `windows[${problem.index}] ${JSON.stringify(windows[problem.index])}`;
-  throw new Error(`${stelle}: ${enErrorText(problem.code)}`);
+  assertListOk("windows", windows, weighingWindowsProblem(windows));
 }
 
 /** Ein Fenster aus den Agenten-Argumenten. Fehlende Wochentage heissen „täglich" — dieselbe Vorgabe
@@ -1537,15 +1544,11 @@ function assertTriggerWindow(after: AutoKontrolleSettings): void {
  *  dieselbe Ablehnung zeigt wie der Commit. Beide Prüfungen liegen im Dienst bzw. im Planer; hier
  *  wird nur ihr Code in einen Satz übersetzt, keine zweite Regel formuliert.
  *
- *  Geprüft wird die UMGERECHNETE Liste, NICHT die geparste: `parseAutoInspectionDayRules` ist der
- *  tolerante Lese-Pfad und wirft eine kaputte Zeile still weg — der Agent bekäme ein `ok` für eine
- *  Ausnahme, die nirgends steht. Genau die Falle, gegen die die Schreib-Regel gebaut ist. */
+ *  Geprüft wird die UMGERECHNETE Liste, NICHT eine geparste: der tolerante Lese-Pfad
+ *  (`parseAutoInspectionDayRules`) wirft eine kaputte Zeile still weg — der Agent bekäme ein `ok`
+ *  für eine Ausnahme, die nirgends steht. Genau die Falle, gegen die die Schreib-Regel gebaut ist. */
 function assertDayRules(rules: AutoInspectionDayRule[]): void {
-  const problem = autoInspectionDayRulesProblem(rules);
-  if (problem) {
-    const stelle = problem.index === undefined ? "dayRules" : `dayRules[${problem.index}]`;
-    throw new Error(`${stelle}: ${enErrorText(problem.code)}`);
-  }
+  assertListOk("dayRules", rules, autoInspectionDayRulesProblem(rules));
   const stumm = rules.findIndex((r) => triggerWindowAllQuiet(r));
   if (stumm >= 0) throw new Error(`dayRules[${stumm}]: ${enErrorText("INSPECTION_TRIGGER_WINDOW_ALL_QUIET")}`);
 }
@@ -1568,6 +1571,12 @@ export async function mcpSetAutoInspections(username: string, args: SetAutoInspe
   // Umrechnen VOR dem Prüfen und vor dem dryRun-Zweig — wie bei den Reinigungs-Fenstern.
   const dayRules = args.dayRules?.map(toDayRule);
   if (dayRules) assertDayRules(dayRules);
+  // Ebenfalls VOR dem dryRun: eine leere Tages-Liste lehnt der Dienst ab (`weekdayMaskValid`), und
+  // ohne diese Zeile zeigte der Preview „planDays: ''" als Erfolg für einen Commit, der mit 400
+  // endet — genau die Falle, gegen die die übrigen Vorab-Prüfungen hier stehen.
+  if (args.planDays !== undefined && !weekdayMaskValid(weekdayMaskOf(args.planDays))) {
+    throw new Error("planDays: at least one weekday is required — use active:false to switch the automatic inspections off.");
+  }
 
   const row = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
   const before = autoKontrolleSettingsFromUser(row);
@@ -1597,9 +1606,9 @@ export async function mcpSetAutoInspections(username: string, args: SetAutoInspe
     fensterBis: window(args.triggerWindowUntil, before.fensterBis),
     nurBeiSperre: args.onlyDuringLockPeriod ?? before.nurBeiSperre,
     days: args.planDays === undefined ? before.days : weekdayMaskOf(args.planDays),
-    // Wie überall auf diesem Pfad: der VOLLE Ergebnis-Stand, damit Vorschau und Commit dieselbe
-    // Zeichenkette sehen. `setAutoKontrolleSettings` normalisiert identisch.
-    dayRules: dayRules === undefined ? before.dayRules : JSON.stringify(dayRules),
+    // Wie überall auf diesem Pfad der VOLLE Ergebnis-Stand — jetzt in derselben Form wie alles
+    // andere, seit die Settings die Liste tragen statt der Speicher-Zeichenkette.
+    dayRules: dayRules ?? before.dayRules,
   };
   assertTriggerWindow(after);
 
@@ -1607,11 +1616,9 @@ export async function mcpSetAutoInspections(username: string, args: SetAutoInspe
     const view = autoInspectionsView(after);
     return dryRunPreview("set_auto_inspections", undefined, view, diffFields(autoInspectionsView(before), view));
   }
-  // `after.dayRules` ist die SPEICHER-Form (JSON-String) — sie trägt den Diff und `planningChanged`.
-  // Der Dienst nimmt dagegen die LISTE entgegen und prüft sie selbst; bekäme er den String, fiele er
-  // mit `invalidTime` durch (`Array.isArray`), und zwar für jeden Aufruf, der Ausnahmen setzt.
-  // `undefined` heisst hier wie überall „unberührt lassen" — dann stand in `after` ohnehin der
-  // Bestand.
+  // `dayRules` bewusst aus den ARGUMENTEN, nicht aus `after`: `undefined` heisst „unberührt lassen",
+  // und der Dienst soll die Spalte dann gar nicht anfassen. In `after` steht an der Stelle der
+  // Bestand, den zurückzuschreiben nur Rauschen wäre.
   unwrap(await setAutoKontrolleSettings(userId, { ...after, dayRules }));
   return { ok: true, message: `Automatic inspections updated.${autoInspectionsNote(before, after)}` };
 }
@@ -1628,9 +1635,11 @@ function autoInspectionsNote(before: AutoKontrolleSettings, after: AutoKontrolle
   const trigger = after.fensterVon ? `, triggers only ${after.fensterVon}–${after.fensterBis}` : "";
   // Die Wochentage NUR nennen, wenn sie vom Normalfall abweichen: „daily, no exceptions" an jede
   // Meldung zu hängen wäre Rauschen, und Rauschen liest der Agent irgendwann nicht mehr.
-  const rules = parseAutoInspectionDayRules(after.dayRules);
-  const days = after.days === ALL_WEEKDAYS ? "" : ` Planned on ${weekdayMaskKeys(after.days)} only.`;
-  const exceptions = rules.length === 0 ? "" : ` Day exceptions: ${rules.map(formatAutoInspectionDayRule).join("; ")}.`;
+  // Beide Zeilen aus der LESE-Sicht, gegen die der Agent den Diff liest — sonst stünde dieselbe
+  // Formatierung ein zweites Mal da und liefe irgendwann davon.
+  const view = autoInspectionsView(after);
+  const days = after.days === ALL_WEEKDAYS ? "" : ` Planned on ${view.planDays} only.`;
+  const exceptions = view.dayRules.length === 0 ? "" : ` Day exceptions: ${view.dayRules.join("; ")}.`;
   return ` ${count} per day, ${after.fristVon}–${after.fristBis} min to comply, sleep ${after.ruheVon}–${after.ruheBis}${trigger}.`
     + days + exceptions
     + (planningChanged(before, after) ? " Today's remaining plan was re-rolled." : "");

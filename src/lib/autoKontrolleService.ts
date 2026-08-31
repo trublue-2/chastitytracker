@@ -4,13 +4,13 @@ import { APP_TZ, hhmmToMinutes, midnightInTZ, dateAtLocalMinutes, formatTime, cl
 import {
   NO_FIELDS_TO_UPDATE, INVALID_TIME, HHMM, AUTO_INSPECTION_PER_DAY_RANGE,
   AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
-  CLEANING_RELOCK_INSPECTION_DELAY, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP,
+  CLEANING_RELOCK_INSPECTION_DELAY, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP, TIME_RANGE_INVALID,
 } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/utils";
 import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere } from "@/lib/queries";
 import {
-  autoInspectionDayRulesProblem, formatAutoInspectionDayRule, parseAutoInspectionDayRules, timesForDay,
-  type AutoInspectionDayTimes,
+  autoInspectionDayRulesProblem, fixedWindowMinutes, formatAutoInspectionDayRule,
+  parseAutoInspectionDayRules, timesForDay, triggerWindowAllQuiet, type AutoInspectionDayRule,
 } from "@/lib/autoKontrolleDayRules";
 import { isoWeekdayInTZ, weekdayMaskHas, weekdayMaskKeys, weekdayMaskValid } from "@/lib/weekdays";
 import type { Prisma } from "@prisma/client";
@@ -35,14 +35,13 @@ export interface AutoKontrolleSettings {
   fensterBis: string; // "HH:MM" optionales festes Auslöse-Fenster Ende ("" = aus)
   nurBeiSperre: boolean; // true = nur zustellen, während eine aktive Sperrzeit läuft (Dispatch-Gate, nicht Planung)
   days: number; // Bitmaske der Wochentage, an denen überhaupt geplant wird (`weekdays.ts`)
-  /** Die Tages-Ausnahmen ROH, wie sie in der Spalte stehen: JSON-String oder null.
+  /** Die Tages-Ausnahmen, GEPARST. Anders als `CleaningSettings.windows`, das seinen JSON-String roh
+   *  trägt: dort hängt eine Änderungs-Historie daran, deren Zeilen bitgleich die Spalte abbilden
+   *  sollen. Hier gibt es keine, und die Leser wollen alle die Liste — sie fünfmal neu zu parsen
+   *  (Planer, Schlaf-Frage, MCP-Sicht, Erfolgsmeldung, Regel-Seite) wäre Arbeit ohne Ertrag.
    *
-   *  Bewusst nicht vorverdaut — aus zwei Gründen. Erstens dieselbe Haltung wie bei
-   *  `CleaningSettings.windows`: die Settings sollen bitgleich das tragen, was gespeichert ist.
-   *  Zweitens, und hier load-bearing: {@link planningChanged} und der Änderungs-Vergleich in
-   *  {@link setAutoKontrolleSettings} prüfen mit `!==`. Ein Array wäre dabei IMMER ungleich sich
-   *  selbst — jedes Speichern würfelte den laufenden Tagesplan neu, auch das, welches nichts ändert. */
-  dayRules: string | null;
+   *  Preis: {@link planningChanged} kann für dieses eine Feld nicht mit `!==` vergleichen. */
+  dayRules: AutoInspectionDayRule[];
 }
 
 /** Wie {@link AutoKontrolleSettings}, aber `dayRules` roh von aussen (Formular, MCP-Argumente): die
@@ -113,33 +112,6 @@ export function isInQuietMinutes(vonMin: number, bisMin: number, min: number): b
   const m = ((min % 1440) + 1440) % 1440;
   if (vonMin === bisMin) return false; // leeres Fenster
   return vonMin < bisMin ? m >= vonMin && m < bisMin : m >= vonMin || m < bisMin;
-}
-
-// ── Festes Auslöse-Fenster ─────────────────────────────────────────────────────
-
-/** Parst das optionale feste Auslöse-Fenster (HH:MM–HH:MM). Gültig NUR, wenn beide Zeiten valide sind
- *  UND Von < Bis (ein festes Fenster wrappt bewusst nicht über Mitternacht); sonst null → Fallback aufs
- *  Wach-Fenster. "" (leer, Default) → null. */
-export function fixedWindowMinutes(s: AutoInspectionDayTimes): { start: number; end: number } | null {
-  if (!HHMM.test(s.fensterVon) || !HHMM.test(s.fensterBis)) return null;
-  const start = hhmmToMinutes(s.fensterVon);
-  const end = hhmmToMinutes(s.fensterBis);
-  return end > start ? { start, end } : null;
-}
-
-/** Liegt das feste Auslöse-Fenster VOLLSTÄNDIG im Schlaf-Fenster? Dann überspringt der Planer jeden
- *  Trigger (`isInQuietMinutes`) und der Tag bleibt lautlos leer. Die Schreib-Seite
- *  (`set_auto_inspections`) lehnt so eine Kombination damit ab, statt sie stumm wirkungslos zu
- *  speichern. Das Fenster wrappt bewusst nicht (siehe `fixedWindowMinutes`), das Schlaf-Fenster schon. */
-export function triggerWindowAllQuiet(s: AutoInspectionDayTimes): boolean {
-  const fixed = fixedWindowMinutes(s);
-  if (!fixed) return false;
-  const von = hhmmToMinutes(s.ruheVon);
-  const bis = hhmmToMinutes(s.ruheBis);
-  if (von === bis) return false; // kein Schlaf
-  return von < bis
-    ? fixed.start >= von && fixed.end <= bis          // 02:00–05:00: Fenster liegt darin
-    : fixed.start >= von || fixed.end <= bis;         // 22:00–06:00 (wrap): Fenster im Abend- ODER Morgen-Ast
 }
 
 /** Nächster Schlaf-Beginn ≥ `trig` (+1440, wenn der heutige Schlaf-Beginn schon vor dem Trigger liegt
@@ -384,7 +356,7 @@ export function autoKontrolleSettingsFromUser(u: AutoKontrolleUserFields): AutoK
     fensterBis: u.autoKontrolleFensterBis,
     nurBeiSperre: u.autoKontrolleNurBeiSperre,
     days: u.autoKontrolleDays,
-    dayRules: u.autoKontrolleDayRules,
+    dayRules: parseAutoInspectionDayRules(u.autoKontrolleDayRules),
   };
 }
 
@@ -433,7 +405,7 @@ export function autoInspectionsView(s: AutoKontrolleSettings): AutoInspectionsVi
     triggerWindowUntil: s.fensterBis || null,
     onlyDuringLockPeriod: s.nurBeiSperre,
     planDays: weekdayMaskKeys(s.days),
-    dayRules: parseAutoInspectionDayRules(s.dayRules).map(formatAutoInspectionDayRule),
+    dayRules: s.dayRules.map(formatAutoInspectionDayRule),
   };
 }
 
@@ -484,7 +456,12 @@ type _AllSettingsViewClassified = AssertNever<
  *  {@link setAutoKontrolleSettings} für sich selbst; ein Aufrufer, der sein Ergebnis BESCHREIBEN will
  *  (MCP `set_auto_inspections`), soll die Liste nicht ungeprüft abschreiben müssen. */
 export function planningChanged(before: AutoKontrolleSettings, after: AutoKontrolleSettings): boolean {
-  return PLANNING_SETTINGS.some((k) => before[k] !== after[k]);
+  // `dayRules` ist als einziges Feld eine LISTE — `!==` wäre dort immer wahr und meldete jedem
+  // Speichern einen Neuwurf, den es nicht gab. Verglichen wird deshalb ihr Inhalt; die Reihenfolge
+  // zählt dabei mit, und das ist richtig: sie IST die Rangfolge der Regeln.
+  return PLANNING_SETTINGS.some((k) => (k === "dayRules"
+    ? JSON.stringify(before[k]) !== JSON.stringify(after[k])
+    : before[k] !== after[k]));
 }
 
 /** Legt Auto-Kontroll-Zeilen für die gegebenen Slots an (frischer Code je Zeile, benachrichtigtAt=null).
@@ -835,6 +812,29 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   // Wert, den `clamp` ohnehin auf den Bestand zurückholt, ist keine Änderung.
   const before = await prisma.user.findUnique({ where: { id: userId }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
   if (!before) return serviceFail(404, "USER_NOT_FOUND");
+
+  // Das feste Auslöse-Fenster im ERGEBNIS-Stand. Bis hierher stand diese Prüfung NUR im MCP — mit der
+  // Folge, dass dieselben Uhrzeiten je nach Weg 200 oder 400 ergaben: als Grundstand über das
+  // Formular gespeichert, als Tages-Ausnahme abgelehnt. Der Planer übergeht beide Fälle stumm
+  // (Fallback aufs Wach-Fenster bzw. gar keine Slots), und die Keyholderin wartet auf Kontrollen,
+  // die nie kommen.
+  //
+  // Nur wenn der Patch eines der vier Zeit-Felder ANFASST: sonst sperrte eine schon gespeicherte
+  // schlechte Kombination auch jede unbeteiligte Änderung (Anzahl, Frist) aus, bis jemand das
+  // Fenster repariert. Wer die Zeiten anfasst, soll sie in Ordnung bringen — wer die Anzahl ändert,
+  // muss es nicht.
+  const WINDOW_FIELDS = ["autoKontrolleRuheVon", "autoKontrolleRuheBis", "autoKontrolleFensterVon", "autoKontrolleFensterBis"] as const;
+  if (WINDOW_FIELDS.some((f) => f in data)) {
+    const merged = { ...before, ...data };
+    const times = {
+      ruheVon: merged.autoKontrolleRuheVon, ruheBis: merged.autoKontrolleRuheBis,
+      fensterVon: merged.autoKontrolleFensterVon, fensterBis: merged.autoKontrolleFensterBis,
+    };
+    if (times.fensterVon || times.fensterBis) {
+      if (!fixedWindowMinutes(times)) return serviceFail(400, TIME_RANGE_INVALID);
+      if (triggerWindowAllQuiet(times)) return serviceFail(400, "INSPECTION_TRIGGER_WINDOW_ALL_QUIET");
+    }
+  }
   const changed = (Object.keys(data) as (keyof AutoKontrolleUserFields)[]).filter((f) => data[f] !== before[f]);
   if (changed.length === 0) return { ok: true, data: null }; // Speichern ohne Änderung: kein Schreibzugriff
 

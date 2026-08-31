@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
-import { autoKontrolleSettingsFromUser, autoInspectionsView, type AutoInspectionsView } from "@/lib/autoKontrolleService";
+import { autoKontrolleSettingsFromUser, autoInspectionsView, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoInspectionsView } from "@/lib/autoKontrolleService";
 import { weightReleaseStatus } from "@/lib/weightReleaseService";
 import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/queries";
@@ -76,11 +76,17 @@ export interface GetContextOptions {
 }
 
 export interface ContextResult extends Envelope {
-  /** v3: `autoInspections.triggerWindowFrom/Until` liefern `null` statt `""` für „kein Fenster" (K-17);
+  /** v4: `cleaning.windows` sind nicht mehr zwangsläufig TÄGLICH — jedes Fenster trägt eine
+   *  Wochentags-Maske (`days`), und `windowOpenNow` hängt daran mit. Damit ändert sich die BEDEUTUNG
+   *  der Liste: eine Zeile darin gilt heute womöglich gar nicht. Ein Agent, der eine gespeicherte
+   *  v3-Antwort liest, könnte das nicht unterscheiden — deshalb ein Bump und keine additive Änderung
+   *  (`autoInspections.planDays`/`dayRules` sind für sich genommen additiv).
+   *
+   *  v3: `autoInspections.triggerWindowFrom/Until` liefern `null` statt `""` für „kein Fenster" (K-17);
    *  `appointments` akzeptiert jetzt ein from/to-Fenster (K-21, additiv). `offenseRules` und
    *  `inspectionEscalation` kamen rein additiv dazu — keine bestehende Feld-Bedeutung ändert sich,
    *  also kein Versions-Bump. */
-  schemaVersion: 3;
+  schemaVersion: 4;
   user: string;
   healthHold: HealthHoldView | null;
   /** Einstellungen der AUTOMATISCHEN Kontrollen (änderbar über `set_auto_inspections`; die einzelne
@@ -146,11 +152,11 @@ export interface ContextResult extends Envelope {
 }
 
 const contextUserSelect = {
-  id: true, timezone: true,
   ...CLEANING_USER_SELECT,
-  autoKontrolleAktiv: true, autoKontrollePerDayMin: true, autoKontrollePerDayMax: true, autoKontrolleRuheVon: true, autoKontrolleRuheBis: true,
-  autoKontrolleFristVon: true, autoKontrolleFristBis: true, autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
-  autoKontrolleNurBeiSperre: true, autoKontrolleDays: true, autoKontrolleDayRules: true,
+  // Wie `CLEANING_USER_SELECT` darüber: die Spaltenliste gehört dem Dienst, der sie liest. Von Hand
+  // nachgeführt hatte sie beim ersten neuen Feld prompt zwei Pflegestellen. Sie bringt `id` und
+  // `timezone` mit, die hier ohnehin gebraucht werden.
+  ...AUTO_KONTROLLE_SETTINGS_SELECT,
   inspectionReminderEnabled: true, inspectionReminderDelayMinutes: true,
   inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
   lockRequiresBolt: true,
@@ -209,7 +215,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
   );
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     user: username,
     ...buildEnvelope(now, iso, user.timezone ?? APP_TZ),
     healthHold,

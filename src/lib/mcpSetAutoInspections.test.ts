@@ -188,6 +188,16 @@ describe("set_auto_inspections — Wochentage", () => {
     expect(r.message).toContain("Planned on mon,tue,wed,thu,fri only.");
   });
 
+  it("eine leere Tages-Liste wird abgelehnt — schon im dryRun", async () => {
+    // Der Dienst lehnt sie ohnehin ab; ohne die Vorab-Prüfung versprächse der Preview Erfolg für
+    // einen Commit, der mit 400 endet.
+    await expect(mcpSetAutoInspections("sub", { planDays: [] }))
+      .rejects.toThrow(/planDays: at least one weekday/);
+    await expect(mcpSetAutoInspections("sub", { dryRun: true, planDays: [] }))
+      .rejects.toThrow(/planDays: at least one weekday/);
+    expect(setSettingsMock).not.toHaveBeenCalled();
+  });
+
   it("alle sieben Tage stehen NICHT in der Meldung — das ist der Normalfall, kein Ergebnis", async () => {
     const r = await mcpSetAutoInspections("sub", { planDays: [1, 2, 3, 4, 5, 6, 7] }) as { message: string };
     expect(r.message).not.toContain("Planned on");

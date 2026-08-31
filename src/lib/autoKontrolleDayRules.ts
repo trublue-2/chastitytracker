@@ -1,6 +1,8 @@
-import { HHMM, INVALID_TIME } from "@/lib/constants";
+import { HHMM, INVALID_TIME, TIME_RANGE_INVALID } from "@/lib/constants";
+import { hhmmToMinutes } from "@/lib/utils";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import { parseWeekdayMask, weekdayMaskHas, weekdayMaskKeys, weekdayMaskValid } from "@/lib/weekdays";
+import { listProblem, parseJsonList, type ListProblem } from "@/lib/jsonList";
 
 /**
  * Tagesspezifische Kontroll-Fenster: **die Ausnahme vom Grundstand, nicht der Grundstand selbst.**
@@ -50,6 +52,39 @@ export interface AutoInspectionDayRule extends AutoInspectionDayTimes {
  */
 export const AUTO_INSPECTION_DAY_RULES_MAX = 7;
 
+// ── Festes Auslöse-Fenster ─────────────────────────────────────────────────────
+//
+// Die beiden Prädikate stehen HIER und nicht mehr im Planer, obwohl der sie liest: sie sprechen über
+// EINEN Tag (`AutoInspectionDayTimes`), nicht über die Einstellungen als Ganzes — und die
+// Schreib-Regel unten braucht sie. Andersherum importierte dieses Modul den Planer, und der
+// importiert wiederum `queries` → `cleaningService`; der Zyklus wäre die Folge einer Zuordnung, die
+// ohnehin nicht stimmte.
+
+/** Parst das optionale feste Auslöse-Fenster (HH:MM–HH:MM). Gültig NUR, wenn beide Zeiten valide sind
+ *  UND Von < Bis (ein festes Fenster wrappt bewusst nicht über Mitternacht); sonst null → Fallback aufs
+ *  Wach-Fenster. "" (leer, Default) → null. */
+export function fixedWindowMinutes(s: { fensterVon: string; fensterBis: string }): { start: number; end: number } | null {
+  if (!HHMM.test(s.fensterVon) || !HHMM.test(s.fensterBis)) return null;
+  const start = hhmmToMinutes(s.fensterVon);
+  const end = hhmmToMinutes(s.fensterBis);
+  return end > start ? { start, end } : null;
+}
+
+/** Liegt das feste Auslöse-Fenster VOLLSTÄNDIG im Schlaf-Fenster? Dann überspringt der Planer jeden
+ *  Trigger (`isInQuietMinutes`) und der Tag bleibt lautlos leer. Die Schreib-Seite lehnt so eine
+ *  Kombination damit ab, statt sie stumm wirkungslos zu speichern. Das Fenster wrappt bewusst nicht
+ *  (siehe {@link fixedWindowMinutes}), das Schlaf-Fenster schon. */
+export function triggerWindowAllQuiet(s: AutoInspectionDayTimes): boolean {
+  const fixed = fixedWindowMinutes(s);
+  if (!fixed) return false;
+  const von = hhmmToMinutes(s.ruheVon);
+  const bis = hhmmToMinutes(s.ruheBis);
+  if (von === bis) return false; // kein Schlaf
+  return von < bis
+    ? fixed.start >= von && fixed.end <= bis          // 02:00–05:00: Fenster liegt darin
+    : fixed.start >= von || fixed.end <= bis;         // 22:00–06:00 (wrap): Fenster im Abend- ODER Morgen-Ast
+}
+
 /** Eine Uhrzeit, die auch "" sein darf (die beiden Fenster-Felder). */
 const optionalTime = (v: unknown): v is string => typeof v === "string" && (v === "" || HHMM.test(v));
 
@@ -67,17 +102,7 @@ function ruleShape(r: unknown): AutoInspectionDayRule | null {
 
 /** Parst die Liste aus `User.autoKontrolleDayRules` (JSON-String ODER Array). Murks fällt still weg. */
 export function parseAutoInspectionDayRules(raw: unknown): AutoInspectionDayRule[] {
-  let arr: unknown = raw;
-  if (typeof raw === "string") {
-    try { arr = JSON.parse(raw); } catch { return []; }
-  }
-  if (!Array.isArray(arr)) return [];
-  const out: AutoInspectionDayRule[] = [];
-  for (const r of arr) {
-    const parsed = ruleShape(r);
-    if (parsed) out.push(parsed);
-  }
-  return out;
+  return parseJsonList(raw, ruleShape);
 }
 
 /**
@@ -87,22 +112,35 @@ export function parseAutoInspectionDayRules(raw: unknown): AutoInspectionDayRule
  * kaputter Uhrzeit käme als `ok` zurück und wäre in Wahrheit nicht gespeichert. Der `index` sagt,
  * WELCHE stört (Vorbild `cleaningWindowListProblem`).
  */
-export function autoInspectionDayRulesProblem(raw: unknown): { code: ServiceErrorCode; index?: number } | null {
-  if (!Array.isArray(raw)) return { code: INVALID_TIME };
-  if (raw.length > AUTO_INSPECTION_DAY_RULES_MAX) return { code: "INSPECTION_DAY_RULES_TOO_MANY" };
-  for (const [index, r] of raw.entries()) {
-    const rule = (r ?? {}) as Record<string, unknown>;
-    if (typeof rule.ruheVon !== "string" || !HHMM.test(rule.ruheVon)) return { code: INVALID_TIME, index };
-    if (typeof rule.ruheBis !== "string" || !HHMM.test(rule.ruheBis)) return { code: INVALID_TIME, index };
-    if (rule.fensterVon !== undefined && !optionalTime(rule.fensterVon)) return { code: INVALID_TIME, index };
-    if (rule.fensterBis !== undefined && !optionalTime(rule.fensterBis)) return { code: INVALID_TIME, index };
-    // Ein halbes Auslöse-Fenster gibt es nicht: der Planer liest es dann als „gar keins" und plant
-    // still über den ganzen Tag — das Gegenteil dessen, was der Schreiber gerade eingestellt hat.
-    if ((rule.fensterVon ? 1 : 0) !== (rule.fensterBis ? 1 : 0)) return { code: INVALID_TIME, index };
-    // Wie bei den Fenstern: `days` darf fehlen (dann alle Tage — die Regel wird dann zum neuen
-    // Normalfall), aber eine Null-Maske wäre eine Ausnahme, die nie greift.
-    if (rule.days !== undefined && !weekdayMaskValid(rule.days)) return { code: INVALID_TIME, index };
+export function autoInspectionDayRulesProblem(raw: unknown): ListProblem | null {
+  return listProblem(
+    raw,
+    { max: AUTO_INSPECTION_DAY_RULES_MAX, notAListCode: INVALID_TIME, tooManyCode: "INSPECTION_DAY_RULES_TOO_MANY" },
+    dayRuleProblem,
+  );
+}
+
+/** Die SCHREIB-Regel EINER Ausnahme. */
+function dayRuleProblem(r: unknown): ServiceErrorCode | null {
+  const rule = (r ?? {}) as Record<string, unknown>;
+  if (typeof rule.ruheVon !== "string" || !HHMM.test(rule.ruheVon)) return INVALID_TIME;
+  if (typeof rule.ruheBis !== "string" || !HHMM.test(rule.ruheBis)) return INVALID_TIME;
+  if (rule.fensterVon !== undefined && !optionalTime(rule.fensterVon)) return INVALID_TIME;
+  if (rule.fensterBis !== undefined && !optionalTime(rule.fensterBis)) return INVALID_TIME;
+  // Ein halbes Auslöse-Fenster gibt es nicht: der Planer liest es dann als „gar keins" und plant
+  // still über den ganzen Tag — das Gegenteil dessen, was der Schreiber gerade eingestellt hat.
+  if ((rule.fensterVon ? 1 : 0) !== (rule.fensterBis ? 1 : 0)) return INVALID_TIME;
+  // Und dasselbe für ein Fenster, dessen Ende vor dem Anfang liegt. Die Frage stellt der PLANER
+  // selbst (`fixedWindowMinutes` — dieselbe Funktion, die das Fenster später liest), damit hier
+  // keine zweite Definition von „gültiges Fenster" entsteht. Ohne diese Zeile war „12:00–09:00"
+  // eine Regel, die der Träger auf seiner Regel-Seite sah und die der Planer stumm überging —
+  // genau das, wogegen dieses Modul gebaut ist.
+  if (rule.fensterVon && !fixedWindowMinutes({ fensterVon: rule.fensterVon as string, fensterBis: rule.fensterBis as string })) {
+    return TIME_RANGE_INVALID;
   }
+  // Wie bei den Fenstern: `days` darf fehlen (dann alle Tage — die Regel wird dann zum neuen
+  // Normalfall), aber eine Null-Maske wäre eine Ausnahme, die nie greift.
+  if (rule.days !== undefined && !weekdayMaskValid(rule.days)) return INVALID_TIME;
   return null;
 }
 
@@ -119,8 +157,10 @@ export function dayRuleFor(rules: AutoInspectionDayRule[], isoDay: number): Auto
  * Generisch über den Settings-Typ, damit alle übrigen Felder (Anzahl, Fristen, „nur bei Sperre")
  * unangetastet durchgehen und der Dienst seinen eigenen Typ behält.
  */
-export function timesForDay<S extends AutoInspectionDayTimes>(base: S, rulesRaw: unknown, isoDay: number): S {
-  const rule = dayRuleFor(parseAutoInspectionDayRules(rulesRaw), isoDay);
+export function timesForDay<S extends AutoInspectionDayTimes>(
+  base: S, rules: AutoInspectionDayRule[], isoDay: number,
+): S {
+  const rule = dayRuleFor(rules, isoDay);
   if (!rule) return base;
   const { ruheVon, ruheBis, fensterVon, fensterBis } = rule;
   return { ...base, ruheVon, ruheBis, fensterVon, fensterBis };

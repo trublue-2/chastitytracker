@@ -56,6 +56,14 @@ describe("autoInspectionDayRulesProblem — die Schreib-Regel", () => {
       .toEqual({ code: "invalidTime", index: 0 });
   });
 
+  it("ein rückwärts laufendes Auslöse-Fenster wird abgelehnt statt stumm gespeichert", () => {
+    // Der Planer liest „12:00-09:00" als „gar kein Fenster" (`fixedWindowMinutes` → null) und plant
+    // über den ganzen Tag. Die Regel stünde derweil auf der Regel-Seite des Trägers, als gälte sie.
+    expect(autoInspectionDayRulesProblem([regel({ fensterVon: "12:00", fensterBis: "09:00" })]))
+      .toEqual({ code: "timeRangeInvalid", index: 0 });
+    expect(autoInspectionDayRulesProblem([regel({ fensterVon: "09:00", fensterBis: "12:00" })])).toBeNull();
+  });
+
   it("eine Maske, die nie gilt, wird abgelehnt — eine Ausnahme ohne Tag ist keine", () => {
     expect(autoInspectionDayRulesProblem([regel({ days: 0 })])).toEqual({ code: "invalidTime", index: 0 });
   });
@@ -104,7 +112,7 @@ describe("timesForDay", () => {
   it("ohne passende Regel bleibt der Grundstand unangetastet — dasselbe Objekt", () => {
     const base = { ...BASE };
     expect(timesForDay(base, [regel({ days: MO })], 2)).toBe(base);
-    expect(timesForDay(base, null, 2)).toBe(base);
+    expect(timesForDay(base, [], 2)).toBe(base);
   });
 });
 

@@ -89,7 +89,7 @@ export default function OeffnenFormCore({
     : cleaningBlock === "outsideWindow" ? "reinigungHintOutsideWindow"
     : cleaningBlock === "userNotAllowed" ? "reinigungHintNoConfig"
     : null;
-  /** „ Nächstes Reinigungsfenster: …" — EIN Satz für beide Stellen, die ihn anhängen (Hinweistext
+  /** „Nächstes Reinigungsfenster: …" — EIN Satz für beide Stellen, die ihn anhängen (Hinweistext
    *  und Box-Halte-Karte). Der Wochentag steht nur dabei, wenn das Fenster NICHT mehr heute kommt:
    *  „Mo 19:00–20:00" wäre am Montagmittag eine Irreführung. Leerer String = nichts anzuhängen. */
   const nextWindowText = (() => {

@@ -708,6 +708,15 @@ function registerTools(server: McpServer) {
     // AUSSERHALB seines Bereichs und nennt ihn deshalb weiter nur im Text.
     const rangeField = (range: NumberRange, text: string, extra = "") =>
       z.number().int().min(range.min).max(range.max).optional().describe(`${text} (${range.min}–${range.max}).${extra}`);
+    // „An welchen Wochentagen" als ISO-Liste — die Aussenform der Masken aus `weekdays.ts`, viermal
+    // gebraucht (Reinigungs-Fenster, Wiege-Fenster, Plan-Tage, Tages-Ausnahmen). Die Vertrags-Sätze
+    // stehen damit EINMAL: viermal ausgeschrieben widerspricht sich eine Fassung irgendwann der
+    // Prüfung, die `weekdayMaskValid` tatsächlich anstellt.
+    const weekdayDaysField = (what: string) =>
+      z.array(z.number().int().min(1).max(7)).optional().describe(
+        `${what}, ISO numbers (1 = Monday … 7 = Sunday). Omit = every day. ` +
+        "An empty list is rejected: a rule that never applies is not a rule.",
+      );
     // Notifizierende Keyholder-Tools (Lock/Periode/Orgasmus …) → Notify-Versprechen.
     const KEYHOLDER_NOTE = KEYHOLDER_BASE + " The user is notified by e-mail + push.";
     // Tools, die auch auf TERMINIERTE (noch nicht ausgelöste) Direktiven wirken: dort schweigt der
@@ -1055,9 +1064,7 @@ function registerTools(server: McpServer) {
           windows: z.array(z.object({
             start: z.string().describe(`Window start, "HH:MM" in the sub's local time (00:00–23:59).`),
             end: z.string().describe(`Window end, "HH:MM" in the sub's local time, after start (up to "24:00").`),
-            days: z.array(z.number().int().min(1).max(7)).optional().describe(
-              "Weekdays it applies to, ISO numbers (1 = Monday … 7 = Sunday). Omit = every day. An empty list is rejected: a window that never applies is not a rule.",
-            ),
+            days: weekdayDaysField("Weekdays it applies to"),
           })).optional().describe(
             `The complete new list of cleaning windows (max ${CLEANING_WINDOWS_MAX}), replacing the current one. ` +
             `A window cannot cross midnight — split it (e.g. 22:00–24:00 plus 00:00–06:00). ` +
@@ -1098,16 +1105,14 @@ function registerTools(server: McpServer) {
           triggerWindowFrom: z.string().nullable().optional().describe(`Fixed trigger window start, "HH:MM", or null to switch the window off (then triggers spread over the whole waking window). Both ends belong together.`),
           triggerWindowUntil: z.string().nullable().optional().describe(`Fixed trigger window end, "HH:MM" after the start (it cannot cross midnight), or null to switch the window off.`),
           onlyDuringLockPeriod: z.boolean().optional().describe("true = a due inspection is only delivered while an active lock period (SPERRZEIT) runs, otherwise it is withdrawn (never caught up). false = any running lock is enough."),
-          planDays: z.array(z.number().int().min(1).max(7)).optional().describe(
-            "The weekdays on which a daily plan is rolled at all, ISO numbers (1 = Monday … 7 = Sunday). REPLACES the selection. " +
-            "A day left out stays quiet: no planned inspections, and today's pending ones are dropped if you take today out. " +
-            "An empty list is rejected — use active:false to switch the automatic inspections off. " +
-            "The inspection after a cleaning relock is NOT affected: it answers an action of his, not a plan.",
+          planDays: weekdayDaysField(
+            "The weekdays on which a daily plan is rolled at all — REPLACES the selection. A day left out stays quiet: " +
+            "no planned inspections, and today's pending ones are dropped if you take today out. Use active:false to " +
+            "switch them off entirely. The inspection after a cleaning relock is NOT affected: it answers an action of " +
+            "his, not a plan",
           ),
           dayRules: z.array(z.object({
-            days: z.array(z.number().int().min(1).max(7)).optional().describe(
-              "Weekdays this exception applies to, ISO numbers. Omit = every day, which makes it the new base.",
-            ),
+            days: weekdayDaysField("Weekdays this exception applies to (omitting them makes it the new base)"),
             sleepFrom: z.string().describe(`Sleep window start on those days, "HH:MM" in the sub's local time.`),
             sleepUntil: z.string().describe(`Sleep window end on those days, "HH:MM".`),
             triggerWindowFrom: z.string().nullable().optional().describe(`Fixed trigger window start on those days, "HH:MM"; omit or null = no fixed window that day (triggers spread over the whole waking window).`),
@@ -1595,9 +1600,7 @@ function registerTools(server: McpServer) {
             durationMin: z.number().int().describe(
               `How long the window stays open, in minutes (${WEIGHING_WINDOW_DURATION_RANGE.min}–${WEIGHING_WINDOW_DURATION_RANGE.max}). Start + duration must stay within the same day.`,
             ),
-            days: z.array(z.number().int().min(1).max(7)).optional().describe(
-              "Weekdays it applies to, ISO numbers (1 = Monday … 7 = Sunday). Omit = every day. An empty list is rejected: a window that never applies is not a rule.",
-            ),
+            days: weekdayDaysField("Weekdays it applies to"),
             remind: z.boolean().optional().describe(
               "Remind him when this window opens and he has not logged a value that day? Mail and push; he can switch the channel off in his own settings. Default false.",
             ),

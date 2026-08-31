@@ -7,7 +7,7 @@ import Toggle from "@/app/components/Toggle";
 import { TimeField } from "@/app/components/TimeInput";
 import NumberInput from "@/app/components/NumberInput";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
-import { inlineLabelCls as faintCls } from "@/app/components/inputStyles";
+import { editRowCardCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
 import {
   AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   type NumberRange,
@@ -15,8 +15,8 @@ import {
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import WeekdayPicker from "@/app/components/WeekdayPicker";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
+import AddRowButton from "@/app/components/AddRowButton";
 import SettingLabel from "@/app/components/SettingLabel";
-import { Plus } from "lucide-react";
 import { ALL_WEEKDAYS } from "@/lib/weekdays";
 import {
   AUTO_INSPECTION_DAY_RULES_MAX, parseAutoInspectionDayRules, type AutoInspectionDayRule,
@@ -125,20 +125,23 @@ export default function AutoKontrolleToggle({
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const { saving, save } = useUserSettingsSave(userId);
-  const initial: AutoKontrolleForm = {
+  // Lazy: `useState` verwirft das Argument nach dem ersten Rendern ohnehin, und seit die
+  // Tages-Ausnahmen dazugehören steckt darin ein `JSON.parse` — der liefe sonst bei jedem Tastendruck.
+  const makeInitial = (): AutoKontrolleForm => ({
     aktiv: initialAktiv, perDayMin: initialPerDayMin, perDayMax: initialPerDayMax,
     ruheVon: initialRuheVon, ruheBis: initialRuheBis, fristVon: initialFristVon, fristBis: initialFristBis,
     fensterVon: initialFensterVon, fensterBis: initialFensterBis, nurBeiSperre: initialNurBeiSperre,
     days: initialDays, dayRules: parseAutoInspectionDayRules(initialDayRules),
-  };
-  const [form, setForm] = useState(initial);
+  });
+  const [form, setForm] = useState(makeInitial);
   // Der zuletzt vom Server angenommene Stand — Referenz für „geändert?". Ein abgelehnter Patch (z.B.
   // leere Uhrzeit) lässt ihn stehen, das Formular bleibt dirty und der Keyholder kann korrigieren.
-  const [saved, setSaved] = useState(initial);
-  // Über den serialisierten Wert, nicht über `!==`: die Tages-Ausnahmen sind ein Array und wären
-  // sonst immer ungleich sich selbst — das Formular stünde dauerhaft auf „geändert".
-  const dirty = (Object.keys(form) as (keyof AutoKontrolleForm)[])
-    .some((k) => JSON.stringify(form[k]) !== JSON.stringify(saved[k]));
+  const [saved, setSaved] = useState(makeInitial);
+  // Über den serialisierten Wert, nicht über `!==` je Feld: die Tages-Ausnahmen sind ein Array und
+  // wären sonst immer ungleich sich selbst — das Formular stünde dauerhaft auf „geändert". Beide
+  // Objekte entstehen aus demselben Literal und `set()` erhält die Reihenfolge, also genügt EIN
+  // Vergleich statt zwölf.
+  const dirty = JSON.stringify(form) !== JSON.stringify(saved);
 
   function set<K extends keyof AutoKontrolleForm>(key: K, value: AutoKontrolleForm[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -279,7 +282,7 @@ export default function AutoKontrolleToggle({
                 set("dayRules", form.dayRules.map((x, j) => (j === i ? { ...x, ...change } : x)));
               const ruleWindowOn = r.fensterVon !== "" || r.fensterBis !== "";
               return (
-                <div key={i} className="flex flex-col gap-2 rounded-xl border border-border-subtle p-3">
+                <div key={i} className={editRowCardCls}>
                   <div className="flex items-center justify-between gap-2">
                     <WeekdayPicker
                       mask={r.days}
@@ -321,8 +324,9 @@ export default function AutoKontrolleToggle({
               );
             })}
             {form.dayRules.length < AUTO_INSPECTION_DAY_RULES_MAX && (
-              <button
-                type="button"
+              <AddRowButton
+                label={t("autoKontrolleDayRuleAdd")}
+                disabled={saving}
                 onClick={() => set("dayRules", [...form.dayRules, {
                   // Der Grundstand als Ausgangspunkt: die Ausnahme entsteht als Kopie dessen, was
                   // ohnehin gilt, und der Keyholder ändert daran genau das eine, was abweichen soll.
@@ -330,11 +334,7 @@ export default function AutoKontrolleToggle({
                   ruheVon: form.ruheVon, ruheBis: form.ruheBis,
                   fensterVon: form.fensterVon, fensterBis: form.fensterBis,
                 }])}
-                disabled={saving}
-                className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground disabled:opacity-50 w-fit"
-              >
-                <Plus size={14} /> {t("autoKontrolleDayRuleAdd")}
-              </button>
+              />
             )}
           </div>
         </>

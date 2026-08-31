@@ -97,10 +97,20 @@ MCP-Schreibweg wird nicht nachgereicht, sie fällt ja niemandem auf).
 - `get_context.autoInspections`: `planDays` als Kürzel-Zeile, `dayRules` als lesbare Zeilen
   („tue quiet 19:00-06:00 window 08:00-12:00").
 
-Abgelehnt wird mit **Stelle**: `dayRules[1]: The trigger window lies entirely inside the sleep
+Abgelehnt wird mit **Stelle**: `dayRules[1] {…}: The trigger window lies entirely inside the sleep
 window…` — eine Agentin, die fünf Regeln auf einmal setzt, soll nicht raten müssen, welche stört.
 Geprüft wird dabei die umgerechnete Liste, nicht die tolerant geparste: die verwirft eine kaputte
 Zeile still, und der Agent bekäme ein `ok` für eine Ausnahme, die nirgends steht.
+
+`get_context` steigt dabei auf `schemaVersion: 4`. `cleaning.windows` ist nicht mehr zwangsläufig
+täglich, und eine gespeicherte v3-Antwort liesse sich sonst nicht mehr von einer v4 unterscheiden.
+
+**Die Prüfung des GRUNDSTANDS ist bei der Gelegenheit mitgewandert.** Ob ein festes Auslöse-Fenster
+rückwärts läuft oder ganz im Schlaf liegt, fragte bisher nur der MCP — dieselben Uhrzeiten ergaben
+also je nach Weg 200 oder 400, und über das Formular gespeichert übersprang der Planer sie stumm.
+Jetzt fragt der Dienst, den beide Wege passieren; er tut es aber nur, wenn der Patch eines der vier
+Zeit-Felder anfasst, damit eine schon gespeicherte schlechte Kombination nicht auch jede unbeteiligte
+Änderung aussperrt.
 
 ## 7. Bewusst NICHT gebaut
 
@@ -110,3 +120,11 @@ Zeile still, und der Agent bekäme ein `ok` für eine Ausnahme, die nirgends ste
   ein Ereignis — dafür gibt es die Sperrzeit und `withdraw`.
 - **Ausnahmen für die Anzahl pro Tag oder die Fristen.** Sie ersetzen nur die beiden Fenster-Paare.
   Was noch alles tagesabhängig sein könnte, sollte ein zweiter Anlass zeigen, kein erster Entwurf.
+- **Der Zipfel nach Mitternacht gehört dem Vortag.** Reicht das Wach-Fenster über Mitternacht (Schlaf
+  etwa 02:00–08:00 ⇒ wach 08:00–26:00), wird ein Slot um 00:30 am Dienstag noch unter der
+  MONTAGS-Regel geplant — und er kommt auch dann, wenn der Dienstag ein Ruhetag ist. Der Planer plant
+  einen Tag am Stück, und dieser Tag endet nicht um Mitternacht. Den Zipfel abzuschneiden hiesse, das
+  Wach-Fenster mitten in der Nacht zu zerteilen; ihn dem Folgetag zuzuschlagen hiesse, zwei Regeln
+  in einem Plan zu mischen. Beides ist mehr wert als der Fall — der eine ungewöhnliche
+  Schlaf-Fenster-Zuschnitt voraussetzt — kostet. Wer ihn trifft, soll wenigstens hier nachlesen
+  können, dass er gemeint ist.
