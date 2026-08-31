@@ -78,12 +78,17 @@ Drei Workflows, alle `workflow_dispatch` (kein Auto-Deploy bei Push):
 ```bash
 # Erstmalig: Kanal bauen UND die eigene Instanz darauf umpinnen.
 # `pinnedTo` nennt den ALTEN Pin — ohne ihn schlägt der Lauf fehl, siehe unten.
-gh workflow run docker.yml --ref <branch> -f publishAs=design \
-  -f channel=design -f instances=trublue -f pinnedTo=feature
+gh workflow run docker.yml --ref <branch> -f publishAs=<kanal> \
+  -f channel=<kanal> -f instances=trublue -f pinnedTo=feature
 
 # Danach: nur bauen, die gepinnte Instanz zieht mit
-gh workflow run docker.yml --ref <branch> -f publishAs=design
+gh workflow run docker.yml --ref <branch> -f publishAs=<kanal>
 ```
+
+**Zurzeit gibt es keinen Seitenkanal.** `:design` war der einzige und wird seit dem 31.08.2026 nicht
+mehr gebraucht; die beiden Testinstanzen stehen wieder auf `:feature`. Der Mechanismus bleibt hier
+beschrieben, weil er jederzeit wieder taugt — aber wer `publishAs` nimmt, legt damit einen NEUEN
+Kanal an, auf dem erst einmal niemand steht (siehe die Erstbefehl-Falle gleich darunter).
 
 ⚠ **Beim ERSTEN Mal gehört `pinnedTo` dazu, und zwar mit dem ALTEN Pin.** Der Pin-Filter läuft
 *vor* dem Umpinnen — er wählt nach dem Tag, auf dem die Instanz gerade steht, und erst danach
@@ -91,7 +96,7 @@ schreibt `channel` den neuen hinein (`deploy.yml`, „Pin-Filter"). Ohne `pinned
 Workflow den Filter aus den GEBAUTEN Tags ab, also aus dem Kanal, auf dem noch niemand steht:
 
 ```
-→ Pin-Filter :design — 0 von 1 Instanzen betroffen.
+→ Pin-Filter :<kanal> — 0 von 1 Instanzen betroffen.
 ⚠ Keine Instanz passt auf die Auswahl — es wurde NICHTS deployt.
 ```
 
@@ -101,19 +106,26 @@ bewegt die ganze Flotte von einem Ring zum nächsten: `-f channel=portal -f pinn
 *Vorfall 25.08.2026:* zwei Läufe genau daran verbrannt, weil dieser Abschnitt den Erstbefehl ohne
 `pinnedTo` nannte.
 
-⚠️ **Ein Seitenkanal bleibt nicht privat.** `:design` trug beim Anlegen nur die eigene Instanz;
-inzwischen ist eine zweite darauf gepinnt, mit echten Nutzern. Ein Dispatch dorthin startet also
-fremde Produktiv-Instanzen neu und spielt ihnen unfertigen Stand ein — dieselbe Lage wie bei
-`:feature`, nur unauffälliger, weil der Kanal als „für mich allein" gedacht war. Wer wirklich
-wissen will, wen er trifft, fragt die Pins ab statt diese Datei:
+⚠️ **Wer auf einem Kanal steht, sagt NUR der Pin — nicht diese Datei.** Ein Seitenkanal bleibt nicht
+privat: `:design` trug beim Anlegen die eigene Instanz, zeitweise eine zweite mit echten Nutzern,
+und am Ende keine mehr. Jeder Satz darüber, den jemand hier hinschreibt, ist ab dem nächsten
+Umpinnen falsch — und zwar lautlos. Vor einem Dispatch also fragen:
 
 ```bash
 ssh www-data@kink 'grep -h "image:" ~/instances/*/docker-compose.yml | sed "s/.*chastitytracker://" | sort | uniq -c'
 ```
 
+*Vorfall 31.08.2026:* eine Sitzung dispatchte nach `:feature` und `:design`, las hier „inzwischen ist
+eine zweite Instanz darauf gepinnt, mit echten Nutzern" und warnte den Nutzer entsprechend. In
+Wahrheit stand niemand mehr auf `:design`, der Deploy scheiterte an `0 von 23 Instanzen` — die
+Warnung war so falsch wie die Zeile, aus der sie stammte. Die Abfrage oben hätte zwei Sekunden
+gekostet. **Eine Warnung, die zu viel behauptet, wird beim nächsten Mal genauso geglaubt wie diesmal.**
+
 *Vorfall 27.08.2026:* der v6-Umbau nahm der Keyholder-Übersicht die Schnellaktionen für alle
-ruhigen Subs. Gemeldet hat es nicht der Autor, sondern die Keyholderin einer Fremd-Instanz auf
-`:design` — sie brauchte „Kontrolle anfordern" und kam nicht mehr daran.
+ruhigen Subs. Gemeldet hat es nicht der Autor, sondern die Keyholderin einer Fremd-Instanz, die
+damals auf `:design` mittestete — sie brauchte „Kontrolle anfordern" und kam nicht mehr daran. Der
+Kanal ist inzwischen leer, der Lehrsatz nicht: ein Seitenkanal kann Nutzer haben, von denen der
+Autor nichts weiss.
 
 `publishAs` ERSETZT `:feature` für diesen Build — sonst wäre nichts gewonnen. Reservierte Namen (`portal`, `latest`, `feature`, `v*`, `sha-*`) und alles ausserhalb von `[a-z0-9-]` brechen den Lauf ab: ohne diese Schranke veröffentlichte ein beliebiger Zweig direkt nach `:portal` oder `:latest` und höbe damit die einzige Garantie der Ringe auf.
 
