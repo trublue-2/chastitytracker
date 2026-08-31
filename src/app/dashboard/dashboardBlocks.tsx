@@ -268,7 +268,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       // Alternative wäre, den Zustand aus `entries` nachzurechnen und damit eine zweite Fassung
       // derselben Regel zu führen.
       return {
-        cleaning: buildBoxCleaningView(user, entries, activeLockPeriod, now, tz),
+        cleaning: buildBoxCleaningView(user, activeLockPeriod, now, tz),
         wearerLocked: await getIsLocked(userId),
         // Ohne diesen Wert läse die Karte den Reisefall als Versäumnis — Begründung an
         // `latestKeyInBoxCached` und `boxBoltOpenDespiteLocked`. Leitet aus den geladenen Einträgen ab.

@@ -1,38 +1,5 @@
 [
   {
-    "version": "6.0.2",
-    "date": "2026-08-30",
-    "changes": [
-      {
-        "type": "feat",
-        "text": {
-          "de": "Reinigungsfenster gelten jetzt je Wochentag. Sobald überhaupt eines gesetzt ist, ist ein Tag ohne Fenster ein geschlossener Tag.",
-          "en": "Cleaning windows now apply per weekday. Once any window exists, a day without one is a closed day."
-        }
-      },
-      {
-        "type": "feat",
-        "text": {
-          "de": "Automatische Kontrollen kennen Ruhetage und tagesabhängige Schlaf- und Auslöse-Fenster. Die Kontrolle nach einem Wiederverschluss bleibt davon unberührt.",
-          "en": "Automatic inspections now know rest days and per-weekday sleep and trigger windows. The inspection after a relock is unaffected."
-        }
-      }
-    ]
-  },
-  {
-    "version": "6.0.1",
-    "date": "2026-08-30",
-    "changes": [
-      {
-        "type": "feat",
-        "text": {
-          "de": "Der Verschluss kann jetzt am Riegel der Box hängen: die Keyholderin schaltet es je Träger ein, und dein Eintrag ist dann erst der Aufruf — verschlossen bist du, sobald die Box „Riegel zu“ meldet.",
-          "en": "A lock can now hang on the box's bolt: your keyholder enables it per wearer, and your entry is then only the call — you are locked once the box reports the bolt shut."
-        }
-      }
-    ]
-  },
-  {
     "version": "6.0.0",
     "date": "2026-08-27",
     "changes": [
@@ -111,6 +78,27 @@
         "text": {
           "de": "„Verschluss anfordern“ geht auch ohne hinterlegte E-Mail-Adresse — der Sub sieht die Anforderung im Posteingang und auf dem Dashboard. Und die Schnellaktionen stehen in der Keyholder-Übersicht wieder bei jedem Sub.",
           "en": "“Request lock” works without a stored e-mail address — the sub sees the request in the inbox and on the dashboard. And the quick actions are back on every sub in the keyholder overview."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Verschluss kann jetzt am Riegel der Box hängen: die Keyholderin schaltet es je Träger ein, und dein Eintrag ist dann erst der Aufruf — verschlossen bist du, sobald die Box „Riegel zu“ meldet.",
+          "en": "A lock can now hang on the box's bolt: your keyholder enables it per wearer, and your entry is then only the call — you are locked once the box reports the bolt shut."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Reinigungsfenster gelten jetzt je Wochentag. Sobald überhaupt eines gesetzt ist, ist ein Tag ohne Fenster ein geschlossener Tag.",
+          "en": "Cleaning windows now apply per weekday. Once any window exists, a day without one is a closed day."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Automatische Kontrollen kennen Ruhetage und tagesabhängige Schlaf- und Auslöse-Fenster. Die Kontrolle nach einem Wiederverschluss bleibt davon unberührt.",
+          "en": "Automatic inspections now know rest days and per-weekday sleep and trigger windows. The inspection after a relock is unaffected."
         }
       }
     ]

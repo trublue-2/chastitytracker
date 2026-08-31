@@ -3,7 +3,6 @@
 // beim Aufrufer (Labels via übergebenem `t`).
 
 import type { CleaningView } from "@/lib/cleaningService";
-import type { CleaningBlockReason } from "@/lib/queries";
 
 export type BoxRow = {
   boxId: string;
@@ -41,15 +40,32 @@ export type BoxRow = {
   fwVersion: string | null;
 };
 
-/** Reinigungs-Regeln des Subs: die `CleaningView` des Servers plus das nächste Fenster.
- *  Nicht neu deklariert — sonst müsste ein neues Feld in `buildCleaningView` hier von Hand
- *  nachgezogen werden und die Karte läse still `undefined`. `import type` wird zur Laufzeit
- *  gelöscht, zieht also kein Prisma in dieses client-sichere Modul. */
-export type BoxCleaningView = CleaningView & {
-  /** Das Live-Urteil des Servers (`cleaningBlockReason`), inklusive der AKTIVEN Sperrzeit. `allowed`
-   *  allein kennt sie nicht — deshalb versprach die Karte Fenster, die eine reinigungsverbietende
-   *  Sperre längst gesperrt hatte. */
-  blockedBy: CleaningBlockReason | null;
+/**
+ * Was die Box-Karte von der Reinigung WIRKLICH liest — zwei Werte, mehr nicht.
+ *
+ * Vorher war das die ganze `CleaningView` (Kontingent, Höchstdauer, heute verbraucht, die
+ * Fensterliste). Gelesen hat davon nie etwas: die Karte zeigt genau eine Zeile, und die braucht
+ * „bindet gerade" und „bis wann offen". Das Kontingent kostete dabei je Aufbau einen Durchlauf
+ * durch ALLE Einträge des Subs — auf zwei Dashboards, für eine Zahl, die niemand anzeigt. Dieselbe
+ * Begründung, aus der `nextWindow` hier schon herausgefallen ist.
+ *
+ * Wer die vollen Regeln braucht, findet sie auf `/dashboard/regeln` und in `get_context.cleaning`.
+ */
+export type BoxCleaningView = {
+  /** Das gerade offene Fenster (`until` = sein Ende „HH:MM"), sonst null. */
+  windowOpenNow: CleaningView["windowOpenNow"];
+  /**
+   * BINDEN die Fenster gerade überhaupt? Aus `cleaningWindowBindingStatus`, der einen Quelle dieser
+   * Frage — sie kennt als einzige die AKTIVE Sperrzeit.
+   *
+   * Zwei Fehler stecken in diesem einen Feld, beide waren einmal auf der Karte zu sehen. Der erste:
+   * `allowed` allein weiss nichts von der Sperrzeit, also versprach die Karte Fenster, die eine
+   * reinigungsverbietende Sperre längst gesperrt hatte. Der zweite: OHNE Sperrzeit binden die Fenster
+   * gar nicht — eine Reinigungsöffnung ist dann jederzeit erlaubt —, und „Reinigungsfenster offen bis
+   * 20:00" behauptete eine Schranke, die es nicht gab. Beide Male hiess die Frage in Wahrheit
+   * „schränkt gerade etwas ein", nicht „ist gerade ein Fenster offen".
+   */
+  windowsBinding: boolean;
 };
 
 export type Translate = (key: string, values?: Record<string, string | number>) => string;
@@ -62,7 +78,7 @@ export function toPendingCommand(raw: string | null | undefined): "lock" | "open
 }
 
 /**
- * Das gerade OFFENE Reinigungsfenster — und nur das.
+ * Das gerade OFFENE und BINDENDE Reinigungsfenster — und nur das.
  *
  * Es ist das einzige Stück aus der Reinigungs-Familie, das ins Dauerbild der Box gehört: eine
  * Gelegenheit mit ABLAUF. Das nächste Fenster ist ein Kalendereintrag, das Kontingent eine Regel,
@@ -72,9 +88,18 @@ export function toPendingCommand(raw: string | null | undefined): "lock" | "open
  *
  * Die Vorgängerin beantwortete alle vier Fälle in einem Rückgabewert und zwang die Karte damit,
  * dauerhaft eine Zeile dafür freizuhalten — auch für „es gibt keine Fenster".
+ *
+ * **Ohne laufende Sperrzeit schweigt sie.** Die Fenster binden dann nicht, und eine Gelegenheit mit
+ * Ablauf anzuzeigen, die keine ist, wäre eine erfundene Schranke. Die Regel dazu steht NICHT in
+ * `cleaningBlockReason` — die kennt gar keine Sperrzeiten und liest eine leere Liste als „alle
+ * erlauben es". Sie steht in jedem Aufrufer einzeln, als dessen `if (!lockPeriod)`-Ausgang, und für
+ * diese Frage in `cleaningWindowBindingStatus` (`queries.ts`), das die Karte deshalb befragt.
  */
 export function boxCleaningWindowOpenLabel(r: BoxCleaningView | null, t: Translate): string | null {
-  if (!r?.allowed || r.blockedBy) return null;
+  // EINE Frage statt dreier: `windowsBinding` ist bereits falsch, wenn der Träger gar nicht reinigen
+  // darf, wenn die laufende Sperrzeit es verbietet, wenn keine Fenster gesetzt sind — und wenn keine
+  // Sperrzeit läuft. Bleibt es wahr, entscheidet allein die Uhr.
+  if (!r?.windowsBinding) return null;
   return r.windowOpenNow ? t("cleaningWindowOpen", { until: r.windowOpenNow.until }) : null;
 }
 

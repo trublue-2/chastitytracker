@@ -104,7 +104,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
         userRowCached(ctx.subjectId), entriesCached(ctx.subjectId), effectiveLockPeriod(ctx),
       ]);
       return {
-        cleaning: buildBoxCleaningView(user, entries, lockPeriod, ctx.now, ctx.subjectTz),
+        cleaning: buildBoxCleaningView(user, lockPeriod, ctx.now, ctx.subjectTz),
         // Siehe `dashboardBlocks`: ohne den Träger-Zustand liesse sich „Riegel zu, obwohl niemand
         // verschlossen ist" nicht vom Normalfall unterscheiden.
         wearerLocked: await getIsLocked(ctx.subjectId),

@@ -121,7 +121,10 @@ export default function BoxStatusCard({ cleaning, userId, wearerLocked = true, k
   // aus, Funkstille, knapper Akku. Damit löst sich der Rang-Konflikt von selbst, den der Docblock
   // oben beschreibt: der Block ist keine Auskunft mehr, die lauter wäre als eine offene Frist.
   //
-  // Das offene Reinigungsfenster zählt mit: es läuft ab, ist also auch ein Ereignis.
+  // Das offene Reinigungsfenster zählt mit: es läuft ab, ist also auch ein Ereignis — aber nur,
+  // solange es BINDET (`boxCleaningWindowOpenLabel`). Ohne laufende Sperrzeit darf der Träger
+  // ohnehin jederzeit reinigen; ein Fenster ist dann kein Ereignis, sondern eine Einstellung, und
+  // die liess den Block im Ruhefall wieder dauerhaft dastehen.
   if (!semantic && !windowOpen && !hasQuietWarning && !hasUnexplainedHold) return null;
 
   return (
