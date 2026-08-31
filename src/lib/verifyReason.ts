@@ -9,9 +9,10 @@
  *  the user's language like the rest of the app. `*Wrong` carries the detected number.
  *
  *  `checkUnreliable` is the odd one out: it says nothing about the PHOTO, only about the check. The
- *  decoy probe (see `decoyEcho` in `verifyCode.ts`) caught the model confirming a number that isn't
- *  in the image at all, so its "found it" is worthless — the positive one first. Hence its own code
- *  rather than `codeMissing`: what is unknown here is the verdict, not the photo.
+ *  blind counter-read (see `blindReadContradicts` in `verifyCode.ts`) asked for the same number a
+ *  second time WITHOUT naming it, and the model did not reproduce it — so its first "found it",
+ *  made while the answer stood in the question, is worthless. Hence its own code rather than
+ *  `codeMissing`: what is unknown here is the verdict, not the photo.
  *
  *  Deliberately a REASON and not the `error` channel of `VerifyDetailedResult`, even though it is
  *  the check that failed: both readers of that column need a non-null reason to move on. A task

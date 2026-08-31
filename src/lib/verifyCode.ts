@@ -7,11 +7,10 @@ import { IMAGE_MEDIA_TYPES, type ImageData } from "@/lib/imageUtils";
 import { visionComplete, visionConfigured, visionProvider } from "@/lib/vision";
 import { parseJsonObject } from "@/lib/vision/parse";
 import { localReadDigits } from "@/lib/ocr";
-import { randomInt } from "@/lib/utils";
 
 /** Beschreibung der zulaessigen Code-Quellen — wird in beiden Vision-Prompts verwendet
  *  damit Vokabular nicht zwischen verifyKontrolleCodeDetailed und detectSealNumber driftet. */
-const SEAL_VOCAB = `plastic security seal or numbered tag (e.g. coloured strip — yellow, red, blue, white — with a round locking head, a barcode and digits; often used to seal chastity devices). The seal may appear in any orientation — upside down, sideways or angled — read it as it would read when held upright. Preserve any leading zeros.`;
+export const SEAL_VOCAB = `plastic security seal or numbered tag (e.g. coloured strip — yellow, red, blue, white — with a round locking head, a barcode and digits; often used to seal chastity devices). The seal may appear in any orientation — upside down, sideways or angled — read it as it would read when held upright. Preserve any leading zeros.`;
 
 /** Der Kontroll-Code darf auch von einem BILDSCHIRM abgelesen werden: die Push-Meldung trägt ihn
  *  im Text (`kontrolleService`), eine gespiegelte Benachrichtigung auf der Smartwatch zeigt ihn
@@ -35,13 +34,35 @@ const HANDWRITING_NOTE = [
   `a two has a curved top ending in a flat horizontal base.`,
 ].join("\n");
 
+/**
+ * WORAUF der Kontroll-Code stehen kann — geteilt vom geführten und vom blinden Prompt.
+ *
+ * Die Liste hing zweimal im Modul und war beim zweiten Mal bereits unvollständig: der blinden
+ * Lesung fehlte das SIEGEL als Träger. Bei einer Legacy-Kontrolle (Siegel == Code, aus der Zeit vor
+ * der Zufallscode-Umstellung) ist der Code aber genau dort aufgedruckt — die geführte Lesung fand
+ * ihn, die blinde bekam „ignoriere andere Zahlen" zu hören und widersprach. Eine korrekte Kontrolle
+ * wäre als `checkUnreliable` gelandet, aus einem Grund, der mit Echo nichts zu tun hat.
+ *
+ * `sealIsOther` unterscheidet die zwei Lagen: liegt eine EIGENE Siegel-Nummer im Bild (Dual-Prüfung),
+ * ist das Siegel kein Träger des Codes, sondern die andere Zahl. Sonst darf der Code auch von dort
+ * kommen.
+ */
+function codeCarrierLines(sealIsOther: boolean): string[] {
+  return [
+    `• handwritten on a slip of paper or card,`,
+    `• printed/typed on a tag, sticker or label,`,
+    sealIsOther ? `• ${SCREEN_VOCAB}.` : `• ${SCREEN_VOCAB},`,
+    ...(sealIsOther ? [] : [`• printed on a ${SEAL_VOCAB}`]),
+  ];
+}
+
 /** „Genau N Ziffern, sonst null" — die einzige Stelle, an der die erwartete Stellenzahl im Prompt
  *  steht (in BEIDEN Modi gleich formuliert, damit derselbe handgeschriebene Code nicht je nach
  *  aktivem Siegel unterschiedlich stark eingeschärft wird). Ohne diese Angabe hat das Modell keinen
  *  Anhaltspunkt, wie viele Ziffern zusammengehören, und meldet regelmässig eine zu viel oder zu
  *  wenig (Nutzer-Rückmeldung 07/2026: „erkennt einen 6-stelligen Code, obwohl er 5-stellig ist").
  *  Der Prompt-Hinweis SENKT die Fehl-Lesungen; die Garantie ist das Gate in `evaluateDetected`. */
-function digitCountNote(what: string, len: number): string {
+export function digitCountNote(what: string, len: number): string {
   return `The ${what} has exactly ${len} digits — report null rather than guessing if you cannot read exactly ${len} digits.`;
 }
 
@@ -55,10 +76,7 @@ function buildVerifyPrompt(expectedCode: string, effectiveSeal: string | null): 
     return [
       `Look for the specific number ${expectedCode} in this image. Only this number matters — ignore other numbers, barcodes, prices, or device serials that may also be visible.`,
       `The target number may appear in any of these forms:`,
-      `• handwritten on a slip of paper or card,`,
-      `• printed/typed on a tag, sticker or label,`,
-      `• ${SCREEN_VOCAB},`,
-      `• printed on a ${SEAL_VOCAB}`,
+      ...codeCarrierLines(false),
       HANDWRITING_NOTE,
       digitCountNote("target number", expectedCode.length),
       `Reply with JSON only: {"detected": "<the target number if you found it, else null>", "match": true if the number matches ${expectedCode} else false}.`,
@@ -78,6 +96,52 @@ function buildVerifyPrompt(expectedCode: string, effectiveSeal: string | null): 
     `The two numbers are separate — never merge digits from one into the other.`,
     `Reply with JSON only: {"detectedCode": "<the control code you found, else null>", "matchCode": true if it matches ${expectedCode} else false, "detectedSeal": "<the seal number you found, else null>", "matchSeal": true if it matches ${effectiveSeal} else false}.`,
     `If you find different numbers than expected, set the detected fields to those other numbers and the match fields to false.`,
+  ].join("\n");
+}
+
+/**
+ * Der BLINDE Lese-Prompt: dieselben Zahlen, aber ohne sie zu nennen.
+ *
+ * `buildVerifyPrompt` nennt dem Modell die gesuchten Werte — es braucht sie, um unter Barcode,
+ * Siegel und Preisschild die richtige Zahl zu finden. Damit steht die erwartete Antwort aber in der
+ * Frage, und ein Modell, das nicht liest, schreibt sie ab (Vorfall 29.08.2026, Issue #102). Hier
+ * steht sie nicht: gefragt ist eine LESUNG, verglichen wird server-seitig in {@link evaluateDetected}.
+ *
+ * Ohne die Werte muss die Beschreibung die Zahlen eingrenzen. Das geht, weil der Unterschied
+ * zwischen ihnen STRUKTURELL ist und nicht im Wert liegt: der Code steht auf Zettel, Etikett oder
+ * Bildschirm, die Siegel-Nummer auf dem Siegel selbst. Dazu je die Stellenzahl.
+ *
+ * **Bei aktivem Siegel werden BEIDE blind gelesen.** Sonst bliebe genau die Zahl ungeprüft, die am
+ * strengsten behandelt wird (exakter Vergleich, keine Fuzzy-Toleranz — sie ist der Manipulations-
+ * Nachweis): ein Modell, das den handgeschriebenen Code wirklich liest und die Siegel-Nummer nur
+ * abschreibt, käme sonst durch.
+ *
+ * Bewusst dieselben Handschrift-Hinweise und dieselbe Aufgeben-Ermahnung wie der geführte Prompt —
+ * nicht mehr davon. Ein `null` zählt hier als Widerspruch; wäre die blinde Frage null-freudiger
+ * formuliert, verwürfe sie marginale, aber korrekte Fotos aus einem Grund, der mit Echo nichts zu
+ * tun hat.
+ */
+export function buildBlindReadPrompt(codeLen: number, sealLen: number | null): string {
+  const dual = sealLen !== null;
+  return [
+    dual
+      ? `Read TWO numbers in this image and report the digits you actually see.`
+      : `Read the control code in this image and report the digits you actually see.`,
+    `The control code may appear in any of these forms:`,
+    ...codeCarrierLines(dual),
+    ...(dual
+      ? [
+          `The seal number is printed on the ${SEAL_VOCAB}`,
+          `Read the seal number from the physical seal itself — a number shown on a screen or written by hand is not a seal number.`,
+          `The two numbers are separate — never merge digits from one into the other.`,
+        ]
+      : [`Ignore barcodes, prices and device serials that may also be visible.`]),
+    HANDWRITING_NOTE,
+    digitCountNote("control code", codeLen),
+    ...(dual ? [digitCountNote("seal number", sealLen)] : []),
+    dual
+      ? `Reply with JSON only: {"detected": "<the control code digits you read, else null>", "detectedSeal": "<the seal number digits you read, else null>"}.`
+      : `Reply with JSON only: {"detected": "<the digits you read, else null>"}.`,
   ].join("\n");
 }
 
@@ -102,6 +166,10 @@ function normalizeDetected(raw: unknown): string | null {
  *  NICHT für die ENTDECKUNG einer unbekannten Nummer verwenden (Siegel/Zahlenschloss) — dort gibt
  *  es keinen Abgleich, der eine Fehl-Extraktion auffangen würde. Dafür `sealDigitsFromReply`. */
 function digitsOf(raw: unknown): string {
+  // Auch eine ZAHL zählt: lokale Modelle (Ollama) liefern `{"detected": 12345}` statt eines
+  // Strings. Das ist eine Lesung, keine Nicht-Antwort — sie zu verwerfen hiess, dem Modell seine
+  // richtige Auskunft wegen des JSON-Typs abzusprechen.
+  if (typeof raw === "number" && Number.isFinite(raw)) return String(raw).replace(/\D/g, "");
   return typeof raw === "string" ? raw.replace(/\D/g, "") : "";
 }
 
@@ -184,8 +252,8 @@ function isConfusable(x: string, y: string): boolean {
 }
 
 /** Ziffernweiser Vergleich mit Toleranz für die klassischen Handschrift-Verwechslungen. Exportiert
- *  für Tests (wie `evaluateVerifyResponse`) — die Köder-Gegenprobe hängt daran, dass ihr Köder dem
- *  echten Code auch unter DIESER Toleranz nicht gleicht, und das gehört gepinnt.
+ *  für Tests (wie `evaluateVerifyResponse`) — die blinde Gegenlesung urteilt mit derselben Toleranz
+ *  wie die geführte, und dass die beiden nicht auseinanderlaufen, gehört gepinnt.
  *  Vorbedingung: gleich lange Ziffernfolgen — die `every`-Schleife allein würde ein kürzeres `a`
  *  als Präfix-Treffer durchgehen lassen, deshalb bleibt der Längen-Guard hier stehen, auch wenn
  *  der einzige Aufrufer die Länge bereits geprüft hat. */
@@ -305,25 +373,24 @@ type CodeVisionRead =
   | { kind: "policy" }
   | { kind: "unusable" };
 
-/** Eine Anfrage an das Code-Prompt samt Antwort-Parsing. Geteilt von der eigentlichen Prüfung und
- *  der Köder-Gegenprobe: beide schicken dasselbe Prompt-Format an dasselbe Bild und müssen die
- *  Antwort identisch lesen — läse die Gegenprobe anders, prüfte sie etwas anderes als die Prüfung.
- *  `tag` trennt die beiden im Log (`verify:` bzw. `decoy:`). */
+/** Eine Anfrage ans Vision-Modell samt Antwort-Parsing. Geteilt von der geführten Prüfung und der
+ *  blinden Gegenlesung: die Prompts unterscheiden sich (das ist der Punkt), das Lesen der Antwort
+ *  darf es nicht — sonst prüfte die Gegenlesung etwas anderes als die Prüfung. Policy-Erkennung,
+ *  JSON-Extraktion und Protokoll liegen deshalb hier, der Prompt kommt vom Aufrufer.
+ *  `tag` trennt die beiden im Log (`verify:` bzw. `blind:`). */
 async function askCodeVision(
   img: ImageData,
-  expectedCode: string,
-  sealCode: string | null,
-  tag: "verify" | "decoy",
+  prompt: string,
+  /** Nur fürs Token-Budget: die Dual-Antwort trägt zwei Zahlen. */
+  dual: boolean,
+  tag: "verify" | "blind",
 ): Promise<CodeVisionRead> {
   const response = await visionComplete({
     task: "code-verify",
-    // Prompt-Form und Token-Budget hängen zusammen (die Dual-Antwort trägt zwei Zahlen) und werden
-    // deshalb hier gemeinsam abgeleitet — nicht an den Aufrufstellen, wo sie auseinanderlaufen und
-    // die Gegenprobe still etwas anderes fragen würden als die Prüfung.
-    maxTokens: sealCode ? 200 : 150,
+    maxTokens: dual ? 200 : 150,
     content: [
       { type: "image", mediaType: img.mediaType, base64: img.base64 },
-      { type: "text", text: buildVerifyPrompt(expectedCode, sealCode) },
+      { type: "text", text: prompt },
     ],
   });
   const text = response.text;
@@ -347,67 +414,86 @@ async function askCodeVision(
   return { kind: "json", parsed };
 }
 
-/** Eine Zufallszahl der geforderten Länge, die weder dem erwarteten Code noch der Siegel-Nummer
- *  gleicht — auch nicht unter der Fuzzy-Toleranz. Ohne diesen Abstand könnte eine ECHTE Lesung als
- *  Echo zählen und eine korrekte Kontrolle verwerfen. `null`, wenn sich in den Versuchen keine
- *  passende Zahl fand (praktisch unerreichbar; die Gegenprobe entfällt dann, statt zu raten). */
-function decoyCodeFor(expected: string, sealCode: string | null): string | null {
-  for (let i = 0; i < 20; i++) {
-    const candidate = Array.from({ length: expected.length }, () => String(randomInt(0, 9))).join("");
-    if (fuzzyMatch(candidate, expected)) continue;
-    if (sealCode && fuzzyMatch(candidate, sealCode)) continue;
-    return candidate;
-  }
-  return null;
-}
-
 /**
- * Die KÖDER-GEGENPROBE: dieselbe Frage noch einmal, aber nach einer Zahl, die es nicht gibt.
+ * Die BLINDE GEGENLESUNG: dieselbe Zahl noch einmal, aber ohne sie im Prompt zu nennen.
  *
- * Der Prompt nennt dem Modell den gesuchten Code — er muss es, sonst fände es unter den anderen
- * Zahlen im Bild (Barcode, Siegel, Preisschild) nicht die richtige. Damit steht die erwartete
- * Antwort aber in der Frage, und ein Modell, das nicht lesen kann, schreibt sie ab. Ein solches
- * Echo ist von einer echten Lesung nicht zu unterscheiden: gleiche Ziffern, gleiche Länge, `match`
- * true. Das Stellenzahl-Gate und der Server-Vergleich in {@link evaluateDetected} greifen nicht —
- * sie prüfen, OB die Ziffern stimmen, nicht, ob sie gelesen wurden.
+ * Der geführte Prompt muss den Code nennen, sonst fände das Modell unter Barcode, Siegel und
+ * Preisschild nicht die richtige Zahl. Damit steht die erwartete Antwort aber in der Frage, und ein
+ * Modell, das nicht liest, schreibt sie ab. Ein solches Echo ist von einer echten Lesung nicht zu
+ * unterscheiden: gleiche Ziffern, gleiche Länge, `match` true. Das Stellenzahl-Gate und der
+ * Server-Vergleich in {@link evaluateDetected} greifen nicht — sie prüfen, OB die Ziffern stimmen,
+ * nicht, ob sie gelesen wurden.
  *
- * Unterscheidbar wird es erst durch eine zweite Frage, deren richtige Antwort „nichts gefunden"
- * ist. Bestätigt das Modell auch die erfundene Zahl, bestätigt es alles — dann ist sein Urteil über
- * den echten Code wertlos, und zwar gerade dann, wenn es positiv ausfiel.
+ * Unterscheidbar wird es durch eine Frage, in der die Antwort nicht steht. Liest das Modell
+ * dieselbe Zahl auch blind, hat es sie wirklich gelesen. Liest es etwas anderes oder nichts, war
+ * die geführte Lesung ein Echo — und ihr Urteil wertlos, gerade weil es positiv ausfiel.
  *
  * *Vorfall 29.08.2026:* eine Kontrolle ohne jeden Code im Foto galt als geprüft. Die Nachmessung an
  * neun Fotos: bei dreien bestätigte das Modell eine frei erfundene Zahl — reproduzierbar.
  *
- * Läuft NUR nach einem Treffer: ein Nicht-Treffer ist bereits das strenge Ergebnis, und die
- * Gegenprobe kostet einen zweiten Vision-Aufruf. Bewusst immer in der EINZEL-Form (ohne Siegel):
- * geprüft wird die Eigenschaft „bestätigt Zahlen, die im Prompt stehen" — die hängt am Modell und
- * am Bild, nicht daran, welches Feld gerade gefragt ist.
+ * **Warum diese Fassung und nicht die Köder-Gegenprobe, die hier stand.** Der Köder fragte nach
+ * einer erfundenen Zahl und verwarf den Treffer, wenn das Modell auch die bestätigte. Das prüft
+ * „bestätigt alles", die blinde Lesung prüft „kann DIESE Zahl lesen" — die schärfere Frage, denn
+ * ein Modell kann wählerisch genug sein, den Köder abzulehnen, und trotzdem nur abgeschrieben
+ * haben. Beide kosten denselben zweiten Vision-Aufruf.
  *
- * Kann die Gegenprobe nichts sagen (keine Antwort, Policy-Block), bleibt der Treffer stehen: das
- * ist der Stand von vorher, und ein stummer Fehlschlag darf nicht jede Kontrolle verwerfen. Ein
- * Träger kann ihn ohnehin nicht auslösen.
+ * Läuft NUR nach einem Treffer: ein Nicht-Treffer ist bereits das strenge Ergebnis.
+ *
+ * Kann die Gegenlesung nichts sagen (keine Antwort, Policy-Block, Zeitüberschreitung), bleibt der
+ * Treffer stehen — das ist der Stand von vorher, und ein stummer Fehlschlag darf nicht jede
+ * Kontrolle verwerfen. Ein Träger kann ihn ohnehin nicht auslösen. „Nichts gelesen" ist dagegen
+ * eine ANTWORT und zählt als Widerspruch: genau so verhält sich ein Echo, dem man nichts vorsagt.
  */
-async function decoyEcho(img: ImageData, expectedCode: string, sealCode: string | null): Promise<boolean> {
-  const decoy = decoyCodeFor(expectedCode, sealCode);
-  if (!decoy) {
-    vlog("decoy:no_candidate", { codeLen: expectedCode.length });
-    return false;
-  }
-  // Eigenes try/catch, NICHT das der Hauptprüfung: dort landete ein Timeout der Box als Fehlschlag
-  // der ganzen Verifikation (→ `null`, also „nicht geprüft" ohne Grund) und entwertete damit einen
-  // Treffer, der längst vorlag. Die Gegenprobe kann nur BELASTEN, nie zum Fehlschlag führen.
+async function blindReadContradicts(
+  img: ImageData,
+  expectedCode: string,
+  sealCode: string | null,
+): Promise<boolean> {
+  // Eigenes try/catch, NICHT das der Hauptprüfung: dort landete ein Timeout als Fehlschlag der
+  // ganzen Verifikation (→ `null`, „nicht geprüft" ohne Grund) und entwertete einen Treffer, der
+  // längst vorlag. Die Gegenlesung kann nur BELASTEN, nie zum Fehlschlag führen.
   let read: CodeVisionRead;
   try {
-    read = await askCodeVision(img, decoy, null, "decoy");
+    const prompt = buildBlindReadPrompt(expectedCode.length, sealCode ? sealCode.length : null);
+    read = await askCodeVision(img, prompt, !!sealCode, "blind");
   } catch (e) {
-    vlog("decoy:exception", { message: (e as Error).message });
+    vlog("blind:exception", { message: (e as Error).message });
     return false;
   }
-  // Keine verwertbare Antwort → keine Aussage; den Ausgang hat `askCodeVision` bereits geloggt.
-  if (read.kind !== "json") return false;
-  const probe = evaluateVerifyResponse(read.parsed, decoy, null);
-  vlog("decoy:result", { echoed: probe.match, rawLen: probe.rawLen ?? 0, hasDetected: probe.detected !== null });
-  return probe.match;
+  if (read.kind !== "json") return false; // keine Aussage; den Ausgang hat `askCodeVision` geloggt
+
+  // **Hat das Modell unsere Frage überhaupt beantwortet?** Ein FEHLENDES Feld ist keine Aussage,
+  // sondern eine unbrauchbare Antwortform (`{"code": …}`, ein verschachteltes Objekt, ein Modell,
+  // das die Feldnamen erfindet) — die fällt unter fail-open wie ein Timeout. Ein VORHANDENES
+  // `detected: null` ist dagegen eine Antwort: „nichts lesbar", und genau so verhält sich ein Echo,
+  // dem man nichts vorsagt. Ohne diese Unterscheidung verwarf jede krumme Antwortform still einen
+  // gültigen Treffer.
+  if (!("detected" in read.parsed)) {
+    vlog("blind:no_field", { keys: Object.keys(read.parsed).join(",") });
+    return false;
+  }
+
+  // Dieselbe Toleranz wie die geführte Lesung: die Verwechslung 1/7 hängt am Bild, nicht am Prompt.
+  // (`modelMatch` gibt es blind nicht — die Antwort trägt kein `match`-Feld. Damit ist `overridden`
+  // hier bedeutungslos und wird nicht gelesen.)
+  const code = evaluateDetected(read.parsed.detected, undefined, expectedCode);
+  if (!code.match) {
+    vlog("blind:code_disagrees", { rawLen: code.rawLen, hasDetected: code.detected !== null });
+    return true;
+  }
+  if (!sealCode) {
+    vlog("blind:result", { agrees: true, rawLen: code.rawLen });
+    return false;
+  }
+
+  // Die Siegel-Nummer ist gedruckt → exakt, ohne Fuzzy, wie in der geführten Prüfung.
+  if (!("detectedSeal" in read.parsed)) {
+    vlog("blind:no_seal_field", { keys: Object.keys(read.parsed).join(",") });
+    return false;
+  }
+  const seal = evaluateDetected(read.parsed.detectedSeal, undefined, sealCode, false);
+  vlog("blind:result", { agrees: seal.match, rawLen: code.rawLen, sealRawLen: seal.rawLen });
+  return !seal.match;
 }
 
 export async function verifyKontrolleCodeDetailed(
@@ -434,7 +520,7 @@ export async function verifyKontrolleCodeDetailed(
     }
 
     vlog("verify:vision_call", { codeLen, mediaType: img.mediaType, rotation, sealChecked: !!effectiveSeal });
-    const read = await askCodeVision(img, expectedCode, effectiveSeal, "verify");
+    const read = await askCodeVision(img, buildVerifyPrompt(expectedCode, effectiveSeal), !!effectiveSeal, "verify");
     if (read.kind === "policy") return { detected: null, match: false, reason: null, error: "policy" };
     if (read.kind === "unusable") return { detected: null, match: false, reason: null };
 
@@ -456,11 +542,11 @@ export async function verifyKontrolleCodeDetailed(
       hasSealDetected: result.sealDetected != null,
       reason: result.reason,
     });
-    // Nur ein Treffer wird gegengeprobt — warum, steht an `decoyEcho`.
-    if (result.match && await decoyEcho(img, expectedCode, effectiveSeal)) {
+    // Nur ein Treffer wird gegengelesen — warum, steht an `blindReadContradicts`.
+    if (result.match && await blindReadContradicts(img, expectedCode, effectiveSeal)) {
       // Jede Behauptung des Modells über gelesene Zahlen fällt mit: sie ist genau das, was die
-      // Gegenprobe soeben widerlegt hat. Die Stellenzahlen (`rawLen`) bleiben — sie sind Beobachtung,
-      // keine Behauptung.
+      // Gegenlesung soeben nicht bestätigen konnte. Die Stellenzahlen (`rawLen`) bleiben — sie sind
+      // Beobachtung, keine Behauptung.
       //
       // `sealMatch` bleibt UNGESETZT statt `false`: „kein Urteil" ist nicht „Siegel falsch". Das
       // Formular liest `sealMatch === false` als Siegel-Fehlschlag und zeigte sonst die Karte
