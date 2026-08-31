@@ -137,14 +137,30 @@ export const formColCls = "w-full max-w-2xl mx-auto";
 export const listRowCls = `${blockInsetCls} py-2.5 flex items-center gap-3`;
 
 /**
- * Die Zeit-Spalte, die eine Verlaufs-Zeile anführt.
+ * Die Spalte, die eine Verlaufs-Zeile anführt — Uhrzeit oder Datum, je nach Liste.
  *
- * Feste Breite, damit die Arten darunter auf einer Kante stehen — und geteilt von `EntryRow` und
- * `WeightRow` aus demselben Grund wie `listRowCls` selbst: die beiden stehen in der Eintragsliste
- * der Keyholderin chronologisch gemischt untereinander. Zwei Zeitspalten, die um zwei Pixel
- * auseinanderliegen, sieht man nicht in der Zeile, sondern als Zittern in der Kolonne.
+ * `min-w`, nicht `w`. Die feste Breite von 44 px war auf „07:40" bemessen und hielt genau einen
+ * Fall aus; zwei andere liefen aus ihr heraus, ohne dass etwas sie aufhielt (kein `overflow-hidden`
+ * in `listRowCls`, kein Umbruchverbot hier):
+ *
+ * - **„31.08.2026, 05:40"** — eine Liste ohne Tages-Gruppierung zeigt das volle Datum. Zehn Ziffern
+ *   brauchen bei 12 px rund 72 px; die Zeile stiess ins Zeichen daneben (gemeldet 31.08.2026).
+ * - **„07:40 AM"** — `formatTime` setzt kein `hour12: false`, also bekommt `en-US` den Zusatz. Rund
+ *   53 px, und weil ein Leerzeichen drin ist, brach die Spalte in ZWEI Zeilen um: für englische
+ *   Nutzer war jede Zeile beider Eintrags-Listen doppelt hoch. Der ältere und stillere der beiden
+ *   Fehler — er sah nach Gestaltung aus, nicht nach Überlauf.
+ *
+ * `min-w-11` behält den Absatz, an dem die Arten darunter ausgerichtet stehen, und `whitespace-nowrap`
+ * lässt die Spalte wachsen, statt zu brechen. Damit trägt EINE Klasse alle drei Fälle — es gibt keine
+ * zweite, bei der sich jemand für die falsche entscheiden könnte.
+ *
+ * Zur Ausrichtung: alle Zeilen einer Liste tragen dasselbe Format, `tabular-nums` gibt den Ziffern
+ * dieselbe Laufweite. In `en-US` unterscheiden sich „AM" und „PM" um Haaresbreite, weil das keine
+ * Ziffern sind — sichtbar ist das nicht, aber behauptet sei es auch nicht.
  */
-export const listRowTimeCls = "w-11 flex-shrink-0 text-neben tabular-nums text-foreground-faint";
+export const listRowTimeCls =
+  "min-w-11 flex-shrink-0 whitespace-nowrap text-neben tabular-nums text-foreground-faint";
+
 export const listRowButtonCls =
   "flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-surface-raised/60 -mx-2 px-2 -my-1 py-1 rounded-lg transition";
 
