@@ -54,7 +54,12 @@ export const GENUINELY_WITHDRAWN_WHERE = {
  */
 export const AUTO_PLAN_WHERE = {
   auto: true,
+  // BEIDE Verschluss-Herkünfte ausschliessen. Eine Zeile aus einem Verschluss ist kein Tagesplan:
+  // sie darf beim Neuwurf nicht gelöscht werden, sie zählt nicht gegen das Tages-Kontingent, und
+  // sie darf einen noch ungeplanten Tag nicht als „schon geplant" erscheinen lassen. Fehlte hier
+  // `postLock`, hätte ein Verschluss kurz nach Mitternacht den ganzen Tagesplan verschluckt.
   cleaningRelock: false,
+  postLock: false,
 } satisfies Prisma.KontrollAnforderungWhereInput;
 
 /** Where-Fragment: die Tagesplan-Zeilen EINES Subs für den laufenden Tag. `day` ist die Sub-lokale

@@ -4,6 +4,13 @@
     "date": "2026-09-01",
     "changes": [
       {
+        "type": "feat",
+        "text": {
+          "de": "Neue Einstellung: nach jedem erfassten Verschluss folgt eine Kontrolle — zusätzlich zu den geplanten. Auslöse-Fenster und Erfüllungsdauer sind frei wählbar.",
+          "en": "New setting: every recorded lock is followed by an inspection, on top of the planned ones. The trigger window and the time to fulfil are yours to set."
+        }
+      },
+      {
         "type": "fix",
         "text": {
           "de": "Bleibt beim Erfassen eine Seite hängen, hilft „Erneut versuchen“ jetzt wirklich. Vorher machte jeder weitere Versuch das Warten länger.",

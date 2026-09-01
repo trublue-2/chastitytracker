@@ -198,6 +198,10 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           initialFensterVon={user.autoKontrolleFensterVon}
           initialFensterBis={user.autoKontrolleFensterBis}
           initialNurBeiSperre={user.autoKontrolleNurBeiSperre}
+          initialPostLockEnabled={user.postLockInspectionEnabled}
+          initialPostLockDelayMin={user.postLockInspectionDelayMin}
+          initialPostLockDelayMax={user.postLockInspectionDelayMax}
+          initialPostLockDeadlineMinutes={user.postLockInspectionDeadlineMinutes}
           initialDays={user.autoKontrolleDays}
           initialDayRules={user.autoKontrolleDayRules}
         />

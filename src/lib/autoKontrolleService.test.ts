@@ -43,7 +43,7 @@ describe("generateAutoKontrollen", () => {
   const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), TZ);
   const dayBase = midnightInTZ(now, TZ).getTime();
   // Min == Max ⇒ fixe Anzahl (Verhalten wie vor der Min–Max-Erweiterung).
-  const base: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [] };
+  const base: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [], postLockEnabled: false, postLockDelayMin: 15, postLockDelayMax: 45, postLockDeadlineMinutes: 15 };
 
   const deadlineMin = (s: { deadline: Date }) => Math.round((s.deadline.getTime() - dayBase) / 60_000);
   const durationMin = (s: { wirksamAb: Date; deadline: Date }) => Math.round((s.deadline.getTime() - s.wirksamAb.getTime()) / 60_000);
@@ -109,7 +109,7 @@ describe("generateAutoKontrollen", () => {
 describe("generateAutoKontrollen — zufällige Tages-Anzahl aus [Min, Max]", () => {
   // now = CH-Mitternacht → ganzer Tag Zukunft, Segmente gross genug → slots.length == gewürfelte Anzahl.
   const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), TZ);
-  const range: AutoKontrolleSettings = { aktiv: true, perDayMin: 2, perDayMax: 6, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [] };
+  const range: AutoKontrolleSettings = { aktiv: true, perDayMin: 2, perDayMax: 6, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [], postLockEnabled: false, postLockDelayMin: 15, postLockDelayMax: 45, postLockDeadlineMinutes: 15 };
 
   it("rand→0 wählt die Min-Anzahl", () => {
     expect(generateAutoKontrollen(range, now, () => 0)).toHaveLength(2);
@@ -136,7 +136,7 @@ describe("generateAutoKontrollen — zufällige Tages-Anzahl aus [Min, Max]", ()
 });
 
 describe("generateAutoKontrollen — per-user timezone anchor", () => {
-  const settings: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [] };
+  const settings: AutoKontrolleSettings = { aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00", fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [], postLockEnabled: false, postLockDelayMin: 15, postLockDelayMax: 45, postLockDeadlineMinutes: 15 };
 
   it("anchors the day + awake window to the given tz (New York)", () => {
     const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), "America/New_York");
@@ -198,7 +198,7 @@ describe("generateAutoKontrollen — festes Auslöse-Fenster", () => {
   const now = midnightInTZ(new Date("2026-06-15T12:00:00Z"), tz); // ganzer Tag Zukunft
   const win: AutoKontrolleSettings = {
     aktiv: true, perDayMin: 3, perDayMax: 3, ruheVon: "22:00", ruheBis: "06:00",
-    fristVon: 15, fristBis: 60, fensterVon: "10:00", fensterBis: "16:00", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [],
+    fristVon: 15, fristBis: 60, fensterVon: "10:00", fensterBis: "16:00", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [], postLockEnabled: false, postLockDelayMin: 15, postLockDelayMax: 45, postLockDeadlineMinutes: 15,
   };
 
   it("legt alle Auslösungen INS Fenster (10:00–16:00), Frist danach", () => {
@@ -277,7 +277,7 @@ describe("fillFreeGaps — Nachplanen an zugestellten Kontrollen vorbei", () => 
   const minuteOf = (d: Date) => Math.round((d.getTime() - midnightInTZ(now, tz).getTime()) / 60_000);
   const base: AutoKontrolleSettings = {
     aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00",
-    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [],
+    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [], postLockEnabled: false, postLockDelayMin: 15, postLockDelayMax: 45, postLockDeadlineMinutes: 15,
   };
   const win: AutoKontrolleSettings = { ...base, fensterVon: "10:00", fensterBis: "16:00" };
 
@@ -375,7 +375,7 @@ describe("fillFreeGaps — Nachplanen an zugestellten Kontrollen vorbei", () => 
 describe("triggerWindowAllQuiet", () => {
   const base: AutoKontrolleSettings = {
     aktiv: true, perDayMin: 2, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00",
-    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [],
+    fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false, days: ALL_WEEKDAYS, dayRules: [], postLockEnabled: false, postLockDelayMin: 15, postLockDelayMax: 45, postLockDeadlineMinutes: 15,
   };
   const withWindow = (von: string, bis: string, ruhe: [string, string] = ["22:00", "06:00"]) =>
     ({ ...base, fensterVon: von, fensterBis: bis, ruheVon: ruhe[0], ruheBis: ruhe[1] });
@@ -420,6 +420,7 @@ describe("settingsForDay — Ruhetage und Tages-Ausnahmen", () => {
     aktiv: true, perDayMin: 2, perDayMax: 2, ruheVon: "22:00", ruheBis: "06:00",
     fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false,
     days: ALL_WEEKDAYS, dayRules: [],
+    postLockEnabled: false, postLockDelayMin: 15, postLockDelayMax: 45, postLockDeadlineMinutes: 15,
   };
 
   it("ein Tag ausserhalb der Plan-Tage wird gar nicht geplant", () => {

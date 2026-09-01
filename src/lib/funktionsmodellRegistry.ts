@@ -163,8 +163,13 @@ export const FM_TARGET_DOC: Partial<Record<FmTarget, string>> = {
 export const FM_WIRED_EDGES: FmWiredEdge[] = [
   {
     from: "Reinigung", to: "Auto-Kontrollen",
-    rule: "Jeder SELBST erfasste Wiederverschluss nach einer Reinigungspause erzeugt eine Kontrolle (15–45 min, im Schlaf-Fenster 5–15). Sie ersetzt die nächste noch nicht zugestellte Auto-Kontrolle des Tages. Feste Regel, keine Einstellung — nur der Hauptschalter der Automatik schaltet sie ab.",
+    rule: "Jeder SELBST erfasste Wiederverschluss nach einer Reinigungspause erzeugt eine Kontrolle (15–45 min, im Schlaf-Fenster 5–15). Sie ersetzt die nächste noch nicht zugestellte Auto-Kontrolle des Tages. Feste Regel, keine Einstellung — nur der Hauptschalter der Automatik schaltet sie ab. Ist die Verschluss-Kontrolle eingeschaltet, übernimmt DIESE den Wiederverschluss und die Regel hier greift nicht.",
     anchor: "autoKontrolleService.ts:scheduleCleaningRelockInspection",
+  },
+  {
+    from: "Einträge", to: "Auto-Kontrollen",
+    rule: "Bei eingeschalteter Verschluss-Kontrolle erzeugt JEDER neu erfasste Verschluss — vom Träger wie von der Keyholderin — eine zusätzliche Kontrolle, sofern der Träger dann auch verschlossen ist. Sie ersetzt keine geplante; der Tagesplan bleibt unberührt. Gerechnet wird ab dem Erfassen, nicht ab der Eintrags-Zeit.",
+    anchor: "autoKontrolleService.ts:schedulePostLockInspection",
   },
   {
     from: "Reinigung", to: "Sessions/Statistik",
@@ -703,6 +708,34 @@ export const FM_REGISTRY: FmEntry[] = [
     "Der von Stufe 2 erzeugte Öffnen-Eintrag — bewusst eine eigene Spalte, nicht die des erfüllenden Eintrags."),
   x("runtime", "KontrollAnforderung", "cleaningRelock",
     "Herkunft: aus einem Wiederverschluss nach einer Reinigungspause statt aus dem Tagesplan. Nicht aus der Zeile rekonstruierbar."),
+  x("runtime", "KontrollAnforderung", "postLock",
+    "Herkunft: aus einem Verschluss-Eintrag statt aus dem Tagesplan. Teilt mit `cleaningRelock` die Folgen (kein Sperrzeit-Gate, Schonung im Schlaf)."),
+
+  // ── User: Kontrolle nach dem Verschluss ────────────────────────────────────────────────────
+  s({
+    model: "User", field: "postLockInspectionEnabled", domain: "kontrollen", scope: "standing",
+    effect: "Nach JEDEM erfassten Verschluss folgt eine Kontrolle — zusätzlich zum Tagesplan. Eigenständig: weder der Hauptschalter der Automatik noch „nur bei Sperrzeit\" gelten. Eingeschaltet übernimmt sie auch den Wiederverschluss nach einer Reinigungspause.",
+    writers: ["admin", "mcp"], affects: ["Auto-Kontrollen", "Kontrollen", "Strafbuch"],
+    anchor: "autoKontrolleService.ts:schedulePostLockInspection",
+  }),
+  s({
+    model: "User", field: "postLockInspectionDelayMin", domain: "kontrollen", scope: "standing",
+    effect: "Frühestens so viele Minuten nach dem Erfassen wird ausgelöst.",
+    writers: ["admin", "mcp"], affects: ["Auto-Kontrollen"],
+    anchor: "autoKontrolleService.ts:schedulePostLockInspection",
+  }),
+  s({
+    model: "User", field: "postLockInspectionDelayMax", domain: "kontrollen", scope: "standing",
+    effect: "Spätestens so viele Minuten nach dem Erfassen wird ausgelöst; gezogen wird zufällig dazwischen. Im Schlaf-Fenster gilt stattdessen die kurze Spanne der Reinigungs-Regel.",
+    writers: ["admin", "mcp"], affects: ["Auto-Kontrollen"],
+    anchor: "autoKontrolleService.ts:schedulePostLockInspection",
+  }),
+  s({
+    model: "User", field: "postLockInspectionDeadlineMinutes", domain: "kontrollen", scope: "standing",
+    effect: "Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne.",
+    writers: ["admin", "mcp"], affects: ["Auto-Kontrollen", "Strafbuch"],
+    anchor: "autoKontrolleService.ts:schedulePostLockInspection",
+  }),
 
   // ── NotificationPreference ─────────────────────────────────────────────────────────────────
   s({

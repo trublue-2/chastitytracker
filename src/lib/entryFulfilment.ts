@@ -14,7 +14,7 @@ import {
 } from "@/lib/queries";
 import { lockPeriodEndFromRequest } from "@/lib/verschlussAnforderungService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
-import { scheduleCleaningRelockInspection } from "@/lib/autoKontrolleService";
+import { scheduleCleaningRelockInspection, triggerPostLockInspection } from "@/lib/autoKontrolleService";
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/entryNotify";
 import { markLastAction } from "@/lib/appMeta";
 
@@ -301,6 +301,11 @@ export async function applyEntryAftermath(
     requiredDeviceIds: string[];
     /** Schliesst dieser Eintrag eine Reinigungspause ab? Dann folgt eine Kontrolle. */
     endsCleaningPause: boolean;
+    /** Der Verschluss ist erfasst, aber noch nicht in Kraft — er wartet auf den Riegel. Dann
+     *  behauptet hier nichts eine vollzogene Tat, auch nicht die Verschluss-Kontrolle: sie käme für
+     *  einen Einschluss, den es noch nicht gibt. Beim Vollzug läuft dieselbe Nacharbeit erneut
+     *  (`lockCommit.ts`) und holt sie nach. Ungesetzt = in Kraft. */
+    awaitsBolt?: boolean;
     /** Die Meldung an die Keyholder — `null` heisst „jetzt noch nicht" (der schwebende Aufruf; sie
      *  geht beim Vollzug raus). */
     notify: EntryNotifyParams | null;
@@ -308,6 +313,10 @@ export async function applyEntryAftermath(
 ): Promise<void> {
   await punishWrongDevice(entry, opts.requiredDeviceIds);
   markLastAction();
+  if (entry.type === "VERSCHLUSS" && !opts.awaitsBolt) triggerPostLockInspection(entry.userId);
+  // Bleibt daneben stehen, statt in den Zweig darüber zu wandern: die beiden schliessen sich zwar
+  // aus, aber die Vorfahrt entscheidet `scheduleCleaningRelockInspection` selbst (es kennt die
+  // Einstellung, dieser Aufrufer nicht). Hier zu wählen hiesse, die Regel ein zweites Mal zu führen.
   if (opts.endsCleaningPause) {
     void scheduleCleaningRelockInspection(entry.userId).catch((e) =>
       console.error("[autoKontrolle:cleaningRelock]", (e as Error).message));

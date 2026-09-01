@@ -1123,6 +1123,16 @@ function registerTools(server: McpServer) {
             "`dayRules:[]` clears them and the base sleep/trigger windows apply again everywhere. " +
             `To keep him out of inspections on an evening, give that day an earlier sleep start (e.g. days:[2], sleepFrom:"19:00").`,
           ),
+          postLockEnabled: z.boolean().optional().describe(
+            "true = EVERY newly recorded lock entry — his own or one you record for him — is followed by an inspection, " +
+            "ON TOP of the rolled daily plan. Independent of `active` and `onlyDuringLockPeriod`: you can switch the daily " +
+            "plan off entirely and still have every lock checked. While this is on it also covers the relock after a " +
+            "cleaning pause, which otherwise follows its own fixed rule — he never gets two inspections for one lock. " +
+            "Only fires while he is actually locked, so a backdated entry for a lock long since opened stays silent.",
+          ),
+          postLockDelayMin: z.number().int().optional().describe("Earliest trigger, in minutes after the entry was recorded (not after its timestamp)."),
+          postLockDelayMax: z.number().int().optional().describe("Latest trigger, in minutes; the actual delay is drawn at random in between. Inside the sleep window a short 5-15 min delay applies instead and escalation stops at the reminder."),
+          postLockDeadlineMinutes: z.number().int().optional().describe("How long he has to fulfil THIS inspection, in minutes — one fixed value, not a rolled range."),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },

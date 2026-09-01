@@ -7,6 +7,7 @@ import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, ge
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { applyEntryFulfilment } from "@/lib/entryFulfilment";
+import { triggerPostLockInspection } from "@/lib/autoKontrolleService";
 import { boltFieldsFor } from "@/lib/lockPending";
 import { findPendingLockTx } from "@/lib/lockCommit";
 import { notifyControllersAboutEntry } from "@/lib/entryNotify";
@@ -49,10 +50,14 @@ export async function POST(req: NextRequest) {
       }
 
       // tx durchreichen: der Read-then-Write-Guard muss in DERSELBEN Transaktion lesen (TOCTOU).
-      // Aus demselben Grund löst ein VERSCHLUSS hier auch KEINE Reinigungs-Kontrolle aus (die
-      // steht am Selbst-Erfassungs-Pfad des Subs, siehe `scheduleCleaningRelockInspection`): ein um
-      // 23:00 nachgetragener Verschluss von 14:00 würde sonst eine Kontrolle „in 15–45 Minuten"
-      // planen — der Planer rechnet ab jetzt, nicht ab `startTime`.
+      // Die REINIGUNGS-Kontrolle löst ein VERSCHLUSS hier weiterhin nicht aus (sie steht am
+      // Selbst-Erfassungs-Pfad des Subs, siehe `scheduleCleaningRelockInspection`): ein um 23:00
+      // nachgetragener Verschluss von 14:00 plante sonst eine Kontrolle „in 15–45 Minuten" — der
+      // Planer rechnet ab jetzt, nicht ab `startTime`.
+      // Die VERSCHLUSS-Kontrolle (`postLockInspectionEnabled`) gilt hier dagegen ausdrücklich, weil
+      // die Keyholderin ihren Träger meist einschliesst und den Eintrag dabei tippt. Gegen denselben
+      // Nachtrags-Fall schützt dort ein anderer Wächter: sie feuert nur, wenn der Träger JETZT
+      // verschlossen ist (siehe `schedulePostLockInspection`).
       // Hinweis: die Admin-Route hat bewusst KEINEN TIME_BEFORE-Guard (Backdating ist erlaubt) —
       // der neue Eintrag darf also zeitlich VOR den bisher jüngsten KG-Eintrag rutschen. `prev` ist
       // dabei NICHT dasselbe wie `getLatestKgEntry`: nur ohne Backdating (dem Normalfall) fallen
@@ -143,6 +148,9 @@ export async function POST(req: NextRequest) {
   // Meldung an die Kontrolleure des Subs. Bis hierher fehlte sie auf diesem Pfad ganz: ein von der
   // Keyholderin erfasster Eintrag löste weder Mail noch Push aus (Vorfall 03.08.2026). Sie selbst
   // ist NICHT Empfängerin — sie hat den Eintrag gerade getippt.
+  // Kontrolle nach dem Einschliessen — auch auf diesem Pfad, siehe die Begründung oben.
+  if (type === "VERSCHLUSS") triggerPostLockInspection(userId);
+
   void notifyControllersAboutEntry({
     userId,
     actorUserId: session.user.id,

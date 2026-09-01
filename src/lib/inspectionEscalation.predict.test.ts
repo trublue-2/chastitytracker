@@ -25,6 +25,8 @@ const user = (over: Record<string, unknown> = {}) => ({
   autoKontrolleFensterVon: "", autoKontrolleFensterBis: "",
   autoKontrolleNurBeiSperre: false, autoInspectionPlannedFor: null,
   autoKontrolleDays: 0b111_1111, autoKontrolleDayRules: null,
+  postLockInspectionEnabled: false, postLockInspectionDelayMin: 15,
+  postLockInspectionDelayMax: 45, postLockInspectionDeadlineMinutes: 15,
   timezone: "UTC",
   ...over,
 }) as Parameters<typeof predictAutoMarkAt>[1];
@@ -35,6 +37,7 @@ const ka = (over: Record<string, unknown> = {}) => ({
   benachrichtigtAt: null,
   wirksamAb: null,
   cleaningRelock: false,
+  postLock: false,
   ...over,
 }) as Parameters<typeof predictAutoMarkAt>[0];
 

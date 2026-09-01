@@ -8,7 +8,7 @@ import { getIsLocked, getActiveLockPeriod } from "@/lib/queries";
 import { resolveInspectionTarget, inspectionTargetLabel, isKgTarget } from "@/lib/inspectionTarget";
 import { sendVerschlussAnforderungNotifications, checkLockEnd, carryOverLockPeriodOnAlreadyLocked } from "@/lib/verschlussAnforderungService";
 import { sendOrgasmusAnforderungNotifications, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
-import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt, autoKontrolleSettingsFromUser, AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
+import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt, autoKontrolleSettingsFromUser, isEntryTriggeredInspection, AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
 import { APP_TZ } from "@/lib/utils";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked, predictAutoMarkAt } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
@@ -91,10 +91,10 @@ async function processDue(): Promise<void> {
         // Auto-Kontrolle zurückziehen (kein Nachholen — dieselbe Behandlung wie offener KG). Die
         // Sperrzeit-Abfrage läuft nur, wenn der Sub schon verschlossen ist (obiger Check bestanden)
         // und der Schalter gesetzt ist.
-        // `!ka.cleaningRelock`: für die Kontrolle nach einer Reinigungspause gilt der Schalter nicht —
-        // ihr Anlass ist die Reinigung selbst, nicht der Tagesplan, und ohne laufende Sperrzeit ist
-        // sie genauso berechtigt.
-        if (ka.auto && !ka.cleaningRelock && ka.user.autoKontrolleNurBeiSperre && !(await getActiveLockPeriod(ka.userId))) {
+        // Der Schalter gilt NUR für den Tagesplan: eine Kontrolle, die aus einem Verschluss des
+        // Trägers entstanden ist (Reinigungs-Wiederverschluss oder Verschluss-Kontrolle), hat ihren
+        // Anlass in seiner Handlung und ist auch ohne laufende Sperrzeit berechtigt.
+        if (ka.auto && !isEntryTriggeredInspection(ka) && ka.user.autoKontrolleNurBeiSperre && !(await getActiveLockPeriod(ka.userId))) {
           await withdrawKa(ka.id);
           continue;
         }
