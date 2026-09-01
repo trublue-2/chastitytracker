@@ -52,11 +52,28 @@ const updateMock = prisma.verschlussAnforderung.update as unknown as ReturnType<
 const notifyMock = notifyUser as unknown as ReturnType<typeof vi.fn>;
 const heimdallMock = notifyHeimdallForUserId as unknown as ReturnType<typeof vi.fn>;
 
+/**
+ * Die Uhr, gegen die dieser Test geschrieben ist — der Tag des gemeldeten Fehlers. Jeder Block, in
+ * dem Daten verglichen werden, friert sie darauf ein.
+ *
+ * Ohne das Einfrieren sind die Vorgaben darunter Zeitbomben: sie stehen als absolute Daten in
+ * diesem Rahmen, „jetzt" wandert aber weiter. Genau das ist am 01.09.2026 passiert — an dem Tag
+ * hatte die echte Uhr `NEW_END` erreicht, `checkLockEnd` lehnte drei Fälle mit
+ * `LOCK_PERIOD_END_MUST_BE_FUTURE` ab, und die drei Tests prüften nicht mehr die Melde-Regel,
+ * sondern nur noch den Kalender. Ein Test, der vom Datum seines Laufs abhängt, versagt an dem Tag,
+ * an dem man ihn braucht — und er versagt leise, mit einer Fehlermeldung über etwas anderes.
+ */
+const JETZT = new Date("2026-07-14T12:00:00Z");
+
+/** Vom Poller ausgelöst, und zwar gerade eben: derselbe Zeitpunkt wie {@link JETZT}. */
 const AUSGELOEST = new Date("2026-07-14T12:00:00Z");
+/** Terminiert und noch nicht fällig — gemessen an {@link JETZT}, nicht am Kalender des Testlaufs. */
 const FUTURE = new Date("2026-08-10T00:00:00Z");
-/** Ein gültiges neues Ende: nach `jetzt` UND nach dem `wirksamAb` der geplanten Zeile (= FUTURE).
+/** Ein gültiges neues Ende: nach {@link JETZT} UND nach dem `wirksamAb` der geplanten Zeile (= FUTURE).
  *  Ein Ende VOR der Auslösung lehnt der Service ab — siehe „Sperr-Ende muss nach der Auslösung liegen". */
 const NEW_END = new Date("2026-09-01T00:00:00Z");
+/** Drei Wochen voraus — der Zeitrahmen des gemeldeten Fehlers. Zwei Blöcke teilen ihn sich. */
+const IN_DREI_WOCHEN = new Date("2026-08-04T12:00:00Z");
 
 /** Terminiert, noch nicht ausgelöst → für den Sub unsichtbar. */
 const scheduled = { wirksamAb: FUTURE, benachrichtigtAt: null };
@@ -79,6 +96,11 @@ const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const isLockedMock = getIsLocked as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  // Die Uhr steht für die GANZE Datei, nicht je Block. Vier Blöcke hatten dieselben drei Zeilen
+  // selbst dastehen und ein fünfter — `updateLockPeriodEnd` — hatte sie vergessen; genau der ging
+  // am 01.09.2026 kaputt. Eine Vorkehrung, an die jeder neue Block selbst denken muss, ist keine.
+  vi.useFakeTimers();
+  vi.setSystemTime(JETZT);
   vi.clearAllMocks();
   tx.verschlussAnforderung.findMany.mockReset().mockResolvedValue([]);
   tx.verschlussAnforderung.updateMany.mockReset().mockResolvedValue({ count: 0 });
@@ -89,6 +111,8 @@ beforeEach(() => {
   userMock.mockReset().mockResolvedValue({ id: "u1", email: "sub@example.invalid", username: "sub", locale: "de" });
   isLockedMock.mockReset().mockResolvedValue(true); // SPERRZEIT setzt einen verschlossenen User voraus
 });
+
+afterEach(() => vi.useRealTimers());
 
 describe("updateLockPeriodEnd", () => {
   it("BUG 14.07.: eine GEPLANTE Sperrzeit zu ändern schickt KEINE Mail", async () => {
@@ -163,16 +187,8 @@ describe("updateLockPeriodEnd", () => {
  * Zeitpunkt, ab dem die Sperre GILT (Begründung: `checkLockEnd`).
  */
 describe("Sperr-Ende muss nach der Auslösung liegen", () => {
-  const JETZT = new Date("2026-07-14T12:00:00Z");
   const MORGEN = new Date("2026-07-15T12:00:00Z");
-  const IN_DREI_WOCHEN = new Date("2026-08-04T12:00:00Z");
   const DANACH = new Date("2026-08-20T12:00:00Z");
-
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(JETZT);
-  });
-  afterEach(() => vi.useRealTimers());
 
   describe("updateLockPeriodEnd", () => {
     it("terminiert: ein Ende VOR dem Auslösezeitpunkt wird abgelehnt (auch wenn es in der Zukunft liegt)", async () => {
@@ -425,12 +441,6 @@ describe("withdrawVerschlussAnforderungById (Admin-UI)", () => {
  * terminierter Anweisungen, die EIN Verschluss gemeinsam erfüllt.
  */
 describe("mehrere Anforderungen koexistieren", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-14T12:00:00Z"));
-  });
-  afterEach(() => vi.useRealTimers());
-
   it("eine neue ANFORDERUNG zieht bestehende NICHT zurück", async () => {
     isLockedMock.mockResolvedValue(false);
     const res = await createVerschlussAnforderung({ userId: "u1", art: "ANFORDERUNG", fristH: 4 }, "herrin");
@@ -484,9 +494,7 @@ describe("mehrere Anforderungen koexistieren", () => {
 /** Eine Anforderung ändern statt zurückziehen + neu stellen: der Sub sähe sonst eine Rücknahme plus
  *  eine zweite Anweisung, und eine terminierte verlöre ihre Verborgenheit. */
 describe("updateLockRequest", () => {
-  const JETZT = new Date("2026-07-14T12:00:00Z");
   const SPAETER = new Date("2026-07-15T12:00:00Z");
-  const IN_DREI_WOCHEN = new Date("2026-08-04T12:00:00Z");
 
   /** Eine ANFORDERUNGs-Zeile, wie updateLockRequest sie liest (inkl. user für die Zustellung). */
   const anf = (overrides: object) => ({
@@ -495,12 +503,6 @@ describe("updateLockRequest", () => {
     user: { id: "u1", email: "sub@example.invalid", username: "sub", locale: "de" },
     ...overrides,
   });
-
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(JETZT);
-  });
-  afterEach(() => vi.useRealTimers());
 
   it("eine GEPLANTE Anforderung zu ändern schickt KEINE Mail", async () => {
     findUniqueMock.mockResolvedValue(anf({ wirksamAb: IN_DREI_WOCHEN, benachrichtigtAt: null, endsAt: IN_DREI_WOCHEN }));
