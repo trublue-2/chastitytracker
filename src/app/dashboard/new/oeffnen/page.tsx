@@ -68,7 +68,7 @@ export default async function NewOeffnenPage() {
 
   // Nach dem letzten `await` und vor dem JSX — mehr als die Datenbeschaffung deckt die Zahl nicht ab,
   // und genau darum geht es. Ohne Kennung: welcher Träger geöffnet hat, steht ohnehin daneben.
-  structuredLog("perf", "oeffnen_render", { totalMs: Date.now() - startedAt, tasksDoneMs: tasks.doneMs });
+  structuredLog("perf", "opening_render", { totalMs: Date.now() - startedAt, tasksDoneMs: tasks.doneMs });
 
   return (
     <EntryActionFormShell {...actionSign("OEFFNEN")} title={tf("title")}>
