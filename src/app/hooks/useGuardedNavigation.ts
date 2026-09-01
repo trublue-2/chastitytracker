@@ -82,12 +82,25 @@ export default function useGuardedNavigation(onArrive?: () => void) {
     [router, pathname],
   );
 
-  // Einfach nochmal losschicken: `go` setzt `stalled` zurück und startet damit die Frist neu — der
-  // Effekt unten hängt an `stalled`. Ein eigener Rumpf wäre eine zweite Kopie derselben drei
-  // Schritte gewesen.
+  /**
+   * Der zweite Versuch ist ein VOLLER Seitenaufruf, kein zweites `router.push`.
+   *
+   * Ein `push` kann den ersten nicht zurücknehmen. Next.js bietet keinen Weg, eine laufende
+   * RSC-Anfrage abzubrechen, und dieser Hook bricht bewusst nichts ab — die Seite darf ja doch noch
+   * kommen. Ein zweiter `push` legte deshalb nur einen zweiten Aufbau DERSELBEN Route auf dieselbe
+   * SQLite-Instanz, ein dritter einen dritten: jeder Versuch machte die Lage schlechter, die er
+   * beheben sollte.
+   *
+   * Genau so ist es am 30./31.08.2026 gelaufen (fünf bzw. drei Anfragen auf
+   * `/dashboard/new/oeffnen` innerhalb von Sekunden, im Zugriffslog nachlesbar): „Erneut versuchen"
+   * half nie, geholfen hat erst das Beenden der App. Der Dokument-Wechsel tut dasselbe wie das
+   * Beenden, nur billiger — der Browser wirft das alte Dokument samt ALLER offenen Anfragen weg —
+   * und nimmt zugleich den kürzeren Weg: als Navigation braucht er keine RSC-Nutzlast, also nicht
+   * das, woran es gerade klemmt.
+   */
   const retry = useCallback(() => {
-    if (target) go(target);
-  }, [go, target]);
+    if (target) window.location.href = target;
+  }, [target]);
 
   useEffect(() => {
     if (!target) return;
@@ -105,9 +118,10 @@ export default function useGuardedNavigation(onArrive?: () => void) {
       arrived.current?.();
       return;
     }
-    // `stalled` ist zugleich der Auslöser der Frist: es wechselt an genau den zwei Momenten, an
-    // denen sie neu laufen soll (Start und erneuter Versuch über `go`). Steht es schon, ist die
-    // Meldung draussen und es gibt nichts mehr zu melden.
+    // `stalled` ist zugleich der Auslöser der Frist: sein Zurücksetzen in `go` startet sie. Steht es
+    // schon, ist die Meldung draussen und es gibt nichts mehr zu melden. Ein erneuter Versuch
+    // erscheint hier NICHT mehr — der verlässt das Dokument (siehe `retry`), statt die Frist im
+    // selben Dokument neu zu starten.
     if (stalled) return;
     const timer = setTimeout(() => {
       setStalled(true);
@@ -116,5 +130,14 @@ export default function useGuardedNavigation(onArrive?: () => void) {
     return () => clearTimeout(timer);
   }, [target, stalled, pathname, reset]);
 
-  return { go, retry, reset, target, pending: target !== null && !stalled, stalled };
+  // Bewusst KEIN abgeleitetes `pending` mehr. Es stand für `target !== null && !stalled` und las
+  // sich wie „eine Navigation läuft" — bedeutete aber „läuft UND ist noch nicht gemeldet". Genau auf
+  // diese Verwechslung stützte das (+)-Blatt seine Schranke gegen ein zweites Ziel: sie gab mit der
+  // Stockt-Meldung nach, während die Anfrage weiterlief, und jeder weitere Tipp legte einen zweiten
+  // Seitenaufbau auf den ersten.
+  //
+  // Übrig bleiben zwei Werte, die nichts vortäuschen: WOHIN es geht (`target`, `null` = nichts
+  // unterwegs) und OB es schon gemeldet ist (`stalled`). Wer beides zugleich braucht, verknüpft sie
+  // an seiner Aufrufstelle — dort ist sichtbar, welche der beiden Fragen er eigentlich stellt.
+  return { go, retry, reset, target, stalled };
 }
