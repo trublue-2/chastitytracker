@@ -47,21 +47,71 @@
     <circle cx="256" cy="330" r="26" fill="#111827"/>
     <rect x="242" y="330" width="28" height="40" rx="10" fill="#111827"/>
   </svg>
-  <div id="de">
-    <h1>Nicht erreichbar</h1>
-    <p>Der Server ist momentan nicht verfügbar oder es besteht keine Verbindung.</p>
-    <button onclick="location.reload()">Erneut versuchen</button>
-  </div>
-  <div id="en" style="display:none">
-    <h1>Not available</h1>
-    <p>The server is currently unavailable or there is no network connection.</p>
-    <button onclick="location.reload()">Try again</button>
-  </div>
+  <!-- Der deutsche Server-Fall steht als TEXT im Markup, nicht nur in der Tabelle unten. Diese Seite
+       erscheint per Definition, wenn etwas kaputt ist — sie darf nicht zusätzlich davon abhängen,
+       dass ihr eigenes Skript durchläuft. Vorher waren die drei Elemente leer und wurden erst vom
+       Skript gefüllt: ein Fehler darin, und der Nutzer sah eine komplett leere Seite. Das Skript
+       ÄNDERT diesen Stand nur noch, wenn es etwas Besseres weiss (andere Sprache, kein Netz). -->
+  <h1 id="title">Nicht erreichbar</h1>
+  <p id="text">Der Server hat nicht geantwortet. Das lag nicht an deinem Gerät.</p>
+  <button id="retry" onclick="location.reload()">Erneut versuchen</button>
   <script>
-    if (navigator.language && !navigator.language.startsWith('de')) {
-      document.getElementById('de').style.display = 'none';
-      document.getElementById('en').style.display = '';
-    }
+    /* Diese Seite sagt jetzt, WELCHE der beiden Störungen vorliegt. Vorher nannte ein Satz beide
+       ("nicht verfügbar ODER keine Verbindung") und lag damit immer halb daneben — am ärgerlichsten
+       im häufigsten Fall: das WLAN steht, der Server hat nur nicht geantwortet, und der Nutzer sucht
+       den Fehler bei sich.
+
+       Unterschieden wird über `navigator.onLine`, und zwar nur in seiner verlässlichen Richtung:
+       `false` heisst sicher "kein Netz". Sein `true` beweist nichts, taugt hier aber, weil beide
+       verbleibenden Ursachen (Server weg, Empfang zu schlecht) dieselbe Auskunft verdienen: es lag
+       nicht am Gerät. */
+    var german = !navigator.language || navigator.language.indexOf('de') === 0;
+    var noNetwork = navigator.onLine === false;
+    document.documentElement.lang = german ? 'de' : 'en';
+
+    var texts = {
+      de: {
+        offline: ['Keine Verbindung', 'Dein Gerät ist gerade nicht im Netz. Sobald es wieder da ist, geht es von selbst weiter.'],
+        server: ['Nicht erreichbar', 'Der Server hat nicht geantwortet. Das lag nicht an deinem Gerät.'],
+        retry: 'Erneut versuchen'
+      },
+      en: {
+        offline: ['No connection', 'Your device is offline. This page continues on its own as soon as it is back.'],
+        server: ['Not available', 'The server did not respond. This was not your device.'],
+        retry: 'Try again'
+      }
+    };
+
+    var t = texts[german ? 'de' : 'en'];
+    var headline = noNetwork ? t.offline : t.server;
+    document.getElementById('title').textContent = headline[0];
+    document.getElementById('text').textContent = headline[1];
+    document.getElementById('retry').textContent = t.retry;
+
+    /* Von selbst zurück — aber NUR auf ein echtes Signal hin, nie auf Verdacht.
+
+       Ein Countdown, der im Hintergrund weiterlädt, wäre hier genau der Fehler, den das (+)-Blatt
+       gerade abgelegt hat: Ist der Server langsam, weil er zu tun hat, macht jeder ungefragte
+       Versuch die Lage schlechter. Deshalb zwei Auslöser, die beide etwas BEDEUTEN:
+       `online` (das Gerät hat wieder Netz) und die Rückkehr zur App (der Nutzer schaut wieder hin —
+       genau der Moment, in dem bisher der App-Neustart half). */
+    var shownAt = Date.now();
+
+    /* `online` OHNE Sperrfrist. Es meldet einen echten Zustandswechsel und kann nur feuern, wenn das
+       Gerät vorher ohne Netz war — schleifen kann es also nicht. Eine Frist davor wäre sogar
+       schädlich: kommt das WLAN eine Sekunde nach dem Fehlschlag zurück, ist dieses Ereignis das
+       EINZIGE, das je wieder kommt. Verschluckt man es, bleibt der Nutzer auf dieser Seite sitzen,
+       obwohl längst alles wieder da ist. */
+    addEventListener('online', function () { location.reload(); });
+
+    /* Die Rückkehr zur App dagegen braucht die Frist: eine Seite, die im Hintergrund geladen wird
+       und gleich darauf sichtbar wird, löste sonst sofort einen zweiten Aufruf aus, dessen Ergebnis
+       dasselbe wäre. Anders als `online` sagt Sichtbarkeit nichts über die Leitung. */
+    addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - shownAt < 3000) return;
+      location.reload();
+    });
   </script>
 </body>
 </html>

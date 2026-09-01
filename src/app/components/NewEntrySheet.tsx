@@ -200,9 +200,16 @@ export default function NewEntrySheet({ open, onClose, isLocked, lockCallPending
   const handleSelect = useCallback((href: string) => {
     // Solange eine Seite unterwegs ist, nimmt das Blatt keinen zweiten Auftrag an — sonst stünden
     // zwei Ziele im Rennen und das gewinnende wäre Zufall.
-    if (nav.pending) return;
+    //
+    // „Unterwegs" ist `target`, und zwar bis zum Ankommen — NICHT nur bis zur Stockt-Meldung. Die
+    // Schranke hing einmal am abgeleiteten `pending`, das mit der Meldung erlosch, während die
+    // Anfrage weiterlief: sie gab nach vier Sekunden nach, und jeder weitere Tipp legte einen
+    // zweiten Seitenaufbau auf den ersten — ausgerechnet dann, wenn die Leitung ohnehin nicht
+    // nachkam. `SheetActionRow` sperrt die Zeilen längst über `navTarget !== null`; der Handler
+    // widersprach der Anzeige, die er durchsetzen soll.
+    if (nav.target) return;
     nav.go(href);
-  }, [nav.pending, nav.go]);
+  }, [nav.target, nav.go]);
 
   // Der Durchstich, den JEDE Zeile braucht. Einmal gebaut statt fünfmal getippt: die sechste Zeile
   // hätte ihn sonst vergessen und lautlos weder Ladezeichen noch Dämpfung bekommen.
@@ -212,7 +219,11 @@ export default function NewEntrySheet({ open, onClose, isLocked, lockCallPending
     // `busy` nur, SOLANGE es läuft: das Blatt soll sich nicht unter der laufenden Navigation
     // wegklicken. Steht es fest, gibt es die Sperre wieder frei — sonst sässe der Nutzer in einem
     // Blatt, das sich nicht mehr schliessen lässt, und das wäre schlimmer als der Fehler selbst.
-    <Sheet open={open} onClose={onClose} title={t("title")} busy={nav.pending}>
+    //
+    // Bewusst NICHT dieselbe Bedingung wie die Schranke in `handleSelect`: nach der Meldung darf man
+    // das Blatt schliessen, aber kein zweites Ziel starten — die Anfrage läuft ja weiter. Beide
+    // Bedingungen aus einem gemeinsamen `pending` zu speisen, war der Fehler.
+    <Sheet open={open} onClose={onClose} title={t("title")} busy={nav.target !== null && !nav.stalled}>
       {/* Der Inhalt entsteht nur im offenen Zustand. `Sheet` wirft ihn geschlossen ohnehin weg —
           aber zwei dieser Blätter hängen dauerhaft in jedem Dashboard-Layout (Seitenleiste und
           Fussleiste), und beide bauten bei JEDEM Render die ganze Zeilenliste samt Übersetzungen
