@@ -129,7 +129,9 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   optionales festes Auslöse-Fenster und „nur während einer Sperrzeit zustellen". \`active: false\`
   schaltet ALLES ab, auch die Kontrolle nach dem Wiederverschluss (Abschnitt 3); \`perDayMax: 0\`
   nimmt nur den Tagesplan weg. Eine Änderung an der Planung würfelt den Rest des heutigen Tages neu
-  — bereits zugestellte Kontrollen bleiben.
+  — bereits zugestellte Kontrollen bleiben, und die Anzahl richtet sich nach der Zeit, die vom Tag
+  noch übrig ist. Wer am Abend einschaltet, bekommt heute entsprechend wenige; das ist kein Defekt,
+  sondern verhindert, dass eine Tages-Anzahl in die letzten Stunden gedrängt wird.
 - **Wochentage gibt es dabei zweimal.** \`planDays\` sagt, an welchen Tagen überhaupt ein Plan
   gewürfelt wird; ein ausgelassener Tag bleibt still, und nimmst du HEUTE heraus, fallen auch die
   schon geplanten Kontrollen von heute weg. \`dayRules\` sind Tages-AUSNAHMEN: sie ersetzen an ihren

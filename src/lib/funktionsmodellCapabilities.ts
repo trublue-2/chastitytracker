@@ -250,7 +250,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
     id: "auto-inspection-plan", mechanic: "Auto-Kontrollen", title: "Tagesplan würfeln und zustellen",
     what: "Zieht zur Mitternacht des Trägers eine Anzahl aus der Spanne, verteilt die Kontrollen überlappungsfrei über das Wach-Fenster und stellt sie bei Fälligkeit zu.",
     actors: ["system"], surfaces: ["automatik"],
-    note: "Weder Auslösung noch Frist landen je im Schlaf-Fenster; reicht die Mindestfrist nicht, entfällt der Slot.",
+    note: "Weder Auslösung noch Frist landen je im Schlaf-Fenster; reicht die Mindestfrist nicht, entfällt der Slot. Wird der Tag verspätet gewürfelt (die Instanz stand über die Mitternacht des Trägers), plant er anteilig in die Rest-Zeit, statt die vergangenen Zeitpunkte ersatzlos zu verlieren.",
   }),
   c({
     id: "cleaning-relock-inspection", mechanic: "Auto-Kontrollen", title: "Kontrolle nach dem Wiederverschluss",

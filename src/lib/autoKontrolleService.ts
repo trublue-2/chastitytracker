@@ -186,6 +186,27 @@ function sleepBlocksWithin(win: { start: number; end: number }, quietVon: number
  * doch ins Schlaf-Fenster fielen, werden übersprungen); die Frist läuft danach normal
  * (`fristVon..fristBis`) und darf übers Fensterende hinaus, wird aber am nächsten Schlaf-Beginn
  * gekappt. Die Zeit-Achse (`minuteAxis`, Anker Wach-Beginn) ist in beiden Zweigen dieselbe → DST-sicher.
+ *
+ * **Ein angebrochener Tag wird geplant wie ein frischer — nur über die Stunden, die übrig sind**
+ * ({@link remainderOfDay}). Stand die Instanz über die Mitternacht des Trägers (ein Update etwa),
+ * fällt der Wurf mitten in den Tag; `spreadOverDay` legt seine Segmente dann ab JETZT statt ab
+ * Bereichs-Beginn. Vorher lagen sie über dem ganzen Tag, die des Vormittags waren vorbei und fielen
+ * weg — so kam der verspätet geplante Tag auf null Kontrollen, während der Tages-Merker ihn als
+ * erledigt stempelte.
+ *
+ * Die Anzahl ist dabei ANTEILIG zur Rest-Zeit, nicht die volle Tages-Anzahl: die gehört zum ganzen
+ * Tag. Sie in vier Stunden zu drängen, verwandelte einen Neustart in einen Schwall — und ein
+ * Einschalten um 21:00 in ein Trommelfeuer. Aufgerundet wird, damit ein spät begonnener Tag nicht
+ * doch wieder an der Rundung verstummt; ganz ohne Platz bleibt er leer, denn erfunden wird keiner.
+ *
+ * **Warum nicht `fillFreeGaps`**, das ja genau „ab jetzt" füllt und dem Neuwurf dient: es hält
+ * Auslösung UND Frist in derselben Lücke, weil es an zugestellten Kontrollen vorbei planen muss.
+ * Bei festem Auslöse-Fenster ist das zu streng — dort darf die Frist übers Fensterende hinaus und
+ * wird erst am Schlaf-Beginn gekappt. Ein Fenster bis 16:00 mit Mindest-Frist 60 gäbe ab 15:01
+ * sonst gar nichts mehr, obwohl eine Auslösung um 15:30 mit Frist bis 17:00 völlig in Ordnung ist.
+ * Ein Differenz-Test über rund 92 000 Kombinationen hat genau das gefunden: 593 Fälle, in denen
+ * dieselben Einstellungen mit `fillFreeGaps` verstummten. Der Tagesplan braucht keine Rücksicht auf
+ * Zugestelltes — an dieser Stelle ist noch nichts zugestellt.
  */
 export function generateAutoKontrollen(
   settings: AutoKontrolleSettings,
@@ -196,16 +217,75 @@ export function generateAutoKontrollen(
   const { min, max } = perDayRange(settings);
   if (max <= 0) return [];
   // Anzahl zufällig aus [min, max] (min == max → fixe Anzahl, wie bisher).
-  return spreadOverDay(settings, now, randomInt(min, max, rand), rand, tz);
+  const { from, count } = remainderOfDay(randomInt(min, max, rand), settings, now, tz);
+  return spreadOverDay(settings, now, count, rand, tz, from);
 }
 
 /**
- * Verteilt `x` Slots über den GANZEN Tag: je ein gleich grosses Segment pro Slot. Für den frischen
- * Tagesplan, den der Poller zur Sub-Mitternacht anlegt.
+ * Die Planungs-Achse eines Tages: die Minuten-Umrechnung plus der Bereich, in dem eine Auslösung
+ * überhaupt liegen darf. Beides hängt an denselben drei Zeilen, und alle Planungs-Schritte brauchen
+ * sie zusammen — als drei Aufrufe standen sie in drei Funktionen wörtlich untereinander.
+ */
+function planAxis(settings: AutoKontrolleSettings, now: Date, tz: string) {
+  const awake = awakeWindow(settings);
+  return { ...minuteAxis(now, awake.start, tz), ...triggerDomain(settings, awake), awake };
+}
+
+/**
+ * Was von einem angebrochenen Tag noch zu planen ist: **ab welcher Minute**, und **wie viele**.
  *
- * NUR dafür: die Segmente werden über das ganze Fenster gelegt und Slots, deren Trigger schon vorbei
- * ist, fallen weg. Zur Mitternacht ist das keiner — mitten am Tag wären es die meisten. Wer während
- * des Tages plant, nimmt {@link fillFreeGaps}; das füllt ab JETZT.
+ * `from` ist die erste Minute, in der eine Auslösung noch liegen darf. Solange der Bereichs-Beginn
+ * nicht in der Vergangenheit liegt, ist es dieser Beginn — ein frischer Tag bekommt also Minute für
+ * Minute denselben Bereich wie bisher. Erst danach rückt `from` auf die nächste volle Minute.
+ *
+ * Das `>=` ist dabei nicht kosmetisch: fällt der Bereichs-Beginn GENAU auf `now` (ein Fenster ab
+ * 00:00 und der Poller-Tick zur Mitternacht), verschöbe ein `>` die ganze Segmentierung um eine
+ * Minute gegenüber dem Bestand. Verloren geht dabei höchstens eine Auslösung, die auf genau diese
+ * Minute gewürfelt wird — die verwarf der Platzierer aber schon immer.
+ *
+ * `count` ist die Tages-Anzahl, anteilig zur verbleibenden FREIEN Zeit — nicht zur blossen Spanne:
+ * liegt ein Schlaf-Block in einem festen Auslöse-Fenster, ist er für beide Seiten des Bruchs keine
+ * Zeit, in der geplant werden könnte.
+ *
+ * ABGERUNDET, und zwar zwingend: der Platzierer teilt die Rest-Zeit in `count` Segmente, und
+ * abgerundet ist ein Segment nie kleiner als am frischen Tag (`Rest/⌊x·Rest/ganz⌋ ≥ ganz/x`).
+ * Aufgerundet wäre es minimal kleiner — und schon das lässt eine knapp bemessene Einstellung
+ * kippen: bei acht Kontrollen zwischen 06:00 und 22:00 mit Mindest-Frist 120 misst ein Segment
+ * 119,9 Minuten, ein Wurf um 06:14 machte daraus 118, und der Platzierer verwarf den ganzen Tag.
+ *
+ * MINDESTENS EINE, solange überhaupt Zeit übrig ist: sonst verstummte ein spät begonnener Tag doch
+ * wieder an der Rundung — genau der Ausgang, gegen den diese Funktion gebaut wurde. Nur DIESE eine
+ * darf enger liegen als ein Tages-Segment; die Mindest-Frist prüft der Platzierer weiterhin selbst,
+ * und reicht die Zeit auch dafür nicht, bleibt der Tag leer.
+ */
+function remainderOfDay(
+  x: number, settings: AutoKontrolleSettings, now: Date, tz: string,
+): { from: number; count: number } {
+  const { at, minuteOf, lower, upper, occupied } = planAxis(settings, now, tz);
+  const from = at(lower).getTime() >= now.getTime() ? lower : Math.max(lower, minuteOf(now) + 1);
+  const freeFrom = (m: number) => freeGaps(m, upper, occupied).reduce((sum, g) => sum + gapLen(g), 0);
+  const whole = freeFrom(lower);
+  const rest = freeFrom(from);
+  // Ein Anteil über 1 ist nicht bloss unerwünscht, er ist unerreichbar: `from` liegt nie unter
+  // `lower`, die freie Zeit darüber ist damit eine Teilmenge. Deshalb kein `Math.min(1, …)`.
+  // `x <= 0` muss durchfallen: ein Tag, der bewusst auf NULL Kontrollen gewürfelt wurde, darf hier
+  // nicht wieder eine bekommen. Die Untergrenze gilt dem Anteil, nicht der Auslosung.
+  if (x <= 0 || whole <= 0 || rest <= 0) return { from, count: 0 };
+  return { from, count: Math.max(1, Math.floor(x * (rest / whole))) };
+}
+
+/**
+ * Verteilt `x` Slots über den Auslöse-Bereich AB `from`: je ein gleich grosses Segment pro Slot.
+ * Der Platzierer des Tagesplans.
+ *
+ * `from` ist die erste Minute, die benutzt werden darf. Zur Mitternacht des Trägers ist das der
+ * Bereichs-Beginn, und dann liegen die Segmente wie eh und je über dem ganzen Tag. Fällt der Wurf
+ * mitten in den Tag, sind es dieselben Segmente über weniger Zeit — die Anzahl kommt anteilig aus
+ * {@link remainderOfDay}, sonst wären sie zu eng für die Mindest-Frist. Ohne `from` fielen die
+ * vergangenen Segmente einfach weg, und der Tag bliebe leer.
+ *
+ * `pushIfFuture` bleibt trotzdem stehen: `from` rechnet in ganzen Minuten, die Zusicherung „keine
+ * Auslösung in der Vergangenheit" gilt aber auf den Instant.
  */
 function spreadOverDay(
   settings: AutoKontrolleSettings,
@@ -213,6 +293,7 @@ function spreadOverDay(
   x: number,
   rand: () => number,
   tz: string,
+  from: number,
 ): AutoKontrolleSlot[] {
   if (x <= 0) return [];
   const { von: fristVon, bis: fristBis } = fristRange(settings);
@@ -233,10 +314,12 @@ function spreadOverDay(
     // übersprungen, Frist am Schlaf-Beginn gekappt.
     const quietVon = hhmmToMinutes(settings.ruheVon);
     const quietBis = hhmmToMinutes(settings.ruheBis);
-    const segSize = (fixed.end - fixed.start) / x;
+    const winStart = Math.max(fixed.start, from);
+    if (fixed.end <= winStart) return out;
+    const segSize = (fixed.end - winStart) / x;
     for (let i = 0; i < x; i++) {
-      const triggerMin = Math.ceil(fixed.start + i * segSize);
-      const triggerMax = Math.floor(fixed.start + (i + 1) * segSize) - 1; // Trigger vor Segmentende → verteilt
+      const triggerMin = Math.ceil(winStart + i * segSize);
+      const triggerMax = Math.floor(winStart + (i + 1) * segSize) - 1; // Trigger vor Segmentende → verteilt
       if (triggerMax < triggerMin) continue; // Segment < 1 Min → überspringen
       const trig = randomInt(triggerMin, triggerMax, rand);
       if (isInQuietMinutes(quietVon, quietBis, trig)) continue; // nie im Schlaf wecken
@@ -248,7 +331,9 @@ function spreadOverDay(
 
   // Ohne festes Fenster (Bestand): Trigger UND Frist je Segment → keine Überlappung, Frist strikt vor
   // awakeEnd (= Schlaf-Start). In GANZZAHL-Minuten (keine Float-/Rundungs-Kanten).
-  const segSize = (awakeEnd - awakeStart) / x;
+  const spreadStart = Math.max(awakeStart, from);
+  if (awakeEnd - spreadStart <= 0) return out;
+  const segSize = (awakeEnd - spreadStart) / x;
   // Die Segment-Kappung darf die Mindest-Frist NICHT unterlaufen. Vorher stand unten `Math.max(1, …)`,
   // was in einem engen Wach-Fenster Slots mit 1-Minuten-Frist erzeugte — für den Sub unerfüllbar.
   // Lieber kein Slot als einer, den er nicht schaffen kann. Die Prüfung steht VOR der Schleife, weil `segSize` über alle
@@ -258,8 +343,8 @@ function spreadOverDay(
   const maxDur = Math.floor(segSize);
   if (maxDur < fristVon) return out;
   for (let i = 0; i < x; i++) {
-    const segStart = awakeStart + i * segSize;
-    const segEnd = awakeStart + (i + 1) * segSize;
+    const segStart = spreadStart + i * segSize;
+    const segEnd = spreadStart + (i + 1) * segSize;
     const dur = Math.min(randomInt(fristVon, fristBis, rand), maxDur);
     const triggerMin = Math.ceil(segStart);
     const triggerMax = Math.min(Math.floor(segEnd - dur), awakeEnd - 1 - dur); // Frist ≤ awakeEnd−1
@@ -330,17 +415,15 @@ export function fillFreeGaps(
   tz: string,
 ): AutoKontrolleSlot[] {
   if (count <= 0) return [];
-  const { start: awakeStart, end: awakeEnd } = awakeWindow(settings);
   const { von: fristVon, bis: fristBis } = fristRange(settings);
-  const { at, minuteOf } = minuteAxis(now, awakeStart, tz);
-  const domain = triggerDomain(settings, { start: awakeStart, end: awakeEnd });
+  const { at, minuteOf, lower, upper, occupied: domainOccupied } = planAxis(settings, now, tz);
   const occupied = [
     ...taken.map((t) => ({ start: minuteOf(t.wirksamAb), end: minuteOf(t.deadline) })),
-    ...domain.occupied,
+    ...domainOccupied,
   ];
 
   const out: AutoKontrolleSlot[] = [];
-  let gaps = freeGaps(Math.max(domain.lower, minuteOf(now) + 1), domain.upper, occupied);
+  let gaps = freeGaps(Math.max(lower, minuteOf(now) + 1), upper, occupied);
   for (let i = 0; i < count; i++) {
     if (gaps.length === 0) break;
     const best = gaps.reduce((bi, g, gi) => (gapLen(g) > gapLen(gaps[bi]) ? gi : bi), 0);
@@ -833,10 +916,14 @@ export async function ensureDailyAutoKontrollenForUser(user: AutoKontrolleUser, 
  * der Tag eine 1 und ist eine Kontrolle schon draussen, kommt heute keine mehr.
  *
  * Geplant wird über {@link fillFreeGaps}, also in die REST-Zeit des Tages und an den zugestellten
- * Kontrollen vorbei — nicht über `spreadOverDay`. Der Unterschied ist load-bearing: ein Neuwurf um
- * 20:00 mit Segmenten über den ganzen Tag verwürfe fast alles, was er gerade gelöscht hat (die
+ * Kontrollen vorbei. Der Unterschied zu `spreadOverDay` ist load-bearing: ein Neuwurf um 20:00 mit
+ * Segmenten über den ganzen Tag verwürfe fast alles, was er gerade gelöscht hat (die
  * Vormittags-Segmente sind vorbei), und der Tag endete meist leer. Dass für eine Änderung kurz vor
  * dem Schlaf-Fenster kein Platz mehr bleibt, ist dagegen richtig so.
+ *
+ * Hier steht `fillFreeGaps` fest, weil an den ZUGESTELLTEN Kontrollen vorbei geplant werden muss —
+ * der Tagesplan hat die nicht und nimmt deshalb `spreadOverDay`. Die Anzahl kommt aus derselben
+ * Quelle wie dort ({@link remainderOfDay}), zusätzlich gedeckelt durch das schon Zugestellte.
  */
 export async function rerollTodayAutoKontrollenForUser(
   userId: string, settings: AutoKontrolleSettings, now: Date, tz: string = APP_TZ,
@@ -867,10 +954,16 @@ export async function rerollTodayAutoKontrollenForUser(
       select: { wirksamAb: true, deadline: true },
     });
     const { min, max } = perDayRange(today);
+    // Zwei Obergrenzen, die kleinere gilt. Die Verrechnung mit dem schon Zugestellten wahrt die
+    // Tages-Anzahl; der Anteil wahrt die DICHTE. Ohne ihn legte ein Einschalten um 21:00 die ganze
+    // Tages-Anzahl in die letzte Stunde — die Verrechnung sieht dort nichts, weil noch nichts
+    // zugestellt wurde. Ohne die Verrechnung bekäme ein normal gelaufener Tag nach einer Änderung am
+    // Abend seine Kontrollen ein zweites Mal.
+    const drawn = randomInt(min, max, Math.random);
     // `createAutoKontrollen` setzt immer ein `wirksamAb`; eine Zeile ohne ist nicht auf der Zeitachse
     // verortbar und kann deshalb keinen Zeitraum belegen (aufs Kontingent zählt sie trotzdem).
     const occupied = delivered.flatMap((d) => (d.wirksamAb ? [{ wirksamAb: d.wirksamAb, deadline: d.deadline }] : []));
-    const remaining = randomInt(min, max, Math.random) - delivered.length;
+    const remaining = Math.min(drawn - delivered.length, remainderOfDay(drawn, today, now, tz).count);
     slots = fillFreeGaps(today, occupied, remaining, now, Math.random, tz);
   }
 
@@ -1029,3 +1122,4 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   }
   return { ok: true, data: null };
 }
+

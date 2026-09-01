@@ -65,6 +65,25 @@ gespeichert.
 Eine Änderung an der Planung würfelt den Rest des heutigen Tages neu; bereits zugestellte Kontrollen
 bleiben.
 
+**Ein verspätet gewürfelter Tag bleibt nicht leer — bekommt aber nur seinen Anteil.** Über den
+ganzen Tag verteilt wird nur, solange der Auslöse-Bereich noch vollständig bevorsteht, also zur
+Mitternacht des Trägers. Stand die Instanz über diese Mitternacht (etwa während eines Updates),
+fällt der Wurf mitten in den laufenden Tag: dann wird in die REST-Zeit geplant, an dem Platz vorbei,
+der schon belegt ist. Vorher fielen dabei alle Kontrollen weg, deren Zeitpunkt schon vergangen war,
+und der Tag galt trotzdem als geplant — der Träger bekam bis Mitternacht keine mehr.
+
+**Die Anzahl richtet sich dann nach der verbleibenden Zeit**, nicht nach dem ganzen Tag: steht noch
+ein Viertel des Auslöse-Bereichs bevor, wird auch nur ein Viertel der Tages-Anzahl geplant. Die volle
+Anzahl gehört dem ganzen Tag; sie in die letzten Stunden zu drängen, machte aus einem Neustart einen
+Schwall. Abgerundet, damit die Abstände nie enger werden als an einem vollen Tag — aber mindestens
+eine, solange überhaupt Zeit übrig ist, damit ein spät begonnener Tag nicht an der Rundung verstummt.
+Ein Tag, der bewusst auf null Kontrollen gewürfelt wurde, bleibt bei null.
+
+Es ist derselbe Weg, den auch eine geänderte Planungs-Einstellung nimmt: wer in einen laufenden Tag
+plant, plant anteilig in seine Rest-Zeit — beim Neuwurf zusätzlich begrenzt durch das, was heute
+schon zugestellt wurde. Bietet die Rest-Zeit keinen Platz mehr für die Mindest-Frist, bleibt der Tag
+leer; erfunden wird keiner.
+
 ## Eskalation
 
 Zwei Stufen, beide standardmässig aus:

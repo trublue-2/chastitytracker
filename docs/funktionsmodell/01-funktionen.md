@@ -85,7 +85,7 @@ Steckbrief: [30-kontrollen.md](30-kontrollen.md)
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
 | **Automatische Kontrollen einstellen** | Hauptschalter, Anzahl pro Tag, Schlaf-Fenster, Fristspanne, festes Auslöse-Fenster und die Beschränkung auf Sperrzeiten. | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]` `set_auto_inspections` |
-| **Tagesplan würfeln und zustellen** | Zieht zur Mitternacht des Trägers eine Anzahl aus der Spanne, verteilt die Kontrollen überlappungsfrei über das Wach-Fenster und stellt sie bei Fälligkeit zu. <br>*Weder Auslösung noch Frist landen je im Schlaf-Fenster; reicht die Mindestfrist nicht, entfällt der Slot.* | System | läuft von selbst | — |
+| **Tagesplan würfeln und zustellen** | Zieht zur Mitternacht des Trägers eine Anzahl aus der Spanne, verteilt die Kontrollen überlappungsfrei über das Wach-Fenster und stellt sie bei Fälligkeit zu. <br>*Weder Auslösung noch Frist landen je im Schlaf-Fenster; reicht die Mindestfrist nicht, entfällt der Slot. Wird der Tag verspätet gewürfelt (die Instanz stand über die Mitternacht des Trägers), plant er anteilig in die Rest-Zeit, statt die vergangenen Zeitpunkte ersatzlos zu verlieren.* | System | läuft von selbst | — |
 | **Kontrolle nach dem Wiederverschluss** | Nach jedem selbst erfassten Wiederverschluss aus einer Reinigungspause folgt selbsttätig eine Kontrolle. <br>*Feste Regel, keine Einstellung — nur der Hauptschalter der Automatik schaltet sie ab.* | System | läuft von selbst | — |
 
 ## Orgasmus
