@@ -10,6 +10,7 @@ import InlineSettingRow from "@/app/components/InlineSettingRow";
 import { editRowCardCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
 import {
   AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
+  POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE, POST_LOCK_INSPECTION_DEADLINE_RANGE,
   type NumberRange,
 } from "@/lib/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
@@ -81,6 +82,10 @@ interface AutoKontrolleForm {
   nurBeiSperre: boolean;
   days: number; // Wochentage, an denen überhaupt geplant wird
   dayRules: AutoInspectionDayRule[];
+  postLockEnabled: boolean;
+  postLockDelayMin: number;
+  postLockDelayMax: number;
+  postLockDeadlineMinutes: number;
 }
 
 /** Vorschlag beim EINSCHALTEN des festen Fensters — nur, wenn noch nichts gesetzt ist. */
@@ -103,6 +108,10 @@ export default function AutoKontrolleToggle({
   initialFensterVon,
   initialFensterBis,
   initialNurBeiSperre,
+  initialPostLockEnabled,
+  initialPostLockDelayMin,
+  initialPostLockDelayMax,
+  initialPostLockDeadlineMinutes,
   initialDays,
   initialDayRules,
 }: {
@@ -117,6 +126,10 @@ export default function AutoKontrolleToggle({
   initialFensterVon: string;
   initialFensterBis: string;
   initialNurBeiSperre: boolean;
+  initialPostLockEnabled: boolean;
+  initialPostLockDelayMin: number;
+  initialPostLockDelayMax: number;
+  initialPostLockDeadlineMinutes: number;
   initialDays: number;
   /** Roh aus der Spalte (JSON-String oder null) — geparst wird hier, mit demselben tolerant lesenden
    *  Parser wie der Server. */
@@ -132,6 +145,8 @@ export default function AutoKontrolleToggle({
     ruheVon: initialRuheVon, ruheBis: initialRuheBis, fristVon: initialFristVon, fristBis: initialFristBis,
     fensterVon: initialFensterVon, fensterBis: initialFensterBis, nurBeiSperre: initialNurBeiSperre,
     days: initialDays, dayRules: parseAutoInspectionDayRules(initialDayRules),
+    postLockEnabled: initialPostLockEnabled, postLockDelayMin: initialPostLockDelayMin,
+    postLockDelayMax: initialPostLockDelayMax, postLockDeadlineMinutes: initialPostLockDeadlineMinutes,
   });
   const [form, setForm] = useState(makeInitial);
   // Der zuletzt vom Server angenommene Stand — Referenz für „geändert?". Ein abgelehnter Patch (z.B.
@@ -162,6 +177,7 @@ export default function AutoKontrolleToggle({
       ...form,
       perDayMax: Math.max(form.perDayMin, form.perDayMax),
       fristBis: Math.max(form.fristVon, form.fristBis),
+      postLockDelayMax: Math.max(form.postLockDelayMin, form.postLockDelayMax),
       fensterVon: fensterComplete ? form.fensterVon : "",
       fensterBis: fensterComplete ? form.fensterBis : "",
       // Dieselbe Regel je Ausnahme — ein halbes Fenster lehnt der Service ab, statt es still als
@@ -182,6 +198,10 @@ export default function AutoKontrolleToggle({
       autoKontrolleNurBeiSperre: normalized.nurBeiSperre,
       autoKontrolleDays: normalized.days,
       autoKontrolleDayRules: normalized.dayRules,
+      postLockInspectionEnabled: normalized.postLockEnabled,
+      postLockInspectionDelayMin: normalized.postLockDelayMin,
+      postLockInspectionDelayMax: normalized.postLockDelayMax,
+      postLockInspectionDeadlineMinutes: normalized.postLockDeadlineMinutes,
     });
     if (ok) {
       setForm(normalized);
@@ -337,6 +357,35 @@ export default function AutoKontrolleToggle({
               />
             )}
           </div>
+        </>
+      )}
+
+      {/* Kontrolle nach dem Verschluss — BEWUSST ausserhalb des `form.aktiv`-Blocks: sie ist von der
+          Automatik unabhängig und muss auch bei abgeschaltetem Tagesplan erreichbar bleiben. Stünde
+          sie drin, wäre sie genau für die Keyholderin unsichtbar, die nur sie will. */}
+      <Toggle
+        label={t("postLockInspectionLabel")}
+        description={t("postLockInspectionDesc")}
+        checked={form.postLockEnabled}
+        disabled={saving}
+        onChange={(checked) => set("postLockEnabled", checked)}
+      />
+      {form.postLockEnabled && (
+        <>
+          <NumberRangeRow
+            label={t("postLockInspectionDelayLabel")}
+            fromRange={POST_LOCK_INSPECTION_DELAY_MIN_RANGE} toRange={POST_LOCK_INSPECTION_DELAY_MAX_RANGE}
+            from={form.postLockDelayMin} to={form.postLockDelayMax}
+            setFrom={(n) => set("postLockDelayMin", n)} setTo={(n) => set("postLockDelayMax", n)}
+            unit="min" disabled={saving}
+          />
+          <InlineSettingRow label={t("postLockInspectionDeadlineLabel")} unit="min">
+            <NumberInput
+              value={form.postLockDeadlineMinutes} range={POST_LOCK_INSPECTION_DEADLINE_RANGE}
+              ariaLabel={t("postLockInspectionDeadlineLabel")}
+              onCommit={(n) => set("postLockDeadlineMinutes", n)} disabled={saving}
+            />
+          </InlineSettingRow>
         </>
       )}
       <Button size="sm" onClick={handleSave} loading={saving} disabled={!dirty} className="w-fit">

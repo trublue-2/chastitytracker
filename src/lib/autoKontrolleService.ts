@@ -1,13 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { APP_TZ, hhmmToMinutes, midnightInTZ, dateAtLocalMinutes, formatTime, clamp, randomInt } from "@/lib/utils";
+import type { NumberRange } from "@/lib/constants";
 import {
   NO_FIELDS_TO_UPDATE, INVALID_TIME, HHMM, AUTO_INSPECTION_PER_DAY_RANGE,
   AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   CLEANING_RELOCK_INSPECTION_DELAY, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP, TIME_RANGE_INVALID,
+  POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE,
+  POST_LOCK_INSPECTION_DEADLINE_RANGE,
 } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/utils";
-import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere } from "@/lib/queries";
+import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere, getIsLocked } from "@/lib/queries";
 import {
   autoInspectionDayRulesProblem, fixedWindowMinutes, formatAutoInspectionDayRule,
   parseAutoInspectionDayRules, timesForDay, triggerWindowAllQuiet, type AutoInspectionDayRule,
@@ -42,6 +45,13 @@ export interface AutoKontrolleSettings {
    *
    *  Preis: {@link planningChanged} kann für dieses eine Feld nicht mit `!==` vergleichen. */
   dayRules: AutoInspectionDayRule[];
+  /** Kontrolle nach JEDEM erfassten Verschluss. Eigenständig — sie hängt weder an {@link aktiv} noch
+   *  an {@link nurBeiSperre}, und sie kommt ZUSÄTZLICH zum Tagesplan (siehe
+   *  {@link schedulePostLockInspection}). */
+  postLockEnabled: boolean;
+  postLockDelayMin: number; // frühestens X Min nach dem Erfassen
+  postLockDelayMax: number; // spätestens Y Min nach dem Erfassen
+  postLockDeadlineMinutes: number; // Erfüllungsfrist (fester Wert, keine Spanne)
 }
 
 /** Wie {@link AutoKontrolleSettings}, aber `dayRules` roh von aussen (Formular, MCP-Argumente): die
@@ -57,16 +67,35 @@ export interface AutoKontrolleSlot {
   deadline: Date;
 }
 
-/** Geklemmter Min-/Max-Anzahl-Bereich pro Tag (`max` nie unter `min`). */
-function perDayRange(s: AutoKontrolleSettings): { min: number; max: number } {
-  const min = clamp(s.perDayMin, AUTO_INSPECTION_PER_DAY_RANGE);
-  return { min, max: Math.max(min, clamp(s.perDayMax, AUTO_INSPECTION_PER_DAY_RANGE)) };
+/**
+ * Ein Von/Bis-Paar aus den Einstellungen: beide Werte in ihre Grenzen geklemmt, und das „Bis" nie
+ * unter dem „Von".
+ *
+ * Die Anhebung ist die eigentliche Aussage und der Grund, warum das EINE Funktion ist: ein Max unter
+ * dem Min ist eine Fehleingabe, keine leere Spanne — `randomInt` bekäme sonst ein verkehrtes
+ * Intervall. Drei Paare teilen die Regel (Anzahl/Tag, Erfüllungsdauer, Auslöse-Fenster nach dem
+ * Verschluss); als drei Kopien wäre sie beim vierten an einer Stelle anders ausgefallen.
+ */
+function clampedPair(from: number, to: number, fromRange: NumberRange, toRange: NumberRange): { von: number; bis: number } {
+  const von = clamp(from, fromRange);
+  return { von, bis: Math.max(von, clamp(to, toRange)) };
 }
 
-/** Geklemmter Erfüllungsdauer-Bereich in Minuten (`bis` nie unter `von`). */
+/** Geklemmter Min-/Max-Anzahl-Bereich pro Tag. Eigene Schlüssel, weil hier Stückzahlen stehen und
+ *  keine Zeitspanne — `min`/`max` liest sich an den Aufrufstellen richtiger als `von`/`bis`. */
+function perDayRange(s: AutoKontrolleSettings): { min: number; max: number } {
+  const { von, bis } = clampedPair(s.perDayMin, s.perDayMax, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_PER_DAY_RANGE);
+  return { min: von, max: bis };
+}
+
+/** Geklemmter Erfüllungsdauer-Bereich in Minuten. */
 function fristRange(s: AutoKontrolleSettings): { von: number; bis: number } {
-  const von = clamp(s.fristVon, AUTO_INSPECTION_DEADLINE_FROM_RANGE);
-  return { von, bis: Math.max(von, clamp(s.fristBis, AUTO_INSPECTION_DEADLINE_TO_RANGE)) };
+  return clampedPair(s.fristVon, s.fristBis, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE);
+}
+
+/** Das Auslöse-Fenster der Verschluss-Kontrolle, in Minuten nach dem Erfassen. */
+function postLockDelayRange(s: AutoKontrolleSettings): { von: number; bis: number } {
+  return clampedPair(s.postLockDelayMin, s.postLockDelayMax, POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE);
 }
 
 /** Wach-Fenster (Komplement des Schlaf-Fensters) als zusammenhängender Block in Wanduhr-Minuten seit
@@ -335,6 +364,9 @@ export interface AutoKontrolleUserFields {
   autoKontrolleNurBeiSperre: boolean;
   autoKontrolleDays: number;
   autoKontrolleDayRules: string | null;
+  postLockInspectionEnabled: boolean;
+  postLockInspectionDelayMin: number; postLockInspectionDelayMax: number;
+  postLockInspectionDeadlineMinutes: number;
 }
 
 /** Eine User-Zeile, wie sie {@link AUTO_KONTROLLE_SETTINGS_SELECT} lädt: Settings plus die Identität
@@ -357,6 +389,10 @@ export function autoKontrolleSettingsFromUser(u: AutoKontrolleUserFields): AutoK
     nurBeiSperre: u.autoKontrolleNurBeiSperre,
     days: u.autoKontrolleDays,
     dayRules: parseAutoInspectionDayRules(u.autoKontrolleDayRules),
+    postLockEnabled: u.postLockInspectionEnabled,
+    postLockDelayMin: u.postLockInspectionDelayMin,
+    postLockDelayMax: u.postLockInspectionDelayMax,
+    postLockDeadlineMinutes: u.postLockInspectionDeadlineMinutes,
   };
 }
 
@@ -386,6 +422,12 @@ export type AutoInspectionsView = {
    *  Als Zeilen statt als Objekte, aus demselben Grund wie bei den Reinigungs-Fenstern: der Diff
    *  soll die ganze alte gegen die ganze neue Liste zeigen, und Objekte liest dort niemand. */
   dayRules: string[];
+  /** Kontrolle nach JEDEM erfassten Verschluss — eigenständig vom Tagesplan (`active`) und von
+   *  `onlyDuringLockPeriod`. Eingeschaltet übernimmt sie auch den Reinigungs-Wiederverschluss. */
+  postLockEnabled: boolean;
+  postLockDelayMin: number;
+  postLockDelayMax: number;
+  postLockDeadlineMinutes: number;
 };
 
 /** Domänen-Settings → {@link AutoInspectionsView}. EINE Übersetzung für die Lese-Seite (get_context)
@@ -406,6 +448,10 @@ export function autoInspectionsView(s: AutoKontrolleSettings): AutoInspectionsVi
     onlyDuringLockPeriod: s.nurBeiSperre,
     planDays: weekdayMaskKeys(s.days),
     dayRules: s.dayRules.map(formatAutoInspectionDayRule),
+    postLockEnabled: s.postLockEnabled,
+    postLockDelayMin: s.postLockDelayMin,
+    postLockDelayMax: s.postLockDelayMax,
+    postLockDeadlineMinutes: s.postLockDeadlineMinutes,
   };
 }
 
@@ -419,6 +465,8 @@ export const AUTO_KONTROLLE_SETTINGS_SELECT = {
   autoKontrolleFensterVon: true, autoKontrolleFensterBis: true,
   autoKontrolleNurBeiSperre: true, autoKontrolleDays: true, autoKontrolleDayRules: true,
   autoInspectionPlannedFor: true,
+  postLockInspectionEnabled: true, postLockInspectionDelayMin: true, postLockInspectionDelayMax: true,
+  postLockInspectionDeadlineMinutes: true,
 } as const;
 
 /** Die Felder, an denen der TAGESPLAN hängt: ändert sich eines, wird der Tag neu gewürfelt.
@@ -439,7 +487,12 @@ const PLANNING_FIELDS = [
  *  Das ist die einzige der zehn Feld-Listen dieses Moduls, deren Lücke man nicht sofort sieht. */
 type AssertNever<T extends never> = T;
 type _AllSettingsClassified = AssertNever<
-  Exclude<keyof AutoKontrolleUserFields, (typeof PLANNING_FIELDS)[number] | "autoKontrolleNurBeiSperre">
+  Exclude<
+    keyof AutoKontrolleUserFields,
+    (typeof PLANNING_FIELDS)[number] | "autoKontrolleNurBeiSperre"
+    | "postLockInspectionEnabled" | "postLockInspectionDelayMin"
+    | "postLockInspectionDelayMax" | "postLockInspectionDeadlineMinutes"
+  >
 >;
 
 /** Dieselbe Grenze auf der Settings-Sicht — und mit derselben Zusicherung versehen, damit die beiden
@@ -448,8 +501,15 @@ const PLANNING_SETTINGS = [
   "aktiv", "perDayMin", "perDayMax", "ruheVon", "ruheBis", "fristVon", "fristBis", "fensterVon", "fensterBis",
   "days", "dayRules",
 ] as const satisfies readonly (keyof AutoKontrolleSettings)[];
+// Die Verschluss-Kontrolle steht bewusst NICHT in `PLANNING_SETTINGS`: sie hat keinen Tagesplan, den
+// ein Wechsel neu zu würfeln zwänge — sie entsteht erst mit dem nächsten Verschluss. Stünde sie drin,
+// löste das Umstellen einer Frist einen Neuwurf des ganzen Tages aus.
 type _AllSettingsViewClassified = AssertNever<
-  Exclude<keyof AutoKontrolleSettings, (typeof PLANNING_SETTINGS)[number] | "nurBeiSperre">
+  Exclude<
+    keyof AutoKontrolleSettings,
+    (typeof PLANNING_SETTINGS)[number] | "nurBeiSperre"
+    | "postLockEnabled" | "postLockDelayMin" | "postLockDelayMax" | "postLockDeadlineMinutes"
+  >
 >;
 
 /** Würde dieser Übergang den Tagesplan neu würfeln? Die Frage beantwortet sonst nur
@@ -465,10 +525,10 @@ export function planningChanged(before: AutoKontrolleSettings, after: AutoKontro
 }
 
 /** Legt Auto-Kontroll-Zeilen für die gegebenen Slots an (frischer Code je Zeile, benachrichtigtAt=null).
- *  `extra` trägt die HERKUNFT (heute `cleaningRelock`) — die eine Stelle, an der eine Auto-Zeile
+ *  `extra` trägt die HERKUNFT (`cleaningRelock` bzw. `postLock`) — die eine Stelle, an der eine Auto-Zeile
  *  entsteht, bleibt damit auch die eine Stelle, die weiss, wie eine Auto-Zeile aussieht. */
 async function createAutoKontrollen(
-  userId: string, slots: { wirksamAb: Date; deadline: Date }[], extra: { cleaningRelock?: boolean } = {},
+  userId: string, slots: { wirksamAb: Date; deadline: Date }[], extra: { cleaningRelock?: boolean; postLock?: boolean } = {},
 ): Promise<number> {
   if (slots.length === 0) return 0;
   await prisma.kontrollAnforderung.createMany({
@@ -499,6 +559,41 @@ export function isSleepingAt(settings: AutoKontrolleSettings, at: Date, tz: stri
     hhmmToMinutes(today.ruheVon), hhmmToMinutes(today.ruheBis),
     hhmmToMinutes(formatTime(at, "de-CH", tz)),
   );
+}
+
+/**
+ * Die Verzögerung einer Kontrolle, die auf eine HANDLUNG des Trägers antwortet — und die Antwort auf
+ * die Frage, ob sie in seinen Schlaf fällt.
+ *
+ * Erst mit der gewünschten Spanne rechnen, dann prüfen, wo sie landet: fällt die Handlung ODER die
+ * daraus errechnete Auslösung ins Schlaf-Fenster, rückt die Auslösung näher heran.
+ *
+ * „Näher" ist dabei wörtlich zu nehmen und der Grund für das `Math.min`: die kurze Spanne ERSETZT
+ * die gewünschte nicht, sie deckelt sie. Bei der festen Reinigungs-Regel (15–45 gegen 5–15) fällt
+ * beides zusammen, weil die kurze immer darunter liegt. Die Verschluss-Kontrolle ist aber frei
+ * einstellbar: bei 1–2 Minuten wäre ein Neuwurf aus 5–15 ein Schritt TIEFER in den Schlaf hinein —
+ * die Schonung hätte den Träger später geweckt als die Einstellung, die sie schonen sollte.
+ *
+ * Ein zweiter Durchgang genügt damit weiterhin: die neue Verzögerung ist nie grösser als die, deren
+ * Landung geprüft wurde, kann also nicht aus dem Fenster herausfallen, in das jene fiel.
+ *
+ * Beide Verschluss-Regeln teilen das Zeichen für Zeichen; sie unterscheiden sich nur in der Spanne,
+ * die sie hineingeben. Als zwei Kopien war die Zwei-Schritt-Ordnung zweimal zu verstehen und einmal
+ * zu ändern vergessen.
+ */
+function delayAnsweringAnAction(
+  settings: AutoKontrolleSettings, spanne: { von: number; bis: number }, now: Date, tz: string, rand: () => number,
+): { verzoegerung: number; imSchlaf: boolean } {
+  const gewuenscht = randomInt(spanne.von, spanne.bis, rand);
+  const imSchlaf =
+    isSleepingAt(settings, now, tz) ||
+    isSleepingAt(settings, new Date(now.getTime() + gewuenscht * 60_000), tz);
+  return {
+    imSchlaf,
+    verzoegerung: imSchlaf
+      ? Math.min(gewuenscht, randomInt(CLEANING_RELOCK_INSPECTION_DELAY_SLEEP.min, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP.max, rand))
+      : gewuenscht,
+  };
 }
 
 /** Was {@link scheduleCleaningRelockInspection} geplant hat (null = nichts geplant). */
@@ -543,19 +638,16 @@ export async function scheduleCleaningRelockInspection(
   const u = await prisma.user.findUnique({ where: { id: userId }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
   if (!u) return null;
   const settings = autoKontrolleSettingsFromUser(u);
+  // Ist die Verschluss-Kontrolle eingeschaltet, hat sie diesen Wiederverschluss schon abgedeckt —
+  // er IST ein Verschluss. Ohne diese Schranke bekäme der Träger zwei Kontrollen für einen Vorgang.
+  // Die Vorfahrt steht NUR hier, damit sie nicht an zwei Stellen auseinanderlaufen kann.
+  if (settings.postLockEnabled) return null;
   if (!settings.aktiv) return null;
   const tz = u.timezone ?? APP_TZ;
 
-  // Erst mit der langen Verzögerung rechnen, dann prüfen, wo sie landet: fällt Verschluss ODER
-  // Auslösung in den Schlaf, gilt die kurze. Ein zweiter Durchgang genügt — die kurze Spanne liegt
-  // ganz in der langen, kann also nicht aus dem Schlaf-Fenster herausfallen, in das die lange fiel.
-  const langeVerzoegerung = randomInt(CLEANING_RELOCK_INSPECTION_DELAY.min, CLEANING_RELOCK_INSPECTION_DELAY.max, rand);
-  const imSchlaf =
-    isSleepingAt(settings, now, tz) ||
-    isSleepingAt(settings, new Date(now.getTime() + langeVerzoegerung * 60_000), tz);
-  const verzoegerung = imSchlaf
-    ? randomInt(CLEANING_RELOCK_INSPECTION_DELAY_SLEEP.min, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP.max, rand)
-    : langeVerzoegerung;
+  const { verzoegerung, imSchlaf } = delayAnsweringAnAction(
+    settings, { von: CLEANING_RELOCK_INSPECTION_DELAY.min, bis: CLEANING_RELOCK_INSPECTION_DELAY.max }, now, tz, rand,
+  );
 
   const { von: fristVon, bis: fristBis } = fristRange(settings);
   const wirksamAb = new Date(now.getTime() + verzoegerung * 60_000);
@@ -576,6 +668,89 @@ export async function scheduleCleaningRelockInspection(
 
   await createAutoKontrollen(userId, [{ wirksamAb, deadline }], { cleaningRelock: true });
   return { wirksamAb, deadline, imSchlaf, ersetzteId: geloescht > 0 ? ersetzbar!.id : null };
+}
+
+// ── Kontrolle nach JEDEM erfassten Verschluss ─────────────────────────────────
+
+/** Was {@link schedulePostLockInspection} geplant hat (null = nichts geplant). */
+export interface PostLockInspectionPlan {
+  wirksamAb: Date;
+  deadline: Date;
+  /** Die Kontrolle landet im Schlaf-Fenster: kurze Verzögerung, keine Eskalationsstufe 2. */
+  imSchlaf: boolean;
+}
+
+/**
+ * Plant die Kontrolle NACH einem Verschluss: „du hast dich gerade eingeschlossen — zeig es mir."
+ *
+ * Unterschiede zur festen Reinigungs-Regel ({@link scheduleCleaningRelockInspection}), die sie bei
+ * eingeschaltetem Schalter ablöst:
+ *
+ * - **Eigenständig.** Weder der Hauptschalter der Automatik (`aktiv`) noch „nur bei Sperrzeit"
+ *   gelten; allein `postLockEnabled` entscheidet. Man kann den gewürfelten Tagesplan also ganz
+ *   abschalten und trotzdem jeden Verschluss kontrollieren lassen.
+ * - **Additiv.** Sie ersetzt KEINE geplante Auto-Kontrolle des Tages — die Tagesanzahl steigt um
+ *   diese eine. Die Reinigungs-Regel nahm dem Plan dafür eine weg; wer den Schalter setzt, ändert
+ *   damit auch das.
+ * - **Feste Frist** aus den Einstellungen statt einer gewürfelten Spanne: der Anlass ist bekannt,
+ *   die Überraschung liegt nicht in der Frist.
+ *
+ * Geerbt bleibt die Schonung im Schlaf-Fenster: fällt der Verschluss ODER die daraus errechnete
+ * Auslösung hinein, gilt die kurze Spanne ({@link CLEANING_RELOCK_INSPECTION_DELAY_SLEEP}), und der
+ * Poller lässt Eskalationsstufe 2 aus (`inspectionEscalationService`, über `postLock`).
+ *
+ * Ausgelöst wird beim ANLEGEN eines Verschluss-Eintrags — vom Träger wie von der Keyholderin —, und
+ * zwar relativ zu JETZT, nicht zur Eintrags-Zeit: ein Nachtrag von gestern soll keine Kontrolle mit
+ * Bezug auf gestern erzeugen. Fire-and-forget vom Aufrufer, deshalb wirft die Funktion nicht in den
+ * Request zurück.
+ */
+export async function schedulePostLockInspection(
+  userId: string, now: Date = new Date(), rand: () => number = Math.random,
+): Promise<PostLockInspectionPlan | null> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
+  if (!u) return null;
+  const settings = autoKontrolleSettingsFromUser(u);
+  if (!settings.postLockEnabled) return null;
+  // Nur, wenn der Träger JETZT auch verschlossen ist. Die Keyholderin darf rückdatieren: ein
+  // nachgetragenes, längst wieder geöffnetes Verschluss-Paar soll keine Kontrolle für jemanden
+  // auslösen, der gar nicht zu ist. Der Wächter steht HIER und nicht an den drei Aufrufstellen —
+  // an einer davon würde er sonst fehlen, und zwar unbemerkt.
+  if (!(await getIsLocked(userId))) return null;
+  const tz = u.timezone ?? APP_TZ;
+
+  const { verzoegerung, imSchlaf } = delayAnsweringAnAction(settings, postLockDelayRange(settings), now, tz, rand);
+
+  const wirksamAb = new Date(now.getTime() + verzoegerung * 60_000);
+  const frist = clamp(settings.postLockDeadlineMinutes, POST_LOCK_INSPECTION_DEADLINE_RANGE);
+  const deadline = new Date(wirksamAb.getTime() + frist * 60_000);
+
+  await createAutoKontrollen(userId, [{ wirksamAb, deadline }], { postLock: true });
+  return { wirksamAb, deadline, imSchlaf };
+}
+
+/**
+ * Die Verschluss-Kontrolle anstossen, ohne auf sie zu warten.
+ *
+ * Der Anlege-Pfad des Trägers und der der Keyholderin rufen sie beide, und beide sind an dieser
+ * Stelle mit dem Eintrag längst fertig: ein Fehler hier darf die geschriebene Zeile nicht mehr
+ * gefährden. Als zwei Kopien von `void … .catch(console.error)` wäre schon die Logzeile
+ * auseinandergelaufen — und man sähe an keinem der beiden Orte, dass es den anderen gibt.
+ */
+export function triggerPostLockInspection(userId: string): void {
+  void schedulePostLockInspection(userId).catch((e) =>
+    console.error("[autoKontrolle:postLock]", (e as Error).message));
+}
+
+/**
+ * Ist diese Auto-Kontrolle aus einem VERSCHLUSS des Trägers entstanden statt aus dem Tagesplan?
+ *
+ * Zwei Herkünfte, eine Frage: die Reinigungs-Regel und die Verschluss-Kontrolle teilen beide
+ * Folgen — kein Sperrzeit-Gate beim Zustellen, und Schonung im Schlaf-Fenster. Als zwei
+ * Einzelabfragen stünden sie an drei Stellen (Poller, Eskalation, Vorhersage) je zweimal da, und
+ * eine dritte Herkunft würde an einer davon vergessen.
+ */
+export function isEntryTriggeredInspection(ka: { cleaningRelock: boolean; postLock: boolean }): boolean {
+  return ka.cleaningRelock || ka.postLock;
 }
 
 /** Hält fest, dass für diesen Sub-Tag gewürfelt wurde. Der Merker ist die EINZIGE Spur eines Wurfs auf
@@ -797,10 +972,16 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
     // unten Zeichenkette gegen Zeichenkette und nicht Formatierung gegen Formatierung.
     data.autoKontrolleDayRules = JSON.stringify(rules);
   }
-  // „Bis" nie unter „Von" — nur wenn beide in diesem Patch bekannt (Von-/Bis-Paare: PerDay & Frist).
+  if (params.postLockEnabled !== undefined) data.postLockInspectionEnabled = params.postLockEnabled;
+  if (params.postLockDelayMin !== undefined) data.postLockInspectionDelayMin = clamp(params.postLockDelayMin, POST_LOCK_INSPECTION_DELAY_MIN_RANGE);
+  if (params.postLockDelayMax !== undefined) data.postLockInspectionDelayMax = clamp(params.postLockDelayMax, POST_LOCK_INSPECTION_DELAY_MAX_RANGE);
+  if (params.postLockDeadlineMinutes !== undefined) data.postLockInspectionDeadlineMinutes = clamp(params.postLockDeadlineMinutes, POST_LOCK_INSPECTION_DEADLINE_RANGE);
+  // „Bis" nie unter „Von" — nur wenn beide in diesem Patch bekannt (Von-/Bis-Paare: PerDay, Frist
+  // und das Auslöse-Fenster der Verschluss-Kontrolle).
   // Nur die vorhandenen Bis-Keys anfassen, sonst würde undefined den „keine Felder"-Guard aushebeln.
   if (data.autoKontrollePerDayMax !== undefined) data.autoKontrollePerDayMax = raiseMaxToMin(data.autoKontrollePerDayMin, data.autoKontrollePerDayMax);
   if (data.autoKontrolleFristBis !== undefined) data.autoKontrolleFristBis = raiseMaxToMin(data.autoKontrolleFristVon, data.autoKontrolleFristBis);
+  if (data.postLockInspectionDelayMax !== undefined) data.postLockInspectionDelayMax = raiseMaxToMin(data.postLockInspectionDelayMin, data.postLockInspectionDelayMax);
 
   // Leeres `data` heisst jetzt eindeutig: gar kein Feld übergeben (ungültige Uhrzeiten sind oben
   // schon als INVALID_TIME rausgeflogen).

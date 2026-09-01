@@ -37,6 +37,8 @@ const USER = {
   autoKontrolleFensterVon: "06:20", autoKontrolleFensterBis: "07:00",
   autoKontrolleNurBeiSperre: false,
   autoKontrolleDays: ALL_WEEKDAYS, autoKontrolleDayRules: null as string | null,
+  postLockInspectionEnabled: false, postLockInspectionDelayMin: 15,
+  postLockInspectionDelayMax: 45, postLockInspectionDeadlineMinutes: 15,
 };
 
 /** Eine User-Zeile, deren Merker der Code über `user.update` wirklich fortschreibt — sonst prüfte der

@@ -56,6 +56,23 @@ model User {
   // Mitternacht (`midnightInTZ`). Hält auch einen Wurf auf NULL Kontrollen fest, der keine Zeile
   // hinterlässt — warum das die Spalte rechtfertigt, steht bei `markDayPlanned`.
   autoInspectionPlannedFor       DateTime?
+  // Kontrolle nach JEDEM selbst oder von der Keyholderin erfassten Verschluss — „du hast dich gerade
+  // eingeschlossen, zeig es mir". Eigenständig: sie hängt NICHT am Hauptschalter `autoKontrolleAktiv`
+  // und nicht an `autoKontrolleNurBeiSperre`, sondern nur an diesem Schalter. Sie kommt ZUSÄTZLICH
+  // zum gewürfelten Tagesplan, nimmt ihm also keine Kontrolle weg.
+  //
+  // Ist sie an, übernimmt sie auch den Wiederverschluss nach einer Reinigungspause — sonst bekäme
+  // der Träger dort zwei Kontrollen für einen Verschluss. Die feste Reinigungs-Regel
+  // (`scheduleCleaningRelockInspection`) bleibt für alle, die diesen Schalter nicht setzen.
+  postLockInspectionEnabled      Boolean                  @default(false)
+  // Auslöse-Fenster nach dem Verschluss in Minuten; gezogen wird zufällig aus [Min, Max]. Im
+  // Schlaf-Fenster gilt stattdessen die kurze Spanne der Reinigungs-Regel — der Träger ist beim
+  // Verschluss ohnehin wach, aber eine halbe Stunde später schläft er womöglich schon.
+  postLockInspectionDelayMin     Int                      @default(15)
+  postLockInspectionDelayMax     Int                      @default(45)
+  // Erfüllungsfrist dieser Kontrolle in Minuten — anders als beim Tagesplan EIN fester Wert, nicht
+  // eine Spanne: der Anlass ist bekannt, die Überraschung liegt nicht in der Frist.
+  postLockInspectionDeadlineMinutes Int                   @default(15)
   // Kontroll-Eskalation (Stufe 1: Mahnung, Stufe 2: automatisch als abgelegt markieren). Beide
   // Stufen sind unabhängig voneinander schaltbar und standardmässig AUS (Opt-in, kein
   // Verhaltenswechsel für Bestandsnutzer). Delay-Werte in Minuten; Stufe 2 zählt ab dem Zeitpunkt
@@ -750,6 +767,12 @@ model KontrollAnforderung {
   // gewürfelten Tagesplan. Nicht aus der Zeile rekonstruierbar, deshalb eine Spalte; was daran hängt,
   // steht bei `scheduleCleaningRelockInspection`.
   cleaningRelock           Boolean   @default(false)
+  // HERKUNFT: aus einem Verschluss-Eintrag statt aus dem Tagesplan (`postLockInspectionEnabled`).
+  // Eigene Spalte statt einer Umdeutung von `cleaningRelock`: die beiden entstehen aus verschiedenen
+  // Anlässen, und eine Zeile aus der Zeit vor diesem Schalter soll nicht rückwirkend behaupten, sie
+  // stamme aus dieser Regel. Was BEIDE gemeinsam haben — kein Sperrzeit-Gate, Schonung im
+  // Schlaf-Fenster —, fragt `isEntryTriggeredInspection()` an einer Stelle ab.
+  postLock                 Boolean   @default(false)
 
   @@index([userId, withdrawnAt])
   @@index([userId, entryId])

@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 136 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 140 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -68,6 +68,10 @@ Steckbrief: [30-kontrollen.md](30-kontrollen.md)
 | `User.autoKontrolleNurBeiSperre` | Boolean | `false` | dauerhaft | Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen, Sperrzeit | `autoKontrolleService.ts` |
 | `User.autoKontrolleDays` | Int | `127` | dauerhaft | Wochentage, an denen überhaupt ein Tagesplan gewürfelt wird (Bitmaske). Ein ausgelassener Tag bleibt still; die Kontrolle nach einem Wiederverschluss bleibt davon unberührt. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen | `autoKontrolleService.ts:settingsForDay` |
 | `User.autoKontrolleDayRules` | String? | — | dauerhaft | Tages-Ausnahmen: ersetzen an ihren Wochentagen Schlaf- und Auslöse-Fenster. Die erste passende Regel gewinnt; ohne Treffer gelten die Grundwerte. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen | `autoKontrolleDayRules.ts:timesForDay` |
+| `User.postLockInspectionEnabled` | Boolean | `false` | dauerhaft | Nach JEDEM erfassten Verschluss folgt eine Kontrolle — zusätzlich zum Tagesplan. Eigenständig: weder der Hauptschalter der Automatik noch „nur bei Sperrzeit" gelten. Eingeschaltet übernimmt sie auch den Wiederverschluss nach einer Reinigungspause. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen, Kontrollen, Strafbuch | `autoKontrolleService.ts:schedulePostLockInspection` |
+| `User.postLockInspectionDelayMin` | Int | `15` | dauerhaft | Frühestens so viele Minuten nach dem Erfassen wird ausgelöst. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen | `autoKontrolleService.ts:schedulePostLockInspection` |
+| `User.postLockInspectionDelayMax` | Int | `45` | dauerhaft | Spätestens so viele Minuten nach dem Erfassen wird ausgelöst; gezogen wird zufällig dazwischen. Im Schlaf-Fenster gilt stattdessen die kurze Spanne der Reinigungs-Regel. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen | `autoKontrolleService.ts:schedulePostLockInspection` |
+| `User.postLockInspectionDeadlineMinutes` | Int | `15` | dauerhaft | Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne. | Keyholder (UI), Keyholder (MCP) | Auto-Kontrollen, Strafbuch | `autoKontrolleService.ts:schedulePostLockInspection` |
 | `User.inspectionReminderEnabled` | Boolean | `false` | dauerhaft | Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
 | `User.inspectionReminderDelayMinutes` | Int | `5` | dauerhaft | Verzug bis zur Mahnung, gemessen ab dem Ablauf der Kontroll-Frist. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
 | `User.inspectionAutoMarkEnabled` | Boolean | `false` | dauerhaft | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Einträge, Sessions/Statistik, Strafbuch | `queries.ts:releaseLockPeriodsOnOpen` |
@@ -345,6 +349,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `KontrollAnforderung.autoMarkedRemovedAt` | Laufzeitzustand | Stempel der Stufe 2. |
 | `KontrollAnforderung.autoMarkedEntryId` | Laufzeitzustand | Der von Stufe 2 erzeugte Öffnen-Eintrag — bewusst eine eigene Spalte, nicht die des erfüllenden Eintrags. |
 | `KontrollAnforderung.cleaningRelock` | Laufzeitzustand | Herkunft: aus einem Wiederverschluss nach einer Reinigungspause statt aus dem Tagesplan. Nicht aus der Zeile rekonstruierbar. |
+| `KontrollAnforderung.postLock` | Laufzeitzustand | Herkunft: aus einem Verschluss-Eintrag statt aus dem Tagesplan. Teilt mit `cleaningRelock` die Folgen (kein Sperrzeit-Gate, Schonung im Schlaf). |
 | `OrgasmusAnforderung.id` | Identität | Primärschlüssel. |
 | `OrgasmusAnforderung.userId` | Identität | Eigentümer der Zeile. |
 | `OrgasmusAnforderung.createdAt` | Datensatz | Anlage-Zeitpunkt. |

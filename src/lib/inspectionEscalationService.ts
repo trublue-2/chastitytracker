@@ -11,7 +11,7 @@ import {
   INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
 } from "@/lib/constants";
 import { codeOf } from "@/lib/codedError";
-import { isSleepingAt, autoKontrolleSettingsFromUser, type AutoKontrolleUserFields } from "@/lib/autoKontrolleService";
+import { isSleepingAt, autoKontrolleSettingsFromUser, isEntryTriggeredInspection, type AutoKontrolleUserFields } from "@/lib/autoKontrolleService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 /*
@@ -67,6 +67,7 @@ export function predictAutoMarkAt(
     benachrichtigtAt: Date | null;
     wirksamAb: Date | null;
     cleaningRelock: boolean;
+    postLock: boolean;
   },
   // Nur die Felder, die die Rechnung liest — nicht der ganze User: so kann ein Aufrufer eine
   // schmale Zeile laden, statt eine breite laden zu müssen, weil der Typ sie verlangt.
@@ -74,7 +75,8 @@ export function predictAutoMarkAt(
     & AutoKontrolleUserFields & { timezone: string | null },
 ): Date | null {
   if (!user.inspectionAutoMarkEnabled) return null;
-  if (ka.cleaningRelock && isSleepingAt(autoKontrolleSettingsFromUser(user), ka.benachrichtigtAt ?? ka.wirksamAb ?? ka.deadline, user.timezone ?? APP_TZ)) {
+  // Beide Verschluss-Herkünfte teilen die Schonung; welche es war, spielt hier keine Rolle.
+  if (isEntryTriggeredInspection(ka) && isSleepingAt(autoKontrolleSettingsFromUser(user), ka.benachrichtigtAt ?? ka.wirksamAb ?? ka.deadline, user.timezone ?? APP_TZ)) {
     return null;
   }
   const anchor = ka.benachrichtigtReminderAt

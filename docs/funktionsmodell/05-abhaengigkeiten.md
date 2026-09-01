@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 142 Kanten über 18 Mechaniken, davon 19 fest verdrahtet.
+Insgesamt 149 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
 
 ## Einträge
 
@@ -37,6 +37,7 @@ flowchart LR
   nEintrge --> nSessionsStatistik["Sessions/Statistik"]
   nEintrge --> nBox["Box"]
   nEintrge --> nGerte["Geräte"]
+  nEintrge --> nAutoKontrollen["Auto-Kontrollen"]
 ```
 
 ### Hängt ab von
@@ -77,6 +78,7 @@ flowchart LR
 | Kontrollen | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
 | Sessions/Statistik | `Entry.startTime` | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | `entryFulfilment.ts` |
 | Strafbuch | `Entry.startTime` | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | `entryFulfilment.ts` |
+| Auto-Kontrollen | *feste Regel* | Bei eingeschalteter Verschluss-Kontrolle erzeugt JEDER neu erfasste Verschluss — vom Träger wie von der Keyholderin — eine zusätzliche Kontrolle, sofern der Träger dann auch verschlossen ist. Sie ersetzt keine geplante; der Tagesplan bleibt unberührt. Gerechnet wird ab dem Erfassen, nicht ab der Eintrags-Zeit. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Sperrzeit | *feste Regel* | Eine Öffnung ohne Deckung hebt JEDE aktive Sperrzeit auf. Eine erlaubte Reinigungsöffnung und ein Orgasmus-Öffnungsfenster tun das nicht. | `queries.ts:releaseLockPeriodsOnOpen` |
 | Sessions/Statistik | *feste Regel* | Sessions, Segmente und jede Stundenzahl entstehen beim LESEN aus den Einträgen. Nichts davon ist gestempelt — ein korrigierter Eintrag korrigiert alles Nachgelagerte mit. | `sessionModel.ts:buildSessions` |
 | Kontrollen | *feste Regel* | Ein Prüfungs-Eintrag erfüllt nur die Kontrolle DESSELBEN Ziels; ein Plug-Foto hakt keine KG-Kontrolle ab. | `kontrolleService.ts` |
@@ -176,7 +178,7 @@ flowchart LR
 | Sessions/Statistik | `User.cleaningMaxMinutes` | Höchstdauer EINER Pause. Darüber hinaus zählt die Pause als Tragezeit-Unterbrechung und wird zum erkannten Vergehen. | `cleaningRules.ts:cleaningRulesAt` |
 | Strafbuch | `User.cleaningMaxPerDay` | ANZAHL Öffnungen pro Kalendertag des Subs (kein Minutenbudget). 0 = unbegrenzt. Wird nur erkannt, nie durchgesetzt. | `cleaningService.ts:maxPausesPerDaySentinel` |
 | Box | `User.cleaningWindows` | Tages-Zeitfenster (JSON-Liste). Binden NUR während einer Sperrzeit, die die Reinigung erlaubt. Leere Liste = nicht zeitgebunden, kein Verbot. | `queries.ts:cleaningWindowBindingStatus` |
-| Auto-Kontrollen | *feste Regel* | Jeder SELBST erfasste Wiederverschluss nach einer Reinigungspause erzeugt eine Kontrolle (15–45 min, im Schlaf-Fenster 5–15). Sie ersetzt die nächste noch nicht zugestellte Auto-Kontrolle des Tages. Feste Regel, keine Einstellung — nur der Hauptschalter der Automatik schaltet sie ab. | `autoKontrolleService.ts:scheduleCleaningRelockInspection` |
+| Auto-Kontrollen | *feste Regel* | Jeder SELBST erfasste Wiederverschluss nach einer Reinigungspause erzeugt eine Kontrolle (15–45 min, im Schlaf-Fenster 5–15). Sie ersetzt die nächste noch nicht zugestellte Auto-Kontrolle des Tages. Feste Regel, keine Einstellung — nur der Hauptschalter der Automatik schaltet sie ab. Ist die Verschluss-Kontrolle eingeschaltet, übernimmt DIESE den Wiederverschluss und die Regel hier greift nicht. | `autoKontrolleService.ts:scheduleCleaningRelockInspection` |
 | Sessions/Statistik | *feste Regel* | Eine Pause zerlegt die KG-Session in Segmente und wird von der Tragedauer abgezogen — die Session bricht dabei nicht. | `sessionModel.ts:buildSessions` |
 | Geräte | *feste Regel* | Es gibt keinen eigenen Gerätewechsel: er läuft über eine Reinigungsöffnung und verbraucht damit deren Tageskontingent. | — |
 
@@ -237,6 +239,12 @@ flowchart LR
 | Strafbuch | `KontrollAnforderung.deadline` | Erfüllungsfrist. Nach Ablauf verschwindet die Kontrolle nicht, sie wird überfällig — und ist der Startpunkt der Eskalation. | `inspectionEscalationService.ts` |
 | Auto-Kontrollen | `KontrollAnforderung.wirksamAb` | Terminierte Zustellung; bis dahin für den Sub unsichtbar und ohne laufende Frist. Auch der Weg, auf dem der Tagesplan vorab angelegt wird. | — |
 | Nachrichten | `KontrollAnforderung.kommentar` | Begleittext an den Sub. | — |
+| Auto-Kontrollen | `User.postLockInspectionEnabled` | Nach JEDEM erfassten Verschluss folgt eine Kontrolle — zusätzlich zum Tagesplan. Eigenständig: weder der Hauptschalter der Automatik noch „nur bei Sperrzeit" gelten. Eingeschaltet übernimmt sie auch den Wiederverschluss nach einer Reinigungspause. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Strafbuch | `User.postLockInspectionEnabled` | Nach JEDEM erfassten Verschluss folgt eine Kontrolle — zusätzlich zum Tagesplan. Eigenständig: weder der Hauptschalter der Automatik noch „nur bei Sperrzeit" gelten. Eingeschaltet übernimmt sie auch den Wiederverschluss nach einer Reinigungspause. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Auto-Kontrollen | `User.postLockInspectionDelayMin` | Frühestens so viele Minuten nach dem Erfassen wird ausgelöst. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Auto-Kontrollen | `User.postLockInspectionDelayMax` | Spätestens so viele Minuten nach dem Erfassen wird ausgelöst; gezogen wird zufällig dazwischen. Im Schlaf-Fenster gilt stattdessen die kurze Spanne der Reinigungs-Regel. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Auto-Kontrollen | `User.postLockInspectionDeadlineMinutes` | Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Strafbuch | `User.postLockInspectionDeadlineMinutes` | Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Einträge | *feste Regel* | Eskalationsstufe 2 legt selbst einen Öffnen-Eintrag an — ohne Zutun des Subs und ohne dass die Box aufgeht. Eine Sperrzeit hebt sie dabei bewusst nicht auf. | `inspectionEscalationService.ts` |
 | Strafbuch | *feste Regel* | Versäumt, abgelehnt oder automatisch als abgenommen gebucht — in jedem Fall ein erkanntes Vergehen, unabhängig davon, ob die Eskalation eingeschaltet ist. | — |
 
@@ -373,6 +381,8 @@ flowchart LR
 | Sperrzeit | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
 | Sperrzeit | `VerschlussAnforderung.deviceId` | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | — |
 | Kontrollen | `KontrollAnforderung.deadline` | Erfüllungsfrist. Nach Ablauf verschwindet die Kontrolle nicht, sie wird überfällig — und ist der Startpunkt der Eskalation. | `inspectionEscalationService.ts` |
+| Kontrollen | `User.postLockInspectionEnabled` | Nach JEDEM erfassten Verschluss folgt eine Kontrolle — zusätzlich zum Tagesplan. Eigenständig: weder der Hauptschalter der Automatik noch „nur bei Sperrzeit" gelten. Eingeschaltet übernimmt sie auch den Wiederverschluss nach einer Reinigungspause. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Kontrollen | `User.postLockInspectionDeadlineMinutes` | Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
 | Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
 | Einträge | `Entry.startTime` | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | `entryFulfilment.ts` |
@@ -656,6 +666,7 @@ flowchart LR
   nZugang["Zugang"] --> nAutoKontrollen
   nMCP["MCP"] --> nAutoKontrollen
   nReinigung["Reinigung"] --> nAutoKontrollen
+  nEintrge["Einträge"] --> nAutoKontrollen
 ```
 
 ### Hängt ab von
@@ -676,8 +687,13 @@ flowchart LR
 | Kontrollen | `User.autoKontrolleNurBeiSperre` | Stellt den Tagesplan nur während einer laufenden Sperrzeit zu. Gilt NICHT für die Kontrolle nach dem Wiederverschluss. | `autoKontrolleService.ts` |
 | Zugang | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
 | Kontrollen | `KontrollAnforderung.wirksamAb` | Terminierte Zustellung; bis dahin für den Sub unsichtbar und ohne laufende Frist. Auch der Weg, auf dem der Tagesplan vorab angelegt wird. | — |
+| Kontrollen | `User.postLockInspectionEnabled` | Nach JEDEM erfassten Verschluss folgt eine Kontrolle — zusätzlich zum Tagesplan. Eigenständig: weder der Hauptschalter der Automatik noch „nur bei Sperrzeit" gelten. Eingeschaltet übernimmt sie auch den Wiederverschluss nach einer Reinigungspause. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Kontrollen | `User.postLockInspectionDelayMin` | Frühestens so viele Minuten nach dem Erfassen wird ausgelöst. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Kontrollen | `User.postLockInspectionDelayMax` | Spätestens so viele Minuten nach dem Erfassen wird ausgelöst; gezogen wird zufällig dazwischen. Im Schlaf-Fenster gilt stattdessen die kurze Spanne der Reinigungs-Regel. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Kontrollen | `User.postLockInspectionDeadlineMinutes` | Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
-| Reinigung | *feste Regel* | Jeder SELBST erfasste Wiederverschluss nach einer Reinigungspause erzeugt eine Kontrolle (15–45 min, im Schlaf-Fenster 5–15). Sie ersetzt die nächste noch nicht zugestellte Auto-Kontrolle des Tages. Feste Regel, keine Einstellung — nur der Hauptschalter der Automatik schaltet sie ab. | `autoKontrolleService.ts:scheduleCleaningRelockInspection` |
+| Reinigung | *feste Regel* | Jeder SELBST erfasste Wiederverschluss nach einer Reinigungspause erzeugt eine Kontrolle (15–45 min, im Schlaf-Fenster 5–15). Sie ersetzt die nächste noch nicht zugestellte Auto-Kontrolle des Tages. Feste Regel, keine Einstellung — nur der Hauptschalter der Automatik schaltet sie ab. Ist die Verschluss-Kontrolle eingeschaltet, übernimmt DIESE den Wiederverschluss und die Regel hier greift nicht. | `autoKontrolleService.ts:scheduleCleaningRelockInspection` |
+| Einträge | *feste Regel* | Bei eingeschalteter Verschluss-Kontrolle erzeugt JEDER neu erfasste Verschluss — vom Träger wie von der Keyholderin — eine zusätzliche Kontrolle, sofern der Träger dann auch verschlossen ist. Sie ersetzt keine geplante; der Tagesplan bleibt unberührt. Gerechnet wird ab dem Erfassen, nicht ab der Eintrags-Zeit. | `autoKontrolleService.ts:schedulePostLockInspection` |
 
 ### Wirkt auf
 

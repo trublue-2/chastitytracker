@@ -34,6 +34,7 @@ import {
   weightTrackingEnabled, heimdallEnabled,
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
+  POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE, POST_LOCK_INSPECTION_DEADLINE_RANGE,
   MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
   INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
   clampProofDueOffset, clampHoldDuration, type NumberRange,
@@ -1449,6 +1450,7 @@ const AUTO_INSPECTION_ARG_KEYS = [
   "active", "perDayMin", "perDayMax", "sleepFrom", "sleepUntil",
   "deadlineMinFrom", "deadlineMinTo", "triggerWindowFrom", "triggerWindowUntil", "onlyDuringLockPeriod",
   "planDays", "dayRules",
+  "postLockEnabled", "postLockDelayMin", "postLockDelayMax", "postLockDeadlineMinutes",
 ] as const satisfies readonly (keyof Omit<SetAutoInspectionsArgs, "dryRun">)[];
 
 export interface SetAutoInspectionsArgs {
@@ -1475,6 +1477,15 @@ export interface SetAutoInspectionsArgs {
     triggerWindowFrom?: string | null;
     triggerWindowUntil?: string | null;
   }[];
+  /** Kontrolle nach JEDEM erfassten Verschluss — eigenständig, hängt weder an `active` noch an
+   *  `onlyDuringLockPeriod`. Eingeschaltet übernimmt sie auch den Wiederverschluss nach einer
+   *  Reinigungspause, der sonst seiner eigenen festen Regel folgt. */
+  postLockEnabled?: boolean;
+  /** Auslöse-Fenster in Minuten nach dem Erfassen; gezogen wird zufällig aus [min, max]. */
+  postLockDelayMin?: number;
+  postLockDelayMax?: number;
+  /** Erfüllungsfrist dieser Kontrolle in Minuten — EIN Wert, keine Spanne. */
+  postLockDeadlineMinutes?: number;
   dryRun?: boolean;
 }
 
@@ -1591,6 +1602,10 @@ export async function mcpSetAutoInspections(username: string, args: SetAutoInspe
     { min: clampOptional(args.deadlineMinFrom, AUTO_INSPECTION_DEADLINE_FROM_RANGE), max: clampOptional(args.deadlineMinTo, AUTO_INSPECTION_DEADLINE_TO_RANGE) },
     { min: before.fristVon, max: before.fristBis },
   );
+  const postLockDelay = alignPair(
+    { min: clampOptional(args.postLockDelayMin, POST_LOCK_INSPECTION_DELAY_MIN_RANGE), max: clampOptional(args.postLockDelayMax, POST_LOCK_INSPECTION_DELAY_MAX_RANGE) },
+    { min: before.postLockDelayMin, max: before.postLockDelayMax },
+  );
   // `null` = Fenster aus → "" (die Speicher-Form), `undefined` lässt den Bestand stehen.
   const window = (v: string | null | undefined, current: string) => (v === undefined ? current : v ?? "");
 
@@ -1609,6 +1624,12 @@ export async function mcpSetAutoInspections(username: string, args: SetAutoInspe
     // Wie überall auf diesem Pfad der VOLLE Ergebnis-Stand — jetzt in derselben Form wie alles
     // andere, seit die Settings die Liste tragen statt der Speicher-Zeichenkette.
     dayRules: dayRules ?? before.dayRules,
+    postLockEnabled: args.postLockEnabled ?? before.postLockEnabled,
+    // Dasselbe Paar-Ausrichten wie bei der Frist-Spanne: ein Max unter dem Min ist eine
+    // Fehleingabe, keine leere Spanne.
+    postLockDelayMin: postLockDelay.min,
+    postLockDelayMax: postLockDelay.max,
+    postLockDeadlineMinutes: clampOptional(args.postLockDeadlineMinutes, POST_LOCK_INSPECTION_DEADLINE_RANGE) ?? before.postLockDeadlineMinutes,
   };
   assertTriggerWindow(after);
 
@@ -1627,9 +1648,15 @@ export async function mcpSetAutoInspections(username: string, args: SetAutoInspe
  *  was der Name verspricht (sonst meldet das Tool „updated" und der Agent glaubt, es kämen
  *  Kontrollen) — und den Neuwurf nur dann, wenn der Service ihn wirklich ausgelöst hat. */
 function autoInspectionsNote(before: AutoKontrolleSettings, after: AutoKontrolleSettings): string {
-  if (!after.aktiv) return " Automatic inspections are OFF — no daily plan, and no inspection after a cleaning relock either.";
+  // Die Verschluss-Kontrolle hängt an keinem der beiden Schalter. Ohne diesen Zusatz meldete das
+  // Tool „OFF — no inspections" für einen Stand, der nach JEDEM Verschluss eine schickt, und der
+  // Agent plante gegen eine Automatik, die es gar nicht gab.
+  const postLock = after.postLockEnabled
+    ? ` Independently of that, an inspection follows EVERY recorded lock (${after.postLockDelayMin}–${after.postLockDelayMax} min after, ${after.postLockDeadlineMinutes} min to fulfil).`
+    : "";
+  if (!after.aktiv) return ` Automatic inspections are OFF — no daily plan, and no inspection after a cleaning relock either.${postLock}`;
   if (after.perDayMax <= 0) {
-    return " perDayMax is 0 — no daily inspections will be planned; only the inspection after a cleaning relock still applies.";
+    return ` perDayMax is 0 — no daily inspections will be planned; only the inspection after a cleaning relock still applies.${postLock}`;
   }
   const count = after.perDayMin === after.perDayMax ? `${after.perDayMin}` : `${after.perDayMin}–${after.perDayMax}`;
   const trigger = after.fensterVon ? `, triggers only ${after.fensterVon}–${after.fensterBis}` : "";
@@ -1641,7 +1668,7 @@ function autoInspectionsNote(before: AutoKontrolleSettings, after: AutoKontrolle
   const days = after.days === ALL_WEEKDAYS ? "" : ` Planned on ${view.planDays} only.`;
   const exceptions = view.dayRules.length === 0 ? "" : ` Day exceptions: ${view.dayRules.join("; ")}.`;
   return ` ${count} per day, ${after.fristVon}–${after.fristBis} min to comply, sleep ${after.ruheVon}–${after.ruheBis}${trigger}.`
-    + days + exceptions
+    + days + exceptions + postLock
     + (planningChanged(before, after) ? " Today's remaining plan was re-rolled." : "");
 }
 

@@ -562,8 +562,20 @@ export const CLEANING_RELOCK_INSPECTION_DELAY = { min: 15, max: 45 } as const;
  *  keine Session beenden (die Regel steht bei `scheduleCleaningRelockInspection`). */
 export const CLEANING_RELOCK_INSPECTION_DELAY_SLEEP = { min: 5, max: 15 } as const;
 
+/** Grenzen des Auslöse-Fensters der Kontrolle nach einem Verschluss (Minuten nach dem Erfassen).
+ *  Min und Max derselben Zeile teilen die Grenzen, aber nicht den Fallback — die Vorgabe 15–45
+ *  spiegelt die feste Reinigungs-Regel, die diese Einstellung eingeschaltet übernimmt. */
+const POST_LOCK_INSPECTION_DELAY = { min: 1, max: 240 } as const;
+/** Untere Grenze des Auslöse-Fensters („frühestens"). */
+export const POST_LOCK_INSPECTION_DELAY_MIN_RANGE = { ...POST_LOCK_INSPECTION_DELAY, fallback: CLEANING_RELOCK_INSPECTION_DELAY.min } as const satisfies NumberRange;
+/** Obere Grenze des Auslöse-Fensters („spätestens"). */
+export const POST_LOCK_INSPECTION_DELAY_MAX_RANGE = { ...POST_LOCK_INSPECTION_DELAY, fallback: CLEANING_RELOCK_INSPECTION_DELAY.max } as const satisfies NumberRange;
+
 /** Grenzen der Erfüllungsfrist einer automatischen Kontrolle (Minuten). */
 const AUTO_INSPECTION_DEADLINE = { min: 5, max: 240 } as const;
+/** Erfüllungsfrist der Kontrolle nach einem Verschluss — EIN Wert statt einer Spanne, deshalb ein
+ *  eigener Range mit eigener Vorgabe. Grenzen wie bei jeder Auto-Kontrolle. */
+export const POST_LOCK_INSPECTION_DEADLINE_RANGE = { ...AUTO_INSPECTION_DEADLINE, fallback: 15 } as const satisfies NumberRange;
 /** Untere Frist-Grenze („von"). */
 export const AUTO_INSPECTION_DEADLINE_FROM_RANGE = { ...AUTO_INSPECTION_DEADLINE, fallback: 15 } as const satisfies NumberRange;
 /** Obere Frist-Grenze („bis"). */

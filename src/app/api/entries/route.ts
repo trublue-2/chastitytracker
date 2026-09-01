@@ -304,6 +304,7 @@ export async function POST(req: NextRequest) {
   await applyEntryAftermath(entry, {
     requiredDeviceIds: requiredAnforderungDeviceIds,
     endsCleaningPause: endsCleaningPause && !awaitsBolt,
+    awaitsBolt,
     notify: awaitsBolt ? null : {
       actorUserId: session.user.id,
       userId: session.user.id,
