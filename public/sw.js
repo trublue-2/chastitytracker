@@ -6,6 +6,21 @@
 const CACHE_VERSION = 2; // bumped: clears potentially user-contaminated api-v1 cache
 const OFFLINE_URL = '/offline.html';
 
+/**
+ * Die Pausen vor dem zweiten und dritten Zustellversuch einer Navigation.
+ *
+ * Ein einziger Fehlversuch reichte bisher, um die Offline-Seite einzublenden. Das trifft genau den
+ * häufigsten Fall, in dem gar nichts kaputt ist: die App kommt aus dem Hintergrund, das WLAN ist
+ * noch am Assoziieren, und der erste Zugriff läuft ins Leere. Die Seite behauptete dann „keine
+ * Verbindung", während ein zweiter Versuch eine halbe Sekunde später durchgegangen wäre.
+ *
+ * Zwei kurze Pausen, keine lange: liegt wirklich nichts an, wartet der Nutzer 1,6 s länger auf eine
+ * Auskunft, die er schon ahnt. Und bei fehlendem Netz wird gar nicht erst gewartet (siehe unten).
+ */
+const NAV_RETRY_DELAYS_MS = [400, 1200];
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Cache names (versioned for clean upgrades)
 const CACHE_STATIC  = `static-v${CACHE_VERSION}`;
 const CACHE_IMAGES  = `images-v${CACHE_VERSION}`;
@@ -248,26 +263,60 @@ function staleWhileRevalidate(request, cacheName) {
 
 /**
  * Network-first for navigation: try network, fallback to offline page.
+ *
+ * **Was hier NICHT durchkommt.** Nur volle Dokument-Aufrufe (`mode === 'navigate'`). Ein Sprung
+ * innerhalb der App holt eine RSC-Nutzlast und läuft an dieser Funktion vorbei — für den wacht
+ * `useGuardedNavigation` (`src/app/hooks/`), und sein „Erneut versuchen" ist ein Dokument-Wechsel
+ * und landet damit genau hier. Die beiden teilen sich die Arbeit, statt sie doppelt zu tun: eine
+ * zweite Nachfass-Schleife auf der Client-Seite wäre die dritte Stelle, an der dieselbe Anfrage
+ * wiederholt wird — und die Lehre des 30./31.08.2026 ist, dass Wiederholen die Lage verschlechtert,
+ * wenn der Server ohnehin schon nicht nachkommt.
  */
 async function networkFirstNavigation(request) {
-  try {
-    const response = await fetch(request);
-    // 502/503/504 = Container startet noch / nicht erreichbar
-    if (response.status === 502 || response.status === 503 || response.status === 504) {
-      const offline = await caches.match(OFFLINE_URL);
-      return offline || response;
+  // Nachgefasst wird NUR bei GET. Eine Navigation kann auch ein Formular-POST sein, und ein zweiter
+  // Versuch schickte ihn ein zweites Mal ab — Idempotenz hat dort nichts.
+  const delays = request.method === 'GET' ? NAV_RETRY_DELAYS_MS : [];
+  let lastResponse = null;
+
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    if (attempt > 0) {
+      // `onLine === false` ist die EINE Richtung dieses Schalters, der zu trauen ist: dann liegt
+      // wirklich kein Netz an, und Nachfassen wäre bloss Wartezeit vor einer Auskunft, die schon
+      // feststeht. Sein `true` sagt bekanntlich nichts (deshalb gibt es `connectionHealth.ts`) —
+      // darauf stützt sich hier nichts.
+      if (self.navigator.onLine === false) break;
+      await sleep(delays[attempt - 1]);
     }
-    // 404 ohne x-kg-app-Header = Traefik hat kein Routing (Container komplett gestoppt)
-    // 404 mit x-kg-app-Header = echter Next.js-404 → durchlassen
-    if (response.status === 404 && !response.headers.get('x-kg-app')) {
-      const offline = await caches.match(OFFLINE_URL);
-      return offline || response;
-    }
-    return response;
-  } catch (_) {
-    const offline = await caches.match(OFFLINE_URL);
-    return offline || new Response('Offline', { status: 503 });
+
+    const response = await fetchNavigation(request);
+    if (isUsableNavigation(response)) return response;
+    if (response) lastResponse = response;
   }
+
+  // Die echte Antwort schlägt die erfundene: liegt die Offline-Seite nicht im Cache, ist ein
+  // durchgereichter 502 immer noch mehr Auskunft als ein selbstgebauter.
+  const offline = await caches.match(OFFLINE_URL);
+  return offline || lastResponse || new Response('Offline', { status: 503 });
+}
+
+/** Ein Zustellversuch. `null` = gar keine Antwort (Netzfehler). */
+async function fetchNavigation(request) {
+  try {
+    return await fetch(request);
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Taugt diese Antwort dem Nutzer? Wenn nicht, darf nachgefasst werden. */
+function isUsableNavigation(response) {
+  if (!response) return false;
+  // 502/503/504 = Container startet noch / nicht erreichbar
+  if (response.status === 502 || response.status === 503 || response.status === 504) return false;
+  // 404 ohne x-kg-app-Header = Traefik hat kein Routing (Container komplett gestoppt)
+  // 404 mit x-kg-app-Header = echter Next.js-404 → durchlassen
+  if (response.status === 404 && !response.headers.get('x-kg-app')) return false;
+  return true;
 }
 
 // ---------------------------------------------------------------------------
