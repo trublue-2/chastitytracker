@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.0.2",
+    "date": "2026-09-01",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Wird die App mitten am Tag aktualisiert, fallen die automatischen Kontrollen für diesen Tag nicht mehr aus. Sie werden auf die verbleibenden Stunden verteilt — in der Anzahl, die zu dieser Restzeit passt.",
+          "en": "Updating the app during the day no longer cancels that day's automatic inspections. They move to the remaining hours, in the number those hours warrant."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.1",
     "date": "2026-09-01",
     "changes": [

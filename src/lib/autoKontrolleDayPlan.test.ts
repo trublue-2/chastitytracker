@@ -184,11 +184,27 @@ describe("rerollTodayAutoKontrollenForUser — Neuwurf nach einer Settings-Ände
     await rerollTodayAutoKontrollenForUser("u1", wide(2), abends, TZ);
 
     const created = createdRows();
-    expect(created).toHaveLength(2);
+    // Eine, nicht zwei: um 20:00 stehen von 06:00–22:00 noch zwei Stunden bevor, also ein Achtel des
+    // Bereichs — die Tages-Anzahl gehört dem ganzen Tag. Worauf es dieser Regression ankommt, ist die
+    // LAGE: in der Rest-Zeit, nicht über den ganzen Tag gestreut und damit fast vollständig verworfen.
+    expect(created).toHaveLength(1);
     for (const s of created) {
       expect(s.wirksamAb.getTime()).toBeGreaterThan(abends.getTime());
       expect(s.deadline.getTime()).toBeLessThan(at(22 * 60).getTime()); // strikt vor dem Schlaf-Beginn
     }
+  });
+
+  // Der Fall aus der Praxis: die Keyholderin schaltet die Automatik spät am Tag ein. Zugestellt wurde
+  // heute nichts, die Verrechnung mit dem Bestand greift also nicht — nur der Anteil hält die Dichte.
+  it("ein spätes Einschalten füllt die Rest-Zeit nicht mit der ganzen Tages-Anzahl", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const spaet = dateAtLocalMinutes(MIDNIGHT, 20 * 60, TZ);
+
+    await rerollTodayAutoKontrollenForUser("u1", wide(12), spaet, TZ);
+
+    const created = createdRows();
+    expect(created.length).toBeGreaterThan(0);   // stumm wäre der andere Fehler
+    expect(created.length).toBeLessThanOrEqual(2); // zwölf in zwei Stunden wären ein Trommelfeuer
   });
 
   it("kann auf NULL würfeln — dann bleibt der Tag leer und wird nicht nachgeplant", async () => {
