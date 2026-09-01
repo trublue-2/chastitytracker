@@ -183,8 +183,8 @@ Sperre `cleaningAllowed` hat. Freie Wechsel erlauben ⇒ `cleaningAllowed` setze
 - **Welche Arten bei diesem Sub überhaupt zählen, ist einstellbar** — der Bestand steht in
   `get_context.offenseRules`. Die Regeln sind eine HISTORIE, kein Schalter: jede Tat wird nach der
   Fassung beurteilt, die zu IHREM Zeitpunkt galt, ein Umlegen schreibt die Vergangenheit also nicht
-  um (eine heute abgeschaltete Art kann weiter ältere Vergehen zeigen). Für dich sind sie **nur
-  lesbar** — es gibt bewusst kein Tool dafür, das entscheidet der Mensch in der Admin-Oberfläche.
+  um (eine heute abgeschaltete Art kann weiter ältere Vergehen zeigen). Umgelegt werden sie mit
+  `set_offense_rules` — siehe oben, wo auch steht, warum mehrere Arten in EINEN Aufruf gehören.
   `manual_offense` steht nicht in der Liste: ein ausdrücklich notiertes Vergehen ist nicht
   abschaltbar, dafür gibt es das Urteil (`dismiss`).
 - **Wer geurteilt hat** steht in zwei Feldern: `judgedBy` ist die ART (`ai` = du, `admin` = ein

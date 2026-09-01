@@ -579,8 +579,9 @@ function registerTools(server: McpServer) {
           "die Reinigen erlaubt; openingAllowedNow beantwortet direkt, ob JETZT eine Reinigungsöffnung " +
           "erlaubt ist, statt windows/windowOpenNow selbst zu verrechnen), die geltenden Vergehens-Regeln " +
           "(offenseRules: welche Arten bei diesem Sub zählen — off/on, bei unauthorized_orgasm zusätzlich " +
-          "lockedOnly/always; NUR LESBAR, es gibt bewusst kein Tool zum Umlegen — das entscheidet der Mensch " +
-          "in der Admin-Oberfläche, suche also nicht danach), der wiederkehrende " +
+          "lockedOnly/always — umgelegt werden sie mit `set_offense_rules`, und zwar mehrere Arten in EINEM " +
+          "Aufruf: zusammen sind sie eine Entscheidung, und die Regel-Historie bekommt einen Zeitpunkt statt " +
+          "mehrerer. `manual_offense` fehlt in der Liste und ist als einzige Art nicht schaltbar), der wiederkehrende " +
           "Kontext (HO-Tage, Bürotage, Pilates …, weekday 0=So..6=Sa, deviceFree; ordinal/ordinalLabel " +
           "grenzt monatliche Slots ein — z.B. 'erster Mittwoch im Monat') und anstehende Termine " +
           "(per Default ab jetzt, geräte-frei-Flag). Für die Planung von Ankern/Kontrollen. " +

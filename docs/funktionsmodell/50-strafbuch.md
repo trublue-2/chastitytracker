@@ -58,7 +58,9 @@ Zwei Folgen:
 - `manual_offense` steht nicht in der Liste: ein ausdrücklich notiertes Vergehen ist nicht
   abschaltbar. Dafür gibt es das Verwerfen.
 
-Umgelegt wird nur in der Admin-Oberfläche — über den MCP sind die Regeln bewusst **nur lesbar**.
+Wer sie umlegen darf und womit, steht im generierten Register
+([01-funktionen.md](01-funktionen.md)) — hier bewusst nicht noch einmal. Genau diese Wiederholung war
+der Fehler: der Satz behauptete jahrelang, es gebe dafür kein Werkzeug, während es längst eines gab.
 
 ## Das Urteil
 

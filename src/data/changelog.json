@@ -13,6 +13,13 @@
       {
         "type": "fix",
         "text": {
+          "de": "Die KI-Keyholderin las an mehreren Stellen, sie könne die Vergehens-Regeln nur ansehen — dabei kann sie sie längst umlegen. Jetzt steht es überall gleich.",
+          "en": "The AI keyholder was told in several places that she could only read the offence rules, although she has long been able to change them. All of them now say the same thing."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
           "de": "Bleibt beim Erfassen eine Seite hängen, hilft „Erneut versuchen“ jetzt wirklich. Vorher machte jeder weitere Versuch das Warten länger.",
           "en": "When a form page hangs while you are logging something, “Try again” now actually helps. Before, every further attempt made the wait longer."
         }

@@ -447,6 +447,23 @@ Daraus folgt für jede Änderung:
   in der Oberfläche zu lassen. Dasselbe bei `set_auto_inspections`
 - **Was nachgeholt wird, ist ein `fix`**, kein `feat` — siehe „Welche Stelle wandert" weiter unten:
   die Schnittstelle zieht mit einer anderen gleich, statt etwas hinzuzufügen
+- **Ein neues Werkzeug macht jeden Satz falsch, der seine Abwesenheit behauptet — und diese Sätze
+  stehen woanders.** Wer ein Tool ergänzt, greppt nach der Verneinung („kein Tool", „nur lesbar",
+  „das entscheidet der Mensch") und räumt sie mit ab. Sonst liest die KI weiter, dass es die
+  Fähigkeit nicht gibt, die sie hat — und benutzt sie nicht.
+
+  *Vorfall 01.09.2026:* die KI-Keyholderin meldete selbst, dass `get_context` zu `offenseRules`
+  „NUR LESBAR, es gibt bewusst kein Tool zum Umlegen … suche also nicht danach" sagte, während
+  `set_offense_rules` längst existierte und ihr offenstand. Dieselbe überholte Behauptung stand an
+  VIER Stellen — in der Tool-Beschreibung (`route.ts`), im Modell-Text (`mcpModelDoc.ts`, dort 15
+  Zeilen unter der richtigen Aussage), in `docs/mcp-keyholder-guide.md` und in
+  `docs/funktionsmodell/50-strafbuch.md`. Die vierte fand kein Mensch, sondern
+  `mcpModelDoc.test.ts`, das Modell-Text und Guide gegeneinander hält — der einzige der vier Orte,
+  der einen Wächter hat, war auch der einzige, der sich selbst meldete. Das
+  Funktionsmodell führte die Fähigkeit die ganze Zeit korrekt mit `writers: ["admin", "mcp"]`; der
+  geprüfte Teil stimmte, die Prosa nicht. **Eine Fähigkeit, von der die KI nichts weiss, ist so gut
+  wie nicht vorhanden** — der Rückstand kostet dasselbe wie eine echte Lücke, fällt aber nicht
+  einmal beim Bauen auf.
 
 **Die Ausnahmen stehen an EINER Stelle, und die wird geprüft:** `FM_MCP_EXEMPT` in
 `src/lib/funktionsmodellCapabilities.ts`. Jeder Eintrag braucht einen Grund, der mit `Absicht:`
