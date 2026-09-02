@@ -88,6 +88,13 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   weightReleaseSetMessage: "weight",
   weightReleaseWithdrawnMessage: "weight",
   weightReleaseOpenedMessageKeyholder: "weight",
+
+  // `lock`, obwohl der Gesundheits-Halt ALLE Direktiven aussetzt: `system` ist der Auffang für
+  // Unbekanntes und keine Wahl (`messageCategories.test.ts` besteht darauf). Von den echten
+  // Kategorien trifft der Verschluss das, was den Träger im Moment der Meldung angeht — dass eine
+  // laufende Sperrzeit nicht durchgesetzt wird und er öffnen darf.
+  healthHoldStartedMessage: "lock",
+  healthHoldEndedMessage: "lock",
 };
 
 /**

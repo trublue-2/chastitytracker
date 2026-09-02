@@ -9,6 +9,7 @@ import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { triggeredWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER } from "@/lib/lockPending";
 import { missedWeightBlocks, missedWeightRef } from "@/lib/weightObligation";
+import { isPausedAt, toHealthHoldSpans, type HealthHoldSpan } from "@/lib/healthHold";
 import { addWeightDays, endOfWeightDay, weightDayKey } from "@/lib/weight";
 import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
 import {
@@ -360,6 +361,40 @@ function applyOffenseRules(
 }
 
 /**
+ * Streicht aus einem rohen Strafbuch jede Zeile, deren TATZEIT in einen Gesundheits-Halt fiel.
+ *
+ * Läuft über {@link OFFENSE_LISTS} und aus demselben Grund wie {@link applyOffenseRules}: eine neue
+ * Vergehensart ist damit automatisch pausen-gebunden, statt still durchzurutschen. Genau diese
+ * Kopie-Falle hat das Strafbuch schon zweimal erwischt.
+ *
+ * Zwei Ausnahmen, beide bewusst:
+ * - **`manual_offense`** — was die Keyholderin von Hand notiert, hat sie im WISSEN um die Pause
+ *   notiert. Es wegzufiltern hiesse, ihre Beobachtung zu überstimmen (dieselbe Sonderstellung, die
+ *   diese Art schon bei den Vergehensregeln hat).
+ * - **bereits beurteilte Zeilen** (`judgedRefs`) — ein gefälltes Urteil ist die Aufzeichnung einer
+ *   Entscheidung und darf nicht nachträglich aus der Welt fallen; sonst hinge ein `StrafeRecord` an
+ *   einem Vergehen, das keine Oberfläche mehr kennt.
+ *
+ * Zeilen ohne Zeitpunkt (`at` = null) bleiben stehen: über sie ist nicht bekannt, ob sie in die
+ * Pause fielen, und eine Pause ist eine Aussage über einen ZEITRAUM.
+ */
+function applyHealthHoldPause(
+  sb: StrafbuchData,
+  spans: HealthHoldSpan[],
+  judgedRefs: Set<string>,
+): void {
+  if (spans.length === 0) return;
+  const lists = sb as unknown as Record<string, unknown[]>;
+  for (const { type, key, rows, ref, at } of offenseListViews(sb)) {
+    if (type === "manual_offense") continue;
+    lists[key] = rows.filter((row) => {
+      const tatzeit = at(row);
+      return !tatzeit || judgedRefs.has(ref(row)) || !isPausedAt(spans, tatzeit);
+    });
+  }
+}
+
+/**
  * Die Kalendertage, an denen ein Gesundheits-Halt lief — die Tage, an denen die Meldepflicht ruht.
  *
  * Ein Halt ohne `resolvedAt` läuft bis jetzt. Angebrochene Tage zählen ganz: wer am Morgen krank
@@ -610,9 +645,11 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     weightRuleArmedFrom
       ? prisma.weightEntry.findMany({ where: { userId }, orderBy: { measuredAt: "asc" }, select: { dayKey: true, measuredAt: true } })
       : Promise.resolve([]),
-    weightRuleArmedFrom
-      ? prisma.healthHold.findMany({ where: { userId }, select: { createdAt: true, resolvedAt: true } })
-      : Promise.resolve([]),
+    // IMMER, nicht nur bei scharfer Wiege-Pflicht: seit der Halt die Direktiven wirklich aussetzt,
+    // hängt an ihm JEDE abgeleitete Vergehensart (`applyHealthHoldPause`), nicht mehr allein die
+    // Meldepflicht. Unter der alten Bedingung fiele die Pause für einen Träger ohne Gewichtstracking
+    // lautlos aus — und ausgerechnet für ihn wäre sie folgenlos.
+    prisma.healthHold.findMany({ where: { userId }, select: { createdAt: true, resolvedAt: true } }),
   ]);
 
   // Öffnungen, Verschlüsse und die Reinigungs-Regeln liegen aus demselben Promise.all vor —
@@ -916,5 +953,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   };
 
   applyOffenseRules(data, resolveRule, judgedRefs, now);
+  // NACH den Regeln: die Pause ist die stärkere Aussage. Eine Art kann eingeschaltet sein und die
+  // Tat trotzdem folgenlos, weil der Träger sie in der Pause beging.
+  applyHealthHoldPause(data, toHealthHoldSpans(healthHolds), judgedRefs);
   return data;
 }

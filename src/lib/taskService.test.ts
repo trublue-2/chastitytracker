@@ -16,6 +16,8 @@ vi.mock("@/lib/prisma", () => {
     task: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
     strafeRecord: { findMany: vi.fn(async () => []), deleteMany: vi.fn(async () => ({ count: 0 })), updateMany: vi.fn(async () => ({ count: 0 })) },
     message: { deleteMany: vi.fn() },
+    // Der Gesundheits-Halt ist Vorbedingung jeder Direktive (`isHealthHoldActive`) — `null` = keiner.
+    healthHold: { findFirst: vi.fn(async () => null) },
     $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(p)),
   };
   return { prisma: p };

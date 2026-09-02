@@ -19,6 +19,7 @@ import {
 import { formatDateTime, generateKontrollCode } from "@/lib/utils";
 import { structuredLog } from "@/lib/serverLog";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";
 
 /**
  * Aufgaben-Service — Anlegen, Ändern, Zurückziehen, Erledigt-Melden.
@@ -412,6 +413,14 @@ export async function checkTask(
   actor: MessageActor,
 ): Promise<ServiceResult<CheckedTask>> {
   const now = new Date();
+
+  // Gesundheits-Halt: die eine Bremse, die über allem steht. HIER und nicht in `createTask`, damit
+  // die MCP-Vorschau (`mcpCreateTask` ruft `checkTask`) dieselbe Absage zeigt statt Erfolg für einen
+  // Commit zu versprechen, der mit 409 endet. Das Gate der Zustellung (`dueForDispatchWhere`) fasst
+  // nur TERMINIERTE Zeilen; ohne diese Prüfung ginge eine sofort gestellte Aufgabe mitten in der
+  // Pause hinaus, während ihr terminierter Zwilling wartet.
+  if (await isHealthHoldActive(p.userId, db)) return serviceFail(409, "HEALTH_HOLD_ACTIVE");
+
   const graceMin = clampStartGrace(p.startGraceMin);
   const holdDurationMin = clampHoldDuration(p.holdDurationMin) ?? null;
   const reqs = p.requirements ?? [];
@@ -1041,7 +1050,12 @@ async function closePenaltyForFulfilledTask(taskId: string, now: Date): Promise<
  * Kontroll-Zustellung ihre verschobene Frist zurück in die Zeile schreibt.
  */
 export async function dispatchDueTasks(now: Date): Promise<void> {
+  // Gesundheits-Halt: nicht zustellen, aber auch nicht zurückziehen — die Aufgabe ist gewollt, nur
+  // der Moment nicht. Nach der Pause liefert der Poller sie aus, und `deadlineFromDispatch` gibt
+  // dem Träger dabei die volle geplante Spanne ab dem Moment, in dem er von ihr erfährt.
   const due = await prisma.task.findMany({
+    // Der Gesundheits-Halt steckt in `dueForDispatchWhere` — dieselbe Klausel für alle vier
+    // Zustell-Familien, siehe dort.
     where: dueForDispatchWhere(now),
     orderBy: { wirksamAb: "asc" },
     take: 50,
@@ -1116,7 +1130,14 @@ export async function processDueTasks(now: Date): Promise<void> {
     // bevor die Aufgabe überhaupt angekommen ist, wäre die falsche Nachricht an beide Seiten. Im
     // Normalfall kann das gar nicht auftreten (ihre Frist liegt in der Zukunft, und `dispatchDueTasks`
     // läuft im selben Tick davor) — stünde der Tick aber lange still, alterte die Zeile hier hinein.
-    where: { holdUntil: { lte: now }, withdrawnAt: null, resultNotifiedAt: null, ...SUB_VISIBLE_WHERE },
+    // Gesundheits-Halt: nicht auswerten. Sonst entstünde das Versäumnis, dessen Ahndung die Pause
+    // gerade verhindern soll — samt Meldung an beide Seiten. Beim Aufheben rückt `writeHealthHold`
+    // die Fristen dieser Aufgaben nach, sie kommen also nicht als bereits abgelaufene hier wieder an.
+    //
+    // In der WHERE wie beim Zustellen (`dueForDispatchWhere`), nicht als Filter danach: sonst
+    // besetzten die in der Pause ablaufenden Aufgaben den `take`-Deckel bis zum Pausenende, und
+    // `TASK_INCLUDE` lüde ihre Nachweise mit, nur um sie eine Zeile später zu verwerfen.
+    where: { holdUntil: { lte: now }, withdrawnAt: null, resultNotifiedAt: null, ...SUB_VISIBLE_WHERE, ...NOT_PAUSED_WHERE },
     orderBy: { holdUntil: "asc" },
     take: 50,
     include: TASK_INCLUDE,

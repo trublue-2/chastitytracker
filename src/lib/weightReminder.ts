@@ -5,6 +5,7 @@ import { weightDayKey } from "@/lib/weight";
 import { activeWeighingWindow, weighingWindowEnd, type WeighingWindow } from "@/lib/weightWindows";
 import { getRecipientChannels } from "@/lib/notificationPrefs";
 import { notifyUser } from "@/lib/notify";
+import { USER_NOT_PAUSED_WHERE } from "@/lib/healthHold";
 
 /**
  * Die Erinnerung zum Wiege-Fenster: „das Fenster ist offen, und du hast heute noch nichts gemeldet".
@@ -74,6 +75,10 @@ export async function sendDueWeighingReminders(now: Date): Promise<number> {
       weightTrackingEnabled: true,
       weighingWindows: { not: null },
       NOT: { weighingWindows: "[]" },
+      // Gesundheits-Halt: keine Erinnerung. Die Meldepflicht ruht an diesen Tagen ohnehin
+      // (`healthHoldDayKeys` im Strafbuch) — weiter zu mahnen hiesse, an eine Pflicht zu erinnern,
+      // die gerade nicht besteht. Genau diese Hälfte fehlte: die Pflicht ruhte, die Mail kam.
+      ...USER_NOT_PAUSED_WHERE,
     },
     select: REMINDER_SELECT,
   });

@@ -19,6 +19,8 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     verschlussAnforderung: { findUnique: vi.fn(), update: vi.fn() },
+    // Der Gesundheits-Halt ist Vorbedingung jeder Direktive (`isHealthHoldActive`) — `null` = keiner.
+    healthHold: { findFirst: vi.fn(async () => null) },
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   },
 }));

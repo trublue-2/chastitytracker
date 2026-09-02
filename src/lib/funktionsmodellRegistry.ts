@@ -1250,6 +1250,7 @@ export const FM_REGISTRY: FmEntry[] = [
     model: "HealthHold", field: "active", domain: "kontext", scope: "directive",
     effect: "Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit", "Kontrollen", "Aufgaben", "Auto-Kontrollen"],
+    anchor: "healthHold.ts",
   }),
   s({
     model: "HealthHold", field: "reason", domain: "kontext", scope: "directive",

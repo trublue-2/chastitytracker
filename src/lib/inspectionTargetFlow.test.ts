@@ -17,6 +17,8 @@ const tx = {
   entry: { create: vi.fn() },
   device: { findUnique: vi.fn() },
   deviceCategory: { findUnique: vi.fn() },
+  // Die Direktiven-Dienste prüfen den Gesundheits-Halt in ihrer Transaktion — `null` = keiner läuft.
+  healthHold: { findFirst: vi.fn(async () => null) },
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -24,6 +26,8 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: vi.fn() },
     device: { findUnique: vi.fn() },
     deviceCategory: { findUnique: vi.fn() },
+    // Der Gesundheits-Halt ist Vorbedingung jeder Direktive (`isHealthHoldActive`) — `null` = keiner.
+    healthHold: { findFirst: vi.fn(async () => null) },
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   },
 }));

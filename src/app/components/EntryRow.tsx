@@ -64,6 +64,23 @@ interface Props {
   timeOnly?: boolean;
 }
 
+/**
+ * Die Notiz, wie sie in der ZEILE steht — auf eine Länge gekürzt, die auf eine Zeile passt.
+ *
+ * Die Kürzung muss im Code passieren und kann nicht dem CSS überlassen werden: die Zeile trägt
+ * `min-width: max-content`, damit eine Notiz umbricht statt abgeschnitten zu werden — und
+ * `min-width` schlägt jedes `max-width`. Eine 350-Zeichen-Notiz schob damit die ganze Liste über den
+ * Rand der Karte hinaus (im Versuch gesehen).
+ *
+ * 100 Zeichen sind rund die Breite einer vollen Zeile bei dieser Schriftgrösse. Was länger ist,
+ * gehört ohnehin ins Detail — die Zeile ist eine Übersicht, und der volle Text steht im `title` und
+ * einen Klick entfernt.
+ */
+const NOTE_PREVIEW_MAX = 100;
+function notePreview(note: string): string {
+  return note.length > NOTE_PREVIEW_MAX ? `${note.slice(0, NOTE_PREVIEW_MAX).trimEnd()}…` : note;
+}
+
 export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel, openingLabel, inspectionPill, actions, timeOnly }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const tStats = useTranslations("stats");
@@ -100,7 +117,12 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
         <button
           type="button"
           onClick={() => setShowDetail(true)}
-          className={listRowButtonCls}
+          // `flex-wrap` NUR hier, nicht in der geteilten Klasse: eine Wiege-Zeile trägt Zahl und
+          // Delta, die zusammen nie überlaufen. Eine Eintragszeile dagegen kann Art, Pille UND eine
+          // freie Notiz führen — und dann reicht eine Zeile nicht. Gebrochen wird erst, wenn der
+          // Platz wirklich fehlt (siehe die Mindestbreite an der Notiz); im Regelfall bleibt die
+          // Zeile einzeilig und der Rhythmus der Liste erhalten.
+          className={`${listRowButtonCls} flex-wrap`}
         >
           {/* Die Zeit führt die Zeile an, nicht die Art. In einer nach Tagen gruppierten Liste ist
               sie die einzige Spalte, die jede Zeile hat und die geordnet ist — an ihr entlang liest
@@ -113,7 +135,15 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
               ein vergangener Eintrag will nichts mehr. Zwölf korallene „Kontrolle" untereinander
               haben genau deshalb aufgehört, etwas zu bedeuten. Die einzige Farbe, die bleibt, ist
               die der Kategorie: sie sagt WELCHE, nicht ob — und sie sitzt nur noch im Zeichen. */}
-          <span className="flex items-center gap-1.5 min-w-0 text-fliess text-foreground">
+          {/* `min-w-fit`: die Art schrumpft NICHT. Sie ist es, die die Zeile identifiziert — mit
+              `min-w-0` gab sie zuerst nach und stand als „Kont…" da, während die Pille daneben
+              ungekürzt blieb (gemeldet 02.09.2026). Was zu kürzen ist, ist die Notiz.
+
+              Der `truncate` innen greift damit nicht mehr; er bleibt trotzdem stehen, weil er es
+              wieder tut, sobald jemand die Breite hier ändert. Ohne Deckel wäre das ein Risiko —
+              ein Kategorie-Name kann aber höchstens 40 Zeichen lang sein
+              (`CATEGORY_NAME_MAX_LENGTH`), und die passen samt Zeit und Art in jede Zeile. */}
+          <span className="flex items-center gap-1.5 min-w-fit text-fliess text-foreground">
             {isWear && e.category ? (
               <>
                 <CategoryIconRender
@@ -145,8 +175,30 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
               Kontroll-Listen und Statistik alle darüber. Von Hand gebaut fehlte ihr das
               `font-semibold` — derselbe Vorgang hätte in dieser Liste anders ausgesehen. */}
           {inspectionPill && <Badge label={inspectionPill.label} tone={inspectionPill.cls} />}
+          {/* Die Notiz ist mindestens so breit wie ihr Text (`min-width: max-content`, unten). Daraus
+              folgt genau das gewünschte Verhalten, ohne eine Länge zu raten: was in die Zeile passt,
+              bleibt darin; was nicht passt, rutscht über `flex-wrap` auf die nächste und steht dort
+              auf voller Breite.
+
+              Eine feste Mindestbreite kann das nicht, weil sie den Inhalt nicht kennt: zu klein
+              gewählt bleibt eine lange Notiz in der Zeile und wird abgeschnitten, zu gross gewählt
+              bricht ein „Kurz" um, für das die Zeile gereicht hätte. Beide Fälle waren im Versuch zu
+              sehen.
+
+              Vorher teilte sich die Notiz das Kürzen mit der ART daneben, und lesbar war dann keins
+              von beiden — „Kont…" neben einer angeschnittenen Notiz (gemeldet 02.09.2026). */}
           {e.note && (
-            <span className="text-neben text-foreground-faint italic truncate min-w-0">„{e.note}"</span>
+            <span
+              title={e.note}
+              className="text-neben text-foreground-faint italic truncate flex-1"
+              // PUR und nicht als `min(100%, max-content)`, was näher läge: intrinsische Grössen
+              // sind in `min()`/`max()`/`calc()` nicht erlaubt, die Deklaration wäre ungültig und
+              // würde stillschweigend verworfen. Als Inline-Style, weil Tailwind die Klasse mit dem
+              // Wert nicht erzeugt — eine Layout-Regel ohne Design-Wert, es wird kein Token umgangen.
+              style={{ minWidth: "max-content" }}
+            >
+              „{notePreview(e.note)}"
+            </span>
           )}
         </button>
         {actions && <div className="flex-shrink-0">{actions}</div>}

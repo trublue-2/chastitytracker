@@ -23,6 +23,8 @@ const tx = {
   task: { updateMany: vi.fn() },
   // Der Aufgaben-Rückzug liest die Urteils-Tabelle (er nimmt ein offenes Urteil mit).
   strafeRecord: { upsert: vi.fn(), findMany: vi.fn(async () => []) },
+  // Die Direktiven-Dienste prüfen den Gesundheits-Halt in ihrer Transaktion — `null` = keiner läuft.
+  healthHold: { findFirst: vi.fn(async () => null) },
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -37,6 +39,8 @@ vi.mock("@/lib/prisma", () => ({
     orgasmusAnforderung: { findFirst: vi.fn(), updateMany: vi.fn() },
     task: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     strafeRecord: { updateMany: vi.fn() },
+    // Der Gesundheits-Halt ist Vorbedingung jeder Direktive (`isHealthHoldActive`) — `null` = keiner.
+    healthHold: { findFirst: vi.fn(async () => null) },
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   },
 }));

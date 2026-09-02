@@ -10,6 +10,7 @@ import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H, isValidInspectionCode, APP_NAME } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { isHealthHoldActive } from "@/lib/healthHold";
 import { type PrismaTx, getOpenKontrollen } from "@/lib/queries";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { inspectionHref } from "@/lib/entryFormRoute";
@@ -333,9 +334,17 @@ export async function requestKontrolle(
     INSPECTION_DEVICE_NOT_ACTIVE: { status: 400, error: "INSPECTION_DEVICE_NOT_ACTIVE" },
     INSPECTION_TARGET_INVALID: { status: 400, error: "INSPECTION_TARGET_INVALID" },
     INSPECTION_ALREADY_ACTIVE: { status: 409, error: "INSPECTION_ALREADY_ACTIVE" },
+    HEALTH_HOLD_ACTIVE: { status: 409, error: "HEALTH_HOLD_ACTIVE" },
   });
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // Gesundheits-Halt: die eine Bremse, die über allem steht — deshalb VOR jeder anderen
+      // Vorbedingung. Das Gate der Zustellung (`dueForDispatchWhere`) fasst nur TERMINIERTE Zeilen;
+      // ohne diese Zeile ginge eine sofort gestellte Kontrolle mitten in der Pause hinaus, während
+      // ihr terminierter Zwilling wartet — und der Posteingang des Trägers ihm gerade zugesagt hat,
+      // dass keine kommen.
+      if (await isHealthHoldActive(userId, tx)) throw fail("HEALTH_HOLD_ACTIVE");
+
       const resolved = await resolveInspectionTarget(userId, params, tx);
       if (!resolved.ok) throw fail("INSPECTION_TARGET_INVALID");
       const target = resolved.target;

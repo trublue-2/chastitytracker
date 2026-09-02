@@ -15,6 +15,7 @@ import { maybeRunHealthChecks } from "@/lib/healthCheck";
 import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
 import { deadlineFromDispatch, dueForDispatchWhere } from "@/lib/delayedTrigger";
 import { dispatchDueTasks, processDueTasks } from "@/lib/taskService";
+import { NOT_PAUSED_WHERE, USER_NOT_PAUSED_WHERE } from "@/lib/healthHold";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
 // benachrichtigt). Ein Container pro Instanz → ein Poller je Prozess genügt; der Zustand liegt
@@ -27,6 +28,11 @@ async function processDue(): Promise<void> {
   running = true;
   try {
     const now = new Date();
+
+    // Der Gesundheits-Halt braucht in diesem Tick KEINE eigene Abfrage: er steckt in den WHERE-
+    // Klauseln, die die Zweige ohnehin stellen (`dueForDispatchWhere` für alles Terminierte,
+    // `NOT_PAUSED_WHERE` in der Eskalation, die Nutzer-Auswahl der Tagesplanung und der
+    // Wiege-Erinnerung). Ein Filter hier wäre eine zweite, nachlaufende Wahrheit.
 
     // Auto-Kontrollen aller aktiven User für „heute" einplanen — JEDEN Tick aufrufen, nicht nur zur
     // CH-Mitternacht: die per-User-Funktion ist idempotent je SUB-Zeitzone-Tag (DB-Check), sodass jeder
@@ -209,6 +215,11 @@ async function processInspectionEscalation(now: Date): Promise<void> {
       benachrichtigtReminderAt: null,
       withdrawnAt: null,
       entryId: null,
+      // Gesundheits-Halt: nicht mahnen. Beim Einschalten zieht `writeHealthHold` die offenen
+      // Kontrollen zwar zurück, aber eine Zeile kann diesen Zweig auf anderem Weg erreichen (ein
+      // gescheiterter Rückzug, ein Halt zwischen zwei Ticks) — und die Mahnung ist genau die
+      // Nachricht, die der Träger in der Pause nicht bekommen soll.
+      ...NOT_PAUSED_WHERE,
     },
     include: {
       user: {
@@ -239,7 +250,10 @@ async function processInspectionEscalation(now: Date): Promise<void> {
       autoMarkedRemovedAt: null,
       withdrawnAt: null,
       entryId: null,
-      user: { inspectionAutoMarkEnabled: true },
+      // Der Halt wiegt hier am schwersten: diese Stufe bucht die Kontrolle als „Gerät vermutlich
+      // abgenommen" und legt dafür einen OEFFNEN-Eintrag an. Sie ist der Weg, auf dem eine Pause
+      // ohne menschliches Zutun in einem Vergehen endet — der Fall aus dem Kommentar zu #91.
+      user: { inspectionAutoMarkEnabled: true, ...USER_NOT_PAUSED_WHERE },
     },
     include: { user: { select: { ...AUTO_KONTROLLE_SETTINGS_SELECT, username: true, inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true, inspectionReminderDelayMinutes: true } } },
     take: 50,

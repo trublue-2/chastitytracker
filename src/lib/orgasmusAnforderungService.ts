@@ -10,6 +10,7 @@ import { recordMessageAndBadge, type MessageActor } from "@/lib/messageService";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { getTranslations } from "next-intl/server";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { isHealthHoldActive } from "@/lib/healthHold";
 
 /** `endsAt` in der Vergangenheit → Reject (B-01, MCP-Befundliste 2026-07-17): der einzige gefundene
  *  Pfad, auf dem der Tracker eine unverdiente Strafe erzeugt — mit `art:"ANWEISUNG"` wird ein bereits
@@ -111,6 +112,11 @@ export async function createOrgasmusAnforderung(
   const { beginsAtDate, endsAtDate, wirksamAb, benachrichtigtAt } = checked.window;
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
+  // Gesundheits-Halt: die eine Bremse, die über allem steht. Das Gate der Zustellung
+  // (`dueForDispatchWhere`) fasst nur TERMINIERTE Zeilen; ohne diese Prüfung ginge eine sofort
+  // wirksame Anweisung mitten in der Pause hinaus, während ihr terminierter Zwilling wartet.
+  // Die automatische Freigabe über das Gewicht prüft den Halt schon selbst (`weightReleaseService`).
+  if (await isHealthHoldActive(userId)) return serviceFail(409, "HEALTH_HOLD_ACTIVE");
   // requiredType gegen die (ggf. angepasste) Orgasmus-Liste des Ziel-Subs prüfen; null-Config → Built-ins.
   if (requiredType && !orgasmusValueAllowed(requiredType, user.orgasmusArtenConfig)) {
     return serviceFail(400, "INVALID_ORGASM_TYPE");

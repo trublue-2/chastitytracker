@@ -17,6 +17,7 @@ import {
 } from "@/lib/autoKontrolleDayRules";
 import { isoWeekdayInTZ, weekdayMaskHas, weekdayMaskKeys, weekdayMaskValid } from "@/lib/weekdays";
 import type { Prisma } from "@prisma/client";
+import { USER_NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";
 
 /**
  * Automatische Kontrollen: pro Tag und Sub eine ZUFÄLLIGE Anzahl `x ∈ [perDayMin, perDayMax]` zufällig
@@ -718,6 +719,11 @@ export interface CleaningRelockPlan {
 export async function scheduleCleaningRelockInspection(
   userId: string, now: Date = new Date(), rand: () => number = Math.random,
 ): Promise<CleaningRelockPlan | null> {
+  // Gesundheits-Halt: gar nicht erst anlegen. Die Tagesplanung ist über die Nutzer-Auswahl gegated,
+  // dieser Weg entsteht aber aus einem EINTRAG — der Träger kann sich auch während einer Pause
+  // wieder verschliessen. Ohne diesen Wächter wäre der Halt die einzige Stelle, an der doch noch
+  // Auto-Kontrollen entstehen, und die Zustellung müsste sie hinterher wieder wegräumen.
+  if (await isHealthHoldActive(userId)) return null;
   const u = await prisma.user.findUnique({ where: { id: userId }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
   if (!u) return null;
   const settings = autoKontrolleSettingsFromUser(u);
@@ -790,6 +796,11 @@ export interface PostLockInspectionPlan {
 export async function schedulePostLockInspection(
   userId: string, now: Date = new Date(), rand: () => number = Math.random,
 ): Promise<PostLockInspectionPlan | null> {
+  // Gesundheits-Halt: gar nicht erst anlegen. Die Tagesplanung ist über die Nutzer-Auswahl gegated,
+  // dieser Weg entsteht aber aus einem EINTRAG — der Träger kann sich auch während einer Pause
+  // wieder verschliessen. Ohne diesen Wächter wäre der Halt die einzige Stelle, an der doch noch
+  // Auto-Kontrollen entstehen, und die Zustellung müsste sie hinterher wieder wegräumen.
+  if (await isHealthHoldActive(userId)) return null;
   const u = await prisma.user.findUnique({ where: { id: userId }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
   if (!u) return null;
   const settings = autoKontrolleSettingsFromUser(u);
@@ -978,7 +989,13 @@ export async function rerollTodayAutoKontrollenForUser(
 
 /** Legt die heutigen Auto-Kontrollen für ALLE aktiven User an (vom Poller, einmal pro Kalendertag der jeweiligen Sub). */
 export async function ensureDailyAutoKontrollen(now: Date): Promise<void> {
-  const users = await prisma.user.findMany({ where: { autoKontrolleAktiv: true }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
+  const users = await prisma.user.findMany({
+    // Gesundheits-Halt: kein Tagesplan, und bewusst OHNE Merker — der Tag gilt damit als ungeplant
+    // und wird nach dem Aufheben normal gewürfelt. Ein gesetzter Merker hielte fest, dass „geplant
+    // wurde", und der erste Tag nach der Pause bliebe still leer.
+    where: { autoKontrolleAktiv: true, ...USER_NOT_PAUSED_WHERE },
+    select: AUTO_KONTROLLE_SETTINGS_SELECT,
+  });
   for (const u of users) {
     try {
       await ensureDailyAutoKontrollenForUser(u, now);

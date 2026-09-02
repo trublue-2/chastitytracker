@@ -253,6 +253,83 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
  * Europe/Zurich gab dieselbe Regel damit zwei verschiedene Antworten: eine Öffnung nahe der lokalen
  * Mitternacht fiel im Buch in einen anderen Tag als in der Zählung.
  */
+/**
+ * Der Gesundheits-Halt. Bis v6.0.2 ruhte allein die Wiege-Meldepflicht; jede andere Vergehensart
+ * entstand während einer laufenden Pause weiter — samt der automatischen, die niemand entschieden
+ * hat (Issue #91). Gefiltert wird jetzt zentral über `OFFENSE_LISTS`, damit eine neue Art nicht
+ * still danebenfällt.
+ */
+describe("buildStrafbuch — der Gesundheits-Halt", () => {
+  const TZ = "Europe/Zurich";
+  const NOW = new Date("2026-07-10T22:00:00Z");
+  const NACHTS = new Date("2026-07-10T01:00:00Z"); // 03:00 Ortszeit, ausserhalb jedes Fensters
+
+  const USER = {
+    cleaningAllowed: true,
+    cleaningMaxPerDay: 0,
+    cleaningMaxMinutes: 15,
+    cleaningWindows: [{ start: "19:00", end: "20:00" }],
+    timezone: TZ,
+  };
+
+  const SPERRE = {
+    id: "s1",
+    createdAt: new Date("2026-07-09T22:00:00Z"),
+    endsAt: new Date("2026-07-11T22:00:00Z"),
+    withdrawnAt: null,
+    cleaningAllowed: true,
+    wirksamAb: null,
+    fulfilledAt: null,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.user.findUnique.mockResolvedValue(USER);
+    mockLockPeriods([SPERRE]);
+    mockStichtag("2026-07-01T00:00:00Z");
+    mockOeffnungen([oeffnung(NACHTS)]);
+  });
+
+  // Die Implementierung überlebt `vi.clearAllMocks()` (siehe Kopf dieses Abschnitts) — ohne das
+  // Zurücksetzen liefe der nächste Block mit einer Pause, die er nie gesetzt hat, und seine
+  // Vergehen verschwänden lautlos.
+  afterEach(() => {
+    db.healthHold.findMany.mockResolvedValue([]);
+  });
+
+  it("ohne Halt bleibt die Öffnung ausserhalb des Fensters ein Vergehen", async () => {
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+  });
+
+  it("dieselbe Öffnung WÄHREND einer Pause ist keines", async () => {
+    db.healthHold.findMany.mockResolvedValue([
+      { createdAt: new Date("2026-07-09T12:00:00Z"), resolvedAt: new Date("2026-07-10T12:00:00Z") },
+    ]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
+  });
+
+  it("eine Pause, die erst NACH der Tat begann, ändert nichts", async () => {
+    // Die Pause ist eine Aussage über einen Zeitraum, keine Amnestie für alles Frühere. Ohne diese
+    // Grenze könnte eine rückwirkend gesetzte Pause die ganze Historie leerräumen.
+    db.healthHold.findMany.mockResolvedValue([
+      { createdAt: new Date("2026-07-10T06:00:00Z"), resolvedAt: null },
+    ]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+  });
+
+  it("ein bereits BEURTEILTES Vergehen überlebt die Pause", async () => {
+    // Ein gefälltes Urteil ist die Aufzeichnung einer Entscheidung. Fiele es aus der Ableitung,
+    // hinge sein `StrafeRecord` an einem Vergehen, das keine Oberfläche mehr kennt.
+    db.healthHold.findMany.mockResolvedValue([
+      { createdAt: new Date("2026-07-09T12:00:00Z"), resolvedAt: new Date("2026-07-10T12:00:00Z") },
+    ]);
+    db.strafeRecord.findMany.mockResolvedValue([
+      { id: "sr1", refId: "e1", offenseType: "OEFFNEN_ENTRY", bestraftDatum: NOW, notiz: null, judgedBy: "admin", erledigtAt: null },
+    ]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+  });
+});
+
 describe("buildStrafbuch — das Reinigungs-Kontingent zählt den Kalendertag der Sub", () => {
   // Beide Öffnungen liegen am SELBEN Auckland-Tag (11.07., 01:00 und 11:00 NZST = UTC+12),
   // aber an ZWEI VERSCHIEDENEN Zürich-Tagen (10.07. 15:00 und 11.07. 01:00 CEST = UTC+2).

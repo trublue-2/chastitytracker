@@ -13,6 +13,7 @@ import { notifyUser, notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { weightForDisplay, type UnitSystem } from "@/lib/weight";
 import type { MessageActor } from "@/lib/messageService";
+import { isHealthHoldActive } from "@/lib/healthHold";
 
 /**
  * Die Freigabe-Vorgabe als Vorgang: stellen, zurückziehen, auswerten
@@ -304,7 +305,7 @@ export async function applyWeightRelease(userId: string, now: Date = new Date())
   if (!status?.released) return null;
 
   const [hold, openRequest] = await Promise.all([
-    prisma.healthHold.findFirst({ where: { userId, active: true }, select: { id: true } }),
+    isHealthHoldActive(userId),
     prisma.orgasmusAnforderung.findFirst({
       where: { userId, fulfilledAt: null, withdrawnAt: null },
       select: { id: true },

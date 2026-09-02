@@ -13,6 +13,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const tx = {
   verschlussAnforderung: { findMany: vi.fn(), updateMany: vi.fn() },
   user: { findUnique: vi.fn() },
+  // Vierte Endart-Frage seit dem Gesundheits-Halt: läuft einer, bleibt die Sperrzeit stehen und die
+  // Öffnung ist gedeckt. `null` = kein Halt, der Normalfall dieser Datei.
+  healthHold: { findFirst: vi.fn() },
 };
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
@@ -28,6 +31,7 @@ beforeEach(() => {
   tx.verschlussAnforderung.findMany.mockReset().mockResolvedValue([{ id: "s1", cleaningAllowed: false }]);
   tx.verschlussAnforderung.updateMany.mockReset().mockResolvedValue({ count: 1 });
   tx.user.findUnique.mockReset().mockResolvedValue({ cleaningAllowed: false, cleaningWindows: null, timezone: "Europe/Zurich" });
+  tx.healthHold.findFirst.mockReset().mockResolvedValue(null);
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,6 +58,18 @@ describe("releaseLockPeriodsOnOpen", () => {
       where: { id: { in: ["s1"] } },
       data: { withdrawnAt: expect.any(Date), endedReason: "opening" },
     });
+  });
+
+  it("ein laufender Gesundheits-Halt deckt die Öffnung — die Sperrzeit bleibt stehen", async () => {
+    // Die Pause setzt die Sperrzeit AUS, sie hebt sie nicht auf: danach läuft sie weiter. Und weil
+    // der Rückgabewert zugleich das Box-Kommando steuert, geht der Riegel dabei auf — eine Pause,
+    // die dem Träger nur die Strafe erlässt und ihn eingeschlossen lässt, hilft ihm nicht.
+    tx.healthHold.findFirst.mockResolvedValue({ id: "h1", active: true, reason: "Grippe", createdAt: NOW, resolvedAt: null });
+
+    const broke = await releaseLockPeriodsOnOpen("u1", "ANDERES", asTx(), "user");
+
+    expect(broke).toBe(false);
+    expect(tx.verschlussAnforderung.updateMany).not.toHaveBeenCalled();
   });
 
   it("ohne laufende Sperrzeit passiert nichts", async () => {

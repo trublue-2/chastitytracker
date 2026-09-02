@@ -1,5 +1,52 @@
 [
   {
+    "version": "6.0.4",
+    "date": "2026-09-02",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "In der Eintragsliste wird nicht mehr die Art gekürzt, sondern die Notiz — und eine Notiz, die nicht in die Zeile passt, rutscht auf die nächste, statt abgeschnitten zu werden.",
+          "en": "In the entry list the type is no longer truncated, the note is — and a note that does not fit the row moves to the next one instead of being cut off."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Reiterleiste eines Trägers bricht auf schmalen Fenstern um, statt den letzten Reiter über den Rand zu schieben.",
+          "en": "A wearer's tab bar now wraps on narrow windows instead of pushing the last tab past the edge."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Jahresübersicht steht in zwei Halbjahres-Spalten nebeneinander. Sie war eine Kolonne über 53 Wochen, an der man entlangscrollte, ohne je das ganze Jahr zu sehen.",
+          "en": "The yearly overview now stands in two half-year columns side by side. It used to be one column of 53 weeks that you scrolled along without ever seeing the whole year."
+        }
+      }
+    ]
+  },
+  {
+    "version": "6.0.3",
+    "date": "2026-09-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Gesundheitspause wirkt jetzt wirklich. Solange sie läuft, erreicht den Träger keine Direktive — auch eine sofort gestellte wird abgewiesen —, eine laufende Sperrzeit wird nicht durchgesetzt, und aus dieser Zeit entsteht kein Vergehen. Beim Aufheben rücken die Fristen laufender Aufgaben um die Dauer der Pause nach.",
+          "en": "The health hold now actually takes effect. While it runs no directive reaches the wearer — an immediate one is refused too — a running lock period is not enforced, and no offence arises from that time. When it is lifted, the deadlines of running tasks move back by the length of the pause."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Gesundheitspause lässt sich in den Einstellungen eines Trägers setzen und aufheben — bisher ging das nur über die KI-Keyholderin. Der Träger bekommt beides gemeldet.",
+          "en": "The health hold can be set and lifted in a wearer's settings — until now only the AI keyholder could do it. The wearer is notified of both."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.2",
     "date": "2026-09-01",
     "changes": [
