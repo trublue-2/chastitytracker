@@ -681,6 +681,67 @@ describe("späte Annahme rettet die Aufgabe", () => {
     expect(isTaskResultFinal(state)).toBe(true);
     expect(isTaskOffense(state)).toBe(false);
   });
+
+  /**
+   * OHNE SELBSTMELDUNG, ABER MIT ERLEDIGTEN NACHWEISEN (#106).
+   *
+   * Der Zustand war nach `holdUntil` nicht mehr erreichbar: die Aufgabe kippte auf `missed` und trug
+   * ein `unfulfilled_task`, obwohl die Keyholderin den Nachweis selbst angenommen hatte — und
+   * niemand konnte sie mehr schliessen, weil auch eine verspätete Meldung `missed` ergibt. Auf einer
+   * Fremd-Instanz viermal in zwei Tagen aufgetreten.
+   */
+  describe("erledigte Nachweise schliessen die Aufgabe auch ohne Selbstmeldung", () => {
+    /** `taskWith` setzt `completedAt: null` — hier ist genau das der Punkt. */
+    const ohneMeldung = taskWith();
+
+    it("von der Keyholderin angenommen → erledigt statt versäumt", () => {
+      const angenommen = proof({ requireCode: false, verifikationStatus: null, reviewAccepted: true });
+      expect(evaluateTask(ohneMeldung, [], [], AFTER, [angenommen]).state).toBe("done");
+    });
+
+    it("maschinell am Code bestätigt → ebenso, ohne Vergehen und ohne Beleg", () => {
+      const e = evaluateTask(ohneMeldung, [], [], AFTER, [proof()]);
+      expect(e.state).toBe("done");
+      expect(isTaskOffense(e.state)).toBe(false);
+      expect(e.overdueProofIds).toEqual([]);
+      expect(e.failedAt).toBeNull();
+    });
+
+    /** Der rechtzeitige Nachweis schlägt die verspätete Meldung — eine Bestätigung dessen, was
+     *  fristgerecht belegt ist, darf kein Vergehen erzeugen. */
+    it("verspätete Selbstmeldung schadet dem rechtzeitigen Nachweis nicht", () => {
+      const spaetGemeldet = taskWith({ completedAt: d("2026-07-25T18:45:00Z") });
+      expect(evaluateTask(spaetGemeldet, [], [], AFTER, [proof()]).state).toBe("done");
+    });
+
+    /** Die Gegenprobe: wo gar kein Nachweis gefordert ist, IST die Selbstmeldung das einzige
+     *  Zeugnis. An solchen Aufgaben ändert sich nichts. */
+    it("ohne geforderten Nachweis bleibt die Selbstmeldung allein massgeblich", () => {
+      expect(evaluateTask(ohneMeldung, [], [], AFTER, []).state).toBe("missed");
+    });
+
+    /**
+     * DERSELBE SCHLUSS MIT BEDINGUNGEN — die beiden Zweige teilen die Regel (`proofsCloseTask`).
+     *
+     * Hier lag die Aufgabe nicht als versäumt, sondern unbegrenzt in `awaitingConfirmation`: kein
+     * Vergehen, aber auch nie ein Ergebnis, denn `isTaskResultFinal` wurde nie wahr und die
+     * Keyholderin bekam auf ihre Sichtung nie eine Antwort.
+     */
+    it("mit Bedingungen ebenso — und der Zustand ist endgültig", () => {
+      const durchgehalten = evaluateTask(ohneMeldung, SLIP_REQ, GETRAGEN, AFTER, [proof()]);
+      expect(durchgehalten.state).toBe("done");
+      expect(durchgehalten.awaitingConfirmation).toBe(false);
+      expect(isTaskResultFinal(durchgehalten.state)).toBe(true);
+    });
+
+    /** Und auch dort trägt ohne Nachweis weiterhin die Selbstmeldung allein — sie bleibt offen,
+     *  statt zum Vergehen zu werden. */
+    it("mit Bedingungen, aber ohne Nachweis, wartet sie weiter auf die Meldung", () => {
+      const e = evaluateTask(ohneMeldung, SLIP_REQ, GETRAGEN, AFTER, []);
+      expect(e.state).toBe("running");
+      expect(e.awaitingConfirmation).toBe(true);
+    });
+  });
 });
 
 describe("evaluateProofs — Code-Prüfung und Sichtung", () => {
@@ -738,8 +799,18 @@ describe("evaluateTask — beide Achsen zusammen", () => {
     expect(r.awaitingConfirmation).toBe(false);
   });
 
-  it("Bedingungen gehalten, Nachweise erledigt, Selbstmeldung fehlt → wie bisher", () => {
+  /** Der erledigte Nachweis schliesst sie, ohne dass jemand nachträglich meldet — die Regel gilt in
+   *  BEIDEN Zweigen (`proofsCloseTask`). Bis dahin lag die Aufgabe hier unbegrenzt in
+   *  `awaitingConfirmation`: kein Vergehen, aber auch nie ein Ergebnis. */
+  it("Bedingungen gehalten, Nachweise erledigt, Selbstmeldung fehlt → erfüllt", () => {
     const r = evaluateTask(base, REQ, held, after, [proof()]);
+    expect(r.state).toBe("done");
+    expect(r.awaitingConfirmation).toBe(false);
+  });
+
+  /** Ohne geforderten Nachweis bleibt es beim Warten auf die Meldung. */
+  it("Bedingungen gehalten, kein Nachweis gefordert → wartet auf die Selbstmeldung", () => {
+    const r = evaluateTask(base, REQ, held, after, []);
     expect(r.state).toBe("running");
     expect(r.awaitingConfirmation).toBe(true);
   });

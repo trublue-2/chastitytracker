@@ -1,6 +1,6 @@
 [
   {
-    "version": "6.0.4",
+    "version": "6.0.5",
     "date": "2026-09-02",
     "changes": [
       {
@@ -27,7 +27,7 @@
     ]
   },
   {
-    "version": "6.0.3",
+    "version": "6.0.4",
     "date": "2026-09-02",
     "changes": [
       {
@@ -42,6 +42,40 @@
         "text": {
           "de": "Die Gesundheitspause lässt sich in den Einstellungen eines Trägers setzen und aufheben — bisher ging das nur über die KI-Keyholderin. Der Träger bekommt beides gemeldet.",
           "en": "The health hold can be set and lifted in a wearer's settings — until now only the AI keyholder could do it. The wearer is notified of both."
+        }
+      }
+    ]
+  },
+  {
+    "version": "6.0.3",
+    "date": "2026-09-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Kontrolle mit Code UND Siegelnummer blieb ohne jede Rückmeldung unverifiziert stehen: die Bildprüfung brach ab, bevor sie ihr Ergebnis nennen konnte. Sie läuft jetzt durch.",
+          "en": "An inspection asking for both a code and a seal number stayed unverified with no feedback at all: the image check ran out of room before it could state its result. It now finishes."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Aufgabe, deren Nachweis die Keyholderin angenommen hatte, galt ohne zusätzliche Selbstmeldung als versäumt — und niemand konnte sie mehr schliessen. Der angenommene Nachweis erledigt sie jetzt selbst.",
+          "en": "A task whose proof the keyholder had accepted still counted as missed without a separate self-report, and nobody could close it any more. An accepted proof now completes it on its own."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Einstiegs-Call der KI-Keyholderin wuchs mit jeder gepinnten Notiz und lief bei vielen Notizen aus dem Limit ihres Clients. Die Notiztexte stehen dort jetzt gekürzt; den Volltext holt sie gezielt nach.",
+          "en": "The AI keyholder's entry call grew with every pinned note and eventually exceeded her client's limit. Note texts are now abbreviated there; she fetches the full text on demand."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Auf ARM-Rechnern (Apple Silicon, Raspberry Pi, ARM-VPS) startete der Container nicht, sondern fiel in eine Neustart-Schleife. Betrifft nur Selbst-Hoster, die das Image dort bauen.",
+          "en": "On ARM machines (Apple Silicon, Raspberry Pi, ARM VPS) the container did not start but fell into a restart loop. Affects only self-hosters building the image there."
         }
       }
     ]

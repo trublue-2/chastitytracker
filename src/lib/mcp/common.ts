@@ -238,6 +238,10 @@ export interface NoteDTO {
   kg: string | null;
   kategorie: string | null;
   text: string;
+  /** Gesetzt, wenn `text` gekappt wurde — dann hat der Aufrufer eine Längengrenze verlangt
+   *  (`textLimit` an {@link toNoteDTO} bzw. `queryNotes`) und der Volltext steht nur über einen
+   *  Abruf OHNE Grenze bereit. Fehlt das Feld, ist `text` vollständig. */
+  textTruncated?: true;
   doDont: { do: string[]; dont: string[] } | null;
   validFrom: string | null;
   validUntil: string | null;
@@ -310,10 +314,26 @@ function parseDoDont(raw: string | null): { do: string[]; dont: string[] } | nul
 
 /** Mappt eine Note (inkl. refs) auf das stabile MCP-DTO. Zeiten in der Zeitzone des Ziel-Subs
  *  (`isoFn`); ohne expliziten Wert der APP_TZ-Default (byte-identisch zum bisherigen Verhalten). */
-export function toNoteDTO(n: NoteWithRefs, isoFn: Iso = iso): NoteDTO {
+export function toNoteDTO(
+  n: NoteWithRefs,
+  isoFn: Iso = iso,
+  /** Obergrenze für den Fliesstext, in Zeichen. Ohne Angabe steht er ungekürzt da — der Regelfall.
+   *
+   *  Die Kappung sitzt HIER und nicht beim Aufrufer, weil `textTruncated` zur gemeinsamen
+   *  Notiz-Form gehört: ein Feld auf diesem Typ, das nur eine bestimmte Aufrufstelle setzen darf,
+   *  wäre ein Sonderfall auf geteilter Grundlage. Wer sonst noch Notizen einbettet, bekommt die
+   *  Grenze damit als Parameter statt als Nachbau. GEKAPPT WIRD NUR DER FLIESSTEXT: bei einer
+   *  BOUNDARY steht die eigentliche Anweisung in `doDont`, und die ist kurz und muss vollständig
+   *  ankommen. Wie viel eine bestimmte Sicht durchlässt, entscheidet sie selbst — der Einstiegs-Call
+   *  etwa über `NOTE_TEXT_LIMIT` (`mcp/dashboard.ts`). */
+  textLimit?: number,
+): NoteDTO {
+  const capped = textLimit != null && n.text.length > textLimit;
   return {
     id: n.id, type: n.type, status: n.status, pinned: n.pinned, source: n.source,
-    confidence: n.confidence, kg: n.kg, kategorie: n.kategorie, text: n.text,
+    confidence: n.confidence, kg: n.kg, kategorie: n.kategorie,
+    text: capped ? n.text.slice(0, textLimit) : n.text,
+    ...(capped ? { textTruncated: true as const } : {}),
     doDont: parseDoDont(n.doDont),
     validFrom: isoFn(n.validFrom), validUntil: isoFn(n.validUntil),
     supersedesId: n.supersedesId, isLatest: n.status !== "superseded",

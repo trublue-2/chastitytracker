@@ -1,6 +1,14 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  // Beide musl-Ziele stehen AUSDRÜCKLICH da, statt sie "native" zu überlassen: der builder-Stage
+  // (node:24-alpine) trägt kein openssl-Paket, der runner installiert es. "native" löst im Builder
+  // deshalb auf die 1.1.x-Variante auf, während der Runner zur Laufzeit die 3.0.x-Engine sucht.
+  // Auf x86 fällt das nie auf, weil linux-musl-openssl-3.0.x hier ohnehin steht — auf arm64 fehlte
+  // das Gegenstück, und der Container fiel beim Start in eine Neustart-Schleife ("could not locate
+  // the Query Engine for runtime linux-musl-arm64-openssl-3.0.x"). Die CI baut x86 und sieht den
+  // Fall nicht; gemeldet hat ihn ein Selfhoster auf Apple Silicon (#107). Wer hier ein Ziel
+  // entfernt, nimmt einer Architektur das Starten.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
