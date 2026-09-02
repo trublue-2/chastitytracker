@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
 
 /**
  * Der Gesundheits-Halt war bis v6.0.2 eine Zeile ohne Wirkung: gesetzt werden konnte er nur über den
@@ -16,7 +17,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 
-import { isPausedAt, writeHealthHold, setHealthHold, type HealthHoldSpan } from "./healthHold";
+import { isPausedAt, writeHealthHold, setHealthHold, toHealthHoldSpans, NOT_PAUSED_WHERE, USER_NOT_PAUSED_WHERE, type HealthHoldSpan } from "./healthHold";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
 
@@ -54,6 +55,11 @@ describe("isPausedAt", () => {
 
   it("ohne Halt ist nie etwas pausiert", () => {
     expect(isPausedAt([], T("2026-08-01T10:00:00Z"))).toBe(false);
+  });
+
+  it("toHealthHoldSpans formt die Rohzeilen um — die EINE Umwandlung, die das Strafbuch nimmt", () => {
+    expect(toHealthHoldSpans([{ createdAt: T("2026-08-01T00:00:00Z"), resolvedAt: null }]))
+      .toEqual([{ from: T("2026-08-01T00:00:00Z"), to: null }]);
   });
 });
 
@@ -148,6 +154,48 @@ describe("writeHealthHold", () => {
     expect(res.shiftedTasks).toBe(0);
     expect(tx.task.findMany).not.toHaveBeenCalled();
     expect(tx.healthHold.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Die Zusage „während der Pause erreicht ihn keine Direktive" hat ZWEI Hälften, und die zweite war
+ * beim ersten Anlauf vergessen: das Gate der Zustellung (`dueForDispatchWhere`) fasst nur
+ * TERMINIERTE Zeilen. Eine sofort gestellte Kontrolle ging mitten in der Pause hinaus, während ihr
+ * terminierter Zwilling wartete — und der Posteingang des Trägers sagte ihm gerade zu, dass keine
+ * kommen. Dieser Block hält die vier Erstell-Wege dagegen; er liest sie als TEXT, weil ein echter
+ * Aufruf für jeden von ihnen Attrappen für Prisma, Mail, Push und Posteingang bräuchte
+ * (Bauart wie `appName.test.ts`).
+ */
+describe("Die Erstell-Dienste prüfen den Halt selbst", () => {
+  const files = {
+    "kontrolleService.ts": readFileSync("src/lib/kontrolleService.ts", "utf8"),
+    "verschlussAnforderungService.ts": readFileSync("src/lib/verschlussAnforderungService.ts", "utf8"),
+    "orgasmusAnforderungService.ts": readFileSync("src/lib/orgasmusAnforderungService.ts", "utf8"),
+    // Die Aufgabe prüft in `checkTask`, nicht in `createTask` — damit die MCP-dryRun-Vorschau
+    // dieselbe Absage zeigt, statt Erfolg für einen Commit zu versprechen, der mit 409 endet.
+    "taskService.ts": readFileSync("src/lib/taskService.ts", "utf8"),
+  };
+
+  it.each(Object.keys(files))("%s weist bei laufendem Halt ab", (name) => {
+    const src = files[name as keyof typeof files];
+    expect(src).toContain("isHealthHoldActive");
+    expect(src).toContain("HEALTH_HOLD_ACTIVE");
+  });
+
+  it("die Aufgabe prüft in checkTask, damit die Vorschau dieselbe Absage zeigt", () => {
+    const src = files["taskService.ts"];
+    const check = src.slice(src.indexOf("export async function checkTask("), src.indexOf("const graceMin"));
+    expect(check).toContain("isHealthHoldActive");
+  });
+});
+
+describe("NOT_PAUSED_WHERE / USER_NOT_PAUSED_WHERE", () => {
+  // Der Wert selbst ist trivial; geprüft wird, dass es ihn GIBT und dass er die Relation nennt. Die
+  // Wirkung hängt daran, dass jede auswählende Abfrage ihn mitführt statt nachträglich zu filtern —
+  // ein Filter danach besetzt den `take`-Deckel eines Poller-Ticks für die Dauer der Pause.
+  it("fragt über die Relation, nicht über eine vorher geladene Liste", () => {
+    expect(NOT_PAUSED_WHERE).toEqual({ user: { healthHolds: { none: { active: true } } } });
+    expect(USER_NOT_PAUSED_WHERE).toEqual({ healthHolds: { none: { active: true } } });
   });
 });
 

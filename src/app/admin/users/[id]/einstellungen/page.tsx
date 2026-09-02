@@ -130,7 +130,6 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       <SettingsSection title={t("sectionHealthHold")} description={t("sectionHealthHoldDesc")} bodyPadded>
         <HealthHoldToggle
           userId={user.id}
-          initialActive={healthHold !== null}
           initialReason={healthHold?.reason ?? null}
           initialSince={healthHold?.createdAt.toISOString() ?? null}
         />

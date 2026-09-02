@@ -247,7 +247,8 @@
     "RELEASE_TOO_MANY_MEASUREMENTS": "More measurements are required than the period has days",
     "RELEASE_UNDERWEIGHT": "That threshold is in the underweight range (BMI below 18.5)",
     "invalidNoticeVersion": "Unknown notice version",
-    "HEALTH_HOLD_REASON_REQUIRED": "A health hold requires a reason."
+    "HEALTH_HOLD_REASON_REQUIRED": "A health hold requires a reason.",
+    "HEALTH_HOLD_ACTIVE": "A health hold is running for this wearer — no new directives while it lasts."
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",

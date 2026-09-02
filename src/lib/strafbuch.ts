@@ -9,7 +9,7 @@ import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { triggeredWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER } from "@/lib/lockPending";
 import { missedWeightBlocks, missedWeightRef } from "@/lib/weightObligation";
-import { isPausedAt, type HealthHoldSpan } from "@/lib/healthHold";
+import { isPausedAt, toHealthHoldSpans, type HealthHoldSpan } from "@/lib/healthHold";
 import { addWeightDays, endOfWeightDay, weightDayKey } from "@/lib/weight";
 import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
 import {
@@ -338,6 +338,28 @@ export function offenseListViews(sb: StrafbuchData) {
  * Zeilen ohne Zeitpunkt (`at` = null, etwa ein falsches Gerät, dessen Eintrag nicht mehr existiert)
  * werden nach der HEUTE geltenden Fassung beurteilt — mehr ist über sie nicht bekannt.
  */
+function applyOffenseRules(
+  sb: StrafbuchData,
+  resolve: OffenseRuleResolver,
+  judgedRefs: Set<string>,
+  now: Date,
+): void {
+  const lists = sb as unknown as Record<string, unknown[]>;
+  for (const { type, key, rows, ref, at } of offenseListViews(sb)) {
+    // manual_offense hat bewusst keinen Schalter (Begründung in `offenseRules.ts`).
+    if (!isSwitchableOffenseType(type)) continue;
+    // `unauthorized_orgasm` hat seine Regel schon beim Ableiten gelesen — sie sagt dort nicht nur
+    // ob, sondern WIE WEIT (nur bei Sperrzeit / immer), und das lässt sich hier nicht nachholen.
+    // Ein zweiter Durchgang wäre für diese Art ein No-Op: was die Regel streichen würde, ist dort
+    // längst gestrichen — und den Schutz beurteilter Zeilen bringt die Ableitung selbst mit
+    // (`judgedRefs`, siehe dort).
+    if (type === "unauthorized_orgasm") continue;
+    lists[key] = rows.filter(
+      (row) => judgedRefs.has(ref(row)) || resolve(type, at(row) ?? now) !== "off",
+    );
+  }
+}
+
 /**
  * Streicht aus einem rohen Strafbuch jede Zeile, deren TATZEIT in einen Gesundheits-Halt fiel.
  *
@@ -369,28 +391,6 @@ function applyHealthHoldPause(
       const tatzeit = at(row);
       return !tatzeit || judgedRefs.has(ref(row)) || !isPausedAt(spans, tatzeit);
     });
-  }
-}
-
-function applyOffenseRules(
-  sb: StrafbuchData,
-  resolve: OffenseRuleResolver,
-  judgedRefs: Set<string>,
-  now: Date,
-): void {
-  const lists = sb as unknown as Record<string, unknown[]>;
-  for (const { type, key, rows, ref, at } of offenseListViews(sb)) {
-    // manual_offense hat bewusst keinen Schalter (Begründung in `offenseRules.ts`).
-    if (!isSwitchableOffenseType(type)) continue;
-    // `unauthorized_orgasm` hat seine Regel schon beim Ableiten gelesen — sie sagt dort nicht nur
-    // ob, sondern WIE WEIT (nur bei Sperrzeit / immer), und das lässt sich hier nicht nachholen.
-    // Ein zweiter Durchgang wäre für diese Art ein No-Op: was die Regel streichen würde, ist dort
-    // längst gestrichen — und den Schutz beurteilter Zeilen bringt die Ableitung selbst mit
-    // (`judgedRefs`, siehe dort).
-    if (type === "unauthorized_orgasm") continue;
-    lists[key] = rows.filter(
-      (row) => judgedRefs.has(ref(row)) || resolve(type, at(row) ?? now) !== "off",
-    );
   }
 }
 
@@ -955,6 +955,6 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   applyOffenseRules(data, resolveRule, judgedRefs, now);
   // NACH den Regeln: die Pause ist die stärkere Aussage. Eine Art kann eingeschaltet sein und die
   // Tat trotzdem folgenlos, weil der Träger sie in der Pause beging.
-  applyHealthHoldPause(data, healthHolds.map((h) => ({ from: h.createdAt, to: h.resolvedAt })), judgedRefs);
+  applyHealthHoldPause(data, toHealthHoldSpans(healthHolds), judgedRefs);
   return data;
 }

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { writeHealthHold, healthHoldNotice } from "@/lib/healthHold";
+import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/healthHold";
 import { notifyUser } from "@/lib/notify";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
@@ -36,7 +36,10 @@ export interface HealthHoldView {
 /** Aktiver HealthHold des Users (oder null) — auch vom Dashboard genutzt. `isoFn` formatiert in der
  *  Sub-Zeitzone; ohne Wert der APP_TZ-Default (byte-identisch zum bisherigen Verhalten). */
 export async function loadActiveHealthHold(userId: string, isoFn: Iso = iso): Promise<HealthHoldView | null> {
-  const h = await prisma.healthHold.findFirst({ where: { userId, active: true }, orderBy: { createdAt: "desc" } });
+  // Nur noch die VIEW-Abbildung; die Abfrage gehört dem geteilten Leser. Sie stand hier Zeichen für
+  // Zeichen ein zweites Mal — und seit der Halt wirkt, ist „läuft einer?" keine Anzeige-Frage mehr,
+  // sondern die, an der acht Module hängen.
+  const h = await activeHealthHold(userId);
   return h ? { id: h.id, active: true, reason: h.reason, since: isoFn(h.createdAt)! } : null;
 }
 

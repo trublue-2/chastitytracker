@@ -80,7 +80,16 @@ describe("dueForDispatchWhere", () => {
     // Die Zusage an die Aufrufer: das `lte` kommt HINZU, `not: null` bleibt daneben stehen. Ohne
     // dieses `not: null` sammelte die Abfrage auch nie terminierte Zeilen ein — die sind längst
     // zugestellt und würden ein zweites Mal gemeldet.
-    expect(dueForDispatchWhere(NOW)).toEqual({ ...pendingDispatchWhere, wirksamAb: { not: null, lte: NOW } });
+    expect(dueForDispatchWhere(NOW)).toMatchObject({ ...pendingDispatchWhere, wirksamAb: { not: null, lte: NOW } });
+  });
+
+  it("blendet Träger mit laufender Gesundheitspause aus — und NUR hier, nicht in pendingDispatchWhere", () => {
+    // Das Gate steht in SQL statt als Filter danach: die wartenden Zeilen sind die ältesten und
+    // besetzten sonst den `take`-Deckel jedes Ticks. Und es steht NICHT in `pendingDispatchWhere` —
+    // das speist auch die Keyholder-Sicht auf die geplanten Direktiven, und dort muss sie sehen, was
+    // während der Pause wartet.
+    expect(dueForDispatchWhere(NOW)).toMatchObject({ user: { healthHolds: { none: { active: true } } } });
+    expect(pendingDispatchWhere).not.toHaveProperty("user");
   });
 
   it("verträgt den eigenen Filter des Aufrufers", () => {

@@ -1,11 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import type { PrismaTx } from "@/lib/queries";
 import { taskAnchor } from "@/lib/tasks";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { structuredLog } from "@/lib/serverLog";
 import type { MessageActor } from "@/lib/messageService";
 
-type Client = Prisma.TransactionClient | typeof prisma;
+/** „Transaktion oder globaler Client" — derselbe Alias, den `queries.ts` schon exportiert. Reiner
+ *  Typ-Import, also kein Laufzeit-Zyklus, obwohl `queries.ts` seinerseits aus diesem Modul liest. */
+type Client = PrismaTx | typeof prisma;
 
 /**
  * Der Gesundheits-Halt: die eine Bremse, die über allem steht.
@@ -24,7 +28,7 @@ type Client = Prisma.TransactionClient | typeof prisma;
 
 /** Höchstens ein aktiver Halt pro Träger — die Invariante lebt hier im Code, nicht im Schema
  *  (kein partieller Unique-Index in SQLite). Jede Mutation läuft durch {@link writeHealthHold}. */
-export const HEALTH_HOLD_SELECT = {
+const HEALTH_HOLD_SELECT = {
   id: true,
   active: true,
   reason: true,
@@ -49,29 +53,28 @@ export async function isHealthHoldActive(userId: string, client: Client = prisma
 }
 
 /**
- * Alle Träger mit laufender Pause — EINE Abfrage für einen ganzen Poller-Tick.
+ * „Dieser Träger hat gerade KEINE Pause", als WHERE-Fragment auf einer USER-Abfrage.
  *
- * Der Poller berührt in jedem Tick sieben Zweige (Planung, Zustellung, Eskalation, Verschluss,
- * Orgasmus, Aufgaben, Wiegen) und in jedem davon mehrere Zeilen. Je Zeile zu fragen wären im
- * Minutenraster hunderte Abfragen für eine Antwort, die sich innerhalb eines Ticks nicht ändert.
+ * Die Gegenstücke {@link NOT_PAUSED_WHERE} (Abfragen mit `user`-Relation) und dieses hier decken
+ * zusammen jede Stelle ab, die eine Menge von Trägern auswählt. Beide fragen dasselbe in SQL, statt
+ * eine Liste in JS nachzufiltern — das hielte den `take`-Deckel eines Poller-Ticks besetzt und
+ * verlangte, das Ergebnis durch jede Zwischenfunktion durchzureichen.
  */
-export async function pausedUserIds(client: Client = prisma): Promise<Set<string>> {
-  const rows = await client.healthHold.findMany({ where: { active: true }, select: { userId: true } });
-  return new Set(rows.map((r) => r.userId));
-}
+export const USER_NOT_PAUSED_WHERE = { healthHolds: { none: { active: true } } } as const;
 
 /**
- * Das Pausen-Set eines Poller-Ticks: durchgereicht, wenn es der Tick schon geladen hat, sonst selbst
- * geholt.
+ * „Dieser Träger hat gerade KEINE Pause" — als WHERE-Fragment für jede Abfrage, die über die
+ * `user`-Relation verfügt.
  *
- * Der Default ist die eigentliche Zusage. Jeder Einstiegspunkt des Pollers nimmt das Set optional
- * entgegen; wer es beim Aufruf vergisst, verliert damit eine Abfrage — aber NICHT die Wirkung. Als
- * Pflicht-Parameter wäre die Pause bei der nächsten neuen Aufrufstelle still wieder weg, und genau
- * diese Sorte Auslassung ist der Befund, den dieses Modul behebt.
+ * In SQL statt als Filter danach, und das ist keine Feinheit: die Zeilen eines pausierten Trägers
+ * bleiben liegen und sind die ÄLTESTEN, sortieren also in jedem Tick nach vorn. Nachgelagert
+ * gefiltert besetzten sie den `take`-Deckel für die Dauer der Pause und hielten die Zustellung für
+ * alle anderen an — dieselbe Stau-Klasse, die `processDueTasks` schon einmal beheben musste.
+ *
+ * Für die Zustellung ist es bereits in {@link dueForDispatchWhere} eingebaut; hier steht es für die
+ * Abfragen, die dieses Fragment nicht mitbringen (Auswertung fälliger Aufgaben, Eskalation).
  */
-export async function pausedOrLoad(paused?: ReadonlySet<string>): Promise<ReadonlySet<string>> {
-  return paused ?? await pausedUserIds();
-}
+export const NOT_PAUSED_WHERE = { user: { healthHolds: { none: { active: true } } } } as const;
 
 /** Eine Pausen-SPANNE. `to: null` heisst „läuft noch" — nicht „unbekannt". */
 export interface HealthHoldSpan {
@@ -79,13 +82,10 @@ export interface HealthHoldSpan {
   to: Date | null;
 }
 
-/** Die Spannen dieses Trägers, älteste zuerst — die Lese-Seite für jede rückblickende Frage. */
-export async function healthHoldSpans(userId: string, client: Client = prisma): Promise<HealthHoldSpan[]> {
-  const rows = await client.healthHold.findMany({
-    where: { userId },
-    orderBy: { createdAt: "asc" },
-    select: { createdAt: true, resolvedAt: true },
-  });
+/** Rohzeilen → Spannen. Die EINE Umformung: das Strafbuch lädt die Zeilen in seinem eigenen
+ *  `Promise.all` (es braucht sie zusätzlich in Rohform für `healthHoldDayKeys`) und formt sie damit
+ *  um, statt eine zweite Schreibweise danebenzustellen. */
+export function toHealthHoldSpans(rows: { createdAt: Date; resolvedAt: Date | null }[]): HealthHoldSpan[] {
   return rows.map((r) => ({ from: r.createdAt, to: r.resolvedAt }));
 }
 
@@ -202,10 +202,12 @@ async function shiftTaskDeadlines(
     select: { id: true, createdAt: true, wirksamAb: true, holdUntil: true },
   });
 
+  let shifted = 0;
   for (const task of open) {
     const lostFrom = Math.max(pauseStart.getTime(), task.createdAt.getTime());
     const shiftMs = now.getTime() - lostFrom;
     if (shiftMs <= 0) continue;
+    shifted++;
     await tx.task.update({
       where: { id: task.id },
       data: {
@@ -214,7 +216,7 @@ async function shiftTaskDeadlines(
       },
     });
   }
-  return open.length;
+  return shifted;
 }
 
 /**
@@ -238,6 +240,14 @@ export async function setHealthHold(params: {
   const written = await prisma.$transaction((tx) =>
     writeHealthHold(tx, params.userId, { active: params.active, reason }),
   );
+
+  // Was der Halt MITGENOMMEN hat, gehört ins Log: eine zurückgezogene Kontrolle und eine nach hinten
+  // gerückte Frist sind für die Keyholderin sonst unsichtbar — sie sieht nur, dass etwas fehlt.
+  structuredLog("healthHold", params.active ? "gesetzt" : "aufgehoben", {
+    userId: params.userId,
+    withdrawnInspections: written.withdrawnInspections,
+    shiftedTasks: written.shiftedTasks,
+  });
 
   // Nach dem Commit, nicht darin: eine Meldung über eine Pause, die die Transaktion am Ende nicht
   // gesetzt hat, wäre schlimmer als keine.

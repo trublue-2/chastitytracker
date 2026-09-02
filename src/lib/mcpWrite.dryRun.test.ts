@@ -22,6 +22,8 @@ vi.mock("@/lib/prisma", () => ({
     kontrollAnforderung: { count: vi.fn(), findFirst: vi.fn() },
     trainingVorgabe: { findFirst: vi.fn() },
     strafeRecord: { findUnique: vi.fn() },
+    // Der Gesundheits-Halt ist Vorbedingung jeder Direktive (`isHealthHoldActive`) — `null` = keiner.
+    healthHold: { findFirst: vi.fn(async () => null) },
     // getIsLocked/hasActiveKontrolle (advisory dryRun-Checks) lesen darüber.
     entry: { findFirst: vi.fn() },
     // Die EINZIGEN Schreibvorgänge der Aufgaben-Werkzeuge (`createTask` → writeTask → tx.task.create,

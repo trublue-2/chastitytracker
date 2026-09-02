@@ -1749,8 +1749,10 @@ function registerTools(server: McpServer) {
         title: "Set / clear health hold (v2)",
         description:
           "Setzt oder löst die Gesundheits-Zurückhaltung (explain_model, Abschnitt 6b). Das ist ein " +
-          "SCHALTER, kein blosses Signal: solange er läuft, wird dem Träger NICHTS zugestellt " +
-          "(Auto-Kontrollen, Eskalation, terminierte Direktiven, Wiege-Erinnerung), eine laufende " +
+          "SCHALTER, kein blosses Signal: solange er läuft, erreicht den Träger KEINE DIREKTIVE — weder " +
+          "eine terminierte noch eine sofort gestellte (die Erstellung wird mit HEALTH_HOLD_ACTIVE " +
+          "abgewiesen), dazu keine Auto-Kontrollen, keine Eskalation und keine Wiege-Erinnerung. Was " +
+          "VOR der Pause entstanden ist, wird ihm weiterhin gemeldet. Eine laufende " +
           "Sperrzeit wird nicht durchgesetzt (Öffnen ist gedeckt, der Riegel geht auf, die Sperre läuft " +
           "danach weiter), und aus der Pausenzeit entsteht kein abgeleitetes Vergehen. Beim Setzen " +
           "fallen die offenen Kontrollen, beim Lösen rücken die Fristen laufender Aufgaben nach. " +

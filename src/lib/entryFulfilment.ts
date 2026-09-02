@@ -238,6 +238,24 @@ export async function applyEntryFulfilment(
  * sie je zeigt — ohne die Nachricht bekäme der Träger einen Eintrag, den er nicht sehen kann. Leere `requiredDeviceIds` heisst „keine Vorgabe"
  * und niemals „falsches Gerät".
  */
+/**
+ * Zählt ein SOFORT geahndetes Vergehen dieser Art gerade überhaupt?
+ *
+ * Beide Schranken — die Vergehensregel und der Gesundheits-Halt — müssen HIER gelesen werden und
+ * nicht erst im Strafbuch, und zwar aus demselben Grund: eine sofortige Ahndung wird mit
+ * `judgedBy: "system"` als erledigt geschrieben, landet damit in `judgedRefs`, und beide
+ * nachgelagerten Filter (`applyOffenseRules`, `applyHealthHoldPause`) lassen beurteilte Zeilen
+ * bewusst stehen. Sie griffen für diese Art also nie.
+ *
+ * Als EIN Prädikat und nicht als zwei Zeilen nebeneinander: heute gibt es genau einen solchen
+ * Schreiber, und der nächste müsste sonst beide Schranken abschreiben — und würde die zweite
+ * vergessen, weil ihr Fehlen erst auffällt, wenn jemand während einer Pause eine Meldung bekommt.
+ */
+async function offenseCountsNow(userId: string, type: "wrong_device"): Promise<boolean> {
+  const [rules, paused] = await Promise.all([getOffenseRules(userId), isHealthHoldActive(userId)]);
+  return rules[type] !== "off" && !paused;
+}
+
 export async function punishWrongDevice(
   entry: { id: string; userId: string; type: string; deviceId: string | null },
   requiredDeviceIds: string[],
@@ -251,13 +269,7 @@ export async function punishWrongDevice(
   // nachgelagerte Filter griffe für diese Art also nie, die Regel wäre wirkungslos. Seit die Ahndung
   // dem Träger auch gemeldet wird, wäre das nicht mehr nur eine stille Lücke, sondern ein
   // Widerspruch in seinem Posteingang: eine Meldung über eine ausdrücklich abgeschaltete Art.
-  const rules = await getOffenseRules(entry.userId);
-  if (rules.wrong_device === "off") return;
-  // Gesundheits-Halt, und aus GENAU demselben Grund wie die Regel eine Zeile darüber: die Ahndung
-  // wird sofort als erledigt geschrieben, der nachgelagerte Pausen-Filter des Strafbuchs
-  // (`applyHealthHoldPause`) griffe für sie also nie. Wer während einer Pause ein anderes Gerät
-  // trägt, tut es meistens deswegen — ein Gips passt zu keiner Anforderung.
-  if (await isHealthHoldActive(entry.userId)) return;
+  if (!(await offenseCountsNow(entry.userId, "wrong_device"))) return;
   try {
     const now = new Date();
     await prisma.strafeRecord.create({

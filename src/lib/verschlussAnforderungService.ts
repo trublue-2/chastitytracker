@@ -10,6 +10,7 @@ import { formatDateTime, formatDurationHours } from "@/lib/utils";
 import { firePush } from "@/lib/push";
 import { parseTriggerAt, computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { isHealthHoldActive } from "@/lib/healthHold";
 
 export interface CreateVerschlussAnforderungParams {
   userId: string;
@@ -100,6 +101,10 @@ export async function createVerschlussAnforderung(
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return serviceFail(404, "USER_NOT_FOUND");
+  // Gesundheits-Halt: die eine Bremse, die über allem steht. Das Gate der Zustellung
+  // (`dueForDispatchWhere`) fasst nur TERMINIERTE Zeilen; ohne diese Prüfung ginge eine sofort
+  // gestellte Anforderung mitten in der Pause hinaus, während ihr terminierter Zwilling wartet.
+  if (await isHealthHoldActive(userId)) return serviceFail(409, "HEALTH_HOLD_ACTIVE");
   // KEINE E-Mail-Pflicht: der Sub erfährt die Anforderung über den Posteingang
   // (`recordMessageAndBadge`, weiter unten und unbedingt) und über das Banner auf seinem
   // Dashboard, das aus der Zeile selbst kommt. Die Mail ist die Beigabe. Bis v6 stand hier ein

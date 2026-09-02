@@ -247,7 +247,8 @@
     "RELEASE_TOO_MANY_MEASUREMENTS": "Es werden mehr Messungen verlangt, als der Zeitraum Tage hat",
     "RELEASE_UNDERWEIGHT": "Diese Schwelle liegt im Untergewicht (BMI unter 18,5)",
     "invalidNoticeVersion": "Unbekannte Hinweis-Version",
-    "HEALTH_HOLD_REASON_REQUIRED": "Eine Gesundheitspause braucht einen Grund."
+    "HEALTH_HOLD_REASON_REQUIRED": "Eine Gesundheitspause braucht einen Grund.",
+    "HEALTH_HOLD_ACTIVE": "Für diesen Träger läuft eine Gesundheitspause — solange sie läuft, gibt es keine neuen Direktiven."
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",

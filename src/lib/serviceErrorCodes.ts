@@ -294,6 +294,10 @@ export const SETTINGS_CODES = [
  *  Keyholderin muss in einer Woche noch nachlesen können, warum. */
 export const HEALTH_HOLD_CODES = [
   "HEALTH_HOLD_REASON_REQUIRED",
+  // Abgewiesen, weil eine Pause läuft. Die Absage ist Absicht und nicht bloss Schutz: sie sagt der
+  // Keyholderin, dass ihr Träger pausiert ist — still zu schlucken hiesse, sie im Glauben zu lassen,
+  // die Direktive sei unterwegs. Wer bewusst darüber hinweg will, hebt die Pause auf.
+  "HEALTH_HOLD_ACTIVE",
 ] as const;
 
 /** Gewichtstracking (docs/gewicht-konzept.md). Seit dem Umbau auf EIN Zielgewicht melden diese Codes

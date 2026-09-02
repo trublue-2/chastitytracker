@@ -15,7 +15,7 @@ import { maybeRunHealthChecks } from "@/lib/healthCheck";
 import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
 import { deadlineFromDispatch, dueForDispatchWhere } from "@/lib/delayedTrigger";
 import { dispatchDueTasks, processDueTasks } from "@/lib/taskService";
-import { pausedUserIds } from "@/lib/healthHold";
+import { NOT_PAUSED_WHERE, USER_NOT_PAUSED_WHERE } from "@/lib/healthHold";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
 // benachrichtigt). Ein Container pro Instanz → ein Poller je Prozess genügt; der Zustand liegt
@@ -29,24 +29,17 @@ async function processDue(): Promise<void> {
   try {
     const now = new Date();
 
-    // Wer gerade eine Gesundheitspause hat — EINMAL je Tick, geteilt von allen Zweigen darunter.
-    // Solange sie läuft, stellt dieser Poller dem Träger nichts zu: keine Kontrolle, keine Mahnung,
-    // keine terminierte Direktive, keine Wiege-Erinnerung. Was tagesgebunden ist (Auto-Kontrollen),
-    // wird verworfen; was die Keyholderin von Hand geplant hat, wartet und kommt danach.
-    const paused = await pausedUserIds().catch((e) => {
-      // Fehlschlag heisst „niemand pausiert" — der Poller darf an dieser Frage nicht scheitern. Die
-      // Richtung ist bewusst: eine ausgefallene Abfrage soll die App nicht anhalten. Die
-      // Vergehens-Ableitung im Strafbuch liest die Hälte unabhängig davon und bleibt richtig.
-      console.error("[healthHold]", e);
-      return new Set<string>();
-    });
+    // Der Gesundheits-Halt braucht in diesem Tick KEINE eigene Abfrage: er steckt in den WHERE-
+    // Klauseln, die die Zweige ohnehin stellen (`dueForDispatchWhere` für alles Terminierte,
+    // `NOT_PAUSED_WHERE` in der Eskalation, die Nutzer-Auswahl der Tagesplanung und der
+    // Wiege-Erinnerung). Ein Filter hier wäre eine zweite, nachlaufende Wahrheit.
 
     // Auto-Kontrollen aller aktiven User für „heute" einplanen — JEDEN Tick aufrufen, nicht nur zur
     // CH-Mitternacht: die per-User-Funktion ist idempotent je SUB-Zeitzone-Tag (DB-Check), sodass jeder
     // Sub seine Kontrollen zu SEINEM lokalen Tagesbeginn bekommt (ein globaler CH-Tages-Gate würde
     // Nicht-CH-Subs erst zur CH-Mitternacht einplanen → verschobene/fehlende Fenster). Für CH-Subs ist
     // das Ergebnis identisch (heute schon geplant → 0). Schlägt es fehl, läuft das Versenden weiter.
-    await ensureDailyAutoKontrollen(now, paused).catch((e) => console.error("[autoKontrolle]", e));
+    await ensureDailyAutoKontrollen(now).catch((e) => console.error("[autoKontrolle]", e));
     // Cleanup (Listen-Rauschen, kein History-Wert) nur bei UTC-Tageswechsel — Timing unkritisch, spart
     // den findMany je Tick. deleteWithdrawnAutoKontrollen filtert intern per Sub-Zeitzone.
     const utcDayKey = Math.floor(now.getTime() / 86_400_000);
@@ -68,7 +61,7 @@ async function processDue(): Promise<void> {
 
     // Erinnerung ans Wiegen: prüft das LAUFENDE Fenster, nicht seine Startminute — ein Tick, der
     // wegen Neustart oder Deploy ausfällt, holt sie dadurch nach, statt sie zu verschlucken.
-    await sendDueWeighingReminders(now, paused)
+    await sendDueWeighingReminders(now)
       .then((n) => { if (n > 0) console.log(`[weight:reminder] ${n} Erinnerungen verschickt`); })
       .catch((e) => console.error("[weight:reminder]", e));
 
@@ -87,15 +80,6 @@ async function processDue(): Promise<void> {
 
     for (const ka of due) {
       try {
-        // Gesundheits-Halt. Die beiden Quellen werden VERSCHIEDEN behandelt, und das ist der Punkt:
-        // eine Auto-Kontrolle gehört zu IHREM Tag und wird verworfen (kein Nachholen, dieselbe
-        // Entscheidung wie beim Überschneidungs-Schutz), eine von der Keyholderin veranlasste bleibt
-        // liegen und wird nach der Pause zugestellt — sie hat sie bewusst gestellt, und
-        // `deadlineFromDispatch` gibt dem Träger die volle Frist ab der tatsächlichen Zustellung.
-        if (paused.has(ka.userId)) {
-          if (ka.auto) await withdrawKa(ka.id);
-          continue;
-        }
         // Der Zustand des ZIELS bei Zustellung — beim KG der Lock-Eintrag (Siegel + Gerät), bei
         // einer Trage-Kontrolle die laufende Session. Auto-Kontrollen zielen immer auf den KG
         // (`categoryId: null`), die Zweige darunter bleiben damit unverändert.
@@ -166,13 +150,13 @@ async function processDue(): Promise<void> {
     }
 
     // Kontroll-Eskalation (Mahnung, dann ggf. automatisch als abgelegt markieren) im selben Tick.
-    await processInspectionEscalation(now, paused);
+    await processInspectionEscalation(now);
 
     // Zeitversetzte VerschlussAnforderungen (ANFORDERUNG/SPERRZEIT) im selben Tick — kein zweiter Timer.
-    await processDueVerschlussAnforderungen(now, paused);
+    await processDueVerschlussAnforderungen(now);
 
     // Zeitversetzte Orgasmus-Anweisungen, gleiche Zusage, gleicher Tick.
-    await processDueOrgasmusAnforderungen(now, paused);
+    await processDueOrgasmusAnforderungen(now);
 
     // Zeitversetzte AUFGABEN im selben Tick, direkt neben ihren beiden Geschwistern und mit
     // derselben Zusage: erst zustellen, dann stempeln, und im `await`-Zweig — der `running`-Riegel
@@ -181,7 +165,7 @@ async function processDue(): Promise<void> {
     // VOR `processDueTasks`: eine soeben zugestellte Aufgabe bekommt dabei ihr verschobenes
     // `holdUntil`; würde erst gemeldet und dann zugestellt, sähe die Ergebnis-Meldung im selben Tick
     // noch die alte, womöglich schon abgelaufene Frist.
-    await dispatchDueTasks(now, paused).catch((e) => console.error("[dispatchDueTasks]", e));
+    await dispatchDueTasks(now).catch((e) => console.error("[dispatchDueTasks]", e));
 
     // Selfhosted-KI-Erreichbarkeit prüfen (intern alle HEALTHCHECK_INTERVAL_MIN gedrosselt; No-op ohne
     // konfigurierte selfhosted-KI). FIRE-AND-FORGET: die Probes können bis zum Timeout hängen — das darf
@@ -206,7 +190,7 @@ async function processDue(): Promise<void> {
     //
     // Steht bewusst am ENDE des Tickes: die zeitkritischen Blöcke (Kontroll-/Sperrzeit-Mails) sind
     // dann längst durch, verzögert wird höchstens der NÄCHSTE Tick.
-    await processDueTasks(now, paused).catch((e) => console.error("[processDueTasks]", e));
+    await processDueTasks(now).catch((e) => console.error("[processDueTasks]", e));
   } finally {
     running = false;
   }
@@ -223,7 +207,7 @@ async function processDue(): Promise<void> {
  * ursprünglichen Deadline. Grobfilter (Deadline/Flags) läuft in SQL, der genaue Minuten-Delay pro
  * Zeile in JS — dieselbe Zwei-Stufen-Filterung wie beim Auto-Kontrolle-Zeitfenster.
  */
-async function processInspectionEscalation(now: Date, paused: ReadonlySet<string>): Promise<void> {
+async function processInspectionEscalation(now: Date): Promise<void> {
   const reminderDue = await prisma.kontrollAnforderung.findMany({
     where: {
       deadline: { lt: now },
@@ -231,6 +215,11 @@ async function processInspectionEscalation(now: Date, paused: ReadonlySet<string
       benachrichtigtReminderAt: null,
       withdrawnAt: null,
       entryId: null,
+      // Gesundheits-Halt: nicht mahnen. Beim Einschalten zieht `writeHealthHold` die offenen
+      // Kontrollen zwar zurück, aber eine Zeile kann diesen Zweig auf anderem Weg erreichen (ein
+      // gescheiterter Rückzug, ein Halt zwischen zwei Ticks) — und die Mahnung ist genau die
+      // Nachricht, die der Träger in der Pause nicht bekommen soll.
+      ...NOT_PAUSED_WHERE,
     },
     include: {
       user: {
@@ -246,11 +235,6 @@ async function processInspectionEscalation(now: Date, paused: ReadonlySet<string
     take: 50,
   });
   for (const ka of reminderDue) {
-    // Gesundheits-Halt: nicht mahnen. Beim Einschalten zieht `writeHealthHold` die offenen
-    // Kontrollen zwar zurück, aber eine Zeile kann diesen Zweig auf anderem Weg erreichen (Rückzug
-    // gescheitert, Halt zwischen zwei Ticks gesetzt) — und eine Mahnung während der Pause wäre genau
-    // die Nachricht, die der Träger nicht bekommen soll.
-    if (paused.has(ka.userId)) continue;
     const dueAt = ka.deadline.getTime() + ka.user.inspectionReminderDelayMinutes * 60_000;
     if (dueAt > now.getTime()) continue;
     try {
@@ -266,16 +250,15 @@ async function processInspectionEscalation(now: Date, paused: ReadonlySet<string
       autoMarkedRemovedAt: null,
       withdrawnAt: null,
       entryId: null,
-      user: { inspectionAutoMarkEnabled: true },
+      // Der Halt wiegt hier am schwersten: diese Stufe bucht die Kontrolle als „Gerät vermutlich
+      // abgenommen" und legt dafür einen OEFFNEN-Eintrag an. Sie ist der Weg, auf dem eine Pause
+      // ohne menschliches Zutun in einem Vergehen endet — der Fall aus dem Kommentar zu #91.
+      user: { inspectionAutoMarkEnabled: true, ...USER_NOT_PAUSED_WHERE },
     },
     include: { user: { select: { ...AUTO_KONTROLLE_SETTINGS_SELECT, username: true, inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true, inspectionReminderDelayMinutes: true } } },
     take: 50,
   });
   for (const ka of autoMarkDue) {
-    // Gesundheits-Halt, und hier wiegt er am schwersten: diese Stufe bucht die Kontrolle als
-    // „Gerät vermutlich abgenommen" und legt dafür einen OEFFNEN-Eintrag an. Sie ist der Weg, auf dem
-    // eine Pause ohne menschliches Zutun in einem Vergehen endet — der Fall aus dem Kommentar zu #91.
-    if (paused.has(ka.userId)) continue;
     // DIESELBE Rechnung, die das Dashboard dem Sub ankündigt (`predictAutoMarkAt`). Sie enthält
     // beides: den Mahn-Stempel als Anker und den Schlaf-Fenster-Sonderfall — für eine Kontrolle, die
     // nach einer Reinigungspause IM SCHLAF-FENSTER zugestellt wurde, bleibt es bei der Mahnung
@@ -306,7 +289,7 @@ async function processInspectionEscalation(now: Date, paused: ReadonlySet<string
  * das Sperr-Ende schon vorbei, wird statt gesendet zurückgezogen. Fehler → benachrichtigtAt bleibt
  * null (Retry nächster Tick).
  */
-async function processDueVerschlussAnforderungen(now: Date, paused: ReadonlySet<string>): Promise<void> {
+async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
   const due = await prisma.verschlussAnforderung.findMany({
     where: { ...dueForDispatchWhere(now), fulfilledAt: null },
     include: { user: { select: { id: true, email: true, username: true, locale: true } } },
@@ -315,10 +298,6 @@ async function processDueVerschlussAnforderungen(now: Date, paused: ReadonlySet<
 
   for (const va of due) {
     try {
-      // Gesundheits-Halt: liegen lassen, nicht zurückziehen. Eine Sperrzeit, die die Keyholderin
-      // terminiert hat, gilt weiter — sie beginnt nur später. Zurückgezogen würde sie hier still
-      // verschwinden, und niemand erführe davon.
-      if (paused.has(va.userId)) continue;
       const isLocked = await getIsLocked(va.userId);
       const art = va.art as "ANFORDERUNG" | "SPERRZEIT";
 
@@ -392,7 +371,7 @@ async function processDueVerschlussAnforderungen(now: Date, paused: ReadonlySet<
  *
  * Fehler → `benachrichtigtAt` bleibt null (Retry nächster Tick).
  */
-async function processDueOrgasmusAnforderungen(now: Date, paused: ReadonlySet<string>): Promise<void> {
+async function processDueOrgasmusAnforderungen(now: Date): Promise<void> {
   const due = await prisma.orgasmusAnforderung.findMany({
     where: { ...dueForDispatchWhere(now), fulfilledAt: null },
     include: { user: { select: { email: true, username: true, orgasmusArtenConfig: true, locale: true } } },
@@ -401,9 +380,6 @@ async function processDueOrgasmusAnforderungen(now: Date, paused: ReadonlySet<st
 
   for (const oa of due) {
     try {
-      // Gesundheits-Halt: liegen lassen. Das Fenster wandert bei der späteren Zustellung ohnehin um
-      // die Verspätung mit (siehe unten) — der Träger bekommt also die Spanne, die für ihn gedacht war.
-      if (paused.has(oa.userId)) continue;
       if (checkOrgasmWindowEnd(oa.endsAt, now)) {
         await prisma.orgasmusAnforderung.update({ where: { id: oa.id }, data: { withdrawnAt: new Date() } });
         continue;

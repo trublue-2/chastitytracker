@@ -160,7 +160,23 @@ export const pendingDispatchWhere = {
  * hierher — die Auslöse-Konvention weiss nichts von Erfüllung.
  */
 export function dueForDispatchWhere(now: Date) {
-  return { ...pendingDispatchWhere, wirksamAb: { not: null, lte: now } } satisfies Prisma.TaskWhereInput;
+  return {
+    ...pendingDispatchWhere,
+    wirksamAb: { not: null, lte: now },
+    // Gesundheits-Halt, an der EINEN Stelle statt in vier Poller-Schleifen: solange einer läuft,
+    // wird dem Träger nichts zugestellt. Alle vier Modelle mit dem Feldpaar tragen die
+    // `user`-Relation, also erbt eine künftige fünfte Direktiven-Familie das Gate von hier, statt es
+    // vergessen zu können.
+    //
+    // Hier und NICHT in `pendingDispatchWhere`: das speist auch die Keyholder-Sicht auf die noch
+    // geplanten Direktiven (`mcp/dashboard.ts`), und dort muss sie sehen, was während der Pause
+    // wartet — verschwiegen wäre es aus ihrer Sicht zurückgezogen.
+    //
+    // Als WHERE-Klausel und nicht als Filter danach: die wartenden Zeilen sind die ältesten und
+    // sortieren nach vorn, würden den `take`-Deckel jedes Ticks besetzen und die Zustellung für alle
+    // anderen Träger anhalten. Genau dieser Stau ist in `processDueTasks` schon einmal beschrieben.
+    user: { healthHolds: { none: { active: true } } },
+  } satisfies Prisma.TaskWhereInput;
 }
 
 /**

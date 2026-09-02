@@ -21,36 +21,32 @@ import { formatDateTime, toDateLocale } from "@/lib/utils";
  */
 export default function HealthHoldToggle({
   userId,
-  initialActive,
   initialReason,
   initialSince,
 }: {
   userId: string;
-  initialActive: boolean;
   initialReason: string | null;
-  /** Beginn des laufenden Halts als ISO-String; `null`, wenn keiner läuft. */
+  /** Beginn des laufenden Halts als ISO-String; `null`, wenn keiner läuft — und damit zugleich die
+   *  Antwort auf „läuft einer?". Ein zweites `active`-Prop daneben wäre dieselbe Auskunft ein zweites
+   *  Mal, mit der Möglichkeit, dass beide auseinanderlaufen. */
   initialSince: string | null;
 }) {
   const t = useTranslations("admin");
   const locale = useLocale();
   const { saving, save } = useSettingsSave(`/api/admin/users/${userId}/health-hold`, { refresh: false });
-  const [active, setActive] = useState(initialActive);
   const [reason, setReason] = useState(initialReason ?? "");
   const [since, setSince] = useState(initialSince);
+  const active = since !== null;
 
   async function start() {
     // Die Schranke steht ZUSÄTZLICH im Service (und im MCP): hier spart sie dem Benutzer den
     // Rundgang zum Server, dort ist sie die Regel. Nur hier wäre sie eine Bitte.
     if (!reason.trim()) return;
-    if (await save({ active: true, reason })) {
-      setActive(true);
-      setSince(new Date().toISOString());
-    }
+    if (await save({ active: true, reason })) setSince(new Date().toISOString());
   }
 
   async function end() {
     if (await save({ active: false })) {
-      setActive(false);
       setSince(null);
       setReason("");
     }
@@ -60,11 +56,9 @@ export default function HealthHoldToggle({
     return (
       <div className="flex flex-col gap-3">
         <p className="text-sm text-foreground">{reason}</p>
-        {since && (
-          <p className="text-neben text-foreground-muted">
-            {t("healthHoldSince", { since: formatDateTime(new Date(since), toDateLocale(locale)) })}
-          </p>
-        )}
+        <p className="text-neben text-foreground-muted">
+          {t("healthHoldSince", { since: formatDateTime(new Date(since), toDateLocale(locale)) })}
+        </p>
         <Button variant="secondary" loading={saving} onClick={end} className="self-start">
           {t("healthHoldEnd")}
         </Button>

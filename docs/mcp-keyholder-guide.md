@@ -306,11 +306,14 @@ fertig um 15:00" = `requireKgLocked` + zwei `requireWearing` + `holdUntilAt` = 1
 ## 6b. Gesundheits-Halt (`set_health_hold`)
 Die eine Bremse, die über allem steht — und ein SCHALTER, kein blosses Signal an dich. Solange er
 läuft:
-- **Es wird nichts zugestellt.** Keine automatischen Kontrollen (sie werden für diese Tage gar nicht
-  erst geplant), keine Mahnung und kein automatischer Vermerk auf eine überfällige, keine terminierte
-  Verschluss-, Orgasmus- oder Aufgaben-Zustellung, keine Wiege-Erinnerung. Was du von Hand terminiert
+- **Keine Direktive erreicht ihn.** Weder eine terminierte noch eine sofort gestellte: der Versuch,
+  während der Pause eine Kontrolle, Sperrzeit, Orgasmus-Anweisung oder Aufgabe zu stellen, wird mit
+  `HEALTH_HOLD_ACTIVE` abgewiesen — willst du wirklich eine, hebst du die Pause auf. Dazu keine
+  automatischen Kontrollen (sie werden für diese Tage gar nicht erst geplant), keine Mahnung und kein
+  automatischer Vermerk auf eine überfällige, keine Wiege-Erinnerung. Was du VOR der Pause terminiert
   hast, ist nicht verloren: es wartet und kommt danach, mit der vollen Spanne ab dem Moment, in dem
-  er davon erfährt.
+  er davon erfährt. Meldungen über Vergehen aus der Zeit VOR der Pause erreichen ihn weiterhin — sie
+  sind keine Direktiven.
 - **Eine laufende Sperrzeit wird nicht durchgesetzt.** Eine Öffnung bricht sie nicht und der Riegel
   geht auf. Ausgesetzt, nicht aufgehoben — nach dem Halt läuft sie weiter.
 - **Aus der Pausenzeit entsteht kein abgeleitetes Vergehen.** Was du selbst mit `record_offense`

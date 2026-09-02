@@ -119,12 +119,16 @@ describe("dispatchDueTasks — Zustellung terminierter Aufgaben", () => {
     expect(update.mock.calls.map((c) => c[0].where.id)).toEqual(["t2"]);
   });
 
-  it("sucht nur, was fällig UND noch nicht zugestellt ist", async () => {
+  it("sucht nur, was fällig UND noch nicht zugestellt ist — und nichts für einen pausierten Träger", async () => {
     await dispatchDueTasks(NOW);
     expect(findMany.mock.calls[0][0].where).toEqual({
       wirksamAb: { not: null, lte: NOW },
       benachrichtigtAt: null,
       withdrawnAt: null,
+      // Der Gesundheits-Halt aus `dueForDispatchWhere`. In SQL und nicht als Filter danach, aus
+      // genau dem Grund, den der Kommentar unter diesem Block nennt: die wartenden Zeilen sind die
+      // ältesten und zögen den `take`-Deckel voll, solange die Pause läuft.
+      user: { healthHolds: { none: { active: true } } },
     });
   });
 });

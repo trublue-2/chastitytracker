@@ -1058,6 +1058,11 @@ export async function releaseLockPeriodsOnOpen(
   //
   // Die Sperre wird ausgesetzt, nicht aufgehoben: nach der Pause läuft sie weiter, statt still
   // verschwunden zu sein. Dieselbe Bauform wie bei der erlaubten Reinigungsöffnung.
+  //
+  // Gefragt wird nach JETZT, während das Strafbuch nach der TATZEIT fragt (`applyHealthHoldPause`).
+  // Die Asymmetrie ist gewollt und folgt aus dem Rückgabewert: er steuert den Riegel, und der öffnet
+  // in der Gegenwart. Eine von der Keyholderin nachgetragene Öffnung, die in eine vergangene Pause
+  // fällt, bricht die Sperrzeit also — bleibt aber straffrei.
   if (await isHealthHoldActive(userId, tx)) return false;
 
   await tx.verschlussAnforderung.updateMany({
