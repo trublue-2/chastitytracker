@@ -743,12 +743,18 @@ export async function getBoxState(username: string): Promise<BoxStateResult> {
  * **Was hier NICHT steht.** Das Kappen selbst — das kann `toNoteDTO`, für jede Sicht, die eine
  * Grenze verlangt. Hier steht nur, WIE VIEL der Einstiegs-Call durchlässt.
  *
+ * **Die Höhe ist eine Abwägung, keine Messgrösse.** Zu knapp, und die KI-Keyholderin erkennt an
+ * einer Notiz nicht mehr, worum es geht, und muss für jede zweite nachfragen; zu grosszügig, und der
+ * Einstiegs-Call läuft wieder ins Limit. Der Wert steht auf trublues ausdrückliche Wahl: lieber mehr
+ * Text auf einen Blick als der knappste Anriss (02.09.2026).
+ *
  * Die Schranke wirkt je Notiz, nicht auf die Antwort als Ganzes: bei `limit: 50` bleiben damit
- * theoretisch 60 000 Zeichen Notizen möglich. Das trägt die heutige Grössenordnung mit Reserve
- * (23 Notizen), ist aber kein Riegel für jede denkbare Menge — wer dort ankommt, braucht ein
- * Gesamt-Budget, und das darf die Grenzen nicht als Erstes fallen lassen.
+ * theoretisch 120 000 Zeichen Notizen möglich. Das trägt die heutige Grössenordnung (23 Notizen)
+ * mit Abstand, ist aber kein Riegel für jede denkbare Menge — wer dort ankommt, braucht ein
+ * Gesamt-Budget, und das darf die Grenzen nicht als Erstes fallen lassen. Bis dahin ist
+ * `includeNotes: false` der Notausgang.
  */
-export const NOTE_TEXT_LIMIT = 1200;
+export const NOTE_TEXT_LIMIT = 2400;
 
 export interface KeyholderDashboardOptions {
   /** Gepinnte Direktiven und Grenzen mitliefern. Vorgabe `true` — sie gehören in den Einstiegs-Call.
