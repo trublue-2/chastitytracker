@@ -5,7 +5,7 @@ import { visionMaxImagePx, type Rotation } from "@/lib/constants";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import { IMAGE_MEDIA_TYPES, type ImageData } from "@/lib/imageUtils";
 import { visionComplete, visionConfigured, visionProvider } from "@/lib/vision";
-import { parseJsonObject } from "@/lib/vision/parse";
+import { parseJsonObject, wasTruncated } from "@/lib/vision/parse";
 import { localReadDigits } from "@/lib/ocr";
 
 /** Beschreibung der zulaessigen Code-Quellen — wird in beiden Vision-Prompts verwendet
@@ -193,7 +193,7 @@ export function sealDigitsFromReply(raw: unknown, minLen: number, maxLen: number
  *  WICHTIG: der erwartete Auth-Code wird bewusst NICHT geloggt (er ist die
  *  Authentifizierung der Kontrolle). Nur Laenge, Filename, mediaType, bytes,
  *  redacted previews. Niemals den API-Key oder rohe Bilddaten. */
-function vlog(label: string, fields: Record<string, unknown>) {
+function vlog(label: string, fields: Record<string, unknown> = {}) {
   structuredLog("verify", label, fields);
 }
 
@@ -387,7 +387,15 @@ async function askCodeVision(
 ): Promise<CodeVisionRead> {
   const response = await visionComplete({
     task: "code-verify",
-    maxTokens: dual ? 200 : 150,
+    // KOPFRAUM, nicht Sparsamkeit: `max_tokens` ist eine Obergrenze und keine Abrechnung — ein
+    // Budget, das das Modell nicht braucht, kostet nichts. Zu knapp bemessen kostet es dagegen die
+    // ganze Prüfung, und zwar lautlos: das Modell schreibt vor dem JSON gern eine Zeile Vorrede,
+    // die Antwort bricht mitten darin ab (`stop_reason: max_tokens`), die Extraktion findet nichts,
+    // und die Kontrolle bleibt ohne Ablehnung und ohne Fehler unverifiziert stehen. Gemessen an
+    // derselben Anfrage: die Dual-Antwort braucht 284 Tokens und passte nie in die 200, die hier
+    // standen (#104). Die Zahlen darunter sind also die gemessene Länge plus Reserve für ein
+    // geschwätzigeres Modell — wer sie senkt, schaltet die Prüfung für die längere Antwort ab.
+    maxTokens: dual ? 600 : 400,
     content: [
       { type: "image", mediaType: img.mediaType, base64: img.base64 },
       { type: "text", text: prompt },
@@ -408,7 +416,10 @@ async function askCodeVision(
 
   const parsed = parseJsonObject<Record<string, unknown>>(text);
   if (!parsed) {
-    vlog(`${tag}:no_json_in_response`, { textPreview: redactDigits(text.slice(0, 200)) });
+    // Der abgeschnittene Fall bekommt einen EIGENEN NAMEN, statt unter „kein JSON" mitzulaufen — die
+    // Begründung steht bei {@link wasTruncated}. Ohne Nutzlast: `stopReason` und die Vorschau stehen
+    // für dieselbe Anfrage schon in der `vision_response`-Zeile ein paar Zeilen darüber.
+    vlog(`${tag}:${wasTruncated(response.stopReason) ? "truncated_before_json" : "no_json_in_response"}`);
     return { kind: "unusable" };
   }
   return { kind: "json", parsed };
