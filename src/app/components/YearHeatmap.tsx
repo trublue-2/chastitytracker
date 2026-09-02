@@ -65,30 +65,70 @@ function SideColumn({ data }: { data: YearHeatmapData }) {
   );
 }
 
-/** Portrait layout: 7 columns (Mon..Sun), weeks stacked as rows (Jan top → Dec bottom), legend right. */
-function VerticalGrid({ data, weekdayLabels }: { data: YearHeatmapData; weekdayLabels: string[] }) {
+/**
+ * Wo das Jahr in zwei Blöcke zerfällt: an der MONATSGRENZE, die der Mitte am nächsten liegt.
+ *
+ * Nicht stur bei `weeks.length / 2`: der Schnitt läge dann mitten in einem Monat, und die
+ * Beschriftung links (die nur in der Woche steht, in der ein Monat beginnt) fehlte im zweiten Block
+ * bis zum nächsten Monatsanfang — die obersten Zeilen der zweiten Spalte wären dann unbeschriftet.
+ * `monthLabels` kann leer sein (angebrochenes Jahr, kein Monatsanfang erfasst); dann bleibt es bei
+ * der halben Länge.
+ */
+function splitWeek(data: YearHeatmapData): number {
+  const middle = data.weeks.length / 2;
+  const starts = data.monthLabels.map((m) => m.week).filter((w) => w > 0 && w < data.weeks.length);
+  if (starts.length === 0) return Math.ceil(middle);
+  return starts.reduce((best, w) => (Math.abs(w - middle) < Math.abs(best - middle) ? w : best));
+}
+
+/** Ein zusammenhängender Ausschnitt der Wochen-Zeilen — die Spalte, aus der die Übersicht besteht. */
+function WeekColumn({
+  data, weekdayLabels, from, to,
+}: { data: YearHeatmapData; weekdayLabels: string[]; from: number; to: number }) {
   return (
-    <div className="flex gap-5 items-start">
-      <div className="flex flex-col gap-[3px] w-fit shrink-0">
-        <div className="flex gap-[3px]">
-          <div className="w-8 shrink-0" />
-          {weekdayLabels.map((wd, i) => (
-            <div key={i} className="w-[15px] text-[9px] text-foreground-faint text-center leading-none">{wd}</div>
-          ))}
-        </div>
-        {data.weeks.map((week, row) => {
-          const monthLabel = data.monthLabels.find((m) => m.week === row)?.label ?? "";
-          return (
-            <div key={row} className="flex gap-[3px] items-center">
-              <div className="w-8 shrink-0 text-[10px] text-foreground-faint text-right pr-1 leading-none">{monthLabel}</div>
-              {week.map((day, col) =>
-                day ? <DayCell key={day.key} day={day} size="w-[15px] h-[15px]" dot="w-[4px] h-[4px]" />
-                    : <div key={`${row}-${col}`} className="w-[15px] h-[15px]" />,
-              )}
-            </div>
-          );
-        })}
+    <div className="flex flex-col gap-[3px] w-fit shrink-0">
+      <div className="flex gap-[3px]">
+        <div className="w-8 shrink-0" />
+        {weekdayLabels.map((wd, i) => (
+          <div key={i} className="w-[15px] text-[9px] text-foreground-faint text-center leading-none">{wd}</div>
+        ))}
       </div>
+      {data.weeks.slice(from, to).map((week, i) => {
+        const row = from + i;
+        const monthLabel = data.monthLabels.find((m) => m.week === row)?.label ?? "";
+        return (
+          <div key={row} className="flex gap-[3px] items-center">
+            <div className="w-8 shrink-0 text-[10px] text-foreground-faint text-right pr-1 leading-none">{monthLabel}</div>
+            {week.map((day, col) =>
+              day ? <DayCell key={day.key} day={day} size="w-[15px] h-[15px]" dot="w-[4px] h-[4px]" />
+                  : <div key={`${row}-${col}`} className="w-[15px] h-[15px]" />,
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Portrait layout: 7 Spalten (Mo..So), Wochen als Zeilen — aber in ZWEI Blöcken nebeneinander statt
+ * einer Kolonne über 53 Zeilen.
+ *
+ * Als eine Kolonne war die Übersicht rund 900 px hoch: man scrollte an ihr entlang, ohne je das
+ * ganze Jahr zu sehen — womit sie das verfehlt, wofür es sie gibt (gemeldet aus dem Betrieb,
+ * 02.09.2026). Ein Block ist etwa 130 px breit, zwei passen deshalb selbst auf einem Handy
+ * nebeneinander; wo sie es nicht tun, bricht `flex-wrap` sie untereinander und der Zustand von
+ * vorher ist wiederhergestellt. Deshalb KEINE dritte Container-Variante: die hiesse, dieselben 366
+ * Zellen ein drittes Mal ins DOM zu schreiben, damit CSS zwei davon versteckt.
+ */
+function VerticalGrid({ data, weekdayLabels }: { data: YearHeatmapData; weekdayLabels: string[] }) {
+  const cut = splitWeek(data);
+  return (
+    <div className="flex flex-wrap gap-5 items-start">
+      <WeekColumn data={data} weekdayLabels={weekdayLabels} from={0} to={cut} />
+      {cut < data.weeks.length && (
+        <WeekColumn data={data} weekdayLabels={weekdayLabels} from={cut} to={data.weeks.length} />
+      )}
       <SideColumn data={data} />
     </div>
   );

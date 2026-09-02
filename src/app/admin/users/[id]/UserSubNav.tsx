@@ -58,7 +58,19 @@ export default function UserSubNav({ userId }: Props) {
       {/* Desktop: tab bar — als `nav`, weil neun Links auf Unterseiten desselben Trägers eine
           Navigation SIND. Als `div` fehlten sie in der Landmarken-Liste, und der Name
           unterscheidet sie von der Seitenleiste daneben. */}
-      <nav aria-label={t("userTabsLabel")} className="hidden lg:flex px-4 lg:px-6">
+      <nav
+        aria-label={t("userTabsLabel")}
+        // `flex-wrap`: neun Reiter mit `whitespace-nowrap` passen zwischen 1024 px (ab da löst das
+        // Dropdown ab) und rund 1150 px nicht in eine Zeile. Vorher wurden sie über den Rand
+        // geschoben — „Einstellungen" stand als „Ein…" da und war nicht erreichbar, ohne jeden
+        // Hinweis darauf (gemeldet aus dem Betrieb, 02.09.2026).
+        //
+        // Umbruch und NICHT `overflow-x-auto` oder Blätter-Pfeile: beide lassen den Reiter
+        // verschwinden und verlangen eine Bedienung, um ihn zu finden — auf einem Zeigegerät ohne
+        // sichtbare Bildlaufleiste weiss niemand, dass dort noch etwas ist. Zwei Zeilen kosten
+        // 40 px, und die Leiste ist ohnehin nur in einem schmalen Fensterbereich zweizeilig.
+        className="hidden lg:flex flex-wrap px-4 lg:px-6"
+      >
         {tabs.map((tab) => {
           const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
           return (
