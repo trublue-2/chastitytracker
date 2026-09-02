@@ -9,6 +9,12 @@ RUN npm ci
 FROM node:24-alpine AS builder
 WORKDIR /app
 
+# Damit "native" hier dasselbe bedeutet wie im runner. Ohne openssl löst Prisma im Builder auf die
+# 1.1.x-Variante auf, während der runner (der openssl installiert) zur Laufzeit die 3.0.x-Engine
+# sucht. Die ausdrücklichen musl-Ziele in `schema.prisma` fangen das für die ausgelieferten
+# Architekturen ab; diese Zeile nimmt der Falle die Grundlage, statt sie nur zu umgehen.
+RUN apk add --no-cache openssl
+
 COPY --from=deps /app/node_modules ./node_modules
 
 # Prisma Client generieren (eigener Layer – nur bei Schema-Änderung neu)
