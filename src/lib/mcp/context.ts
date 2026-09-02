@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { writeHealthHold, healthHoldNotice } from "@/lib/healthHold";
+import { notifyUser } from "@/lib/notify";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser, autoInspectionsView, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoInspectionsView } from "@/lib/autoKontrolleService";
@@ -7,10 +9,14 @@ import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_
 import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/queries";
 import { type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 import { getOffenseRules } from "@/lib/offenseRulesService";
-import { heimdallEnabled } from "@/lib/constants";
+import { heimdallEnabled, AI_AUTHOR } from "@/lib/constants";
 
 /** Kontext & Kalender (explain_model §13) — wiederkehrender Wochen-Kontext, Einzeltermine,
- *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant. MCP-only, additiv. */
+ *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant.
+ *
+ *  Wochen-Kontext und Termine sind MCP-only; der HealthHold ist es NICHT MEHR: er hat seit dem
+ *  Nachbau seiner Wirkung (Issue #91) auch einen Weg in der Oberfläche
+ *  (`/admin/users/[id]/einstellungen`), und beide schreiben über denselben Dienst (`healthHold.ts`). */
 
 const WEEKDAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
@@ -88,6 +94,14 @@ export interface ContextResult extends Envelope {
    *  also kein Versions-Bump. */
   schemaVersion: 4;
   user: string;
+  /**
+   * KEIN Bump, obwohl der Halt seit v6.0.3 wirkt statt nur dazustehen: die FELDER bedeuten
+   * unverändert „seit wann läuft einer, und mit welchem Grund" — eine gespeicherte v4-Antwort liest
+   * sich damit richtig. Geändert hat sich, was daraus FOLGT, und dafür gibt es das andere Signal:
+   * die Beschreibung von `set_health_hold` nennt die Wirkung, und sie zählt in den
+   * `toolsFingerprint` (siehe `toolSurface.ts`). Eine Sitzung mit der alten Werkzeugliste erfährt
+   * also, dass sie überholt ist — genau die Lücke, für die der Fingerabdruck gebaut wurde.
+   */
   healthHold: HealthHoldView | null;
   /** Einstellungen der AUTOMATISCHEN Kontrollen (änderbar über `set_auto_inspections`; die einzelne
    *  Kontrolle wird weiterhin manuell via request_inspection veranlasst). */
@@ -277,21 +291,24 @@ export const setHealthHoldDef: WriteDef<SetHealthHoldArgs, HealthHoldView | null
     return { preview: { current, willBe: after }, before, after };
   },
   async apply(tx, ctx, args) {
-    // "Höchstens ein aktiver Hold pro User" — Invariante NUR hier im Code erzwungen (kein Partial-
-    // Unique-Constraint im Schema). Da jede Mutation durch dieses def + die Framework-Transaktion
-    // läuft, ist das resolve-all-then-create-one atomar und ausreichend.
-    // Vorher-Zustand VOR dem Deaktivieren lesen — für denselben Diff wie die Vorschau (N-15).
-    const activeBefore = await tx.healthHold.findFirst({ where: { userId: ctx.targetUserId, active: true }, select: { reason: true } });
-    const before = { active: activeBefore != null, reason: activeBefore?.reason ?? null };
+    // Geschrieben wird über den GETEILTEN Dienst, nicht hier: am Halt hängen die zurückgezogenen
+    // Kontrollen und die nachrückenden Aufgaben-Fristen. Ein zweiter Schreibweg daneben hiesse, dass
+    // die KI-Keyholderin einen Halt setzt, der weniger tut als der aus der Oberfläche — und niemand
+    // sähe den Unterschied, bis eine Kontrolle in der Pause zugestellt wird.
     const after = healthHoldAfter(args);
-    const diff = diffFields(before, after);
-    await tx.healthHold.updateMany({ where: { userId: ctx.targetUserId, active: true }, data: { active: false, resolvedAt: new Date() } });
-    if (!args.active) {
-      return { newState: null, diff };
-    }
-    const created = await tx.healthHold.create({ data: { userId: ctx.targetUserId, active: true, reason: args.healthReason! } });
+    const written = await writeHealthHold(tx, ctx.targetUserId, { active: args.active, reason: args.healthReason ?? null });
+    const diff = diffFields(written.before, after);
+    // Meldung an den Träger erst NACH dem Commit — er soll nicht von einer Pause lesen, die eine
+    // fehlgeschlagene Transaktion nie gesetzt hat.
+    const afterCommit = () => notifyUser(ctx.targetUserId, healthHoldNotice(args.active, args.healthReason ?? null, AI_AUTHOR));
+    if (!written.row) return { newState: null, diff, afterCommit };
     const iso = makeIso(await tzOf(ctx.targetUserId, tx));
-    return { newState: { id: created.id, active: true, reason: created.reason, since: iso(created.createdAt)! }, resultRef: created.id, diff };
+    return {
+      newState: { id: written.row.id, active: true, reason: written.row.reason, since: iso(written.row.createdAt)! },
+      resultRef: written.row.id,
+      diff,
+      afterCommit,
+    };
   },
 };
 

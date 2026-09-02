@@ -13,6 +13,8 @@ import { parseWeighingWindows } from "@/lib/weightWindows";
 import { weightTrackingEnabled } from "@/lib/constants";
 import { getBoxFormContext } from "@/lib/queries";
 import WeightToggle from "@/app/admin/WeightToggle";
+import HealthHoldToggle from "@/app/admin/HealthHoldToggle";
+import { activeHealthHold } from "@/lib/healthHold";
 import BoxLockToggle from "@/app/admin/BoxLockToggle";
 import type { UnitSystem } from "@/lib/weight";
 import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reasonsService";
@@ -48,7 +50,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   const { userId: actorId, isGlobalAdmin } = await assertKeyholderOrAdmin(id);
 
-  const [user, vorgaben, categories, keyholders, offenseRules, t, tc, dl, tOrgasm, tOpen, actor, box] = await Promise.all([
+  const [user, vorgaben, categories, keyholders, offenseRules, t, tc, dl, tOrgasm, tOpen, actor, box, healthHold] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.trainingVorgabe.findMany({ where: { userId: id, deletedAt: null }, orderBy: { gueltigAb: "desc" } }), // B-04: soft-gelöschte Ziele ausblenden
     // Vorgaben can only be set on KG-built-in or user-categories with allowVorgaben=true.
@@ -74,6 +76,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
     // Der Riegel-Schalter erscheint nur, wo es überhaupt einen Riegel gibt — dieselbe Bedingung wie
     // im Verschluss-Formular (`getBoxFormContext`): Heimdall aktiv UND eine Box, die gemeldet hat.
     getBoxFormContext(id),
+    activeHealthHold(id),
   ]);
 
   if (!user) redirect("/admin");
@@ -121,6 +124,16 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       {/* Sprache des Subs — App, E-Mails, Push (Keyholder darf setzen, wie E-Mail/Reinigung) */}
       <SettingsSection title={t("sectionLanguage")} description={t("sectionLanguageDesc")} bodyPadded>
         <UserLocaleSelect userId={user.id} initialLocale={user.locale} />
+      </SettingsSection>
+
+      {/* Gesundheitspause — steht vor den Regeln, weil sie sie alle aussetzt. */}
+      <SettingsSection title={t("sectionHealthHold")} description={t("sectionHealthHoldDesc")} bodyPadded>
+        <HealthHoldToggle
+          userId={user.id}
+          initialActive={healthHold !== null}
+          initialReason={healthHold?.reason ?? null}
+          initialSince={healthHold?.createdAt.toISOString() ?? null}
+        />
       </SettingsSection>
 
       {/* Reinigung */}

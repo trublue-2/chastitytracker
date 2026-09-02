@@ -17,6 +17,7 @@ import { triggeredWhere } from "@/lib/delayedTrigger";
 import { scheduleCleaningRelockInspection, triggerPostLockInspection } from "@/lib/autoKontrolleService";
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/entryNotify";
 import { markLastAction } from "@/lib/appMeta";
+import { isHealthHoldActive } from "@/lib/healthHold";
 
 /** Der Eintrag, wie ihn die Erfüllung braucht — bewusst die schmale Form statt des Prisma-Modells,
  *  damit beide Routen ihn ohne Umweg übergeben können. */
@@ -252,6 +253,11 @@ export async function punishWrongDevice(
   // Widerspruch in seinem Posteingang: eine Meldung über eine ausdrücklich abgeschaltete Art.
   const rules = await getOffenseRules(entry.userId);
   if (rules.wrong_device === "off") return;
+  // Gesundheits-Halt, und aus GENAU demselben Grund wie die Regel eine Zeile darüber: die Ahndung
+  // wird sofort als erledigt geschrieben, der nachgelagerte Pausen-Filter des Strafbuchs
+  // (`applyHealthHoldPause`) griffe für sie also nie. Wer während einer Pause ein anderes Gerät
+  // trägt, tut es meistens deswegen — ein Gips passt zu keiner Anforderung.
+  if (await isHealthHoldActive(entry.userId)) return;
   try {
     const now = new Date();
     await prisma.strafeRecord.create({

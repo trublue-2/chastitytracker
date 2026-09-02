@@ -289,6 +289,13 @@ export const SETTINGS_CODES = [
   "CLEANING_WINDOWS_TOO_MANY",
 ] as const;
 
+/** Gesundheits-Halt (`healthHold.ts`). Ein Grund ist PFLICHT — dieselbe Schranke wie im MCP
+ *  (`set_health_hold`), und aus demselben Grund: die Pause setzt jede Direktive aus, und die
+ *  Keyholderin muss in einer Woche noch nachlesen können, warum. */
+export const HEALTH_HOLD_CODES = [
+  "HEALTH_HOLD_REASON_REQUIRED",
+] as const;
+
 /** Gewichtstracking (docs/gewicht-konzept.md). Seit dem Umbau auf EIN Zielgewicht melden diese Codes
  *  nur noch Tippfehler und fehlende Voraussetzungen — die Regel-Codes des alten Zielkorridors
  *  (`WEIGHT_CORRIDOR_*`) sind mit der Nur-Weiten-Regel entfallen. */
@@ -327,6 +334,7 @@ export const SERVICE_ERROR_CODES = [
     ...OFFENSE_RULE_CODES,
     ...SETTINGS_CODES,
     ...WEIGHT_CODES,
+    ...HEALTH_HOLD_CODES,
   ]),
 ] as readonly string[];
 
@@ -350,4 +358,5 @@ export type ServiceErrorCode =
   | (typeof TASK_CODES)[number]
   | (typeof OFFENSE_RULE_CODES)[number]
   | (typeof SETTINGS_CODES)[number]
-  | (typeof WEIGHT_CODES)[number];
+  | (typeof WEIGHT_CODES)[number]
+  | (typeof HEALTH_HOLD_CODES)[number];

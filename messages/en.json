@@ -246,7 +246,8 @@
     "RELEASE_NOT_BEFORE_MUST_BE_FUTURE": "The earliest date must be in the future",
     "RELEASE_TOO_MANY_MEASUREMENTS": "More measurements are required than the period has days",
     "RELEASE_UNDERWEIGHT": "That threshold is in the underweight range (BMI below 18.5)",
-    "invalidNoticeVersion": "Unknown notice version"
+    "invalidNoticeVersion": "Unknown notice version",
+    "HEALTH_HOLD_REASON_REQUIRED": "A health hold requires a reason."
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -1432,7 +1433,14 @@
     "releaseNowOpensBox": "The box is told to open — if it is out of range, at its next contact.",
     "releaseNowRecordsOpening": "The opening is recorded immediately, with the current time.",
     "releaseNowAllowOrgasm": "Allow an orgasm ({hours} hours)",
-    "releaseNowHint": "An ended lock period does not come back by itself — set a new one if you want to lock again."
+    "releaseNowHint": "An ended lock period does not come back by itself — set a new one if you want to lock again.",
+    "sectionHealthHold": "Health hold",
+    "sectionHealthHoldDesc": "Suspends every directive: no inspections, no new instructions, no offenses. A running lock period is not enforced and resumes afterwards; deadlines of running tasks move back by the length of the pause.",
+    "healthHoldReasonLabel": "Reason",
+    "healthHoldReasonHint": "Appears in the message to the wearer and later in hindsight.",
+    "healthHoldStart": "Set hold",
+    "healthHoldEnd": "Lift hold",
+    "healthHoldSince": "Running since {since}"
   },
   "forgotPassword": {
     "pageTitle": "Reset password",
@@ -1844,7 +1852,11 @@
     "offenseDismissedMessage": "The keyholder has dismissed a recorded offense.",
     "wrongDeviceMessage": "You locked with a different device than the one requested. This has been recorded as an offense.",
     "releasedNowSubject": "Unlocked right now",
-    "releasedNowMessage": "Your keyholder has unlocked you right now. Any running lock period has ended."
+    "releasedNowMessage": "Your keyholder has unlocked you right now. Any running lock period has ended.",
+    "healthHoldStartedSubject": "Health hold set",
+    "healthHoldStartedMessage": "Your keyholder has set a health hold: {reason}. While it is running you will get no inspections and no new directives, a running lock period is not enforced, and no offense arises from this time.",
+    "healthHoldEndedSubject": "Health hold lifted",
+    "healthHoldEndedMessage": "Your keyholder has lifted the health hold. The rules apply again; the deadlines of running tasks have moved back by the length of the pause."
   },
   "tasks": {
     "titleLabel": "Title",

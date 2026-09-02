@@ -39,10 +39,13 @@ const user = (over: Partial<CleaningPermissionUser> = {}): CleaningPermissionUse
 let updateMany: ReturnType<typeof vi.fn>;
 let findMany: ReturnType<typeof vi.fn>;
 
-function tx(): PrismaTx {
+/** `healthHold` ist Teil der Entscheidung, seit ein Gesundheits-Halt die Sperrzeit aussetzt: kein
+ *  laufender Halt heisst hier „findFirst → null". Die Tests mit laufendem Halt setzen ihn selbst. */
+function tx(hold: unknown = null): PrismaTx {
   return {
     verschlussAnforderung: { findMany, updateMany },
     user: { findUnique: vi.fn().mockResolvedValue(user()) },
+    healthHold: { findFirst: vi.fn().mockResolvedValue(hold) },
   } as unknown as PrismaTx;
 }
 

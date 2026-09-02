@@ -17,6 +17,8 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: vi.fn() },
     // Eine erfüllte Aufgabe schliesst die Strafe, deren Aufgabe sie war (`penaltyTaskLink.ts`).
     strafeRecord: { updateMany: vi.fn(async () => ({ count: 0 })) },
+    // Der Poller fragt vor dem Auswerten, wer gerade eine Gesundheitspause hat — leer = niemand.
+    healthHold: { findMany: vi.fn(async () => []) },
   },
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));

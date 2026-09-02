@@ -17,6 +17,7 @@ import {
 } from "@/lib/autoKontrolleDayRules";
 import { isoWeekdayInTZ, weekdayMaskHas, weekdayMaskKeys, weekdayMaskValid } from "@/lib/weekdays";
 import type { Prisma } from "@prisma/client";
+import { pausedOrLoad } from "@/lib/healthHold";
 
 /**
  * Automatische Kontrollen: pro Tag und Sub eine ZUFÄLLIGE Anzahl `x ∈ [perDayMin, perDayMax]` zufällig
@@ -875,7 +876,16 @@ export function settingsForDay(settings: AutoKontrolleSettings, at: Date, tz: st
 
 /** Legt die heutigen Auto-Kontrollen für EINEN User an — idempotent über den Tages-Merker. (Vom Poller,
  *  einmal pro Tag der Sub.) */
-export async function ensureDailyAutoKontrollenForUser(user: AutoKontrolleUser, now: Date): Promise<number> {
+export async function ensureDailyAutoKontrollenForUser(
+  user: AutoKontrolleUser,
+  now: Date,
+  pausedIds?: ReadonlySet<string>,
+): Promise<number> {
+  // Gesundheits-Halt: kein Tagesplan, und bewusst OHNE Merker — der Tag gilt damit als ungeplant und
+  // wird nach dem Aufheben normal gewürfelt. Ein gesetzter Merker hielte fest, dass „geplant wurde",
+  // und der erste Tag nach der Pause bliebe still leer.
+  if ((await pausedOrLoad(pausedIds)).has(user.id)) return 0;
+
   const tz = user.timezone ?? APP_TZ;
   const settings = settingsForDay(autoKontrolleSettingsFromUser(user), now, tz);
   // Kein Merker an einem Ruhetag: er hielte fest, dass „geplant wurde", und wäre damit von einem
@@ -977,11 +987,12 @@ export async function rerollTodayAutoKontrollenForUser(
 }
 
 /** Legt die heutigen Auto-Kontrollen für ALLE aktiven User an (vom Poller, einmal pro Kalendertag der jeweiligen Sub). */
-export async function ensureDailyAutoKontrollen(now: Date): Promise<void> {
+export async function ensureDailyAutoKontrollen(now: Date, pausedIds?: ReadonlySet<string>): Promise<void> {
+  const paused = await pausedOrLoad(pausedIds);
   const users = await prisma.user.findMany({ where: { autoKontrolleAktiv: true }, select: AUTO_KONTROLLE_SETTINGS_SELECT });
   for (const u of users) {
     try {
-      await ensureDailyAutoKontrollenForUser(u, now);
+      await ensureDailyAutoKontrollenForUser(u, now, paused);
     } catch (e) {
       console.error(`[autoKontrolle] Tagesplanung fehlgeschlagen (${u.id}):`, (e as Error).message);
     }

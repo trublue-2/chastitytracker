@@ -19,6 +19,7 @@ import {
 import { formatDateTime, generateKontrollCode } from "@/lib/utils";
 import { structuredLog } from "@/lib/serverLog";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { pausedOrLoad } from "@/lib/healthHold";
 
 /**
  * Aufgaben-Service — Anlegen, Ändern, Zurückziehen, Erledigt-Melden.
@@ -1040,8 +1041,12 @@ async function closePenaltyForFulfilledTask(taskId: string, now: Date): Promise<
  * Auswertung, Strafbuch und Poller müssen dieselben Zahlen lesen — dieselbe Begründung, aus der die
  * Kontroll-Zustellung ihre verschobene Frist zurück in die Zeile schreibt.
  */
-export async function dispatchDueTasks(now: Date): Promise<void> {
-  const due = await prisma.task.findMany({
+export async function dispatchDueTasks(now: Date, pausedIds?: ReadonlySet<string>): Promise<void> {
+  // Gesundheits-Halt: nicht zustellen, aber auch nicht zurückziehen — die Aufgabe ist gewollt, nur
+  // der Moment nicht. Nach der Pause liefert der Poller sie aus, und `deadlineFromDispatch` gibt
+  // dem Träger dabei die volle geplante Spanne ab dem Moment, in dem er von ihr erfährt.
+  const paused = await pausedOrLoad(pausedIds);
+  const due = (await prisma.task.findMany({
     where: dueForDispatchWhere(now),
     orderBy: { wirksamAb: "asc" },
     take: 50,
@@ -1051,7 +1056,7 @@ export async function dispatchDueTasks(now: Date): Promise<void> {
       id: true, userId: true, title: true, holdUntil: true, holdDurationMin: true,
       startGraceMin: true, createdAt: true, wirksamAb: true, isPunishment: true, createdBy: true,
     },
-  });
+  })).filter((t) => !paused.has(t.userId));
 
   for (const t of due) {
     try {
@@ -1092,7 +1097,7 @@ export async function dispatchDueTasks(now: Date): Promise<void> {
  *
  * Ohne diesen Block erführen beide Seiten erst beim nächsten App-Start, ob die Aufgabe erfüllt wurde.
  */
-export async function processDueTasks(now: Date): Promise<void> {
+export async function processDueTasks(now: Date, pausedIds?: ReadonlySet<string>): Promise<void> {
   // Gesucht wird über die SPALTE `holdUntil` — im Dauer-Modus also über das spätestmögliche Ende.
   // Wer sofort angelegt hat, ist bis zu einer Kulanzfrist früher fertig, als diese Abfrage nachsieht:
   // seine Ergebnis-MELDUNG kommt dann entsprechend später. Der Zustand selbst ist sofort richtig (er
@@ -1111,7 +1116,7 @@ export async function processDueTasks(now: Date): Promise<void> {
   // enger an die Nachweis-Frist zu binden verlangte eine zweite, mitgeschriebene Spalte
   // (`min(holdUntil, Nullpunkt + kleinste Nachweis-Frist)`). Das ist die offene Frage dazu, kein
   // Versehen.
-  const due = await prisma.task.findMany({
+  const dueRows = await prisma.task.findMany({
     // Terminierte, noch nicht zugestellte Aufgaben bleiben aussen vor: über ein Ergebnis zu berichten,
     // bevor die Aufgabe überhaupt angekommen ist, wäre die falsche Nachricht an beide Seiten. Im
     // Normalfall kann das gar nicht auftreten (ihre Frist liegt in der Zukunft, und `dispatchDueTasks`
@@ -1121,6 +1126,11 @@ export async function processDueTasks(now: Date): Promise<void> {
     take: 50,
     include: TASK_INCLUDE,
   });
+  // Gesundheits-Halt: nicht auswerten. Sonst entstünde das Versäumnis, dessen Ahndung die Pause
+  // gerade verhindern soll — samt Meldung an beide Seiten. Beim Aufheben rückt `writeHealthHold` die
+  // Fristen dieser Aufgaben nach, sie kommen also nicht als bereits abgelaufene hier wieder an.
+  const paused = await pausedOrLoad(pausedIds);
+  const due = dueRows.filter((t) => !paused.has(t.userId));
   if (due.length === 0) return;
 
   // Je User EINMAL auswerten: `evaluateTasks` liest die Trage-/Verschluss-Einträge des Users, und die

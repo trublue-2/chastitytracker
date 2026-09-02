@@ -546,6 +546,8 @@ export const FM_CAPABILITIES: FmCapability[] = [
     id: "health-hold", mechanic: "MCP", title: "Gesundheits-Halt setzen",
     what: "Setzt die Direktiven aus — die eine Bremse, die über allem steht.",
     actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"], tools: ["set_health_hold"],
+    routes: ["/api/admin/users/[id]/health-hold"],
+    note: "Solange er läuft: keine Zustellung (Kontrollen, Eskalation, terminierte Direktiven, Wiege-Erinnerung), eine Öffnung bricht keine Sperrzeit, und aus der Pausenzeit entsteht kein abgeleitetes Vergehen. Beim Setzen fallen die offenen Kontrollen, beim Aufheben rücken die Aufgaben-Fristen nach.",
   }),
   c({
     id: "action-log", mechanic: "MCP", title: "Handlungsprotokoll lesen",

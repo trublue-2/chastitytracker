@@ -5,6 +5,7 @@ import { weightDayKey } from "@/lib/weight";
 import { activeWeighingWindow, weighingWindowEnd, type WeighingWindow } from "@/lib/weightWindows";
 import { getRecipientChannels } from "@/lib/notificationPrefs";
 import { notifyUser } from "@/lib/notify";
+import { pausedOrLoad } from "@/lib/healthHold";
 
 /**
  * Die Erinnerung zum Wiege-Fenster: „das Fenster ist offen, und du hast heute noch nichts gemeldet".
@@ -63,8 +64,13 @@ export function dueWeighingReminder(params: {
  * Lauf jede Minute über die ganze Benutzertabelle, obwohl das Feature opt-in ist und die meisten
  * Instanzen es gar nicht führen.
  */
-export async function sendDueWeighingReminders(now: Date): Promise<number> {
+export async function sendDueWeighingReminders(now: Date, pausedIds?: ReadonlySet<string>): Promise<number> {
   if (!weightTrackingEnabled()) return 0;
+
+  // Gesundheits-Halt: keine Erinnerung. Die Meldepflicht ruht an diesen Tagen ohnehin
+  // (`healthHoldDayKeys` im Strafbuch) — weiter zu erinnern hiesse, an eine Pflicht zu mahnen, die
+  // gerade nicht besteht. Genau diese Hälfte fehlte bisher: die Pflicht ruhte, die Mail kam trotzdem.
+  const paused = await pausedOrLoad(pausedIds);
 
   const users = await prisma.user.findMany({
     // Beide Ausschlüsse nötig: wer seine Fenster löscht, bekommt `"[]"` in die Spalte, nie `null`
@@ -81,6 +87,7 @@ export async function sendDueWeighingReminders(now: Date): Promise<number> {
   // Erst die billige, reine Prüfung: nur wer gerade in einem Fenster mit Erinnerung steht und dafür
   // noch keine Marke trägt, ist überhaupt ein Kandidat.
   const candidates = users.flatMap((user) => {
+    if (paused.has(user.id)) return [];
     const tz = user.timezone || APP_TZ;
     const dayKey = weightDayKey(now, tz);
     const window = dueWeighingReminder({ windows: user.weighingWindows, at: now, tz, mark: user.weightReminderMark, dayKey });

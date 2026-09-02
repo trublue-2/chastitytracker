@@ -96,6 +96,10 @@ export const MESSAGE_BODY_KEYS = [
   "weightReleaseWithdrawnMessage",
   "weightReleaseOpenedMessageKeyholder",
   "releasedNowMessage",
+  // Gesundheits-Halt: gesetzt und aufgehoben. Nur an den Träger — für die Keyholderin ist es die
+  // Entscheidung, die sie gerade selbst getroffen hat.
+  "healthHoldStartedMessage",
+  "healthHoldEndedMessage",
 ] as const;
 
 export type MessageBodyKey = (typeof MESSAGE_BODY_KEYS)[number];

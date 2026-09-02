@@ -181,6 +181,9 @@ Sperre \`cleaningAllowed\` hat. Freie Wechsel erlauben ⇒ \`cleaningAllowed\` s
   zwischen den erfassten Tagen. Ein Vergehen je angebrochenem Drei-Tage-Block, jede Meldung setzt den
   Zähler zurück. Zählt nur, wenn die Regel scharf ist (Vorgabe: aus), und ruht, solange ein
   Gesundheits-Halt läuft.
+- **Ein Gesundheits-Halt setzt JEDE dieser Arten aus**, nicht nur die Gewichts-Meldung: was in eine
+  Pause fällt, wird gar nicht erst abgeleitet (Abschnitt 6b). Ausgenommen ist \`manual_offense\` — deine
+  eigene Notiz überstimmt die Pause nicht, sie entsteht ja im Wissen um sie.
 - \`manual_offense\` notierst DU selbst mit \`record_offense\` — für alles, was der Tracker nicht sehen
   kann (gebrochene Abmachung, Unhöflichkeit) und das darum keine Quelle hat, aus der es abgeleitet
   werden könnte. Notieren ist noch KEIN Urteil; beurteilt wird es danach wie jedes andere. Eine
@@ -303,6 +306,26 @@ fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt
   stellen — sonst würde der Sub an etwas gemessen, das er nie bekommen hat. Bei einem Nachweis wiegt
   das doppelt: ein nachträglich geänderter Text oder Code bände ihn an eine Vorgabe, die er beim
   Fotografieren noch gar nicht kannte.
+
+## 6b. Gesundheits-Halt (\`set_health_hold\`)
+Die eine Bremse, die über allem steht — und ein SCHALTER, kein blosses Signal an dich. Solange er
+läuft:
+- **Es wird nichts zugestellt.** Keine automatischen Kontrollen (sie werden für diese Tage gar nicht
+  erst geplant), keine Mahnung und kein automatischer Vermerk auf eine überfällige, keine terminierte
+  Verschluss-, Orgasmus- oder Aufgaben-Zustellung, keine Wiege-Erinnerung. Was du von Hand terminiert
+  hast, ist nicht verloren: es wartet und kommt danach, mit der vollen Spanne ab dem Moment, in dem
+  er davon erfährt.
+- **Eine laufende Sperrzeit wird nicht durchgesetzt.** Eine Öffnung bricht sie nicht und der Riegel
+  geht auf. Ausgesetzt, nicht aufgehoben — nach dem Halt läuft sie weiter.
+- **Aus der Pausenzeit entsteht kein abgeleitetes Vergehen.** Was du selbst mit \`record_offense\`
+  notierst, bleibt stehen: das hast du im Wissen um die Pause notiert.
+
+Beim Setzen fallen die offenen Kontrollen (kein Nachholen, wie beim Überschneidungs-Schutz). Beim
+Lösen rücken die Fristen der laufenden Aufgaben um die Dauer der Pause nach.
+
+\`active: true\` braucht \`healthReason\` — zusätzlich zum Pflicht-\`reason\` des Audits. Der Träger bekommt
+beim Setzen und beim Lösen eine Meldung; ohne sie wäre die Pause für ihn von einem Defekt nicht zu
+unterscheiden. Der Bestand steht in \`get_context.healthHold\` und im \`keyholder_dashboard\`.
 
 ## 7. Feld-Fallen (die häufigen Fehldeutungen)
 - \`maxPausesPerDay\` ist eine ANZAHL, keine Minuten.

@@ -246,7 +246,8 @@
     "RELEASE_NOT_BEFORE_MUST_BE_FUTURE": "Der früheste Zeitpunkt muss in der Zukunft liegen",
     "RELEASE_TOO_MANY_MEASUREMENTS": "Es werden mehr Messungen verlangt, als der Zeitraum Tage hat",
     "RELEASE_UNDERWEIGHT": "Diese Schwelle liegt im Untergewicht (BMI unter 18,5)",
-    "invalidNoticeVersion": "Unbekannte Hinweis-Version"
+    "invalidNoticeVersion": "Unbekannte Hinweis-Version",
+    "HEALTH_HOLD_REASON_REQUIRED": "Eine Gesundheitspause braucht einen Grund."
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -1432,7 +1433,14 @@
     "releaseNowOpensBox": "Die Box bekommt den Befehl zu öffnen — ist sie ausser Reichweite, erst beim nächsten Kontakt.",
     "releaseNowRecordsOpening": "Die Öffnung wird sofort eingetragen, mit der aktuellen Zeit.",
     "releaseNowAllowOrgasm": "Orgasmus erlauben ({hours} Stunden)",
-    "releaseNowHint": "Eine beendete Sperrzeit kommt nicht von selbst zurück — für eine neue Sperre setzt du sie neu."
+    "releaseNowHint": "Eine beendete Sperrzeit kommt nicht von selbst zurück — für eine neue Sperre setzt du sie neu.",
+    "sectionHealthHold": "Gesundheitspause",
+    "sectionHealthHoldDesc": "Setzt alle Direktiven aus: keine Kontrollen, keine neuen Anweisungen, keine Vergehen. Eine laufende Sperrzeit wird nicht durchgesetzt und läuft danach weiter; Fristen laufender Aufgaben rücken um die Dauer der Pause nach.",
+    "healthHoldReasonLabel": "Grund",
+    "healthHoldReasonHint": "Steht in der Meldung an den Träger und später im Rückblick.",
+    "healthHoldStart": "Pause setzen",
+    "healthHoldEnd": "Pause aufheben",
+    "healthHoldSince": "Läuft seit {since}"
   },
   "forgotPassword": {
     "pageTitle": "Passwort zurücksetzen",
@@ -1844,7 +1852,11 @@
     "offenseDismissedMessage": "Der Keyholder hat ein festgestelltes Vergehen fallengelassen.",
     "wrongDeviceMessage": "Du hast mit einem anderen Gerät verschlossen als angefordert. Das wurde als Vergehen erfasst.",
     "releasedNowSubject": "Sofort aufgeschlossen",
-    "releasedNowMessage": "Deine Keyholderin hat dich sofort aufgeschlossen. Eine laufende Sperrzeit wurde dabei beendet."
+    "releasedNowMessage": "Deine Keyholderin hat dich sofort aufgeschlossen. Eine laufende Sperrzeit wurde dabei beendet.",
+    "healthHoldStartedSubject": "Gesundheitspause gesetzt",
+    "healthHoldStartedMessage": "Deine Keyholderin hat eine Gesundheitspause gesetzt: {reason}. Solange sie läuft, bekommst du keine Kontrollen und keine neuen Anweisungen, eine laufende Sperrzeit wird nicht durchgesetzt, und aus dieser Zeit entsteht kein Vergehen.",
+    "healthHoldEndedSubject": "Gesundheitspause aufgehoben",
+    "healthHoldEndedMessage": "Deine Keyholderin hat die Gesundheitspause aufgehoben. Ab jetzt gelten die Regeln wieder; die Fristen laufender Aufgaben sind um die Dauer der Pause nach hinten gerückt."
   },
   "tasks": {
     "titleLabel": "Titel",

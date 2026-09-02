@@ -201,7 +201,7 @@ Steckbrief: [80-kontext.md](80-kontext.md)
 | **Modell-Referenz abrufen** | Erklärt der Keyholder-KI die Begriffe und ihre Zusammenhänge, ohne dass sie Code sehen muss. | Keyholder (MCP) | MCP | `explain_model` |
 | **Notizen führen** | Private, versionierte Beobachtungen anlegen, suchen und an Objekte hängen. <br>*Supersession statt Löschen; der Träger sieht nichts davon.* | Keyholder (MCP) | MCP | `upsert_note` `query_notes` `link_note` |
 | **Termine und wiederkehrende Kontexte pflegen** | Einmalige Termine und Wochen-Slots, jeweils mit der Angabe, ob sie Gerätefreiheit verlangen. | Keyholder (MCP) | MCP | `upsert_appointment` `upsert_recurring_context` |
-| **Gesundheits-Halt setzen** | Setzt die Direktiven aus — die eine Bremse, die über allem steht. | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `set_health_hold` |
+| **Gesundheits-Halt setzen** | Setzt die Direktiven aus — die eine Bremse, die über allem steht. <br>*Solange er läuft: keine Zustellung (Kontrollen, Eskalation, terminierte Direktiven, Wiege-Erinnerung), eine Öffnung bricht keine Sperrzeit, und aus der Pausenzeit entsteht kein abgeleitetes Vergehen. Beim Setzen fallen die offenen Kontrollen, beim Aufheben rücken die Aufgaben-Fristen nach.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]/health-hold` `set_health_hold` |
 | **Handlungsprotokoll lesen** | Jeder schreibende MCP-Aufruf mit Werkzeug, Handelndem, Pflicht-Begründung und betroffenem Objekt. | Keyholder (MCP) | MCP | `get_action_log` |
 | **MCP-Endpunkt** | Die Gegenstelle, über die eine Keyholder-KI alle Werkzeuge erreicht. <br>*Die Werkzeugliste ist pro Verbindung gecacht — ein neuer Chat allein genügt nicht.* | Keyholder (MCP) | Gegenstelle | `/api/[transport]` |
 

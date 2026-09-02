@@ -203,7 +203,7 @@ Steckbrief: [80-kontext.md](80-kontext.md)
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
 | `User.mcpKeyholderInstructions` | String? | — | dauerhaft | Dauerauftrag an die Keyholder-KI; wird ihr bei jeder MCP-Verbindung mitgegeben. Der Sub sieht ihn nie. | Keyholder (UI) | MCP | `app/api/[transport]/route.ts` |
-| `HealthHold.active` | Boolean | `true` | je Direktive | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Kontrollen, Aufgaben, Auto-Kontrollen | — |
+| `HealthHold.active` | Boolean | `true` | je Direktive | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Kontrollen, Aufgaben, Auto-Kontrollen | `healthHold.ts` |
 | `HealthHold.reason` | String | (keiner) | je Direktive | Warum ausgesetzt wurde. | Keyholder (UI), Keyholder (MCP) | MCP | — |
 | `RecurringContext.label` | String | (keiner) | je Direktive | Name des wiederkehrenden Termins (Home Office, Pilates). | Keyholder (MCP) | MCP | — |
 | `RecurringContext.weekday` | Int | (keiner) | je Direktive | Wochentag, 0 = Sonntag. | Keyholder (MCP) | MCP | — |

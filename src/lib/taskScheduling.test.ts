@@ -14,6 +14,8 @@ vi.mock("@/lib/prisma", () => ({
     task: { findMany: vi.fn(), updateMany: vi.fn() },
     entry: { findMany: vi.fn(async () => []) },
     user: { findUnique: vi.fn(async () => null) },
+    // Der Poller fragt vor dem Zustellen, wer gerade eine Gesundheitspause hat — leer = niemand.
+    healthHold: { findMany: vi.fn(async () => []) },
   },
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));

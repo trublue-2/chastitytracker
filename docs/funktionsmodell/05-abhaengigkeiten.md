@@ -118,7 +118,7 @@ flowchart LR
 | Einträge | `Entry.keyInBox` | Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt. | `boxCommand.ts` |
 | Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
 | Orgasmus | `OrgasmusAnforderung.openingAllowed` | Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen. | — |
-| MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
+| MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | `healthHold.ts` |
 | MCP | `RecurringContext.deviceFree` | Der Slot verlangt Gerätefreiheit — die Information, wegen der der Keyholder ihn überhaupt führt. | — |
 | MCP | `Appointment.deviceFree` | Der Termin verlangt Gerätefreiheit. | — |
 | Einträge | *feste Regel* | Eine Öffnung ohne Deckung hebt JEDE aktive Sperrzeit auf. Eine erlaubte Reinigungsöffnung und ein Orgasmus-Öffnungsfenster tun das nicht. | `queries.ts:releaseLockPeriodsOnOpen` |
@@ -209,7 +209,7 @@ flowchart LR
 | Einträge | `User.mobileDesktopUpload` | Erlaubt auf Mobilgeräten die Dateiauswahl statt nur die Kamera — schwächt jeden Foto-Nachweis, deshalb Admin-Feld. | — |
 | Geräte | `Device.categoryId` | Zuordnung zur Kategorie — entscheidet, welche Kategorie-Regeln (Tracking, Pflichtfoto, Trainingsziele) für dieses Gerät gelten. | `deviceCategoryService.ts:resolveOwnedCategory` |
 | Einträge | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
-| MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
+| MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | `healthHold.ts` |
 | Einträge | *feste Regel* | Ein Prüfungs-Eintrag erfüllt nur die Kontrolle DESSELBEN Ziels; ein Plug-Foto hakt keine KG-Kontrolle ab. | `kontrolleService.ts` |
 
 ### Wirkt auf
@@ -300,7 +300,7 @@ flowchart LR
 | Woher | Wodurch | Was passiert | Anker |
 |---|---|---|---|
 | Einträge | `User.mobileDesktopUpload` | Erlaubt auf Mobilgeräten die Dateiauswahl statt nur die Kamera — schwächt jeden Foto-Nachweis, deshalb Admin-Feld. | — |
-| MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
+| MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | `healthHold.ts` |
 | Strafbuch | *feste Regel* | Eine Strafe kann eine gestellte Aufgabe sein. Wird das Urteil ersetzt oder zurückgenommen, zieht der Tracker die Aufgabe zurück; eine ERFÜLLTE Strafaufgabe schliesst das Urteil umgekehrt von selbst ab. | `strafurteilService.ts` |
 
 ### Wirkt auf
@@ -587,10 +587,10 @@ flowchart LR
 
 | Wohin | Wodurch | Was passiert | Anker |
 |---|---|---|---|
-| Sperrzeit | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
-| Kontrollen | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
-| Aufgaben | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
-| Auto-Kontrollen | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
+| Sperrzeit | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | `healthHold.ts` |
+| Kontrollen | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | `healthHold.ts` |
+| Aufgaben | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | `healthHold.ts` |
+| Auto-Kontrollen | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | `healthHold.ts` |
 | Sperrzeit | `RecurringContext.deviceFree` | Der Slot verlangt Gerätefreiheit — die Information, wegen der der Keyholder ihn überhaupt führt. | — |
 | Sperrzeit | `Appointment.deviceFree` | Der Termin verlangt Gerätefreiheit. | — |
 
@@ -691,7 +691,7 @@ flowchart LR
 | Kontrollen | `User.postLockInspectionDelayMin` | Frühestens so viele Minuten nach dem Erfassen wird ausgelöst. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Kontrollen | `User.postLockInspectionDelayMax` | Spätestens so viele Minuten nach dem Erfassen wird ausgelöst; gezogen wird zufällig dazwischen. Im Schlaf-Fenster gilt stattdessen die kurze Spanne der Reinigungs-Regel. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Kontrollen | `User.postLockInspectionDeadlineMinutes` | Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne. | `autoKontrolleService.ts:schedulePostLockInspection` |
-| MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | — |
+| MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | `healthHold.ts` |
 | Reinigung | *feste Regel* | Jeder SELBST erfasste Wiederverschluss nach einer Reinigungspause erzeugt eine Kontrolle (15–45 min, im Schlaf-Fenster 5–15). Sie ersetzt die nächste noch nicht zugestellte Auto-Kontrolle des Tages. Feste Regel, keine Einstellung — nur der Hauptschalter der Automatik schaltet sie ab. Ist die Verschluss-Kontrolle eingeschaltet, übernimmt DIESE den Wiederverschluss und die Regel hier greift nicht. | `autoKontrolleService.ts:scheduleCleaningRelockInspection` |
 | Einträge | *feste Regel* | Bei eingeschalteter Verschluss-Kontrolle erzeugt JEDER neu erfasste Verschluss — vom Träger wie von der Keyholderin — eine zusätzliche Kontrolle, sofern der Träger dann auch verschlossen ist. Sie ersetzt keine geplante; der Tagesplan bleibt unberührt. Gerechnet wird ab dem Erfassen, nicht ab der Eintrags-Zeit. | `autoKontrolleService.ts:schedulePostLockInspection` |
 

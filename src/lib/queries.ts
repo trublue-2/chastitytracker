@@ -6,6 +6,7 @@ import { activeCleaningWindowIn, parseCleaningWindows } from "@/lib/cleaningServ
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, effectiveEntryWhere } from "@/lib/lockPending";
 import { APP_TZ } from "@/lib/utils";
+import { isHealthHoldActive } from "@/lib/healthHold";
 
 /**
  * Where-Fragment: bereits AKTIVE Kontroll-Anforderungen — sofortige (wirksamAb null) und
@@ -1008,8 +1009,9 @@ function isAllowedCleaningOpen(
 
 /**
  * Releases active SPERRZEIT periods when a user opens their device.
- * The release is skipped (Sperrzeit kept active) only for a permitted cleaning opening — see
- * {@link isAllowedCleaningOpen}. Must be called inside a transaction.
+ * The release is skipped (Sperrzeit kept active) for a permitted cleaning opening — see
+ * {@link isAllowedCleaningOpen} — and während eines laufenden Gesundheits-Halts. Must be called
+ * inside a transaction.
  *
  * `user` may be passed by callers that already loaded it to avoid a redundant fetch.
  *
@@ -1048,6 +1050,15 @@ export async function releaseLockPeriodsOnOpen(
   }) ?? { cleaningAllowed: false, cleaningWindows: null, timezone: APP_TZ };
 
   if (isAllowedCleaningOpen(oeffnenGrund, now, effectiveUser, activeLockPeriods)) return false;
+
+  // Gesundheits-Halt: die Öffnung ist gedeckt, die Sperrzeit bleibt stehen — und weil der Rückgabewert
+  // zugleich das Box-Kommando steuert (`boxCommandForEntry`), geht der Riegel dabei auf. Genau das
+  // unterscheidet den Halt vom blossen Verzicht auf eine Strafe: dem Träger nur nachzusehen, dass er
+  // öffnet, während der Riegel zubleibt, hilft ihm im Spital nichts.
+  //
+  // Die Sperre wird ausgesetzt, nicht aufgehoben: nach der Pause läuft sie weiter, statt still
+  // verschwunden zu sein. Dieselbe Bauform wie bei der erlaubten Reinigungsöffnung.
+  if (await isHealthHoldActive(userId, tx)) return false;
 
   await tx.verschlussAnforderung.updateMany({
     where: { id: { in: activeLockPeriods.map((s) => s.id) } },

@@ -1748,9 +1748,15 @@ function registerTools(server: McpServer) {
       {
         title: "Set / clear health hold (v2)",
         description:
-          "Setzt oder löst die Gesundheits-Zurückhaltung (explain_model). active=true braucht healthReason " +
-          "(z.B. 'Migräne/Aura', 'Nacht-Auszeit'); active=false löst den aktiven Hold. Erscheint im " +
-          "keyholder_dashboard.healthHold. NUR nutzen bei gesundheitlichen Themen, die EFFEKTIV einen " +
+          "Setzt oder löst die Gesundheits-Zurückhaltung (explain_model, Abschnitt 6b). Das ist ein " +
+          "SCHALTER, kein blosses Signal: solange er läuft, wird dem Träger NICHTS zugestellt " +
+          "(Auto-Kontrollen, Eskalation, terminierte Direktiven, Wiege-Erinnerung), eine laufende " +
+          "Sperrzeit wird nicht durchgesetzt (Öffnen ist gedeckt, der Riegel geht auf, die Sperre läuft " +
+          "danach weiter), und aus der Pausenzeit entsteht kein abgeleitetes Vergehen. Beim Setzen " +
+          "fallen die offenen Kontrollen, beim Lösen rücken die Fristen laufender Aufgaben nach. " +
+          "active=true braucht healthReason (z.B. 'Migräne/Aura', 'Nacht-Auszeit'); active=false löst " +
+          "den aktiven Hold. Bestand: keyholder_dashboard.healthHold und get_context.healthHold. " +
+          "NUR nutzen bei gesundheitlichen Themen, die EFFEKTIV einen " +
           "Einfluss auf die Keuschhaltung haben (z.B. verhindern sie das Tragen, eine Kontrolle, eine " +
           "Direktive) — nicht bei beliebigen gesundheitlichen Erwähnungen ohne Bezug zur Keuschhaltung. " +
           "Hinweis: `healthReason` ist der medizinische Grund für den Hold selbst — zusätzlich zum " +
