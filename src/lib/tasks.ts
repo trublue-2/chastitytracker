@@ -747,6 +747,31 @@ export function evaluateProofs(
 }
 
 /**
+ * SCHLIESSEN DIE NACHWEISE DIE AUFGABE FÜR SICH — ohne die Selbstmeldung des Trägers?
+ *
+ * `complete` heisst: jeder geforderte Nachweis liegt vor, rechtzeitig (oder von einem Menschen
+ * ausdrücklich verspätet angenommen), und jeder einzelne ist entweder von der Keyholderin
+ * angenommen oder maschinell am Code bestätigt — siehe {@link evaluateProofs}. Das ist mehr Beleg
+ * als der Antipper, den `completedAt` festhält, und es wäre sinnlos, danach noch auf ihn zu warten.
+ *
+ * **Warum die Regel einen eigenen Namen hat.** Die beiden Zweige von {@link evaluateTask} liegen
+ * zweihundert Zeilen auseinander und beantworteten dieselbe Frage verschieden. Ohne Bedingungen
+ * kippte die Aufgabe bei `holdUntil` auf `missed` — und weil auch eine verspätete Meldung `missed`
+ * ergibt, konnte sie danach NIEMAND mehr schliessen, weder Träger noch Keyholderin: sie blieb als
+ * versäumt stehen und trug ein `unfulfilled_task`, obwohl die Keyholderin den Nachweis selbst
+ * angenommen hatte. Einziger Ausweg war `withdraw`, das die Aufgabe aber aus dem Bestand nimmt,
+ * statt sie als erledigt zu führen (#106, viermal in zwei Tagen auf einer Fremd-Instanz). Mit
+ * Bedingungen wartete sie stattdessen unbegrenzt auf die Meldung. Beide Wege fragen jetzt HIER,
+ * damit die Antwort nicht wieder auseinanderläuft.
+ *
+ * `none` — gar kein Nachweis gefordert — ist bewusst ausgenommen: dort IST die Selbstmeldung das
+ * einzige Zeugnis, und an solchen Aufgaben ändert sich nichts.
+ */
+function proofsCloseTask(verdict: ProofVerdict): boolean {
+  return verdict === "complete";
+}
+
+/**
  * Wertet eine Aufgabe aus. `perRequirement[i]` sind die Intervalle der Bedingung `requirements[i]`
  * (gleiche Reihenfolge).
  *
@@ -834,26 +859,10 @@ export function evaluateTask(
     }
     if (proofVerdict === "needsReview" || proofVerdict === "checking") return { ...base, state: "awaitingReview" };
     if (proofVerdict === "pending") return { ...base, state: "pending" };
-    // ERLEDIGTE NACHWEISE SIND DIE MELDUNG. `complete` heisst: jeder geforderte Nachweis liegt vor,
-    // rechtzeitig (oder von einem Menschen ausdrücklich verspätet angenommen), und jeder einzelne
-    // ist entweder von der Keyholderin angenommen oder maschinell am Code bestätigt — siehe
-    // `evaluateProofs`. Das ist mehr Beleg als der Antipper, den `completedAt` festhält, und es wäre
-    // sinnlos, danach noch auf ihn zu warten.
-    //
-    // Ohne diesen Zweig war der Zustand nach `holdUntil` NICHT MEHR ERREICHBAR: die Zeile darunter
-    // kippte auf `missed`, und weil eine Meldung nach der Frist ohnehin `missed` ergibt, konnte
-    // niemand die Aufgabe mehr schliessen — weder Träger noch Keyholderin. Sie blieb als versäumt
-    // stehen und trug ein `unfulfilled_task` mit sich, obwohl die Keyholderin den Nachweis selbst
-    // angenommen hatte. Einziger Ausweg war `withdraw`, das die Aufgabe aber aus dem Bestand nimmt,
-    // statt sie als erledigt zu führen (#106, viermal in zwei Tagen auf einer Fremd-Instanz).
-    //
-    // Er steht VOR der Selbstmeldung, nicht danach: liegt beides vor, und die Meldung kam zu spät,
-    // zählt der rechtzeitige Nachweis. Eine verspätete Bestätigung dessen, was fristgerecht belegt
-    // ist, darf kein Vergehen erzeugen.
-    //
-    // `none` (gar keine Nachweise gefordert) fällt bewusst durch: dort IST die Selbstmeldung das
-    // einzige Zeugnis, und an solchen Aufgaben ändert sich nichts.
-    if (proofVerdict === "complete") return { ...base, state: "done" };
+    // Erledigte Nachweise sind die Meldung ({@link proofsCloseTask}). VOR der Selbstmeldung, nicht
+    // danach: liegt beides vor und die Meldung kam zu spät, zählt der rechtzeitige Nachweis — eine
+    // verspätete Bestätigung dessen, was fristgerecht belegt ist, darf kein Vergehen erzeugen.
+    if (proofsCloseTask(proofVerdict)) return { ...base, state: "done" };
     if (task.completedAt) {
       return { ...base, state: task.completedAt <= task.holdUntil ? "done" : "missed" };
     }
@@ -1045,17 +1054,15 @@ export function evaluateTask(
 
   // Durchgehalten. Der Textteil („ist die Wohnung sauber?") ist nicht prüfbar — dafür die Selbstmeldung.
   // Sie muss NACH dem Beginn liegen: eine Meldung aus Minute 1, bevor überhaupt alles anlag, ist keine
-  // Aussage über das Ergebnis.
+  // Aussage über das Ergebnis. Sie trägt allein, wo gar kein Nachweis gefordert ist.
   //
-  // ⚠ HIER GILT ETWAS ANDERES als im Zweig ohne Bedingungen, und zwar bewusst noch: dort schliessen
-  // erledigte Nachweise die Aufgabe auch ohne Selbstmeldung (#106), hier warten wir weiter auf sie.
-  // Das Argument von dort — ein angenommener Nachweis ist mehr Beleg als der Antipper — trägt auch
-  // hier, aber die Folgen sind ungleich: dort war der Zustand nach `holdUntil` unerreichbar und
-  // erzeugte ein Vergehen, hier bleibt die Aufgabe bloss in `awaitingConfirmation` liegen. Das ist
-  // nicht harmlos (die Keyholderin bekommt nach ihrer Annahme nie ein Ergebnis, `isTaskResultFinal`
-  // wird nie wahr), aber es ist eine ANDERE Entscheidung als die dortige Reparatur und ändert das
-  // Urteil über jede bedingte Aufgabe mit Nachweisen. Wer sie trifft, führt beide Zweige auf ein
-  // gemeinsames Prädikat zusammen, statt hier eine dritte Regel danebenzuschreiben.
+  // Dieselbe Regel wie im Zweig ohne Bedingungen ({@link proofsCloseTask}) — sie steht dort, damit
+  // die beiden Zweige nicht ein zweites Mal auseinanderlaufen. Ohne sie blieb die Aufgabe nach der
+  // Annahme unbegrenzt in `awaitingConfirmation` liegen: kein Vergehen, aber auch nie ein Ergebnis,
+  // denn `isTaskResultFinal` wurde nie wahr und die Keyholderin bekam auf ihre Sichtung nie eine
+  // Antwort.
+  if (proofsCloseTask(proofVerdict)) return { ...started, state: "done" };
+
   const confirmed = task.completedAt !== null && task.completedAt >= startedAt;
   if (!confirmed) return { ...started, state: "running", awaitingConfirmation: true };
   return { ...started, state: "done" };
