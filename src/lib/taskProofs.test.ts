@@ -681,6 +681,45 @@ describe("späte Annahme rettet die Aufgabe", () => {
     expect(isTaskResultFinal(state)).toBe(true);
     expect(isTaskOffense(state)).toBe(false);
   });
+
+  /**
+   * OHNE SELBSTMELDUNG, ABER MIT ERLEDIGTEN NACHWEISEN (#106).
+   *
+   * Der Zustand war nach `holdUntil` nicht mehr erreichbar: die Aufgabe kippte auf `missed` und trug
+   * ein `unfulfilled_task`, obwohl die Keyholderin den Nachweis selbst angenommen hatte — und
+   * niemand konnte sie mehr schliessen, weil auch eine verspätete Meldung `missed` ergibt. Auf einer
+   * Fremd-Instanz viermal in zwei Tagen aufgetreten.
+   */
+  describe("erledigte Nachweise schliessen die Aufgabe auch ohne Selbstmeldung", () => {
+    /** `taskWith` setzt `completedAt: null` — hier ist genau das der Punkt. */
+    const ohneMeldung = taskWith();
+
+    it("von der Keyholderin angenommen → erledigt statt versäumt", () => {
+      const angenommen = proof({ requireCode: false, verifikationStatus: null, reviewAccepted: true });
+      expect(evaluateTask(ohneMeldung, [], [], AFTER, [angenommen]).state).toBe("done");
+    });
+
+    it("maschinell am Code bestätigt → ebenso, ohne Vergehen und ohne Beleg", () => {
+      const e = evaluateTask(ohneMeldung, [], [], AFTER, [proof()]);
+      expect(e.state).toBe("done");
+      expect(isTaskOffense(e.state)).toBe(false);
+      expect(e.overdueProofIds).toEqual([]);
+      expect(e.failedAt).toBeNull();
+    });
+
+    /** Der rechtzeitige Nachweis schlägt die verspätete Meldung — eine Bestätigung dessen, was
+     *  fristgerecht belegt ist, darf kein Vergehen erzeugen. */
+    it("verspätete Selbstmeldung schadet dem rechtzeitigen Nachweis nicht", () => {
+      const spaetGemeldet = taskWith({ completedAt: d("2026-07-25T18:45:00Z") });
+      expect(evaluateTask(spaetGemeldet, [], [], AFTER, [proof()]).state).toBe("done");
+    });
+
+    /** Die Gegenprobe: wo gar kein Nachweis gefordert ist, IST die Selbstmeldung das einzige
+     *  Zeugnis. An solchen Aufgaben ändert sich nichts. */
+    it("ohne geforderten Nachweis bleibt die Selbstmeldung allein massgeblich", () => {
+      expect(evaluateTask(ohneMeldung, [], [], AFTER, []).state).toBe("missed");
+    });
+  });
 });
 
 describe("evaluateProofs — Code-Prüfung und Sichtung", () => {

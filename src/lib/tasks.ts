@@ -814,9 +814,9 @@ export function evaluateTask(
   // zurückgenommene Aufgabe fordert nichts, der Dienst weist sie mit `TASK_NOT_EDITABLE` ab.
   if (task.withdrawnAt) return { ...base, state: "withdrawn", proofSubmitOpen: false };
 
-  // Aufgabe ohne Bedingungen: allein die Selbstmeldung entscheidet — aber sie muss RECHTZEITIG sein.
-  // Ohne den Zeitvergleich heilte eine Meldung von heute eine gestern verpasste Frist rückwirkend und
-  // das Vergehen verschwände spurlos.
+  // Aufgabe ohne Bedingungen: es zählt, was RECHTZEITIG belegt ist — die Selbstmeldung, und wo
+  // Nachweise gefordert sind, auch sie. Beide tragen den Zeitvergleich; ohne ihn heilte eine Meldung
+  // von heute eine gestern verpasste Frist rückwirkend und das Vergehen verschwände spurlos.
   if (requirements.length === 0) {
     // Ohne Bedingungen gibt es nichts anzulegen — und damit auch keinen abgeleiteten Beginn, an dem
     // eine Dauer hängen könnte. `task.holdUntil` IST hier das Ende (der Dauer-Modus ist für solche
@@ -834,6 +834,26 @@ export function evaluateTask(
     }
     if (proofVerdict === "needsReview" || proofVerdict === "checking") return { ...base, state: "awaitingReview" };
     if (proofVerdict === "pending") return { ...base, state: "pending" };
+    // ERLEDIGTE NACHWEISE SIND DIE MELDUNG. `complete` heisst: jeder geforderte Nachweis liegt vor,
+    // rechtzeitig (oder von einem Menschen ausdrücklich verspätet angenommen), und jeder einzelne
+    // ist entweder von der Keyholderin angenommen oder maschinell am Code bestätigt — siehe
+    // `evaluateProofs`. Das ist mehr Beleg als der Antipper, den `completedAt` festhält, und es wäre
+    // sinnlos, danach noch auf ihn zu warten.
+    //
+    // Ohne diesen Zweig war der Zustand nach `holdUntil` NICHT MEHR ERREICHBAR: die Zeile darunter
+    // kippte auf `missed`, und weil eine Meldung nach der Frist ohnehin `missed` ergibt, konnte
+    // niemand die Aufgabe mehr schliessen — weder Träger noch Keyholderin. Sie blieb als versäumt
+    // stehen und trug ein `unfulfilled_task` mit sich, obwohl die Keyholderin den Nachweis selbst
+    // angenommen hatte. Einziger Ausweg war `withdraw`, das die Aufgabe aber aus dem Bestand nimmt,
+    // statt sie als erledigt zu führen (#106, viermal in zwei Tagen auf einer Fremd-Instanz).
+    //
+    // Er steht VOR der Selbstmeldung, nicht danach: liegt beides vor, und die Meldung kam zu spät,
+    // zählt der rechtzeitige Nachweis. Eine verspätete Bestätigung dessen, was fristgerecht belegt
+    // ist, darf kein Vergehen erzeugen.
+    //
+    // `none` (gar keine Nachweise gefordert) fällt bewusst durch: dort IST die Selbstmeldung das
+    // einzige Zeugnis, und an solchen Aufgaben ändert sich nichts.
+    if (proofVerdict === "complete") return { ...base, state: "done" };
     if (task.completedAt) {
       return { ...base, state: task.completedAt <= task.holdUntil ? "done" : "missed" };
     }
@@ -1026,6 +1046,16 @@ export function evaluateTask(
   // Durchgehalten. Der Textteil („ist die Wohnung sauber?") ist nicht prüfbar — dafür die Selbstmeldung.
   // Sie muss NACH dem Beginn liegen: eine Meldung aus Minute 1, bevor überhaupt alles anlag, ist keine
   // Aussage über das Ergebnis.
+  //
+  // ⚠ HIER GILT ETWAS ANDERES als im Zweig ohne Bedingungen, und zwar bewusst noch: dort schliessen
+  // erledigte Nachweise die Aufgabe auch ohne Selbstmeldung (#106), hier warten wir weiter auf sie.
+  // Das Argument von dort — ein angenommener Nachweis ist mehr Beleg als der Antipper — trägt auch
+  // hier, aber die Folgen sind ungleich: dort war der Zustand nach `holdUntil` unerreichbar und
+  // erzeugte ein Vergehen, hier bleibt die Aufgabe bloss in `awaitingConfirmation` liegen. Das ist
+  // nicht harmlos (die Keyholderin bekommt nach ihrer Annahme nie ein Ergebnis, `isTaskResultFinal`
+  // wird nie wahr), aber es ist eine ANDERE Entscheidung als die dortige Reparatur und ändert das
+  // Urteil über jede bedingte Aufgabe mit Nachweisen. Wer sie trifft, führt beide Zweige auf ein
+  // gemeinsames Prädikat zusammen, statt hier eine dritte Regel danebenzuschreiben.
   const confirmed = task.completedAt !== null && task.completedAt >= startedAt;
   if (!confirmed) return { ...started, state: "running", awaitingConfirmation: true };
   return { ...started, state: "done" };
