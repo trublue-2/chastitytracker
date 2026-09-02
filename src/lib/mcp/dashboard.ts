@@ -274,8 +274,13 @@ export interface DashboardResult extends Envelope {
    *  an `makeInputsStrict`: jedes Eingabe-Schema ist ein `z.strictObject`, ein unter dem Lese-Namen
    *  zurückgeschriebener Wert wird also ABGEWIESEN und benannt, statt still zu verschwinden. Fiele
    *  diese Schranke je weg, wäre die Asymmetrie sofort wieder der stille „löst sofort aus"-Fehler,
-   *  gegen den v18 argumentiert. */
-  schemaVersion: 19;
+   *  gegen den v18 argumentiert.
+   *
+   *  v20: `standingDirectives[].text` und `boundaries[].text` sind GEKAPPT (`NOTE_TEXT_LIMIT`,
+   *  Marker `textTruncated`) und mit `includeNotes: false` ganz abbestellbar (`notesOmitted`). Ein
+   *  Bestandsfeld ändert damit seine Bedeutung — es trug bis hierher immer den Volltext —, also ein
+   *  Bump und kein additiver Fall. */
+  schemaVersion: 20;
   user: string;
   /**
    * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
@@ -392,10 +397,19 @@ export interface DashboardResult extends Envelope {
    *  der Pipeline liegt, und kann sie via `withdraw` stornieren. Auto-/Zufalls-Kontrollen
    *  (auto:true) sind bewusst NICHT enthalten (Überraschungseffekt). */
   scheduledDirectives: ScheduledDirective[];
-  /** Gepinnte, dauerhafte Anweisungen (DIRECTIVE) — fallen nie aus einem Recency-Fenster. */
+  /** Gepinnte, dauerhafte Anweisungen (DIRECTIVE) — fallen nie aus einem Recency-Fenster.
+   *  `text` ist auf {@link NOTE_TEXT_LIMIT} Zeichen gekappt; wo das greift, steht `textTruncated`. */
   standingDirectives: NoteDTO[];
-  /** Gepinnte Grenzen (BOUNDARY) mit doDont — unübersehbar. */
+  /** Gepinnte Grenzen (BOUNDARY) mit doDont — unübersehbar. Gekappt wie oben, aber NUR im Fliesstext:
+   *  `doDont` trägt hier die eigentliche Anweisung und bleibt vollständig. */
   boundaries: NoteDTO[];
+  /** Wie viele gepinnte Notizen `includeNotes: false` weggelassen hat — sonst 0.
+   *
+   *  Eine ZAHL und kein Schalter, weil die beiden Listen darüber in diesem Fall leer sind und ein
+   *  leeres Feld sich nicht von „es gibt keine Grenzen" unterscheiden liesse. Genau diese
+   *  Verwechslung wäre die teuerste: eine Keyholderin, die ihre Grenzen nicht sieht, handelt so, als
+   *  gäbe es keine. Steht hier etwas anderes als 0, ist der Bestand über `query_notes` zu holen. */
+  notesOmitted: number;
   boxState: BoxStateView | null;
   /** Aktive Gesundheits-Zurückhaltung (§8) oder null. */
   healthHold: HealthHoldView | null;
@@ -711,8 +725,49 @@ export async function getBoxState(username: string): Promise<BoxStateResult> {
   return { schemaVersion: 4, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox, lockCall) };
 }
 
+/**
+ * Die Obergrenze je Notiz-Fliesstext IM DASHBOARD — nicht in `query_notes`, das den Volltext führt.
+ *
+ * **Warum der Einstiegs-Call überhaupt eine Grenze braucht.** Seine Grösse hing an der Menge der
+ * DOKTRIN, nicht an der Menge der Daten: jede gepinnte Notiz stand im Volltext darin. Auf einer
+ * Instanz mit 27 Einträgen wuchs die Antwort binnen zweier Tage von 83 000 auf 105 000 Zeichen und
+ * damit über das Ausgabe-Limit gängiger MCP-Clients — ausgerechnet der Call, den die
+ * Server-Instructions als ersten nennen, war dort nicht mehr aufrufbar (#105). Wer das
+ * Notizen-System so nutzt, wie es gedacht ist, machte sich damit den Einstieg kaputt.
+ *
+ * **Warum Kappen und nicht Weglassen.** Die gepinnten Grenzen sollen unübersehbar sein; sie aus dem
+ * Einstiegs-Call zu nehmen, hiesse, die eine Sache zu verstecken, die immer gelesen werden muss. Der
+ * gekappte Text sagt weiterhin, WORUM es geht, trägt mit `textTruncated` seinen eigenen Vorbehalt,
+ * und der Volltext ist einen gezielten `query_notes` entfernt.
+ *
+ * **Was hier NICHT steht.** Das Kappen selbst — das kann `toNoteDTO`, für jede Sicht, die eine
+ * Grenze verlangt. Hier steht nur, WIE VIEL der Einstiegs-Call durchlässt.
+ *
+ * **Die Höhe ist eine Abwägung, keine Messgrösse.** Zu knapp, und die KI-Keyholderin erkennt an
+ * einer Notiz nicht mehr, worum es geht, und muss für jede zweite nachfragen; zu grosszügig, und der
+ * Einstiegs-Call läuft wieder ins Limit. Der Wert steht auf trublues ausdrückliche Wahl: lieber mehr
+ * Text auf einen Blick als der knappste Anriss (02.09.2026).
+ *
+ * Die Schranke wirkt je Notiz, nicht auf die Antwort als Ganzes: bei `limit: 50` bleiben damit
+ * theoretisch 120 000 Zeichen Notizen möglich. Das trägt die heutige Grössenordnung (23 Notizen)
+ * mit Abstand, ist aber kein Riegel für jede denkbare Menge — wer dort ankommt, braucht ein
+ * Gesamt-Budget, und das darf die Grenzen nicht als Erstes fallen lassen. Bis dahin ist
+ * `includeNotes: false` der Notausgang.
+ */
+export const NOTE_TEXT_LIMIT = 2400;
+
+export interface KeyholderDashboardOptions {
+  /** Gepinnte Direktiven und Grenzen mitliefern. Vorgabe `true` — sie gehören in den Einstiegs-Call.
+   *  `false` lässt sie weg, lädt sie gar nicht erst und nennt die Zahl in `notesOmitted`. */
+  includeNotes?: boolean;
+}
+
 /** Baut das Dashboard durch Komposition der Aggregate. Throws, wenn der User unbekannt ist. */
-export async function keyholderDashboard(username: string): Promise<DashboardResult> {
+export async function keyholderDashboard(
+  username: string,
+  opts: KeyholderDashboardOptions = {},
+): Promise<DashboardResult> {
+  const withNotes = opts.includeNotes ?? true;
   const now = new Date();
   // Entries/Reinigung/User-id/Keyholder-Regeln EINMAL laden und an alle Aggregate durchreichen,
   // statt sie pro Aggregat erneut zu scannen. (getOffenses lädt noch selbst.)
@@ -741,7 +796,13 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     records(username, trackingCtx, sessions),
     periodSummary(username, trackingCtx),
     getOffenses(username),
-    queryNotes(username, { pinned: true, status: "active", limit: 50 }),
+    // Abgewählt wird nicht bloss verworfen, sondern nicht geladen: `queryNotes` bringt eine eigene
+    // User-Auflösung mit, zieht die `refs`-Relation als zweite Abfrage nach und liest genau den
+    // Fliesstext aus der Datenbank, dessen Menge dieser Schalter ja verkleinern soll. Der Zähler
+    // braucht davon nichts — und er ist ehrlicher als `notes.length`, das bei `limit` abschnitte.
+    withNotes
+      ? queryNotes(username, { pinned: true, status: "active", limit: 50, textLimit: NOTE_TEXT_LIMIT })
+      : prisma.keyholderNote.count({ where: { userId: trackingCtx.userId, pinned: true, status: "active" } }),
     loadBoxRow(trackingCtx.userId),
     loadActiveHealthHold(trackingCtx.userId, iso),
     loadScheduledDirectives(trackingCtx.userId, now, iso),
@@ -839,8 +900,12 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
   // nichts. Die Reihe selbst holt `weight_history`.
   const weight = await weightSummary(trackingCtx.userId);
 
+  // EINE Quelle für beide Listen und den Zähler: liefe die Zahl aus einem eigenen Zweig, könnte sie
+  // von dem abweichen, was tatsächlich in der Antwort steht.
+  const shownNotes = typeof pinned === "number" ? [] : pinned.notes;
+
   return {
-    schemaVersion: 19,
+    schemaVersion: 20,
     user: username,
     weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
@@ -880,8 +945,9 @@ export async function keyholderDashboard(username: string): Promise<DashboardRes
     goals: { kg: periods.kg, categories: periods.categories },
     openOffenses: { count: ledger.openOffenseCount, pendingPenalties: ledger.pendingPenaltyCount, top: openOffenseRows.slice(0, 5) },
     scheduledDirectives,
-    standingDirectives: pinned.notes.filter((n) => n.type === "DIRECTIVE"),
-    boundaries: pinned.notes.filter((n) => n.type === "BOUNDARY"),
+    standingDirectives: shownNotes.filter((n) => n.type === "DIRECTIVE"),
+    boundaries: shownNotes.filter((n) => n.type === "BOUNDARY"),
+    notesOmitted: typeof pinned === "number" ? pinned : 0,
     boxState,
     healthHold,
   };

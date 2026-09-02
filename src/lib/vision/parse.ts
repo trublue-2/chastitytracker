@@ -19,3 +19,22 @@ export function parseJsonObject<T>(text: string): T | null {
     return null;
   }
 }
+
+/**
+ * Brach die Antwort am Token-Budget ab, statt zu Ende geschrieben zu werden?
+ *
+ * Steht hier und nicht am Aufrufer, weil es PROVIDER-Wissen ist: Anthropic nennt den Zustand
+ * `max_tokens`, ein OpenAI-kompatibles lokales Modell `length` (`vision/local.ts` reicht dessen
+ * `finish_reason` unverändert durch). Wer die beiden Namen an der Auswertungsstelle abschreibt,
+ * schreibt sie beim nächsten Anbieter erneut ab — und vergisst einen.
+ *
+ * **Wozu die Unterscheidung.** Ein abgebrochenes „kein JSON gefunden" hat eine andere Ursache
+ * (Budget zu klein) und eine andere Abhilfe (`maxTokens` erhöhen) als ein Modell, das schlicht
+ * nichts lesen konnte. Ohne sie ist der Fall nur zu finden, indem man die Anfrage von Hand
+ * nachstellt — genau das kostete #104 eine Fremdmessung. Die übrigen Vision-Aufrufe
+ * (`detectSealDigits`, die Riegel-Lesung, `detectDevice`) protokollieren bislang ohne diese
+ * Unterscheidung; sie können sie von hier übernehmen, wenn sie an denselben Punkt kommen.
+ */
+export function wasTruncated(stopReason: string | null | undefined): boolean {
+  return stopReason === "max_tokens" || stopReason === "length";
+}
