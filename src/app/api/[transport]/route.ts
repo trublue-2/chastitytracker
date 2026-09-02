@@ -27,7 +27,7 @@ import { executeWrite, recordAction, type WriteDef, type WriteSource } from "@/l
 import { buildWriteContext } from "@/lib/mcp/common";
 import { computeToolSurfaceFingerprint, setToolSurfaceFingerprint, toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
 import { prisma } from "@/lib/prisma";
-import { keyholderDashboard, getBoxState } from "@/lib/mcp/dashboard";
+import { keyholderDashboard, getBoxState, NOTE_TEXT_LIMIT } from "@/lib/mcp/dashboard";
 import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
 import { getOffenses, OFFENSE_TYPES } from "@/lib/mcp/ledger";
 import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
@@ -468,10 +468,18 @@ function registerTools(server: McpServer) {
           "`durationHours` messen den ganzen LAUF — nach einem Gerätewechsel in einer Pause gehören die " +
           "beiden NICHT zusammen. Die zum Gerät passende Uhr ist `deviceSince`/`deviceDurationHours`. " +
           "Zeiten durchgängig ISO-8601 mit Offset. Nutze die " +
-          "Deep-Views (get_session, device_stats, records, denial_trend, get_offenses) nur für Details.",
-        inputSchema: {},
+          "Deep-Views (get_session, device_stats, records, denial_trend, get_offenses) nur für Details. " +
+          `standingDirectives/boundaries stehen hier GEKÜRZT (je Notiz max. ${NOTE_TEXT_LIMIT} Zeichen ` +
+          "Fliesstext, erkennbar an textTruncated; doDont bleibt vollständig) — den Volltext holt query_notes.",
+        inputSchema: {
+          includeNotes: z.boolean().optional().describe(
+            "Gepinnte standingDirectives/boundaries mitliefern (Default true). false lässt sie ganz " +
+            "weg und nennt die Zahl in notesOmitted — nur nutzen, wenn die Antwort sonst zu gross " +
+            "wird, denn die Grenzen sind vor jeder Direktive zu lesen.",
+          ),
+        },
       },
-      () => runTool("keyholder_dashboard", keyholderDashboard),
+      (args) => runTool("keyholder_dashboard", (u) => keyholderDashboard(u, args)),
     );
 
     server.registerTool(

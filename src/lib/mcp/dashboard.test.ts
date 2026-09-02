@@ -13,7 +13,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { keyholderDashboard, getBoxState } from "./dashboard";
+import { keyholderDashboard, getBoxState, NOTE_TEXT_LIMIT } from "./dashboard";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER, type PrismaMock } from "@/test/prismaMock";
 
@@ -39,6 +39,7 @@ const DASHBOARD_KEYS = [
   "boundaries",
   "boxState",
   "healthHold",
+  "notesOmitted",
 ];
 
 beforeEach(() => {
@@ -52,7 +53,7 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
   it("liefert exakt die Vertragsfelder", async () => {
     const result = await keyholderDashboard("sub");
     expect(Object.keys(result).sort()).toEqual([...DASHBOARD_KEYS].sort());
-    expect(result.schemaVersion).toBe(19); // v19: scheduledDirectives[].wirksamAb → scheduledFor; v18: dauerH→minDurationHours, beginntAt→beginsAt (Eingang und Ausgang gleich); v17: `endetAt` heisst `endsAt` (Englisch an der MCP-Oberfläche); v16: auch goal*H ist null, wo eine Zielgrenze in der Periode liegt; v15 trug zwei Umdeutungen desselben Tages: goals folgt period_summary v3 — Prozentwerte null, wo eine Zielgrenze in der Periode liegt (goalChangedInPeriod), Tagesziel am Anbruchtag null; und `weight` folgt dem Zielgewicht — corridor/breach weg, target/remainingKg/reached an ihrer Stelle; v14: die Orgasmus-Anweisung ist terminierbar — openOrgasmWindow zeigt nur noch GELTENDE Fenster, geplante stehen in scheduledDirectives (kind: orgasm); v13: späte Annahme rettet — der Zustand einer Aufgabe ist nach einer verstrichenen Nachweis-Frist nicht mehr endgültig; v12: Nachweise mit eigener Fälligkeit — je Nachweis `dueAt`; eine Aufgabe kann seither MITTEN in ihrer Laufzeit versäumt sein und aus openTasks fallen (der damals mit angekündigte Nachweis-Zustand `overdue` kommt dort nie vor, korrigiert 16.08.2026); v11: openTasks zeigt nur noch AUSGELÖSTE Aufgaben — terminierte stehen in scheduledDirectives; v10: openTasks.holdUntil ist das WIRKSAME Ende (Dauer-Modus: startedAt + holdDurationMin); v9: openControl → openControls (je Ziel eine Kontrolle); v8: openTasks enthält auch `awaitingReview` (+ awaitingYourReview); v7: openControl.code nullable; v6: openLockRequest = die DRINGENDSTE von mehreren
+    expect(result.schemaVersion).toBe(20); // v20: standingDirectives/boundaries stehen gekappt (NOTE_TEXT_LIMIT, Marker textTruncated) und sind per includeNotes:false abbestellbar (notesOmitted) — `text` trug bis dahin immer den Volltext; v19: scheduledDirectives[].wirksamAb → scheduledFor; v18: dauerH→minDurationHours, beginntAt→beginsAt (Eingang und Ausgang gleich); v17: `endetAt` heisst `endsAt` (Englisch an der MCP-Oberfläche); v16: auch goal*H ist null, wo eine Zielgrenze in der Periode liegt; v15 trug zwei Umdeutungen desselben Tages: goals folgt period_summary v3 — Prozentwerte null, wo eine Zielgrenze in der Periode liegt (goalChangedInPeriod), Tagesziel am Anbruchtag null; und `weight` folgt dem Zielgewicht — corridor/breach weg, target/remainingKg/reached an ihrer Stelle; v14: die Orgasmus-Anweisung ist terminierbar — openOrgasmWindow zeigt nur noch GELTENDE Fenster, geplante stehen in scheduledDirectives (kind: orgasm); v13: späte Annahme rettet — der Zustand einer Aufgabe ist nach einer verstrichenen Nachweis-Frist nicht mehr endgültig; v12: Nachweise mit eigener Fälligkeit — je Nachweis `dueAt`; eine Aufgabe kann seither MITTEN in ihrer Laufzeit versäumt sein und aus openTasks fallen (der damals mit angekündigte Nachweis-Zustand `overdue` kommt dort nie vor, korrigiert 16.08.2026); v11: openTasks zeigt nur noch AUSGELÖSTE Aufgaben — terminierte stehen in scheduledDirectives; v10: openTasks.holdUntil ist das WIRKSAME Ende (Dauer-Modus: startedAt + holdDurationMin); v9: openControl → openControls (je Ziel eine Kontrolle); v8: openTasks enthält auch `awaitingReview` (+ awaitingYourReview); v7: openControl.code nullable; v6: openLockRequest = die DRINGENDSTE von mehreren
     // Die Keyholder-Regeln reicht das Dashboard aus dem (lean) Overview durch.
     expect(result.keyholderInstructions).toBe(TEST_USER.mcpKeyholderInstructions);
   });
@@ -63,6 +64,57 @@ describe("keyholderDashboard — V2-Feldbestand", () => {
       ["isLocked", "since", "currentSegmentSince", "durationHours", "currentSegmentDurationHours", "deviceName", "deviceDeclared", "deviceConfidence", "personalBestHours", "vsPersonalBestPct", "todayIncludesPriorSession", "keyInBox"].sort(),
     );
     expect(Object.keys(result.nextRelevant).sort()).toEqual(["openControls", "activeLockPeriod", "interruptedLockPeriod", "openOrgasmWindow", "openLockRequest", "openLockRequests", "openTasks"].sort());
+  });
+
+  /** Die Grösse des Einstiegs-Calls (#105) — warum sie überhaupt eine Schranke braucht, steht bei
+   *  `NOTE_TEXT_LIMIT` in `dashboard.ts`. */
+  describe("gepinnte Notizen", () => {
+    const note = (over: Record<string, unknown> = {}) => ({
+      id: "n1", type: "DIRECTIVE", status: "active", pinned: true, source: "keyholder",
+      confidence: null, kg: null, kategorie: null, text: "kurz", doDont: null,
+      validFrom: null, validUntil: null, supersedesId: null,
+      createdAt: new Date("2026-09-01T10:00:00Z"), version: 1, refs: [],
+      ...over,
+    });
+    const lang = "x".repeat(NOTE_TEXT_LIMIT + 500);
+
+    it("kappt den Fliesstext und sagt es an der Notiz", async () => {
+      db.keyholderNote.findMany.mockResolvedValue([note({ text: lang })]);
+      const [d] = (await keyholderDashboard("sub")).standingDirectives;
+      expect(d.text).toHaveLength(NOTE_TEXT_LIMIT);
+      expect(d.textTruncated).toBe(true);
+    });
+
+    /** Bei einer BOUNDARY steht die eigentliche Anweisung in `doDont` — sie ist kurz und muss
+     *  vollständig ankommen, sonst kappt die Grenze genau dort, wo sie gilt. */
+    it("lässt doDont einer Grenze unangetastet", async () => {
+      const doDont = JSON.stringify({ do: ["fragen"], dont: ["öffnen"] });
+      db.keyholderNote.findMany.mockResolvedValue([note({ type: "BOUNDARY", text: lang, doDont })]);
+      const [b] = (await keyholderDashboard("sub")).boundaries;
+      expect(b.doDont).toEqual({ do: ["fragen"], dont: ["öffnen"] });
+    });
+
+    it("kurze Notizen bleiben unberührt und ohne Marker", async () => {
+      db.keyholderNote.findMany.mockResolvedValue([note()]);
+      const result = await keyholderDashboard("sub");
+      const [d] = result.standingDirectives;
+      expect(d.text).toBe("kurz");
+      expect(d.textTruncated).toBeUndefined();
+      expect(result.notesOmitted).toBe(0);
+    });
+
+    /** Weggelassen heisst NICHT „es gibt keine": die Zahl ist der Unterschied, und ohne sie
+     *  handelte eine Keyholderin, als gäbe es ihre Grenzen nicht. Sie kommt aus einem `count` —
+     *  abgewählte Notizen werden gar nicht erst geladen, sonst spart der Schalter nichts. */
+    it("includeNotes:false lädt sie nicht und nennt die Zahl", async () => {
+      db.keyholderNote.findMany.mockResolvedValue([note(), note({ id: "n2", type: "BOUNDARY" })]);
+      db.keyholderNote.count.mockResolvedValue(2);
+      const result = await keyholderDashboard("sub", { includeNotes: false });
+      expect(result.standingDirectives).toEqual([]);
+      expect(result.boundaries).toEqual([]);
+      expect(result.notesOmitted).toBe(2);
+      expect(db.keyholderNote.findMany).not.toHaveBeenCalled();
+    });
   });
 
   it("wirft bei unbekanntem User", async () => {

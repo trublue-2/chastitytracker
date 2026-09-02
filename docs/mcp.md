@@ -248,7 +248,10 @@ tools.
 > Set these rules before letting the agent act. They are the primary way to keep
 > the autonomous writes aligned with the keyholder's intent. For richer,
 > structured guidance the agent can also read pinned directives/boundaries from
-> notes v2 (`query_notes`, surfaced in `keyholder_dashboard`).
+> notes v2 (`query_notes`, surfaced in `keyholder_dashboard` — there abbreviated
+> per note and flagged with `textTruncated`; the limit is `NOTE_TEXT_LIMIT` in
+> `src/lib/mcp/dashboard.ts` and the tool description carries its current value,
+> `query_notes` the full text).
 
 ## Security & gotchas
 

@@ -26,6 +26,10 @@ export interface QueryNotesOptions {
   entityType?: string;
   entityId?: string;
   limit?: number;
+  /** Obergrenze für den Fliesstext je Notiz, in Zeichen — gekappte Notizen tragen `textTruncated`.
+   *  Ohne Angabe der Volltext. Für Sichten, deren Grösse an der Menge der Doktrin hängt statt an der
+   *  Menge der Daten; die erste war der Einstiegs-Call (`NOTE_TEXT_LIMIT` in `mcp/dashboard.ts`). */
+  textLimit?: number;
 }
 
 export interface NotesResult extends Envelope {
@@ -66,7 +70,7 @@ export async function queryNotes(username: string, opts: QueryNotesOptions = {})
     take: Math.min(Math.max(1, opts.limit ?? 50), 200),
     select: noteSelect,
   });
-  return { schemaVersion: 2, user: username, ...buildEnvelope(now, iso, timezone), returnedCount: notes.length, unknownRef, notes: notes.map((n) => toNoteDTO(n, iso)) };
+  return { schemaVersion: 2, user: username, ...buildEnvelope(now, iso, timezone), returnedCount: notes.length, unknownRef, notes: notes.map((n) => toNoteDTO(n, iso, opts.textLimit)) };
 }
 
 // ── Write: upsert_note ──────────────────────────────────────────────────────
