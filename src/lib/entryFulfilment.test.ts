@@ -276,7 +276,9 @@ describe("Welche Uhr die Erfassungs-Routen an applyEntryFulfilment geben", () =>
   }
 
   const sub = callArgs("src/app/api/entries/route.ts");
-  const admin = callArgs("src/app/api/admin/entries/route.ts");
+  // Der Keyholder-Pfad liegt seit der MCP-Öffnung im DIENST, nicht mehr in der Route — der
+  // Wächter folgt ihm dorthin. Was er bewacht, ist unverändert: WELCHE Uhr die Erfüllung datiert.
+  const admin = callArgs("src/lib/entryCreateService.ts");
 
   it("zerlegt beide Aufrufe vollständig", () => {
     // Der Selbsttest des Wächters: stimmt die Zahl nicht, ist die Zerlegung an einer Klammer
@@ -299,8 +301,8 @@ describe("Welche Uhr die Erfassungs-Routen an applyEntryFulfilment geben", () =>
     // Die RICHTUNG des Ternärs ist die Eigenschaft, nicht sein Vorhandensein: erfasst die
     // Keyholderin für SICH, ist sie der Sub und es gilt die Server-Uhr. Vertauscht bedeutete
     // dieselbe Zeile das Gegenteil — und wäre die offene Hintertür.
-    const decl = readFileSync("src/app/api/admin/entries/route.ts", "utf8")
+    const decl = readFileSync("src/lib/entryCreateService.ts", "utf8")
       .match(/const fulfilAt = .*/)?.[0] ?? "";
-    expect(decl).toMatch(/userId === session\.user\.id\s*\?\s*new Date\(\)\s*:\s*entryTime/);
+    expect(decl).toMatch(/userId === opts\.actorUserId\s*\?\s*new Date\(\)\s*:\s*entryTime/);
   });
 });

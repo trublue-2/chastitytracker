@@ -84,8 +84,12 @@ Der Sub sieht seine Einträge vollständig und kann sie bearbeiten. Beratende Pr
 `segmentsByDevice`, `effectiveDevice`), `entryFulfilment.ts`, `src/app/api/entries/route.ts`,
 `src/app/api/admin/entries/route.ts`.
 
+Die beiden Keyholder-Wege liegen als Dienste daneben, weil die KI-Keyholderin sie über den MCP
+mitbenutzt: `entryCreateService.ts` (nachtragen, `add_entry`) und `entryCorrection.ts`
+(korrigieren, `edit_entry`). Die Routen sind dort nur noch Rechte-Prüfung plus Aufruf.
+
 ## Tests
 
 `sessionModel.test.ts`, `wearSessions.test.ts`, `utils.test.ts`, `utils.time.test.ts`,
 `entryFulfilment.test.ts`, `entryFormRoute.test.ts`, `entryErrors.test.ts`, `entryNotify.test.ts`,
-`deviceUsage.test.ts`, `statsBuilders.test.ts`.
+`deviceUsage.test.ts`, `statsBuilders.test.ts`, `entryCorrection.test.ts`, `mcpAddEntry.test.ts`.

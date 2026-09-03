@@ -6,6 +6,13 @@
       {
         "type": "fix",
         "text": {
+          "de": "Die KI-Keyholderin kann jetzt auch ein Ereignis für den Träger nachtragen — Verschluss, Öffnen, Prüfung, Orgasmus oder eine Trage-Zeit, auch rückdatiert. Bisher konnte das nur die Keyholderin im Formular.",
+          "en": "The AI keyholder can now also record an event on the user’s behalf — locking, opening, inspection, orgasm or a wear session, backdated if needed. Until now only the keyholder could, through her form."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
           "de": "Die KI-Keyholderin sieht jetzt den ganzen Kontroll-Verlauf — erfüllt, verspätet, versäumt, zurückgezogen — statt nur der gerade offenen und der versäumten Kontrolle.",
           "en": "The AI keyholder can now see the full inspection history — fulfilled, late, missed, withdrawn — instead of only the currently open and the missed ones."
         }

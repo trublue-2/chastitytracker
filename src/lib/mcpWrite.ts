@@ -45,10 +45,12 @@ import { goalCategoryKey } from "@/lib/vorgaben";
 import { goalDateFromInput } from "@/lib/vorgabeService";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
 import type { ServiceResult } from "@/lib/serviceResult";
+import { KEYHOLDER_LOCK_STATE_WORDING } from "@/lib/serviceErrorCodes";
 import en from "../../messages/en.json";
 import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/taskProofService";
 import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
 import { correctEntry, correctionProblem, type EntryCorrection } from "@/lib/entryCorrection";
+import { createEntryForUser, validateEntryCreate } from "@/lib/entryCreateService";
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
 import { releaseNow, previewReleaseNow } from "@/lib/releaseNowService";
 import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
@@ -2208,6 +2210,94 @@ export async function mcpRecordOffense(username: string, args: RecordOffenseArgs
     id: created.id,
     message: `Offense noted for ${iso(occurredAt)}: "${title}". It now counts as a detected offense in the Strafbuch — rule on it with judge_offense (ref: ${created.id}), or take a wrong note back with withdraw target:"manual_offense". The user is not notified.`,
   };
+}
+
+// ── Entry: add an event for the user ─────────────────────────────────────────
+
+export interface AddEntryArgs {
+  type: "VERSCHLUSS" | "OEFFNEN" | "PRUEFUNG" | "ORGASMUS" | "WEAR_BEGIN" | "WEAR_END";
+  at: string;
+  deviceName?: string;
+  note?: string;
+  /** Nur OEFFNEN: der Grund (Code wie in `get_context`). */
+  openingReason?: string;
+  /** Nur ORGASMUS: die Art (Code wie in `get_context`). */
+  orgasmType?: string;
+  dryRun?: boolean;
+}
+
+/**
+ * Trägt ein Ereignis FÜR den Träger nach — der Weg, den die Keyholderin im Formular geht.
+ *
+ * Wofür: er war beim Einschliessen dabei und hat es selbst nicht erfasst, das Handy war leer, die
+ * Trage-Zeit begann, während er schlief. Rückdatieren ist hier ausdrücklich erlaubt — das ist der
+ * Unterschied zum Weg des Trägers, der sich sonst aus jeder Frist herausdatieren könnte.
+ *
+ * OHNE FOTO. Eine KI liefert keine Bilder, und die Prüfung, die eins verlangt, wird auf diesem Weg
+ * gar nicht erst angenommen (`WEAR_PHOTO_REQUIRED` bzw. die leere Nachweis-Lage): das ist keine
+ * Einschränkung dieses Werkzeugs, sondern die Regel des Modells — ein Nachweis ohne Nachweis wäre
+ * keiner.
+ *
+ * Die Regeln kommen aus {@link createEntryForUser}, demselben Dienst, den das Formular ruft: was
+ * der Eintrag abhakt, ob er eine Sperrzeit freigibt, ob eine Kontrolle nach dem Einschliessen folgt
+ * und wer davon erfährt.
+ */
+export async function mcpAddEntry(username: string, args: AddEntryArgs) {
+  const userId = await resolveTargetUserId(username);
+  const iso = await isoForUser(userId);
+  const at = parseIsoDate(args.at, "at");
+  if (!at) throw new Error("`at` is required (ISO 8601).");
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error(`User not found: ${username}`);
+  const deviceId = args.deviceName ? await resolveAnyDeviceId(userId, null, args.deviceName) : undefined;
+
+  if (args.dryRun) {
+    // DIESELBE Prüfung, die der Commit als erste fährt — sie ist schreibfrei und der Träger ist
+    // bereits geladen, es gibt also keinen Grund, sie der Vorschau vorzuenthalten: fehlende Notiz,
+    // unbekannter Öffnungsgrund, Zeitpunkt in der Zukunft fallen hier auf.
+    //
+    // Offen bleibt allein die KETTE (schon verschlossen? zwei gleichartige in Folge?): die liest
+    // der Dienst in seiner Transaktion, und eine Vorschau davor wäre eine zweite Uhr auf denselben
+    // Zustand. Der `caveat` sagt genau das — und nicht mehr.
+    const problem = validateEntryCreate(user, { type: args.type, startTime: at, note: args.note,
+      oeffnenGrund: args.openingReason, orgasmusArt: args.orgasmType, deviceId });
+    return dryRunPreview("add_entry", problem ? enErrorText(problem) : undefined, {
+      type: args.type, at: iso(at), device: args.deviceName ?? null, note: args.note ?? null,
+      openingReason: args.openingReason ?? null, orgasmType: args.orgasmType ?? null,
+      caveat: "Chain checks (already locked / not locked / order) run at commit time.",
+    });
+  }
+
+  const result = await createEntryForUser(user, {
+    type: args.type,
+    startTime: at,
+    note: args.note,
+    oeffnenGrund: args.openingReason,
+    orgasmusArt: args.orgasmType,
+    deviceId,
+    // `actorUserId: null` — die KI ist kein Empfänger, und die menschliche Keyholderin soll
+    // erfahren, was ihre KI erfasst hat; gestrichen wird deshalb niemand.
+  }, { actorUserId: null });
+
+  if (!result.ok) throw new Error(enErrorText(keyholderWordingFor(result.error)));
+  return {
+    ok: true,
+    id: result.entry.id,
+    type: result.entry.type,
+    at: iso(result.entry.startTime),
+    message: "Entry recorded for the user. Everything derived from it — session, statistics, ledger — follows on its own.",
+  };
+}
+
+/**
+ * Zwei Absagen des Entry-Pfads sind an den TRÄGER adressiert („Öffnen nur möglich, wenn aktuell
+ * verschlossen") — hier liest sie eine Keyholderin ÜBER ihren Träger. Die Übersetzung kommt aus
+ * derselben Tabelle, die `createVerschlussAnforderung` benutzt; abgeschrieben liefen die beiden
+ * auseinander, sobald jemand eine dritte Zustands-Absage ergänzt.
+ */
+function keyholderWordingFor(code: string): string {
+  return (KEYHOLDER_LOCK_STATE_WORDING as Record<string, string>)[code] ?? code;
 }
 
 // ── Entry: correct a recorded event ──────────────────────────────────────────

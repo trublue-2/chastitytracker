@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminActor } from "@/lib/authGuards";
-import { validateEntryPayload, DEVICE_BEARING_TYPES } from "@/lib/constants";
-import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
-import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, getKgNeighbors } from "@/lib/queries";
-import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { applyEntryFulfilment } from "@/lib/entryFulfilment";
-import { triggerPostLockInspection } from "@/lib/autoKontrolleService";
-import { boltFieldsFor } from "@/lib/lockPending";
-import { findPendingLockTx } from "@/lib/lockCommit";
-import { notifyControllersAboutEntry } from "@/lib/entryNotify";
+import { createEntryForUser } from "@/lib/entryCreateService";
 
+/**
+ * Ein Ereignis für einen Träger nachtragen — der Keyholder-Pfad.
+ *
+ * Die REGELN stehen in `entryCreateService.ts`: Rückdatierung, Nachbar-Prüfung, Sperrzeit-Freigabe,
+ * Erfüllung, Riegel-Felder und die Meldung an die übrigen Kontrolleure. Sie liegen dort, weil die
+ * KI-Keyholderin denselben Weg über den MCP nimmt (`add_entry`) — zwei Fassungen dieser Kette wären
+ * beim nächsten Umbau zwei verschiedene Wahrheiten darüber, was ein Nachtrag anstösst.
+ */
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { userId, type, startTime, note, oeffnenGrund, orgasmusArt, imageUrl, imageExifTime, kontrollCode, deviceId } = body;
+  const { userId, type, startTime, note, oeffnenGrund, orgasmusArt, imageUrl, imageExifTime, kontrollCode, deviceId,
+    keyInBox, boxImageUrl } = body;
 
   if (!userId) return NextResponse.json({ error: "USER_ID_REQUIRED" }, { status: 400 });
 
@@ -25,147 +26,13 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
 
-  const devBypass = isDevBypassEnabled(req.headers.get("host"));
-  const validationError = validateEntryPayload(body, { requirePhotoForPruefung: false, allowFuture: devBypass }, {
-    orgasmAllowed: (v) => orgasmusValueAllowed(v, user.orgasmusArtenConfig),
-    openingCodes: validOeffnenCodes(user.oeffnenGruendeConfig),
-  });
-  if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
-
-  let entry;
-  // In der Transaktion ermittelt, nach dem Commit für Meldung bzw. Ahndung wiederverwendet.
-  let brokeLockPeriod = false;
-  try {
-    entry = await prisma.$transaction(async (tx) => {
-      // Validate deviceId ownership inside transaction to avoid TOCTOU
-      if (deviceId && DEVICE_BEARING_TYPES.includes(type)) {
-        const device = await validateDeviceOwnership(deviceId, userId, tx);
-        if (!device) throw entryGuardError("INVALID_DEVICE");
-      }
-
-      // WEAR_BEGIN / WEAR_END: shared validation lives in lib/queries.ts (single source of truth).
-      if (type === "WEAR_BEGIN" || type === "WEAR_END") {
-        const wearResult = await prepareWearEntry(tx, userId, type, deviceId, startTime, imageUrl);
-        if (!wearResult.ok) throw entryGuardError(wearResult.code);
-      }
-
-      // tx durchreichen: der Read-then-Write-Guard muss in DERSELBEN Transaktion lesen (TOCTOU).
-      // Die REINIGUNGS-Kontrolle löst ein VERSCHLUSS hier weiterhin nicht aus (sie steht am
-      // Selbst-Erfassungs-Pfad des Subs, siehe `scheduleCleaningRelockInspection`): ein um 23:00
-      // nachgetragener Verschluss von 14:00 plante sonst eine Kontrolle „in 15–45 Minuten" — der
-      // Planer rechnet ab jetzt, nicht ab `startTime`.
-      // Die VERSCHLUSS-Kontrolle (`postLockInspectionEnabled`) gilt hier dagegen ausdrücklich, weil
-      // die Keyholderin ihren Träger meist einschliesst und den Eintrag dabei tippt. Gegen denselben
-      // Nachtrags-Fall schützt dort ein anderer Wächter: sie feuert nur, wenn der Träger JETZT
-      // verschlossen ist (siehe `schedulePostLockInspection`).
-      // Hinweis: die Admin-Route hat bewusst KEINEN TIME_BEFORE-Guard (Backdating ist erlaubt) —
-      // der neue Eintrag darf also zeitlich VOR den bisher jüngsten KG-Eintrag rutschen. `prev` ist
-      // dabei NICHT dasselbe wie `getLatestKgEntry`: nur ohne Backdating (dem Normalfall) fallen
-      // beide zusammen, weshalb ein einziger Nachbar-Query beide Fälle abdeckt — kein zweiter,
-      // redundanter Query gegen denselben global-jüngsten Eintrag.
-      //
-      // `next` fängt die Anomalie, die der reine ALREADY_LOCKED/NOT_LOCKED-Check (gegen `prev`)
-      // nicht sieht: der neue Eintrag landet zwischen einem bestehenden Paar und erzeugt zwei
-      // gleichartige KG-Einträge (VERSCHLUSS/VERSCHLUSS oder OEFFNEN/OEFFNEN) hintereinander.
-      if (type === "VERSCHLUSS" || type === "OEFFNEN") {
-        const { prev, next } = await getKgNeighbors(userId, new Date(startTime), tx);
-        if (next && next.type === type) throw entryGuardError("INVALID_ORDER");
-
-        if (type === "VERSCHLUSS" && prev?.type === "VERSCHLUSS") throw entryGuardError("ALREADY_LOCKED");
-        // Ein wartender Verschluss-AUFRUF des Trägers zählt für die Nachbar-Suche bewusst nicht als
-        // Verschluss — er darf hier trotzdem nicht überschrieben werden: die Keyholderin trüge einen
-        // zweiten ein, die Box meldete danach den Riegel, und der Vollzug setzte einen ZWEITEN
-        // Verschluss unmittelbar hinter ihren — zwei gleichartige Einträge in Folge, also genau die
-        // verwaiste Anomalie, die `INVALID_ORDER` verhindern soll. Sie hat zwei Wege: den Schalter
-        // umlegen (das vollzieht den Aufruf) oder ihn vom Träger zurücknehmen lassen.
-        if (type === "VERSCHLUSS" && await findPendingLockTx(tx, userId)) {
-          throw entryGuardError("LOCK_ALREADY_PENDING");
-        }
-
-        if (type === "OEFFNEN") {
-          if (!prev || prev.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
-          // Admin-opened entries must release the lock period too, otherwise the
-          // user still appears locked. Reinigungs-Regeln aus dem vorab geladenen User.
-          brokeLockPeriod = await releaseLockPeriodsOnOpen(userId, oeffnenGrund, tx, "user", user);
-        }
-      }
-
-      const entryTime = new Date(startTime);
-      const created = await tx.entry.create({
-        data: {
-          userId,
-          type,
-          startTime: entryTime,
-          note: note?.trim() || null,
-          oeffnenGrund: oeffnenGrund || null,
-          orgasmusArt: orgasmusArt || null,
-          imageUrl: imageUrl || null,
-          imageExifTime: imageExifTime ? new Date(imageExifTime) : null,
-          kontrollCode: kontrollCode || null,
-          // PRUEFUNG trägt seit v5.0.1 das kontrollierte Gerät (Trage-Kontrollen) — hier nur als
-          // Datum am Eintrag: eine vom Keyholder nachgetragene Prüfung erfüllt bewusst keine
-          // Anforderung (das tut nur die Einreichung des Subs, siehe /api/entries).
-          deviceId: DEVICE_BEARING_TYPES.includes(type)
-            ? (deviceId || null)
-            : null,
-          // Der Keyholder-Pfad wartet NIE auf den Riegel (docs/riegel-konzept.md): sie trägt nach,
-          // oft rückdatiert, und ein Riegel, der zu diesem Zeitpunkt zufiele, gibt es nicht. Ohne
-          // diese Zeile bliebe JEDER von ihr erfasste Verschluss dauerhaft schwebend — auf jeder
-          // Instanz, auch ganz ohne Box.
-          ...boltFieldsFor(type, entryTime),
-        },
-      });
-
-      // Was dieser Eintrag abhakt — dieselbe Logik wie auf dem Sub-Pfad (entryFulfilment.ts), mit
-      // zwei bewussten Unterschieden:
-      //
-      // 1. `at = entryTime` statt der Server-Uhr: hier darf rückdatiert werden, und dann ist der
-      //    Moment des Erfassens der falsche Bezug — ein nachgetragener pünktlicher Verschluss
-      //    gälte sonst als „zu spät". Ausnahme: erfasst jemand für SICH SELBST (ein Nutzer mit
-      //    Admin-Rolle, der auch getrackt wird), zählt die Server-Uhr — sonst könnte er eine
-      //    eigene Verfehlung durch einen passend datierten Nachtrag auslöschen.
-      // 2. KEINE Kontroll-Anforderung (`verification: null`): eine vom Keyholder nachgetragene
-      //    Prüfung erfüllt bewusst keine — das tut nur die Einreichung des Subs. Bleibt sie offen
-      //    und läuft ab, ist der Rückzug der Anforderung das vorgesehene Mittel, nicht ein
-      //    Eintrag ohne eingereichten Nachweis.
-      const fulfilAt = userId === session.user.id ? new Date() : entryTime;
-      // Rückgabe (die geforderten Geräte) bleibt ungenutzt — siehe unten, warum dieser Pfad nicht
-      // automatisch ahndet.
-      await applyEntryFulfilment(tx, created, { verification: null, targetWhere: null }, fulfilAt);
-
-      return created;
-    });
-  } catch (e: unknown) {
-    return NextResponse.json({ error: entryGuardCode(e) }, { status: 400 });
-  }
-
-  // KEINE automatische Falsch-Gerät-Ahndung auf diesem Pfad — bewusst, anders als beim Sub. Das
-  // Keyholder-Formular zeigt nicht an, welches Gerät die Anforderung verlangt, und wählt es nicht
-  // vor (`anforderungDeviceId` gibt es nur im Sub-Formular). Ein leer gelassenes Feld trüge dem SUB
-  // eine bereits abgeurteilte Strafe ein, die im Urteilsloop nie auftaucht — er würde für einen
-  // Tippfehler seiner Keyholderin bestraft. Sie sieht das Gerät am Eintrag und urteilt selbst.
-
-  // Meldung an die Kontrolleure des Subs. Bis hierher fehlte sie auf diesem Pfad ganz: ein von der
-  // Keyholderin erfasster Eintrag löste weder Mail noch Push aus (Vorfall 03.08.2026). Sie selbst
-  // ist NICHT Empfängerin — sie hat den Eintrag gerade getippt.
-  // Kontrolle nach dem Einschliessen — auch auf diesem Pfad, siehe die Begründung oben.
-  if (type === "VERSCHLUSS") triggerPostLockInspection(userId);
-
-  void notifyControllersAboutEntry({
-    userId,
-    actorUserId: session.user.id,
-    username: user.username,
-    type,
-    startTime: entry.startTime,
-    withdrawnLockPeriod: brokeLockPeriod,
-    oeffnenGrund: entry.oeffnenGrund,
-    orgasmusArt: entry.orgasmusArt,
-    kontrollCode: entry.kontrollCode,
-    note: entry.note,
-    imageUrl: entry.imageUrl,
-    deviceId: entry.deviceId,
-    reasonConfig: user,
-  });
-
-  return NextResponse.json(entry, { status: 201 });
+  const result = await createEntryForUser(
+    user,
+    { type, startTime, note, oeffnenGrund, orgasmusArt, imageUrl, imageExifTime, kontrollCode, deviceId,
+      // Geprüft, nicht geschrieben — wie vor der Extraktion (Begründung an `EntryCreateInput`).
+      keyInBox, boxImageUrl },
+    { actorUserId: session.user.id, allowFuture: isDevBypassEnabled(req.headers.get("host")) },
+  );
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+  return NextResponse.json(result.entry, { status: 201 });
 }

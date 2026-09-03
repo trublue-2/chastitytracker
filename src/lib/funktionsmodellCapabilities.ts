@@ -74,7 +74,6 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
   "weight-delete": "Absicht: eine Messung ist eine BEOBACHTUNG, keine Einstellung. Korrigieren kann die KI sie über `log_weight` (ein Wert je Tag, der neue ersetzt den alten) — eine Beobachtung ganz zu entfernen, samt Foto, bleibt beim Menschen. Der Unterschied ist nicht die Gefahr, sondern die Art der Handlung: die KI ändert, was gilt; was NIE gegolten haben soll, entscheidet die Keyholderin.",
 
   // ── OFFEN: echte Lücken, noch nicht geschlossen ────────────────────────────────────────────
-  "entry-admin-create": "OFFEN: Ereignis für den Träger nachtragen. Braucht zuerst eine Service-Extraktion — die Logik liegt inline in `/api/admin/entries`.",
   "entry-admin-edit": "OFFEN: das LÖSCHEN eines fremden Eintrags sowie die Felder `oeffnenGrund` und `orgasmusArt`. Gerät, Zeitpunkt und Notiz deckt `edit_entry` ab (Fähigkeit `entry-correct-mcp`, eigene Zeile wie beim Gewicht). Löschen bleibt vorerst beim Menschen: es bricht die Paar-Kette und verlangt die Entscheidung über den Partner-Eintrag.",
   "device-references": "OFFEN: Referenzbilder der Geräte-Erkennung pflegen (Liste, Löschen).",
   "device-references-import": "OFFEN: vorhandene Verschluss-Fotos als Referenz übernehmen — braucht keinen Upload und wäre damit KI-fähig.",
@@ -104,8 +103,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "entry-admin-create", mechanic: "Einträge", title: "Eintrag für einen Sub nachtragen",
     what: "Legt einen Eintrag im Namen des Trägers an — hier ist Rückdatieren erlaubt.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/entries"],
-    note: "Löst bewusst KEINE Reinigungs-Kontrolle aus: der Planer rechnet ab jetzt, nicht ab der Eintrags-Zeit.",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"], routes: ["/api/admin/entries"],
+    tools: ["add_entry"],
+    note: "Löst bewusst KEINE Reinigungs-Kontrolle aus: der Planer rechnet ab jetzt, nicht ab der Eintrags-Zeit. Beide Wege gehen durch `createEntryForUser`. Die KI kann kein Foto liefern: eine Trage-Kategorie mit Foto-Pflicht weist den Eintrag deshalb ab, eine Prüfung wird auch ohne angenommen — sie erfüllt auf diesem Weg ohnehin keine Anforderung.",
   }),
   c({
     id: "entry-admin-edit", mechanic: "Einträge", title: "Fremden Eintrag ändern",

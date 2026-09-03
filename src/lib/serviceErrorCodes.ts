@@ -384,3 +384,17 @@ export type ServiceErrorCode =
   | (typeof WEIGHT_CODES)[number]
   | (typeof HEALTH_HOLD_CODES)[number]
   | (typeof ENTRY_CORRECTION_CODES)[number];
+
+/**
+ * Die Keyholder-Fassung der beiden Verschluss-Absagen — die Übersetzung, die der Absatz oben
+ * begründet („Was ist NICHT geteilt").
+ *
+ * Als Tabelle, weil zwei Stellen sie brauchen: `createVerschlussAnforderung` wirft die Entry-Codes
+ * in ihrer Transaktion und fängt sie darüber ab, und `add_entry` reicht die Absage des
+ * Nachtrag-Dienstes an eine KI weiter, die über einen DRITTEN urteilt. Abgeschrieben liefen die
+ * beiden auseinander, sobald jemand eine dritte Zustands-Absage ergänzt.
+ */
+export const KEYHOLDER_LOCK_STATE_WORDING = {
+  ALREADY_LOCKED: "USER_ALREADY_LOCKED",
+  NOT_LOCKED: "USER_NOT_LOCKED",
+} as const satisfies Record<string, ServiceErrorCode>;

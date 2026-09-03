@@ -13,7 +13,7 @@ import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod,
   mcpReleaseNow, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetBox, mcpSetWeightTracking, mcpSetWeightRelease, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
-  mcpReviewTaskProof, mcpEditTask, mcpEditEntry,
+  mcpReviewTaskProof, mcpEditTask, mcpEditEntry, mcpAddEntry,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
 import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
@@ -1422,6 +1422,35 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runWriteTool("edit_task", extra, args, (u) => mcpEditTask(u, args)),
+    );
+
+    server.registerTool(
+      "add_entry",
+      {
+        title: "Record an event for the user",
+        description:
+          "Records an event on the user's behalf — the same thing the keyholder does in her form: he was " +
+          "locked in your presence and did not log it, his phone was dead, the wear session started while he " +
+          "slept. BACKDATING IS ALLOWED here (that is the difference from his own path, where it would let " +
+          "him date his way out of every deadline). What follows from the entry follows on its own: what it " +
+          "fulfils, whether it releases a lock period, whether an inspection follows the lock-in. " +
+          "NO PHOTO — you cannot supply one. A wear category that demands a photo refuses the entry; an " +
+          "inspection (PRUEFUNG) is accepted without one, but it fulfils no inspection request either way " +
+          "(only the user's own submission does that). Chain checks (already locked / not locked / two of a " +
+          "kind in a row) run at commit time — dryRun runs everything else." + KEYHOLDER_NOTE,
+        inputSchema: {
+          type: z.enum(["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS", "WEAR_BEGIN", "WEAR_END"])
+            .describe("What happened. VERSCHLUSS = locked, OEFFNEN = opened, PRUEFUNG = inspection, ORGASMUS = orgasm, WEAR_BEGIN/WEAR_END = wear session."),
+          at: z.string().describe("When it happened (ISO 8601). May be in the past."),
+          deviceName: z.string().optional().describe("Device (name as in get_devices). Required for WEAR_BEGIN/WEAR_END."),
+          note: z.string().optional(),
+          openingReason: z.string().optional().describe("OEFFNEN only: the reason code (see get_context)."),
+          orgasmType: z.string().optional().describe("ORGASMUS only: the type code (see get_context)."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("add_entry", extra, args, (u) => mcpAddEntry(u, args)),
     );
 
     server.registerTool(

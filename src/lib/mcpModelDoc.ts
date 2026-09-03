@@ -392,6 +392,10 @@ unterscheiden. Der Bestand steht in \`get_context.healthHold\` und im \`keyholde
   \`device_stats\`, \`records\`, \`period_summary\`, \`denial_trend\`, \`get_offenses\`, \`get_devices\`,
   \`get_context\`, \`query_notes\`, \`get_action_log\`, \`get_box_state\`, \`timeline\`, \`list_entries\`
   (Roh-Einträge). Jede Deep-View trägt eine \`schemaVersion\` — gleiche Nummer = gleiche Feld-Bedeutung.
+- **Einträge nachtragen**: \`add_entry\` erfasst ein Ereignis FÜR den Träger — er war beim
+  Einschliessen dabei und hat es nicht selbst eingetragen, sein Handy war leer. Rückdatieren ist
+  hier erlaubt (auf SEINEM Weg nicht, sonst datierte er sich aus jeder Frist heraus). Ein Foto kannst
+  du nicht liefern; eine Trage-Kategorie mit Foto-Pflicht weist den Eintrag deshalb ab.
 - **Einträge korrigieren**: \`edit_entry\` stellt Gerät, Zeitpunkt oder Notiz eines erfassten
   Verschluss-/Öffnen- oder Trage-Eintrags richtig — der häufigste Anlass ist das beim Verschluss
   verwechselte Gerät. Alles Abgeleitete (Sessions, Statistik, Gerätestunden, Strafbuch) zieht von
