@@ -4,6 +4,7 @@ import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { listEntries } from "@/lib/mcp/entries";
 import { listInspections } from "@/lib/mcp/inspections";
+import { listReferences } from "@/lib/mcp/deviceReferences";
 import { loadMcpImage, mcpImageToolVisible } from "@/lib/mcp/entryImage";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { OFFENSE_RULE_MODES } from "@/lib/offenseRules";
@@ -14,6 +15,7 @@ import {
   mcpReleaseNow, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetBox, mcpSetWeightTracking, mcpSetWeightRelease, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
   mcpReviewTaskProof, mcpEditTask, mcpEditEntry, mcpAddEntry,
+  mcpImportDeviceReferences, mcpDeleteDeviceReference, mcpDeleteEntry,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
 import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
@@ -378,6 +380,23 @@ function registerTools(server: McpServer) {
         },
       },
       (args) => runTool("list_inspections", (username) => listInspections(username, args)),
+    );
+
+    server.registerTool(
+      "list_device_references",
+      {
+        title: "List a device's reference images",
+        description:
+          "The images the photo recognition uses to identify this device. Read this before you judge a " +
+          "deviceCheck: a device with NO references is never recognised — that is a missing basis, not a " +
+          "suspicion. The image itself is not returned, and you will usually not be able to look at it " +
+          "either: get_image only serves entries from the last 24h, while references are curated older " +
+          "material. sourceEntryId still tells you WHICH lock a reference came from.",
+        inputSchema: {
+          deviceName: z.string().describe("Device name as in get_devices."),
+        },
+      },
+      (args) => runTool("list_device_references", (username) => listReferences(username, args)),
     );
 
     server.registerTool(
@@ -1425,6 +1444,45 @@ function registerTools(server: McpServer) {
     );
 
     server.registerTool(
+      "import_device_references",
+      {
+        title: "Adopt existing photos as reference images",
+        description:
+          "Takes photos the user already submitted and adds them as reference images for a device — the " +
+          "material the recognition matches against. This is the way OPEN TO YOU: uploading needs a file, " +
+          "his photos are already there. Without references a device is never recognised, and every " +
+          "deviceCheck on it stays inconclusive. Pass entryId for one specific photo, otherwise the most " +
+          "recent lock photos of that device are taken (1-10, default 5). Already imported photos are " +
+          "skipped." + KEYHOLDER_SILENT,
+        inputSchema: {
+          deviceName: z.string().describe("Device name as in get_devices."),
+          entryId: z.string().optional().describe("Adopt exactly this photo (entry id from list_entries)."),
+          limit: z.number().int().min(1).max(10).optional().describe("How many recent lock photos to take (default 5). Ignored with entryId."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("import_device_references", extra, args, (u) => mcpImportDeviceReferences(u, args)),
+    );
+
+    server.registerTool(
+      "delete_device_reference",
+      {
+        title: "Remove a reference image",
+        description:
+          "Removes one reference image (id from list_device_references). A BAD reference is worse than none: " +
+          "it pulls the recognition towards a device that no longer looks like that, and the deviceCheck then " +
+          "reports differences that are not real." + KEYHOLDER_SILENT,
+        inputSchema: {
+          referenceId: z.string().describe("Reference id (from list_device_references)."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("delete_device_reference", extra, args, (u) => mcpDeleteDeviceReference(u, args)),
+    );
+
+    server.registerTool(
       "add_entry",
       {
         title: "Record an event for the user",
@@ -1437,7 +1495,8 @@ function registerTools(server: McpServer) {
           "NO PHOTO — you cannot supply one. A wear category that demands a photo refuses the entry; an " +
           "inspection (PRUEFUNG) is accepted without one, but it fulfils no inspection request either way " +
           "(only the user's own submission does that). Chain checks (already locked / not locked / two of a " +
-          "kind in a row) run at commit time — dryRun runs everything else." + KEYHOLDER_NOTE,
+          "kind in a row) run at commit time — dryRun runs everything else. The user is NOT notified; his " +
+          "other keyholders are (the same mail/push they get for his own entries)." + KEYHOLDER_BASE,
         inputSchema: {
           type: z.enum(["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS", "WEAR_BEGIN", "WEAR_END"])
             .describe("What happened. VERSCHLUSS = locked, OEFFNEN = opened, PRUEFUNG = inspection, ORGASMUS = orgasm, WEAR_BEGIN/WEAR_END = wear session."),
@@ -1464,18 +1523,40 @@ function registerTools(server: McpServer) {
           "Everything derived — sessions, statistics, device hours, the ledger — follows on its own; there " +
           "is nothing to re-stamp. Photos, inspection code and verification status are NOT editable here: " +
           "they are the evidence, and a human looks at them. The user is NOT notified — a correction is not " +
-          "a directive; it is recorded in the action log with your reason." + KEYHOLDER_NOTE,
+          "a directive; it is recorded in the action log with your reason." + KEYHOLDER_SILENT,
         inputSchema: {
           id: z.string().describe("Entry id (from list_entries)."),
           startTime: z.string().optional().describe("New timestamp (ISO 8601). Must not break the pair order."),
           deviceName: z.string().optional().describe("New device (name as in get_devices)."),
           clearDevice: z.boolean().optional().describe("Remove the device from this entry."),
           note: z.string().optional().describe('New note; "" clears it.'),
+          openingReason: z.string().optional().describe("OEFFNEN only: the reason code (see get_context)."),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
       },
       (args, extra) => runWriteTool("edit_entry", extra, args, (u) => mcpEditEntry(u, args)),
+    );
+
+    server.registerTool(
+      "delete_entry",
+      {
+        title: "Remove a recorded entry",
+        description:
+          "Removes an entry that should never have been there. Sharper than edit_entry, which only corrects " +
+          "a field. Paired entries (lock/open, wear begin/end) sit in a CHAIN: if removing one would leave " +
+          "two halves of the same kind next to each other, this refuses and names the partner — pass " +
+          "withPartner:true to remove the pair together. Everything derived follows on its own; a deleted " +
+          "inspection releases its request again." + KEYHOLDER_SILENT,
+        inputSchema: {
+          id: z.string().describe("Entry id (from list_entries)."),
+          withPartner: z.boolean().optional().describe("Also remove the pair partner where removing alone would break the chain."),
+          force: z.boolean().optional().describe("Remove only this entry and accept the chain gap — for merging a session that two mistaken entries split in two (remove both halves one after the other)."),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("delete_entry", extra, args, (u) => mcpDeleteEntry(u, args)),
     );
 
     // ── MCP V2 WRITE tools — laufen durchs zentrale Write-Framework (Pflicht-reason + Audit + ──

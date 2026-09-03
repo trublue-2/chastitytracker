@@ -65,6 +65,7 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
   // ── Absicht: gehört nicht in die Hand einer KI ─────────────────────────────────────────────
   "user-manage": "Absicht: Passwörter, E-Mail, Benutzername, Löschen — Zugang und Identität. Eine KI mit Passwort-Hoheit könnte den Träger aussperren.",
   "keyholder-assign": "Absicht: die KI entschiede über ihre eigene Berufung mit.",
+  "notify-prefs-admin": "Absicht: dasselbe Muster wie `keyholder-assign`. Das Raster steuert die Meldungen ÜBER die Einträge des Trägers AN DIE KEYHOLDER (`NOTIFICATION_EVENT_TYPES`, Begründung in `constants.ts`) — es abzuschalten hiesse, die Aufsicht stillzulegen, unter der die KI selbst steht. LESEN darf sie es: `get_context.notifications` beantwortet die Frage, warum jemand von etwas nichts erfahren hat, ohne etwas zu verstellen.",
   "demo-data": "Absicht: Werkzeug des Betreibers, nicht der Keyholderin (zusätzlich ENV-gegated).",
   // ── Absicht: technisch nicht KI-fähig ──────────────────────────────────────────────────────
   "upload": "Absicht: eine KI liefert keine Fotos. Die Leserichtung deckt `get_image` ab.",
@@ -74,10 +75,6 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
   "weight-delete": "Absicht: eine Messung ist eine BEOBACHTUNG, keine Einstellung. Korrigieren kann die KI sie über `log_weight` (ein Wert je Tag, der neue ersetzt den alten) — eine Beobachtung ganz zu entfernen, samt Foto, bleibt beim Menschen. Der Unterschied ist nicht die Gefahr, sondern die Art der Handlung: die KI ändert, was gilt; was NIE gegolten haben soll, entscheidet die Keyholderin.",
 
   // ── OFFEN: echte Lücken, noch nicht geschlossen ────────────────────────────────────────────
-  "entry-admin-edit": "OFFEN: das LÖSCHEN eines fremden Eintrags sowie die Felder `oeffnenGrund` und `orgasmusArt`. Gerät, Zeitpunkt und Notiz deckt `edit_entry` ab (Fähigkeit `entry-correct-mcp`, eigene Zeile wie beim Gewicht). Löschen bleibt vorerst beim Menschen: es bricht die Paar-Kette und verlangt die Entscheidung über den Partner-Eintrag.",
-  "device-references": "OFFEN: Referenzbilder der Geräte-Erkennung pflegen (Liste, Löschen).",
-  "device-references-import": "OFFEN: vorhandene Verschluss-Fotos als Referenz übernehmen — braucht keinen Upload und wäre damit KI-fähig.",
-  "notify-prefs-admin": "OFFEN: Benachrichtigungs-Matrix des Trägers. Nutzen für eine KI gering — sie bekommt weder Mail noch Push.",
 };
 
 /** Routen, die keine Fähigkeit im Sinne dieses Katalogs sind — mit Grund. */
@@ -108,9 +105,11 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Löst bewusst KEINE Reinigungs-Kontrolle aus: der Planer rechnet ab jetzt, nicht ab der Eintrags-Zeit. Beide Wege gehen durch `createEntryForUser`. Die KI kann kein Foto liefern: eine Trage-Kategorie mit Foto-Pflicht weist den Eintrag deshalb ab, eine Prüfung wird auch ohne angenommen — sie erfüllt auf diesem Weg ohnehin keine Anforderung.",
   }),
   c({
-    id: "entry-admin-edit", mechanic: "Einträge", title: "Fremden Eintrag ändern",
-    what: "Korrigiert den Eintrag eines Trägers.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/entries/[id]"],
+    id: "entry-admin-edit", mechanic: "Einträge", title: "Fremden Eintrag ändern oder löschen",
+    what: "Korrigiert oder entfernt den Eintrag eines Trägers.",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"], routes: ["/api/entries/[id]"],
+    tools: ["edit_entry", "delete_entry"],
+    note: "Die Route ist `/api/entries/[id]` — ein Keyholder darf dort über `entryManageAccess` mitschreiben; `/api/admin/entries/[id]` ist etwas anderes (das Urteil über eine Kontrolle, `resolve_inspection`). Korrigierbar sind die GEPAARTEN Arten samt Öffnungsgrund; an Prüfung und Orgasmus hängen Foto und Urteil, die bleiben der Oberfläche. Löschen fragt nach dem Paar-Partner, statt eine gebrochene Kette zu hinterlassen.",
   }),
   c({
     id: "entry-correct-mcp", mechanic: "Einträge", title: "Eintrag korrigieren (KI-Keyholderin)",
@@ -228,7 +227,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
     id: "inspection-resolve", mechanic: "Kontrollen", title: "Kontrolle zurückziehen oder von Hand bestätigen",
     what: "Nimmt eine Kontrolle zurück oder erkennt ein Foto an, das die automatische Prüfung nicht bestätigen konnte.",
     actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
-    routes: ["/api/admin/kontrollen/[id]"], tools: ["resolve_inspection"],
+    // ZWEI Routen: die über die Anforderung und die über den EINTRAG. Die zweite gibt es, weil eine
+    // freiwillige Selbstkontrolle keine Anforderung hat und darüber nicht zu beurteilen war.
+    routes: ["/api/admin/kontrollen/[id]", "/api/admin/entries/[id]"], tools: ["resolve_inspection"],
   }),
   c({
     id: "inspection-fulfil", mechanic: "Kontrollen", title: "Kontrolle erfüllen",
@@ -406,14 +407,18 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "device-references", mechanic: "Geräte", title: "Referenzbilder pflegen",
     what: "Kuratiert das Bildmaterial, mit dem die Geräte-Erkennung arbeitet.",
-    actors: ["sub", "admin"], surfaces: ["sub-ui", "admin-ui"],
+    actors: ["sub", "admin", "mcp"], surfaces: ["sub-ui", "admin-ui", "mcp"],
     routes: ["/api/devices/[id]/references", "/api/devices/[id]/references/[refId]"],
+    tools: ["list_device_references", "delete_device_reference"],
+    note: "Die KI sieht den Bestand und räumt Schlechtes weg; HOCHLADEN kann sie nicht (dafür braucht es eine Datei, siehe `upload`) — sie übernimmt stattdessen vorhandene Fotos (`import_device_references`). Die Bild-URL steht bewusst nicht in der Antwort: einen Pfad, den sie nicht öffnen kann, braucht sie nicht.",
   }),
   c({
     id: "device-references-import", mechanic: "Geräte", title: "Referenzbilder aus Einträgen übernehmen",
     what: "Übernimmt jüngere Verschluss-Fotos als Referenzbilder, als Dateikopie.",
-    actors: ["sub", "admin"], surfaces: ["sub-ui", "admin-ui"],
+    actors: ["sub", "admin", "mcp"], surfaces: ["sub-ui", "admin-ui", "mcp"],
     routes: ["/api/devices/[id]/references/import-recent"],
+    tools: ["import_device_references"],
+    note: "Der einzige Weg, auf dem eine KI Bildmaterial beisteuern kann — die Fotos liegen schon da, nur die Datei kann sie nicht liefern. Idempotent über die Herkunfts-Id.",
   }),
   c({
     id: "category-manage", mechanic: "Geräte", title: "Kategorien verwalten",
@@ -509,6 +514,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
     id: "notify-prefs-admin", mechanic: "Benachrichtigungen", title: "Benachrichtigungen eines Trägers einstellen",
     what: "Dieselben Schalter aus der Keyholder-Sicht.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/notifications"],
+    note: "Das Raster steuert die Meldungen ÜBER die Einträge des Trägers AN DIE KEYHOLDER — nicht an ihn. Lesen darf die KI es (`get_context.notifications`), umlegen nicht: siehe die Ausnahme in `FM_MCP_EXEMPT`.",
   }),
   c({
     id: "push-register", mechanic: "Benachrichtigungen", title: "Push-Empfang einrichten",

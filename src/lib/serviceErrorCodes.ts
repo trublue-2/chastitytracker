@@ -329,6 +329,13 @@ export const WEIGHT_CODES = [
 export const ENTRY_CORRECTION_CODES = [
   "ENTRY_NOT_CORRECTABLE",
   "ENTRY_CARRIES_NO_DEVICE",
+  "ENTRY_CARRIES_NO_REASON",
+  // MITBENUTZT aus `entryErrors.ts`: „dieser Öffnungsgrund steht in seiner Liste nicht" ist
+  // derselbe Satz, ob ihn ein Formular oder eine KI liest.
+  "INVALID_OPENING_REASON",
+  // Ebenfalls MITBENUTZT aus `entryErrors.ts`: „der Partner-Eintrag hat sich zwischenzeitlich
+  // geändert" ist derselbe Satz, ob ihn ein Dialog oder eine KI liest — er beschreibt die ZEILE.
+  "PARTNER_CHANGED",
   // MITBENUTZT aus `entryErrors.ts` (wie `TIME_BEFORE`/`TIME_IN_FUTURE` weiter oben): die
   // Geräte-Regeln des Trage-Eintrags sind beim Korrigieren dieselben wie beim Anlegen, und der
   // Wortlaut trägt für beide Adressaten — er beschreibt das GERÄT, nicht den Handelnden.

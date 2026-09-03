@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { NOTIFICATION_EVENT_TYPES } from "@/lib/constants";
+import { getNotificationMatrix, setNotificationPreference } from "@/lib/notificationPrefs";
 
 /** GET /api/admin/notifications?userId=xxx — get all preferences for a user */
 export async function GET(req: NextRequest) {
@@ -11,15 +11,8 @@ export async function GET(req: NextRequest) {
   const err = await requireKeyholderOrAdminApi(userId);
   if (err) return err;
 
-  const prefs = await prisma.notificationPreference.findMany({ where: { userId } });
-
-  // Return a map: { VERSCHLUSS: { mail: false, push: true }, ... }
-  const map: Record<string, { mail: boolean; push: boolean }> = {};
-  for (const et of NOTIFICATION_EVENT_TYPES) {
-    const p = prefs.find((x) => x.eventType === et);
-    map[et] = { mail: p?.mail ?? false, push: p?.push ?? false };
-  }
-  return NextResponse.json(map);
+  // Die Matrix baut `notificationPrefs.ts` — dieselbe Ableitung, die auch die KI über den MCP liest.
+  return NextResponse.json(await getNotificationMatrix(userId));
 }
 
 /** PATCH /api/admin/notifications — upsert a single preference */
@@ -38,11 +31,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "channel muss 'mail' oder 'push' sein" }, { status: 400 });
   }
 
-  await prisma.notificationPreference.upsert({
-    where: { userId_eventType: { userId, eventType } },
-    create: { userId, eventType, [channel]: Boolean(value) },
-    update: { [channel]: Boolean(value) },
-  });
-
+  await setNotificationPreference(userId, eventType, channel, Boolean(value));
   return NextResponse.json({ ok: true });
 }

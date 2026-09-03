@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { assertEntryTimeOk, entryPairTypes, entryPersistsDevice } from "./entryCorrection";
+import { assertEntryTimeOk, correctionProblem, entryPairTypes, entryPersistsDevice } from "./entryCorrection";
 import { KG_PAIR, WEAR_PAIR } from "./utils";
 import { VALID_TYPES } from "./constants";
 import type { Prisma } from "@prisma/client";
@@ -117,5 +117,28 @@ describe("Vollständigkeit gegenüber VALID_TYPES", () => {
     expect([...VALID_TYPES].sort()).toEqual([...paired, ...unpaired].sort());
     for (const t of paired) expect(entryPairTypes(t)).not.toBeNull();
     for (const t of unpaired) expect(entryPairTypes(t)).toBeNull();
+  });
+});
+
+/**
+ * Der Öffnungsgrund einer Korrektur — geprüft gegen die Liste DES TRÄGERS.
+ *
+ * Zwei Fehler wären hier still: ein Grund an einem Eintrag, der keinen trägt (er verschwände
+ * wortlos, und die Keyholderin hielte die Korrektur für erledigt), und ein Code, den dieser Träger
+ * gar nicht führt (die Anzeige stünde danach vor einem Wert, für den sie kein Wort hat).
+ */
+describe("correctionProblem — der Öffnungsgrund", () => {
+  const grund = { oeffnenGrund: "REINIGUNG" };
+
+  it("am Verschluss gibt es keinen Grund", async () => {
+    expect(await correctionProblem("VERSCHLUSS", grund, "u1")).toBe("ENTRY_CARRIES_NO_REASON");
+  });
+
+  it("an einer Trage-Zeile ebenso wenig", async () => {
+    expect(await correctionProblem("WEAR_BEGIN", grund, "u1")).toBe("ENTRY_CARRIES_NO_REASON");
+  });
+
+  it("ohne Grund im Aufruf wird er nicht geprüft", async () => {
+    expect(await correctionProblem("VERSCHLUSS", {}, "u1")).toBeNull();
   });
 });

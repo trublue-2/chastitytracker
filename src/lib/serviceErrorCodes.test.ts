@@ -82,6 +82,12 @@ const INTENTIONALLY_SHARED = [
   // Korrigieren von `entryCorrection.ts` — dieselbe Regel, derselbe Satz. Er beschreibt das GERÄT
   // („braucht eine Kategorie", „der Käfig gehört nicht in eine Trage-Zeile"), nicht den Handelnden.
   "WEAR_DEVICE_REQUIRED", "WEAR_DEVICE_NO_CATEGORY", "WEAR_DEVICE_KG",
+  // „Der Partner-Eintrag hat sich geändert" — geworfen beim Löschen eines Paares, in der Route
+  // wie im Dienst. Der Satz beschreibt die ZEILE, nicht den Handelnden.
+  "PARTNER_CHANGED",
+  // Der Öffnungsgrund wird gegen die Liste DES TRÄGERS geprüft — beim Anlegen wie beim
+  // Korrigieren, mit demselben Satz.
+  "INVALID_OPENING_REASON",
 ];
 
 describe("service codes do not silently collide with entry codes", () => {

@@ -77,6 +77,7 @@
   },
   "errors": {
     "ENTRY_CARRIES_NO_DEVICE": "Dieser Eintrag trägt kein Gerät.",
+    "ENTRY_CARRIES_NO_REASON": "Dieser Eintrag trägt keinen Grund.",
     "ENTRY_NOT_CORRECTABLE": "Diese Eintragsart lässt sich so nicht korrigieren.",
     "passwordTooShort": "Passwort zu kurz (min. {min} Zeichen)",
     "passwordTooLong": "Passwort zu lang (max. {max} Bytes)",

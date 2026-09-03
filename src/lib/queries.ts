@@ -204,8 +204,8 @@ export function getLatestKgEntry(
 }
 
 export interface EntryNeighbors {
-  prev: { type: string } | null;
-  next: { type: string } | null;
+  prev: { id: string; type: string; startTime: Date } | null;
+  next: { id: string; type: string; startTime: Date } | null;
 }
 
 /** Die Nachbarn (vorheriger/nächster Eintrag desselben Paar-Typs) UNMITTELBAR vor und nach
@@ -246,12 +246,14 @@ export async function getEntryNeighbors(
     tx.entry.findFirst({
       where: effectiveEntryWhere({ userId, type: { in: [...pairTypes] }, startTime: { lte: startTime }, ...categoryFilter, ...excludeFilter }),
       orderBy: { startTime: "desc" },
-      select: { type: true },
+      // `id`/`startTime` mit: der Lösch-Pfad braucht den NACHBARN selbst (er ist der Paar-Partner),
+      // nicht bloss seine Art — und er soll ihn aus derselben Sicht bekommen wie jeder andere Guard.
+      select: { id: true, type: true, startTime: true },
     }),
     tx.entry.findFirst({
       where: effectiveEntryWhere({ userId, type: { in: [...pairTypes] }, startTime: { gt: startTime }, ...categoryFilter, ...excludeFilter }),
       orderBy: { startTime: "asc" },
-      select: { type: true },
+      select: { id: true, type: true, startTime: true },
     }),
   ]);
   return { prev, next };

@@ -115,3 +115,40 @@ export async function ensureNotificationPreferences(userId: string) {
     )
   );
 }
+
+/**
+ * Die Benachrichtigungs-Matrix eines Trägers LESEN — je Ereignisart, ob Mail und Push gehen.
+ *
+ * Eine fehlende Zeile heisst „aus": `ensureNotificationPreferences` legt sie beim ersten Bedarf an,
+ * und bis dahin ist der Kanal nicht bestellt. Dieselbe Lesart wie in der Keyholder-Oberfläche —
+ * dort entsteht die Matrix aus genau dieser Regel.
+ */
+export async function getNotificationMatrix(userId: string): Promise<Record<NotificationEventType, NotificationChannels>> {
+  const rows = await prisma.notificationPreference.findMany({ where: { userId } });
+  const map = {} as Record<NotificationEventType, NotificationChannels>;
+  for (const eventType of NOTIFICATION_EVENT_TYPES) {
+    const row = rows.find((r) => r.eventType === eventType);
+    map[eventType] = { mail: row?.mail ?? false, push: row?.push ?? false };
+  }
+  return map;
+}
+
+/**
+ * EINEN Schalter der Matrix setzen.
+ *
+ * Als Dienst, weil zwei Oberflächen ihn umlegen: die Keyholder-Seite (`PATCH
+ * /api/admin/notifications`) und die KI über den MCP. Er upsertet je Ereignisart — die Zeile
+ * entsteht beim ersten Umlegen, und der jeweils andere Kanal bleibt, wie er war.
+ */
+export async function setNotificationPreference(
+  userId: string,
+  eventType: NotificationEventType,
+  channel: "mail" | "push",
+  value: boolean,
+): Promise<void> {
+  await prisma.notificationPreference.upsert({
+    where: { userId_eventType: { userId, eventType } },
+    create: { userId, eventType, [channel]: value },
+    update: { [channel]: value },
+  });
+}
