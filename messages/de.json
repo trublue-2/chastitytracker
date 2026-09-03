@@ -1687,8 +1687,6 @@
     "emptyTitle": "Keine Nachrichten",
     "emptyText": "Hier sammeln sich Anforderungen, Entscheidungen und Strafen, sobald sie dich erreichen.",
     "markUnread": "Wieder als ungelesen",
-    "markAllRead": "Alle als gelesen markieren",
-    "markAllConfirm": "{count, plural, =1 {Eine Nachricht als gelesen markieren?} other {# Nachrichten als gelesen markieren?}} Der Keyholder sieht danach, dass du sie gesehen hast.",
     "refLabel": "Zugehöriger Text",
     "refMissing": "Der zugehörige Eintrag existiert nicht mehr.",
     "sender": {

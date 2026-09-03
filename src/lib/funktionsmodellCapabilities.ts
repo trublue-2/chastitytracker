@@ -486,9 +486,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
   // ── Nachrichten ────────────────────────────────────────────────────────────────────────────
   c({
     id: "inbox-sub", mechanic: "Nachrichten", title: "Posteingang des Trägers",
-    what: "Lesen, als gelesen oder ungelesen markieren, löschen, alles auf einmal — einzeln oder als Stapel.",
+    what: "Lesen, als gelesen oder ungelesen markieren, löschen — einzeln oder als Stapel über die Auswahl.",
     actors: ["sub"], surfaces: ["sub-ui"],
-    routes: ["/api/messages", "/api/messages/[id]", "/api/messages/[id]/read", "/api/messages/bulk", "/api/messages/read-all"],
+    routes: ["/api/messages", "/api/messages/[id]", "/api/messages/[id]/read", "/api/messages/bulk"],
   }),
   c({
     id: "message-prune", mechanic: "Nachrichten", title: "Posteingang beschneiden",
@@ -500,7 +500,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
     id: "inbox-keyholder", mechanic: "Nachrichten", title: "Posteingang des Keyholders",
     what: "Dieselbe Liste für die Meldungen an die Keyholder — eine gemeinsame Zeile je Träger, mit eigenem Lesestand.",
     actors: ["admin"], surfaces: ["admin-ui"],
-    routes: ["/api/admin/messages", "/api/admin/messages/[id]", "/api/admin/messages/[id]/read", "/api/admin/messages/bulk", "/api/admin/messages/read-all"],
+    routes: ["/api/admin/messages", "/api/admin/messages/[id]", "/api/admin/messages/[id]/read", "/api/admin/messages/bulk"],
     note: "Löschen trifft alle Keyholder — es gibt nur diese eine Zeile.",
   }),
 

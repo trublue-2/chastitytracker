@@ -1687,8 +1687,6 @@
     "emptyTitle": "No messages",
     "emptyText": "Requests, decisions and penalties collect here as soon as they reach you.",
     "markUnread": "Mark as unread",
-    "markAllRead": "Mark all as read",
-    "markAllConfirm": "{count, plural, =1 {Mark one message as read?} other {Mark # messages as read?}} Your keyholder will see that you have seen them.",
     "refLabel": "Related text",
     "refMissing": "The related entry no longer exists.",
     "sender": {

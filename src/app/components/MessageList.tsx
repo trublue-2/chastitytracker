@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { busyDimCls } from "@/app/components/inputStyles";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { CheckCheck, Inbox, ListChecks, Trash2, X } from "lucide-react";
+import { Inbox, ListChecks, Trash2, X } from "lucide-react";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
@@ -29,10 +29,6 @@ type LoadedPage = {
   messages: PresentedMessage[];
   page: number;
   pageCount: number;
-  // Beide Zähler sind OPTIONAL: die Route liefert sie noch nicht, und eine harte Erwartung
-  // liesse die Liste an einem fehlenden Feld scheitern statt am Fehlen der Zahl.
-  unread?: number;
-  unreadInFilter: number;
 };
 
 /** Welche Rückmeldung eine abgeschlossene Sammel-Aktion gibt — eine Zeile je Aktion, damit die
@@ -47,7 +43,6 @@ export default function MessageList({
   initial,
   initialPageCount,
   initialUnread,
-  initialUnreadInFilter,
   initialFilter = {},
   scope,
   aiSenderAvailable,
@@ -57,11 +52,6 @@ export default function MessageList({
   initial: PresentedMessage[];
   initialPageCount: number;
   initialUnread: number;
-  /** Ungelesene im WIRKSAMEN Ausschnitt — das ist die Zahl, die „Alle als gelesen markieren"
-   *  tatsächlich anfasst, seit der Endpunkt den Filter respektiert. Ohne aktiven Filter dieselbe
-   *  wie `initialUnread`, mit Filter eine andere: die Rückfrage nannte sonst neun, wo eine Zeile
-   *  auf dem Schirm stand. */
-  initialUnreadInFilter: number;
   /** Der Filter aus der Adresse (`?category=…`), mit dem die Seite schon serverseitig gefiltert
    *  wurde. Muss hier als Startwert ankommen, sonst zeigte die Filterleiste „alle Kategorien" über
    *  einer gefilterten Liste — und das erste Blättern hätte den Filter verloren. */
@@ -95,9 +85,6 @@ export default function MessageList({
   const [pageCount, setPageCount] = useState(initialPageCount);
   const [filter, setFilter] = useState<MessageFilter>(initialFilter);
   const [unread, setUnread] = useState(initialUnread);
-  // Der Ausschnitts-Zähler steht NEBEN dem Gesamtstand, statt ihn zu ersetzen: die Glocke im Header
-  // zeigt weiterhin alles, die Rückfrage nur das, was der Filter zeigt.
-  const [unreadInFilter, setUnreadInFilter] = useState(initialUnreadInFilter);
   // EIN Zustand für „Auswahl-Modus" UND „was ist angekreuzt": `null` = kein Modus. Als zwei
   // Variablen musste die Kopplung („Modus verlassen = Auswahl leeren") von Hand gehalten werden —
   // ein zweiter Ausstiegspfad, der die zweite Zeile vergisst, liesse eine unsichtbare Auswahl
@@ -111,7 +98,6 @@ export default function MessageList({
   // Eigener Zustand: sonst zeigte ein laufendes Nachladen den Lösch-Knopf als beschäftigt.
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmAll, setConfirmAll] = useState(false);
   // Der LAUFENDE Vorgang, als REF und nicht als State: `saving` stammt aus dem Render und ist für
   // zwei Klicks aus demselben Render in beiden `false` — eine Schranke darauf lässt genau den
   // Doppel-Abruf durch, den sie verhindern soll. Das Ref steht sofort nach dem ersten Klick, und es
@@ -202,16 +188,6 @@ export default function MessageList({
     }
   }
 
-  /** Die Antwort einer Lese-Aktion beiden Zählern zuführen.
-   *
-   *  Den Gesamtstand nennt der Server. Den Ausschnitt rechnet der Aufrufer mit — er weiss, welche
-   *  Zeilen er angefasst hat und ob sie ungelesen waren. Liefert die Route das Feld eines Tages
-   *  selbst mit, gewinnt sie: die Rechnung hier ist die Krücke, solange sie es nicht tut. */
-  function applyUnread(res: { unread: number; unreadInFilter?: number }, inFilter: number) {
-    setUnread(res.unread);
-    setUnreadInFilter(Math.max(0, res.unreadInFilter ?? inFilter));
-  }
-
   /** Aufklappen IST das Lesen — und nur das. Nicht das Öffnen der Liste, nicht der Push-Tap:
    *  „gelesen" ist bei Nachrichten mit Fristen eine Behauptung mit Konsequenz. */
   async function toggle(m: PresentedMessage) {
@@ -221,7 +197,7 @@ export default function MessageList({
     const res = await request<{ unread: number }>(`${apiBase}/${m.id}/read`, "POST");
     if (!res) return;
     setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: true } : x)));
-    applyUnread(res, unreadInFilter - 1);
+    setUnread(res.unread);
   }
 
   /** Als gelesen, ohne aufzuklappen — für Zeilen, die nichts aufzuklappen haben. Derselbe Endpunkt,
@@ -230,45 +206,14 @@ export default function MessageList({
     const res = await request<{ unread: number }>(`${apiBase}/${m.id}/read`, "POST");
     if (!res) return;
     setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: true } : x)));
-    applyUnread(res, unreadInFilter - (m.read ? 0 : 1));
+    setUnread(res.unread);
   }
 
   async function markUnread(m: PresentedMessage) {
     const res = await request<{ unread: number }>(`${apiBase}/${m.id}/read`, "DELETE");
     if (!res) return;
     setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: false } : x)));
-    applyUnread(res, unreadInFilter + (m.read ? 1 : 0));
-  }
-
-  /** Quittiert genau das, was der Filter zeigt — deshalb geht er MIT an den Endpunkt, aus derselben
-   *  Serialisierung wie beim Blättern. Ohne die Parameter läse der Server den ungefilterten
-   *  Posteingang und quittierte Zeilen, die niemand vor sich hatte. */
-  async function markAllRead() {
-    setSaving(true);
-    const params = messageFilterToParams(filter).toString();
-    const res = await request<{ unread: number }>(`${apiBase}/read-all${params ? `?${params}` : ""}`, "POST");
-    setSaving(false);
-    setConfirmAll(false);
-    if (!res) return;
-    // Aus dem Auswahl-Modus zurück in die Liste: „Alle als gelesen" wird jetzt VON DORT ausgelöst,
-    // und danach ist er leer (`unreadInFilter` fällt auf 0, der Knopf verschwindet). Ohne dies bliebe
-    // der Nutzer in einem Modus zurück, in dem nur noch die „Seite auswählen"-Zeile steht, und müsste
-    // ihn von Hand verlassen. Ausserhalb des Modus (selected === null) ist es ein No-op.
-    if (selected !== null) {
-      setSelected(null);
-      selection.announce(t("selectModeOff"));
-    }
-    applyUnread(res, 0);
-    // Unter dem Ungelesen-Filter nimmt das Quittieren den Zeilen ihre Zugehörigkeit: sie gehören
-    // nicht mehr in die Liste, die man ansieht. Ein reiner lokaler Patch liesse sie stehen — zwanzig
-    // als gelesen markierte Zeilen unter einer Überschrift, die „nur ungelesene" verspricht, und
-    // eine Seitenzahl, die weiter „1 / 3" behauptet, während der Server keine drei Seiten mehr hat.
-    // `bulk` macht es an derselben Stelle schon richtig; hier fehlte die Symmetrie.
-    if (filter.unreadOnly) {
-      await load(page, filter, true);
-      return;
-    }
-    setMessages((prev) => prev.map((x) => ({ ...x, read: true })));
+    setUnread(res.unread);
   }
 
   async function deleteMessage(m: PresentedMessage) {
@@ -281,7 +226,7 @@ export default function MessageList({
     if (!res) return;
     setConfirmDelete(null);
     setMessages((prev) => prev.filter((x) => x.id !== m.id));
-    applyUnread(res, unreadInFilter - (m.read ? 0 : 1));
+    setUnread(res.unread);
   }
 
   /**
@@ -308,12 +253,6 @@ export default function MessageList({
     setMessages(data.messages);
     setPage(data.page - 1);
     setPageCount(data.pageCount);
-    // Der Listen-Endpunkt nennt den Ausschnitt selbst (`makeInboxRoutes.list`) — hier stand ein
-    // Ausweichpfad mit eigener Schätzung und dem Kommentar „bis die Route ihn liefert". Sie liefert
-    // ihn; der Zweig war von der ersten Zeile an unerreichbar. Die Schätzung bleibt dort, wo sie
-    // gebraucht wird: bei den Einzel-Aktionen (`applyUnread`), deren Endpunkte nur den Gesamtstand
-    // zurückgeben.
-    setUnreadInFilter(data.unreadInFilter);
     // Die Auswahl galt für die Seite, die man verlässt — sie stumm fallen zu lassen sah aus wie ein
     // Fehler: die Kreuzchen waren weg, die Zählung stand auf null, und niemand hatte etwas getan.
     if (!quiet && (selected?.size ?? 0) > 0) toast.info(t("selectionCleared"));
@@ -436,11 +375,7 @@ export default function MessageList({
     // Erst nach der Fehlerprüfung schliessen — bei einem Fehler bleibt die Rückfrage stehen, sonst
     // sähe der Nutzer eine unveränderte Liste und keinen Grund (dieselbe Regel wie beim Einzelnen).
     setConfirmDelete(null);
-    // Was die Aktion am Ausschnitt geändert hat, weiss nur diese Seite: welche der angekreuzten
-    // Zeilen ungelesen waren, steht in der Liste, nicht in der Antwort.
-    const wasUnread = new Set(messages.filter((m) => !m.read).map((m) => m.id));
-    const flipped = ids.filter((id) => (action === "unread" ? !wasUnread.has(id) : wasUnread.has(id))).length;
-    applyUnread(res, action === "unread" ? unreadInFilter + flipped : unreadInFilter - flipped);
+    setUnread(res.unread);
     // Den Auswahl-Modus VERLASSEN: sonst blieb der Block mit vier ausgegrauten Knöpfen und
     // „0 ausgewählt" stehen, und ob gelöscht oder nur weggefiltert wurde, war nicht zu erkennen.
     //
@@ -456,8 +391,7 @@ export default function MessageList({
     setOpenId(null);
     toast.success(t(BULK_DONE_KEY[action], { count: res.affected }));
     // Nur Löschen (verschiebt alles Nachfolgende) und der Ungelesen-Filter (nimmt die Zeile von der
-    // Seite) brauchen die Liste frisch. Beim blossen Gelesen-Flag reicht der lokale Patch — genau
-    // das tut `markAllRead` ein paar Zeilen weiter oben schon.
+    // Seite) brauchen die Liste frisch. Beim blossen Gelesen-Flag reicht der lokale Patch darunter.
     if (action === "delete" || filter.unreadOnly) {
       // `quiet`: die Auswahl ist hier nicht verlorengegangen, sie wurde gerade ausgeführt — die
       // Notiz von oben wäre eine zweite, widersprüchliche Meldung neben „3 gelöscht".
@@ -500,9 +434,9 @@ export default function MessageList({
 
       {/* Der Auswahl-Einstieg steht ÜBER der Liste, in derselben Kante, in der gleich die
           Aktionsleiste erscheint. Darunter lag er bei zwanzig Meldungen rund 1650 px tiefer, und
-          das Antippen schob ihn noch einmal weg. „Alle als gelesen markieren" steht NICHT mehr hier,
-          sondern erst im Auswahl-Modus neben den Sammel-Aktionen — eine Mengen-Aktion gehört dorthin,
-          wo auch gelöscht wird, nicht dauerhaft über den Posteingang. */}
+          das Antippen schob ihn noch einmal weg. Alle Mengen-Aktionen — als gelesen/ungelesen
+          markieren und löschen — laufen ausschliesslich über die Auswahl: erst ankreuzen (einzeln
+          oder „Alle auf dieser Seite"), dann handeln. */}
       {!empty && (
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <Button
@@ -569,22 +503,6 @@ export default function MessageList({
                 setSelected(allOnPageSelected ? new Set() : new Set(messages.map((m) => m.id)))
               }
             />
-            {/* „Alle als gelesen" wirkt auf ALLE ungelesenen im Filter, nicht auf die Auswahl —
-                deshalb nur, solange nichts einzeln angehakt ist. Sobald eine Zeile gewählt ist,
-                übernimmt der zielgerichtete „Als gelesen" daneben, und zwei „read"-Knöpfe
-                nebeneinander verwirren nicht. */}
-            {unreadInFilter > 0 && selected.size === 0 && (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<CheckCheck size={16} />}
-                aria-disabled={saving}
-                className={busyDimCls}
-                onClick={() => !saving && setConfirmAll(true)}
-              >
-                {t("markAllRead")}
-              </Button>
-            )}
             {selected.size > 0 && (
               <>
                 <span className="text-neben font-medium text-foreground-muted tabular-nums">
@@ -653,19 +571,6 @@ export default function MessageList({
       </Card>
       </div>
       )}
-
-      {/* Rückfrage, weil „gelesen" hier eine Behauptung ist: zwölf Nachrichten stumm zu quittieren
-          erzeugte eine, die hinterher niemand halten kann. */}
-      <ConfirmDialog
-        open={confirmAll}
-        title={t("markAllRead")}
-        message={t("markAllConfirm", { count: unreadInFilter })}
-        confirmLabel={tc("yes")}
-        loading={saving}
-        icon={<CheckCheck size={20} style={{ color: "var(--color-warn)" }} />}
-        onConfirm={markAllRead}
-        onCancel={() => setConfirmAll(false)}
-      />
 
       {/* Endgültig, deshalb mit Rückfrage — und mit dem Grund, warum sie hier mehr wiegt als beim
           Löschen eines Eintrags: das Strafbuch ist admin-only, für den Sub war die Nachricht der

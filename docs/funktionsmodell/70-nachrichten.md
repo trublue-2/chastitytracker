@@ -58,8 +58,8 @@ Instanz mit mehreren Admins fällt beides auseinander: die Auswahl nennt eine Pe
 ## Eine Liste, zwei Sichten
 
 Posteingang des Trägers und Posteingang des Keyholders sind **dieselbe** Komponente; der Unterschied
-ist ein einziges Merkmal, aus dem sie ihre Endpunkt-Familie ableitet. Ebenso sind die fünf Endpunkte
-eines Posteingangs ein Bauplan, kein Dateisatz. Eine dritte Sicht bekommt einen Auflöser, keine fünf
+ist ein einziges Merkmal, aus dem sie ihre Endpunkt-Familie ableitet. Ebenso sind die Endpunkte
+eines Posteingangs ein Bauplan, kein Dateisatz. Eine dritte Sicht bekommt einen Auflöser, keine
 neuen Dateien.
 
 ## Aufbewahrung

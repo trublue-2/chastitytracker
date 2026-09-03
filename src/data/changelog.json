@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.0.7",
+    "date": "2026-09-03",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Posteingang steuern die Auswahlkästchen jetzt alle Sammel-Aktionen: Angehaktes — oder alles auf der Seite — lässt sich löschen oder als gelesen bzw. ungelesen markieren.",
+          "en": "In the inbox, the checkboxes now drive every bulk action: what you tick — or everything on the page — can be deleted or marked read or unread."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.6",
     "date": "2026-09-03",
     "changes": [

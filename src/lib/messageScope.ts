@@ -19,7 +19,7 @@ export type MessageScope = "own" | "keyholder";
  * Endpunkt-Familie.
  *
  * `titleKey`/`introKey` liegen im Namensraum `messages`, `apiBase` ist die Endpunkt-Familie
- * (`…`, `…/[id]`, `…/[id]/read`, `…/read-all`, `…/bulk` — beide sprechen dieselben fünf Pfade,
+ * (`…`, `…/[id]`, `…/[id]/read`, `…/bulk` — beide sprechen dieselben Pfade,
  * siehe `messageInboxRoutes.ts`).
  */
 export const MESSAGE_SCOPES: Record<

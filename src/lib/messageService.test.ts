@@ -25,7 +25,6 @@ import {
   recordSystemMessage,
   listMessages,
   unreadCount,
-  markAllRead,
   setRead,
   setReadMany,
   deleteMessage,
@@ -324,75 +323,6 @@ describe("Gelesen-Kennzeichen ist an den Besitzer gebunden", () => {
     mock(prisma.message.findFirst).mockResolvedValue({ id: "m1" });
     expect(await setRead(sub("u1"), "m1", true)).toBe(true);
     expect(mock(prisma.messageRead.upsert).mock.calls[0][0].update).toEqual({});
-  });
-});
-
-describe("Alle-als-gelesen lässt das Verborgene in Ruhe", () => {
-  // Ohne diesen Filter käme die Nachricht einer terminierten Direktive beim Auslösen bereits
-  // gelesen an — ohne Punkt, ohne Badge. Genau der Fall, für den es den Posteingang gibt.
-  it("quittiert eine Nachricht zu einer noch nicht ausgelösten Kontrolle NICHT", async () => {
-    mock(prisma.message.findMany).mockResolvedValue([
-      row({ id: "sichtbar" }),
-      row({ id: "verborgen", refEntityType: "control", refEntityId: "ka1" }),
-    ]);
-    mock(prisma.kontrollAnforderung.findMany).mockResolvedValue([
-      { id: "ka1", userId: "u1", wirksamAb: new Date("2026-08-01T10:00:00Z"), benachrichtigtAt: null },
-    ]);
-
-    await markAllRead(sub("u1"));
-    // Genau eine Quittung, und zwar für die sichtbare Zeile.
-    const quittiert = mock(prisma.messageRead.upsert).mock.calls.map((c) => c[0].where.messageId_userId.messageId);
-    expect(quittiert).toEqual(["sichtbar"]);
-  });
-});
-
-describe("Alle-als-gelesen bleibt beschränkt", () => {
-  /**
-   * Der SQLite-Connector fährt mit `connection_limit=1`: eine Transaktion hält JEDE andere Anfrage
-   * der Instanz an. Ein globaler Admin, der nach Monaten „alle als gelesen" drückt, hätte damit die
-   * ganze App angehalten — beide Wege sind deshalb in Blöcken geschnitten.
-   */
-  const unreadRows = (n: number) => Array.from({ length: n }, (_, i) => row({ id: `m${i}` }));
-
-  it("die Lese-Kennzeichen gehen in Blöcken raus, nicht in EINER Transaktion über alles", async () => {
-    mock(prisma.message.findMany).mockResolvedValue(unreadRows(250));
-    mock(prisma.message.count).mockResolvedValue(0);
-
-    await markAllRead(sub("u1"));
-
-    const blocks = mock(prisma.$transaction).mock.calls.map((c) => (c[0] as unknown[]).length);
-    expect(blocks).toEqual([200, 50]);
-  });
-
-  it("beim Keyholder läuft es über die indizierte Ungelesen-Abfrage, Block für Block", async () => {
-    // Wo nichts zu verbergen ist, gibt es auch nichts aufzulösen: es werden nur Ids geholt, und zwar
-    // höchstens ein Block auf einmal — statt jede ungelesene Zeile des Posteingangs zu materialisieren.
-    mock(prisma.message.findMany).mockResolvedValue(unreadRows(3));
-    mock(prisma.message.count).mockResolvedValue(0);
-
-    expect(await markAllRead(kh("kh1", ["sub1"]))).toBe(0);
-
-    expect(prisma.message.findMany).toHaveBeenCalledOnce();
-    const { take, select } = mock(prisma.message.findMany).mock.calls[0][0];
-    expect(take).toBe(200);
-    expect(select).toEqual({ id: true });
-  });
-
-  it("ein VOLLER Block zieht den nächsten nach — die quittierten fallen aus der Bedingung", async () => {
-    mock(prisma.message.findMany)
-      .mockResolvedValueOnce(unreadRows(200))
-      .mockResolvedValueOnce(unreadRows(5));
-    mock(prisma.message.count).mockResolvedValue(0);
-
-    await markAllRead(kh("kh1", ["sub1"]));
-
-    expect(prisma.message.findMany).toHaveBeenCalledTimes(2);
-  });
-
-  it("ein Keyholder ohne Träger fragt gar nicht erst", async () => {
-    expect(await markAllRead(kh("kh1", []))).toBe(0);
-    expect(prisma.message.findMany).not.toHaveBeenCalled();
-    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
 

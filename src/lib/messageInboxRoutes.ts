@@ -6,7 +6,6 @@ import {
   deleteMessages,
   keyholderInbox,
   listMessages,
-  markAllRead,
   setRead,
   setReadMany,
   subInbox,
@@ -22,8 +21,8 @@ import { errorResponse, serviceFailure } from "@/lib/serviceResult";
  * Die Endpunkt-Familie EINES Posteingangs — einmal geschrieben, von beiden Sichten benutzt.
  *
  * Der Träger-Posteingang (`/api/messages/*`) und der der Keyholderin (`/api/admin/messages/*`) waren
- * fünf Dateien lang Zeile für Zeile dasselbe; sie unterschieden sich in genau ZWEI Werten — welcher
- * Guard fragt und welchen Scope er daraus baut. Fünf Kopien einer Route sind nicht bloss lang: sie
+ * Datei für Datei Zeile für Zeile dasselbe; sie unterschieden sich in genau ZWEI Werten — welcher
+ * Guard fragt und welchen Scope er daraus baut. Kopien einer Route sind nicht bloss lang: sie
  * laufen still auseinander, weil eine Antwort-Form (`unread`, `affected`, 404 statt 200) nur an
  * einer der beiden Stellen nachgezogen wird und niemand einen Fehler bekommt. Genau das soll die
  * Keyholder-Seite nicht — sie soll dieselbe Sprache sprechen, nicht eine zweite, kleinere lernen.
@@ -54,8 +53,6 @@ export interface InboxRoutes {
   markRead: (req: NextRequest, ctx: IdContext) => Promise<NextResponse>;
   /** `DELETE …/[id]/read` */
   markUnread: (req: NextRequest, ctx: IdContext) => Promise<NextResponse>;
-  /** `POST …/read-all` */
-  readAll: (req: NextRequest) => Promise<NextResponse>;
   /** `POST …/bulk` */
   bulk: (req: NextRequest) => Promise<NextResponse>;
 }
@@ -81,24 +78,17 @@ export function makeInboxRoutes(resolveScope: ScopeResolver): InboxRoutes {
 
       // Die Filter liest `parseMessageFilter` — dieselbe Stelle, an der der Client sie schreibt.
       const filter = parseMessageFilter(req.nextUrl.searchParams);
-      // Der Ausschnitts-Zähler MIT in die Runde: seriell danach kostete er auf der Träger-Seite
-      // mit Filter einen zweiten vollständigen Sichtbarkeits-Durchlauf, bei jedem Blättern.
-      const [result, locale, unreadInFilter] = await Promise.all([
+      const [result, locale] = await Promise.all([
         listMessages(scope, {
           page: Number(req.nextUrl.searchParams.get("page") ?? 1),
           filter,
         }),
         getLocale(),
-        unreadCount(scope, [], filter),
       ]);
       return NextResponse.json({
         messages: await presentMessages(result.messages, locale),
         page: result.page,
         pageCount: result.pageCount,
-        // Wie viele UNGELESENE der wirksame Filter zeigt. Die Rückfrage vor „Alle als gelesen"
-        // nennt diese Zahl — der Glocken-Stand daneben meint den ganzen Posteingang, und unter
-        // einem Filter sind das zwei verschiedene Dinge.
-        unreadInFilter,
       });
     },
 
@@ -116,22 +106,6 @@ export function makeInboxRoutes(resolveScope: ScopeResolver): InboxRoutes {
 
     markRead: (_req, ctx) => setReadState(true, ctx),
     markUnread: (_req, ctx) => setReadState(false, ctx),
-
-    async readAll(req) {
-      const scope = await resolveScope();
-      if (scope instanceof NextResponse) return scope;
-      // Bewusste Handlung (die Oberfläche fragt vorher nach), nie ein Nebeneffekt des Listen-Aufrufs.
-      // `markAllRead` quittiert NUR die sichtbaren Zeilen und liefert den daraus folgenden Stand —
-      // eine hart gesetzte 0 hätte behauptet, auch das Verborgene sei gesehen.
-      //
-      // Und nur, was der AKTIVE FILTER zeigt: derselbe `parseMessageFilter`, den `list` benutzt.
-      // Vorher quittierte der Knopf den ganzen Posteingang, egal was auf dem Schirm stand — unter
-      // „Ungelesen + Gewicht" mit einer sichtbaren Zeile waren das neun. Acht Kontroll- und
-      // Straf-Meldungen galten damit als gesehen, ohne dass sie jemand gesehen hatte, und genau
-      // das liest die Keyholderin auf der anderen Seite ab.
-      const filter = parseMessageFilter(req.nextUrl.searchParams);
-      return NextResponse.json({ ok: true, unread: await markAllRead(scope, filter) });
-    },
 
     async bulk(req) {
       const scope = await resolveScope();
