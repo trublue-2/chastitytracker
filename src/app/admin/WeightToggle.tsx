@@ -165,6 +165,11 @@ export default function WeightToggle({
               heightCm={subHeightCm}
               message={t("weightTargetUnderweightWarning")}
             />
+            {/* Bewusst „diese EINGABE" und nicht „dieser Abschnitt": Hauptschalter, Wiege-Fenster
+                und Erinnerung daneben speichern sofort — nur das Zielgewicht will erst zu Ende
+                getippt sein, weil die Warnung darüber sonst einen Wert beurteilt, der noch
+                gar nicht gilt. */}
+            <p className={faintCls}>{t("settingsSaveHint")}</p>
             <Button variant="secondary" loading={saving} onClick={saveTarget}>{tc("save")}</Button>
           </div>
         </>

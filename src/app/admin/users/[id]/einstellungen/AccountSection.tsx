@@ -16,9 +16,12 @@ interface Props {
   email: string | null;
   role: string;
   isSelf: boolean;
+  /** Wie bei jedem anderen Kapitel der Seite — durchgereicht, damit die Regel „diese Seite startet
+   *  zugeklappt" in der SEITE steht und nicht zur Hälfte hier drin, wo sie niemand sucht. */
+  defaultCollapsed?: boolean;
 }
 
-export default function AccountSection({ userId, username, email, role, isSelf }: Props) {
+export default function AccountSection({ userId, username, email, role, isSelf, defaultCollapsed }: Props) {
   const t = useTranslations("admin");
   const ts = useTranslations("settings");
   const tc = useTranslations("common");
@@ -119,7 +122,7 @@ export default function AccountSection({ userId, username, email, role, isSelf }
   }
 
   return (
-    <SettingsSection title={t("sectionAccount")} description={t("sectionAccountDesc")}>
+    <SettingsSection defaultCollapsed={defaultCollapsed} title={t("sectionAccount")} description={t("sectionAccountDesc")}>
       <div className="divide-y divide-border-subtle">
 
         {/* Username (read-only) */}

@@ -107,6 +107,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
     <div className={`${formColCls} flex flex-col gap-6`}>
       {/* Konto */}
       <AccountSection
+        defaultCollapsed
         userId={user.id}
         username={user.username}
         email={user.email}
@@ -116,25 +117,29 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
       {/* Rolle */}
       {isGlobalAdmin && (
-        <SettingsSection title={t("roleLabel")} description={t("roleDesc")} bodyPadded>
+        <SettingsSection defaultCollapsed title={t("roleLabel")} description={t("roleDesc")} bodyPadded>
           <RoleSelect id={user.id} currentRole={user.role} isSelf={actorId === user.id} />
         </SettingsSection>
       )}
 
       {/* Keyholder dieses Subs */}
       {isGlobalAdmin && (
-        <SettingsSection title={t("sectionKeyholders")} description={t("keyholdersDesc")} bodyPadded>
+        <SettingsSection defaultCollapsed title={t("sectionKeyholders")} description={t("keyholdersDesc")} bodyPadded>
           <KeyholderManager subId={user.id} initial={keyholders.map((k) => ({ id: k.id, username: k.username }))} />
         </SettingsSection>
       )}
 
       {/* Sprache des Subs — App, E-Mails, Push (Keyholder darf setzen, wie E-Mail/Reinigung) */}
-      <SettingsSection title={t("sectionLanguage")} description={t("sectionLanguageDesc")} bodyPadded>
+      <SettingsSection defaultCollapsed title={t("sectionLanguage")} description={t("sectionLanguageDesc")} bodyPadded>
         <UserLocaleSelect userId={user.id} initialLocale={user.locale} />
       </SettingsSection>
 
       {/* Gesundheitspause — steht vor den Regeln, weil sie sie alle aussetzt. */}
-      <SettingsSection title={t("sectionHealthHold")} description={t("sectionHealthHoldDesc")} bodyPadded>
+      {/* Läuft gerade ein Halt, startet dieses Kapitel OFFEN. Es ist die einzige Stelle der
+          Keyholder-Oberfläche, die einen laufenden Gesundheitshalt überhaupt anzeigt — zugeklappt
+          suchte die Keyholderin nach dem Grund für eine ausgebliebene Kontrolle und fände ihn
+          hinter einem Wort. Zuklappbar bleibt es trotzdem (`false`, nicht `undefined`). */}
+      <SettingsSection defaultCollapsed={!healthHold} title={t("sectionHealthHold")} description={t("sectionHealthHoldDesc")} bodyPadded>
         <HealthHoldToggle
           userId={user.id}
           initialReason={healthHold?.reason ?? null}
@@ -143,7 +148,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       </SettingsSection>
 
       {/* Reinigung */}
-      <SettingsSection title={t("sectionReinigung")} description={t("sectionReinigungDesc")} bodyPadded>
+      <SettingsSection defaultCollapsed title={t("sectionReinigung")} description={t("sectionReinigungDesc")} bodyPadded>
         <CleaningToggle
           userId={user.id}
           initialAllowed={user.cleaningAllowed}
@@ -155,7 +160,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
       {/* Gewichtstracking — entfällt ganz, wenn die Instanz das Feature nicht führt */}
       {weightTrackingEnabled() && (
-        <SettingsSection title={t("sectionWeight")} description={t("sectionWeightDesc")} bodyPadded>
+        <SettingsSection defaultCollapsed title={t("sectionWeight")} description={t("sectionWeightDesc")} bodyPadded>
           <WeightToggle
             userId={user.id}
             /* Die Einheit DER KEYHOLDERIN, nicht die des Subs: die Zahlen stehen in ihrer Anzeige. */
@@ -171,13 +176,13 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
       {/* Heimdall-Box — entfällt ganz, wo keine Box gemeldet hat */}
       {box.boxConfirm && (
-        <SettingsSection title={t("sectionBox")} description={t("sectionBoxDesc")} bodyPadded>
+        <SettingsSection defaultCollapsed title={t("sectionBox")} description={t("sectionBoxDesc")} bodyPadded>
           <BoxLockToggle userId={user.id} initialEnabled={user.lockRequiresBolt} />
         </SettingsSection>
       )}
 
       {/* Anpassbare Auswahllisten: Orgasmus-Arten + Öffnungsgründe */}
-      <SettingsSection title={t("sectionReasons")} description={t("sectionReasonsDesc")}>
+      <SettingsSection defaultCollapsed title={t("sectionReasons")} description={t("sectionReasonsDesc")}>
         <div className="px-5 py-4 flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <p className="text-xs font-semibold text-foreground-muted">{t("reasonOrgasmTitle")}</p>
@@ -204,7 +209,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       </SettingsSection>
 
       {/* Automatische Kontrollen */}
-      <SettingsSection title={t("sectionAutoKontrolle")} description={t("sectionAutoKontrolleDesc")} bodyPadded>
+      <SettingsSection defaultCollapsed title={t("sectionAutoKontrolle")} description={t("sectionAutoKontrolleDesc")} bodyPadded>
         <AutoKontrolleToggle
           userId={user.id}
           initialAktiv={user.autoKontrolleAktiv}
@@ -230,7 +235,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       </SettingsSection>
 
       {/* Schnellzugriff: welche dieser Einstellungen in der Übersicht als Chip erscheinen */}
-      <SettingsSection title={t("sectionQuickSettings")} description={t("sectionQuickSettingsDesc")} bodyPadded>
+      <SettingsSection defaultCollapsed title={t("sectionQuickSettings")} description={t("sectionQuickSettingsDesc")} bodyPadded>
         <QuickSettingsPicker
           userId={user.id}
           available={quickSettingsAvailable}
@@ -245,7 +250,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       </SettingsSection>
 
       {/* Kontroll-Eskalation: Mahnung (Stufe 1) + optional automatisch als abgelegt markieren (Stufe 2) */}
-      <SettingsSection title={t("sectionInspectionEscalation")} description={t("sectionInspectionEscalationDesc")} bodyPadded>
+      <SettingsSection defaultCollapsed title={t("sectionInspectionEscalation")} description={t("sectionInspectionEscalationDesc")} bodyPadded>
         <InspectionEscalationToggle
           userId={user.id}
           initialReminderEnabled={user.inspectionReminderEnabled}
@@ -256,7 +261,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       </SettingsSection>
 
       {/* Vergehen: welche Arten bei diesem Sub überhaupt zählen (Parameter bleiben in ihren Abschnitten) */}
-      <SettingsSection title={t("sectionOffenseRules")} description={t("sectionOffenseRulesDesc")} bodyPadded>
+      <SettingsSection defaultCollapsed title={t("sectionOffenseRules")} description={t("sectionOffenseRulesDesc")} bodyPadded>
         <OffenseRulesEditor
           userId={user.id}
           /* Die Meldepflicht steht nur da, wo sie auch etwas bewirkt — der Gewichts-Abschnitt
@@ -269,7 +274,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       </SettingsSection>
 
       {/* App */}
-      <SettingsSection title={t("sectionApp")} description={t("sectionAppDesc")} bodyPadded>
+      <SettingsSection defaultCollapsed title={t("sectionApp")} description={t("sectionAppDesc")} bodyPadded>
         <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
       </SettingsSection>
 
@@ -277,16 +282,19 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           allein genügt nicht: der MCP-Server handelt immer nur für den einen `MCP_USERNAME`, bei allen
           übrigen Subs blieben die Regeln hier folgenlos stehen. */}
       {aiKeyholderActiveFor(user.username) && (
-        <SettingsSection title={t("sectionKeyholder")} description={t("keyholderInstructionsDesc")} bodyPadded>
+        <SettingsSection defaultCollapsed title={t("sectionKeyholder")} description={t("keyholderInstructionsDesc")} bodyPadded>
           <KeyholderInstructionsForm userId={user.id} initial={user.mcpKeyholderInstructions ?? ""} />
         </SettingsSection>
       )}
 
-      {/* Benachrichtigungen */}
-      <NotificationToggles userId={user.id} />
+      {/* Benachrichtigungen — als Abschnitt wie jeder andere, damit dieser Block nicht als einziger
+          dauerhaft offen zwischen lauter zugeklappten steht (und ausgerechnet der längste ist). */}
+      <SettingsSection defaultCollapsed title={t("notifyTitle")} description={t("notifyDesc")}>
+        <NotificationToggles userId={user.id} />
+      </SettingsSection>
 
       {/* Trainingsvorgaben */}
-      <SettingsSection title={t("sectionVorgaben")} description={t("sectionVorgabenDesc")}>
+      <SettingsSection defaultCollapsed title={t("sectionVorgaben")} description={t("sectionVorgabenDesc")}>
         <div className="flex flex-col gap-4 px-5 py-4">
           <VorgabeForm userId={id} categories={categories} />
         </div>
@@ -359,7 +367,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
       {/* Gefahrenbereich */}
       {isGlobalAdmin && (
-        <SettingsSection title={t("sectionDanger")} description={t("sectionDangerDesc")} bodyPadded>
+        <SettingsSection defaultCollapsed title={t("sectionDanger")} description={t("sectionDangerDesc")} bodyPadded>
           <DeleteUserButton id={user.id} username={user.username} isSelf={actorId === user.id} />
         </SettingsSection>
       )}

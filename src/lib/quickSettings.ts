@@ -37,6 +37,15 @@ export interface QuickSetting {
   field: string;
   /** i18n-Schlüssel im `admin`-Namensraum — die Beschriftung des Chips UND der Auswahlzeile. */
   labelKey: string;
+  /**
+   * Die Erklärung unter der Beschriftung, NUR in der Auswahlliste.
+   *
+   * Der Chip trägt sie nicht: dort muss ein Wort genügen, und wer ihn drückt, weiss bereits, was er
+   * angehakt hat. Beim Auswählen weiss man es gerade NICHT — „Automatik" oder „Auto-Ablegen" sagen
+   * für sich genommen nicht, was sie tun, und die Einstellung dahinter steht in einem anderen,
+   * womöglich zugeklappten Kapitel.
+   */
+  descKey: string;
   requires?: QuickSettingRequirement;
   /**
    * Das Feld, an dem diese Einstellung HÄNGT — ist es aus, wirkt sie nicht, und der Chip entfällt.
@@ -58,15 +67,15 @@ export interface QuickSetting {
  * Einstellungen.
  */
 export const QUICK_SETTINGS: readonly QuickSetting[] = [
-  { key: "autoInspections", field: "autoKontrolleAktiv", labelKey: "quickAutoInspections" },
-  { key: "onlyDuringLockPeriod", field: "autoKontrolleNurBeiSperre", labelKey: "quickOnlyDuringLockPeriod", dependsOn: "autoKontrolleAktiv" },
-  { key: "postLockInspection", field: "postLockInspectionEnabled", labelKey: "quickPostLockInspection" },
-  { key: "postLockBoxPhoto", field: "postLockInspectionRequireBoxPhoto", labelKey: "quickPostLockBoxPhoto", requires: "box", dependsOn: "postLockInspectionEnabled" },
-  { key: "cleaning", field: "cleaningAllowed", labelKey: "quickCleaning" },
-  { key: "inspectionReminder", field: "inspectionReminderEnabled", labelKey: "quickInspectionReminder" },
-  { key: "inspectionAutoMark", field: "inspectionAutoMarkEnabled", labelKey: "quickInspectionAutoMark" },
-  { key: "weightTracking", field: "weightTrackingEnabled", labelKey: "quickWeightTracking", requires: "weightFeature" },
-  { key: "lockRequiresBolt", field: "lockRequiresBolt", labelKey: "quickLockRequiresBolt", requires: "box" },
+  { key: "autoInspections", field: "autoKontrolleAktiv", labelKey: "quickAutoInspections", descKey: "quickAutoInspectionsDesc" },
+  { key: "onlyDuringLockPeriod", field: "autoKontrolleNurBeiSperre", labelKey: "quickOnlyDuringLockPeriod", descKey: "quickOnlyDuringLockPeriodDesc", dependsOn: "autoKontrolleAktiv" },
+  { key: "postLockInspection", field: "postLockInspectionEnabled", labelKey: "quickPostLockInspection", descKey: "quickPostLockInspectionDesc" },
+  { key: "postLockBoxPhoto", field: "postLockInspectionRequireBoxPhoto", labelKey: "quickPostLockBoxPhoto", descKey: "quickPostLockBoxPhotoDesc", requires: "box", dependsOn: "postLockInspectionEnabled" },
+  { key: "cleaning", field: "cleaningAllowed", labelKey: "quickCleaning", descKey: "quickCleaningDesc" },
+  { key: "inspectionReminder", field: "inspectionReminderEnabled", labelKey: "quickInspectionReminder", descKey: "quickInspectionReminderDesc" },
+  { key: "inspectionAutoMark", field: "inspectionAutoMarkEnabled", labelKey: "quickInspectionAutoMark", descKey: "quickInspectionAutoMarkDesc" },
+  { key: "weightTracking", field: "weightTrackingEnabled", labelKey: "quickWeightTracking", descKey: "quickWeightTrackingDesc", requires: "weightFeature" },
+  { key: "lockRequiresBolt", field: "lockRequiresBolt", labelKey: "quickLockRequiresBolt", descKey: "quickLockRequiresBoltDesc", requires: "box" },
 ];
 
 /**

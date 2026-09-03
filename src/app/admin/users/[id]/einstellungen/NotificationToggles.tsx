@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Bell, Mail } from "lucide-react";
 import Toggle from "@/app/components/Toggle";
-import Card from "@/app/components/Card";
 import Spinner from "@/app/components/Spinner";
 import { NOTIFICATION_EVENT_TYPES, type NotificationEventType } from "@/lib/constants";
 
@@ -74,13 +73,12 @@ export default function NotificationToggles({ userId }: { userId: string }) {
   }
 
   return (
-    <Card padding="none" className="overflow-hidden">
-      {/* Column header */}
-      <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{t("notifyTitle")}</p>
-          <p className="text-xs text-foreground-muted mt-1">{t("notifyDesc")}</p>
-        </div>
+    /* Rubrik und Erklärung trägt der Abschnitt drumherum (`SettingsSection` in der Seite) — sonst
+       stünde der Titel zweimal da, und dieser eine Block bliebe der einzige, der sich nicht
+       zuklappen lässt. Übrig bleibt hier die TABELLE samt ihrer Spaltenköpfe. */
+    <div className="-mx-1">
+      {/* Spaltenköpfe */}
+      <div className="px-4 py-2 border-b border-border-subtle flex items-center justify-end gap-3">
         <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-foreground-faint shrink-0">
           <span className="flex items-center gap-1 w-16 justify-center whitespace-nowrap" title={t("notifyPushTitle")}>
             <Bell size={12} aria-hidden /> {t("notifyChannelPush")}
@@ -95,12 +93,12 @@ export default function NotificationToggles({ userId }: { userId: string }) {
       <div className="divide-y divide-border-subtle">
         {GROUPS.map((g) => (
           <div key={g.titleKey}>
-            <p className="px-5 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-foreground-faint bg-background-subtle/40">
+            <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-foreground-faint bg-background-subtle/40">
               {t(g.titleKey)}
             </p>
             <div className="divide-y divide-border-subtle">
               {g.events.map((et) => (
-                <div key={et} className="px-5 py-3 flex items-center justify-between gap-3">
+                <div key={et} className="px-4 py-3 flex items-center justify-between gap-3">
                   <span className="text-sm text-foreground truncate">{t(I18N_KEY[et])}</span>
                   <div className="flex items-center gap-1 shrink-0">
                     <div className="w-16 flex justify-center">
@@ -127,9 +125,9 @@ export default function NotificationToggles({ userId }: { userId: string }) {
         ))}
       </div>
 
-      <div className="px-5 py-3 border-t border-border-subtle">
+      <div className="px-4 py-3 border-t border-border-subtle">
         <p className="text-[11px] text-foreground-faint">{t("notifyPushDesc")}</p>
       </div>
-    </Card>
+    </div>
   );
 }

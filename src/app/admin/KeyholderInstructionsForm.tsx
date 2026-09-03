@@ -54,6 +54,9 @@ export default function KeyholderInstructionsForm({ userId, initial }: { userId:
         rows={6}
         placeholder={t("keyholderInstructionsPlaceholder")}
       />
+      {/* Dritter Abschnitt der Seite, der erst mit dem Knopf wirkt — und der einzige, in dem ein
+          getippter Text verloren geht, wenn man ihn übersieht. */}
+      <p className="text-xs text-foreground-faint">{t("settingsSaveHint")}</p>
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={save} loading={saving} disabled={text === initial}>
           {t("keyholderInstructionsSave")}

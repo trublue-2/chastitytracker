@@ -8,6 +8,9 @@ interface Props {
   /** Umschliesst die children mit dem Standard-Innenabstand. Für einfache Abschnitte. Komplexe
    *  Inhalte (eigene Struktur/Padding, z.B. Listen) lassen das weg und liefern den Abstand selbst. */
   bodyPadded?: boolean;
+  /** Startet der Abschnitt zugeklappt? Die ANWESENHEIT macht ihn zuklappbar — die Regel und ihre
+   *  Begründung stehen an {@link Section}, hier wird sie nur durchgereicht. */
+  defaultCollapsed?: boolean;
   children: ReactNode;
 }
 
@@ -21,11 +24,12 @@ interface Props {
  *
  * Jetzt trennen Abstand und Rubrik. Die Zeilen darin behalten ihre eigenen Haarlinien.
  */
-export default function SettingsSection({ title, description, bodyPadded, children }: Props) {
+export default function SettingsSection({ title, description, bodyPadded, defaultCollapsed, children }: Props) {
   return (
     <Section
       title={title}
       className="border-t border-border-subtle pt-4 first:border-t-0 first:pt-0"
+      defaultCollapsed={defaultCollapsed}
     >
       {description && <p className="text-neben text-foreground-muted -mt-1">{description}</p>}
       {bodyPadded ? <div className="px-1 py-1">{children}</div> : children}

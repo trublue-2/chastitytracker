@@ -409,6 +409,10 @@ export default function AutoKontrolleToggle({
           )}
         </>
       )}
+      {/* Warum dieser Abschnitt einen Knopf hat und die Nachbarn nicht, muss DER NUTZER lesen können
+          — bis hierher stand die Begründung nur im Kommentar oben. Ohne sie liest sich die
+          Oberfläche willkürlich: mal wirkt ein Schalter sofort, mal erst nach dem Speichern. */}
+      <p className={faintCls}>{t("autoKontrolleSaveHint")}</p>
       <Button size="sm" onClick={handleSave} loading={saving} disabled={!dirty} className="w-fit">
         {tc("save")}
       </Button>

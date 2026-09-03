@@ -194,14 +194,12 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
           onChange={(e) => setRequiredType(e.target.value)}
           hint={t("orgasmReqArtHint")}
         />
-        <div className="flex flex-col gap-1">
-          <Checkbox
-            label={t("orgasmReqOpenAllowedLabel")}
-            checked={openingAllowed}
-            onChange={(e) => setOpeningAllowed(e.target.checked)}
-          />
-          <span className="text-xs text-foreground-faint">{t("orgasmReqOpenAllowedHint")}</span>
-        </div>
+        <Checkbox
+          label={t("orgasmReqOpenAllowedLabel")}
+          description={t("orgasmReqOpenAllowedHint")}
+          checked={openingAllowed}
+          onChange={(e) => setOpeningAllowed(e.target.checked)}
+        />
         <Textarea
           label={t("orgasmReqMessage")}
           value={message}

@@ -1,5 +1,25 @@
 [
   {
+    "version": "6.0.6",
+    "date": "2026-09-03",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Einstellungen eines Trägers sind jetzt in einklappbare Kapitel gegliedert und starten geschlossen — die Seite ist damit auf einen Blick zu überschauen. Läuft ein Gesundheitshalt, öffnet sich sein Kapitel von selbst.",
+          "en": "A user’s settings are now grouped into collapsible chapters that start closed, so the page is easy to scan. If a health hold is running, its chapter opens on its own."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Jede Einstellung im Schnellzugriff trägt eine kurze Erklärung, und die Auswahl wird sofort beim Anhaken übernommen. Wo ein Abschnitt erst mit „Speichern“ wirkt, sagt er das jetzt.",
+          "en": "Each quick-access setting now carries a short explanation, and the selection is saved as soon as you tick it. Where a section only takes effect on “Save”, it now says so."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.5",
     "date": "2026-09-03",
     "changes": [

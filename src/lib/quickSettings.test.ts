@@ -44,6 +44,19 @@ describe("Registratur", () => {
     for (const s of QUICK_SETTINGS) if (s.dependsOn) expect(fields).toContain(s.dependsOn);
   });
 
+  it("jede Beschriftung und Erklärung steht in BEIDEN Sprachen", () => {
+    // `labelKey`/`descKey` sind blosse Zeichenketten — ein Tippfehler oder ein vergessener
+    // englischer Schlüssel fällt weder dem Compiler noch der Oberfläche auf: next-intl rendert
+    // dann den Schlüssel selbst, und in der Auswahlliste stünde „quickCleaningDesc".
+    for (const lang of ["de", "en"]) {
+      const admin = JSON.parse(readFileSync(`messages/${lang}.json`, "utf8")).admin as Record<string, string>;
+      for (const s of QUICK_SETTINGS) {
+        expect(admin, `${lang}: ${s.labelKey}`).toHaveProperty(s.labelKey);
+        expect(admin, `${lang}: ${s.descKey}`).toHaveProperty(s.descKey);
+      }
+    }
+  });
+
   it("zieht keinen Server-Code nach sich", () => {
     // Client-Komponente UND Server-Seiten teilen sich das Modul: ein `prisma`- oder
     // `next/server`-Import landete ohne Typfehler im Browser-Bundle.
