@@ -48,6 +48,7 @@ import type { ServiceResult } from "@/lib/serviceResult";
 import en from "../../messages/en.json";
 import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/taskProofService";
 import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
+import { correctEntry, correctionProblem, type EntryCorrection } from "@/lib/entryCorrection";
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
 import { releaseNow, previewReleaseNow } from "@/lib/releaseNowService";
 import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
@@ -2199,6 +2200,100 @@ export async function mcpRecordOffense(username: string, args: RecordOffenseArgs
     ok: true,
     id: created.id,
     message: `Offense noted for ${iso(occurredAt)}: "${title}". It now counts as a detected offense in the Strafbuch — rule on it with judge_offense (ref: ${created.id}), or take a wrong note back with withdraw target:"manual_offense". The user is not notified.`,
+  };
+}
+
+// ── Entry: correct a recorded event ──────────────────────────────────────────
+
+export interface EditEntryArgs {
+  /** Die zu korrigierende Zeile — aus `list_entries`. */
+  id: string;
+  /** Neuer Zeitpunkt (ISO 8601). */
+  startTime?: string;
+  /** Neues Gerät (Name wie in `get_devices`). Nur an Arten, die eins tragen. */
+  deviceName?: string;
+  /** Gerät ganz entfernen. */
+  clearDevice?: boolean;
+  /** Neue Notiz; "" löscht die bestehende. */
+  note?: string;
+  dryRun?: boolean;
+}
+
+/**
+ * Korrigiert EINEN erfassten Verschluss-/Öffnen- oder Trage-Eintrag (Gerät, Zeitpunkt, Notiz).
+ *
+ * Der Anlass ist der Griff daneben beim Erfassen — beim Verschluss das falsche Gerät gewählt und es
+ * erst später gemerkt. In der Oberfläche darf die Keyholderin das längst richtigstellen
+ * (`PATCH /api/entries/[id]`), über den MCP bisher nicht; die Regeln kommen deshalb aus dem
+ * geteilten Dienst ({@link correctEntry}), nicht aus einer zweiten Abschrift.
+ *
+ * STILL: der Träger bekommt keine Meldung. Eine Korrektur ist kein Ereignis, das ihn zum Handeln
+ * auffordert, und die Fassung, die er sieht, ist danach die richtige. Nachvollziehbar bleibt sie
+ * trotzdem — jeder Write landet im Keyholder-Action-Log (`get_action_log`), mit `reason`.
+ */
+/** Der gespeicherte Name eines Geräts — `null` für „kein Gerät". Nur für die Vorschau: der Commit
+ *  bekommt ihn vom Dienst zurück. */
+async function deviceNameOf(deviceId: string | null): Promise<string | null> {
+  if (!deviceId) return null;
+  return (await prisma.device.findUnique({ where: { id: deviceId }, select: { name: true } }))?.name ?? null;
+}
+
+export async function mcpEditEntry(username: string, args: EditEntryArgs) {
+  const userId = await resolveTargetUserId(username);
+  const iso = await isoForUser(userId);
+  if (args.clearDevice && args.deviceName) throw new Error("clearDevice cannot be combined with deviceName.");
+  requireAnyOf(args, ["startTime", "deviceName", "clearDevice", "note"]);
+
+  // Die Zeile VORAB: die dryRun-Vorschau braucht die Vorher-Werte, und beide Pfade bekommen so die
+  // Absage mit der Id im Text statt eines blossen „Nicht gefunden". Dass `correctEntry` sie gleich
+  // darauf erneut liest, ist der Preis dafür, dass der Besitz-Check dort in der ABFRAGE steckt und
+  // nicht im Vertrauen auf den Aufrufer — eine indizierte Ein-Zeilen-Abfrage.
+  const existing = await prisma.entry.findFirst({
+    where: { id: args.id, userId },
+    select: { id: true, type: true, startTime: true, note: true, device: { select: { name: true } } },
+  });
+  if (!existing) throw new Error(`Entry not found: ${args.id}`);
+
+  // `resolveAnyDeviceId` und NICHT `resolveDeviceId`: der zweite sieht über `getUserDeviceOptions`
+  // nur KG- und kategorielose Geräte. Die Trage-Einträge, die dieses Werkzeug ausdrücklich mit
+  // abdeckt, hängen aber an einer Nutzer-Kategorie — mit dem engeren Auflöser wäre die Hälfte der
+  // versprochenen Reichweite tot, und zwar mit einer Meldung, die nach einem Tippfehler der
+  // Keyholderin aussieht statt nach einer Grenze des Werkzeugs.
+  const deviceId = args.clearDevice ? null
+    : args.deviceName ? await resolveAnyDeviceId(userId, null, args.deviceName)
+    : undefined;
+  const fields: EntryCorrection = {
+    ...(args.startTime !== undefined && { startTime: parseIsoDate(args.startTime, "startTime") }),
+    ...(args.note !== undefined && { note: args.note === "" ? null : args.note }),
+    ...(deviceId !== undefined && { deviceId }),
+  };
+
+  if (args.dryRun) {
+    // DIESELBE Regel, die der Commit fährt (`correctionProblem`) — keine Abschrift ihrer
+    // Bedingungen. Nur die Ketten-Prüfung bleibt dem Commit vorbehalten: sie liest die Nachbarn in
+    // der Transaktion, und eine Vorschau davor wäre eine zweite Uhr auf denselben Zustand.
+    const problem = await correctionProblem(existing.type, fields, userId);
+    const before = { startTime: iso(existing.startTime), device: existing.device?.name ?? null, note: existing.note };
+    const after = {
+      startTime: fields.startTime ? iso(fields.startTime) : before.startTime,
+      // Der KANONISCHE Name des aufgelösten Geräts, nicht die getippte Schreibweise: die Auflösung
+      // ist gross-/kleinschreibungs-blind, und ein „plug l" im Diff behauptete sonst eine Änderung,
+      // wo dasselbe Gerät steht.
+      device: deviceId === undefined ? before.device : await deviceNameOf(deviceId),
+      note: fields.note !== undefined ? fields.note : before.note,
+    };
+    return dryRunPreview("edit_entry", problem ? enErrorText(problem) : undefined, { id: existing.id, type: existing.type, ...after }, diffFields(before, after));
+  }
+
+  const entry = unwrap(await correctEntry(args.id, userId, fields));
+  return {
+    ok: true,
+    id: entry.id,
+    type: entry.type,
+    startTime: iso(entry.startTime),
+    device: entry.deviceName,
+    note: entry.note,
+    message: "Entry corrected. The user was NOT notified — a correction is not a directive; it is recorded in the action log.",
   };
 }
 

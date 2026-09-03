@@ -388,6 +388,11 @@ unterscheiden. Der Bestand steht in `get_context.healthHold` und im `keyholder_d
   `device_stats`, `records`, `period_summary`, `denial_trend`, `get_offenses`, `get_devices`,
   `get_context`, `query_notes`, `get_action_log`, `get_box_state`, `timeline`, `list_entries`
   (Roh-Einträge). Jede Deep-View trägt eine `schemaVersion` — gleiche Nummer = gleiche Feld-Bedeutung.
+- **Einträge korrigieren**: `edit_entry` stellt Gerät, Zeitpunkt oder Notiz eines erfassten
+  Verschluss-/Öffnen- oder Trage-Eintrags richtig — der häufigste Anlass ist das beim Verschluss
+  verwechselte Gerät. Alles Abgeleitete (Sessions, Statistik, Gerätestunden, Strafbuch) zieht von
+  selbst nach. Fotos, Kontrollcode und Verifikations-Status sind ausgenommen: sie sind die
+  Beweisführung. Der Träger wird NICHT benachrichtigt — eine Korrektur ist keine Anweisung.
 - **Schreiben**: jeder Write braucht **`reason`** (Audit → `get_action_log`) und kennt
   **`dryRun:true`** (Wirkung/Konflikte vor dem Commit). Ein Edit liefert einen **`diff`** `[alt, neu]`
   plus den projizierten Nachher-Zustand. Bei einigen direktiven Tools ist `dryRun` ein

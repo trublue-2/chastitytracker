@@ -75,7 +75,7 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
 
   // ── OFFEN: echte Lücken, noch nicht geschlossen ────────────────────────────────────────────
   "entry-admin-create": "OFFEN: Ereignis für den Träger nachtragen. Braucht zuerst eine Service-Extraktion — die Logik liegt inline in `/api/admin/entries`.",
-  "entry-admin-edit": "OFFEN: fremden Eintrag ändern/löschen. Dieselbe Extraktion wie `entry-admin-create`.",
+  "entry-admin-edit": "OFFEN: das LÖSCHEN eines fremden Eintrags sowie die Felder `oeffnenGrund` und `orgasmusArt`. Gerät, Zeitpunkt und Notiz deckt `edit_entry` ab (Fähigkeit `entry-correct-mcp`, eigene Zeile wie beim Gewicht). Löschen bleibt vorerst beim Menschen: es bricht die Paar-Kette und verlangt die Entscheidung über den Partner-Eintrag.",
   "device-references": "OFFEN: Referenzbilder der Geräte-Erkennung pflegen (Liste, Löschen).",
   "device-references-import": "OFFEN: vorhandene Verschluss-Fotos als Referenz übernehmen — braucht keinen Upload und wäre damit KI-fähig.",
   "inspection-targets": "OFFEN: die möglichen Kontroll-Ziele abfragen, bevor eine Kontrolle gestellt wird.",
@@ -114,6 +114,12 @@ export const FM_CAPABILITIES: FmCapability[] = [
     id: "entry-admin-edit", mechanic: "Einträge", title: "Fremden Eintrag ändern",
     what: "Korrigiert den Eintrag eines Trägers.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/entries/[id]"],
+  }),
+  c({
+    id: "entry-correct-mcp", mechanic: "Einträge", title: "Eintrag korrigieren (KI-Keyholderin)",
+    what: "Stellt Gerät, Zeitpunkt oder Notiz eines erfassten Verschluss-/Öffnen- oder Trage-Eintrags richtig — der Griff daneben beim Erfassen, meist das falsch gewählte Gerät.",
+    actors: ["mcp"], surfaces: ["mcp"], tools: ["edit_entry"],
+    note: "Fotos, Kontrollcode und Verifikations-Status bleiben aussen vor: sie sind die Beweisführung. Still — der Träger bekommt keine Meldung, der Write steht im Action-Log.",
   }),
   c({
     id: "entry-read-mcp", mechanic: "Einträge", title: "Roh-Einträge lesen",

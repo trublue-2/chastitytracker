@@ -76,6 +76,8 @@
     "jumpConfirm": "Yes, that is right"
   },
   "errors": {
+    "ENTRY_CARRIES_NO_DEVICE": "This entry carries no device.",
+    "ENTRY_NOT_CORRECTABLE": "This entry type cannot be corrected this way.",
     "passwordTooShort": "Password too short (min. {min} characters)",
     "passwordTooLong": "Password too long (max. {max} bytes)",
     "missingFields": "Missing fields",

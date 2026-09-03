@@ -4,9 +4,11 @@ import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
-import { validateDeviceOwnership, getEntryNeighbors } from "@/lib/queries";
+import { validateDeviceOwnership } from "@/lib/queries";
 import { entryManageAccess } from "@/lib/keyholder";
-import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
+import { entryGuardCode } from "@/lib/entryErrors";
+import { assertEntryTimeOk, entryPairTypes, entryPersistsDevice } from "@/lib/entryCorrection";
+import { WEAR_PAIR } from "@/lib/utils";
 import { codedError, codeOf } from "@/lib/codedError";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
@@ -90,7 +92,7 @@ export async function PATCH(
   }
 
   // Validate deviceId ownership (VERSCHLUSS + WEAR_BEGIN/END entries)
-  const persistsDevice = existing.type === "VERSCHLUSS" || existing.type === "WEAR_BEGIN" || existing.type === "WEAR_END";
+  const persistsDevice = entryPersistsDevice(existing.type);
   if (deviceId && persistsDevice) {
     const device = await validateDeviceOwnership(deviceId, existing.userId);
     if (!device) return NextResponse.json({ error: "INVALID_DEVICE" }, { status: 400 });
@@ -102,25 +104,11 @@ export async function PATCH(
       // Re-validate temporal ordering when startTime is changed on a paired entry
       // (VERSCHLUSS/OEFFNEN globally, WEAR_BEGIN/WEAR_END scoped to the device's category).
       // Skipped entirely on localhost dev for test enablement.
-      const isKgPair = existing.type === "VERSCHLUSS" || existing.type === "OEFFNEN";
-      const isWearPair = existing.type === "WEAR_BEGIN" || existing.type === "WEAR_END";
-      if (!devBypass && startTime && (isKgPair || isWearPair)) {
-        const newTime = new Date(startTime);
-        if (newTime > new Date()) throw entryGuardError("TIME_IN_FUTURE");
-        const pairTypes = isKgPair
-          ? (["VERSCHLUSS", "OEFFNEN"] as const)
-          : (["WEAR_BEGIN", "WEAR_END"] as const);
-        const wearCategoryId = isWearPair && existing.deviceId
-          ? (await tx.device.findUnique({ where: { id: existing.deviceId }, select: { categoryId: true } }))?.categoryId
-          : null;
-        const { prev, next } = await getEntryNeighbors(existing.userId, newTime, pairTypes, tx, {
-          categoryId: wearCategoryId ?? undefined,
-          excludeId: id,
-        });
-        if ((prev && prev.type === existing.type) || (next && next.type === existing.type)) {
-          throw entryGuardError("INVALID_ORDER");
-        }
-      }
+      //
+      // Die Regel steht in `entryCorrection.ts` und nicht mehr hier: seit die KI-Keyholderin
+      // Einträge über den MCP korrigieren darf, gibt es einen zweiten Aufrufer — und zwei Fassungen
+      // derselben Ketten-Prüfung liefen beim nächsten Umbau auseinander.
+      if (!devBypass && startTime) await assertEntryTimeOk(tx, existing, new Date(startTime));
 
       return tx.entry.update({
         where: { id },
@@ -172,9 +160,9 @@ export async function DELETE(
   const withPartner = req.nextUrl.searchParams.get("withPartner") === "true";
   const partnerId = req.nextUrl.searchParams.get("partnerId");
 
-  const isKgPair = existing.type === "VERSCHLUSS" || existing.type === "OEFFNEN";
-  const isWearPair = existing.type === "WEAR_BEGIN" || existing.type === "WEAR_END";
-  const isPair = isKgPair || isWearPair;
+  const pair = entryPairTypes(existing.type);
+  const isWearPair = pair === WEAR_PAIR;
+  const isPair = pair !== null;
 
   // Chain-break detection for paired entries (VERSCHLUSS/OEFFNEN global; WEAR-pair per category)
   //
@@ -183,9 +171,7 @@ export async function DELETE(
   // auch nicht brechen. Ohne diese Ausnahme müsste die Zurücknehmen-Aktion mit `force=true` an
   // einer Prüfung vorbei, die für sie gar nicht gedacht ist.
   if (isPair && !force && !isPendingLock(existing)) {
-    const pairTypes = isKgPair
-      ? (["VERSCHLUSS", "OEFFNEN"] as const)
-      : (["WEAR_BEGIN", "WEAR_END"] as const);
+    const pairTypes = [pair.close, pair.open];
     const wearCategoryId = isWearPair && existing.deviceId
       ? (await prisma.device.findUnique({ where: { id: existing.deviceId }, select: { categoryId: true } }))?.categoryId
       : null;

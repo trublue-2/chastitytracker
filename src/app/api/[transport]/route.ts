@@ -12,7 +12,7 @@ import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod,
   mcpReleaseNow, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetBox, mcpSetWeightTracking, mcpSetWeightRelease, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
-  mcpReviewTaskProof, mcpEditTask,
+  mcpReviewTaskProof, mcpEditTask, mcpEditEntry,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
 import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
@@ -211,7 +211,8 @@ const MCP_SERVER_INSTRUCTIONS =
   "• LESEN: beginne mit `keyholder_dashboard` (beantwortet ~90 %), dann gezielt die Deep-Views " +
   "(`get_session` für Segmente/deviceBreakdown, `device_stats`, `records`, `period_summary`, `denial_trend`, " +
   "`get_offenses`, `get_context`, `timeline`, `get_devices`, `query_notes`, `get_action_log`, `get_box_state`, " +
-  "`list_entries` für Roh-Einträge). Die Auto-Kontroll-Einstellungen und die Reinigungs-Regeln stehen in " +
+  "`list_entries` für Roh-Einträge; einen falsch erfassten Eintrag — meist das beim Verschluss " +
+  "verwechselte Gerät — stellst du mit `edit_entry` richtig). Die Auto-Kontroll-Einstellungen und die Reinigungs-Regeln stehen in " +
   "`get_context` (autoInspections + cleaning). Welche Vergehensarten bei diesem Sub überhaupt zählen, " +
   "steht ebenfalls in `get_context` (offenseRules); umgelegt werden sie mit `set_offense_rules`.\n" +
   "• DIREKTIVEN (Sperrzeit, Inspektion, Orgasmus, Strafe, Trainingsziele, Reinigung): `set_lock_period`, " +
@@ -1398,6 +1399,31 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runWriteTool("edit_task", extra, args, (u) => mcpEditTask(u, args)),
+    );
+
+    server.registerTool(
+      "edit_entry",
+      {
+        title: "Correct a recorded lock or wear entry",
+        description:
+          "Corrects an entry the user already recorded: the DEVICE, the time, or the note. The usual case " +
+          "is the wrong device picked while locking and noticed later. Works on VERSCHLUSS/OEFFNEN and " +
+          "WEAR_BEGIN/WEAR_END; an OEFFNEN carries no device (it belongs to the matching lock entry). " +
+          "Everything derived — sessions, statistics, device hours, the ledger — follows on its own; there " +
+          "is nothing to re-stamp. Photos, inspection code and verification status are NOT editable here: " +
+          "they are the evidence, and a human looks at them. The user is NOT notified — a correction is not " +
+          "a directive; it is recorded in the action log with your reason." + KEYHOLDER_NOTE,
+        inputSchema: {
+          id: z.string().describe("Entry id (from list_entries)."),
+          startTime: z.string().optional().describe("New timestamp (ISO 8601). Must not break the pair order."),
+          deviceName: z.string().optional().describe("New device (name as in get_devices)."),
+          clearDevice: z.boolean().optional().describe("Remove the device from this entry."),
+          note: z.string().optional().describe('New note; "" clears it.'),
+          reason: reasonField,
+          dryRun: dryRunFieldV1,
+        },
+      },
+      (args, extra) => runWriteTool("edit_entry", extra, args, (u) => mcpEditEntry(u, args)),
     );
 
     // ── MCP V2 WRITE tools — laufen durchs zentrale Write-Framework (Pflicht-reason + Audit + ──

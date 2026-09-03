@@ -76,6 +76,8 @@
     "jumpConfirm": "Ja, so stimmt es"
   },
   "errors": {
+    "ENTRY_CARRIES_NO_DEVICE": "Dieser Eintrag trägt kein Gerät.",
+    "ENTRY_NOT_CORRECTABLE": "Diese Eintragsart lässt sich so nicht korrigieren.",
     "passwordTooShort": "Passwort zu kurz (min. {min} Zeichen)",
     "passwordTooLong": "Passwort zu lang (max. {max} Bytes)",
     "missingFields": "Fehlende Felder",

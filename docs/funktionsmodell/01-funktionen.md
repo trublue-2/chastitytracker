@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-100 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+101 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -26,6 +26,7 @@ Steckbrief: [15-eintraege.md](15-eintraege.md)
 | **Eigenen Eintrag ändern oder löschen** | Korrigiert einen bereits erfassten Eintrag; alle abgeleiteten Zustände folgen automatisch. | Sub | App (Träger) | `/api/entries/[id]` |
 | **Eintrag für einen Sub nachtragen** | Legt einen Eintrag im Namen des Trägers an — hier ist Rückdatieren erlaubt. <br>*Löst bewusst KEINE Reinigungs-Kontrolle aus: der Planer rechnet ab jetzt, nicht ab der Eintrags-Zeit.* | Keyholder (UI) | App (Keyholder) | `/api/admin/entries` |
 | **Fremden Eintrag ändern** | Korrigiert den Eintrag eines Trägers. | Keyholder (UI) | App (Keyholder) | `/api/admin/entries/[id]` |
+| **Eintrag korrigieren (KI-Keyholderin)** | Stellt Gerät, Zeitpunkt oder Notiz eines erfassten Verschluss-/Öffnen- oder Trage-Eintrags richtig — der Griff daneben beim Erfassen, meist das falsch gewählte Gerät. <br>*Fotos, Kontrollcode und Verifikations-Status bleiben aussen vor: sie sind die Beweisführung. Still — der Träger bekommt keine Meldung, der Write steht im Action-Log.* | Keyholder (MCP) | MCP | `edit_entry` |
 | **Roh-Einträge lesen** | Die unaufbereitete Eintragsliste für die Keyholder-KI. | Keyholder (MCP) | MCP | `list_entries` |
 | **Foto hochladen und ausliefern** | Nimmt Bilder entgegen (Endungs-Whitelist, Magic-Byte-Prüfung, Grössenlimit) und liefert sie nur authentifiziert wieder aus. | Sub, Keyholder (UI) | App (Träger), App (Keyholder) | `/api/upload` `/api/uploads/[...path]` |
 | **Bild an die Keyholder-KI geben** | Liefert ein hinterlegtes Foto an den MCP, damit die KI es selbst ansehen kann. | Keyholder (MCP) | MCP | `get_image` |

@@ -49,6 +49,10 @@ export const SHARED_SERVICE_CODES = [
   // MITBENUTZT statt dupliziert: „Zeitpunkt darf nicht in der Zukunft liegen" ist derselbe Satz,
   // egal ob ein Eintrag oder ein notiertes Vergehen vordatiert wird.
   "TIME_IN_FUTURE",
+  // Dieselbe Mitbenutzung, aus demselben Grund: die Ketten-Prüfung einer Eintrags-Korrektur
+  // (`assertEntryTimeOk`) wirft sie, und die ruft seit der Extraktion auch ein Dienst
+  // (`correctEntry`) statt nur die Route.
+  "INVALID_ORDER",
   "INTERNAL_ERROR",
   "UNKNOWN_ACTION",
   "USER_NOT_LOCKED",
@@ -319,6 +323,20 @@ export const WEIGHT_CODES = [
   "RELEASE_UNDERWEIGHT",
 ] as const;
 
+/** Die KORREKTUR eines Eintrags (`entryCorrection.ts`). Beide Codes sagen dasselbe wie eine
+ *  ausgegraute Schaltfläche in der Oberfläche — nur muss ein Agent den Satz lesen können, statt die
+ *  Absage aus einer fehlenden Möglichkeit zu erschliessen. */
+export const ENTRY_CORRECTION_CODES = [
+  "ENTRY_NOT_CORRECTABLE",
+  "ENTRY_CARRIES_NO_DEVICE",
+  // MITBENUTZT aus `entryErrors.ts` (wie `TIME_BEFORE`/`TIME_IN_FUTURE` weiter oben): die
+  // Geräte-Regeln des Trage-Eintrags sind beim Korrigieren dieselben wie beim Anlegen, und der
+  // Wortlaut trägt für beide Adressaten — er beschreibt das GERÄT, nicht den Handelnden.
+  "WEAR_DEVICE_REQUIRED",
+  "WEAR_DEVICE_NO_CATEGORY",
+  "WEAR_DEVICE_KG",
+] as const;
+
 /** Every code the service layer can return — the set the i18n parity test iterates. */
 export const SERVICE_ERROR_CODES = [
   ...new Set<string>([
@@ -339,6 +357,7 @@ export const SERVICE_ERROR_CODES = [
     ...SETTINGS_CODES,
     ...WEIGHT_CODES,
     ...HEALTH_HOLD_CODES,
+    ...ENTRY_CORRECTION_CODES,
   ]),
 ] as readonly string[];
 
@@ -363,4 +382,5 @@ export type ServiceErrorCode =
   | (typeof OFFENSE_RULE_CODES)[number]
   | (typeof SETTINGS_CODES)[number]
   | (typeof WEIGHT_CODES)[number]
-  | (typeof HEALTH_HOLD_CODES)[number];
+  | (typeof HEALTH_HOLD_CODES)[number]
+  | (typeof ENTRY_CORRECTION_CODES)[number];

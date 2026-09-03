@@ -6,6 +6,13 @@
       {
         "type": "fix",
         "text": {
+          "de": "Die KI-Keyholderin kann einen erfassten Verschluss oder Trage-Eintrag jetzt richtigstellen — Gerät, Zeitpunkt oder Notiz. Anlass ist das beim Verschluss verwechselte Gerät. Die Korrektur läuft still, steht aber im Protokoll ihrer Handlungen.",
+          "en": "The AI keyholder can now correct a recorded lock or wear entry — device, time or note. The usual case is the wrong device picked while locking. The correction is silent but recorded in her action log."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
           "de": "Überlappten sich zwei Reinigungsfenster, galt das zuerst gespeicherte statt des länger laufenden. Die Frist zum Wiederverschliessen fiel dadurch zu früh — und mit ihr ein Versäumnis, obwohl die Reinigung noch offenstand. Gleiches gilt jetzt für die Wiege-Fenster.",
           "en": "When two cleaning windows overlapped, the one stored first applied instead of the one running longer. The re-lock deadline fell too early — and with it an offense, although cleaning was still permitted. The same now applies to weighing windows."
         }
