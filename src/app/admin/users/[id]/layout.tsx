@@ -4,7 +4,7 @@ import { getLatestKgEntry, latestKgTimesByUser } from "@/lib/queries";
 import { getControlledSubs } from "@/lib/keyholder";
 import UserContextBar from "./UserContextBar";
 import UserSubNav from "./UserSubNav";
-import { blockStackCls } from "@/app/components/inputStyles";
+import { blockStackCls, wideColCls } from "@/app/components/inputStyles";
 
 export default async function AdminUserLayout({
   children,
@@ -65,14 +65,13 @@ export default async function AdminUserLayout({
         isGlobalAdmin={isGlobalAdmin}
       />
       <UserSubNav userId={id} />
-      {/* Diese Seite spannt ihre Spalte selbst auf — die geteilten Dashboard-Blöcke sollen sie
-          füllen statt ihre eigene mitzubringen. Begründung in `DashboardBlock`.
-
-          Die Spalte trägt das LESEMASS (`wideColCls`), nicht die Fensterbreite. Sie stand auf
-          1024 px, und die Zeilen darin auf 976: ein Name links, ein Chevron einen Meter weiter
-          rechts. Kopfzeile und Reiter darüber bleiben breit — sie rahmen die Seite, sie werden
-          nicht gelesen. */}
-      <main className={`flex-1 py-6 ${blockStackCls} [--block-col:100%] [--block-gutter:0px]`}>
+      {/* Kopfzeile und Reiter oben spannen die ganze HÜLLE (`adminShellColCls`, 1024) — sie rahmen
+          die Seite und tragen die neun Reiter in einer Zeile. Der INHALT hier wird dagegen auf das
+          Lesemass (`wideColCls`, 768) zurückgekappt: eine Detailzeile mit Name links und Chevron
+          rechts zöge sich sonst auf Armlänge (der Grund, aus dem die Spalte einmal von 1024 auf 768
+          zurückging). Die Blöcke füllen die gekappte Spalte, statt ihre eigene mitzubringen —
+          Begründung in `DashboardBlock`. */}
+      <main className={`flex-1 py-6 ${wideColCls} ${blockStackCls} [--block-col:100%] [--block-gutter:0px]`}>
         {children}
       </main>
     </>

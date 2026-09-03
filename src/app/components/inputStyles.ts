@@ -120,6 +120,16 @@ export const readingColCls = "w-full max-w-2xl mx-auto px-4";
 export const wideColCls = "w-full max-w-3xl mx-auto px-4 sm:px-6";
 
 /**
+ * Die HÜLLE des Keyholder-Bereichs — breiter als das Inhalts-Lesemass ({@link wideColCls}).
+ *
+ * Sie trägt zwei Dinge, die die 768 px sprengen: die neun Reiter der Träger-Seite (die sonst auf
+ * zwei Zeilen umbrechen) und die Übersichtslisten der Keyholderin, deren Zeilen Bild, Beschriftung
+ * und Aktionsmenü tragen. Der DETAIL-Inhalt einer Träger-Seite bleibt trotzdem auf `wideColCls`
+ * gekappt (im Layout) — sonst zöge sich eine Zeile mit Name links und Chevron rechts auf Armlänge.
+ */
+export const adminShellColCls = "w-full max-w-5xl mx-auto px-4 sm:px-6";
+
+/**
  * Verengung auf das LESEMASS innerhalb einer breiteren Spalte.
  *
  * Für Formularseiten im Keyholder-Bereich, dessen Layout auf `wideColCls` steht: ein Formular ist

@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth";
 import { ownTrackerHidden } from "@/lib/ownTracker";
 import { keyholderWorld } from "@/lib/theme";
 import pkg from "../../../package.json";
-import { wideColCls } from "@/app/components/inputStyles";
+import { adminShellColCls } from "@/app/components/inputStyles";
 import ChangeoverNoticeGate from "@/app/components/ChangeoverNoticeGate";
 
 // SECURITY: admin-only, user-spezifisch — nie statisch/geteilt cachen (per-Request inkl. RSC).
@@ -39,12 +39,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           der Mitte des FENSTERS liegt statt mittig im Bereich NEBEN der Leiste — fürs Auge zählt
           die Leiste mit, und der Inhalt wirkt sonst nach rechts geschoben.
 
-          Erst ab `2xl` und damit eine Stufe später als im Träger-Bereich: diese Spalte ist
-          `wideColCls` und damit 768 px breit, nicht 672. Bei 1280 px blieben nach Leiste und
-          gespiegeltem Rand exakt 768 px übrig — die Spalte behielte ihr Mass, stünde aber ohne
-          jeden Abstand an der Leiste. Ab 1536 px sind es 1024 px und damit wieder 128 px Luft. */}
+          Die Hülle ist `adminShellColCls` (1024 px): sie fasst die neun Reiter der Träger-Seite in
+          EINE Zeile und gibt den Übersichtslisten Raum. Der DETAIL-Inhalt einer Träger-Seite wird
+          im Träger-Layout wieder auf `wideColCls` (768) gekappt — die Reiter- und Kopfzeile behalten
+          die volle Breite, die Zeilen darunter das Lesemass. */}
       <div className="lg:ml-64 2xl:pr-64 min-h-screen pb-[var(--bottom-nav-space)] lg:pb-0">
-        <div className={`${wideColCls} [--block-col:100%] [--block-gutter:0px]`}>
+        <div className={`${adminShellColCls} [--block-col:100%] [--block-gutter:0px]`}>
           {/* Siehe `dashboard/layout.tsx` — und ebenfalls INNERHALB der Spalte. */}
           {user?.id && <ChangeoverNoticeGate userId={user.id} />}
           {children}
