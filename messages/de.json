@@ -632,7 +632,6 @@
     "failsafeOfflineDue": "Box seit {hours} Std ohne Kontakt — die Not-Öffnung ist erfolgt oder steht unmittelbar bevor.",
     "failsafeBatteryWarn": "Akku {percent} % — ab {opensAt} % öffnet sich die Box von selbst. Laden.",
     "failsafeBatteryDue": "Akku {percent} % — die Box öffnet sich jederzeit von selbst (Schwelle {opensAt} %). Sofort laden.",
-    "cleaningWindowOpen": "Reinigungsfenster offen bis {until}",
     "subTimePrefix": "Sub",
     "deviceInfo": "Angaben zum Gerät"
   },
@@ -1038,6 +1037,8 @@
     "reinigungErlaubtHint": "Reinigungsöffnungen brechen die Sperre nicht und gelten nicht als unerlaubte Öffnung (sofern der User Reinigung grundsätzlich darf).",
     "sperrzeitRemainingPrefix": "Rest:",
     "sperrzeitWithCleaning": "mit Reinigung",
+    "sperrzeitWithCleaningWindow": "mit Reinigung · {window}",
+    "windowInAWeek": "nächste Woche",
     "sperrzeitWithoutCleaning": "ohne Reinigung",
     "selectDeviceLabel": "Bestimmten KG verlangen",
     "selectDevicePlaceholder": "Kein bestimmter KG",

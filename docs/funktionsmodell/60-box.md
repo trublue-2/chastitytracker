@@ -65,7 +65,7 @@ Vollständig: Zustand, Akku, Vorwarnungen und der Grund, wenn gerade nicht geöf
 
 ## Code
 
-`boxCommand.ts`, `boxStatus.ts`, `boxSync.ts`, `boxCleaning.ts`, `boxOpenOutlook.ts`,
+`boxCommand.ts`, `boxStatus.ts`, `boxSync.ts`, `boxOpenOutlook.ts`,
 `boxKeyProof.ts`, `detectKeyInBox.ts`, Modelle `BoxStatus` / `BoxEvent`. Firmware und Gegenstelle
 liegen im Heimdall-Repo, siehe `docs/heimdall-box.md`.
 

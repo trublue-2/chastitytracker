@@ -24,7 +24,6 @@ import {
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
 import { resolveGoalTargets, hasVisibleGoalRow } from "@/lib/goalFulfillment";
-import { buildBoxCleaningView } from "@/lib/boxCleaning";
 import type { Translate } from "@/lib/boxStatus";
 import { currentOrNextCleaningWindow } from "@/lib/cleaningService";
 import { datedWindowLabel } from "@/lib/weekdays";
@@ -275,30 +274,25 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
   boxStatus: block({
     // Ohne Heimdall gibt es keine Box-Karte — dann auch keine Abfragen für sie.
-    load: async ({ userId, now, tz }) => {
+    load: async ({ userId }) => {
       if (!heimdallEnabled()) return null;
-      // Die Reinigungs-Regeln der Box-Karte (Begründung in `buildBoxCleaningView`) zählen ihr
-      // Tageskontingent aus den ohnehin geladenen Einträgen — ohne eigene DB-Runde.
-      const [user, entries, activeLockPeriod] = await Promise.all([
-        userRowCached(userId), entriesCached(userId), subLockPeriodCached(userId),
-      ]);
       // Der Zustand des TRÄGERS gehört dazu: nur mit ihm kann die Karte „Riegel zu, obwohl
       // niemand verschlossen ist" von „Riegel zu, während der Verschluss läuft" unterscheiden.
       // Das ist EINE zusätzliche indizierte Abfrage (`getLatestKgEntry`), nicht gratis — aber die
-      // Alternative wäre, den Zustand aus `entries` nachzurechnen und damit eine zweite Fassung
+      // Alternative wäre, den Zustand aus den Einträgen nachzurechnen und damit eine zweite Fassung
       // derselben Regel zu führen.
-      return {
-        cleaning: buildBoxCleaningView(user, activeLockPeriod, now, tz),
-        wearerLocked: await getIsLocked(userId),
+      const [wearerLocked, keyInBox] = await Promise.all([
+        getIsLocked(userId),
         // Ohne diesen Wert läse die Karte den Reisefall als Versäumnis — Begründung an
-        // `latestKeyInBoxCached` und `boxBoltOpenDespiteLocked`. Leitet aus den geladenen Einträgen ab.
-        keyInBox: await latestKeyInBoxCached(userId),
-      };
+        // `latestKeyInBoxCached` und `boxBoltOpenDespiteLocked`.
+        latestKeyInBoxCached(userId),
+      ]);
+      return { wearerLocked, keyInBox };
     },
-    // `null` heisst hier „ohne Reinigungs-Zeilen", nicht „ohne Karte" — die Karte selbst hängt an
-    // Heimdall, und ohne den lief der Loader gar nicht erst.
+    // `null` heisst „ohne Box" — die Karte hängt an Heimdall, und ohne den lief der Loader gar nicht
+    // erst.
     render: (data) => heimdallEnabled() && data !== null && (
-      <BoxStatusCard cleaning={data.cleaning} wearerLocked={data.wearerLocked} keyInBox={data.keyInBox} />
+      <BoxStatusCard wearerLocked={data.wearerLocked} keyInBox={data.keyInBox} />
     ),
   }),
 

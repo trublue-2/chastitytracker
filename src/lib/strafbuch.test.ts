@@ -248,12 +248,6 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
 });
 
 /**
- * Das Tageskontingent zählt die Box-Karte über `cleaningUsedToday` (midnightInTZ mit der
- * Sub-Zeitzone). Das Strafbuch bucketete dieselben Öffnungen nach CH-Tag — für eine Sub ausserhalb
- * Europe/Zurich gab dieselbe Regel damit zwei verschiedene Antworten: eine Öffnung nahe der lokalen
- * Mitternacht fiel im Buch in einen anderen Tag als in der Zählung.
- */
-/**
  * Der Gesundheits-Halt. Bis v6.0.2 ruhte allein die Wiege-Meldepflicht; jede andere Vergehensart
  * entstand während einer laufenden Pause weiter — samt der automatischen, die niemand entschieden
  * hat (Issue #91). Gefiltert wird jetzt zentral über `OFFENSE_LISTS`, damit eine neue Art nicht

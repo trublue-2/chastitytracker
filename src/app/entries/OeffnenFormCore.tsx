@@ -101,7 +101,7 @@ export default function OeffnenFormCore({
 
   /** Der Reinigungs-Hinweistext (Sheet + Inline-Karte teilen ihn). Ist die Öffnung ausserhalb des
    *  Fensters, hängt „Nächstes Reinigungsfenster …" an — sonst weiss der Sub nicht, wann es wieder
-   *  geht. `nextWindow` ist dieselbe Quelle wie die Box-Karte auf der Übersicht. */
+   *  geht. Dieselbe Quelle wie die Sperrzeit-Zeile der Übersicht. */
   const cleaningHintText =
     (cleaningHintKey ? t(cleaningHintKey) : t("modalSubtextReinigung", { minutes: cleaningMaxMinutes })) +
     (cleaningBlock === "outsideWindow" ? nextWindowText : "");

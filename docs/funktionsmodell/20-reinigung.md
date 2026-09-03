@@ -96,7 +96,7 @@ geöffnet werden darf.
 ## Code
 
 `queries.ts` (`cleaningBlockReason`, `cleaningWindowOpen`, `cleaningWindowBindingStatus`,
-`isAllowedCleaningOpen`), `cleaningService.ts`, `cleaningRules.ts`, `boxCleaning.ts`.
+`isAllowedCleaningOpen`), `cleaningService.ts`, `cleaningRules.ts`.
 
 ## Tests
 

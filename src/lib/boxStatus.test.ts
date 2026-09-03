@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { boxBatteryLabel, boxBoltAlert, boxBoltOpenDespiteLocked, boxCleaningWindowOpenLabel, boxHasConflict, boxFailsafeWarnings, boxPendingTransition, boxSollLocked, type BoxCleaningView, type BoxRow } from "./boxStatus";
+import { boxBatteryLabel, boxBoltAlert, boxBoltOpenDespiteLocked, boxHasConflict, boxFailsafeWarnings, boxPendingTransition, boxSollLocked, type BoxRow } from "./boxStatus";
 
 // Der Übergangs-Zustand (Präsenz-Gate, FW ≥ 0.2.34) speist die Box-Karte aus zwei nahtlos
 // ineinander übergehenden Quellen: sofort nach dem Eintrag das tracker-lokale pendingCommand,
@@ -305,34 +305,5 @@ describe("boxBoltAlert — die Rangfolge der Riegel-Aussagen", () => {
     // Der Nachweis, dass die Lagen wirklich auseinandergehen — sonst prüfte der Test nichts:
     expect(boxHasConflict(b)).toBe(false);
     expect(boxBoltAlert(b, true)).toBe("omission");
-  });
-});
-
-
-/**
- * Die eine Reinigungs-Zeile der Karte. Sie ist eine GELEGENHEIT MIT ABLAUF — und damit nur dann eine
- * Aussage, wenn die Fenster gerade wirklich einschränken. Ohne laufende Sperrzeit tun sie das nicht:
- * eine Reinigungsöffnung ist dann ohnehin erlaubt, und „offen bis 20:00" behauptete eine Schranke,
- * die es nicht gibt.
- */
-describe("boxCleaningWindowOpenLabel", () => {
-  const t = (key: string, values?: Record<string, string | number>) => `${key}:${values?.until ?? ""}`;
-  const view = (over: Partial<BoxCleaningView> = {}): BoxCleaningView =>
-    ({ windowOpenNow: { until: "20:00" }, windowsBinding: true, ...over });
-
-  it("nennt das offene Fenster, solange es bindet", () => {
-    expect(boxCleaningWindowOpenLabel(view(), t)).toBe("cleaningWindowOpen:20:00");
-  });
-
-  it("schweigt, wenn die Fenster gerade nichts einschränken", () => {
-    expect(boxCleaningWindowOpenLabel(view({ windowsBinding: false }), t)).toBeNull();
-  });
-
-  it("schweigt auch, wenn gerade kein Fenster offen ist", () => {
-    expect(boxCleaningWindowOpenLabel(view({ windowOpenNow: null }), t)).toBeNull();
-  });
-
-  it("ohne Box-Sicht gibt es nichts zu sagen", () => {
-    expect(boxCleaningWindowOpenLabel(null, t)).toBeNull();
   });
 });

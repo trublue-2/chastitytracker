@@ -4,15 +4,18 @@ import { ClipboardList, Droplets, ChevronRight } from "lucide-react";
 import { block, type StackBlock } from "@/lib/blockStack";
 import type { KeyholderSubBlockId } from "@/lib/dashboardBlockRegistry";
 import {
-  activeVorgabeCached, activeWearSessionsCached, deviceCountCached, entriesCached,
+  activeVorgabeCached, activeWearSessionsCached, deviceCountCached,
   keyholderInspectionsCached, keyholderOrgasmRequestCached, keyholderPairsCached,
   keyholderRunningSessionCached, keyholderLockPeriodCached, latestKeyInBoxCached, latestKgEntryCached, orgasmConfigCached,
-  orgasmEntriesCached, sessionListDataCached, taskCardsCached, userRowCached, wearCountsCached,
+  orgasmEntriesCached, sessionListDataCached, taskCardsCached, wearCountsCached,
   wearingHoursCached, wearSessionRowsCached,
 } from "@/lib/dashboardData";
 import { heimdallEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
 import { getIsLocked, isScheduledDirective } from "@/lib/queries";
-import { buildBoxCleaningView } from "@/lib/boxCleaning";
+import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/cleaningService";
+import { datedWindowLabel } from "@/lib/weekdays";
+import { buildWeekdayLabels } from "@/lib/statsBuilders";
+import { userRowCached } from "@/lib/dashboardData";
 import { resolveGoalTargets } from "@/lib/goalFulfillment";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
@@ -77,18 +80,23 @@ const taskCardsOf = (ctx: KeyholderSubCtx) =>
   taskCardsCached(ctx.subjectId, ctx.nowMs, ctx.tTasks("requirementKgLocked"), "keyholder");
 
 /**
- * Die Sperrzeit, die für die REINIGUNGS-Frage zählt.
+ * „mit Reinigung" — und, wo Fenster gesetzt sind, ab wann.
  *
- * `getKeyholderLockPeriod` zeigt auch eine erst GEPLANTE (damit die Keyholderin sie stornieren
- * kann) — hier zählt nur die bereits wirksame, sonst meldet die Box-Karte „durch Sperrzeit
- * blockiert", bevor die Sperre überhaupt läuft.
- *
- * Das Ergebnis ist dasselbe, das `getActiveLockPeriod` liefern würde; abgeleitet statt abgefragt,
- * weil die Seite die Keyholder-Zeilen ohnehin geladen hat und eine zweite Runde nichts brächte.
+ * IHRE Formulierung, nicht die des Trägers: hier steht die Eigenschaft der SPERRE, unabhängig von
+ * den Benutzer-Einstellungen des Subs (sie hat das Flag gesetzt und prüft es hier). Die Uhrzeit
+ * kommt trotzdem aus derselben Quelle wie auf seiner Übersicht — sonst fände sie die Fenster, die
+ * er dort liest, nur noch im Einstellungs-Formular.
  */
-async function effectiveLockPeriod(ctx: KeyholderSubCtx) {
-  const lockPeriod = await keyholderLockPeriodCached(ctx.subjectId);
-  return lockPeriod && !isScheduledDirective(lockPeriod.wirksamAb, ctx.now) ? lockPeriod : null;
+function cleaningAttributeNote(
+  lockPeriod: { cleaningAllowed: boolean } | null | undefined,
+  window: NextCleaningWindow | null,
+  dl: string,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string | null {
+  if (!lockPeriod) return null;
+  if (!lockPeriod.cleaningAllowed) return t("sperrzeitWithoutCleaning");
+  if (!window) return t("sperrzeitWithCleaning");
+  return t("sperrzeitWithCleaningWindow", { window: datedWindowLabel(window, buildWeekdayLabels(dl), t("windowInAWeek")) });
 }
 
 export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<KeyholderSubCtx>> = {
@@ -97,24 +105,18 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
   boxStatus: block({
     load: async (ctx) => {
       if (!heimdallEnabled()) return null;
-      // Das Tageskontingent zählt aus den ohnehin geladenen Einträgen — ohne eigene DB-Runde. Nur
-      // der Schlüssel-Nachweis aus der Telemetrie fragt noch ab, damit die Keyholderin dieselben
-      // Pillen sieht wie der Sub.
-      const [user, entries, lockPeriod] = await Promise.all([
-        userRowCached(ctx.subjectId), entriesCached(ctx.subjectId), effectiveLockPeriod(ctx),
-      ]);
-      return {
-        cleaning: buildBoxCleaningView(user, lockPeriod, ctx.now, ctx.subjectTz),
+      const [wearerLocked, keyInBox] = await Promise.all([
         // Siehe `dashboardBlocks`: ohne den Träger-Zustand liesse sich „Riegel zu, obwohl niemand
         // verschlossen ist" nicht vom Normalfall unterscheiden.
-        wearerLocked: await getIsLocked(ctx.subjectId),
+        getIsLocked(ctx.subjectId),
         // Und ohne den Schlüssel-Zustand widerspräche diese Karte der eigenen Übersicht der
         // Keyholderin: `/admin` nimmt den Reisefall aus, hier fehlte er.
-        keyInBox: await latestKeyInBoxCached(ctx.subjectId),
-      };
+        latestKeyInBoxCached(ctx.subjectId),
+      ]);
+      return { wearerLocked, keyInBox };
     },
     render: (data, { subjectId }) => heimdallEnabled() && data !== null && (
-      <BoxStatusCard userId={subjectId} cleaning={data.cleaning} wearerLocked={data.wearerLocked} keyInBox={data.keyInBox} />
+      <BoxStatusCard userId={subjectId} wearerLocked={data.wearerLocked} keyInBox={data.keyInBox} />
     ),
   }),
 
@@ -138,13 +140,17 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       // Stundenrechnung. Letztere paart die ganze Historie und wird von keinem anderen Block
       // dieser Seite gebraucht.
       if (!running) return { running: null, latest: await latestKgEntryCached(subjectId) };
-      const [lockPeriod, activeVorgabe, hours, deviceCount, offenseRules] = await Promise.all([
+      const [lockPeriod, activeVorgabe, hours, deviceCount, offenseRules, user] = await Promise.all([
         keyholderLockPeriodCached(subjectId), activeVorgabeCached(subjectId, nowMs),
         wearingHoursCached(subjectId, nowMs, subjectTz), deviceCountCached(subjectId),
         // Ob ein früheres Öffnen geahndet wird, ist je Sub schaltbar — und SIE hat den Schalter.
         // Ohne diese Abfrage läse die Keyholderin auf ihrer eigenen Karte, dass eine Regel gilt,
         // die sie gerade selbst abgeschaltet hat.
         getOffenseRules(subjectId, now),
+        // Für das Reinigungsfenster in ihrer Sperrzeit-Zeile. Eine gecachte Ein-Zeilen-Abfrage —
+        // und die Alternative wäre, dass die Keyholderin die Uhrzeiten, die der Träger auf SEINER
+        // Übersicht liest, nur noch im Einstellungs-Formular findet.
+        userRowCached(subjectId),
       ]);
       // Fertig übersetzt schon hier: die Zeichenkette liegt im `dashboard`-Namensraum, den der
       // Seiten-Kontext nicht führt (er trägt `admin`). Die Karte bekommt sie als Text — dieselbe
@@ -153,9 +159,15 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       const lockBreakNote = offenseRules.unauthorized_opening === "off"
         ? null
         : tDash(lockPeriod?.cleaningAllowed ? "sessionLockedConsequenceCleaning" : "sessionLockedConsequence");
-      return { running, lockPeriod, activeVorgabe, hours, deviceCount, lockBreakNote, latest: null };
+      // Das geltende Fenster, wo die Sperre Reinigung zulässt — dieselbe Auskunft wie auf der
+      // Übersicht des Trägers, in IHRER Formulierung („mit Reinigung"). Ohne konfigurierte Fenster
+      // bleibt es beim blossen Attribut: die Reinigung ist dann nicht zeitgebunden.
+      const cleaningWindow = lockPeriod?.cleaningAllowed
+        ? currentOrNextCleaningWindow(user?.cleaningWindows, now, subjectTz)
+        : null;
+      return { running, lockPeriod, activeVorgabe, hours, deviceCount, lockBreakNote, cleaningWindow, latest: null };
     },
-    render: (data, { now, subjectTz, viewerTz, subLabel, subjectId, t }) =>
+    render: (data, { now, subjectTz, viewerTz, subLabel, subjectId, dl, t }) =>
       data.running ? (
         <LaufendeSessionCard
           // Zwei Zonen für die Sperr-Frist und die Box DIESES Subs: die Karte zeigte die Frist
@@ -180,7 +192,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           lockPeriodRunningSince={data.lockPeriod?.wirksamAb && data.lockPeriod.wirksamAb <= now ? data.lockPeriod.wirksamAb : null}
           // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den Benutzer-
           // Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
-          cleaningNote={data.lockPeriod ? t(data.lockPeriod.cleaningAllowed ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning") : null}
+          cleaningNote={cleaningAttributeNote(data.lockPeriod, data.cleaningWindow, dl, t)}
           // Nur wenn die Regel gilt, und mit der Reinigungs-Ausnahme im Text, wo die Sperre sie
           // zulässt (Herleitung in der Ladefunktion).
           lockBreakNote={data.lockBreakNote}

@@ -6,8 +6,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "Während einer Sperrzeit stand auf der Übersicht nur „Reinigungsöffnungen erlaubt“ — ohne Uhrzeit. Die Zeile nennt jetzt wieder das geltende Reinigungsfenster: das laufende, sonst das nächste.",
-          "en": "During a lock period the overview only said “cleaning openings allowed” — with no times. The line now names the cleaning window that applies: the current one, otherwise the next."
+          "de": "Während einer Sperrzeit stand auf der Übersicht nur „Reinigungsöffnungen erlaubt“ — ohne Uhrzeit. Die Zeile nennt jetzt wieder das geltende Reinigungsfenster: das laufende, sonst das nächste. Die Box-Karte wiederholt es dafür nicht mehr.",
+          "en": "During a lock period the overview only said “cleaning openings allowed” — with no times. The line now names the cleaning window that applies: the current one, otherwise the next. The box card no longer repeats it."
         }
       },
       {

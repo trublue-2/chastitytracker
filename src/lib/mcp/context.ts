@@ -43,10 +43,9 @@ export async function loadActiveHealthHold(userId: string, isoFn: Iso = iso): Pr
   return h ? { id: h.id, active: true, reason: h.reason, since: isoFn(h.createdAt)! } : null;
 }
 
-/** MCP-Erweiterung der geteilten `CleaningView` (auch von `src/app/dashboard/page.tsx` genutzt) um
- *  die drei A-02-Felder. Bewusst NICHT Teil von `CleaningView` selbst: die binden nur im
- *  Sperrzeit-Kontext, den nur der MCP-Layer hier ohnehin schon lädt — dieselbe Erweiterungs-Technik
- *  wie `BoxCleaningView` in `src/lib/boxStatus.ts`. */
+/** MCP-Erweiterung der geteilten `CleaningView` um die drei A-02-Felder. Bewusst NICHT Teil von
+ *  `CleaningView` selbst: die binden nur im Sperrzeit-Kontext, den nur der MCP-Layer hier ohnehin
+ *  schon lädt. */
 export type ContextCleaningView = CleaningView & {
   windowsBinding: boolean;
   windowsBindingReason: WindowsBindingReason;

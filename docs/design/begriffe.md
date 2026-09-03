@@ -172,7 +172,8 @@ eine Sperrzeit erscheint". Umgesetzt ist die laufende Session (Träger- und Keyh
 zwar korrekt an die geltende Regel gehängt (`unauthorized_opening` ist je Sub abschaltbar, eine
 erlaubte Reinigungsöffnung ist ausgenommen). Ohne Folge bleiben: die **Mail, mit der die Sperrzeit
 angekündigt wird** (`emails.lockPeriodSetBody` — nach der eigenen Begründung eigentlich der ERSTE
-Ort), die Box-Karte und die Keyholder-Übersicht.
+Ort) und die Keyholder-Übersicht. Die Box-Karte zählt seit dem v6-Umbau nicht mehr dazu: sie zeigt
+nur noch Ereignisse der Hardware und nennt gar keine Sperrzeit mehr.
 
 **Die eingebaute Kategorie hat im Deutschen weiter drei Namen.** „KG" (18 Werte, bleibt per
 Beschluss), „Chastity Device" (der Kategoriename) und „Keuschheitsgürtel" in

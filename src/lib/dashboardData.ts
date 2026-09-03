@@ -173,8 +173,7 @@ export const latestKeyInBoxCached = cache(async (userId: string) => {
 
 /**
  * Die Reinigungs-Regeln des Trägers: `at(zeitpunkt)` gibt die damals geltende Fassung, `rules` die
- * Form, die `buildPairs` und die Box-Karte erwarten. Begründung der Historisierung am Modell
- * `CleaningRuleChange`.
+ * Form, die `buildPairs` erwartet. Begründung der Historisierung am Modell `CleaningRuleChange`.
  */
 export const cleaningRulesCached = cache(async (userId: string) => {
   const [changes, user] = await Promise.all([

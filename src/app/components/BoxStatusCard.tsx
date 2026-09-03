@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { boxIsPhysicallyLocked, boxIstLabel, boxBoltAlert, boxPendingTransition, boxBatteryLabel, boxBatteryIsLow, boxFailsafeWarnings, boxFailsafeLabel, boxCleaningWindowOpenLabel, type BoxCleaningView } from "@/lib/boxStatus";
+import { boxIsPhysicallyLocked, boxIstLabel, boxBoltAlert, boxPendingTransition, boxBatteryLabel, boxBatteryIsLow, boxFailsafeWarnings, boxFailsafeLabel } from "@/lib/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import Card from "@/app/components/Card";
@@ -44,15 +44,13 @@ const boxRowCls = "flex items-center gap-2";
  *  Was aus dem Dauerbild verschwunden ist und wo es geblieben ist:
  *  - Box-Name und Firmware → hinter das ⓘ in der Rubrik. Support-Angaben, kein Dauerinhalt; einen
  *    anderen Ort hätten sie nicht, `/dashboard/geraete` kennt die Box nicht.
- *  - Reinigungsfenster und Kontingent → Begründung an `boxCleaningWindowOpenLabel`.
  *  - Akku „voll"/„mittel" → ersatzlos. Ein Akkustand, der in Ordnung ist, ist keine Auskunft, die
  *    jemand sucht; niedrig und kritisch melden sich weiterhin.
  *
  *  KEINE Zeitzonen mehr: das einzige Datum dieser Karte war das Sperr-Ende, und das nennt jetzt der
  *  Zustands-Held — dort zweizonig, wo es hingehört. Hier stand es ein zweites Mal, in einer anderen
  *  Zone formatiert als dort. */
-export default function BoxStatusCard({ cleaning, userId, wearerLocked = true, keyInBox }: {
-  cleaning?: BoxCleaningView | null;
+export default function BoxStatusCard({ userId, wearerLocked = true, keyInBox }: {
   userId?: string;
   /** Liegt der Schlüssel in der Box? `false` = Reisefall (der Träger behielt ihn) — dann ist ein
    *  offener Riegel kein Versäumnis, sondern die verabredete Lage. Siehe `boxBoltOpenDespiteLocked`. */
@@ -74,8 +72,6 @@ export default function BoxStatusCard({ cleaning, userId, wearerLocked = true, k
   if (boxes.length === 0) return null;
 
   const multiBox = boxes.length > 1;
-
-  const windowOpen = boxCleaningWindowOpenLabel(cleaning ?? null, t);
 
   const boxRows = boxes.map((b) => {
     const isLocked = boxIsPhysicallyLocked(b);
@@ -121,11 +117,12 @@ export default function BoxStatusCard({ cleaning, userId, wearerLocked = true, k
   // aus, Funkstille, knapper Akku. Damit löst sich der Rang-Konflikt von selbst, den der Docblock
   // oben beschreibt: der Block ist keine Auskunft mehr, die lauter wäre als eine offene Frist.
   //
-  // Das offene Reinigungsfenster zählt mit: es läuft ab, ist also auch ein Ereignis — aber nur,
-  // solange es BINDET (`boxCleaningWindowOpenLabel`). Ohne laufende Sperrzeit darf der Träger
-  // ohnehin jederzeit reinigen; ein Fenster ist dann kein Ereignis, sondern eine Einstellung, und
-  // die liess den Block im Ruhefall wieder dauerhaft dastehen.
-  if (!semantic && !windowOpen && !hasQuietWarning && !hasUnexplainedHold) return null;
+  // Das Reinigungsfenster steht hier NICHT mehr (Rückmeldung 03.09.2026). Es hat seinen Platz an der
+  // Sperrzeit-Zeile des Zustands-Helden — dort, wo es überhaupt bindet, und dort auch dann, wenn
+  // gerade keines offen ist. Zwei Zeilen über dasselbe Fenster auf einem Bildschirm waren eine zu
+  // viel, und diese hier war die schwächere: sie kannte nur „läuft gerade" und gab es nur auf
+  // Instanzen mit Box.
+  if (!semantic && !hasQuietWarning && !hasUnexplainedHold) return null;
 
   return (
     <DashboardBlock>
@@ -197,7 +194,6 @@ export default function BoxStatusCard({ cleaning, userId, wearerLocked = true, k
             </div>
           );
         })}
-        {windowOpen && <p className="text-neben text-foreground-muted">{windowOpen}</p>}
       </Card>
     </DashboardBlock>
   );
