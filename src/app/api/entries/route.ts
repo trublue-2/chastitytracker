@@ -255,6 +255,8 @@ export async function POST(req: NextRequest) {
         {
           verification,
           targetWhere: inspectionTarget ? inspectionTargetWhere(inspectionTarget, submissionDeviceId) : null,
+          // Ob es verlangt wird, sagt die Anforderung; ob es fehlt, weiss nur der Body.
+          boxPhotoMissing: !boxImageUrl,
         },
         new Date(),
       );

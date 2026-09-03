@@ -174,6 +174,39 @@ describe("Kontroll-Anforderung", () => {
   });
 });
 
+/**
+ * Der Nachweis-Zwang einer Kontrolle. Was verlangt wird, steht in der ANFORDERUNG (`requireBoxPhoto`,
+ * beim Anlegen geschrieben) — hier wird nur noch abgeglichen, ob die Einreichung ihn mitbringt. Und
+ * es wird geworfen statt erfüllt: der Wurf rollt die Transaktion zurück, der Eintrag entsteht gar
+ * nicht erst.
+ */
+describe("Kontrolle mit Nachweis-Zwang", () => {
+  const submit = (over: { requireBoxPhoto: boolean; boxPhotoMissing: boolean }) => {
+    txMock.kontrollAnforderung.findFirst.mockResolvedValue({ id: "k1", requireBoxPhoto: over.requireBoxPhoto });
+    return applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "PRUEFUNG" }),
+      { ...inspection({ kind: "code", code: "89758", sealCode: null }), boxPhotoMissing: over.boxPhotoMissing },
+      ON_TIME,
+    );
+  };
+
+  it("weist die Einreichung ohne Box-Foto ab — und hakt dabei nichts ab", async () => {
+    await expect(submit({ requireBoxPhoto: true, boxPhotoMissing: true })).rejects.toThrow();
+    expect(txMock.kontrollAnforderung.update).not.toHaveBeenCalled();
+  });
+
+  it("mit Box-Foto erfüllt sie normal", async () => {
+    await submit({ requireBoxPhoto: true, boxPhotoMissing: false });
+    expect(txMock.kontrollAnforderung.update).toHaveBeenCalled();
+  });
+
+  it("eine Anforderung ohne Zwang bleibt auch ohne Foto erfüllbar", async () => {
+    await submit({ requireBoxPhoto: false, boxPhotoMissing: true });
+    expect(txMock.kontrollAnforderung.update).toHaveBeenCalled();
+  });
+});
+
 describe("Orgasmus-Anforderung", () => {
   it("das FENSTER prüft immer die Eintrags-Zeit, der Stempel folgt `at`", async () => {
     txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: null });

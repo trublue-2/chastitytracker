@@ -22,15 +22,18 @@ export type BoxPhotoUpload = Pick<
 export default function BoxPhotoField({
   photo,
   mobileDesktopMode,
+  required = false,
 }: {
   photo: BoxPhotoUpload;
   mobileDesktopMode?: boolean;
+  /** Pflichtfeld statt Rückfrage — die Verschluss-Kontrolle mit Foto-Zwang. */
+  required?: boolean;
 }) {
   const t = useTranslations("common");
   const tForm = useTranslations("lockForm");
 
   return (
-    <FormField label={tForm("boxPhotoLabel")}>
+    <FormField label={tForm("boxPhotoLabel")} required={required}>
       {photo.imagePreview ? (
         <div className="flex items-start gap-4">
           <RotatableImagePreview src={photo.imagePreview} rotation={photo.rotation} onRotateLeft={photo.rotateLeft} onRotateRight={photo.rotateRight} />

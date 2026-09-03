@@ -7,7 +7,7 @@ import {
   AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   CLEANING_RELOCK_INSPECTION_DELAY, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP, TIME_RANGE_INVALID,
   POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE,
-  POST_LOCK_INSPECTION_DEADLINE_RANGE,
+  POST_LOCK_INSPECTION_DEADLINE_RANGE, heimdallEnabled,
 } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/utils";
 import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere, getIsLocked } from "@/lib/queries";
@@ -53,6 +53,9 @@ export interface AutoKontrolleSettings {
   postLockDelayMin: number; // frühestens X Min nach dem Erfassen
   postLockDelayMax: number; // spätestens Y Min nach dem Erfassen
   postLockDeadlineMinutes: number; // Erfüllungsfrist (fester Wert, keine Spanne)
+  /** Verlangt die Verschluss-Kontrolle das Box-Foto zwingend? Wirkt NUR mit gemeldeter Box —
+   *  die Frage beantwortet {@link boxPhotoRequiredForPostLock}, nicht dieses Feld allein. */
+  postLockRequireBoxPhoto: boolean;
 }
 
 /** Wie {@link AutoKontrolleSettings}, aber `dayRules` roh von aussen (Formular, MCP-Argumente): die
@@ -451,6 +454,7 @@ export interface AutoKontrolleUserFields {
   postLockInspectionEnabled: boolean;
   postLockInspectionDelayMin: number; postLockInspectionDelayMax: number;
   postLockInspectionDeadlineMinutes: number;
+  postLockInspectionRequireBoxPhoto: boolean;
 }
 
 /** Eine User-Zeile, wie sie {@link AUTO_KONTROLLE_SETTINGS_SELECT} lädt: Settings plus die Identität
@@ -477,6 +481,7 @@ export function autoKontrolleSettingsFromUser(u: AutoKontrolleUserFields): AutoK
     postLockDelayMin: u.postLockInspectionDelayMin,
     postLockDelayMax: u.postLockInspectionDelayMax,
     postLockDeadlineMinutes: u.postLockInspectionDeadlineMinutes,
+    postLockRequireBoxPhoto: u.postLockInspectionRequireBoxPhoto,
   };
 }
 
@@ -512,6 +517,8 @@ export type AutoInspectionsView = {
   postLockDelayMin: number;
   postLockDelayMax: number;
   postLockDeadlineMinutes: number;
+  /** Box-Foto bei DIESER Kontrolle Pflicht statt freiwillig — ohne gemeldete Box wirkungslos. */
+  postLockRequireBoxPhoto: boolean;
 };
 
 /** Domänen-Settings → {@link AutoInspectionsView}. EINE Übersetzung für die Lese-Seite (get_context)
@@ -536,6 +543,7 @@ export function autoInspectionsView(s: AutoKontrolleSettings): AutoInspectionsVi
     postLockDelayMin: s.postLockDelayMin,
     postLockDelayMax: s.postLockDelayMax,
     postLockDeadlineMinutes: s.postLockDeadlineMinutes,
+    postLockRequireBoxPhoto: s.postLockRequireBoxPhoto,
   };
 }
 
@@ -550,7 +558,7 @@ export const AUTO_KONTROLLE_SETTINGS_SELECT = {
   autoKontrolleNurBeiSperre: true, autoKontrolleDays: true, autoKontrolleDayRules: true,
   autoInspectionPlannedFor: true,
   postLockInspectionEnabled: true, postLockInspectionDelayMin: true, postLockInspectionDelayMax: true,
-  postLockInspectionDeadlineMinutes: true,
+  postLockInspectionDeadlineMinutes: true, postLockInspectionRequireBoxPhoto: true,
 } as const;
 
 /** Die Felder, an denen der TAGESPLAN hängt: ändert sich eines, wird der Tag neu gewürfelt.
@@ -576,6 +584,7 @@ type _AllSettingsClassified = AssertNever<
     (typeof PLANNING_FIELDS)[number] | "autoKontrolleNurBeiSperre"
     | "postLockInspectionEnabled" | "postLockInspectionDelayMin"
     | "postLockInspectionDelayMax" | "postLockInspectionDeadlineMinutes"
+    | "postLockInspectionRequireBoxPhoto"
   >
 >;
 
@@ -593,6 +602,7 @@ type _AllSettingsViewClassified = AssertNever<
     keyof AutoKontrolleSettings,
     (typeof PLANNING_SETTINGS)[number] | "nurBeiSperre"
     | "postLockEnabled" | "postLockDelayMin" | "postLockDelayMax" | "postLockDeadlineMinutes"
+    | "postLockRequireBoxPhoto"
   >
 >;
 
@@ -612,7 +622,9 @@ export function planningChanged(before: AutoKontrolleSettings, after: AutoKontro
  *  `extra` trägt die HERKUNFT (`cleaningRelock` bzw. `postLock`) — die eine Stelle, an der eine Auto-Zeile
  *  entsteht, bleibt damit auch die eine Stelle, die weiss, wie eine Auto-Zeile aussieht. */
 async function createAutoKontrollen(
-  userId: string, slots: { wirksamAb: Date; deadline: Date }[], extra: { cleaningRelock?: boolean; postLock?: boolean } = {},
+  userId: string,
+  slots: { wirksamAb: Date; deadline: Date }[],
+  extra: { cleaningRelock?: boolean; postLock?: boolean; requireBoxPhoto?: boolean } = {},
 ): Promise<number> {
   if (slots.length === 0) return 0;
   await prisma.kontrollAnforderung.createMany({
@@ -818,7 +830,15 @@ export async function schedulePostLockInspection(
   const frist = clamp(settings.postLockDeadlineMinutes, POST_LOCK_INSPECTION_DEADLINE_RANGE);
   const deadline = new Date(wirksamAb.getTime() + frist * 60_000);
 
-  await createAutoKontrollen(userId, [{ wirksamAb, deadline }], { postLock: true });
+  // Verlangt DIESE Kontrolle das Box-Foto? Jetzt entschieden und in die Zeile geschrieben, nicht
+  // beim Einreichen aus der Einstellung rekonstruiert: sonst änderte ein Umlegen des Schalters die
+  // Regeln einer bereits laufenden Kontrolle, deren Frist tickt. Die Box-Abfrage kostet nur, wo der
+  // Schalter überhaupt gesetzt ist — ohne gemeldete Box bliebe die Kontrolle sonst unerfüllbar.
+  const requireBoxPhoto = settings.postLockRequireBoxPhoto
+    && heimdallEnabled()
+    && (await prisma.boxStatus.count({ where: { userId } })) > 0;
+
+  await createAutoKontrollen(userId, [{ wirksamAb, deadline }], { postLock: true, requireBoxPhoto });
   return { wirksamAb, deadline, imSchlaf };
 }
 
@@ -1086,6 +1106,7 @@ export async function setAutoKontrolleSettings(userId: string, params: SetAutoKo
   if (params.postLockDelayMin !== undefined) data.postLockInspectionDelayMin = clamp(params.postLockDelayMin, POST_LOCK_INSPECTION_DELAY_MIN_RANGE);
   if (params.postLockDelayMax !== undefined) data.postLockInspectionDelayMax = clamp(params.postLockDelayMax, POST_LOCK_INSPECTION_DELAY_MAX_RANGE);
   if (params.postLockDeadlineMinutes !== undefined) data.postLockInspectionDeadlineMinutes = clamp(params.postLockDeadlineMinutes, POST_LOCK_INSPECTION_DEADLINE_RANGE);
+  if (params.postLockRequireBoxPhoto !== undefined) data.postLockInspectionRequireBoxPhoto = params.postLockRequireBoxPhoto;
   // „Bis" nie unter „Von" — nur wenn beide in diesem Patch bekannt (Von-/Bis-Paare: PerDay, Frist
   // und das Auslöse-Fenster der Verschluss-Kontrolle).
   // Nur die vorhandenen Bis-Keys anfassen, sonst würde undefined den „keine Felder"-Guard aushebeln.

@@ -18,6 +18,12 @@ import { scheduleCleaningRelockInspection, triggerPostLockInspection } from "@/l
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/entryNotify";
 import { markLastAction } from "@/lib/appMeta";
 import { isHealthHoldActive } from "@/lib/healthHold";
+import { entryGuardError } from "@/lib/entryErrors";
+
+/** Was von der zugeordneten Anforderung gebraucht wird: die id zum Abhaken und der Nachweis, den sie
+ *  verlangt. Eine Konstante, weil beide Zuordnungswege dieselben Spalten brauchen — getrennt notiert
+ *  läse der eine Weg die Nachweis-Pflicht und der andere nicht. */
+const TARGET_SELECT = { id: true, requireBoxPhoto: true } as const;
 
 /** Der Eintrag, wie ihn die Erfüllung braucht — bewusst die schmale Form statt des Prisma-Modells,
  *  damit beide Routen ihn ohne Umweg übergeben können. */
@@ -62,10 +68,18 @@ export interface FulfillingEntry {
 export async function applyEntryFulfilment(
   tx: PrismaTx,
   entry: FulfillingEntry,
-  inspection: { verification: InspectionVerification | null; targetWhere: PrismaKontrollWhere | null },
+  inspection: {
+    verification: InspectionVerification | null;
+    targetWhere: PrismaKontrollWhere | null;
+    /** Kam diese Einreichung OHNE Foto durchs Sichtfenster? Nur der Aufrufer weiss es (es steht im
+     *  Body, nicht am Eintrag), und nur er soll es wissen müssen: OB das Foto verlangt wird, sagt
+     *  die Anforderung selbst. Der Keyholder-Pfad lässt das Feld weg — er erreicht diesen Zweig
+     *  ohnehin nicht, weil er `verification: null` reicht. */
+    boxPhotoMissing?: boolean;
+  },
   at: Date,
 ): Promise<string[]> {
-  const { verification, targetWhere } = inspection;
+  const { verification, targetWhere, boxPhotoMissing = false } = inspection;
   const { id: entryId, userId, type } = entry;
   let requiredAnforderungDeviceIds: string[] = [];
 
@@ -111,15 +125,21 @@ export async function applyEntryFulfilment(
     // Gerät zur EINREICHUNG; welchen Nachweis eine Anforderung verlangt, steht in IHR.
     const target =
       verification.kind === "code"
-        ? await tx.kontrollAnforderung.findFirst({ where: { ...openWhere, code: verification.code }, select: { id: true } })
+        ? await tx.kontrollAnforderung.findFirst({ where: { ...openWhere, code: verification.code }, select: TARGET_SELECT })
         : verification.kind === "none" && verification.codeRequired
           // Freiwillige Selbstkontrolle an einem Gerät MIT Code-Pflicht: erfüllt nichts.
           ? null
           : await tx.kontrollAnforderung.findFirst({
               where: { ...openWhere, code: null },
               orderBy: { deadline: "asc" },
-              select: { id: true },
+              select: TARGET_SELECT,
             });
+    // Eine Kontrolle, die den Nachweis VERLANGT, wird ohne ihn nicht erfüllt, sondern abgewiesen —
+    // und weil das hier IN der Transaktion geschieht, fällt der Eintrag mit weg. Was verlangt wird,
+    // steht in der Anforderung selbst; genau das fordert der Kommentar zwei Absätze weiter oben.
+    // Die Stelle ist bewusst diese: sie kennt die zugeordnete Zeile bereits, eine zweite Zuordnung
+    // im Route-Guard daneben liefe irgendwann auf eine andere.
+    if (target?.requireBoxPhoto && boxPhotoMissing) throw entryGuardError("BOX_PHOTO_REQUIRED");
     if (target) {
       await tx.kontrollAnforderung.update({
         where: { id: target.id },

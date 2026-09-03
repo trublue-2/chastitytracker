@@ -710,6 +710,8 @@ export const FM_REGISTRY: FmEntry[] = [
     "Herkunft: aus einem Wiederverschluss nach einer Reinigungspause statt aus dem Tagesplan. Nicht aus der Zeile rekonstruierbar."),
   x("runtime", "KontrollAnforderung", "postLock",
     "Herkunft: aus einem Verschluss-Eintrag statt aus dem Tagesplan. Teilt mit `cleaningRelock` die Folgen (kein Sperrzeit-Gate, Schonung im Schlaf)."),
+  x("runtime", "KontrollAnforderung", "requireBoxPhoto",
+    "Diese Kontrolle verlangt das Foto durchs Sichtfenster zwingend — ohne es wird die Einreichung abgewiesen statt nachgefragt. Schnappschuss beim Anlegen aus der Einstellung UND dem Vorhandensein einer Box."),
 
   // ── User: Kontrolle nach dem Verschluss ────────────────────────────────────────────────────
   s({
@@ -734,6 +736,12 @@ export const FM_REGISTRY: FmEntry[] = [
     model: "User", field: "postLockInspectionDeadlineMinutes", domain: "kontrollen", scope: "standing",
     effect: "Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne.",
     writers: ["admin", "mcp"], affects: ["Auto-Kontrollen", "Strafbuch"],
+    anchor: "autoKontrolleService.ts:schedulePostLockInspection",
+  }),
+  s({
+    model: "User", field: "postLockInspectionRequireBoxPhoto", domain: "kontrollen", scope: "standing",
+    effect: "Die Verschluss-Kontrolle verlangt das Foto durchs Sichtfenster ZWINGEND: ohne es weist die Einreichung ab, statt nachzufragen. Gilt nur bei gemeldeter Box — ohne Box wirkungslos, sonst wäre die Kontrolle nicht erfüllbar. Wirkt auf NEUE Kontrollen: jede trägt die Pflicht ab dem Anlegen in sich.",
+    writers: ["admin", "mcp"], affects: ["Kontrollen", "Strafbuch"],
     anchor: "autoKontrolleService.ts:schedulePostLockInspection",
   }),
 

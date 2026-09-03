@@ -127,7 +127,8 @@ export async function PATCH(
     body.autoKontrolleNurBeiSperre !== undefined ||
     body.autoKontrolleDays !== undefined || body.autoKontrolleDayRules !== undefined ||
     body.postLockInspectionEnabled !== undefined || body.postLockInspectionDelayMin !== undefined ||
-    body.postLockInspectionDelayMax !== undefined || body.postLockInspectionDeadlineMinutes !== undefined
+    body.postLockInspectionDelayMax !== undefined || body.postLockInspectionDeadlineMinutes !== undefined ||
+    body.postLockInspectionRequireBoxPhoto !== undefined
   ) {
     // Felder roh durchreichen — setAutoKontrolleSettings klemmt/validiert (HH:MM, Bereiche, Bis≥Von).
     return serviceResponse(await setAutoKontrolleSettings(id, {
@@ -142,6 +143,7 @@ export async function PATCH(
       postLockDelayMin: body.postLockInspectionDelayMin,
       postLockDelayMax: body.postLockInspectionDelayMax,
       postLockDeadlineMinutes: body.postLockInspectionDeadlineMinutes,
+      postLockRequireBoxPhoto: body.postLockInspectionRequireBoxPhoto,
     }));
   }
 

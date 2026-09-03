@@ -214,6 +214,9 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           initialPostLockDelayMin={user.postLockInspectionDelayMin}
           initialPostLockDelayMax={user.postLockInspectionDelayMax}
           initialPostLockDeadlineMinutes={user.postLockInspectionDeadlineMinutes}
+          initialPostLockRequireBoxPhoto={user.postLockInspectionRequireBoxPhoto}
+          /* Dieselbe Box-Frage wie beim Abschnitt weiter oben — ohne Box entfällt der Foto-Zwang. */
+          hasBox={box.boxConfirm}
           initialDays={user.autoKontrolleDays}
           initialDayRules={user.autoKontrolleDayRules}
         />

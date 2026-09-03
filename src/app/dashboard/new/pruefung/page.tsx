@@ -68,6 +68,10 @@ export default async function NewPruefungPage({ searchParams }: { searchParams: 
         categoryId={target?.categoryId ?? null}
         mobileDesktopMode={mobileDesktopMode}
         boxConfirm={box?.boxConfirm ?? false}
+        /* Was die ANGEFORDERTE Kontrolle verlangt, steht in ihrer Zeile — nicht in einer zweiten
+           Herleitung hier. Ohne Anforderung (freiwillige Selbstkontrolle) gibt es nichts zu
+           erzwingen: sie erfüllt keine, und der Server weist deshalb auch nichts ab. */
+        boxPhotoRequired={requested?.requireBoxPhoto ?? false}
       />
     </EntryActionFormShell>
   );

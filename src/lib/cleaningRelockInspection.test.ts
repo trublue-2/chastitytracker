@@ -31,6 +31,7 @@ const USER = {
   autoKontrolleDays: ALL_WEEKDAYS, autoKontrolleDayRules: null as string | null,
   postLockInspectionEnabled: false, postLockInspectionDelayMin: 15,
   postLockInspectionDelayMax: 45, postLockInspectionDeadlineMinutes: 15,
+  postLockInspectionRequireBoxPhoto: false,
 };
 
 /** Die eine Zeile, die die Funktion anlegt (über `createAutoKontrollen` → `createMany`). */

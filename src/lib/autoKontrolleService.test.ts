@@ -16,7 +16,7 @@ const settingsOf = (o: Partial<AutoKontrolleSettings> = {}): AutoKontrolleSettin
   aktiv: true, perDayMin: 4, perDayMax: 4, ruheVon: "22:00", ruheBis: "06:00",
   fristVon: 15, fristBis: 60, fensterVon: "", fensterBis: "", nurBeiSperre: false,
   days: ALL_WEEKDAYS, dayRules: [], postLockEnabled: false,
-  postLockDelayMin: 15, postLockDelayMax: 45, postLockDeadlineMinutes: 15,
+  postLockDelayMin: 15, postLockDelayMax: 45, postLockDeadlineMinutes: 15, postLockRequireBoxPhoto: false,
   ...o,
 });
 

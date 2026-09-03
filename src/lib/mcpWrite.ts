@@ -1461,6 +1461,7 @@ const AUTO_INSPECTION_ARG_KEYS = [
   "deadlineMinFrom", "deadlineMinTo", "triggerWindowFrom", "triggerWindowUntil", "onlyDuringLockPeriod",
   "planDays", "dayRules",
   "postLockEnabled", "postLockDelayMin", "postLockDelayMax", "postLockDeadlineMinutes",
+  "postLockRequireBoxPhoto",
 ] as const satisfies readonly (keyof Omit<SetAutoInspectionsArgs, "dryRun">)[];
 
 export interface SetAutoInspectionsArgs {
@@ -1496,6 +1497,8 @@ export interface SetAutoInspectionsArgs {
   postLockDelayMax?: number;
   /** Erfüllungsfrist dieser Kontrolle in Minuten — EIN Wert, keine Spanne. */
   postLockDeadlineMinutes?: number;
+  /** Box-Foto bei DIESER Kontrolle zwingend statt freiwillig. Ohne gemeldete Box wirkungslos. */
+  postLockRequireBoxPhoto?: boolean;
   dryRun?: boolean;
 }
 
@@ -1640,6 +1643,7 @@ export async function mcpSetAutoInspections(username: string, args: SetAutoInspe
     postLockDelayMin: postLockDelay.min,
     postLockDelayMax: postLockDelay.max,
     postLockDeadlineMinutes: clampOptional(args.postLockDeadlineMinutes, POST_LOCK_INSPECTION_DEADLINE_RANGE) ?? before.postLockDeadlineMinutes,
+    postLockRequireBoxPhoto: args.postLockRequireBoxPhoto ?? before.postLockRequireBoxPhoto,
   };
   assertTriggerWindow(after);
 
@@ -1663,6 +1667,12 @@ function autoInspectionsNote(before: AutoKontrolleSettings, after: AutoKontrolle
   // Agent plante gegen eine Automatik, die es gar nicht gab.
   const postLock = after.postLockEnabled
     ? ` Independently of that, an inspection follows EVERY recorded lock (${after.postLockDelayMin}–${after.postLockDelayMax} min after, ${after.postLockDeadlineMinutes} min to fulfil).`
+      + (after.postLockRequireBoxPhoto
+        // Nur bei EINGESCHALTETER Verschluss-Kontrolle: ohne sie gibt es die Kontrolle nicht, deren
+        // Foto erzwungen würde. Und nur dieser Zusatz sagt dem Agenten, dass der Träger sie ohne
+        // Box-Foto gar nicht abschliessen KANN — ein Unterschied, den er beim Beurteilen braucht.
+        ? " That inspection cannot be submitted without the photo through the box window (no effect if he has no box)."
+        : "")
     : "";
   if (!after.aktiv) return ` Automatic inspections are OFF — no daily plan, and no inspection after a cleaning relock either.${postLock}`;
   if (after.perDayMax <= 0) {

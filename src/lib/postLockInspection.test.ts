@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createPrismaMock, type PrismaMock } from "@/test/prismaMock";
 
 /**
@@ -37,6 +37,7 @@ const USER = {
   autoKontrolleDays: ALL_WEEKDAYS, autoKontrolleDayRules: null as string | null,
   postLockInspectionEnabled: true, postLockInspectionDelayMin: 20,
   postLockInspectionDelayMax: 30, postLockInspectionDeadlineMinutes: 15,
+  postLockInspectionRequireBoxPhoto: false,
 };
 
 function createdRow(): Record<string, unknown> {
@@ -140,5 +141,42 @@ describe("Vorfahrt vor der Reinigungs-Regel", () => {
 
     expect(await scheduleCleaningRelockInspection("u1", TAGS)).not.toBeNull();
     expect(createdRow()).toMatchObject({ cleaningRelock: true });
+  });
+});
+
+/**
+ * Der Nachweis-Zwang wird beim ANLEGEN in die Zeile geschrieben, nicht beim Einreichen aus der
+ * Einstellung rekonstruiert. Gepinnt wird beides, was daran hängen kann: dass er ohne gemeldete Box
+ * NICHT gesetzt wird (die Kontrolle wäre sonst unerfüllbar — das Formular zeigt dort kein Box-Feld),
+ * und dass die Box gar nicht erst gefragt wird, solange der Schalter aus ist.
+ */
+describe("Box-Foto-Zwang als Schnappschuss", () => {
+  const HEIMDALL = process.env.HEIMDALL_SYNC_SECRET;
+  beforeEach(() => { process.env.HEIMDALL_SYNC_SECRET = "test"; });
+  afterEach(() => {
+    if (HEIMDALL === undefined) delete process.env.HEIMDALL_SYNC_SECRET;
+    else process.env.HEIMDALL_SYNC_SECRET = HEIMDALL;
+  });
+
+  it("Schalter an + Box gemeldet → die Anforderung verlangt das Foto", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ ...USER, postLockInspectionRequireBoxPhoto: true });
+    prismaMock.boxStatus.count.mockResolvedValue(1);
+
+    await schedulePostLockInspection("u1", TAGS);
+    expect(createdRow()).toMatchObject({ postLock: true, requireBoxPhoto: true });
+  });
+
+  it("Schalter an, aber keine Box → kein Zwang (sonst unerfüllbar)", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ ...USER, postLockInspectionRequireBoxPhoto: true });
+    prismaMock.boxStatus.count.mockResolvedValue(0);
+
+    await schedulePostLockInspection("u1", TAGS);
+    expect(createdRow()).toMatchObject({ requireBoxPhoto: false });
+  });
+
+  it("Schalter aus → kein Zwang, und die Box wird nicht gefragt", async () => {
+    await schedulePostLockInspection("u1", TAGS);
+    expect(createdRow()).toMatchObject({ requireBoxPhoto: false });
+    expect(prismaMock.boxStatus.count).not.toHaveBeenCalled();
   });
 });

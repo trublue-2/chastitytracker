@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.0.5",
+    "date": "2026-09-03",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Kontrolle nach dem Verschluss kann das Foto der Box zwingend verlangen — dann lässt sie sich nicht mehr ohne diesen Nachweis abschliessen. Neu als Schalter bei den Kontroll-Einstellungen, nur für Träger mit Box.",
+          "en": "The inspection after a lock can now demand the photo of the box — without it, the inspection cannot be submitted. A new switch in the inspection settings, for users with a box."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.4",
     "date": "2026-09-03",
     "changes": [

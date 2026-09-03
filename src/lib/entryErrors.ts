@@ -24,6 +24,7 @@ export const ENTRY_GUARD_CODES = [
   "WEAR_PHOTO_REQUIRED",
   "ALREADY_WEARING",
   "NOT_WEARING",
+  "BOX_PHOTO_REQUIRED",
 ] as const;
 
 /** Returned by `validateEntryPayload` (constants.ts) for a malformed create-payload. */

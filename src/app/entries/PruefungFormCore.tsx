@@ -24,6 +24,7 @@ import Badge from "@/app/components/Badge";
 import Spinner from "@/app/components/Spinner";
 import InspectionCodePushButton from "@/app/components/InspectionCodePushButton";
 import type { PruefungPayload, SubmitResult } from "./types";
+import { useApiError } from "@/app/hooks/useApiError";
 import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
 import { INSPECTION_CODE_LENGTH, isValidInspectionCode } from "@/lib/constants";
 import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/apiClient";
@@ -89,6 +90,15 @@ interface Props {
   /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster, das den Schlüssel zeigt.
    *  Nur beim Neuanlegen — beim Bearbeiten wird kein Nachweis nachgereicht. */
   boxConfirm?: boolean;
+  /**
+   * Diese Kontrolle verlangt das Box-Foto ZWINGEND: die Verschluss-Kontrolle, wenn die Keyholderin
+   * den Foto-Zwang gesetzt hat. Dann tritt an die Stelle der Rückfrage eine Absage — dieselbe, die
+   * die Entries-Route ohnehin gäbe (`BOX_PHOTO_REQUIRED`). Überall sonst bleibt das Foto freiwillig.
+   *
+   * Ohne `boxConfirm` wirkungslos: wo es keine Box gibt, gibt es das Feld nicht, und ein Zwang
+   * darauf sperrte den Träger aus seiner eigenen Kontrolle aus.
+   */
+  boxPhotoRequired?: boolean;
   isEdit?: boolean;
   submitFn: (payload: PruefungPayload) => Promise<SubmitResult>;
   onSuccess?: () => void;
@@ -100,7 +110,7 @@ interface Props {
 export default function PruefungFormCore({
   initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired = true, mobileDesktopMode,
   targetDeviceId = null, targetLabel = null, codePushControlId = null, selfCodePush = false, categoryId = null,
-  boxConfirm = false, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
+  boxConfirm = false, boxPhotoRequired = false, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("inspectionForm");
   const tc = useTranslations("common");
@@ -108,6 +118,7 @@ export default function PruefungFormCore({
   // Box-Foto + seine Rückfrage teilen die Texte mit dem Verschluss-Formular (lockForm) — es ist
   // derselbe Nachweis, er darf nicht je Formular anders heissen.
   const tLock = useTranslations("lockForm");
+  const apiError = useApiError();
   const dl = toDateLocale(useLocale());
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -152,6 +163,17 @@ export default function PruefungFormCore({
     uploadErrorText: () => tc("uploadError"),
   });
   const [pendingBoxConfirm, setPendingBoxConfirm] = useState(false);
+  // Gibt es das Feld auf diesem Formular überhaupt? EIN Ausdruck für die Anzeige UND den Zwang:
+  // verlangte der Zwang ein Feld, das nicht gerendert wird, liesse sich das Formular nicht mehr
+  // absenden — ohne sichtbaren Grund. Beim BEARBEITEN wird kein Nachweis nachgereicht.
+  //
+  // `boxPhotoRequired` steht bewusst als ZWEITER Grund daneben, nicht nur als Verschärfung von
+  // `boxConfirm`: die Pflicht wurde beim Anlegen der Kontrolle festgeschrieben, die Box kann seither
+  // abgemeldet worden sein. Dann verlangt der Server den Nachweis weiter, und ohne diese Zeile böte
+  // das Formular kein Feld, um ihn zu liefern — die Kontrolle wäre unerfüllbar, während ihre Frist
+  // abläuft.
+  const showBoxPhoto = (boxConfirm || boxPhotoRequired) && !isEdit;
+  const boxPhotoIsRequired = boxPhotoRequired && showBoxPhoto;
 
   function handleFile(file: File) {
     setError("");
@@ -213,9 +235,16 @@ export default function PruefungFormCore({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!imageUrl) { setError(t("photoRequired")); return; }
-    // Box-Foto fehlt: nachfragen statt blockieren — die Kontrolle selbst ist gültig, nur der
-    // Schlüssel-Nachweis fehlt. Dieselbe Rückfrage wie im Verschluss-Formular.
-    if (boxConfirm && !boxPhoto.imageUrl) { setPendingBoxConfirm(true); return; }
+    // Box-Foto fehlt. Zwei Antworten darauf, und der Unterschied ist die Anforderung dahinter:
+    // verlangt sie den Nachweis, wird abgesagt statt gefragt — mit DEMSELBEN Satz, den die Route
+    // schickte (`BOX_PHOTO_REQUIRED`), damit Vorab-Sperre und Server-Absage nicht auseinanderlaufen.
+    // Sonst wird nachgefragt und auf Wunsch gespeichert, denn die Kontrolle selbst ist auch ohne ihn
+    // gültig. Dieselbe Rückfrage wie im Verschluss-Formular.
+    if (showBoxPhoto && !boxPhoto.imageUrl) {
+      if (boxPhotoIsRequired) { setError(apiError("BOX_PHOTO_REQUIRED")); return; }
+      setPendingBoxConfirm(true);
+      return;
+    }
     await doSubmit();
   }
 
@@ -422,7 +451,9 @@ export default function PruefungFormCore({
 
       {/* Zweites Foto: Schlüssel im Sichtfenster. Nur beim Neuanlegen — eine Bearbeitung reicht
           keinen Nachweis nach. */}
-      {boxConfirm && !isEdit && <BoxPhotoField photo={boxPhoto} mobileDesktopMode={mobileDesktopMode} />}
+      {showBoxPhoto && (
+        <BoxPhotoField photo={boxPhoto} mobileDesktopMode={mobileDesktopMode} required={boxPhotoIsRequired} />
+      )}
 
       <Textarea
         label={tc("noteOptional")}

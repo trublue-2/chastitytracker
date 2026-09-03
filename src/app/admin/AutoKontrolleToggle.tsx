@@ -86,6 +86,7 @@ interface AutoKontrolleForm {
   postLockDelayMin: number;
   postLockDelayMax: number;
   postLockDeadlineMinutes: number;
+  postLockRequireBoxPhoto: boolean;
 }
 
 /** Vorschlag beim EINSCHALTEN des festen Fensters — nur, wenn noch nichts gesetzt ist. */
@@ -112,6 +113,8 @@ export default function AutoKontrolleToggle({
   initialPostLockDelayMin,
   initialPostLockDelayMax,
   initialPostLockDeadlineMinutes,
+  initialPostLockRequireBoxPhoto,
+  hasBox,
   initialDays,
   initialDayRules,
 }: {
@@ -130,6 +133,10 @@ export default function AutoKontrolleToggle({
   initialPostLockDelayMin: number;
   initialPostLockDelayMax: number;
   initialPostLockDeadlineMinutes: number;
+  initialPostLockRequireBoxPhoto: boolean;
+  /** Hat dieser Sub eine Heimdall-Box? Nur dann gibt es den Foto-Zwang — ohne Box zeigt das
+   *  Kontroll-Formular gar kein Box-Feld, und die Einstellung wäre eine Zusage ohne Wirkung. */
+  hasBox: boolean;
   initialDays: number;
   /** Roh aus der Spalte (JSON-String oder null) — geparst wird hier, mit demselben tolerant lesenden
    *  Parser wie der Server. */
@@ -147,6 +154,7 @@ export default function AutoKontrolleToggle({
     days: initialDays, dayRules: parseAutoInspectionDayRules(initialDayRules),
     postLockEnabled: initialPostLockEnabled, postLockDelayMin: initialPostLockDelayMin,
     postLockDelayMax: initialPostLockDelayMax, postLockDeadlineMinutes: initialPostLockDeadlineMinutes,
+    postLockRequireBoxPhoto: initialPostLockRequireBoxPhoto,
   });
   const [form, setForm] = useState(makeInitial);
   // Der zuletzt vom Server angenommene Stand — Referenz für „geändert?". Ein abgelehnter Patch (z.B.
@@ -202,6 +210,7 @@ export default function AutoKontrolleToggle({
       postLockInspectionDelayMin: normalized.postLockDelayMin,
       postLockInspectionDelayMax: normalized.postLockDelayMax,
       postLockInspectionDeadlineMinutes: normalized.postLockDeadlineMinutes,
+      postLockInspectionRequireBoxPhoto: normalized.postLockRequireBoxPhoto,
     });
     if (ok) {
       setForm(normalized);
@@ -386,6 +395,18 @@ export default function AutoKontrolleToggle({
               onCommit={(n) => set("postLockDeadlineMinutes", n)} disabled={saving}
             />
           </InlineSettingRow>
+          {/* Nur mit Box: ohne sie hat das Kontroll-Formular kein Box-Feld, das man erzwingen
+              könnte. Der gespeicherte Wert bleibt dabei stehen — meldet sich später wieder eine
+              Box, gilt er wieder, ohne dass ihn jemand neu setzen muss. */}
+          {hasBox && (
+            <Toggle
+              label={t("postLockInspectionBoxPhotoLabel")}
+              description={t("postLockInspectionBoxPhotoDesc")}
+              checked={form.postLockRequireBoxPhoto}
+              disabled={saving}
+              onChange={(checked) => set("postLockRequireBoxPhoto", checked)}
+            />
+          )}
         </>
       )}
       <Button size="sm" onClick={handleSave} loading={saving} disabled={!dirty} className="w-fit">

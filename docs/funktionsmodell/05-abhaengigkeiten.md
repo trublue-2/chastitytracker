@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 149 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
+Insgesamt 150 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
 
 ## Einträge
 
@@ -245,6 +245,7 @@ flowchart LR
 | Auto-Kontrollen | `User.postLockInspectionDelayMax` | Spätestens so viele Minuten nach dem Erfassen wird ausgelöst; gezogen wird zufällig dazwischen. Im Schlaf-Fenster gilt stattdessen die kurze Spanne der Reinigungs-Regel. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Auto-Kontrollen | `User.postLockInspectionDeadlineMinutes` | Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Strafbuch | `User.postLockInspectionDeadlineMinutes` | Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Strafbuch | `User.postLockInspectionRequireBoxPhoto` | Die Verschluss-Kontrolle verlangt das Foto durchs Sichtfenster ZWINGEND: ohne es weist die Einreichung ab, statt nachzufragen. Gilt nur bei gemeldeter Box — ohne Box wirkungslos, sonst wäre die Kontrolle nicht erfüllbar. Wirkt auf NEUE Kontrollen: jede trägt die Pflicht ab dem Anlegen in sich. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Einträge | *feste Regel* | Eskalationsstufe 2 legt selbst einen Öffnen-Eintrag an — ohne Zutun des Subs und ohne dass die Box aufgeht. Eine Sperrzeit hebt sie dabei bewusst nicht auf. | `inspectionEscalationService.ts` |
 | Strafbuch | *feste Regel* | Versäumt, abgelehnt oder automatisch als abgenommen gebucht — in jedem Fall ein erkanntes Vergehen, unabhängig davon, ob die Eskalation eingeschaltet ist. | — |
 
@@ -383,6 +384,7 @@ flowchart LR
 | Kontrollen | `KontrollAnforderung.deadline` | Erfüllungsfrist. Nach Ablauf verschwindet die Kontrolle nicht, sie wird überfällig — und ist der Startpunkt der Eskalation. | `inspectionEscalationService.ts` |
 | Kontrollen | `User.postLockInspectionEnabled` | Nach JEDEM erfassten Verschluss folgt eine Kontrolle — zusätzlich zum Tagesplan. Eigenständig: weder der Hauptschalter der Automatik noch „nur bei Sperrzeit" gelten. Eingeschaltet übernimmt sie auch den Wiederverschluss nach einer Reinigungspause. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Kontrollen | `User.postLockInspectionDeadlineMinutes` | Erfüllungsfrist dieser Kontrolle in Minuten — ein fester Wert, keine gewürfelte Spanne. | `autoKontrolleService.ts:schedulePostLockInspection` |
+| Kontrollen | `User.postLockInspectionRequireBoxPhoto` | Die Verschluss-Kontrolle verlangt das Foto durchs Sichtfenster ZWINGEND: ohne es weist die Einreichung ab, statt nachzufragen. Gilt nur bei gemeldeter Box — ohne Box wirkungslos, sonst wäre die Kontrolle nicht erfüllbar. Wirkt auf NEUE Kontrollen: jede trägt die Pflicht ab dem Anlegen in sich. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
 | Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
 | Einträge | `Entry.startTime` | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | `entryFulfilment.ts` |

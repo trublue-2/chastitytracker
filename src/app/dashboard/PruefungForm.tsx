@@ -39,11 +39,13 @@ interface Props {
   redirectTo?: string;
   /** Sub hat eine Heimdall-Box: zusätzliches Foto durchs Sichtfenster. */
   boxConfirm?: boolean;
+  /** Diese Kontrolle verlangt das Box-Foto zwingend (Verschluss-Kontrolle mit Foto-Zwang). */
+  boxPhotoRequired?: boolean;
   /** ZIEL der Kontrolle — nur für den Code-Push der Selbstkontrolle (siehe PruefungFormCore). */
   categoryId?: string | null;
 }
 
-export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired, targetDeviceId, targetLabel, codePushControlId, categoryId, mobileDesktopMode, redirectTo, boxConfirm }: Props) {
+export default function PruefungForm({ initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired, targetDeviceId, targetLabel, codePushControlId, categoryId, mobileDesktopMode, redirectTo, boxConfirm, boxPhotoRequired }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
@@ -79,6 +81,7 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
       categoryId={categoryId}
       mobileDesktopMode={mobileDesktopMode}
       boxConfirm={boxConfirm}
+      boxPhotoRequired={boxPhotoRequired}
       isEdit={!!initial}
       submitFn={submitFn}
       // `refresh()` VOR dem Wechsel: Formular und Ziel teilen sich `dashboard/layout.tsx`, und ein

@@ -81,6 +81,11 @@ model User {
   // Erfüllungsfrist dieser Kontrolle in Minuten — anders als beim Tagesplan EIN fester Wert, nicht
   // eine Spanne: der Anlass ist bekannt, die Überraschung liegt nicht in der Frist.
   postLockInspectionDeadlineMinutes Int                   @default(15)
+  // Verlangt DIESE Kontrolle das Foto durchs Sichtfenster zwingend? Nur für die Verschluss-Kontrolle
+  // und nur, wo eine Heimdall-Box gemeldet hat: ohne Box gibt es das Feld im Formular gar nicht, ein
+  // Zwang darauf sperrte den Träger aus seiner eigenen Kontrolle aus (`boxPhotoRequiredForPostLock`).
+  // Überall sonst bleibt das Box-Foto freiwillig — dort fragt das Formular nur nach.
+  postLockInspectionRequireBoxPhoto Boolean               @default(false)
   // Kontroll-Eskalation (Stufe 1: Mahnung, Stufe 2: automatisch als abgelegt markieren). Beide
   // Stufen sind unabhängig voneinander schaltbar und standardmässig AUS (Opt-in, kein
   // Verhaltenswechsel für Bestandsnutzer). Delay-Werte in Minuten; Stufe 2 zählt ab dem Zeitpunkt
@@ -775,6 +780,13 @@ model KontrollAnforderung {
   // gewürfelten Tagesplan. Nicht aus der Zeile rekonstruierbar, deshalb eine Spalte; was daran hängt,
   // steht bei `scheduleCleaningRelockInspection`.
   cleaningRelock           Boolean   @default(false)
+  // Verlangt DIESE Kontrolle das Foto durchs Sichtfenster zwingend? Ohne es weist die Einreichung
+  // ab, statt nachzufragen. Ein SCHNAPPSCHUSS beim Anlegen, wie `postLock` daneben: gesetzt wird er
+  // aus der Einstellung der Keyholderin UND dem Vorhandensein einer Box (ohne Box gibt es das Feld
+  // im Formular nicht, ein Zwang darauf wäre unerfüllbar). Als Live-Abfrage der Einstellung änderte
+  // eine laufende Kontrolle ihre Regeln unter dem Träger, während seine Frist läuft — dieselbe
+  // Klasse, für die die Reinigungs-Regeln bereits historisiert wurden.
+  requireBoxPhoto          Boolean   @default(false)
   // HERKUNFT: aus einem Verschluss-Eintrag statt aus dem Tagesplan (`postLockInspectionEnabled`).
   // Eigene Spalte statt einer Umdeutung von `cleaningRelock`: die beiden entstehen aus verschiedenen
   // Anlässen, und eine Zeile aus der Zeit vor diesem Schalter soll nicht rückwirkend behaupten, sie

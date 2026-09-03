@@ -1166,6 +1166,10 @@ function registerTools(server: McpServer) {
           postLockDelayMin: z.number().int().optional().describe("Earliest trigger, in minutes after the entry was recorded (not after its timestamp)."),
           postLockDelayMax: z.number().int().optional().describe("Latest trigger, in minutes; the actual delay is drawn at random in between. Inside the sleep window a short 5-15 min delay applies instead and escalation stops at the reminder."),
           postLockDeadlineMinutes: z.number().int().optional().describe("How long he has to fulfil THIS inspection, in minutes — one fixed value, not a rolled range."),
+          postLockRequireBoxPhoto: z.boolean().optional().describe(
+            "true = THIS inspection cannot be submitted without the photo through the box window — the form refuses it " +
+            "instead of asking. Every other inspection keeps merely asking. No effect while he has no box reported.",
+          ),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },
