@@ -7,13 +7,12 @@ import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { validateDeviceOwnership } from "@/lib/queries";
 import { entryManageAccess } from "@/lib/keyholder";
 import { entryGuardCode } from "@/lib/entryErrors";
-import { assertEntryTimeOk, entryPairTypes, entryPersistsDevice } from "@/lib/entryCorrection";
+import { assertEntryTimeOk, deleteEntryForUser, entryPairTypes, entryPersistsDevice } from "@/lib/entryCorrection";
+import { serviceFailure } from "@/lib/serviceResult";
 import { WEAR_PAIR } from "@/lib/utils";
-import { codedError, codeOf } from "@/lib/codedError";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
+import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { isPendingLock } from "@/lib/lockPending";
-import { clearBoxCommandForUser } from "@/lib/boxCommand";
 
 export async function PATCH(
   req: NextRequest,
@@ -200,20 +199,8 @@ export async function DELETE(
         if (partnerId && partnerId !== partner.id) {
           return NextResponse.json({ error: "PARTNER_CHANGED" }, { status: 409 });
         }
-        try {
-          await prisma.$transaction(async (tx) => {
-            const verified = await tx.entry.findUnique({ where: { id: partner.id }, select: { id: true } });
-            if (!verified) throw codedError("PARTNER_GONE");
-            await tx.entry.deleteMany({ where: { id: { in: [id, partner.id] } } });
-          });
-        } catch (e: unknown) {
-          if (codeOf(e) === "PARTNER_GONE") {
-            return NextResponse.json({ error: "PARTNER_CHANGED" }, { status: 409 });
-          }
-          throw e;
-        }
-        // H5: Foto-Dateien beider gelöschter Einträge entfernen.
-        void deleteUploadedFiles([...entryImageUrls(existing), ...entryImageUrls(partner)]);
+        const result = await deleteEntryForUser(existing, partner.id);
+        if (!result.ok) return serviceFailure(result);
         revalidatePath("/dashboard", "layout");
         return new NextResponse(null, { status: 204 });
       }
@@ -226,23 +213,11 @@ export async function DELETE(
     }
   }
 
-  // No chain break, force=true, or non-VO entry: delete normally
-  await prisma.$transaction(async (tx) => {
-    // Einen schwebenden Verschluss-Aufruf zurücknehmen heisst auch: die Box steht wieder still.
-    // Über `boxCommand.ts`, dem einzigen Schreiber des Kommando-Paares — samt Heimdall-Guard und
-    // samt der dort dokumentierten Grenze (ein bereits abgeholtes Kommando bleibt abgeholt).
-    if (isPendingLock(existing)) await clearBoxCommandForUser(tx, existing.userId, "lock");
-    if (existing.type === "PRUEFUNG") {
-      await tx.kontrollAnforderung.updateMany({
-        where: { entryId: id },
-        data: { entryId: null, fulfilledAt: null },
-      });
-    }
-    await tx.entry.delete({ where: { id } });
-  });
-
-  // H5: Foto-Dateien des gelöschten Eintrags entfernen.
-  void deleteUploadedFiles(entryImageUrls(existing));
+  // No chain break, force=true, or non-VO entry: delete normally. Was daran hängt (Box-Kommando
+  // eines schwebenden Aufrufs, Freigabe der Kontroll-Anforderung, Bilddateien), steht im Dienst —
+  // die KI-Keyholderin löscht über denselben Weg (`delete_entry`).
+  const result = await deleteEntryForUser(existing, null);
+  if (!result.ok) return serviceFailure(result);
 
   if (isPair) {
     revalidatePath("/dashboard", "layout");

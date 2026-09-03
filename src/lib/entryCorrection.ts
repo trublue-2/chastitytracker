@@ -3,7 +3,12 @@ import type { Prisma } from "@prisma/client";
 import { KG_PAIR, WEAR_PAIR, type PairTypes } from "@/lib/utils";
 import { entryGuardError } from "@/lib/entryErrors";
 import { getEntryNeighbors } from "@/lib/queries";
+import { validOeffnenCodes } from "@/lib/reasonsService";
+import { isPendingLock } from "@/lib/lockPending";
+import { clearBoxCommandForUser } from "@/lib/boxCommand";
+import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { codedError, codeOf } from "@/lib/codedError";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 
 /**
@@ -94,6 +99,14 @@ export interface EntryCorrection {
   note?: string | null;
   /** `null` nimmt das Gerät weg. Nur an Arten, die eins tragen ({@link entryPersistsDevice}). */
   deviceId?: string | null;
+  /**
+   * Nur am Öffnen: der GRUND. Gegen die Liste DES TRÄGERS geprüft — sie ist je Nutzer anders.
+   *
+   * Die Orgasmus-ART hat hier bewusst kein Gegenstück: ein ORGASMUS-Eintrag ist ungepaart und
+   * damit über diesen Weg ohnehin nicht korrigierbar (wie die Prüfung — an beiden hängen Foto und
+   * Urteil, und die fasst eine Korrektur nicht an).
+   */
+  oeffnenGrund?: string;
 }
 
 /** Der korrigierte Eintrag, wie ihn beide Aufrufer nach aussen geben. */
@@ -132,9 +145,33 @@ export async function correctionProblem(
   // Die Zukunfts-Prüfung braucht keine Datenbank und gehört deshalb in die Vorschau — anders als die
   // Reihenfolge. Sie steht zusätzlich in `assertEntryTimeOk`, weil die Route nur dort vorbeikommt.
   if (fields.startTime && fields.startTime > new Date()) return "TIME_IN_FUTURE";
+  const reasonError = await reasonProblem(type, fields, userId);
+  if (reasonError) return reasonError;
   if (fields.deviceId === undefined) return null;
   if (!entryPersistsDevice(type)) return "ENTRY_CARRIES_NO_DEVICE";
   return deviceProblem(type, fields.deviceId, userId);
+}
+
+/**
+ * Grund und Art gegen die Listen DES TRÄGERS — nicht gegen die eingebauten.
+ *
+ * Beide sind je Nutzer zusammenstellbar (`oeffnenGruendeConfig`/`orgasmusArtenConfig`); wer gegen
+ * die Vorgabe prüfte, liesse einen Code durch, den dieser Träger gar nicht kennt — und die
+ * Anzeige stünde danach vor einem Wert, für den sie kein Wort hat. Dieselbe Regel wie beim
+ * Anlegen (`validateEntryCreate`) und in der Änderungs-Route.
+ */
+async function reasonProblem(
+  type: string,
+  fields: EntryCorrection,
+  userId: string,
+): Promise<"ENTRY_CARRIES_NO_REASON" | "INVALID_OPENING_REASON" | null> {
+  if (fields.oeffnenGrund === undefined) return null;
+  // Einen Grund trägt nur das Öffnen — am Verschluss oder einer Trage-Zeile wäre er eine Angabe
+  // ohne Ort, und ein stilles Verschlucken liesse die Keyholderin die Korrektur für erledigt halten.
+  if (type !== KG_PAIR.open) return "ENTRY_CARRIES_NO_REASON";
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { oeffnenGruendeConfig: true } });
+  return validOeffnenCodes(user?.oeffnenGruendeConfig).has(fields.oeffnenGrund) ? null : "INVALID_OPENING_REASON";
 }
 
 /**
@@ -203,6 +240,7 @@ export async function correctEntry(
           ...(fields.startTime && { startTime: fields.startTime }),
           ...(fields.note !== undefined && { note: fields.note }),
           ...(fields.deviceId !== undefined && { deviceId: fields.deviceId }),
+          ...(fields.oeffnenGrund !== undefined && { oeffnenGrund: fields.oeffnenGrund }),
         },
         select: CORRECTED_SELECT,
       });
@@ -220,4 +258,92 @@ export async function correctEntry(
     if (!mapped) throw e;
     return mapped;
   }
+}
+
+/**
+ * Der PARTNER eines gepaarten Eintrags, wenn sein Löschen die Kette bräche — sonst `null`.
+ *
+ * Bräche heisst: nach dem Entfernen stünden zwei gleichartige Einträge nebeneinander (zwei
+ * Verschlüsse ohne Öffnen dazwischen). Das ist kein Zustand, den die Paarung abbilden kann, und
+ * deshalb die Frage, die die Oberfläche dem Menschen stellt: „auch den Partner löschen?"
+ *
+ * Ein schwebender Verschluss-AUFRUF ist ausgenommen: er steht per Definition nicht in der Kette
+ * (`effectiveEntryWhere` blendet ihn überall aus), sein Löschen kann sie also nicht brechen.
+ *
+ * Geteilt von der Route und dem MCP — die Frage ist dieselbe, nur die Antwort darauf sieht
+ * verschieden aus (ein Dialog dort, eine Absage mit Vorschlag hier).
+ */
+export async function chainBreakPartner(
+  existing: { id: string; userId: string; type: string; startTime: Date; deviceId: string | null; boltConfirmedAt: Date | null },
+): Promise<{ id: string; type: string; startTime: Date } | null> {
+  const pair = entryPairTypes(existing.type);
+  if (!pair || isPendingLock(existing)) return null;
+
+  // Über `getEntryNeighbors` und nicht über eigene Abfragen: nur dort steckt `effectiveEntryWhere`,
+  // das den schwebenden Verschluss-AUFRUF ausblendet. Von Hand gelesen sah diese Prüfung ihn als
+  // Nachbarn — und meldete einen Ketten-Bruch, den es nicht gibt: sie hätte der Keyholderin
+  // vorgeschlagen, den echten Verschluss der abgeschlossenen Session gleich mitzulöschen. Genau die
+  // Konstellation, vor der `getEntryNeighbors` in seinem eigenen Kommentar warnt.
+  const wearCategoryId = pair === WEAR_PAIR && existing.deviceId
+    ? (await prisma.device.findUnique({ where: { id: existing.deviceId }, select: { categoryId: true } }))?.categoryId
+    : null;
+  const { prev, next } = await getEntryNeighbors(existing.userId, existing.startTime, [pair.close, pair.open], prisma, {
+    categoryId: wearCategoryId ?? undefined,
+    excludeId: existing.id,
+  });
+  if (!prev || !next || prev.type !== next.type) return null;
+  // Der Partner ist der NACHFOLGER der öffnenden Hälfte und der VORGÄNGER der schliessenden.
+  return existing.type === pair.close ? next : prev;
+}
+
+/**
+ * Löscht einen Eintrag — und, wo angegeben, seinen Paar-Partner mit.
+ *
+ * Drei Dinge hängen daran, und alle drei stehen auch in der Route: ein schwebender
+ * Verschluss-AUFRUF nimmt das Box-Kommando mit (sonst führe der Riegel für einen Eintrag zu, den es
+ * nicht mehr gibt), eine gelöschte PRUEFUNG gibt ihre Kontroll-Anforderung wieder frei (sie wäre
+ * sonst „erfüllt" durch einen Nachweis, der weg ist), und die Bilddateien werden aufgeräumt.
+ *
+ * Die Dateien NACH dem Commit: ein Rollback nähme die Zeilen zurück, die Dateien wären trotzdem
+ * weg — von beiden Halbzuständen ist das der schlechtere.
+ */
+export async function deleteEntryForUser(
+  existing: { id: string; userId: string; type: string; boltConfirmedAt: Date | null;
+    imageUrl: string | null; codeImageUrl: string | null; boxImageUrl: string | null },
+  partnerId: string | null,
+): Promise<ServiceResult<null>> {
+  const ids = partnerId ? [existing.id, partnerId] : [existing.id];
+  let partner: { imageUrl: string | null; codeImageUrl: string | null; boxImageUrl: string | null } | null = null;
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Den Partner IN der Transaktion nachlesen, nicht davor: ist er zwischenzeitlich verschwunden
+      // (zweiter Tab, parallele Sitzung), soll die Antwort das SAGEN. Ein `deleteMany` davor träfe
+      // stillschweigend eine Zeile weniger und meldete Erfolg — der Aufrufer glaubte, ein Paar
+      // entfernt zu haben, und hätte eine halbe Kette hinterlassen.
+      if (partnerId) {
+        partner = await tx.entry.findFirst({
+          where: { id: partnerId, userId: existing.userId },
+          select: { imageUrl: true, codeImageUrl: true, boxImageUrl: true },
+        });
+        if (!partner) throw codedError("PARTNER_CHANGED");
+      }
+      // Einen schwebenden Verschluss-Aufruf zurückzunehmen heisst auch: die Box steht wieder still.
+      // Über `boxCommand.ts`, dem einzigen Schreiber des Kommando-Paares.
+      if (isPendingLock(existing)) await clearBoxCommandForUser(tx, existing.userId, "lock");
+      // Eine gelöschte Prüfung gibt ihre Anforderung wieder frei — sonst gälte sie als erfüllt
+      // durch einen Nachweis, den es nicht mehr gibt.
+      if (existing.type === "PRUEFUNG") {
+        await tx.kontrollAnforderung.updateMany({ where: { entryId: existing.id }, data: { entryId: null, fulfilledAt: null } });
+      }
+      await tx.entry.deleteMany({ where: { id: { in: ids }, userId: existing.userId } });
+    });
+  } catch (e: unknown) {
+    if (codeOf(e) === "PARTNER_CHANGED") return serviceFail(409, "PARTNER_CHANGED");
+    throw e;
+  }
+
+  // Die Dateien NACH dem Commit: ein Rollback nähme die Zeilen zurück, die Dateien wären trotzdem
+  // weg — von beiden Halbzuständen ist das der schlechtere.
+  void deleteUploadedFiles([...entryImageUrls(existing), ...(partner ? entryImageUrls(partner) : [])]);
+  return { ok: true, data: null };
 }

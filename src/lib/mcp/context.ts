@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getNotificationMatrix } from "@/lib/notificationPrefs";
 import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/healthHold";
 import { notifyUser } from "@/lib/notify";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
@@ -111,6 +112,20 @@ export interface ContextResult extends Envelope {
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung), plus
    *  windowsBinding/windowsBindingReason/openingAllowedNow (A-02). */
   cleaning: ContextCleaningView;
+  /**
+   * Welche Ereignisse des Trägers die KEYHOLDER per Mail/Push erreichen — nicht ihn.
+   *
+   * Die Richtung ist der ganze Punkt dieses Feldes: `NOTIFICATION_EVENT_TYPES` hängt am Sub, steuert
+   * aber die Meldungen ÜBER seine Einträge an seine Kontrolleure (Begründung in `constants.ts`, und
+   * das Admin-Raster ist genau so beschriftet). Wer es als „seine Benachrichtigungen" liest, schaltet
+   * die eigene Aufsicht ab, statt es für ihn leiser zu machen.
+   *
+   * NUR LESBAR: umlegen darf die KI es nicht (`FM_MCP_EXEMPT`, dasselbe Muster wie bei der
+   * Keyholder-Zuordnung). Es beantwortet die Frage, warum eine Meldung ausgeblieben ist.
+   *
+   * Rein additiv, deshalb ohne Versions-Bump.
+   */
+  notifications: Record<string, { mail: boolean; push: boolean }>;
   /**
    * Welche Vergehensarten bei diesem Sub GERADE gelten: `off`/`on`, bei `unauthorized_orgasm`
    * zusätzlich `lockedOnly` (nur während einer Sperrzeit) und `always`.
@@ -230,6 +245,10 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     now,
   );
 
+  // Die Melde-Kanäle — dieselbe Ableitung wie die Keyholder-Oberfläche, damit beide Sichten nicht
+  // auseinanderlaufen.
+  const notifications = await getNotificationMatrix(userId);
+
   return {
     schemaVersion: 4,
     user: username,
@@ -237,6 +256,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     healthHold,
     autoInspections: autoInspectionsView(auto),
     cleaning: { ...buildCleaningView(user, cleaningUsedTodayCount, now, user.timezone ?? APP_TZ), ...binding },
+    notifications,
     inspectionEscalation: {
       reminderEnabled: user.inspectionReminderEnabled,
       reminderDelayMinutes: user.inspectionReminderDelayMinutes,

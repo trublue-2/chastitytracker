@@ -396,7 +396,16 @@ unterscheiden. Der Bestand steht in \`get_context.healthHold\` und im \`keyholde
   Einschliessen dabei und hat es nicht selbst eingetragen, sein Handy war leer. Rückdatieren ist
   hier erlaubt (auf SEINEM Weg nicht, sonst datierte er sich aus jeder Frist heraus). Ein Foto kannst
   du nicht liefern; eine Trage-Kategorie mit Foto-Pflicht weist den Eintrag deshalb ab.
-- **Einträge korrigieren**: \`edit_entry\` stellt Gerät, Zeitpunkt oder Notiz eines erfassten
+- **Einträge löschen**: \`delete_entry\` entfernt, was nie hätte dastehen sollen. Gepaarte Einträge
+  stehen in einer Kette — bräche das Entfernen sie, verweigert das Werkzeug und nennt den Partner
+  (\`withPartner\` nimmt beide, \`force\` nur diesen und den Bruch in Kauf).
+- **Referenzbilder**: \`list_device_references\` zeigt, womit die Bilderkennung ein Gerät vergleicht.
+  \`count: 0\` heisst, sie KANN es nicht erkennen — das ist eine fehlende Grundlage, kein Verdacht.
+  \`import_device_references\` übernimmt vorhandene Verschluss-Fotos (hochladen kannst du nicht),
+  \`delete_device_reference\` räumt ein schlechtes weg. Genutzt werden je Gerät nur die NEUESTEN
+  zwei — mehr zu importieren macht die Erkennung nicht besser, ein frisches schlechtes verdrängt ein
+  gutes älteres.
+- **Einträge korrigieren**: \`edit_entry\` stellt Gerät, Zeitpunkt, Öffnungsgrund oder Notiz eines erfassten
   Verschluss-/Öffnen- oder Trage-Eintrags richtig — der häufigste Anlass ist das beim Verschluss
   verwechselte Gerät. Alles Abgeleitete (Sessions, Statistik, Gerätestunden, Strafbuch) zieht von
   selbst nach. Fotos, Kontrollcode und Verifikations-Status sind ausgenommen: sie sind die

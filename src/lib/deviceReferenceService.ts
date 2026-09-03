@@ -130,6 +130,17 @@ export async function importEntryAsReference(
   });
   if (!entry?.imageUrl) return serviceFail(404, "REFERENCE_ENTRY_NOT_FOUND");
 
+  // Schon übernommen? Dann NICHTS tun statt eine zweite Kopie anzulegen. Das ist nicht bloss
+  // Ordnung: die Erkennung zieht je Gerät nur die NEUESTEN `visionMaxRefsPerDevice()` Bilder — zwei
+  // Kopien desselben Fotos belegen beide Plätze und verdrängen die andere Perspektive, die jemand
+  // bewusst kuratiert hat. Die Erkennung wird dadurch messbar schlechter, ohne dass irgendwo ein
+  // Fehler steht. `importRecentVerschluss` hielt diese Regel längst; der Einzel-Import nicht.
+  const vorhanden = await prisma.deviceReferenceImage.findFirst({
+    where: { deviceId, sourceEntryId: entry.id },
+    select: { id: true },
+  });
+  if (vorhanden) return { ok: true, data: { id: vorhanden.id } };
+
   const copied = await copyUploadFile(entry.imageUrl);
   if (!copied) return serviceFail(500, "REFERENCE_COPY_FAILED");
 
@@ -141,11 +152,19 @@ export async function importEntryAsReference(
 }
 
 /** Startbestand: die letzten N Verschluss-Fotos dieses Geräts als Referenzen importieren. */
-export async function importRecentVerschluss(
+/**
+ * WELCHE Fotos ein Import übernehmen würde — die jüngsten Verschluss-Fotos des Geräts, abzüglich
+ * der bereits übernommenen.
+ *
+ * Eigenständig, weil zwei Seiten dieselbe Auswahl brauchen: der Import selbst und die
+ * dryRun-Vorschau des MCP. Nachgebaut nannte die Vorschau eine Zahl, die der Commit nicht einlöst
+ * („5 würden übernommen" → `imported: 0`, weil alle fünf längst Referenzen sind).
+ */
+export async function selectImportCandidates(
   deviceId: string,
   userId: string,
   limit = 5,
-): Promise<ServiceResult<{ imported: number }>> {
+): Promise<{ id: string; imageUrl: string | null }[]> {
   const entries = await prisma.entry.findMany({
     where: { userId, deviceId, type: "VERSCHLUSS", imageUrl: { not: null } },
     orderBy: { startTime: "desc" },
@@ -158,10 +177,19 @@ export async function importRecentVerschluss(
     select: { sourceEntryId: true },
   });
   const done = new Set(existing.map((e) => e.sourceEntryId));
+  return entries.filter((e) => !done.has(e.id) && e.imageUrl);
+}
+
+export async function importRecentVerschluss(
+  deviceId: string,
+  userId: string,
+  limit = 5,
+): Promise<ServiceResult<{ imported: number }>> {
+  const entries = await selectImportCandidates(deviceId, userId, limit);
 
   let imported = 0;
   for (const e of entries) {
-    if (done.has(e.id) || !e.imageUrl) continue;
+    if (!e.imageUrl) continue;
     const copied = await copyUploadFile(e.imageUrl);
     if (!copied) continue;
     await prisma.deviceReferenceImage.create({ data: { deviceId, imageUrl: copied, sourceEntryId: e.id } });

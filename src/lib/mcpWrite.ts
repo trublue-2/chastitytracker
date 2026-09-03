@@ -49,8 +49,9 @@ import { KEYHOLDER_LOCK_STATE_WORDING } from "@/lib/serviceErrorCodes";
 import en from "../../messages/en.json";
 import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/taskProofService";
 import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
-import { correctEntry, correctionProblem, type EntryCorrection } from "@/lib/entryCorrection";
+import { chainBreakPartner, correctEntry, correctionProblem, deleteEntryForUser, type EntryCorrection } from "@/lib/entryCorrection";
 import { createEntryForUser, validateEntryCreate } from "@/lib/entryCreateService";
+import { deleteReference, importEntryAsReference, importRecentVerschluss, selectImportCandidates } from "@/lib/deviceReferenceService";
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
 import { releaseNow, previewReleaseNow } from "@/lib/releaseNowService";
 import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
@@ -2222,6 +2223,161 @@ export async function mcpRecordOffense(username: string, args: RecordOffenseArgs
   };
 }
 
+// ── Entry: remove a recorded event ───────────────────────────────────────────
+
+export interface DeleteEntryArgs {
+  id: string;
+  /** Den Partner der Paarung mitlöschen, wo das Entfernen sonst die Kette bräche. */
+  withPartner?: boolean;
+  /**
+   * NUR diesen entfernen und den Bruch in Kauf nehmen.
+   *
+   * Der zweite Ausgang, den die Oberfläche dem Menschen anbietet — und er hat einen guten Fall:
+   * zwei versehentlich erfasste Einträge, die eine durchgehende Session in zwei zerschneiden. Wer
+   * beide nacheinander so entfernt, hat am Ende wieder eine ganze Kette. Ohne ihn liesse sich das
+   * über den MCP nicht herstellen, und die Absage lenkte auf `withPartner` — also darauf, den
+   * ECHTEN Beginn der Session mitzulöschen.
+   */
+  force?: boolean;
+  dryRun?: boolean;
+}
+
+/**
+ * Entfernt EINEN erfassten Eintrag — was nie hätte dastehen sollen.
+ *
+ * Abgrenzung zu `edit_entry`: dort wird eine Angabe RICHTIGGESTELLT, hier verschwindet das
+ * Ereignis. Das ist die schärfere Handlung, und sie hat eine Vorbedingung, die eine Korrektur nicht
+ * kennt: gepaarte Einträge stehen in einer Kette. Fällt einer heraus, stünden zwei gleichartige
+ * nebeneinander — ein Zustand, den die Paarung nicht abbilden kann.
+ *
+ * Deshalb WEIGERT sich dieses Werkzeug in dem Fall und nennt den Partner, statt eine kaputte Kette
+ * zu hinterlassen; mit `withPartner: true` geht das Paar zusammen. Dieselbe Frage stellt die
+ * Oberfläche einem Menschen als Rückfrage — die Regel dahinter ist geteilt
+ * ({@link chainBreakPartner}), nicht abgeschrieben.
+ */
+export async function mcpDeleteEntry(username: string, args: DeleteEntryArgs) {
+  const userId = await resolveTargetUserId(username);
+  const iso = await isoForUser(userId);
+  const existing = await prisma.entry.findFirst({
+    where: { id: args.id, userId },
+    select: { id: true, userId: true, type: true, startTime: true, deviceId: true, boltConfirmedAt: true,
+      imageUrl: true, codeImageUrl: true, boxImageUrl: true },
+  });
+  if (!existing) throw new Error(`Entry not found: ${args.id}`);
+
+  const partner = args.force ? null : await chainBreakPartner(existing);
+  if (partner && !args.withPartner) {
+    throw new Error(
+      `Removing this ${existing.type} would break the pair chain: the neighbouring entries would both be ` +
+      `${existing.type === "VERSCHLUSS" || existing.type === "WEAR_BEGIN" ? "closing" : "opening"} halves. ` +
+      `Its partner is ${partner.type} at ${iso(partner.startTime)} (id ${partner.id}). ` +
+      `Pass withPartner:true to remove both, force:true to remove only this one and accept the gap ` +
+      `(the way to merge a session that was split by two mistaken entries — remove both halves one ` +
+      `after the other), or correct the entry with edit_entry instead.`,
+    );
+  }
+
+  if (args.dryRun) {
+    return dryRunPreview("delete_entry", undefined, {
+      id: existing.id, type: existing.type, at: iso(existing.startTime),
+      alsoRemoves: partner ? { id: partner.id, type: partner.type, at: iso(partner.startTime) } : null,
+    });
+  }
+
+  unwrap(await deleteEntryForUser(existing, partner?.id ?? null));
+  return {
+    ok: true,
+    removed: partner ? 2 : 1,
+    message: partner
+      ? "Entry and its pair partner removed. Everything derived from them follows on its own."
+      : "Entry removed. Everything derived from it follows on its own.",
+  };
+}
+
+// ── Device references: the material the image check works with ───────────────
+
+export interface ImportDeviceReferencesArgs {
+  deviceName: string;
+  /** EIN bestimmtes Foto übernehmen (Eintrags-Id aus `list_entries`). */
+  entryId?: string;
+  /** Sonst: die letzten N Verschluss-Fotos dieses Geräts (1–10, Vorgabe 5). */
+  limit?: number;
+  dryRun?: boolean;
+}
+
+/**
+ * Übernimmt vorhandene Fotos als Referenzbilder — das Material, an dem die Bilderkennung ein Gerät
+ * wiedererkennt.
+ *
+ * Der Weg, der einer KI offensteht: HOCHLADEN kann sie nicht (dafür braucht es eine Datei), aber
+ * die Fotos des Trägers liegen längst da. Ohne Referenzen erkennt die Erkennung ein Gerät nie —
+ * ihr `deviceCheck` ist dann kein Verdacht, sondern eine fehlende Grundlage.
+ *
+ * Idempotent: ein bereits übernommenes Foto wird übersprungen (der Dienst merkt sich die Herkunft).
+ */
+export async function mcpImportDeviceReferences(username: string, args: ImportDeviceReferencesArgs) {
+  const userId = await resolveTargetUserId(username);
+  const deviceId = await resolveAnyDeviceId(userId, null, args.deviceName);
+
+  if (args.dryRun) {
+    // DIESELBE Auswahl, die der Commit trifft (`selectImportCandidates`) — nicht nachgebaut. Eine
+    // eigene Zählung nannte hier „5 würden übernommen", während der Commit `imported: 0` lieferte,
+    // weil die fünf längst Referenzen sind.
+    const wouldImport = args.entryId
+      ? (await prisma.deviceReferenceImage.count({ where: { deviceId, sourceEntryId: args.entryId } })) === 0
+        && (await prisma.entry.count({ where: { id: args.entryId, userId, imageUrl: { not: null } } })) === 1
+        ? 1 : 0
+      : (await selectImportCandidates(deviceId, userId, args.limit)).length;
+    return dryRunPreview("import_device_references", undefined, {
+      device: args.deviceName,
+      wouldImport,
+      note: wouldImport === 0 ? "Nothing new — already imported, or there is no photo." : undefined,
+    });
+  }
+
+  if (args.entryId) {
+    unwrap(await importEntryAsReference(deviceId, args.entryId, userId));
+    return { ok: true, imported: 1, message: `Photo added as a reference for "${args.deviceName}".` };
+  }
+  const { imported } = unwrap(await importRecentVerschluss(deviceId, userId, args.limit));
+  return {
+    ok: true,
+    imported,
+    message: imported === 0
+      ? `Nothing new to import for "${args.deviceName}" — the recent lock photos are already references (or there are none).`
+      : `${imported} photo(s) added as references for "${args.deviceName}".`,
+  };
+}
+
+export interface DeleteDeviceReferenceArgs {
+  referenceId: string;
+  dryRun?: boolean;
+}
+
+/**
+ * Entfernt EIN Referenzbild (Id aus `list_device_references`).
+ *
+ * Ein schlechtes Referenzbild ist schlimmer als keines: es zieht die Erkennung auf ein Gerät, das
+ * so nicht mehr aussieht, und der `deviceCheck` meldet danach Abweichungen, die keine sind. Deshalb
+ * gehört das Wegräumen in dieselbe Hand wie das Urteil darüber.
+ */
+export async function mcpDeleteDeviceReference(username: string, args: DeleteDeviceReferenceArgs) {
+  const userId = await resolveTargetUserId(username);
+
+  if (args.dryRun) {
+    const ref = await prisma.deviceReferenceImage.findFirst({
+      where: { id: args.referenceId, device: { userId } },
+      select: { id: true, device: { select: { name: true } } },
+    });
+    return dryRunPreview("delete_device_reference", ref ? undefined : "Reference not found.", {
+      referenceId: args.referenceId, device: ref?.device.name ?? null,
+    });
+  }
+
+  unwrap(await deleteReference(args.referenceId, userId));
+  return { ok: true, message: "Reference image removed. The image check will no longer use it." };
+}
+
 // ── Entry: add an event for the user ─────────────────────────────────────────
 
 export interface AddEntryArgs {
@@ -2323,6 +2479,8 @@ export interface EditEntryArgs {
   clearDevice?: boolean;
   /** Neue Notiz; "" löscht die bestehende. */
   note?: string;
+  /** Nur am Öffnen: der Grund (Code wie in `get_context`). */
+  openingReason?: string;
   dryRun?: boolean;
 }
 
@@ -2349,7 +2507,7 @@ export async function mcpEditEntry(username: string, args: EditEntryArgs) {
   const userId = await resolveTargetUserId(username);
   const iso = await isoForUser(userId);
   if (args.clearDevice && args.deviceName) throw new Error("clearDevice cannot be combined with deviceName.");
-  requireAnyOf(args, ["startTime", "deviceName", "clearDevice", "note"]);
+  requireAnyOf(args, ["startTime", "deviceName", "clearDevice", "note", "openingReason"]);
 
   // Die Zeile VORAB: die dryRun-Vorschau braucht die Vorher-Werte, und beide Pfade bekommen so die
   // Absage mit der Id im Text statt eines blossen „Nicht gefunden". Dass `correctEntry` sie gleich
@@ -2357,7 +2515,7 @@ export async function mcpEditEntry(username: string, args: EditEntryArgs) {
   // nicht im Vertrauen auf den Aufrufer — eine indizierte Ein-Zeilen-Abfrage.
   const existing = await prisma.entry.findFirst({
     where: { id: args.id, userId },
-    select: { id: true, type: true, startTime: true, note: true, device: { select: { name: true } } },
+    select: { id: true, type: true, startTime: true, note: true, oeffnenGrund: true, device: { select: { name: true } } },
   });
   if (!existing) throw new Error(`Entry not found: ${args.id}`);
 
@@ -2373,6 +2531,7 @@ export async function mcpEditEntry(username: string, args: EditEntryArgs) {
     ...(args.startTime !== undefined && { startTime: parseIsoDate(args.startTime, "startTime") }),
     ...(args.note !== undefined && { note: args.note === "" ? null : args.note }),
     ...(deviceId !== undefined && { deviceId }),
+    ...(args.openingReason !== undefined && { oeffnenGrund: args.openingReason }),
   };
 
   if (args.dryRun) {
@@ -2380,8 +2539,10 @@ export async function mcpEditEntry(username: string, args: EditEntryArgs) {
     // Bedingungen. Nur die Ketten-Prüfung bleibt dem Commit vorbehalten: sie liest die Nachbarn in
     // der Transaktion, und eine Vorschau davor wäre eine zweite Uhr auf denselben Zustand.
     const problem = await correctionProblem(existing.type, fields, userId);
-    const before = { startTime: iso(existing.startTime), device: existing.device?.name ?? null, note: existing.note };
+    const before = { startTime: iso(existing.startTime), device: existing.device?.name ?? null,
+      note: existing.note, openingReason: existing.oeffnenGrund };
     const after = {
+      openingReason: fields.oeffnenGrund ?? before.openingReason,
       startTime: fields.startTime ? iso(fields.startTime) : before.startTime,
       // Der KANONISCHE Name des aufgelösten Geräts, nicht die getippte Schreibweise: die Auflösung
       // ist gross-/kleinschreibungs-blind, und ein „plug l" im Diff behauptete sonst eine Änderung,

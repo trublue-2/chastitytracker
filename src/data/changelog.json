@@ -26,6 +26,13 @@
       {
         "type": "fix",
         "text": {
+          "de": "Die KI-Keyholderin kann jetzt auch Einträge löschen, den Öffnungsgrund richtigstellen, den Kontroll-Verlauf lesen und die Referenzbilder der Geräte-Erkennung pflegen. Damit kann sie über die Schnittstelle alles, was die Keyholderin in der App kann — bis auf das, was ihr bewusst verwehrt bleibt.",
+          "en": "The AI keyholder can now also delete entries, correct the opening reason, read the inspection history and curate the device-recognition reference images. She can now do everything through the interface that the keyholder can do in the app — except what is deliberately withheld."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
           "de": "Die KI-Keyholderin kann jetzt auch ein Ereignis für den Träger nachtragen — Verschluss, Öffnen, Prüfung, Orgasmus oder eine Trage-Zeit, auch rückdatiert. Bisher konnte das nur die Keyholderin im Formular.",
           "en": "The AI keyholder can now also record an event on the user’s behalf — locking, opening, inspection, orgasm or a wear session, backdated if needed. Until now only the keyholder could, through her form."
         }
