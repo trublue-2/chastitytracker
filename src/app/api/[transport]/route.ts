@@ -3,6 +3,7 @@ import type { ContentBlock } from "@modelcontextprotocol/sdk/types.js";
 import { timingSafeEqual, createHash } from "crypto";
 import { z } from "zod";
 import { listEntries } from "@/lib/mcp/entries";
+import { listInspections } from "@/lib/mcp/inspections";
 import { loadMcpImage, mcpImageToolVisible } from "@/lib/mcp/entryImage";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { OFFENSE_RULE_MODES } from "@/lib/offenseRules";
@@ -355,6 +356,28 @@ function registerTools(server: McpServer) {
         },
       },
       (args) => runTool("list_entries", (username) => listEntries(username, args)),
+    );
+
+    server.registerTool(
+      "list_inspections",
+      {
+        title: "List the inspection history",
+        description:
+          "The inspection log for this user, newest first — the same list the keyholder sees in the UI. " +
+          "Each row: status (open, overdue, scheduled, fulfilled, late, missed, withdrawn, selfcontrol — " +
+          "selfcontrol = the user submitted a check nobody asked for), what was to be inspected, your " +
+          "instruction, the deadline, when he submitted, and how the photo check went (verification, " +
+          "verificationReason, deviceCheck). Use it to see how he responded to earlier inspections; " +
+          "keyholder_dashboard shows only the one that is open right now, get_offenses only the missed ones. " +
+          "Randomly scheduled auto-inspections stay hidden until they trigger — their unpredictability is " +
+          "the point.",
+        inputSchema: {
+          limit: z.number().int().min(1).max(200).optional().describe("Max rows to return (default 20)."),
+          status: z.array(z.enum(["open", "overdue", "scheduled", "fulfilled", "late", "missed", "withdrawn", "selfcontrol"]))
+            .optional().describe("Only these states. Omit for all."),
+        },
+      },
+      (args) => runTool("list_inspections", (username) => listInspections(username, args)),
     );
 
     server.registerTool(
@@ -842,8 +865,8 @@ function registerTools(server: McpServer) {
         inputSchema: {
           deadlineHours: z.number().positive().optional().describe(`Deadline in hours (default ${INSPECTION_DEADLINE_DEFAULT_H}). Fractions allowed, e.g. 0.25 for 15 minutes. Counts from when the inspection is triggered.`),
           comment: z.string().optional().describe("Instruction shown to the user."),
-          category: z.string().optional().describe('Target category, e.g. "Plug". Omit or "KG" for the chastity device.'),
-          device: z.string().optional().describe("Target exactly this device (by name) instead of any device of the category. It must be the one currently locked/worn."),
+          category: z.string().optional().describe('Target category, e.g. "Plug". Omit or "KG" for the chastity device. The possible targets are exactly what is locked or worn right now — see keyholder_dashboard.wornNow[].category.'),
+          device: z.string().optional().describe("Target exactly this device instead of any device of the category. It must be the one currently locked/worn — take keyholder_dashboard.wornNow[].deviceDeclared, NOT deviceName (that one is the device recognised in the photo, which may differ)."),
           delayMinutes: z.coerce.number().optional().describe(
             `Delay before the code reaches the user. Omit for a random ${INSPECTION_RANDOM_DELAY.min}–${INSPECTION_RANDOM_DELAY.max} min delay; `
             + `0 = immediate; any other value is clamped to ${INSPECTION_DELAY_RANGE.min}–${INSPECTION_DELAY_RANGE.max} `

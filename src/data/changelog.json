@@ -6,6 +6,13 @@
       {
         "type": "fix",
         "text": {
+          "de": "Die KI-Keyholderin sieht jetzt den ganzen Kontroll-Verlauf — erfüllt, verspätet, versäumt, zurückgezogen — statt nur der gerade offenen und der versäumten Kontrolle.",
+          "en": "The AI keyholder can now see the full inspection history — fulfilled, late, missed, withdrawn — instead of only the currently open and the missed ones."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
           "de": "Die KI-Keyholderin kann einen erfassten Verschluss oder Trage-Eintrag jetzt richtigstellen — Gerät, Zeitpunkt oder Notiz. Anlass ist das beim Verschluss verwechselte Gerät. Die Korrektur läuft still, steht aber im Protokoll ihrer Handlungen.",
           "en": "The AI keyholder can now correct a recorded lock or wear entry — device, time or note. The usual case is the wrong device picked while locking. The correction is silent but recorded in her action log."
         }

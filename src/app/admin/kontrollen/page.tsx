@@ -7,9 +7,7 @@ import { ClipboardCheck } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import EmptyState from "@/app/components/EmptyState";
 import AdminKontrolleListClient from "./AdminKontrolleListClient";
-import { buildKontrolleRows, isKontrolleAlarm, mapKontrolleRow } from "@/lib/kontrollen";
-import { KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
-import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
+import { isKontrolleAlarm, loadKontrolleRows, mapKontrolleRow, sortedKontrolleRows } from "@/lib/kontrollen";
 
 export default async function AdminKontrollenPage({
   searchParams,
@@ -32,29 +30,7 @@ export default async function AdminKontrollenPage({
     ? await prisma.user.findUnique({ where: { id: userId }, select: { id: true, username: true } })
     : null;
 
-  const [pruefungen, alleAnforderungen] = await Promise.all([
-    prisma.entry.findMany({
-      where: { type: "PRUEFUNG", ...(userId ? { userId } : {}) },
-      orderBy: { startTime: "desc" },
-      // `device` mit Kategorie: die Kontroll-Zeile zeigt an, WAS kontrolliert wurde (KG-Prüfungen
-      // tragen kein Gerät, Trage-Kontrollen das gezeigte).
-      include: {
-        user: { select: { username: true, timezone: true } },
-        device: { select: { name: true, category: { select: { name: true, isBuiltIn: true } } } },
-      },
-    }),
-    prisma.kontrollAnforderung.findMany({
-      // Keyholder-Sicht: manuell geplante Kontrollen ZEIGEN (stornierbar), nur zukünftige
-      // Auto-/Zufalls-Kontrollen verbergen (Überraschungseffekt).
-      where: { ...keyholderVisibleKontrolleWhere(now), ...(userId ? { userId } : {}) },
-      orderBy: { createdAt: "desc" },
-      include: { user: { select: { username: true, timezone: true } }, ...KONTROLLE_TARGET_INCLUDE },
-    }),
-  ]);
-
-  const { pruefungRows, offeneRows } = buildKontrolleRows(pruefungen, alleAnforderungen, now);
-  const allRows = [...pruefungRows, ...offeneRows]
-    .sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
+  const allRows = sortedKontrolleRows(await loadKontrolleRows(userId ?? null, now));
 
   const mapOpts = { t, dl, includeUsername: !userId, viewerTz, tReason };
   const items = allRows.filter(isKontrolleAlarm).map((r) => mapKontrolleRow(r, mapOpts));

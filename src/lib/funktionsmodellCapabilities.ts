@@ -78,10 +78,7 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
   "entry-admin-edit": "OFFEN: das LÖSCHEN eines fremden Eintrags sowie die Felder `oeffnenGrund` und `orgasmusArt`. Gerät, Zeitpunkt und Notiz deckt `edit_entry` ab (Fähigkeit `entry-correct-mcp`, eigene Zeile wie beim Gewicht). Löschen bleibt vorerst beim Menschen: es bricht die Paar-Kette und verlangt die Entscheidung über den Partner-Eintrag.",
   "device-references": "OFFEN: Referenzbilder der Geräte-Erkennung pflegen (Liste, Löschen).",
   "device-references-import": "OFFEN: vorhandene Verschluss-Fotos als Referenz übernehmen — braucht keinen Upload und wäre damit KI-fähig.",
-  "inspection-targets": "OFFEN: die möglichen Kontroll-Ziele abfragen, bevor eine Kontrolle gestellt wird.",
-  "inspection-list": "OFFEN: Kontroll-Verlauf als Liste mit Status.",
   "notify-prefs-admin": "OFFEN: Benachrichtigungs-Matrix des Trägers. Nutzen für eine KI gering — sie bekommt weder Mail noch Push.",
-  "orgasm-directive-withdraw": "OFFEN: laut Register admin-ui-only, obwohl `withdraw` das Ziel `orgasm_directive` kennt — der Eintrag ist zu prüfen, nicht die Fähigkeit.",
 };
 
 /** Routen, die keine Fähigkeit im Sinne dieses Katalogs sind — mit Grund. */
@@ -216,12 +213,16 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "inspection-targets", mechanic: "Kontrollen", title: "Mögliche Kontroll-Ziele abfragen",
     what: "Nennt die Kategorien und Geräte, auf die gerade eine Kontrolle gestellt werden kann.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/inspection-targets"],
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"], routes: ["/api/admin/inspection-targets"],
+    tools: ["keyholder_dashboard"],
+    note: "Für die KI ist es keine eigene Abfrage: `keyholder_dashboard.wornNow` nennt alles, was gerade verschlossen oder getragen wird — und die Ziel-Menge IST das (`listInspectionTargets`). Zu nehmen ist `category` + `deviceDeclared`, NICHT `deviceName`: letzteres ist das per Bildabgleich EFFEKTIVE Gerät, und `request_inspection` prüft gegen das deklarierte — bei einem Bild-Konflikt endete der Aufruf sonst mit `INSPECTION_DEVICE_NOT_ACTIVE`.",
   }),
   c({
     id: "inspection-list", mechanic: "Kontrollen", title: "Kontroll-Verlauf einsehen",
     what: "Alle Kontrollen eines Trägers mit Status, Frist und dem erfüllenden Eintrag.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/kontrollen"],
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"], routes: ["/api/admin/kontrollen"],
+    tools: ["list_inspections"],
+    note: "Beide Seiten leiten Zustand, Ziel und Verifikation aus `buildKontrolleRows` ab — eine eigene Status-Rechnung im MCP wäre eine zweite Wahrheit über denselben Sachverhalt.",
   }),
   c({
     id: "inspection-resolve", mechanic: "Kontrollen", title: "Kontrolle zurückziehen oder von Hand bestätigen",
@@ -282,7 +283,8 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "orgasm-directive-withdraw", mechanic: "Orgasmus", title: "Orgasmus-Fenster zurückziehen",
     what: "Nimmt eine offene Direktive zurück. Die Route kennt nur diese eine Aktion.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/orgasmus-anforderung/[id]"],
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"], routes: ["/api/admin/orgasmus-anforderung/[id]"],
+    tools: ["withdraw"],
     note: "ÄNDERN gibt es für diese Direktive nirgends — weder in der App noch über den MCP. Anders wollen heisst zurückziehen und neu stellen; als einzige Direktive fehlt ihr das Gegenstück zu `edit_lock_period`, `edit_task` und `edit_training_goal`.",
   }),
 

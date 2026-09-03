@@ -4,6 +4,8 @@ import { effectiveDeviceCheckStatus } from "@/lib/deviceCheck";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
 import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { prisma } from "@/lib/prisma";
+import { keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
 import type { AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontrolleListClient";
 
 /** Raw row built from PRUEFUNG entries + KontrollAnforderungen, ready for display mapping. */
@@ -91,6 +93,56 @@ type KontrollAnforderung = {
  * Builds Kontrolle rows from PRUEFUNG entries and KontrollAnforderungen.
  * Returns { pruefungRows, offeneRows } — caller sorts/filters/merges as needed.
  */
+/**
+ * Die Zeilen des Kontroll-Verlaufs, fertig geladen und sortiert — die DREI Sichten, die ihn zeigen,
+ * teilen sich diesen einen Weg (die Keyholder-Übersicht, die Verlaufs-Seite eines Trägers und
+ * `list_inspections` im MCP).
+ *
+ * Vorher stand das Abfrage-Paar dreimal wortgleich da, samt Merge und Sortierung. Das ist nicht
+ * bloss Länge: `KONTROLLE_TARGET_INCLUDE` trägt in `queries.ts` die Warnung, dass ein vergessenes
+ * `include` das Ziel-Label ohne Compilerfehler leert — drei Kopien sind drei Gelegenheiten dafür.
+ *
+ * `userId: null` heisst „alle Träger" (die Keyholder-Übersicht); nur sie braucht dann auch die
+ * `username`-Spalte, die `buildKontrolleRows` aus der geladenen Zeile liest.
+ *
+ * `since` deckelt die Historie. Der MCP setzt es, weil dort bei jedem Zug gelesen wird und eine
+ * jahrealte Auto-Kontrolle für die Frage „wie hat er zuletzt reagiert?" nichts beiträgt; die
+ * Oberflächen lassen es weg und zeigen weiter alles.
+ */
+export async function loadKontrolleRows(
+  userId: string | null,
+  now: Date,
+  since?: Date,
+): Promise<{ pruefungRows: KontrolleRow[]; offeneRows: KontrolleRow[] }> {
+  const forUser = userId ? { userId } : {};
+  const [pruefungen, anforderungen] = await Promise.all([
+    prisma.entry.findMany({
+      where: { type: "PRUEFUNG", ...forUser, ...(since ? { startTime: { gte: since } } : {}) },
+      orderBy: { startTime: "desc" },
+      // `device` mit Kategorie: die Zeile zeigt an, WAS kontrolliert wurde (KG-Prüfungen tragen kein
+      // Gerät, Trage-Kontrollen das gezeigte).
+      include: {
+        user: { select: { username: true, timezone: true } },
+        device: { select: { name: true, category: { select: { name: true, isBuiltIn: true } } } },
+      },
+    }),
+    prisma.kontrollAnforderung.findMany({
+      // Keyholder-Sicht: manuell geplante Kontrollen ZEIGEN (stornierbar), nur zukünftige
+      // Auto-/Zufalls-Kontrollen verbergen (Überraschungseffekt).
+      where: { ...keyholderVisibleKontrolleWhere(now), ...forUser, ...(since ? { createdAt: { gte: since } } : {}) },
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { username: true, timezone: true } }, ...KONTROLLE_TARGET_INCLUDE },
+    }),
+  ]);
+  return buildKontrolleRows(pruefungen, anforderungen, now);
+}
+
+/** Beide Hälften in EINER Liste, neueste zuerst — die Reihenfolge, in der alle drei Sichten sie
+ *  zeigen. */
+export function sortedKontrolleRows(rows: { pruefungRows: KontrolleRow[]; offeneRows: KontrolleRow[] }): KontrolleRow[] {
+  return [...rows.pruefungRows, ...rows.offeneRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
+}
+
 export function buildKontrolleRows(
   pruefungen: PruefungEntry[],
   alleAnforderungen: KontrollAnforderung[],

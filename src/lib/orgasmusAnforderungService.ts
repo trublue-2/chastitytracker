@@ -194,7 +194,13 @@ export function orgasmusWithdrawNotice(actor: MessageActor, refId?: string): Not
 export async function withdrawOrgasmusAnforderung(
   userId: string,
   actor: MessageActor,
-): Promise<ServiceResult<{ count: number; rows: { id: string; endsAt: Date; message: string | null }[] }>> {
+): Promise<ServiceResult<{
+  count: number;
+  /** MIT den Sichtbarkeits-Feldern: die Zeile wird ohnehin so gelesen (siehe `select` unten), und der
+   *  Aufrufer muss sonst raten, ob der Träger die zurückgezogene Anweisung überhaupt kannte —
+   *  `mcpWithdraw` tat genau das und meldete jede als „ausgelöst". */
+  rows: { id: string; endsAt: Date; message: string | null; wirksamAb: Date | null; benachrichtigtAt: Date | null }[];
+}>> {
   const rows = await prisma.$transaction(async (tx) => {
     const open = await tx.orgasmusAnforderung.findMany({
       where: { userId, fulfilledAt: null, withdrawnAt: null },

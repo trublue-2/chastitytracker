@@ -9,9 +9,7 @@ import KontrolleButton from "@/app/admin/KontrolleButton";
 import EmptyState from "@/app/components/EmptyState";
 import Section from "@/app/components/Section";
 import AdminKontrolleListClient from "@/app/admin/kontrollen/AdminKontrolleListClient";
-import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
-import { buildKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen";
-import { KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
+import { loadKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen";
 import { listInspectionTargets } from "@/lib/inspectionTarget";
 
 export default async function AdminUserKontrollenPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,27 +28,12 @@ export default async function AdminUserKontrollenPage({ params }: { params: Prom
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/kontrollen`);
 
-  const [pruefungen, alleAnforderungen, targets] = await Promise.all([
-    prisma.entry.findMany({
-      where: { userId: id, type: "PRUEFUNG" },
-      orderBy: { startTime: "desc" },
-      // `device` mit Kategorie: die Zeile zeigt an, WAS kontrolliert wurde (siehe buildKontrolleRows).
-      include: {
-        user: { select: { username: true, timezone: true } },
-        device: { select: { name: true, category: { select: { name: true, isBuiltIn: true } } } },
-      },
-    }),
-    prisma.kontrollAnforderung.findMany({
-      where: { userId: id, ...keyholderVisibleKontrolleWhere(now) },
-      orderBy: { createdAt: "desc" },
-      include: { user: { select: { username: true, timezone: true } }, ...KONTROLLE_TARGET_INCLUDE },
-    }),
+  const [{ pruefungRows, offeneRows }, targets] = await Promise.all([
+    loadKontrolleRows(id, now),
     // Dieselbe Ziel-Menge wie das Formular (inkl. Kategorien-Feature-Flag) — ein eigener
     // Lock-/Trage-Check hier wäre eine zweite Wahrheit darüber, wann Anfordern überhaupt geht.
     listInspectionTargets(id),
   ]);
-
-  const { pruefungRows, offeneRows } = buildKontrolleRows(pruefungen, alleAnforderungen, now);
   const sortedOffene = [...offeneRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
   const sortedPruefungen = [...pruefungRows].sort((a, b) => b.sortTime.getTime() - a.sortTime.getTime());
   const mapOpts = { t: ta, dl, includeUsername: false, viewerTz: session?.user?.timezone ?? APP_TZ, tReason };

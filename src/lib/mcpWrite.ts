@@ -789,12 +789,19 @@ export async function mcpWithdraw(username: string, args: WithdrawArgs) {
       status: notified ? "triggered" : "scheduled",
     });
   } else if (args.target === "orgasm_directive") {
-    // Orgasmus-Anforderungen kennen kein `wirksamAb` (nicht terminierbar, siehe delayedTrigger) —
-    // der Sub weiss immer von ihnen. `directiveRow` leitet daraus von selbst "triggered" ab, statt
-    // dass diese Stelle die Sichtbarkeits-Regel ein zweites Mal von Hand formuliert.
+    // Die Zeilen UNVERFÄLSCHT durchreichen: `directiveRow` leitet die Sichtbarkeit aus `wirksamAb`/
+    // `benachrichtigtAt` ab. Hier standen die beiden früher fest auf `null`, mit der Begründung,
+    // Orgasmus-Anweisungen seien nicht terminierbar — das stimmt nicht (`request_orgasm` kennt
+    // `delayMinutes`/`scheduledAt`). Eine noch nicht ausgelöste Anweisung wurde damit als
+    // „ausgelöst, der Träger wurde benachrichtigt" gemeldet, obwohl er sie nie gesehen hat: genau
+    // die Falschauskunft, gegen die `withdrawnItems` nach dem Vorfall 28.07.2026 gebaut wurde.
     const { count: n, rows } = unwrap(await withdrawOrgasmusAnforderung(userId, AI_AUTHOR));
     count = n;
-    for (const o of rows) withdrawnItems.push(lockItem({ ...o, wirksamAb: null, benachrichtigtAt: null }));
+    for (const o of rows) {
+      withdrawnItems.push(lockItem(o));
+      if (isHiddenFromSub(o)) hidden++;
+      else notified = true;
+    }
   } else if (args.target === "lock_request" || args.target === "lock_period") {
     const { count: n, hidden: h, notified: was, rows } = unwrap(
       await withdrawVerschlussAnforderung(userId, args.target === "lock_request" ? "ANFORDERUNG" : "SPERRZEIT", AI_AUTHOR),
