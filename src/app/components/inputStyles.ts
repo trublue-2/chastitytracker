@@ -256,6 +256,18 @@ export function iconActionCls(colorToken: ActionColorToken): string {
 }
 
 /**
+ * Die Geometrie EINES Elements in der Zeile unter einer Übersichts-Karte — die Schnellaktionen
+ * („Kontrolle anfordern", „Sperrzeit setzen", „Sofort aufschliessen") und die Schnellschalter.
+ *
+ * Nur Mass und Form; die Farben bringt jedes Bauteil selbst mit, weil sie dort die BEDEUTUNG tragen
+ * (Kontrolle, Sperrzeit, Freigabe) und nicht die Bauart. Die Kette stand viermal wörtlich in vier
+ * Dateien, deren Knöpfe unmittelbar nebeneinander stehen — driften Polsterung oder Radius, sieht
+ * man das nicht am einzelnen Knopf, sondern an der Reihe.
+ */
+export const overviewChipCls =
+  "flex items-center gap-1.5 text-xs font-medium border rounded-lg px-2.5 py-2 transition";
+
+/**
  * Die GEFÜLLTE Aktion an einem Block — die Schwester von `cardActionCls`, und der Grund, warum es
  * beide gibt.
  *

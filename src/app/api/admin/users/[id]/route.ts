@@ -17,6 +17,7 @@ import { weightTrackingEnabled, heimdallEnabled } from "@/lib/constants";
 import { setLockRequiresBolt } from "@/lib/lockCommit";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { serviceResponse } from "@/lib/serviceResult";
+import { normalizeQuickSettings } from "@/lib/quickSettings";
 
 export async function GET(
   _req: NextRequest,
@@ -155,6 +156,16 @@ export async function PATCH(
       reminderEnabled: body.inspectionReminderEnabled, reminderDelayMinutes: body.inspectionReminderDelayMinutes,
       autoMarkEnabled: body.inspectionAutoMarkEnabled, autoMarkDelayMinutes: body.inspectionAutoMarkDelayMinutes,
     }));
+  }
+
+  // Die Schnellschalter dieses Trägers: WELCHE Einstellungen in der Übersicht als Chip stehen.
+  // Reine Anzeige-Auswahl, keine Regel — deshalb hier direkt und nicht über einen Fachdienst. Was
+  // gültig ist, entscheidet die Registratur (`quickSettings.ts`): sie wirft unbekannte Schlüssel
+  // weg und klemmt auf die Zahl, die die Kartenzeile trägt, statt eine Liste abzulehnen.
+  if (body.quickSettings !== undefined) {
+    const keys = normalizeQuickSettings(body.quickSettings);
+    await prisma.user.update({ where: { id }, data: { quickSettings: JSON.stringify(keys) } });
+    return NextResponse.json({ ok: true, quickSettings: keys });
   }
 
   if (body.orgasmusArtenConfig !== undefined) {

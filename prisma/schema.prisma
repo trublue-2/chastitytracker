@@ -117,6 +117,14 @@ model User {
   // also exakt die vorgegebene Reihenfolge mit allen Blöcken. Bewusst Abweichungen statt der
   // Blockliste: sonst bliebe jeder künftig hinzukommende Block bei Bestandsnutzern unsichtbar.
   dashboardLayout                String?
+  // Welche Einstellungen dieses Trägers in der Keyholder-Übersicht als Schnellschalter erscheinen —
+  // JSON-Liste der Schlüssel aus `quickSettings.ts` (`["cleaning","autoInspections"]`). NULL/leer =
+  // keine, also die Zeile wie bisher nur mit den Schnellaktionen.
+  //
+  // Am TRÄGER und nicht an der Keyholderin: die Schalter zeigen SEINE Werte, und welche davon
+  // täglich gebraucht werden, hängt an seinen Regeln, nicht an ihrem Geschmack. Zwei Keyholder
+  // desselben Trägers teilen sie sich damit — wie jede andere seiner Einstellungen auch.
+  quickSettings                  String?
   // Welche Umstellung dieser Nutzer zuletzt quittiert hat, als Versionsnummer ("6.0.0").
   //
   // Eine VERSION und kein Boolean: derselbe Merker trägt damit auch den nächsten

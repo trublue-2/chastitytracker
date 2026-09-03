@@ -411,6 +411,11 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["sub"], affects: ["Oberfläche"], anchor: "dashboardLayout.ts:resolveLayout",
   }),
   s({
+    model: "User", field: "quickSettings", domain: "konto", scope: "standing",
+    effect: "Welche Einstellungen dieses Trägers in der Keyholder-Übersicht als Schnellschalter erscheinen (Liste von Schlüsseln, höchstens vier). Reine Anzeige-Auswahl: sie ändert keine Regel, sondern nur, welche davon ohne Umweg über die Einstellungen erreichbar ist.",
+    writers: ["admin"], affects: ["Oberfläche"], anchor: "quickSettings.ts",
+  }),
+  s({
     model: "User", field: "hideOwnTracker", domain: "konto", scope: "standing",
     effect: "Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen.",
     writers: ["sub"], affects: ["Oberfläche"], anchor: "ownTracker.ts",

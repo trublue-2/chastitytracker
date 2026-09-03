@@ -30,6 +30,8 @@ import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import NotificationToggles from "./NotificationToggles";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import SettingsSection from "@/app/components/SettingsSection";
+import QuickSettingsPicker from "@/app/admin/QuickSettingsPicker";
+import { QUICK_SETTINGS, quickSettingAvailable, parseQuickSettings } from "@/lib/quickSettings";
 import VorgabeForm from "../VorgabeForm";
 import VorgabeRow from "../VorgabeRow";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -81,6 +83,11 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   if (!user) redirect("/admin");
   const tz = user.timezone;
+  // Welche Schnellschalter gelten für DIESEN Träger? Einmal ausgewertet: die Auswahlliste und die
+  // Vorbelegung darunter müssen dieselbe Antwort lesen, sonst zählt ein unsichtbares Kästchen mit.
+  const quickSettingsAvailable = QUICK_SETTINGS.filter((qs) =>
+    quickSettingAvailable(qs, { hasBox: box.boxConfirm, weightFeature: weightTrackingEnabled() }),
+  );
 
   // Built-in-Codes → i18n-Label (Placeholder im Editor, wenn kein Override gesetzt ist). Deckt auch
   // die Default-Kombi-Codes (`Orgasmus – Masturbation` …) ab, damit deren Editor-Zeilen nicht leer
@@ -219,6 +226,21 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           hasBox={box.boxConfirm}
           initialDays={user.autoKontrolleDays}
           initialDayRules={user.autoKontrolleDayRules}
+        />
+      </SettingsSection>
+
+      {/* Schnellzugriff: welche dieser Einstellungen in der Übersicht als Chip erscheinen */}
+      <SettingsSection title={t("sectionQuickSettings")} description={t("sectionQuickSettingsDesc")} bodyPadded>
+        <QuickSettingsPicker
+          userId={user.id}
+          available={quickSettingsAvailable}
+          /* Nur das ANZEIGBARE — ein gespeicherter Schlüssel, dessen Voraussetzung entfallen ist
+             (Box abgemeldet), zählte sonst gegen die Obergrenze, ohne dass ein Kästchen dazu
+             sichtbar wäre. Er fällt beim nächsten Speichern weg; anzeigen liesse er sich ohnehin
+             nicht, und die Einstellung dahinter bleibt unberührt. */
+          initialKeys={parseQuickSettings(user.quickSettings)
+            .filter((qs) => quickSettingsAvailable.includes(qs))
+            .map((qs) => qs.key)}
         />
       </SettingsSection>
 

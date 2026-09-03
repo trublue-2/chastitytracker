@@ -7,6 +7,7 @@ import Link from "next/link";
 import KontrolleButton from "./KontrolleButton";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
 import ReleaseNowButton from "./ReleaseNowButton";
+import QuickSettingChip from "./QuickSettingChip";
 import WithdrawButton from "./WithdrawButton";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
@@ -18,7 +19,8 @@ import { Users, CalendarClock, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDurationBetween, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderLockPeriods, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveLockPeriods, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
-import { orgasmusAnforderungArtLabel, heimdallEnabled } from "@/lib/constants";
+import { orgasmusAnforderungArtLabel, heimdallEnabled, weightTrackingEnabled } from "@/lib/constants";
+import { QUICK_SETTING_SELECT, quickSettingOnCard, parseQuickSettings, quickSettingValue } from "@/lib/quickSettings";
 import Section from "@/app/components/Section";
 import { rowHoverCls } from "@/app/components/inputStyles";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
@@ -48,7 +50,12 @@ export default async function AdminPage() {
 
   // MULTI-SUB view: each row belongs to a different sub → carry each user's timezone so per-row
   // timestamps/banners render in THAT sub's zone (not the viewing keyholder's).
-  const userSelect = { id: true, username: true, role: true, email: true, createdAt: true, timezone: true, hideOwnTracker: true };
+  // Die Werte der Schnellschalter reisen in DERSELBEN Abfrage mit — ein paar Spalten mehr auf einer
+  // Zeile, die ohnehin geladen wird, statt einer zweiten Runde je Träger.
+  const userSelect = {
+    id: true, username: true, role: true, email: true, createdAt: true, timezone: true, hideOwnTracker: true,
+    quickSettings: true, ...QUICK_SETTING_SELECT,
+  };
 
   let users;
   if (isGlobalAdmin) {
@@ -147,6 +154,11 @@ export default async function AdminPage() {
   const boltOpenByUser = new Set(
     allBoxes.filter((b) => boxBoltOpenDespiteLocked(b, keyInBoxByUser.get(b.userId) ?? null)).map((b) => b.userId),
   );
+  // Wer hat überhaupt eine Box gemeldet? Dieselbe Zeilen-Menge, aus der oben der Riegel-Hinweis
+  // entsteht — für die Schnellschalter, die es nur mit Box gibt (Riegel-Pflicht, Boxfoto-Zwang).
+  const boxUserIds = new Set(allBoxes.map((b) => b.userId));
+  // Der Instanz-Schalter ist für alle Träger derselbe — einmal lesen, nicht je Karte und Chip.
+  const weightFeature = weightTrackingEnabled();
   const kontrolleByUser = groupByUser(allKontrolle);
   const anforderungByUser = groupByUser(allVerschlussAnf);
   const lockPeriodByUser = groupByUser(allLockPeriods);
@@ -513,6 +525,21 @@ export default async function AdminPage() {
                             verschwindet, statt zu deren Behebung zu führen, bleibt offen — die
                             Aktionen-Seite des Subs macht es dort schon richtig. */}
                         <div className="relative z-20 flex gap-2 flex-wrap [&:empty]:hidden">
+                          {/* Die Schnellschalter der Keyholderin — welche, sagt ihre Auswahl je
+                              Träger (`quickSettings.ts`). Sie stehen VOR den Aktionen: ein Chip
+                              sagt, wie es steht, und wer danach handelt, hat den Zustand gelesen.
+                              Ohne Auswahl ist die Liste leer und die Zeile sieht aus wie bisher. */}
+                          {parseQuickSettings(u.quickSettings)
+                            .filter((qs) => quickSettingOnCard(qs, u, { hasBox: boxUserIds.has(u.id), weightFeature }))
+                            .map((qs) => (
+                              <QuickSettingChip
+                                key={qs.key}
+                                userId={u.id}
+                                labelKey={qs.labelKey}
+                                field={qs.field}
+                                value={quickSettingValue(u, qs)}
+                              />
+                            ))}
                           {isLocked && (
                             <KontrolleButton userId={u.id} hasEmail={!!u.email} />
                           )}

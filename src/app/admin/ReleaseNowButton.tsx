@@ -11,6 +11,7 @@ import { LockOpenIcon } from "@/app/components/lockIcons";
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
+import { overviewChipCls } from "@/app/components/inputStyles";
 
 interface Props {
   userId: string;
@@ -68,7 +69,7 @@ export default function ReleaseNowButton({ userId, hasActiveLockPeriod }: Props)
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-xs font-medium border rounded-lg px-2.5 py-2 transition text-unlock border-[var(--color-unlock-border)] bg-[var(--color-unlock-bg)] hover:opacity-80"
+        className={`${overviewChipCls} text-unlock border-[var(--color-unlock-border)] bg-[var(--color-unlock-bg)] hover:opacity-80`}
       >
         <LockOpenIcon size={11} />
         {t("releaseNow")}

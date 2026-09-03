@@ -9,6 +9,13 @@
           "de": "Die Kontrolle nach dem Verschluss kann das Foto der Box zwingend verlangen — dann lässt sie sich nicht mehr ohne diesen Nachweis abschliessen. Neu als Schalter bei den Kontroll-Einstellungen, nur für Träger mit Box.",
           "en": "The inspection after a lock can now demand the photo of the box — without it, the inspection cannot be submitted. A new switch in the inspection settings, for users with a box."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Ausgewählte Einstellungen eines Trägers stehen jetzt als Schalter direkt in der Übersicht — umlegen, ohne die Einstellungen zu öffnen. Welche das sind, bestimmt die Keyholderin je Träger im neuen Abschnitt „Schnellzugriff“.",
+          "en": "Selected settings of a user now appear as switches right on the overview — flip them without opening the settings. The keyholder picks which ones per user in the new “Quick access” section."
+        }
       }
     ]
   },

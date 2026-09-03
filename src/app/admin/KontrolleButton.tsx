@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
+import { overviewChipCls } from "@/app/components/inputStyles";
 import KontrolleFields from "./kontrolle/KontrolleFields";
 import type { InspectionTargetOption } from "@/lib/inspectionTarget";
 
@@ -25,7 +26,7 @@ export default function KontrolleButton({ userId, hasEmail, targets }: {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-inspect)] border border-[var(--color-inspect-border)] bg-[var(--color-inspect-bg)] rounded-lg px-2.5 py-2 hover:opacity-80 transition"
+        className={`${overviewChipCls} text-[var(--color-inspect)] border-[var(--color-inspect-border)] bg-[var(--color-inspect-bg)] hover:opacity-80`}
       >
         <Bell size={11} />
         {t("requestInspection")}
