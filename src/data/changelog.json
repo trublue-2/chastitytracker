@@ -6,6 +6,13 @@
       {
         "type": "fix",
         "text": {
+          "de": "Eine Aufgabe, deren Nachweis die Keyholderin abgelehnt hatte, stand bis zum Ende der Frist weiter als offen auf der Startseite — obwohl sie nicht mehr zu erfüllen war. Sie gilt jetzt sofort als versäumt, und das Vergehen trägt den Zeitpunkt des Urteils.",
+          "en": "A task whose proof the keyholder had rejected stayed on the dashboard as open until its deadline, although it could no longer be fulfilled. It now counts as missed right away, and the offense carries the time of the verdict."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
           "de": "Eine Kontrolle mit Code UND Siegelnummer blieb ohne jede Rückmeldung unverifiziert stehen: die Bildprüfung brach ab, bevor sie ihr Ergebnis nennen konnte. Sie läuft jetzt durch.",
           "en": "An inspection asking for both a code and a seal number stayed unverified with no feedback at all: the image check ran out of room before it could state its result. It now finishes."
         }

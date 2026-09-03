@@ -414,6 +414,16 @@ export interface ProofLike {
    *  Richtungen: `false` beendet die Aufgabe als Versäumnis, auch wenn der Code stimmte — `true`
    *  lässt den Nachweis zählen, auch wenn er nach seiner Frist kam (Begründung: {@link proofCounted}). */
   reviewAccepted: boolean | null;
+  /**
+   * WANN geurteilt wurde — und damit die Tatzeit einer Ablehnung ({@link proofFailureAt}).
+   *
+   * Die Auswertung liest hier ausdrücklich einen Zeitpunkt und nicht bloss das Urteil daneben: eine
+   * Ablehnung entscheidet die Aufgabe sofort, auch mitten in der Haltefrist, und ohne ihren
+   * Zeitstempel datierte das Strafbuch das Vergehen auf das Ende der Aufgabe — also Stunden nach dem
+   * Moment, in dem es entstanden ist. Sie wird zusammen mit `reviewAccepted` geschrieben
+   * (`reviewTaskProof`); beide fehlen oder beide stehen.
+   */
+  reviewedAt: Date | null;
 }
 
 /**
@@ -566,10 +576,16 @@ function overdueProofsAt(
     .filter((p) => now >= p.due);
 }
 
+/** Der früheste von mehreren Zeitpunkten, Lücken übersprungen. `null`, wo keiner übrig bleibt —
+ *  die Tatzeit-Rechnungen dieser Datei arbeiten durchweg auf Listen, in denen ein Beleg fehlen darf. */
+function earliestDate(dates: (Date | null)[]): Date | null {
+  return dates.reduce<Date | null>((min, d) => (d !== null && (min === null || d < min) ? d : min), null);
+}
+
 /** Die früheste verstrichene Nachweis-Frist — die Tatzeit, wenn ein Nachweis die Aufgabe scheitern
  *  lässt. `null`, wo keine verstrichen ist. */
 function earliestOverdue(overdue: { due: Date }[]): Date | null {
-  return overdue.reduce<Date | null>((min, p) => (min === null || p.due < min ? p.due : min), null);
+  return earliestDate(overdue.map((p) => p.due));
 }
 
 /** Das Urteil über die Nachweis-Achse einer Aufgabe. */
@@ -590,6 +606,14 @@ export type ProofVerdict =
   | "checking"
   /** Endgültig nicht erbracht: fehlend, zu spät, falsche Reihenfolge oder abgelehnt. */
   | "failed";
+
+/** Die Nachweise in ihrer SOLL-Reihenfolge. `TASK_INCLUDE` lädt sie bereits so, aber die Auswertung
+ *  darf sich darauf nicht verlassen — sie wird auch mit von Hand gebauten Listen gerufen (Tests,
+ *  MCP-Vorschau). Einmal hier, weil `firstOutOfOrderProof` eine sortierte Liste VERLANGT und jede
+ *  Stelle, die sie selbst herstellt, diese Vorbedingung neu behauptet. */
+function sortedProofs(proofs: ProofLike[]): ProofLike[] {
+  return [...proofs].sort((a, b) => a.sortOrder - b.sortOrder);
+}
 
 /**
  * Der ERSTE Nachweis, dessen Aufnahmezeit die geforderte Reihenfolge bricht — oder `null`.
@@ -652,6 +676,44 @@ export function firstOutOfOrderProof(
 }
 
 /**
+ * WANN die Nachweis-Achse gescheitert ist — die Tatzeit hinter einem `failed`-Urteil von
+ * {@link evaluateProofs}, soweit sie sich belegen lässt.
+ *
+ * Drei Belege, und der FRÜHESTE zählt: die verstrichene eigene Frist eines Nachweises, die Ablehnung
+ * durch die Keyholderin und der belegte Reihenfolge-Bruch. Dieselbe Regel wie beim Abbruch
+ * (`evaluateTask`) und aus demselben Grund — welcher Beleg zuerst kam, entscheidet, nicht welcher
+ * Zweig zuerst im Code steht. Ein um 10:00 abgelehnter Nachweis darf nicht auf 17:00 datiert werden,
+ * bloss weil um 17:00 zusätzlich eine Frist verstrich.
+ *
+ * `null`, wo kein Beleg VOR `end` liegt — dann ist das Ende der Aufgabe die Tatzeit
+ * (`failedAt ?? holdUntil` im Strafbuch). Das ist der Fall „nichts abgegeben" ebenso wie die
+ * Sichtung, die erst Tage nach der Frist stattfindet: ein spätes Urteil verschiebt die Tat nicht in
+ * die Zukunft.
+ *
+ * SIE ZÄHLT DIESELBEN DREI WEGE AUF WIE {@link evaluateProofs} — die eine Funktion beantwortet OB,
+ * diese WANN, und der Compiler hält sie nicht zusammen. Wer dort eine VIERTE Ursache für `failed`
+ * ergänzt, ergänzt hier ihren Beleg; sonst fällt die Tatzeit still auf das Ende der Aufgabe zurück.
+ * Der saubere Schnitt wäre, das Urteil seinen Beleg tragen zu lassen (`ProofVerdict` als Objekt
+ * statt als Wort) — dieselbe Auflösung, die `firstOutOfOrderProof` in seinem eigenen Kommentar für
+ * die Anzeige-Seite vorschlägt.
+ */
+function proofFailureAt(
+  proofs: ProofLike[],
+  task: Pick<TaskLike, "proofOrderMatters" | "withdrawnAt" | "createdAt" | "wirksamAb">,
+  /** Das WIRKSAME Ende der Aufgabe: die obere Schranke jeder Tatzeit. */
+  end: Date,
+  now: Date,
+): Date | null {
+  const ordered = sortedProofs(proofs);
+  const evidence = [
+    earliestOverdue(overdueProofsAt(proofs, task, end, now)),
+    ...ordered.filter((p) => p.reviewAccepted === false).map((p) => p.reviewedAt),
+    firstOutOfOrderProof(ordered, task)?.submittedAt ?? null,
+  ];
+  return earliestDate(evidence.filter((d) => d !== null && d < end));
+}
+
+/**
  * Wertet die Nachweise aus — getrennt von den Bedingungen, weil sie etwas anderes sind: ein
  * Nachweis ist ein EREIGNIS mit einem Zeitpunkt, keine Bedingung mit einem Intervall.
  *
@@ -681,7 +743,7 @@ export function evaluateProofs(
 ): ProofVerdict {
   if (proofs.length === 0) return "none";
 
-  const ordered = [...proofs].sort((a, b) => a.sortOrder - b.sortOrder);
+  const ordered = sortedProofs(proofs);
 
   /**
    * Maschinell BESTÄTIGT — die einzige Automatik, die hier etwas entscheiden darf.
@@ -697,6 +759,9 @@ export function evaluateProofs(
    */
   const codeConfirmed = (p: ProofLike) => p.requireCode && p.verifikationStatus !== null;
 
+  // JEDER `failed`-Ausgang hier braucht seinen Beleg in {@link proofFailureAt} — sonst datiert das
+  // Strafbuch das Vergehen auf das Ende der Aufgabe statt auf den Moment, in dem es entstand.
+  //
   // Nur das ausdrückliche Nein eines MENSCHEN beendet die Sache. Alles andere ist Zwischenstand.
   if (ordered.some((p) => p.reviewAccepted === false)) return "failed";
 
@@ -795,17 +860,15 @@ export function evaluateTask(
   proofs: ProofLike[] = [],
 ): TaskEvaluation {
   /**
-   * Die überfälligen Nachweise, solange kein Beginn feststeht — gegen `task.holdUntil` gemessen, und
-   * das ist hier nicht bloss der bequeme, sondern der RICHTIGE Wert: ohne Beginn ist das wirksame
-   * Ende genau die Spalte (`effectiveHoldUntil` gibt sie zurück, solange `startedAt` fehlt).
+   * Der BELEG der überfälligen Nachweise, solange kein Beginn feststeht — gegen `task.holdUntil`
+   * gemessen, und das ist hier nicht bloss der bequeme, sondern der RICHTIGE Wert: ohne Beginn ist
+   * das wirksame Ende genau die Spalte (`effectiveHoldUntil` gibt sie zurück, solange `startedAt`
+   * fehlt). Beide Zweige, die vor dem Beginn ein Versäumnis feststellen, hängen ihn an ihre Rückgabe.
    *
-   * Als LISTE MIT FRISTEN und nicht bloss als Ids: die früheste verstrichene Frist ist die Tatzeit
-   * des Vergehens (`failedAt`), und die braucht schon der Zweig für Aufgaben OHNE Bedingungen.
+   * Nur die Ids: die TATZEIT bildet {@link proofFailureAt}, und die braucht dafür ohnehin mehr als
+   * die Fristen (Ablehnung und Reihenfolge-Bruch belegen sie genauso).
    */
-  const overdueBeforeStart = overdueProofsAt(proofs, task, task.holdUntil, now);
-  /** Der BELEG in der Form, die nach aussen geht — beide Zweige, die vor dem Beginn ein Versäumnis
-   *  feststellen, hängen ihn zusammen mit `failedAt` an ihre Rückgabe. */
-  const overdueIdsBeforeStart = overdueBeforeStart.map((p) => p.id);
+  const overdueIdsBeforeStart = overdueProofsAt(proofs, task, task.holdUntil, now).map((p) => p.id);
 
   const base: TaskEvaluation = {
     state: "pending",
@@ -849,13 +912,17 @@ export function evaluateTask(
     const proofVerdict = evaluateProofs(proofs, task, now);
     // Ohne Bedingungen tragen allein Selbstmeldung und Nachweise. Stehen Nachweise noch aus, ist die
     // Aufgabe offen bzw. wartet auf die Sichtung — die Selbstmeldung allein macht sie nicht fertig.
-    // Die TATZEIT, wo eine eigene Nachweis-Frist sie hergibt: das Strafbuch datiert
-    // `unfulfilled_task` als `failedAt ?? holdUntil`, und ein um 17:00 verpasstes Foto darf kein
-    // Vergehen mit dem Zeitstempel des Aufgaben-Endes erzeugen. Fehlt sie (Nachweis abgelehnt,
-    // Reihenfolge gebrochen, schlicht nichts abgegeben), bleibt es beim Ende — dort gibt es keinen
-    // früheren Zeitpunkt, der etwas belegte.
+    // Die TATZEIT über {@link proofFailureAt} und damit nach derselben Regel wie im Zweig MIT
+    // Bedingungen: das Strafbuch datiert `unfulfilled_task` als `failedAt ?? holdUntil`, und weder
+    // ein um 17:00 verpasstes Foto noch eine um 17:00 ausgesprochene Ablehnung darf ein Vergehen mit
+    // dem Zeitstempel des Aufgaben-Endes erzeugen. Findet sich kein Beleg vor dem Ende (schlicht
+    // nichts abgegeben), bleibt es beim Ende — dort gibt es keinen früheren Zeitpunkt.
     if (proofVerdict === "failed") {
-      return { ...base, state: "missed", failedAt: earliestOverdue(overdueBeforeStart), overdueProofIds: overdueIdsBeforeStart };
+      return {
+        ...base, state: "missed",
+        failedAt: proofFailureAt(proofs, task, task.holdUntil, now),
+        overdueProofIds: overdueIdsBeforeStart,
+      };
     }
     if (proofVerdict === "needsReview" || proofVerdict === "checking") return { ...base, state: "awaitingReview" };
     if (proofVerdict === "pending") return { ...base, state: "pending" };
@@ -919,15 +986,21 @@ export function evaluateTask(
   if (!startedAt) {
     // Noch nicht (rechtzeitig) begonnen. Vor Ablauf der Kulanzfrist: was fehlt noch?
     const missing = requirements.filter((_, k) => !coversPoint(perRequirement[k], now));
-    // Eine verstrichene EIGENE Nachweis-Frist entscheidet auch hier — und zwar VOR der Kulanzfrist.
-    // Ohne diesen Zweig zeigte die Karte die Zeile als überfällig (ohne Aufnahme-Link), während der
-    // Kopf „noch nicht begonnen" meldet und der nächste Schritt ins Trage-Formular schickt: für eine
-    // Aufgabe, die nicht mehr zu erfüllen ist. Genau die zwei Auskünfte, gegen die der Zweig weiter
-    // unten gebaut ist — nur bevor überhaupt etwas anlag.
-    if (overdueBeforeStart.length > 0) {
+    // Eine entschiedene Nachweis-Achse entscheidet auch hier — und zwar VOR der Kulanzfrist. Ohne
+    // diesen Zweig zeigte die Karte die Zeile als überfällig (ohne Aufnahme-Link) bzw. den Nachweis
+    // als abgelehnt, während der Kopf „noch nicht begonnen" meldet und der nächste Schritt ins
+    // Trage-Formular schickt: für eine Aufgabe, die nicht mehr zu erfüllen ist. Genau die zwei
+    // Auskünfte, gegen die der Zweig weiter unten gebaut ist — nur bevor überhaupt etwas anlag.
+    //
+    // Über das URTEIL und nicht mehr bloss über die verstrichenen Fristen: eine Ablehnung ist hier
+    // genauso endgültig wie dort, und die drei Zweige dieser Funktion sollen dasselbe Ereignis nicht
+    // verschieden aussagen. Ein noch AUSSTEHENDES Foto entscheidet nichts — solange seine Frist
+    // läuft, urteilt `evaluateProofs` mit `pending`.
+    if (evaluateProofs(proofs, task, now) === "failed") {
       return {
         ...base, state: "missed", missing,
-        failedAt: earliestOverdue(overdueBeforeStart), overdueProofIds: overdueIdsBeforeStart,
+        failedAt: proofFailureAt(proofs, task, task.holdUntil, now),
+        overdueProofIds: overdueIdsBeforeStart,
       };
     }
     if (now.getTime() > deadline.getTime()) {
@@ -978,14 +1051,19 @@ export function evaluateTask(
     const failedIdx = perRequirement.findIndex((iv) => !coversPoint(iv, afterFailure));
     // WELCHER Beleg zuerst kam, entscheidet — nicht, welcher Zweig zuerst im Code steht.
     //
-    // Lief eine eigene Nachweis-Frist schon vor dem Ablegen ab, war die Aufgabe zu diesem Zeitpunkt
+    // War die Nachweis-Achse schon vor dem Ablegen gescheitert, war die Aufgabe zu diesem Zeitpunkt
     // bereits versäumt: die App hat das dem Träger auch so gesagt (Karte, Ablege-Warnung und
     // Blockier-Logik hängen an `isTaskOpen`, und `missed` ist nicht offen). Ihn danach für das
     // Ablegen als „abgebrochen" zu führen, hiesse ihn für genau das zu bestrafen, was ihm die App
     // eben erlaubt hat — und der frühere Beleg ginge dabei verloren.
-    const firstOverdue = earliestOverdue(overdue);
-    if (firstOverdue !== null && firstOverdue <= failedAt) {
-      return { ...started, state: "missed", failedAt: firstOverdue };
+    //
+    // Über {@link proofFailureAt} und nicht nur über die verstrichenen Fristen: eine Ablehnung
+    // beendet die Aufgabe genauso, und sie beendet sie im selben Moment, in dem sie ausgesprochen
+    // wird (siehe den Zweig weiter unten). Für das Ablegen danach gilt Wort für Wort dasselbe
+    // Argument.
+    const proofFailed = proofFailureAt(proofs, task, holdUntil, now);
+    if (proofFailed !== null && proofFailed <= failedAt) {
+      return { ...started, state: "missed", failedAt: proofFailed };
     }
     return {
       ...started,
@@ -995,57 +1073,51 @@ export function evaluateTask(
     };
   }
 
-  /**
-   * EINE eigene Nachweis-Frist kann verstreichen, WÄHREND die Bedingungen noch gehalten werden —
-   * und dann ist die Aufgabe entschieden, obwohl ihre Haltefrist noch läuft.
-   *
-   * Ohne diesen Zweig bliebe genau der Leitfall des Bausteins ohne Wirkung: „trag den Slip UND schick
-   * mir dreimal am Tag ein Foto" ist eine Aufgabe MIT Bedingung, und der `running`-Ausstieg darunter
-   * liegt vor der Nachweis-Achse. Das Mittagsfoto wäre dann bis zum Abend folgenlos — während die
-   * Karte die Zeile schon als überfällig zeigt (ohne Aufnahme-Link) und der nächste Schritt „weiter
-   * halten" verlangt. Zwei Auskünfte über dieselbe Aufgabe.
-   *
-   * Nur die EIGENEN Fristen können hier greifen: ein Nachweis ohne sie ist bis zum Ende der Aufgabe
-   * offen, und dieses Ende ist noch nicht erreicht. Eine Bestandsaufgabe kann diesen Zweig deshalb
-   * gar nicht erreichen.
-   *
-   * `missed` mit erhaltenem `startedAt` — dieselbe Kodierung wie beim Fehlschlag der Nachweis-Achse
-   * weiter unten, aus demselben Grund: der Beleg, dass er begonnen HAT, darf nicht verlorengehen.
-   */
-  // `failedAt` ist die TATZEIT und kein Beiwerk: das Strafbuch datiert `unfulfilled_task` als
-  // `failedAt ?? holdUntil`. Ohne sie erschiene ein um 13:00 entstandenes Versäumnis mit dem
-  // Zeitstempel des Aufgaben-Endes — bei einer bis 22:00 laufenden Aufgabe also neun Stunden in der
-  // Zukunft, falsch einsortiert in jeder Perioden-Ansicht.
-  if (overdue.length > 0) return { ...started, state: "missed", failedAt: earliestOverdue(overdue) };
-
-  // Der EINE Ort, an dem „die Haltefrist läuft noch" gemessen wird — deshalb trägt die Auswertung
-  // die Tatsache auch nach aussen, statt die Anzeige sie aus der Abwesenheit von
-  // `awaitingConfirmation` erschliessen zu lassen.
-  if (now < holdUntil) return { ...started, state: "running", holdRunning: true };
-
-  // Die Nachweise erst JETZT — und gegen das WIRKSAME Ende. Im Dauer-Modus ist die Nachweis-Frist
-  // dieselbe wie die Haltefrist, und die steht erst mit dem Beginn fest; oben, vor der Suche nach
-  // ihm, gäbe es sie noch gar nicht. Der Aufruf wandert damit hinter die Bedingungs-Achse, was
-  // nichts verschiebt: die Nachweis-Zweige darunter lagen ohnehin schon alle hier.
+  // Die Nachweise VOR dem `running`-Ausstieg — und gegen das WIRKSAME Ende. Im Dauer-Modus ist die
+  // Nachweis-Frist dieselbe wie die Haltefrist, und die steht erst mit dem Beginn fest; oberhalb der
+  // Suche nach ihm gäbe es sie noch gar nicht. Der Aufruf gehört also hinter die Bedingungs-Achse.
   // `{ ...task, holdUntil }` und keine handverlesene Feldliste: die Nachweis-Achse liest inzwischen
   // auch den Nullpunkt (`createdAt`/`wirksamAb`), und eine aufgezählte Auswahl wäre die Stelle, an der
   // ein künftiges Feld still fehlt — mit einer falschen Frist als Folge, nicht mit einem Compilerfehler.
   const proofVerdict = evaluateProofs(proofs, { ...task, holdUntil }, now);
 
-  // Bedingungen gehalten. Jetzt die Nachweise.
-  //
-  // Der Fehlschlag steht hier und NICHT als früher Ausstieg oben: sonst überschriebe er die
-  // Bedingungs-Achse vollständig und meldete `missed` ohne `startedAt` — „nie begonnen" für jemanden,
-  // der durchgehend getragen und nur das letzte Foto vergessen hat. Der Beleg ist kein Beiwerk: das
-  // Strafbuch liest `missed` ausdrücklich als „nie (rechtzeitig) begonnen", und bei `aborted` hängt
-  // die Abbruch-Meldung an `failedRequirement`/`failedAt`. Ein Urteil ohne seinen Beleg lässt sich
-  // weder prüfen noch bestreiten.
-  // Hier ohne Tatzeit, und das ist kein Versehen: die verstrichenen EIGENEN Fristen hat der Zweig
-  // oben bereits abgefangen (er kehrt zurück, sobald es eine gibt). Was hier ankommt, ist ein
-  // Fehlschlag ohne früheren Beleg — abgelehnter Nachweis, gebrochene Reihenfolge, oder schlicht
-  // nichts abgegeben bis zum Ende. Dafür ist das Ende der Aufgabe die richtige Tatzeit
-  // (`failedAt ?? holdUntil` im Strafbuch).
-  if (proofVerdict === "failed") return { ...started, state: "missed" };
+  /**
+   * EIN ENTSCHIEDENER FEHLSCHLAG DER NACHWEIS-ACHSE BEENDET DIE AUFGABE SOFORT — auch mitten in der
+   * Haltefrist. Deshalb steht dieser Zweig VOR dem `running`-Ausstieg darunter.
+   *
+   * Drei Wege führen zu `failed`, und mitten in der Haltefrist ist jeder davon endgültig: eine
+   * verstrichene eigene Nachweis-Frist, die Ablehnung durch die Keyholderin und der belegte
+   * Reihenfolge-Bruch. Ein Nachweis lässt sich nicht zweimal einreichen
+   * (`TASK_PROOF_ALREADY_SUBMITTED`) — was hier scheitert, ist vom Träger nicht mehr zu retten. Der
+   * blosse Umstand, dass noch Fotos fehlen, steht ausdrücklich NICHT darunter: solange deren Fristen
+   * laufen, urteilt `evaluateProofs` mit `pending`.
+   *
+   * Ohne diesen Vorrang blieb genau der Leitfall des Bausteins ohne Wirkung: „trag den Slip UND
+   * schick mir dreimal am Tag ein Foto" ist eine Aufgabe MIT Bedingung. Das Mittagsfoto wäre bis zum
+   * Abend folgenlos gewesen — und eine abgelehnte Einreichung ebenso: die Karte zeigte den Nachweis
+   * als abgelehnt, verlangte darüber aber weiter „halte durch", und das Dashboard führte die Aufgabe
+   * bis zum Ende unter „Jetzt zu tun" (Rückmeldung 03.09.2026). Zwei Auskünfte über dieselbe Aufgabe,
+   * und die verlangende war die falsche. Eine Aufgabe OHNE Bedingungen urteilte an derselben Stelle
+   * längst so — die beiden Zweige sagten dasselbe Ereignis verschieden aus.
+   *
+   * `missed` mit erhaltenem `startedAt`: der Beleg, dass er begonnen HAT, darf nicht verlorengehen.
+   * Der Fehlschlag darf die Bedingungs-Achse deshalb nicht überschreiben — das Strafbuch liest
+   * `missed` ausdrücklich als „nie (rechtzeitig) begonnen", und das wäre für jemanden falsch, der
+   * durchgehend getragen und nur das letzte Foto vergessen hat.
+   *
+   * Die TATZEIT kommt von {@link proofFailureAt} und ist kein Beiwerk: das Strafbuch datiert
+   * `unfulfilled_task` als `failedAt ?? holdUntil`. Ohne sie erschiene ein um 13:00 entstandenes
+   * Versäumnis mit dem Zeitstempel des Aufgaben-Endes — bei einer bis 22:00 laufenden Aufgabe also
+   * neun Stunden in der Zukunft, falsch einsortiert in jeder Perioden-Ansicht.
+   */
+  if (proofVerdict === "failed") {
+    return { ...started, state: "missed", failedAt: proofFailureAt(proofs, task, holdUntil, now) };
+  }
+
+  // Der EINE Ort, an dem „die Haltefrist läuft noch" gemessen wird — deshalb trägt die Auswertung
+  // die Tatsache auch nach aussen, statt die Anzeige sie aus der Abwesenheit von
+  // `awaitingConfirmation` erschliessen zu lassen.
+  if (now < holdUntil) return { ...started, state: "running", holdRunning: true };
 
   // Eine ausstehende Sichtung steht VOR der Selbstmeldung, denn sie ist der Grund, warum noch
   // niemand urteilen kann. Den Sub hier zur Meldung zu drängen, während die Keyholderin am Zug ist,

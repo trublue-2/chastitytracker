@@ -313,6 +313,29 @@ async function notifyProofReviewed(taskId: string, userId: string, title: string
     // sie, bliebe nach „abgelehnt → doch angenommen" das falsche Ergebnis als letzte Zeile stehen.
     if (await settleIfFinal(userId, taskId, false) !== "notFinal") return;
 
+    /**
+     * Die Aufgabe steht (wieder) NICHT fest — ein etwaiger Ergebnis-Stempel ist damit überholt und
+     * muss weg.
+     *
+     * `resultNotifiedAt` ist das EINWEG-TOR des Pollers: er wählt über `resultNotifiedAt: null`
+     * (`taskService.ts`), eine gestempelte Zeile sieht er nie wieder. Solange nur die Frist ein
+     * Ergebnis erzeugte, konnte der Stempel nicht vor ihr entstehen. Seit eine Ablehnung die Aufgabe
+     * schon MITTEN in der Haltefrist entscheidet, ist der Weg zurück ein Normalfall: abgelehnt um
+     * 14:00 (gemeldet UND gestempelt), Urteil um 15:00 korrigiert, Haltefrist läuft bis 22:00.
+     *
+     * Ohne das Zurücksetzen bliebe die Aufgabe dem Poller für immer verborgen — der Träger bekäme
+     * sein Ergebnis nie, und eine Strafaufgabe schlösse ihre Strafe nicht ab (`settleTaskResult`
+     * tut beides). Auch die Wege des Trägers kämen nicht mehr durch: `settleIfNowDone` liest
+     * denselben Stempel und steigt an ihm aus.
+     *
+     * `updateMany` mit dem Stempel in der Bedingung: ohne ihn wäre es ein Schreibzugriff bei jeder
+     * Sichtung, obwohl der Regelfall gar nichts zu löschen hat.
+     */
+    await prisma.task.updateMany({
+      where: { id: taskId, userId, resultNotifiedAt: { not: null } },
+      data: { resultNotifiedAt: null },
+    });
+
     // Steht die Aufgabe noch nicht fest — die Frist läuft, oder ein anderer Nachweis fehlt —,
     // erfährt nur der Sub, dass sein Nachweis beurteilt wurde.
     await notifyUser(userId, {

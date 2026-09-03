@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     taskProof: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
-    task: { findMany: vi.fn(), update: vi.fn() },
+    task: { findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     user: { findUnique: vi.fn() },
   },
 }));
@@ -45,6 +45,7 @@ const notifyKh = notifyControllers as unknown as ReturnType<typeof vi.fn>;
 const evaluate = evaluateTaskById as unknown as ReturnType<typeof vi.fn>;
 const taskFindMany = prisma.task.findMany as unknown as ReturnType<typeof vi.fn>;
 const taskUpdate = prisma.task.update as unknown as ReturnType<typeof vi.fn>;
+const taskUpdateMany = prisma.task.updateMany as unknown as ReturnType<typeof vi.fn>;
 const settle = settleIfFinal as unknown as ReturnType<typeof vi.fn>;
 
 const NOW = new Date("2026-07-25T14:00:00Z");
@@ -419,6 +420,34 @@ describe("reviewTaskProof — der Ausweg aus awaitingReview", () => {
     settlesAs("notFinal");
     await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
     expect(notify.mock.calls[0][1].subjectKey).toBe("taskProofAcceptedSubject");
+  });
+
+  /**
+   * REGRESSION: Ein korrigiertes Urteil, das die Aufgabe wieder OFFEN macht, muss den
+   * Ergebnis-Stempel zurücknehmen.
+   *
+   * `resultNotifiedAt` ist das Einweg-Tor des Pollers — er wählt über `resultNotifiedAt: null`.
+   * Seit eine Ablehnung die Aufgabe schon mitten in der Haltefrist entscheidet, kann sie gemeldet
+   * UND gestempelt sein, während ihre Frist noch stundenlang läuft. Bleibt der Stempel nach der
+   * Korrektur stehen, sieht der Poller die Zeile nie wieder: kein Ergebnis für den Träger, und eine
+   * Strafaufgabe schliesst ihre Strafe nicht ab.
+   */
+  it("REGRESSION: wird sie wieder offen, fällt der Ergebnis-Stempel weg", async () => {
+    find.mockResolvedValue(submitted());
+    settlesAs("notFinal");
+    await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
+    expect(taskUpdateMany).toHaveBeenCalledWith({
+      where: { id: "t1", userId: "u1", resultNotifiedAt: { not: null } },
+      data: { resultNotifiedAt: null },
+    });
+  });
+
+  /** Steht sie dagegen FEST, gehört der Stempel genau dorthin — nichts zurückzunehmen. */
+  it("eine entschiedene Aufgabe behält ihren Stempel", async () => {
+    find.mockResolvedValue(submitted());
+    settlesAs("settled");
+    await reviewTaskProof("p1", "u1", { accepted: true }, "herrin");
+    expect(taskUpdateMany).not.toHaveBeenCalled();
   });
 
   /** Die Sichtung IST geschrieben — eine gescheiterte Meldung darf sie nicht mitreissen. */

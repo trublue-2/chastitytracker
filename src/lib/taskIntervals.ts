@@ -90,6 +90,7 @@ export const TASK_INCLUDE = {
     select: {
       id: true, sortOrder: true, requireCode: true, dueOffsetMin: true, submittedAt: true,
       imageExifTime: true, verifikationStatus: true, verifikationReason: true, reviewAccepted: true,
+      reviewedAt: true,
     },
   },
 } as const;

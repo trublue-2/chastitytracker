@@ -57,6 +57,15 @@ Eine zweite Achse neben den Bedingungen.
 zu spät, keine Aufnahmezeit, falsche Reihenfolge —, denn wo der Keyholder urteilt, urteilt er an
 Stelle der Maschine.
 
+**Ein entschiedener Fehlschlag beendet die Aufgabe sofort — auch mitten in der Haltefrist.** Das gilt
+für die verstrichene eigene Frist ebenso wie für eine Ablehnung und einen belegten
+Reihenfolge-Bruch: ein Nachweis lässt sich nicht ersetzen, die Aufgabe ist damit nicht mehr zu
+retten. Sie weiter als offen zu führen verlangte vom Sub Stunden für nichts und hielte ihn zusätzlich
+am Gerät fest (die Ablege-Sperre hängt daran, ob die Aufgabe offen ist). Tatzeit des Vergehens ist
+der früheste Beleg — das Urteil, die Frist oder die Einreichung, die den Bruch belegt —, nicht das
+Ende der Aufgabe. Ein blosses **Fehlen** entscheidet dagegen nichts, solange die zugehörige Frist
+läuft.
+
 ## Ein Versäumnis, drei Vorwürfe
 
 `unfulfilled_task` sagt nicht, was schiefging. Das tut erst die Ausfall-Art:

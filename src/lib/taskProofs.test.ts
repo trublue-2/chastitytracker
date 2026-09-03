@@ -27,9 +27,14 @@ const task: Pick<TaskLike, "holdUntil" | "proofOrderMatters" | "createdAt" | "wi
   withdrawnAt: null,
 };
 
+/** Wann die Keyholderin geurteilt hat, wo ein Fall es nicht selbst sagt — zwei Stunden vor dem Ende
+ *  der Fixture-Aufgabe, also mitten in ihrer Laufzeit: genau dort liegt die Tatzeit einer Ablehnung.
+ *  NACH dem Ablege-Zeitpunkt der Abbruch-Fälle (14:00), damit deren Reihenfolge eine bleibt. */
+const REVIEWED_AT = d("2026-07-25T16:00:00Z");
+
 /** Ein eingereichter, per Code geprüfter Nachweis — der maschinell entscheidbare Normalfall. */
 function proof(over: Partial<ProofLike> = {}): ProofLike {
-  return {
+  const p: ProofLike = {
     id: "p1",
     sortOrder: 0,
     requireCode: true,
@@ -39,8 +44,15 @@ function proof(over: Partial<ProofLike> = {}): ProofLike {
     verifikationStatus: "ai",
     verifikationReason: null,
     reviewAccepted: null,
+    reviewedAt: null,
     ...over,
   };
+  // Ein Urteil OHNE Zeitpunkt gibt es in der Datenbank nicht: `reviewTaskProof` schreibt beide
+  // Felder zusammen. Ein Fall, der nur `reviewAccepted` setzt, bekommt den Zeitstempel deshalb
+  // hier — sonst prüfte er eine Zeile, die so nie entsteht, und die Tatzeit einer Ablehnung
+  // (`proofFailureAt`) fiele in den Tests still weg.
+  if (p.reviewAccepted !== null) p.reviewedAt ??= REVIEWED_AT;
+  return p;
 }
 
 /** Ein Nachweis mit fester Aufnahmezeit und Position — die Reihenfolge-Fälle brauchen nichts sonst. */
@@ -790,6 +802,10 @@ describe("evaluateTask — beide Achsen zusammen", () => {
   /** Bedingung durchgehend erfüllt von vor der Aufgabe bis nach der Frist. */
   const held = [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T20:00:00Z") }]];
   const after = d("2026-07-25T19:00:00Z");
+  /** Ein Blick MITTEN in die Haltefrist (Ende 18:00) — dort urteilen die Zweige anders als danach. */
+  const waehrend = d("2026-07-25T17:00:00Z");
+  /** Bedingung um 14:00 abgelegt, Frist lief bis 18:00: der Abbruch-Fall des Blocks. */
+  const dropped = [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T14:00:00Z") }]];
 
   it("Bedingungen gehalten, Nachweise offen → wartet auf Sichtung, NICHT auf Selbstmeldung", () => {
     const r = evaluateTask(base, REQ, held, after, [proof({ requireCode: false, verifikationStatus: null, verifikationReason: null })]);
@@ -838,16 +854,92 @@ describe("evaluateTask — beide Achsen zusammen", () => {
   });
 
   it("vorzeitig abgelegt UND Nachweis abgelehnt → der Abbruch-Beleg bleibt erhalten", () => {
-    const dropped = [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T14:00:00Z") }]];
     const r = evaluateTask(base, REQ, dropped, after, [proof({ reviewAccepted: false })]);
     expect(r.state).toBe("aborted");
     expect(r.failedRequirement?.label).toBe("Knebel");
     expect(r.failedAt).not.toBeNull();
   });
 
+  /**
+   * DER GEMELDETE FALL (03.09.2026): eine Aufgabe, die schon feststeht, stand weiter unter „Jetzt zu
+   * tun" — die Karte verlangte „halte durch", während der Nachweis darüber als abgelehnt dastand.
+   *
+   * Der Nachweis lässt sich nicht ersetzen (`TASK_PROOF_ALREADY_SUBMITTED`), die Aufgabe ist also
+   * vom Träger nicht mehr zu retten. Sie noch bis zum Abend als offen zu führen, verlangte von ihm
+   * Stunden für nichts — und hielt ihn zusätzlich am Gerät fest, weil die Ablege-Sperre an
+   * `isTaskOpen` hängt.
+   */
+  it("Ablehnung MITTEN in der Haltefrist beendet die Aufgabe sofort", () => {
+    const r = evaluateTask(base, REQ, held, waehrend, [proof({ reviewAccepted: false })]);
+    expect(r.state).toBe("missed");
+    expect(isTaskOpen(r.state)).toBe(false);
+    // Die Tatzeit ist das Urteil, nicht das Ende der Aufgabe: das Strafbuch datiert
+    // `unfulfilled_task` als `failedAt ?? holdUntil` und schriebe das Vergehen sonst eine Stunde in
+    // die Zukunft.
+    expect(r.failedAt).toEqual(REVIEWED_AT);
+    // Der Beleg der Bedingungs-Achse bleibt: er HAT begonnen und durchgehalten.
+    expect(r.startedAt).not.toBeNull();
+  });
+
+  /** Derselbe Grund wie bei der Ablehnung: ein belegter Bruch lässt sich nicht mehr zurücknehmen. */
+  it("belegter Reihenfolge-Bruch beendet sie ebenfalls mitten in der Haltefrist", () => {
+    const verdreht = [
+      at("2026-07-25T13:00:00Z", 0, "erst"),
+      at("2026-07-25T12:30:00Z", 1, "dann"),
+    ];
+    expect(evaluateTask(base, REQ, held, waehrend, verdreht).state).toBe("missed");
+  });
+
+  /**
+   * DIE GEGENPROBE, und sie ist der eigentliche Wert des Zweigs: nur ein ENTSCHIEDENER Fehlschlag
+   * beendet die Aufgabe früher. Ein Foto, das schlicht noch aussteht, tut das nicht — sonst wäre
+   * jede Aufgabe mit Nachweis von der ersten Minute an versäumt.
+   */
+  it("ein noch ausstehendes Foto beendet sie NICHT, solange seine Frist läuft", () => {
+    const offen = [proof({ submittedAt: null, imageExifTime: null, verifikationStatus: null })];
+    const r = evaluateTask(base, REQ, held, waehrend, offen);
+    expect(r.state).toBe("running");
+    expect(r.holdRunning).toBe(true);
+  });
+
+  /**
+   * Und dieselbe Rangfolge wie bei der verstrichenen Nachweis-Frist: war die Aufgabe zum Zeitpunkt
+   * des Ablegens bereits versäumt, ist das Ablegen kein Abbruch mehr. Ihn dafür zu belangen, hiesse
+   * ihn für genau das zu bestrafen, was die App ihm eben erlaubt hat.
+   */
+  it("Ablehnung VOR dem Ablegen schlägt den Abbruch", () => {
+    const abgelehntUm = d("2026-07-25T13:00:00Z");
+    const r = evaluateTask(base, REQ, dropped, after, [proof({ reviewAccepted: false, reviewedAt: abgelehntUm })]);
+    expect(r.state).toBe("missed");
+    expect(r.failedAt).toEqual(abgelehntUm);
+  });
+
+  /**
+   * Derselbe Fall eine Stufe FRÜHER: abgelehnt, bevor der Sub überhaupt begonnen hat. Ohne diesen
+   * Zweig stand die Aufgabe bis zur Kulanzfrist auf „noch nicht begonnen" und der nächste Schritt
+   * schickte ihn ins Trage-Formular — für etwas, das nicht mehr zu erfüllen ist.
+   */
+  it("Ablehnung VOR dem Beginn beendet die Aufgabe, noch in der Kulanzfrist", () => {
+    const abgelehntUm = d("2026-07-25T12:10:00Z");
+    const inDerKulanz = d("2026-07-25T12:20:00Z"); // Kulanzfrist läuft bis 12:30
+    const nichts = [[]];
+    const r = evaluateTask(base, REQ, nichts, inDerKulanz, [proof({ reviewAccepted: false, reviewedAt: abgelehntUm })]);
+    expect(r.state).toBe("missed");
+    expect(r.failedAt).toEqual(abgelehntUm);
+    // Er hat nie begonnen — der Beleg dafür bleibt leer, und das Strafbuch liest ihn so.
+    expect(r.startedAt).toBeNull();
+  });
+
+  /** Aufgaben OHNE Bedingungen urteilten schon immer sofort — aber sie datierten das Vergehen aufs
+   *  Ende der Aufgabe. Bei einer bis 18:00 laufenden Aufgabe lag es damit in der Zukunft. */
+  it("ohne Bedingungen datiert die Ablehnung auf das Urteil, nicht auf das Ende", () => {
+    const r = evaluateTask(base, [], [], waehrend, [proof({ reviewAccepted: false })]);
+    expect(r.state).toBe("missed");
+    expect(r.failedAt).toEqual(REVIEWED_AT);
+  });
+
   it("abgebrochene Bedingung schlägt eine ausstehende Sichtung", () => {
     // Gerät um 14:00 abgelegt, Frist war 18:00.
-    const dropped = [[{ start: d("2026-07-25T11:00:00Z"), end: d("2026-07-25T14:00:00Z") }]];
     const r = evaluateTask(base, REQ, dropped, after, [proof({ requireCode: false, verifikationStatus: null, verifikationReason: null })]);
     expect(r.state).toBe("aborted");
   });
