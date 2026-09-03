@@ -6,6 +6,13 @@
       {
         "type": "fix",
         "text": {
+          "de": "Während einer Sperrzeit stand auf der Übersicht nur „Reinigungsöffnungen erlaubt“ — ohne Uhrzeit. Die Zeile nennt jetzt wieder das geltende Reinigungsfenster: das laufende, sonst das nächste.",
+          "en": "During a lock period the overview only said “cleaning openings allowed” — with no times. The line now names the cleaning window that applies: the current one, otherwise the next."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
           "de": "Eine Aufgabe, deren Nachweis die Keyholderin abgelehnt hatte, stand bis zum Ende der Frist weiter als offen auf der Startseite — obwohl sie nicht mehr zu erfüllen war. Sie gilt jetzt sofort als versäumt, und das Vergehen trägt den Zeitpunkt des Urteils.",
           "en": "A task whose proof the keyholder had rejected stayed on the dashboard as open until its deadline, although it could no longer be fulfilled. It now counts as missed right away, and the offense carries the time of the verdict."
         }

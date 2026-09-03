@@ -105,3 +105,40 @@ export function weekdayMaskLabel(
 export function weekdayMaskKeys(mask: number): string {
   return weekdayMaskLabel(mask, WEEKDAY_KEYS, "daily", ",");
 }
+
+/**
+ * Ein datiertes Zeitfenster als FERTIGES Stück Text: „16:00–20:00", oder „Fr 16:00–20:00", wenn es
+ * nicht heute liegt.
+ *
+ * Der Wochentag steht nur dann dabei, und das ist keine Kosmetik, sondern eine Aussage: „Mo
+ * 19:00–20:00" wäre am Montagmittag eine Irreführung — der Leser bezieht den Tag auf die Zukunft und
+ * wartet eine Woche.
+ *
+ * DAS GANZE STÜCK und nicht bloss die Tag-Entscheidung: sonst braucht jede Oberfläche ZWEI
+ * Textschlüssel (mit Tag / ohne Tag) und schreibt den Bereich selbst zusammen — bei zwei Lesern
+ * (Öffnen-Formular, Sperrzeit-Zeile der Übersicht) und zwei Sprachen sind das acht Zeichenketten für
+ * eine Formatierung. So bleibt je Oberfläche EIN Schlüssel mit `{window}`, und der Gedankenstrich
+ * steht an einer Stelle.
+ *
+ * `labels` kommt von aussen, wie bei {@link weekdayMaskLabel} und aus demselben Grund: dieses Modul
+ * bleibt frei von i18n.
+ */
+export function datedWindowLabel(
+  window: { start: string; end: string; inDays: number; isoDay: number },
+  labels: readonly string[],
+  /**
+   * Das Wort für „in einer Woche" — gebraucht im EINEN Fall, in dem der Wochentag allein die Frage
+   * nicht beantwortet: `inDays === 7`.
+   *
+   * Dieser Fall ist kein Randfall, sondern die Regel bei einem einzigen Wochentag-Fenster („Reinigung
+   * nur sonntags"): ist es heute schon vorbei, liegt das nächste in genau einer Woche — und trägt
+   * damit den HEUTIGEN Wochentagsnamen. „So 10:00–11:00", am Sonntagmittag gelesen, heisst für jeden
+   * Leser „heute, gerade vorbei". Wer daraufhin öffnet, bekommt ein Vergehen gebucht.
+   */
+  inAWeek: string,
+): string {
+  const range = `${window.start}–${window.end}`;
+  if (window.inDays === 0) return range;
+  const day = labels[window.isoDay - 1];
+  return window.inDays === 7 ? `${day} ${range} (${inAWeek})` : `${day} ${range}`;
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  activeCleaningWindow, countCleaningUsedToday, nextCleaningWindow,
+  activeCleaningWindow, countCleaningUsedToday, currentOrNextCleaningWindow, nextCleaningWindow,
   parseCleaningWindows, cleaningWindowProblem, cleaningWindowListProblem, formatCleaningWindows,
 } from "./cleaningService";
 import { CLEANING_WINDOWS_MAX, CLEANING_WINDOWS_TOO_MANY, INVALID_TIME, TIME_RANGE_INVALID } from "@/lib/constants";
@@ -25,6 +25,39 @@ describe("activeCleaningWindow — per-user timezone", () => {
 
   it("accepts the stored JSON-string form", () => {
     expect(activeCleaningWindow(JSON.stringify(windows), now, "America/New_York")).toBe("22:00");
+  });
+});
+
+/**
+ * Die Anzeige-Frage: „wann darf ich reinigen?" — und die beantwortet weder `activeCleaningWindow`
+ * (nur das Ende des laufenden) noch `nextCleaningWindow` (überspringt das laufende) allein.
+ *
+ * Gebaut für die Sperrzeit-Zeile der Übersicht (Rückmeldung 03.09.2026): dort stand nur noch
+ * „Reinigungsöffnungen erlaubt", ohne jede Uhrzeit.
+ */
+describe("currentOrNextCleaningWindow", () => {
+  const TZ = "Europe/Zurich";
+  const fenster = [{ start: "16:00", end: "20:00" }];
+
+  it("vor dem Fenster: das heutige, ohne Wochentag-Anlass", () => {
+    // 09:21 Ortszeit — genau der gemeldete Fall.
+    expect(currentOrNextCleaningWindow(fenster, new Date("2026-09-03T07:21:00Z"), TZ))
+      .toEqual({ start: "16:00", end: "20:00", days: ALL_WEEKDAYS, inDays: 0, isoDay: 4 });
+  });
+
+  it("IM Fenster: das laufende — nicht der Termin von morgen", () => {
+    // Der Unterschied zu `nextCleaningWindow`: wer gerade reinigen darf, will das lesen.
+    expect(currentOrNextCleaningWindow(fenster, new Date("2026-09-03T15:00:00Z"), TZ))
+      .toEqual({ start: "16:00", end: "20:00", days: ALL_WEEKDAYS, inDays: 0, isoDay: 4 });
+  });
+
+  it("nach dem Fenster: das nächste, an einem anderen Tag", () => {
+    expect(currentOrNextCleaningWindow(fenster, new Date("2026-09-03T19:00:00Z"), TZ))
+      .toEqual({ start: "16:00", end: "20:00", days: ALL_WEEKDAYS, inDays: 1, isoDay: 5 });
+  });
+
+  it("ohne konfigurierte Fenster: null — die Reinigung ist dann nicht zeitgebunden", () => {
+    expect(currentOrNextCleaningWindow([], new Date("2026-09-03T07:21:00Z"), TZ)).toBeNull();
   });
 });
 

@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { toDatetimeLocal, fromDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
+import { datedWindowLabel } from "@/lib/weekdays";
 import { type OeffnenGrund } from "@/lib/constants";
 import type { ResolvedReason } from "@/lib/reasonsService";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
@@ -90,15 +91,13 @@ export default function OeffnenFormCore({
     : cleaningBlock === "userNotAllowed" ? "reinigungHintNoConfig"
     : null;
   /** „Nächstes Reinigungsfenster: …" — EIN Satz für beide Stellen, die ihn anhängen (Hinweistext
-   *  und Box-Halte-Karte). Der Wochentag steht nur dabei, wenn das Fenster NICHT mehr heute kommt:
-   *  „Mo 19:00–20:00" wäre am Montagmittag eine Irreführung. Leerer String = nichts anzuhängen. */
-  const nextWindowText = (() => {
-    const next = cleaning?.nextWindow;
-    if (!next) return "";
-    const values = { start: next.start, end: next.end };
-    if (next.inDays === 0) return " " + t("boxNextWindow", values);
-    return " " + t("boxNextWindowOn", { ...values, day: buildWeekdayLabels(dl)[next.isoDay - 1] });
-  })();
+   *  und Box-Halte-Karte). Das Fenster benennt {@link datedWindowLabel}, dieselbe Beschriftung wie in
+   *  der Sperrzeit-Zeile der Übersicht. Leerer String = nichts anzuhängen. */
+  const nextWindowText = cleaning?.nextWindow
+    ? " " + t("boxNextWindow", {
+        window: datedWindowLabel(cleaning.nextWindow, buildWeekdayLabels(dl), t("windowInAWeek")),
+      })
+    : "";
 
   /** Der Reinigungs-Hinweistext (Sheet + Inline-Karte teilen ihn). Ist die Öffnung ausserhalb des
    *  Fensters, hängt „Nächstes Reinigungsfenster …" an — sonst weiss der Sub nicht, wann es wieder

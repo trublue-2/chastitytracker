@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  ALL_WEEKDAYS, isoWeekdayInTZ, parseWeekdayMask, toggleWeekday, weekdayMaskHas, weekdayMaskOf,
-  weekdayMaskValid,
+  ALL_WEEKDAYS, datedWindowLabel, isoWeekdayInTZ, parseWeekdayMask, toggleWeekday,
+  weekdayMaskHas, weekdayMaskOf, weekdayMaskValid,
 } from "./weekdays";
 
 describe("Wochentags-Maske", () => {
@@ -53,5 +53,30 @@ describe("Bestand und Schreib-Regel", () => {
     expect(weekdayMaskValid(0)).toBe(false);
     expect(weekdayMaskValid(ALL_WEEKDAYS)).toBe(true);
     expect(weekdayMaskValid(ALL_WEEKDAYS + 1)).toBe(false);
+  });
+});
+
+/** Der Wochentag ist eine Aussage über die Zukunft — heute genannt, wartet der Leser eine Woche. */
+describe("datedWindowLabel", () => {
+  const LABELS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+  const w = (inDays: number, isoDay: number) => ({ start: "16:00", end: "20:00", inDays, isoDay });
+
+  it("heute: nur der Bereich — ein Tagesname wäre eine Aussage über die Zukunft", () => {
+    expect(datedWindowLabel(w(0, 4), LABELS, "nächste Woche")).toBe("16:00–20:00");
+  });
+
+  it("ein anderer Tag: sein Wort davor", () => {
+    expect(datedWindowLabel(w(1, 5), LABELS, "nächste Woche")).toBe("Fr 16:00–20:00");
+    expect(datedWindowLabel(w(3, 1), LABELS, "nächste Woche")).toBe("Mo 16:00–20:00");
+  });
+
+  /**
+   * REGRESSION: bei einem einzigen Wochentag-Fenster („nur sonntags") liegt das nächste nach
+   * Ablauf des heutigen in GENAU einer Woche — und trägt den heutigen Wochentagsnamen. Ohne den
+   * Zusatz liest sich „So 16:00–20:00" am Sonntagabend als „heute, gerade vorbei"; wer daraufhin
+   * öffnet, bekommt ein Vergehen gebucht.
+   */
+  it("in genau einer Woche: der Tagesname allein genügt nicht", () => {
+    expect(datedWindowLabel(w(7, 7), LABELS, "nächste Woche")).toBe("So 16:00–20:00 (nächste Woche)");
   });
 });

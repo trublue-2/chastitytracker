@@ -25,6 +25,10 @@ import {
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
 import { resolveGoalTargets, hasVisibleGoalRow } from "@/lib/goalFulfillment";
 import { buildBoxCleaningView } from "@/lib/boxCleaning";
+import type { Translate } from "@/lib/boxStatus";
+import { currentOrNextCleaningWindow } from "@/lib/cleaningService";
+import { datedWindowLabel } from "@/lib/weekdays";
+import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { resolveReasonLabel } from "@/lib/reasonsService";
 import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import { inspectionHref, openInspections } from "@/lib/entryFormRoute";
@@ -184,6 +188,22 @@ const openStateData = async ({ userId, now, tz }: SubDashboardCtx) => {
 
   return { since: latest.startTime, cleaningPauseUntil, cleaningRelockWarnUntil, lockCall };
 };
+
+/**
+ * „Reinigungsöffnungen erlaubt" — und wann. Der Bereich steht nur dabei, wenn Fenster gesetzt sind
+ * und eines noch kommt oder gerade läuft; benannt wird er von {@link datedWindowLabel}, derselben
+ * Beschriftung wie im Öffnen-Formular.
+ *
+ * Als eigene Funktion und nicht inline im Block: die Zeile hat drei Ausgänge, und im JSX-Ausdruck
+ * daneben stünden sie als geschachtelte Ternäre neben zwei weiteren Bedingungen.
+ */
+function cleaningAllowedNote(windows: unknown, now: Date, tz: string, dl: string, t: Translate): string {
+  const cleaningWindow = currentOrNextCleaningWindow(windows, now, tz);
+  if (!cleaningWindow) return t("cleaningNoteAllowed");
+  return t("cleaningNoteAllowedWindow", {
+    window: datedWindowLabel(cleaningWindow, buildWeekdayLabels(dl), t("windowInAWeek")),
+  });
+}
 
 /** Kürzel für die geteilte Herleitung — die KG-Beschriftung steckt in jeder Aufgaben-Auswertung. */
 const taskCardsOf = (ctx: SubDashboardCtx) =>
@@ -404,9 +424,22 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           lockPeriodMessage={data.activeLockPeriod?.message ?? null}
           // Sub-Sicht: nur wenn er grundsätzlich reinigen darf. Sonst verspräche die Zeile etwas,
           // das seine Benutzer-Einstellung ohnehin verbietet.
+          //
+          // MIT DEM FENSTER, sofern eines gesetzt ist (Rückmeldung 03.09.2026): „Reinigungsöffnungen
+          // erlaubt" allein sagt DASS, aber nicht WANN — und während einer Sperrzeit ist genau das
+          // die Auskunft, auf die es ankommt. Sie stand bis zum v6-Umbau auf der Box-Karte und fiel
+          // dort in drei Schritten heraus; hier gehört sie ohnehin besser hin: die Zeile erscheint
+          // nur bei laufender Sperrzeit, also genau dann, wenn die Fenster überhaupt binden.
+          //
+          // Das LAUFENDE Fenster schlägt das nächste (`currentOrNextCleaningWindow`) — wer gerade
+          // reinigen darf, will nicht den Termin von morgen lesen. Ohne konfigurierte Fenster bleibt
+          // es beim blossen „erlaubt": dann ist die Reinigung nicht zeitgebunden, und ein Bereich
+          // behauptete eine Schranke, die es nicht gibt.
           cleaningNote={
             data.activeLockPeriod && data.user?.cleaningAllowed
-              ? t(data.activeLockPeriod.cleaningAllowed ? "cleaningNoteAllowed" : "cleaningNoteForbidden")
+              ? (data.activeLockPeriod.cleaningAllowed
+                  ? cleaningAllowedNote(data.user.cleaningWindows, now, tz, dl, t)
+                  : t("cleaningNoteForbidden"))
               : null
           }
           // Nur wenn die Regel wirklich gilt — sie ist je Sub abschaltbar. Und wenn eine

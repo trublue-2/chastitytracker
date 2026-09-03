@@ -119,7 +119,7 @@ export function parseCleaningWindows(raw: unknown): CleaningWindows[] {
 /** Liegt `now` (Sub-Lokalzeit `tz`, default APP_TZ) in einem Reinigungs-Fenster? Liefert dessen Ende „HH:MM", sonst null.
  *  Die Fenster sind Wanduhrzeit des Subs — deshalb muss `tz` die Sub-Zeitzone sein, nicht die des Betrachters. */
 export function activeCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): string | null {
-  return activeWindowIn(parseCleaningWindows(raw), now, tz);
+  return activeWindowIn(parseCleaningWindows(raw), now, tz)?.end ?? null;
 }
 
 /** Dasselbe aus einer BEREITS GEPARSTEN Liste. Für Aufrufer, die ohnehin parsen mussten
@@ -129,17 +129,39 @@ export function activeCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): stri
  *  Die Zeit- und Wochentags-Auflösung steht NACH der Leer-Prüfung: wer keine Fenster hat, soll für
  *  diese Antwort keine zwei `Intl`-Abfragen zahlen. Das Strafbuch stellt sie je Öffnung der ganzen
  *  Historie (`cleaningRelockDeadline`). */
-function activeWindowIn(windows: CleaningWindows[], now: Date, tz: string): string | null {
+function activeWindowIn(windows: CleaningWindows[], now: Date, tz: string): CleaningWindows | null {
   if (windows.length === 0) return null;
   const hhmm = hhmmInTZ(now, tz);
   const isoDay = isoWeekdayInTZ(now, tz);
   for (const f of windows) {
-    if (weekdayMaskHas(f.days, isoDay) && f.start <= hhmm && hhmm < f.end) return f.end;
+    if (weekdayMaskHas(f.days, isoDay) && f.start <= hhmm && hhmm < f.end) return f;
   }
   return null;
 }
 
 export { activeWindowIn as activeCleaningWindowIn };
+
+/**
+ * Das Fenster, auf das es GERADE ankommt: das laufende, sonst das nächste. `null`, wo keine Fenster
+ * konfiguriert sind (= nicht zeitgebunden) oder keines je gilt.
+ *
+ * Die Frage der ANZEIGE, und deshalb eine eigene: {@link activeCleaningWindow} beantwortet „läuft
+ * gerade eines" (und gibt nur dessen Ende), {@link nextCleaningWindow} ausdrücklich „wann WIEDER"
+ * und überspringt dafür das laufende. Wer dem Träger sagen will, wann er reinigen darf, braucht
+ * beide Fälle in einer Antwort — und zwar mit `start` UND `end`, denn genannt wird ein Bereich.
+ *
+ * `inDays: 0` für das laufende Fenster: es liegt heute, und die Anzeige nennt den Wochentag genau
+ * dann nicht.
+ */
+export function currentOrNextCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): NextCleaningWindow | null {
+  // EINMAL parsen und beide Nachbarn auf der fertigen Liste fragen — die Hausregel dieses Moduls
+  // (siehe `activeCleaningWindowIn`): sonst liefe `windowShape` samt `parseWeekdayMask` ein zweites
+  // Mal über jedes Fenster, nur weil die Antwort aus zwei Teilen kommt.
+  const windows = parseCleaningWindows(raw);
+  const open = activeWindowIn(windows, now, tz);
+  if (open) return { ...open, inDays: 0, isoDay: isoWeekdayInTZ(now, tz) };
+  return nextWindowIn(windows, now, tz);
+}
 
 /**
  * Das nächste Reinigungs-Fenster, das nach `now` (Sub-Lokalzeit `tz`) BEGINNT — samt der Angabe, an
@@ -158,7 +180,12 @@ export { activeWindowIn as activeCleaningWindowIn };
  * abgeleitet — Begründung dort.
  */
 export function nextCleaningWindow(raw: unknown, now: Date, tz = APP_TZ): NextCleaningWindow | null {
-  const windows = parseCleaningWindows(raw);
+  return nextWindowIn(parseCleaningWindows(raw), now, tz);
+}
+
+/** Dasselbe aus einer BEREITS GEPARSTEN Liste — dieselbe Aufteilung wie bei {@link activeWindowIn}
+ *  und aus demselben Grund (siehe dort). */
+function nextWindowIn(windows: CleaningWindows[], now: Date, tz: string): NextCleaningWindow | null {
   if (windows.length === 0) return null;
   const hhmm = hhmmInTZ(now, tz);
   const today = isoWeekdayInTZ(now, tz);
