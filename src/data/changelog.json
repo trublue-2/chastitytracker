@@ -16,6 +16,13 @@
           "de": "Jede Einstellung im Schnellzugriff trägt eine kurze Erklärung, und die Auswahl wird sofort beim Anhaken übernommen. Wo ein Abschnitt erst mit „Speichern“ wirkt, sagt er das jetzt.",
           "en": "Each quick-access setting now carries a short explanation, and the selection is saved as soon as you tick it. Where a section only takes effect on “Save”, it now says so."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Posteingang steht „Alle als gelesen markieren“ nicht mehr dauerhaft über der Liste, sondern erscheint im Auswahl-Modus neben den Sammel-Aktionen.",
+          "en": "In the inbox, “Mark all as read” is no longer pinned above the list — it now appears in select mode next to the bulk actions."
+        }
       }
     ]
   },

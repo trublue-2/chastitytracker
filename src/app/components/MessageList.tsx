@@ -250,6 +250,14 @@ export default function MessageList({
     setSaving(false);
     setConfirmAll(false);
     if (!res) return;
+    // Aus dem Auswahl-Modus zurück in die Liste: „Alle als gelesen" wird jetzt VON DORT ausgelöst,
+    // und danach ist er leer (`unreadInFilter` fällt auf 0, der Knopf verschwindet). Ohne dies bliebe
+    // der Nutzer in einem Modus zurück, in dem nur noch die „Seite auswählen"-Zeile steht, und müsste
+    // ihn von Hand verlassen. Ausserhalb des Modus (selected === null) ist es ein No-op.
+    if (selected !== null) {
+      setSelected(null);
+      selection.announce(t("selectModeOff"));
+    }
     applyUnread(res, 0);
     // Unter dem Ungelesen-Filter nimmt das Quittieren den Zeilen ihre Zugehörigkeit: sie gehören
     // nicht mehr in die Liste, die man ansieht. Ein reiner lokaler Patch liesse sie stehen — zwanzig
@@ -490,37 +498,31 @@ export default function MessageList({
         keyholderName={keyholderName}
       />
 
-      {/* Auswahl-Einstieg und Sammel-Quittung stehen ÜBER der Liste, in derselben Kante, in der
-          gleich die Aktionsleiste erscheint. Darunter lagen sie bei zwanzig Meldungen rund 1650 px
-          tiefer, und das Antippen schob den Knopf noch einmal weg. Der Auswahl-Knopf steht ZUERST:
-          so bleibt er an seinem Platz, wenn „Alle als gelesen markieren" im Modus verschwindet. */}
-      {(!empty || (unreadInFilter > 0 && selected === null)) && (
+      {/* Der Auswahl-Einstieg steht ÜBER der Liste, in derselben Kante, in der gleich die
+          Aktionsleiste erscheint. Darunter lag er bei zwanzig Meldungen rund 1650 px tiefer, und
+          das Antippen schob ihn noch einmal weg. „Alle als gelesen markieren" steht NICHT mehr hier,
+          sondern erst im Auswahl-Modus neben den Sammel-Aktionen — eine Mengen-Aktion gehört dorthin,
+          wo auch gelöscht wird, nicht dauerhaft über den Posteingang. */}
+      {!empty && (
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          {!empty && (
-            <Button
-              ref={selectModeRef}
-              variant="ghost"
-              size="sm"
-              icon={selected !== null ? <X size={16} /> : <ListChecks size={16} />}
-              // Auch `openId` fallen lassen. `MessageRow` UNTERDRÜCKT das Panel im Auswahlmodus
-              // nur (`open && !selecting`) — beim Verlassen käme eine vor Minuten geöffnete Zeile
-              // von selbst wieder hoch. Bösester Fall: Zeile öffnen (= gelesen), auswählen, „als
-              // ungelesen", Modus endet — und die Zeile steht wieder offen da, obwohl sie gerade
-              // auf ungelesen gesetzt wurde. „Aufklappen IST das Lesen" gilt dann nicht mehr.
-              onClick={() => {
-                setOpenId(null);
-                setSelected((prev) => (prev === null ? new Set() : null));
-                selection.announce(t(selected === null ? "selectModeOn" : "selectModeOff"));
-              }}
-            >
-              {selected !== null ? tc("cancel") : t("select")}
-            </Button>
-          )}
-          {unreadInFilter > 0 && selected === null && (
-            <Button variant="secondary" size="sm" icon={<CheckCheck size={16} />} onClick={() => setConfirmAll(true)}>
-              {t("markAllRead")}
-            </Button>
-          )}
+          <Button
+            ref={selectModeRef}
+            variant="ghost"
+            size="sm"
+            icon={selected !== null ? <X size={16} /> : <ListChecks size={16} />}
+            // Auch `openId` fallen lassen. `MessageRow` UNTERDRÜCKT das Panel im Auswahlmodus
+            // nur (`open && !selecting`) — beim Verlassen käme eine vor Minuten geöffnete Zeile
+            // von selbst wieder hoch. Bösester Fall: Zeile öffnen (= gelesen), auswählen, „als
+            // ungelesen", Modus endet — und die Zeile steht wieder offen da, obwohl sie gerade
+            // auf ungelesen gesetzt wurde. „Aufklappen IST das Lesen" gilt dann nicht mehr.
+            onClick={() => {
+              setOpenId(null);
+              setSelected((prev) => (prev === null ? new Set() : null));
+              selection.announce(t(selected === null ? "selectModeOn" : "selectModeOff"));
+            }}
+          >
+            {selected !== null ? tc("cancel") : t("select")}
+          </Button>
         </div>
       )}
 
@@ -567,6 +569,22 @@ export default function MessageList({
                 setSelected(allOnPageSelected ? new Set() : new Set(messages.map((m) => m.id)))
               }
             />
+            {/* „Alle als gelesen" wirkt auf ALLE ungelesenen im Filter, nicht auf die Auswahl —
+                deshalb nur, solange nichts einzeln angehakt ist. Sobald eine Zeile gewählt ist,
+                übernimmt der zielgerichtete „Als gelesen" daneben, und zwei „read"-Knöpfe
+                nebeneinander verwirren nicht. */}
+            {unreadInFilter > 0 && selected.size === 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<CheckCheck size={16} />}
+                aria-disabled={saving}
+                className={busyDimCls}
+                onClick={() => !saving && setConfirmAll(true)}
+              >
+                {t("markAllRead")}
+              </Button>
+            )}
             {selected.size > 0 && (
               <>
                 <span className="text-neben font-medium text-foreground-muted tabular-nums">
