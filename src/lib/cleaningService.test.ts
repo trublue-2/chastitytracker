@@ -35,6 +35,48 @@ describe("activeCleaningWindow — per-user timezone", () => {
  * Gebaut für die Sperrzeit-Zeile der Übersicht (Rückmeldung 03.09.2026): dort stand nur noch
  * „Reinigungsöffnungen erlaubt", ohne jede Uhrzeit.
  */
+/**
+ * Überlappende Fenster sind erlaubt — der Editor prüft jedes für sich. Welches dann gilt, darf nicht
+ * die Speicher-Reihenfolge entscheiden: `cleaningWindowOpen` fragt „deckt IRGENDEIN Fenster diesen
+ * Zeitpunkt", und die Rückschliess-Frist des Strafbuchs hängt an derselben Antwort.
+ */
+describe("activeCleaningWindow — überlappende Fenster", () => {
+  const TZ = "Europe/Zurich";
+  const ELF_UHR = new Date("2026-09-03T09:00:00Z");
+
+  it("es gilt das SPÄTESTE Ende, nicht das zuerst gespeicherte Fenster", () => {
+    const beide = [{ start: "08:00", end: "12:00" }, { start: "10:00", end: "20:00" }];
+    expect(activeCleaningWindow(beide, ELF_UHR, TZ)).toBe("20:00");
+    // Und unabhängig von der Reihenfolge in der Liste.
+    expect(activeCleaningWindow([...beide].reverse(), ELF_UHR, TZ)).toBe("20:00");
+  });
+
+  it("ohne Überlappung bleibt alles wie zuvor", () => {
+    const getrennt = [{ start: "08:00", end: "12:00" }, { start: "16:00", end: "20:00" }];
+    expect(activeCleaningWindow(getrennt, ELF_UHR, TZ)).toBe("12:00");
+  });
+
+  it("bei gleichem Ende gewinnt der frühere Beginn — nicht die Speicher-Reihenfolge", () => {
+    const gleiches_ende = [{ start: "10:00", end: "12:00" }, { start: "08:00", end: "12:00" }];
+    // Für das blosse Ende folgenlos; der Bereich, den die Anzeige nennt, hängt daran.
+    expect(currentOrNextCleaningWindow(gleiches_ende, ELF_UHR, TZ)).toMatchObject({ start: "08:00", end: "12:00" });
+    expect(currentOrNextCleaningWindow([...gleiches_ende].reverse(), ELF_UHR, TZ))
+      .toMatchObject({ start: "08:00", end: "12:00" });
+  });
+
+  it("„24:00\" schlägt jedes reale Ende", () => {
+    expect(activeCleaningWindow([{ start: "08:00", end: "12:00" }, { start: "10:00", end: "24:00" }], ELF_UHR, TZ))
+      .toBe("24:00");
+  });
+
+  it("ein überlappendes Fenster an einem anderen Wochentag zählt nicht mit", () => {
+    // 2026-09-03 ist ein DONNERSTAG (ISO 4).
+    const nurMontags = weekdayMaskOf([1]);
+    const beide = [{ start: "08:00", end: "12:00" }, { start: "10:00", end: "20:00", days: nurMontags }];
+    expect(activeCleaningWindow(beide, ELF_UHR, TZ)).toBe("12:00");
+  });
+});
+
 describe("currentOrNextCleaningWindow", () => {
   const TZ = "Europe/Zurich";
   const fenster = [{ start: "16:00", end: "20:00" }];

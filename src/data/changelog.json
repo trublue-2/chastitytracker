@@ -6,6 +6,13 @@
       {
         "type": "fix",
         "text": {
+          "de": "Überlappten sich zwei Reinigungsfenster, galt das zuerst gespeicherte statt des länger laufenden. Die Frist zum Wiederverschliessen fiel dadurch zu früh — und mit ihr ein Versäumnis, obwohl die Reinigung noch offenstand. Gleiches gilt jetzt für die Wiege-Fenster.",
+          "en": "When two cleaning windows overlapped, the one stored first applied instead of the one running longer. The re-lock deadline fell too early — and with it an offense, although cleaning was still permitted. The same now applies to weighing windows."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
           "de": "Während einer Sperrzeit stand auf der Übersicht nur „Reinigungsöffnungen erlaubt“ — ohne Uhrzeit. Die Zeile nennt jetzt wieder das geltende Reinigungsfenster: das laufende, sonst das nächste. Die Box-Karte wiederholt es dafür nicht mehr.",
           "en": "During a lock period the overview only said “cleaning openings allowed” — with no times. The line now names the cleaning window that applies: the current one, otherwise the next. The box card no longer repeats it."
         }

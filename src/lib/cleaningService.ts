@@ -133,10 +133,29 @@ function activeWindowIn(windows: CleaningWindows[], now: Date, tz: string): Clea
   if (windows.length === 0) return null;
   const hhmm = hhmmInTZ(now, tz);
   const isoDay = isoWeekdayInTZ(now, tz);
+  /**
+   * ÜBERLAPPEN sich zwei Fenster, gilt das mit dem SPÄTESTEN Ende — nicht das zuerst gespeicherte.
+   *
+   * Die Liste ist ungeordnet und der Editor verhindert Überlappungen nicht (`cleaningWindowProblem`
+   * prüft jedes Fenster für sich). Der frühere Treffer-Abbruch machte damit die Speicher-Reihenfolge
+   * zur Regel: bei 08:00–12:00 und 10:00–20:00 endete die Reinigung um 11:00 scheinbar um 12:00,
+   * obwohl eine Öffnung um 15:00 weiterhin erlaubt war (`cleaningWindowOpen` fragt „deckt IRGENDEIN
+   * Fenster diesen Zeitpunkt", also zwei verschiedene Antworten auf dieselbe Frage).
+   *
+   * Das trägt weiter als die Anzeige: die Rückschliess-Frist einer Reinigungsöffnung ist das Ende
+   * des zur Öffnungszeit geltenden Fensters (`cleaningRelockDeadline` im Strafbuch). Sie fiel damit
+   * zu FRÜH — der Träger bekam ein Versäumnis für eine Zeit, in der er noch offen sein durfte. Ohne
+   * Überlappung ändert sich nichts: dann gibt es je Zeitpunkt höchstens einen Treffer.
+   */
+  let best: CleaningWindows | null = null;
   for (const f of windows) {
-    if (weekdayMaskHas(f.days, isoDay) && f.start <= hhmm && hhmm < f.end) return f;
+    if (!weekdayMaskHas(f.days, isoDay) || f.start > hhmm || hhmm >= f.end) continue;
+    // Bei gleichem Ende der frühere Beginn: sonst entschiede die Speicher-Reihenfolge doch wieder —
+    // für das blosse Ende folgenlos, aber `currentOrNextCleaningWindow` gibt den ganzen Bereich an
+    // die Anzeige weiter, und der begänne dann mal um 08:00 und mal um 10:00.
+    if (best === null || f.end > best.end || (f.end === best.end && f.start < best.start)) best = f;
   }
-  return null;
+  return best;
 }
 
 export { activeWindowIn as activeCleaningWindowIn };

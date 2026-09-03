@@ -154,9 +154,29 @@ export function inWeighingWindow(raw: unknown, at: Date, tz = APP_TZ): boolean {
   return windows.some((w) => covers(w, at, tz));
 }
 
-/** Das Fenster, in dem `at` liegt — sonst null. Für die Anzeige „läuft noch bis 08:00". */
+/**
+ * Das Fenster, in dem `at` liegt — sonst null. Für die Anzeige „läuft noch bis 08:00".
+ *
+ * Bei ÜBERLAPPUNG das mit dem spätesten Ende, bei gleichem Ende das mit dem frühesten Beginn —
+ * dieselbe Regel wie beim Reinigungs-Zwilling (`activeCleaningWindowIn`, Begründung dort). Der
+ * Editor verhindert Überlappungen auch hier nicht, und `inWeighingWindow` daneben fragt „deckt
+ * IRGENDEINES diesen Zeitpunkt". Mit dem ersten Treffer nannte die Erinnerung ein Ende, das schon
+ * vorbei war, während das Wiegen noch offenstand.
+ */
 export function activeWeighingWindow(raw: unknown, at: Date, tz = APP_TZ): WeighingWindow | null {
-  return parseWeighingWindows(raw).find((w) => covers(w, at, tz)) ?? null;
+  let best: WeighingWindow | null = null;
+  let bestEnd = -1;
+  for (const w of parseWeighingWindows(raw)) {
+    if (!covers(w, at, tz)) continue;
+    // Das Ende ist hier ABGELEITET (`start` + `durationMin`), nicht gespeichert — verglichen wird
+    // deshalb in Minuten, nicht lexikalisch wie beim Reinigungs-Zwilling.
+    const end = hhmmToMinutes(w.start) + w.durationMin;
+    if (best === null || end > bestEnd || (end === bestEnd && w.start < best.start)) {
+      best = w;
+      bestEnd = end;
+    }
+  }
+  return best;
 }
 
 /**

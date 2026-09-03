@@ -116,6 +116,15 @@ describe("activeWeighingWindow / nextWeighingWindow", () => {
     expect(activeWeighingWindow(TWICE, noonLocal, "Europe/Zurich")).toBeNull();
   });
 
+  /** Dieselbe Regel wie beim Reinigungs-Zwilling: überlappen sich zwei, gilt das länger laufende —
+   *  sonst nennt die Erinnerung ein Ende, das schon vorbei ist, während das Wiegen noch offensteht. */
+  it("bei Überlappung das länger laufende Fenster", () => {
+    const kurz = { start: "06:00", durationMin: 60, days: ALL_WEEKDAYS, remind: false };
+    const lang = { start: "06:30", durationMin: 240, days: ALL_WEEKDAYS, remind: false };
+    expect(activeWeighingWindow([kurz, lang], morningLocal, "Europe/Zurich")).toEqual(lang);
+    expect(activeWeighingWindow([lang, kurz], morningLocal, "Europe/Zurich")).toEqual(lang);
+  });
+
   it("nennt das nächste Fenster des Tages", () => {
     expect(nextWeighingWindow(TWICE, noonLocal, "Europe/Zurich")).toEqual(TWICE[1]);
   });

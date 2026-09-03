@@ -53,6 +53,21 @@ describe("cleaningRelockDeadline", () => {
     expect(cleaningRelockDeadline(openStart, 15, fenster, tz).toISOString()).toBe("2026-07-09T18:15:00.000Z");
   });
 
+  /**
+   * DIE FOLGE der Fenster-Regel, und deshalb HIER gepinnt und nicht nur an `activeCleaningWindow`:
+   * überlappen sich zwei Fenster, gilt das mit dem spätesten Ende. Mit dem zuerst gespeicherten fiel
+   * die Rückschliess-Frist zu früh — der Träger bekam ein Versäumnis für eine Zeit, in der eine
+   * Reinigungsöffnung nach `cleaningWindowOpen` weiterhin erlaubt war.
+   */
+  it("nimmt bei überlappenden Fenstern das spätere Ende", () => {
+    const openStart = new Date("2026-07-09T09:00:00Z"); // 11:00 Zürich, in BEIDEN Fenstern
+    const ueberlappend = [{ start: "08:00", end: "12:00" }, { start: "10:00", end: "20:00" }];
+    expect(cleaningRelockDeadline(openStart, 15, ueberlappend, tz).toISOString()).toBe("2026-07-09T18:00:00.000Z"); // 20:00
+    // Und unabhängig davon, in welcher Reihenfolge die Fenster gespeichert sind.
+    expect(cleaningRelockDeadline(openStart, 15, [...ueberlappend].reverse(), tz).toISOString())
+      .toBe("2026-07-09T18:00:00.000Z");
+  });
+
   it("resolves a window end correctly across a same-day DST transition (spring-forward)", () => {
     // 2026-03-29 is the EU spring-forward day: clocks jump 02:00 CET -> 03:00 CEST at 01:00 UTC.
     // Opening falls pre-transition (01:30 CET, offset +1); the window end (04:00) is post-transition
