@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import BackLink from "@/app/components/BackLink";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { formatTotalHours } from "@/lib/utils";
@@ -131,13 +131,7 @@ export default function CategoriesClient({ categories: initial, userId, username
   if (formMode !== "closed") {
     return (
       <>
-        <button
-          type="button"
-          onClick={closeForm}
-          className="text-sm text-foreground-faint hover:text-foreground-muted transition"
-        >
-          ← {title}
-        </button>
+        <BackLink onClick={closeForm}>{title}</BackLink>
         <div className="mt-4">
           <CategoryFormSheet
             category={editCategory}
@@ -155,12 +149,7 @@ export default function CategoriesClient({ categories: initial, userId, username
   const devicesHref = userId ? `/admin/users/${userId}/geraete` : "/dashboard/geraete";
   return (
     <div className="flex flex-col gap-4">
-      <Link
-        href={devicesHref}
-        className="text-sm text-foreground-faint hover:text-foreground-muted transition w-fit"
-      >
-        ← {t("backToDevices")}
-      </Link>
+      <BackLink href={devicesHref}>{t("backToDevices")}</BackLink>
       <div className="flex items-center justify-between">
         <PageTitle title={title} subjectId={userId} />
         <Button variant="primary" size="sm" onClick={openAdd} icon={<Plus size={16} />}>

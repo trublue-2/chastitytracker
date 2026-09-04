@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import BackLink from "@/app/components/BackLink";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Plus, Pencil, Trash2, ArchiveRestore, Tags } from "lucide-react";
@@ -166,13 +167,7 @@ export default function DevicesClient({ devices: initialDevices, categories, use
   if (formMode !== "closed") {
     return (
       <>
-        <button
-          type="button"
-          onClick={closeForm}
-          className="text-sm text-foreground-faint hover:text-foreground-muted transition"
-        >
-          ← {title}
-        </button>
+        <BackLink onClick={closeForm}>{title}</BackLink>
         <div className="mt-4">
           <DeviceForm
             onClose={closeForm}

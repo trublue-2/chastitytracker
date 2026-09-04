@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Scale } from "lucide-react";
+import { actionSign } from "@/app/entries/actionSign";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { weightTrackingEnabled } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
@@ -27,8 +27,7 @@ export default async function AdminWeightPage({ params }: { params: Promise<{ id
     <AdminActionFormShell
       userId={id}
       backLabel={ta("aktionen")}
-      icon={<Scale size={20} strokeWidth={2} />}
-      iconColor="var(--foreground)"
+      {...actionSign("WEIGHT")}
       title={t("titleAdmin")}
     >
       <WeightForm {...props} windowHint={weighingWindowHint(props, t)} adminUserId={id} />

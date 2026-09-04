@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { DEFAULT_WORLD } from "@/lib/theme";
 import { LockClosedIcon } from "@/app/components/lockIcons";
-import { quietLinkCls } from "@/app/components/inputStyles";
+import { authColCls, quietLinkCls } from "@/app/components/inputStyles";
 
 interface Props {
   /** Benennt den Bildschirm. Auf der Anmeldeseite ist das die Wortmarke selbst — dort gibt es
@@ -42,7 +42,7 @@ export default function AuthScreen({ title, subtitle, children, footer }: Props)
       data-theme={DEFAULT_WORLD}
       className="world-glow min-h-screen bg-background flex flex-col items-center justify-center px-4 py-10"
     >
-      <div className="w-full max-w-sm flex flex-col gap-6">
+      <div className={`${authColCls} flex flex-col gap-6`}>
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="flex items-center justify-center gap-2.5 text-foreground">
             <LockClosedIcon size={22} strokeWidth={2} className="flex-shrink-0" aria-hidden="true" />

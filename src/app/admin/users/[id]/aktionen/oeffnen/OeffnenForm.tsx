@@ -8,7 +8,7 @@ import type { OeffnenPayload, SubmitResult } from "@/app/entries/types";
 import { submitAdminEntry } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { ResolvedReason } from "@/lib/reasonsService";
-import { LockOpenIcon } from "@/app/components/lockIcons";
+import { actionSign } from "@/app/entries/actionSign";
 
 export default function OeffnenForm({ userId, grundOptions, tz, nowDefault }: { userId: string; grundOptions: ResolvedReason[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
@@ -25,8 +25,7 @@ export default function OeffnenForm({ userId, grundOptions, tz, nowDefault }: { 
     <AdminActionFormShell
       userId={userId}
       backLabel={t("aktionen")}
-      icon={<LockOpenIcon size={20} strokeWidth={2} />}
-      iconColor="var(--color-unlock)"
+      {...actionSign("OEFFNEN")}
       title={tOffen("title")}
     >
       <OeffnenFormCore

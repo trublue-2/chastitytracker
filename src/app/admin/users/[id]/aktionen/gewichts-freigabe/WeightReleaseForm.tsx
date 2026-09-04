@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Scale } from "lucide-react";
+import { actionSign } from "@/app/entries/actionSign";
 import { useLocale, useTranslations } from "next-intl";
 import { fromDatetimeLocal, round1 } from "@/lib/utils";
 import { RELEASE_AVERAGE_DAYS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
@@ -146,8 +146,7 @@ export default function WeightReleaseForm({
     <AdminActionFormShell
       userId={userId}
       backLabel={tc("back")}
-      icon={<Scale size={20} strokeWidth={2} />}
-      iconColor="var(--color-foreground-muted)"
+      {...actionSign("WEIGHT")}
       title={t("releaseTitle")}
     >
       <form onSubmit={submit} className="flex flex-col gap-5">

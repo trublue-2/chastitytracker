@@ -5,7 +5,7 @@ import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getUserTimezone } from "@/lib/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
-import { ClipboardList } from "lucide-react";
+import { actionSign } from "@/app/entries/actionSign";
 import { getTranslations } from "next-intl/server";
 import TaskFields from "@/app/admin/tasks/TaskFields";
 import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
@@ -51,8 +51,7 @@ export default async function AdminTaskPage({
     <AdminActionFormShell
       userId={userId}
       backLabel={t("aktionen")}
-      icon={<ClipboardList size={20} strokeWidth={2} />}
-      iconColor="var(--foreground)"
+      {...actionSign("TASK")}
       title={offenseRef ? tt("actionTitlePenalty") : tt("actionTitle")}
     >
       <TaskFields
