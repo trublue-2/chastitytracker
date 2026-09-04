@@ -30,6 +30,7 @@ import {
   mondayIndexOfLocalDate,
   midnightOfLocalDate,
   calculateWearingHoursByRange,
+  longestOrgasmFreeGap,
   type CleaningPauseAllowance,
 } from "./utils";
 
@@ -989,5 +990,41 @@ describe("calculateWearingHoursByRange — „heute\" ist der Tag der Sub", () =
     const zurich = calculateWearingHoursByRange(entries, now, "Europe/Zurich");
     // Montag 00:00 liegt in Auckland (UTC+12) zehn Stunden vor Zürich (UTC+2).
     expect(auckland.wocheH - zurich.wocheH).toBeCloseTo(10, 5);
+  });
+});
+
+describe("longestOrgasmFreeGap — längste orgasmusfreie Strecke", () => {
+  const now = t("2026-09-04T12:00:00Z");
+
+  it("ohne Orgasmus gibt es keinen Rekord", () => {
+    expect(longestOrgasmFreeGap([], now)).toBeNull();
+  });
+
+  it("bei genau einem Orgasmus ist die laufende Strecke der Rekord (since = dieser Orgasmus)", () => {
+    const last = t("2026-09-01T12:00:00Z");
+    const res = longestOrgasmFreeGap([last], now);
+    expect(res).toEqual({ ms: 3 * 86_400_000, since: last });
+  });
+
+  it("eine längere ABGESCHLOSSENE Lücke schlägt die laufende Strecke — since ist ihr Beginn", () => {
+    const times = [
+      t("2026-08-20T00:00:00Z"),
+      t("2026-08-30T00:00:00Z"), // 10-Tage-Lücke davor (der Rekord)
+      t("2026-09-04T00:00:00Z"), // danach 5 Tage, dann nur 12 h bis now
+    ];
+    const res = longestOrgasmFreeGap(times, now);
+    expect(res).toEqual({ ms: 10 * 86_400_000, since: times[0] });
+  });
+
+  it("bei Gleichstand bleibt es die noch laufende Strecke (since = letzter Orgasmus)", () => {
+    // Abgeschlossene Lücke = 3 Tage; die laufende Strecke (now − letzter) ebenfalls 3 Tage. Der
+    // Gleichstand fällt zugunsten der laufenden Strecke aus — erkennbar daran, dass `since` der
+    // LETZTE Orgasmus ist, nicht der Beginn der abgeschlossenen Lücke.
+    const times = [
+      t("2026-08-29T12:00:00Z"),
+      t("2026-09-01T12:00:00Z"),
+    ];
+    const res = longestOrgasmFreeGap(times, now);
+    expect(res).toEqual({ ms: 3 * 86_400_000, since: times[1] });
   });
 });

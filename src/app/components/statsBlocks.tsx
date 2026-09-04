@@ -12,7 +12,7 @@ import { goalPct, sharePct } from "@/lib/percent";
 import {
   formatDate, formatDateTime, formatDurationMs, formatTotalHours, formatTotalMs,
   buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart,
-  getYearStart, summarizeSessions, wearingHoursFromPairs, WEAR_PAIR,
+  getYearStart, longestOrgasmFreeGap, summarizeSessions, wearingHoursFromPairs, WEAR_PAIR,
 } from "@/lib/utils";
 import {
   buildCalendarMonths, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
@@ -327,15 +327,34 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
 
   // Rekorde
   records: block({
-    load: ({ userId }) => sessionRecords(userId),
-    render: ({ count, longest, shortest }, { t, dl, tz }) => count > 0 && (
-      <Section title={t("records")}>
-        <div className="divide-y divide-border-subtle">
-          <RecordRow label={t("longestSession")} value={formatDurationMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl, tz)} />
-          <RecordRow label={t("shortestSession")} value={formatDurationMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl, tz)} />
-        </div>
-      </Section>
-    ),
+    load: async ({ userId }) => {
+      // Trage-Bestwerte UND die Orgasmus-Historie in EINER Runde: der Rekorde-Block trägt beide
+      // Rekord-Arten. Die Orgasmen kommen aufsteigend (die Cache-Liste ist neuste-zuerst) — so, wie
+      // `longestOrgasmFreeGap` sie erwartet.
+      const [sessions, orgasms] = await Promise.all([
+        sessionRecords(userId),
+        orgasmEntriesCached(userId),
+      ]);
+      return { ...sessions, orgasmTimesAsc: orgasms.map((e) => e.startTime).reverse() };
+    },
+    // Der Block erscheint, sobald es IRGENDEINEN Rekord gibt — eine abgeschlossene Trage-Session
+    // ODER ein erfasster Orgasmus. Vorher hing er allein an den Trage-Sessions; wer nur Orgasmen
+    // erfasst hatte, sah seinen orgasmusfreien Rekord nie.
+    render: ({ count, longest, shortest, orgasmTimesAsc }, { now, t, dl, tz }) => {
+      // Der längste Abstand zwischen zwei Orgasmen oder die noch laufende Strecke — der Wert, den auch
+      // die KI-Keyholderin über den MCP nennt (`longestOrgasmFreeHours`). `since` datiert den Beginn
+      // der Strecke, genau wie die Trage-Rekorde ihren Session-Beginn zeigen.
+      const orgasmFree = longestOrgasmFreeGap(orgasmTimesAsc, now);
+      return (count > 0 || orgasmFree) && (
+        <Section title={t("records")}>
+          <div className="divide-y divide-border-subtle">
+            {count > 0 && <RecordRow label={t("longestSession")} value={formatDurationMs(longest!.durationMs, dl)} sub={formatDateTime(longest!.verschluss.startTime, dl, tz)} />}
+            {count > 0 && <RecordRow label={t("shortestSession")} value={formatDurationMs(shortest!.durationMs, dl)} sub={formatDateTime(shortest!.verschluss.startTime, dl, tz)} />}
+            {orgasmFree && <RecordRow label={t("longestOrgasmFree")} value={formatDurationMs(orgasmFree.ms, dl)} sub={formatDateTime(orgasmFree.since, dl, tz)} />}
+          </div>
+        </Section>
+      );
+    },
   }),
 
   // Device-Nutzung — umschaltbar zwischen KG und den Geräte-Kategorien.

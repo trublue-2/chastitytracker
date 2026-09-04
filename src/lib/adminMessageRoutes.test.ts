@@ -25,7 +25,6 @@ vi.mock("next-intl/server", () => ({
 import { GET } from "@/app/api/admin/messages/route";
 import { DELETE as deleteMessageRoute } from "@/app/api/admin/messages/[id]/route";
 import { POST as markReadRoute, DELETE as markUnreadRoute } from "@/app/api/admin/messages/[id]/read/route";
-import { POST as readAllRoute } from "@/app/api/admin/messages/read-all/route";
 import { POST as bulkRoute } from "@/app/api/admin/messages/bulk/route";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -63,7 +62,6 @@ const ROUTES: [name: string, call: () => Promise<Response>][] = [
   ["DELETE /api/admin/messages/[id]", () => deleteMessageRoute(getReq(), { params: idParams("m1") })],
   ["POST /api/admin/messages/[id]/read", () => markReadRoute(getReq(), { params: idParams("m1") })],
   ["DELETE /api/admin/messages/[id]/read", () => markUnreadRoute(getReq(), { params: idParams("m1") })],
-  ["POST /api/admin/messages/read-all", () => readAllRoute(getReq())],
   ["POST /api/admin/messages/bulk", () => bulkRoute(jsonReq({ ids: ["m1"], action: "read" }))],
 ];
 

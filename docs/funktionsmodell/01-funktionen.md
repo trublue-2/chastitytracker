@@ -175,9 +175,9 @@ Steckbrief: [70-nachrichten.md](70-nachrichten.md)
 
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
-| **Posteingang des Trägers** | Lesen, als gelesen oder ungelesen markieren, löschen, alles auf einmal — einzeln oder als Stapel. | Sub | App (Träger) | `/api/messages` `/api/messages/[id]` `/api/messages/[id]/read` `/api/messages/bulk` `/api/messages/read-all` |
+| **Posteingang des Trägers** | Lesen, als gelesen oder ungelesen markieren, löschen — einzeln oder als Stapel über die Auswahl. | Sub | App (Träger) | `/api/messages` `/api/messages/[id]` `/api/messages/[id]/read` `/api/messages/bulk` |
 | **Posteingang beschneiden** | Löscht einmal täglich gelesene Meldungen jenseits der Aufbewahrungsfrist (Vorgabe ein Jahr, per MESSAGE_RETENTION_DAYS einstellbar, 0 = aus). <br>*Ungelesene Meldungen bleiben liegen, egal wie alt — eine nie gesehene Zustellung ist kein Altpapier. Die Frist hängt am Zustand, nicht nur am Alter.* | System | läuft von selbst | — |
-| **Posteingang des Keyholders** | Dieselbe Liste für die Meldungen an die Keyholder — eine gemeinsame Zeile je Träger, mit eigenem Lesestand. <br>*Löschen trifft alle Keyholder — es gibt nur diese eine Zeile.* | Keyholder (UI) | App (Keyholder) | `/api/admin/messages` `/api/admin/messages/[id]` `/api/admin/messages/[id]/read` `/api/admin/messages/bulk` `/api/admin/messages/read-all` |
+| **Posteingang des Keyholders** | Dieselbe Liste für die Meldungen an die Keyholder — eine gemeinsame Zeile je Träger, mit eigenem Lesestand. <br>*Löschen trifft alle Keyholder — es gibt nur diese eine Zeile.* | Keyholder (UI) | App (Keyholder) | `/api/admin/messages` `/api/admin/messages/[id]` `/api/admin/messages/[id]/read` `/api/admin/messages/bulk` |
 | **Rückmeldung senden** | Nimmt eine Nachricht aus der App entgegen. | Sub, Keyholder (UI) | App (Träger) | `/api/feedback` |
 
 ## Benachrichtigungen

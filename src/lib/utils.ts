@@ -997,6 +997,31 @@ export function summarizeSessions<T extends { durationMs: number }>(completed: T
   };
 }
 
+/**
+ * Die längste orgasmusfreie Strecke: die grösste Lücke zwischen zwei aufeinanderfolgenden Orgasmen
+ * ODER die gerade laufende Strecke (`now` − letzter Orgasmus), je nachdem welche länger ist. `times`
+ * MUSS aufsteigend sortiert sein. `since` datiert den Beginn der Rekord-Strecke (der Orgasmus davor,
+ * bzw. bei laufendem Rekord der letzte Orgasmus).
+ *
+ * Rückgabe `null` heisst „kein Orgasmus erfasst", also kein Rekord. EINE Quelle für UI (Rekorde-Block)
+ * und MCP (`records`/`denial_trend`), damit beide dieselbe Zahl nennen.
+ */
+export function longestOrgasmFreeGap(
+  times: Date[],
+  now: Date,
+): { ms: number; since: Date } | null {
+  if (times.length === 0) return null;
+  const last = times[times.length - 1];
+  // Startwert ist die laufende Strecke; nur eine STRIKT längere abgeschlossene Lücke verdrängt sie —
+  // bei Gleichstand bleibt es die laufende, denn die ist der lebendige (noch wachsende) Rekord.
+  let best: { ms: number; since: Date } = { ms: now.getTime() - last.getTime(), since: last };
+  for (let i = 1; i < times.length; i++) {
+    const ms = times[i].getTime() - times[i - 1].getTime();
+    if (ms > best.ms) best = { ms, since: times[i - 1] };
+  }
+  return best;
+}
+
 /** Returns photo verification status for an entry */
 export function photoStatus(v: { imageUrl: string | null; imageExifTime: Date | null; startTime: Date }): "no-photo" | "exif-mismatch" | "ok" {
   if (!v.imageUrl) return "no-photo";
