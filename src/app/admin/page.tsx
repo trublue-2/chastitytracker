@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import KontrolleButton from "./KontrolleButton";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
+import EditLockRequestButton from "./EditLockRequestButton";
 import ReleaseNowButton from "./ReleaseNowButton";
 import QuickSettingChip from "./QuickSettingChip";
 import WithdrawButton from "./WithdrawButton";
@@ -443,7 +444,12 @@ export default async function AdminPage() {
                             tz={rowTz}
                             viewerTz={viewerTz}
                             subTimePrefix={subLabel}
-                            withdrawAction={<WithdrawButton id={a.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />}
+                            withdrawAction={
+                              <span className="flex items-center gap-1">
+                                <EditLockRequestButton id={a.id} userId={u.id} tz={rowTz} minNow={nowDatetimeLocal(rowTz)} />
+                                <WithdrawButton id={a.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />
+                              </span>
+                            }
                           />
                         ))}
                         {u.stats.activeLockPeriod && (
@@ -505,7 +511,10 @@ export default async function AdminPage() {
                                     </div>
                                     {s.message && <p className="truncate opacity-80 mt-0.5">{s.message}</p>}
                                   </div>
-                                  <span className="flex-shrink-0">
+                                  <span className="flex-shrink-0 flex items-center gap-1">
+                                    {s.kind === "lock_request" && (
+                                      <EditLockRequestButton id={s.id} userId={u.id} tz={rowTz} minNow={nowDatetimeLocal(rowTz)} />
+                                    )}
                                     <WithdrawButton id={s.id} apiPath={apiPath} title={t("scheduledWithdrawTitle")} colorToken={colorToken} />
                                   </span>
                                 </div>

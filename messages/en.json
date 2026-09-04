@@ -1188,6 +1188,7 @@
     "scheduleDelayHint": "Request is sent after this delay; hidden from the sub until then.",
     "scheduleFutureRequired": "Send time must be in the future",
     "withdrawLockTitle": "Lift lock",
+    "editLockRequestTitle": "Edit lock request",
     "withdrawKontrolleTitle": "Withdraw inspection request",
     "sending": "Sending…",
     "roleUser": "User",

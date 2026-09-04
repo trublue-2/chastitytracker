@@ -13,15 +13,32 @@ import FieldTabs from "@/app/components/FieldTabs";
 import DurationOrDatetimeField from "@/app/components/DurationOrDatetimeField";
 import HoursInput from "@/app/components/HoursInput";
 import { DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit } from "@/lib/constants";
-import ScheduleFields, { initialSchedule, scheduleIsPast, schedulePayload, type ScheduleValue } from "@/app/components/ScheduleFields";
+import ScheduleFields, { initialSchedule, scheduleFromWirksamAb, scheduleIsPast, schedulePayload, scheduleAnchorMs, scheduleTriggerIso, type ScheduleValue } from "@/app/components/ScheduleFields";
 import type { DeviceOption } from "@/lib/queries";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
+/** Bestandswerte einer offenen ANFORDERUNG, mit denen das Formular als BEARBEITEN-Ansicht startet.
+ *  Alle Zeiten ISO; `wirksamAb === null` = sofort/schon ausgelöst. Kommt aus `GET …/[id]`. */
+export interface LockRequestEditData {
+  id: string;
+  message: string | null;
+  endsAt: string;
+  minDurationHours: number | null;
+  lockEndsAt: string | null;
+  deviceId: string | null;
+  cleaningAllowed: boolean;
+  wirksamAb: string | null;
+}
+
 /**
  * Shared form body for "Verschluss anfordern" (ANFORDERUNG) and "Sperrdauer setzen" (SPERRZEIT).
  * Caller wraps this in an ActionModal and provides onSuccess.
+ *
+ * Mit `existing` wird daraus die BEARBEITEN-Ansicht einer offenen ANFORDERUNG: Felder vorbelegt,
+ * Submit per `PATCH …/[id]` (`action:"edit"`) statt `POST`. Nur für ANFORDERUNG — eine Sperrzeit
+ * ändert man über `setEnd`.
  */
 export default function VerschlussAnforderungFields({
   userId,
@@ -29,6 +46,7 @@ export default function VerschlussAnforderungFields({
   devices,
   tz,
   minNow,
+  existing,
   onSuccess,
 }: {
   userId: string;
@@ -38,6 +56,8 @@ export default function VerschlussAnforderungFields({
   tz: string;
   /** Server-computed "now" wall-clock in the sub's tz — the datetime-local min (replaces the UTC-bug min). */
   minNow: string;
+  /** Gesetzt = BEARBEITEN einer bestehenden ANFORDERUNG statt Neuanlage. */
+  existing?: LockRequestEditData;
   onSuccess: () => void;
 }) {
   const t = useTranslations("admin");
@@ -46,8 +66,9 @@ export default function VerschlussAnforderungFields({
   const isLockPeriod = art === "SPERRZEIT";
   const accentColor = isLockPeriod ? "var(--color-sperrzeit)" : "var(--color-request)";
 
-  const [message, setMessage] = useState("");
-  const [mode, setMode] = useState<"duration" | "datetime">("duration");
+  const [message, setMessage] = useState(existing?.message ?? "");
+  // Bearbeiten startet bei der gespeicherten ABSOLUTEN Frist (Zeitpunkt-Reiter); Neuanlage bei der Dauer.
+  const [mode, setMode] = useState<"duration" | "datetime">(existing ? "datetime" : "duration");
   const defaultDurationH = isLockPeriod ? 24 : 4;
   const [deadlineH, setDeadlineH] = useState(String(defaultDurationH));
   // Die Frist ist eine Dauer wie die Kontroll-Frist und wird auch so eingegeben: Stunden ODER
@@ -59,26 +80,40 @@ export default function VerschlussAnforderungFields({
   const nowBaseMs = fromDatetimeLocal(minNow, tz).getTime();
   // Datetime default = now + default duration, so switching between tabs preserves intent.
   const [endsAt, setEndsAt] = useState(() =>
-    toDatetimeLocal(new Date(nowBaseMs + defaultDurationH * 60 * 60 * 1000), tz)
+    existing
+      ? toDatetimeLocal(existing.endsAt, tz)
+      : toDatetimeLocal(new Date(nowBaseMs + defaultDurationH * 60 * 60 * 1000), tz)
   );
-  const [withMinDauer, setWithMinDauer] = useState(false);
+  const [withMinDauer, setWithMinDauer] = useState(
+    existing ? existing.minDurationHours != null || existing.lockEndsAt != null : false
+  );
   // Min-Sperre nach dem Verschliessen: relative Dauer (minDurationHours) ODER absolutes Ende (lockEndsAt).
-  const [lockEndMode, setLockEndMode] = useState<"duration" | "datetime">("duration");
-  const [minDauerH, setMinDauerH] = useState("24");
-  const [lockEndsAt, setLockEndsAt] = useState(() =>
-    toDatetimeLocal(new Date(nowBaseMs + 24 * 60 * 60 * 1000), tz)
+  const [lockEndMode, setLockEndMode] = useState<"duration" | "datetime">(
+    existing?.lockEndsAt != null ? "datetime" : "duration"
   );
-  const [deviceId, setDeviceId] = useState("");
-  const [cleaningAllowed, setCleaningAllowed] = useState(false);
+  const [minDauerH, setMinDauerH] = useState(
+    existing?.minDurationHours != null ? String(existing.minDurationHours) : "24"
+  );
+  const [lockEndsAt, setLockEndsAt] = useState(() =>
+    existing?.lockEndsAt
+      ? toDatetimeLocal(existing.lockEndsAt, tz)
+      : toDatetimeLocal(new Date(nowBaseMs + 24 * 60 * 60 * 1000), tz)
+  );
+  const [deviceId, setDeviceId] = useState(existing?.deviceId ?? "");
+  const [cleaningAllowed, setCleaningAllowed] = useState(existing?.cleaningAllowed ?? false);
   // Terminierung: sofort (default), relative Verzögerung, oder absoluter Zeitpunkt — dasselbe
-  // Bauteil, das auch die Aufgabe verwendet.
-  const [schedule, setSchedule] = useState<ScheduleValue>(() => initialSchedule(minNow, tz));
+  // Bauteil, das auch die Aufgabe verwendet. Beim Bearbeiten aus dem gespeicherten `wirksamAb`.
+  const [schedule, setSchedule] = useState<ScheduleValue>(() =>
+    existing ? scheduleFromWirksamAb(existing.wirksamAb, minNow, tz) : initialSchedule(minNow, tz)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (mode === "datetime" && endsAt && fromDatetimeLocal(endsAt, tz) <= new Date()) {
+    // Beim Bearbeiten darf die EINSCHLIESS-Frist in der Vergangenheit liegen (der Service prüft sie
+    // bewusst nicht — sie ist eine Frist, kein Sperr-Ende). Bei der Neuanlage bleibt sie zukünftig.
+    if (!existing && mode === "datetime" && endsAt && fromDatetimeLocal(endsAt, tz) <= new Date()) {
       setError(t("futureDateRequired"));
       return;
     }
@@ -93,35 +128,17 @@ export default function VerschlussAnforderungFields({
     setSaving(true);
     setError("");
     try {
-      const payload: Record<string, unknown> = {
-        userId, art,
-        message: message.trim() || undefined,
-        ...schedulePayload(schedule, tz),
-      };
-      if (mode === "datetime" && endsAt) {
-        payload.endsAt = fromDatetimeLocal(endsAt, tz).toISOString();
-      } else {
-        payload.fristH = durationHoursOr(deadlineH, deadlineUnit, defaultDurationH);
-      }
-      if (!isLockPeriod && withMinDauer) {
-        if (lockEndMode === "datetime" && lockEndsAt) {
-          payload.lockEndsAt = fromDatetimeLocal(lockEndsAt, tz).toISOString();
-        } else {
-          payload.minDurationHours = parseFloat(minDauerH) || 24;
-        }
-      }
-      if (!isLockPeriod && deviceId) {
-        payload.deviceId = deviceId;
-      }
-      if (isLockPeriod || withMinDauer) {
-        payload.cleaningAllowed = cleaningAllowed;
-      }
-
-      const res = await fetch("/api/admin/verschluss-anforderung", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = existing
+        ? await fetch(`/api/admin/verschluss-anforderung/${existing.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(buildEditPayload()),
+          })
+        : await fetch("/api/admin/verschluss-anforderung", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(buildCreatePayload()),
+          });
       if (res.ok) onSuccess();
       else setError(apiError(await parseApiErrorCode(res)));
     } catch {
@@ -129,6 +146,61 @@ export default function VerschlussAnforderungFields({
     } finally {
       setSaving(false);
     }
+  }
+
+  function buildCreatePayload(): Record<string, unknown> {
+    const payload: Record<string, unknown> = {
+      userId, art,
+      message: message.trim() || undefined,
+      ...schedulePayload(schedule, tz),
+    };
+    if (mode === "datetime" && endsAt) {
+      payload.endsAt = fromDatetimeLocal(endsAt, tz).toISOString();
+    } else {
+      payload.fristH = durationHoursOr(deadlineH, deadlineUnit, defaultDurationH);
+    }
+    if (!isLockPeriod && withMinDauer) {
+      if (lockEndMode === "datetime" && lockEndsAt) {
+        payload.lockEndsAt = fromDatetimeLocal(lockEndsAt, tz).toISOString();
+      } else {
+        payload.minDurationHours = parseFloat(minDauerH) || 24;
+      }
+    }
+    if (!isLockPeriod && deviceId) {
+      payload.deviceId = deviceId;
+    }
+    if (isLockPeriod || withMinDauer) {
+      payload.cleaningAllowed = cleaningAllowed;
+    }
+    return payload;
+  }
+
+  // Bearbeiten sendet ABSOLUTE Werte — der Service-Patch ist absolut, die relative Frist/Verzögerung
+  // wird deshalb hier gegen den (ggf. terminierten) Auslöse-Zeitpunkt aufgelöst. Alle editierbaren
+  // Felder werden explizit gesetzt: das Formular hält den vollen Stand, es ist ein Ersetzen.
+  function buildEditPayload(): Record<string, unknown> {
+    const nowMs = Date.now();
+    const wirksamAb = scheduleTriggerIso(schedule, tz, nowMs);
+    const triggerMs = scheduleAnchorMs(schedule, tz, nowMs);
+    const endsAtIso = mode === "datetime" && endsAt
+      ? fromDatetimeLocal(endsAt, tz).toISOString()
+      : new Date(triggerMs + durationHoursOr(deadlineH, deadlineUnit, defaultDurationH) * 60 * 60 * 1000).toISOString();
+    let minDurationHours: number | null = null;
+    let lockEndsAtIso: string | null = null;
+    if (withMinDauer) {
+      if (lockEndMode === "datetime" && lockEndsAt) lockEndsAtIso = fromDatetimeLocal(lockEndsAt, tz).toISOString();
+      else minDurationHours = parseFloat(minDauerH) || 24;
+    }
+    return {
+      action: "edit",
+      message: message.trim() || null,
+      endsAt: endsAtIso,
+      minDurationHours,
+      lockEndsAt: lockEndsAtIso,
+      deviceId: deviceId || null,
+      cleaningAllowed,
+      wirksamAb,
+    };
   }
 
   const cleaningCheckbox = (
@@ -170,8 +242,9 @@ export default function VerschlussAnforderungFields({
         onDatetimeChange={setEndsAt}
         datetimeMin={minNow}
         datetimeHint={isLockPeriod ? t("endetHintSperrzeit") : t("endetHintAnforderung")}
-        // Die Frist zählt ab JETZT — anders als beim Orgasmus-Fenster gibt es keinen eigenen Start.
-        anchorMs={() => Date.now()}
+        // Die Frist zählt ab JETZT (Neuanlage) bzw. ab dem terminierten Auslöse-Zeitpunkt (Bearbeiten)
+        // — anders als beim Orgasmus-Fenster gibt es keinen eigenen Start.
+        anchorMs={existing ? () => scheduleAnchorMs(schedule, tz, Date.now()) : () => Date.now()}
         tz={tz}
       />
 
@@ -248,7 +321,7 @@ export default function VerschlussAnforderungFields({
         loading={saving}
         icon={<LockClosedIcon size={16} />}
       >
-        {saving ? t("sending") : t("submit")}
+        {saving ? t("sending") : existing ? tc("save") : t("submit")}
       </Button>
     </form>
   );

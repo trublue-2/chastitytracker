@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.0.7",
+    "date": "2026-09-04",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine offene Verschlussanforderung lässt sich in der Keyholder-Übersicht jetzt bearbeiten (Frist, Nachricht, Gerät, Sperr-Vorgabe, Auslösezeit), statt sie nur zurückziehen und neu stellen zu können.",
+          "en": "An open lock request can now be edited from the keyholder overview (deadline, message, device, lock setting, trigger time) instead of only being withdrawn and re-created."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.6",
     "date": "2026-09-03",
     "changes": [

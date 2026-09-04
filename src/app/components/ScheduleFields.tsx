@@ -53,6 +53,18 @@ export function initialSchedule(minNow: string, tz: string): ScheduleValue {
   };
 }
 
+/**
+ * Der Startzustand für das BEARBEITEN einer bestehenden Direktive: `wirksamAb === null` heisst „schon
+ * ausgelöst / sofort" → „sofort"-Reiter; ein Zeitpunkt heisst „terminiert" → Zeitpunkt-Reiter mit
+ * ebendiesem Wert. Hier und nicht am Aufrufer, weil die {@link ScheduleValue}-Form diesem Bauteil
+ * gehört — ein Formular, das sie selbst zusammensetzt, zöge die Kenntnis der Felder nach aussen.
+ */
+export function scheduleFromWirksamAb(wirksamAb: string | null, minNow: string, tz: string): ScheduleValue {
+  const base = initialSchedule(minNow, tz);
+  if (!wirksamAb) return base;
+  return { ...base, mode: "datetime", scheduledAt: toDatetimeLocal(wirksamAb, tz) };
+}
+
 /** Liegt ein gewählter Zeitpunkt in der Vergangenheit? Nur dann ist die Eingabe abzulehnen — eine
  *  Verzögerung kann per Konstruktion nicht rückwärts zeigen. */
 export function scheduleIsPast(v: ScheduleValue, tz: string): boolean {
@@ -72,6 +84,21 @@ export function scheduleAnchorMs(v: ScheduleValue, tz: string, nowMs: number): n
   if (wirksamAbAt) return new Date(wirksamAbAt).getTime();
   if (delayMinutes) return nowMs + delayMinutes * 60_000;
   return nowMs;
+}
+
+/**
+ * Der geplante Auslöse-Zeitpunkt als ISO, oder `null` für „sofort" — die Umkehrung von
+ * {@link scheduleFromWirksamAb}. Genau die Form, die ein Schreibpfad als `wirksamAb` braucht.
+ *
+ * Hier und nicht am Aufrufer, weil es dieselbe `wirksamAbAt`/`delayMinutes`-Fallunterscheidung ist
+ * wie in {@link scheduleAnchorMs} — von Hand nachgezogen liefe die delay→absolut-Rechnung der einen
+ * Stelle irgendwann der anderen hinterher.
+ */
+export function scheduleTriggerIso(v: ScheduleValue, tz: string, nowMs: number): string | null {
+  const { wirksamAbAt, delayMinutes } = schedulePayload(v, tz);
+  if (wirksamAbAt) return wirksamAbAt;
+  if (delayMinutes) return new Date(nowMs + delayMinutes * 60_000).toISOString();
+  return null;
 }
 
 /**

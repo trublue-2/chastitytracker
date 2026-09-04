@@ -1188,6 +1188,7 @@
     "scheduleDelayHint": "Anforderung wird nach dieser Verzögerung versendet; bis dahin für den Sub unsichtbar.",
     "scheduleFutureRequired": "Versandzeitpunkt muss in der Zukunft liegen",
     "withdrawLockTitle": "Sperrzeit aufheben",
+    "editLockRequestTitle": "Anforderung bearbeiten",
     "withdrawKontrolleTitle": "Kontrolle zurückziehen",
     "sending": "Sende…",
     "roleUser": "Benutzer",

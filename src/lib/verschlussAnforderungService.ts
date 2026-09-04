@@ -433,7 +433,7 @@ export function mergeLockRequestPatch(
 
 /**
  * Ändert eine offene Einschliess-ANFORDERUNG (Frist, Nachricht, Gerät, Sperr-Vorgabe, Auslösezeit).
- * Genutzt vom MCP-Tool `edit_lock_request`; das Admin-UI kennt bislang nur Anlegen + Zurückziehen.
+ * Genutzt vom MCP-Tool `edit_lock_request` und vom Admin-UI (PATCH `…/[id]` `action:"edit"`).
  *
  * Warum überhaupt änderbar: eine Anforderung zurückzuziehen und neu zu stellen ist für den Sub
  * nicht dasselbe — er sieht dann eine Rücknahme und eine zweite Anweisung, und eine terminierte
