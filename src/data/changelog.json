@@ -1,13 +1,20 @@
 [
   {
     "version": "6.0.7",
-    "date": "2026-09-03",
+    "date": "2026-09-04",
     "changes": [
       {
         "type": "ui",
         "text": {
           "de": "Im Posteingang steuern die Auswahlkästchen jetzt alle Sammel-Aktionen: Angehaktes — oder alles auf der Seite — lässt sich löschen oder als gelesen bzw. ungelesen markieren.",
           "en": "In the inbox, the checkboxes now drive every bulk action: what you tick — or everything on the page — can be deleted or marked read or unread."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die Rekorde zeigen jetzt auch die längste orgasmusfreie Zeit — als Bestwert zum Ansporn und zum Vorzeigen.",
+          "en": "The records now also show the longest time without an orgasm — a personal best to aim for and to show off."
         }
       }
     ]

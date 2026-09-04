@@ -1,4 +1,4 @@
-import { calculateWearingHoursByRange, median, msToHours, round1, summarizeDurations } from "@/lib/utils";
+import { calculateWearingHoursByRange, longestOrgasmFreeGap, median, msToHours, round1, summarizeDurations } from "@/lib/utils";
 import { resolveGoalTargets, type ByPeriod, type GoalChangedInPeriod, type VorgabeTargets } from "@/lib/goalFulfillment";
 import { getActiveVorgabe } from "@/lib/queries";
 import { buildCategoryWearGoals } from "@/lib/categoryGoals";
@@ -234,12 +234,11 @@ function orgasmTimes(entries: TrackingEntry[]): Date[] {
   return entries.filter((e) => e.type === "ORGASMUS").map((e) => e.startTime).sort((a, b) => a.getTime() - b.getTime());
 }
 
-/** Längste Lücke zwischen Orgasmen inkl. der aktuell laufenden Strecke (now − letzter Orgasmus). */
+/** Längste Lücke zwischen Orgasmen inkl. der aktuell laufenden Strecke (now − letzter Orgasmus).
+ *  Rechenkern in `longestOrgasmFreeGap` (utils) — dieselbe Quelle, aus der der Rekorde-Block der
+ *  Statistik-Seite denselben Wert zieht; hier interessiert nur die Dauer. */
 function longestOrgasmGapMs(times: Date[], now: Date): number | null {
-  if (times.length === 0) return null;
-  let longest = now.getTime() - times[times.length - 1].getTime();
-  for (let i = 1; i < times.length; i++) longest = Math.max(longest, times[i].getTime() - times[i - 1].getTime());
-  return longest;
+  return longestOrgasmFreeGap(times, now)?.ms ?? null;
 }
 
 export async function records(username: string, ctx?: TrackingContext, presessions?: Session[]): Promise<RecordsResult> {
