@@ -112,56 +112,27 @@ describe("Seiten-Masse kommen aus einer Quelle", () => {
   );
 
   /**
-   * Der Rückstand, Stand 26.08.2026 — diese Liste darf nur SCHRUMPFEN.
-   *
-   * Sie steht hier und nicht in einem Ticket, weil ein Ticket den fünfzehnten Nachbau nicht
-   * verhindert. Der Test schon: wer eine neue Rubrik von Hand setzt, muss die Datei hier eintragen,
-   * und spätestens dann fällt auf, dass es `BlockHeading` gibt.
-   *
-   * Zwei Familien stehen darin, und sie brauchen verschiedene Antworten. Die einen sind echte
-   * Nachbauten der Block-Rubrik (`admin/page.tsx`, `TaskCard.tsx`, `WeightStatsCard.tsx` …) — die
-   * gehören auf `BlockHeading`. Die anderen sind FORMULAR-Beschriftungen (`FormField.tsx`,
-   * `NotificationToggles.tsx`), die zufällig dieselbe Klassenkette tragen: ein `<label>` über einem
-   * Feld ist keine Abschnitts-Überschrift und hat in der Überschriften-Navigation nichts verloren.
-   * Die brauchen ein eigenes benanntes Bauteil, nicht `BlockHeading`.
+   * #78 aufgeräumt: der frühere `HEADING_BACKLOG` (26.08.2026 vierzehn Dateien, zuletzt elf) ist leer —
+   * keine Seite baut die Rubrik-Klassenkette mehr von Hand. Sie kommt jetzt ausschliesslich aus
+   * einem benannten Bauteil: `BlockHeading` für einen Abschnitt (h2/h3/span), `FormFieldLabel` für
+   * die versale Beschriftung ÜBER einem Feld (ein `<label>`, keine Überschrift). Beide tragen die Kette
+   * absichtlich und sind darum unten von der Prüfung ausgenommen. Wer eine neue von Hand setzt,
+   * fällt auf — und nimmt das passende Bauteil.
    */
-  const HEADING_BACKLOG = new Set([
-    "src/app/admin/page.tsx",
-    "src/app/admin/users/[id]/VorgabeForm.tsx",
-    "src/app/admin/users/[id]/einstellungen/NotificationToggles.tsx",
-    "src/app/admin/users/[id]/einstellungen/page.tsx",
-    "src/app/admin/users/[id]/strafbuch/StrafbuchClient.tsx",
-    "src/app/components/AvatarMenu.tsx",
-    "src/app/components/CalendarContainer.tsx",
-    "src/app/components/FormField.tsx",
-    "src/app/components/TaskCard.tsx",
-    "src/app/components/WeightStatsCard.tsx",
-    "src/app/dashboard/geraete/DevicesClient.tsx",
-  ]);
 
   it.each(ALL.filter((f) =>
     f !== "src/app/components/BlockHeading.tsx"
+    && f !== "src/app/components/FormFieldLabel.tsx"
     && !f.startsWith("src/app/admin/dev/")
-    && !HEADING_BACKLOG.has(f)
   ))(
     "%s baut keine eigene Rubrik",
     (file) => {
       expect(
         stripComments(readFileSync(file, "utf8")),
-        `${file} setzt eine Rubrik von Hand — \`BlockHeading\` nehmen (es kann h2/h3/span)`,
+        `${file} setzt eine Rubrik/Feld-Beschriftung von Hand — \`BlockHeading\` (Abschnitt) oder \`FormFieldLabel\` (Feld) nehmen`,
       ).not.toMatch(HEADING);
     },
   );
-
-  // Ohne diese Prüfung wäre der Rückstand die bequemste Stelle, an der der Test still stirbt: wer
-  // die Regex kaputtmacht, bekommt eine grüne Suite UND eine Liste, die weiterhin nach Aufsicht
-  // aussieht. Also muss jeder Eintrag darin auch wirklich noch ein Treffer sein.
-  it.each([...HEADING_BACKLOG])("%s steht zu Recht im Rückstand", (file) => {
-    expect(
-      stripComments(readFileSync(file, "utf8")),
-      `${file} baut keine Rubrik mehr von Hand — aus HEADING_BACKLOG streichen`,
-    ).toMatch(HEADING);
-  });
 });
 
 /**

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import BlockHeading from "@/app/components/BlockHeading";
 import { redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import RoleSelect from "@/app/admin/RoleSelect";
@@ -346,17 +347,17 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
             <div className="border-t border-border-subtle">
               {groups.map((g) => (
                 <div key={g.category.id} className="border-b border-border-subtle last:border-b-0">
-                  <p className="px-5 py-2 text-xs font-semibold uppercase tracking-wider text-foreground-faint bg-background-subtle">
+                  <BlockHeading as="span" className="block px-5 py-2 bg-background-subtle">
                     {g.category.name}
-                  </p>
+                  </BlockHeading>
                   <div className="divide-y divide-border-subtle">{g.vorgaben.map(renderRow)}</div>
                 </div>
               ))}
               {orphans.length > 0 && (
                 <div className="border-b border-border-subtle last:border-b-0">
-                  <p className="px-5 py-2 text-xs font-semibold uppercase tracking-wider text-foreground-faint bg-background-subtle">
+                  <BlockHeading as="span" className="block px-5 py-2 bg-background-subtle">
                     {tc("uncategorized")}
-                  </p>
+                  </BlockHeading>
                   <div className="divide-y divide-border-subtle">{orphans.map(renderRow)}</div>
                 </div>
               )}

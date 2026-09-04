@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
+import FormFieldLabel from "@/app/components/FormFieldLabel";
 import FormError from "@/app/components/FormError";
 import { coveragePct } from "@/lib/percent";
 import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/constants";
@@ -30,7 +31,7 @@ function InputWithUnit({
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{label}</label>
+      <FormFieldLabel className="mb-1.5">{label}</FormFieldLabel>
       <div className="flex gap-2">
         <input
           type="number"
@@ -174,7 +175,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
 
       {showCategoryPicker && (
         <div>
-          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeCategory")}</label>
+          <FormFieldLabel className="mb-1.5">{t("vorgabeCategory")}</FormFieldLabel>
           <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`w-full ${fieldCls}`}>
             {categories!.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -185,11 +186,11 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeFromRequired")}</label>
+          <FormFieldLabel className="mb-1.5">{t("vorgabeFromRequired")}</FormFieldLabel>
           <input type="date" required value={gueltigAb} onChange={(e) => setGueltigAb(e.target.value)} className={`w-full ${fieldCls}`} />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeToOptional")}</label>
+          <FormFieldLabel className="mb-1.5">{t("vorgabeToOptional")}</FormFieldLabel>
           <div className="flex gap-2 items-center">
             <input type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} className={`w-full ${fieldCls}`} />
             {gueltigBis && (
@@ -216,7 +217,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-1.5">{t("vorgabeNoteOptional")}</label>
+        <FormFieldLabel className="mb-1.5">{t("vorgabeNoteOptional")}</FormFieldLabel>
         <input type="text" value={notiz} onChange={(e) => setNotiz(e.target.value)}
           placeholder="z.B. Trainingsstufe 2"
           className={`w-full ${fieldCls}`} />

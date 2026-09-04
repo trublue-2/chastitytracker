@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import FormFieldLabel from "@/app/components/FormFieldLabel";
 
 interface Props {
   label: string;
@@ -27,10 +28,7 @@ export default function FormField({ label, htmlFor, required, children }: Props)
   const tc = useTranslations("common");
   return (
     <div>
-      <label
-        htmlFor={htmlFor}
-        className="block text-xs font-semibold text-foreground-faint uppercase tracking-wider mb-2"
-      >
+      <FormFieldLabel htmlFor={htmlFor} className="mb-2">
         {label}
         {required && (
           <>
@@ -38,7 +36,7 @@ export default function FormField({ label, htmlFor, required, children }: Props)
             <span className="sr-only">{tc("requiredField")}</span>
           </>
         )}
-      </label>
+      </FormFieldLabel>
       {children}
     </div>
   );
