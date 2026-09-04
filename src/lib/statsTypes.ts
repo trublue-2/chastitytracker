@@ -43,6 +43,10 @@ export type CalendarDayData = {
   dateLabel: string;
   wearHours: number;
   hasOrgasm: boolean;
+  /** Kanonische Arten der an diesem Tag BESTÄTIGTEN Regelverstösse (leer = keiner). Trägt sowohl den
+   *  Marker (Länge > 0) als auch die Detail-Ansicht, die die Arten benennt (#46). Nur in der
+   *  Keyholder-Sicht befüllt; im Träger-Kalender immer leer. */
+  violationTypes: string[];
   dailyGoalMet: boolean | null;
   colorClass: string;
   entries: DayEntry[];
@@ -67,6 +71,8 @@ export interface HeatmapDay {
   title: string;
   level: number;
   hasOrgasm: boolean;
+  /** Gab es an diesem Tag einen bestätigten Regelverstoss? Nur in der Keyholder-Sicht je true (#46). */
+  hasViolation: boolean;
 }
 
 export interface YearHeatmapData {

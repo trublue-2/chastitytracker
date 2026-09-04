@@ -9,6 +9,13 @@
           "de": "Im Posteingang steht die Zahl der ungelesenen Meldungen jetzt am „Ungelesen“-Reiter selbst, und eine gerade gelesene Zeile ist als „soeben gelesen“ gekennzeichnet, statt kommentarlos zu verblassen.",
           "en": "The inbox now shows the unread count right on the “Unread” tab, and a row you just read is marked “just read” instead of quietly fading."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Im Statistik-Kalender der Keyholderin markiert ein eigenes Zeichen die Tage mit einem bestätigten Regelverstoss — so werden sie über die Zeit sichtbar statt nur im Einzelfall. Das Tagesfenster nennt die Art des Verstosses.",
+          "en": "In the keyholder's stats calendar, a distinct marker now flags days with a confirmed rule violation — making them visible over time instead of case by case. The day view names the kind of violation."
+        }
       }
     ]
   },

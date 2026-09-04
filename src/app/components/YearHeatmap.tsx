@@ -23,6 +23,9 @@ function DayCell({ day, size, dot }: { day: HeatmapDay; size: string; dot: strin
   return (
     <div title={day.title} className={`${size} rounded-[3px] ${LEVEL_CLASS[day.level]} relative`}>
       {day.hasOrgasm && <span className={`absolute -top-px -right-px ${dot} bg-[var(--color-orgasm)] rounded-full`} />}
+      {/* Regelverstoss: eigene Farbe (warn) + Form (Quadrat) in der unteren Ecke — konsistent zum
+          Monatskalender (#46). */}
+      {day.hasViolation && <span className={`absolute -bottom-px -right-px ${dot} bg-[var(--color-warn)] rounded-[1px]`} />}
     </div>
   );
 }

@@ -98,6 +98,10 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
     // Dieselbe Frage, die `as` schon beantwortet: wer die Landmarke aufspannt, schreibt auch die
     // Ebene-1-Überschrift. Im Keyholder-Reiter tut das Layout beides.
     isLandmark: Tag === "main",
+    // Sieht hier die Keyholderin auf einen Träger, oder der Träger auf sich? Der Kalender-Marker für
+    // bestätigte Regelverstösse (#46) erscheint bewusst NUR in der Keyholder-Sicht — das Strafbuch
+    // ist heute admin-only, und die Sub-Sicht soll das nicht ändern.
+    isKeyholderView: surface === "keyholderStats",
   };
 
   const nodes = await renderStack(layout, ctx, STATS_BLOCK_TABLE);

@@ -222,6 +222,18 @@ describe("buildCalendarMonths", () => {
     expect(tage.find(d => d!.day === 9)!.entries).toHaveLength(1);
     expect(tage.find(d => d!.day === 8)!.entries).toHaveLength(0);
   });
+
+  it("trägt die Verstoss-Arten aus violationDays am betroffenen Tag — und nur dort (#46)", () => {
+    const violationDays = new Map([[key(2026, 7, 2), ["late_control", "wrong_device"]]]);
+    const tage = buildCalendarMonths({ ...base, violationDays }).flatMap(m => m.weeks.flat()).filter(Boolean);
+    expect(tage.find(d => d!.day === 2)!.violationTypes).toEqual(["late_control", "wrong_device"]);
+    expect(tage.find(d => d!.day === 3)!.violationTypes).toEqual([]);
+  });
+
+  it("ohne violationDays trägt kein Tag Verstoss-Arten (Träger-Sicht)", () => {
+    const tage = buildCalendarMonths(base).flatMap(m => m.weeks.flat()).filter(Boolean);
+    expect(tage.every(d => d!.violationTypes.length === 0)).toBe(true);
+  });
 });
 
 describe("buildYearHeatmaps", () => {
@@ -249,6 +261,14 @@ describe("buildYearHeatmaps", () => {
   it("percentLocked ist 0 ohne Trage-Zeit", () => {
     const [y] = buildYearHeatmaps([], new Set(), now, TZ, "de-CH");
     expect(y.percentLocked).toBe(0);
+  });
+
+  it("markiert Verstoss-Tage konsistent zum Monatskalender (hasViolation, #46)", () => {
+    const violationDays = new Map([[key(2026, 7, 2), ["late_control"]]]);
+    const [y] = buildYearHeatmaps([], new Set(), now, TZ, "de-CH", undefined, violationDays);
+    const tage = y.weeks.flat().filter(Boolean);
+    expect(tage.find(d => d!.key === key(2026, 7, 2))!.hasViolation).toBe(true);
+    expect(tage.find(d => d!.key === key(2026, 7, 3))!.hasViolation).toBe(false);
   });
 });
 

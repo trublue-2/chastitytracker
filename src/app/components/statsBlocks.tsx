@@ -5,7 +5,7 @@ import type { StatsBlockId } from "@/lib/dashboardBlockRegistry";
 import {
   cleaningRulesCached, completedPairsCached, devicesCached, entriesAscCached, entriesCached,
   kgDailyDataCached, kgPairsCached, kgVorgabenCached, kgWearPairsCached, orgasmDaysCached,
-  orgasmEntriesCached, statsCategoriesCached, strafbuchCached, subVisibleInspectionsCached,
+  orgasmEntriesCached, punishedDaysCached, statsCategoriesCached, strafbuchCached, subVisibleInspectionsCached,
   vorgabenCached, wearCountsCached, wearPairsByCategoryCached, wearSessionsCached,
 } from "@/lib/dashboardData";
 import { goalPct, sharePct } from "@/lib/percent";
@@ -74,6 +74,9 @@ export interface StatsCtx {
    * Überschriften-Navigation zeigte zwei gleichrangige Einstiege für einen Bildschirm.
    */
   isLandmark: boolean;
+  /** Keyholder-Sicht (`keyholderStats`) statt Träger-Sicht (`subStats`)? Steuert den Kalender-Marker
+   *  für bestätigte Regelverstösse (#46), der bewusst nur der Keyholderin gezeigt wird. */
+  isKeyholderView: boolean;
 }
 
 /**
@@ -275,11 +278,13 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
   // KG zeigt immer die Orgasmus-Punkte; die Geräte-Kategorien nicht (ein Orgasmus gehört zu keinem
   // bestimmten Gerät).
   calendar: block({
-    load: async ({ userId, nowMs, now, tz, dl }) => {
-      const [entries, vorgaben, kgVorgaben, wearPairs, wearPairsByCategory, orgasmDays, dailyData, categories] = await Promise.all([
+    load: async ({ userId, nowMs, now, tz, dl, isKeyholderView }) => {
+      const [entries, vorgaben, kgVorgaben, wearPairs, wearPairsByCategory, orgasmDays, dailyData, categories, violationDays] = await Promise.all([
         entriesAscCached(userId), vorgabenCached(userId), kgVorgabenCached(userId), kgWearPairsCached(userId, nowMs),
         wearPairsByCategoryCached(userId, nowMs), orgasmDaysCached(userId, tz),
         kgDailyDataCached(userId, nowMs, tz), statsCategoriesCached(userId),
+        // Regelverstoss-Marker nur in der Keyholder-Sicht (#46); die Sub-Sicht fragt gar nicht erst.
+        isKeyholderView ? punishedDaysCached(userId, nowMs, tz) : Promise.resolve(undefined),
       ]);
 
       const variants: CalendarVariant[] = [];
@@ -289,7 +294,7 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
           isKG: true,
           months: buildCalendarMonths({
             entries, wearPairs, vorgaben: kgVorgaben, orgasmDateSet: orgasmDays,
-            now, dl, tz, dailyData,
+            now, dl, tz, dailyData, violationDays,
           }),
         });
       }
@@ -314,11 +319,12 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
 
   // Jahresübersicht (Heatmap) — nur wenn Tragedaten existieren.
   yearHeatmap: block({
-    load: async ({ userId, nowMs, now, tz, dl }) => {
-      const [wearPairs, orgasmDays, dailyData] = await Promise.all([
+    load: async ({ userId, nowMs, now, tz, dl, isKeyholderView }) => {
+      const [wearPairs, orgasmDays, dailyData, violationDays] = await Promise.all([
         kgWearPairsCached(userId, nowMs), orgasmDaysCached(userId, tz), kgDailyDataCached(userId, nowMs, tz),
+        isKeyholderView ? punishedDaysCached(userId, nowMs, tz) : Promise.resolve(undefined),
       ]);
-      return dailyData ? buildYearHeatmaps(wearPairs, orgasmDays, now, tz, dl, dailyData) : [];
+      return dailyData ? buildYearHeatmaps(wearPairs, orgasmDays, now, tz, dl, dailyData, violationDays) : [];
     },
     render: (years, { dl }) => years.length > 0 && (
       <YearHeatmap years={years} weekdayLabels={buildWeekdayLabels(dl)} />

@@ -15,6 +15,7 @@ import {
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildDailyData } from "@/lib/statsBuilders";
 import { buildStrafbuch } from "@/lib/strafbuch";
+import { selectSubOffenses } from "@/lib/subOffenses";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { belongsOnDashboard, getEvaluatedTaskHistory, loadTaskProofViews } from "@/lib/taskIntervals";
@@ -573,6 +574,28 @@ export const wearPairsByCategoryCached = cache(async (userId: string, nowMs: num
 export const orgasmDaysCached = cache(async (userId: string, tz: string) =>
   new Set((await orgasmEntriesCached(userId)).map((e) => tzDayKey(e.startTime, tz))),
 );
+
+/** Die Tage mit BESTÄTIGTEM Regelverstoss (StrafeRecord PUNISHED) → dessen kanonische Arten, als
+ *  Tagesschlüssel in der Zone des Trägers. Für den Kalender-Marker der KEYHOLDER-Statistik (#46):
+ *  „erkannt" allein zählt nicht, nur was die Keyholderin als Strafe bestätigt hat. Ein Vorfall ohne
+ *  auflösbare Tatzeit (`offenseAt === null`, z. B. gelöschter Bezugs-Eintrag) fällt weg — er lässt
+ *  sich keinem Kalendertag zuordnen. */
+export const punishedDaysCached = cache(async (userId: string, nowMs: number, tz: string) => {
+  const days = new Map<string, string[]>();
+  for (const o of selectSubOffenses(await strafbuchCached(userId, nowMs))) {
+    // „punished" (offen) UND „done" (bestraft + erledigt) sind beide DB-Status PUNISHED — der
+    // Verstoss war ja in beiden Fällen real; nur „dismissed" (abgewunken) fällt weg.
+    if (o.state !== "punished" && o.state !== "done") continue;
+    // Ohne auflösbaren Anlass (Art ODER Tatzeit fehlt, z. B. gelöschter Bezugs-Eintrag) lässt sich
+    // der Vorfall weder benennen noch einem Tag zuordnen — er fällt weg.
+    if (!o.offenseType || !o.offenseAt) continue;
+    const key = tzDayKey(o.offenseAt, tz);
+    const list = days.get(key);
+    if (list) { if (!list.includes(o.offenseType)) list.push(o.offenseType); }
+    else days.set(key, [o.offenseType]);
+  }
+  return days;
+});
 
 /** Die Tages-Karte der KG-Tragezeit — Kalender und Jahres-Heatmap brauchen dieselbe. */
 export const kgDailyDataCached = cache(async (userId: string, nowMs: number, tz: string) => {

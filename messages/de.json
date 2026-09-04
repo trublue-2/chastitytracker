@@ -1539,6 +1539,7 @@
   },
   "calendar": {
     "wearTime": "Tragezeit",
+    "violations": "Regelverstösse",
     "validGoal": "Gültiges Ziel",
     "minPerDay": "Min. pro Tag",
     "minPerWeek": "Min. pro Woche",

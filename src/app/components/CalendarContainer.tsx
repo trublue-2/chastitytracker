@@ -7,6 +7,8 @@ import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { iconButtonCls } from "@/app/components/inputStyles";
 import { useDialogBehaviour } from "@/app/hooks/useDialogBehaviour";
 import { useLocale, useTranslations } from "next-intl";
+import { offenseNameKey } from "@/lib/offenseLabels";
+import type { OffenseCanonicalType } from "@/lib/offenseTypes";
 
 import type { DayEntry, DayVorgabe, CalendarDayData, CalendarMonthData } from "@/lib/statsTypes";
 
@@ -14,6 +16,9 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
   const locale = useLocale();
   const t = useTranslations("calendar");
   const tc = useTranslations("common");
+  // Die Arten-Namen der Regelverstösse aus der EINEN geteilten Quelle (`offenses`-Namensraum),
+  // dieselbe, die der Einstellungs-Abschnitt und die Strafen-Sicht nutzen (#46).
+  const to = useTranslations("offenses");
   const [selected, setSelected] = useState<CalendarDayData | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -62,7 +67,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
                 <Fragment key={wi}>
                   {week.map((dayData, di) => {
                     if (!dayData) return <div key={`${wi}-${di}`} className="aspect-square" />;
-                    const hasData = dayData.entries.length > 0 || dayData.wearHours > 0;
+                    const hasData = dayData.entries.length > 0 || dayData.wearHours > 0 || dayData.violationTypes.length > 0;
                     return (
                       <button
                         key={`${wi}-${di}`}
@@ -75,6 +80,9 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
                       >
                         <span className="text-xs font-medium leading-none">{dayData.day}</span>
                         {dayData.hasOrgasm && <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-[var(--color-orgasm)] rounded-full" />}
+                        {/* Regelverstoss: eigene Farbe (warn) UND eigene Form (Quadrat) in einer anderen
+                            Ecke — nicht als zweiter Punkt derselben Art (#46). */}
+                        {dayData.violationTypes.length > 0 && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-[var(--color-warn)] rounded-sm" />}
                       </button>
                     );
                   })}
@@ -153,6 +161,20 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
                   </div>
                 )}
                 {selected.vorgabe.notiz && <p className="text-neben text-foreground-faint italic mt-0.5">{selected.vorgabe.notiz}</p>}
+              </div>
+            )}
+
+            {selected.violationTypes.length > 0 && (
+              <div className="border-t border-border-subtle pt-3">
+                <BlockHeading as="span" className="block mb-2">{t("violations")}</BlockHeading>
+                <div className="flex flex-col gap-1">
+                  {selected.violationTypes.map((type) => (
+                    <span key={type} className="flex items-center gap-1.5 text-sm text-warn">
+                      <span className="w-1.5 h-1.5 bg-[var(--color-warn)] rounded-sm shrink-0" aria-hidden="true" />
+                      {to(offenseNameKey(type as OffenseCanonicalType))}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 

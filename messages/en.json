@@ -1539,6 +1539,7 @@
   },
   "calendar": {
     "wearTime": "Wear time",
+    "violations": "Rule violations",
     "validGoal": "Active goal",
     "minPerDay": "Min. per day",
     "minPerWeek": "Min. per week",

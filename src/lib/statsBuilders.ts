@@ -190,6 +190,10 @@ export function buildCalendarMonths(opts: {
   /** Vorberechnete Tages-Karte. Kalender und Jahres-Heatmap brauchen für dieselben Paare dieselbe
    *  Karte; wer beide baut, reicht sie durch, statt sie zweimal zu berechnen. */
   dailyData?: DailyData;
+  /** Tage mit bestätigtem Regelverstoss → dessen kanonische Arten (#46). Separat von `dailyData`,
+   *  weil die aus dem Strafbuch kommen, nicht aus den Trage-Paaren, und nur die Keyholder-Sicht sie
+   *  befüllt. Leer/fehlt = kein Marker. */
+  violationDays?: Map<string, string[]>;
 }): CalendarMonthData[] {
   const { entries, wearPairs, vorgaben, orgasmDateSet, now, dl, tz } = opts;
   const dailyData = opts.dailyData ?? buildDailyData(wearPairs, orgasmDateSet, tz);
@@ -267,7 +271,7 @@ export function buildCalendarMonths(opts: {
           orgasmusArt: e.orgasmusArt,
         }));
         const dateLabel = formatCalendarDate(year, month, day, dl, DAY_LABEL_OPTS);
-        return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, dailyGoalMet, colorClass, entries: dayEntries, vorgabe: dayVorgabe };
+        return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, violationTypes: opts.violationDays?.get(key) ?? [], dailyGoalMet, colorClass, entries: dayEntries, vorgabe: dayVorgabe };
       }));
     }
 
@@ -278,7 +282,7 @@ export function buildCalendarMonths(opts: {
 
 /** GitHub-style per-day wear heatmap, one entry per year that has data (newest first). Reuses the
  *  month calendar's per-day map + the shared blue intensity scale (hours/24). */
-export function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<string>, now: Date, tz: string, dl: string, precomputed?: DailyData): YearHeatmapData[] {
+export function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<string>, now: Date, tz: string, dl: string, precomputed?: DailyData, violationDays?: Map<string, string[]>): YearHeatmapData[] {
   const dailyData = precomputed ?? buildDailyData(wearPairs, orgasmDateSet, tz);
   const { year: nowYear, month: nowMonth, day: nowDay } = tzDateParts(now, tz);
   const years = new Set<number>([nowYear]);
@@ -301,6 +305,7 @@ export function buildYearHeatmaps(wearPairs: WearPair[], orgasmDateSet: Set<stri
           title: `${dateLabel} · ${formatTotalHours(hours)}`,
           level: wearIntensityLevel(hours),
           hasOrgasm: cell?.hasOrgasm ?? false,
+          hasViolation: violationDays?.has(key) ?? false,
         });
       }
     }

@@ -14,6 +14,7 @@ function day(d: number, wearHours: number, opts?: Partial<CalendarDayData>): Cal
     dateLabel: `${d}. März 2026`,
     wearHours,
     hasOrgasm: opts?.hasOrgasm ?? false,
+    violationTypes: opts?.violationTypes ?? [],
     dailyGoalMet: goalMet,
     colorClass: wearHours >= 18
       ? "bg-lock/20 text-lock-text"
