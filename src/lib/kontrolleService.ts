@@ -3,6 +3,7 @@ import { generateKontrollCode } from "@/lib/utils";
 import { sendMailSafe, escHtml, appBaseUrl, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime, formatDate, formatTime } from "@/lib/utils";
 import { firePush, hasPushTarget } from "@/lib/push";
+import { fireTelegram } from "@/lib/telegram";
 import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { actorColumn, recordMessageAndBadge, type MessageActor, type MessageRef } from "@/lib/messageService";
@@ -615,6 +616,7 @@ export async function sendKontrolleNotification(opts: {
 
   const push = buildInspectionPush({ t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar });
   firePush(user.id, push.title, push.body, formPath, badge);
+  fireTelegram(user.id, push.title, push.body);
 }
 
 /**
@@ -705,6 +707,7 @@ export async function resendInspectionCode(
   // Ziel des Antippens ist dasselbe Formular wie bei der Ankündigung — der Sub steht zwar meist
   // schon darauf, aber eine Meldung, die nirgendwohin führt, ist auf der Uhr eine Sackgasse.
   firePush(userId, push.title, push.body, inspectionHref(ka.code, { kommentar: ka.kommentar, categoryId: ka.categoryId }));
+  fireTelegram(userId, push.title, push.body);
   return { ok: true, data: null };
 }
 
@@ -751,5 +754,6 @@ export async function resendOwnInspectionCode(
   // im Bild landet.
   const push = buildInspectionCodePush({ code, targetLabel: null, tz });
   firePush(userId, push.title, push.body, inspectionHref(code, { categoryId }));
+  fireTelegram(userId, push.title, push.body);
   return { ok: true, data: null };
 }

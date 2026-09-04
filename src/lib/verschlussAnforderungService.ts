@@ -8,6 +8,7 @@ import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
 import { formatDateTime, formatDurationHours } from "@/lib/utils";
 import { firePush } from "@/lib/push";
+import { fireTelegram } from "@/lib/telegram";
 import { parseTriggerAt, computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { isHealthHoldActive } from "@/lib/healthHold";
@@ -323,7 +324,9 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     pushParts.push(endsAtDate ? t("lockPushUntil", { date: formatDateTime(endsAtDate) }) : t("lockIndefinite"));
   }
   if (message?.trim()) pushParts.push(message.trim());
-  firePush(userId, pushTitle, pushParts.join(" · "), "/dashboard", badge);
+  const pushBody = pushParts.join(" · ");
+  firePush(userId, pushTitle, pushBody, "/dashboard", badge);
+  fireTelegram(userId, pushTitle, pushBody);
 }
 
 /**

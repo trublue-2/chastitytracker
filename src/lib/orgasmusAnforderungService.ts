@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMailSafe, escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { formatDateTime } from "@/lib/utils";
 import { firePush } from "@/lib/push";
+import { fireTelegram } from "@/lib/telegram";
 import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS, APP_NAME } from "@/lib/constants";
 import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten } from "@/lib/reasonsService";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
@@ -316,5 +317,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   const pushParts: string[] = [`${t("orgasmWindowLabel")} ${windowStr}`];
   if (artLabel) pushParts.push(artLabel);
   if (message?.trim()) pushParts.push(message.trim());
-  firePush(userId, betreff, pushParts.join(" · "), "/dashboard", badge);
+  const pushBody = pushParts.join(" · ");
+  firePush(userId, betreff, pushBody, "/dashboard", badge);
+  fireTelegram(userId, betreff, pushBody);
 }

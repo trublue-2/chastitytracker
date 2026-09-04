@@ -35,14 +35,16 @@ export async function POST(req: NextRequest) {
 
   const chatIdStr = String(chatId);
   try {
-    const linked = await consumeTelegramLink(match[1], chatIdStr);
-    if (linked) {
-      structuredLog("telegram", "linked", { userId: linked.userId });
-      await sendTelegram(chatIdStr, localeT(linked.locale, "emails")("telegramLinkedConfirm"));
-    } else {
+    const result = await consumeTelegramLink(match[1], chatIdStr);
+    if (result.status === "linked") {
+      structuredLog("telegram", "linked", { userId: result.userId });
+      await sendTelegram(chatIdStr, localeT(result.locale, "emails")("telegramLinkedConfirm"));
+    } else if (result.status === "invalid") {
       // Unbekannter/abgelaufener Token — Empfänger-Sprache unbekannt, also Standardsprache.
       await sendTelegram(chatIdStr, localeT(null, "emails")("telegramLinkInvalid"));
     }
+    // status === "already": Wiederholung oder paralleler Anspruch — still, damit ein einziges
+    // /start nicht in mehreren Antworten endet (Telegram-Webhook-Retry bei langsamem 200).
   } catch (e) {
     structuredLog("telegram", "webhook_error", { error: (e as Error).message });
   }

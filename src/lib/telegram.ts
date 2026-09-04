@@ -49,6 +49,25 @@ export async function sendTelegram(chatId: string, text: string): Promise<void> 
   }
 }
 
+/**
+ * Telegram-Kurzmeldung an einen Nutzer über seine User-id — lädt die verknüpfte `telegramChatId` und
+ * sendet fire-and-forget, exakt wie {@link import("@/lib/push").firePush}. Nimmt `title` und `body`
+ * getrennt (dieselbe Signatur wie `firePush`) und fügt sie als `Titel\n\nText` zusammen; ohne
+ * verknüpften Chat passiert nichts. Für die reichhaltigen Direktiv-Meldungen (Verschluss/Orgasmus/
+ * Kontrolle), die bewusst ungefiltert neben Mail+Push gehen und `firePush` direkt rufen, statt über
+ * `notifyUser` — dort ist Telegram schon eingebaut.
+ */
+export function fireTelegram(userId: string, title: string, body: string): void {
+  void (async () => {
+    try {
+      const u = await prisma.user.findUnique({ where: { id: userId }, select: { telegramChatId: true } });
+      if (u?.telegramChatId) await sendTelegram(u.telegramChatId, `${title}\n\n${body}`);
+    } catch (e) {
+      structuredLog("telegram", "fire_error", { userId, error: (e as Error).message });
+    }
+  })();
+}
+
 // ── Verknüpfung: kurzlebiger, einmaliger Token (Muster wie PasswordResetToken) ────────────────────
 
 const LINK_TTL_MS = 15 * 60 * 1000; // 15 Minuten — der Nutzer drückt gleich nach dem Antippen Start.
@@ -67,30 +86,56 @@ export async function createTelegramLink(userId: string): Promise<string | null>
 }
 
 /**
- * Einen `/start <token>`-Klartext einlösen: den zugehörigen Nutzer finden, seine `telegramChatId`
- * setzen und den Token löschen (single-use). Liefert den Nutzer zurück (für die Bestätigung im
- * Chat) oder `null`, wenn der Token unbekannt oder abgelaufen ist.
+ * Ergebnis von {@link consumeTelegramLink} — drei Ausgänge statt „Nutzer oder null", damit der
+ * Webhook eine WIEDERHOLUNG derselben Zustellung nicht als Fehler meldet:
+ * - `linked`  → frisch verknüpft, Bestätigung senden
+ * - `already` → dieser Chat ist bereits verknüpft ODER ein paralleler Anspruch gewinnt gerade
+ *               (Telegram stellt dieselbe Nachricht bei zu langsamem 200 erneut zu) → still bestätigen
+ * - `invalid` → Token wirklich unbekannt/abgelaufen und kein verknüpfter Chat → Hinweis senden
  */
-export async function consumeTelegramLink(token: string, chatId: string): Promise<{ userId: string; locale: string } | null> {
+export type TelegramLinkResult =
+  | { status: "linked"; userId: string; locale: string }
+  | { status: "already" }
+  | { status: "invalid" };
+
+/**
+ * Einen `/start <token>`-Klartext einlösen: den zugehörigen Nutzer finden, seine `telegramChatId`
+ * setzen und den Token löschen (single-use).
+ *
+ * Race-sicher UND idempotent, weil Telegram-Webhooks bei einem langsamen HTTP-200 dieselbe Nachricht
+ * mehrfach (auch parallel) zustellen: Nur der Aufruf, der die Token-Zeile TATSÄCHLICH löscht
+ * (`deleteMany … count === 1`), gewinnt und verknüpft; jede Wiederholung landet auf `already` und
+ * schickt kein zweites „verbunden". Weil die Verknüpfung VOR dem Bestätigungs-Versand committet, ist
+ * bei einer späteren Wiederholung der Chat entweder schon verknüpft (→ `already`) oder der Token
+ * steht noch (→ Anspruch) — ein fälschliches „ungültig" kann es dadurch nicht geben.
+ */
+export async function consumeTelegramLink(token: string, chatId: string): Promise<TelegramLinkResult> {
+  const chatLinked = async (): Promise<boolean> =>
+    !!(await prisma.user.findFirst({ where: { telegramChatId: chatId }, select: { id: true } }));
+
   const row = await prisma.telegramLinkToken.findUnique({
     where: { token: hashToken(token) },
     select: { id: true, userId: true, expiresAt: true },
   });
-  if (!row) return null;
-  // Abgelaufen: aufräumen und ablehnen.
-  if (row.expiresAt.getTime() < Date.now()) {
-    await prisma.telegramLinkToken.delete({ where: { id: row.id } }).catch(() => {});
-    return null;
+  // Kein/abgelaufener Token: Wiederholung einer bereits geglückten Verknüpfung still bestätigen,
+  // ein echter Alt-/Fremd-Token bleibt „ungültig".
+  if (!row || row.expiresAt.getTime() < Date.now()) {
+    if (row) await prisma.telegramLinkToken.delete({ where: { id: row.id } }).catch(() => {});
+    return (await chatLinked()) ? { status: "already" } : { status: "invalid" };
   }
-  // Ein Vorgang, atomar und in dieser Reihenfolge: chatId gehört zu genau EINEM Nutzer (`@unique`),
-  // also muss eine bestehende Fremd-Bindung ERST gelöst werden, sonst schlägt das Schreiben am
-  // Unique-Index fehl; der abschliessende Token-Löschvorgang macht die Verknüpfung single-use.
+  // Atomarer Anspruch: verliert dieser Aufruf das Rennen (count === 0), verknüpft ein paralleler
+  // Aufruf gerade — nicht doppelt melden.
+  const claim = await prisma.telegramLinkToken.deleteMany({ where: { id: row.id } });
+  if (claim.count === 0) return { status: "already" };
+
+  // Gewonnen: chatId gehört zu genau EINEM Nutzer (`@unique`), also bestehende Fremd-Bindung ERST
+  // lösen, dann setzen; übrige Tokens desselben Nutzers verwerfen (single-use).
   const [, user] = await prisma.$transaction([
     prisma.user.updateMany({ where: { telegramChatId: chatId, NOT: { id: row.userId } }, data: { telegramChatId: null } }),
     prisma.user.update({ where: { id: row.userId }, data: { telegramChatId: chatId }, select: { id: true, locale: true } }),
     prisma.telegramLinkToken.deleteMany({ where: { userId: row.userId } }),
   ]);
-  return { userId: user.id, locale: user.locale };
+  return { status: "linked", userId: user.id, locale: user.locale };
 }
 
 /** Verknüpfung eines Nutzers lösen: Chat-Bindung entfernen und offene Link-Tokens verwerfen. */
