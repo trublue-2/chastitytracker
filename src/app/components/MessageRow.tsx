@@ -31,6 +31,7 @@ const SENDER_ICON: Record<MessageSenderKind, typeof Bot> = { ai: Bot, keyholder:
 export default function MessageRow({
   message: m,
   open,
+  justRead,
   selecting,
   checked,
   onCheck,
@@ -44,6 +45,9 @@ export default function MessageRow({
 }: {
   message: PresentedMessage;
   open: boolean;
+  /** In DIESER Sitzung gerade gelesen? Dann trägt die Zeile ein leises „soeben gelesen" — sonst
+   *  sähe eine unter dem Ungelesen-Filter absichtlich stehengebliebene Zeile wie ein Fehler aus (#64). */
+  justRead: boolean;
   selecting: boolean;
   checked: boolean;
   onCheck: () => void;
@@ -120,6 +124,9 @@ export default function MessageRow({
         <Icon size={12} aria-hidden="true" />
         {senderLabel(m.senderKind, m.senderName, keyholderName, t)} · {formatDayMonth(m.createdAt, dl, tz)} {formatTime(m.createdAt, dl, tz)}
       </span>
+      {/* Leiser Hinweis, dass DIESE Zeile gerade gelesen wurde — sie bleibt unter dem
+          Ungelesen-Filter bewusst stehen, statt wegzuspringen (#64). */}
+      {justRead && m.read && <span className="text-ok">· {t("justRead")}</span>}
     </span>
   );
 

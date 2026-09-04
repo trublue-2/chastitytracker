@@ -25,12 +25,16 @@ export default function MessageFilterBar({
   onChange,
   busy,
   announcement,
+  unreadInFilter,
   scope,
   aiSenderAvailable,
   keyholderName,
 }: {
   filter: MessageFilter;
   onChange: (filter: MessageFilter) => void;
+  /** Wie viele Nachrichten der wirksame Filter UNGELESEN zählt — der Stand steht am „Ungelesen"-
+   *  Reiter des Umschalters, damit man ihn nicht in der Glocke suchen muss (#64). */
+  unreadInFilter: number;
   /** Läuft gerade ein Nachladen? Heisst NICHT `disabled`, und die Felder bekommen das Attribut auch
    *  nicht: ein Element, das unter dem Fokus `disabled` wird, kann ihn nicht halten — der Browser
    *  gibt ihn an `<body>`. Wer die Kategorie per Tastatur wechselte, stand danach am Seitenanfang
@@ -83,7 +87,7 @@ export default function MessageFilterBar({
         size="md"
         options={[
           { value: "all", label: t("filterAll") },
-          { value: "unread", label: t("filterUnread") },
+          { value: "unread", label: `${t("filterUnread")} ${unreadInFilter}` },
         ]}
         value={filter.unreadOnly ? "unread" : "all"}
         onChange={(v) => onChange({ ...filter, unreadOnly: v === "unread" })}

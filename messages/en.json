@@ -1689,6 +1689,7 @@
     "emptyTitle": "No messages",
     "emptyText": "Requests, decisions and penalties collect here as soon as they reach you.",
     "markUnread": "Mark as unread",
+    "justRead": "just read",
     "refLabel": "Related text",
     "refMissing": "The related entry no longer exists.",
     "sender": {

@@ -1,9 +1,9 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { assertController } from "@/lib/authGuards";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
-import { keyholderInbox, listMessages, unreadCountForKeyholderCached } from "@/lib/messageService";
+import { keyholderInbox, listMessages, unreadCountForKeyholderCached, unreadCount } from "@/lib/messageService";
 import { presentMessages } from "@/lib/messagePresenter";
-import { messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
+import { isMessageFiltered, messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
 import { MESSAGE_SCOPES } from "@/lib/messageScope";
 import { APP_TZ } from "@/lib/utils";
 import MessageList from "@/app/components/MessageList";
@@ -33,11 +33,15 @@ export default async function AdminMessagesPage({
 
   const filter = parseMessageFilterFrom(await searchParams);
 
-  const [page, unread, locale, t] = await Promise.all([
+  const [page, unread, unreadInFilter, locale, t] = await Promise.all([
     listMessages(keyholderInbox(readerId, subs), { filter }),
     // Derselbe Zähler wie in der Kopfzeile — memoisiert läuft er im Request nur einmal, und er teilt
     // sich mit `assertController()` oben die eine Träger-Abfrage.
     unreadCountForKeyholderCached(readerId, session.user.role),
+    // Ungelesen IM FILTER für den Umschalter-Zähler; ohne aktiven Filter derselbe (memoisierte) Wert.
+    isMessageFiltered(filter)
+      ? unreadCount(keyholderInbox(readerId, subs), [], filter)
+      : unreadCountForKeyholderCached(readerId, session.user.role),
     getLocale(),
     getTranslations("messages"),
   ]);
@@ -70,6 +74,7 @@ export default async function AdminMessagesPage({
         initial={await presentMessages(page.messages, locale)}
         initialPageCount={page.pageCount}
         initialUnread={unread}
+        initialUnreadInFilter={unreadInFilter}
         initialFilter={filter}
         scope={SCOPE}
         aiSenderAvailable={aiSenderAvailable}

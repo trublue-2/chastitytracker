@@ -29,6 +29,9 @@ type LoadedPage = {
   messages: PresentedMessage[];
   page: number;
   pageCount: number;
+  /** Wie viele Nachrichten der WIRKSAME Filter UNGELESEN zählt (nicht nur die Seite) — die Zahl, die
+   *  der Umschalter am „Ungelesen"-Reiter nennt. */
+  unreadInFilter: number;
 };
 
 /** Welche Rückmeldung eine abgeschlossene Sammel-Aktion gibt — eine Zeile je Aktion, damit die
@@ -43,6 +46,7 @@ export default function MessageList({
   initial,
   initialPageCount,
   initialUnread,
+  initialUnreadInFilter,
   initialFilter = {},
   scope,
   aiSenderAvailable,
@@ -52,6 +56,9 @@ export default function MessageList({
   initial: PresentedMessage[];
   initialPageCount: number;
   initialUnread: number;
+  /** Ungelesene im Startfilter — Startwert des „Ungelesen M"-Zählers am Umschalter. Danach hält der
+   *  Client ihn fort (Lesen, Löschen). */
+  initialUnreadInFilter: number;
   /** Der Filter aus der Adresse (`?category=…`), mit dem die Seite schon serverseitig gefiltert
    *  wurde. Muss hier als Startwert ankommen, sonst zeigte die Filterleiste „alle Kategorien" über
    *  einer gefilterten Liste — und das erste Blättern hätte den Filter verloren. */
@@ -85,6 +92,14 @@ export default function MessageList({
   const [pageCount, setPageCount] = useState(initialPageCount);
   const [filter, setFilter] = useState<MessageFilter>(initialFilter);
   const [unread, setUnread] = useState(initialUnread);
+  // Der Ungelesen-Zähler des Umschalters — für den WIRKSAMEN Filter, nicht die ganze Instanz (die
+  // zählt die Glocke). Der Server nennt ihn bei jedem Laden; dazwischen hält der Client ihn fort,
+  // damit die Zahl nach Lesen/Löschen sofort stimmt statt erst beim Nachladen.
+  const [unreadInFilter, setUnreadInFilter] = useState(initialUnreadInFilter);
+  // Was in DIESER Sitzung gerade gelesen wurde. Unter dem Ungelesen-Filter bleibt eine gelesene
+  // Zeile bewusst stehen (damit sie nicht unter dem Finger wegspringt) — ohne Hinweis sieht das aus
+  // wie ein Fehler. Diese Menge trägt das leise „soeben gelesen" an der Zeile (Issue #64).
+  const [justRead, setJustRead] = useState<Set<string>>(new Set());
   // EIN Zustand für „Auswahl-Modus" UND „was ist angekreuzt": `null` = kein Modus. Als zwei
   // Variablen musste die Kopplung („Modus verlassen = Auswahl leeren") von Hand gehalten werden —
   // ein zweiter Ausstiegspfad, der die zweite Zeile vergisst, liesse eine unsichtbare Auswahl
@@ -188,6 +203,23 @@ export default function MessageList({
     }
   }
 
+  /** Den Gesamtstand nennt der Server (Glocke); den Ungelesen-Zähler des Filters rechnet der Client
+   *  fort — er weiss, welche Zeile er anfasste und ob sie ungelesen war. */
+  function applyCounts(res: { unread: number }, unreadInFilterDelta: number) {
+    setUnread(res.unread);
+    if (unreadInFilterDelta) setUnreadInFilter((n) => Math.max(0, n + unreadInFilterDelta));
+  }
+
+  /** Merkt eine Zeile als „in dieser Sitzung gelesen" (für das leise „soeben gelesen"), oder nimmt
+   *  sie wieder heraus, wenn sie erneut auf ungelesen gesetzt wird. */
+  function noteJustRead(id: string, read: boolean) {
+    setJustRead((prev) => {
+      const next = new Set(prev);
+      if (read) next.add(id); else next.delete(id);
+      return next;
+    });
+  }
+
   /** Aufklappen IST das Lesen — und nur das. Nicht das Öffnen der Liste, nicht der Push-Tap:
    *  „gelesen" ist bei Nachrichten mit Fristen eine Behauptung mit Konsequenz. */
   async function toggle(m: PresentedMessage) {
@@ -197,7 +229,8 @@ export default function MessageList({
     const res = await request<{ unread: number }>(`${apiBase}/${m.id}/read`, "POST");
     if (!res) return;
     setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: true } : x)));
-    setUnread(res.unread);
+    applyCounts(res, -1);
+    noteJustRead(m.id, true);
   }
 
   /** Als gelesen, ohne aufzuklappen — für Zeilen, die nichts aufzuklappen haben. Derselbe Endpunkt,
@@ -206,14 +239,16 @@ export default function MessageList({
     const res = await request<{ unread: number }>(`${apiBase}/${m.id}/read`, "POST");
     if (!res) return;
     setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: true } : x)));
-    setUnread(res.unread);
+    applyCounts(res, m.read ? 0 : -1);
+    if (!m.read) noteJustRead(m.id, true);
   }
 
   async function markUnread(m: PresentedMessage) {
     const res = await request<{ unread: number }>(`${apiBase}/${m.id}/read`, "DELETE");
     if (!res) return;
     setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, read: false } : x)));
-    setUnread(res.unread);
+    applyCounts(res, m.read ? 1 : 0);
+    noteJustRead(m.id, false);
   }
 
   async function deleteMessage(m: PresentedMessage) {
@@ -226,7 +261,7 @@ export default function MessageList({
     if (!res) return;
     setConfirmDelete(null);
     setMessages((prev) => prev.filter((x) => x.id !== m.id));
-    setUnread(res.unread);
+    applyCounts(res, m.read ? 0 : -1);
   }
 
   /**
@@ -253,6 +288,8 @@ export default function MessageList({
     setMessages(data.messages);
     setPage(data.page - 1);
     setPageCount(data.pageCount);
+    // Der Ungelesen-Zähler des Umschalters frisch vom Server — beim Blättern wie beim Filterwechsel.
+    setUnreadInFilter(data.unreadInFilter);
     // Die Auswahl galt für die Seite, die man verlässt — sie stumm fallen zu lassen sah aus wie ein
     // Fehler: die Kreuzchen waren weg, die Zählung stand auf null, und niemand hatte etwas getan.
     if (!quiet && (selected?.size ?? 0) > 0) toast.info(t("selectionCleared"));
@@ -394,10 +431,27 @@ export default function MessageList({
     // Seite) brauchen die Liste frisch. Beim blossen Gelesen-Flag reicht der lokale Patch darunter.
     if (action === "delete" || filter.unreadOnly) {
       // `quiet`: die Auswahl ist hier nicht verlorengegangen, sie wurde gerade ausgeführt — die
-      // Notiz von oben wäre eine zweite, widersprüchliche Meldung neben „3 gelöscht".
+      // Notiz von oben wäre eine zweite, widersprüchliche Meldung neben „3 gelöscht". `load` holt
+      // dabei auch die Filter-Zähler (Alle/Ungelesen) frisch vom Server.
       await load(page, filter, true);
       return;
     }
+    // Lokaler Patch (nur Gelesen-Flag, kein Nachladen): den Ungelesen-Zähler des Filters mitziehen.
+    // Wie viele der Angekreuzten kippen ihren Zustand? Die Auswahl liegt ganz auf DIESER Seite
+    // (`load` leert sie bei jedem Seitenwechsel), also reicht der Blick in `messages`.
+    const wasUnread = new Set(messages.filter((m) => !m.read).map((m) => m.id));
+    const flipped = ids.filter((id) => (action === "unread" ? !wasUnread.has(id) : wasUnread.has(id))).length;
+    setUnreadInFilter((n) => Math.max(0, n + (action === "unread" ? flipped : -flipped)));
+    setJustRead((prev) => {
+      const next = new Set(prev);
+      // Beim Lesen nur die WIRKLICH gekippten Zeilen als „soeben gelesen" merken — eine ohnehin
+      // gelesene Zeile trägt den Hinweis sonst zu Unrecht. Beim Zurücksetzen fällt er weg.
+      for (const id of ids) {
+        if (action === "read") { if (wasUnread.has(id)) next.add(id); }
+        else next.delete(id);
+      }
+      return next;
+    });
     const touched = new Set(ids);
     setMessages((prev) => prev.map((m) => (touched.has(m.id) ? { ...m, read: action === "read" } : m)));
   }
@@ -427,6 +481,7 @@ export default function MessageList({
         onChange={applyFilter}
         busy={saving}
         announcement={filterStatus}
+        unreadInFilter={unreadInFilter}
         scope={scope}
         aiSenderAvailable={aiSenderAvailable}
         keyholderName={keyholderName}
@@ -552,6 +607,7 @@ export default function MessageList({
               <MessageRow
                 message={m}
                 open={openId === m.id}
+                justRead={justRead.has(m.id)}
                 selecting={selected !== null}
                 checked={selected?.has(m.id) ?? false}
                 onCheck={() => toggleSelected(m.id)}

@@ -78,17 +78,22 @@ export function makeInboxRoutes(resolveScope: ScopeResolver): InboxRoutes {
 
       // Die Filter liest `parseMessageFilter` — dieselbe Stelle, an der der Client sie schreibt.
       const filter = parseMessageFilter(req.nextUrl.searchParams);
-      const [result, locale] = await Promise.all([
+      // Der Ungelesen-Zähler des Filters MIT in die Runde (statt seriell danach): der Umschalter
+      // nennt „Ungelesen M", und `M` respektiert die Sichtbarkeitsregel des Trägers (`unreadCount`
+      // hat dafür den materialisierten Pfad), was ein blosses `count` nicht könnte.
+      const [result, locale, unreadInFilter] = await Promise.all([
         listMessages(scope, {
           page: Number(req.nextUrl.searchParams.get("page") ?? 1),
           filter,
         }),
         getLocale(),
+        unreadCount(scope, [], filter),
       ]);
       return NextResponse.json({
         messages: await presentMessages(result.messages, locale),
         page: result.page,
         pageCount: result.pageCount,
+        unreadInFilter,
       });
     },
 

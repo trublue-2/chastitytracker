@@ -872,13 +872,16 @@ export async function listMessages(
 async function visibleUnreadRows(
   scope: InboxScope,
   alsoVisible: (string | null)[] = [],
+  /** Zusätzlich einschränken — für den Ungelesen-Zähler EINES Filters (Umschalter im Posteingang).
+   *  Ohne ihn zählt dieser Pfad den ganzen Posteingang. */
+  filter: MessageFilter = {},
 ): Promise<{ id: string }[]> {
   // Leere Träger-Liste = garantiert leeres Ergebnis (siehe `InboxScope`).
   if (scope.subjectUserIds.length === 0) return [];
   const rows = await prisma.message.findMany({
     // Über `messageWhere`, nicht von Hand: Zähler und Liste müssen denselben Ausschnitt meinen. Eine
     // zweite Abbildung Scope → Where liefe beim nächsten Filter-Feld lautlos auseinander.
-    where: messageWhere(scope, { unreadOnly: true }),
+    where: messageWhere(scope, { ...filter, unreadOnly: true }),
     // Nur, was über die Sichtbarkeit entscheidet — kein Text, kein Zeitstempel: dieser Pfad läuft
     // im Header auf JEDER Dashboard-Seite. `bodyKey` ist Teil davon, seit die Verwerfungs-Meldung
     // anders verschwindet als die Feststellung auf derselben Referenz; `subjectUserId`, seit der
@@ -904,12 +907,13 @@ async function visibleUnreadRows(
  *
  * Immer frisch — für JEDEN Aufruf NACH einem Schreibvorgang der richtige Weg.
  *
- * Zählt den GANZEN Posteingang des Scopes; die Glocke und das App-Badge zeigen alles Ungelesene,
- * nicht einen gefilterten Ausschnitt.
+ * Ohne `filter` der GANZE Posteingang (Glocke, App-Badge). Mit `filter` der Ungelesen-Stand EINES
+ * Ausschnitts — die Zahl, die der Umschalter „Alle N · Ungelesen M" im Posteingang nennt.
  */
 export async function unreadCount(
   scope: InboxScope,
   alsoCount: (string | null)[] = [],
+  filter: MessageFilter = {},
 ): Promise<number> {
   // Leere Träger-Liste = garantiert leeres Ergebnis (siehe `InboxScope`).
   if (scope.subjectUserIds.length === 0) return 0;
@@ -918,9 +922,9 @@ export async function unreadCount(
   // davon nur `.length` zu nehmen. `alsoCount` braucht dieser Zweig nicht — es holt ausschliesslich
   // Zeilen zurück, die der Verbergen-Filter entfernt hätte, und der läuft hier gar nicht.
   if (!hidesFromReader(scope)) {
-    return prisma.message.count({ where: messageWhere(scope, { unreadOnly: true }) });
+    return prisma.message.count({ where: messageWhere(scope, { ...filter, unreadOnly: true }) });
   }
-  return (await visibleUnreadRows(scope, alsoCount)).length;
+  return (await visibleUnreadRows(scope, alsoCount, filter)).length;
 }
 
 /**

@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.0.8",
+    "date": "2026-09-04",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Posteingang steht die Zahl der ungelesenen Meldungen jetzt am „Ungelesen“-Reiter selbst, und eine gerade gelesene Zeile ist als „soeben gelesen“ gekennzeichnet, statt kommentarlos zu verblassen.",
+          "en": "The inbox now shows the unread count right on the “Unread” tab, and a row you just read is marked “just read” instead of quietly fading."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.7",
     "date": "2026-09-04",
     "changes": [

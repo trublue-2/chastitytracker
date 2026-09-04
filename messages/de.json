@@ -1689,6 +1689,7 @@
     "emptyTitle": "Keine Nachrichten",
     "emptyText": "Hier sammeln sich Anforderungen, Entscheidungen und Strafen, sobald sie dich erreichen.",
     "markUnread": "Wieder als ungelesen",
+    "justRead": "soeben gelesen",
     "refLabel": "Zugehöriger Text",
     "refMissing": "Der zugehörige Eintrag existiert nicht mehr.",
     "sender": {
