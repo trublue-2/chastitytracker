@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { assertAdmin } from "@/lib/authGuards";
 import { toDateLocale, APP_TZ } from "@/lib/utils";
-import Link from "next/link";
+import BackLink from "@/app/components/BackLink";
 import { ClipboardCheck } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import EmptyState from "@/app/components/EmptyState";
@@ -50,13 +50,9 @@ export default async function AdminKontrollenPage({
     <main className="flex-1 py-6 flex flex-col gap-4">
       <div className="mb-6">
         {user ? (
-          <Link href={`/admin/users/${user.id}`} className="text-sm text-foreground-faint hover:text-foreground-muted transition">
-            ← {user.username}
-          </Link>
+          <BackLink href={`/admin/users/${user.id}`}>{user.username}</BackLink>
         ) : (
-          <Link href="/admin" className="text-sm text-foreground-faint hover:text-foreground-muted transition">
-            {t("backToOverview")}
-          </Link>
+          <BackLink href="/admin">{t("backToOverview")}</BackLink>
         )}
         <h1 className="text-xl font-bold text-foreground mt-1">
           {t("alarmeTitle")}{user ? ` – ${user.username}` : ""}

@@ -11,6 +11,7 @@ import {
 } from "@/lib/constants";
 import type { ResolvedReason } from "@/lib/reasonsService";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
+import { actionSign } from "@/app/entries/actionSign";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import DurationOrDatetimeField from "@/app/components/DurationOrDatetimeField";
 import FormError from "@/app/components/FormError";
@@ -136,8 +137,7 @@ export default function OrgasmusAnforderungForm({ userId, artOptions, tz, nowDef
     <AdminActionFormShell
       userId={userId}
       backLabel={t("aktionen")}
-      icon={<Droplets size={20} strokeWidth={2} />}
-      iconColor="var(--color-orgasm)"
+      {...actionSign("ORGASMUS")}
       title={t("requestOrgasm")}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

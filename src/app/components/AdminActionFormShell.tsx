@@ -1,8 +1,7 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { formColCls } from "@/app/components/inputStyles";
-import { quietLinkCls } from "@/app/components/inputStyles";
+import BackLink from "@/app/components/BackLink";
 
 /**
  * Der Kopf eines Aktions-/Erfassungs-Formulars — Rücklink, Zeichen, Titel — und darunter das
@@ -50,9 +49,7 @@ function ShellBody({ backHref, backLabel, icon, iconColor, title, subtitle, chil
   const H = isLandmark ? "h1" : "h2";
   return (
     <>
-      <Link href={backHref} className={quietLinkCls}>
-        ← {backLabel}
-      </Link>
+      <BackLink href={backHref}>{backLabel}</BackLink>
       {/* Kein Kasten um das Formular und keine getönte Kachel um sein Zeichen. Der Titel benennt
           den Bildschirm — dafür ist die Serif da —, das Zeichen steht daneben in der Farbe der
           Handlung. Die getönte Kachel dahinter sagte nichts, was die Farbe nicht schon sagt. */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Droplets } from "lucide-react";
+import { actionSign } from "@/app/entries/actionSign";
 import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import OrgasmusFormCore from "@/app/entries/OrgasmusFormCore";
@@ -25,8 +25,7 @@ export default function OrgasmusForm({ userId, artOptions, tz, nowDefault }: { u
     <AdminActionFormShell
       userId={userId}
       backLabel={t("aktionen")}
-      icon={<Droplets size={20} strokeWidth={2} />}
-      iconColor="var(--color-orgasm)"
+      {...actionSign("ORGASMUS")}
       title={tOrgasm("title")}
     >
       <OrgasmusFormCore

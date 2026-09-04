@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ClipboardCheck } from "lucide-react";
+import { actionSign } from "@/app/entries/actionSign";
 import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import PruefungFormCore from "@/app/entries/PruefungFormCore";
@@ -24,8 +24,7 @@ export default function PruefungForm({ userId, tz, nowDefault }: { userId: strin
     <AdminActionFormShell
       userId={userId}
       backLabel={t("aktionen")}
-      icon={<ClipboardCheck size={20} strokeWidth={2} />}
-      iconColor="var(--color-inspect)"
+      {...actionSign("PRUEFUNG")}
       title={tInspection("title")}
     >
       <PruefungFormCore

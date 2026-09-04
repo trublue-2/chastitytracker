@@ -120,6 +120,16 @@ export const readingColCls = "w-full max-w-2xl mx-auto px-4";
 export const wideColCls = "w-full max-w-3xl mx-auto px-4 sm:px-6";
 
 /**
+ * Die Spalte der Anmelde-Bildschirme ({@link AuthScreen}) — schmaler als das Lesemass, weil dort nur
+ * ein Formular steht. Sie zentriert NICHT über `mx-auto`, sondern über das `items-center` ihres
+ * `<main>`; deshalb steht sie hier als benanntes Mass statt als roher `max-w-sm`-Kette in der
+ * Komponente. So bleibt sie — wie `readingColCls`/`formColCls` — die eine Quelle ihrer Breite, und
+ * `pageMeasures.test.ts` sieht keine von Hand geschriebene Spalte, die es nur mangels `mx-auto`
+ * durchliesse.
+ */
+export const authColCls = "w-full max-w-sm";
+
+/**
  * Die HÜLLE des Keyholder-Bereichs — breiter als das Inhalts-Lesemass ({@link wideColCls}).
  *
  * Sie trägt zwei Dinge, die die 768 px sprengen: die neun Reiter der Träger-Seite (die sonst auf

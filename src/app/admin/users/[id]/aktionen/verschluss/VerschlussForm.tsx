@@ -9,7 +9,7 @@ import type { VerschlussPayload, SubmitResult } from "@/app/entries/types";
 import { submitAdminEntry } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { DeviceOption } from "@/lib/queries";
-import { LockClosedIcon } from "@/app/components/lockIcons";
+import { actionSign } from "@/app/entries/actionSign";
 
 export default function VerschlussForm({ userId, devices = [], tz, nowDefault }: { userId: string; devices?: DeviceOption[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");
@@ -26,8 +26,7 @@ export default function VerschlussForm({ userId, devices = [], tz, nowDefault }:
     <AdminActionFormShell
       userId={userId}
       backLabel={t("aktionen")}
-      icon={<LockClosedIcon size={20} strokeWidth={2} />}
-      iconColor="var(--color-lock)"
+      {...actionSign("VERSCHLUSS")}
       title={tLock("title")}
     >
       <VerschlussFormCore

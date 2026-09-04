@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import BackLink from "@/app/components/BackLink";
 import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
@@ -66,7 +66,7 @@ export default function NewUserPage() {
   // Kombination (Lesebreite + breiter Seitenrand) und wich damit von beiden Massen ab.
   return (
     <main className={`${formColCls} flex-1 py-6`}>
-      <Link href="/admin/users" className="text-sm text-foreground-faint hover:text-foreground-muted transition">{t("backToUsers")}</Link>
+      <BackLink href="/admin/users">{t("backToUsers")}</BackLink>
       <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("newUser")}</h1>
 
       <Card>
