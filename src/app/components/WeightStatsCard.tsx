@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import BlockHeading from "@/app/components/BlockHeading";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
 import Section from "@/app/components/Section";
@@ -108,7 +109,7 @@ export default function WeightStatsCard({
 
   return (
     <section className="flex flex-col gap-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">{t("title")}</p>
+      <BlockHeading as="span" className="px-1">{t("title")}</BlockHeading>
 
       {points.length === 0 ? (
         <Card padding="compact">

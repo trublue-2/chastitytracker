@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BlockHeading from "@/app/components/BlockHeading";
 import Link from "next/link";
 import BackLink from "@/app/components/BackLink";
 import { useRouter } from "next/navigation";
@@ -247,9 +248,9 @@ export default function DevicesClient({ devices: initialDevices, categories, use
           {groupedByCategory.map((group) => (
             <div key={group.category?.id ?? "none"} className="flex flex-col gap-2">
               {group.category && (
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground-faint px-1">
+                <BlockHeading as="h2" className="px-1">
                   {group.category.name}
-                </h2>
+                </BlockHeading>
               )}
               <div className="flex flex-col gap-3">
                 {group.devices.map((device) => (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BlockHeading from "@/app/components/BlockHeading";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/app/components/Button";
@@ -386,7 +387,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     return (
       <div className="bg-surface rounded-2xl border border-border overflow-hidden">
         <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint">{title}</p>
+          <BlockHeading as="span">{title}</BlockHeading>
           <span className="text-xs tabular-nums text-foreground-faint">
             {showBoth
               ? <><span className="font-semibold">{openCount} {labels.strafbuchOffen}</span><span className="opacity-50"> / {totalCount} {labels.strafbuchGesamt}</span></>

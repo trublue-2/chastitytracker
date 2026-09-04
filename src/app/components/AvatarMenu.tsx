@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import BlockHeading from "@/app/components/BlockHeading";
 import Link from "next/link";
 import { Settings, LogOut, ScrollText, Users } from "lucide-react";
 import { signOut } from "next-auth/react";
@@ -55,9 +56,9 @@ export default function AvatarMenu({ username, settingsHref, theme, version, isG
             onClick={() => setOpen(false)}
           />
           <div className={`absolute right-0 top-10 z-50 w-52 rounded-2xl overflow-hidden ${menuBg}`}>
-            <div className="px-4 py-3 border-b border-border text-foreground-faint text-xs font-semibold uppercase tracking-wider">
+            <BlockHeading as="span" className="block px-4 py-3 border-b border-border">
               {username}
-            </div>
+            </BlockHeading>
             <Link href={settingsHref} onClick={() => setOpen(false)} className={itemNormal}>
               <Settings size={16} strokeWidth={1.75} />
               {t("settings")}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Fragment, useRef } from "react";
+import BlockHeading from "@/app/components/BlockHeading";
 import { toDateLocale, formatTotalHours } from "@/lib/utils";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { iconButtonCls } from "@/app/components/inputStyles";
@@ -124,7 +125,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
 
             {selected.vorgabe && (
               <div className="flex flex-col gap-1.5 border-t border-border-subtle pt-3">
-                <p className="text-rubrik font-semibold uppercase tracking-wider text-foreground-faint mb-0.5">{t("validGoal")}</p>
+                <BlockHeading as="span" className="mb-0.5">{t("validGoal")}</BlockHeading>
                 {selected.vorgabe.minProTagH != null && (
                   <div className="flex items-center justify-between">
                     <span className="text-neben text-foreground-muted">{t("minPerDay")}</span>
@@ -157,7 +158,7 @@ export default function CalendarContainer({ months }: { months: CalendarMonthDat
 
             {selected.entries.length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-foreground-faint mb-2">{t("entries")}</p>
+                <BlockHeading as="span" className="block mb-2">{t("entries")}</BlockHeading>
                 <div className="flex flex-col divide-y divide-border-subtle">
                   {selected.entries.map((e, i) => (
                     <div key={i} className="flex items-start justify-between gap-2 py-2">

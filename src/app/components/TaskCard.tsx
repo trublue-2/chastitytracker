@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import BlockHeading from "@/app/components/BlockHeading";
 import { ListChecks, Check, ChevronRight, Circle, Camera, ArrowRight, Hourglass } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Card, { CARD_BODY_STRIPED } from "@/app/components/Card";
@@ -300,11 +301,11 @@ function NextStep({ task }: { task: TaskCardData }) {
     <>
       <span className="shrink-0 text-foreground-muted" aria-hidden>{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[11px] font-semibold uppercase tracking-wider text-foreground-faint">
+        <BlockHeading as="span" className="block">
           {/* „Nächster Schritt: Die Bedingungen gelten durchgehend" wäre ein Widerspruch in sich —
               beim Halten ist gerade NICHTS zu tun. Die Überschrift benennt darum den Zustand. */}
           {t(step.kind === "hold" ? "nextStepLabelHold" : "nextStepLabel")}
-        </span>
+        </BlockHeading>
         <span className="block text-sm text-foreground break-words">{text}</span>
       </span>
       {href && <ChevronRight size={16} className="shrink-0 text-foreground-faint" />}
