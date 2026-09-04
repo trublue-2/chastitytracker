@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getControllableSubs } from "@/lib/keyholder";
 import { getMessageChannels, getRecipientChannels } from "@/lib/notificationPrefs";
+import { telegramLinkAvailable } from "@/lib/telegram";
 import { isValidStartPage, weightTrackingEnabled } from "@/lib/constants";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
@@ -24,6 +25,12 @@ export interface SettingsFormProps {
   hideOwnTracker: boolean;
   /** Mail/Push bei neuen Nachrichten (`MESSAGE_RECEIVED`) — die Nachricht selbst kommt immer. */
   messageNotify: boolean;
+  /** Telegram bei neuen Nachrichten — eigener Schalter, nur relevant/sichtbar bei verknüpftem Chat. */
+  messageTelegram: boolean;
+  /** Ist auf dieser Instanz überhaupt ein Telegram-Bot eingerichtet (Token + Bot-Name)? */
+  telegramConfigured: boolean;
+  /** Hat dieser Nutzer seinen Telegram-Chat verknüpft? */
+  telegramLinked: boolean;
   version: string;
   buildDate?: string;
   feedbackEnabled?: boolean;
@@ -50,6 +57,8 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   let weight: WeightSettingsProps | null = null;
   // Fehlende Zeile = „an" (dieselbe Annahme wie beim Versand in notify.ts).
   let messageNotify = true;
+  let messageTelegram = true;
+  let telegramLinked = false;
 
   if (userId) {
     const [dbUser, pref, reminderPref] = await Promise.all([
@@ -57,6 +66,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
         where: { id: userId },
         select: {
           username: true, email: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true,
+          telegramChatId: true,
           weightTrackingEnabled: true, unitSystem: true, heightCm: true,
           targetWeightKg: true, targetWeightKeyholderKg: true,
         },
@@ -64,8 +74,9 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
       getMessageChannels(userId),
       getRecipientChannels(userId, "WEIGHT_REMINDER"),
     ]);
-    // Ein Schalter für beide Kanäle: "an", solange mindestens einer läuft.
+    // Ein Schalter für Mail+Push: "an", solange mindestens einer läuft. Telegram hat einen eigenen.
     messageNotify = pref.mail || pref.push;
+    messageTelegram = pref.telegram;
     if (dbUser) {
       username = dbUser.username;
       email = dbUser.email ?? null;
@@ -73,6 +84,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
       timezone = dbUser.timezone;
       startPage = dbUser.startPage;
       hideOwnTracker = dbUser.hideOwnTracker;
+      telegramLinked = !!dbUser.telegramChatId;
       if (weightTrackingEnabled() && dbUser.weightTrackingEnabled) {
         weight = {
           unitSystem: dbUser.unitSystem as UnitSystem,
@@ -108,6 +120,9 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     isAdmin,
     hideOwnTracker,
     messageNotify,
+    messageTelegram,
+    telegramConfigured: telegramLinkAvailable(),
+    telegramLinked,
     version: pkg.version,
     buildDate: process.env.BUILD_DATE ?? undefined,
     feedbackEnabled: process.env.DISABLE_FEEDBACK !== "true",

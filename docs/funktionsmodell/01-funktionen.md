@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-101 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+103 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -188,6 +188,8 @@ Steckbrief: [75-benachrichtigungen.md](75-benachrichtigungen.md)
 |---|---|---|---|---|
 | **Eigene Benachrichtigungen einstellen** | Mail und Push je Ereignis-Art, neun Arten. | Sub | App (Träger) | `/api/settings/notifications` |
 | **Benachrichtigungen eines Trägers einstellen** | Dieselben Schalter aus der Keyholder-Sicht. <br>*Das Raster steuert die Meldungen ÜBER die Einträge des Trägers AN DIE KEYHOLDER — nicht an ihn. Lesen darf die KI es (`get_context.notifications`), umlegen nicht: siehe die Ausnahme in `FM_MCP_EXEMPT`.* | Keyholder (UI) | App (Keyholder) | `/api/admin/notifications` |
+| **Telegram verbinden** | Verknüpft den eigenen Telegram-Chat als dritten Kanal (Deep-Link + `/start`-Token) und koppelt ihn wieder ab. <br>*Selbstbedienung des Subs, kein Keyholder-Feld — deshalb kein MCP-Weg (die KI verknüpft keinen eigenen Chat). Ob ein Ereignis Telegram nutzt, steht als Kanal je Ereignis in den Benachrichtigungen.* | Sub | App (Träger) | `/api/settings/telegram` |
+| **Telegram-Webhook** | Nimmt `/start <token>` des Bots entgegen und schreibt die Chat-ID an den Nutzer. <br>*Telegram ruft an, keine Session; über das `secret_token` im Header gesichert (in der Whitelist von `proxy.ts`).* | System | Gegenstelle | `/api/telegram/webhook` |
 | **Push-Empfang einrichten** | Meldet Browser-Abonnements und Gerätetoken der App an und wieder ab. | Sub, Keyholder (UI) | App (Träger) | `/api/push/subscribe` `/api/push/native-subscribe` `/api/push/vapid-public-key` |
 | **Terminierte Direktiven zustellen** | Der Minuten-Takt stellt Kontrollen, Sperrzeiten, Orgasmus-Fenster und Aufgaben zu, sobald sie wirksam werden. <br>*Bis dahin existiert die Direktive für den Träger nicht — keine Anzeige, keine laufende Frist.* | System | läuft von selbst | — |
 

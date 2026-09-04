@@ -108,6 +108,12 @@ model User {
   // Per-user UI + notification language ("de" | "en"). Drives the app locale AND the language of
   // all e-mails / push sent to this user (rendered server-side from this field, not the browser cookie).
   locale                         String                   @default("de")
+  // Verknüpfte Telegram-Chat-ID (dritter Benachrichtigungs-Kanal neben Mail und Push). NULL = nicht
+  // verknüpft; dann wird für diesen Nutzer nie über Telegram zugestellt (wie eine fehlende
+  // E-Mail-Adresse). Gesetzt, wenn der Nutzer in seinen Einstellungen „Mit Telegram verbinden" tippt
+  // und dem Bot /start <token> schickt (Webhook), gelöscht beim Entkoppeln. `@unique`: ein Chat
+  // gehört zu genau einem Nutzer der Instanz.
+  telegramChatId                 String?                  @unique
   // Pro-User anpassbare Auswahllisten als JSON-Array [{code,label?}] (TEXT). null = eingebaute
   // Standardliste (Bestandsnutzer unverändert). Öffnungsgründe enthalten IMMER den geschützten
   // Built-in "REINIGUNG" (Code fix, nur Label umbenennbar). Siehe reasonsService.ts.
@@ -186,6 +192,7 @@ model User {
   notificationPrefs              NotificationPreference[]
   vorgaben                       TrainingVorgabe[]
   passwordResetTokens            PasswordResetToken[]
+  telegramLinkTokens             TelegramLinkToken[]
   kontrollAnforderungen          KontrollAnforderung[]
   verschlussAnforderungen        VerschlussAnforderung[]
   orgasmusAnforderungen          OrgasmusAnforderung[]
@@ -700,6 +707,21 @@ model PasswordResetToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+// Kurzlebiger, einmaliger Verknüpfungs-Token für Telegram (Muster wie PasswordResetToken): der
+// Klartext steht im Deep-Link `t.me/<bot>?start=<token>`, gespeichert wird nur sein Hash. Drückt der
+// Nutzer im Chat Start, meldet der Webhook `/start <token>` — der Tracker löst ihn zum Nutzer auf,
+// schreibt dessen `telegramChatId` und löscht den Token (single-use). Kurze TTL.
+model TelegramLinkToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model TrainingVorgabe {
@@ -1441,6 +1463,7 @@ model NotificationPreference {
   eventType String // VERSCHLUSS | OEFFNUNG_IMMER | OEFFNUNG_VERBOTEN | ORGASMUS | KONTROLLE_FREIWILLIG | KONTROLLE_ANGEFORDERT
   mail      Boolean @default(true)
   push      Boolean @default(true)
+  telegram  Boolean @default(true)
 
   @@unique([userId, eventType])
   @@index([userId])

@@ -60,6 +60,7 @@ export default auth(async (req) => {
   const isAuthRoute = pathname.startsWith("/api/auth") || pathname === "/login" || pathname === "/api/version" || pathname === "/api/heartbeat" || pathname === "/api/upstream-changelog" || pathname === "/api/portal-login"
     || pathname === "/api/mcp" || pathname === "/api/sse" || pathname === "/api/message"
     || pathname.startsWith("/api/integration/") // Heimdall-Box: Shared-Secret (requireBoxSync), keine Session
+    || pathname === "/api/telegram/webhook" // Telegram ruft an; über `secret_token`-Header gesichert, keine Session
     || pathname.startsWith("/api/oauth/") || pathname.startsWith("/.well-known/") || pathname.startsWith("/oauth/");
   const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
   const isProtected =

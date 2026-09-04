@@ -124,10 +124,10 @@ export type Controller = NotifyRecipient;
 
 export async function getControllersOfUser(subId: string): Promise<Controller[]> {
   const [admins, rels] = await Promise.all([
-    prisma.user.findMany({ where: { role: "admin" }, select: { id: true, username: true, email: true, locale: true } }),
+    prisma.user.findMany({ where: { role: "admin" }, select: { id: true, username: true, email: true, locale: true, telegramChatId: true } }),
     prisma.adminUserRelationship.findMany({
       where: { userId: subId },
-      select: { admin: { select: { id: true, username: true, email: true, locale: true } } },
+      select: { admin: { select: { id: true, username: true, email: true, locale: true, telegramChatId: true } } },
     }),
   ]);
   const byId = new Map<string, Controller>();

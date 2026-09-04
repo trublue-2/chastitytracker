@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 142 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 143 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -196,6 +196,7 @@ Steckbrief: [75-benachrichtigungen.md](75-benachrichtigungen.md)
 |---|---|---|---|---|---|---|---|
 | `NotificationPreference.mail` | Boolean | `true` | dauerhaft | Ob dieses Ereignis per Mail zugestellt wird. | Sub, Keyholder (UI) | Benachrichtigungen | `notificationPrefs.ts` |
 | `NotificationPreference.push` | Boolean | `true` | dauerhaft | Ob dieses Ereignis als Push zugestellt wird (Web-Push und native Geräte). | Sub, Keyholder (UI) | Benachrichtigungen | `notificationPrefs.ts` |
+| `NotificationPreference.telegram` | Boolean | `true` | dauerhaft | Ob dieses Ereignis über Telegram zugestellt wird — erreicht nur Empfänger mit verknüpftem Chat. | Sub, Keyholder (UI) | Benachrichtigungen | `telegram.ts:sendTelegram` |
 
 ## Keyholder-Wissen & Kontext
 
@@ -284,6 +285,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `User.email` | Identität | Zustelladresse; steuert nichts, ausser dass ohne sie keine Mail geht. |
 | `User.createdAt` | Identität | Anlage-Zeitpunkt. |
 | `User.autoInspectionPlannedFor` | Laufzeitzustand | Merker des Planers: bis wann der Tagesplan gewürfelt ist. Wird vom Poller gesetzt, nicht von Hand. |
+| `User.telegramChatId` | Datensatz | Verknüpfter Telegram-Chat als Ziel des dritten Benachrichtigungs-Kanals. Kein Schalter, sondern eine Bindung: gesetzt vom Verknüpfungs-Webhook (der Nutzer drückt im Chat Start), gelöscht beim Entkoppeln. `null` = nicht verknüpft, dann wird für ihn nie über Telegram zugestellt. |
 | `User.weightReminderMark` | Laufzeitzustand | Für welches Wiege-Fenster zuletzt erinnert wurde (`<Tag>#<Startzeit>`). Kein Schalter, sondern die Merkfähigkeit des Minuten-Pollers: sie verhindert die Wiederholung und erlaubt zugleich das Nachholen nach einem Neustart. |
 | `Entry.id` | Identität | Primärschlüssel. |
 | `Entry.clientRequestId` | Laufzeitzustand | Merkfähigkeit gegen die doppelte Zustellung: erkennt einen wiederholten Anlege-Versuch als denselben, statt einen zweiten Eintrag zu schreiben. Kein Teil dessen, was der Eintrag festhält — leer, wo der Versuch nicht wiederholbar ist. |

@@ -4,6 +4,13 @@
     "date": "2026-09-04",
     "changes": [
       {
+        "type": "feat",
+        "text": {
+          "de": "Telegram ist als dritter Benachrichtigungs-Kanal dazugekommen: verbinde deinen Chat in den Einstellungen und erhalte Meldungen gleichwertig zu Mail und Push, pro Ereignis abschaltbar.",
+          "en": "Telegram is now a third notification channel: connect your chat in settings to receive notifications on par with email and push, switchable per event."
+        }
+      },
+      {
         "type": "ui",
         "text": {
           "de": "Im Posteingang steht die Zahl der ungelesenen Meldungen jetzt am „Ungelesen“-Reiter selbst, und eine gerade gelesene Zeile ist als „soeben gelesen“ gekennzeichnet, statt kommentarlos zu verblassen.",

@@ -125,7 +125,7 @@ export interface ContextResult extends Envelope {
    *
    * Rein additiv, deshalb ohne Versions-Bump.
    */
-  notifications: Record<string, { mail: boolean; push: boolean }>;
+  notifications: Record<string, { mail: boolean; push: boolean; telegram: boolean }>;
   /**
    * Welche Vergehensarten bei diesem Sub GERADE gelten: `off`/`on`, bei `unauthorized_orgasm`
    * zusätzlich `lockedOnly` (nur während einer Sperrzeit) und `always`.

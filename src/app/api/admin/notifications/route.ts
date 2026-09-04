@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { NOTIFICATION_EVENT_TYPES } from "@/lib/constants";
 import { getNotificationMatrix, setNotificationPreference } from "@/lib/notificationPrefs";
 
-/** GET /api/admin/notifications?userId=xxx — get all preferences for a user */
+/** GET /api/admin/notifications?userId=xxx — Präferenz-Matrix + ob der Träger einen Telegram-Chat
+ *  verknüpft hat (die Telegram-Spalte ist ohne Verknüpfung wirkungslos und wird dann inaktiv gezeigt). */
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) return NextResponse.json({ error: "userId fehlt" }, { status: 400 });
@@ -12,7 +14,11 @@ export async function GET(req: NextRequest) {
   if (err) return err;
 
   // Die Matrix baut `notificationPrefs.ts` — dieselbe Ableitung, die auch die KI über den MCP liest.
-  return NextResponse.json(await getNotificationMatrix(userId));
+  const [prefs, user] = await Promise.all([
+    getNotificationMatrix(userId),
+    prisma.user.findUnique({ where: { id: userId }, select: { telegramChatId: true } }),
+  ]);
+  return NextResponse.json({ prefs, telegramLinked: !!user?.telegramChatId });
 }
 
 /** PATCH /api/admin/notifications — upsert a single preference */
@@ -27,8 +33,8 @@ export async function PATCH(req: NextRequest) {
   if (!NOTIFICATION_EVENT_TYPES.includes(eventType)) {
     return NextResponse.json({ error: "Ungültiger eventType" }, { status: 400 });
   }
-  if (channel !== "mail" && channel !== "push") {
-    return NextResponse.json({ error: "channel muss 'mail' oder 'push' sein" }, { status: 400 });
+  if (channel !== "mail" && channel !== "push" && channel !== "telegram") {
+    return NextResponse.json({ error: "channel muss 'mail', 'push' oder 'telegram' sein" }, { status: 400 });
   }
 
   await setNotificationPreference(userId, eventType, channel, Boolean(value));

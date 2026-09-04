@@ -62,6 +62,8 @@ export const SHARED_SERVICE_CODES = [
   // die Code-Wiederholung sie wirft — der Satz änderte sich für einen zweiten Aufrufer nicht.
   "TOO_MANY_REQUESTS",
   "PUSH_NOT_ENABLED",
+  // Verbinden mit Telegram, obwohl die Instanz gar keinen Bot führt (kein Token/Bot-Name).
+  "TELEGRAM_NOT_CONFIGURED",
 ] as const;
 
 /** kontrolleService + the inspection routes. */
