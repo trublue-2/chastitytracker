@@ -111,6 +111,24 @@ export async function parseApiError(res: Response, fallback: string): Promise<st
 }
 
 /**
+ * PATCH die eigenen Empfangs-Kanäle EINES Ereignisses (`/api/settings/notifications`). Gibt den
+ * stabilen Fehler-Code zurück, `null` bei Erfolg — Optimistik und Fehler-Anzeige macht der Aufrufer
+ * selbst (mal Toast, mal Inline-Zeile). Drei Selbst-Schalter teilen ihn (Posteingang, Wiege-
+ * Erinnerung, Telegram), statt denselben PATCH je dreimal auszuschreiben.
+ */
+export async function saveOwnNotificationChannels(
+  eventType: string,
+  channels: { mail?: boolean; push?: boolean; telegram?: boolean },
+): Promise<string | null> {
+  const res = await fetch("/api/settings/notifications", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eventType, ...channels }),
+  });
+  return res.ok ? null : parseApiErrorCode(res);
+}
+
+/**
  * Ein einmaliger Stempel für einen Anlege-Versuch — oder `null`, wenn der Browser keinen sicheren
  * Zufall hat.
  *

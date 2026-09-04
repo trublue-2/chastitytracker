@@ -626,14 +626,24 @@ export const NOTIFICATION_EVENT_TYPES = [
 
 export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
 
-/** Die beiden Versand-Kanäle einer Meldung. Die Posteingangs-Zeile hängt NICHT daran. */
+/** Die Versand-Kanäle einer Meldung. Die Posteingangs-Zeile hängt NICHT daran. Telegram erreicht nur
+ *  Empfänger, die ihren Chat verknüpft haben (`User.telegramChatId`) — genau wie Mail eine Adresse
+ *  und Push ein Abonnement voraussetzt. */
 export interface NotificationChannels {
   mail: boolean;
   push: boolean;
+  telegram: boolean;
 }
 
-/** Ohne Angabe gilt beides — die eine Stelle, an der dieser Default steht. */
-export const ALL_CHANNELS: NotificationChannels = { mail: true, push: true };
+/** Ohne Angabe gilt alles — die eine Stelle, an der dieser Default steht. */
+export const ALL_CHANNELS: NotificationChannels = { mail: true, push: true, telegram: true };
+
+/** Ist mindestens ein Kanal an? Die EINE Stelle für den „alle Kanäle aus"-Kurzschluss der Versender
+ *  — ein neuer Kanal fügt hier ein Feld hinzu, statt jede `!a && !b`-Kette einzeln nachzuziehen (genau
+ *  so blieb Telegram in einem der beiden Guards zunächst hängen). */
+export function anyChannelActive(channels: NotificationChannels): boolean {
+  return channels.mail || channels.push || channels.telegram;
+}
 
 /**
  * Präferenzen, die am EMPFÄNGER hängen — bewusst eine eigene Liste.

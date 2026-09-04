@@ -20,13 +20,14 @@ import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
 import { LOCALES_LONG } from "@/lib/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { saveOwnNotificationChannels } from "@/lib/apiClient";
 import PasswordChangeConfirm from "@/app/components/PasswordChangeConfirm";
 import WeightSettings from "./WeightSettings";
+import TelegramSettings from "./TelegramSettings";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageNotify, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageNotify, messageTelegram, telegramConfigured, telegramLinked, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
@@ -176,16 +177,13 @@ export default function SettingsForm({ username, email, locale, timezone, startP
     setMessageNotifyValue(checked);
     setMessageNotifyError(null);
     try {
-      const res = await fetch("/api/settings/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        // Ein Schalter für beide Kanäle: wer den Posteingang hat, will Mail UND Push gemeinsam
-        // stummschalten — getrennte Schalter wären hier nur Ballast.
-        body: JSON.stringify({ eventType: "MESSAGE_RECEIVED", mail: checked, push: checked }),
-      });
-      if (!res.ok) {
+      // Ein Schalter für beide Kanäle: wer den Posteingang hat, will Mail UND Push gemeinsam
+      // stummschalten — getrennte Schalter wären hier nur Ballast. Telegram hat einen eigenen
+      // Schalter (TelegramSettings) und bleibt hier unberührt.
+      const code = await saveOwnNotificationChannels("MESSAGE_RECEIVED", { mail: checked, push: checked });
+      if (code) {
         setMessageNotifyValue(!checked); // Rollback bei Fehler
-        setMessageNotifyError(apiError(await parseApiErrorCode(res)));
+        setMessageNotifyError(apiError(code));
       }
     } catch {
       setMessageNotifyValue(!checked);
@@ -409,6 +407,18 @@ export default function SettingsForm({ username, email, locale, timezone, startP
             />
             <FormError message={messageNotifyError} />
           </div>
+
+          {/* Telegram als dritter Benachrichtigungs-Kanal — nur, wenn die Instanz einen Bot führt.
+              Verbinden/Entkoppeln ist Selbstbedienung des Nutzers (kein Keyholder-Feld). */}
+          {telegramConfigured && (
+            <ExpandRow
+              label={t("telegramSection")}
+              open={expanded === "telegram"}
+              onToggle={() => toggle("telegram")}
+            >
+              <TelegramSettings linked={telegramLinked} messageTelegram={messageTelegram} />
+            </ExpandRow>
+          )}
 
           {/* Feedback */}
           {feedbackEnabled && <FeedbackButton variant="menu" />}

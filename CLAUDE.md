@@ -300,6 +300,17 @@ HEALTHCHECK_ALERT_EMAIL=<email>    # optional: Mail-Alarm bei Ausfall (leer = nu
 HEALTHCHECK_VISION=<true|false>    # optional: Vision-Probe abschalten (Default: an, wenn Vision self-hosted)
 HEALTHCHECK_EMBED=<true|false>     # optional: Embedding-Probe abschalten (Default: an, wenn EMBED_BASE_URL gesetzt)
 HEALTHCHECK_TIMEOUT_MS=20000       # optional: Timeout je Probe (Default 20s)
+# Telegram als dritter Benachrichtigungs-Kanal (neben Mail und Push). EIN Bot pro Instanz, EIN
+# Webhook auf die eigene Subdomain. Ohne Token wird der Kanal still übersprungen (wie Mail ohne SMTP).
+# Einrichtung durch den Betreiber je Instanz:
+#   1. Bot bei @BotFather anlegen → Token + Bot-Name (ohne @) erhalten.
+#   2. Token/Name/Secret hier hinterlegen.
+#   3. Webhook einmalig registrieren (Secret schützt den Endpunkt):
+#      curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<subdomain>/api/telegram/webhook&secret_token=<SECRET>"
+TELEGRAM_BOT_TOKEN=<token>         # optional: Bot-Token von BotFather. Ohne ihn kein Telegram-Versand.
+TELEGRAM_BOT_USERNAME=<botname>    # optional: Bot-Name ohne @ (für den Deep-Link t.me/<botname>?start=…). Ohne ihn kein Verbinden.
+TELEGRAM_WEBHOOK_SECRET=<random>   # optional, aber Pflicht sobald der Webhook läuft: wird gegen den
+                                   #   X-Telegram-Bot-Api-Secret-Token-Header geprüft; ohne ihn lehnt der Webhook alles ab.
 ```
 
 

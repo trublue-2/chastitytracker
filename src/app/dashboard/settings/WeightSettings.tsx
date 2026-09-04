@@ -9,6 +9,7 @@ import Toggle from "@/app/components/Toggle";
 import UnderweightNote from "@/app/components/UnderweightNote";
 import FormError from "@/app/components/FormError";
 import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
+import { saveOwnNotificationChannels } from "@/lib/apiClient";
 import {
   heightForDisplay, heightInputToCm, inchesToFeet,
   parseDecimalInput, weightFieldValue, weightForDisplay, weightText, weightInputToKg, type UnitSystem,
@@ -78,19 +79,17 @@ export default function WeightSettings({
   }
 
   // Eigene Route: der Kanal-Schalter hängt an der Benachrichtigungs-Tabelle, nicht an den
-  // Gewichts-Spalten. Ein Schalter für beide Kanäle, wie beim Posteingang.
+  // Gewichts-Spalten. EIN Schalter für alle Kanäle — anders als der Posteingang hat die Wiege-
+  // Erinnerung keinen eigenen Telegram-Schalter, also muss „aus" auch Telegram meinen (sonst ginge
+  // sie bei verknüpftem Chat weiter, ohne dass man sie abstellen kann).
   async function saveRemind(checked: boolean) {
     setRemind(checked);
     setRemindError(null);
     // Zurückspringen ohne Meldung sähe aus wie ein klemmender Schalter — dieselbe Behandlung wie
     // beim Nachrichten-Schalter in `SettingsForm`.
     try {
-      const res = await fetch("/api/settings/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventType: "WEIGHT_REMINDER", mail: checked, push: checked }),
-      });
-      if (!res.ok) {
+      const code = await saveOwnNotificationChannels("WEIGHT_REMINDER", { mail: checked, push: checked, telegram: checked });
+      if (code) {
         setRemind(!checked);
         setRemindError(tc("error"));
       }

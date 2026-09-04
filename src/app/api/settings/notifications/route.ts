@@ -16,13 +16,14 @@ export async function PATCH(req: NextRequest) {
   const session = await requireApi();
   if (session instanceof NextResponse) return session;
 
-  // `mail`/`push` einzeln optional: der Schalter in den Einstellungen setzt heute beide gemeinsam,
-  // die Route bleibt aber pro Kanal ansprechbar, falls die Oberfläche sie je trennt.
-  const { eventType, mail, push } = await req.json();
+  // `mail`/`push`/`telegram` einzeln optional: der Nachrichten-Schalter setzt Mail und Push gemeinsam,
+  // Telegram hat einen eigenen (nur sichtbar, wenn verknüpft) — die Route bleibt aber pro Kanal ansprechbar.
+  const { eventType, mail, push, telegram } = await req.json();
   if (!isRecipientNotificationEventType(eventType)) return errorResponse(400, "UNKNOWN_ACTION");
   const data = {
     ...(typeof mail === "boolean" ? { mail } : {}),
     ...(typeof push === "boolean" ? { push } : {}),
+    ...(typeof telegram === "boolean" ? { telegram } : {}),
   };
   // Gleicher Kontrakt wie setInspectionEscalationSettings & Geschwister: ein leerer Patch ist ein
   // Aufruferfehler mit eigenem Code, nicht "unbekannte Aktion".

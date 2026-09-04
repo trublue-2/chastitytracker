@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.0.9",
+    "date": "2026-09-05",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Telegram ist als dritter Benachrichtigungs-Kanal dazugekommen: verbinde deinen Chat in den Einstellungen und erhalte Meldungen gleichwertig zu Mail und Push, pro Ereignis abschaltbar.",
+          "en": "Telegram is now a third notification channel: connect your chat in settings to receive notifications on par with email and push, switchable per event."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.8",
     "date": "2026-09-04",
     "changes": [

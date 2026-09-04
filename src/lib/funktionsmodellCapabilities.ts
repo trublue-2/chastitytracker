@@ -517,6 +517,18 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Das Raster steuert die Meldungen ÜBER die Einträge des Trägers AN DIE KEYHOLDER — nicht an ihn. Lesen darf die KI es (`get_context.notifications`), umlegen nicht: siehe die Ausnahme in `FM_MCP_EXEMPT`.",
   }),
   c({
+    id: "telegram-link", mechanic: "Benachrichtigungen", title: "Telegram verbinden",
+    what: "Verknüpft den eigenen Telegram-Chat als dritten Kanal (Deep-Link + `/start`-Token) und koppelt ihn wieder ab.",
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/settings/telegram"],
+    note: "Selbstbedienung des Subs, kein Keyholder-Feld — deshalb kein MCP-Weg (die KI verknüpft keinen eigenen Chat). Ob ein Ereignis Telegram nutzt, steht als Kanal je Ereignis in den Benachrichtigungen.",
+  }),
+  c({
+    id: "telegram-webhook", mechanic: "Benachrichtigungen", title: "Telegram-Webhook",
+    what: "Nimmt `/start <token>` des Bots entgegen und schreibt die Chat-ID an den Nutzer.",
+    actors: ["system"], surfaces: ["extern"], routes: ["/api/telegram/webhook"],
+    note: "Telegram ruft an, keine Session; über das `secret_token` im Header gesichert (in der Whitelist von `proxy.ts`).",
+  }),
+  c({
     id: "push-register", mechanic: "Benachrichtigungen", title: "Push-Empfang einrichten",
     what: "Meldet Browser-Abonnements und Gerätetoken der App an und wieder ab.",
     actors: ["sub", "admin"], surfaces: ["sub-ui"],

@@ -425,6 +425,8 @@ export const FM_REGISTRY: FmEntry[] = [
     effect: "Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen.",
     writers: ["sub", "admin"], affects: ["Oberfläche", "Benachrichtigungen"], anchor: "emailI18n.ts",
   }),
+  x("record", "User", "telegramChatId",
+    "Verknüpfter Telegram-Chat als Ziel des dritten Benachrichtigungs-Kanals. Kein Schalter, sondern eine Bindung: gesetzt vom Verknüpfungs-Webhook (der Nutzer drückt im Chat Start), gelöscht beim Entkoppeln. `null` = nicht verknüpft, dann wird für ihn nie über Telegram zugestellt."),
   s({
     model: "User", field: "role", domain: "konto", scope: "standing",
     effect: "`user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten.",
@@ -760,6 +762,11 @@ export const FM_REGISTRY: FmEntry[] = [
     model: "NotificationPreference", field: "push", domain: "benachrichtigung", scope: "standing",
     effect: "Ob dieses Ereignis als Push zugestellt wird (Web-Push und native Geräte).",
     writers: ["sub", "admin"], affects: ["Benachrichtigungen"], anchor: "notificationPrefs.ts",
+  }),
+  s({
+    model: "NotificationPreference", field: "telegram", domain: "benachrichtigung", scope: "standing",
+    effect: "Ob dieses Ereignis über Telegram zugestellt wird — erreicht nur Empfänger mit verknüpftem Chat.",
+    writers: ["sub", "admin"], affects: ["Benachrichtigungen"], anchor: "telegram.ts:sendTelegram",
   }),
   pk("NotificationPreference"),
   owner("NotificationPreference"),

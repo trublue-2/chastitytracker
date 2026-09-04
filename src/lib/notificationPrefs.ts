@@ -63,13 +63,13 @@ export async function getEventChannelsAny(
   try {
     const rows = await prisma.notificationPreference.findMany({
       where: { userId, eventType: { in: eventTypes } },
-      select: { eventType: true, mail: true, push: true },
+      select: { eventType: true, mail: true, push: true, telegram: true },
     });
     const byType = new Map(rows.map((r) => [r.eventType, r]));
     return eventTypes.reduce<NotificationChannels>((acc, t) => {
       const pref = channelsOf(byType.get(t));
-      return { mail: acc.mail || pref.mail, push: acc.push || pref.push };
-    }, { mail: false, push: false });
+      return { mail: acc.mail || pref.mail, push: acc.push || pref.push, telegram: acc.telegram || pref.telegram };
+    }, { mail: false, push: false, telegram: false });
   } catch (err) {
     console.error("[notify] preference lookup failed", err);
     return ALL_CHANNELS;
@@ -78,7 +78,11 @@ export async function getEventChannelsAny(
 
 /** Die Zeile in Kanäle — mit der Regel „fehlende Zeile heisst an" an EINER Stelle für beide Wege. */
 function channelsOf(pref: NotificationChannels | null | undefined): NotificationChannels {
-  return { mail: pref?.mail ?? ALL_CHANNELS.mail, push: pref?.push ?? ALL_CHANNELS.push };
+  return {
+    mail: pref?.mail ?? ALL_CHANNELS.mail,
+    push: pref?.push ?? ALL_CHANNELS.push,
+    telegram: pref?.telegram ?? ALL_CHANNELS.telegram,
+  };
 }
 
 /** Die eine Abfrage hinter den beiden Einzel-Lesern — samt der Zusage, nie zu werfen (siehe unten). */
@@ -86,7 +90,7 @@ async function readChannels(userId: string, eventType: string): Promise<Notifica
   try {
     const pref = await prisma.notificationPreference.findUnique({
       where: { userId_eventType: { userId, eventType } },
-      select: { mail: true, push: true },
+      select: { mail: true, push: true, telegram: true },
     });
     return channelsOf(pref);
   } catch (err) {
@@ -110,7 +114,7 @@ export async function ensureNotificationPreferences(userId: string) {
       prisma.notificationPreference.upsert({
         where: { userId_eventType: { userId, eventType } },
         update: {},
-        create: { userId, eventType, mail: true, push: true },
+        create: { userId, eventType, mail: true, push: true, telegram: true },
       })
     )
   );
@@ -128,7 +132,7 @@ export async function getNotificationMatrix(userId: string): Promise<Record<Noti
   const map = {} as Record<NotificationEventType, NotificationChannels>;
   for (const eventType of NOTIFICATION_EVENT_TYPES) {
     const row = rows.find((r) => r.eventType === eventType);
-    map[eventType] = { mail: row?.mail ?? false, push: row?.push ?? false };
+    map[eventType] = { mail: row?.mail ?? false, push: row?.push ?? false, telegram: row?.telegram ?? false };
   }
   return map;
 }
@@ -143,7 +147,7 @@ export async function getNotificationMatrix(userId: string): Promise<Record<Noti
 export async function setNotificationPreference(
   userId: string,
   eventType: NotificationEventType,
-  channel: "mail" | "push",
+  channel: "mail" | "push" | "telegram",
   value: boolean,
 ): Promise<void> {
   await prisma.notificationPreference.upsert({

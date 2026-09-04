@@ -36,7 +36,7 @@ const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 /** Ein Empfänger, wie ihn `getControllersOfUser` liefert — GELADEN, nicht als blosse id: genau das
  *  ist der Vertrag von `NotifyRecipient`, und der Fall unten hält fest, dass der Versand ihn dann
  *  auch nicht ein zweites Mal nachschlägt. */
-const kh = (id: string) => ({ id, username: id, email: `${id}@example.com`, locale: "de" });
+const kh = (id: string) => ({ id, username: id, email: `${id}@example.com`, locale: "de", telegramChatId: null });
 
 const CONTENT = {
   subjectKey: "taskReviewSubjectKeyholder",

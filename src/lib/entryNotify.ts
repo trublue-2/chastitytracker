@@ -2,11 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { sendMailSafe, escHtml, appBaseUrl, dashboardEmailHtml } from "@/lib/mail";
 import { emailT, localeT, type EmailTranslator } from "@/lib/emailI18n";
 import { sendPushToUser } from "@/lib/push";
+import { sendTelegram } from "@/lib/telegram";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { getEventChannelsAny } from "@/lib/notificationPrefs";
 import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/utils";
-import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, type NotificationEventType, APP_NAME } from "@/lib/constants";
+import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, anyChannelActive, type NotificationEventType, APP_NAME } from "@/lib/constants";
 
 export interface EntryNotifyParams {
   /** Der Träger, dessen Eintrag gemeldet wird. */
@@ -170,7 +171,7 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
     // Die ODER-Regel über mehrere Typen liegt mit dort: sie ist Semantik der Schalter, nicht dieser
     // Meldung — und der nächste Aufrufer mit zwei Ereignissen soll sie nicht neu herleiten.
     const channels = await getEventChannelsAny(p.userId, eventTypes);
-    if (!channels.mail && !channels.push) return;
+    if (!anyChannelActive(channels)) return;
 
     // Den Handelnden streichen NUR, wenn er für JEMAND ANDEREN erfasst hat: dann wäre es eine
     // Meldung über etwas, das er gerade selbst getippt hat. Erfasst jemand für SICH, bleibt die
@@ -223,6 +224,12 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
 
       if (channels.push) {
         await Promise.allSettled(group.map((r) => sendPushToUser(r.id, title, pushBody, adminUrl)));
+      }
+      // Telegram: derselbe kurze Text wie der Push, an jeden Empfänger mit verknüpftem Chat.
+      if (channels.telegram) {
+        await Promise.allSettled(
+          group.filter((r) => r.telegramChatId).map((r) => sendTelegram(r.telegramChatId!, `${title}\n\n${pushBody}`)),
+        );
       }
       if (!channels.mail) continue;
 

@@ -28,31 +28,42 @@ describe("getEventChannelsAny — mehrere Ereignisse, ein Ergebnis", () => {
   /** Der Fall, für den es die Funktion gibt: eine verbotene Öffnung ist auch eine Öffnung. */
   it("es zählt, was MINDESTENS ein Schalter erlaubt", async () => {
     findMany.mockResolvedValue([
-      { eventType: "OEFFNUNG_IMMER", mail: false, push: false },
-      { eventType: "OEFFNUNG_VERBOTEN", mail: true, push: false },
+      { eventType: "OEFFNUNG_IMMER", mail: false, push: false, telegram: false },
+      { eventType: "OEFFNUNG_VERBOTEN", mail: true, push: false, telegram: false },
     ]);
 
     expect(await getEventChannelsAny("u1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]))
-      .toEqual({ mail: true, push: false });
+      .toEqual({ mail: true, push: false, telegram: false });
+  });
+
+  /** Die Faltung deckt alle DREI Kanäle ab: Telegram folgt derselben ODER-Regel wie Mail und Push. */
+  it("faltet auch Telegram über mehrere Ereignisse", async () => {
+    findMany.mockResolvedValue([
+      { eventType: "OEFFNUNG_IMMER", mail: false, push: false, telegram: false },
+      { eventType: "OEFFNUNG_VERBOTEN", mail: false, push: false, telegram: true },
+    ]);
+
+    expect(await getEventChannelsAny("u1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]))
+      .toEqual({ mail: false, push: false, telegram: true });
   });
 
   it("sind alle Schalter aus, bleibt es aus", async () => {
     findMany.mockResolvedValue([
-      { eventType: "OEFFNUNG_IMMER", mail: false, push: false },
-      { eventType: "OEFFNUNG_VERBOTEN", mail: false, push: false },
+      { eventType: "OEFFNUNG_IMMER", mail: false, push: false, telegram: false },
+      { eventType: "OEFFNUNG_VERBOTEN", mail: false, push: false, telegram: false },
     ]);
 
     expect(await getEventChannelsAny("u1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]))
-      .toEqual({ mail: false, push: false });
+      .toEqual({ mail: false, push: false, telegram: false });
   });
 
   /** Eine fehlende Zeile ist eine Anomalie, kein Opt-out — und bei einer Meldung, die auf ein Urteil
    *  wartet, ist Senden die sichere Richtung. */
   it("eine fehlende Zeile heisst an, nicht stumm", async () => {
-    findMany.mockResolvedValue([{ eventType: "OEFFNUNG_IMMER", mail: false, push: false }]);
+    findMany.mockResolvedValue([{ eventType: "OEFFNUNG_IMMER", mail: false, push: false, telegram: false }]);
 
     expect(await getEventChannelsAny("u1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]))
-      .toEqual({ mail: true, push: true });
+      .toEqual({ mail: true, push: true, telegram: true });
   });
 
   it("holt alle Typen in EINER Abfrage", async () => {
@@ -72,24 +83,24 @@ describe("getEventChannelsAny — mehrere Ereignisse, ein Ergebnis", () => {
     findMany.mockRejectedValue(new Error("db weg"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    expect(await getEventChannelsAny("u1", ["VERSCHLUSS"])).toEqual({ mail: true, push: true });
+    expect(await getEventChannelsAny("u1", ["VERSCHLUSS"])).toEqual({ mail: true, push: true, telegram: true });
   });
 
   /** Ohne Ereignis gibt es nichts, was etwas erlauben könnte. Die Aufrufer prüfen das vorher. */
-  it("eine leere Liste ergibt beides aus", async () => {
+  it("eine leere Liste ergibt alles aus", async () => {
     findMany.mockResolvedValue([]);
-    expect(await getEventChannelsAny("u1", [])).toEqual({ mail: false, push: false });
+    expect(await getEventChannelsAny("u1", [])).toEqual({ mail: false, push: false, telegram: false });
   });
 });
 
 describe("getEventChannels — dieselbe Regel für ein einzelnes Ereignis", () => {
   it("eine fehlende Zeile heisst auch hier an", async () => {
     findUnique.mockResolvedValue(null);
-    expect(await getEventChannels("u1", "TASK_PROOF_LATE")).toEqual({ mail: true, push: true });
+    expect(await getEventChannels("u1", "TASK_PROOF_LATE")).toEqual({ mail: true, push: true, telegram: true });
   });
 
   it("die gespeicherte Zeile gewinnt", async () => {
-    findUnique.mockResolvedValue({ mail: false, push: true });
-    expect(await getEventChannels("u1", "TASK_PROOF_LATE")).toEqual({ mail: false, push: true });
+    findUnique.mockResolvedValue({ mail: false, push: true, telegram: false });
+    expect(await getEventChannels("u1", "TASK_PROOF_LATE")).toEqual({ mail: false, push: true, telegram: false });
   });
 });

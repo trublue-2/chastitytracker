@@ -2,9 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/mail";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
+import { sendTelegram } from "@/lib/telegram";
 import { recordMessageAndBadge, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messageService";
 import { getMessageChannels } from "@/lib/notificationPrefs";
-import { ALL_CHANNELS, type NotificationChannels, APP_NAME } from "@/lib/constants";
+import { ALL_CHANNELS, anyChannelActive, type NotificationChannels, APP_NAME } from "@/lib/constants";
 
 /**
  * Was an einer Posteingangs-Zeile hängt, unabhängig davon, WESSEN Posteingang gemeint ist —
@@ -58,6 +59,9 @@ export interface NotifyRecipient {
   username: string;
   email: string | null;
   locale: string;
+  /** Verknüpfter Telegram-Chat oder `null`. Wie `email` Teil der geladenen Zeile, damit der Versand
+   *  den dritten Kanal bedienen kann, ohne je Empfänger ein zweites Mal nachzuschlagen. */
+  telegramChatId: string | null;
 }
 
 /**
@@ -143,7 +147,7 @@ export type NotifyContent = NotifyContentBase & (
 export async function notifyUser(userId: string, content: NotifyContent): Promise<void> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, username: true, locale: true },
+    select: { id: true, email: true, username: true, locale: true, telegramChatId: true },
   });
   if (!user) return;
   await notifyLoadedUser(user, content);
@@ -188,6 +192,9 @@ async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): 
     );
   }
   if (channels.push) firePush(user.id, subject, message, url, badge);
+  // Telegram: derselbe aufgelöste Betreff + Text wie Mail/Push. Nur, wenn der Empfänger seinen Chat
+  // verknüpft hat — sonst gibt es kein Ziel (wie eine fehlende E-Mail-Adresse).
+  if (user.telegramChatId && channels.telegram) await sendTelegram(user.telegramChatId, `${subject}\n\n${message}`);
 }
 
 /**
@@ -240,9 +247,9 @@ export async function notifyControllers(
       once: content.inbox?.once,
     });
   }
-  // Beide Kanäle abgeschaltet: die Zeile steht, mehr ist nicht zu tun. Ohne diesen Riegel liefe je
+  // Alle Kanäle abgeschaltet: die Zeile steht, mehr ist nicht zu tun. Ohne diesen Riegel liefe je
   // Empfänger eine Nutzer-Abfrage für einen Versand, der garantiert nichts verschickt.
-  if (content.channels && !content.channels.mail && !content.channels.push) return;
+  if (content.channels && !anyChannelActive(content.channels)) return;
   await Promise.all(controllers.map((c) => notifyLoadedUser(c, { ...content, inbox: false })));
 }
 

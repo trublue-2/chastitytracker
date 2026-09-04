@@ -3,16 +3,16 @@
 import { useState, useEffect } from "react";
 import BlockHeading from "@/app/components/BlockHeading";
 import { useTranslations } from "next-intl";
-import { Bell, Mail } from "lucide-react";
+import { Bell, Mail, Send } from "lucide-react";
 import Toggle from "@/app/components/Toggle";
 import Spinner from "@/app/components/Spinner";
-import { NOTIFICATION_EVENT_TYPES, type NotificationEventType } from "@/lib/constants";
+import { NOTIFICATION_EVENT_TYPES, type NotificationEventType, type NotificationChannels } from "@/lib/constants";
 
-type Channel = "mail" | "push";
-type PrefsMap = Record<NotificationEventType, { mail: boolean; push: boolean }>;
+type Channel = keyof NotificationChannels;
+type PrefsMap = Record<NotificationEventType, NotificationChannels>;
 
 const EMPTY_PREFS: PrefsMap = Object.fromEntries(
-  NOTIFICATION_EVENT_TYPES.map((et) => [et, { mail: false, push: false }])
+  NOTIFICATION_EVENT_TYPES.map((et) => [et, { mail: false, push: false, telegram: false }])
 ) as PrefsMap;
 
 const I18N_KEY: Record<NotificationEventType, string> = {
@@ -38,13 +38,18 @@ const GROUPS: { titleKey: string; events: readonly NotificationEventType[] }[] =
 export default function NotificationToggles({ userId }: { userId: string }) {
   const t = useTranslations("admin");
   const [prefs, setPrefs] = useState<PrefsMap>(EMPTY_PREFS);
+  const [telegramLinked, setTelegramLinked] = useState(false);
   const [fetching, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/admin/notifications?userId=${userId}`)
       .then((r) => r.json())
-      .then((data) => { setPrefs({ ...EMPTY_PREFS, ...data }); setLoading(false); })
+      .then((data) => {
+        setPrefs({ ...EMPTY_PREFS, ...data.prefs });
+        setTelegramLinked(!!data.telegramLinked);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [userId]);
 
@@ -87,6 +92,9 @@ export default function NotificationToggles({ userId }: { userId: string }) {
           <span className="flex items-center gap-1 w-16 justify-center whitespace-nowrap" title={t("notifyMailTitle")}>
             <Mail size={12} aria-hidden /> {t("notifyChannelMail")}
           </span>
+          <span className="flex items-center gap-1 w-16 justify-center whitespace-nowrap" title={t("notifyTelegramTitle")}>
+            <Send size={12} aria-hidden /> {t("notifyChannelTelegram")}
+          </span>
         </BlockHeading>
       </div>
 
@@ -118,6 +126,16 @@ export default function NotificationToggles({ userId }: { userId: string }) {
                         onChange={(checked) => handleToggle(et, "mail", checked)}
                       />
                     </div>
+                    {/* Telegram nur bedienbar, wenn der Träger einen Chat verknüpft hat — sonst hätte
+                        der Schalter kein Ziel (wie Mail ohne Adresse). */}
+                    <div className="w-16 flex justify-center">
+                      <Toggle
+                        label=""
+                        checked={prefs[et].telegram}
+                        disabled={!telegramLinked || savingKey === `${et}.telegram`}
+                        onChange={(checked) => handleToggle(et, "telegram", checked)}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -128,6 +146,7 @@ export default function NotificationToggles({ userId }: { userId: string }) {
 
       <div className="px-4 py-3 border-t border-border-subtle">
         <p className="text-[11px] text-foreground-faint">{t("notifyPushDesc")}</p>
+        {!telegramLinked && <p className="text-[11px] text-foreground-faint mt-1">{t("notifyTelegramNotLinked")}</p>}
       </div>
     </div>
   );
