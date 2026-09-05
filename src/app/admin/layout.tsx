@@ -2,6 +2,7 @@ import AdminHeader from "@/app/AdminHeader";
 import AdminBottomNav from "@/app/components/AdminBottomNav";
 import AdminDesktopSidebar from "@/app/components/AdminDesktopSidebar";
 import ThemeRootSync from "@/app/components/ThemeRootSync";
+import AutoRefresh from "@/app/components/AutoRefresh";
 import { auth } from "@/lib/auth";
 import { ownTrackerHidden } from "@/lib/ownTracker";
 import { keyholderWorld } from "@/lib/theme";
@@ -27,6 +28,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     // endgültig, wo es früher ein Vorabwert war, den ein Inline-Skript aus `localStorage` korrigierte.
     <div id="admin-root" data-theme={keyholderWorld()} className="world-glow min-h-screen bg-background text-foreground">
       <ThemeRootSync world={keyholderWorld()} />
+      {/* Hält die zeit-abgeleiteten Zustände der Keyholder-Sichten (überfällig/abgelaufen,
+          Sortierung, Alarm-Zähler) frisch — /admin und /admin/users/[id] sind server-gerendert. */}
+      <AutoRefresh />
       <AdminHeader username={user?.name ?? ""} actor={user} hideOwnTracker={hideOwnTracker} />
       <AdminDesktopSidebar version={pkg.version} isGlobalAdmin={isGlobalAdmin} hideOwnTracker={hideOwnTracker} />
 

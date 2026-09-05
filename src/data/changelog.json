@@ -23,6 +23,13 @@
           "de": "Beim Erfassen eines Trainingsziels überlappen sich die Stunden-Felder nicht mehr; sie stehen jetzt übersichtlich in zwei Spalten.",
           "en": "When entering a training goal the hour fields no longer overlap; they now sit cleanly in two columns."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Keyholder-Übersicht und die Träger-Ansichten aktualisieren sich jetzt von selbst — überfällige oder abgelaufene Angaben veralten nicht mehr, bis man neu lädt.",
+          "en": "The keyholder overview and wearer views now refresh on their own — overdue or expired items no longer go stale until you reload."
+        }
       }
     ]
   },

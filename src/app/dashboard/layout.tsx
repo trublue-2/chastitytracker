@@ -3,6 +3,7 @@ import DesktopSidebar from "@/app/components/DesktopSidebar";
 import InstallBanner from "@/app/components/InstallBanner";
 import OfflineIndicator from "@/app/components/OfflineIndicator";
 import ThemeRootSync from "@/app/components/ThemeRootSync";
+import AutoRefresh from "@/app/components/AutoRefresh";
 import DashboardBottomNav from "./DashboardBottomNav";
 import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth";
@@ -64,6 +65,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // als am Rechner.
     <div className="world-glow min-h-screen bg-background" data-theme={subWorld(isLocked)}>
       <ThemeRootSync world={subWorld(isLocked)} />
+      {/* Hält die zeit-abgeleiteten Zustände der Träger-Sicht frisch (überfällige Kontrolle,
+          „verschlossen seit X"), ohne dass jemand neu lädt — wie im Keyholder-Bereich. */}
+      <AutoRefresh />
       <Header />
       <DesktopSidebar
         isAdmin={user?.role === "admin"}
