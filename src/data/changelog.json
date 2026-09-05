@@ -37,6 +37,13 @@
           "de": "In der Übersicht einer eingeschlossenen Person stehen unbeurteilte Vergehen jetzt als eigener Block — sie warten auf deine Entscheidung, statt nur im Strafbuch-Reiter zu liegen.",
           "en": "A wearer's overview now shows unjudged offenses as their own block — they await your decision instead of sitting only in the penalty-book tab."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Auf der Keyholder-Übersicht stehen die Subs, die auf dich warten, jetzt nach Dringlichkeit geordnet — die früheste oder überfällige Frist zuoberst, statt nach Registrierdatum.",
+          "en": "On the keyholder overview, the subs waiting on you are now ordered by urgency — the earliest or overdue deadline first, instead of by registration date."
+        }
       }
     ]
   },

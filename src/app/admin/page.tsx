@@ -290,10 +290,25 @@ export default async function AdminPage() {
     hasAlarm: needsDecision(u.stats),
     sortFirst: needsDecision(u.stats) || u.stats.boltOpen,
   }));
+  // Die dringendste offene FRIST eines Trägers (#96/#7) — Kontrolle, Verschluss-Anforderung oder
+  // Orgasmus-Fenster, das früheste zählt. Überfällig (Frist < jetzt) ergibt sich von selbst zuoberst,
+  // weil sein Wert am kleinsten ist. Wer nur einen offenen Riegel oder wartende Nachweise hat (keine
+  // Frist), bekommt `Infinity` und reiht sich hinter die Fristen ein — die Sortierung ist stabil,
+  // also bleibt dort die ursprüngliche Reihenfolge.
+  const mostUrgentDeadlineMs = (st: ReturnType<typeof getUserStats>): number => {
+    const ds: number[] = [];
+    if (st.offeneKontrolle) ds.push(st.offeneKontrolle.deadline.getTime());
+    for (const a of st.offeneAnforderungen) if (a.endsAt) ds.push(a.endsAt.getTime());
+    if (st.offeneOrgasmusAnforderung) ds.push(st.offeneOrgasmusAnforderung.endsAt.getTime());
+    return ds.length ? Math.min(...ds) : Infinity;
+  };
   // Die Teilung ist EIN Ausdruck: eine Zwischenvariable müsste eine Hälfte einer Partition benennen,
-  // und jeder Name dafür („wartend") behauptet mehr, als die Sortierung meint.
+  // und jeder Name dafür („wartend") behauptet mehr, als die Sortierung meint. Die erste Hälfte
+  // („braucht dich") ist zusätzlich nach Frist geordnet — der dringendste Fall zuoberst statt nach
+  // Registrierdatum (#7). `filter` liefert eine neue Liste, das `sort` fasst `usersWithFlags` nicht an.
   const subsSorted = [
-    ...usersWithFlags.filter(u => u.sortFirst),
+    ...usersWithFlags.filter(u => u.sortFirst)
+      .sort((a, b) => mostUrgentDeadlineMs(a.stats) - mostUrgentDeadlineMs(b.stats)),
     ...usersWithFlags.filter(u => !u.sortFirst),
   ];
   const alarmCount = usersWithFlags.filter(u => u.hasAlarm).length;
