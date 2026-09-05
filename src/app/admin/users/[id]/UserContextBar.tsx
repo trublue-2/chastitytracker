@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeft, ArrowLeftRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "@/app/components/Sheet";
@@ -35,12 +35,17 @@ export default function UserContextBar({ userId, username, currentStatus, since,
   const tCommon = useTranslations("common");
   const [sheetOpen, setSheetOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const isLocked = currentStatus === "VERSCHLUSS";
 
   function handleUserSelect(id: string) {
     setSheetOpen(false);
     try { localStorage.setItem("lastSelectedUserId", id); } catch {}
-    router.push(`/admin/users/${id}`);
+    // Reiter mitnehmen (#15): das erste Segment hinter dem aktuellen Träger — leer = Übersicht.
+    // Tiefere Form-Pfade (z.B. /aktionen/verschluss-anforderung) fallen bewusst auf den Reiter
+    // (aktionen) zurück; ein halb ausgefülltes Formular soll nicht zum nächsten Sub mitwandern.
+    const tab = (pathname.split(`/admin/users/${userId}/`)[1] ?? "").split("/")[0];
+    router.push(`/admin/users/${id}${tab ? `/${tab}` : ""}`);
   }
 
   return (

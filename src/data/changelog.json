@@ -23,6 +23,13 @@
           "de": "In der Kopfzeile eines Subs steht bei laufender befristeter Sperrzeit jetzt die verbleibende Restzeit, nicht mehr nur die Zeit seit dem Verschluss.",
           "en": "A sub's header now shows the remaining time during a timed lock period, instead of only the time since locking."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Benutzer-Wechsler behält den Reiter: wer von der Strafbuch- oder Kontrollen-Ansicht zu einem anderen Sub wechselt, landet dort im selben Reiter statt auf dessen Übersicht.",
+          "en": "The user switcher keeps the current tab: switching from e.g. the penalty or inspections view to another sub lands on that same tab instead of their overview."
+        }
       }
     ]
   },
