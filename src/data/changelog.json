@@ -30,6 +30,13 @@
           "de": "Die Keyholder-Übersicht und die Träger-Ansichten aktualisieren sich jetzt von selbst — überfällige oder abgelaufene Angaben veralten nicht mehr, bis man neu lädt.",
           "en": "The keyholder overview and wearer views now refresh on their own — overdue or expired items no longer go stale until you reload."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Orgasmus-Anweisung, die eine bestimmte Unterart verlangt, wird jetzt als erfüllt markiert, wenn genau diese Unterart erfasst wird – bisher blieb sie fälschlich offen und lief ab.",
+          "en": "An orgasm instruction that requires a specific sub-type is now marked fulfilled when exactly that sub-type is logged – previously it wrongly stayed open and expired."
+        }
       }
     ]
   },

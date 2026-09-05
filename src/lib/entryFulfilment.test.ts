@@ -236,6 +236,43 @@ describe("Orgasmus-Anforderung", () => {
     );
     expect(txMock.orgasmusAnforderung.update).not.toHaveBeenCalled();
   });
+
+  it("eine Vorgabe als voller Kombi-Code erfüllt sich bei exakt dieser Unterart", async () => {
+    // Vorfall 05.09.2026: Vorgabe UND Eintrag waren „Orgasmus – Masturbation", der Vergleich nur
+    // gegen die Basis („Orgasmus") schlug fehl und die Anweisung lief unerfüllbar aus.
+    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: "Orgasmus – Masturbation" });
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "ORGASMUS", orgasmusArt: "Orgasmus – Masturbation" }),
+      NO_INSPECTION,
+      ON_TIME,
+    );
+    expect(txMock.orgasmusAnforderung.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ fulfilledAt: ON_TIME, entryId: "e1" }) }),
+    );
+  });
+
+  it("eine Unterart-Vorgabe zählt eine andere Unterart NICHT", async () => {
+    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: "Orgasmus – Masturbation" });
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "ORGASMUS", orgasmusArt: "Orgasmus – Geschlechtsverkehr" }),
+      NO_INSPECTION,
+      ON_TIME,
+    );
+    expect(txMock.orgasmusAnforderung.update).not.toHaveBeenCalled();
+  });
+
+  it("eine Hauptart-Vorgabe wird von jeder Unterart erfüllt", async () => {
+    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: "Orgasmus" });
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "ORGASMUS", orgasmusArt: "Orgasmus – Masturbation" }),
+      NO_INSPECTION,
+      ON_TIME,
+    );
+    expect(txMock.orgasmusAnforderung.update).toHaveBeenCalled();
+  });
 });
 
 describe("Typ-Trennung", () => {

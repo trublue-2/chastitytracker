@@ -210,7 +210,7 @@ export async function applyEntryFulfilment(
   }
 
   // OrgasmusAnforderung als erfüllt markieren, wenn ein passender Orgasmus im Fenster erfasst wird.
-  // Matching auf vorgegebene Art (Basis), wenn gesetzt; sonst zählt jeder Orgasmus.
+  // Matching auf die vorgegebene Art, wenn gesetzt; sonst zählt jeder Orgasmus.
   // Das FENSTER prüft immer die Eintrags-Zeit (wann fand der Orgasmus statt?), unabhängig von `at`
   // — das war schon vor der Extraktion so und ist bei Rückdatierung erst recht richtig.
   if (type === "ORGASMUS") {
@@ -232,10 +232,18 @@ export async function applyEntryFulfilment(
       },
       orderBy: { createdAt: "desc" },
     });
+    // Die Vorgabe kann eine reine Hauptart sein ("Orgasmus" → jede Unterart erfüllt) ODER ein voller
+    // Kombi-Code inkl. Unterart ("Orgasmus – Masturbation" → nur genau diese). Das Formular und
+    // `orgasmusValueAllowed` erlauben beide Formen, also muss die Erfüllung beide kennen: der Eintrag
+    // passt bei EXAKTER Übereinstimmung mit der vollen Art oder wenn die Vorgabe die Basis des
+    // Eintrags trifft. Nur gegen `parseOrgasmusArtBase` zu vergleichen liesse eine Unterart-Vorgabe
+    // nie erfüllen — die Anweisung liefe zwangsläufig als „abgelaufen" aus (Vorfall 05.09.2026).
+    const requiredType = offeneAnforderung?.requiredType;
     if (
       offeneAnforderung &&
-      (!offeneAnforderung.requiredType ||
-        offeneAnforderung.requiredType === parseOrgasmusArtBase(entry.orgasmusArt))
+      (!requiredType ||
+        requiredType === entry.orgasmusArt ||
+        requiredType === parseOrgasmusArtBase(entry.orgasmusArt))
     ) {
       await tx.orgasmusAnforderung.update({
         where: { id: offeneAnforderung.id },
