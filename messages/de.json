@@ -314,6 +314,7 @@
     "exifDeviation": "Aufnahmezeit weicht {hours} h ab — dein Keyholder sieht das und entscheidet selbst; automatisch ist es kein Vergehen.",
     "exifMissing": "Foto ohne Aufnahmezeit — dein Keyholder sieht das und entscheidet selbst; automatisch ist es kein Vergehen.",
     "active": "Aktiv",
+    "inactive": "Aus",
     "all": "Alle",
     "withdraw": "Zurückziehen",
     "message": "Nachricht",

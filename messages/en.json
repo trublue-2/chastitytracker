@@ -314,6 +314,7 @@
     "exifDeviation": "Capture time is off by {hours} h — your keyholder sees this and decides; it is not automatically an offense.",
     "exifMissing": "Photo has no capture time — your keyholder sees this and decides; it is not automatically an offense.",
     "active": "Active",
+    "inactive": "Off",
     "all": "All",
     "withdraw": "Withdraw",
     "message": "Message",

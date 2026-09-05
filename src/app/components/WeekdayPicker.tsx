@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { toDateLocale } from "@/lib/utils";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { WEEKDAY_KEYS, toggleWeekday, weekdayMaskHas } from "@/lib/weekdays";
@@ -30,8 +30,10 @@ export default function WeekdayPicker({ mask, disabled, onChange, ariaLabel }: {
   ariaLabel: string;
 }) {
   const labels = buildWeekdayLabels(toDateLocale(useLocale()));
+  const tc = useTranslations("common");
 
   return (
+    <div className="flex flex-col gap-1.5">
     <div className="flex flex-wrap gap-1" role="group" aria-label={ariaLabel}>
       {WEEKDAY_KEYS.map((key, i) => {
         const isoDay = i + 1;
@@ -63,6 +65,21 @@ export default function WeekdayPicker({ mask, disabled, onChange, ariaLabel }: {
           </button>
         );
       })}
+    </div>
+      {/* Legende: das gefüllte/gedimmte Muster ist die Haus-Konvention (ausgewählter `Tabs`-Reiter),
+          ohne Beschriftung aber leicht zu verkehren — deshalb hier generisch benannt. `aria-hidden`,
+          weil jeder Tag-Button seinen Zustand schon über `aria-pressed` trägt; die Legende ist reine
+          Sehhilfe und wäre für den Screenreader nur eine doppelte, kontextlose „aktiv aus"-Zeile. */}
+      <p className="flex items-center gap-3 text-xs text-foreground-faint" aria-hidden="true">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm border bg-foreground border-foreground" />
+          {tc("active")}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm border bg-surface-raised border-border" />
+          {tc("inactive")}
+        </span>
+      </p>
     </div>
   );
 }
