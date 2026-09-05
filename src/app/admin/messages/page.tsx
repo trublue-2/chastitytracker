@@ -1,4 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
+import { titleCls } from "@/app/components/inputStyles";
 import { assertController } from "@/lib/authGuards";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import { keyholderInbox, listMessages, unreadCountForKeyholderCached, unreadCount } from "@/lib/messageService";
@@ -62,8 +63,8 @@ export default async function AdminMessagesPage({
     // Ohne ihn sass die Überschrift bündig unter der klebenden Kopfzeile und die Spalte war schmaler
     // als überall sonst.
     <main className="flex-1 py-6 flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground mb-1">{t(MESSAGE_SCOPES[SCOPE].titleKey)}</h1>
+      <div className="flex flex-col gap-1.5">
+        <h1 className={titleCls}>{t(MESSAGE_SCOPES[SCOPE].titleKey)}</h1>
         <p className="text-xs text-foreground-faint">{t(MESSAGE_SCOPES[SCOPE].introKey)}</p>
       </div>
       {/* `key` = der Filter aus der ADRESSE: eine reine Query-Änderung ist für den Router dieselbe

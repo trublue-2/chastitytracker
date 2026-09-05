@@ -12,7 +12,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
-import { formColCls } from "@/app/components/inputStyles";
+import { formColCls, titleCls } from "@/app/components/inputStyles";
 
 export default function NewUserPage() {
   const t = useTranslations("admin");
@@ -67,7 +67,7 @@ export default function NewUserPage() {
   return (
     <main className={`${formColCls} flex-1 py-6`}>
       <BackLink href="/admin/users">{t("backToUsers")}</BackLink>
-      <h1 className="text-xl font-bold text-foreground mt-1 mb-6">{t("newUser")}</h1>
+      <h1 className={`${titleCls} mt-1 mb-6`}>{t("newUser")}</h1>
 
       <Card>
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">

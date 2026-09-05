@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { titleCls } from "@/app/components/inputStyles";
 import { auth } from "@/lib/auth";
 import { ShieldCheck } from "lucide-react";
 import Card from "@/app/components/Card";
@@ -57,7 +58,7 @@ export default async function OAuthAuthorizePage({ searchParams }: Props) {
             </div>
 
             <div className="text-center">
-              <h1 className="text-lg font-semibold mb-1">Zugriff erlauben?</h1>
+              <h1 className={`${titleCls} mb-1`}>Zugriff erlauben?</h1>
               <p className="text-sm text-foreground-muted">
                 <strong>{appName}</strong> möchte auf deinen ChastityTracker zugreifen.
               </p>

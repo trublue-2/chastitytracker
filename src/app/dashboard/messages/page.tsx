@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
+import { titleCls } from "@/app/components/inputStyles";
 import { auth } from "@/lib/auth";
 import { soleControllerName } from "@/lib/keyholder";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
@@ -67,10 +68,14 @@ export default async function MessagesPage({
     // Über das `as` des Blocks statt eines zusätzlichen `<main>` aussen herum: ein Wrapper brächte
     // eine zweite Ebene zwischen Spalte und Block, und der Block IST hier schon der ganze Inhalt.
     <DashboardBlock as="main">
-      <h1 className="text-lg font-semibold text-foreground mb-1">{t(MESSAGE_SCOPES[SCOPE].titleKey)}</h1>
-      {/* Der Posteingang beantwortet „Was wurde mir gesagt?" — die Banner auf dem Dashboard
-          „Was muss ich JETZT tun?". Deshalb hier bewusst kein Countdown und keine Dringlichkeit. */}
-      <p className="text-xs text-foreground-faint mb-4">{t(MESSAGE_SCOPES[SCOPE].introKey)}</p>
+      {/* pt-6: der Block trägt bewusst keine vertikalen Abstände (DashboardBlock), als ganze Seite
+          braucht er oben aber Luft unter der klebenden Kopfzeile — wie `dashboard/eintraege`. */}
+      <div className="pt-6 flex flex-col gap-1.5 mb-6">
+        <h1 className={titleCls}>{t(MESSAGE_SCOPES[SCOPE].titleKey)}</h1>
+        {/* Der Posteingang beantwortet „Was wurde mir gesagt?" — die Banner auf dem Dashboard
+            „Was muss ich JETZT tun?". Deshalb hier bewusst kein Countdown und keine Dringlichkeit. */}
+        <p className="text-xs text-foreground-faint">{t(MESSAGE_SCOPES[SCOPE].introKey)}</p>
+      </div>
       {/* `key` = der Filter aus der ADRESSE. Eine reine Query-Änderung (Glocke → ungefilterter
           Posteingang, „Alle ansehen" → Strafen) ist für den Router dieselbe Seite: die Komponente
           bliebe montiert, und `initialFilter` seedet nur `useState`. Ohne den Schlüssel stünde der

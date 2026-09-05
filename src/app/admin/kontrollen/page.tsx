@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { titleCls } from "@/app/components/inputStyles";
 import { auth } from "@/lib/auth";
 import { assertAdmin } from "@/lib/authGuards";
 import { toDateLocale, APP_TZ } from "@/lib/utils";
@@ -54,10 +55,10 @@ export default async function AdminKontrollenPage({
         ) : (
           <BackLink href="/admin">{t("backToOverview")}</BackLink>
         )}
-        <h1 className="text-xl font-bold text-foreground mt-1">
+        <h1 className={`${titleCls} mt-1`}>
           {t("alarmeTitle")}{user ? ` – ${user.username}` : ""}
         </h1>
-        <p className="text-sm text-foreground-faint mt-0.5">{t("alarmeCount", { count: items.length })}</p>
+        <p className="text-sm text-foreground-faint mt-1">{t("alarmeCount", { count: items.length })}</p>
       </div>
 
       {items.length === 0 ? (

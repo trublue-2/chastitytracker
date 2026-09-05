@@ -6,6 +6,13 @@
       {
         "type": "ui",
         "text": {
+          "de": "Seitentitel sehen jetzt überall gleich aus, und die Seiten „Meine Regeln“ und „Posteingang“ haben oben wieder den richtigen Abstand.",
+          "en": "Page titles now look the same everywhere, and the “My rules” and “Inbox” pages have the right spacing at the top again."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
           "de": "Die Einstellungen eines Subs sind aufgeräumt: weniger überflüssige Trennlinien und eine logischere Reihenfolge der Abschnitte.",
           "en": "A sub's settings are tidied up: fewer redundant divider lines and a more logical order of the sections."
         }

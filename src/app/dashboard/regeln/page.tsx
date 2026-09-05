@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
+import { titleCls } from "@/app/components/inputStyles";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Badge from "@/app/components/Badge";
@@ -90,17 +91,21 @@ export default async function RulesPage() {
     // Screenreader durchgeht, will an den Regeln entlanglesen und nicht jedes Mal zuerst durch
     // Kopfzeile und Seitenleiste.
     <DashboardBlock as="main">
-      <h1 className="text-lg font-semibold text-foreground mb-1">{t("title")}</h1>
-      <p className="text-xs text-foreground-faint mb-2">{t("intro")}</p>
-      {/* Die EINE Stelle, an der „KG“ aufgelöst wird (Issue #93). Bewusst hier und nicht als
-          Glossar oder Onboarding-Schritt: das ist laut dem Prüfer die einzige Seite, auf der
-          steht, wonach der Träger beurteilt wird — also die, die er aufschlägt, wenn er etwas
-          nicht versteht. Ein Onboarding-Hinweis sieht nur, wer neu ist, und nur einmal.
-          Die Abkürzung selbst bleibt in der Oberfläche stehen; sie ist eingeführt. Was fehlte,
-          war ein Ort, an dem sie einmal ausgeschrieben steht. */}
-      <p className="text-xs text-foreground-faint mb-4">{t("glossary")}</p>
+      {/* pt-6: der Block trägt bewusst keine vertikalen Abstände (DashboardBlock), als ganze Seite
+          braucht er oben aber Luft unter der klebenden Kopfzeile — wie `dashboard/eintraege`. */}
+      <div className="pt-6 flex flex-col gap-2">
+        <h1 className={titleCls}>{t("title")}</h1>
+        <p className="text-xs text-foreground-faint">{t("intro")}</p>
+        {/* Die EINE Stelle, an der „KG“ aufgelöst wird (Issue #93). Bewusst hier und nicht als
+            Glossar oder Onboarding-Schritt: das ist laut dem Prüfer die einzige Seite, auf der
+            steht, wonach der Träger beurteilt wird — also die, die er aufschlägt, wenn er etwas
+            nicht versteht. Ein Onboarding-Hinweis sieht nur, wer neu ist, und nur einmal.
+            Die Abkürzung selbst bleibt in der Oberfläche stehen; sie ist eingeführt. Was fehlte,
+            war ein Ort, an dem sie einmal ausgeschrieben steht. */}
+        <p className="text-xs text-foreground-faint">{t("glossary")}</p>
+      </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 mt-6">
         <SettingsSection title={ta("sectionReinigung")} description={t("cleaningDesc")} bodyPadded>
           <div className="flex flex-col gap-3">
             <DetailField label={t("cleaningAllowedLabel")}>

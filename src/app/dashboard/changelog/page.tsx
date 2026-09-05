@@ -6,7 +6,7 @@ import { toDateLocale } from "@/lib/utils";
 import releasesData from "@/data/changelog.json";
 import UpstreamSection from "./UpstreamSection";
 import Section from "@/app/components/Section";
-import { blockStackCls } from "@/app/components/inputStyles";
+import { blockStackCls, titleCls } from "@/app/components/inputStyles";
 import { pickChangelogText, type ChangelogText } from "@/lib/changelogText";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
@@ -93,8 +93,8 @@ export default async function ChangelogPage() {
         >
           <ArrowLeft size={18} />
         </Link>
-        <div>
-          <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
+        <div className="flex flex-col gap-1">
+          <h1 className={titleCls}>{t("title")}</h1>
           <p className="text-sm text-foreground-faint">{t("currentVersion")}: <span className="font-mono bg-surface-raised text-foreground-muted px-1.5 py-0.5 rounded text-xs">v{currentVersion}</span></p>
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { titleCls } from "@/app/components/inputStyles";
+
 /**
  * Die Überschrift einer Seite, die es zweimal gibt — einmal für den Träger, einmal als Reiter der
  * Keyholderin.
@@ -20,6 +22,9 @@ export default function PageTitle({
   /** Der fremde Träger, dessen Daten die Seite zeigt — `undefined` in der eigenen Sicht. */
   subjectId?: string;
 }) {
-  const cls = "text-xl font-bold text-foreground";
+  // Die Serif-Titel-Form, die einen Bildschirm benennt — dieselbe wie auf den Einträge-, Statistik-
+  // und Anmelde-Seiten. Nicht mehr `text-xl font-bold`: der Seitentitel trägt im ganzen Baum genau
+  // eine Behandlung (Issue #95 A).
+  const cls = titleCls;
   return subjectId ? <h2 className={cls}>{title}</h2> : <h1 className={cls}>{title}</h1>;
 }

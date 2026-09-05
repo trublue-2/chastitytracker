@@ -1,4 +1,5 @@
 import { assertAdmin } from "@/lib/authGuards";
+import { titleCls } from "@/app/components/inputStyles";
 import { ClipboardCheck, Droplets, Clipboard, Shield, BarChart3 } from "lucide-react";
 
 import FormError from "@/app/components/FormError";
@@ -54,7 +55,7 @@ export default async function ComponentsShowcase() {
   return (
     <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-12">
       <div>
-        <h1 className="text-2xl font-bold text-foreground mb-1">V3 Design System</h1>
+        <h1 className={`${titleCls} mb-1`}>V3 Design System</h1>
         <p className="text-sm text-foreground-faint">
           44 Komponenten — Alle Primitives + Composed. Dual-Theme (User / Admin). Admin only.
         </p>

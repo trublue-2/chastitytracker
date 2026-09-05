@@ -130,6 +130,16 @@ export const wideColCls = "w-full max-w-3xl mx-auto px-4 sm:px-6";
 export const authColCls = "w-full max-w-sm";
 
 /**
+ * Die eine Behandlung des SEITENTITELS — der Serif-Zeile, die einen Bildschirm benennt
+ * (`--text-titel`, 32 px Serif, globals.css). Ausgelagert, weil sie an einem Dutzend Stellen
+ * wortgleich stand und daraus fünf Varianten geworden waren (Issue #95 A): dieselbe Figur,
+ * verschieden gelöst. Aufrufer hängen ihre Ränder an — `` `${titleCls} mt-1 mb-6` `` —, wie es
+ * `listRowCls`/`inlineInputCls` vormachen. Wer die Titelform ändern will, ändert sie HIER, nicht in
+ * dreizehn Dateien.
+ */
+export const titleCls = "font-serif text-titel text-foreground";
+
+/**
  * Die HÜLLE des Keyholder-Bereichs — breiter als das Inhalts-Lesemass ({@link wideColCls}).
  *
  * Sie trägt zwei Dinge, die die 768 px sprengen: die neun Reiter der Träger-Seite (die sonst auf

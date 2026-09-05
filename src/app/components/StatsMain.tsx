@@ -8,7 +8,7 @@ import { STATS_BLOCK_TABLE, type StatsCtx } from "@/app/components/statsBlocks";
 import Card from "./Card";
 import EmptyState from "./EmptyState";
 import { BarChart2 } from "lucide-react";
-import { blockStackCls } from "@/app/components/inputStyles";
+import { blockStackCls, titleCls } from "@/app/components/inputStyles";
 
 /**
  * Die Statistik-Seite — geteilt vom Träger (`/dashboard/stats`) und der Keyholderin
@@ -73,9 +73,11 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
         {backHref && (
           <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
         )}
+        {/* Serif wie der Titel der befüllten Statistik (`statsBlocks.tsx`): derselbe Bildschirm darf
+            im Leerzustand nicht die alte, fette Fassung tragen (Issue #95 A). */}
         {Tag === "main"
-          ? <h1 className="text-xl font-bold text-foreground">{pageHeading}</h1>
-          : <h2 className="text-xl font-bold text-foreground">{pageHeading}</h2>}
+          ? <h1 className={titleCls}>{pageHeading}</h1>
+          : <h2 className={titleCls}>{pageHeading}</h2>}
         <Card padding="default">
           <EmptyState icon={<BarChart2 size={32} />} title={t("noEntries")} />
         </Card>
