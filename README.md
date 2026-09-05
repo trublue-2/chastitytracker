@@ -28,7 +28,7 @@
 - **Personal statistics** — calendar heatmap, monthly overview, training-goal progress, per-device usage
 - **Orgasm tracking** with type and sub-type selection via two dependent dropdowns (e.g. Orgasmus → Masturbation); the type/sub-type list is admin-customizable per user
 - **Offline-first** — IndexedDB-cached dashboard and queued entry creation with background sync
-- **Inbox** — every notification a user receives (inspection, lock & closure, orgasm, penalty, system) also lands in an in-app inbox, colour-coded by category, so nothing is lost when an email doesn't arrive. Read state is per message (opening the list is not enough), messages can be marked unread again, acknowledged all at once, or deleted; an open inspection links straight to the inspection form with the code pre-filled. The bell and the app icon carry the unread count. Mail and push for *new messages* can be switched off per user — requests and deadlines are always delivered. Keyholders have an inbox of their own behind the same bell: notices about their wearers (auto-filed inspections, task results, late proofs)
+- **Inbox** — every notification a user receives (inspection, lock & closure, orgasm, penalty, system) also lands in an in-app inbox, colour-coded by category, so nothing is lost when an email doesn't arrive. Read state is per message (opening the list is not enough), messages can be marked unread again, acknowledged all at once, or deleted; an open inspection links straight to the inspection form with the code pre-filled. The bell and the app icon carry the unread count. Notifications go out over email, push, and Telegram (a bot-based third channel, enabled per instance); each channel is switchable per user, and mail/push/Telegram for *new messages* and the weigh-in reminder can be turned off individually — requests and deadlines are always delivered. Keyholders have an inbox of their own behind the same bell: notices about their wearers (auto-filed inspections, task results, late proofs)
 - **Tasks** — assignments from the keyholder with any number of conditions (stay locked, wear a specific device or category) that must hold *continuously*, a start grace period, and a deadline. Proof photos can be required, each with its own due time and an optional order; the capture time comes from the photo's EXIF data, not from the upload. What is left to do is spelled out on the card ("still missing: …"), and when everything has held, the wearer reports the task done
 - **My rules** — a read-only page showing what the wearer is judged by: cleaning permissions and limits, automatic inspections, and which kinds of offense count for them at all
 - **Password self-service** (change and reset via email)
@@ -111,6 +111,7 @@ environment variables. Everything above is on by default.
 | Images | Sharp (processing) + Exifr (EXIF extraction) |
 | Email | Nodemailer (SMTP) |
 | Push | web-push (VAPID) + native APNs/FCM (Capacitor) |
+| Telegram | Bot API (webhook-based, optional third notification channel) |
 | i18n | next-intl v4 |
 | Mobile | Capacitor wrappers (iOS via TestFlight, Android via direct APK) |
 | Icons | Lucide React |
@@ -193,6 +194,15 @@ ANTHROPIC_API_KEY=<key>
 VAPID_PUBLIC_KEY=<generated-public-key>
 VAPID_PRIVATE_KEY=<generated-private-key>
 VAPID_SUBJECT=mailto:admin@yourdomain.com
+
+# Telegram notifications (optional third channel, alongside email and push).
+# Skipped silently when unset (like email without SMTP). One bot per instance.
+# Setup: 1) create a bot via @BotFather -> token + bot name; 2) fill these in;
+#        3) register the webhook once (the secret guards the endpoint):
+#    curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<your-domain>/api/telegram/webhook&secret_token=<SECRET>"
+TELEGRAM_BOT_TOKEN=<token>         # bot token from BotFather; without it no Telegram is sent
+TELEGRAM_BOT_USERNAME=<botname>    # bot name without @ (for the t.me/<botname>?start=... deep link); without it users can't connect
+TELEGRAM_WEBHOOK_SECRET=<random>   # required once the webhook is live; checked against the X-Telegram-Bot-Api-Secret-Token header
 
 # Passkey / WebAuthn (optional — defaults to localhost for dev)
 WEBAUTHN_RP_ID=yourdomain.com
@@ -390,6 +400,13 @@ VAPID_SUBJECT=mailto:admin@example.com
 # APNS_SANDBOX=true                          # Xcode/dev builds → sandbox; unset for TestFlight/App Store
 # Android (FCM):
 # FCM_SERVER_KEY=<fcm server key>
+
+# Telegram (optional third notification channel, alongside email + push). One bot per instance;
+# skipped silently when unset. Setup: create a bot via @BotFather, then register the webhook once:
+#   curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://tracker.example.com/api/telegram/webhook&secret_token=<SECRET>"
+# TELEGRAM_BOT_TOKEN=<token>          # bot token from BotFather; without it no Telegram is sent
+# TELEGRAM_BOT_USERNAME=<botname>     # bot name without @ (for the t.me/<botname>?start=... connect link)
+# TELEGRAM_WEBHOOK_SECRET=<random>    # required once the webhook is live; checked against the request header
 
 # --- Optional ---
 # USE_ADMIN_RELATIONSHIPS=true      # enable n:m admin↔user supervision
