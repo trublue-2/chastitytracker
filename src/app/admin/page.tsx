@@ -28,6 +28,7 @@ import { rowHoverCls } from "@/app/components/inputStyles";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 import { boxBoltOpenDespiteLocked } from "@/lib/boxStatus";
 import WarnLine from "@/app/components/WarnLine";
+import { actionIcon } from "@/app/entries/actionSign";
 
 /** Wie eine geplante Direktive in der Liste erscheint — Beschriftung, Rückzug-Endpunkt, Tönung.
  *  Eine Zeile je `kind`; eine neue terminierbare Direktive ergänzt hier einen Eintrag und ist damit
@@ -86,7 +87,7 @@ export default async function AdminPage() {
   const now = new Date();
 
   // Bulk-fetch all data in 7 queries instead of 7×N
-  const [kgTimes, allKontrolle, allVerschlussAnf, allLockPeriods, allOrgasmusAnf, allBoxes] = await Promise.all([
+  const [kgTimes, allKontrolle, allVerschlussAnf, allLockPeriods, allOrgasmusAnf, allBoxes, allPendingReviews] = await Promise.all([
     latestKgTimesByUser(userIds),
     prisma.kontrollAnforderung.findMany({
       where: { userId: { in: userIds }, entryId: null, withdrawnAt: null, ...keyholderVisibleKontrolleWhere(now) },
@@ -115,6 +116,16 @@ export default async function AdminPage() {
           select: { userId: true, locked: true, reportedLocked: true, pendingCommand: true },
         })
       : [],
+    // Wartende Aufgaben-Nachweise (#8): eingereicht (`submittedAt`), Aufgabe nicht zurückgezogen —
+    // also sichtbar für `proofReviewBlockedReason` (= null) — UND noch nicht gesichtet
+    // (`reviewedAt: null`). Das `reviewedAt: null` ist der Zusatz: eine Sichtung ist bewusst
+    // wiederholbar, `proofReviewBlockedReason` bliebe auch für längst gesichtete Nachweise null.
+    // Sie warten auf eine Entscheidung der Keyholderin und zählen deshalb in „braucht dich" mit,
+    // statt still im Aufgaben-Reiter zu liegen.
+    prisma.taskProof.findMany({
+      where: { submittedAt: { not: null }, reviewedAt: null, task: { userId: { in: userIds }, withdrawnAt: null } },
+      select: { task: { select: { userId: true } } },
+    }),
   ]);
 
   // Build lookup maps from groupBy results
@@ -161,10 +172,18 @@ export default async function AdminPage() {
   const boxUserIds = new Set(allBoxes.map((b) => b.userId));
   // Der Instanz-Schalter ist für alle Träger derselbe — einmal lesen, nicht je Karte und Chip.
   const weightFeature = weightTrackingEnabled();
+  // Das Aufgaben-Zeichen aus der EINEN Registratur (`actionSign`) — nicht `ClipboardCheck` von Hand,
+  // das trägt die Prüfung.
+  const TaskIcon = actionIcon("TASK");
   const kontrolleByUser = groupByUser(allKontrolle);
   const anforderungByUser = groupByUser(allVerschlussAnf);
   const lockPeriodByUser = groupByUser(allLockPeriods);
   const orgasmusAnfByUser = groupByUser(allOrgasmusAnf);
+  // Je Träger: wie viele eingereichte Nachweise auf ihre Sichtung warten (#8).
+  const pendingReviewByUser = new Map<string, number>();
+  for (const p of allPendingReviews) {
+    pendingReviewByUser.set(p.task.userId, (pendingReviewByUser.get(p.task.userId) ?? 0) + 1);
+  }
 
   const isScheduled = (wirksamAb: Date | null) => isScheduledDirective(wirksamAb, now);
 
@@ -225,6 +244,7 @@ export default async function AdminPage() {
       offeneOrgasmusAnforderung: offeneOrgasmusAnforderung
         ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endsAt: offeneOrgasmusAnforderung.endsAt, expired: offeneOrgasmusAnforderung.endsAt < now }
         : null,
+      pendingTaskReviews: pendingReviewByUser.get(userId) ?? 0,
       scheduled,
     };
   }
@@ -252,7 +272,7 @@ export default async function AdminPage() {
    * nur zählen, wofür es auch einen Griff gibt.
    */
   const needsDecision = (st: ReturnType<typeof getUserStats>) =>
-    !!st.offeneKontrolle || st.hasOffeneAnforderung || !!st.offeneOrgasmusAnforderung;
+    !!st.offeneKontrolle || st.hasOffeneAnforderung || !!st.offeneOrgasmusAnforderung || st.pendingTaskReviews > 0;
 
   // Die Teilung ist eine REIHENFOLGE, keine zwei Darstellungen — v6 hatte daraus zwei Figuren
   // gemacht, und die leise Zeile für die ruhigen Subs kam ohne Schnellaktionen. Eine Keyholderin,
@@ -486,6 +506,24 @@ export default async function AdminPage() {
                             subTimePrefix={subLabel}
                             withdrawAction={<WithdrawButton id={u.stats.offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" title={t("withdrawOrgasmTitle")} colorToken="orgasm" />}
                           />
+                        )}
+                        {/* Wartende Aufgaben-Nachweise (#8): eigener klickbarer Hinweis, weil es dafür
+                            kein Direktiven-Banner gibt und die Sichtung sonst nur im Aufgaben-Reiter
+                            liegt. Box-lose Zeile mit `rowHoverCls` wie die klickbaren Kontroll-Zeilen
+                            (`DashboardAlerts`) — kein eigener Kasten neben den kastenlosen Bannern
+                            darüber. `relative z-20` sitzt über dem gestreckten Karten-Link und führt
+                            direkt in den Reiter, wo sie den Nachweis beurteilt. */}
+                        {u.stats.pendingTaskReviews > 0 && (
+                          <Link
+                            href={`/admin/users/${u.id}/aufgaben`}
+                            className={`relative z-20 flex items-center justify-between gap-2 py-1.5 text-xs font-medium text-warn ${rowHoverCls}`}
+                          >
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <TaskIcon size={14} strokeWidth={2} className="flex-shrink-0" aria-hidden />
+                              <span className="truncate">{t("taskReviewsPending", { count: u.stats.pendingTaskReviews })}</span>
+                            </span>
+                            <ChevronRight size={14} aria-hidden className="flex-shrink-0" />
+                          </Link>
                         )}
 
                         {/* Geplante (noch nicht ausgelöste) Direktiven — sichtbar + stornierbar, kein Alarm */}

@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { getIsLocked, getActiveLockPeriod } from "@/lib/queries";
+import { getIsLocked } from "@/lib/queries";
+import { subLockPeriodCached } from "@/lib/dashboardData";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
 import { weightTrackingEnabled } from "@/lib/constants";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
@@ -26,7 +27,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
 
   const [isLocked, activeLockPeriod, categories] = await Promise.all([
     getIsLocked(id),
-    getActiveLockPeriod(id),
+    subLockPeriodCached(id),
     buildNewEntryCategoryRows(id),
   ]);
 

@@ -969,6 +969,7 @@
     "needsYouTitle": "{count, plural, one {needs your decision} other {need your decision}}",
     "boltOpenOverview": "Box not locked — bolt open",
     "needsYouRow": "needs your decision",
+    "taskReviewsPending": "{count, plural, one {# proof to review} other {# proofs to review}}",
     "allCalmTitle": "Nothing open",
     "allCalmHint": "None of your subs is waiting on you right now.",
     "yourSubsTitle": "Your subs",

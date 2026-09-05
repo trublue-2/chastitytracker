@@ -9,6 +9,20 @@
           "de": "Bei der Wochentag-Auswahl (Plan-Tage, Fenster-Ausnahmen, Reinigungs- und Wiege-Fenster) zeigt jetzt eine kleine Legende, welche Tage aktiv und welche aus sind.",
           "en": "The weekday picker (plan days, window exceptions, cleaning and weigh-in windows) now shows a small legend for which days are active and which are off."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eingereichte Aufgaben-Nachweise, die auf deine Sichtung warten, zählen jetzt in „braucht deine Entscheidung“ und stehen als Hinweis auf der Sub-Karte, statt still im Aufgaben-Reiter zu liegen.",
+          "en": "Submitted task proofs awaiting your review now count in “needs your decision” and show on the sub card, instead of sitting unnoticed in the tasks tab."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "In der Kopfzeile eines Subs steht bei laufender befristeter Sperrzeit jetzt die verbleibende Restzeit, nicht mehr nur die Zeit seit dem Verschluss.",
+          "en": "A sub's header now shows the remaining time during a timed lock period, instead of only the time since locking."
+        }
       }
     ]
   },

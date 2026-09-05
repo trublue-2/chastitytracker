@@ -7,6 +7,7 @@ import { ChevronLeft, ArrowLeftRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Sheet from "@/app/components/Sheet";
 import TimerDisplay from "@/app/components/TimerDisplay";
+import LockPeriodRemaining from "@/app/components/LockPeriodRemaining";
 import UserAvatar from "@/app/components/UserAvatar";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
@@ -22,11 +23,14 @@ interface Props {
   username: string;
   currentStatus: "VERSCHLUSS" | "OEFFNEN" | null;
   since: string | null; // ISO string
+  /** Ende der laufenden befristeten Sperrzeit (ISO) — dann zeigt die Leiste die RESTZEIT (#10)
+   *  statt der Zeit seit dem Verschluss. `null` = keine/unbefristete Sperrzeit → Zeit seit Verschluss. */
+  lockEndsAt: string | null;
   users: UserEntry[];
   isGlobalAdmin: boolean;
 }
 
-export default function UserContextBar({ userId, username, currentStatus, since, users, isGlobalAdmin }: Props) {
+export default function UserContextBar({ userId, username, currentStatus, since, lockEndsAt, users, isGlobalAdmin }: Props) {
   const t = useTranslations("admin");
   const tCommon = useTranslations("common");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -88,7 +92,14 @@ export default function UserContextBar({ userId, username, currentStatus, since,
                  die Farbe beim Hochzählen nichts bedeutet. Die umgebende Zeile trägt die
                  Zustandsfarbe ohnehin — dort steht sie richtig, weil sie am Schloss-Zeichen hängt
                  und nicht an der Zahl. */
-              ? <><LockClosedIcon size={11} strokeWidth={2} />{since && <TimerDisplay targetDate={since} mode="countup" format="long" className="font-semibold" />}</>
+              /* Läuft eine befristete Sperrzeit, ist die RESTZEIT die Zahl, die die Keyholderin
+                 braucht (#10) — sie steht sonst nur weiter unten in der Session-Karte. Ohne
+                 befristete Sperrzeit bleibt es bei der Zeit SEIT dem Verschluss. */
+              ? <><LockClosedIcon size={11} strokeWidth={2} />{
+                  lockEndsAt
+                    ? <LockPeriodRemaining endsAt={lockEndsAt} className="font-semibold" />
+                    : since && <TimerDisplay targetDate={since} mode="countup" format="long" className="font-semibold" />
+                }</>
               : currentStatus
                 ? <><LockOpenIcon size={11} strokeWidth={2} /> {t("opened")}</>
                 : <span className="text-foreground-faint">–</span>

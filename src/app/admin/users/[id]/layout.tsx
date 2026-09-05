@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getLatestKgEntry, latestKgTimesByUser } from "@/lib/queries";
+import { subLockPeriodCached } from "@/lib/dashboardData";
 import { getControlledSubs } from "@/lib/keyholder";
 import UserContextBar from "./UserContextBar";
 import UserSubNav from "./UserSubNav";
@@ -24,10 +25,14 @@ export default async function AdminUserLayout({
     : getControlledSubs(actorId);
 
   // Parallelize all queries — select only needed fields for user-switcher
-  const [user, allUsers, latestLockEntry] = await Promise.all([
+  const [user, allUsers, latestLockEntry, activeLockPeriod] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { id: true, username: true } }),
     usersForSwitcher,
     getLatestKgEntry(id),
+    // Für die Restzeit-Anzeige in der Kontextleiste (#10): die EFFEKTIVE laufende Sperrzeit.
+    // `subLockPeriodCached`, damit die drei Aktions-Unterseiten, die dieselbe Sperrzeit lesen,
+    // die Abfrage per React-`cache()` mit dem Layout teilen statt sie doppelt zu fahren.
+    subLockPeriodCached(id),
   ]);
 
   const userIds = allUsers.map(u => u.id);
@@ -61,6 +66,9 @@ export default async function AdminUserLayout({
         username={user.username}
         currentStatus={currentStatus}
         since={latestLockEntry?.type === "VERSCHLUSS" ? latestLockEntry.startTime.toISOString() : null}
+        // Restzeit statt „seit": nur bei verschlossen UND befristeter aktiver Sperrzeit. Unbefristet
+        // (endsAt null) bleibt es bei der Zeit seit dem Verschluss — es gibt keine Restzeit.
+        lockEndsAt={currentStatus === "VERSCHLUSS" && activeLockPeriod?.endsAt ? activeLockPeriod.endsAt.toISOString() : null}
         users={userLockStatuses}
         isGlobalAdmin={isGlobalAdmin}
       />

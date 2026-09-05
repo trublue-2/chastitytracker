@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { getActiveLockPeriod, getUserTimezone } from "@/lib/queries";
+import { getUserTimezone } from "@/lib/queries";
+import { subLockPeriodCached } from "@/lib/dashboardData";
 import LockDurationEditForm from "./LockDurationEditForm";
 
 export default async function AdminLockDurationEditPage({ params }: { params: Promise<{ id: string }> }) {
@@ -10,7 +11,7 @@ export default async function AdminLockDurationEditPage({ params }: { params: Pr
 
   const [user, activeLockPeriod, tz] = await Promise.all([
     prisma.user.findUnique({ where: { id }, select: { id: true } }),
-    getActiveLockPeriod(id),
+    subLockPeriodCached(id),
     getUserTimezone(id),
   ]);
   if (!user) redirect("/admin");

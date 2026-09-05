@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { getUserDeviceOptions, getIsLocked, getActiveLockPeriod, getUserTimezone } from "@/lib/queries";
+import { getUserDeviceOptions, getIsLocked, getUserTimezone } from "@/lib/queries";
+import { subLockPeriodCached } from "@/lib/dashboardData";
 import { nowDatetimeLocal } from "@/lib/utils";
 import VerschlussAnforderungForm from "./VerschlussAnforderungForm";
 
@@ -14,7 +15,7 @@ export default async function AdminVerschlussAnforderungPage({ params }: { param
 
   const [isLocked, activeLockPeriod, devices, tz] = await Promise.all([
     getIsLocked(id),
-    getActiveLockPeriod(id),
+    subLockPeriodCached(id),
     getUserDeviceOptions(id),
     getUserTimezone(id),
   ]);

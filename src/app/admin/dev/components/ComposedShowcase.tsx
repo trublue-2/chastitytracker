@@ -233,6 +233,8 @@ export function UserContextBarDemo() {
         username="alice"
         currentStatus="VERSCHLUSS"
         since={new Date(Date.now() - 3 * 24 * 3600_000).toISOString()}
+        // Befristete Sperrzeit → die Leiste zeigt die Restzeit (#10)
+        lockEndsAt={new Date(Date.now() + 18 * 3600_000).toISOString()}
         users={MOCK_USERS}
         isGlobalAdmin={true}
       />

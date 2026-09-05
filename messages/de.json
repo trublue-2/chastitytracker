@@ -969,6 +969,7 @@
     "needsYouTitle": "{count, plural, one {braucht deine Entscheidung} other {brauchen deine Entscheidung}}",
     "boltOpenOverview": "Box nicht verschlossen — Riegel offen",
     "needsYouRow": "braucht deine Entscheidung",
+    "taskReviewsPending": "{count, plural, one {# Nachweis zu sichten} other {# Nachweise zu sichten}}",
     "allCalmTitle": "Nichts offen",
     "allCalmHint": "Keiner deiner Subs wartet gerade auf dich.",
     "yourSubsTitle": "Deine Subs",
