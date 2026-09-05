@@ -18,6 +18,7 @@ export default function SectionDisclosure({
   id,
   className,
   headerCls,
+  underlineCls,
   bodyCls,
   heading,
   action,
@@ -27,6 +28,9 @@ export default function SectionDisclosure({
   id?: string;
   className: string;
   headerCls: string;
+  /** Die Rubrik-Unterstreichung — nur im OFFENEN Zustand, weil sie die Überschrift vom Inhalt
+   *  trennt. Zugeklappt gibt es keinen Inhalt und die Linie stünde bezugslos da (siehe `Section`). */
+  underlineCls: string;
   bodyCls: string;
   /** Die fertige Rubrik — sie kommt von `Section`, damit Ton und Lautstärke dort entschieden bleiben. */
   heading: ReactNode;
@@ -54,7 +58,7 @@ export default function SectionDisclosure({
 
   return (
     <section id={id} className={className}>
-      <div className={headerCls}>
+      <div className={`${headerCls} ${collapsed ? "" : underlineCls}`}>
         {/* Die ganze Rubrik ist die Trefferfläche, nicht nur das Zeichen daneben: ein 11-px-Wort
             mit einem 14-px-Pfeil rechts wäre zweimal collapsed klein. `flex-1`, damit der Knopf die Zeile
             trägt, wie die Rubrik es ohne ihn täte. */}

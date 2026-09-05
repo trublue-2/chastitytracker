@@ -89,7 +89,12 @@ export default function Section({
   // nur einen Zustand dazwischen. Zwei Fassungen mit abgeschriebenen Klassen liefen auseinander,
   // und zwar unsichtbar — man sieht immer nur eine von beiden.
   const wrapperCls = `flex flex-col ${className}`;
-  const headerCls = `flex items-baseline justify-between gap-3 pb-1.5 border-b ${ton ? ton.linie : "border-border"}`;
+  const headerCls = "flex items-baseline justify-between gap-3";
+  // Die Rubrik-Unterstreichung ist getrennt, weil sie NUR trägt, solange Inhalt darunter steht:
+  // sie trennt die Überschrift vom Text. Ein ZUGEKLAPPTER Abschnitt hat darunter nichts — die Linie
+  // stünde dann unter einem Wort ohne Bezug und doppelte, wo ein Aufrufer (SettingsSection) ohnehin
+  // schon einen Trenner setzt. Der feste und der offene Abschnitt tragen sie, der zugeklappte nicht.
+  const underlineCls = `pb-1.5 border-b ${ton ? ton.linie : "border-border"}`;
   // `gap-2` gehört HIERHER und nicht an die Aufrufstellen: es stand am `<section>`, und beim
   // Einziehen dieses Wrappers fiel es weg — acht Abschnitte mit mehr als einem Kind klebten danach
   // zusammen, unter anderem die grosse Zahl der orgasmusfreien Zeit und ihr Datum.
@@ -105,6 +110,7 @@ export default function Section({
         id={id}
         className={wrapperCls}
         headerCls={headerCls}
+        underlineCls={underlineCls}
         bodyCls={bodyCls}
         heading={heading}
         action={action}
@@ -117,7 +123,7 @@ export default function Section({
 
   return (
     <section id={id} className={wrapperCls}>
-      <div className={headerCls}>
+      <div className={`${headerCls} ${underlineCls}`}>
         {heading}
         {action}
       </div>

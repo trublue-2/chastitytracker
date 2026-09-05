@@ -105,6 +105,8 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
 
   return (
     // Lesemass: eine Reihe von Einstellungsfeldern ist Fliesstext mit Schaltern, kein Listenraster.
+    // Reihenfolge nach Zweck: Konto → Vorgaben/Regime → Kontrollen & Vergehen → Gerät → Anpassung →
+    // Kommunikation → Gefahr.
     <div className={`${formColCls} flex flex-col gap-6`}>
       {/* Konto */}
       <AccountSection
@@ -135,166 +137,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         <UserLocaleSelect userId={user.id} initialLocale={user.locale} />
       </SettingsSection>
 
-      {/* Gesundheitspause — steht vor den Regeln, weil sie sie alle aussetzt. */}
-      {/* Läuft gerade ein Halt, startet dieses Kapitel OFFEN. Es ist die einzige Stelle der
-          Keyholder-Oberfläche, die einen laufenden Gesundheitshalt überhaupt anzeigt — zugeklappt
-          suchte die Keyholderin nach dem Grund für eine ausgebliebene Kontrolle und fände ihn
-          hinter einem Wort. Zuklappbar bleibt es trotzdem (`false`, nicht `undefined`). */}
-      <SettingsSection defaultCollapsed={!healthHold} title={t("sectionHealthHold")} description={t("sectionHealthHoldDesc")} bodyPadded>
-        <HealthHoldToggle
-          userId={user.id}
-          initialReason={healthHold?.reason ?? null}
-          initialSince={healthHold?.createdAt.toISOString() ?? null}
-        />
-      </SettingsSection>
-
-      {/* Reinigung */}
-      <SettingsSection defaultCollapsed title={t("sectionReinigung")} description={t("sectionReinigungDesc")} bodyPadded>
-        <CleaningToggle
-          userId={user.id}
-          initialAllowed={user.cleaningAllowed}
-          initialMaxMinutes={user.cleaningMaxMinutes}
-          initialMaxPerDay={user.cleaningMaxPerDay}
-          initialWindows={parseCleaningWindows(user.cleaningWindows)}
-        />
-      </SettingsSection>
-
-      {/* Gewichtstracking — entfällt ganz, wenn die Instanz das Feature nicht führt */}
-      {weightTrackingEnabled() && (
-        <SettingsSection defaultCollapsed title={t("sectionWeight")} description={t("sectionWeightDesc")} bodyPadded>
-          <WeightToggle
-            userId={user.id}
-            /* Die Einheit DER KEYHOLDERIN, nicht die des Subs: die Zahlen stehen in ihrer Anzeige. */
-            unitSystem={(actor?.unitSystem ?? "metric") as UnitSystem}
-            initialEnabled={user.weightTrackingEnabled}
-            initialWindows={parseWeighingWindows(user.weighingWindows)}
-            subTargetKg={user.targetWeightKg}
-            initialTargetKg={user.targetWeightKeyholderKg}
-            subHeightCm={user.heightCm}
-          />
-        </SettingsSection>
-      )}
-
-      {/* Heimdall-Box — entfällt ganz, wo keine Box gemeldet hat */}
-      {box.boxConfirm && (
-        <SettingsSection defaultCollapsed title={t("sectionBox")} description={t("sectionBoxDesc")} bodyPadded>
-          <BoxLockToggle userId={user.id} initialEnabled={user.lockRequiresBolt} />
-        </SettingsSection>
-      )}
-
-      {/* Anpassbare Auswahllisten: Orgasmus-Arten + Öffnungsgründe */}
-      <SettingsSection defaultCollapsed title={t("sectionReasons")} description={t("sectionReasonsDesc")}>
-        <div className="px-5 py-4 flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold text-foreground-muted">{t("reasonOrgasmTitle")}</p>
-            <p className="text-xs text-foreground-faint">{t("reasonOrgasmNote")}</p>
-            <ReasonsEditor
-              userId={user.id}
-              configKey="orgasmusArtenConfig"
-              initial={parseReasonConfig(user.orgasmusArtenConfig, "orgasm")}
-              builtinLabels={orgasmBuiltinLabels}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold text-foreground-muted">{t("reasonOpeningTitle")}</p>
-            <p className="text-xs text-foreground-faint">{t("reasonReinigungNote")}</p>
-            <ReasonsEditor
-              userId={user.id}
-              configKey="oeffnenGruendeConfig"
-              initial={parseReasonConfig(user.oeffnenGruendeConfig, "opening")}
-              builtinLabels={openingBuiltinLabels}
-              protectedCode="REINIGUNG"
-            />
-          </div>
-        </div>
-      </SettingsSection>
-
-      {/* Automatische Kontrollen */}
-      <SettingsSection defaultCollapsed title={t("sectionAutoKontrolle")} description={t("sectionAutoKontrolleDesc")} bodyPadded>
-        <AutoKontrolleToggle
-          userId={user.id}
-          initialAktiv={user.autoKontrolleAktiv}
-          initialPerDayMin={user.autoKontrollePerDayMin}
-          initialPerDayMax={user.autoKontrollePerDayMax}
-          initialRuheVon={user.autoKontrolleRuheVon}
-          initialRuheBis={user.autoKontrolleRuheBis}
-          initialFristVon={user.autoKontrolleFristVon}
-          initialFristBis={user.autoKontrolleFristBis}
-          initialFensterVon={user.autoKontrolleFensterVon}
-          initialFensterBis={user.autoKontrolleFensterBis}
-          initialNurBeiSperre={user.autoKontrolleNurBeiSperre}
-          initialPostLockEnabled={user.postLockInspectionEnabled}
-          initialPostLockDelayMin={user.postLockInspectionDelayMin}
-          initialPostLockDelayMax={user.postLockInspectionDelayMax}
-          initialPostLockDeadlineMinutes={user.postLockInspectionDeadlineMinutes}
-          initialPostLockRequireBoxPhoto={user.postLockInspectionRequireBoxPhoto}
-          /* Dieselbe Box-Frage wie beim Abschnitt weiter oben — ohne Box entfällt der Foto-Zwang. */
-          hasBox={box.boxConfirm}
-          initialDays={user.autoKontrolleDays}
-          initialDayRules={user.autoKontrolleDayRules}
-        />
-      </SettingsSection>
-
-      {/* Schnellzugriff: welche dieser Einstellungen in der Übersicht als Chip erscheinen */}
-      <SettingsSection defaultCollapsed title={t("sectionQuickSettings")} description={t("sectionQuickSettingsDesc")} bodyPadded>
-        <QuickSettingsPicker
-          userId={user.id}
-          available={quickSettingsAvailable}
-          /* Nur das ANZEIGBARE — ein gespeicherter Schlüssel, dessen Voraussetzung entfallen ist
-             (Box abgemeldet), zählte sonst gegen die Obergrenze, ohne dass ein Kästchen dazu
-             sichtbar wäre. Er fällt beim nächsten Speichern weg; anzeigen liesse er sich ohnehin
-             nicht, und die Einstellung dahinter bleibt unberührt. */
-          initialKeys={parseQuickSettings(user.quickSettings)
-            .filter((qs) => quickSettingsAvailable.includes(qs))
-            .map((qs) => qs.key)}
-        />
-      </SettingsSection>
-
-      {/* Kontroll-Eskalation: Mahnung (Stufe 1) + optional automatisch als abgelegt markieren (Stufe 2) */}
-      <SettingsSection defaultCollapsed title={t("sectionInspectionEscalation")} description={t("sectionInspectionEscalationDesc")} bodyPadded>
-        <InspectionEscalationToggle
-          userId={user.id}
-          initialReminderEnabled={user.inspectionReminderEnabled}
-          initialReminderDelayMinutes={user.inspectionReminderDelayMinutes}
-          initialAutoMarkEnabled={user.inspectionAutoMarkEnabled}
-          initialAutoMarkDelayMinutes={user.inspectionAutoMarkDelayMinutes}
-        />
-      </SettingsSection>
-
-      {/* Vergehen: welche Arten bei diesem Sub überhaupt zählen (Parameter bleiben in ihren Abschnitten) */}
-      <SettingsSection defaultCollapsed title={t("sectionOffenseRules")} description={t("sectionOffenseRulesDesc")} bodyPadded>
-        <OffenseRulesEditor
-          userId={user.id}
-          /* Die Meldepflicht steht nur da, wo sie auch etwas bewirkt — der Gewichts-Abschnitt
-             darüber entscheidet darüber mit, und sein Speichern lädt diese Seite neu. */
-          types={switchableOffenseTypesFor({
-            weightTracking: weightTrackingEnabled() && user.weightTrackingEnabled,
-          })}
-          initialRules={offenseRules}
-        />
-      </SettingsSection>
-
-      {/* App */}
-      <SettingsSection defaultCollapsed title={t("sectionApp")} description={t("sectionAppDesc")} bodyPadded>
-        <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
-      </SettingsSection>
-
-      {/* KI-Keyholder-Regeln (MCP) — nur wenn die KI DIESEN Sub überhaupt anfassen kann. `ENABLE_MCP`
-          allein genügt nicht: der MCP-Server handelt immer nur für den einen `MCP_USERNAME`, bei allen
-          übrigen Subs blieben die Regeln hier folgenlos stehen. */}
-      {aiKeyholderActiveFor(user.username) && (
-        <SettingsSection defaultCollapsed title={t("sectionKeyholder")} description={t("keyholderInstructionsDesc")} bodyPadded>
-          <KeyholderInstructionsForm userId={user.id} initial={user.mcpKeyholderInstructions ?? ""} />
-        </SettingsSection>
-      )}
-
-      {/* Benachrichtigungen — als Abschnitt wie jeder andere, damit dieser Block nicht als einziger
-          dauerhaft offen zwischen lauter zugeklappten steht (und ausgerechnet der längste ist). */}
-      <SettingsSection defaultCollapsed title={t("notifyTitle")} description={t("notifyDesc")}>
-        <NotificationToggles userId={user.id} />
-      </SettingsSection>
-
-      {/* Trainingsvorgaben */}
+      {/* Trainingsvorgaben — das Kern-Regime, darum weit oben bei den Vorgaben statt ganz unten. */}
       <SettingsSection defaultCollapsed title={t("sectionVorgaben")} description={t("sectionVorgabenDesc")}>
         <div className="flex flex-col gap-4 px-5 py-4">
           <VorgabeForm userId={id} categories={categories} />
@@ -365,6 +208,165 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           );
         })()}
       </SettingsSection>
+
+      {/* Reinigung */}
+      <SettingsSection defaultCollapsed title={t("sectionReinigung")} description={t("sectionReinigungDesc")} bodyPadded>
+        <CleaningToggle
+          userId={user.id}
+          initialAllowed={user.cleaningAllowed}
+          initialMaxMinutes={user.cleaningMaxMinutes}
+          initialMaxPerDay={user.cleaningMaxPerDay}
+          initialWindows={parseCleaningWindows(user.cleaningWindows)}
+        />
+      </SettingsSection>
+
+      {/* Gewichtstracking — entfällt ganz, wenn die Instanz das Feature nicht führt */}
+      {weightTrackingEnabled() && (
+        <SettingsSection defaultCollapsed title={t("sectionWeight")} description={t("sectionWeightDesc")} bodyPadded>
+          <WeightToggle
+            userId={user.id}
+            /* Die Einheit DER KEYHOLDERIN, nicht die des Subs: die Zahlen stehen in ihrer Anzeige. */
+            unitSystem={(actor?.unitSystem ?? "metric") as UnitSystem}
+            initialEnabled={user.weightTrackingEnabled}
+            initialWindows={parseWeighingWindows(user.weighingWindows)}
+            subTargetKg={user.targetWeightKg}
+            initialTargetKg={user.targetWeightKeyholderKg}
+            subHeightCm={user.heightCm}
+          />
+        </SettingsSection>
+      )}
+
+      {/* Gesundheitspause — setzt alle Vorgaben aus, darum unmittelbar vor den Kontroll-Regeln. */}
+      {/* Läuft gerade ein Halt, startet dieses Kapitel OFFEN. Es ist die einzige Stelle der
+          Keyholder-Oberfläche, die einen laufenden Gesundheitshalt überhaupt anzeigt — zugeklappt
+          suchte die Keyholderin nach dem Grund für eine ausgebliebene Kontrolle und fände ihn
+          hinter einem Wort. Zuklappbar bleibt es trotzdem (`false`, nicht `undefined`). */}
+      <SettingsSection defaultCollapsed={!healthHold} title={t("sectionHealthHold")} description={t("sectionHealthHoldDesc")} bodyPadded>
+        <HealthHoldToggle
+          userId={user.id}
+          initialReason={healthHold?.reason ?? null}
+          initialSince={healthHold?.createdAt.toISOString() ?? null}
+        />
+      </SettingsSection>
+
+      {/* Automatische Kontrollen */}
+      <SettingsSection defaultCollapsed title={t("sectionAutoKontrolle")} description={t("sectionAutoKontrolleDesc")} bodyPadded>
+        <AutoKontrolleToggle
+          userId={user.id}
+          initialAktiv={user.autoKontrolleAktiv}
+          initialPerDayMin={user.autoKontrollePerDayMin}
+          initialPerDayMax={user.autoKontrollePerDayMax}
+          initialRuheVon={user.autoKontrolleRuheVon}
+          initialRuheBis={user.autoKontrolleRuheBis}
+          initialFristVon={user.autoKontrolleFristVon}
+          initialFristBis={user.autoKontrolleFristBis}
+          initialFensterVon={user.autoKontrolleFensterVon}
+          initialFensterBis={user.autoKontrolleFensterBis}
+          initialNurBeiSperre={user.autoKontrolleNurBeiSperre}
+          initialPostLockEnabled={user.postLockInspectionEnabled}
+          initialPostLockDelayMin={user.postLockInspectionDelayMin}
+          initialPostLockDelayMax={user.postLockInspectionDelayMax}
+          initialPostLockDeadlineMinutes={user.postLockInspectionDeadlineMinutes}
+          initialPostLockRequireBoxPhoto={user.postLockInspectionRequireBoxPhoto}
+          /* Dieselbe Box-Frage wie im Box-Abschnitt — ohne Box entfällt der Foto-Zwang. */
+          hasBox={box.boxConfirm}
+          initialDays={user.autoKontrolleDays}
+          initialDayRules={user.autoKontrolleDayRules}
+        />
+      </SettingsSection>
+
+      {/* Kontroll-Eskalation: Mahnung (Stufe 1) + optional automatisch als abgelegt markieren (Stufe 2) */}
+      <SettingsSection defaultCollapsed title={t("sectionInspectionEscalation")} description={t("sectionInspectionEscalationDesc")} bodyPadded>
+        <InspectionEscalationToggle
+          userId={user.id}
+          initialReminderEnabled={user.inspectionReminderEnabled}
+          initialReminderDelayMinutes={user.inspectionReminderDelayMinutes}
+          initialAutoMarkEnabled={user.inspectionAutoMarkEnabled}
+          initialAutoMarkDelayMinutes={user.inspectionAutoMarkDelayMinutes}
+        />
+      </SettingsSection>
+
+      {/* Vergehen: welche Arten bei diesem Sub überhaupt zählen (Parameter bleiben in ihren Abschnitten) */}
+      <SettingsSection defaultCollapsed title={t("sectionOffenseRules")} description={t("sectionOffenseRulesDesc")} bodyPadded>
+        <OffenseRulesEditor
+          userId={user.id}
+          /* Die Meldepflicht steht nur da, wo sie auch etwas bewirkt — der Gewichts-Abschnitt
+             darüber entscheidet darüber mit, und sein Speichern lädt diese Seite neu. */
+          types={switchableOffenseTypesFor({
+            weightTracking: weightTrackingEnabled() && user.weightTrackingEnabled,
+          })}
+          initialRules={offenseRules}
+        />
+      </SettingsSection>
+
+      {/* Heimdall-Box — entfällt ganz, wo keine Box gemeldet hat */}
+      {box.boxConfirm && (
+        <SettingsSection defaultCollapsed title={t("sectionBox")} description={t("sectionBoxDesc")} bodyPadded>
+          <BoxLockToggle userId={user.id} initialEnabled={user.lockRequiresBolt} />
+        </SettingsSection>
+      )}
+
+      {/* Anpassbare Auswahllisten: Orgasmus-Arten + Öffnungsgründe */}
+      <SettingsSection defaultCollapsed title={t("sectionReasons")} description={t("sectionReasonsDesc")}>
+        <div className="px-5 py-4 flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold text-foreground-muted">{t("reasonOrgasmTitle")}</p>
+            <p className="text-xs text-foreground-faint">{t("reasonOrgasmNote")}</p>
+            <ReasonsEditor
+              userId={user.id}
+              configKey="orgasmusArtenConfig"
+              initial={parseReasonConfig(user.orgasmusArtenConfig, "orgasm")}
+              builtinLabels={orgasmBuiltinLabels}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold text-foreground-muted">{t("reasonOpeningTitle")}</p>
+            <p className="text-xs text-foreground-faint">{t("reasonReinigungNote")}</p>
+            <ReasonsEditor
+              userId={user.id}
+              configKey="oeffnenGruendeConfig"
+              initial={parseReasonConfig(user.oeffnenGruendeConfig, "opening")}
+              builtinLabels={openingBuiltinLabels}
+              protectedCode="REINIGUNG"
+            />
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Schnellzugriff: welche dieser Einstellungen in der Übersicht als Chip erscheinen */}
+      <SettingsSection defaultCollapsed title={t("sectionQuickSettings")} description={t("sectionQuickSettingsDesc")} bodyPadded>
+        <QuickSettingsPicker
+          userId={user.id}
+          available={quickSettingsAvailable}
+          /* Nur das ANZEIGBARE — ein gespeicherter Schlüssel, dessen Voraussetzung entfallen ist
+             (Box abgemeldet), zählte sonst gegen die Obergrenze, ohne dass ein Kästchen dazu
+             sichtbar wäre. Er fällt beim nächsten Speichern weg; anzeigen liesse er sich ohnehin
+             nicht, und die Einstellung dahinter bleibt unberührt. */
+          initialKeys={parseQuickSettings(user.quickSettings)
+            .filter((qs) => quickSettingsAvailable.includes(qs))
+            .map((qs) => qs.key)}
+        />
+      </SettingsSection>
+
+      {/* App */}
+      <SettingsSection defaultCollapsed title={t("sectionApp")} description={t("sectionAppDesc")} bodyPadded>
+        <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
+      </SettingsSection>
+
+      {/* Benachrichtigungen — als Abschnitt wie jeder andere, damit dieser Block nicht als einziger
+          dauerhaft offen zwischen lauter zugeklappten steht (und ausgerechnet der längste ist). */}
+      <SettingsSection defaultCollapsed title={t("notifyTitle")} description={t("notifyDesc")}>
+        <NotificationToggles userId={user.id} />
+      </SettingsSection>
+
+      {/* KI-Keyholder-Regeln (MCP) — nur wenn die KI DIESEN Sub überhaupt anfassen kann. `ENABLE_MCP`
+          allein genügt nicht: der MCP-Server handelt immer nur für den einen `MCP_USERNAME`, bei allen
+          übrigen Subs blieben die Regeln hier folgenlos stehen. */}
+      {aiKeyholderActiveFor(user.username) && (
+        <SettingsSection defaultCollapsed title={t("sectionKeyholder")} description={t("keyholderInstructionsDesc")} bodyPadded>
+          <KeyholderInstructionsForm userId={user.id} initial={user.mcpKeyholderInstructions ?? ""} />
+        </SettingsSection>
+      )}
 
       {/* Gefahrenbereich */}
       {isGlobalAdmin && (

@@ -6,6 +6,13 @@
       {
         "type": "ui",
         "text": {
+          "de": "Die Einstellungen eines Subs sind aufgeräumt: weniger überflüssige Trennlinien und eine logischere Reihenfolge der Abschnitte.",
+          "en": "A sub's settings are tidied up: fewer redundant divider lines and a more logical order of the sections."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
           "de": "Bei der Wochentag-Auswahl (Plan-Tage, Fenster-Ausnahmen, Reinigungs- und Wiege-Fenster) zeigt jetzt eine kleine Legende, welche Tage aktiv und welche aus sind.",
           "en": "The weekday picker (plan days, window exceptions, cleaning and weigh-in windows) now shows a small legend for which days are active and which are off."
         }
