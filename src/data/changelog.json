@@ -16,6 +16,13 @@
           "de": "In der Übersicht einer eingeschlossenen Person zeigt die Keyholderin das Trainingsziel jetzt auch im geöffneten Zustand, nicht mehr nur während einer Sperre.",
           "en": "In a wearer's overview the keyholder now sees the training goal even while unlocked, not only during a lock."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Beim Erfassen eines Trainingsziels überlappen sich die Stunden-Felder nicht mehr; sie stehen jetzt übersichtlich in zwei Spalten.",
+          "en": "When entering a training goal the hour fields no longer overlap; they now sit cleanly in two columns."
+        }
       }
     ]
   },

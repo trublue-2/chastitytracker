@@ -43,7 +43,9 @@ function InputWithUnit({
           // ungültig und blockierte das gesamte Formular-Submit (inkl. Enddatum).
           step="any"
           placeholder="–"
-          className={`flex-1 ${fieldCls}`}
+          // `min-w-0`: sonst schrumpft das Zahlenfeld nicht unter seine Eigenbreite (~170px) und
+          // schiebt sich samt Einheiten-Auswahl in die Nachbarspalte — die Felder überlappten.
+          className={`flex-1 min-w-0 ${fieldCls}`}
         />
         <select
           value={unit}
@@ -205,7 +207,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <InputWithUnit label={t("vorgabeDay")} value={tagVal} unit={tagUnit}
           onValue={setTagVal} onUnit={setTagUnit} basis={HOURS_PER_DAY} max={HOURS_PER_DAY} />
         <InputWithUnit label={t("vorgabeWeek")} value={wocheVal} unit={wocheUnit}
