@@ -30,6 +30,13 @@
           "de": "Der Benutzer-Wechsler behält den Reiter: wer von der Strafbuch- oder Kontrollen-Ansicht zu einem anderen Sub wechselt, landet dort im selben Reiter statt auf dessen Übersicht.",
           "en": "The user switcher keeps the current tab: switching from e.g. the penalty or inspections view to another sub lands on that same tab instead of their overview."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "In der Übersicht einer eingeschlossenen Person stehen unbeurteilte Vergehen jetzt als eigener Block — sie warten auf deine Entscheidung, statt nur im Strafbuch-Reiter zu liegen.",
+          "en": "A wearer's overview now shows unjudged offenses as their own block — they await your decision instead of sitting only in the penalty-book tab."
+        }
       }
     ]
   },

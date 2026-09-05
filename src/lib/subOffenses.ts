@@ -150,6 +150,12 @@ export function openPenaltiesOf(offenses: SubOffense[]): SubOffense[] {
   return offenses.filter((o) => o.state === "punished");
 }
 
+/** Die noch UNBEURTEILTEN Vergehen — die auf die Entscheidung der Keyholderin warten (#96/#9).
+ *  Gegenstück zu {@link openPenaltiesOf}: dort das VERHÄNGTE, hier das noch zu Urteilende. */
+export function openOffensesOf(offenses: SubOffense[]): SubOffense[] {
+  return offenses.filter((o) => o.state === "open");
+}
+
 /**
  * Das Strafbuch eines Nutzers laden. Genutzt vom Dashboard-Block (offene Strafen) und vom
  * Melder, der festgestellte Vergehen in den Posteingang schreibt (`offenseAnnounce.ts`).

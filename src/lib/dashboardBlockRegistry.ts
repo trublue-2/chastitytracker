@@ -157,6 +157,8 @@ export const KEYHOLDER_SUB_BLOCKS = [
   // warten auf IHRE Entscheidung. Schaltet sie den leeren Block weg, wartet der Sub ins Leere.
   { id: "openInspection", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenInspection", alwaysOn: true },
   { id: "orgasmRequest", surface: "keyholderSub", role: "keyholder", labelKey: "blockOrgasmRequest", alwaysOn: true },
+  // Unbeurteilte Vergehen warten auf IHRE Entscheidung (#96/#9) — bisher nur im Strafbuch-Reiter.
+  { id: "openOffenses", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenOffenses" },
   { id: "statsCompact", surface: "keyholderSub", role: "keyholder", labelKey: "blockStatusAndStats" },
   { id: "goalOverview", surface: "keyholderSub", role: "keyholder", labelKey: "blockStatsGoals" },
   { id: "categoryGoals", surface: "keyholderSub", role: "keyholder", labelKey: "blockCategoryGoals" },

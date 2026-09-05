@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { ClipboardList, Droplets, ChevronRight } from "lucide-react";
+import { ClipboardList, Droplets, ChevronRight, Gavel } from "lucide-react";
 import { block, type StackBlock } from "@/lib/blockStack";
 import type { KeyholderSubBlockId } from "@/lib/dashboardBlockRegistry";
 import {
@@ -15,7 +15,9 @@ import { getIsLocked, isScheduledDirective } from "@/lib/queries";
 import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/cleaningService";
 import { datedWindowLabel } from "@/lib/weekdays";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { userRowCached } from "@/lib/dashboardData";
+import { userRowCached, strafbuchCached } from "@/lib/dashboardData";
+import { selectSubOffenses, openOffensesOf } from "@/lib/subOffenses";
+import OffenseList from "@/app/components/OffenseList";
 import { resolveGoalTargets, buildKgGoalRow } from "@/lib/goalFulfillment";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
@@ -421,6 +423,27 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
     load: async (ctx) => (await taskCardsOf(ctx)).all,
     render: (tasks, { subjectTz, viewerTz, subLabel }) => (
       <TaskList tasks={tasks} tz={subjectTz} viewerTz={viewerTz} subLabel={subLabel} />
+    ),
+  }),
+
+  // Unbeurteilte Vergehen (#96/#9): sie warten auf IHRE Entscheidung, standen aber nur im
+  // Strafbuch-Reiter. Kostet ein volles Strafbuch (`strafbuchCached`, eine Sub, pro Request
+  // gecacht) — hier auf der EINEN Detailseite vertretbar; die Übersicht über alle Subs bleibt
+  // bewusst aussen vor (dort wäre es N × Strafbuch). Nur die offenen; beurteilt/verworfen steht im
+  // Reiter, dorthin führt „Alle".
+  openOffenses: block({
+    load: async ({ subjectId, nowMs }) => openOffensesOf(selectSubOffenses(await strafbuchCached(subjectId, nowMs))),
+    render: (offenses, { subjectId, subjectTz, td, tc }) => offenses.length > 0 && (
+      <Section
+        title={<span className="flex items-center gap-1.5"><Gavel size={12} />{td("blockOpenOffenses")}</span>}
+        action={
+          <Link href={`/admin/users/${subjectId}/strafbuch`} className="text-neben text-foreground-faint hover:text-foreground-muted transition inline-flex items-center gap-0.5">
+            {tc("all")} <ChevronRight size={12} />
+          </Link>
+        }
+      >
+        <OffenseList offenses={offenses} tz={subjectTz} />
+      </Section>
     ),
   }),
 
