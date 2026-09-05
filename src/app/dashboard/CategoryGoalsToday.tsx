@@ -1,7 +1,7 @@
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { type SegmentEntry } from "@/lib/sessionModel";
-import { periodEndsMs } from "@/lib/goalFulfillment";
-import CategoryGoalsLive, { type KgGoalRow } from "./CategoryGoalsLive";
+import { periodEndsMs, type KgGoalRow } from "@/lib/goalFulfillment";
+import CategoryGoalsLive from "./CategoryGoalsLive";
 import { KG_CATEGORY_META } from "@/lib/deviceCategories";
 
 interface Props {
@@ -17,9 +17,11 @@ interface Props {
   activeWearSessions?: { categoryId: string }[];
   /** Die schon geladenen Einträge des Dashboards — erspart eine zweite Entry-Query. */
   entries?: SegmentEntry[];
-  /** Das KG-Ziel als führende Zeile — nur im offenen Zustand gesetzt (bei aktiver Sperre steht es in
-   *  der grünen Session-Karte). null = nicht zeigen. */
-  kgGoal?: KgGoalRow | null;
+  /** Das KG-Ziel als führende Zeile — `null` = nicht zeigen (bei aktiver Sperre steht es in der
+   *  grünen Session-Karte, dort baut es `buildKgGoalRow` mit `coveredBySessionCard`). Bewusst PFLICHT
+   *  und nicht optional: beide Sichten müssen sich bewusst entscheiden — eine stillschweigend
+   *  weggelassene Prop war der Grund, warum die Admin-Übersicht das Ziel früher gar nicht zeigte. */
+  kgGoal: KgGoalRow | null;
   /** Kategorie-Ziele laden? Aus, wenn die Kategorie-Funktion deaktiviert ist (dann trägt die Karte
    *  nur das KG-Ziel) — erspart die Query. */
   includeCategories?: boolean;
@@ -27,9 +29,9 @@ interface Props {
 
 /** Server component — fetches per-category wear hours + goals (tracking-enabled non-KG categories
  *  with at least one period target) and hands them to the live client renderer. Categories with a
- *  running wear session tick up live there. Trägt zusätzlich optional das KG-Ziel als führende Zeile.
- *  Hidden when neither a KG goal nor any category goal is present. */
-export default async function CategoryGoalsToday({ userId, tz, activeWearSessions = [], entries, kgGoal = null, includeCategories = true, defaultCollapsed }: Props) {
+ *  running wear session tick up live there. Trägt zusätzlich das KG-Ziel als führende Zeile, wenn
+ *  `kgGoal` gesetzt ist. Hidden when neither a KG goal nor any category goal is present. */
+export default async function CategoryGoalsToday({ userId, tz, activeWearSessions = [], entries, kgGoal, includeCategories = true, defaultCollapsed }: Props) {
   const now = new Date();
   const activeCategoryIds = new Set(activeWearSessions.map((s) => s.categoryId));
 

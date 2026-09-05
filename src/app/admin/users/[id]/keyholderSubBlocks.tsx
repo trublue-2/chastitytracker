@@ -10,13 +10,13 @@ import {
   orgasmEntriesCached, sessionListDataCached, taskCardsCached, wearCountsCached,
   wearingHoursCached, wearSessionRowsCached,
 } from "@/lib/dashboardData";
-import { heimdallEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
+import { deviceCategoriesEnabled, heimdallEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
 import { getIsLocked, isScheduledDirective } from "@/lib/queries";
 import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/cleaningService";
 import { datedWindowLabel } from "@/lib/weekdays";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { userRowCached } from "@/lib/dashboardData";
-import { resolveGoalTargets } from "@/lib/goalFulfillment";
+import { resolveGoalTargets, buildKgGoalRow } from "@/lib/goalFulfillment";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
@@ -369,9 +369,29 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
     ),
   }),
 
-  // Ohne Prop-Werk: die Karte lädt ihre Kategorie-Ziele selbst — hier ohne Live-Ticken, weil die
-  // Keyholderin keine laufenden Sessions mitzählen lässt.
-  categoryGoals: async ({ subjectId, subjectTz }) => <CategoryGoalsToday userId={subjectId} tz={subjectTz} />,
+  // Dieselbe „Trainingsvorgaben"-Karte wie beim Träger. Das KG-Ziel wird — wie dort — als führende
+  // Zeile mitgereicht, sonst zeigte die Admin-Sicht bei offenem Sub nur die Nicht-KG-Kategorien und
+  // liesse das KG-Ziel ganz weg (bei laufender Sperre trägt es die grüne Session-Karte, `hidden`).
+  // Kategorie-Ziele lädt die Karte selbst — hier ohne Live-Ticken, weil die Keyholderin keine
+  // laufenden Sessions mitzählen lässt.
+  categoryGoals: block({
+    load: async ({ subjectId, nowMs, now, subjectTz, dl }) => {
+      const [running, activeVorgabe, hours] = await Promise.all([
+        keyholderRunningSessionCached(subjectId, nowMs, dl),
+        activeVorgabeCached(subjectId, nowMs),
+        wearingHoursCached(subjectId, nowMs, subjectTz),
+      ]);
+      return buildKgGoalRow(activeVorgabe, hours, now, subjectTz, !!running);
+    },
+    render: (kgGoal, { subjectId, subjectTz }) => (
+      <CategoryGoalsToday
+        userId={subjectId}
+        tz={subjectTz}
+        kgGoal={kgGoal}
+        includeCategories={deviceCategoriesEnabled()}
+      />
+    ),
+  }),
 
   sessionList: block({
     load: ({ subjectId, nowMs }) => sessionListDataCached(subjectId, nowMs, "keyholder"),

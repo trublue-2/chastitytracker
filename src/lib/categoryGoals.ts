@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import {
   wearingHoursFromPairs,
   getMidnightToday, getWeekStart, getMonthStart, getYearStart,
+  type WearHours,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory, type SegmentEntry } from "@/lib/sessionModel";
 import { resolveGoalTargets, hasVisibleGoalRow, type VorgabeTargets } from "@/lib/goalFulfillment";
@@ -10,15 +11,11 @@ import { getNonKgTrackingCategories, getWearEntries, getUserTimezone } from "@/l
 /** Wearing hours + active TrainingVorgabe targets for one non-KG tracking category.
  *  Die Ziele sind bereits nach den Regeln in `goalFulfillment.ts` aufgelöst: eine Periode mit
  *  Zielgrenze trägt gar kein Ziel, dazu `changedInPeriod` für den MCP. */
-export interface CategoryWearGoal {
+export interface CategoryWearGoal extends WearHours {
   categoryId: string;
   name: string;
   color: string;
   icon: string;
-  tagH: number;
-  wocheH: number;
-  monatH: number;
-  jahrH: number;
   /** Ziele dieser Kategorie, bereits nach den Regeln aufgelöst — `targetH` je Periode,
    *  `changedInPeriod` sagt, ob eine Periode wegen einer Zielgrenze unbewertet bleibt. */
   goal: VorgabeTargets;

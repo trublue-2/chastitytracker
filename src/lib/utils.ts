@@ -1091,6 +1091,16 @@ export function wearingHoursFromPairs(pairs: WearPair[], rangeStart: Date, range
   return totalMs / 3600000;
 }
 
+/** Die vier KG-Tragestunden-Kennzahlen (heute / laufende Woche / Monat / Jahr) — Rückgabe von
+ *  {@link calculateWearingHoursByRange}. EINE Quelle für die Form, die sonst an mehreren Stellen
+ *  wortgleich stand (Ziel-Zeile, Kategorie-Ziel). */
+export interface WearHours {
+  tagH: number;
+  wocheH: number;
+  monatH: number;
+  jahrH: number;
+}
+
 /** KG-Tragestunden für heute / laufende Woche / Monat / Jahr.
  *  Baut die Paare einmal und nutzt sie für alle vier Zeiträume (statt vier voller Sortierungen).
  *  `tz` ist die Zeitzone der SUB: „heute" muss denselben Tag meinen wie das aufgelöste Ziel
@@ -1107,7 +1117,7 @@ export function calculateWearingHoursByRange<
   entries: E[],
   now: Date,
   tz: string,
-): { tagH: number; wocheH: number; monatH: number; jahrH: number } {
+): WearHours {
   const pairs = buildKgWearPairs(entries, now);
   return {
     tagH: wearingHoursFromPairs(pairs, getMidnightToday(now, tz), now),

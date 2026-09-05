@@ -11,24 +11,12 @@ import CategoryIconRender from "@/app/components/CategoryIcon";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 import type { CategoryWearGoal } from "@/lib/categoryGoals";
-import type { ByPeriod, VorgabeTargets } from "@/lib/goalFulfillment";
+import type { ByPeriod, KgGoalRow } from "@/lib/goalFulfillment";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 export interface CategoryGoalRow extends CategoryWearGoal {
   /** True while a wear session for this category is running — its hours tick live. */
   active: boolean;
-}
-
-/** Das KG-Ziel als führende Zeile derselben „Trainingsvorgaben"-Karte. Bewusst OHNE Live-Tick und
- *  ohne Kategorie-Icon: es wird nur gezeigt, wenn KEINE Sperre läuft (dann steht es in der grünen
- *  Session-Karte, siehe LaufendeSessionCard) — offen wird gerade nicht getragen, die Stunden stehen.
- *  So sieht der Sub sein KG-Ziel auch im offenen Zustand statt nur während einer Sperre. */
-export interface KgGoalRow {
-  tagH: number;
-  wocheH: number;
-  monatH: number;
-  jahrH: number;
-  goal: VorgabeTargets;
 }
 
 /** Client renderer for the per-category training goals. Mirrors the KG goal (LiveTrainingGoals):

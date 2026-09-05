@@ -23,7 +23,7 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
-import { resolveGoalTargets, hasVisibleGoalRow } from "@/lib/goalFulfillment";
+import { resolveGoalTargets, buildKgGoalRow } from "@/lib/goalFulfillment";
 import type { Translate } from "@/lib/boxStatus";
 import { currentOrNextCleaningWindow } from "@/lib/cleaningService";
 import { datedWindowLabel } from "@/lib/weekdays";
@@ -518,14 +518,9 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       // Das KG-Ziel steht während einer Sperre in der grünen Session-Karte (LaufendeSessionCard).
       // Steht die nicht — weil keine Sperre läuft ODER weil der Träger den Block ausgeblendet hat —
       // hätte es sonst nirgends Platz; dann zeigen wir es als führende Zeile in der
-      // „Trainingsvorgaben"-Karte (derselben, die die Kategorie-Ziele trägt).
-      const kgTargets = activeVorgabe ? resolveGoalTargets(activeVorgabe, now, tz) : null;
-      // `hasVisibleGoalRow` und nicht „irgendein Ziel gesetzt": am Starttag einer Vorgabe ist jede
-      // Periode ungewertet, und die Zeile stünde sonst als Überschrift über einer leeren Liste.
-      const kgGoal =
-        !sessionCard && kgTargets && hasVisibleGoalRow(kgTargets.targetH)
-          ? { ...hours, goal: kgTargets }
-          : null;
+      // „Trainingsvorgaben"-Karte (derselben, die die Kategorie-Ziele trägt). Dieselbe Herleitung
+      // nimmt die Admin-Übersicht — so zeigen beide Sichten dieselbe Zeile.
+      const kgGoal = buildKgGoalRow(activeVorgabe, hours, now, tz, !!sessionCard);
       return { wearSessions, entries, kgGoal };
     },
     render: ({ wearSessions, entries, kgGoal }, { userId, tz, collapseDefault }) => (

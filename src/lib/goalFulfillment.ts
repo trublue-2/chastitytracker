@@ -35,7 +35,7 @@
  * geteilten Perioden entstehen.
  */
 
-import { getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd, midnightAfterDays } from "@/lib/utils";
+import { getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd, midnightAfterDays, type WearHours } from "@/lib/utils";
 
 /** Validity window of a goal. `end === null` = open-ended (covers everything after `start`). */
 export interface GoalWindow {
@@ -227,4 +227,33 @@ export function resolveGoalTargets(
     changedInPeriod[period] = t.changedInPeriod;
   }
   return { targetH, changedInPeriod };
+}
+
+/** Das KG-Trainingsziel als führende Zeile der „Trainingsvorgaben"-Karte — die vier Tragestunden
+ *  plus die aufgelösten Ziele. Bewusst OHNE Live-Tick und Kategorie-Icon: gezeigt nur, wenn KEINE
+ *  Sperre läuft (sonst trägt es die grüne Session-Karte). Von `buildKgGoalRow` gebaut und von
+ *  `CategoryGoalsLive` gerendert. */
+export interface KgGoalRow extends WearHours {
+  goal: VorgabeTargets;
+}
+
+/**
+ * Das KG-Trainingsziel als führende Zeile der „Trainingsvorgaben"-Karte, oder `null` — die EINE
+ * Herleitung, geteilt von der Übersicht des Trägers und der Admin-Übersicht der Keyholderin, damit
+ * beide dieselbe Zeile zeigen (die Admin-Sicht liess sie zuvor ganz weg).
+ *
+ * `coveredBySessionCard` blendet sie aus, wo die grüne Session-Karte das Ziel bei laufender Sperre
+ * ohnehin trägt. `hasVisibleGoalRow` verhindert die Überschrift über einer leeren Liste
+ * (Starttag/geteilte Periode).
+ */
+export function buildKgGoalRow(
+  activeVorgabe: (GoalWindow & VorgabePeriodTargets) | null,
+  hours: WearHours,
+  now: Date,
+  tz: string,
+  coveredBySessionCard: boolean,
+): KgGoalRow | null {
+  if (coveredBySessionCard || !activeVorgabe) return null;
+  const goal = resolveGoalTargets(activeVorgabe, now, tz);
+  return hasVisibleGoalRow(goal.targetH) ? { ...hours, goal } : null;
 }

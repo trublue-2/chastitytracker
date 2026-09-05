@@ -9,6 +9,13 @@
           "de": "Neue Nachrichten und die Wiege-Erinnerung lassen sich jetzt je Kanal einzeln an- und abschalten – Mail, Push und Telegram getrennt.",
           "en": "New messages and the weigh-in reminder can now be switched on or off per channel – email, push and Telegram independently."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "In der Übersicht einer eingeschlossenen Person zeigt die Keyholderin das Trainingsziel jetzt auch im geöffneten Zustand, nicht mehr nur während einer Sperre.",
+          "en": "In a wearer's overview the keyholder now sees the training goal even while unlocked, not only during a lock."
+        }
       }
     ]
   },
