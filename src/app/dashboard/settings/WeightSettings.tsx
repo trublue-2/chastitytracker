@@ -6,10 +6,11 @@ import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import Toggle from "@/app/components/Toggle";
+import SettingLabel from "@/app/components/SettingLabel";
 import UnderweightNote from "@/app/components/UnderweightNote";
 import FormError from "@/app/components/FormError";
 import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { saveOwnNotificationChannels } from "@/lib/apiClient";
+import { useNotificationChannelToggle } from "@/app/hooks/useNotificationChannelToggle";
 import {
   heightForDisplay, heightInputToCm, inchesToFeet,
   parseDecimalInput, weightFieldValue, weightForDisplay, weightText, weightInputToKg, type UnitSystem,
@@ -23,13 +24,18 @@ export interface WeightSettingsProps {
   /** Das Ziel der Keyholderin — nur zur Ansicht. Es GILT, solange sie eines führt; seines bleibt
    *  trotzdem stehen, damit beide sehen, worüber sie sich einig oder uneinig sind. */
   keyholderTargetKg: number | null;
-  /** Mail/Push zur Erinnerung ans Wiege-Fenster. Sein Schalter, nicht ihrer: die Meldung geht an
+  /** Erinnerung ans Wiege-Fenster, je Kanal einzeln. Sein Schalter, nicht ihrer: die Meldung geht an
    *  IHN (`RECIPIENT_NOTIFICATION_EVENT_TYPES`). */
-  reminderNotify: boolean;
+  reminderMail: boolean;
+  reminderPush: boolean;
+  reminderTelegram: boolean;
+  /** Telegram-Kanal nur anbieten, wenn der Nutzer seinen Chat verknüpft hat (sonst kein Versandweg). */
+  telegramLinked: boolean;
 }
 
 export default function WeightSettings({
-  unitSystem, heightCm, targetWeightKg, keyholderTargetKg, reminderNotify,
+  unitSystem, heightCm, targetWeightKg, keyholderTargetKg,
+  reminderMail, reminderPush, reminderTelegram, telegramLinked,
 }: WeightSettingsProps) {
   const t = useTranslations("settings");
   const locale = useLocale();
@@ -39,7 +45,9 @@ export default function WeightSettings({
   const [unit, setUnit] = useState<UnitSystem>(unitSystem);
   const [height, setHeight] = useState(heightCm === null ? "" : String(heightForDisplay(heightCm, unitSystem)));
   const [target, setTarget] = useState(weightFieldValue(targetWeightKg, unitSystem));
-  const [remind, setRemind] = useState(reminderNotify);
+  const [remindMail, setRemindMail] = useState(reminderMail);
+  const [remindPush, setRemindPush] = useState(reminderPush);
+  const [remindTelegram, setRemindTelegram] = useState(reminderTelegram);
   const [remindError, setRemindError] = useState<string | null>(null);
 
   // Die Einheiten-Kürzel stehen in `common` — sie sind in beiden Oberflächen dieselben.
@@ -78,26 +86,10 @@ export default function WeightSettings({
     await save({ targetWeightKg: parsedTarget === null ? null : weightInputToKg(parsedTarget, unit) });
   }
 
-  // Eigene Route: der Kanal-Schalter hängt an der Benachrichtigungs-Tabelle, nicht an den
-  // Gewichts-Spalten. EIN Schalter für alle Kanäle — anders als der Posteingang hat die Wiege-
-  // Erinnerung keinen eigenen Telegram-Schalter, also muss „aus" auch Telegram meinen (sonst ginge
-  // sie bei verknüpftem Chat weiter, ohne dass man sie abstellen kann).
-  async function saveRemind(checked: boolean) {
-    setRemind(checked);
-    setRemindError(null);
-    // Zurückspringen ohne Meldung sähe aus wie ein klemmender Schalter — dieselbe Behandlung wie
-    // beim Nachrichten-Schalter in `SettingsForm`.
-    try {
-      const code = await saveOwnNotificationChannels("WEIGHT_REMINDER", { mail: checked, push: checked, telegram: checked });
-      if (code) {
-        setRemind(!checked);
-        setRemindError(tc("error"));
-      }
-    } catch {
-      setRemind(!checked);
-      setRemindError(tc("error"));
-    }
-  }
+  // Die Kanal-Schalter hängen an der Benachrichtigungs-Tabelle, nicht an den Gewichts-Spalten. Drei
+  // unabhängige Kanäle wie beim Posteingang; Optimistik, selektives Schreiben und Fehler-Behandlung
+  // stecken im geteilten Hook.
+  const toggleRemindChannel = useNotificationChannelToggle("WEIGHT_REMINDER", setRemindError);
 
   const feet = unit === "imperial" && heightCm !== null ? inchesToFeet(heightForDisplay(heightCm, unit)) : null;
 
@@ -149,13 +141,27 @@ export default function WeightSettings({
         <Button variant="secondary" loading={saving} onClick={saveTarget}>{tc("save")}</Button>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Toggle
-          label={t("weightReminderLabel")}
-          description={t("weightReminderHint")}
-          checked={remind}
-          onChange={saveRemind}
-        />
+      <div className="flex flex-col gap-3">
+        <SettingLabel label={t("weightReminderLabel")} description={t("weightReminderHint")} />
+        <div className="flex flex-col gap-1">
+          <Toggle
+            label={t("channelMail")}
+            checked={remindMail}
+            onChange={(c) => toggleRemindChannel("mail", setRemindMail, c)}
+          />
+          <Toggle
+            label={t("channelPush")}
+            checked={remindPush}
+            onChange={(c) => toggleRemindChannel("push", setRemindPush, c)}
+          />
+          {telegramLinked && (
+            <Toggle
+              label={t("channelTelegram")}
+              checked={remindTelegram}
+              onChange={(c) => toggleRemindChannel("telegram", setRemindTelegram, c)}
+            />
+          )}
+        </div>
         <FormError message={remindError} />
       </div>
     </div>

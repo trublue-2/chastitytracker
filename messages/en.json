@@ -827,7 +827,10 @@
     "statsEmpty": "Statistics will appear after your first lock-up entry.",
     "statsEmptyTitle": "No data yet",
     "telegramSection": "Telegram",
-    "telegramDesc": "Also receive notifications via Telegram – on par with email and push.",
+    "telegramDesc": "Connect your Telegram chat to receive notifications there too. Which messages arrive over which channel is set per channel below.",
+    "channelMail": "Mail",
+    "channelPush": "Push",
+    "channelTelegram": "Telegram",
     "telegramConnect": "Connect with Telegram",
     "telegramDisconnect": "Disconnect Telegram",
     "telegramConnected": "Telegram is connected.",
@@ -843,7 +846,7 @@
     "targetWeight": "Target weight",
     "targetKeyholderApplies": "Your keyholder set {value} — that value applies.",
     "weightReminderLabel": "Weigh-in reminder",
-    "weightReminderHint": "Mail and push when a weighing window opens and nothing has been logged that day.",
+    "weightReminderHint": "When a weighing window opens and nothing has been logged that day.",
     "targetUnderweightWarning": "This target is in the underweight range (BMI below 18.5). You can still set it."
   },
   "changelog": {
@@ -1710,8 +1713,8 @@
       "keyholder": "Keyholder",
       "ai": "AI keyholder"
     },
-    "notifyLabel": "Mail and push for new messages",
-    "notifyHint": "Requests and deadlines are always delivered. Messages can quietly collect in the inbox instead.",
+    "notifyLabel": "Notifications for new messages",
+    "notifyHint": "Requests and deadlines are always delivered. New messages can be switched on or off per channel and otherwise collect quietly in the inbox.",
     "catInspection": "Inspection",
     "catLock": "Lock & closure",
     "catOrgasm": "Orgasm",

@@ -13,6 +13,7 @@ import FormError from "@/app/components/FormError";
 import FormSuccess from "@/app/components/FormSuccess";
 import ExpandRow from "@/app/components/ExpandRow";
 import Toggle from "@/app/components/Toggle";
+import SettingLabel from "@/app/components/SettingLabel";
 import PushManager from "@/app/components/PushManager";
 import PasskeyManager from "@/app/components/PasskeyManager";
 import FeedbackButton from "@/app/components/FeedbackButton";
@@ -20,14 +21,14 @@ import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
 import { LOCALES_LONG } from "@/lib/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
-import { saveOwnNotificationChannels } from "@/lib/apiClient";
+import { useNotificationChannelToggle } from "@/app/hooks/useNotificationChannelToggle";
 import PasswordChangeConfirm from "@/app/components/PasswordChangeConfirm";
 import WeightSettings from "./WeightSettings";
 import TelegramSettings from "./TelegramSettings";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageNotify, messageTelegram, telegramConfigured, telegramLinked, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageMail, messagePush, messageTelegram, telegramConfigured, telegramLinked, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
@@ -170,26 +171,13 @@ export default function SettingsForm({ username, email, locale, timezone, startP
   const [hideOwnValue, setHideOwnValue] = useState(hideOwnTracker);
   const [hideOwnError, setHideOwnError] = useState<string | null>(null);
 
-  const [messageNotifyValue, setMessageNotifyValue] = useState(messageNotify);
+  const [messageMailValue, setMessageMailValue] = useState(messageMail);
+  const [messagePushValue, setMessagePushValue] = useState(messagePush);
   const [messageNotifyError, setMessageNotifyError] = useState<string | null>(null);
 
-  async function handleMessageNotify(checked: boolean) {
-    setMessageNotifyValue(checked);
-    setMessageNotifyError(null);
-    try {
-      // Ein Schalter für beide Kanäle: wer den Posteingang hat, will Mail UND Push gemeinsam
-      // stummschalten — getrennte Schalter wären hier nur Ballast. Telegram hat einen eigenen
-      // Schalter (TelegramSettings) und bleibt hier unberührt.
-      const code = await saveOwnNotificationChannels("MESSAGE_RECEIVED", { mail: checked, push: checked });
-      if (code) {
-        setMessageNotifyValue(!checked); // Rollback bei Fehler
-        setMessageNotifyError(apiError(code));
-      }
-    } catch {
-      setMessageNotifyValue(!checked);
-      setMessageNotifyError(tc("error"));
-    }
-  }
+  // Mail/Push je einzeln für neue Nachrichten (Telegram im Telegram-Abschnitt). Optimistik,
+  // selektives Schreiben und Fehler-Behandlung stecken im geteilten Hook.
+  const toggleMessageChannel = useNotificationChannelToggle("MESSAGE_RECEIVED", setMessageNotifyError);
 
   const startPageOptions = [
     { value: "auto", label: t("startPageAuto") },
@@ -396,15 +384,23 @@ export default function SettingsForm({ username, email, locale, timezone, startP
             </div>
           )}
 
-          {/* Mail/Push bei neuen Nachrichten. Die Nachricht selbst wird immer geschrieben — dieser
-              Schalter macht den Kanal leiser, ohne dass Information verloren geht. */}
-          <div className="px-5 py-2">
-            <Toggle
-              label={tm("notifyLabel")}
-              description={tm("notifyHint")}
-              checked={messageNotifyValue}
-              onChange={handleMessageNotify}
-            />
+          {/* Neue Nachrichten: Mail und Push je einzeln. Telegram ist der dritte Kanal und steht im
+              Telegram-Abschnitt (nur bei verknüpftem Chat). Die Nachricht selbst wird immer
+              geschrieben — die Schalter machen nur den jeweiligen Kanal leiser. */}
+          <div className="px-5 py-3 flex flex-col gap-3">
+            <SettingLabel label={tm("notifyLabel")} description={tm("notifyHint")} />
+            <div className="flex flex-col gap-1">
+              <Toggle
+                label={t("channelMail")}
+                checked={messageMailValue}
+                onChange={(c) => toggleMessageChannel("mail", setMessageMailValue, c)}
+              />
+              <Toggle
+                label={t("channelPush")}
+                checked={messagePushValue}
+                onChange={(c) => toggleMessageChannel("push", setMessagePushValue, c)}
+              />
+            </div>
             <FormError message={messageNotifyError} />
           </div>
 

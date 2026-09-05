@@ -23,8 +23,11 @@ export interface SettingsFormProps {
   /** Globaler Admin — steuert die "Benutzerverwaltung"-Startseiten-Option (admin-only Seite). */
   isAdmin: boolean;
   hideOwnTracker: boolean;
-  /** Mail/Push bei neuen Nachrichten (`MESSAGE_RECEIVED`) — die Nachricht selbst kommt immer. */
-  messageNotify: boolean;
+  /** Mail bei neuen Nachrichten (`MESSAGE_RECEIVED`) — eigener Kanal-Schalter. Die Nachricht selbst
+   *  landet immer im Posteingang; der Schalter macht nur den Kanal leiser. */
+  messageMail: boolean;
+  /** Push bei neuen Nachrichten (`MESSAGE_RECEIVED`) — eigener Kanal-Schalter. */
+  messagePush: boolean;
   /** Telegram bei neuen Nachrichten — eigener Schalter, nur relevant/sichtbar bei verknüpftem Chat. */
   messageTelegram: boolean;
   /** Ist auf dieser Instanz überhaupt ein Telegram-Bot eingerichtet (Token + Bot-Name)? */
@@ -56,7 +59,8 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   let hideOwnTracker = false;
   let weight: WeightSettingsProps | null = null;
   // Fehlende Zeile = „an" (dieselbe Annahme wie beim Versand in notify.ts).
-  let messageNotify = true;
+  let messageMail = true;
+  let messagePush = true;
   let messageTelegram = true;
   let telegramLinked = false;
 
@@ -74,8 +78,9 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
       getMessageChannels(userId),
       getRecipientChannels(userId, "WEIGHT_REMINDER"),
     ]);
-    // Ein Schalter für Mail+Push: "an", solange mindestens einer läuft. Telegram hat einen eigenen.
-    messageNotify = pref.mail || pref.push;
+    // Drei unabhängige Kanal-Schalter: Mail, Push und Telegram je einzeln an/aus.
+    messageMail = pref.mail;
+    messagePush = pref.push;
     messageTelegram = pref.telegram;
     if (dbUser) {
       username = dbUser.username;
@@ -91,8 +96,11 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
           heightCm: dbUser.heightCm,
           targetWeightKg: dbUser.targetWeightKg,
           keyholderTargetKg: dbUser.targetWeightKeyholderKg,
-          // Ein Schalter für beide Kanäle, wie beim Posteingang.
-          reminderNotify: reminderPref.mail || reminderPref.push,
+          // Drei unabhängige Kanal-Schalter, wie beim Posteingang. Telegram nur bei verknüpftem Chat.
+          reminderMail: reminderPref.mail,
+          reminderPush: reminderPref.push,
+          reminderTelegram: reminderPref.telegram,
+          telegramLinked,
         };
       }
     }
@@ -119,7 +127,8 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     controlledSubs,
     isAdmin,
     hideOwnTracker,
-    messageNotify,
+    messageMail,
+    messagePush,
     messageTelegram,
     telegramConfigured: telegramLinkAvailable(),
     telegramLinked,

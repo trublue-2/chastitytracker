@@ -7,7 +7,8 @@ import Toggle from "@/app/components/Toggle";
 import FormError from "@/app/components/FormError";
 import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode, saveOwnNotificationChannels } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/apiClient";
+import { useNotificationChannelToggle } from "@/app/hooks/useNotificationChannelToggle";
 
 export interface TelegramSettingsProps {
   linked: boolean;
@@ -90,20 +91,12 @@ export default function TelegramSettings({ linked: initialLinked, messageTelegra
     }
   }
 
-  async function handleTelegramNotify(checked: boolean) {
-    setTelegramNotify(checked);
-    setError(null);
-    try {
-      const code = await saveOwnNotificationChannels("MESSAGE_RECEIVED", { telegram: checked });
-      if (code) {
-        setTelegramNotify(!checked);
-        toast.error(apiError(code));
-      }
-    } catch {
-      setTelegramNotify(!checked);
-      toast.error(tc("error"));
-    }
-  }
+  // Telegram-Kanal für neue Nachrichten — derselbe geteilte Hook wie Mail/Push, nur die Fehler-
+  // Fläche ist ein Toast (der Abschnitt hat keine eigene Inline-Card für den Schalter).
+  const toggleTelegramNotify = useNotificationChannelToggle(
+    "MESSAGE_RECEIVED",
+    useCallback((message: string | null) => { if (message) toast.error(message); }, [toast]),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -118,7 +111,7 @@ export default function TelegramSettings({ linked: initialLinked, messageTelegra
             label={t("telegramNotifyLabel")}
             description={t("telegramNotifyHint")}
             checked={telegramNotify}
-            onChange={handleTelegramNotify}
+            onChange={(c) => toggleTelegramNotify("telegram", setTelegramNotify, c)}
           />
           <Button variant="secondary" onClick={handleDisconnect} loading={connecting}>
             {t("telegramDisconnect")}

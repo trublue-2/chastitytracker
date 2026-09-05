@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.0.9",
+    "date": "2026-09-05",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Neue Nachrichten und die Wiege-Erinnerung lassen sich jetzt je Kanal einzeln an- und abschalten – Mail, Push und Telegram getrennt.",
+          "en": "New messages and the weigh-in reminder can now be switched on or off per channel – email, push and Telegram independently."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.8",
     "date": "2026-09-04",
     "changes": [

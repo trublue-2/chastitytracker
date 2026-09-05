@@ -827,7 +827,10 @@
     "statsEmpty": "Statistiken werden nach dem ersten Verschluss angezeigt.",
     "statsEmptyTitle": "Noch keine Daten",
     "telegramSection": "Telegram",
-    "telegramDesc": "Erhalte Benachrichtigungen zusätzlich über Telegram – gleichwertig zu Mail und Push.",
+    "telegramDesc": "Verbinde deinen Telegram-Chat, um Benachrichtigungen auch dort zu erhalten. Welche Meldungen über welchen Kanal kommen, stellst du unten je Kanal ein.",
+    "channelMail": "Mail",
+    "channelPush": "Push",
+    "channelTelegram": "Telegram",
     "telegramConnect": "Mit Telegram verbinden",
     "telegramDisconnect": "Telegram entkoppeln",
     "telegramConnected": "Telegram ist verbunden.",
@@ -843,7 +846,7 @@
     "targetWeight": "Zielgewicht",
     "targetKeyholderApplies": "Deine Keyholderin hat {value} gesetzt — dieser Wert gilt.",
     "weightReminderLabel": "Erinnerung ans Wiegen",
-    "weightReminderHint": "Mail und Push zum Beginn eines Wiege-Fensters, wenn an dem Tag noch kein Wert steht.",
+    "weightReminderHint": "Zum Beginn eines Wiege-Fensters, wenn an dem Tag noch kein Wert steht.",
     "targetUnderweightWarning": "Dieses Ziel liegt im Untergewicht (BMI unter 18,5). Du kannst es trotzdem setzen."
   },
   "changelog": {
@@ -1710,8 +1713,8 @@
       "keyholder": "Keyholder",
       "ai": "KI-Keyholder"
     },
-    "notifyLabel": "Mail und Push bei neuen Nachrichten",
-    "notifyHint": "Anforderungen und Fristen werden immer gemeldet. Nachrichten kannst du auch still im Posteingang sammeln lassen.",
+    "notifyLabel": "Benachrichtigung bei neuen Nachrichten",
+    "notifyHint": "Anforderungen und Fristen werden immer gemeldet. Neue Nachrichten kannst du je Kanal an- oder abschalten und sonst still im Posteingang sammeln lassen.",
     "catInspection": "Kontrolle",
     "catLock": "Sperrzeit & Verschluss",
     "catOrgasm": "Orgasmus",

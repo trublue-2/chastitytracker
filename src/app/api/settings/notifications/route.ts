@@ -16,8 +16,9 @@ export async function PATCH(req: NextRequest) {
   const session = await requireApi();
   if (session instanceof NextResponse) return session;
 
-  // `mail`/`push`/`telegram` einzeln optional: der Nachrichten-Schalter setzt Mail und Push gemeinsam,
-  // Telegram hat einen eigenen (nur sichtbar, wenn verknüpft) — die Route bleibt aber pro Kanal ansprechbar.
+  // `mail`/`push`/`telegram` einzeln optional: die drei Kanäle sind je Ereignis unabhängig schaltbar
+  // (Mail/Push in den Einstellungen, Telegram nur sichtbar, wenn verknüpft) — jeder Schalter schreibt
+  // NUR seinen Kanal, und der Upsert unten lässt die übrigen unberührt.
   const { eventType, mail, push, telegram } = await req.json();
   if (!isRecipientNotificationEventType(eventType)) return errorResponse(400, "UNKNOWN_ACTION");
   const data = {
