@@ -308,6 +308,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `Entry.deviceCheckExpected` | Laufzeitzustand | Das erwartete Gerät, zum Prüfzeitpunkt eingefroren. |
 | `Entry.createdAt` | Datensatz | Anlage-Zeitpunkt. |
 | `Entry.source` | Nachweis | `user` oder `system`. `system` trägt heute nur der Öffnen-Eintrag, den die Kontroll-Eskalation selbst bucht. |
+| `Entry.capturedOffline` | Nachweis | Offline erfasst: ohne Netz gestellt, von der Warteschlange nachgereicht. Dann trägt startTime die Client-Erfassungszeit, die auch für Fristen/Vergehen zählt — die bewusst gelockerte Vertrauensregel, gegatet aufs Flag. |
 | `Device.id` | Identität | Primärschlüssel. |
 | `Device.userId` | Identität | Eigentümer der Zeile. |
 | `Device.imageUrl` | Datensatz | Titelbild. Referenzbilder für die Erkennung stehen in DeviceReferenceImage. |

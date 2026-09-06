@@ -302,6 +302,8 @@
     "device": "Device",
     "note": "Note",
     "noteOptional": "Note (optional)",
+    "capturedOffline": "Captured offline",
+    "capturedOfflineHint": "Recorded without a connection and sent later — the capture time counts.",
     "comment": "Comment",
     "commentOptional": "Comment (optional)",
     "photo": "Photo",

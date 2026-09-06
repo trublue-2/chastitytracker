@@ -22,6 +22,21 @@ import { useTranslations } from "next-intl";
  *   // Use offlineFetch instead of fetch for mutations
  *   const res = await offlineFetch("/api/entries", { method: "POST", body: JSON.stringify(data) });
  */
+/**
+ * Stempelt einen JSON-Rumpf als offline erfasst: `capturedOffline: true` + `capturedAt` (jetzt).
+ * Der Server übernimmt `capturedAt` für einen offline erfassten Eintrag als Eintrags- und
+ * Fristen-Stichtag (`offlineCapture.ts`). Kein gültiges JSON → unverändert zurück (dann fehlt das
+ * Flag und es zählt die Server-Uhr, der sichere Rückfall).
+ */
+function withOfflineCapture(rawBody: string): string {
+  try {
+    const parsed = JSON.parse(rawBody);
+    return JSON.stringify({ ...parsed, capturedOffline: true, capturedAt: new Date().toISOString() });
+  } catch {
+    return rawBody;
+  }
+}
+
 export default function useOfflineQueue() {
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -124,7 +139,16 @@ export default function useOfflineQueue() {
 
   // ── Offline-aware fetch ──
   const offlineFetch = useCallback(
-    async (url: string, init: RequestInit): Promise<Response | null> => {
+    async (
+      url: string,
+      init: RequestInit,
+      // `offlineCapture`: wird diese Übermittlung eingereiht, ist sie ein OFFLINE ERFASSTER Eintrag.
+      // Dann bekommt der Rumpf `capturedOffline: true` und `capturedAt` (die Uhr im Moment der
+      // Handlung, nicht der u.U. Tage späteren Zustellung) — der Server übernimmt diese Zeit dann als
+      // Stichtag (siehe `offlineCapture.ts`). Nur die Erfassungs-Formulare setzen es; eine
+      // Aufgaben-Quittung (`/api/tasks`) reiht ohne das Flag ein.
+      opts?: { offlineCapture?: boolean },
+    ): Promise<Response | null> => {
       // `onLine === false` heisst zuverlässig „kein Netz" — dann gar nicht erst acht Sekunden
       // warten. Unzuverlässig ist nur das `true`: bei einem Balken Empfang steht es, während nichts
       // durchkommt. Deshalb entscheidet es hier nur noch über die Abkürzung, nicht mehr darüber, ob
@@ -139,7 +163,13 @@ export default function useOfflineQueue() {
 
       // Offline or network error: queue the mutation
       const method = init.method ?? "POST";
-      const body = typeof init.body === "string" ? init.body : null;
+      const rawBody = typeof init.body === "string" ? init.body : null;
+      // Beim Einreihen den REALEN Erfassungsmoment festhalten: Was jetzt passiert, wird evtl. erst
+      // Tage später gesendet — ohne diese Zeit trüge der Eintrag den Zustell-, nicht den Aktions-
+      // Zeitpunkt. Schlägt das Parsen fehl (kein JSON-Rumpf), bleibt der Rumpf unangetastet.
+      const body = opts?.offlineCapture && rawBody
+        ? withOfflineCapture(rawBody)
+        : rawBody;
 
       await addToQueue({
         method,

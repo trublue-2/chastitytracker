@@ -174,7 +174,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
     // Admin uses direct fetch (no offline queue — action is admin-driven, not field-use)
     const res = adminUserId
       ? await postAdminEntry(adminUserId, payload)
-      : await offlineFetch(...entryRequest(undefined, payload));
+      : await offlineFetch(...entryRequest(undefined, payload), { offlineCapture: true });
     if (res === null) {
       // queued offline (user-mode only)
       toast.success(tDash("entrySaved"));

@@ -20,6 +20,7 @@ import { structuredLog } from "@/lib/serverLog";
 import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entryFulfilment";
 import { lockAwaitsBolt, findPendingLockTx } from "@/lib/lockCommit";
 import { boltFieldsFor } from "@/lib/lockPending";
+import { parseOfflineCapture } from "@/lib/offlineCapture";
 
 export async function GET() {
   const session = await requireApi();
@@ -66,6 +67,16 @@ export async function POST(req: NextRequest) {
   // Dieselbe Normalisierung für Prüfung UND Persistenz. Zweimal hingeschrieben könnte die Prüfung
   // einen Wert nachschlagen, den die Zeile gar nicht speichert.
   const requestKey: string | null = typeof clientRequestId === "string" && clientRequestId ? clientRequestId : null;
+
+  // Offline erfasst? Dann zählt die CLIENT-Erfassungszeit als Eintrags- UND Fristen-Stichtag — die
+  // EINZIGE Lockerung der Server-Uhr-Regel auf dem Sub-Pfad (Begründung in `offlineCapture.ts`).
+  const { capturedOffline, capturedAt } = parseOfflineCapture(body);
+  // Der wirksame Eintrags-Zeitpunkt: offline die Erfassungszeit des Clients, sonst die (frei
+  // wählbare) Formular-Zeit. Ohne Offline-Flag `capturedAt === null` — also online unverändert.
+  const effectiveStart = capturedAt ?? new Date(startTime);
+  // Stichtag für Fristen/Vergehen (`applyEntryFulfilment`): offline die Erfassungszeit, sonst die
+  // Server-Uhr im Moment der Einreichung.
+  const fulfilmentAt = capturedAt ?? new Date();
 
   // Derselbe Versuch, ein zweites Mal? Dann den vorhandenen Eintrag zurückgeben statt einen neuen
   // anzulegen. Wozu der Stempel da ist, steht bei `entryRequest()`.
@@ -118,8 +129,13 @@ export async function POST(req: NextRequest) {
       }
 
       // WEAR_BEGIN / WEAR_END: shared validation lives in lib/queries.ts (single source of truth).
+      // `effectiveStart`, nicht das rohe `startTime`: die Reihenfolge-Prüfung (`TIME_BEFORE`) muss
+      // GEGEN DIE ZEIT laufen, mit der die Zeile gespeichert wird — bei einem offline erfassten
+      // Eintrag ist das die Erfassungszeit, nicht die (u.U. abweichende) Formular-Zeit. Sonst würde
+      // eine gültige Offline-Tragezeit gegen eine andere Uhr geprüft und fälschlich mit 400
+      // abgewiesen — und die Warteschlange verwirft ein 400 als „schlechte Daten" (Datenverlust).
       if (type === "WEAR_BEGIN" || type === "WEAR_END") {
-        const wearResult = await prepareWearEntry(tx, session.user.id, type, deviceId, startTime, imageUrl);
+        const wearResult = await prepareWearEntry(tx, session.user.id, type, deviceId, effectiveStart, imageUrl);
         if (!wearResult.ok) throw entryGuardError(wearResult.code);
       }
 
@@ -131,7 +147,7 @@ export async function POST(req: NextRequest) {
         // Guard oben greift für ihn also nicht, und ohne den hier legte der Träger beliebig viele
         // Aufrufe übereinander an, während die Box auf den ersten wartet.
         if (await findPendingLockTx(tx, session.user.id)) throw entryGuardError("LOCK_ALREADY_PENDING");
-        if (latest?.type === "OEFFNEN" && new Date(startTime) <= latest.startTime) {
+        if (latest?.type === "OEFFNEN" && effectiveStart <= latest.startTime) {
           throw entryGuardError("TIME_BEFORE");
         }
         endsCleaningPause = latest?.type === "OEFFNEN" && latest.oeffnenGrund === "REINIGUNG";
@@ -140,7 +156,7 @@ export async function POST(req: NextRequest) {
       if (type === "OEFFNEN") {
         const latest = await getLatestKgEntry(session.user.id, tx);
         if (!latest || latest.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
-        if (new Date(startTime) <= latest.startTime) throw entryGuardError("TIME_BEFORE");
+        if (effectiveStart <= latest.startTime) throw entryGuardError("TIME_BEFORE");
         lockStartTime = latest.startTime;
       }
 
@@ -196,7 +212,10 @@ export async function POST(req: NextRequest) {
           // Versuch oben als derselbe erkannt wird.
           clientRequestId: requestKey,
           type,
-          startTime: new Date(startTime),
+          startTime: effectiveStart,
+          // Offline erfasst: kleine Notiz „offline erfasst" in beiden Sichten; nur der Sub-Pfad
+          // setzt es (der Keyholder-Pfad ist eine eigene Route, die dieses Feld nie schreibt).
+          capturedOffline,
           imageUrl: imageUrl || null,
           imageExifTime: imageExifTime ? new Date(imageExifTime) : null,
           note: note || null,
@@ -216,7 +235,7 @@ export async function POST(req: NextRequest) {
           keyInBox: type === "VERSCHLUSS" ? keyInBoxDeclared : null,
           // Der Verschluss gilt sofort — ausser er wartet auf den Riegel. Die Regel steht in
           // `lockPending.ts`, weil JEDER Erzeuger eines VERSCHLUSS sie braucht.
-          ...boltFieldsFor(type, new Date(startTime), awaitsBolt),
+          ...boltFieldsFor(type, effectiveStart, awaitsBolt),
           // `keyDetected` bleibt hier ungesetzt (null) — das Urteil fällt nach dem Commit (siehe unten).
           boxImageUrl: BOX_PHOTO_TYPES.has(type) ? (boxImageUrl || null) : null,
         },
@@ -243,9 +262,11 @@ export async function POST(req: NextRequest) {
       // requestKontrolle), erfüllt ein Foto genau EINE — die dringendste — statt beide auf einmal.
       // Was dieser Eintrag abhakt (Kontrolle, Verschluss-Anforderungen samt Sperrzeiten,
       // Orgasmus-Anforderung) — dieselbe Logik wie auf dem Keyholder-Pfad, siehe
-      // entryFulfilment.ts. `at = new Date()`: die SERVER-Uhr, nie die frei wählbare Eintrags-Zeit
-      // (sonst datierte sich jeder Sub aus jeder Frist heraus). Die Ziel-Schranke reist mit, damit
-      // ein Plug-Foto keine KG-Kontrolle abhakt.
+      // entryFulfilment.ts. `at = fulfilmentAt`: normalerweise die SERVER-Uhr, nie die frei
+      // wählbare Eintrags-Zeit (sonst datierte sich jeder Sub aus jeder Frist heraus). AUSNAHME:
+      // ein offline erfasster Eintrag trägt die Client-Erfassungszeit — die bewusst akzeptierte
+      // Lockerung (Begründung in `offlineCapture.ts`), streng aufs Offline-Flag gegatet. Die
+      // Ziel-Schranke reist mit, damit ein Plug-Foto keine KG-Kontrolle abhakt.
       //
       // Ein schwebender Aufruf hakt NICHTS ab: eine Verschluss-Anforderung ist mit dem Riegel
       // erfüllt, nicht mit dem Aufruf. Das holt `commitPendingLock` nach, sobald die Box meldet.
@@ -258,7 +279,7 @@ export async function POST(req: NextRequest) {
           // Ob es verlangt wird, sagt die Anforderung; ob es fehlt, weiss nur der Body.
           boxPhotoMissing: !boxImageUrl,
         },
-        new Date(),
+        fulfilmentAt,
       );
 
       // Box-Kopplung: die Heimdall-Box folgt dem Eintrag. Die Regel — samt der zwei Fälle, in denen
@@ -312,7 +333,7 @@ export async function POST(req: NextRequest) {
       userId: session.user.id,
       username: session.user.name ?? "User",
       type,
-      startTime: new Date(startTime),
+      startTime: effectiveStart,
       withdrawnLockPeriod,
       oeffnenGrund,
       orgasmusArt,

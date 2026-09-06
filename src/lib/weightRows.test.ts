@@ -15,6 +15,7 @@ function row(dayKey: string, weightKg: number) {
     detectedKg: null,
     note: null,
     source: "user",
+    capturedOffline: false,
   };
 }
 

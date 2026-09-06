@@ -302,6 +302,8 @@
     "device": "Gerät",
     "note": "Notiz",
     "noteOptional": "Notiz (optional)",
+    "capturedOffline": "Offline erfasst",
+    "capturedOfflineHint": "Ohne Netz erfasst und später gesendet — es zählt die Zeit der Erfassung.",
     "comment": "Kommentar",
     "commentOptional": "Kommentar (optional)",
     "photo": "Foto",

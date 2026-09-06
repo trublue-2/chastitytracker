@@ -58,6 +58,9 @@ export interface RecordWeightParams {
   source: WeightSource;
   /** Username des Erfassenden (bzw. `ai`), wenn es nicht der Träger selbst war. */
   createdById?: string | null;
+  /** Offline erfasst (nur Sub-Pfad): kleine Notiz „offline erfasst" in beiden Sichten. `measuredAt`
+   *  bleibt massgeblich — anders als bei den Einträgen trägt das Gewicht ohnehin die Wiege-Zeit. */
+  capturedOffline?: boolean;
   now?: Date;
 }
 
@@ -149,6 +152,7 @@ export async function recordWeight(
         note,
         source: params.source,
         createdById: params.createdById ?? null,
+        capturedOffline: params.capturedOffline ?? false,
       };
 
       const row = existing

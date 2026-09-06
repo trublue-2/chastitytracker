@@ -3,6 +3,7 @@ import { requireApi, requireKeyholderOrAdminActor, sessionActor, weightTrackingG
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 import { recordWeight } from "@/lib/weightService";
 import { plausibleDetection } from "@/lib/weight";
+import { parseOfflineCapture } from "@/lib/offlineCapture";
 
 /**
  * Eine Messung erfassen — für sich selbst, oder als Keyholderin für einen Träger.
@@ -56,6 +57,11 @@ export async function POST(req: NextRequest) {
     detectedKg: plausibleDetection(body.detectedKg, Number(body.weightKg)),
     source: forOther ? "keyholder" : "user",
     createdById,
+    // Offline erfasst nur auf dem SUB-Pfad: die Keyholderin trägt aus der laufenden Oberfläche nach,
+    // nicht aus einer Offline-Warteschlange. Das FLAG kommt aus demselben Parser wie bei den
+    // Einträgen (eine Auslegung des Client-Vertrags); `capturedAt` ignoriert das Gewicht bewusst —
+    // `measuredAt` (die Wiege-Zeit) ist ohnehin massgeblich. Reiner Anzeige-Hinweis.
+    capturedOffline: !forOther && parseOfflineCapture(body).capturedOffline,
   });
 
   return result.ok ? NextResponse.json({ ok: true, ...result.data }) : serviceFailure(result);

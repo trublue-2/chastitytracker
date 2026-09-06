@@ -47,7 +47,7 @@ export default function VerschlussForm({ initial, minTime, tz, nowDefault, mobil
   async function submitFn(payload: VerschlussPayload): Promise<SubmitResult> {
     const [url, init] = entryRequest(initial?.id, payload);
     // Nur beim Anlegen offline-queuefaehig; ein Edit braucht den echten Server.
-    const res = initial ? await fetch(url, init) : await offlineFetch(url, init);
+    const res = initial ? await fetch(url, init) : await offlineFetch(url, init, { offlineCapture: true });
     if (res === null) return { ok: true, offline: true };
     if (!res.ok) return { ok: false, error: apiError(await parseApiErrorCode(res)) };
     toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));

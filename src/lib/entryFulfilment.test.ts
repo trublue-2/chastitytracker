@@ -357,13 +357,24 @@ describe("Welche Uhr die Erfassungs-Routen an applyEntryFulfilment geben", () =>
     expect(admin, "Keyholder-Pfad: (tx, created, opts, at)").toHaveLength(4);
   });
 
-  it("der Sub-Pfad übergibt die SERVER-Uhr, nie eine Zeit aus dem Eintrag", () => {
-    // Exakt das letzte Argument, nicht „irgendwo im Aufruf": `created.startTime` ist die frei
-    // gewählte Zeit, und `new Date(startTime)` — in derselben Datei dreimal vorhanden — wäre
-    // dieselbe Lücke in Tarnung. Beide fallen hier durch.
-    // Wird das Argument je zu einer Variablen (`const at = new Date()` darüber), schlägt dieser
-    // Test an: dann prüfen, ob sie WIRKLICH die Server-Uhr trägt, und den Vergleich nachziehen.
-    expect(sub[3]).toBe("new Date()");
+  it("der Sub-Pfad datiert mit der SERVER-Uhr — eine Client-Zeit NUR über das Offline-Flag", () => {
+    // Der Stichtag ist jetzt eine Variable (`fulfilmentAt`), seit ein OFFLINE erfasster Eintrag die
+    // Client-Erfassungszeit tragen darf. Der Wächter folgt der Variablen und prüft ihre Herleitung —
+    // genau, wie der Kommentar am alten `new Date()`-Vergleich es vorgezeichnet hat.
+    expect(sub[3]).toBe("fulfilmentAt");
+
+    const src = readFileSync("src/app/api/entries/route.ts", "utf8");
+    // `fulfilmentAt` ist die Server-Uhr, AUSSER `capturedAt` ist gesetzt — die RICHTUNG ist die
+    // Eigenschaft: `capturedAt ?? new Date()`, nie umgekehrt (sonst datierte jeder Eintrag mit der
+    // Client-Zeit und nur der offline erfasste mit der Server-Uhr — das Gegenteil).
+    const decl = src.match(/const fulfilmentAt = .*/)?.[0] ?? "";
+    expect(decl).toMatch(/capturedAt \?\? new Date\(\)/);
+
+    // Und `capturedAt` ist streng aufs Offline-Flag gegatet: es kommt ausschliesslich aus
+    // `parseOfflineCapture`, das ohne `capturedOffline: true` im Rumpf `null` liefert. Ohne diese
+    // Schranke wäre `fulfilmentAt` ein offenes Backdating-Loch für JEDE Online-Übermittlung.
+    const capDecl = src.match(/const \{ capturedOffline, capturedAt \} = .*/)?.[0] ?? "";
+    expect(capDecl).toMatch(/parseOfflineCapture\(body\)/);
   });
 
   it("der Keyholder-Pfad darf rückdatieren — ausser er erfasst für sich selbst", () => {
