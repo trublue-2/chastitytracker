@@ -16,6 +16,13 @@
           "de": "Eine laufende oder geplante Sperrzeit lässt sich jetzt direkt bearbeiten: das Ende verschieben oder auf unbefristet setzen, ohne die Sperre vorher aufzuheben.",
           "en": "An active or scheduled lock period can now be edited directly: move its end or set it to indefinite, without lifting the lock first."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die iOS-App bleibt nicht mehr hängen, wenn die gespeicherte Instanz-Adresse nicht erreichbar ist — sie kehrt dann zum Einrichtungs-Formular zurück, statt in einer Sackgasse zu landen.",
+          "en": "The iOS app no longer gets stuck when the saved instance address is unreachable — it returns to the setup form instead of landing in a dead end."
+        }
       }
     ]
   },
