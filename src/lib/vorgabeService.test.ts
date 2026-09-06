@@ -59,17 +59,12 @@ describe("checkGoalPlausibility", () => {
     expect(checkGoalPlausibility({ minProJahrH: 9000 })).toBe("GOAL_YEAR_TARGET_TOO_HIGH");
   });
 
-  it("lehnt ein Wochenziel ab, das bei perfekter Tageserfüllung unerreichbar ist (> 7x Tagesziel)", () => {
-    // 2h/Tag * 7 = 14h/Woche max plausibel — 20h/Woche ist unerreichbar, obwohl unter 168.
-    expect(checkGoalPlausibility({ minProTagH: 2, minProWocheH: 20 })).toBe("GOAL_WEEK_UNREACHABLE_VS_DAY");
-  });
-
-  it("lehnt ein Monatsziel ab, das bei perfekter Tageserfüllung unerreichbar ist (> 31x Tagesziel)", () => {
-    expect(checkGoalPlausibility({ minProTagH: 2, minProMonatH: 100 })).toBe("GOAL_MONTH_UNREACHABLE_VS_DAY");
-  });
-
-  it("lehnt ein Jahresziel ab, das bei perfekter Tageserfüllung unerreichbar ist (> 366x Tagesziel)", () => {
-    expect(checkGoalPlausibility({ minProTagH: 2, minProJahrH: 1000 })).toBe("GOAL_YEAR_UNREACHABLE_VS_DAY");
+  it("akzeptiert ein Wochen-/Monats-/Jahresziel über dem Vielfachen des Tagesziels (Boden, kein Deckel)", () => {
+    // Das Tagesziel ist ein Mindestwert: werktags 6h, am Wochenende mehr — 80h/Woche ist über die
+    // längere Frist erreichbar. Die frühere Quer-Sperre lehnte genau das fälschlich ab.
+    expect(checkGoalPlausibility({ minProTagH: 6, minProWocheH: 80 })).toBeNull();
+    expect(checkGoalPlausibility({ minProTagH: 2, minProMonatH: 100 })).toBeNull();
+    expect(checkGoalPlausibility({ minProTagH: 2, minProJahrH: 1000 })).toBeNull();
   });
 
   it("minProTagH: 0 (explizit gelöscht) wird wie 'nicht gesetzt' behandelt, nicht wie ein Ziel von 0 Stunden", () => {

@@ -86,26 +86,20 @@ export function hasPeriodTarget(p: { minProTagH?: number | null; minProWocheH?: 
 }
 
 /** Physikalische Obergrenze je Periode (Stunden der längsten Periodeninstanz — 31-Tage-Monat,
- *  366-Tage-Schaltjahr) UND wie viele Tage eine Woche/ein Monat/ein Jahr höchstens hat, für die
- *  Quer-Konsistenz gegen das Tagesziel. */
+ *  366-Tage-Schaltjahr). */
 const PERIOD_HOUR_CAP = { tag: 24, woche: 168, monat: 744, jahr: 8784 } as const;
-const PERIOD_DAYS_VS_TAG = { woche: 7, monat: 31, jahr: 366 } as const;
 
 /**
  * Plausibilitätsschranken für Trainingsziel-Stundenwerte (B-02, MCP-Befundliste 2026-07-17): ohne
  * sie akzeptierte der Tracker z.B. 25 Std/Tag oder 500 Std/Woche unkommentiert — beides schlägt
  * direkt in `goals.*.todayPct` durch und damit in die Adhärenz-Argumentation gegenüber dem Sub.
  *
- * Zwei Arten von Schranken, geprüft in dieser Reihenfolge (das Spezifischere zuerst): die absolute
- * Obergrenze jeder Periode (eine Woche hat nie mehr als 168 Stunden), dann die Quer-Konsistenz
- * gegen das Tagesziel (ein Wochenziel, das bei perfekter Tageserfüllung unerreichbar ist, ist in
- * sich widersprüchlich — nur sinnvoll geprüft, wenn ein Tagesziel überhaupt gesetzt ist).
- *
- * "Gesetzt" heisst hier `tag` truthy, nicht bloss `!= null`: `0` ist der einzige Wert, mit dem ein
- * MCP-Aufrufer ein Tagesziel explizit LÖSCHEN kann (die Zod-Schranke lässt `null` nicht zu, nur
- * `nonnegative().optional()`) — und `hasPeriodTarget()` oben behandelt `0` bereits genauso als
- * "nicht gesetzt". Mit `!= null` würde `minPerDayHours: 0, minPerWeekHours: 40` (Wechsel von
- * "8h/Tag + 40h/Woche" auf "nur noch wochenweise") fälschlich als "40 > 7×0" abgelehnt.
+ * Geprüft wird NUR die absolute Obergrenze jeder Periode (eine Woche hat nie mehr als 168 Stunden).
+ * Eine Quer-Konsistenz „Wochenziel ≤ 7×Tagesziel" gibt es bewusst NICHT: das Tagesziel ist ein
+ * MINDESTwert (Boden), kein Deckel — an einzelnen Tagen (etwa am Wochenende) darf und soll mehr als
+ * das Tagesminimum getragen werden, sodass ein höheres Wochen-/Monatsziel legitim und über die
+ * längere Frist erreichbar ist. Die frühere Quer-Sperre lehnte genau solche Konfigurationen
+ * (werktags wenig, am Wochenende viel) fälschlich als „unerreichbar" ab.
  */
 export function checkGoalPlausibility(p: {
   minProTagH?: number | null; minProWocheH?: number | null; minProMonatH?: number | null; minProJahrH?: number | null;
@@ -115,11 +109,6 @@ export function checkGoalPlausibility(p: {
   if (woche != null && woche > PERIOD_HOUR_CAP.woche) return "GOAL_WEEK_TARGET_TOO_HIGH";
   if (monat != null && monat > PERIOD_HOUR_CAP.monat) return "GOAL_MONTH_TARGET_TOO_HIGH";
   if (jahr != null && jahr > PERIOD_HOUR_CAP.jahr) return "GOAL_YEAR_TARGET_TOO_HIGH";
-  if (tag) {
-    if (woche != null && woche > PERIOD_DAYS_VS_TAG.woche * tag) return "GOAL_WEEK_UNREACHABLE_VS_DAY";
-    if (monat != null && monat > PERIOD_DAYS_VS_TAG.monat * tag) return "GOAL_MONTH_UNREACHABLE_VS_DAY";
-    if (jahr != null && jahr > PERIOD_DAYS_VS_TAG.jahr * tag) return "GOAL_YEAR_UNREACHABLE_VS_DAY";
-  }
   return null;
 }
 

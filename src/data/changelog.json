@@ -16,6 +16,13 @@
           "de": "Ein Aufgaben-Nachweis kann jetzt auch ein geschriebener Text sein — allein oder zusätzlich zum Foto. Die Keyholderin legt je Nachweis fest, was verlangt ist, und beurteilt den Text wie ein Foto.",
           "en": "A task proof can now also be a written text — on its own or alongside the photo. The keyholder decides per proof what is required and judges the text like a photo."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein Wochen-, Monats- oder Jahresziel darf jetzt höher liegen als das Vielfache des Tagesziels — so lässt sich z. B. werktags wenig, am Wochenende mehr vorgeben, ohne dass das Ziel als „unerreichbar“ abgelehnt wird.",
+          "en": "A weekly, monthly or yearly target may now exceed the daily target multiplied out — so you can set e.g. little on weekdays and more on weekends, without the goal being rejected as “unreachable”."
+        }
       }
     ]
   },

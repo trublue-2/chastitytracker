@@ -108,9 +108,6 @@ export const GOAL_CODES = [
   "GOAL_WEEK_TARGET_TOO_HIGH",
   "GOAL_MONTH_TARGET_TOO_HIGH",
   "GOAL_YEAR_TARGET_TOO_HIGH",
-  "GOAL_WEEK_UNREACHABLE_VS_DAY",
-  "GOAL_MONTH_UNREACHABLE_VS_DAY",
-  "GOAL_YEAR_UNREACHABLE_VS_DAY",
 ] as const;
 
 /** verschlussAnforderungService (lock requests + lock periods). */
