@@ -23,6 +23,13 @@
           "de": "Ein Wochen-, Monats- oder Jahresziel darf jetzt höher liegen als das Vielfache des Tagesziels — so lässt sich z. B. werktags wenig, am Wochenende mehr vorgeben, ohne dass das Ziel als „unerreichbar“ abgelehnt wird.",
           "en": "A weekly, monthly or yearly target may now exceed the daily target multiplied out — so you can set e.g. little on weekdays and more on weekends, without the goal being rejected as “unreachable”."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Das tägliche Trage-Minimum eines Trainingsziels lässt sich jetzt je Wochentag abweichend setzen — z. B. werktags 6 h, am Wochenende 16 h, oder ein Ruhetag (0 h). Ohne Ausnahme gilt weiterhin an jedem Tag derselbe Wert.",
+          "en": "A training goal's daily wear minimum can now differ by weekday — e.g. 6 h on weekdays, 16 h on weekends, or a rest day (0 h). Without an exception the same value still applies every day."
+        }
       }
     ]
   },

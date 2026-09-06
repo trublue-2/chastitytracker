@@ -5,6 +5,10 @@ import { reorderVorgabenDates } from "@/lib/vorgaben";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+import {
+  parseWeekdayGoalRules, weekdayGoalRulesProblem, weekdayGoalRuleTooHigh, weekdayGoalRulesHaveTarget,
+  type WeekdayGoalRule,
+} from "@/lib/weekdayGoal";
 
 export interface CreateVorgabeParams {
   userId: string;
@@ -20,6 +24,10 @@ export interface CreateVorgabeParams {
   minProWocheH?: number | null;
   minProMonatH?: number | null;
   minProJahrH?: number | null;
+  /** Wochentag-Ausnahmen des Tages-Solls, roh von aussen (Formular-Array oder MCP-Argumente): wird
+   *  geprüft/normalisiert und als JSON-String abgelegt — dieselbe „roh herein, String heraus"-
+   *  Aufteilung wie `SetAutoKontrolleParams.dayRules`. `undefined`/`null`/`[]` = keine Ausnahme. */
+  minProTagWochentage?: unknown;
   notiz?: string | null;
 }
 
@@ -80,9 +88,15 @@ export async function findActiveVorgabe(id: string) {
 }
 
 /** At least one of the four period targets must be set. Exported for MCP dryRun previews
- *  (mcpWrite.ts) — the same check the real create/update path runs, not restated there. */
-export function hasPeriodTarget(p: { minProTagH?: number | null; minProWocheH?: number | null; minProMonatH?: number | null; minProJahrH?: number | null }): boolean {
-  return !!(p.minProTagH || p.minProWocheH || p.minProMonatH || p.minProJahrH);
+ *  (mcpWrite.ts) — the same check the real create/update path runs, not restated there.
+ *  Eine Wochentag-Ausnahme > 0 zählt ebenfalls als Ziel: ein „nur am Wochenende"-Ziel ohne
+ *  Basis-Tageswert ist gültig. Ein reiner Ruhetag (`hours: 0`) zählt nicht. */
+export function hasPeriodTarget(p: {
+  minProTagH?: number | null; minProWocheH?: number | null; minProMonatH?: number | null; minProJahrH?: number | null;
+  minProTagWochentage?: readonly WeekdayGoalRule[] | null;
+}): boolean {
+  return !!(p.minProTagH || p.minProWocheH || p.minProMonatH || p.minProJahrH)
+    || weekdayGoalRulesHaveTarget(p.minProTagWochentage ?? []);
 }
 
 /** Physikalische Obergrenze je Periode (Stunden der längsten Periodeninstanz — 31-Tage-Monat,
@@ -103,13 +117,54 @@ const PERIOD_HOUR_CAP = { tag: 24, woche: 168, monat: 744, jahr: 8784 } as const
  */
 export function checkGoalPlausibility(p: {
   minProTagH?: number | null; minProWocheH?: number | null; minProMonatH?: number | null; minProJahrH?: number | null;
+  minProTagWochentage?: readonly WeekdayGoalRule[] | null;
 }): ServiceErrorCode | null {
   const { minProTagH: tag, minProWocheH: woche, minProMonatH: monat, minProJahrH: jahr } = p;
   if (tag != null && tag > PERIOD_HOUR_CAP.tag) return "GOAL_DAY_TARGET_TOO_HIGH";
   if (woche != null && woche > PERIOD_HOUR_CAP.woche) return "GOAL_WEEK_TARGET_TOO_HIGH";
   if (monat != null && monat > PERIOD_HOUR_CAP.monat) return "GOAL_MONTH_TARGET_TOO_HIGH";
   if (jahr != null && jahr > PERIOD_HOUR_CAP.jahr) return "GOAL_YEAR_TARGET_TOO_HIGH";
+  // Jede Wochentag-Ausnahme gegen dieselbe Tages-Obergrenze — ein Ausnahme-Wert ist genauso ein
+  // Tages-Soll wie `minProTagH`. Geteilt mit dem MCP-dryRun (der ruft dieselbe Funktion).
+  if (weekdayGoalRuleTooHigh(p.minProTagWochentage ?? [])) return "GOAL_DAY_TARGET_TOO_HIGH";
   return null;
+}
+
+/** Prüft die rohen Wochentag-Ausnahmen (Struktur) und gibt die normalisierten Regeln zurück — oder
+ *  einen Fehler-`ServiceResult`. Geteilt von create/update, damit beide Wege dieselbe Wache und
+ *  dieselbe Speicherform (normalisiertes JSON, `null` bei leer) nutzen. */
+function resolveWeekdayGoalRules(raw: unknown): ServiceResult<WeekdayGoalRule[]> {
+  if (raw !== undefined && raw !== null) {
+    const problem = weekdayGoalRulesProblem(raw);
+    if (problem) return serviceFail(400, problem.code);
+  }
+  return { ok: true, data: parseWeekdayGoalRules(raw ?? null) };
+}
+
+/** Regeln → Spaltenwert: normalisiertes JSON, oder `null` wenn leer (rückwärtskompatibel = keine
+ *  Ausnahme). Normalisiert wie bei den Auto-Kontroll-Tagesregeln, damit ein Änderungs-Vergleich
+ *  Zeichenkette gegen Zeichenkette läuft. */
+function weekdayGoalRulesColumn(rules: WeekdayGoalRule[]): string | null {
+  return rules.length ? JSON.stringify(rules) : null;
+}
+
+/**
+ * Die EINE Ziel-Wache: Wochentag-Regel-STRUKTUR (Anzahl, Masken), Perioden-Pflicht und die
+ * Plausibilitäts-Obergrenzen in einem Schritt — gibt die normalisierten Regeln zurück oder einen
+ * Fehler-`ServiceResult`. Geteilt von `createVorgabe`/`updateVorgabe` UND der MCP-dryRun-Vorschau
+ * (`set_training_goal`), damit Vorschau und Commit nie auseinanderlaufen (checkTask/dryRun-Muster).
+ */
+export function validateGoalTargets(params: {
+  minProTagH?: number | null; minProWocheH?: number | null; minProMonatH?: number | null; minProJahrH?: number | null;
+  minProTagWochentage?: unknown;
+}): ServiceResult<WeekdayGoalRule[]> {
+  const rulesRes = resolveWeekdayGoalRules(params.minProTagWochentage);
+  if (!rulesRes.ok) return rulesRes;
+  const checkable = { ...params, minProTagWochentage: rulesRes.data };
+  if (!hasPeriodTarget(checkable)) return serviceFail(400, "GOAL_PERIOD_TARGET_REQUIRED");
+  const plausibilityErr = checkGoalPlausibility(checkable);
+  if (plausibilityErr) return serviceFail(400, plausibilityErr);
+  return { ok: true, data: rulesRes.data };
 }
 
 /**
@@ -120,9 +175,8 @@ export async function createVorgabe(params: CreateVorgabeParams): Promise<Servic
   const { userId, categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, minProJahrH, notiz } = params;
 
   if (!userId || !gueltigAb) return serviceFail(400, "GOAL_USER_AND_START_REQUIRED");
-  if (!hasPeriodTarget(params)) return serviceFail(400, "GOAL_PERIOD_TARGET_REQUIRED");
-  const plausibilityErr = checkGoalPlausibility(params);
-  if (plausibilityErr) return serviceFail(400, plausibilityErr);
+  const rulesRes = validateGoalTargets(params);
+  if (!rulesRes.ok) return rulesRes;
   const catErr = await validateVorgabeCategory(categoryId, userId);
   if (catErr) return catErr;
 
@@ -138,6 +192,7 @@ export async function createVorgabe(params: CreateVorgabeParams): Promise<Servic
       minProWocheH: minProWocheH ?? null,
       minProMonatH: minProMonatH ?? null,
       minProJahrH: minProJahrH ?? null,
+      minProTagWochentage: weekdayGoalRulesColumn(rulesRes.data),
       notiz: notiz || null,
     },
   });
@@ -159,9 +214,8 @@ export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Pr
 
   const { categoryId, gueltigAb, gueltigBis, minProTagH, minProWocheH, minProMonatH, minProJahrH, notiz } = params;
   if (!gueltigAb) return serviceFail(400, "GOAL_START_REQUIRED");
-  if (!hasPeriodTarget(params)) return serviceFail(400, "GOAL_PERIOD_TARGET_REQUIRED");
-  const plausibilityErr = checkGoalPlausibility(params);
-  if (plausibilityErr) return serviceFail(400, plausibilityErr);
+  const rulesRes = validateGoalTargets(params);
+  if (!rulesRes.ok) return rulesRes;
   const catErr = await validateVorgabeCategory(categoryId, existing.userId);
   if (catErr) return catErr;
 
@@ -177,6 +231,7 @@ export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Pr
       minProWocheH: minProWocheH ?? null,
       minProMonatH: minProMonatH ?? null,
       minProJahrH: minProJahrH ?? null,
+      minProTagWochentage: weekdayGoalRulesColumn(rulesRes.data),
       notiz: notiz ?? null,
     },
   });

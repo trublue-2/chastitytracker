@@ -3,6 +3,7 @@ import {
   mondayIndexOfLocalDate, tzDateParts, tzDayKey, wearingHoursFromPairs, type WearPair,
 } from "@/lib/utils";
 import { periodTarget } from "@/lib/goalFulfillment";
+import { parseWeekdayGoalRules, resolveDayTarget } from "@/lib/weekdayGoal";
 import { coveragePct, goalPct } from "@/lib/percent";
 import { wearIntensityLevel, WEAR_LEVEL_BG, WEAR_LEVEL_TEXT } from "@/lib/wearIntensity";
 import type {
@@ -35,6 +36,9 @@ export type Vorgabe = {
   minProWocheH: number | null;
   minProMonatH: number | null;
   minProJahrH: number | null;
+  /** Wochentag-Ausnahmen des Tages-Solls (JSON-Spalte, roh) — je Kalendertag über `resolveDayTarget`
+   *  aufgelöst. Optional: fehlt es, gilt überall `minProTagH`. */
+  minProTagWochentage?: string | null;
   notiz: string | null;
 };
 
@@ -225,11 +229,15 @@ export function buildCalendarMonths(opts: {
     ];
     while (cells.length % 7 !== 0) cells.push(null);
 
-    // Hängt nur am Monat, nicht am Tag — einmal je Monat bauen statt je Zelle.
+    // Hängt nur am Monat, nicht am Tag — einmal je Monat bauen statt je Zelle. `minProTagH` wird pro
+    // Zelle mit dem Wochentag-Soll überschrieben (unten), damit Anzeige und Bewertung dieselbe Zahl
+    // zeigen; die übrigen (Perioden-)Werte gelten für alle Tage des Monats gleich.
     const dayVorgabe: DayVorgabe | null = vorgabe ? {
       minProTagH: vorgabe.minProTagH, minProWocheH: vorgabe.minProWocheH,
       minProMonatH: vorgabe.minProMonatH, minProJahrH: vorgabe.minProJahrH, notiz: vorgabe.notiz,
     } : null;
+    // Wochentag-Ausnahmen EINMAL je Monat parsen (je Kalenderzelle wäre ein JSON.parse pro Tag).
+    const weekdayRules = vorgabe ? parseWeekdayGoalRules(vorgabe.minProTagWochentage) : [];
 
     const weeks: (CalendarDayData | null)[][] = [];
     const weekGoalMet: (boolean | null)[] = [];
@@ -258,9 +266,12 @@ export function buildCalendarMonths(opts: {
         const data = dailyData.get(key);
         const dayStart = midnightOfLocalDate(year, month, day, tz);
         const dayEnd = midnightOfLocalDate(year, month, day + 1, tz);
+        // Das Tages-Soll folgt dem Wochentag dieser Zelle (Ausnahme ersetzt `minProTagH`, 0 =
+        // Ruhetag). ISO-Wochentag direkt aus dem Kalenderdatum (`mondayIndexOfLocalDate` = Mo 0) + 1.
+        const dayBase = vorgabe ? resolveDayTarget(vorgabe.minProTagH, weekdayRules, mondayIndexOfLocalDate(year, month, day) + 1) : null;
         // Beginnt oder endet die Vorgabe MITTEN an diesem Tag, bleibt der Tag unbewertet
         // (`targetH: null`) — ein Tagesziel misst einen Tagesbogen, keinen Nachmittag.
-        const dayTarget = vorgabe ? periodTarget(vorgabe.minProTagH, dayStart, dayEnd, vorgabe).targetH : null;
+        const dayTarget = vorgabe ? periodTarget(dayBase, dayStart, dayEnd, vorgabe).targetH : null;
         const dailyGoalMet = data != null ? goalMet(data.hours, dayTarget) : null;
         const colorClass = calendarLevelClass(wearIntensityLevel(data?.hours ?? 0));
         // entries arrived from prisma sorted by startTime asc, so per-day buckets are too.
@@ -271,7 +282,11 @@ export function buildCalendarMonths(opts: {
           orgasmusArt: e.orgasmusArt,
         }));
         const dateLabel = formatCalendarDate(year, month, day, dl, DAY_LABEL_OPTS);
-        return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, violationTypes: opts.violationDays?.get(key) ?? [], dailyGoalMet, colorClass, entries: dayEntries, vorgabe: dayVorgabe };
+        // Die Detail-Anzeige (CalendarContainer) liest `vorgabe.minProTagH` — hier auf das Wochentag-
+        // Soll dieser Zelle setzen, sonst zeigte das Panel den Basiswert, während die Zelle nach dem
+        // abweichenden Soll eingefärbt ist.
+        const cellVorgabe = dayVorgabe ? { ...dayVorgabe, minProTagH: dayBase } : null;
+        return { day, dateLabel, wearHours: data?.hours ?? 0, hasOrgasm: data?.hasOrgasm ?? false, violationTypes: opts.violationDays?.get(key) ?? [], dailyGoalMet, colorClass, entries: dayEntries, vorgabe: cellVorgabe };
       }));
     }
 

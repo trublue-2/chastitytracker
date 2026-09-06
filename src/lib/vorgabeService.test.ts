@@ -83,6 +83,13 @@ describe("checkGoalPlausibility", () => {
     // die absolute Grenze ist die aussagekräftigere Meldung.
     expect(checkGoalPlausibility({ minProTagH: 1, minProWocheH: 1000 })).toBe("GOAL_WEEK_TARGET_TOO_HIGH");
   });
+
+  it("prüft JEDEN Wochentag-Ausnahme-Wert gegen die 24-h-Tagesgrenze", () => {
+    const ok = [{ days: 0b111_1111, hours: 16 }];
+    const tooHigh = [{ days: 0b1, hours: 25 }];
+    expect(checkGoalPlausibility({ minProTagH: 6, minProTagWochentage: ok })).toBeNull();
+    expect(checkGoalPlausibility({ minProTagH: 6, minProTagWochentage: tooHigh })).toBe("GOAL_DAY_TARGET_TOO_HIGH");
+  });
 });
 
 describe("createVorgabe — Plausibilitätsschranken (B-02)", () => {

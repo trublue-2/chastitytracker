@@ -8,8 +8,14 @@ import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
 import FormFieldLabel from "@/app/components/FormFieldLabel";
 import FormError from "@/app/components/FormError";
+import WeekdayPicker from "@/app/components/WeekdayPicker";
+import AddRowButton from "@/app/components/AddRowButton";
+import RemoveRowButton from "@/app/components/RemoveRowButton";
+import { editRowCardCls } from "@/app/components/inputStyles";
 import { coveragePct } from "@/lib/percent";
 import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/constants";
+import { ALL_WEEKDAYS } from "@/lib/weekdays";
+import { WEEKDAY_GOAL_RULES_MAX, type WeekdayGoalRule } from "@/lib/weekdayGoal";
 
 function toHours(value: string, unit: string, basis: number): number | null {
   const n = parseFloat(value);
@@ -77,8 +83,39 @@ export interface VorgabeInitialValues {
   wocheVal: string;
   monatVal: string;
   jahrVal: string;
+  /** Wochentag-Ausnahmen des Tages-Solls (geparst) — leer = keine. */
+  weekdayExceptions: WeekdayGoalRule[];
   notiz: string;
   categoryId: string;
+}
+
+/** Eine Zeile der Wochentag-Ausnahmen: Tage-Auswahl + Std./Tag (0 = Ruhetag). Interaktion wie die
+ *  Auto-Kontroll-Tagesregeln (`AutoKontrolleToggle`) — die Ausnahme wird immer als GANZES ersetzt. */
+function WeekdayExceptionRow({
+  rule, disabled, onChange, onRemove, daysAria, hoursLabel, removeAria,
+}: {
+  rule: WeekdayGoalRule; disabled: boolean;
+  onChange: (next: WeekdayGoalRule) => void; onRemove: () => void;
+  daysAria: string; hoursLabel: string; removeAria: string;
+}) {
+  return (
+    <div className={editRowCardCls}>
+      <div className="flex items-center justify-between gap-2">
+        <WeekdayPicker mask={rule.days} disabled={disabled} ariaLabel={daysAria}
+          onChange={(days) => onChange({ ...rule, days })} />
+        <RemoveRowButton onClick={onRemove} disabled={disabled} ariaLabel={removeAria} tone="neutral" />
+      </div>
+      <label className="flex items-center gap-2 text-sm text-foreground">
+        <span className="text-foreground-muted">{hoursLabel}</span>
+        <input
+          type="number" min={0} max={HOURS_PER_DAY} step="any" value={String(rule.hours)}
+          disabled={disabled} aria-label={hoursLabel}
+          onChange={(e) => onChange({ ...rule, hours: Math.max(0, parseFloat(e.target.value) || 0) })}
+          className={`w-24 min-w-0 ${fieldCls}`}
+        />
+      </label>
+    </div>
+  );
 }
 
 export interface CategoryOption {
@@ -110,6 +147,11 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
   const [jahrVal, setJahrVal] = useState(initialValues?.jahrVal ?? ""); const [jahrUnit, setJahrUnit] = useState("h");
   const [notiz, setNotiz] = useState(initialValues?.notiz ?? "");
   const [categoryId, setCategoryId] = useState(initialValues?.categoryId ?? categories?.[0]?.id ?? "");
+  const initialExceptions = initialValues?.weekdayExceptions ?? [];
+  const [exceptions, setExceptions] = useState<WeekdayGoalRule[]>(initialExceptions);
+  // Ausklappbar: mit bestehenden Ausnahmen offen, sonst zugeklappt — der Regelfall ist ein Ziel ohne
+  // Abweichungen und soll den Abschnitt nicht aufblähen.
+  const [showExceptions, setShowExceptions] = useState(initialExceptions.length > 0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -134,6 +176,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
       minProWocheH: toHours(wocheVal, wocheUnit, HOURS_PER_WEEK),
       minProMonatH: toHours(monatVal, monatUnit, HOURS_PER_MONTH),
       minProJahrH: toHours(jahrVal, jahrUnit, HOURS_PER_YEAR),
+      minProTagWochentage: exceptions,
       notiz: notiz || null,
     };
 
@@ -159,6 +202,7 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
       } else {
         setGueltigAb(""); setGueltigBis("");
         setTagVal(""); setWocheVal(""); setMonatVal(""); setJahrVal(""); setNotiz("");
+        setExceptions([]); setShowExceptions(false);
         router.refresh();
       }
     } catch {
@@ -216,6 +260,46 @@ export default function VorgabeForm({ userId, vorgabeId, initialValues, onCancel
           onValue={setMonatVal} onUnit={setMonatUnit} basis={HOURS_PER_MONTH} max={HOURS_PER_MONTH} />
         <InputWithUnit label={t("vorgabeYear")} value={jahrVal} unit={jahrUnit}
           onValue={setJahrVal} onUnit={setJahrUnit} basis={HOURS_PER_YEAR} max={HOURS_PER_YEAR} />
+      </div>
+
+      {/* Abweichende Wochentage: ersetzen an ihren Tagen das Basis-Tagesziel. Ausklappbar, weil der
+          Regelfall ein Ziel ohne Abweichung ist. Interaktion wie die Auto-Kontroll-Tagesregeln. */}
+      <div className="flex flex-col gap-2">
+        <button type="button" onClick={() => setShowExceptions((s) => !s)}
+          aria-expanded={showExceptions}
+          className="flex items-center gap-1.5 text-sm font-medium text-foreground-muted hover:text-foreground transition w-fit">
+          <span aria-hidden="true" className="text-xs">{showExceptions ? "▾" : "▸"}</span>
+          {t("vorgabeWeekdayExceptions")}
+          {exceptions.length > 0 && <span className="text-foreground-faint">({exceptions.length})</span>}
+        </button>
+        {showExceptions && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-foreground-faint">{t("vorgabeWeekdayExceptionsHint")}</p>
+            {exceptions.length === 0 && (
+              <span className="text-xs text-foreground-faint italic">{t("vorgabeWeekdayExceptionsEmpty")}</span>
+            )}
+            {exceptions.map((rule, i) => (
+              <WeekdayExceptionRow
+                key={i}
+                rule={rule}
+                disabled={saving}
+                daysAria={t("vorgabeWeekdayExceptionDays")}
+                hoursLabel={t("vorgabeWeekdayExceptionHours")}
+                removeAria={t("vorgabeWeekdayExceptionRemove")}
+                onChange={(next) => setExceptions(exceptions.map((x, j) => (j === i ? next : x)))}
+                onRemove={() => setExceptions(exceptions.filter((_, j) => j !== i))}
+              />
+            ))}
+            {exceptions.length < WEEKDAY_GOAL_RULES_MAX && (
+              <AddRowButton
+                label={t("vorgabeWeekdayExceptionAdd")}
+                disabled={saving}
+                // Neue Ausnahme als Kopie des Basis-Tagesziels (in Stunden), falls gesetzt — sonst 0.
+                onClick={() => setExceptions([...exceptions, { days: ALL_WEEKDAYS, hours: toHours(tagVal, tagUnit, HOURS_PER_DAY) ?? 0 }])}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <div>

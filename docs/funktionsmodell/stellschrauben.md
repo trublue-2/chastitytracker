@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 145 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 146 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -138,6 +138,7 @@ Steckbrief: [45-trainingsziele.md](45-trainingsziele.md)
 | `TrainingVorgabe.minProWocheH` | Float? | — | je Direktive | Dasselbe je Woche. Die vier Perioden gelten nebeneinander, nicht alternativ. | Keyholder (UI), Keyholder (MCP) | Trainingsziele, Sessions/Statistik | — |
 | `TrainingVorgabe.minProMonatH` | Float? | — | je Direktive | Dasselbe je Monat. | Keyholder (UI), Keyholder (MCP) | Trainingsziele, Sessions/Statistik | — |
 | `TrainingVorgabe.minProJahrH` | Float? | — | je Direktive | Dasselbe je Jahr. | Keyholder (UI), Keyholder (MCP) | Trainingsziele, Sessions/Statistik | — |
+| `TrainingVorgabe.minProTagWochentage` | String? | — | je Direktive | Wochentag-Ausnahmen des Tages-Solls: an einzelnen Wochentagen gilt ein anderer Wert als minProTagH (0 = Ruhetag). Nur Tages-Ausnahmen; Woche/Monat/Jahr bleiben unberührt. | Keyholder (UI), Keyholder (MCP) | Trainingsziele, Sessions/Statistik | `weekdayGoal.ts` |
 | `TrainingVorgabe.notiz` | String? | — | je Direktive | Begleittext zum Ziel. | Keyholder (UI), Keyholder (MCP) | Trainingsziele | — |
 
 ## Vergehen & Strafbuch

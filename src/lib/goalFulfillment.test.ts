@@ -3,6 +3,7 @@ import type { GoalWindow } from "./goalFulfillment";
 import {
   periodTarget, periodBounds, resolveGoalTargets, goalBoundaryInPeriod, hasVisibleGoalRow,
 } from "./goalFulfillment";
+import { weekdayMaskOf } from "./weekdays";
 
 const D = (s: string) => new Date(s);
 const TZ = "Europe/Zurich";
@@ -186,6 +187,28 @@ describe("resolveGoalTargets", () => {
     expect(t.targetH.day).toBe(15);
     expect(t.targetH.week).toBe(90);
     expect(t.changedInPeriod).toEqual({ day: false, week: false, month: true, year: false });
+  });
+
+  it("Wochentag-Ausnahmen: das TAGES-Soll folgt dem Wochentag, Woche bleibt der Summenwert", () => {
+    // Basis 6 h, Sa/So 16 h, Montag Ruhetag (0). Woche/Monat/Jahr unberührt.
+    const goal = {
+      gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null,
+      minProTagH: 6, minProWocheH: 40, minProMonatH: null, minProJahrH: null,
+      minProTagWochentage: JSON.stringify([
+        { days: weekdayMaskOf([6, 7]), hours: 16 },
+        { days: weekdayMaskOf([1]), hours: 0 },
+      ]),
+    };
+    expect(resolveGoalTargets(goal, D("2026-08-22T09:00:00Z"), TZ).targetH.day).toBe(16); // Samstag
+    expect(resolveGoalTargets(goal, D("2026-08-25T09:00:00Z"), TZ).targetH.day).toBe(6);  // Dienstag = Basis
+    const montag = resolveGoalTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
+    expect(montag.targetH.day).toBe(0);   // Ruhetag (gesetzte 0), nicht Basis
+    expect(montag.targetH.week).toBe(40); // Perioden-Summe unangetastet
+  });
+
+  it("rückwärtskompatibel: eine Vorgabe ohne Ausnahmen-Feld verhält sich wie bisher", () => {
+    const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, ...base };
+    expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: VIER, changedInPeriod: UNGETEILT });
   });
 });
 

@@ -62,9 +62,29 @@ export function weekdayMaskOf(isoDays: readonly number[]): number {
   return isoDays.reduce((mask, day) => mask | weekdayBit(day), 0);
 }
 
+/**
+ * Die ERSTE Regel, deren Maske diesen ISO-Wochentag deckt — oder `null`. Die Reihenfolge IST damit
+ * die Rangfolge: die speziellere Regel steht vor der allgemeineren.
+ *
+ * Generisch über `{ days: number }`, weil derselbe „welche Wochentag-Regel gilt heute"-Griff an
+ * mehreren Fenster-Familien vorkommt (Auto-Kontroll-Tagesregeln, Trainingsziel-Ausnahmen). Geteilt
+ * wird, WAS ein Wochentag ist — nicht, was die Regel bedeutet; das Ergebnis deutet der Aufrufer.
+ */
+export function firstWeekdayRule<T extends { days: number }>(rules: readonly T[], isoDay: number): T | null {
+  return rules.find((r) => weekdayMaskHas(r.days, isoDay)) ?? null;
+}
+
 /** Maske mit einem umgeschalteten Tag — die Bedienung der Häkchen in einem Ausdruck. */
 export function toggleWeekday(mask: number, isoDay: number): number {
   return mask ^ weekdayBit(isoDay);
+}
+
+/** Die ISO-Wochentage (1–7) einer Maske als aufsteigende Liste — die Umkehrung von {@link weekdayMaskOf}.
+ *  Für Maschinen-Sichten, die dieselbe ISO-Liste zurückgeben, die sie annehmen (MCP). */
+export function isoDaysOfMask(mask: number): number[] {
+  const days: number[] = [];
+  for (let d = 1; d <= 7; d++) if (weekdayMaskHas(mask, d)) days.push(d);
+  return days;
 }
 
 /** Eine Maske aus fremder Hand (JSON, Formular, Alt-Bestand). Unbrauchbares fällt auf ALLE Tage

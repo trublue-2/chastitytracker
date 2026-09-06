@@ -1,7 +1,7 @@
 import { HHMM, INVALID_TIME, TIME_RANGE_INVALID } from "@/lib/constants";
 import { hhmmToMinutes } from "@/lib/utils";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
-import { parseWeekdayMask, weekdayMaskHas, weekdayMaskKeys, weekdayMaskValid } from "@/lib/weekdays";
+import { firstWeekdayRule, parseWeekdayMask, weekdayMaskKeys, weekdayMaskValid } from "@/lib/weekdays";
 import { listProblem, parseJsonList, type ListProblem } from "@/lib/jsonList";
 
 /**
@@ -148,7 +148,7 @@ function dayRuleProblem(r: unknown): ServiceErrorCode | null {
  *  Rangfolge: „dienstags so, werktags sonst so" schreibt man als Dienstag-Regel VOR die Werktags-Regel.
  *  Keine passende: `null`, dann gilt der Grundstand. */
 export function dayRuleFor(rules: AutoInspectionDayRule[], isoDay: number): AutoInspectionDayRule | null {
-  return rules.find((r) => weekdayMaskHas(r.days, isoDay)) ?? null;
+  return firstWeekdayRule(rules, isoDay);
 }
 
 /**

@@ -36,6 +36,7 @@
  */
 
 import { getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd, midnightAfterDays, type WearHours } from "@/lib/utils";
+import { tagesSollFuer } from "@/lib/weekdayGoal";
 
 /** Validity window of a goal. `end === null` = open-ended (covers everything after `start`). */
 export interface GoalWindow {
@@ -159,6 +160,10 @@ export interface VorgabePeriodTargets {
   minProWocheH: number | null;
   minProMonatH: number | null;
   minProJahrH: number | null;
+  /** Wochentag-Ausnahmen des Tages-Solls (JSON-Spalte, roh). Optional, damit Bestands-Fixtures und
+   *  ältere Aufrufer ohne das Feld weiterlaufen — fehlt es, gilt überall `minProTagH` (heutiges
+   *  Verhalten). Aufgelöst in {@link resolveGoalTargets} über `resolveDayTarget`. */
+  minProTagWochentage?: string | null;
 }
 
 /** Je Periode: liegt eine Zielgrenze darin (Regel 2)? Nur der MCP meldet das noch ausdrücklich
@@ -208,8 +213,12 @@ export function resolveGoalTargets(
   tz: string,
 ): VorgabeTargets {
   if (!goal) return NO_TARGETS;
+  // Das Tages-Soll folgt dem Wochentag von HEUTE: eine passende Ausnahme ersetzt `minProTagH` (0 =
+  // Ruhetag). Woche/Monat/Jahr bleiben Perioden-Summen und unberührt. Diese EINE Auflösung erreicht
+  // damit jede „aktives Ziel jetzt"-Anzeige (Dashboard, Admin, Stats, Kategorie-Ziele, MCP).
+  const dayBase = tagesSollFuer(goal, now, tz);
   const base: ByPeriod<number | null> = {
-    day: goal.minProTagH, week: goal.minProWocheH, month: goal.minProMonatH, year: goal.minProJahrH,
+    day: dayBase, week: goal.minProWocheH, month: goal.minProMonatH, year: goal.minProJahrH,
   };
   const targetH = {} as ByPeriod<number | null>;
   const changedInPeriod = {} as GoalChangedInPeriod;

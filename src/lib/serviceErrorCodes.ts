@@ -108,6 +108,9 @@ export const GOAL_CODES = [
   "GOAL_WEEK_TARGET_TOO_HIGH",
   "GOAL_MONTH_TARGET_TOO_HIGH",
   "GOAL_YEAR_TARGET_TOO_HIGH",
+  // Wochentag-Ausnahmen des Tagesziels (weekdayGoal.ts): Struktur-Fehler beim Schreiben.
+  "GOAL_WEEKDAY_RULE_INVALID",
+  "GOAL_WEEKDAY_RULES_TOO_MANY",
 ] as const;
 
 /** verschlussAnforderungService (lock requests + lock periods). */

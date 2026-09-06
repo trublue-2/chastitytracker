@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 151 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
+Insgesamt 152 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
 
 ## Einträge
 
@@ -343,6 +343,7 @@ flowchart LR
 |---|---|---|---|
 | Geräte | `TrainingVorgabe.categoryId` | Für welche Kategorie das Ziel gilt. Kategorien mit `allowVorgaben: false` sind hier nicht wählbar. | — |
 | Sessions/Statistik | `TrainingVorgabe.minProTagH` | Mindest-Tragestunden pro Tag. Gemessen wird Wanduhr-Zeit der Kategorie, nicht Gerätestunden. | `vorgaben.ts` |
+| Sessions/Statistik | `TrainingVorgabe.minProTagWochentage` | Wochentag-Ausnahmen des Tages-Solls: an einzelnen Wochentagen gilt ein anderer Wert als minProTagH (0 = Ruhetag). Nur Tages-Ausnahmen; Woche/Monat/Jahr bleiben unberührt. | `weekdayGoal.ts` |
 | Sessions/Statistik | `TrainingVorgabe.minProWocheH` | Dasselbe je Woche. Die vier Perioden gelten nebeneinander, nicht alternativ. | — |
 | Sessions/Statistik | `TrainingVorgabe.minProMonatH` | Dasselbe je Monat. | — |
 | Sessions/Statistik | `TrainingVorgabe.minProJahrH` | Dasselbe je Jahr. | — |
@@ -770,6 +771,7 @@ flowchart LR
 | Einträge | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
 | Einträge | `Entry.startTime` | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | `entryFulfilment.ts` |
 | Trainingsziele | `TrainingVorgabe.minProTagH` | Mindest-Tragestunden pro Tag. Gemessen wird Wanduhr-Zeit der Kategorie, nicht Gerätestunden. | `vorgaben.ts` |
+| Trainingsziele | `TrainingVorgabe.minProTagWochentage` | Wochentag-Ausnahmen des Tages-Solls: an einzelnen Wochentagen gilt ein anderer Wert als minProTagH (0 = Ruhetag). Nur Tages-Ausnahmen; Woche/Monat/Jahr bleiben unberührt. | `weekdayGoal.ts` |
 | Trainingsziele | `TrainingVorgabe.minProWocheH` | Dasselbe je Woche. Die vier Perioden gelten nebeneinander, nicht alternativ. | — |
 | Trainingsziele | `TrainingVorgabe.minProMonatH` | Dasselbe je Monat. | — |
 | Trainingsziele | `TrainingVorgabe.minProJahrH` | Dasselbe je Jahr. | — |

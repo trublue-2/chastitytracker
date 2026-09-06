@@ -939,13 +939,25 @@ function registerTools(server: McpServer) {
           "goal boundary is then not evaluated at all — target and percentage both null (see " +
           "period_summary.goalChangedInPeriod). " +
           "Goals are chained per category by start date, so a new goal automatically ends the current one " +
-          "of that category at its start. At least one period target is required." + KEYHOLDER_SILENT,
+          "of that category at its start. At least one period target is required. " +
+          "minPerDayHours is the daily minimum on EVERY day; weekdayExceptions override it on individual " +
+          "weekdays (e.g. more on weekends, a rest day with hours:0). At least one period target OR one " +
+          "weekday exception > 0 is required." + KEYHOLDER_SILENT,
         inputSchema: {
           category: z.string().optional().describe('Category name, e.g. "Plug". Omit or "KG" for the chastity device.'),
-          minPerDayHours: z.number().nonnegative().optional().describe("Min hours per day."),
+          minPerDayHours: z.number().nonnegative().optional().describe("Min hours on EVERY day (the base). weekdayExceptions override it per weekday."),
           minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week."),
           minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month."),
           minPerYearHours: z.number().nonnegative().optional().describe("Min hours per year."),
+          weekdayExceptions: z.array(z.object({
+            days: weekdayDaysField("Weekdays this exception applies to (omitting them makes it the new base for every day)"),
+            hours: z.number().nonnegative().describe("Daily minimum on those weekdays; 0 = rest day (no target)."),
+          })).optional().describe(
+            "Per-weekday overrides of the daily minimum (max 7, one per weekday). The FIRST rule matching a " +
+            "weekday wins, so put the specific one before the general one. A weekday with no rule keeps " +
+            "minPerDayHours. hours:0 is a SET rest day, different from having no rule. `[]` clears them and " +
+            "minPerDayHours applies every day again. On edit, omitting the field keeps the current exceptions.",
+          ),
           validFrom: z.string().optional().describe("Goal start (ISO 8601, e.g. 2026-06-12). Omit to start at the user's next midnight — the next period boundary. Set it to schedule a goal in advance, or to start mid-period deliberately."),
           validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit for open-ended."),
           note: z.string().optional().describe("Note shown with the goal."),
@@ -1043,7 +1055,8 @@ function registerTools(server: McpServer) {
         title: "List training goals",
         description:
           "Lists training goals (KG + categories) with their id, status (active/scheduled/expired/deleted), " +
-          "start/end dates, period targets and note. Use the id with edit_training_goal / delete_training_goal. " +
+          "start/end dates, period targets, weekdayExceptions (per-weekday overrides of the daily minimum) and note. " +
+          "Use the id with edit_training_goal / delete_training_goal. " +
           "Soft-deleted goals (deletedAt set, status:'deleted') are hidden by default — this IS the authoritative " +
           "goal history, including past ones, once includeDeleted:true is set.",
         inputSchema: {
@@ -1068,6 +1081,13 @@ function registerTools(server: McpServer) {
           minPerWeekHours: z.number().nonnegative().optional().describe("Min hours per week. Omit to keep current."),
           minPerMonthHours: z.number().nonnegative().optional().describe("Min hours per month. Omit to keep current."),
           minPerYearHours: z.number().nonnegative().optional().describe("Min hours per year. Omit to keep current."),
+          weekdayExceptions: z.array(z.object({
+            days: weekdayDaysField("Weekdays this exception applies to (omitting them makes it the new base for every day)"),
+            hours: z.number().nonnegative().describe("Daily minimum on those weekdays; 0 = rest day (no target)."),
+          })).optional().describe(
+            "Per-weekday overrides of the daily minimum (max 7). REPLACES the whole list; `[]` clears them. " +
+            "Omit to keep the current exceptions. The first rule matching a weekday wins; hours:0 is a rest day.",
+          ),
           validFrom: z.string().optional().describe("Goal start (ISO 8601). Omit to keep current."),
           validUntil: z.string().optional().describe("Goal end (ISO 8601). Must be after validFrom. Omit to keep current."),
           note: z.string().optional().describe("Note shown with the goal. Omit to keep current."),

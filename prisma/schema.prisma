@@ -742,6 +742,14 @@ model TrainingVorgabe {
   // 4. Zielperiode „Jahr" (Stunden). Folgt bewusst der deutschen Feld-Familie minProTagH/WocheH/MonatH
   // (Konsistenz der Geschwister), obwohl neue Identifier sonst englisch benannt werden.
   minProJahrH      Float?
+  // Wochentag-Ausnahmen des TAGES-Minimums: eine JSON-Liste `[{days, hours}]` (days = Wochentag-
+  // Bitmaske aus `weekdays.ts`, hours = Tages-Soll an diesen Tagen). NUR die abweichenden Tage stehen
+  // drin; ein Tag ohne Eintrag behält `minProTagH`. `hours: 0` ist eine GESETZTE Ausnahme (Ruhetag),
+  // verschieden von „kein Eintrag". Leer/null = keine Ausnahme = heutiges Verhalten (rückwärts-
+  // kompatibel). Speicherform wie `User.autoKontrolleDayRules` (String-JSON, geteilte jsonList-Hülle);
+  // der Name folgt der deutschen Feld-Familie `minProTag…` — ohne `H`, weil es eine Liste ist, kein
+  // Stundenwert. Auflösung/Prüfung in `weekdayGoal.ts`.
+  minProTagWochentage String?
   notiz            String?
   createdAt        DateTime        @default(now())
   // Soft-Delete (B-04, MCP-Befundliste 2026-07-17): null = aktiv. Gesetzt = gelöscht, Zeile bleibt

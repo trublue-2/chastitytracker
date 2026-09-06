@@ -905,6 +905,11 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin", "mcp"], affects: ["Trainingsziele", "Sessions/Statistik"], anchor: "vorgaben.ts",
   }),
   s({
+    model: "TrainingVorgabe", field: "minProTagWochentage", domain: "training", scope: "directive",
+    effect: "Wochentag-Ausnahmen des Tages-Solls: an einzelnen Wochentagen gilt ein anderer Wert als minProTagH (0 = Ruhetag). Nur Tages-Ausnahmen; Woche/Monat/Jahr bleiben unberührt.",
+    writers: ["admin", "mcp"], affects: ["Trainingsziele", "Sessions/Statistik"], anchor: "weekdayGoal.ts",
+  }),
+  s({
     model: "TrainingVorgabe", field: "minProWocheH", domain: "training", scope: "directive",
     effect: "Dasselbe je Woche. Die vier Perioden gelten nebeneinander, nicht alternativ.",
     writers: ["admin", "mcp"], affects: ["Trainingsziele", "Sessions/Statistik"],

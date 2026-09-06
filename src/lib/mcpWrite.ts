@@ -4,7 +4,7 @@ import { isHiddenFromSub, computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
-import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility, hasPeriodTarget, findActiveVorgabe } from "@/lib/vorgabeService";
+import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, validateGoalTargets, findActiveVorgabe } from "@/lib/vorgabeService";
 import { setCleaningSettings, maxPausesPerDaySentinel, parseCleaningWindows, cleaningWindowListProblem, formatCleaningWindows, type CleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { openWeightRelease, setWeightRelease, weightReleaseStatus, withdrawWeightRelease } from "@/lib/weightReleaseService";
 import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
@@ -13,7 +13,8 @@ import { isSwitchableOffenseType, isValidOffenseMode, OFFENSE_RULE_MODES, type O
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { parseWeighingWindows, weighingWindowEnd, weighingWindowsProblem, type WeighingWindow } from "@/lib/weightWindows";
 import { effectiveTarget, isUnderweightTarget, keyholderTargetOf, subTargetOf, weightProblem } from "@/lib/weight";
-import { ALL_WEEKDAYS, weekdayMaskKeys, weekdayMaskOf, weekdayMaskValid } from "@/lib/weekdays";
+import { ALL_WEEKDAYS, isoDaysOfMask, weekdayMaskKeys, weekdayMaskOf, weekdayMaskValid } from "@/lib/weekdays";
+import { parseWeekdayGoalRules, type WeekdayGoalRule } from "@/lib/weekdayGoal";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmWindowEnd } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch";
@@ -521,10 +522,28 @@ export interface SetTrainingGoalArgs {
   minPerWeekHours?: number;
   minPerMonthHours?: number;
   minPerYearHours?: number;
+  /** Wochentag-Ausnahmen des Tages-Solls: an den ISO-Wochentagen (1 = Mo … 7 = So) gilt `hours`
+   *  statt `minPerDayHours` (`hours: 0` = Ruhetag). ERSETZT die ganze Liste; `[]` löscht sie. */
+  weekdayExceptions?: { days?: number[]; hours: number }[];
   validFrom?: string;
   validUntil?: string;
   note?: string;
   dryRun?: boolean;
+}
+
+/** Eine Wochentag-Ausnahme aus den Agenten-Argumenten (ISO-Tagesliste) in die Speicherform
+ *  (Bitmaske). Dieselbe Übersetzung wie {@link toDayRule}, nur für die Trainingsziel-Ausnahmen. */
+function toWeekdayGoalRule(r: NonNullable<SetTrainingGoalArgs["weekdayExceptions"]>[number]): WeekdayGoalRule {
+  return { days: r.days === undefined ? ALL_WEEKDAYS : weekdayMaskOf(r.days), hours: r.hours };
+}
+
+/** Die gespeicherten Ausnahmen als ISO-Listen für die Maschinen-Sicht — symmetrisch zur Eingabe von
+ *  {@link toWeekdayGoalRule}, damit list und set/edit dieselbe Form sprechen. */
+function rulesToView(rules: readonly WeekdayGoalRule[]): { days: number[]; hours: number }[] {
+  return rules.map((r) => ({ days: isoDaysOfMask(r.days), hours: r.hours }));
+}
+function weekdayExceptionsView(raw: unknown): { days: number[]; hours: number }[] {
+  return rulesToView(parseWeekdayGoalRules(raw));
 }
 
 
@@ -545,10 +564,15 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
     throw new Error("validUntil must be after validFrom.");
   }
 
+  const weekdayExceptions = args.weekdayExceptions?.map(toWeekdayGoalRule);
   if (args.dryRun) {
     const targets = { minProTagH: args.minPerDayHours, minProWocheH: args.minPerWeekHours, minProMonatH: args.minPerMonthHours, minProJahrH: args.minPerYearHours };
-    const problem = !hasPeriodTarget(targets) ? "GOAL_PERIOD_TARGET_REQUIRED" : checkGoalPlausibility(targets);
-    return dryRunPreview("set_training_goal", problem ?? undefined, { categoryId, validFrom: iso(gueltigAb)!, validUntil: iso(gueltigBis), ...targets });
+    // Dieselbe Wache wie der Commit (`validateGoalTargets`) — inkl. der Wochentag-Regel-STRUKTUR
+    // (>7 Regeln, Null-Maske), die die frühere Vorschau übersprang und so „Erfolg" für Eingaben zeigte,
+    // die `createVorgabe` mit 400 ablehnte.
+    const goalCheck = validateGoalTargets({ ...targets, minProTagWochentage: weekdayExceptions });
+    const problem = goalCheck.ok ? undefined : goalCheck.error;
+    return dryRunPreview("set_training_goal", problem, { categoryId, validFrom: iso(gueltigAb)!, validUntil: iso(gueltigBis), ...targets, weekdayExceptions: weekdayExceptions ? rulesToView(weekdayExceptions) : undefined });
   }
 
   const data = unwrap(await createVorgabe({
@@ -560,6 +584,7 @@ export async function mcpSetTrainingGoal(username: string, args: SetTrainingGoal
     minProWocheH: args.minPerWeekHours,
     minProMonatH: args.minPerMonthHours,
     minProJahrH: args.minPerYearHours,
+    minProTagWochentage: weekdayExceptions,
     notiz: args.note,
   }));
   return {
@@ -900,7 +925,7 @@ async function loadOwnedVorgabe(id: string, userId: string) {
 
 /** Scalar-Snapshot eines TrainingVorgabe-Bestands für den dryRun-Diff (B-05) — dieselben Feldnamen
  *  wie im edit/delete-Preview, damit diffFields() beide Seiten deckungsgleich vergleicht. */
-function vorgabeSnapshot(v: { categoryId: string | null; gueltigAb: Date; gueltigBis: Date | null; minProTagH: number | null; minProWocheH: number | null; minProMonatH: number | null; minProJahrH: number | null; notiz: string | null }, iso: Iso): Record<string, unknown> {
+function vorgabeSnapshot(v: { categoryId: string | null; gueltigAb: Date; gueltigBis: Date | null; minProTagH: number | null; minProWocheH: number | null; minProMonatH: number | null; minProJahrH: number | null; minProTagWochentage?: string | WeekdayGoalRule[] | null; notiz: string | null }, iso: Iso): Record<string, unknown> {
   return {
     categoryId: v.categoryId,
     validFrom: iso(v.gueltigAb),
@@ -911,6 +936,8 @@ function vorgabeSnapshot(v: { categoryId: string | null; gueltigAb: Date; guelti
     minPerWeekHours: v.minProWocheH,
     minPerMonthHours: v.minProMonatH,
     minPerYearHours: v.minProJahrH,
+    // Als ISO-Listen — dieselbe Form wie set/edit annehmen und `list_training_goals` zeigt.
+    weekdayExceptions: weekdayExceptionsView(v.minProTagWochentage),
     note: v.notiz,
   };
 }
@@ -928,6 +955,9 @@ export interface TrainingGoalRow {
   minPerWeekHours: number | null;
   minPerMonthHours: number | null;
   minPerYearHours: number | null;
+  /** Wochentag-Ausnahmen des Tages-Solls: an den ISO-Wochentagen gilt `hours` statt `minPerDayHours`
+   *  (`hours: 0` = Ruhetag). Leer = keine Ausnahme, das Tages-Soll gilt an jedem Tag gleich. */
+  weekdayExceptions: { days: number[]; hours: number }[];
   note: string | null;
   /** null = aktiv. Gesetzt = soft-gelöscht (B-04, MCP-Befundliste 2026-07-17) — die Zeile bleibt für
    *  die Historie erhalten, `includeDeleted` muss gesetzt sein, um sie hier überhaupt zu sehen. */
@@ -972,6 +1002,7 @@ export async function mcpListTrainingGoals(username: string, args: ListTrainingG
         minPerWeekHours: g.minProWocheH,
         minPerMonthHours: g.minProMonatH,
         minPerYearHours: g.minProJahrH,
+        weekdayExceptions: weekdayExceptionsView(g.minProTagWochentage),
         note: g.notiz,
         deletedAt: iso(g.deletedAt),
       };
@@ -1007,19 +1038,27 @@ export async function mcpEditTrainingGoal(username: string, args: EditTrainingGo
     throw new Error("validUntil must be after validFrom.");
   }
 
+  // Wochentag-Ausnahmen: weggelassen → Bestand behalten (aus dem JSON-String geparst), sonst die
+  // neue Liste (ISO → Maske). `[]` löscht bewusst — deshalb `!== undefined`, nicht `??`.
+  const weekdayExceptions: WeekdayGoalRule[] = args.weekdayExceptions !== undefined
+    ? args.weekdayExceptions.map(toWeekdayGoalRule)
+    : parseWeekdayGoalRules(existing.minProTagWochentage);
   const merged = {
     minProTagH: args.minPerDayHours ?? existing.minProTagH,
     minProWocheH: args.minPerWeekHours ?? existing.minProWocheH,
     minProMonatH: args.minPerMonthHours ?? existing.minProMonatH,
     minProJahrH: args.minPerYearHours ?? existing.minProJahrH,
+    minProTagWochentage: weekdayExceptions,
   };
   if (args.dryRun) {
     const iso = makeIso(editTz); // die Zeitzone ist oben schon aufgelöst — kein zweiter Abruf
-    const problem = !hasPeriodTarget(merged) ? "GOAL_PERIOD_TARGET_REQUIRED" : checkGoalPlausibility(merged);
+    // Dieselbe Wache wie der Commit (`validateGoalTargets`), inkl. Wochentag-Regel-STRUKTUR.
+    const goalCheck = validateGoalTargets(merged);
+    const problem = goalCheck.ok ? undefined : goalCheck.error;
     // Dieselbe Feldnamen-Abbildung wie `vorgabeSnapshot` — statt sie hier ein zweites Mal von Hand
     // hinzuschreiben, durch einen (ungespeicherten) Vorgabe-artigen Zwischenstand jagen.
     const after = vorgabeSnapshot({ categoryId: categoryId ?? existing.categoryId, gueltigAb, gueltigBis, ...merged, notiz: args.note ?? existing.notiz }, iso);
-    return dryRunPreview("edit_training_goal", problem ?? undefined, { id: args.id, ...after }, diffFields(vorgabeSnapshot(existing, iso), after));
+    return dryRunPreview("edit_training_goal", problem, { id: args.id, ...after }, diffFields(vorgabeSnapshot(existing, iso), after));
   }
 
   unwrap(await updateVorgabe(args.id, {

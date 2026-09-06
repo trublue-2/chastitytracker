@@ -14,6 +14,7 @@ import { deviceCategoriesEnabled, heimdallEnabled, orgasmusAnforderungArtLabel }
 import { getIsLocked, isScheduledDirective } from "@/lib/queries";
 import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/cleaningService";
 import { datedWindowLabel } from "@/lib/weekdays";
+import { parseWeekdayGoalRules } from "@/lib/weekdayGoal";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { userRowCached, strafbuchCached } from "@/lib/dashboardData";
 import { selectSubOffenses, openOffensesOf } from "@/lib/subOffenses";
@@ -363,6 +364,10 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
               {activeVorgabe.minProTagH != null && <span className="text-xs text-foreground-muted">{td("day")}: <strong className="text-foreground">{formatTotalHours(activeVorgabe.minProTagH)}</strong></span>}
               {activeVorgabe.minProWocheH != null && <span className="text-xs text-foreground-muted">{td("week")}: <strong className="text-foreground">{formatTotalHours(activeVorgabe.minProWocheH)}</strong></span>}
               {activeVorgabe.minProMonatH != null && <span className="text-xs text-foreground-muted">{td("month")}: <strong className="text-foreground">{formatTotalHours(activeVorgabe.minProMonatH)}</strong></span>}
+              {/* Definition-Karte: das Basis-Tagesziel oben ist der GRUNDstand, nicht der heutige Wert.
+                  Gibt es Wochentag-Ausnahmen, sagt das ein Hinweis — sonst zeigte die Karte ein Tages-Soll,
+                  das an einzelnen Tagen gar nicht gilt, ohne dass die Keyholderin davon wüsste. */}
+              {parseWeekdayGoalRules(activeVorgabe.minProTagWochentage).length > 0 && <span className="text-xs text-foreground-faint">{t("vorgabeWeekdayExceptions")}</span>}
             </div>
             {activeVorgabe.notiz && <p className="text-neben text-foreground-faint italic mt-0.5">{activeVorgabe.notiz}</p>}
           </div>

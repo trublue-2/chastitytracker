@@ -35,6 +35,7 @@ import QuickSettingsPicker from "@/app/admin/QuickSettingsPicker";
 import { QUICK_SETTINGS, quickSettingAvailable, parseQuickSettings } from "@/lib/quickSettings";
 import VorgabeForm from "../VorgabeForm";
 import VorgabeRow from "../VorgabeRow";
+import { parseWeekdayGoalRules } from "@/lib/weekdayGoal";
 import { getLocale, getTranslations } from "next-intl/server";
 import { toDateLocale, formatDate } from "@/lib/utils";
 import { formColCls } from "@/app/components/inputStyles";
@@ -174,6 +175,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
                 wocheVal: v.minProWocheH != null ? String(v.minProWocheH) : "",
                 monatVal: v.minProMonatH != null ? String(v.minProMonatH) : "",
                 jahrVal: v.minProJahrH != null ? String(v.minProJahrH) : "",
+                weekdayExceptions: parseWeekdayGoalRules(v.minProTagWochentage),
                 notiz: v.notiz ?? "",
                 categoryId: v.categoryId ?? "",
               }}
