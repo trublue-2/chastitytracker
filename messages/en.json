@@ -1148,6 +1148,7 @@
     "replaceLockDuration": "Replace (set a new lock duration)",
     "lockDurationActiveUntil": "Active until {date}",
     "lockDurationIndefinite": "Active (indefinite)",
+    "lockPeriodIndefinite": "Lock indefinitely",
     "withdrawRequest": "Withdraw request",
     "kontrolleTitle": "Request inspection",
     "kontrolleInstruction": "Instruction (optional)",

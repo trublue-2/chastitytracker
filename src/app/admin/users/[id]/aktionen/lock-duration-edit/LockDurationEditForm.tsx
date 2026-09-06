@@ -7,6 +7,7 @@ import { useTranslations, useLocale } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
+import LockPeriodEndForm from "@/app/admin/LockPeriodEndForm";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
 import { fetchWithTimeout } from "@/lib/apiClient";
 import { LockClosedIcon } from "@/app/components/lockIcons";
@@ -18,14 +19,17 @@ interface Props {
   message: string | null;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
+  /** Server-„jetzt" als Wanduhr in der Sub-Zeitzone — `min` der Datetime-Eingabe. */
+  minNow: string;
 }
 
-/** Edit / withdraw view for an active Sperrzeit. Two paths:
+/** Edit / withdraw view for an active Sperrzeit. Three paths:
+ *  - Ende ändern (in place): {@link LockPeriodEndForm} → PATCH setEnd, bleibt gesperrt
  *  - "Zurückziehen": PATCH withdraw, back to /aktionen
  *  - "Ersetzen": PATCH withdraw, then redirect to verschluss-anforderung form
  *    (which only renders SPERRZEIT mode when no active sperrzeit exists — so the
  *    withdraw must complete first). */
-export default function LockDurationEditForm({ userId, lockPeriodId, endsAt, message, tz = APP_TZ }: Props) {
+export default function LockDurationEditForm({ userId, lockPeriodId, endsAt, message, tz = APP_TZ, minNow }: Props) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -72,18 +76,27 @@ export default function LockDurationEditForm({ userId, lockPeriodId, endsAt, mes
       icon={<LockClosedIcon size={20} strokeWidth={2} style={{ color: "var(--color-sperrzeit)" }} />}
       iconBg="var(--color-sperrzeit-bg)"
     >
-      <div className="flex flex-col gap-4 p-5">
-        <div className="text-sm text-foreground-muted flex flex-col gap-1">
+      <div className="flex flex-col">
+        <div className="px-5 pt-5 text-sm text-foreground-muted flex flex-col gap-1">
           <p>{endsLabel}</p>
           {message && <p className="italic text-foreground-faint">„{message}"</p>}
         </div>
-        <FormError message={error} />
-        <div className="flex flex-col gap-2">
+        {/* Primär: das Ende in der bestehenden Sperrzeit ändern, ohne sie aufzuheben. */}
+        <LockPeriodEndForm
+          lockPeriodId={lockPeriodId}
+          endsAt={endsAt}
+          tz={tz}
+          minNow={minNow}
+          onSuccess={() => { router.refresh(); close(); }}
+        />
+        {/* Daneben, deutlich abgesetzt: die beiden Wege, die die Sperrzeit BEENDEN. */}
+        <div className="flex flex-col gap-2 border-t border-border-subtle px-5 py-4">
+          <FormError message={error} />
           <Button
             onClick={() => withdraw(true)}
             disabled={saving !== null}
             loading={saving === "replace"}
-            variant="primary"
+            variant="secondary"
             fullWidth
           >
             {t("replaceLockDuration")}

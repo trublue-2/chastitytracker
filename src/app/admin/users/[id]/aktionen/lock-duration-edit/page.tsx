@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getUserTimezone } from "@/lib/queries";
 import { subLockPeriodCached } from "@/lib/dashboardData";
+import { nowDatetimeLocal } from "@/lib/utils";
 import LockDurationEditForm from "./LockDurationEditForm";
 
 export default async function AdminLockDurationEditPage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,6 +25,7 @@ export default async function AdminLockDurationEditPage({ params }: { params: Pr
       endsAt={activeLockPeriod.endsAt}
       message={activeLockPeriod.message}
       tz={tz}
+      minNow={nowDatetimeLocal(tz)}
     />
   );
 }

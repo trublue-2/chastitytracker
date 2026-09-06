@@ -8,6 +8,7 @@ import Link from "next/link";
 import KontrolleButton from "./KontrolleButton";
 import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
 import EditLockRequestButton from "./EditLockRequestButton";
+import EditLockPeriodButton from "./EditLockPeriodButton";
 import ReleaseNowButton from "./ReleaseNowButton";
 import QuickSettingChip from "./QuickSettingChip";
 import WithdrawButton from "./WithdrawButton";
@@ -217,7 +218,7 @@ export default async function AdminPage() {
     const scheduled = [
       ...userKontrollen.filter(k => isScheduled(k.wirksamAb)).map(k => ({ id: k.id, kind: "inspection" as const, wirksamAb: k.wirksamAb!, message: k.kommentar })),
       ...userAnforderungen.filter(v => isScheduled(v.wirksamAb)).map(v => ({ id: v.id, kind: "lock_request" as const, wirksamAb: v.wirksamAb!, message: v.message })),
-      ...userLockPeriods.filter(s => isScheduled(s.wirksamAb)).map(s => ({ id: s.id, kind: "lock_period" as const, wirksamAb: s.wirksamAb!, message: s.message })),
+      ...userLockPeriods.filter(s => isScheduled(s.wirksamAb)).map(s => ({ id: s.id, kind: "lock_period" as const, wirksamAb: s.wirksamAb!, message: s.message, endsAt: s.endsAt })),
       ...userOrgasmusAnf.filter(o => isScheduled(o.wirksamAb)).map(o => ({ id: o.id, kind: "orgasm" as const, wirksamAb: o.wirksamAb!, message: o.message })),
     ].sort((a, b) => a.wirksamAb.getTime() - b.wirksamAb.getTime());
 
@@ -373,6 +374,9 @@ export default async function AdminPage() {
             <div className="divide-y divide-border-subtle">
               {subsSorted.map((u) => {
                 const rowTz = u.timezone; // this row's sub governs its own timestamps
+                // Einmal je Zeile: die datetime-local-Untergrenze für alle Bearbeiten-Chips der Zeile
+                // (Kontrolle, Sperrzeit) — sonst liefen fünf Aufrufe mit leicht verschiedenen „jetzt".
+                const rowMinNow = nowDatetimeLocal(rowTz);
                 // Grün verschlossen, Rosa offen. Für „offen" stand hier Grau, und das war unter der
                 // alten Regel richtig („die Abwesenheit eines Zustands ist kein Signal") — seit die
                 // Farbwelt den Zustand SAGT, sind es zwei Zustände statt einer und seines Fehlens.
@@ -482,7 +486,7 @@ export default async function AdminPage() {
                             subTimePrefix={subLabel}
                             withdrawAction={
                               <span className="flex items-center gap-1">
-                                <EditLockRequestButton id={a.id} userId={u.id} tz={rowTz} minNow={nowDatetimeLocal(rowTz)} />
+                                <EditLockRequestButton id={a.id} userId={u.id} tz={rowTz} minNow={rowMinNow} />
                                 <WithdrawButton id={a.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />
                               </span>
                             }
@@ -502,7 +506,12 @@ export default async function AdminPage() {
                             // Keyholder-Sicht: IMMER die Eigenschaft der Sperre, unabhängig von den
                             // Benutzer-Einstellungen des Subs — sie hat das Flag gesetzt und prüft es hier.
                             cleaningNote={t(u.stats.activeLockPeriod.cleaningAllowed ? "sperrzeitWithCleaning" : "sperrzeitWithoutCleaning")}
-                            withdrawAction={<WithdrawButton id={u.stats.activeLockPeriod.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />}
+                            withdrawAction={
+                              <span className="flex items-center gap-1">
+                                <EditLockPeriodButton id={u.stats.activeLockPeriod.id} endsAt={u.stats.activeLockPeriod.endsAt} tz={rowTz} minNow={rowMinNow} />
+                                <WithdrawButton id={u.stats.activeLockPeriod.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />
+                              </span>
+                            }
                           />
                         )}
                         {u.stats.offeneOrgasmusAnforderung && (
@@ -567,7 +576,10 @@ export default async function AdminPage() {
                                   </div>
                                   <span className="flex-shrink-0 flex items-center gap-1">
                                     {s.kind === "lock_request" && (
-                                      <EditLockRequestButton id={s.id} userId={u.id} tz={rowTz} minNow={nowDatetimeLocal(rowTz)} />
+                                      <EditLockRequestButton id={s.id} userId={u.id} tz={rowTz} minNow={rowMinNow} />
+                                    )}
+                                    {s.kind === "lock_period" && (
+                                      <EditLockPeriodButton id={s.id} endsAt={s.endsAt} tz={rowTz} minNow={rowMinNow} />
                                     )}
                                     <WithdrawButton id={s.id} apiPath={apiPath} title={t("scheduledWithdrawTitle")} colorToken={colorToken} />
                                   </span>
@@ -611,7 +623,7 @@ export default async function AdminPage() {
                             isLocked={isLocked}
                             hasActiveLockPeriod={u.stats.hasActiveLockPeriod}
                             tz={rowTz}
-                            minNow={nowDatetimeLocal(rowTz)}
+                            minNow={rowMinNow}
                           />
                           {/* Das Gegenstück zur Sperrzeit steht NEBEN ihr, nicht in einem Menü —
                               das war die Rückmeldung, aus der es entstand. Die Sichtbarkeit

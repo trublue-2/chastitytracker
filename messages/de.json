@@ -1148,6 +1148,7 @@
     "replaceLockDuration": "Ersetzen (neue Sperrdauer setzen)",
     "lockDurationActiveUntil": "Aktiv bis {date}",
     "lockDurationIndefinite": "Aktiv (unbefristet)",
+    "lockPeriodIndefinite": "Unbefristet sperren",
     "withdrawRequest": "Anforderung zurückziehen",
     "kontrolleTitle": "Kontrolle anfordern",
     "kontrolleInstruction": "Anweisung (optional)",

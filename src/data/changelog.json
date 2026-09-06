@@ -9,6 +9,13 @@
           "de": "In der Übersicht steht die zuletzt erfasste Kontrolle jetzt zuoberst — die Liste der laufenden Tragezeit ist überall nach neuesten zuerst geordnet.",
           "en": "On the overview the most recent control now appears at the top — the current wear-time list is ordered newest-first everywhere."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Eine laufende oder geplante Sperrzeit lässt sich jetzt direkt bearbeiten: das Ende verschieben oder auf unbefristet setzen, ohne die Sperre vorher aufzuheben.",
+          "en": "An active or scheduled lock period can now be edited directly: move its end or set it to indefinite, without lifting the lock first."
+        }
       }
     ]
   },
