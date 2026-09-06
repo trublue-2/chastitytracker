@@ -115,6 +115,11 @@ export default function WearForm({ kind, category, devices, activeSession, admin
   } = usePhotoUpload({
     startTime,
     enableSealDetection: false,
+    // Nur der Sub-Pfad reicht über die Warteschlange nach (`offlineFetch`) — nur er darf offline ein
+    // Foto zwischenspeichern. Der Keyholder-Pfad (`adminUserId`) sendet direkt und bliebe auf dem Marker sitzen.
+    // Auch der Edit-Pfad (`isEdit`) sendet direkt per PATCH, nicht über die Warteschlange — dort darf
+    // kein Marker entstehen, sonst 400 am Server und verwaistes Blob.
+    enableOfflineCapture: !adminUserId && !isEdit,
     exifWarningText: () => "",
     uploadErrorText: () => tCommon("uploadError"),
     initial: initial?.imageUrl ? { imageUrl: initial.imageUrl, imageExifTime: initial.imageExifTime ?? null } : undefined,
@@ -174,7 +179,7 @@ export default function WearForm({ kind, category, devices, activeSession, admin
     // Admin uses direct fetch (no offline queue — action is admin-driven, not field-use)
     const res = adminUserId
       ? await postAdminEntry(adminUserId, payload)
-      : await offlineFetch(...entryRequest(undefined, payload));
+      : await offlineFetch(...entryRequest(undefined, payload), { offlineCapture: true });
     if (res === null) {
       // queued offline (user-mode only)
       toast.success(tDash("entrySaved"));

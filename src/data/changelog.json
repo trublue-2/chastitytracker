@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.1.0",
+    "date": "2026-09-06",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Einträge und Gewichtsmessungen lassen sich jetzt auch ohne Netz erfassen — samt Foto, etwa bei einer Prüfung: Sie werden gespeichert und automatisch gesendet, sobald wieder Verbindung besteht — mit der Zeit der Erfassung und einem kleinen Hinweis „offline erfasst“.",
+          "en": "Entries and weigh-ins can now be recorded without a connection — including the photo, e.g. for an inspection: they are saved and sent automatically once you are back online — keeping the time you recorded them and a small “captured offline” note."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.11",
     "date": "2026-09-06",
     "changes": [

@@ -5,6 +5,7 @@ import { Scale, Camera } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
+import { CapturedOfflineBadge, CapturedOfflineDetail } from "@/app/components/CapturedOffline";
 import { listRowCls, listRowButtonCls, listRowTimeCls } from "@/app/components/inputStyles";
 import { formatDateTime, formatTime, APP_TZ } from "@/lib/utils";
 import { weightText, type UnitSystem } from "@/lib/weight";
@@ -74,6 +75,7 @@ export default function WeightRow({
           <span className="text-fliess font-semibold text-foreground tabular-nums whitespace-nowrap">{show(row.weightKg)}</span>
           {delta && <span className="text-neben text-foreground-muted tabular-nums">{delta}</span>}
           {row.imageUrl && <Camera size={12} className="text-foreground-faint flex-shrink-0" />}
+          {row.capturedOffline && <CapturedOfflineBadge />}
           {!row.inWindow && (
             <span className="hidden sm:inline text-neben text-foreground-faint flex-shrink-0">{t("outsideWindow")}</span>
           )}
@@ -144,6 +146,8 @@ export default function WeightRow({
                   <p className="text-sm text-foreground-muted">{t("photoExpired")}</p>
                 </DetailField>
               )}
+
+              {row.capturedOffline && <CapturedOfflineDetail />}
 
               {row.note && (
                 <DetailField label={tc("note")}>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ClipboardCheck, WifiOff } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
@@ -28,6 +28,7 @@ import { useApiError } from "@/app/hooks/useApiError";
 import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
 import { INSPECTION_CODE_LENGTH, isValidInspectionCode } from "@/lib/constants";
 import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/apiClient";
+import { isOfflineBlobUrl } from "@/lib/idb";
 
 /** Ruhezeit (ms) nach Tippen/Rotieren, bevor ein Live-Code-Check gefeuert wird (entprellt Abbruch-Stürme). */
 const LIVE_CHECK_DEBOUNCE_MS = 600;
@@ -100,6 +101,10 @@ interface Props {
    */
   boxPhotoRequired?: boolean;
   isEdit?: boolean;
+  /** Reicht dieses Formular über die Offline-Warteschlange nach? Dann darf das Foto (samt Box-Foto)
+   *  offline zwischengespeichert werden. NUR der Träger-Pfad setzt es; der Keyholder-Pfad sendet
+   *  direkt und bliebe auf dem Marker sitzen. Default false. */
+  offlineCapture?: boolean;
   submitFn: (payload: PruefungPayload) => Promise<SubmitResult>;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -110,28 +115,15 @@ interface Props {
 export default function PruefungFormCore({
   initial, minTime, tz, nowDefault, initialCode, initialKommentar, sealRequired, codeRequired = true, mobileDesktopMode,
   targetDeviceId = null, targetLabel = null, codePushControlId = null, selfCodePush = false, categoryId = null,
-  boxConfirm = false, boxPhotoRequired = false, isEdit = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
+  boxConfirm = false, boxPhotoRequired = false, isEdit = false, offlineCapture = false, submitFn, onSuccess, onCancel, submitVariant = "semantic", submitLabel,
 }: Props) {
   const t = useTranslations("inspectionForm");
   const tc = useTranslations("common");
-  const tOffline = useTranslations("offline");
   // Box-Foto + seine Rückfrage teilen die Texte mit dem Verschluss-Formular (lockForm) — es ist
   // derselbe Nachweis, er darf nicht je Formular anders heissen.
   const tLock = useTranslations("lockForm");
   const apiError = useApiError();
   const dl = toDateLocale(useLocale());
-
-  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
-  useEffect(() => {
-    const goOnline = () => setIsOnline(true);
-    const goOffline = () => setIsOnline(false);
-    window.addEventListener("online", goOnline);
-    window.addEventListener("offline", goOffline);
-    return () => {
-      window.removeEventListener("online", goOnline);
-      window.removeEventListener("offline", goOffline);
-    };
-  }, []);
 
   const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
   const [note, setNote] = useState(initial?.note ?? "");
@@ -150,6 +142,7 @@ export default function PruefungFormCore({
     exifWarningText: (type, hours) =>
       type === "deviation" ? tc("exifDeviation", { hours: hours ?? 0 }) : tc("exifMissing"),
     uploadErrorText: () => tc("uploadError"),
+    enableOfflineCapture: offlineCapture,
     initial,
   });
 
@@ -161,6 +154,7 @@ export default function PruefungFormCore({
     enableSealDetection: false,
     enableDeviceDetection: false,
     uploadErrorText: () => tc("uploadError"),
+    enableOfflineCapture: offlineCapture,
   });
   const [pendingBoxConfirm, setPendingBoxConfirm] = useState(false);
   // Gibt es das Feld auf diesem Formular überhaupt? EIN Ausdruck für die Anzeige UND den Zwang:
@@ -185,7 +179,9 @@ export default function PruefungFormCore({
 
   useEffect(() => {
     const key = `${kontrollCode}|${imageUrl}|${rotation}`;
-    if (kontrollCode.length < INSPECTION_CODE_LENGTH.min || !imageUrl || key === lastVerifiedKey.current) return;
+    // Offline erfasst? Der Marker ist keine echte URL — die Server-Prüfung liefe ins Leere. Sie holt
+    // der Flush nach (`runInspectionVerification` nach dem Nachreichen des Fotos).
+    if (kontrollCode.length < INSPECTION_CODE_LENGTH.min || !imageUrl || isOfflineBlobUrl(imageUrl) || key === lastVerifiedKey.current) return;
 
     // Entprellen: erst nach kurzer Tipp-/Rotier-Ruhe einen Live-Check feuern. Verhindert einen Sturm
     // aus Request-Abbrüchen (AbortError) und unnötiger Vision-Last bei jedem Tastendruck/Re-Render.
@@ -311,15 +307,6 @@ export default function PruefungFormCore({
         </Button>
       }
     >
-      {!isOnline && (
-        <Card variant="semantic" semantic="warn">
-          <div className="flex items-start gap-2.5">
-            <WifiOff size={16} className="flex-shrink-0 text-warn mt-0.5" />
-            <p className="text-fliess text-warn-text">{tOffline("photoRequiresConnection")}</p>
-          </div>
-        </Card>
-      )}
-
       {/* Das ZIEL: bei einer Trage-Kontrolle muss im Foto ein anderes Gerät zu sehen sein als beim
           KG — ohne diese Zeile wüsste der Sub nicht, welche seiner offenen Kontrollen er gerade
           beantwortet. */}

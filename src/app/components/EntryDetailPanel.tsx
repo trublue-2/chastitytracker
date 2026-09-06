@@ -5,6 +5,7 @@ import { GRUND_I18N_KEYS } from "@/lib/constants";
 import { useTranslations } from "next-intl";
 import DetailField from "@/app/components/DetailField";
 import Badge from "@/app/components/Badge";
+import { CapturedOfflineDetail } from "@/app/components/CapturedOffline";
 import type { KontrollePill } from "@/lib/kontrollePills";
 
 interface Props {
@@ -23,12 +24,14 @@ interface Props {
   /** Die Kontroll-Pille der Zeile darüber — DIESELBE, nicht eine zweite Ableitung. Begründung
    *  unten am Kontroll-Code. */
   inspectionPill?: KontrollePill | null;
+  /** Offline erfasst: der Träger hat den Eintrag ohne Netz gestellt. */
+  capturedOffline?: boolean;
   note?: string | null;
 }
 
 export default function EntryDetailPanel({
   startTime, locale, tz = APP_TZ, imageExifTime, oeffnenGrund, orgasmusArt,
-  openingLabel, orgasmusLabel, kontrollCode, inspectionPill, note,
+  openingLabel, orgasmusLabel, kontrollCode, inspectionPill, capturedOffline, note,
 }: Props) {
   const tc = useTranslations("common");
   const tOpen = useTranslations("openForm");
@@ -84,6 +87,8 @@ export default function EntryDetailPanel({
           </p>
         </DetailField>
       )}
+
+      {capturedOffline && <CapturedOfflineDetail />}
 
       {note && (
         <DetailField label={tc("note")}>

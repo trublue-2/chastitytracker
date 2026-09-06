@@ -55,6 +55,9 @@ interface Props {
   /** Fenster-Hinweis: „läuft bis 08:00" bzw. „nächstes ab 18:00". Leer = keine Fensterpflicht. */
   windowHint?: string | null;
   mobileDesktopMode?: boolean;
+  /** Reicht dieses Formular über die Offline-Warteschlange nach? Dann darf das Foto offline
+   *  zwischengespeichert werden (nur der Träger-Pfad; der Keyholder-Pfad sendet direkt). Default false. */
+  offlineCapture?: boolean;
   submitFn: (payload: WeightPayload) => Promise<SubmitResult>;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -62,7 +65,7 @@ interface Props {
 
 export default function WeightFormCore({
   tz, nowDefault, unitSystem, heightCm, lastWeightKg, proofRequired, windowHint,
-  mobileDesktopMode = false, submitFn, onSuccess, onCancel,
+  mobileDesktopMode = false, offlineCapture = false, submitFn, onSuccess, onCancel,
 }: Props) {
   const t = useTranslations("weightForm");
   const tc = useTranslations("common");
@@ -85,6 +88,7 @@ export default function WeightFormCore({
     uploadErrorText: () => tc("uploadError"),
     enableScaleDetection: true,
     scaleUnitSystem: unitSystem,
+    enableOfflineCapture: offlineCapture,
   });
 
   /**

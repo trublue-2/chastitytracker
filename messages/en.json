@@ -302,6 +302,8 @@
     "device": "Device",
     "note": "Note",
     "noteOptional": "Note (optional)",
+    "capturedOffline": "Captured offline",
+    "capturedOfflineHint": "Recorded without a connection and sent later — the capture time counts.",
     "comment": "Comment",
     "commentOptional": "Comment (optional)",
     "photo": "Photo",
@@ -1578,7 +1580,6 @@
     "syncing": "Syncing entries…",
     "synced": "Entries synced",
     "syncFailed": "Sync failed",
-    "photoRequiresConnection": "Photo upload requires an internet connection.",
     "pendingEntries": "{count, plural, =1 {1 entry waiting to sync} other {# entries waiting to sync}}",
     "savedOffline": "Saved offline — will sync when connected",
     "poorConnection": "Poor connection"

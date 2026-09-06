@@ -53,6 +53,10 @@ export interface EntryRow {
    *  prüfbar (nicht verschlossen, keine Referenzfotos, Gerät sichtbar aber nicht zuordenbar).
    *  detected = im Foto erkanntes Gerät, expected = das verschlossene (Soll-)Gerät. */
   deviceCheck: { status: McpDeviceCheckStatus; detected: string | null; expected: string | null } | null;
+  /** Offline erfasst: der Träger hat den Eintrag ohne Netz gestellt, die Warteschlange hat ihn
+   *  später nachgereicht. Dann trägt `time` die Client-Erfassungszeit (nicht die der Zustellung) —
+   *  dieselbe Zeit gilt für Fristen/Vergehen. Additiv (kein schemaVersion-Bump). */
+  capturedOffline: boolean;
   hasImage: boolean;
   /** Ob eine Aufnahme durch das Sichtfenster der Schlüsselbox vorliegt. Steht neben `hasImage`, weil
    *  es dieselbe Frage für die zweite Aufnahme beantwortet — ohne das Feld wäre nur zu erraten, ob
@@ -127,6 +131,7 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
       verifikationFailure: toVerifyFailure(e.verifikationStatus, e.verifikationReason, e.verifikationReasonDetected),
       deviceName: e.device?.name ?? null,
       deviceCheck: mapDeviceCheck(e),
+      capturedOffline: e.capturedOffline,
       hasImage: !!e.imageUrl,
       hasBoxImage: !!e.boxImageUrl,
       imageExifTime: e.imageExifTime ? formatDateTime(e.imageExifTime, undefined, timezone) : null,

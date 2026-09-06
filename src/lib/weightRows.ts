@@ -27,6 +27,7 @@ export const WEIGHT_ROW_SELECT = {
   detectedKg: true,
   note: true,
   source: true,
+  capturedOffline: true,
 } as const;
 
 /** Eine Messung, wie eine Zeile sie braucht. `deltaKg` kommt aus {@link withDeltas}. */
@@ -42,6 +43,8 @@ export interface WeightRowData {
   detectedKg: number | null;
   note: string | null;
   source: string;
+  /** Offline erfasst: der Träger hat die Messung ohne Netz gestellt. */
+  capturedOffline: boolean;
   /** Veränderung zur VORHERIGEN Messung — `null` bei der ersten. */
   deltaKg: number | null;
 }

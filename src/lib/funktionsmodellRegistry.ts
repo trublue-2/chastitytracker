@@ -828,6 +828,8 @@ export const FM_REGISTRY: FmEntry[] = [
   stamp("Entry"),
   x("audit", "Entry", "source",
     "`user` oder `system`. `system` trägt heute nur der Öffnen-Eintrag, den die Kontroll-Eskalation selbst bucht."),
+  x("audit", "Entry", "capturedOffline",
+    "Offline erfasst: ohne Netz gestellt, von der Warteschlange nachgereicht. Dann trägt startTime die Client-Erfassungszeit, die auch für Fristen/Vergehen zählt — die bewusst gelockerte Vertrauensregel, gegatet aufs Flag."),
   pk("Entry"),
   owner("Entry"),
 

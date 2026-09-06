@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { actionIcon } from "@/app/entries/actionSign";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 import Badge from "@/app/components/Badge";
+import { CapturedOfflineBadge } from "@/app/components/CapturedOffline";
 import type { KontrollePill } from "@/lib/kontrollePills";
 
 /**
@@ -39,6 +40,8 @@ interface Entry {
   imageUrl?: string | null;
   imageExifTime?: Date | string | null;
   oeffnenGrund?: string | null;
+  /** Offline erfasst: der Träger hat den Eintrag ohne Netz gestellt. Kleine Notiz „offline erfasst". */
+  capturedOffline?: boolean;
   /** Category info for WEAR_BEGIN/WEAR_END entries — derived via Entry.device.category. */
   category?: { name: string; color: string; icon: string } | null;
 }
@@ -175,6 +178,7 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
               Kontroll-Listen und Statistik alle darüber. Von Hand gebaut fehlte ihr das
               `font-semibold` — derselbe Vorgang hätte in dieser Liste anders ausgesehen. */}
           {inspectionPill && <Badge label={inspectionPill.label} tone={inspectionPill.cls} />}
+          {e.capturedOffline && <CapturedOfflineBadge />}
           {/* Die Notiz ist mindestens so breit wie ihr Text (`min-width: max-content`, unten). Daraus
               folgt genau das gewünschte Verhalten, ohne eine Länge zu raten: was in die Zeile passt,
               bleibt darin; was nicht passt, rutscht über `flex-wrap` auf die nächste und steht dort
@@ -225,6 +229,7 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
               orgasmusLabel={orgasmusLabel}
               kontrollCode={e.kontrollCode}
               inspectionPill={inspectionPill}
+              capturedOffline={e.capturedOffline}
               note={e.note}
             />
           }

@@ -1208,6 +1208,11 @@ model Entry {
   // "system" bislang nur für die automatisch erzeugte OEFFNEN-Entry der Kontroll-Eskalation
   // (Stufe 2), siehe inspectionEscalationService.ts.
   source                        String               @default("user") // "user" | "system"
+  // Offline erfasst: der Träger hat den Eintrag ohne Netz gestellt, die Warteschlange hat ihn
+  // später nachgereicht. Dann trägt die Zeile die CLIENT-Erfassungszeit (`startTime`) auch als
+  // Fristen-/Vergehens-Stichtag — bewusst gelockert, weil der reale Moment sonst verloren ginge.
+  // Rein deklarativ vom Client; nur der Sub-Pfad setzt es (siehe `POST /api/entries`).
+  capturedOffline               Boolean              @default(false)
   kontrollAnforderung           KontrollAnforderung? @relation("KontrolleEntry")
   kontrollAnforderungAutoMarked KontrollAnforderung? @relation("KontrolleAutoMarkedEntry")
   orgasmusAnforderung           OrgasmusAnforderung? @relation("OrgasmusAnforderungEntry")
@@ -1585,6 +1590,10 @@ model WeightEntry {
   note          String?
   /// "user" | "keyholder" | "agent" — wer die Zeile angelegt hat.
   source        String    @default("user")
+  /// Offline erfasst: der Träger hat die Messung ohne Netz gestellt, die Warteschlange hat sie
+  /// später nachgereicht. `measuredAt` (die Wiege-Zeit) bleibt massgeblich — das Flag ist hier nur
+  /// der sichtbare Hinweis „offline erfasst". Rein deklarativ vom Client, nur der Sub-Pfad setzt es.
+  capturedOffline Boolean @default(false)
   /// Username des Erfassenden (bzw. `ai`), wenn es nicht der Sub selbst war.
   createdById   String?
   /// OCC für Schreibzugriffe über den MCP (`expectedVersion`), wie bei den übrigen MCP-Schreibwegen.
