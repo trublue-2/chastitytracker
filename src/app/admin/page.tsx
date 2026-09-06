@@ -625,7 +625,7 @@ export default async function AdminPage() {
                             Elternspalte. Dass der Sub-Knopf wegen einer KONTO-Eigenschaft lautlos
                             verschwindet, statt zu deren Behebung zu führen, bleibt offen — die
                             Aktionen-Seite des Subs macht es dort schon richtig. */}
-                        <div className="relative z-20 flex gap-2 flex-wrap [&:empty]:hidden">
+                        <div className="relative z-20 flex flex-wrap items-center gap-2 [&:empty]:hidden">
                           {/* Die Schnellschalter der Keyholderin — welche, sagt ihre Auswahl je
                               Träger (`quickSettings.ts`). Sie stehen VOR den Aktionen: ein Chip
                               sagt, wie es steht, und wer danach handelt, hat den Zustand gelesen.

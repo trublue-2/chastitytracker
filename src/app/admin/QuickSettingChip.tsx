@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { busyDimCls, overviewChipCls } from "@/app/components/inputStyles";
+import ToggleSwitch from "@/app/components/ToggleSwitch";
+import { busyDimCls } from "@/app/components/inputStyles";
 
 /**
  * Ein Schnellschalter auf der Karte eines Trägers: Zustand ablesen, mit einem Griff umlegen.
@@ -50,12 +51,19 @@ export default function QuickSettingChip({
   // ANDERS gesetzt hat (zweite Sitzung, MCP): der Merker soll den frischen Stand nicht überdauern.
   const shown = pending === null || pending === value ? value : pending;
 
+  // Als SCHALTER dargestellt (`ToggleSwitch`, wie in den Einstellungen) statt als gefüllte Pille:
+  // ein Zustand, der sich umlegen lässt, soll nicht wie die Aktions-Knöpfe daneben („Kontrolle
+  // anfordern") aussehen — und eine graue Pille las sich als „deaktiviert" statt „aus" (Rückmeldung).
+  // `role="switch"`/`aria-checked` wie {@link Toggle}; kein Rahmen, keine Füllung — der Schalter
+  // trägt den Zustand selbst.
+  //
   // `aria-disabled` statt `disabled`: ein abgeschalteter Knopf verlöre den Fokus an den
   // Dokumentanfang, während der Patch läuft. Die Schranke steht im Handler (siehe `busyDimCls`).
   return (
     <button
       type="button"
-      aria-pressed={shown}
+      role="switch"
+      aria-checked={shown}
       aria-disabled={saving}
       onClick={() => {
         if (saving) return;
@@ -63,20 +71,12 @@ export default function QuickSettingChip({
         setPending(next);
         void save({ [field]: next }).then((ok) => { if (!ok) setPending(null); });
       }}
-      className={[
-        overviewChipCls,
-        // Die AUF-FLÄCHE-Farbe (`ok-text`), nicht der Signalwert (`ok`): der Chip ist gefüllt.
-        shown ? "text-ok-text border-ok-border bg-ok-bg" : "text-foreground-muted border-border-strong bg-surface",
-        busyDimCls, "hover:opacity-80",
-      ].join(" ")}
+      className={["flex items-center gap-2 text-xs font-medium text-foreground", busyDimCls, "hover:opacity-80"].join(" ")}
     >
-      <span
-        aria-hidden="true"
-        className={["w-1.5 h-1.5 rounded-full", shown ? "bg-ok" : "bg-foreground-faint"].join(" ")}
-      />
       {t(labelKey)}
-      {/* Der Zustand gehört in die Ansage, nicht nur in Farbe und Punkt — `aria-pressed` allein
-          liest sich je nach Screenreader als „gedrückt", und das ist für einen Schalter zu wenig. */}
+      <ToggleSwitch checked={shown} />
+      {/* Der Zustand gehört in die Ansage, nicht nur in den Schalter — `aria-checked` allein
+          liest sich je nach Screenreader zu knapp für einen benannten Schalter. */}
       <span className="sr-only">{t(shown ? "quickStateOn" : "quickStateOff")}</span>
     </button>
   );
