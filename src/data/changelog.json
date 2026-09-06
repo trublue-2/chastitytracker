@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.0.13",
+    "date": "2026-09-06",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Hebt die Keyholderin eine Sperre auf, während fast gleichzeitig geöffnet wird, gilt die Öffnung nicht mehr fälschlich als unerlaubt.",
+          "en": "When the keyholder lifts a lock period around the same moment the device is opened, the opening is no longer wrongly flagged as unauthorized."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.12",
     "date": "2026-09-06",
     "changes": [
