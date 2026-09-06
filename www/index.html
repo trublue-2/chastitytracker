@@ -152,6 +152,17 @@
     button:hover { background: var(--accent-hover); }
     button:disabled { opacity: 0.5; cursor: default; }
 
+    .link-btn {
+      width: auto;
+      background: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 10px;
+      text-decoration: underline;
+    }
+    .link-btn:hover { background: none; color: var(--text); }
+
     .spinner {
       display: none;
       flex-direction: column;
@@ -176,11 +187,12 @@
   </style>
 </head>
 <body>
-  <div class="card" id="card">
+  <div class="card loading" id="card">
     <!-- Loading spinner (shown while checking saved URL) -->
     <div class="spinner" id="spinner">
       <div class="spin"></div>
-      <span style="font-size:14px;color:var(--text-muted)">Verbinde…</span>
+      <span style="font-size:14px;color:var(--text-muted)" id="spinnerText">Verbinde…</span>
+      <button type="button" id="changeBtn" class="link-btn" style="display:none">Andere Adresse</button>
     </div>
 
     <!-- Setup form -->
@@ -219,6 +231,10 @@
   <script>
     const STORAGE_KEY = 'ct_instance_url';
 
+    let savedHost = null;        // hostname of the stored instance, for prefill on failure
+    let preflightAbort = null;   // AbortController of the in-flight reachability probe
+    let cancelled = false;       // user tapped "Andere Adresse" during the probe
+
     const ALLOWED_DOMAINS = [
       /^[a-z0-9-]+\.trublue\.ch$/i,
       /^[a-z0-9-]+\.chastitytracker\.ch$/i,
@@ -230,6 +246,7 @@
     }
 
     function redirect(url) {
+      document.getElementById('changeBtn').style.display = 'none';
       document.getElementById('card').classList.add('loading');
       window.location.replace(url);
     }
@@ -269,17 +286,38 @@
       try {
         url = raw.startsWith('http') ? new URL(raw) : new URL('https://' + raw);
       } catch {
-        errorEl.classList.add('visible');
+        showError('Bitte gib eine gültige Instanz-URL ein.');
         return;
       }
 
       if (!isAllowed(url.hostname)) {
-        errorEl.textContent = 'Diese Domain ist nicht erlaubt. Nutze eine gültige Instanz-Adresse.';
-        errorEl.classList.add('visible');
+        showError('Diese Domain ist nicht erlaubt. Nutze eine gültige Instanz-Adresse.');
         return;
       }
 
+      // Probe before saving/redirecting, so a wrong address is caught here instead of
+      // navigating the WebView into a dead page it can't return from.
       const finalUrl = url.origin + '/';
+
+      // Offline: can't verify — save and redirect rather than falsely blaming the address.
+      if (navigator.onLine === false) {
+        await storageSave(finalUrl);
+        redirect(finalUrl);
+        return;
+      }
+
+      const btn = document.getElementById('btn');
+      const btnText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Verbinde…';
+      const ok = await reachable(finalUrl);
+      btn.disabled = false;
+      btn.textContent = btnText;
+      if (!ok) {
+        showError('Verbindung zu ' + url.hostname + ' fehlgeschlagen. Bitte Adresse prüfen.');
+        return;
+      }
+
       await storageSave(finalUrl);
       redirect(finalUrl);
     }
@@ -289,21 +327,90 @@
       if (e.key === 'Enter') connect();
     });
 
-    // On load: check for saved URL and redirect immediately
+    // Reachability probe: an opaque (no-cors) request resolves if the host answers at
+    // all and rejects on DNS/connection failure or timeout — enough to tell a typo'd or
+    // dead instance from a live one, without leaving the shell page first.
+    async function reachable(target) {
+      preflightAbort = new AbortController();
+      const timer = setTimeout(() => preflightAbort.abort(), 5000);
+      try {
+        await fetch(target, { mode: 'no-cors', cache: 'no-store', signal: preflightAbort.signal });
+        return true;
+      } catch {
+        return false;
+      } finally {
+        clearTimeout(timer);
+        preflightAbort = null;
+      }
+    }
+
+    function showError(msg) {
+      const errorEl = document.getElementById('error');
+      errorEl.textContent = msg;
+      errorEl.classList.add('visible');
+    }
+
+    function showForm(prefillHost, errorMsg) {
+      document.getElementById('card').classList.remove('loading');
+      const input = document.getElementById('subdomain');
+      if (prefillHost) input.value = prefillHost;
+      if (errorMsg) showError(errorMsg);
+      else document.getElementById('error').classList.remove('visible');
+      input.focus();
+    }
+
+    // Escape hatch while the spinner is up (e.g. a hung probe): abandon the saved URL
+    // and return to the form, so a wrong address can never trap the app.
+    document.getElementById('changeBtn').addEventListener('click', () => {
+      cancelled = true;
+      if (preflightAbort) preflightAbort.abort();
+      showForm(savedHost, null);
+    });
+
+    // On load: probe the saved URL before navigating, and fall back to the form on
+    // failure instead of redirecting into a dead page.
     window.addEventListener('load', async () => {
+      cancelled = false;
       const saved = await storageLoad();
+      let savedUrl = null;
       if (saved) {
         try {
-          const url = new URL(saved);
-          if (isAllowed(url.hostname)) {
-            redirect(saved);
-            return;
-          }
-        } catch { /* invalid saved URL, show form */ }
-        await storageRemove();
+          const u = new URL(saved);
+          if (isAllowed(u.hostname)) savedUrl = u;
+        } catch { /* invalid saved URL */ }
       }
-      // No valid saved URL — show setup form
-      document.getElementById('spinner').style.display = 'none';
+
+      if (!savedUrl) {
+        if (saved) await storageRemove();
+        showForm();
+        return;
+      }
+
+      savedHost = savedUrl.hostname;
+      const target = savedUrl.origin + '/';
+      document.getElementById('spinnerText').textContent = 'Verbinde mit ' + savedHost + '…';
+
+      // Offline: skip the probe and redirect, so the service-worker cache can still serve
+      // the app as before — a valid saved URL must never be blocked just for lack of network.
+      if (navigator.onLine === false) {
+        redirect(target);
+        return;
+      }
+
+      // Reveal the escape shortly after, so even a slow probe stays interruptible.
+      const revealEscape = setTimeout(() => {
+        document.getElementById('changeBtn').style.display = '';
+      }, 1500);
+
+      const ok = await reachable(target);
+      clearTimeout(revealEscape);
+      if (cancelled) return;
+
+      if (ok) {
+        redirect(target);
+      } else {
+        showForm(savedHost, 'Verbindung zu ' + savedHost + ' fehlgeschlagen. Bitte Adresse prüfen.');
+      }
     });
   </script>
 </body>
