@@ -47,6 +47,22 @@ function iconFor(type: SessionEventData["type"]) {
   return <Icon size={18} className="text-foreground-faint" />;
 }
 
+/** Neueste zuerst — die EINE Stelle, die die Reihenfolge der flachen Zeitleiste bestimmt. Die
+ *  datumsgruppierte Sicht sortiert schon so (`groupEventsIntoBuckets`); die flache Liste (frische
+ *  bzw. kurze Sessions) lief bis dahin in der Baureihenfolge der Ereignisse (älteste oben). Weil ALLE
+ *  flachen Zeilen durch diese Komponente laufen — die Übersicht, der Verlauf und die aufgeklappten
+ *  Buckets —, macht das Sortieren hier jede Reihenfolge der Bauer irrelevant. Fehlt `timeIso` (laut
+ *  Typ möglich, in der Praxis immer gesetzt), rutscht die Zeile ans Ende. */
+function eventMs(ev: SessionEventData): number {
+  const ms = ev.timeIso ? Date.parse(ev.timeIso) : NaN;
+  return Number.isNaN(ms) ? -Infinity : ms; // ohne Zeit ans Ende der absteigenden Liste
+}
+function byTimeDesc(a: SessionEventData, b: SessionEventData): number {
+  const am = eventMs(a), bm = eventMs(b);
+  // Gleichstand zuerst abfangen: sonst gäbe -Infinity − (-Infinity) NaN (beide ohne Zeit).
+  return am === bm ? 0 : bm - am;
+}
+
 function FlatEvents({ items }: { items: SessionEventData[] }) {
   return (
     <div className="divide-y divide-border-subtle">
@@ -54,7 +70,7 @@ function FlatEvents({ items }: { items: SessionEventData[] }) {
           beiden Fotos das Vollbild zeigt). Verschiebt ein Re-Render die Liste — ein nachgetragenes
           Ereignis reiht sich zeitlich ein —, zeigte ein Index-Key denselben Zustand auf einem
           anderen Ereignis, im schlimmsten Fall „Box-Foto" bei einem Eintrag, der keines hat. */}
-      {items.map((ev, i) => (
+      {[...items].sort(byTimeDesc).map((ev, i) => (
         <SessionEventRow key={ev.entryId ?? ev.timeIso ?? i} ev={ev} icon={iconFor(ev.type)} />
       ))}
     </div>

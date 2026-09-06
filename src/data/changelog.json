@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.0.11",
+    "date": "2026-09-06",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "In der Übersicht steht die zuletzt erfasste Kontrolle jetzt zuoberst — die Liste der laufenden Tragezeit ist überall nach neuesten zuerst geordnet.",
+          "en": "On the overview the most recent control now appears at the top — the current wear-time list is ordered newest-first everywhere."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.10",
     "date": "2026-09-05",
     "changes": [
