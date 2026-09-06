@@ -80,6 +80,8 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
     <TaskProofFormCore
       proofId={proof.id}
       description={proof.description}
+      requiresPhoto={proof.requiresPhoto}
+      requiresText={proof.requiresText}
       code={proof.code}
       taskTitle={proof.task.title}
       orderMatters={proof.task.proofOrderMatters}

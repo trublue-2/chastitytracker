@@ -14,5 +14,10 @@
  * der andere lädt. Eine gemeinsame Nachweis-Form täuschte eine Zeile vor, die es so nie gibt.
  */
 export function taskProofRow(proofs: Record<string, unknown>[], over: Record<string, unknown> = {}) {
-  return { id: "t1", title: "Wohnung staubsaugen", withdrawnAt: null, proofs, ...over };
+  // `requiresPhoto`/`requiresText` sind seit Issue #108 feste Spalten jeder Nachweis-Zeile; die
+  // echte Abfrage liefert sie immer mit. Als Default je Proof (überschreibbar), damit ein Test für
+  // einen reinen Text-Nachweis `requiresPhoto: false` setzen kann, ohne dass die übrigen Zeilen ihn
+  // von Hand nachtragen müssen.
+  const withKinds = proofs.map((p) => ({ requiresPhoto: true, requiresText: false, ...p }));
+  return { id: "t1", title: "Wohnung staubsaugen", withdrawnAt: null, proofs: withKinds, ...over };
 }

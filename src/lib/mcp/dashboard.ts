@@ -469,6 +469,12 @@ function taskProofViews(
   return ordered.map((p, i) => ({
     index: i + 1,
     description: p.description,
+    requiresPhoto: p.requiresPhoto,
+    requiresText: p.requiresText,
+    // Der eingereichte Text steht HIER, nicht hinter `get_image`: er ist klein und braucht keinen
+    // Bild-Kanal. So liest der Agent ihn direkt in der Deep-View und urteilt mit `review_task_proof`.
+    // Null, solange nichts eingereicht ist oder kein Text verlangt wird.
+    submittedText: p.proofText,
     // Zustand und Frist kommen aus derselben AUSWERTUNG wie auf der Karte — die überfälligen
     // Nachweise stehen dort schon (`overdueProofIds`), und das wirksame Ende ebenfalls. Eine eigene
     // Uhr hier gäbe zwei Antworten auf dieselbe Frage.
@@ -488,8 +494,16 @@ function taskProofViews(
 export interface OpenTaskProofView {
   /** 1-basierte Position — die Adresse für `review_task_proof`. */
   index: number;
-  /** Was auf dem Bild zu sehen sein muss (dein eigener Text beim Stellen). */
+  /** Was zu sehen bzw. zu schreiben ist (dein eigener Text beim Stellen). */
   description: string;
+  /** Fordert dieser Nachweis ein Foto? (Sieh es dir mit `get_image`, source `task_proof`, an.) */
+  requiresPhoto: boolean;
+  /** Fordert dieser Nachweis einen Text? Ein Text-Nachweis wird IMMER von dir beurteilt — es gibt
+   *  keine Automatik dafür. */
+  requiresText: boolean;
+  /** Der eingereichte Text-Nachweis, sofern verlangt und schon da — sonst null. Lies ihn hier und
+   *  urteile mit `review_task_proof`. */
+  submittedText: string | null;
   /** open = noch nicht eingereicht · confirmed = erbracht (Code bestätigt oder von dir angenommen) ·
    *  review = eingereicht, wartet auf DEIN Urteil · rejected = von dir abgelehnt ·
    *  outOfOrder = Aufnahmezeit bricht die geforderte Reihenfolge.

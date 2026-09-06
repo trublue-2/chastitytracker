@@ -38,6 +38,7 @@ function proof(over: Partial<ProofLike> = {}): ProofLike {
     id: "p1",
     sortOrder: 0,
     requireCode: true,
+    requiresText: false,
     dueOffsetMin: null,
     submittedAt: d("2026-07-25T13:00:00Z"),
     imageExifTime: d("2026-07-25T12:00:00Z"),

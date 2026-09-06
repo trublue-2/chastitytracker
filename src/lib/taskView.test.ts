@@ -155,8 +155,9 @@ describe("startDeadline auf der Karte — die Frist, die ein Vergehen auslöst, 
 
 describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
   const proof = (over: Partial<TaskProofView> = {}): TaskProofView => ({
-    id: "p1", taskId: "t1", sortOrder: 0, description: "Sauberes Wohnzimmer", requireCode: false,
-    code: null, dueOffsetMin: null, submittedAt: null, imageExifTime: null, imageUrl: null,
+    id: "p1", taskId: "t1", sortOrder: 0, description: "Sauberes Wohnzimmer",
+    requiresPhoto: true, requiresText: false, requireCode: false,
+    code: null, proofText: null, dueOffsetMin: null, submittedAt: null, imageExifTime: null, imageUrl: null,
     verifikationStatus: null, verifikationReason: null,
     reviewAccepted: null, reviewedAt: null, reviewNote: null,
     ...over,

@@ -1325,14 +1325,16 @@ function registerTools(server: McpServer) {
           "before the deadline makes the task unfulfilled (an offense of type unfulfilled_task). Without " +
           "conditions it is a plain to-do that the user reports done. State is DERIVED from the user's own " +
           "entries — nothing to confirm manually. A task may be flagged as a punishment. " +
-          "Additionally you may demand PHOTO PROOFS via requireProof: each entry may carry its own " +
+          "Additionally you may demand PROOFS via requireProof: each proof is a PHOTO and/or a written " +
+          "TEXT (requirePhoto/requireText; default photo only), and each may carry its own " +
           "deadline (dueMinutes) — that is how \"three photos spread over the day\" is expressed. " +
-          "The user submits one photo per entry, " +
-          "and their CAPTURE times must ascend in the order you list them (capture time, not upload time — " +
+          "The user submits one photo and/or text per proof, " +
+          "and photo CAPTURE times must ascend in the order you list them (capture time, not upload time — " +
           "otherwise uploading everything at the end would pass; set proofOrderMatters=false where the " +
           "order is incidental). A proof with requireCode is checked " +
-          "automatically against a random code the user must write in the shot; every other proof, and any " +
-          "photo without a capture timestamp, puts the task into \"awaitingReview\" until YOU accept or " +
+          "automatically against a random code the user must write in the shot; every other proof — a text " +
+          "proof always, and any " +
+          "photo without a capture timestamp — puts the task into \"awaitingReview\" until YOU accept or " +
           "reject it — it is then neither fulfilled nor missed. " +
           "Pass offenseRef to make the task the PENALTY for a detected offense instead of a free-text one — " +
           "judge_offense is then not needed, the judgment is written with the task. " +
@@ -1356,8 +1358,10 @@ function registerTools(server: McpServer) {
             device: z.string().optional().describe("Require this specific device of that category."),
           })).optional().describe("Devices that must be worn continuously."),
           requireProof: z.array(z.object({
-            description: z.string().describe("What must be visible, e.g. \"the closed lock\" or \"a photo with at least two receipts\"."),
-            requireCode: z.boolean().optional().describe("Demand a handwritten random code in the shot. Only these are decided automatically; without it the proof waits for your review."),
+            description: z.string().describe("What must be visible on the photo and/or written in the text, e.g. \"the closed lock\", \"a photo with at least two receipts\", or \"describe what you learned\"."),
+            requirePhoto: z.boolean().optional().describe("Demand a PHOTO for this proof. Default true. Set false for a text-only proof."),
+            requireText: z.boolean().optional().describe("Demand a written TEXT (answer/report, ~2000 chars) for this proof. Default false. Independent of the photo — you may demand both. A text is always judged by YOU (review_task_proof); there is no machine check for it, so a proof that requires text never auto-completes even if a photo code matches."),
+            requireCode: z.boolean().optional().describe("Demand a handwritten random code in the shot. Only decided automatically; without it the proof waits for your review. Needs requirePhoto (a code lives in the photo)."),
             dueMinutes: z.number().positive().optional().describe(
               "Own deadline for THIS proof: minutes counted from the moment the task becomes " +
               "effective (for a scheduled task: from its trigger time). Omit and the proof stays " +
@@ -1365,7 +1369,7 @@ function registerTools(server: McpServer) {
               "— 240/480/720. Letting one pass unsubmitted makes the task unfulfilled right then, " +
               "before its own deadline. Must not lie after the end of the task.",
             ),
-          })).optional().describe("Photo proofs, in the order they must be TAKEN."),
+          })).optional().describe("Proofs (photo and/or text), in the order they must be produced."),
           proofOrderMatters: z.boolean().optional().describe(
             "Does that order count? Default true (capture times must ascend). Set false when the " +
             "order is incidental — \"a selfie in the vegetable aisle and one in the flower aisle\" is " +
@@ -1395,9 +1399,12 @@ function registerTools(server: McpServer) {
       {
         title: "Review a submitted proof",
         description:
-          "Judges ONE submitted proof photo of a task: accept or reject, optionally with a note the user " +
-          "sees. This is the ONLY way out of the state \"awaitingReview\" — a proof without a code (or one " +
-          "whose code the image check could not confirm) is neither fulfilled nor missed until you decide. " +
+          "Judges ONE submitted proof of a task (a photo and/or a written text): accept or reject, " +
+          "optionally with a note the user sees. This is the ONLY way out of the state \"awaitingReview\" " +
+          "— a text proof, a photo without a code (or one whose code the image check could not confirm) is " +
+          "neither fulfilled nor missed until you decide. " +
+          "Read a submitted text in keyholder_dashboard.openTasks[].proofs[].submittedText; look at a photo " +
+          "with get_image (source task_proof). " +
           "Address the proof by task plus its POSITION (1-based), the way keyholder_dashboard lists it. " +
           "Rejecting makes the task unfulfilled (offense unfulfilled_task); accepting the last open proof " +
           "completes it. Accepting also RESCUES a proof that was submitted after its deadline: it counts " +

@@ -1409,10 +1409,17 @@ model TaskProof {
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
   /// Soll-Reihenfolge: die Aufnahmezeiten müssen ihr folgen (Verschluss vor Plug vor Rechnungen).
   sortOrder Int @default(0)
-  /// Was auf dem Bild zu sehen sein muss — Freitext der Keyholderin.
+  /// Die Anweisung der Keyholderin — was zu fotografieren UND/ODER worüber zu schreiben ist.
   description String
-  /// Verlangt einen handschriftlichen Zufallscode im Bild. Nur damit ist der Nachweis maschinell
-  /// entscheidbar; ohne Code geht er zur Sichtung an die Keyholderin.
+  /// Verlangt ein Foto. Bestand: jeder Nachweis WAR ein Foto, deshalb `true` als Default (die
+  /// Migration setzt damit alle Altzeilen auf Foto-Pflicht).
+  requiresPhoto Boolean @default(true)
+  /// Verlangt einen Text-Nachweis (schriftliche Antwort/Bericht/Lösung) — die zweite, unabhängige
+  /// Nachweis-Art neben dem Foto. Beide gleichzeitig forderbar. Default `false`: Altzeilen fordern
+  /// keinen Text. Ein Text-Nachweis wird IMMER von der Keyholderin beurteilt (keine Automatik).
+  requiresText Boolean @default(false)
+  /// Verlangt einen handschriftlichen Zufallscode im Bild. Nur damit ist der FOTO-Nachweis maschinell
+  /// entscheidbar; ohne Code geht er zur Sichtung an die Keyholderin. Nur mit `requiresPhoto` sinnvoll.
   requireCode Boolean @default(false)
   /// EIGENE Fälligkeit dieses Nachweises, in Minuten ab dem NULLPUNKT der Aufgabe
   /// (`taskAnchor` = `wirksamAb ?? createdAt`). null = wie bisher: der Nachweis bleibt bis zum Ende
@@ -1429,6 +1436,10 @@ model TaskProof {
   code String?
 
   // ── Einreichung durch den Sub ──
+  /// Der eingereichte Text-Nachweis (Pflicht, wenn `requiresText`). Freitext, ~2000 Zeichen; wie ein
+  /// Foto von der Keyholderin beurteilt — er hat keine maschinelle Prüfung. Null, wo kein Text
+  /// verlangt ist oder noch keiner eingereicht wurde.
+  proofText String?
   imageUrl String?
   /// Aufnahmezeit aus den EXIF-Daten. MASSGEBLICH für die Reihenfolge — die Upload-Zeit wäre
   /// wertlos, weil dann alle Fotos am Schluss hochgeladen einfach passten. Fehlt sie, ist die

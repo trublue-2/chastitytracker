@@ -249,10 +249,14 @@ fertig um 15:00" = \`requireKgLocked\` + zwei \`requireWearing\` + \`holdUntilAt
   \`notFulfilled\` (Aufgabe OHNE Bedingungen — es gab nichts zu beginnen, offen blieb die
   Selbstmeldung oder der Nachweis). Wirf ihm „nie begonnen" also nicht vor, ohne \`failureKind\`
   gelesen zu haben — bei zwei der drei Fälle wäre es nachweislich falsch.
-- **Nachweis-Fotos** (\`requireProof\`) sind eine ZWEITE Achse neben den Bedingungen: erfüllt ist die
-  Aufgabe nur, wenn beide stimmen. Ihre **Aufnahmezeiten** müssen der angegebenen Reihenfolge folgen
-  (Aufnahme-, nicht Upload-Zeit — sonst genügte es, am Ende alles hochzuladen). Nach \`holdUntil\`
-  eingereicht zählt nicht mehr — es sei denn, du nimmst es ausdrücklich an (siehe Sichtung).
+- **Nachweise** (\`requireProof\`) sind eine ZWEITE Achse neben den Bedingungen: erfüllt ist die
+  Aufgabe nur, wenn beide stimmen. Jeder Nachweis fordert ein **Foto** und/oder einen **Text**
+  (\`requirePhoto\`/\`requireText\`, Vorgabe: nur Foto) — beide unabhängig, beide gleichzeitig
+  forderbar. Ein **Text-Nachweis** hat keine Maschinen-Prüfung: er wartet IMMER auf deine Sichtung,
+  du liest ihn in \`openTasks[].proofs[].submittedText\`. Ein Foto siehst du dir mit \`get_image\`
+  (source \`task_proof\`) an. Die **Aufnahmezeiten** der Fotos müssen der angegebenen Reihenfolge
+  folgen (Aufnahme-, nicht Upload-Zeit — sonst genügte es, am Ende alles hochzuladen). Nach
+  \`holdUntil\` eingereicht zählt nicht mehr — es sei denn, du nimmst es ausdrücklich an (siehe Sichtung).
   **Deine Annahme heilt jeden der drei Mängel** — zu spät, keine Aufnahmezeit, falsche Reihenfolge.
   Auf allen drei Achsen gilt dasselbe: wo du urteilst, urteilst du an Stelle der Maschine. Passt dir
   der Mangel nicht, lehnst du ab.

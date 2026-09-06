@@ -949,6 +949,10 @@ export function clampProofDueOffset(value: number | null | undefined): number | 
 export const TASK_PROOF_MAX = 10;
 /** Was auf dem Bild zu sehen sein muss — eine Anweisung, kein Aufsatz. */
 export const TASK_PROOF_DESCRIPTION_MAX_LENGTH = 200;
+/** Höchstlänge eines TEXT-Nachweises (schriftliche Antwort/Bericht/Lösung). Grosszügig — es ist der
+ *  Nachweis selbst, kein Titel —, aber gedeckelt wie {@link TASK_DESCRIPTION_MAX_LENGTH}: dieselbe
+ *  Grenze prüfen Service (verbindlich) und UI (`maxLength`). */
+export const TASK_PROOF_TEXT_MAX_LENGTH = 2000;
 /** Arten von Aufgaben-Bedingungen. WEAR = Gerät/Kategorie tragen · KG_LOCKED = verschlossen sein
  *  (der KG ist bewusst keine Trage-Kategorie, ein WEAR_BEGIN darauf wird abgewiesen). */
 export const TASK_REQUIREMENT_TYPES = ["WEAR", "KG_LOCKED"] as const;

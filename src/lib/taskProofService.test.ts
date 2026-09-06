@@ -50,7 +50,7 @@ const settle = settleIfFinal as unknown as ReturnType<typeof vi.fn>;
 
 const NOW = new Date("2026-07-25T14:00:00Z");
 const HOLD_UNTIL = new Date("2026-07-25T18:00:00Z");
-const PAYLOAD = { imageUrl: "/api/uploads/x.jpg", imageExifTime: new Date("2026-07-25T13:50:00Z") };
+const PAYLOAD = { imageUrl: "/api/uploads/x.jpg", imageExifTime: new Date("2026-07-25T13:50:00Z"), proofText: null };
 
 /** Die Aufgabe dahinter — Nullpunkt `NOW`, Ende vier Stunden später. */
 const TASK = {
@@ -67,6 +67,8 @@ const TASK = {
 const proofRow = (over: Record<string, unknown> = {}) => ({
   id: "p1",
   requireCode: false,
+  requiresPhoto: true,
+  requiresText: false,
   code: null,
   submittedAt: null,
   dueOffsetMin: null,

@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 143 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 145 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -118,8 +118,10 @@ Steckbrief: [40-aufgaben.md](40-aufgaben.md)
 | `TaskRequirement.deviceId` | String? | — | je Direktive | Das konkrete Gerät; enger als die Kategorie und hat Vorrang. | Keyholder (UI), Keyholder (MCP) | Aufgaben, Geräte | — |
 | `TaskRequirement.sortOrder` | Int | `0` | je Direktive | Anzeigereihenfolge der Bedingungen. Keine zeitliche Reihenfolge — alle gelten gleichzeitig. | Keyholder (UI), Keyholder (MCP) | Aufgaben | — |
 | `TaskProof.sortOrder` | Int | `0` | je Direktive | Soll-Reihenfolge der Aufnahmen — wirksam nur, solange `Task.proofOrderMatters` gilt. | Keyholder (UI), Keyholder (MCP) | Aufgaben | — |
-| `TaskProof.description` | String | (keiner) | je Direktive | Was auf dem Bild zu sehen sein muss. | Keyholder (UI), Keyholder (MCP) | Aufgaben | — |
-| `TaskProof.requireCode` | Boolean | `false` | je Direktive | Verlangt einen handschriftlichen Zufallscode. NUR damit ist der Nachweis maschinell entscheidbar; jeder andere geht zur Sichtung. | Keyholder (UI), Keyholder (MCP) | Aufgaben | `taskProofService.ts` |
+| `TaskProof.description` | String | (keiner) | je Direktive | Was auf dem Bild zu sehen bzw. im Text zu schreiben ist. | Keyholder (UI), Keyholder (MCP) | Aufgaben | — |
+| `TaskProof.requiresPhoto` | Boolean | `true` | je Direktive | Verlangt ein Foto. Unabhängig vom Text — beide gleichzeitig forderbar. | Keyholder (UI), Keyholder (MCP) | Aufgaben | `taskService.ts:normalizeProof` |
+| `TaskProof.requiresText` | Boolean | `false` | je Direktive | Verlangt einen Text-Nachweis (schriftliche Antwort/Bericht). Wird IMMER von der Keyholderin beurteilt — es gibt keine Maschinen-Prüfung für Text. | Keyholder (UI), Keyholder (MCP) | Aufgaben | `taskService.ts:normalizeProof` |
+| `TaskProof.requireCode` | Boolean | `false` | je Direktive | Verlangt einen handschriftlichen Zufallscode im Foto. NUR damit ist der Foto-Nachweis maschinell entscheidbar; jeder andere geht zur Sichtung. | Keyholder (UI), Keyholder (MCP) | Aufgaben | `taskProofService.ts` |
 | `TaskProof.dueOffsetMin` | Int? | — | je Direktive | Eigene Frist dieses Nachweises, in Minuten ab dem Nullpunkt der Aufgabe. Verstreicht sie unerfüllt, ist die Aufgabe SOFORT versäumt, nicht erst am Ende. | Keyholder (UI), Keyholder (MCP) | Aufgaben, Strafbuch | `tasks.ts:proofDeadline` |
 
 ## Trainingsziele
@@ -382,6 +384,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `TaskProof.id` | Identität | Primärschlüssel. |
 | `TaskProof.taskId` | Identität | Zugehörige Aufgabe. |
 | `TaskProof.code` | Laufzeitzustand | Der geforderte Zufallscode; leer ohne Code-Pflicht. |
+| `TaskProof.proofText` | Datensatz | Der eingereichte Text-Nachweis — wie ein Foto von der Keyholderin beurteilt. |
 | `TaskProof.imageUrl` | Datensatz | Das eingereichte Foto. |
 | `TaskProof.imageExifTime` | Datensatz | Aufnahmezeit — massgeblich für die Reihenfolge. Die Upload-Zeit wäre wertlos, weil dann alles am Schluss hochgeladen passte. |
 | `TaskProof.submittedAt` | Laufzeitzustand | Wann eingereicht. Nach dem Ende der Aufgabe zählt es nicht mehr. |

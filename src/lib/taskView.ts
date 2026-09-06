@@ -53,11 +53,18 @@ export type TaskCardProofState =
 
 export interface TaskCardProof {
   id: string;
-  /** Was zu sehen sein muss. */
+  /** Was zu sehen sein muss bzw. worüber zu schreiben ist. */
   description: string;
+  /** Fordert dieser Nachweis ein Foto? Entscheidet, ob die Aufnahme-Fläche erscheint. */
+  requiresPhoto: boolean;
+  /** Fordert dieser Nachweis einen Text? Entscheidet, ob das Textfeld erscheint. */
+  requiresText: boolean;
   /** Der Code, den der Sub ins Bild schreiben muss. Null ohne Code-Pflicht.
    *  MUSS sichtbar sein — ohne ihn kann er den Nachweis gar nicht erbringen. */
   code: string | null;
+  /** Der eingereichte Text-Nachweis — für die Keyholderin die Grundlage ihres Urteils, für den Sub
+   *  der Beleg, was er geschrieben hat. Null, solange nichts eingereicht ist (oder kein Text verlangt). */
+  proofText: string | null;
   state: TaskCardProofState;
   /**
    * EIGENE Fälligkeit dieses Nachweises als ISO — null, wo er bis zum Ende der Aufgabe offen ist
@@ -485,7 +492,13 @@ export function toTaskCard(
     return {
       id: p.id,
       description: p.description,
+      requiresPhoto: p.requiresPhoto,
+      requiresText: p.requiresText,
       code: p.code,
+      // `proofText` wird nur zusammen mit `submittedAt` geschrieben (`submitTaskProof`), ist also
+      // ohnehin nur an eingereichten Zeilen gesetzt — wie `imageUrl` reist hier nur der Wert; die
+      // Karte entscheidet die Darstellung (Urteil an der Keyholder-, Beleg an der Sub-Sicht).
+      proofText: p.proofText,
       state,
       // Gegen das WIRKSAME Ende gedeckelt (`evaluation.holdUntil`), wie jede andere Frist-Anzeige
       // dieser Karte: im Dauer-Modus steht in der Spalte nur das spätestmögliche.

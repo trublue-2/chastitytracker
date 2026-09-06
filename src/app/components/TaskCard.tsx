@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import BlockHeading from "@/app/components/BlockHeading";
-import { ListChecks, Check, ChevronRight, Circle, Camera, ArrowRight, Hourglass } from "lucide-react";
+import { ListChecks, Check, ChevronRight, Circle, Camera, FileText, ArrowRight, Hourglass } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Card, { CARD_BODY_STRIPED } from "@/app/components/Card";
 import IconTile from "@/app/components/IconTile";
@@ -11,9 +11,19 @@ import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import useRemainingMs from "@/app/hooks/useRemainingMs";
 import { formatDateTimeDual, formatElapsedMs, formatTime, toDateLocale } from "@/lib/utils";
-import { nextTaskStep, taskDeadlineLine, taskFailureLabelKey, visibleStartDeadline, type TaskCardData } from "@/lib/taskView";
+import { nextTaskStep, taskDeadlineLine, taskFailureLabelKey, visibleStartDeadline, type TaskCardData, type TaskCardProof } from "@/lib/taskView";
 import { isTaskOffense } from "@/lib/tasks";
 import { TASK_STATE_COLOR } from "@/lib/constants";
+
+/** Das Handlungswort einer Nachweis-Zeile: „Foto aufnehmen" führt in die Kamera, „Text einreichen"
+ *  ins Textfeld — die Zeile darf nicht das eine versprechen und das andere öffnen. Verspätet ist es
+ *  je eine eigene Beschriftung (siehe `proofCaptureLate`). Mit Foto-Pflicht führt der Weg zur Kamera,
+ *  auch wenn zusätzlich ein Text verlangt ist. */
+function proofActionKey(p: Pick<TaskCardProof, "requiresPhoto" | "state">): string {
+  const late = p.state === "overdue";
+  if (p.requiresPhoto) return late ? "proofCaptureLate" : "proofCapture";
+  return late ? "proofSubmitTextLate" : "proofSubmitText";
+}
 
 /**
  * Eine Aufgabe als Karte — geteilt von der Keyholder-Historie und dem Sub-Dashboard.
@@ -198,15 +208,23 @@ export default function TaskCard({
                       <ImageViewer src={p.imageUrl} alt={p.description} width={72} height={72} className="rounded-lg" />
                     </span>
                   )}
+                  {/* Der eingereichte TEXT: für die Keyholderin die Grundlage ihres Urteils, für den
+                      Sub der Beleg, was er geschrieben hat. Wie das Foto nur an eingereichten Zeilen. */}
+                  {p.proofText && (
+                    <span className="mt-1.5 block rounded-lg border border-border-subtle bg-surface-raised px-2.5 py-2 text-sm text-foreground whitespace-pre-wrap break-words">
+                      {p.proofText}
+                    </span>
+                  )}
                 </span>
                 <span className="sr-only">{t(`proofState_${p.state}`)}</span>
                 {/* Das Handlungswort sagt, WORAUF man sich einlässt: „Foto aufnehmen" wäre für eine
                     überfällige Zeile dieselbe Einladung wie für eine fristgerechte, obwohl sie
-                    zwei verschiedene Dinge bedeuten. */}
+                    zwei verschiedene Dinge bedeuten. Ohne Foto-Pflicht (reiner Text-Nachweis) führt
+                    der Weg nicht zur Kamera — das sagen Symbol und Wort. */}
                 {p.href && (
                   <RowAction
-                    icon={<Camera size={14} />}
-                    label={t(p.state === "overdue" ? "proofCaptureLate" : "proofCapture")}
+                    icon={p.requiresPhoto ? <Camera size={14} /> : <FileText size={14} />}
+                    label={t(proofActionKey(p))}
                   />
                 )}
               </ChecklistRow>

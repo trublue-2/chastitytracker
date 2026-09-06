@@ -1015,12 +1015,22 @@ export const FM_REGISTRY: FmEntry[] = [
   // ── TaskProof ──────────────────────────────────────────────────────────────────────────────
   s({
     model: "TaskProof", field: "description", domain: "aufgaben", scope: "directive",
-    effect: "Was auf dem Bild zu sehen sein muss.",
+    effect: "Was auf dem Bild zu sehen bzw. im Text zu schreiben ist.",
     writers: ["admin", "mcp"], affects: ["Aufgaben"],
   }),
   s({
+    model: "TaskProof", field: "requiresPhoto", domain: "aufgaben", scope: "directive",
+    effect: "Verlangt ein Foto. Unabhängig vom Text — beide gleichzeitig forderbar.",
+    writers: ["admin", "mcp"], affects: ["Aufgaben"], anchor: "taskService.ts:normalizeProof",
+  }),
+  s({
+    model: "TaskProof", field: "requiresText", domain: "aufgaben", scope: "directive",
+    effect: "Verlangt einen Text-Nachweis (schriftliche Antwort/Bericht). Wird IMMER von der Keyholderin beurteilt — es gibt keine Maschinen-Prüfung für Text.",
+    writers: ["admin", "mcp"], affects: ["Aufgaben"], anchor: "taskService.ts:normalizeProof",
+  }),
+  s({
     model: "TaskProof", field: "requireCode", domain: "aufgaben", scope: "directive",
-    effect: "Verlangt einen handschriftlichen Zufallscode. NUR damit ist der Nachweis maschinell entscheidbar; jeder andere geht zur Sichtung.",
+    effect: "Verlangt einen handschriftlichen Zufallscode im Foto. NUR damit ist der Foto-Nachweis maschinell entscheidbar; jeder andere geht zur Sichtung.",
     writers: ["admin", "mcp"], affects: ["Aufgaben"], anchor: "taskProofService.ts",
   }),
   s({
@@ -1036,6 +1046,7 @@ export const FM_REGISTRY: FmEntry[] = [
   pk("TaskProof"),
   x("identity", "TaskProof", "taskId", "Zugehörige Aufgabe."),
   x("runtime", "TaskProof", "code", "Der geforderte Zufallscode; leer ohne Code-Pflicht."),
+  x("record", "TaskProof", "proofText", "Der eingereichte Text-Nachweis — wie ein Foto von der Keyholderin beurteilt."),
   x("record", "TaskProof", "imageUrl", "Das eingereichte Foto."),
   x("record", "TaskProof", "imageExifTime",
     "Aufnahmezeit — massgeblich für die Reihenfolge. Die Upload-Zeit wäre wertlos, weil dann alles am Schluss hochgeladen passte."),

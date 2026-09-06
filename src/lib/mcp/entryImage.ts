@@ -169,8 +169,12 @@ export async function loadMcpImage(username: string, args: McpImageArgs): Promis
   if (args.source === "task_proof") {
     if (!args.taskId || !args.proofIndex) throw new Error("source \"task_proof\" requires taskId and proofIndex.");
     const { task, proof } = await resolveTaskProof(userId, args.taskId, args.proofIndex, {
-      description: true, imageUrl: true, imageExifTime: true, submittedAt: true,
+      description: true, requiresPhoto: true, imageUrl: true, imageExifTime: true, submittedAt: true,
     });
+    // Ein reiner Text-Nachweis hat kein Bild — der Text steht in keyholder_dashboard, nicht hier.
+    if (!proof.requiresPhoto) {
+      throw new Error(`Proof ${args.proofIndex} of "${task.title}" is a text proof — read its text in keyholder_dashboard.openTasks[].proofs[].submittedText, there is no image.`);
+    }
     if (!proof.imageUrl) throw new Error(`Proof ${args.proofIndex} of "${task.title}" has not been submitted yet.`);
     return deliver(
       userId,

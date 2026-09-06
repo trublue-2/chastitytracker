@@ -88,9 +88,9 @@ export const TASK_INCLUDE = {
   proofs: {
     orderBy: { sortOrder: "asc" },
     select: {
-      id: true, sortOrder: true, requireCode: true, dueOffsetMin: true, submittedAt: true,
-      imageExifTime: true, verifikationStatus: true, verifikationReason: true, reviewAccepted: true,
-      reviewedAt: true,
+      id: true, sortOrder: true, requireCode: true, requiresText: true, dueOffsetMin: true,
+      submittedAt: true, imageExifTime: true, verifikationStatus: true, verifikationReason: true,
+      reviewAccepted: true, reviewedAt: true,
     },
   },
 } as const;
@@ -222,9 +222,15 @@ export interface TaskProofView {
   taskId: string;
   sortOrder: number;
   description: string;
+  /** Fordert diese Zeile ein Foto? */
+  requiresPhoto: boolean;
+  /** Fordert diese Zeile einen Text-Nachweis? */
+  requiresText: boolean;
   requireCode: boolean;
   /** Der Code, den der Sub ins Bild schreiben muss. Null ohne Code-Pflicht. */
   code: string | null;
+  /** Der eingereichte Text-Nachweis. Null, wo kein Text verlangt ist oder noch keiner da ist. */
+  proofText: string | null;
   /** EIGENE Fälligkeit in Minuten ab dem Nullpunkt der Aufgabe — die Anzeige löst sie über
    *  `proofDeadline` zu einem Zeitpunkt auf. Null = offen bis zum Ende der Aufgabe. */
   dueOffsetMin: number | null;

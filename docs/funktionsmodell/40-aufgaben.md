@@ -3,7 +3,7 @@
 ## Zweck
 
 Eine Aufgabe ist **Text plus 0..n Bedingungen, die durchgehend gelten müssen**, optional plus
-Nachweis-Fotos. Sie ist die einzige Direktive mit zwei unabhängigen Erfüllungsachsen — Bedingungen
+Nachweise. Sie ist die einzige Direktive mit zwei unabhängigen Erfüllungsachsen — Bedingungen
 und Nachweise —, und erfüllt ist nur, was auf beiden stimmt.
 
 ## Der Zustand ist abgeleitet, nicht gestempelt
@@ -40,6 +40,9 @@ Sortierung und die Vorauswahl des Pollers, und keine davon darf zu kurz schätze
 
 Eine zweite Achse neben den Bedingungen.
 
+- **Foto und/oder Text** je Nachweis (`requiresPhoto`/`requiresText`, Vorgabe: nur Foto) — zwei
+  unabhängige Arten, beide gleichzeitig forderbar. Ein **Text-Nachweis** (schriftliche Antwort/
+  Bericht) hat keine Maschinen-Prüfung: er wartet **immer** auf die Sichtung der Keyholderin.
 - **Aufnahmezeit zählt, nicht Upload-Zeit.** Sonst genügte es, am Ende alles hochzuladen.
 - **Reihenfolge** ist abschaltbar (`proofOrderMatters`). Ist sie zufällig — „ein Selfie in der
   Gemüse-, eines in der Blumenabteilung" —, erzeugte der Zwang ein Versäumnis für nichts.
@@ -48,7 +51,8 @@ Eine zweite Achse neben den Bedingungen.
 - **Eigene Frist je Nachweis** (`dueOffsetMin`, Minuten ab dem Nullpunkt): damit ist „drei Fotos über
   den Tag verteilt" **eine** Aufgabe statt dreier Kontrollen. Verstreicht eine unerfüllt, ist die
   Aufgabe **sofort** versäumt, nicht erst am Ende.
-- **Nur `requireCode` entscheidet automatisch.** Jeder andere Nachweis — und jedes Foto ohne
+- **Nur ein `requireCode`-Foto entscheidet automatisch.** Jeder andere Nachweis — ein Text immer,
+  ein Foto ohne Code, und jedes Foto ohne
   Aufnahmezeit — bringt die Aufgabe in die Sichtung. Auch ein durchgefallener Code-Check ist bewusst
   kein Vergehen: die Bilderkennung liest schräge Fotos falsch, und dafür soll niemand bestraft
   werden.
