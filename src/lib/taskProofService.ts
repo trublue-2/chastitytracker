@@ -9,6 +9,7 @@ import { notifyLateProof } from "@/lib/taskProofNotify";
 import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
 import { isTaskResultFinal } from "@/lib/tasks";
 import { settleIfFinal, settleIfNowDone } from "@/lib/taskService";
+import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
 import type { MessageActor } from "@/lib/messageService";
 
 /**
@@ -20,10 +21,16 @@ import type { MessageActor } from "@/lib/messageService";
  */
 
 export interface SubmitProofParams {
-  imageUrl: string;
-  /** Aufnahmezeit aus den EXIF-Daten des Bildes. `null`, wenn das Bild keine trägt — dann ist die
-   *  Reihenfolge nicht belegbar und der Nachweis geht zur Sichtung (siehe `evaluateProofs`). */
+  /** Das Foto — `null`, wo kein Foto verlangt ist (reiner Text-Nachweis). Wo `requiresPhoto` gilt,
+   *  ist es Pflicht (`TASK_PROOF_PHOTO_REQUIRED`). */
+  imageUrl: string | null;
+  /** Aufnahmezeit aus den EXIF-Daten des Bildes. `null`, wenn das Bild keine trägt (oder kein Bild
+   *  eingereicht wird) — dann ist die Reihenfolge nicht belegbar und der Nachweis geht zur Sichtung
+   *  (siehe `evaluateProofs`). */
   imageExifTime: Date | null;
+  /** Der Text-Nachweis — `null`, wo kein Text verlangt ist. Wo `requiresText` gilt, ist er Pflicht
+   *  (`TASK_PROOF_TEXT_REQUIRED`) und auf {@link TASK_PROOF_TEXT_MAX_LENGTH} begrenzt. */
+  proofText: string | null;
 }
 
 /** Die drei Verifikations-Felder, wie sie an die Zeile geschrieben werden. Rein abgeleitet aus dem
@@ -110,6 +117,8 @@ export async function submitTaskProof(
     // die Nullpunkt-Felder der Aufgabe (`createdAt`/`wirksamAb`) und ihr Titel ebenso.
     select: {
       id: true, code: true, submittedAt: true, dueOffsetMin: true, lateNotifiedAt: true,
+      // Was der Nachweis überhaupt fordert — entscheidet, welche Einreichung Pflicht ist.
+      requiresPhoto: true, requiresText: true,
       // `holdDurationMin` gehört zur Schranke: es entscheidet, ob `holdUntil` das Ende IST oder nur
       // dessen obere Grenze (siehe {@link taskAcceptsProof}).
       task: {
@@ -129,17 +138,27 @@ export async function submitTaskProof(
   const blocked = await proofSubmitBlocked(proof, userId, now);
   if (blocked) return serviceFail(400, blocked);
 
+  // Was der Nachweis fordert, muss auch da sein — die eine Prüfung der EINREICHUNGS-Form (der
+  // Zustand steckt in `proofSubmitBlocked` darüber). Nur die geforderte Art wird geschrieben: ein
+  // reiner Text-Nachweis speichert kein `imageUrl`, ein reiner Foto-Nachweis keinen `proofText`.
+  const kindError = proofKindError(proof, p);
+  if (kindError) return serviceFail(400, kindError);
+  const imageUrl = proof.requiresPhoto ? p.imageUrl : null;
+  const imageExifTime = proof.requiresPhoto ? p.imageExifTime : null;
+  const proofText = proof.requiresText ? p.proofText!.trim() : null;
+
   // Zustand in der Where-Klausel: reicht der Sub parallel zweimal ein (Doppel-Tap, Offline-Replay),
   // trifft der zweite Aufruf null Zeilen statt den ersten zu überschreiben.
   const res = await prisma.taskProof.updateMany({
     where: { id: proofId, submittedAt: null },
-    data: { imageUrl: p.imageUrl, imageExifTime: p.imageExifTime, submittedAt: now },
+    data: { imageUrl, imageExifTime, proofText, submittedAt: now },
   });
   if (res.count === 0) return serviceFail(400, "TASK_PROOF_ALREADY_SUBMITTED");
 
   // Code-Prüfung erst NACH dem Speichern (siehe `runTaskProofVerification`). `proof.code` ist genau
-  // dann gesetzt, wenn ein Code gefordert ist — `checkProofs` vergibt ihn nur dann.
-  if (proof.code) void runTaskProofVerification(proofId, p.imageUrl, proof.code, userId, proof.task.id);
+  // dann gesetzt, wenn ein Code gefordert ist — `checkProofs` vergibt ihn nur mit Foto-Pflicht, das
+  // `imageUrl` ist dann verbindlich da.
+  if (proof.code && imageUrl) void runTaskProofVerification(proofId, imageUrl, proof.code, userId, proof.task.id);
 
   // Kam das Foto zu spät, wartet es auf ein URTEIL — und niemand sonst sagt das der Keyholderin
   // (`taskProofNotify.ts`; die zweite Stelle, an der dieselbe Verspätung entsteht, ist eine nach vorn
@@ -235,6 +254,27 @@ export function proofSubmitBlockedReason(
   //
   // Was bleibt, ist das ENDE der Aufgabe — und zwar das WIRKSAME, nicht die Spalte.
   if (!taskAccepts) return "TASK_PROOF_TOO_LATE";
+  return null;
+}
+
+/**
+ * Fehlt der Einreichung, was der Nachweis fordert? — die Prüfung der EINREICHUNGS-FORM (Foto und/oder
+ * Text), getrennt vom Zustand ({@link proofSubmitBlockedReason}).
+ *
+ * Ohne Datenbank, damit sie für sich prüfbar bleibt und der Dienst sie mit der eben geladenen Zeile
+ * aufruft. Der Text wird VOR der Längen-Prüfung getrimmt — dieselbe Form, die gespeichert wird, sonst
+ * ginge eine Einreichung aus lauter Leerzeichen als „vorhanden" durch.
+ */
+export function proofKindError(
+  proof: { requiresPhoto: boolean; requiresText: boolean },
+  p: { imageUrl: string | null; proofText: string | null },
+): "TASK_PROOF_PHOTO_REQUIRED" | "TASK_PROOF_TEXT_REQUIRED" | "TASK_PROOF_TEXT_TOO_LONG" | null {
+  if (proof.requiresPhoto && !p.imageUrl) return "TASK_PROOF_PHOTO_REQUIRED";
+  if (proof.requiresText) {
+    const text = p.proofText?.trim();
+    if (!text) return "TASK_PROOF_TEXT_REQUIRED";
+    if (text.length > TASK_PROOF_TEXT_MAX_LENGTH) return "TASK_PROOF_TEXT_TOO_LONG";
+  }
   return null;
 }
 

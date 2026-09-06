@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.1.0",
+    "date": "2026-09-06",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Ein Aufgaben-Nachweis kann jetzt auch ein geschriebener Text sein — allein oder zusätzlich zum Foto. Die Keyholderin legt je Nachweis fest, was verlangt ist, und beurteilt den Text wie ein Foto.",
+          "en": "A task proof can now also be a written text — on its own or alongside the photo. The keyholder decides per proof what is required and judges the text like a photo."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.0.11",
     "date": "2026-09-06",
     "changes": [

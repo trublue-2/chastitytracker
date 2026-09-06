@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { Camera } from "lucide-react";
+import { Camera, FileText } from "lucide-react";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import { parseApiErrorCode } from "@/lib/apiClient";
@@ -13,22 +14,29 @@ import FormField from "@/app/components/FormField";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
+import Textarea from "@/app/components/Textarea";
 import EntryFormShell from "@/app/components/EntryFormShell";
+import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 
 /**
- * Der Sub reicht EIN gefordertes Nachweis-Foto ein (Issue #39, Etappe 3).
+ * Der Sub reicht EINEN geforderten Nachweis ein (Issue #39; Text-Nachweis Issue #108).
  *
- * Bewusst viel schlanker als `PruefungFormCore`: kein Zeitpunkt (die Aufnahmezeit kommt aus den
- * EXIF-Daten und ist gerade NICHT vom Sub setzbar — sonst wäre die Reihenfolge-Prüfung wertlos),
- * keine Notiz, kein Live-Check. Ein Foto, ein Knopf.
+ * Ein Nachweis fordert ein Foto UND/ODER einen Text — beide unabhängig, beide gleichzeitig möglich.
+ * Das Formular zeigt nur, was verlangt ist: die Aufnahme-Fläche bei Foto-Pflicht, das Textfeld bei
+ * Text-Pflicht. Bewusst viel schlanker als `PruefungFormCore`: kein Zeitpunkt (die Aufnahmezeit
+ * kommt aus den EXIF-Daten und ist gerade NICHT vom Sub setzbar — sonst wäre die Reihenfolge-Prüfung
+ * wertlos), kein Live-Check.
  *
  * Der Code wird ANGEZEIGT, nicht eingegeben: er ist die Vorgabe, die der Sub handschriftlich ins
- * Bild bringen muss. Ein Eingabefeld dafür wäre sinnlos — die Prüfung liest ihn aus dem Foto.
+ * Bild bringen muss. Ein Eingabefeld dafür wäre sinnlos — die Prüfung liest ihn aus dem Foto. Der
+ * Text-Nachweis dagegen wird von der Keyholderin beurteilt, nicht maschinell.
  */
 export default function TaskProofFormCore({
   proofId,
   description,
+  requiresPhoto,
+  requiresText,
   code,
   taskTitle,
   orderMatters,
@@ -39,6 +47,11 @@ export default function TaskProofFormCore({
 }: {
   proofId: string;
   description: string;
+  /** Fordert dieser Nachweis ein Foto? Dann erscheint die Aufnahme-Fläche und sie ist Pflicht. */
+  requiresPhoto: boolean;
+  /** Fordert dieser Nachweis einen Text? Dann erscheint das Textfeld und es ist Pflicht. Foto und
+   *  Text sind unabhängig — beide gleichzeitig möglich. */
+  requiresText: boolean;
   /** Null ohne Code-Pflicht — dann legt die Keyholderin den Nachweis selbst vor. */
   code: string | null;
   taskTitle: string;
@@ -77,8 +90,9 @@ export default function TaskProofFormCore({
   // `startTime` steuert nur die EXIF-Abweichungs-Warnung des Hooks; die gibt es hier nicht, weil
   // eine abweichende Aufnahmezeit kein Fehler ist, sondern der geprüfte Sachverhalt.
   const photo = usePhotoUpload({ startTime: new Date().toISOString() });
+  const [proofText, setProofText] = useState("");
 
-  const { saving, error, submit } = useEntrySubmit<{ imageUrl: string; imageExifTime: string | null }>(
+  const { saving, error, submit } = useEntrySubmit<{ imageUrl: string | null; imageExifTime: string | null; proofText: string | null }>(
     async (payload) => {
       const res = await fetch(`/api/tasks/proofs/${proofId}`, {
         method: "PATCH",
@@ -90,10 +104,19 @@ export default function TaskProofFormCore({
     () => router.push("/dashboard"),
   );
 
+  // Bereit, wenn jede GEFORDERTE Art vorliegt — dieselbe Regel, die der Dienst als `proofKindError`
+  // durchsetzt. Der Knopf bleibt gesperrt, statt ein Absenden anzubieten, das der Server abweist.
+  const textOk = proofText.trim().length > 0;
+  const ready = (!requiresPhoto || !!photo.imageUrl) && (!requiresText || textOk);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!photo.imageUrl) return;
-    void submit({ imageUrl: photo.imageUrl, imageExifTime: photo.imageExifTime ?? null });
+    if (!ready) return;
+    void submit({
+      imageUrl: requiresPhoto ? photo.imageUrl : null,
+      imageExifTime: requiresPhoto ? (photo.imageExifTime ?? null) : null,
+      proofText: requiresText ? proofText.trim() : null,
+    });
   }
 
   return (
@@ -102,7 +125,7 @@ export default function TaskProofFormCore({
       onCancel={() => router.push("/dashboard")}
       cancelLabel={tc("cancel")}
       actions={
-        <Button type="submit" variant="primary" fullWidth loading={saving} disabled={!photo.imageUrl} icon={<Camera size={16} />}>
+        <Button type="submit" variant="primary" fullWidth loading={saving} disabled={!ready} icon={requiresPhoto ? <Camera size={16} /> : <FileText size={16} />}>
           {saving ? tc("saving") : t("proofSubmit")}
         </Button>
       }
@@ -110,7 +133,7 @@ export default function TaskProofFormCore({
       <Card variant="semantic" semantic="inspect">
         <p className="text-fliess font-semibold text-foreground break-words">{taskTitle}</p>
         <p className="text-fliess text-foreground break-words mt-1">{description}</p>
-        {code && (
+        {requiresPhoto && code && (
           <p className="text-fliess mt-2">
             <span className="text-foreground-muted">{t("proofCodeLabel")}: </span>
             <span className="font-mono tracking-widest text-[var(--color-inspect)] font-semibold">{code}</span>
@@ -128,41 +151,60 @@ export default function TaskProofFormCore({
         {/* Vor dem Auslöser und nicht erst danach: er soll wissen, worauf er sich einlässt, BEVOR er
             fotografiert — sein Nachweis hängt jetzt an einem Urteil, nicht mehr an der Uhr. */}
         {late && <p className="text-neben font-medium text-warn-text mt-1">{t("proofLateHint")}</p>}
-        <p className="text-neben text-foreground-faint mt-2">
-          {orderMatters
-            ? t(code ? "proofCaptureHintCode" : "proofCaptureHint")
-            : t(code ? "proofCaptureHintCodeNoOrder" : "proofCaptureHintNoOrder")}
-        </p>
+        {/* Der Aufnahme-Hinweis gehört zum FOTO; ohne Foto-Pflicht wäre er gegenstandslos. */}
+        {requiresPhoto && (
+          <p className="text-neben text-foreground-faint mt-2">
+            {orderMatters
+              ? t(code ? "proofCaptureHintCode" : "proofCaptureHint")
+              : t(code ? "proofCaptureHintCodeNoOrder" : "proofCaptureHintNoOrder")}
+          </p>
+        )}
       </Card>
 
-      <FormField label={t("proofPhotoLabel")} required>
-        {photo.imagePreview ? (
-          <RotatableImagePreview
-            src={photo.imagePreview}
-            rotation={photo.rotation}
-            onRotateLeft={photo.rotateLeft}
-            onRotateRight={photo.rotateRight}
-          />
-        ) : (
-          <>
-            <PhotoCapture
-              onFile={photo.handleFile}
-              uploading={photo.uploading}
-              variant="orange"
-              mobileDesktopMode={mobileDesktopMode}
+      {requiresPhoto && (
+        <FormField label={t("proofPhotoLabel")} required>
+          {photo.imagePreview ? (
+            <RotatableImagePreview
+              src={photo.imagePreview}
+              rotation={photo.rotation}
+              onRotateLeft={photo.rotateLeft}
+              onRotateRight={photo.rotateRight}
             />
-            {photo.uploadError && !photo.uploading && (
-              <p className="text-neben text-warn font-medium mt-1">{photo.uploadError}</p>
-            )}
-          </>
-        )}
-      </FormField>
+          ) : (
+            <>
+              <PhotoCapture
+                onFile={photo.handleFile}
+                uploading={photo.uploading}
+                variant="orange"
+                mobileDesktopMode={mobileDesktopMode}
+              />
+              {photo.uploadError && !photo.uploading && (
+                <p className="text-neben text-warn font-medium mt-1">{photo.uploadError}</p>
+              )}
+            </>
+          )}
+        </FormField>
+      )}
+
+      {/* Der Text-Nachweis: eine schriftliche Antwort, die die Keyholderin wie ein Foto beurteilt.
+          Nur wo verlangt — Foto und Text sind unabhängig. */}
+      {requiresText && (
+        <Textarea
+          label={t("proofTextLabel")}
+          required
+          value={proofText}
+          onChange={(e) => setProofText(e.target.value)}
+          placeholder={t("proofTextPlaceholder")}
+          maxLength={TASK_PROOF_TEXT_MAX_LENGTH}
+          rows={6}
+        />
+      )}
 
       {/* Ohne Aufnahmezeit im Bild ist die Reihenfolge nicht belegbar — dann entscheidet die
           Keyholderin. Das gehört gesagt, BEVOR er absendet, nicht erst im Ergebnis.
           Verlangt die Aufgabe gar keine Reihenfolge, gibt es nichts zu belegen: die Warnung entfällt,
           genau wie die Sichtung, vor der sie warnt (`evaluateProofs`). */}
-      {orderMatters && photo.imageUrl && !photo.imageExifTime && (
+      {requiresPhoto && orderMatters && photo.imageUrl && !photo.imageExifTime && (
         <Card variant="semantic" semantic="warn">
           <p className="text-fliess text-warn-text">{t("proofNoExifWarning")}</p>
         </Card>

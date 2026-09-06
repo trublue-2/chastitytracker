@@ -265,11 +265,19 @@ export const TASK_CODES = [
   "TASK_REQUIREMENT_KG_CATEGORY",
   "TASK_DUPLICATE_REQUIREMENT",
   "TASK_PROOF_INVALID",
+  /** Ein Nachweis, der weder Foto noch Text verlangt — er fordert nichts. */
+  "TASK_PROOF_NO_KIND",
+  /** Ein Zufallscode wurde ohne Foto-Pflicht verlangt; er lebt im Foto und könnte sonst nie greifen. */
+  "TASK_PROOF_CODE_WITHOUT_PHOTO",
   "TASK_TOO_MANY_PROOFS",
   "TASK_PROOF_NOT_FOUND",
   "TASK_PROOF_ALREADY_SUBMITTED",
   "TASK_PROOF_TOO_LATE",
   "TASK_PROOF_NOT_SUBMITTED",
+  /** Die Einreichung erbringt nicht, was der Nachweis fordert: Foto fehlt, Text fehlt, Text zu lang. */
+  "TASK_PROOF_PHOTO_REQUIRED",
+  "TASK_PROOF_TEXT_REQUIRED",
+  "TASK_PROOF_TEXT_TOO_LONG",
   /** Die EIGENE Fälligkeit eines Nachweises liegt hinter dem Ende der Aufgabe. Sie könnte dort nie
    *  greifen — `proofDeadline` deckelt sie auf das Ende —, also wird sie abgewiesen statt still
    *  gekappt: die Keyholderin soll sehen, dass ihre Angabe nicht das bedeutet, was sie meint. */

@@ -389,8 +389,13 @@ export function coversPoint(intervals: Interval[], at: Date): boolean {
 export interface ProofLike {
   id: string;
   sortOrder: number;
-  /** Verlangt einen Zufallscode im Bild — nur damit ist der Nachweis maschinell entscheidbar. */
+  /** Verlangt einen Zufallscode im Bild — nur damit ist der FOTO-Nachweis maschinell entscheidbar. */
   requireCode: boolean;
+  /** Verlangt einen TEXT-Nachweis. Ein Text hat keine Maschinen-Prüfung, deshalb entscheidet die
+   *  Auswertung ihn NIE selbst: ein Nachweis mit Text-Pflicht wartet immer auf die Sichtung der
+   *  Keyholderin, auch wenn ein zusätzlich gefordertes Foto per Code bestätigt ist (siehe
+   *  {@link evaluateProofs}, `settled`). */
+  requiresText: boolean;
   /**
    * EIGENE Fälligkeit in Minuten ab dem Nullpunkt der Aufgabe ({@link taskAnchor}). `null` = wie
    * bisher: der Nachweis ist bis zum Ende der Aufgabe offen.
@@ -799,9 +804,11 @@ export function evaluateProofs(
     if (ordered.some((p) => p.imageExifTime === null && p.reviewAccepted !== true)) return "needsReview";
   }
 
-  // Automatisch entscheidbar ist nur ein Nachweis MIT erkanntem Code. Alles andere („Foto mit zwei
-  // Rechnungen") ist eine Aussage über den Bildinhalt, die keine Maschine abschliessend trifft.
-  const settled = (p: ProofLike) => p.reviewAccepted === true || codeConfirmed(p);
+  // Automatisch entscheidbar ist nur ein Nachweis MIT erkanntem Code UND OHNE Text-Pflicht. Ein Text
+  // hat keine Maschinen-Prüfung; verlangt der Nachweis zusätzlich zum (per Code bestätigten) Foto
+  // einen Text, muss ihn trotzdem ein Mensch lesen. Alles andere („Foto mit zwei Rechnungen") ist
+  // ohnehin eine Aussage über den Inhalt, die keine Maschine abschliessend trifft.
+  const settled = (p: ProofLike) => p.reviewAccepted === true || (codeConfirmed(p) && !p.requiresText);
   if (ordered.every(settled)) return "complete";
 
   // Code gefordert, eingereicht, aber weder bestätigt noch mit Grund versehen: die Prüfung läuft

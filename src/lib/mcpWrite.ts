@@ -2583,10 +2583,11 @@ export interface CreateTaskArgs {
   holdMinutesFromStart?: number;
   requireKgLocked?: boolean;
   requireWearing?: TaskRequirementArg[];
-  /** Geforderte Nachweis-Fotos, in der Reihenfolge, in der sie ENTSTEHEN müssen. `dueMinutes` gibt
+  /** Geforderte Nachweise, in der Reihenfolge, in der sie ENTSTEHEN müssen. Jeder Nachweis fordert
+   *  ein Foto UND/ODER einen Text (`requirePhoto`/`requireText`, Vorgabe: nur Foto). `dueMinutes` gibt
    *  einem Nachweis eine EIGENE Frist (Minuten ab dem Wirksamwerden der Aufgabe); ohne sie bleibt er
    *  bis zum Ende der Aufgabe offen. */
-  requireProof?: { description: string; requireCode?: boolean; dueMinutes?: number }[];
+  requireProof?: { description: string; requirePhoto?: boolean; requireText?: boolean; requireCode?: boolean; dueMinutes?: number }[];
   /** Zählt diese Reihenfolge überhaupt? Fehlend = ja, wie bisher. */
   proofOrderMatters?: boolean;
   startGraceMinutes?: number;
@@ -2708,6 +2709,8 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
    *  Frist stellt; in der Zeile ist es der Abstand zum Nullpunkt (`dueOffsetMin`). */
   const proofs = args.requireProof?.map((p) => ({
     description: p.description,
+    requiresPhoto: p.requirePhoto,
+    requiresText: p.requireText,
     requireCode: p.requireCode,
     dueOffsetMin: p.dueMinutes,
   }));
@@ -2815,7 +2818,7 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
   // Der Nachweis-Teil sagt ausdrücklich, was die Automatik NICHT entscheidet: sonst wartet der Agent
   // auf ein Urteil, das ohne ihn nie kommt.
   const proofPart = proofCount === 0 ? "" :
-    ` ${proofCount} photo proof(s) required`
+    ` ${proofCount} proof(s) required (each a photo and/or a written text, as configured)`
     // Ausdrücklich, nicht weggelassen: der Agent hat die Aufgabe eben mit einer nummerierten Liste
     // gestellt und schlösse aus dem Schweigen sonst auf die Vorgabe (Reihenfolge zählt).
     + (orderMatters

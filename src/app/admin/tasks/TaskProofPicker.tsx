@@ -229,10 +229,26 @@ export default function TaskProofPicker({
                 />
               </div>
               <div className="pl-8 flex flex-col gap-2">
+                {/* Foto UND/ODER Text — zwei unabhängige Nachweis-Arten, beide gleichzeitig
+                    forderbar. Der Dienst weist eine Zeile ab, die keine von beiden fordert
+                    (`TASK_PROOF_NO_KIND`); die Vorgabe ist das Foto (wie im Bestand). */}
                 <Checkbox
-                  label={t("proofRequireCode")}
-                  checked={p.requireCode ?? false}
-                  onChange={(e) => update(i, { requireCode: e.target.checked })}
+                  label={t("proofRequirePhoto")}
+                  checked={p.requiresPhoto ?? true}
+                  onChange={(e) => update(i, { requiresPhoto: e.target.checked })}
+                />
+                {/* Der Code lebt IM Foto — ohne Foto-Pflicht gibt es nichts, worin er stehen könnte. */}
+                {(p.requiresPhoto ?? true) && (
+                  <Checkbox
+                    label={t("proofRequireCode")}
+                    checked={p.requireCode ?? false}
+                    onChange={(e) => update(i, { requireCode: e.target.checked })}
+                  />
+                )}
+                <Checkbox
+                  label={t("proofRequireText")}
+                  checked={p.requiresText ?? false}
+                  onChange={(e) => update(i, { requiresText: e.target.checked })}
                 />
                 {/* WANN dieser Nachweis fällig ist — als Reiter, nicht als leeres Feld.
                     „Am Ende" ist die Vorgabe und der häufige Fall; sie trägt ihren Namen selbst,
@@ -308,7 +324,8 @@ export default function TaskProofPicker({
           icon={<Plus size={14} />}
           onClick={() => {
             setDrafts([...drafts, EMPTY_DRAFT]);
-            onChange([...value, { description: "", requireCode: false }]);
+            // Vorgabe: Foto verlangt (wie im Bestand), kein Text. Beide sind je Zeile umstellbar.
+            onChange([...value, { description: "", requireCode: false, requiresPhoto: true, requiresText: false }]);
           }}
         >
           {t("proofAdd")}

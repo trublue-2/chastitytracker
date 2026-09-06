@@ -52,12 +52,17 @@ function normalizeRequirement(r: TaskRequirementInput) {
   };
 }
 
-/** Ein gefordertes Nachweis-Foto, wie der Keyholder es stellt (Issue #39). */
+/** Ein geforderter Nachweis, wie der Keyholder ihn stellt (Issue #39, Text-Nachweis Issue #108). */
 export interface TaskProofInput {
-  /** Was auf dem Bild zu sehen sein muss. Pflicht — ohne sie weiss der Sub nicht, was er fotografieren soll. */
+  /** Was zu sehen bzw. zu schreiben ist. Pflicht — ohne sie weiss der Sub nicht, was er einreichen soll. */
   description: string;
-  /** Handschriftlichen Zufallscode verlangen? Nur damit ist der Nachweis maschinell prüfbar; ohne
-   *  Code geht er zur Sichtung an den Keyholder. */
+  /** Foto verlangt? Fehlend = ja, wie bisher (jeder Bestands-Nachweis war ein Foto). */
+  requiresPhoto?: boolean;
+  /** Text verlangt (schriftliche Antwort/Bericht/Lösung)? Fehlend = nein. Unabhängig vom Foto —
+   *  beide gleichzeitig forderbar. Ein Text-Nachweis wird IMMER von der Keyholderin beurteilt. */
+  requiresText?: boolean;
+  /** Handschriftlichen Zufallscode im Foto verlangen? Nur damit ist der FOTO-Nachweis maschinell
+   *  prüfbar; ohne Code geht er zur Sichtung an den Keyholder. Nur mit `requiresPhoto` sinnvoll. */
   requireCode?: boolean;
   /** EIGENE Fälligkeit in Minuten ab dem Nullpunkt der Aufgabe. Fehlend/`null` = wie bisher: offen
    *  bis zum Ende der Aufgabe. Später als dieses Ende ist sie nicht setzbar
@@ -75,10 +80,17 @@ export interface TaskProofInput {
  * der Anforderung: Verschluss vor Plug vor Rechnungen.
  */
 function normalizeProof(p: TaskProofInput, sortOrder: number) {
-  const requireCode = p.requireCode ?? false;
+  const requiresPhoto = p.requiresPhoto ?? true;
+  const requiresText = p.requiresText ?? false;
+  // Der Code lebt IM Foto — ohne Foto-Pflicht ist er sinnlos und wird hier auf `false` genullt, an
+  // EINER Stelle (wie die übrigen Nullungen). Die widersprüchliche Eingabe (Code ohne Foto) weist
+  // `checkProofs` vorher ab, statt sie still zu schlucken.
+  const requireCode = requiresPhoto && (p.requireCode ?? false);
   return {
     sortOrder,
     description: p.description.trim(),
+    requiresPhoto,
+    requiresText,
     requireCode,
     // Der Code entsteht HIER und nicht beim Einreichen: er ist die Vorgabe, die der Sub im Bild
     // zeigen muss, und muss feststehen, bevor er die Aufgabe zu sehen bekommt.
@@ -102,6 +114,14 @@ function checkProofs(
   if (proofs.length > TASK_PROOF_MAX) return serviceFail(400, "TASK_TOO_MANY_PROOFS");
   const rows: NormalizedProof[] = [];
   for (const [i, p] of proofs.entries()) {
+    // Die FORM-Prüfungen sehen den Rohwert (wie bei den Bedingungen): ein Widerspruch gehört
+    // abgewiesen, nicht nach der Normalisierung unsichtbar weggeputzt.
+    const requiresPhoto = p.requiresPhoto ?? true;
+    const requiresText = p.requiresText ?? false;
+    // Ein Nachweis ohne jede Art fordert nichts — es gäbe nichts einzureichen und nichts zu sichten.
+    if (!requiresPhoto && !requiresText) return serviceFail(400, "TASK_PROOF_NO_KIND");
+    // Der Code lebt im Foto; ohne Foto-Pflicht ist er eine Angabe, die nie greifen kann.
+    if (!requiresPhoto && p.requireCode) return serviceFail(400, "TASK_PROOF_CODE_WITHOUT_PHOTO");
     const n = normalizeProof(p, i);
     if (!n.description || n.description.length > TASK_PROOF_DESCRIPTION_MAX_LENGTH) {
       return serviceFail(400, "TASK_PROOF_INVALID");
