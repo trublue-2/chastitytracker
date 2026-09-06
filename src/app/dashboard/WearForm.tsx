@@ -115,6 +115,11 @@ export default function WearForm({ kind, category, devices, activeSession, admin
   } = usePhotoUpload({
     startTime,
     enableSealDetection: false,
+    // Nur der Sub-Pfad reicht über die Warteschlange nach (`offlineFetch`) — nur er darf offline ein
+    // Foto zwischenspeichern. Der Keyholder-Pfad (`adminUserId`) sendet direkt und bliebe auf dem Marker sitzen.
+    // Auch der Edit-Pfad (`isEdit`) sendet direkt per PATCH, nicht über die Warteschlange — dort darf
+    // kein Marker entstehen, sonst 400 am Server und verwaistes Blob.
+    enableOfflineCapture: !adminUserId && !isEdit,
     exifWarningText: () => "",
     uploadErrorText: () => tCommon("uploadError"),
     initial: initial?.imageUrl ? { imageUrl: initial.imageUrl, imageExifTime: initial.imageExifTime ?? null } : undefined,

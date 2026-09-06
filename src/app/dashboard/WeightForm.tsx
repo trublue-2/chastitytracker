@@ -72,6 +72,8 @@ export default function WeightForm({
       proofRequired={!adminUserId}
       windowHint={windowHint}
       mobileDesktopMode={mobileDesktopMode}
+      // Nur der Träger reicht über die Warteschlange nach; die Keyholderin (adminUserId) sendet direkt.
+      offlineCapture={!adminUserId}
       submitFn={submitFn}
       onSuccess={() => router.push(target)}
       onCancel={() => router.push(target)}

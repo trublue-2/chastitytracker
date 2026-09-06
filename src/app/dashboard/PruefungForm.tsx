@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
+import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import PruefungFormCore from "@/app/entries/PruefungFormCore";
 import type { PruefungPayload, SubmitResult } from "@/app/entries/types";
 import { entryRequest, parseApiErrorCode } from "@/lib/apiClient";
@@ -50,12 +51,17 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
   const tDash = useTranslations("dashboard");
   const router = useRouter();
   const toast = useToast();
+  const { offlineFetch } = useOfflineQueue();
   const target = redirectTo ?? "/dashboard";
 
   async function submitFn(payload: PruefungPayload): Promise<SubmitResult> {
-    // Bewusst ohne offlineFetch: ein Pruefungs-Foto laesst sich nicht sinnvoll queuen.
     const [url, init] = entryRequest(initial?.id, payload);
-    const res = await fetch(url, init);
+    // Bearbeiten geht direkt (wird nicht eingereiht), das Anlegen offline-queuefähig: ein offline
+    // erfasstes Prüfungs-Foto wird lokal zwischengespeichert und beim Nachreichen zuerst hochgeladen
+    // (`useOfflineQueue`/`resolveOfflinePhotos`). `capturedOffline` hält den realen Erfassungsmoment.
+    const res = initial ? await fetch(url, init) : await offlineFetch(url, init, { offlineCapture: true });
+    // `null` = eingereiht; die Meldung „offline gespeichert" kommt aus `offlineFetch`.
+    if (res === null) return { ok: true };
     if (!res.ok) return { ok: false, error: apiError(await parseApiErrorCode(res)) };
     toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
     return { ok: true };
@@ -83,6 +89,10 @@ export default function PruefungForm({ initial, minTime, tz, nowDefault, initial
       boxConfirm={boxConfirm}
       boxPhotoRequired={boxPhotoRequired}
       isEdit={!!initial}
+      // Der Träger reicht über die Warteschlange nach (siehe submitFn): Foto offline zwischenspeicherbar.
+      // NUR beim Anlegen — der Edit-Pfad sendet direkt per PATCH (submitFn), ein Offline-Marker
+      // käme dort ungelöst am Server an (400) und das Blob bliebe verwaist.
+      offlineCapture={!initial}
       submitFn={submitFn}
       // `refresh()` VOR dem Wechsel: Formular und Ziel teilen sich `dashboard/layout.tsx`, und ein
       // geteiltes Layout wird bei einer Client-Navigation NICHT neu gerendert. Ohne den Anstoss

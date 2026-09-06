@@ -111,6 +111,29 @@ export async function parseApiError(res: Response, fallback: string): Promise<st
 }
 
 /**
+ * Lädt EIN Foto nach `/api/upload` (Bild-Zeitlimit) und gibt `{ url, exifTime }` zurück — die EINE
+ * Stelle, die den Upload-Vertrag kennt (Feldnamen `file`/`clientExifTime`, Antwort `{ url, exifTime }`).
+ *
+ * `clientExifTime` reist getrennt mit, weil der client-komprimierte Blob (Canvas → JPEG) keine
+ * EXIF-Daten mehr trägt. Der Rückgabewert unterscheidet die zwei Fehlausgänge, die der Aufrufer
+ * verschieden behandeln muss: ein Netz-/Zeitlimit-Fehler WIRFT (der Aufrufer reiht dann ein statt zu
+ * verlieren), eine SERVER-Ablehnung (`!res.ok` oder fehlende URL — z.B. zu gross, falscher Typ) gibt
+ * `null` (ein echter Fehler, der nicht durch Warten heilt).
+ */
+export async function uploadPhoto(
+  file: File,
+  clientExifTime?: string | null,
+): Promise<{ url: string; exifTime: string | null } | null> {
+  const fd = new FormData();
+  fd.append("file", file);
+  if (clientExifTime) fd.append("clientExifTime", clientExifTime);
+  const res = await fetchWithTimeout("/api/upload", { method: "POST", body: fd }, UPLOAD_TIMEOUT_MS);
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null) as { url?: string; exifTime?: string } | null;
+  return data?.url ? { url: data.url, exifTime: data.exifTime ?? null } : null;
+}
+
+/**
  * PATCH die eigenen Empfangs-Kanäle EINES Ereignisses (`/api/settings/notifications`). Gibt den
  * stabilen Fehler-Code zurück, `null` bei Erfolg — Optimistik und Fehler-Anzeige macht der Aufrufer
  * selbst (mal Toast, mal Inline-Zeile). Drei Selbst-Schalter teilen ihn (Posteingang, Wiege-

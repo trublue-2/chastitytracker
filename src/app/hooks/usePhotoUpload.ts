@@ -3,7 +3,24 @@
 import { useState, useCallback, useRef } from "react";
 import { compressImage } from "@/lib/compressImage";
 import type { Rotation } from "@/lib/constants";
-import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/apiClient";
+import { fetchWithTimeout, UPLOAD_TIMEOUT_MS, uploadPhoto } from "@/lib/apiClient";
+import { putBlob, offlineBlobToken, isOfflineBlobUrl } from "@/lib/idb";
+
+/**
+ * Netz-unabhängige Aufnahmezeit eines Fotos: erst die EXIF-Zeit (via `exifr`, wie server-seitig),
+ * sonst `lastModified`. Gebraucht beim OFFLINE-Erfassen — der client-komprimierte Blob verliert
+ * beim Canvas-Durchlauf seine EXIF-Daten, die Zeit muss also hier aus dem ORIGINAL gelesen werden.
+ * `exifr` wird dynamisch geladen, damit es nur beim tatsächlichen Offline-Erfassen im Bundle landet.
+ */
+async function readClientExifTime(file: File): Promise<string | null> {
+  try {
+    const { default: exifr } = await import("exifr");
+    const exif = await exifr.parse(file, { pick: ["DateTimeOriginal", "DateTime"] });
+    const raw = exif?.DateTimeOriginal ?? exif?.DateTime;
+    if (raw instanceof Date && !isNaN(raw.getTime())) return raw.toISOString();
+  } catch { /* keine/unlesbare EXIF-Zeit → auf lastModified zurückfallen */ }
+  return file.lastModified ? new Date(file.lastModified).toISOString() : null;
+}
 
 export type SealState = "idle" | "detecting" | "detected" | "not-detected";
 /** Zustand der Waagen-Erkennung — dieselben vier Schritte wie bei der Siegel-Erkennung. */
@@ -36,6 +53,17 @@ interface UsePhotoUploadOptions {
   enableScaleDetection?: boolean;
   /** Anzeige-Einheit dessen, der fotografiert — gilt nur, wenn die Waage selbst keine nennt. */
   scaleUnitSystem?: "metric" | "imperial";
+  /**
+   * Darf dieses Formular ein Foto OHNE Netz lokal zwischenspeichern? Default false.
+   *
+   * NUR true setzen, wenn das Formular über die Offline-Warteschlange (`offlineFetch`) einreicht —
+   * denn nur der Flush (`resolveOfflinePhotos`) löst den `offline-blob:<id>`-Marker wieder auf. Ein
+   * Formular, das direkt sendet (Keyholder-Pfad, Aufgaben-Nachweis, Gerätebild, Bildersafe), würde
+   * sonst einen Marker erzeugen, den niemand hochlädt — der Server lehnte ihn ab und der Blob bliebe
+   * als Waise liegen. Ohne das Flag bleibt es beim bisherigen Verhalten: offline scheitert der Upload
+   * mit einer Fehlermeldung (`abortUpload`).
+   */
+  enableOfflineCapture?: boolean;
   /** Initial values (for edit mode). */
   initial?: {
     imageUrl?: string | null;
@@ -52,6 +80,7 @@ export function usePhotoUpload({
   enableDeviceDetection = false,
   enableScaleDetection = false,
   scaleUnitSystem = "metric",
+  enableOfflineCapture = false,
   initial,
 }: UsePhotoUploadOptions) {
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
@@ -181,74 +210,100 @@ export function usePhotoUpload({
       setUploading(false);
     }
 
-    let res: Response;
+    // OHNE NETZ (nur wenn das Formular queue-fähig ist, siehe `enableOfflineCapture`): das Foto lokal
+    // zwischenspeichern statt hochzuladen. Der (komprimierte) Blob landet in IndexedDB, an die
+    // Bild-Stelle des Rumpfs kommt ein `offline-blob:<id>`-Marker — beim Nachreichen lädt
+    // `useOfflineQueue` den Blob hoch und ersetzt den Marker durch die echte URL. Die Kamera-Vorschau
+    // (`blobUrl`) bleibt stehen. Erkennungen (Siegel/Gerät/Waage) brauchen den Server und laufen erst
+    // beim Flush — hier wird nichts gestartet.
+    async function captureOffline(): Promise<void> {
+      try {
+        const exifTime = await readClientExifTime(file);
+        const id = await putBlob({ blob: compressed, filename: compressed.name, clientExifTime: exifTime });
+        const token = offlineBlobToken(id);
+        setImageUrl(token);
+        imageUrlRef.current = token;
+        setImageExifTime(exifTime ?? "");
+        setUploading(false);
+      } catch {
+        // IndexedDB nicht verfügbar (Privatfenster o.ä.) → kein stiller Verlust: als Fehler zeigen.
+        abortUpload();
+      }
+    }
+
+    if (enableOfflineCapture && typeof navigator !== "undefined" && !navigator.onLine) {
+      await captureOffline();
+      return;
+    }
+
+    let result: { url: string; exifTime: string | null } | null;
     try {
-      const fd = new FormData();
-      fd.append("file", compressed);
-      if (clientExifTime) fd.append("clientExifTime", clientExifTime);
-      res = await fetchWithTimeout("/api/upload", { method: "POST", body: fd }, UPLOAD_TIMEOUT_MS);
+      result = await uploadPhoto(compressed, clientExifTime);
     } catch {
+      // Netz-/Zeitlimit-Fehler beim Upload. Queue-fähig → offline zwischenspeichern statt das Foto zu
+      // verlieren (der Eintrag wandert ohnehin über die Warteschlange). Sonst das bisherige Verhalten.
+      if (enableOfflineCapture) { await captureOffline(); return; }
       abortUpload();
       return;
     }
 
-    if (!res.ok) {
+    if (!result) {
+      // Server erreichbar, hat die Datei aber ABGELEHNT (z.B. zu gross, falscher Typ) — ein echter
+      // Fehler, kein Netzproblem: nicht offline zwischenspeichern, sondern melden.
       abortUpload();
       return;
     }
 
-    const data = await res.json() as { url: string; exifTime?: string };
-
-    setImageUrl(data.url);
-    imageUrlRef.current = data.url;
+    setImageUrl(result.url);
+    imageUrlRef.current = result.url;
     // Keep blob URL for preview — server URL requires an existing entry for ownership check
-    setImageExifTime(data.exifTime ?? "");
+    setImageExifTime(result.exifTime ?? "");
 
     // EXIF time validation
     if (exifWarningText) {
-      if (data.exifTime && startTime) {
-        const diff = Math.abs(new Date(data.exifTime).getTime() - new Date(startTime).getTime());
+      if (result.exifTime && startTime) {
+        const diff = Math.abs(new Date(result.exifTime).getTime() - new Date(startTime).getTime());
         if (diff > 3600000) {
           setExifWarning(exifWarningText("deviation", Math.round(diff / 3600000)));
         }
-      } else if (!data.exifTime) {
+      } else if (!result.exifTime) {
         setExifWarning(exifWarningText("missing"));
       }
     }
     setUploading(false);
 
     await Promise.all([
-      enableSealDetection ? runSealDetection(data.url, 0) : Promise.resolve(),
-      enableDeviceDetection ? runDeviceDetection(data.url) : Promise.resolve(),
-      enableScaleDetection ? runScaleDetection(data.url, 0) : Promise.resolve(),
+      enableSealDetection ? runSealDetection(result.url, 0) : Promise.resolve(),
+      enableDeviceDetection ? runDeviceDetection(result.url) : Promise.resolve(),
+      enableScaleDetection ? runScaleDetection(result.url, 0) : Promise.resolve(),
     ]);
-  }, [startTime, exifWarningText, uploadErrorText, enableSealDetection, enableDeviceDetection, enableScaleDetection, runSealDetection, runDeviceDetection, runScaleDetection]);
+  }, [startTime, exifWarningText, uploadErrorText, enableSealDetection, enableDeviceDetection, enableScaleDetection, enableOfflineCapture, runSealDetection, runDeviceDetection, runScaleDetection]);
+
+  // Die VORSCHLAG-Erkennungen nach einem Drehen neu feuern (Siegel bzw. Waage). Ein Offline-Marker ist
+  // keine echte URL — dann liefe die Server-Erkennung ins Leere, also übersprungen. EIN Ort für beide
+  // Dreh-Richtungen, statt der viermal wiederholten Bedingung.
+  const runRotationDetections = useCallback((rot: Rotation) => {
+    const url = imageUrlRef.current;
+    if (!url || isOfflineBlobUrl(url)) return;
+    if (enableSealDetection) runSealDetection(url, rot);
+    if (enableScaleDetection) runScaleDetection(url, rot);
+  }, [enableSealDetection, runSealDetection, enableScaleDetection, runScaleDetection]);
 
   const rotateLeft = useCallback(() => {
     setRotation(prev => {
       const next = ((prev - 90 + 360) % 360) as Rotation;
-      if (enableSealDetection && imageUrlRef.current) {
-        runSealDetection(imageUrlRef.current, next);
-      }
-      if (enableScaleDetection && imageUrlRef.current) {
-        runScaleDetection(imageUrlRef.current, next);
-      }
+      runRotationDetections(next);
       return next;
     });
-  }, [enableSealDetection, runSealDetection, enableScaleDetection, runScaleDetection]);
+  }, [runRotationDetections]);
 
   const rotateRight = useCallback(() => {
     setRotation(prev => {
       const next = ((prev + 90) % 360) as Rotation;
-      if (enableSealDetection && imageUrlRef.current) {
-        runSealDetection(imageUrlRef.current, next);
-      }
-      if (enableScaleDetection && imageUrlRef.current) {
-        runScaleDetection(imageUrlRef.current, next);
-      }
+      runRotationDetections(next);
       return next;
     });
-  }, [enableSealDetection, runSealDetection, enableScaleDetection, runScaleDetection]);
+  }, [runRotationDetections]);
 
   const clearPhoto = useCallback(() => {
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
