@@ -6,7 +6,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     // Die Lese-Kennzeichen laufen seit v5.1 in EINER Transaktion statt in N Einzel-Upserts.
     $transaction: vi.fn((ops: unknown[]) => Promise.all(ops)),
-    message: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
+    message: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), deleteMany: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
     messageRead: { upsert: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() },
     strafeRecord: { findMany: vi.fn() },
     kontrollAnforderung: { findMany: vi.fn() },
@@ -50,6 +50,9 @@ const kh = (readerId: string, subIds: string[], names: Record<string, string> = 
 beforeEach(() => {
   vi.clearAllMocks();
   mock(prisma.message.create).mockResolvedValue({ id: "m-new" });
+  // `deleteMessages` schaltet Feststellungs-Meldungen soft (updateMany) und löscht den Rest hart.
+  // Beide Zweige brauchen einen Startwert, sonst stirbt das Destructuring `{ count }` an `null`.
+  mock(prisma.message.updateMany).mockResolvedValue({ count: 0 });
   // Der Posteingang blättert seit v5.1 über Seiten: die Zählung entscheidet, wie viele es gibt.
   mock(prisma.message.count).mockResolvedValue(1);
   // `vi.clearAllMocks()` leert nur die Aufruf-Listen, NICHT die hinterlegten Rückgaben. Ohne diesen
@@ -432,6 +435,8 @@ describe("Löschen ist an den Besitzer gebunden", () => {
     // (subjectUserId + audience) ist derselbe und genau das, was dieser Test festhält.
     expect(mock(prisma.message.deleteMany).mock.calls[0][0].where).toEqual({
       id: { in: ["m1"] }, subjectUserId: { in: ["u1"] }, audience: "sub",
+      // Der Hart-Lösch-Zweig lässt Feststellungs-Meldungen aus — die schaltet der updateMany-Zweig soft.
+      OR: [{ refEntityType: null }, { refEntityType: { not: "detectedOffense" } }],
     });
   });
 
@@ -440,6 +445,21 @@ describe("Löschen ist an den Besitzer gebunden", () => {
   it("ein zweiter Aufruf auf dieselbe Zeile ist kein Fehler", async () => {
     mock(prisma.message.deleteMany).mockResolvedValue({ count: 0 });
     await expect(deleteMessage(sub("u1"), "m1")).resolves.toBe(false);
+  });
+
+  // Der Träger wischt eine Feststellungs-Meldung weg: sie wird NICHT gelöscht, sondern stumm
+  // geschaltet (`subDismissedAt`), damit der Melde-Lauf sie nicht neu schreibt. Für den Aufrufer
+  // sieht ein Soft-Dismiss aus wie ein Treffer (Rückgabe > 0).
+  it("eine Feststellungs-Meldung wird soft-dismisst statt gelöscht", async () => {
+    mock(prisma.message.updateMany).mockResolvedValue({ count: 1 });
+    mock(prisma.message.deleteMany).mockResolvedValue({ count: 0 });
+    expect(await deleteMessage(sub("u1"), "m1")).toBe(true);
+    const call = mock(prisma.message.updateMany).mock.calls[0][0];
+    expect(call.where).toMatchObject({
+      id: { in: ["m1"] }, subjectUserId: { in: ["u1"] }, audience: "sub",
+      refEntityType: "detectedOffense", subDismissedAt: null,
+    });
+    expect(call.data.subDismissedAt).toBeInstanceOf(Date);
   });
 });
 
@@ -460,7 +480,8 @@ describe("Keyholder-Posteingang", () => {
     // Der Kern der Trennung: dieselbe `subjectUserId` trägt beide Sorten. Ohne `audience` in der
     // Abfrage läse jede Seite die Meldungen der anderen — der Träger sähe die Meldung ÜBER sich.
     await listMessages(sub("sub1"));
-    expect(whereOf()).toMatchObject({ subjectUserId: { in: ["sub1"] }, audience: "sub" });
+    // `subDismissedAt: null` blendet die vom Träger weggewischten Feststellungs-Meldungen aus.
+    expect(whereOf()).toMatchObject({ subjectUserId: { in: ["sub1"] }, audience: "sub", subDismissedAt: null });
 
     vi.clearAllMocks();
     mock(prisma.message.count).mockResolvedValue(1);
@@ -562,6 +583,7 @@ describe("Keyholder-Posteingang", () => {
     expect(await deleteMessage(kh("kh1", ["sub1"]), "fremde-id")).toBe(false);
     expect(mock(prisma.message.deleteMany).mock.calls[0][0].where).toEqual({
       id: { in: ["fremde-id"] }, subjectUserId: { in: ["sub1"] }, audience: "keyholders",
+      OR: [{ refEntityType: null }, { refEntityType: { not: "detectedOffense" } }],
     });
   });
 

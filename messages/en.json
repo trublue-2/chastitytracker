@@ -971,6 +971,7 @@
     "boltOpenOverview": "Box not locked — bolt open",
     "needsYouRow": "needs your decision",
     "taskReviewsPending": "{count, plural, one {# proof to review} other {# proofs to review}}",
+    "openOffensesBadge": "{count, plural, one {# offense open} other {# offenses open}}",
     "allCalmTitle": "Nothing open",
     "allCalmHint": "None of your subs is waiting on you right now.",
     "yourSubsTitle": "Your subs",

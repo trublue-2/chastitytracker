@@ -25,6 +25,9 @@ import { getKeyholderLockPeriods, getKeyholderOrgasmusAnforderungen, keyholderVi
 import { orgasmusAnforderungArtLabel, heimdallEnabled, weightTrackingEnabled } from "@/lib/constants";
 import { QUICK_SETTING_SELECT, quickSettingOnCard, parseQuickSettings, quickSettingValue } from "@/lib/quickSettings";
 import Section from "@/app/components/Section";
+import Badge from "@/app/components/Badge";
+import { strafbuchCached } from "@/lib/dashboardData";
+import { selectSubOffenses, openOffensesOf } from "@/lib/subOffenses";
 import { rowHoverCls } from "@/app/components/inputStyles";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 import { boxBoltOpenDespiteLocked } from "@/lib/boxStatus";
@@ -186,6 +189,20 @@ export default async function AdminPage() {
     pendingReviewByUser.set(p.task.userId, (pendingReviewByUser.get(p.task.userId) ?? 0) + 1);
   }
 
+  // Unbeurteilte Vergehen je Sub: sie warten auf DEINE Entscheidung — bleiben sie liegen, meldet der
+  // Melde-Lauf sie dem Träger nach jedem Wegwischen erneut. Deshalb hier sichtbar (Zahl an der Karte)
+  // und Teil von `needsDecision`, statt nur auf der Strafbuch-Seite des einzelnen Subs zu stehen.
+  // KOSTET ein volles Strafbuch JE gezeigtem Sub (`strafbuchCached` greift hier nicht — nichts sonst
+  // auf DIESER Seite baut es). Für die ein bis drei Subs einer Keyholderin vertretbar. Der
+  // globale-Admin-Pfad rendert ALLE Konten ohne `take` (siehe Kopf der Sub-Liste weiter unten) — die
+  // Kosten wachsen dort mit der Kontenzahl; je Instanz sind das wenige, ein Deckel wäre erst nötig,
+  // wenn diese Liste selbst beschnitten wird.
+  const nowMs = now.getTime();
+  const openOffenseCounts = await Promise.all(
+    userIds.map((id) => strafbuchCached(id, nowMs).then((sb) => openOffensesOf(selectSubOffenses(sb)).length)),
+  );
+  const openOffenseByUser = new Map(userIds.map((id, i) => [id, openOffenseCounts[i]]));
+
   const isScheduled = (wirksamAb: Date | null) => isScheduledDirective(wirksamAb, now);
 
 
@@ -246,6 +263,7 @@ export default async function AdminPage() {
         ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endsAt: offeneOrgasmusAnforderung.endsAt, expired: offeneOrgasmusAnforderung.endsAt < now }
         : null,
       pendingTaskReviews: pendingReviewByUser.get(userId) ?? 0,
+      openOffenses: openOffenseByUser.get(userId) ?? 0,
       scheduled,
     };
   }
@@ -273,7 +291,7 @@ export default async function AdminPage() {
    * nur zählen, wofür es auch einen Griff gibt.
    */
   const needsDecision = (st: ReturnType<typeof getUserStats>) =>
-    !!st.offeneKontrolle || st.hasOffeneAnforderung || !!st.offeneOrgasmusAnforderung || st.pendingTaskReviews > 0;
+    !!st.offeneKontrolle || st.hasOffeneAnforderung || !!st.offeneOrgasmusAnforderung || st.pendingTaskReviews > 0 || st.openOffenses > 0;
 
   // Die Teilung ist eine REIHENFOLGE, keine zwei Darstellungen — v6 hatte daraus zwei Figuren
   // gemacht, und die leise Zeile für die ruhigen Subs kam ohne Schnellaktionen. Eine Keyholderin,
@@ -445,6 +463,14 @@ export default async function AdminPage() {
                                   ? `${t("opened")}${sinceDisplay ? ` · ${t("since")} ${sinceDisplay}` : ""}`
                                   : t("noEntry")}
                             </p>
+                            {/* Unbeurteilte Vergehen: die kleine Zahl „auf einen Blick", damit sie
+                                nicht liegenbleiben. Der Punkt oben (aus `hasAlarm`) schlägt dafür
+                                bereits an — die Zahl sagt, WIE VIELE es sind und WAS wartet. */}
+                            {u.stats.openOffenses > 0 && (
+                              <div className="mt-1">
+                                <Badge variant="warn" size="sm" label={t("openOffensesBadge", { count: u.stats.openOffenses })} />
+                              </div>
+                            )}
                           </div>
                           <div className={`flex-shrink-0 mt-1 flex items-center gap-1 ${stateCls}`}>
                             {isLocked

@@ -1192,6 +1192,8 @@ export const FM_REGISTRY: FmEntry[] = [
   x("record", "Message", "refEntityType",
     "Bezug aufs Tracking-Objekt. Freitexte werden VERLINKT statt kopiert, damit eine Korrektur rückwirkend richtig wirkt."),
   x("record", "Message", "refEntityId", "Die id des bezogenen Objekts."),
+  x("runtime", "Message", "subDismissedAt",
+    "Der Träger hat eine Feststellungs-Meldung weggewischt: sie wird nicht gelöscht, sondern stumm geschaltet (aus Liste/Zähler ausgeblendet), damit der Melde-Lauf sie nicht neu schreibt."),
   stamp("Message"),
   pk("MessageRead"),
   x("identity", "MessageRead", "messageId", "Die gelesene Nachricht."),

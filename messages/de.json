@@ -971,6 +971,7 @@
     "boltOpenOverview": "Box nicht verschlossen — Riegel offen",
     "needsYouRow": "braucht deine Entscheidung",
     "taskReviewsPending": "{count, plural, one {# Nachweis zu sichten} other {# Nachweise zu sichten}}",
+    "openOffensesBadge": "{count, plural, one {# Vergehen offen} other {# Vergehen offen}}",
     "allCalmTitle": "Nichts offen",
     "allCalmHint": "Keiner deiner Subs wartet gerade auf dich.",
     "yourSubsTitle": "Deine Subs",

@@ -496,6 +496,21 @@ model Message {
 
   createdAt DateTime @default(now())
 
+  /// Der Träger hat diese Zeile aus SEINEM Posteingang weggewischt, ohne dass sie gelöscht wird.
+  ///
+  /// Nur für Feststellungs-Meldungen (`refEntityType = "detectedOffense"`, `audience = "sub"`)
+  /// gesetzt. Deren Zeile IST der Beleg, dass gemeldet wurde, und `announceNewOffenses` dedupt über
+  /// ihre EXISTENZ — ein hartes Löschen liesse den Melde-Lauf sie sofort neu schreiben, solange das
+  /// Vergehen unbeurteilt ist (genau die Schleife, über die sich ein Träger beschwerte: die 7
+  /// „gleichen" Meldungen kamen nach jedem Löschen wieder). Statt zu löschen wird die Zeile also
+  /// stumm geschaltet: aus Liste und Zähler ausgeblendet (`messageWhere`), aber weiter vorhanden,
+  /// sodass der Lauf sie als „schon gemeldet" erkennt. Der Beleg bleibt, der Träger ist sie los.
+  ///
+  /// KEINE zweite Tabelle: die Nachricht bleibt die einzige Wahrheit über „wurde gemeldet?" — die
+  /// Leitlinie aus `offenseAnnounce.ts`. Der Aufräum-Cron (`pruneExpiredMessages`) lässt
+  /// Feststellungs-Meldungen deshalb aus, sonst käme eine weggewischte Zeile nach der Frist zurück.
+  subDismissedAt DateTime?
+
   reads MessageRead[]
 
   // Der EINE Index, den die Abfragen brauchen: Liste, Zähler und "alle als gelesen" filtern alle

@@ -476,6 +476,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `Message.refEntityType` | Datensatz | Bezug aufs Tracking-Objekt. Freitexte werden VERLINKT statt kopiert, damit eine Korrektur rückwirkend richtig wirkt. |
 | `Message.refEntityId` | Datensatz | Die id des bezogenen Objekts. |
 | `Message.createdAt` | Datensatz | Anlage-Zeitpunkt. |
+| `Message.subDismissedAt` | Laufzeitzustand | Der Träger hat eine Feststellungs-Meldung weggewischt: sie wird nicht gelöscht, sondern stumm geschaltet (aus Liste/Zähler ausgeblendet), damit der Melde-Lauf sie nicht neu schreibt. |
 | `MessageRead.id` | Identität | Primärschlüssel. |
 | `MessageRead.messageId` | Identität | Die gelesene Nachricht. |
 | `MessageRead.userId` | Identität | Der LESER — nicht der Betroffene. Darauf beruht der geteilte Keyholder-Kanal. |
