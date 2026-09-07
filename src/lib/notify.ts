@@ -84,17 +84,9 @@ interface NotifyContentBase {
   params?: Record<string, string | number>;
   url?: string;
   /**
-   * Mail/Push gehen raus, auch wenn der Sub „Mail und Push bei neuen Nachrichten" abgeschaltet hat.
-   *
-   * Für alles, was eine PFLICHT betrifft statt sie nur zu berichten: die Kontroll-Mahnung und die
-   * automatische Ablage (beides vom KEYHOLDER konfigurierte Eskalationsstufen, die ein Vergehen
-   * nach sich ziehen) sowie geänderte Fristen. Ohne diese Ausnahme könnte der Sub mit einem
-   * eigenen Schalter genau die Eskalation stumm stellen, die der Keyholder eingerichtet hat —
-   * und der Hinweis am Schalter („Anforderungen und Fristen werden immer gemeldet") wäre gelogen.
-   */
-  alwaysNotify?: boolean;
-  /**
-   * Welche Kanäle überhaupt in Frage kommen — fehlt die Angabe, beide.
+   * Welche Kanäle überhaupt in Frage kommen — fehlt die Angabe, gaten bei einer Meldung MIT
+   * Posteingangs-Zeile die Empfänger-Schalter (`MESSAGE_RECEIVED`, siehe `notifyLoadedUser`), ohne
+   * Zeile (`inbox: false`, Keyholder-Pfad) sind es alle.
    *
    * Für die eine Klasse Meldungen, deren Schalter NICHT am Empfänger hängt, sondern am TRÄGER, um
    * den es geht: das Raster in seinen Einstellungen (`NotificationToggles`) sagt, welche seiner
@@ -106,9 +98,10 @@ interface NotifyContentBase {
    * ohne dass Information verloren geht" (`notificationPrefs.ts`). Ein abgeschalteter Schalter darf
    * eine Meldung dämpfen, nicht verschwinden lassen.
    *
-   * Mit dem Empfänger-Schalter (`MESSAGE_RECEIVED`) kollidiert das nicht: dieses Feld kommt
-   * ausschliesslich über `notifyControllers`, und das reicht `inbox: false` durch — der Zweig, der
-   * den Empfänger-Schalter liest, wird dann gar nicht erst betreten.
+   * Mit dem Empfänger-Schalter (`MESSAGE_RECEIVED`) kollidiert das nicht: die beiden Aufrufer, die
+   * dieses Feld setzen — `notifyControllers` (Träger-Raster) und die Wiege-Erinnerung (eigener
+   * Ereignis-Schalter) — schicken zugleich `inbox: false`, und der Zweig, der den Empfänger-Schalter
+   * liest, wird nur MIT Posteingangs-Zeile betreten. Das Feld gilt für sie also unangetastet.
    */
   channels?: NotificationChannels;
 }
@@ -161,7 +154,7 @@ export async function notifyUser(userId: string, content: NotifyContent): Promis
  * sie nicht je Kopf noch einmal nachschlagen.
  */
 async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): Promise<void> {
-  const { subjectKey, messageKey, params, url = "/dashboard", alwaysNotify } = content;
+  const { subjectKey, messageKey, params, url = "/dashboard" } = content;
 
   let badge: number | undefined;
   let channels = content.channels ?? ALL_CHANNELS;
@@ -177,7 +170,13 @@ async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): 
       ref: inbox?.ref,
       once: inbox?.once,
     });
-    if (!alwaysNotify) channels = await getMessageChannels(user.id);
+    // Die Kanal-Schalter des Empfängers (MESSAGE_RECEIVED) gaten JEDE Meldung mit eigener
+    // Posteingangs-Zeile — also alle Meldungen AN IHN, nicht nur „neue Nachrichten". Früher umging
+    // ein `alwaysNotify`-Flag die Schalter (Anforderungen/Fristen/Eskalation): „aus" hiess trotzdem
+    // „kommt an". Die Zeile oben bleibt der garantierte Nachweis, der Kanal wird nur leiser.
+    // Bewusst NUR hier, im Posteingangs-Zweig: der Keyholder-Pfad (`notifyControllers`, `inbox:false`)
+    // reicht seine Kanäle über `content.channels` durch und darf NICHT am Empfänger-Schalter hängen.
+    channels = await getMessageChannels(user.id);
   }
 
   const t = await emailT(user.locale);

@@ -589,7 +589,6 @@ export function taskAssignmentNotice(
       ? (deadline.durationMode ? "penaltyTaskDurationMessage" : "penaltyTaskMessage")
       : (deadline.durationMode ? "taskAssignedDurationMessage" : "taskAssignedMessage"),
     params: { title: task.title, ...deadline.params },
-    alwaysNotify: true,
     // Die Nachricht ZEIGT auf die Aufgabe, statt ihre Beschreibung zu kopieren — der Posteingang
     // liest sie beim Anzeigen frisch. Titel und Frist bleiben bewusst Parameter: eine Nachricht ist
     // die Aufzeichnung dessen, was zu diesem Zeitpunkt gesagt wurde, und eine spätere Änderung trägt
@@ -671,7 +670,6 @@ export async function updateTask(
       subjectKey: "taskChangedSubject",
       messageKey: deadline.durationMode ? "taskChangedDurationMessage" : "taskChangedMessage",
       params: { title: next.title, ...deadline.params },
-      alwaysNotify: true,
       // KEIN `once`: mehrere Änderungen an derselben Aufgabe sind legitim und jede gehört als eigene
       // Zeile in den Verlauf (so auch bei der Verschluss-Anforderung).
       inbox: { ref: { type: "task", id }, actor },
@@ -741,7 +739,6 @@ export async function withdrawTask(id: string, userId: string, actor: MessageAct
       subjectKey: "taskWithdrawnSubject",
       messageKey: "taskWithdrawnMessage",
       params: { title: t.title },
-      alwaysNotify: true,
       inbox: { ref: { type: "task", id }, once: true, actor },
     });
   }

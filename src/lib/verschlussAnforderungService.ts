@@ -362,8 +362,8 @@ export async function updateLockPeriodEnd(
     // Anordnenden. Das ist der Unterschied zur Zustellung der Direktive selbst (siehe dort).
     const inbox = { ref: { type: "lockRequest", id }, actor } as const;
     await notifyUser(va.userId, endsAt
-      ? { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessage", params: { date: formatDateTime(endsAt) }, inbox, alwaysNotify: true }
-      : { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessageIndefinite", inbox, alwaysNotify: true });
+      ? { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessage", params: { date: formatDateTime(endsAt) }, inbox }
+      : { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessageIndefinite", inbox });
   }
   void notifyHeimdallForUserId(va.userId);
   return { ok: true, data: { id, userId: va.userId, notified } };
@@ -510,7 +510,6 @@ export async function updateLockRequest(
       params: { date: formatDateTime(next.endsAt) },
       // Die ÄNDERUNG dagegen gehört dem, der sie vorgenommen hat.
       inbox: { ref: { type: "lockRequest", id: va.id }, actor },
-      alwaysNotify: true,
     });
   }
   // Verborgen + noch nicht sofort fällig: stumm. Der Poller stellt bei Fälligkeit den frischen Stand zu.

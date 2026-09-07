@@ -342,7 +342,6 @@ async function notifyProofReviewed(taskId: string, userId: string, title: string
       subjectKey: accepted ? "taskProofAcceptedSubject" : "taskProofRejectedSubject",
       messageKey: accepted ? "taskProofAcceptedMessage" : "taskProofRejectedMessage",
       params: { title },
-      alwaysNotify: true,
       // Das URTEIL über den Nachweis ist die Entscheidung eines Menschen und nennt ihn. Anders als
       // die Ergebnis-Meldung darüber (`settleTaskResult`), die ein Befund der App ist.
       inbox: { ref: { type: "task", id: taskId }, actor },

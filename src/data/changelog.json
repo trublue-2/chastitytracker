@@ -16,6 +16,13 @@
           "de": "Die Schnellschalter in der Keyholder-Übersicht (z. B. automatische Kontrollen) sind jetzt echte Schalter statt Pillen — der Aus-Zustand ist klar als „aus“ erkennbar.",
           "en": "The quick toggles in the keyholder overview (e.g. automatic controls) are now real switches instead of pills — the off state reads clearly as \"off\"."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Benachrichtigungs-Schalter (Mail, Push, Telegram) gelten jetzt für alle Meldungen — ein abgeschalteter Kanal liefert nichts mehr, alles bleibt im Posteingang.",
+          "en": "The notification switches (mail, push, telegram) now apply to all messages — a switched-off channel delivers nothing, everything stays in the inbox."
+        }
       }
     ]
   },
