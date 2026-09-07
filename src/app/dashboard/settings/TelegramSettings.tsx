@@ -11,8 +11,12 @@ import { parseApiErrorCode } from "@/lib/apiClient";
 import { useNotificationChannelToggle } from "@/app/hooks/useNotificationChannelToggle";
 
 export interface TelegramSettingsProps {
+  /** Kontrolliert vom Elter (`SettingsForm`), damit es alle drei Kanäle für die „letzter Kanal
+   *  aus"-Warnung live kennt — Verbindung wie Empfangs-Schalter. */
   linked: boolean;
+  onLinkedChange: (v: boolean) => void;
   messageTelegram: boolean;
+  onMessageTelegramChange: (v: boolean) => void;
 }
 
 /**
@@ -21,18 +25,15 @@ export interface TelegramSettingsProps {
  * deshalb kein MCP-Weg (die KI verknüpft keinen eigenen Chat). Muster wie {@link PushManager}:
  * eigenes Laden/Toast, optimistischer Schalter mit Revert.
  */
-export default function TelegramSettings({ linked: initialLinked, messageTelegram }: TelegramSettingsProps) {
+export default function TelegramSettings({ linked, onLinkedChange, messageTelegram, onMessageTelegramChange }: TelegramSettingsProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const toast = useToast();
   const apiError = useApiError();
 
-  const [linked, setLinked] = useState(initialLinked);
   const [connecting, setConnecting] = useState(false);
   const [awaiting, setAwaiting] = useState(false); // Deep-Link geöffnet, warten auf /start im Chat
   const [error, setError] = useState<string | null>(null);
-
-  const [telegramNotify, setTelegramNotify] = useState(messageTelegram);
 
   // Der Webhook setzt die Verknüpfung, während der Nutzer im Telegram-Client ist. Kehrt er zurück
   // (Fenster-Fokus), den Status einmal nachschlagen — dann erscheint die Verbindung ohne Reload.
@@ -41,11 +42,11 @@ export default function TelegramSettings({ linked: initialLinked, messageTelegra
       const res = await fetch("/api/settings/telegram");
       if (res.ok) {
         const data = await res.json();
-        setLinked(!!data.linked);
+        onLinkedChange(!!data.linked);
         if (data.linked) setAwaiting(false);
       }
     } catch { /* still — der Knopf bleibt bedienbar */ }
-  }, []);
+  }, [onLinkedChange]);
 
   useEffect(() => {
     if (!awaiting) return;
@@ -79,7 +80,7 @@ export default function TelegramSettings({ linked: initialLinked, messageTelegra
     try {
       const res = await fetch("/api/settings/telegram", { method: "DELETE" });
       if (res.ok) {
-        setLinked(false);
+        onLinkedChange(false);
         setAwaiting(false);
       } else {
         setError(apiError(await parseApiErrorCode(res)));
@@ -110,8 +111,8 @@ export default function TelegramSettings({ linked: initialLinked, messageTelegra
           <Toggle
             label={t("telegramNotifyLabel")}
             description={t("telegramNotifyHint")}
-            checked={telegramNotify}
-            onChange={(c) => toggleTelegramNotify("telegram", setTelegramNotify, c)}
+            checked={messageTelegram}
+            onChange={(c) => toggleTelegramNotify("telegram", onMessageTelegramChange, c)}
           />
           <Button variant="secondary" onClick={handleDisconnect} loading={connecting}>
             {t("telegramDisconnect")}

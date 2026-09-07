@@ -1720,6 +1720,7 @@
     },
     "notifyLabel": "Notifications",
     "notifyHint": "These switches control all notifications to you. Everything is also collected in your inbox — a switched-off channel delivers nothing, the inbox keeps it.",
+    "allChannelsOffWarning": "All channels are off. New requests, deadlines and messages will then only reach you in the inbox.",
     "catInspection": "Inspection",
     "catLock": "Lock & closure",
     "catOrgasm": "Orgasm",

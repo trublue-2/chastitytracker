@@ -20,8 +20,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "Die Benachrichtigungs-Schalter (Mail, Push, Telegram) gelten jetzt für alle Meldungen — ein abgeschalteter Kanal liefert nichts mehr, alles bleibt im Posteingang.",
-          "en": "The notification switches (mail, push, telegram) now apply to all messages — a switched-off channel delivers nothing, everything stays in the inbox."
+          "de": "Die Benachrichtigungs-Schalter (Mail, Push, Telegram) gelten jetzt für alle Meldungen — ein abgeschalteter Kanal liefert nichts mehr, alles bleibt im Posteingang. Sind alle Kanäle aus, weist ein Hinweis darauf hin.",
+          "en": "The notification switches (mail, push, telegram) now apply to all messages — a switched-off channel delivers nothing, everything stays in the inbox. A notice appears when every channel is off."
         }
       }
     ]

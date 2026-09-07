@@ -1720,6 +1720,7 @@
     },
     "notifyLabel": "Benachrichtigungen",
     "notifyHint": "Diese Schalter steuern alle Benachrichtigungen an dich. Alles wird zusätzlich im Posteingang gesammelt — ein abgeschalteter Kanal liefert nichts mehr, der Posteingang behält es.",
+    "allChannelsOffWarning": "Alle Kanäle sind aus. Neue Anforderungen, Fristen und Nachrichten erreichen dich dann nur noch im Posteingang.",
     "catInspection": "Kontrolle",
     "catLock": "Sperrzeit & Verschluss",
     "catOrgasm": "Orgasmus",
