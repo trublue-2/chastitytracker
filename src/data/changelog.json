@@ -9,6 +9,13 @@
           "de": "Hebt die Keyholderin eine Sperre auf, während fast gleichzeitig geöffnet oder ein Orgasmus eingetragen wird, gilt das nicht mehr fälschlich als unerlaubt.",
           "en": "When the keyholder lifts a lock period around the same moment the device is opened or an orgasm is logged, that's no longer wrongly flagged as unauthorized."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Schnellschalter in der Keyholder-Übersicht (z. B. automatische Kontrollen) sind jetzt echte Schalter statt Pillen — der Aus-Zustand ist klar als „aus“ erkennbar.",
+          "en": "The quick toggles in the keyholder overview (e.g. automatic controls) are now real switches instead of pills — the off state reads clearly as \"off\"."
+        }
       }
     ]
   },
