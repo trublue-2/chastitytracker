@@ -164,6 +164,12 @@ const mockEntriesOfType = (type: string, rows: unknown[]) =>
   );
 const mockOeffnungen = (rows: unknown[]) => mockEntriesOfType("OEFFNEN", rows);
 const mockVerschluesse = (rows: unknown[]) => mockEntriesOfType("VERSCHLUSS", rows);
+const mockOrgasmen = (rows: unknown[]) => mockEntriesOfType("ORGASMUS", rows);
+
+/** Eine `unauthorized_orgasm`-Regeländerung — von beiden Orgasmus-Blöcken geteilt. */
+const orgasmRuleChange = (mode: string, effectiveFrom: Date) => ({
+  offenseType: "unauthorized_orgasm", mode, effectiveFrom,
+});
 
 /** Der Stichtag dieser Instanz, wie ihn die Migration beim ersten Boot schreibt. */
 const mockStichtag = (iso: string) =>
@@ -489,10 +495,6 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
   const TAT = new Date("2026-08-05T20:00:00Z");
   const NOW = new Date("2026-08-11T12:00:00Z");
 
-  const ruleChange = (mode: string, effectiveFrom: Date) => ({
-    offenseType: "unauthorized_orgasm", mode, effectiveFrom,
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
     db.user.findUnique.mockResolvedValue({
@@ -504,18 +506,13 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
     // Zurücksetzen, nicht dem Nachlass überlassen: `vi.clearAllMocks()` löscht die Aufrufe, nicht die
     // Implementierungen (siehe die Warnung am Kopf dieser Datei).
     db.orgasmusAnforderung.findMany.mockResolvedValue([]);
-    // Der ORGASMUS-Eintrag, um den es geht — `mockOeffnungen` deckt nur OEFFNEN ab.
-    db.entry.findMany.mockImplementation((args: { where?: { type?: string } }) =>
-      Promise.resolve(args?.where?.type === "ORGASMUS"
-        ? [{ id: "o1", startTime: TAT, orgasmusArt: null, note: null }]
-        : []),
-    );
+    mockOrgasmen([{ id: "o1", startTime: TAT, orgasmusArt: null, note: null }]);
   });
 
   it("ohne Urteil verschwindet er, wenn die Regel rückwirkend auf AUS steht", async () => {
     db.offenseRuleChange.findMany.mockResolvedValue([
-      ruleChange("always", new Date("2026-08-01T00:00:00Z")),
-      ruleChange("off", new Date("2026-08-04T00:00:00Z")),
+      orgasmRuleChange("always", new Date("2026-08-01T00:00:00Z")),
+      orgasmRuleChange("off", new Date("2026-08-04T00:00:00Z")),
     ]);
     db.strafeRecord.findMany.mockResolvedValue([]);
 
@@ -524,8 +521,8 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
 
   it("MIT Urteil bleibt er stehen — sonst hinge das Urteil ohne Anlass in der Luft", async () => {
     db.offenseRuleChange.findMany.mockResolvedValue([
-      ruleChange("always", new Date("2026-08-01T00:00:00Z")),
-      ruleChange("off", new Date("2026-08-04T00:00:00Z")),
+      orgasmRuleChange("always", new Date("2026-08-01T00:00:00Z")),
+      orgasmRuleChange("off", new Date("2026-08-04T00:00:00Z")),
     ]);
     db.strafeRecord.findMany.mockResolvedValue([{
       refId: "o1", offenseType: "UNAUTHORIZED_ORGASM", status: "PUNISHED",
@@ -540,8 +537,8 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
     // Die zweite Hälfte des Schutzes: `lockedOnly` streicht alles, was ohne laufende Sperrzeit
     // passierte. Rückwirkend gesetzt träfe das ein bereits beurteiltes Vergehen genauso wie ein `off`.
     db.offenseRuleChange.findMany.mockResolvedValue([
-      ruleChange("always", new Date("2026-08-01T00:00:00Z")),
-      ruleChange("lockedOnly", new Date("2026-08-04T00:00:00Z")),
+      orgasmRuleChange("always", new Date("2026-08-01T00:00:00Z")),
+      orgasmRuleChange("lockedOnly", new Date("2026-08-04T00:00:00Z")),
     ]);
     db.strafeRecord.findMany.mockResolvedValue([{
       refId: "o1", offenseType: "UNAUTHORIZED_ORGASM", status: "PUNISHED",
@@ -555,7 +552,7 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
   it("eine deckende Direktive lässt ihn auch MIT Urteil verschwinden", async () => {
     // Nur die REGEL wird überbrückt, nicht die Ableitung: deckt später eine Direktive den Orgasmus
     // ab, verschwindet er wie bei jeder anderen Art auch.
-    db.offenseRuleChange.findMany.mockResolvedValue([ruleChange("always", new Date("2026-08-01T00:00:00Z"))]);
+    db.offenseRuleChange.findMany.mockResolvedValue([orgasmRuleChange("always", new Date("2026-08-01T00:00:00Z"))]);
     db.strafeRecord.findMany.mockResolvedValue([{
       refId: "o1", offenseType: "UNAUTHORIZED_ORGASM", status: "PUNISHED",
       bestraftDatum: NOW, notiz: null, reason: "20 Schläge", judgedBy: "admin",
@@ -568,6 +565,82 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
     }]);
 
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toHaveLength(0);
+  });
+});
+
+/**
+ * Rundungs-Spielraum im `lockedOnly`-Pfad. Ein Orgasmus trägt eine im Formular gewählte,
+ * minutengenaue `startTime`, der Rückzug der Sperre einen sekundengenauen `withdrawnAt`. Hebt die
+ * Keyholderin die Sperre im selben Moment auf, in dem der frisch befreite Träger einen Orgasmus
+ * erfasst, liegt der Rückzug oft ein paar Sekunden HINTER der auf die volle Minute gerundeten
+ * Orgasmuszeit — die Sperre gälte für den Sekundenvergleich noch als aktiv und der Orgasmus
+ * fälschlich als „während laufender Sperre".
+ *
+ * Dieselbe Fragilität wie beim Öffnungs-Fix (v6.0.13), aber dessen endedReason-Ausnahme trägt hier
+ * NICHT: ein Orgasmus während einer laufenden Sperre bleibt ein Vergehen, auch wenn die Keyholderin
+ * die Sperre erst Stunden später aufhebt. Deshalb ein Zeit-Spielraum von ~1 Minute.
+ */
+describe("buildStrafbuch — Orgasmus im Moment der Sperr-Aufhebung (lockedOnly)", () => {
+  const ORGASM_AT = new Date("2026-08-05T20:00:00Z"); // volle Minute, wie das Formular sie liefert
+  const NOW = new Date("2026-08-11T12:00:00Z");
+
+  /** Sperre, die den Orgasmuszeitpunkt umschliesst; beendet je Fall zu einem anderen `withdrawnAt`. */
+  const lock = (withdrawnAt: Date | null, endedReason: string | null = null) => ({
+    id: "s1",
+    createdAt: new Date("2026-08-05T10:00:00Z"),
+    endsAt: null,
+    withdrawnAt,
+    endedReason,
+    cleaningAllowed: false,
+    wirksamAb: null,
+    fulfilledAt: null,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.user.findUnique.mockResolvedValue({
+      cleaningAllowed: false, cleaningMaxPerDay: 0, cleaningMaxMinutes: 15,
+      cleaningWindows: null, timezone: "Europe/Zurich",
+    });
+    mockStichtag("2026-07-01T00:00:00Z");
+    db.strafeRecord.findMany.mockResolvedValue([]);
+    db.orgasmusAnforderung.findMany.mockResolvedValue([]);
+    // lockedOnly, scharf vor der Tat.
+    db.offenseRuleChange.findMany.mockResolvedValue([
+      orgasmRuleChange("lockedOnly", new Date("2026-08-01T00:00:00Z")),
+    ]);
+    mockOrgasmen([{ id: "o1", startTime: ORGASM_AT, orgasmusArt: null, note: null }]);
+  });
+
+  it("Rückzug 30 s nach der gerundeten Orgasmuszeit: KEIN Vergehen", async () => {
+    mockLockPeriods([lock(new Date(ORGASM_AT.getTime() + 30_000), "keyholder")]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toHaveLength(0);
+  });
+
+  it("Rückzug genau am Spielraum-Rand (60 s): noch KEIN Vergehen", async () => {
+    mockLockPeriods([lock(new Date(ORGASM_AT.getTime() + 60_000), "keyholder")]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toHaveLength(0);
+  });
+
+  it("keyholder-beendet jenseits des Spielraums: bleibt ein Vergehen (der Öffnungs-Fix trägt hier nicht)", async () => {
+    // Die entscheidende Gegenprobe: derselbe `endedReason "keyholder"`, der eine ÖFFNUNG straffrei
+    // stellte, darf einen Orgasmus während der laufenden Sperre nicht decken — er lag ja darin, egal
+    // ob die Keyholderin sie zwei Minuten oder Stunden später aufhob.
+    mockLockPeriods([lock(new Date(ORGASM_AT.getTime() + 120_000), "keyholder")]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toMatchObject([{ id: "o1" }]);
+  });
+
+  it("laufende Sperre ohne Rückzug: bleibt ein Vergehen", async () => {
+    mockLockPeriods([lock(null)]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toMatchObject([{ id: "o1" }]);
+  });
+
+  it("eine im Spielraum aufgehobene Sperre verdeckt nicht eine zweite, noch laufende", async () => {
+    // Der Spielraum sitzt IM `find`-Prädikat, damit die gerade aufgehobene Sperre übersprungen wird
+    // und die Suche eine parallele, noch aktive findet — sonst bliebe ein Orgasmus während einer
+    // laufenden Sperre folgenlos, nur weil eine andere zufällig zuerst zurückkam.
+    mockLockPeriods([lock(new Date(ORGASM_AT.getTime() + 30_000), "keyholder"), lock(null)]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toMatchObject([{ id: "o1" }]);
   });
 });
 
