@@ -365,7 +365,8 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/app/components/Select.tsx` — Styled Select-Dropdown
 - `src/app/components/Textarea.tsx` — Styled Textarea
 - `src/app/components/Checkbox.tsx` — Styled Checkbox
-- `src/app/components/Toggle.tsx` — Styled Toggle-Switch
+- `src/app/components/Toggle.tsx` — Styled Toggle-Switch (Label links, Schalter rechts, ganze Zeile)
+- `src/app/components/ToggleSwitch.tsx` — NUR das Schalter-Bild (Schiene + Knopf), rein darstellend. Von `Toggle` UND dem Schnellschalter der Keyholder-Übersicht (`admin/QuickSettingChip.tsx`) geteilt, damit ein Zustand überall als DERSELBE Schalter erscheint statt einmal als Pille. Wer den Schalter umzeichnet, tut es hier
 - `src/app/components/SettingLabel.tsx` — Beschriftung einer Einstellungs-Zeile (Name + leise Erklärung darunter); von `Toggle` und von Zeilen mit anderer Bedienung (Auswahl statt Schalter) geteilt
 - `src/app/components/Badge.tsx` — Status-Badge
 - `src/app/components/Pill.tsx` — Pill-Label
