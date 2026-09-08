@@ -83,7 +83,11 @@ export default async function AdminTaskPage({
       where: { id: query.editTask, userId, withdrawnAt: null, completedAt: null },
       select: {
         id: true, title: true, description: true, holdUntil: true, holdDurationMin: true, startGraceMin: true, isPunishment: true, penaltyReason: true,
+        proofOrderMatters: true,
         requirements: { select: { type: true, categoryId: true, deviceId: true } },
+        // Bedingungen und Nachweise sind beim Ändern nicht editierbar, werden aber geladen: das
+        // Formular zeigt sie gedämpft an, statt sie wortlos wegzulassen.
+        proofs: { orderBy: { sortOrder: "asc" }, select: { description: true, requiresPhoto: true, requiresText: true, requireCode: true, dueOffsetMin: true } },
       },
     });
     if (!task) redirect(backToTasks);
@@ -99,6 +103,8 @@ export default async function AdminTaskPage({
       // an ihnen hängt der Frist-Modus. Ohne sie fiele „Tragezeit ab Beginn" auf „Endet in" zurück und
       // die geänderte Dauer ginge beim Speichern verloren (Modus bleibt fest, `mergeTaskPatch`).
       requirements: task.requirements.map((r) => ({ type: r.type as "WEAR" | "KG_LOCKED", categoryId: r.categoryId, deviceId: r.deviceId })),
+      proofs: task.proofs.map((p) => ({ description: p.description, requiresPhoto: p.requiresPhoto, requiresText: p.requiresText, requireCode: p.requireCode, dueOffsetMin: p.dueOffsetMin })),
+      proofOrderMatters: task.proofOrderMatters,
       isPunishment: task.isPunishment,
       penaltyReason: task.penaltyReason ?? "",
       mode: durationMode ? "fromStart" : "datetime",

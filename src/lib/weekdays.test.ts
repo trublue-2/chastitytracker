@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  ALL_WEEKDAYS, datedWindowLabel, isoWeekdayInTZ, parseWeekdayMask, toggleWeekday,
+  ALL_WEEKDAYS, datedWindowLabel, isoWeekdayInTZ, isoWeekdayOfDateKey, parseWeekdayMask, toggleWeekday,
   weekdayMaskHas, weekdayMaskOf, weekdayMaskValid,
 } from "./weekdays";
 
@@ -34,6 +34,19 @@ describe("isoWeekdayInTZ", () => {
     expect(isoWeekdayInTZ(new Date("2026-08-22T23:30:00Z"), "Europe/Zurich")).toBe(7);
     // Derselbe Augenblick ist in New York noch Samstag, 19:30.
     expect(isoWeekdayInTZ(new Date("2026-08-22T23:30:00Z"), "America/New_York")).toBe(6);
+  });
+});
+
+describe("isoWeekdayOfDateKey", () => {
+  it("nennt den Wochentag eines Kalendertag-Schlüssels ohne Zonenbezug", () => {
+    expect(isoWeekdayOfDateKey("2026-08-22")).toBe(6); // Samstag
+    expect(isoWeekdayOfDateKey("2026-08-23")).toBe(7); // Sonntag
+    expect(isoWeekdayOfDateKey("2026-01-01")).toBe(4); // Donnerstag — überall auf der Welt
+  });
+
+  it("liefert 0 bei einem unbrauchbaren Schlüssel", () => {
+    expect(isoWeekdayOfDateKey("")).toBe(0);
+    expect(isoWeekdayOfDateKey("kaputt")).toBe(0);
   });
 });
 

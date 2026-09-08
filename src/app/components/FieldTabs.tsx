@@ -31,7 +31,7 @@ export default function FieldTabs<T extends string>({
   /** Name der Gruppe für Assistenztechnik, wo `label` fehlt. */
   ariaLabel?: string;
   value: T;
-  options: readonly { value: T; label: string }[];
+  options: readonly { value: T; label: string; disabled?: boolean }[];
   onChange: (value: T) => void;
   /** Beschriftet die Gruppe ein PFLICHTfeld? Der Umschalter selbst ist immer gesetzt — gemeint ist
    *  das Feld darunter, dessen Beschriftung diese hier ist. */
@@ -43,7 +43,7 @@ export default function FieldTabs<T extends string>({
       {label && <FieldLabel id={labelId} required={required}>{label}</FieldLabel>}
       <Tabs
         variant="segmented"
-        tabs={options.map((o) => ({ key: o.value, label: o.label }))}
+        tabs={options.map((o) => ({ key: o.value, label: o.label, disabled: o.disabled }))}
         activeTab={value}
         // Der Cast lebt hier an EINER Stelle: `Tabs` spricht `string`, die Aufrufer denken in ihrer
         // eigenen Union. Ohne den Wrapper stünde derselbe Cast bei jedem Aufrufer.

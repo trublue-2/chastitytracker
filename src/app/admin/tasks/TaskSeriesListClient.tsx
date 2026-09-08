@@ -43,7 +43,7 @@ export default function TaskSeriesListClient({ userId, series, tz }: {
   const fmt = useMemo(() => occurrenceFormatter(locale, tz), [locale, tz]);
 
   function cadence(s: TaskSeriesUi): string {
-    const every = s.interval > 1 ? t("cadenceEvery", { n: s.interval, unit: t(FREQ_UNIT_KEY[s.freq]) }) : t(FREQ_LABEL_KEY[s.freq]);
+    const every = s.interval > 1 ? t("cadenceEvery", { n: s.interval, unit: t(FREQ_UNIT_KEY[s.freq], { n: s.interval }) }) : t(FREQ_LABEL_KEY[s.freq]);
     const days = s.freq !== "DAILY" && s.weekdayMask ? " · " + isoDaysOfMask(s.weekdayMask).map((d) => weekdayLabels[d - 1]).join(", ") : "";
     return `${every}${days} · ${s.timeOfDay}`;
   }

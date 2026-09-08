@@ -1,5 +1,5 @@
 import { fromDatetimeLocal, toDatetimeLocal, toDateLocale } from "@/lib/utils";
-import { ALL_WEEKDAYS } from "@/lib/weekdays";
+import { ALL_WEEKDAYS, weekdayMaskOf, isoWeekdayOfDateKey } from "@/lib/weekdays";
 import { type RecurrenceFreq } from "@/lib/taskRecurrence";
 import type { RecurrenceInput } from "@/lib/taskService";
 
@@ -34,10 +34,12 @@ export function occurrenceFormatter(locale: string, tz: string): Intl.DateTimeFo
   return new Intl.DateTimeFormat(toDateLocale(locale), { timeZone: tz, weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-/** Vorbelegung: wöchentlich, alle Tage, 09:00, ab heute. `today` kommt server-gerechnet in der
- *  Sub-Zone herein (hydrations-sicher). */
+/** Vorbelegung: wöchentlich am STARTTAG (nicht an allen sieben — „wöchentlich auf allen Tagen" wäre in
+ *  Wahrheit täglich und widerspräche dem Reiter), 09:00, ab heute. `today` kommt server-gerechnet in
+ *  der Sub-Zone herein (hydrations-sicher). */
 export function initialRecurrence(today: string): RecurrenceValue {
-  return { freq: "WEEKLY", interval: "1", weekdayMask: ALL_WEEKDAYS, ordinal: 2, timeOfDay: "09:00", startsOn: today, until: "" };
+  const iso = isoWeekdayOfDateKey(today);
+  return { freq: "WEEKLY", interval: "1", weekdayMask: iso ? weekdayMaskOf([iso]) : ALL_WEEKDAYS, ordinal: 2, timeOfDay: "09:00", startsOn: today, until: "" };
 }
 
 /** Der Bearbeitungs-Zustand aus einer gespeicherten Serien-Zeile — die Umkehrung von

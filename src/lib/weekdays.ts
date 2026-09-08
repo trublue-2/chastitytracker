@@ -1,4 +1,4 @@
-import { mondayIndex } from "@/lib/utils";
+import { mondayIndex, mondayIndexOfLocalDate } from "@/lib/utils";
 
 /**
  * Wochentage als Bitmaske — der geteilte Baustein für „gilt an diesen Tagen".
@@ -43,6 +43,16 @@ export function weekdayMaskHas(mask: number, isoDay: number): boolean {
  *  Die Intl-Abfrage und ihr „unbekanntes Kürzel → Montag" stehen dort, an EINER Stelle. */
 export function isoWeekdayInTZ(at: Date, tz: string): number {
   return mondayIndex(at, tz) + 1;
+}
+
+/** Der ISO-Wochentag (1–7) eines Tagesschlüssels „YYYY-MM-DD" — der KALENDERTAG, nicht ein Zeitpunkt
+ *  in einer Zone (der 1.1.2026 ist überall ein Donnerstag), deshalb über `mondayIndexOfLocalDate`
+ *  statt `getUTCDay()` von Hand. `0` bei unbrauchbarem Schlüssel, damit der Aufrufer auf einen
+ *  Vorgabewert ausweichen kann. */
+export function isoWeekdayOfDateKey(dateKey: string): number {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  if (![y, m, d].every(Number.isFinite)) return 0;
+  return mondayIndexOfLocalDate(y, m - 1, d) + 1;
 }
 
 /**

@@ -26,7 +26,7 @@ export default function RecurrenceFields({ value, onChange, tz }: {
   const untilId = useId();
   const set = (patch: Partial<RecurrenceValue>) => onChange({ ...value, ...patch });
 
-  const intervalUnit = t(FREQ_UNIT_KEY[value.freq]);
+  const intervalUnit = t(FREQ_UNIT_KEY[value.freq], { n: Math.max(1, Math.round(Number(value.interval) || 1)) });
 
   return (
     <div className="flex flex-col gap-3">

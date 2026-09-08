@@ -17,8 +17,8 @@ import ScheduleFields, { initialSchedule, scheduleAnchorLive, scheduleAnchorMs, 
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
-import Toggle from "@/app/components/Toggle";
 import TimePreview from "@/app/components/TimePreview";
+import { busyDimCls } from "@/app/components/inputStyles";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import { useApiError } from "@/app/hooks/useApiError";
@@ -313,6 +313,42 @@ export default function TaskFields({
   const seriesAnchorMs = (n: number) => n;
   const seriesEndAt = (n: number) => new Date(n + (holdMinutes ?? 0) * 60_000);
 
+  const requirementPicker = (
+    <TaskRequirementPicker
+      label={t("requirementsLabel")}
+      hint={t("requirementsHint")}
+      kgLabel={t("requirementKgLocked")}
+      anyDeviceLabel={t("anyDevice")}
+      deviceLabel={t("deviceLabel")}
+      categories={categories}
+      value={requirements}
+      onChange={setRequirements}
+    />
+  );
+
+  const proofPicker = (
+    <TaskProofPicker
+      value={proofs}
+      onChange={setProofs}
+      orderMatters={proofOrderMatters}
+      onOrderMattersChange={setProofOrderMatters}
+      anchorMs={recurring ? seriesAnchorMs : anchorMs}
+      nowMs={nowMs}
+      endAt={recurring ? seriesEndAt : endAt}
+      tz={tz}
+    />
+  );
+
+  // Beim Einzelaufgaben-Ändern sind Bedingungen und Nachweise fest (siehe `mergeTaskPatch`): nicht
+  // ausblenden, sondern gedämpft und nicht bedienbar zeigen — sonst liest sich ihr Fehlen als „gibt
+  // es nicht" oder „beim Bearbeiten gelöscht". Leere Blöcke bleiben weg (dort ist nichts verborgen).
+  const readOnly = (node: React.ReactNode) => (
+    <div className="flex flex-col gap-1.5">
+      <div className={busyDimCls} aria-disabled inert>{node}</div>
+      <p className="text-xs text-foreground-faint">{t("editImmutableHint")}</p>
+    </div>
+  );
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <Input
@@ -333,42 +369,41 @@ export default function TaskFields({
         rows={3}
       />
 
-      {/* „Wiederkehrend" nur beim ANLEGEN: beim Ändern steht die Art fest. */}
+      {/* Einmalig oder wiederkehrend — nur beim ANLEGEN wählbar (beim Ändern steht die Art fest). Ein
+          Segmented-Control statt eines versteckten Schalters: er macht schon vor dem Umschalten
+          sichtbar, dass es Serien überhaupt gibt, und benennt den Moduswechsel als das, was er ist. */}
       {!edit && (
-        <Toggle
-          label={ts("recurringToggle")}
-          description={ts("recurringToggleHint")}
-          checked={recurring}
-          onChange={setRecurring}
-        />
+        <div className="flex flex-col gap-1.5">
+          <FieldTabs
+            label={ts("modeLabel")}
+            value={recurring ? "recurring" : "oneoff"}
+            options={[
+              { value: "oneoff", label: ts("modeOneOff") },
+              { value: "recurring", label: ts("modeRecurring") },
+            ]}
+            onChange={(v) => setRecurring(v === "recurring")}
+          />
+          {recurring && <p className="text-xs text-foreground-faint">{ts("recurringToggleHint")}</p>}
+        </div>
       )}
 
-      {/* Bedingungen: beim Einzelaufgaben-ÄNDERN nicht editierbar (Modus fest) — dort ausgeblendet. */}
-      {!isEditTask && (
-        <TaskRequirementPicker
-          label={t("requirementsLabel")}
-          hint={t("requirementsHint")}
-          kgLabel={t("requirementKgLocked")}
-          anyDeviceLabel={t("anyDevice")}
-          deviceLabel={t("deviceLabel")}
-          categories={categories}
-          value={requirements}
-          onChange={setRequirements}
-        />
-      )}
+      {/* Bedingungen: beim Einzelaufgaben-Ändern fest — gedämpft gezeigt (nur wenn vorhanden). */}
+      {isEditTask ? (hasRequirements && readOnly(requirementPicker)) : requirementPicker}
 
       {recurring ? (
         /* ── Wiederkehrend: relative Frist + Regel + Agenda ── */
         <div className="flex flex-col gap-3">
+          {isEditSeries && <p className="text-xs text-foreground-faint">{ts("editSeriesReplaceHint")}</p>}
           <FieldTabs
             label={ts("holdModeLabel")}
             value={effectiveSeriesHoldMode}
             options={[
               { value: "window" as const, label: ts("holdModeWindow") },
-              ...(hasRequirements ? [{ value: "duration" as const, label: ts("holdModeDuration") }] : []),
+              { value: "duration" as const, label: ts("holdModeDuration"), disabled: !hasRequirements },
             ]}
             onChange={setSeriesHoldMode}
           />
+          {!hasRequirements && <p className="text-xs text-foreground-faint">{ts("holdModeNeedsRequirement")}</p>}
           <DurationInput
             label={ts(effectiveSeriesHoldMode === "duration" ? "holdDurationField" : "holdWindowField")}
             ariaLabel={ts(effectiveSeriesHoldMode === "duration" ? "holdDurationField" : "holdWindowField")}
@@ -398,12 +433,15 @@ export default function TaskFields({
         /* ── Einzelaufgabe: Frist-Block wie bisher. Beim Ändern ohne Umschalter/Kulanz (Modus fest). ── */
         <div className="flex flex-col gap-3">
           {!isEditTask && (
-            <FieldTabs
-              label={t("holdModeLabel")}
-              value={effectiveMode}
-              options={HOLD_MODES.filter((m) => m.value !== "fromStart" || hasRequirements).map((m) => ({ value: m.value, label: t(m.labelKey) }))}
-              onChange={switchMode}
-            />
+            <>
+              <FieldTabs
+                label={t("holdModeLabel")}
+                value={effectiveMode}
+                options={HOLD_MODES.map((m) => ({ value: m.value, label: t(m.labelKey), disabled: m.value === "fromStart" && !hasRequirements }))}
+                onChange={switchMode}
+              />
+              {!hasRequirements && <p className="text-xs text-foreground-faint">{t("holdModeNeedsRequirement")}</p>}
+            </>
           )}
 
           {effectiveMode !== "datetime" ? (
@@ -500,42 +538,35 @@ export default function TaskFields({
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        <Checkbox
-          label={t("isPunishmentLabel")}
-          checked={isPunishment}
-          onChange={(e) => setIsPunishment(e.target.checked)}
-          disabled={!!offenseRef}
-        />
-        {isPunishment && (
-          <Input
-            label={t("penaltyReasonFieldLabel")}
-            value={penaltyReason}
-            onChange={(e) => setPenaltyReason(e.target.value)}
-            placeholder={t("penaltyReasonPlaceholder")}
-            maxLength={TASK_TITLE_MAX_LENGTH}
+      {/* „Als Strafe" nur bei Einzelaufgaben — eine Serie kennt keinen Strafanlass (submitSeries würde
+          das Feld ohnehin nicht senden), der Haken wäre dort ein wirkungsloses Bedienelement. */}
+      {!recurring && (
+        <div className="flex flex-col gap-2">
+          <Checkbox
+            label={t("isPunishmentLabel")}
+            checked={isPunishment}
+            onChange={(e) => setIsPunishment(e.target.checked)}
+            disabled={!!offenseRef}
           />
-        )}
-      </div>
+          {isPunishment && (
+            <Input
+              label={t("penaltyReasonFieldLabel")}
+              value={penaltyReason}
+              onChange={(e) => setPenaltyReason(e.target.value)}
+              placeholder={t("penaltyReasonPlaceholder")}
+              maxLength={TASK_TITLE_MAX_LENGTH}
+            />
+          )}
+        </div>
+      )}
 
       {/* Terminierung nur beim ANLEGEN einer Einzelaufgabe (Serie hat ihre Regel; Ändern lässt sie). */}
       {!recurring && !edit && (
         <ScheduleFields value={schedule} onChange={setSchedule} minNow={minNow} delayHint={t("scheduleDelayHint")} atHint={t("scheduleAtHint")} />
       )}
 
-      {/* Nachweise: beim Einzelaufgaben-Ändern nicht editierbar — ausgeblendet. */}
-      {!isEditTask && (
-        <TaskProofPicker
-          value={proofs}
-          onChange={setProofs}
-          orderMatters={proofOrderMatters}
-          onOrderMattersChange={setProofOrderMatters}
-          anchorMs={recurring ? seriesAnchorMs : anchorMs}
-          nowMs={nowMs}
-          endAt={recurring ? seriesEndAt : endAt}
-          tz={tz}
-        />
-      )}
+      {/* Nachweise: beim Einzelaufgaben-Ändern fest — gedämpft gezeigt (nur wenn vorhanden). */}
+      {isEditTask ? (proofs.length > 0 && readOnly(proofPicker)) : proofPicker}
 
       <FormError message={error} variant="compact" />
 
