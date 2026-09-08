@@ -6,6 +6,13 @@
       {
         "type": "feat",
         "text": {
+          "de": "Aufgaben lassen sich jetzt als Serie stellen — z. B. jeden Montag und Donnerstag, jeden 2. Tag oder am zweiten Montag im Monat. Die Keyholderin legt Rhythmus, Uhrzeit und Bedingungen fest; zu jedem Termin entsteht daraus eine gewöhnliche Aufgabe.",
+          "en": "Tasks can now be set as a recurring series — e.g. every Monday and Thursday, every other day, or the second Monday of the month. The keyholder sets the rhythm, time and conditions; each occurrence turns into an ordinary task."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
           "de": "Einträge und Gewichtsmessungen lassen sich jetzt auch ohne Netz erfassen — samt Foto, etwa bei einer Prüfung: Sie werden gespeichert und automatisch gesendet, sobald wieder Verbindung besteht — mit der Zeit der Erfassung und einem kleinen Hinweis „offline erfasst“.",
           "en": "Entries and weigh-ins can now be recorded without a connection — including the photo, e.g. for an inspection: they are saved and sent automatically once you are back online — keeping the time you recorded them and a small “captured offline” note."
         }

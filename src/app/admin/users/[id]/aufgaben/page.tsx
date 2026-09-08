@@ -8,6 +8,8 @@ import Button from "@/app/components/Button";
 import EmptyState from "@/app/components/EmptyState";
 import SettingsSection from "@/app/components/SettingsSection";
 import AdminTaskListClient from "@/app/admin/tasks/AdminTaskListClient";
+import TaskSeriesListClient, { type TaskSeriesUi } from "@/app/admin/tasks/TaskSeriesListClient";
+import { listTaskSeries } from "@/lib/taskService";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
 import { loadTaskProofViews } from "@/lib/taskIntervals";
@@ -22,7 +24,7 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
   const { id } = await params;
   const session = await auth();
   await assertKeyholderOrAdmin(id);
-  const [t, ta] = await Promise.all([getTranslations("tasks"), getTranslations("admin")]);
+  const [t, ta, ts] = await Promise.all([getTranslations("tasks"), getTranslations("admin"), getTranslations("taskSeries")]);
 
   const user = await prisma.user.findUnique({ where: { id }, select: { timezone: true } });
   if (!user) return <div className="p-8 text-foreground-faint">{ta("userNotFound")}</div>;
@@ -61,8 +63,26 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
   // beides funktioniert mit leerer Kategorienliste. Ein Gate hätte hier nur weggesperrt, was geht.
   const newHref = taskFormHref(id);
 
+  // Wiederkehrende Aufgaben (#26): eigene Serien-Vorlagen samt Termin-Vorschau, über der Historie.
+  const subTz = user.timezone ?? APP_TZ;
+  const seriesUi: TaskSeriesUi[] = (await listTaskSeries(id, now)).map(({ series: s, upcoming }) => ({
+    id: s.id,
+    title: s.title,
+    freq: s.freq as TaskSeriesUi["freq"],
+    interval: s.interval,
+    weekdayMask: s.weekdayMask,
+    ordinal: s.ordinal,
+    timeOfDay: s.timeOfDay,
+    requirementCount: s.requirements.length,
+    upcoming: upcoming.map((d) => d.toISOString()),
+  }));
+
   return (
     <>
+      <SettingsSection title={ts("seriesSectionTitle")} bodyPadded>
+        <TaskSeriesListClient userId={id} series={seriesUi} tz={subTz} />
+      </SettingsSection>
+
       {/* Kein eigener Seitentitel und kein eigener Breiten-Wrapper: den Namen trägt der aktive Reiter,
           die Spaltenbreite und der Abstand kommen aus `admin/users/[id]/layout.tsx`. */}
       {/* Im Leer-Zustand trägt der Ruf-zur-Tat im EmptyState — zwei gleiche Knöpfe auf einem

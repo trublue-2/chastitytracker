@@ -179,6 +179,11 @@ export const DURATION_ASSEMBLY_EXCEPTIONS: readonly DisplayFormatException[] = [
     reason: "EXIF-Zeitstempel nach ISO — das „T\" ist der Datums-Trenner, keine Tages-Einheit.",
   },
   {
+    file: "src/app/admin/tasks/RecurrenceFields.tsx",
+    contains: "fromDatetimeLocal(",
+    reason: "Ein Tages-Datum + fester Uhrzeit („T12:00\"/„T23:59\") nach ISO — das „T\" ist der Datums-Trenner, keine Tages-Einheit; hier entsteht keine Dauer.",
+  },
+  {
     file: "src/lib/serverLog.ts",
     contains: "s.replace(",
     reason: "Log-Kürzung `<5d>`: „d\" steht für Ziffern (digits), nicht für Tage.",

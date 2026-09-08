@@ -80,6 +80,7 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
 /** Routen, die keine Fähigkeit im Sinne dieses Katalogs sind — mit Grund. */
 export const FM_EXCLUDED_ROUTES: Record<string, string> = {
   "/api/auth/[...nextauth]": "Der NextAuth-Handler selbst; die Fähigkeit dahinter ist die Anmeldung.",
+  "/api/admin/task-series/preview": "Reine Termin-Vorschau des Serien-Formulars — keine eigene Fähigkeit, sondern die Live-Agenda zu `task-series-create`.",
 };
 
 const c = (x: FmCapability): FmCapability => x;
@@ -307,14 +308,16 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "task-series-create", mechanic: "Aufgaben", title: "Wiederkehrende Aufgabe stellen",
     what: "Eine Aufgaben-Vorlage samt Wiederhol-Regel (täglich/wöchentlich/monatlich, Intervall, Wochentage, n-ter/letzter Wochentag, bis-Datum, Ausnahmetage); der Poller erzeugt daraus je Termin eine normale Aufgabe.",
-    actors: ["mcp"], surfaces: ["mcp"], tools: ["create_task_series"],
-    note: "Bedingungen und Nachweise wie bei der Einzelaufgabe, aber je Termin. Die Keyholder-Oberfläche dazu folgt separat.",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/task-series"], tools: ["create_task_series"],
+    note: "Bedingungen wie bei der Einzelaufgabe, aber je Termin. Nachweise stellt bisher nur der MCP-Weg.",
   }),
   c({
     id: "task-series-edit", mechanic: "Aufgaben", title: "Wiederkehrende Aufgabe ändern oder zurückziehen",
     what: "Ersetzt die vollständige Vorlage (Regel + Bedingungen + Nachweise) für KÜNFTIGE Termine, oder zieht die Serie zurück.",
-    actors: ["mcp"], surfaces: ["mcp"], tools: ["edit_task_series", "withdraw_task_series"],
-    note: "Bereits erzeugte Aufgaben bleiben unberührt; nur künftige Termine folgen der Änderung.",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
+    routes: ["/api/admin/task-series/[id]"], tools: ["edit_task_series", "withdraw_task_series"],
+    note: "Bereits erzeugte Aufgaben bleiben unberührt; nur künftige Termine folgen der Änderung. Das Ändern gibt es bisher nur über den MCP, das Zurückziehen auch in der Oberfläche.",
   }),
   c({
     id: "task-selfreport", mechanic: "Aufgaben", title: "Aufgabe als erledigt melden",
