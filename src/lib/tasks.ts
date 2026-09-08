@@ -565,6 +565,25 @@ export function proofResubmittable(p: { submitted: boolean; requiresPhoto: boole
 }
 
 /**
+ * Wartet dieser Nachweis auf ein URTEIL — eingereicht, aber noch nicht entschieden?
+ *
+ * Damit pollt der Heartbeat dichter, solange der Träger auf die Reaktion wartet (siehe
+ * `heartbeat/route.ts`). „Noch nicht entschieden" heisst: keine Sichtung (`reviewAccepted === null`)
+ * UND nicht schon maschinell fertig — ein per Code bestätigter Nachweis OHNE Text-Pflicht ist erledigt
+ * (dieselbe `settled`-Regel wie in {@link evaluateProofs}: Code ohne Text schliesst allein ab, mit
+ * Text muss ein Mensch lesen). Eine laufende oder fehlgeschlagene Code-Prüfung (`verifikationStatus
+ * === null`) wartet dagegen weiter — auf das Ergebnis bzw. die Sichtung. Ein ABGELEHNTER Nachweis
+ * wartet nicht auf ein Urteil, sondern auf das Nachbessern des Trägers, und zählt hier nicht.
+ */
+export function proofAwaitingVerdict(
+  p: Pick<ProofLike, "submittedAt" | "reviewAccepted" | "requireCode" | "verifikationStatus" | "requiresText">,
+): boolean {
+  if (p.submittedAt === null || p.reviewAccepted !== null) return false;
+  const codeConfirmed = p.requireCode && p.verifikationStatus !== null;
+  return !(codeConfirmed && !p.requiresText);
+}
+
+/**
  * Ist dieser Nachweis NACH seiner Frist eingegangen? — die halbe Frage aus {@link proofCounted},
  * ohne das Urteil der Keyholderin.
  *

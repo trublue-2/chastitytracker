@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   evaluateProofs, evaluateTask, firstOutOfOrderProof, isTaskOffense, isTaskOpen, isTaskResultFinal,
-  needsKeyholderReview, proofDeadline, type ProofLike, type TaskLike,
+  needsKeyholderReview, proofAwaitingVerdict, proofDeadline, type ProofLike, type TaskLike,
 } from "./tasks";
 
 /**
@@ -1112,5 +1112,22 @@ describe("Zustands-Prädikate für die Sichtung", () => {
     for (const s of ["pending", "partial", "running", "done", "missed", "aborted", "withdrawn"] as const) {
       expect(needsKeyholderReview(s), s).toBe(false);
     }
+  });
+});
+
+describe("proofAwaitingVerdict — steuert den dichten Heartbeat-Takt", () => {
+  const base = { submittedAt: d("2026-07-25T13:00:00Z"), reviewAccepted: null, requireCode: false, verifikationStatus: null, requiresText: false };
+
+  it("eingereicht und noch nicht beurteilt: wartet", () => {
+    expect(proofAwaitingVerdict(base)).toBe(true); // reiner Text/Foto ohne Code → Sichtung nötig
+    expect(proofAwaitingVerdict({ ...base, requireCode: true, verifikationStatus: null })).toBe(true); // Code läuft/fehlgeschlagen
+    expect(proofAwaitingVerdict({ ...base, requireCode: true, verifikationStatus: "ai", requiresText: true })).toBe(true); // Code ok, aber Text braucht Mensch
+  });
+
+  it("erledigt oder nicht eingereicht oder abgelehnt: wartet NICHT", () => {
+    expect(proofAwaitingVerdict({ ...base, submittedAt: null })).toBe(false); // nichts eingereicht
+    expect(proofAwaitingVerdict({ ...base, reviewAccepted: true })).toBe(false); // angenommen
+    expect(proofAwaitingVerdict({ ...base, reviewAccepted: false })).toBe(false); // abgelehnt → Träger bessert nach
+    expect(proofAwaitingVerdict({ ...base, requireCode: true, verifikationStatus: "ai" })).toBe(false); // Code bestätigt, kein Text
   });
 });

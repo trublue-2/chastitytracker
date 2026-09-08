@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDashboardTasks, evaluateTasks } from "@/lib/taskIntervals";
+import { isTaskResultFinal, proofAwaitingVerdict } from "@/lib/tasks";
 import { getIsLocked, getActiveLockPeriod, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { visionConfigured } from "@/lib/vision";
@@ -22,7 +23,10 @@ const SETTLING_WINDOW_MS = 10 * 60_000;
  *                    Schlüssel-Erkennungen (Box-Foto ohne `keyDetected`) — sobald eine davon
  *                    abgeschlossen ist, ändert sich die Signatur und der Client aktualisiert
  *                    automatisch, ohne manuellen Reload.
- *  - settling      → läuft gerade eine dieser Erkennungen? Dann pollt der Client dichter.
+ *  - settling      → läuft gerade eine dieser Erkennungen ODER wartet ein Nachweis auf ein Urteil
+ *                    (eingereicht, aber weder gesichtet noch per Code bestätigt)? Dann pollt der
+ *                    Client dichter, damit die Reaktion der Keyholderin ohne spürbare Verzögerung
+ *                    erscheint.
  * Nur leichte Werte/IDs; ohne Session bleiben die per-User-Felder leer (Version funktioniert auch
  * ausgeloggt).
  */
@@ -84,8 +88,22 @@ export async function GET() {
   // Haltefrist bleibt `state` auf „läuft", allein die Selbstmeldung wird möglich. Ohne dieses Zeichen
   // sähe die Signatur den Übergang nicht, und der Melde-Knopf erschiene erst beim nächsten
   // Seitenaufbau — für eine Aufgabe, die längst fertig gehalten ist.
-  const taskSig = (await evaluateTasks(userId, openTasks, now))
-    .map((e) => `${e.task.id}:${e.evaluation.state}:${e.evaluation.holdRunning}`)
+  const evaluated = await evaluateTasks(userId, openTasks, now);
+
+  // Der ABGELEITETE Zustand allein reicht seit „Ablehnung = nachbessern bis Frist" (08.09.2026) nicht
+  // mehr: eine Ablehnung lässt die Aufgabe `running`, und bei mehreren Nachweisen ändert die Sichtung
+  // EINES Nachweises den Gesamtzustand ohnehin nicht. Ohne die Nachweis-Ebene in der Signatur
+  // aktualisierte die Sub-Oberfläche nach einem Urteil der Keyholderin gar nicht (nur bei Fokus). Je
+  // Nachweis zählt daher `reviewAccepted` (angenommen/abgelehnt/offen), `verifikationStatus`
+  // (Code-Prüfung fertig) und ob überhaupt eingereicht ist — jede dieser Änderungen ist ein Ereignis,
+  // das der Träger sehen muss.
+  const taskSig = evaluated
+    .map((e) => {
+      const proofs = e.task.proofs
+        .map((p) => `${p.id}=${p.reviewAccepted}/${p.verifikationStatus ?? ""}/${p.submittedAt ? 1 : 0}`)
+        .join(";");
+      return `${e.task.id}:${e.evaluation.state}:${e.evaluation.holdRunning}:${proofs}`;
+    })
     .sort()
     .join(",");
 
@@ -120,5 +138,18 @@ export async function GET() {
   const settling = [...pendingVerifications, ...pendingKeyChecks]
     .some((e) => e.createdAt.getTime() >= settlingSince);
 
-  return NextResponse.json({ buildDate, sessionUserId: userId, pendingSig, settling }, { headers: { "Cache-Control": "no-store" } });
+  // Dichter pollen, solange ein Nachweis auf ein URTEIL wartet ({@link proofAwaitingVerdict}) — das
+  // Fenster, in dem der Träger auf die Reaktion der Keyholderin schaut; ohne den dichten Takt stünde
+  // er bis zu 30 s vor dem alten Stand, obwohl die Benachrichtigung längst da ist.
+  //
+  // GEBUNDEN an eine NICHT abgeschlossene Aufgabe — die Entsprechung zum Zeitfenster des `settling`
+  // oben: sichtet die Keyholderin nie und die Frist läuft ab, wird die Aufgabe `missed` (final), und
+  // ein weiter „wartender" Nachweis darf dann keinen 3-s-Takt mehr auslösen. Solange die Aufgabe offen
+  // ist, kommt das Urteil noch — anders als eine hängende KI-Erkennung, auf die man vergeblich wartet.
+  // (Ein Hintergrund-Tab pollt ohnehin nicht, `tick` überspringt `check` bei `document.hidden`.)
+  const awaitingVerdict = evaluated.some((e) =>
+    !isTaskResultFinal(e.evaluation.state) && e.task.proofs.some(proofAwaitingVerdict),
+  );
+
+  return NextResponse.json({ buildDate, sessionUserId: userId, pendingSig, settling: settling || awaitingVerdict }, { headers: { "Cache-Control": "no-store" } });
 }
