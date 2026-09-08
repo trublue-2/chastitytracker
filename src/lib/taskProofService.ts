@@ -7,7 +7,7 @@ import { notifyUser } from "@/lib/notify";
 import { getControllerAudience } from "@/lib/keyholder";
 import { notifyLateProof } from "@/lib/taskProofNotify";
 import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
-import { isTaskResultFinal } from "@/lib/tasks";
+import { isTaskResultFinal, proofResubmittable } from "@/lib/tasks";
 import { settleIfFinal, settleIfNowDone } from "@/lib/taskService";
 import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
 import type { MessageActor } from "@/lib/messageService";
@@ -117,6 +117,10 @@ export async function submitTaskProof(
     // die Nullpunkt-Felder der Aufgabe (`createdAt`/`wirksamAb`) und ihr Titel ebenso.
     select: {
       id: true, code: true, submittedAt: true, dueOffsetMin: true, lateNotifiedAt: true,
+      // `reviewAccepted` entscheidet mit über die Einreiche-Schranke: ein abgelehnter Nachweis darf neu
+      // eingereicht, ein angenommener nie, ein Foto in Sichtung nicht (one-shot) — siehe
+      // {@link proofSubmitBlockedReason}.
+      reviewAccepted: true,
       // Was der Nachweis überhaupt fordert — entscheidet, welche Einreichung Pflicht ist.
       requiresPhoto: true, requiresText: true,
       // `holdDurationMin` gehört zur Schranke: es entscheidet, ob `holdUntil` das Ende IST oder nur
@@ -148,10 +152,33 @@ export async function submitTaskProof(
   const proofText = proof.requiresText ? p.proofText!.trim() : null;
 
   // Zustand in der Where-Klausel: reicht der Sub parallel zweimal ein (Doppel-Tap, Offline-Replay),
-  // trifft der zweite Aufruf null Zeilen statt den ersten zu überschreiben.
+  // trifft der zweite Aufruf null Zeilen statt den ersten zu überschreiben. Drei zulässige Vor-Zustände
+  // (die Schranke oben hat sie bereits durchgesetzt, hier ist es der Renn-Schutz): Erst-Einreichung,
+  // abgelehnt (neuer Versuch), oder Text in Sichtung (bearbeitbar). Ein abgelehntes Foto wird beim
+  // ersten Neu-Upload zu `reviewAccepted: null` und fällt damit aus dem Filter — der zweite Tap
+  // trifft nichts.
   const res = await prisma.taskProof.updateMany({
-    where: { id: proofId, submittedAt: null },
-    data: { imageUrl, imageExifTime, proofText, submittedAt: now },
+    where: {
+      id: proofId,
+      OR: [
+        { submittedAt: null }, // Erst-Einreichung
+        { reviewAccepted: false }, // abgelehnt → neuer Versuch
+        { requiresPhoto: false, reviewAccepted: null }, // Text in Sichtung → bearbeitbar (Erst-Fall deckt bereits Zeile 1)
+      ],
+    },
+    // (Wieder-)Einreichen setzt die Sichtung und die Code-Prüfung ZURÜCK: die frische Einreichung wird
+    // neu beurteilt. Bei einer Erst-Einreichung sind diese Felder ohnehin null (kein Effekt).
+    //
+    // `lateNotifiedAt` bleibt bewusst STEHEN: die Verspätungs-Meldung ist „genau einmal je Nachweis"
+    // (siehe `notifyLateProof`), und `notifyLateProof` dedupliziert über den in `proof` geladenen
+    // Wert. Es zurückzusetzen erzeugte einen Widerspruch (Spalte null, Speicher gesetzt) und bräche die
+    // Einmal-Zusage. War der Nachweis vorher NICHT verspätet (Stempel null), meldet ein verspäteter
+    // Neu-Upload trotzdem — dann ist der Stempel eben noch leer.
+    data: {
+      imageUrl, imageExifTime, proofText, submittedAt: now,
+      reviewedAt: null, reviewAccepted: null, reviewNote: null,
+      verifikationStatus: null, verifikationReason: null, verifikationReasonDetected: null,
+    },
   });
   if (res.count === 0) return serviceFail(400, "TASK_PROOF_ALREADY_SUBMITTED");
 
@@ -221,6 +248,8 @@ async function taskAcceptsProof(
 export async function proofSubmitBlocked(
   proof: {
     submittedAt: Date | null;
+    requiresPhoto: boolean;
+    reviewAccepted: boolean | null;
     task: { id: string; withdrawnAt: Date | null; holdUntil: Date; holdDurationMin: number | null };
   },
   userId: string,
@@ -230,29 +259,22 @@ export async function proofSubmitBlocked(
 }
 
 /** Die Regel selbst — ohne Datenbank, damit sie für sich prüfbar bleibt. Die Rangfolge ist Teil der
- *  Aussage: ein zurückgezogener oder längst eingereichter Nachweis bekommt SEINEN Grund genannt,
- *  nicht den der Frist. */
+ *  Aussage: ein zurückgezogener oder erledigter Nachweis bekommt SEINEN Grund genannt, nicht den der
+ *  Frist. */
 export function proofSubmitBlockedReason(
-  proof: { submittedAt: Date | null; task: { withdrawnAt: Date | null } },
+  proof: { submittedAt: Date | null; requiresPhoto: boolean; reviewAccepted: boolean | null; task: { withdrawnAt: Date | null } },
   /** Nimmt die Aufgabe überhaupt noch etwas an? ({@link taskAcceptsProof}) */
   taskAccepts: boolean,
 ): "TASK_NOT_EDITABLE" | "TASK_PROOF_ALREADY_SUBMITTED" | "TASK_PROOF_TOO_LATE" | null {
   if (proof.task.withdrawnAt) return "TASK_NOT_EDITABLE";
-  // Einmal eingereicht ist eingereicht. Ohne diese Schranke liesse sich ein beanstandetes oder
-  // zeitlich unpassendes Foto beliebig oft durch ein besseres ersetzen — die Reihenfolge-Prüfung
-  // wäre damit wertlos, weil man sie nachträglich zurechtlegen könnte.
-  if (proof.submittedAt) return "TASK_PROOF_ALREADY_SUBMITTED";
-  // DIE EIGENE FRIST DES NACHWEISES STEHT HIER NICHT MEHR (Produkt-Entscheidung 16.08.2026).
-  //
-  // Sie tat es, mit der Begründung, eine klare Absage im Moment des Absendens sei ehrlicher als ein
-  // Erfolgserlebnis, das keins ist: `evaluateProofs` zählte einen späten Nachweis ohnehin nicht.
-  // Diese Begründung hat sich überholt, seit die späte ANNAHME die Aufgabe rettet — der späte Upload
-  // ist jetzt genau das, was er vorher nicht war: nicht folgenlos. Die Absage traf damit eine
-  // Entscheidung, die der Keyholderin gehört, und zwar so früh, dass sie das Foto nie zu sehen bekam.
-  // Der Träger bekommt den Weg zurück, ehrlich beschriftet (die Karte sagt „verspätet — dein
-  // Keyholder entscheidet"), und der Nachweis geht wie jeder andere in die Sichtung.
-  //
-  // Was bleibt, ist das ENDE der Aufgabe — und zwar das WIRKSAME, nicht die Spalte.
+  // Die Foto-vs-Text-/Ablehnungs-Regel steht an EINEM Ort ({@link proofResubmittable}); hier nur der
+  // Rahmen (Rückzug, Frist).
+  if (proof.submittedAt && !proofResubmittable({ submitted: true, requiresPhoto: proof.requiresPhoto, reviewAccepted: proof.reviewAccepted })) {
+    return "TASK_PROOF_ALREADY_SUBMITTED";
+  }
+  // DIE EIGENE FRIST DES NACHWEISES STEHT HIER NICHT (Produkt-Entscheidung 16.08.2026): der Träger
+  // darf nach ihr noch einreichen, die Keyholderin entscheidet (die Karte sagt „verspätet"). Die
+  // harte Grenze ist das WIRKSAME ENDE der Aufgabe — danach nimmt sie nichts mehr an.
   if (!taskAccepts) return "TASK_PROOF_TOO_LATE";
   return null;
 }
@@ -358,10 +380,12 @@ async function notifyProofReviewed(taskId: string, userId: string, title: string
      * muss weg.
      *
      * `resultNotifiedAt` ist das EINWEG-TOR des Pollers: er wählt über `resultNotifiedAt: null`
-     * (`taskService.ts`), eine gestempelte Zeile sieht er nie wieder. Solange nur die Frist ein
-     * Ergebnis erzeugte, konnte der Stempel nicht vor ihr entstehen. Seit eine Ablehnung die Aufgabe
-     * schon MITTEN in der Haltefrist entscheidet, ist der Weg zurück ein Normalfall: abgelehnt um
-     * 14:00 (gemeldet UND gestempelt), Urteil um 15:00 korrigiert, Haltefrist läuft bis 22:00.
+     * (`taskService.ts`), eine gestempelte Zeile sieht er nie wieder. Der Weg zurück ist ein
+     * Normalfall, seit eine Annahme eine bereits versäumte Aufgabe rettet: nach Fristablauf abgelehnt
+     * (Aufgabe `missed`, Ergebnis gemeldet UND gestempelt), die Keyholderin nimmt später doch an — die
+     * Aufgabe ist wieder erfüllbar, der überholte Stempel muss weg. (Eine Ablehnung MITTEN in der
+     * Frist erzeugt seit dem 08.09.2026 gar kein Ergebnis mehr: die Aufgabe bleibt offen zum
+     * Nachbessern, `settleIfFinal` liefert dann `notFinal`.)
      *
      * Ohne das Zurücksetzen bliebe die Aufgabe dem Poller für immer verborgen — der Träger bekäme
      * sein Ergebnis nie, und eine Strafaufgabe schlösse ihre Strafe nicht ab (`settleTaskResult`

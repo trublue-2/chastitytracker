@@ -95,6 +95,11 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
       // Fristablaufs auf der Karte überfällig und hier ruhig — dieselbe Sekunde, zwei Auskünfte.
       late={dueAt !== null && now >= dueAt}
       tz={session.user.timezone ?? APP_TZ}
+      // Nachbessern nach Ablehnung: bisherigen Text vorbefüllen (ergänzen statt leer beginnen) und die
+      // Begründung mitgeben. `reviewAccepted === false` ist genau der abgelehnte Zustand — bei einer
+      // Erst-Einreichung sind beide leer/undefined.
+      initialText={proof.proofText ?? undefined}
+      rejectionNote={proof.reviewAccepted === false ? (proof.reviewNote ?? "") : undefined}
       mobileDesktopMode={mobileDesktopMode}
     />
     </EntryActionFormShell>

@@ -71,6 +71,9 @@ const proofRow = (over: Record<string, unknown> = {}) => ({
   requiresText: false,
   code: null,
   submittedAt: null,
+  // Wie in der DB: ungesichtet ist `null` (nicht undefined) — die Einreiche-Schranke unterscheidet
+  // `null` (in Sichtung) von `false` (abgelehnt, neuer Versuch erlaubt).
+  reviewAccepted: null,
   dueOffsetMin: null,
   lateNotifiedAt: null,
   task: TASK,
@@ -101,14 +104,27 @@ describe("submitTaskProof — Schranken", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  /** Sonst liesse sich ein ungünstiges Foto beliebig oft durch ein besseres ersetzen — und die
-   *  Reihenfolge nachträglich zurechtlegen. */
-  it("ein bereits eingereichter Nachweis lässt sich nicht überschreiben", async () => {
+  /** Ein eingereichtes FOTO in Sichtung (reviewAccepted null) ist one-shot: sonst liesse sich ein
+   *  ungünstiges Bild beliebig oft ersetzen und die Reihenfolge nachträglich zurechtlegen. Erst eine
+   *  Ablehnung öffnet einen neuen Versuch (eigener Test unten). */
+  it("ein Foto in Sichtung lässt sich nicht überschreiben", async () => {
     find.mockResolvedValue(proofRow({ submittedAt: new Date("2026-07-25T13:00:00Z") }));
     const res = await submitTaskProof("p1", "u1", PAYLOAD);
     if (res.ok) throw new Error("erwartet: Fehler");
     expect(res.error).toBe("TASK_PROOF_ALREADY_SUBMITTED");
     expect(update).not.toHaveBeenCalled();
+  });
+
+  /** Nach einer ABLEHNUNG darf neu eingereicht werden — und die Einreichung setzt die Sichtung samt
+   *  Prüf-Ergebnis zurück, damit die frische Fassung neu beurteilt wird (Produkt-Entscheidung
+   *  08.09.2026). */
+  it("ein abgelehntes Foto lässt sich neu einreichen und setzt die Sichtung zurück", async () => {
+    find.mockResolvedValue(proofRow({ submittedAt: new Date("2026-07-25T13:00:00Z"), reviewAccepted: false, verifikationStatus: "ai" }));
+    const res = await submitTaskProof("p1", "u1", PAYLOAD);
+    expect(res.ok).toBe(true);
+    expect(written().reviewAccepted).toBeNull();
+    expect(written().reviewedAt).toBeNull();
+    expect(written().verifikationStatus).toBeNull();
   });
 
   it("nach Ablauf der Frist wird gar nicht erst angenommen", async () => {
@@ -231,32 +247,52 @@ describe("submitTaskProof — die Prüfung blockiert das Einreichen NICHT", () =
     find.mockResolvedValue(proofRow({ requireCode: true, code: "12345" }));
     verify.mockReturnValue(new Promise(() => {}));
     await submitTaskProof("p1", "u1", PAYLOAD);
-    // Bis das Ergebnis da ist, sieht `evaluateProofs` einen Nachweis ohne Bestätigung → Sichtung.
-    expect(written()).not.toHaveProperty("verifikationStatus");
+    // Die Einreichung setzt das Prüf-Ergebnis auf `null` (frische Fassung wird neu geprüft); bis das
+    // Ergebnis da ist, sieht `evaluateProofs` einen Nachweis ohne Bestätigung → Sichtung.
+    expect(written().verifikationStatus).toBeNull();
   });
 });
 
 describe("proofSubmitBlockedReason — die Regel hinter Seite und Dienst", () => {
-  const open = { submittedAt: null, task: { withdrawnAt: null } };
+  // Foto, noch nicht eingereicht, ungesichtet.
+  const open = { submittedAt: null, requiresPhoto: true, reviewAccepted: null, task: { withdrawnAt: null } };
 
   it("offen und die Aufgabe nimmt an: nichts steht im Weg", () => {
     expect(proofSubmitBlockedReason(open, true)).toBeNull();
   });
 
   it("nennt jeden Hinderungsgrund beim Namen", () => {
+    // Foto in Sichtung ist one-shot; angenommen ist eingefroren.
     expect(proofSubmitBlockedReason({ ...open, submittedAt: NOW }, true)).toBe("TASK_PROOF_ALREADY_SUBMITTED");
+    expect(proofSubmitBlockedReason({ ...open, submittedAt: NOW, reviewAccepted: true }, true)).toBe("TASK_PROOF_ALREADY_SUBMITTED");
     expect(proofSubmitBlockedReason({ ...open, task: { withdrawnAt: NOW } }, true)).toBe("TASK_NOT_EDITABLE");
     expect(proofSubmitBlockedReason(open, false)).toBe("TASK_PROOF_TOO_LATE");
   });
 
   /**
-   * Die RANGFOLGE ist Teil der Aussage: ein zurückgezogener oder längst eingereichter Nachweis
-   * bekommt seinen eigenen Grund genannt, nicht den der Frist. Sonst läse der Träger „zu spät" über
-   * einer Aufgabe, die es gar nicht mehr gibt.
+   * NACHBESSERN NACH ABLEHNUNG (Produkt-Entscheidung 08.09.2026): ein abgelehntes Foto darf neu
+   * aufgenommen werden, ein Text ist bis zum Urteil frei bearbeitbar. Nur eine ANGENOMMENE Einreichung
+   * und ein Foto in Sichtung bleiben gesperrt.
    */
-  it("Rückzug und Einreichung schlagen die Frist", () => {
+  it("Ablehnung öffnet einen neuen Versuch, Text bleibt bearbeitbar", () => {
+    // Foto: abgelehnt → neuer Versuch erlaubt; in Sichtung → gesperrt (one-shot).
+    expect(proofSubmitBlockedReason({ ...open, submittedAt: NOW, reviewAccepted: false }, true)).toBeNull();
+    expect(proofSubmitBlockedReason({ ...open, submittedAt: NOW, reviewAccepted: null }, true)).toBe("TASK_PROOF_ALREADY_SUBMITTED");
+    // Text: in Sichtung UND nach Ablehnung bearbeitbar; angenommen eingefroren.
+    const text = { ...open, requiresPhoto: false };
+    expect(proofSubmitBlockedReason({ ...text, submittedAt: NOW, reviewAccepted: null }, true)).toBeNull();
+    expect(proofSubmitBlockedReason({ ...text, submittedAt: NOW, reviewAccepted: false }, true)).toBeNull();
+    expect(proofSubmitBlockedReason({ ...text, submittedAt: NOW, reviewAccepted: true }, true)).toBe("TASK_PROOF_ALREADY_SUBMITTED");
+  });
+
+  /**
+   * Die RANGFOLGE ist Teil der Aussage: ein zurückgezogener oder erledigter Nachweis bekommt seinen
+   * eigenen Grund genannt, nicht den der Frist. Sonst läse der Träger „zu spät" über einer Aufgabe,
+   * die es gar nicht mehr gibt.
+   */
+  it("Rückzug und erledigte Einreichung schlagen die Frist", () => {
     expect(proofSubmitBlockedReason({ ...open, task: { withdrawnAt: NOW } }, false)).toBe("TASK_NOT_EDITABLE");
-    expect(proofSubmitBlockedReason({ ...open, submittedAt: NOW }, false)).toBe("TASK_PROOF_ALREADY_SUBMITTED");
+    expect(proofSubmitBlockedReason({ ...open, submittedAt: NOW, reviewAccepted: true }, false)).toBe("TASK_PROOF_ALREADY_SUBMITTED");
   });
 });
 

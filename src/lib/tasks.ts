@@ -532,11 +532,36 @@ export function ownProofDeadline(
  *
  * RÜCKWÄRTSKOMPATIBEL: bei einem rechtzeitig eingereichten Nachweis ändert der neue Zweig nichts (die
  * erste Bedingung greift ohnehin), und ohne Annahme urteilt die Aufgabe Wort für Wort wie zuvor.
+ *
+ * EINE ABLEHNUNG ZÄHLT NIE (Produkt-Entscheidung 08.09.2026: „Ablehnung = nachbessern bis Frist"). Sie
+ * beendet die Aufgabe NICHT mehr sofort — der abgelehnte Nachweis ist schlicht „nicht erbracht" und
+ * damit offen, solange seine Frist läuft (der Träger reicht neu ein bzw. bearbeitet den Text). Erst
+ * wenn die Frist ohne zählenden Nachweis verstreicht, scheitert die Achse ({@link evaluateProofs}
+ * über {@link overdueProofsAt}). Früher fiel eine pünktliche Ablehnung durch bis zur `!spät`-Zeile und
+ * hätte fälschlich gezählt — verdeckt nur davon, dass die alte `some(reviewAccepted===false) → failed`
+ * die Aufgabe ohnehin sofort beendete. Die Zeile ist weg, also muss die Ablehnung HIER greifen.
  */
 function proofCounted(p: ProofLike, task: Pick<TaskLike, "createdAt" | "wirksamAb">, end: Date): boolean {
-  if (p.submittedAt === null) return false;
   if (p.reviewAccepted === true) return true;
+  if (p.reviewAccepted === false) return false;
+  if (p.submittedAt === null) return false;
   return !proofSubmittedLate(p, task, end);
+}
+
+/**
+ * Darf dieser Nachweis (noch einmal) eingereicht werden — die reine ZUSTANDS-Frage, ohne Frist und
+ * ohne Rückzug (die stehen in {@link proofSubmitBlockedReason} bzw. `proofCaptureHref` darum herum).
+ *
+ * DER EINE Ort der Foto-vs-Text-Regel (Produkt-Entscheidung 08.09.2026): ein FOTO ist one-shot, bis
+ * eine Ablehnung einen neuen Versuch öffnet; ein TEXT ist bis zum Urteil (und nach einer Ablehnung)
+ * frei bearbeitbar; eine angenommene Einreichung ist eingefroren. Dienst (Schranke) und Anzeige (Weg)
+ * lesen beide HIER — zwei eigene Bedingungsketten liefen sonst auseinander, und die Karte böte einen
+ * Weg, den das Formular gleich wieder mit 400 verwehrt.
+ */
+export function proofResubmittable(p: { submitted: boolean; requiresPhoto: boolean; reviewAccepted: boolean | null }): boolean {
+  if (!p.submitted) return true; // Erst-Einreichung
+  if (p.reviewAccepted === false) return true; // abgelehnt → neuer Versuch
+  return !p.requiresPhoto && p.reviewAccepted === null; // Text bis zum Urteil bearbeitbar
 }
 
 /**
@@ -695,19 +720,22 @@ export function firstOutOfOrderProof(
  * WANN die Nachweis-Achse gescheitert ist — die Tatzeit hinter einem `failed`-Urteil von
  * {@link evaluateProofs}, soweit sie sich belegen lässt.
  *
- * Drei Belege, und der FRÜHESTE zählt: die verstrichene eigene Frist eines Nachweises, die Ablehnung
- * durch die Keyholderin und der belegte Reihenfolge-Bruch. Dieselbe Regel wie beim Abbruch
- * (`evaluateTask`) und aus demselben Grund — welcher Beleg zuerst kam, entscheidet, nicht welcher
- * Zweig zuerst im Code steht. Ein um 10:00 abgelehnter Nachweis darf nicht auf 17:00 datiert werden,
- * bloss weil um 17:00 zusätzlich eine Frist verstrich.
+ * Zwei Belege, und der FRÜHESTE zählt: die verstrichene eigene Frist eines Nachweises und der belegte
+ * Reihenfolge-Bruch. Dieselbe Regel wie beim Abbruch (`evaluateTask`) und aus demselben Grund —
+ * welcher Beleg zuerst kam, entscheidet, nicht welcher Zweig zuerst im Code steht.
+ *
+ * DIE ABLEHNUNG STEHT SEIT DEM 08.09.2026 NICHT MEHR HIER: sie beendet die Aufgabe nicht mehr, sondern
+ * öffnet die Nachbesserung bis zur Frist ({@link proofCounted}). Die Tatzeit eines abgelehnten und
+ * nicht mehr nachgebesserten Nachweises ist damit die verstrichene Frist (erster Beleg), nicht der
+ * Ablehn-Zeitpunkt.
  *
  * `null`, wo kein Beleg VOR `end` liegt — dann ist das Ende der Aufgabe die Tatzeit
  * (`failedAt ?? holdUntil` im Strafbuch). Das ist der Fall „nichts abgegeben" ebenso wie die
  * Sichtung, die erst Tage nach der Frist stattfindet: ein spätes Urteil verschiebt die Tat nicht in
  * die Zukunft.
  *
- * SIE ZÄHLT DIESELBEN DREI WEGE AUF WIE {@link evaluateProofs} — die eine Funktion beantwortet OB,
- * diese WANN, und der Compiler hält sie nicht zusammen. Wer dort eine VIERTE Ursache für `failed`
+ * SIE ZÄHLT DIESELBEN WEGE AUF WIE {@link evaluateProofs} — die eine Funktion beantwortet OB,
+ * diese WANN, und der Compiler hält sie nicht zusammen. Wer dort eine weitere Ursache für `failed`
  * ergänzt, ergänzt hier ihren Beleg; sonst fällt die Tatzeit still auf das Ende der Aufgabe zurück.
  * Der saubere Schnitt wäre, das Urteil seinen Beleg tragen zu lassen (`ProofVerdict` als Objekt
  * statt als Wort) — dieselbe Auflösung, die `firstOutOfOrderProof` in seinem eigenen Kommentar für
@@ -723,7 +751,6 @@ function proofFailureAt(
   const ordered = sortedProofs(proofs);
   const evidence = [
     earliestOverdue(overdueProofsAt(proofs, task, end, now)),
-    ...ordered.filter((p) => p.reviewAccepted === false).map((p) => p.reviewedAt),
     firstOutOfOrderProof(ordered, task)?.submittedAt ?? null,
   ];
   return earliestDate(evidence.filter((d) => d !== null && d < end));
@@ -778,8 +805,13 @@ export function evaluateProofs(
   // JEDER `failed`-Ausgang hier braucht seinen Beleg in {@link proofFailureAt} — sonst datiert das
   // Strafbuch das Vergehen auf das Ende der Aufgabe statt auf den Moment, in dem es entstand.
   //
-  // Nur das ausdrückliche Nein eines MENSCHEN beendet die Sache. Alles andere ist Zwischenstand.
-  if (ordered.some((p) => p.reviewAccepted === false)) return "failed";
+  // EINE ABLEHNUNG BEENDET DIE SACHE NICHT MEHR SOFORT (Produkt-Entscheidung 08.09.2026). Früher stand
+  // hier `some(reviewAccepted===false) → failed` — eine pünktlich abgelehnte Aufgabe war damit sofort
+  // versäumt, mitten in der Frist, und der Träger kam an keinen zweiten Versuch. Jetzt zählt der
+  // abgelehnte Nachweis über {@link proofCounted} als NICHT erbracht und landet unten in `outstanding`:
+  // solange seine Frist läuft, ist die Achse `pending` (der Träger bessert nach), erst nach ihr
+  // `failed`. Die Tatzeit dafür trägt {@link proofFailureAt} — nicht mehr der Ablehn-Zeitpunkt, sondern
+  // die verstrichene Frist.
 
   // Eingereicht heisst: RECHTZEITIG eingereicht — gegen die Frist DIESES Nachweises. Nach ihr zählt
   // es nicht mehr, sonst wäre sie bedeutungslos: man könnte beliebig lange nachliefern. Es sei denn,
@@ -1010,10 +1042,11 @@ export function evaluateTask(
     // Trage-Formular schickt: für eine Aufgabe, die nicht mehr zu erfüllen ist. Genau die zwei
     // Auskünfte, gegen die der Zweig weiter unten gebaut ist — nur bevor überhaupt etwas anlag.
     //
-    // Über das URTEIL und nicht mehr bloss über die verstrichenen Fristen: eine Ablehnung ist hier
-    // genauso endgültig wie dort, und die drei Zweige dieser Funktion sollen dasselbe Ereignis nicht
-    // verschieden aussagen. Ein noch AUSSTEHENDES Foto entscheidet nichts — solange seine Frist
-    // läuft, urteilt `evaluateProofs` mit `pending`.
+    // Über das URTEIL, damit die drei Zweige dieser Funktion dasselbe Ereignis nicht verschieden
+    // aussagen. Was `evaluateProofs` als `failed` führt, ist hier ebenso entschieden — eine
+    // verstrichene Nachweis-Frist oder ein Reihenfolge-Bruch. Ein noch AUSSTEHENDES oder ein
+    // ABGELEHNTES Foto entscheidet nichts, solange seine Frist läuft: dann urteilt `evaluateProofs`
+    // mit `pending`, und der Träger kann nachbessern (Produkt-Entscheidung 08.09.2026).
     if (evaluateProofs(proofs, task, now) === "failed") {
       return {
         ...base, state: "missed", missing,
@@ -1103,20 +1136,18 @@ export function evaluateTask(
    * EIN ENTSCHIEDENER FEHLSCHLAG DER NACHWEIS-ACHSE BEENDET DIE AUFGABE SOFORT — auch mitten in der
    * Haltefrist. Deshalb steht dieser Zweig VOR dem `running`-Ausstieg darunter.
    *
-   * Drei Wege führen zu `failed`, und mitten in der Haltefrist ist jeder davon endgültig: eine
-   * verstrichene eigene Nachweis-Frist, die Ablehnung durch die Keyholderin und der belegte
-   * Reihenfolge-Bruch. Ein Nachweis lässt sich nicht zweimal einreichen
-   * (`TASK_PROOF_ALREADY_SUBMITTED`) — was hier scheitert, ist vom Träger nicht mehr zu retten. Der
-   * blosse Umstand, dass noch Fotos fehlen, steht ausdrücklich NICHT darunter: solange deren Fristen
-   * laufen, urteilt `evaluateProofs` mit `pending`.
+   * Zwei Wege führen zu `failed`, und mitten in der Haltefrist ist jeder davon endgültig: eine
+   * verstrichene eigene Nachweis-Frist und der belegte Reihenfolge-Bruch. Weder das blosse Fehlen
+   * eines Fotos noch eine ABLEHNUNG steht darunter: solange die Frist läuft, urteilt `evaluateProofs`
+   * mit `pending` — der abgelehnte Nachweis ist offen und der Träger bessert nach (Foto neu aufnehmen
+   * bzw. Text bearbeiten). Erst wenn die Frist ohne zählenden Nachweis verstreicht, wird daraus
+   * `failed` (Produkt-Entscheidung 08.09.2026, „Ablehnung = nachbessern bis Frist").
    *
-   * Ohne diesen Vorrang blieb genau der Leitfall des Bausteins ohne Wirkung: „trag den Slip UND
-   * schick mir dreimal am Tag ein Foto" ist eine Aufgabe MIT Bedingung. Das Mittagsfoto wäre bis zum
-   * Abend folgenlos gewesen — und eine abgelehnte Einreichung ebenso: die Karte zeigte den Nachweis
-   * als abgelehnt, verlangte darüber aber weiter „halte durch", und das Dashboard führte die Aufgabe
-   * bis zum Ende unter „Jetzt zu tun" (Rückmeldung 03.09.2026). Zwei Auskünfte über dieselbe Aufgabe,
-   * und die verlangende war die falsche. Eine Aufgabe OHNE Bedingungen urteilte an derselben Stelle
-   * längst so — die beiden Zweige sagten dasselbe Ereignis verschieden aus.
+   * Ohne diesen Vorrang blieb der Leitfall des Bausteins ohne Wirkung: „trag den Slip UND schick mir
+   * dreimal am Tag ein Foto" ist eine Aufgabe MIT Bedingung. Ein Nachweis, dessen EIGENE Frist ohne
+   * (angenommene) Einreichung verstrich, wäre sonst bis zum Abend folgenlos, und die Karte verlangte
+   * darüber weiter „halte durch" (Rückmeldung 03.09.2026). Eine Aufgabe OHNE Bedingungen urteilte an
+   * derselben Stelle längst so — die beiden Zweige sagten dasselbe Ereignis verschieden aus.
    *
    * `missed` mit erhaltenem `startedAt`: der Beleg, dass er begonnen HAT, darf nicht verlorengehen.
    * Der Fehlschlag darf die Bedingungs-Achse deshalb nicht überschreiben — das Strafbuch liest

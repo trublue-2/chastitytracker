@@ -14,34 +14,52 @@ import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { nextTaskStep, type TaskCardData } from "@/lib/taskView";
+import { isTaskOpen } from "@/lib/tasks";
 
 /**
  * Der Aufgaben-Block des Sub-Dashboards — Rang 3, direkt über der Session-Karte.
  *
  * Begründung der Platzierung: eine Aufgabe mit Frist ist das Einzige auf der Seite, das in den
  * nächsten Stunden zu einem Vergehen werden kann.
+ *
+ * ZWEI Abschnitte statt einer Liste unter „Jetzt zu tun": `belongsOnDashboard` reicht auch Aufgaben
+ * durch, bei denen der Träger GERADE NICHTS tun kann — eine auf die Sichtung wartende und eine kürzlich
+ * versäumte. Beide unter „Jetzt zu tun" zu führen war ein Widerspruch (eine versäumte Aufgabe als
+ * To-do). Handelbares steht jetzt unter „Jetzt zu tun", der Rest als Notiz unter „Zuletzt".
  */
 export default function OpenTasks({ tasks, tz, defaultCollapsed }: { tasks: TaskCardData[]; tz: string; defaultCollapsed?: boolean }) {
   if (tasks.length === 0) return null;
 
+  // Handelbar = offen im Sinne des Subs (`pending`/`partial`/`running`). Alles andere hier —
+  // `awaitingReview` (Keyholderin am Zug) und die kürzlich versäumten/abgebrochenen — ist eine Notiz
+  // ohne nächsten Schritt.
+  const todo = tasks.filter((t) => isTaskOpen(t.state));
+  const recent = tasks.filter((t) => !isTaskOpen(t.state));
+
+  const card = (task: TaskCardData, withMarkDone: boolean) => (
+    <TaskCard key={task.id} task={task} subTz={tz} subLabel="">
+      {/* Der Knopf steht GENAU dann, wenn die Karte darüber die Selbstmeldung als nächsten Schritt
+          nennt — eine Regel, eine Quelle. Nur im To-do-Abschnitt: eine versäumte oder auf Sichtung
+          wartende Aufgabe hat nichts zu melden. */}
+      {withMarkDone && nextTaskStep(task)?.kind === "confirm" && <MarkDoneButton taskId={task.id} />}
+    </TaskCard>
+  );
+
   return (
     <DashboardBlock>
-      <TaskCardStack defaultCollapsed={defaultCollapsed}>
-        {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} subTz={tz} subLabel="">
-            {/* Der Knopf steht GENAU dann, wenn die Karte darüber die Selbstmeldung als nächsten
-                Schritt nennt — eine Regel, eine Quelle. Getrennt beantwortet, sagte die Karte
-                „Bedingung erfüllen" und der Knopf darunter „Als erledigt melden": zwei
-                Aufforderungen für einen Schritt.
-
-                Dass er beim Ablauf der Haltefrist von selbst erscheint, besorgt der `Heartbeat`:
-                seine Signatur trägt `holdRunning` mit, ein eigener Timer wäre ein zweiter Kanal für
-                dieselbe Frage. Preis: bis zu einem Poll-Takt Verzögerung — bei einer Haltefrist von
-                Stunden nicht der Rede wert. */}
-            {nextTaskStep(task)?.kind === "confirm" && <MarkDoneButton taskId={task.id} />}
-          </TaskCard>
-        ))}
-      </TaskCardStack>
+      <div className="flex flex-col gap-8">
+        {todo.length > 0 && (
+          <TaskCardStack defaultCollapsed={defaultCollapsed}>
+            {todo.map((task) => card(task, true))}
+          </TaskCardStack>
+        )}
+        {recent.length > 0 && (
+          // Standardmässig zugeklappt: es ist eine Notiz, kein Handlungsaufruf.
+          <TaskCardStack titleKey="recentTitle" defaultCollapsed>
+            {recent.map((task) => card(task, false))}
+          </TaskCardStack>
+        )}
+      </div>
     </DashboardBlock>
   );
 }

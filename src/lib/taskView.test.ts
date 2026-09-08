@@ -174,7 +174,7 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
 
   it("nennt danach den nächsten Nachweis", () => {
     const card = toTaskCard(evaluated([wear("r1", "Knebel", "c1", true)], { state: "running" }), true, [proof()]);
-    expect(nextTaskStep(card)).toEqual({ kind: "proof", label: "Sauberes Wohnzimmer", href: "/dashboard/new/task-proof/p1" });
+    expect(nextTaskStep(card)).toEqual({ kind: "proof", label: "Sauberes Wohnzimmer", href: "/dashboard/new/task-proof/p1", requiresPhoto: true, rejected: false });
   });
 
   it("bleibt bei der Selbstmeldung, wenn die Frist durchgehalten ist — auch wenn das Gerät inzwischen ab ist", () => {

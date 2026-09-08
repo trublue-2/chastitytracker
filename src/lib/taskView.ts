@@ -1,5 +1,5 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/taskIntervals";
-import { firstOutOfOrderProof, isTaskOpen, ownProofDeadline, startDeadline, taskFailureKind, type TaskEvaluation, type TaskFailureKind, type TaskOffenseState, type TaskState } from "@/lib/tasks";
+import { firstOutOfOrderProof, isTaskOpen, ownProofDeadline, proofResubmittable, startDeadline, taskFailureKind, type TaskEvaluation, type TaskFailureKind, type TaskOffenseState, type TaskState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { wearActionHref } from "@/lib/categoryConstants";
 
@@ -124,8 +124,9 @@ export interface TaskCardProof {
 export type TaskNextStep =
   /** Eine Bedingung gilt noch nicht. `href` fehlt, wo die Kategorie gelöscht wurde. */
   | { kind: "requirement"; label: string; href: string | null }
-  /** Der nächste Nachweis ist fällig. */
-  | { kind: "proof"; label: string; href: string | null }
+  /** Der nächste Nachweis ist fällig. `requiresPhoto`/`rejected` steuern Wort und Symbol: Foto vs.
+   *  Text, und ob es ein erster Versuch oder ein Nachbessern nach Ablehnung ist. */
+  | { kind: "proof"; label: string; href: string | null; requiresPhoto: boolean; rejected: boolean }
   /** Alles liegt an, die Haltefrist läuft — zu tun ist nur noch: so lassen. Kein Handlungsangebot,
    *  sondern ein Zustand; `until` trägt die Frist für den Countdown. */
   | { kind: "hold"; until: string }
@@ -143,8 +144,11 @@ export function nextTaskStep(task: TaskCardData): TaskNextStep | null {
   if (task.awaitingConfirmation) return { kind: "confirm" };
   const requirement = task.requirements.find((r) => !r.satisfied);
   if (requirement) return { kind: "requirement", label: requirement.label, href: requirement.href };
-  const proof = task.proofs.find((p) => p.state === "open");
-  if (proof) return { kind: "proof", label: proof.description, href: proof.href };
+  // Offen ODER abgelehnt (mit noch offenem Weg): beides verlangt eine Handlung — einreichen bzw.
+  // nachbessern. Ein abgelehnter Nachweis ohne Weg (Frist vorbei) ist kein Schritt mehr. Ein in
+  // Sichtung liegender Text ist zwar bearbeitbar, wird aber NICHT gedrängt — der Sub hat abgegeben.
+  const proof = task.proofs.find((p) => (p.state === "open" || p.state === "rejected") && p.href);
+  if (proof) return { kind: "proof", label: proof.description, href: proof.href, requiresPhoto: proof.requiresPhoto, rejected: proof.state === "rejected" };
   // Läuft die Haltefrist, ist Halten der Schritt — die Selbstmeldung wäre eine Aussage über eine
   // Stunde, die noch nicht stattgefunden hat. Welche Frist eine Haltefrist ist und welche bloss ein
   // Termin („staubsauge bis 18:36" — da ist „erledigt" wahr, sobald es getan ist), beantwortet
@@ -352,17 +356,23 @@ export function proofIsSubmitted(proof: Pick<TaskCardProof, "submitted">): boole
  * ist ein Urteil über den Wert der Einreichung, und das fällt die Keyholderin. Die Beschriftung
  * verspricht deshalb nirgends die Rettung der Aufgabe — nur, dass der Nachweis noch zählen kann.
  *
- * Bereits EINGEREICHTE führen nie irgendwohin — auch nicht die verspäteten: sie warten auf ein
- * Urteil, nicht auf ein zweites Foto (`TASK_PROOF_ALREADY_SUBMITTED`).
+ * WIEDEREINREICHEN (Produkt-Entscheidung 08.09.2026) — dieselbe Regel wie der Dienst, aus derselben
+ * Quelle ({@link proofResubmittable}): ein FOTO ist one-shot, bis eine Ablehnung einen neuen Versuch
+ * öffnet; ein TEXT ist bis zum Urteil (und nach einer Ablehnung) frei bearbeitbar. Ein angenommener
+ * Nachweis führt nie mehr irgendwohin, ein Foto in Sichtung ebenfalls nicht (es wartet auf das
+ * Urteil, nicht auf ein zweites Bild).
  */
 function proofCaptureHref(
-  proof: Pick<TaskCardProof, "id" | "submitted">,
+  proof: Pick<TaskCardProof, "id" | "submitted" | "requiresPhoto"> & { reviewAccepted: boolean | null },
   evaluation: Pick<TaskEvaluation, "proofSubmitOpen">,
   /** Nur für den Sub: es sind seine Formulare. */
   withLinks: boolean,
 ): string | null {
-  if (!withLinks || proof.submitted || !evaluation.proofSubmitOpen) return null;
-  return `/dashboard/new/task-proof/${proof.id}`;
+  if (!withLinks || !evaluation.proofSubmitOpen) return null;
+  // Dieselbe Regel wie der Dienst — aus derselben Quelle ({@link proofResubmittable}), damit die Karte
+  // keinen Weg zeigt, den das Formular gleich wieder verwehrt.
+  const resubmittable = proofResubmittable({ submitted: proof.submitted, requiresPhoto: proof.requiresPhoto, reviewAccepted: proof.reviewAccepted });
+  return resubmittable ? `/dashboard/new/task-proof/${proof.id}` : null;
 }
 
 /**
@@ -505,7 +515,7 @@ export function toTaskCard(
       dueAt: ownProofDeadline(p, e.task, e.evaluation.holdUntil)?.toISOString() ?? null,
       submitted,
       // Weg UND Hinweis aus derselben Frage — welche das ist, steht bei `proofCaptureHref`.
-      href: proofCaptureHref({ id: p.id, submitted }, e.evaluation, withLinks),
+      href: proofCaptureHref({ id: p.id, submitted, requiresPhoto: p.requiresPhoto, reviewAccepted: p.reviewAccepted }, e.evaluation, withLinks),
       lateNote: proofLateNote({ state, submitted }, e.evaluation, withLinks),
       imageUrl: p.imageUrl,
       reviewNote: p.reviewNote,

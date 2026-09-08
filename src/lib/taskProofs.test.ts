@@ -862,22 +862,29 @@ describe("evaluateTask — beide Achsen zusammen", () => {
   });
 
   /**
-   * DER GEMELDETE FALL (03.09.2026): eine Aufgabe, die schon feststeht, stand weiter unter „Jetzt zu
-   * tun" — die Karte verlangte „halte durch", während der Nachweis darüber als abgelehnt dastand.
-   *
-   * Der Nachweis lässt sich nicht ersetzen (`TASK_PROOF_ALREADY_SUBMITTED`), die Aufgabe ist also
-   * vom Träger nicht mehr zu retten. Sie noch bis zum Abend als offen zu führen, verlangte von ihm
-   * Stunden für nichts — und hielt ihn zusätzlich am Gerät fest, weil die Ablege-Sperre an
-   * `isTaskOpen` hängt.
+   * NACHBESSERN BIS FRIST (Produkt-Entscheidung 08.09.2026): eine Ablehnung MITTEN in der Haltefrist
+   * beendet die Aufgabe NICHT mehr. Der Träger reicht neu ein bzw. bearbeitet den Text, solange die
+   * Frist läuft — die Aufgabe bleibt `running`. Früher war sie hier sofort versäumt und vom Träger
+   * nicht mehr zu retten.
    */
-  it("Ablehnung MITTEN in der Haltefrist beendet die Aufgabe sofort", () => {
+  it("Ablehnung MITTEN in der Haltefrist beendet die Aufgabe NICHT — nachbessern bis Frist", () => {
     const r = evaluateTask(base, REQ, held, waehrend, [proof({ reviewAccepted: false })]);
+    expect(r.state).toBe("running");
+    expect(r.holdRunning).toBe(true);
+    expect(isTaskOpen(r.state)).toBe(true);
+  });
+
+  /**
+   * Erst wenn die Frist OHNE zählenden Nachweis verstreicht, wird daraus ein Versäumnis — und die
+   * Tatzeit ist die verstrichene Frist, nicht der Ablehn-Zeitpunkt. Der Nachweis hat hier keine eigene
+   * Fälligkeit, also findet `proofFailureAt` keinen Beleg vor dem Ende (`null`); das Strafbuch nimmt
+   * dann `holdUntil`.
+   */
+  it("Ablehnung + Fristablauf ergibt ein Versäumnis, datiert auf die Frist", () => {
+    const r = evaluateTask(base, REQ, held, after, [proof({ reviewAccepted: false })]);
     expect(r.state).toBe("missed");
     expect(isTaskOpen(r.state)).toBe(false);
-    // Die Tatzeit ist das Urteil, nicht das Ende der Aufgabe: das Strafbuch datiert
-    // `unfulfilled_task` als `failedAt ?? holdUntil` und schriebe das Vergehen sonst eine Stunde in
-    // die Zukunft.
-    expect(r.failedAt).toEqual(REVIEWED_AT);
+    expect(r.failedAt).toBeNull();
     // Der Beleg der Bedingungs-Achse bleibt: er HAT begonnen und durchgehalten.
     expect(r.startedAt).not.toBeNull();
   });
@@ -904,39 +911,35 @@ describe("evaluateTask — beide Achsen zusammen", () => {
   });
 
   /**
-   * Und dieselbe Rangfolge wie bei der verstrichenen Nachweis-Frist: war die Aufgabe zum Zeitpunkt
-   * des Ablegens bereits versäumt, ist das Ablegen kein Abbruch mehr. Ihn dafür zu belangen, hiesse
-   * ihn für genau das zu bestrafen, was die App ihm eben erlaubt hat.
+   * Eine Ablehnung ist kein Fehlschlag der Nachweis-Achse mehr (nachbessern bis Frist), also schlägt
+   * sie den Abbruch auch nicht: fällt eine Bedingung weg, IST das der Abbruch, und er datiert auf den
+   * Wegfall — nicht auf das Urteil. Früher gewann die Ablehnung und machte daraus ein `missed`.
    */
-  it("Ablehnung VOR dem Ablegen schlägt den Abbruch", () => {
+  it("Ablehnung schlägt den Abbruch NICHT — der Abbruch datiert auf den Wegfall der Bedingung", () => {
     const abgelehntUm = d("2026-07-25T13:00:00Z");
     const r = evaluateTask(base, REQ, dropped, after, [proof({ reviewAccepted: false, reviewedAt: abgelehntUm })]);
-    expect(r.state).toBe("missed");
-    expect(r.failedAt).toEqual(abgelehntUm);
+    expect(r.state).toBe("aborted");
+    expect(r.failedRequirement?.label).toBe("Knebel");
   });
 
   /**
-   * Derselbe Fall eine Stufe FRÜHER: abgelehnt, bevor der Sub überhaupt begonnen hat. Ohne diesen
-   * Zweig stand die Aufgabe bis zur Kulanzfrist auf „noch nicht begonnen" und der nächste Schritt
-   * schickte ihn ins Trage-Formular — für etwas, das nicht mehr zu erfüllen ist.
+   * Und eine Stufe FRÜHER, bevor der Sub begonnen hat: solange die Frist läuft, beendet eine Ablehnung
+   * die Aufgabe auch hier nicht — sie bleibt offen (der Träger kann noch beginnen UND nachbessern).
    */
-  it("Ablehnung VOR dem Beginn beendet die Aufgabe, noch in der Kulanzfrist", () => {
+  it("Ablehnung VOR dem Beginn beendet die Aufgabe NICHT, solange die Frist läuft", () => {
     const abgelehntUm = d("2026-07-25T12:10:00Z");
     const inDerKulanz = d("2026-07-25T12:20:00Z"); // Kulanzfrist läuft bis 12:30
     const nichts = [[]];
     const r = evaluateTask(base, REQ, nichts, inDerKulanz, [proof({ reviewAccepted: false, reviewedAt: abgelehntUm })]);
-    expect(r.state).toBe("missed");
-    expect(r.failedAt).toEqual(abgelehntUm);
-    // Er hat nie begonnen — der Beleg dafür bleibt leer, und das Strafbuch liest ihn so.
+    expect(r.state).toBe("pending");
     expect(r.startedAt).toBeNull();
   });
 
-  /** Aufgaben OHNE Bedingungen urteilten schon immer sofort — aber sie datierten das Vergehen aufs
-   *  Ende der Aufgabe. Bei einer bis 18:00 laufenden Aufgabe lag es damit in der Zukunft. */
-  it("ohne Bedingungen datiert die Ablehnung auf das Urteil, nicht auf das Ende", () => {
-    const r = evaluateTask(base, [], [], waehrend, [proof({ reviewAccepted: false })]);
-    expect(r.state).toBe("missed");
-    expect(r.failedAt).toEqual(REVIEWED_AT);
+  /** Aufgaben OHNE Bedingungen: eine Ablehnung hält die Aufgabe offen, solange die Frist läuft — nach
+   *  ihr ist sie versäumt. */
+  it("ohne Bedingungen bleibt eine Ablehnung offen, solange die Frist läuft", () => {
+    expect(evaluateTask(base, [], [], waehrend, [proof({ reviewAccepted: false })]).state).toBe("pending");
+    expect(evaluateTask(base, [], [], after, [proof({ reviewAccepted: false })]).state).toBe("missed");
   });
 
   it("abgebrochene Bedingung schlägt eine ausstehende Sichtung", () => {

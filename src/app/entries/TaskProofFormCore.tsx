@@ -43,6 +43,8 @@ export default function TaskProofFormCore({
   dueAt,
   late,
   tz,
+  initialText,
+  rejectionNote,
   mobileDesktopMode,
 }: {
   proofId: string;
@@ -75,6 +77,13 @@ export default function TaskProofFormCore({
   late: boolean;
   /** Zeitzone des Trägers — Fristen sind absolute Zeitpunkte, angezeigt wird in SEINER Zone. */
   tz: string;
+  /** Bisher eingereichter Text — beim Nachbessern vorbefüllt, damit der Träger ERGÄNZT statt leer
+   *  zu beginnen (der Fall „ich schreibe die restlichen 5 dazu"). Leer/undefined bei Erst-Einreichung
+   *  und bei reinen Foto-Nachweisen (ein Bild lässt sich nicht vorbefüllen). */
+  initialText?: string | null;
+  /** Begründung einer vorangegangenen Ablehnung — steht oben, damit der Träger beim Nachbessern
+   *  weiss, WORAN es lag. Null, wenn nicht (mehr) abgelehnt. */
+  rejectionNote?: string | null;
   /** Fordert die Aufgabe eine Reihenfolge der Aufnahmen (`Task.proofOrderMatters`)? Nur dann zählt
    *  die Aufnahmezeit, und nur dann ist ein Bild ohne sie ein Fall für die Keyholderin — sonst
    *  verspräche das Formular eine Regel, gegen die der Träger gar nicht gemessen wird. */
@@ -90,7 +99,7 @@ export default function TaskProofFormCore({
   // `startTime` steuert nur die EXIF-Abweichungs-Warnung des Hooks; die gibt es hier nicht, weil
   // eine abweichende Aufnahmezeit kein Fehler ist, sondern der geprüfte Sachverhalt.
   const photo = usePhotoUpload({ startTime: new Date().toISOString() });
-  const [proofText, setProofText] = useState("");
+  const [proofText, setProofText] = useState(initialText ?? "");
 
   const { saving, error, submit } = useEntrySubmit<{ imageUrl: string | null; imageExifTime: string | null; proofText: string | null }>(
     async (payload) => {
@@ -160,6 +169,18 @@ export default function TaskProofFormCore({
           </p>
         )}
       </Card>
+
+      {/* Nachbessern nach Ablehnung: der Grund steht ganz oben, BEVOR er neu schreibt/aufnimmt —
+          sonst wiederholt er womöglich denselben Fehler. `rejectionNote != null` heisst „abgelehnt"
+          (ein leerer Text = ohne Begründung), `undefined` = kein Nachbessern. */}
+      {rejectionNote != null && (
+        <Card variant="semantic" semantic="warn">
+          <p className="text-fliess font-medium text-warn-text">{t(requiresPhoto ? "proofRejectedRetry" : "proofRejectedEdit")}</p>
+          {rejectionNote.trim() && (
+            <p className="text-neben text-foreground-muted italic break-words mt-1">{rejectionNote}</p>
+          )}
+        </Card>
+      )}
 
       {requiresPhoto && (
         <FormField label={t("proofPhotoLabel")} required>

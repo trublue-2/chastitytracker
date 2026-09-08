@@ -20,6 +20,8 @@ import { TASK_STATE_COLOR } from "@/lib/constants";
  *  je eine eigene Beschriftung (siehe `proofCaptureLate`). Mit Foto-Pflicht führt der Weg zur Kamera,
  *  auch wenn zusätzlich ein Text verlangt ist. */
 function proofActionKey(p: Pick<TaskCardProof, "requiresPhoto" | "state">): string {
+  // Abgelehnt → nachbessern: neu aufnehmen bzw. überarbeiten, nicht bloss „aufnehmen".
+  if (p.state === "rejected") return p.requiresPhoto ? "proofRecapture" : "proofEditText";
   const late = p.state === "overdue";
   if (p.requiresPhoto) return late ? "proofCaptureLate" : "proofCapture";
   return late ? "proofSubmitTextLate" : "proofSubmitText";
@@ -197,6 +199,13 @@ export default function TaskCard({
                   {p.lateNote && (
                     <span className="text-xs font-medium text-warn-text">{t(p.lateNote)}</span>
                   )}
+                  {/* Abgelehnt und noch nachbesserbar (nur die Sub-Sicht hat einen Weg, `p.href`): sagt
+                      geradeheraus, was zu tun ist — sonst stünde nur die Begründung darunter und der
+                      Träger müsste erraten, dass er neu einreichen darf. Die Begründung folgt als
+                      nächste Zeile. */}
+                  {p.state === "rejected" && p.href && (
+                    <span className="text-xs font-medium text-warn-text">{t(p.requiresPhoto ? "proofRejectedRetry" : "proofRejectedEdit")}</span>
+                  )}
                   {p.reviewNote && (
                     <span className="text-xs text-foreground-faint italic break-words">{p.reviewNote}</span>
                   )}
@@ -301,9 +310,11 @@ function NextStep({ task }: { task: TaskCardData }) {
     href = step.href;
     icon = <ArrowRight size={16} />;
   } else if (step.kind === "proof") {
-    text = t("nextStepProof", { description: step.label });
+    // Wort und Symbol folgen der Art: Foto vs. Text, und nach einer Ablehnung „überarbeiten" statt
+    // „aufnehmen" — sonst verspräche die Zeile das eine und öffnete das andere.
+    text = t(step.rejected ? "nextStepProofRedo" : step.requiresPhoto ? "nextStepProof" : "nextStepProofText", { description: step.label });
     href = step.href;
-    icon = <Camera size={16} />;
+    icon = step.requiresPhoto ? <Camera size={16} /> : <FileText size={16} />;
   } else if (step.kind === "hold") {
     // Kein Link und kein Knopf: hier ist nichts zu TUN ausser zu halten.
     text = <HoldRemaining until={step.until} />;
