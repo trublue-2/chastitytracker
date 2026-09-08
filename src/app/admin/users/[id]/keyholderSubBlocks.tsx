@@ -127,10 +127,10 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
   // das Einzige hier, das in den nächsten Stunden zu einem Vergehen werden kann.
   tasks: block({
     load: async (ctx) => (await taskCardsOf(ctx)).open,
-    render: (cards, { viewerTz, subjectTz }) => (
+    render: (cards, { subjectId, viewerTz, subjectTz }) => (
       <TaskCardStack>
         {cards.map((card) => (
-          <KeyholderTaskCard key={card.id} task={card} viewerTz={viewerTz} subTz={subjectTz} />
+          <KeyholderTaskCard key={card.id} task={card} userId={subjectId} viewerTz={viewerTz} subTz={subjectTz} />
         ))}
       </TaskCardStack>
     ),

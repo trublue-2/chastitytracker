@@ -2089,6 +2089,11 @@
   },
   "taskSeries": {
     "actionTitle": "Set a recurring task",
+    "recurringToggle": "Recurring",
+    "recurringToggleHint": "The task is set again and again on a schedule.",
+    "editTitle": "Edit task",
+    "editSeriesTitle": "Edit series",
+    "edit": "Edit",
     "submit": "Create series",
     "seriesSectionTitle": "Recurring tasks",
     "newSeries": "New series",

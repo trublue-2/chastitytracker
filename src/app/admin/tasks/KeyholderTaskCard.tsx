@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
 import TaskCard from "@/app/components/TaskCard";
+import Button from "@/app/components/Button";
 import ProofReviewActions from "@/app/admin/tasks/ProofReviewActions";
 import WithdrawButton from "@/app/admin/WithdrawButton";
 import DeleteTaskButton from "@/app/admin/tasks/DeleteTaskButton";
@@ -18,16 +21,20 @@ import type { TaskCardData } from "@/lib/taskView";
  */
 export default function KeyholderTaskCard({
   task,
+  userId,
   viewerTz,
   subTz,
 }: {
   task: TaskCardData;
+  /** Der Träger — für den „Bearbeiten"-Link. */
+  userId: string;
   /** Zeitzone des Keyholders. */
   viewerTz: string;
   /** Zeitzone des Subs — Fristen stehen in beiden, wenn sie auseinanderfallen. */
   subTz: string;
 }) {
   const t = useTranslations("tasks");
+  const ts = useTranslations("taskSeries");
   const ta = useTranslations("admin");
 
   return (
@@ -40,7 +47,12 @@ export default function KeyholderTaskCard({
         awaitingReview={needsKeyholderReview(task.state)}
       />
       {isTaskOpen(task.state) && (
-        <WithdrawButton id={task.id} apiPath="/api/admin/tasks" title={t("withdraw")} showLabel colorToken="neutral" />
+        <div className="flex items-center gap-1">
+          <Link href={`/admin/users/${userId}/aktionen/aufgabe?editTask=${task.id}`}>
+            <Button variant="ghost" icon={<Pencil size={15} />}>{ts("edit")}</Button>
+          </Link>
+          <WithdrawButton id={task.id} apiPath="/api/admin/tasks" title={t("withdraw")} showLabel colorToken="neutral" />
+        </div>
       )}
       {/* Was NACH dem Rückzug an dieser Karte übrigbleibt. Die beiden schliessen einander aus: was
           offen ist, wird zurückgezogen, was zurückgezogen ist, kann weg. Nur hier — eine erledigte

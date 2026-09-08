@@ -2089,6 +2089,11 @@
   },
   "taskSeries": {
     "actionTitle": "Wiederkehrende Aufgabe stellen",
+    "recurringToggle": "Wiederkehrend",
+    "recurringToggleHint": "Die Aufgabe wird nach einem Rhythmus immer wieder gestellt.",
+    "editTitle": "Aufgabe bearbeiten",
+    "editSeriesTitle": "Serie bearbeiten",
+    "edit": "Bearbeiten",
     "submit": "Serie anlegen",
     "seriesSectionTitle": "Wiederkehrende Aufgaben",
     "newSeries": "Neue Serie",

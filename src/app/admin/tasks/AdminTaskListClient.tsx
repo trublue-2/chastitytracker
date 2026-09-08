@@ -23,10 +23,13 @@ import type { TaskCardData } from "@/lib/taskView";
  */
 export default function AdminTaskListClient({
   tasks,
+  userId,
   viewerTz,
   subTz,
 }: {
   tasks: TaskCardData[];
+  /** Der Träger — für den „Bearbeiten"-Link an der Karte. */
+  userId: string;
   /** Zeitzone des Keyholders. */
   viewerTz: string;
   /** Zeitzone des Subs — Fristen stehen in beiden, wenn sie auseinanderfallen. */
@@ -37,7 +40,7 @@ export default function AdminTaskListClient({
   return (
     <div className="flex flex-col gap-4">
       {visible.map((task) => (
-        <KeyholderTaskCard key={task.id} task={task} viewerTz={viewerTz} subTz={subTz} />
+        <KeyholderTaskCard key={task.id} task={task} userId={userId} viewerTz={viewerTz} subTz={subTz} />
       ))}
       <ListPager page={page} totalPages={totalPages} onPage={setPage} />
     </div>

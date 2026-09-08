@@ -115,6 +115,7 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
             <SettingsSection key={key} title={t(key)} bodyPadded>
               <AdminTaskListClient
                 tasks={section}
+                userId={id}
                 viewerTz={session?.user?.timezone ?? APP_TZ}
                 subTz={user.timezone ?? APP_TZ}
               />

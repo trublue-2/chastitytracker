@@ -13,7 +13,7 @@ import { useApiError } from "@/app/hooks/useApiError";
 import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import FormError from "@/app/components/FormError";
-import { FREQ_LABEL_KEY, FREQ_UNIT_KEY, occurrenceFormatter } from "./RecurrenceFields";
+import { FREQ_LABEL_KEY, FREQ_UNIT_KEY, occurrenceFormatter } from "@/lib/recurrenceForm";
 
 export interface TaskSeriesUi {
   id: string;
@@ -71,9 +71,14 @@ export default function TaskSeriesListClient({ userId, series, tz }: {
               <Repeat size={16} className="text-foreground-muted shrink-0" />
               <span className="font-semibold truncate">{s.title}</span>
             </div>
-            <Button variant="ghost" onClick={() => withdraw(s.id)} loading={busyId === s.id}>
-              {t("withdraw")}
-            </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Link href={`/admin/users/${userId}/aktionen/aufgabe?editSeries=${s.id}`}>
+                <Button variant="ghost">{t("edit")}</Button>
+              </Link>
+              <Button variant="ghost" onClick={() => withdraw(s.id)} loading={busyId === s.id}>
+                {t("withdraw")}
+              </Button>
+            </div>
           </div>
           <p className="text-sm text-foreground-muted">{cadence(s)}</p>
           {s.upcoming.length > 0 && (
@@ -84,7 +89,7 @@ export default function TaskSeriesListClient({ userId, series, tz }: {
         </Card>
       ))}
       <FormError message={error} variant="compact" />
-      <Link href={`/admin/users/${userId}/aktionen/aufgaben-serie`}>
+      <Link href={`/admin/users/${userId}/aktionen/aufgabe?recurring=1`}>
         <Button variant="secondary" icon={<Plus size={16} />}>{t("newSeries")}</Button>
       </Link>
     </div>
