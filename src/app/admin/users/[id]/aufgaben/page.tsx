@@ -84,9 +84,14 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
 
   return (
     <>
-      <SettingsSection title={ts("seriesSectionTitle")} bodyPadded>
-        <TaskSeriesListClient userId={id} series={seriesUi} tz={subTz} />
-      </SettingsSection>
+      {/* Nur wenn es Serien gibt: eine neue Serie entsteht über „Aufgabe stellen" → „Wiederkehrend"
+          (der frühere „Neue Serie"-Knopf ist damit obsolet). Ohne Serien wäre die Rubrik eine leere
+          Überschrift. */}
+      {seriesUi.length > 0 && (
+        <SettingsSection title={ts("seriesSectionTitle")} bodyPadded>
+          <TaskSeriesListClient userId={id} series={seriesUi} tz={subTz} />
+        </SettingsSection>
+      )}
 
       {/* Kein eigener Seitentitel und kein eigener Breiten-Wrapper: den Namen trägt der aktive Reiter,
           die Spaltenbreite und der Abstand kommen aus `admin/users/[id]/layout.tsx`. */}

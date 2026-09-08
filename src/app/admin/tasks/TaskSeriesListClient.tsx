@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Repeat, Plus } from "lucide-react";
+import { Repeat } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import { toDateLocale } from "@/lib/utils";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
@@ -89,9 +89,6 @@ export default function TaskSeriesListClient({ userId, series, tz }: {
         </Card>
       ))}
       <FormError message={error} variant="compact" />
-      <Link href={`/admin/users/${userId}/aktionen/aufgabe?recurring=1`}>
-        <Button variant="secondary" icon={<Plus size={16} />}>{t("newSeries")}</Button>
-      </Link>
     </div>
   );
 }
