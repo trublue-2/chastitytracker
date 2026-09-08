@@ -164,6 +164,12 @@ const mockEntriesOfType = (type: string, rows: unknown[]) =>
   );
 const mockOeffnungen = (rows: unknown[]) => mockEntriesOfType("OEFFNEN", rows);
 const mockVerschluesse = (rows: unknown[]) => mockEntriesOfType("VERSCHLUSS", rows);
+const mockOrgasmen = (rows: unknown[]) => mockEntriesOfType("ORGASMUS", rows);
+
+/** Eine `unauthorized_orgasm`-Regeländerung — von beiden Orgasmus-Blöcken geteilt. */
+const orgasmRuleChange = (mode: string, effectiveFrom: Date) => ({
+  offenseType: "unauthorized_orgasm", mode, effectiveFrom,
+});
 
 /** Der Stichtag dieser Instanz, wie ihn die Migration beim ersten Boot schreibt. */
 const mockStichtag = (iso: string) =>
@@ -489,10 +495,6 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
   const TAT = new Date("2026-08-05T20:00:00Z");
   const NOW = new Date("2026-08-11T12:00:00Z");
 
-  const ruleChange = (mode: string, effectiveFrom: Date) => ({
-    offenseType: "unauthorized_orgasm", mode, effectiveFrom,
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
     db.user.findUnique.mockResolvedValue({
@@ -504,18 +506,13 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
     // Zurücksetzen, nicht dem Nachlass überlassen: `vi.clearAllMocks()` löscht die Aufrufe, nicht die
     // Implementierungen (siehe die Warnung am Kopf dieser Datei).
     db.orgasmusAnforderung.findMany.mockResolvedValue([]);
-    // Der ORGASMUS-Eintrag, um den es geht — `mockOeffnungen` deckt nur OEFFNEN ab.
-    db.entry.findMany.mockImplementation((args: { where?: { type?: string } }) =>
-      Promise.resolve(args?.where?.type === "ORGASMUS"
-        ? [{ id: "o1", startTime: TAT, orgasmusArt: null, note: null }]
-        : []),
-    );
+    mockOrgasmen([{ id: "o1", startTime: TAT, orgasmusArt: null, note: null }]);
   });
 
   it("ohne Urteil verschwindet er, wenn die Regel rückwirkend auf AUS steht", async () => {
     db.offenseRuleChange.findMany.mockResolvedValue([
-      ruleChange("always", new Date("2026-08-01T00:00:00Z")),
-      ruleChange("off", new Date("2026-08-04T00:00:00Z")),
+      orgasmRuleChange("always", new Date("2026-08-01T00:00:00Z")),
+      orgasmRuleChange("off", new Date("2026-08-04T00:00:00Z")),
     ]);
     db.strafeRecord.findMany.mockResolvedValue([]);
 
@@ -524,8 +521,8 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
 
   it("MIT Urteil bleibt er stehen — sonst hinge das Urteil ohne Anlass in der Luft", async () => {
     db.offenseRuleChange.findMany.mockResolvedValue([
-      ruleChange("always", new Date("2026-08-01T00:00:00Z")),
-      ruleChange("off", new Date("2026-08-04T00:00:00Z")),
+      orgasmRuleChange("always", new Date("2026-08-01T00:00:00Z")),
+      orgasmRuleChange("off", new Date("2026-08-04T00:00:00Z")),
     ]);
     db.strafeRecord.findMany.mockResolvedValue([{
       refId: "o1", offenseType: "UNAUTHORIZED_ORGASM", status: "PUNISHED",
@@ -540,8 +537,8 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
     // Die zweite Hälfte des Schutzes: `lockedOnly` streicht alles, was ohne laufende Sperrzeit
     // passierte. Rückwirkend gesetzt träfe das ein bereits beurteiltes Vergehen genauso wie ein `off`.
     db.offenseRuleChange.findMany.mockResolvedValue([
-      ruleChange("always", new Date("2026-08-01T00:00:00Z")),
-      ruleChange("lockedOnly", new Date("2026-08-04T00:00:00Z")),
+      orgasmRuleChange("always", new Date("2026-08-01T00:00:00Z")),
+      orgasmRuleChange("lockedOnly", new Date("2026-08-04T00:00:00Z")),
     ]);
     db.strafeRecord.findMany.mockResolvedValue([{
       refId: "o1", offenseType: "UNAUTHORIZED_ORGASM", status: "PUNISHED",
@@ -555,7 +552,7 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
   it("eine deckende Direktive lässt ihn auch MIT Urteil verschwinden", async () => {
     // Nur die REGEL wird überbrückt, nicht die Ableitung: deckt später eine Direktive den Orgasmus
     // ab, verschwindet er wie bei jeder anderen Art auch.
-    db.offenseRuleChange.findMany.mockResolvedValue([ruleChange("always", new Date("2026-08-01T00:00:00Z"))]);
+    db.offenseRuleChange.findMany.mockResolvedValue([orgasmRuleChange("always", new Date("2026-08-01T00:00:00Z"))]);
     db.strafeRecord.findMany.mockResolvedValue([{
       refId: "o1", offenseType: "UNAUTHORIZED_ORGASM", status: "PUNISHED",
       bestraftDatum: NOW, notiz: null, reason: "20 Schläge", judgedBy: "admin",
@@ -568,6 +565,82 @@ describe("buildStrafbuch — beurteilter Orgasmus überlebt eine zurückdatierte
     }]);
 
     expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toHaveLength(0);
+  });
+});
+
+/**
+ * Rundungs-Spielraum im `lockedOnly`-Pfad. Ein Orgasmus trägt eine im Formular gewählte,
+ * minutengenaue `startTime`, der Rückzug der Sperre einen sekundengenauen `withdrawnAt`. Hebt die
+ * Keyholderin die Sperre im selben Moment auf, in dem der frisch befreite Träger einen Orgasmus
+ * erfasst, liegt der Rückzug oft ein paar Sekunden HINTER der auf die volle Minute gerundeten
+ * Orgasmuszeit — die Sperre gälte für den Sekundenvergleich noch als aktiv und der Orgasmus
+ * fälschlich als „während laufender Sperre".
+ *
+ * Dieselbe Fragilität wie beim Öffnungs-Fix (v6.0.13), aber dessen endedReason-Ausnahme trägt hier
+ * NICHT: ein Orgasmus während einer laufenden Sperre bleibt ein Vergehen, auch wenn die Keyholderin
+ * die Sperre erst Stunden später aufhebt. Deshalb ein Zeit-Spielraum von ~1 Minute.
+ */
+describe("buildStrafbuch — Orgasmus im Moment der Sperr-Aufhebung (lockedOnly)", () => {
+  const ORGASM_AT = new Date("2026-08-05T20:00:00Z"); // volle Minute, wie das Formular sie liefert
+  const NOW = new Date("2026-08-11T12:00:00Z");
+
+  /** Sperre, die den Orgasmuszeitpunkt umschliesst; beendet je Fall zu einem anderen `withdrawnAt`. */
+  const lock = (withdrawnAt: Date | null, endedReason: string | null = null) => ({
+    id: "s1",
+    createdAt: new Date("2026-08-05T10:00:00Z"),
+    endsAt: null,
+    withdrawnAt,
+    endedReason,
+    cleaningAllowed: false,
+    wirksamAb: null,
+    fulfilledAt: null,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.user.findUnique.mockResolvedValue({
+      cleaningAllowed: false, cleaningMaxPerDay: 0, cleaningMaxMinutes: 15,
+      cleaningWindows: null, timezone: "Europe/Zurich",
+    });
+    mockStichtag("2026-07-01T00:00:00Z");
+    db.strafeRecord.findMany.mockResolvedValue([]);
+    db.orgasmusAnforderung.findMany.mockResolvedValue([]);
+    // lockedOnly, scharf vor der Tat.
+    db.offenseRuleChange.findMany.mockResolvedValue([
+      orgasmRuleChange("lockedOnly", new Date("2026-08-01T00:00:00Z")),
+    ]);
+    mockOrgasmen([{ id: "o1", startTime: ORGASM_AT, orgasmusArt: null, note: null }]);
+  });
+
+  it("Rückzug 30 s nach der gerundeten Orgasmuszeit: KEIN Vergehen", async () => {
+    mockLockPeriods([lock(new Date(ORGASM_AT.getTime() + 30_000), "keyholder")]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toHaveLength(0);
+  });
+
+  it("Rückzug genau am Spielraum-Rand (60 s): noch KEIN Vergehen", async () => {
+    mockLockPeriods([lock(new Date(ORGASM_AT.getTime() + 60_000), "keyholder")]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toHaveLength(0);
+  });
+
+  it("keyholder-beendet jenseits des Spielraums: bleibt ein Vergehen (der Öffnungs-Fix trägt hier nicht)", async () => {
+    // Die entscheidende Gegenprobe: derselbe `endedReason "keyholder"`, der eine ÖFFNUNG straffrei
+    // stellte, darf einen Orgasmus während der laufenden Sperre nicht decken — er lag ja darin, egal
+    // ob die Keyholderin sie zwei Minuten oder Stunden später aufhob.
+    mockLockPeriods([lock(new Date(ORGASM_AT.getTime() + 120_000), "keyholder")]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toMatchObject([{ id: "o1" }]);
+  });
+
+  it("laufende Sperre ohne Rückzug: bleibt ein Vergehen", async () => {
+    mockLockPeriods([lock(null)]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toMatchObject([{ id: "o1" }]);
+  });
+
+  it("eine im Spielraum aufgehobene Sperre verdeckt nicht eine zweite, noch laufende", async () => {
+    // Der Spielraum sitzt IM `find`-Prädikat, damit die gerade aufgehobene Sperre übersprungen wird
+    // und die Suche eine parallele, noch aktive findet — sonst bliebe ein Orgasmus während einer
+    // laufenden Sperre folgenlos, nur weil eine andere zufällig zuerst zurückkam.
+    mockLockPeriods([lock(new Date(ORGASM_AT.getTime() + 30_000), "keyholder"), lock(null)]);
+    expect((await buildStrafbuch("u1", NOW)).unauthorizedOrgasms).toMatchObject([{ id: "o1" }]);
   });
 });
 
@@ -747,33 +820,9 @@ describe("buildStrafbuch — die Reinigungs-Regeln gelten zur Tatzeit", () => {
   });
 });
 
-/**
- * Der Vertrag, auf dem „Sofort aufschliessen" ruht.
- *
- * `releaseNow` beendet die Sperrzeit mit GENAU dem Zeitstempel, den die Öffnung trägt — und darauf,
- * dass ein Gleichstand nicht mehr als „aktiv" zählt, hängt die ganze Konstruktion: sonst stünde
- * jede von der Keyholderin ausgelöste Öffnung als unerlaubte im Strafbuch, obwohl sie selbst sie
- * ausgelöst hat.
- *
- * Die Regel lebt in einem einzigen `>` in `findActiveLockPeriod`. Wer daraus ein `>=` macht, kippt
- * das Verhalten lautlos — in der Ableitung sieht es aus wie eine Härtung, und die Wirkung zeigt
- * sich erst im Strafbuch eines fremden Subs. Diese beiden Fälle nageln es fest.
- */
-describe("buildStrafbuch — die Sperrzeit, die im Moment der Öffnung endet", () => {
+describe("buildStrafbuch — Öffnung und die Sperrzeit zum Öffnungszeitpunkt", () => {
   const OPENED_AT = new Date("2026-07-10T12:00:00Z");
   const NOW = new Date("2026-07-10T22:00:00Z");
-
-  /** Sperrzeit, die den Zeitpunkt der Öffnung umschliesst — beendet wird sie je Fall anders. */
-  const lockEndingAt = (withdrawnAt: Date) => ({
-    id: "s1",
-    createdAt: new Date("2026-07-09T22:00:00Z"),
-    endsAt: new Date("2026-07-11T22:00:00Z"),
-    withdrawnAt,
-    // Bewusst OHNE Reinigungserlaubnis: sonst entschiede die Fenster-Regel statt des Zeitstempels.
-    cleaningAllowed: false,
-    wirksamAb: null,
-    fulfilledAt: null,
-  });
 
   const keyholderOpening = { id: "e1", type: "OEFFNEN", startTime: OPENED_AT, oeffnenGrund: "KEYHOLDER", note: null, source: "user" };
 
@@ -787,15 +836,96 @@ describe("buildStrafbuch — die Sperrzeit, die im Moment der Öffnung endet", (
     mockOeffnungen([keyholderOpening]);
   });
 
-  it("gleicher Zeitstempel: die Öffnung ist KEIN Vergehen", async () => {
-    mockLockPeriods([lockEndingAt(OPENED_AT)]);
-    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
+  /**
+   * Der Vertrag, auf dem „Sofort aufschliessen" ruht.
+   *
+   * `releaseNow` beendet die Sperrzeit mit GENAU dem Zeitstempel, den die Öffnung trägt — und darauf,
+   * dass ein Gleichstand nicht mehr als „aktiv" zählt, hängt die ganze Konstruktion: sonst stünde
+   * jede von der Keyholderin ausgelöste Öffnung als unerlaubte im Strafbuch, obwohl sie selbst sie
+   * ausgelöst hat.
+   *
+   * Die Regel lebt in einem einzigen `>` in `findActiveLockPeriod`. Wer daraus ein `>=` macht, kippt
+   * das Verhalten lautlos — in der Ableitung sieht es aus wie eine Härtung, und die Wirkung zeigt
+   * sich erst im Strafbuch eines fremden Subs. Diese beiden Fälle nageln es fest.
+   */
+  describe("die Sperrzeit, die im Moment der Öffnung endet", () => {
+    /** Sperrzeit, die den Zeitpunkt der Öffnung umschliesst — beendet wird sie je Fall anders. */
+    const lockEndingAt = (withdrawnAt: Date, endedReason: string | null = null) => ({
+      id: "s1",
+      createdAt: new Date("2026-07-09T22:00:00Z"),
+      endsAt: new Date("2026-07-11T22:00:00Z"),
+      withdrawnAt,
+      endedReason,
+      // Bewusst OHNE Reinigungserlaubnis: sonst entschiede die Fenster-Regel statt des Zeitstempels.
+      cleaningAllowed: false,
+      wirksamAb: null,
+      fulfilledAt: null,
+    });
+
+    it("gleicher Zeitstempel: die Öffnung ist KEIN Vergehen", async () => {
+      mockLockPeriods([lockEndingAt(OPENED_AT)]);
+      expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
+    });
+
+    it("eine Millisekunde später vom Sub aufgebrochen: die Sperrzeit galt noch, also IST es eines", async () => {
+      // Die Gegenprobe. Ohne sie belegte der Test oben nur, dass gerade nichts anschlägt — nicht,
+      // dass der Zeitstempel den Ausschlag gibt. `endedReason "opening"` = vom Sub aufgebrochen, also
+      // greift die Keyholder-Ausnahme unten NICHT und der Zeitstempel entscheidet.
+      mockLockPeriods([lockEndingAt(new Date(OPENED_AT.getTime() + 1), "opening")]);
+      expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+    });
   });
 
-  it("eine Millisekunde später beendet: die Sperrzeit galt noch, also IST es eines", async () => {
-    // Die Gegenprobe. Ohne sie belegte der Test oben nur, dass gerade nichts anschlägt — nicht,
-    // dass der Zeitstempel den Ausschlag gibt.
-    mockLockPeriods([lockEndingAt(new Date(OPENED_AT.getTime() + 1))]);
-    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+  /**
+   * Der eigentliche Fix: eine von der KEYHOLDERIN beendete Sperrzeit macht eine Öffnung drumherum nie
+   * zu einer unerlaubten — unabhängig davon, ob der präzise Rückzug-Zeitstempel zufällig hinter der
+   * (im Formular gewählten, minutengenauen) Öffnungszeit liegt. Rückzug und Öffnung sind zwei
+   * getrennte Aktionen, oft auf zwei Geräten; ihre Sekunden gegeneinander zu stellen trägt nicht.
+   * Entscheidend ist WER die Sperre beendet hat (`endedReason`), nicht die Reihenfolge der Sekunden.
+   */
+  describe("von der Keyholderin beendete Sperrzeit ist nie ein Vergehen", () => {
+    /** Sperrzeit, die den Öffnungszeitpunkt umschliesst und NACH der Öffnung beendet wurde. */
+    const lockEndedAfter = (endedReason: string | null, id = "s1") => ({
+      id,
+      createdAt: new Date("2026-07-09T22:00:00Z"),
+      endsAt: null,
+      // 60 s nach der gerundeten Öffnungszeit — genau der reale Fall: real zuerst zurückgezogen, aber
+      // die Öffnung trägt die volle Minute davor.
+      withdrawnAt: new Date(OPENED_AT.getTime() + 60_000),
+      endedReason,
+      cleaningAllowed: false,
+      wirksamAb: null,
+      fulfilledAt: null,
+    });
+
+    it("bewusst zurückgezogen (keyholder): KEIN Vergehen, obwohl der Rückzug später datiert", async () => {
+      mockLockPeriods([lockEndedAfter("keyholder")]);
+      expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
+    });
+
+    it("per Sofort-Freigabe beendet (released): KEIN Vergehen", async () => {
+      mockLockPeriods([lockEndedAfter("released")]);
+      expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(0);
+    });
+
+    it("vom Sub aufgebrochen (opening): bleibt ein Vergehen", async () => {
+      // Gegenprobe: derselbe späte Zeitstempel, aber als Bruch beendet — die Ausnahme greift nicht.
+      mockLockPeriods([lockEndedAfter("opening")]);
+      expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+    });
+
+    it("Altbestand ohne endedReason (null): bleibt ein Vergehen", async () => {
+      // Vor v4.50.30 trug ein Bruch keine Endart. `null` ist NICHT keyholder-beendet, die Ausnahme
+      // greift also nicht — der Zeitstempel entscheidet wie eh und je.
+      mockLockPeriods([lockEndedAfter(null)]);
+      expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+    });
+
+    it("zwei überlappende Sperren, keyholder-beendete zuerst: der Bruch der zweiten bleibt ein Vergehen", async () => {
+      // Die keyholder-beendete Sperre darf die parallel vom Sub aufgebrochene nicht verdecken —
+      // unabhängig von der Reihenfolge, in der die Sperren zurückkommen.
+      mockLockPeriods([lockEndedAfter("keyholder", "s1"), lockEndedAfter("opening", "s2")]);
+      expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+    });
   });
 });

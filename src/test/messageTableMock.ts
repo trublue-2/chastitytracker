@@ -26,6 +26,8 @@ export type MessageRow = {
   senderName: string | null;
   refEntityType: string | null;
   refEntityId: string | null;
+  /** Vom Träger weggewischt (soft-dismiss statt Löschen) — fehlt an einer Zeile, gilt sie als offen. */
+  subDismissedAt?: Date | null;
 };
 
 /**
@@ -45,13 +47,17 @@ export function offenseAnnouncement(subjectUserId: string, refId: string): Messa
   };
 }
 
-/** Die Where-Formen dieser Tests: Gleichheit je Spalte, dazu `{ in: [...] }`. */
-const matches = (row: MessageRow, where: Record<string, unknown> = {}) =>
+/** Die Where-Formen dieser Tests: Gleichheit je Spalte, `{ in: [...] }`, `{ not: v }`, `null`
+ *  (trifft auch die fehlende Spalte) und ein `OR` von Teil-Wheres. Genug, um den Soft-Dismiss-Pfad
+ *  (`deleteMessages`) und den Ausblend-Filter (`subDismissedAt: null`) mitzuprüfen. */
+const matches = (row: MessageRow, where: Record<string, unknown> = {}): boolean =>
   Object.entries(where).every(([col, cond]) => {
+    if (col === "OR") return (cond as Record<string, unknown>[]).some((sub) => matches(row, sub));
     const value = row[col as keyof MessageRow];
-    return cond && typeof cond === "object" && "in" in cond
-      ? (cond as { in: unknown[] }).in.includes(value)
-      : value === cond;
+    if (cond === null) return value === null || value === undefined;
+    if (cond && typeof cond === "object" && "in" in cond) return (cond as { in: unknown[] }).in.includes(value);
+    if (cond && typeof cond === "object" && "not" in cond) return value !== (cond as { not: unknown }).not;
+    return value === cond;
   });
 
 /**
@@ -84,6 +90,13 @@ export function createMessageTablePrisma(inbox: MessageRow[]): unknown {
     inbox.splice(0, inbox.length, ...keep);
     return { count };
   });
+  models.message.updateMany.mockImplementation(
+    async ({ where, data }: { where: Record<string, unknown>; data: Partial<MessageRow> }) => {
+      let count = 0;
+      for (const r of inbox) if (matches(r, where)) { Object.assign(r, data); count++; }
+      return { count };
+    },
+  );
 
   const prisma: unknown = new Proxy(models, {
     get: (target, prop) =>

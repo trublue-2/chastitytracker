@@ -238,7 +238,6 @@ export async function releaseNow(params: ReleaseNowParams): Promise<ServiceResul
       // Immer zustellen: das ist keine Meldung ÜBER etwas, sondern die Mitteilung, dass er gerade
       // aufgeschlossen wurde. Wer das erst beim nächsten App-Start erfährt, sitzt derweil
       // verschlossen da und weiss es nicht.
-      alwaysNotify: true,
       inbox: { actor },
     });
 

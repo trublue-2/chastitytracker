@@ -173,11 +173,21 @@ export default function SettingsForm({ username, email, locale, timezone, startP
 
   const [messageMailValue, setMessageMailValue] = useState(messageMail);
   const [messagePushValue, setMessagePushValue] = useState(messagePush);
+  // Telegram-Kanal + Verbindung leben eigentlich im Telegram-Abschnitt, werden aber HIER gehalten:
+  // nur so kennt die Seite alle drei Kanäle live und kann warnen, wenn der letzte ausgeht.
+  const [messageTelegramValue, setMessageTelegramValue] = useState(messageTelegram);
+  const [telegramLinkedValue, setTelegramLinkedValue] = useState(telegramLinked);
   const [messageNotifyError, setMessageNotifyError] = useState<string | null>(null);
 
   // Mail/Push je einzeln für neue Nachrichten (Telegram im Telegram-Abschnitt). Optimistik,
   // selektives Schreiben und Fehler-Behandlung stecken im geteilten Hook.
   const toggleMessageChannel = useNotificationChannelToggle("MESSAGE_RECEIVED", setMessageNotifyError);
+
+  // „Letzter Kanal aus": Telegram zählt nur, wenn die Instanz einen Bot führt UND der Chat verbunden
+  // ist. Sind alle verbleibenden Kanäle aus, erreicht den Nutzer extern nichts mehr — nur der
+  // Posteingang. Dann warnen (seit die Schalter ALLE Meldungen gaten, nicht nur neue Nachrichten).
+  const telegramChannelActive = telegramConfigured && telegramLinkedValue && messageTelegramValue;
+  const noExternalChannel = !messageMailValue && !messagePushValue && !telegramChannelActive;
 
   const startPageOptions = [
     { value: "auto", label: t("startPageAuto") },
@@ -402,6 +412,9 @@ export default function SettingsForm({ username, email, locale, timezone, startP
               />
             </div>
             <FormError message={messageNotifyError} />
+            {/* Warnung, wenn KEIN Kanal mehr aktiv ist — dieselbe Warn-Card wie eine Fehlerzeile
+                (FormError blendet sich bei leerer Meldung selbst aus). */}
+            <FormError message={noExternalChannel ? tm("allChannelsOffWarning") : null} />
           </div>
 
           {/* Telegram als dritter Benachrichtigungs-Kanal — nur, wenn die Instanz einen Bot führt.
@@ -412,7 +425,12 @@ export default function SettingsForm({ username, email, locale, timezone, startP
               open={expanded === "telegram"}
               onToggle={() => toggle("telegram")}
             >
-              <TelegramSettings linked={telegramLinked} messageTelegram={messageTelegram} />
+              <TelegramSettings
+                linked={telegramLinkedValue}
+                onLinkedChange={setTelegramLinkedValue}
+                messageTelegram={messageTelegramValue}
+                onMessageTelegramChange={setMessageTelegramValue}
+              />
             </ExpandRow>
           )}
 

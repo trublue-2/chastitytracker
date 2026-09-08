@@ -51,6 +51,8 @@ beforeEach(() => {
   mock(prisma.message.findMany).mockResolvedValue([]);
   mock(prisma.message.findFirst).mockResolvedValue(null);
   mock(prisma.message.deleteMany).mockResolvedValue({ count: 0 });
+  // `deleteMessages` schaltet Feststellungs-Meldungen soft (updateMany), bevor es den Rest hart löscht.
+  mock(prisma.message.updateMany).mockResolvedValue({ count: 0 });
   mock(prisma.messageRead.deleteMany).mockResolvedValue({ count: 0 });
   mock(prisma.adminUserRelationship.findMany).mockResolvedValue([]);
   mock(prisma.user.findMany).mockResolvedValue([]);

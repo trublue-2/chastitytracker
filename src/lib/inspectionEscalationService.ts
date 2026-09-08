@@ -98,7 +98,6 @@ export async function sendInspectionReminder(ka: { id: string; code: string | nu
       messageKey: ka.code ? "inspectionReminderMessage" : "inspectionReminderMessageNoCode",
       params: ka.code ? { code: ka.code } : {},
       inbox: { ref: { type: "control", id: ka.id } },
-      alwaysNotify: true,
     });
   }
 }
@@ -202,7 +201,6 @@ export async function notifyInspectionAutoMarked(opts: {
     messageKey: `inspectionAutoRemovedMessageSub${variant}`,
     params: code ? { code } : {},
     inbox: { ref: { type: "control", id: controlId } },
-    alwaysNotify: true,
   });
   await notifyControllers(userId, await getControllersOfUser(userId), {
     subjectKey: "inspectionAutoRemovedSubjectKeyholder",

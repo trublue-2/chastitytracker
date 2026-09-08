@@ -25,10 +25,11 @@ vi.mock("@/lib/messageService", async (importOriginal) => ({
   recordMessageAndBadge: vi.fn(async () => 1),
 }));
 
-import { notifyControllers } from "./notify";
+import { notifyControllers, notifyUser } from "./notify";
 import { prisma } from "@/lib/prisma";
 import { sendMailSafe } from "@/lib/mail";
 import { firePush } from "@/lib/push";
+import { getMessageChannels } from "@/lib/notificationPrefs";
 import { recordSystemMessage, recordMessageAndBadge } from "@/lib/messageService";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
@@ -164,5 +165,55 @@ describe("notifyControllers", () => {
     // eigenen Posteingang des Keyholders, als wäre sie seine eigene Direktive.
     await notifyControllers("sub1", [kh("kh1")], { ...CONTENT });
     expect(recordMessageAndBadge).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Die Kanal-Schalter des Empfängers (`MESSAGE_RECEIVED`) gaten JEDE Zustellung an ihn — auch das,
+ * was früher über `alwaysNotify` an den Schaltern vorbei ging (Anforderungen, Fristen, Eskalation).
+ * Der Gewinn und die Grenze zugleich: „Mail aus" heisst wirklich keine Mail, aber die
+ * Posteingangs-Zeile bleibt der garantierte Nachweis — ein stummer Kanal dämpft, er löscht nicht.
+ */
+describe("notifyUser — die Kanal-Schalter des Empfängers gaten alles", () => {
+  const RECIP = { subjectKey: "inspectionRequestedSubject", messageKey: "inspectionRequestedMessage" } as const;
+
+  it("Mail aus: keine Mail, aber die Posteingangs-Zeile und Push bleiben", async () => {
+    // Deckt zugleich die früheren `alwaysNotify`-Ereignisse ab: `notifyLoadedUser` verzweigt NICHT
+    // nach `messageKey`, die Art der Meldung (Anforderung/Frist/„neue Nachricht") ändert am Gaten
+    // also nichts. Genau das war vorher anders — eine Friständerung ging trotz Mail-aus per Mail raus.
+    mock(getMessageChannels).mockResolvedValue({ mail: false, push: true, telegram: false });
+    await notifyUser("sub1", { ...RECIP });
+    expect(sendMailSafe).not.toHaveBeenCalled();
+    expect(firePush).toHaveBeenCalledOnce();
+    expect(recordMessageAndBadge).toHaveBeenCalledOnce();
+  });
+
+  it("alle Kanäle aus: nichts wird zugestellt, die Posteingangs-Zeile bleibt trotzdem", async () => {
+    mock(getMessageChannels).mockResolvedValue({ mail: false, push: false, telegram: false });
+    await notifyUser("sub1", { ...RECIP });
+    expect(sendMailSafe).not.toHaveBeenCalled();
+    expect(firePush).not.toHaveBeenCalled();
+    expect(recordMessageAndBadge).toHaveBeenCalledOnce();
+  });
+
+  it("fest vorgegebene Kanäle schlagen die Empfänger-Schalter NICHT nach", async () => {
+    // Wiege-Erinnerung / Träger-Raster reichen `channels` selbst durch — dann bleibt getMessageChannels ungefragt.
+    await notifyUser("sub1", {
+      subjectKey: "weightReminderSubject", messageKey: "weightReminderMessage",
+      inbox: false, channels: { mail: true, push: false, telegram: false },
+    });
+    expect(getMessageChannels).not.toHaveBeenCalled();
+    expect(sendMailSafe).toHaveBeenCalledOnce();
+    expect(firePush).not.toHaveBeenCalled();
+  });
+
+  it("ohne Posteingangs-Zeile (Keyholder-Pfad): alle Kanäle, KEINE Empfänger-Präferenz-Abfrage", async () => {
+    // Der Schnitt: die Empfänger-Schalter gaten nur Meldungen MIT eigener Zeile. `notifyControllers`
+    // schickt `inbox: false` — dort darf der Schalter des Kopfes die geteilte Keyholder-Meldung nicht
+    // dämpfen, und es darf auch keine Präferenz-Abfrage je Empfänger anfallen.
+    await notifyUser("sub1", { subjectKey: "inspectionRequestedSubject", messageKey: "inspectionRequestedMessage", inbox: false });
+    expect(getMessageChannels).not.toHaveBeenCalled();
+    expect(sendMailSafe).toHaveBeenCalledOnce();
+    expect(firePush).toHaveBeenCalledOnce();
   });
 });

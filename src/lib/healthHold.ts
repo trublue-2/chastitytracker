@@ -281,7 +281,6 @@ export function healthHoldNotice(
     params: active ? { reason: reason ?? "" } : {},
     // Wie bei Kontroll- und Verschluss-Direktiven: eine Pflicht, die ausgesetzt oder wieder
     // aufgenommen wird, ist keine abschaltbare Nachricht.
-    alwaysNotify: true,
     inbox: { actor },
   };
 }

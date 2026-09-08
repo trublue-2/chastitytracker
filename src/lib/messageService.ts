@@ -472,6 +472,19 @@ export const DISMISSAL_BODY_KEY: MessageBodyKey = "offenseDismissedMessage";
  *  — Feststellung, Verwerfung und deren Löschung. */
 export const OFFENSE_REF_TYPE: MessageRefType = "detectedOffense";
 
+/**
+ * „Alles AUSSER einer Feststellungs-Meldung." Die Feststellungs-Zeile ist der Dedup-Merker von
+ * `announceNewOffenses` und darf weder hart gelöscht (→ {@link deleteMessages}) noch beschnitten
+ * (→ {@link pruneExpiredMessages}) werden; beide grenzen sie über dieses Fragment aus.
+ *
+ * Der `null`-Zweig ist Pflicht und keine Vorsicht: Prisma zieht NULL NICHT in ein blosses `not`, ein
+ * `{ not: OFFENSE_REF_TYPE }` allein liesse also jede referenzlose Systemzeile (Auto-Kontrolle,
+ * Aufgaben-Ergebnis) durchs Raster fallen. EINE Quelle, damit die beiden Pfade nicht auseinanderlaufen.
+ */
+const NON_OFFENSE_REF_WHERE = {
+  OR: [{ refEntityType: null }, { refEntityType: { not: OFFENSE_REF_TYPE } }],
+} satisfies Prisma.MessageWhereInput;
+
 /** Ist das eine Verwerfungs-Meldung? Die einzige Zeile, deren Sichtbarkeit am `bodyKey` hängt. */
 function isDismissalRow(row: RefRow): boolean {
   return row.bodyKey === DISMISSAL_BODY_KEY && row.refEntityType === OFFENSE_REF_TYPE && Boolean(row.refEntityId);
@@ -750,6 +763,10 @@ function messageWhere(scope: InboxScope, filter: MessageFilter = {}): Prisma.Mes
   return {
     subjectUserId: subjectFilter(scope),
     audience: scope.audience,
+    // Vom Träger weggewischte Feststellungs-Meldungen sind aus SEINER Sicht erledigt — die Zeile
+    // bleibt nur als „schon gemeldet"-Merker liegen (siehe `deleteMessages` und `Message.subDismissedAt`).
+    // Keyholder-Zeilen tragen den Stempel nie, der Filter kostet dort also nichts.
+    subDismissedAt: null,
     // Gegen den LESER, nicht gegen den Träger: dieselbe Keyholder-Zeile ist für den einen gelesen
     // und für den anderen nicht.
     ...(filter.unreadOnly ? { reads: { none: { userId: scope.readerId } } } : {}),
@@ -1037,13 +1054,33 @@ async function scopedMessageIds(scope: InboxScope, ids: string[]): Promise<strin
  * geteilten Zeile (ein Gelesen-Stand je Leser, aber nur ein Datensatz). Wer das nicht will, blendet
  * in der Anzeige aus, statt zu löschen; ein „nur für mich löschen" bräuchte eine eigene Spalte.
  * Andere Stellen zeigen auf diesen Absatz, statt ihn zu wiederholen.
+ *
+ * AUSNAHME — Meldungen mit Vergehens-Bezug (`refEntityType: "detectedOffense"`) werden für den
+ * Träger NICHT gelöscht, sondern soft-dismisst (`subDismissedAt`). Der Fall, um den es geht, ist die
+ * FESTSTELLUNG: ihre Zeile ist der Dedup-Merker von `announceNewOffenses`, ein hartes Löschen liesse
+ * den Melde-Lauf sie neu schreiben, solange das Vergehen offen ist (Details an
+ * {@link Message.subDismissedAt}). Die VERWERFUNGS-Meldung teilt sich dieselbe Referenz und fällt
+ * damit in denselben Zweig — unschädlich: sie wird nie neu geschrieben, und ein `reopen` entfernt sie
+ * über den eigenen Cleanup (`offenseJudgmentCleanup.ts`, rohes `deleteMany` ohne diese Ausnahme).
+ * Für den Träger sieht beides aus wie Löschen (aus Liste und Zähler ausgeblendet). Keyholder-Zeilen
+ * betrifft das nie (ihr `audience` ist nicht „sub", die `refEntityType`-Bedingung greift dort ohnehin nicht).
  */
-export async function deleteMessages(scope: InboxScope, ids: string[]): Promise<number> {
+export async function deleteMessages(scope: InboxScope, ids: string[], now: Date = new Date()): Promise<number> {
   if (ids.length === 0) return 0;
-  const { count } = await prisma.message.deleteMany({
-    where: { id: { in: ids }, subjectUserId: subjectFilter(scope), audience: scope.audience },
-  });
-  return count;
+  const base = { id: { in: ids }, subjectUserId: subjectFilter(scope), audience: scope.audience };
+  // Erst stumm schalten, was ein Beleg bleiben muss (nur die noch nicht weggewischten), dann den Rest
+  // hart löschen. Die zwei Where-Klauseln sind disjunkt, also ist die Reihenfolge belanglos; das
+  // `subDismissedAt: null` hält den Vorgang idempotent (ein zweiter Wisch stempelt nicht neu).
+  const [{ count: dismissed }, { count: deleted }] = await Promise.all([
+    prisma.message.updateMany({
+      where: { ...base, refEntityType: OFFENSE_REF_TYPE, subDismissedAt: null },
+      data: { subDismissedAt: now },
+    }),
+    // Alles ausser Feststellungen — die schaltet der updateMany-Zweig soft. Ausschluss über das
+    // gemeinsame {@link NON_OFFENSE_REF_WHERE} (dort steht die NULL-Begründung).
+    prisma.message.deleteMany({ where: { ...base, ...NON_OFFENSE_REF_WHERE } }),
+  ]);
+  return dismissed + deleted;
 }
 
 /**
@@ -1163,7 +1200,13 @@ export async function pruneExpiredMessages(now: Date = new Date()): Promise<numb
   const cutoff = new Date(now.getTime() - days * 86_400_000);
 
   const stale = await prisma.message.findMany({
-    where: { createdAt: { lt: cutoff }, ...RETAINED_WHERE },
+    // Feststellungs-Meldungen nie beschneiden (Ausschluss über {@link NON_OFFENSE_REF_WHERE}): für
+    // ein noch offenes Vergehen schriebe der Melde-Lauf die eben entfernte Zeile sofort neu, und
+    // eine vom Träger weggewischte (soft-dismisste) käme nach der Frist zurück. Bewusst PAUSCHAL,
+    // auch für längst beurteilte: den Offen-Zustand kennt nur die Live-Ableitung (`buildStrafbuch`),
+    // die im Retention-Cron nichts verloren hat. Die paar Zeilen je Vergehen kosten nichts; die
+    // referenzlose Masse (Auto-Kontrollen, Aufgaben-Ergebnisse) wird weiter beschnitten.
+    where: { createdAt: { lt: cutoff }, ...RETAINED_WHERE, ...NON_OFFENSE_REF_WHERE },
     select: { id: true },
     take: MESSAGE_PRUNE_BATCH,
   });

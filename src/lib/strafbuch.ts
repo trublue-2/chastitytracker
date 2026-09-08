@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { deployCutoff } from "@/lib/appMeta";
 import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ, hhmmToMinutes } from "@/lib/utils";
 import { cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
@@ -484,15 +485,58 @@ export function isCleaningNotRelocked(deadline: Date, relockAt: Date | null, now
 }
 
 /** Finds the Sperrzeit active at `openTime` (if any) — shared by unauthorizedOpenings and
- *  cleaningNotRelocked, which both need to know whether an OEFFNEN fell inside an active lock period. */
+ *  cleaningNotRelocked, which both need to know whether an OEFFNEN fell inside an active lock period.
+ *
+ *  `withdrawnGraceMs` (Vorgabe 0) verzeiht einen Rückzug, der weniger als diese Spanne NACH
+ *  `openTime` liegt; bei `0` ist die Bedingung Zeichen für Zeichen das alte `s.withdrawnAt > openTime`
+ *  (ein Gleichstand zählt nie als aktiv). Warum ein Spielraum nötig ist: {@link ORGASM_LOCK_ROUNDING_GRACE_MS}. */
 function findActiveLockPeriod<S extends { createdAt: Date; endsAt: Date | null; withdrawnAt: Date | null }>(
-  openTime: Date, lockPeriods: S[],
+  openTime: Date, lockPeriods: S[], withdrawnGraceMs = 0,
 ): S | undefined {
   return lockPeriods.find((s) =>
     openTime >= s.createdAt &&
     (s.endsAt === null || openTime < s.endsAt) &&
-    (s.withdrawnAt === null || s.withdrawnAt > openTime),
+    (s.withdrawnAt === null || s.withdrawnAt.getTime() - openTime.getTime() > withdrawnGraceMs),
   );
+}
+
+/**
+ * Rundungs-Spielraum für den Rückzug einer Sperrzeit im `lockedOnly`-Orgasmus-Pfad.
+ *
+ * Ein Orgasmus trägt eine im Formular gewählte, minutengenaue `startTime`; der Rückzug der Sperre
+ * (`withdrawnAt`) ist sekundengenau. Hebt die Keyholderin die Sperre im selben Moment auf, in dem
+ * der frisch befreite Träger einen Orgasmus erfasst, liegt der präzise Rückzug oft ein paar Sekunden
+ * HINTER der auf die volle Minute gerundeten Orgasmuszeit — und die Sperre gälte für den
+ * Sekundenvergleich noch als aktiv. Ein Rückzug innerhalb dieser Minute nach der (gerundeten)
+ * Orgasmuszeit ist von ihr nicht mehr zu unterscheiden, also gilt die Sperre dann als bereits weg.
+ *
+ * Dieselbe Rundungs-Fragilität wie bei den Öffnungen (v6.0.13), aber der dortige Fix
+ * (keyholder-beendete Sperren via {@link isKeyholderEndedLock} ganz ausschliessen) trägt hier NICHT:
+ * anders als eine Öffnung bricht ein Orgasmus die Sperre nicht auf, und einer WÄHREND einer
+ * laufenden Sperre bleibt ein Vergehen, auch wenn die Keyholderin die Sperre erst Stunden später
+ * aufhebt. Deshalb ein enger Zeit-Spielraum statt der endedReason-Ausnahme.
+ */
+const ORGASM_LOCK_ROUNDING_GRACE_MS = 60_000;
+
+/**
+ * Wurde die Sperrzeit von der KEYHOLDERIN beendet (bewusster Rückzug / Sofort-Freigabe) und nicht
+ * vom Sub aufgebrochen? Eine so beendete Sperrzeit macht eine Öffnung drumherum NIE zu einer
+ * unerlaubten: die Keyholderin hat die Sperre selbst heruntergenommen.
+ *
+ * Das ersetzt den Zeitstempel-Vergleich, der hier nicht trägt: Rückzug und Öffnung sind zwei
+ * getrennte Aktionen (oft auf zwei Geräten), und die Öffnung trägt eine im Formular gewählte,
+ * minutengenaue `startTime`. Lag der Rückzug real vor der Öffnung, aber sein präziser Zeitstempel
+ * hinter der gerundeten Öffnungszeit, galt die Sperre für die Ableitung „noch aktiv" — und eine von
+ * der Keyholderin gedeckte Öffnung stand als Vergehen im Buch.
+ *
+ * Fälschungssicher: `endedReason` kann der Sub nicht setzen, und beide Rückzug-Wege fassen nur eine
+ * NOCH AKTIVE Sperre an (`withdrawnAt: null`, siehe `withdrawVerschlussAnforderung`). Eine bereits
+ * vom Sub aufgebrochene Sperre (`"opening"`) kann also nie nachträglich zu `"keyholder"` werden — ein
+ * echter Bruch bleibt ein Vergehen.
+ */
+function isKeyholderEndedLock(lockPeriod: { endedReason: string | null }): boolean {
+  return lockPeriod.endedReason === LOCK_ENDED_REASON.keyholder
+    || lockPeriod.endedReason === LOCK_ENDED_REASON.released;
 }
 
 /** AppMeta-Schlüssel des Stichtags. Die Zeile schreibt die Migration
@@ -755,15 +799,25 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const cleaningLimitRows = cleaningLimitViolations(openings, cleaningAt, tzAt, quotaEverSet);
 
   // Each OEFFNEN paired with the Sperrzeit active at its startTime (if any) — computed once,
-  // shared by unauthorizedOpenings and cleaningNotRelocked below.
+  // used by cleaningNotRelocked below. unauthorizedOpenings sucht seine Sperre aus einer engeren
+  // Menge (`enforcingLockPeriods`), deshalb hier NICHT geteilt.
   const openingsWithLockPeriod = openings.map((o) => ({ o, lockPeriod: findActiveLockPeriod(o.startTime, lockPeriods) }));
+
+  // Eine Sperrzeit, die die KEYHOLDERIN beendet hat (`isKeyholderEndedLock`), setzt NICHTS mehr
+  // durch — sie hat die Sperre selbst heruntergenommen. Solche Sperren fallen aus dem Kandidaten-
+  // Satz, BEVOR die aktive Sperre gesucht wird: liegen mehrere Sperren über der Öffnung, bleibt so
+  // die vom Sub aufgebrochene sichtbar, statt dass eine zuerst gefundene keyholder-beendete die
+  // Öffnung fälschlich deckt. Nur eine vom Sub aufgebrochene Sperre (`endedReason === "opening"`)
+  // oder eine noch laufende macht eine Öffnung unerlaubt.
+  const enforcingLockPeriods = lockPeriods.filter((lp) => !isKeyholderEndedLock(lp));
 
   // Unauthorized openings — an OEFFNEN inside an active Sperrzeit. A REINIGUNG opening is
   // permitted when both the user flag and the Sperrzeit allow cleaning. System-authored openings
   // (source="system", the inspection-escalation auto-mark) are EXCLUDED: that's the sub's
   // presumed removal already counted once as `autoRemovedControls` — it's not a willful action by
   // the sub, so flagging it a second time here would double-punish a single ambiguous event.
-  const unauthorizedOpenings = openingsWithLockPeriod
+  const unauthorizedOpenings = openings
+    .map((o) => ({ o, lockPeriod: findActiveLockPeriod(o.startTime, enforcingLockPeriods) }))
     .filter(({ o, lockPeriod }) =>
       o.source !== "system" &&
       !!lockPeriod && !isAllowedCleaningOpening(o, lockPeriod, cleaningPermissionUserAt(cleaningAt(o.startTime), tzAt(o.startTime)), enforcedFrom) && !isOrgasmusOpenAllowed(o.startTime),
@@ -806,7 +860,9 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     const judged = judgedRefs.has(o.id);
     if (!judged && mode === "off") return [];
     if (orgasmusAnforderungen.some((w) => windowCovers(w, o.startTime))) return [];
-    const lockPeriod = findActiveLockPeriod(o.startTime, lockPeriods);
+    // Rundungs-Spielraum, damit ein Orgasmus im Augenblick der Freigabe nicht fälschlich als
+    // „während laufender Sperre" zählt — Begründung an `ORGASM_LOCK_ROUNDING_GRACE_MS`.
+    const lockPeriod = findActiveLockPeriod(o.startTime, lockPeriods, ORGASM_LOCK_ROUNDING_GRACE_MS);
     if (!judged && mode === "lockedOnly" && !lockPeriod) return [];
     return [{
       id: o.id,
