@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import CategoryIconRender from "@/app/components/CategoryIcon";
+import FieldLabel from "@/app/components/FieldLabel";
 import Select from "@/app/components/Select";
 import { categoryStyle } from "@/lib/categoryConstants";
 import type { TaskRequirementInput } from "@/lib/taskService";
@@ -66,7 +67,7 @@ export default function TaskRequirementPicker({
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs text-foreground-faint">{label}</span>
+      <FieldLabel info={hint}>{label}</FieldLabel>
       <div className="rounded-xl border border-border divide-y divide-border-subtle overflow-hidden">
         <Row
           selected={kgSelected}
@@ -105,7 +106,6 @@ export default function TaskRequirementPicker({
           );
         })}
       </div>
-      <span className="text-xs text-foreground-faint">{hint}</span>
     </div>
   );
 }

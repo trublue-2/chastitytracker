@@ -1,10 +1,11 @@
 "use client";
 
-import { Camera, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
+import FieldLabel from "@/app/components/FieldLabel";
 import FieldTabs from "@/app/components/FieldTabs";
 import Toggle from "@/app/components/Toggle";
 import DurationInput from "@/app/components/DurationInput";
@@ -176,7 +177,7 @@ export default function TaskProofPicker({
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs text-foreground-faint">{t("proofsLabel")}</span>
+      <FieldLabel info={t("proofsEmptyHint")}>{t("proofsLabel")}</FieldLabel>
 
       {value.length > 0 && (
         <div className="rounded-xl border border-border divide-y divide-border-subtle overflow-hidden">
@@ -330,15 +331,6 @@ export default function TaskProofPicker({
         >
           {t("proofAdd")}
         </Button>
-      )}
-
-      {/* Der ZWECK, und nur im Leerzustand: wer schon Nachweise hat, weiss wofür sie sind. Es ist der
-          einzige Satz, den die Oberfläche nicht selbst sagen kann. */}
-      {value.length === 0 && (
-        <p className="text-xs text-foreground-faint flex items-start gap-1.5">
-          <Camera size={13} className="shrink-0 mt-0.5" aria-hidden />
-          <span>{t("proofsEmptyHint")}</span>
-        </p>
       )}
 
       {/* Die FOLGE steht am Schalter, nicht in einem Absatz darunter — und sie ändert sich mit ihm.

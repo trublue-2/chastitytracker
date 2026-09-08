@@ -1,6 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import InfoDot from "./InfoDot";
 
 /**
  * Die kleine Beschriftung über einem Formular-Abschnitt — „Frist", „Zeit zum Anlegen", „Anzeige".
@@ -20,6 +22,8 @@ export default function FieldLabel({
   id,
   htmlFor,
   required,
+  info,
+  infoLabel,
   children,
 }: {
   id?: string;
@@ -33,6 +37,12 @@ export default function FieldLabel({
    *  `FieldTabs` beschriftet sie sogar eine Gruppe, deren Pflicht am Feld DARUNTER hängt. Bliebe es
    *  beim Stern, stünde die Pflicht nur im Bild und nirgends im Vorlesetext. */
   required?: boolean;
+  /** Eine seltene Erklärung zur Gruppe — hinter ein ⓘ NEBEN die Beschriftung statt in eine graue
+   *  Dauerzeile darunter (siehe {@link InfoDot}). Das ⓘ ist ein Geschwister der beschrifteten
+   *  Element-`id`, nicht darin — der zugängliche Name der Gruppe bleibt der reine Text. */
+  info?: ReactNode;
+  /** Zugänglicher Name des ⓘ, wo `children` kein einfacher Text ist. Sonst dient der Text selbst. */
+  infoLabel?: string;
   children: React.ReactNode;
 }) {
   const tc = useTranslations("common");
@@ -50,7 +60,16 @@ export default function FieldLabel({
       )}
     </>
   );
-  return htmlFor
+  const labelEl = htmlFor
     ? <label id={id} htmlFor={htmlFor} className={className}>{content}</label>
     : <span id={id} className={className}>{content}</span>;
+  if (info == null) return labelEl;
+  // Das ⓘ als GESCHWISTER der id-tragenden Beschriftung, nicht darin: ein `aria-labelledby` auf die
+  // `id` nennt so weiterhin nur den Text, nicht „… Schaltfläche".
+  return (
+    <span className="flex items-center gap-1">
+      {labelEl}
+      <InfoDot label={infoLabel ?? (typeof children === "string" ? children : "")}>{info}</InfoDot>
+    </span>
+  );
 }

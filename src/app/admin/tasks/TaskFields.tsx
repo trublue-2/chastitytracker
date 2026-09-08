@@ -396,14 +396,14 @@ export default function TaskFields({
           {isEditSeries && <p className="text-xs text-foreground-faint">{ts("editSeriesReplaceHint")}</p>}
           <FieldTabs
             label={ts("holdModeLabel")}
+            labelInfo={ts(effectiveSeriesHoldMode === "duration" ? "holdDurationHint" : "holdWindowHint")}
             value={effectiveSeriesHoldMode}
             options={[
               { value: "window" as const, label: ts("holdModeWindow") },
-              { value: "duration" as const, label: ts("holdModeDuration"), disabled: !hasRequirements },
+              ...(hasRequirements ? [{ value: "duration" as const, label: ts("holdModeDuration") }] : []),
             ]}
             onChange={setSeriesHoldMode}
           />
-          {!hasRequirements && <p className="text-xs text-foreground-faint">{ts("holdModeNeedsRequirement")}</p>}
           <DurationInput
             label={ts(effectiveSeriesHoldMode === "duration" ? "holdDurationField" : "holdWindowField")}
             ariaLabel={ts(effectiveSeriesHoldMode === "duration" ? "holdDurationField" : "holdWindowField")}
@@ -412,9 +412,6 @@ export default function TaskFields({
             onChange={(value, unit) => { setHours(value); setHoldUnit(unit); }}
             required
           />
-          <p className="text-xs text-foreground-faint">
-            {ts(effectiveSeriesHoldMode === "duration" ? "holdDurationHint" : "holdWindowHint")}
-          </p>
 
           <RecurrenceFields value={recurrence} onChange={setRecurrence} tz={tz} />
 
@@ -433,15 +430,13 @@ export default function TaskFields({
         /* ── Einzelaufgabe: Frist-Block wie bisher. Beim Ändern ohne Umschalter/Kulanz (Modus fest). ── */
         <div className="flex flex-col gap-3">
           {!isEditTask && (
-            <>
-              <FieldTabs
-                label={t("holdModeLabel")}
-                value={effectiveMode}
-                options={HOLD_MODES.map((m) => ({ value: m.value, label: t(m.labelKey), disabled: m.value === "fromStart" && !hasRequirements }))}
-                onChange={switchMode}
-              />
-              {!hasRequirements && <p className="text-xs text-foreground-faint">{t("holdModeNeedsRequirement")}</p>}
-            </>
+            <FieldTabs
+              label={t("holdModeLabel")}
+              labelInfo={hasRequirements ? t(fromStartActive ? "holdFromStartHint" : "holdUntilHintRequirements") : undefined}
+              value={effectiveMode}
+              options={HOLD_MODES.filter((m) => m.value !== "fromStart" || hasRequirements).map((m) => ({ value: m.value, label: t(m.labelKey) }))}
+              onChange={switchMode}
+            />
           )}
 
           {effectiveMode !== "datetime" ? (
@@ -530,10 +525,6 @@ export default function TaskFields({
                   : { text: t("previewEndTooSoon", { date }), warn: true };
               }}
             />
-          )}
-
-          {hasRequirements && (
-            <p className="text-xs text-foreground-faint">{t(fromStartActive ? "holdFromStartHint" : "holdUntilHintRequirements")}</p>
           )}
         </div>
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import FieldLabel from "./FieldLabel";
 import Tabs from "./Tabs";
 
@@ -18,6 +18,7 @@ import Tabs from "./Tabs";
 export default function FieldTabs<T extends string>({
   label,
   ariaLabel,
+  labelInfo,
   value,
   options,
   onChange,
@@ -30,8 +31,11 @@ export default function FieldTabs<T extends string>({
   label?: string;
   /** Name der Gruppe für Assistenztechnik, wo `label` fehlt. */
   ariaLabel?: string;
+  /** Eine seltene Erklärung zur Gruppe, hinter ein ⓘ neben der Beschriftung — statt einer grauen
+   *  Dauerzeile darunter (siehe {@link InfoDot}). Nur mit sichtbarem `label`. */
+  labelInfo?: ReactNode;
   value: T;
-  options: readonly { value: T; label: string; disabled?: boolean }[];
+  options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
   /** Beschriftet die Gruppe ein PFLICHTfeld? Der Umschalter selbst ist immer gesetzt — gemeint ist
    *  das Feld darunter, dessen Beschriftung diese hier ist. */
@@ -40,10 +44,10 @@ export default function FieldTabs<T extends string>({
   const labelId = useId();
   return (
     <div className="flex flex-col gap-2">
-      {label && <FieldLabel id={labelId} required={required}>{label}</FieldLabel>}
+      {label && <FieldLabel id={labelId} required={required} info={labelInfo}>{label}</FieldLabel>}
       <Tabs
         variant="segmented"
-        tabs={options.map((o) => ({ key: o.value, label: o.label, disabled: o.disabled }))}
+        tabs={options.map((o) => ({ key: o.value, label: o.label }))}
         activeTab={value}
         // Der Cast lebt hier an EINER Stelle: `Tabs` spricht `string`, die Aufrufer denken in ihrer
         // eigenen Union. Ohne den Wrapper stünde derselbe Cast bei jedem Aufrufer.
