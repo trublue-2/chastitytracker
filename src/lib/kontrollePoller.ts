@@ -14,7 +14,7 @@ import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAuto
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
 import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
 import { deadlineFromDispatch, dueForDispatchWhere } from "@/lib/delayedTrigger";
-import { dispatchDueTasks, processDueTasks } from "@/lib/taskService";
+import { dispatchDueTasks, processDueTasks, materializeDueSeries } from "@/lib/taskService";
 import { NOT_PAUSED_WHERE, USER_NOT_PAUSED_WHERE } from "@/lib/healthHold";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
@@ -162,6 +162,11 @@ async function processDue(): Promise<void> {
     // derselben Zusage: erst zustellen, dann stempeln, und im `await`-Zweig — der `running`-Riegel
     // oben ist Teil der Einmal-Zusage, nicht bloss Bequemlichkeit.
     //
+    // VOR `dispatchDueTasks`: fällige Serien-Termine (#26) zu echten Aufgaben materialisieren. Sie
+    // entstehen SOFORT wirksam (der Termin steckt darin, DASS jetzt materialisiert wird) und melden
+    // sich in `materializeDueSeries` selbst — der Dispatch darunter fasst nur terminierte Zeilen.
+    await materializeDueSeries(now).catch((e) => console.error("[materializeDueSeries]", e));
+
     // VOR `processDueTasks`: eine soeben zugestellte Aufgabe bekommt dabei ihr verschobenes
     // `holdUntil`; würde erst gemeldet und dann zugestellt, sähe die Ergebnis-Meldung im selben Tick
     // noch die alte, womöglich schon abgelaufene Frist.

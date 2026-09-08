@@ -992,6 +992,10 @@ export const FM_REGISTRY: FmEntry[] = [
   x("runtime", "Task", "withdrawnAt", "Gesetzt beim Zurückziehen; wird nie ein Vergehen."),
   x("runtime", "Task", "resultNotifiedAt",
     "Versand-Stempel der Ergebnismeldung. Kein Zustand — der wird immer aus den Einträgen abgeleitet."),
+  x("record", "Task", "seriesId",
+    "Aus welcher Serie (#26) diese Instanz materialisiert wurde; `null` = von Hand gestellte Einzelaufgabe."),
+  x("record", "Task", "seriesOccurrence",
+    "Der geplante Serien-Termin, der diese Instanz erzeugt hat — mit `seriesId` eindeutig (Idempotenz-Netz)."),
 
   // ── TaskRequirement ────────────────────────────────────────────────────────────────────────
   s({

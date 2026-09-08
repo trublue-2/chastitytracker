@@ -380,6 +380,8 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `Task.completionNote` | Datensatz | Begleittext seiner Meldung. |
 | `Task.withdrawnAt` | Laufzeitzustand | Gesetzt beim Zurückziehen; wird nie ein Vergehen. |
 | `Task.resultNotifiedAt` | Laufzeitzustand | Versand-Stempel der Ergebnismeldung. Kein Zustand — der wird immer aus den Einträgen abgeleitet. |
+| `Task.seriesId` | Datensatz | Aus welcher Serie (#26) diese Instanz materialisiert wurde; `null` = von Hand gestellte Einzelaufgabe. |
+| `Task.seriesOccurrence` | Datensatz | Der geplante Serien-Termin, der diese Instanz erzeugt hat — mit `seriesId` eindeutig (Idempotenz-Netz). |
 | `TaskRequirement.id` | Identität | Primärschlüssel. |
 | `TaskRequirement.taskId` | Identität | Zugehörige Aufgabe. |
 | `TaskProof.id` | Identität | Primärschlüssel. |

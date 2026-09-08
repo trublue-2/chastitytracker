@@ -284,6 +284,21 @@ export const TASK_CODES = [
   "TASK_PROOF_DUE_AFTER_END",
 ] as const;
 
+/** taskSeriesService (#26, wiederkehrende Aufgaben). Die `RECURRENCE_*`-Codes sind genau die
+ *  {@link import("./taskRecurrence").RecurrenceProblem}-Werte, damit der reine Rechenkern seinen
+ *  Grund direkt als Service-Fehler zurückgeben kann. `TASK_SERIES_HOLD_MODE`: es muss genau ein
+ *  Halte-Modus gesetzt sein (Dauer ODER Fenster). */
+export const TASK_SERIES_CODES = [
+  "RECURRENCE_FREQ",
+  "RECURRENCE_INTERVAL",
+  "RECURRENCE_WEEKDAYS",
+  "RECURRENCE_ORDINAL",
+  "RECURRENCE_TIME",
+  "RECURRENCE_UNTIL",
+  "TASK_SERIES_HOLD_MODE",
+  "TASK_SERIES_NOT_FOUND",
+] as const;
+
 /** offenseRulesService (welche Vergehensarten bei einem Sub überhaupt gelten). Beide Codes trennen
  *  zwei Fehler, die der Absender auseinanderhalten muss: die ART ist gar nicht schaltbar
  *  (`manual_offense`, Tippfehler) — oder sie ist es, aber dieser MODUS gehört nicht zu ihr
@@ -370,6 +385,7 @@ export const SERVICE_ERROR_CODES = [
     ...CATEGORY_RULE_CODES,
     ...BOX_CODES,
     ...TASK_CODES,
+    ...TASK_SERIES_CODES,
     ...OFFENSE_RULE_CODES,
     ...SETTINGS_CODES,
     ...WEIGHT_CODES,
@@ -396,6 +412,7 @@ export type ServiceErrorCode =
   | (typeof CATEGORY_RULE_CODES)[number]
   | (typeof BOX_CODES)[number]
   | (typeof TASK_CODES)[number]
+  | (typeof TASK_SERIES_CODES)[number]
   | (typeof OFFENSE_RULE_CODES)[number]
   | (typeof SETTINGS_CODES)[number]
   | (typeof WEIGHT_CODES)[number]

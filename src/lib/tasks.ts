@@ -297,6 +297,17 @@ export function effectiveHoldUntil(
  * 16.08.2026: die Vorschau prüfte im Dauer-Modus gar nicht. Dieselbe Begründung wie bei
  * {@link effectiveProofOrderMatters}.
  */
+/** Das SPÄTESTMÖGLICHE Ende im Dauer-Modus: ab der Startfrist (nicht dem Nullpunkt) noch die volle
+ *  Dauer. Das ist die obere Schranke, die in die `holdUntil`-Spalte geschrieben wird — geteilt von
+ *  {@link import("./taskService").checkTask} und `checkTaskSeries`, damit beide dieselbe Zahl rechnen.
+ *  Unterscheidet sich bewusst von {@link earliestTaskEnd} (Nullpunkt + Dauer). */
+export function latestTaskEnd(
+  anchor: { createdAt: Date; startGraceMin: number; wirksamAb: Date | null },
+  holdDurationMin: number,
+): Date {
+  return new Date(startDeadline(anchor).getTime() + holdDurationMin * 60_000);
+}
+
 export function earliestTaskEnd(
   /** GENAU eine der beiden Formen ist gesetzt — beide Aufrufer stellen das vor dem Aufruf sicher
    *  (`resolveTaskHold` wirft, `checkTask` weist mit `TASK_HOLD_MISSING` ab). */

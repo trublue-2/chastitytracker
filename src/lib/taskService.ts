@@ -9,14 +9,19 @@ import { notifyLateProofsForTask } from "@/lib/taskProofNotify";
 import { evaluateTasks, evaluateTaskById, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
 import { parseTriggerAt, computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
-import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters, type TaskLike } from "@/lib/tasks";
+import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, latestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters, type TaskLike } from "@/lib/tasks";
+import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
   clampProofDueOffset,
   TASK_REQUIREMENT_TYPES, TASK_PROOF_MAX,
   TASK_PROOF_DESCRIPTION_MAX_LENGTH, type TaskRequirementType,
 } from "@/lib/constants";
-import { formatDateTime, generateKontrollCode } from "@/lib/utils";
+import { formatDateTime, generateKontrollCode, midnightInTZ, APP_TZ } from "@/lib/utils";
+import {
+  recurrenceProblem, occurrencesBetween, upcomingOccurrences,
+  type RecurrenceRule, type RecurrenceFreq,
+} from "@/lib/taskRecurrence";
 import { structuredLog } from "@/lib/serverLog";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";
@@ -463,9 +468,7 @@ export async function checkTask(
   // gar nicht begonnen werden, also ist Startfrist + Dauer die obere Schranke. Sie muss stimmen —
   // die Vorauswahl des Pollers sucht über die Spalte und dürfte sonst eine fällige Aufgabe verpassen.
   // Bei einer TERMINIERTEN Aufgabe hängt die Startfrist an `wirksamAb`, also auch diese Schranke.
-  const holdUntil = holdDurationMin !== null
-    ? new Date(startDeadline(anchor).getTime() + holdDurationMin * 60_000)
-    : p.holdUntil;
+  const holdUntil = holdDurationMin !== null ? latestTaskEnd(anchor, holdDurationMin) : p.holdUntil;
   if (!holdUntil) return serviceFail(400, "TASK_HOLD_MISSING");
 
   // Erst ALLE reinen Parameter, dann die DB — wie in `createVerschlussAnforderung`. Ohne Bedingungen
@@ -1266,4 +1269,345 @@ export async function processDueTasks(now: Date): Promise<void> {
       console.error("[processDueTasks]", userId, (err as Error).message);
     }
   }
+}
+
+// ── Serien-Aufgaben (#26) ─────────────────────────────────────────────────────────────────────────
+//
+// Eine `TaskSeries` ist eine VORLAGE, keine Aufgabe. `materializeDueSeries` (im Minuten-Tick) erzeugt
+// daraus je fälligem Termin eine GANZ normale `Task` — die deshalb Auswertung, Nachweise, Zustellung
+// und Strafbuch unverändert durchläuft. Feldgrenzen, Bedingungen und Nachweis-Regeln teilt sie sich
+// über `checkTaskFields`/`checkRequirements`/`checkProofs` mit der Einzelaufgabe; nur die
+// Wiederhol-Regel (`taskRecurrence.ts`) kommt hinzu.
+
+/** Die Wiederhol-Regel, wie ein Aufrufer (Route/MCP) sie schickt — Datumsangaben als String oder Date. */
+export interface RecurrenceInput {
+  freq: RecurrenceFreq;
+  interval?: number | null;
+  weekdayMask?: number | null;
+  ordinal?: number | null;
+  timeOfDay: string;
+  startsOn: string | Date;
+  until?: string | Date | null;
+  exclusionDates?: string[] | null;
+}
+
+export interface CreateTaskSeriesParams {
+  userId: string;
+  title: string;
+  description?: string | null;
+  /** Genau EINES von beiden: Dauer ab tatsächlichem Beginn (verlangt Bedingungen) ODER feste Frist
+   *  ab Zustellung (Minuten). Beide/keines → `TASK_SERIES_HOLD_MODE`. */
+  holdDurationMin?: number | null;
+  holdWindowMin?: number | null;
+  startGraceMin?: number;
+  proofOrderMatters?: boolean;
+  requirements?: TaskRequirementInput[];
+  proofs?: TaskProofInput[];
+  recurrence: RecurrenceInput;
+}
+
+/** Baut die Regel aus der Eingabe. `startsOn` wird auf den Tagesanfang in der Zone gezogen — nur der
+ *  Kalendertag zählt (der Rechenkern liest `weightDayKey`), ein mitgeschickter Uhrzeit-Anteil würde
+ *  sonst je nach Zone auf den Vor-/Folgetag kippen. `"invalid"` bei kaputtem Datum. */
+function buildRecurrenceRule(input: RecurrenceInput, tz: string): RecurrenceRule | "invalid" {
+  const startsOnRaw = parseTriggerAt(input.startsOn);
+  if (startsOnRaw === "invalid" || startsOnRaw === null) return "invalid";
+  const untilRaw = parseTriggerAt(input.until);
+  if (untilRaw === "invalid") return "invalid";
+  return {
+    freq: input.freq,
+    interval: input.interval == null ? 1 : Math.round(input.interval),
+    weekdayMask: input.weekdayMask ?? null,
+    ordinal: input.ordinal ?? null,
+    timeOfDay: input.timeOfDay,
+    startsOn: midnightInTZ(startsOnRaw, tz),
+    until: untilRaw,
+    exclusionDates: input.exclusionDates?.length ? JSON.stringify(input.exclusionDates) : null,
+  };
+}
+
+/** Eine geprüfte Serie, in Bausteinen statt als fertige Create-Form — damit Anlegen und Ändern je
+ *  ihre eigene Prisma-Eingabe daraus bauen (das `create`-Nested passt nicht in beide Typen). */
+export interface CheckedTaskSeries {
+  /** Die Vorlage OHNE `createdBy`: das setzt nur das Anlegen (der Ersteller), eine Änderung lässt es
+   *  stehen — so kann `updateTaskSeries` `template` unverändert übernehmen. */
+  template: {
+    title: string; description: string | null;
+    holdDurationMin: number | null; holdWindowMin: number | null;
+    startGraceMin: number; proofOrderMatters: boolean;
+    freq: string; interval: number; weekdayMask: number | null; ordinal: number | null;
+    timeOfDay: string; startsOn: Date; until: Date | null; exclusionDates: string | null;
+  };
+  createdBy: string | null;
+  requirements: { type: string; categoryId: string | null; deviceId: string | null; sortOrder: number }[];
+  proofs: { sortOrder: number; description: string; requiresPhoto: boolean; requiresText: boolean; requireCode: boolean; dueOffsetMin: number | null }[];
+}
+
+/** Prüft die Vorlage samt Regel und bringt sie in Speicher-Form. Getrennt vom Schreiben wie
+ *  {@link checkTask} — ohne dessen Gesundheits-Halt-Sperre (eine Serie ist über Pausen hinweg
+ *  gewollt; die Pause bremst erst die einzelne Materialisierung über `checkTask` im Poller). */
+export async function checkTaskSeries(
+  db: PrismaTx,
+  p: CreateTaskSeriesParams,
+  actor: MessageActor,
+): Promise<ServiceResult<CheckedTaskSeries>> {
+  const now = new Date();
+  const graceMin = clampStartGrace(p.startGraceMin);
+  const reqs = p.requirements ?? [];
+
+  // Genau ein Halte-Modus.
+  const durSet = p.holdDurationMin != null;
+  const winSet = p.holdWindowMin != null;
+  if (durSet === winSet) return serviceFail(400, "TASK_SERIES_HOLD_MODE");
+  // Nach `durSet === winSet` ist genau ein Modus gesetzt; der andere ist null. Ein gesetzter, aber
+  // nicht-endlicher Wert klemmt auf null — dann fehlt effektiv jeder Modus.
+  const holdDurationMin = durSet ? (clampHoldDuration(p.holdDurationMin) ?? null) : null;
+  const holdWindowMin = winSet ? (clampHoldDuration(p.holdWindowMin) ?? null) : null;
+  if (holdDurationMin === null && holdWindowMin === null) return serviceFail(400, "TASK_SERIES_HOLD_MODE");
+  if (holdDurationMin !== null && reqs.length === 0) {
+    return serviceFail(400, "TASK_HOLD_DURATION_WITHOUT_REQUIREMENTS");
+  }
+
+  // Repräsentativer Anker (jetzt, sofort wirksam) — damit Feld- und Nachweis-Prüfung EXAKT die der
+  // Einzelaufgabe sind (`holdUntil`/`earliestEnd` wie in `checkTask`). Nur die Länge des Fensters
+  // zählt hier, nicht der konkrete Termin (den setzt erst die Materialisierung).
+  const anchor = { createdAt: now, startGraceMin: graceMin, wirksamAb: null as Date | null };
+  const holdUntil = holdDurationMin !== null
+    ? latestTaskEnd(anchor, holdDurationMin)
+    : new Date(now.getTime() + (holdWindowMin ?? 0) * 60_000);
+
+  const fieldError = checkTaskFields(
+    { title: p.title, description: p.description ?? null, holdUntil },
+    reqs.length > 0 ? startDeadline(anchor) : now,
+  );
+  if (fieldError) return fieldError;
+
+  const earliestEnd = earliestTaskEnd({ holdUntil, holdDurationMin }, taskAnchor(anchor));
+  const checkedProofs = checkProofs(p.proofs ?? [], { anchor: taskAnchor(anchor), holdUntil: earliestEnd });
+  if (!checkedProofs.ok) return checkedProofs;
+
+  const user = await db.user.findUnique({ where: { id: p.userId }, select: { timezone: true } });
+  if (!user) return serviceFail(404, "USER_NOT_FOUND");
+
+  const rule = buildRecurrenceRule(p.recurrence, user.timezone ?? APP_TZ);
+  // Kaputtes Start-/Enddatum → wie eine ungültige Zeit-Angabe der Wiederholung.
+  if (rule === "invalid") return serviceFail(400, "RECURRENCE_TIME");
+  const problem = recurrenceProblem(rule);
+  if (problem) return serviceFail(400, problem);
+
+  const checked = await checkRequirements(db, p.userId, reqs);
+  if (!checked.ok) return checked;
+
+  return {
+    ok: true,
+    data: {
+      template: {
+        title: p.title.trim(),
+        description: p.description?.trim() || null,
+        holdDurationMin,
+        holdWindowMin,
+        startGraceMin: graceMin,
+        proofOrderMatters: effectiveProofOrderMatters(p.proofOrderMatters),
+        freq: rule.freq,
+        interval: rule.interval,
+        weekdayMask: rule.weekdayMask,
+        ordinal: rule.ordinal,
+        timeOfDay: rule.timeOfDay,
+        startsOn: rule.startsOn,
+        until: rule.until,
+        exclusionDates: rule.exclusionDates,
+      },
+      createdBy: actorColumn(actor),
+      requirements: checked.normalized.map((r, i) => ({ ...r, sortOrder: i })),
+      // Die Nachweis-SPEZIFIKATION ohne `code`: der Zufallscode entsteht frisch je Instanz beim
+      // Materialisieren (`normalizeProof` in `checkTask`), nie einmal in der Vorlage.
+      proofs: checkedProofs.rows.map((r) => ({
+        sortOrder: r.sortOrder, description: r.description, requiresPhoto: r.requiresPhoto,
+        requiresText: r.requiresText, requireCode: r.requireCode, dueOffsetMin: r.dueOffsetMin,
+      })),
+    },
+  };
+}
+
+/** Legt eine Serie an. Materialisiert NICHT sofort — der Poller greift beim nächsten Tick. */
+export async function createTaskSeries(
+  p: CreateTaskSeriesParams,
+  actor: MessageActor,
+): Promise<ServiceResult<{ id: string }>> {
+  const checked = await checkTaskSeries(prisma, p, actor);
+  if (!checked.ok) return checked;
+  const { template, createdBy, requirements, proofs } = checked.data;
+  const series = await prisma.taskSeries.create({
+    data: {
+      user: { connect: { id: p.userId } },
+      ...template,
+      createdBy,
+      requirements: { create: requirements },
+      proofs: { create: proofs },
+    },
+    select: { id: true },
+  });
+  return { ok: true, data: { id: series.id } };
+}
+
+/**
+ * Ersetzt die vollständige Spezifikation einer Serie (Vorlage + Regel + Bedingungen + Nachweise).
+ *
+ * Voll-Ersetzung statt Teil-Patch, anders als {@link updateTask}: eine Serie ist eine Vorlage für
+ * KÜNFTIGE Instanzen, kein bereits gestellter Auftrag. Schon materialisierte Instanzen sind eigene
+ * `Task`-Zeilen und bleiben unberührt; die Regel „der Sub bekommt, was gestellt wurde" gilt dort
+ * weiter. `createdBy` und der Materialisierungs-Cursor bleiben stehen.
+ */
+export async function updateTaskSeries(
+  id: string,
+  p: CreateTaskSeriesParams,
+  actor: MessageActor,
+): Promise<ServiceResult<{ id: string }>> {
+  const existing = await prisma.taskSeries.findFirst({
+    where: { id, userId: p.userId, deletedAt: null }, select: { id: true },
+  });
+  if (!existing) return serviceFail(404, "TASK_SERIES_NOT_FOUND");
+  const checked = await checkTaskSeries(prisma, p, actor);
+  if (!checked.ok) return checked;
+  // `createdBy` steckt bewusst NICHT in `template`: der ursprüngliche Ersteller (der Absender
+  // künftiger Instanzen) bleibt, nicht der Bearbeiter.
+  const { template, requirements, proofs } = checked.data;
+  await prisma.$transaction(async (tx) => {
+    await tx.taskSeriesRequirement.deleteMany({ where: { seriesId: id } });
+    await tx.taskSeriesProof.deleteMany({ where: { seriesId: id } });
+    await tx.taskSeries.update({
+      where: { id },
+      data: {
+        ...template,
+        requirements: { create: requirements },
+        proofs: { create: proofs },
+        version: { increment: 1 },
+      },
+    });
+  });
+  return { ok: true, data: { id } };
+}
+
+/** Zieht eine Serie zurück (Soft-Delete): keine neuen Instanzen mehr, erzeugte bleiben stehen. */
+export async function withdrawTaskSeries(id: string, userId: string): Promise<ServiceResult<{ id: string }>> {
+  const res = await prisma.taskSeries.updateMany({
+    where: { id, userId, deletedAt: null }, data: { deletedAt: new Date() },
+  });
+  if (res.count === 0) return serviceFail(404, "TASK_SERIES_NOT_FOUND");
+  return { ok: true, data: { id } };
+}
+
+type SeriesWithChildren = Prisma.TaskSeriesGetPayload<{
+  include: { requirements: true; proofs: true; user: { select: { timezone: true } } };
+}>;
+
+/** Die gespeicherte Regel einer Serien-Zeile als {@link RecurrenceRule}. */
+function seriesRowRule(s: SeriesWithChildren): RecurrenceRule {
+  return {
+    freq: s.freq as RecurrenceFreq, interval: s.interval, weekdayMask: s.weekdayMask, ordinal: s.ordinal,
+    timeOfDay: s.timeOfDay, startsOn: s.startsOn, until: s.until, exclusionDates: s.exclusionDates,
+  };
+}
+
+/** Die Vorlage als `CreateTaskParams` einer SOFORT wirksamen Instanz — der Termin steckt darin, DASS
+ *  jetzt materialisiert wird (nur fällige Termine kommen hierher). Klassischer Modus misst das Fenster
+ *  ab jetzt (der Träger erfährt die Aufgabe erst jetzt), Dauer-Modus wie bei der Einzelaufgabe. */
+function seriesToCreateParams(s: SeriesWithChildren, now: Date): CreateTaskParams {
+  return {
+    userId: s.userId,
+    title: s.title,
+    description: s.description,
+    holdDurationMin: s.holdDurationMin ?? undefined,
+    holdUntil: s.holdWindowMin != null ? new Date(now.getTime() + s.holdWindowMin * 60_000) : undefined,
+    startGraceMin: s.startGraceMin,
+    proofOrderMatters: s.proofOrderMatters,
+    requirements: s.requirements.map((r) => ({
+      type: r.type as TaskRequirementType, categoryId: r.categoryId, deviceId: r.deviceId,
+    })),
+    proofs: s.proofs.map((pr) => ({
+      description: pr.description, requiresPhoto: pr.requiresPhoto, requiresText: pr.requiresText,
+      requireCode: pr.requireCode, dueOffsetMin: pr.dueOffsetMin,
+    })),
+    isPunishment: false,
+  };
+}
+
+/** Wie weit ein einzelner Lauf höchstens zurück materialisiert — schützt nach einem Poller-Ausfall
+ *  vor einer Flut nachgeholter Instanzen (die feinste Wiederholung ist täglich, also höchstens ein
+ *  Termin je Serie in diesem Fenster). */
+const SERIES_MATERIALIZE_LOOKBACK_MS = 25 * 60 * 60 * 1000;
+
+/** Materialisiert EINEN fälligen Termin. Reused die volle Prüfung/Schreibform der Einzelaufgabe. */
+async function materializeOccurrence(
+  s: SeriesWithChildren, occ: Date, now: Date,
+): Promise<"created" | "skipped" | "health-hold"> {
+  const checked = await checkTask(prisma, seriesToCreateParams(s, now), s.createdBy);
+  if (!checked.ok) {
+    // Gesundheits-Halt: nicht vorrücken, der nächste Tick versucht es erneut (wie die übrigen
+    // Zustell-Familien). Jeder andere Fehler (z.B. eine inzwischen gelöschte Kategorie) würde die
+    // Serie sonst dauerhaft blockieren — also überspringen und den Cursor vorrücken.
+    if (checked.error === "HEALTH_HOLD_ACTIVE") return "health-hold";
+    structuredLog("task-series", "materialize_skip", { seriesId: s.id, occurrence: occ.toISOString(), code: checked.error });
+    return "skipped";
+  }
+  // Die Serien-Verknüpfung kennt `checkTask` nicht — hier einspielen. `seriesOccurrence` ist der
+  // geplante Termin und über den Unique-Index die Idempotenz-Sperre gegen Doppel-Erzeugung.
+  const data: Prisma.TaskCreateInput = { ...checked.data.data, series: { connect: { id: s.id } }, seriesOccurrence: occ };
+  try {
+    const task = await writeTask(prisma, { data, wirksamAb: checked.data.wirksamAb });
+    // Eine Serien-Instanz ist per Konstruktion SOFORT wirksam (`seriesToCreateParams` terminiert
+    // nichts) — also immer sofort melden, wie `createTask` es für sofortige Aufgaben tut.
+    await notifyUser(s.userId, taskAssignmentNotice(task, s.createdBy));
+    return "created";
+  } catch (e) {
+    // Diesen Termin gibt es schon (Unique auf `seriesId, seriesOccurrence`) — als erledigt behandeln.
+    if (isUniqueConstraintOn(e, "seriesOccurrence")) return "skipped";
+    throw e;
+  }
+}
+
+/**
+ * Materialisiert alle fälligen Serien-Termine zu `Task`-Instanzen — läuft im Minuten-Tick VOR
+ * `dispatchDueTasks`, damit derselbe Tick die eben erzeugte (sofort wirksame) Aufgabe auch meldet.
+ */
+export async function materializeDueSeries(now: Date): Promise<void> {
+  const series = await prisma.taskSeries.findMany({
+    where: { deletedAt: null },
+    include: { requirements: true, proofs: true, user: { select: { timezone: true } } },
+  });
+  const floorMs = now.getTime() - SERIES_MATERIALIZE_LOOKBACK_MS;
+  for (const s of series) {
+    try {
+      const tz = s.user.timezone ?? APP_TZ;
+      const after = new Date(Math.max(floorMs, s.lastMaterializedOccurrence?.getTime() ?? 0));
+      const due = occurrencesBetween(seriesRowRule(s), after, now, tz);
+      let cursor: Date | null = null;
+      for (const occ of due) {
+        const result = await materializeOccurrence(s, occ, now);
+        if (result === "health-hold") break; // Cursor NICHT vorrücken — nächster Tick erneut.
+        cursor = occ; // erzeugt oder bewusst übersprungen → der Termin ist abgehakt.
+      }
+      // `occurrencesBetween` liefert nur Termine strikt NACH `after` (>= dem alten Cursor), also ist
+      // ein gesetzter `cursor` immer ein Fortschritt.
+      if (cursor) {
+        await prisma.taskSeries.update({ where: { id: s.id }, data: { lastMaterializedOccurrence: cursor } });
+      }
+    } catch (e) {
+      // Eine kaputte Serie darf die anderen nicht aufhalten.
+      console.error("[materializeDueSeries]", s.id, (e as Error).message);
+    }
+  }
+}
+
+/** Aktive Serien eines Trägers samt Vorschau der nächsten Termine — für die Keyholder-Ansicht. */
+export async function listTaskSeries(userId: string, now: Date = new Date()) {
+  const rows = await prisma.taskSeries.findMany({
+    where: { userId, deletedAt: null },
+    include: { requirements: true, proofs: true, user: { select: { timezone: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map((s) => ({
+    series: s,
+    upcoming: upcomingOccurrences(seriesRowRule(s), now, s.user.timezone ?? APP_TZ, { count: 3, maxDays: 400 }),
+  }));
 }
