@@ -305,6 +305,18 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Bedingungen, Nachweise und die Reihenfolge-Regel sind NICHT änderbar — sonst würde der Träger an etwas gemessen, das er nie bekam.",
   }),
   c({
+    id: "task-series-create", mechanic: "Aufgaben", title: "Wiederkehrende Aufgabe stellen",
+    what: "Eine Aufgaben-Vorlage samt Wiederhol-Regel (täglich/wöchentlich/monatlich, Intervall, Wochentage, n-ter/letzter Wochentag, bis-Datum, Ausnahmetage); der Poller erzeugt daraus je Termin eine normale Aufgabe.",
+    actors: ["mcp"], surfaces: ["mcp"], tools: ["create_task_series"],
+    note: "Bedingungen und Nachweise wie bei der Einzelaufgabe, aber je Termin. Die Keyholder-Oberfläche dazu folgt separat.",
+  }),
+  c({
+    id: "task-series-edit", mechanic: "Aufgaben", title: "Wiederkehrende Aufgabe ändern oder zurückziehen",
+    what: "Ersetzt die vollständige Vorlage (Regel + Bedingungen + Nachweise) für KÜNFTIGE Termine, oder zieht die Serie zurück.",
+    actors: ["mcp"], surfaces: ["mcp"], tools: ["edit_task_series", "withdraw_task_series"],
+    note: "Bereits erzeugte Aufgaben bleiben unberührt; nur künftige Termine folgen der Änderung.",
+  }),
+  c({
     id: "task-selfreport", mechanic: "Aufgaben", title: "Aufgabe als erledigt melden",
     what: "Die Selbstmeldung des Trägers — bei Aufgaben mit Bedingungen zusätzlich zur Erfüllung nötig, ohne Bedingungen ist sie die Erfüllung.",
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/tasks/[id]"],

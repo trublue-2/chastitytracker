@@ -1599,6 +1599,20 @@ export async function materializeDueSeries(now: Date): Promise<void> {
   }
 }
 
+/** Die nächsten Termine, die eine (noch nicht angelegte) Serie ERGÄBE — für Vorschauen (MCP-dryRun,
+ *  Formular-Agenda). Baut die Regel wie {@link checkTaskSeries} in der Zone des Trägers; eine
+ *  ungültige Regel liefert eine leere Liste (die eigentliche Ablehnung nennt `checkTaskSeries`). */
+export async function previewSeriesOccurrences(
+  p: CreateTaskSeriesParams,
+  opts: { count: number; maxDays: number },
+  now: Date = new Date(),
+): Promise<Date[]> {
+  const user = await prisma.user.findUnique({ where: { id: p.userId }, select: { timezone: true } });
+  const rule = buildRecurrenceRule(p.recurrence, user?.timezone ?? APP_TZ);
+  if (rule === "invalid" || recurrenceProblem(rule) !== null) return [];
+  return upcomingOccurrences(rule, now, user?.timezone ?? APP_TZ, opts);
+}
+
 /** Aktive Serien eines Trägers samt Vorschau der nächsten Termine — für die Keyholder-Ansicht. */
 export async function listTaskSeries(userId: string, now: Date = new Date()) {
   const rows = await prisma.taskSeries.findMany({

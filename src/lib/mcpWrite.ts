@@ -50,6 +50,11 @@ import { KEYHOLDER_LOCK_STATE_WORDING } from "@/lib/serviceErrorCodes";
 import en from "../../messages/en.json";
 import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/taskProofService";
 import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
+import {
+  createTaskSeries, updateTaskSeries, withdrawTaskSeries, checkTaskSeries, previewSeriesOccurrences,
+  type CreateTaskSeriesParams, type RecurrenceInput,
+} from "@/lib/taskService";
+import { type RecurrenceFreq } from "@/lib/taskRecurrence";
 import { chainBreakPartner, correctEntry, correctionProblem, deleteEntryForUser, type EntryCorrection } from "@/lib/entryCorrection";
 import { createEntryForUser, validateEntryCreate } from "@/lib/entryCreateService";
 import { deleteReference, importEntryAsReference, importRecentVerschluss, selectImportCandidates } from "@/lib/deviceReferenceService";
@@ -2723,8 +2728,12 @@ function resolveTaskHold(
 }
 
 /** Bedingungs-Namen → ids. Getrennt vom Commit, damit die dryRun-Vorschau dieselbe Auflösung (und
- *  dieselben Fehlermeldungen bei unbekannten Namen) durchläuft wie der echte Aufruf. */
-async function resolveTaskRequirements(userId: string, args: CreateTaskArgs): Promise<TaskRequirementInput[]> {
+ *  dieselben Fehlermeldungen bei unbekannten Namen) durchläuft wie der echte Aufruf. Geteilt von
+ *  Einzelaufgabe UND Serie — beide nennen Bedingungen gleich. */
+async function resolveTaskRequirements(
+  userId: string,
+  args: { requireKgLocked?: boolean; requireWearing?: TaskRequirementArg[] },
+): Promise<TaskRequirementInput[]> {
   const out: TaskRequirementInput[] = [];
   if (args.requireKgLocked) out.push({ type: "KG_LOCKED" });
   for (const r of args.requireWearing ?? []) {
@@ -2738,6 +2747,19 @@ async function resolveTaskRequirements(userId: string, args: CreateTaskArgs): Pr
   return out;
 }
 
+/** Nachweis-Argumente → Dienst-Form. `dueMinutes` heisst am Werkzeug so (der Agent stellt eine
+ *  Frist); in der Zeile ist es der Abstand zum Nullpunkt (`dueOffsetMin`). Geteilt von Einzelaufgabe
+ *  und Serie. */
+function mapTaskProofArgs(proofs: CreateTaskArgs["requireProof"]) {
+  return proofs?.map((p) => ({
+    description: p.description,
+    requiresPhoto: p.requirePhoto,
+    requiresText: p.requireText,
+    requireCode: p.requireCode,
+    dueOffsetMin: p.dueMinutes,
+  }));
+}
+
 export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
   const now = new Date();
   const userId = await resolveTargetUserId(username);
@@ -2746,13 +2768,7 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
   /** Die Nachweise in der Form des Dienstes — EINMAL übersetzt, damit Vorschau, Commit und
    *  Ergebnis-Satz dieselbe Liste meinen. `dueMinutes` heisst am Werkzeug so, weil der Agent eine
    *  Frist stellt; in der Zeile ist es der Abstand zum Nullpunkt (`dueOffsetMin`). */
-  const proofs = args.requireProof?.map((p) => ({
-    description: p.description,
-    requiresPhoto: p.requirePhoto,
-    requiresText: p.requireText,
-    requireCode: p.requireCode,
-    dueOffsetMin: p.dueMinutes,
-  }));
+  const proofs = mapTaskProofArgs(args.requireProof);
   /** Nur die eigenen Fristen, für Vorschau und Ergebnis-Satz — `null` bedeutet dort ausdrücklich
    *  „bis zum Ende der Aufgabe", was der Agent sonst raten müsste.
    *
@@ -3003,5 +3019,154 @@ export async function mcpEditTask(username: string, args: EditTaskArgs) {
     message: isHiddenFromSub(task)
       ? "Task updated. It is still SCHEDULED, so the user was NOT notified — he will receive the updated version when it triggers."
       : "Task updated. The user was notified.",
+  };
+}
+
+// ── Serien-Aufgaben (#26) über den MCP ──────────────────────────────────────────────────────────
+//
+// Was die Keyholderin in der Oberfläche als wiederkehrende Aufgabe stellen kann, kann die KI hier:
+// anlegen, vollständig ändern (Voll-Ersetzung wie im Dienst), zurückziehen. Bedingungen und Nachweise
+// teilen Form und Auflösung mit `create_task`; nur die Wiederhol-Regel kommt hinzu.
+
+export interface TaskSeriesRecurrenceArg {
+  freq: "daily" | "weekly" | "monthly";
+  interval?: number;
+  /** ISO-Wochentage (1 = Mo … 7 = So), wie bei den übrigen MCP-Wochentag-Feldern. */
+  weekdays?: number[];
+  monthlyOrdinal?: number;
+  timeOfDay: string;
+  startsOn: string;
+  until?: string;
+  skipDates?: string[];
+}
+
+export interface CreateTaskSeriesArgs {
+  title: string;
+  description?: string;
+  holdMinutesFromStart?: number;
+  holdWindowMinutes?: number;
+  requireKgLocked?: boolean;
+  requireWearing?: TaskRequirementArg[];
+  requireProof?: CreateTaskArgs["requireProof"];
+  proofOrderMatters?: boolean;
+  startGraceMinutes?: number;
+  recurrence: TaskSeriesRecurrenceArg;
+  dryRun?: boolean;
+}
+export interface EditTaskSeriesArgs extends CreateTaskSeriesArgs { id: string }
+export interface WithdrawTaskSeriesArgs { id: string; dryRun?: boolean }
+
+/** Wiederhol-Argument → Dienst-Form. Wochentage benannt ("mon".."sun") → Bitmaske; das Ordinal zählt
+ *  nur monatlich. */
+function mapRecurrenceArg(r: TaskSeriesRecurrenceArg): RecurrenceInput {
+  const freq = r.freq.toUpperCase() as RecurrenceFreq;
+  return {
+    freq,
+    interval: r.interval,
+    weekdayMask: r.weekdays?.length ? weekdayMaskOf(r.weekdays) : null,
+    // Das Ordinal wird NICHT je Frequenz weggeputzt: gibt es der Agent bei einer nicht-monatlichen
+    // Regel mit, soll die dryRun-Vorschau `RECURRENCE_ORDINAL` zeigen (der Rechenkern weist es ab),
+    // statt es still zu schlucken.
+    ordinal: r.monthlyOrdinal ?? null,
+    timeOfDay: r.timeOfDay,
+    startsOn: r.startsOn,
+    until: r.until ?? null,
+    exclusionDates: r.skipDates ?? null,
+  };
+}
+
+/** Die Vorlage in Dienst-Form — geteilt von Anlegen und Ändern (beide senden die volle Spezifikation). */
+async function resolveTaskSeriesParams(userId: string, args: CreateTaskSeriesArgs): Promise<CreateTaskSeriesParams> {
+  return {
+    userId,
+    title: args.title,
+    description: args.description,
+    holdDurationMin: args.holdMinutesFromStart,
+    holdWindowMin: args.holdWindowMinutes,
+    startGraceMin: args.startGraceMinutes,
+    proofOrderMatters: args.proofOrderMatters,
+    requirements: await resolveTaskRequirements(userId, args),
+    proofs: mapTaskProofArgs(args.requireProof),
+    recurrence: mapRecurrenceArg(args.recurrence),
+  };
+}
+
+/** Die nächsten Termine als ISO-Liste — damit der Agent SIEHT, was die Regel ergibt. */
+async function seriesUpcomingIso(params: CreateTaskSeriesParams): Promise<string[]> {
+  return (await previewSeriesOccurrences(params, { count: 3, maxDays: 400 })).map((d) => d.toISOString());
+}
+
+/** Gemeinsamer Vorschau-/Ergebnis-Körper einer Serie. */
+function seriesPreviewBody(params: CreateTaskSeriesParams, upcoming: string[]) {
+  return {
+    title: params.title,
+    recurrence: {
+      freq: params.recurrence.freq,
+      interval: params.recurrence.interval ?? 1,
+      weekdayMask: params.recurrence.weekdayMask ?? null,
+      monthlyOrdinal: params.recurrence.ordinal ?? null,
+      timeOfDay: params.recurrence.timeOfDay,
+    },
+    hold: params.holdDurationMin != null
+      ? `${params.holdDurationMin} minute(s) from the moment the user has everything on`
+      : params.holdWindowMin != null
+        ? `${params.holdWindowMin} minute(s) from each occurrence`
+        : "—",
+    requirementCount: params.requirements?.length ?? 0,
+    proofCount: params.proofs?.length ?? 0,
+    nextOccurrences: upcoming,
+  };
+}
+
+export async function mcpCreateTaskSeries(username: string, args: CreateTaskSeriesArgs) {
+  const userId = await resolveTargetUserId(username);
+  const params = await resolveTaskSeriesParams(userId, args);
+  if (args.dryRun) {
+    const checked = await checkTaskSeries(prisma, params, AI_AUTHOR);
+    const upcoming = checked.ok ? await seriesUpcomingIso(params) : [];
+    return dryRunPreview("create_task_series", checked.ok ? undefined : checked.error, seriesPreviewBody(params, upcoming));
+  }
+  const { id } = unwrap(await createTaskSeries(params, AI_AUTHOR));
+  const upcoming = await seriesUpcomingIso(params);
+  return {
+    ok: true,
+    id,
+    message: `Recurring task series set. The poller creates a plain task at each occurrence (which the user then does). Next occurrences: ${upcoming.join(", ") || "none within the horizon"}.`,
+  };
+}
+
+export async function mcpEditTaskSeries(username: string, args: EditTaskSeriesArgs) {
+  const userId = await resolveTargetUserId(username);
+  const params = await resolveTaskSeriesParams(userId, args);
+  if (args.dryRun) {
+    // Existenz zuerst — sonst verspräche die Vorschau Erfolg für einen Commit, der mit
+    // TASK_SERIES_NOT_FOUND endet.
+    const exists = await prisma.taskSeries.findFirst({ where: { id: args.id, userId, deletedAt: null }, select: { id: true } });
+    if (!exists) return dryRunPreview("edit_task_series", "TASK_SERIES_NOT_FOUND", { id: args.id, ...seriesPreviewBody(params, []) });
+    const checked = await checkTaskSeries(prisma, params, AI_AUTHOR);
+    const problem = checked.ok ? undefined : checked.error;
+    const upcoming = problem ? [] : await seriesUpcomingIso(params);
+    return dryRunPreview("edit_task_series", problem, { id: args.id, ...seriesPreviewBody(params, upcoming) });
+  }
+  unwrap(await updateTaskSeries(args.id, params, AI_AUTHOR));
+  const upcoming = await seriesUpcomingIso(params);
+  return {
+    ok: true,
+    id: args.id,
+    message: `Series updated — future occurrences follow the new definition; tasks already created are untouched. Next occurrences: ${upcoming.join(", ") || "none within the horizon"}.`,
+  };
+}
+
+export async function mcpWithdrawTaskSeries(username: string, args: WithdrawTaskSeriesArgs) {
+  const userId = await resolveTargetUserId(username);
+  if (args.dryRun) {
+    const exists = await prisma.taskSeries.findFirst({ where: { id: args.id, userId, deletedAt: null }, select: { id: true } });
+    return dryRunPreview("withdraw_task_series", exists ? undefined : "TASK_SERIES_NOT_FOUND", { id: args.id });
+  }
+  unwrap(await withdrawTaskSeries(args.id, userId));
+  return {
+    ok: true,
+    id: args.id,
+    message: "Series withdrawn — no new occurrences will be created. Tasks already created from it remain.",
   };
 }

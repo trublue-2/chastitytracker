@@ -15,6 +15,7 @@ import {
   mcpReleaseNow, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
   mcpListTrainingGoals, mcpEditTrainingGoal, mcpDeleteTrainingGoal, mcpSetCleaning, mcpSetBox, mcpSetWeightTracking, mcpSetWeightRelease, mcpSetOffenseRules, mcpSetInspectionEscalation, mcpSetAutoInspections, mcpResolveInspection, mcpEditLockPeriod, mcpEditLockRequest, mcpCreateTask,
   mcpReviewTaskProof, mcpEditTask, mcpEditEntry, mcpAddEntry,
+  mcpCreateTaskSeries, mcpEditTaskSeries, mcpWithdrawTaskSeries,
   mcpImportDeviceReferences, mcpDeleteDeviceReference, mcpDeleteEntry,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
@@ -1472,6 +1473,79 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runWriteTool("edit_task", extra, args, (u) => mcpEditTask(u, args)),
+    );
+
+    // ── Serien-Aufgaben (#26): wiederkehrende Aufgaben ──
+    const recurrenceSchema = z.object({
+      freq: z.enum(["daily", "weekly", "monthly"]).describe("How the task repeats."),
+      interval: z.number().int().positive().optional().describe("Every N units of the frequency (default 1) — e.g. freq=weekly interval=2 = every other week."),
+      weekdays: weekdayDaysField("weekly/monthly: which weekdays it repeats on"),
+      monthlyOrdinal: z.number().int().optional().describe("monthly only: which occurrence of the weekday in the month — 1..5, or -1 for the LAST (e.g. weekdays=[\"mon\"] monthlyOrdinal=2 = the 2nd Monday)."),
+      timeOfDay: z.string().describe("Time of day each occurrence fires, \"HH:MM\", in the user's timezone."),
+      startsOn: z.string().describe("First eligible date (ISO 8601). Also the anchor for interval counting."),
+      until: z.string().optional().describe("Last eligible date (ISO 8601). Omit = open-ended."),
+      skipDates: z.array(z.string()).optional().describe("Individual dates to skip, \"YYYY-MM-DD\" each (calendar EXDATE)."),
+    }).describe("The recurrence rule — when and how often the task is created.");
+    const taskSeriesShape = {
+      title: z.string().describe("Short title of the recurring task."),
+      description: z.string().optional().describe("The full instruction shown to the user each time."),
+      holdMinutesFromStart: z.number().positive().optional().describe("Duration mode: each occurrence must be held this many minutes from the moment the user has everything on. Requires at least one condition. Set EXACTLY ONE of holdMinutesFromStart / holdWindowMinutes."),
+      holdWindowMinutes: z.number().positive().optional().describe("Deadline mode: each occurrence's task is due this many minutes after it is delivered. Set EXACTLY ONE of holdMinutesFromStart / holdWindowMinutes."),
+      requireKgLocked: z.boolean().optional().describe("Every occurrence: the chastity device must stay locked for the whole time."),
+      requireWearing: z.array(z.object({
+        category: z.string().describe("Category name, e.g. \"Halsband\". Not \"KG\" — use requireKgLocked."),
+        device: z.string().optional().describe("Require this specific device of that category."),
+      })).optional().describe("Devices that must be worn continuously in every occurrence."),
+      requireProof: z.array(z.object({
+        description: z.string().describe("What must be visible on the photo and/or written in the text."),
+        requirePhoto: z.boolean().optional().describe("Demand a PHOTO. Default true. Set false for text-only."),
+        requireText: z.boolean().optional().describe("Demand a written TEXT. Default false. Always judged by you."),
+        requireCode: z.boolean().optional().describe("Demand a handwritten random code in the shot (a fresh code per occurrence). Needs requirePhoto."),
+        dueMinutes: z.number().positive().optional().describe("Own deadline for this proof: minutes from the moment the occurrence's task becomes effective."),
+      })).optional().describe("Proofs (photo and/or text) demanded in every occurrence, in the order they must be produced."),
+      proofOrderMatters: z.boolean().optional().describe("Does the proof order count? Default true (capture times must ascend)."),
+      startGraceMinutes: z.number().min(0).optional().describe("Minutes to put everything on (default 30)."),
+      recurrence: recurrenceSchema,
+    };
+    const SERIES_NOTE = " A recurring task series is a TEMPLATE: a background job creates a normal, immediate task at each occurrence (which the user then does like any task). Editing the series affects only FUTURE occurrences; tasks already created stay as they are." + KEYHOLDER_NOTE;
+
+    server.registerTool(
+      "create_task_series",
+      {
+        title: "Set a recurring task",
+        description:
+          "Sets the user a RECURRING task — the same as create_task, but it repeats on a schedule you " +
+          "define (daily / weekly on chosen weekdays / monthly on the n-th or last weekday, with an " +
+          "interval, an optional end date, and skip dates). Conditions and proofs work exactly as in " +
+          "create_task and apply to every occurrence." + SERIES_NOTE,
+        inputSchema: { ...taskSeriesShape, reason: reasonField, dryRun: dryRunFieldV1 },
+      },
+      (args, extra) => runWriteTool("create_task_series", extra, args, (u) => mcpCreateTaskSeries(u, args)),
+    );
+
+    server.registerTool(
+      "edit_task_series",
+      {
+        title: "Change a recurring task",
+        description:
+          "Replaces the FULL definition of a recurring task series (template + recurrence + conditions + " +
+          "proofs) — send all fields as with create_task_series. Only future occurrences change; tasks " +
+          "already created are untouched." + SERIES_NOTE,
+        inputSchema: { id: z.string().describe("The series id."), ...taskSeriesShape, reason: reasonField, dryRun: dryRunFieldV1 },
+      },
+      (args, extra) => runWriteTool("edit_task_series", extra, args, (u) => mcpEditTaskSeries(u, args)),
+    );
+
+    server.registerTool(
+      "withdraw_task_series",
+      {
+        title: "Stop a recurring task",
+        description:
+          "Withdraws a recurring task series: no new occurrences are created from it. Tasks already " +
+          "created from it remain and run their course." + KEYHOLDER_NOTE,
+        inputSchema: { id: z.string().describe("The series id."), reason: reasonField, dryRun: dryRunFieldV1 },
+      },
+      (args, extra) => runWriteTool("withdraw_task_series", extra, args, (u) => mcpWithdrawTaskSeries(u, args)),
     );
 
     server.registerTool(
