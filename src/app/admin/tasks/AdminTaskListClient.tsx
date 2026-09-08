@@ -26,6 +26,7 @@ export default function AdminTaskListClient({
   userId,
   viewerTz,
   subTz,
+  pageSize = LIST_PAGE_SIZE,
 }: {
   tasks: TaskCardData[];
   /** Der Träger — für den „Bearbeiten"-Link an der Karte. */
@@ -34,8 +35,11 @@ export default function AdminTaskListClient({
   viewerTz: string;
   /** Zeitzone des Subs — Fristen stehen in beiden, wenn sie auseinanderfallen. */
   subTz: string;
+  /** Einträge je Seite. Vorgabe ist die Adminportal-Grösse; der erledigte Abschnitt blättert
+   *  enger (er sammelt sich an und steht ohnehin zugeklappt). */
+  pageSize?: number;
 }) {
-  const { page, setPage, totalPages, visible } = usePagedList(tasks, LIST_PAGE_SIZE);
+  const { page, setPage, totalPages, visible } = usePagedList(tasks, pageSize);
 
   return (
     <div className="flex flex-col gap-4">

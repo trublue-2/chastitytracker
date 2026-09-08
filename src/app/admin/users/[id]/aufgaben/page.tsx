@@ -14,6 +14,7 @@ import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { toTaskCard } from "@/lib/taskView";
 import { loadTaskProofViews } from "@/lib/taskIntervals";
 import { APP_TZ } from "@/lib/utils";
+import { BLOCK_PAGE_SIZE } from "@/lib/constants";
 import { isTaskOpenForKeyholder } from "@/lib/tasks";
 import { taskFormHref } from "@/lib/entryFormRoute";
 
@@ -53,9 +54,13 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
    * Verlauf. Löschen lassen sie sich genau dort (`DeleteTaskButton` an der Karte).
    */
   const cards = evaluated.map((e) => toTaskCard(e, false, proofViews.get(e.task.id) ?? []));
+  // Der erledigte Abschnitt startet ZUGEKLAPPT und blättert enger (5 statt 10): er sammelt sich über
+  // die Zeit an und soll die laufenden Aufgaben nicht nach unten drücken. Der offene bleibt offen in
+  // der Adminportal-Grösse (`defaultCollapsed: undefined` = gar nicht zuklappbar, `pageSize: undefined`
+  // = Standardgrösse). Die Vorgaben stehen an den Abschnitten selbst, nicht als Ternär im JSX.
   const sections = [
-    { key: "sectionOpen" as const, tasks: cards.filter((c) => isTaskOpenForKeyholder(c.state)) },
-    { key: "sectionClosed" as const, tasks: cards.filter((c) => !isTaskOpenForKeyholder(c.state)) },
+    { key: "sectionOpen" as const, tasks: cards.filter((c) => isTaskOpenForKeyholder(c.state)), defaultCollapsed: undefined, pageSize: undefined },
+    { key: "sectionClosed" as const, tasks: cards.filter((c) => !isTaskOpenForKeyholder(c.state)), defaultCollapsed: true, pageSize: BLOCK_PAGE_SIZE },
   ];
 
   // Bewusst OHNE Kategorien-Gate: eine Aufgabe ist Text plus 0..n Bedingungen. „KG verschlossen"
@@ -111,13 +116,14 @@ export default async function AdminUserTasksPage({ params }: { params: Promise<{
           {/* OHNE Zahl in der Kopfzeile: die Abfrage oben ist bei 100 gekappt, eine Zahl daneben
               behauptete eine Vollständigkeit, die sie nicht hat. Der offene Abschnitt der
               Kontroll-Historie macht es aus demselben Grund genauso. */}
-          {sections.map(({ key, tasks: section }) => section.length > 0 && (
-            <SettingsSection key={key} title={t(key)} bodyPadded>
+          {sections.map(({ key, tasks: section, defaultCollapsed, pageSize }) => section.length > 0 && (
+            <SettingsSection key={key} title={t(key)} bodyPadded defaultCollapsed={defaultCollapsed}>
               <AdminTaskListClient
                 tasks={section}
                 userId={id}
                 viewerTz={session?.user?.timezone ?? APP_TZ}
                 subTz={user.timezone ?? APP_TZ}
+                pageSize={pageSize}
               />
             </SettingsSection>
           ))}
