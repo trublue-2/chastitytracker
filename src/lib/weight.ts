@@ -426,6 +426,12 @@ export function addWeightDays(dayKey: string, offset: number): string {
   return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(shifted.getUTCDate()).padStart(2, "0")}`;
 }
 
+/** Kalendertage im Monat (`month` 1-basiert). Der „Tag 0 des Folgemonats"-Trick, gerechnet auf
+ *  UTC-Zahlen — die Zeitzone spielt für eine reine Tageszahl keine Rolle. */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
 /** Mitternacht NACH `dayKey` in der Zone des Trägers — der Zeitpunkt, zu dem dieser Tag vorbei ist. */
 export function endOfWeightDay(dayKey: string, tz: string): Date {
   const [y, m, d] = dayKey.split("-").map(Number);

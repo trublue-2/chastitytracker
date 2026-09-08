@@ -197,6 +197,7 @@ model User {
   verschlussAnforderungen        VerschlussAnforderung[]
   orgasmusAnforderungen          OrgasmusAnforderung[]
   tasks                          Task[]
+  taskSeries                     TaskSeries[]
   devices                        Device[]
   strafeRecords                  StrafeRecord[]
   adminPasswordChanges           AdminPasswordChange[]    @relation("AdminPasswordChangeSub")
@@ -692,6 +693,7 @@ model DeviceCategory {
   devices  Device[]
   vorgaben         TrainingVorgabe[]
   taskRequirements TaskRequirement[]
+  taskSeriesRequirements TaskSeriesRequirement[]
   kontrollen       KontrollAnforderung[]
 
   @@unique([userId, slug])
@@ -1083,6 +1085,7 @@ model Device {
   boxEvents               BoxEvent[]
   referenceImages         DeviceReferenceImage[]
   taskRequirements        TaskRequirement[]
+  taskSeriesRequirements  TaskSeriesRequirement[]
   kontrollen              KontrollAnforderung[] @relation("KontrolleDevice")
 
   @@index([userId, archivedAt])
@@ -1366,12 +1369,23 @@ model Task {
   // Aufgabe wird immer aus den Einträgen abgeleitet. Ohne ihn meldete der Poller jede Minute neu.
   resultNotifiedAt DateTime?
 
+  // Aus einer Serie erzeugt? null = von Hand gestellte Einzelaufgabe (wie bisher). Gesetzt = der
+  // Poller hat diese Instanz aus `TaskSeries` materialisiert. `seriesOccurrence` ist der geplante
+  // Termin (in Träger-Zeit), der sie erzeugt hat — zusammen mit `seriesId` EINDEUTIG, damit derselbe
+  // Termin nie zweimal eine Aufgabe erzeugt (der Generator ist damit idempotent, auch wenn ein Tick
+  // doppelt läuft). `onDelete: SetNull`: eine erzeugte Aufgabe ist echte Historie und darf nicht
+  // verschwinden, wenn die Serie später entfernt wird.
+  seriesId         String?
+  series           TaskSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  seriesOccurrence DateTime?
+
   requirements TaskRequirement[]
   proofs       TaskProof[]
   /// Die Urteile, deren Strafe DIESE Aufgabe ist. Eine Liste, kein einzelnes Feld: eine Sammelstrafe
   /// über mehrere Vergehen soll später ohne Migration möglich sein.
   strafeRecords StrafeRecord[]
 
+  @@unique([seriesId, seriesOccurrence])
   @@index([userId, withdrawnAt, completedAt])
   @@index([userId, holdUntil])
   // Für `processDueTasks` im Minuten-Tick. Der sucht OHNE `userId` — die beiden Indizes darüber
@@ -1389,6 +1403,106 @@ model Task {
   // zweite nicht mehr zum Suchen nutzen, und der Tick liest jede je terminierte Aufgabe erneut.
   // Andersherum ist der IS-NULL-Bereich winzig, und die Sortierung nach `wirksamAb` bleibt gratis.
   @@index([benachrichtigtAt, wirksamAb])
+}
+
+// Serien-Vorlage einer wiederkehrenden Aufgabe (#26). NICHT selbst eine Aufgabe: der Minuten-Tick
+// materialisiert daraus fällige `Task`-Instanzen (`materializeDueSeries`), und jede Instanz ist eine
+// GANZ normale Aufgabe — Auswertung, Nachweise, Zustellung, Dashboard und Strafbuch laufen dadurch
+// unverändert. Hier stehen nur die Vorlagen-Felder plus die Wiederhol-Regel.
+//
+// Zwei Halte-Modi wie bei der Einzelaufgabe, aber beide RELATIV (eine feste Uhrzeit ergäbe je
+// Instanz keinen Sinn): genau eines von `holdDurationMin` (Dauer ab tatsächlichem Beginn, wie bei
+// `Task`) oder `holdWindowMin` (klassische Frist = Termin + so viele Minuten) ist gesetzt.
+model TaskSeries {
+  id          String  @id @default(cuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  // Halte-Modus, siehe oben: genau eines gesetzt. Dauer-Modus verlangt (wie bei `Task`) mindestens
+  // eine Bedingung.
+  holdDurationMin Int?
+  holdWindowMin   Int?
+  startGraceMin   Int     @default(30)
+  proofOrderMatters Boolean @default(true)
+  /// Wer die Serie angelegt hat — wandert in `Task.createdBy` jeder erzeugten Instanz (der Poller
+  /// stellt sie zu, lange nachdem der Mensch sie eingerichtet hat). `ai` über den MCP.
+  createdBy   String?
+
+  // ── Wiederhol-Regel (begrenzter RRULE-Ausschnitt, siehe `taskRecurrence.ts`) ──
+  /// "DAILY" | "WEEKLY" | "MONTHLY".
+  freq        String
+  /// Jede N-te Einheit (Tage/Wochen/Monate je nach `freq`), gezählt ab `startsOn`. >= 1.
+  interval    Int     @default(1)
+  /// Wochentag-Bitmaske (`weekdays.ts`, Mo = Bit 0) — bei WEEKLY/MONTHLY die geforderten Tage. Bei
+  /// DAILY null.
+  weekdayMask Int?
+  /// MONTHLY: der wievielte `weekdayMask`-Tag im Monat (1..5) bzw. -1 = der letzte. Sonst null. Wie
+  /// `RecurringContext.ordinal`.
+  ordinal     Int?
+  /// Uhrzeit jedes Termins als "HH:MM" Wanduhr in der Zone des Trägers.
+  timeOfDay   String
+  /// Erster in Frage kommender Kalendertag UND Anker der Intervall-Zählung.
+  startsOn    DateTime
+  /// Letzter in Frage kommender Zeitpunkt (einschliesslich). null = unbefristet.
+  until       DateTime?
+  /// Ausnahme-Daten ("YYYY-MM-DD"), an denen KEIN Termin stattfindet — iCalendar-EXDATE-Modell wie
+  /// `RecurringContext.exclusionDates`, gelesen/geschrieben über die geteilte `jsonList`-Hülle.
+  exclusionDates String?
+
+  /// Cursor des Generators: der zuletzt verarbeitete Termin. Neue Läufe suchen nur danach. Der
+  /// Unique-Index auf `Task.(seriesId, seriesOccurrence)` ist zusätzlich das Sicherheitsnetz gegen
+  /// Doppel-Erzeugung.
+  lastMaterializedOccurrence DateTime?
+  /// Soft-Delete (Supersession statt harter Löschung, wie `TrainingVorgabe`): null = aktiv. Gesetzt =
+  /// keine neuen Instanzen mehr; erzeugte bleiben stehen.
+  deletedAt   DateTime?
+  /// Optimistic-Concurrency-Token: inkrementiert bei jedem MCP-Edit (siehe writeFramework), wie
+  /// `RecurringContext`/`Appointment`.
+  version     Int     @default(1)
+  createdAt   DateTime @default(now())
+
+  requirements TaskSeriesRequirement[]
+  proofs       TaskSeriesProof[]
+  tasks        Task[]
+
+  @@index([userId, deletedAt])
+}
+
+// Eine Bedingung einer Serien-Vorlage — spiegelt `TaskRequirement`, aber ohne Task-Bindung. Beim
+// Materialisieren wird daraus je Instanz eine echte `TaskRequirement`.
+model TaskSeriesRequirement {
+  id       String     @id @default(cuid())
+  seriesId String
+  series   TaskSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  type     String
+  categoryId String?
+  category   DeviceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  deviceId String?
+  device   Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  sortOrder Int    @default(0)
+
+  @@index([seriesId])
+  @@index([categoryId])
+  @@index([deviceId])
+}
+
+// Die Nachweis-SPEZIFIKATION einer Serien-Vorlage — die Soll-Hälfte von `TaskProof` (was verlangt
+// ist), ohne die Einreich-/Sichtungs-Felder. Beim Materialisieren wird daraus je Instanz ein frischer
+// `TaskProof`.
+model TaskSeriesProof {
+  id       String     @id @default(cuid())
+  seriesId String
+  series   TaskSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  sortOrder     Int    @default(0)
+  description   String
+  requiresPhoto Boolean @default(true)
+  requiresText  Boolean @default(false)
+  requireCode   Boolean @default(false)
+  /// Eigene Fälligkeit in Minuten ab dem Nullpunkt der Instanz — wie `TaskProof.dueOffsetMin`.
+  dueOffsetMin  Int?
+
+  @@index([seriesId, sortOrder])
 }
 
 // Eine Bedingung einer Aufgabe. Mehrere je Aufgabe sind der Normalfall („KG verschlossen UND Halsband
