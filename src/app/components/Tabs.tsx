@@ -81,7 +81,7 @@ export default function Tabs({
       className={[
         "flex overflow-x-auto scrollbar-none",
         variant === "underline" ? "border-b border-border gap-0"
-          : variant === "segmented" ? "bg-surface-raised border border-border rounded-xl overflow-hidden"
+          : variant === "segmented" ? "gap-1 p-1 bg-surface-raised border border-border rounded-xl"
           : "gap-1 p-1 bg-background-subtle rounded-lg",
         className,
       ].join(" ")}
@@ -101,7 +101,7 @@ export default function Tabs({
             disabled={tab.disabled}
             onClick={() => !tab.disabled && onChange(tab.key)}
             className={[
-              variant === "segmented" ? "flex-1 min-w-0" : "shrink-0",
+              variant === "segmented" ? "flex-1 sm:flex-none min-w-0" : "shrink-0",
               "text-sm font-medium whitespace-nowrap transition-colors",
               "focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-focus-ring",
               "disabled:opacity-40 disabled:cursor-not-allowed",
@@ -114,12 +114,18 @@ export default function Tabs({
                   ].join(" ")
                 : variant === "segmented"
                 ? [
-                    // min-h-12 wie Button/Checkbox/Toggle — die vorherige lokale Fassung lag bei ~36 px
-                    // und damit unter der Mindest-Trefferfläche des Hauses.
-                    "min-h-12 px-3 text-center truncate",
+                    // Eine abgehobene Pille statt eines voll invertierten Blocks: der frühere
+                    // fast-weisse Balken mit fetter Schrift war optisch zu schwer, eine bloss dezent
+                    // hellere Fläche mit `shadow-card` dagegen unsichtbar — in den dunklen Welten ist
+                    // `--shadow-card: none`, und `surface`/`surface-raised` liegen zu nah beieinander.
+                    // Darum `border-strong` als klar erkennbare, aber neutrale (nicht grelle) Füllung
+                    // mit vollem Text-Kontrast; inaktiv nur gedämpfter Text ohne Fläche. Das `p-1` am
+                    // Container setzt die Pille ein; die Trefferfläche bleibt mit min-h-10 + Rand bei
+                    // rund 48 px (Mindest-Trefferfläche des Hauses).
+                    "min-h-10 px-3 rounded-lg text-center truncate",
                     isActive
-                      ? "bg-foreground text-background font-semibold"
-                      : "text-foreground-muted hover:bg-border-subtle",
+                      ? "bg-border-strong text-foreground font-semibold shadow-raised"
+                      : "text-foreground-muted hover:text-foreground",
                   ].join(" ")
                 : [
                     "px-3 py-1.5 rounded-md",

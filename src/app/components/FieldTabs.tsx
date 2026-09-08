@@ -52,7 +52,7 @@ export default function FieldTabs<T extends string>({
         // Der Cast lebt hier an EINER Stelle: `Tabs` spricht `string`, die Aufrufer denken in ihrer
         // eigenen Union. Ohne den Wrapper stünde derselbe Cast bei jedem Aufrufer.
         onChange={(key) => onChange(key as T)}
-        className="w-full"
+        className="w-full sm:w-fit"
         {...(label ? { "aria-labelledby": labelId } : { "aria-label": ariaLabel })}
       />
     </div>
