@@ -1,6 +1,7 @@
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
 import { type SegmentEntry } from "@/lib/sessionModel";
-import { periodEndsMs, type KgGoalRow } from "@/lib/goalFulfillment";
+import { periodEndsMs } from "@/lib/goalFulfillment";
+import type { KgGoalRow } from "@/lib/goalYear";
 import CategoryGoalsLive from "./CategoryGoalsLive";
 import { KG_CATEGORY_META } from "@/lib/deviceCategories";
 

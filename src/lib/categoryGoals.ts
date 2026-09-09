@@ -5,8 +5,11 @@ import {
   type WearHours,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory, type SegmentEntry } from "@/lib/sessionModel";
-import { resolveGoalTargets, hasVisibleGoalRow, type VorgabeTargets } from "@/lib/goalFulfillment";
+import { hasVisibleGoalRow, type VorgabeTargets } from "@/lib/goalFulfillment";
+import { resolveGoalTargetsWithYear } from "@/lib/goalYear";
+import { isActive } from "@/lib/statsBuilders";
 import { getNonKgTrackingCategories, getWearEntries, getUserTimezone } from "@/lib/queries";
+import { groupVorgabenByCategory } from "@/lib/vorgaben";
 
 /** Wearing hours + active TrainingVorgabe targets for one non-KG tracking category.
  *  Die Ziele sind bereits nach den Regeln in `goalFulfillment.ts` aufgelöst: eine Periode mit
@@ -46,12 +49,14 @@ export async function buildCategoryWearGoals(
 ): Promise<CategoryWearGoal[]> {
   const [categories, vorgaben, ownEntries, tz] = await Promise.all([
     getNonKgTrackingCategories(userId),
+    // BEWUSST ohne Aktiv-Filter: die Jahres-Zeile summiert über ALLE Segmente des laufenden Jahres
+    // (auch bereits abgelaufene), sonst fehlte im Nenner die Phase vor der letzten Ziel-Änderung.
+    // Welches Ziel AKTIV ist, entscheidet danach `isActive` in JS — eine zweite Query wäre dieselbe
+    // Zeilenmenge mit engerem `where`.
     prisma.trainingVorgabe.findMany({
       where: {
         userId,
         deletedAt: null, // B-04: ein soft-gelöschtes Ziel zählt nicht mehr in die Adhärenz
-        gueltigAb: { lte: now },
-        OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }],
         categoryId: { not: null },
         category: { isBuiltIn: false },
       },
@@ -64,9 +69,15 @@ export async function buildCategoryWearGoals(
   const entries = prefetchedEntries ?? ownEntries!;
   const pairsByCategory = wearHourPairsByCategory(buildWearSessions(entries, now), now);
 
-  // Most recent active vorgabe per category (orderBy gueltigAb desc → first seen wins).
+  // Most recent active vorgabe per category (orderBy gueltigAb desc → first seen wins) — sie
+  // entscheidet über die Sichtbarkeit der Zeilen und über Tag/Woche/Monat.
   const goalByCategory = new Map<string, typeof vorgaben[number]>();
-  for (const v of vorgaben) if (v.categoryId && !goalByCategory.has(v.categoryId)) goalByCategory.set(v.categoryId, v);
+  // Alle Segmente je Kategorie — daraus baut `resolveGoalTargetsWithYear` die Jahres-Summe.
+  // (Nicht-KG-Kategorien: `goalCategoryKey` ist dort die `categoryId`.)
+  const segmentsByCategory = groupVorgabenByCategory(vorgaben);
+  for (const v of vorgaben) {
+    if (v.categoryId && isActive(v, now) && !goalByCategory.has(v.categoryId)) goalByCategory.set(v.categoryId, v);
+  }
 
   const tagStart = getMidnightToday(now, tz);
   const wocheStart = getWeekStart(now, tz);
@@ -75,6 +86,11 @@ export async function buildCategoryWearGoals(
 
   return categories.map((c) => {
     const pairs = pairsByCategory.get(c.id) ?? [];
+    // Das Jahr kommt samt seinem Ist-Wert aus der Segment-Summe; Tag/Woche/Monat unverändert aus
+    // dem aktiven Ziel.
+    const { goal, yearActualH } = resolveGoalTargetsWithYear(
+      goalByCategory.get(c.id) ?? null, segmentsByCategory.get(c.id) ?? [], pairs, now, tz,
+    );
     return {
       categoryId: c.id,
       name: c.name,
@@ -83,8 +99,8 @@ export async function buildCategoryWearGoals(
       tagH: wearingHoursFromPairs(pairs, tagStart, now),
       wocheH: wearingHoursFromPairs(pairs, wocheStart, now),
       monatH: wearingHoursFromPairs(pairs, monatStart, now),
-      jahrH: wearingHoursFromPairs(pairs, jahrStart, now),
-      goal: resolveGoalTargets(goalByCategory.get(c.id) ?? null, now, tz),
+      jahrH: yearActualH,
+      goal,
     };
   });
 }

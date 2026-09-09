@@ -1118,13 +1118,38 @@ export function calculateWearingHoursByRange<
   now: Date,
   tz: string,
 ): WearHours {
-  const pairs = buildKgWearPairs(entries, now);
+  return wearHoursOfPairs(buildKgWearPairs(entries, now), now, tz);
+}
+
+/** Dieselben vier Kennzahlen aus BEREITS gebauten Paaren.
+ *
+ *  Getrennt von `calculateWearingHoursByRange`, weil `buildKgWearPairs` die ganze Historie filtert
+ *  UND sortiert — wer die Paare ohnehin schon hat (gecacht oder für eine Ziel-Auswertung gebaut),
+ *  soll sie nicht ein zweites Mal bauen. */
+export function wearHoursOfPairs(pairs: WearPair[], now: Date, tz: string): WearHours {
   return {
     tagH: wearingHoursFromPairs(pairs, getMidnightToday(now, tz), now),
     wocheH: wearingHoursFromPairs(pairs, getWeekStart(now, tz), now),
     monatH: wearingHoursFromPairs(pairs, getMonthStart(now, tz), now),
     jahrH: wearingHoursFromPairs(pairs, getYearStart(now, tz), now),
   };
+}
+
+/**
+ * Kalendertag-Index eines Instants in `tz` — Tage seit Epoch der ÖRTLICHEN Datumsangabe.
+ *
+ * Bewusst NICHT `(b - a) / 86_400_000`: in einer Zeitumstellungswoche hat ein Tag 23 oder 25
+ * Stunden, und die Millisekunden-Division zählt dann 364.96 Tage für ein volles Jahr. Der Kalender
+ * kennt keine halben Tage.
+ */
+export function localDayIndex(d: Date, tz: string): number {
+  const { year, month, day } = tzDateParts(d, tz);
+  return Math.round(Date.UTC(year, month, day) / 86_400_000);
+}
+
+/** Ganze Kalendertage zwischen zwei Instants in `tz` (halboffen: `[a, b)`). */
+export function calendarDaysBetween(a: Date, b: Date, tz: string): number {
+  return localDayIndex(b, tz) - localDayIndex(a, tz);
 }
 
 type KontrollAnforderungIn = {

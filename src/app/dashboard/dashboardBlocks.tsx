@@ -9,7 +9,8 @@ import type { SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
 import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
-  deviceCountCached, entriesCached, evaluatedTasksCached, latestKeyInBoxCached, latestKgEntryCached, lockRequestCached,
+  deviceCountCached, entriesCached, evaluatedTasksCached, kgVorgabenCached, kgWearPairsCached,
+  latestKeyInBoxCached, latestKgEntryCached, lockRequestCached,
   orgasmConfigCached, orgasmEntriesCached, pendingLockCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
   subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
@@ -23,7 +24,7 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
-import { resolveGoalTargets, buildKgGoalRow } from "@/lib/goalFulfillment";
+import { buildKgGoalRow, resolveGoalTargetsWithYear } from "@/lib/goalYear";
 import type { Translate } from "@/lib/boxStatus";
 import { currentOrNextCleaningWindow } from "@/lib/cleaningService";
 import { datedWindowLabel } from "@/lib/weekdays";
@@ -384,16 +385,23 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         const open = await openStateData(ctx);
         return open && ({ open } as const);
       }
-      const [activeLockPeriod, user, activeVorgabe, hours, deviceCount, offenseRules] = await Promise.all([
+      const [activeLockPeriod, user, activeVorgabe, hours, deviceCount, offenseRules, kgVorgaben, kgPairs] = await Promise.all([
         subLockPeriodCached(userId), userRowCached(userId), activeVorgabeCached(userId, nowMs),
         wearingHoursCached(userId, nowMs, tz), deviceCountCached(userId),
         // Für die Folge-Zeile unter der Sperrzeit: OB ein früheres Öffnen geahndet wird, ist je Sub
         // schaltbar. Ohne diese Abfrage behauptete die Karte eine Regel, die abgeschaltet sein kann.
         getOffenseRules(userId, now),
+        // Für die Jahres-Zeile: ALLE KG-Segmente des Jahres, nicht nur das aktive Ziel.
+        kgVorgabenCached(userId), kgWearPairsCached(userId, nowMs),
       ]);
+      const { goal, yearActualH } = resolveGoalTargetsWithYear(activeVorgabe, kgVorgaben, kgPairs, now, tz);
       // `open: null` als Unterscheidungsmerkmal — mit `"open" in data` müsste jede Verwendung
       // darunter noch einmal auf `undefined` prüfen, obwohl der Zweig sie ausschliesst.
-      return { open: null, ...running, activeLockPeriod, user, activeVorgabe, hours, deviceCount, offenseRules };
+      return {
+        open: null, ...running, activeLockPeriod, user, deviceCount, offenseRules,
+        goalTargets: activeVorgabe ? goal : null,
+        hours: { ...hours, jahrH: yearActualH },
+      };
     },
     render: (data, { now, tz, dl, t }) => data && (
       data.open ? (
@@ -451,7 +459,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
                   : "sessionLockedConsequence")
           }
           keyInBox={data.activePair.verschluss.keyInBox ?? null}
-          activeVorgabe={data.activeVorgabe ? resolveGoalTargets(data.activeVorgabe, now, tz) : null}
+          activeVorgabe={data.goalTargets}
           tagH={data.hours.tagH}
           wocheH={data.hours.wocheH}
           monatH={data.hours.monatH}
@@ -515,16 +523,17 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   categoryGoals: block({
     load: async (ctx) => {
       const { userId, nowMs, now, tz } = ctx;
-      const [wearSessions, entries, activeVorgabe, hours, sessionCard] = await Promise.all([
+      const [wearSessions, entries, activeVorgabe, hours, sessionCard, kgVorgaben, kgPairs] = await Promise.all([
         activeWearSessionsCached(userId), entriesCached(userId), activeVorgabeCached(userId, nowMs),
         wearingHoursCached(userId, nowMs, tz), sessionCardOnScreen(ctx),
+        kgVorgabenCached(userId), kgWearPairsCached(userId, nowMs),
       ]);
       // Das KG-Ziel steht während einer Sperre in der grünen Session-Karte (LaufendeSessionCard).
       // Steht die nicht — weil keine Sperre läuft ODER weil der Träger den Block ausgeblendet hat —
       // hätte es sonst nirgends Platz; dann zeigen wir es als führende Zeile in der
       // „Trainingsvorgaben"-Karte (derselben, die die Kategorie-Ziele trägt). Dieselbe Herleitung
       // nimmt die Admin-Übersicht — so zeigen beide Sichten dieselbe Zeile.
-      const kgGoal = buildKgGoalRow(activeVorgabe, hours, now, tz, !!sessionCard);
+      const kgGoal = buildKgGoalRow(activeVorgabe, kgVorgaben, kgPairs, hours, now, tz, !!sessionCard);
       return { wearSessions, entries, kgGoal };
     },
     render: ({ wearSessions, entries, kgGoal }, { userId, tz, collapseDefault }) => (

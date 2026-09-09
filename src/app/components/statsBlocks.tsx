@@ -12,14 +12,15 @@ import { goalPct, sharePct } from "@/lib/percent";
 import {
   formatDate, formatDateTime, formatDurationMs, formatTotalHours, formatTotalMs,
   buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart,
-  getYearStart, longestOrgasmFreeGap, summarizeSessions, wearingHoursFromPairs, WEAR_PAIR,
+  longestOrgasmFreeGap, summarizeSessions, wearingHoursFromPairs, WEAR_PAIR,
 } from "@/lib/utils";
 import {
   buildCalendarMonths, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
 } from "@/lib/statsBuilders";
-import { resolveGoalTargets, hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/goalFulfillment";
+import { hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/goalFulfillment";
+import { resolveGoalTargetsWithYear } from "@/lib/goalYear";
 import { getKombinierterPill } from "@/lib/kontrollePills";
-import { isKgVorgabe } from "@/lib/vorgaben";
+import { isKgVorgabe, goalCategoryKey, groupVorgabenByCategory } from "@/lib/vorgaben";
 import { isEffectiveEntry, latestEffectiveKgEntry } from "@/lib/lockPending";
 import { categoryStyle } from "@/lib/categoryConstants";
 import { KG_CATEGORY_META } from "@/lib/deviceCategories";
@@ -194,29 +195,34 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
   // Trainingsziele — eine Card pro aktiver Vorgabe (KG zuerst, dann andere Kategorien)
   goals: block({
     load: async ({ userId, nowMs, now, tz }) => {
-      const [vorgaben, wearPairs, wearPairsByCategory] = await Promise.all([
-        activeVorgaben(userId), kgWearPairsCached(userId, nowMs), wearPairsByCategoryCached(userId, nowMs),
+      const [vorgaben, alleVorgaben, wearPairs, wearPairsByCategory] = await Promise.all([
+        activeVorgaben(userId), vorgabenCached(userId), kgWearPairsCached(userId, nowMs), wearPairsByCategoryCached(userId, nowMs),
       ]);
       const todayStart = getMidnightToday(now, tz);
       const weekStart = getWeekStart(now, tz);
       const monthStart = getMonthStart(now, tz);
-      const yearStart = getYearStart(now, tz);
+      // Die Jahres-Zeile summiert über ALLE Segmente ihrer Kategorie (auch bereits abgelaufene).
+      const segmenteJeKategorie = groupVorgabenByCategory(alleVorgaben);
       return vorgaben.map((v) => {
         const pairs = isKgVorgabe(v) ? wearPairs : wearPairsByCategory.get(v.categoryId!) ?? [];
+        // Ziele je Periode nach den Regeln aus `goalFulfillment.ts` — in einer geteilten Periode
+        // ist `targetH` bereits null, der Balken fällt damit von selbst aus. Das JAHR kommt samt
+        // seinem Ist-Wert aus der Segment-Summe (`goalYear.ts`).
+        const { goal, yearActualH } = resolveGoalTargetsWithYear(
+          v, segmenteJeKategorie.get(goalCategoryKey(v)) ?? [], pairs, now, tz,
+        );
         return {
           id: v.id,
           name: v.category?.name ?? "KG",
           color: v.category?.color ?? null,
           icon: v.category?.icon ?? null,
-          // Ziele je Periode nach den Regeln aus `goalFulfillment.ts` — in einer geteilten Periode
-          // ist `targetH` bereits null, der Balken fällt damit von selbst aus.
-          goal: resolveGoalTargets(v, now, tz),
+          goal,
           notiz: v.notiz,
           hours: {
             day: wearingHoursFromPairs(pairs, todayStart, now),
             week: wearingHoursFromPairs(pairs, weekStart, now),
             month: wearingHoursFromPairs(pairs, monthStart, now),
-            year: wearingHoursFromPairs(pairs, yearStart, now),
+            year: yearActualH,
           },
         };
       })

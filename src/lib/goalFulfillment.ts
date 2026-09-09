@@ -113,7 +113,7 @@ export function periodEndsMs(now: Date, tz: string): ByPeriod<number> {
  * auf den Start der Folge-Vorgabe) ist dagegen ein exklusiver Übergabepunkt und bleibt der rohe
  * Instant — sonst überlappte eine Vorgabe ihre Nachfolgerin um einen Tag. Offen (`null`) → `Infinity`.
  */
-function goalEffectiveEndMs(goal: GoalWindow, tz: string): number {
+export function goalEffectiveEndMs(goal: GoalWindow, tz: string): number {
   const bis = goal.gueltigBis;
   if (bis == null) return Infinity;
   return goal.validUntilManual ? midnightAfterDays(bis, tz, 1).getTime() : bis.getTime();
@@ -213,9 +213,29 @@ export interface VorgabeTargets {
   changedInPeriod: GoalChangedInPeriod;
 }
 
-const NO_TARGETS: VorgabeTargets = {
-  targetH: { day: null, week: null, month: null, year: null },
-  changedInPeriod: { day: false, week: false, month: false, year: false },
+/**
+ * Die Perioden, die DIESES Modul auflöst — das Jahr fehlt bewusst.
+ *
+ * Ein Jahr überspannt regelmässig einen Regelwechsel (neues Ziel ohne Enddatum → Verkettung), und
+ * dann ist „das aktive Ziel" nicht die ganze Wahrheit. Das Jahr rechnet deshalb `goalYear.ts` aus
+ * den SEGMENTEN, und `resolveGoalTargets` liefert dafür gar keinen Wert mehr — nicht einmal einen
+ * ungenutzten. Ein zurückgegebener Jahreswert nach alter Regel wäre eine Falle: Wer die
+ * naheliegend benannte Funktion nimmt, bekäme eine Zahl, die keine Anzeige mehr verwendet.
+ */
+export const NON_YEAR_PERIODS = ["day", "week", "month"] as const;
+
+export type NonYearPeriod = (typeof NON_YEAR_PERIODS)[number];
+
+/** Tag/Woche/Monat einer Vorgabe — der Teil, den das aktive Ziel allein beantwortet.
+ *  `goalYear.ts` setzt daraus zusammen mit dem aggregierten Jahr die volle `VorgabeTargets`. */
+export interface NonYearTargets {
+  targetH: Record<NonYearPeriod, number | null>;
+  changedInPeriod: Record<NonYearPeriod, boolean>;
+}
+
+const NO_TARGETS: NonYearTargets = {
+  targetH: { day: null, week: null, month: null },
+  changedInPeriod: { day: false, week: false, month: false },
 };
 
 /**
@@ -229,7 +249,7 @@ const NO_TARGETS: VorgabeTargets = {
  * nicht ab" und bekommt keine Zeile. Mit `!= null` behauptete diese Funktion Sichtbarkeit für eine
  * Zeile, die sich anschliessend selbst wegrendert.
  */
-export function hasVisibleGoalRow(targetH: ByPeriod<number | null>): boolean {
+export function hasVisibleGoalRow(targetH: Partial<ByPeriod<number | null>>): boolean {
   return GOAL_PERIODS.some((period) => !!targetH[period]);
 }
 
@@ -237,18 +257,18 @@ export function resolveGoalTargets(
   goal: (GoalWindow & VorgabePeriodTargets) | null,
   now: Date,
   tz: string,
-): VorgabeTargets {
+): NonYearTargets {
   if (!goal) return NO_TARGETS;
   // Das Tages-Soll folgt dem Wochentag von HEUTE: eine passende Ausnahme ersetzt `minProTagH` (0 =
-  // Ruhetag). Woche/Monat/Jahr bleiben Perioden-Summen und unberührt. Diese EINE Auflösung erreicht
+  // Ruhetag). Woche und Monat bleiben Perioden-Summen und unberührt. Diese EINE Auflösung erreicht
   // damit jede „aktives Ziel jetzt"-Anzeige (Dashboard, Admin, Stats, Kategorie-Ziele, MCP).
   const dayBase = tagesSollFuer(goal, now, tz);
-  const base: ByPeriod<number | null> = {
-    day: dayBase, week: goal.minProWocheH, month: goal.minProMonatH, year: goal.minProJahrH,
+  const base: Record<NonYearPeriod, number | null> = {
+    day: dayBase, week: goal.minProWocheH, month: goal.minProMonatH,
   };
-  const targetH = {} as ByPeriod<number | null>;
-  const changedInPeriod = {} as GoalChangedInPeriod;
-  for (const period of GOAL_PERIODS) {
+  const targetH = {} as Record<NonYearPeriod, number | null>;
+  const changedInPeriod = {} as Record<NonYearPeriod, boolean>;
+  for (const period of NON_YEAR_PERIODS) {
     // Perioden ohne Ziel überspringen die Grenzberechnung: `periodBounds` kostet mehrere
     // Intl-Auflösungen, und eine typische Vorgabe setzt ein oder zwei der vier Perioden.
     if (base[period] == null) {
@@ -264,31 +284,3 @@ export function resolveGoalTargets(
   return { targetH, changedInPeriod };
 }
 
-/** Das KG-Trainingsziel als führende Zeile der „Trainingsvorgaben"-Karte — die vier Tragestunden
- *  plus die aufgelösten Ziele. Bewusst OHNE Live-Tick und Kategorie-Icon: gezeigt nur, wenn KEINE
- *  Sperre läuft (sonst trägt es die grüne Session-Karte). Von `buildKgGoalRow` gebaut und von
- *  `CategoryGoalsLive` gerendert. */
-export interface KgGoalRow extends WearHours {
-  goal: VorgabeTargets;
-}
-
-/**
- * Das KG-Trainingsziel als führende Zeile der „Trainingsvorgaben"-Karte, oder `null` — die EINE
- * Herleitung, geteilt von der Übersicht des Trägers und der Admin-Übersicht der Keyholderin, damit
- * beide dieselbe Zeile zeigen (die Admin-Sicht liess sie zuvor ganz weg).
- *
- * `coveredBySessionCard` blendet sie aus, wo die grüne Session-Karte das Ziel bei laufender Sperre
- * ohnehin trägt. `hasVisibleGoalRow` verhindert die Überschrift über einer leeren Liste
- * (Starttag/geteilte Periode).
- */
-export function buildKgGoalRow(
-  activeVorgabe: (GoalWindow & VorgabePeriodTargets) | null,
-  hours: WearHours,
-  now: Date,
-  tz: string,
-  coveredBySessionCard: boolean,
-): KgGoalRow | null {
-  if (coveredBySessionCard || !activeVorgabe) return null;
-  const goal = resolveGoalTargets(activeVorgabe, now, tz);
-  return hasVisibleGoalRow(goal.targetH) ? { ...hours, goal } : null;
-}

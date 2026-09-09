@@ -551,6 +551,12 @@ export async function getNonKgTrackingCategories(userId: string) {
  *  Filters explicitly to the KG category — legacy rows with categoryId=null
  *  (pre-device-categories) OR rows linked to the built-in KG category.
  *  Other categories (Plug, etc.) are handled by CategoryGoalsToday. */
+/** Die KG-Kennung auf SQL-Ebene — das Gegenstück zu `isKgVorgabe`: KG kommt in ZWEI Schreibweisen
+ *  vor (`categoryId: null` aus dem Bestand und über den MCP, sonst die eingebaute Kategorie). Als
+ *  Konstante, damit die beiden Abfragen unten nicht auseinanderlaufen können — dass die zwei
+ *  Schreibweisen genau das schon einmal taten, steht bei `goalCategoryKey`. */
+const KG_VORGABE_WHERE = { OR: [{ categoryId: null }, { category: { isBuiltIn: true } }] };
+
 export async function getActiveVorgabe(userId: string, now: Date) {
   return prisma.trainingVorgabe.findFirst({
     where: {
@@ -559,10 +565,21 @@ export async function getActiveVorgabe(userId: string, now: Date) {
       gueltigAb: { lte: now },
       AND: [
         { OR: [{ gueltigBis: null }, { gueltigBis: { gte: now } }] },
-        { OR: [{ categoryId: null }, { category: { isBuiltIn: true } }] },
+        KG_VORGABE_WHERE,
       ],
     },
     orderBy: { gueltigAb: "desc" },
+  });
+}
+
+/** ALLE KG-Ziele des Users — die Segmente, aus denen `resolveYearGoal` die Jahres-Summe bildet.
+ *  Bewusst ohne Aktiv-Filter und ohne Jahres-Fenster: welche Segmente das laufende Jahr berühren,
+ *  entscheidet `goalYear.ts` — inklusive der einschliessenden Lesart eines manuellen Enddatums,
+ *  die sich in einer `where`-Klausel nur doppelt (und damit falsch) abbilden liesse. */
+export async function getKgVorgabeSegments(userId: string) {
+  return prisma.trainingVorgabe.findMany({
+    where: { userId, deletedAt: null, ...KG_VORGABE_WHERE },
+    select: { gueltigAb: true, gueltigBis: true, validUntilManual: true, minProJahrH: true },
   });
 }
 

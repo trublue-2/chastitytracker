@@ -4,7 +4,7 @@ import { ClipboardList, Droplets, ChevronRight, Gavel } from "lucide-react";
 import { block, type StackBlock } from "@/lib/blockStack";
 import type { KeyholderSubBlockId } from "@/lib/dashboardBlockRegistry";
 import {
-  activeVorgabeCached, activeWearSessionsCached, deviceCountCached,
+  activeVorgabeCached, activeWearSessionsCached, deviceCountCached, kgVorgabenCached, kgWearPairsCached,
   keyholderInspectionsCached, keyholderOrgasmRequestCached, keyholderPairsCached,
   keyholderRunningSessionCached, keyholderLockPeriodCached, latestKeyInBoxCached, latestKgEntryCached, orgasmConfigCached,
   orgasmEntriesCached, sessionListDataCached, taskCardsCached, wearCountsCached,
@@ -19,7 +19,7 @@ import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { userRowCached, strafbuchCached } from "@/lib/dashboardData";
 import { selectSubOffenses, openOffensesOf } from "@/lib/subOffenses";
 import OffenseList from "@/app/components/OffenseList";
-import { resolveGoalTargets, buildKgGoalRow } from "@/lib/goalFulfillment";
+import { buildKgGoalRow, resolveGoalTargetsWithYear } from "@/lib/goalYear";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
@@ -143,7 +143,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       // Stundenrechnung. Letztere paart die ganze Historie und wird von keinem anderen Block
       // dieser Seite gebraucht.
       if (!running) return { running: null, latest: await latestKgEntryCached(subjectId) };
-      const [lockPeriod, activeVorgabe, hours, deviceCount, offenseRules, user] = await Promise.all([
+      const [lockPeriod, activeVorgabe, hours, deviceCount, offenseRules, user, kgVorgaben, kgPairs] = await Promise.all([
         keyholderLockPeriodCached(subjectId), activeVorgabeCached(subjectId, nowMs),
         wearingHoursCached(subjectId, nowMs, subjectTz), deviceCountCached(subjectId),
         // Ob ein früheres Öffnen geahndet wird, ist je Sub schaltbar — und SIE hat den Schalter.
@@ -154,7 +154,12 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
         // und die Alternative wäre, dass die Keyholderin die Uhrzeiten, die der Träger auf SEINER
         // Übersicht liest, nur noch im Einstellungs-Formular findet.
         userRowCached(subjectId),
+        // Für die Jahres-Zeile: ALLE KG-Segmente des Jahres, nicht nur das aktive Ziel.
+        kgVorgabenCached(subjectId), kgWearPairsCached(subjectId, nowMs),
       ]);
+      const { goal: goalTargets, yearActualH } = resolveGoalTargetsWithYear(
+        activeVorgabe, kgVorgaben, kgPairs, now, subjectTz,
+      );
       // Fertig übersetzt schon hier: die Zeichenkette liegt im `dashboard`-Namensraum, den der
       // Seiten-Kontext nicht führt (er trägt `admin`). Die Karte bekommt sie als Text — dieselbe
       // Konvention wie `cleaningNote`, und sie hält die Regel-Kenntnis beim Aufrufer.
@@ -168,7 +173,11 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       const cleaningWindow = lockPeriod?.cleaningAllowed
         ? currentOrNextCleaningWindow(user?.cleaningWindows, now, subjectTz)
         : null;
-      return { running, lockPeriod, activeVorgabe, hours, deviceCount, lockBreakNote, cleaningWindow, latest: null };
+      return {
+        running, lockPeriod, deviceCount, lockBreakNote, cleaningWindow, latest: null,
+        goalTargets: activeVorgabe ? goalTargets : null,
+        hours: { ...hours, jahrH: yearActualH },
+      };
     },
     render: (data, { now, subjectTz, viewerTz, subLabel, subjectId, dl, t }) =>
       data.running ? (
@@ -200,7 +209,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           // zulässt (Herleitung in der Ladefunktion).
           lockBreakNote={data.lockBreakNote}
           keyInBox={data.running.activePair.verschluss.keyInBox ?? null}
-          activeVorgabe={data.activeVorgabe ? resolveGoalTargets(data.activeVorgabe, now, subjectTz) : null}
+          activeVorgabe={data.goalTargets}
           tagH={data.hours.tagH}
           wocheH={data.hours.wocheH}
           monatH={data.hours.monatH}
@@ -383,12 +392,13 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
   // laufenden Sessions mitzählen lässt.
   categoryGoals: block({
     load: async ({ subjectId, nowMs, now, subjectTz, dl }) => {
-      const [running, activeVorgabe, hours] = await Promise.all([
+      const [running, activeVorgabe, hours, kgVorgaben, kgPairs] = await Promise.all([
         keyholderRunningSessionCached(subjectId, nowMs, dl),
         activeVorgabeCached(subjectId, nowMs),
         wearingHoursCached(subjectId, nowMs, subjectTz),
+        kgVorgabenCached(subjectId), kgWearPairsCached(subjectId, nowMs),
       ]);
-      return buildKgGoalRow(activeVorgabe, hours, now, subjectTz, !!running);
+      return buildKgGoalRow(activeVorgabe, kgVorgaben, kgPairs, hours, now, subjectTz, !!running);
     },
     render: (kgGoal, { subjectId, subjectTz }) => (
       <CategoryGoalsToday

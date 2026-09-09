@@ -9,7 +9,7 @@ import { deviceCategoriesEnabled } from "@/lib/constants";
 import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
 import { latestEffectiveKgEntry, isPendingLock } from "@/lib/lockPending";
 import {
-  buildKontrolleItems, buildKgWearPairs, buildPairs, calculateWearingHoursByRange,
+  buildKontrolleItems, buildKgWearPairs, buildPairs, wearHoursOfPairs,
   completedPairsFrom, getOpenPair, KG_PAIR, pairDurationMs, tzDayKey,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
@@ -431,8 +431,11 @@ export const wearSessionsCached = cache(async (userId: string, nowMs: number) =>
  * Gecacht, weil es keine Abfrage ist und trotzdem teuer: die Rechnung paart die GANZE Historie und
  * summiert sie viermal. Drei Blöcke fragen danach.
  */
+// Aus den GECACHTEN Paaren statt aus den Einträgen: `buildKgWearPairs` filtert und sortiert die
+// ganze Historie, und `kgWearPairsCached` hat sie auf denselben Schlüsseln ohnehin schon gebaut.
+// Über `calculateWearingHoursByRange` lief derselbe teure Durchlauf ein zweites Mal je Seite.
 export const wearingHoursCached = cache(async (userId: string, nowMs: number, tz: string) =>
-  calculateWearingHoursByRange(await entriesCached(userId), new Date(nowMs), tz),
+  wearHoursOfPairs(await kgWearPairsCached(userId, nowMs), new Date(nowMs), tz),
 );
 
 /** Hat der Träger überhaupt Geräte? Entscheidet, ob Karten das getragene Gerät benennen. */

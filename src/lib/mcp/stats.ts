@@ -1,6 +1,7 @@
-import { calculateWearingHoursByRange, longestOrgasmFreeGap, median, msToHours, round1, summarizeDurations } from "@/lib/utils";
-import { resolveGoalTargets, type ByPeriod, type GoalChangedInPeriod, type VorgabeTargets } from "@/lib/goalFulfillment";
-import { getActiveVorgabe } from "@/lib/queries";
+import { buildKgWearPairs, wearHoursOfPairs, longestOrgasmFreeGap, median, msToHours, round1, summarizeDurations } from "@/lib/utils";
+import { type ByPeriod, type GoalChangedInPeriod, type VorgabeTargets } from "@/lib/goalFulfillment";
+import { resolveGoalTargetsWithYear } from "@/lib/goalYear";
+import { getActiveVorgabe, getKgVorgabeSegments } from "@/lib/queries";
 import { buildCategoryWearGoals } from "@/lib/categoryGoals";
 import { buildSessions, buildWearSessions, deviceDisplayName, deviceGroupKey, isLiveOpenSession, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/sessionModel";
 import { pct } from "@/lib/mcp/format";
@@ -428,7 +429,10 @@ export interface PeriodGoal {
   /** Je Periode: liegt eine Zielgrenze (Beginn/Ende der Vorgabe) INNERHALB der Periode? Dann sind
    *  `goal*H` UND `*Pct` dieser Periode `null` — sie vergliche sonst Ist-Stunden der ganzen Periode
    *  mit einem Ziel, das nur einen Teil davon abdeckt (Regel 2 in `goalFulfillment.ts`). Die
-   *  Ist-Stunden daneben bleiben gültig. */
+   *  Ist-Stunden daneben bleiben gültig.
+   *
+   *  **`year` ist hier immer `false`** (seit v5): das Jahr wird nicht mehr unterdrückt, sondern
+   *  anteilig über seine Segmente bewertet (`goalYear.ts`) — es gibt dort nichts zu melden. */
   goalChangedInPeriod: GoalChangedInPeriod;
 }
 
@@ -437,8 +441,14 @@ export interface PeriodSummaryResult extends Envelope {
    *  v4: in derselben Lage ist auch `goal*H` null. v3 lieferte dort das anteilig gekürzte Ziel
    *  (`goalWeekH: 7.55` neben `week: 76.5`) — ein Absolutwert für einen anderen Zeitraum als die
    *  Ist-Stunden daneben. Wer die Rohwerte nebeneinanderlegte, stellte damit von Hand genau den
-   *  Vergleich an, den der unterdrückte Prozentwert vermeiden sollte. */
-  schemaVersion: 4;
+   *  Vergleich an, den der unterdrückte Prozentwert vermeiden sollte.
+   *  v5: **Das JAHR wird nicht mehr unterdrückt, sondern anteilig bewertet.** `goalYearH` ist die
+   *  Summe über alle Segmente des laufenden Jahres — jedes mit seinem eigenen Jahresziel, gewichtet
+   *  nach seinen Tagen. `year` daneben zählt nur die Trage-Zeit DIESER Fenster, Zähler und Nenner
+   *  gehören also zusammen. `goalChangedInPeriod.year` ist deshalb immer `false`. Tag/Woche/Monat
+   *  sind unverändert (v4-Verhalten). Ein `goalYearH` aus v4 ist mit einem aus v5 nicht vergleichbar:
+   *  dort war es das Ziel EINER Vorgabe oder `null`, hier eine gewichtete Summe. */
+  schemaVersion: 5;
   user: string;
   kg: PeriodGoal;
   categories: ({ name: string } & PeriodGoal)[];
@@ -470,21 +480,29 @@ export async function periodSummary(username: string, ctx?: TrackingContext): Pr
   const { userId, entries, cleaning, now, timezone } = await ctxOf(username, ctx);
   const iso = makeIso(timezone);
 
-  const [kgVorgabe, categoryGoals] = await Promise.all([
+  const [kgVorgabe, categoryGoals, kgSegments] = await Promise.all([
     getActiveVorgabe(userId, now),
     buildCategoryWearGoals(userId, now, entries, timezone),
+    // Alle KG-Segmente — die Jahres-Zeile summiert über sie, nicht nur über das aktive Ziel.
+    getKgVorgabeSegments(userId),
   ]);
-  const kg = calculateWearingHoursByRange(entries, now, timezone);
+  // Die Paare EINMAL bauen: `buildKgWearPairs` filtert und sortiert die ganze Historie, und die
+  // Stunden darunter brauchen dieselben wie die Jahres-Auswertung.
+  const kgPairs = buildKgWearPairs(entries, now);
+  const kg = wearHoursOfPairs(kgPairs, now, timezone);
 
   // Dieselbe Zeitzone wie die Stunden darüber: sonst misst der Nenner eine andere Periode als der
-  // Zähler. Was in einer geteilten Periode passiert, entscheidet `goalFulfillment.ts`.
-  const kgGoal = resolveGoalTargets(kgVorgabe, now, timezone);
+  // Zähler. Was in einer geteilten Periode passiert, entscheidet `goalFulfillment.ts`; das JAHR
+  // kommt samt seinem Ist-Wert aus der Segment-Summe (`goalYear.ts`).
+  const { goal: kgGoal, yearActualH } = resolveGoalTargetsWithYear(
+    kgVorgabe, kgSegments, kgPairs, now, timezone,
+  );
 
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     user: username,
     ...buildEnvelope(now, iso, timezone),
-    kg: periodGoal({ day: kg.tagH, week: kg.wocheH, month: kg.monatH, year: kg.jahrH }, kgGoal),
+    kg: periodGoal({ day: kg.tagH, week: kg.wocheH, month: kg.monatH, year: yearActualH }, kgGoal),
     categories: categoryGoals.map((c) => ({
       name: c.name,
       ...periodGoal({ day: c.tagH, week: c.wocheH, month: c.monatH, year: c.jahrH }, c.goal),

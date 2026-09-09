@@ -29,6 +29,27 @@ export function goalCategoryKey(v: Parameters<typeof isKgVorgabe>[0]): string | 
 }
 
 /**
+ * Vorgaben nach ihrer Kategorie-Kennung gruppieren — die EINE Herleitung, geteilt von der
+ * Verkettung (`reorderVorgabenDates`), der Statistik-Karte und den Kategorie-Zielen.
+ *
+ * Sie steht hier und nicht dreimal beim Aufrufer, weil sie über `goalCategoryKey` gruppieren MUSS:
+ * KG kommt in zwei Schreibweisen vor, und genau eine von Hand gebaute Gruppierung nach roher
+ * `categoryId` liess am 23.08.2026 zwei KG-Ziele nebeneinander laufen (Begründung dort).
+ */
+export function groupVorgabenByCategory<T extends Parameters<typeof isKgVorgabe>[0]>(
+  list: T[],
+): Map<string | null, T[]> {
+  const byCategory = new Map<string | null, T[]>();
+  for (const v of list) {
+    const key = goalCategoryKey(v);
+    const group = byCategory.get(key) ?? [];
+    group.push(v);
+    byCategory.set(key, group);
+  }
+  return byCategory;
+}
+
+/**
  * Sortiert alle Vorgaben eines Users **pro Kategorie** nach gueltigAb und
  * setzt die Enddaten automatisch: innerhalb einer Kategorie endet jede
  * Vorgabe am Startdatum der nächstneueren in derselben Kategorie. Die jeweils
@@ -54,15 +75,7 @@ export async function reorderVorgabenDates(userId: string) {
 
   // Pro Kategorie gruppieren — über DENSELBEN Schlüssel, mit dem `getActiveVorgabe` und
   // `isKgVorgabe` lesen: KG ist eine Kategorie, auch wenn sie in zwei Schreibweisen vorkommt.
-  const byCategory = new Map<string | null, typeof all>();
-  for (const v of all) {
-    const key = goalCategoryKey(v);
-    const list = byCategory.get(key) ?? [];
-    list.push(v);
-    byCategory.set(key, list);
-  }
-
-  for (const list of byCategory.values()) {
+  for (const list of groupVorgabenByCategory(all).values()) {
     for (let i = 0; i < list.length; i++) {
       if (list[i].validUntilManual) continue; // bewusst gesetztes Ende nie automatisch anfassen
       const expectedBis = list[i + 1]?.gueltigAb ?? null;

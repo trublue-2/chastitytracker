@@ -139,9 +139,9 @@ describe("periodBounds", () => {
 describe("resolveGoalTargets", () => {
   const now = D("2026-07-15T12:00:00Z");
   const base = { minProTagH: 6, minProWocheH: 40, minProMonatH: 200, minProJahrH: 3000 };
-  const VIER = { day: 6, week: 40, month: 200, year: 3000 };
-  const KEINE = { day: null, week: null, month: null, year: null };
-  const UNGETEILT = { day: false, week: false, month: false, year: false };
+  const VIER = { day: 6, week: 40, month: 200 };
+  const KEINE = { day: null, week: null, month: null };
+  const UNGETEILT = { day: false, week: false, month: false };
 
   it("null-Vorgabe → alle Ziele null", () => {
     expect(resolveGoalTargets(null, now, TZ)).toEqual({ targetH: KEINE, changedInPeriod: UNGETEILT });
@@ -154,7 +154,7 @@ describe("resolveGoalTargets", () => {
 
   it("Vorgabe komplett in der Vergangenheit → alle Ziele 0 (kein Overlap mit aktuellen Perioden)", () => {
     const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: D("2021-01-01T00:00:00Z"), validUntilManual: false, ...base };
-    const NULLEN = { day: 0, week: 0, month: 0, year: 0 };
+    const NULLEN = { day: 0, week: 0, month: 0 };
     expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: NULLEN, changedInPeriod: UNGETEILT });
   });
 
@@ -168,8 +168,8 @@ describe("resolveGoalTargets", () => {
     const t = resolveGoalTargets(goal, D("2026-08-23T09:08:00Z"), TZ);
     // Bewertet wird in KEINER der drei geteilten Perioden — weder mit Prozentwert noch mit einem
     // anteiligen Ziel als Absolutwert. Vorher stand hier goalWeekH 7.55 neben week 76.5.
-    expect(t.targetH).toEqual({ day: null, week: null, month: null, year: null });
-    expect(t.changedInPeriod).toEqual({ day: true, week: true, month: true, year: false });
+    expect(t.targetH).toEqual({ day: null, week: null, month: null });
+    expect(t.changedInPeriod).toEqual({ day: true, week: true, month: true });
     // Das JAHR bleibt false, obwohl die Vorgabe mitten in ihm beginnt: es hat gar kein Ziel
     // (minProJahrH null). Wo nichts bewertet wird, gibt es auch nichts zu unterdrücken.
     expect(hasVisibleGoalRow(t.targetH)).toBe(false);
@@ -184,7 +184,7 @@ describe("resolveGoalTargets", () => {
     expect(t.targetH.day).toBe(15);
     // Die neue Woche beginnt am Montag → auch sie ist wieder ungeteilt und voll.
     expect(t.targetH.week).toBe(90);
-    expect(t.changedInPeriod).toEqual({ day: false, week: false, month: true, year: false });
+    expect(t.changedInPeriod).toEqual({ day: false, week: false, month: true });
     // Der August trägt die Grenze weiterhin — also kein Ziel für den Monat.
     expect(t.targetH.month).toBeNull();
     expect(hasVisibleGoalRow(t.targetH)).toBe(true);
@@ -198,7 +198,7 @@ describe("resolveGoalTargets", () => {
     const t = resolveGoalTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
     expect(t.targetH.day).toBe(15);
     expect(t.targetH.week).toBe(90);
-    expect(t.changedInPeriod).toEqual({ day: false, week: false, month: true, year: false });
+    expect(t.changedInPeriod).toEqual({ day: false, week: false, month: true });
   });
 
   it("Wochentag-Ausnahmen: das TAGES-Soll folgt dem Wochentag, Woche bleibt der Summenwert", () => {
@@ -223,33 +223,10 @@ describe("resolveGoalTargets", () => {
     expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: VIER, changedInPeriod: UNGETEILT });
   });
 
-  it("ein manuell auf den 31.12. datiertes Jahresziel deckt das laufende Jahr voll ab", () => {
-    // Der Fall, der die einschliessende Lesart erzwang: 1.1.–31.12. IST ein volles Jahr. Beide
-    // Grenzen als Ortszeit-Mitternacht (Europe/Zurich): 1.1.2026 00:00 = 31.12.2025 23:00 UTC,
-    // 31.12.2026 00:00 = 30.12.2026 23:00 UTC. Nur `validUntilManual` macht den 31.12. einschliessend.
-    const goal = {
-      gueltigAb: D("2025-12-31T23:00:00Z"), gueltigBis: D("2026-12-30T23:00:00Z"), validUntilManual: true,
-      minProTagH: null, minProWocheH: null, minProMonatH: null, minProJahrH: 2400,
-    };
-    const t = resolveGoalTargets(goal, D("2026-09-09T10:00:00Z"), TZ);
-    expect(t.targetH.year).toBe(2400);
-    expect(t.changedInPeriod.year).toBe(false);
-    expect(hasVisibleGoalRow(t.targetH)).toBe(true);
-  });
-
-  it("dasselbe Ende NUR als automatisch verketteter Übergabepunkt (validUntilManual=false) → Jahr geteilt", () => {
-    // Der Kontrast: ohne das manuelle Flag ist der 31.12. ein exklusiver Übergabepunkt (Start der
-    // Folge-Vorgabe) und liegt damit mitten im Jahr → unbewertet.
-    const goal = {
-      gueltigAb: D("2025-12-31T23:00:00Z"), gueltigBis: D("2026-12-30T23:00:00Z"), validUntilManual: false,
-      minProTagH: null, minProWocheH: null, minProMonatH: null, minProJahrH: 2400,
-    };
-    const t = resolveGoalTargets(goal, D("2026-09-09T10:00:00Z"), TZ);
-    expect(t.targetH.year).toBeNull();
-    expect(t.changedInPeriod.year).toBe(true);
-  });
 });
 
+// Die JAHRES-Fälle (anteilige Segment-Summe, einschliessendes Enddatum) stehen in
+// `goalYear.test.ts` — `resolveGoalTargets` löst das Jahr bewusst nicht mehr auf.
 describe("hasVisibleGoalRow", () => {
   it("eine Vorgabe mit Zielen kann trotzdem KEINE bewertbare Zeile haben", () => {
     expect(hasVisibleGoalRow({ day: 6, week: null, month: null, year: null })).toBe(true);

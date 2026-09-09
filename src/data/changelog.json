@@ -9,6 +9,13 @@
           "de": "Ein Jahres-Trainingsziel, das vom 1. Januar bis 31. Dezember läuft, wird in der Statistik wieder als volles Jahr angezeigt statt ausgeblendet.",
           "en": "A yearly training goal running from January 1 to December 31 is shown in the statistics as a full year again, instead of being hidden."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Das Jahresziel wird jetzt anteilig bewertet: Beginnt es mitten im Jahr oder wird es unterjährig geändert, zählt jeder Tag nach dem Ziel, das an diesem Tag galt — statt dass die Jahres-Zeile ganz verschwindet.",
+          "en": "The yearly goal is now judged pro rata: if it starts mid-year or is changed during the year, each day counts towards the goal that applied on that day — instead of the year row disappearing entirely."
+        }
       }
     ]
   },

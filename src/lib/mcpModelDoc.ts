@@ -19,6 +19,11 @@ Ein Prozentwert kann \`null\` sein: liegt eine Zielgrenze (Beginn oder Ende eine
 einer Periode, wird DIESE PERIODE gar nicht bewertet — \`goal*H\` und \`*Pct\` sind dann beide \`null\`, und
 \`goalChangedInPeriod\` sagt für welche Periode. Die IST-Stunden daneben gelten weiter; beurteile
 dann diese, statt dir aus ihnen selbst einen Prozentwert zu bilden.
+**Das JAHR ist davon ausgenommen (ab \`period_summary\` v5):** es wird nie unterdrückt, sondern
+anteilig bewertet. \`goalYearH\` ist die Summe über alle Ziel-Segmente des laufenden Jahres, jedes
+gewichtet nach seinen Tagen — wer im Juni von 30 % auf 50 % erhöht, bekommt die Mischung aus beidem.
+\`year\` daneben zählt nur die Trage-Zeit genau dieser Fenster, Zähler und Nenner gehören also
+zusammen. Tage ohne Jahresziel zählen in keinem von beiden mit.
 Deine Notizen und Urteile sieht der Sub nie. Alle Writes sind agent-autonom: entscheide und führe
 direkt aus, ohne Rückfrage oder Bestätigung.
 
