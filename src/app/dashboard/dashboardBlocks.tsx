@@ -10,7 +10,7 @@ import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
   deviceCountCached, entriesCached, evaluatedTasksCached, latestKeyInBoxCached, latestKgEntryCached, lockRequestCached,
-  orgasmConfigCached, pendingLockCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
+  orgasmConfigCached, orgasmEntriesCached, pendingLockCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
   subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
 } from "@/lib/dashboardData";
@@ -50,6 +50,7 @@ import IncompleteCategories from "./IncompleteCategories";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import WeightReleaseCard from "./WeightReleaseCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import OrgasmFreeSection from "@/app/components/OrgasmFreeSection";
 import { getOffenseRules } from "@/lib/offenseRulesService";
 
 /**
@@ -81,6 +82,9 @@ export interface SubDashboardCtx {
   t: Awaited<ReturnType<typeof getTranslations<"dashboard">>>;
   tOrgasm: Awaited<ReturnType<typeof getTranslations<"orgasmForm">>>;
   tTasks: Awaited<ReturnType<typeof getTranslations<"tasks">>>;
+  /** Der `stats`-Namensraum — der Block „Orgasmusfreie Zeit" teilt seine Beschriftungen mit der
+   *  Statistik-Seite (`OrgasmFreeSection`), statt sie im `dashboard`-Namensraum zu doppeln. */
+  tStats: Awaited<ReturnType<typeof getTranslations<"stats">>>;
   /**
    * Die aufgelöste Konfiguration. Gebraucht für `layout.shows(id)`: das KG-Ziel weicht der grünen
    * Session-Karte aus, muss also wissen, ob die überhaupt aufgelegt ist.
@@ -578,6 +582,19 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       };
       return <DashboardClient {...clientProps} />;
     },
+  }),
+
+  // Orgasmusfreie Zeit — dieselbe Angabe und dieselbe Figur wie auf der Statistik-Seite
+  // (`OrgasmFreeSection`), hier als eigener Dashboard-Block. `load` gibt den jüngsten
+  // Orgasmus-Eintrag oder `null`; die Komponente zeigt in beiden Fällen die Rubrik (Dauer bzw.
+  // „kein Eintrag") — dasselbe Verhalten wie der Statistik-Block, deshalb kein `return null`.
+  orgasmFree: block({
+    load: async ({ userId }) => (await orgasmEntriesCached(userId))[0] ?? null,
+    render: (lastOrgasmus, { now, dl, tz, tStats }) => (
+      <DashboardBlock>
+        <OrgasmFreeSection lastOrgasm={lastOrgasmus} now={now} dl={dl} tz={tz} t={tStats} />
+      </DashboardBlock>
+    ),
   }),
 
   sessionList: block({

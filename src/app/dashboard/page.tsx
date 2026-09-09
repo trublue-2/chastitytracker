@@ -30,11 +30,12 @@ export default async function DashboardPage() {
   // Erst die Konfiguration: sie entscheidet, welche Loader überhaupt laufen. Die Benutzerzeile, aus
   // der sie kommt, ist dieselbe, die die Blöcke gleich weiterverwenden — sie kostet also nichts
   // Zusätzliches. `userId` mitgeben, damit `auth()` nicht ein zweites Mal läuft.
-  const [layout, t, tOrgasm, tTasks, tNav, locale] = await Promise.all([
+  const [layout, t, tOrgasm, tTasks, tStats, tNav, locale] = await Promise.all([
     viewerLayout("subDashboard", userId),
     getTranslations("dashboard"),
     getTranslations("orgasmForm"),
     getTranslations("tasks"),
+    getTranslations("stats"),
     getTranslations("nav"),
     getLocale(),
   ]);
@@ -46,7 +47,7 @@ export default async function DashboardPage() {
     nowMs: now.getTime(),
     tz: session.user.timezone ?? APP_TZ,
     dl: toDateLocale(locale),
-    t, tOrgasm, tTasks,
+    t, tOrgasm, tTasks, tStats,
     layout,
   };
 

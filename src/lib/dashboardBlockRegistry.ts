@@ -100,6 +100,12 @@ export const SUB_DASHBOARD_BLOCKS = [
   { id: "categoryGoals", surface: "subDashboard", role: "sub", labelKey: "blockCategoryGoals", collapsible: true },
   { id: "inactiveCategories", surface: "subDashboard", role: "sub", labelKey: "blockInactiveCategories" },
   { id: "statusAndStats", surface: "subDashboard", role: "sub", labelKey: "blockStatusAndStats" },
+  // Die orgasmusfreie Zeit — auf dem Dashboard wie auf der Statistik-Seite (dieselbe
+  // `OrgasmFreeSection`). Ausblendbar, aber nicht zuklappbar: anders als die langen Verlaufs-Listen
+  // (`sessionList`, `taskList`) ist das eine zweizeilige Kennzahl — ein Zuklapp-Schalter spart hier
+  // nichts und wäre lauter als der Inhalt. Dieselbe Entscheidung wie beim gleichnamigen
+  // Statistik-Block.
+  { id: "orgasmFree", surface: "subDashboard", role: "sub", labelKey: "blockStatsOrgasmFree" },
   // Die Werbung steht bewusst HINTER `statusAndStats` — dort sitzt der Willkommen-Block eines
   // leeren Kontos. Davor gestellt bewarb der erste Bildschirm der App eine Zusatzfunktion
   // („Tracke mehr als nur KG"), bevor er die Grundfunktion erklärte: wer neu ist, weiss noch

@@ -32,6 +32,7 @@ import WearCalendarSwitcher, { type CalendarVariant } from "./WearCalendarSwitch
 import YearHeatmap from "./YearHeatmap";
 import MonthStats from "./MonthStats";
 import Section from "./Section";
+import OrgasmFreeSection from "./OrgasmFreeSection";
 import { blockInsetCls } from "./inputStyles";
 import StatsCard from "./StatsCard";
 import StatsKontrollenList, { type StatsKontrolleRow } from "./StatsKontrollenList";
@@ -158,24 +159,11 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
     ),
   }),
 
-  // Orgasmusfreie Zeit
+  // Orgasmusfreie Zeit — dieselbe Figur wie auf dem Sub-Dashboard, geteilt über `OrgasmFreeSection`.
   orgasmFree: block({
     load: async ({ userId }) => (await orgasmEntriesCached(userId))[0] ?? null,
-    render: (lastOrgasmus, { now, t, dl, tz }) => lastOrgasmus ? (
-      <Section title={t("orgasmFreeTime")}>
-        {/* Die Dauer trägt die Zeile, das Datum steht leise darunter — dieselbe Ordnung wie beim
-            Helden der Übersicht: erst die Antwort, dann der Beleg. */}
-        <p className="text-kennzahl font-semibold text-foreground whitespace-nowrap tabular-nums">
-          {formatDurationMs(now.getTime() - lastOrgasmus.startTime.getTime(), dl)}
-        </p>
-        <p className="text-neben text-foreground-faint">
-          {t("lastOrgasm")}: {formatDateTime(lastOrgasmus.startTime, dl, tz)}
-        </p>
-      </Section>
-    ) : (
-      <Section title={t("orgasmFreeTime")}>
-        <p className="text-fliess text-foreground-faint">{t("noEntry")}</p>
-      </Section>
+    render: (lastOrgasmus, { now, t, dl, tz }) => (
+      <OrgasmFreeSection lastOrgasm={lastOrgasmus} now={now} dl={dl} tz={tz} t={t} />
     ),
   }),
 
