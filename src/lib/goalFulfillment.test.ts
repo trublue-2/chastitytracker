@@ -9,29 +9,30 @@ const D = (s: string) => new Date(s);
 const TZ = "Europe/Zurich";
 
 describe("periodTarget", () => {
-  const monthStart = D("2026-07-01T00:00:00Z");
-  const monthEnd = D("2026-08-01T00:00:00Z");
-  const full = { gueltigAb: D("2026-01-01T00:00:00Z"), gueltigBis: null };
+  // Ortszeit-Grenzen (Europe/Zurich, Sommerzeit): 1. Juli 00:00 = 30.6. 22:00 UTC.
+  const monthStart = D("2026-06-30T22:00:00Z");
+  const monthEnd = D("2026-07-31T22:00:00Z");
+  const full: GoalWindow = { gueltigAb: D("2026-01-01T00:00:00Z"), gueltigBis: null, validUntilManual: false };
 
   it("null-Ziel bleibt null und gilt nie als geteilt", () => {
-    expect(periodTarget(null, monthStart, monthEnd, full)).toEqual({ targetH: null, changedInPeriod: false });
-    expect(periodTarget(undefined, monthStart, monthEnd, full)).toEqual({ targetH: null, changedInPeriod: false });
+    expect(periodTarget(null, monthStart, monthEnd, full, TZ)).toEqual({ targetH: null, changedInPeriod: false });
+    expect(periodTarget(undefined, monthStart, monthEnd, full, TZ)).toEqual({ targetH: null, changedInPeriod: false });
   });
 
   it("volle Abdeckung → Ziel unverändert, Periode ungeteilt", () => {
-    expect(periodTarget(200, monthStart, monthEnd, full)).toEqual({ targetH: 200, changedInPeriod: false });
+    expect(periodTarget(200, monthStart, monthEnd, full, TZ)).toEqual({ targetH: 200, changedInPeriod: false });
   });
 
   it("Grenze in der Periode → gar kein Ziel, auch kein anteiliges", () => {
     // Vorher stand hier 310 × 15/31 = 150. Als Absolutwert neben Ist-Stunden der ganzen Periode
     // lud diese Zahl dazu ein, von Hand denselben Vergleich anzustellen, den der unterdrückte
     // Prozentwert schon vermied.
-    expect(periodTarget(310, monthStart, monthEnd, { gueltigAb: D("2026-07-17T00:00:00Z"), gueltigBis: null }))
+    expect(periodTarget(310, monthStart, monthEnd, { gueltigAb: D("2026-07-17T00:00:00Z"), gueltigBis: null, validUntilManual: false }, TZ))
       .toEqual({ targetH: null, changedInPeriod: true });
   });
 
   it("kein Overlap → 0, und NICHT geteilt (die Vorgabe berührt die Periode gar nicht)", () => {
-    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null }))
+    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null, validUntilManual: false }, TZ))
       .toEqual({ targetH: 0, changedInPeriod: false });
   });
 
@@ -49,12 +50,12 @@ describe("periodTarget", () => {
     // sichern die beiden Tests darüber und darunter.
     const faelle: [string, GoalWindow, number][] = [
       ["deckt weit über die Periode hinaus", full, 200],
-      ["deckt sie genau ab", { gueltigAb: monthStart, gueltigBis: monthEnd }, 200],
-      ["beginnt erst danach", { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null }, 0],
-      ["endete schon davor", { gueltigAb: D("2026-01-01T00:00:00Z"), gueltigBis: monthStart }, 0],
+      ["deckt sie genau ab", { gueltigAb: monthStart, gueltigBis: monthEnd, validUntilManual: false }, 200],
+      ["beginnt erst danach", { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null, validUntilManual: false }, 0],
+      ["endete schon davor", { gueltigAb: D("2026-01-01T00:00:00Z"), gueltigBis: monthStart, validUntilManual: false }, 0],
     ];
     for (const [lage, goal, erwartet] of faelle) {
-      const t = periodTarget(200, monthStart, monthEnd, goal);
+      const t = periodTarget(200, monthStart, monthEnd, goal, TZ);
       expect(t.changedInPeriod, lage).toBe(false);
       expect(t.targetH, lage).toBe(erwartet);
     }
@@ -63,20 +64,31 @@ describe("periodTarget", () => {
   it("ein angebrochener TAG bekommt kein Ziel", () => {
     const dayStart = D("2026-07-15T00:00:00Z");
     const dayEnd = D("2026-07-16T00:00:00Z");
-    expect(periodTarget(15, dayStart, dayEnd, { gueltigAb: D("2026-07-15T12:00:00Z"), gueltigBis: null }))
+    expect(periodTarget(15, dayStart, dayEnd, { gueltigAb: D("2026-07-15T12:00:00Z"), gueltigBis: null, validUntilManual: false }, TZ))
       .toEqual({ targetH: null, changedInPeriod: true });
   });
 
   it("ein Ziel, das GENAU an der Periodengrenze beginnt, teilt sie nicht", () => {
     // Der Normalfall aus Regel 1: ohne validFrom startet ein Ziel an der nächsten Mitternacht.
-    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: monthStart, gueltigBis: null }))
+    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: monthStart, gueltigBis: null, validUntilManual: false }, TZ))
       .toEqual({ targetH: 200, changedInPeriod: false });
-    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: D("2026-06-01T00:00:00Z"), gueltigBis: monthEnd }))
+    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: D("2026-06-01T00:00:00Z"), gueltigBis: monthEnd, validUntilManual: false }, TZ))
       .toEqual({ targetH: 200, changedInPeriod: false });
   });
 
   it("auch ein ENDE mitten in der Periode teilt sie", () => {
-    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: D("2026-06-01T00:00:00Z"), gueltigBis: D("2026-07-16T00:00:00Z") }))
+    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: D("2026-06-01T00:00:00Z"), gueltigBis: D("2026-07-16T00:00:00Z"), validUntilManual: false }, TZ))
+      .toEqual({ targetH: null, changedInPeriod: true });
+  });
+
+  it("ein manuell auf den LETZTEN Tag der Periode datiertes Ende deckt sie voll ab", () => {
+    // „gültig bis 31.7." meint den 31.7. EINSCHLIESSLICH → bis 1.8. 00:00 Ortszeit = Periodenende.
+    // Ohne die einschliessende Lesart fiele das Ende einen Tag zu kurz aus und teilte den Monat.
+    const bisJul31 = D("2026-07-31T00:00:00Z"); // 31.7. (Uhrzeit egal, `goalEffectiveEndMs` rundet auf den Tag)
+    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: monthStart, gueltigBis: bisJul31, validUntilManual: true }, TZ))
+      .toEqual({ targetH: 200, changedInPeriod: false });
+    // Dasselbe Enddatum als AUTOMATISCH VERKETTETER Übergabepunkt bleibt exklusiv → Monat geteilt.
+    expect(periodTarget(200, monthStart, monthEnd, { gueltigAb: monthStart, gueltigBis: bisJul31, validUntilManual: false }, TZ))
       .toEqual({ targetH: null, changedInPeriod: true });
   });
 });
@@ -86,12 +98,12 @@ describe("goalBoundaryInPeriod", () => {
   const end = D("2026-08-01T00:00:00Z");
 
   it("Grenzen der Periode zählen nicht als innen", () => {
-    expect(goalBoundaryInPeriod(start, end, { gueltigAb: start, gueltigBis: end })).toBe(false);
+    expect(goalBoundaryInPeriod(start, end, { gueltigAb: start, gueltigBis: end, validUntilManual: false }, TZ)).toBe(false);
   });
 
   it("eine Vorgabe ganz ausserhalb teilt nichts", () => {
-    expect(goalBoundaryInPeriod(start, end, { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null })).toBe(false);
-    expect(goalBoundaryInPeriod(start, end, { gueltigAb: D("2026-01-01T00:00:00Z"), gueltigBis: D("2026-02-01T00:00:00Z") })).toBe(false);
+    expect(goalBoundaryInPeriod(start, end, { gueltigAb: D("2026-09-01T00:00:00Z"), gueltigBis: null, validUntilManual: false }, TZ)).toBe(false);
+    expect(goalBoundaryInPeriod(start, end, { gueltigAb: D("2026-01-01T00:00:00Z"), gueltigBis: D("2026-02-01T00:00:00Z"), validUntilManual: false }, TZ)).toBe(false);
   });
 });
 
@@ -136,12 +148,12 @@ describe("resolveGoalTargets", () => {
   });
 
   it("Vorgabe deckt alle aktuellen Perioden voll ab → Ziele unverändert", () => {
-    const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, ...base };
+    const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, validUntilManual: false, ...base };
     expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: VIER, changedInPeriod: UNGETEILT });
   });
 
   it("Vorgabe komplett in der Vergangenheit → alle Ziele 0 (kein Overlap mit aktuellen Perioden)", () => {
-    const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: D("2021-01-01T00:00:00Z"), ...base };
+    const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: D("2021-01-01T00:00:00Z"), validUntilManual: false, ...base };
     const NULLEN = { day: 0, week: 0, month: 0, year: 0 };
     expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: NULLEN, changedInPeriod: UNGETEILT });
   });
@@ -150,7 +162,7 @@ describe("resolveGoalTargets", () => {
     // Sonntag ist der LETZTE Tag der ISO-Woche — von ihr blieben 14.1 der 168 Stunden.
     // Alt: goalWeekH 7.55 gegen die vollen 76.5 Ist-Stunden der Woche = 1013 %.
     const goal = {
-      gueltigAb: D("2026-08-23T07:54:00Z"), gueltigBis: null,   // 09:54 Ortszeit
+      gueltigAb: D("2026-08-23T07:54:00Z"), gueltigBis: null, validUntilManual: false,   // 09:54 Ortszeit
       minProTagH: 15, minProWocheH: 90, minProMonatH: 390, minProJahrH: null,
     };
     const t = resolveGoalTargets(goal, D("2026-08-23T09:08:00Z"), TZ);
@@ -165,7 +177,7 @@ describe("resolveGoalTargets", () => {
 
   it("dasselbe Ziel am Folgetag: der Tag zählt wieder voll", () => {
     const goal = {
-      gueltigAb: D("2026-08-23T07:54:00Z"), gueltigBis: null,
+      gueltigAb: D("2026-08-23T07:54:00Z"), gueltigBis: null, validUntilManual: false,
       minProTagH: 15, minProWocheH: 90, minProMonatH: 390, minProJahrH: null,
     };
     const t = resolveGoalTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
@@ -180,7 +192,7 @@ describe("resolveGoalTargets", () => {
 
   it("ein Ziel, das an der nächsten Mitternacht startet (Regel 1), teilt Tag und Woche nicht", () => {
     const goal = {
-      gueltigAb: D("2026-08-23T22:00:00Z"), gueltigBis: null,   // 24.08. 00:00 Ortszeit, ein Montag
+      gueltigAb: D("2026-08-23T22:00:00Z"), gueltigBis: null, validUntilManual: false,   // 24.08. 00:00 Ortszeit, ein Montag
       minProTagH: 15, minProWocheH: 90, minProMonatH: 390, minProJahrH: null,
     };
     const t = resolveGoalTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
@@ -192,7 +204,7 @@ describe("resolveGoalTargets", () => {
   it("Wochentag-Ausnahmen: das TAGES-Soll folgt dem Wochentag, Woche bleibt der Summenwert", () => {
     // Basis 6 h, Sa/So 16 h, Montag Ruhetag (0). Woche/Monat/Jahr unberührt.
     const goal = {
-      gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null,
+      gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, validUntilManual: false,
       minProTagH: 6, minProWocheH: 40, minProMonatH: null, minProJahrH: null,
       minProTagWochentage: JSON.stringify([
         { days: weekdayMaskOf([6, 7]), hours: 16 },
@@ -207,8 +219,34 @@ describe("resolveGoalTargets", () => {
   });
 
   it("rückwärtskompatibel: eine Vorgabe ohne Ausnahmen-Feld verhält sich wie bisher", () => {
-    const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, ...base };
+    const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, validUntilManual: false, ...base };
     expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: VIER, changedInPeriod: UNGETEILT });
+  });
+
+  it("ein manuell auf den 31.12. datiertes Jahresziel deckt das laufende Jahr voll ab", () => {
+    // Der Fall, der die einschliessende Lesart erzwang: 1.1.–31.12. IST ein volles Jahr. Beide
+    // Grenzen als Ortszeit-Mitternacht (Europe/Zurich): 1.1.2026 00:00 = 31.12.2025 23:00 UTC,
+    // 31.12.2026 00:00 = 30.12.2026 23:00 UTC. Nur `validUntilManual` macht den 31.12. einschliessend.
+    const goal = {
+      gueltigAb: D("2025-12-31T23:00:00Z"), gueltigBis: D("2026-12-30T23:00:00Z"), validUntilManual: true,
+      minProTagH: null, minProWocheH: null, minProMonatH: null, minProJahrH: 2400,
+    };
+    const t = resolveGoalTargets(goal, D("2026-09-09T10:00:00Z"), TZ);
+    expect(t.targetH.year).toBe(2400);
+    expect(t.changedInPeriod.year).toBe(false);
+    expect(hasVisibleGoalRow(t.targetH)).toBe(true);
+  });
+
+  it("dasselbe Ende NUR als automatisch verketteter Übergabepunkt (validUntilManual=false) → Jahr geteilt", () => {
+    // Der Kontrast: ohne das manuelle Flag ist der 31.12. ein exklusiver Übergabepunkt (Start der
+    // Folge-Vorgabe) und liegt damit mitten im Jahr → unbewertet.
+    const goal = {
+      gueltigAb: D("2025-12-31T23:00:00Z"), gueltigBis: D("2026-12-30T23:00:00Z"), validUntilManual: false,
+      minProTagH: null, minProWocheH: null, minProMonatH: null, minProJahrH: 2400,
+    };
+    const t = resolveGoalTargets(goal, D("2026-09-09T10:00:00Z"), TZ);
+    expect(t.targetH.year).toBeNull();
+    expect(t.changedInPeriod.year).toBe(true);
   });
 });
 

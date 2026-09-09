@@ -13,7 +13,7 @@ const D = (iso: string) => new Date(iso);
 const key = (y: number, m1: number, d: number) => `${y}-${m1 - 1}-${d}`;
 
 const noGoal: Vorgabe = {
-  gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null,
+  gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, validUntilManual: false,
   minProTagH: null, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: null,
 };
 

@@ -56,7 +56,7 @@ export async function buildCategoryWearGoals(
         category: { isBuiltIn: false },
       },
       orderBy: { gueltigAb: "desc" },
-      select: { categoryId: true, gueltigAb: true, gueltigBis: true, minProTagH: true, minProWocheH: true, minProMonatH: true, minProJahrH: true, minProTagWochentage: true },
+      select: { categoryId: true, gueltigAb: true, gueltigBis: true, validUntilManual: true, minProTagH: true, minProWocheH: true, minProMonatH: true, minProJahrH: true, minProTagWochentage: true },
     }),
     prefetchedEntries ? Promise.resolve(null) : getWearEntries(userId),
     prefetchedTz ?? getUserTimezone(userId),

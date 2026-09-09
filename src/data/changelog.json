@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.1.2",
+    "date": "2026-09-09",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Ein Jahres-Trainingsziel, das vom 1. Januar bis 31. Dezember läuft, wird in der Statistik wieder als volles Jahr angezeigt statt ausgeblendet.",
+          "en": "A yearly training goal running from January 1 to December 31 is shown in the statistics as a full year again, instead of being hidden."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.1.1",
     "date": "2026-09-09",
     "changes": [

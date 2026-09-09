@@ -42,6 +42,11 @@ import { tagesSollFuer } from "@/lib/weekdayGoal";
 export interface GoalWindow {
   gueltigAb: Date;
   gueltigBis: Date | null;
+  /** Ist `gueltigBis` ein VOM KEYHOLDER GESETZTES Enddatum (statt eines automatisch verketteten
+   *  Übergabepunkts)? Entscheidet, wie das Ende gelesen wird — siehe `goalEffectiveEndMs`. Pflicht,
+   *  damit keine Datenquelle den Unterschied stillschweigend verliert; `reorderVorgabenDates` setzt
+   *  ihn beim Verketten bewusst auf `false`. */
+  validUntilManual: boolean;
 }
 
 /** Die vier Perioden in Anzeige-Reihenfolge. Die Werte sind zugleich die i18n-Schlüssel im
@@ -80,7 +85,8 @@ export function periodBounds(period: GoalPeriod, now: Date, tz: string): { start
  * Nur dann ist die Erfüllung dieser Periode keine Aussage. Ein Ziel, das die Periode ganz abdeckt
  * (Regelfall) oder sie gar nicht berührt, teilt sie nicht. Die Grenzen selbst zählen NICHT als
  * innen: ein Ziel, das genau um Mitternacht beginnt, ist der angestrebte Normalfall aus Regel 1 —
- * es teilt den Tag nicht, es beginnt mit ihm.
+ * es teilt den Tag nicht, es beginnt mit ihm. Das Ende wird dabei über `goalEffectiveEndMs` gelesen:
+ * ein vom Keyholder gesetztes „bis 31.12." deckt den 31.12. EIN und teilt das Jahr damit nicht.
  */
 /**
  * Das Ende jedes Zeitraums als Zeitstempel — die zweite Hälfte dessen, was `goalOutlook` braucht.
@@ -95,12 +101,31 @@ export function periodEndsMs(now: Date, tz: string): ByPeriod<number> {
   ) as ByPeriod<number>;
 }
 
-export function goalBoundaryInPeriod(periodStart: Date, periodEnd: Date, goal: GoalWindow): boolean {
+/**
+ * Wirksames Ende eines Ziels als Instant — die Grundlage für Abdeckung UND Grenze.
+ *
+ * Ein VOM KEYHOLDER GESETZTES Enddatum (`validUntilManual`) meint den Tag EINSCHLIESSLICH: „gültig
+ * bis 31.12." deckt den ganzen 31.12. ab, also bis zur nächsten Mitternacht in der Zeitzone des Subs.
+ * Ohne diese Lesart fiele jedes Enddatum einen ganzen Tag zu kurz aus — ein Jahresziel 1.1.–31.12.
+ * galt so als „nur teilweise abgedeckt" und verschwand aus der Statistik.
+ *
+ * Ein AUTOMATISCH VERKETTETES Ende (`validUntilManual === false`, gesetzt von `reorderVorgabenDates`
+ * auf den Start der Folge-Vorgabe) ist dagegen ein exklusiver Übergabepunkt und bleibt der rohe
+ * Instant — sonst überlappte eine Vorgabe ihre Nachfolgerin um einen Tag. Offen (`null`) → `Infinity`.
+ */
+function goalEffectiveEndMs(goal: GoalWindow, tz: string): number {
+  const bis = goal.gueltigBis;
+  if (bis == null) return Infinity;
+  return goal.validUntilManual ? midnightAfterDays(bis, tz, 1).getTime() : bis.getTime();
+}
+
+export function goalBoundaryInPeriod(periodStart: Date, periodEnd: Date, goal: GoalWindow, tz: string): boolean {
   const start = periodStart.getTime();
   const end = periodEnd.getTime();
   const ab = goal.gueltigAb.getTime();
-  const bis = goal.gueltigBis?.getTime();
-  return (ab > start && ab < end) || (bis != null && bis > start && bis < end);
+  const bis = goalEffectiveEndMs(goal, tz);
+  // `bis` ist bei offenem Ziel `Infinity` → `bis < end` ist dann von selbst falsch, kein Extra-Guard.
+  return (ab > start && ab < end) || (bis > start && bis < end);
 }
 
 /** Das Ziel einer Periode nach den Regeln oben. */
@@ -130,10 +155,11 @@ export function periodTarget(
   periodStart: Date,
   periodEnd: Date,
   goal: GoalWindow,
+  tz: string,
 ): PeriodTarget {
   if (baseTargetH == null) return NO_TARGET;
-  if (goalBoundaryInPeriod(periodStart, periodEnd, goal)) return { targetH: null, changedInPeriod: true };
-  return { targetH: goalCoversPeriod(periodStart, periodEnd, goal) ? baseTargetH : 0, changedInPeriod: false };
+  if (goalBoundaryInPeriod(periodStart, periodEnd, goal, tz)) return { targetH: null, changedInPeriod: true };
+  return { targetH: goalCoversPeriod(periodStart, periodEnd, goal, tz) ? baseTargetH : 0, changedInPeriod: false };
 }
 
 /**
@@ -148,10 +174,10 @@ export function periodTarget(
  * `periodBounds` erzeugt keine solche, aber ohne die Prüfung wäre sie durch die beiden
  * Vergleiche darüber trivial „abgedeckt".
  */
-function goalCoversPeriod(periodStart: Date, periodEnd: Date, goal: GoalWindow): boolean {
+function goalCoversPeriod(periodStart: Date, periodEnd: Date, goal: GoalWindow, tz: string): boolean {
   const start = periodStart.getTime();
   const end = periodEnd.getTime();
-  return goal.gueltigAb.getTime() <= start && (goal.gueltigBis?.getTime() ?? Infinity) >= end && end > start;
+  return goal.gueltigAb.getTime() <= start && goalEffectiveEndMs(goal, tz) >= end && end > start;
 }
 
 /** The four period hour-targets of a training goal. */
@@ -231,7 +257,7 @@ export function resolveGoalTargets(
       continue;
     }
     const { start, end } = periodBounds(period, now, tz);
-    const t = periodTarget(base[period], start, end, goal);
+    const t = periodTarget(base[period], start, end, goal, tz);
     targetH[period] = t.targetH;
     changedInPeriod[period] = t.changedInPeriod;
   }
