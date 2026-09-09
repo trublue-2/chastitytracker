@@ -11,14 +11,14 @@ import {
 import { goalPct, sharePct } from "@/lib/percent";
 import {
   formatDate, formatDateTime, formatDurationMs, formatTotalHours, formatTotalMs,
-  buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday, getWeekStart, getMonthStart,
+  buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday,
   longestOrgasmFreeGap, summarizeSessions, wearingHoursFromPairs, WEAR_PAIR,
 } from "@/lib/utils";
 import {
   buildCalendarMonths, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
 } from "@/lib/statsBuilders";
 import { hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/goalFulfillment";
-import { resolveGoalTargetsWithYear } from "@/lib/goalYear";
+import { resolveGoalRow } from "@/lib/goalSegments";
 import { getKombinierterPill } from "@/lib/kontrollePills";
 import { isKgVorgabe, goalCategoryKey, groupVorgabenByCategory } from "@/lib/vorgaben";
 import { isEffectiveEntry, latestEffectiveKgEntry } from "@/lib/lockPending";
@@ -199,16 +199,13 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
         activeVorgaben(userId), vorgabenCached(userId), kgWearPairsCached(userId, nowMs), wearPairsByCategoryCached(userId, nowMs),
       ]);
       const todayStart = getMidnightToday(now, tz);
-      const weekStart = getWeekStart(now, tz);
-      const monthStart = getMonthStart(now, tz);
-      // Die Jahres-Zeile summiert über ALLE Segmente ihrer Kategorie (auch bereits abgelaufene).
+      // Woche/Monat/Jahr summieren über ALLE Segmente ihrer Kategorie (auch bereits abgelaufene).
       const segmenteJeKategorie = groupVorgabenByCategory(alleVorgaben);
       return vorgaben.map((v) => {
         const pairs = isKgVorgabe(v) ? wearPairs : wearPairsByCategory.get(v.categoryId!) ?? [];
-        // Ziele je Periode nach den Regeln aus `goalFulfillment.ts` — in einer geteilten Periode
-        // ist `targetH` bereits null, der Balken fällt damit von selbst aus. Das JAHR kommt samt
-        // seinem Ist-Wert aus der Segment-Summe (`goalYear.ts`).
-        const { goal, yearActualH } = resolveGoalTargetsWithYear(
+        // Woche/Monat/Jahr kommen samt ihren Ist-Werten aus der Segment-Summe (`goalSegments.ts`);
+        // nur der Tag wird ganz oder gar nicht bewertet und rechnet seinen Ist-Wert hier.
+        const { goal, actualH } = resolveGoalRow(
           v, segmenteJeKategorie.get(goalCategoryKey(v)) ?? [], pairs, now, tz,
         );
         return {
@@ -220,9 +217,9 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
           notiz: v.notiz,
           hours: {
             day: wearingHoursFromPairs(pairs, todayStart, now),
-            week: wearingHoursFromPairs(pairs, weekStart, now),
-            month: wearingHoursFromPairs(pairs, monthStart, now),
-            year: yearActualH,
+            week: actualH.week,
+            month: actualH.month,
+            year: actualH.year,
           },
         };
       })

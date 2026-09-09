@@ -1104,7 +1104,7 @@ export interface WearHours {
 /** KG-Tragestunden für heute / laufende Woche / Monat / Jahr.
  *  Baut die Paare einmal und nutzt sie für alle vier Zeiträume (statt vier voller Sortierungen).
  *  `tz` ist die Zeitzone der SUB: „heute" muss denselben Tag meinen wie das aufgelöste Ziel
- *  (`resolveGoalTargets`) und die verstrichene Zeit daneben — sonst haben Zähler und Nenner
+ *  (`resolveDayGoalTarget`) und die verstrichene Zeit daneben — sonst haben Zähler und Nenner
  *  desselben Fortschrittsbalkens zwei verschiedene Mitternachte. */
 export function calculateWearingHoursByRange<
   E extends {

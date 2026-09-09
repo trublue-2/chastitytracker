@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import {
   wearingHoursFromPairs,
-  getMidnightToday, getWeekStart, getMonthStart, getYearStart,
+  getMidnightToday,
   type WearHours,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory, type SegmentEntry } from "@/lib/sessionModel";
 import { hasVisibleGoalRow, type VorgabeTargets } from "@/lib/goalFulfillment";
-import { resolveGoalTargetsWithYear } from "@/lib/goalYear";
+import { resolveGoalRow, segmentHours } from "@/lib/goalSegments";
 import { isActive } from "@/lib/statsBuilders";
 import { getNonKgTrackingCategories, getWearEntries, getUserTimezone } from "@/lib/queries";
 import { groupVorgabenByCategory } from "@/lib/vorgaben";
@@ -70,9 +70,9 @@ export async function buildCategoryWearGoals(
   const pairsByCategory = wearHourPairsByCategory(buildWearSessions(entries, now), now);
 
   // Most recent active vorgabe per category (orderBy gueltigAb desc → first seen wins) — sie
-  // entscheidet über die Sichtbarkeit der Zeilen und über Tag/Woche/Monat.
+  // entscheidet über die Sichtbarkeit der Zeilen und über das TAGES-Soll.
   const goalByCategory = new Map<string, typeof vorgaben[number]>();
-  // Alle Segmente je Kategorie — daraus baut `resolveGoalTargetsWithYear` die Jahres-Summe.
+  // Alle Segmente je Kategorie — daraus baut `resolveGoalRow` Woche, Monat und Jahr.
   // (Nicht-KG-Kategorien: `goalCategoryKey` ist dort die `categoryId`.)
   const segmentsByCategory = groupVorgabenByCategory(vorgaben);
   for (const v of vorgaben) {
@@ -80,15 +80,12 @@ export async function buildCategoryWearGoals(
   }
 
   const tagStart = getMidnightToday(now, tz);
-  const wocheStart = getWeekStart(now, tz);
-  const monatStart = getMonthStart(now, tz);
-  const jahrStart = getYearStart(now, tz);
 
   return categories.map((c) => {
     const pairs = pairsByCategory.get(c.id) ?? [];
-    // Das Jahr kommt samt seinem Ist-Wert aus der Segment-Summe; Tag/Woche/Monat unverändert aus
-    // dem aktiven Ziel.
-    const { goal, yearActualH } = resolveGoalTargetsWithYear(
+    // Woche/Monat/Jahr kommen samt ihren Ist-Werten aus der Segment-Summe; nur der Tag stammt
+    // unverändert aus dem aktiven Ziel.
+    const { goal, actualH } = resolveGoalRow(
       goalByCategory.get(c.id) ?? null, segmentsByCategory.get(c.id) ?? [], pairs, now, tz,
     );
     return {
@@ -97,9 +94,7 @@ export async function buildCategoryWearGoals(
       color: c.color,
       icon: c.icon,
       tagH: wearingHoursFromPairs(pairs, tagStart, now),
-      wocheH: wearingHoursFromPairs(pairs, wocheStart, now),
-      monatH: wearingHoursFromPairs(pairs, monatStart, now),
-      jahrH: yearActualH,
+      ...segmentHours(actualH),
       goal,
     };
   });

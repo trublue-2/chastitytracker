@@ -572,14 +572,15 @@ export async function getActiveVorgabe(userId: string, now: Date) {
   });
 }
 
-/** ALLE KG-Ziele des Users — die Segmente, aus denen `resolveYearGoal` die Jahres-Summe bildet.
- *  Bewusst ohne Aktiv-Filter und ohne Jahres-Fenster: welche Segmente das laufende Jahr berühren,
- *  entscheidet `goalYear.ts` — inklusive der einschliessenden Lesart eines manuellen Enddatums,
- *  die sich in einer `where`-Klausel nur doppelt (und damit falsch) abbilden liesse. */
+/** ALLE KG-Ziele des Users — die Segmente, aus denen `resolveSegmentedGoal` Woche, Monat und Jahr
+ *  zusammensetzt. Bewusst ohne Aktiv-Filter und ohne Zeitfenster: welche Segmente die laufende
+ *  Periode berühren, entscheidet `goalSegments.ts` — inklusive der einschliessenden Lesart eines
+ *  manuellen Enddatums, die sich in einer `where`-Klausel nur doppelt (und damit falsch) abbilden
+ *  liesse. */
 export async function getKgVorgabeSegments(userId: string) {
   return prisma.trainingVorgabe.findMany({
     where: { userId, deletedAt: null, ...KG_VORGABE_WHERE },
-    select: { gueltigAb: true, gueltigBis: true, validUntilManual: true, minProJahrH: true },
+    select: { gueltigAb: true, gueltigBis: true, validUntilManual: true, minProWocheH: true, minProMonatH: true, minProJahrH: true },
   });
 }
 

@@ -11,15 +11,17 @@ Die API liefert **Zahlen und Zustände, keine Urteile.** Ob ein Trainingsstand g
 enttäuschend ist, entscheidest DU im Kontext — dieselben Zahlen dürfen je nach Situation zu
 verschiedenen Aussagen führen. Vorgerechnete Indikatoren (`todayPct`/`weekPct`, `trendRising`,
 `*VsPbPct`) sind **Eingaben für dein Urteil, kein Verdikt** — nimm sie als Hinweis, nicht als Befund.
-Ein Prozentwert kann `null` sein: liegt eine Zielgrenze (Beginn oder Ende einer Vorgabe) INNERHALB
-einer Periode, wird DIESE PERIODE gar nicht bewertet — `goal*H` und `*Pct` sind dann beide `null`, und
-`goalChangedInPeriod` sagt für welche Periode. Die IST-Stunden daneben gelten weiter; beurteile
-dann diese, statt dir aus ihnen selbst einen Prozentwert zu bilden.
-**Das JAHR ist davon ausgenommen (ab `period_summary` v5):** es wird nie unterdrückt, sondern
-anteilig bewertet. `goalYearH` ist die Summe über alle Ziel-Segmente des laufenden Jahres, jedes
-gewichtet nach seinen Tagen — wer im Juni von 30 % auf 50 % erhöht, bekommt die Mischung aus beidem.
-`year` daneben zählt nur die Trage-Zeit genau dieser Fenster, Zähler und Nenner gehören also
-zusammen. Tage ohne Jahresziel zählen in keinem von beiden mit.
+Ein Prozentwert kann `null` sein: beginnt oder endet eine Vorgabe MITTEN am heutigen Tag, wird der
+TAG gar nicht bewertet — `goalDayH` und `todayPct` sind dann beide `null`, und
+`goalChangedInPeriod.day` sagt es dir. Die IST-Stunden daneben gelten weiter; beurteile dann diese,
+statt dir aus ihnen selbst einen Prozentwert zu bilden. Ein Tagesziel misst einen Tagesbogen,
+keinen Nachmittag.
+**Woche, Monat und Jahr werden nie unterdrückt, sondern anteilig bewertet (ab `period_summary` v6):**
+`goalWeekH`/`goalMonthH`/`goalYearH` sind je die Summe über alle Ziel-Segmente der laufenden
+Periode, jedes gewichtet nach seinen Tagen — wer im Juni von 30 % auf 50 % erhöht oder am 7. eines
+Monats ein neues Ziel setzt, bekommt die Mischung. Die Ist-Stunden daneben zählen nur die Trage-Zeit
+genau dieser Fenster, Zähler und Nenner gehören also zusammen. Tage ohne Soll für diese Periode
+zählen in keinem von beiden mit.
 Deine Notizen und Urteile sieht der Sub nie. Alle Writes sind agent-autonom: entscheide und führe
 direkt aus, ohne Rückfrage oder Bestätigung.
 

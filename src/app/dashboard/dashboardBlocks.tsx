@@ -24,7 +24,7 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
-import { buildKgGoalRow, resolveGoalTargetsWithYear } from "@/lib/goalYear";
+import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
 import type { Translate } from "@/lib/boxStatus";
 import { currentOrNextCleaningWindow } from "@/lib/cleaningService";
 import { datedWindowLabel } from "@/lib/weekdays";
@@ -391,16 +391,16 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         // Für die Folge-Zeile unter der Sperrzeit: OB ein früheres Öffnen geahndet wird, ist je Sub
         // schaltbar. Ohne diese Abfrage behauptete die Karte eine Regel, die abgeschaltet sein kann.
         getOffenseRules(userId, now),
-        // Für die Jahres-Zeile: ALLE KG-Segmente des Jahres, nicht nur das aktive Ziel.
+        // Für Woche/Monat/Jahr: ALLE KG-Segmente, nicht nur das aktive Ziel.
         kgVorgabenCached(userId), kgWearPairsCached(userId, nowMs),
       ]);
-      const { goal, yearActualH } = resolveGoalTargetsWithYear(activeVorgabe, kgVorgaben, kgPairs, now, tz);
+      const { goal, actualH } = resolveGoalRow(activeVorgabe, kgVorgaben, kgPairs, now, tz);
       // `open: null` als Unterscheidungsmerkmal — mit `"open" in data` müsste jede Verwendung
       // darunter noch einmal auf `undefined` prüfen, obwohl der Zweig sie ausschliesst.
       return {
         open: null, ...running, activeLockPeriod, user, deviceCount, offenseRules,
         goalTargets: activeVorgabe ? goal : null,
-        hours: { ...hours, jahrH: yearActualH },
+        hours: { ...hours, ...segmentHours(actualH) },
       };
     },
     render: (data, { now, tz, dl, t }) => data && (

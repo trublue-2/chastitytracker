@@ -12,7 +12,7 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 import type { CategoryWearGoal } from "@/lib/categoryGoals";
 import type { ByPeriod } from "@/lib/goalFulfillment";
-import type { KgGoalRow } from "@/lib/goalYear";
+import type { KgGoalRow } from "@/lib/goalSegments";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 export interface CategoryGoalRow extends CategoryWearGoal {

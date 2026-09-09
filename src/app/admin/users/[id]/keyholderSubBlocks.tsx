@@ -19,7 +19,7 @@ import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { userRowCached, strafbuchCached } from "@/lib/dashboardData";
 import { selectSubOffenses, openOffensesOf } from "@/lib/subOffenses";
 import OffenseList from "@/app/components/OffenseList";
-import { buildKgGoalRow, resolveGoalTargetsWithYear } from "@/lib/goalYear";
+import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
@@ -154,10 +154,10 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
         // und die Alternative wäre, dass die Keyholderin die Uhrzeiten, die der Träger auf SEINER
         // Übersicht liest, nur noch im Einstellungs-Formular findet.
         userRowCached(subjectId),
-        // Für die Jahres-Zeile: ALLE KG-Segmente des Jahres, nicht nur das aktive Ziel.
+        // Für Woche/Monat/Jahr: ALLE KG-Segmente, nicht nur das aktive Ziel.
         kgVorgabenCached(subjectId), kgWearPairsCached(subjectId, nowMs),
       ]);
-      const { goal: goalTargets, yearActualH } = resolveGoalTargetsWithYear(
+      const { goal: goalTargets, actualH } = resolveGoalRow(
         activeVorgabe, kgVorgaben, kgPairs, now, subjectTz,
       );
       // Fertig übersetzt schon hier: die Zeichenkette liegt im `dashboard`-Namensraum, den der
@@ -176,7 +176,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       return {
         running, lockPeriod, deviceCount, lockBreakNote, cleaningWindow, latest: null,
         goalTargets: activeVorgabe ? goalTargets : null,
-        hours: { ...hours, jahrH: yearActualH },
+        hours: { ...hours, ...segmentHours(actualH) },
       };
     },
     render: (data, { now, subjectTz, viewerTz, subLabel, subjectId, dl, t }) =>

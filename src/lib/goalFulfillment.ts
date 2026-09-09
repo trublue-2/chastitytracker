@@ -1,11 +1,16 @@
 /**
- * Trainingsziel-Erfüllung je Periode: Ziel-Nenner UND die Frage, ob er überhaupt eine Aussage trägt.
+ * Perioden-Vokabular und die GANZ-ODER-GAR-NICHT-Regel — heute noch für den TAG und den Kalender.
  *
  * Eine TrainingVorgabe speichert absolute Stundenziele je Periode (Tag/Woche/Monat/Jahr). Deckt ihr
- * Gültigkeitsfenster (gueltigAb..gueltigBis) nur einen TEIL einer Periode ab — ein Wochenziel, das
- * am Freitag gesetzt wird — so passt das volle Ziel nicht auf die Rand-Periode. Dieses Modul
- * zentralisiert die Regeln dafür, damit jede Erfüllungs-Anzeige (Stats, Kalender, Live-Ziele, MCP)
- * denselben Nenner rechnet.
+ * Gültigkeitsfenster (gueltigAb..gueltigBis) nur einen TEIL einer Periode ab, passt das volle Ziel
+ * nicht auf die Rand-Periode. Dieses Modul hält die Bausteine dafür: die Perioden-Schlüssel, die
+ * Perioden-Grenzen (`periodBounds`), das wirksame Ende einer Vorgabe (`goalEffectiveEndMs`) und die
+ * Regel, wann eine Periode gar nicht bewertet wird (`periodTarget`).
+ *
+ * **Wer WOCHE, MONAT und JAHR auswertet, ist `goalSegments.ts`** — nicht dieses Modul. Dort werden
+ * sie seit dem 09.09.2026 ANTEILIG über die Segmente des Zeitraums gerechnet, weil sie regelmässig
+ * einen Regelwechsel überspannen. Hier bleiben der TAG (`resolveDayGoalTarget`) und der KALENDER
+ * (`statsBuilders.ts` ruft `periodTarget` je Zelle).
  *
  * **Der Vorfall, der die Regeln erzwungen hat (23.08.2026):** ein KG-Ziel 15/90/390 wurde an einem
  * Sonntag um 09:54 gesetzt. Eine Stunde später meldete `period_summary` ein Wochenziel von 7.55
@@ -23,16 +28,12 @@
  *    `null` — womit `goalPct` von selbst `null` liefert — und `changedInPeriod` sagt der
  *    MCP-Aufruferin, warum.
  *
- * Regel 2 gilt für ALLE vier Perioden, und der Weg dorthin führte über den Tag: ein Tagesziel misst
+ * **Regel 2 gilt heute nur noch für den TAG** (und für die Kalender-Zellen). Ein Tagesziel misst
  * einen Tagesbogen, keinen Nachmittag — 15 Stunden auf einen angebrochenen Tag umzurechnen ergibt
- * sachlich nichts. Dasselbe Argument trägt aber für die Woche und den Monat: `goalWeekH: 7.55` neben
- * `week: 76.5` ist kein Absolutwert, der irgendetwas rettet, sondern eine Einladung, von Hand
- * denselben Vergleich anzustellen, den der unterdrückte Prozentwert vermeidet. Anfangs blieb der
- * Anteil dort stehen; er ist ersatzlos entfallen, nachdem genau dieser Stolperstein gemeldet wurde.
- *
- * Ein anteilig gekürztes Ziel gibt es damit nirgends mehr — und es fehlt auch nichts: ohne Grenze
- * in der Periode deckt eine Vorgabe sie ganz ab oder gar nicht, ein Zwischenwert konnte nur in den
- * geteilten Perioden entstehen.
+ * sachlich nichts. Für Woche, Monat und Jahr trug dasselbe Argument NICHT: dort verschwand die Zeile
+ * bei jeder Ziel-Änderung, und genau das wurde am 09.09.2026 als Fehler gemeldet. Sie werden seither
+ * anteilig bewertet — aber ZWEISEITIG, Zähler und Nenner aus demselben Fenster. Daran scheiterte es
+ * 2026-08-23; die Herleitung steht im Kopf von `goalSegments.ts`.
  */
 
 import { getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd, midnightAfterDays, type WearHours } from "@/lib/utils";
@@ -188,7 +189,7 @@ export interface VorgabePeriodTargets {
   minProJahrH: number | null;
   /** Wochentag-Ausnahmen des Tages-Solls (JSON-Spalte, roh). Optional, damit Bestands-Fixtures und
    *  ältere Aufrufer ohne das Feld weiterlaufen — fehlt es, gilt überall `minProTagH` (heutiges
-   *  Verhalten). Aufgelöst in {@link resolveGoalTargets} über `resolveDayTarget`. */
+   *  Verhalten). Aufgelöst in {@link resolveDayGoalTarget} über `resolveDayTarget`. */
   minProTagWochentage?: string | null;
 }
 
@@ -214,31 +215,6 @@ export interface VorgabeTargets {
 }
 
 /**
- * Die Perioden, die DIESES Modul auflöst — das Jahr fehlt bewusst.
- *
- * Ein Jahr überspannt regelmässig einen Regelwechsel (neues Ziel ohne Enddatum → Verkettung), und
- * dann ist „das aktive Ziel" nicht die ganze Wahrheit. Das Jahr rechnet deshalb `goalYear.ts` aus
- * den SEGMENTEN, und `resolveGoalTargets` liefert dafür gar keinen Wert mehr — nicht einmal einen
- * ungenutzten. Ein zurückgegebener Jahreswert nach alter Regel wäre eine Falle: Wer die
- * naheliegend benannte Funktion nimmt, bekäme eine Zahl, die keine Anzeige mehr verwendet.
- */
-export const NON_YEAR_PERIODS = ["day", "week", "month"] as const;
-
-export type NonYearPeriod = (typeof NON_YEAR_PERIODS)[number];
-
-/** Tag/Woche/Monat einer Vorgabe — der Teil, den das aktive Ziel allein beantwortet.
- *  `goalYear.ts` setzt daraus zusammen mit dem aggregierten Jahr die volle `VorgabeTargets`. */
-export interface NonYearTargets {
-  targetH: Record<NonYearPeriod, number | null>;
-  changedInPeriod: Record<NonYearPeriod, boolean>;
-}
-
-const NO_TARGETS: NonYearTargets = {
-  targetH: { day: null, week: null, month: null },
-  changedInPeriod: { day: false, week: false, month: false },
-};
-
-/**
  * Bleibt überhaupt eine bewertbare Ziel-Zeile übrig?
  *
  * Der Unterschied zu „hat die Vorgabe ein Ziel?" ist der Grund für diese Funktion: eine Vorgabe
@@ -253,34 +229,29 @@ export function hasVisibleGoalRow(targetH: Partial<ByPeriod<number | null>>): bo
   return GOAL_PERIODS.some((period) => !!targetH[period]);
 }
 
-export function resolveGoalTargets(
+/**
+ * Das TAGES-Ziel einer Vorgabe, aufgelöst gegen den heutigen Tag.
+ *
+ * Nur noch der Tag: Woche, Monat und Jahr überspannen regelmässig einen Regelwechsel (neues Ziel
+ * ohne Enddatum → Verkettung) und werden deshalb in `goalSegments.ts` über die SEGMENTE gerechnet.
+ * Diese Funktion gibt für sie bewusst gar keinen Wert mehr zurück — nicht einmal einen ungenutzten.
+ * Ein Wert nach alter Regel wäre eine Falle gewesen: Wer die naheliegend benannte Funktion nimmt,
+ * bekäme eine Zahl, die keine Anzeige mehr verwendet.
+ *
+ * Der Tag bleibt hier, weil ein Tagesziel einen Tagesbogen misst und keinen Nachmittag — er wird
+ * ganz oder gar nicht bewertet (Regel 2 oben).
+ */
+export function resolveDayGoalTarget(
   goal: (GoalWindow & VorgabePeriodTargets) | null,
   now: Date,
   tz: string,
-): NonYearTargets {
-  if (!goal) return NO_TARGETS;
+): PeriodTarget {
+  if (!goal) return NO_TARGET;
   // Das Tages-Soll folgt dem Wochentag von HEUTE: eine passende Ausnahme ersetzt `minProTagH` (0 =
-  // Ruhetag). Woche und Monat bleiben Perioden-Summen und unberührt. Diese EINE Auflösung erreicht
-  // damit jede „aktives Ziel jetzt"-Anzeige (Dashboard, Admin, Stats, Kategorie-Ziele, MCP).
+  // Ruhetag).
   const dayBase = tagesSollFuer(goal, now, tz);
-  const base: Record<NonYearPeriod, number | null> = {
-    day: dayBase, week: goal.minProWocheH, month: goal.minProMonatH,
-  };
-  const targetH = {} as Record<NonYearPeriod, number | null>;
-  const changedInPeriod = {} as Record<NonYearPeriod, boolean>;
-  for (const period of NON_YEAR_PERIODS) {
-    // Perioden ohne Ziel überspringen die Grenzberechnung: `periodBounds` kostet mehrere
-    // Intl-Auflösungen, und eine typische Vorgabe setzt ein oder zwei der vier Perioden.
-    if (base[period] == null) {
-      targetH[period] = null;
-      changedInPeriod[period] = false;
-      continue;
-    }
-    const { start, end } = periodBounds(period, now, tz);
-    const t = periodTarget(base[period], start, end, goal, tz);
-    targetH[period] = t.targetH;
-    changedInPeriod[period] = t.changedInPeriod;
-  }
-  return { targetH, changedInPeriod };
+  if (dayBase == null) return NO_TARGET;
+  const { start, end } = periodBounds("day", now, tz);
+  return periodTarget(dayBase, start, end, goal, tz);
 }
 

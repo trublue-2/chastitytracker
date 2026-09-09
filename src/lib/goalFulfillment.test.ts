@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { GoalWindow } from "./goalFulfillment";
 import {
-  periodTarget, periodBounds, resolveGoalTargets, goalBoundaryInPeriod, hasVisibleGoalRow,
+  periodTarget, periodBounds, resolveDayGoalTarget, goalBoundaryInPeriod, hasVisibleGoalRow,
 } from "./goalFulfillment";
 import { weekdayMaskOf } from "./weekdays";
 
@@ -136,97 +136,66 @@ describe("periodBounds", () => {
   });
 });
 
-describe("resolveGoalTargets", () => {
+describe("resolveDayGoalTarget", () => {
   const now = D("2026-07-15T12:00:00Z");
   const base = { minProTagH: 6, minProWocheH: 40, minProMonatH: 200, minProJahrH: 3000 };
-  const VIER = { day: 6, week: 40, month: 200 };
-  const KEINE = { day: null, week: null, month: null };
-  const UNGETEILT = { day: false, week: false, month: false };
+  const OFFEN = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, validUntilManual: false };
 
-  it("null-Vorgabe → alle Ziele null", () => {
-    expect(resolveGoalTargets(null, now, TZ)).toEqual({ targetH: KEINE, changedInPeriod: UNGETEILT });
+  it("null-Vorgabe → kein Tagesziel", () => {
+    expect(resolveDayGoalTarget(null, now, TZ)).toEqual({ targetH: null, changedInPeriod: false });
   });
 
-  it("Vorgabe deckt alle aktuellen Perioden voll ab → Ziele unverändert", () => {
-    const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, validUntilManual: false, ...base };
-    expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: VIER, changedInPeriod: UNGETEILT });
+  it("Vorgabe deckt den Tag voll ab → Ziel unverändert", () => {
+    expect(resolveDayGoalTarget({ ...OFFEN, ...base }, now, TZ)).toEqual({ targetH: 6, changedInPeriod: false });
   });
 
-  it("Vorgabe komplett in der Vergangenheit → alle Ziele 0 (kein Overlap mit aktuellen Perioden)", () => {
-    const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: D("2021-01-01T00:00:00Z"), validUntilManual: false, ...base };
-    const NULLEN = { day: 0, week: 0, month: 0 };
-    expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: NULLEN, changedInPeriod: UNGETEILT });
+  it("Vorgabe komplett in der Vergangenheit → Ziel 0 (berührt den Tag nicht)", () => {
+    const goal = { ...OFFEN, gueltigBis: D("2021-01-01T00:00:00Z"), ...base };
+    expect(resolveDayGoalTarget(goal, now, TZ)).toEqual({ targetH: 0, changedInPeriod: false });
   });
 
-  it("der Vorfall vom 23.08.2026: Ziel 15/90/390 am Sonntag um 09:54 gesetzt", () => {
-    // Sonntag ist der LETZTE Tag der ISO-Woche — von ihr blieben 14.1 der 168 Stunden.
-    // Alt: goalWeekH 7.55 gegen die vollen 76.5 Ist-Stunden der Woche = 1013 %.
-    const goal = {
-      gueltigAb: D("2026-08-23T07:54:00Z"), gueltigBis: null, validUntilManual: false,   // 09:54 Ortszeit
-      minProTagH: 15, minProWocheH: 90, minProMonatH: 390, minProJahrH: null,
-    };
-    const t = resolveGoalTargets(goal, D("2026-08-23T09:08:00Z"), TZ);
-    // Bewertet wird in KEINER der drei geteilten Perioden — weder mit Prozentwert noch mit einem
-    // anteiligen Ziel als Absolutwert. Vorher stand hier goalWeekH 7.55 neben week 76.5.
-    expect(t.targetH).toEqual({ day: null, week: null, month: null });
-    expect(t.changedInPeriod).toEqual({ day: true, week: true, month: true });
-    // Das JAHR bleibt false, obwohl die Vorgabe mitten in ihm beginnt: es hat gar kein Ziel
-    // (minProJahrH null). Wo nichts bewertet wird, gibt es auch nichts zu unterdrücken.
-    expect(hasVisibleGoalRow(t.targetH)).toBe(false);
+  it("ein Ziel, das MITTEN am Tag beginnt, lässt den Tag unbewertet", () => {
+    // Regel 2, und für den Tag gilt sie weiterhin: ein Tagesziel misst einen Tagesbogen, keinen
+    // Nachmittag. Woche/Monat/Jahr werden inzwischen anteilig bewertet (`goalSegments.ts`), der
+    // Tag bewusst nicht.
+    const goal = { ...OFFEN, gueltigAb: D("2026-08-23T07:54:00Z"), ...base }; // 09:54 Ortszeit
+    const t = resolveDayGoalTarget(goal, D("2026-08-23T09:08:00Z"), TZ);
+    expect(t).toEqual({ targetH: null, changedInPeriod: true });
   });
 
   it("dasselbe Ziel am Folgetag: der Tag zählt wieder voll", () => {
-    const goal = {
-      gueltigAb: D("2026-08-23T07:54:00Z"), gueltigBis: null, validUntilManual: false,
-      minProTagH: 15, minProWocheH: 90, minProMonatH: 390, minProJahrH: null,
-    };
-    const t = resolveGoalTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
-    expect(t.targetH.day).toBe(15);
-    // Die neue Woche beginnt am Montag → auch sie ist wieder ungeteilt und voll.
-    expect(t.targetH.week).toBe(90);
-    expect(t.changedInPeriod).toEqual({ day: false, week: false, month: true });
-    // Der August trägt die Grenze weiterhin — also kein Ziel für den Monat.
-    expect(t.targetH.month).toBeNull();
-    expect(hasVisibleGoalRow(t.targetH)).toBe(true);
+    const goal = { ...OFFEN, gueltigAb: D("2026-08-23T07:54:00Z"), ...base };
+    expect(resolveDayGoalTarget(goal, D("2026-08-24T09:00:00Z"), TZ).targetH).toBe(6);
   });
 
-  it("ein Ziel, das an der nächsten Mitternacht startet (Regel 1), teilt Tag und Woche nicht", () => {
-    const goal = {
-      gueltigAb: D("2026-08-23T22:00:00Z"), gueltigBis: null, validUntilManual: false,   // 24.08. 00:00 Ortszeit, ein Montag
-      minProTagH: 15, minProWocheH: 90, minProMonatH: 390, minProJahrH: null,
-    };
-    const t = resolveGoalTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
-    expect(t.targetH.day).toBe(15);
-    expect(t.targetH.week).toBe(90);
-    expect(t.changedInPeriod).toEqual({ day: false, week: false, month: true });
+  it("ein Ziel, das an der nächsten Mitternacht startet (Regel 1), teilt den Tag nicht", () => {
+    const goal = { ...OFFEN, gueltigAb: D("2026-08-23T22:00:00Z"), ...base }; // 24.08. 00:00 Ortszeit
+    expect(resolveDayGoalTarget(goal, D("2026-08-24T09:00:00Z"), TZ))
+      .toEqual({ targetH: 6, changedInPeriod: false });
   });
 
-  it("Wochentag-Ausnahmen: das TAGES-Soll folgt dem Wochentag, Woche bleibt der Summenwert", () => {
-    // Basis 6 h, Sa/So 16 h, Montag Ruhetag (0). Woche/Monat/Jahr unberührt.
+  it("Wochentag-Ausnahmen: das Tages-Soll folgt dem Wochentag", () => {
+    // Basis 6 h, Sa/So 16 h, Montag Ruhetag (0).
     const goal = {
-      gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, validUntilManual: false,
+      ...OFFEN,
       minProTagH: 6, minProWocheH: 40, minProMonatH: null, minProJahrH: null,
       minProTagWochentage: JSON.stringify([
         { days: weekdayMaskOf([6, 7]), hours: 16 },
         { days: weekdayMaskOf([1]), hours: 0 },
       ]),
     };
-    expect(resolveGoalTargets(goal, D("2026-08-22T09:00:00Z"), TZ).targetH.day).toBe(16); // Samstag
-    expect(resolveGoalTargets(goal, D("2026-08-25T09:00:00Z"), TZ).targetH.day).toBe(6);  // Dienstag = Basis
-    const montag = resolveGoalTargets(goal, D("2026-08-24T09:00:00Z"), TZ);
-    expect(montag.targetH.day).toBe(0);   // Ruhetag (gesetzte 0), nicht Basis
-    expect(montag.targetH.week).toBe(40); // Perioden-Summe unangetastet
+    expect(resolveDayGoalTarget(goal, D("2026-08-22T09:00:00Z"), TZ).targetH).toBe(16); // Samstag
+    expect(resolveDayGoalTarget(goal, D("2026-08-25T09:00:00Z"), TZ).targetH).toBe(6);  // Dienstag = Basis
+    expect(resolveDayGoalTarget(goal, D("2026-08-24T09:00:00Z"), TZ).targetH).toBe(0);  // Montag = Ruhetag
   });
 
   it("rückwärtskompatibel: eine Vorgabe ohne Ausnahmen-Feld verhält sich wie bisher", () => {
-    const goal = { gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, validUntilManual: false, ...base };
-    expect(resolveGoalTargets(goal, now, TZ)).toEqual({ targetH: VIER, changedInPeriod: UNGETEILT });
+    expect(resolveDayGoalTarget({ ...OFFEN, ...base }, now, TZ)).toEqual({ targetH: 6, changedInPeriod: false });
   });
-
 });
 
-// Die JAHRES-Fälle (anteilige Segment-Summe, einschliessendes Enddatum) stehen in
-// `goalYear.test.ts` — `resolveGoalTargets` löst das Jahr bewusst nicht mehr auf.
+// Woche, Monat und Jahr stehen in `goalSegments.test.ts` — sie werden über die SEGMENTE des
+// Zeitraums anteilig bewertet; dieses Modul löst nur noch den Tag auf.
 describe("hasVisibleGoalRow", () => {
   it("eine Vorgabe mit Zielen kann trotzdem KEINE bewertbare Zeile haben", () => {
     expect(hasVisibleGoalRow({ day: 6, week: null, month: null, year: null })).toBe(true);
