@@ -10,7 +10,8 @@ import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContex
 import { buildPairs } from "@/lib/utils";
 import { buildSessions, isLiveOpenSession, type Session, type DeviceConfidence } from "@/lib/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
-import { getOffenses, type OffenseRow } from "@/lib/mcp/ledger";
+import { getOffenses, offenseRowState, type OffenseRow } from "@/lib/mcp/ledger";
+import { offenseNeedsAttention } from "@/lib/offenseTypes";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 import { toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, boxBoltOpenDespiteLocked, type BoxFailsafeWarning } from "@/lib/boxStatus";
@@ -279,8 +280,13 @@ export interface DashboardResult extends Envelope {
    *  v20: `standingDirectives[].text` und `boundaries[].text` sind GEKAPPT (`NOTE_TEXT_LIMIT`,
    *  Marker `textTruncated`) und mit `includeNotes: false` ganz abbestellbar (`notesOmitted`). Ein
    *  Bestandsfeld ändert damit seine Bedeutung — es trug bis hierher immer den Volltext —, also ein
-   *  Bump und kein additiver Fall. */
-  schemaVersion: 20;
+   *  Bump und kein additiver Fall.
+   *
+   *  v21: `openOffenses.top` zeigt jetzt dieselben Zeilen, die `openOffenses.count` zählt — auch die
+   *  bestraften mit unerledigter Strafe. Bis v20 filterte die Liste eng auf `status === "open"`,
+   *  während der Zähler daneben breit zählte: `count: 1` neben `top: []`, im ersten Aufruf einer
+   *  Sitzung (#110). Ein Bestandsfeld ändert damit seine Auswahl, also ein Bump. */
+  schemaVersion: 21;
   user: string;
   /**
    * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
@@ -864,7 +870,10 @@ export async function keyholderDashboard(
     });
   }
 
-  const openOffenseRows = ledger.offenses.filter((o) => o.status === "open");
+  // Dieselbe Regel wie `openOffenseCount` daneben: auf `status === "open"` gefiltert zeigte diese
+  // Liste eine bestraft-nicht-erledigte Zeile nicht, die der Zähler mitzählte — „1 offenes
+  // Vergehen" neben `top: []`, im ersten Aufruf der Sitzung (#110).
+  const openOffenseRows = ledger.offenses.filter((o) => offenseNeedsAttention(offenseRowState(o)));
 
   // CT-008: "today" enthält einen Anteil einer früheren Session, wenn die Kalendertag-Summe grösser
   // ist als der durchgehende aktuelle Lauf (bei Lauf-Start vor Mitternacht ist today kleiner → false).
@@ -919,7 +928,7 @@ export async function keyholderDashboard(
   const shownNotes = typeof pinned === "number" ? [] : pinned.notes;
 
   return {
-    schemaVersion: 20,
+    schemaVersion: 21,
     user: username,
     weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),

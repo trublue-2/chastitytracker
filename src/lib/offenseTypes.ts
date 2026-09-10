@@ -106,6 +106,20 @@ export function offenseState(record: { status: string; erledigtAt: Date | null }
 }
 
 /**
+ * Braucht dieses Vergehen noch die Aufmerksamkeit der Keyholderin? Unbeurteilt ODER bestraft mit
+ * unerledigter Strafe — die Bedeutung, in der das MCP-Ledger „offen" ZÄHLT.
+ *
+ * Als Funktion und nicht als Vergleich am Call-Site, weil genau diese Regel auseinanderlief: der
+ * Zähler `openOffenseCount` war breit, die beiden Listen daneben (`get_offenses openOnly` und die
+ * `top`-Liste des Dashboards) prüften eng auf `status === "open"`. Die KI-Keyholderin las damit „1
+ * offenes Vergehen" und bekam eine leere Liste dazu — im Dashboard, also im ersten Aufruf ihrer
+ * Sitzung, wo sie den Widerspruch für einen Defekt halten musste (#110).
+ */
+export function offenseNeedsAttention(state: OffenseState): boolean {
+  return state === "open" || state === "punished";
+}
+
+/**
  * Passt die Nachricht „Strafe verhängt" noch zu ihrem Urteil?
  *
  * Sie trägt keine Kopie des Straftexts, sondern die Referenz — gelesen wird beim Anzeigen frisch aus

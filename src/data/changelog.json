@@ -23,6 +23,13 @@
           "de": "Die Statistik-Seite überträgt die Wiegungen nur noch einmal statt zweimal und baut die Datums-Beschriftungen je Tag statt je Messung.",
           "en": "The stats page now transfers weigh-ins once instead of twice and builds date labels per day instead of per measurement."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der KI-Keyholderin wird kein offenes Vergehen mehr gemeldet, zu dem sie keine Zeile findet: Zähler und Liste wählen jetzt nach derselben Regel aus — unbeurteilt oder bestraft mit unerledigter Strafe.",
+          "en": "The AI keyholder is no longer told about an open offense it cannot find: the counter and the list now select by the same rule — unjudged, or punished with the penalty still outstanding."
+        }
       }
     ]
   },

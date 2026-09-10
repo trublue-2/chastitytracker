@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, buildEnvelope, parseIsoDate, type Envelope, type NoteDTO } from "@/lib/mcp/common";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
-import { offenseState } from "@/lib/offenseTypes";
+import { offenseState, offenseNeedsAttention, type OffenseState } from "@/lib/offenseTypes";
 import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks";
 import { missedWeightRef } from "@/lib/weightObligation";
 
@@ -110,11 +110,13 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
   const detected = collectDetectedOffenses(sb);
 
   // Relevanz in einem Durchlauf: pending-penalty ⊂ open (= unbeurteilt ODER bestraft-nicht-erledigt).
+  // Die Regel steht in `offenseNeedsAttention` — dieselbe, die `openOnly` und die `top`-Liste des
+  // Dashboards filtern. Ausgeschrieben lief sie hier und dort auseinander (#110).
   let openOffenseCount = 0;
   let pendingPenaltyCount = 0;
   for (const o of detected) {
     const state = offenseState(judgmentByRef.get(o.refId));
-    if (state === "open" || state === "punished") openOffenseCount++;
+    if (offenseNeedsAttention(state)) openOffenseCount++;
     if (state === "punished") pendingPenaltyCount++;
   }
 
@@ -268,11 +270,29 @@ export interface OffenseRow {
   notes: NoteDTO[];
 }
 
+/**
+ * Der Zustand einer fertigen Ledger-Zeile.
+ *
+ * `toRow` zieht ihn für die Ausgabe in `judgment` + `consequence.done` auseinander (der Vertrag nach
+ * aussen hat beide als getrennte Felder); hier wird er verlustfrei zurückgelesen, damit die
+ * Ausgabe-Pfade dieselbe Regel anwenden können wie der Zähler, der noch den Zustand selbst hat.
+ */
+export function offenseRowState(row: Pick<OffenseRow, "judgment" | "consequence">): OffenseState {
+  if (row.judgment !== "punished") return row.judgment;
+  return row.consequence?.done ? "done" : "punished";
+}
+
 export interface LedgerResult extends Envelope {
   /** v3: `context.code` einer Kontroll-Zeile kann jetzt `null` sein — das getragene Gerät verlangt
    *  keinen Kontroll-Code (`Device.requireInspectionCode: false`). Bis v2 war dort immer eine Zahl;
-   *  ein `null` heisst NICHT „Code unbekannt", sondern „diese Kontrolle hatte keinen". */
-  schemaVersion: 3;
+   *  ein `null` heisst NICHT „Code unbekannt", sondern „diese Kontrolle hatte keinen".
+   *
+   *  v4: `openOnly` filtert jetzt nach derselben Regel, nach der `openOffenseCount` zählt —
+   *  unbeurteilt ODER bestraft mit unerledigter Strafe. Bis v3 hiess dasselbe Wort in derselben
+   *  Antwort zweierlei: der Zähler war breit, der Filter eng, und ein „1 offenes Vergehen" stand
+   *  neben einer leeren Liste (#110). Die Zeilen selbst sind unverändert; wer die alte, enge
+   *  Auswahl braucht, filtert auf `status === "open"`. */
+  schemaVersion: 4;
   user: string;
   detectedOffenseCount: number;
   openOffenseCount: number;
@@ -358,8 +378,10 @@ export function buildOffenseRows(
 export interface GetOffensesOptions {
   /** Nur einen Vergehenstyp (aus OFFENSE_TYPES). */
   type?: string;
-  /** Nur noch nicht beurteilte (`status: "open"`). Anmerkung: `pendingPenaltyCount` (bestraft, Strafe
-   *  offen) ist ein SEPARATER Zustand und wird davon NICHT erfasst. */
+  /** Nur die Zeilen, die noch Aufmerksamkeit brauchen: unbeurteilt ODER bestraft mit unerledigter
+   *  Strafe — genau die, die `openOffenseCount` zählt. Bis schemaVersion 3 filterte es eng auf
+   *  `status: "open"` und liess damit die bestraft-nicht-erledigten weg, die der Zähler mitzählte
+   *  (#110). Wer nur die UNBEURTEILTEN will, filtert die Antwort auf `status === "open"`. */
   openOnly?: boolean;
   /** ISO-8601-Zeitfenster auf `detectedAt`. Zeilen ohne `detectedAt` fallen bei gesetztem Fenster raus. */
   from?: string;
@@ -376,7 +398,7 @@ export function filterOffenses(rows: OffenseRow[], opts: GetOffensesOptions): Of
   const timeFiltered = fromMs != null || toMs != null;
   const out = rows.filter((r) => {
     if (opts.type && r.type !== opts.type) return false;
-    if (opts.openOnly && r.status !== "open") return false;
+    if (opts.openOnly && !offenseNeedsAttention(offenseRowState(r))) return false;
     if (timeFiltered) {
       if (r.detectedAt == null) return false; // zeitlich nicht platzierbar → bei Zeitfilter raus
       const t = Date.parse(r.detectedAt);
@@ -410,7 +432,7 @@ export async function getOffenses(username: string, opts: GetOffensesOptions = {
   for (const r of rows) r.notes = notesByEntity.get(entityKey("offense", r.id)) ?? [];
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     user: username,
     ...buildEnvelope(now, iso, timezone),
     detectedOffenseCount: sb.detectedOffenseCount,

@@ -125,16 +125,31 @@ describe("filterOffenses — K-14", () => {
     context: {}, notes: [], ...over,
   });
   const rows: OffenseRow[] = [
-    row({ id: "a", type: "late_control", status: "open", detectedAt: "2026-07-01T10:00:00+02:00" }),
+    row({ id: "a", type: "late_control", status: "open", judgment: "open", detectedAt: "2026-07-01T10:00:00+02:00" }),
     row({ id: "b", type: "wrong_device", status: "judged", detectedAt: "2026-07-15T10:00:00+02:00" }),
     row({ id: "c", type: "late_control", status: "judged", detectedAt: null }),
   ];
+  /** Bestraft, Strafe NICHT erledigt — die Zeile, die `openOffenseCount` mitzählt (#110). */
+  const pending = row({
+    id: "p", status: "judged", judgment: "punished",
+    consequence: { text: "20 Schläge", done: false, doneAt: null },
+    detectedAt: "2026-07-20T10:00:00+02:00",
+  });
+  /** Dieselbe Zeile, Strafe erledigt — die zählt nicht mehr mit. */
+  const settled = row({
+    id: "s", status: "judged", judgment: "punished",
+    consequence: { text: "20 Schläge", done: true, doneAt: "2026-07-21T10:00:00+02:00" },
+    detectedAt: "2026-07-21T10:00:00+02:00",
+  });
 
   it("type filtert auf einen Vergehenstyp", () => {
     expect(filterOffenses(rows, { type: "wrong_device" }).map((r) => r.id)).toEqual(["b"]);
   });
-  it("openOnly liefert nur status open", () => {
-    expect(filterOffenses(rows, { openOnly: true }).map((r) => r.id)).toEqual(["a"]);
+  it("openOnly liefert, was openOffenseCount zählt — auch bestraft-nicht-erledigt", () => {
+    // #110: bis schemaVersion 3 filterte `openOnly` eng auf `status === "open"`, während der Zähler
+    // daneben breit zählte. Ein „1 offenes Vergehen" stand dann neben einer leeren Liste.
+    expect(filterOffenses([...rows, pending, settled], { openOnly: true }).map((r) => r.id))
+      .toEqual(["a", "p"]);
   });
   it("from/to grenzt auf detectedAt ein und wirft Zeilen ohne detectedAt raus", () => {
     expect(filterOffenses(rows, { from: "2026-07-10T00:00:00+02:00" }).map((r) => r.id)).toEqual(["b"]);

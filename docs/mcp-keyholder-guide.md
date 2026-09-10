@@ -206,7 +206,8 @@ Sperre `cleaningAllowed` hat. Freie Wechsel erlauben ⇒ `cleaningAllowed` setze
 - **Urteilen** via `judge_offense` (ref = `id` aus `get_offenses`): `dismiss` (verwerfen),
   `punish` + `text` (die Strafe als **freier Text** — kein Typen-Zoo, keine automatische Sperre),
   `complete` (Strafe erledigt), `reopen` (revidieren). `openOffenseCount` = unbeurteilt ODER
-  bestraft-aber-nicht-erledigt. Willst du eine Sperre als Strafe, setze sie separat über
+  bestraft-aber-nicht-erledigt — und `openOnly` sowie die `top`-Liste des Dashboards wählen nach
+  derselben Regel aus. Willst du eine Sperre als Strafe, setze sie separat über
   `set_lock_period`.
 
 ## 6. Orgasmus-Direktive (`request_orgasm`)

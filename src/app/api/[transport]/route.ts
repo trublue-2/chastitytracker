@@ -609,7 +609,7 @@ function registerTools(server: McpServer) {
           "Zähler (detectedOffenseCount/openOffenseCount/pendingPenaltyCount) bleiben UNGEFILTERTE Gesamtstände.",
         inputSchema: {
           type: z.enum(OFFENSE_TYPES).optional().describe("Nur diesen Vergehenstyp."),
-          openOnly: z.boolean().optional().describe("Nur noch nicht beurteilte (status open)."),
+          openOnly: z.boolean().optional().describe("Nur die Zeilen, die openOffenseCount zählt: unbeurteilt ODER bestraft mit unerledigter Strafe. Nur die unbeurteilten willst du? Antwort auf status === 'open' filtern."),
           from: z.string().optional().describe("ISO-8601 untere Grenze auf detectedAt."),
           to: z.string().optional().describe("ISO-8601 obere Grenze auf detectedAt."),
           limit: z.number().int().min(1).max(200).optional().describe("Neueste zuerst, dann auf limit gekürzt."),
