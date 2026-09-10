@@ -116,44 +116,53 @@ export default function DashboardStack({
   // damit den NACHBARN zurück an seinen alten Platz — die beiden Klicks hoben sich auf, und der
   // Block stand wieder da, wo er war. Die Aktualisierungs-Form allein deckt das nicht ab: sie hält
   // den Zustand frisch, nicht das Argument.
-  function move(id: string, delta: number) {
-    // Der Bereichs-Test steht HIER und nicht nur im Aktualisierer: die Pfeile sind `aria-disabled`
-    // und damit weiterhin auslösbar — wer am Rand Enter drückt, löste sonst zwar keinen Tausch aus,
-    // bekäme aber trotzdem die Ansage „ist jetzt an Position 1 von 12" für einen Zug, den es nicht
-    // gab. Stand vorher ein anderer Block in der Region, wechselte sie sogar auf den falschen Namen.
+  /**
+   * Eine Bewegung des Blocks `id` — `apply` sagt, welche: ein Tausch mit dem Nachbarn oder ein
+   * Sprung an den Rand. Beide unterscheiden sich nur darin; alles davor und danach (Ansprache über
+   * die ID, Bereichs-Test, Ansage) ist dieselbe Figur, und die dritte Bewegungsart wäre sonst ihre
+   * dritte Abschrift.
+   *
+   * Der Bereichs-Test (`atEdge`) steht HIER und nicht nur im Aktualisierer: die Pfeile sind
+   * `aria-disabled` und damit weiterhin auslösbar — wer am Rand Enter drückt, löste sonst zwar
+   * keine Bewegung aus, bekäme aber trotzdem die Ansage „ist jetzt an Position 1 von 12" für einen
+   * Zug, den es nicht gab. Stand vorher ein anderer Block in der Region, wechselte sie sogar auf
+   * den falschen Namen.
+   */
+  function reposition(
+    id: string,
+    atEdge: (index: number, len: number) => boolean,
+    apply: (list: StackBlockMeta[], from: number) => StackBlockMeta[],
+  ) {
     const index = draft.findIndex((b) => b.id === id);
-    const to = index + delta;
-    if (index < 0 || to < 0 || to >= draft.length) return;
+    if (index < 0 || atEdge(index, draft.length)) return;
 
-    setDraft((prev) => {
-      // Im Aktualisierer noch einmal suchen, statt `index` von oben zu verwenden: zwischen dem Test
-      // und diesem Aufruf kann eine zweite Betätigung liegen, und ein Index aus dem alten Entwurf
-      // vertauschte dann die falschen beiden Zeilen.
-      const from = prev.findIndex((b) => b.id === id);
-      // `swapAt` bringt die Randprüfung mit (ausserhalb der Liste gibt es `prev` unverändert
-      // zurück) — sie hier ein zweites Mal hinzuschreiben ist genau das, was sein Docblock den
-      // Aufrufern erspart. Bei `from === -1` fällt sie ebenfalls durch.
-      return swapAt(prev, from, from + delta);
-    });
+    // Im Aktualisierer noch einmal suchen, statt `index` von oben zu verwenden: zwischen dem Test
+    // und diesem Aufruf kann eine zweite Betätigung liegen, und ein Index aus dem alten Entwurf
+    // bewegte dann die falsche Zeile.
+    setDraft((prev) => apply(prev, prev.findIndex((b) => b.id === id)));
     // Merkt sich WEN es zuletzt getroffen hat; die neue Position liest die Ansage unten aus dem
-    // fertigen Entwurf. Sie hier auszurechnen hiesse, die Vertauschung ein zweites Mal nachzubauen.
+    // fertigen Entwurf. Sie hier auszurechnen hiesse, die Bewegung ein zweites Mal nachzubauen.
     setMovedId(id);
+  }
+
+  function move(id: string, delta: number) {
+    // `swapAt` bringt die Randprüfung mit (ausserhalb der Liste gibt es die Liste unverändert
+    // zurück) — sie hier ein zweites Mal hinzuschreiben ist genau das, was sein Docblock den
+    // Aufrufern erspart. Bei `from === -1` fällt sie ebenfalls durch.
+    reposition(id, (i, len) => i + delta < 0 || i + delta >= len, (prev, from) => swapAt(prev, from, from + delta));
   }
 
   /**
    * Der Sprung an den Rand — für die weiten Wege, die als Einzelschritte nicht zu tippen sind: von
    * Platz 15 auf Platz 1 waren es vierzehn Antipper auf einen Knopf, der bei jedem eine Zeile
    * weiterwandert (#72).
-   *
-   * Dieselbe Vorsicht wie `move`: Ansprache über die ID, Prüfung im Aktualisierer, damit zwei
-   * schnelle Klicks im selben Batch nicht auf einem überholten Stand rechnen.
    */
   function jump(id: string, edge: "start" | "end") {
-    const index = draft.findIndex((b) => b.id === id);
-    if (index < 0 || (edge === "start" ? index === 0 : index === draft.length - 1)) return;
-
-    setDraft((prev) => moveToEdge(prev, prev.findIndex((b) => b.id === id), edge));
-    setMovedId(id);
+    reposition(
+      id,
+      (i, len) => (edge === "start" ? i === 0 : i === len - 1),
+      (prev, from) => moveToEdge(prev, from, edge),
+    );
   }
 
   /** Ein Umschalter für beide Spalten: `hidden` und `collapsed` unterscheiden sich nur im Feld

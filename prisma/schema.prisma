@@ -1025,8 +1025,11 @@ model OffenseStatement {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Dieselbe ref wie in `StrafeRecord` — die Vergehens-Identität.
   refId       String   @unique
-  /// Die Vergehens-Art, mitgeschrieben wie in `StrafeRecord`: die Anzeige soll sie nicht aus dem
-  /// Kontext raten müssen, und ein verwaister Eintrag könnte es gar nicht.
+  /// Die Vergehens-Art, mitgeschrieben wie in `StrafeRecord` — vom Server aus der Meldung gelesen,
+  /// unter der der Träger geschrieben hat (`announcedOffenseType`), nie vom Client gesetzt.
+  /// Beide heutigen Sichten kennen die Art aus ihrem eigenen Kontext und lesen die Spalte nicht;
+  /// sie hält fest, WORAUF sich der Text bezieht, ohne diesen Kontext — die Zeile bleibt damit auch
+  /// dann lesbar, wenn die Meldung, aus der sie stammt, nicht mehr zur Hand ist.
   offenseType String
   text        String
   createdAt   DateTime @default(now())

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { statementBlockedReason, normalizeStatementText } from "./offenseStatementService";
-import { offenseCanonicalFromNameKey, offenseCanonicalOrNull, offenseNameKey, OFFENSE_TYPE_I18N_KEYS } from "./offenseLabels";
+import { offenseCanonicalFromNameKey, offenseNameKey, OFFENSE_TYPE_I18N_KEYS } from "./offenseLabels";
 import type { OffenseCanonicalType } from "./offenseTypes";
 
 const OFFENSE_TYPES_FOR_TEST = Object.keys(OFFENSE_TYPE_I18N_KEYS) as OffenseCanonicalType[];
@@ -81,11 +81,3 @@ describe("offenseCanonicalFromNameKey", () => {
   });
 });
 
-describe("offenseCanonicalOrNull", () => {
-  it("nimmt eine gültige Art an und weist alles andere ab", () => {
-    expect(offenseCanonicalOrNull("late_control")).toBe("late_control");
-    expect(offenseCanonicalOrNull("lateControl")).toBeNull();
-    expect(offenseCanonicalOrNull(42)).toBeNull();
-    expect(offenseCanonicalOrNull(undefined)).toBeNull();
-  });
-});

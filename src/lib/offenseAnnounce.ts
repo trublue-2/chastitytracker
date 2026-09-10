@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { deployCutoff } from "@/lib/appMeta";
 import { loadSubOffenses, type SubOffense } from "@/lib/subOffenses";
-import { recordSystemMessage, OFFENSE_REF_TYPE } from "@/lib/messageService";
-import { offenseNameKey } from "@/lib/offenseLabels";
+import { recordSystemMessage, OFFENSE_REF_TYPE, parseParams } from "@/lib/messageService";
+import { offenseCanonicalFromNameKey, offenseNameKey } from "@/lib/offenseLabels";
 import type { OffenseCanonicalType } from "@/lib/offenseTypes";
 
 /**
@@ -114,14 +114,18 @@ function detectedParams(o: AnnounceableOffense): Record<string, string> {
  * dauerhaft und lautlos. (Der Index führt `audience` nicht; das kostet hier nichts, weil die drei
  * Index-Spalten die Menge schon auf wenige Zeilen eingrenzen.)
  */
+function announcedWhere(userId: string, refId: string | { in: string[] }) {
+  return {
+    subjectUserId: userId,
+    audience: "sub" as const,
+    refEntityType: OFFENSE_REF_TYPE,
+    refEntityId: refId,
+  };
+}
+
 async function announcedRefs(userId: string, refIds: string[]): Promise<Set<string>> {
   const rows = await prisma.message.findMany({
-    where: {
-      subjectUserId: userId,
-      audience: "sub",
-      refEntityType: OFFENSE_REF_TYPE,
-      refEntityId: { in: refIds },
-    },
+    where: announcedWhere(userId, { in: refIds }),
     select: { refEntityId: true },
   });
   return new Set(rows.flatMap((m) => (m.refEntityId ? [m.refEntityId] : [])));
@@ -132,6 +136,32 @@ async function announcedRefs(userId: string, refIds: string[]): Promise<Set<stri
  *  einer Geschichte, die der Posteingang nie erzählt hat. */
 export async function offenseWasAnnounced(userId: string, refId: string): Promise<boolean> {
   return (await announcedRefs(userId, [refId])).has(refId);
+}
+
+/**
+ * Welche Vergehensart der Träger unter dieser `refId` gemeldet BEKOMMEN hat — `null`, wenn ihm dazu
+ * nie eine Meldung zugestellt wurde oder sie keine auflösbare Art trägt.
+ *
+ * Zwei Fragen in einer Abfrage, und das ist der Punkt: Die Stellungnahme braucht beides — „gehört
+ * dieses Vergehen ihm?" und „worunter wird gespeichert?". Vergehen sind eine Live-Ableitung, es gibt
+ * keine Tabelle, in der stünde, wem eines gehört; die Meldung im Posteingang ist der Beleg. Und weil
+ * sie die Art ohnehin als i18n-Schlüssel trägt, muss der Client sie nicht mitschicken — ein Feld,
+ * das von aussen kommt, müsste geprüft werden und könnte trotzdem eine andere Art benennen als die,
+ * unter der er gerade liest.
+ *
+ * Ohne diese Prüfung könnte jeder Angemeldete unter der `refId` eines FREMDEN Vergehens schreiben:
+ * `refId` ist der eindeutige Schlüssel der Stellungnahme-Tabelle, der Text erschiene im Posteingang
+ * des anderen — und weil die Zeile dann besetzt ist, wäre der Eigentümer selbst ausgesperrt. Ein
+ * Angriff, der keine Rechte braucht, nur eine fremde id.
+ */
+export async function announcedOffenseType(userId: string, refId: string): Promise<OffenseCanonicalType | null> {
+  const row = await prisma.message.findFirst({
+    where: announcedWhere(userId, refId),
+    select: { bodyParams: true },
+  });
+  if (!row) return null;
+  const offenseKey = parseParams(row.bodyParams)?.offenseKey;
+  return offenseCanonicalFromNameKey(typeof offenseKey === "string" ? offenseKey : null);
 }
 
 /**

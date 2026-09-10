@@ -400,7 +400,7 @@ export interface InboxMessage {
  *  der Grund, warum aus dem wachsenden „Mehr laden" echte Seiten wurden. */
 export const MESSAGE_PAGE_SIZE = 20;
 
-function parseParams(raw: string | null): Record<string, string | number> | null {
+export function parseParams(raw: string | null): Record<string, string | number> | null {
   if (!raw) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -787,28 +787,6 @@ function messageWhere(scope: InboxScope, filter: MessageFilter = {}): Prisma.Mes
 }
 
 /**
- * Eine SEITE des Posteingangs, absteigend nach Zeit, ohne die verborgenen.
- *
- * Der Sichtbarkeits-Filter steht bewusst hier und nicht in der Anzeige: eine Nachricht zu einer
- * terminierten, noch nicht ausgelösten Direktive verriete genau die Überraschung, die der Sinn der
- * Terminierung ist — und sie zu rendern und dann auszublenden hiesse, sie schon ausgeliefert zu
- * haben.
- *
- * BEKANNTE UNSCHÄRFE: Die Seitenzahl zählt in der DATENBANK, der Sichtbarkeits-Filter greift erst
- * auf der geladenen Seite. Eine verborgene Nachricht zählt also mit, ohne zu erscheinen — eine Seite
- * kann kürzer sein als `MESSAGE_PAGE_SIZE`, und bei aktivem Ungelesen-Filter kann `pageCount` eine
- * etwas andere Menge meinen als die Zahl in der Glocke daneben (die kommt aus
- * `visibleUnreadRows`, das die Sichtbarkeit auflöst).
- *
- * Bewusst so, aber NICHT weil das Auflösen zu teuer wäre — `visibleUnreadRows` tut genau das auf
- * jeder Dashboard-Seite. Der genaue Weg hiesse, die Sichtbarkeit für ALLE Nachrichten des Nutzers
- * aufzulösen (nicht nur die ungelesenen), also den ganzen Posteingang zu laden, statt eine
- * indizierte Zählung zu fahren und 20 Zeilen zu holen. Verborgene Zeilen sind selten (terminierte
- * Direktiven, verworfene Urteile); dafür den Normalfall linear mit dem Posteingang wachsen zu
- * lassen, wäre der schlechtere Handel. Wird die Abweichung je störend, ist die Auflösung eine
- * gemeinsame `visibleMessageIds(userId, filter)` für Zähler, Liste und Seitenzahl.
- */
-/**
  * Auf welcher Seite steht diese Nachricht?
  *
  * Gezählt wird, was in DERSELBEN Sortierung vor ihr liegt (`createdAt desc, id desc`) — das zweite
@@ -848,6 +826,28 @@ export async function pageOfMessage(
   return Math.floor(before / MESSAGE_PAGE_SIZE) + 1;
 }
 
+/**
+ * Eine SEITE des Posteingangs, absteigend nach Zeit, ohne die verborgenen.
+ *
+ * Der Sichtbarkeits-Filter steht bewusst hier und nicht in der Anzeige: eine Nachricht zu einer
+ * terminierten, noch nicht ausgelösten Direktive verriete genau die Überraschung, die der Sinn der
+ * Terminierung ist — und sie zu rendern und dann auszublenden hiesse, sie schon ausgeliefert zu
+ * haben.
+ *
+ * BEKANNTE UNSCHÄRFE: Die Seitenzahl zählt in der DATENBANK, der Sichtbarkeits-Filter greift erst
+ * auf der geladenen Seite. Eine verborgene Nachricht zählt also mit, ohne zu erscheinen — eine Seite
+ * kann kürzer sein als `MESSAGE_PAGE_SIZE`, und bei aktivem Ungelesen-Filter kann `pageCount` eine
+ * etwas andere Menge meinen als die Zahl in der Glocke daneben (die kommt aus
+ * `visibleUnreadRows`, das die Sichtbarkeit auflöst).
+ *
+ * Bewusst so, aber NICHT weil das Auflösen zu teuer wäre — `visibleUnreadRows` tut genau das auf
+ * jeder Dashboard-Seite. Der genaue Weg hiesse, die Sichtbarkeit für ALLE Nachrichten des Nutzers
+ * aufzulösen (nicht nur die ungelesenen), also den ganzen Posteingang zu laden, statt eine
+ * indizierte Zählung zu fahren und 20 Zeilen zu holen. Verborgene Zeilen sind selten (terminierte
+ * Direktiven, verworfene Urteile); dafür den Normalfall linear mit dem Posteingang wachsen zu
+ * lassen, wäre der schlechtere Handel. Wird die Abweichung je störend, ist die Auflösung eine
+ * gemeinsame `visibleMessageIds(userId, filter)` für Zähler, Liste und Seitenzahl.
+ */
 export async function listMessages(
   scope: InboxScope,
   opts: { page?: number; filter?: MessageFilter } = {},

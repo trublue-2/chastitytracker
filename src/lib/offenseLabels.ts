@@ -69,17 +69,6 @@ const CANONICAL_BY_NAME_KEY: Record<string, OffenseCanonicalType> = Object.fromE
 );
 
 /**
- * Ist das eine gültige Vergehensart? Gibt sie GETYPT zurück, sonst `null`.
- *
- * Für die Ränder, an denen eine Art von aussen hereinkommt (heute der Schreibweg der Stellungnahme).
- * Über die Tabelle selbst geprüft, nicht gegen eine zweite Liste — eine neue Art ist damit sofort
- * gültig, ohne dass jemand daran denken muss.
- */
-export function offenseCanonicalOrNull(raw: unknown): OffenseCanonicalType | null {
-  return typeof raw === "string" && raw in OFFENSE_TYPE_I18N_KEYS ? (raw as OffenseCanonicalType) : null;
-}
-
-/**
  * Welche Art steckt hinter dem Namens-Schlüssel einer Meldung? `null`, wenn keine.
  *
  * Die Vergehens-Meldung im Posteingang trägt die Art als i18n-Schlüssel (`bodyParams.offenseKey`)

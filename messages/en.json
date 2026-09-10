@@ -1749,8 +1749,6 @@
     "statementEmpty": "Nothing written yet.",
     "statementWrite": "Comment",
     "statementEdit": "Edit",
-    "statementSave": "Save",
-    "statementCancel": "Cancel",
     "statementDelete": "Withdraw",
     "statementPlaceholder": "Anything to say about this?",
     "sender": {

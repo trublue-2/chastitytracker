@@ -638,9 +638,7 @@ export default function MessageList({
                 // Lokal statt neu laden: `loadOnce` setzt `openId` zurück, und die Zeile klappte
                 // genau in dem Moment zu, in dem er sie gerade beschrieben hat.
                 onStatementSaved={(text) => setMessages((prev) => prev.map((x) => (
-                  x.id === m.id && x.statement
-                    ? { ...x, statement: { ...x.statement, text, editedAt: text && x.statement.text ? new Date().toISOString() : x.statement.editedAt } }
-                    : x
+                  x.id === m.id && x.statement ? { ...x, statement: { ...x.statement, text } } : x
                 )))}
                 keyholderName={keyholderName}
                 dl={dl}

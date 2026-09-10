@@ -240,4 +240,4 @@ if (require.main === module) {
     .finally(() => prisma.$disconnect());
 }
 
-module.exports = { backfillOrgasmusArtenConfig, ORGASM_MAIN_WITH_SUBS, ART_SEP, safeAdminUsername, AI_AUTHOR };
+module.exports = { backfillOrgasmusArtenConfig, ORGASM_MAIN_WITH_SUBS, ART_SEP, safeAdminUsername, AI_AUTHOR, NOTIFICATION_EVENT_TYPES };

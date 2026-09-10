@@ -70,16 +70,18 @@ export async function queryNotes(username: string, opts: QueryNotesOptions = {})
   // wie der Write-Guard). `offense` fehlt dort bewusst (polymorphe refId) → nicht prüfbar, kein Flag.
   const refCheck = opts.entityType && opts.entityId ? REF_EXISTS[opts.entityType as EntityType] : undefined;
   const unknownRef = refCheck ? !(await refCheck(prisma, userId, opts.entityId!)) : false;
+  // Vorgabe „active"; `"all"` hebt den Filter auf, und eine per `id` angefragte Notiz kommt
+  // ebenfalls ohne — wer sie beim Namen nennt, meint genau sie, auch wenn sie inzwischen ersetzt
+  // wurde; sonst wäre der Nachlade-Weg für alles Superseded eine Sackgasse. Ein ausdrücklich
+  // gesetzter `status` gilt weiterhin. Als Zeile davor und nicht als Ausdruck im Spread: drei
+  // Regeln in einem Ternär brauchten mehr Kommentar als Code, und die vierte passte nicht hinein.
+  const statusFilter = opts.status === "all" || (opts.id && !opts.status) ? null : opts.status ?? "active";
   const notes = await prisma.keyholderNote.findMany({
     where: {
       userId,
       ...(opts.id ? { id: opts.id } : {}),
       ...(opts.type ? { type: opts.type } : {}),
-      // Default: nur aktive Notes; "all" hebt den Filter auf. Eine per `id` angefragte Notiz kommt
-      // ohne Status-Filter — wer sie beim Namen nennt, meint genau sie, auch wenn sie inzwischen
-      // ersetzt wurde; sonst wäre der Nachlade-Weg für alles Superseded eine Sackgasse. Ein
-      // ausdrücklich gesetzter `status` gilt weiterhin.
-      ...(opts.status === "all" || (opts.id && opts.status == null) ? {} : { status: opts.status ?? "active" }),
+      ...(statusFilter ? { status: statusFilter } : {}),
       ...(opts.pinned != null ? { pinned: opts.pinned } : {}),
       ...(opts.kg ? { kg: opts.kg } : {}),
       ...refFilter,

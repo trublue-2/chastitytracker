@@ -15,6 +15,7 @@ import { setReasonConfig } from "@/lib/reasonsService";
 import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
 import { weightTrackingEnabled, heimdallEnabled } from "@/lib/constants";
 import { setLockRequiresBolt } from "@/lib/lockCommit";
+import { setOffenseStatementsAllowed } from "@/lib/offenseStatementService";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { serviceResponse } from "@/lib/serviceResult";
 import { normalizeQuickSettings } from "@/lib/quickSettings";
@@ -206,11 +207,10 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
-  // Darf der Träger zu einem Vergehen Stellung nehmen? Ein blosser Schalter am Träger, KEINE
-  // Regel-Historie: `OffenseRuleChange` beantwortet „welche Art zählte wann", und ob er etwas dazu
-  // sagen durfte, ist keine Antwort darauf. Eine Zeile dort verfälschte die Rückrechnung.
+  // Darf der Träger zu einem Vergehen Stellung nehmen? Über den Dienst, wie `lockRequiresBolt` —
+  // der MCP legt denselben Schalter um.
   if (body.offenseStatementsAllowed !== undefined) {
-    await prisma.user.update({ where: { id }, data: { offenseStatementsAllowed: Boolean(body.offenseStatementsAllowed) } });
+    await setOffenseStatementsAllowed(id, Boolean(body.offenseStatementsAllowed));
     return NextResponse.json({ ok: true });
   }
 

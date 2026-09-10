@@ -185,7 +185,11 @@ async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): 
   // und dieselbe Funktion wie in der Posteingangs-Anzeige (`messagePresenter`). Ohne sie warf die
   // erste Meldung, die beide Wege ging, mit `FORMATTING_ERROR`: der Text verlangt `{offense}`, in
   // den Parametern stand `offenseKey`. Die Posteingangs-Zeile stand, Mail und Push fielen still aus.
-  const resolved = withOffenseName(params, await localeT(user.locale, "offenses"));
+  // Der Übersetzer NUR, wo eine Art aufzulösen ist: er wird je Empfänger neu gebaut, und drei von
+  // Dutzenden Meldungstypen tragen den Parameter.
+  const resolved = params?.offenseKey === undefined
+    ? params
+    : withOffenseName(params, await localeT(user.locale, "offenses"));
   const subject = t(subjectKey, resolved);
   const message = t(messageKey, resolved);
 

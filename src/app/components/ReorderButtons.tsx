@@ -66,53 +66,39 @@ export default function ReorderButtons({
   const cls = `${iconButtonCls} ${busyDimCls} text-foreground-faint hover:text-foreground disabled:opacity-50 transition`;
   const atStart = index === 0;
   const atEnd = index === count - 1;
+
+  /** EIN Pfeil — die vier unterscheiden sich nur in Zeichen, Name und Rand-Prädikat. Ausgeschrieben
+   *  stand die `aria-disabled`-Regel viermal da, und eine Kopie kann sie verlieren, ohne dass es
+   *  auffällt. */
+  const arrow = (
+    Icon: typeof ChevronUp,
+    label: string | undefined,
+    atEdge: boolean,
+    act: () => void,
+  ) => (
+    <button
+      type="button"
+      onClick={() => { if (!atEdge) act(); }}
+      disabled={disabled}
+      aria-disabled={disabled || atEdge}
+      aria-label={label}
+      className={cls}
+    >
+      <Icon size={14} />
+    </button>
+  );
+
   return (
     <div className="flex shrink-0">
       {onJump && (
         <div className="flex flex-col">
-          <button
-            type="button"
-            onClick={() => { if (!atStart) onJump("start"); }}
-            disabled={disabled}
-            aria-disabled={disabled || atStart}
-            aria-label={jumpStartLabel}
-            className={cls}
-          >
-            <ChevronsUp size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={() => { if (!atEnd) onJump("end"); }}
-            disabled={disabled}
-            aria-disabled={disabled || atEnd}
-            aria-label={jumpEndLabel}
-            className={cls}
-          >
-            <ChevronsDown size={14} />
-          </button>
+          {arrow(ChevronsUp, jumpStartLabel, atStart, () => onJump("start"))}
+          {arrow(ChevronsDown, jumpEndLabel, atEnd, () => onJump("end"))}
         </div>
       )}
       <div className="flex flex-col">
-        <button
-          type="button"
-          onClick={() => { if (!atStart) onMove(-1); }}
-          disabled={disabled}
-          aria-disabled={disabled || atStart}
-          aria-label={upLabel}
-          className={cls}
-        >
-          <ChevronUp size={14} />
-        </button>
-        <button
-          type="button"
-          onClick={() => { if (!atEnd) onMove(1); }}
-          disabled={disabled}
-          aria-disabled={disabled || atEnd}
-          aria-label={downLabel}
-          className={cls}
-        >
-          <ChevronDown size={14} />
-        </button>
+        {arrow(ChevronUp, upLabel, atStart, () => onMove(-1))}
+        {arrow(ChevronDown, downLabel, atEnd, () => onMove(1))}
       </div>
     </div>
   );

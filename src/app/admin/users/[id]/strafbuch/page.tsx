@@ -27,7 +27,13 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
 
   logAccess(session?.user.name ?? "?", `/admin/users/${user.username}/strafbuch`);
 
-  const sb = await buildStrafbuch(id, now);
+  // ALLE Stellungnahmen dieses Trägers, nicht die zu einer Auswahl von refIds: die Seite zeigt sein
+  // ganzes Strafbuch, und die gefragte Menge wäre damit ohnehin die volle. Eine Stellungnahme
+  // entsteht nur dort, wo er etwas geschrieben hat — die Tabelle bleibt klein.
+  //
+  // NEBEN der Ableitung, nicht dahinter: sie hängt an nichts, was `buildStrafbuch` liefert, und
+  // hinter dem teuersten Aufruf der Seite eingereiht kostete sie eine eigene Runde zur Datenbank.
+  const [sb, statementRows] = await Promise.all([buildStrafbuch(id, now), loadStatementsOfUser(id)]);
 
   const cleaningLimitOffenses: CleaningLimitRow[] = sb.cleaningLimitViolations.map((v) => ({
     entryId: v.entryId,
@@ -153,15 +159,10 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       erledigtAtStr: r.erledigtAt ? formatDate(r.erledigtAt, dl, tz) : null,
     }));
 
-  // ALLE Stellungnahmen dieses Trägers, nicht die zu einer Auswahl von refIds: die Seite zeigt sein
-  // ganzes Strafbuch, und die gefragte Menge wäre damit ohnehin die volle. Eine Stellungnahme
-  // entsteht nur dort, wo er etwas geschrieben hat — die Tabelle bleibt klein.
-  const statementRows = await loadStatementsOfUser(id);
   const statements: Record<string, StatementView> = Object.fromEntries(
     [...statementRows].map(([refId, r]) => [refId, {
       text: r.text,
-      // „geändert am" nur, wo wirklich nachgebessert wurde — `updatedAt` steht bei jeder Zeile.
-      editedAtStr: r.updatedAt.getTime() !== r.createdAt.getTime() ? formatDate(r.updatedAt, dl, tz) : null,
+      editedAtStr: r.editedAt ? formatDate(r.editedAt, dl, tz) : null,
     }]),
   );
 

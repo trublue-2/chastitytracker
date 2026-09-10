@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
 import { DEFAULT_ORGASM_ARTEN, backfillOrgasmusArtenConfig, ART_SEP } from "./reasonsService";
 import { AI_AUTHOR, NOTIFICATION_EVENT_TYPES } from "./constants";
 
@@ -14,6 +13,7 @@ const seed = require("../../scripts/seed.js") as {
   backfillOrgasmusArtenConfig: (raw: unknown) => string | null;
   safeAdminUsername: (raw: string | undefined) => string;
   AI_AUTHOR: string;
+  NOTIFICATION_EVENT_TYPES: string[];
 };
 
 describe("seed.js mirror stays in sync with reasonsService", () => {
@@ -84,15 +84,12 @@ describe("seed.js schützt die KI-Kennung als Admin-Namen", () => {
  * Keyholderin, lässt sich umlegen, und beim nächsten Start ist er wieder da. Nichts stürzt ab,
  * nichts meldet sich; es gilt nur dauerhaft etwas anderes, als die Oberfläche zeigt.
  *
- * Über den Dateitext statt über einen Export: die Liste ist in `seed.js` eine lokale Konstante, und
- * sie dafür zu exportieren hiesse, die Datei für ihren Test umzubauen.
+ * Über den EXPORT und nicht über den Dateitext: `seed.js` reicht für genau diese Tests bereits fünf
+ * Werte heraus, eine Regex auf den Quelltext wäre die brüchigere von zwei nebeneinanderliegenden
+ * Möglichkeiten — sie bricht schon an einer umgebrochenen Zeile.
  */
 describe("seed.js mirror stays in sync with NOTIFICATION_EVENT_TYPES", () => {
   it("führt dieselben Ereignistypen", () => {
-    const text = readFileSync("scripts/seed.js", "utf8");
-    const block = text.match(/const NOTIFICATION_EVENT_TYPES = \[([\s\S]*?)\];/);
-    expect(block, "Die Liste in seed.js ist nicht mehr auffindbar - Name oder Form geändert?").toBeTruthy();
-    const inSeed = [...block![1].matchAll(/"([A-Z_]+)"/g)].map((m) => m[1]);
-    expect(inSeed).toEqual([...NOTIFICATION_EVENT_TYPES]);
+    expect(seed.NOTIFICATION_EVENT_TYPES).toEqual([...NOTIFICATION_EVENT_TYPES]);
   });
 });

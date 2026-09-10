@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { formatDurationMs, formatTotalHours } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
 import BlockHeading from "@/app/components/BlockHeading";
 import Section from "@/app/components/Section";
-import ExpandToggle from "@/app/components/ExpandToggle";
+import ShowMore, { useShowMore } from "@/app/components/ShowMore";
 import { blockInsetCls } from "@/app/components/inputStyles";
 
 import type { MonthStat } from "@/lib/statsTypes";
@@ -15,9 +14,7 @@ const INITIAL_COUNT = 2;
 export default function MonthStats({ months }: { months: MonthStat[] }) {
   const t = useTranslations("stats");
   const locale = useLocale();
-  const [showAll, setShowAll] = useState(false);
-  const visible = showAll ? months : months.slice(0, INITIAL_COUNT);
-  const hidden = months.length - INITIAL_COUNT;
+  const { visible, hidden, showAll, toggle } = useShowMore(months, INITIAL_COUNT);
 
   return (
     <Section title={t("monthlyOverview")}>
@@ -70,15 +67,7 @@ export default function MonthStats({ months }: { months: MonthStat[] }) {
           );
         })}
       </div>
-      {/* Bleibt stehen, sobald es etwas zu klappen gibt — sonst nähme das Aufklappen den einzigen
-          Weg zurück mit sich. */}
-      {hidden > 0 && (
-        <ExpandToggle
-          label={showAll ? t("showLess") : t("showMore", { count: hidden })}
-          open={showAll}
-          onToggle={() => setShowAll((v) => !v)}
-        />
-      )}
+      <ShowMore hidden={hidden} showAll={showAll} onToggle={toggle} />
     </Section>
   );
 }

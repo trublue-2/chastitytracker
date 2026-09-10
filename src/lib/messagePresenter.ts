@@ -3,7 +3,7 @@ import type { InboxMessage, MessageSenderKind } from "@/lib/messageService";
 import { messageCategory, type MessageCategory } from "@/lib/messageCategories";
 import { inspectionHref } from "@/lib/entryFormRoute";
 import { offenseCanonicalFromNameKey, withOffenseName } from "@/lib/offenseLabels";
-import { loadStatementGates, loadStatements, statementBlockedReason } from "@/lib/offenseStatementService";
+import { loadStatementGates, loadStatements, statementBlockedReason, type LoadedStatement } from "@/lib/offenseStatementService";
 
 /** Eine anzeigefertige Nachricht: alle Texte aufgelöst, keine i18n-Schlüssel mehr. */
 export interface PresentedMessage {
@@ -37,12 +37,8 @@ export interface PresentedMessage {
    */
   statement: {
     refId: string;
-    /** Die kanonische Art, für den Schreibweg — aus dem Namens-Schlüssel der Meldung zurückgelesen. */
-    offenseType: string;
     text: string | null;
     editable: boolean;
-    /** Gesetzt, wenn der Text nach dem ersten Absenden geändert wurde. */
-    editedAt: string | null;
   } | null;
 }
 
@@ -94,31 +90,27 @@ export async function presentMessages(
 }
 
 /**
- * Die Stellungnahme-Spalte einer Zeile — Text, Schreibrecht und die Art, unter der geschrieben wird.
+ * Die Stellungnahme-Spalte einer Zeile — Text und Schreibrecht.
  *
- * `null` bleibt sie, wo es kein Vergehen gibt, wo die Art nicht mehr auflösbar ist (dann wüsste der
- * Schreibweg nicht, worunter er speichern soll) und im Keyholder-Posteingang, solange dort weder
- * Text noch Recht vorliegen — eine leere Hülle wäre für die Anzeige dasselbe wie gar keine.
+ * `null` bleibt sie, wo es kein Vergehen gibt, wo die Meldung keine auflösbare Art trägt und im
+ * Keyholder-Posteingang, solange dort weder Text noch Recht vorliegen — eine leere Hülle wäre für
+ * die Anzeige dasselbe wie gar keine.
+ *
+ * Die Art wird hier nur GEPRÜFT, nicht ausgeliefert: der Schreibweg liest sie selbst aus derselben
+ * Meldung (`announcedOffenseType`). Wo sie fehlt, antwortete er mit 404 — ein Feld anzubieten hiesse
+ * dort, ein Versprechen zu geben, das der Server ablehnt.
  */
 function statementOf(
   m: InboxMessage,
-  statements: Map<string, { text: string; createdAt: Date; updatedAt: Date }>,
+  statements: Map<string, LoadedStatement>,
   gates: Map<string, { allowed: boolean; judgedBy: string | null }>,
 ): PresentedMessage["statement"] {
   const refId = m.offenseRefId;
   if (!refId) return null;
-  const offenseType = offenseCanonicalFromNameKey(m.bodyParams?.offenseKey as string | undefined);
-  if (!offenseType) return null;
+  if (!offenseCanonicalFromNameKey(m.bodyParams?.offenseKey as string | undefined)) return null;
   const row = statements.get(refId) ?? null;
   const gate = gates.get(refId);
   const editable = gate ? statementBlockedReason(gate) === null : false;
   if (!row && !editable) return null;
-  return {
-    refId,
-    offenseType,
-    text: row?.text ?? null,
-    editable,
-    // Nur wo wirklich nachgebessert wurde: `updatedAt` steht bei jeder Zeile, auch der unberührten.
-    editedAt: row && row.updatedAt.getTime() !== row.createdAt.getTime() ? row.updatedAt.toISOString() : null,
-  };
+  return { refId, text: row?.text ?? null, editable };
 }

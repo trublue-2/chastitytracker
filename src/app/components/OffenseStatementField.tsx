@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
-import DetailField from "@/app/components/DetailField";
-import FormError from "@/app/components/FormError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import QuotedField from "@/app/components/QuotedField";
+import Textarea from "@/app/components/Textarea";
+import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/constants";
 import type { PresentedMessage } from "@/lib/messagePresenter";
@@ -32,6 +32,7 @@ export default function OffenseStatementField({
   onSaved: (text: string | null) => void;
 }) {
   const t = useTranslations("messages");
+  const tc = useTranslations("common");
   const apiError = useApiError();
   const [text, setText] = useState(statement.text ?? "");
   const [editing, setEditing] = useState(false);
@@ -44,10 +45,10 @@ export default function OffenseStatementField({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/offense-statement", {
+      const res = await fetchWithTimeout("/api/offense-statement", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refId: statement.refId, offenseType: statement.offenseType, text: value }),
+        body: JSON.stringify({ refId: statement.refId, text: value }),
       });
       if (!res.ok) {
         // Der Text bleibt STEHEN. Der häufigste Fehlschlag hier ist ein Urteil, das ihn beim
@@ -66,58 +67,44 @@ export default function OffenseStatementField({
   }
 
   const hasText = Boolean(statement.text);
+  const open = statement.editable && editing;
 
-  if (!statement.editable || !editing) {
-    return (
-      <div className="pl-4 flex flex-col gap-2 items-start">
-        <DetailField label={t("statementLabel")}>
-          {hasText ? (
-            <p className="text-sm text-foreground-muted whitespace-pre-wrap border-l-2 border-border pl-3">
-              {statement.text}
-            </p>
-          ) : (
-            <p className="text-sm text-foreground-faint italic">{t("statementEmpty")}</p>
+  return (
+    <div className={`pl-4 flex flex-col gap-2${open ? "" : " items-start"}`}>
+      {open ? (
+        <Textarea
+          label={t("statementLabel")}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={OFFENSE_STATEMENT_MAX_LENGTH}
+          placeholder={t("statementPlaceholder")}
+          error={error}
+        />
+      ) : (
+        <QuotedField label={t("statementLabel")} text={statement.text} empty={t("statementEmpty")} />
+      )}
+
+      {open ? (
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => void save()} loading={saving}>{tc("save")}</Button>
+          <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setError(null); }}>
+            {tc("cancel")}
+          </Button>
+          {/* Leeren nimmt sie zurück — das ist die Rückseite von „änderbar", und ohne sie bliebe eine
+              im Ärger geschriebene Zeile für immer stehen. */}
+          {hasText && (
+            <Button variant="ghost" size="sm" className="ml-auto" onClick={() => { setText(""); void save(""); }}>
+              {t("statementDelete")}
+            </Button>
           )}
-        </DetailField>
-        {statement.editable && (
+        </div>
+      ) : (
+        statement.editable && (
           <Button variant="ghost" size="sm" onClick={() => { setText(statement.text ?? ""); setEditing(true); }}>
             {hasText ? t("statementEdit") : t("statementWrite")}
           </Button>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="pl-4 flex flex-col gap-2">
-      <DetailField label={t("statementLabel")}>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={3}
-          maxLength={OFFENSE_STATEMENT_MAX_LENGTH}
-          placeholder={t("statementPlaceholder")}
-          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground transition resize-none"
-        />
-      </DetailField>
-      {error && <FormError message={error} />}
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={() => void save()} loading={saving}>{t("statementSave")}</Button>
-        <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setError(null); }}>
-          {t("statementCancel")}
-        </Button>
-        {/* Leeren nimmt sie zurück — das ist die Rückseite von „änderbar", und ohne sie bliebe eine
-            im Ärger geschriebene Zeile für immer stehen. */}
-        {hasText && (
-          <button
-            type="button"
-            onClick={() => { setText(""); void save(""); }}
-            className="text-xs text-foreground-faint hover:text-warn transition ml-auto"
-          >
-            {t("statementDelete")}
-          </button>
-        )}
-      </div>
+        )
+      )}
     </div>
   );
 }

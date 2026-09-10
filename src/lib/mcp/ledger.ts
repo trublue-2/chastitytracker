@@ -443,12 +443,13 @@ export async function getOffenses(username: string, opts: GetOffensesOptions = {
     notesForEntities(userId, rows.map((r) => ({ entityType: "offense" as const, entityId: r.id })), {}, undefined, timezone),
     loadStatements(rows.map((r) => r.id)),
   ]);
+  const fmt = makeFmt(timezone);
   for (const r of rows) {
     r.notes = notesByEntity.get(entityKey("offense", r.id)) ?? [];
     const st = statements.get(r.id);
-    // `updatedAt` und nicht `createdAt`: gefragt ist, was er JETZT sagt — die Fassung, die vor einer
-    // Änderung galt, hebt niemand auf.
-    r.statement = st ? { text: st.text, at: makeFmt(timezone)(st.updatedAt) } : null;
+    // Die GEÄNDERTE Fassung datiert auf die Änderung: gefragt ist, was er JETZT sagt — die Fassung,
+    // die davor galt, hebt niemand auf.
+    r.statement = st ? { text: st.text, at: fmt(st.editedAt ?? st.createdAt) } : null;
   }
 
   return {

@@ -62,6 +62,7 @@ import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
 import { releaseNow, previewReleaseNow } from "@/lib/releaseNowService";
 import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
 import { setLockRequiresBolt } from "@/lib/lockCommit";
+import { setOffenseStatementsAllowed } from "@/lib/offenseStatementService";
 import { loadBoxSettings } from "@/lib/mcp/context";
 
 /**
@@ -1878,7 +1879,7 @@ export async function mcpSetOffenseRules(username: string, args: SetOffenseRules
   // (`OffenseRuleChange`), und die beantwortet „welche Art zählte wann". Ob der Träger etwas dazu
   // sagen durfte, ist keine Antwort darauf — eine Zeile dort verfälschte die Rückrechnung.
   if (args.statementsAllowed !== undefined) {
-    await prisma.user.update({ where: { id: userId }, data: { offenseStatementsAllowed: args.statementsAllowed } });
+    await setOffenseStatementsAllowed(userId, args.statementsAllowed);
   }
   const applied = [
     ...rules.map((r) => `${r.type}=${r.mode}`),

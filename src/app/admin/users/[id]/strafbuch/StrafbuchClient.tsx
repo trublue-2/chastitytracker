@@ -11,6 +11,7 @@ import { useApiError } from "@/app/hooks/useApiError";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
 import { blockInsetCls } from "@/app/components/inputStyles";
+import { Quote } from "@/app/components/QuotedField";
 import { taskFormHref } from "@/lib/entryFormRoute";
 import { joinParts } from "@/lib/utils";
 import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
@@ -514,9 +515,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             <p className="text-xs text-foreground-faint mb-1">
               {joinParts(labels.strafbuchStellungnahme, statement.editedAtStr && labels.strafbuchStellungnahmeGeaendert.replace("{date}", statement.editedAtStr))}
             </p>
-            <p className="text-sm text-foreground-muted whitespace-pre-wrap border-l-2 border-border pl-3">
-              {statement.text}
-            </p>
+            <Quote>{statement.text}</Quote>
           </div>
         )}
         <div>

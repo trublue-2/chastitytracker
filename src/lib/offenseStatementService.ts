@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { OFFENSE_REF_TYPE } from "@/lib/messageService";
+import { announcedOffenseType } from "@/lib/offenseAnnounce";
 import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/constants";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+import type { OffenseCanonicalType } from "@/lib/offenseTypes";
 
 /**
  * Die Stellungnahme des Trägers zu einem festgestellten Vergehen.
@@ -47,45 +48,14 @@ export function normalizeStatementText(raw: string): string | null {
   return text.length === 0 ? null : text;
 }
 
-/**
- * Gehört dieses Vergehen überhaupt DIESEM Träger?
- *
- * `refId` ist global eindeutig, und die Vergehen selbst sind eine Live-Ableitung — es gibt keine
- * Tabelle, in der „Vergehen X gehört Träger Y" stünde. Die Frage beantwortet deshalb die MELDUNG:
- * der Träger erfährt jedes Vergehen als Zeile in seinem Posteingang (`offenseAnnounce.ts`), und
- * genau von dort aus schreibt er. Was ihm nie gemeldet wurde, kann er auch nicht kommentieren.
- *
- * Ohne diese Prüfung könnte jeder Angemeldete unter der `refId` eines FREMDEN Vergehens schreiben:
- * `refId` ist der eindeutige Schlüssel der Tabelle, der Text erschiene im Posteingang des anderen
- * und in seinem `get_offenses` — und weil die Zeile dann besetzt ist, wäre er selbst dauerhaft
- * ausgesperrt (403). Ein Angriff, der keine Rechte braucht, nur eine fremde id.
- */
-async function offenseBelongsToUser(userId: string, refId: string): Promise<boolean> {
-  const seen = await prisma.message.findFirst({
-    where: { subjectUserId: userId, audience: "sub", refEntityType: OFFENSE_REF_TYPE, refEntityId: refId },
-    select: { id: true },
-  });
-  return seen !== null;
-}
-
 /** Liest den Zustand eines Vergehens, den {@link statementBlockedReason} braucht. */
 export async function loadStatementGate(userId: string, refId: string): Promise<StatementGate | null> {
-  const [user, judgment] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { offenseStatementsAllowed: true } }),
-    prisma.strafeRecord.findUnique({ where: { refId }, select: { judgedBy: true, userId: true } }),
-  ]);
-  if (!user) return null;
-  // Ein Urteil, das zu einem ANDEREN Träger gehört, gilt hier nicht: `refId` ist global eindeutig,
-  // aber die Prüfung darf sich nicht an einer fremden Zeile festmachen.
-  const judgedBy = judgment && judgment.userId === userId ? judgment.judgedBy ?? "unknown" : null;
-  return { allowed: user.offenseStatementsAllowed, judgedBy };
+  return (await loadStatementGates(userId, [refId], { strict: true })).get(refId) ?? null;
 }
 
 export interface WriteStatementParams {
   userId: string;
   refId: string;
-  /** Die Vergehens-Art, wie die aufrufende Ansicht sie kennt (`StoredOffenseType`). */
-  offenseType: string;
   text: string;
 }
 
@@ -95,6 +65,9 @@ export interface WriteStatementResult {
   created: boolean;
   /** `true`, wenn der Träger seine Stellungnahme zurückgenommen hat (leerer Text). */
   removed: boolean;
+  /** Die Art, unter der geschrieben wurde — aus der Meldung gelesen, nicht vom Aufrufer gesetzt.
+   *  Die Route benennt damit das Vergehen in der Nachricht an die Keyholderin. */
+  offenseType: OffenseCanonicalType;
 }
 
 /**
@@ -104,35 +77,64 @@ export interface WriteStatementResult {
 export async function writeOffenseStatement(p: WriteStatementParams): Promise<ServiceResult<WriteStatementResult>> {
   if (p.text.length > OFFENSE_STATEMENT_MAX_LENGTH) return serviceFail(400, "STATEMENT_TOO_LONG");
 
+  // Die drei Lesevorgänge hängen nicht voneinander ab — nur ihre AUSWERTUNG hat eine Reihenfolge,
+  // und die steht unverändert darunter. Nacheinander abgewartet kostete ein Textfeld vier Runden
+  // zur Datenbank, bevor überhaupt geschrieben wurde.
+  const [offenseType, gate, existing] = await Promise.all([
+    announcedOffenseType(p.userId, p.refId),
+    loadStatementGate(p.userId, p.refId),
+    prisma.offenseStatement.findUnique({ where: { refId: p.refId }, select: { id: true, userId: true } }),
+  ]);
+
   // Besitz VOR allem anderen: eine fremde `refId` darf nicht einmal erfahren, ob dort schon ein
   // Urteil steht. 404 und nicht 403 — die Antwort soll nicht verraten, dass es das Vergehen gibt.
-  if (!(await offenseBelongsToUser(p.userId, p.refId))) return serviceFail(404, "NOT_FOUND");
-
-  const gate = await loadStatementGate(p.userId, p.refId);
+  if (!offenseType) return serviceFail(404, "NOT_FOUND");
   if (!gate) return serviceFail(404, "USER_NOT_FOUND");
   const blocked = statementBlockedReason(gate);
   // 409 und nicht 403: der Zustand hat sich geändert, während er schrieb — das ist ein Konflikt und
   // keine fehlende Berechtigung. Die Oberfläche unterscheidet daran, ob sie seinen Text stehen lässt.
   if (blocked) return serviceFail(blocked === "STATEMENT_JUDGED" ? 409 : 403, blocked);
 
-  const text = normalizeStatementText(p.text);
-  const existing = await prisma.offenseStatement.findUnique({ where: { refId: p.refId }, select: { id: true, userId: true } });
   // Fremde Zeile unter derselben ref: nicht anfassen. Kann nur durch einen Datenfehler entstehen —
   // still überschreiben wäre die schlechtere Antwort darauf.
   if (existing && existing.userId !== p.userId) return serviceFail(403, "FORBIDDEN");
 
+  const text = normalizeStatementText(p.text);
   if (text === null) {
     if (!existing) return serviceFail(400, "STATEMENT_EMPTY");
     await prisma.offenseStatement.delete({ where: { refId: p.refId } });
-    return { ok: true, data: { created: false, removed: true } };
+    return { ok: true, data: { created: false, removed: true, offenseType } };
   }
 
   await prisma.offenseStatement.upsert({
     where: { refId: p.refId },
-    create: { userId: p.userId, refId: p.refId, offenseType: p.offenseType, text },
+    create: { userId: p.userId, refId: p.refId, offenseType, text },
     update: { text },
   });
-  return { ok: true, data: { created: !existing, removed: false } };
+  return { ok: true, data: { created: !existing, removed: false, offenseType } };
+}
+
+/** Eine geladene Stellungnahme — `editedAt` ist die einzige Ableitung darauf und steht deshalb
+ *  schon hier, nicht in jeder Sicht erneut. */
+export interface LoadedStatement {
+  text: string;
+  createdAt: Date;
+  /** Gesetzt, wenn der Träger den Text nach dem ersten Absenden nachgebessert hat — sonst `null`.
+   *  `updatedAt` allein taugt dafür nicht: es steht bei jeder Zeile, auch der unberührten. */
+  editedAt: Date | null;
+}
+
+async function loadStatementMap(where: { refId: { in: string[] } } | { userId: string }) {
+  const rows = await prisma.offenseStatement.findMany({
+    where,
+    select: { refId: true, text: true, createdAt: true, updatedAt: true },
+  });
+  return new Map<string, LoadedStatement>(
+    rows.map(({ refId, text, createdAt, updatedAt }) => [
+      refId,
+      { text, createdAt, editedAt: updatedAt.getTime() !== createdAt.getTime() ? updatedAt : null },
+    ]),
+  );
 }
 
 /**
@@ -144,12 +146,8 @@ export async function writeOffenseStatement(p: WriteStatementParams): Promise<Se
  * sie ohnehin anzeigen dürfen.
  */
 export async function loadStatements(refIds: string[]) {
-  if (refIds.length === 0) return new Map<string, { text: string; createdAt: Date; updatedAt: Date }>();
-  const rows = await prisma.offenseStatement.findMany({
-    where: { refId: { in: refIds } },
-    select: { refId: true, text: true, createdAt: true, updatedAt: true },
-  });
-  return new Map(rows.map(({ refId, ...rest }) => [refId, rest]));
+  if (refIds.length === 0) return new Map<string, LoadedStatement>();
+  return loadStatementMap({ refId: { in: refIds } });
 }
 
 /**
@@ -161,11 +159,7 @@ export async function loadStatements(refIds: string[]) {
  * kennt — die Vergehen sind eine Ableitung, ihre refs entstehen im Client.
  */
 export async function loadStatementsOfUser(userId: string) {
-  const rows = await prisma.offenseStatement.findMany({
-    where: { userId },
-    select: { refId: true, text: true, createdAt: true, updatedAt: true },
-  });
-  return new Map(rows.map(({ refId, ...rest }) => [refId, rest]));
+  return loadStatementMap({ userId });
 }
 
 /**
@@ -174,15 +168,41 @@ export async function loadStatementsOfUser(userId: string) {
  *
  * Zwei Abfragen für eine ganze Seite: der Schalter des Trägers und die Urteile zu diesen refIds.
  */
-export async function loadStatementGates(userId: string, refIds: string[]): Promise<Map<string, StatementGate>> {
+export async function loadStatementGates(
+  userId: string,
+  refIds: string[],
+  /** `strict`: gibt es den Träger gar nicht, bleibt die Karte LEER, statt „nicht freigeschaltet" zu
+   *  behaupten. Der Schreibweg unterscheidet daran 404 von 403 — die Anzeige braucht das nicht, für
+   *  sie ist beides „kein Feld". */
+  opts: { strict?: boolean } = {},
+): Promise<Map<string, StatementGate>> {
   const out = new Map<string, StatementGate>();
   if (refIds.length === 0) return out;
   const [user, judgments] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { offenseStatementsAllowed: true } }),
     prisma.strafeRecord.findMany({ where: { userId, refId: { in: refIds } }, select: { refId: true, judgedBy: true } }),
   ]);
+  if (!user && opts.strict) return out;
   const allowed = user?.offenseStatementsAllowed ?? false;
+  // Die Urteile sind bereits auf `userId` gefiltert: `refId` ist global eindeutig, aber die Schranke
+  // darf sich nicht an der Zeile eines FREMDEN Trägers festmachen.
   const judged = new Map(judgments.map((j) => [j.refId, j.judgedBy ?? "unknown"]));
   for (const refId of refIds) out.set(refId, { allowed, judgedBy: judged.get(refId) ?? null });
   return out;
+}
+
+/**
+ * Der Schalter „darf sich äussern" — EIN Schreiber für Oberfläche und MCP.
+ *
+ * Vorbild `setLockRequiresBolt()` (`lockCommit.ts`): Route und `mcpSetOffenseRules` schrieben ihn
+ * zuvor je selbst. Jede künftige Nebenwirkung (eine Meldung an den Träger, ein Audit-Eintrag) müsste
+ * sonst zweimal nachgezogen werden — und die zweite Stelle findet niemand, weil der Schalter dort
+ * nur eine Zeile unter fünfzehn anderen ist.
+ *
+ * BEWUSST ohne Regel-Historie: der Schalter sagt, ob der Träger sich zu KÜNFTIGEN Feststellungen
+ * äussern darf. Was er geschrieben hat, bleibt stehen — Abschalten nimmt ihm das Feld, nicht seine
+ * Worte.
+ */
+export async function setOffenseStatementsAllowed(userId: string, allowed: boolean): Promise<void> {
+  await prisma.user.update({ where: { id: userId }, data: { offenseStatementsAllowed: allowed } });
 }

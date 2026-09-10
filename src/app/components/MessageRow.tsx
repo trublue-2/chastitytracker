@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, Bot, Check, Settings, Trash2, Undo2, UserRound } from "lucide-react";
 import Badge from "@/app/components/Badge";
 import Checkbox from "@/app/components/Checkbox";
-import DetailField from "@/app/components/DetailField";
+import QuotedField from "@/app/components/QuotedField";
 import OffenseStatementField from "@/app/components/OffenseStatementField";
 import ExpandRow from "@/app/components/ExpandRow";
 import RowActionsMenu from "@/app/components/RowActionsMenu";
@@ -176,15 +176,7 @@ export default function MessageRow({
       <div className="pt-1 space-y-3">
         {hasRef && (
           <div className="pl-4">
-            <DetailField label={t("refLabel")}>
-              {m.refText ? (
-                <p className="text-sm text-foreground-muted whitespace-pre-wrap border-l-2 border-border pl-3">
-                  {m.refText}
-                </p>
-              ) : (
-                <p className="text-sm text-foreground-faint italic">{t("refMissing")}</p>
-              )}
-            </DetailField>
+            <QuotedField label={t("refLabel")} text={m.refText} empty={t("refMissing")} />
           </div>
         )}
         {/* Verlinkt wird nur, wo eine Seite etwas beiträgt — heute die offene Kontrolle mit

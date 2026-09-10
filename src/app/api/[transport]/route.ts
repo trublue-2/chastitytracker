@@ -1256,7 +1256,7 @@ function registerTools(server: McpServer) {
           "`manual_offense` is deliberately not switchable — a note you wrote yourself is not something the " +
           "app should discard; dismiss it with judge_offense instead. " +
           "`statementsAllowed` belongs here too: it decides whether the wearer may say anything about a " +
-          "detected offence at all — read it back in get_context.offenseRules." + KEYHOLDER_SILENT,
+          "detected offence at all — read it back in get_context.offenseStatementsAllowed." + KEYHOLDER_SILENT,
         inputSchema: {
           rules: z.array(z.object({
             type: z.enum(Object.keys(OFFENSE_RULE_MODES) as [string, ...string[]]).describe("The offence type."),

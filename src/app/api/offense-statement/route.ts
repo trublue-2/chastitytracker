@@ -5,7 +5,7 @@ import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 import { notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { getEventChannels } from "@/lib/notificationPrefs";
-import { offenseCanonicalOrNull, offenseNameKey } from "@/lib/offenseLabels";
+import { offenseNameKey } from "@/lib/offenseLabels";
 import { markLastAction } from "@/lib/appMeta";
 
 /**
@@ -25,13 +25,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const refId = typeof body?.refId === "string" ? body.refId.trim() : "";
   const text = typeof body?.text === "string" ? body.text : "";
-  // Die Art wird gegen die Taxonomie GEPRÜFT, nicht durchgereicht: sie landet in der Zeile und
-  // damit in der Meldung an die Keyholderin. Ein Fantasiewert ergäbe dort „…geäussert: undefined".
-  const offenseType = offenseCanonicalOrNull(body?.offenseType);
-  if (!refId || !offenseType) return errorResponse(400, "NOT_FOUND");
+  if (!refId) return errorResponse(400, "NOT_FOUND");
 
+  // Die Art kommt NICHT vom Client: der Service liest sie aus der Meldung, mit der er das Vergehen
+  // überhaupt erst erfahren hat — dieselbe Abfrage, die den Besitz der `refId` beweist. Ein Feld von
+  // aussen müsste geprüft werden und könnte trotzdem eine andere Art benennen als die gelesene.
   const userId = session.user.id;
-  const result = await writeOffenseStatement({ userId, refId, offenseType, text });
+  const result = await writeOffenseStatement({ userId, refId, text });
   if (!result.ok) return serviceFailure(result);
 
   markLastAction();
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
         // Feststellung (`offenseAnnounce.ts`): gelesen wird die Zeile in der Sprache, die der
         // Empfänger beim ÖFFNEN eingestellt hat, nicht in der, die beim Schreiben galt.
         // `messagePresenter` löst `offenseKey` zu `{offense}` auf.
-        offenseKey: offenseNameKey(offenseType),
+        offenseKey: offenseNameKey(result.data.offenseType),
       },
       channels,
       // OHNE Referenz, obwohl es eine gäbe. `detectedOffense` ist der Marker der FESTSTELLUNG: eine

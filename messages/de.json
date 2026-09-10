@@ -1749,8 +1749,6 @@
     "statementEmpty": "Noch nichts geschrieben.",
     "statementWrite": "Stellung nehmen",
     "statementEdit": "Ändern",
-    "statementSave": "Speichern",
-    "statementCancel": "Abbrechen",
     "statementDelete": "Zurücknehmen",
     "statementPlaceholder": "Was gibt es dazu zu sagen?",
     "sender": {

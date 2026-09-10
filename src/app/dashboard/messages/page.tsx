@@ -45,13 +45,10 @@ export default async function MessagesPage({
   // Und ZU welcher Seite sie gehört: eine ältere Meldung steht nicht auf Seite 1, und ohne diesen
   // Schritt zeigte der Link auf eine Zeile, die gar nicht ausgeliefert wird. `null` (unbekannte id,
   // vom Filter ausgeschlossen) lässt es bei Seite 1 — der Link springt dann nirgendwohin.
-  const focusPage = openId ? await pageOfMessage(subInbox(userId), openId, filter) : null;
-
-  // Der Filter geht AUCH an die Abfrage, nicht nur an die Liste: bekäme der Client nur den
-  // Startwert, stünde beim ersten Bild die ungefilterte Seite da und spränge erst nach einem
-  // Nachladen um — bei „Alle ansehen" also genau die Mischliste, aus der der Link herausführen soll.
-  const [page, unread, unreadInFilter, locale, t, keyholderName] = await Promise.all([
-    listMessages(subInbox(userId), { filter, ...(focusPage ? { page: focusPage } : {}) }),
+  // Neben den übrigen Abfragen, nicht davor: nur die Liste hängt an der Seitenzahl. Davorgestellt
+  // hing der ganze Rest an ihr — und das trifft ausgerechnet den Weg aus Mail und Push.
+  const [focusPage, unread, unreadInFilter, locale, t, keyholderName] = await Promise.all([
+    openId ? pageOfMessage(subInbox(userId), openId, filter) : null,
     unreadCountCached(userId),
     // Ungelesen IM FILTER für den Umschalter-Zähler. Nur wenn ein Filter greift eine eigene Abfrage —
     // ohne Filter ist es derselbe Wert wie der (memoisierte) Glocken-Stand eine Zeile höher.
@@ -62,6 +59,11 @@ export default async function MessagesPage({
     // Client-Komponente und darf nicht nachladen.
     soleControllerName(userId),
   ]);
+
+  // Der Filter geht AUCH an die Abfrage, nicht nur an die Liste: bekäme der Client nur den
+  // Startwert, stünde beim ersten Bild die ungefilterte Seite da und spränge erst nach einem
+  // Nachladen um — bei „Alle ansehen" also genau die Mischliste, aus der der Link herausführen soll.
+  const page = await listMessages(subInbox(userId), { filter, ...(focusPage ? { page: focusPage } : {}) });
 
   // Der Absender „KI-Keyholder" wird nur angeboten, wenn hier überhaupt eine KI schreiben kann —
   // die Bedingung dafür steht bei der MCP-Schicht, nicht hier (siehe `aiKeyholderActiveFor`).
