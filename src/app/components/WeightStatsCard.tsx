@@ -5,13 +5,10 @@ import BlockHeading from "@/app/components/BlockHeading";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
 import Section from "@/app/components/Section";
-import ListPager from "@/app/components/ListPager";
-import usePagedList from "@/app/hooks/usePagedList";
 import StatsCard from "@/app/components/StatsCard";
 import FieldTabs from "@/app/components/FieldTabs";
 import MeasurementChart from "@/app/components/MeasurementChart";
-import WeightRow from "@/app/components/WeightRow";
-import { LIST_PAGE_SIZE } from "@/lib/constants";
+import WeightRowList from "@/app/components/WeightRowList";
 import { round1 } from "@/lib/utils";
 import { bmi, dayNumber, targetProgress, weightForDisplay, weightText, type UnitSystem, type WeightTarget } from "@/lib/weight";
 import { buildWeightSeries, withinRange, type WeightPoint } from "@/lib/weightSeries";
@@ -81,9 +78,6 @@ export default function WeightStatsCard({
     () => withinRange(rows, { days, todayKey }),
     [rows, days, todayKey],
   );
-  // Geblättert statt nachgeladen, mit derselben Seitengrösse wie die übrigen Listen der App: ein
-  // Wert je Tag heisst, dass „seit Beginn" nach zwei Jahren siebenhundert Zeilen sind.
-  const { page, setPage, totalPages, visible } = usePagedList(rowsInRange, LIST_PAGE_SIZE);
 
   const unitLabel = unitSystem === "imperial" ? tc("unitLbs") : tc("unitKg");
   const show = (kg: number) => `${weightText(kg, unitSystem, locale)} ${unitLabel}`;
@@ -142,7 +136,7 @@ export default function WeightStatsCard({
             <FieldTabs
               ariaLabel={t("rangeLabel")}
               value={range}
-              onChange={(next) => { setRange(next); setPage(0); }}
+              onChange={setRange}
               options={RANGES.map((r) => ({ value: r.value, label: t(`range${r.value}`) }))}
             />
             {series.points.length > 0 ? (
@@ -185,12 +179,7 @@ export default function WeightStatsCard({
               Zeitraum ist — wer den Tab umlegt, bewegt Kurve und Liste zugleich. */}
           {rowsInRange.length > 0 && (
             <Section title={tList("title")}>
-              <div className="divide-y divide-border-subtle">
-                {visible.map((row) => (
-                  <WeightRow key={row.id} row={row} locale={locale} tz={tz} unitSystem={unitSystem} />
-                ))}
-              </div>
-              <ListPager page={page} totalPages={totalPages} onPage={setPage} />
+              <WeightRowList rows={rowsInRange} locale={locale} tz={tz} unitSystem={unitSystem} />
             </Section>
           )}
         </>

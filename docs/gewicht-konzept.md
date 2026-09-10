@@ -463,8 +463,8 @@ unsichtbarste Spalte. Die KI las sie über `weight_history` längst; die Keyhold
 Deshalb eine Zeilen-Liste, an zwei Orten aus denselben Bausteinen:
 
 - **Der Träger** findet sie in der Statistik, unter dem Diagramm derselben Karte. Sie folgt dem
-  Zeitraum-Umschalter — wer auf 90 Tage stellt, bewegt Kurve und Liste zugleich — und zeigt je
-  dreissig Zeilen mit „Weitere anzeigen"
+  Zeitraum-Umschalter — wer auf 90 Tage stellt, bewegt Kurve und Liste zugleich — und blättert zu
+  zehnt (`usePagedList`/`ListPager`), wie die übrigen Statistik-Listen
 - **Die Keyholderin** findet sie eingemischt in `/admin/users/[id]/eintraege`, chronologisch
   zwischen Verschluss, Öffnung und Kontrolle. Das Wiege-Fenster einer Seite spannen deren EINTRÄGE
   auf (untere Grenze einschliessend, obere ausschliessend) — eine zweite Paginierung über eine
