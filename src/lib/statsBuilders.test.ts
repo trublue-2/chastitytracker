@@ -12,6 +12,10 @@ const D = (iso: string) => new Date(iso);
 /** Tages-Key wie ihn `buildDailyData` bildet: `<jahr>-<monat0>-<tag>`. */
 const key = (y: number, m1: number, d: number) => `${y}-${m1 - 1}-${d}`;
 
+/** Ein `now` deutlich NACH allen geprüften Zeiträumen: der Ist-Wert wird dann nirgends auf
+ *  „bis jetzt" gekappt, die Erwartungen unten messen also volle Monate. */
+const SPAETER = D("2027-01-01T00:00:00Z");
+
 const noGoal: Vorgabe = {
   gueltigAb: D("2020-01-01T00:00:00Z"), gueltigBis: null, validUntilManual: false,
   minProTagH: null, minProWocheH: null, minProMonatH: null, minProJahrH: null, notiz: null,
@@ -96,7 +100,7 @@ describe("buildMonthStats", () => {
       [pair("2026-06-01T10:00:00Z", "2026-06-01T12:00:00Z"),
        pair("2026-07-01T10:00:00Z", "2026-07-01T13:00:00Z"),
        pair("2026-07-05T10:00:00Z", "2026-07-05T11:00:00Z")],
-      [], [], "de", TZ,
+      [], [], "de", TZ, SPAETER,
     );
     expect(rows.map(r => r.key)).toEqual(["2026-07", "2026-06"]);
     const juli = rows[0];
@@ -106,7 +110,7 @@ describe("buildMonthStats", () => {
   });
 
   it("ein Monat mit Trage-Zeit, aber ohne abgeschlossenes Paar, bekommt trotzdem eine Zeile", () => {
-    const rows = buildMonthStats([], [{ start: D("2026-05-10T08:00:00Z"), end: D("2026-05-10T10:00:00Z") }], [], "de", TZ);
+    const rows = buildMonthStats([], [{ start: D("2026-05-10T08:00:00Z"), end: D("2026-05-10T10:00:00Z") }], [], "de", TZ, SPAETER);
     expect(rows).toHaveLength(1);
     expect(rows[0].key).toBe("2026-05");
     expect(rows[0].count).toBe(0);
@@ -114,12 +118,31 @@ describe("buildMonthStats", () => {
   });
 
   it("ohne passende Vorgabe bleibt targetH null", () => {
-    const rows = buildMonthStats([pair("2026-07-01T10:00:00Z", "2026-07-01T12:00:00Z")], [], [], "de", TZ);
+    const rows = buildMonthStats([pair("2026-07-01T10:00:00Z", "2026-07-01T12:00:00Z")], [], [], "de", TZ, SPAETER);
     expect(rows[0].targetH).toBeNull();
   });
 
+  it("ein MITTEN im Monat verkettetes Ziel lässt die Zeile stehen — anteilig statt weg", () => {
+    // Der am 09.09.2026 gemeldete Widerspruch: die Ziel-Zeile zeigte den September anteilig,
+    // die Monatsübersicht liess ihn ganz weg (alte Ganz-oder-gar-nicht-Regel auf EINER Vorgabe).
+    const SEP_7 = D("2026-09-06T22:00:00Z"); // 07.09. 00:00 Ortszeit
+    const alt: Vorgabe = { ...noGoal, gueltigAb: D("2026-08-01T00:00:00Z"), gueltigBis: SEP_7 };
+    const neu: Vorgabe = { ...noGoal, gueltigAb: SEP_7, minProMonatH: 250 };
+    const rows = buildMonthStats([], [{ start: D("2026-09-01T00:00:00Z"), end: D("2026-09-20T00:00:00Z") }], [alt, neu], "de-CH", TZ, SPAETER);
+    const sep = rows.find((r) => r.key === "2026-09")!;
+    // 24 der 30 September-Tage: 250 × 24/30 = 200. Das Vorgänger-Segment trug kein Monatsziel.
+    expect(sep.targetH).toBeCloseTo(200, 6);
+    // `wearHours` bleibt die angezeigte GANZE Monatssumme: 01.09.–20.09. = 19 Tage = 456 h.
+    expect(sep.wearHours).toBeCloseTo(456, 6);
+    // Der Prozentwert paart aber NICHT damit, sondern mit dem Ist der abgedeckten Tage:
+    // 07.09. 00:00 bis 20.09. = 314 h gegen 200 h Soll = 157 %.
+    // Käme der Zähler aus dem ganzen Monat, stünden dort 456/200 = 228 % — die einseitige
+    // Kürzung vom 23.08.2026, diesmal in der Monatsübersicht.
+    expect(sep.goalPct).toBe(157);
+  });
+
   it("mit deckender Vorgabe wird das Monatsziel prorata gesetzt", () => {
-    const rows = buildMonthStats([], [{ start: D("2026-07-01T00:00:00Z"), end: D("2026-07-08T00:00:00Z") }], [monatsziel100], "de-CH", TZ);
+    const rows = buildMonthStats([], [{ start: D("2026-07-01T00:00:00Z"), end: D("2026-07-08T00:00:00Z") }], [monatsziel100], "de-CH", TZ, SPAETER);
     expect(rows[0].wearHours).toBeCloseTo(168, 6); // 7 volle Tage
     expect(rows[0].targetH).toBe(100);             // Vorgabe deckt den ganzen Juli
   });
@@ -295,7 +318,7 @@ describe("Zeitzonen ab UTC+12", () => {
     })[0];
 
   it.each(ZONEN)("buildMonthStats zählt den 1. des Monats mit ($tz)", ({ tz, neujahr }) => {
-    const rows = buildMonthStats([], neujahrsPaar(neujahr), [], "de-CH", tz);
+    const rows = buildMonthStats([], neujahrsPaar(neujahr), [], "de-CH", tz, SPAETER);
     expect(rows[0].key).toBe("2026-01");
     // Vorher: Monatsfenster begann am 2. Januar → das Paar lag komplett davor → 0 h.
     expect(rows[0].wearHours).toBeCloseTo(24, 6);

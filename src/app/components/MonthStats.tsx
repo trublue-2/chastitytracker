@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { formatDurationMs, formatTotalHours } from "@/lib/utils";
-import { goalPct } from "@/lib/percent";
 import { useTranslations, useLocale } from "next-intl";
 import BlockHeading from "@/app/components/BlockHeading";
 import Section from "@/app/components/Section";
@@ -37,7 +36,8 @@ export default function MonthStats({ months }: { months: MonthStat[] }) {
       </div>
       <div className="divide-y divide-border-subtle">
         {visible.map((m) => {
-          const pct = goalPct(m.wearHours, m.targetH);
+          // NICHT selbst paaren: `wearHours` ist der ganze Monat, das Ziel kann anteilig sein.
+          const pct = m.goalPct;
           const reached = pct !== null && pct >= 100;
           return (
             <div key={m.key} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 ${blockInsetCls} py-2.5 items-center`}>
@@ -46,7 +46,13 @@ export default function MonthStats({ months }: { months: MonthStat[] }) {
               <div className="text-right">
                 <span className="text-fliess text-foreground-muted tabular-nums">{formatTotalHours(m.wearHours)}</span>
                 {pct !== null && (
-                  <div className="mt-1 h-1 w-16 bg-border-subtle rounded-full overflow-hidden ml-auto">
+                  /* Ist der Monat von einem Ziel-Wechsel geteilt, ist der Zähler des Balkens NICHT
+                     die Monatssumme daneben, sondern nur die Tage mit Ziel. Ohne diesen Hinweis
+                     stünden drei Zahlen da, die sich nicht verrechnen lassen. */
+                  <div
+                    className="mt-1 h-1 w-16 bg-border-subtle rounded-full overflow-hidden ml-auto"
+                    title={m.goalActualH !== m.wearHours ? t("goalActualHint", { hours: formatTotalHours(m.goalActualH) }) : undefined}
+                  >
                     <div className={`h-full rounded-full ${reached ? "bg-ok" : "bg-border-strong"}`} style={{ width: `${Math.min(100, pct)}%` }} />
                   </div>
                 )}

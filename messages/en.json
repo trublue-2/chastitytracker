@@ -938,6 +938,7 @@
     "countCol": "No.",
     "wearTimeCol": "Wear time",
     "goalCol": "Goal",
+    "goalActualHint": "{hours} on the days with a goal",
     "longestCol": "Longest",
     "today": "Today",
     "showAll": "Show all {count}",

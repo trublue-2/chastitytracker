@@ -3,6 +3,7 @@ import {
   mondayIndexOfLocalDate, tzDateParts, tzDayKey, wearingHoursFromPairs, type WearPair,
 } from "@/lib/utils";
 import { periodTarget } from "@/lib/goalFulfillment";
+import { segmentedGoalWindows, NO_SEGMENTED_GOAL, type SegmentedGoalProgress } from "@/lib/goalSegments";
 import { parseWeekdayGoalRules, resolveDayTarget } from "@/lib/weekdayGoal";
 import { coveragePct, goalPct } from "@/lib/percent";
 import { wearIntensityLevel, WEAR_LEVEL_BG, WEAR_LEVEL_TEXT } from "@/lib/wearIntensity";
@@ -143,8 +144,8 @@ function vorgabeFor(vorgaben: Vorgabe[], start: Date, end: Date): Vorgabe | unde
   return vorgaben.find(vg => vg.gueltigAb < end && (vg.gueltigBis === null || vg.gueltigBis >= start));
 }
 
-export function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben: Vorgabe[], dl: string, tz: string): MonthStat[] {
-  const map = new Map<string, Omit<MonthStat, "wearHours" | "targetH">>();
+export function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], vorgaben: Vorgabe[], dl: string, tz: string, now: Date): MonthStat[] {
+  const map = new Map<string, Omit<MonthStat, "wearHours" | "targetH" | "goalPct" | "goalActualH">>();
   const monthLabel = (d: Date) => formatMonthYear(d, dl, tz);
 
   for (const p of pairs) {
@@ -164,6 +165,9 @@ export function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], v
     }
   }
 
+  // Einmal sortieren, dann jeden Monat bewerten — bei langer Historie sind das Dutzende Fenster.
+  const goalIn = segmentedGoalWindows(vorgaben, wearPairs, now, tz);
+
   return Array.from(map.entries())
     .sort((a, b) => b[0].localeCompare(a[0]))
     .map(([, v]) => {
@@ -171,8 +175,12 @@ export function buildMonthStats(pairs: CompletedPair[], wearPairs: WearPair[], v
       const monthStart = midnightOfLocalDate(y, m - 1, 1, tz);
       const monthEnd = midnightOfLocalDate(y, m, 1, tz);
       const wearHours = wearingHoursFromPairs(wearPairs, monthStart, monthEnd);
-      const vg = vorgabeFor(vorgaben, monthStart, monthEnd);
-      return { ...v, wearHours, targetH: vg ? periodTarget(vg.minProMonatH, monthStart, monthEnd, vg, tz).targetH : null };
+      // Ziel UND der Ist-Wert, gegen den es verglichen wird, aus DERSELBEN Quelle: der Monat wird
+      // anteilig über seine Segmente bewertet, und `goalPct` darf deshalb nicht gegen `wearHours`
+      // (den ganzen Monat) rechnen — das wäre die einseitige Kürzung vom 23.08.2026. `wearHours`
+      // bleibt die angezeigte Monatssumme, `goalPct` die Erfüllung.
+      const goal = goalIn("month", monthStart, monthEnd);
+      return { ...v, wearHours, targetH: goal.targetH, goalActualH: goal.actualH, goalPct: goalOutcome(goal).pct };
     });
 }
 
@@ -185,6 +193,9 @@ export function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }, now: D
 function goalMet(actual: number, target: number | null): boolean | null {
   return target ? actual >= target : null;
 }
+
+/** Häkchen UND Prozent einer Zielperiode aus DERSELBEN Paarung — nie einzeln nachrechnen. */
+const goalOutcome = (g: SegmentedGoalProgress) => ({ met: goalMet(g.actualH, g.targetH), pct: goalPct(g.actualH, g.targetH) });
 
 export function buildCalendarMonths(opts: {
   entries: Entry[];
@@ -215,6 +226,8 @@ export function buildCalendarMonths(opts: {
   }
 
   const calMonthsData: CalendarMonthData[] = [];
+  // Einmal sortieren für alle Monate UND ihre Wochenzeilen.
+  const goalIn = segmentedGoalWindows(vorgaben, wearPairs, now, tz);
   for (let i = 0; i <= 3; i++) {
     const { year, month } = normalizedMonth(nowYear, nowMonth - i);
     const label = formatCalendarDate(year, month, 1, dl, MONTH_YEAR_OPTS);
@@ -222,9 +235,10 @@ export function buildCalendarMonths(opts: {
 
     const monthStartDate = midnightOfLocalDate(year, month, 1, tz);
     const monthEndDate = midnightOfLocalDate(year, month + 1, 1, tz);
+    // Die EINE Vorgabe bleibt für die TAGES-Zellen und das Detail-Panel zuständig (der Tag wird
+    // weiterhin ganz oder gar nicht bewertet); Monat und Woche rechnen darunter über die Segmente.
     const vorgabe = vorgabeFor(vorgaben, monthStartDate, monthEndDate) ?? null;
-    const monthTotalH = wearingHoursFromPairs(wearPairs, monthStartDate, monthEndDate);
-    const monthTarget = vorgabe ? periodTarget(vorgabe.minProMonatH, monthStartDate, monthEndDate, vorgabe, tz).targetH : null;
+    const monthGoal = goalOutcome(goalIn("month", monthStartDate, monthEndDate));
 
     const cells: (number | null)[] = [
       ...Array(startOffset).fill(null),
@@ -249,19 +263,20 @@ export function buildCalendarMonths(opts: {
     for (let w = 0; w < cells.length; w += 7) {
       const weekCells = cells.slice(w, w + 7);
       const firstDayOfRow = weekCells.find((x) => x != null);
-      let weekH = 0;
-      let weekTarget: number | null = null;
-      if (firstDayOfRow != null && vorgabe?.minProWocheH != null) {
+      // Auch hier beide Seiten aus einer Quelle — die Woche einer Kalenderzeile kann von einem
+      // Ziel-Wechsel geteilt sein, und dann ist der Ist-Wert der ganzen Woche der falsche Zähler.
+      let weekGoal = NO_SEGMENTED_GOAL;
+      if (firstDayOfRow != null) {
         const dow = mondayIndexOfLocalDate(year, month, firstDayOfRow);
         const wkStart = midnightOfLocalDate(year, month, firstDayOfRow - dow, tz);
         // Kalendertag-Arithmetik statt `+ 7 * DAY_MS`: in der Umstellungswoche hat die Woche 167
         // oder 169 Stunden, und die Millisekunden-Addition verfehlt die Mitternacht.
         const wkEnd = midnightOfLocalDate(year, month, firstDayOfRow - dow + 7, tz);
-        weekH = wearingHoursFromPairs(wearPairs, wkStart, wkEnd);
-        weekTarget = periodTarget(vorgabe.minProWocheH, wkStart, wkEnd, vorgabe, tz).targetH;
+        weekGoal = goalIn("week", wkStart, wkEnd);
       }
-      weekGoalMet.push(goalMet(weekH, weekTarget));
-      weekGoalPct.push(goalPct(weekH, weekTarget));
+      const week = goalOutcome(weekGoal);
+      weekGoalMet.push(week.met);
+      weekGoalPct.push(week.pct);
 
       weeks.push(weekCells.map((day): CalendarDayData | null => {
         if (!day) return null;
@@ -293,7 +308,7 @@ export function buildCalendarMonths(opts: {
       }));
     }
 
-    calMonthsData.push({ label, weeks, weekGoalMet, weekGoalPct, monthGoalMet: goalMet(monthTotalH, monthTarget), monthGoalPct: goalPct(monthTotalH, monthTarget) });
+    calMonthsData.push({ label, weeks, weekGoalMet, weekGoalPct, monthGoalMet: monthGoal.met, monthGoalPct: monthGoal.pct });
   }
   return calMonthsData;
 }

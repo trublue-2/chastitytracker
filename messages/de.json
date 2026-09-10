@@ -938,6 +938,7 @@
     "countCol": "Anz.",
     "wearTimeCol": "Tragezeit",
     "goalCol": "Ziel",
+    "goalActualHint": "{hours} in den Tagen mit Ziel",
     "longestCol": "Längste",
     "today": "Heute",
     "showAll": "Alle {count} anzeigen",

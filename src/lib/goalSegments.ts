@@ -82,7 +82,8 @@ export interface SegmentedGoalProgress {
   actualH: number;
 }
 
-const NO_GOAL: SegmentedGoalProgress = { targetH: null, actualH: 0 };
+/** Keine bewertbare Zeile — auch als Rückfall für Aufrufer, die ein Fenster gar nicht bilden. */
+export const NO_SEGMENTED_GOAL: SegmentedGoalProgress = { targetH: null, actualH: 0 };
 
 /**
  * Ziel und Ist EINER segmentierten Periode für den Zeitraum, in dem `now` liegt.
@@ -95,10 +96,9 @@ const NO_GOAL: SegmentedGoalProgress = { targetH: null, actualH: 0 };
  * `wearPairs` sind die Trage-Paare DIESER Kategorie (Wanduhr-Zeit, also bereits verschmolzen), und
  * sie müssen bis zum Periodenbeginn zurückreichen — sonst fehlt dem Ist-Wert der Anfang.
  *
- * **Der Einzel-Perioden-Einstieg.** Die Anzeigen nehmen `resolveGoalRow` (das wertet alle drei auf
- * einmal aus und teilt sich Sortierung und Grenzen); diese Fassung ist die für EINE Periode — von
- * den Tests benutzt und der Weg, auf dem der Kalender nachziehen würde, sollte er je aggregieren.
- * Sie rechnet dasselbe wie der interne Pfad, nur ohne die geteilte Vorarbeit.
+ * **Der Einzel-Perioden-Einstieg** — die aktiv-gegatete Fassung von `segmentedGoalWindows`, für
+ * genau eine Periode und „jetzt". Die Anzeigen nehmen `resolveGoalRow` (alle drei auf einmal),
+ * Kalender und Monatsübersicht die Fabrik mit eigenen Fenstern.
  */
 export function resolveSegmentedGoal(
   period: SegmentedPeriod,
@@ -108,12 +108,11 @@ export function resolveSegmentedGoal(
   now: Date,
   tz: string,
 ): SegmentedGoalProgress {
-  const soll = SOLL_OF[period];
   // Regel 1: ohne Soll auf dem aktiven Ziel gibt es die Zeile nicht — unabhängig davon, was frühere
   // Segmente verlangt haben.
-  if (active == null || active[soll] == null) return NO_GOAL;
+  if (active == null || active[SOLL_OF[period]] == null) return NO_SEGMENTED_GOAL;
   const { start, end } = periodBounds(period, now, tz);
-  return segmentedGoalOver(soll, start, end, byStartDesc(segments), wearPairs, now, tz);
+  return segmentedGoalWindows(segments, wearPairs, now, tz)(period, start, end);
 }
 
 /**
@@ -133,7 +132,7 @@ function segmentedGoalOver(
   tz: string,
 ): SegmentedGoalProgress {
   const periodDays = calendarDaysBetween(periodStart, periodEnd, tz);
-  if (periodDays <= 0) return NO_GOAL;
+  if (periodDays <= 0) return NO_SEGMENTED_GOAL;
 
   const nowMs = now.getTime();
   let targetH = 0;
@@ -179,7 +178,37 @@ function segmentedGoalOver(
   }
 
   // Ein Ziel von 0 ist keine bewertbare Zeile — dieselbe Truthy-Regel wie `hasVisibleGoalRow`.
-  return targetH > 0 ? { targetH, actualH } : NO_GOAL;
+  return targetH > 0 ? { targetH, actualH } : NO_SEGMENTED_GOAL;
+}
+
+/**
+ * Ein Auswerter für EINE Segment-Lage: sortiert einmal, bewertet danach beliebig viele Fenster.
+ *
+ * Die Sortierung hängt weder an der Periode noch am Fenster — und Kalender wie Monatsübersicht
+ * bewerten Dutzende Fenster über denselben Segmenten (vier Monate mal ihre Wochenzeilen, dazu je
+ * Kategorie). Sie je Aufruf neu zu bilden wäre Abfall, den niemand sieht.
+ *
+ * **Ohne Aktiv-Gate.** Kalender und Monatsübersicht zeigen VERGANGENE Zeiträume; dort gibt es kein
+ * „aktives Ziel", an dem die Sichtbarkeit hängen könnte (Regel 1) — über einen abgelaufenen Monat
+ * entscheidet allein, was in seinen Tagen verlangt war. `targetH` bleibt `null`, wenn die Segmente
+ * dieses Fensters nichts fordern, und das ist dort die ganze Sichtbarkeitsregel.
+ *
+ * Daraus folgt ein bewusster Unterschied zur Ziel-Karte: Hat das aktive Ziel für den laufenden Monat
+ * kein Soll, ein früheres Segment desselben Monats aber schon, so zeigt die KARTE keine Monatszeile
+ * (Regel 1), der KALENDER dagegen den anteiligen Wert der Tage, in denen etwas verlangt war. Beides
+ * ist richtig — die Karte sagt „was gilt jetzt", der Kalender „was galt damals".
+ *
+ * `now` begrenzt weiterhin den Ist-Wert: ein laufender Monat hat noch keine Zukunft.
+ */
+export function segmentedGoalWindows(
+  segments: GoalSegment[],
+  wearPairs: WearPair[],
+  now: Date,
+  tz: string,
+): (period: SegmentedPeriod, periodStart: Date, periodEnd: Date) => SegmentedGoalProgress {
+  const sorted = byStartDesc(segments);
+  return (period, periodStart, periodEnd) =>
+    segmentedGoalOver(SOLL_OF[period], periodStart, periodEnd, sorted, wearPairs, now, tz);
 }
 
 /**
@@ -212,14 +241,13 @@ export function resolveGoalRow(
   const changedInPeriod = { day: day.changedInPeriod } as GoalChangedInPeriod;
   const actualH = {} as Record<SegmentedPeriod, number>;
   // Einmal sortiert für alle drei Perioden — die Reihenfolge hängt nicht von der Periode ab.
-  const sorted = byStartDesc(segments);
+  const goalIn = segmentedGoalWindows(segments, wearPairs, now, tz);
 
   for (const period of SEGMENTED_PERIODS) {
-    const soll = SOLL_OF[period];
     const { start, end } = periodBounds(period, now, tz);
-    const r = vorgabe == null || vorgabe[soll] == null
-      ? NO_GOAL // Regel 1: Sichtbarkeit hängt am aktiven Ziel
-      : segmentedGoalOver(soll, start, end, sorted, wearPairs, now, tz);
+    const r = vorgabe == null || vorgabe[SOLL_OF[period]] == null
+      ? NO_SEGMENTED_GOAL // Regel 1: Sichtbarkeit hängt am aktiven Ziel
+      : goalIn(period, start, end);
     targetH[period] = r.targetH;
     changedInPeriod[period] = false;
     actualH[period] = r.targetH != null ? r.actualH : wearingHoursFromPairs(wearPairs, start, now);

@@ -17,8 +17,17 @@ export type MonthStat = {
   count: number;
   totalMs: number;
   longestMs: number;
+  /** Getragene Stunden im GANZEN Monat — die angezeigte Summe. */
   wearHours: number;
   targetH: number | null;
+  /** Erfüllung in Prozent, im Builder gebildet: der Monat wird anteilig über seine Ziel-Segmente
+   *  bewertet, der Zähler zählt nur die abgedeckten Tage. Deshalb NICHT aus `wearHours`/`targetH`
+   *  nachrechnen — die beiden messen verschiedene Zeiträume. */
+  goalPct: number | null;
+  /** Die Stunden, die in `goalPct` als Zähler stecken — nur die Tage MIT Ziel. Weicht von
+   *  `wearHours` ab, sobald der Monat von einem Ziel-Wechsel geteilt ist; dann sind die drei
+   *  angezeigten Zahlen sonst nicht miteinander verrechenbar. */
+  goalActualH: number;
 };
 
 // ── Monatskalender ────────────────────────────────────────────────────────────

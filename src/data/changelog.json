@@ -9,6 +9,13 @@
           "de": "Auch Wochen- und Monatsziel werden jetzt anteilig bewertet. Wird ein Ziel mitten in der Woche oder im Monat geändert, verschwindet die Zeile nicht mehr — jeder Tag zählt nach dem Ziel, das an diesem Tag galt.",
           "en": "Weekly and monthly goals are now judged pro rata as well. If a goal changes mid-week or mid-month, the row no longer disappears — each day counts towards the goal that applied on that day."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Kalender und Monatsübersicht bewerten Monate und Wochen jetzt nach derselben Regel wie die Ziel-Anzeige. Ein mitten im Monat geändertes Ziel lässt die Monatskachel nicht mehr leer.",
+          "en": "The calendar and month overview now judge months and weeks by the same rule as the goal display. A goal changed mid-month no longer leaves the month tile empty."
+        }
       }
     ]
   },

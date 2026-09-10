@@ -466,11 +466,11 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
   // der Übersicht. Das ist Absicht: eine laufende Session gehört in keinen Monat, solange sie
   // läuft — sonst änderte ein abgeschlossener Monat nachträglich seine Zahl.
   monthStats: block({
-    load: async ({ userId, nowMs, tz, dl }) => {
+    load: async ({ userId, nowMs, now, tz, dl }) => {
       const [completed, wearPairs, kgVorgaben] = await Promise.all([
         completedPairsCached(userId), kgWearPairsCached(userId, nowMs), kgVorgabenCached(userId),
       ]);
-      return buildMonthStats(completed, wearPairs, kgVorgaben, dl, tz);
+      return buildMonthStats(completed, wearPairs, kgVorgaben, dl, tz, now);
     },
     render: (months) => months.length > 0 && <MonthStats months={months} />,
   }),

@@ -98,10 +98,10 @@ export const MOCK_CALENDAR_MONTHS: CalendarMonthData[] = [
 // ── Month Stats ───────────────────────────────
 
 export const MOCK_MONTH_STATS: MonthStat[] = [
-  { key: "2026-03", label: "März 2026", count: 8, totalMs: 520 * 3600000, longestMs: 96 * 3600000, wearHours: 520, targetH: 600 },
-  { key: "2026-02", label: "Feb 2026", count: 6, totalMs: 410 * 3600000, longestMs: 72 * 3600000, wearHours: 410, targetH: 500 },
-  { key: "2026-01", label: "Jan 2026", count: 10, totalMs: 620 * 3600000, longestMs: 120 * 3600000, wearHours: 620, targetH: 600 },
-  { key: "2025-12", label: "Dez 2025", count: 4, totalMs: 280 * 3600000, longestMs: 48 * 3600000, wearHours: 280, targetH: null },
+  { key: "2026-03", label: "März 2026", count: 8, totalMs: 520 * 3600000, longestMs: 96 * 3600000, wearHours: 520, targetH: 600, goalActualH: 520, goalPct: 87 },
+  { key: "2026-02", label: "Feb 2026", count: 6, totalMs: 410 * 3600000, longestMs: 72 * 3600000, wearHours: 410, targetH: 500, goalActualH: 410, goalPct: 82 },
+  { key: "2026-01", label: "Jan 2026", count: 10, totalMs: 620 * 3600000, longestMs: 120 * 3600000, wearHours: 620, targetH: 600, goalActualH: 620, goalPct: 103 },
+  { key: "2025-12", label: "Dez 2025", count: 4, totalMs: 280 * 3600000, longestMs: 48 * 3600000, wearHours: 280, targetH: null, goalActualH: 280, goalPct: null },
 ];
 
 // ── Kontrolle Items ───────────────────────────
