@@ -34,6 +34,33 @@ export function offenseNameKey(type: OffenseCanonicalType): string {
   return `${OFFENSE_TYPE_I18N_KEYS[type]}.name`;
 }
 
+/**
+ * Ersetzt den PARAMETER `offenseKey` durch den aufgelösten Namen unter `offense`.
+ *
+ * Der Name der Vergehensart reist als i18n-SCHLÜSSEL durch die Meldungen und nicht als fertiger
+ * Text: gelesen wird in der Sprache des EMPFÄNGERS, nicht in der des Schreibers
+ * (`offenseAnnounce.ts`). Aufgelöst wird er erst dort, wo aus Schlüssel und Parametern Text wird —
+ * und das sind ZWEI Stellen: die Posteingangs-Anzeige (`messagePresenter`) und der Versand von Mail,
+ * Push und Telegram (`notify.ts`).
+ *
+ * Hier und nicht in einer der beiden: als der Versand sie nicht hatte, warf die erste Meldung, die
+ * beide Wege ging, mit `FORMATTING_ERROR` — der Text verlangte `{offense}`, bekam aber `offenseKey`.
+ * Die Posteingangs-Zeile stand da, Mail und Push fielen still aus. Dieses Modul ist importfrei und
+ * damit von beiden Seiten erreichbar.
+ *
+ * Ein unbekannter Schlüssel (zurückgebaute Art, Handeintrag) darf nicht als roher Pfad erscheinen —
+ * `has()` beantwortet das, ohne den Fehlerkanal zu bemühen.
+ */
+export function withOffenseName(
+  params: Record<string, string | number> | null | undefined,
+  tOffenses: { (key: string): string; has(key: string): boolean },
+): Record<string, string | number> | undefined {
+  if (!params || params.offenseKey === undefined) return params ?? undefined;
+  const { offenseKey, ...rest } = params;
+  const key = String(offenseKey);
+  return { ...rest, offense: tOffenses.has(key) ? tOffenses(key) : key };
+}
+
 /** Die Umkehrung von {@link offenseNameKey}, aus derselben Tabelle abgeleitet statt daneben
  *  geschrieben — eine zweite Zuordnung liefe bei der nächsten Art auseinander. */
 const CANONICAL_BY_NAME_KEY: Record<string, OffenseCanonicalType> = Object.fromEntries(

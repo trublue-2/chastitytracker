@@ -1,74 +1,32 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { createRequire } from "node:module";
-import { DEFAULT_ORGASM_ARTEN, backfillOrgasmusArtenConfig, ART_SEP } from "./reasonsService";
-import { AI_AUTHOR } from "./constants";
-
-// scripts/seed.js ist Plain-CJS (kann nicht aus src importieren) und spiegelt Teile von
-// reasonsService.ts. Dieser Test sichert den Mirror gegen stille Drift ab: er lädt die echten
-// seed.js-Exports und vergleicht sie mit dem TS-Original.
-const require = createRequire(import.meta.url);
-const seed = require("../../scripts/seed.js") as {
-  ART_SEP: string;
-  ORGASM_MAIN_WITH_SUBS: Record<string, string[]>;
-  backfillOrgasmusArtenConfig: (raw: unknown) => string | null;
-  safeAdminUsername: (raw: string | undefined) => string;
-  AI_AUTHOR: string;
-};
-
-describe("seed.js mirror stays in sync with reasonsService", () => {
-  it("ART_SEP matches", () => {
-    expect(seed.ART_SEP).toBe(ART_SEP);
-  });
-
-  it("ORGASM_MAIN_WITH_SUBS equals the map derived from DEFAULT_ORGASM_ARTEN", () => {
-    const derived: Record<string, string[]> = {};
-    for (const code of DEFAULT_ORGASM_ARTEN) {
-      const i = code.indexOf(ART_SEP);
-      if (i === -1) continue;
-      (derived[code.slice(0, i)] ??= []).push(code);
-    }
-    expect(seed.ORGASM_MAIN_WITH_SUBS).toEqual(derived);
-  });
-
-  it("backfill output is identical to the TS original", () => {
-    const cases: unknown[] = [
-      null,
-      JSON.stringify([{ code: "Orgasmus" }, { code: "ruinierter Orgasmus" }, { code: "feuchter Traum" }]),
-      JSON.stringify([{ code: "Orgasmus", label: "Höhepunkt" }]),
-      JSON.stringify(DEFAULT_ORGASM_ARTEN.map((code) => ({ code }))),
-      JSON.stringify([{ code: "Orgasmus – Masturbation" }, { code: "Orgasmus" }]),
-      "garbage",
-    ];
-    for (const c of cases) {
-      expect(seed.backfillOrgasmusArtenConfig(c)).toBe(backfillOrgasmusArtenConfig(c));
-    }
-  });
-});
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { NOTIFICATION_EVENT_TYPES } from "./constants";
 
 /**
- * `ADMIN_USERNAME` war der einzige Weg, einen Benutzer namens `ai` anzulegen — die Benutzer-API
- * verlangt mindestens drei Zeichen. Ein Admin mit dieser Kennung stünde dem Träger in jeder Meldung
- * als KI im Posteingang und im Strafbuch mit KI-Hinweis am Urteil.
+ * `scripts/seed.js` führt eine KOPIE von `NOTIFICATION_EVENT_TYPES` — es ist reines CJS und kann
+ * nicht aus `src/` importieren. Der Kommentar dort sagt „keep both lists in sync"; bis hierher hat
+ * das niemand geprüft.
+ *
+ * Was eine Abweichung anrichtet: `seed.js` legt die Benachrichtigungs-Zeilen jedes Kontos an, beim
+ * Anlegen UND bei jedem Containerstart. Ein Typ, der dort fehlt, bekommt nie eine Zeile — und eine
+ * fehlende Zeile heisst „an" (`notificationPrefs.ts`). Der Schalter steht dann im Raster der
+ * Keyholderin, lässt sich umlegen, und beim nächsten Start ist er wieder da. Nichts stürzt ab,
+ * nichts meldet sich; es gilt nur dauerhaft etwas anderes, als die Oberfläche zeigt.
+ *
+ * Vorbild: `appName.test.ts` hält die drei nicht-importierbaren Träger des App-Namens gegen die
+ * Konstante.
  */
-describe("seed.js schützt die KI-Kennung als Admin-Namen", () => {
-  afterEach(() => vi.restoreAllMocks());
+describe("scripts/seed.js spiegelt NOTIFICATION_EVENT_TYPES", () => {
+  it("führt dieselben Ereignistypen wie constants.ts", () => {
+    const seed = readFileSync("scripts/seed.js", "utf8");
+    const block = seed.match(/const NOTIFICATION_EVENT_TYPES = \[([\s\S]*?)\];/);
+    expect(block, "Die Liste in seed.js ist nicht mehr auffindbar — Name oder Form geändert?").toBeTruthy();
+    const inSeed = [...block![1].matchAll(/"([A-Z_]+)"/g)].map((m) => m[1]);
 
-  it("AI_AUTHOR matches", () => {
-    expect(seed.AI_AUTHOR).toBe(AI_AUTHOR);
-  });
-
-  it.each([AI_AUTHOR, AI_AUTHOR.toUpperCase(), "Ai"])("'%s' weicht auf den Standardnamen aus — laut", (raw) => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect(seed.safeAdminUsername(raw)).toBe("admin");
-    // Nicht still: der Betreiber sässe sonst mit dem falschen Benutzernamen vor dem Login-Formular.
-    expect(warn).toHaveBeenCalled();
-  });
-
-  it("lässt jeden anderen Namen unverändert und behält den Standard bei leerem Wert", () => {
-    expect(seed.safeAdminUsername("herrin")).toBe("herrin");
-    // Knapp daneben ist kein Treffer — die Sperre gilt dem Wert selbst, nicht seinen Nachbarn.
-    expect(seed.safeAdminUsername("aiden")).toBe("aiden");
-    expect(seed.safeAdminUsername(undefined)).toBe("admin");
-    expect(seed.safeAdminUsername("")).toBe("admin");
+    expect(
+      inSeed,
+      "seed.js und constants.ts führen verschiedene Ereignistypen. Ein Typ, der dort fehlt, bekommt " +
+        "nie eine Preference-Zeile — und eine fehlende Zeile heisst \"an\".",
+    ).toEqual([...NOTIFICATION_EVENT_TYPES]);
   });
 });

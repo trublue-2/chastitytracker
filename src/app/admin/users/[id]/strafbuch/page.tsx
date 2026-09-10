@@ -183,9 +183,12 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchAbbrechen: t("strafbuchAbbrechen"),
     strafbuchRueckgaengig: t("strafbuchRueckgaengig"),
     strafbuchStellungnahme: t("strafbuchStellungnahme"),
-    strafbuchStellungnahmeGeaendert: t("strafbuchStellungnahmeGeaendert"),
-    strafbuchFruehereStrafen: t("strafbuchFruehereStrafen"),
-    strafbuchZuletztVerhaengt: t("strafbuchZuletztVerhaengt"),
+    strafbuchStellungnahmeGeaendert: t("strafbuchStellungnahmeGeaendert", { date: "{date}" }),
+    // Der Platzhalter reist als sein eigener Wert durch — dasselbe Muster wie `strafbuchUrteilVon`
+    // darunter: der Server kennt die Zahl nicht, und `t()` wirft, wenn eine Vorlage ihre Werte
+    // vermisst. Eingesetzt wird im Client (`String.replace`).
+    strafbuchFruehereStrafen: t("strafbuchFruehereStrafen", { count: "{count}" }),
+    strafbuchZuletztVerhaengt: t("strafbuchZuletztVerhaengt", { date: "{date}", text: "{text}" }),
     strafbuchGeoeffnetAm: t("strafbuchGeoeffnetAm"),
     strafbuchTrotzUnbefristet: t("strafbuchTrotzUnbefristet"),
     strafbuchSperreLiefBis: t("strafbuchSperreLiefBis"),

@@ -36,7 +36,13 @@ export default async function MessagesPage({
   // Über `parseMessageFilterFrom`, nicht über die Felder von Hand: dieselbe Lese-Regel, die die
   // API-Route anwendet — samt Prüfung unbekannter Werte (ein veralteter Link zeigt den ungefilterten
   // Posteingang statt eines Fehlers).
-  const filter = parseMessageFilterFrom(await searchParams);
+  const params = await searchParams;
+  const filter = parseMessageFilterFrom(params);
+  // Eine EINZELNE Zeile aufgeklappt zeigen (`?message=<id>`) — das Ziel, auf das eine Meldung über
+  // ein konkretes Vorkommnis zeigen kann, statt auf die Liste. Roh durchgereicht: findet die Liste
+  // die id auf ihrer Seite nicht, bleibt sie einfach zu, und ein veralteter Link zeigt den
+  // gewöhnlichen Posteingang statt eines Fehlers — dieselbe Milde, die der Filter darüber übt.
+  const openId = typeof params.message === "string" ? params.message : null;
 
   // Der Filter geht AUCH an die Abfrage, nicht nur an die Liste: bekäme der Client nur den
   // Startwert, stünde beim ersten Bild die ungefilterte Seite da und spränge erst nach einem
@@ -89,6 +95,7 @@ export default async function MessagesPage({
         initialUnread={unread}
         initialUnreadInFilter={unreadInFilter}
         initialFilter={filter}
+        initialOpenId={openId}
         scope={SCOPE}
         aiSenderAvailable={aiSenderAvailable}
         keyholderName={keyholderName}

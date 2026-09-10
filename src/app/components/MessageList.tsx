@@ -48,6 +48,7 @@ export default function MessageList({
   initialUnread,
   initialUnreadInFilter,
   initialFilter = {},
+  initialOpenId = null,
   scope,
   aiSenderAvailable,
   keyholderName,
@@ -63,6 +64,10 @@ export default function MessageList({
    *  wurde. Muss hier als Startwert ankommen, sonst zeigte die Filterleiste „alle Kategorien" über
    *  einer gefilterten Liste — und das erste Blättern hätte den Filter verloren. */
   initialFilter?: MessageFilter;
+  /** Diese Zeile aufgeklappt starten (`?message=<id>`). NICHT als gelesen markieren: „gelesen" ist
+   *  bei einer Nachricht mit Frist eine Behauptung mit Folgen, und die trifft er selbst — siehe
+   *  `toggle`. Steht die id nicht auf dieser Seite, bleibt alles zu. */
+  initialOpenId?: string | null;
   /** WESSEN Posteingang bedient wird — der eigene oder der des Keyholders über seine Träger. Die
    *  Endpunkt-Familie leitet die Liste daraus ab (`MESSAGE_SCOPES`), statt sie sich sagen zu lassen:
    *  Ziel, API-Basis und Beschriftung derselben Sicht liegen damit in EINER Tabelle. Der Scope
@@ -108,7 +113,7 @@ export default function MessageList({
   // Kreuzchen erscheinen nur im Modus: an jeder Zeile wären sie neben dem Ungelesen-Punkt eine
   // zweite runde Marke links und würden die Zeile für den Normalfall verrauschen.
   const [selected, setSelected] = useState<Set<string> | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId);
   const [saving, setSaving] = useState(false);
   // Eigener Zustand: sonst zeigte ein laufendes Nachladen den Lösch-Knopf als beschäftigt.
   const [deleting, setDeleting] = useState(false);
@@ -121,6 +126,15 @@ export default function MessageList({
   // Sprungziel nach einem Seitenwechsel: wer auf „Weiter" tippt, stand am ENDE der alten Seite und
   // landete ohne das mitten in der neuen — sichtbar war Zeile 15 von 20, der Kopf lag oberhalb.
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Die per `?message=` angesprungene Zeile ins Bild holen. EINMAL beim Einhängen und nur, wenn es
+  // sie auf dieser Seite gibt — später blättert der Nutzer selbst, und ein Sprung, den er nicht
+  // ausgelöst hat, nähme ihm die Stelle weg, an der er gerade liest.
+  useEffect(() => {
+    if (!initialOpenId) return;
+    document.getElementById(`msg-${initialOpenId}`)?.scrollIntoView({ block: "center" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Was gelöscht werden soll — hält gleichzeitig die Rückfrage offen (eine Quelle statt Flag + Id
   // nebeneinander). `"bulk"` steht für die Auswahl; beide Fälle teilen sich einen Dialog, der sich
   // nur in Text und Ziel unterscheidet.
@@ -603,7 +617,7 @@ export default function MessageList({
 
         <ul className="divide-y divide-border-subtle">
           {messages.map((m) => (
-            <li key={m.id}>
+            <li key={m.id} id={`msg-${m.id}`} className="scroll-mt-20">
               <MessageRow
                 message={m}
                 open={openId === m.id}

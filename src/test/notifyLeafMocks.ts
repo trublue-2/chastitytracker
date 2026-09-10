@@ -40,6 +40,10 @@ export const pushLeaf = () => ({ firePush: vi.fn() });
 export const emailI18nLeaf = () => ({
   emailT: vi.fn(async () => (k: string) => k),
   emailGreeting: () => "",
+  // `localeT` holt den Übersetzer eines BELIEBIGEN Namensraums in der Sprache des Empfängers —
+  // `notify.ts` löst damit den Namen der Vergehensart auf. `has()` gehört dazu: der Aufrufer fragt
+  // danach, bevor er einen unbekannten Schlüssel als rohen Pfad zeigen würde.
+  localeT: vi.fn(async () => Object.assign((k: string) => k, { has: () => true })),
 });
 
 /** `next-intl/server`: dasselbe für die Server-Übersetzungen. */

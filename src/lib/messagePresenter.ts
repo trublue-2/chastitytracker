@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import type { InboxMessage, MessageSenderKind } from "@/lib/messageService";
 import { messageCategory, type MessageCategory } from "@/lib/messageCategories";
 import { inspectionHref } from "@/lib/entryFormRoute";
-import { offenseCanonicalFromNameKey } from "@/lib/offenseLabels";
+import { offenseCanonicalFromNameKey, withOffenseName } from "@/lib/offenseLabels";
 import { loadStatementGates, loadStatements, statementBlockedReason } from "@/lib/offenseStatementService";
 
 /** Eine anzeigefertige Nachricht: alle Texte aufgelöst, keine i18n-Schlüssel mehr. */
@@ -46,27 +46,6 @@ export interface PresentedMessage {
   } | null;
 }
 
-/**
- * Der Name der Vergehensart steht als i18n-SCHLÜSSEL in den Parametern, nicht als fertiger Text.
- *
- * Grund: die Nachricht wird in der Sprache gelesen, die beim ÖFFNEN gilt — nicht in der, die beim
- * Schreiben galt. Ein zur Schreibzeit übersetzter Name bliebe für immer deutsch, auch wenn der
- * Träger später auf Englisch umstellt. Aufgelöst wird er deshalb hier, wo ohnehin die Lesersprache
- * bekannt ist.
- *
- * Ein unbekannter Schlüssel (zurückgebaute Vergehensart, Handeintrag) darf die Zeile nicht als
- * rohen Pfad zeigen — `t.has()` beantwortet das, ohne den Fehlerkanal zu bemühen. Dasselbe Muster
- * wie `useApiError()` für unbekannte Fehler-Codes.
- */
-function withOffenseName(
-  params: Record<string, string | number> | null,
-  tOffenses: { (key: string): string; has(key: string): boolean },
-): Record<string, string | number> | undefined {
-  if (!params || params.offenseKey === undefined) return params ?? undefined;
-  const { offenseKey, ...rest } = params;
-  const key = String(offenseKey);
-  return { ...rest, offense: tOffenses.has(key) ? tOffenses(key) : key };
-}
 
 /**
  * Löst Nachrichten für die Anzeige auf — die EINE Stelle, an der aus `bodyKey` + `bodyParams` Text

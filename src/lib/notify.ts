@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { withOffenseName } from "@/lib/offenseLabels";
 import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/mail";
-import { emailT, emailGreeting } from "@/lib/emailI18n";
+import { emailT, emailGreeting, localeT } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
 import { sendTelegram } from "@/lib/telegram";
 import { recordMessageAndBadge, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messageService";
@@ -180,8 +181,13 @@ async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): 
   }
 
   const t = await emailT(user.locale);
-  const subject = t(subjectKey, params);
-  const message = t(messageKey, params);
+  // Den Namen der Vergehensart erst HIER auflösen, in der Sprache des EMPFÄNGERS — dieselbe Regel
+  // und dieselbe Funktion wie in der Posteingangs-Anzeige (`messagePresenter`). Ohne sie warf die
+  // erste Meldung, die beide Wege ging, mit `FORMATTING_ERROR`: der Text verlangt `{offense}`, in
+  // den Parametern stand `offenseKey`. Die Posteingangs-Zeile stand, Mail und Push fielen still aus.
+  const resolved = withOffenseName(params, await localeT(user.locale, "offenses"));
+  const subject = t(subjectKey, resolved);
+  const message = t(messageKey, resolved);
 
   if (user.email && channels.mail) {
     await sendMailSafe(
