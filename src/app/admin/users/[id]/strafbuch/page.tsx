@@ -6,8 +6,9 @@ import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/util
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { missedWeightRef } from "@/lib/weightObligation";
+import { loadStatementsOfUser } from "@/lib/offenseStatementService";
 import { getLocale, getTranslations } from "next-intl/server";
-import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type CleaningLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow } from "./StrafbuchClient";
+import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type CleaningLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow, type StatementView } from "./StrafbuchClient";
 
 export default async function StrafbuchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -152,6 +153,18 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       erledigtAtStr: r.erledigtAt ? formatDate(r.erledigtAt, dl, tz) : null,
     }));
 
+  // ALLE Stellungnahmen dieses Trägers, nicht die zu einer Auswahl von refIds: die Seite zeigt sein
+  // ganzes Strafbuch, und die gefragte Menge wäre damit ohnehin die volle. Eine Stellungnahme
+  // entsteht nur dort, wo er etwas geschrieben hat — die Tabelle bleibt klein.
+  const statementRows = await loadStatementsOfUser(id);
+  const statements: Record<string, StatementView> = Object.fromEntries(
+    [...statementRows].map(([refId, r]) => [refId, {
+      text: r.text,
+      // „geändert am" nur, wo wirklich nachgebessert wurde — `updatedAt` steht bei jeder Zeile.
+      editedAtStr: r.updatedAt.getTime() !== r.createdAt.getTime() ? formatDate(r.updatedAt, dl, tz) : null,
+    }]),
+  );
+
   const labels = {
     networkError: tCommon("networkError"),
     frist: t("frist"),
@@ -169,6 +182,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchOffeneAnzeigen: t("strafbuchOffeneAnzeigen"),
     strafbuchAbbrechen: t("strafbuchAbbrechen"),
     strafbuchRueckgaengig: t("strafbuchRueckgaengig"),
+    strafbuchStellungnahme: t("strafbuchStellungnahme"),
+    strafbuchStellungnahmeGeaendert: t("strafbuchStellungnahmeGeaendert"),
     strafbuchFruehereStrafen: t("strafbuchFruehereStrafen"),
     strafbuchZuletztVerhaengt: t("strafbuchZuletztVerhaengt"),
     strafbuchGeoeffnetAm: t("strafbuchGeoeffnetAm"),
@@ -249,6 +264,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       unerlaubteOrgasmen={unerlaubteOrgasmen}
       manuelleVergehen={manuelleVergehen}
       strafeRecords={strafeRecords}
+      statements={statements}
       labels={labels}
     />
   );

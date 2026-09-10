@@ -84,7 +84,7 @@ export default async function MessagesPage({
           unbekannter Parameter daneben soll die Liste nicht neu aufsetzen. */}
       <MessageList
         key={messageFilterToParams(filter).toString()}
-        initial={await presentMessages(page.messages, locale)}
+        initial={await presentMessages(page.messages, locale, { userId: session.user.id })}
         initialPageCount={page.pageCount}
         initialUnread={unread}
         initialUnreadInFilter={unreadInFilter}

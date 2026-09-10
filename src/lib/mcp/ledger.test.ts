@@ -122,7 +122,7 @@ describe("filterOffenses — K-14", () => {
   const row = (over: Partial<OffenseRow>): OffenseRow => ({
     id: "x", type: "late_control", detectedAt: "2026-07-10T10:00:00+02:00", status: "judged",
     judgment: "dismissed", consequence: null, dismissReason: null, judgedBy: null, judgedByName: null, judgedAt: null,
-    context: {}, notes: [], ...over,
+    context: {}, statement: null, notes: [], ...over,
   });
   const rows: OffenseRow[] = [
     row({ id: "a", type: "late_control", status: "open", judgment: "open", detectedAt: "2026-07-01T10:00:00+02:00" }),

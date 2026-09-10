@@ -1254,13 +1254,16 @@ function registerTools(server: McpServer) {
           "judgements already made stay as they are, and switching a rule on does not make the past count. " +
           "`unauthorized_orgasm` is the only three-mode type (off / lockedOnly / always). " +
           "`manual_offense` is deliberately not switchable — a note you wrote yourself is not something the " +
-          "app should discard; dismiss it with judge_offense instead." + KEYHOLDER_SILENT,
+          "app should discard; dismiss it with judge_offense instead. " +
+          "`statementsAllowed` belongs here too: it decides whether the wearer may say anything about a " +
+          "detected offence at all — read it back in get_context.offenseRules." + KEYHOLDER_SILENT,
         inputSchema: {
           rules: z.array(z.object({
             type: z.enum(Object.keys(OFFENSE_RULE_MODES) as [string, ...string[]]).describe("The offence type."),
             mode: z.enum([...new Set(Object.values(OFFENSE_RULE_MODES).flat())] as [string, ...string[]])
               .describe(`Every type takes "off"/"on"; only unauthorized_orgasm also takes "lockedOnly" (only during a lock period) and "always".`),
-          })).describe("The rules to change. Everything is validated before the first one is written."),
+          })).optional().describe("The rules to change. Everything is validated before the first one is written."),
+          statementsAllowed: z.boolean().optional().describe("May the wearer write a statement on a detected offence? Default on. Off removes the field and the hint for him; statements already written stay readable for both sides."),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },

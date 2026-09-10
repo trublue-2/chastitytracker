@@ -308,6 +308,20 @@ export const OFFENSE_RULE_CODES = [
   "OFFENSE_MODE_INVALID",
 ] as const;
 
+/**
+ * Die Stellungnahme des Trägers zu einem Vergehen (`offenseStatementService`).
+ *
+ * `STATEMENT_JUDGED` ist der Fall, der eine eigene Meldung braucht statt eines pauschalen 403: der
+ * Träger kann mitten im Tippen von einem Urteil überholt werden. Die Oberfläche muss ihm das sagen
+ * können, ohne seinen Text wegzuwerfen — ein „Fehler" ohne Grund liesse ihn ratlos neu schreiben.
+ */
+export const OFFENSE_STATEMENT_CODES = [
+  "STATEMENT_NOT_ALLOWED",
+  "STATEMENT_JUDGED",
+  "STATEMENT_TOO_LONG",
+  "STATEMENT_EMPTY",
+] as const;
+
 /** cleaningService / autoKontrolleService / inspectionEscalationService. These predate the registry
  *  and are camelCase; their message keys are already shipped, so they keep their spelling rather
  *  than churn both locale files for cosmetics. New codes use the SCREAMING_SNAKE form above. */
@@ -387,6 +401,7 @@ export const SERVICE_ERROR_CODES = [
     ...TASK_CODES,
     ...TASK_SERIES_CODES,
     ...OFFENSE_RULE_CODES,
+    ...OFFENSE_STATEMENT_CODES,
     ...SETTINGS_CODES,
     ...WEIGHT_CODES,
     ...HEALTH_HOLD_CODES,
@@ -414,6 +429,7 @@ export type ServiceErrorCode =
   | (typeof TASK_CODES)[number]
   | (typeof TASK_SERIES_CODES)[number]
   | (typeof OFFENSE_RULE_CODES)[number]
+  | (typeof OFFENSE_STATEMENT_CODES)[number]
   | (typeof SETTINGS_CODES)[number]
   | (typeof WEIGHT_CODES)[number]
   | (typeof HEALTH_HOLD_CODES)[number]

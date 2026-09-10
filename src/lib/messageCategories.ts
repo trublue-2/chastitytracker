@@ -32,6 +32,7 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   offenseDetectedMessageTitled: "offense",
   offenseDismissedMessage: "offense",
   wrongDeviceMessage: "offense",
+  offenseStatementMessage: "offense",
 
   inspectionRequestedMessage: "inspection",
   inspectionConfirmedMessage: "inspection",

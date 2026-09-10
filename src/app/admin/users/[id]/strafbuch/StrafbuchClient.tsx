@@ -40,6 +40,13 @@ export interface StrafeRecordData {
   erledigtAtStr: string | null;
 }
 
+/** Die Stellungnahme des Trägers zu einem Vergehen, anzeigefertig. */
+export interface StatementView {
+  text: string;
+  /** Gesetzt, wenn er nach dem ersten Absenden nachgebessert hat — sonst null. */
+  editedAtStr: string | null;
+}
+
 export interface CleaningLimitRow {
   entryId: string;
   startTimeStr: string;
@@ -204,6 +211,9 @@ interface Labels {
   strafbuchStrafaufgabe: string;
   strafbuchAbbrechen: string;
   strafbuchRueckgaengig: string;
+  strafbuchStellungnahme: string;
+  /** Vorlage mit `{date}` — der Client setzt den Tag ein. */
+  strafbuchStellungnahmeGeaendert: string;
   strafbuchGeoeffnetAm: string;
   strafbuchTrotzUnbefristet: string;
   strafbuchSperreLiefBis: string;
@@ -287,6 +297,8 @@ interface Props {
   missedWeightReports: MissedWeightRow[];
   manuelleVergehen: ManuellesVergehenRow[];
   strafeRecords: StrafeRecordData[];
+  /** Die Stellungnahmen des Trägers, nach `refId` — leer, wo er nichts geschrieben hat. */
+  statements: Record<string, StatementView>;
   labels: Labels;
 }
 
@@ -402,7 +414,7 @@ function ZurueckziehenButton({ id, label, networkError, resolveError, onDone }: 
   );
 }
 
-export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, cleaningLimitOffenses, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, missedWeightReports, manuelleVergehen, strafeRecords, labels }: Props) {
+export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, cleaningLimitOffenses, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, missedWeightReports, manuelleVergehen, strafeRecords, statements, labels }: Props) {
   const router = useRouter();
   // Beide Routen dieser Seite (`/api/admin/offense`, `/api/admin/strafe`) liefern stabile
   // Fehler-CODES — übersetzt wird hier.
@@ -482,6 +494,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       }
     }
 
+    const statement = statements[refId] ?? null;
     const prior = priorPunishments(strafeRecords, offenseType);
     const priorLine = joinParts(
       prior.count > 0 && labels.strafbuchFruehereStrafen.replace("{count}", String(prior.count)),
@@ -493,6 +506,19 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     return (
       <form onSubmit={submit} className="mt-2 bg-surface-raised rounded-xl border border-border p-3 flex flex-col gap-2">
         {priorLine && <p className={FACT_CLS}>{priorLine}</p>}
+        {/* Was ER dazu sagt — über dem Feld, in dem entschieden wird. Die Vorgeschichte darüber sagt,
+            was war; das hier sagt, was er einzuwenden hat. Beides gehört vor das Urteil, nicht
+            daneben. */}
+        {statement && (
+          <div>
+            <p className="text-xs text-foreground-faint mb-1">
+              {joinParts(labels.strafbuchStellungnahme, statement.editedAtStr && labels.strafbuchStellungnahmeGeaendert.replace("{date}", statement.editedAtStr))}
+            </p>
+            <p className="text-sm text-foreground-muted whitespace-pre-wrap border-l-2 border-border pl-3">
+              {statement.text}
+            </p>
+          </div>
+        )}
         <div>
           <label className="block text-xs text-foreground-faint mb-1">{label}</label>
           <textarea value={text} onChange={e => setText(e.target.value)} rows={2} required placeholder={placeholder}

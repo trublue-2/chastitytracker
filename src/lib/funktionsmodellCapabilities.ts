@@ -379,6 +379,13 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Notieren ist noch kein Urteil. Ein Rückzug nimmt es aus dem Strafbuch, lässt es aber nachlesbar.",
   }),
   c({
+    id: "offense-statement", mechanic: "Strafbuch", title: "Stellungnahme zu einem Vergehen",
+    what: "Der Träger schreibt, was er zu einem festgestellten Vergehen zu sagen hat — eine je Vergehen, änderbar bis zum Urteil.",
+    actors: ["sub"], surfaces: ["sub-ui"],
+    routes: ["/api/offense-statement"],
+    note: "Sie steht im Posteingang an der Meldung, mit der er das Vergehen erfährt — eine Liste unbeurteilter Vergehen hat er nicht. Die Keyholderin liest sie über dem Urteils-Feld und in `get_offenses`; freigeschaltet wird sie je Träger über die Vergehens-Regeln. Die automatische Ahndung (`judgedBy: \"system\"`) sperrt sie NICHT: dort gibt es keinen Urteilsschritt, vor dem sie stehen könnte.",
+  }),
+  c({
     id: "offense-judge", mechanic: "Strafbuch", title: "Urteilen",
     what: "Verwerfen, bestrafen (Freitext oder als gestellte Aufgabe), erledigen oder wieder aufnehmen.",
     actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],

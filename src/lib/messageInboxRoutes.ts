@@ -90,7 +90,9 @@ export function makeInboxRoutes(resolveScope: ScopeResolver): InboxRoutes {
         unreadCount(scope, [], filter),
       ]);
       return NextResponse.json({
-        messages: await presentMessages(result.messages, locale),
+        // Schreibrecht an der Stellungnahme nur im EIGENEN Posteingang: `audience: "sub"` heisst,
+        // der Leser ist der Träger, um den es geht. Die Keyholderin liest denselben Text ohne Feld.
+        messages: await presentMessages(result.messages, locale, scope.audience === "sub" ? { userId: scope.readerId } : null),
         page: result.page,
         pageCount: result.pageCount,
         unreadInFilter,

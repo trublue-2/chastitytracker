@@ -206,6 +206,14 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
+  // Darf der Träger zu einem Vergehen Stellung nehmen? Ein blosser Schalter am Träger, KEINE
+  // Regel-Historie: `OffenseRuleChange` beantwortet „welche Art zählte wann", und ob er etwas dazu
+  // sagen durfte, ist keine Antwort darauf. Eine Zeile dort verfälschte die Rückrechnung.
+  if (body.offenseStatementsAllowed !== undefined) {
+    await prisma.user.update({ where: { id }, data: { offenseStatementsAllowed: Boolean(body.offenseStatementsAllowed) } });
+    return NextResponse.json({ ok: true });
+  }
+
   if (body.mobileDesktopUpload !== undefined) {
     await prisma.user.update({ where: { id }, data: { mobileDesktopUpload: Boolean(body.mobileDesktopUpload) } });
     return NextResponse.json({ ok: true });

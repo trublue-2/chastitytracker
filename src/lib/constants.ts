@@ -622,6 +622,7 @@ export const NOTIFICATION_EVENT_TYPES = [
   "WEAR_BEGIN_ANY",
   "WEAR_END_ANY",
   "TASK_PROOF_LATE",
+  "OFFENSE_STATEMENT",
 ] as const;
 
 export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
@@ -840,6 +841,19 @@ export function validateEntryPayload(
   }
   return null;
 }
+
+// ── Stellungnahme zu einem Vergehen ─────────────────────────────────────────
+/**
+ * Wie lang die Stellungnahme des Trägers zu einem Vergehen höchstens sein darf.
+ *
+ * Beim SCHREIBEN begrenzt und nicht beim Lesen gekappt: eine Stellungnahme ist ein Satz zur Sache,
+ * kein Dokument — anders als eine Notiz, die deshalb `NOTE_TEXT_LIMIT` beim Ausliefern kürzt.
+ *
+ * Die Grenze ist keine Zierde. Der Text reist in JEDER Vergehens-Zeile von `get_offenses` und im
+ * Dashboard mit, und genau dort hat eine unbegrenzte Textmenge schon einmal die Antwort gesprengt
+ * (#109: 182 KB in einem Aufruf). Ohne Grenze wäre dieselbe Falle neu gestellt.
+ */
+export const OFFENSE_STATEMENT_MAX_LENGTH = 2000;
 
 // ── Aufgaben (Task) ─────────────────────────────────────────────────────────
 /** Längen-Grenzen für Aufgaben-Texte. Zentral hier, nicht im Formular: dieselben Werte prüfen

@@ -141,6 +141,11 @@ model User {
   noticeSeenVersion              String?
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
   mcpKeyholderInstructions       String?
+  // Darf der Träger zu einem festgestellten Vergehen eine Stellungnahme schreiben? Schalter der
+  // Keyholderin je Sub. AN als Vorgabe: ein Strafbuch, das Vorwürfe erhebt, ohne dass der
+  // Beschuldigte etwas sagen kann, ist die schlechtere Voreinstellung. Aus = kein Feld und kein
+  // Hinweis beim Träger; bereits geschriebene Stellungnahmen bleiben und bleiben sichtbar.
+  offenseStatementsAllowed       Boolean                  @default(true)
   // ── Gewichtstracking (docs/gewicht-konzept.md) ────────────────────────────────────────────────
   // Schalter der Keyholderin je Sub. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden, die
   // Daten bleiben. Dazu der Instanz-Schalter `ENABLE_WEIGHT_TRACKING` (constants.ts).
@@ -223,6 +228,7 @@ model User {
   weightEntries                  WeightEntry[]
   heightChanges                  HeightChange[]
   weightReleases                 WeightRelease[]
+  offenseStatements              OffenseStatement[]
 }
 
 /// Freigabe-Vorgabe: das Gewicht öffnet das nächste Orgasmus-Fenster (docs/gewicht-freigabe-konzept.md).
@@ -997,6 +1003,40 @@ model AdminPasswordChange {
 // Urteil über ein erkanntes Vergehen. Lebenszyklus: erkannt (kein Record) →
 // verworfen (status=DISMISSED) | bestraft (status=PUNISHED). Identität des Vergehens
 // über (offenseType, refId); refId ist die Entry-/Kontrolle-/Anforderungs-id.
+/// Die Stellungnahme des TRÄGERS zu einem festgestellten Vergehen — was er dazu zu sagen hat,
+/// bevor geurteilt wird.
+///
+/// EIGENE TABELLE und kein Feld an `StrafeRecord`: ein Vergehen ist eine LIVE-Ableitung und hat
+/// keine eigene Zeile (Begründung im Kopf von `subOffenses.ts`). `StrafeRecord` ist zwar die
+/// einzige Persistenz an einer `refId` — entsteht aber erst MIT dem Urteil, also nach dem
+/// Zeitpunkt, an dem die Stellungnahme gebraucht wird.
+///
+/// `refId @unique` wie dort: EINE Stellungnahme je Vergehen, erzwungen von der Datenbank statt von
+/// der Route. Zwei Arten können sich einen Eintrag teilen und tragen dann verschiedene refIds
+/// (`cleaningNotRelockedRef` mit Präfix) — sie bekommen damit auch getrennte Stellungnahmen, was
+/// richtig ist: es sind zwei Vorwürfe.
+///
+/// WAISEN SIND ERLAUBT. Ändert sich die Ableitung und das Vergehen verschwindet, bleibt die Zeile
+/// liegen; sie erscheint nur dort, wo ihr Vergehen erscheint. Ein Aufräum-Lauf wäre eine zweite
+/// Wahrheit darüber, was gilt.
+model OffenseStatement {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Dieselbe ref wie in `StrafeRecord` — die Vergehens-Identität.
+  refId       String   @unique
+  /// Die Vergehens-Art, mitgeschrieben wie in `StrafeRecord`: die Anzeige soll sie nicht aus dem
+  /// Kontext raten müssen, und ein verwaister Eintrag könnte es gar nicht.
+  offenseType String
+  text        String
+  createdAt   DateTime @default(now())
+  /// Gesetzt beim ersten Absenden UND bei jeder Änderung. Ist es ungleich `createdAt`, trägt die
+  /// Anzeige „geändert am" — gemeldet wird nur die erste Abgabe.
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
 model StrafeRecord {
   id            String    @id @default(cuid())
   userId        String

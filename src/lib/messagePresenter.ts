@@ -2,6 +2,8 @@ import { getTranslations } from "next-intl/server";
 import type { InboxMessage, MessageSenderKind } from "@/lib/messageService";
 import { messageCategory, type MessageCategory } from "@/lib/messageCategories";
 import { inspectionHref } from "@/lib/entryFormRoute";
+import { offenseCanonicalFromNameKey } from "@/lib/offenseLabels";
+import { loadStatementGates, loadStatements, statementBlockedReason } from "@/lib/offenseStatementService";
 
 /** Eine anzeigefertige Nachricht: alle Texte aufgelöst, keine i18n-Schlüssel mehr. */
 export interface PresentedMessage {
@@ -25,6 +27,23 @@ export interface PresentedMessage {
    *  wird nie übersetzt, wie `subjectUsername`. */
   senderName: string | null;
   read: boolean;
+  /**
+   * Die Stellungnahme des Trägers zu dem Vergehen, über das diese Zeile berichtet — `null`, wo es
+   * keines gibt (jede andere Meldung) oder wo sie abgeschaltet ist.
+   *
+   * `editable` sagt, ob der LESER dieser Zeile sie schreiben darf: der Träger in seinem eigenen
+   * Posteingang, solange niemand geurteilt hat. Die Keyholderin liest denselben Text und bekommt
+   * kein Feld — sie urteilt darüber, sie verfasst ihn nicht.
+   */
+  statement: {
+    refId: string;
+    /** Die kanonische Art, für den Schreibweg — aus dem Namens-Schlüssel der Meldung zurückgelesen. */
+    offenseType: string;
+    text: string | null;
+    editable: boolean;
+    /** Gesetzt, wenn der Text nach dem ersten Absenden geändert wurde. */
+    editedAt: string | null;
+  } | null;
 }
 
 /**
@@ -57,10 +76,21 @@ function withOffenseName(
  * Die Render-Regel hängt an der Feld-Identität, nicht an einem Flag: `bodyKey` ⇒ übersetzen,
  * `body` ⇒ roh übernehmen (Menschentext wird nie übersetzt und nie interpoliert).
  */
-export async function presentMessages(messages: InboxMessage[], locale: string): Promise<PresentedMessage[]> {
-  const [t, tOffenses] = await Promise.all([
+export async function presentMessages(
+  messages: InboxMessage[],
+  locale: string,
+  /** Wessen Posteingang das ist — nur der TRÄGER darf hier schreiben. Fehlt die Angabe (Keyholder-
+   *  Sicht), erscheint die Stellungnahme als Text ohne Feld. */
+  statementFor?: { userId: string } | null,
+): Promise<PresentedMessage[]> {
+  const offenseRefs = statementFor
+    ? [...new Set(messages.flatMap((m) => (m.offenseRefId ? [m.offenseRefId] : [])))]
+    : [];
+  const [t, tOffenses, statements, gates] = await Promise.all([
     getTranslations({ locale, namespace: "emails" }),
     getTranslations({ locale, namespace: "offenses" }),
+    loadStatements(offenseRefs),
+    statementFor ? loadStatementGates(statementFor.userId, offenseRefs) : new Map(),
   ]);
   return messages.map((m) => ({
     id: m.id,
@@ -79,5 +109,36 @@ export async function presentMessages(messages: InboxMessage[], locale: string):
     senderKind: m.senderKind,
     senderName: m.senderName,
     read: m.read,
+    statement: statementOf(m, statements, gates),
   }));
+}
+
+/**
+ * Die Stellungnahme-Spalte einer Zeile — Text, Schreibrecht und die Art, unter der geschrieben wird.
+ *
+ * `null` bleibt sie, wo es kein Vergehen gibt, wo die Art nicht mehr auflösbar ist (dann wüsste der
+ * Schreibweg nicht, worunter er speichern soll) und im Keyholder-Posteingang, solange dort weder
+ * Text noch Recht vorliegen — eine leere Hülle wäre für die Anzeige dasselbe wie gar keine.
+ */
+function statementOf(
+  m: InboxMessage,
+  statements: Map<string, { text: string; createdAt: Date; updatedAt: Date }>,
+  gates: Map<string, { allowed: boolean; judgedBy: string | null }>,
+): PresentedMessage["statement"] {
+  const refId = m.offenseRefId;
+  if (!refId) return null;
+  const offenseType = offenseCanonicalFromNameKey(m.bodyParams?.offenseKey as string | undefined);
+  if (!offenseType) return null;
+  const row = statements.get(refId) ?? null;
+  const gate = gates.get(refId);
+  const editable = gate ? statementBlockedReason(gate) === null : false;
+  if (!row && !editable) return null;
+  return {
+    refId,
+    offenseType,
+    text: row?.text ?? null,
+    editable,
+    // Nur wo wirklich nachgebessert wurde: `updatedAt` steht bei jeder Zeile, auch der unberührten.
+    editedAt: row && row.updatedAt.getTime() !== row.createdAt.getTime() ? row.updatedAt.toISOString() : null,
+  };
 }

@@ -58,6 +58,13 @@
           "de": "Das Strafbuch folgt der Gestaltung der übrigen Seiten — die Abschnitte stehen ohne Kasten, und die Knöpfe nehmen die Farben des Systems.",
           "en": "The offense ledger now follows the design of the other pages — sections have no box, and the buttons use the system colours."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Der Träger kann zu einem festgestellten Vergehen eine Stellungnahme schreiben — im Posteingang, an der Meldung, mit der er davon erfährt. Eine je Vergehen, änderbar bis zum Urteil; die Keyholderin liest sie über ihrem Urteils-Feld. Sie kann das je Träger abschalten.",
+          "en": "The wearer can write a statement on a detected offense — in the inbox, on the message that tells him about it. One per offense, editable until it is judged; the keyholder reads it above her judgment field. She can switch it off per wearer."
+        }
       }
     ]
   },

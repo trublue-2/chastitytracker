@@ -5,6 +5,7 @@ import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type Offe
 import { offenseState, offenseNeedsAttention, type OffenseState } from "@/lib/offenseTypes";
 import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks";
 import { missedWeightRef } from "@/lib/weightObligation";
+import { loadStatements } from "@/lib/offenseStatementService";
 
 // ── Strafbuch-Snapshot ────────────────────────────────────────────────────────
 // Wohnt hier, weil `getOffenses` sein einziger Aufrufer ist. Solange auch das (entfernte) V1-
@@ -267,6 +268,14 @@ export interface OffenseRow {
   judgedAt: string | null;
   /** Typ-spezifischer Kontext (Zeiten, Gerät, Nachricht …). */
   context: Record<string, unknown>;
+  /**
+   * Was der TRÄGER zu diesem Vergehen gesagt hat — `null`, wo er nichts geschrieben hat.
+   *
+   * Rein additiv, deshalb ohne `schemaVersion`-Bump. Es steht in der Zeile und nicht nur in der
+   * Oberfläche, weil sonst die KI-Keyholderin als Einzige ohne sie urteilte: sie sieht den Vorwurf,
+   * der Mensch daneben sähe zusätzlich den Einwand.
+   */
+  statement: { text: string; at: string } | null;
   notes: NoteDTO[];
 }
 
@@ -314,6 +323,7 @@ function toRow(detectedAt: string | null, j: OffenseJudgment, context: Record<st
     judgedByName: j.judgedByName,
     judgedAt: j.judgedAt,
     context,
+    statement: null,
     notes: [],
   };
 }
@@ -427,9 +437,19 @@ export async function getOffenses(username: string, opts: GetOffensesOptions = {
   // Filtern VOR dem Notes-Query, damit Inline-Notes nur für überlebende Zeilen geladen werden.
   const rows = filterOffenses(buildOffenseRows(sb, new Map(deviceClusters.map((d) => [d.name, d]))), opts);
 
-  // Inline-Notes je Offense in EINEM Query.
-  const notesByEntity = await notesForEntities(userId, rows.map((r) => ({ entityType: "offense" as const, entityId: r.id })), {}, undefined, timezone);
-  for (const r of rows) r.notes = notesByEntity.get(entityKey("offense", r.id)) ?? [];
+  // Inline-Notes je Offense in EINEM Query — und die Stellungnahmen des Trägers daneben, aus
+  // demselben Grund in EINER Abfrage. Beide hängen an den überlebenden Zeilen, nicht am Bestand.
+  const [notesByEntity, statements] = await Promise.all([
+    notesForEntities(userId, rows.map((r) => ({ entityType: "offense" as const, entityId: r.id })), {}, undefined, timezone),
+    loadStatements(rows.map((r) => r.id)),
+  ]);
+  for (const r of rows) {
+    r.notes = notesByEntity.get(entityKey("offense", r.id)) ?? [];
+    const st = statements.get(r.id);
+    // `updatedAt` und nicht `createdAt`: gefragt ist, was er JETZT sagt — die Fassung, die vor einer
+    // Änderung galt, hebt niemand auf.
+    r.statement = st ? { text: st.text, at: makeFmt(timezone)(st.updatedAt) } : null;
+  }
 
   return {
     schemaVersion: 4,

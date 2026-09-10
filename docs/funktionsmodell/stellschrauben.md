@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 146 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 147 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -147,6 +147,7 @@ Steckbrief: [50-strafbuch.md](50-strafbuch.md)
 
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
+| `User.offenseStatementsAllowed` | Boolean | `true` | dauerhaft | Darf der Träger zu einem festgestellten Vergehen eine Stellungnahme schreiben? AN als Vorgabe. Aus = kein Feld und kein Hinweis bei ihm; bereits geschriebene Stellungnahmen bleiben stehen und bleiben für beide Seiten lesbar. | Keyholder (UI), Keyholder (MCP) | Strafbuch, Oberfläche | `offenseStatementService.ts:statementBlockedReason` |
 | `ManualOffense.occurredAt` | DateTime | (keiner) | je Direktive | Wann es passiert ist, nicht wann notiert wurde. Danach richtet sich die Einordnung UND welche Regel-Fassung gilt. | Keyholder (UI), Keyholder (MCP) | Strafbuch | — |
 | `ManualOffense.title` | String | (keiner) | je Direktive | Worum es geht. Für alles, was der Tracker nicht sehen kann — gebrochene Abmachung, Unhöflichkeit. | Keyholder (UI), Keyholder (MCP) | Strafbuch, Nachrichten | — |
 | `ManualOffense.description` | String? | — | je Direktive | Ausführlichere Fassung. | Keyholder (UI), Keyholder (MCP) | Strafbuch | — |

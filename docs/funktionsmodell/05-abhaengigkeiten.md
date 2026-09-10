@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 152 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
+Insgesamt 153 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
 
 ## Einträge
 
@@ -365,6 +365,7 @@ flowchart LR
   nOrgasmus["Orgasmus"] --> nStrafbuch
   nAufgaben["Aufgaben"] --> nStrafbuch
   nZugang["Zugang"] --> nStrafbuch
+  nStrafbuch --> nOberflche["Oberfläche"]
   nStrafbuch --> nNachrichten["Nachrichten"]
   nStrafbuch --> nAufgaben["Aufgaben"]
 ```
@@ -404,6 +405,7 @@ flowchart LR
 
 | Wohin | Wodurch | Was passiert | Anker |
 |---|---|---|---|
+| Oberfläche | `User.offenseStatementsAllowed` | Darf der Träger zu einem festgestellten Vergehen eine Stellungnahme schreiben? AN als Vorgabe. Aus = kein Feld und kein Hinweis bei ihm; bereits geschriebene Stellungnahmen bleiben stehen und bleiben für beide Seiten lesbar. | `offenseStatementService.ts:statementBlockedReason` |
 | Nachrichten | `ManualOffense.title` | Worum es geht. Für alles, was der Tracker nicht sehen kann — gebrochene Abmachung, Unhöflichkeit. | — |
 | Aufgaben | *feste Regel* | Eine Strafe kann eine gestellte Aufgabe sein. Wird das Urteil ersetzt oder zurückgenommen, zieht der Tracker die Aufgabe zurück; eine ERFÜLLTE Strafaufgabe schliesst das Urteil umgekehrt von selbst ab. | `strafurteilService.ts` |
 | Nachrichten | *feste Regel* | Erkannte, bestrafte und verworfene Vergehen werden beiden Seiten gemeldet — abgeleitete aber erst ab dem Stichtag der Instanz, sonst kippte das erste Update die ganze Historie in den Posteingang. | `offenseAnnounce.ts` |
@@ -710,6 +712,7 @@ flowchart LR
   nOberflche["Oberfläche"]
   nEintrge["Einträge"] --> nOberflche
   nZugang["Zugang"] --> nOberflche
+  nStrafbuch["Strafbuch"] --> nOberflche
   nGewicht["Gewicht"] --> nOberflche
   nGerte["Geräte"] --> nOberflche
 ```
@@ -725,6 +728,7 @@ flowchart LR
 | Zugang | `User.quickSettings` | Welche Einstellungen dieses Trägers in der Keyholder-Übersicht als Schnellschalter erscheinen (Liste von Schlüsseln, höchstens vier). Reine Anzeige-Auswahl: sie ändert keine Regel, sondern nur, welche davon ohne Umweg über die Einstellungen erreichbar ist. | `quickSettings.ts` |
 | Zugang | `User.hideOwnTracker` | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | `ownTracker.ts` |
 | Zugang | `User.locale` | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | `emailI18n.ts` |
+| Strafbuch | `User.offenseStatementsAllowed` | Darf der Träger zu einem festgestellten Vergehen eine Stellungnahme schreiben? AN als Vorgabe. Aus = kein Feld und kein Hinweis bei ihm; bereits geschriebene Stellungnahmen bleiben stehen und bleiben für beide Seiten lesbar. | `offenseStatementService.ts:statementBlockedReason` |
 | Gewicht | `User.weightTrackingEnabled` | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`). | `authGuards.ts:weightTrackingGate` |
 | Gewicht | `User.unitSystem` | Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt. | `weight.ts:weightForDisplay` |
 | Geräte | `Device.name` | Anzeigename. Geht zusätzlich in die Geräte-Erkennung ein, zusammen mit den Bildern und den drei optischen Feldern. | — |

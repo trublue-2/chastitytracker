@@ -615,6 +615,13 @@ export default function MessageList({
                 onMarkRead={() => markRead(m)}
                 onMarkUnread={() => markUnread(m)}
                 onDelete={() => setConfirmDelete(m)}
+                // Lokal statt neu laden: `loadOnce` setzt `openId` zurück, und die Zeile klappte
+                // genau in dem Moment zu, in dem er sie gerade beschrieben hat.
+                onStatementSaved={(text) => setMessages((prev) => prev.map((x) => (
+                  x.id === m.id && x.statement
+                    ? { ...x, statement: { ...x.statement, text, editedAt: text && x.statement.text ? new Date().toISOString() : x.statement.editedAt } }
+                    : x
+                )))}
                 keyholderName={keyholderName}
                 dl={dl}
                 tz={tz}

@@ -34,6 +34,26 @@ export function offenseNameKey(type: OffenseCanonicalType): string {
   return `${OFFENSE_TYPE_I18N_KEYS[type]}.name`;
 }
 
+/** Die Umkehrung von {@link offenseNameKey}, aus derselben Tabelle abgeleitet statt daneben
+ *  geschrieben — eine zweite Zuordnung liefe bei der nächsten Art auseinander. */
+const CANONICAL_BY_NAME_KEY: Record<string, OffenseCanonicalType> = Object.fromEntries(
+  (Object.entries(OFFENSE_TYPE_I18N_KEYS) as [OffenseCanonicalType, string][])
+    .map(([canonical, key]) => [`${key}.name`, canonical]),
+);
+
+/**
+ * Welche Art steckt hinter dem Namens-Schlüssel einer Meldung? `null`, wenn keine.
+ *
+ * Die Vergehens-Meldung im Posteingang trägt die Art als i18n-Schlüssel (`bodyParams.offenseKey`)
+ * und nicht als gespeicherten Wert — aus gutem Grund, siehe `offenseAnnounce.ts`. Wer von dieser
+ * Zeile aus etwas über das Vergehen schreiben will (die Stellungnahme), braucht die Art aber
+ * zurück. Sie hier zurückzulesen ist billiger, als das ganze Strafbuch abzuleiten, nur um zu einer
+ * `refId` die Art zu finden.
+ */
+export function offenseCanonicalFromNameKey(key: string | null | undefined): OffenseCanonicalType | null {
+  return (key && CANONICAL_BY_NAME_KEY[key]) || null;
+}
+
 /**
  * Der i18n-Schlüssel je Regel-Modus im Namensraum `admin` — aus demselben Grund hier wie die
  * Arten-Schlüssel: die Modi benennt jede Oberfläche, die Regeln zeigt oder setzt.

@@ -448,6 +448,12 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin"], affects: ["MCP"], anchor: "app/api/[transport]/route.ts",
   }),
 
+  s({
+    model: "User", field: "offenseStatementsAllowed", domain: "strafbuch", scope: "standing",
+    effect: "Darf der Träger zu einem festgestellten Vergehen eine Stellungnahme schreiben? AN als Vorgabe. Aus = kein Feld und kein Hinweis bei ihm; bereits geschriebene Stellungnahmen bleiben stehen und bleiben für beide Seiten lesbar.",
+    writers: ["admin", "mcp"], affects: ["Strafbuch", "Oberfläche"], anchor: "offenseStatementService.ts:statementBlockedReason",
+  }),
+
   // ── User: Box ──────────────────────────────────────────────────────────────────────────────
   s({
     model: "User", field: "lockRequiresBolt", domain: "box", scope: "standing",

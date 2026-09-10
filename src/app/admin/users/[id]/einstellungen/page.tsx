@@ -292,6 +292,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       <SettingsSection defaultCollapsed title={t("sectionOffenseRules")} description={t("sectionOffenseRulesDesc")} bodyPadded>
         <OffenseRulesEditor
           userId={user.id}
+          initialStatementsAllowed={user.offenseStatementsAllowed}
           /* Die Meldepflicht steht nur da, wo sie auch etwas bewirkt — der Gewichts-Abschnitt
              darüber entscheidet darüber mit, und sein Speichern lädt diese Seite neu. */
           types={switchableOffenseTypesFor({

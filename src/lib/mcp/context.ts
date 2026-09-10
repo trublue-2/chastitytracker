@@ -138,6 +138,16 @@ export interface ContextResult extends Envelope {
    */
   offenseRules: Record<SwitchableOffenseType, OffenseMode>;
   /**
+   * Darf der Träger zu einem festgestellten Vergehen eine Stellungnahme schreiben? Umgelegt wird
+   * das mit `set_offense_rules` (`statementsAllowed`).
+   *
+   * Rein additiv, deshalb ohne `schemaVersion`-Bump. Steht bei den Regeln und nicht bei den
+   * Einstellungen, weil es eine Regel des Strafbuchs ist: sie entscheidet, ob der Beschuldigte
+   * überhaupt etwas sagen kann. Seine Stellungnahme selbst steht an der Vergehens-Zeile in
+   * `get_offenses`.
+   */
+  offenseStatementsAllowed: boolean;
+  /**
    * Die offene Freigabe-Vorgabe samt aktuellem Stand — `null`, wenn keine steht
    * (docs/gewicht-freigabe-konzept.md). Gestellt und zurückgezogen wird sie mit
    * `set_weight_release`.
@@ -191,6 +201,7 @@ const contextUserSelect = {
   inspectionReminderEnabled: true, inspectionReminderDelayMinutes: true,
   inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
   lockRequiresBolt: true,
+  offenseStatementsAllowed: true,
 } as const;
 
 /** Box-Bestand und wartender Aufruf — die Lese-Seite zu `set_box` (docs/riegel-konzept.md).
@@ -264,6 +275,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
       autoMarkDelayMinutes: user.inspectionAutoMarkDelayMinutes,
     },
     offenseRules,
+    offenseStatementsAllowed: user.offenseStatementsAllowed,
     weightRelease: release && {
       thresholdKg: release.thresholdKg,
       nextThresholdKg: release.nextThresholdKg,

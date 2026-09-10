@@ -43,6 +43,10 @@ export const MESSAGE_BODY_KEYS = [
   // Automatisch geahndet, ohne Urteilsschritt — deshalb eine eigene Meldung: der Melder sieht sie
   // nicht (er meldet nur Unbeurteiltes) und der Dashboard-Block auch nicht (nur offene Strafen).
   "wrongDeviceMessage",
+  // Der Träger hat sich zu einem Vergehen geäussert. Geht an die KEYHOLDER (`audience`), und nur
+  // beim ERSTEN Absenden — eine Änderung läuft still, sonst füllte eine Tippkorrektur ihren
+  // Posteingang.
+  "offenseStatementMessage",
   // Kontrolle
   "inspectionRequestedMessage",
   "inspectionConfirmedMessage",
@@ -378,6 +382,9 @@ export interface InboxMessage {
   refActionCategoryId: string | null;
   /** Referenz gesetzt, Objekt aber nicht (mehr) auflösbar. Muster: `unknownRef` in lib/mcp/notes.ts. */
   refMissing: boolean;
+  /** Die `refId` des Vergehens, über das diese Zeile berichtet — sonst `null`. Trägt die
+   *  Stellungnahme des Trägers (`OffenseStatement`). */
+  offenseRefId: string | null;
   /**
    * Benutzername des TRÄGERS — nur im Keyholder-Posteingang gesetzt, sonst `null`.
    *
@@ -866,6 +873,11 @@ export async function listMessages(
       refActionCode: detail?.actionCode ?? null,
       refActionCategoryId: detail?.actionCategoryId ?? null,
       refMissing: key !== null && detail === undefined,
+      // Die Vergehens-Referenz reist mit: an dieser Zeile hängt die Stellungnahme des Trägers, und
+      // ohne sie wüsste die Anzeige nicht, WORÜBER er schreibt. Nur bei echten Vergehens-Meldungen
+      // gesetzt — die Verwerfungs-Zeile trägt denselben `refEntityType`, meint aber ein
+      // abgeschlossenes Urteil.
+      offenseRefId: row.refEntityType === OFFENSE_REF_TYPE && !isDismissalRow(row) ? row.refEntityId : null,
       subjectUsername: scope.subjectNames?.get(row.subjectUserId) ?? null,
       read: row.reads.length > 0,
     });

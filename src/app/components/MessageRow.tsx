@@ -6,6 +6,7 @@ import { ArrowRight, Bot, Check, Settings, Trash2, Undo2, UserRound } from "luci
 import Badge from "@/app/components/Badge";
 import Checkbox from "@/app/components/Checkbox";
 import DetailField from "@/app/components/DetailField";
+import OffenseStatementField from "@/app/components/OffenseStatementField";
 import ExpandRow from "@/app/components/ExpandRow";
 import RowActionsMenu from "@/app/components/RowActionsMenu";
 import useIsClamped from "@/app/hooks/useIsClamped";
@@ -39,6 +40,7 @@ export default function MessageRow({
   onMarkRead,
   onMarkUnread,
   onDelete,
+  onStatementSaved,
   keyholderName,
   dl,
   tz,
@@ -55,6 +57,8 @@ export default function MessageRow({
   onMarkRead: () => void;
   onMarkUnread: () => void;
   onDelete: () => void;
+  /** Nach dem Schreiben einer Stellungnahme: die Liste schreibt den Text in ihre Zeile. */
+  onStatementSaved: (text: string | null) => void;
   /** Benutzername des EINEN Keyholders, sonst `null` — kommt vom Server durch die Liste. */
   keyholderName: string | null;
   /** Datums-Locale (`toDateLocale`). */
@@ -78,7 +82,10 @@ export default function MessageRow({
   // Messung ergäbe „passt", und die Zeile verlöre ihren Knopf unter dem Finger. Der Hook hält den
   // letzten Messwert, solange nicht gemessen wird; ein `|| open` als Ausgleich braucht es nicht.
   const [textRef, textClamped] = useIsClamped(!expanded);
-  const expandable = hasRef || Boolean(m.refHref) || textClamped;
+  // Die Stellungnahme macht die Zeile aufklappbar: sie ist der einzige Ort, an dem der Träger
+  // etwas zu diesem Vergehen sagen kann. Ohne sie hätte eine Vergehens-Meldung ohne Bezugstext
+  // keine Aufklapp-Fläche — und das Feld wäre unerreichbar.
+  const expandable = hasRef || Boolean(m.refHref) || textClamped || Boolean(m.statement);
 
   const title = (
     <span className="flex items-start gap-2">
@@ -183,6 +190,7 @@ export default function MessageRow({
         {/* Verlinkt wird nur, wo eine Seite etwas beiträgt — heute die offene Kontrolle mit
             vorbelegtem Code. Der Link steht IM Panel, nicht im Titel: dessen Aufklapp-Fläche ist ein
             `button`, ein `a` darin wäre ungültiges Markup und würde den Klick verschlucken. */}
+        {m.statement && <OffenseStatementField statement={m.statement} onSaved={onStatementSaved} />}
         {m.refHref && (
           <Link
             href={m.refHref}

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
 import Select from "@/app/components/Select";
 import SettingLabel from "@/app/components/SettingLabel";
-import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
+import { useSettingsSave, useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS } from "@/lib/offenseLabels";
 import { OFFENSE_RULE_MODES, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 
@@ -35,6 +35,7 @@ export default function OffenseRulesEditor({
   userId,
   types,
   initialRules,
+  initialStatementsAllowed,
 }: {
   userId: string;
   /** Die Arten, die bei DIESEM Sub gelten — `switchableOffenseTypesFor()`, auf dem Server gebildet.
@@ -42,6 +43,9 @@ export default function OffenseRulesEditor({
    *  dieselbe Auswahl zeigt. */
   types: readonly SwitchableOffenseType[];
   initialRules: Record<SwitchableOffenseType, OffenseMode>;
+  /** Darf der Träger zu einem Vergehen Stellung nehmen? Steht hier, weil es eine Regel des
+   *  Strafbuchs ist — sie entscheidet, ob der Beschuldigte überhaupt etwas sagen kann. */
+  initialStatementsAllowed: boolean;
 }) {
   const t = useTranslations("admin");
   const tOffense = useTranslations("offenses");
@@ -50,6 +54,10 @@ export default function OffenseRulesEditor({
   // der Abgleich darunter ab.
   const { saving, save } = useSettingsSave("/api/admin/offense-rules", { refresh: false });
   const [rules, setRules] = useState(initialRules);
+  // Eigener Schreibweg: der Schalter ist ein Feld am Träger, keine Zeile in der Regel-Historie
+  // (`OffenseRuleChange`) — die beantwortet, welche ART wann zählte.
+  const { saving: savingStatements, save: saveStatements } = useUserSettingsSave(userId);
+  const [statementsAllowed, setStatementsAllowed] = useState(initialStatementsAllowed);
 
   // Die Nachbar-Sektion kann diese Liste ändern: schaltet die Keyholderin das Gewichtstracking ab,
   // legt der Server `missed_weight_report` mit auf `off` und die Zeile verschwindet. Ohne diesen
@@ -73,8 +81,21 @@ export default function OffenseRulesEditor({
     if (!ok) setRules((r) => ({ ...r, [type]: previous }));
   }
 
+  /** Wie `setMode`: sofort umlegen, bei Ablehnung zurück. */
+  async function toggleStatements(checked: boolean) {
+    setStatementsAllowed(checked);
+    if (!(await saveStatements({ offenseStatementsAllowed: checked }))) setStatementsAllowed(!checked);
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      <Toggle
+        label={t("offenseStatementsLabel")}
+        description={t("offenseStatementsDesc")}
+        checked={statementsAllowed}
+        disabled={savingStatements}
+        onChange={toggleStatements}
+      />
       {types.map((type) => {
         const key = OFFENSE_TYPE_I18N_KEYS[type];
         const name = tOffense(`${key}.name`);

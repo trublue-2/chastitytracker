@@ -1792,7 +1792,11 @@ export async function mcpResolveInspection(username: string, args: ResolveInspec
 // ── Offence rules: which offence types count for this wearer ───────────────
 
 export interface SetOffenseRulesArgs {
-  rules: { type: string; mode: string }[];
+  rules?: { type: string; mode: string }[];
+  /** Darf der Träger zu einem Vergehen Stellung nehmen? Gehört in dieses Werkzeug und nicht in ein
+   *  eigenes: es ist eine Regel des Strafbuchs, und ein Werkzeug je Einstellungs-FAMILIE ist die
+   *  Vorgabe (CLAUDE.md). */
+  statementsAllowed?: boolean;
   dryRun?: boolean;
 }
 
@@ -1815,11 +1819,14 @@ export interface SetOffenseRulesArgs {
  */
 export async function mcpSetOffenseRules(username: string, args: SetOffenseRulesArgs) {
   const userId = await resolveTargetUserId(username);
-  if (!args.rules?.length) throw new Error("Provide at least one rule ({type, mode}).");
+  const rules = args.rules ?? [];
+  if (!rules.length && args.statementsAllowed === undefined) {
+    throw new Error("Provide at least one rule ({type, mode}) or statementsAllowed.");
+  }
 
   // Alles VOR dem ersten Schreiben prüfen: eine Liste zur Hälfte anzuwenden hinterlässt einen
   // Zustand, den niemand angefordert hat, und in der Historie einen halben Vorgang.
-  for (const r of args.rules) {
+  for (const r of rules) {
     if (!isSwitchableOffenseType(r.type)) {
       throw new Error(`${r.type}: ${enErrorText("OFFENSE_TYPE_NOT_SWITCHABLE")} Switchable: ${Object.keys(OFFENSE_RULE_MODES).join(", ")}.`);
     }
@@ -1828,7 +1835,7 @@ export async function mcpSetOffenseRules(username: string, args: SetOffenseRules
     }
     // Zweimal dieselbe Art in einem Aufruf: der letzte Wert gewönne still, und die Historie bekäme
     // zwei Zeilen mit demselben Zeitpunkt. Wer das schickt, meint etwas anderes, als er schreibt.
-    if (args.rules.filter((x) => x.type === r.type).length > 1) {
+    if (rules.filter((x) => x.type === r.type).length > 1) {
       throw new Error(`${r.type} appears more than once — send each offence type at most once per call.`);
     }
   }
@@ -1842,26 +1849,41 @@ export async function mcpSetOffenseRules(username: string, args: SetOffenseRules
     const currentRules = await getOffenseRules(userId, now);
     const before: Record<string, unknown> = {};
     const after: Record<string, unknown> = {};
-    for (const r of args.rules) {
+    for (const r of rules) {
       before[r.type] = currentRules[r.type as SwitchableOffenseType];
       after[r.type] = r.mode;
     }
     // Was sich NICHT bewegt, gehört in die Vorschau: der Dienst schreibt für einen bereits geltenden
     // Modus keine Zeile, und ohne diesen Hinweis liest sich ein leerer Diff wie ein Fehlschlag.
-    const unchanged = args.rules.filter((r) => before[r.type] === r.mode).map((r) => r.type);
+    const unchanged = rules.filter((r) => before[r.type] === r.mode).map((r) => r.type);
+    if (args.statementsAllowed !== undefined) {
+      const current = await prisma.user.findUnique({ where: { id: userId }, select: { offenseStatementsAllowed: true } });
+      before.statementsAllowed = current?.offenseStatementsAllowed;
+      after.statementsAllowed = args.statementsAllowed;
+    }
     return dryRunPreview("set_offense_rules", undefined, {
-      rules: after,
+      ...(rules.length ? { rules: after } : {}),
+      ...(args.statementsAllowed !== undefined ? { statementsAllowed: args.statementsAllowed } : {}),
       ...(unchanged.length ? { alreadyInEffect: unchanged } : {}),
     }, diffFields(before, after));
   }
 
-  for (const r of args.rules) {
+  for (const r of rules) {
     unwrap(await setOffenseRule({
       userId, offenseType: r.type as SwitchableOffenseType, mode: r.mode as OffenseMode,
       changedBy: AI_AUTHOR, now,
     }));
   }
-  const applied = args.rules.map((r) => `${r.type}=${r.mode}`).join(", ");
+  // Der Schalter läuft NICHT über `setOffenseRule`: der schreibt in die Regel-Historie
+  // (`OffenseRuleChange`), und die beantwortet „welche Art zählte wann". Ob der Träger etwas dazu
+  // sagen durfte, ist keine Antwort darauf — eine Zeile dort verfälschte die Rückrechnung.
+  if (args.statementsAllowed !== undefined) {
+    await prisma.user.update({ where: { id: userId }, data: { offenseStatementsAllowed: args.statementsAllowed } });
+  }
+  const applied = [
+    ...rules.map((r) => `${r.type}=${r.mode}`),
+    ...(args.statementsAllowed !== undefined ? [`statements=${args.statementsAllowed ? "on" : "off"}`] : []),
+  ].join(", ");
   return {
     ok: true,
     message: `Offence rules updated (${applied}). Applies from now on — what was judged before stays as it is.`,
