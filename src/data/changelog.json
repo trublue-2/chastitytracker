@@ -1,5 +1,32 @@
 [
   {
+    "version": "6.1.4",
+    "date": "2026-09-10",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Liste der Wiegungen blättert jetzt zu zehnt, statt in Dreissiger-Schritten nachzuladen. Über der Liste steht, wie viele Messungen der gewählte Zeitraum enthält.",
+          "en": "The weigh-in list now pages ten at a time instead of loading thirty more each click. The number of measurements in the selected range is shown above the list."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Monatsübersicht und Kalender lassen sich wieder zuklappen — bisher blieb aufgeklappt, was einmal aufgeklappt war.",
+          "en": "The month overview and calendar can be collapsed again — until now, once expanded stayed expanded."
+        }
+      },
+      {
+        "type": "perf",
+        "text": {
+          "de": "Die Statistik-Seite überträgt die Wiegungen nur noch einmal statt zweimal und baut die Datums-Beschriftungen je Tag statt je Messung.",
+          "en": "The stats page now transfers weigh-ins once instead of twice and builds date labels per day instead of per measurement."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.1.3",
     "date": "2026-09-09",
     "changes": [
