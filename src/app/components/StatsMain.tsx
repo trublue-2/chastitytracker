@@ -5,6 +5,7 @@ import { renderStack } from "@/lib/blockStack";
 import { viewerLayout } from "@/lib/viewerLayout";
 import BlockStack from "@/app/components/BlockStack";
 import { STATS_BLOCK_TABLE, type StatsCtx } from "@/app/components/statsBlocks";
+import BackLink from "@/app/components/BackLink";
 import Card from "./Card";
 import EmptyState from "./EmptyState";
 import { BarChart2 } from "lucide-react";
@@ -70,9 +71,7 @@ export default async function StatsMain({ userId, surface, heading, backHref, ba
   if (entries.length === 0 && !hasWeight) {
     return (
       <Tag className={wrapper}>
-        {backHref && (
-          <a href={backHref} className="text-sm text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
-        )}
+        {backHref && <BackLink href={backHref}>{backLabel}</BackLink>}
         {/* Serif wie der Titel der befüllten Statistik (`statsBlocks.tsx`): derselbe Bildschirm darf
             im Leerzustand nicht die alte, fette Fassung tragen (Issue #95 A). */}
         {Tag === "main"

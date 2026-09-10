@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { getTranslations } from "next-intl/server";
 import { block, type StackBlock } from "@/lib/blockStack";
+import BackLink from "@/app/components/BackLink";
 import type { StatsBlockId } from "@/lib/dashboardBlockRegistry";
 import {
   cleaningRulesCached, completedPairsCached, devicesCached, entriesAscCached, entriesCached,
@@ -124,9 +125,7 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
     const H = isLandmark ? "h1" : "h2";
     return (
       <div>
-        {backHref && (
-          <a href={backHref} className="text-neben text-foreground-faint hover:text-foreground-muted transition">{backLabel}</a>
-        )}
+        {backHref && <BackLink href={backHref}>{backLabel}</BackLink>}
         <H className={`font-serif text-titel text-foreground ${backHref ? "mt-1" : ""}`}>{heading}</H>
       </div>
     );

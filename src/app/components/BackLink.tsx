@@ -14,9 +14,11 @@ import { quietLinkCls } from "@/app/components/inputStyles";
  * Seite zu wechseln) — dieselbe Anmutung für beide, damit ein Rücklink nicht wieder je nach
  * Bauart auseinanderläuft. Der Pfeil gehört zur Figur und steht deshalb hier, nicht im Aufrufer.
  *
- * Noch NICHT hierüber laufen die beiden Rücklinke im Statistik-Kopf (`StatsMain`, `statsBlocks`):
- * sie sind ein `<a>` ohne Pfeil und gehören zur Seitenkopf-Frage aus Issue #101 (Teil A), die
- * bewusst offen bleibt.
+ * Der Statistik-Kopf (`StatsMain`, `statsBlocks`) läuft seit v6.1.4 ebenfalls hierüber. Er hatte
+ * zwei `<a>` ohne Pfeil, die nicht nur von dieser Figur abwichen, sondern voneinander: einmal
+ * `text-sm`, einmal `text-neben`, beide mit dem falschen Hover. Beide Stellen bekommen ihr `href`
+ * heute von keinem Aufrufer — das ist der Grund, warum es niemandem auffiel, und keiner, sie
+ * abweichen zu lassen: der erste Aufrufer, der es setzt, bekommt so die richtige Fassung.
  */
 export default function BackLink(
   props: { children: ReactNode } & ({ href: string } | { onClick: () => void }),
