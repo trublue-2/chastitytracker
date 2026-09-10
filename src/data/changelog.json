@@ -37,6 +37,13 @@
           "de": "Notizen kommen über den MCP gekürzt statt in voller Länge — mit vielen gepinnten Dokumenten sprengte der erste Aufruf einer KI-Sitzung sonst das Antwort-Budget. Den Volltext holt ein gezielter Abruf einzelner Notizen.",
           "en": "Notes now come back shortened over MCP instead of in full — with many pinned documents the first call of an AI session used to blow the response budget. A targeted single-note lookup returns the full text."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "In „Dashboard anpassen\" zieht ein Doppelpfeil einen Block an den Anfang oder ans Ende. Vom letzten Platz nach oben waren es bisher vierzehn Antipper auf einen Knopf, der bei jedem weiterwandert.",
+          "en": "In “Customise dashboard”, a double arrow moves a block to the top or bottom. Getting there from the last position used to take fourteen taps on a button that moves away with every one."
+        }
       }
     ]
   },

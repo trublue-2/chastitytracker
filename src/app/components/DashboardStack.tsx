@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition, type ReactNode } from "react";
-import { swapAt } from "@/lib/utils";
+import { swapAt, moveToEdge } from "@/lib/utils";
 import { metaRowButtonCls, metaRowChipCls, metaRowSlotCls } from "@/app/components/inputStyles";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -137,6 +137,22 @@ export default function DashboardStack({
     });
     // Merkt sich WEN es zuletzt getroffen hat; die neue Position liest die Ansage unten aus dem
     // fertigen Entwurf. Sie hier auszurechnen hiesse, die Vertauschung ein zweites Mal nachzubauen.
+    setMovedId(id);
+  }
+
+  /**
+   * Der Sprung an den Rand — für die weiten Wege, die als Einzelschritte nicht zu tippen sind: von
+   * Platz 15 auf Platz 1 waren es vierzehn Antipper auf einen Knopf, der bei jedem eine Zeile
+   * weiterwandert (#72).
+   *
+   * Dieselbe Vorsicht wie `move`: Ansprache über die ID, Prüfung im Aktualisierer, damit zwei
+   * schnelle Klicks im selben Batch nicht auf einem überholten Stand rechnen.
+   */
+  function jump(id: string, edge: "start" | "end") {
+    const index = draft.findIndex((b) => b.id === id);
+    if (index < 0 || (edge === "start" ? index === 0 : index === draft.length - 1)) return;
+
+    setDraft((prev) => moveToEdge(prev, prev.findIndex((b) => b.id === id), edge));
     setMovedId(id);
   }
 
@@ -307,8 +323,11 @@ export default function DashboardStack({
                   index={i}
                   count={draft.length}
                   onMove={(dir) => move(b.id, dir)}
+                  onJump={(edge) => jump(b.id, edge)}
                   upLabel={t("editLayoutUp", { name: b.label })}
                   downLabel={t("editLayoutDown", { name: b.label })}
+                  jumpStartLabel={t("editLayoutToStart", { name: b.label })}
+                  jumpEndLabel={t("editLayoutToEnd", { name: b.label })}
                 />
               </li>
             ))}

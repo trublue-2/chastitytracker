@@ -178,6 +178,23 @@ export function swapAt<T>(list: T[], i: number, j: number): T[] {
   return list.map((x, k) => (k === i ? list[j] : k === j ? list[i] : x));
 }
 
+/**
+ * Ein Element an den Anfang oder ans Ende ziehen, als NEUE Liste — die Bewegung hinter den
+ * Doppel-Pfeilen von `ReorderButtons`.
+ *
+ * Das Ergebnis ist dasselbe wie eine Kette benachbarter `swapAt` (nachgerechnet in `utils.test.ts`)
+ * — der Unterschied ist, dass es EINE Bewegung ist: ein Zustands-Update, eine Ansage an die
+ * Assistenztechnik, ein Schritt zurück. Eine Schleife im Setter wäre dasselbe Ergebnis, aber
+ * vierzehn Umordnungen für einen Tipp.
+ *
+ * Ausserhalb der Liste wird nichts bewegt, gleiche Zusage wie bei {@link swapAt}.
+ */
+export function moveToEdge<T>(list: T[], index: number, edge: "start" | "end"): T[] {
+  if (index < 0 || index >= list.length) return list;
+  const rest = list.filter((_, k) => k !== index);
+  return edge === "start" ? [list[index], ...rest] : [...rest, list[index]];
+}
+
 /** Zerlegt eine Dauer in Tage/Stunden/Minuten/Sekunden (jeweils abgerundet, Rest-basiert).
  *  Nur die ZERLEGUNG ist geteilt — die Zusammensetzung bleibt je Formatter eigen, weil sich
  *  Einheiten ("m" vs "min"), Null-Behandlung ("–") und Minuten-Unterdrückung unterscheiden. */

@@ -493,6 +493,8 @@
     "editLayoutHide": "Hide {name}",
     "editLayoutUp": "Move {name} up",
     "editLayoutDown": "Move {name} down",
+    "editLayoutToStart": "Move {name} to the top",
+    "editLayoutToEnd": "Move {name} to the bottom",
     "layoutHiddenCount": "{count, plural, one {# block hidden} other {# blocks hidden}} · Customise",
     "promoTitle": "Track more than just chastity",
     "promoBody": "Add categories like Plug, Collar or Cuffs — separate wear time, stats, and training goals.",

@@ -31,6 +31,8 @@ import {
   midnightOfLocalDate,
   calculateWearingHoursByRange,
   longestOrgasmFreeGap,
+  moveToEdge,
+  swapAt,
   type CleaningPauseAllowance,
 } from "./utils";
 
@@ -1026,5 +1028,31 @@ describe("longestOrgasmFreeGap — längste orgasmusfreie Strecke", () => {
     ];
     const res = longestOrgasmFreeGap(times, now);
     expect(res).toEqual({ ms: 3 * 86_400_000, since: times[1] });
+  });
+});
+
+// #72: der Sprung an den Rand, hinter den Doppel-Pfeilen von `ReorderButtons`.
+describe("moveToEdge", () => {
+  const list = ["a", "b", "c", "d"];
+
+  it("zieht an den Anfang, ohne die übrigen umzusortieren", () => {
+    expect(moveToEdge(list, 2, "start")).toEqual(["c", "a", "b", "d"]);
+  });
+
+  it("zieht ans Ende, ohne die übrigen umzusortieren", () => {
+    expect(moveToEdge(list, 1, "end")).toEqual(["a", "c", "d", "b"]);
+  });
+
+  // Liefert dasselbe wie die Kette benachbarter Vertauschungen, die der Nutzer sonst tippen müsste
+  // — der Gewinn ist EINE Bewegung statt n, nicht ein anderes Ergebnis.
+  it("stimmt mit einer Kette benachbarter Vertauschungen überein", () => {
+    let stepwise = list;
+    for (let i = 3; i > 0; i--) stepwise = swapAt(stepwise, i, i - 1);
+    expect(moveToEdge(list, 3, "start")).toEqual(stepwise);
+  });
+
+  it("gibt die Liste unverändert zurück, wenn der Index danebenliegt", () => {
+    expect(moveToEdge(list, -1, "start")).toBe(list);
+    expect(moveToEdge(list, 4, "end")).toBe(list);
   });
 });

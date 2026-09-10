@@ -493,6 +493,8 @@
     "editLayoutHide": "{name} ausblenden",
     "editLayoutUp": "{name} nach oben",
     "editLayoutDown": "{name} nach unten",
+    "editLayoutToStart": "{name} an den Anfang",
+    "editLayoutToEnd": "{name} ans Ende",
     "layoutHiddenCount": "{count, plural, one {# Block ausgeblendet} other {# Blöcke ausgeblendet}} · Anpassen",
     "promoTitle": "Tracke mehr als nur KG",
     "promoBody": "Lege Kategorien wie Plug, Halsband oder Cuffs an — eigene Tragezeiten, eigene Statistik, eigene Trainingsziele.",
