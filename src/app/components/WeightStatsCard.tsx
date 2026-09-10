@@ -5,11 +5,13 @@ import BlockHeading from "@/app/components/BlockHeading";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
 import Section from "@/app/components/Section";
-import { blockInsetCls } from "@/app/components/inputStyles";
+import ListPager from "@/app/components/ListPager";
+import usePagedList from "@/app/hooks/usePagedList";
 import StatsCard from "@/app/components/StatsCard";
 import FieldTabs from "@/app/components/FieldTabs";
 import MeasurementChart from "@/app/components/MeasurementChart";
 import WeightRow from "@/app/components/WeightRow";
+import { LIST_PAGE_SIZE } from "@/lib/constants";
 import { round1 } from "@/lib/utils";
 import { bmi, dayNumber, targetProgress, weightForDisplay, weightText, type UnitSystem, type WeightTarget } from "@/lib/weight";
 import { buildWeightSeries, withinRange, type WeightPoint } from "@/lib/weightSeries";
@@ -33,10 +35,6 @@ const RANGES = [
 ] as const;
 
 type RangeValue = (typeof RANGES)[number]["value"];
-
-/** Wie viele Zeilen die Liste zeigt, bevor sie nachlädt. Ein Wert je Tag: „seit Beginn" ist nach
- *  zwei Jahren siebenhundert Zeilen, und die will niemand auf einmal im Bild haben. */
-const LIST_CHUNK = 30;
 
 export interface WeightStatsCardProps {
   points: WeightPoint[];
@@ -71,7 +69,6 @@ export default function WeightStatsCard({
   const tList = useTranslations("weightList");
   const tc = useTranslations("common");
   const [range, setRange] = useState<RangeValue>("30");
-  const [shown, setShown] = useState(LIST_CHUNK);
 
   const days = RANGES.find((r) => r.value === range)!.days;
   const series = useMemo(
@@ -84,6 +81,9 @@ export default function WeightStatsCard({
     () => withinRange(rows, { days, todayKey }),
     [rows, days, todayKey],
   );
+  // Geblättert statt nachgeladen, mit derselben Seitengrösse wie die übrigen Listen der App: ein
+  // Wert je Tag heisst, dass „seit Beginn" nach zwei Jahren siebenhundert Zeilen sind.
+  const { page, setPage, totalPages, visible } = usePagedList(rowsInRange, LIST_PAGE_SIZE);
 
   const unitLabel = unitSystem === "imperial" ? tc("unitLbs") : tc("unitKg");
   const show = (kg: number) => `${weightText(kg, unitSystem, locale)} ${unitLabel}`;
@@ -142,7 +142,7 @@ export default function WeightStatsCard({
             <FieldTabs
               ariaLabel={t("rangeLabel")}
               value={range}
-              onChange={(next) => { setRange(next); setShown(LIST_CHUNK); }}
+              onChange={(next) => { setRange(next); setPage(0); }}
               options={RANGES.map((r) => ({ value: r.value, label: t(`range${r.value}`) }))}
             />
             {series.points.length > 0 ? (
@@ -186,24 +186,11 @@ export default function WeightStatsCard({
           {rowsInRange.length > 0 && (
             <Section title={tList("title")}>
               <div className="divide-y divide-border-subtle">
-                {rowsInRange.slice(0, shown).map((row) => (
+                {visible.map((row) => (
                   <WeightRow key={row.id} row={row} locale={locale} tz={tz} unitSystem={unitSystem} />
                 ))}
               </div>
-              {rowsInRange.length > shown && (
-                <div className={`flex items-center justify-between ${blockInsetCls} py-3 border-t border-border-subtle`}>
-                  <span className="text-neben text-foreground-faint tabular-nums">
-                    {tList("countHint", { shown, total: rowsInRange.length })}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShown((n) => n + LIST_CHUNK)}
-                    className="text-neben font-medium text-accent hover:opacity-80"
-                  >
-                    {tList("showMore")}
-                  </button>
-                </div>
-              )}
+              <ListPager page={page} totalPages={totalPages} onPage={setPage} />
             </Section>
           )}
         </>

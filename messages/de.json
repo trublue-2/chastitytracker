@@ -41,8 +41,6 @@
     "countInList": "{count} Wiegungen",
     "title": "Wiegungen",
     "empty": "Noch keine Wiegung erfasst.",
-    "showMore": "Weitere anzeigen",
-    "countHint": "{shown} von {total}",
     "weightLabel": "Gewicht",
     "outsideWindow": "ausserhalb",
     "outsideWindowDesc": "Ausserhalb der Wiege-Fenster gemessen — der Wert zählt, fliesst aber nicht in den Trend ein.",

@@ -41,8 +41,6 @@
     "countInList": "{count} weigh-ins",
     "title": "Weigh-ins",
     "empty": "No weigh-in recorded yet.",
-    "showMore": "Show more",
-    "countHint": "{shown} of {total}",
     "weightLabel": "Weight",
     "outsideWindow": "outside",
     "outsideWindowDesc": "Measured outside the weigh-in windows — the value counts but does not feed the trend.",
