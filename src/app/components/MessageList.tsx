@@ -44,6 +44,7 @@ const BULK_DONE_KEY = {
 
 export default function MessageList({
   initial,
+  initialPage = 0,
   initialPageCount,
   initialUnread,
   initialUnreadInFilter,
@@ -55,6 +56,11 @@ export default function MessageList({
   tz,
 }: {
   initial: PresentedMessage[];
+  /** Welche Seite der Server geliefert hat, NULLBASIERT. Vorgabe 0 — sie ist nur dann eine andere,
+   *  wenn ein `?message=`-Link auf eine ältere Meldung zeigt und der Server deren Seite bestimmt hat.
+   *  Ohne diesen Wert stünde der Zähler auf „1 / n", während Seite 3 zu sehen ist, und „Zurück"
+   *  wäre gesperrt. */
+  initialPage?: number;
   initialPageCount: number;
   initialUnread: number;
   /** Ungelesene im Startfilter — Startwert des „Ungelesen M"-Zählers am Umschalter. Danach hält der
@@ -93,7 +99,7 @@ export default function MessageList({
   const [messages, setMessages] = useState(initial);
   // NULLBASIERT wie bei allen acht `ListPager`-Verwendungen; die Umrechnung auf die 1-basierte
   // Zählung des Servers steht an genau einer Stelle: beim Bau der Anfrage in `load`.
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(initialPage);
   const [pageCount, setPageCount] = useState(initialPageCount);
   const [filter, setFilter] = useState<MessageFilter>(initialFilter);
   const [unread, setUnread] = useState(initialUnread);

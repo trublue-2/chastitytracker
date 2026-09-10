@@ -808,6 +808,46 @@ function messageWhere(scope: InboxScope, filter: MessageFilter = {}): Prisma.Mes
  * lassen, wäre der schlechtere Handel. Wird die Abweichung je störend, ist die Auflösung eine
  * gemeinsame `visibleMessageIds(userId, filter)` für Zähler, Liste und Seitenzahl.
  */
+/**
+ * Auf welcher Seite steht diese Nachricht?
+ *
+ * Gezählt wird, was in DERSELBEN Sortierung vor ihr liegt (`createdAt desc, id desc`) — das zweite
+ * Feld gehört zwingend dazu, sonst zählte eine Nachricht mit gleicher Sekunde mal mit und mal nicht.
+ *
+ * `null` heisst „nicht in dieser Sicht": die id gibt es nicht, sie gehört einem anderen Träger, oder
+ * der aktive Filter schliesst sie aus. Der Aufrufer bleibt dann bei Seite 1 — ein Link, der ins
+ * Leere zeigt, soll die Liste nicht woanders hin springen lassen.
+ *
+ * Dieselbe Näherung wie `pageCount` darüber: verborgene Zeilen (terminierte Direktiven, verworfene
+ * Urteile) zählen mit, weil die Sichtbarkeitsregel erst beim Bauen der Zeilen greift. Bei einer
+ * Handvoll solcher Zeilen kann die errechnete Seite um eine danebenliegen — die Zeile steht dann
+ * dennoch in der Liste, nur nicht aufgeklappt. Die exakte Auflösung wäre auch hier eine gemeinsame
+ * `visibleMessageIds`.
+ */
+export async function pageOfMessage(
+  scope: InboxScope,
+  messageId: string,
+  filter?: MessageFilter,
+): Promise<number | null> {
+  if (scope.subjectUserIds.length === 0) return null;
+  const where = messageWhere(scope, filter);
+  const row = await prisma.message.findFirst({
+    where: { ...where, id: messageId },
+    select: { createdAt: true, id: true },
+  });
+  if (!row) return null;
+  const before = await prisma.message.count({
+    where: {
+      ...where,
+      OR: [
+        { createdAt: { gt: row.createdAt } },
+        { createdAt: row.createdAt, id: { gt: row.id } },
+      ],
+    },
+  });
+  return Math.floor(before / MESSAGE_PAGE_SIZE) + 1;
+}
+
 export async function listMessages(
   scope: InboxScope,
   opts: { page?: number; filter?: MessageFilter } = {},

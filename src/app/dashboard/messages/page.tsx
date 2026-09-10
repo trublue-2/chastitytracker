@@ -4,7 +4,7 @@ import { titleCls } from "@/app/components/inputStyles";
 import { auth } from "@/lib/auth";
 import { soleControllerName } from "@/lib/keyholder";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
-import { listMessages, subInbox, unreadCountCached, unreadCount } from "@/lib/messageService";
+import { listMessages, pageOfMessage, subInbox, unreadCountCached, unreadCount } from "@/lib/messageService";
 import { presentMessages } from "@/lib/messagePresenter";
 import { isMessageFiltered, messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
 import { MESSAGE_SCOPES } from "@/lib/messageScope";
@@ -39,16 +39,19 @@ export default async function MessagesPage({
   const params = await searchParams;
   const filter = parseMessageFilterFrom(params);
   // Eine EINZELNE Zeile aufgeklappt zeigen (`?message=<id>`) — das Ziel, auf das eine Meldung über
-  // ein konkretes Vorkommnis zeigen kann, statt auf die Liste. Roh durchgereicht: findet die Liste
-  // die id auf ihrer Seite nicht, bleibt sie einfach zu, und ein veralteter Link zeigt den
+  // ein konkretes Vorkommnis zeigen kann, statt auf die Liste. Ein veralteter Link zeigt den
   // gewöhnlichen Posteingang statt eines Fehlers — dieselbe Milde, die der Filter darüber übt.
   const openId = typeof params.message === "string" ? params.message : null;
+  // Und ZU welcher Seite sie gehört: eine ältere Meldung steht nicht auf Seite 1, und ohne diesen
+  // Schritt zeigte der Link auf eine Zeile, die gar nicht ausgeliefert wird. `null` (unbekannte id,
+  // vom Filter ausgeschlossen) lässt es bei Seite 1 — der Link springt dann nirgendwohin.
+  const focusPage = openId ? await pageOfMessage(subInbox(userId), openId, filter) : null;
 
   // Der Filter geht AUCH an die Abfrage, nicht nur an die Liste: bekäme der Client nur den
   // Startwert, stünde beim ersten Bild die ungefilterte Seite da und spränge erst nach einem
   // Nachladen um — bei „Alle ansehen" also genau die Mischliste, aus der der Link herausführen soll.
   const [page, unread, unreadInFilter, locale, t, keyholderName] = await Promise.all([
-    listMessages(subInbox(userId), { filter }),
+    listMessages(subInbox(userId), { filter, ...(focusPage ? { page: focusPage } : {}) }),
     unreadCountCached(userId),
     // Ungelesen IM FILTER für den Umschalter-Zähler. Nur wenn ein Filter greift eine eigene Abfrage —
     // ohne Filter ist es derselbe Wert wie der (memoisierte) Glocken-Stand eine Zeile höher.
@@ -91,6 +94,9 @@ export default async function MessagesPage({
       <MessageList
         key={messageFilterToParams(filter).toString()}
         initial={await presentMessages(page.messages, locale, { userId: session.user.id })}
+        // Die vom Server GELIEFERTE Seite, nullbasiert — sonst zählt die Liste ab 1, während eine
+        // andere zu sehen ist.
+        initialPage={page.page - 1}
         initialPageCount={page.pageCount}
         initialUnread={unread}
         initialUnreadInFilter={unreadInFilter}
