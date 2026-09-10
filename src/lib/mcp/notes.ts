@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import {
-  resolveUserContext, makeIso, buildEnvelope, tzOf, toNoteDTO, noteSelect, parseIsoDate, entityKey, matchByNameCI,
+  resolveUserContext, makeIso, buildEnvelope, tzOf, toNoteDTO, noteSelect, parseIsoDate, entityKey, matchByNameCI, NOTE_TEXT_LIMIT,
   type Envelope, type NoteDTO, type EntityRef, type EntityType,
 } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type TxClient, type WriteDef } from "@/lib/mcp/writeFramework";
@@ -22,18 +22,32 @@ export interface QueryNotesOptions {
   status?: string;
   pinned?: boolean;
   kg?: string;
+  /** Eine bestimmte Notiz. Der Weg zum Volltext EINER Notiz, wenn die Liste gekappt zurückkam —
+   *  ohne ihn wäre die Vorgabe-Kappung unten eine Sackgasse (#109). */
+  id?: string;
   /** Filter auf Notes, die an ein bestimmtes Objekt hängen. */
   entityType?: string;
   entityId?: string;
   limit?: number;
-  /** Obergrenze für den Fliesstext je Notiz, in Zeichen — gekappte Notizen tragen `textTruncated`.
-   *  Ohne Angabe der Volltext. Für Sichten, deren Grösse an der Menge der Doktrin hängt statt an der
-   *  Menge der Daten; die erste war der Einstiegs-Call (`NOTE_TEXT_LIMIT` in `mcp/dashboard.ts`). */
+  /**
+   * Obergrenze für den Fliesstext je Notiz, in Zeichen — gekappte Notizen tragen `textTruncated`.
+   * Ohne Angabe {@link NOTE_TEXT_LIMIT}, `0` hebt die Grenze auf.
+   *
+   * Die Vorgabe kam mit #109: der Einstiegs-Aufruf einer Sitzung ist
+   * `query_notes({pinned: true, status: "active"})`, und mit 30 gepinnten Notizen waren das 182 KB
+   * in EINER Antwort. Der Client lagert so etwas in eine Datei aus, die die KI-Keyholderin danach
+   * in einem Dutzend Durchgängen wieder einliest — Kontext, der ihr für die Arbeit fehlt. Dass die
+   * Grenze im Dashboard längst galt, machte es nicht besser: sie fehlte genau auf dem Weg, den man
+   * geht, WEIL man die Dokumente braucht.
+   */
   textLimit?: number;
 }
 
 export interface NotesResult extends Envelope {
-  schemaVersion: 2;
+  /** v3: `notes[].text` ist per Vorgabe auf {@link NOTE_TEXT_LIMIT} Zeichen gekappt (Marker
+   *  `textTruncated`) — bis v2 trug das Feld immer den Volltext. `textLimit: 0` liefert ihn weiter,
+   *  und `id` holt eine einzelne Notiz gezielt nach (#109). */
+  schemaVersion: 3;
   user: string;
   returnedCount: number;
   /** true, wenn ein konkretes `entityType`+`entityId` abgefragt wurde, dieses Objekt aber nicht (mehr)
@@ -59,9 +73,13 @@ export async function queryNotes(username: string, opts: QueryNotesOptions = {})
   const notes = await prisma.keyholderNote.findMany({
     where: {
       userId,
+      ...(opts.id ? { id: opts.id } : {}),
       ...(opts.type ? { type: opts.type } : {}),
-      // Default: nur aktive Notes; "all" hebt den Filter auf.
-      ...(opts.status === "all" ? {} : { status: opts.status ?? "active" }),
+      // Default: nur aktive Notes; "all" hebt den Filter auf. Eine per `id` angefragte Notiz kommt
+      // ohne Status-Filter — wer sie beim Namen nennt, meint genau sie, auch wenn sie inzwischen
+      // ersetzt wurde; sonst wäre der Nachlade-Weg für alles Superseded eine Sackgasse. Ein
+      // ausdrücklich gesetzter `status` gilt weiterhin.
+      ...(opts.status === "all" || (opts.id && opts.status == null) ? {} : { status: opts.status ?? "active" }),
       ...(opts.pinned != null ? { pinned: opts.pinned } : {}),
       ...(opts.kg ? { kg: opts.kg } : {}),
       ...refFilter,
@@ -70,7 +88,10 @@ export async function queryNotes(username: string, opts: QueryNotesOptions = {})
     take: Math.min(Math.max(1, opts.limit ?? 50), 200),
     select: noteSelect,
   });
-  return { schemaVersion: 2, user: username, ...buildEnvelope(now, iso, timezone), returnedCount: notes.length, unknownRef, notes: notes.map((n) => toNoteDTO(n, iso, opts.textLimit)) };
+  // `0` heisst ausdrücklich „ungekürzt" und muss deshalb VOR dem `??` abgefangen werden — sonst
+  // fiele es als falsy nicht auf, sondern still auf die Vorgabe zurück.
+  const textLimit = opts.textLimit === 0 ? undefined : opts.textLimit ?? NOTE_TEXT_LIMIT;
+  return { schemaVersion: 3, user: username, ...buildEnvelope(now, iso, timezone), returnedCount: notes.length, unknownRef, notes: notes.map((n) => toNoteDTO(n, iso, textLimit)) };
 }
 
 // ── Write: upsert_note ──────────────────────────────────────────────────────

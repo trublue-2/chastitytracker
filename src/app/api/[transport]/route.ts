@@ -28,10 +28,10 @@ import { listDevicesV2, setDeviceMetaDef, upsertDeviceDef, deleteDeviceDef, SECU
 import { upsertCategoryDef, deleteCategoryDef } from "@/lib/mcp/categories";
 import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_NAME_MAX_LENGTH } from "@/lib/categoryConstants";
 import { executeWrite, recordAction, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
-import { buildWriteContext } from "@/lib/mcp/common";
+import { buildWriteContext, NOTE_TEXT_LIMIT } from "@/lib/mcp/common";
 import { computeToolSurfaceFingerprint, setToolSurfaceFingerprint, toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
 import { prisma } from "@/lib/prisma";
-import { keyholderDashboard, getBoxState, NOTE_TEXT_LIMIT } from "@/lib/mcp/dashboard";
+import { keyholderDashboard, getBoxState } from "@/lib/mcp/dashboard";
 import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
 import { getOffenses, OFFENSE_TYPES } from "@/lib/mcp/ledger";
 import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
@@ -448,8 +448,13 @@ function registerTools(server: McpServer) {
           "MCP V2 — Notes v2 gefiltert nach type (" + NOTE_TYPES.join("|") + "), status (active|superseded|" +
           "archived|all), pinned, kg oder verknüpftem Objekt (entityType/entityId). Default: nur aktive, " +
           "gepinnte oben. Jede Note trägt source/confidence (Nutzer-Fakt vs. Schluss), doDont (für BOUNDARY) " +
-          "und ihre refs (belegende Objekte). MCP-only.",
+          "und ihre refs (belegende Objekte). " +
+          `Der Fliesstext steht per Vorgabe GEKÜRZT (je Notiz max. ${NOTE_TEXT_LIMIT} Zeichen, Marker ` +
+          "textTruncated) — sonst sprengt der Einstiegs-Aufruf einer Sitzung (pinned+active) bei " +
+          "gewachsener Doktrin das Ausgabe-Budget. Volltext: `id` für genau eine Notiz (kommt " +
+          "unabhängig von ihrem Status) oder `textLimit: 0`. MCP-only.",
         inputSchema: {
+          id: z.string().optional().describe("Genau diese Notiz — der Weg zum Volltext einer gekürzten Zeile. Ohne status-Angabe unabhängig vom Status."),
           type: z.enum(NOTE_TYPES).optional().describe("Filter nach Note-Typ."),
           status: z.enum(["active", "superseded", "archived", "all"]).optional().describe("Filter nach Status (default active; 'all' = alle)."),
           pinned: z.boolean().optional().describe("Nur gepinnte / nur ungepinnte."),
@@ -457,6 +462,7 @@ function registerTools(server: McpServer) {
           entityType: z.enum(ENTITY_TYPES).optional().describe("Nur Notes, die an diesen Objekttyp hängen."),
           entityId: z.string().optional().describe("Zusammen mit entityType: nur Notes zu genau diesem Objekt."),
           limit: z.number().int().min(1).max(200).optional().describe("Max. Notes (default 50)."),
+          textLimit: z.number().int().min(0).max(100_000).optional().describe(`Zeichen je Fliesstext (default ${NOTE_TEXT_LIMIT}); 0 = ungekürzt.`),
         },
       },
       (args) => runTool("query_notes", (u) => queryNotes(u, args)),
@@ -514,7 +520,7 @@ function registerTools(server: McpServer) {
           "Zeiten durchgängig ISO-8601 mit Offset. Nutze die " +
           "Deep-Views (get_session, device_stats, records, denial_trend, get_offenses) nur für Details. " +
           `standingDirectives/boundaries stehen hier GEKÜRZT (je Notiz max. ${NOTE_TEXT_LIMIT} Zeichen ` +
-          "Fliesstext, erkennbar an textTruncated; doDont bleibt vollständig) — den Volltext holt query_notes.",
+          "Fliesstext, erkennbar an textTruncated; doDont bleibt vollständig) — den Volltext holt query_notes mit `id` oder `textLimit: 0`.",
         inputSchema: {
           includeNotes: z.boolean().optional().describe(
             "Gepinnte standingDirectives/boundaries mitliefern (Default true). false lässt sie ganz " +

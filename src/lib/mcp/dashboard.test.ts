@@ -13,7 +13,8 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { keyholderDashboard, getBoxState, NOTE_TEXT_LIMIT } from "./dashboard";
+import { keyholderDashboard, getBoxState } from "./dashboard";
+import { NOTE_TEXT_LIMIT } from "./common";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER, type PrismaMock } from "@/test/prismaMock";
 

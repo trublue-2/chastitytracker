@@ -30,6 +30,13 @@
           "de": "Der KI-Keyholderin wird kein offenes Vergehen mehr gemeldet, zu dem sie keine Zeile findet: Zähler und Liste wählen jetzt nach derselben Regel aus — unbeurteilt oder bestraft mit unerledigter Strafe.",
           "en": "The AI keyholder is no longer told about an open offense it cannot find: the counter and the list now select by the same rule — unjudged, or punished with the penalty still outstanding."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Notizen kommen über den MCP gekürzt statt in voller Länge — mit vielen gepinnten Dokumenten sprengte der erste Aufruf einer KI-Sitzung sonst das Antwort-Budget. Den Volltext holt ein gezielter Abruf einzelner Notizen.",
+          "en": "Notes now come back shortened over MCP instead of in full — with many pinned documents the first call of an AI session used to blow the response budget. A targeted single-note lookup returns the full text."
+        }
       }
     ]
   },

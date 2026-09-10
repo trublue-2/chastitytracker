@@ -227,6 +227,42 @@ export interface EntityRef {
   entityId: string;
 }
 
+/**
+ * Die Obergrenze je Notiz-Fliesstext. Vorgabe im Dashboard UND in `query_notes` — dort seit #109
+ * abwählbar über `textLimit: 0`, weil `query_notes` der Weg zum Volltext bleiben muss.
+ *
+ * **Warum der Einstiegs-Call überhaupt eine Grenze braucht.** Seine Grösse hing an der Menge der
+ * DOKTRIN, nicht an der Menge der Daten: jede gepinnte Notiz stand im Volltext darin. Auf einer
+ * Instanz mit 27 Einträgen wuchs die Antwort binnen zweier Tage von 83 000 auf 105 000 Zeichen und
+ * damit über das Ausgabe-Limit gängiger MCP-Clients — ausgerechnet der Call, den die
+ * Server-Instructions als ersten nennen, war dort nicht mehr aufrufbar (#105). Wer das
+ * Notizen-System so nutzt, wie es gedacht ist, machte sich damit den Einstieg kaputt.
+ *
+ * **Warum Kappen und nicht Weglassen.** Die gepinnten Grenzen sollen unübersehbar sein; sie aus dem
+ * Einstiegs-Call zu nehmen, hiesse, die eine Sache zu verstecken, die immer gelesen werden muss. Der
+ * gekappte Text sagt weiterhin, WORUM es geht, trägt mit `textTruncated` seinen eigenen Vorbehalt,
+ * und der Volltext ist ein `query_notes({ id })` entfernt.
+ *
+ * **Was hier NICHT steht.** Das Kappen selbst — das kann `toNoteDTO`, für jede Sicht, die eine
+ * Grenze verlangt. Hier steht nur, WIE VIEL der Einstiegs-Call durchlässt.
+ *
+ * **Die Höhe ist eine Abwägung, keine Messgrösse.** Zu knapp, und die KI-Keyholderin erkennt an
+ * einer Notiz nicht mehr, worum es geht, und muss für jede zweite nachfragen; zu grosszügig, und der
+ * Einstiegs-Call läuft wieder ins Limit. Der Wert steht auf trublues ausdrückliche Wahl: lieber mehr
+ * Text auf einen Blick als der knappste Anriss (02.09.2026).
+ *
+ * Die Schranke wirkt je Notiz, nicht auf die Antwort als Ganzes: bei `limit: 50` bleiben damit
+ * theoretisch 120 000 Zeichen Notizen möglich. Das trägt die heutige Grössenordnung (23 Notizen)
+ * mit Abstand, ist aber kein Riegel für jede denkbare Menge — wer dort ankommt, braucht ein
+ * Gesamt-Budget, und das darf die Grenzen nicht als Erstes fallen lassen. Bis dahin ist
+ * `includeNotes: false` der Notausgang.
+ *
+ * Sie steht HIER bei `toNoteDTO` und nicht bei ihrem ersten Aufrufer: seit #109 nimmt auch
+ * `notes.ts` sie, und das kann `dashboard.ts` nicht importieren (`dashboard.ts` → `notes.ts`
+ * besteht bereits, die Gegenrichtung wäre ein Zyklus).
+ */
+export const NOTE_TEXT_LIMIT = 2400;
+
 /** Kompakte Note-Darstellung, wie sie inline an Objekten und in query_notes erscheint. */
 export interface NoteDTO {
   id: string;
@@ -238,9 +274,10 @@ export interface NoteDTO {
   kg: string | null;
   kategorie: string | null;
   text: string;
-  /** Gesetzt, wenn `text` gekappt wurde — dann hat der Aufrufer eine Längengrenze verlangt
-   *  (`textLimit` an {@link toNoteDTO} bzw. `queryNotes`) und der Volltext steht nur über einen
-   *  Abruf OHNE Grenze bereit. Fehlt das Feld, ist `text` vollständig. */
+  /** Gesetzt, wenn `text` gekappt wurde — dann galt eine Längengrenze (`textLimit` an {@link
+   *  toNoteDTO} bzw. `queryNotes`, wo sie seit #109 die VORGABE ist) und der Volltext steht über
+   *  einen Abruf mit `textLimit: 0` oder gezielt per `id` bereit. Fehlt das Feld, ist `text`
+   *  vollständig. */
   textTruncated?: true;
   doDont: { do: string[]; dont: string[] } | null;
   validFrom: string | null;

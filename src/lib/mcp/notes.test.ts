@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", async () => {
 });
 
 import { upsertNoteDef, queryNotes } from "./notes";
+import { NOTE_TEXT_LIMIT } from "./common";
 import { executeWrite } from "./writeFramework";
 import { prisma } from "@/lib/prisma";
 import { type PrismaMock } from "@/test/prismaMock";
@@ -116,5 +117,47 @@ describe("queryNotes — K-13 returnedCount/unknownRef + K-22 isLatest", () => {
     db.device.findFirst.mockResolvedValue({ id: "d1" });
     const res = await queryNotes("sub", { entityType: "device", entityId: "d1" });
     expect(res.unknownRef).toBe(false);
+  });
+});
+
+// #109: der Einstiegs-Aufruf einer Sitzung (pinned+active) gab alle gepinnten Dokumente im
+// Volltext aus — auf einer Fremd-Instanz 182 KB in EINER Antwort. Die Kappung des Dashboards galt
+// ausgerechnet auf dem Weg nicht, den man geht, WEIL man die Dokumente braucht.
+describe("queryNotes — Textkappung (#109)", () => {
+  const long = "x".repeat(NOTE_TEXT_LIMIT + 500);
+  const qNote = (over: Record<string, unknown> = {}) => ({
+    id: "n1", type: "DIRECTIVE", status: "active", pinned: true, source: "user-stated",
+    confidence: null, kg: null, kategorie: null, text: long, doDont: null,
+    validFrom: null, validUntil: null, supersedesId: null, createdAt: new Date("2026-07-01T00:00:00Z"),
+    version: 1, refs: [], ...over,
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.user.findUnique.mockResolvedValue({ id: "u1", timezone: "Europe/Zurich" });
+    db.keyholderNote.findMany.mockResolvedValue([qNote()]);
+  });
+
+  it("kappt ohne Angabe auf NOTE_TEXT_LIMIT und sagt es", async () => {
+    const res = await queryNotes("sub", { pinned: true, status: "active" });
+    expect(res.notes[0].text.length).toBeLessThanOrEqual(NOTE_TEXT_LIMIT);
+    expect(res.notes[0].textTruncated).toBe(true);
+  });
+
+  it("textLimit 0 liefert den Volltext — `0` darf nicht als falsy auf die Vorgabe zurückfallen", async () => {
+    const res = await queryNotes("sub", { textLimit: 0 });
+    expect(res.notes[0].text).toBe(long);
+    expect(res.notes[0].textTruncated).toBeUndefined();
+  });
+
+  it("id sucht ohne Status-Filter — eine ersetzte Notiz bleibt gezielt abrufbar", async () => {
+    await queryNotes("sub", { id: "n1" });
+    const where = db.keyholderNote.findMany.mock.calls[0][0].where;
+    expect(where.id).toBe("n1");
+    expect(where.status).toBeUndefined();
+  });
+
+  it("ein ausdrücklicher status gilt auch neben id", async () => {
+    await queryNotes("sub", { id: "n1", status: "superseded" });
+    expect(db.keyholderNote.findMany.mock.calls[0][0].where.status).toBe("superseded");
   });
 });

@@ -6,7 +6,7 @@ import {
   type Fmt, type OpenKontrolleView, type ActiveLockPeriodView, type OpenOrgasmusAnforderungView,
   type InterruptedLockPeriodView, type OpenLockRequestView,
 } from "@/lib/mcp/liveState";
-import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContext, type Envelope, type Iso, type NoteDTO, type TrackingEntry } from "@/lib/mcp/common";
+import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContext, NOTE_TEXT_LIMIT, type Envelope, type Iso, type NoteDTO, type TrackingEntry } from "@/lib/mcp/common";
 import { buildPairs } from "@/lib/utils";
 import { buildSessions, isLiveOpenSession, type Session, type DeviceConfidence } from "@/lib/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
@@ -745,36 +745,6 @@ export async function getBoxState(username: string): Promise<BoxStateResult> {
   return { schemaVersion: 4, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox, lockCall) };
 }
 
-/**
- * Die Obergrenze je Notiz-Fliesstext IM DASHBOARD — nicht in `query_notes`, das den Volltext führt.
- *
- * **Warum der Einstiegs-Call überhaupt eine Grenze braucht.** Seine Grösse hing an der Menge der
- * DOKTRIN, nicht an der Menge der Daten: jede gepinnte Notiz stand im Volltext darin. Auf einer
- * Instanz mit 27 Einträgen wuchs die Antwort binnen zweier Tage von 83 000 auf 105 000 Zeichen und
- * damit über das Ausgabe-Limit gängiger MCP-Clients — ausgerechnet der Call, den die
- * Server-Instructions als ersten nennen, war dort nicht mehr aufrufbar (#105). Wer das
- * Notizen-System so nutzt, wie es gedacht ist, machte sich damit den Einstieg kaputt.
- *
- * **Warum Kappen und nicht Weglassen.** Die gepinnten Grenzen sollen unübersehbar sein; sie aus dem
- * Einstiegs-Call zu nehmen, hiesse, die eine Sache zu verstecken, die immer gelesen werden muss. Der
- * gekappte Text sagt weiterhin, WORUM es geht, trägt mit `textTruncated` seinen eigenen Vorbehalt,
- * und der Volltext ist einen gezielten `query_notes` entfernt.
- *
- * **Was hier NICHT steht.** Das Kappen selbst — das kann `toNoteDTO`, für jede Sicht, die eine
- * Grenze verlangt. Hier steht nur, WIE VIEL der Einstiegs-Call durchlässt.
- *
- * **Die Höhe ist eine Abwägung, keine Messgrösse.** Zu knapp, und die KI-Keyholderin erkennt an
- * einer Notiz nicht mehr, worum es geht, und muss für jede zweite nachfragen; zu grosszügig, und der
- * Einstiegs-Call läuft wieder ins Limit. Der Wert steht auf trublues ausdrückliche Wahl: lieber mehr
- * Text auf einen Blick als der knappste Anriss (02.09.2026).
- *
- * Die Schranke wirkt je Notiz, nicht auf die Antwort als Ganzes: bei `limit: 50` bleiben damit
- * theoretisch 120 000 Zeichen Notizen möglich. Das trägt die heutige Grössenordnung (23 Notizen)
- * mit Abstand, ist aber kein Riegel für jede denkbare Menge — wer dort ankommt, braucht ein
- * Gesamt-Budget, und das darf die Grenzen nicht als Erstes fallen lassen. Bis dahin ist
- * `includeNotes: false` der Notausgang.
- */
-export const NOTE_TEXT_LIMIT = 2400;
 
 export interface KeyholderDashboardOptions {
   /** Gepinnte Direktiven und Grenzen mitliefern. Vorgabe `true` — sie gehören in den Einstiegs-Call.
