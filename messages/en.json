@@ -1102,6 +1102,8 @@
     "strafbuchOffeneAnzeigen": "Show open offenses only",
     "strafbuchAbbrechen": "Cancel",
     "strafbuchRueckgaengig": "Undo",
+    "strafbuchFruehereStrafen": "Punished {count}× so far",
+    "strafbuchZuletztVerhaengt": "last on {date}: “{text}”",
     "strafbuchVerwerfen": "Dismiss",
     "strafbuchVerworfenBadge": "Dismissed",
     "strafbuchBegruendung": "Reason",

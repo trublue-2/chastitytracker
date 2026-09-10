@@ -44,6 +44,20 @@
           "de": "In „Dashboard anpassen\" zieht ein Doppelpfeil einen Block an den Anfang oder ans Ende. Vom letzten Platz nach oben waren es bisher vierzehn Antipper auf einen Knopf, der bei jedem weiterwandert.",
           "en": "In “Customise dashboard”, a double arrow moves a block to the top or bottom. Getting there from the last position used to take fourteen taps on a button that moves away with every one."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Beim Verhängen einer Strafe steht jetzt darüber, wie oft diese Vergehensart bisher bestraft wurde und was zuletzt verhängt wurde.",
+          "en": "When imposing a penalty, the form now shows how often this kind of offense has been punished before and what was imposed last time."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Das Strafbuch folgt der Gestaltung der übrigen Seiten — die Abschnitte stehen ohne Kasten, und die Knöpfe nehmen die Farben des Systems.",
+          "en": "The offense ledger now follows the design of the other pages — sections have no box, and the buttons use the system colours."
+        }
       }
     ]
   },

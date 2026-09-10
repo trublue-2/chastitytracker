@@ -1102,6 +1102,8 @@
     "strafbuchOffeneAnzeigen": "Nur offene Vergehen anzeigen",
     "strafbuchAbbrechen": "Abbrechen",
     "strafbuchRueckgaengig": "Rückgängig",
+    "strafbuchFruehereStrafen": "Bisher {count}× bestraft",
+    "strafbuchZuletztVerhaengt": "zuletzt am {date}: „{text}“",
     "strafbuchVerwerfen": "Verwerfen",
     "strafbuchVerworfenBadge": "Verworfen",
     "strafbuchBegruendung": "Begründung",

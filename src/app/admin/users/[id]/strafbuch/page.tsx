@@ -135,15 +135,22 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     createdBy: m.createdBy,
   }));
 
-  const strafeRecords: StrafeRecordData[] = sb.strafeRecords.map((r) => ({
-    refId: r.refId,
-    status: r.status,
-    reason: r.reason,
-    judgedBy: r.judgedBy,
-    judgedByName: r.judgedByName,
-    done: r.erledigtAt !== null,
-    erledigtAtStr: r.erledigtAt ? formatDate(r.erledigtAt, dl, tz) : null,
-  }));
+  // NEUESTE ZUERST: die Vorgeschichte im Urteils-Formular nimmt den ersten Treffer ihrer Art als
+  // „zuletzt". Hier sortiert und nicht im Client, weil dort nur noch der formatierte Tag ankommt —
+  // ein zweites Feld mit den Millisekunden bloss zum Sortieren wäre dieselbe Angabe zweimal.
+  const strafeRecords: StrafeRecordData[] = [...sb.strafeRecords]
+    .sort((a, b) => b.bestraftDatum.getTime() - a.bestraftDatum.getTime())
+    .map((r) => ({
+      refId: r.refId,
+      offenseType: r.offenseType,
+      status: r.status,
+      reason: r.reason,
+      judgedBy: r.judgedBy,
+      judgedByName: r.judgedByName,
+      judgedAtStr: formatDate(r.bestraftDatum, dl, tz),
+      done: r.erledigtAt !== null,
+      erledigtAtStr: r.erledigtAt ? formatDate(r.erledigtAt, dl, tz) : null,
+    }));
 
   const labels = {
     networkError: tCommon("networkError"),
@@ -162,6 +169,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchOffeneAnzeigen: t("strafbuchOffeneAnzeigen"),
     strafbuchAbbrechen: t("strafbuchAbbrechen"),
     strafbuchRueckgaengig: t("strafbuchRueckgaengig"),
+    strafbuchFruehereStrafen: t("strafbuchFruehereStrafen"),
+    strafbuchZuletztVerhaengt: t("strafbuchZuletztVerhaengt"),
     strafbuchGeoeffnetAm: t("strafbuchGeoeffnetAm"),
     strafbuchTrotzUnbefristet: t("strafbuchTrotzUnbefristet"),
     strafbuchSperreLiefBis: t("strafbuchSperreLiefBis"),

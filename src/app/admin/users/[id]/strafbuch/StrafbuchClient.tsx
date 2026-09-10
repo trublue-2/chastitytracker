@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import BlockHeading from "@/app/components/BlockHeading";
+import Section from "@/app/components/Section";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/app/components/Button";
@@ -9,25 +9,33 @@ import { CheckCircle, ChevronDown, ClipboardList, Plus, Undo2, XCircle } from "l
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import FormError from "@/app/components/FormError";
+import EmptyState from "@/app/components/EmptyState";
+import { blockInsetCls } from "@/app/components/inputStyles";
 import { taskFormHref } from "@/lib/entryFormRoute";
+import { joinParts } from "@/lib/utils";
 import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
 import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
 import { taskFailureKind, type TaskFailureKind, type TaskOffenseState } from "@/lib/tasks";
 
 /** Das Urteil einer Zeile, so weit die Anzeige es braucht.
  *
- *  Bewusst OHNE `notiz` und `bestraftDatum`: die Notiz-Spalte hat seit dem Wegfall des
- *  hand-gebauten `create` in `POST /api/admin/strafe` keinen Schreiber mehr (die automatische
- *  Geräte-Ahndung setzt sie ausdrücklich auf `null`), und das Urteils-Datum wurde hier zwar
- *  formatiert, aber nie gerendert. Die DB-Spalten bleiben — sie zu entfernen ist eine eigene
- *  Entscheidung mit Migration. */
+ *  Bewusst OHNE `notiz`: die Spalte hat seit dem Wegfall des hand-gebauten `create` in
+ *  `POST /api/admin/strafe` keinen Schreiber mehr (die automatische Geräte-Ahndung setzt sie
+ *  ausdrücklich auf `null`). Die DB-Spalte bleibt — sie zu entfernen ist eine eigene Entscheidung
+ *  mit Migration. */
 export interface StrafeRecordData {
   refId: string;
+  /** Die Vergehens-Art (`StoredOffenseType`), auf die dieses Urteil ergangen ist. Trägt die
+   *  Vorgeschichte im Urteils-Formular — ohne sie liesse sich „frühere Strafen DIESER Art" nicht
+   *  von den übrigen trennen. */
+  offenseType: string;
   status: string; // "PUNISHED" | "DISMISSED"
   reason: string | null; // Strafe-Freitext (PUNISHED) bzw. Grund (DISMISSED)
   judgedBy: string | null;
   /** Name dessen, der geurteilt hat. `null` = KI, System oder Altbestand — siehe `JudgedByTag`. */
   judgedByName: string | null;
+  /** Wann geurteilt wurde. Die Liste kommt vom Server NEUESTE ZUERST sortiert. */
+  judgedAtStr: string;
   done: boolean;
   erledigtAtStr: string | null;
 }
@@ -217,6 +225,10 @@ interface Labels {
   strafbuchUrteilKI: string;
   /** Vorlage mit `{name}`-Platzhalter — der Client setzt den Namen ein. */
   strafbuchUrteilVon: string;
+  /** Vorlagen der Vorgeschichte über dem Urteils-Feld — Platzhalter `{count}` bzw. `{date}`/`{text}`.
+   *  Bewusst pluralfrei formuliert: die Texte kommen fertig vom Server, der die Zahl nicht kennt. */
+  strafbuchFruehereStrafen: string;
+  strafbuchZuletztVerhaengt: string;
   strafbuchStrafeLabel: string;
   strafbuchStrafePlaceholder: string;
   strafbuchStrafeVerhaengen: string;
@@ -300,6 +312,33 @@ function sec<C extends OffenseCanonicalType>(canonical: C, title: string, rows: 
  *  der ganzen Klassenkette drifteten Polsterung und Radius beim nächsten Umbau auseinander. */
 const CHIP_CLS = "text-xs font-medium border transition px-2.5 py-1 rounded-lg flex items-center gap-1";
 
+/** Der bejahende Chip („wurde bestraft", „als erledigt") — die Farbe zu {@link CHIP_CLS}.
+ *
+ *  `bg-ok-bg` und nicht `color-mix(in_srgb,var(--color-ok)_8%,transparent)` als Literal im
+ *  Klassennamen: den gemischten Ton gibt es als Token, und zwei Prozentwerte in einer Tailwind-Klasse
+ *  sind eine Magic Number, die kein Theme-Wechsel je erreicht (#86). */
+const CHIP_OK_CLS = `${CHIP_CLS} text-[var(--color-ok)] border-[var(--color-ok)] hover:bg-ok-bg`;
+
+/**
+ * Was bei dieser Vergehens-Art bisher verhängt wurde — eine Gedächtnisstütze, keine Grundlage.
+ *
+ * Das Freitextfeld für die Strafe stand ohne jeden Bezug da: die Keyholderin sah nicht, ob das das
+ * erste oder das fünfte Vergehen dieser Art ist und was sie beim letzten Mal verhängt hat (#86).
+ * Sie kennt ihren Sub und urteilt nicht aus dieser Zeile heraus — deshalb bleibt es bei zwei
+ * Angaben: wie viele, und was zuletzt. Keine Steigerungslogik, kein Vorschlag, keine Statistik.
+ *
+ * Gezählt werden nur VERHÄNGTE Strafen. Ein verworfenes Vergehen ist keine Vorgeschichte, sondern
+ * das Gegenteil davon — es mitzuzählen liesse die Zeile strenger klingen, als der Bestand hergibt.
+ *
+ * Erwartet `records` NEUESTE ZUERST (so sortiert `page.tsx`): `last` ist schlicht der erste
+ * Treffer. Auf Modulebene und rein, damit genau diese Auswahl prüfbar bleibt — sie kann still
+ * falsch werden, ohne dass die Seite anders aussieht.
+ */
+export function priorPunishments(records: readonly StrafeRecordData[], offenseType: string) {
+  const prior = records.filter(r => r.offenseType === offenseType && r.status === "PUNISHED");
+  return { count: prior.length, last: prior[0] ?? null };
+}
+
 /** Nebenangabe unter der Kopfzeile (Frist, Zeitpunkt). */
 const FACT_CLS = "text-xs text-foreground-faint";
 /** Freitext — Notiz des Subs, Anweisung, Ablehnungsgrund. */
@@ -380,23 +419,33 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
   const hasPunished = strafeRecords.length > 0;
 
-  function Section({ title, openCount, totalCount, children }: {
+  /**
+   * Ein Vergehens-Abschnitt: Rubrik, Zählung, Zeilen.
+   *
+   * Baut auf `components/Section` und nicht mehr auf einer eigenen Fläche. Hier stand ein
+   * `bg-surface rounded-2xl border` mit getönter Kopfzeile darin — Kasten in Kasten, also genau die
+   * Figur, gegen die `Section` gebaut wurde, und das ausgerechnet auf dem Bildschirm, auf dem ein
+   * Urteil über einen Menschen gefällt wird (#86). Die Zählung sitzt im `action`-Platz, für den es
+   * ihn gibt.
+   */
+  function OffenseSection({ title, openCount, totalCount, children }: {
     title: string; openCount: number; totalCount: number; children: React.ReactNode;
   }) {
     const showBoth = totalCount > openCount && totalCount > 0;
     return (
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
-        <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
-          <BlockHeading as="span">{title}</BlockHeading>
+      <Section
+        title={title}
+        action={
           <span className="text-xs tabular-nums text-foreground-faint">
             {showBoth
               ? <><span className="font-semibold">{openCount} {labels.strafbuchOffen}</span><span className="opacity-50"> / {totalCount} {labels.strafbuchGesamt}</span></>
               : <span className="font-semibold">{totalCount}</span>
             }
           </span>
-        </div>
+        }
+      >
         <div className="divide-y divide-border-subtle">{children}</div>
-      </div>
+      </Section>
     );
   }
 
@@ -433,8 +482,17 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       }
     }
 
+    const prior = priorPunishments(strafeRecords, offenseType);
+    const priorLine = joinParts(
+      prior.count > 0 && labels.strafbuchFruehereStrafen.replace("{count}", String(prior.count)),
+      prior.last?.reason
+        ? labels.strafbuchZuletztVerhaengt.replace("{date}", prior.last.judgedAtStr).replace("{text}", prior.last.reason)
+        : null,
+    );
+
     return (
       <form onSubmit={submit} className="mt-2 bg-surface-raised rounded-xl border border-border p-3 flex flex-col gap-2">
+        {priorLine && <p className={FACT_CLS}>{priorLine}</p>}
         <div>
           <label className="block text-xs text-foreground-faint mb-1">{label}</label>
           <textarea value={text} onChange={e => setText(e.target.value)} rows={2} required placeholder={placeholder}
@@ -529,7 +587,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             </>
           ) : (
             <button type="button" onClick={() => markDone(refId, true)}
-              className="text-xs font-medium text-[var(--color-ok)] border border-[var(--color-ok)] bg-[color-mix(in_srgb,var(--color-ok)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-ok)_15%,transparent)] transition px-2.5 py-1 rounded-lg flex items-center gap-1">
+              className={CHIP_OK_CLS}>
               <CheckCircle size={11} /> {labels.strafbuchAlsErledigt}
             </button>
           )}
@@ -609,7 +667,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       <div className="mt-2">
         <button type="button"
           onClick={() => setOpenFormId(isOpen ? null : refId)}
-          className="text-xs font-medium text-[var(--color-ok)] border border-[var(--color-ok)] bg-[color-mix(in_srgb,var(--color-ok)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-ok)_15%,transparent)] transition px-2.5 py-1 rounded-lg flex items-center gap-1">
+          className={CHIP_OK_CLS}>
           <CheckCircle size={11} />
           {labels.strafbuchWurdeBestraft}
           <ChevronDown size={11} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -927,15 +985,14 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
         </Link>
       </div>
 
+      {/* Der Leer-Zustand ist die gemeinsame Figur der App und kein eigener Kasten mehr — dieselbe
+          Begründung wie bei `OffenseSection`. `CheckCircle` für „alles beurteilt", `ClipboardList`
+          für „noch nichts eingetragen": die beiden Sätze meinen Verschiedenes. */}
       {!hasAnyOpen && !showAll && hasAny && (
-        <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
-          {labels.strafbuchAlleVergehenBestraft}
-        </div>
+        <EmptyState icon={<CheckCircle size={32} />} title={labels.strafbuchAlleVergehenBestraft} />
       )}
       {!hasAny && (
-        <div className="bg-surface rounded-2xl border border-border py-20 text-center text-foreground-faint text-sm">
-          {labels.strafbuchNoEntries}
-        </div>
+        <EmptyState icon={<ClipboardList size={32} />} title={labels.strafbuchNoEntries} />
       )}
 
       {sections.map((s) => {
@@ -943,17 +1000,17 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
         const display = showAll ? s.rows : openRows;
         if (display.length === 0) return null;
         return (
-          <Section key={s.canonical} title={s.title} openCount={openRows.length} totalCount={s.rows.length}>
+          <OffenseSection key={s.canonical} title={s.title} openCount={openRows.length} totalCount={s.rows.length}>
             {display.map((r) => {
               const judged = closedIds.has(r.refId);
               return (
-                <div key={r.refId} className={`px-5 py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
+                <div key={r.refId} className={`${blockInsetCls} py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
                   {r.body(judged)}
                   <JudgmentSlot refId={r.refId} offenseType={STORED_TYPE[s.canonical]} anlass={`${s.title}: ${r.anlass}`} />
                 </div>
               );
             })}
-          </Section>
+          </OffenseSection>
         );
       })}
 
