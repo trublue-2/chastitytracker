@@ -11,16 +11,19 @@ import MeasurementChart from "@/app/components/MeasurementChart";
 import WeightRowList from "@/app/components/WeightRowList";
 import { round1 } from "@/lib/utils";
 import { bmi, dayNumber, targetProgress, weightForDisplay, weightText, type UnitSystem, type WeightTarget } from "@/lib/weight";
-import { buildWeightSeries, withinRange, type WeightPoint } from "@/lib/weightSeries";
+import { buildWeightSeries, withinRange } from "@/lib/weightSeries";
 import type { WeightRowData } from "@/lib/weightRows";
 
 /**
  * Die Gewichts-Karte der Statistik: Kennzahlen, Verlauf, Ziel und Fortschritt.
  *
- * Warum alle Punkte auf einmal an den Client gehen und der Zeitraum HIER gefiltert wird: bei einem
+ * Warum alle Messungen auf einmal an den Client gehen und der Zeitraum HIER gefiltert wird: bei einem
  * Wert je Tag ist selbst ein Jahrzehnt eine kleine Liste, und der Umschalter soll sofort reagieren
  * statt bei jedem Klick den Server zu fragen. Gerechnet wird trotzdem in `weightSeries.ts` — dieselbe
  * Ableitung, die auch ein Server-Aufrufer (MCP) benutzen würde.
+ *
+ * Sie kommen EINMAL, als `rows`. Das Diagramm braucht dieselben Werte aufsteigend und mit weniger
+ * Feldern, aber als zweites Prop wäre es dieselbe Reihe ein zweites Mal — umgedreht wird hier.
  */
 
 /** Die Zeiträume aus der Skizze: der Monat als Vorgabe, dazu Quartal, Jahr und alles. */
@@ -34,8 +37,8 @@ const RANGES = [
 type RangeValue = (typeof RANGES)[number]["value"];
 
 export interface WeightStatsCardProps {
-  points: WeightPoint[];
-  /** Dieselben Messungen als volle Zeilen, JÜNGSTE ZUERST — die Liste unter dem Diagramm. */
+  /** Die Messungen als volle Zeilen, JÜNGSTE ZUERST — die Liste unter dem Diagramm, und nach dem
+   *  Umdrehen auch dessen Punkte. */
   rows: WeightRowData[];
   /** Das WIRKSAME Ziel — das der Keyholderin, solange sie eines führt, sonst das des Trägers. */
   target: WeightTarget | null;
@@ -59,7 +62,7 @@ export interface WeightStatsCardProps {
 }
 
 export default function WeightStatsCard({
-  points, rows, target, startKg, heightCm, unitSystem, locale, tz, todayKey, dateLabels,
+  rows, target, startKg, heightCm, unitSystem, locale, tz, todayKey, dateLabels,
   releaseThresholdKg,
 }: WeightStatsCardProps) {
   const t = useTranslations("weightStats");
@@ -68,9 +71,12 @@ export default function WeightStatsCard({
   const [range, setRange] = useState<RangeValue>("30");
 
   const days = RANGES.find((r) => r.value === range)!.days;
+  // Die Reihe rechnet vorwärts, angezeigt wird sie rückwärts. Eine Kopie, damit `rows` seine
+  // Reihenfolge behält — `reverse()` dreht an Ort und Stelle.
+  const ascending = useMemo(() => [...rows].reverse(), [rows]);
   const series = useMemo(
-    () => buildWeightSeries(points, { days, todayKey, target }),
-    [points, days, todayKey, target],
+    () => buildWeightSeries(ascending, { days, todayKey, target }),
+    [ascending, days, todayKey, target],
   );
   // Dieselbe Grenze wie beim Diagramm — die Liste zeigt genau die Messungen, die auch die Kurve
   // zeichnet. `rows` steht bereits absteigend; der Filter lässt die Reihenfolge unangetastet.
@@ -85,7 +91,7 @@ export default function WeightStatsCard({
   // Der Fortschritt rechnet gegen die JÜNGSTE Messung, nicht gegen die letzte des gewählten
   // Zeitraums: „wie weit bin ich" ist eine Frage an heute, nicht an den Ausschnitt, den gerade
   // jemand betrachtet.
-  const latestOverall = points.length ? points[points.length - 1] : null;
+  const latestOverall = rows[0] ?? null;
   const progress = target && latestOverall
     ? targetProgress({ targetKg: target.kg, startKg, currentKg: latestOverall.weightKg })
     : null;
@@ -105,7 +111,7 @@ export default function WeightStatsCard({
     <section className="flex flex-col gap-3">
       <BlockHeading as="span" className="px-1">{t("title")}</BlockHeading>
 
-      {points.length === 0 ? (
+      {rows.length === 0 ? (
         <Card padding="compact">
           <p className="text-sm text-foreground-muted">{t("empty")}</p>
         </Card>
@@ -178,7 +184,16 @@ export default function WeightStatsCard({
               den von der Waage gelesenen Wert. Zusammen in einer Karte, weil beides derselbe
               Zeitraum ist — wer den Tab umlegt, bewegt Kurve und Liste zugleich. */}
           {rowsInRange.length > 0 && (
-            <Section title={tList("title")}>
+            <Section
+              title={tList("title")}
+              // Wie viele es im gewählten Zeitraum sind, steht an der Rubrik und nicht im
+              // Blätter-Fuss: der zählt Seiten, und die Zahl gehört zur Liste als ganzer.
+              action={(
+                <span className="text-neben text-foreground-faint tabular-nums">
+                  {tList("countInList", { count: rowsInRange.length })}
+                </span>
+              )}
+            >
               <WeightRowList rows={rowsInRange} locale={locale} tz={tz} unitSystem={unitSystem} />
             </Section>
           )}

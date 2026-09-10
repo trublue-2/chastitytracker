@@ -29,7 +29,9 @@ export async function getWeightStatsProps(subUserId: string): Promise<WeightStat
 
   // Die vollen Zeilen, nicht nur die vier Felder des Diagramms: unter der Kurve steht dieselbe
   // Reihe noch einmal als Liste, und die zeigt Foto, Notiz und den von der Waage gelesenen Wert.
-  // Eine zweite Abfrage dafür wäre dieselben Zeilen ein zweites Mal.
+  // Eine zweite Abfrage dafür wäre dieselben Zeilen ein zweites Mal — und dieselbe Reihe ein
+  // zweites Mal ins Prop-Bündel zu legen (einmal auf-, einmal absteigend) genauso: die Karte dreht
+  // sie selbst um, was sie für das Diagramm braucht, steht in jeder dieser Zeilen.
   const [rows, session, locale, release] = await Promise.all([
     loadWeightRows(subUserId),
     auth(),
@@ -54,6 +56,9 @@ export async function getWeightStatsProps(subUserId: string): Promise<WeightStat
   const dl = toDateLocale(locale);
   const dateLabels: Record<string, string> = {};
   for (const row of rows) {
+    // Je KALENDERTAG, nicht je Zeile: `formatDate` baut einen Intl-Formatierer, und an einem Tag mit
+    // drei Messungen schrieb die Schleife dreimal denselben Wert an denselben Schlüssel.
+    if (dateLabels[row.dayKey]) continue;
     // Mittag UTC als Anker: der Schlüssel ist ein Kalendertag ohne Uhrzeit, und jede andere Stunde
     // könnte beim Formatieren in einer Zeitzone auf den Vor- oder Folgetag rutschen.
     dateLabels[row.dayKey] = formatDate(new Date(`${row.dayKey}T12:00:00Z`), dl, "UTC");
@@ -61,7 +66,6 @@ export async function getWeightStatsProps(subUserId: string): Promise<WeightStat
 
   const target = effectiveTarget(sub);
   return {
-    points: ascending,
     rows,
     target,
     // Aus der bereits geladenen Reihe, nicht per zweiter Abfrage: `ascending` ist vollständig und

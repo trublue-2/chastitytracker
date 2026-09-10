@@ -5,6 +5,7 @@ import { formatDurationMs, formatTotalHours } from "@/lib/utils";
 import { useTranslations, useLocale } from "next-intl";
 import BlockHeading from "@/app/components/BlockHeading";
 import Section from "@/app/components/Section";
+import ExpandToggle from "@/app/components/ExpandToggle";
 import { blockInsetCls } from "@/app/components/inputStyles";
 
 import type { MonthStat } from "@/lib/statsTypes";
@@ -16,7 +17,7 @@ export default function MonthStats({ months }: { months: MonthStat[] }) {
   const locale = useLocale();
   const [showAll, setShowAll] = useState(false);
   const visible = showAll ? months : months.slice(0, INITIAL_COUNT);
-  const remaining = months.length - INITIAL_COUNT;
+  const hidden = months.length - INITIAL_COUNT;
 
   return (
     <Section title={t("monthlyOverview")}>
@@ -69,13 +70,14 @@ export default function MonthStats({ months }: { months: MonthStat[] }) {
           );
         })}
       </div>
-      {!showAll && remaining > 0 && (
-        <button
-          onClick={() => setShowAll(true)}
-          className={`self-start ${blockInsetCls} py-1 text-fliess text-foreground-muted hover:text-foreground font-medium transition`}
-        >
-          {t("showMore", { count: remaining })}
-        </button>
+      {/* Bleibt stehen, sobald es etwas zu klappen gibt — sonst nähme das Aufklappen den einzigen
+          Weg zurück mit sich. */}
+      {hidden > 0 && (
+        <ExpandToggle
+          label={showAll ? t("showLess") : t("showMore", { count: hidden })}
+          open={showAll}
+          onToggle={() => setShowAll((v) => !v)}
+        />
       )}
     </Section>
   );
