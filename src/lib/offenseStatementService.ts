@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { OFFENSE_REF_TYPE } from "@/lib/messageService";
 import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/constants";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
@@ -46,6 +47,27 @@ export function normalizeStatementText(raw: string): string | null {
   return text.length === 0 ? null : text;
 }
 
+/**
+ * Gehört dieses Vergehen überhaupt DIESEM Träger?
+ *
+ * `refId` ist global eindeutig, und die Vergehen selbst sind eine Live-Ableitung — es gibt keine
+ * Tabelle, in der „Vergehen X gehört Träger Y" stünde. Die Frage beantwortet deshalb die MELDUNG:
+ * der Träger erfährt jedes Vergehen als Zeile in seinem Posteingang (`offenseAnnounce.ts`), und
+ * genau von dort aus schreibt er. Was ihm nie gemeldet wurde, kann er auch nicht kommentieren.
+ *
+ * Ohne diese Prüfung könnte jeder Angemeldete unter der `refId` eines FREMDEN Vergehens schreiben:
+ * `refId` ist der eindeutige Schlüssel der Tabelle, der Text erschiene im Posteingang des anderen
+ * und in seinem `get_offenses` — und weil die Zeile dann besetzt ist, wäre er selbst dauerhaft
+ * ausgesperrt (403). Ein Angriff, der keine Rechte braucht, nur eine fremde id.
+ */
+async function offenseBelongsToUser(userId: string, refId: string): Promise<boolean> {
+  const seen = await prisma.message.findFirst({
+    where: { subjectUserId: userId, audience: "sub", refEntityType: OFFENSE_REF_TYPE, refEntityId: refId },
+    select: { id: true },
+  });
+  return seen !== null;
+}
+
 /** Liest den Zustand eines Vergehens, den {@link statementBlockedReason} braucht. */
 export async function loadStatementGate(userId: string, refId: string): Promise<StatementGate | null> {
   const [user, judgment] = await Promise.all([
@@ -81,6 +103,10 @@ export interface WriteStatementResult {
  */
 export async function writeOffenseStatement(p: WriteStatementParams): Promise<ServiceResult<WriteStatementResult>> {
   if (p.text.length > OFFENSE_STATEMENT_MAX_LENGTH) return serviceFail(400, "STATEMENT_TOO_LONG");
+
+  // Besitz VOR allem anderen: eine fremde `refId` darf nicht einmal erfahren, ob dort schon ein
+  // Urteil steht. 404 und nicht 403 — die Antwort soll nicht verraten, dass es das Vergehen gibt.
+  if (!(await offenseBelongsToUser(p.userId, p.refId))) return serviceFail(404, "NOT_FOUND");
 
   const gate = await loadStatementGate(p.userId, p.refId);
   if (!gate) return serviceFail(404, "USER_NOT_FOUND");

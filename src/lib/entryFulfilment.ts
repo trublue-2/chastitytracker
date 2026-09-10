@@ -6,6 +6,7 @@ type PrismaKontrollWhere = Prisma.KontrollAnforderungWhereInput;
 import { prisma } from "@/lib/prisma";
 import { recordSystemMessage } from "@/lib/messageService";
 import { getOffenseRules } from "@/lib/offenseRulesService";
+import { offenseNameKey } from "@/lib/offenseLabels";
 import {
   aktiveKontrolleWhere,
   openLockRequestWhere,
@@ -321,6 +322,11 @@ export async function punishWrongDevice(
     await recordSystemMessage({
       subjectUserId: entry.userId,
       bodyKey: "wrongDeviceMessage",
+      // Die ART als i18n-Schlüssel MIT, obwohl der Text sie nicht einsetzt: an dieser Zeile hängt
+      // die Stellungnahme, und die liest die Art daraus zurück (`offenseCanonicalFromNameKey`).
+      // Ohne sie hätte das falsche Gerät als einziges Vergehen kein Feld — ausgerechnet das eine,
+      // das die App im Alleingang ahndet und zu dem er sonst nie gehört wird.
+      params: { offenseKey: offenseNameKey("wrong_device") },
       ref: { type: "detectedOffense", id: entry.id },
       once: true,
     });

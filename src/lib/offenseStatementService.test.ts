@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { statementBlockedReason, normalizeStatementText } from "./offenseStatementService";
+import { offenseCanonicalFromNameKey, offenseCanonicalOrNull, offenseNameKey, OFFENSE_TYPE_I18N_KEYS } from "./offenseLabels";
+import type { OffenseCanonicalType } from "./offenseTypes";
+
+const OFFENSE_TYPES_FOR_TEST = Object.keys(OFFENSE_TYPE_I18N_KEYS) as OffenseCanonicalType[];
 
 /**
  * Die Schranke der Stellungnahme — wann der Träger schreiben darf und wann nicht.
@@ -53,5 +57,35 @@ describe("normalizeStatementText", () => {
   it("leer heisst zurücknehmen — nicht eine leere Stellungnahme", () => {
     expect(normalizeStatementText("   ")).toBeNull();
     expect(normalizeStatementText("")).toBeNull();
+  });
+});
+
+/**
+ * Die Rückrechnung der Art aus dem Namens-Schlüssel — der Weg, auf dem der Posteingang erfährt,
+ * WORUNTER eine Stellungnahme gespeichert wird.
+ *
+ * Ohne sie bekommt eine Vergehens-Meldung kein Feld. Die automatische Geräte-Ahndung trug den
+ * Schlüssel zunächst nicht mit; damit war ausgerechnet das Vergehen ohne Urteilsschritt das
+ * einzige, zu dem sich der Träger nie äussern konnte — obwohl die Schranke es ausdrücklich erlaubt.
+ */
+describe("offenseCanonicalFromNameKey", () => {
+  it("liest jede Art aus ihrem eigenen Schlüssel zurück", () => {
+    for (const type of OFFENSE_TYPES_FOR_TEST) {
+      expect(offenseCanonicalFromNameKey(offenseNameKey(type))).toBe(type);
+    }
+  });
+
+  it("gibt null für Unbekanntes statt einen rohen Pfad durchzureichen", () => {
+    expect(offenseCanonicalFromNameKey(undefined)).toBeNull();
+    expect(offenseCanonicalFromNameKey("erfunden.name")).toBeNull();
+  });
+});
+
+describe("offenseCanonicalOrNull", () => {
+  it("nimmt eine gültige Art an und weist alles andere ab", () => {
+    expect(offenseCanonicalOrNull("late_control")).toBe("late_control");
+    expect(offenseCanonicalOrNull("lateControl")).toBeNull();
+    expect(offenseCanonicalOrNull(42)).toBeNull();
+    expect(offenseCanonicalOrNull(undefined)).toBeNull();
   });
 });

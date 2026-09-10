@@ -62,9 +62,10 @@ export async function presentMessages(
    *  Sicht), erscheint die Stellungnahme als Text ohne Feld. */
   statementFor?: { userId: string } | null,
 ): Promise<PresentedMessage[]> {
-  const offenseRefs = statementFor
-    ? [...new Set(messages.flatMap((m) => (m.offenseRefId ? [m.offenseRefId] : [])))]
-    : [];
+  // IMMER laden, nicht nur im eigenen Posteingang: die Keyholderin liest denselben Text, sie bekommt
+  // nur kein Feld dazu. An `statementFor` gehängt blieb ihre Sicht leer — und damit auch die Zeile,
+  // die dem Urteil vorausgehen soll.
+  const offenseRefs = [...new Set(messages.flatMap((m) => (m.offenseRefId ? [m.offenseRefId] : [])))];
   const [t, tOffenses, statements, gates] = await Promise.all([
     getTranslations({ locale, namespace: "emails" }),
     getTranslations({ locale, namespace: "offenses" }),

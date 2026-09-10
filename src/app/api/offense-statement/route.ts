@@ -5,10 +5,8 @@ import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 import { notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { getEventChannels } from "@/lib/notificationPrefs";
-import { offenseNameKey } from "@/lib/offenseLabels";
-import { OFFENSE_REF_TYPE } from "@/lib/messageService";
+import { offenseCanonicalOrNull, offenseNameKey } from "@/lib/offenseLabels";
 import { markLastAction } from "@/lib/appMeta";
-import type { OffenseCanonicalType } from "@/lib/offenseTypes";
 
 /**
  * Die Stellungnahme des Trägers zu einem festgestellten Vergehen — schreiben, ändern, zurücknehmen.
@@ -26,8 +24,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   const refId = typeof body?.refId === "string" ? body.refId.trim() : "";
-  const offenseType = typeof body?.offenseType === "string" ? body.offenseType : "";
   const text = typeof body?.text === "string" ? body.text : "";
+  // Die Art wird gegen die Taxonomie GEPRÜFT, nicht durchgereicht: sie landet in der Zeile und
+  // damit in der Meldung an die Keyholderin. Ein Fantasiewert ergäbe dort „…geäussert: undefined".
+  const offenseType = offenseCanonicalOrNull(body?.offenseType);
   if (!refId || !offenseType) return errorResponse(400, "NOT_FOUND");
 
   const userId = session.user.id;
@@ -53,12 +53,15 @@ export async function POST(req: NextRequest) {
         // Feststellung (`offenseAnnounce.ts`): gelesen wird die Zeile in der Sprache, die der
         // Empfänger beim ÖFFNEN eingestellt hat, nicht in der, die beim Schreiben galt.
         // `messagePresenter` löst `offenseKey` zu `{offense}` auf.
-        offenseKey: offenseNameKey(offenseType as OffenseCanonicalType),
+        offenseKey: offenseNameKey(offenseType),
       },
       channels,
-      // Dieselbe Referenz wie die Feststellung selbst: beide Zeilen reden über dasselbe Vergehen,
-      // und im Posteingang stehen sie damit beieinander.
-      inbox: { ref: { type: OFFENSE_REF_TYPE, id: refId } },
+      // OHNE Referenz, obwohl es eine gäbe. `detectedOffense` ist der Marker der FESTSTELLUNG: eine
+      // Zeile damit lässt sich nicht löschen (sie wird nur als weggewischt gestempelt) und ist von
+      // der Aufbewahrungsfrist ausgenommen — beides gilt der Beweiskraft der Feststellung und wäre
+      // an einer Benachrichtigung falsch. `offense` wiederum löst gegen das URTEIL auf, das es hier
+      // noch nicht gibt; die Zeile behauptete dann „Objekt gelöscht". Was sie sagen muss — wer und
+      // welche Art —, steht in ihrem Text.
     });
   }
 
