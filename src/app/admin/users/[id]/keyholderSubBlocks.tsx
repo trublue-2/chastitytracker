@@ -18,6 +18,7 @@ import { parseWeekdayGoalRules } from "@/lib/weekdayGoal";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { userRowCached, strafbuchCached } from "@/lib/dashboardData";
 import { selectSubOffenses, attentionOffensesOf } from "@/lib/subOffenses";
+import { loadStatementViews } from "@/lib/offenseStatementService";
 import OffenseList from "@/app/components/OffenseList";
 import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
@@ -445,10 +446,14 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
   // Handlung — ein Urteil bzw. den Abschluss (`attentionOffensesOf`). Kostet ein volles Strafbuch
   // (`strafbuchCached`, eine Sub, pro Request gecacht) — hier auf der EINEN Detailseite vertretbar;
   // die Übersicht über alle Subs bleibt bewusst aussen vor (dort wäre es N × Strafbuch). Erledigtes
-  // und Verworfenes steht im Reiter, dorthin führt „Alle".
+  // und Verworfenes steht im Reiter, dorthin führt „Alle". Seine Stellungnahmen stehen an der Karte —
+  // gelesen, ohne Feld (`writer: null`).
   openOffenses: block({
-    load: async ({ subjectId, nowMs }) => attentionOffensesOf(selectSubOffenses(await strafbuchCached(subjectId, nowMs))),
-    render: (offenses, { subjectId, subjectTz, td, tc }) => offenses.length > 0 && (
+    load: async ({ subjectId, nowMs }) => {
+      const offenses = attentionOffensesOf(selectSubOffenses(await strafbuchCached(subjectId, nowMs)));
+      return { offenses, statements: await loadStatementViews(offenses.map((o) => o.refId), null) };
+    },
+    render: ({ offenses, statements }, { subjectId, subjectTz, td, tc }) => offenses.length > 0 && (
       <Section
         title={<span className="flex items-center gap-1.5"><Gavel size={12} />{td("blockOpenOffenses")}</span>}
         action={
@@ -457,7 +462,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           </Link>
         }
       >
-        <OffenseList offenses={offenses} tz={subjectTz} keyholderOf={subjectId} />
+        <OffenseList offenses={offenses} tz={subjectTz} keyholderOf={subjectId} statements={statements} />
       </Section>
     ),
   }),

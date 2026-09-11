@@ -191,6 +191,40 @@ export async function loadStatementGates(
   return out;
 }
 
+/** Eine Stellungnahme, wie eine Sicht sie zeigt: der Text und ob der LESER ihn schreiben darf. */
+export interface StatementView {
+  refId: string;
+  text: string | null;
+  editable: boolean;
+}
+
+/**
+ * Die Stellungnahmen zu einer Menge von Vergehen, fertig für die Anzeige — geteilt vom Posteingang,
+ * vom Strafen-Block des Trägers und von der Sub-Übersicht der Keyholderin.
+ *
+ * `writer` benennt, wer schreiben darf und wofür: der Träger, nur für die ihm GEMELDETEN refIds — der
+ * Schreibweg belegt den Besitz über die Meldung (`announcedOffenseType`) und antwortete sonst 404.
+ * `null` = Leser-Sicht (Keyholderin): Text ohne Feld. Wo weder Text noch Recht vorliegen, fehlt der
+ * Eintrag — eine leere Hülle wäre für die Anzeige dasselbe wie gar keine.
+ */
+export async function loadStatementViews(
+  refIds: string[],
+  writer: { userId: string; refIds: string[] } | null,
+): Promise<Map<string, StatementView>> {
+  const [statements, gates] = await Promise.all([
+    loadStatements(refIds),
+    writer ? loadStatementGates(writer.userId, writer.refIds) : new Map<string, StatementGate>(),
+  ]);
+  const out = new Map<string, StatementView>();
+  for (const refId of refIds) {
+    const text = statements.get(refId)?.text ?? null;
+    const gate = gates.get(refId);
+    const editable = gate ? statementBlockedReason(gate) === null : false;
+    if (text !== null || editable) out.set(refId, { refId, text, editable });
+  }
+  return out;
+}
+
 /**
  * Der Schalter „darf sich äussern" — EIN Schreiber für Oberfläche und MCP.
  *

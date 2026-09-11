@@ -1,5 +1,25 @@
 [
   {
+    "version": "6.2.1",
+    "date": "2026-09-11",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Kontroll-, Verschluss- und Orgasmus-Anforderungen halten sich jetzt an deine Benachrichtigungs-Schalter: ist Mail aus, kommt keine Mail mehr. Die Nachricht im Posteingang bleibt.",
+          "en": "Inspection, lock and orgasm requests now respect your notification switches: with mail off, no mail is sent. The inbox message stays."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Noch nicht beurteilte Vergehen stehen jetzt auf dem Dashboard unter „Offene Vergehen und Strafen“ — mit dem Feld für deine Stellungnahme. Der Keyholder liest sie direkt an der Karte auf deiner Übersicht.",
+          "en": "Offenses not yet judged now appear on the dashboard under “Open offenses and penalties” — with the field for your statement. Your keyholder reads it right on the card in your overview."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.0",
     "date": "2026-09-11",
     "changes": [

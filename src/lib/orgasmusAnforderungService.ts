@@ -7,7 +7,7 @@ import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS, APP_NAME } f
 import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten } from "@/lib/reasonsService";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { computeDelayedTrigger, isHiddenFromSub, parseTriggerAt } from "@/lib/delayedTrigger";
-import { recordMessageAndBadge, type MessageActor } from "@/lib/messageService";
+import { recordInboxDelivery, type MessageActor } from "@/lib/messageService";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { getTranslations } from "next-intl/server";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
@@ -273,7 +273,8 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   const istAnweisung = art === "ANWEISUNG";
 
   // Nachricht des Keyholders bleibt an der Direktive; der Posteingang verlinkt sie nur.
-  const badge = await recordMessageAndBadge({
+  // Mail/Push/Telegram folgen dem Kanal-Schalter des Empfängers, die Zeile entsteht immer.
+  const { badge, channels } = await recordInboxDelivery({
     subjectUserId: userId,
     bodyKey: istAnweisung ? "orgasmAnweisungIntro" : "orgasmGelegenheitIntro",
     actor,
@@ -293,7 +294,7 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
     ? resolveOrgasmusArtDisplay(requiredType, effectiveOrgasmusArten(user.orgasmusArtenConfig), tOrgasm) ?? requiredType
     : null;
 
-  if (user.email) {
+  if (user.email && channels.mail) {
     const messageHtml = optionalNoticeBoxHtml(t("orgasmNoticeLabel"), message);
     const artHtml = artLabel ? `<p><strong>${t("orgasmArtLabel")}</strong> ${escHtml(artLabel)}</p>` : "";
     const oeffnenHtml = openingAllowed ? `<p><strong>${t("orgasmOpenAllowedLabel")}</strong> ${t("orgasmOpenAllowedText")}</p>` : "";
@@ -318,6 +319,6 @@ export async function sendOrgasmusAnforderungNotifications(opts: {
   if (artLabel) pushParts.push(artLabel);
   if (message?.trim()) pushParts.push(message.trim());
   const pushBody = pushParts.join(" · ");
-  firePush(userId, betreff, pushBody, "/dashboard", badge);
-  fireTelegram(userId, betreff, pushBody);
+  if (channels.push) firePush(userId, betreff, pushBody, "/dashboard", badge);
+  if (channels.telegram) fireTelegram(userId, betreff, pushBody);
 }

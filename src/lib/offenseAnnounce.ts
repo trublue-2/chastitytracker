@@ -114,7 +114,7 @@ function detectedParams(o: AnnounceableOffense): Record<string, string> {
  * dauerhaft und lautlos. (Der Index führt `audience` nicht; das kostet hier nichts, weil die drei
  * Index-Spalten die Menge schon auf wenige Zeilen eingrenzen.)
  */
-function announcedWhere(userId: string, refId: string | { in: string[] }) {
+function announcedWhere(userId: string, refId?: string | { in: string[] }) {
   return {
     subjectUserId: userId,
     audience: "sub" as const,
@@ -123,12 +123,37 @@ function announcedWhere(userId: string, refId: string | { in: string[] }) {
   };
 }
 
-async function announcedRefs(userId: string, refIds: string[]): Promise<Set<string>> {
+async function announcedRefs(userId: string, refIds?: string[]): Promise<Set<string>> {
   const rows = await prisma.message.findMany({
-    where: announcedWhere(userId, { in: refIds }),
+    where: announcedWhere(userId, refIds && { in: refIds }),
     select: { refEntityId: true },
   });
   return new Set(rows.flatMap((m) => (m.refEntityId ? [m.refEntityId] : [])));
+}
+
+/**
+ * Die gemeldeten, noch UNBEURTEILTEN Vergehen des Trägers — was sein Strafen-Block neben den offenen
+ * Strafen zeigt, mit dem Feld für seine Stellungnahme.
+ *
+ * Nur GEMELDETE: Stellung nehmen kann er ausschliesslich dazu (Besitzbeleg, siehe
+ * {@link announcedOffenseType}), und ein nie gemeldetes Vergehen wäre die Altlast von vor dem
+ * Stichtag, die {@link offenseAnnounceFrom} gerade fernhält.
+ *
+ * Zwei schmale Abfragen statt des Strafbuchs: der Block lädt das teure Strafbuch erst, wenn hier oder
+ * bei den offenen Strafen etwas ansteht. Anders als bei {@link announcedRefs} sonst ohne `in`: gefragt
+ * ist die GANZE gemeldete Menge. Sie wächst mit den Jahren, bleibt je Träger aber bei Dutzenden bis
+ * wenigen Hundert Zeilen, gelesen über den Index (subjectUserId, refEntityType).
+ *
+ * Ein gemeldetes Vergehen, das die Ableitung inzwischen nicht mehr kennt (Eintrag gelöscht) und das
+ * nie beurteilt wurde, hält dieses Tor offen — dann kostet der Aufruf das Strafbuch und zeigt nichts.
+ * Selten, und dieselbe Menge, die auch die Keyholderin sieht.
+ */
+export async function announcedOpenRefs(userId: string): Promise<Set<string>> {
+  const refs = [...await announcedRefs(userId)];
+  if (refs.length === 0) return new Set();
+  const judged = await prisma.strafeRecord.findMany({ where: { userId, refId: { in: refs } }, select: { refId: true } });
+  const judgedRefs = new Set(judged.map((r) => r.refId));
+  return new Set(refs.filter((r) => !judgedRefs.has(r)));
 }
 
 /** Ob ein Vergehen dem Träger schon gemeldet wurde — die Bedingung dafür, dass eine Auflösung

@@ -6,6 +6,8 @@ import Badge, { type BadgeVariant } from "@/app/components/Badge";
 import IconTile from "@/app/components/IconTile";
 import { warnEdgeCls } from "@/app/components/inputStyles";
 import DetailField from "@/app/components/DetailField";
+import OffenseStatementField from "@/app/components/OffenseStatementField";
+import type { StatementView } from "@/lib/offenseStatementService";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { TASK_LIST_ANCHOR } from "@/lib/constants";
 import { offenseNameKey } from "@/lib/offenseLabels";
@@ -24,13 +26,13 @@ const STATE_BADGE: Record<SubOffenseState, { key: string; variant: BadgeVariant 
 /**
  * Ein Vergehen als Karte — der Strafen-Block des Sub-Dashboards.
  *
- * Zeigt heute nur offene Strafen (`openPenaltiesOf`); die übrigen Zustände bleiben bedient, weil die
- * Karte den ganzen Lebenszyklus beschreibt und ein Block, der auch Beurteiltes zeigt, keine neue
- * Komponente brauchen soll.
+ * Zeigt unbeurteilte Vergehen und offene Strafen (`attentionOffensesOf`); die übrigen Zustände
+ * bleiben bedient, weil die Karte den ganzen Lebenszyklus beschreibt.
  *
- * Geteilt vom Sub-Dashboard und der Sub-Übersicht der Keyholderin (`keyholderOf`). Die einzigen
- * Aktionen hängen an der offenen Strafe: der Träger meldet sie als erledigt, die Keyholderin schliesst
- * sie ab. Urteilen bleibt dem Strafbuch vorbehalten.
+ * Geteilt vom Sub-Dashboard und der Sub-Übersicht der Keyholderin (`keyholderOf`). Aktionen: der
+ * Träger nimmt Stellung, solange nicht geurteilt ist, und meldet eine offene Strafe als erledigt; die
+ * Keyholderin liest seine Stellungnahme und schliesst die Strafe ab. Urteilen bleibt dem Strafbuch
+ * vorbehalten.
  *
  * Der Freitext heisst je nach Zustand etwas anderes — Strafe bei `punished`/`done`, Begründung des
  * Fallenlassens bei `dismissed` — und wird deshalb beschriftet statt nackt hingestellt. Ohne die
@@ -40,6 +42,7 @@ export default async function OffenseCard({
   offense: o,
   tz,
   keyholderOf = null,
+  statement,
 }: {
   offense: SubOffense;
   tz: string;
@@ -47,8 +50,12 @@ export default async function OffenseCard({
    *  „Als erledigt markieren" statt des Hinweises, dass nur sie abschliessen kann, und der
    *  Aufgaben-Link führt in SEINE Aufgaben statt in ihr eigenes Dashboard. */
   keyholderOf?: string | null;
+  /** Seine Stellungnahme — für ihn mit Feld, solange er schreiben darf, für sie als Zitat. */
+  statement: StatementView | null;
 }) {
-  const [t, tOffenses] = await Promise.all([getTranslations("penalties"), getTranslations("offenses")]);
+  const [t, tOffenses, tAdmin] = await Promise.all([
+    getTranslations("penalties"), getTranslations("offenses"), getTranslations("admin"),
+  ]);
   // Die Datums-Locale kommt aus dem Request, nicht als Prop: beide Aufrufer haben sie ohnehin nur
   // von hier, und `getLocale` ist `cache()`-gestützt (Muster von `LaufendeSessionCard`).
   const dl = toDateLocale(await getLocale());
@@ -92,6 +99,13 @@ export default async function OffenseCard({
           <Badge variant={badge.variant} size="sm" label={t(badge.key)} className="shrink-0" />
         </div>
 
+        {/* Seine Sicht auf das Vergehen, direkt unter dem Vorwurf — und vor dem Urteil, dem sie
+            vorausgeht. Die Keyholderin liest sie hier, ohne ins Strafbuch zu wechseln. */}
+        {/* Für sie ohne Schreibrecht (`writer: null`) — das Feld zeigt dann nur das Zitat. */}
+        {statement && (
+          <OffenseStatementField statement={statement} label={keyholderOf ? tAdmin("strafbuchStellungnahme") : undefined} />
+        )}
+
         {/* Die zweite Frage, die diese Karte beantworten muss: WIE werde ich bestraft. Deshalb steht
             der Straftext abgesetzt und nicht als weitere graue Zeile — er ist die Antwort, nicht ein
             Zusatz. Bei einem fallengelassenen Vergehen trägt dasselbe Feld die Begründung; damit es
@@ -115,7 +129,7 @@ export default async function OffenseCard({
             KEINE zweite Variante für „schliesst sich mit der Aufgabe", obwohl es den Automatismus
             gibt (`closePenaltyForFulfilledTask`) — das ist kein Versehen. Der Automatismus greift
             NUR bei einer ERFÜLLTEN Aufgabe, und eine erfüllte schliesst die Strafe, womit die Karte
-            gar nicht mehr in `openPenaltiesOf` steht. Der einzige Renderpfad (`OpenPenalties`)
+            gar nicht mehr unter den offenen Strafen steht. Der Sub-Pfad (`OpenPenalties`)
             filtert zusätzlich jede Karte weg, deren Aufgabe noch im Aufgaben-Block lebt. Übrig
             bleibt bei gesetzter `taskId` praktisch nur die TOTE Aufgabe (versäumt/abgebrochen) —
             die wird nie mehr erfüllt, ihre Strafe also nie automatisch geschlossen. „Sobald die

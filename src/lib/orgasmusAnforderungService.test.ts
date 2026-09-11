@@ -27,6 +27,7 @@ vi.mock("@/lib/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, noticeBoxHtml: () => "", optionalNoticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
 vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
+vi.mock("@/lib/notificationPrefs", () => ({ getMessageChannels: vi.fn(async () => ({ mail: true, push: true, telegram: true })) }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/emailI18n", () => ({ emailT: async () => (k: string) => k, emailGreeting: () => "" }));
 vi.mock("next-intl/server", () => ({ getTranslations: vi.fn(async () => (k: string) => k) }));
@@ -35,6 +36,8 @@ import { createOrgasmusAnforderung, checkOrgasmWindowEnd } from "./orgasmusAnfor
 import { prisma } from "@/lib/prisma";
 import { sendMailSafe } from "@/lib/mail";
 import { notifyUser } from "@/lib/notify";
+import { firePush } from "@/lib/push";
+import { getMessageChannels } from "@/lib/notificationPrefs";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const mailMock = sendMailSafe as unknown as ReturnType<typeof vi.fn>;
@@ -118,6 +121,17 @@ describe("createOrgasmusAnforderung — Terminierung", () => {
       expect.objectContaining({ data: expect.objectContaining({ wirksamAb: null, benachrichtigtAt: JETZT, createdBy: "herrin" }) }),
     );
     expect(mailMock).toHaveBeenCalledTimes(1);
+  });
+
+  // Der Empfänger-Schalter gilt auch für Anweisungen: früher ging die Mail trotz „Mail aus" raus.
+  it("Mail-Schalter aus: keine Mail, Push weiterhin", async () => {
+    vi.mocked(getMessageChannels).mockResolvedValueOnce({ mail: false, push: true, telegram: false });
+    const res = await createOrgasmusAnforderung({
+      userId: "u1", art: "ANWEISUNG", beginsAt: JETZT, endsAt: MORGEN,
+    }, "herrin");
+    expect(res.ok).toBe(true);
+    expect(mailMock).not.toHaveBeenCalled();
+    expect(firePush).toHaveBeenCalledTimes(1);
   });
 
   it("verzögert: gespeichert, aber KEINE Meldung — der Poller stellt zu", async () => {

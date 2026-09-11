@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON, APP_NAME } from "@/lib/constants";
 import { sendMailSafe, escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { notifyUser, type NotifyContent, type NotifyInbox } from "@/lib/notify";
-import { actorColumn, recordMessageAndBadge, type MessageActor } from "@/lib/messageService";
+import { actorColumn, recordInboxDelivery, type MessageActor } from "@/lib/messageService";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
@@ -107,7 +107,7 @@ export async function createVerschlussAnforderung(
   // gestellte Anforderung mitten in der Pause hinaus, während ihr terminierter Zwilling wartet.
   if (await isHealthHoldActive(userId)) return serviceFail(409, "HEALTH_HOLD_ACTIVE");
   // KEINE E-Mail-Pflicht: der Sub erfährt die Anforderung über den Posteingang
-  // (`recordMessageAndBadge`, weiter unten und unbedingt) und über das Banner auf seinem
+  // (`recordInboxDelivery`, weiter unten und unbedingt) und über das Banner auf seinem
   // Dashboard, das aus der Zeile selbst kommt. Die Mail ist die Beigabe. Bis v6 stand hier ein
   // `USER_NO_EMAIL`, und es sperrte der Keyholderin die Hauptaktion für jeden Sub ohne Adresse —
   // gemeldet aus dem Betrieb. `kontrolleService` behält seine Prüfung: dort geht ein CODE per
@@ -262,9 +262,9 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   // Die Anforderungs-Nachricht des Keyholders wird NICHT mitkopiert: der Posteingang zeigt auf die
   // Direktive und liest sie beim Anzeigen frisch von dort. Eine spätere Korrektur über
   // `edit_lock_request` bliebe sonst neben einer veralteten Kopie stehen.
-  // Wie bei der Kontrolle: Mail/Push sind hier nicht abschaltbar — eine Sperrzeit ist eine
-  // Direktive, keine Nachricht.
-  const badge = await recordMessageAndBadge({
+  // Wie bei der Kontrolle: Mail/Push/Telegram folgen dem Kanal-Schalter des Empfängers, die
+  // Posteingangs-Zeile entsteht immer.
+  const { badge, channels } = await recordInboxDelivery({
     subjectUserId: userId,
     bodyKey: art === "SPERRZEIT" ? "lockPeriodSetBody" : "lockRequestBody",
     actor,
@@ -275,7 +275,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   const messageHtml = optionalNoticeBoxHtml(t("lockNoticeLabel"), message);
   const greeting = emailGreeting(t, user.username);
 
-  if (art === "SPERRZEIT" && user.email) {
+  if (art === "SPERRZEIT" && user.email && channels.mail) {
     const bisHtml = endsAtDate
       ? `<p><strong>${t("lockedUntilLabel")}</strong> ${formatDateTime(endsAtDate)}</p>`
       : `<p><strong>${t("lockDurationLabel")}</strong> ${t("lockIndefinite")}</p>`;
@@ -290,7 +290,7 @@ export async function sendVerschlussAnforderungNotifications(opts: {
     );
   }
 
-  if (art === "ANFORDERUNG" && user.email) {
+  if (art === "ANFORDERUNG" && user.email && channels.mail) {
     const deadlineHtml = endsAtDate
       ? `<p><strong>${t("lockUntilLabel")}</strong> ${formatDateTime(endsAtDate)}</p>`
       : "";
@@ -325,8 +325,8 @@ export async function sendVerschlussAnforderungNotifications(opts: {
   }
   if (message?.trim()) pushParts.push(message.trim());
   const pushBody = pushParts.join(" · ");
-  firePush(userId, pushTitle, pushBody, "/dashboard", badge);
-  fireTelegram(userId, pushTitle, pushBody);
+  if (channels.push) firePush(userId, pushTitle, pushBody, "/dashboard", badge);
+  if (channels.telegram) fireTelegram(userId, pushTitle, pushBody);
 }
 
 /**

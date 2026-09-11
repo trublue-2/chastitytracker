@@ -19,7 +19,7 @@ vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/taskService", () => ({ checkTask: vi.fn(), writeTask: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 
-import { selectSubOffenses, openPenaltiesOf } from "./subOffenses";
+import { selectSubOffenses } from "./subOffenses";
 import { cleaningNotRelockedRef, type StrafbuchData } from "./strafbuch";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";
 
@@ -91,22 +91,6 @@ describe("selectSubOffenses — Zustände", () => {
     const byRef = new Map(selectSubOffenses(sb).map((o) => [o.refId, o.state]));
     expect(byRef.get("e1")).toBe("punished");
     expect(byRef.get("e2")).toBe("done");
-  });
-
-  it("openPenaltiesOf liefert genau die offenen Strafen — das, was den Träger fordert", () => {
-    const sb = strafbuch({
-      unauthorizedOpenings: [
-        opening("a", new Date("2026-07-30T08:00:00Z")),
-        opening("b", new Date("2026-07-29T08:00:00Z")),
-        opening("c", new Date("2026-07-28T08:00:00Z")),
-      ],
-      strafeRecords: [
-        judgment({ refId: "b" }),
-        judgment({ refId: "c", status: "DISMISSED" }),
-      ],
-    });
-
-    expect(openPenaltiesOf(selectSubOffenses(sb)).map((o) => o.refId)).toEqual(["b"]);
   });
 });
 

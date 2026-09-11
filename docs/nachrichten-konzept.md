@@ -158,8 +158,9 @@ verschwinden mit ihm, weil das Dashboard ausschliesslich **offene** Direktiven l
 
 ### 1.4 Das Badge ist eine Konstante
 
-> **Behoben (v4.56.0).** Die Zahl wird serverseitig gerechnet (`recordMessageAndBadge()` gibt sie
-> zurück, alle Versandpfade reichen sie an `firePush` durch) und trägt ungelesene Nachrichten.
+> **Behoben (v4.56.0).** Die Zahl wird serverseitig gerechnet (`recordInboxDelivery()` gibt sie —
+> seit v6.2.1 zusammen mit den Kanal-Schaltern des Empfängers — zurück, alle Versandpfade reichen sie
+> an `firePush` durch) und trägt ungelesene Nachrichten.
 
 `public/sw.js:100-101` setzt `setAppBadge(1)`, das APNs-Payload setzt `badge: 1`
 (`src/lib/push.ts:60`). Zehn Meldungen ergeben 1. Geräumt wird nur im Service Worker beim

@@ -182,7 +182,7 @@ export default function MessageRow({
         {/* Verlinkt wird nur, wo eine Seite etwas beiträgt — heute die offene Kontrolle mit
             vorbelegtem Code. Der Link steht IM Panel, nicht im Titel: dessen Aufklapp-Fläche ist ein
             `button`, ein `a` darin wäre ungültiges Markup und würde den Klick verschlucken. */}
-        {m.statement && <OffenseStatementField statement={m.statement} onSaved={onStatementSaved} />}
+        {m.statement && <OffenseStatementField statement={m.statement} onSaved={onStatementSaved} className="pl-4" />}
         {m.refHref && (
           <Link
             href={m.refHref}

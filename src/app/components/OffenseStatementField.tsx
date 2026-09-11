@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
 import QuotedField from "@/app/components/QuotedField";
@@ -8,16 +9,11 @@ import Textarea from "@/app/components/Textarea";
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/constants";
-import type { PresentedMessage } from "@/lib/messagePresenter";
+import type { StatementView } from "@/lib/offenseStatementService";
 
 /**
- * Was der Träger zu einem festgestellten Vergehen zu sagen hat — im Posteingang, an der Meldung,
- * mit der er es erfährt.
- *
- * HIER und nicht an einer Vergehens-Liste: eine solche Liste hat der Träger nicht. Sein
- * Dashboard-Block zeigt offene STRAFEN (`openPenaltiesOf`), also Beurteiltes; ein festgestelltes,
- * noch unbeurteiltes Vergehen erfährt er ausschliesslich als Nachricht. Der Ort, an dem er es liest,
- * ist damit auch der einzige, an dem er antworten kann.
+ * Was der Träger zu einem festgestellten Vergehen zu sagen hat — an zwei Orten: an der Meldung im
+ * Posteingang, mit der er es erfährt, und an der Karte des Vergehens in seinem Strafen-Block.
  *
  * Ohne Schreibrecht bleibt der Text als Zitat stehen — für ihn nach dem Urteil, für die
  * Keyholderin immer. Sie urteilt darüber, sie verfasst ihn nicht.
@@ -25,14 +21,22 @@ import type { PresentedMessage } from "@/lib/messagePresenter";
 export default function OffenseStatementField({
   statement,
   onSaved,
+  className = "",
+  label,
 }: {
-  statement: NonNullable<PresentedMessage["statement"]>;
-  /** Der gespeicherte Text (`null` = zurückgenommen). Die Liste schreibt ihn in ihre Zeile, statt
-   *  die Seite neu zu holen — ein Neuladen klappte das Panel zu, in dem er gerade geschrieben hat. */
-  onSaved: (text: string | null) => void;
+  statement: StatementView;
+  /** Der gespeicherte Text (`null` = zurückgenommen). Die Posteingangs-Liste schreibt ihn in ihre
+   *  Zeile, statt die Seite neu zu holen — ein Neuladen klappte das Panel zu, in dem er gerade
+   *  geschrieben hat. Ohne Rückruf (Dashboard-Karte) wird die Seite neu geholt. */
+  onSaved?: (text: string | null) => void;
+  /** Einzug des Felds — im Posteingang auf der Titelkante der Zeile, auf der Karte bündig. */
+  className?: string;
+  /** Beschriftung — Default „Deine Stellungnahme"; die Keyholderin liest „Seine Stellungnahme". */
+  label?: string;
 }) {
   const t = useTranslations("messages");
   const tc = useTranslations("common");
+  const router = useRouter();
   const apiError = useApiError();
   const [text, setText] = useState(statement.text ?? "");
   const [editing, setEditing] = useState(false);
@@ -58,7 +62,8 @@ export default function OffenseStatementField({
         return;
       }
       setEditing(false);
-      onSaved(value.trim() || null);
+      if (onSaved) onSaved(value.trim() || null);
+      else router.refresh();
     } catch {
       setError(apiError(null));
     } finally {
@@ -70,10 +75,10 @@ export default function OffenseStatementField({
   const open = statement.editable && editing;
 
   return (
-    <div className={`pl-4 flex flex-col gap-2${open ? "" : " items-start"}`}>
+    <div className={`${className} flex flex-col gap-2${open ? "" : " items-start"}`}>
       {open ? (
         <Textarea
-          label={t("statementLabel")}
+          label={label ?? t("statementLabel")}
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={OFFENSE_STATEMENT_MAX_LENGTH}
@@ -81,7 +86,7 @@ export default function OffenseStatementField({
           error={error}
         />
       ) : (
-        <QuotedField label={t("statementLabel")} text={statement.text} empty={t("statementEmpty")} />
+        <QuotedField label={label ?? t("statementLabel")} text={statement.text} empty={t("statementEmpty")} />
       )}
 
       {open ? (

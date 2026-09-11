@@ -44,7 +44,7 @@ vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []),
 // echt — er ist reine Ableitung, keine Nebenwirkung. Spread statt Aufzählung, siehe offenseAnnounce.test.ts.
 vi.mock("@/lib/messageService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./messageService")>()),
-  recordMessageAndBadge: vi.fn(async () => 0),
+  recordInboxDelivery: vi.fn(async () => ({ badge: 0, channels: { mail: true, push: true, telegram: true } })),
 }));
 vi.mock("@/lib/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, appBaseUrl: () => "https://x", noticeBoxHtml: () => "", optionalNoticeBoxHtml: () => "", dashboardEmailHtml: () => "",

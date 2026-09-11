@@ -5,8 +5,7 @@ import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/mail";
 import { emailT, emailGreeting, localeT } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
 import { sendTelegram } from "@/lib/telegram";
-import { recordMessageAndBadge, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messageService";
-import { getMessageChannels } from "@/lib/notificationPrefs";
+import { recordInboxDelivery, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messageService";
 import { ALL_CHANNELS, anyChannelActive, type NotificationChannels, APP_NAME } from "@/lib/constants";
 
 /**
@@ -136,8 +135,8 @@ export type NotifyContent = NotifyContentBase & (
  *
  * Für reichhaltige, mehrzeilige Benachrichtigungen (z.B. Verschluss/Orgasmus mit Fenster + Frist)
  * gibt es weiterhin die spezialisierten send…Notifications-Helfer in den jeweiligen Services; die
- * schreiben ihre Nachricht selbst über `recordMessageAndBadge` — und senden bewusst ungefiltert,
- * weil eine Anforderung mit Frist keine abschaltbare Nachricht ist.
+ * schreiben ihre Nachricht selbst über `recordInboxDelivery`, das ihnen mit dem Badge auch die
+ * Kanal-Schalter des Empfängers liefert — dieselbe Regel wie hier.
  */
 export async function notifyUser(userId: string, content: NotifyContent): Promise<void> {
   const user = await prisma.user.findUnique({
@@ -164,21 +163,20 @@ async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): 
   // nur am Objekt geprüft weiss der Compiler, dass `messageKey` in diesem Zweig ein Body-Key ist.
   if (content.inbox !== false) {
     const inbox = content.inbox;
-    badge = await recordMessageAndBadge({
+    ({ badge, channels } = await recordInboxDelivery({
       subjectUserId: user.id,
       bodyKey: inbox?.bodyKey ?? content.messageKey,
       params,
       actor: inbox?.actor,
       ref: inbox?.ref,
       once: inbox?.once,
-    });
+    }));
     // Die Kanal-Schalter des Empfängers (MESSAGE_RECEIVED) gaten JEDE Meldung mit eigener
     // Posteingangs-Zeile — also alle Meldungen AN IHN, nicht nur „neue Nachrichten". Früher umging
     // ein `alwaysNotify`-Flag die Schalter (Anforderungen/Fristen/Eskalation): „aus" hiess trotzdem
     // „kommt an". Die Zeile oben bleibt der garantierte Nachweis, der Kanal wird nur leiser.
     // Bewusst NUR hier, im Posteingangs-Zweig: der Keyholder-Pfad (`notifyControllers`, `inbox:false`)
     // reicht seine Kanäle über `content.channels` durch und darf NICHT am Empfänger-Schalter hängen.
-    channels = await getMessageChannels(user.id);
   }
 
   const t = await emailT(user.locale);

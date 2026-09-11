@@ -6,7 +6,8 @@ import { bodyKeysOfCategory, bodyKeysOutsideSystem, type MessageFilter, type Mes
 import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { mapAnforderungStatus } from "@/lib/utils";
-import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
+import { AI_AUTHOR, hasAuthor, type NotificationChannels } from "@/lib/constants";
+import { getMessageChannels } from "@/lib/notificationPrefs";
 
 /**
  * Der Posteingang: die Nachrichten, die der Sub nachlesen kann.
@@ -1025,13 +1026,17 @@ export const unreadCountCached = cache(
 );
 
 /**
- * Schreibt die Nachricht und liefert den Badge-Wert dazu — der gebündelte Auftakt der drei
- * „reichen" Melde-Pfade (Kontroll-, Verschluss-, Orgasmus-Anforderung), die ihre mehrzeiligen Mails
- * selbst bauen und deshalb bewusst NICHT über `notifyUser` laufen.
+ * Schreibt die Nachricht und liefert, was der Versand dazu braucht: den Badge-Wert UND die
+ * Kanal-Schalter des Empfängers (`getMessageChannels`). Der gebündelte Auftakt jeder Meldung mit
+ * eigener Posteingangs-Zeile — `notifyUser` und die drei „reichen" Melde-Pfade (Kontroll-,
+ * Verschluss-, Orgasmus-Anforderung), die ihre mehrzeiligen Mails selbst bauen.
  *
- * Gebündelt, weil die Reihenfolge ein stiller Vertrag ist: erst schreiben, dann zählen — und zwar
- * MIT der eben geschriebenen id (siehe `visibleUnreadRows`). Wer das beim vierten Pfad umdreht,
- * bekommt ein um eins zu tiefes Badge und keinen Fehler.
+ * Die Kanäle kommen mit, damit kein Pfad das Badge ohne den Schalter bekommt: solange die reichen
+ * Pfade beides getrennt holten, gingen ihre Mails trotz „Mail aus" raus.
+ *
+ * Gebündelt, weil auch die Reihenfolge ein stiller Vertrag ist: erst schreiben, dann zählen — und zwar
+ * MIT der eben geschriebenen id (siehe `visibleUnreadRows`). Wer das umdreht, bekommt ein um eins zu
+ * tiefes Badge und keinen Fehler.
  *
  * Wirft NIE: der Zähler ist Beiwerk am Push, die Meldung selbst ist es nicht — ein Lesefehler auf
  * der Nachrichten-Tabelle darf nicht den Versand einer Kontroll-Frist verschlucken. `undefined`
@@ -1043,7 +1048,14 @@ export const unreadCountCached = cache(
  * falsch machen; die Keyholder-Zeile schreibt `notifyControllers` direkt über
  * {@link recordSystemMessage} — bewusst ohne Badge, aus genau diesem Grund.
  */
-export async function recordMessageAndBadge(p: Omit<RecordMessageParams, "audience">): Promise<number | undefined> {
+export async function recordInboxDelivery(
+  p: Omit<RecordMessageParams, "audience">,
+): Promise<{ badge: number | undefined; channels: NotificationChannels }> {
+  const [badge, channels] = await Promise.all([recordAndCount(p), getMessageChannels(p.subjectUserId)]);
+  return { badge, channels };
+}
+
+async function recordAndCount(p: Omit<RecordMessageParams, "audience">): Promise<number | undefined> {
   const messageId = await recordSystemMessage(p);
   try {
     return await unreadCount(subInbox(p.subjectUserId), [messageId]);

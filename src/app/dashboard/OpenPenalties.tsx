@@ -5,19 +5,23 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import OffenseList from "@/app/components/OffenseList";
 import { prisma } from "@/lib/prisma";
 import { messageFilterToParams } from "@/lib/messageCategories";
-import { loadSubOffenses, openPenaltiesOf } from "@/lib/subOffenses";
+import { loadSubOffenses, subAttentionOffensesOf } from "@/lib/subOffenses";
+import { announcedOpenRefs } from "@/lib/offenseAnnounce";
+import { loadStatementViews } from "@/lib/offenseStatementService";
 import { SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
 
-/** Wie viele Strafen im Dashboard ausliegen, bevor auf den Posteingang verwiesen wird. Kein
+/** Wie viele Karten JE ART (unbeurteilt / offene Strafe) im Dashboard ausliegen, bevor auf den
+ *  Posteingang verwiesen wird. Kein
  *  Aufklapper wie beim Aufgaben-Stapel: der ganze Verlauf steht ohnehin als Nachrichten bereit. */
 const DASHBOARD_LIMIT = 3;
 
 /**
  * Der Strafen-Block des Sub-Dashboards — UNTER dem Aufgaben-Block.
  *
- * Zeigt NUR die offenen Strafen, nicht das ganze Strafbuch: die Übersicht beantwortet „was steht
- * an?", nicht „was ist alles vorgefallen?". Erkannte, noch unbeurteilte Vergehen werden als
- * Nachricht gemeldet — als Mängelliste auf dem Dashboard wären sie eine Dauerbeschallung.
+ * Zeigt, was den Träger gerade FORDERT, nicht das ganze Strafbuch: gemeldete, noch unbeurteilte
+ * Vergehen (dort nimmt er Stellung, bevor geurteilt wird) und offene Strafen — dieselbe Menge, die
+ * die Keyholderin auf seiner Übersicht sieht (`subAttentionOffensesOf`). Unbeurteiltes zuerst: dort
+ * läuft seine Gelegenheit, sich zu äussern, mit dem Urteil ab.
  *
  * Begründung der Platzierung: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand. Sie
  * gehört deshalb weder über die Fristen-Banner noch zwischen sie.
@@ -47,15 +51,19 @@ export default async function OpenPenalties({
   // diesen Preis — auch für die Mehrheit, die nie eine Strafe hat und für die der Block `null` ist.
   // `OR` statt `NOT: { taskId: { in: … } }`: SQL-`NOT IN` liefert für `taskId IS NULL` „unknown"
   // und verlöre damit ausgerechnet die Freitext-Strafen.
-  const openCount = await prisma.strafeRecord.count({
-    where: {
-      userId, status: "PUNISHED", erledigtAt: null,
-      OR: [{ taskId: null }, { taskId: { notIn: [...dashboardTaskIds] } }],
-    },
-  });
-  if (openCount === 0) return null;
+  // Für die unbeurteilten Vergehen dasselbe Tor aus zwei schmalen Abfragen (`announcedOpenRefs`).
+  const [openCount, announcedOpen] = await Promise.all([
+    prisma.strafeRecord.count({
+      where: {
+        userId, status: "PUNISHED", erledigtAt: null,
+        OR: [{ taskId: null }, { taskId: { notIn: [...dashboardTaskIds] } }],
+      },
+    }),
+    announcedOpenRefs(userId),
+  ]);
+  if (openCount === 0 && announcedOpen.size === 0) return null;
 
-  const open = openPenaltiesOf(await loadSubOffenses(userId, now));
+  const open = subAttentionOffensesOf(await loadSubOffenses(userId, now), announcedOpen);
 
   // Eine Strafe, deren Aufgabe der Träger noch nicht kennt, gibt es für ihn nicht: ihr Urteilstext
   // IST der Aufgaben-Titel (`punishWithTask` schreibt `reason: task.title`), und hier stünde er,
@@ -89,12 +97,24 @@ export default async function OpenPenalties({
   // versäumte oder abgebrochene Strafaufgabe verlässt den Aufgaben-Block (`belongsOnDashboard`),
   // während ihre Strafe offen bleibt — genau dann muss sie hier erscheinen, sonst fällt sie stumm
   // aus der Sicht des Trägers.
-  const rows = open
-    .filter((p) => !(p.taskId && (dashboardTaskIds.has(p.taskId) || hiddenTaskIds.has(p.taskId))))
-    .slice(0, DASHBOARD_LIMIT);
+  const visible = open.filter((p) => !(p.taskId && (dashboardTaskIds.has(p.taskId) || hiddenTaskIds.has(p.taskId))));
+  // Das Limit gilt JE ART: gemeinsam verdrängten drei unbeurteilte Vergehen jede offene Strafe — und
+  // mit ihr den Knopf „Erledigt melden" — vom Block.
+  const rows = [
+    ...visible.filter((p) => p.state === "open").slice(0, DASHBOARD_LIMIT),
+    ...visible.filter((p) => p.state !== "open").slice(0, DASHBOARD_LIMIT),
+  ];
   if (rows.length === 0) return null;
 
-  const t = await getTranslations("penalties");
+  // Schreiben darf er nur zu GEMELDETEN Vergehen — der Schreibweg belegt den Besitz über die Meldung.
+  const refIds = rows.map((o) => o.refId);
+  const [t, statements] = await Promise.all([
+    getTranslations("penalties"),
+    loadStatementViews(refIds, { userId, refIds: refIds.filter((r) => announcedOpen.has(r)) }),
+  ]);
+  // „Alle ansehen" führt in die Kategorie dessen, was oben steht: eine Feststellung ist noch kein
+  // Urteil (`messageCategories.ts`).
+  const category = rows.some((o) => o.state === "open") ? "offense" : "penalty";
 
   return (
     <DashboardBlock>
@@ -114,22 +134,22 @@ export default async function OpenPenalties({
             MIT Kategorie-Filter, sonst landete „Alle ansehen" der offenen Strafen in der
             Mischliste — der Nutzer müsste die Auswahl, die er mit dem Klick schon getroffen hat,
             dort ein zweites Mal treffen. `offense` UND `penalty` sind zwei Kategorien
-            (`messageCategories.ts`: die Feststellung ist noch kein Urteil); dieser Block zeigt
-            offene STRAFEN, also führt er auf `penalty`.
+            (`messageCategories.ts`: die Feststellung ist noch kein Urteil); der Link folgt dem, was
+            oben im Block steht (`category`).
 
             Die Query kommt aus `messageFilterToParams`, nicht von Hand: das ist die Schreib-Seite
             derselben Abbildung, die die Seite mit `parseMessageFilter` wieder einliest. Beide
             scheitern STILL — ein von Hand getippter Parametername fiele einfach weg und führte
             zurück in genau die Mischliste, aus der dieser Link herausführen soll. */}
         <Link
-          href={`/dashboard/messages?${messageFilterToParams({ category: "penalty" })}`}
+          href={`/dashboard/messages?${messageFilterToParams({ category })}`}
           className="text-xs text-foreground-faint hover:text-foreground-muted transition-colors shrink-0"
         >
           {t("viewAll")} →
         </Link>
         </>}
       >
-        <OffenseList offenses={rows} tz={tz} />
+        <OffenseList offenses={rows} tz={tz} statements={statements} />
       </Section>
     </DashboardBlock>
   );

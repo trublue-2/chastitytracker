@@ -37,6 +37,7 @@ vi.mock("@/lib/mail", () => ({
 }));
 vi.mock("@/lib/emailI18n", () => ({ emailT: async () => (k: string) => k, emailGreeting: () => "" }));
 vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
+vi.mock("@/lib/notificationPrefs", () => ({ getMessageChannels: vi.fn(async () => ({ mail: true, push: true, telegram: true })) }));
 
 import {
   createVerschlussAnforderung, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById,

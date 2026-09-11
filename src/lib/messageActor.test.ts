@@ -85,9 +85,9 @@ vi.mock("@/lib/messageService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./messageService")>();
   return {
     ...actual,
-    recordMessageAndBadge: vi.fn(async (p: Parameters<typeof actual.recordSystemMessage>[0]) => {
+    recordInboxDelivery: vi.fn(async (p: Parameters<typeof actual.recordSystemMessage>[0]) => {
       await actual.recordSystemMessage(p);
-      return 1;
+      return { badge: 1, channels: { mail: true, push: true, telegram: true } };
     }),
   };
 });

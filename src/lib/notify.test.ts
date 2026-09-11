@@ -22,7 +22,11 @@ vi.mock("@/lib/notificationPrefs", () => ({ getMessageChannels: vi.fn(async () =
 vi.mock("@/lib/messageService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./messageService")>()),
   recordSystemMessage: vi.fn(async () => "m-new"),
-  recordMessageAndBadge: vi.fn(async () => 1),
+  // Die Kanäle kommen aus dem (gemockten) Schalter — so bleibt das Gaten unten prüfbar.
+  recordInboxDelivery: vi.fn(async (p: { subjectUserId: string }) => ({
+    badge: 1,
+    channels: await (await import("@/lib/notificationPrefs")).getMessageChannels(p.subjectUserId),
+  })),
 }));
 
 import { notifyControllers, notifyUser } from "./notify";
@@ -30,7 +34,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMailSafe } from "@/lib/mail";
 import { firePush } from "@/lib/push";
 import { getMessageChannels } from "@/lib/notificationPrefs";
-import { recordSystemMessage, recordMessageAndBadge } from "@/lib/messageService";
+import { recordSystemMessage, recordInboxDelivery } from "@/lib/messageService";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 
@@ -164,7 +168,7 @@ describe("notifyControllers", () => {
     // `notifyUser` bekommt `inbox: false` — sonst landete die Meldung über einen fremden Träger im
     // eigenen Posteingang des Keyholders, als wäre sie seine eigene Direktive.
     await notifyControllers("sub1", [kh("kh1")], { ...CONTENT });
-    expect(recordMessageAndBadge).not.toHaveBeenCalled();
+    expect(recordInboxDelivery).not.toHaveBeenCalled();
   });
 });
 
@@ -185,7 +189,7 @@ describe("notifyUser — die Kanal-Schalter des Empfängers gaten alles", () => 
     await notifyUser("sub1", { ...RECIP });
     expect(sendMailSafe).not.toHaveBeenCalled();
     expect(firePush).toHaveBeenCalledOnce();
-    expect(recordMessageAndBadge).toHaveBeenCalledOnce();
+    expect(recordInboxDelivery).toHaveBeenCalledOnce();
   });
 
   it("alle Kanäle aus: nichts wird zugestellt, die Posteingangs-Zeile bleibt trotzdem", async () => {
@@ -193,7 +197,7 @@ describe("notifyUser — die Kanal-Schalter des Empfängers gaten alles", () => 
     await notifyUser("sub1", { ...RECIP });
     expect(sendMailSafe).not.toHaveBeenCalled();
     expect(firePush).not.toHaveBeenCalled();
-    expect(recordMessageAndBadge).toHaveBeenCalledOnce();
+    expect(recordInboxDelivery).toHaveBeenCalledOnce();
   });
 
   it("fest vorgegebene Kanäle schlagen die Empfänger-Schalter NICHT nach", async () => {

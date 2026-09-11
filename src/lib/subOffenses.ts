@@ -148,14 +148,7 @@ export function selectSubOffenses(sb: StrafbuchData): SubOffense[] {
   return [...detected, ...orphaned].sort((a, b) => lastEventAt(b) - lastEventAt(a));
 }
 
-/** Die noch offenen Strafen — was den Träger tatsächlich FORDERT. Der Dashboard-Block zeigt nur
- *  diese; der ganze Verlauf steht als Nachrichten im Posteingang. */
-export function openPenaltiesOf(offenses: SubOffense[]): SubOffense[] {
-  return offenses.filter((o) => o.state === "punished");
-}
-
-/** Die noch UNBEURTEILTEN Vergehen — die auf die Entscheidung der Keyholderin warten (#96/#9).
- *  Gegenstück zu {@link openPenaltiesOf}: dort das VERHÄNGTE, hier das noch zu Urteilende. */
+/** Die noch UNBEURTEILTEN Vergehen — die auf die Entscheidung der Keyholderin warten (#96/#9). */
 export function openOffensesOf(offenses: SubOffense[]): SubOffense[] {
   return offenses.filter((o) => o.state === "open");
 }
@@ -174,7 +167,17 @@ export function attentionOffensesOf(offenses: SubOffense[]): SubOffense[] {
 }
 
 /**
- * Das Strafbuch eines Nutzers laden. Genutzt vom Dashboard-Block (offene Strafen) und vom
+ * Was der TRÄGER in seinem Strafen-Block sieht: dieselbe Menge wie die Keyholderin
+ * ({@link attentionOffensesOf}), die unbeurteilten Vergehen aber nur, soweit sie ihm gemeldet wurden
+ * (`announcedOpen`, siehe `announcedOpenRefs`). Ein nie gemeldetes wäre eine Altlast von vor dem
+ * Melde-Stichtag, und Stellung nehmen könnte er dazu ohnehin nicht.
+ */
+export function subAttentionOffensesOf(offenses: SubOffense[], announcedOpen: Set<string>): SubOffense[] {
+  return attentionOffensesOf(offenses).filter((o) => o.state !== "open" || announcedOpen.has(o.refId));
+}
+
+/**
+ * Das Strafbuch eines Nutzers laden. Genutzt vom Dashboard-Block (offene Vergehen und Strafen) und vom
  * Melder, der festgestellte Vergehen in den Posteingang schreibt (`offenseAnnounce.ts`).
  *
  * Kostet ein volles Strafbuch — das ist der Preis dafür, dass Vergehensart und Tatzeitpunkt hier

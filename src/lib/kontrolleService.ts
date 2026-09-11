@@ -6,7 +6,7 @@ import { firePush, hasPushTarget } from "@/lib/push";
 import { fireTelegram } from "@/lib/telegram";
 import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
-import { actorColumn, recordMessageAndBadge, type MessageActor, type MessageRef } from "@/lib/messageService";
+import { actorColumn, recordInboxDelivery, type MessageActor, type MessageRef } from "@/lib/messageService";
 import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H, isValidInspectionCode, APP_NAME } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
@@ -584,10 +584,9 @@ export async function sendKontrolleNotification(opts: {
   // VOR dem E-Mail-Guard: der Posteingang ist der einzige Kanal, der auch ohne hinterlegte Adresse
   // trägt. Der Kommentar des Keyholders wird NICHT mitkopiert — die Nachricht zeigt auf die
   // Kontrolle und liest ihn beim Anzeigen frisch von dort.
-  // Mail und Push gehen hier IMMER raus — anders als bei `notifyUser` greift der Schalter
-  // "Mail und Push bei neuen Nachrichten" nicht: eine Anforderung mit Frist ist keine Nachricht,
-  // die man still im Posteingang sammeln lassen darf.
-  const badge = await recordMessageAndBadge({
+  // Mail, Push und Telegram hängen am Kanal-Schalter des Empfängers, wie jede Meldung mit eigener
+  // Posteingangs-Zeile (`recordInboxDelivery`); die Zeile selbst entsteht immer.
+  const { badge, channels } = await recordInboxDelivery({
     subjectUserId: user.id,
     bodyKey: "inspectionRequestedMessage",
     actor,
@@ -610,13 +609,13 @@ export async function sendKontrolleNotification(opts: {
   // Auto-Buchung als Öffnen) lief auf einer Anforderung, die ihn nie erreicht hatte. Über den
   // manuellen Pfad kann das nicht entstehen (`requestKontrolle` weist ohne Adresse ab), wohl aber
   // über die automatischen Kontrollen: die plant `autoKontrolleService` ohne solche Prüfung.
-  if (user.email) {
+  if (user.email && channels.mail) {
     await sendInspectionMail({ to: user.email, t, locale, username: user.username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath, targetLabel });
   }
 
   const push = buildInspectionPush({ t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar });
-  firePush(user.id, push.title, push.body, formPath, badge);
-  fireTelegram(user.id, push.title, push.body);
+  if (channels.push) firePush(user.id, push.title, push.body, formPath, badge);
+  if (channels.telegram) fireTelegram(user.id, push.title, push.body);
 }
 
 /**

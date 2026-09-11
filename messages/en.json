@@ -461,7 +461,7 @@
     "blockAlerts": "Open requirements",
     "blockBoxStatus": "Box",
     "blockOpenTasks": "Tasks",
-    "blockOpenPenalties": "Open penalties",
+    "blockOpenPenalties": "Open offenses and penalties",
     "blockWeightRelease": "Release condition",
     "blockRunningSession": "State and duration",
     "blockActiveWear": "Worn categories",
@@ -2234,7 +2234,7 @@
     }
   },
   "penalties": {
-    "openTitle": "Open penalties",
+    "openTitle": "Open offenses and penalties",
     "viewAll": "View all",
     "offenseAt": "Offence on {date}",
     "offenseUnknown": "Offence no longer identifiable",

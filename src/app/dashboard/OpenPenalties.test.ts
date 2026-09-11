@@ -14,9 +14,13 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("next-intl/server", () => ({ getTranslations: vi.fn(async () => (k: string) => k) }));
 vi.mock("@/lib/subOffenses", () => ({
   loadSubOffenses: vi.fn(async () => []),
-  // Die echte Auswahl („nur `punished`") — hier ist nur die AUFGABEN-Sichtbarkeit zu prüfen.
-  openPenaltiesOf: (o: { state: string }[]) => o.filter((p) => p.state === "punished"),
+  // Die Auswahl nachgebildet (offene Strafen + gemeldetes Unbeurteiltes) — geprüft wird hier, was der
+  // Block lädt und durchlässt; die Auswahl selbst testet `attentionOffenses.test.ts`.
+  subAttentionOffensesOf: (o: { refId: string; state: string }[], announced: Set<string>) =>
+    o.filter((p) => p.state === "punished" || (p.state === "open" && announced.has(p.refId))),
 }));
+vi.mock("@/lib/offenseAnnounce", () => ({ announcedOpenRefs: vi.fn(async () => new Set<string>()) }));
+vi.mock("@/lib/offenseStatementService", () => ({ loadStatementViews: vi.fn(async () => new Map()) }));
 // Die Anzeige ist hier ohne Belang: geprüft wird, was der Block lädt und was er davon durchlässt.
 vi.mock("@/app/components/DashboardBlock", () => ({ default: () => null }));
 vi.mock("@/app/components/OffenseList", () => ({ default: () => null }));
@@ -25,6 +29,8 @@ import OpenPenalties from "./OpenPenalties";
 import { SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
 import { prisma } from "@/lib/prisma";
 import { loadSubOffenses } from "@/lib/subOffenses";
+import { announcedOpenRefs } from "@/lib/offenseAnnounce";
+import { loadStatementViews } from "@/lib/offenseStatementService";
 
 const count = prisma.strafeRecord.count as unknown as ReturnType<typeof vi.fn>;
 const findMany = prisma.task.findMany as unknown as ReturnType<typeof vi.fn>;
@@ -68,5 +74,31 @@ describe("OpenPenalties — verborgene Strafaufgaben", () => {
 
     // Kein Block statt eines Blocks mit dem Aufgaben-Titel darin.
     expect(await render()).toBeNull();
+  });
+});
+
+describe("OpenPenalties — gemeldete, unbeurteilte Vergehen", () => {
+  it("ohne jede Strafe und ohne Gemeldetes lädt der Block das Strafbuch gar nicht", async () => {
+    count.mockResolvedValue(0);
+    expect(await render()).toBeNull();
+    expect(offenses).not.toHaveBeenCalled();
+  });
+
+  it("zeigt ein gemeldetes Vergehen auch ohne offene Strafe — dort nimmt der Träger Stellung", async () => {
+    count.mockResolvedValue(0);
+    vi.mocked(announcedOpenRefs).mockResolvedValueOnce(new Set(["r1"]));
+    offenses.mockResolvedValue([{ refId: "r1", state: "open", taskId: null }]);
+    expect(await render()).not.toBeNull();
+    expect(loadStatementViews).toHaveBeenCalledWith(["r1"], { userId: "u1", refIds: ["r1"] });
+  });
+
+  it("drei unbeurteilte Vergehen verdrängen die offene Strafe nicht — das Limit gilt je Art", async () => {
+    vi.mocked(announcedOpenRefs).mockResolvedValueOnce(new Set(["o1", "o2", "o3"]));
+    offenses.mockResolvedValue([
+      { refId: "o1", state: "open", taskId: null }, { refId: "o2", state: "open", taskId: null },
+      { refId: "o3", state: "open", taskId: null }, { refId: "p1", state: "punished", taskId: null },
+    ]);
+    await render();
+    expect(vi.mocked(loadStatementViews).mock.calls[0][0]).toEqual(["o1", "o2", "o3", "p1"]);
   });
 });

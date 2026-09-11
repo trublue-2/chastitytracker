@@ -7,7 +7,7 @@ vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/taskService", () => ({ checkTask: vi.fn(), writeTask: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 
-import { attentionOffensesOf, type SubOffense } from "./subOffenses";
+import { attentionOffensesOf, subAttentionOffensesOf, type SubOffense } from "./subOffenses";
 
 const offense = (refId: string, state: SubOffense["state"]) =>
   ({ refId, state } as Partial<SubOffense> as SubOffense);
@@ -23,5 +23,13 @@ describe("attentionOffensesOf", () => {
       offense("verworfen", "dismissed"), offense("offen-2", "open"),
     ];
     expect(attentionOffensesOf(rows).map((o) => o.refId)).toEqual(["offen-1", "offen-2", "bestraft"]);
+  });
+});
+
+/** Der Strafen-Block des Trägers: Unbeurteiltes nur, wenn es ihm gemeldet wurde — dort nimmt er Stellung. */
+describe("subAttentionOffensesOf", () => {
+  it("zeigt gemeldete unbeurteilte Vergehen und offene Strafen, ungemeldete nicht", () => {
+    const rows = [offense("bestraft", "punished"), offense("gemeldet", "open"), offense("alt", "open"), offense("erledigt", "done")];
+    expect(subAttentionOffensesOf(rows, new Set(["gemeldet"])).map((o) => o.refId)).toEqual(["gemeldet", "bestraft"]);
   });
 });
