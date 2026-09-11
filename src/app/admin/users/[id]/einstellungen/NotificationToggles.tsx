@@ -26,6 +26,7 @@ const I18N_KEY: Record<NotificationEventType, string> = {
   WEAR_END_ANY: "notifyWearEndAny",
   TASK_PROOF_LATE: "notifyTaskProofLate",
   OFFENSE_STATEMENT: "notifyOffenseStatement",
+  PENALTY_REPORTED_DONE: "notifyPenaltyReportedDone",
 };
 
 /** Visual grouping in the matrix — one section per concept. */
@@ -34,7 +35,7 @@ const GROUPS: { titleKey: string; events: readonly NotificationEventType[] }[] =
   { titleKey: "notifyGroupOrgasmus", events: ["ORGASMUS"] },
   { titleKey: "notifyGroupWear", events: ["WEAR_BEGIN_ANY", "WEAR_END_ANY"] },
   { titleKey: "notifyGroupTasks", events: ["TASK_PROOF_LATE"] },
-  { titleKey: "notifyGroupOffense", events: ["OFFENSE_STATEMENT"] },
+  { titleKey: "notifyGroupOffense", events: ["OFFENSE_STATEMENT", "PENALTY_REPORTED_DONE"] },
 ];
 
 export default function NotificationToggles({ userId }: { userId: string }) {

@@ -1,5 +1,5 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/taskIntervals";
-import { firstOutOfOrderProof, isTaskOpen, ownProofDeadline, proofResubmittable, startDeadline, taskFailureKind, type TaskEvaluation, type TaskFailureKind, type TaskOffenseState, type TaskState } from "@/lib/tasks";
+import { endIsProvisional, firstOutOfOrderProof, isTaskOffense, isTaskOpen, ownProofDeadline, proofResubmittable, startDeadline, taskAnchor, taskFailureKind, type TaskEvaluation, type TaskFailureKind, type TaskOffenseState, type TaskState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { wearActionHref } from "@/lib/categoryConstants";
 
@@ -201,6 +201,9 @@ export interface TaskCardData {
   scheduledFor: string | null;
   state: TaskState;
   startedAt: string | null;
+  /** Lag schon alles an, als die Aufgabe kam? Dann begann sie mit ihrem Nullpunkt — die Karte sagt
+   *  das dazu, sonst meint der Träger, er müsse ablegen und neu anlegen (Rückmeldung 11.09.2026). */
+  startedAlreadyWorn: boolean;
   /** Namen der jetzt fehlenden Bedingungen — „Fehlt noch: Knebel". */
   missing: string[];
   failedRequirement: string | null;
@@ -211,6 +214,15 @@ export interface TaskCardData {
   requirements: TaskCardRequirement[];
   /** Geforderte Nachweis-Fotos (Issue #39). Leer, wo keine gefordert sind. */
   proofs: TaskCardProof[];
+  /**
+   * Bis wann die Nachweise OHNE eigene Fälligkeit einzureichen sind — das wirksame Ende der Aufgabe
+   * (ISO). Null, wo es keine solchen gibt. `provisional`: Dauer-Modus vor dem Beginn, dann ist es
+   * das spätestmögliche Ende.
+   *
+   * Ohne sie nannte die Karte nur die EIGENE Fälligkeit eines Nachweises — „Ohne Unterbrechung bis
+   * 21:37" sagt nicht, dass bis dahin auch das Foto da sein muss.
+   */
+  proofsDue: { at: string; provisional: boolean } | null;
   completionNote: string | null;
   /** Sieht der Sub seine eigene, noch beeinflussbare Aufgabe an? Dann — und nur dann — trägt die
    *  Karte den nächsten Schritt und der Aufrufer den Melde-Knopf. Fällt mit `withLinks` zusammen und
@@ -542,6 +554,9 @@ export function toTaskCard(
     scheduledFor: isHiddenFromSub(e.task) ? e.task.wirksamAb!.toISOString() : null,
     state: e.evaluation.state,
     startedAt: e.evaluation.startedAt?.toISOString() ?? null,
+    // `evaluateTask` zieht den Beginn auf den Nullpunkt hoch, wenn die Bedingungen schon davor galten.
+    startedAlreadyWorn: e.requirements.length > 0 && e.evaluation.startedAt !== null
+      && e.evaluation.startedAt.getTime() === taskAnchor(e.task).getTime(),
     missing: e.evaluation.missing.map((m) => m.label),
     failedRequirement: e.evaluation.failedRequirement?.label ?? null,
     failedAt: e.evaluation.failedAt?.toISOString() ?? null,
@@ -549,6 +564,15 @@ export function toTaskCard(
     holdRunning: e.evaluation.holdRunning,
     requirements,
     proofs,
+    // Gegen das WIRKSAME Ende, wie jede Frist dieser Karte. Nur solange sie läuft — und beim Vorwurf
+    // als Beleg; über einer erfüllten oder gesichteten Aufgabe wäre „einreichen bis" eine Aufforderung
+    // zu etwas, das längst erledigt ist.
+    proofsDue: (isTaskOpen(e.evaluation.state) || isTaskOffense(e.evaluation.state)) && proofs.some((p) => p.dueAt === null)
+      ? {
+          at: e.evaluation.holdUntil.toISOString(),
+          provisional: endIsProvisional(e.task, e.evaluation),
+        }
+      : null,
     completionNote: e.task.completionNote,
     actionable: withLinks,
   };

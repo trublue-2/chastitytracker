@@ -1022,7 +1022,11 @@ function registerTools(server: McpServer) {
           "penalty is whatever you write, the field is dumb; action=complete → marks a recorded penalty " +
           "as carried out (closes the loop); action=reopen → undoes a prior judgment. An offense stays " +
           "relevant (openOffenseCount) until dismissed or its penalty is completed. Use the offense's " +
-          "ref.id from get_offenses." + KEYHOLDER_BASE + " On punish, the user is notified by e-mail + push; dismiss/complete/reopen are silent.",
+          "ref.id from get_offenses. If the wearer is to DO something the app can check (wear a device, " +
+          "submit a photo), punish with create_task + offenseRef instead: that penalty closes itself once the " +
+          "task is fulfilled, while a free-text one stays open until you complete it. The wearer can report a " +
+          "free-text penalty as done — get_offenses shows it as judgment.reportedDoneAt; completing is still " +
+          "yours." + KEYHOLDER_BASE + " On punish, the user is notified by e-mail + push; dismiss/complete/reopen are silent.",
         inputSchema: {
           ref: z.string().describe("The offense ref.id from get_offenses."),
           action: z.enum(["dismiss", "punish", "complete", "reopen"]).describe("dismiss = no penalty; punish = record a penalty; complete = mark penalty done; reopen = undo a prior judgment."),

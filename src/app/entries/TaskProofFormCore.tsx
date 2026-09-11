@@ -41,6 +41,7 @@ export default function TaskProofFormCore({
   taskTitle,
   orderMatters,
   dueAt,
+  dueProvisional,
   late,
   tz,
   initialText,
@@ -58,13 +59,15 @@ export default function TaskProofFormCore({
   code: string | null;
   taskTitle: string;
   /**
-   * EIGENE Fälligkeit dieses Nachweises (ISO) — null, wo er bis zum Ende der Aufgabe offen ist.
+   * Fälligkeit dieses Nachweises (ISO): die eigene, sonst das wirksame Ende der Aufgabe.
    *
-   * Sie MUSS hier stehen: sie ist strenger als die Frist der Aufgabe, und der Träger kommt mit der
-   * Frist im Kopf hierher, die auf der Karte stand. Eine Frist, die man nicht sieht und deren
-   * Verstreichen ein Versäumnis erzeugt, ist genau die Sorte, die es nicht geben darf.
+   * Sie MUSS hier stehen: eine Frist, die man nicht sieht und deren Verstreichen ein Versäumnis
+   * erzeugt, ist genau die Sorte, die es nicht geben darf.
    */
-  dueAt: string | null;
+  dueAt: string;
+  /** `dueAt` ist das spätestmögliche Ende einer Aufgabe im Dauer-Modus, die noch nicht begonnen hat —
+   *  die genaue Frist entsteht erst mit dem Anlegen. */
+  dueProvisional: boolean;
   /**
    * Die eigene Fälligkeit dieses Nachweises ist bereits verstrichen — eingereicht werden darf
    * trotzdem, bis die Aufgabe endet, aber nur die Keyholderin entscheidet, ob es noch zählt.
@@ -152,11 +155,9 @@ export default function TaskProofFormCore({
             den Regelfall stumpft ab. Ist sie VERSTRICHEN, kommt der Träger seit dem 16.08.2026
             trotzdem hierher (verspätet einreichen ist erlaubt), und dann ist die Warnfarbe die
             ehrliche: die Zeile ist keine Ankündigung mehr, sondern der Grund für den Satz darunter. */}
-        {dueAt && (
-          <p className={`text-neben font-medium mt-2 tabular-nums ${late ? "text-warn-text" : "text-foreground-muted"}`}>
-            {t("proofDueLine", { value: formatDateTime(dueAt, toDateLocale(locale), tz) })}
-          </p>
-        )}
+        <p className={`text-neben font-medium mt-2 tabular-nums ${late ? "text-warn-text" : "text-foreground-muted"}`}>
+          {t(dueProvisional ? "proofDueLineProvisional" : "proofDueLine", { value: formatDateTime(dueAt, toDateLocale(locale), tz) })}
+        </p>
         {/* Vor dem Auslöser und nicht erst danach: er soll wissen, worauf er sich einlässt, BEVOR er
             fotografiert — sein Nachweis hängt jetzt an einem Urteil, nicht mehr an der Uhr. */}
         {late && <p className="text-neben font-medium text-warn-text mt-1">{t("proofLateHint")}</p>}

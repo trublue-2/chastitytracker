@@ -67,7 +67,7 @@ describe("taskClaimLabels", () => {
 describe("priorPunishments", () => {
   const rec = (over: Partial<StrafeRecordData>): StrafeRecordData => ({
     refId: "r", offenseType: "OEFFNEN_ENTRY", status: "PUNISHED", reason: "20 Schläge",
-    judgedBy: null, judgedByName: null, judgedAtStr: "01.09.2026", done: false, erledigtAtStr: null,
+    judgedBy: null, judgedByName: null, judgedAtStr: "01.09.2026", done: false, erledigtAtStr: null, reportedDoneAtStr: null,
     ...over,
   });
 

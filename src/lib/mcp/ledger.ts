@@ -26,6 +26,9 @@ export interface OffenseJudgment {
   /** Bei judgment="punished": ob die Strafe bereits erledigt ist. */
   done: boolean;
   doneAt: string | null;
+  /** Wann der TRÄGER die Strafe als erledigt gemeldet hat — null, solange nicht. Schliesst nichts;
+   *  abschliessen tust du (`judge_offense` complete). Rein additiv, kein schemaVersion-Bump. */
+  reportedDoneAt: string | null;
   ref: { type: string; id: string };
 }
 
@@ -137,6 +140,7 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
       judgedAt: rec ? fmt(rec.bestraftDatum) : null,
       done: state === "done",
       doneAt: rec?.erledigtAt ? fmt(rec.erledigtAt) : null,
+      reportedDoneAt: rec?.reportedDoneAt ? fmt(rec.reportedDoneAt) : null,
       ref: { type: canonicalType, id: refId },
     };
   };

@@ -386,6 +386,13 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Sie steht im Posteingang an der Meldung, mit der er das Vergehen erfährt — eine Liste unbeurteilter Vergehen hat er nicht. Die Keyholderin liest sie über dem Urteils-Feld und in `get_offenses`; freigeschaltet wird sie je Träger über die Vergehens-Regeln. Die automatische Ahndung (`judgedBy: \"system\"`) sperrt sie NICHT: dort gibt es keinen Urteilsschritt, vor dem sie stehen könnte.",
   }),
   c({
+    id: "penalty-report-done", mechanic: "Strafbuch", title: "Strafe als erledigt melden",
+    what: "Der Träger meldet eine verhängte Strafe als erledigt — sein Rückkanal zur Keyholderin, die sie danach abschliesst.",
+    actors: ["sub"], surfaces: ["sub-ui"],
+    routes: ["/api/penalty-done"],
+    note: "Schliesst nichts: `erledigtAt` setzt weiterhin nur die Keyholderin. Sie sieht die Meldung an der Karte ihrer Sub-Übersicht, im Strafbuch und in `get_offenses` (`reportedDoneAt`); ein neues Urteil und „Wieder offen“ leeren sie.",
+  }),
+  c({
     id: "offense-judge", mechanic: "Strafbuch", title: "Urteilen",
     what: "Verwerfen, bestrafen (Freitext oder als gestellte Aufgabe), erledigen oder wieder aufnehmen.",
     actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],

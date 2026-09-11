@@ -5,16 +5,18 @@ import Section from "@/app/components/Section";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/app/components/Button";
-import { CheckCircle, ChevronDown, ClipboardList, Plus, Undo2, XCircle } from "lucide-react";
+import { CheckCircle, ClipboardList, Plus, Undo2, XCircle } from "lucide-react";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
 import { blockInsetCls } from "@/app/components/inputStyles";
 import { Quote } from "@/app/components/QuotedField";
+import Select from "@/app/components/Select";
+import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { taskFormHref } from "@/lib/entryFormRoute";
 import { joinParts } from "@/lib/utils";
-import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
+import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType } from "@/lib/offenseTypes";
 import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
 import { taskFailureKind, type TaskFailureKind, type TaskOffenseState } from "@/lib/tasks";
 
@@ -39,6 +41,8 @@ export interface StrafeRecordData {
   judgedAtStr: string;
   done: boolean;
   erledigtAtStr: string | null;
+  /** Wann der Träger die Strafe als erledigt gemeldet hat — null, solange nicht. */
+  reportedDoneAtStr: string | null;
 }
 
 /** Die Stellungnahme des Trägers zu einem Vergehen, anzeigefertig. */
@@ -208,8 +212,12 @@ interface Labels {
   strafbuchAutoEntferntAm: string;
   strafbuchNoEntries: string;
   recordOffense: string;
-  strafbuchWurdeBestraft: string;
-  strafbuchStrafaufgabe: string;
+  strafbuchUrteilLabel: string;
+  strafbuchUrteilPlaceholder: string;
+  strafbuchUrteilAufgabe: string;
+  strafbuchStrafeBeschreiben: string;
+  /** Vorlage mit `{date}` — der Client setzt den Tag ein. */
+  strafbuchGemeldet: string;
   strafbuchAbbrechen: string;
   strafbuchRueckgaengig: string;
   strafbuchStellungnahme: string;
@@ -325,7 +333,7 @@ function sec<C extends OffenseCanonicalType>(canonical: C, title: string, rows: 
  *  der ganzen Klassenkette drifteten Polsterung und Radius beim nächsten Umbau auseinander. */
 const CHIP_CLS = "text-xs font-medium border transition px-2.5 py-1 rounded-lg flex items-center gap-1";
 
-/** Der bejahende Chip („wurde bestraft", „als erledigt") — die Farbe zu {@link CHIP_CLS}.
+/** Der bejahende Chip („als erledigt") — die Farbe zu {@link CHIP_CLS}.
  *
  *  `bg-ok-bg` und nicht `color-mix(in_srgb,var(--color-ok)_8%,transparent)` als Literal im
  *  Klassennamen: den gemischten Ton gibt es als Token, und zwei Prozentwerte in einer Tailwind-Klasse
@@ -429,8 +437,9 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   // Fehler-CODES — übersetzt wird hier.
   const apiError = useApiError();
   const [showAll, setShowAll] = useState(false);
-  const [openFormId, setOpenFormId] = useState<string | null>(null);
-  const [openDismissId, setOpenDismissId] = useState<string | null>(null);
+  // Welches Urteils-Formular offen ist — EIN Zustand, weil die Auswahl immer nur eines öffnet.
+  const [openJudgment, setOpenJudgment] = useState<{ refId: string; mode: "punish" | "dismiss" } | null>(null);
+  const { run: runAction } = useActionPatch();
 
   // Urteils-Lebenszyklus: bestraft (PUNISHED, offen→erledigt) | verworfen (DISMISSED) | offen (kein Record).
   // „closed" = verworfen ODER bestraft & erledigt. Eine bestrafte, noch nicht erledigte Strafe bleibt relevant.
@@ -557,7 +566,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       <JudgmentForm refId={refId} canonical={canonical} status="PUNISHED"
         label={labels.strafbuchStrafeLabel} placeholder={labels.strafbuchStrafePlaceholder}
         submitLabel={labels.strafbuchStrafeVerhaengen} submitIcon={<CheckCircle size={12} />}
-        submitClass="bg-[var(--color-ok)]" onClose={() => setOpenFormId(null)} />
+        submitClass="bg-[var(--color-ok)]" onClose={() => setOpenJudgment(null)} />
     );
   }
 
@@ -570,13 +579,8 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     router.refresh();
   }
 
-  async function markDone(refId: string, done: boolean) {
-    await fetch("/api/admin/strafe", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refId, done }),
-    });
-    router.refresh();
+  function markDone(refId: string, done: boolean) {
+    void runAction("/api/admin/strafe", { refId, done });
   }
 
   /**
@@ -621,10 +625,16 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
               </button>
             </>
           ) : (
-            <button type="button" onClick={() => markDone(refId, true)}
-              className={CHIP_OK_CLS}>
-              <CheckCircle size={11} /> {labels.strafbuchAlsErledigt}
-            </button>
+            <>
+              {/* Seine Meldung steht VOR dem Knopf, der sie beantwortet. */}
+              {record.reportedDoneAtStr && (
+                <span className={FACT_CLS}>{labels.strafbuchGemeldet.replace("{date}", record.reportedDoneAtStr)}</span>
+              )}
+              <button type="button" onClick={() => markDone(refId, true)}
+                className={CHIP_OK_CLS}>
+                <CheckCircle size={11} /> {labels.strafbuchAlsErledigt}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -654,87 +664,64 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
       <JudgmentForm refId={refId} canonical={canonical} status="DISMISSED"
         label={labels.strafbuchBegruendung}
         submitLabel={labels.strafbuchVerwerfen} submitIcon={<XCircle size={12} />}
-        submitClass="bg-foreground-faint" onClose={() => setOpenDismissId(null)} />
-    );
-  }
-
-  function VerwerfenButton({ refId, canonical }: { refId: string; canonical: OffenseCanonicalType }) {
-    const isOpen = openDismissId === refId;
-    return (
-      <div className="mt-2">
-        <button type="button"
-          onClick={() => setOpenDismissId(isOpen ? null : refId)}
-          className="text-xs font-medium text-foreground-faint border border-border hover:bg-surface-raised transition px-2.5 py-1 rounded-lg flex items-center gap-1">
-          <XCircle size={11} />
-          {labels.strafbuchVerwerfen}
-          <ChevronDown size={11} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
-        </button>
-        {isOpen && <VerwerfenForm refId={refId} canonical={canonical} />}
-      </div>
-    );
-  }
-
-  /** 3-Wege-Urteilsslot: bestraft → PunishedBadge, verworfen → DismissedBadge, offen → Aktionen.
-   *
-   *  Der Rückzug hängt hier mit dran, weil er dieselbe Sichtbarkeitsregel hat wie die Urteils-Chips:
-   *  ist das Vergehen beurteilt, kehrt die Funktion oben aus, und er verschwindet mit ihnen. Nur die
-   *  von Hand NOTIERTE Art hat ihn überhaupt — alle anderen leiten sich aus Einträgen ab, dort gäbe
-   *  es nichts zurückzuziehen. */
-  function JudgmentSlot({ refId, canonical, anlass }: { refId: string; canonical: OffenseCanonicalType; anlass: string }) {
-    if (punishedIds.has(refId)) return <PunishedBadge refId={refId} />;
-    if (dismissedIds.has(refId)) return <DismissedBadge refId={refId} />;
-    const offenseType = STORED_TYPE[canonical];
-    return (
-      <div className="flex flex-wrap items-start gap-2">
-        <WurdeBestraftButton refId={refId} canonical={canonical} />
-        <StrafaufgabeButton refId={refId} offenseType={offenseType} anlass={anlass} />
-        <VerwerfenButton refId={refId} canonical={canonical} />
-        {offenseType === STORED_TYPE.manual_offense && (
-          <ZurueckziehenButton id={refId} label={labels.strafbuchZurueckziehen}
-            networkError={labels.networkError} resolveError={apiError} onDone={() => router.refresh()} />
-        )}
-      </div>
-    );
-  }
-
-  function WurdeBestraftButton({ refId, canonical }: { refId: string; canonical: OffenseCanonicalType }) {
-    const isOpen = openFormId === refId;
-    return (
-      <div className="mt-2">
-        <button type="button"
-          onClick={() => setOpenFormId(isOpen ? null : refId)}
-          className={CHIP_OK_CLS}>
-          <CheckCircle size={11} />
-          {labels.strafbuchWurdeBestraft}
-          <ChevronDown size={11} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
-        </button>
-        {isOpen && <BestrafenForm refId={refId} canonical={canonical} />}
-      </div>
+        submitClass="bg-foreground-faint" onClose={() => setOpenJudgment(null)} />
     );
   }
 
   /**
-   * Bestrafen, indem eine AUFGABE gestellt wird — der Weg vom Vergehen direkt ins Aufgaben-Formular.
+   * 3-Wege-Urteilsslot: bestraft → PunishedBadge, verworfen → DismissedBadge, offen → Urteils-Auswahl.
    *
-   * Ein Link, kein Formular an Ort und Stelle: eine Aufgabe hat Titel, Frist, Bedingungen und
-   * Nachweis-Fotos, und das alles gibt es dort schon. Die Vergehens-ref reist als Query mit; erst der
-   * Server macht daraus Aufgabe UND Urteil — hier wird nichts entschieden, nur weitergeleitet.
+   * EINE Auswahl, die Aufgabe zuerst: eine Strafe, die der Sub TUN soll, ist als Aufgabe besser
+   * aufgehoben — sie schliesst sich mit der Erfüllung selbst, der Freitext bleibt offen, bis jemand
+   * ihn abschliesst.
    *
-   * Die ART reist genauso mit wie bei den beiden Freitext-Knöpfen: sie steht am geklickten Abschnitt,
-   * und zwei Arten können sich eine ref teilen (eine Reinigungsöffnung über dem Kontingent während
-   * einer Sperrzeit ist unerlaubte Öffnung UND Reinigungs-Limit). Ohne sie stempelte die Strafaufgabe
-   * aus dem Reinigungs-Abschnitt `OEFFNEN_ENTRY` an ihr Urteil — dieselbe Verwechslung, die auf dem
-   * Freitext-Weg schon behoben ist.
+   * „Aufgabe" führt ins Aufgaben-Formular (Titel, Frist, Bedingungen, Nachweise gibt es dort schon);
+   * ref UND ART des Vergehens reisen als Query mit. Die Art gehört dazu, weil zwei Arten sich eine ref
+   * teilen können (eine Reinigungsöffnung über dem Kontingent während einer Sperrzeit ist unerlaubte
+   * Öffnung UND Reinigungs-Limit) — ohne sie stempelte die Strafaufgabe aus dem Reinigungs-Abschnitt
+   * `OEFFNEN_ENTRY` an ihr Urteil. Erst der Server macht daraus Aufgabe UND Urteil.
+   *
+   * Der Rückzug hängt hier mit dran, weil er dieselbe Sichtbarkeitsregel hat wie die Auswahl: ist das
+   * Vergehen beurteilt, kehrt die Funktion oben aus, und er verschwindet mit ihr. Nur die von Hand
+   * NOTIERTE Art hat ihn überhaupt — alle anderen leiten sich aus Einträgen ab.
    */
-  function StrafaufgabeButton({ refId, offenseType, anlass }: { refId: string; offenseType: StoredOffenseType; anlass: string }) {
-    const href = taskFormHref(userId, { offenseRef: refId, offenseType, anlass });
+  function JudgmentSlot({ refId, canonical, anlass }: { refId: string; canonical: OffenseCanonicalType; anlass: string }) {
+    if (punishedIds.has(refId)) return <PunishedBadge refId={refId} />;
+    if (dismissedIds.has(refId)) return <DismissedBadge refId={refId} />;
+    const offenseType = STORED_TYPE[canonical];
+    const mode = openJudgment?.refId === refId ? openJudgment.mode : "";
+
+    function choose(next: string) {
+      if (next === "task") {
+        router.push(taskFormHref(userId, { offenseRef: refId, offenseType, anlass }));
+        return;
+      }
+      setOpenJudgment(next === "punish" || next === "dismiss" ? { refId, mode: next } : null);
+    }
+
     return (
-      <div className="mt-2">
-        <Link href={href}
-          className={`${CHIP_CLS} text-foreground-muted border-border hover:bg-surface-raised hover:text-foreground`}>
-          <ClipboardList size={11} />
-          {labels.strafbuchStrafaufgabe}
-        </Link>
+      <div className="mt-2 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-full sm:max-w-xs">
+            <Select
+              aria-label={labels.strafbuchUrteilLabel}
+              placeholder={labels.strafbuchUrteilPlaceholder}
+              value={mode}
+              onChange={(e) => choose(e.target.value)}
+              options={[
+                { value: "task", label: labels.strafbuchUrteilAufgabe },
+                { value: "punish", label: labels.strafbuchStrafeBeschreiben },
+                { value: "dismiss", label: labels.strafbuchVerwerfen },
+              ]}
+            />
+          </div>
+          {offenseType === STORED_TYPE.manual_offense && (
+            <ZurueckziehenButton id={refId} label={labels.strafbuchZurueckziehen}
+              networkError={labels.networkError} resolveError={apiError} onDone={() => router.refresh()} />
+          )}
+        </div>
+        {mode === "punish" && <BestrafenForm refId={refId} canonical={canonical} />}
+        {mode === "dismiss" && <VerwerfenForm refId={refId} canonical={canonical} />}
       </div>
     );
   }

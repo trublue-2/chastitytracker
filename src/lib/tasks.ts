@@ -485,6 +485,56 @@ export function ownProofDeadline(
 }
 
 /**
+ * Steht das Ende dieser Aufgabe schon fest? Im Dauer-Modus erst mit dem Beginn — davor ist das
+ * `holdUntil` der Auswertung nur das spätestmögliche Ende.
+ *
+ * EINE Formulierung für alle, die eine Nachweis-Frist nennen (Karte, Formular, Erinnerung): bekäme
+ * die Regel einen weiteren Term, nennten sie sonst verschiedene Fristen für denselben Nachweis.
+ */
+export function endIsProvisional(
+  task: Pick<TaskLike, "holdDurationMin">,
+  evaluation: Pick<TaskEvaluation, "startedAt">,
+): boolean {
+  return task.holdDurationMin != null && evaluation.startedAt === null;
+}
+
+/**
+ * Die Fälligkeit eines Nachweises gegen das WIRKSAME Ende — und ob sie noch vorläufig ist: ohne eigene
+ * Fälligkeit hängt sie am Ende, und das steht im Dauer-Modus erst mit dem Beginn fest.
+ */
+export function proofDue(
+  proof: Pick<ProofLike, "dueOffsetMin">,
+  task: Pick<TaskLike, "createdAt" | "wirksamAb" | "holdDurationMin">,
+  evaluation: Pick<TaskEvaluation, "holdUntil" | "startedAt">,
+): { at: Date; provisional: boolean } {
+  return {
+    at: proofDeadline(proof, task, evaluation.holdUntil),
+    provisional: proof.dueOffsetMin == null && endIsProvisional(task, evaluation),
+  };
+}
+
+/**
+ * Über welchen Zeitpunkt die Bedingungs-Häkchen einer Aufgabe Auskunft geben: bis zu ihrem Ende über
+ * jetzt, danach über das Ende.
+ *
+ * Nicht über den Zustand, sondern über die Uhr — sonst stand nach dem Ablegen am nächsten Morgen ein
+ * leerer Kreis neben einer Bedingung, die bis zum Ende gehalten war, auch bei einer Aufgabe, der nur
+ * noch die Selbstmeldung fehlt (sie gilt als offen). Dieselbe Grenze wie `until` in
+ * {@link evaluateTask}. Zwei Ausnahmen: der Rückzug friert den Stand an seinem Moment ein, und beim
+ * Abbruch zählt der Moment direkt NACH dem Wegfallen — dort gehört der leere Kreis an genau die
+ * Bedingung, die fiel (`coversPoint` schliesst das Intervall-Ende ein).
+ */
+export function requirementsShownAt(
+  e: Pick<TaskEvaluation, "state" | "holdUntil" | "failedAt">,
+  task: Pick<TaskLike, "withdrawnAt">,
+  now: Date,
+): Date {
+  if (e.state === "withdrawn" && task.withdrawnAt) return task.withdrawnAt;
+  if (e.state === "aborted" && e.failedAt) return new Date(e.failedAt.getTime() + 1);
+  return e.holdUntil < now ? e.holdUntil : now;
+}
+
+/**
  * Zählt dieser Nachweis? — rechtzeitig eingereicht ODER von der Keyholderin angenommen.
  *
  * Die EINE Formulierung dieser Frage: die Nachweis-Achse ({@link evaluateProofs}) und der Beleg an

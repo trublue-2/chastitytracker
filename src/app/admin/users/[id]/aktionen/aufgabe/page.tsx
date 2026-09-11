@@ -3,12 +3,16 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getUserTimezone } from "@/lib/queries";
-import { nowDatetimeLocal, toDatetimeLocal } from "@/lib/utils";
+import { formatDateTime, nowDatetimeLocal, toDateLocale, toDatetimeLocal } from "@/lib/utils";
+import { strafbuchCached } from "@/lib/dashboardData";
+import { openOffensesOf, selectSubOffenses } from "@/lib/subOffenses";
+import { STORED_TYPE } from "@/lib/offenseTypes";
+import { offenseNameKey } from "@/lib/offenseLabels";
 import { weightDayKey } from "@/lib/weight";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
-import { getTranslations } from "next-intl/server";
-import TaskFields, { type TaskFormInitial } from "@/app/admin/tasks/TaskFields";
+import { getLocale, getTranslations } from "next-intl/server";
+import TaskFields, { type PunishmentOffenseOption, type TaskFormInitial } from "@/app/admin/tasks/TaskFields";
 import { recurrenceFromRow } from "@/lib/recurrenceForm";
 import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
 import type { RecurrenceFreq } from "@/lib/taskRecurrence";
@@ -16,6 +20,30 @@ import type { RecurrenceFreq } from "@/lib/taskRecurrence";
 /** Minuten → Dauer-Eingabe (Stunden bei glattem Wert, sonst Minuten) fürs Vorbefüllen. */
 function minutesToDuration(min: number): { hours: string; holdUnit: "h" | "min" } {
   return min % 60 === 0 ? { hours: String(min / 60), holdUnit: "h" } : { hours: String(min), holdUnit: "min" };
+}
+
+/**
+ * Die unbeurteilten Vergehen dieses Subs für die Auswahl „Strafe für" — Anzeigename, Tatzeit und der
+ * Anlass, der „Wofür" vorbelegt. Dieselbe Ableitung wie die Sub-Übersicht (`strafbuchCached`).
+ */
+async function punishmentOffenseOptions(userId: string, tz: string): Promise<PunishmentOffenseOption[]> {
+  const [sb, tOffenses, locale] = await Promise.all([
+    strafbuchCached(userId, Date.now()),
+    getTranslations("offenses"),
+    getLocale(),
+  ]);
+  const dl = toDateLocale(locale);
+  return openOffensesOf(selectSubOffenses(sb)).flatMap((o) => {
+    if (!o.offenseType) return [];
+    const name = tOffenses(offenseNameKey(o.offenseType));
+    const what = o.title ? `${name}: ${o.title}` : name;
+    return [{
+      refId: o.refId,
+      offenseType: STORED_TYPE[o.offenseType],
+      label: o.offenseAt ? `${what} — ${formatDateTime(o.offenseAt, dl, tz)}` : what,
+      anlass: what,
+    }];
+  });
 }
 
 export default async function AdminTaskPage({
@@ -120,6 +148,12 @@ export default async function AdminTaskPage({
     initial = { recurring: true };
   }
 
+  // Nur beim Anlegen einer Einzelaufgabe ohne mitgebrachtes Vergehen: aus dem Strafbuch kommt es schon
+  // fest verknüpft, und beim Ändern bleibt die Verknüpfung, wie sie ist.
+  const offenseOptions = !offenseRef && !edit && !initial?.recurring
+    ? await punishmentOffenseOptions(userId, tz)
+    : undefined;
+
   return (
     <AdminActionFormShell
       userId={userId}
@@ -137,6 +171,7 @@ export default async function AdminTaskPage({
         offenseRef={offenseRef}
         offenseType={offenseType}
         initialPenaltyReason={anlass}
+        offenseOptions={offenseOptions}
         edit={edit}
         initial={initial}
       />

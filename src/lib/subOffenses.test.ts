@@ -31,6 +31,7 @@ function judgment(p: Partial<Judgment> & { refId: string }): Judgment {
     status: "PUNISHED",
     bestraftDatum: new Date("2026-08-01T10:00:00Z"),
     notiz: null,
+    reportedDoneAt: null,
     reason: "20 Schläge",
     judgedBy: "admin",
     judgedByName: null,

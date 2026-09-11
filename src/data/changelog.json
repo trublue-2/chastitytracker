@@ -1,7 +1,7 @@
 [
   {
-    "version": "6.1.4",
-    "date": "2026-09-10",
+    "version": "6.2.0",
+    "date": "2026-09-11",
     "changes": [
       {
         "type": "ui",
@@ -64,6 +64,34 @@
         "text": {
           "de": "Der Träger kann zu einem festgestellten Vergehen eine Stellungnahme schreiben — im Posteingang, an der Meldung, mit der er davon erfährt. Eine je Vergehen, änderbar bis zum Urteil; die Keyholderin liest sie über ihrem Urteils-Feld. Sie kann das je Träger abschalten.",
           "en": "The wearer can write a statement on a detected offense — in the inbox, on the message that tells him about it. One per offense, editable until it is judged; the keyholder reads it above her judgment field. She can switch it off per wearer."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Aufgaben mit Nachweis nennen jetzt, bis wann er einzureichen ist — auf der Karte, im Formular und in der Meldung. Kurz vor Ablauf erinnert die App daran.",
+          "en": "Tasks with a proof now say when it is due — on the card, in the form and in the notification. Shortly before the deadline the app sends a reminder."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Bei abgeschlossenen Aufgaben zeigen die Häkchen den Stand am Ende der Aufgabe. Lag ein Gerät schon an, als die Aufgabe kam, steht das dabei.",
+          "en": "On finished tasks the check marks show the state at the end of the task. If a device was already on when the task arrived, the card says so."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine verhängte Strafe kann der Träger als erledigt melden. Die Keyholderin sieht offene Strafen auf der Übersicht des Subs und schliesst sie dort ab.",
+          "en": "The wearer can report an imposed penalty as done. The keyholder sees open penalties on the wearer's overview and closes them there."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Strafbuch wird über eine Auswahl geurteilt: Aufgabe als Strafe, Strafe beschreiben oder verwerfen. Eine Strafaufgabe lässt sich beim Anlegen einem Vergehen zuordnen.",
+          "en": "In the offense ledger you judge through one selection: a task as the penalty, a described penalty, or dismiss. A penalty task can be linked to an offense when you create it."
         }
       }
     ]

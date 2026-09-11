@@ -195,6 +195,13 @@ export function moveToEdge<T>(list: T[], index: number, edge: "start" | "end"): 
   return edge === "start" ? [list[index], ...rest] : [...rest, list[index]];
 }
 
+/** Zeilen je `userId` bündeln — einmal O(n), statt je Nutzer die ganze Liste zu durchsuchen. */
+export function groupByUser<T extends { userId: string }>(rows: readonly T[]): Map<string, T[]> {
+  const m = new Map<string, T[]>();
+  for (const r of rows) (m.get(r.userId) ?? m.set(r.userId, []).get(r.userId)!).push(r);
+  return m;
+}
+
 /** Zerlegt eine Dauer in Tage/Stunden/Minuten/Sekunden (jeweils abgerundet, Rest-basiert).
  *  Nur die ZERLEGUNG ist geteilt — die Zusammensetzung bleibt je Formatter eigen, weil sich
  *  Einheiten ("m" vs "min"), Null-Behandlung ("–") und Minuten-Unterdrückung unterscheiden. */

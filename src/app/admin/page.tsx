@@ -20,14 +20,14 @@ import EmptyState from "@/app/components/EmptyState";
 import UserAvatar from "@/app/components/UserAvatar";
 import { Users, CalendarClock, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale, formatDurationBetween, formatDateTimeDual, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
+import { toDateLocale, formatDurationBetween, formatDateTimeDual, groupByUser, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderLockPeriods, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveLockPeriods, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel, heimdallEnabled, weightTrackingEnabled } from "@/lib/constants";
 import { QUICK_SETTING_SELECT, quickSettingOnCard, parseQuickSettings, quickSettingValue } from "@/lib/quickSettings";
 import Section from "@/app/components/Section";
 import Badge from "@/app/components/Badge";
 import { strafbuchCached } from "@/lib/dashboardData";
-import { selectSubOffenses, openOffensesOf } from "@/lib/subOffenses";
+import { selectSubOffenses, attentionOffensesOf } from "@/lib/subOffenses";
 import { rowHoverCls } from "@/app/components/inputStyles";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 import { boxBoltOpenDespiteLocked } from "@/lib/boxStatus";
@@ -135,12 +135,6 @@ export default async function AdminPage() {
   // Build lookup maps from groupBy results
   const { lockedAt: verschlussMap, openedAt: oeffnenMap } = kgTimes;
 
-  // Bucket directives by userId once (O(M)) instead of re-scanning each full array per user (O(N×M)).
-  const groupByUser = <T extends { userId: string }>(rows: T[]) => {
-    const m = new Map<string, T[]>();
-    for (const r of rows) (m.get(r.userId) ?? m.set(r.userId, []).get(r.userId)!).push(r);
-    return m;
-  };
   // Der Schlüssel-Zustand des LAUFENDEN Verschlusses. Ohne ihn läse die Übersicht den Reisefall
   // (Träger behielt den Schlüssel, Box bleibt zu Recht offen) als Versäumnis — siehe
   // `boxBoltOpenDespiteLocked`.
@@ -199,7 +193,7 @@ export default async function AdminPage() {
   // wenn diese Liste selbst beschnitten wird.
   const nowMs = now.getTime();
   const openOffenseCounts = await Promise.all(
-    userIds.map((id) => strafbuchCached(id, nowMs).then((sb) => openOffensesOf(selectSubOffenses(sb)).length)),
+    userIds.map((id) => strafbuchCached(id, nowMs).then((sb) => attentionOffensesOf(selectSubOffenses(sb)).length)),
   );
   const openOffenseByUser = new Map(userIds.map((id, i) => [id, openOffenseCounts[i]]));
 

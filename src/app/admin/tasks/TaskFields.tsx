@@ -33,7 +33,20 @@ import type { TaskRequirementInput, TaskProofInput } from "@/lib/taskService";
 import TaskRequirementPicker, { type PickerCategory } from "./TaskRequirementPicker";
 import TaskProofPicker from "./TaskProofPicker";
 import RecurrenceFields from "./RecurrenceFields";
+import Select from "@/app/components/Select";
 import { initialRecurrence, recurrencePayload, occurrenceFormatter, type RecurrenceValue } from "@/lib/recurrenceForm";
+
+/** Ein unbeurteiltes Vergehen zur Auswahl „Strafe für" — von der Seite aufbereitet. `anlass` belegt
+ *  das Feld „Wofür" vor, `offenseType` reist wie beim Weg aus dem Strafbuch mit. */
+export interface PunishmentOffenseOption {
+  refId: string;
+  offenseType: string;
+  label: string;
+  anlass: string;
+}
+
+/** Der Wert „Als Strafe, aber für kein bestimmtes Vergehen" — bewusst gewählt statt still leer. */
+const NO_OFFENSE = "__none";
 
 /**
  * Woran die Frist hängt — die EINE Entscheidung des Frist-Blocks (Einzelaufgabe).
@@ -97,6 +110,7 @@ export default function TaskFields({
   offenseRef,
   offenseType,
   initialPenaltyReason,
+  offenseOptions,
   edit,
   initial,
 }: {
@@ -110,6 +124,13 @@ export default function TaskFields({
   offenseRef?: string;
   offenseType?: string;
   initialPenaltyReason?: string;
+  /**
+   * Die unbeurteilten Vergehen dieses Subs für „Strafe für" — nur beim Anlegen einer Einzelaufgabe
+   * ohne mitgebrachtes Vergehen. Ohne Verknüpfung entsteht kein Strafbuch-Eintrag: die Aufgabe
+   * schliesst dann keine Strafe und erscheint nie unter den offenen Strafen. Deshalb eine Auswahl
+   * statt eines stummen Hakens (Entscheidung 11.09.2026).
+   */
+  offenseOptions?: PunishmentOffenseOption[];
   /** Beim ÄNDERN: was und welche Art. Fehlt = Anlegen. */
   edit?: { kind: "task" | "series"; id: string };
   /** Vorbelegung beim Ändern bzw. beim vorangehakten „Wiederkehrend" (Neue Serie). */
@@ -141,6 +162,12 @@ export default function TaskFields({
   const [proofOrderMatters, setProofOrderMatters] = useState(initial?.proofOrderMatters ?? true);
   const [isPunishment, setIsPunishment] = useState(initial?.isPunishment ?? !!offenseRef);
   const [penaltyReason, setPenaltyReason] = useState(initial?.penaltyReason ?? initialPenaltyReason ?? "");
+  const [punishedOffense, setPunishedOffense] = useState("");
+  // Das Vergehen, für das diese Aufgabe die Strafe ist: aus dem Strafbuch mitgebracht (Link), sonst
+  // in „Strafe für" gewählt. „Ohne bestimmtes Vergehen" findet keine Option und verknüpft nichts.
+  const linkedOffense = offenseRef
+    ? { refId: offenseRef, offenseType }
+    : isPunishment ? offenseOptions?.find((o) => o.refId === punishedOffense) : undefined;
   const [schedule, setSchedule] = useState<ScheduleValue>(() => initialSchedule(minNow, tz));
 
   // ── Serie ──
@@ -294,8 +321,8 @@ export default function TaskFields({
         proofOrderMatters: proofRows.length > 0 ? proofOrderMatters : undefined,
         isPunishment,
         penaltyReason: isPunishment ? penaltyReason.trim() || undefined : undefined,
-        [TASK_FORM_QUERY.offenseRef]: offenseRef,
-        [TASK_FORM_QUERY.offenseType]: offenseType,
+        [TASK_FORM_QUERY.offenseRef]: linkedOffense?.refId,
+        [TASK_FORM_QUERY.offenseType]: linkedOffense?.offenseType,
         ...schedulePayload(schedule, tz),
       },
     });
@@ -539,6 +566,26 @@ export default function TaskFields({
             onChange={(e) => setIsPunishment(e.target.checked)}
             disabled={!!offenseRef}
           />
+          {isPunishment && offenseOptions && (offenseOptions.length > 0 ? (
+            <Select
+              label={t("punishmentOffenseLabel")}
+              placeholder={t("punishmentOffensePlaceholder")}
+              required
+              value={punishedOffense}
+              onChange={(e) => {
+                const next = offenseOptions.find((o) => o.refId === e.target.value);
+                setPunishedOffense(e.target.value);
+                // Den Anlass nur vorbelegen, nicht überschreiben: was sie schon getippt hat, bleibt.
+                if (next && !penaltyReason.trim()) setPenaltyReason(next.anlass);
+              }}
+              options={[
+                ...offenseOptions.map((o) => ({ value: o.refId, label: o.label })),
+                { value: NO_OFFENSE, label: t("punishmentOffenseNone") },
+              ]}
+            />
+          ) : (
+            <p className="text-xs text-foreground-faint">{t("punishmentNoOffensesHint")}</p>
+          ))}
           {isPunishment && (
             <Input
               label={t("penaltyReasonFieldLabel")}

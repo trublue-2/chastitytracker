@@ -47,6 +47,8 @@ const row = (over: Record<string, unknown> = {}) => ({
   wirksamAb: GEPLANT,
   isPunishment: false,
   createdBy: "herrin",
+  // Der Zähler, den `dispatchDueTasks` mit auswählt — die Meldung nennt die Nachweise.
+  _count: { proofs: 0 },
   ...over,
 });
 

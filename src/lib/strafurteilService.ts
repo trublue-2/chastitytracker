@@ -403,6 +403,8 @@ async function writeJudgment(
     status: p.status, reason: p.reason,
     ...judgmentAuthorColumns(p.actor),
     erledigtAt: null, bestraftDatum: p.now, taskId: p.taskId,
+    // Eine Erledigt-Meldung gilt dem Urteil, auf das sie antwortete — ein neues fängt ohne sie an.
+    reportedDoneAt: null,
   };
   const create = { userId: p.userId, offenseType: p.offense.offenseType, refId: p.offense.refId, ...data };
   return p.allowRevision
@@ -478,7 +480,9 @@ export async function judgeOffense(
     // (Doppelklick, zweiter Tab, zweiter Keyholder) darf ihn deshalb nicht nach vorne schieben.
     await prisma.strafeRecord.update({
       where: { refId: p.refId },
-      data: { erledigtAt: done ? (rec.erledigtAt ?? now) : null },
+      // „Wieder offen" nimmt auch die Erledigt-Meldung des Trägers zurück: die Keyholderin sagt damit,
+      // dass die Strafe NICHT erledigt ist — die alte Meldung stünde sonst als Behauptung daneben.
+      data: done ? { erledigtAt: rec.erledigtAt ?? now } : { erledigtAt: null, reportedDoneAt: null },
     });
     return { ok: true, data: { status: "punished", done } };
   }

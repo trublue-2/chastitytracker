@@ -5,7 +5,7 @@ import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice
 import { SESSION_ENTRY_SELECT } from "@/lib/queries";
 import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
-import { evaluateTask, coversPoint, isTaskOffense, isTaskOpen, needsKeyholderReview, type Interval, type ProofLike, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks";
+import { evaluateTask, coversPoint, isTaskOffense, isTaskOpen, needsKeyholderReview, requirementsShownAt, type Interval, type ProofLike, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks";
 
 /**
  * Das Bindeglied zwischen Aufgaben und Einträgen: baut je Bedingung die Zeiträume, in denen sie galt,
@@ -574,19 +574,20 @@ export async function evaluateTasks(
       return r.categoryId ? mergeOnce(pairsByCategory.get(r.categoryId) ?? []) : [];
     });
 
-    // „Erfüllt" heisst: gilt JETZT. Direkt aus den Intervallen statt aus `missing` abgeleitet — das
-    // Feld ist nur in den Nicht-begonnen-Zweigen gefüllt und wäre bei laufenden oder beendeten
-    // Aufgaben irreführend leer.
-    const requirements = task.requirements.map((r, i) => ({
+    const base = task.requirements.map((r) => ({
       id: r.id,
       label: requirementLabel(r, kgLabel),
       type: r.type,
       categoryId: r.categoryId,
       deviceId: r.deviceId,
-      satisfied: coversPoint(perRequirement[i], now),
     }));
+    const evaluation = evaluateTask(task, base, perRequirement, now, task.proofs);
 
-    const evaluation = evaluateTask(task, requirements, perRequirement, now, task.proofs);
+    // „Erfüllt" heisst: galt zu dem Zeitpunkt, über den die Karte spricht ({@link requirementsShownAt}).
+    // Direkt aus den Intervallen statt aus `missing` abgeleitet — das Feld ist nur in den
+    // Nicht-begonnen-Zweigen gefüllt und wäre bei laufenden oder beendeten Aufgaben irreführend leer.
+    const shownAt = requirementsShownAt(evaluation, task, now);
+    const requirements = base.map((r, i) => ({ ...r, satisfied: coversPoint(perRequirement[i], shownAt) }));
     return { task, evaluation, requirements };
   });
 }

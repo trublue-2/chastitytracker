@@ -1,6 +1,6 @@
 import { buildStrafbuch, offenseListViews, type OffenseDetail, type StrafbuchData } from "@/lib/strafbuch";
 import { collectDetectedOffenses } from "@/lib/strafurteilService";
-import { offenseState, type OffenseCanonicalType, type OffenseState } from "@/lib/offenseTypes";
+import { offenseNeedsAttention, offenseState, type OffenseCanonicalType, type OffenseState } from "@/lib/offenseTypes";
 
 /**
  * Das Strafbuch aus der Sicht des KG-TRÄGERS — die eine Stelle, an der es entsteht (Issue #36).
@@ -60,6 +60,9 @@ export interface SubOffense {
   /** Wann geurteilt wurde. Null bei `open`. */
   judgedAt: Date | null;
   doneAt: Date | null;
+  /** Wann der Träger die Strafe als erledigt gemeldet hat — null, solange nicht. Abschliessen kann
+   *  sie weiterhin nur die Keyholderin; die Meldung ist sein Rückkanal dorthin. */
+  reportedDoneAt: Date | null;
   /** Gesetzt, wenn die Strafe eine gestellte Aufgabe IST. */
   taskId: string | null;
 }
@@ -74,12 +77,13 @@ export interface SubOffense {
  */
 function fromJudgment(
   r: StrafbuchData["strafeRecords"][number] | undefined,
-): Pick<SubOffense, "state" | "judgmentText" | "judgedAt" | "doneAt" | "taskId"> {
+): Pick<SubOffense, "state" | "judgmentText" | "judgedAt" | "doneAt" | "reportedDoneAt" | "taskId"> {
   return {
     state: offenseState(r),
     judgmentText: r?.reason ?? null,
     judgedAt: r?.bestraftDatum ?? null,
     doneAt: r?.erledigtAt ?? null,
+    reportedDoneAt: r?.reportedDoneAt ?? null,
     taskId: r?.taskId ?? null,
   };
 }
@@ -154,6 +158,19 @@ export function openPenaltiesOf(offenses: SubOffense[]): SubOffense[] {
  *  Gegenstück zu {@link openPenaltiesOf}: dort das VERHÄNGTE, hier das noch zu Urteilende. */
 export function openOffensesOf(offenses: SubOffense[]): SubOffense[] {
   return offenses.filter((o) => o.state === "open");
+}
+
+/**
+ * Was die KEYHOLDERIN auf der Sub-Übersicht sieht: unbeurteilt ODER bestraft mit unerledigter Strafe —
+ * dieselbe Regel, nach der das MCP-Ledger „offen" zählt ({@link offenseNeedsAttention}).
+ *
+ * Die offenen Strafen gehören dazu, weil sie sonst mit dem Urteil von ihrer Übersicht fielen, während
+ * sie beim Träger weiter als offen stehen. Die unbeurteilten zuerst: sie verlangen ein Urteil, die
+ * anderen nur noch den Abschluss.
+ */
+export function attentionOffensesOf(offenses: SubOffense[]): SubOffense[] {
+  const need = offenses.filter((o) => offenseNeedsAttention(o.state));
+  return [...need.filter((o) => o.state === "open"), ...need.filter((o) => o.state !== "open")];
 }
 
 /**

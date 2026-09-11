@@ -3,6 +3,7 @@ import type { InboxMessage, MessageSenderKind } from "@/lib/messageService";
 import { messageCategory, type MessageCategory } from "@/lib/messageCategories";
 import { inspectionHref } from "@/lib/entryFormRoute";
 import { offenseCanonicalFromNameKey, withOffenseName } from "@/lib/offenseLabels";
+import { withMessageDefaults } from "@/lib/messageDefaults";
 import { loadStatementGates, loadStatements, statementBlockedReason, type LoadedStatement } from "@/lib/offenseStatementService";
 
 /** Eine anzeigefertige Nachricht: alle Texte aufgelöst, keine i18n-Schlüssel mehr. */
@@ -71,7 +72,7 @@ export async function presentMessages(
   return messages.map((m) => ({
     id: m.id,
     createdAt: m.createdAt.toISOString(),
-    text: m.bodyKey ? t(m.bodyKey, withOffenseName(m.bodyParams, tOffenses)) : (m.body ?? ""),
+    text: m.bodyKey ? t(m.bodyKey, withOffenseName(withMessageDefaults(m.bodyKey, m.bodyParams), tOffenses)) : (m.body ?? ""),
     refText: m.refText,
     refMissing: m.refMissing,
     category: messageCategory(m.bodyKey),

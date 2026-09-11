@@ -15,6 +15,7 @@ import { maybeRunHealthChecks } from "@/lib/healthCheck";
 import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
 import { deadlineFromDispatch, dueForDispatchWhere } from "@/lib/delayedTrigger";
 import { dispatchDueTasks, processDueTasks, materializeDueSeries } from "@/lib/taskService";
+import { remindDueProofs } from "@/lib/taskProofReminder";
 import { NOT_PAUSED_WHERE, USER_NOT_PAUSED_WHERE } from "@/lib/healthHold";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht
@@ -195,6 +196,9 @@ async function processDue(): Promise<void> {
     //
     // Steht bewusst am ENDE des Tickes: die zeitkritischen Blöcke (Kontroll-/Sperrzeit-Mails) sind
     // dann längst durch, verzögert wird höchstens der NÄCHSTE Tick.
+    // VOR der Ergebnismeldung: eine Erinnerung gilt einer Frist, die noch läuft — sie darf nicht
+    // hinter einem Block warten, der ausschliesslich Abgelaufenes behandelt.
+    await remindDueProofs(now).catch((e) => console.error("[remindDueProofs]", e));
     await processDueTasks(now).catch((e) => console.error("[processDueTasks]", e));
   } finally {
     running = false;

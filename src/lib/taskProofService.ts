@@ -7,7 +7,7 @@ import { notifyUser } from "@/lib/notify";
 import { getControllerAudience } from "@/lib/keyholder";
 import { notifyLateProof } from "@/lib/taskProofNotify";
 import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
-import { isTaskResultFinal, proofResubmittable } from "@/lib/tasks";
+import { isTaskResultFinal, proofResubmittable, type TaskEvaluation } from "@/lib/tasks";
 import { settleIfFinal, settleIfNowDone } from "@/lib/taskService";
 import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
 import type { MessageActor } from "@/lib/messageService";
@@ -139,11 +139,11 @@ export async function submitTaskProof(
   // Auswertung, und ein Nachweis, der die Frist gerade noch bestanden hat, soll nicht mit einem
   // Zeitstempel dahinter gespeichert werden.
   const now = new Date();
-  const blocked = await proofSubmitBlocked(proof, userId, now);
+  const { blocked } = await proofSubmitContext(proof, userId, now);
   if (blocked) return serviceFail(400, blocked);
 
   // Was der Nachweis fordert, muss auch da sein — die eine Prüfung der EINREICHUNGS-Form (der
-  // Zustand steckt in `proofSubmitBlocked` darüber). Nur die geforderte Art wird geschrieben: ein
+  // Zustand steckt in `proofSubmitContext` darüber). Nur die geforderte Art wird geschrieben: ein
   // reiner Text-Nachweis speichert kein `imageUrl`, ein reiner Foto-Nachweis keinen `proofText`.
   const kindError = proofKindError(proof, p);
   if (kindError) return serviceFail(400, kindError);
@@ -203,7 +203,9 @@ export async function submitTaskProof(
 
 /**
  * Nimmt die Aufgabe noch ein Nachweis-Foto an? — dieselbe Frage, die die Auswertung als
- * {@link TaskEvaluation.proofSubmitOpen} beantwortet, und bewusst DEREN Antwort.
+ * {@link TaskEvaluation.proofSubmitOpen} beantwortet, und bewusst DEREN Antwort. Dazu das Ende, gegen
+ * das ein Nachweis ohne eigene Fälligkeit fällig wird — aus DERSELBEN Auswertung, damit die
+ * Formular-Seite die Frist nennt, gegen die hier geprüft wird (über `proofDue`).
  *
  * Nicht „das wirksame Ende holen und selbst vergleichen": das wären zwei Formulierungen einer
  * Grenze, die Karte und Dienst gemeinsam ziehen müssen — bekäme sie je einen zweiten Term, zeigte
@@ -227,14 +229,17 @@ export async function submitTaskProof(
  * Den RÜCKZUG beantwortet sie nicht — {@link proofSubmitBlockedReason} prüft ihn davor und nennt ihn
  * beim Namen, statt ihn als „zu spät" auszugeben.
  */
-async function taskAcceptsProof(
+async function taskProofWindow(
   userId: string,
   task: { id: string; holdUntil: Date; holdDurationMin: number | null },
   now: Date,
-): Promise<boolean> {
-  if (!task.holdDurationMin) return now <= task.holdUntil;
+): Promise<{ accepts: boolean; end: Pick<TaskEvaluation, "holdUntil" | "startedAt"> }> {
+  // Ohne Auswertung (klassischer Modus, oder die Zeile fiel eben weg) gilt die Spalte; ob das Ende
+  // dabei noch vorläufig ist, beantwortet `endIsProvisional` aus Modus und Beginn.
+  const column = { accepts: now <= task.holdUntil, end: { holdUntil: task.holdUntil, startedAt: null } };
+  if (!task.holdDurationMin) return column;
   const evaluated = await evaluateTaskById(userId, task.id, now);
-  return evaluated ? evaluated.evaluation.proofSubmitOpen : now <= task.holdUntil;
+  return evaluated ? { accepts: evaluated.evaluation.proofSubmitOpen, end: evaluated.evaluation } : column;
 }
 
 /**
@@ -244,8 +249,11 @@ async function taskAcceptsProof(
  * zeigen, dessen Absenden ohnehin scheitert) und den Dienst (er hat das letzte Wort). Zwei unabhängig
  * formulierte Bedingungsketten wären genau die Stelle, an der eine künftige vierte Bedingung nur in
  * einer der beiden landet.
+ *
+ * Dazu das Ende aus DERSELBEN Auswertung: die Formular-Seite nennt damit die Frist, gegen die hier
+ * geprüft wird, und bezahlt die Auswertung im Dauer-Modus nur einmal.
  */
-export async function proofSubmitBlocked(
+export async function proofSubmitContext(
   proof: {
     submittedAt: Date | null;
     requiresPhoto: boolean;
@@ -254,8 +262,9 @@ export async function proofSubmitBlocked(
   },
   userId: string,
   now: Date,
-): Promise<ReturnType<typeof proofSubmitBlockedReason>> {
-  return proofSubmitBlockedReason(proof, await taskAcceptsProof(userId, proof.task, now));
+): Promise<{ blocked: ReturnType<typeof proofSubmitBlockedReason>; end: Pick<TaskEvaluation, "holdUntil" | "startedAt"> }> {
+  const window = await taskProofWindow(userId, proof.task, now);
+  return { blocked: proofSubmitBlockedReason(proof, window.accepts), end: window.end };
 }
 
 /** Die Regel selbst — ohne Datenbank, damit sie für sich prüfbar bleibt. Die Rangfolge ist Teil der

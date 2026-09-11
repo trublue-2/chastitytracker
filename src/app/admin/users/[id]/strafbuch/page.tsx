@@ -157,6 +157,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       judgedAtStr: formatDate(r.bestraftDatum, dl, tz),
       done: r.erledigtAt !== null,
       erledigtAtStr: r.erledigtAt ? formatDate(r.erledigtAt, dl, tz) : null,
+      reportedDoneAtStr: r.reportedDoneAt ? formatDate(r.reportedDoneAt, dl, tz) : null,
     }));
 
   const statements: Record<string, StatementView> = Object.fromEntries(
@@ -177,8 +178,11 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchAutoEntferntAm: t("strafbuchAutoEntferntAm"),
     strafbuchNoEntries: t("strafbuchNoEntries"),
     recordOffense: t("recordOffense"),
-    strafbuchWurdeBestraft: t("strafbuchWurdeBestraft"),
-    strafbuchStrafaufgabe: t("strafbuchStrafaufgabe"),
+    strafbuchUrteilLabel: t("strafbuchUrteilLabel"),
+    strafbuchUrteilPlaceholder: t("strafbuchUrteilPlaceholder"),
+    strafbuchUrteilAufgabe: t("strafbuchUrteilAufgabe"),
+    strafbuchStrafeBeschreiben: t("strafbuchStrafeBeschreiben"),
+    strafbuchGemeldet: t("strafbuchGemeldet", { date: "{date}" }),
     strafbuchAlleAnzeigen: t("strafbuchAlleAnzeigen"),
     strafbuchOffeneAnzeigen: t("strafbuchOffeneAnzeigen"),
     strafbuchAbbrechen: t("strafbuchAbbrechen"),

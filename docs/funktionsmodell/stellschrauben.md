@@ -381,6 +381,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `Task.completionNote` | Datensatz | Begleittext seiner Meldung. |
 | `Task.withdrawnAt` | Laufzeitzustand | Gesetzt beim Zurückziehen; wird nie ein Vergehen. |
 | `Task.resultNotifiedAt` | Laufzeitzustand | Versand-Stempel der Ergebnismeldung. Kein Zustand — der wird immer aus den Einträgen abgeleitet. |
+| `Task.proofReminderSentAt` | Laufzeitzustand | Versand-Stempel der Erinnerung kurz vor der Nachweis-Frist — einmal je Aufgabe. |
 | `Task.seriesId` | Datensatz | Aus welcher Serie (#26) diese Instanz materialisiert wurde; `null` = von Hand gestellte Einzelaufgabe. |
 | `Task.seriesOccurrence` | Datensatz | Der geplante Serien-Termin, der diese Instanz erzeugt hat — mit `seriesId` eindeutig (Idempotenz-Netz). |
 | `TaskRequirement.id` | Identität | Primärschlüssel. |
@@ -410,6 +411,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `StrafeRecord.judgedBy` | Nachweis | `ai`, `admin` oder `system` — ein Kürzel. Die Anzeige unterscheidet daran KI von Mensch; WELCHER Mensch, steht daneben. |
 | `StrafeRecord.judgedByName` | Nachweis | Der Name des Urteilenden. `null` bei der KI (ihre Kennung steht im Kürzel), bei der automatischen Ahndung (dahinter steht niemand) und im Altbestand. |
 | `StrafeRecord.erledigtAt` | Laufzeitzustand | Nur bei PUNISHED: leer = Strafe offen, gesetzt = erledigt. |
+| `StrafeRecord.reportedDoneAt` | Laufzeitzustand | Der Träger meldet die Strafe als erledigt. Schliesst nichts — `erledigtAt` setzt weiterhin nur die Keyholderin; neues Urteil und „Wieder offen“ leeren es. |
 | `StrafeRecord.createdAt` | Datensatz | Anlage-Zeitpunkt. |
 | `StrafeRecord.taskId` | Datensatz | Die Aufgabe, die DIESE Strafe ist. Eine erfüllte Aufgabe schliesst das Urteil von selbst ab. |
 | `ManualOffense.id` | Identität | Primärschlüssel. |

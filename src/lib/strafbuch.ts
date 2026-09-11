@@ -168,6 +168,8 @@ export interface StrafbuchData {
     /** Name des Urteilenden, sofern ein Mensch entschied — `null` bei KI, System und Altbestand. */
     judgedByName: string | null;
     erledigtAt: Date | null;
+    /** Wann der Träger die Strafe als erledigt gemeldet hat — null, solange nicht. */
+    reportedDoneAt: Date | null;
     /** Die Aufgabe, die als Strafe gestellt wurde (`punishWithTask`) — null beim Freitext-Weg. Die
      *  Strafen-Sicht des Trägers braucht sie, um eine Strafe, die schon als Aufgabe auf dem
      *  Dashboard steht, nicht ein zweites Mal in voller Länge zu zeigen. */
@@ -1004,6 +1006,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       judgedBy: r.judgedBy,
       judgedByName: r.judgedByName,
       erledigtAt: r.erledigtAt,
+      reportedDoneAt: r.reportedDoneAt,
       taskId: r.taskId,
     })),
   };

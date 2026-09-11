@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { withOffenseName } from "@/lib/offenseLabels";
+import { withMessageDefaults } from "@/lib/messageDefaults";
 import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/mail";
 import { emailT, emailGreeting, localeT } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
@@ -187,9 +188,10 @@ async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): 
   // den Parametern stand `offenseKey`. Die Posteingangs-Zeile stand, Mail und Push fielen still aus.
   // Der Übersetzer NUR, wo eine Art aufzulösen ist: er wird je Empfänger neu gebaut, und drei von
   // Dutzenden Meldungstypen tragen den Parameter.
-  const resolved = params?.offenseKey === undefined
-    ? params
-    : withOffenseName(params, await localeT(user.locale, "offenses"));
+  const full = withMessageDefaults(messageKey, params);
+  const resolved = full?.offenseKey === undefined
+    ? full
+    : withOffenseName(full, await localeT(user.locale, "offenses"));
   const subject = t(subjectKey, resolved);
   const message = t(messageKey, resolved);
 

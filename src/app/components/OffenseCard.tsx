@@ -9,6 +9,7 @@ import DetailField from "@/app/components/DetailField";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { TASK_LIST_ANCHOR } from "@/lib/constants";
 import { offenseNameKey } from "@/lib/offenseLabels";
+import { PenaltyDoneButton, PenaltyReportButton } from "@/app/components/PenaltyActions";
 import type { SubOffense, SubOffenseState } from "@/lib/subOffenses";
 
 /** Zustand → Badge. Vier Zustände, vier Beschriftungen — der Träger muss keinen Lebenszyklus
@@ -27,15 +28,26 @@ const STATE_BADGE: Record<SubOffenseState, { key: string; variant: BadgeVariant 
  * Karte den ganzen Lebenszyklus beschreibt und ein Block, der auch Beurteiltes zeigt, keine neue
  * Komponente brauchen soll.
  *
- * Rein lesend: der Träger kann weder urteilen noch eine Strafe abschliessen, deshalb trägt die Karte
- * anders als `TaskCard` gar keinen Aktions-Slot. Fällt eine dazu, gehört sie hierher und nicht in
- * eine zweite Karte daneben.
+ * Geteilt vom Sub-Dashboard und der Sub-Übersicht der Keyholderin (`keyholderOf`). Die einzigen
+ * Aktionen hängen an der offenen Strafe: der Träger meldet sie als erledigt, die Keyholderin schliesst
+ * sie ab. Urteilen bleibt dem Strafbuch vorbehalten.
  *
  * Der Freitext heisst je nach Zustand etwas anderes — Strafe bei `punished`/`done`, Begründung des
  * Fallenlassens bei `dismissed` — und wird deshalb beschriftet statt nackt hingestellt. Ohne die
  * Beschriftung läse sich „war abgesprochen" wie eine Strafe.
  */
-export default async function OffenseCard({ offense: o, tz }: { offense: SubOffense; tz: string }) {
+export default async function OffenseCard({
+  offense: o,
+  tz,
+  keyholderOf = null,
+}: {
+  offense: SubOffense;
+  tz: string;
+  /** Der Träger, wenn die KEYHOLDERIN die Karte sieht (seine Sub-Übersicht) — sonst null. Sie bekommt
+   *  „Als erledigt markieren" statt des Hinweises, dass nur sie abschliessen kann, und der
+   *  Aufgaben-Link führt in SEINE Aufgaben statt in ihr eigenes Dashboard. */
+  keyholderOf?: string | null;
+}) {
   const [t, tOffenses] = await Promise.all([getTranslations("penalties"), getTranslations("offenses")]);
   // Die Datums-Locale kommt aus dem Request, nicht als Prop: beide Aufrufer haben sie ohnehin nur
   // von hier, und `getLocale` ist `cache()`-gestützt (Muster von `LaufendeSessionCard`).
@@ -46,6 +58,10 @@ export default async function OffenseCard({ offense: o, tz }: { offense: SubOffe
   // Freitext die Begründung statt der Strafe, und „verhängt" wird zu „entschieden".
   const dismissed = o.state === "dismissed";
   const offenseName = o.offenseType ? tOffenses(offenseNameKey(o.offenseType)) : t("offenseUnknown");
+  // Der Satz unter einer offenen Strafe: seine Erledigt-Meldung, sonst (nur für ihn) wer abschliesst.
+  const penaltyNote = o.reportedDoneAt
+    ? t(keyholderOf ? "reportedDoneAtKeyholder" : "reportedDoneAt", { date: at(o.reportedDoneAt) })
+    : keyholderOf ? null : t("punishedClosedByKeyholder");
 
   return (
     <Card padding="none">
@@ -105,18 +121,23 @@ export default async function OffenseCard({ offense: o, tz }: { offense: SubOffe
             die wird nie mehr erfüllt, ihre Strafe also nie automatisch geschlossen. „Sobald die
             Aufgabe erfüllt ist" hiesse dort, den Träger auf etwas warten zu lassen, das für seinen
             Fall nicht mehr eintreten kann. Der eine Satz ist für diesen Pfad schlicht wahr. */}
+        {/* Der Rückkanal: der Träger meldet „erledigt", die Keyholderin schliesst ab — beides direkt
+            an der Karte. */}
         {o.state === "punished" && (
-          <p className="text-xs text-foreground-faint">{t("punishedClosedByKeyholder")}</p>
+          <>
+            {penaltyNote && <p className="text-xs text-foreground-faint">{penaltyNote}</p>}
+            {keyholderOf ? <PenaltyDoneButton refId={o.refId} /> : !o.reportedDoneAt && <PenaltyReportButton refId={o.refId} />}
+          </>
         )}
 
         {/* Die Strafe IST eine Aufgabe: das Badge sagt, wo der Rest steht (Bedingungen, Frist,
             Nachweise) — die Karte hier wiederholt davon bewusst nichts. Es FÜHRT auch dorthin
-            (Begründung an `TASK_LIST_ANCHOR`); `/dashboard` ist fix, weil `OffenseList` heute nur
-            in der Sub-Sicht steht — käme sie je in eine Keyholder-Seite, führte der Link ihn in
-            SEIN eigenes Dashboard (dieselbe Falle, die `SessionList.keyholderView` beschreibt). */}
+            (Begründung an `TASK_LIST_ANCHOR`). In der Keyholder-Sicht in SEINE Aufgaben — ein fester
+            `/dashboard`-Link führte sie in ihr eigenes (dieselbe Falle, die
+            `SessionList.keyholderView` beschreibt). */}
         {o.taskId && (
           <div>
-            <Link href={`/dashboard#${TASK_LIST_ANCHOR}`} className="inline-flex hover:opacity-80 transition">
+            <Link href={keyholderOf ? `/admin/users/${keyholderOf}/aufgaben` : `/dashboard#${TASK_LIST_ANCHOR}`} className="inline-flex hover:opacity-80 transition">
               <Badge variant="neutral" size="sm" label={t("badgeTask")}>
                 <ChevronRight className="size-3 shrink-0" aria-hidden="true" />
               </Badge>

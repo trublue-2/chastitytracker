@@ -70,6 +70,7 @@ function offense(p: Partial<SubOffense> & { refId: string }): SubOffense {
     title: null,
     description: null,
     recordedBy: null,
+    reportedDoneAt: null,
     judgmentText: null,
     judgedAt: null,
     doneAt: null,

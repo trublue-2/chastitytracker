@@ -623,6 +623,7 @@ export const NOTIFICATION_EVENT_TYPES = [
   "WEAR_END_ANY",
   "TASK_PROOF_LATE",
   "OFFENSE_STATEMENT",
+  "PENALTY_REPORTED_DONE",
 ] as const;
 
 export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
@@ -967,6 +968,10 @@ export const TASK_PROOF_DESCRIPTION_MAX_LENGTH = 200;
  *  Nachweis selbst, kein Titel —, aber gedeckelt wie {@link TASK_DESCRIPTION_MAX_LENGTH}: dieselbe
  *  Grenze prüfen Service (verbindlich) und UI (`maxLength`). */
 export const TASK_PROOF_TEXT_MAX_LENGTH = 2000;
+
+/** Wie viele Minuten vor einer Nachweis-Frist der Träger erinnert wird, wenn noch nichts eingereicht
+ *  ist (`remindDueProofs`). Fest, keine Einstellung — Entscheidung 11.09.2026. */
+export const TASK_PROOF_REMINDER_LEAD_MIN = 15;
 /** Arten von Aufgaben-Bedingungen. WEAR = Gerät/Kategorie tragen · KG_LOCKED = verschlossen sein
  *  (der KG ist bewusst keine Trage-Kategorie, ein WEAR_BEGIN darauf wird abgewiesen). */
 export const TASK_REQUIREMENT_TYPES = ["WEAR", "KG_LOCKED"] as const;

@@ -34,6 +34,8 @@ export const MESSAGE_BODY_KEYS = [
   "penaltyMessageNoReason",
   "penaltyTaskMessage",
   "penaltyTaskDurationMessage",
+  // Der Träger meldet eine Strafe als erledigt — geht an die KEYHOLDER, abschliessen tun sie.
+  "penaltyReportedDoneMessage",
   // Vergehen — festgestellt (noch ohne Urteil) bzw. fallengelassen. Die Feststellung gibt es in
   // zwei Fassungen: mit eigenem Anlass-Titel (notiertes Vergehen, Aufgabe) und ohne, wo die Art
   // selbst schon alles sagt.
@@ -81,6 +83,8 @@ export const MESSAGE_BODY_KEYS = [
   "taskChangedDurationMessage",
   "taskWithdrawnMessage",
   "taskAwaitingMessage",
+  // Erinnerung kurz vor der Nachweis-Frist (`remindDueProofs`).
+  "taskProofReminderMessage",
   "taskDoneMessage",
   "taskFailedMessage",
   "taskDoneMessageKeyholder",

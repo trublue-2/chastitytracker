@@ -25,7 +25,7 @@ export function taskRow(now: Date, over: Partial<Record<string, unknown>> = {}) 
     withdrawnAt: null, completedAt: null,
     // Mit Bedingungen zählt die Startfrist als Untergrenze der neuen Endzeit (siehe
     // `checkTaskUpdate`). Ein Test, der die andere Seite braucht, setzt hier 0.
-    _count: { requirements: 1 },
+    _count: { requirements: 1, proofs: 0 },
     ...over,
   };
 }

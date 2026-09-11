@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-106 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+107 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -132,6 +132,7 @@ Steckbrief: [50-strafbuch.md](50-strafbuch.md)
 | **Vergehen einsehen** | Die erkannten Vergehen mit Urteilsstand — dreizehn Arten, die meisten live aus den Einträgen abgeleitet. | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `get_offenses` |
 | **Vergehen von Hand notieren** | Hält fest, was der Tracker nicht sehen kann — gebrochene Abmachung, Unhöflichkeit. <br>*Notieren ist noch kein Urteil. Ein Rückzug nimmt es aus dem Strafbuch, lässt es aber nachlesbar.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/offense` `record_offense` |
 | **Stellungnahme zu einem Vergehen** | Der Träger schreibt, was er zu einem festgestellten Vergehen zu sagen hat — eine je Vergehen, änderbar bis zum Urteil. <br>*Sie steht im Posteingang an der Meldung, mit der er das Vergehen erfährt — eine Liste unbeurteilter Vergehen hat er nicht. Die Keyholderin liest sie über dem Urteils-Feld und in `get_offenses`; freigeschaltet wird sie je Träger über die Vergehens-Regeln. Die automatische Ahndung (`judgedBy: "system"`) sperrt sie NICHT: dort gibt es keinen Urteilsschritt, vor dem sie stehen könnte.* | Sub | App (Träger) | `/api/offense-statement` |
+| **Strafe als erledigt melden** | Der Träger meldet eine verhängte Strafe als erledigt — sein Rückkanal zur Keyholderin, die sie danach abschliesst. <br>*Schliesst nichts: `erledigtAt` setzt weiterhin nur die Keyholderin. Sie sieht die Meldung an der Karte ihrer Sub-Übersicht, im Strafbuch und in `get_offenses` (`reportedDoneAt`); ein neues Urteil und „Wieder offen“ leeren sie.* | Sub | App (Träger) | `/api/penalty-done` |
 | **Urteilen** | Verwerfen, bestrafen (Freitext oder als gestellte Aufgabe), erledigen oder wieder aufnehmen. <br>*Es gibt keine automatische Strafe und keinen Straftypen-Zoo. Eine erfüllte Strafaufgabe schliesst das Urteil selbst.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/strafe` `judge_offense` |
 | **Vergehens-Regeln umlegen** | Legt je Art fest, ob sie zählt — aus, nur während einer Sperrzeit, oder immer. <br>*Historisiert: eine Änderung schreibt die Vergangenheit nicht um, sie wirkt nach vorn. `manual_offense` ist nicht schaltbar — eine selbst notierte Tat verwirft man mit dem Urteil, nicht mit der Regel.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/offense-rules` `set_offense_rules` |
 | **Vergehen melden** | Stellt erkannte, bestrafte und verworfene Vergehen beiden Seiten in den Posteingang. <br>*Abgeleitete Vergehen erst ab dem Stichtag der Instanz — sonst kippte das erste Update die ganze Historie hinein.* | System | läuft von selbst | — |

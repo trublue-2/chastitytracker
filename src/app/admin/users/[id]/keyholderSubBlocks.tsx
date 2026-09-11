@@ -17,7 +17,7 @@ import { datedWindowLabel } from "@/lib/weekdays";
 import { parseWeekdayGoalRules } from "@/lib/weekdayGoal";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { userRowCached, strafbuchCached } from "@/lib/dashboardData";
-import { selectSubOffenses, openOffensesOf } from "@/lib/subOffenses";
+import { selectSubOffenses, attentionOffensesOf } from "@/lib/subOffenses";
 import OffenseList from "@/app/components/OffenseList";
 import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
@@ -441,13 +441,13 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
     ),
   }),
 
-  // Unbeurteilte Vergehen (#96/#9): sie warten auf IHRE Entscheidung, standen aber nur im
-  // Strafbuch-Reiter. Kostet ein volles Strafbuch (`strafbuchCached`, eine Sub, pro Request
-  // gecacht) — hier auf der EINEN Detailseite vertretbar; die Übersicht über alle Subs bleibt
-  // bewusst aussen vor (dort wäre es N × Strafbuch). Nur die offenen; beurteilt/verworfen steht im
-  // Reiter, dorthin führt „Alle".
+  // Unbeurteilte Vergehen (#96/#9) UND verhängte, noch offene Strafen: beide warten auf IHRE
+  // Handlung — ein Urteil bzw. den Abschluss (`attentionOffensesOf`). Kostet ein volles Strafbuch
+  // (`strafbuchCached`, eine Sub, pro Request gecacht) — hier auf der EINEN Detailseite vertretbar;
+  // die Übersicht über alle Subs bleibt bewusst aussen vor (dort wäre es N × Strafbuch). Erledigtes
+  // und Verworfenes steht im Reiter, dorthin führt „Alle".
   openOffenses: block({
-    load: async ({ subjectId, nowMs }) => openOffensesOf(selectSubOffenses(await strafbuchCached(subjectId, nowMs))),
+    load: async ({ subjectId, nowMs }) => attentionOffensesOf(selectSubOffenses(await strafbuchCached(subjectId, nowMs))),
     render: (offenses, { subjectId, subjectTz, td, tc }) => offenses.length > 0 && (
       <Section
         title={<span className="flex items-center gap-1.5"><Gavel size={12} />{td("blockOpenOffenses")}</span>}
@@ -457,7 +457,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           </Link>
         }
       >
-        <OffenseList offenses={offenses} tz={subjectTz} />
+        <OffenseList offenses={offenses} tz={subjectTz} keyholderOf={subjectId} />
       </Section>
     ),
   }),

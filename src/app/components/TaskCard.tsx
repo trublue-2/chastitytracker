@@ -153,6 +153,11 @@ export default function TaskCard({
         {/* Nachweise als eigene Liste unter den Bedingungen: sie sind eine ZWEITE Achse, keine
             weiteren Bedingungen. Bewusst nicht in dieselbe Liste gemischt — die Bedingungen sind
             Zustände („trägst du das gerade?"), ein Nachweis ist eine Handlung mit Zeitpunkt. */}
+        {task.proofsDue && (
+          <p className="text-xs text-foreground-muted">
+            {t(task.proofsDue.provisional ? "proofsDueLineProvisional" : "proofsDueLine", { value: dual(task.proofsDue.at) })}
+          </p>
+        )}
         {task.proofs.length > 0 && (
           <ChecklistBox>
             {task.proofs.map((p, i) => (
@@ -174,7 +179,7 @@ export default function TaskCard({
                 <span className="min-w-0 flex-1 flex flex-col">
                   <span className="text-sm text-foreground break-words">{p.description}</span>
                   {/* Die EIGENE Fälligkeit dieses Nachweises — nur wo es sie gibt. Sonst gilt die
-                      Frist im Kartenkopf, und dieselbe Uhrzeit ein zweites Mal je Zeile wäre Lärm.
+                      Zeile über der Liste, und dieselbe Uhrzeit ein zweites Mal je Zeile wäre Lärm.
                       Warnfarbe erst, wenn sie verstrichen ist: dann ist sie kein Hinweis mehr,
                       sondern der Beleg für das Urteil der Aufgabe. */}
                   {p.dueAt && (
@@ -400,7 +405,7 @@ function StateLine({
   } else if (task.awaitingConfirmation) {
     text = t("stateAwaitingConfirmation");
   } else if (task.state === "running" && task.startedAt) {
-    text = t("stateRunning", { since: timeOnly(task.startedAt) });
+    text = t(task.startedAlreadyWorn ? "stateRunningAlreadyWorn" : "stateRunning", { since: timeOnly(task.startedAt) });
   } else if (task.state === "partial") {
     text = `${t("stateMissingPrefix")} ${task.missing.join(", ")}`;
   } else {

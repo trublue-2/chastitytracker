@@ -17,7 +17,7 @@ import {
   TASK_REQUIREMENT_TYPES, TASK_PROOF_MAX,
   TASK_PROOF_DESCRIPTION_MAX_LENGTH, type TaskRequirementType,
 } from "@/lib/constants";
-import { formatDateTime, generateKontrollCode, midnightInTZ, APP_TZ } from "@/lib/utils";
+import { formatDateTime, generateKontrollCode, groupByUser, midnightInTZ, APP_TZ } from "@/lib/utils";
 import {
   recurrenceProblem, occurrencesBetween, upcomingOccurrences,
   type RecurrenceRule, type RecurrenceFreq,
@@ -263,7 +263,7 @@ function checkTaskFields(
  *  beide Leser (`updateTask` und die dryRun-Vorschau in `mcpEditTask`). Aus derselben Not wie
  *  `TASK_INCLUDE`: eine zweite Abschrift des `include` fiele erst auf, wenn die Prüfung ins Leere
  *  greift. */
-export const TASK_EDIT_INCLUDE = { _count: { select: { requirements: true } } } as const;
+export const TASK_EDIT_INCLUDE = { _count: { select: { requirements: true, proofs: true } } } as const;
 
 /** Was an der BESTEHENDEN Zeile über die Zulässigkeit einer Änderung entscheidet — genau die Form,
  *  die beide Aufrufer mit {@link TASK_EDIT_INCLUDE} ohnehin aus Prisma bekommen, damit sie die Zeile
@@ -417,6 +417,9 @@ export interface CheckedTask {
    *  überlassen (terminiert). Aus `data` herausgelesen wäre es ein `Date | string | null | undefined`
    *  aus dem Prisma-Typ, das jeder Aufrufer erneut zurechtbiegen müsste. */
   wirksamAb: Date | null;
+  /** Wie viele Nachweise angelegt werden — die Meldung nennt sie. Aus demselben Grund neben `data`
+   *  wie `wirksamAb`: aus der Prisma-Form gelesen wäre es eine Fallunterscheidung über `create`. */
+  proofCount: number;
 }
 
 /**
@@ -507,6 +510,7 @@ export async function checkTask(
     ok: true,
     data: {
       wirksamAb,
+      proofCount: checkedProofs.rows.length,
       data: {
         user: { connect: { id: p.userId } },
         title: p.title.trim(),
@@ -548,6 +552,7 @@ export async function writeTask(tx: PrismaTx, checked: CheckedTask): Promise<Tas
     startGraceMin: task.startGraceMin,
     wirksamAb: task.wirksamAb,
     isPunishment: task.isPunishment,
+    proofCount: checked.proofCount,
   };
 }
 
@@ -563,6 +568,9 @@ export interface TaskNoticeSource {
   /** Als Strafe gestellt? Entscheidet, WELCHE der beiden Meldungen rausgeht (siehe
    *  {@link taskAssignmentNotice}). */
   isPunishment: boolean;
+  /** Wie viele Nachweise die Aufgabe fordert — die Meldung nennt sie (`{proofCount, plural, …}`,
+   *  Vorgabe für ältere Zeilen in `messageDefaults.ts`). */
+  proofCount: number;
 }
 
 /**
@@ -611,7 +619,7 @@ export function taskAssignmentNotice(
     messageKey: penalty
       ? (deadline.durationMode ? "penaltyTaskDurationMessage" : "penaltyTaskMessage")
       : (deadline.durationMode ? "taskAssignedDurationMessage" : "taskAssignedMessage"),
-    params: { title: task.title, ...deadline.params },
+    params: { title: task.title, ...deadline.params, proofCount: task.proofCount },
     // Die Nachricht ZEIGT auf die Aufgabe, statt ihre Beschreibung zu kopieren — der Posteingang
     // liest sie beim Anzeigen frisch. Titel und Frist bleiben bewusst Parameter: eine Nachricht ist
     // die Aufzeichnung dessen, was zu diesem Zeitpunkt gesagt wurde, und eine spätere Änderung trägt
@@ -692,7 +700,7 @@ export async function updateTask(
     await notifyUser(userId, {
       subjectKey: "taskChangedSubject",
       messageKey: deadline.durationMode ? "taskChangedDurationMessage" : "taskChangedMessage",
-      params: { title: next.title, ...deadline.params },
+      params: { title: next.title, ...deadline.params, proofCount: t._count.proofs },
       // KEIN `once`: mehrere Änderungen an derselben Aufgabe sind legitim und jede gehört als eigene
       // Zeile in den Verlauf (so auch bei der Verschluss-Anforderung).
       inbox: { ref: { type: "task", id }, actor },
@@ -1084,6 +1092,7 @@ export async function dispatchDueTasks(now: Date): Promise<void> {
     select: {
       id: true, userId: true, title: true, holdUntil: true, holdDurationMin: true,
       startGraceMin: true, createdAt: true, wirksamAb: true, isPunishment: true, createdBy: true,
+      _count: { select: { proofs: true } },
     },
   });
 
@@ -1094,7 +1103,7 @@ export async function dispatchDueTasks(now: Date): Promise<void> {
       // Kulanzfrist implizit über den neuen Nullpunkt (`startGraceMin` ist eine Dauer, keine Uhrzeit).
       const holdUntil = deadlineFromDispatch({ wirksamAb: t.wirksamAb, deadline: t.holdUntil }, sentAt);
 
-      await notifyUser(t.userId, taskAssignmentNotice({ ...t, wirksamAb: sentAt, holdUntil }, t.createdBy));
+      await notifyUser(t.userId, taskAssignmentNotice({ ...t, proofCount: t._count.proofs, wirksamAb: sentAt, holdUntil }, t.createdBy));
       // `updateMany` mit dem offenen Zustand in der Bedingung statt `update` auf die id: zieht die
       // Keyholderin die Aufgabe zwischen Vorauswahl und Versand zurück, darf der Stempel sie nicht
       // wieder aufwecken. Der Rückzug selbst schwieg (sie galt da noch als verborgen). So bleibt sie
@@ -1166,12 +1175,7 @@ export async function processDueTasks(now: Date): Promise<void> {
 
   // Je User EINMAL auswerten: `evaluateTasks` liest die Trage-/Verschluss-Einträge des Users, und die
   // sind für alle seine Aufgaben dieselben.
-  const byUser = new Map<string, typeof due>();
-  for (const task of due) {
-    const list = byUser.get(task.userId);
-    if (list) list.push(task);
-    else byUser.set(task.userId, [task]);
-  }
+  const byUser = groupByUser(due);
 
   for (const [userId, tasks] of byUser) {
     try {
@@ -1554,7 +1558,7 @@ async function materializeOccurrence(
   // geplante Termin und über den Unique-Index die Idempotenz-Sperre gegen Doppel-Erzeugung.
   const data: Prisma.TaskCreateInput = { ...checked.data.data, series: { connect: { id: s.id } }, seriesOccurrence: occ };
   try {
-    const task = await writeTask(prisma, { data, wirksamAb: checked.data.wirksamAb });
+    const task = await writeTask(prisma, { data, wirksamAb: checked.data.wirksamAb, proofCount: checked.data.proofCount });
     // Eine Serien-Instanz ist per Konstruktion SOFORT wirksam (`seriesToCreateParams` terminiert
     // nichts) — also immer sofort melden, wie `createTask` es für sofortige Aufgaben tut.
     await notifyUser(s.userId, taskAssignmentNotice(task, s.createdBy));

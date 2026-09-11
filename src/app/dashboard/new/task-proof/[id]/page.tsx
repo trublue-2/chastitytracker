@@ -3,8 +3,8 @@ import { getMobileDesktopMode } from "@/lib/queries";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import TaskProofFormCore from "@/app/entries/TaskProofFormCore";
-import { ownProofWhere, proofSubmitBlocked } from "@/lib/taskProofService";
-import { ownProofDeadline } from "@/lib/tasks";
+import { ownProofWhere, proofSubmitContext } from "@/lib/taskProofService";
+import { proofDue } from "@/lib/tasks";
 import { APP_TZ } from "@/lib/utils";
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
@@ -34,7 +34,7 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
         task: {
           // `createdAt`/`wirksamAb` sind der Nullpunkt, an dem die eigene Fälligkeit dieses
           // Nachweises hängt — die Seite braucht sie für die Anzeige. `id`/`holdDurationMin` gehören
-          // zur Schranke: sie misst gegen das WIRKSAME Ende der Aufgabe (siehe `proofSubmitBlocked`).
+          // zur Schranke: sie misst gegen das WIRKSAME Ende der Aufgabe (siehe `proofSubmitContext`).
           select: {
             id: true, title: true, withdrawnAt: true, holdUntil: true, holdDurationMin: true,
             proofOrderMatters: true, createdAt: true, wirksamAb: true,
@@ -52,19 +52,14 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
   //
   // Eine verstrichene EIGENE Frist des Nachweises leitet NICHT mehr um: verspätet einreichen ist
   // erlaubt, die Keyholderin entscheidet (siehe `proofSubmitBlockedReason`).
-  if (!proof || await proofSubmitBlocked(proof, session.user.id, now)) {
-    redirect("/dashboard");
-  }
+  if (!proof) redirect("/dashboard");
+  const window = await proofSubmitContext(proof, session.user.id, now);
+  if (window.blocked) redirect("/dashboard");
 
-  // Die eigene Fälligkeit, einmal aufgelöst: sie steht im Formular UND entscheidet, ob es den
-  // Verspätungs-Hinweis trägt.
-  //
-  // Gedeckelt auf die SPALTE `holdUntil`, während die Karte gegen das WIRKSAME Ende deckelt. Der
-  // Deckel greift hier praktisch nie: der Dienst weist eine Nachweis-Frist ab, die hinter dem
-  // FRÜHESTMÖGLICHEN Ende läge (`TASK_PROOF_DUE_AFTER_END`), und das liegt nie nach dem wirksamen.
-  // Auseinander gehen die beiden nur, wenn die Frist der Aufgabe nachträglich verkürzt wurde — und
-  // dann hat die Schranke oben ohnehin schon entschieden, ob diese Seite überhaupt aufgeht.
-  const dueAt = ownProofDeadline(proof, proof.task, proof.task.holdUntil);
+  // Die Fälligkeit, einmal aufgelöst: die eigene, sonst das WIRKSAME Ende der Aufgabe — aus derselben
+  // Auswertung, gegen die die Schranke oben geprüft hat (im Dauer-Modus wäre die Spalte bis zu einer
+  // Kulanzfrist zu spät). Sie steht im Formular UND entscheidet, ob es den Verspätungs-Hinweis trägt.
+  const due = proofDue(proof, proof.task, window.end);
 
   const [tTasks] = await Promise.all([getTranslations("tasks")]);
 
@@ -85,15 +80,14 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
       code={proof.code}
       taskTitle={proof.task.title}
       orderMatters={proof.task.proofOrderMatters}
-      // Nur die EIGENE Fälligkeit: wo der Nachweis bis zum Ende der Aufgabe offen ist, steht die
-      // Frist bereits auf der Karte, von der er hierher kam.
-      dueAt={dueAt?.toISOString() ?? null}
+      dueAt={due.at.toISOString()}
+      dueProvisional={due.provisional}
       // Er ist SPÄT dran und weiss es aus der Karte — das Formular darf es nicht verschweigen,
       // sonst führt der ruhige Frist-Satz oben in ein falsches Sicherheitsgefühl.
       //
       // `>=` wie in der Auswertung (`overdueProofsAt`): mit `>` wäre die Zeile im Moment des
       // Fristablaufs auf der Karte überfällig und hier ruhig — dieselbe Sekunde, zwei Auskünfte.
-      late={dueAt !== null && now >= dueAt}
+      late={!due.provisional && now >= due.at}
       tz={session.user.timezone ?? APP_TZ}
       // Nachbessern nach Ablehnung: bisherigen Text vorbefüllen (ergänzen statt leer beginnen) und die
       // Begründung mitgeben. `reviewAccepted === false` ist genau der abgelehnte Zustand — bei einer

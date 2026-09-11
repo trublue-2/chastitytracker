@@ -153,7 +153,7 @@ afterEach(() => {
 const judgmentRow = (status: "PUNISHED" | "DISMISSED", reason: string | null) => ({
   userId: USER_ID, offenseType: TYPE, refId: REF,
   status, reason, judgedBy: "admin", judgedByName: HERRIN,
-  erledigtAt: null, bestraftDatum: NOW, taskId: null,
+  erledigtAt: null, bestraftDatum: NOW, taskId: null, reportedDoneAt: null,
 });
 
 /** Der Rückzug der Strafaufgabe, die am ersetzten Urteil hängt — über die BEZIEHUNG, nicht über
@@ -296,7 +296,8 @@ describe("Erledigt-Schalter der Strafe", () => {
 
     expect(res.status).toBe(200);
     expect(mock(prisma.strafeRecord.update)).toHaveBeenCalledWith({
-      where: { refId: REF }, data: { erledigtAt: null },
+      // „Wieder offen" nimmt die Erledigt-Meldung des Trägers mit zurück.
+      where: { refId: REF }, data: { erledigtAt: null, reportedDoneAt: null },
     });
   });
 

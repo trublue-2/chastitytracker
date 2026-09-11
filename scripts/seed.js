@@ -20,6 +20,7 @@ const NOTIFICATION_EVENT_TYPES = [
   "WEAR_END_ANY",
   "TASK_PROOF_LATE",
   "OFFENSE_STATEMENT",
+  "PENALTY_REPORTED_DONE",
 ];
 
 // Mirror of src/lib/reasonsService.ts (ART_SEP + DEFAULT_ORGASM_ARTEN sub-combos + backfill logic).
