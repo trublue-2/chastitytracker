@@ -28,7 +28,7 @@ import TelegramSettings from "./TelegramSettings";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageMail, messagePush, messageTelegram, telegramConfigured, telegramLinked, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageMail, messagePush, messageTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
@@ -104,6 +104,8 @@ export default function SettingsForm({ username, email, locale, timezone, startP
     setEmailSaving(false);
     if (res.ok) {
       setEmailSuccess(true);
+      // Die Warnung „kein Kanal trägt" hängt an der Adresse — frisch vom Server lesen.
+      router.refresh();
     } else {
       const data = await res.json();
       setEmailError(apiError(data.error));
@@ -183,11 +185,14 @@ export default function SettingsForm({ username, email, locale, timezone, startP
   // selektives Schreiben und Fehler-Behandlung stecken im geteilten Hook.
   const toggleMessageChannel = useNotificationChannelToggle("MESSAGE_RECEIVED", setMessageNotifyError);
 
-  // „Letzter Kanal aus": Telegram zählt nur, wenn die Instanz einen Bot führt UND der Chat verbunden
-  // ist. Sind alle verbleibenden Kanäle aus, erreicht den Nutzer extern nichts mehr — nur der
-  // Posteingang. Dann warnen (seit die Schalter ALLE Meldungen gaten, nicht nur neue Nachrichten).
+  // „Kein Kanal trägt": ein Kanal zählt nur, wenn er an ist UND den Nutzer erreichen kann — Mail und
+  // Push nach dem Urteil des Servers (dieselbe Regel wie der Frist-Rückfall `getDeadlineChannels`),
+  // Telegram mit Bot und verbundenem Chat (einen blockierten Bot löst der Server selbst). Trägt keiner,
+  // erreicht den Nutzer extern nichts mehr — nur der Posteingang und Frist-Meldungen über den Rückfall.
+  const mailChannelActive = messageMailValue && mailReachable;
+  const pushChannelActive = messagePushValue && pushReachable;
   const telegramChannelActive = telegramConfigured && telegramLinkedValue && messageTelegramValue;
-  const noExternalChannel = !messageMailValue && !messagePushValue && !telegramChannelActive;
+  const noExternalChannel = !mailChannelActive && !pushChannelActive && !telegramChannelActive;
 
   const startPageOptions = [
     { value: "auto", label: t("startPageAuto") },

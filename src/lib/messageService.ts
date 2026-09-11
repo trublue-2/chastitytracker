@@ -2,12 +2,13 @@ import { cache } from "react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getControllableSubsCached } from "@/lib/keyholder";
-import { bodyKeysOfCategory, bodyKeysOutsideSystem, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
+import { bodyKeysOfCategory, bodyKeysOutsideSystem, isDeadlineMessage, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
 import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { mapAnforderungStatus } from "@/lib/utils";
 import { AI_AUTHOR, hasAuthor, type NotificationChannels } from "@/lib/constants";
 import { getMessageChannels } from "@/lib/notificationPrefs";
+import { getDeadlineChannels } from "@/lib/deadlineChannels";
 
 /**
  * Der Posteingang: die Nachrichten, die der Sub nachlesen kann.
@@ -1047,11 +1048,19 @@ export const unreadCountCached = cache(
  * Stand des jeweiligen LESERS und bräuchte dessen Sub-Liste. Ein Aufrufer kann das damit nicht
  * falsch machen; die Keyholder-Zeile schreibt `notifyControllers` direkt über
  * {@link recordSystemMessage} — bewusst ohne Badge, aus genau diesem Grund.
+ *
+ * Für eine Meldung mit Frist ({@link isDeadlineMessage}) gilt der Schalter mit Rückfall: erreicht
+ * keiner der eingeschalteten Kanäle den Empfänger, kommen alle erreichbaren zurück
+ * ({@link getDeadlineChannels}). Abgeleitet aus dem `bodyKey`, nicht vom Aufrufer gesetzt — ein neuer
+ * Versender kann es damit nicht vergessen.
  */
 export async function recordInboxDelivery(
   p: Omit<RecordMessageParams, "audience">,
 ): Promise<{ badge: number | undefined; channels: NotificationChannels }> {
-  const [badge, channels] = await Promise.all([recordAndCount(p), getMessageChannels(p.subjectUserId)]);
+  const [badge, channels] = await Promise.all([
+    recordAndCount(p),
+    isDeadlineMessage(p.bodyKey) ? getDeadlineChannels(p.subjectUserId) : getMessageChannels(p.subjectUserId),
+  ]);
   return { badge, channels };
 }
 

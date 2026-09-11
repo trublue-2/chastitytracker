@@ -16,10 +16,21 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+/** Kann die Instanz überhaupt Mails versenden? Ohne `SMTP_HOST` fällt der ganze Kanal still aus. */
+export function mailConfigured(): boolean {
+  return !!process.env.SMTP_HOST;
+}
+
+/** Erreicht eine Mail den Nutzer — Adresse hinterlegt UND Instanz kann versenden? Geteilt vom
+ *  Frist-Rückfall und der Warnung in den Einstellungen, damit beide dasselbe meinen. */
+export function mailReaches(email: string | null | undefined): boolean {
+  return !!email && mailConfigured();
+}
+
 export async function sendMail(to: string, subject: string, html: string) {
   // Ohne konfiguriertes SMTP still übersprungen statt geworfen — eine fehlende Mail-Config darf
   // keinen Business-Flow (Reset, Kontrolle, Benachrichtigung) mit einem 500 abbrechen.
-  if (!process.env.SMTP_HOST) {
+  if (!mailConfigured()) {
     structuredLog("mail", "skipped_no_smtp", { to, subject });
     return;
   }

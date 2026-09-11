@@ -1,5 +1,32 @@
 [
   {
+    "version": "6.2.2",
+    "date": "2026-09-11",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Anforderungen mit Frist und Änderungen daran kommen wieder sicher an: erreicht dich keiner deiner eingeschalteten Kanäle, gehen Kontrolle, Einschliessen und Aufgaben an jeden eingerichteten Kanal.",
+          "en": "Requests with a deadline, and changes to them, get through reliably again: if none of your switched-on channels reaches you, inspections, lock-ups and tasks go to every channel you have set up."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Hast du den Telegram-Bot blockiert, trennt die App die Verbindung und die Einstellungen warnen dich, statt Meldungen still ins Leere zu schicken.",
+          "en": "If you block the Telegram bot, the app now disconnects it and your settings warn you, instead of silently sending messages into the void."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Keyholder-Übersicht zeigt die Sperrzeit wieder als „Gesperrt bis …“ ohne doppeltes „bis“, und das Strafbuch benennt den Weg eines Passwortwechsels verständlich.",
+          "en": "The keyholder overview shows the lock period as “Held until …” again without a stray German word, and the penalty log names how a password was changed in plain words."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.1",
     "date": "2026-09-11",
     "changes": [

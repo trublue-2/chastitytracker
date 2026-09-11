@@ -33,6 +33,16 @@ Die Spalte **Schalter** meint „Mail und Push bei neuen Nachrichten"
 alles mit **Frist oder Pflicht** ist nicht stummschaltbar, reine Statusmeldungen sind es. Der
 Posteingang-Eintrag entsteht in **allen** Fällen; genau das ist der Gewinn der Persistenz.
 
+**Stand v6.2.2:** v6.2.1 hatte die Frist-Meldungen (Kontrolle, Einschliessen/Sperrzeit,
+Orgasmus-Anweisung) ebenfalls an den Schalter gehängt — mit der Folge, dass eine Kontrolle bei
+abgeschalteten Kanälen und blockiertem Telegram-Bot nirgends ankam und als Vergehen gebucht wurde.
+Seitdem gilt für alle Frist-Meldungen — dazu Mahnung, Aufgabe, Nachweis-Erinnerung und jede
+ÄNDERUNG einer Frist — der Schalter mit **Rückfall**: erreicht keiner der eingeschalteten Kanäle den
+Empfänger, gehen sie an jeden erreichbaren (`deadlineChannels.ts`). Welche Meldung eine Frist hat,
+steht vollständig in `DEADLINE_BY_BODY_KEY` (`messageCategories.ts`); `recordInboxDelivery` leitet
+es daraus ab. Ein blockierter Telegram-Bot löst die Verbindung (`forgetDeadChat`), statt still
+weiter ins Leere zu senden.
+
 ### Kontrolle
 
 | Ereignis | Ausgelöst durch | `bodyKey` | Mail | Push | Schalter | Stille-Regel |

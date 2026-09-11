@@ -18,10 +18,51 @@ export function telegramLinkAvailable(): boolean {
 }
 
 /**
+ * Meldet diese Antwort der Bot-API einen TOTEN Chat — Bot blockiert, Konto gelöscht, Bot entfernt?
+ * Dann trägt der Kanal nie wieder, bis der Nutzer neu verbindet. Andere Fehler (Netz, Drosselung,
+ * „chat not found" nach einer Umstellung) gelten als vorübergehend und lassen die Verbindung stehen.
+ */
+export function isDeadChatResponse(status: number, detail: string): boolean {
+  return status === 403 && /blocked by the user|user is deactivated|bot was kicked/i.test(detail);
+}
+
+/**
+ * Einen toten Chat lösen. Danach zeigen die Einstellungen „nicht verbunden", die Warnung „kein Kanal
+ * trägt" greift, und Frist-Meldungen fallen auf die übrigen Kanäle zurück (`getDeadlineChannels`) —
+ * statt dass jede Meldung still an einem blockierten Bot scheitert.
+ */
+export async function forgetDeadChat(chatId: string): Promise<void> {
+  const { count } = await prisma.user.updateMany({ where: { telegramChatId: chatId }, data: { telegramChatId: null } });
+  structuredLog("telegram", "unlinked_dead_chat", { chatId, count });
+}
+
+/** Ein Aufruf der Bot-API an einen Chat. Erkennt einen toten Chat und löst ihn; wirft bei Netzfehlern. */
+async function callBot(
+  method: string,
+  chatId: string,
+  payload: Record<string, unknown>,
+): Promise<{ ok: true } | { ok: false; status: number; detail: string }> {
+  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, ...payload }),
+    // `notifyLoadedUser` awaitet den Versand — ohne Timeout hinge eine lahme Telegram-API die
+    // Antwort des auslösenden Requests fest (Push ist daneben fire-and-forget). 10s wie bei APNs.
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (res.ok) return { ok: true };
+  // Der Grund steht im Body (z.B. "chat not found", "bot was blocked by the user").
+  const detail = (await res.text().catch(() => "")).slice(0, 200);
+  if (isDeadChatResponse(res.status, detail)) await forgetDeadChat(chatId);
+  return { ok: false, status: res.status, detail };
+}
+
+/**
  * Eine Meldung an einen verknüpften Chat senden — fehlertolerant und exakt nach dem Muster von
  * {@link import("@/lib/mail").sendMailSafe}: ohne konfiguriertes `TELEGRAM_BOT_TOKEN` still
  * übersprungen (kein Wurf), und jeder Fehler (Netz, ungültiger Chat, gesperrter Bot) wird gefangen
- * und geloggt statt den awaitenden Business-Flow mit einem 500 abzubrechen.
+ * und geloggt statt den awaitenden Business-Flow mit einem 500 abzubrechen. Ein toter Chat wird
+ * dabei gelöst ({@link forgetDeadChat}).
  */
 export async function sendTelegram(chatId: string, text: string): Promise<void> {
   if (!BOT_TOKEN) {
@@ -29,18 +70,9 @@ export async function sendTelegram(chatId: string, text: string): Promise<void> 
     return;
   }
   try {
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
-      // `notifyLoadedUser` awaitet den Versand — ohne Timeout hinge eine lahme Telegram-API die
-      // Antwort des auslösenden Requests fest (Push ist daneben fire-and-forget). 10s wie bei APNs.
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) {
-      // Der Grund steht im Body (z.B. "chat not found", "bot was blocked by the user").
-      const detail = await res.text().catch(() => "");
-      structuredLog("telegram", "send_failed", { chatId, status: res.status, detail: detail.slice(0, 200) });
+    const r = await callBot("sendMessage", chatId, { text, disable_web_page_preview: true });
+    if (!r.ok) {
+      structuredLog("telegram", "send_failed", { chatId, status: r.status, detail: r.detail });
       return;
     }
     structuredLog("telegram", "sent", { chatId });
@@ -50,12 +82,28 @@ export async function sendTelegram(chatId: string, text: string): Promise<void> 
 }
 
 /**
+ * Erreicht der Bot diesen Chat noch? Fragt mit der „schreibt …"-Anzeige an, die keine Nachricht
+ * hinterlässt. Gebraucht nur, wenn eine Frist-Meldung sonst allein auf Telegram angewiesen wäre
+ * (`getDeadlineChannels`). Im Zweifel `false`: ein Netzfehler lässt dann zusätzlich Mail und Push
+ * zu — eine Meldung zu viel ist bei einer Frist der harmlosere Ausgang als keine.
+ */
+export async function telegramChatReachable(chatId: string): Promise<boolean> {
+  if (!BOT_TOKEN) return false;
+  try {
+    return (await callBot("sendChatAction", chatId, { action: "typing" })).ok;
+  } catch (e) {
+    structuredLog("telegram", "probe_error", { chatId, error: (e as Error).message });
+    return false;
+  }
+}
+
+/**
  * Telegram-Kurzmeldung an einen Nutzer über seine User-id — lädt die verknüpfte `telegramChatId` und
  * sendet fire-and-forget, exakt wie {@link import("@/lib/push").firePush}. Nimmt `title` und `body`
  * getrennt (dieselbe Signatur wie `firePush`) und fügt sie als `Titel\n\nText` zusammen; ohne
  * verknüpften Chat passiert nichts. Für die reichhaltigen Direktiv-Meldungen (Verschluss/Orgasmus/
- * Kontrolle), die bewusst ungefiltert neben Mail+Push gehen und `firePush` direkt rufen, statt über
- * `notifyUser` — dort ist Telegram schon eingebaut.
+ * Kontrolle), die ihre Kanäle selbst über `recordInboxDelivery` bekommen und `firePush` direkt rufen,
+ * statt über `notifyUser` — dort ist Telegram schon eingebaut.
  */
 export function fireTelegram(userId: string, title: string, body: string): void {
   void (async () => {

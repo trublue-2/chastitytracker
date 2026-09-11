@@ -1768,8 +1768,8 @@
       "ai": "KI-Keyholder"
     },
     "notifyLabel": "Benachrichtigungen",
-    "notifyHint": "Diese Schalter steuern alle Benachrichtigungen an dich. Alles wird zusätzlich im Posteingang gesammelt — ein abgeschalteter Kanal liefert nichts mehr, der Posteingang behält es.",
-    "allChannelsOffWarning": "Alle Kanäle sind aus. Neue Anforderungen, Fristen und Nachrichten erreichen dich dann nur noch im Posteingang.",
+    "notifyHint": "Diese Schalter steuern alle Benachrichtigungen an dich. Alles wird zusätzlich im Posteingang gesammelt — ein abgeschalteter Kanal liefert nichts mehr, der Posteingang behält es. Anforderungen mit Frist kommen immer an: erreicht dich keiner der eingeschalteten Kanäle, gehen sie an jeden eingerichteten.",
+    "allChannelsOffWarning": "Über deine eingeschalteten Kanäle erreicht dich gerade nichts — sie sind aus oder nicht eingerichtet. Anforderungen mit Frist gehen dann an jeden eingerichteten Kanal, alles andere landet nur im Posteingang.",
     "catInspection": "Kontrolle",
     "catLock": "Sperrzeit & Verschluss",
     "catOrgasm": "Orgasmus",

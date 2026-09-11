@@ -685,6 +685,12 @@ export function anyChannelActive(channels: NotificationChannels): boolean {
   return channels.mail || channels.push || channels.telegram;
 }
 
+/** Kanalweises UND zweier Kanal-Sätze, z.B. „eingeschaltet" ∧ „erreichbar". Aus demselben Grund wie
+ *  {@link anyChannelActive} hier und nicht als Kette beim Aufrufer. */
+export function channelsAnd(a: NotificationChannels, b: NotificationChannels): NotificationChannels {
+  return { mail: a.mail && b.mail, push: a.push && b.push, telegram: a.telegram && b.telegram };
+}
+
 /**
  * Präferenzen, die am EMPFÄNGER hängen — bewusst eine eigene Liste.
  *

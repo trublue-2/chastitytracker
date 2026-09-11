@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getControllableSubs } from "@/lib/keyholder";
 import { getMessageChannels, getRecipientChannels } from "@/lib/notificationPrefs";
 import { telegramLinkAvailable } from "@/lib/telegram";
+import { hasPushTarget } from "@/lib/push";
+import { mailReaches } from "@/lib/mail";
 import { isValidStartPage, weightTrackingEnabled } from "@/lib/constants";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
@@ -34,6 +36,12 @@ export interface SettingsFormProps {
   telegramConfigured: boolean;
   /** Hat dieser Nutzer seinen Telegram-Chat verknüpft? */
   telegramLinked: boolean;
+  /** Erreicht Mail diesen Nutzer — Adresse hinterlegt UND Instanz versendet (`mailReaches`, dieselbe
+   *  Regel wie der Frist-Rückfall)? Für die Warnung „kein Kanal trägt". */
+  mailReachable: boolean;
+  /** Ist irgendein Push-Ziel registriert (App oder Browser, auf irgendeinem Gerät)? Ohne Ziel liefert
+   *  der Push-Schalter nichts. Für dieselbe Warnung. */
+  pushReachable: boolean;
   version: string;
   buildDate?: string;
   feedbackEnabled?: boolean;
@@ -63,9 +71,11 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   let messagePush = true;
   let messageTelegram = true;
   let telegramLinked = false;
+  let mailReachable = false;
+  let pushReachable = false;
 
   if (userId) {
-    const [dbUser, pref, reminderPref] = await Promise.all([
+    const [dbUser, pref, reminderPref, pushTarget] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -77,7 +87,9 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
       }),
       getMessageChannels(userId),
       getRecipientChannels(userId, "WEIGHT_REMINDER"),
+      hasPushTarget(userId),
     ]);
+    pushReachable = pushTarget;
     // Drei unabhängige Kanal-Schalter: Mail, Push und Telegram je einzeln an/aus.
     messageMail = pref.mail;
     messagePush = pref.push;
@@ -85,6 +97,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     if (dbUser) {
       username = dbUser.username;
       email = dbUser.email ?? null;
+      mailReachable = mailReaches(email);
       locale = dbUser.locale;
       timezone = dbUser.timezone;
       startPage = dbUser.startPage;
@@ -132,6 +145,8 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     messageTelegram,
     telegramConfigured: telegramLinkAvailable(),
     telegramLinked,
+    mailReachable,
+    pushReachable,
     version: pkg.version,
     buildDate: process.env.BUILD_DATE ?? undefined,
     feedbackEnabled: process.env.DISABLE_FEEDBACK !== "true",

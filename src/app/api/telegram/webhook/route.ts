@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { consumeTelegramLink, sendTelegram, telegramWebhookSecretOk } from "@/lib/telegram";
+import { consumeTelegramLink, forgetDeadChat, sendTelegram, telegramWebhookSecretOk } from "@/lib/telegram";
 import { localeT } from "@/lib/emailI18n";
 import { structuredLog } from "@/lib/serverLog";
 
@@ -9,8 +9,9 @@ import { structuredLog } from "@/lib/serverLog";
  * Telegram im Header `X-Telegram-Bot-Api-Secret-Token` mitschickt. Stimmt es nicht, wird abgelehnt.
  *
  * Aufgabe: das `/start <token>` einfangen, das der Nutzer nach dem Deep-Link auslöst, und die
- * `chat_id` an den zum Token gehörenden Nutzer schreiben. Alles andere wird still bestätigt (200),
- * damit Telegram nicht endlos wiederholt.
+ * `chat_id` an den zum Token gehörenden Nutzer schreiben. Und: eine Blockade des Bots sofort als
+ * getrennte Verbindung übernehmen. Alles andere wird still bestätigt (200), damit Telegram nicht
+ * endlos wiederholt.
  */
 export async function POST(req: NextRequest) {
   if (!telegramWebhookSecretOk(req.headers.get("x-telegram-bot-api-secret-token"))) {
@@ -22,6 +23,18 @@ export async function POST(req: NextRequest) {
     update = await req.json();
   } catch {
     return NextResponse.json({ ok: true }); // kein JSON → nichts zu tun, aber nicht wiederholen
+  }
+
+  // Bot blockiert oder Chat gelöscht: Telegram meldet das als `my_chat_member` mit Status „kicked".
+  // Sofort lösen — sonst merkt die App es erst beim nächsten Versand, und bei einer Frist ist das zu spät.
+  const member = (update as { my_chat_member?: { chat?: { id?: number | string }; new_chat_member?: { status?: string } } })?.my_chat_member;
+  if (member?.new_chat_member?.status === "kicked" && member.chat?.id != null) {
+    try {
+      await forgetDeadChat(String(member.chat.id));
+    } catch (e) {
+      structuredLog("telegram", "webhook_error", { error: (e as Error).message });
+    }
+    return NextResponse.json({ ok: true });
   }
 
   const msg = (update as { message?: { text?: string; chat?: { id?: number | string } } })?.message;

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import Toggle from "@/app/components/Toggle";
 import useToast from "@/app/hooks/useToast";
 import { isNativePlatform, isNativePushRegistered, registerNativePush, unregisterNativePush } from "@/lib/nativePush";
@@ -50,6 +51,7 @@ const TEXT_STATES: Partial<Record<PushState, { key: string; warn?: boolean }>> =
 export default function PushManager() {
   const t = useTranslations("settings");
   const toast = useToast();
+  const router = useRouter();
   const [pushState, setPushState] = useState<PushState>("loading");
   const [subscribed, setSubscribed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -130,6 +132,8 @@ export default function PushManager() {
       toast.error(t("pushRegisterFailed"));
     } finally {
       setSaving(false);
+      // Ob ein Push-Ziel existiert, weiss nur der Server — die Warnung „kein Kanal trägt" neu lesen.
+      router.refresh();
     }
   }
 

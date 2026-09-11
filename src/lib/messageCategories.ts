@@ -119,6 +119,83 @@ export function messageCategory(bodyKey: string | null): MessageCategory {
 }
 
 /**
+ * Hat diese Meldung eine FRIST — wird ihr Verpassen zum Vergehen? Dann gilt beim Versand der
+ * Rückfall aus `deadlineChannels.ts`: erreicht keiner der eingeschalteten Kanäle den Träger, geht sie
+ * an jeden erreichbaren. Dazu zählen auch die ÄNDERUNGEN einer Frist — wer eine vorgezogene Frist
+ * oder eine verlängerte Sperrzeit nicht erfährt, verstösst genauso wie bei einer neuen.
+ *
+ * Vollständig für alle Schlüssel, damit ein neuer Meldungstext nicht kompiliert, bevor jemand
+ * entschieden hat. Die Keyholder-Meldungen stehen mit `false` darin: den Rückfall gibt es nur auf
+ * dem Weg zum Träger (`recordInboxDelivery`).
+ */
+const DEADLINE_BY_BODY_KEY: Record<MessageBodyKey, boolean> = {
+  inspectionRequestedMessage: true,
+  inspectionReminderMessage: true,
+  inspectionReminderMessageNoCode: true,
+  lockRequestBody: true,
+  lockPeriodSetBody: true,
+  lockRequestChangedMessage: true,
+  lockPeriodChangedMessage: true,
+  lockPeriodChangedMessageIndefinite: true,
+  // Nur die Anweisung ist eine Pflicht — die Gelegenheit ist eine Erlaubnis.
+  orgasmAnweisungIntro: true,
+  taskAssignedMessage: true,
+  taskAssignedDurationMessage: true,
+  taskChangedMessage: true,
+  taskChangedDurationMessage: true,
+  penaltyTaskMessage: true,
+  penaltyTaskDurationMessage: true,
+  taskAwaitingMessage: true,
+  taskProofReminderMessage: true,
+
+  penaltyMessage: false,
+  penaltyMessageNoReason: false,
+  penaltyReportedDoneMessage: false,
+  offenseDetectedMessage: false,
+  offenseDetectedMessageTitled: false,
+  offenseDismissedMessage: false,
+  wrongDeviceMessage: false,
+  offenseStatementMessage: false,
+  inspectionConfirmedMessage: false,
+  inspectionRejectedMessage: false,
+  inspectionResolvedWithdrawnMessage: false,
+  inspectionAutoRemovedMessageSub: false,
+  inspectionAutoRemovedMessageSubNoCode: false,
+  inspectionAutoRemovedMessageSubWear: false,
+  inspectionAutoRemovedMessageSubWearNoCode: false,
+  inspectionAutoRemovedMessageKeyholder: false,
+  inspectionAutoRemovedMessageKeyholderNoCode: false,
+  inspectionAutoRemovedMessageKeyholderWear: false,
+  inspectionAutoRemovedMessageKeyholderWearNoCode: false,
+  releasedNowMessage: false,
+  lockRequestWithdrawnMessage: false,
+  lockPeriodWithdrawnMessage: false,
+  orgasmGelegenheitIntro: false,
+  orgasmWithdrawnMessage: false,
+  taskWithdrawnMessage: false,
+  taskDoneMessage: false,
+  taskFailedMessage: false,
+  taskDoneMessageKeyholder: false,
+  taskFailedMessageKeyholder: false,
+  taskReviewMessageKeyholder: false,
+  taskProofLateMessageKeyholder: false,
+  taskProofAcceptedMessage: false,
+  taskProofRejectedMessage: false,
+  weightTargetReachedMessageKeyholder: false,
+  weightTargetLostMessageKeyholder: false,
+  weightReleaseSetMessage: false,
+  weightReleaseWithdrawnMessage: false,
+  weightReleaseOpenedMessageKeyholder: false,
+  healthHoldStartedMessage: false,
+  healthHoldEndedMessage: false,
+};
+
+/** Siehe {@link DEADLINE_BY_BODY_KEY}. `Object.hasOwn` aus demselben Grund wie in `messageCategory`. */
+export function isDeadlineMessage(bodyKey: string): boolean {
+  return Object.hasOwn(DEADLINE_BY_BODY_KEY, bodyKey) && DEADLINE_BY_BODY_KEY[bodyKey as MessageBodyKey];
+}
+
+/**
  * Label-Schlüssel (Namensraum `messages`) + Badge-Variante je Kategorie.
  *
  * Die Farben kommen aus `Badge` und werden hier NICHT als Klassen wiederholt — sonst stünden dieselben
