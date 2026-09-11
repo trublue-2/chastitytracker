@@ -71,6 +71,8 @@ describe("priorPunishments", () => {
     ...over,
   });
 
+  const refs = (...ids: string[]) => new Set(ids);
+
   it("zählt nur die VERHÄNGTEN dieser Art", () => {
     const records = [
       rec({ refId: "a" }),
@@ -78,7 +80,18 @@ describe("priorPunishments", () => {
       rec({ refId: "c", offenseType: "KONTROLLANFORDERUNG" }), // andere Art
       rec({ refId: "d" }),
     ];
-    expect(priorPunishments(records, "OEFFNEN_ENTRY").count).toBe(2);
+    expect(priorPunishments(records, "OEFFNEN_ENTRY", refs("a", "b", "c", "d")).count).toBe(2);
+  });
+
+  it("trennt Arten, die sich einen gespeicherten Typ teilen", () => {
+    // Verspätete und abgelehnte Kontrolle tragen beide `KONTROLLANFORDERUNG`. Die Sektion der
+    // verspäteten kennt nur ihre eigenen refs — die abgelehnte darf nicht als „zuletzt" erscheinen.
+    const records = [
+      rec({ refId: "abgelehnt", offenseType: "KONTROLLANFORDERUNG", reason: "Foto neu" }),
+      rec({ refId: "spaet", offenseType: "KONTROLLANFORDERUNG", reason: "Halsband anlegen" }),
+    ];
+    const prior = priorPunishments(records, "KONTROLLANFORDERUNG", refs("spaet", "offen"));
+    expect(prior).toEqual({ count: 1, last: records[1] });
   });
 
   it("nimmt als `last` den ersten Treffer — die Liste steht neueste zuerst", () => {
@@ -86,10 +99,10 @@ describe("priorPunishments", () => {
       rec({ refId: "neu", reason: "zwei Tage länger", judgedAtStr: "08.09.2026" }),
       rec({ refId: "alt", reason: "20 Schläge", judgedAtStr: "01.09.2026" }),
     ];
-    expect(priorPunishments(records, "OEFFNEN_ENTRY").last?.reason).toBe("zwei Tage länger");
+    expect(priorPunishments(records, "OEFFNEN_ENTRY", refs("neu", "alt")).last?.reason).toBe("zwei Tage länger");
   });
 
   it("ohne Vorgeschichte: null statt einer leeren Zeile", () => {
-    expect(priorPunishments([rec({ status: "DISMISSED" })], "OEFFNEN_ENTRY")).toEqual({ count: 0, last: null });
+    expect(priorPunishments([rec({ status: "DISMISSED" })], "OEFFNEN_ENTRY", refs("r"))).toEqual({ count: 0, last: null });
   });
 });

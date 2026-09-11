@@ -764,7 +764,8 @@ export interface MessagePage {
  * (`messageCategories.ts`), gefiltert wird über die Schlüssel, die dazu gehören. „system" ist dabei
  * der Auffang-Topf und braucht die Umkehrung — sonst fielen die Freitext-Nachrichten (`bodyKey`
  * null) aus jedem Filter heraus. `OR` statt `notIn` allein, weil SQL für `NULL NOT IN (…)` „unknown"
- * liefert und die Zeile damit ausschlösse.
+ * liefert und die Zeile damit ausschlösse. Das Ergebnis trägt damit selbst ein `OR` — wer eine
+ * eigene Bedingung dazunimmt, verbindet per `AND`, statt zu spreizen.
  */
 function messageWhere(scope: InboxScope, filter: MessageFilter = {}): Prisma.MessageWhereInput {
   return {
@@ -814,12 +815,18 @@ export async function pageOfMessage(
     select: { createdAt: true, id: true },
   });
   if (!row) return null;
+  // `AND` statt Spread: `messageWhere` trägt beim Kategorie-Filter „system" selbst ein `OR`, und ein
+  // zweites daneben überschriebe es still — gezählt würde dann über alle Kategorien.
   const before = await prisma.message.count({
     where: {
-      ...where,
-      OR: [
-        { createdAt: { gt: row.createdAt } },
-        { createdAt: row.createdAt, id: { gt: row.id } },
+      AND: [
+        where,
+        {
+          OR: [
+            { createdAt: { gt: row.createdAt } },
+            { createdAt: row.createdAt, id: { gt: row.id } },
+          ],
+        },
       ],
     },
   });

@@ -343,12 +343,20 @@ const CHIP_OK_CLS = `${CHIP_CLS} text-[var(--color-ok)] border-[var(--color-ok)]
  * Gezählt werden nur VERHÄNGTE Strafen. Ein verworfenes Vergehen ist keine Vorgeschichte, sondern
  * das Gegenteil davon — es mitzuzählen liesse die Zeile strenger klingen, als der Bestand hergibt.
  *
+ * „Dieser Art" ist die ANGEZEIGTE Art: `sameKindRefs` sind die refs der Sektion des Formulars, denn
+ * den gespeicherten Typ teilen sich mehrere Arten. Ein Urteil, dessen Vergehen nicht mehr abgeleitet
+ * wird, zählt nicht mit.
+ *
  * Erwartet `records` NEUESTE ZUERST (so sortiert `page.tsx`): `last` ist schlicht der erste
  * Treffer. Auf Modulebene und rein, damit genau diese Auswahl prüfbar bleibt — sie kann still
  * falsch werden, ohne dass die Seite anders aussieht.
  */
-export function priorPunishments(records: readonly StrafeRecordData[], offenseType: string) {
-  const prior = records.filter(r => r.offenseType === offenseType && r.status === "PUNISHED");
+export function priorPunishments(
+  records: readonly StrafeRecordData[],
+  offenseType: string,
+  sameKindRefs: ReadonlySet<string>,
+) {
+  const prior = records.filter(r => r.offenseType === offenseType && r.status === "PUNISHED" && sameKindRefs.has(r.refId));
   return { count: prior.length, last: prior[0] ?? null };
 }
 
@@ -463,10 +471,11 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   }
 
   /** Gemeinsames Urteils-Formular (bestrafen ODER verwerfen) — Freitext + Abbrechen/Submit. */
-  function JudgmentForm({ refId, offenseType, status, label, placeholder, submitLabel, submitIcon, submitClass, onClose }: {
-    refId: string; offenseType: StoredOffenseType; status: "PUNISHED" | "DISMISSED";
+  function JudgmentForm({ refId, canonical, status, label, placeholder, submitLabel, submitIcon, submitClass, onClose }: {
+    refId: string; canonical: OffenseCanonicalType; status: "PUNISHED" | "DISMISSED";
     label: string; placeholder?: string; submitLabel: string; submitIcon: React.ReactNode; submitClass: string; onClose: () => void;
   }) {
+    const offenseType = STORED_TYPE[canonical];
     const [text, setText] = useState("");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
@@ -496,7 +505,8 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     }
 
     const statement = statements[refId] ?? null;
-    const prior = priorPunishments(strafeRecords, offenseType);
+    const sectionRefs = new Set(sections.find((s) => s.canonical === canonical)?.rows.map((r) => r.refId));
+    const prior = priorPunishments(strafeRecords, offenseType, sectionRefs);
     const priorLine = joinParts(
       prior.count > 0 && labels.strafbuchFruehereStrafen.replace("{count}", String(prior.count)),
       prior.last?.reason
@@ -542,9 +552,9 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  function BestrafenForm({ refId, offenseType }: { refId: string; offenseType: StoredOffenseType }) {
+  function BestrafenForm({ refId, canonical }: { refId: string; canonical: OffenseCanonicalType }) {
     return (
-      <JudgmentForm refId={refId} offenseType={offenseType} status="PUNISHED"
+      <JudgmentForm refId={refId} canonical={canonical} status="PUNISHED"
         label={labels.strafbuchStrafeLabel} placeholder={labels.strafbuchStrafePlaceholder}
         submitLabel={labels.strafbuchStrafeVerhaengen} submitIcon={<CheckCircle size={12} />}
         submitClass="bg-[var(--color-ok)]" onClose={() => setOpenFormId(null)} />
@@ -639,16 +649,16 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  function VerwerfenForm({ refId, offenseType }: { refId: string; offenseType: StoredOffenseType }) {
+  function VerwerfenForm({ refId, canonical }: { refId: string; canonical: OffenseCanonicalType }) {
     return (
-      <JudgmentForm refId={refId} offenseType={offenseType} status="DISMISSED"
+      <JudgmentForm refId={refId} canonical={canonical} status="DISMISSED"
         label={labels.strafbuchBegruendung}
         submitLabel={labels.strafbuchVerwerfen} submitIcon={<XCircle size={12} />}
         submitClass="bg-foreground-faint" onClose={() => setOpenDismissId(null)} />
     );
   }
 
-  function VerwerfenButton({ refId, offenseType }: { refId: string; offenseType: StoredOffenseType }) {
+  function VerwerfenButton({ refId, canonical }: { refId: string; canonical: OffenseCanonicalType }) {
     const isOpen = openDismissId === refId;
     return (
       <div className="mt-2">
@@ -659,7 +669,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
           {labels.strafbuchVerwerfen}
           <ChevronDown size={11} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
         </button>
-        {isOpen && <VerwerfenForm refId={refId} offenseType={offenseType} />}
+        {isOpen && <VerwerfenForm refId={refId} canonical={canonical} />}
       </div>
     );
   }
@@ -670,14 +680,15 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
    *  ist das Vergehen beurteilt, kehrt die Funktion oben aus, und er verschwindet mit ihnen. Nur die
    *  von Hand NOTIERTE Art hat ihn überhaupt — alle anderen leiten sich aus Einträgen ab, dort gäbe
    *  es nichts zurückzuziehen. */
-  function JudgmentSlot({ refId, offenseType, anlass }: { refId: string; offenseType: StoredOffenseType; anlass: string }) {
+  function JudgmentSlot({ refId, canonical, anlass }: { refId: string; canonical: OffenseCanonicalType; anlass: string }) {
     if (punishedIds.has(refId)) return <PunishedBadge refId={refId} />;
     if (dismissedIds.has(refId)) return <DismissedBadge refId={refId} />;
+    const offenseType = STORED_TYPE[canonical];
     return (
       <div className="flex flex-wrap items-start gap-2">
-        <WurdeBestraftButton refId={refId} offenseType={offenseType} />
+        <WurdeBestraftButton refId={refId} canonical={canonical} />
         <StrafaufgabeButton refId={refId} offenseType={offenseType} anlass={anlass} />
-        <VerwerfenButton refId={refId} offenseType={offenseType} />
+        <VerwerfenButton refId={refId} canonical={canonical} />
         {offenseType === STORED_TYPE.manual_offense && (
           <ZurueckziehenButton id={refId} label={labels.strafbuchZurueckziehen}
             networkError={labels.networkError} resolveError={apiError} onDone={() => router.refresh()} />
@@ -686,7 +697,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     );
   }
 
-  function WurdeBestraftButton({ refId, offenseType }: { refId: string; offenseType: StoredOffenseType }) {
+  function WurdeBestraftButton({ refId, canonical }: { refId: string; canonical: OffenseCanonicalType }) {
     const isOpen = openFormId === refId;
     return (
       <div className="mt-2">
@@ -697,7 +708,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
           {labels.strafbuchWurdeBestraft}
           <ChevronDown size={11} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
         </button>
-        {isOpen && <BestrafenForm refId={refId} offenseType={offenseType} />}
+        {isOpen && <BestrafenForm refId={refId} canonical={canonical} />}
       </div>
     );
   }
@@ -1031,7 +1042,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
               return (
                 <div key={r.refId} className={`${blockInsetCls} py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
                   {r.body(judged)}
-                  <JudgmentSlot refId={r.refId} offenseType={STORED_TYPE[s.canonical]} anlass={`${s.title}: ${r.anlass}`} />
+                  <JudgmentSlot refId={r.refId} canonical={s.canonical} anlass={`${s.title}: ${r.anlass}`} />
                 </div>
               );
             })}
