@@ -37,14 +37,22 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Alle HTML-Seiten: kein Caching. `private` verbietet SHARED-Caches (vorgeschaltete
+        // Alle Seiten: kein Caching. `private` verbietet SHARED-Caches (vorgeschaltete
         // Reverse-Proxys/CDNs) das Speichern explizit — nicht nur dem Browser. Verhindert, dass
         // ein fehlkonfigurierter Cache die Seite eines Users an einen anderen ausliefert.
-        // (Die spezifischeren Asset-Regeln unten überschreiben Cache-Control für /_next/static etc.)
-        source: "/(.*)",
+        // AUSGENOMMEN ist `/_next/static`: dort setzt Next.js selbst den passenden Wert (Produktion
+        // `immutable`, Dev-Server `no-cache`) — aber nur, solange keine Regel schon einen Cache-Control
+        // gesetzt hat (`router-server.js`).
+        source: "/:path((?!_next/static/).*)",
         headers: [
           { key: "Cache-Control", value: "private, no-store, must-revalidate" },
           { key: "Pragma", value: "no-cache" },
+        ],
+      },
+      {
+        // Sicherheits-Header überall, auch auf den statischen Assets (`nosniff` gerade dort).
+        source: "/(.*)",
+        headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-XSS-Protection", value: "1; mode=block" },
@@ -61,7 +69,7 @@ const nextConfig: NextConfig = {
         // eine Trennung pro User (Cookie) UND pro Antwort-Typ (HTML vs. RSC-Navigations-Payload,
         // die über DIESELBE URL laufen). Ohne Vary würde ein nur nach Pfad keyender Cache die
         // Antworten zweier User als dasselbe Objekt behandeln → Cross-User-Leak. Bewusst NICHT auf
-        // /(.*), damit das Caching der statischen Assets unten unberührt bleibt.
+        // /(.*), damit das Caching der statischen Assets (`/_next/static`, von Next.js) unberührt bleibt.
         // INVARIANTE: JEDER top-level Pfad, der pro User/Rolle unterschiedlichen Inhalt rendert,
         // MUSS hier gelistet sein (dashboard/admin = App, api = Datenendpunkte, oauth = rollen-
         // abhängige Consent-Seite /oauth/authorize). Neue solche Routen hier ergänzen.
@@ -71,14 +79,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Statische Assets (_next/static) dürfen gecacht werden
-        source: "/_next/static/(.*)",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
-        ],
-      },
-      {
-        // Hochgeladene Fotos ebenfalls cachen
+        // Hochgeladene Fotos dürfen gecacht werden
         source: "/uploads/(.*)",
         headers: [
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
