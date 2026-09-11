@@ -758,21 +758,38 @@ export const FM_REGISTRY: FmEntry[] = [
     anchor: "autoKontrolleService.ts:schedulePostLockInspection",
   }),
 
+  // ── User: die Kanal-Stufen des EMPFÄNGERS ──────────────────────────────────────────────────
+  s({
+    model: "User", field: "notifyMail", domain: "benachrichtigung", scope: "standing",
+    effect: "Wie laut die Mail sein darf: `all` alles, `important` nur Wichtiges und Fristen, `off` nichts. Gilt für JEDE Meldung an diese Person — auch für die über ihre Träger. Eine Frist erreicht sie notfalls trotzdem über jeden erreichbaren Kanal.",
+    writers: ["sub"], affects: ["Benachrichtigungen"], anchor: "deliveryChannels.ts",
+  }),
+  s({
+    model: "User", field: "notifyPush", domain: "benachrichtigung", scope: "standing",
+    effect: "Dieselbe Stufe für Push (Web-Push und native Geräte).",
+    writers: ["sub"], affects: ["Benachrichtigungen"], anchor: "deliveryChannels.ts",
+  }),
+  s({
+    model: "User", field: "notifyTelegram", domain: "benachrichtigung", scope: "standing",
+    effect: "Dieselbe Stufe für Telegram — erreicht nur, wer seinen Chat verknüpft hat.",
+    writers: ["sub"], affects: ["Benachrichtigungen"], anchor: "telegram.ts:sendTelegram",
+  }),
+
   // ── NotificationPreference ─────────────────────────────────────────────────────────────────
   s({
     model: "NotificationPreference", field: "mail", domain: "benachrichtigung", scope: "standing",
-    effect: "Ob dieses Ereignis per Mail zugestellt wird.",
-    writers: ["sub", "admin"], affects: ["Benachrichtigungen"], anchor: "notificationPrefs.ts",
+    effect: "Ob die Wiege-Erinnerung per Mail zugestellt wird. Seit dem Stufen-Modell der EINZIGE Schalter dieser Art: alles andere folgt den Kanal-Stufen des Empfängers (`User.notifyMail` …).",
+    writers: ["sub"], affects: ["Benachrichtigungen"], anchor: "notificationPrefs.ts",
   }),
   s({
     model: "NotificationPreference", field: "push", domain: "benachrichtigung", scope: "standing",
-    effect: "Ob dieses Ereignis als Push zugestellt wird (Web-Push und native Geräte).",
-    writers: ["sub", "admin"], affects: ["Benachrichtigungen"], anchor: "notificationPrefs.ts",
+    effect: "Dasselbe für Push (Web-Push und native Geräte).",
+    writers: ["sub"], affects: ["Benachrichtigungen"], anchor: "notificationPrefs.ts",
   }),
   s({
     model: "NotificationPreference", field: "telegram", domain: "benachrichtigung", scope: "standing",
-    effect: "Ob dieses Ereignis über Telegram zugestellt wird — erreicht nur Empfänger mit verknüpftem Chat.",
-    writers: ["sub", "admin"], affects: ["Benachrichtigungen"], anchor: "telegram.ts:sendTelegram",
+    effect: "Dasselbe für Telegram — erreicht nur Empfänger mit verknüpftem Chat.",
+    writers: ["sub"], affects: ["Benachrichtigungen"], anchor: "telegram.ts:sendTelegram",
   }),
   pk("NotificationPreference"),
   owner("NotificationPreference"),

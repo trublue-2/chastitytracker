@@ -4,7 +4,6 @@ import { writeOffenseStatement } from "@/lib/offenseStatementService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 import { notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { getEventChannels } from "@/lib/notificationPrefs";
 import { offenseNameKey } from "@/lib/offenseLabels";
 import { markLastAction } from "@/lib/appMeta";
 
@@ -40,11 +39,7 @@ export async function POST(req: NextRequest) {
   // „geändert am" der Zeile, dass sich etwas bewegt hat, und eine Tippkorrektur soll ihren
   // Posteingang nicht ein zweites Mal erreichen.
   if (result.data.created) {
-    const [controllers, channels] = await Promise.all([
-      getControllersOfUser(userId),
-      getEventChannels(userId, "OFFENSE_STATEMENT"),
-    ]);
-    await notifyControllers(userId, controllers, {
+    await notifyControllers(userId, await getControllersOfUser(userId), {
       subjectKey: "offenseStatementSubject",
       messageKey: "offenseStatementMessage",
       params: {
@@ -55,7 +50,6 @@ export async function POST(req: NextRequest) {
         // `messagePresenter` löst `offenseKey` zu `{offense}` auf.
         offenseKey: offenseNameKey(result.data.offenseType),
       },
-      channels,
       // OHNE Referenz, obwohl es eine gäbe. `detectedOffense` ist der Marker der FESTSTELLUNG: eine
       // Zeile damit lässt sich nicht löschen (sie wird nur als weggewischt gestempelt) und ist von
       // der Aufbewahrungsfrist ausgenommen — beides gilt der Beweiskraft der Feststellung und wäre

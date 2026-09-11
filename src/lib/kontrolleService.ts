@@ -7,6 +7,7 @@ import { fireTelegram } from "@/lib/telegram";
 import { markLastAction } from "@/lib/appMeta";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { actorColumn, recordInboxDelivery, type MessageActor, type MessageRef } from "@/lib/messageService";
+import { deliveryChannelsForUser } from "@/lib/deliveryChannels";
 import { emailT, emailGreeting, type EmailTranslator } from "@/lib/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H, isValidInspectionCode, APP_NAME } from "@/lib/constants";
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
@@ -706,7 +707,16 @@ export async function resendInspectionCode(
   // Ziel des Antippens ist dasselbe Formular wie bei der Ankündigung — der Sub steht zwar meist
   // schon darauf, aber eine Meldung, die nirgendwohin führt, ist auf der Uhr eine Sackgasse.
   firePush(userId, push.title, push.body, inspectionHref(ka.code, { kommentar: ka.kommentar, categoryId: ka.categoryId }));
-  fireTelegram(userId, push.title, push.body);
+  // Die Push ist der Zweck des Knopfes und geht immer (der Sub hat sie eben angefordert; ohne
+  // Push-Ziel weist die Prüfung oben ab). Telegram folgt dagegen seiner Stufe: ein stummgestellter
+  // Kanal bleibt stumm, auch für eine Wiederholung.
+  //
+  // Und zwar als `important`, NICHT als `deadline`, obwohl es um eine Frist geht: der Frist-Rückfall
+  // greift, sobald die gewählten Kanäle nichts tragen — hier trägt aber garantiert die Push, die
+  // eine Zeile höher schon hinausgeht. Mit `deadline` bekäme ausgerechnet der Nutzer mit „Telegram
+  // aus" beides, und der Aufruf kostete zusätzlich die Erreichbarkeits-Probe (ein Bot-API-Aufruf
+  // mitten im Knopfdruck) für eine Antwort, die am Ergebnis nichts mehr ändern kann.
+  if ((await deliveryChannelsForUser(userId, "important")).telegram) fireTelegram(userId, push.title, push.body);
   return { ok: true, data: null };
 }
 
@@ -753,6 +763,7 @@ export async function resendOwnInspectionCode(
   // im Bild landet.
   const push = buildInspectionCodePush({ code, targetLabel: null, tz });
   firePush(userId, push.title, push.body, inspectionHref(code, { categoryId }));
-  fireTelegram(userId, push.title, push.body);
+  // Wie oben: Push auf Wunsch, Telegram nach Stufe — und aus demselben Grund `important`.
+  if ((await deliveryChannelsForUser(userId, "important")).telegram) fireTelegram(userId, push.title, push.body);
   return { ok: true, data: null };
 }

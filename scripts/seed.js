@@ -7,7 +7,10 @@ const crypto = require("crypto");
 
 const prisma = new PrismaClient();
 
-// Mirror of src/lib/constants.ts NOTIFICATION_EVENT_TYPES — seed.js is plain CJS
+// Das frühere Raster der Keyholder-Meldungen. Seit dem Stufen-Modell wird es NICHT mehr angelegt —
+// diese Liste ist nur noch der Lese-Schlüssel der einmaligen Übernahme in die Kanal-Stufen
+// (`backfillNotifyLevels`) und beschreibt damit Bestand, nicht geltendes Verhalten.
+// Frühere Spiegelung von src/lib/constants.ts — seed.js is plain CJS
 // and can't import from src. Keep both lists in sync.
 const NOTIFICATION_EVENT_TYPES = [
   "VERSCHLUSS",
@@ -87,16 +90,88 @@ async function ensureKgCategory(userId) {
   });
 }
 
-async function ensureNotificationPrefs(userId) {
-  await Promise.all(
-    NOTIFICATION_EVENT_TYPES.map((eventType) =>
-      prisma.notificationPreference.upsert({
-        where: { userId_eventType: { userId, eventType } },
-        update: {},
-        create: { userId, eventType, mail: true, push: true },
-      })
-    )
-  );
+// Merker der einmaligen Übernahme in die Kanal-Stufen. In `AppMeta`, nicht am User: die Übernahme
+// betrifft die ganze Instanz, und ein zweiter Lauf würde eine inzwischen von Hand gesetzte Stufe
+// wieder überschreiben.
+const NOTIFY_LEVELS_BACKFILL_KEY = "notifyLevelsBackfilledAt";
+
+/**
+ * Übernimmt die alten Schalter EINMALIG in die drei Kanal-Stufen (`User.notifyMail` …).
+ *
+ * Je Kanal: war der eigene Schalter für Meldungen an mich an, gilt `all`. War er aus, bekam der
+ * Empfänger als Keyholder über das Raster seiner Subs aber trotzdem Meldungen (das Raster hing am
+ * Sub und ignorierte seinen eigenen Schalter), gilt `important` — so verliert niemand still etwas,
+ * das er bisher bekam. Sonst `off`.
+ *
+ * Eine fehlende Zeile hiess „an" (siehe notificationPrefs.ts) und wird deshalb überall wie „an"
+ * gelesen — beim eigenen Schalter (`MESSAGE_RECEIVED`) wie im Raster (`matrixAllows`).
+ */
+async function backfillNotifyLevels() {
+  if (await prisma.appMeta.findUnique({ where: { key: NOTIFY_LEVELS_BACKFILL_KEY } })) return 0;
+
+  const [users, prefs, rels] = await Promise.all([
+    prisma.user.findMany({ select: { id: true, role: true } }),
+    prisma.notificationPreference.findMany({ select: { userId: true, eventType: true, mail: true, push: true, telegram: true } }),
+    prisma.adminUserRelationship.findMany({ select: { adminId: true, userId: true } }),
+  ]);
+
+  // EIN Durchgang über die Zeilen, zwei Nachschlagewerke daraus: der eigene Schalter je Empfänger,
+  // und je TRÄGER, ob sein Raster einen Kanal überhaupt noch erlaubte. Vorher rechnete das jede
+  // Kombination aus Empfänger und Träger neu — bei 25 Konten die Zeilen-Tabelle 625-mal.
+  const ownSwitch = new Map();
+  const matrixAny = new Map();
+  for (const p of prefs) {
+    if (p.eventType === "MESSAGE_RECEIVED") { ownSwitch.set(p.userId, p); continue; }
+    if (!NOTIFICATION_EVENT_TYPES.includes(p.eventType)) continue;
+    const acc = matrixAny.get(p.userId) || { mail: false, push: false, telegram: false, rows: 0 };
+    acc.rows++;
+    acc.mail = acc.mail || p.mail;
+    acc.push = acc.push || p.push;
+    acc.telegram = acc.telegram || p.telegram;
+    matrixAny.set(p.userId, acc);
+  }
+  const allIds = users.map((u) => u.id);
+
+  /**
+   * Liess das Raster dieses TRÄGERS den Kanal noch zu?
+   *
+   * Eine FEHLENDE Zeile hiess „an" (`notificationPrefs.ts`) — deshalb reicht es nicht, über die
+   * vorhandenen Zeilen zu odern: ein Träger, der nach dem letzten Containerstart angelegt wurde, hat
+   * gar keine, und seine Meldungen gingen trotzdem hinaus. Als „aus" gelesen nähme die Übernahme
+   * einem Keyholder mit eigenem Schalter „aus" auch noch das Wichtige — also genau die Zustellung,
+   * die das Stufen-Modell ihm erhalten will.
+   */
+  const matrixAllows = (subId, channel) => {
+    const m = matrixAny.get(subId);
+    if (!m || m.rows < NOTIFICATION_EVENT_TYPES.length) return true;
+    return m[channel];
+  };
+
+  let migrated = 0;
+  for (const u of users) {
+    const own = ownSwitch.get(u.id);
+    // Über wen bekam dieser Empfänger Keyholder-Meldungen? Globale Admins über alle, sonst über die
+    // ihm zugewiesenen Träger.
+    const subIds = u.role === "admin" ? allIds : rels.filter((r) => r.adminId === u.id).map((r) => r.userId);
+    const level = (channel) => {
+      if (own ? own[channel] : true) return "all";
+      return subIds.some((id) => matrixAllows(id, channel)) ? "important" : "off";
+    };
+
+    try {
+      await prisma.user.update({
+        where: { id: u.id },
+        data: { notifyMail: level("mail"), notifyPush: level("push"), notifyTelegram: level("telegram") },
+      });
+      migrated++;
+    } catch (e) {
+      // Wie bei der Orgasmus-Config: ein einzelner Fehlschlag darf den Containerstart nicht fällen.
+      console.error(`⚠ Kanal-Stufen für User ${u.id} übersprungen:`, e);
+    }
+  }
+
+  await prisma.appMeta.create({ data: { key: NOTIFY_LEVELS_BACKFILL_KEY, value: new Date().toISOString() } });
+  return migrated;
 }
 
 // Mirror of AI_AUTHOR in src/lib/constants.ts — seed.js is plain CJS and can't import from src.
@@ -197,10 +272,13 @@ async function main() {
 
   await ensureKgCategory(adminUser.id);
 
-  // Backfill notification prefs for ALL users (existing instances + new admin).
-  // createMany + skipDuplicates means existing explicit opt-outs are preserved.
-  const allUsers = await prisma.user.findMany({ select: { id: true } });
-  await Promise.all(allUsers.map((u) => ensureNotificationPrefs(u.id)));
+  // Einmalige Übernahme der alten Schalter in die Kanal-Stufen. Die Raster-Zeilen werden nicht mehr
+  // angelegt: seit dem Stufen-Modell entscheidet der Empfänger, und die Übernahme liest den Bestand
+  // nur noch.
+  const migratedLevels = await backfillNotifyLevels();
+  if (migratedLevels > 0) {
+    console.log(`→ Kanal-Stufen für ${migratedLevels} Konten aus den alten Schaltern übernommen.`);
+  }
 
   // Backfill: Orgasmus-Configs, die vor der Unterarten-Version gespeichert wurden (nur Hauptarten),
   // auf volle Kombis migrieren — sonst fehlt im Formular das Unterart-Dropdown. Idempotent.

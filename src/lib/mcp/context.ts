@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { getNotificationMatrix } from "@/lib/notificationPrefs";
 import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/healthHold";
 import { notifyUser } from "@/lib/notify";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
@@ -10,7 +9,7 @@ import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_
 import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/queries";
 import { type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 import { getOffenseRules } from "@/lib/offenseRulesService";
-import { heimdallEnabled, AI_AUTHOR } from "@/lib/constants";
+import { heimdallEnabled, AI_AUTHOR, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
 
 /** Kontext & Kalender (explain_model §13) — wiederkehrender Wochen-Kontext, Einzeltermine,
  *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant.
@@ -95,7 +94,11 @@ export interface ContextResult extends Envelope {
    *  `appointments` akzeptiert jetzt ein from/to-Fenster (K-21, additiv). `offenseRules` und
    *  `inspectionEscalation` kamen rein additiv dazu — keine bestehende Feld-Bedeutung ändert sich,
    *  also kein Versions-Bump. */
-  schemaVersion: 4;
+  /*  v5: `notifications` nennt die drei KANAL-STUFEN des Trägers (`all` | `important` | `off`) statt
+   *  des früheren Ereignis-Rasters. Das Raster gehörte dem Träger und steuerte die Meldungen an
+   *  seine KEYHOLDER; die Stufen sagen, wie laut es bei IHM sein darf. Gleicher Feldname, andere
+   *  Bedeutung — eine gespeicherte v4-Antwort liesse sich sonst rückwirkend falsch lesen. */
+  schemaVersion: 5;
   user: string;
   /**
    * KEIN Bump, obwohl der Halt seit v6.0.3 wirkt statt nur dazustehen: die FELDER bedeuten
@@ -112,20 +115,10 @@ export interface ContextResult extends Envelope {
   /** Reinigungs-(Cleaning-)Regeln (gleiche Sicht wie die frühere get_overview.reinigung), plus
    *  windowsBinding/windowsBindingReason/openingAllowedNow (A-02). */
   cleaning: ContextCleaningView;
-  /**
-   * Welche Ereignisse des Trägers die KEYHOLDER per Mail/Push erreichen — nicht ihn.
-   *
-   * Die Richtung ist der ganze Punkt dieses Feldes: `NOTIFICATION_EVENT_TYPES` hängt am Sub, steuert
-   * aber die Meldungen ÜBER seine Einträge an seine Kontrolleure (Begründung in `constants.ts`, und
-   * das Admin-Raster ist genau so beschriftet). Wer es als „seine Benachrichtigungen" liest, schaltet
-   * die eigene Aufsicht ab, statt es für ihn leiser zu machen.
-   *
-   * NUR LESBAR: umlegen darf die KI es nicht (`FM_MCP_EXEMPT`, dasselbe Muster wie bei der
-   * Keyholder-Zuordnung). Es beantwortet die Frage, warum eine Meldung ausgeblieben ist.
-   *
-   * Rein additiv, deshalb ohne Versions-Bump.
-   */
-  notifications: Record<string, { mail: boolean; push: boolean; telegram: boolean }>;
+  /** Wie laut jeder Kanal beim Träger sein darf (`all` | `important` | `off`). Seine eigene
+   *  Einstellung — die Keyholderin kann sie nicht umlegen, auch die KI nicht. Eine Frist erreicht
+   *  ihn notfalls trotzdem über jeden eingerichteten Kanal. */
+  notifications: { mail: NotifyLevel; push: NotifyLevel; telegram: NotifyLevel };
   /**
    * Welche Vergehensarten bei diesem Sub GERADE gelten: `off`/`on`, bei `unauthorized_orgasm`
    * zusätzlich `lockedOnly` (nur während einer Sperrzeit) und `always`.
@@ -202,6 +195,8 @@ const contextUserSelect = {
   inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
   lockRequiresBolt: true,
   offenseStatementsAllowed: true,
+  // Die Kanal-Stufen des Trägers: wie laut Mail, Push und Telegram für IHN sein dürfen.
+  notifyMail: true, notifyPush: true, notifyTelegram: true,
 } as const;
 
 /** Box-Bestand und wartender Aufruf — die Lese-Seite zu `set_box` (docs/riegel-konzept.md).
@@ -256,12 +251,21 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     now,
   );
 
-  // Die Melde-Kanäle — dieselbe Ableitung wie die Keyholder-Oberfläche, damit beide Sichten nicht
-  // auseinanderlaufen.
-  const notifications = await getNotificationMatrix(userId);
+  // Die Kanal-Stufen des Trägers — dieselbe Angabe, die er in seinen Einstellungen sieht. Sie sagt,
+  // worüber ihn eine Meldung erreicht; eine Frist erreicht ihn notfalls über jeden eingerichteten
+  // Kanal (`deliveryChannels.ts`). Frühere Fassungen lieferten hier das Ereignis-Raster, das dem
+  // TRÄGER gehörte und die Meldungen an seine KEYHOLDER steuerte — daher der Versionssprung.
+  // Normalisiert wie beim Versand und in der Anzeige (`toNotifyLevel`): die Spalte ist Text, und ein
+  // Alt-/Fremdwert wirkt als `all`. Roh durchgereicht zeigte die Sicht einen Wert, den das Feld laut
+  // eigener Beschreibung nicht annehmen kann — und die KI läse eine Stufe, nach der niemand sendet.
+  const notifications = {
+    mail: toNotifyLevel(user.notifyMail),
+    push: toNotifyLevel(user.notifyPush),
+    telegram: toNotifyLevel(user.notifyTelegram),
+  };
 
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     user: username,
     ...buildEnvelope(now, iso, user.timezone ?? APP_TZ),
     healthHold,

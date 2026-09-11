@@ -4,7 +4,6 @@ import { reportPenaltyDone } from "@/lib/penaltyReport";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 import { notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { getEventChannels } from "@/lib/notificationPrefs";
 import { markLastAction } from "@/lib/appMeta";
 
 /**
@@ -30,15 +29,10 @@ export async function PATCH(req: NextRequest) {
   // Nur die ERSTE Meldung geht hinaus — ein Doppeltipp ändert nichts und soll ihren Posteingang nicht
   // zweimal erreichen.
   if (result.data.reported) {
-    const [controllers, channels] = await Promise.all([
-      getControllersOfUser(userId),
-      getEventChannels(userId, "PENALTY_REPORTED_DONE"),
-    ]);
-    await notifyControllers(userId, controllers, {
+    await notifyControllers(userId, await getControllersOfUser(userId), {
       subjectKey: "penaltyReportedDoneSubject",
       messageKey: "penaltyReportedDoneMessage",
       params: { username: session.user.name ?? "", penalty: result.data.penalty ?? "" },
-      channels,
     });
   }
 

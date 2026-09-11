@@ -65,7 +65,6 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
   // ── Absicht: gehört nicht in die Hand einer KI ─────────────────────────────────────────────
   "user-manage": "Absicht: Passwörter, E-Mail, Benutzername, Löschen — Zugang und Identität. Eine KI mit Passwort-Hoheit könnte den Träger aussperren.",
   "keyholder-assign": "Absicht: die KI entschiede über ihre eigene Berufung mit.",
-  "notify-prefs-admin": "Absicht: dasselbe Muster wie `keyholder-assign`. Das Raster steuert die Meldungen ÜBER die Einträge des Trägers AN DIE KEYHOLDER (`NOTIFICATION_EVENT_TYPES`, Begründung in `constants.ts`) — es abzuschalten hiesse, die Aufsicht stillzulegen, unter der die KI selbst steht. LESEN darf sie es: `get_context.notifications` beantwortet die Frage, warum jemand von etwas nichts erfahren hat, ohne etwas zu verstellen.",
   "demo-data": "Absicht: Werkzeug des Betreibers, nicht der Keyholderin (zusätzlich ENV-gegated).",
   // ── Absicht: technisch nicht KI-fähig ──────────────────────────────────────────────────────
   "upload": "Absicht: eine KI liefert keine Fotos. Die Leserichtung deckt `get_image` ab.",
@@ -536,20 +535,15 @@ export const FM_CAPABILITIES: FmCapability[] = [
   // ── Benachrichtigungen ─────────────────────────────────────────────────────────────────────
   c({
     id: "notify-prefs-sub", mechanic: "Benachrichtigungen", title: "Eigene Benachrichtigungen einstellen",
-    what: "Mail und Push je Ereignis-Art, neun Arten.",
-    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/settings/notifications"],
-  }),
-  c({
-    id: "notify-prefs-admin", mechanic: "Benachrichtigungen", title: "Benachrichtigungen eines Trägers einstellen",
-    what: "Dieselben Schalter aus der Keyholder-Sicht.",
-    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/notifications"],
-    note: "Das Raster steuert die Meldungen ÜBER die Einträge des Trägers AN DIE KEYHOLDER — nicht an ihn. Lesen darf die KI es (`get_context.notifications`), umlegen nicht: siehe die Ausnahme in `FM_MCP_EXEMPT`.",
+    what: "Je Kanal (Mail, Push, Telegram) eine Stufe: alles, nur Wichtiges oder aus. Dazu der eigene Schalter der Wiege-Erinnerung.",
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/settings/notify-levels", "/api/settings/notifications"],
+    note: "Die Stufe gehört dem EMPFÄNGER und gilt auch für Meldungen über seine Träger. Das frühere Raster am Sub, das die Meldungen an seine Keyholder steuerte, ist damit entfallen — wer was hören will, entscheidet jeder für sich.",
   }),
   c({
     id: "telegram-link", mechanic: "Benachrichtigungen", title: "Telegram verbinden",
     what: "Verknüpft den eigenen Telegram-Chat als dritten Kanal (Deep-Link + `/start`-Token) und koppelt ihn wieder ab.",
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/settings/telegram"],
-    note: "Selbstbedienung des Subs, kein Keyholder-Feld — deshalb kein MCP-Weg (die KI verknüpft keinen eigenen Chat). Ob ein Ereignis Telegram nutzt, steht als Kanal je Ereignis in den Benachrichtigungen.",
+    note: "Selbstbedienung des Subs, kein Keyholder-Feld — deshalb kein MCP-Weg (die KI verknüpft keinen eigenen Chat). Wie laut der Kanal sein darf, sagt seine Stufe (`notify-prefs-sub`).",
   }),
   c({
     id: "telegram-webhook", mechanic: "Benachrichtigungen", title: "Telegram-Webhook",

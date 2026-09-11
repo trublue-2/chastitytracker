@@ -314,6 +314,10 @@ export const SELF_EDITABLE_USER_FIELDS = [
   // Quittung für den Umstellungs-Hinweis (`notice.ts`). Ein Self-Feld im Wortsinn: es hält fest,
   // was DIESE Person gesehen hat, und niemand sonst hat ein Interesse daran.
   "noticeSeenVersion",
+  // Die drei Kanal-Stufen (`NOTIFY_LEVELS`): wie laut Mail, Push und Telegram sein dürfen. Ein
+  // Self-Feld im Wortsinn — sie sagen, wie DIESE Person erreicht werden will, auch bei Meldungen
+  // über ihre Träger. Geschrieben über `/api/settings/notify-levels`.
+  "notifyMail", "notifyPush", "notifyTelegram",
 ] as const;
 export type SelfEditableUserField = (typeof SELF_EDITABLE_USER_FIELDS)[number];
 
@@ -611,40 +615,6 @@ export const TASK_STATE_COLOR: Record<TaskState, string> = {
   awaitingReview: "text-foreground-muted",
 };
 
-// ── Notification event types (shared by API + admin UI) ─────────────────────
-
-export const NOTIFICATION_EVENT_TYPES = [
-  "VERSCHLUSS",
-  "OEFFNUNG_IMMER",
-  "OEFFNUNG_VERBOTEN",
-  "ORGASMUS",
-  "KONTROLLE_FREIWILLIG",
-  "KONTROLLE_ANGEFORDERT",
-  "WEAR_BEGIN_ANY",
-  "WEAR_END_ANY",
-  "TASK_PROOF_LATE",
-  "OFFENSE_STATEMENT",
-  "PENALTY_REPORTED_DONE",
-] as const;
-
-export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
-
-/** Beschriftung je Event-Typ in der Benachrichtigungs-Matrix der Keyholderin (Namespace `admin`);
- *  gegen beide `messages/*.json` gehalten von `notificationEventLabels.test.ts`. */
-export const NOTIFICATION_EVENT_LABEL_KEYS: Record<NotificationEventType, string> = {
-  VERSCHLUSS: "notifyVerschluss",
-  OEFFNUNG_IMMER: "notifyOeffnungImmer",
-  OEFFNUNG_VERBOTEN: "notifyOeffnungVerboten",
-  ORGASMUS: "notifyOrgasmus",
-  KONTROLLE_FREIWILLIG: "notifyKontrolleFreiwillig",
-  KONTROLLE_ANGEFORDERT: "notifyKontrolleAngefordert",
-  WEAR_BEGIN_ANY: "notifyWearBeginAny",
-  WEAR_END_ANY: "notifyWearEndAny",
-  TASK_PROOF_LATE: "notifyTaskProofLate",
-  OFFENSE_STATEMENT: "notifyOffenseStatement",
-  PENALTY_REPORTED_DONE: "notifyPenaltyReportedDone",
-};
-
 /** Beschriftung je Weg eines Admin-Passwortwechsels (`AdminPasswordChange.via`, Namespace `admin`);
  *  gegen beide `messages/*.json` gehalten von `passwordChangeViaLabels.test.ts`. */
 export const PASSWORD_CHANGE_VIA_I18N_KEYS: Record<PasswordChangeVia, string> = {
@@ -658,14 +628,6 @@ export function passwordChangeViaLabel(via: string, t: (key: string) => string):
 }
 
 /** Gruppierung der Matrix — ein Abschnitt je Begriff. */
-export const NOTIFICATION_EVENT_GROUPS: { titleKey: string; events: readonly NotificationEventType[] }[] = [
-  { titleKey: "notifyGroupKg", events: ["VERSCHLUSS", "OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN", "KONTROLLE_FREIWILLIG", "KONTROLLE_ANGEFORDERT"] },
-  { titleKey: "notifyGroupOrgasmus", events: ["ORGASMUS"] },
-  { titleKey: "notifyGroupWear", events: ["WEAR_BEGIN_ANY", "WEAR_END_ANY"] },
-  { titleKey: "notifyGroupTasks", events: ["TASK_PROOF_LATE"] },
-  { titleKey: "notifyGroupOffense", events: ["OFFENSE_STATEMENT", "PENALTY_REPORTED_DONE"] },
-];
-
 /** Die Versand-Kanäle einer Meldung. Die Posteingangs-Zeile hängt NICHT daran. Telegram erreicht nur
  *  Empfänger, die ihren Chat verknüpft haben (`User.telegramChatId`) — genau wie Mail eine Adresse
  *  und Push ein Abonnement voraussetzt. */
@@ -692,19 +654,76 @@ export function channelsAnd(a: NotificationChannels, b: NotificationChannels): N
 }
 
 /**
- * Präferenzen, die am EMPFÄNGER hängen — bewusst eine eigene Liste.
+ * Wie laut ein Kanal sein darf — die EINE Einstellung je Person und Kanal (`User.notifyMail` …).
  *
- * `NOTIFICATION_EVENT_TYPES` oben liegt zwar am Sub, steuert aber die Meldungen über seine Einträge
- * AN DIE KEYHOLDER, und genau so ist das Admin-Raster (`NotificationToggles`) beschriftet. Ein
- * Schalter, der dort das Gegenteil bedeutet — „Meldungen AN den Sub" —, wäre eine Falle. Diese
- * Liste erscheint deshalb ausschliesslich in den eigenen Einstellungen des Nutzers.
- *
- * `WEIGHT_REMINDER` ist der zweite Fall dieser Art: die Erinnerung zum Wiege-Fenster geht an den
- * TRÄGER. Sie gehört damit in seine Einstellungen und ausdrücklich NICHT in das Admin-Raster —
- * dort stünde ein Schalter, dessen Beschriftung („Meldungen über seine Einträge") das Gegenteil
- * verspricht.
+ * `all` liefert alles, `important` nur Wichtiges und Fristen, `off` nichts. Die Stufe gehört dem
+ * EMPFÄNGER, nicht dem Betroffenen: auch Meldungen über seine Subs folgen ihr.
  */
-export const RECIPIENT_NOTIFICATION_EVENT_TYPES = ["MESSAGE_RECEIVED", "WEIGHT_REMINDER"] as const;
+export const NOTIFY_LEVELS = ["all", "important", "off"] as const;
+export type NotifyLevel = (typeof NOTIFY_LEVELS)[number];
+
+export function isNotifyLevel(v: unknown): v is NotifyLevel {
+  return typeof v === "string" && (NOTIFY_LEVELS as readonly string[]).includes(v);
+}
+
+/** Ein unbekannter/alter Wert gilt als `all` — im Zweifel zustellen, nicht schweigen. */
+export function toNotifyLevel(v: unknown): NotifyLevel {
+  return isNotifyLevel(v) ? v : "all";
+}
+
+/**
+ * Wie dringend eine Meldung ist — die Tabelle dazu steht in `messageCategories.ts`
+ * (`messagePriority`), damit sie neben den Meldungstexten liegt und importfrei bleibt.
+ *
+ * `deadline` ist eine Pflicht mit Frist: ihr Verpassen wird zum Vergehen, deshalb erreicht sie den
+ * Empfänger notfalls über jeden Kanal (`deliveryChannels.ts`). `important` ist alles, was er wissen
+ * MUSS, ohne dass eine Uhr läuft (Urteile, Vergehen, Handlungsbedarf). `info` ist der Alltag.
+ */
+export const MESSAGE_PRIORITIES = ["deadline", "important", "info"] as const;
+export type MessagePriority = (typeof MESSAGE_PRIORITIES)[number];
+
+/** Die drei Kanäle — EIN Name für alle, die je Kanal etwas halten (Stufen, Schalter, Zeilen). */
+export const NOTIFY_CHANNELS = ["mail", "push", "telegram"] as const;
+export type NotifyChannel = (typeof NOTIFY_CHANNELS)[number];
+
+/** Trägt dieser Kanal überhaupt noch etwas? Die Frage stellt die Oberfläche („kein Kanal trägt"),
+ *  und sie gehört zum Stufen-Vokabular — nicht als `!== "off"` an die Anzeige abgeschrieben. */
+export function levelCarries(level: NotifyLevel): boolean {
+  return level !== "off";
+}
+
+/** Je Stufe der Person: Liefert dieser Kanal eine Meldung dieser Dringlichkeit? */
+export function levelDelivers(level: NotifyLevel, priority: MessagePriority): boolean {
+  if (level === "off") return false;
+  if (level === "all") return true;
+  return priority !== "info";
+}
+
+/** Die Kanäle einer Meldung aus den drei Stufen einer Person — vor Erreichbarkeit und Rückfall. */
+export function channelsForLevels(
+  levels: { notifyMail: string; notifyPush: string; notifyTelegram: string },
+  priority: MessagePriority,
+): NotificationChannels {
+  return {
+    mail: levelDelivers(toNotifyLevel(levels.notifyMail), priority),
+    push: levelDelivers(toNotifyLevel(levels.notifyPush), priority),
+    telegram: levelDelivers(toNotifyLevel(levels.notifyTelegram), priority),
+  };
+}
+
+/**
+ * Ereignisse mit einem EIGENEN Schalter — seit dem Stufen-Modell noch genau eines.
+ *
+ * Alles andere folgt der Stufe des Empfängers ({@link NOTIFY_LEVELS}); das frühere Raster je
+ * Ereignis ist damit weg, samt der Falle, dass es am TRÄGER hing und die Meldungen an seine
+ * KEYHOLDER steuerte.
+ *
+ * `WEIGHT_REMINDER` bleibt daneben stehen, weil die Erinnerung zum Wiege-Fenster eine Gefälligkeit
+ * ist, die man einzeln abbestellen können soll, ohne den ganzen Kanal leiser zu stellen. Sie geht an
+ * den TRÄGER und steht deshalb in SEINEN Einstellungen. Verengen kann dieser Schalter die Stufe,
+ * erweitern nie (`notify.ts`).
+ */
+export const RECIPIENT_NOTIFICATION_EVENT_TYPES = ["WEIGHT_REMINDER"] as const;
 
 export type RecipientNotificationEventType = typeof RECIPIENT_NOTIFICATION_EVENT_TYPES[number];
 

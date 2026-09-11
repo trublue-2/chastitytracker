@@ -16,16 +16,19 @@ vi.mock("@/lib/mail", async (importOriginal) => ({
   sendMailSafe: vi.fn(),
 }));
 vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
-vi.mock("@/lib/notificationPrefs", () => ({ getMessageChannels: vi.fn(async () => ({ mail: true, push: true })) }));
+vi.mock("@/lib/deliveryChannels", () => ({
+  deliveryChannels: vi.fn(async () => ({ mail: true, push: true, telegram: false })),
+  deliveryChannelsForUser: vi.fn(async () => ({ mail: true, push: true, telegram: false })),
+}));
 // Nur die beiden Schreib-Funktionen werden ersetzt; alles andere bleibt echt (Absender-Abbildung &
 // Co. sind reine Ableitung). Spread statt Aufzählung, siehe offenseAnnounce.test.ts.
 vi.mock("@/lib/messageService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./messageService")>()),
   recordSystemMessage: vi.fn(async () => "m-new"),
-  // Die Kanäle kommen aus dem (gemockten) Schalter — so bleibt das Gaten unten prüfbar.
+  // Die Kanäle kommen aus den (gemockten) Stufen des Empfängers — so bleibt das Gaten unten prüfbar.
   recordInboxDelivery: vi.fn(async (p: { subjectUserId: string }) => ({
     badge: 1,
-    channels: await (await import("@/lib/notificationPrefs")).getMessageChannels(p.subjectUserId),
+    channels: await (await import("@/lib/deliveryChannels")).deliveryChannelsForUser(p.subjectUserId, "info"),
   })),
 }));
 
@@ -33,7 +36,7 @@ import { notifyControllers, notifyUser } from "./notify";
 import { prisma } from "@/lib/prisma";
 import { sendMailSafe } from "@/lib/mail";
 import { firePush } from "@/lib/push";
-import { getMessageChannels } from "@/lib/notificationPrefs";
+import { deliveryChannels, deliveryChannelsForUser } from "@/lib/deliveryChannels";
 import { recordSystemMessage, recordInboxDelivery } from "@/lib/messageService";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
@@ -41,7 +44,12 @@ const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 /** Ein Empfänger, wie ihn `getControllersOfUser` liefert — GELADEN, nicht als blosse id: genau das
  *  ist der Vertrag von `NotifyRecipient`, und der Fall unten hält fest, dass der Versand ihn dann
  *  auch nicht ein zweites Mal nachschlägt. */
-const kh = (id: string) => ({ id, username: id, email: `${id}@example.com`, locale: "de", telegramChatId: null });
+const kh = (id: string) => ({
+  id, username: id, email: `${id}@example.com`, locale: "de", telegramChatId: null,
+  // Seine EIGENEN Stufen reisen mit der Zeile — seit sie auch über die Meldungen seiner Subs
+  // entscheiden, braucht der Versand sie je Empfänger.
+  notifyMail: "all", notifyPush: "all", notifyTelegram: "all",
+});
 
 const CONTENT = {
   subjectKey: "taskReviewSubjectKeyholder",
@@ -185,7 +193,7 @@ describe("notifyUser — die Kanal-Schalter des Empfängers gaten alles", () => 
     // Deckt zugleich die früheren `alwaysNotify`-Ereignisse ab: `notifyLoadedUser` verzweigt NICHT
     // nach `messageKey`, die Art der Meldung (Anforderung/Frist/„neue Nachricht") ändert am Gaten
     // also nichts. Genau das war vorher anders — eine Friständerung ging trotz Mail-aus per Mail raus.
-    mock(getMessageChannels).mockResolvedValue({ mail: false, push: true, telegram: false });
+    mock(deliveryChannelsForUser).mockResolvedValue({ mail: false, push: true, telegram: false });
     await notifyUser("sub1", { ...RECIP });
     expect(sendMailSafe).not.toHaveBeenCalled();
     expect(firePush).toHaveBeenCalledOnce();
@@ -193,30 +201,46 @@ describe("notifyUser — die Kanal-Schalter des Empfängers gaten alles", () => 
   });
 
   it("alle Kanäle aus: nichts wird zugestellt, die Posteingangs-Zeile bleibt trotzdem", async () => {
-    mock(getMessageChannels).mockResolvedValue({ mail: false, push: false, telegram: false });
+    mock(deliveryChannelsForUser).mockResolvedValue({ mail: false, push: false, telegram: false });
     await notifyUser("sub1", { ...RECIP });
     expect(sendMailSafe).not.toHaveBeenCalled();
     expect(firePush).not.toHaveBeenCalled();
     expect(recordInboxDelivery).toHaveBeenCalledOnce();
   });
 
-  it("fest vorgegebene Kanäle schlagen die Empfänger-Schalter NICHT nach", async () => {
-    // Wiege-Erinnerung / Träger-Raster reichen `channels` selbst durch — dann bleibt getMessageChannels ungefragt.
+  it("ein eigener Ereignis-Schalter VERENGT die Stufe", async () => {
+    // Die Wiege-Erinnerung ist der letzte Fall mit eigenem Schalter. Er darf eine Meldung zusätzlich
+    // abbestellen — hier: Push aus, obwohl die Stufe ihn zuliesse.
+    mock(deliveryChannels).mockResolvedValue({ mail: true, push: true, telegram: false });
     await notifyUser("sub1", {
       subjectKey: "weightReminderSubject", messageKey: "weightReminderMessage",
-      inbox: false, channels: { mail: true, push: false, telegram: false },
+      inbox: false, priority: "info", channels: { mail: true, push: false, telegram: false },
     });
-    expect(getMessageChannels).not.toHaveBeenCalled();
     expect(sendMailSafe).toHaveBeenCalledOnce();
     expect(firePush).not.toHaveBeenCalled();
   });
 
-  it("ohne Posteingangs-Zeile (Keyholder-Pfad): alle Kanäle, KEINE Empfänger-Präferenz-Abfrage", async () => {
-    // Der Schnitt: die Empfänger-Schalter gaten nur Meldungen MIT eigener Zeile. `notifyControllers`
-    // schickt `inbox: false` — dort darf der Schalter des Kopfes die geteilte Keyholder-Meldung nicht
-    // dämpfen, und es darf auch keine Präferenz-Abfrage je Empfänger anfallen.
+  it("und erweitert sie nie: Mail auf Aus gilt auch für die Wiege-Erinnerung", async () => {
+    // Der Fehler, den das Stufen-Modell zunächst mitbrachte: der Ereignis-Schalter wurde STATT der
+    // Stufe gelesen. Ein Träger mit Mail auf „Aus" bekam die Erinnerung trotzdem per Mail.
+    mock(deliveryChannels).mockResolvedValue({ mail: false, push: true, telegram: false });
+    await notifyUser("sub1", {
+      subjectKey: "weightReminderSubject", messageKey: "weightReminderMessage",
+      inbox: false, priority: "info", channels: { mail: true, push: true, telegram: false },
+    });
+    expect(sendMailSafe).not.toHaveBeenCalled();
+    expect(firePush).toHaveBeenCalledOnce();
+  });
+
+  it("ohne Posteingangs-Zeile (Keyholder-Pfad): die Stufen des EMPFÄNGERS entscheiden", async () => {
+    // Umgekehrt zur früheren Regel: eine Meldung über einen fremden Träger folgte dem Raster DES
+    // SUBS, der Empfänger konnte sie nicht dämpfen. Jetzt zählen seine eigenen Stufen — gelesen aus
+    // der schon geladenen Zeile, ohne zweite Abfrage.
+    // Die Stufen hier ausdrücklich setzen: `mockResolvedValue` eines früheren Falls bleibt sonst
+    // stehen (`clearAllMocks` löscht die Aufrufe, nicht die hinterlegte Antwort).
+    mock(deliveryChannels).mockResolvedValue({ mail: true, push: true, telegram: false });
     await notifyUser("sub1", { subjectKey: "inspectionRequestedSubject", messageKey: "inspectionRequestedMessage", inbox: false });
-    expect(getMessageChannels).not.toHaveBeenCalled();
+    expect(deliveryChannels).toHaveBeenCalledOnce();
     expect(sendMailSafe).toHaveBeenCalledOnce();
     expect(firePush).toHaveBeenCalledOnce();
   });

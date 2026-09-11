@@ -28,7 +28,6 @@ import KeyholderInstructionsForm from "@/app/admin/KeyholderInstructionsForm";
 import KeyholderManager from "@/app/admin/KeyholderManager";
 import { getKeyholdersOfUser } from "@/lib/keyholder";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
-import NotificationToggles from "./NotificationToggles";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import SettingsSection from "@/app/components/SettingsSection";
 import QuickSettingsPicker from "@/app/admin/QuickSettingsPicker";
@@ -354,12 +353,6 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
       {/* App */}
       <SettingsSection defaultCollapsed title={t("sectionApp")} description={t("sectionAppDesc")} bodyPadded>
         <MobileUploadToggle userId={user.id} initialValue={user.mobileDesktopUpload} />
-      </SettingsSection>
-
-      {/* Benachrichtigungen — als Abschnitt wie jeder andere, damit dieser Block nicht als einziger
-          dauerhaft offen zwischen lauter zugeklappten steht (und ausgerechnet der längste ist). */}
-      <SettingsSection defaultCollapsed title={t("notifyTitle")} description={t("notifyDesc")}>
-        <NotificationToggles userId={user.id} />
       </SettingsSection>
 
       {/* KI-Keyholder-Regeln (MCP) — nur wenn die KI DIESEN Sub überhaupt anfassen kann. `ENABLE_MCP`

@@ -238,8 +238,9 @@ Seit dem 23.08.2026 ist ein Fenster **Startzeit + Dauer + Wochentage + Erinnerun
 - **`remind`** schickt zum Fensterbeginn eine Erinnerung, wenn an diesem Tag noch nichts gemeldet
   ist — Mail und Push, **ohne** Posteingangs-Zeile: eine tägliche Erinnerung, die liegen bleibt, ist
   nach einer Woche Rauschen. Abschalten kann sie der **Träger** in seinen eigenen Einstellungen
-  (`WEIGHT_REMINDER` steht in `RECIPIENT_NOTIFICATION_EVENT_TYPES`, nicht im Admin-Raster: die
-  Meldung geht an ihn, nicht über ihn)
+  (`WEIGHT_REMINDER` steht in `RECIPIENT_NOTIFICATION_EVENT_TYPES` — seit v6.2.3 der einzige
+  Einzel-Schalter neben den Kanal-Stufen: die Erinnerung ist eine Gefälligkeit und soll einzeln
+  abbestellbar bleiben, ohne den ganzen Kanal leiser zu stellen)
 - Geprüft wird am **laufenden** Fenster, nicht an seiner Startminute (`weightReminder.ts`): ein
   Poller-Tick, der wegen Neustart oder Deploy ausfällt, holt die Erinnerung dadurch nach, statt sie
   zu verschlucken. Die Marke `weightReminderMark` (`<Tag>#<Startzeit>`) verhindert die Wiederholung

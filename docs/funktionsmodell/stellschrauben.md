@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 147 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 150 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -198,9 +198,12 @@ Steckbrief: [75-benachrichtigungen.md](75-benachrichtigungen.md)
 
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
-| `NotificationPreference.mail` | Boolean | `true` | dauerhaft | Ob dieses Ereignis per Mail zugestellt wird. | Sub, Keyholder (UI) | Benachrichtigungen | `notificationPrefs.ts` |
-| `NotificationPreference.push` | Boolean | `true` | dauerhaft | Ob dieses Ereignis als Push zugestellt wird (Web-Push und native Geräte). | Sub, Keyholder (UI) | Benachrichtigungen | `notificationPrefs.ts` |
-| `NotificationPreference.telegram` | Boolean | `true` | dauerhaft | Ob dieses Ereignis über Telegram zugestellt wird — erreicht nur Empfänger mit verknüpftem Chat. | Sub, Keyholder (UI) | Benachrichtigungen | `telegram.ts:sendTelegram` |
+| `User.notifyMail` | String | `"all"` | dauerhaft | Wie laut die Mail sein darf: `all` alles, `important` nur Wichtiges und Fristen, `off` nichts. Gilt für JEDE Meldung an diese Person — auch für die über ihre Träger. Eine Frist erreicht sie notfalls trotzdem über jeden erreichbaren Kanal. | Sub | Benachrichtigungen | `deliveryChannels.ts` |
+| `User.notifyPush` | String | `"all"` | dauerhaft | Dieselbe Stufe für Push (Web-Push und native Geräte). | Sub | Benachrichtigungen | `deliveryChannels.ts` |
+| `User.notifyTelegram` | String | `"all"` | dauerhaft | Dieselbe Stufe für Telegram — erreicht nur, wer seinen Chat verknüpft hat. | Sub | Benachrichtigungen | `telegram.ts:sendTelegram` |
+| `NotificationPreference.mail` | Boolean | `true` | dauerhaft | Ob die Wiege-Erinnerung per Mail zugestellt wird. Seit dem Stufen-Modell der EINZIGE Schalter dieser Art: alles andere folgt den Kanal-Stufen des Empfängers (`User.notifyMail` …). | Sub | Benachrichtigungen | `notificationPrefs.ts` |
+| `NotificationPreference.push` | Boolean | `true` | dauerhaft | Dasselbe für Push (Web-Push und native Geräte). | Sub | Benachrichtigungen | `notificationPrefs.ts` |
+| `NotificationPreference.telegram` | Boolean | `true` | dauerhaft | Dasselbe für Telegram — erreicht nur Empfänger mit verknüpftem Chat. | Sub | Benachrichtigungen | `telegram.ts:sendTelegram` |
 
 ## Keyholder-Wissen & Kontext
 

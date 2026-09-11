@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
-import type { NotifyRecipient } from "@/lib/notify";
+import { NOTIFY_RECIPIENT_SELECT, type NotifyRecipient } from "@/lib/notify";
 
 /**
  * Keyholder relationships. A keyholder is any user with an AdminUserRelationship row
@@ -124,10 +124,10 @@ export type Controller = NotifyRecipient;
 
 export async function getControllersOfUser(subId: string): Promise<Controller[]> {
   const [admins, rels] = await Promise.all([
-    prisma.user.findMany({ where: { role: "admin" }, select: { id: true, username: true, email: true, locale: true, telegramChatId: true } }),
+    prisma.user.findMany({ where: { role: "admin" }, select: NOTIFY_RECIPIENT_SELECT }),
     prisma.adminUserRelationship.findMany({
       where: { userId: subId },
-      select: { admin: { select: { id: true, username: true, email: true, locale: true, telegramChatId: true } } },
+      select: { admin: { select: NOTIFY_RECIPIENT_SELECT } },
     }),
   ]);
   const byId = new Map<string, Controller>();

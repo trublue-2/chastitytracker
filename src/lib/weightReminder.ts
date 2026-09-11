@@ -127,6 +127,9 @@ export async function sendDueWeighingReminders(now: Date): Promise<number> {
         params: { until: weighingWindowEnd(window) },
         url: "/dashboard/new/gewicht",
         inbox: false,
+        // Alltag, kein Vergehen: die Erinnerung ist eine Gefälligkeit. Ihr eigener Schalter VERENGT
+        // die Stufe des Empfängers zusätzlich (`notify.ts`) — „Mail aus" gilt also auch hier.
+        priority: "info",
         channels: await getRecipientChannels(userId, "WEIGHT_REMINDER"),
       });
       sent++;

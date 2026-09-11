@@ -1,106 +1,39 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * Die Semantik der Benachrichtigungs-Schalter — und zwar an EINER Stelle.
+ * Der einzige Schalter, der das Stufen-Modell überlebt hat: die Wiege-Erinnerung.
  *
- * Zwei Regeln tragen das: eine fehlende Zeile heisst „an" (die Zeilen legt
- * `ensureNotificationPreferences` bei jedem Containerstart an — fehlt eine, ist das eine Anomalie,
- * und dann ist Senden die sichere Richtung), und ein Lesefehler darf den Aufrufer nicht mitreissen,
- * weil `notifyUser` an vielen Stellen NACH der eigentlichen Änderung läuft.
- *
- * Beide Regeln standen zeitweise ein zweites Mal in `entryNotify.ts` — dort mit umgekehrtem
- * Vorzeichen (fehlende Zeile = stumm). Genau deshalb liegen sie jetzt hier und werden hier geprüft.
+ * Alles andere folgt der Stufe des Empfängers (`deliveryChannels.ts`). Hier bleiben genau zwei
+ * Regeln zu halten: eine fehlende Zeile heisst „an" (die Zeile entsteht erst, wenn jemand den
+ * Schalter anfasst), und ein Lesefehler darf den Aufrufer nicht mitreissen — `notifyUser` läuft an
+ * vielen Stellen NACH der eigentlichen Änderung, ein 500 von hier verlöre sie.
  */
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { notificationPreference: { findMany: vi.fn(), findUnique: vi.fn() } },
+  prisma: { notificationPreference: { findUnique: vi.fn() } },
 }));
 
-import { getEventChannelsAny, getEventChannels } from "./notificationPrefs";
+import { getRecipientChannels } from "./notificationPrefs";
 import { prisma } from "@/lib/prisma";
 
-const findMany = prisma.notificationPreference.findMany as unknown as ReturnType<typeof vi.fn>;
 const findUnique = prisma.notificationPreference.findUnique as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("getEventChannelsAny — mehrere Ereignisse, ein Ergebnis", () => {
-  /** Der Fall, für den es die Funktion gibt: eine verbotene Öffnung ist auch eine Öffnung. */
-  it("es zählt, was MINDESTENS ein Schalter erlaubt", async () => {
-    findMany.mockResolvedValue([
-      { eventType: "OEFFNUNG_IMMER", mail: false, push: false, telegram: false },
-      { eventType: "OEFFNUNG_VERBOTEN", mail: true, push: false, telegram: false },
-    ]);
-
-    expect(await getEventChannelsAny("u1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]))
-      .toEqual({ mail: true, push: false, telegram: false });
-  });
-
-  /** Die Faltung deckt alle DREI Kanäle ab: Telegram folgt derselben ODER-Regel wie Mail und Push. */
-  it("faltet auch Telegram über mehrere Ereignisse", async () => {
-    findMany.mockResolvedValue([
-      { eventType: "OEFFNUNG_IMMER", mail: false, push: false, telegram: false },
-      { eventType: "OEFFNUNG_VERBOTEN", mail: false, push: false, telegram: true },
-    ]);
-
-    expect(await getEventChannelsAny("u1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]))
-      .toEqual({ mail: false, push: false, telegram: true });
-  });
-
-  it("sind alle Schalter aus, bleibt es aus", async () => {
-    findMany.mockResolvedValue([
-      { eventType: "OEFFNUNG_IMMER", mail: false, push: false, telegram: false },
-      { eventType: "OEFFNUNG_VERBOTEN", mail: false, push: false, telegram: false },
-    ]);
-
-    expect(await getEventChannelsAny("u1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]))
-      .toEqual({ mail: false, push: false, telegram: false });
-  });
-
-  /** Eine fehlende Zeile ist eine Anomalie, kein Opt-out — und bei einer Meldung, die auf ein Urteil
-   *  wartet, ist Senden die sichere Richtung. */
-  it("eine fehlende Zeile heisst an, nicht stumm", async () => {
-    findMany.mockResolvedValue([{ eventType: "OEFFNUNG_IMMER", mail: false, push: false, telegram: false }]);
-
-    expect(await getEventChannelsAny("u1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]))
-      .toEqual({ mail: true, push: true, telegram: true });
-  });
-
-  it("holt alle Typen in EINER Abfrage", async () => {
-    findMany.mockResolvedValue([]);
-    await getEventChannelsAny("u1", ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"]);
-
-    expect(findMany).toHaveBeenCalledOnce();
-    expect(findMany.mock.calls[0][0].where).toMatchObject({
-      userId: "u1",
-      eventType: { in: ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"] },
-    });
-  });
-
-  /** Ein Lesefehler darf den Aufrufer nicht mit einem 500 beenden, obwohl sein Datensatz längst
-   *  geschrieben ist — im Zweifel wird gesendet. */
-  it("fällt die Abfrage aus, wird gesendet", async () => {
-    findMany.mockRejectedValue(new Error("db weg"));
-    vi.spyOn(console, "error").mockImplementation(() => {});
-
-    expect(await getEventChannelsAny("u1", ["VERSCHLUSS"])).toEqual({ mail: true, push: true, telegram: true });
-  });
-
-  /** Ohne Ereignis gibt es nichts, was etwas erlauben könnte. Die Aufrufer prüfen das vorher. */
-  it("eine leere Liste ergibt alles aus", async () => {
-    findMany.mockResolvedValue([]);
-    expect(await getEventChannelsAny("u1", [])).toEqual({ mail: false, push: false, telegram: false });
-  });
-});
-
-describe("getEventChannels — dieselbe Regel für ein einzelnes Ereignis", () => {
-  it("eine fehlende Zeile heisst auch hier an", async () => {
+describe("getRecipientChannels", () => {
+  it("eine fehlende Zeile heisst an", async () => {
     findUnique.mockResolvedValue(null);
-    expect(await getEventChannels("u1", "TASK_PROOF_LATE")).toEqual({ mail: true, push: true, telegram: true });
+    expect(await getRecipientChannels("u1", "WEIGHT_REMINDER")).toEqual({ mail: true, push: true, telegram: true });
   });
 
-  it("die gespeicherte Zeile gewinnt", async () => {
+  it("die gespeicherte Zeile gewinnt, je Kanal einzeln", async () => {
     findUnique.mockResolvedValue({ mail: false, push: true, telegram: false });
-    expect(await getEventChannels("u1", "TASK_PROOF_LATE")).toEqual({ mail: false, push: true, telegram: false });
+    expect(await getRecipientChannels("u1", "WEIGHT_REMINDER")).toEqual({ mail: false, push: true, telegram: false });
+  });
+
+  it("fällt die Abfrage aus, wird gesendet", async () => {
+    findUnique.mockRejectedValue(new Error("db weg"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await getRecipientChannels("u1", "WEIGHT_REMINDER")).toEqual({ mail: true, push: true, telegram: true });
   });
 });

@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { structuredLog } from "@/lib/serverLog";
 import { notifyControllers } from "@/lib/notify";
-import { getEventChannels, type NotificationChannels } from "@/lib/notificationPrefs";
 import { getControllerAudience, type Controller } from "@/lib/keyholder";
 import { proofSubmittedLate, type TaskLike, type ProofLike } from "@/lib/tasks";
 
@@ -48,15 +47,10 @@ type LateProofRow = Pick<ProofLike, "dueOffsetMin" | "submittedAt"> & {
 interface LateProofAudience {
   controllers: Controller[];
   username: string;
-  channels: NotificationChannels;
 }
 
 async function lateProofAudience(userId: string): Promise<LateProofAudience> {
-  const [audience, channels] = await Promise.all([
-    getControllerAudience(userId),
-    getEventChannels(userId, "TASK_PROOF_LATE"),
-  ]);
-  return { ...audience, channels };
+  return getControllerAudience(userId);
 }
 
 /**
@@ -108,13 +102,12 @@ export async function notifyLateProof(
     // EINREICHE-Weg nie verspätet sein — nach dem Ende der Aufgabe wird gar nichts mehr angenommen.
     if (!proofSubmittedLate(proof, proof.task, proof.task.holdUntil)) return;
 
-    const { controllers, username, channels } = audience ?? await lateProofAudience(userId);
+    const { controllers, username } = audience ?? await lateProofAudience(userId);
 
     await notifyControllers(userId, controllers, {
       subjectKey: "taskProofLateSubjectKeyholder",
       messageKey: "taskProofLateMessageKeyholder",
       params: { username, title: proof.task.title },
-      channels,
       inbox: { ref: { type: "task", id: proof.task.id } },
     });
     await prisma.taskProof.update({ where: { id: proof.id }, data: { lateNotifiedAt: new Date() } });

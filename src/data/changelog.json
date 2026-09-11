@@ -1,5 +1,25 @@
 [
   {
+    "version": "6.2.3",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Benachrichtigungen laufen jetzt über eine Stufe je Kanal: Alles, Nur Wichtiges oder Aus — für Mail, Push und Telegram getrennt. Anforderungen mit Frist erreichen dich weiterhin immer.",
+          "en": "Notifications now run on one level per channel: everything, important only, or off — separately for mail, push and Telegram. Requests with a deadline still always reach you."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Als Keyholder bestimmst du selbst, was dich über deine Subs erreicht. Bisher hing das an einer Einstellung beim Sub, die sich alle seine Keyholder teilten.",
+          "en": "As a keyholder you now decide for yourself what reaches you about your subs. Until now that hung on a setting on the sub, shared by all of their keyholders."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.2",
     "date": "2026-09-11",
     "changes": [

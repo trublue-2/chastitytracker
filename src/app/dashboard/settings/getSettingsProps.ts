@@ -1,11 +1,11 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getControllableSubs } from "@/lib/keyholder";
-import { getMessageChannels, getRecipientChannels } from "@/lib/notificationPrefs";
+import { getRecipientChannels } from "@/lib/notificationPrefs";
 import { telegramLinkAvailable } from "@/lib/telegram";
 import { hasPushTarget } from "@/lib/push";
 import { mailReaches } from "@/lib/mail";
-import { isValidStartPage, weightTrackingEnabled } from "@/lib/constants";
+import { isValidStartPage, toNotifyLevel, weightTrackingEnabled, type NotifyLevel } from "@/lib/constants";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
 import pkg from "@/../package.json";
@@ -25,13 +25,14 @@ export interface SettingsFormProps {
   /** Globaler Admin — steuert die "Benutzerverwaltung"-Startseiten-Option (admin-only Seite). */
   isAdmin: boolean;
   hideOwnTracker: boolean;
-  /** Mail bei neuen Nachrichten (`MESSAGE_RECEIVED`) — eigener Kanal-Schalter. Die Nachricht selbst
-   *  landet immer im Posteingang; der Schalter macht nur den Kanal leiser. */
-  messageMail: boolean;
-  /** Push bei neuen Nachrichten (`MESSAGE_RECEIVED`) — eigener Kanal-Schalter. */
-  messagePush: boolean;
-  /** Telegram bei neuen Nachrichten — eigener Schalter, nur relevant/sichtbar bei verknüpftem Chat. */
-  messageTelegram: boolean;
+  /** Wie laut Mail sein darf. Gilt für ALLE Meldungen an diese Person, auch die über ihre Träger;
+   *  die Zeile im Posteingang entsteht unabhängig davon. Ein unbekannter Spaltenwert ist hier schon
+   *  auf `all` normalisiert (`toNotifyLevel`) — die Anzeige muss nicht damit rechnen. */
+  notifyMail: NotifyLevel;
+  /** Dieselbe Stufe für Push. */
+  notifyPush: NotifyLevel;
+  /** Dieselbe Stufe für Telegram — wirkt nur mit verknüpftem Chat. */
+  notifyTelegram: NotifyLevel;
   /** Ist auf dieser Instanz überhaupt ein Telegram-Bot eingerichtet (Token + Bot-Name)? */
   telegramConfigured: boolean;
   /** Hat dieser Nutzer seinen Telegram-Chat verknüpft? */
@@ -66,35 +67,35 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   let startPage = "auto";
   let hideOwnTracker = false;
   let weight: WeightSettingsProps | null = null;
-  // Fehlende Zeile = „an" (dieselbe Annahme wie beim Versand in notify.ts).
-  let messageMail = true;
-  let messagePush = true;
-  let messageTelegram = true;
+  // Vorgabe wie in der Spalte: alles zustellen, bis der Nutzer es leiser stellt.
+  let notifyMail: NotifyLevel = "all";
+  let notifyPush: NotifyLevel = "all";
+  let notifyTelegram: NotifyLevel = "all";
   let telegramLinked = false;
   let mailReachable = false;
   let pushReachable = false;
 
   if (userId) {
-    const [dbUser, pref, reminderPref, pushTarget] = await Promise.all([
+    const [dbUser, reminderPref, pushTarget] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
         select: {
           username: true, email: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true,
-          telegramChatId: true,
+          telegramChatId: true, notifyMail: true, notifyPush: true, notifyTelegram: true,
           weightTrackingEnabled: true, unitSystem: true, heightCm: true,
           targetWeightKg: true, targetWeightKeyholderKg: true,
         },
       }),
-      getMessageChannels(userId),
       getRecipientChannels(userId, "WEIGHT_REMINDER"),
       hasPushTarget(userId),
     ]);
     pushReachable = pushTarget;
-    // Drei unabhängige Kanal-Schalter: Mail, Push und Telegram je einzeln an/aus.
-    messageMail = pref.mail;
-    messagePush = pref.push;
-    messageTelegram = pref.telegram;
     if (dbUser) {
+      // Drei unabhängige Stufen: Mail, Push und Telegram je einzeln laut/leise/aus. Normalisiert
+      // beim LESEN aus der Datenbank — ein Alt-/Fremdwert gilt als „alles", wie beim Versand.
+      notifyMail = toNotifyLevel(dbUser.notifyMail);
+      notifyPush = toNotifyLevel(dbUser.notifyPush);
+      notifyTelegram = toNotifyLevel(dbUser.notifyTelegram);
       username = dbUser.username;
       email = dbUser.email ?? null;
       mailReachable = mailReaches(email);
@@ -140,9 +141,9 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     controlledSubs,
     isAdmin,
     hideOwnTracker,
-    messageMail,
-    messagePush,
-    messageTelegram,
+    notifyMail,
+    notifyPush,
+    notifyTelegram,
     telegramConfigured: telegramLinkAvailable(),
     telegramLinked,
     mailReachable,

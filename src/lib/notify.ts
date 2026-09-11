@@ -6,7 +6,9 @@ import { emailT, emailGreeting, localeT } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
 import { sendTelegram } from "@/lib/telegram";
 import { recordInboxDelivery, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messageService";
-import { ALL_CHANNELS, anyChannelActive, type NotificationChannels, APP_NAME } from "@/lib/constants";
+import { messagePriority } from "@/lib/messageCategories";
+import { deliveryChannels, type DeliveryRecipient } from "@/lib/deliveryChannels";
+import { anyChannelActive, channelsAnd, type MessagePriority, type NotificationChannels, APP_NAME } from "@/lib/constants";
 
 /**
  * Was an einer Posteingangs-Zeile hängt, unabhängig davon, WESSEN Posteingang gemeint ist —
@@ -55,15 +57,18 @@ export type InboxOptions = InboxRefOptions & {
  * Zeile von der Platte zu holen: die Empfänger sind der Grund, aus dem `Controller` `email` und
  * `locale` überhaupt trägt.
  */
-export interface NotifyRecipient {
-  id: string;
+export interface NotifyRecipient extends DeliveryRecipient {
   username: string;
-  email: string | null;
   locale: string;
-  /** Verknüpfter Telegram-Chat oder `null`. Wie `email` Teil der geladenen Zeile, damit der Versand
-   *  den dritten Kanal bedienen kann, ohne je Empfänger ein zweites Mal nachzuschlagen. */
-  telegramChatId: string | null;
 }
+
+/** Die Spalten, die eine Empfänger-Zeile ausmachen — EINE Liste für alle, die solche Zeilen laden
+ *  (`notifyUser`, `getControllersOfUser`). Von Hand nachgeführt hatte sie beim ersten neuen Feld
+ *  prompt drei Pflegestellen; genau dieselbe Begründung wie bei `CLEANING_USER_SELECT`. */
+export const NOTIFY_RECIPIENT_SELECT = {
+  id: true, username: true, email: true, locale: true, telegramChatId: true,
+  notifyMail: true, notifyPush: true, notifyTelegram: true,
+} as const;
 
 /**
  * Content of a generic notification, expressed as i18n keys (namespace `emails`) rather than
@@ -99,12 +104,15 @@ interface NotifyContentBase {
    * ohne dass Information verloren geht" (`notificationPrefs.ts`). Ein abgeschalteter Schalter darf
    * eine Meldung dämpfen, nicht verschwinden lassen.
    *
-   * Mit dem Empfänger-Schalter (`MESSAGE_RECEIVED`) kollidiert das nicht: die beiden Aufrufer, die
-   * dieses Feld setzen — `notifyControllers` (Träger-Raster) und die Wiege-Erinnerung (eigener
-   * Ereignis-Schalter) — schicken zugleich `inbox: false`, und der Zweig, der den Empfänger-Schalter
-   * liest, wird nur MIT Posteingangs-Zeile betreten. Das Feld gilt für sie also unangetastet.
+   * Seit dem Stufen-Modell VERENGT dieses Feld nur noch: gerechnet wird `Stufe ∧ Schalter`. Ein
+   * Ereignis-Schalter kann eine Meldung damit zusätzlich abbestellen, aber keine an einer Stufe
+   * vorbeischicken — sonst hiesse „Mail aus" wieder nicht „keine Mail".
    */
   channels?: NotificationChannels;
+
+  /** Dringlichkeit, wenn sie sich nicht aus dem Meldungstext ergibt — nur für Meldungen ohne
+   *  Posteingangs-Zeile, deren Schlüssel in `PRIORITY_BY_BODY_KEY` fehlt ({@link TransientMessageKey}). */
+  priority?: MessagePriority;
 }
 
 /**
@@ -141,7 +149,7 @@ export type NotifyContent = NotifyContentBase & (
 export async function notifyUser(userId: string, content: NotifyContent): Promise<void> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, username: true, locale: true, telegramChatId: true },
+    select: NOTIFY_RECIPIENT_SELECT,
   });
   if (!user) return;
   await notifyLoadedUser(user, content);
@@ -158,11 +166,19 @@ async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): 
   const { subjectKey, messageKey, params, url = "/dashboard" } = content;
 
   let badge: number | undefined;
-  let channels = content.channels ?? ALL_CHANNELS;
+  let channels: NotificationChannels;
+  // Die Dringlichkeit steht am Meldungstext (`messagePriority`). `content.priority` überschreibt sie
+  // für die Meldungen OHNE Posteingangs-Zeile, deren Schlüssel in der Tabelle gar nicht vorkommt
+  // (heute die Wiege-Erinnerung) — ohne das fielen sie auf „wichtig" zurück.
+  const priority = content.priority ?? messagePriority(content.messageKey);
   // Kein `inbox` aus der Destrukturierung: die Union wird über genau dieses Feld unterschieden, und
   // nur am Objekt geprüft weiss der Compiler, dass `messageKey` in diesem Zweig ein Body-Key ist.
   if (content.inbox !== false) {
     const inbox = content.inbox;
+    // Die Stufen des EMPFÄNGERS entscheiden, wie laut diese Meldung sein darf — samt Frist-Rückfall.
+    // Die Posteingangs-Zeile entsteht unabhängig davon: der Kanal wird leiser, die Meldung bleibt.
+    // Die Zeile des Empfängers liegt hier bereits vor — sie geht MIT, damit `recordInboxDelivery`
+    // sie nicht ein zweites Mal von der Platte holt.
     ({ badge, channels } = await recordInboxDelivery({
       subjectUserId: user.id,
       bodyKey: inbox?.bodyKey ?? content.messageKey,
@@ -170,14 +186,13 @@ async function notifyLoadedUser(user: NotifyRecipient, content: NotifyContent): 
       actor: inbox?.actor,
       ref: inbox?.ref,
       once: inbox?.once,
-    }));
-    // Die Kanal-Schalter des Empfängers (MESSAGE_RECEIVED) gaten JEDE Meldung mit eigener
-    // Posteingangs-Zeile — also alle Meldungen AN IHN, nicht nur „neue Nachrichten". Früher umging
-    // ein `alwaysNotify`-Flag die Schalter (Anforderungen/Fristen/Eskalation): „aus" hiess trotzdem
-    // „kommt an". Die Zeile oben bleibt der garantierte Nachweis, der Kanal wird nur leiser.
-    // Bewusst NUR hier, im Posteingangs-Zweig: der Keyholder-Pfad (`notifyControllers`, `inbox:false`)
-    // reicht seine Kanäle über `content.channels` durch und darf NICHT am Empfänger-Schalter hängen.
+    }, user));
+  } else {
+    channels = await deliveryChannels(user, priority);
   }
+  // Ein mitgegebener Ereignis-Schalter VERENGT die Stufe, er erweitert sie nie: „Mail aus" gilt auch
+  // für die Wiege-Erinnerung, ihr eigener Schalter kann sie zusätzlich abbestellen.
+  if (content.channels) channels = channelsAnd(channels, content.channels);
 
   const t = await emailT(user.locale);
   // Den Namen der Vergehensart erst HIER auflösen, in der Sprache des EMPFÄNGERS — dieselbe Regel

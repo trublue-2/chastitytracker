@@ -17,7 +17,6 @@ vi.mock("@/lib/notify", () => ({ notifyControllers: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({
   getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "kh1" }], username: "sub" })),
 }));
-vi.mock("@/lib/notificationPrefs", () => ({ getEventChannels: vi.fn(async () => ({ mail: true, push: true })) }));
 
 import { notifyLateProof, notifyLateProofsForTask } from "./taskProofNotify";
 import { notifyControllers } from "@/lib/notify";

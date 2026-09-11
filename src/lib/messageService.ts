@@ -2,13 +2,12 @@ import { cache } from "react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getControllableSubsCached } from "@/lib/keyholder";
-import { bodyKeysOfCategory, bodyKeysOutsideSystem, isDeadlineMessage, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
+import { bodyKeysOfCategory, bodyKeysOutsideSystem, messagePriority, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
 import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { mapAnforderungStatus } from "@/lib/utils";
 import { AI_AUTHOR, hasAuthor, type NotificationChannels } from "@/lib/constants";
-import { getMessageChannels } from "@/lib/notificationPrefs";
-import { getDeadlineChannels } from "@/lib/deadlineChannels";
+import { deliveryChannels, deliveryChannelsForUser, type DeliveryRecipient } from "@/lib/deliveryChannels";
 
 /**
  * Der Posteingang: die Nachrichten, die der Sub nachlesen kann.
@@ -1028,7 +1027,7 @@ export const unreadCountCached = cache(
 
 /**
  * Schreibt die Nachricht und liefert, was der Versand dazu braucht: den Badge-Wert UND die
- * Kanal-Schalter des Empfängers (`getMessageChannels`). Der gebündelte Auftakt jeder Meldung mit
+ * Kanal-Stufen des Empfängers (`deliveryChannelsForUser`). Der gebündelte Auftakt jeder Meldung mit
  * eigener Posteingangs-Zeile — `notifyUser` und die drei „reichen" Melde-Pfade (Kontroll-,
  * Verschluss-, Orgasmus-Anforderung), die ihre mehrzeiligen Mails selbst bauen.
  *
@@ -1049,17 +1048,21 @@ export const unreadCountCached = cache(
  * falsch machen; die Keyholder-Zeile schreibt `notifyControllers` direkt über
  * {@link recordSystemMessage} — bewusst ohne Badge, aus genau diesem Grund.
  *
- * Für eine Meldung mit Frist ({@link isDeadlineMessage}) gilt der Schalter mit Rückfall: erreicht
- * keiner der eingeschalteten Kanäle den Empfänger, kommen alle erreichbaren zurück
- * ({@link getDeadlineChannels}). Abgeleitet aus dem `bodyKey`, nicht vom Aufrufer gesetzt — ein neuer
- * Versender kann es damit nicht vergessen.
+ * Welche Kanäle liefern, sagen die Stufen des EMPFÄNGERS und die Dringlichkeit der Meldung
+ * ({@link messagePriority}) — abgeleitet aus dem `bodyKey`, nicht vom Aufrufer gesetzt, damit ein
+ * neuer Versender es nicht vergessen kann. Bei einer Frist kommt der Rückfall dazu
+ * ({@link deliveryChannelsForUser}).
  */
 export async function recordInboxDelivery(
   p: Omit<RecordMessageParams, "audience">,
+  /** Die Zeile des Empfängers, falls der Aufrufer sie schon hält (`notifyLoadedUser`) — sonst wird
+   *  sie hier geholt. Spart je Meldung eine Abfrage über denselben Datensatz. */
+  recipient?: DeliveryRecipient,
 ): Promise<{ badge: number | undefined; channels: NotificationChannels }> {
+  const priority = messagePriority(p.bodyKey);
   const [badge, channels] = await Promise.all([
     recordAndCount(p),
-    isDeadlineMessage(p.bodyKey) ? getDeadlineChannels(p.subjectUserId) : getMessageChannels(p.subjectUserId),
+    recipient ? deliveryChannels(recipient, priority) : deliveryChannelsForUser(p.subjectUserId, priority),
   ]);
   return { badge, channels };
 }

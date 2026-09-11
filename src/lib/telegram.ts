@@ -32,15 +32,25 @@ export function isDeadChatResponse(status: number, detail: string): boolean {
  * statt dass jede Meldung still an einem blockierten Bot scheitert.
  */
 export async function forgetDeadChat(chatId: string): Promise<void> {
+  probeCache.delete(chatId);
   const { count } = await prisma.user.updateMany({ where: { telegramChatId: chatId }, data: { telegramChatId: null } });
   structuredLog("telegram", "unlinked_dead_chat", { chatId, count });
 }
+
+/** Zeitlimit und Haltbarkeit der Erreichbarkeits-Probe. Kurz gehalten, weil sie in den Minuten-Pollern
+ *  VOR jeder Zustellung liegt; der Merker fängt den Fall ab, dass dieselben Chats jeden Tick
+ *  wiederkehren. Er lebt im Prozess und ist beim nächsten Start wieder leer — er darf nichts
+ *  entscheiden, was länger gilt als ein paar Minuten. */
+const PROBE_TIMEOUT_MS = 3_000;
+const PROBE_TTL_MS = 60_000;
+const probeCache = new Map<string, { reachable: boolean; until: number }>();
 
 /** Ein Aufruf der Bot-API an einen Chat. Erkennt einen toten Chat und löst ihn; wirft bei Netzfehlern. */
 async function callBot(
   method: string,
   chatId: string,
   payload: Record<string, unknown>,
+  timeoutMs = 10_000,
 ): Promise<{ ok: true } | { ok: false; status: number; detail: string }> {
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
     method: "POST",
@@ -48,7 +58,7 @@ async function callBot(
     body: JSON.stringify({ chat_id: chatId, ...payload }),
     // `notifyLoadedUser` awaitet den Versand — ohne Timeout hinge eine lahme Telegram-API die
     // Antwort des auslösenden Requests fest (Push ist daneben fire-and-forget). 10s wie bei APNs.
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (res.ok) return { ok: true };
   // Der Grund steht im Body (z.B. "chat not found", "bot was blocked by the user").
@@ -89,8 +99,14 @@ export async function sendTelegram(chatId: string, text: string): Promise<void> 
  */
 export async function telegramChatReachable(chatId: string): Promise<boolean> {
   if (!BOT_TOKEN) return false;
+  const cached = probeCache.get(chatId);
+  if (cached && cached.until > Date.now()) return cached.reachable;
   try {
-    return (await callBot("sendChatAction", chatId, { action: "typing" })).ok;
+    // Kürzeres Zeitlimit als beim Versand: die Probe läuft VOR der Zustellung, und die Poller
+    // arbeiten ihre Fälle nacheinander ab — ein hängender Aufruf hielte den ganzen Tick auf.
+    const reachable = (await callBot("sendChatAction", chatId, { action: "typing" }, PROBE_TIMEOUT_MS)).ok;
+    probeCache.set(chatId, { reachable, until: Date.now() + PROBE_TTL_MS });
+    return reachable;
   } catch (e) {
     structuredLog("telegram", "probe_error", { chatId, error: (e as Error).message });
     return false;

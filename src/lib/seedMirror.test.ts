@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createRequire } from "node:module";
 import { DEFAULT_ORGASM_ARTEN, backfillOrgasmusArtenConfig, ART_SEP } from "./reasonsService";
-import { AI_AUTHOR, NOTIFICATION_EVENT_TYPES } from "./constants";
+import { AI_AUTHOR } from "./constants";
 
 // scripts/seed.js ist Plain-CJS (kann nicht aus src importieren) und spiegelt Teile von
 // reasonsService.ts. Dieser Test sichert den Mirror gegen stille Drift ab: er lädt die echten
@@ -74,22 +74,9 @@ describe("seed.js schützt die KI-Kennung als Admin-Namen", () => {
   });
 });
 
-/**
- * `scripts/seed.js` spiegelt ZUSÄTZLICH `NOTIFICATION_EVENT_TYPES` — als Literal, weil CJS nicht aus
- * `src/` importieren kann.
- *
- * Was eine Abweichung anrichtet: `seed.js` legt die Benachrichtigungs-Zeilen jedes Kontos an, beim
- * Anlegen UND bei jedem Containerstart. Ein Typ, der dort fehlt, bekommt nie eine Zeile — und eine
- * fehlende Zeile heisst "an" (`notificationPrefs.ts`). Der Schalter steht dann im Raster der
- * Keyholderin, lässt sich umlegen, und beim nächsten Start ist er wieder da. Nichts stürzt ab,
- * nichts meldet sich; es gilt nur dauerhaft etwas anderes, als die Oberfläche zeigt.
- *
- * Über den EXPORT und nicht über den Dateitext: `seed.js` reicht für genau diese Tests bereits fünf
- * Werte heraus, eine Regex auf den Quelltext wäre die brüchigere von zwei nebeneinanderliegenden
- * Möglichkeiten — sie bricht schon an einer umgebrochenen Zeile.
+/*
+ * Der frühere Abgleich der Ereignis-Liste ist entfallen: seit dem Stufen-Modell legt `seed.js` keine
+ * Raster-Zeilen mehr an. Seine Liste dort ist nur noch der LESE-Schlüssel der einmaligen Übernahme
+ * alter Schalter in die Kanal-Stufen — sie beschreibt Bestand, nicht geltendes Verhalten, und darf
+ * deshalb einfrieren.
  */
-describe("seed.js mirror stays in sync with NOTIFICATION_EVENT_TYPES", () => {
-  it("führt dieselben Ereignistypen", () => {
-    expect(seed.NOTIFICATION_EVENT_TYPES).toEqual([...NOTIFICATION_EVENT_TYPES]);
-  });
-});

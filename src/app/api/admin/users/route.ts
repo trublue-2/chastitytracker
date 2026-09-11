@@ -4,7 +4,6 @@ import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { passwordErrorCode, isValidEmail } from "@/lib/constants";
 import { ensureKgCategory } from "@/lib/deviceCategories";
-import { ensureNotificationPreferences } from "@/lib/notificationPrefs";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { latestKgTimesByUser } from "@/lib/queries";
 
@@ -70,7 +69,6 @@ export async function POST(req: NextRequest) {
     throw err;
   }
   await ensureKgCategory(user.id);
-  await ensureNotificationPreferences(user.id);
 
   return NextResponse.json({ id: user.id, username: user.username, role: user.role }, { status: 201 });
 }

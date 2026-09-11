@@ -11,7 +11,6 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
 vi.mock("@/lib/push", () => ({ firePush: vi.fn(), hasPushTarget: vi.fn() }));
-vi.mock("@/lib/notificationPrefs", () => ({ getMessageChannels: vi.fn(async () => ({ mail: true, push: true, telegram: true })) }));
 
 import { hasActiveKontrolle, inspectionIntro, buildInspectionPush, buildInspectionCodePush, resolveInspectionEntry, resendOwnInspectionCode } from "./kontrolleService";
 import { emailT } from "@/lib/emailI18n";

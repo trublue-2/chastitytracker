@@ -7,10 +7,9 @@ import { errorResponse } from "@/lib/serviceResult";
 /**
  * PATCH /api/settings/notifications — der Nutzer schaltet seine EIGENEN Empfangs-Kanäle.
  *
- * Bewusst getrennt von `/api/admin/notifications`: dort setzt ein Keyholder die Ereignisse, über die
- * ER benachrichtigt wird. Hier gilt der Scope der Session, und nur die Empfänger-Liste ist
- * schreibbar — sonst wäre dies der Weg, über den ein Nutzer die Meldungen an seine Keyholder
- * abstellt.
+ * Seit dem Stufen-Modell bleibt hier genau ein Ereignis: die Wiege-Erinnerung. Wie laut ein Kanal
+ * allgemein sein darf, sagt seine Stufe (`/api/settings/notify-levels`) — dieser Schalter kann sie
+ * nur VERENGEN, nie erweitern (`notify.ts`).
  */
 export async function PATCH(req: NextRequest) {
   const session = await requireApi();

@@ -1,4 +1,5 @@
 import type { MessageBodyKey } from "@/lib/messageService";
+import type { MessagePriority } from "@/lib/constants";
 import type { BadgeVariant } from "@/app/components/Badge";
 
 /**
@@ -119,80 +120,90 @@ export function messageCategory(bodyKey: string | null): MessageCategory {
 }
 
 /**
- * Hat diese Meldung eine FRIST — wird ihr Verpassen zum Vergehen? Dann gilt beim Versand der
- * Rückfall aus `deadlineChannels.ts`: erreicht keiner der eingeschalteten Kanäle den Träger, geht sie
- * an jeden erreichbaren. Dazu zählen auch die ÄNDERUNGEN einer Frist — wer eine vorgezogene Frist
- * oder eine verlängerte Sperrzeit nicht erfährt, verstösst genauso wie bei einer neuen.
+ * Wie dringend eine Meldung ist — die Grundlage der Kanal-Stufen (`NOTIFY_LEVELS`).
+ *
+ * - `deadline`: eine Pflicht mit Frist. Ihr Verpassen wird zum Vergehen, deshalb greift der Rückfall
+ *   aus `deliveryChannels.ts`. Dazu zählen die ÄNDERUNGEN einer Frist — wer eine vorgezogene Frist
+ *   oder eine verlängerte Sperrzeit nicht erfährt, verstösst genauso wie bei einer neuen.
+ * - `important`: was der Empfänger wissen MUSS, ohne dass eine Uhr läuft — Urteile, festgestellte
+ *   Vergehen, Handlungsbedarf der Keyholderin (Sichtung, Stellungnahme, verspäteter Nachweis).
+ * - `info`: der Alltag. Rückzüge, erledigte Aufgaben, Gewichts-Meldungen.
  *
  * Vollständig für alle Schlüssel, damit ein neuer Meldungstext nicht kompiliert, bevor jemand
- * entschieden hat. Die Keyholder-Meldungen stehen mit `false` darin: den Rückfall gibt es nur auf
- * dem Weg zum Träger (`recordInboxDelivery`).
+ * entschieden hat. Die Keyholder-Meldungen stehen mit darin: seit die Stufe am EMPFÄNGER hängt,
+ * gelten sie auch für sie.
  */
-const DEADLINE_BY_BODY_KEY: Record<MessageBodyKey, boolean> = {
-  inspectionRequestedMessage: true,
-  inspectionReminderMessage: true,
-  inspectionReminderMessageNoCode: true,
-  lockRequestBody: true,
-  lockPeriodSetBody: true,
-  lockRequestChangedMessage: true,
-  lockPeriodChangedMessage: true,
-  lockPeriodChangedMessageIndefinite: true,
-  // Nur die Anweisung ist eine Pflicht — die Gelegenheit ist eine Erlaubnis.
-  orgasmAnweisungIntro: true,
-  taskAssignedMessage: true,
-  taskAssignedDurationMessage: true,
-  taskChangedMessage: true,
-  taskChangedDurationMessage: true,
-  penaltyTaskMessage: true,
-  penaltyTaskDurationMessage: true,
-  taskAwaitingMessage: true,
-  taskProofReminderMessage: true,
+const PRIORITY_BY_BODY_KEY: Record<MessageBodyKey, MessagePriority> = {
+  inspectionRequestedMessage: "deadline",
+  inspectionReminderMessage: "deadline",
+  inspectionReminderMessageNoCode: "deadline",
+  lockRequestBody: "deadline",
+  lockPeriodSetBody: "deadline",
+  lockRequestChangedMessage: "deadline",
+  lockPeriodChangedMessage: "deadline",
+  lockPeriodChangedMessageIndefinite: "deadline",
+  // Nur die Anweisung ist eine Pflicht — die Gelegenheit ist eine Erlaubnis mit Fenster.
+  orgasmAnweisungIntro: "deadline",
+  taskAssignedMessage: "deadline",
+  taskAssignedDurationMessage: "deadline",
+  taskChangedMessage: "deadline",
+  taskChangedDurationMessage: "deadline",
+  penaltyTaskMessage: "deadline",
+  penaltyTaskDurationMessage: "deadline",
+  taskAwaitingMessage: "deadline",
+  taskProofReminderMessage: "deadline",
 
-  penaltyMessage: false,
-  penaltyMessageNoReason: false,
-  penaltyReportedDoneMessage: false,
-  offenseDetectedMessage: false,
-  offenseDetectedMessageTitled: false,
-  offenseDismissedMessage: false,
-  wrongDeviceMessage: false,
-  offenseStatementMessage: false,
-  inspectionConfirmedMessage: false,
-  inspectionRejectedMessage: false,
-  inspectionResolvedWithdrawnMessage: false,
-  inspectionAutoRemovedMessageSub: false,
-  inspectionAutoRemovedMessageSubNoCode: false,
-  inspectionAutoRemovedMessageSubWear: false,
-  inspectionAutoRemovedMessageSubWearNoCode: false,
-  inspectionAutoRemovedMessageKeyholder: false,
-  inspectionAutoRemovedMessageKeyholderNoCode: false,
-  inspectionAutoRemovedMessageKeyholderWear: false,
-  inspectionAutoRemovedMessageKeyholderWearNoCode: false,
-  releasedNowMessage: false,
-  lockRequestWithdrawnMessage: false,
-  lockPeriodWithdrawnMessage: false,
-  orgasmGelegenheitIntro: false,
-  orgasmWithdrawnMessage: false,
-  taskWithdrawnMessage: false,
-  taskDoneMessage: false,
-  taskFailedMessage: false,
-  taskDoneMessageKeyholder: false,
-  taskFailedMessageKeyholder: false,
-  taskReviewMessageKeyholder: false,
-  taskProofLateMessageKeyholder: false,
-  taskProofAcceptedMessage: false,
-  taskProofRejectedMessage: false,
-  weightTargetReachedMessageKeyholder: false,
-  weightTargetLostMessageKeyholder: false,
-  weightReleaseSetMessage: false,
-  weightReleaseWithdrawnMessage: false,
-  weightReleaseOpenedMessageKeyholder: false,
-  healthHoldStartedMessage: false,
-  healthHoldEndedMessage: false,
+  // Wichtig: ein Urteil, ein Vorwurf, eine abgelehnte Kontrolle, eine Erlaubnis mit Fenster — und
+  // auf der Keyholder-Seite alles, was auf ihre Handlung wartet.
+  penaltyMessage: "important",
+  penaltyMessageNoReason: "important",
+  offenseDetectedMessage: "important",
+  offenseDetectedMessageTitled: "important",
+  wrongDeviceMessage: "important",
+  inspectionRejectedMessage: "important",
+  inspectionAutoRemovedMessageSub: "important",
+  inspectionAutoRemovedMessageSubNoCode: "important",
+  inspectionAutoRemovedMessageSubWear: "important",
+  inspectionAutoRemovedMessageSubWearNoCode: "important",
+  orgasmGelegenheitIntro: "important",
+  releasedNowMessage: "important",
+  taskFailedMessage: "important",
+  taskProofRejectedMessage: "important",
+  weightReleaseSetMessage: "important",
+  healthHoldStartedMessage: "important",
+  healthHoldEndedMessage: "important",
+  offenseStatementMessage: "important",
+  penaltyReportedDoneMessage: "important",
+  taskFailedMessageKeyholder: "important",
+  taskReviewMessageKeyholder: "important",
+  taskProofLateMessageKeyholder: "important",
+  inspectionAutoRemovedMessageKeyholder: "important",
+  inspectionAutoRemovedMessageKeyholderNoCode: "important",
+  inspectionAutoRemovedMessageKeyholderWear: "important",
+  inspectionAutoRemovedMessageKeyholderWearNoCode: "important",
+
+  // Alltag: ein Rückzug nimmt eine Pflicht WEG, eine Bestätigung schliesst sie ab.
+  offenseDismissedMessage: "info",
+  inspectionConfirmedMessage: "info",
+  inspectionResolvedWithdrawnMessage: "info",
+  lockRequestWithdrawnMessage: "info",
+  lockPeriodWithdrawnMessage: "info",
+  orgasmWithdrawnMessage: "info",
+  taskWithdrawnMessage: "info",
+  taskDoneMessage: "info",
+  taskProofAcceptedMessage: "info",
+  taskDoneMessageKeyholder: "info",
+  weightTargetReachedMessageKeyholder: "info",
+  weightTargetLostMessageKeyholder: "info",
+  weightReleaseWithdrawnMessage: "info",
+  weightReleaseOpenedMessageKeyholder: "info",
 };
 
-/** Siehe {@link DEADLINE_BY_BODY_KEY}. `Object.hasOwn` aus demselben Grund wie in `messageCategory`. */
-export function isDeadlineMessage(bodyKey: string): boolean {
-  return Object.hasOwn(DEADLINE_BY_BODY_KEY, bodyKey) && DEADLINE_BY_BODY_KEY[bodyKey as MessageBodyKey];
+/** Siehe {@link PRIORITY_BY_BODY_KEY}. Ein unbekannter Schlüssel gilt als `important`: lieber einmal
+ *  zu viel zustellen als eine Pflicht verschlucken. `Object.hasOwn` aus demselben Grund wie in
+ *  `messageCategory` — der Wert kommt aus einer freien Textspalte. */
+export function messagePriority(bodyKey: string): MessagePriority {
+  return Object.hasOwn(PRIORITY_BY_BODY_KEY, bodyKey) ? PRIORITY_BY_BODY_KEY[bodyKey as MessageBodyKey] : "important";
 }
 
 /**

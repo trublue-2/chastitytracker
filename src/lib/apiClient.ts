@@ -134,10 +134,24 @@ export async function uploadPhoto(
 }
 
 /**
- * PATCH die eigenen Empfangs-Kanäle EINES Ereignisses (`/api/settings/notifications`). Gibt den
- * stabilen Fehler-Code zurück, `null` bei Erfolg — Optimistik und Fehler-Anzeige macht der Aufrufer
- * selbst (mal Toast, mal Inline-Zeile). Drei Selbst-Schalter teilen ihn (Posteingang, Wiege-
- * Erinnerung, Telegram), statt denselben PATCH je dreimal auszuschreiben.
+ * PATCH die STUFE eines eigenen Kanals (`/api/settings/notify-levels`): wie laut Mail, Push oder
+ * Telegram sein darf. Gibt den stabilen Fehler-Code zurück, `null` bei Erfolg — Optimistik und
+ * Fehler-Anzeige macht der Aufrufer (`useNotifyLevel`).
+ */
+export async function saveNotifyLevel(channel: "mail" | "push" | "telegram", level: string): Promise<string | null> {
+  const res = await fetch("/api/settings/notify-levels", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel, level }),
+  });
+  return res.ok ? null : parseApiErrorCode(res);
+}
+
+/**
+ * PATCH die eigenen Empfangs-Kanäle EINES Ereignisses (`/api/settings/notifications`). Seit die
+ * allgemeinen Kanäle über Stufen laufen ({@link saveNotifyLevel}) bleibt genau ein Nutzer: die
+ * Wiege-Erinnerung mit ihrem eigenen Schalter. Gibt den stabilen Fehler-Code zurück, `null` bei
+ * Erfolg — Optimistik und Fehler-Anzeige macht der Aufrufer.
  */
 export async function saveOwnNotificationChannels(
   eventType: string,

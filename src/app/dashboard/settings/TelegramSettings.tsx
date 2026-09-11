@@ -3,32 +3,26 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
-import Toggle from "@/app/components/Toggle";
 import FormError from "@/app/components/FormError";
-import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
-import { useNotificationChannelToggle } from "@/app/hooks/useNotificationChannelToggle";
 
 export interface TelegramSettingsProps {
-  /** Kontrolliert vom Elter (`SettingsForm`), damit es alle drei Kanäle für die „letzter Kanal
-   *  aus"-Warnung live kennt — Verbindung wie Empfangs-Schalter. */
+  /** Kontrolliert vom Elter (`SettingsForm`), damit es für die „kein Kanal trägt"-Warnung live
+   *  weiss, ob der Chat verbunden ist. WIE LAUT Telegram sein darf, steht dagegen als Stufe in der
+   *  Kanal-Liste oben — nicht mehr hier. */
   linked: boolean;
   onLinkedChange: (v: boolean) => void;
-  messageTelegram: boolean;
-  onMessageTelegramChange: (v: boolean) => void;
 }
 
 /**
- * Selbstbedienung des Nutzers für den dritten Kanal: eigenen Telegram-Chat verbinden/entkoppeln und
- * — solange verknüpft — den Telegram-Empfang neuer Nachrichten schalten. Kein Keyholder-Feld,
- * deshalb kein MCP-Weg (die KI verknüpft keinen eigenen Chat). Muster wie {@link PushManager}:
- * eigenes Laden/Toast, optimistischer Schalter mit Revert.
+ * Selbstbedienung des Nutzers für den dritten Kanal: eigenen Telegram-Chat verbinden und wieder
+ * entkoppeln. Kein Keyholder-Feld, deshalb kein MCP-Weg (die KI verknüpft keinen eigenen Chat).
+ * Muster wie {@link PushManager}: eigenes Laden, eigener Toast.
  */
-export default function TelegramSettings({ linked, onLinkedChange, messageTelegram, onMessageTelegramChange }: TelegramSettingsProps) {
+export default function TelegramSettings({ linked, onLinkedChange }: TelegramSettingsProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
-  const toast = useToast();
   const apiError = useApiError();
 
   const [connecting, setConnecting] = useState(false);
@@ -92,13 +86,6 @@ export default function TelegramSettings({ linked, onLinkedChange, messageTelegr
     }
   }
 
-  // Telegram-Kanal für neue Nachrichten — derselbe geteilte Hook wie Mail/Push, nur die Fehler-
-  // Fläche ist ein Toast (der Abschnitt hat keine eigene Inline-Card für den Schalter).
-  const toggleTelegramNotify = useNotificationChannelToggle(
-    "MESSAGE_RECEIVED",
-    useCallback((message: string | null) => { if (message) toast.error(message); }, [toast]),
-  );
-
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-foreground-muted">{t("telegramDesc")}</p>
@@ -106,14 +93,6 @@ export default function TelegramSettings({ linked, onLinkedChange, messageTelegr
       {linked ? (
         <>
           <p className="text-sm text-ok-text">{t("telegramConnected")}</p>
-          {/* Telegram-Empfang neuer Nachrichten — parallel zum Mail/Push-Schalter, nur bei
-              verknüpftem Chat. Die Nachricht selbst kommt ohnehin in den Posteingang. */}
-          <Toggle
-            label={t("telegramNotifyLabel")}
-            description={t("telegramNotifyHint")}
-            checked={messageTelegram}
-            onChange={(c) => toggleTelegramNotify("telegram", onMessageTelegramChange, c)}
-          />
           <Button variant="secondary" onClick={handleDisconnect} loading={connecting}>
             {t("telegramDisconnect")}
           </Button>

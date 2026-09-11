@@ -102,6 +102,13 @@ model User {
   // Startseite nach Login (pro User): "auto" = rollen-/sub-abhängig (Keyholder→Übersicht bzw. einziger
   // Sub direkt, sonst eigener Tracker), "overview" = Keyholder-Übersicht, "dashboard" = eigener Tracker.
   startPage                      String                   @default("auto")
+  // Wie laut jeder Kanal sein darf — "all" | "important" | "off" (NOTIFY_LEVELS in constants.ts).
+  // Gilt für ALLE Meldungen AN DIESE PERSON, auch für die über ihre Subs: der Empfänger entscheidet,
+  // nicht der Betroffene. Jede Meldung trägt eine Stufe (DEADLINE_BY_BODY_KEY → messagePriority),
+  // und eine Frist erreicht ihn notfalls über jeden erreichbaren Kanal (deliveryChannels.ts).
+  notifyMail                     String                   @default("all")
+  notifyPush                     String                   @default("all")
+  notifyTelegram                 String                   @default("all")
   // Keyholder/Admin-Präferenz: eigene Karte in der Keyholder-Übersicht ausblenden (für Keyholder,
   // die keinen eigenen Tracker nutzen). Nur relevant, wenn die eigene Karte dort überhaupt erscheint.
   hideOwnTracker                 Boolean                  @default(false)

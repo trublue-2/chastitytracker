@@ -27,21 +27,34 @@ nicht der Ort für eine Meldung über einen fremden Träger —, bekommen aber s
 `notifyControllers` schreibt sie mit dem Träger als Betreff und `audience: "keyholders"`, geteilt von
 allen seinen Keyholdern. Was der Sub selbst erfasst (Einträge), geht nach wie vor nur per Mail.
 
-Die Spalte **Schalter** meint „Mail und Push bei neuen Nachrichten"
-(`NotificationPreference.MESSAGE_RECEIVED`, fehlende Zeile = an, `notificationPrefs.ts:9-25`).
-**„nein" heisst: geht raus, auch wenn der Sub ihn ausschaltet.** Die Trennlinie ist bewusst gezogen —
-alles mit **Frist oder Pflicht** ist nicht stummschaltbar, reine Statusmeldungen sind es. Der
-Posteingang-Eintrag entsteht in **allen** Fällen; genau das ist der Gewinn der Persistenz.
+**Stand v6.2.3 — Stufen statt Schalter.** Die Spalten-Angabe „Schalter" der Tabellen unten ist damit
+überholt; sie beschreibt den Zustand bis v6.2.2.
 
-**Stand v6.2.2:** v6.2.1 hatte die Frist-Meldungen (Kontrolle, Einschliessen/Sperrzeit,
-Orgasmus-Anweisung) ebenfalls an den Schalter gehängt — mit der Folge, dass eine Kontrolle bei
-abgeschalteten Kanälen und blockiertem Telegram-Bot nirgends ankam und als Vergehen gebucht wurde.
-Seitdem gilt für alle Frist-Meldungen — dazu Mahnung, Aufgabe, Nachweis-Erinnerung und jede
-ÄNDERUNG einer Frist — der Schalter mit **Rückfall**: erreicht keiner der eingeschalteten Kanäle den
-Empfänger, gehen sie an jeden erreichbaren (`deadlineChannels.ts`). Welche Meldung eine Frist hat,
-steht vollständig in `DEADLINE_BY_BODY_KEY` (`messageCategories.ts`); `recordInboxDelivery` leitet
-es daraus ab. Ein blockierter Telegram-Bot löst die Verbindung (`forgetDeadChat`), statt still
-weiter ins Leere zu senden.
+Jede Meldung trägt eine **Dringlichkeit** (`PRIORITY_BY_BODY_KEY` in `messageCategories.ts`,
+vollständig über alle Meldungstexte):
+
+- `deadline` — eine Pflicht mit Frist. Auch ihre ÄNDERUNG zählt dazu: wer eine vorgezogene Frist
+  nicht erfährt, verstösst genauso wie bei einer neuen.
+- `important` — was der Empfänger wissen muss, ohne dass eine Uhr läuft: Urteile, festgestellte
+  Vergehen, Handlungsbedarf der Keyholderin.
+- `info` — der Alltag.
+
+Jede **Person** stellt je Kanal eine **Stufe** ein (`User.notifyMail` / `notifyPush` /
+`notifyTelegram`, Werte `all` / `important` / `off`). Geliefert wird, was die Stufe zulässt
+(`deliveryChannels.ts`). Entscheidend ist der EMPFÄNGER, nicht der Betroffene: Meldungen über einen
+Träger folgen den Stufen seiner Keyholder. Das frühere Raster am Sub, das die Meldungen an seine
+Keyholder steuerte, ist ersatzlos entfallen.
+
+**Frist-Rückfall.** Erreicht keiner der eingeschalteten Kanäle den Empfänger — alles aus, keine
+Adresse, kein Gerät, Bot blockiert —, geht eine `deadline`-Meldung an jeden Kanal, der ihn erreicht.
+Der Anlass: v6.2.1 hatte die Anforderungen an den Schalter gehängt, und eine Kontrolle kam bei
+abgeschalteten Kanälen und blockiertem Telegram-Bot nirgends an — gebucht wurde sie trotzdem als
+Vergehen. Ein blockierter Bot löst seither die Verbindung (`forgetDeadChat`), statt still weiter ins
+Leere zu senden.
+
+Der Posteingangs-Eintrag entsteht in **allen** Fällen; genau das ist der Gewinn der Persistenz. Die
+Wiege-Erinnerung behält als einzige ihren eigenen Schalter — sie ist eine Gefälligkeit, die man
+einzeln abbestellen können soll.
 
 ### Kontrolle
 
@@ -163,8 +176,9 @@ verschwinden mit ihm, weil das Dashboard ausschliesslich **offene** Direktiven l
 - `NotificationPreference` steuert **nur** die Meldungen über Sub-Einträge an die Keyholder
   (`entries/route.ts:318-319`). Der gesamte Keyholder→Sub-Verkehr läuft daran vorbei: `notifyUser`
   fragt keine Präferenz ab. **Der Sub hat keinen Ausschalter.**
-  **Überholt (v4.56.0):** `MESSAGE_RECEIVED` + `getMessageChannels()` sind der Ausschalter; was er
-  nicht erreicht, steht in der Schalter-Spalte der Tabellen oben.
+  **Überholt (v4.56.0):** `MESSAGE_RECEIVED` + `getMessageChannels()` waren der Ausschalter.
+  **Seit v6.2.3** gibt es stattdessen die drei Kanal-Stufen am Konto (`deliveryChannels.ts`) — sie
+  gelten für JEDE Meldung an diese Person, auch für die über ihre Träger.
 
 ### 1.4 Das Badge ist eine Konstante
 
@@ -453,8 +467,10 @@ nur durch die Tool-Dokumentation. Das ist der teuerste Fehler, den dieses Featur
 Zwei Multiplikatoren: die Empfängerliste (alle Admins plus alle Keyholder, jeweils per `Promise.all`
 angeschrieben) und die fehlende Präferenz-Prüfung in `notifyUser`.
 
-**Empfehlung:** `NOTIFICATION_EVENT_TYPES` (`constants.ts:215`) um `MESSAGE_RECEIVED` erweitern und
-`NotifyContent` ein optionales `eventType` geben. Dann gilt: **Nachricht immer schreiben, Mail/Push nur
+**Erledigt (v4.56.0), abgelöst (v6.2.3):** die Empfehlung lautete, `NOTIFICATION_EVENT_TYPES` um
+`MESSAGE_RECEIVED` zu erweitern und `NotifyContent` ein optionales `eventType` zu geben. Heute
+entscheidet stattdessen die Stufe des Empfängers je Kanal (`deliveryChannels.ts`), und die
+Ereignis-Liste gibt es nicht mehr. Der Gedanke dahinter gilt unverändert: Dann gilt: **Nachricht immer schreiben, Mail/Push nur
 wenn erlaubt.** Das ist der eigentliche Gewinn der Persistenz — der Kanal wird *leiser*, nicht lauter,
 weil man Push abschalten kann, ohne die Information zu verlieren.
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
@@ -18,17 +18,17 @@ import PushManager from "@/app/components/PushManager";
 import PasskeyManager from "@/app/components/PasskeyManager";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
-import { LOCALES_LONG } from "@/lib/constants";
+import { LOCALES_LONG, levelCarries, type NotifyChannel, type NotifyLevel } from "@/lib/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
-import { useNotificationChannelToggle } from "@/app/hooks/useNotificationChannelToggle";
+import { useNotifyLevel } from "@/app/hooks/useNotifyLevel";
 import PasswordChangeConfirm from "@/app/components/PasswordChangeConfirm";
 import WeightSettings from "./WeightSettings";
 import TelegramSettings from "./TelegramSettings";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, messageMail, messagePush, messageTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
@@ -173,26 +173,53 @@ export default function SettingsForm({ username, email, locale, timezone, startP
   const [hideOwnValue, setHideOwnValue] = useState(hideOwnTracker);
   const [hideOwnError, setHideOwnError] = useState<string | null>(null);
 
-  const [messageMailValue, setMessageMailValue] = useState(messageMail);
-  const [messagePushValue, setMessagePushValue] = useState(messagePush);
-  // Telegram-Kanal + Verbindung leben eigentlich im Telegram-Abschnitt, werden aber HIER gehalten:
-  // nur so kennt die Seite alle drei Kanäle live und kann warnen, wenn der letzte ausgeht.
-  const [messageTelegramValue, setMessageTelegramValue] = useState(messageTelegram);
+  // Eine STUFE je Kanal statt eines Schalters je Ereignis: „Alles", „Nur Wichtiges", „Aus". Die
+  // Verbindung des Telegram-Chats lebt zwar im Telegram-Abschnitt, wird aber HIER gehalten — nur so
+  // kennt die Seite alle drei Kanäle live und kann warnen, wenn keiner mehr trägt.
+  const [levels, setLevels] = useState<Record<NotifyChannel, NotifyLevel>>({
+    mail: notifyMail,
+    push: notifyPush,
+    telegram: notifyTelegram,
+  });
   const [telegramLinkedValue, setTelegramLinkedValue] = useState(telegramLinked);
   const [messageNotifyError, setMessageNotifyError] = useState<string | null>(null);
 
-  // Mail/Push je einzeln für neue Nachrichten (Telegram im Telegram-Abschnitt). Optimistik,
-  // selektives Schreiben und Fehler-Behandlung stecken im geteilten Hook.
-  const toggleMessageChannel = useNotificationChannelToggle("MESSAGE_RECEIVED", setMessageNotifyError);
+  // Optimistik, selektives Schreiben und Fehler-Behandlung stecken im geteilten Hook.
+  const applyLevel = useCallback(
+    (channel: NotifyChannel, level: NotifyLevel) => setLevels((prev) => ({ ...prev, [channel]: level })),
+    [],
+  );
+  const setLevel = useNotifyLevel(applyLevel, setMessageNotifyError);
 
-  // „Kein Kanal trägt": ein Kanal zählt nur, wenn er an ist UND den Nutzer erreichen kann — Mail und
-  // Push nach dem Urteil des Servers (dieselbe Regel wie der Frist-Rückfall `getDeadlineChannels`),
-  // Telegram mit Bot und verbundenem Chat (einen blockierten Bot löst der Server selbst). Trägt keiner,
-  // erreicht den Nutzer extern nichts mehr — nur der Posteingang und Frist-Meldungen über den Rückfall.
-  const mailChannelActive = messageMailValue && mailReachable;
-  const pushChannelActive = messagePushValue && pushReachable;
-  const telegramChannelActive = telegramConfigured && telegramLinkedValue && messageTelegramValue;
+  const levelOptions = [
+    { value: "all", label: t("notifyLevelAll") },
+    { value: "important", label: t("notifyLevelImportant") },
+    { value: "off", label: t("notifyLevelOff") },
+  ];
+
+  // „Kein Kanal trägt": ein Kanal zählt nur, wenn seine Stufe nicht „Aus" ist UND er den Nutzer
+  // erreichen kann — Mail und Push nach dem Urteil des Servers (dieselbe Regel wie der Frist-Rückfall
+  // in `deliveryChannels.ts`), Telegram mit Bot und verbundenem Chat (einen blockierten Bot löst der
+  // Server selbst). Trägt keiner, erreicht den Nutzer extern nichts mehr — nur der Posteingang, und
+  // Fristen über den Rückfall.
+  const mailChannelActive = levelCarries(levels.mail) && mailReachable;
+  const pushChannelActive = levelCarries(levels.push) && pushReachable;
+  const telegramChannelActive = telegramConfigured && telegramLinkedValue && levelCarries(levels.telegram);
   const noExternalChannel = !mailChannelActive && !pushChannelActive && !telegramChannelActive;
+
+  // Die drei Zeilen der Kanal-Liste: Beschriftung, Statuszeile mit genau einer Aussage, Stufe.
+  // Telegram erscheint nur, wenn die Instanz überhaupt einen Bot führt.
+  const channelRows: { channel: NotifyChannel; label: string; status: string }[] = [
+    { channel: "mail", label: t("channelMail"), status: email ? t("notifyStatusMailTo", { email }) : t("notifyStatusMailNone") },
+    { channel: "push", label: t("channelPush"), status: pushReachable ? t("notifyStatusPushOn") : t("notifyStatusPushOff") },
+    ...(telegramConfigured
+      ? [{
+          channel: "telegram" as const,
+          label: t("channelTelegram"),
+          status: telegramLinkedValue ? t("notifyStatusTelegramOn") : t("notifyStatusTelegramOff"),
+        }]
+      : []),
+  ];
 
   const startPageOptions = [
     { value: "auto", label: t("startPageAuto") },
@@ -399,22 +426,30 @@ export default function SettingsForm({ username, email, locale, timezone, startP
             </div>
           )}
 
-          {/* Neue Nachrichten: Mail und Push je einzeln. Telegram ist der dritte Kanal und steht im
-              Telegram-Abschnitt (nur bei verknüpftem Chat). Die Nachricht selbst wird immer
-              geschrieben — die Schalter machen nur den jeweiligen Kanal leiser. */}
+          {/* Wie laut jeder Kanal sein darf. Die Meldung selbst wird immer in den Posteingang
+              geschrieben — die Stufe bestimmt nur, was zusätzlich zugestellt wird, und eine Frist
+              erreicht den Nutzer notfalls über jeden eingerichteten Kanal. */}
           <div className="px-5 py-3 flex flex-col gap-3">
             <SettingLabel label={tm("notifyLabel")} description={tm("notifyHint")} />
-            <div className="flex flex-col gap-1">
-              <Toggle
-                label={t("channelMail")}
-                checked={messageMailValue}
-                onChange={(c) => toggleMessageChannel("mail", setMessageMailValue, c)}
-              />
-              <Toggle
-                label={t("channelPush")}
-                checked={messagePushValue}
-                onChange={(c) => toggleMessageChannel("push", setMessagePushValue, c)}
-              />
+            <div className="flex flex-col gap-3">
+              {channelRows.map((row) => (
+                <div key={row.channel} className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col">
+                    <span className="text-sm text-foreground">{row.label}</span>
+                    <span className="text-xs text-foreground-faint">{row.status}</span>
+                  </div>
+                  <Select
+                    className="w-44"
+                    // Die Beschriftung steht als eigene Zeile daneben, nicht als `label` am Feld —
+                    // ohne diesen Namen kündigt der Screenreader drei Auswahlfelder an, die alle
+                    // „Alles" heissen und keines sagt, für welchen Kanal es gilt.
+                    aria-label={row.label}
+                    value={levels[row.channel]}
+                    onChange={(e) => setLevel(row.channel, e.target.value as NotifyLevel, levels[row.channel])}
+                    options={levelOptions}
+                  />
+                </div>
+              ))}
             </div>
             <FormError message={messageNotifyError} />
             {/* Warnung, wenn KEIN Kanal mehr aktiv ist — dieselbe Warn-Card wie eine Fehlerzeile
@@ -433,8 +468,6 @@ export default function SettingsForm({ username, email, locale, timezone, startP
               <TelegramSettings
                 linked={telegramLinkedValue}
                 onLinkedChange={setTelegramLinkedValue}
-                messageTelegram={messageTelegramValue}
-                onMessageTelegramChange={setMessageTelegramValue}
               />
             </ExpandRow>
           )}

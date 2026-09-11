@@ -4,10 +4,10 @@ import { emailT, localeT, type EmailTranslator } from "@/lib/emailI18n";
 import { sendPushToUser } from "@/lib/push";
 import { sendTelegram } from "@/lib/telegram";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { getEventChannelsAny } from "@/lib/notificationPrefs";
+import { deliveryChannels } from "@/lib/deliveryChannels";
 import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/utils";
-import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, anyChannelActive, type NotificationEventType, APP_NAME } from "@/lib/constants";
+import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, anyChannelActive, type MessagePriority, APP_NAME } from "@/lib/constants";
 
 export interface EntryNotifyParams {
   /** Der Träger, dessen Eintrag gemeldet wird. */
@@ -35,12 +35,15 @@ export interface EntryNotifyParams {
   reasonConfig: { oeffnenGruendeConfig: string | null; orgasmusArtenConfig: string | null } | null;
 }
 
-/** Welche Benachrichtigungs-Typen dieser Eintrag auslöst. Leer = niemand wird gemeldet.
- *
- *  Der Rückgabetyp ist die Liste aus `constants.ts`, nicht `string[]`: ein Eintragstyp, der einen
- *  Schalter nennt, den das Raster gar nicht kennt, wird so ein Compile-Fehler statt einer Meldung,
- *  die stumm nie ankommt. */
-function eventTypesFor(p: EntryNotifyParams): NotificationEventType[] {
+/** Die Ereignis-Arten, die ein Eintrag auslösen kann. Seit die Kanäle an der Stufe des Empfängers
+ *  hängen, ist das keine Schalter-Liste mehr, sondern nur noch die Grundlage der Dringlichkeit —
+ *  deshalb hier und nicht mehr in `constants.ts`. */
+type EntryEventType =
+  | "VERSCHLUSS" | "OEFFNUNG_IMMER" | "OEFFNUNG_VERBOTEN" | "ORGASMUS"
+  | "KONTROLLE_FREIWILLIG" | "KONTROLLE_ANGEFORDERT" | "WEAR_BEGIN_ANY" | "WEAR_END_ANY";
+
+/** Welche Ereignis-Arten dieser Eintrag auslöst. Leer = niemand wird gemeldet. */
+function eventTypesFor(p: EntryNotifyParams): EntryEventType[] {
   switch (p.type) {
     case "VERSCHLUSS": return ["VERSCHLUSS"];
     case "OEFFNEN": return p.withdrawnLockPeriod ? ["OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN"] : ["OEFFNUNG_IMMER"];
@@ -161,17 +164,13 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
     const eventTypes = eventTypesFor(p);
     if (eventTypes.length === 0) return;
 
-    // Die Einstellungen des TRÄGERS entscheiden, ob überhaupt gemeldet wird — gelesen über
-    // `notificationPrefs` wie jede andere Meldung, statt mit einer eigenen Abfrage daneben. Die
-    // zweite Lesart wich in zwei Punkten ab, und beide waren Fehler:
-    //  - eine FEHLENDE Zeile hiess hier „stumm", im Rest des Hauses „an". Die Zeilen legt
-    //    `ensureNotificationPreferences` beim Anlegen UND bei jedem Containerstart an; fehlt eine, ist
-    //    das eine Anomalie — und dann ist Senden die sichere Richtung, nicht Schweigen.
-    //  - ein Lesefehler riss den Aufrufer mit, statt auf Senden zurückzufallen.
-    // Die ODER-Regel über mehrere Typen liegt mit dort: sie ist Semantik der Schalter, nicht dieser
-    // Meldung — und der nächste Aufrufer mit zwei Ereignissen soll sie nicht neu herleiten.
-    const channels = await getEventChannelsAny(p.userId, eventTypes);
-    if (!anyChannelActive(channels)) return;
+    // Wer die Meldung bekommt, entscheidet seit dem Stufen-Modell SELBST — nicht mehr der Träger
+    // über sein Raster. Diese Meldung nennt deshalb nur noch, WIE DRINGEND sie ist.
+    // Wie dringend die Meldung IST, hängt am Ereignis: eine verbotene Öffnung ist ein Vergehen und
+    // damit „wichtig", alles übrige ist Alltag. Welche Kanäle daraus werden, entscheidet jeder
+    // EMPFÄNGER über seine Stufen (`deliveryChannels`) — ein Keyholder, der nur Wichtiges will,
+    // bekommt die verbotene Öffnung und nicht jeden Verschluss.
+    const priority: MessagePriority = eventTypes.includes("OEFFNUNG_VERBOTEN") ? "important" : "info";
 
     // Den Handelnden streichen NUR, wenn er für JEMAND ANDEREN erfasst hat: dann wäre es eine
     // Meldung über etwas, das er gerade selbst getippt hat. Erfasst jemand für SICH, bleibt die
@@ -179,9 +178,14 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
     // Admin-Rolle (Ein-Personen-Instanz) steht darin selbst; ihn zu filtern nähme ihm die Meldung
     // über seine eigenen Einträge.
     const all = await getControllersOfUser(p.userId);
-    const recipients = p.actorUserId && p.actorUserId !== p.userId
+    const addressed = p.actorUserId && p.actorUserId !== p.userId
       ? all.filter((r) => r.id !== p.actorUserId)
       : all;
+    // Je Empfänger seine eigenen Kanäle — und wer über keinen erreichbar ist, fällt hier heraus,
+    // statt unten in drei Schleifen einzeln übersprungen zu werden.
+    const recipients = (await Promise.all(
+      addressed.map(async (r) => ({ ...r, channels: await deliveryChannels(r, priority) })),
+    )).filter((r) => anyChannelActive(r.channels));
     if (recipients.length === 0) return;
 
     // Nur die Trage-Meldungen nennen Gerät und Kategorie. Verschluss und Kontrolle tragen ebenfalls
@@ -222,16 +226,15 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
       };
       const { title, pushBody } = renderHeadline(p, t, time, labels);
 
-      if (channels.push) {
-        await Promise.allSettled(group.map((r) => sendPushToUser(r.id, title, pushBody, adminUrl)));
-      }
+      await Promise.allSettled(
+        group.filter((r) => r.channels.push).map((r) => sendPushToUser(r.id, title, pushBody, adminUrl)),
+      );
       // Telegram: derselbe kurze Text wie der Push, an jeden Empfänger mit verknüpftem Chat.
-      if (channels.telegram) {
-        await Promise.allSettled(
-          group.filter((r) => r.telegramChatId).map((r) => sendTelegram(r.telegramChatId!, `${title}\n\n${pushBody}`)),
-        );
-      }
-      if (!channels.mail) continue;
+      await Promise.allSettled(
+        group.filter((r) => r.channels.telegram && r.telegramChatId)
+          .map((r) => sendTelegram(r.telegramChatId!, `${title}\n\n${pushBody}`)),
+      );
+      if (!group.some((r) => r.channels.mail && r.email)) continue;
 
       // Der geteilte Rahmen (`dashboardEmailHtml`), nicht eine eigene Kopie: die Farbe der
       // Eintragsart trägt der Balken am Titel, den `heading` roh aufnimmt.
@@ -249,7 +252,7 @@ export async function notifyControllersAboutEntry(p: EntryNotifyParams): Promise
       );
 
       for (const r of group) {
-        if (r.email) void sendMailSafe(r.email, `${APP_NAME} – ${title}`, emailHtml);
+        if (r.email && r.channels.mail) void sendMailSafe(r.email, `${APP_NAME} – ${title}`, emailHtml);
       }
     }
   } catch { /* ignore notification errors */ }
