@@ -28,15 +28,15 @@
 - **Personal statistics** — calendar heatmap, monthly overview, training-goal progress, per-device usage
 - **Orgasm tracking** with type and sub-type selection via two dependent dropdowns (e.g. Orgasmus → Masturbation); the type/sub-type list is admin-customizable per user
 - **Offline-first** — IndexedDB-cached dashboard and queued entry creation with background sync
-- **Inbox** — every notification a user receives (inspection, lock & closure, orgasm, penalty, system) also lands in an in-app inbox, colour-coded by category, so nothing is lost when an email doesn't arrive. Read state is per message (opening the list is not enough), messages can be marked unread again, acknowledged all at once, or deleted; an open inspection links straight to the inspection form with the code pre-filled. The bell and the app icon carry the unread count. Notifications go out over email, push, and Telegram (a bot-based third channel, enabled per instance); each channel is switchable per user, and mail/push/Telegram for *new messages* and the weigh-in reminder can be turned off individually — requests and deadlines are always delivered. Keyholders have an inbox of their own behind the same bell: notices about their wearers (auto-filed inspections, task results, late proofs)
+- **Inbox** — every notification a user receives (inspection, lock & closure, orgasm, penalty, system) also lands in an in-app inbox, colour-coded by category, so nothing is lost when an email doesn't arrive. Read state is per message (opening the list is not enough), messages can be marked unread again, acknowledged all at once, or deleted; an open inspection links straight to the inspection form with the code pre-filled. The bell and the app icon carry the unread count. Notifications go out by mail, push and Telegram (a bot-based third channel, enabled per instance). Each user switches every channel for their own notifications and, separately, for the weigh-in reminder; notices to keyholders about their wearers follow the sub's notification matrix, and a few always go out. Anything with a deadline still gets through: if none of the switched-on channels can reach the user, it goes to every channel that can (details: [docs/nachrichten-konzept.md](docs/nachrichten-konzept.md)). A user who blocks the Telegram bot is disconnected automatically, and the settings warn when no switched-on channel reaches them. Keyholders have an inbox of their own behind the same bell: notices about their wearers (auto-filed inspections, task results, late proofs)
 - **Tasks** — assignments from the keyholder with any number of conditions (stay locked, wear a specific device or category) that must hold *continuously*, a start grace period, and a deadline. Proof photos can be required, each with its own due time and an optional order; the capture time comes from the photo's EXIF data, not from the upload. What is left to do is spelled out on the card ("still missing: …"), and when everything has held, the wearer reports the task done
 - **My rules** — a read-only page showing what the wearer is judged by: cleaning permissions and limits, automatic inspections, and which kinds of offense count for them at all
 - **Password self-service** (change and reset via email)
 - **Per-account timezone** — timestamps and day boundaries follow the timezone stored on the account, not the server's
-- **Push notifications** (PWA web-push + native iOS/Android app) for lock/unlock, inspections, lock requests, and penalties; tapping a native push opens the relevant in-app page
+- **Push notifications** (PWA web-push + native iOS/Android app) for every notification (see Inbox); tapping a native push opens the relevant in-app page
 - **Passkey login** (Face ID, Touch ID, Fingerprint, Windows Hello) alongside password
 - **View Transitions** for smooth navigation between dashboard pages
-- **Per-account language** (German and English) — the chosen locale is stored on the account (not just the browser) and drives the full UI **and every recipient-facing notification** (email + push: inspections, lock/lock-period, orgasm, penalty, password reset). A keyholder can set a sub's language from the sub-management page
+- **Per-account language** (German and English) — the chosen locale is stored on the account (not just the browser) and drives the full UI **and every recipient-facing notification** (mail, push and Telegram, plus the password-reset email). A keyholder can set a sub's language from the sub-management page
 - **Installable PWA** with splash screens, app shortcuts, and iOS/Android wrappers
 
 ### Admin Features
@@ -59,7 +59,7 @@
 - **Offense rules per sub** — which kinds of offense count for a given wearer is switchable; `unauthorized orgasm` additionally distinguishes "only during a lock period" from "always". A change applies from that moment on and never rewrites the past
 - **Record an offense by hand** — for anything the app cannot see (a broken agreement, rudeness). It is judged like any derived one
 - **Unified Admin UI** — user-detail tabs share layout, width, and actions consistently across Overview / Actions / Entries / Inspections / Statistics / Log / Devices / Settings
-- **Per-user notification preferences** (email + push, per event type)
+- **Notification matrix per sub** — which of a sub's events (lock, openings, orgasms, inspections, wear begin/end, late proofs, statements, penalties reported done) reach their keyholders by mail, push and Telegram. Set per sub and shared by all of their keyholders; their own switches don't apply
 - **Keyholder relationships** — a non-admin user can be assigned as keyholder for specific subs, gaining scoped access to their data, photos, and notifications — always active, independent of any flag. The optional `USE_ADMIN_RELATIONSHIPS` flag additionally restricts global admins to only their assigned users. Global admins additionally appear as implicit, read-only keyholders in a sub's keyholder list, so it is always clear who controls whom
 - **Separate keyholder overview & user management** — the blue portal splits the **keyholder overview** (`/admin` — sub cards, status, directives, quick actions) from **user management** (`/admin/users` — create / edit / delete users, roles). The portal title is role-aware ("Keyholder portal" for non-admin keyholders, "Admin portal" for global admins)
 - **"No own tracker" mode** — a pure keyholder can hide their own green tracker: no "My view" navigation and the green dashboard redirects to the keyholder overview. Purely UI and routing — **no data is deleted**, the switch is fully reversible, and settings / changelog stay reachable
@@ -546,6 +546,8 @@ src/
     kontrollen.ts           # Inspection row pipeline (shared by admin list views)
     utils.ts                # Duration formatting, wear-pair calculation
     mail.ts                 # Nodemailer wrapper
+    notify.ts               # Notification dispatch (inbox entry + mail/push/Telegram per switch)
+    telegram.ts             # Telegram bot: send, connect link, blocked-bot detection
     authGuards.ts           # API route auth helpers
     webauthn.ts             # WebAuthn/Passkey configuration and token store
     haptics.ts              # Vibration API helpers (Android)
@@ -686,7 +688,7 @@ The keyholder inbox mirrors these under `/api/admin/messages` (`GET`, `[id]`, `[
 | `POST/DELETE` | `/api/admin/users/[id]/keyholders` | Assign / remove a keyholder for a user |
 | `GET/POST` | `/api/admin/vorgaben` | List / create training goals |
 | `PATCH/DELETE` | `/api/admin/vorgaben/[id]` | Update / delete training goal |
-| `GET/PATCH` | `/api/admin/notifications` | Get / update per-user notification preferences (`?userId=`) |
+| `GET/PATCH` | `/api/admin/notifications` | Get / update a sub's notification matrix — which of their events reach the keyholders (`?userId=`) |
 | `POST` | `/api/admin/demo` | Create demo user with sample data (requires `ENABLE_DEMO=true`) |
 
 ### Auth, Passkeys & Settings
@@ -706,7 +708,8 @@ The keyholder inbox mirrors these under `/api/admin/messages` (`GET`, `[id]`, `[
 | `GET/PATCH` | `/api/settings/email` | Read / change own email |
 | `PATCH` | `/api/settings/locale` | Change own account language (drives UI + notifications) |
 | `PATCH` | `/api/settings/timezone` | Change own timezone |
-| `PATCH` | `/api/settings/notifications` | Change own email/push preferences per event type |
+| `PATCH` | `/api/settings/notifications` | Change own mail / push / Telegram switches (notifications to you, weigh-in reminder) |
+| `GET/POST/DELETE` | `/api/settings/telegram` | Own Telegram connection status / create a connect link / disconnect |
 | `PATCH` | `/api/settings/start-page` | Change own landing page after login |
 | `PATCH` | `/api/settings/hide-own-tracker` | Toggle "no own tracker" mode |
 
@@ -721,6 +724,7 @@ The keyholder inbox mirrors these under `/api/admin/messages` (`GET`, `[id]`, `[
 | `GET` | `/api/push/vapid-public-key` | VAPID public key for web-push subscription |
 | `POST/DELETE` | `/api/push/subscribe` | Register / remove web-push subscription |
 | `POST/DELETE` | `/api/push/native-subscribe` | Register / remove native iOS/Android push token (Capacitor) |
+| `POST` | `/api/telegram/webhook` | Telegram bot webhook — connects a chat via `/start <token>` and disconnects a user who blocks the bot (requires `TELEGRAM_WEBHOOK_SECRET`) |
 | `GET` | `/api/portal-login` | JWT-based portal login via `?token=` (requires `PORTAL_SHARED_SECRET`) |
 | `GET` | `/api/apple-app-site-association` | iOS Universal Links manifest |
 
@@ -747,7 +751,7 @@ The keyholder inbox mirrors these under `/api/admin/messages` (`GET`, `[id]`, `[
 | `CleaningRuleChange` | Append-only history of the cleaning rules (allowed, max minutes, daily quota, windows) — so a past opening keeps being judged by the rules in force back then |
 | `AdminPasswordChange` | Password changes on admin accounts (an offense while a lock period is running) |
 | `Message` / `MessageRead` | In-app inbox entries and their per-user read state |
-| `NotificationPreference` | Per-user, per-event email/push notification settings |
+| `NotificationPreference` | Mail/push/Telegram switches: a user's own (`MESSAGE_RECEIVED`, `WEIGHT_REMINDER`) and the per-sub keyholder matrix |
 | `PushSubscription` / `NativePushToken` | Web Push endpoints and native-iOS/Android tokens |
 | `Passkey` | WebAuthn credentials for biometric login |
 | `AdminUserRelationship` | Many-to-many admin-user supervision mapping |
