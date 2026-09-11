@@ -34,6 +34,8 @@ interface CompactProps {
   label: string;
   overdue?: boolean;
   endsAt?: Date | null;
+  /** Wort vor dem Datum („bis"/„until"), i18n beim Aufrufer wie `label` — `label` trägt es nicht. */
+  untilLabel: string;
   locale: string;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
@@ -75,7 +77,7 @@ type Props = CompactProps | LargeProps;
 
 export default function LockRequestBanner(props: Props) {
   if (props.variant === "compact") {
-    const { colorScheme, label, overdue, endsAt, locale, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining, cleaningNote } = props;
+    const { colorScheme, label, overdue, endsAt, untilLabel, locale, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining, cleaningNote } = props;
     const c = overdue ? WARN : COLORS[colorScheme];
     const Icon = SCHEME_ICON[colorScheme];
 
@@ -91,7 +93,7 @@ export default function LockRequestBanner(props: Props) {
             <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>
               {/* viewerTz wirkt nur mit Label — verhindert ein „· <leer> HH:mm", falls ein Aufrufer
                   viewerTz ohne subTimePrefix übergibt (ohne Label → reine Sub-Zeit). */}
-              bis {formatDayTimeDual(endsAt, locale, subTimePrefix ? viewerTz : undefined, tz, subTimePrefix ?? "")}
+              {untilLabel} {formatDayTimeDual(endsAt, locale, subTimePrefix ? viewerTz : undefined, tz, subTimePrefix ?? "")}
             </span>
           )}
           {showRemaining && endsAt && (

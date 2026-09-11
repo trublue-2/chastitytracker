@@ -498,6 +498,7 @@ export default async function AdminPage() {
                             variant="compact"
                             colorScheme="request"
                             label={a.overdue ? t("lockOverdue") : t("lockRequested")}
+                            untilLabel={t("until")}
                             overdue={a.overdue}
                             endsAt={a.endsAt}
                             locale={dl}
@@ -516,7 +517,8 @@ export default async function AdminPage() {
                           <LockRequestBanner
                             variant="compact"
                             colorScheme="sperrzeit"
-                            label={u.stats.activeLockPeriod.endsAt ? t("lockedUntil") : t("lockedIndefinite")}
+                            label={u.stats.activeLockPeriod.endsAt ? t("lockPeriodHeld") : t("lockedIndefinite")}
+                            untilLabel={t("until")}
                             locale={dl}
                             tz={rowTz}
                             viewerTz={viewerTz}
@@ -544,6 +546,7 @@ export default async function AdminPage() {
                             }
                             overdue={u.stats.offeneOrgasmusAnforderung.expired}
                             endsAt={u.stats.offeneOrgasmusAnforderung.endsAt}
+                            untilLabel={t("until")}
                             locale={dl}
                             tz={rowTz}
                             viewerTz={viewerTz}

@@ -176,7 +176,8 @@ export interface AdminPasswortRow {
   id: string;
   atStr: string;
   adminUsername: string;
-  via: string;
+  /** Übersetzter Weg des Wechsels (Server löst `AdminPasswordChange.via` auf). */
+  viaLabel: string;
   lockPeriodEndsAtStr: string | null;
 }
 
@@ -981,7 +982,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             lockPeriodQualifier({ lockPeriodEndsAtStr: p.lockPeriodEndsAtStr, lockPeriodIndefinite: p.lockPeriodEndsAtStr === null }),
           )}
           <p className={FACT_CLS}>
-            {labels.strafbuchAdminPasswortKonto}: {p.adminUsername} · {p.via}
+            {labels.strafbuchAdminPasswortKonto}: {p.adminUsername} · {p.viaLabel}
           </p>
         </>
       ),

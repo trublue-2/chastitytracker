@@ -7,6 +7,7 @@ import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { missedWeightRef } from "@/lib/weightObligation";
 import { loadStatementsOfUser } from "@/lib/offenseStatementService";
+import { passwordChangeViaLabel } from "@/lib/constants";
 import { getLocale, getTranslations } from "next-intl/server";
 import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type CleaningLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow, type StatementView } from "./StrafbuchClient";
 
@@ -121,7 +122,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     id: p.id,
     atStr: fmtDual(p.at),
     adminUsername: p.adminUsername,
-    via: p.via,
+    viaLabel: passwordChangeViaLabel(p.via, t),
     lockPeriodEndsAtStr: p.lockPeriodEndsAt ? fmtDual(p.lockPeriodEndsAt) : null,
   }));
 

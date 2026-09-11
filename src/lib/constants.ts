@@ -1,6 +1,7 @@
 import type { EntryValidationCode } from "@/lib/entryErrors";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import type { TaskState } from "@/lib/tasks";
+import type { PasswordChangeVia } from "@/lib/passwordAudit";
 
 export const VALID_LOCALES = ["de", "en"] as const;
 export type Locale = (typeof VALID_LOCALES)[number];
@@ -643,6 +644,18 @@ export const NOTIFICATION_EVENT_LABEL_KEYS: Record<NotificationEventType, string
   OFFENSE_STATEMENT: "notifyOffenseStatement",
   PENALTY_REPORTED_DONE: "notifyPenaltyReportedDone",
 };
+
+/** Beschriftung je Weg eines Admin-Passwortwechsels (`AdminPasswordChange.via`, Namespace `admin`);
+ *  gegen beide `messages/*.json` gehalten von `passwordChangeViaLabels.test.ts`. */
+export const PASSWORD_CHANGE_VIA_I18N_KEYS: Record<PasswordChangeVia, string> = {
+  reset_token: "strafbuchAdminPasswortViaResetToken",
+  self: "strafbuchAdminPasswortViaSelf",
+  set_by_other: "strafbuchAdminPasswortViaSetByOther",
+};
+/** Übersetzt einen gespeicherten `via`-Wert; ein unbekannter Alt-/Fremdwert bleibt roh stehen. */
+export function passwordChangeViaLabel(via: string, t: (key: string) => string): string {
+  return Object.hasOwn(PASSWORD_CHANGE_VIA_I18N_KEYS, via) ? t(PASSWORD_CHANGE_VIA_I18N_KEYS[via as PasswordChangeVia]) : via;
+}
 
 /** Gruppierung der Matrix — ein Abschnitt je Begriff. */
 export const NOTIFICATION_EVENT_GROUPS: { titleKey: string; events: readonly NotificationEventType[] }[] = [

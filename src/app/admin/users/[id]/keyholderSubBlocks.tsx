@@ -302,6 +302,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           tz={subjectTz}
           viewerTz={viewerTz}
           subTimePrefix={subLabel}
+          untilLabel={t("until")}
           withdrawAction={<WithdrawButton id={anforderung.id} apiPath="/api/admin/orgasmus-anforderung" title={t("withdrawOrgasmTitle")} colorToken="orgasm" />}
         />
       );
