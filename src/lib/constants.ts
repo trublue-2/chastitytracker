@@ -627,6 +627,30 @@ export const NOTIFICATION_EVENT_TYPES = [
 
 export type NotificationEventType = typeof NOTIFICATION_EVENT_TYPES[number];
 
+/** Beschriftung je Event-Typ in der Benachrichtigungs-Matrix der Keyholderin (Namespace `admin`);
+ *  gegen beide `messages/*.json` gehalten von `notificationEventLabels.test.ts`. */
+export const NOTIFICATION_EVENT_LABEL_KEYS: Record<NotificationEventType, string> = {
+  VERSCHLUSS: "notifyVerschluss",
+  OEFFNUNG_IMMER: "notifyOeffnungImmer",
+  OEFFNUNG_VERBOTEN: "notifyOeffnungVerboten",
+  ORGASMUS: "notifyOrgasmus",
+  KONTROLLE_FREIWILLIG: "notifyKontrolleFreiwillig",
+  KONTROLLE_ANGEFORDERT: "notifyKontrolleAngefordert",
+  WEAR_BEGIN_ANY: "notifyWearBeginAny",
+  WEAR_END_ANY: "notifyWearEndAny",
+  TASK_PROOF_LATE: "notifyTaskProofLate",
+  OFFENSE_STATEMENT: "notifyOffenseStatement",
+};
+
+/** Gruppierung der Matrix — ein Abschnitt je Begriff. */
+export const NOTIFICATION_EVENT_GROUPS: { titleKey: string; events: readonly NotificationEventType[] }[] = [
+  { titleKey: "notifyGroupKg", events: ["VERSCHLUSS", "OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN", "KONTROLLE_FREIWILLIG", "KONTROLLE_ANGEFORDERT"] },
+  { titleKey: "notifyGroupOrgasmus", events: ["ORGASMUS"] },
+  { titleKey: "notifyGroupWear", events: ["WEAR_BEGIN_ANY", "WEAR_END_ANY"] },
+  { titleKey: "notifyGroupTasks", events: ["TASK_PROOF_LATE"] },
+  { titleKey: "notifyGroupOffense", events: ["OFFENSE_STATEMENT"] },
+];
+
 /** Die Versand-Kanäle einer Meldung. Die Posteingangs-Zeile hängt NICHT daran. Telegram erreicht nur
  *  Empfänger, die ihren Chat verknüpft haben (`User.telegramChatId`) — genau wie Mail eine Adresse
  *  und Push ein Abonnement voraussetzt. */

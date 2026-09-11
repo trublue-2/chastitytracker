@@ -6,7 +6,13 @@ import { useTranslations } from "next-intl";
 import { Bell, Mail, Send } from "lucide-react";
 import Toggle from "@/app/components/Toggle";
 import Spinner from "@/app/components/Spinner";
-import { NOTIFICATION_EVENT_TYPES, type NotificationEventType, type NotificationChannels } from "@/lib/constants";
+import {
+  NOTIFICATION_EVENT_TYPES,
+  NOTIFICATION_EVENT_LABEL_KEYS,
+  NOTIFICATION_EVENT_GROUPS,
+  type NotificationEventType,
+  type NotificationChannels,
+} from "@/lib/constants";
 
 type Channel = keyof NotificationChannels;
 type PrefsMap = Record<NotificationEventType, NotificationChannels>;
@@ -14,28 +20,6 @@ type PrefsMap = Record<NotificationEventType, NotificationChannels>;
 const EMPTY_PREFS: PrefsMap = Object.fromEntries(
   NOTIFICATION_EVENT_TYPES.map((et) => [et, { mail: false, push: false, telegram: false }])
 ) as PrefsMap;
-
-const I18N_KEY: Record<NotificationEventType, string> = {
-  VERSCHLUSS: "notifyVerschluss",
-  OEFFNUNG_IMMER: "notifyOeffnungImmer",
-  OEFFNUNG_VERBOTEN: "notifyOeffnungVerboten",
-  ORGASMUS: "notifyOrgasmus",
-  KONTROLLE_FREIWILLIG: "notifyKontrolleFreiwillig",
-  KONTROLLE_ANGEFORDERT: "notifyKontrolleAngefordert",
-  WEAR_BEGIN_ANY: "notifyWearBeginAny",
-  WEAR_END_ANY: "notifyWearEndAny",
-  TASK_PROOF_LATE: "notifyTaskProofLate",
-  OFFENSE_STATEMENT: "notifyOffenseStatement",
-};
-
-/** Visual grouping in the matrix — one section per concept. */
-const GROUPS: { titleKey: string; events: readonly NotificationEventType[] }[] = [
-  { titleKey: "notifyGroupKg", events: ["VERSCHLUSS", "OEFFNUNG_IMMER", "OEFFNUNG_VERBOTEN", "KONTROLLE_FREIWILLIG", "KONTROLLE_ANGEFORDERT"] },
-  { titleKey: "notifyGroupOrgasmus", events: ["ORGASMUS"] },
-  { titleKey: "notifyGroupWear", events: ["WEAR_BEGIN_ANY", "WEAR_END_ANY"] },
-  { titleKey: "notifyGroupTasks", events: ["TASK_PROOF_LATE"] },
-  { titleKey: "notifyGroupOffense", events: ["OFFENSE_STATEMENT"] },
-];
 
 export default function NotificationToggles({ userId }: { userId: string }) {
   const t = useTranslations("admin");
@@ -102,7 +86,7 @@ export default function NotificationToggles({ userId }: { userId: string }) {
 
       {/* Groups */}
       <div className="divide-y divide-border-subtle">
-        {GROUPS.map((g) => (
+        {NOTIFICATION_EVENT_GROUPS.map((g) => (
           <div key={g.titleKey}>
             <BlockHeading as="span" className="block px-4 pt-3 pb-1 bg-background-subtle/40">
               {t(g.titleKey)}
@@ -110,7 +94,7 @@ export default function NotificationToggles({ userId }: { userId: string }) {
             <div className="divide-y divide-border-subtle">
               {g.events.map((et) => (
                 <div key={et} className="px-4 py-3 flex items-center justify-between gap-3">
-                  <span className="text-sm text-foreground truncate">{t(I18N_KEY[et])}</span>
+                  <span className="text-sm text-foreground truncate">{t(NOTIFICATION_EVENT_LABEL_KEYS[et])}</span>
                   <div className="flex items-center gap-1 shrink-0">
                     <div className="w-16 flex justify-center">
                       <Toggle
