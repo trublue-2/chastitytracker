@@ -1120,6 +1120,7 @@
     "strafbuchFruehereStrafen": "Punished {count}× so far",
     "strafbuchZuletztVerhaengt": "last on {date}: “{text}”",
     "strafbuchVerwerfen": "Dismiss",
+    "strafbuchVergehenVerwerfen": "Dismiss offense",
     "strafbuchVerworfenBadge": "Dismissed",
     "strafbuchBegruendung": "Reason",
     "strafbuchUrteilKI": "(AI)",

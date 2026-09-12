@@ -240,6 +240,7 @@ interface Labels {
   strafbuchReinigungLimit: string;
   strafbuchReinigungLimitDate: string;
   strafbuchVerwerfen: string;
+  strafbuchVergehenVerwerfen: string;
   strafbuchVerworfenBadge: string;
   strafbuchBegruendung: string;
   strafbuchUrteilKI: string;
@@ -316,6 +317,15 @@ interface Props {
  *  Überschrift der Zeile bei erledigtem Urteil durchgestrichen wird. */
 interface OffenseRow {
   refId: string;
+  /**
+   * Der Zeilen-Inhalt, AUFGERUFEN und nicht als Komponente gerendert — das ist der Punkt.
+   *
+   * Die Funktion entsteht je Render des Bildschirms neu. Solange sie aufgerufen wird, entsteht
+   * daraus nur Auszeichnung, und der Teilbaum darunter bleibt stehen. Wer sie je zu einer
+   * Komponente macht und `<r.body judged={…} />` schreibt, hängt bei JEDEM Eltern-Render jede
+   * Zeile samt Urteils-Formular und halb getippter Begründung neu ein — genau der Fehler, den
+   * {@link JudgmentCtx} beschreibt, nur eine Ebene höher.
+   */
   body: (judged: boolean) => React.ReactNode;
   /** Was diese Zeile vom Rest ihrer Sektion unterscheidet — Zeitpunkt, Code, Titel. Die Vergehensart
    *  kommt beim Rendern aus dem Sektions-Titel davor; zusammen ergibt das den Straf-Anlass, der in
@@ -384,13 +394,10 @@ const fieldCls ="w-full bg-surface-raised border border-border rounded-lg px-3 p
  * setzt `withdrawnAt`, löscht also nicht: das Vergehen fällt aus dem Strafbuch, bleibt aber
  * nachlesbar.
  *
- * Auf MODUL-Ebene, weil eine Komponente mit eigenem Zustand dorthin gehört. Das allein rettet ihren
- * Zustand hier noch nicht: ihr Elter `JudgmentSlot` wird weiterhin im Rumpf von `StrafbuchClient`
- * deklariert, bekommt also bei jedem Eltern-Render eine neue Identität, und React hängt den
- * Teilbaum samt `saving`/`error` neu ein. Praktisch heisst das: eine Fehlermeldung überlebt den
- * nächsten Klick auf einen anderen Chip nicht. Das aufzulösen hiesse, `JudgmentSlot` (und die
- * übrigen sechs Unter-Komponenten dieser Datei) mit herauszuziehen — eine eigene Aufräum-Runde,
- * nicht Teil dieser Änderung. Der Rückzug ist idempotent, ein zweiter Klick ergibt einen 409.
+ * Auf MODUL-Ebene, weil eine Komponente mit eigenem Zustand dorthin gehört — wie alle Bauteile
+ * dieser Datei, aus dem Grund, der bei {@link JudgmentCtx} steht. Ihr `saving`/`error` überlebt
+ * damit einen Render des Elters; bis dahin verschwand eine Fehlermeldung beim nächsten Klick auf
+ * einen anderen Chip. Der Rückzug ist idempotent, ein zweiter Klick ergibt einen 409.
  */
 function ZurueckziehenButton({ id, label, networkError, resolveError, onDone }: {
   id: string;
@@ -432,6 +439,296 @@ function ZurueckziehenButton({ id, label, networkError, resolveError, onDone }: 
   );
 }
 
+/**
+ * Was die Urteils-Bauteile vom Bildschirm brauchen — EIN Bündel.
+ *
+ * Der Grund, warum sie hier oben stehen und nicht im Rumpf von {@link StrafbuchClient}: eine
+ * Komponente, die im Rumpf ihres Elters definiert ist, bekommt bei JEDEM Render des Elters eine
+ * neue Identität. React sieht an dieser Stelle dann einen anderen Komponenten-Typ, reisst den
+ * ganzen Teilbaum ab und baut ihn neu — der Zustand darin ist weg und der Fokus fällt aus dem Feld.
+ * Für das Urteils-Formular hiess das: die halb getippte Begründung verschwand, und zwar ausgelöst
+ * von jedem Render von OBEN, nicht vom Tippen — ein Toast irgendwo in der App genügt. Deshalb steht
+ * hier eine Prop-Liste statt einer Closure. **Keine dieser Komponenten darf zurück in den Rumpf.**
+ */
+interface JudgmentCtx {
+  userId: string;
+  labels: Labels;
+  statements: Record<string, StatementView>;
+  strafeRecords: StrafeRecordData[];
+  punishedIds: Set<string>;
+  dismissedIds: Set<string>;
+  openJudgment: { refId: string; mode: "punish" | "dismiss" } | null;
+  setOpenJudgment: (v: { refId: string; mode: "punish" | "dismiss" } | null) => void;
+  apiError: (code: string | null | undefined) => string;
+  onUndo: (refId: string) => void;
+  onMarkDone: (refId: string, done: boolean) => void;
+}
+
+
+/**
+ * Ein Vergehens-Abschnitt: Rubrik, Zählung, Zeilen.
+ *
+ * Baut auf `components/Section` und nicht mehr auf einer eigenen Fläche. Hier stand ein
+ * `bg-surface rounded-2xl border` mit getönter Kopfzeile darin — Kasten in Kasten, also genau die
+ * Figur, gegen die `Section` gebaut wurde, und das ausgerechnet auf dem Bildschirm, auf dem ein
+ * Urteil über einen Menschen gefällt wird (#86). Die Zählung sitzt im `action`-Platz, für den es
+ * ihn gibt.
+ */
+function OffenseSection({ labels, title, openCount, totalCount, children }: { labels: Labels;
+  title: string; openCount: number; totalCount: number; children: React.ReactNode;
+}) {
+  const showBoth = totalCount > openCount && totalCount > 0;
+  return (
+    <Section
+      title={title}
+      action={
+        <span className="text-xs tabular-nums text-foreground-faint">
+          {showBoth
+            ? <><span className="font-semibold">{openCount} {labels.strafbuchOffen}</span><span className="opacity-50"> / {totalCount} {labels.strafbuchGesamt}</span></>
+            : <span className="font-semibold">{totalCount}</span>
+          }
+        </span>
+      }
+    >
+      <div className="divide-y divide-border-subtle">{children}</div>
+    </Section>
+  );
+}
+
+/** Gemeinsames Urteils-Formular (bestrafen ODER verwerfen) — Freitext + Abbrechen/Submit. */
+function JudgmentForm({ ctx, refId, canonical, sectionRefs, status, label, placeholder, submitLabel, submitIcon, submitClass, onClose }: { ctx: JudgmentCtx;
+  refId: string; canonical: OffenseCanonicalType;
+  /** Die refIds DIESER Sektion — für die Vorgeschichte („frühere Strafen"). Fertig vom Aufrufer,
+   *  der die Sektion ohnehin in der Hand hat: hierin selbst gebaut entstand die Menge bei JEDEM
+   *  Tastendruck im Begründungs-Feld neu, weil `text` das Formular neu rendert. */
+  sectionRefs: ReadonlySet<string>; status: "PUNISHED" | "DISMISSED";
+  label: string; placeholder?: string; submitLabel: string; submitIcon: React.ReactNode; submitClass: string; onClose: () => void;
+}) {
+  const router = useRouter();
+  const offenseType = STORED_TYPE[canonical];
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/strafe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: ctx.userId, offenseType, refId, status, reason: text }),
+      });
+      setSaving(false);
+      if (res.ok) {
+        onClose();
+        router.refresh();
+      } else {
+        setError(ctx.apiError(await parseApiErrorCode(res)));
+      }
+    } catch {
+      // Netzwerkfehler (offline/DNS) — sonst bliebe die Promise unbehandelt.
+      setSaving(false);
+      setError(ctx.labels.networkError);
+    }
+  }
+
+  const statement = ctx.statements[refId] ?? null;
+  const prior = priorPunishments(ctx.strafeRecords, offenseType, sectionRefs);
+  const priorLine = joinParts(
+    prior.count > 0 && ctx.labels.strafbuchFruehereStrafen.replace("{count}", String(prior.count)),
+    prior.last?.reason
+      ? ctx.labels.strafbuchZuletztVerhaengt.replace("{date}", prior.last.judgedAtStr).replace("{text}", prior.last.reason)
+      : null,
+  );
+
+  return (
+    <form onSubmit={submit} className="mt-2 bg-surface-raised rounded-xl border border-border p-3 flex flex-col gap-2">
+      {priorLine && <p className={FACT_CLS}>{priorLine}</p>}
+      {/* Was ER dazu sagt — über dem Feld, in dem entschieden wird. Die Vorgeschichte darüber sagt,
+          was war; das hier sagt, was er einzuwenden hat. Beides gehört vor das Urteil, nicht
+          daneben. */}
+      {statement && (
+        <div>
+          <p className="text-xs text-foreground-faint mb-1">
+            {joinParts(ctx.labels.strafbuchStellungnahme, statement.editedAtStr && ctx.labels.strafbuchStellungnahmeGeaendert.replace("{date}", statement.editedAtStr))}
+          </p>
+          <Quote>{statement.text}</Quote>
+        </div>
+      )}
+      <div>
+        <label className="block text-xs text-foreground-faint mb-1">{label}</label>
+        <textarea value={text} onChange={e => setText(e.target.value)} rows={2} required placeholder={placeholder}
+          className={`${fieldCls} resize-none`} />
+      </div>
+      {error && <p className="text-xs text-warn">{error}</p>}
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onClose}
+          className="text-xs text-foreground-faint hover:text-foreground-muted transition px-3 py-1.5 rounded-lg border border-border">
+          {ctx.labels.strafbuchAbbrechen}
+        </button>
+        <button type="submit" disabled={saving}
+          /* `text-btn-primary-text`, nicht `text-white`: die Fläche darunter ist eine
+             Bedeutungsfarbe, und der Token kennt je Welt die Schrift, die darauf trägt. Weiss
+             war für die eine helle Fassung von damals gewählt. */
+          className={`text-xs font-semibold text-btn-primary-text px-3 py-1.5 rounded-lg disabled:opacity-50 flex items-center gap-1 transition hover:opacity-90 ${submitClass}`}>
+          {submitIcon}
+          {saving ? "…" : submitLabel}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Wer entschieden hat — die KI-Kennzeichnung wie bisher, sonst der Name des Menschen.
+ *
+ * EIN Bauteil für beide Urteils-Badges (verhängt/verworfen): die Kennzeichnung stand vorher
+ * zweimal wörtlich gleich da, und der Name wäre sonst an einer der beiden Stellen gelandet.
+ *
+ * Kein Name heisst NICHT „unbekannt": bei der KI steht ihre Kennung schon im Kürzel, und die
+ * automatische Ahndung hat keinen Urheber. In beiden Fällen ist die stille Zeile die richtige.
+ */
+function JudgedByTag({ labels, record }: { labels: Labels; record: StrafeRecordData }) {
+  if (record.judgedBy === AI_AUTHOR) return <span className={FACT_CLS}>{labels.strafbuchUrteilKI}</span>;
+  if (!record.judgedByName) return null;
+  return <span className={FACT_CLS}>{labels.strafbuchUrteilVon.replace("{name}", record.judgedByName)}</span>;
+}
+
+function PunishedBadge({ ctx, refId }: { ctx: JudgmentCtx; refId: string }) {
+  const record = ctx.strafeRecords.find(r => r.refId === refId);
+  if (!record) return null;
+  return (
+    <div className="mt-1.5 flex flex-col gap-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold text-warn border border-warn px-2 py-0.5 rounded-lg flex items-center gap-1">
+          {ctx.labels.strafbuchStrafeBadge}{record.reason ? `: ${record.reason}` : ""}
+        </span>
+        <JudgedByTag labels={ctx.labels} record={record} />
+        <button type="button" onClick={() => ctx.onUndo(refId)}
+          className="text-xs text-foreground-faint underline hover:text-warn transition ml-auto">
+          {ctx.labels.strafbuchRueckgaengig}
+        </button>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        {record.done ? (
+          <>
+            <span className="text-xs font-semibold text-[var(--color-ok)] border border-[var(--color-ok)] px-2 py-0.5 rounded-lg flex items-center gap-1">
+              <CheckCircle size={10} /> {ctx.labels.strafbuchErledigtBadge} {record.erledigtAtStr}
+            </span>
+            <button type="button" onClick={() => ctx.onMarkDone(refId, false)}
+              className="text-xs text-foreground-faint underline hover:text-warn transition">
+              {ctx.labels.strafbuchWiederOffen}
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Seine Meldung steht VOR dem Knopf, der sie beantwortet. */}
+            {record.reportedDoneAtStr && (
+              <span className={FACT_CLS}>{ctx.labels.strafbuchGemeldet.replace("{date}", record.reportedDoneAtStr)}</span>
+            )}
+            <button type="button" onClick={() => ctx.onMarkDone(refId, true)}
+              className={CHIP_OK_CLS}>
+              <CheckCircle size={11} /> {ctx.labels.strafbuchAlsErledigt}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DismissedBadge({ ctx, refId }: { ctx: JudgmentCtx; refId: string }) {
+  const record = ctx.strafeRecords.find(r => r.refId === refId);
+  if (!record) return null;
+  return (
+    <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+      <span className="text-xs font-semibold text-foreground-faint border border-border px-2 py-0.5 rounded-lg flex items-center gap-1">
+        <XCircle size={10} /> {ctx.labels.strafbuchVerworfenBadge}
+      </span>
+      <JudgedByTag labels={ctx.labels} record={record} />
+      {record.reason && <span className={NOTE_CLS}>„{record.reason}"</span>}
+      <button type="button" onClick={() => ctx.onUndo(refId)}
+        className="text-xs text-foreground-faint underline hover:text-warn transition ml-auto">
+        {ctx.labels.strafbuchRueckgaengig}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * 3-Wege-Urteilsslot: bestraft → PunishedBadge, verworfen → DismissedBadge, offen → Urteils-Auswahl.
+ *
+ * EINE Auswahl, die Aufgabe zuerst: eine Strafe, die der Sub TUN soll, ist als Aufgabe besser
+ * aufgehoben — sie schliesst sich mit der Erfüllung selbst, der Freitext bleibt offen, bis jemand
+ * ihn abschliesst.
+ *
+ * „Aufgabe" führt ins Aufgaben-Formular (Titel, Frist, Bedingungen, Nachweise gibt es dort schon);
+ * ref UND ART des Vergehens reisen als Query mit. Die Art gehört dazu, weil zwei Arten sich eine ref
+ * teilen können (eine Reinigungsöffnung über dem Kontingent während einer Sperrzeit ist unerlaubte
+ * Öffnung UND Reinigungs-Limit) — ohne sie stempelte die Strafaufgabe aus dem Reinigungs-Abschnitt
+ * `OEFFNEN_ENTRY` an ihr Urteil. Erst der Server macht daraus Aufgabe UND Urteil.
+ *
+ * Der Rückzug hängt hier mit dran, weil er dieselbe Sichtbarkeitsregel hat wie die Auswahl: ist das
+ * Vergehen beurteilt, kehrt die Funktion oben aus, und er verschwindet mit ihr. Nur die von Hand
+ * NOTIERTE Art hat ihn überhaupt — alle anderen leiten sich aus Einträgen ab.
+ */
+function JudgmentSlot({ ctx, refId, canonical, sectionRefs, anlass }: {
+  ctx: JudgmentCtx; refId: string; canonical: OffenseCanonicalType;
+  sectionRefs: ReadonlySet<string>; anlass: string;
+}) {
+  const router = useRouter();
+  if (ctx.punishedIds.has(refId)) return <PunishedBadge ctx={ctx} refId={refId} />;
+  if (ctx.dismissedIds.has(refId)) return <DismissedBadge ctx={ctx} refId={refId} />;
+  const offenseType = STORED_TYPE[canonical];
+  const mode = ctx.openJudgment?.refId === refId ? ctx.openJudgment.mode : "";
+
+  function choose(next: string) {
+    if (next === "task") {
+      router.push(taskFormHref(ctx.userId, { offenseRef: refId, offenseType, anlass }));
+      return;
+    }
+    ctx.setOpenJudgment(next === "punish" || next === "dismiss" ? { refId, mode: next } : null);
+  }
+
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-full sm:max-w-xs">
+          <Select
+            aria-label={ctx.labels.strafbuchUrteilLabel}
+            placeholder={ctx.labels.strafbuchUrteilPlaceholder}
+            value={mode}
+            onChange={(e) => choose(e.target.value)}
+            options={[
+              { value: "task", label: ctx.labels.strafbuchUrteilAufgabe },
+              { value: "punish", label: ctx.labels.strafbuchStrafeBeschreiben },
+              { value: "dismiss", label: ctx.labels.strafbuchVerwerfen },
+            ]}
+          />
+        </div>
+        {offenseType === STORED_TYPE.manual_offense && (
+          <ZurueckziehenButton id={refId} label={ctx.labels.strafbuchZurueckziehen}
+            networkError={ctx.labels.networkError} resolveError={ctx.apiError} onDone={() => router.refresh()} />
+        )}
+      </div>
+      {mode === "punish" && (
+        <JudgmentForm ctx={ctx} refId={refId} canonical={canonical} sectionRefs={sectionRefs} status="PUNISHED"
+          label={ctx.labels.strafbuchStrafeLabel} placeholder={ctx.labels.strafbuchStrafePlaceholder}
+          submitLabel={ctx.labels.strafbuchStrafeVerhaengen} submitIcon={<CheckCircle size={12} />}
+          submitClass="bg-[var(--color-ok)]" onClose={() => ctx.setOpenJudgment(null)} />
+      )}
+      {mode === "dismiss" && (
+        <JudgmentForm ctx={ctx} refId={refId} canonical={canonical} sectionRefs={sectionRefs} status="DISMISSED"
+          label={ctx.labels.strafbuchBegruendung}
+          submitLabel={ctx.labels.strafbuchVergehenVerwerfen} submitIcon={<XCircle size={12} />}
+          submitClass="bg-foreground-faint" onClose={() => ctx.setOpenJudgment(null)} />
+      )}
+    </div>
+  );
+}
+
 export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, cleaningLimitOffenses, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, missedWeightReports, manuelleVergehen, strafeRecords, statements, labels }: Props) {
   const router = useRouter();
   // Beide Routen dieser Seite (`/api/admin/offense`, `/api/admin/strafe`) liefern stabile
@@ -450,127 +747,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
   const hasPunished = strafeRecords.length > 0;
 
-  /**
-   * Ein Vergehens-Abschnitt: Rubrik, Zählung, Zeilen.
-   *
-   * Baut auf `components/Section` und nicht mehr auf einer eigenen Fläche. Hier stand ein
-   * `bg-surface rounded-2xl border` mit getönter Kopfzeile darin — Kasten in Kasten, also genau die
-   * Figur, gegen die `Section` gebaut wurde, und das ausgerechnet auf dem Bildschirm, auf dem ein
-   * Urteil über einen Menschen gefällt wird (#86). Die Zählung sitzt im `action`-Platz, für den es
-   * ihn gibt.
-   */
-  function OffenseSection({ title, openCount, totalCount, children }: {
-    title: string; openCount: number; totalCount: number; children: React.ReactNode;
-  }) {
-    const showBoth = totalCount > openCount && totalCount > 0;
-    return (
-      <Section
-        title={title}
-        action={
-          <span className="text-xs tabular-nums text-foreground-faint">
-            {showBoth
-              ? <><span className="font-semibold">{openCount} {labels.strafbuchOffen}</span><span className="opacity-50"> / {totalCount} {labels.strafbuchGesamt}</span></>
-              : <span className="font-semibold">{totalCount}</span>
-            }
-          </span>
-        }
-      >
-        <div className="divide-y divide-border-subtle">{children}</div>
-      </Section>
-    );
-  }
-
-  /** Gemeinsames Urteils-Formular (bestrafen ODER verwerfen) — Freitext + Abbrechen/Submit. */
-  function JudgmentForm({ refId, canonical, status, label, placeholder, submitLabel, submitIcon, submitClass, onClose }: {
-    refId: string; canonical: OffenseCanonicalType; status: "PUNISHED" | "DISMISSED";
-    label: string; placeholder?: string; submitLabel: string; submitIcon: React.ReactNode; submitClass: string; onClose: () => void;
-  }) {
-    const offenseType = STORED_TYPE[canonical];
-    const [text, setText] = useState("");
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState("");
-
-    async function submit(e: React.FormEvent) {
-      e.preventDefault();
-      setSaving(true);
-      setError("");
-      try {
-        const res = await fetch("/api/admin/strafe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, offenseType, refId, status, reason: text }),
-        });
-        setSaving(false);
-        if (res.ok) {
-          onClose();
-          router.refresh();
-        } else {
-          setError(apiError(await parseApiErrorCode(res)));
-        }
-      } catch {
-        // Netzwerkfehler (offline/DNS) — sonst bliebe die Promise unbehandelt.
-        setSaving(false);
-        setError(labels.networkError);
-      }
-    }
-
-    const statement = statements[refId] ?? null;
-    const sectionRefs = new Set(sections.find((s) => s.canonical === canonical)?.rows.map((r) => r.refId));
-    const prior = priorPunishments(strafeRecords, offenseType, sectionRefs);
-    const priorLine = joinParts(
-      prior.count > 0 && labels.strafbuchFruehereStrafen.replace("{count}", String(prior.count)),
-      prior.last?.reason
-        ? labels.strafbuchZuletztVerhaengt.replace("{date}", prior.last.judgedAtStr).replace("{text}", prior.last.reason)
-        : null,
-    );
-
-    return (
-      <form onSubmit={submit} className="mt-2 bg-surface-raised rounded-xl border border-border p-3 flex flex-col gap-2">
-        {priorLine && <p className={FACT_CLS}>{priorLine}</p>}
-        {/* Was ER dazu sagt — über dem Feld, in dem entschieden wird. Die Vorgeschichte darüber sagt,
-            was war; das hier sagt, was er einzuwenden hat. Beides gehört vor das Urteil, nicht
-            daneben. */}
-        {statement && (
-          <div>
-            <p className="text-xs text-foreground-faint mb-1">
-              {joinParts(labels.strafbuchStellungnahme, statement.editedAtStr && labels.strafbuchStellungnahmeGeaendert.replace("{date}", statement.editedAtStr))}
-            </p>
-            <Quote>{statement.text}</Quote>
-          </div>
-        )}
-        <div>
-          <label className="block text-xs text-foreground-faint mb-1">{label}</label>
-          <textarea value={text} onChange={e => setText(e.target.value)} rows={2} required placeholder={placeholder}
-            className={`${fieldCls} resize-none`} />
-        </div>
-        {error && <p className="text-xs text-warn">{error}</p>}
-        <div className="flex gap-2 justify-end">
-          <button type="button" onClick={onClose}
-            className="text-xs text-foreground-faint hover:text-foreground-muted transition px-3 py-1.5 rounded-lg border border-border">
-            {labels.strafbuchAbbrechen}
-          </button>
-          <button type="submit" disabled={saving}
-            /* `text-btn-primary-text`, nicht `text-white`: die Fläche darunter ist eine
-               Bedeutungsfarbe, und der Token kennt je Welt die Schrift, die darauf trägt. Weiss
-               war für die eine helle Fassung von damals gewählt. */
-            className={`text-xs font-semibold text-btn-primary-text px-3 py-1.5 rounded-lg disabled:opacity-50 flex items-center gap-1 transition hover:opacity-90 ${submitClass}`}>
-            {submitIcon}
-            {saving ? "…" : submitLabel}
-          </button>
-        </div>
-      </form>
-    );
-  }
-
-  function BestrafenForm({ refId, canonical }: { refId: string; canonical: OffenseCanonicalType }) {
-    return (
-      <JudgmentForm refId={refId} canonical={canonical} status="PUNISHED"
-        label={labels.strafbuchStrafeLabel} placeholder={labels.strafbuchStrafePlaceholder}
-        submitLabel={labels.strafbuchStrafeVerhaengen} submitIcon={<CheckCircle size={12} />}
-        submitClass="bg-[var(--color-ok)]" onClose={() => setOpenJudgment(null)} />
-    );
-  }
-
   async function handleUndo(refId: string) {
     await fetch("/api/admin/strafe", {
       method: "DELETE",
@@ -583,150 +759,6 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   function markDone(refId: string, done: boolean) {
     void runAction("/api/admin/strafe", { refId, done });
   }
-
-  /**
-   * Wer entschieden hat — die KI-Kennzeichnung wie bisher, sonst der Name des Menschen.
-   *
-   * EIN Bauteil für beide Urteils-Badges (verhängt/verworfen): die Kennzeichnung stand vorher
-   * zweimal wörtlich gleich da, und der Name wäre sonst an einer der beiden Stellen gelandet.
-   *
-   * Kein Name heisst NICHT „unbekannt": bei der KI steht ihre Kennung schon im Kürzel, und die
-   * automatische Ahndung hat keinen Urheber. In beiden Fällen ist die stille Zeile die richtige.
-   */
-  function JudgedByTag({ record }: { record: StrafeRecordData }) {
-    if (record.judgedBy === AI_AUTHOR) return <span className={FACT_CLS}>{labels.strafbuchUrteilKI}</span>;
-    if (!record.judgedByName) return null;
-    return <span className={FACT_CLS}>{labels.strafbuchUrteilVon.replace("{name}", record.judgedByName)}</span>;
-  }
-
-  function PunishedBadge({ refId }: { refId: string }) {
-    const record = strafeRecords.find(r => r.refId === refId);
-    if (!record) return null;
-    return (
-      <div className="mt-1.5 flex flex-col gap-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-warn border border-warn px-2 py-0.5 rounded-lg flex items-center gap-1">
-            {labels.strafbuchStrafeBadge}{record.reason ? `: ${record.reason}` : ""}
-          </span>
-          <JudgedByTag record={record} />
-          <button type="button" onClick={() => handleUndo(refId)}
-            className="text-xs text-foreground-faint underline hover:text-warn transition ml-auto">
-            {labels.strafbuchRueckgaengig}
-          </button>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {record.done ? (
-            <>
-              <span className="text-xs font-semibold text-[var(--color-ok)] border border-[var(--color-ok)] px-2 py-0.5 rounded-lg flex items-center gap-1">
-                <CheckCircle size={10} /> {labels.strafbuchErledigtBadge} {record.erledigtAtStr}
-              </span>
-              <button type="button" onClick={() => markDone(refId, false)}
-                className="text-xs text-foreground-faint underline hover:text-warn transition">
-                {labels.strafbuchWiederOffen}
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Seine Meldung steht VOR dem Knopf, der sie beantwortet. */}
-              {record.reportedDoneAtStr && (
-                <span className={FACT_CLS}>{labels.strafbuchGemeldet.replace("{date}", record.reportedDoneAtStr)}</span>
-              )}
-              <button type="button" onClick={() => markDone(refId, true)}
-                className={CHIP_OK_CLS}>
-                <CheckCircle size={11} /> {labels.strafbuchAlsErledigt}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  function DismissedBadge({ refId }: { refId: string }) {
-    const record = strafeRecords.find(r => r.refId === refId);
-    if (!record) return null;
-    return (
-      <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-semibold text-foreground-faint border border-border px-2 py-0.5 rounded-lg flex items-center gap-1">
-          <XCircle size={10} /> {labels.strafbuchVerworfenBadge}
-        </span>
-        <JudgedByTag record={record} />
-        {record.reason && <span className={NOTE_CLS}>„{record.reason}"</span>}
-        <button type="button" onClick={() => handleUndo(refId)}
-          className="text-xs text-foreground-faint underline hover:text-warn transition ml-auto">
-          {labels.strafbuchRueckgaengig}
-        </button>
-      </div>
-    );
-  }
-
-  function VerwerfenForm({ refId, canonical }: { refId: string; canonical: OffenseCanonicalType }) {
-    return (
-      <JudgmentForm refId={refId} canonical={canonical} status="DISMISSED"
-        label={labels.strafbuchBegruendung}
-        submitLabel={labels.strafbuchVerwerfen} submitIcon={<XCircle size={12} />}
-        submitClass="bg-foreground-faint" onClose={() => setOpenJudgment(null)} />
-    );
-  }
-
-  /**
-   * 3-Wege-Urteilsslot: bestraft → PunishedBadge, verworfen → DismissedBadge, offen → Urteils-Auswahl.
-   *
-   * EINE Auswahl, die Aufgabe zuerst: eine Strafe, die der Sub TUN soll, ist als Aufgabe besser
-   * aufgehoben — sie schliesst sich mit der Erfüllung selbst, der Freitext bleibt offen, bis jemand
-   * ihn abschliesst.
-   *
-   * „Aufgabe" führt ins Aufgaben-Formular (Titel, Frist, Bedingungen, Nachweise gibt es dort schon);
-   * ref UND ART des Vergehens reisen als Query mit. Die Art gehört dazu, weil zwei Arten sich eine ref
-   * teilen können (eine Reinigungsöffnung über dem Kontingent während einer Sperrzeit ist unerlaubte
-   * Öffnung UND Reinigungs-Limit) — ohne sie stempelte die Strafaufgabe aus dem Reinigungs-Abschnitt
-   * `OEFFNEN_ENTRY` an ihr Urteil. Erst der Server macht daraus Aufgabe UND Urteil.
-   *
-   * Der Rückzug hängt hier mit dran, weil er dieselbe Sichtbarkeitsregel hat wie die Auswahl: ist das
-   * Vergehen beurteilt, kehrt die Funktion oben aus, und er verschwindet mit ihr. Nur die von Hand
-   * NOTIERTE Art hat ihn überhaupt — alle anderen leiten sich aus Einträgen ab.
-   */
-  function JudgmentSlot({ refId, canonical, anlass }: { refId: string; canonical: OffenseCanonicalType; anlass: string }) {
-    if (punishedIds.has(refId)) return <PunishedBadge refId={refId} />;
-    if (dismissedIds.has(refId)) return <DismissedBadge refId={refId} />;
-    const offenseType = STORED_TYPE[canonical];
-    const mode = openJudgment?.refId === refId ? openJudgment.mode : "";
-
-    function choose(next: string) {
-      if (next === "task") {
-        router.push(taskFormHref(userId, { offenseRef: refId, offenseType, anlass }));
-        return;
-      }
-      setOpenJudgment(next === "punish" || next === "dismiss" ? { refId, mode: next } : null);
-    }
-
-    return (
-      <div className="mt-2 flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="w-full sm:max-w-xs">
-            <Select
-              aria-label={labels.strafbuchUrteilLabel}
-              placeholder={labels.strafbuchUrteilPlaceholder}
-              value={mode}
-              onChange={(e) => choose(e.target.value)}
-              options={[
-                { value: "task", label: labels.strafbuchUrteilAufgabe },
-                { value: "punish", label: labels.strafbuchStrafeBeschreiben },
-                { value: "dismiss", label: labels.strafbuchVerwerfen },
-              ]}
-            />
-          </div>
-          {offenseType === STORED_TYPE.manual_offense && (
-            <ZurueckziehenButton id={refId} label={labels.strafbuchZurueckziehen}
-              networkError={labels.networkError} resolveError={apiError} onDone={() => router.refresh()} />
-          )}
-        </div>
-        {mode === "punish" && <BestrafenForm refId={refId} canonical={canonical} />}
-        {mode === "dismiss" && <VerwerfenForm refId={refId} canonical={canonical} />}
-      </div>
-    );
-  }
-
 
   /** Der Straf-Anlass einer Kontroll-Zeile: Code und Frist. Ohne den Code stünde bei zwei
    *  Kontrollen desselben Tages zweimal derselbe Anlass — und der Sub liest ihn an seiner Aufgabe.
@@ -989,6 +1021,15 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
     }))),
   ];
 
+  // Das Bündel für die Urteils-Bauteile (siehe {@link JudgmentCtx} — sie stehen bewusst auf
+  // Modul-Ebene). Es entsteht je Render neu; das ist folgenlos, weil keines der Bauteile memoisiert
+  // ist und die IDENTITÄT der Komponente zählt, nicht die des Props.
+  const judgmentCtx: JudgmentCtx = {
+    userId, labels, statements, strafeRecords, punishedIds, dismissedIds,
+    openJudgment, setOpenJudgment, apiError,
+    onUndo: handleUndo, onMarkDone: markDone,
+  };
+
   // Fehlt oben eine Art, bricht der Build hier und nennt sie beim Namen — Begründung an der
   // Tabelle selbst (`offenseTypes.ts`).
   const _everyOffenseHasASection: AssertCoversAllOffenses<(typeof sections)[number]["canonical"]> = true;
@@ -1023,14 +1064,16 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
         const openRows = openRowsOf(s);
         const display = showAll ? s.rows : openRows;
         if (display.length === 0) return null;
+        // Einmal je Sektion statt bei jedem Tastendruck im Urteils-Formular (siehe `sectionRefs` dort).
+        const sectionRefs = new Set(s.rows.map((r) => r.refId));
         return (
-          <OffenseSection key={s.canonical} title={s.title} openCount={openRows.length} totalCount={s.rows.length}>
+          <OffenseSection key={s.canonical} labels={labels} title={s.title} openCount={openRows.length} totalCount={s.rows.length}>
             {display.map((r) => {
               const judged = closedIds.has(r.refId);
               return (
                 <div key={r.refId} className={`${blockInsetCls} py-3 flex flex-col gap-0.5 ${judged ? "opacity-50" : ""}`}>
                   {r.body(judged)}
-                  <JudgmentSlot refId={r.refId} canonical={s.canonical} anlass={`${s.title}: ${r.anlass}`} />
+                  <JudgmentSlot ctx={judgmentCtx} refId={r.refId} canonical={s.canonical} sectionRefs={sectionRefs} anlass={`${s.title}: ${r.anlass}`} />
                 </div>
               );
             })}

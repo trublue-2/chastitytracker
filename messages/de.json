@@ -1120,6 +1120,7 @@
     "strafbuchFruehereStrafen": "Bisher {count}× bestraft",
     "strafbuchZuletztVerhaengt": "zuletzt am {date}: „{text}“",
     "strafbuchVerwerfen": "Verwerfen",
+    "strafbuchVergehenVerwerfen": "Vergehen verwerfen",
     "strafbuchVerworfenBadge": "Verworfen",
     "strafbuchBegruendung": "Begründung",
     "strafbuchUrteilKI": "(KI)",

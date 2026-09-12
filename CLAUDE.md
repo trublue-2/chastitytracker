@@ -325,6 +325,24 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - **Gleicher JSX in >1 Datei → sofort extrahieren** nach `src/app/components/`. Keine Ausnahme für "kleine" Blöcke — auch 10-Zeilen-Banner werden zu Komponenten wenn sie an 2+ Stellen vorkommen.
 - **Gleiche Lookup-Maps** (TYPE_LABELS, STATUS_COLOR, etc.) gehören in `src/lib/constants.ts`, nicht lokal in Seiten-Dateien.
 
+### Keine Komponente im Rumpf einer anderen
+
+**Jede Komponente steht auf MODUL-Ebene** — nie im Rumpf einer anderen. Eine Funktion, die dort
+steht, ist bei jedem Render eine neue Funktion; React sieht an der Stelle einen anderen
+Komponenten-Typ, reisst den ganzen Teilbaum ab und hängt ihn neu ein. Der Zustand darin ist weg,
+der Fokus fällt aus dem Feld.
+
+**Warum das eine eigene Regel braucht:** es kompiliert, es liest sich im Review richtig, und in der
+Bedienung fällt es nur sporadisch auf — ausgelöst wird es nicht vom Tippen, sondern von IRGENDEINEM
+Render weiter oben (ein Toast genügt, `ToastProvider` baut sein API-Objekt je Render neu). Wer die
+Ursache nicht kennt, sucht sie im Feld und nicht im Elter.
+
+*Vorfall 12.09.2026:* `StrafbuchClient` hielt acht Bauteile im Rumpf, darunter das Urteils-Formular.
+Wer eine Begründung tippte, verlor sie sporadisch — gemeldet hat es der Nutzer, nicht der Autor. Der
+Fehler war in derselben Datei EINMAL kommentiert und als „eigene Aufräum-Runde" aufgeschoben worden.
+Braucht ein Bauteil viel aus seinem Elter, nimmt es ein benanntes Prop-Bündel (`JudgmentCtx` dort),
+keine Closure. `src/lib/nestedComponents.test.ts` liest den Baum und erzwingt das.
+
 ### Form-Konventionen
 - **Loading-State** heisst immer `saving` (nicht `loading`)
 - **Fehler-Anzeige** immer über styled Card: `text-sm text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-xl px-4 py-3`
