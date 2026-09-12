@@ -297,18 +297,18 @@ export function HeartbeatMockDemo() {
   );
 }
 
-export function PushManagerMockDemo() {
+export function PushAllowRowMockDemo() {
   return (
     <div>
       <Toggle
-        label="Push-Benachrichtigungen"
-        description="Benötigt Service Worker und Notification-Berechtigung"
+        label="Push erlauben"
+        description="auf diesem Gerät aus"
         checked={false}
         disabled
         onChange={() => {}}
       />
       <p className="text-[10px] text-foreground-faint mt-2">
-        Statischer Nachbau — echte Komponente prüft Browser-Support und Berechtigung.
+        Statischer Nachbau — echte Zeile prüft Browser-Support und Berechtigung (`usePushDevice`).
       </p>
     </div>
   );

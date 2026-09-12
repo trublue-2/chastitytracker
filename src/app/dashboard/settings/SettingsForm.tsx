@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
@@ -14,7 +14,6 @@ import FormSuccess from "@/app/components/FormSuccess";
 import ExpandRow from "@/app/components/ExpandRow";
 import Toggle from "@/app/components/Toggle";
 import SettingLabel from "@/app/components/SettingLabel";
-import PushManager from "@/app/components/PushManager";
 import PasskeyManager from "@/app/components/PasskeyManager";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
@@ -22,13 +21,15 @@ import { LOCALES_LONG, levelCarries, type NotifyChannel, type NotifyLevel } from
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useNotifyLevel } from "@/app/hooks/useNotifyLevel";
+import { usePushDevice } from "@/app/hooks/usePushDevice";
 import PasswordChangeConfirm from "@/app/components/PasswordChangeConfirm";
 import WeightSettings from "./WeightSettings";
 import TelegramSettings from "./TelegramSettings";
+import PushAllowRow from "./PushAllowRow";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, mailConfigured, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
@@ -36,6 +37,9 @@ export default function SettingsForm({ username, email, locale, timezone, startP
   const apiError = useApiError();
   const switchLocale = useLocaleSwitcher();
   const router = useRouter();
+
+  // Kennungs-Stamm für die Verknüpfung „gesperrtes Feld → sein Grund" (`aria-describedby`).
+  const reasonId = useId();
 
   const [expanded, setExpanded] = useState<string | null>(null);
   function toggle(section: string) {
@@ -191,35 +195,58 @@ export default function SettingsForm({ username, email, locale, timezone, startP
   );
   const setLevel = useNotifyLevel(applyLevel, setMessageNotifyError);
 
+  // Die Push-Anmeldung DIESES Geräts. Gehalten HIER und nicht in der Zeile, weil die Push-Stufe
+  // denselben Zustand braucht (siehe `pushCanSend`).
+  const pushDevice = usePushDevice();
+
   const levelOptions = [
     { value: "all", label: t("notifyLevelAll") },
     { value: "important", label: t("notifyLevelImportant") },
     { value: "off", label: t("notifyLevelOff") },
   ];
 
-  // „Kein Kanal trägt": ein Kanal zählt nur, wenn seine Stufe nicht „Aus" ist UND er den Nutzer
-  // erreichen kann — Mail und Push nach dem Urteil des Servers (dieselbe Regel wie der Frist-Rückfall
-  // in `deliveryChannels.ts`), Telegram mit Bot und verbundenem Chat (einen blockierten Bot löst der
-  // Server selbst). Trägt keiner, erreicht den Nutzer extern nichts mehr — nur der Posteingang, und
-  // Fristen über den Rückfall.
-  const mailChannelActive = levelCarries(levels.mail) && mailReachable;
-  const pushChannelActive = levelCarries(levels.push) && pushReachable;
-  const telegramChannelActive = telegramConfigured && telegramLinkedValue && levelCarries(levels.telegram);
-  const noExternalChannel = !mailChannelActive && !pushChannelActive && !telegramChannelActive;
+  // Kann dieser Kanal überhaupt zustellen? Mail nach derselben Regel wie der Frist-Rückfall
+  // (`mailReaches`: Adresse UND SMTP der Instanz), Telegram mit Bot und verbundenem Chat, Push mit
+  // irgendeinem angemeldeten Gerät. `pushDevice.enabled` steht VOR dem Urteil des Servers: wer
+  // eben erlaubt hat, soll seine Stufe sofort stellen können statt erst nach dem `router.refresh()`.
+  const pushCanSend = pushReachable || pushDevice.enabled;
+  const telegramCanSend = telegramConfigured && telegramLinkedValue;
 
-  // Die drei Zeilen der Kanal-Liste: Beschriftung, Statuszeile mit genau einer Aussage, Stufe.
-  // Telegram erscheint nur, wenn die Instanz überhaupt einen Bot führt.
-  const channelRows: { channel: NotifyChannel; label: string; status: string }[] = [
-    { channel: "mail", label: t("channelMail"), status: email ? t("notifyStatusMailTo", { email }) : t("notifyStatusMailNone") },
-    { channel: "push", label: t("channelPush"), status: pushReachable ? t("notifyStatusPushOn") : t("notifyStatusPushOff") },
+  // Die Stufen-Zeilen, in DERSELBEN Reihenfolge wie die Verbindungen darüber — sonst muss der Leser
+  // zwischen zwei Listen suchen, die dasselbe Trio anders sortieren.
+  //
+  // NUR `reason`, kein zweites `canSend`: der Grund IST die Aussage „trägt nicht", und zwei Felder,
+  // die einander nie widersprechen dürfen, widersprechen sich irgendwann. Ein tragender Kanal bleibt
+  // dabei still — die Adresse stünde sonst zweimal auf derselben Seite (oben an „E-Mail ändern") —,
+  // und ein ausgegrautes Feld hat damit zwingend seine Begründung, statt eine Sackgasse zu sein.
+  // Telegram fehlt ganz, wenn die Instanz keinen Bot führt.
+  const channelRows: { channel: NotifyChannel; label: string; reason: string | null }[] = [
+    {
+      channel: "mail",
+      label: t("channelMail"),
+      // Reihenfolge der Gründe ist nicht beliebig: versendet die INSTANZ nicht, hilft auch eine
+      // Adresse nicht weiter — dann wäre „keine Adresse hinterlegt" eine Aufforderung ins Leere.
+      // Erst wenn Mail grundsätzlich geht, ist die fehlende Adresse der Grund und behebbar.
+      reason: mailReachable ? null : mailConfigured ? t("notifyStatusMailNone") : t("notifyStatusMailNoSmtp"),
+    },
     ...(telegramConfigured
       ? [{
           channel: "telegram" as const,
           label: t("channelTelegram"),
-          status: telegramLinkedValue ? t("notifyStatusTelegramOn") : t("notifyStatusTelegramOff"),
+          reason: telegramCanSend ? null : t("notifyStatusTelegramOff"),
         }]
       : []),
+    {
+      channel: "push",
+      label: t("channelPush"),
+      reason: pushCanSend ? null : t("notifyStatusPushNoDevice"),
+    },
   ];
+
+  // „Kein Kanal trägt": ein Kanal zählt nur, wenn seine Stufe nicht „Aus" ist UND er zustellen kann.
+  // Über dieselbe Liste gerechnet, aus der die Zeilen entstehen — ein Kanal, den die Instanz nicht
+  // führt, steht dort gar nicht und kann so auch nicht versehentlich mitzählen.
+  const noExternalChannel = !channelRows.some((r) => !r.reason && levelCarries(levels[r.channel]));
 
   const startPageOptions = [
     { value: "auto", label: t("startPageAuto") },
@@ -325,6 +352,7 @@ export default function SettingsForm({ username, email, locale, timezone, startP
           {/* Email change */}
           <ExpandRow
             label={t("changeEmail")}
+            subtitle={email ?? t("notifyStatusMailNone")}
             open={expanded === "email"}
             onToggle={() => toggle("email")}
           >
@@ -346,6 +374,78 @@ export default function SettingsForm({ username, email, locale, timezone, startP
               </form>
             )}
           </ExpandRow>
+
+          {/* Der Telegram-Chat — die VERBINDUNG des Kanals, nicht seine Lautstärke. Steht bei den
+              beiden anderen Verbindungen (Adresse, Gerät) und nur, wenn die Instanz einen Bot
+              führt. Verbinden/Entkoppeln ist Selbstbedienung des Nutzers (kein Keyholder-Feld). */}
+          {telegramConfigured && (
+            <ExpandRow
+              label={t("telegramConnectRow")}
+              subtitle={telegramLinkedValue ? t("notifyStatusTelegramOn") : t("notifyStatusTelegramOff")}
+              open={expanded === "telegram"}
+              onToggle={() => toggle("telegram")}
+            >
+              <TelegramSettings
+                linked={telegramLinkedValue}
+                onLinkedChange={setTelegramLinkedValue}
+              />
+            </ExpandRow>
+          )}
+
+          {/* Die Push-Anmeldung DIESES Geräts — dritte und letzte Verbindung. Stand bis v6.2.3 unten
+              im APP-Abschnitt und hiess „Push-Benachrichtigungen": zwei Bildschirme entfernt von der
+              Push-Stufe und von ihr nicht zu unterscheiden. */}
+          <PushAllowRow device={pushDevice} />
+
+          {/* Wie laut jeder Kanal sein darf. Die Meldung selbst wird immer in den Posteingang
+              geschrieben — die Stufe bestimmt nur, was zusätzlich zugestellt wird, und eine Frist
+              erreicht den Nutzer notfalls über jeden eingerichteten Kanal. */}
+          <div className="px-5 py-3 flex flex-col gap-3">
+            <SettingLabel label={tm("notifyLabel")} description={tm("notifyHint")} />
+            <div className="flex flex-col gap-3">
+              {channelRows.map((row) => (
+                <div key={row.channel} className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col">
+                    {/* Auch die Beschriftung wird leiser, wenn der Kanal nicht kann — sonst liest die
+                        Zeile sich als „bedienbar, nur gerade grau". Bewusst OHNE `SettingLabel`: dessen
+                        Label ist `font-medium` und stünde damit so schwer da wie die Rubrik
+                        „Benachrichtigungen" eine Zeile höher, unter der diese drei hängen. */}
+                    <span className={`text-sm ${row.reason ? "text-foreground-faint" : "text-foreground"}`}>
+                      {row.label}
+                    </span>
+                    {row.reason && (
+                      <span id={`${reasonId}-${row.channel}`} className="text-xs text-foreground-faint">
+                        {row.reason}
+                      </span>
+                    )}
+                  </div>
+                  <Select
+                    className="w-44"
+                    // Die Beschriftung steht als eigene Zeile daneben, nicht als `label` am Feld —
+                    // ohne diesen Namen kündigt der Screenreader drei Auswahlfelder an, die alle
+                    // „Alles" heissen und keines sagt, für welchen Kanal es gilt.
+                    aria-label={row.label}
+                    // Echtes `disabled`, nicht `aria-disabled` (`busyDimCls`): jene Bauform gilt einem
+                    // Element, das WÄHREND der Bedienung kurz sperrt und dabei den Fokus verlöre. Hier
+                    // steht der Zustand schon beim Rendern fest, und ein Feld, das nichts bewirken
+                    // kann, gehört auch aus der Tab-Reihenfolge heraus. Die gespeicherte Stufe bleibt
+                    // liegen: wer den Kanal später einrichtet, hat seine Einstellung wieder.
+                    disabled={!!row.reason}
+                    // Die Begründung steht nur OPTISCH daneben — ohne diese Verknüpfung erfährt ein
+                    // Screenreader beim gesperrten Feld nicht, warum es gesperrt ist.
+                    aria-describedby={row.reason ? `${reasonId}-${row.channel}` : undefined}
+                    value={levels[row.channel]}
+                    onChange={(e) => setLevel(row.channel, e.target.value as NotifyLevel, levels[row.channel])}
+                    options={levelOptions}
+                  />
+                </div>
+              ))}
+            </div>
+            <FormError message={messageNotifyError} />
+            {/* Warnung, wenn KEIN Kanal mehr aktiv ist — dieselbe Warn-Card wie eine Fehlerzeile
+                (FormError blendet sich bei leerer Meldung selbst aus). */}
+            <FormError message={noExternalChannel ? tm("allChannelsOffWarning") : null} />
+          </div>
 
           {/* HIER stand die Design-Einstellung: hell/dunkel je Bereich und der Farbton der App.
               Beides ist entfallen, nicht verschoben. Die Farbwelt ist ab v6 keine Vorliebe mehr,
@@ -426,52 +526,6 @@ export default function SettingsForm({ username, email, locale, timezone, startP
             </div>
           )}
 
-          {/* Wie laut jeder Kanal sein darf. Die Meldung selbst wird immer in den Posteingang
-              geschrieben — die Stufe bestimmt nur, was zusätzlich zugestellt wird, und eine Frist
-              erreicht den Nutzer notfalls über jeden eingerichteten Kanal. */}
-          <div className="px-5 py-3 flex flex-col gap-3">
-            <SettingLabel label={tm("notifyLabel")} description={tm("notifyHint")} />
-            <div className="flex flex-col gap-3">
-              {channelRows.map((row) => (
-                <div key={row.channel} className="flex items-center justify-between gap-3">
-                  <div className="flex flex-col">
-                    <span className="text-sm text-foreground">{row.label}</span>
-                    <span className="text-xs text-foreground-faint">{row.status}</span>
-                  </div>
-                  <Select
-                    className="w-44"
-                    // Die Beschriftung steht als eigene Zeile daneben, nicht als `label` am Feld —
-                    // ohne diesen Namen kündigt der Screenreader drei Auswahlfelder an, die alle
-                    // „Alles" heissen und keines sagt, für welchen Kanal es gilt.
-                    aria-label={row.label}
-                    value={levels[row.channel]}
-                    onChange={(e) => setLevel(row.channel, e.target.value as NotifyLevel, levels[row.channel])}
-                    options={levelOptions}
-                  />
-                </div>
-              ))}
-            </div>
-            <FormError message={messageNotifyError} />
-            {/* Warnung, wenn KEIN Kanal mehr aktiv ist — dieselbe Warn-Card wie eine Fehlerzeile
-                (FormError blendet sich bei leerer Meldung selbst aus). */}
-            <FormError message={noExternalChannel ? tm("allChannelsOffWarning") : null} />
-          </div>
-
-          {/* Telegram als dritter Benachrichtigungs-Kanal — nur, wenn die Instanz einen Bot führt.
-              Verbinden/Entkoppeln ist Selbstbedienung des Nutzers (kein Keyholder-Feld). */}
-          {telegramConfigured && (
-            <ExpandRow
-              label={t("telegramSection")}
-              open={expanded === "telegram"}
-              onToggle={() => toggle("telegram")}
-            >
-              <TelegramSettings
-                linked={telegramLinkedValue}
-                onLinkedChange={setTelegramLinkedValue}
-              />
-            </ExpandRow>
-          )}
-
           {/* Feedback */}
           {feedbackEnabled && <FeedbackButton variant="menu" />}
 
@@ -489,7 +543,6 @@ export default function SettingsForm({ username, email, locale, timezone, startP
       {/* App section */}
       <Section title={t("app")}>
         <div className="divide-y divide-border-subtle">
-          <PushManager />
           <PasskeyManager />
           <div className="flex items-center justify-between px-5 py-4">
             <span className="text-sm text-foreground">{t("version")}</span>

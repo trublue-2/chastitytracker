@@ -16,6 +16,13 @@
           "de": "Als Keyholder bestimmst du selbst, was dich über deine Subs erreicht. Bisher hing das an einer Einstellung beim Sub, die sich alle seine Keyholder teilten.",
           "en": "As a keyholder you now decide for yourself what reaches you about your subs. Until now that hung on a setting on the sub, shared by all of their keyholders."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Einstellungen sind neu sortiert: erst wie man dich erreicht, dann wie laut jeder Kanal sein darf. Kanäle, die nicht senden können, sind als solche erkennbar.",
+          "en": "Settings are reordered: first how you can be reached, then how loud each channel may be. Channels that cannot deliver are shown as such."
+        }
       }
     ]
   },

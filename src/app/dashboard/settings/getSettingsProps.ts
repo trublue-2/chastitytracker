@@ -4,7 +4,7 @@ import { getControllableSubs } from "@/lib/keyholder";
 import { getRecipientChannels } from "@/lib/notificationPrefs";
 import { telegramLinkAvailable } from "@/lib/telegram";
 import { hasPushTarget } from "@/lib/push";
-import { mailReaches } from "@/lib/mail";
+import { mailReaches, mailConfigured } from "@/lib/mail";
 import { isValidStartPage, toNotifyLevel, weightTrackingEnabled, type NotifyLevel } from "@/lib/constants";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
@@ -43,6 +43,10 @@ export interface SettingsFormProps {
   /** Ist irgendein Push-Ziel registriert (App oder Browser, auf irgendeinem Gerät)? Ohne Ziel liefert
    *  der Push-Schalter nichts. Für dieselbe Warnung. */
   pushReachable: boolean;
+  /** Versendet DIESE INSTANZ überhaupt Mails (SMTP hinterlegt)? Nur zur Begründung: `mailReachable`
+   *  entscheidet, dieser Wert sagt WARUM nicht — eine fehlende Adresse behebt der Nutzer selbst, ein
+   *  fehlendes SMTP nicht. */
+  mailConfigured: boolean;
   version: string;
   buildDate?: string;
   feedbackEnabled?: boolean;
@@ -148,6 +152,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     telegramLinked,
     mailReachable,
     pushReachable,
+    mailConfigured: mailConfigured(),
     version: pkg.version,
     buildDate: process.env.BUILD_DATE ?? undefined,
     feedbackEnabled: process.env.DISABLE_FEEDBACK !== "true",

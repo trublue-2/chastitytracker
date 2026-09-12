@@ -32,7 +32,7 @@ import {
   LocaleSwitcherDemo, UserContextBarDemo, UserSubNavDemo,
   LaufendeSessionCardMockDemo, SessionEventRowDemo,
   AdminFABMockDemo, InstallBannerMockDemo,
-  HeartbeatMockDemo, PushManagerMockDemo,
+  HeartbeatMockDemo, PushAllowRowMockDemo,
 } from "./ComposedShowcase";
 
 export default async function ComponentsShowcase() {
@@ -410,8 +410,8 @@ export default async function ComponentsShowcase() {
           <ThemePairClient component={HeartbeatMockDemo} />
         </Section>
 
-        <Section title="PushManager" description="Push-Notification Toggle. Benötigt Service Worker. Statischer Nachbau.">
-          <ThemePairClient component={PushManagerMockDemo} />
+        <Section title="PushAllowRow" description="Zeile „Push erlauben“ der Einstellungen. Benötigt Service Worker. Statischer Nachbau.">
+          <ThemePairClient component={PushAllowRowMockDemo} />
         </Section>
 
         <Section title="AdminFAB" description="Floating Action Button → User-Picker Sheet. Statischer Nachbau.">

@@ -384,7 +384,10 @@ Diese Regeln verhindern, dass gleiche Features unterschiedlich implementiert wer
 - `src/app/components/PhotoCapture.tsx` — Foto-Aufnahme mit Kamera
 - `src/app/components/PasskeyLoginButton.tsx` — Passkey/biometrischer Login
 - `src/app/components/PasskeyManager.tsx` — Passkeys verwalten (Settings)
-- `src/app/components/PushManager.tsx` — Push-Notifications verwalten (Settings)
+- `src/app/hooks/usePushDevice.ts` + `src/app/dashboard/settings/PushAllowRow.tsx` — die Push-Anmeldung
+  DIESES Geräts: der Hook kennt Plattform-Zustand und Umschaltung, die Zeile zeigt sie. Getrennt, weil die
+  Kanal-Stufe daneben denselben Zustand braucht — sie wird sofort bedienbar, statt erst nach dem
+  `router.refresh()`. **Gerät ≠ Konto:** ob IRGENDEIN Ziel angemeldet ist, sagt allein `hasPushTarget`
 - `src/app/components/InstallBanner.tsx` — PWA-Install-Banner
 - `src/app/components/VersionChecker.tsx` — Prüft auf neue App-Version
 - `src/app/components/TimerDisplay.tsx` — Echtzeit-Timer für aktive Einschlüsse
