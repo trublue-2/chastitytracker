@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { statementBlockedReason, normalizeStatementText } from "./offenseStatementService";
+import { statementBlockedReason, normalizeStatementText, statementView } from "./offenseStatementService";
+import type { StatementGate } from "./offenseStatementService";
 import { offenseCanonicalFromNameKey, offenseNameKey, OFFENSE_TYPE_I18N_KEYS } from "./offenseLabels";
 import type { OffenseCanonicalType } from "./offenseTypes";
 
@@ -81,3 +82,34 @@ describe("offenseCanonicalFromNameKey", () => {
   });
 });
 
+/**
+ * Die Zusage, auf der die ANZEIGE aufbaut (`OffenseStatementField`): ein gespeicherter Text wird
+ * nie ausgelassen, und ein fehlender Eintrag heisst deshalb „kein Text" — nicht „Text unbekannt".
+ *
+ * Geprüft, weil das Feld sich darauf verlässt, statt selbst nachzusehen: fällt die Sicht mitten im
+ * Tippen weg (jemand urteilt), bleibt es mit dem getippten Text stehen und lässt den Server
+ * ablehnen. Kippte diese Zusage, wäre stattdessen ein GESPEICHERTER Text nicht mehr sichtbar, und
+ * zwar lautlos.
+ */
+describe("statementView", () => {
+  const open: StatementGate = { allowed: true, judgedBy: null };
+  const judged: StatementGate = { allowed: true, judgedBy: "keyholder" };
+
+  it("behält einen gespeicherten Text auch nach dem Urteil — nur nicht mehr änderbar", () => {
+    expect(statementView("r1", "mein Einwand", judged)).toEqual({
+      refId: "r1", text: "mein Einwand", editable: false,
+    });
+  });
+
+  it("behält das leere Feld, solange er schreiben darf", () => {
+    expect(statementView("r1", null, open)).toEqual({ refId: "r1", text: null, editable: true });
+  });
+
+  it("lässt aus, wo weder Text noch Recht vorliegt — genau der Fall, der unter dem Tippen eintritt", () => {
+    expect(statementView("r1", null, judged)).toBeNull();
+  });
+
+  it("lässt auch ohne Gate aus — die Leser-Sicht der Keyholderin ohne gespeicherten Text", () => {
+    expect(statementView("r1", null, undefined)).toBeNull();
+  });
+});

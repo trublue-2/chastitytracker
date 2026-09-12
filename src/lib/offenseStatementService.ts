@@ -205,8 +205,33 @@ export interface StatementView {
  * `writer` benennt, wer schreiben darf und wofür: der Träger, nur für die ihm GEMELDETEN refIds — der
  * Schreibweg belegt den Besitz über die Meldung (`announcedOffenseType`) und antwortete sonst 404.
  * `null` = Leser-Sicht (Keyholderin): Text ohne Feld. Wo weder Text noch Recht vorliegen, fehlt der
- * Eintrag — eine leere Hülle wäre für die Anzeige dasselbe wie gar keine.
+ * Eintrag ganz — die Projektion je refId steht in {@link statementView}, samt der Pflicht, die
+ * daraus für die Anzeige folgt.
  */
+/**
+ * Ein Vergehen als Anzeige-Sicht — `null` heisst „kein Eintrag".
+ *
+ * Ohne Text UND ohne Schreibrecht fehlt der Eintrag: eine leere, nicht beschreibbare Hülle je
+ * Vergehen wäre in der Leser-Sicht der Keyholderin eine Zeile „Stellungnahme: —" an JEDER Karte.
+ *
+ * **Was die Anzeige daraus NICHT schliessen darf: „es gibt nichts zu zeigen".** Der Eintrag kann
+ * mitten im Tippen wegfallen — urteilt jemand, während der Träger seinen ersten Text schreibt,
+ * erlischt das Recht, und ohne gespeicherten Text verschwindet die Sicht beim nächsten Nachlesen
+ * der Seite. Wer daraufhin das Feld aushängt, nimmt ihm den Text (siehe `OffenseStatementField`).
+ *
+ * Die Zusage in der anderen Richtung ist die, auf der die Anzeige aufbaut: **ein GESPEICHERTER Text
+ * wird nie ausgelassen.** Aus `null` folgt damit „kein Text" — nicht „Text unbekannt".
+ */
+export function statementView(
+  refId: string,
+  text: string | null,
+  gate: StatementGate | undefined,
+): StatementView | null {
+  const editable = gate ? statementBlockedReason(gate) === null : false;
+  if (text === null && !editable) return null;
+  return { refId, text, editable };
+}
+
 export async function loadStatementViews(
   refIds: string[],
   writer: { userId: string; refIds: string[] } | null,
@@ -217,10 +242,8 @@ export async function loadStatementViews(
   ]);
   const out = new Map<string, StatementView>();
   for (const refId of refIds) {
-    const text = statements.get(refId)?.text ?? null;
-    const gate = gates.get(refId);
-    const editable = gate ? statementBlockedReason(gate) === null : false;
-    if (text !== null || editable) out.set(refId, { refId, text, editable });
+    const view = statementView(refId, statements.get(refId)?.text ?? null, gates.get(refId));
+    if (view) out.set(refId, view);
   }
   return out;
 }

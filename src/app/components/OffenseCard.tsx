@@ -102,9 +102,13 @@ export default async function OffenseCard({
         {/* Seine Sicht auf das Vergehen, direkt unter dem Vorwurf — und vor dem Urteil, dem sie
             vorausgeht. Die Keyholderin liest sie hier, ohne ins Strafbuch zu wechseln. */}
         {/* Für sie ohne Schreibrecht (`writer: null`) — das Feld zeigt dann nur das Zitat. */}
-        {statement && (
-          <OffenseStatementField statement={statement} label={keyholderOf ? tAdmin("strafbuchStellungnahme") : undefined} />
-        )}
+        {/* Kein `statement &&` davor — das Feld entscheidet selbst, ob es etwas zeigt. Warum das
+            hier ein Vertrag und keine Geschmacksfrage ist, steht an `OffenseStatementField`. */}
+        <OffenseStatementField
+          refId={o.refId}
+          statement={statement}
+          label={keyholderOf ? tAdmin("strafbuchStellungnahme") : undefined}
+        />
 
         {/* Die zweite Frage, die diese Karte beantworten muss: WIE werde ich bestraft. Deshalb steht
             der Straftext abgesetzt und nicht als weitere graue Zeile — er ist die Antwort, nicht ein

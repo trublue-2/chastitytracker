@@ -382,7 +382,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
     what: "Der Träger schreibt, was er zu einem festgestellten Vergehen zu sagen hat — eine je Vergehen, änderbar bis zum Urteil.",
     actors: ["sub"], surfaces: ["sub-ui"],
     routes: ["/api/offense-statement"],
-    note: "Sie steht im Posteingang an der Meldung, mit der er das Vergehen erfährt — eine Liste unbeurteilter Vergehen hat er nicht. Die Keyholderin liest sie über dem Urteils-Feld und in `get_offenses`; freigeschaltet wird sie je Träger über die Vergehens-Regeln. Die automatische Ahndung (`judgedBy: \"system\"`) sperrt sie NICHT: dort gibt es keinen Urteilsschritt, vor dem sie stehen könnte.",
+    note: "Sie steht an zwei Orten für ihn: an der Meldung im Posteingang, mit der er das Vergehen erfährt, und an der Vergehens-Karte in seinem Strafen-Block. Die Keyholderin liest sie an derselben Karte ihrer Sub-Übersicht, über dem Urteils-Feld im Strafbuch und in `get_offenses`; freigeschaltet wird sie je Träger über die Vergehens-Regeln. Die automatische Ahndung (`judgedBy: \"system\"`) sperrt sie NICHT: dort gibt es keinen Urteilsschritt, vor dem sie stehen könnte.",
   }),
   c({
     id: "penalty-report-done", mechanic: "Strafbuch", title: "Strafe als erledigt melden",

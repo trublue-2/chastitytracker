@@ -182,7 +182,16 @@ export default function MessageRow({
         {/* Verlinkt wird nur, wo eine Seite etwas beiträgt — heute die offene Kontrolle mit
             vorbelegtem Code. Der Link steht IM Panel, nicht im Titel: dessen Aufklapp-Fläche ist ein
             `button`, ein `a` darin wäre ungültiges Markup und würde den Klick verschlucken. */}
-        {m.statement && <OffenseStatementField statement={m.statement} onSaved={onStatementSaved} className="pl-4" />}
+        {/* Hier bleibt die Bedingung, und zwar NICHT weil die Liste nichts nachlädt — `loadOnce`
+            ersetzt ihre Zeilen sehr wohl mit Server-Daten. Sie ist gefahrlos, weil jede dieser
+            Ersetzungen zugleich `setOpenId(null)` setzt: das Panel klappt zu und nimmt das Feld
+            ohnehin mit, vom Nutzer ausgelöst. Und `router.refresh()` kommt an `messages` nicht
+            heran, das ist Zustand und kein nachgezogenes Prop. Die `refId` kommt aus `m.statement`,
+            weil die Zeile keine zweite Quelle dafür hat. */}
+        {m.statement && (
+          <OffenseStatementField refId={m.statement.refId} statement={m.statement}
+            onSaved={onStatementSaved} className="pl-4" />
+        )}
         {m.refHref && (
           <Link
             href={m.refHref}

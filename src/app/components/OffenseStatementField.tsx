@@ -17,14 +17,34 @@ import type { StatementView } from "@/lib/offenseStatementService";
  *
  * Ohne Schreibrecht bleibt der Text als Zitat stehen — für ihn nach dem Urteil, für die
  * Keyholderin immer. Sie urteilt darüber, sie verfasst ihn nicht.
+ *
+ * **Der Vertrag mit den Eltern: kein `&&` davor.** Dieses Feld entscheidet selbst, ob es etwas
+ * zeigt (`return null`), und zwar weil seine Server-Sicht mitten im Tippen wegfallen kann: urteilt
+ * jemand — ein Mensch oder die KI —, während der Träger seinen ERSTEN Text schreibt, erlischt das
+ * Recht, und ohne gespeicherten Text lässt {@link statementView} den Eintrag weg. Ein `&&` im
+ * Elter hängte dann die Komponente aus, und eine ausgehängte Komponente nimmt ihren Zustand mit —
+ * genau den halb getippten Text. Stattdessen bleibt das Feld stehen und lässt den SERVER ablehnen:
+ * der Speicher-Versuch endet im 409 mit `STATEMENT_JUDGED`, also mit dem Grund.
+ *
+ * **Was das nicht rettet:** verschwindet die ganze KARTE, geht das Feld mit ihr. Ein verworfenes
+ * Vergehen fällt aus dem Strafen-Block des Trägers (`offenseNeedsAttention`), ein sofort erledigtes
+ * ebenso. Das ist hingenommen, nicht übersehen: in beiden Fällen ist das Vergehen zu seinen Gunsten
+ * weg, seine unversandte Verteidigung damit gegenstandslos. Der Fall, der zählt, ist das BESTRAFTE
+ * Vergehen — die Karte bleibt stehen, und dagegen wollte er schreiben.
  */
 export default function OffenseStatementField({
+  refId,
   statement,
   onSaved,
   className = "",
   label,
 }: {
-  statement: StatementView;
+  /** Das Vergehen, um das es geht — als EIGENE Angabe und nicht aus `statement` gelesen: käme die
+   *  Kennung von dort, wäre sie im selben Moment weg wie die Sicht (siehe Kopf). */
+  refId: string;
+  /** Die Sicht des Servers — `null` heisst „kein Eintrag", nicht „nie etwas". Der Fall und was
+   *  daraus folgt: siehe Kopf. */
+  statement: StatementView | null;
   /** Der gespeicherte Text (`null` = zurückgenommen). Die Posteingangs-Liste schreibt ihn in ihre
    *  Zeile, statt die Seite neu zu holen — ein Neuladen klappte das Panel zu, in dem er gerade
    *  geschrieben hat. Ohne Rückruf (Dashboard-Karte) wird die Seite neu geholt. */
@@ -38,7 +58,7 @@ export default function OffenseStatementField({
   const tc = useTranslations("common");
   const router = useRouter();
   const apiError = useApiError();
-  const [text, setText] = useState(statement.text ?? "");
+  const [text, setText] = useState(statement?.text ?? "");
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +72,7 @@ export default function OffenseStatementField({
       const res = await fetchWithTimeout("/api/offense-statement", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refId: statement.refId, text: value }),
+        body: JSON.stringify({ refId, text: value }),
       });
       if (!res.ok) {
         // Der Text bleibt STEHEN. Der häufigste Fehlschlag hier ist ein Urteil, das ihn beim
@@ -71,8 +91,14 @@ export default function OffenseStatementField({
     }
   }
 
-  const hasText = Boolean(statement.text);
-  const open = statement.editable && editing;
+  const hasText = Boolean(statement?.text);
+  // NUR `editing`, nicht zusätzlich `statement.editable`: wahr wird es allein durch seinen Klick,
+  // und den gibt es nur mit Schreibrecht. Erlischt das Recht danach, bleibt das Feld stehen (Kopf).
+  const open = editing;
+
+  // Nichts zu zeigen und niemand schreibt: dann zeigt dieses Feld nichts — die Entscheidung gehört
+  // hierher und nicht in ein `&&` beim Elter (Kopf).
+  if (!open && !statement) return null;
 
   return (
     <div className={`${className} flex flex-col gap-2${open ? "" : " items-start"}`}>
@@ -86,7 +112,7 @@ export default function OffenseStatementField({
           error={error}
         />
       ) : (
-        <QuotedField label={label ?? t("statementLabel")} text={statement.text} empty={t("statementEmpty")} />
+        <QuotedField label={label ?? t("statementLabel")} text={statement?.text ?? null} empty={t("statementEmpty")} />
       )}
 
       {open ? (
@@ -96,15 +122,20 @@ export default function OffenseStatementField({
             {tc("cancel")}
           </Button>
           {/* Leeren nimmt sie zurück — das ist die Rückseite von „änderbar", und ohne sie bliebe eine
-              im Ärger geschriebene Zeile für immer stehen. */}
+              im Ärger geschriebene Zeile für immer stehen.
+
+              Kein `setText("")` vor dem Absenden: `save` nimmt den Wert als Argument (siehe dort),
+              und ein vorab geleertes Feld wäre bei einer Absage — etwa dem 409 nach einem Urteil —
+              der einzige Knopf hier, der seinen Text doch noch verliert. Gelingt es, schliesst sich
+              das Feld ohnehin. */}
           {hasText && (
-            <Button variant="ghost" size="sm" className="ml-auto" onClick={() => { setText(""); void save(""); }}>
+            <Button variant="ghost" size="sm" className="ml-auto" onClick={() => void save("")}>
               {t("statementDelete")}
             </Button>
           )}
         </div>
       ) : (
-        statement.editable && (
+        statement?.editable && (
           <Button variant="ghost" size="sm" onClick={() => { setText(statement.text ?? ""); setEditing(true); }}>
             {hasText ? t("statementEdit") : t("statementWrite")}
           </Button>
