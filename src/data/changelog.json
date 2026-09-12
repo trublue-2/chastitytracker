@@ -23,6 +23,13 @@
           "de": "Die Einstellungen sind neu sortiert: erst wie man dich erreicht, dann wie laut jeder Kanal sein darf. Kanäle, die nicht senden können, sind als solche erkennbar.",
           "en": "Settings are reordered: first how you can be reached, then how loud each channel may be. Channels that cannot deliver are shown as such."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Angefangene Texte bleiben stehen: eine Begründung im Strafbuch und eine Stellungnahme zu einem Vergehen konnten beim Schreiben verschwinden.",
+          "en": "Text you have started stays put: a reason in the penalty log and a statement on an offense could vanish mid-typing."
+        }
       }
     ]
   },
