@@ -1,5 +1,23 @@
 [
   {
+    "version": "6.2.4",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "ui",
+        "text": "Beim Anlegen eines Kontos steht jetzt am Rollen-Feld, wofür „Benutzer“ und „Administrator“ stehen — und wie du eine Keyholderin einträgst, die führen, aber nichts verwalten soll."
+      },
+      {
+        "type": "ui",
+        "text": "Wer jemanden zum Administrator macht, wird vorher gefragt: Die Person bekommt danach Meldungen über alle Träger, und Meldungen über sie selbst erscheinen nicht mehr im Keyholder-Posteingang."
+      },
+      {
+        "type": "ui",
+        "text": "Die Benutzerverwaltung ist in der Kopfzeile des Keyholder-Bereichs erreichbar, nicht mehr nur über das Menü."
+      }
+    ]
+  },
+  {
     "version": "6.2.3",
     "date": "2026-09-12",
     "changes": [

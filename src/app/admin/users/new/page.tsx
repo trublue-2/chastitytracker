@@ -99,11 +99,16 @@ export default function NewUserPage() {
             required
             autoComplete="off"
           />
+          {/* Das einzige Feld des Formulars MIT Hinweis — hier fällt die Entscheidung, nach der am
+              häufigsten gefragt wird („wie hole ich meine Keyholderin dazu?"). Die übrigen drei
+              Felder erklären sich selbst. Derselbe Text wie im Rollen-Abschnitt der Einstellungen:
+              die Auskunft ist in beiden Fällen dieselbe, und zwei Fassungen liefen auseinander. */}
           <Select
             label={t("roleLabel")}
             name="role"
             defaultValue="user"
             options={roleOptions}
+            hint={t("roleDesc")}
           />
           <FormError message={error} />
           <Button type="submit" variant="primary" fullWidth loading={saving}>

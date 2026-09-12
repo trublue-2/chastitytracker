@@ -4,7 +4,8 @@ import AvatarMenu from "@/app/components/AvatarMenu";
 import FeedbackButton from "@/app/components/FeedbackButton";
 import HeaderMessages from "@/app/components/HeaderMessages";
 import SkipLink from "@/app/components/SkipLink";
-import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerNameCls, headerRowCls } from "@/app/components/inputStyles";
+import { Users } from "lucide-react";
+import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerIconBtnCls, headerNameCls, headerRowCls } from "@/app/components/inputStyles";
 import type { OwnTrackerActor } from "@/lib/ownTracker";
 import pkg from "../../package.json";
 import { instanceHostname } from "@/lib/appMeta";
@@ -24,6 +25,7 @@ interface Props {
 export default async function AdminHeader({ username, actor, hideOwnTracker }: Props) {
   const feedbackEnabled = process.env.DISABLE_FEEDBACK !== "true";
   const t = await getTranslations("adminNav");
+  const tNav = await getTranslations("nav");
   const isGlobalAdmin = actor?.role === "admin";
   // Ein reiner Keyholder (role=user, kontrolliert Subs) landet im selben blauen Bereich wie ein Admin —
   // der Titel benennt aber die tatsächliche Rolle, damit „Adminportal" niemanden fälschlich zum Admin macht.
@@ -52,6 +54,16 @@ export default async function AdminHeader({ username, actor, hideOwnTracker }: P
               grünen Kopf, mit seiner Bedingung. */}
           {actor && (
             <HeaderMessages actor={actor} scope="keyholder" ownInboxReachable={!hideOwnTracker} />
+          )}
+          {/* Die Benutzerverwaltung lag bisher einen Klick tief im Avatar-Menü; der Leerzustand von
+              /admin verlinkt sie zusätzlich, ist aber genau dann weg, wenn schon ein Konto da ist.
+              Der Eintrag im Menü bleibt: er hängt auch am grünen Kopf und damit an Seiten, die
+              diese Kopfzeile nie zeigen. Nur für globale Admins — ein reiner Keyholder (role=user)
+              steht im selben blauen Bereich, darf die Seite aber nicht öffnen (`assertAdmin`). */}
+          {isGlobalAdmin && (
+            <Link href="/admin/users" aria-label={tNav("userManagement")} className={headerIconBtnCls}>
+              <Users size={18} />
+            </Link>
           )}
           {feedbackEnabled && <FeedbackButton />}
           <AvatarMenu

@@ -62,6 +62,13 @@ export default async function UserManagementPage() {
         </ul>
       )}
 
+      {/* Frisch eingerichtete Instanz: Der Betreiber steht als einziges Konto in der Liste, und der
+          einzige sinnvolle nächste Schritt ist das Konto der Keyholderin. Genau danach wird
+          wiederholt gefragt — der Hinweis beantwortet es dort, wo die Antwort gebraucht wird. */}
+      {users.length === 1 && (
+        <p className="text-sm text-foreground-muted">{t("singleUserHint")}</p>
+      )}
+
       <Link href="/admin/users/new">
         <Button variant="secondary" icon={<UserPlus size={15} strokeWidth={2} />} fullWidth>
           {t("newUser")}
