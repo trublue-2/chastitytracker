@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 153 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
+Insgesamt 154 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
 
 ## Einträge
 
@@ -558,6 +558,7 @@ flowchart LR
 | Kontrollen | `User.inspectionReminderEnabled` | Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie. | `inspectionEscalationService.ts` |
 | Kontrollen | `User.inspectionReminderDelayMinutes` | Verzug bis zur Mahnung, gemessen ab dem Ablauf der Kontroll-Frist. | `inspectionEscalationService.ts` |
 | Zugang | `User.locale` | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | `emailI18n.ts` |
+| Zugang | `User.role` | `user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. Wirkt zusätzlich auf die Zustellung, und zwar in beide Richtungen: jeder Admin ist Empfänger für JEDEN Träger (`getControllersOfUser`), und über einen Träger MIT Admin-Rolle wird keine Keyholder-Posteingangs-Zeile mehr geschrieben (`keyholderRowReadable`) — Mail und Push laufen dabei weiter. Beides steht in der Rückfrage beim Hochstufen; wer es hier ändert, ändert dort den Text mit. | `authGuards.ts:requireAdminApi` |
 | Sperrzeit | `VerschlussAnforderung.wirksamAb` | Terminierte Auslösung. Bis dahin existiert die Direktive für den Sub nicht: keine Anzeige, keine Meldung, keine laufende Frist. | — |
 
 ### Wirkt auf
@@ -583,7 +584,7 @@ flowchart LR
 
 | Woher | Wodurch | Was passiert | Anker |
 |---|---|---|---|
-| Zugang | `User.role` | `user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. | `authGuards.ts:requireAdminApi` |
+| Zugang | `User.role` | `user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. Wirkt zusätzlich auf die Zustellung, und zwar in beide Richtungen: jeder Admin ist Empfänger für JEDEN Träger (`getControllersOfUser`), und über einen Träger MIT Admin-Rolle wird keine Keyholder-Posteingangs-Zeile mehr geschrieben (`keyholderRowReadable`) — Mail und Push laufen dabei weiter. Beides steht in der Rückfrage beim Hochstufen; wer es hier ändert, ändert dort den Text mit. | `authGuards.ts:requireAdminApi` |
 | Geräte | `Device.securityLevel` | SECURING oder TRUST_ONLY — Einordnung für die Keyholder-Entscheidung. Wird nirgends durchgesetzt. | `mcp/devices.ts:set_device_meta` |
 | Geräte | `Device.pullOffRisk` | Abstreifbar? `null` = nie beurteilt, nicht „sicher“. Reine Beurteilung ohne Durchsetzung. | `mcp/devices.ts:set_device_meta` |
 | Zugang | `AdminUserRelationship.adminId` | Wer diesen Sub steuern darf. Ohne Zeile sieht ein Admin ihn nicht — die Zuordnung ist die eigentliche Berechtigung. | — |
@@ -634,7 +635,8 @@ Nichts wirkt hier hinein — diese Mechanik lässt sich für sich allein betrach
 | Oberfläche | `User.hideOwnTracker` | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | `ownTracker.ts` |
 | Oberfläche | `User.locale` | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | `emailI18n.ts` |
 | Benachrichtigungen | `User.locale` | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | `emailI18n.ts` |
-| MCP | `User.role` | `user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. | `authGuards.ts:requireAdminApi` |
+| MCP | `User.role` | `user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. Wirkt zusätzlich auf die Zustellung, und zwar in beide Richtungen: jeder Admin ist Empfänger für JEDEN Träger (`getControllersOfUser`), und über einen Träger MIT Admin-Rolle wird keine Keyholder-Posteingangs-Zeile mehr geschrieben (`keyholderRowReadable`) — Mail und Push laufen dabei weiter. Beides steht in der Rückfrage beim Hochstufen; wer es hier ändert, ändert dort den Text mit. | `authGuards.ts:requireAdminApi` |
+| Benachrichtigungen | `User.role` | `user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. Wirkt zusätzlich auf die Zustellung, und zwar in beide Richtungen: jeder Admin ist Empfänger für JEDEN Träger (`getControllersOfUser`), und über einen Träger MIT Admin-Rolle wird keine Keyholder-Posteingangs-Zeile mehr geschrieben (`keyholderRowReadable`) — Mail und Push laufen dabei weiter. Beides steht in der Rückfrage beim Hochstufen; wer es hier ändert, ändert dort den Text mit. | `authGuards.ts:requireAdminApi` |
 | MCP | `AdminUserRelationship.adminId` | Wer diesen Sub steuern darf. Ohne Zeile sieht ein Admin ihn nicht — die Zuordnung ist die eigentliche Berechtigung. | — |
 | Nachrichten | `AdminUserRelationship.adminId` | Wer diesen Sub steuern darf. Ohne Zeile sieht ein Admin ihn nicht — die Zuordnung ist die eigentliche Berechtigung. | — |
 | Strafbuch | *feste Regel* | Wird das Passwort eines ADMIN-Kontos geändert, während eine Sperrzeit läuft, entsteht ein Vergehen — als einziges im Moment des Vorgangs festgeschrieben statt live abgeleitet. | `passwordAudit.ts` |

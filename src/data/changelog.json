@@ -5,15 +5,24 @@
     "changes": [
       {
         "type": "ui",
-        "text": "Beim Anlegen eines Kontos steht jetzt am Rollen-Feld, wofür „Benutzer“ und „Administrator“ stehen — und wie du eine Keyholderin einträgst, die führen, aber nichts verwalten soll."
+        "text": {
+          "de": "Beim Anlegen eines Kontos steht jetzt am Rollen-Feld, wofür „Benutzer“ und „Administrator“ stehen — und wie du eine Keyholderin einträgst, die führen, aber nichts verwalten soll.",
+          "en": "When creating an account, the role field now says what “User” and “Administrator” mean — and how to add a keyholder who should control but not administer."
+        }
       },
       {
         "type": "ui",
-        "text": "Wer jemanden zum Administrator macht, wird vorher gefragt: Die Person bekommt danach Meldungen über alle Träger, und Meldungen über sie selbst erscheinen nicht mehr im Keyholder-Posteingang."
+        "text": {
+          "de": "Wer jemanden zum Administrator macht, wird vorher gefragt: Die Person bekommt danach Meldungen über alle Träger, und Meldungen über sie selbst erscheinen nicht mehr im Keyholder-Posteingang.",
+          "en": "Promoting someone to administrator now asks first: they will then receive messages about every wearer, and messages about them no longer appear in the keyholder inbox."
+        }
       },
       {
         "type": "ui",
-        "text": "Die Benutzerverwaltung ist in der Kopfzeile des Keyholder-Bereichs erreichbar, nicht mehr nur über das Menü."
+        "text": {
+          "de": "Die Benutzerverwaltung steht jetzt als Symbol in der Kopfzeile des Keyholder-Bereichs, statt einen Klick tief im Menü.",
+          "en": "User management is now an icon in the header of the keyholder area, instead of one click deep in the menu."
+        }
       }
     ]
   },

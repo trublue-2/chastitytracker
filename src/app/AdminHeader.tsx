@@ -57,9 +57,14 @@ export default async function AdminHeader({ username, actor, hideOwnTracker }: P
           )}
           {/* Die Benutzerverwaltung lag bisher einen Klick tief im Avatar-Menü; der Leerzustand von
               /admin verlinkt sie zusätzlich, ist aber genau dann weg, wenn schon ein Konto da ist.
-              Der Eintrag im Menü bleibt: er hängt auch am grünen Kopf und damit an Seiten, die
-              diese Kopfzeile nie zeigen. Nur für globale Admins — ein reiner Keyholder (role=user)
-              steht im selben blauen Bereich, darf die Seite aber nicht öffnen (`assertAdmin`). */}
+              Der Menü-Eintrag ist dafür ENTFALLEN statt daneben stehen zu bleiben: er hing an
+              `isGlobalAdmin`, das nur diese Kopfzeile durchreicht — er erschien also nie woanders
+              als hier, wenige Pixel neben diesem Knopf. Nur für globale Admins; ein reiner
+              Keyholder (role=user) steht im selben blauen Bereich, darf die Seite aber nicht
+              öffnen (`assertAdmin`).
+
+              Bewusst NICHT über `adminNavItems()`: das speist Seitenleiste UND Bottom-Nav, und
+              dessen vier Plätze gehören den häufigen Kontroll-Aufgaben (Begründung dort). */}
           {isGlobalAdmin && (
             <Link href="/admin/users" aria-label={tNav("userManagement")} className={headerIconBtnCls}>
               <Users size={18} />
@@ -71,7 +76,6 @@ export default async function AdminHeader({ username, actor, hideOwnTracker }: P
             settingsHref="/admin/settings"
             theme="admin"
             version={pkg.version}
-            isGlobalAdmin={isGlobalAdmin}
           />
         </div>
       </div>

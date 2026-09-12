@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import BlockHeading from "@/app/components/BlockHeading";
 import Link from "next/link";
-import { Settings, LogOut, ScrollText, Users } from "lucide-react";
+import { Settings, LogOut, ScrollText } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { clearSwUserCache } from "@/lib/swMessages";
@@ -14,11 +14,14 @@ interface Props {
   settingsHref: string;
   theme: "user" | "admin";
   version?: string;
-  /** Show the instance-management (Benutzerverwaltung) entry — global admins only. */
-  isGlobalAdmin?: boolean;
 }
 
-export default function AvatarMenu({ username, settingsHref, theme, version, isGlobalAdmin }: Props) {
+// Die Benutzerverwaltung stand hier einmal als eigener Eintrag, gehalten von `isGlobalAdmin`. Sie
+// hängt seit v6.2.4 als Symbol-Knopf in `AdminHeader` — und weil `Header.tsx` (grüner Kopf)
+// `isGlobalAdmin` nie durchreichte, erschien der Eintrag ohnehin AUSSCHLIESSLICH in derselben
+// Kopfzeile, gut vierzig Pixel neben dem neuen Knopf. Zwei Türen in einer Leiste sind keine bessere
+// Auffindbarkeit, sondern zweimal dasselbe.
+export default function AvatarMenu({ username, settingsHref, theme, version }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const t = useTranslations("nav");
@@ -63,12 +66,6 @@ export default function AvatarMenu({ username, settingsHref, theme, version, isG
               <Settings size={16} strokeWidth={1.75} />
               {t("settings")}
             </Link>
-            {isGlobalAdmin && (
-              <Link href="/admin/users" onClick={() => setOpen(false)} className={itemNormal}>
-                <Users size={16} strokeWidth={1.75} />
-                {t("userManagement")}
-              </Link>
-            )}
             {theme === "user" && (
               <>
                 <Link href="/dashboard/geraete" onClick={() => setOpen(false)} className={itemNormal}>

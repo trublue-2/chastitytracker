@@ -27,8 +27,9 @@ export const inlineTimeInputCls = `w-28 shrink-0 ${inlineInputBaseCls}`;
 
 export const inlineLabelCls = "text-xs text-foreground-faint";
 
-/** Der Icon-Knopf in der Kopfzeile (Feedback, Posteingang). EINE Quelle, damit die beiden Knöpfe
- *  nebeneinander nicht auseinanderlaufen — sie stehen zeichengleich in derselben Flex-Zeile. */
+/** Der Icon-Knopf in der Kopfzeile (Feedback, Posteingang, Benutzerverwaltung). EINE Quelle, damit
+ *  die Knöpfe nebeneinander nicht auseinanderlaufen — sie stehen zeichengleich in derselben
+ *  Flex-Zeile. Auch für einen `<Link>`, nicht nur für `<button>`. */
 export const headerIconBtnCls =
   "p-2 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-raised transition";
 

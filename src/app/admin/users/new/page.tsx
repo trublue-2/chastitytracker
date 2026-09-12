@@ -101,14 +101,20 @@ export default function NewUserPage() {
           />
           {/* Das einzige Feld des Formulars MIT Hinweis — hier fällt die Entscheidung, nach der am
               häufigsten gefragt wird („wie hole ich meine Keyholderin dazu?"). Die übrigen drei
-              Felder erklären sich selbst. Derselbe Text wie im Rollen-Abschnitt der Einstellungen:
-              die Auskunft ist in beiden Fällen dieselbe, und zwei Fassungen liefen auseinander. */}
+              Felder erklären sich selbst.
+
+              EIGENER Schlüssel, nicht `roleDesc` aus dem Rollen-Abschnitt der Einstellungen: die
+              beiden beantworten verschiedene Fragen. Hier heisst sie „welche Rolle wähle ich?",
+              dort „was tut dieses Feld?" — und dort steht unmittelbar darunter der Abschnitt
+              „Keyholder dieses Subs", der die UMGEKEHRTE Beziehung hält (wer kontrolliert DIESEN
+              Nutzer). Der Verweis auf diesen Abschnitt schickt einen Leser, der gerade die Seite
+              der künftigen Keyholderin offen hat, also genau dorthin, wo er das Gegenteil einträgt. */}
           <Select
             label={t("roleLabel")}
             name="role"
             defaultValue="user"
             options={roleOptions}
-            hint={t("roleDesc")}
+            hint={t("roleHint")}
           />
           <FormError message={error} />
           <Button type="submit" variant="primary" fullWidth loading={saving}>

@@ -236,7 +236,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
-| `User.role` | String | `"user"` | dauerhaft | `user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. | Keyholder (UI), Portal | Zugang, MCP | `authGuards.ts:requireAdminApi` |
+| `User.role` | String | `"user"` | dauerhaft | `user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. Wirkt zusätzlich auf die Zustellung, und zwar in beide Richtungen: jeder Admin ist Empfänger für JEDEN Träger (`getControllersOfUser`), und über einen Träger MIT Admin-Rolle wird keine Keyholder-Posteingangs-Zeile mehr geschrieben (`keyholderRowReadable`) — Mail und Push laufen dabei weiter. Beides steht in der Rückfrage beim Hochstufen; wer es hier ändert, ändert dort den Text mit. | Keyholder (UI), Portal | Zugang, MCP, Benachrichtigungen | `authGuards.ts:requireAdminApi` |
 | `User.timezone` | String | `"Europe/Zurich"` | dauerhaft | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | Sub | Reinigung, Auto-Kontrollen, Sessions/Statistik | `timezoneRules.ts:timezoneRulesFrom` |
 | `User.startPage` | String | `"auto"` | dauerhaft | Startseite nach der Anmeldung; `auto` wählt sie nach Rolle. | Sub | Oberfläche | `userSelfField.ts` |
 | `User.hideOwnTracker` | Boolean | `false` | dauerhaft | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | Sub | Oberfläche | `ownTracker.ts` |

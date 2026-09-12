@@ -5,10 +5,15 @@ import { useTranslations } from "next-intl";
 import ConfirmDialog from "@/app/components/ConfirmDialog";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 
-/** Die offene Rückfrage: welche Rolle gesetzt werden soll und welcher der beiden Texte dazu gehört.
- *  Ein Zustand statt zweier Flags — die beiden Fälle schliessen sich aus (Hoch- und Rückstufung),
- *  und zwei `useState` daneben könnten widersprüchlich werden. */
-type Pending = { next: string; kind: "demote" | "promote" };
+type Role = "user" | "admin";
+
+/** Welcher der beiden Texte zu welcher ZIEL-Rolle gehört. Eine Tabelle statt dreier paralleler
+ *  Ternäre am Dialog: eine vierte Eigenschaft (Tönung, Zeichen) ergänzt hier ein Feld, statt ein
+ *  viertes `? :` danebenzustellen, das mit den anderen dreien in Gleichschritt bleiben muss. */
+const ROLE_CONFIRM = {
+  user: { title: "roleSelfDemoteTitle", message: "roleSelfDemoteConfirm", action: "roleSelfDemoteAction" },
+  admin: { title: "rolePromoteTitle", message: "rolePromoteConfirm", action: "rolePromoteAction" },
+} as const;
 
 /**
  * Die Rolle eines Kontos umstellen — beide Richtungen mit Rückfrage, weil beide Folgen haben, die
@@ -41,11 +46,16 @@ export default function RoleSelect({
 }) {
   const t = useTranslations("admin");
   const { saving, save } = useUserSettingsSave(id);
-  // Optimistisch, damit die Pille sofort umfärbt; ein abgelehnter Patch setzt zurück.
-  const [role, setRole] = useState(currentRole);
-  const [pending, setPending] = useState<Pending | null>(null);
+  // Optimistisch, damit die Pille sofort umfärbt; ein abgelehnter Patch setzt zurück. Prisma liefert
+  // `role` als blossen String — alles ausser „admin" ist hier die Benutzer-Rolle, damit ein
+  // Fremdwert aus der Datenbank nicht als dritte Rolle durch die Tabelle unten fällt.
+  const [role, setRole] = useState<Role>(currentRole === "admin" ? "admin" : "user");
+  // Die offene Rückfrage IST die Ziel-Rolle — mehr braucht es nicht: welcher Text dazugehört,
+  // schlägt `ROLE_CONFIRM` darüber nach. Ein zweites Feld „welcher Fall" daneben wäre nicht nur
+  // überflüssig, es liesse sich auch widersprüchlich setzen.
+  const [pending, setPending] = useState<Role | null>(null);
 
-  async function apply(next: string) {
+  async function apply(next: Role) {
     // Auf den zuletzt ANGEZEIGTEN Wert zurücksetzen, nicht auf `currentRole`: das Prop wird erst
     // durch das (nicht abgewartete) router.refresh() im Hook nachgezogen und kann kurz veraltet sein.
     const previous = role;
@@ -54,15 +64,14 @@ export default function RoleSelect({
   }
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const next = e.target.value;
+    const next = e.target.value as Role;
     if (next === role) return;
     // Die beiden Fälle schliessen sich aus: „user" bei sich selbst gegen „admin" bei irgendwem.
-    if (isSelf && next === "user") return setPending({ next, kind: "demote" });
-    if (next === "admin") return setPending({ next, kind: "promote" });
+    if ((isSelf && next === "user") || next === "admin") return setPending(next);
     void apply(next);
   }
 
-  const demoting = pending?.kind === "demote";
+  const texts = ROLE_CONFIRM[pending ?? "admin"];
 
   return (
     <>
@@ -83,16 +92,16 @@ export default function RoleSelect({
         <option value="admin">{t("roleAdmin")}</option>
       </select>
 
-      {/* Ohne offene Rückfrage steht das `<select>` durch `value={role}` weiterhin auf der alten
-          Rolle — die Auswahl im DOM nimmt React beim Rendern zurück. Der Dialog benennt die
-          Zielrolle im Text, damit trotzdem klar ist, worüber gerade entschieden wird. */}
+      {/* SOLANGE die Rückfrage offen steht, zeigt das `<select>` durch `value={role}` weiterhin die
+          ALTE Rolle — die Auswahl im DOM nimmt React beim Rendern zurück. Der Dialog benennt die
+          Zielrolle deshalb im Text, damit trotzdem klar ist, worüber gerade entschieden wird. */}
       <ConfirmDialog
         open={pending !== null}
-        title={demoting ? t("roleSelfDemoteTitle") : t("rolePromoteTitle")}
-        message={demoting ? t("roleSelfDemoteConfirm") : t("rolePromoteConfirm")}
-        confirmLabel={demoting ? t("roleSelfDemoteAction") : t("rolePromoteAction")}
+        title={t(texts.title)}
+        message={t(texts.message)}
+        confirmLabel={t(texts.action)}
         onConfirm={() => {
-          const next = pending?.next;
+          const next = pending;
           setPending(null);
           if (next) void apply(next);
         }}

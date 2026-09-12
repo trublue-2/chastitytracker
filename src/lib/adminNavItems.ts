@@ -15,8 +15,10 @@ export interface AdminNavItem {
 /** Ordered nav items for the admin area (blue). Kontrollen is admin-only; a pure keyholder sees only
  *  the control overview plus the link back to their own (green) view. Shared by the desktop sidebar
  *  and the mobile bottom nav so the two never drift. Benutzerverwaltung is deliberately NOT here —
- *  it's a rare instance-management task and lives in the avatar menu (see AvatarMenu), which keeps
- *  the tight mobile bottom nav focused on frequent control tasks. */
+ *  it's a rare instance-management task, and these four slots belong to the frequent control tasks.
+ *  It lives as an icon button in `AdminHeader` (was the avatar menu until v6.2.4). Consequence of
+ *  staying out of this list: it is absent from the desktop sidebar too, which is fed from here —
+ *  the header carries it on both widths instead. */
 export function adminNavItems(isGlobalAdmin: boolean, hideOwnTracker = false): AdminNavItem[] {
   return [
     { href: ADMIN_HOME_HREF, icon: LayoutDashboard, labelKey: "overview", exact: true },

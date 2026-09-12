@@ -429,8 +429,8 @@ export const FM_REGISTRY: FmEntry[] = [
     "Verknüpfter Telegram-Chat als Ziel des dritten Benachrichtigungs-Kanals. Kein Schalter, sondern eine Bindung: gesetzt vom Verknüpfungs-Webhook (der Nutzer drückt im Chat Start), gelöscht beim Entkoppeln. `null` = nicht verknüpft, dann wird für ihn nie über Telegram zugestellt."),
   s({
     model: "User", field: "role", domain: "konto", scope: "standing",
-    effect: "`user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten.",
-    writers: ["admin", "portal"], affects: ["Zugang", "MCP"], anchor: "authGuards.ts:requireAdminApi",
+    effect: "`user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. Wirkt zusätzlich auf die Zustellung, und zwar in beide Richtungen: jeder Admin ist Empfänger für JEDEN Träger (`getControllersOfUser`), und über einen Träger MIT Admin-Rolle wird keine Keyholder-Posteingangs-Zeile mehr geschrieben (`keyholderRowReadable`) — Mail und Push laufen dabei weiter. Beides steht in der Rückfrage beim Hochstufen; wer es hier ändert, ändert dort den Text mit.",
+    writers: ["admin", "portal"], affects: ["Zugang", "MCP", "Benachrichtigungen"], anchor: "authGuards.ts:requireAdminApi",
   }),
   s({
     model: "User", field: "orgasmusArtenConfig", domain: "eintraege", scope: "standing",
