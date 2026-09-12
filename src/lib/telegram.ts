@@ -28,7 +28,7 @@ export function isDeadChatResponse(status: number, detail: string): boolean {
 
 /**
  * Einen toten Chat lösen. Danach zeigen die Einstellungen „nicht verbunden", die Warnung „kein Kanal
- * trägt" greift, und Frist-Meldungen fallen auf die übrigen Kanäle zurück (`getDeadlineChannels`) —
+ * trägt" greift, und Frist-Meldungen fallen auf die übrigen Kanäle zurück (`deliveryChannels`) —
  * statt dass jede Meldung still an einem blockierten Bot scheitert.
  */
 export async function forgetDeadChat(chatId: string): Promise<void> {
@@ -43,6 +43,8 @@ export async function forgetDeadChat(chatId: string): Promise<void> {
  *  entscheiden, was länger gilt als ein paar Minuten. */
 const PROBE_TIMEOUT_MS = 3_000;
 const PROBE_TTL_MS = 60_000;
+/** Haltbarkeit eines GESCHEITERTEN Versuchs (Zeitüberschreitung, Netzfehler) — kurz, siehe unten. */
+const PROBE_FAIL_TTL_MS = 10_000;
 const probeCache = new Map<string, { reachable: boolean; until: number }>();
 
 /** Ein Aufruf der Bot-API an einen Chat. Erkennt einen toten Chat und löst ihn; wirft bei Netzfehlern. */
@@ -93,9 +95,20 @@ export async function sendTelegram(chatId: string, text: string): Promise<void> 
 
 /**
  * Erreicht der Bot diesen Chat noch? Fragt mit der „schreibt …"-Anzeige an, die keine Nachricht
- * hinterlässt. Gebraucht nur, wenn eine Frist-Meldung sonst allein auf Telegram angewiesen wäre
- * (`getDeadlineChannels`). Im Zweifel `false`: ein Netzfehler lässt dann zusätzlich Mail und Push
- * zu — eine Meldung zu viel ist bei einer Frist der harmlosere Ausgang als keine.
+ * hinterlässt (im Chat blitzt höchstens kurz „schreibt …" auf). Ein `getChat` wäre unsichtbar,
+ * taugt aber nicht: eine Blockade meldet Telegram erst beim SENDEN.
+ *
+ * Gebraucht NUR vom Frist-Rückfall (`deliveryChannels`), und dort nur, wenn eine Meldung sonst
+ * allein auf Telegram angewiesen wäre — der Normalfall kostet damit keine Anfrage.
+ *
+ * **Nicht für eine Anzeige.** Erreichbarkeit ist eine Aussage über den Moment des Sendens; jede
+ * frühere Antwort ist eine Vermutung mit Haltbarkeit. Wer sie in einer Maske zeigt, merkt sie damit
+ * auch für den Versand vor — und ein hier gemerktes „erreichbar" lässt eine Frist-Meldung später
+ * allein auf einen Kanal gehen, der inzwischen tot ist. Dass die Einstellungen einen blockierten Bot
+ * überhaupt bemerken, besorgt der Webhook (`my_chat_member`), nicht eine Probe auf Vorrat.
+ *
+ * Im Zweifel `false`: ein Netzfehler lässt dann zusätzlich Mail und Push zu — eine Meldung zu viel
+ * ist bei einer Frist der harmlosere Ausgang als keine.
  */
 export async function telegramChatReachable(chatId: string): Promise<boolean> {
   if (!BOT_TOKEN) return false;
@@ -104,11 +117,20 @@ export async function telegramChatReachable(chatId: string): Promise<boolean> {
   try {
     // Kürzeres Zeitlimit als beim Versand: die Probe läuft VOR der Zustellung, und die Poller
     // arbeiten ihre Fälle nacheinander ab — ein hängender Aufruf hielte den ganzen Tick auf.
-    const reachable = (await callBot("sendChatAction", chatId, { action: "typing" }, PROBE_TIMEOUT_MS)).ok;
-    probeCache.set(chatId, { reachable, until: Date.now() + PROBE_TTL_MS });
-    return reachable;
+    const res = await callBot("sendChatAction", chatId, { action: "typing" }, PROBE_TIMEOUT_MS);
+    // Einen TOTEN Chat nicht merken. `callBot` hat die Verknüpfung eben gelöst (`forgetDeadChat`,
+    // das dabei auch diesen Eintrag räumt) — ihn danach wieder zu setzen machte jenes Räumen
+    // wirkungslos. Verbindet der Nutzer denselben Chat gleich neu, hielte der Merker ihn noch eine
+    // Minute für tot, und der Rückfall ersetzte genau den Kanal, den er gerade repariert hat.
+    if (!res.ok && isDeadChatResponse(res.status, res.detail)) return false;
+    probeCache.set(chatId, { reachable: res.ok, until: Date.now() + PROBE_TTL_MS });
+    return res.ok;
   } catch (e) {
     structuredLog("telegram", "probe_error", { chatId, error: (e as Error).message });
+    // Zeitüberschreitung und Netzfehler landeten bisher NICHT im Merker — bei einer Telegram-Störung
+    // zahlte deshalb jeder Poller-Tick die vollen drei Sekunden erneut. Kurz gemerkt, weil eine
+    // Störung vorbeigeht: anders als ein blockierter Bot, der bis zum Neuverbinden bleibt.
+    probeCache.set(chatId, { reachable: false, until: Date.now() + PROBE_FAIL_TTL_MS });
     return false;
   }
 }
