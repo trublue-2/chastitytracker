@@ -37,6 +37,7 @@ import { getOffenses, OFFENSE_TYPES } from "@/lib/mcp/ledger";
 import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
 import { timeline } from "@/lib/mcp/timeline";
 import { getActionLog } from "@/lib/mcp/actionlog";
+import { checkUpdates } from "@/lib/mcp/stateToken";
 import { weightHistory, logWeightDef } from "@/lib/mcp/weight";
 
 export const runtime = "nodejs";
@@ -212,6 +213,10 @@ async function runV2Write<A, T>(
  *  nicht der Beschreibungs-Ähnlichkeit ausgeliefert ist. */
 const MCP_SERVER_INSTRUCTIONS =
   "ChastityTracker Keyholder-MCP. Tool-Wahl:\n" +
+  "• AKTUALITÄT: Rufe zu Beginn JEDER Antwort `check_updates` auf (mit dem letzten `stateToken` als `since`). " +
+  "Er kostet fast nichts und sagt, ob und wo sich seit deinem letzten Blick etwas geändert hat, dazu die " +
+  "aktuelle Uhrzeit. Ist `changed` nicht `false`, lies die genannten Bereiche neu, bevor du dich auf frühere " +
+  "Tool-Ergebnisse stützt — Zahlen und Zustände aus älteren Nachrichten dieses Chats können überholt sein.\n" +
   "• LESEN: beginne mit `keyholder_dashboard` (beantwortet ~90 %), dann gezielt die Deep-Views " +
   "(`get_session` für Segmente/deviceBreakdown, `device_stats`, `records`, `period_summary`, `denial_trend`, " +
   "`get_offenses`, `get_context`, `timeline`, `get_devices`, `query_notes`, `get_action_log`, `get_box_state`, " +
@@ -336,6 +341,32 @@ function makeInputsStrict(server: McpServer): void {
 /** Registriert alle MCP-Tools auf dem Server. */
 function registerTools(server: McpServer) {
     makeInputsStrict(server);
+    server.registerTool(
+      "check_updates",
+      {
+        title: "Check whether anything changed (call first, every reply)",
+        description:
+          "Der billigste Aufruf dieses MCP — rufe ihn zu Beginn JEDER Antwort auf. Liefert die aktuelle " +
+          "Uhrzeit (generatedAt, timezone) und ein `stateToken`. Gib beim nächsten Aufruf das zuletzt " +
+          "erhaltene Token als `since` mit: `changed` sagt dann, ob sich der Zustand des Subs seither " +
+          "geändert hat, `changedAreas` wo (entries, lockRequests, inspections, orgasm, tasks, offenses, " +
+          "goals, weight, devices, box, context, settings) und wann zuletzt. Gezählt wird JEDE Änderung, " +
+          "egal von wem — Sub, Keyholder, automatische Abläufe, Box-Ereignisse. Nicht gezählt: Akku- und " +
+          "Sync-Meldungen der Box, Konto- und Anzeige-Einstellungen. `changed: null` = kein gültiges " +
+          "`since` (erster Aufruf oder fremdes Token): behandle dann alles, was du aus diesem Chat weisst, " +
+          "als ungeprüft. Bei `changed: true` lies die genannten Bereiche neu (z.B. inspections → " +
+          "list_inspections oder keyholder_dashboard), bevor du antwortest. Deine EIGENEN Schreibzugriffe " +
+          "zählen ebenfalls: sie erscheinen beim nächsten Aufruf als Änderung ihres Bereichs (am Zeitpunkt " +
+          "`lastChangeAt` erkennbar). Das ist Absicht — NUR diese Antwort trägt ein `stateToken`, weil nur sie " +
+          "zugleich sagt, was sich geändert hat; ein Token, das still eine fremde Änderung mit abdeckte, " +
+          "liesse sie dich übersehen.",
+        inputSchema: {
+          since: z.string().max(200).optional().describe("Das `stateToken` aus der letzten Antwort. Beim ersten Aufruf weglassen."),
+        },
+      },
+      (args) => runTool("check_updates", (username) => checkUpdates(username, args.since)),
+    );
+
     server.registerTool(
       "list_entries",
       {

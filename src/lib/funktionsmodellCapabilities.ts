@@ -599,6 +599,12 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Solange er läuft: keine Zustellung (Kontrollen, Eskalation, terminierte Direktiven, Wiege-Erinnerung), eine Öffnung bricht keine Sperrzeit, und aus der Pausenzeit entsteht kein abgeleitetes Vergehen. Beim Setzen fallen die offenen Kontrollen, beim Aufheben rücken die Aufgaben-Fristen nach.",
   }),
   c({
+    id: "check-updates", mechanic: "MCP", title: "Änderungen seit dem letzten Blick abfragen",
+    what: "Sagt der Keyholder-KI für ein paar Bytes, ob und in welchen Bereichen sich seit ihrem letzten Aufruf etwas geändert hat, samt Uhrzeit.",
+    actors: ["mcp"], surfaces: ["mcp"], tools: ["check_updates"],
+    note: "Zählt über Datenbank-Trigger jede Änderung, egal von wem; Register und Ausnahmen in `mcp/stateAreas.ts`. Nur diese Antwort trägt ein Token; eigene Writes erscheinen danach als Änderung.",
+  }),
+  c({
     id: "action-log", mechanic: "MCP", title: "Handlungsprotokoll lesen",
     what: "Jeder schreibende MCP-Aufruf mit Werkzeug, Handelndem, Pflicht-Begründung und betroffenem Objekt.",
     actors: ["mcp"], surfaces: ["mcp"], tools: ["get_action_log"],

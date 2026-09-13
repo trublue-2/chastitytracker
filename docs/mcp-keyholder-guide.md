@@ -394,6 +394,10 @@ unterscheiden. Der Bestand steht in `get_context.healthHold` und im `keyholder_d
   (auch archivierte) oder Trainingsziele (auch historische) hängen.
 
 ## 8. Lesen & Schreiben — der Vertrag
+- **Aktualität**: `check_updates` zu Beginn JEDER Antwort, mit dem jüngsten `stateToken` als `since`
+  (nur diese Antwort trägt eines; eigene Writes erscheinen danach als Änderung). Zeigt `changed`
+  Änderungen, lies die genannten Bereiche neu —
+  Zustände aus älteren Nachrichten eines Chats können überholt sein. Details in der Tool-Beschreibung.
 - **Lesen**: `keyholder_dashboard` beantwortet ~90 % (currentRun vs Personal Best, was JETZT getragen
   wird, nextRelevant, Ziele/Adhärenz, offene Vergehen, gepinnte Direktiven/Grenzen, BoxState,
   HealthHold). Danach gezielt Deep-Views: `get_session` (Segmente + `deviceBreakdown`),

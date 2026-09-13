@@ -23,6 +23,13 @@
           "de": "Die Benutzerverwaltung steht jetzt als Symbol in der Kopfzeile des Keyholder-Bereichs, statt einen Klick tief im Menü.",
           "en": "User management is now an icon in the header of the keyholder area, instead of one click deep in the menu."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Die KI-Keyholderin kann jetzt mit einem kurzen Abruf prüfen, ob sich seit ihrem letzten Blick etwas geändert hat — und arbeitet dadurch seltener mit veralteten Daten.",
+          "en": "The AI keyholder can now check with one quick call whether anything has changed since it last looked — so it works with outdated data less often."
+        }
       }
     ]
   },

@@ -1830,3 +1830,20 @@ model HeightChange {
 
   @@index([userId, effectiveFrom])
 }
+
+/// Änderungs-Zähler je Sub und Bereich — die Grundlage von `check_updates` (MCP).
+///
+/// Wird AUSSCHLIESSLICH von SQLite-Triggern geschrieben, die aus `src/lib/mcp/stateAreas.ts`
+/// erzeugt sind: jeder Insert, jedes Update und jedes Delete in einer zugeordneten Tabelle zählt
+/// `version` hoch, egal ob die Änderung aus App, MCP, Poller oder Portal-Roh-SQL kommt. Die App
+/// liest die Tabelle nur. Eine fehlende Zeile heisst Version 0 (in diesem Bereich noch nie etwas
+/// geändert). Bewusst ohne Relation zu `User`: ein Fremdschlüssel liesse das Löschen eines Users
+/// scheitern, weil die Trigger seiner Kind-Zeilen während der Kaskade noch Zeilen für ihn anlegen.
+model StateVersion {
+  userId    String
+  area      String
+  version   Int      @default(0)
+  changedAt DateTime
+
+  @@id([userId, area])
+}

@@ -84,6 +84,16 @@ server `instructions` returned at connect time also embed the human keyholder's
 binding rules (see [Keyholder rules](#keyholder-rules-human-in-the-loop)) so the
 agent sees them alongside the tool list.
 
+**Freshness** — `check_updates` is the cheapest call and is meant to run at the
+start of every reply: it returns the current time and a `stateToken`; passing the
+previous token as `since` yields `changed` plus the `changedAreas`. Changes are
+counted by SQLite triggers on every insert/update/delete of the sub's rows
+(table-to-area register and exclusions: `src/lib/mcp/stateAreas.ts`), so writes
+from the app, the MCP, the poller and the portal all show up. Only `check_updates`
+returns a token: attached to any other response it would silently cover changes in
+areas that response does not show. The agent's own writes therefore surface as a
+change on the next call.
+
 **V2 reads (preferred)** — start with `keyholder_dashboard` (answers ~90 %), then
 drill in: `get_session` (segments / per-device breakdown), `device_stats`,
 `records`, `period_summary`, `denial_trend`, `get_offenses`, `get_context`,

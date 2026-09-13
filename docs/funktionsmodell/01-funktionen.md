@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-106 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+107 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -208,6 +208,7 @@ Steckbrief: [80-kontext.md](80-kontext.md)
 | **Notizen führen** | Private, versionierte Beobachtungen anlegen, suchen und an Objekte hängen. <br>*Supersession statt Löschen; der Träger sieht nichts davon.* | Keyholder (MCP) | MCP | `upsert_note` `query_notes` `link_note` |
 | **Termine und wiederkehrende Kontexte pflegen** | Einmalige Termine und Wochen-Slots, jeweils mit der Angabe, ob sie Gerätefreiheit verlangen. | Keyholder (MCP) | MCP | `upsert_appointment` `upsert_recurring_context` |
 | **Gesundheits-Halt setzen** | Setzt die Direktiven aus — die eine Bremse, die über allem steht. <br>*Solange er läuft: keine Zustellung (Kontrollen, Eskalation, terminierte Direktiven, Wiege-Erinnerung), eine Öffnung bricht keine Sperrzeit, und aus der Pausenzeit entsteht kein abgeleitetes Vergehen. Beim Setzen fallen die offenen Kontrollen, beim Aufheben rücken die Aufgaben-Fristen nach.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]/health-hold` `set_health_hold` |
+| **Änderungen seit dem letzten Blick abfragen** | Sagt der Keyholder-KI für ein paar Bytes, ob und in welchen Bereichen sich seit ihrem letzten Aufruf etwas geändert hat, samt Uhrzeit. <br>*Zählt über Datenbank-Trigger jede Änderung, egal von wem; Register und Ausnahmen in `mcp/stateAreas.ts`. Nur diese Antwort trägt ein Token; eigene Writes erscheinen danach als Änderung.* | Keyholder (MCP) | MCP | `check_updates` |
 | **Handlungsprotokoll lesen** | Jeder schreibende MCP-Aufruf mit Werkzeug, Handelndem, Pflicht-Begründung und betroffenem Objekt. | Keyholder (MCP) | MCP | `get_action_log` |
 | **MCP-Endpunkt** | Die Gegenstelle, über die eine Keyholder-KI alle Werkzeuge erreicht. <br>*Die Werkzeugliste ist pro Verbindung gecacht — ein neuer Chat allein genügt nicht.* | Keyholder (MCP) | Gegenstelle | `/api/[transport]` |
 
