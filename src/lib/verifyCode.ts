@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { visionMaxImagePx, type Rotation } from "@/lib/constants";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import { IMAGE_MEDIA_TYPES, type ImageData } from "@/lib/imageUtils";
-import { visionComplete, visionConfigured, visionProvider } from "@/lib/vision";
+import { visionComplete, visionConfigured } from "@/lib/vision";
 import { parseJsonObject, wasTruncated } from "@/lib/vision/parse";
 import { localReadDigits } from "@/lib/ocr";
 
@@ -406,7 +406,7 @@ async function askCodeVision(
 
   // Policy-Refusal ist eine ANTHROPIC-Eigenheit (verweigert explizitere Fotos). Ein lokales Modell
   // kennt das nicht — ein „I cannot read…" ist dort ein normaler Lesefehler, kein Policy-Block.
-  if (visionProvider() === "anthropic" && !text.includes("{")) {
+  if (response.protocol === "anthropic" && !text.includes("{")) {
     const lower = text.toLowerCase();
     if (POLICY_KEYWORDS.some((kw) => lower.includes(kw))) {
       vlog(`${tag}:policy_block`, { textPreview: redactDigits(text.slice(0, 200)) });
@@ -516,10 +516,9 @@ export async function verifyKontrolleCodeDetailed(
   sealCode: string | null = null,
 ): Promise<VerifyDetailedResult | null> {
   const codeLen = expectedCode.length;
-  const effectiveSeal = sealCode && sealCode !== expectedCode ? sealCode : null;
   // Handschrift → kein lokales OCR-Fallback (Tesseract kann das nicht zuverlässig). Ohne
   // konfigurierten Vision-Provider bleibt die Verifikation manuell (Keyholder).
-  if (!visionConfigured()) {
+  if (!(await visionConfigured())) {
     vlog("verify:not_configured", { imageUrl, codeLen });
     return null;
   }
@@ -529,48 +528,65 @@ export async function verifyKontrolleCodeDetailed(
       vlog("verify:image_load_null", { imageUrl, codeLen, rotation });
       return null;
     }
-
-    vlog("verify:vision_call", { codeLen, mediaType: img.mediaType, rotation, sealChecked: !!effectiveSeal });
-    const read = await askCodeVision(img, buildVerifyPrompt(expectedCode, effectiveSeal), !!effectiveSeal, "verify");
-    if (read.kind === "policy") return { detected: null, match: false, reason: null, error: "policy" };
-    if (read.kind === "unusable") return { detected: null, match: false, reason: null };
-
-    // Normalisierung/Fuzzy/Override (Modell liest richtige Ziffern, meldet aber match=false —
-    // beobachtet 2026-05) stecken zentral in evaluateVerifyResponse/evaluateDetected.
-    const result = evaluateVerifyResponse(read.parsed, expectedCode, effectiveSeal);
-    vlog("verify:result", {
-      codeLen,
-      hasDetected: result.detected !== null,
-      // Rohe Stellenzahlen VOR dem Gate: weichen sie von codeLen/sealLen ab, hat das Modell falsch
-      // viele Ziffern gelesen und die Erkennung wurde verworfen. Der Marker für Fehl-Lesungen im
-      // Log — `detected` ist danach entweder passend lang oder null und zeigt es nicht mehr.
-      rawLen: result.rawLen ?? 0,
-      sealRawLen: result.sealRawLen ?? null,
-      isMatch: result.match,
-      claudeOverridden: result.overridden ?? false,
-      sealChecked: !!effectiveSeal,
-      sealMatch: result.sealMatch ?? null,
-      hasSealDetected: result.sealDetected != null,
-      reason: result.reason,
-    });
-    // Nur ein Treffer wird gegengelesen — warum, steht an `blindReadContradicts`.
-    if (result.match && await blindReadContradicts(img, expectedCode, effectiveSeal)) {
-      // Jede Behauptung des Modells über gelesene Zahlen fällt mit: sie ist genau das, was die
-      // Gegenlesung soeben nicht bestätigen konnte. Die Stellenzahlen (`rawLen`) bleiben — sie sind
-      // Beobachtung, keine Behauptung.
-      //
-      // `sealMatch` bleibt UNGESETZT statt `false`: „kein Urteil" ist nicht „Siegel falsch". Das
-      // Formular liest `sealMatch === false` als Siegel-Fehlschlag und zeigte sonst die Karte
-      // „Siegel-Nummer stimmt nicht" — bei einem Gerät ganz ohne Siegel eine Warnung über etwas,
-      // das es nicht gibt, und darunter die widersprechende Grund-Zeile.
-      return { ...result, detected: null, sealDetected: null, sealMatch: undefined, match: false, reason: "checkUnreliable" };
-    }
-    return result;
+    return await verifyCodeOnImage(img, expectedCode, sealCode);
   } catch (e) {
     const err = e as { status?: number; message?: string; name?: string };
     vlog("verify:exception", { imageUrl, codeLen, name: err.name, status: err.status, message: err.message });
     return null;
   }
+}
+
+/**
+ * Der Prüfablauf an einem schon geladenen Bild — geführte Lesung, Auswertung, Gegenlesung.
+ *
+ * Getrennt vom Laden, damit „Einstellung testen" GENAU diesen Ablauf an einem mitgelieferten
+ * Testbild fahren kann: ein Test mit eigenem Prompt bewiese nur, dass ein anderer Prompt geht.
+ * **Wirft** bei Transportfehlern (falscher Schlüssel, unbekanntes Modell) — der Test braucht den
+ * Grund, der Kontroll-Pfad oben fängt ihn ab.
+ */
+export async function verifyCodeOnImage(
+  img: ImageData,
+  expectedCode: string,
+  sealCode: string | null = null,
+): Promise<VerifyDetailedResult> {
+  const codeLen = expectedCode.length;
+  const effectiveSeal = sealCode && sealCode !== expectedCode ? sealCode : null;
+  vlog("verify:vision_call", { codeLen, mediaType: img.mediaType, sealChecked: !!effectiveSeal });
+  const read = await askCodeVision(img, buildVerifyPrompt(expectedCode, effectiveSeal), !!effectiveSeal, "verify");
+  if (read.kind === "policy") return { detected: null, match: false, reason: null, error: "policy" };
+  if (read.kind === "unusable") return { detected: null, match: false, reason: null };
+
+  // Normalisierung/Fuzzy/Override (Modell liest richtige Ziffern, meldet aber match=false —
+  // beobachtet 2026-05) stecken zentral in evaluateVerifyResponse/evaluateDetected.
+  const result = evaluateVerifyResponse(read.parsed, expectedCode, effectiveSeal);
+  vlog("verify:result", {
+    codeLen,
+    hasDetected: result.detected !== null,
+    // Rohe Stellenzahlen VOR dem Gate: weichen sie von codeLen/sealLen ab, hat das Modell falsch
+    // viele Ziffern gelesen und die Erkennung wurde verworfen. Der Marker für Fehl-Lesungen im
+    // Log — `detected` ist danach entweder passend lang oder null und zeigt es nicht mehr.
+    rawLen: result.rawLen ?? 0,
+    sealRawLen: result.sealRawLen ?? null,
+    isMatch: result.match,
+    claudeOverridden: result.overridden ?? false,
+    sealChecked: !!effectiveSeal,
+    sealMatch: result.sealMatch ?? null,
+    hasSealDetected: result.sealDetected != null,
+    reason: result.reason,
+  });
+  // Nur ein Treffer wird gegengelesen — warum, steht an `blindReadContradicts`.
+  if (result.match && await blindReadContradicts(img, expectedCode, effectiveSeal)) {
+    // Jede Behauptung des Modells über gelesene Zahlen fällt mit: sie ist genau das, was die
+    // Gegenlesung soeben nicht bestätigen konnte. Die Stellenzahlen (`rawLen`) bleiben — sie sind
+    // Beobachtung, keine Behauptung.
+    //
+    // `sealMatch` bleibt UNGESETZT statt `false`: „kein Urteil" ist nicht „Siegel falsch". Das
+    // Formular liest `sealMatch === false` als Siegel-Fehlschlag und zeigte sonst die Karte
+    // „Siegel-Nummer stimmt nicht" — bei einem Gerät ganz ohne Siegel eine Warnung über etwas,
+    // das es nicht gibt, und darunter die widersprechende Grund-Zeile.
+    return { ...result, detected: null, sealDetected: null, sealMatch: undefined, match: false, reason: "checkUnreliable" };
+  }
+  return result;
 }
 
 /**
@@ -602,7 +618,7 @@ async function detectSealDigits<T = string>(
     return sealDigitsFromReply(reply.detected, minLen, maxLen) as T | null;
   });
 
-  if (!visionConfigured()) {
+  if (!(await visionConfigured())) {
     if (opts.localFallback === false) {
       vlog(`${logPrefix}:no_provider_no_fallback`, { imageUrl });
       return null;
@@ -769,7 +785,7 @@ Reply with JSON only: {"detected": "<the number, or null>", "unit": "<kg|lb|null
  * Pille, statt „kein Schlüssel erkannt" zu behaupten, was niemand geprüft hat.
  */
 export async function detectKeyInBox(imageUrl: string, rotation: Rotation = 0): Promise<boolean | null> {
-  if (!visionConfigured()) {
+  if (!(await visionConfigured())) {
     vlog("key:no_provider", { imageUrl });
     return null;
   }

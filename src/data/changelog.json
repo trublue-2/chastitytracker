@@ -1,5 +1,25 @@
 [
   {
+    "version": "6.2.5",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Admins legen jetzt selbst fest, ob und bei welchem Anbieter Fotos automatisch geprüft werden – mit eigenem Schlüssel und einem Test an einem Beispielfoto.",
+          "en": "Admins now decide whether and with which provider photos are checked automatically – with their own key and a test on a sample photo."
+        }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "Werden Fotos zur Prüfung an einen externen Dienst geschickt, zeigt die App das jetzt mit Namen des Anbieters: am ⓘ neben dem Foto-Feld und einmalig im Keyholder-Bereich.",
+          "en": "When photos are sent to an external service for checking, the app now says so and names the provider: via the ⓘ next to the photo field and once in the keyholder area."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.4",
     "date": "2026-09-12",
     "changes": [

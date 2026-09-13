@@ -229,7 +229,7 @@ export async function detectDevice(
   references: DeviceReference[]
 ): Promise<DetectedDevice | null> {
   // Geräte-Erkennung ist Bild-Verständnis (kein OCR-Fallback). Ohne Vision-Provider sauber aussteigen.
-  if (!visionConfigured()) {
+  if (!(await visionConfigured())) {
     dlog("detect:not_configured", { newImageUrl });
     return null;
   }
@@ -307,7 +307,7 @@ export async function checkDeviceInPhoto(
   const expectedName = references.find((r) => r.deviceId === lockedDeviceId)?.deviceName ?? null;
 
   // Kein Vision-Provider = Feature aus (kein Fehler pro Foto) → bewusst null, nicht „error".
-  if (!visionConfigured()) {
+  if (!(await visionConfigured())) {
     dlog("check:not_configured", { queryImageUrl });
     return null;
   }

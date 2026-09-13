@@ -1,6 +1,7 @@
 import type { VisionRequest, VisionResponse } from "./types";
-import { anthropicAvailable, anthropicComplete } from "./anthropic";
-import { localAvailable, localComplete } from "./local";
+import { anthropicComplete } from "./anthropic";
+import { openaiCompatibleComplete } from "./openaiCompatible";
+import { currentVisionConfig, modelFor, visionSpec } from "./config";
 
 export type {
   VisionTask,
@@ -9,24 +10,22 @@ export type {
   VisionResponse,
 } from "./types";
 
-/** Aktiver Provider laut `VERIFY_PROVIDER`. Default „anthropic" → abwärtskompatibel. */
-export function visionProvider(): "anthropic" | "local" {
-  return process.env.VERIFY_PROVIDER === "local" ? "local" : "anthropic";
-}
-
-/** Hat der aktive Provider seine nötige Konfiguration? (API-Key bzw. Basis-URL) */
-export function visionConfigured(): boolean {
-  return visionProvider() === "local" ? localAvailable() : anthropicAvailable();
+/** Ist eine Foto-Prüfung eingerichtet? Welche, entscheidet `config.ts`. */
+export async function visionConfigured(): Promise<boolean> {
+  return (await currentVisionConfig()).provider !== "off";
 }
 
 /**
- * Führt eine Vision-Anfrage gegen den konfigurierten Provider aus.
- * Wirft bei Transport-/Verfügbarkeitsfehlern — Aufrufer behalten ihr try/catch
- * + null-Handling (insbesondere: KEIN automatischer Anthropic-Fallback aus dem
- * lokalen Modus, damit keine Fotos ungewollt an Anthropic gehen).
+ * Führt eine Vision-Anfrage gegen den gewählten Anbieter aus.
+ * Wirft bei Transport-/Verfügbarkeitsfehlern — Aufrufer behalten ihr try/catch + null-Handling.
+ * Einen automatischen Rückfall auf einen ANDEREN Anbieter gibt es nicht: fällt der gewählte aus,
+ * geht kein Foto ungewollt woandershin.
  */
 export async function visionComplete(req: VisionRequest): Promise<VisionResponse> {
-  return visionProvider() === "local"
-    ? localComplete(req)
-    : anthropicComplete(req);
+  const config = await currentVisionConfig();
+  const model = modelFor(config, req.task);
+  if (config.provider === "off" || !model) throw new Error("vision not configured");
+  return visionSpec(config).protocol === "anthropic"
+    ? anthropicComplete(config, model, req)
+    : openaiCompatibleComplete(config, model, req);
 }

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { structuredLog } from "@/lib/serverLog";
+import { visionConfigured } from "@/lib/vision";
 import { embedAvailable, embedModel, embedImages, bytesToVector, vectorToBytes, cosine } from "@/lib/embed";
 import type { DetectedDevice } from "@/lib/detectDevice";
 
@@ -24,7 +25,9 @@ function minMargin(): number {
  * Gibt null zurück, wenn kein Dienst, keine Referenzen oder das Ergebnis zu uneindeutig ist.
  */
 export async function detectDeviceByEmbedding(queryImageUrl: string, userId: string): Promise<DetectedDevice | null> {
-  if (!embedAvailable()) return null;
+  // „Aus" heisst aus: auch der Embedding-Dienst bekommt kein Foto, solange die Foto-Prüfung der
+  // Instanz abgeschaltet ist — sonst ginge die Geräte-Erkennung an der Einstellung vorbei.
+  if (!embedAvailable() || !(await visionConfigured())) return null;
   const model = embedModel();
 
   const devices = await prisma.device.findMany({

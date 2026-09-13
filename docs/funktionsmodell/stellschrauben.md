@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 150 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 151 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -244,6 +244,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | `User.dashboardLayout` | String? | — | dauerhaft | Abweichungen vom Standard-Dashboard (ausgeblendete Blöcke, eigene Reihenfolge) als JSON je Oberfläche. Leer = Standard. | Sub | Oberfläche | `dashboardLayout.ts:resolveLayout` |
 | `User.quickSettings` | String? | — | dauerhaft | Welche Einstellungen dieses Trägers in der Keyholder-Übersicht als Schnellschalter erscheinen (Liste von Schlüsseln, höchstens vier). Reine Anzeige-Auswahl: sie ändert keine Regel, sondern nur, welche davon ohne Umweg über die Einstellungen erreichbar ist. | Keyholder (UI) | Oberfläche | `quickSettings.ts` |
 | `User.noticeSeenVersion` | String? | — | dauerhaft | Welche Umstellung dieser Nutzer quittiert hat, als Versionsnummer. Leer = der Hinweis zur laufenden Umstellung erscheint beim nächsten Aufruf. Reine Anzeige-Quittung: er ändert nichts an Regeln, Fristen oder Beurteilung. | Sub | Oberfläche | `notice.ts:NOTICE_VERSION` |
+| `User.photoAnalysisNoticeSeen` | String? | — | dauerhaft | Welchen Stand der Foto-Prüfung dieser Nutzer zuletzt quittiert hat (`none` oder `external:<anbieter>`). Weicht der Stand der Instanz davon ab, erscheint der Hinweis erneut — bei Anbieterwechsel und am Ende der Übergangsfrist. Den Hinweis gibt es nur im Keyholder-Bereich; Subs erfahren den Datenweg allein über das ⓘ am Foto-Feld. Reine Anzeige-Quittung. | Sub | Oberfläche | `vision/config.ts:disclosureOf` |
 | `AdminUserRelationship.adminId` | String | (keiner) | dauerhaft | Wer diesen Sub steuern darf. Ohne Zeile sieht ein Admin ihn nicht — die Zuordnung ist die eigentliche Berechtigung. | Keyholder (UI) | Zugang, MCP, Nachrichten | — |
 | `AdminUserRelationship.userId` | String | (keiner) | dauerhaft | Der zugeordnete Sub. | Keyholder (UI) | Zugang | — |
 

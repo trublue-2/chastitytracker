@@ -11,6 +11,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import FormField from "@/app/components/FormField";
+import { PhotoAnalysisInfo } from "@/app/components/PhotoAnalysisContext";
 import useToast from "@/app/hooks/useToast";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
@@ -59,6 +60,9 @@ export default function DeviceForm({ onClose, onSaved, device, categories, initi
   const [price, setPrice] = useState(device?.purchasePrice != null ? String(device.purchasePrice) : "");
   const [currency, setCurrency] = useState(device?.currency ?? "CHF");
   const [categoryId, setCategoryId] = useState<string>(defaultCategoryId);
+  // Das Gerätefoto dient nur in der eingebauten Kategorie als Referenzbild (`gatherDeviceReferences`)
+  // und geht nur dann an die Prüfung. Ist die Kategorie unbekannt, lieber das ⓘ zeigen als verschweigen.
+  const photoIsReference = !categoryId || categories?.find((c) => c.id === categoryId)?.isBuiltIn !== false;
   // Default true = Bestandsverhalten; ein neues Gerät verlangt einen Code, bis jemand ihn abschaltet.
   const [requireCode, setRequireCode] = useState(device?.requireInspectionCode ?? true);
   const [saving, setSaving] = useState(false);
@@ -168,7 +172,7 @@ export default function DeviceForm({ onClose, onSaved, device, categories, initi
           />
 
           {/* Photo — `allowGallery`: das Gerätefoto beschreibt das Gerät, es beweist nichts. */}
-          <FormField label={t("photo")}>
+          <FormField label={t("photo")} labelAddon={photoIsReference ? <PhotoAnalysisInfo /> : undefined}>
             {photo.imagePreview ? (
               <div className="flex items-start gap-3">
                 <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">

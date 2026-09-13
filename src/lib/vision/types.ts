@@ -1,3 +1,5 @@
+import type { VisionProtocol } from "./providers";
+
 /**
  * Provider-unabhängige Typen für Bild-Verifikation (Vision).
  *
@@ -35,4 +37,7 @@ export interface VisionResponse {
   requestId?: string;
   /** Stop-/Finish-Reason fürs Logging. */
   stopReason?: string | null;
+  /** Welches Protokoll geantwortet hat. Eine Policy-Absage ist eine Anthropic-Eigenheit und wird
+   *  nur dort als solche gelesen — die Antwort sagt es, statt dass der Aufrufer nachfragt. */
+  protocol: VisionProtocol;
 }

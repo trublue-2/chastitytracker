@@ -11,6 +11,7 @@ import { useApiError } from "@/app/hooks/useApiError";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import RotatableImagePreview from "@/app/components/RotatableImagePreview";
 import FormField from "@/app/components/FormField";
+import { PhotoAnalysisInfo } from "@/app/components/PhotoAnalysisContext";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
@@ -184,7 +185,7 @@ export default function TaskProofFormCore({
       )}
 
       {requiresPhoto && (
-        <FormField label={t("proofPhotoLabel")} required>
+        <FormField label={t("proofPhotoLabel")} required labelAddon={code ? <PhotoAnalysisInfo /> : undefined}>
           {photo.imagePreview ? (
             <RotatableImagePreview
               src={photo.imagePreview}

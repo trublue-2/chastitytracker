@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
 import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/healthHold";
 import { notifyUser } from "@/lib/notify";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
@@ -141,6 +142,16 @@ export interface ContextResult extends Envelope {
    */
   offenseStatementsAllowed: boolean;
   /**
+   * Wohin eingereichte Fotos zur automatischen Prüfung gehen — eine Einstellung der INSTANZ, nicht
+   * dieses Trägers. `active: false` heisst: niemand prüft automatisch, die Keyholderin sieht jedes
+   * Foto selbst an. `external: true` heisst: das Foto verlässt die Instanz und geht an `provider`.
+   *
+   * Nur lesbar, und bewusst ohne MCP-Schreibweg: Anbieter und Schlüssel sind eine Entscheidung des
+   * Betreibers über Datenweg und Kosten (FM_MCP_EXEMPT „photo-analysis"). Rein additiv, deshalb
+   * ohne `schemaVersion`-Bump.
+   */
+  photoAnalysis: { active: boolean; external: boolean; provider: string | null };
+  /**
    * Die offene Freigabe-Vorgabe samt aktuellem Stand — `null`, wenn keine steht
    * (docs/gewicht-freigabe-konzept.md). Gestellt und zurückgezogen wird sie mit
    * `set_weight_release`.
@@ -228,7 +239,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     gte: parseIsoDate(opts.appointmentsFrom, "appointmentsFrom") ?? now,
     ...(apptTo ? { lte: apptTo } : {}),
   };
-  const [healthHold, recurring, appts, cleaningUsedTodayCount, lockPeriod, offenseRules, release, box] = await Promise.all([
+  const [healthHold, recurring, appts, cleaningUsedTodayCount, lockPeriod, offenseRules, release, box, vision] = await Promise.all([
     loadActiveHealthHold(userId, iso),
     prisma.recurringContext.findMany({ where: { userId }, orderBy: [{ weekday: "asc" }, { label: "asc" }] }),
     prisma.appointment.findMany({ where: { userId, when: apptWhen }, orderBy: { when: "asc" } }),
@@ -241,6 +252,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     weightReleaseStatus(userId, now),
     // Führt die Instanz keine Box, wird gar nicht gefragt — `null` ist dann die ganze Antwort.
     heimdallEnabled() ? loadBoxSettings(userId) : Promise.resolve(null),
+    currentVisionConfig(now),
   ]);
 
   // Auto-Kontroll-Einstellungen + Reinigung über die geteilten Helfer der jeweiligen Services.
@@ -280,6 +292,11 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     },
     offenseRules,
     offenseStatementsAllowed: user.offenseStatementsAllowed,
+    photoAnalysis: {
+      active: vision.provider !== "off",
+      external: visionSpec(vision).external,
+      provider: vision.provider !== "off" ? vision.label : null,
+    },
     weightRelease: release && {
       thresholdKg: release.thresholdKg,
       nextThresholdKg: release.nextThresholdKg,

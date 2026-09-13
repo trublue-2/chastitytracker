@@ -9,6 +9,7 @@ import { keyholderWorld } from "@/lib/theme";
 import pkg from "../../../package.json";
 import { adminShellColCls } from "@/app/components/inputStyles";
 import ChangeoverNoticeGate from "@/app/components/ChangeoverNoticeGate";
+import PhotoAnalysisScope from "@/app/components/PhotoAnalysisScope";
 
 // SECURITY: admin-only, user-spezifisch — nie statisch/geteilt cachen (per-Request inkl. RSC).
 // Gleiche Härtung wie das Dashboard-Layout gegen vorgeschaltete Shared-Caches.
@@ -51,7 +52,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className={`${adminShellColCls} [--block-col:100%] [--block-gutter:0px]`}>
           {/* Siehe `dashboard/layout.tsx` — und ebenfalls INNERHALB der Spalte. */}
           {user?.id && <ChangeoverNoticeGate userId={user.id} />}
-          {children}
+          <PhotoAnalysisScope notice={{ userId: user?.id, isAdmin: isGlobalAdmin }}>{children}</PhotoAnalysisScope>
         </div>
       </div>
 

@@ -39,6 +39,11 @@ const UNREGISTERED_KEYS = new Set([
   // (`userSelfFieldRoute` gibt den Code direkt zurück, kein ServiceResult) — deshalb hier und
   // nicht in SERVICE_ERROR_CODES, und deshalb camelCase wie ihre Geschwister.
   "layoutInvalid", "layoutUnknownSurface", "layoutUnknownBlock", "layoutForeignBlock",
+  // Die Foto-Prüfung (`/api/admin/photo-analysis`) gibt ihre Codes ebenfalls direkt zurück —
+  // Einstellung der Instanz statt ServiceResult. `rateLimited` kommt vom Test-Knopf, der beim
+  // Anbieter echtes Geld kostet und deshalb gedrosselt ist.
+  "photoAnalysisInvalid", "photoAnalysisBaseUrlInvalid", "photoAnalysisBaseUrlPrivate", "photoAnalysisModelsRequired", "photoAnalysisFieldTooLong",
+  "rateLimited",
 ]);
 
 describe("errors namespace has no orphaned keys", () => {

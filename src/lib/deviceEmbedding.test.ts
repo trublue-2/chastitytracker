@@ -9,7 +9,10 @@ vi.mock("@/lib/embed", async (importActual) => {
   return { ...actual, embedAvailable: vi.fn(() => true), embedModel: vi.fn(() => "test-model"), embedImages: vi.fn() };
 });
 
+vi.mock("@/lib/vision", () => ({ visionConfigured: vi.fn(async () => true) }));
+
 import { detectDeviceByEmbedding } from "./deviceEmbedding";
+import { visionConfigured } from "@/lib/vision";
 import { prisma } from "@/lib/prisma";
 import { embedAvailable, embedImages, vectorToBytes } from "@/lib/embed";
 
@@ -28,10 +31,18 @@ beforeEach(() => {
   findMany.mockReset();
   updateRef.mockReset().mockResolvedValue({});
   availableMock.mockReset().mockReturnValue(true);
+  (visionConfigured as unknown as ReturnType<typeof vi.fn>).mockReset().mockResolvedValue(true);
   embedMock.mockReset();
 });
 
 describe("detectDeviceByEmbedding", () => {
+  it("fragt den Embedding-Dienst gar nicht, solange die Foto-Prüfung der Instanz aus ist", async () => {
+    (visionConfigured as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+    expect(await detectDeviceByEmbedding("/u/q.jpg", "u1")).toBeNull();
+    expect(findMany).not.toHaveBeenCalled();
+    expect(embedMock).not.toHaveBeenCalled();
+  });
+
   it("returns null when no embed service is configured", async () => {
     availableMock.mockReturnValue(false);
     expect(await detectDeviceByEmbedding("/u/q.jpg", "user1")).toBeNull();

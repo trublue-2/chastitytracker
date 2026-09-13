@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import FormField from "@/app/components/FormField";
+import { PhotoAnalysisInfo } from "@/app/components/PhotoAnalysisContext";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import RotatableImagePreview from "@/app/components/RotatableImagePreview";
 
@@ -33,7 +34,7 @@ export default function BoxPhotoField({
   const tForm = useTranslations("lockForm");
 
   return (
-    <FormField label={tForm("boxPhotoLabel")} required={required}>
+    <FormField label={tForm("boxPhotoLabel")} required={required} labelAddon={<PhotoAnalysisInfo />}>
       {photo.imagePreview ? (
         <div className="flex items-start gap-4">
           <RotatableImagePreview src={photo.imagePreview} rotation={photo.rotation} onRotateLeft={photo.rotateLeft} onRotateRight={photo.rotateRight} />

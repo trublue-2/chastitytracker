@@ -15,6 +15,16 @@ Infrastruktur nicht) oder um Anthropic-Policy-Blocks zu vermeiden.
 Umgeschaltet wird per Env-Variable `VERIFY_PROVIDER` — **kein Code-Deploy nötig**. Die schnelle
 Embedding-Geräte-Erkennung ist separat über `EMBED_BASE_URL` zuschaltbar (siehe TEIL C).
 
+> **Seit 6.2.5 gibt es dafür auch eine Einstellung in der App** (Admin → Einstellungen →
+> Foto-Prüfung): Anthropic, OpenAI, Google Gemini, Mistral, ein beliebiger OpenAI-kompatibler
+> Dienst oder der eigene Server, jeweils mit eigenem Schlüssel und eigenen Modellen, samt Test an
+> einem Beispielfoto. **Ist sie gespeichert, überschreibt sie die Env-Variablen dieses Dokuments.**
+> Ohne gespeicherte Einstellung gilt alles hier Beschriebene unverändert. Die Regel steht in
+> `src/lib/vision/config.ts`. Den Embedding-Dienst (`EMBED_BASE_URL`) betrifft das nicht.
+>
+> Zu wissen: **ein CLIP-Dienst allein macht ein Setup nicht lokal.** Fällt er aus, übernimmt das
+> Bildmodell die Geräte-Erkennung — und das ist, was die Einstellung bzw. `VERIFY_PROVIDER` sagt.
+
 ## Architektur
 
 Eine **lokale KI-Box** (Mac, Apple Silicon/Metal) bedient beide Tracker-Instanzen über Tailscale.
@@ -32,7 +42,7 @@ Beide sind optional und voneinander unabhängig: nur Ollama → VLM für alles; 
 schnelle Geräte-Erkennung; keiner von beiden → Anthropic (sofern `ANTHROPIC_API_KEY` gesetzt).
 
 Der Provider-Code liegt in `src/lib/vision/`:
-`index.ts` (Dispatch), `anthropic.ts`, `local.ts` (OpenAI-kompatibel), `types.ts`.
+`index.ts` (Dispatch), `config.ts` (welcher Anbieter gilt), `providers.ts` (Anbieter-Liste), `anthropic.ts`, `openaiCompatible.ts` (OpenAI-kompatibel, auch Ollama), `selfTest.ts`, `types.ts`.
 Die drei Funktionen rufen `visionComplete()` auf — der Provider ist dahinter austauschbar.
 
 > **Wichtig:** Im lokalen Modus gibt es **keinen automatischen Anthropic-Fallback**.

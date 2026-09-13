@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { NOTICE_VERSION } from "@/lib/notice";
@@ -8,6 +7,7 @@ import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import { quietLinkCls } from "@/app/components/inputStyles";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
+import { useNoticeDismiss } from "@/app/hooks/useNoticeDismiss";
 
 /**
  * Der einmalige Umstellungs-Hinweis auf v6 (Issue #87).
@@ -19,30 +19,12 @@ import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
  * hätte nachsehen können, ist mit derselben Änderung verschwunden.
  *
  * **Der Merker liegt am `User`, nicht im Gerätespeicher** (`notice.ts` begründet das). Deshalb
- * quittiert der Knopf über die API und nicht über `localStorage`.
- *
- * **Optimistisch geschlossen, ohne Erfolgsprüfung.** Schlägt der PATCH fehl, ist die Folge, dass
- * der Hinweis beim nächsten Aufruf noch einmal erscheint — das ist ein hinnehmbarer Ausgang und
- * allemal besser, als den Nutzer vor einem Fehlerdialog stehen zu lassen, den er nicht auflösen
- * kann. Ein Hinweis ist kein Formular.
+ * quittiert der Knopf über die API und nicht über `localStorage` — wie, steht in `useNoticeDismiss`.
  */
 export default function ChangeoverNotice() {
   const t = useTranslations("notice");
-  const [dismissed, setDismissed] = useState(false);
+  const { dismissed, dismiss } = useNoticeDismiss("/api/settings/notice-seen", { noticeSeenVersion: NOTICE_VERSION });
   if (dismissed) return null;
-
-  function dismiss() {
-    setDismissed(true);
-    void fetch("/api/settings/notice-seen", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ noticeSeenVersion: NOTICE_VERSION }),
-      // `keepalive`, weil daneben ein Link steht: ein Klick darauf navigiert weg und schnitte die
-      // laufende Anfrage sonst ab — der Hinweis käme wieder. Dieselbe Form nutzt
-      // `useLocaleSwitcher` aus demselben Grund.
-      keepalive: true,
-    }).catch(() => { /* siehe Docblock: dann steht er beim nächsten Mal wieder da */ });
-  }
 
   return (
     <Card variant="semantic" semantic="request">

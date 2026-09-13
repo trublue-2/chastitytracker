@@ -146,6 +146,11 @@ model User {
   // Gerät. Genau das war der Fehler, den #88 beschrieb: eine Anzeige-Entscheidung im
   // Gerätespeicher läuft zwischen Handy und Rechner auseinander.
   noticeSeenVersion              String?
+  // Welchen Stand der Foto-Prüfung dieser Nutzer zuletzt quittiert hat: `none` oder
+  // `external:<anbieter>` (siehe `disclosureOf` in vision/config.ts). Kein Versions-Zähler wie
+  // `noticeSeenVersion`: der Hinweis muss je INSTANZ-Zustand erscheinen und erneut, sobald der Admin
+  // den Anbieter wechselt oder die Übergangsfrist abläuft — beides weiss keine einkompilierte Version.
+  photoAnalysisNoticeSeen        String?
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).
   mcpKeyholderInstructions       String?
   // Darf der Träger zu einem festgestellten Vergehen eine Stellungnahme schreiben? Schalter der

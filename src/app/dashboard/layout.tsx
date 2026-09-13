@@ -17,6 +17,7 @@ import { subWorld } from "@/lib/theme";
 import pkg from "../../../package.json";
 import { readingColCls } from "@/app/components/inputStyles";
 import ChangeoverNoticeGate from "@/app/components/ChangeoverNoticeGate";
+import PhotoAnalysisScope from "@/app/components/PhotoAnalysisScope";
 
 // SECURITY: user-spezifisch (auth() → Rolle/Avatar/Daten). Nie statisch/geteilt cachen — erzwingt
 // per-Request-Rendering inkl. der RSC-Navigations-Payloads. Härtet gegen einen fehlkonfigurierten
@@ -114,8 +115,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
               INNERHALB der Spalte: davor lief er von Bildschirmkante zu Bildschirmkante und
               ignorierte den Versatz der Seitenleiste (Issue #87). */}
           {userId && <ChangeoverNoticeGate userId={userId} />}
-          <OfflineIndicator />
-          {children}
+          <PhotoAnalysisScope>
+            <OfflineIndicator />
+            {children}
+          </PhotoAnalysisScope>
         </div>
         <BottomNavSpacer />
       </div>

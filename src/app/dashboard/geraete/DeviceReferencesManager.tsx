@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronRight, Plus, Download, X } from "lucide-react";
 import FormError from "@/app/components/FormError";
+import { PhotoAnalysisInfo } from "@/app/components/PhotoAnalysisContext";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 
@@ -157,6 +158,8 @@ export default function DeviceReferencesManager({ deviceId }: { deviceId: string
               <Download size={14} />
               {t("referencesImport")}
             </button>
+            {/* Referenzbilder gehen bei jeder Geräte-Erkennung und jedem Geräte-Check mit hinaus. */}
+            <PhotoAnalysisInfo />
           </div>
         </div>
       )}

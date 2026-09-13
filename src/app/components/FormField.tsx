@@ -7,6 +7,10 @@ interface Props {
   label: string;
   htmlFor?: string;
   required?: boolean;
+  /** Ein Zusatz NEBEN der Beschriftung, heute das ⓘ zur Foto-Prüfung. Bewusst ausserhalb des
+   *  `<label>`: ein Knopf darin wäre interaktiver Inhalt in einer Beschriftung — ungültig, und ein
+   *  Tipp darauf fokussierte je nach Browser das Feld statt die Fussnote zu öffnen. */
+  labelAddon?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -24,19 +28,22 @@ interface Props {
  * `"use client"`, weil die Textquelle ein Hook ist; die Datei wird auch aus einer Server-Seite
  * heraus benutzt (`admin/dev/components`), die sonst einen Hook im Server-Baum aufriefe.
  */
-export default function FormField({ label, htmlFor, required, children }: Props) {
+export default function FormField({ label, htmlFor, required, labelAddon, children }: Props) {
   const tc = useTranslations("common");
+  const labelEl = (
+    <FormFieldLabel htmlFor={htmlFor} className={labelAddon ? undefined : "mb-2"}>
+      {label}
+      {required && (
+        <>
+          <span className="text-warn ml-0.5" aria-hidden="true">*</span>
+          <span className="sr-only">{tc("requiredField")}</span>
+        </>
+      )}
+    </FormFieldLabel>
+  );
   return (
     <div>
-      <FormFieldLabel htmlFor={htmlFor} className="mb-2">
-        {label}
-        {required && (
-          <>
-            <span className="text-warn ml-0.5" aria-hidden="true">*</span>
-            <span className="sr-only">{tc("requiredField")}</span>
-          </>
-        )}
-      </FormFieldLabel>
+      {labelAddon ? <div className="mb-2 flex items-center gap-1">{labelEl}{labelAddon}</div> : labelEl}
       {children}
     </div>
   );

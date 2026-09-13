@@ -24,7 +24,7 @@ export function parseJsonObject<T>(text: string): T | null {
  * Brach die Antwort am Token-Budget ab, statt zu Ende geschrieben zu werden?
  *
  * Steht hier und nicht am Aufrufer, weil es PROVIDER-Wissen ist: Anthropic nennt den Zustand
- * `max_tokens`, ein OpenAI-kompatibles lokales Modell `length` (`vision/local.ts` reicht dessen
+ * `max_tokens`, ein OpenAI-kompatibles lokales Modell `length` (`vision/openaiCompatible.ts` reicht dessen
  * `finish_reason` unverändert durch). Wer die beiden Namen an der Auswertungsstelle abschreibt,
  * schreibt sie beim nächsten Anbieter erneut ab — und vergisst einen.
  *
