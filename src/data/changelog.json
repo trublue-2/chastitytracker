@@ -23,6 +23,20 @@
           "de": "Abgelehnte Aktionen sagen jetzt, warum: fehlende Rechte oder abgelaufene Anmeldung standen bisher überall nur als „Fehler\" da.",
           "en": "Rejected actions now say why: missing permissions or an expired sign-in previously showed up everywhere as just \"Error\"."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Sperre endet jetzt genau zur angezeigten Minute. Bisher zählte sie ab dem Absenden des Formulars — wer beim Ausfüllen Zeit liess, wurde länger gesperrt und öffnete pünktlich trotzdem „zu früh\".",
+          "en": "A lock period now ends exactly at the minute shown. It used to count from when the form arrived, so taking time to fill it in extended the lock — and opening on time still counted as too early."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Gerätebilder und Referenzfotos lassen sich antippen und gross ansehen.",
+          "en": "Device photos and reference photos can be tapped to view them full screen."
+        }
       }
     ]
   },

@@ -13,7 +13,7 @@ import {
   LOCK_REQUEST_ORDER,
   type PrismaTx,
 } from "@/lib/queries";
-import { lockPeriodEndFromRequest } from "@/lib/verschlussAnforderungService";
+import { lockAnchor, lockPeriodEndFromRequest } from "@/lib/verschlussAnforderungService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { scheduleCleaningRelockInspection, triggerPostLockInspection } from "@/lib/autoKontrolleService";
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/entryNotify";
@@ -189,7 +189,9 @@ export async function applyEntryFulfilment(
     // es fiele also niemandem auf. Dasselbe gilt für mehrere hier erzeugte Sperrzeiten: wie sie
     // zur EFFEKTIVEN aufgelöst werden, steht bei `foldActiveLockPeriods` (queries.ts).
     const newLockPeriods = offeneAnforderungen.flatMap((a) => {
-      const endsAt = lockPeriodEndFromRequest(a, at); // Anker: der Verschluss selbst
+      // Anker ist die Verschluss-Zeit AUS DEM EINTRAG, nicht das Eintreffen des Formulars — siehe
+      // `lockAnchor`. Sonst endet die Sperre später als überall angezeigt.
+      const endsAt = lockPeriodEndFromRequest(a, lockAnchor(entry.startTime, at));
       return endsAt
         ? [{
             userId,

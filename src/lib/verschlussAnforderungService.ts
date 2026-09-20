@@ -75,7 +75,44 @@ export interface LockPeriodFromRequest {
  * 24h-Sperre wäre bei einem seit 30h verschlossenen Sub im Moment ihrer Entstehung schon abgelaufen.
  */
 export function lockPeriodEndFromRequest(a: LockPeriodFromRequest, abZeitpunkt: Date): Date | null {
-  return a.lockEndsAt ?? (a.minDurationHours ? new Date(abZeitpunkt.getTime() + a.minDurationHours * 60 * 60 * 1000) : null);
+  const end = a.lockEndsAt ?? (a.minDurationHours ? new Date(abZeitpunkt.getTime() + a.minDurationHours * 60 * 60 * 1000) : null);
+  return end && floorToMinute(end);
+}
+
+/**
+ * Eine Frist auf die volle Minute abschneiden — **jede** gespeicherte Sperre geht hier durch.
+ *
+ * Eintrags-Zeiten tragen nie Sekunden: das Formular hat Stunde und Minute, und genau diese Zeit
+ * zeigen Träger, Keyholderin und Box. Eine Frist MIT Sekunden wird gegen so eine Zeit geprüft
+ * (`strafbuch.ts`, `openTime < endsAt`) — sie gewinnt dann um bis zu 59 Sekunden gegen eine
+ * Öffnung, die auf die angezeigte Minute genau stattfand. *Vorfall 20.09.2026:* Verschluss um
+ * 20:45 eingetragen, 78 Sekunden später abgeschickt, Sperre bis 08:46:18 gespeichert; die Box
+ * öffnete zur angezeigten Zeit 08:45, das Strafbuch buchte dieselbe Öffnung als unerlaubt.
+ *
+ * Abgeschnitten wird beim SCHREIBEN, nicht beim Vergleich: die gespeicherte Frist ist dann
+ * dieselbe, die überall steht. Eine Toleranz im Vergleich träfe auch die von der Keyholderin
+ * gesetzten absoluten Enden und lockerte sie stillschweigend.
+ */
+export function floorToMinute(d: Date): Date {
+  return new Date(Math.floor(d.getTime() / 60_000) * 60_000);
+}
+
+
+/** Wie weit ein Verschluss-Eintrag zurückdatiert sein darf, ohne die Sperre zu verkürzen. */
+export const LOCK_ANCHOR_GRACE_MS = 15 * 60_000;
+
+/**
+ * Ab wann eine Mindest-Tragedauer zählt: ab der Verschluss-Zeit AUS DEM EINTRAG, nicht ab dem
+ * Eintreffen des Formulars. Sonst wandert das Sperr-Ende um die Tippdauer nach hinten — unsichtbar,
+ * weil überall die eingetragene Zeit steht (siehe {@link floorToMinute} für den Vorfall dazu).
+ *
+ * **Warum trotzdem eine Schranke.** Der Sub wählt die Eintrags-Zeit selbst. Ohne Grenze verkürzte
+ * ein rückdatierter Verschluss die Sperre um genau diese Spanne. Weiter als
+ * {@link LOCK_ANCHOR_GRACE_MS} zurück zählt sie deshalb nicht — das deckt Tippen und einen
+ * nachgereichten Offline-Eintrag, nicht aber „ich war schon heute Morgen verschlossen".
+ */
+export function lockAnchor(lockedAt: Date, submittedAt: Date): Date {
+  return new Date(Math.max(lockedAt.getTime(), submittedAt.getTime() - LOCK_ANCHOR_GRACE_MS));
 }
 
 /**
@@ -125,10 +162,13 @@ export async function createVerschlussAnforderung(
   // Versand (wirksamAb), nicht ab Erstellung.
   let endsAtDate: Date | null = null;
   if (endsAt) {
-    endsAtDate = new Date(endsAt);
-    if (Number.isNaN(endsAtDate.getTime())) return serviceFail(400, "INVALID_DATETIME");
+    const parsed = new Date(endsAt);
+    if (Number.isNaN(parsed.getTime())) return serviceFail(400, "INVALID_DATETIME");
+    // Auch die absolute Angabe: die Oberfläche schickt ohnehin nur Minuten, der MCP darf Sekunden
+    // mitgeben — und eine Frist mit Sekunden läuft gegen minutengenaue Eintrags-Zeiten (floorToMinute).
+    endsAtDate = floorToMinute(parsed);
   } else if (fristH) {
-    endsAtDate = new Date((wirksamAb ?? now).getTime() + fristH * 60 * 60 * 1000);
+    endsAtDate = floorToMinute(new Date((wirksamAb ?? now).getTime() + fristH * 60 * 60 * 1000));
   }
   if (art === "ANFORDERUNG" && !endsAtDate) {
     return serviceFail(400, "LOCK_DEADLINE_REQUIRED");

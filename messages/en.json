@@ -1731,6 +1731,7 @@
     "referencesAdd": "Add photo",
     "referencesImport": "Import from lock photos",
     "referencesEmpty": "No reference photos yet",
+    "referencesAlt": "Reference photo",
     "referencesDelete": "Remove",
     "deleteConfirm": "Really delete this device? This cannot be undone.",
     "archiveConfirm": "This device will be archived because it has been used in wear periods. It will no longer appear in the selection.",

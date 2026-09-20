@@ -1731,6 +1731,7 @@
     "referencesAdd": "Foto hinzufügen",
     "referencesImport": "Aus Verschluss-Fotos übernehmen",
     "referencesEmpty": "Noch keine Referenzfotos",
+    "referencesAlt": "Referenzfoto",
     "referencesDelete": "Entfernen",
     "deleteConfirm": "Dieses Gerät wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
     "archiveConfirm": "Dieses Gerät wird archiviert, da es bereits in Tragezeiten verwendet wurde. Es erscheint nicht mehr in der Auswahl.",
