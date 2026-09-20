@@ -37,6 +37,20 @@
           "de": "Gerätebilder und Referenzfotos lassen sich antippen und gross ansehen.",
           "en": "Device photos and reference photos can be tapped to view them full screen."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die eigene Frist eines Nachweises zählt jetzt ab dem Beginn der Haltezeit. Bisher lief sie ab dem Stellen der Aufgabe und konnte ablaufen, bevor die Haltezeit überhaupt begonnen hatte.",
+          "en": "A proof's own deadline now counts from the start of the hold period. It used to run from when the task was issued and could expire before the hold period had even begun."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Text-Nachweise lassen sich auch nach dem Ende einer Aufgabe noch einreichen — die Keyholderin entscheidet, ob sie zählen. Fotos bleiben mit dem Ende geschlossen.",
+          "en": "Text proofs can still be submitted after a task has ended — the keyholder decides whether they count. Photos remain closed once the task ends."
+        }
       }
     ]
   },

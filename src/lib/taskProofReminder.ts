@@ -31,8 +31,17 @@ export function mayBeDueWithin(
   const earliestEnd = earliestTaskEnd(task, taskAnchor(task)).getTime();
   return task.proofs.some((p) => {
     if (p.submittedAt !== null) return false;
+    // ZWEI Schranken, nicht eine: im Dauer-Modus zählt die eigene Frist ab dem BEGINN
+    // (`proofDeadline`), den dieser Vorfilter nicht kennt. Er muss deshalb nach unten UND oben
+    // vorsichtig sein — sonst siebt er eine Aufgabe aus, deren Frist gleich anläuft (dann käme nie
+    // eine Erinnerung), oder er behält eine, deren Frist längst vorbei ist.
+    //
+    // Frühestens: der Beginn kann nicht vor dem Nullpunkt liegen, also ist `anchor + dueOffsetMin`
+    // auch im Dauer-Modus die untere Schranke. Spätestens: ein später Beginn schiebt sie bis ans
+    // Ende der Aufgabe, also gilt dort `holdUntil`.
     const own = p.dueOffsetMin != null ? anchor + p.dueOffsetMin * 60_000 : Infinity;
-    return Math.min(own, earliestEnd) <= horizon.getTime() && Math.min(own, task.holdUntil.getTime()) > now.getTime();
+    const latestOwn = task.holdDurationMin != null ? task.holdUntil.getTime() : own;
+    return Math.min(own, earliestEnd) <= horizon.getTime() && Math.min(latestOwn, task.holdUntil.getTime()) > now.getTime();
   });
 }
 

@@ -2019,6 +2019,7 @@
     "proofDueAfterEnd": "Due at {date} — that is not before the task ends",
     "proofMoveUp": "Move proof up",
     "proofMoveDown": "Move proof down",
+    "proofDueAfterStart": "Due {value} after the start",
     "proofDueLine": "Due by {value}",
     "proofDueLineProvisional": "Due by the end of the hold time, {value} at the latest",
     "proofState_overdue": "Proof overdue — deadline passed",

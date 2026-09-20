@@ -248,6 +248,18 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
     expect(card.proofs[0].href).toBeNull();
   });
 
+  /** ...ausser für einen reinen TEXT-Nachweis: der bleibt erreichbar (`proofOpenAfterEnd`). Ohne das
+   *  stand der Träger vor drei Text-Zeilen ohne jeden Weg und ohne Begründung (19.09.2026). */
+  it("ein Text-Nachweis führt auch nach dem Ende noch ins Formular", () => {
+    const card = toTaskCard(
+      evaluated([], { state: "missed", overdueProofIds: ["p1"], proofSubmitOpen: false }),
+      true,
+      [proof({ requiresPhoto: false, requiresText: true, dueOffsetMin: 60 })],
+    );
+    expect(card.proofs[0].href).toBe("/dashboard/new/task-proof/p1");
+    expect(card.proofs[0].lateNote).toBe("proofLateHint");
+  });
+
   /** Ein VERSPÄTET eingereichtes Foto wartet auf ein Urteil, nicht auf ein zweites Foto: die Zeile
    *  bleibt `overdue` (es zählt erst mit der Annahme), führt aber nirgendwohin. */
   it("ein bereits eingereichter verspäteter Nachweis führt nirgendwohin", () => {

@@ -25,7 +25,7 @@ import { proofSubmittedLate, type TaskLike, type ProofLike } from "@/lib/tasks";
 /** Die Aufgabe, an der eine Nachweis-Frist hängt — Nullpunkt und obere Schranke über `Pick`, nicht
  *  abgeschrieben: `wirksamAb` trägt dort die Bedeutung „wie bisher", und eine Kopie nähme sie nicht
  *  mit. `title` ist der Meldungstext, `id` der Bezug der Posteingangs-Zeile. */
-interface LateProofTask extends Pick<TaskLike, "createdAt" | "wirksamAb" | "holdUntil"> {
+interface LateProofTask extends Pick<TaskLike, "createdAt" | "wirksamAb" | "holdUntil" | "holdDurationMin"> {
   id: string;
   title: string;
 }
@@ -94,13 +94,18 @@ export async function notifyLateProof(
   userId: string,
   /** Einmal geladen vom Sweep; fehlt er, holt diese Funktion ihn selbst. */
   audience?: LateProofAudience,
+  /** Ende UND Beginn aus der Auswertung des Einreiche-Wegs — im Dauer-Modus haengt die eigene
+   *  Nachweis-Frist am Beginn, und nur der Aufrufer dort kennt ihn. */
+  window?: { holdUntil: Date; startedAt: Date | null },
 ): Promise<void> {
   try {
     if (proof.lateNotifiedAt) return;
     // Gegen die SPALTE `holdUntil` gemessen, wie `evaluateProofs` es tut: die Meldung soll genau die
     // Nachweise treffen, die dort nicht zählen. Ein Nachweis ohne eigene Fälligkeit kann auf dem
     // EINREICHE-Weg nie verspätet sein — nach dem Ende der Aufgabe wird gar nichts mehr angenommen.
-    if (!proofSubmittedLate(proof, proof.task, proof.task.holdUntil)) return;
+    // Ohne bekannten Beginn (Dauer-Modus) faellt die eigene Frist auf das Ende zurueck — lieber
+    // keine Meldung als eine, die eine noch gar nicht feststehende Frist behauptet.
+    if (!proofSubmittedLate(proof, proof.task, window ?? { holdUntil: proof.task.holdUntil, startedAt: null })) return;
 
     const { controllers, username } = audience ?? await lateProofAudience(userId);
 
@@ -146,7 +151,7 @@ export async function notifyLateProofsForTask(task: LateProofTask, userId: strin
     });
     // Erst aussieben, dann laden: der häufige Ausgang ist „keiner betroffen" (die Frist rückte vor,
     // aber über alle Nachweise hinweg), und dafür soll niemand Empfänger und Schalter holen.
-    const late = proofs.filter((p) => proofSubmittedLate(p, task, task.holdUntil));
+    const late = proofs.filter((p) => proofSubmittedLate(p, task, { holdUntil: task.holdUntil, startedAt: null }));
     if (late.length === 0) return;
 
     // Der Kontext EINMAL — er hängt am Träger, nicht am Nachweis (siehe {@link LateProofAudience}).

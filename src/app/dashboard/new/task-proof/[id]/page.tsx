@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import TaskProofFormCore from "@/app/entries/TaskProofFormCore";
 import { ownProofWhere, proofSubmitContext } from "@/lib/taskProofService";
-import { proofDue } from "@/lib/tasks";
+import { proofDue, proofDueOffsetPending } from "@/lib/tasks";
 import { APP_TZ } from "@/lib/utils";
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
@@ -51,7 +51,8 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
   // Seite, dass eine fremde Aufgabe existiert.
   //
   // Eine verstrichene EIGENE Frist des Nachweises leitet NICHT mehr um: verspätet einreichen ist
-  // erlaubt, die Keyholderin entscheidet (siehe `proofSubmitBlockedReason`).
+  // erlaubt, die Keyholderin entscheidet (siehe `proofSubmitBlockedReason`). Und nach dem Ende der
+  // Aufgabe bleibt ein reiner TEXT-Nachweis erreichbar (`proofAcceptsNow`) — nur das Foto ist zu.
   if (!proof) redirect("/dashboard");
   const window = await proofSubmitContext(proof, session.user.id, now);
   if (window.blocked) redirect("/dashboard");
@@ -60,6 +61,10 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
   // Auswertung, gegen die die Schranke oben geprüft hat (im Dauer-Modus wäre die Spalte bis zu einer
   // Kulanzfrist zu spät). Sie steht im Formular UND entscheidet, ob es den Verspätungs-Hinweis trägt.
   const due = proofDue(proof, proof.task, window.end);
+  // Hängt die eigene Frist noch am Beginn (Dauer-Modus), nennt das Formular denselben ABSTAND wie die
+  // Karte. Eine Uhrzeit stünde sonst hier fest, wo die Karte sie ausdrücklich offen lässt — und der
+  // Träger richtete sich nach der falschen.
+  const dueAfterStartMin = proofDueOffsetPending(proof, proof.task, window.end) ? proof.dueOffsetMin : null;
 
   const [tTasks] = await Promise.all([getTranslations("tasks")]);
 
@@ -82,6 +87,7 @@ export default async function TaskProofPage({ params }: { params: Promise<{ id: 
       orderMatters={proof.task.proofOrderMatters}
       dueAt={due.at.toISOString()}
       dueProvisional={due.provisional}
+      dueAfterStartMin={dueAfterStartMin}
       // Er ist SPÄT dran und weiss es aus der Karte — das Formular darf es nicht verschweigen,
       // sonst führt der ruhige Frist-Satz oben in ein falsches Sicherheitsgefühl.
       //

@@ -187,6 +187,14 @@ export default function TaskCard({
                       {t("proofDueLine", { value: dual(p.dueAt) })}
                     </span>
                   )}
+                  {/* Solange die Haltezeit nicht begonnen hat, steht die eigene Frist noch nicht fest
+                      (Dauer-Modus). Dann der ABSTAND — eine Uhrzeit wäre eine Zusage, die der Beginn
+                      noch verschiebt. */}
+                  {p.dueAfterStartMin != null && (
+                    <span className="text-xs text-foreground-muted">
+                      {t("proofDueAfterStart", { value: formatElapsedMs(p.dueAfterStartMin * 60_000, locale) })}
+                    </span>
+                  )}
                   {/* Der Code MUSS sichtbar sein — ohne ihn kann der Nachweis nicht erbracht
                       werden. Monospace und gesperrt, damit er von Hand abschreibbar ist. */}
                   {p.code && p.state === "open" && (

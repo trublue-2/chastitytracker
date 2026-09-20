@@ -38,10 +38,17 @@ describe("nextDueProof", () => {
     expect(nextDueProof([proof("p1", { submittedAt: T0 })], task(), started, T0)).toBeNull();
   });
 
-  it("Dauer-Modus vor dem Beginn: ohne eigene Fälligkeit noch keine Frist, mit ihr schon", () => {
+  /** Seit dem 20.09.2026 hängt auch die EIGENE Fälligkeit am Beginn (siehe `proofDeadline`): vor ihm
+   *  gibt es im Dauer-Modus keine Frist, an die sich erinnern liesse — die Erinnerung käme sonst zu
+   *  einem Zeitpunkt, den der Beginn gleich wieder verschiebt. */
+  it("Dauer-Modus vor dem Beginn: noch keine Frist, auch nicht mit eigener Fälligkeit", () => {
     const notStarted = { holdUntil: new Date(T0.getTime() + 90 * MIN), startedAt: null };
     expect(nextDueProof([proof("p1")], task(60), notStarted, T0)).toBeNull();
-    expect(nextDueProof([proof("p1"), proof("p2", { dueOffsetMin: 10 })], task(60), notStarted, T0)?.proof.id).toBe("p2");
+    expect(nextDueProof([proof("p1"), proof("p2", { dueOffsetMin: 10 })], task(60), notStarted, T0)).toBeNull();
+    // Mit Beginn zählt sie ab ihm: 10 Minuten später.
+    const started = { holdUntil: new Date(T0.getTime() + 90 * MIN), startedAt: T0 };
+    expect(nextDueProof([proof("p2", { dueOffsetMin: 10 })], task(60), started, T0)?.due)
+      .toEqual(new Date(T0.getTime() + 10 * MIN));
   });
 });
 

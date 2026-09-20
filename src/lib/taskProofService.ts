@@ -7,7 +7,7 @@ import { notifyUser } from "@/lib/notify";
 import { getControllerAudience } from "@/lib/keyholder";
 import { notifyLateProof } from "@/lib/taskProofNotify";
 import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
-import { isTaskResultFinal, proofResubmittable, type TaskEvaluation } from "@/lib/tasks";
+import { isTaskResultFinal, proofResubmittable, type TaskEvaluation, proofAcceptsNow,} from "@/lib/tasks";
 import { settleIfFinal, settleIfNowDone } from "@/lib/taskService";
 import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
 import type { MessageActor } from "@/lib/messageService";
@@ -139,7 +139,7 @@ export async function submitTaskProof(
   // Auswertung, und ein Nachweis, der die Frist gerade noch bestanden hat, soll nicht mit einem
   // Zeitstempel dahinter gespeichert werden.
   const now = new Date();
-  const { blocked } = await proofSubmitContext(proof, userId, now);
+  const { blocked, end } = await proofSubmitContext(proof, userId, now);
   if (blocked) return serviceFail(400, blocked);
 
   // Was der Nachweis fordert, muss auch da sein — die eine Prüfung der EINREICHUNGS-Form (der
@@ -196,7 +196,7 @@ export async function submitTaskProof(
   // (`api/entries/route.ts`): dahinter steht ein SMTP-Versand je Empfänger, und das Gegenüber ist
   // ein Handy, das gerade ein Foto hochlädt. Die Antwort hängt nicht davon ab — die Funktion wirft
   // nie und stempelt sich selbst.
-  void notifyLateProof({ ...proof, submittedAt: now }, userId);
+  void notifyLateProof({ ...proof, submittedAt: now }, userId, undefined, end);
 
   return { ok: true, data: { taskId: proof.task.id } };
 }
@@ -284,7 +284,8 @@ export function proofSubmitBlockedReason(
   // DIE EIGENE FRIST DES NACHWEISES STEHT HIER NICHT (Produkt-Entscheidung 16.08.2026): der Träger
   // darf nach ihr noch einreichen, die Keyholderin entscheidet (die Karte sagt „verspätet"). Die
   // harte Grenze ist das WIRKSAME ENDE der Aufgabe — danach nimmt sie nichts mehr an.
-  if (!taskAccepts) return "TASK_PROOF_TOO_LATE";
+  // Ein reiner Text-Nachweis bleibt offen, auch wenn die Aufgabe vorbei ist ({@link proofAcceptsNow}).
+  if (!proofAcceptsNow(proof, { proofSubmitOpen: taskAccepts })) return "TASK_PROOF_TOO_LATE";
   return null;
 }
 

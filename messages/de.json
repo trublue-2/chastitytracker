@@ -2019,6 +2019,7 @@
     "proofDueAfterEnd": "Fällig um {date} — das ist nicht vor dem Ende der Aufgabe",
     "proofMoveUp": "Nachweis nach oben",
     "proofMoveDown": "Nachweis nach unten",
+    "proofDueAfterStart": "Fällig {value} nach Beginn",
     "proofDueLine": "Fällig bis {value}",
     "proofDueLineProvisional": "Fällig bis zum Ende der Haltezeit, spätestens {value}",
     "proofState_overdue": "Nachweis überfällig — Frist verstrichen",

@@ -268,6 +268,16 @@ describe("proofSubmitBlockedReason — die Regel hinter Seite und Dienst", () =>
     expect(proofSubmitBlockedReason(open, false)).toBe("TASK_PROOF_TOO_LATE");
   });
 
+  /** NACH DEM ENDE (Produkt-Entscheidung 20.09.2026): ein reiner TEXT-Nachweis bleibt einreichbar —
+   *  er ist eine Antwort, kein Beleg eines Zustands, und die Keyholderin urteilt ohnehin über ihn.
+   *  Ein Foto bleibt gesperrt: ein Bild von danach zeigt nicht, wie es während der Aufgabe stand. */
+  it("nach dem Ende nimmt ein Text noch an, ein Foto nicht", () => {
+    expect(proofSubmitBlockedReason({ ...open, requiresPhoto: false }, false)).toBeNull();
+    expect(proofSubmitBlockedReason(open, false)).toBe("TASK_PROOF_TOO_LATE");
+    // Der Rückzug schlägt auch den Text — dann gibt es die Aufgabe nicht mehr.
+    expect(proofSubmitBlockedReason({ ...open, requiresPhoto: false, task: { withdrawnAt: NOW } }, false)).toBe("TASK_NOT_EDITABLE");
+  });
+
   /**
    * NACHBESSERN NACH ABLEHNUNG (Produkt-Entscheidung 08.09.2026): ein abgelehntes Foto darf neu
    * aufgenommen werden, ein Text ist bis zum Urteil frei bearbeitbar. Nur eine ANGENOMMENE Einreichung

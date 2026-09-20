@@ -16,7 +16,7 @@ import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 import { toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, boxBoltOpenDespiteLocked, type BoxFailsafeWarning } from "@/lib/boxStatus";
 import { getEvaluatedTasks, loadTaskProofViews, type EvaluatedTask, type TaskProofView } from "@/lib/taskIntervals";
-import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike } from "@/lib/tasks";
+import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike, proofDueOffsetPending,} from "@/lib/tasks";
 import { taskProofState } from "@/lib/taskView";
 import { pendingDispatchWhere } from "@/lib/delayedTrigger";
 import { weightSummary, type WeightSummary } from "@/lib/mcp/weight";
@@ -285,8 +285,13 @@ export interface DashboardResult extends Envelope {
    *  v21: `openOffenses.top` zeigt jetzt dieselben Zeilen, die `openOffenses.count` zählt — auch die
    *  bestraften mit unerledigter Strafe. Bis v20 filterte die Liste eng auf `status === "open"`,
    *  während der Zähler daneben breit zählte: `count: 1` neben `top: []`, im ersten Aufruf einer
-   *  Sitzung (#110). Ein Bestandsfeld ändert damit seine Auswahl, also ein Bump. */
-  schemaVersion: 21;
+   *  Sitzung (#110). Ein Bestandsfeld ändert damit seine Auswahl, also ein Bump.
+   *
+   *  v22: die eigene Frist eines Nachweises (`proofs[].dueAt`) zählt ab dem BEGINN der Haltezeit
+   *  statt ab der Zustellung (`proofDeadline`). Damit ändert `dueAt` seine Bedeutung: `null` heisst
+   *  jetzt entweder „offen bis zum Ende" ODER „hängt noch am Beginn" — welches davon, sagt das neue
+   *  `dueAfterStartMin`. Ein v21-Leser hielte eine noch unbestimmte Frist für „bis zum Ende". */
+  schemaVersion: 22;
   user: string;
   /**
    * Kurz-Stand des Gewichts — `null`, wenn das Feature hier nicht freigeschaltet ist oder noch
@@ -491,7 +496,13 @@ function taskProofViews(
     // der Karte — ein fest verdrahtetes `false` wäre eine zweite Regel, die stillschweigend falsch
     // würde, sobald `openTasks` je eine entschiedene Aufgabe aufnähme.
     state: taskProofState(p, outOfOrderId, evaluation.overdueProofIds.includes(p.id)),
-    dueAt: iso(ownProofDeadline(p, task, evaluation.holdUntil)),
+    // `null`, solange die eigene Frist im Dauer-Modus noch am Beginn hängt — eine Uhrzeit hier wäre
+    // eine andere Auskunft als die Karte gibt („60 Min nach Beginn"), und die KI-Keyholderin
+    // schriebe sie dem Träger als feste Frist zu.
+    dueAt: proofDueOffsetPending(p, task, evaluation) ? null : iso(ownProofDeadline(p, task, evaluation)),
+    // Der ABSTAND, solange die Frist am Beginn hängt: ohne ihn läse die KI-Keyholderin aus `dueAt:
+    // null` „offen bis zum Ende" und sagte dem Träger eine Frist zu, die es so nicht gibt.
+    dueAfterStartMin: proofDueOffsetPending(p, task, evaluation) ? p.dueOffsetMin : null,
     reviewNote: p.reviewNote,
   }));
 }
@@ -510,16 +521,23 @@ export interface OpenTaskProofView {
   /** Der eingereichte Text-Nachweis, sofern verlangt und schon da — sonst null. Lies ihn hier und
    *  urteile mit `review_task_proof`. */
   submittedText: string | null;
+  /** Die eigene Frist als ABSTAND in Minuten ab dem BEGINN der Haltezeit — gesetzt statt `dueAt`,
+   *  solange die Aufgabe im Dauer-Modus noch nicht begonnen hat. `null` heisst: `dueAt` gilt. */
+  dueAfterStartMin: number | null;
   /** open = noch nicht eingereicht · confirmed = erbracht (Code bestätigt oder von dir angenommen) ·
    *  review = eingereicht, wartet auf DEIN Urteil · rejected = von dir abgelehnt ·
    *  outOfOrder = Aufnahmezeit bricht die geforderte Reihenfolge.
+   *
+   *  `dueAt: null` heisst „offen bis zum Ende der Aufgabe" NUR, wenn auch `dueAfterStartMin` leer
+   *  ist — sonst hängt die Frist am Beginn und steht noch nicht fest.
    *
    *  Eine VERSTRICHENE Nachweis-Frist steht hier nicht: mit ihr ist die Aufgabe versäumt und fällt
    *  aus `openTasks` — du findest sie in `get_offenses` als `unfulfilled_task` und kannst ein spät
    *  eingereichtes Foto von dort aus immer noch annehmen (`review_task_proof`, `refId` IST die
    *  `taskId`). Nimmst du es an, kehrt die Aufgabe hierher zurück, der Nachweis als `confirmed`.
    *  Der Sub DARF nach der Frist noch hochladen (bis zum Ende der Aufgabe) — rechne also damit,
-   *  dass zu einer versäumten Aufgabe ein Foto nachkommt, das auf dein Urteil wartet. */
+   *  dass zu einer versäumten Aufgabe ein Foto nachkommt, das auf dein Urteil wartet. Ein reiner
+   *  TEXT-Nachweis bleibt sogar NACH dem Ende einreichbar (`proofAcceptsNow`); ein Foto nicht. */
   state: string;
   /** EIGENE Fälligkeit dieses Nachweises (ISO-8601 mit Offset) — null, wo er bis zum Ende der
    *  Aufgabe offen ist.
@@ -898,7 +916,7 @@ export async function keyholderDashboard(
   const shownNotes = typeof pinned === "number" ? [] : pinned.notes;
 
   return {
-    schemaVersion: 21,
+    schemaVersion: 22,
     user: username,
     weight,
     ...buildEnvelope(now, iso, trackingCtx.timezone),
