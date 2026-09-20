@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
@@ -10,6 +10,7 @@ import FieldTabs from "@/app/components/FieldTabs";
 import Toggle from "@/app/components/Toggle";
 import DurationInput from "@/app/components/DurationInput";
 import Input from "@/app/components/Input";
+import { formatElapsedMs } from "@/lib/utils";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import ReorderButtons from "@/app/components/ReorderButtons";
 import TimePreview from "@/app/components/TimePreview";
@@ -79,6 +80,7 @@ export default function TaskProofPicker({
   anchorMs,
   nowMs,
   endAt,
+  hasRequirements,
   tz,
 }: {
   value: TaskProofInput[];
@@ -95,10 +97,14 @@ export default function TaskProofPicker({
   nowMs: number;
   /** Das Ende der Aufgabe — die obere Schranke jeder Nachweis-Frist. */
   endAt: (nowMs: number) => Date;
+  /** Hat die Aufgabe Bedingungen? Dann gibt es einen BEGINN, und die Nachweis-Frist hängt an ihm
+   *  statt am Stellen — die Vorschau kann dann keine Uhrzeit nennen. */
+  hasRequirements: boolean;
   /** Zeitzone des Subs: die Frist ist ein absoluter Zeitpunkt, gezeigt wird sie in SEINER Zone. */
   tz: string;
 }) {
   const t = useTranslations("tasks");
+  const locale = useLocale();
 
   /**
    * Der Tippstand der Frist-Felder, roh und je Zeile — Zahl UND Einheit.
@@ -286,6 +292,11 @@ export default function TaskProofPicker({
                     Die Warnung ist keine Zierde: eine Frist NACH dem Ende der Aufgabe weist der
                     Dienst mit `TASK_PROOF_DUE_AFTER_END` ab. Sie hier zu zeigen, wo beide Zahlen
                     stehen, ist billiger als ein 400er nach dem Absenden. */}
+                {/* MIT Bedingungen zählt die Frist ab dem BEGINN der Aufgabe (`proofDeadline`), und
+                    wann der ist, weiss beim Stellen niemand — dann nennt die Zeile den ABSTAND statt
+                    einer Uhrzeit (Vorfall 19.09.2026). Die Überlänge prüft sie trotzdem: der Dienst
+                    weist eine Frist hinter dem Ende weiterhin mit `TASK_PROOF_DUE_AFTER_END` ab, und
+                    diese Warnung hier ist billiger als ein 400er nach dem Absenden. */}
                 {draft.mode === "early" && dueOffsetMin != null && (
                   <TimePreview
                     at={(at) => dueAt(at, dueOffsetMin)}
@@ -304,8 +315,10 @@ export default function TaskProofPicker({
                       // Warnung, die einen Gleichstand zu früh anzeigt, ist der deutlich bessere
                       // Ausgang als eine Aufgabe, die sich nicht abschicken lässt.
                       const afterEnd = !Number.isNaN(end) && due.getTime() >= end;
-                      return afterEnd
-                        ? { text: t("proofDueAfterEnd", { date: formatted }), warn: true }
+                      if (afterEnd) return { text: t("proofDueAfterEnd", { date: formatted }), warn: true };
+                      // Mit Bedingungen steht die Uhrzeit noch nicht fest — der Abstand schon.
+                      return hasRequirements
+                        ? { text: t("proofDueAfterStart", { value: formatElapsedMs(dueOffsetMin * 60_000, locale) }) }
                         : { text: t("proofDueAt", { date: formatted }) };
                     }}
                   />

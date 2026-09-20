@@ -89,6 +89,9 @@ beforeEach(() => {
   update.mockResolvedValue({ count: 1 });
   updateOne.mockResolvedValue({});
   taskFindMany.mockResolvedValue([{ id: "t1" }]);
+  // `clearAllMocks` löscht Aufrufe, nicht Implementierungen — ohne diese Vorgabe trüge ein Test die
+  // Auswertung des vorigen weiter (die Schranke las dann ein fremdes `proofSubmitOpen`).
+  evaluate.mockResolvedValue(null);
   taskUpdate.mockResolvedValue({});
   (prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ username: "sub" });
 });
@@ -171,12 +174,22 @@ describe("submitTaskProof — Schranken", () => {
     expect(res.error).toBe("TASK_PROOF_TOO_LATE");
   });
 
-  /** Der klassische Modus zahlt dafür nichts: dort IST die Spalte das Ende, und es wird nichts
-   *  nachgeladen. Sonst hinge an jedem Foto-Upload die ganze Intervall-Rechnung des Trägers. */
-  it("klassischer Modus: keine Auswertung für die Schranke", async () => {
+  /** Ohne eigene Fälligkeit bleibt der klassische Modus billig: die Spalte IST die Frist, und ein
+   *  Foto-Upload soll nicht die ganze Intervall-Rechnung des Trägers bezahlen. */
+  it("klassischer Modus ohne eigene Fälligkeit: keine Auswertung", async () => {
     find.mockResolvedValue(proofRow());
-    await submitTaskProof("p1", "u1", PAYLOAD);
+    const res = await submitTaskProof("p1", "u1", PAYLOAD);
+    expect(res.ok).toBe(true);
     expect(evaluate).not.toHaveBeenCalled();
+  });
+
+  /** MIT eigener Fälligkeit hängt die Frist am BEGINN der Aufgabe (20.09.2026) — den kennt nur die
+   *  Auswertung, also wird auch im klassischen Modus ausgewertet. */
+  it("klassischer Modus mit eigener Fälligkeit: wird ausgewertet", async () => {
+    find.mockResolvedValue(proofRow({ dueOffsetMin: 60 }));
+    const res = await submitTaskProof("p1", "u1", PAYLOAD);
+    expect(res.ok).toBe(true);
+    expect(evaluate).toHaveBeenCalledWith("u1", "t1", NOW);
   });
 
   /** Zwei gleichzeitige Aufrufe (Doppel-Tap): der zweite trifft null Zeilen, statt den ersten zu

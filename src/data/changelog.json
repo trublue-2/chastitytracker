@@ -41,8 +41,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "Die eigene Frist eines Nachweises zählt jetzt ab dem Beginn der Haltezeit. Bisher lief sie ab dem Stellen der Aufgabe und konnte ablaufen, bevor die Haltezeit überhaupt begonnen hatte.",
-          "en": "A proof's own deadline now counts from the start of the hold period. It used to run from when the task was issued and could expire before the hold period had even begun."
+          "de": "Die eigene Frist eines Nachweises zählt jetzt ab dem Beginn der Aufgabe. Bisher lief sie ab dem Stellen und konnte ablaufen, bevor der Träger überhaupt anfangen musste.",
+          "en": "A proof's own deadline now counts from the start of the task. It used to run from when the task was issued and could expire before the wearer even had to begin."
         }
       },
       {

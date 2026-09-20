@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { evaluateTasks, TASK_INCLUDE, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
 import { NOT_PAUSED_WHERE } from "@/lib/healthHold";
-import { earliestTaskEnd, isTaskOpen, proofDue, taskAnchor, type TaskEvaluation, type TaskLike } from "@/lib/tasks";
+import { earliestTaskEnd, isTaskOpen, proofDue, taskAnchor, type TaskEvaluation, type TaskLike, type ProofDeadlineWindow,} from "@/lib/tasks";
 import { notifyUser } from "@/lib/notify";
 import { formatDateTime, groupByUser } from "@/lib/utils";
 import { TASK_PROOF_REMINDER_LEAD_MIN } from "@/lib/constants";
@@ -40,8 +40,10 @@ export function mayBeDueWithin(
     // auch im Dauer-Modus die untere Schranke. Spätestens: ein später Beginn schiebt sie bis ans
     // Ende der Aufgabe, also gilt dort `holdUntil`.
     const own = p.dueOffsetMin != null ? anchor + p.dueOffsetMin * 60_000 : Infinity;
-    const latestOwn = task.holdDurationMin != null ? task.holdUntil.getTime() : own;
-    return Math.min(own, earliestEnd) <= horizon.getTime() && Math.min(latestOwn, task.holdUntil.getTime()) > now.getTime();
+    // Nach OBEN immer das Ende der Aufgabe: eine eigene Frist hängt am Beginn, und der kann bis zur
+    // Kulanzfrist wandern — in BEIDEN Modi, seit die Bedingungen den Nullpunkt stellen. Ein engerer
+    // Wert sortierte genau die Aufgaben aus, deren Frist gerade erst anläuft.
+    return Math.min(own, earliestEnd) <= horizon.getTime() && task.holdUntil.getTime() > now.getTime();
   });
 }
 
@@ -57,7 +59,7 @@ export function mayBeDueWithin(
 export function nextDueProof<P extends OpenProof>(
   proofs: readonly P[],
   task: Pick<TaskLike, "createdAt" | "wirksamAb" | "holdDurationMin">,
-  evaluation: Pick<TaskEvaluation, "holdUntil" | "startedAt">,
+  evaluation: ProofDeadlineWindow,
   now: Date,
 ): { proof: P; due: Date } | null {
   let next: { proof: P; due: Date } | null = null;

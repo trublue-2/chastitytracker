@@ -362,6 +362,7 @@ export default function TaskFields({
       anchorMs={recurring ? seriesAnchorMs : anchorMs}
       nowMs={nowMs}
       endAt={recurring ? seriesEndAt : endAt}
+      hasRequirements={hasRequirements}
       tz={tz}
     />
   );

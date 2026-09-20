@@ -8,6 +8,9 @@ const EVAL: TaskEvaluation = {
   state: "partial",
   holdUntil: new Date("2026-07-25T15:00:00Z"),
   startedAt: null,
+  // Die Fixture-Aufgabe hat keine Bedingungen — es gibt also keinen Beginn, an dem eine
+  // Nachweis-Frist hängen könnte (siehe `TaskEvaluation.anchorsAtStart`).
+  anchorsAtStart: false,
   missing: [],
   failedRequirement: null,
   failedAt: null,
@@ -215,6 +218,27 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
     expect(card.proofs[0].state).toBe("open");
     // Ohne eigene Fälligkeit steht dort nichts — die Frist der Aufgabe steht schon im Kartenkopf.
     expect(toTaskCard(evaluated([], { state: "pending" }), true, [proof()]).proofs[0].dueAt).toBeNull();
+  });
+
+  /** MIT Bedingungen hängt die Frist am BEGINN (20.09.2026). Vor ihm gibt es keine Uhrzeit — die
+   *  Zeile nennt den Abstand, und die Sammelzeile darüber schweigt, statt das Ende zu versprechen. */
+  it("vor dem Beginn steht der Abstand statt einer Uhrzeit", () => {
+    const card = toTaskCard(
+      evaluated([], { state: "pending", anchorsAtStart: true }),
+      true,
+      [proof({ dueOffsetMin: 60 })],
+    );
+    expect(card.proofs[0].dueAt).toBeNull();
+    expect(card.proofs[0].dueAfterStartMin).toBe(60);
+    expect(card.proofsDue).toBeNull();
+    // Mit Beginn wird daraus wieder eine Uhrzeit: 14:00 + 60 Minuten.
+    const gestartet = toTaskCard(
+      evaluated([], { state: "running", anchorsAtStart: true, startedAt: new Date("2026-07-25T14:00:00Z") }),
+      true,
+      [proof({ dueOffsetMin: 60 })],
+    );
+    expect(gestartet.proofs[0].dueAt).toBe("2026-07-25T15:00:00.000Z");
+    expect(gestartet.proofs[0].dueAfterStartMin).toBeNull();
   });
 
   /**
