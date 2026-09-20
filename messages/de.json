@@ -88,6 +88,7 @@
     "emailTaken": "E-Mail-Adresse bereits vergeben",
     "invalidRole": "Ungültige Rolle",
     "cannotDeleteSelf": "Eigenen Account kann man nicht löschen",
+    "invalidLocale": "Diese Sprache gibt es nicht.",
     "invalidTimezone": "Ungültige Zeitzone",
     "invalidStartPage": "Ungültige Startseite",
     "invalidHideOwnTracker": "Ungültiger Wert",
@@ -272,6 +273,8 @@
     "photoAnalysisBaseUrlInvalid": "Die Adresse ist ungültig. Fremde Dienste nur mit https.",
     "photoAnalysisModelsRequired": "Für diesen Anbieter müssen beide Modelle angegeben sein.",
     "photoAnalysisFieldTooLong": "Eine Eingabe ist zu lang.",
+    "Forbidden": "Kein Zugriff — für diese Aktion fehlen deinem Konto die Rechte.",
+    "Unauthorized": "Du bist nicht (mehr) angemeldet. Bitte melde dich neu an.",
     "rateLimited": "Zu viele Versuche. Bitte in ein paar Minuten erneut.",
     "photoAnalysisBaseUrlPrivate": "Diese Adresse zeigt auf ein internes Netz. Das geht nur, wenn der Server-Betreiber es ausdrücklich freigegeben hat."
   },

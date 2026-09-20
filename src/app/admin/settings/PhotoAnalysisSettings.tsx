@@ -37,6 +37,7 @@ export default function PhotoAnalysisSettings({ view }: { view: PhotoAnalysisVie
   const t = useTranslations("photoAnalysis");
   const locale = useLocale();
   const apiError = useApiError();
+  const tc = useTranslations("common");
   const { saving, save } = useSettingsSave("/api/admin/photo-analysis");
 
   const [provider, setProvider] = useState<VisionProviderId>(view.provider);
@@ -93,7 +94,10 @@ export default function PhotoAnalysisSettings({ view }: { view: PhotoAnalysisVie
         ? { ok: true, message: t("test.ok", { code: r.detected ?? "" }) }
         : { ok: false, message: t(`test.${r.outcome}`, { detected: r.detected ?? "–", status: r.status ?? "–" }) });
     } catch {
-      setTestResult({ ok: false, message: apiError(null) });
+      // Abbruch statt Ablehnung: kein Netz, oder der Anbieter antwortet nicht innerhalb der drei
+      // Minuten. Das ist eine ANDERE Auskunft als „der Server hat abgelehnt" — beides als
+      // „Fehler" zu zeigen, liess den Admin raten (Vorfall 20.09.2026).
+      setTestResult({ ok: false, message: tc("networkError") });
     } finally {
       setTesting(false);
     }

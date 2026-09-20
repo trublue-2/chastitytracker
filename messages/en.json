@@ -88,6 +88,7 @@
     "emailTaken": "Email address already taken",
     "invalidRole": "Invalid role",
     "cannotDeleteSelf": "You cannot delete your own account",
+    "invalidLocale": "That language does not exist.",
     "invalidTimezone": "Invalid timezone",
     "invalidStartPage": "Invalid start page",
     "invalidHideOwnTracker": "Invalid value",
@@ -272,6 +273,8 @@
     "photoAnalysisBaseUrlInvalid": "The address is invalid. External services require https.",
     "photoAnalysisModelsRequired": "Both models must be specified for this provider.",
     "photoAnalysisFieldTooLong": "An input is too long.",
+    "Forbidden": "No access — your account is not allowed to do this.",
+    "Unauthorized": "You are not (or no longer) signed in. Please sign in again.",
     "rateLimited": "Too many attempts. Please try again in a few minutes.",
     "photoAnalysisBaseUrlPrivate": "This address points to an internal network. That only works if the server operator has explicitly allowed it."
   },
