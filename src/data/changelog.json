@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.2.6",
+    "date": "2026-09-21",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Anmeldung klappt jetzt auch mit der E-Mail-Adresse statt des Benutzernamens.",
+          "en": "You can now also sign in with your email address instead of your username."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.5",
     "date": "2026-09-13",
     "changes": [

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { prepareEmailInput } from "@/lib/loginIdentity";
 import { requireAdminApi, requireKeyholderOrAdminApi, requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
-import { isValidEmail, passwordErrorCode, isValidLocale } from "@/lib/constants";
+import { passwordErrorCode, isValidLocale } from "@/lib/constants";
 import { getActiveLockPeriod, getIsLocked } from "@/lib/queries";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
@@ -87,10 +88,9 @@ export async function PATCH(
   }
 
   if (body.email !== undefined) {
-    const email = body.email?.trim() || null;
-    if (!isValidEmail(email)) {
-      return NextResponse.json({ error: "emailInvalid" }, { status: 400 });
-    }
+    const prepared = await prepareEmailInput(body.email, id);
+    if ("error" in prepared) return NextResponse.json({ error: prepared.error }, { status: prepared.status });
+    const email = prepared.value;
     try {
       const user = await prisma.user.update({ where: { id }, data: { email } });
       return NextResponse.json({ id: user.id, email: user.email });

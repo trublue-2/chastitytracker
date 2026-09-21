@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { prepareEmailInput } from "@/lib/loginIdentity";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
-import { passwordErrorCode, isValidEmail } from "@/lib/constants";
+import { passwordErrorCode } from "@/lib/constants";
 import { ensureKgCategory } from "@/lib/deviceCategories";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { latestKgTimesByUser } from "@/lib/queries";
@@ -43,20 +44,21 @@ export async function POST(req: NextRequest) {
   const pwErr = passwordErrorCode(password);
   if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
 
-  const trimmedEmail = email?.trim() || null;
-  if (trimmedEmail && !isValidEmail(trimmedEmail)) {
-    return NextResponse.json({ error: "emailInvalid" }, { status: 400 });
-  }
+  const prepared = await prepareEmailInput(email, null);
+  if ("error" in prepared) return NextResponse.json({ error: prepared.error }, { status: prepared.status });
 
   const passwordHash = await bcrypt.hash(password, 12);
   let user;
   try {
     user = await prisma.user.create({
       data: {
-        username,
+        // Gespeichert GETRIMMT, wie geprüft — bis 6.2.4 wurde nur die Länge am getrimmten Wert
+        // gemessen, gespeichert aber der rohe; so entstanden Benutzernamen mit Leerzeichen am Rand,
+        // die niemand so eintippt.
+        username: username.trim(),
         passwordHash,
         role: role === "admin" ? "admin" : "user",
-        ...(trimmedEmail ? { email: trimmedEmail } : {}),
+        ...(prepared.value ? { email: prepared.value } : {}),
       },
     });
   } catch (err) {

@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { hashToken } from "@/lib/oauth";
 import crypto from "crypto";
 import { APP_NAME } from "@/lib/constants";
+import { findUserByLogin } from "@/lib/loginIdentity";
 
 export async function POST(req: NextRequest) {
   const ip =
@@ -17,10 +18,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true }); // silent — don't reveal rate limiting
   }
 
+  // Im Feld steht Benutzername ODER E-Mail — aufgelöst wie bei der Anmeldung (`findUserByLogin`).
   const { username } = await req.json();
   if (!username) return NextResponse.json({ error: "Username fehlt" }, { status: 400 });
 
-  const user = await prisma.user.findUnique({ where: { username } });
+  const user = await findUserByLogin(username);
 
   // Immer gleiche Antwort – kein User-Enumeration
   if (!user?.email) {
