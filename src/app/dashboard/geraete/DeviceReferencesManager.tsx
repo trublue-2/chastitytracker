@@ -1,9 +1,11 @@
 "use client";
 
+import ImageViewer from "@/app/components/ImageViewer";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronRight, Plus, Download, X } from "lucide-react";
 import FormError from "@/app/components/FormError";
+import { PhotoAnalysisInfo } from "@/app/components/PhotoAnalysisContext";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 
@@ -124,8 +126,7 @@ export default function DeviceReferencesManager({ deviceId }: { deviceId: string
           <div className="flex flex-wrap gap-2 mb-3">
             {refs?.map((r) => (
               <div key={r.id} className="relative w-16 h-16 rounded-lg overflow-hidden bg-surface-raised">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={r.imageUrl} alt="" className="w-full h-full object-cover" />
+                <ImageViewer src={r.imageUrl} alt={t("referencesAlt")} width={64} height={64} className="object-cover" />
                 <button
                   type="button"
                   onClick={() => remove(r.id)}
@@ -157,6 +158,8 @@ export default function DeviceReferencesManager({ deviceId }: { deviceId: string
               <Download size={14} />
               {t("referencesImport")}
             </button>
+            {/* Referenzbilder gehen bei jeder Geräte-Erkennung und jedem Geräte-Check mit hinaus. */}
+            <PhotoAnalysisInfo />
           </div>
         </div>
       )}

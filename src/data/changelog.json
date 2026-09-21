@@ -1,5 +1,60 @@
 [
   {
+    "version": "6.2.5",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Admins legen jetzt selbst fest, ob und bei welchem Anbieter Fotos automatisch geprüft werden – mit eigenem Schlüssel und einem Test an einem Beispielfoto.",
+          "en": "Admins now decide whether and with which provider photos are checked automatically – with their own key and a test on a sample photo."
+        }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "Werden Fotos zur Prüfung an einen externen Dienst geschickt, zeigt die App das jetzt mit Namen des Anbieters: am ⓘ neben dem Foto-Feld und einmalig im Keyholder-Bereich.",
+          "en": "When photos are sent to an external service for checking, the app now says so and names the provider: via the ⓘ next to the photo field and once in the keyholder area."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Abgelehnte Aktionen sagen jetzt, warum: fehlende Rechte oder abgelaufene Anmeldung standen bisher überall nur als „Fehler\" da.",
+          "en": "Rejected actions now say why: missing permissions or an expired sign-in previously showed up everywhere as just \"Error\"."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Sperre endet jetzt genau zur angezeigten Minute. Bisher zählte sie ab dem Absenden des Formulars — wer beim Ausfüllen Zeit liess, wurde länger gesperrt und öffnete pünktlich trotzdem „zu früh\".",
+          "en": "A lock period now ends exactly at the minute shown. It used to count from when the form arrived, so taking time to fill it in extended the lock — and opening on time still counted as too early."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Gerätebilder und Referenzfotos lassen sich antippen und gross ansehen.",
+          "en": "Device photos and reference photos can be tapped to view them full screen."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die eigene Frist eines Nachweises zählt jetzt ab dem Beginn der Aufgabe. Bisher lief sie ab dem Stellen und konnte ablaufen, bevor der Träger überhaupt anfangen musste.",
+          "en": "A proof's own deadline now counts from the start of the task. It used to run from when the task was issued and could expire before the wearer even had to begin."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Text-Nachweise lassen sich auch nach dem Ende einer Aufgabe noch einreichen — die Keyholderin entscheidet, ob sie zählen. Fotos bleiben mit dem Ende geschlossen.",
+          "en": "Text proofs can still be submitted after a task has ended — the keyholder decides whether they count. Photos remain closed once the task ends."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.4",
     "date": "2026-09-12",
     "changes": [

@@ -1,5 +1,5 @@
-import { visionConfigured, visionProvider } from "@/lib/vision";
-import { visionHealthProbe } from "@/lib/vision/local";
+import { currentVisionConfig } from "@/lib/vision/config";
+import { visionHealthProbe } from "@/lib/vision/openaiCompatible";
 import { embedAvailable, embedHealthProbe } from "@/lib/embed";
 import { sendMail, escHtml } from "@/lib/mail";
 import { structuredLog } from "@/lib/serverLog";
@@ -43,19 +43,21 @@ export function evaluateProbe(
   return { action: "none", next: { down: false, lastAlertAt: prev.lastAlertAt } };
 }
 
-interface Backend { key: string; label: string; enabled: () => boolean; probe: (timeoutMs: number) => Promise<ProbeResult> }
+interface Backend { key: string; label: string; enabled: () => Promise<boolean>; probe: (timeoutMs: number) => Promise<ProbeResult> }
 
 /** Default an, sobald das jeweilige selfhosted-Backend konfiguriert ist; per Env einzeln abschaltbar.
- *  Vision nur im lokalen Provider-Modus (Anthropic ist kein selfhosting → kein Probe). */
-function visionEnabled(): boolean {
-  return process.env.HEALTHCHECK_VISION !== "false" && visionProvider() === "local" && visionConfigured();
+ *  Vision nur beim EIGENEN Server — ein fremder Anbieter ist kein selfhosting, und ihn alle fünf
+ *  Minuten anzupingen kostete den Betreiber Geld für nichts. */
+async function visionEnabled(): Promise<boolean> {
+  if (process.env.HEALTHCHECK_VISION === "false") return false;
+  return (await currentVisionConfig()).provider === "ownServer";
 }
-function embedEnabled(): boolean {
+async function embedEnabled(): Promise<boolean> {
   return process.env.HEALTHCHECK_EMBED !== "false" && embedAvailable();
 }
 
 const BACKENDS: Backend[] = [
-  { key: "vision", label: "Vision-Modell", enabled: visionEnabled, probe: visionHealthProbe },
+  { key: "vision", label: "Vision-Modell", enabled: visionEnabled, probe: async (timeoutMs) => visionHealthProbe(await currentVisionConfig(), timeoutMs) },
   { key: "embed", label: "Embedding-Dienst", enabled: embedEnabled, probe: embedHealthProbe },
 ];
 
@@ -112,11 +114,14 @@ async function checkBackend(b: Backend, nowMs: number, states: Record<string, Ba
  * No-op, wenn keine selfhosted-KI konfiguriert/aktiviert ist. Wirft nie (der Poller darf nie brechen).
  */
 export async function maybeRunHealthChecks(now: Date = new Date()): Promise<void> {
-  const active = BACKENDS.filter((b) => b.enabled());
-  if (active.length === 0) return;
   const h = (g.__health ??= { states: {}, lastRunAt: 0 });
   const nowMs = now.getTime();
+  // Erst die Uhr, dann die Einstellung: der Poller tickt minütlich, geprüft wird alle fünf Minuten —
+  // die Einstellung in den übrigen vier Ticks aufzulösen, wäre eine Abfrage für nichts.
   if (h.lastRunAt && nowMs - h.lastRunAt < intervalMs()) return;
+  const active: Backend[] = [];
+  for (const b of BACKENDS) if (await b.enabled()) active.push(b);
+  if (active.length === 0) return;
   h.lastRunAt = nowMs;
   for (const b of active) {
     try {

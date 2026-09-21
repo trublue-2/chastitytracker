@@ -1,5 +1,5 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/taskIntervals";
-import { endIsProvisional, firstOutOfOrderProof, isTaskOffense, isTaskOpen, ownProofDeadline, proofResubmittable, startDeadline, taskAnchor, taskFailureKind, type TaskEvaluation, type TaskFailureKind, type TaskOffenseState, type TaskState } from "@/lib/tasks";
+import { endIsProvisional, firstOutOfOrderProof, proofDueOffsetPending, proofAcceptsNow, type ProofLike, isTaskOffense, isTaskOpen, ownProofDeadline, proofResubmittable, startDeadline, taskAnchor, taskFailureKind, type TaskEvaluation, type TaskFailureKind, type TaskOffenseState, type TaskState } from "@/lib/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { wearActionHref } from "@/lib/categoryConstants";
 
@@ -75,6 +75,10 @@ export interface TaskCardProof {
    * schon gar nicht mit einem zweiten Begriff davon, wo der Nullpunkt liegt.
    */
   dueAt: string | null;
+  /** Die eigene Fälligkeit als ABSTAND in Minuten — gesetzt genau dann, wenn {@link dueAt} noch nicht
+   *  feststeht, weil die Haltezeit im Dauer-Modus noch nicht begonnen hat. Die Karte schreibt dann
+   *  „60 Min nach Beginn". */
+  dueAfterStartMin: number | null;
   /**
    * Wurde überhaupt etwas eingereicht? Die Grundlage der Sichtung ({@link proofIsSubmitted}).
    *
@@ -380,7 +384,9 @@ function proofCaptureHref(
   /** Nur für den Sub: es sind seine Formulare. */
   withLinks: boolean,
 ): string | null {
-  if (!withLinks || !evaluation.proofSubmitOpen) return null;
+  // Nach dem Ende der Aufgabe bleibt ein reiner TEXT-Nachweis erreichbar — dieselbe Regel wie im
+  // Dienst ({@link proofAcceptsNow}), damit die Karte keinen Weg verschweigt, den er noch hat.
+  if (!withLinks || !proofAcceptsNow(proof, evaluation)) return null;
   // Dieselbe Regel wie der Dienst — aus derselben Quelle ({@link proofResubmittable}), damit die Karte
   // keinen Weg zeigt, den das Formular gleich wieder verwehrt.
   const resubmittable = proofResubmittable({ submitted: proof.submitted, requiresPhoto: proof.requiresPhoto, reviewAccepted: proof.reviewAccepted });
@@ -398,14 +404,14 @@ function proofCaptureHref(
  * „du kannst nichts mehr nachreichen" wäre an sie gerichtet schlicht falsch.
  */
 function proofLateNote(
-  proof: Pick<TaskCardProof, "state" | "submitted">,
+  proof: Pick<TaskCardProof, "state" | "submitted" | "requiresPhoto">,
   evaluation: Pick<TaskEvaluation, "proofSubmitOpen">,
   withLinks: boolean,
 ): "proofLateHint" | "proofLateClosed" | null {
   if (!withLinks || proof.state !== "overdue") return null;
   // Eingereicht zählt als Hinweis, nicht als Absage: das Foto liegt vor, es wartet nur noch auf ein
   // Urteil — auch dann, wenn die Aufgabe inzwischen zu Ende ist.
-  return proof.submitted || evaluation.proofSubmitOpen ? "proofLateHint" : "proofLateClosed";
+  return proof.submitted || proofAcceptsNow(proof, evaluation) ? "proofLateHint" : "proofLateClosed";
 }
 
 /** Der Zustand eines einzelnen Nachweises. Dieselbe Rangfolge wie in `evaluateProofs`: das Urteil
@@ -508,9 +514,12 @@ export function toTaskCard(
   // `TaskEvaluation.overdueProofIds`. Lineare Suche statt eines `Set`: die Liste ist durch
   // `TASK_PROOF_MAX` auf zehn gedeckelt und fast immer leer, ein Set je Aufgabe wäre teurer als
   // das, was es beschleunigen soll.
+  const dueOffsetPending = (p: Pick<ProofLike, "dueOffsetMin">) => proofDueOffsetPending(p, e.task, e.evaluation);
   const proofs: TaskCardProof[] = proofViews.map((p) => {
     const state = taskProofState(p, outOfOrderId, e.evaluation.overdueProofIds.includes(p.id));
     const submitted = p.submittedAt !== null;
+    // Einmal fragen, zweimal gebraucht: die Frist steht entweder als Uhrzeit oder als Abstand da.
+    const duePending = dueOffsetPending(p);
     return {
       id: p.id,
       description: p.description,
@@ -524,11 +533,15 @@ export function toTaskCard(
       state,
       // Gegen das WIRKSAME Ende gedeckelt (`evaluation.holdUntil`), wie jede andere Frist-Anzeige
       // dieser Karte: im Dauer-Modus steht in der Spalte nur das spätestmögliche.
-      dueAt: ownProofDeadline(p, e.task, e.evaluation.holdUntil)?.toISOString() ?? null,
+      dueAt: duePending ? null : ownProofDeadline(p, e.task, e.evaluation)?.toISOString() ?? null,
+      // Der ABSTAND statt einer Uhrzeit, solange der Beginn sie noch verschiebt (Dauer-Modus, nicht
+      // begonnen). Eine Uhrzeit hinzuschreiben hiesse eine Frist zu nennen, die es noch nicht gibt —
+      // genau daran scheiterte der Nachweis vom 19.09.2026 (siehe `proofDeadline`).
+      dueAfterStartMin: duePending ? p.dueOffsetMin : null,
       submitted,
       // Weg UND Hinweis aus derselben Frage — welche das ist, steht bei `proofCaptureHref`.
       href: proofCaptureHref({ id: p.id, submitted, requiresPhoto: p.requiresPhoto, reviewAccepted: p.reviewAccepted }, e.evaluation, withLinks),
-      lateNote: proofLateNote({ state, submitted }, e.evaluation, withLinks),
+      lateNote: proofLateNote({ state, submitted, requiresPhoto: p.requiresPhoto }, e.evaluation, withLinks),
       imageUrl: p.imageUrl,
       reviewNote: p.reviewNote,
       // Beides oder nichts: `reviewTaskProof` schreibt Urteil und Zeitstempel in einem Zug.
@@ -567,7 +580,10 @@ export function toTaskCard(
     // Gegen das WIRKSAME Ende, wie jede Frist dieser Karte. Nur solange sie läuft — und beim Vorwurf
     // als Beleg; über einer erfüllten oder gesichteten Aufgabe wäre „einreichen bis" eine Aufforderung
     // zu etwas, das längst erledigt ist.
-    proofsDue: (isTaskOpen(e.evaluation.state) || isTaskOffense(e.evaluation.state)) && proofs.some((p) => p.dueAt === null)
+    // `dueOffsetMin === null` und nicht `dueAt === null`: seit die eigene Frist am Beginn hängt, ist
+    // `dueAt` auch dann leer, wenn sie bloss noch nicht feststeht — die Sammelzeile behauptete dann
+    // „bis zum Ende der Haltezeit" über einer Zeile, die „60 Min nach Beginn" sagt.
+    proofsDue: (isTaskOpen(e.evaluation.state) || isTaskOffense(e.evaluation.state)) && proofViews.some((p) => p.dueOffsetMin === null)
       ? {
           at: e.evaluation.holdUntil.toISOString(),
           provisional: endIsProvisional(e.task, e.evaluation),

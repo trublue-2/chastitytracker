@@ -71,11 +71,15 @@
 Off-by-default or flag-gated capabilities — enable/disable per instance via
 environment variables. Everything above is on by default.
 
-- **AI photo analysis** — Claude Vision reads handwritten inspection codes,
-  detects the seal number, and (with per-device reference photos) recognizes which
-  belt is shown. Runs on the Anthropic API or fully local (Ollama VLM + CLIP
-  embeddings). Disable by omitting `ANTHROPIC_API_KEY` and not configuring a local
-  provider; the app degrades gracefully (no suggestion, never a rejection). See
+- **AI photo analysis** — reads handwritten inspection codes, detects the seal
+  number, and (with per-device reference photos) recognizes which belt is shown.
+  The admin chooses the provider in the app (Admin → Settings → Photo checking):
+  Anthropic, OpenAI, Google Gemini, Mistral, any OpenAI-compatible service, or a
+  fully local setup (Ollama VLM + CLIP embeddings) — with their own API key and a
+  test on a sample photo. When photos go to an external provider, all users are
+  told. The in-app setting overrides the environment variables below; without it,
+  `ANTHROPIC_API_KEY` / `VERIFY_PROVIDER` apply as before. With no provider the app
+  degrades gracefully (no suggestion, never a rejection). See
   [Local AI Instance](#local-ai-instance-optional).
 - **Multi-category wear tracking** — beyond chastity belts, track wear sessions for
   other device categories via `WEAR_BEGIN` / `WEAR_END` events. Gated by
@@ -177,7 +181,8 @@ ADMIN_PASSWORD=<password>
 ADMIN_EMAIL=<email>
 ADMIN_LOCALE=de          # de | en — UI and notification language of that account (default: de)
 
-# AI verification — cloud (default). Omit ANTHROPIC_API_KEY to disable AI features.
+# AI verification — optional. The in-app setting (Admin → Settings → Photo checking) overrides this.
+# Omit it and leave the in-app setting off to disable AI photo checks.
 ANTHROPIC_API_KEY=<key>
 
 # AI verification — local instead of cloud (optional; intimate photos stay on your infra).

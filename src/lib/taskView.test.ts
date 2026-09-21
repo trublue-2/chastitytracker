@@ -8,6 +8,9 @@ const EVAL: TaskEvaluation = {
   state: "partial",
   holdUntil: new Date("2026-07-25T15:00:00Z"),
   startedAt: null,
+  // Die Fixture-Aufgabe hat keine Bedingungen — es gibt also keinen Beginn, an dem eine
+  // Nachweis-Frist hängen könnte (siehe `TaskEvaluation.anchorsAtStart`).
+  anchorsAtStart: false,
   missing: [],
   failedRequirement: null,
   failedAt: null,
@@ -217,6 +220,27 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
     expect(toTaskCard(evaluated([], { state: "pending" }), true, [proof()]).proofs[0].dueAt).toBeNull();
   });
 
+  /** MIT Bedingungen hängt die Frist am BEGINN (20.09.2026). Vor ihm gibt es keine Uhrzeit — die
+   *  Zeile nennt den Abstand, und die Sammelzeile darüber schweigt, statt das Ende zu versprechen. */
+  it("vor dem Beginn steht der Abstand statt einer Uhrzeit", () => {
+    const card = toTaskCard(
+      evaluated([], { state: "pending", anchorsAtStart: true }),
+      true,
+      [proof({ dueOffsetMin: 60 })],
+    );
+    expect(card.proofs[0].dueAt).toBeNull();
+    expect(card.proofs[0].dueAfterStartMin).toBe(60);
+    expect(card.proofsDue).toBeNull();
+    // Mit Beginn wird daraus wieder eine Uhrzeit: 14:00 + 60 Minuten.
+    const gestartet = toTaskCard(
+      evaluated([], { state: "running", anchorsAtStart: true, startedAt: new Date("2026-07-25T14:00:00Z") }),
+      true,
+      [proof({ dueOffsetMin: 60 })],
+    );
+    expect(gestartet.proofs[0].dueAt).toBe("2026-07-25T15:00:00.000Z");
+    expect(gestartet.proofs[0].dueAfterStartMin).toBeNull();
+  });
+
   /**
    * VERSPÄTET NACHREICHEN IST ERLAUBT (Produkt-Entscheidung 16.08.2026): die verstrichene eigene
    * Fälligkeit macht die Zeile `overdue` — den Aufnahme-Weg nimmt sie ihr aber nicht mehr, solange
@@ -246,6 +270,18 @@ describe("nextTaskStep — eine Regel für Karte UND Melde-Knopf", () => {
     );
     expect(card.proofs[0].state).toBe("overdue");
     expect(card.proofs[0].href).toBeNull();
+  });
+
+  /** ...ausser für einen reinen TEXT-Nachweis: der bleibt erreichbar (`proofOpenAfterEnd`). Ohne das
+   *  stand der Träger vor drei Text-Zeilen ohne jeden Weg und ohne Begründung (19.09.2026). */
+  it("ein Text-Nachweis führt auch nach dem Ende noch ins Formular", () => {
+    const card = toTaskCard(
+      evaluated([], { state: "missed", overdueProofIds: ["p1"], proofSubmitOpen: false }),
+      true,
+      [proof({ requiresPhoto: false, requiresText: true, dueOffsetMin: 60 })],
+    );
+    expect(card.proofs[0].href).toBe("/dashboard/new/task-proof/p1");
+    expect(card.proofs[0].lateNote).toBe("proofLateHint");
   });
 
   /** Ein VERSPÄTET eingereichtes Foto wartet auf ein Urteil, nicht auf ein zweites Foto: die Zeile

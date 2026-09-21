@@ -5,7 +5,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/vision", () => ({
   visionComplete: vi.fn(),
   visionConfigured: vi.fn(() => true),
-  visionProvider: vi.fn(() => "anthropic"),
 }));
 vi.mock("fs/promises", () => ({ readFile: vi.fn(async () => Buffer.from("x")) }));
 vi.mock("sharp", () => ({

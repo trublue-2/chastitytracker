@@ -135,6 +135,17 @@ export interface TaskEvaluation {
    * spränge beim Hydrieren, wenn die Uhr des Handys anders geht als die des Servers.
    */
   holdRunning: boolean;
+  /**
+   * Hängt die eigene Frist eines Nachweises am BEGINN dieser Aufgabe? Wahr, sobald es überhaupt
+   * etwas zu beginnen gibt — also bei jeder Aufgabe MIT Bedingungen, in beiden Modi.
+   *
+   * Falsch nur ohne Bedingungen: dort gibt es keinen Beginn („staubsauge bis 18:36"), die Aufgabe
+   * läuft ab der Zustellung, und der Nullpunkt ist ihr {@link taskAnchor}.
+   *
+   * In der AUSWERTUNG und nicht bei den Aufrufern, weil nur sie die Bedingungen sieht — und weil
+   * jede Frist-Rechnung diese Antwort zusammen mit `startedAt` braucht ({@link proofDeadline}).
+   */
+  anchorsAtStart: boolean;
   /** Ein Nachweis wartet noch auf seine automatische Code-Prüfung. Nur für den Poller: er darf ein
    *  Ergebnis erst melden UND stempeln, wenn es feststeht — sonst ist die Meldung „bitte sichten"
    *  raus und dauerhaft gestempelt, während die Prüfung Sekunden später „erfüllt" ergibt und das
@@ -446,9 +457,19 @@ export interface ProofLike {
  * Bis wann DIESER Nachweis erbracht sein muss — die zweite Zeitachse der Nachweise.
  *
  * Ohne eigene Fälligkeit (`dueOffsetMin: null`) ist es unverändert das Ende der Aufgabe: jede
- * Bestandszeile wird damit exakt wie bisher gemessen. Mit eigener Fälligkeit zählt sie ab dem
- * NULLPUNKT der Aufgabe ({@link taskAnchor}), nicht ab dem Stellen — bei einer terminierten Aufgabe
- * beginnt sie also erst mit dem Auslösen, wie jede andere ihrer Fristen auch.
+ * Bestandszeile wird damit exakt wie bisher gemessen.
+ *
+ * **Mit eigener Fälligkeit zählt sie ab dem BEGINN DER HALTEZEIT, nicht ab dem Stellen** — im
+ * klassischen Modus ist das der Nullpunkt der Aufgabe ({@link taskAnchor}), im Dauer-Modus der
+ * tatsächliche Beginn. *Vorfall 19.09.2026:* eine Aufgabe mit 5 h Kulanz und 2 h Haltezeit trug
+ * „Foto nach 60 Minuten"; gerechnet ab der Zustellung war es um 16:40 fällig — über vier Stunden
+ * BEVOR die Haltezeit überhaupt beginnen musste (spätestens 21:00). Wer die Kulanz ausschöpfte,
+ * konnte die Frist nicht mehr einhalten, und niemand sah warum.
+ *
+ * Solange im Dauer-Modus kein Beginn feststeht, gibt es die eigene Frist noch nicht: dann gilt das
+ * Ende der Aufgabe, und die Anzeige nennt stattdessen den Abstand („60 Min nach Beginn",
+ * {@link proofDue}). Eine Uhrzeit hinzuschreiben, die der Beginn noch verschiebt, wäre eine Zusage,
+ * die niemand hält.
  *
  * `holdUntil` bleibt die OBERE SCHRANKE, und zwar hier als `Math.min` und nicht bloss als Regel beim
  * Anlegen: die SQL-Vorauswahl des Pollers sucht über die Spalte `Task.holdUntil`, und eine
@@ -459,29 +480,71 @@ export interface ProofLike {
 export function proofDeadline(
   proof: Pick<ProofLike, "dueOffsetMin">,
   task: Pick<TaskLike, "createdAt" | "wirksamAb">,
-  /** Das Ende der AUFGABE: im Dauer-Modus das WIRKSAME (aus {@link evaluateTask}), sonst `holdUntil`. */
-  holdUntil: Date,
+  /** Ende und Beginn der Aufgabe — beide aus {@link evaluateTask}. */
+  window: ProofDeadlineWindow,
 ): Date {
-  if (proof.dueOffsetMin == null) return holdUntil;
-  const own = taskAnchor(task).getTime() + proof.dueOffsetMin * 60_000;
-  return new Date(Math.min(own, holdUntil.getTime()));
+  if (proof.dueOffsetMin == null) return window.holdUntil;
+  const anchor = proofOffsetAnchor(task, window);
+  if (!anchor) return window.holdUntil;
+  return new Date(Math.min(anchor.getTime() + proof.dueOffsetMin * 60_000, window.holdUntil.getTime()));
+}
+
+/** Ende und (im Dauer-Modus) Beginn der Haltezeit — genau der Ausschnitt der Auswertung, den jede
+ *  Frist-Rechnung braucht. Als ALIAS und nicht als eigene Form: eine zweite Definition liefe
+ *  auseinander, sobald `TaskEvaluation.startedAt` je seine Bedeutung ändert. */
+export type ProofDeadlineWindow = Pick<TaskEvaluation, "holdUntil" | "startedAt" | "anchorsAtStart">;
+
+/** Das Fenster einer Aufgabe, deren Haltezeit noch nicht begonnen hat — im Dauer-Modus ist ihr
+ *  `holdUntil` nur das spätestmögliche Ende. */
+export function windowBeforeStart(
+  task: Pick<TaskLike, "holdUntil">,
+  anchorsAtStart: boolean,
+): ProofDeadlineWindow {
+  return { holdUntil: task.holdUntil, startedAt: null, anchorsAtStart };
+}
+
+/** Der Nullpunkt der eigenen Nachweis-Frist — `null`, solange er im Dauer-Modus noch nicht feststeht. */
+function proofOffsetAnchor(
+  task: Pick<TaskLike, "createdAt" | "wirksamAb">,
+  window: ProofDeadlineWindow,
+): Date | null {
+  return window.anchorsAtStart ? window.startedAt : taskAnchor(task);
 }
 
 /**
- * Die EIGENE Fälligkeit eines Nachweises — oder `null`, wo er bis zum Ende der Aufgabe offen ist.
+ * Nimmt DIESER Nachweis jetzt noch etwas an?
  *
- * Der Unterschied zu {@link proofDeadline} ist die Frage, die gestellt wird: die Auswertung will
- * wissen, WOGEGEN sie misst (immer ein Zeitpunkt), die Anzeige will wissen, ob es überhaupt etwas
- * EIGENES zu zeigen gibt. Ohne diese zweite Form stünde `dueOffsetMin == null ? null : …` an jeder
- * Anzeige noch einmal — dreimal geschrieben war es bereits, und die drei Fassungen wichen im
- * dritten Argument schon voneinander ab.
+ * Nur ein reiner TEXT-Nachweis — Produkt-Entscheidung 20.09.2026. Ein Text ist eine Antwort, kein
+ * Beleg eines Zustands: er kann nachgereicht werden, ohne etwas vorzutäuschen, und die Keyholderin
+ * urteilt ohnehin über ihn. Ein FOTO bleibt mit dem Ende gesperrt — es soll den Zustand WÄHREND der
+ * Aufgabe zeigen, und ein Bild von danach belegt ihn nicht.
+ *
+ * *Anlass:* eine Aufgabe mit drei Text-Nachweisen endete, ohne je begonnen zu haben; die Karte
+ * blendete die Wege wortlos aus, und der Träger konnte nicht einmal mehr schreiben, was er wollte.
  */
+export function proofAcceptsNow(
+  proof: { requiresPhoto: boolean },
+  evaluation: Pick<TaskEvaluation, "proofSubmitOpen">,
+): boolean {
+  return evaluation.proofSubmitOpen || !proof.requiresPhoto;
+}
+
+/** Steht die eigene Frist dieses Nachweises noch nicht fest (Dauer-Modus ohne Beginn)? Dann nennt die
+ *  Anzeige den ABSTAND statt einer Uhrzeit. */
+export function proofDueOffsetPending(
+  proof: Pick<ProofLike, "dueOffsetMin">,
+  task: Pick<TaskLike, "createdAt" | "wirksamAb">,
+  window: ProofDeadlineWindow,
+): boolean {
+  return proof.dueOffsetMin != null && proofOffsetAnchor(task, window) === null;
+}
+
 export function ownProofDeadline(
   proof: Pick<ProofLike, "dueOffsetMin">,
   task: Pick<TaskLike, "createdAt" | "wirksamAb">,
-  holdUntil: Date,
+  window: ProofDeadlineWindow,
 ): Date | null {
-  return proof.dueOffsetMin == null ? null : proofDeadline(proof, task, holdUntil);
+  return proof.dueOffsetMin == null ? null : proofDeadline(proof, task, window);
 }
 
 /**
@@ -505,11 +568,15 @@ export function endIsProvisional(
 export function proofDue(
   proof: Pick<ProofLike, "dueOffsetMin">,
   task: Pick<TaskLike, "createdAt" | "wirksamAb" | "holdDurationMin">,
-  evaluation: Pick<TaskEvaluation, "holdUntil" | "startedAt">,
+  evaluation: ProofDeadlineWindow,
 ): { at: Date; provisional: boolean } {
   return {
-    at: proofDeadline(proof, task, evaluation.holdUntil),
-    provisional: proof.dueOffsetMin == null && endIsProvisional(task, evaluation),
+    at: proofDeadline(proof, task, evaluation),
+    // Vorläufig in BEIDEN Fällen, in denen der Beginn die Frist noch verschiebt: ohne eigene
+    // Fälligkeit hängt sie am Ende der Aufgabe (`endIsProvisional`), mit eigener am Beginn
+    // (`proofDueOffsetPending`). Die zweite Frage stellt sich seit dem 20.09.2026 auch im
+    // klassischen Modus — dort ist das Ende fest, die eigene Frist aber nicht.
+    provisional: endIsProvisional(task, evaluation) || proofDueOffsetPending(proof, task, evaluation),
   };
 }
 
@@ -591,11 +658,11 @@ export function requirementsShownAt(
  * hätte fälschlich gezählt — verdeckt nur davon, dass die alte `some(reviewAccepted===false) → failed`
  * die Aufgabe ohnehin sofort beendete. Die Zeile ist weg, also muss die Ablehnung HIER greifen.
  */
-function proofCounted(p: ProofLike, task: Pick<TaskLike, "createdAt" | "wirksamAb">, end: Date): boolean {
+function proofCounted(p: ProofLike, task: Pick<TaskLike, "createdAt" | "wirksamAb">, window: ProofDeadlineWindow): boolean {
   if (p.reviewAccepted === true) return true;
   if (p.reviewAccepted === false) return false;
   if (p.submittedAt === null) return false;
-  return !proofSubmittedLate(p, task, end);
+  return !proofSubmittedLate(p, task, window);
 }
 
 /**
@@ -649,9 +716,9 @@ export function proofAwaitingVerdict(
 export function proofSubmittedLate(
   p: Pick<ProofLike, "dueOffsetMin" | "submittedAt">,
   task: Pick<TaskLike, "createdAt" | "wirksamAb">,
-  end: Date,
+  window: ProofDeadlineWindow,
 ): boolean {
-  return p.submittedAt !== null && p.submittedAt > proofDeadline(p, task, end);
+  return p.submittedAt !== null && p.submittedAt > proofDeadline(p, task, window);
 }
 
 /**
@@ -677,12 +744,14 @@ export function proofSubmittedLate(
 function overdueProofsAt(
   proofs: ProofLike[],
   task: Pick<TaskLike, "createdAt" | "wirksamAb">,
-  end: Date,
+  window: ProofDeadlineWindow,
   now: Date,
 ): { id: string; due: Date }[] {
   return proofs
-    .filter((p) => p.dueOffsetMin != null && !proofCounted(p, task, end))
-    .map((p) => ({ id: p.id, due: proofDeadline(p, task, end) }))
+    // Ohne Beginn steht im Dauer-Modus keine eigene Frist fest — dann kann auch keine verstrichen
+    // sein, und die Zeile bleibt offen statt einen Vorwurf zu tragen, den der Beginn erst festlegt.
+    .filter((p) => p.dueOffsetMin != null && !proofDueOffsetPending(p, task, window) && !proofCounted(p, task, window))
+    .map((p) => ({ id: p.id, due: proofDeadline(p, task, window) }))
     .filter((p) => now >= p.due);
 }
 
@@ -813,16 +882,16 @@ export function firstOutOfOrderProof(
 function proofFailureAt(
   proofs: ProofLike[],
   task: Pick<TaskLike, "proofOrderMatters" | "withdrawnAt" | "createdAt" | "wirksamAb">,
-  /** Das WIRKSAME Ende der Aufgabe: die obere Schranke jeder Tatzeit. */
-  end: Date,
+  /** Das WIRKSAME Ende der Aufgabe (samt Beginn): die obere Schranke jeder Tatzeit. */
+  window: ProofDeadlineWindow,
   now: Date,
 ): Date | null {
   const ordered = sortedProofs(proofs);
   const evidence = [
-    earliestOverdue(overdueProofsAt(proofs, task, end, now)),
+    earliestOverdue(overdueProofsAt(proofs, task, window, now)),
     firstOutOfOrderProof(ordered, task)?.submittedAt ?? null,
   ];
-  return earliestDate(evidence.filter((d) => d !== null && d < end));
+  return earliestDate(evidence.filter((d) => d !== null && d < window.holdUntil));
 }
 
 /**
@@ -850,8 +919,16 @@ export function evaluateProofs(
   /** `withdrawnAt` ist reine DURCHREICHE an `firstOutOfOrderProof` — diese Achse prüft den Rückzug
    *  nicht selbst, und sie bekommt ihn auch nie zu sehen: beide Aufrufer stehen in `evaluateTask`
    *  unterhalb des Rückzug-Zweigs. Das Feld im Typ ist also keine Zusage dieser Funktion. */
-  task: Pick<TaskLike, "holdUntil" | "proofOrderMatters" | "createdAt" | "wirksamAb" | "withdrawnAt">,
+  task: Pick<TaskLike, "holdUntil" | "proofOrderMatters" | "createdAt" | "wirksamAb" | "withdrawnAt" | "holdDurationMin">,
   now: Date,
+  /** Der Beginn der Aufgabe — der Nullpunkt der eigenen Nachweis-Fristen.
+   *  `null` (Vorgabe) heisst: noch keiner, dann setzen die eigenen Fristen aus. */
+  startedAt: Date | null = null,
+  /** Gibt es überhaupt einen Beginn, an dem die eigenen Nachweis-Fristen hängen? Ohne Bedingungen
+   *  nicht — dann zählt der Nullpunkt der Aufgabe (siehe {@link TaskEvaluation.anchorsAtStart}).
+   *  Vorgabe `false`: die Aufgabe OHNE Bedingungen ist der Fall, in dem kein Beginn existiert, und
+   *  eine vergessene Angabe soll eine Frist nicht aussetzen, sondern sie wie bisher rechnen. */
+  anchorsAtStart = false,
 ): ProofVerdict {
   if (proofs.length === 0) return "none";
 
@@ -891,8 +968,9 @@ export function evaluateProofs(
   // solange JEDE offene Frist noch läuft, ist die Achse offen; ist eine verstrichen, ist sie
   // entschieden. Ohne eigene Fälligkeiten sind alle Fristen das Ende der Aufgabe, und der Ausdruck
   // fällt Wort für Wort auf das alte `now < task.holdUntil ? "pending" : "failed"` zurück.
-  const dueOf = (p: ProofLike) => proofDeadline(p, task, task.holdUntil);
-  const outstanding = ordered.filter((p) => !proofCounted(p, task, task.holdUntil));
+  const window: ProofDeadlineWindow = { holdUntil: task.holdUntil, startedAt, anchorsAtStart };
+  const dueOf = (p: ProofLike) => proofDeadline(p, task, window);
+  const outstanding = ordered.filter((p) => !proofCounted(p, task, window));
   if (outstanding.length > 0) {
     return outstanding.every((p) => now < dueOf(p)) ? "pending" : "failed";
   }
@@ -987,7 +1065,10 @@ export function evaluateTask(
    * Nur die Ids: die TATZEIT bildet {@link proofFailureAt}, und die braucht dafür ohnehin mehr als
    * die Fristen (Ablehnung und Reihenfolge-Bruch belegen sie genauso).
    */
-  const overdueIdsBeforeStart = overdueProofsAt(proofs, task, task.holdUntil, now).map((p) => p.id);
+  // Gibt es überhaupt einen Beginn, an dem eine eigene Nachweis-Frist hängen kann? Genau dann, wenn
+  // es etwas anzulegen gibt (siehe {@link TaskEvaluation.anchorsAtStart}).
+  const anchorsAtStart = requirements.length > 0;
+  const overdueIdsBeforeStart = overdueProofsAt(proofs, task, windowBeforeStart(task, anchorsAtStart), now).map((p) => p.id);
 
   const base: TaskEvaluation = {
     state: "pending",
@@ -1000,6 +1081,7 @@ export function evaluateTask(
     failedAt: null,
     awaitingConfirmation: false,
     holdRunning: false,
+    anchorsAtStart,
     proofCheckPending: proofs.some(
       (p) => p.requireCode && p.submittedAt !== null && p.verifikationStatus === null && p.verifikationReason === null,
     ),
@@ -1028,7 +1110,7 @@ export function evaluateTask(
     // Ohne Bedingungen gibt es nichts anzulegen — und damit auch keinen abgeleiteten Beginn, an dem
     // eine Dauer hängen könnte. `task.holdUntil` IST hier das Ende (der Dauer-Modus ist für solche
     // Aufgaben gar nicht erst wählbar, siehe `checkTask`).
-    const proofVerdict = evaluateProofs(proofs, task, now);
+    const proofVerdict = evaluateProofs(proofs, task, now, null, false);
     // Ohne Bedingungen tragen allein Selbstmeldung und Nachweise. Stehen Nachweise noch aus, ist die
     // Aufgabe offen bzw. wartet auf die Sichtung — die Selbstmeldung allein macht sie nicht fertig.
     // Die TATZEIT über {@link proofFailureAt} und damit nach derselben Regel wie im Zweig MIT
@@ -1039,7 +1121,7 @@ export function evaluateTask(
     if (proofVerdict === "failed") {
       return {
         ...base, state: "missed",
-        failedAt: proofFailureAt(proofs, task, task.holdUntil, now),
+        failedAt: proofFailureAt(proofs, task, windowBeforeStart(task, anchorsAtStart), now),
         overdueProofIds: overdueIdsBeforeStart,
       };
     }
@@ -1116,10 +1198,10 @@ export function evaluateTask(
     // verstrichene Nachweis-Frist oder ein Reihenfolge-Bruch. Ein noch AUSSTEHENDES oder ein
     // ABGELEHNTES Foto entscheidet nichts, solange seine Frist läuft: dann urteilt `evaluateProofs`
     // mit `pending`, und der Träger kann nachbessern (Produkt-Entscheidung 08.09.2026).
-    if (evaluateProofs(proofs, task, now) === "failed") {
+    if (evaluateProofs(proofs, task, now, null, anchorsAtStart) === "failed") {
       return {
         ...base, state: "missed", missing,
-        failedAt: proofFailureAt(proofs, task, task.holdUntil, now),
+        failedAt: proofFailureAt(proofs, task, windowBeforeStart(task, anchorsAtStart), now),
         overdueProofIds: overdueIdsBeforeStart,
       };
     }
@@ -1141,7 +1223,8 @@ export function evaluateTask(
   // Nachweis-Achse unten urteilt und das die Anzeige aus `evaluation.holdUntil` liest. Mit der
   // Vorbelegung aus `base` (der Spalte) wäre im Dauer-Modus eine Zeile noch „offen", während die
   // Auswertung sie längst nicht mehr zählt: ein Aufnahme-Link, der ins Leere führt.
-  const overdue = overdueProofsAt(proofs, task, holdUntil, now);
+  const window: ProofDeadlineWindow = { holdUntil, startedAt, anchorsAtStart };
+  const overdue = overdueProofsAt(proofs, task, window, now);
 
   /**
    * Die gemeinsame Grundlage JEDES Zweigs ab hier — Beginn, wirksames Ende und die überfälligen
@@ -1181,7 +1264,7 @@ export function evaluateTask(
     // beendet die Aufgabe genauso, und sie beendet sie im selben Moment, in dem sie ausgesprochen
     // wird (siehe den Zweig weiter unten). Für das Ablegen danach gilt Wort für Wort dasselbe
     // Argument.
-    const proofFailed = proofFailureAt(proofs, task, holdUntil, now);
+    const proofFailed = proofFailureAt(proofs, task, window, now);
     if (proofFailed !== null && proofFailed <= failedAt) {
       return { ...started, state: "missed", failedAt: proofFailed };
     }
@@ -1199,7 +1282,7 @@ export function evaluateTask(
   // `{ ...task, holdUntil }` und keine handverlesene Feldliste: die Nachweis-Achse liest inzwischen
   // auch den Nullpunkt (`createdAt`/`wirksamAb`), und eine aufgezählte Auswahl wäre die Stelle, an der
   // ein künftiges Feld still fehlt — mit einer falschen Frist als Folge, nicht mit einem Compilerfehler.
-  const proofVerdict = evaluateProofs(proofs, { ...task, holdUntil }, now);
+  const proofVerdict = evaluateProofs(proofs, { ...task, holdUntil }, now, startedAt, anchorsAtStart);
 
   /**
    * EIN ENTSCHIEDENER FEHLSCHLAG DER NACHWEIS-ACHSE BEENDET DIE AUFGABE SOFORT — auch mitten in der
@@ -1229,7 +1312,7 @@ export function evaluateTask(
    * neun Stunden in der Zukunft, falsch einsortiert in jeder Perioden-Ansicht.
    */
   if (proofVerdict === "failed") {
-    return { ...started, state: "missed", failedAt: proofFailureAt(proofs, task, holdUntil, now) };
+    return { ...started, state: "missed", failedAt: proofFailureAt(proofs, task, window, now) };
   }
 
   // Der EINE Ort, an dem „die Haltefrist läuft noch" gemessen wird — deshalb trägt die Auswertung

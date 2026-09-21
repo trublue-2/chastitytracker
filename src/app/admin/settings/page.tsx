@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import SettingsForm from "@/app/dashboard/settings/SettingsForm";
 import { getSettingsProps } from "@/app/dashboard/settings/getSettingsProps";
 import { isController } from "@/lib/ownTracker";
+import { photoAnalysisView } from "@/lib/vision/config";
+import PhotoAnalysisSettings from "./PhotoAnalysisSettings";
 
 /**
  * Persönliche Einstellungen im blauen Adminportal — bewusst DIESELBEN wie unter /dashboard/settings
@@ -16,5 +18,10 @@ export default async function AdminSettingsPage() {
   if (!isController(session.user)) redirect("/dashboard");
 
   const props = await getSettingsProps();
-  return <SettingsForm {...props} />;
+  // Die Foto-Prüfung ist eine Einstellung der INSTANZ und gehört dem Betreiber — also dem Admin,
+  // nicht jeder Keyholderin, die diese Seite ebenfalls erreicht.
+  const instanceSections = session.user.role === "admin"
+    ? <PhotoAnalysisSettings view={await photoAnalysisView()} />
+    : undefined;
+  return <SettingsForm {...props} instanceSections={instanceSections} />;
 }

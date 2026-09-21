@@ -106,7 +106,7 @@ export const STATE_TABLES: readonly StateTable[] = [
     ignoreColumns: [
       "passwordHash", "email", "role", "createdAt", "startPage", "notifyMail", "notifyPush",
       "notifyTelegram", "hideOwnTracker", "locale", "telegramChatId", "dashboardLayout",
-      "quickSettings", "noticeSeenVersion", "autoInspectionPlannedFor", "weightReminderMark",
+      "quickSettings", "noticeSeenVersion", "photoAnalysisNoticeSeen", "autoInspectionPlannedFor", "weightReminderMark",
     ],
   },
   { table: "CleaningRuleChange", area: "settings", owner: BY_USER },

@@ -12,6 +12,7 @@ import RotatableImagePreview from "@/app/components/RotatableImagePreview";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
 import FormField from "@/app/components/FormField";
+import { PhotoAnalysisInfo } from "@/app/components/PhotoAnalysisContext";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import Input from "@/app/components/Input";
 import Textarea from "@/app/components/Textarea";
@@ -277,7 +278,7 @@ export default function VerschlussFormCore({
         />
       )}
 
-      <FormField label={t("photoOptional")}>
+      <FormField label={t("photoOptional")} labelAddon={<PhotoAnalysisInfo />}>
         {imagePreview ? (
           <div className="flex items-start gap-4">
             <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />

@@ -16,7 +16,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/vision", () => ({
   visionComplete: vi.fn(),
   visionConfigured: () => true,
-  visionProvider: () => "local",
 }));
 // Bild-Laden ausgeklammert: geprüft wird die Fragen-Folge, nicht die Vorverarbeitung.
 vi.mock("fs/promises", () => ({ readFile: vi.fn().mockResolvedValue(Buffer.from("x")) }));

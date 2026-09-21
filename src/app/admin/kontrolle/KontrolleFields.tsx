@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
 import FormError from "@/app/components/FormError";
+import { PhotoAnalysisRequestHint } from "@/app/components/PhotoAnalysisContext";
 import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
 import DurationInput from "@/app/components/DurationInput";
@@ -136,6 +137,8 @@ export default function KontrolleFields({
         unit={fristUnit}
         onChange={(value, unit) => { setFrist(value); setFristUnit(unit); }}
       />
+
+      <PhotoAnalysisRequestHint />
 
       <FormError message={error} variant="compact" />
 

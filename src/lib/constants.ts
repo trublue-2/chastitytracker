@@ -314,6 +314,8 @@ export const SELF_EDITABLE_USER_FIELDS = [
   // Quittung für den Umstellungs-Hinweis (`notice.ts`). Ein Self-Feld im Wortsinn: es hält fest,
   // was DIESE Person gesehen hat, und niemand sonst hat ein Interesse daran.
   "noticeSeenVersion",
+  // Quittung für den Hinweis zur Foto-Prüfung (`vision/config.ts`: `disclosureOf`) — dieselbe Sorte.
+  "photoAnalysisNoticeSeen",
   // Die drei Kanal-Stufen (`NOTIFY_LEVELS`): wie laut Mail, Push und Telegram sein dürfen. Ein
   // Self-Feld im Wortsinn — sie sagen, wie DIESE Person erreicht werden will, auch bei Meldungen
   // über ihre Träger. Geschrieben über `/api/settings/notify-levels`.

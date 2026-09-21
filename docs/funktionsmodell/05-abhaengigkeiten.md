@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 154 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
+Insgesamt 155 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
 
 ## Einträge
 
@@ -630,6 +630,7 @@ Nichts wirkt hier hinein — diese Mechanik lässt sich für sich allein betrach
 | Sessions/Statistik | `User.timezone` | Die Wanduhr des Subs. Kalendertag, Reinigungsfenster und Schlaf-Fenster rechnen darin — nicht in der Serverzone. Historisiert: eine Umstellung wirkt ab jetzt, vergangene Öffnungen bleiben nach der damaligen Zone beurteilt. | `timezoneRules.ts:timezoneRulesFrom` |
 | Oberfläche | `User.startPage` | Startseite nach der Anmeldung; `auto` wählt sie nach Rolle. | `userSelfField.ts` |
 | Oberfläche | `User.noticeSeenVersion` | Welche Umstellung dieser Nutzer quittiert hat, als Versionsnummer. Leer = der Hinweis zur laufenden Umstellung erscheint beim nächsten Aufruf. Reine Anzeige-Quittung: er ändert nichts an Regeln, Fristen oder Beurteilung. | `notice.ts:NOTICE_VERSION` |
+| Oberfläche | `User.photoAnalysisNoticeSeen` | Welchen Stand der Foto-Prüfung dieser Nutzer zuletzt quittiert hat (`none` oder `external:<anbieter>`). Weicht der Stand der Instanz davon ab, erscheint der Hinweis erneut — bei Anbieterwechsel und am Ende der Übergangsfrist. Den Hinweis gibt es nur im Keyholder-Bereich; Subs erfahren den Datenweg allein über das ⓘ am Foto-Feld. Reine Anzeige-Quittung. | `vision/config.ts:disclosureOf` |
 | Oberfläche | `User.dashboardLayout` | Abweichungen vom Standard-Dashboard (ausgeblendete Blöcke, eigene Reihenfolge) als JSON je Oberfläche. Leer = Standard. | `dashboardLayout.ts:resolveLayout` |
 | Oberfläche | `User.quickSettings` | Welche Einstellungen dieses Trägers in der Keyholder-Übersicht als Schnellschalter erscheinen (Liste von Schlüsseln, höchstens vier). Reine Anzeige-Auswahl: sie ändert keine Regel, sondern nur, welche davon ohne Umweg über die Einstellungen erreichbar ist. | `quickSettings.ts` |
 | Oberfläche | `User.hideOwnTracker` | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | `ownTracker.ts` |
@@ -726,6 +727,7 @@ flowchart LR
 | Einträge | `User.mobileDesktopUpload` | Erlaubt auf Mobilgeräten die Dateiauswahl statt nur die Kamera — schwächt jeden Foto-Nachweis, deshalb Admin-Feld. | — |
 | Zugang | `User.startPage` | Startseite nach der Anmeldung; `auto` wählt sie nach Rolle. | `userSelfField.ts` |
 | Zugang | `User.noticeSeenVersion` | Welche Umstellung dieser Nutzer quittiert hat, als Versionsnummer. Leer = der Hinweis zur laufenden Umstellung erscheint beim nächsten Aufruf. Reine Anzeige-Quittung: er ändert nichts an Regeln, Fristen oder Beurteilung. | `notice.ts:NOTICE_VERSION` |
+| Zugang | `User.photoAnalysisNoticeSeen` | Welchen Stand der Foto-Prüfung dieser Nutzer zuletzt quittiert hat (`none` oder `external:<anbieter>`). Weicht der Stand der Instanz davon ab, erscheint der Hinweis erneut — bei Anbieterwechsel und am Ende der Übergangsfrist. Den Hinweis gibt es nur im Keyholder-Bereich; Subs erfahren den Datenweg allein über das ⓘ am Foto-Feld. Reine Anzeige-Quittung. | `vision/config.ts:disclosureOf` |
 | Zugang | `User.dashboardLayout` | Abweichungen vom Standard-Dashboard (ausgeblendete Blöcke, eigene Reihenfolge) als JSON je Oberfläche. Leer = Standard. | `dashboardLayout.ts:resolveLayout` |
 | Zugang | `User.quickSettings` | Welche Einstellungen dieses Trägers in der Keyholder-Übersicht als Schnellschalter erscheinen (Liste von Schlüsseln, höchstens vier). Reine Anzeige-Auswahl: sie ändert keine Regel, sondern nur, welche davon ohne Umweg über die Einstellungen erreichbar ist. | `quickSettings.ts` |
 | Zugang | `User.hideOwnTracker` | Blendet den eigenen Tracker in der Keyholder-Ansicht aus — für Admin-Konten, die selbst keinen führen. | `ownTracker.ts` |

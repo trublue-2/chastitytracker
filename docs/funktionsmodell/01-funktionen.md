@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-107 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+108 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -223,7 +223,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | **Passwort zurücksetzen** | Token per Mail anfordern und damit ein neues Passwort setzen — der einzige Weg ohne Sitzung. <br>*Bei einem Admin-Konto während laufender Sperrzeit entsteht daraus ein festgeschriebenes Vergehen.* | Sub, Keyholder (UI) | App (Träger) | `/api/auth/forgot-password` `/api/auth/reset-password` |
 | **Passwort ändern** | Setzt ein neues Passwort; das alte wird bewusst nicht verlangt. | Sub, Keyholder (UI) | App (Träger) | `/api/settings/password` |
 | **E-Mail-Adresse ändern** | Setzt die Zustelladresse des Kontos. | Sub | App (Träger) | `/api/settings/email` |
-| **Darstellung einstellen** | Sprache, Startseite, das Ausblenden des eigenen Trackers, die Zusammenstellung des eigenen Dashboards und das Wegklicken des Umstellungs-Hinweises. | Sub | App (Träger) | `/api/settings/locale` `/api/settings/start-page` `/api/settings/hide-own-tracker` `/api/settings/dashboard-layout` `/api/settings/notice-seen` |
+| **Darstellung einstellen** | Sprache, Startseite, das Ausblenden des eigenen Trackers, die Zusammenstellung des eigenen Dashboards und das Wegklicken des Umstellungs-Hinweises. | Sub | App (Träger) | `/api/settings/locale` `/api/settings/start-page` `/api/settings/hide-own-tracker` `/api/settings/dashboard-layout` `/api/settings/notice-seen` `/api/settings/photo-analysis-notice-seen` |
 | **Zeitzone setzen** | Die Wanduhr des Trägers. <br>*Mehr als Darstellung: Reinigungsfenster, Schlaf-Fenster und der Kalendertag des Kontingents rechnen darin.* | Sub | App (Träger) | `/api/settings/timezone` |
 | **Konten verwalten** | Anlegen, bearbeiten, Rolle setzen, Passwort setzen und löschen. <br>*Dieselbe Route trägt auch die Reinigungs-, Auto-Kontroll- und Eskalations-Einstellungen.* | Keyholder (UI) | App (Keyholder) | `/api/admin/users` `/api/admin/users/[id]` |
 | **Keyholder zuordnen** | Verknüpft ein KONTO mit einem Träger — die eigentliche Berechtigung. Das Konto braucht dafür keine Admin-Rolle: ein Keyholder ist im Normalfall `role: "user"` (siehe `keyholder.ts`). <br>*Ohne Zuordnung sieht das Konto überall leere Listen, nicht alle Träger.* | Keyholder (UI) | App (Keyholder) | `/api/admin/users/[id]/keyholders` |
@@ -233,6 +233,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | **Auf neue Fassung prüfen** | Liest den Changelog der veröffentlichten Fassung und meldet, wenn diese Instanz zurückliegt. | System | läuft von selbst | `/api/upstream-changelog` |
 | **Lebenszeichen** | Der Takt, an dem die zeitgesteuerten Abläufe hängen. | System | läuft von selbst | `/api/heartbeat` |
 | **App-Verknüpfung für iOS** | Die Datei, mit der iOS Links dieser Instanz der App zuordnet. | System | Gegenstelle | `/api/apple-app-site-association` |
+| **Foto-Prüfung einrichten** | Wählt, ob und bei welchem Anbieter eingereichte Fotos automatisch geprüft werden (Anthropic, OpenAI, Gemini, Mistral, beliebiger kompatibler Dienst, eigener Server), samt eigenem API-Schlüssel und Modellen; testet die Einstellung an einem Beispielfoto. <br>*Überschreibt die `.env`. Der Schlüssel liegt verschlüsselt in `AppMeta` und wird nie ausgeliefert. Bei externem Anbieter bekommen alle Nutzer einen Hinweis.* | Keyholder (UI) | App (Keyholder) | `/api/admin/photo-analysis` `/api/admin/photo-analysis/test` |
 
 ## Gewicht
 

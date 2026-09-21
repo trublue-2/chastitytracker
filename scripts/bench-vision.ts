@@ -51,20 +51,19 @@ async function timed<T>(fn: () => Promise<T>): Promise<{ value: T; ms: number }>
   return { value, ms: Math.round(performance.now() - start) };
 }
 
-function withProvider<T>(provider: "anthropic" | "local", fn: () => Promise<T>): Promise<T> {
-  const prev = process.env.VERIFY_PROVIDER;
-  process.env.VERIFY_PROVIDER = provider;
-  return fn().finally(() => {
-    if (prev === undefined) delete process.env.VERIFY_PROVIDER;
-    else process.env.VERIFY_PROVIDER = prev;
-  });
+/** Führt `fn` mit genau diesem Anbieter aus — über die Überschreibung in `config.ts`, nicht über
+ *  `process.env`: die gültige Einstellung ist gecacht, und eine in der App gespeicherte überschriebe
+ *  die Env ohnehin. Der Vergleich zeigte sonst still zweimal denselben Anbieter. */
+async function withProvider<T>(provider: "anthropic" | "local", fn: () => Promise<T>): Promise<T> {
+  const { resolveVisionFrom, withVisionConfig } = await import("@/lib/vision/config");
+  const config = resolveVisionFrom(null, { ...process.env, VERIFY_PROVIDER: provider }, new Date());
+  return withVisionConfig(config, fn);
 }
 
 function pad(s: string, n: number) { return (s + " ".repeat(n)).slice(0, n); }
 
 async function main() {
-  // Import NACH dem Env-Load, damit die Module die Variablen sehen
-  // (src/lib/anthropic.ts konstruiert den Client mit dem API-Key bei Import).
+  // Import NACH dem Env-Load, damit die Module die Variablen sehen.
   const { verifyKontrolleCodeDetailed, detectSealNumber } = await import("@/lib/verifyCode");
 
   const manifestPath = process.argv[2] || join(process.cwd(), "scripts", "bench-vision.manifest.json");

@@ -11,13 +11,14 @@ import { useApiError } from "@/app/hooks/useApiError";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import RotatableImagePreview from "@/app/components/RotatableImagePreview";
 import FormField from "@/app/components/FormField";
+import { PhotoAnalysisInfo } from "@/app/components/PhotoAnalysisContext";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import Textarea from "@/app/components/Textarea";
 import EntryFormShell from "@/app/components/EntryFormShell";
 import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { formatDateTime, formatElapsedMs, toDateLocale } from "@/lib/utils";
 
 /**
  * Der Sub reicht EINEN geforderten Nachweis ein (Issue #39; Text-Nachweis Issue #108).
@@ -37,6 +38,7 @@ export default function TaskProofFormCore({
   description,
   requiresPhoto,
   requiresText,
+  dueAfterStartMin,
   code,
   taskTitle,
   orderMatters,
@@ -55,6 +57,9 @@ export default function TaskProofFormCore({
   /** Fordert dieser Nachweis einen Text? Dann erscheint das Textfeld und es ist Pflicht. Foto und
    *  Text sind unabhängig — beide gleichzeitig möglich. */
   requiresText: boolean;
+  /** Die eigene Frist als ABSTAND in Minuten — gesetzt, solange sie im Dauer-Modus am Beginn hängt
+   *  und deshalb noch keine Uhrzeit hat (siehe `proofDeadline`). */
+  dueAfterStartMin: number | null;
   /** Null ohne Code-Pflicht — dann legt die Keyholderin den Nachweis selbst vor. */
   code: string | null;
   taskTitle: string;
@@ -155,8 +160,13 @@ export default function TaskProofFormCore({
             den Regelfall stumpft ab. Ist sie VERSTRICHEN, kommt der Träger seit dem 16.08.2026
             trotzdem hierher (verspätet einreichen ist erlaubt), und dann ist die Warnfarbe die
             ehrliche: die Zeile ist keine Ankündigung mehr, sondern der Grund für den Satz darunter. */}
+        {/* Der ABSTAND, solange die eigene Frist im Dauer-Modus noch am Beginn hängt — dieselbe
+            Auskunft wie auf der Karte. Eine Uhrzeit wäre hier eine Zusage, die der Beginn noch
+            verschiebt (Vorfall 19.09.2026). */}
         <p className={`text-neben font-medium mt-2 tabular-nums ${late ? "text-warn-text" : "text-foreground-muted"}`}>
-          {t(dueProvisional ? "proofDueLineProvisional" : "proofDueLine", { value: formatDateTime(dueAt, toDateLocale(locale), tz) })}
+          {dueAfterStartMin != null
+            ? t("proofDueAfterStart", { value: formatElapsedMs(dueAfterStartMin * 60_000, locale) })
+            : t(dueProvisional ? "proofDueLineProvisional" : "proofDueLine", { value: formatDateTime(dueAt, toDateLocale(locale), tz) })}
         </p>
         {/* Vor dem Auslöser und nicht erst danach: er soll wissen, worauf er sich einlässt, BEVOR er
             fotografiert — sein Nachweis hängt jetzt an einem Urteil, nicht mehr an der Uhr. */}
@@ -184,7 +194,7 @@ export default function TaskProofFormCore({
       )}
 
       {requiresPhoto && (
-        <FormField label={t("proofPhotoLabel")} required>
+        <FormField label={t("proofPhotoLabel")} required labelAddon={code ? <PhotoAnalysisInfo /> : undefined}>
           {photo.imagePreview ? (
             <RotatableImagePreview
               src={photo.imagePreview}

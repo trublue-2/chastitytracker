@@ -29,7 +29,12 @@ import PushAllowRow from "./PushAllowRow";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, mailConfigured, version, buildDate, feedbackEnabled = true, weight }: SettingsFormProps) {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, mailConfigured, version, buildDate, feedbackEnabled = true, weight, instanceSections }: SettingsFormProps & {
+  /** Abschnitte, die der INSTANZ gehören statt der Person — heute die Foto-Prüfung. Nur die
+   *  Admin-Seite reicht sie herein; im Träger-Bereich bleibt die Maske rein persönlich. Innerhalb
+   *  des `<main>`, damit sie in derselben Spalte und Landmarke stehen wie der Rest. */
+  instanceSections?: React.ReactNode;
+}) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
@@ -558,6 +563,8 @@ export default function SettingsForm({ username, email, locale, timezone, startP
       {/* KEIN `danger` und vor dem Abruf schliessen — dieselbe Begründung wie im Admin-Bereich:
           das Passwort zu setzen ist erlaubt, gewarnt wird vor der Nebenwirkung, und die Fehlerzeile
           steht unmittelbar unter dem Feld. */}
+      {instanceSections}
+
       <PasswordChangeConfirm
         open={pwConfirm}
         confirmLabel={t("saveBtn")}

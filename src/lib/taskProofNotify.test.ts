@@ -18,7 +18,12 @@ vi.mock("@/lib/keyholder", () => ({
   getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "kh1" }], username: "sub" })),
 }));
 
+// Die Auswertung gibt dem Sweep das Fenster, gegen das er misst — mit einem angenommenen Nullpunkt
+// meldete er pünktliche Nachweise als verspätet (Befund 20.09.2026).
+vi.mock("@/lib/taskIntervals", () => ({ evaluateTaskById: vi.fn() }));
+
 import { notifyLateProof, notifyLateProofsForTask } from "./taskProofNotify";
+import { evaluateTaskById } from "@/lib/taskIntervals";
 import { notifyControllers } from "@/lib/notify";
 import { getControllerAudience } from "@/lib/keyholder";
 import { prisma } from "@/lib/prisma";
@@ -27,12 +32,20 @@ const notifyKh = notifyControllers as unknown as ReturnType<typeof vi.fn>;
 const audience = getControllerAudience as unknown as ReturnType<typeof vi.fn>;
 const updateOne = prisma.taskProof.update as unknown as ReturnType<typeof vi.fn>;
 const findProofs = prisma.taskProof.findMany as unknown as ReturnType<typeof vi.fn>;
+const evaluate = evaluateTaskById as unknown as ReturnType<typeof vi.fn>;
+
+/** Die Auswertung, wie der Sweep sie sieht: Ende aus der (vorgezogenen) Spalte, kein Beginn. */
+const evaluation = (holdUntil: Date) => ({ evaluation: { holdUntil, startedAt: null, anchorsAtStart: false } });
 
 const NOW = new Date("2026-07-25T14:00:00Z");
 const HOLD_UNTIL = new Date("2026-07-25T18:00:00Z");
 
 /** Die Aufgabe dahinter — Nullpunkt `NOW`, Ende vier Stunden später. */
-const TASK = { id: "t1", title: "Einkaufen", holdUntil: HOLD_UNTIL, createdAt: NOW, wirksamAb: null };
+const TASK = { id: "t1", title: "Einkaufen", holdUntil: HOLD_UNTIL, createdAt: NOW, wirksamAb: null, holdDurationMin: null };
+
+/** Das Fenster, gegen das gemessen wird — hier eine Aufgabe OHNE Bedingungen: kein Beginn, also
+ *  zählt die eigene Frist ab dem Nullpunkt der Aufgabe. */
+const WINDOW = { holdUntil: HOLD_UNTIL, startedAt: null, anchorsAtStart: false };
 
 /** Fälligkeit 60 Minuten nach dem Nullpunkt (= 15:00), eingereicht um 16:00. */
 const lateProof = (over: Record<string, unknown> = {}) => ({
@@ -54,7 +67,7 @@ beforeEach(() => {
 
 describe("notifyLateProof — ein verspäteter Nachweis wartet auf ein Urteil", () => {
   it("meldet den Keyholdern, dass ein verspätetes Foto auf ihr Urteil wartet", async () => {
-    await notifyLateProof(lateProof(), "u1");
+    await notifyLateProof(lateProof(), "u1", WINDOW);
     expect(notifyKh).toHaveBeenCalledWith("u1", [{ id: "kh1" }], expect.objectContaining({
       messageKey: "taskProofLateMessageKeyholder",
       params: { username: "sub", title: "Einkaufen" },
@@ -63,13 +76,13 @@ describe("notifyLateProof — ein verspäteter Nachweis wartet auf ein Urteil", 
 
   /** Der Bezug ist die AUFGABE — dorthin führt der Weg zur Sichtung. */
   it("die Posteingangs-Zeile zeigt auf die Aufgabe", async () => {
-    await notifyLateProof(lateProof(), "u1");
+    await notifyLateProof(lateProof(), "u1", WINDOW);
     expect(notifyKh.mock.calls[0][2].inbox).toEqual({ ref: { type: "task", id: "t1" } });
   });
 
   /** Erst zustellen, dann stempeln — ein Fehlschlag darf die Meldung nicht als erledigt ausweisen. */
   it("stempelt die Zeile NACH dem Versand", async () => {
-    await notifyLateProof(lateProof(), "u1");
+    await notifyLateProof(lateProof(), "u1", WINDOW);
     expect(updateOne).toHaveBeenCalledWith({ where: { id: "p1" }, data: { lateNotifiedAt: NOW } });
     expect(notifyKh.mock.invocationCallOrder[0]).toBeLessThan(updateOne.mock.invocationCallOrder[0]);
   });
@@ -79,7 +92,7 @@ describe("notifyLateProof — ein verspäteter Nachweis wartet auf ein Urteil", 
    * bei jedem Lesen neu gerechnet und darf rückwärts gehen.
    */
   it("ein zweiter Lauf schweigt", async () => {
-    await notifyLateProof(lateProof({ lateNotifiedAt: NOW }), "u1");
+    await notifyLateProof(lateProof({ lateNotifiedAt: NOW }), "u1", WINDOW);
     expect(notifyKh).not.toHaveBeenCalled();
     expect(updateOne).not.toHaveBeenCalled();
   });
@@ -87,21 +100,21 @@ describe("notifyLateProof — ein verspäteter Nachweis wartet auf ein Urteil", 
   /** Rechtzeitig eingereicht: darüber meldet der Minuten-Tick („bitte sichten"), nicht dieser Weg —
    *  sonst bekäme die Keyholderin zu jedem Nachweis zwei Meldungen. */
   it("ein rechtzeitiger Nachweis löst nichts aus", async () => {
-    await notifyLateProof(lateProof({ submittedAt: new Date("2026-07-25T14:30:00Z") }), "u1");
+    await notifyLateProof(lateProof({ submittedAt: new Date("2026-07-25T14:30:00Z") }), "u1", WINDOW);
     expect(notifyKh).not.toHaveBeenCalled();
   });
 
   /** Ohne eigene Fälligkeit ist die Frist das Ende der Aufgabe — und danach wird gar nichts mehr
    *  angenommen. Ein solcher Nachweis kann auf dem EINREICHE-Weg nie verspätet sein. */
   it("ohne eigene Fälligkeit gibt es auf dem Einreiche-Weg keine Verspätung", async () => {
-    await notifyLateProof(lateProof({ dueOffsetMin: null }), "u1");
+    await notifyLateProof(lateProof({ dueOffsetMin: null }), "u1", WINDOW);
     expect(notifyKh).not.toHaveBeenCalled();
   });
 
   /** Der Nachweis IST eingereicht — eine gescheiterte Meldung darf das nicht mitreissen. */
   it("wirft nie", async () => {
     notifyKh.mockRejectedValueOnce(new Error("SMTP weg"));
-    await expect(notifyLateProof(lateProof(), "u1")).resolves.toBeUndefined();
+    await expect(notifyLateProof(lateProof(), "u1", WINDOW)).resolves.toBeUndefined();
     expect(updateOne).not.toHaveBeenCalled();
   });
 });
@@ -120,6 +133,7 @@ describe("notifyLateProofsForTask — die Frist rückt unter dem Nachweis nach v
 
   it("meldet einen Nachweis, der durch das vorgezogene Ende zu spät wurde", async () => {
     findProofs.mockResolvedValue([submittedAt16]);
+    evaluate.mockResolvedValue(evaluation(new Date("2026-07-25T15:00:00Z")));
     await notifyLateProofsForTask({ ...TASK, holdUntil: new Date("2026-07-25T15:00:00Z") }, "u1");
     expect(notifyKh.mock.calls[0][2].messageKey).toBe("taskProofLateMessageKeyholder");
     expect(updateOne).toHaveBeenCalledWith({ where: { id: "p1" }, data: { lateNotifiedAt: NOW } });
@@ -128,6 +142,7 @@ describe("notifyLateProofsForTask — die Frist rückt unter dem Nachweis nach v
   /** Das Ende bewegt sich, aber der Nachweis liegt weiter davor: nichts ist zu melden. */
   it("ein weiterhin rechtzeitiger Nachweis löst nichts aus", async () => {
     findProofs.mockResolvedValue([submittedAt16]);
+    evaluate.mockResolvedValue(evaluation(new Date("2026-07-25T17:00:00Z")));
     await notifyLateProofsForTask({ ...TASK, holdUntil: new Date("2026-07-25T17:00:00Z") }, "u1");
     expect(notifyKh).not.toHaveBeenCalled();
   });
@@ -146,6 +161,7 @@ describe("notifyLateProofsForTask — die Frist rückt unter dem Nachweis nach v
 
   it("meldet jeden betroffenen Nachweis einzeln — jeder braucht sein eigenes Urteil", async () => {
     findProofs.mockResolvedValue([submittedAt16, { ...submittedAt16, id: "p2" }]);
+    evaluate.mockResolvedValue(evaluation(new Date("2026-07-25T15:00:00Z")));
     await notifyLateProofsForTask({ ...TASK, holdUntil: new Date("2026-07-25T15:00:00Z") }, "u1");
     expect(notifyKh).toHaveBeenCalledTimes(2);
     expect(updateOne.mock.calls.map((c) => c[0].where.id)).toEqual(["p1", "p2"]);
@@ -155,6 +171,7 @@ describe("notifyLateProofsForTask — die Frist rückt unter dem Nachweis nach v
    *  geladen wären es bei drei betroffenen Fotos dreimal dieselbe Antwort. */
   it("holt Empfänger und Schalter EINMAL, nicht je Nachweis", async () => {
     findProofs.mockResolvedValue([submittedAt16, { ...submittedAt16, id: "p2" }]);
+    evaluate.mockResolvedValue(evaluation(new Date("2026-07-25T15:00:00Z")));
     await notifyLateProofsForTask({ ...TASK, holdUntil: new Date("2026-07-25T15:00:00Z") }, "u1");
     expect(audience).toHaveBeenCalledOnce();
   });
@@ -162,6 +179,7 @@ describe("notifyLateProofsForTask — die Frist rückt unter dem Nachweis nach v
   /** Und gar nicht, wenn niemand betroffen ist: die vorgezogene Frist trifft oft keinen Nachweis. */
   it("lädt nichts, solange kein Nachweis verspätet ist", async () => {
     findProofs.mockResolvedValue([submittedAt16]);
+    evaluate.mockResolvedValue(evaluation(new Date("2026-07-25T17:00:00Z")));
     await notifyLateProofsForTask({ ...TASK, holdUntil: new Date("2026-07-25T17:00:00Z") }, "u1");
     expect(audience).not.toHaveBeenCalled();
   });

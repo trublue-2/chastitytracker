@@ -72,7 +72,7 @@ Hinweis: `verifyKontrolleCodeDetailed` ruft das Modell **pro Request nur 1×** a
 — die vielen `vision_call` kommen also wirklich von mehreren unabhängigen Requests.
 
 ### 3. Timeout-Struktur
-- Server-Vision-Timeout: `LOCAL_VISION_TIMEOUT_MS`, Default **120 s** (`src/lib/vision/local.ts` ≈ Z. 38).
+- Server-Vision-Timeout: `LOCAL_VISION_TIMEOUT_MS`, Default **120 s** (`src/lib/vision/openaiCompatible.ts`).
 - Die `AbortError "This operation was aborted"` stammen v. a. vom **Client**, der den Live-Check
   abbricht (Effect-Cleanup) → der serverseitige Ollama-Fetch wird mitgerissen. ~55-s-Abstände passen
   dazu, nicht zum 120-s-Limit.
@@ -161,6 +161,6 @@ Kopplung — nachrangig zu M1.
 - `src/lib/verifyCode.ts` (`verifyKontrolleCode`, `verifyKontrolleCodeDetailed`)
 - `src/app/entries/PruefungFormCore.tsx` (Client Live-Check)
 - `src/app/api/verify-kontrolle/route.ts` (Live-Check-Route)
-- `src/lib/vision/local.ts` (`LOCAL_VISION_TIMEOUT_MS`)
+- `src/lib/vision/openaiCompatible.ts` (`LOCAL_VISION_TIMEOUT_MS`)
 - `src/lib/detectDevice.ts` / Geräte-Check (Referenz für entkoppeltes Muster)
 - [`docs/local-vision.md`](local-vision.md) (lokale Vision-Provider-Doku)

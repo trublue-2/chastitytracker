@@ -11,6 +11,7 @@ import {
 } from "@/lib/weight";
 import FormError from "@/app/components/FormError";
 import FormField from "@/app/components/FormField";
+import { PhotoAnalysisInfo } from "@/app/components/PhotoAnalysisContext";
 import RequiredHint from "@/app/components/RequiredHint";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import Input from "@/app/components/Input";
@@ -185,7 +186,7 @@ export default function WeightFormCore({
           hint={liveBmi !== null ? t("bmiHint", { bmi: round1(liveBmi) }) : undefined}
         />
 
-        <FormField label={tc("photo")} required={proofRequired}>
+        <FormField label={tc("photo")} required={proofRequired} labelAddon={<PhotoAnalysisInfo />}>
           {imagePreview ? (
             <div className="flex items-start gap-4">
               <RotatableImagePreview src={imagePreview} rotation={rotation} onRotateLeft={rotateLeft} onRotateRight={rotateRight} />

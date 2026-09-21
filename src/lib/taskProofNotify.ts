@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { evaluateTaskById } from "@/lib/taskIntervals";
 import { structuredLog } from "@/lib/serverLog";
 import { notifyControllers } from "@/lib/notify";
 import { getControllerAudience, type Controller } from "@/lib/keyholder";
-import { proofSubmittedLate, type TaskLike, type ProofLike } from "@/lib/tasks";
+import { proofSubmittedLate, type TaskLike, type ProofLike, type ProofDeadlineWindow,} from "@/lib/tasks";
 
 /**
  * Die Meldung „ein verspäteter Nachweis wartet auf dein Urteil" — und die beiden Stellen, an denen
@@ -25,7 +26,7 @@ import { proofSubmittedLate, type TaskLike, type ProofLike } from "@/lib/tasks";
 /** Die Aufgabe, an der eine Nachweis-Frist hängt — Nullpunkt und obere Schranke über `Pick`, nicht
  *  abgeschrieben: `wirksamAb` trägt dort die Bedeutung „wie bisher", und eine Kopie nähme sie nicht
  *  mit. `title` ist der Meldungstext, `id` der Bezug der Posteingangs-Zeile. */
-interface LateProofTask extends Pick<TaskLike, "createdAt" | "wirksamAb" | "holdUntil"> {
+interface LateProofTask extends Pick<TaskLike, "createdAt" | "wirksamAb" | "holdUntil" | "holdDurationMin"> {
   id: string;
   title: string;
 }
@@ -92,6 +93,10 @@ async function lateProofAudience(userId: string): Promise<LateProofAudience> {
 export async function notifyLateProof(
   proof: LateProofRow & { task: LateProofTask },
   userId: string,
+  /** Ende, Beginn und Anker-Frage aus der AUSWERTUNG des Aufrufers — die eigene Nachweis-Frist
+   *  hängt am Beginn der Aufgabe, und den kennt nur sie. Vor dem `audience`, weil jeder Aufrufer
+   *  sie mitbringt: ein geratener Nullpunkt meldete pünktliche Nachweise als verspätet. */
+  window: ProofDeadlineWindow,
   /** Einmal geladen vom Sweep; fehlt er, holt diese Funktion ihn selbst. */
   audience?: LateProofAudience,
 ): Promise<void> {
@@ -100,7 +105,7 @@ export async function notifyLateProof(
     // Gegen die SPALTE `holdUntil` gemessen, wie `evaluateProofs` es tut: die Meldung soll genau die
     // Nachweise treffen, die dort nicht zählen. Ein Nachweis ohne eigene Fälligkeit kann auf dem
     // EINREICHE-Weg nie verspätet sein — nach dem Ende der Aufgabe wird gar nichts mehr angenommen.
-    if (!proofSubmittedLate(proof, proof.task, proof.task.holdUntil)) return;
+    if (!proofSubmittedLate(proof, proof.task, window)) return;
 
     const { controllers, username } = audience ?? await lateProofAudience(userId);
 
@@ -144,16 +149,25 @@ export async function notifyLateProofsForTask(task: LateProofTask, userId: strin
       where: { taskId: task.id, submittedAt: { not: null }, lateNotifiedAt: null },
       select: { id: true, dueOffsetMin: true, submittedAt: true, lateNotifiedAt: true },
     });
+    if (proofs.length === 0) return;
+    // AUSGEWERTET, nicht geraten: seit die eigene Nachweis-Frist am BEGINN der Aufgabe hängt
+    // (`proofDeadline`), sagt nur die Auswertung, wogegen hier zu messen ist. Mit einem angenommenen
+    // Nullpunkt („ab Zustellung") meldete dieser Weg einen pünktlichen Nachweis als verspätet UND
+    // verbrauchte dabei `lateNotifiedAt` — die echte Meldung käme dann nie.
+    const evaluated = await evaluateTaskById(userId, task.id, new Date());
+    // Ohne Auswertung (Zeile weg) wird nichts gemeldet: eine Verspätung, die niemand belegen kann,
+    // ist die schlechtere Auskunft als keine.
+    if (!evaluated) return;
     // Erst aussieben, dann laden: der häufige Ausgang ist „keiner betroffen" (die Frist rückte vor,
     // aber über alle Nachweise hinweg), und dafür soll niemand Empfänger und Schalter holen.
-    const late = proofs.filter((p) => proofSubmittedLate(p, task, task.holdUntil));
+    const late = proofs.filter((p) => proofSubmittedLate(p, task, evaluated.evaluation));
     if (late.length === 0) return;
 
     // Der Kontext EINMAL — er hängt am Träger, nicht am Nachweis (siehe {@link LateProofAudience}).
     const audience = await lateProofAudience(userId);
     // Nacheinander: hinter jedem Durchlauf steht ein SMTP-Versand je Empfänger, und die Aufgabe hat
     // höchstens eine Handvoll Nachweise. Ein `Promise.all` gewänne nichts und schickte einen Schwall.
-    for (const p of late) await notifyLateProof({ ...p, task }, userId, audience);
+    for (const p of late) await notifyLateProof({ ...p, task }, userId, evaluated.evaluation, audience);
   } catch (err) {
     // Fängt das Laden — der Versand darunter trägt seine Nie-werfen-Zusage selbst.
     structuredLog("taskProof", "late_notify_sweep_failed", { taskId: task.id, error: (err as Error).message });

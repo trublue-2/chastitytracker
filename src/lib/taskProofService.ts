@@ -7,7 +7,7 @@ import { notifyUser } from "@/lib/notify";
 import { getControllerAudience } from "@/lib/keyholder";
 import { notifyLateProof } from "@/lib/taskProofNotify";
 import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
-import { isTaskResultFinal, proofResubmittable, type TaskEvaluation } from "@/lib/tasks";
+import { isTaskResultFinal, proofResubmittable, type TaskEvaluation, proofAcceptsNow, type ProofDeadlineWindow,} from "@/lib/tasks";
 import { settleIfFinal, settleIfNowDone } from "@/lib/taskService";
 import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
 import type { MessageActor } from "@/lib/messageService";
@@ -124,7 +124,7 @@ export async function submitTaskProof(
       // Was der Nachweis überhaupt fordert — entscheidet, welche Einreichung Pflicht ist.
       requiresPhoto: true, requiresText: true,
       // `holdDurationMin` gehört zur Schranke: es entscheidet, ob `holdUntil` das Ende IST oder nur
-      // dessen obere Grenze (siehe {@link taskAcceptsProof}).
+      // dessen obere Grenze (siehe {@link taskProofWindow}).
       task: {
         select: {
           id: true, title: true, withdrawnAt: true, holdUntil: true, holdDurationMin: true,
@@ -139,7 +139,7 @@ export async function submitTaskProof(
   // Auswertung, und ein Nachweis, der die Frist gerade noch bestanden hat, soll nicht mit einem
   // Zeitstempel dahinter gespeichert werden.
   const now = new Date();
-  const { blocked } = await proofSubmitContext(proof, userId, now);
+  const { blocked, end } = await proofSubmitContext(proof, userId, now);
   if (blocked) return serviceFail(400, blocked);
 
   // Was der Nachweis fordert, muss auch da sein — die eine Prüfung der EINREICHUNGS-Form (der
@@ -196,7 +196,7 @@ export async function submitTaskProof(
   // (`api/entries/route.ts`): dahinter steht ein SMTP-Versand je Empfänger, und das Gegenüber ist
   // ein Handy, das gerade ein Foto hochlädt. Die Antwort hängt nicht davon ab — die Funktion wirft
   // nie und stempelt sich selbst.
-  void notifyLateProof({ ...proof, submittedAt: now }, userId);
+  void notifyLateProof({ ...proof, submittedAt: now }, userId, end);
 
   return { ok: true, data: { taskId: proof.task.id } };
 }
@@ -233,13 +233,21 @@ async function taskProofWindow(
   userId: string,
   task: { id: string; holdUntil: Date; holdDurationMin: number | null },
   now: Date,
-): Promise<{ accepts: boolean; end: Pick<TaskEvaluation, "holdUntil" | "startedAt"> }> {
-  // Ohne Auswertung (klassischer Modus, oder die Zeile fiel eben weg) gilt die Spalte; ob das Ende
-  // dabei noch vorläufig ist, beantwortet `endIsProvisional` aus Modus und Beginn.
-  const column = { accepts: now <= task.holdUntil, end: { holdUntil: task.holdUntil, startedAt: null } };
-  if (!task.holdDurationMin) return column;
+  /** Hat DIESER Nachweis eine eigene Fälligkeit? Nur dann zählt der Beginn. */
+  ownDeadline: boolean,
+): Promise<{ accepts: boolean; end: ProofDeadlineWindow }> {
+  // Ausgewertet wird, wo die Antwort daran hängt: im Dauer-Modus für das wirksame ENDE, und — seit
+  // die eigene Nachweis-Frist am Beginn hängt (`proofDeadline`) — auch im klassischen Modus, sobald
+  // dieser Nachweis eine eigene Frist trägt. Sonst genügt die Spalte: ohne eigene Frist IST sie die
+  // Frist, und ein Foto-Upload soll nicht die ganze Intervall-Rechnung des Trägers bezahlen.
+  if (!task.holdDurationMin && !ownDeadline) {
+    return { accepts: now <= task.holdUntil, end: { holdUntil: task.holdUntil, startedAt: null, anchorsAtStart: false } };
+  }
   const evaluated = await evaluateTaskById(userId, task.id, now);
-  return evaluated ? { accepts: evaluated.evaluation.proofSubmitOpen, end: evaluated.evaluation } : column;
+  if (evaluated) return { accepts: evaluated.evaluation.proofSubmitOpen, end: evaluated.evaluation };
+  // Die Zeile fiel eben weg: die Spalte ist dann das Ende, und ohne Auswertung gibt es keinen
+  // Beginn — die Frist fällt auf den Nullpunkt der Aufgabe zurück (Verhalten bis 6.2.4).
+  return { accepts: now <= task.holdUntil, end: { holdUntil: task.holdUntil, startedAt: null, anchorsAtStart: false } };
 }
 
 /**
@@ -258,12 +266,14 @@ export async function proofSubmitContext(
     submittedAt: Date | null;
     requiresPhoto: boolean;
     reviewAccepted: boolean | null;
+    /** Eine eigene Fälligkeit hängt am BEGINN der Aufgabe — nur dafür wird ausgewertet. */
+    dueOffsetMin: number | null;
     task: { id: string; withdrawnAt: Date | null; holdUntil: Date; holdDurationMin: number | null };
   },
   userId: string,
   now: Date,
-): Promise<{ blocked: ReturnType<typeof proofSubmitBlockedReason>; end: Pick<TaskEvaluation, "holdUntil" | "startedAt"> }> {
-  const window = await taskProofWindow(userId, proof.task, now);
+): Promise<{ blocked: ReturnType<typeof proofSubmitBlockedReason>; end: ProofDeadlineWindow }> {
+  const window = await taskProofWindow(userId, proof.task, now, proof.dueOffsetMin != null);
   return { blocked: proofSubmitBlockedReason(proof, window.accepts), end: window.end };
 }
 
@@ -272,7 +282,7 @@ export async function proofSubmitContext(
  *  Frist. */
 export function proofSubmitBlockedReason(
   proof: { submittedAt: Date | null; requiresPhoto: boolean; reviewAccepted: boolean | null; task: { withdrawnAt: Date | null } },
-  /** Nimmt die Aufgabe überhaupt noch etwas an? ({@link taskAcceptsProof}) */
+  /** Nimmt die Aufgabe überhaupt noch etwas an? ({@link taskProofWindow}) */
   taskAccepts: boolean,
 ): "TASK_NOT_EDITABLE" | "TASK_PROOF_ALREADY_SUBMITTED" | "TASK_PROOF_TOO_LATE" | null {
   if (proof.task.withdrawnAt) return "TASK_NOT_EDITABLE";
@@ -284,7 +294,8 @@ export function proofSubmitBlockedReason(
   // DIE EIGENE FRIST DES NACHWEISES STEHT HIER NICHT (Produkt-Entscheidung 16.08.2026): der Träger
   // darf nach ihr noch einreichen, die Keyholderin entscheidet (die Karte sagt „verspätet"). Die
   // harte Grenze ist das WIRKSAME ENDE der Aufgabe — danach nimmt sie nichts mehr an.
-  if (!taskAccepts) return "TASK_PROOF_TOO_LATE";
+  // Ein reiner Text-Nachweis bleibt offen, auch wenn die Aufgabe vorbei ist ({@link proofAcceptsNow}).
+  if (!proofAcceptsNow(proof, { proofSubmitOpen: taskAccepts })) return "TASK_PROOF_TOO_LATE";
   return null;
 }
 

@@ -41,6 +41,9 @@ vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
 import {
   createVerschlussAnforderung, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById,
   updateLockPeriodEnd, updateLockRequest,
+  lockAnchor,
+  LOCK_ANCHOR_GRACE_MS,
+  lockPeriodEndFromRequest,
 } from "./verschlussAnforderungService";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
@@ -622,5 +625,31 @@ describe("updateLockRequest", () => {
     await updateLockRequest("a1", { message: "neu" }, "herrin");
 
     expect(heimdallMock).toHaveBeenCalledWith("u1");
+  });
+});
+
+describe("Sperr-Ende: Anker und volle Minute", () => {
+  const submitted = new Date("2026-09-19T18:46:18.400Z");
+  const zwoelfH = { lockEndsAt: null, minDurationHours: 12 };
+
+  it("der Vorfall 20.09.2026: 78 Sekunden Tippdauer verschieben das Ende nicht mehr", () => {
+    const anker = lockAnchor(new Date("2026-09-19T18:45:00Z"), submitted);
+    expect(lockPeriodEndFromRequest(zwoelfH, anker)?.toISOString()).toBe("2026-09-20T06:45:00.000Z");
+  });
+
+  it("eine Frist mit Sekunden wird auf die angezeigte Minute abgeschnitten", () => {
+    expect(lockPeriodEndFromRequest(zwoelfH, submitted)?.toISOString()).toBe("2026-09-20T06:46:00.000Z");
+    const absolut = { lockEndsAt: new Date("2026-09-20T06:46:59Z"), minDurationHours: null };
+    expect(lockPeriodEndFromRequest(absolut, submitted)?.toISOString()).toBe("2026-09-20T06:46:00.000Z");
+  });
+
+  it("weiter als die Schranke zurückdatiert verkürzt die Sperre nicht", () => {
+    const lange = new Date(submitted.getTime() - 5 * 60 * 60_000);
+    expect(lockAnchor(lange, submitted).getTime()).toBe(submitted.getTime() - LOCK_ANCHOR_GRACE_MS);
+  });
+
+  it("eine spätere Eintrags-Zeit verschiebt das Ende nach hinten", () => {
+    const spaeter = new Date(submitted.getTime() + 10 * 60_000);
+    expect(lockAnchor(spaeter, submitted).getTime()).toBe(spaeter.getTime());
   });
 });

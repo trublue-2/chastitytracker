@@ -1,5 +1,6 @@
 "use client";
 
+import ImageViewer from "@/app/components/ImageViewer";
 import { useState } from "react";
 import BlockHeading from "@/app/components/BlockHeading";
 import Link from "next/link";
@@ -314,10 +315,19 @@ function DeviceCard({
     <Card padding="none" variant={isArchived ? "outlined" : "default"}>
       <div className={`flex gap-4 p-4 ${isArchived ? "opacity-60" : ""}`}>
         {/* Thumbnail */}
+        {/* Antippen zeigt das Bild gross — dasselbe Bauteil wie an Kontroll- und Trage-Fotos. Ein
+            Gerätebild ist oft der einzige Weg, Modell und Zustand wiederzuerkennen, und im
+            Briefmarken-Format geht genau das verloren. */}
         <div className="w-16 h-16 rounded-xl bg-surface-raised flex items-center justify-center flex-shrink-0 overflow-hidden">
           {device.imageUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={device.imageUrl} alt={device.name} className="w-full h-full object-cover" />
+            <ImageViewer
+              src={device.imageUrl}
+              alt={device.name}
+              width={64}
+              height={64}
+              className="object-cover"
+              modalTitle={device.name}
+            />
           ) : (
             <LockClosedIcon size={24} className="text-foreground-faint" />
           )}

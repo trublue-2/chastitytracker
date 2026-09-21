@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   evaluateProofs, evaluateTask, firstOutOfOrderProof, isTaskOffense, isTaskOpen, isTaskResultFinal,
-  needsKeyholderReview, proofAwaitingVerdict, proofDeadline, type ProofLike, type TaskLike,
-} from "./tasks";
+  needsKeyholderReview, proofAwaitingVerdict, proofDeadline, type ProofLike, type TaskLike, proofDueOffsetPending,} from "./tasks";
 
 /**
  * Die Nachweis-Achse (Issue #39): geforderte Fotos mit vorgegebener Reihenfolge.
@@ -21,10 +20,11 @@ const CREATED_AT = d("2026-07-25T12:00:00Z");
  *  also mit beiden Vorgaben „die Reihenfolge zählt" und „sofort wirksam". Genau die Form jeder
  *  Bestandszeile vor B8/B1. `withdrawnAt` steht ausdrücklich auf `null` — diese Fixture ist die
  *  LAUFENDE Aufgabe; die Rückzug-Fälle setzen das Feld je Test. */
-const task: Pick<TaskLike, "holdUntil" | "proofOrderMatters" | "createdAt" | "wirksamAb" | "withdrawnAt"> = {
+const task: Pick<TaskLike, "holdUntil" | "proofOrderMatters" | "createdAt" | "wirksamAb" | "withdrawnAt" | "holdDurationMin"> = {
   holdUntil: HOLD_UNTIL,
   createdAt: CREATED_AT,
   withdrawnAt: null,
+  holdDurationMin: null,
 };
 
 /** Wann die Keyholderin geurteilt hat, wo ein Fall es nicht selbst sagt — zwei Stunden vor dem Ende
@@ -460,7 +460,7 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
   it("die Frist der Aufgabe gewinnt — eine Nachweis-Fälligkeit dahinter wird auf sie gedeckelt", () => {
     // Nullpunkt 12:00, Ende 18:00, Nachweis-Fälligkeit „nach 10 Stunden" = 22:00.
     const p = proof({ dueOffsetMin: 600, submittedAt: null, imageExifTime: null });
-    expect(proofDeadline(p, task, HOLD_UNTIL)).toEqual(HOLD_UNTIL);
+    expect(proofDeadline(p, task, { holdUntil: HOLD_UNTIL, startedAt: null, anchorsAtStart: false })).toEqual(HOLD_UNTIL);
     // Also urteilt sie genau wie eine Aufgabe ohne eigene Fälligkeit: bis 18:00 offen, danach nicht.
     expect(evaluateProofs([p], task, d("2026-07-25T17:59:00Z"))).toBe("pending");
     expect(evaluateProofs([p], task, d("2026-07-25T18:01:00Z"))).toBe("failed");
@@ -470,8 +470,9 @@ describe("Nachweis mit eigener Fälligkeit (Fall 5: dreimal am Tag ein Foto)", (
    *  muss ihm folgen, sonst verspräche sie Zeit, die die Auswertung nicht mehr zählt. */
   it("im Dauer-Modus deckelt das WIRKSAME Ende", () => {
     const wirksam = d("2026-07-25T14:00:00Z");
-    expect(proofDeadline(proof({ dueOffsetMin: 600 }), task, wirksam)).toEqual(wirksam);
-    expect(proofDeadline(proof({ dueOffsetMin: 60 }), task, wirksam)).toEqual(d("2026-07-25T13:00:00Z"));
+    const window = { holdUntil: wirksam, startedAt: null, anchorsAtStart: false };
+    expect(proofDeadline(proof({ dueOffsetMin: 600 }), task, window)).toEqual(wirksam);
+    expect(proofDeadline(proof({ dueOffsetMin: 60 }), task, window)).toEqual(d("2026-07-25T13:00:00Z"));
   });
 
   it("die Reihenfolge bleibt unberührt — eine eigene Frist ersetzt sie nicht", () => {
@@ -1129,5 +1130,43 @@ describe("proofAwaitingVerdict — steuert den dichten Heartbeat-Takt", () => {
     expect(proofAwaitingVerdict({ ...base, reviewAccepted: true })).toBe(false); // angenommen
     expect(proofAwaitingVerdict({ ...base, reviewAccepted: false })).toBe(false); // abgelehnt → Träger bessert nach
     expect(proofAwaitingVerdict({ ...base, requireCode: true, verifikationStatus: "ai" })).toBe(false); // Code bestätigt, kein Text
+  });
+});
+
+/**
+ * DER NULLPUNKT EINER EIGENEN NACHWEIS-FRIST — gemeldet am 19.09.2026.
+ *
+ * Im Dauer-Modus darf der Träger innerhalb der Kulanz beginnen, wann er will; die Haltezeit zählt
+ * ab dem tatsächlichen Beginn. Eine Nachweis-Frist, die ab der ZUSTELLUNG zählte, lief deshalb
+ * womöglich ab, bevor die Aufgabe überhaupt beginnen musste — der gemeldete Fall: 5 h Kulanz,
+ * „Foto nach 60 Minuten", fällig über vier Stunden vor dem spätestmöglichen Beginn.
+ */
+describe("eigene Nachweis-Frist im Dauer-Modus", () => {
+  const dauer = { ...task, holdDurationMin: 120, holdUntil: d("2026-07-25T21:00:00Z") };
+  const nachEinerStunde = proof({ dueOffsetMin: 60, submittedAt: null, imageExifTime: null });
+
+  it("zählt ab dem Beginn der Haltezeit, nicht ab der Zustellung", () => {
+    const startedAt = d("2026-07-25T19:00:00Z");
+    expect(proofDeadline(nachEinerStunde, dauer, { holdUntil: d("2026-07-25T21:00:00Z"), startedAt, anchorsAtStart: true }))
+      .toEqual(d("2026-07-25T20:00:00Z"));
+  });
+
+  it("ohne Beginn steht sie noch nicht fest — dann gilt das Ende der Aufgabe", () => {
+    const window = { holdUntil: dauer.holdUntil, startedAt: null, anchorsAtStart: true };
+    expect(proofDueOffsetPending(nachEinerStunde, dauer, window)).toBe(true);
+    expect(proofDeadline(nachEinerStunde, dauer, window)).toEqual(dauer.holdUntil);
+  });
+
+  it("im klassischen Modus bleibt der Nullpunkt der Aufgaben-Nullpunkt", () => {
+    expect(proofDueOffsetPending(nachEinerStunde, task, { holdUntil: HOLD_UNTIL, startedAt: null, anchorsAtStart: false })).toBe(false);
+    expect(proofDeadline(nachEinerStunde, task, { holdUntil: HOLD_UNTIL, startedAt: null, anchorsAtStart: false }))
+      .toEqual(new Date(CREATED_AT.getTime() + 60 * 60_000));
+  });
+
+  it("ohne Beginn ist kein Nachweis überfällig — die Aufgabe bleibt offen", () => {
+    // Weit nach der ab-Zustellung gerechneten Frist (13:00), aber vor dem Ende der Aufgabe.
+    expect(evaluateProofs([nachEinerStunde], dauer, d("2026-07-25T18:00:00Z"), null, true)).toBe("pending");
+    // Mit Beginn um 15:00 ist dieselbe Frist um 16:00 verstrichen.
+    expect(evaluateProofs([nachEinerStunde], dauer, d("2026-07-25T18:00:00Z"), d("2026-07-25T15:00:00Z"), true)).toBe("failed");
   });
 });

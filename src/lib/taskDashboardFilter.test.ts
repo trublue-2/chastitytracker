@@ -22,7 +22,7 @@ function evaluated(state: TaskState): EvaluatedTask {
     failedRequirement: null,
     failedAt: null,
     awaitingConfirmation: false,
-    holdRunning: false,
+    holdRunning: false, anchorsAtStart: true,
     proofCheckPending: false,
     proofSubmitOpen: true,
     overdueProofIds: [],

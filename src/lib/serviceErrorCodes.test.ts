@@ -29,7 +29,13 @@ describe("error codes have translations", () => {
 //    `passwordTooLong` tragen zudem ICU-Parameter ({min}/{max}), die `serviceFail` nicht füllen kann.
 //  - `timeRangeInvalid` wird rein clientseitig geworfen (CleaningToggle prüft Start < Ende, bevor
 //    überhaupt ein Request rausgeht) — es gibt keine Route, die diesen Code je zurückgibt.
-const UNREGISTERED_KEYS = new Set([
+/** Die Antwort jedes Wächters (`authGuards.ts`) und des Proxys. Sie stammen aus keiner Registry,
+ *  brauchen aber einen Text: ohne ihn liest der Nutzer bei JEDEM 401/403 der App nur „Fehler" und
+ *  erfährt nicht, dass seine Anmeldung abgelaufen ist (Vorfall 20.09.2026, Foto-Prüfung).
+ *  `FORBIDDEN` daneben ist die Schreibweise der Entry-/Geräte-Routen und bleibt bestehen. */
+const GUARD_CODES = ["Forbidden", "Unauthorized"] as const;
+
+const UNREGISTERED_KEYS = new Set<string>([
   "passwordTooShort", "passwordTooLong", "missingFields", "tokenInvalid",
   "usernameRequired", "usernameLength", "emailInvalid", "usernameTaken", "emailTaken",
   "invalidRole", "cannotDeleteSelf", "lastAdmin", "invalidTimezone", "invalidStartPage", "invalidHideOwnTracker",
@@ -39,7 +45,24 @@ const UNREGISTERED_KEYS = new Set([
   // (`userSelfFieldRoute` gibt den Code direkt zurück, kein ServiceResult) — deshalb hier und
   // nicht in SERVICE_ERROR_CODES, und deshalb camelCase wie ihre Geschwister.
   "layoutInvalid", "layoutUnknownSurface", "layoutUnknownBlock", "layoutForeignBlock",
+  // Die Foto-Prüfung (`/api/admin/photo-analysis`) gibt ihre Codes ebenfalls direkt zurück —
+  // Einstellung der Instanz statt ServiceResult. `rateLimited` kommt vom Test-Knopf, der beim
+  // Anbieter echtes Geld kostet und deshalb gedrosselt ist.
+  "photoAnalysisInvalid", "photoAnalysisBaseUrlInvalid", "photoAnalysisBaseUrlPrivate", "photoAnalysisModelsRequired", "photoAnalysisFieldTooLong",
+  "rateLimited",
+  ...GUARD_CODES,
+  // Die Sprachwahl geht denselben Weg wie die übrigen Selbst-Einstellungen (Code direkt zurück).
+  "invalidLocale",
 ]);
+
+// Die Gegenprobe zur Ausnahmeliste: diese beiden MÜSSEN existieren. Sie sind die Antwort jedes
+// Wächters und des Proxys, also der häufigste Fehler-Code der ganzen App.
+describe("die Wächter-Codes haben einen Text", () => {
+  it.each(LOCALES)("%s.json kennt jeden Wächter-Code", (_locale, messages) => {
+    const errors: Record<string, string> = messages.errors;
+    expect(GUARD_CODES.filter((code) => !errors[code])).toEqual([]);
+  });
+});
 
 describe("errors namespace has no orphaned keys", () => {
   it("every errors key is either a declared code or a known unregistered key", () => {

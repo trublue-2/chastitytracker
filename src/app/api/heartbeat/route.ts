@@ -65,14 +65,16 @@ export async function GET() {
     }),
     // Box-Foto ohne Schlüssel-Urteil. Ohne Vision-Provider fällt NIE eines — dann gar nicht erst
     // fragen, sonst stünden alle Box-Einträge dieses Nutzers dauerhaft als „wartend" da.
-    visionConfigured()
-      ? prisma.entry.findMany({
-          where: { userId, boxImageUrl: { not: null }, keyDetected: null },
-          select: { id: true, createdAt: true },
-          orderBy: { startTime: "desc" },
-          take: 10,
-        })
-      : Promise.resolve([]),
+    visionConfigured().then((configured) =>
+      configured
+        ? prisma.entry.findMany({
+            where: { userId, boxImageUrl: { not: null }, keyDetected: null },
+            select: { id: true, createdAt: true },
+            orderBy: { startTime: "desc" },
+            take: 10,
+          })
+        : [],
+    ),
     getDashboardTasks(userId, now, "sub"),
   ]);
 

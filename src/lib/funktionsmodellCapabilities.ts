@@ -66,6 +66,7 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
   "user-manage": "Absicht: Passwörter, E-Mail, Benutzername, Löschen — Zugang und Identität. Eine KI mit Passwort-Hoheit könnte den Träger aussperren.",
   "keyholder-assign": "Absicht: die KI entschiede über ihre eigene Berufung mit.",
   "demo-data": "Absicht: Werkzeug des Betreibers, nicht der Keyholderin (zusätzlich ENV-gegated).",
+  "photo-analysis": "Absicht: Anbieter und API-Schlüssel der Foto-Prüfung entscheiden über Datenweg und Kosten der ganzen Instanz — eine Entscheidung des Betreibers, nicht der Keyholderin. Den Stand LIEST die KI in `get_context` (`photoAnalysis`).",
   // ── Absicht: technisch nicht KI-fähig ──────────────────────────────────────────────────────
   "upload": "Absicht: eine KI liefert keine Fotos. Die Leserichtung deckt `get_image` ab.",
   "stats-pages": "Absicht: Seiten, keine Handlung. Dieselben Zahlen liefern `period_summary`, `records` und `device_stats`.",
@@ -649,7 +650,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
     id: "account-display", mechanic: "Zugang", title: "Darstellung einstellen",
     what: "Sprache, Startseite, das Ausblenden des eigenen Trackers, die Zusammenstellung des eigenen Dashboards und das Wegklicken des Umstellungs-Hinweises.",
     actors: ["sub"], surfaces: ["sub-ui"],
-    routes: ["/api/settings/locale", "/api/settings/start-page", "/api/settings/hide-own-tracker", "/api/settings/dashboard-layout", "/api/settings/notice-seen"],
+    routes: ["/api/settings/locale", "/api/settings/start-page", "/api/settings/hide-own-tracker", "/api/settings/dashboard-layout", "/api/settings/notice-seen", "/api/settings/photo-analysis-notice-seen"],
   }),
   c({
     id: "account-timezone", mechanic: "Zugang", title: "Zeitzone setzen",
@@ -771,5 +772,11 @@ export const FM_CAPABILITIES: FmCapability[] = [
     what: "Erzeugt einen Beispiel-Träger mit Beispiel-Einträgen.",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/demo"],
     note: "Nur erreichbar, wenn ausdrücklich per Umgebungsvariable freigeschaltet — sonst 404.",
+  }),
+  c({
+    id: "photo-analysis", mechanic: "Zugang", title: "Foto-Prüfung einrichten",
+    what: "Wählt, ob und bei welchem Anbieter eingereichte Fotos automatisch geprüft werden (Anthropic, OpenAI, Gemini, Mistral, beliebiger kompatibler Dienst, eigener Server), samt eigenem API-Schlüssel und Modellen; testet die Einstellung an einem Beispielfoto.",
+    actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/photo-analysis", "/api/admin/photo-analysis/test"],
+    note: "Überschreibt die `.env`. Der Schlüssel liegt verschlüsselt in `AppMeta` und wird nie ausgeliefert. Bei externem Anbieter bekommen alle Nutzer einen Hinweis.",
   }),
 ];

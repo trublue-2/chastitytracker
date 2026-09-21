@@ -406,6 +406,11 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["sub"], affects: ["Oberfläche"], anchor: "notice.ts:NOTICE_VERSION",
   }),
   s({
+    model: "User", field: "photoAnalysisNoticeSeen", domain: "konto", scope: "standing",
+    effect: "Welchen Stand der Foto-Prüfung dieser Nutzer zuletzt quittiert hat (`none` oder `external:<anbieter>`). Weicht der Stand der Instanz davon ab, erscheint der Hinweis erneut — bei Anbieterwechsel und am Ende der Übergangsfrist. Den Hinweis gibt es nur im Keyholder-Bereich; Subs erfahren den Datenweg allein über das ⓘ am Foto-Feld. Reine Anzeige-Quittung.",
+    writers: ["sub"], affects: ["Oberfläche"], anchor: "vision/config.ts:disclosureOf",
+  }),
+  s({
     model: "User", field: "dashboardLayout", domain: "konto", scope: "standing",
     effect: "Abweichungen vom Standard-Dashboard (ausgeblendete Blöcke, eigene Reihenfolge) als JSON je Oberfläche. Leer = Standard.",
     writers: ["sub"], affects: ["Oberfläche"], anchor: "dashboardLayout.ts:resolveLayout",

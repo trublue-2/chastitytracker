@@ -2909,7 +2909,9 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
     // `join` allein taugte hier nicht: `null` wird darin zum LEERZEICHEN, und aus „240, none" würde
     // „240, " — der Agent läse eine abgeschnittene Liste statt einer Frist, die es nicht gibt.
     + (proofDueMinutes.some((m) => m !== null)
-      ? ` Own deadlines per proof (minutes from the trigger time):`
+      // Seit dem 20.09.2026 zählt eine eigene Frist ab dem BEGINN der Haltezeit, nicht ab der
+      // Zustellung (`proofDeadline`) — im Dauer-Modus verschiebt ein später Beginn sie also mit.
+      ? ` Own deadlines per proof (minutes from the START of the hold period):`
         + ` ${proofDueMinutes.map((m) => m ?? "none (until the task ends)").join(", ")}.`
         + ` Letting one pass unsubmitted makes the task unfulfilled right then, before the task's own end.`
         // Die Frist ist weich, das Ende hart — das gehört an genau die Stelle, an der sie die Frist
@@ -2920,7 +2922,8 @@ export async function mcpCreateTask(username: string, args: CreateTaskArgs) {
         // hängt an ihren übrigen Achsen (Bedingung gehalten, Reihenfolge belegt). Eine Zusage, die
         // nur die Nachweis-Achse einlösen kann, wäre an einer abgebrochenen Aufgabe falsch.
         + ` He may still upload after that deadline until the task ends; the photo then waits for your`
-        + ` review, and accepting it makes that proof count again.`
+        + ` review, and accepting it makes that proof count again. A TEXT-only proof stays open even`
+        + ` after the task has ended — a photo does not.`
       : "");
   // Der Strafteil zuerst: er ist das, was der Agent seinem Nutzer schuldet — die Aufgabe ist hier
   // nicht bloss gestellt, sondern ein Urteil über ein Vergehen.

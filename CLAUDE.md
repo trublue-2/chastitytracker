@@ -218,7 +218,7 @@ Nach dem Dispatch mit `gh run watch <run-id> --exit-status` oder `gh run view <r
 - `src/lib/push.ts` – Web Push Notifications via VAPID (`sendPushToUser()`)
 - `src/lib/webauthn.ts` – Passkey/WebAuthn Konfiguration (rpId, rpOrigin)
 - `src/lib/verifyCode.ts` – Vision: handschriftlichen Code im Foto erkennen + Siegel-Erkennung (via `src/lib/vision/`)
-- `src/lib/vision/` – Provider-Abstraktion für Bildverifikation; `VERIFY_PROVIDER=anthropic|local` umschaltbar (lokal = Ollama, OpenAI-kompatibel). Siehe `docs/local-vision.md`. Ohne konfigurierten Provider greift der lokale Tesseract-OCR-/Schärfe-Fallback (`src/lib/ocr.ts`, `src/lib/imageReadability.ts`)
+- `src/lib/vision/` – Provider-Abstraktion für Bildverifikation. **Welcher Anbieter gilt, entscheidet allein `config.ts`** (`currentVisionConfig()`): eine gespeicherte Admin-Einstellung (AppMeta `photoAnalysis`, Schlüssel verschlüsselt über `secretBox.ts`) überschreibt die `.env` (`VERIFY_PROVIDER`, `ANTHROPIC_API_KEY`, `LOCAL_VISION_*`). Zwei Protokolle: Anthropic nativ (`anthropic.ts`), alles andere OpenAI-kompatibel (`openaiCompatible.ts`); die Anbieter-Liste steht in `providers.ts` (importfrei). `selfTest.ts` prüft eine Einstellung am mitgelieferten Testbild — richtiger Code erkannt UND falscher abgelehnt. Siehe `docs/local-vision.md`. Ohne aktiven Anbieter greift der lokale Tesseract-OCR-/Schärfe-Fallback (`src/lib/ocr.ts`, `src/lib/imageReadability.ts`)
 - `src/lib/appMeta.ts` – `deployCutoff()`: Deploy-Stichtag „ab wann gilt das auf DIESER Instanz" (ENV-Override → `AppMeta`-Zeile aus der Migration → sicherer Fallback `now`); genutzt von der Reinigungsfenster-Regel und den Vergehens-Meldungen — ein DRITTER Stichtag nimmt ihn, statt die Schritte erneut abzuschreiben. Dazu `touchAppMeta()`/`markLastAction()`: Fire-and-forget-Zeitstempel in `AppMeta`, gelesen vom Portal-`sync-activity`-Cron (`lastUsedAt` in `proxy.ts`, `lastActionAt` bei echten Business-Aktionen)
 - `src/lib/serverLog.ts` – Server-seitiges Logging
 
@@ -256,7 +256,20 @@ SMTP_PORT=587
 SMTP_USER=<user>
 SMTP_PASS=<pass>
 SMTP_FROM=<from-address>
-ANTHROPIC_API_KEY=<key>
+ANTHROPIC_API_KEY=<key>           # optional: Foto-Prüfung über Anthropic. Eine in der App gespeicherte Einstellung überschreibt ihn.
+# OVERRIDE des Endes der Übergangsfrist für den GETEILTEN Schlüssel (ISO-8601). NORMALERWEISE NICHT SETZEN:
+# Portal-Instanzen (erkannt an PORTAL_SHARED_SECRET) trugen bis 6.2.4 den Anthropic-Schlüssel des
+# Portal-Betreibers; er gilt noch 30 Tage ab dem ersten Boot mit 6.2.5 — den Beginn schreibt die Migration
+# `20260913130000_photo_analysis_rollout_at` selbst in `AppMeta.photoAnalysisRolloutAt`. Danach benutzt der
+# Tracker `ANTHROPIC_API_KEY` nicht mehr, ohne dass jemand Dateien ändert. Diese Variable nur zum bewussten
+# Verschieben. Ein unlesbares Datum heisst AUS. Self-Hoster (ohne PORTAL_SHARED_SECRET) haben keine Frist.
+# Ein eigener Schlüssel in der App ist nicht betroffen.
+VISION_SHARED_KEY_UNTIL=<iso-date>   # optional
+# Dürfen Adressen aus der App-Einstellung der Foto-Prüfung auf INTERNE Ziele zeigen (Loopback, private Netze,
+# Tailscale, Container-Namen)? Standard NEIN: auf einer Portal-Instanz ist der Admin ein fremder Nutzer, und der
+# Container hängt im selben Docker-Netz wie Portal, Schlüsselbox-Steuerung und die anderen Instanzen
+# (`vision/urlGuard.ts`). Self-Hoster mit Ollama im LAN setzen `true`. Adressen aus der `.env` betrifft das nicht.
+VISION_ALLOW_PRIVATE_URLS=true       # optional
 VAPID_PUBLIC_KEY=<key>
 VAPID_PRIVATE_KEY=<key>
 VAPID_SUBJECT=mailto:<email>
@@ -431,6 +444,7 @@ keine Closure. `src/lib/nestedComponents.test.ts` liest den Baum und erzwingt da
 - `src/lib/taskProofService.ts` — derselbe Schnitt für den Nachweis: `proofSubmitBlockedReason()` (Einreichen — geteilt von Formular-Seite und Service) und `proofReviewBlockedReason()` (Sichten — geteilt vom Service und der dryRun-Vorschau `mcpReviewTaskProof`). Beide rein und schreibfrei; **eine neue Schranke gehört in sie**, nicht in die zweite Bedingungskette daneben
 - `src/lib/entryErrors.ts` — Stabile Fehler-Codes der Entry-Routen (`ENTRY_GUARD_CODES`, `ENTRY_VALIDATION_CODES`, `ENTRY_ROUTE_CODES`) + `entryGuardError()`/`entryGuardCode()` (auf `codedError.ts` aufgesetzt, mit getypter Code-Whitelist). Jeder Code braucht einen Key im `errors`-Namespace beider `messages/*.json` — `entryErrors.test.ts` erzwingt das
 - `src/lib/entryFormRoute.ts` — die Routen der Erfassungs-Formulare: `isEntryFormRoute()` (Bottom-Nav weicht der Formular-Aktionsleiste) und `inspectionHref(code, { kommentar })` — der EINE Bauplatz des Prüfungs-Links (Dashboard, Session-Listen, Sheet, Mail, Push). Die Query kommt immer aus `URLSearchParams`, leere Werte fallen weg — **nie** wieder `?code=${…}` von Hand. Rückgabe ist RELATIV: die Mail stellt `appBaseUrl()` davor, der Push nicht (`NativePushRouter` nimmt nur `/…`). Das Modul ist bewusst **importfrei** (per Test abgesichert), weil Client-Komponenten und server-only Code es teilen
+- `src/app/components/PhotoAnalysisScope.tsx` — die Foto-Prüfung eines Bereichs: löst die Einstellung EINMAL auf und gibt den Formularen über `PhotoAnalysisContext` mit, ob ihr Foto extern geprüft wird. Hängt in BEIDEN Bereichs-Layouts; den einmaligen Hinweis (`PhotoAnalysisNotice`, Regel `photoAnalysisNoticeDue` in `vision/config.ts`) zeigt es NUR im Keyholder-Bereich (Prop `notice`) — Subs erfahren es bewusst allein über das ⓘ. **Ein neues Formular, dessen Foto an die Prüfung gehen kann, setzt `labelAddon={<PhotoAnalysisInfo />}` an seinem `FormField`** — sonst fehlt dort das ⓘ, und das fällt niemandem auf
 - `src/app/components/ChangeoverNoticeGate.tsx` — entscheidet, ob der einmalige Umstellungs-Hinweis erscheint; hängt in BEIDEN Bereichs-Layouts (nicht auf den Übersichts-Seiten: `landing.ts` kennt fünf Einstiege, zwei davon führen daran vorbei). Liest den Merker aus `userRowCached`, nicht mit eigener Abfrage
 - `src/lib/notice.ts` — `NOTICE_VERSION` + die Regel, wann der Umstellungs-Hinweis fällig ist. **Importfrei** (geprüft), weil die Client-Komponente die Konstante liest. **Der Wert wandert VON HAND**, nicht mit `package.json` — wer den Text unter `notice.*` ändert, muss ihn mitziehen, sonst sieht den neuen Hinweis niemand; `notice.test.ts` hält beides zusammen
 - `src/lib/constants.ts` → `SELF_EDITABLE_USER_FIELDS` — die Whitelist der Felder, die ein Nutzer über `userSelfFieldRoute()` selbst ändern darf. Ein neues Self-Feld braucht einen Eintrag HIER und die Route dort; die Compiler-Sperre in `userSelfField.ts` erzwingt das (`userSelfFieldRoute("role", …)` kompiliert nicht)
