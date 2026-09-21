@@ -209,8 +209,15 @@ function safeAdminUsername(raw) {
 }
 
 async function main() {
-  const username = safeAdminUsername(process.env.ADMIN_USERNAME);
-  const email = process.env.ADMIN_EMAIL || null;
+  // ROH für die Suche nach einem bestehenden Konto (Altbestand kann Leerzeichen am Rand tragen),
+  // GETRIMMT für ein neues — wie jedes andere Anlegen (`POST /api/admin/users`).
+  // Die Reservierung prüft den GETRIMMTEN Namen — „ ai" darf nicht an ihr vorbeirutschen.
+  const rawUsername = process.env.ADMIN_USERNAME || DEFAULT_ADMIN_USERNAME;
+  const username = safeAdminUsername(rawUsername.trim());
+  // Dieselbe Schreibweise wie in der App (`normalizeEmail` in src/lib/loginIdentity.ts — seed.js ist
+  // CJS und kann nicht importieren): getrimmt und klein, sonst passte die Adresse später nicht auf
+  // eine anders geschriebene Eingabe im selben Konto.
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase() || null;
   // Sprache des Admin-Accounts beim ERSTEN Anlegen. Das Portal gibt hier die Sprache mit, in der
   // sich der Nutzer registriert hat; ohne sie startete jede Instanz auf Deutsch, und das Portal
   // las diesen Default später als vermeintliche Nutzerwahl zurück und schrieb seine Anschreiben
@@ -238,8 +245,23 @@ async function main() {
     adminUser = existingAdmin;
     console.log("→ Admin bereits vorhanden — keine Änderung.");
   } else {
+    // Die E-Mail OHNE Rücksicht auf Gross-/Kleinschreibung — ältere Zeilen stehen noch in ihrer
+    // eingegebenen Schreibweise (seit 6.2.5 schreibt jeder Weg sie klein). Ein exakter Vergleich
+    // übersähe `A@x.ch` und legte daneben ein zweites Konto mit `a@x.ch` an: genau die Doppelung,
+    // die die Anmeldung per E-Mail für beide still lahmlegt.
+    const byEmail = email
+      ? (await prisma.user.findMany({ where: { email: { not: null } }, select: { id: true, email: true } }))
+          .filter((u) => u.email.trim().toLowerCase() === email)
+      : [];
     const matchedUser = await prisma.user.findFirst({
-      where: { OR: [{ username }, ...(email ? [{ email }] : [])] },
+      where: {
+        OR: [
+          { username },
+          // Der ungetrimmte Name nur, wenn er nicht gerade als reserviert ersetzt wurde.
+          ...(rawUsername !== username && rawUsername.trim() === username ? [{ username: rawUsername }] : []),
+          ...(byEmail.length === 1 ? [{ id: byEmail[0].id }] : []),
+        ],
+      },
     });
     if (matchedUser) {
       // Kein Admin vorhanden, aber ein User matcht die konfigurierten Zugangsdaten — befördern
@@ -251,8 +273,13 @@ async function main() {
       console.log(`→ Kein Admin vorhanden — Benutzer '${matchedUser.username}' zum Admin befördert.`);
     } else {
       const passwordHash = await bcrypt.hash(password, 12);
+      // Trägt schon ein Konto die Adresse (in welcher Schreibweise auch immer), bekommt der neue
+      // Admin sie NICHT — sonst stünde sie doppelt, und die Anmeldung per E-Mail ginge für alle
+      // Beteiligten nicht mehr (bzw. der Start scheiterte am Unique-Index).
+      const adminEmail = byEmail.length > 0 ? null : email;
+      if (email && !adminEmail) console.warn(`⚠ ADMIN_EMAIL ist bereits vergeben — der neue Admin wird ohne E-Mail angelegt.`);
       adminUser = await prisma.user.create({
-        data: { username, email, passwordHash, role: "admin", locale },
+        data: { username, email: adminEmail, passwordHash, role: "admin", locale },
       });
       console.log("┌─────────────────────────────────────────────────────┐");
       console.log("│  ERSTER START – Zugangsdaten                        │");

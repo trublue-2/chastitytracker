@@ -21,7 +21,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { findUserByLogin, resolveLogin } from "./loginIdentity";
+import { emailTakenByOther, findUserByLogin, normalizeEmail, prepareEmailInput, resolveLogin } from "./loginIdentity";
 import { prisma } from "@/lib/prisma";
 
 const findMany = prisma.user.findMany as unknown as ReturnType<typeof vi.fn>;
@@ -95,3 +95,45 @@ describe("resolveLogin — die Fehlversuche zählen am Konto", () => {
     expect(await resolveLogin(" niemand@example.org ")).toEqual({ user: null, identity: "niemand@example.org", viaEmail: false });
   });
 });
+
+/** Seit 6.2.5 schreiben alle Wege die E-Mail in EINER Schreibweise — und prüfen vorher, ob ein
+ *  anderes Konto sie in irgendeiner Schreibweise trägt. Sonst stünden `A@x.ch` und `a@x.ch`
+ *  nebeneinander, und die Anmeldung per E-Mail ginge für beide still nicht mehr. */
+describe("normalizeEmail / emailTakenByOther", () => {
+  it("normalisiert auf getrimmt und klein", () => {
+    expect(normalizeEmail("  Anna.K@Example.ORG ")).toBe("anna.k@example.org");
+  });
+
+  it("erkennt eine fremde Adresse in anderer Schreibweise als vergeben", async () => {
+    expect(await emailTakenByOther("anna.keyholder@example.org", "u2")).toBe(true);
+    expect(await emailTakenByOther("ANNA.KEYHOLDER@EXAMPLE.ORG", null)).toBe(true);
+  });
+
+  it("die eigene Adresse ist für das eigene Konto nicht vergeben", async () => {
+    expect(await emailTakenByOther("anna.keyholder@example.org", "u1")).toBe(false);
+  });
+
+  it("eine freie Adresse ist frei", async () => {
+    expect(await emailTakenByOther("frei@example.org", null)).toBe(false);
+  });
+});
+
+describe("prepareEmailInput — der eine Ablauf vor dem Speichern", () => {
+  it("normalisiert, und leer heisst entfernen", async () => {
+    expect(await prepareEmailInput("  Neu@Example.ORG ", null)).toEqual({ value: "neu@example.org" });
+    expect(await prepareEmailInput("   ", null)).toEqual({ value: null });
+    expect(await prepareEmailInput(undefined, null)).toEqual({ value: null });
+  });
+
+  it("weist eine ungültige und eine fremd vergebene Adresse ab", async () => {
+    expect(await prepareEmailInput("keine-adresse", null)).toEqual({ error: "emailInvalid", status: 400 });
+    // Ein kaputter Aufruf löscht keine gespeicherte Adresse.
+    expect(await prepareEmailInput(123, "u1")).toEqual({ error: "emailInvalid", status: 400 });
+    expect(await prepareEmailInput("ANNA.keyholder@example.org", "u2")).toEqual({ error: "emailTaken", status: 409 });
+  });
+
+  it("die eigene Adresse in anderer Schreibweise ist erlaubt", async () => {
+    expect(await prepareEmailInput("ANNA.keyholder@example.org", "u1")).toEqual({ value: "anna.keyholder@example.org" });
+  });
+});
+
