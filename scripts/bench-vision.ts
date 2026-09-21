@@ -23,6 +23,8 @@
  */
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
+// Importfrei und ohne Env-Zugriff — darf vor loadEnvFile() geladen werden, anders als verifyCode/config.
+import { VISION_PROVIDERS } from "@/lib/vision/providers";
 
 // --- Minimaler .env.local-Loader (kein dotenv-Dependency) ---
 function loadEnvFile(path: string) {
@@ -76,7 +78,7 @@ async function main() {
 
   const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
   const hasLocal = !!process.env.LOCAL_VISION_BASE_URL;
-  console.log(`Provider verfügbar — anthropic: ${hasAnthropic}, local: ${hasLocal} (${process.env.LOCAL_VISION_MODEL || "qwen2.5-vl:7b"})`);
+  console.log(`Provider verfügbar — anthropic: ${hasAnthropic}, local: ${hasLocal} (${process.env.LOCAL_VISION_MODEL || VISION_PROVIDERS.ownServer.models!.strong})`);
   console.log("");
 
   // --- Code-Verifikation ---

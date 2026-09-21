@@ -189,7 +189,7 @@ ANTHROPIC_API_KEY=<key>
 # See docs/local-vision.md for the full local-AI-box setup.
 # VERIFY_PROVIDER=local
 # LOCAL_VISION_BASE_URL=http://<mac-tailscale-name>:11434/v1   # Ollama (VLM)
-# LOCAL_VISION_MODEL=qwen2.5-vl:7b
+# LOCAL_VISION_MODEL=qwen2.5vl:7b
 # Fast device recognition via CLIP embeddings (optional; needs clip-embed-service/ running):
 # EMBED_BASE_URL=http://<mac-tailscale-name>:11435
 # EMBED_MODEL=clip-ViT-L-14
@@ -385,7 +385,7 @@ ANTHROPIC_API_KEY=<key>
 # docs/local-vision.md. Set per instance:
 # VERIFY_PROVIDER=local
 # LOCAL_VISION_BASE_URL=http://<mac-tailscale-name>:11434/v1   # Ollama (VLM: code/seal/device-check)
-# LOCAL_VISION_MODEL=qwen2.5-vl:7b
+# LOCAL_VISION_MODEL=qwen2.5vl:7b
 # EMBED_BASE_URL=http://<mac-tailscale-name>:11435            # CLIP service: fast device recognition
 # EMBED_MODEL=clip-ViT-L-14
 
@@ -436,7 +436,7 @@ The local AI lives on a single **Mac box** (Apple Silicon / Metal) and serves al
 instances over **Tailscale** (no router ports exposed). Two independent services:
 
 ```
-                                     ┌─ Ollama (:11434)  qwen2.5-vl    → VLM: code / seal / device-check
+                                     ┌─ Ollama (:11434)  qwen2.5vl    → VLM: code / seal / device-check
 [tracker container]  ──Tailscale──→  │
    VERIFY_PROVIDER=local             └─ CLIP   (:11435)  clip-ViT-L-14 → embeddings: fast device recognition
    LOCAL_VISION_BASE_URL=…:11434/v1
