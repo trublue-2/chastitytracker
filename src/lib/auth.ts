@@ -4,10 +4,19 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 import { checkRateLimit, recordFailure, recordSuccess } from "@/lib/login-attempts";
+import { resolveLogin } from "@/lib/loginIdentity";
 import { consumePasskeyToken } from "@/lib/webauthn";
 import { controlsAnySub } from "@/lib/keyholder";
 
 function ts() { return new Date().toISOString(); }
+
+/**
+ * Ein gültiger bcrypt-Hash mit demselben Kostenfaktor (12) wie jedes Passwort — Klartext unbekannt
+ * und belanglos. Gegen ihn wird bei einer UNBEKANNTEN Eingabe verglichen, damit die Antwort genauso
+ * lange dauert wie bei einem bekannten Konto mit falschem Passwort. Ohne ihn verriet die Antwortzeit,
+ * ob es ein Konto gibt: nur bekannte Konten bezahlten die bcrypt-Runde.
+ */
+const TIMING_DUMMY_HASH = "$2b$12$yo6EiJgrWUYaoGKVbtyJvORsOdH40mvgcmp1yRZkAXzLZvB7RdtHu";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -22,7 +31,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       name: "Credentials",
       credentials: {
-        username: { label: "Benutzername", type: "text" },
+        username: { label: "Benutzername oder E-Mail", type: "text" },
         password: { label: "Passwort", type: "password" },
         passkeyToken: { label: "Passkey Token", type: "text" },
       },
@@ -43,26 +52,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // ── Standard credentials flow ──
-        const username = credentials?.username as string;
-        const password = credentials?.password as string;
+        // Im Feld steht Benutzername ODER E-Mail (`findUserByLogin`). Aufgelöst wird VOR dem
+        // Rate-Limit: die Fehlversuche zählen am Konto, nicht an der Schreibweise.
+        const identifier = (credentials?.username as string | undefined) ?? "";
+        const password = (credentials?.password as string | undefined) ?? "";
 
-        if (!await checkRateLimit(username)) return null;
+        const { user, identity, viaEmail } = await resolveLogin(identifier);
+        if (!await checkRateLimit(identity)) return null;
 
-        const user = await prisma.user.findUnique({ where: { username } });
+        // Im Log der Benutzername, sobald er feststeht — mit dem Hinweis, wenn über die E-Mail
+        // angemeldet wurde. Unbekannte Eingaben erscheinen weiter so, wie sie eingegeben wurden.
+        const who = `"${identity}"${viaEmail ? " (über E-Mail)" : ""}`;
+
         if (!user) {
-          await recordFailure(username);
-          console.warn(`${ts()} [auth] Fehlgeschlagener Login-Versuch für "${username}" (unbekannter Benutzer)`);
+          await bcrypt.compare(password, TIMING_DUMMY_HASH);
+          await recordFailure(identity);
+          console.warn(`${ts()} [auth] Fehlgeschlagener Login-Versuch für ${who} (unbekannter Benutzer)`);
           return null;
         }
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) {
-          await recordFailure(username);
-          console.warn(`${ts()} [auth] Fehlgeschlagener Login-Versuch für "${username}" (falsches Passwort)`);
+          await recordFailure(identity);
+          console.warn(`${ts()} [auth] Fehlgeschlagener Login-Versuch für ${who} (falsches Passwort)`);
           return null;
         }
 
-        await recordSuccess(username);
+        await recordSuccess(identity);
         return { id: user.id, name: user.username, role: user.role, timezone: user.timezone, locale: user.locale };
       },
     }),

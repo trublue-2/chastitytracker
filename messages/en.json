@@ -428,7 +428,7 @@
   },
   "login": {
     "subtitle": "Sign in to continue",
-    "username": "Username",
+    "username": "Username or email",
     "password": "Password",
     "submit": "Sign in",
     "invalidCredentials": "Invalid credentials",
@@ -1532,9 +1532,9 @@
   },
   "forgotPassword": {
     "pageTitle": "Reset password",
-    "usernameLabel": "Username",
+    "usernameLabel": "Username or email",
     "sendLink": "Send reset link",
-    "successMessage": "If an account with this username exists and an email address is on file, an email has been sent.",
+    "successMessage": "If an account with this username or email address exists and an email address is on file, an email has been sent.",
     "backToLogin": "← Back to login"
   },
   "resetPassword": {

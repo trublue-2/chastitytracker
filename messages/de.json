@@ -428,7 +428,7 @@
   },
   "login": {
     "subtitle": "Melde dich an um fortzufahren",
-    "username": "Benutzername",
+    "username": "Benutzername oder E-Mail",
     "password": "Passwort",
     "submit": "Anmelden",
     "invalidCredentials": "Ungültige Anmeldedaten",
@@ -1532,9 +1532,9 @@
   },
   "forgotPassword": {
     "pageTitle": "Passwort zurücksetzen",
-    "usernameLabel": "Benutzername",
+    "usernameLabel": "Benutzername oder E-Mail",
     "sendLink": "Reset-Link senden",
-    "successMessage": "Falls ein Konto mit diesem Benutzernamen existiert und eine E-Mail-Adresse hinterlegt ist, wurde eine Mail versendet.",
+    "successMessage": "Falls ein Konto mit diesem Benutzernamen oder dieser E-Mail-Adresse existiert und eine E-Mail-Adresse hinterlegt ist, wurde eine Mail versendet.",
     "backToLogin": "← Zurück zum Login"
   },
   "resetPassword": {
