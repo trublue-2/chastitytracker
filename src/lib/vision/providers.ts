@@ -90,7 +90,7 @@ export const VISION_PROVIDERS: Record<VisionProviderId, VisionProviderSpec> = {
     external: false,
     baseUrl: null,
     needsKey: false,
-    models: { strong: "qwen2.5-vl:7b", light: "qwen2.5-vl:7b" },
+    models: { strong: "qwen2.5vl:7b", light: "qwen2.5vl:7b" },
   },
 };
 

@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.2.7",
+    "date": "2026-09-21",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Foto-Prüfung mit eigenem Server: Die Modell-Vorgabe trägt jetzt den richtigen Ollama-Namen, leere Modellfelder funktionieren damit wieder.",
+          "en": "Photo check with your own server: the default model now uses the correct Ollama name, so empty model fields work again."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.6",
     "date": "2026-09-21",
     "changes": [

@@ -31,7 +31,7 @@ Eine **lokale KI-Box** (Mac, Apple Silicon/Metal) bedient beide Tracker-Instanze
 Zwei unabhängige Dienste:
 
 ```
-                                     ┌─ Ollama  (Port 11434)  qwen2.5-vl  → VLM: Code/Siegel/Geräte-Check
+                                     ┌─ Ollama  (Port 11434)  qwen2.5vl  → VLM: Code/Siegel/Geräte-Check
 [Tracker-Container]  ──Tailscale──→  │
    VERIFY_PROVIDER=local             └─ CLIP    (Port 11435)  clip-ViT-L-14 → Embeddings: Geräte-Erkennung
    LOCAL_VISION_BASE_URL=…:11434/v1
@@ -67,9 +67,9 @@ Inaktivität automatisch aus dem RAM.
    ziehen → starten. (Alternativ: `brew install --cask ollama`.)
 2. **Modell laden** (Terminal):
    ```bash
-   ollama pull qwen2.5-vl:7b
+   ollama pull qwen2.5vl:7b
    # kurz testen:
-   ollama run qwen2.5-vl:7b   # etwas fragen, dann /bye
+   ollama run qwen2.5vl:7b   # etwas fragen, dann /bye
    ```
 3. **Im Netzwerk erreichbar machen** (sonst nur localhost):
    - Ollama-App → Einstellungen → „Allow connections from the network" aktivieren, **oder**
@@ -96,7 +96,7 @@ Tailscale-ACL nur den Server-Host auf Port 11434 zulassen.
    ```bash
    VERIFY_PROVIDER=local
    LOCAL_VISION_BASE_URL=http://<mac-tailscale-name>:11434/v1
-   LOCAL_VISION_MODEL=qwen2.5-vl:7b
+   LOCAL_VISION_MODEL=qwen2.5vl:7b
    ```
 
 ### Alle Env-Variablen
@@ -105,7 +105,7 @@ Tailscale-ACL nur den Server-Host auf Port 11434 zulassen.
 |----------|---------|-------|
 | `VERIFY_PROVIDER` | `anthropic` | `anthropic` oder `local` |
 | `LOCAL_VISION_BASE_URL` | – | OpenAI-kompatible Basis-URL (z.B. `http://mac:11434/v1`) |
-| `LOCAL_VISION_MODEL` | `qwen2.5-vl:7b` | Standard-Modell für alle drei Tasks |
+| `LOCAL_VISION_MODEL` | `qwen2.5vl:7b` | Standard-Modell für alle drei Tasks |
 | `LOCAL_VISION_MODEL_CODE` | – | Override nur Code-Verifikation |
 | `LOCAL_VISION_MODEL_SEAL` | – | Override nur Siegel-Erkennung |
 | `LOCAL_VISION_MODEL_DEVICE` | – | Override nur Geräte-Erkennung |
@@ -178,13 +178,13 @@ Vergleicht lokales Modell vs. Anthropic auf denselben Bildern.
    ```
 4. Ausgabe zeigt pro Bild: `detected(match/latenz)` für anthropic & local + Übereinstimmung.
 
-Reicht `qwen2.5-vl:7b` bei Handschrift nicht, auf ein größeres Modell wechseln (nur Env):
+Reicht `qwen2.5vl:7b` bei Handschrift nicht, auf ein größeres Modell wechseln (nur Env):
 ```bash
-ollama pull qwen2.5-vl:32b   # am Mac
-LOCAL_VISION_MODEL=qwen2.5-vl:32b
+ollama pull qwen2.5vl:32b   # am Mac
+LOCAL_VISION_MODEL=qwen2.5vl:32b
 ```
 
 ## Modellwahl
 
-- **`qwen2.5-vl:7b`** (Default) — stark bei Ziffern/Handschrift, läuft flüssig auf M1 Max 32 GB.
-- **`qwen2.5-vl:32b`** — näher an Anthropic, ~22 GB (4-bit), auf 32 GB knapp aber machbar.
+- **`qwen2.5vl:7b`** (Default) — stark bei Ziffern/Handschrift, läuft flüssig auf M1 Max 32 GB.
+- **`qwen2.5vl:32b`** — näher an Anthropic, ~22 GB (4-bit), auf 32 GB knapp aber machbar.

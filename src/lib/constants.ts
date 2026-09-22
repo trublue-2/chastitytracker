@@ -167,7 +167,7 @@ export function visionDeviceMaxImagePx(): number {
 }
 
 /** Max. Referenzbilder JE Gerät im Vision-Prompt. Jedes Bild kostet ~1060 Tokens (~6s bei
- *  qwen2.5-vl auf M1) — das ist der dominante Latenz-Faktor, NICHT die Auflösung. Weniger Bilder =
+ *  qwen2.5vl auf M1) — das ist der dominante Latenz-Faktor, NICHT die Auflösung. Weniger Bilder =
  *  deutlich schneller; mehr = robustere Erkennung. Env: VISION_MAX_REFS_PER_DEVICE (Default 2). */
 export function visionMaxRefsPerDevice(): number {
   const n = Number(process.env.VISION_MAX_REFS_PER_DEVICE);
