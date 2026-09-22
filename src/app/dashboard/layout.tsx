@@ -11,7 +11,7 @@ import { getIsLocked, pendingLockCallAt } from "@/lib/queries";
 import { subVisibleInspectionsNow } from "@/lib/dashboardData";
 import { pendingInspection } from "@/lib/entryFormRoute";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
-import { bildersafeEnabled, weightTrackingEnabled } from "@/lib/constants";
+import { bildersafeEnabled } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { subWorld } from "@/lib/theme";
 import pkg from "../../../package.json";
@@ -39,9 +39,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // wählbar — siehe `NewEntrySheet`. Im Layout, weil der (+) auf JEDER Dashboard-Seite steht.
     userId ? pendingLockCallAt(userId) : Promise.resolve(null),
     userId ? buildNewEntryCategoryRows(userId) : Promise.resolve([]),
-    // Die (+)-Zeile „Gewicht" erscheint nur, wenn BEIDE Schalter stehen. Nur gefragt, wenn die
-    // Instanz das Feature überhaupt führt — sonst ist die Antwort ohnehin bekannt.
-    userId && weightTrackingEnabled()
+    // Die (+)-Zeile „Gewicht" erscheint nur, wenn die Keyholderin es für diesen Träger eingeschaltet hat.
+    userId
       ? prisma.user.findUnique({ where: { id: userId }, select: { weightTrackingEnabled: true } })
       : Promise.resolve(null),
     // Die offenen Kontroll-Anforderungen — für die (+)-Zeile, die sonst einen NEUEN Code würfelt

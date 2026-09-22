@@ -20,7 +20,6 @@ import {
   OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS, switchableOffenseTypesFor,
 } from "@/lib/offenseLabels";
 import { getOffenseRules } from "@/lib/offenseRulesService";
-import { weightTrackingEnabled } from "@/lib/constants";
 import { weightReleaseStatus } from "@/lib/weightReleaseService";
 import { weightText, type UnitSystem } from "@/lib/weight";
 import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/utils";
@@ -263,7 +262,7 @@ export default async function RulesPage() {
                 ohne Gewichtstracking existiert die Meldepflicht nicht, „aus" wäre die Antwort auf
                 eine Frage, die sich nie gestellt hat. */}
             {switchableOffenseTypesFor({
-              weightTracking: weightTrackingEnabled() && !!user?.weightTrackingEnabled,
+              weightTracking: !!user?.weightTrackingEnabled,
             }).map((type) => {
               const key = OFFENSE_TYPE_I18N_KEYS[type];
               const mode = offenseRules[type];

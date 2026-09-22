@@ -5,7 +5,7 @@ import { getRecipientChannels } from "@/lib/notificationPrefs";
 import { telegramLinkAvailable } from "@/lib/telegram";
 import { hasPushTarget } from "@/lib/push";
 import { mailReaches, mailConfigured } from "@/lib/mail";
-import { isValidStartPage, toNotifyLevel, weightTrackingEnabled, type NotifyLevel } from "@/lib/constants";
+import { isValidStartPage, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
 import pkg from "@/../package.json";
@@ -50,8 +50,8 @@ export interface SettingsFormProps {
   version: string;
   buildDate?: string;
   feedbackEnabled?: boolean;
-  /** Gewichtstracking — `null`, wenn der Instanz-Schalter aus ist ODER die Keyholderin es für
-   *  diesen Sub nicht freigeschaltet hat. Der Abschnitt erscheint dann gar nicht. */
+  /** Gewichtstracking — `null`, wenn die Keyholderin es für diesen Sub nicht freigeschaltet hat.
+   *  Der Abschnitt erscheint dann gar nicht. */
   weight: WeightSettingsProps | null;
 }
 
@@ -108,7 +108,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
       startPage = dbUser.startPage;
       hideOwnTracker = dbUser.hideOwnTracker;
       telegramLinked = !!dbUser.telegramChatId;
-      if (weightTrackingEnabled() && dbUser.weightTrackingEnabled) {
+      if (dbUser.weightTrackingEnabled) {
         weight = {
           unitSystem: dbUser.unitSystem as UnitSystem,
           heightCm: dbUser.heightCm,

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { actionSign } from "@/app/entries/actionSign";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { weightTrackingEnabled } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { getWeightFormProps } from "@/lib/weightFormProps";
 import { weighingWindowHint } from "@/lib/weightWindows";
@@ -14,8 +13,6 @@ import WeightForm from "@/app/dashboard/WeightForm";
 export default async function AdminWeightPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { userId: actorId } = await assertKeyholderOrAdmin(id);
-  if (!weightTrackingEnabled()) redirect(`/admin/users/${id}`);
-
   const user = await prisma.user.findUnique({ where: { id }, select: { weightTrackingEnabled: true } });
   if (!user?.weightTrackingEnabled) redirect(`/admin/users/${id}`);
 

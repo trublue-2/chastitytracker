@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
  * `set_weight_tracking` — die Schreib-Seite der Gewichts-Einstellungen über den MCP.
@@ -37,17 +37,11 @@ const BESTAND = {
 /** Was der Service zu schreiben bekommt. */
 const gespeichert = () => setSettingsMock.mock.calls[0][1];
 
-const ENV_VORHER = process.env.ENABLE_WEIGHT_TRACKING;
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.ENABLE_WEIGHT_TRACKING = "true";
   (prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "u1" });
   findUniqueOrThrowMock.mockResolvedValue(BESTAND);
   setSettingsMock.mockResolvedValue({ ok: true, data: null });
-});
-afterEach(() => {
-  if (ENV_VORHER === undefined) delete process.env.ENABLE_WEIGHT_TRACKING;
-  else process.env.ENABLE_WEIGHT_TRACKING = ENV_VORHER;
 });
 
 describe("set_weight_tracking — eine Familie, ein Werkzeug", () => {
@@ -97,11 +91,6 @@ describe("set_weight_tracking — eine Familie, ein Werkzeug", () => {
     const res = await mcpSetWeightTracking("sub", { targetKg: null }) as { message: string };
     expect(gespeichert().targetWeightKeyholderKg).toBeNull();
     expect(res.message).toMatch(/84 kg applies again/);
-  });
-
-  it("weist ab, wenn die INSTANZ das Feature gar nicht führt", async () => {
-    delete process.env.ENABLE_WEIGHT_TRACKING;
-    await expect(mcpSetWeightTracking("sub", { enabled: true })).rejects.toThrow(/not available on this instance/);
   });
 });
 

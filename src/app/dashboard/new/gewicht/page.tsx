@@ -3,20 +3,17 @@ import { actionSign } from "@/app/entries/actionSign";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
-import { weightTrackingEnabled } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { getWeightFormProps } from "@/lib/weightFormProps";
 import { weighingWindowHint } from "@/lib/weightWindows";
 import WeightForm from "../../WeightForm";
 
-/** Der Träger erfasst sein Gewicht. Beide Schalter gelten auch hier: die Seite gibt es nicht, wenn
- *  die Instanz das Feature nicht führt oder die Keyholderin es nicht freigeschaltet hat. */
+/** Der Träger erfasst sein Gewicht. Die Seite gibt es nicht, solange die Keyholderin es nicht
+ *  freigeschaltet hat. */
 export default async function NewWeightPage() {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) redirect("/login");
-  if (!weightTrackingEnabled()) redirect("/dashboard");
-
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { weightTrackingEnabled: true } });
   if (!user?.weightTrackingEnabled) redirect("/dashboard");
 

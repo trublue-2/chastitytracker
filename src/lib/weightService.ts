@@ -115,8 +115,7 @@ export async function recordWeight(
       });
       if (!user) throw fail("USER_NOT_FOUND");
       // Der Schalter der Keyholderin gilt für JEDEN Schreibweg, nicht nur für die Oberfläche —
-      // sonst schriebe der MCP weiter, während der Träger nichts mehr sieht. Der Instanz-Schalter
-      // sitzt eine Ebene höher (`weightTrackingGate` in den Routen), weil er ein 404 verlangt.
+      // sonst schriebe der MCP weiter, während der Träger nichts mehr sieht.
       if (!user.weightTrackingEnabled) throw fail("WEIGHT_TRACKING_DISABLED");
 
       const note = params.note?.trim() || null;

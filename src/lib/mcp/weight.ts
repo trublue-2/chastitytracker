@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { APP_TZ, round1 } from "@/lib/utils";
-import { weightTrackingEnabled } from "@/lib/constants";
 import { weightReleaseStatus } from "@/lib/weightReleaseService";
 import {
   bmi, dayNumber, effectiveTarget, startWeightIn, subTargetOf, targetProgress, weightDayKey,
@@ -32,7 +31,7 @@ export const WEIGHT_SCHEMA_VERSION = 2;
 
 export interface WeightHistoryResult {
   schemaVersion: number;
-  /** Führt diese Instanz das Feature — und hat die Keyholderin es für diesen Träger freigeschaltet? */
+  /** Hat die Keyholderin das Feature für diesen Träger freigeschaltet? */
   enabled: boolean;
   heightCm: number | null;
   /** Das WIRKSAME Ziel — deines, solange du eines führst, sonst seines. */
@@ -88,7 +87,7 @@ export async function weightHistory(username: string, opts: { days: number | nul
   const sub = subTargetOf(user);
   const base = {
     schemaVersion: WEIGHT_SCHEMA_VERSION,
-    enabled: weightTrackingEnabled() && user.weightTrackingEnabled,
+    enabled: user.weightTrackingEnabled,
     heightCm: user.heightCm,
     target: target && { kg: target.kg, source: target.source },
     subTarget: sub && { kg: sub.kg },
@@ -186,7 +185,6 @@ export interface WeightSummary {
  * bei jedem einzelnen Aufruf bezahlt. Vierzehn Tage reichen für das Sieben-Tage-Mittel.
  */
 export async function weightSummary(userId: string): Promise<WeightSummary | null> {
-  if (!weightTrackingEnabled()) return null;
   const user = await prisma.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
   if (!user?.weightTrackingEnabled) return null;
 
@@ -255,7 +253,7 @@ export interface LogWeightResult {
 async function projectWeight(userId: string, args: LogWeightArgs) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: WEIGHT_USER_SELECT });
   if (!user) throw new Error("User not found.");
-  if (!weightTrackingEnabled() || !user.weightTrackingEnabled) {
+  if (!user.weightTrackingEnabled) {
     throw new Error("Weight tracking is not enabled for this wearer.");
   }
   const tz = user.timezone || APP_TZ;

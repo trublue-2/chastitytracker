@@ -252,7 +252,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
-| `User.weightTrackingEnabled` | Boolean | `false` | dauerhaft | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`). | Keyholder (UI) | Gewicht, Oberfläche | `authGuards.ts:weightTrackingGate` |
+| `User.weightTrackingEnabled` | Boolean | `false` | dauerhaft | Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. | Keyholder (UI) | Gewicht, Oberfläche | `authGuards.ts:weightTrackingGate` |
 | `User.heightCm` | Int? | — | dauerhaft · **rückwirkend** | Aktuelle Körpergrösse — die Grundlage jedes BMI. Jede Änderung wird zusätzlich in `HeightChange` protokolliert; gerechnet wird heute überall mit diesem aktuellen Wert. | Sub | Gewicht | `weight.ts:bmi` |
 | `User.unitSystem` | String | `"metric"` | dauerhaft | Anzeige-Einheit DESSEN, DER SCHAUT (metrisch/imperial). Gespeichert wird immer metrisch — eine Keyholderin darf Pfund sehen, während ihr Träger in Kilogramm einträgt. | Sub | Oberfläche | `weight.ts:weightForDisplay` |
 | `User.targetWeightKg` | Float? | — | dauerhaft | Zielgewicht, das sich der Träger selbst vorgenommen hat. Wirksam, solange die Keyholderin keines führt; erreicht oder wieder verloren meldet es ihr — sie entscheidet, ob etwas folgt. | Sub | Gewicht, Nachrichten | `weight.ts:effectiveTarget` |

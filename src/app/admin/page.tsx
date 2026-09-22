@@ -22,7 +22,7 @@ import { Users, CalendarClock, ChevronRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDurationBetween, formatDateTimeDual, groupByUser, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderLockPeriods, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveLockPeriods, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
-import { orgasmusAnforderungArtLabel, heimdallEnabled, weightTrackingEnabled } from "@/lib/constants";
+import { orgasmusAnforderungArtLabel, heimdallEnabled } from "@/lib/constants";
 import { QUICK_SETTING_SELECT, quickSettingOnCard, parseQuickSettings, quickSettingValue } from "@/lib/quickSettings";
 import Section from "@/app/components/Section";
 import Badge from "@/app/components/Badge";
@@ -168,8 +168,6 @@ export default async function AdminPage() {
   // Wer hat überhaupt eine Box gemeldet? Dieselbe Zeilen-Menge, aus der oben der Riegel-Hinweis
   // entsteht — für die Schnellschalter, die es nur mit Box gibt (Riegel-Pflicht, Boxfoto-Zwang).
   const boxUserIds = new Set(allBoxes.map((b) => b.userId));
-  // Der Instanz-Schalter ist für alle Träger derselbe — einmal lesen, nicht je Karte und Chip.
-  const weightFeature = weightTrackingEnabled();
   // Das Aufgaben-Zeichen aus der EINEN Registratur (`actionSign`) — nicht `ClipboardCheck` von Hand,
   // das trägt die Prüfung.
   const TaskIcon = actionIcon("TASK");
@@ -628,7 +626,7 @@ export default async function AdminPage() {
                               sagt, wie es steht, und wer danach handelt, hat den Zustand gelesen.
                               Ohne Auswahl ist die Liste leer und die Zeile sieht aus wie bisher. */}
                           {parseQuickSettings(u.quickSettings)
-                            .filter((qs) => quickSettingOnCard(qs, u, { hasBox: boxUserIds.has(u.id), weightFeature }))
+                            .filter((qs) => quickSettingOnCard(qs, u, { hasBox: boxUserIds.has(u.id) }))
                             .map((qs) => (
                               <QuickSettingChip
                                 key={qs.key}

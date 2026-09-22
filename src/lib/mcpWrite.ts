@@ -32,7 +32,7 @@ import {
 } from "@/lib/autoKontrolleDayRules";
 
 import {
-  weightTrackingEnabled, heimdallEnabled,
+  heimdallEnabled,
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE, POST_LOCK_INSPECTION_DEADLINE_RANGE,
@@ -1224,9 +1224,6 @@ export interface SetWeightTrackingArgs {
  * Einstellung zu lesen, die aus sieben Häkchen besteht.
  */
 export async function mcpSetWeightTracking(username: string, args: SetWeightTrackingArgs) {
-  if (!weightTrackingEnabled()) {
-    throw new Error("Weight tracking is not available on this instance (ENABLE_WEIGHT_TRACKING is off).");
-  }
   const userId = await resolveTargetUserId(username);
   requireAnyOf(args, ["enabled", "windows", "targetKg"]);
 
@@ -1398,9 +1395,6 @@ export interface SetWeightReleaseArgs {
  * anderes als für einen bei 82.
  */
 export async function mcpSetWeightRelease(username: string, args: SetWeightReleaseArgs) {
-  if (!weightTrackingEnabled()) {
-    throw new Error("Weight tracking is not available on this instance (ENABLE_WEIGHT_TRACKING is off).");
-  }
   const userId = await resolveTargetUserId(username);
 
   if (args.withdraw) {
