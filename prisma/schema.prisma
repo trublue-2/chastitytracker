@@ -160,7 +160,7 @@ model User {
   offenseStatementsAllowed       Boolean                  @default(true)
   // ── Gewichtstracking (docs/gewicht-konzept.md) ────────────────────────────────────────────────
   // Schalter der Keyholderin je Sub. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden, die
-  // Daten bleiben. Dazu der Instanz-Schalter `ENABLE_WEIGHT_TRACKING` (constants.ts).
+  // Daten bleiben.
   weightTrackingEnabled          Boolean                  @default(false)
   // AKTUELLE Körpergrösse. Jede Änderung wird zusätzlich in `HeightChange` protokolliert; gerechnet
   // wird heute überall mit diesem aktuellen Wert.

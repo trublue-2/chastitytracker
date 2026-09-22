@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() }, weightEntry: { findUnique: vi.fn(), findMany: vi.fn() } },
@@ -21,16 +21,8 @@ function wearer(over: Record<string, unknown> = {}) {
   });
 }
 
-// Das Feature ist opt-in (Default AUS) — ohne diesen Schalter wirft jeder Schreibweg „not enabled".
-// Geprüft wird das an den EINSTELLUNGEN, wo der Schalter hingehört: `mcpSetWeightTracking.test.ts`.
-const ENV_VORHER = process.env.ENABLE_WEIGHT_TRACKING;
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.ENABLE_WEIGHT_TRACKING = "true";
-});
-afterEach(() => {
-  if (ENV_VORHER === undefined) delete process.env.ENABLE_WEIGHT_TRACKING;
-  else process.env.ENABLE_WEIGHT_TRACKING = ENV_VORHER;
 });
 
 describe("log_weight", () => {

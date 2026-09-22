@@ -4,7 +4,7 @@
 Rückmeldung aus der Nutzerschaft. Die Überarbeitung betrifft drei Dinge: der Zielkorridor ist einem
 **Zielgewicht** gewichen, die Regel „die Keyholderin darf nur lockern" ist **gestrichen**, und die
 Wiege-Fenster kennen jetzt **Wochentage, eine Dauer und eine Erinnerung**. Alles andere steht wie
-gebaut: beide Schalter, der Rechenkern `weight.ts`, die Erfassung (Formular des Trägers, Nachtrag
+gebaut: der Schalter je Sub, der Rechenkern `weight.ts`, die Erfassung (Formular des Trägers, Nachtrag
 der Keyholderin, ein Wert je Tag, Beleg-Pflicht mit Ventil, Sprung-Nachfrage), die Statistik-Karte
 samt Verlaufs-Diagramm, die Meldepflicht (`missed_weight_report`, Drei-Tage-Blöcke, Pause bei
 Gesundheits-Halt), die Waagen-Erkennung, das Beschneiden der Fotos und der MCP.
@@ -262,14 +262,16 @@ der Messreihe, die Pflicht sichert die Disziplin.
 
 ## 5. Ein und Aus
 
-Das Feature ist auf zwei Ebenen abschaltbar. Das ist keine Nebenbedingung: das Strafbuch leitet
+Das Feature ist je Sub abschaltbar. Das ist keine Nebenbedingung: das Strafbuch leitet
 **live** ab, und eine ausgeschaltete Zeit darf hinterher nicht wie eine Zeit voller versäumter
 Meldungen aussehen.
 
 | Schalter | Wer | Wirkung |
 |---|---|---|
 | `weightTrackingEnabled` am `User` | Keyholderin, je Sub | Erfassung, Anzeigen, Statistik-Karte, MCP-Schreiben — alles weg |
-| `ENABLE_WEIGHT_TRACKING` (ENV) | Betreiber der Instanz | **Opt-in, Default AUS** — ohne ein ausdrückliches `true` existiert das Feature dort nicht. Muster: `bildersafeEnabled()` |
+
+Bis 6.2.7 gab es zusätzlich den Instanz-Schalter `ENABLE_WEIGHT_TRACKING`; seitdem steht das Feature
+auf jeder Instanz bereit, ein alter Wert in der `.env` wird ignoriert.
 
 **Was „aus" bedeutet:**
 
@@ -516,7 +518,7 @@ Meldung darunter (Abschnitt 7). Beide brauchen die Angabe nicht.
 
 | # | Inhalt | Kern |
 |---|---|---|
-| 1 | Schema + Migration (`WeightEntry`, `HeightChange`, User-Felder), **Gate je Sub + ENV**, `src/lib/weight.ts` (BMI, Umrechnung, Rundung, Ziel-Prüfung), Einstellungen beidseitig, API-Routen | Fleissarbeit nach Muster |
+| 1 | Schema + Migration (`WeightEntry`, `HeightChange`, User-Felder), **Gate je Sub + ENV** (ENV seit 6.2.7 entfernt), `src/lib/weight.ts` (BMI, Umrechnung, Rundung, Ziel-Prüfung), Einstellungen beidseitig, API-Routen | Fleissarbeit nach Muster |
 | 2 | Erfassung: (+)-Zeile, Formular Sub (Foto-Pflicht, 3-kg-Nachfrage), Aktion KH, Upload, EXIF | viele kleine Dateien |
 | 3 | `src/lib/weightWindows.ts` — eigener Baustein, `cleaningService` bleibt unberührt | in sich geschlossen |
 | 4 ✅ | Pflicht und Vergehen: `missed_weight_report`, Drei-Tage-Blöcke, `HealthHold`-Pause, Regel-Historisierung, Kopplung an den Gate, Tests | **die heikelste Etappe** — nur hier kann ein Fehler rückwirkend Vergehen erzeugen |

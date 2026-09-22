@@ -102,22 +102,6 @@ export function deviceCategoriesEnabled(): boolean {
   return process.env.ENABLE_DEVICE_CATEGORIES?.toLowerCase() !== "false";
 }
 
-/** Gewichtstracking (Wiegen, BMI, Verlauf) — Instanz-Schalter.
- *
- *  **Opt-in wie der Bildersafe: Default AUS**, eingeschaltet mit `ENABLE_WEIGHT_TRACKING=true`.
- *  Gewicht und BMI sind Gesundheitsdaten, und eine Instanz, die sie nie erhebt, soll das Feature
- *  auch nicht angeboten bekommen — nicht einmal als Schalter in den Einstellungen. Wer es will,
- *  sagt es einmal.
- *
- *  „An" heisst danach immer noch NICHT „sichtbar": je Träger schaltet zusätzlich die Keyholderin
- *  (`User.weightTrackingEnabled`, ebenfalls Default false). Zwei Schalter, zwei Fragen — darf diese
- *  Instanz das überhaupt, und will diese Keyholderin es für diesen Träger.
- *
- *  Case-insensitive, damit `True`/`TRUE` nicht still als AUS durchrutschen. */
-export function weightTrackingEnabled(): boolean {
-  return process.env.ENABLE_WEIGHT_TRACKING?.toLowerCase() === "true";
-}
-
 /** Bildersafe (softwareseitige Schlüssel-Verwahrung: versiegeltes Foto des Schlüsselbox-Codes).
  *  Eigenständiges, opt-in Feature pro Instanz via `ENABLE_BILDERSAFE=true` (Default aus).
  *  Unabhängig von Heimdall (das über HEIMDALL_SYNC_SECRET aktiviert wird) — beide können

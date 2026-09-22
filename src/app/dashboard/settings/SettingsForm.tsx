@@ -487,7 +487,7 @@ export default function SettingsForm({ username, email, locale, timezone, startP
             <FormError message={tzError} />
           </ExpandRow>
 
-          {/* Gewicht — nur wenn die Keyholderin es freigeschaltet hat (und die Instanz es führt) */}
+          {/* Gewicht — nur wenn die Keyholderin es freigeschaltet hat */}
           {weight && (
             <ExpandRow
               label={t("weightSection")}

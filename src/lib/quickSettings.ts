@@ -22,12 +22,9 @@
 
 import { parseJsonList } from "@/lib/jsonList";
 
-/** Woran eine Einstellung hängt, ohne die es sie auf diesem Bildschirm nicht gibt. */
-export type QuickSettingRequirement =
-  /** Der Träger hat eine Heimdall-Box gemeldet. */
-  | "box"
-  /** Das Gewichtstracking ist auf dieser Instanz überhaupt eingeschaltet (ENV). */
-  | "weightFeature";
+/** Woran eine Einstellung hängt, ohne die es sie auf diesem Bildschirm nicht gibt.
+ *  `box`: der Träger hat eine Heimdall-Box gemeldet. */
+export type QuickSettingRequirement = "box";
 
 export interface QuickSetting {
   /** Stabiler Schlüssel — SO wird die Auswahl gespeichert. Nie umbenennen: er steht in den
@@ -74,7 +71,7 @@ export const QUICK_SETTINGS: readonly QuickSetting[] = [
   { key: "cleaning", field: "cleaningAllowed", labelKey: "quickCleaning", descKey: "quickCleaningDesc" },
   { key: "inspectionReminder", field: "inspectionReminderEnabled", labelKey: "quickInspectionReminder", descKey: "quickInspectionReminderDesc" },
   { key: "inspectionAutoMark", field: "inspectionAutoMarkEnabled", labelKey: "quickInspectionAutoMark", descKey: "quickInspectionAutoMarkDesc" },
-  { key: "weightTracking", field: "weightTrackingEnabled", labelKey: "quickWeightTracking", descKey: "quickWeightTrackingDesc", requires: "weightFeature" },
+  { key: "weightTracking", field: "weightTrackingEnabled", labelKey: "quickWeightTracking", descKey: "quickWeightTrackingDesc" },
   { key: "lockRequiresBolt", field: "lockRequiresBolt", labelKey: "quickLockRequiresBolt", descKey: "quickLockRequiresBoltDesc", requires: "box" },
 ];
 
@@ -109,14 +106,13 @@ export function quickSettingValue(row: object, s: QuickSetting): boolean {
   return (row as QuickSettingValues)[s.field] === true;
 }
 
-/** Gilt diese Einstellung für diesen Träger? Ohne Box kein Riegel-Zwang, ohne Instanz-Schalter
- *  kein Gewicht — ein Chip, der ins Leere schaltet, ist schlimmer als keiner. */
+/** Gilt diese Einstellung für diesen Träger? Ohne Box kein Riegel-Zwang — ein Chip, der ins Leere
+ *  schaltet, ist schlimmer als keiner. */
 export function quickSettingAvailable(
   s: QuickSetting,
-  ctx: { hasBox: boolean; weightFeature: boolean },
+  ctx: { hasBox: boolean },
 ): boolean {
   if (s.requires === "box") return ctx.hasBox;
-  if (s.requires === "weightFeature") return ctx.weightFeature;
   return true;
 }
 
@@ -128,7 +124,7 @@ export function quickSettingAvailable(
 export function quickSettingOnCard(
   s: QuickSetting,
   row: object,
-  ctx: { hasBox: boolean; weightFeature: boolean },
+  ctx: { hasBox: boolean },
 ): boolean {
   if (!quickSettingAvailable(s, ctx)) return false;
   return !s.dependsOn || (row as QuickSettingValues)[s.dependsOn] === true;

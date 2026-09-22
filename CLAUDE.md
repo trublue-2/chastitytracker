@@ -298,11 +298,9 @@ OFFENSE_ANNOUNCE_FROM=<iso-date>           # optional
 # gelöscht (Vorgabe 365). `0` schaltet das Beschneiden ab. UNGELESENE bleiben immer liegen — eine
 # Zustellung, die nie jemand gesehen hat, darf nicht folgenlos verschwinden.
 MESSAGE_RETENTION_DAYS=365         # optional
-# Gewichtstracking (docs/gewicht-konzept.md). OPT-IN wie der Bildersafe: Default AUS, nur ein
-# exaktes `true` schaltet ein. Danach muss die Keyholderin es zusätzlich je Träger freischalten
-# (User.weightTrackingEnabled, ebenfalls Default aus). Ohne diesen Schalter gibt es das Feature auf
-# der Instanz nicht — weder in der Oberfläche noch in den Routen noch im MCP.
-ENABLE_WEIGHT_TRACKING=true        # optional
+# Gewichtstracking (docs/gewicht-konzept.md) hat seit 6.2.7 KEINEN Instanz-Schalter mehr: es steht
+# auf jeder Instanz bereit, die Keyholderin schaltet es je Träger frei (User.weightTrackingEnabled,
+# Default aus). Ein altes `ENABLE_WEIGHT_TRACKING` in einer .env wird ignoriert.
 # Aufbewahrung der Waagen-Fotos in Tagen (Vorgabe 60). `0` schaltet das Beschneiden ab. Gelöscht wird
 # nur die DATEI — die Messung bleibt, und `imagePrunedAt` hält fest, dass es einmal ein Foto gab.
 WEIGHT_PHOTO_RETENTION_DAYS=60     # optional

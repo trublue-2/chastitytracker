@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { APP_TZ } from "@/lib/utils";
-import { weightTrackingEnabled } from "@/lib/constants";
 import { weightDayKey } from "@/lib/weight";
 import { activeWeighingWindow, weighingWindowEnd, type WeighingWindow } from "@/lib/weightWindows";
 import { getRecipientChannels } from "@/lib/notificationPrefs";
@@ -61,12 +60,10 @@ export function dueWeighingReminder(params: {
  * Verschickt die fälligen Erinnerungen — ein Aufruf je Poller-Tick.
  *
  * Vorgefiltert wird in der Abfrage (Feature an, überhaupt Fenster gesetzt): ohne das liefe der
- * Lauf jede Minute über die ganze Benutzertabelle, obwohl das Feature opt-in ist und die meisten
- * Instanzen es gar nicht führen.
+ * Lauf jede Minute über die ganze Benutzertabelle, obwohl das Feature je Träger opt-in ist und
+ * die meisten Träger es nicht eingeschaltet haben.
  */
 export async function sendDueWeighingReminders(now: Date): Promise<number> {
-  if (!weightTrackingEnabled()) return 0;
-
   const users = await prisma.user.findMany({
     // Beide Ausschlüsse nötig: wer seine Fenster löscht, bekommt `"[]"` in die Spalte, nie `null`
     // (`setWeightSettingsKeyholder` schreibt die normalisierte Liste). Ohne den zweiten Filter läge

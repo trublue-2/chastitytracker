@@ -8,7 +8,7 @@ import { dayNumber } from "@/lib/weight";
  * getrennt vom Strafbuch selbst: so lässt sie sich Kante für Kante prüfen, ohne zwanzig Abfragen
  * aufzubauen.
  *
- * **Wie gezählt wird.** Ein Vergehen je angebrochenem Drei-Tage-Block; jede Meldung setzt den
+ * **Wie gezählt wird.** Ein Vergehen je vollem Drei-Tage-Block; jede Meldung setzt den
  * Zähler zurück. Dreissig Tage Schweigen sind damit zehn Vergehen, nicht eines und nicht
  * achtundzwanzig: ein Monat wiegt schwerer als ein verlängertes Wochenende, ohne dass das Strafbuch
  * überläuft.

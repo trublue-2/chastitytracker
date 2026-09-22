@@ -4,7 +4,6 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { weightTrackingEnabled } from "@/lib/constants";
 import { loadWeightRows } from "@/lib/weightRows";
 import { weightText, type UnitSystem } from "@/lib/weight";
 import EntryRow from "@/app/components/EntryRow";
@@ -49,7 +48,7 @@ export default async function AdminUserEintraegePage({
   const orgasmCfg = effectiveOrgasmusArten(user.orgasmusArtenConfig);
   const openCfg = effectiveOeffnenGruende(user.oeffnenGruendeConfig);
 
-  const weightOn = weightTrackingEnabled() && user.weightTrackingEnabled;
+  const weightOn = user.weightTrackingEnabled;
 
   const [total, entries, actor, weightTotal, previousPageOldest] = await Promise.all([
     prisma.entry.count({ where: { userId: id } }),
@@ -65,8 +64,8 @@ export default async function AdminUserEintraegePage({
       },
     }),
     // Die Anzeige-Einheit DER KEYHOLDERIN: die Gewichts-Zeilen stehen in ihrer Einheit, nicht in
-    // der des Trägers (docs/gewicht-konzept.md, Abschnitt 2). Führt die Instanz das Feature nicht,
-    // wird gar nicht gefragt.
+    // der des Trägers (docs/gewicht-konzept.md, Abschnitt 2). Ohne Freischaltung für diesen
+    // Träger wird gar nicht gefragt.
     weightOn
       ? prisma.user.findUnique({ where: { id: actorId }, select: { unitSystem: true } })
       : Promise.resolve(null),

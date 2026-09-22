@@ -14,7 +14,7 @@ import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { setReasonConfig } from "@/lib/reasonsService";
 import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
-import { weightTrackingEnabled, heimdallEnabled } from "@/lib/constants";
+import { heimdallEnabled } from "@/lib/constants";
 import { setLockRequiresBolt } from "@/lib/lockCommit";
 import { setOffenseStatementsAllowed } from "@/lib/offenseStatementService";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
@@ -54,9 +54,8 @@ export async function GET(
     hasOffeneAnforderung: !!offeneAnforderung,
     hasActiveLockPeriod: !!activeLockPeriod,
     categoryRows,
-    // Für die (+)-Zeile der Keyholder-Sicht: beide Schalter zu EINER Antwort verrechnet, damit der
-    // Client nicht selbst wissen muss, dass es zwei sind.
-    weightTracking: weightTrackingEnabled() && user.weightTrackingEnabled,
+    // Für die (+)-Zeile der Keyholder-Sicht.
+    weightTracking: user.weightTrackingEnabled,
   });
 }
 
@@ -182,10 +181,7 @@ export async function PATCH(
     body.weightTrackingEnabled !== undefined || body.weighingWindows !== undefined ||
     body.targetWeightKeyholderKg !== undefined
   ) {
-    // Instanz-Schalter zuerst: ist das Feature auf dieser Instanz abgewählt, gibt es die
-    // Einstellung nicht — 404 statt 403, damit die Antwort nicht verrät, dass es sie gäbe. Der
-    // Schalter je Sub wird hier NICHT geprüft: er steht in genau diesem Patch.
-    if (!weightTrackingEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Kein `weightTrackingGate` hier: der Schalter je Sub wird in genau diesem Patch gesetzt.
     // Actor-Variante wie bei den Reinigungs-Einstellungen: schaltet das Abschalten die Meldepflicht
     // mit ab, hält die Regel-Historie fest, WER das war.
     const actor = await requireKeyholderOrAdminActor(id);
@@ -199,7 +195,7 @@ export async function PATCH(
   }
 
   if (body.lockRequiresBolt !== undefined) {
-    // Wie beim Gewichtstracking: führt die Instanz die Box gar nicht, gibt es die Einstellung
+    // Führt die Instanz die Box gar nicht, gibt es die Einstellung
     // nicht — 404 statt 403, damit die Antwort nicht verrät, dass es sie gäbe.
     if (!heimdallEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
     // Über den Dienst, nicht per `update`: das Abschalten vollzieht einen wartenden Aufruf.

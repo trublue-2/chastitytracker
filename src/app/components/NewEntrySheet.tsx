@@ -34,7 +34,7 @@ interface Props {
   categoryRows?: NewEntryCategoryRow[];
   /** Bildersafe-Instanz: die Schlüsselbox-Code-Aktionen (versiegeln + anzeigen) einblenden. */
   bildersafe?: boolean;
-  /** Gewichtstracking für DIESEN Träger freigeschaltet (Instanz-Schalter UND Keyholder-Schalter). */
+  /** Gewichtstracking für DIESEN Träger freigeschaltet (Schalter der Keyholderin). */
   weight?: boolean;
   /** Gesetzt = Keyholder-Sicht: das Sheet erfasst FÜR diesen Sub und zeigt auf dessen
    *  Aktionen-Formulare statt auf `/dashboard/new`. Ungesetzt = der Sub erfasst für sich selbst. */

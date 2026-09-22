@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_STEP_KG_RANGE,
-  RELEASE_WINDOW_HOURS_RANGE, weightTrackingEnabled,
+  RELEASE_WINDOW_HOURS_RANGE,
 } from "@/lib/constants";
 import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/serviceResult";
 import { dayNumber, isUnderweightTarget, weightDayKey, weightProblem } from "@/lib/weight";
@@ -60,7 +60,6 @@ export const WEIGHT_RELEASE_SELECT = {
 
 /** Die offene Vorgabe eines Subs — `null`, wenn keine steht. Eine je Sub (siehe {@link setWeightRelease}). */
 export async function openWeightRelease(userId: string) {
-  if (!weightTrackingEnabled()) return null;
   return prisma.weightRelease.findFirst({
     where: { userId, releasedAt: null, withdrawnAt: null },
     orderBy: { createdAt: "desc" },
@@ -82,7 +81,6 @@ export async function setWeightRelease(
   actor: MessageActor,
 ): Promise<ServiceResult<{ id: string }>> {
   try {
-    if (!weightTrackingEnabled()) throw fail("WEIGHT_TRACKING_DISABLED");
     const { userId } = params;
     const user = await prisma.user.findUnique({
       where: { id: userId },

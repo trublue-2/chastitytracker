@@ -92,10 +92,8 @@ environment variables. Everything above is on by default.
 - **Weight tracking** — weigh-ins with a photo of the scale (the configured
   vision provider reads the display and suggests the value), weighing windows per
   weekday, a target weight from wearer and keyholder, a history chart, and an
-  optional release condition that ties the next orgasm to the weight trend. Opt-in
-  via `ENABLE_WEIGHT_TRACKING` (default **off**). **It takes two switches:** the
-  environment variable only makes the feature available on the instance — the
-  keyholder still has to enable it per sub under User → Settings. Only then do the
+  optional release condition that ties the next orgasm to the weight trend. Available
+  on every instance, but **off per sub by default:** the keyholder enables it per sub under User → Settings. Only then do the
   weigh-in form, the chart, the weighing windows and the "Weight report missed"
   rule show up anywhere, including in the wearer's own rule list. Concept:
   `docs/gewicht-konzept.md`, release condition: `docs/gewicht-freigabe-konzept.md`.
@@ -221,7 +219,6 @@ MCP_TOKEN=<static-bearer-token>    # optional static bearer token (alternative t
 # Feature flags
 ENABLE_DEVICE_CATEGORIES=false     # multi-category wear tracking (default on; false = KG only)
 ENABLE_BILDERSAFE=true             # sealed key-box code photo (default off)
-ENABLE_WEIGHT_TRACKING=true        # weight tracking (default off; the keyholder still enables it per sub)
 
 # Optional integrations
 PORTAL_SHARED_SECRET=<secret>      # JWT secret for the self-service portal's login flow
@@ -416,9 +413,6 @@ VAPID_SUBJECT=mailto:admin@example.com
 # --- Optional ---
 # USE_ADMIN_RELATIONSHIPS=true      # enable n:m admin↔user supervision
 # ENABLE_BILDERSAFE=true            # enable the sealed key-box code photo feature (default off)
-# ENABLE_WEIGHT_TRACKING=true       # enable weight tracking (default off). Makes the feature available
-#                                   #   only — the keyholder switches it on per sub in their settings
-#                                   #   tab, and nothing weight-related shows up before that
 # DISABLE_FEEDBACK=true             # hide the in-app feedback button entirely
 # FEEDBACK_UPSTREAM_URL=<url>       # send in-app feedback to your own inbox instead of the project portal
 # DISABLE_UPDATE_CENSUS=true        # opt out of the anonymous deployment census (see docs/update-check.md)
@@ -646,12 +640,11 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 
 ### Weight
 
-Gated by `ENABLE_WEIGHT_TRACKING` **and** the per-user switch: without the flag every route
-answers `404`, with the flag but without the sub's switch `403` (`WEIGHT_TRACKING_DISABLED`).
+Gated by the per-sub switch: without it every route answers `403` (`WEIGHT_TRACKING_DISABLED`).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/weight` | Log a weigh-in — for yourself (photo of the scale required) or as keyholder for a sub |
+| `POST` | `/api/weight` | Log a weigh-in — for yourself (photo of the scale or a note required) or as keyholder for a sub |
 | `PATCH` | `/api/weight/[id]` | Keyholder: correct value or note of a weigh-in (photo, EXIF time and detected value stay) |
 | `DELETE` | `/api/weight/[id]` | Keyholder: delete a weigh-in |
 | `POST` | `/api/detect-weight` | Read the scale display from a photo — a suggestion for the form, nothing is stored |

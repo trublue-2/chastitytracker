@@ -470,7 +470,7 @@ export const FM_REGISTRY: FmEntry[] = [
   // ── User: Gewicht ──────────────────────────────────────────────────────────────────────────
   s({
     model: "User", field: "weightTrackingEnabled", domain: "gewicht", scope: "standing",
-    effect: "Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben. Zusätzlich muss die Instanz das Feature führen (`ENABLE_WEIGHT_TRACKING`).",
+    effect: "Schaltet das Gewichtstracking für diesen Träger frei. Aus = Erfassung, Anzeigen und MCP-Schreiben verschwinden; die Daten bleiben.",
     writers: ["admin"], affects: ["Gewicht", "Oberfläche"], anchor: "authGuards.ts:weightTrackingGate",
   }),
   s({

@@ -67,7 +67,7 @@ describe("Registratur", () => {
 
 describe("Auf der Karte", () => {
   const dependent = QUICK_SETTINGS.find((s) => s.dependsOn)!;
-  const ctx = { hasBox: true, weightFeature: true };
+  const ctx = { hasBox: true };
 
   it("ein Schalter mit ausgeschaltetem Oberbegriff steht nicht auf der Karte", () => {
     // Er meldete sonst „eingeschaltet" für eine Einstellung, die stillgelegt ist.
@@ -86,19 +86,17 @@ describe("Auf der Karte", () => {
 
 describe("Verfügbarkeit", () => {
   const box = QUICK_SETTINGS.find((s) => s.requires === "box")!;
-  const weight = QUICK_SETTINGS.find((s) => s.requires === "weightFeature")!;
   const plain = QUICK_SETTINGS.find((s) => !s.requires)!;
 
   it("ein Schalter mit Voraussetzung entfällt, wo sie fehlt", () => {
     // Sonst stünde auf der Karte ein Schalter, dessen Einstellung nichts bewirkt — schlimmer als
     // gar keiner, weil er eine Wirkung verspricht.
-    expect(quickSettingAvailable(box, { hasBox: false, weightFeature: true })).toBe(false);
-    expect(quickSettingAvailable(weight, { hasBox: true, weightFeature: false })).toBe(false);
+    expect(quickSettingAvailable(box, { hasBox: false })).toBe(false);
   });
 
   it("mit erfüllter Voraussetzung gilt er, ohne Voraussetzung immer", () => {
-    expect(quickSettingAvailable(box, { hasBox: true, weightFeature: false })).toBe(true);
-    expect(quickSettingAvailable(plain, { hasBox: false, weightFeature: false })).toBe(true);
+    expect(quickSettingAvailable(box, { hasBox: true })).toBe(true);
+    expect(quickSettingAvailable(plain, { hasBox: false })).toBe(true);
   });
 });
 

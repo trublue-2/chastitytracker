@@ -794,7 +794,7 @@ export async function keyholderDashboard(
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
   // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
   const [openKontrolleRows, activeLockPeriodRow, openLockRequestRows, interruptedLockPeriodRow, activeWearRows, openOrgasmusRow,
-         rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives, lockCall] = await Promise.all([
+         rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives, lockCall, weight] = await Promise.all([
     getOpenKontrollen(trackingCtx.userId, now),
     getActiveLockPeriod(trackingCtx.userId),
     getOpenLockRequests(trackingCtx.userId, now),
@@ -818,6 +818,9 @@ export async function keyholderDashboard(
     // (`createdAt`), und die trägt die geteilte Eintrags-Auswahl nicht. Sie aus `startTime`
     // abzuleiten läse einen Wert, den bei einem Riegel-Träger niemand gewählt hat.
     pendingLockCallAt(trackingCtx.userId),
+    // Gewicht: liefert selbst `null`, wenn das Feature für diesen Träger aus ist. Die Reihe selbst
+    // holt `weight_history`.
+    weightSummary(trackingCtx.userId),
   ]);
 
   const lock = buildLockState(trackingCtx.entries, trackingCtx.cleaning, now, fmt, pairs);
@@ -907,9 +910,6 @@ export async function keyholderDashboard(
   // CT-004: echte (cross-cluster) Bild-Diskrepanzen als Daten-Hinweis (keine Vergehen).
   const discrepancyItems = collectImageConflicts(sessions, iso);
 
-  // Gewicht: liefert selbst `null`, wenn das Feature hier nichts zu suchen hat — und lädt dann auch
-  // nichts. Die Reihe selbst holt `weight_history`.
-  const weight = await weightSummary(trackingCtx.userId);
 
   // EINE Quelle für beide Listen und den Zähler: liefe die Zahl aus einem eigenen Zweig, könnte sie
   // von dem abweichen, was tatsächlich in der Antwort steht.

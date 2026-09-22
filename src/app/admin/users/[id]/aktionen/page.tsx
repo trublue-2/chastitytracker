@@ -5,7 +5,6 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getIsLocked } from "@/lib/queries";
 import { subLockPeriodCached } from "@/lib/dashboardData";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
-import { weightTrackingEnabled } from "@/lib/constants";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import Section from "@/app/components/Section";
@@ -95,7 +94,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           {/* Freigabe-Vorgabe: das Gewicht öffnet das nächste Fenster. Neben der Orgasmus-Anweisung,
               weil sie dasselbe Fenster stellt — nur an eine Bedingung geknüpft statt an einen
               Zeitpunkt. Ohne Gewichtstracking gibt es sie nicht (die Seite würde umleiten). */}
-          {weightTrackingEnabled() && user.weightTrackingEnabled && (
+          {user.weightTrackingEnabled && (
             <ActionRow
               href={`${base}/gewichts-freigabe`}
               icon={<Scale className="size-4" />}
@@ -170,7 +169,7 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           />
 
           {/* Gewicht — nur mit Freischaltung. Ohne sie führte die Zeile auf eine Seite, die umleitet. */}
-          {weightTrackingEnabled() && user.weightTrackingEnabled && (
+          {user.weightTrackingEnabled && (
             <ActionRow
               href={`${base}/gewicht`}
               icon={<Scale className="size-4" />}

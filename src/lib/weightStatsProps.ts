@@ -1,7 +1,6 @@
 import { getLocale } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { weightTrackingEnabled } from "@/lib/constants";
 import { APP_TZ, formatDate, toDateLocale } from "@/lib/utils";
 import { effectiveTarget, startWeightIn, weightDayKey, type UnitSystem } from "@/lib/weight";
 import { WEIGHT_USER_SELECT } from "@/lib/weightService";
@@ -22,8 +21,6 @@ import type { WeightStatsCardProps } from "@/app/components/WeightStatsCard";
  * meldet.
  */
 export async function getWeightStatsProps(subUserId: string): Promise<WeightStatsCardProps | null> {
-  if (!weightTrackingEnabled()) return null;
-
   const sub = await prisma.user.findUnique({ where: { id: subUserId }, select: WEIGHT_USER_SELECT });
   if (!sub?.weightTrackingEnabled) return null;
 

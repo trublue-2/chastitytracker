@@ -11,7 +11,6 @@ import { getOffenseRules } from "@/lib/offenseRulesService";
 import { switchableOffenseTypesFor } from "@/lib/offenseLabels";
 import { parseCleaningWindows } from "@/lib/cleaningService";
 import { parseWeighingWindows } from "@/lib/weightWindows";
-import { weightTrackingEnabled } from "@/lib/constants";
 import { getBoxFormContext } from "@/lib/queries";
 import WeightToggle from "@/app/admin/WeightToggle";
 import HealthHoldToggle from "@/app/admin/HealthHoldToggle";
@@ -72,10 +71,8 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
     // Die Anzeige-Einheit DES BETRACHTERS: die Gewichts-Zahlen dieser Seite stehen in ihrer
     // Einheit, nicht in der des Trägers (docs/gewicht-konzept.md, Abschnitt 2). Im selben
     // Promise.all wie der Rest — `actorId` steht seit dem Guard fest, ein eigener Roundtrip
-    // danach wäre reine Wartezeit. Führt die Instanz das Feature nicht, wird gar nicht gefragt.
-    weightTrackingEnabled()
-      ? prisma.user.findUnique({ where: { id: actorId }, select: { unitSystem: true } })
-      : Promise.resolve(null),
+    // danach wäre reine Wartezeit.
+    prisma.user.findUnique({ where: { id: actorId }, select: { unitSystem: true } }),
     // Der Riegel-Schalter erscheint nur, wo es überhaupt einen Riegel gibt — dieselbe Bedingung wie
     // im Verschluss-Formular (`getBoxFormContext`): Heimdall aktiv UND eine Box, die gemeldet hat.
     getBoxFormContext(id),
@@ -87,7 +84,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
   // Welche Schnellschalter gelten für DIESEN Träger? Einmal ausgewertet: die Auswahlliste und die
   // Vorbelegung darunter müssen dieselbe Antwort lesen, sonst zählt ein unsichtbares Kästchen mit.
   const quickSettingsAvailable = QUICK_SETTINGS.filter((qs) =>
-    quickSettingAvailable(qs, { hasBox: box.boxConfirm, weightFeature: weightTrackingEnabled() }),
+    quickSettingAvailable(qs, { hasBox: box.boxConfirm }),
   );
 
   // Built-in-Codes → i18n-Label (Placeholder im Editor, wenn kein Override gesetzt ist). Deckt auch
@@ -221,21 +218,19 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         />
       </SettingsSection>
 
-      {/* Gewichtstracking — entfällt ganz, wenn die Instanz das Feature nicht führt */}
-      {weightTrackingEnabled() && (
-        <SettingsSection defaultCollapsed title={t("sectionWeight")} description={t("sectionWeightDesc")} bodyPadded>
-          <WeightToggle
-            userId={user.id}
-            /* Die Einheit DER KEYHOLDERIN, nicht die des Subs: die Zahlen stehen in ihrer Anzeige. */
-            unitSystem={(actor?.unitSystem ?? "metric") as UnitSystem}
-            initialEnabled={user.weightTrackingEnabled}
-            initialWindows={parseWeighingWindows(user.weighingWindows)}
-            subTargetKg={user.targetWeightKg}
-            initialTargetKg={user.targetWeightKeyholderKg}
-            subHeightCm={user.heightCm}
-          />
-        </SettingsSection>
-      )}
+      {/* Gewichtstracking — immer da; ob es für diesen Träger gilt, schaltet der Abschnitt selbst. */}
+      <SettingsSection defaultCollapsed title={t("sectionWeight")} description={t("sectionWeightDesc")} bodyPadded>
+        <WeightToggle
+          userId={user.id}
+          /* Die Einheit DER KEYHOLDERIN, nicht die des Subs: die Zahlen stehen in ihrer Anzeige. */
+          unitSystem={(actor?.unitSystem ?? "metric") as UnitSystem}
+          initialEnabled={user.weightTrackingEnabled}
+          initialWindows={parseWeighingWindows(user.weighingWindows)}
+          subTargetKg={user.targetWeightKg}
+          initialTargetKg={user.targetWeightKeyholderKg}
+          subHeightCm={user.heightCm}
+        />
+      </SettingsSection>
 
       {/* Gesundheitspause — setzt alle Vorgaben aus, darum unmittelbar vor den Kontroll-Regeln. */}
       {/* Läuft gerade ein Halt, startet dieses Kapitel OFFEN. Es ist die einzige Stelle der
@@ -295,7 +290,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           /* Die Meldepflicht steht nur da, wo sie auch etwas bewirkt — der Gewichts-Abschnitt
              darüber entscheidet darüber mit, und sein Speichern lädt diese Seite neu. */
           types={switchableOffenseTypesFor({
-            weightTracking: weightTrackingEnabled() && user.weightTrackingEnabled,
+            weightTracking: user.weightTrackingEnabled,
           })}
           initialRules={offenseRules}
         />

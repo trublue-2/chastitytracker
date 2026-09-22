@@ -25,10 +25,6 @@ const transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(await impor
 vi.mock("@/lib/orgasmusAnforderungService", () => ({ createOrgasmusAnforderung: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn().mockResolvedValue([]) }));
-vi.mock("@/lib/constants", async (orig) => ({
-  ...(await orig<Record<string, unknown>>()),
-  weightTrackingEnabled: () => true,
-}));
 
 import { applyWeightRelease, setWeightRelease } from "@/lib/weightReleaseService";
 import { prisma } from "@/lib/prisma";

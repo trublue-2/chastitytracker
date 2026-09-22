@@ -11,8 +11,7 @@ import { MAX_QUICK_SETTINGS, type QuickSetting } from "@/lib/quickSettings";
  *
  * Die Liste kommt fertig gefiltert vom Server (`quickSettingAvailable`) — hier steht nur, was für
  * diesen Träger überhaupt gilt. Eine Zeile, die ins Leere schaltete, wäre schlimmer als eine, die
- * fehlt: sie verspräche eine Wirkung, die die Einstellung ohne Box bzw. ohne Instanz-Schalter gar
- * nicht hat.
+ * fehlt: sie verspräche eine Wirkung, die die Einstellung ohne Box gar nicht hat.
  *
  * **Jede Zeile trägt ihre Erklärung.** Ein Wort wie „Automatik" oder „Auto-Ablegen" sagt beim
  * Auswählen nicht, was es tut — und die Einstellung, die es meint, steht in einem anderen Kapitel,

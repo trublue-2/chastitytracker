@@ -9,6 +9,13 @@
           "de": "Foto-Prüfung mit eigenem Server: Die Modell-Vorgabe trägt jetzt den richtigen Ollama-Namen, leere Modellfelder funktionieren damit wieder.",
           "en": "Photo check with your own server: the default model now uses the correct Ollama name, so empty model fields work again."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Gewichtstracking steht jetzt auf jeder Instanz bereit, ohne Umgebungsvariable. Freigeschaltet wird es weiterhin je Sub von der Keyholderin.",
+          "en": "Weight tracking is now available on every instance without an environment variable. The keyholder still enables it per sub."
+        }
       }
     ]
   },
