@@ -4,10 +4,17 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getUserDeviceOptions, getIsLocked, getUserTimezone } from "@/lib/queries";
 import { subLockPeriodCached } from "@/lib/dashboardData";
 import { nowDatetimeLocal } from "@/lib/utils";
+import { resolveLockFormArt } from "@/lib/lockRequestPlanning";
 import VerschlussAnforderungForm from "./VerschlussAnforderungForm";
 
-export default async function AdminVerschlussAnforderungPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function AdminVerschlussAnforderungPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string | string[] }>;
+}) {
+  const [{ id }, { mode }] = await Promise.all([params, searchParams]);
   await assertKeyholderOrAdmin(id);
 
   const user = await prisma.user.findUnique({ where: { id }, select: { id: true } });
@@ -20,10 +27,14 @@ export default async function AdminVerschlussAnforderungPage({ params }: { param
     getUserTimezone(id),
   ]);
 
-  const art = isLocked ? "SPERRZEIT" : "ANFORDERUNG";
+  const art = resolveLockFormArt(isLocked, mode);
   // Mehrere offene Anforderungen sind erlaubt, und eine E-Mail verlangt die Anforderung nicht
-  // (Begründung im Dienst). Exklusiv ist allein die SPERRZEIT.
-  if (isLocked && activeLockPeriod) redirect(`/admin/users/${id}/aktionen`);
+  // (Begründung im Dienst). Exklusiv ist allein die SPERRZEIT — nur für sie gilt die Umleitung.
+  if (art === "SPERRZEIT" && activeLockPeriod) redirect(`/admin/users/${id}/aktionen`);
 
-  return <VerschlussAnforderungForm userId={id} art={art} devices={devices} tz={tz} minNow={nowDatetimeLocal(tz)} />;
+  return (
+    <VerschlussAnforderungForm
+      userId={id} art={art} scheduleOnly={isLocked && art === "ANFORDERUNG"} devices={devices} tz={tz} minNow={nowDatetimeLocal(tz)}
+    />
+  );
 }

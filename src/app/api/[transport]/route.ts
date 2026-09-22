@@ -841,7 +841,8 @@ function registerTools(server: McpServer) {
         description:
           "Asks the user to lock up within a deadline (creates a VerschlussAnforderung). An IMMEDIATE " +
           "request requires the user to be open right now; a SCHEDULED one may be queued while they are " +
-          "still locked (it self-cancels if they are still locked when it triggers). Optionally enforce a " +
+          "still locked (if they are still locked when it triggers, it counts as fulfilled and its lock " +
+          "period starts from the trigger time). Optionally enforce a " +
           "lock period after lock-up — either a minimum wearing duration (minDurationHours, relative to the " +
           "actual lock-up) or an absolute end (lockUntilAt, fixed wall clock) — plus a specific device. " +
           "Several lock requests can be open at once: a new one does NOT replace an existing one, and a " +

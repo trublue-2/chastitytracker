@@ -1,5 +1,6 @@
 "use client";
 
+import type { Ref } from "react";
 import { useTranslations } from "next-intl";
 import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
 import DateTimePicker from "@/app/components/DateTimePicker";
@@ -137,6 +138,8 @@ export default function ScheduleFields({
   minNow,
   delayHint,
   atHint,
+  allowImmediate = true,
+  atInputRef,
 }: {
   value: ScheduleValue;
   onChange: (next: ScheduleValue) => void;
@@ -146,6 +149,10 @@ export default function ScheduleFields({
   delayHint: string;
   /** „… wird zu diesem Zeitpunkt ausgelöst; bis dahin unsichtbar." */
   atHint: string;
+  /** `false` blendet den Reiter „Sofort" aus — für Direktiven, die jetzt nicht zustellbar sind. */
+  allowImmediate?: boolean;
+  /** Ref auf das Zeitpunkt-Feld — für Formulare, die nach dem Speichern dorthin zurückführen. */
+  atInputRef?: Ref<HTMLInputElement>;
 }) {
   const t = useTranslations("admin");
   // „Dauer" und „Zeitpunkt" sind das Vokabular JEDER Zeit-Eingabe und stehen deshalb in `common` —
@@ -160,7 +167,7 @@ export default function ScheduleFields({
         value={value.mode}
         onChange={(mode) => set({ mode })}
         options={[
-          { value: "immediate", label: t("scheduleImmediate") },
+          ...(allowImmediate ? [{ value: "immediate" as const, label: t("scheduleImmediate") }] : []),
           { value: "delay", label: t("scheduleDelay") },
           { value: "datetime", label: tc("pointInTime") },
         ]}
@@ -188,6 +195,7 @@ export default function ScheduleFields({
           teuerste Fehlbedienung des Formulars. */}
       {value.mode === "datetime" && (
         <DateTimePicker
+          ref={atInputRef}
           value={value.scheduledAt}
           onChange={(e) => set({ scheduledAt: e.target.value })}
           min={minNow}

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { LOCK_FORM_PLAN_MODE } from "@/lib/lockRequestPlanning";
 import { getIsLocked } from "@/lib/queries";
 import { subLockPeriodCached } from "@/lib/dashboardData";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
@@ -64,13 +65,13 @@ export default async function AktionenPage({ params }: { params: Promise<{ id: s
           />
 
           {/* Mehrere offene Anforderungen sind erlaubt, und eine E-Mail verlangt sie nicht —
-              Begründung im Dienst. */}
+              Begründung im Dienst. Verschlossen bleibt die Zeile offen: SOFORT einschliessen geht
+              dann nicht, PLANEN schon („morgens und abends" bei stundenweisem Tragen). */}
           <ActionRow
-            href={!isLocked ? `${base}/verschluss-anforderung` : undefined}
+            href={`${base}/verschluss-anforderung${isLocked ? `?mode=${LOCK_FORM_PLAN_MODE}` : ""}`}
             icon={<LockClosedIcon className="size-4" />}
-            title={t("requestLock")}
-            description={t("requestLockHint")}
-            lockedReason={isLocked ? t("alreadyLocked") : undefined}
+            title={isLocked ? t("planLock") : t("requestLock")}
+            description={isLocked ? t("requestLockScheduledOnlyHint") : t("requestLockHint")}
           />
 
           {/* Sperrdauer: bestehende bearbeiten, sonst neu setzen — beides nur im verschlossenen Zustand */}

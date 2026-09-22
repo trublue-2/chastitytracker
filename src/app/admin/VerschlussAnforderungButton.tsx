@@ -82,6 +82,7 @@ export default function VerschlussAnforderungButton({
           tz={tz}
           minNow={minNow}
           onSuccess={() => { close(); router.refresh(); }}
+          onPlanned={() => router.refresh()}
         />
       </ActionModal>
     </>

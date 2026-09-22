@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.2.8",
+    "date": "2026-09-22",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Einschliess-Anforderungen lassen sich jetzt auch planen, während der Sub verschlossen ist, und mit „Speichern und nächste planen“ gleich mehrere hintereinander anlegen.",
+          "en": "Lock requests can now be scheduled while the sub is locked, and “Save and plan next” lets you queue several in a row."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.7",
     "date": "2026-09-21",
     "changes": [
