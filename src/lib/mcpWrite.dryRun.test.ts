@@ -231,6 +231,12 @@ describe("dryRun erkennt echte Regelverstösse (B-01/B-02, nicht nur Argument-Fo
     expect(r.problem).toBe("USER_ALREADY_LOCKED");
   });
 
+  it("request_lock: unbefristet zusammen mit einem Sperr-Ende wird im dryRun abgelehnt", async () => {
+    const r = await mcpRequestLock("sub", { dryRun: true, lockIndefinite: true, lockUntilAt: MORGEN.toISOString() }) as { wouldSucceed: boolean; problem?: string };
+    expect(r.wouldSucceed).toBe(false);
+    expect(r.problem).toBe("LOCK_DURATION_OR_END");
+  });
+
   it("set_lock_period: nicht verschlossener User wird auch im dryRun abgelehnt", async () => {
     // entryFindFirstMock steht per Default auf NICHT_VERSCHLOSSEN.
     const r = await mcpSetLockPeriod("sub", { dryRun: true, untilAt: MORGEN.toISOString() }) as { wouldSucceed: boolean; problem?: string };
@@ -734,7 +740,7 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
   /** Eine offene ANFORDERUNGs-Zeile, wie getKeyholderLockRequests sie liefert. */
   const anf = (over: object = {}) => ({
     id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: MORGEN, message: null, minDurationHours: null,
-    lockEndsAt: null, deviceId: null, device: null, cleaningAllowed: false,
+    lockEndsAt: null, lockIndefinite: false, deviceId: null, device: null, cleaningAllowed: false,
     fulfilledAt: null, withdrawnAt: null, wirksamAb: null, benachrichtigtAt: JETZT, ...over,
   });
 
@@ -751,6 +757,33 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
     expect(r.diff.minDurationHours).toEqual([24, null]); // vom absoluten Ende verdrängt
     expect(r.diff.lockUntilAt).toEqual([null, "2026-07-18T14:00:00+02:00"]);
     expect(r.diff.deadlineAt).toBeUndefined(); // unangetastet → kein Diff-Eintrag
+  });
+
+  it("unbefristet verdrängt die Mindestdauer — die Vorschau zeigt es", async () => {
+    lockPeriodFindManyMock.mockResolvedValue([anf({ minDurationHours: 24 })]);
+    const r = await mcpEditLockRequest("sub", { dryRun: true, lockIndefinite: true }) as { wouldSucceed: boolean; diff: Record<string, [unknown, unknown]> };
+    expect(r.wouldSucceed).toBe(true);
+    expect(r.diff.minDurationHours).toEqual([24, null]);
+    expect(r.diff.lockIndefinite).toEqual([false, true]);
+  });
+
+  it("lockIndefinite:false nimmt das Unbefristete weg, statt still ignoriert zu werden", async () => {
+    lockPeriodFindManyMock.mockResolvedValue([anf({ lockIndefinite: true })]);
+    const r = await mcpEditLockRequest("sub", { dryRun: true, lockIndefinite: false }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.lockIndefinite).toEqual([true, false]);
+  });
+
+  it("clearLockPeriod nimmt auch das Unbefristete weg", async () => {
+    lockPeriodFindManyMock.mockResolvedValue([anf({ lockIndefinite: true })]);
+    const r = await mcpEditLockRequest("sub", { dryRun: true, clearLockPeriod: true }) as { diff: Record<string, [unknown, unknown]> };
+    expect(r.diff.lockIndefinite).toEqual([true, false]);
+  });
+
+  it("unbefristet zusammen mit einer Mindestdauer wird im dryRun abgelehnt", async () => {
+    lockPeriodFindManyMock.mockResolvedValue([anf()]);
+    const r = await mcpEditLockRequest("sub", { dryRun: true, lockIndefinite: true, minDurationHours: 12 }) as { wouldSucceed: boolean; problem?: string };
+    expect(r.wouldSucceed).toBe(false);
+    expect(r.problem).toBe("LOCK_DURATION_OR_END");
   });
 
   it("ein Sperr-Ende vor der Auslösung wird auch im dryRun abgelehnt (checkLockEnd)", async () => {
@@ -787,7 +820,7 @@ describe("mehrere Anforderungen: edit_lock_request + withdraw per id", () => {
     lockPeriodFindManyMock.mockResolvedValue([anf()]);
     (updateLockRequest as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: false, status: 400, error: "LOCK_DURATION_OR_END" });
     await expect(mcpEditLockRequest("sub", { minDurationHours: 12, lockUntilAt: MORGEN.toISOString() }))
-      .rejects.toThrow(/not both/);
+      .rejects.toThrow(/not several/);
   });
 
   it("dryRun meldet den Mindestdauer+Sperr-Ende-Konflikt schon vor dem Commit (nicht wouldSucceed)", async () => {

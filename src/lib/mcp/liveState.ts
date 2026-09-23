@@ -186,12 +186,14 @@ export interface OpenLockRequestView {
   minDurationHours: number | null;
   /** Absolutes Sperr-Ende nach dem Einschliessen (Alternative zu minDurationHours), oder null. */
   lockUntilAt: string | null;
+  /** Nach dem Einschliessen unbefristet gesperrt (dritte Alternative). */
+  lockIndefinite: boolean;
   cleaningAllowed: boolean;
   deviceName: string | null;
 }
 
 export function mapOpenLockRequest(
-  a: { id: string; endsAt: Date | null; message: string | null; minDurationHours: number | null; lockEndsAt: Date | null; cleaningAllowed: boolean; device: { name: string } | null } | null,
+  a: { id: string; endsAt: Date | null; message: string | null; minDurationHours: number | null; lockEndsAt: Date | null; lockIndefinite: boolean; cleaningAllowed: boolean; device: { name: string } | null } | null,
   now: Date, fmt: Fmt,
 ): OpenLockRequestView | null {
   if (!a) return null;
@@ -203,6 +205,7 @@ export function mapOpenLockRequest(
     message: a.message,
     minDurationHours: a.minDurationHours,
     lockUntilAt: a.lockEndsAt ? fmt(a.lockEndsAt) : null,
+    lockIndefinite: a.lockIndefinite,
     cleaningAllowed: a.cleaningAllowed,
     deviceName: a.device?.name ?? null,
   };

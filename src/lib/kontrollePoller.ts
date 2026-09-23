@@ -339,6 +339,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
           art: "SPERRZEIT",
           message: carriedOver.message,
           endsAtDate: carriedOver.endsAt,
+          lockSpec: null,
           requestId: carriedOver.lockPeriodId,
           // Aus der ÜBERNOMMENEN Zeile, wie ihr Text daneben: die Meldung gehört zur Sperrzeit und
           // nennt deshalb, was in IHR steht. Dass die Anordnende dieselbe ist wie an der Anforderung,
@@ -354,8 +355,7 @@ async function processDueVerschlussAnforderungen(now: Date): Promise<void> {
         art,
         message: va.message,
         endsAtDate: va.endsAt,
-        minDurationHours: va.minDurationHours,
-        lockEndsAtDate: va.lockEndsAt,
+        lockSpec: art === "ANFORDERUNG" ? va : null,
         requestId: va.id,
         // Wie bei der Kontrolle: genannt wird, wer die Direktive angeordnet hat, nicht der Bote.
         actor: va.createdBy,

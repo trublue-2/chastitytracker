@@ -13,7 +13,7 @@ import {
   LOCK_REQUEST_ORDER,
   type PrismaTx,
 } from "@/lib/queries";
-import { lockAnchor, lockPeriodEndFromRequest } from "@/lib/verschlussAnforderungService";
+import { lockAnchor, lockPeriodFromRequest } from "@/lib/verschlussAnforderungService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { scheduleCleaningRelockInspection, triggerPostLockInspection } from "@/lib/autoKontrolleService";
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/entryNotify";
@@ -179,8 +179,8 @@ export async function applyEntryFulfilment(
       // also nicht dadurch entwertet, dass daneben eine geräte-freie Anforderung offen ist.
       requiredAnforderungDeviceIds = offeneAnforderungen.map((a) => a.deviceId).filter((d): d is string => d !== null);
     }
-    // SPERRZEIT-Ende je Anforderung: absolutes lockEndsAt (Wanduhr) gewinnt und bleibt fix, egal
-    // wann tatsächlich verschlossen wurde; sonst minDurationHours relativ zur Verschlusszeit (Bestandsverhalten).
+    // SPERRZEIT je Anforderung: unbefristet bleibt ohne Ende; absolutes lockEndsAt (Wanduhr) bleibt
+    // fix, egal wann tatsächlich verschlossen wurde; sonst minDurationHours relativ zur Verschlusszeit.
     //
     // Anders als `createVerschlussAnforderung` (Keyholder-Pfad) zieht das hier KEINE bestehenden
     // Sperrzeiten zurück — bewusst. Dort ERSETZT die Keyholderin ihre eigene Direktive; hier
@@ -191,13 +191,13 @@ export async function applyEntryFulfilment(
     const newLockPeriods = offeneAnforderungen.flatMap((a) => {
       // Anker ist die Verschluss-Zeit AUS DEM EINTRAG, nicht das Eintreffen des Formulars — siehe
       // `lockAnchor`. Sonst endet die Sperre später als überall angezeigt.
-      const endsAt = lockPeriodEndFromRequest(a, lockAnchor(entry.startTime, at));
-      return endsAt
+      const lockPeriod = lockPeriodFromRequest(a, lockAnchor(entry.startTime, at));
+      return lockPeriod
         ? [{
             userId,
             art: "SPERRZEIT",
             message: a.message,
-            endsAt,
+            endsAt: lockPeriod.endsAt,
             cleaningAllowed: a.cleaningAllowed,
             // Der Anordnende wandert mit (wie in `carryOverLockPeriodOnAlreadyLocked`): die Sperrzeit
             // ist seine Anweisung, auch wenn erst der Verschluss des Subs sie auslöst.

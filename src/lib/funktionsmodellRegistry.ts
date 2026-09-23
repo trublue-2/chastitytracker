@@ -655,6 +655,11 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin", "mcp"], affects: ["Sperrzeit"], anchor: "entryFulfilment.ts",
   }),
   s({
+    model: "VerschlussAnforderung", field: "lockIndefinite", domain: "sperrzeit", scope: "directive",
+    effect: "Die Anforderung bringt eine UNBEFRISTETE Sperrzeit mit — sie hält, bis die Keyholderin sie aufhebt. Alternative zu `minDurationHours` und `lockEndsAt`.",
+    writers: ["admin", "mcp"], affects: ["Sperrzeit"], anchor: "entryFulfilment.ts",
+  }),
+  s({
     model: "VerschlussAnforderung", field: "deviceId", domain: "sperrzeit", scope: "directive",
     effect: "Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie.",
     writers: ["admin", "mcp"], affects: ["Sperrzeit", "Geräte", "Strafbuch"],

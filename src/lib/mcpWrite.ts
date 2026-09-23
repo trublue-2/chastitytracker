@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getUserDeviceOptions, getKeyholderLockPeriods, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { isHiddenFromSub, computeDelayedTrigger } from "@/lib/delayedTrigger";
+import { conflictingLockSpecs, hasLockSpec } from "@/lib/lockSpec";
 import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrolleService";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
@@ -213,6 +214,8 @@ export interface RequestLockArgs {
   minDurationHours?: number;
   /** Absolutes Sperr-Ende nach dem Einschliessen (Wanduhr) — Alternative zu minDurationHours. */
   lockUntilAt?: string;
+  /** Nach dem Einschliessen unbefristet sperren — dritte Alternative neben den beiden oben. */
+  lockIndefinite?: boolean;
   cleaningAllowed?: boolean;
   deviceName?: string;
   message?: string;
@@ -231,10 +234,10 @@ export async function mcpRequestLock(username: string, args: RequestLockArgs) {
     // fängt trotzdem den häufigsten Ablehnungsgrund: eine SOFORTIGE ANFORDERUNG verlangt einen NICHT
     // verschlossenen User. Eine terminierte darf angelegt werden, egal wie der Sub gerade steht.
     const immediate = !args.scheduledAt && !args.delayMinutes;
-    const problem = args.minDurationHours != null && args.lockUntilAt != null ? "LOCK_DURATION_OR_END"
+    const problem = conflictingLockSpecs({ minDurationHours: args.minDurationHours, lockEndsAt: args.lockUntilAt, lockIndefinite: args.lockIndefinite }) ? "LOCK_DURATION_OR_END"
       : immediate && (await getIsLocked(userId)) ? "USER_ALREADY_LOCKED"
       : undefined;
-    return dryRunPreview("request_lock", problem, { art: "ANFORDERUNG", deviceId, deadlineAt: args.deadlineAt ?? null, deadlineHours: args.deadlineHours ?? null, minDurationHours: args.minDurationHours ?? null, lockUntilAt: args.lockUntilAt ?? null, cleaningAllowed: args.cleaningAllowed ?? false, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
+    return dryRunPreview("request_lock", problem, { art: "ANFORDERUNG", deviceId, deadlineAt: args.deadlineAt ?? null, deadlineHours: args.deadlineHours ?? null, minDurationHours: args.minDurationHours ?? null, lockUntilAt: args.lockUntilAt ?? null, lockIndefinite: args.lockIndefinite ?? false, cleaningAllowed: args.cleaningAllowed ?? false, delayMinutes: args.delayMinutes ?? null, scheduledAt: args.scheduledAt ?? null });
   }
   const data = unwrap(await createVerschlussAnforderung({
     userId,
@@ -244,6 +247,7 @@ export async function mcpRequestLock(username: string, args: RequestLockArgs) {
     fristH: args.deadlineHours,
     minDurationHours: args.minDurationHours,
     lockEndsAt: args.lockUntilAt,
+    lockIndefinite: args.lockIndefinite,
     cleaningAllowed: args.cleaningAllowed,
     deviceId,
     delayMinutes: args.delayMinutes,
@@ -2056,7 +2060,10 @@ export interface EditLockRequestArgs {
   deadlineHours?: number;
   minDurationHours?: number;
   lockUntilAt?: string;
-  /** Sperr-Vorgabe ganz entfernen (weder Mindestdauer noch absolutes Ende). */
+  /** `true`: nach dem Einschliessen unbefristet sperren, verdrängt Mindestdauer bzw. absolutes Ende.
+   *  `false`: nur das Unbefristete wegnehmen — die Anforderung bringt dann keine Sperrzeit mehr mit. */
+  lockIndefinite?: boolean;
+  /** Sperr-Vorgabe ganz entfernen (weder Mindestdauer noch absolutes Ende noch unbefristet). */
   clearLockPeriod?: boolean;
   cleaningAllowed?: boolean;
   deviceName?: string;
@@ -2081,8 +2088,8 @@ export interface EditLockRequestArgs {
 export async function mcpEditLockRequest(username: string, args: EditLockRequestArgs) {
   const userId = await resolveTargetUserId(username);
   const iso = await isoForUser(userId);
-  if (args.clearLockPeriod && (args.minDurationHours != null || args.lockUntilAt != null)) {
-    throw new Error("clearLockPeriod cannot be combined with minDurationHours/lockUntilAt.");
+  if (args.clearLockPeriod && hasLockSpec({ minDurationHours: args.minDurationHours, lockEndsAt: args.lockUntilAt, lockIndefinite: args.lockIndefinite })) {
+    throw new Error("clearLockPeriod cannot be combined with minDurationHours/lockUntilAt/lockIndefinite.");
   }
   if (args.clearDevice && args.deviceName) throw new Error("clearDevice cannot be combined with deviceName.");
   if (args.triggerNow && args.scheduledAt) throw new Error("triggerNow cannot be combined with scheduledAt.");
@@ -2110,9 +2117,10 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
     ...(args.message !== undefined ? { message: args.message } : {}),
     ...(deviceId !== undefined ? { deviceId } : {}),
     ...(args.cleaningAllowed !== undefined ? { cleaningAllowed: args.cleaningAllowed } : {}),
-    ...(args.clearLockPeriod ? { minDurationHours: null, lockEndsAt: null } : {}),
+    ...(args.clearLockPeriod ? { minDurationHours: null, lockEndsAt: null, lockIndefinite: false } : {}),
     ...(args.minDurationHours != null ? { minDurationHours: args.minDurationHours } : {}),
     ...(args.lockUntilAt ? { lockEndsAt: parseIsoDate(args.lockUntilAt, "lockUntilAt") } : {}),
+    ...(args.lockIndefinite !== undefined ? { lockIndefinite: args.lockIndefinite } : {}),
     ...(args.triggerNow || args.scheduledAt ? { wirksamAb } : {}),
   };
 
@@ -2124,7 +2132,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
     // Denselben Ausschluss wie der Commit (updateLockRequest → LOCK_DURATION_OR_END) und wie
     // request_lock: sonst meldete die Vorschau „wouldSucceed" für eine Eingabe, die der Commit
     // ablehnt — genau die Divergenz, die mergeLockRequestPatch zu verhindern beansprucht.
-    const problem = (patch.minDurationHours != null && patch.lockEndsAt != null)
+    const problem = conflictingLockSpecs(patch)
       ? "LOCK_DURATION_OR_END"
       : checkLockEnd(next.lockEndsAt, next.wirksamAb, now) ?? undefined;
     const fields = (row: MergedLockRequest, deviceName: string | null): Record<string, unknown> => ({
@@ -2133,6 +2141,7 @@ export async function mcpEditLockRequest(username: string, args: EditLockRequest
       device: deviceName,
       minDurationHours: row.minDurationHours,
       lockUntilAt: iso(row.lockEndsAt),
+      lockIndefinite: row.lockIndefinite,
       cleaningAllowed: row.cleaningAllowed,
       scheduledFor: iso(row.wirksamAb),
     });

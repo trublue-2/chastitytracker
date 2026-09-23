@@ -7,6 +7,7 @@ import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from
 import DateTimePicker from "@/app/components/DateTimePicker";
 import FormError from "@/app/components/FormError";
 import FormSuccess from "@/app/components/FormSuccess";
+import Checkbox from "@/app/components/Checkbox";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
@@ -16,6 +17,7 @@ import HoursInput from "@/app/components/HoursInput";
 import { DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit } from "@/lib/constants";
 import ScheduleFields, { initialSchedule, scheduleFromWirksamAb, scheduleIsPast, schedulePayload, scheduleAnchorMs, scheduleTriggerIso, type ScheduleValue } from "@/app/components/ScheduleFields";
 import type { DeviceOption } from "@/lib/queries";
+import { hasLockSpec } from "@/lib/lockSpec";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { LockClosedIcon } from "@/app/components/lockIcons";
@@ -28,10 +30,14 @@ export interface LockRequestEditData {
   endsAt: string;
   minDurationHours: number | null;
   lockEndsAt: string | null;
+  lockIndefinite: boolean;
   deviceId: string | null;
   cleaningAllowed: boolean;
   wirksamAb: string | null;
 }
+
+/** Wie die Sperre nach dem Einschliessen endet: nach einer Dauer, zu einem Zeitpunkt, oder gar nicht. */
+type LockEndMode = "duration" | "datetime" | "indefinite";
 
 /**
  * Shared form body for "Verschluss anfordern" (ANFORDERUNG) and "Sperrdauer setzen" (SPERRZEIT).
@@ -76,7 +82,6 @@ export default function VerschlussAnforderungFields({
   const locale = useLocale();
   const apiError = useApiError();
   const isLockPeriod = art === "SPERRZEIT";
-  const accentColor = isLockPeriod ? "var(--color-sperrzeit)" : "var(--color-request)";
 
   const [message, setMessage] = useState(existing?.message ?? "");
   // Bearbeiten startet bei der gespeicherten ABSOLUTEN Frist (Zeitpunkt-Reiter); Neuanlage bei der Dauer.
@@ -87,6 +92,10 @@ export default function VerschlussAnforderungFields({
   // Minuten, im 5-Minuten-Raster. Vorher stand hier ein nacktes Stundenfeld — ist eine Kontrolle
   // binnen 15 Minuten sinnvoll, ist ein Einschliessen binnen 45 Minuten es auch.
   const [deadlineUnit, setDeadlineUnit] = useState<DurationUnit>("h");
+  // Nur SPERRZEIT: ohne Ende sperren — dieselbe Wahl wie beim Ändern (`LockPeriodEndForm`). Blendet
+  // die Frist aus; der Dienst legt ohne `endsAt`/`fristH` eine unbefristete Sperrzeit an.
+  const [indefinite, setIndefinite] = useState(false);
+  const hasDeadline = !indefinite;
   // Base all datetime defaults on the SERVER-provided `minNow` (not client `Date.now()`) so the
   // initializers are deterministic across SSR + hydration.
   const nowBaseMs = fromDatetimeLocal(minNow, tz).getTime();
@@ -97,11 +106,12 @@ export default function VerschlussAnforderungFields({
       : toDatetimeLocal(new Date(nowBaseMs + defaultDurationH * 60 * 60 * 1000), tz)
   );
   const [withMinDauer, setWithMinDauer] = useState(
-    existing ? existing.minDurationHours != null || existing.lockEndsAt != null : false
+    existing ? hasLockSpec(existing) : false
   );
-  // Min-Sperre nach dem Verschliessen: relative Dauer (minDurationHours) ODER absolutes Ende (lockEndsAt).
-  const [lockEndMode, setLockEndMode] = useState<"duration" | "datetime">(
-    existing?.lockEndsAt != null ? "datetime" : "duration"
+  // Sperre nach dem Verschliessen: relative Dauer (minDurationHours), absolutes Ende (lockEndsAt)
+  // ODER unbefristet (lockIndefinite).
+  const [lockEndMode, setLockEndMode] = useState<LockEndMode>(
+    existing?.lockIndefinite ? "indefinite" : existing?.lockEndsAt != null ? "datetime" : "duration"
   );
   const [minDauerH, setMinDauerH] = useState(
     existing?.minDurationHours != null ? String(existing.minDurationHours) : "24"
@@ -140,7 +150,7 @@ export default function VerschlussAnforderungFields({
     const planNext = canPlanNext && planNextRef.current;
     // Beim Bearbeiten darf die EINSCHLIESS-Frist in der Vergangenheit liegen (der Service prüft sie
     // bewusst nicht — sie ist eine Frist, kein Sperr-Ende). Bei der Neuanlage bleibt sie zukünftig.
-    const deadlineMs = mode === "datetime" && endsAt ? fromDatetimeLocal(endsAt, tz).getTime() : null;
+    const deadlineMs = hasDeadline && mode === "datetime" && endsAt ? fromDatetimeLocal(endsAt, tz).getTime() : null;
     if (!existing && deadlineMs !== null && deadlineMs <= Date.now()) {
       setError(t("futureDateRequired"));
       return;
@@ -201,18 +211,12 @@ export default function VerschlussAnforderungFields({
       message: message.trim() || undefined,
       ...schedulePayload(schedule, tz),
     };
-    if (mode === "datetime" && endsAt) {
-      payload.endsAt = fromDatetimeLocal(endsAt, tz).toISOString();
-    } else {
-      payload.fristH = durationHoursOr(deadlineH, deadlineUnit, defaultDurationH);
+    // Unbefristete Sperrzeit: weder `endsAt` noch `fristH` — ohne beides legt der Dienst sie ohne Ende an.
+    if (hasDeadline) {
+      if (mode === "datetime" && endsAt) payload.endsAt = fromDatetimeLocal(endsAt, tz).toISOString();
+      else payload.fristH = durationHoursOr(deadlineH, deadlineUnit, defaultDurationH);
     }
-    if (!isLockPeriod && withMinDauer) {
-      if (lockEndMode === "datetime" && lockEndsAt) {
-        payload.lockEndsAt = fromDatetimeLocal(lockEndsAt, tz).toISOString();
-      } else {
-        payload.minDurationHours = parseFloat(minDauerH) || 24;
-      }
-    }
+    if (!isLockPeriod && withMinDauer) Object.assign(payload, lockSpec());
     if (!isLockPeriod && deviceId) {
       payload.deviceId = deviceId;
     }
@@ -232,33 +236,35 @@ export default function VerschlussAnforderungFields({
     const endsAtIso = mode === "datetime" && endsAt
       ? fromDatetimeLocal(endsAt, tz).toISOString()
       : new Date(triggerMs + durationHoursOr(deadlineH, deadlineUnit, defaultDurationH) * 60 * 60 * 1000).toISOString();
-    let minDurationHours: number | null = null;
-    let lockEndsAtIso: string | null = null;
-    if (withMinDauer) {
-      if (lockEndMode === "datetime" && lockEndsAt) lockEndsAtIso = fromDatetimeLocal(lockEndsAt, tz).toISOString();
-      else minDurationHours = parseFloat(minDauerH) || 24;
-    }
     return {
       action: "edit",
       message: message.trim() || null,
       endsAt: endsAtIso,
-      minDurationHours,
-      lockEndsAt: lockEndsAtIso,
+      // Das Bearbeiten ERSETZT: jede der drei Sperr-Vorgaben wird gesetzt, die nicht gewählten gelöscht.
+      minDurationHours: null,
+      lockEndsAt: null,
+      lockIndefinite: false,
+      ...(withMinDauer ? lockSpec() : {}),
       deviceId: deviceId || null,
       cleaningAllowed,
       wirksamAb,
     };
   }
 
+  /** Die gewählte Sperr-Vorgabe nach dem Einschliessen — genau EINE der drei, wie der Dienst verlangt. */
+  function lockSpec(): { minDurationHours: number } | { lockEndsAt: string } | { lockIndefinite: true } {
+    if (lockEndMode === "indefinite") return { lockIndefinite: true };
+    if (lockEndMode === "datetime" && lockEndsAt) return { lockEndsAt: fromDatetimeLocal(lockEndsAt, tz).toISOString() };
+    return { minDurationHours: parseFloat(minDauerH) || 24 };
+  }
+
   const cleaningCheckbox = (
-    <div className="flex flex-col gap-1">
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" checked={cleaningAllowed} onChange={(e) => setCleaningAllowed(e.target.checked)}
-          className="w-4 h-4" style={{ accentColor }} />
-        <span className="text-xs text-foreground-faint">{t("reinigungErlaubtLabel")}</span>
-      </label>
-      <span className="text-xs text-foreground-faint pl-6">{t("reinigungErlaubtHint")}</span>
-    </div>
+    <Checkbox
+      label={t("reinigungErlaubtLabel")}
+      description={t("reinigungErlaubtHint")}
+      checked={cleaningAllowed}
+      onChange={(e) => setCleaningAllowed(e.target.checked)}
+    />
   );
 
   return (
@@ -275,7 +281,15 @@ export default function VerschlussAnforderungFields({
           Stelle wie der Stunden/Minuten-Umschalter der Kontroll-Frist, und wer ihn tippte, um auf
           Minuten zu stellen, landete im Datums-Wähler. Die Einheit steht jetzt im Umschalter des
           Feldes darunter. */}
-      <DurationOrDatetimeField
+      {isLockPeriod && (
+        <Checkbox
+          label={t("lockPeriodIndefinite")}
+          checked={indefinite}
+          onChange={(e) => setIndefinite(e.target.checked)}
+        />
+      )}
+
+      {hasDeadline && <DurationOrDatetimeField
         label={t("frist")}
         mode={mode}
         onModeChange={setMode}
@@ -293,15 +307,15 @@ export default function VerschlussAnforderungFields({
         // — anders als beim Orgasmus-Fenster gibt es keinen eigenen Start.
         anchorMs={existing ? () => scheduleAnchorMs(schedule, tz, Date.now()) : () => Date.now()}
         tz={tz}
-      />
+      />}
 
       {!isLockPeriod && (
         <div className="flex flex-col gap-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={withMinDauer} onChange={(e) => setWithMinDauer(e.target.checked)}
-              className="accent-[var(--color-request)] w-4 h-4" />
-            <span className="text-xs text-foreground-faint">{t("minDurationLabel")}</span>
-          </label>
+          <Checkbox
+            label={t("minDurationLabel")}
+            checked={withMinDauer}
+            onChange={(e) => setWithMinDauer(e.target.checked)}
+          />
           {withMinDauer && (
             <div className="flex flex-col gap-2 pl-6">
               {/* Dieselben zwei Antwort-Arten wie oben — die Mindest-Tragedauer behält aber ihr
@@ -315,9 +329,12 @@ export default function VerschlussAnforderungFields({
                 options={[
                   { value: "duration", label: tc("duration") },
                   { value: "datetime", label: tc("pointInTime") },
+                  { value: "indefinite", label: tc("indefinite") },
                 ]}
               />
-              {lockEndMode === "duration" ? (
+              {lockEndMode === "indefinite" ? (
+                <span className="text-xs text-foreground-faint">{t("lockIndefiniteHint")}</span>
+              ) : lockEndMode === "duration" ? (
                 <>
                   <HoursInput value={minDauerH} onChange={setMinDauerH} min={1} step={1} unit={tc("hoursUnit")} />
                   <span className="text-xs text-foreground-faint">{t("minDurationHint")}</span>
@@ -330,7 +347,7 @@ export default function VerschlussAnforderungFields({
                   hint={carriedHint ?? t("sperrUntilHint")}
                 />
               )}
-              <div className="mt-1">{cleaningCheckbox}</div>
+              {cleaningCheckbox}
             </div>
           )}
         </div>

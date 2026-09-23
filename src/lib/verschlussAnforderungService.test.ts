@@ -43,7 +43,7 @@ import {
   updateLockPeriodEnd, updateLockRequest,
   lockAnchor,
   LOCK_ANCHOR_GRACE_MS,
-  lockPeriodEndFromRequest,
+  lockPeriodFromRequest,
 } from "./verschlussAnforderungService";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
@@ -256,6 +256,36 @@ describe("Sperr-Ende muss nach der Auslösung liegen", () => {
 
       if (res.ok) throw new Error("erwartet: Fehler");
       expect(res.error).toBe("LOCK_PERIOD_END_MUST_BE_FUTURE");
+      expect(tx.verschlussAnforderung.create).not.toHaveBeenCalled();
+    });
+
+    it("SPERRZEIT ohne Ende und ohne Dauer entsteht unbefristet", async () => {
+      const res = await createVerschlussAnforderung({ userId: "u1", art: "SPERRZEIT", wirksamAbAt: IN_DREI_WOCHEN }, "herrin");
+
+      expect(res.ok).toBe(true);
+      expect(tx.verschlussAnforderung.create.mock.calls[0][0].data).toMatchObject({ art: "SPERRZEIT", endsAt: null });
+    });
+
+    it("ANFORDERUNG mit unbefristeter Sperre speichert die Vorgabe samt Reinigungs-Flag", async () => {
+      const res = await createVerschlussAnforderung({
+        userId: "u1", art: "ANFORDERUNG", wirksamAbAt: IN_DREI_WOCHEN, fristH: 4,
+        lockIndefinite: true, cleaningAllowed: true,
+      }, "herrin");
+
+      expect(res.ok).toBe(true);
+      expect(tx.verschlussAnforderung.create.mock.calls[0][0].data).toMatchObject({
+        minDurationHours: null, lockEndsAt: null, lockIndefinite: true, cleaningAllowed: true,
+      });
+    });
+
+    it("ANFORDERUNG: unbefristet zusammen mit einem Sperr-Ende ist ein Fehler", async () => {
+      const res = await createVerschlussAnforderung({
+        userId: "u1", art: "ANFORDERUNG", wirksamAbAt: IN_DREI_WOCHEN, fristH: 4,
+        lockIndefinite: true, lockEndsAt: DANACH,
+      }, "herrin");
+
+      if (res.ok) throw new Error("erwartet: Fehler");
+      expect(res.error).toBe("LOCK_DURATION_OR_END");
       expect(tx.verschlussAnforderung.create).not.toHaveBeenCalled();
     });
 
@@ -504,7 +534,7 @@ describe("updateLockRequest", () => {
   /** Eine ANFORDERUNGs-Zeile, wie updateLockRequest sie liest (inkl. user für die Zustellung). */
   const anf = (overrides: object) => ({
     id: "a1", userId: "u1", art: "ANFORDERUNG", endsAt: SPAETER, message: null, minDurationHours: null,
-    lockEndsAt: null, deviceId: null, cleaningAllowed: false, fulfilledAt: null, withdrawnAt: null,
+    lockEndsAt: null, lockIndefinite: false, deviceId: null, cleaningAllowed: false, fulfilledAt: null, withdrawnAt: null,
     user: { id: "u1", email: "sub@example.invalid", username: "sub", locale: "de" },
     ...overrides,
   });
@@ -587,6 +617,32 @@ describe("updateLockRequest", () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 
+  it("unbefristet verdrängt eine Mindestdauer — und umgekehrt", async () => {
+    findUniqueMock.mockResolvedValue(anf({ ...triggered, minDurationHours: 24 }));
+    await updateLockRequest("a1", { lockIndefinite: true }, "herrin");
+    expect(updateMock.mock.calls[0][0].data).toMatchObject({ minDurationHours: null, lockEndsAt: null, lockIndefinite: true });
+
+    findUniqueMock.mockResolvedValue(anf({ ...triggered, lockIndefinite: true }));
+    await updateLockRequest("a1", { minDurationHours: 12 }, "herrin");
+    expect(updateMock.mock.calls[1][0].data).toMatchObject({ minDurationHours: 12, lockEndsAt: null, lockIndefinite: false });
+  });
+
+  it("unbefristet UND eine Mindestdauer zugleich ist ein Fehler", async () => {
+    findUniqueMock.mockResolvedValue(anf(triggered));
+    const res = await updateLockRequest("a1", { minDurationHours: 12, lockIndefinite: true }, "herrin");
+
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("LOCK_DURATION_OR_END");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("das Reinigungs-Flag bleibt bei einer unbefristeten Sperr-Vorgabe erhalten", async () => {
+    findUniqueMock.mockResolvedValue(anf(triggered));
+    await updateLockRequest("a1", { lockIndefinite: true, cleaningAllowed: true }, "herrin");
+
+    expect(updateMock.mock.calls[0][0].data.cleaningAllowed).toBe(true);
+  });
+
   it("das Reinigungs-Flag ohne Sperr-Vorgabe fällt weg (es hätte nichts zu erlauben)", async () => {
     findUniqueMock.mockResolvedValue(anf(triggered));
     await updateLockRequest("a1", { cleaningAllowed: true }, "herrin");
@@ -630,17 +686,17 @@ describe("updateLockRequest", () => {
 
 describe("Sperr-Ende: Anker und volle Minute", () => {
   const submitted = new Date("2026-09-19T18:46:18.400Z");
-  const zwoelfH = { lockEndsAt: null, minDurationHours: 12 };
+  const zwoelfH = { lockEndsAt: null, minDurationHours: 12, lockIndefinite: false };
 
   it("der Vorfall 20.09.2026: 78 Sekunden Tippdauer verschieben das Ende nicht mehr", () => {
     const anker = lockAnchor(new Date("2026-09-19T18:45:00Z"), submitted);
-    expect(lockPeriodEndFromRequest(zwoelfH, anker)?.toISOString()).toBe("2026-09-20T06:45:00.000Z");
+    expect(lockPeriodFromRequest(zwoelfH, anker)?.endsAt?.toISOString()).toBe("2026-09-20T06:45:00.000Z");
   });
 
   it("eine Frist mit Sekunden wird auf die angezeigte Minute abgeschnitten", () => {
-    expect(lockPeriodEndFromRequest(zwoelfH, submitted)?.toISOString()).toBe("2026-09-20T06:46:00.000Z");
-    const absolut = { lockEndsAt: new Date("2026-09-20T06:46:59Z"), minDurationHours: null };
-    expect(lockPeriodEndFromRequest(absolut, submitted)?.toISOString()).toBe("2026-09-20T06:46:00.000Z");
+    expect(lockPeriodFromRequest(zwoelfH, submitted)?.endsAt?.toISOString()).toBe("2026-09-20T06:46:00.000Z");
+    const absolut = { lockEndsAt: new Date("2026-09-20T06:46:59Z"), minDurationHours: null, lockIndefinite: false };
+    expect(lockPeriodFromRequest(absolut, submitted)?.endsAt?.toISOString()).toBe("2026-09-20T06:46:00.000Z");
   });
 
   it("weiter als die Schranke zurückdatiert verkürzt die Sperre nicht", () => {

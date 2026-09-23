@@ -22,6 +22,8 @@ Die zwei Fristformen sind die wichtigste Unterscheidung:
 | `lockEndsAt` | feste Wanduhr | … verkürzt die Sperre |
 
 Wer eine **Tragedauer** meint, nimmt `minDurationHours`. Wer einen **Termin** meint, `lockEndsAt`.
+Die dritte Wahl, `lockIndefinite`, hat keinen Nullpunkt: die Sperrzeit entsteht ohne Ende und hält,
+bis die Keyholderin sie ändert oder zurückzieht. Die drei schliessen einander aus.
 
 ## Auslöser
 

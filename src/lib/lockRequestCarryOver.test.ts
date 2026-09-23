@@ -17,15 +17,15 @@ vi.mock("@/lib/prisma", () => ({
 // Heimdall-Push ist fire-and-forget und für die Regel unerheblich.
 vi.mock("@/lib/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
 
-import { carryOverLockPeriodOnAlreadyLocked, lockPeriodEndFromRequest } from "./verschlussAnforderungService";
+import { carryOverLockPeriodOnAlreadyLocked, lockPeriodFromRequest } from "./verschlussAnforderungService";
 
 /** X — der Auslöse-Zeitpunkt der terminierten Anforderung. */
 const X = new Date("2026-07-31T14:00:00Z");
 const STUNDE = 60 * 60 * 1000;
 
-const anforderung = (over: Partial<{ minDurationHours: number | null; lockEndsAt: Date | null; createdBy: string | null }> = {}) => ({
+const anforderung = (over: Partial<{ minDurationHours: number | null; lockEndsAt: Date | null; lockIndefinite: boolean; createdBy: string | null }> = {}) => ({
   id: "a1", userId: "u1", message: "24h drin bleiben", cleaningAllowed: true,
-  minDurationHours: 24, lockEndsAt: null, createdBy: "herrin", ...over,
+  minDurationHours: 24, lockEndsAt: null, lockIndefinite: false, createdBy: "herrin", ...over,
 });
 
 beforeEach(() => {
@@ -34,21 +34,26 @@ beforeEach(() => {
   txMock.verschlussAnforderung.update.mockResolvedValue({});
 });
 
-describe("lockPeriodEndFromRequest — die eine Regel beider Pfade", () => {
+describe("lockPeriodFromRequest — die eine Regel beider Pfade", () => {
   it("absolutes Sperr-Ende gewinnt und bleibt unabhängig vom Anker fix", () => {
     const fix = new Date("2026-08-05T10:00:00Z");
-    const a = { minDurationHours: 24, lockEndsAt: fix };
-    expect(lockPeriodEndFromRequest(a, X)).toEqual(fix);
-    expect(lockPeriodEndFromRequest(a, new Date("2026-07-01T00:00:00Z"))).toEqual(fix);
+    const a = { minDurationHours: 24, lockEndsAt: fix, lockIndefinite: false };
+    expect(lockPeriodFromRequest(a, X)).toEqual({ endsAt: fix });
+    expect(lockPeriodFromRequest(a, new Date("2026-07-01T00:00:00Z"))).toEqual({ endsAt: fix });
   });
 
   it("sonst zählt minDurationHours ab dem übergebenen Anker", () => {
-    expect(lockPeriodEndFromRequest({ minDurationHours: 24, lockEndsAt: null }, X))
-      .toEqual(new Date(X.getTime() + 24 * STUNDE));
+    expect(lockPeriodFromRequest({ minDurationHours: 24, lockEndsAt: null, lockIndefinite: false }, X))
+      .toEqual({ endsAt: new Date(X.getTime() + 24 * STUNDE) });
   });
 
-  it("ohne beides: keine Sperrzeit", () => {
-    expect(lockPeriodEndFromRequest({ minDurationHours: null, lockEndsAt: null }, X)).toBeNull();
+  it("unbefristet: eine Sperrzeit OHNE Ende — nicht dasselbe wie keine", () => {
+    expect(lockPeriodFromRequest({ minDurationHours: null, lockEndsAt: null, lockIndefinite: true }, X))
+      .toEqual({ endsAt: null });
+  });
+
+  it("ohne Vorgabe: keine Sperrzeit", () => {
+    expect(lockPeriodFromRequest({ minDurationHours: null, lockEndsAt: null, lockIndefinite: false }, X)).toBeNull();
   });
 });
 
@@ -84,6 +89,13 @@ describe("carryOverLockPeriodOnAlreadyLocked", () => {
     const fix = new Date("2026-08-05T10:00:00Z");
     const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung({ minDurationHours: null, lockEndsAt: fix }), X))!;
     expect(r.endsAt).toEqual(fix);
+  });
+
+  it("unbefristet: legt eine Sperrzeit ohne Ende an", async () => {
+    const r = (await carryOverLockPeriodOnAlreadyLocked(anforderung({ minDurationHours: null, lockIndefinite: true }), X))!;
+    expect(r.endsAt).toBeNull();
+    const { data } = txMock.verschlussAnforderung.create.mock.calls[0][0] as { data: Record<string, unknown> };
+    expect(data).toMatchObject({ art: "SPERRZEIT", endsAt: null });
   });
 
   it("ohne mitgebrachte Sperrzeit: null — der Aufrufer zieht wie bisher zurück", async () => {

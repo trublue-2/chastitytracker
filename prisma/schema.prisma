@@ -894,6 +894,9 @@ model VerschlussAnforderung {
   endsAt           DateTime? @map("endetAt") // ANFORDERUNG: Frist zum Einschliessen; SPERRZEIT: darf nicht öffnen bis
   minDurationHours Float?    @map("dauerH") // ANFORDERUNG only: Mindest-Tragedauer (h) – erzeugt nach Einschliessen automatisch SPERRZEIT (relativ zur Verschlusszeit)
   lockEndsAt       DateTime? @map("sperrEndetAt") // ANFORDERUNG only: absolutes Sperr-Ende (Wanduhr). Wird bei Fulfill 1:1 als SPERRZEIT.endsAt übernommen – unabhängig vom tatsächlichen Verschlusszeitpunkt (Spät-Verschluss verschiebt das Ende NICHT). Alternative zu minDurationHours.
+  /// ANFORDERUNG only: nach dem Einschliessen entsteht eine UNBEFRISTETE Sperrzeit (endsAt null). Dritte
+  /// Alternative neben minDurationHours und lockEndsAt — die drei schliessen einander aus.
+  lockIndefinite   Boolean   @default(false)
   deviceId         String?
   device           Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   cleaningAllowed  Boolean   @default(false) @map("reinigungErlaubt") // SPERRZEIT: Reinigungsöffnung bricht die Sperre nicht. ANFORDERUNG mit minDurationHours: wird auf erzeugte SPERRZEIT vererbt.

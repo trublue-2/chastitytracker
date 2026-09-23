@@ -844,7 +844,8 @@ function registerTools(server: McpServer) {
           "still locked (if they are still locked when it triggers, it counts as fulfilled and its lock " +
           "period starts from the trigger time). Optionally enforce a " +
           "lock period after lock-up — either a minimum wearing duration (minDurationHours, relative to the " +
-          "actual lock-up) or an absolute end (lockUntilAt, fixed wall clock) — plus a specific device. " +
+          "actual lock-up), an absolute end (lockUntilAt, fixed wall clock) or no end at all (lockIndefinite) " +
+          "— plus a specific device. " +
           "Several lock requests can be open at once: a new one does NOT replace an existing one, and a " +
           "single lock-up fulfils all of them (use edit_lock_request to change one, withdraw with id to " +
           "cancel one). Can be scheduled/time-delayed so the user does not know exactly when it " +
@@ -852,9 +853,10 @@ function registerTools(server: McpServer) {
         inputSchema: {
           deadlineHours: z.number().positive().optional().describe("Hours to lock up by, counted from when the request is triggered. Use this or deadlineAt."),
           deadlineAt: z.string().optional().describe("Absolute deadline (ISO 8601, must be in the future). Overrides deadlineHours."),
-          minDurationHours: z.number().positive().optional().describe("Min wearing duration (h) enforced after lock-up via an auto lock period — counted from the actual lock-up. Mutually exclusive with lockUntilAt."),
-          lockUntilAt: z.string().optional().describe("Absolute lock end (ISO 8601) enforced after lock-up — fixed wall clock, a late lock-up does NOT shift it. Mutually exclusive with minDurationHours."),
-          cleaningAllowed: z.boolean().optional().describe("Let cleaning openings not break the resulting lock period. Only has an effect together with minDurationHours/lockUntilAt."),
+          minDurationHours: z.number().positive().optional().describe("Min wearing duration (h) enforced after lock-up via an auto lock period — counted from the actual lock-up. Mutually exclusive with lockUntilAt/lockIndefinite."),
+          lockUntilAt: z.string().optional().describe("Absolute lock end (ISO 8601) enforced after lock-up — fixed wall clock, a late lock-up does NOT shift it. Mutually exclusive with minDurationHours/lockIndefinite."),
+          lockIndefinite: z.boolean().optional().describe("Lock indefinitely after lock-up: the resulting lock period has no end until you lift it (edit_lock_period / withdraw). Mutually exclusive with minDurationHours/lockUntilAt."),
+          cleaningAllowed: z.boolean().optional().describe("Let cleaning openings not break the resulting lock period. Only has an effect together with minDurationHours/lockUntilAt/lockIndefinite."),
           deviceName: z.string().optional().describe("Require a specific device by name."),
           message: z.string().optional().describe("Message shown to the user."),
           delayMinutes: z.number().optional().describe("Delay before the request reaches the user, in minutes. Omit/0 = immediate."),
@@ -1363,8 +1365,9 @@ function registerTools(server: McpServer) {
           id: editIdField("request", "keyholder_dashboard.openLockRequests / scheduledDirectives"),
           deadlineAt: z.string().optional().describe("New absolute deadline to lock up (ISO 8601)."),
           deadlineHours: z.number().positive().optional().describe("New deadline in hours, counted from the (possibly new) trigger time. Ignored if deadlineAt is given."),
-          minDurationHours: z.number().positive().optional().describe("Min wearing duration (h) after lock-up. Replaces any absolute lockUntilAt."),
-          lockUntilAt: z.string().optional().describe("Absolute lock end (ISO 8601) after lock-up. Replaces any minDurationHours."),
+          minDurationHours: z.number().positive().optional().describe("Min wearing duration (h) after lock-up. Replaces any lockUntilAt/lockIndefinite."),
+          lockUntilAt: z.string().optional().describe("Absolute lock end (ISO 8601) after lock-up. Replaces any minDurationHours/lockIndefinite."),
+          lockIndefinite: z.boolean().optional().describe("true: lock indefinitely after lock-up (no end), replacing any minDurationHours/lockUntilAt. false: drop the indefinite lock (the request then brings no lock period)."),
           clearLockPeriod: z.boolean().optional().describe("Drop the lock period entirely — locking up then creates no Sperrzeit."),
           cleaningAllowed: z.boolean().optional().describe("Let cleaning openings not break the resulting lock period."),
           deviceName: z.string().optional().describe("Require this device by name."),

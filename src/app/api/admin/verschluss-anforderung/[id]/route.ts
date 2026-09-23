@@ -16,7 +16,7 @@ export async function GET(
     where: { id },
     select: {
       userId: true, art: true, message: true, endsAt: true, minDurationHours: true,
-      lockEndsAt: true, deviceId: true, cleaningAllowed: true, wirksamAb: true,
+      lockEndsAt: true, lockIndefinite: true, deviceId: true, cleaningAllowed: true, wirksamAb: true,
     },
   });
   if (!va) return errorResponse(404, "NOT_FOUND");
@@ -32,6 +32,7 @@ export async function GET(
     endsAt: va.endsAt?.toISOString() ?? null,
     minDurationHours: va.minDurationHours,
     lockEndsAt: va.lockEndsAt?.toISOString() ?? null,
+    lockIndefinite: va.lockIndefinite,
     deviceId: va.deviceId,
     cleaningAllowed: va.cleaningAllowed,
     wirksamAb: va.wirksamAb?.toISOString() ?? null,
@@ -87,6 +88,7 @@ export async function PATCH(
       endsAt,
       minDurationHours: body.minDurationHours ?? null,
       lockEndsAt,
+      lockIndefinite: body.lockIndefinite === true,
       deviceId: body.deviceId ?? null,
       cleaningAllowed: !!body.cleaningAllowed,
       wirksamAb,
