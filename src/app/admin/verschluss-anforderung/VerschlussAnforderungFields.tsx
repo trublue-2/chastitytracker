@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-import { useTranslations } from "next-intl";
-import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
+import { useLocale, useTranslations } from "next-intl";
+import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import FormError from "@/app/components/FormError";
+import FormSuccess from "@/app/components/FormSuccess";
 import Select from "@/app/components/Select";
 import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
@@ -39,6 +40,9 @@ export interface LockRequestEditData {
  * Mit `existing` wird daraus die BEARBEITEN-Ansicht einer offenen ANFORDERUNG: Felder vorbelegt,
  * Submit per `PATCH …/[id]` (`action:"edit"`) statt `POST`. Nur für ANFORDERUNG — eine Sperrzeit
  * ändert man über `setEnd`.
+ *
+ * Eine NEUE, terminierte ANFORDERUNG lässt sich mit „Speichern und nächste planen" in Serie stellen:
+ * das Formular bleibt offen und behält alle Werte, nur der Zeitpunkt wird neu gewählt.
  */
 export default function VerschlussAnforderungFields({
   userId,
@@ -47,10 +51,14 @@ export default function VerschlussAnforderungFields({
   tz,
   minNow,
   existing,
+  scheduleOnly = false,
   onSuccess,
+  onPlanned,
 }: {
   userId: string;
   art: "ANFORDERUNG" | "SPERRZEIT";
+  /** Sub ist verschlossen: ohne den Reiter „Sofort", Start auf „Zeitpunkt". */
+  scheduleOnly?: boolean;
   devices: DeviceOption[];
   /** Governing timezone of the sub (data owner) — formats datetime-local defaults + submit. */
   tz: string;
@@ -59,9 +67,13 @@ export default function VerschlussAnforderungFields({
   /** Gesetzt = BEARBEITEN einer bestehenden ANFORDERUNG statt Neuanlage. */
   existing?: LockRequestEditData;
   onSuccess: () => void;
+  /** Nach jeder mit „Speichern und nächste planen" gespeicherten Anforderung — das Formular bleibt
+   *  offen, `onSuccess` kommt also nicht. Für Aufrufer, deren Anzeige darunter sonst veraltet. */
+  onPlanned?: () => void;
 }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const apiError = useApiError();
   const isLockPeriod = art === "SPERRZEIT";
   const accentColor = isLockPeriod ? "var(--color-sperrzeit)" : "var(--color-request)";
@@ -104,21 +116,50 @@ export default function VerschlussAnforderungFields({
   // Terminierung: sofort (default), relative Verzögerung, oder absoluter Zeitpunkt — dasselbe
   // Bauteil, das auch die Aufgabe verwendet. Beim Bearbeiten aus dem gespeicherten `wirksamAb`.
   const [schedule, setSchedule] = useState<ScheduleValue>(() =>
-    existing ? scheduleFromWirksamAb(existing.wirksamAb, minNow, tz) : initialSchedule(minNow, tz)
+    existing ? scheduleFromWirksamAb(existing.wirksamAb, minNow, tz)
+    : scheduleOnly ? { ...initialSchedule(minNow, tz), mode: "datetime" }
+    : initialSchedule(minNow, tz)
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Serienplanung: die Auslöse-Zeitpunkte, die dieses Formular schon gespeichert hat. Zählt die
+  // Serie, liefert den zuletzt geplanten für die Bestätigung, und derselbe Zeitpunkt noch einmal
+  // wäre ein Doppelklick, keine zweite Anforderung.
+  const [planned, setPlanned] = useState<string[]>([]);
+  const lastPlanned = planned.at(-1);
+  const scheduleInputRef = useRef<HTMLInputElement>(null);
+  // Welcher der beiden Absende-Knöpfe gedrückt wurde — gesetzt im Klick, gelesen im Submit.
+  const planNextRef = useRef(false);
+  const canPlanNext = !existing && !isLockPeriod && schedule.mode !== "immediate";
+  // Absolute Zeiten wandern beim Weiterplanen unverändert mit — die Dauer-Reiter rechnen dagegen ab
+  // der jeweiligen Auslösung und passen von selbst. Der Hinweis steht am betroffenen Feld.
+  const carriedHint = planned.length > 0 ? t("planNextAbsoluteHint") : undefined;
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const planNext = canPlanNext && planNextRef.current;
     // Beim Bearbeiten darf die EINSCHLIESS-Frist in der Vergangenheit liegen (der Service prüft sie
     // bewusst nicht — sie ist eine Frist, kein Sperr-Ende). Bei der Neuanlage bleibt sie zukünftig.
-    if (!existing && mode === "datetime" && endsAt && fromDatetimeLocal(endsAt, tz) <= new Date()) {
+    const deadlineMs = mode === "datetime" && endsAt ? fromDatetimeLocal(endsAt, tz).getTime() : null;
+    if (!existing && deadlineMs !== null && deadlineMs <= Date.now()) {
       setError(t("futureDateRequired"));
       return;
     }
     if (scheduleIsPast(schedule, tz)) {
       setError(t("scheduleFutureRequired"));
+      return;
+    }
+    const nowMs = Date.now();
+    // Der Dienst prüft die Einschliess-Frist bewusst nicht gegen die Auslösung (sie ist eine Frist,
+    // kein Sperr-Ende). Beim Weiterplanen wandert eine als Zeitpunkt gesetzte Frist aber mit und läge
+    // bei der nächsten Anforderung vor deren Versand — dieselbe Prüfung wie im Orgasmus-Formular.
+    if (!existing && deadlineMs !== null && deadlineMs <= scheduleAnchorMs(schedule, tz, nowMs)) {
+      setError(t("deadlineBeforeTrigger"));
+      return;
+    }
+    const triggerIso = scheduleTriggerIso(schedule, tz, nowMs);
+    if (!existing && schedule.mode === "datetime" && triggerIso && planned.includes(triggerIso)) {
+      setError(t("scheduleDuplicate"));
       return;
     }
     if (!isLockPeriod && withMinDauer && lockEndMode === "datetime" && lockEndsAt && fromDatetimeLocal(lockEndsAt, tz) <= new Date()) {
@@ -139,8 +180,14 @@ export default function VerschlussAnforderungFields({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(buildCreatePayload()),
           });
-      if (res.ok) onSuccess();
-      else setError(apiError(await parseApiErrorCode(res)));
+      if (!res.ok) setError(apiError(await parseApiErrorCode(res)));
+      else if (!planNext) onSuccess();
+      else {
+        // Offen bleiben, alle Werte behalten — nur der Zeitpunkt ist neu zu wählen.
+        if (triggerIso) setPlanned((p) => [...p, triggerIso]);
+        onPlanned?.();
+        scheduleInputRef.current?.focus();
+      }
     } catch {
       setError(tc("networkError"));
     } finally {
@@ -241,7 +288,7 @@ export default function VerschlussAnforderungFields({
         datetime={endsAt}
         onDatetimeChange={setEndsAt}
         datetimeMin={minNow}
-        datetimeHint={isLockPeriod ? t("endetHintSperrzeit") : t("endetHintAnforderung")}
+        datetimeHint={carriedHint ?? (isLockPeriod ? t("endetHintSperrzeit") : t("endetHintAnforderung"))}
         // Die Frist zählt ab JETZT (Neuanlage) bzw. ab dem terminierten Auslöse-Zeitpunkt (Bearbeiten)
         // — anders als beim Orgasmus-Fenster gibt es keinen eigenen Start.
         anchorMs={existing ? () => scheduleAnchorMs(schedule, tz, Date.now()) : () => Date.now()}
@@ -280,7 +327,7 @@ export default function VerschlussAnforderungFields({
                   value={lockEndsAt}
                   onChange={(e) => setLockEndsAt(e.target.value)}
                   min={minNow}
-                  hint={t("sperrUntilHint")}
+                  hint={carriedHint ?? t("sperrUntilHint")}
                 />
               )}
               <div className="mt-1">{cleaningCheckbox}</div>
@@ -309,9 +356,17 @@ export default function VerschlussAnforderungFields({
         minNow={minNow}
         delayHint={t("scheduleDelayHint")}
         atHint={t("scheduleAtHint")}
+        allowImmediate={!scheduleOnly}
+        atInputRef={scheduleInputRef}
       />
 
       <FormError message={error} variant="compact" />
+      <FormSuccess
+        variant="inline"
+        message={lastPlanned
+          ? t("plannedFor", { time: formatDateTime(lastPlanned, toDateLocale(locale), tz), count: planned.length })
+          : null}
+      />
 
       <Button
         type="submit"
@@ -320,9 +375,15 @@ export default function VerschlussAnforderungFields({
         fullWidth
         loading={saving}
         icon={<LockClosedIcon size={16} />}
+        onClick={() => { planNextRef.current = false; }}
       >
         {saving ? t("sending") : existing ? tc("save") : t("submit")}
       </Button>
+      {canPlanNext && (
+        <Button type="submit" variant="secondary" fullWidth disabled={saving} onClick={() => { planNextRef.current = true; }}>
+          {t("saveAndPlanNext")}
+        </Button>
+      )}
     </form>
   );
 }
