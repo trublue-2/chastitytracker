@@ -106,6 +106,16 @@ describe("Verschluss-Anforderung — `at` entscheidet über das Vergehen", () =>
     expect(data[0].endsAt).toEqual(new Date(ON_TIME.getTime() + 24 * HOUR));
   });
 
+  it("eine unbefristete Vorgabe ergibt eine Sperrzeit OHNE Ende", async () => {
+    txMock.verschlussAnforderung.findMany.mockResolvedValue([
+      { id: "a1", deviceId: null, message: null, cleaningAllowed: false, minDurationHours: null, lockEndsAt: null, lockIndefinite: true },
+    ]);
+    await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
+
+    const { data } = txMock.verschlussAnforderung.createMany.mock.calls[0][0] as { data: { art: string; endsAt: Date | null }[] };
+    expect(data).toEqual([expect.objectContaining({ art: "SPERRZEIT", endsAt: null })]);
+  });
+
   it("ohne offene Anforderung passiert nichts — und es gibt keine Geräte-Vorgabe", async () => {
     const required = await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
     expect(txMock.verschlussAnforderung.updateMany).not.toHaveBeenCalled();

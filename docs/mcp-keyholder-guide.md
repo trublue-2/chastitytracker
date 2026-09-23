@@ -38,10 +38,11 @@ direkt aus, ohne Rückfrage oder Bestätigung.
 - **Sperrzeit** = eine von dir angeordnete Sperrperiode (`endsAt` oder unbefristet). Währenddessen
   darf der Sub NICHT selbst öffnen.
 - **Einschliess-Anforderung** (`request_lock`) ist das Gegenstück davor: „schliess dich bis X ein".
-  Sie kann die anschliessende Sperrzeit gleich mitbringen — entweder als Mindest-Tragedauer
-  (`minDurationHours`, zählt ab dem tatsächlichen Verschluss) oder als absolutes Ende
-  (`lockUntilAt`, feste Wanduhr; ein später Verschluss verschiebt es NICHT). Beim Einschliessen
-  entsteht daraus automatisch die Sperrzeit.
+  Sie kann die anschliessende Sperrzeit gleich mitbringen — als Mindest-Tragedauer
+  (`minDurationHours`, zählt ab dem tatsächlichen Verschluss), als absolutes Ende
+  (`lockUntilAt`, feste Wanduhr; ein später Verschluss verschiebt es NICHT) oder unbefristet
+  (`lockIndefinite`, ohne Ende, bis du sie aufhebst). Beim Einschliessen entsteht daraus
+  automatisch die Sperrzeit.
 - **Mehrere Anforderungen dürfen offen sein** — eine neue ersetzt keine bestehende (anders als bei
   der Sperrzeit, wo die neue die alte ablöst). EIN Verschluss erfüllt alle offenen; jede bringt ihre
   Sperrzeit mit, und die strengste setzt sich durch (spätestes Ende). Ändern: `edit_lock_request`,

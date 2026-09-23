@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 151 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 152 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -35,6 +35,7 @@ Steckbrief: [10-sperrzeit.md](10-sperrzeit.md)
 | `VerschlussAnforderung.endsAt` | DateTime? | — | je Direktive | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Box, Strafbuch | `queries.ts:foldActiveLockPeriods` |
 | `VerschlussAnforderung.minDurationHours` | Float? | — | je Direktive | Mindest-Tragedauer einer Anforderung; die Uhr startet beim tatsächlichen Verschluss. Alternative zu `lockEndsAt`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
 | `VerschlussAnforderung.lockEndsAt` | DateTime? | — | je Direktive | Absolutes Sperr-Ende einer Anforderung (feste Wanduhr). Ein später Verschluss verschiebt es NICHT — anders als `minDurationHours`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
+| `VerschlussAnforderung.lockIndefinite` | Boolean | `false` | je Direktive | Die Anforderung bringt eine UNBEFRISTETE Sperrzeit mit — sie hält, bis die Keyholderin sie aufhebt. Alternative zu `minDurationHours` und `lockEndsAt`. | Keyholder (UI), Keyholder (MCP) | Sperrzeit | `entryFulfilment.ts` |
 | `VerschlussAnforderung.deviceId` | String? | — | je Direktive | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Geräte, Strafbuch | — |
 | `VerschlussAnforderung.cleaningAllowed` | Boolean | `false` | je Direktive | Erlaubt DIESE Sperrzeit eine Reinigungsöffnung (und damit einen Gerätewechsel)? Es müssen ALLE gleichzeitig aktiven Sperrzeiten erlauben, nicht nur die neueste. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Reinigung, Box, Geräte | `queries.ts:foldActiveLockPeriods` |
 | `VerschlussAnforderung.wirksamAb` | DateTime? | — | je Direktive | Terminierte Auslösung. Bis dahin existiert die Direktive für den Sub nicht: keine Anzeige, keine Meldung, keine laufende Frist. | Keyholder (UI), Keyholder (MCP) | Sperrzeit, Benachrichtigungen | — |

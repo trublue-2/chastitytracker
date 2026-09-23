@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.2.9",
+    "date": "2026-09-23",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Sperrzeiten und Einschliess-Anforderungen lassen sich jetzt direkt unbefristet stellen, nicht erst nachträglich im Änderungsdialog.",
+          "en": "Lock periods and lock requests can now be set to indefinite right away, not only afterwards in the edit dialog."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.8",
     "date": "2026-09-22",
     "changes": [
