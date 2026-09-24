@@ -3,6 +3,7 @@
 import { useState } from "react";
 import BottomNav from "@/app/components/BottomNav";
 import NewEntrySheet, { type NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
+import type { BildersafeMenuAction } from "@/lib/queries";
 
 interface Props {
   isAdmin?: boolean;
@@ -11,7 +12,8 @@ interface Props {
   lockCallPending?: boolean;
   version?: string;
   categoryRows?: NewEntryCategoryRow[];
-  bildersafe?: boolean;
+  /** Welche Bildersafe-Zeile das (+)-Menü zeigt (`bildersafeMenuAction`); null = keine. */
+  bildersafe?: BildersafeMenuAction | null;
   weight?: boolean;
   /** Die dringendste offene Kontroll-Anforderung — Begründung in `NewEntrySheet`. */
   openInspection?: { code: string | null; href: string } | null;

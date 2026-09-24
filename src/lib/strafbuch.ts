@@ -768,9 +768,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   /** Deckt dieses Orgasmus-Fenster den Zeitpunkt? Ein vor dem Zeitpunkt zurückgezogenes Fenster
    *  deckt nichts mehr — und ein zu diesem Zeitpunkt noch nicht AUSGELÖSTES auch nicht: eine
    *  terminierte Anweisung ist für den Träger nicht da, sie kann ihm also weder eine Öffnung
-   *  erlauben noch einen Orgasmus decken. Ohne diese Zeile widerspräche das Strafbuch dem
-   *  Live-Gate, dessen Regel es spiegeln soll (`isOpeningPermittedNow` über
-   *  `getActiveOrgasmusAnforderung`): dort nicht erlaubt, hier verziehen.
+   *  erlauben noch einen Orgasmus decken. Ohne diese Zeile widerspräche das Strafbuch der
+   *  Sub-Sicht (`getActiveOrgasmusAnforderung`): dort nicht erlaubt, hier verziehen.
    *  Geteilt von der Öffnungs-Ausnahme (`openingAllowed`) und der Frage, ob ein Orgasmus überhaupt
    *  gedeckt war — zwei Fragen, eine Fenster-Arithmetik. */
   const windowCovers = (w: { beginsAt: Date; endsAt: Date; withdrawnAt: Date | null; wirksamAb: Date | null }, at: Date): boolean =>

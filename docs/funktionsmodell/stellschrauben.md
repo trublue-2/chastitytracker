@@ -302,7 +302,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `Entry.type` | Datensatz | VERSCHLUSS \| OEFFNEN \| PRUEFUNG \| ORGASMUS \| WEAR_BEGIN \| WEAR_END — die Art des Ereignisses, nicht einstellbar. |
 | `Entry.imageUrl` | Datensatz | Foto des Geräts bzw. des Siegels. |
 | `Entry.imageExifTime` | Datensatz | Aufnahmezeit aus den EXIF-Daten; massgeblich, wo Reihenfolge zählt. |
-| `Entry.codeImageUrl` | Datensatz | Bildersafe: versiegeltes Foto des Schlüsselbox-Codes, wird erst freigegeben, wenn Öffnen erlaubt ist. |
+| `Entry.codeImageUrl` | Datensatz | Bildersafe: versiegeltes Foto des Schlüsselbox-Codes, für den Träger erst frei, wenn danach eine Öffnung erfasst ist. |
 | `Entry.codeReadable` | Laufzeitzustand | Ob im Bildersafe-Foto überhaupt Ziffern erkennbar waren. Die Zahl selbst wird bewusst nicht gespeichert. |
 | `Entry.boxImageUrl` | Datensatz | Aufnahme durch das Sichtfenster der Box als Schlüssel-Nachweis. |
 | `Entry.keyDetected` | Laufzeitzustand | Hat die Bilderkennung im Sichtfenster einen Schlüssel gesehen? Beratend, blockiert nichts — und erkennt 'ein Schlüssel', nicht 'der richtige'. |

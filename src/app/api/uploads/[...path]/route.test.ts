@@ -4,9 +4,10 @@ import { NextRequest } from "next/server";
 /**
  * Die Auslieferungs-Schranke des versiegelten Code-Fotos. Die Versiegelung ist NUR diese Route:
  * die Datei liegt als normale Upload-Datei auf der Platte, einzig der Sealed-Check hier hält sie
- * vor dem Owner verborgen. Genauso load-bearing ist der Bypass — Admin und Keyholder müssen das
- * Foto IMMER sehen (sonst wäre bei verlorenem Code niemand mehr auskunftsfähig), und der
- * Keyholder-Zugriff muss auf die EIGENEN Subs gescopt bleiben.
+ * vor dem Owner verborgen. Genauso load-bearing ist der Bypass — Keyholder und FREMDE Admins müssen
+ * das Foto IMMER sehen (sonst wäre bei verlorenem Code niemand mehr auskunftsfähig), und der
+ * Keyholder-Zugriff muss auf die EIGENEN Subs gescopt bleiben. Für den Besitzer gilt das Siegel
+ * dagegen auch dann, wenn er Admin ist (Issue #111).
  * `isCodePhotoRevealed` selbst ist in `lib/queries.test.ts` abgedeckt — hier ist es gemockt.
  */
 vi.mock("@/lib/prisma", async () => {
@@ -78,9 +79,7 @@ describe("GET /api/uploads/[...path] — Bildersafe-Auslieferung", () => {
     const res = await get();
     expect(res.status).toBe(403);
     expect(await res.text()).toBe("Sealed");
-    // Nur das erste Argument ist der Vertrag (das Code-Foto); ein später explizit
-    // durchgereichtes `now` (Signatur-Default) darf den Test nicht brechen.
-    expect(vi.mocked(isCodePhotoRevealed).mock.calls[0]?.[0]).toEqual(CODE_PHOTO);
+    expect(isCodePhotoRevealed).toHaveBeenCalledWith(CODE_PHOTO);
     expect(readFile).not.toHaveBeenCalled();
   });
 
@@ -92,7 +91,15 @@ describe("GET /api/uploads/[...path] — Bildersafe-Auslieferung", () => {
     expect(res.headers.get("Content-Type")).toBe("image/jpeg");
   });
 
-  it("Admin sieht das Code-Foto IMMER — ohne Reveal-Check (Bypass)", async () => {
+  it("Owner, der Admin ist + versiegelt: 403 — die Admin-Ausnahme gilt nicht fürs eigene Foto", async () => {
+    authMock.mockResolvedValue(session(OWNER, "admin"));
+    const res = await get();
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe("Sealed");
+    expect(readFile).not.toHaveBeenCalled();
+  });
+
+  it("fremder Admin sieht das Code-Foto IMMER — ohne Reveal-Check (Bypass)", async () => {
     authMock.mockResolvedValue(session("admin1", "admin"));
     expect((await get()).status).toBe(200);
     expect(isCodePhotoRevealed).not.toHaveBeenCalled();

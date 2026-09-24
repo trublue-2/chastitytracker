@@ -12,6 +12,7 @@ import CategoryIconRender from "./CategoryIcon";
 import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
 import { entryFormBase, inspectionHref } from "@/lib/entryFormRoute";
 import { actionIcon } from "@/app/entries/actionSign";
+import type { BildersafeMenuAction } from "@/lib/queries";
 
 export interface NewEntryCategoryRow {
   id: string;
@@ -32,8 +33,8 @@ interface Props {
   lockCallPending?: boolean;
   /** Non-KG categories with their active-session state. Empty/undefined when feature flag is off. */
   categoryRows?: NewEntryCategoryRow[];
-  /** Bildersafe-Instanz: die Schlüsselbox-Code-Aktionen (versiegeln + anzeigen) einblenden. */
-  bildersafe?: boolean;
+  /** Welche Bildersafe-Zeile das (+)-Menü zeigt (`bildersafeMenuAction`); null = keine. */
+  bildersafe?: BildersafeMenuAction | null;
   /** Gewichtstracking für DIESEN Träger freigeschaltet (Schalter der Keyholderin). */
   weight?: boolean;
   /** Gesetzt = Keyholder-Sicht: das Sheet erfasst FÜR diesen Sub und zeigt auf dessen
@@ -134,7 +135,7 @@ function SheetActionRow({
   );
 }
 
-export default function NewEntrySheet({ open, onClose, isLocked, lockCallPending = false, categoryRows = [], bildersafe = false, weight = false, adminUserId, openInspection }: Props) {
+export default function NewEntrySheet({ open, onClose, isLocked, lockCallPending = false, categoryRows = [], bildersafe = null, weight = false, adminUserId, openInspection }: Props) {
   const t = useTranslations("newEntry");
   const tw = useTranslations("wearForm");
   // Das Blatt schliesst erst, wenn die Seite wirklich gewechselt hat — nicht schon beim Tippen.
@@ -281,9 +282,10 @@ export default function NewEntrySheet({ open, onClose, isLocked, lockCallPending
             der Keyholder erreicht das Foto über die Session-Timeline. */}
         {bildersafe && !adminUserId && (
           <>
-            {/* Versiegeln nur während verschlossen: es hängt am aktuellen Verschluss und deckt
-                damit auch das Neu-Versiegeln nach einer Reinigungsöffnung ab. */}
-            {isLocked && (
+            {/* Versiegeln nur verschlossen und nur, solange der laufende Verschluss noch kein Foto
+                hat (Issue #111). Nach einer Reinigungsöffnung ist es ein neuer Verschluss — dort
+                steht die Zeile wieder. */}
+            {bildersafe === "seal" && (
               <SheetActionRow
                 {...rowNav}
                 icon={actionIcon("BILDERSAFE_SEAL")}
@@ -293,20 +295,23 @@ export default function NewEntrySheet({ open, onClose, isLocked, lockCallPending
                 href={`${base}/bildersafe`}
               />
             )}
-            {/* Anzeigen bewusst OHNE `isLocked` — sonst ist der eigene Code nach dem Erfassen des
-                Aufschlusses unerreichbar (Lockout, issue #53). */}
+            {/* Anzeigen nur, solange NICHT verschlossen: während des Verschlusses bliebe der Code
+                ohnehin versiegelt (Issue #111). Nach dem Erfassen des Aufschlusses steht die Zeile
+                sofort da — sonst wäre der eigene Code unerreichbar (Lockout, Issue #53). */}
             {/* `Eye` und neutral, nicht das offene Schloss in der Zustandsfarbe: der Bildersafe hat
                 mit dem Verschluss nichts zu tun. Diese Zeile trug dasselbe Zeichen und dieselbe
                 Farbe wie „Verschluss öffnen" weiter oben im selben Blatt — solange das offene
                 Schloss nichtssagend war, fiel es nicht auf; seit es deutlich ist, behauptet es
                 „aufgeschlossen". */}
-            <SheetActionRow
-              {...rowNav}
-              icon={actionIcon("BILDERSAFE_SHOW")}
-              label={t("bildersafeShowAction")}
-              desc={t("bildersafeShowActionDesc")}
-              href={`${base}/bildersafe/anzeigen`}
-            />
+            {bildersafe === "show" && (
+              <SheetActionRow
+                {...rowNav}
+                icon={actionIcon("BILDERSAFE_SHOW")}
+                label={t("bildersafeShowAction")}
+                desc={t("bildersafeShowActionDesc")}
+                href={`${base}/bildersafe/anzeigen`}
+              />
+            )}
           </>
         )}
 

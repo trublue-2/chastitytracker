@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
@@ -24,15 +25,20 @@ interface Props {
   hasBox?: boolean;
   redirectTo?: string;
   taskWarnings?: TaskWarning[];
+  /** Hatte der Verschluss, der gerade endet, ein Bildersafe-Foto, geht es nach dem Speichern dorthin
+   *  statt aufs Dashboard: mit der erfassten Öffnung ist der Code frei (Issue #111). Nur online —
+   *  eine erst eingereihte Öffnung existiert auf dem Server noch nicht, der Code wäre noch zu. */
+  codeRevealHref?: string;
 }
 
-export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, lockPeriod, cleaning, boxHold, hasBox, redirectTo, taskWarnings }: Props) {
+export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDefault, lockPeriod, cleaning, boxHold, hasBox, redirectTo, taskWarnings, codeRevealHref }: Props) {
   const apiError = useApiError();
   const tDash = useTranslations("dashboard");
   const router = useRouter();
   const toast = useToast();
   const { offlineFetch } = useOfflineQueue();
   const target = redirectTo ?? "/dashboard";
+  const savedOnline = useRef(false);
 
   async function submitFn(payload: OeffnenPayload): Promise<SubmitResult> {
     const [url, init] = entryRequest(initial?.id, payload);
@@ -40,13 +46,14 @@ export default function OeffnenForm({ initial, grundOptions, maxTime, tz, nowDef
     const res = initial ? await fetch(url, init) : await offlineFetch(url, init, { offlineCapture: true });
     if (res === null) return { ok: true, offline: true };
     if (!res.ok) return { ok: false, error: apiError(await parseApiErrorCode(res)) };
+    savedOnline.current = true;
     toast.success(initial ? tDash("entryUpdated") : tDash("entrySaved"));
     return { ok: true };
   }
 
   function onSuccess() {
     if (initial) router.push(target);
-    else window.location.href = target;
+    else window.location.href = codeRevealHref && savedOnline.current ? codeRevealHref : target;
   }
 
   return (

@@ -29,8 +29,13 @@ vi.mock("@/lib/imageUtils", () => ({
   entryImageUrls: vi.fn(() => []),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const correction = vi.hoisted(() => ({ deleteEntryForUser: vi.fn() }));
+vi.mock("@/lib/entryCorrection", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/entryCorrection")>()),
+  deleteEntryForUser: correction.deleteEntryForUser,
+}));
 
-import { PATCH } from "./route";
+import { DELETE, PATCH } from "./route";
 
 const { OWNER_ID, ENTRY_ID } = ids;
 const PHOTO = "/api/uploads/kontrolle.jpg";
@@ -158,5 +163,42 @@ describe("PATCH /api/entries/[id] — Foto-Pflicht einer angeforderten Kontrolle
 
     expect(res.status).toBe(200);
     expect(db.entry.update).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Wer einen Eintrag löschen darf (Issue #111). Der Träger nur einen Verschluss-AUFRUF, der noch auf
+ * den Riegel wartet — sonst könnte er eine Öffnung erfassen, den Bildersafe-Code ablesen und die
+ * Öffnung spurlos wieder löschen. Alles andere löscht die Keyholderin oder ein Admin.
+ */
+describe("DELETE /api/entries/[id] — nur die Keyholderin löscht", () => {
+  const del = () =>
+    DELETE(new NextRequest(`http://localhost/api/entries/${ENTRY_ID}`, { method: "DELETE" }), {
+      params: Promise.resolve({ id: ENTRY_ID }),
+    });
+  const opening = { id: ENTRY_ID, userId: OWNER_ID, type: "OEFFNEN", startTime: new Date("2026-07-20T10:00:00Z"), boltConfirmedAt: null };
+
+  beforeEach(() => {
+    correction.deleteEntryForUser.mockResolvedValue({ ok: true });
+  });
+
+  it("Träger löscht seine eigene Öffnung → 403 DELETE_KEYHOLDER_ONLY, nichts gelöscht", async () => {
+    db.entry.findUnique.mockResolvedValue(opening);
+    const res = await del();
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "DELETE_KEYHOLDER_ONLY" });
+    expect(correction.deleteEntryForUser).not.toHaveBeenCalled();
+  });
+
+  it("Träger nimmt einen schwebenden Verschluss-Aufruf zurück → erlaubt", async () => {
+    db.entry.findUnique.mockResolvedValue({ ...opening, type: "VERSCHLUSS", boltConfirmedAt: null });
+    expect((await del()).status).toBe(204);
+    expect(correction.deleteEntryForUser).toHaveBeenCalled();
+  });
+
+  it("Keyholderin (erhaben) löscht die Öffnung ihres Trägers → erlaubt", async () => {
+    access.entryManageAccess.mockResolvedValue({ allowed: true, elevated: true });
+    db.entry.findUnique.mockResolvedValue({ ...opening, type: "PRUEFUNG" });
+    expect((await del()).status).toBe(204);
   });
 });

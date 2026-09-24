@@ -92,9 +92,9 @@ environment variables. Everything above is on by default.
   other device categories via `WEAR_BEGIN` / `WEAR_END` events. Gated by
   `ENABLE_DEVICE_CATEGORIES` (default **on**; set `false` for KG-only behavior).
 - **Sealed key-box code photo (Bildersafe)** — store a sealed photo of the key-box
-  combination that stays locked to the wearer during the lock period and only
-  becomes visible during a permitted opening (cleaning / orgasm window) or after
-  the lock ends; the keyholder can always see it. Opt-in via `ENABLE_BILDERSAFE`
+  combination, once per lock. It stays hidden from the wearer for as long as the
+  lock runs (even if the wearer is the instance admin) and is shown right after
+  the opening is recorded; the keyholder can always see it. Opt-in via `ENABLE_BILDERSAFE`
   (default **off**).
 - **Weight tracking** — weigh-ins with a photo of the scale (the configured
   vision provider reads the display and suggests the value), weighing windows per
@@ -588,7 +588,7 @@ data/
 | `GET` | `/api/entries` | List entries for current user |
 | `POST` | `/api/entries` | Create entry (lock, unlock, inspection, orgasm) |
 | `PATCH` | `/api/entries/[id]` | Update entry |
-| `DELETE` | `/api/entries/[id]` | Delete entry |
+| `DELETE` | `/api/entries/[id]` | Delete entry (keyholder/admin; the wearer only withdraws a lock call still waiting for the bolt) |
 | `POST` | `/api/admin/entries` | Admin: create entry for another user |
 
 ### Devices
@@ -617,7 +617,7 @@ Multi-category wear tracking (`ENABLE_DEVICE_CATEGORIES`, default on).
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/upload` | Upload photo (extension whitelist + magic-byte check, 10 MB limit) |
-| `GET` | `/api/uploads/[...path]` | Serve photo (auth-protected; sealed key-box photos stay locked to the wearer until an opening is permitted) |
+| `GET` | `/api/uploads/[...path]` | Serve photo (auth-protected; sealed key-box photos stay locked to the wearer until an opening is recorded) |
 | `POST` | `/api/detect-seal` | Detect seal-number presence in photo |
 | `POST` | `/api/detect-device` | Identify which registered device is shown in a photo |
 | `POST` | `/api/bildersafe/seal` | Seal a key-box code photo onto the active lock (Bildersafe) |

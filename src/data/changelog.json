@@ -9,6 +9,13 @@
           "de": "Auf selbst betriebenen Instanzen weist das Feedback-Formular darauf hin, dass eine echte Antwort-Adresse nötig ist, und bietet GitHub-Issues als Alternative an.",
           "en": "On self-hosted instances, the feedback form now points out that a real reply address is needed and offers GitHub issues as an alternative."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bildersafe: Der versiegelte Code bleibt verborgen, solange der Verschluss läuft, und erscheint direkt nach dem Erfassen der Öffnung. Versiegelt wird einmal pro Verschluss.",
+          "en": "Bildersafe: the sealed code stays hidden for as long as the lock runs and appears right after the opening is recorded. The code is sealed once per lock."
+        }
       }
     ]
   },

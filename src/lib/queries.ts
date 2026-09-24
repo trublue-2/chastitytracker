@@ -199,7 +199,8 @@ export function getLatestKgEntry(
     orderBy: { startTime: "desc" },
     // `oeffnenGrund` gehört dazu, weil der Lock-Zustand allein nicht sagt, WARUM zuletzt geöffnet
     // wurde — die Kontrolle nach einer Reinigungspause hängt genau daran (entries-Route).
-    select: { id: true, type: true, startTime: true, kontrollCode: true, deviceId: true, keyInBox: true, oeffnenGrund: true },
+    // `codeImageUrl`: ob der laufende Verschluss schon ein Bildersafe-Foto trägt (`bildersafeMenuAction`).
+    select: { id: true, type: true, startTime: true, kontrollCode: true, deviceId: true, keyInBox: true, oeffnenGrund: true, codeImageUrl: true },
   });
 }
 
@@ -348,6 +349,19 @@ export async function getIsLocked(userId: string, tx: PrismaTx | typeof prisma =
 export async function getCurrentLockKeyInBox(userId: string, tx: PrismaTx | typeof prisma = prisma): Promise<boolean | null> {
   const latest = await getLatestKgEntry(userId, tx);
   return latest?.type === "VERSCHLUSS" ? latest.keyInBox : null;
+}
+
+/** Welche Bildersafe-Zeile das (+)-Menü dem Träger anbietet (Issue #111):
+ *  - verschlossen, noch ohne Foto → `seal` (einmal pro Verschluss; nach einer Öffnung ist es ein neuer)
+ *  - verschlossen, schon versiegelt → keine: anzeigen ginge ohnehin nicht, neu versiegeln soll nicht
+ *  - nicht verschlossen → `show`: der zuletzt versiegelte Code, um die Box aufzumachen (Issue #53)
+ *  Rein, damit das Layout den Eintrag, den es für den Lock-Zustand ohnehin lädt, nur einmal holt. */
+export type BildersafeMenuAction = "seal" | "show";
+export function bildersafeMenuAction(
+  latest: { type: string; codeImageUrl: string | null } | null,
+): BildersafeMenuAction | null {
+  if (latest?.type !== "VERSCHLUSS") return "show";
+  return latest.codeImageUrl ? null : "seal";
 }
 
 /** Result row for a currently-active wear session in a non-KG DeviceCategory. */
@@ -834,7 +848,7 @@ export async function getKeyholderOrgasmusAnforderungen(userIds: string[]) {
  *  nicht zeitgebunden** → immer offen (so liest `/api/integration/box/config` die leere Liste
  *  ebenfalls). Sind Fenster gesetzt, sind sie eine echte Schranke: ausserhalb ist eine
  *  Reinigungsöffnung ein Verstoss. Einzige Quelle für diese Frage — von `isAllowedCleaningOpen`
- *  (Öffnen bricht die Sperrzeit?) und `isOpeningPermittedNow` (Bildersafe-Gate) geteilt, die sonst
+ *  (Öffnen bricht die Sperrzeit?) und den Anzeigen (`cleaningBlockReason`) geteilt, die sonst
  *  auseinanderliefen. `tz` ist die Zone des SUBS: die Fenster sind seine Wanduhrzeit.
  *
  *  **„Leer" meint die GANZE Liste, nicht den heutigen Tag.** Seit die Fenster Wochentage tragen,
@@ -848,38 +862,12 @@ export function cleaningWindowOpen(cleaningWindows: unknown, at: Date, tz: strin
 }
 
 /**
- * Live-Antwort auf „darf der Sub JETZT öffnen?" — spiegelt die Regel aus strafbuch.ts/oeffnen:
- * keine aktive Sperrzeit ODER ein aktives, erlaubtes Reinigungsfenster ODER ein Orgasmus-
- * Öffnungsfenster. Genutzt fürs Bildersafe-Foto-Freigabe-Gate.
- */
-export async function isOpeningPermittedNow(userId: string, now: Date = new Date()): Promise<boolean> {
-  const lockPeriod = await getActiveLockPeriod(userId);
-  if (!lockPeriod) return true;
-
-  // Erlaubte Reinigungsöffnung — dieselbe Quelle wie Durchsetzung und Strafbuch. Der äussere Guard
-  // spart nur die User-Abfrage, wenn die Sperrzeit Reinigung ohnehin verbietet.
-  if (lockPeriod.cleaningAllowed) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { cleaningAllowed: true, cleaningWindows: true, timezone: true },
-    });
-    if (user && cleaningBlockReason(user, [lockPeriod], now) === null) return true;
-  }
-
-  // Orgasmus-Öffnungsfenster (oeffnenErlaubt + im Zeitfenster)
-  const orgasm = await getActiveOrgasmusAnforderung(userId, now);
-  if (orgasm?.openingAllowed && orgasm.beginsAt <= now) return true;
-
-  return false;
-}
-
-/**
  * Der Code, der JETZT gilt — die Antwort auf „wo ist mein Schlüsselbox-Code".
  *
  * Zwei Fälle, und beide sind nötig:
  * - **Verschlossen** → nur der Code des LAUFENDEN Verschlusses. Ein älterer gehört zu einer Box,
- *   die längst neu eingestellt ist; ihn hier auszugeben hiesse, dem Träger während einer frischen
- *   Sperrzeit „Öffnen erlaubt" zu melden, weil das Gate für den ALTEN Eintrag längst freigibt.
+ *   die längst neu eingestellt ist; das Gate gäbe ihn frei (auf ihn folgte ja eine Öffnung), und der
+ *   Träger bekäme mitten im Verschluss einen Code, der nichts mehr öffnet — aber so aussieht.
  * - **Nicht verschlossen** → der jüngste Verschluss mit Code. Der Code wird gebraucht, solange die
  *   Box noch zu ist, und der Aufschluss wird oft erfasst, BEVOR sie offen ist. Wer auch hier nur
  *   den laufenden Verschluss sucht, sperrt den Träger von seinem eigenen Code aus (issue #53).
@@ -902,24 +890,22 @@ export async function getCurrentSealedCode(userId: string) {
 }
 
 /**
- * Ist das versiegelte Code-Foto eines VERSCHLUSS-Eintrags aktuell freigegeben?
- * Freigegeben, wenn die Session vorbei ist (späteres OEFFNEN existiert) ODER Öffnen gerade erlaubt ist.
- * `hasLaterOpen` kann übergeben werden (z.B. aus bereits geladenen Einträgen), um die DB-Abfrage zu sparen.
+ * Ist das versiegelte Code-Foto eines VERSCHLUSS-Eintrags für den Träger freigegeben?
+ *
+ * **Nur, wenn danach eine Öffnung erfasst ist** — nicht schon, weil Öffnen gerade erlaubt wäre
+ * (Issue #111). Die frühere Regel gab den Code bei jedem Verschluss ohne Sperrzeit sofort frei,
+ * und in einem Reinigungsfenster ohne konfigurierte Uhrzeiten sogar die ganze Sperrzeit über.
+ *
+ * Das Ventil bleibt dabei unangetastet: wer eine Öffnung erfasst, sieht den Code IMMER, auch im
+ * Notfall mitten in einer Sperrzeit. Die Öffnung steht dann aber im Verlauf, und bricht sie eine
+ * Sperrzeit, im Strafbuch. Wer nachsehen will, muss es also sichtbar tun.
  */
-export async function isCodePhotoRevealed(
-  entry: { userId: string; startTime: Date },
-  now: Date = new Date(),
-  hasLaterOpen?: boolean,
-): Promise<boolean> {
-  if (hasLaterOpen === undefined) {
-    const later = await prisma.entry.findFirst({
-      where: { userId: entry.userId, type: "OEFFNEN", startTime: { gt: entry.startTime } },
-      select: { id: true },
-    });
-    hasLaterOpen = later !== null;
-  }
-  if (hasLaterOpen) return true;
-  return isOpeningPermittedNow(entry.userId, now);
+export async function isCodePhotoRevealed(entry: { userId: string; startTime: Date }): Promise<boolean> {
+  const later = await prisma.entry.findFirst({
+    where: { userId: entry.userId, type: "OEFFNEN", startTime: { gt: entry.startTime } },
+    select: { id: true },
+  });
+  return later !== null;
 }
 
 /** Der Teil des Users, den die Reinigungs-Erlaubnis braucht. Aufrufer, die ihn ohnehin geladen
@@ -983,9 +969,8 @@ export type WindowsBindingReason = "no-active-lock-period" | "user-not-allowed" 
  * Für get_context (A-02): sortiert das Ergebnis von {@link cleaningBlockReason} nur in die Antwort
  * ein, die tatsächlich gestellt wird — beurteilt nichts neu. `cleaningBlockReason` selbst prüft das
  * Fenster nur, wenn eine aktive Sperrzeit übergeben wird; die vorgelagerte "keine aktive Sperrzeit"-
- * Frage kennt es nicht (dieselbe Lücke, die {@link isOpeningPermittedNow} und
- * {@link releaseLockPeriodsOnOpen} mit einem eigenen `if (!lockPeriod)`/`if (activeLockPeriods.length
- * === 0)`-Guard vor jedem Aufruf schließen) — hier also genauso, statt sie ein drittes Mal woanders
+ * Frage kennt es nicht (dieselbe Lücke, die {@link releaseLockPeriodsOnOpen} mit einem eigenen
+ * `if (activeLockPeriods.length === 0)`-Guard vor dem Aufruf schließt) — hier also genauso, statt sie ein drittes Mal woanders
  * zu wiederholen. Ebenso unterscheidet `cleaningBlockReason`s `null`-Rückgabe NICHT zwischen "im
  * konfigurierten Fenster" und "gar keine Fenster konfiguriert" (beides macht `cleaningWindowOpen`
  * zu `true`) — für `windowsBinding` ist das aber ein Unterschied: ohne konfigurierte Fenster gibt es

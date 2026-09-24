@@ -7,7 +7,7 @@ import AutoRefresh from "@/app/components/AutoRefresh";
 import DashboardBottomNav from "./DashboardBottomNav";
 import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth";
-import { getIsLocked, pendingLockCallAt } from "@/lib/queries";
+import { bildersafeMenuAction, getLatestKgEntry, pendingLockCallAt } from "@/lib/queries";
 import { subVisibleInspectionsNow } from "@/lib/dashboardData";
 import { pendingInspection } from "@/lib/entryFormRoute";
 import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
@@ -33,8 +33,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // so the keyholder nav entry appears exactly when access actually works. No extra DB query.
   const isKeyholder = (user as { controlsSubs?: boolean } | undefined)?.controlsSubs ?? false;
 
-  const [isLocked, lockCallAt, categoryRows, weightUser, inspections] = await Promise.all([
-    userId ? getIsLocked(userId) : Promise.resolve(false),
+  const [latestKg, lockCallAt, categoryRows, weightUser, inspections] = await Promise.all([
+    // Der jüngste Lock-Eintrag trägt den Zustand (`getIsLocked`) UND, ob der laufende Verschluss
+    // schon ein Bildersafe-Foto hat — eine Abfrage für beides.
+    userId ? getLatestKgEntry(userId) : Promise.resolve(null),
     // Wartet ein Verschluss-Aufruf auf den Riegel? Dann ist „Verschluss" in der (+)-Auswahl nicht
     // wählbar — siehe `NewEntrySheet`. Im Layout, weil der (+) auf JEDER Dashboard-Seite steht.
     userId ? pendingLockCallAt(userId) : Promise.resolve(null),
@@ -54,6 +56,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     userId ? subVisibleInspectionsNow(userId) : Promise.resolve([]),
   ]);
   const weight = !!weightUser?.weightTrackingEnabled;
+  const isLocked = latestKg?.type === "VERSCHLUSS";
+  const bildersafe = bildersafeEnabled() ? bildersafeMenuAction(latestKg) : null;
 
   const openInspection = pendingInspection(inspections);
 
@@ -76,7 +80,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         lockCallPending={lockCallAt !== null}
         version={pkg.version}
         categoryRows={categoryRows}
-        bildersafe={bildersafeEnabled()}
+        bildersafe={bildersafe}
         weight={weight}
         openInspection={openInspection}
       />
@@ -129,7 +133,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         lockCallPending={lockCallAt !== null}
         version={pkg.version}
         categoryRows={categoryRows}
-        bildersafe={bildersafeEnabled()}
+        bildersafe={bildersafe}
         weight={weight}
         openInspection={openInspection}
       />

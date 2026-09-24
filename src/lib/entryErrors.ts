@@ -56,6 +56,7 @@ export const ENTRY_ROUTE_CODES = [
   "USER_ID_REQUIRED",
   "USER_NOT_FOUND",
   "BOX_PHOTO_REUSED",
+  "DELETE_KEYHOLDER_ONLY",
 ] as const;
 
 export type EntryGuardCode = (typeof ENTRY_GUARD_CODES)[number];

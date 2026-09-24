@@ -151,9 +151,19 @@ export async function DELETE(
 
   const existing = await prisma.entry.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  // Löschen darf: der Eigentümer, ein globaler Admin ODER ein Keyholder des Eigentümers (scoped admin).
-  const { allowed } = await entryManageAccess(session.user.id, session.user.role, existing.userId);
+  // Löschen darf: ein globaler Admin oder ein Keyholder des Eigentümers (scoped admin). Der
+  // Eigentümer selbst nur einen Verschluss-AUFRUF, der noch auf den Riegel wartet — das
+  // „Zurücknehmen" in `OpenStateHero`, der einzige Löschweg, den ihm die Oberfläche bietet.
+  //
+  // Die API stand dem Träger vorher für JEDEN eigenen Eintrag offen, auch ohne Knopf dafür. Seit der
+  // Bildersafe den Code erst nach einer erfassten Öffnung freigibt (Issue #111), hiess das: Öffnung
+  // erfassen, Code ablesen, Öffnung wieder löschen — und nichts mehr davon im Verlauf oder Strafbuch.
+  // Korrigiert wird deshalb wie beim Bearbeiten über die Keyholderin.
+  const { allowed, elevated } = await entryManageAccess(session.user.id, session.user.role, existing.userId);
   if (!allowed) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (!elevated && !isPendingLock(existing)) {
+    return NextResponse.json({ error: "DELETE_KEYHOLDER_ONLY" }, { status: 403 });
+  }
 
   const force = req.nextUrl.searchParams.get("force") === "true";
   const withPartner = req.nextUrl.searchParams.get("withPartner") === "true";
