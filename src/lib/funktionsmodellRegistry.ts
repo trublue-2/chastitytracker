@@ -839,7 +839,7 @@ export const FM_REGISTRY: FmEntry[] = [
   x("record", "Entry", "imageUrl", "Foto des Geräts bzw. des Siegels."),
   x("record", "Entry", "imageExifTime", "Aufnahmezeit aus den EXIF-Daten; massgeblich, wo Reihenfolge zählt."),
   x("record", "Entry", "codeImageUrl",
-    "Bildersafe: versiegeltes Foto des Schlüsselbox-Codes, wird erst freigegeben, wenn Öffnen erlaubt ist."),
+    "Bildersafe: versiegeltes Foto des Schlüsselbox-Codes, für den Träger erst frei, wenn danach eine Öffnung erfasst ist."),
   x("runtime", "Entry", "codeReadable",
     "Ob im Bildersafe-Foto überhaupt Ziffern erkennbar waren. Die Zahl selbst wird bewusst nicht gespeichert."),
   x("record", "Entry", "boxImageUrl", "Aufnahme durch das Sichtfenster der Box als Schlüssel-Nachweis."),

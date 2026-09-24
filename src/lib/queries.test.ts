@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { releaseLockPeriodsOnOpen, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveLockPeriods, isOpeningPermittedNow, isCodePhotoRevealed, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE, getKgNeighbors, getEntryNeighbors } from "./queries";
+import { releaseLockPeriodsOnOpen, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveLockPeriods, isCodePhotoRevealed, bildersafeMenuAction, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE, getKgNeighbors, getEntryNeighbors } from "./queries";
 import type { PrismaTx } from "./queries";
 import { prisma } from "@/lib/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
@@ -372,142 +372,54 @@ describe("getEntryNeighbors", () => {
     });
   });
 });
-// ─── Bildersafe-Gate: isOpeningPermittedNow + isCodePhotoRevealed ──────────
+// ─── Bildersafe-Gate: isCodePhotoRevealed + bildersafeMenuAction ──────────
 
 /**
  * Das Freigabe-Gate des versiegelten Schlüsselbox-Code-Fotos. Ein Fehler hier wirkt physisch:
  * zu Unrecht verborgen = der Sub kommt nicht an seinen eigenen Schlüsselbox-Code (Lockout),
- * zu früh gezeigt = die Versiegelung ist wertlos. Das Feature läuft bei mindestens einem
- * Self-Hoster — für Portal-Checks unsichtbar, ein stiller Bruch bliebe unbemerkt. Diese Tests
- * SICHERN das Ist-Verhalten zu (inkl. der dokumentierten Lücke), sie ändern es nicht.
+ * zu früh gezeigt = die Versiegelung ist wertlos. Das Feature läuft bei Self-Hostern — für
+ * Portal-Checks unsichtbar, ein stiller Bruch bliebe unbemerkt.
+ *
+ * Seit Issue #111 strikt: freigegeben NUR durch eine spätere Öffnung. Die frühere Lücke (Verschluss
+ * ohne Sperrzeit ⇒ sofort sichtbar) ist geschlossen; ein erlaubtes Öffnungsfenster allein gibt den
+ * Code ebenfalls nicht mehr frei — erst die erfasste Öffnung.
  */
-
-/** Eine aktive Sperrzeit-Zeile, wie `getActiveLockPeriod` sie lädt und faltet. */
-const lockPeriod = (cleaningAllowed: boolean) =>
-  [{ id: "sz1", endsAt: new Date("2026-08-01T00:00:00Z"), cleaningAllowed }];
-
-/** Baseline beider Gate-describes: keine Sperre, User darf reinigen (keine Fenster), kein
- *  Orgasmus-Fenster. `isCodePhotoRevealed` delegiert an `isOpeningPermittedNow` — es IST
- *  dieselbe Gate-Baseline, deshalb EINE Quelle. */
-function stubGateDefaults() {
-  vi.clearAllMocks();
-  db.verschlussAnforderung.findMany.mockResolvedValue([]);
-  db.user.findUnique.mockResolvedValue(user({ cleaningWindows: null }));
-  db.orgasmusAnforderung.findFirst.mockResolvedValue(null);
-}
-
-describe("isOpeningPermittedNow — darf der Sub JETZT öffnen?", () => {
-  beforeEach(stubGateDefaults);
-
-  it("keine aktive Sperrzeit → erlaubt", async () => {
-    expect(await isOpeningPermittedNow("u1", NACHTS)).toBe(true);
-  });
-
-  it("Sperrzeit verbietet Reinigung, kein Orgasmus-Fenster → verboten", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(false);
-  });
-
-  it("Sperrzeit erlaubt Reinigung + User darf + keine Fenster konfiguriert → erlaubt", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(true));
-    expect(await isOpeningPermittedNow("u1", NACHTS)).toBe(true);
-  });
-
-  it("Sperrzeit erlaubt Reinigung, aber User-Flag aus → verboten", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(true));
-    db.user.findUnique.mockResolvedValue(user({ cleaningAllowed: false, cleaningWindows: null }));
-    expect(await isOpeningPermittedNow("u1", NACHTS)).toBe(false);
-  });
-
-  it("Sperrzeit + Reinigung erlaubt + Fenster OFFEN → erlaubt", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(true));
-    db.user.findUnique.mockResolvedValue(user()); // FENSTER 19–20 Uhr
-    expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(true);
-  });
-
-  it("Sperrzeit + Reinigung erlaubt, aber Fenster ZU → verboten", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(true));
-    db.user.findUnique.mockResolvedValue(user());
-    expect(await isOpeningPermittedNow("u1", NACHTS)).toBe(false);
-  });
-
-  it("zwei aktive Sperren, EINE verbietet Reinigung → verboten, auch im Fenster (UND-Regel)", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue([...lockPeriod(true), { id: "sz2", endsAt: null, cleaningAllowed: false }]);
-    db.user.findUnique.mockResolvedValue(user());
-    expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(false);
-  });
-
-  it("strikte Sperrzeit, aber Orgasmus-Fenster mit oeffnenErlaubt läuft → erlaubt", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    db.orgasmusAnforderung.findFirst.mockResolvedValue({ openingAllowed: true, beginsAt: new Date("2026-07-10T00:00:00Z") });
-    expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(true);
-  });
-
-  it("Orgasmus-Fenster OHNE oeffnenErlaubt → verboten", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    db.orgasmusAnforderung.findFirst.mockResolvedValue({ openingAllowed: false, beginsAt: new Date("2026-07-10T00:00:00Z") });
-    expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(false);
-  });
-
-  it("Orgasmus-Fenster, das erst in der Zukunft beginnt → verboten", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    db.orgasmusAnforderung.findFirst.mockResolvedValue({ openingAllowed: true, beginsAt: new Date("2026-07-11T00:00:00Z") });
-    expect(await isOpeningPermittedNow("u1", IM_FENSTER)).toBe(false);
-  });
-});
-
 describe("isCodePhotoRevealed — Freigabe des versiegelten Code-Fotos", () => {
   const ENTRY = { userId: "u1", startTime: new Date("2026-06-20T08:00:00Z") };
 
   beforeEach(() => {
-    stubGateDefaults();
+    vi.clearAllMocks();
     db.entry.findFirst.mockResolvedValue(null);
   });
 
-  it("späteres OEFFNEN existiert → freigegeben, selbst gegen eine strikte aktive Sperrzeit (Anti-Lockout-Ventil)", async () => {
-    // Das wichtigste Sicherheitsventil: ist die Session vorbei (irgendein späteres OEFFNEN),
-    // gibt es das Foto bedingungslos frei — auch gegen eine strikte Sperrzeit, die das Gate
-    // sonst schlösse. Ohne dieses Ventil wäre der Sub nach der Öffnung weiter vom eigenen
-    // Box-Code ausgesperrt.
+  it("späteres OEFFNEN existiert → freigegeben (Ventil: wer die Öffnung erfasst, kommt immer an den Code)", async () => {
     db.entry.findFirst.mockResolvedValue({ id: "o1" });
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    expect(await isCodePhotoRevealed(ENTRY, IM_FENSTER)).toBe(true);
+    expect(await isCodePhotoRevealed(ENTRY)).toBe(true);
   });
 
-  it("hasLaterOpen=true übergeben → freigegeben ohne jede DB-Abfrage", async () => {
-    expect(await isCodePhotoRevealed(ENTRY, IM_FENSTER, true)).toBe(true);
-    expect(db.entry.findFirst).not.toHaveBeenCalled();
-    expect(db.verschlussAnforderung.findMany).not.toHaveBeenCalled();
+  it("kein späteres OEFFNEN → verborgen, auch ohne Sperrzeit (die frühere Lücke ist geschlossen)", async () => {
+    expect(await isCodePhotoRevealed(ENTRY)).toBe(false);
   });
 
-  it("hasLaterOpen=false übergeben → spart nur die OEFFNEN-Abfrage, das Gate läuft trotzdem", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    expect(await isCodePhotoRevealed(ENTRY, IM_FENSTER, false)).toBe(false);
-    expect(db.entry.findFirst).not.toHaveBeenCalled();
+  it("sucht nur Öffnungen DESSELBEN Trägers NACH dem Verschluss", async () => {
+    await isCodePhotoRevealed(ENTRY);
+    expect(db.entry.findFirst.mock.calls[0][0].where).toEqual({
+      userId: "u1", type: "OEFFNEN", startTime: { gt: ENTRY.startTime },
+    });
+  });
+});
+
+describe("bildersafeMenuAction — welche Bildersafe-Zeile das (+)-Menü zeigt", () => {
+  it("nicht verschlossen (oder noch nie) → anzeigen", () => {
+    expect(bildersafeMenuAction(null)).toBe("show");
+    expect(bildersafeMenuAction({ type: "OEFFNEN", codeImageUrl: null })).toBe("show");
   });
 
-  it("kein späteres OEFFNEN + KEINE aktive Sperrzeit → sofort freigegeben (dokumentierte Lücke, Ist-Verhalten)", async () => {
-    // Bewusst zugesichert, nicht behoben: bei aktivem VERSCHLUSS ohne Sperrzeit gilt „Öffnen
-    // erlaubt" → der Code ist dem Sub sofort sichtbar. Die strikte Variante (Bildersafe selbst
-    // als Sperrmechanismus) wurde am 2026-06-25 zurückgestellt. Wer dieses Verhalten ändert,
-    // muss diesen Test BEWUSST mitändern.
-    expect(await isCodePhotoRevealed(ENTRY, NACHTS)).toBe(true);
+  it("verschlossen ohne Foto → versiegeln", () => {
+    expect(bildersafeMenuAction({ type: "VERSCHLUSS", codeImageUrl: null })).toBe("seal");
   });
 
-  it("aktive Sperrzeit ohne Reinigungserlaubnis → verborgen", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    expect(await isCodePhotoRevealed(ENTRY, IM_FENSTER)).toBe(false);
-  });
-
-  it("aktive Sperrzeit + Reinigung erlaubt + offenes Reinigungsfenster → freigegeben", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(true));
-    db.user.findUnique.mockResolvedValue(user()); // FENSTER 19–20 Uhr, IM_FENSTER liegt darin
-    expect(await isCodePhotoRevealed(ENTRY, IM_FENSTER)).toBe(true);
-  });
-
-  it("strikte Sperrzeit, aber laufendes Orgasmus-Fenster mit oeffnenErlaubt → freigegeben", async () => {
-    db.verschlussAnforderung.findMany.mockResolvedValue(lockPeriod(false));
-    db.orgasmusAnforderung.findFirst.mockResolvedValue({ openingAllowed: true, beginsAt: new Date("2026-07-10T00:00:00Z") });
-    expect(await isCodePhotoRevealed(ENTRY, IM_FENSTER)).toBe(true);
+  it("verschlossen und schon versiegelt → keine Zeile", () => {
+    expect(bildersafeMenuAction({ type: "VERSCHLUSS", codeImageUrl: "/api/uploads/c.jpg" })).toBeNull();
   });
 });

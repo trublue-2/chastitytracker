@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
  * (ENABLE_BILDERSAFE — ohne Flag existiert die Route nach aussen nicht), die URL-Whitelist (nur
  * eigene Upload-Pfade, keine externen URLs in die DB) und der Zustand (versiegeln nur am
  * AKTUELLEN Verschluss — sonst hinge das Code-Foto an einer beendeten Session und wäre über das
- * Anti-Lockout-Ventil sofort freigegeben).
+ * Anti-Lockout-Ventil sofort freigegeben). Dazu: nur EINMAL pro Verschluss (Issue #111).
  */
 vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
@@ -32,6 +32,7 @@ beforeEach(() => {
   vi.stubEnv("ENABLE_BILDERSAFE", "true");
   vi.mocked(requireApi).mockResolvedValue({ user: { id: "u1" } } as Awaited<ReturnType<typeof requireApi>>);
   db.entry.findFirst.mockResolvedValue(LOCKED);
+  db.entry.updateMany.mockResolvedValue({ count: 1 });
 });
 
 afterEach(() => {
@@ -50,41 +51,52 @@ describe("POST /api/bildersafe/seal — Guard-Kette", () => {
   it("Feature-Flag aus → 404, auch mit gültigem Body (Route existiert nach aussen nicht)", async () => {
     vi.stubEnv("ENABLE_BILDERSAFE", "false");
     expect((await POST(req({ codeImageUrl: CODE_URL }))).status).toBe(404);
-    expect(db.entry.update).not.toHaveBeenCalled();
+    expect(db.entry.updateMany).not.toHaveBeenCalled();
   });
 
   it("fehlende oder externe codeImageUrl → 400 (nur eigene Upload-Pfade)", async () => {
     expect((await POST(req({}))).status).toBe(400);
     expect((await POST(req({ codeImageUrl: "https://evil.example/x.jpg" }))).status).toBe(400);
-    expect(db.entry.update).not.toHaveBeenCalled();
+    expect(db.entry.updateMany).not.toHaveBeenCalled();
   });
 
   it("nicht verschlossen (kein KG-Eintrag) → 400, nichts geschrieben", async () => {
     db.entry.findFirst.mockResolvedValue(null);
     expect((await POST(req({ codeImageUrl: CODE_URL }))).status).toBe(400);
-    expect(db.entry.update).not.toHaveBeenCalled();
+    expect(db.entry.updateMany).not.toHaveBeenCalled();
   });
 
   it("nicht verschlossen (jüngster KG-Eintrag ist OEFFNEN) → 400, nichts geschrieben", async () => {
     db.entry.findFirst.mockResolvedValue({ id: "e2", type: "OEFFNEN" });
     expect((await POST(req({ codeImageUrl: CODE_URL }))).status).toBe(400);
-    expect(db.entry.update).not.toHaveBeenCalled();
+    expect(db.entry.updateMany).not.toHaveBeenCalled();
   });
 
   it("verschlossen → hängt das Code-Foto an den AKTUELLEN Verschluss", async () => {
     const res = await POST(req({ codeImageUrl: CODE_URL, codeReadable: true }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(db.entry.update).toHaveBeenCalledWith({
-      where: { id: "e1" },
+    expect(db.entry.updateMany).toHaveBeenCalledWith({
+      where: { id: "e1", codeImageUrl: null },
       data: { codeImageUrl: CODE_URL, codeReadable: true },
     });
   });
 
+  it("laufender Verschluss schon versiegelt → 409, ohne Schreibversuch", async () => {
+    db.entry.findFirst.mockResolvedValue({ ...LOCKED, codeImageUrl: "/api/uploads/alt.jpg" });
+    expect((await POST(req({ codeImageUrl: CODE_URL }))).status).toBe(409);
+    expect(db.entry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("gleichzeitig versiegelt (bedingtes Schreiben trifft nichts mehr) → 409", async () => {
+    db.entry.updateMany.mockResolvedValue({ count: 0 });
+    expect((await POST(req({ codeImageUrl: CODE_URL }))).status).toBe(409);
+  });
+
   it("ohne codeReadable wird null gespeichert (nicht undefined)", async () => {
     await POST(req({ codeImageUrl: CODE_URL }));
-    expect(db.entry.update).toHaveBeenCalledWith({
-      where: { id: "e1" },
+    expect(db.entry.updateMany).toHaveBeenCalledWith({
+      where: { id: "e1", codeImageUrl: null },
       data: { codeImageUrl: CODE_URL, codeReadable: null },
     });
   });

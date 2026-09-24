@@ -65,9 +65,11 @@ export async function GET(
     return new NextResponse("Forbidden", { status: 403 });
   }
 
-  // Bildersafe: ein versiegeltes Code-Foto bleibt für den Owner gesperrt, bis Öffnen erlaubt ist
-  // (oder die Session vorbei ist). Admin/Keyholder sieht es immer.
-  if (codePhoto && !isAdmin && !isKeyholder && !(await isCodePhotoRevealed(codePhoto))) {
+  // Bildersafe: ein versiegeltes Code-Foto bleibt für den Besitzer gesperrt, bis nach dem Verschluss
+  // eine Öffnung erfasst ist. Das gilt auch, wenn der Besitzer Admin ist — auf einer selbst
+  // betriebenen Instanz ist der Träger oft der Admin, und die Ausnahme hob das Siegel für ihn auf
+  // (Issue #111). Keyholder und fremde Admins sehen es immer.
+  if (codePhoto && codePhoto.userId === actorId && !(await isCodePhotoRevealed(codePhoto))) {
     return new NextResponse("Sealed", { status: 403 });
   }
 

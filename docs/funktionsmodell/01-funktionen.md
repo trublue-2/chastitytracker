@@ -23,7 +23,7 @@ Steckbrief: [15-eintraege.md](15-eintraege.md)
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
 | **Ereignis erfassen** | Verschluss, Öffnen, Prüfung, Orgasmus oder Trage-Beginn/-Ende mit Zeitpunkt, Foto und Notiz anlegen. Der Vorgang, aus dem fast alles andere abgeleitet wird. <br>*Rückdatieren ist auf diesem Weg begrenzt — sonst datierte sich der Träger aus jeder Frist heraus.* | Sub | App (Träger) | `/api/entries` |
-| **Eigenen Eintrag ändern oder löschen** | Korrigiert einen bereits erfassten Eintrag; alle abgeleiteten Zustände folgen automatisch. | Sub | App (Träger) | `/api/entries/[id]` |
+| **Eigenen Eintrag ändern oder löschen** | Korrigiert einen bereits erfassten Eintrag; alle abgeleiteten Zustände folgen automatisch. <br>*Löschen darf der Träger selbst nur einen Verschluss-Aufruf, der noch auf den Riegel wartet (Zurücknehmen); alles andere löscht die Keyholderin — sonst liesse sich eine Öffnung nach dem Ablesen des Bildersafe-Codes spurlos entfernen.* | Sub | App (Träger) | `/api/entries/[id]` |
 | **Eintrag für einen Sub nachtragen** | Legt einen Eintrag im Namen des Trägers an — hier ist Rückdatieren erlaubt. <br>*Löst bewusst KEINE Reinigungs-Kontrolle aus: der Planer rechnet ab jetzt, nicht ab der Eintrags-Zeit. Beide Wege gehen durch `createEntryForUser`. Die KI kann kein Foto liefern: eine Trage-Kategorie mit Foto-Pflicht weist den Eintrag deshalb ab, eine Prüfung wird auch ohne angenommen — sie erfüllt auf diesem Weg ohnehin keine Anforderung.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/entries` `add_entry` |
 | **Fremden Eintrag ändern oder löschen** | Korrigiert oder entfernt den Eintrag eines Trägers. <br>*Die Route ist `/api/entries/[id]` — ein Keyholder darf dort über `entryManageAccess` mitschreiben; `/api/admin/entries/[id]` ist etwas anderes (das Urteil über eine Kontrolle, `resolve_inspection`). Korrigierbar sind die GEPAARTEN Arten samt Öffnungsgrund; an Prüfung und Orgasmus hängen Foto und Urteil, die bleiben der Oberfläche. Löschen fragt nach dem Paar-Partner, statt eine gebrochene Kette zu hinterlassen.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/entries/[id]` `edit_entry` `delete_entry` |
 | **Eintrag korrigieren (KI-Keyholderin)** | Stellt Gerät, Zeitpunkt oder Notiz eines erfassten Verschluss-/Öffnen- oder Trage-Eintrags richtig — der Griff daneben beim Erfassen, meist das falsch gewählte Gerät. <br>*Fotos, Kontrollcode und Verifikations-Status bleiben aussen vor: sie sind die Beweisführung. Still — der Träger bekommt keine Meldung, der Write steht im Action-Log.* | Keyholder (MCP) | MCP | `edit_entry` |
@@ -171,7 +171,7 @@ Steckbrief: [15-eintraege.md](15-eintraege.md)
 
 | Funktion | Was sie tut | Wer | Wo | Endpunkt |
 |---|---|---|---|---|
-| **Schlüsselbild versiegeln** | Legt das Foto des Schlüsselbox-Codes versiegelt ab; freigegeben wird es erst, wenn Öffnen erlaubt ist. <br>*Gespeichert wird nur, ob Ziffern lesbar waren — nie die Zahl selbst.* | Sub | App (Träger) | `/api/bildersafe/seal` |
+| **Schlüsselbild versiegeln** | Legt das Foto des Schlüsselbox-Codes versiegelt ab, einmal pro Verschluss; für den Träger frei wird es erst, wenn danach eine Öffnung erfasst ist. <br>*Gespeichert wird nur, ob Ziffern lesbar waren — nie die Zahl selbst.* | Sub | App (Träger) | `/api/bildersafe/seal` |
 
 ## Nachrichten
 

@@ -6,7 +6,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getIsLocked, getActiveLockPeriod, cleaningBlockReason } from "@/lib/queries";
+import { getLatestKgEntry, getActiveLockPeriod, cleaningBlockReason } from "@/lib/queries";
+import { bildersafeEnabled } from "@/lib/constants";
+import { entryFormBase } from "@/lib/entryFormRoute";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
 import { cleaningUsedToday, nextCleaningWindow, CLEANING_USER_SELECT } from "@/lib/cleaningService";
@@ -24,7 +26,8 @@ export default async function NewOeffnenPage() {
   const userId = session!.user.id;
   const tz = session!.user.timezone ?? APP_TZ;
 
-  if (!(await getIsLocked(userId))) redirect("/dashboard");
+  const latest = await getLatestKgEntry(userId);
+  if (latest?.type !== "VERSCHLUSS") redirect("/dashboard");
 
   const now = new Date();
   // Tages-Zählung über `cleaningUsedToday` — dieselbe Kalendertag-Regel wie die
@@ -73,6 +76,7 @@ export default async function NewOeffnenPage() {
   return (
     <EntryActionFormShell {...actionSign("OEFFNEN")} title={tf("title")}>
       <OeffnenForm
+        codeRevealHref={bildersafeEnabled() && latest.codeImageUrl ? `${entryFormBase()}/bildersafe/anzeigen` : undefined}
         grundOptions={grundOptions}
         taskWarnings={tasks.warnings}
         tz={tz}

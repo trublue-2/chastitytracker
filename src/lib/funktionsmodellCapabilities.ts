@@ -97,6 +97,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
     id: "entry-edit", mechanic: "Einträge", title: "Eigenen Eintrag ändern oder löschen",
     what: "Korrigiert einen bereits erfassten Eintrag; alle abgeleiteten Zustände folgen automatisch.",
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/entries/[id]"],
+    note: "Löschen darf der Träger selbst nur einen Verschluss-Aufruf, der noch auf den Riegel wartet (Zurücknehmen); alles andere löscht die Keyholderin — sonst liesse sich eine Öffnung nach dem Ablesen des Bildersafe-Codes spurlos entfernen.",
   }),
   c({
     id: "entry-admin-create", mechanic: "Einträge", title: "Eintrag für einen Sub nachtragen",
@@ -507,7 +508,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "bildersafe", mechanic: "Bildersafe", title: "Schlüsselbild versiegeln",
-    what: "Legt das Foto des Schlüsselbox-Codes versiegelt ab; freigegeben wird es erst, wenn Öffnen erlaubt ist.",
+    what: "Legt das Foto des Schlüsselbox-Codes versiegelt ab, einmal pro Verschluss; für den Träger frei wird es erst, wenn danach eine Öffnung erfasst ist.",
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/bildersafe/seal"],
     note: "Gespeichert wird nur, ob Ziffern lesbar waren — nie die Zahl selbst.",
   }),

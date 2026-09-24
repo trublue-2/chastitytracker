@@ -24,7 +24,7 @@ import { resolveTaskProof } from "@/lib/mcp/taskProofRef";
  * statt. Wer die Reichweite später verlängern will, prüft zuerst, ob sich dieser Zweck geändert hat.
  *
  * NICHT ERREICHBAR — und das ist Absicht: `Entry.codeImageUrl`, der Bildersafe. Das versiegelte Foto
- * des Schlüsselbox-Codes wird laut Datenmodell „erst freigegeben, wenn Öffnen erlaubt ist". Ein
+ * des Schlüsselbox-Codes ist laut Datenmodell für den Träger „erst frei, wenn danach eine Öffnung erfasst ist". Ein
  * Abrufweg daran vorbei machte die Versiegelung wirkungslos, und die Codenummer stünde anschliessend
  * im Kontext eines Agenten. Wer hier eine vierte Quelle ergänzt, prüft zuerst, ob sie versiegelt ist.
  */
