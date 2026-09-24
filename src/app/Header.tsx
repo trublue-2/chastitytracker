@@ -9,11 +9,11 @@ import { ownTrackerHidden } from "@/lib/ownTracker";
 import pkg from "../../package.json";
 import { instanceHostname } from "@/lib/appMeta";
 import { APP_NAME } from "@/lib/constants";
+import { feedbackMode } from "@/lib/feedback";
 
 export default async function Header() {
   const session = await auth();
   const user = session?.user;
-  const feedbackEnabled = process.env.DISABLE_FEEDBACK !== "true";
   // Ohne eigenen Tracker gibt es keinen eigenen Posteingang — und `/dashboard/messages` wirft der
   // Proxy ohnehin nach /admin zurück. Der Test steht hier, weil diese Kopfzeile den Betroffenen
   // trotzdem erreicht: /dashboard/settings und /dashboard/changelog sind vom Rauswurf ausgenommen.
@@ -37,7 +37,7 @@ export default async function Header() {
               eigenen Tracker hat, hat auch keinen eigenen Posteingang. Das App-Badge zählt hier
               trotzdem den Keyholder-Stand mit — die Regel dafür steht in `HeaderMessages`. */}
           {user?.id && !hideOwnTracker && <HeaderMessages actor={user} scope="own" />}
-          {user && feedbackEnabled && <FeedbackButton />}
+          {user && <FeedbackButton mode={feedbackMode()} />}
           {user && (
             <AvatarMenu
               username={user.name ?? ""}

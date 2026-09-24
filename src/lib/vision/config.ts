@@ -12,6 +12,7 @@ import {
 } from "./providers";
 import type { VisionTask } from "./types";
 import { isAllowedVisionUrl } from "./urlGuard";
+import { isPortalInstance } from "@/lib/portalInstance";
 
 /**
  * WELCHE Foto-Prüfung gilt auf dieser Instanz — die eine Stelle, die das entscheidet.
@@ -114,7 +115,7 @@ function sharedKeyUntil(env: Env, rolloutAt: Date | null): Date | null {
     warnOnce(`[vision] VISION_SHARED_KEY_UNTIL ist kein gültiges Datum: "${raw}" — geteilter Schlüssel gilt als abgelaufen`);
     return EXPIRED;
   }
-  if (!env.PORTAL_SHARED_SECRET) return null;
+  if (!isPortalInstance(env)) return null;
   // Eine Portal-Instanz ohne Beginn-Zeile: die Migration hat nicht gegriffen. Auch hier im Zweifel aus.
   if (!rolloutAt || Number.isNaN(rolloutAt.getTime())) {
     warnOnce(`[vision] AppMeta "${ROLLOUT_META_KEY}" fehlt — geteilter Schlüssel gilt als abgelaufen`);

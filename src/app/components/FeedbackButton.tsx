@@ -5,14 +5,15 @@ import { MessageSquareText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import FeedbackSheet from "./FeedbackSheet";
 import { headerIconBtnCls } from "./inputStyles";
+import type { FeedbackMode } from "@/lib/feedback";
 
-/**
- * Icon-only header button. Client-checked `disabled` — if disabled on the server
- * the component shouldn't be rendered at all (see FeedbackEnabled wrapper).
- */
-export default function FeedbackButton({ variant = "icon" }: { variant?: "icon" | "menu" }) {
+/** Feedback-Knopf (Kopfzeile oder Menü-Zeile). `mode` kommt vom Server (`feedbackMode()`);
+ *  bei `off` rendert er nichts. */
+export default function FeedbackButton({ variant = "icon", mode }: { variant?: "icon" | "menu"; mode: FeedbackMode }) {
   const t = useTranslations("feedback");
   const [open, setOpen] = useState(false);
+  if (mode === "off") return null;
+  const sheet = <FeedbackSheet open={open} onClose={() => setOpen(false)} mode={mode} />;
 
   if (variant === "menu") {
     return (
@@ -27,7 +28,7 @@ export default function FeedbackButton({ variant = "icon" }: { variant?: "icon" 
             {t("title")}
           </span>
         </button>
-        <FeedbackSheet open={open} onClose={() => setOpen(false)} />
+        {sheet}
       </>
     );
   }
@@ -42,7 +43,7 @@ export default function FeedbackButton({ variant = "icon" }: { variant?: "icon" 
       >
         <MessageSquareText size={18} />
       </button>
-      <FeedbackSheet open={open} onClose={() => setOpen(false)} />
+      {sheet}
     </>
   );
 }

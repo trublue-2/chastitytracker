@@ -1,4 +1,4 @@
-/** External link to the public how-to content on the marketing site. Always opens in a new tab —
+/** External link (how-to content on the marketing site, GitHub issues). Always opens in a new tab —
  *  the app is a PWA, an in-place navigation would drop the user out of the installed shell.
  *  `className` carries the semantic colour of the surrounding block (default: muted). */
 export default function HelpLink({ href, label, className = "text-foreground-muted" }: {

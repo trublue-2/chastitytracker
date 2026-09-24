@@ -9,6 +9,7 @@ import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerIc
 import type { OwnTrackerActor } from "@/lib/ownTracker";
 import pkg from "../../package.json";
 import { instanceHostname } from "@/lib/appMeta";
+import { feedbackMode } from "@/lib/feedback";
 
 interface Props {
   username: string;
@@ -23,7 +24,6 @@ interface Props {
 }
 
 export default async function AdminHeader({ username, actor, hideOwnTracker }: Props) {
-  const feedbackEnabled = process.env.DISABLE_FEEDBACK !== "true";
   const t = await getTranslations("adminNav");
   const tNav = await getTranslations("nav");
   const isGlobalAdmin = actor?.role === "admin";
@@ -70,7 +70,7 @@ export default async function AdminHeader({ username, actor, hideOwnTracker }: P
               <Users size={18} />
             </Link>
           )}
-          {feedbackEnabled && <FeedbackButton />}
+          <FeedbackButton mode={feedbackMode()} />
           <AvatarMenu
             username={username}
             settingsHref="/admin/settings"
