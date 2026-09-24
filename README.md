@@ -14,6 +14,13 @@
 >
 > **To everyone self-hosting the tracker** 👋 — I know some of you now run this on your own infrastructure, which makes me genuinely happy. But I barely see you — on its update check an instance only reports, anonymously, that it exists and on which version (you can turn that off, see [docs/update-check.md](docs/update-check.md)), nothing more. So please **share feedback** and **report problems via the [issues](../../issues) or by email to info@chastitytracker.ch** — a bug I don't know about never gets fixed. Your input is the only thing that keeps this project alive and moving. Thank you for being here. — *trublue*
 
+> [!WARNING]
+> **Feedback mit `noreply@…`-Adresse kann ich nicht beantworten.** Aus selbst gehosteten Instanzen kommen über das In-App-Feedback immer wieder Meldungen mit Fake-Adressen wie `noreply@noreply.org`. Eure Instanz kann ich nicht erreichen, die Adresse im Formular ist mein einziger Weg zurück zu euch. Wer eine Wegwerf-Adresse angibt, bekommt keine Rückfrage und keine Antwort, und der Bug bleibt liegen. **Wenn ich euch helfen soll, gebt eine echte Adresse an, eröffnet ein [Issue](../../issues) oder schreibt an info@chastitytracker.ch.** Ab v6.2.10 weist das Formular auf selbst gehosteten Instanzen solche Adressen ab (Details: [In-App Feedback](#in-app-feedback)).
+>
+> ---
+>
+> **I can't answer feedback sent with a `noreply@…` address.** Self-hosted instances keep sending in-app feedback with fake addresses like `noreply@noreply.org`. I have no way to reach your instance; the address in the form is my only way back to you. Leave a throwaway address and you get no follow-up question and no answer, and the bug stays where it is. **If you want my help, give a real address, open an [issue](../../issues) or write to info@chastitytracker.ch.** Since v6.2.10 the form rejects such addresses on self-hosted instances (details: [In-App Feedback](#in-app-feedback)).
+
 <!-- screenshot -->
 
 ## Features
@@ -466,10 +473,16 @@ By default the tracker shows a feedback button in the header that lets users
 send bug reports, ideas, or thanks to the project maintainer. Submissions are
 POSTed to `https://portal.chastitytracker.ch/api/app-feedback` (override with
 `FEEDBACK_UPSTREAM_URL` to send them to your own inbox) — only the message text,
-an optional contact email you type, page path, app version, platform, and locale
+the contact email you type, page path, app version, platform, and locale
 are transmitted. Username, IP, and any user identifier stay on your server.
 
 The form shows users exactly what gets shared before they submit.
+
+The contact email is required (see the warning at the top). On a self-hosted
+instance that sends to the project portal (no `PORTAL_SHARED_SECRET`, no
+`FEEDBACK_UPSTREAM_URL`), the form also shows a notice with a link to the GitHub
+issues and rejects `noreply@…`, `no-reply@…`, `donotreply@…` and reserved test
+domains such as `example.com`.
 
 If you'd prefer to disable this entirely (no button, no forwarding):
 
