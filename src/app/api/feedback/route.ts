@@ -1,23 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
-
-/**
- * Upstream inbox at the project portal. Self-hosters can override with
- * FEEDBACK_UPSTREAM_URL or disable forwarding entirely with DISABLE_FEEDBACK=true.
- */
-const DEFAULT_UPSTREAM_URL = "https://portal.chastitytracker.ch/api/app-feedback";
+import { isValidEmail } from "@/lib/constants";
+import { FEEDBACK_DEFAULT_UPSTREAM_URL, feedbackMode, isThrowawayEmail } from "@/lib/feedback";
 
 const VALID_TYPES = ["BUG", "IDEA", "QUESTION", "THANKS"] as const;
 const VALID_PLATFORMS = ["web", "ios", "android"] as const;
 const MAX_MESSAGE_LEN = 2000;
 const MAX_URL_LEN = 500;
 const MAX_EMAIL_LEN = 254;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: NextRequest) {
   // Feature toggle comes first — if disabled, pretend the route doesn't exist
   // without even consulting the session layer.
-  if (process.env.DISABLE_FEEDBACK === "true") {
+  const mode = feedbackMode();
+  if (mode === "off") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -42,8 +38,13 @@ export async function POST(req: NextRequest) {
   if (typeof contactEmail !== "string" || !contactEmail.trim()) {
     return NextResponse.json({ error: "E-Mail-Adresse fehlt" }, { status: 400 });
   }
-  if (contactEmail.length > MAX_EMAIL_LEN || !EMAIL_RE.test(contactEmail.trim())) {
+  if (contactEmail.length > MAX_EMAIL_LEN || !isValidEmail(contactEmail.trim())) {
     return NextResponse.json({ error: "Ungültige E-Mail-Adresse" }, { status: 400 });
+  }
+  // Self-Hoster: die Adresse ist der einzige Rückweg (siehe `feedbackMode`). Das Formular prüft es
+  // schon selbst; hier steht die Schranke für Aufrufer, die daran vorbeigehen.
+  if (mode === "selfHosted" && isThrowawayEmail(contactEmail)) {
+    return NextResponse.json({ error: "Diese Adresse liest niemand" }, { status: 400 });
   }
   if (currentUrl && (typeof currentUrl !== "string" || currentUrl.length > MAX_URL_LEN)) {
     return NextResponse.json({ error: "URL ungültig" }, { status: 400 });
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
     : path;
 
   try {
-    const upstream = await fetch(process.env.FEEDBACK_UPSTREAM_URL || DEFAULT_UPSTREAM_URL, {
+    const upstream = await fetch(process.env.FEEDBACK_UPSTREAM_URL || FEEDBACK_DEFAULT_UPSTREAM_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

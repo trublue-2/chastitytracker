@@ -723,7 +723,10 @@
     "thankYou": "Danke!",
     "thankYouSubtitle": "Dein Feedback hilft, den Tracker zu verbessern.",
     "emailInvalid": "Diese E-Mail-Adresse sieht nicht gültig aus",
-    "emailHint": "Nur so können wir dir antworten."
+    "emailHint": "Nur so können wir dir antworten.",
+    "selfHostedNote": "Du betreibst deine eigene Instanz, dieses Formular ist also mein einziger Weg zu dir. Auf Fake-Adressen wie noreply@… kommt keine Antwort, und dein Bug bleibt liegen. Wenn ich dir helfen soll, gib eine echte Adresse an oder eröffne ein Issue auf GitHub.",
+    "selfHostedGithub": "Issue auf GitHub eröffnen",
+    "emailThrowaway": "Diese Adresse liest niemand. Wenn du eine Antwort willst, gib eine echte an – oder nimm GitHub."
   },
   "openForm": {
     "title": "Öffnung erfassen",

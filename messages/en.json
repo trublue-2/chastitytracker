@@ -723,7 +723,10 @@
     "thankYou": "Thanks!",
     "thankYouSubtitle": "Your feedback helps improve the tracker.",
     "emailInvalid": "This e-mail address does not look valid",
-    "emailHint": "Just so we can get back to you."
+    "emailHint": "Just so we can get back to you.",
+    "selfHostedNote": "You're running your own instance, so this form is the only way I can reach you. Fake addresses like noreply@… get no answer, and your bug stays where it is. If you want my help, leave a real address or open an issue on GitHub.",
+    "selfHostedGithub": "Open an issue on GitHub",
+    "emailThrowaway": "Nobody reads that address. If you want an answer, leave a real one — or use GitHub."
   },
   "openForm": {
     "title": "Log opening",
