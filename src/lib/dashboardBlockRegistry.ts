@@ -22,6 +22,12 @@
 export const BLOCK_SURFACES = ["subDashboard", "subStats", "keyholderSub", "keyholderStats"] as const;
 export type BlockSurface = (typeof BLOCK_SURFACES)[number];
 
+/** Gehört die Oberfläche der Keyholderin? Dort stellt sie ihre Sicht auf ALLE Subs ein, nicht auf den
+ *  einen, dessen Seite gerade offen ist (Issue #71). */
+export function isKeyholderSurface(surface: BlockSurface): boolean {
+  return surface === "keyholderSub" || surface === "keyholderStats";
+}
+
 export interface DashboardBlockDef {
   /** Stabil — dieser Wert landet in der gespeicherten Konfiguration und darf sich nie ändern. */
   readonly id: string;
@@ -155,14 +161,16 @@ export const KEYHOLDER_STATS_BLOCKS = statsBlocksFor("keyholderStats", "keyholde
 
 /** Die Sub-Detailseite der Keyholderin — ihr Gegenstück zum Träger-Dashboard. */
 export const KEYHOLDER_SUB_BLOCKS = [
+  // Die beiden Fristen-Blöcke der Keyholderin: eine offene Kontrolle und eine wartende Anfrage
+  // warten auf IHRE Entscheidung. Schaltet sie den leeren Block weg, wartet der Sub ins Leere.
+  // Ganz OBEN, wie beim Träger (Issue #73): standen sie an fünfter Stelle, lag das Einzige, was
+  // von ihr etwas will, bei 390 px anderthalb Bildschirme unter der Falz.
+  { id: "openInspection", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenInspection", alwaysOn: true },
+  { id: "orgasmRequest", surface: "keyholderSub", role: "keyholder", labelKey: "blockOrgasmRequest", alwaysOn: true },
   { id: "boxStatus", surface: "keyholderSub", role: "keyholder", labelKey: "blockBoxStatus", alwaysOn: true },
   { id: "tasks", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenTasks" },
   { id: "sessionOrStatus", surface: "keyholderSub", role: "keyholder", labelKey: "blockRunningSession" },
   { id: "wearSessions", surface: "keyholderSub", role: "keyholder", labelKey: "blockActiveWear" },
-  // Die beiden Fristen-Blöcke der Keyholderin: eine offene Kontrolle und eine wartende Anfrage
-  // warten auf IHRE Entscheidung. Schaltet sie den leeren Block weg, wartet der Sub ins Leere.
-  { id: "openInspection", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenInspection", alwaysOn: true },
-  { id: "orgasmRequest", surface: "keyholderSub", role: "keyholder", labelKey: "blockOrgasmRequest", alwaysOn: true },
   // Unbeurteilte Vergehen warten auf IHRE Entscheidung (#96/#9) — bisher nur im Strafbuch-Reiter.
   { id: "openOffenses", surface: "keyholderSub", role: "keyholder", labelKey: "blockOpenOffenses" },
   { id: "statsCompact", surface: "keyholderSub", role: "keyholder", labelKey: "blockStatusAndStats" },

@@ -16,6 +16,13 @@
           "de": "Bildersafe: Der versiegelte Code bleibt verborgen, solange der Verschluss läuft, und erscheint direkt nach dem Erfassen der Öffnung. Versiegelt wird einmal pro Verschluss.",
           "en": "Bildersafe: the sealed code stays hidden for as long as the lock runs and appears right after the opening is recorded. The code is sealed once per lock."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "In der Sub-Ansicht der Keyholderin stehen offene Kontrolle und Orgasmus-Anforderung jetzt ganz oben. „Anpassen“ nennt die Ansicht, um die es geht, die Liste benutzt die Namen vom Bildschirm und zeigt, welche Blöcke gerade leer sind.",
+          "en": "On the keyholder's sub view, an open inspection and an orgasm request now come first. “Customise” names the view it applies to, and the list uses the on-screen names and shows which blocks are empty right now."
+        }
       }
     ]
   },

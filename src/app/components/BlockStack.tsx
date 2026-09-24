@@ -26,6 +26,10 @@ export default async function BlockStack<S extends BlockSurface>({
   // Die Beschriftungen der Blöcke liegen im `dashboard`-Namensraum, auch die der Statistik-Seiten:
   // ein Block heisst auf jeder Oberfläche gleich.
   const t = await getTranslations("dashboard");
+  // Ein sichtbarer Block, dessen Knoten nichts zeichnet (`load` gab `null`, siehe `block()`), steht
+  // in der Liste als „gerade leer". Ein Block, der eine Komponente liefert, die erst im Client
+  // verschwindet, fällt nicht darunter — lieber einmal zu wenig markiert als falsch.
+  const drawn = new Set(nodes.filter(({ node }) => node != null && node !== false && node !== "").map(({ id }) => id));
 
   return (
     <DashboardStack
@@ -33,6 +37,7 @@ export default async function BlockStack<S extends BlockSurface>({
       meta={layout.all.map(({ block, hidden }) => ({
         id: block.id, label: t(block.labelKey), hidden, alwaysOn: block.alwaysOn,
         collapsed: layout.collapseDefault(block.id),
+        empty: !hidden && !drawn.has(block.id),
       }))}
     >
       {nodes.map(({ id, node }) => (

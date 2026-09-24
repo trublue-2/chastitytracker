@@ -13,7 +13,7 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import LiveStatus from "@/app/components/LiveStatus";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import type { BlockSurface } from "@/lib/dashboardBlockRegistry";
+import { isKeyholderSurface, type BlockSurface } from "@/lib/dashboardBlockRegistry";
 
 /** Ein Block, wie ihn der Bearbeiten-Modus kennt — Beschriftung und Zustand, KEIN Inhalt. */
 export interface StackBlockMeta {
@@ -31,6 +31,9 @@ export interface StackBlockMeta {
    * „nicht zuklappbar, aber zugeklappt" zu.
    */
   collapsed?: boolean;
+  /** Sichtbar, zeigt aber gerade nichts (Issue #69) — wer ihn in der Liste verschiebt, sähe sonst
+   *  keine Wirkung und hielte den Mechanismus für kaputt. Nur der Server weiss es, beim Rendern. */
+  empty?: boolean;
 }
 
 /**
@@ -259,7 +262,7 @@ export default function DashboardStack({
       <DashboardBlock>
         <div className="rounded-xl border border-border bg-surface overflow-hidden">
           <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
-            <p className="text-sm font-semibold text-foreground truncate">{t("editLayoutTitle")}</p>
+            <p className="text-sm font-semibold text-foreground truncate">{t("editLayout", { surface })}</p>
             <div className="flex items-center gap-1.5 shrink-0">
               <Button variant="ghost" size="sm" onClick={cancel}>{tc("cancel")}</Button>
               <Button variant="secondary" size="sm" onClick={save} loading={saving}>{t("editLayoutDone")}</Button>
@@ -268,6 +271,11 @@ export default function DashboardStack({
 
           {/* Was der Dialog kann, in einem Satz — einmal oben statt fünfzehnmal in den Zeilen. */}
           <p className="px-4 py-2 text-neben text-foreground-faint">{t("editLayoutIntro")}</p>
+          {/* Die Keyholderin stellt ihre Sicht auf ALLE Subs ein, auch wenn der Kopf darüber einen
+              bestimmten zeigt (Issue #71) — ohne diesen Satz liest sie „seine Ansicht anpassen". */}
+          {isKeyholderSurface(surface) && (
+            <p className="px-4 pb-2 text-neben font-semibold text-foreground-muted">{t("editLayoutAllSubs")}</p>
+          )}
 
           {error && <p className="px-4 py-3 text-sm text-warn bg-warn-bg">{error}</p>}
 
@@ -303,6 +311,9 @@ export default function DashboardStack({
                   </button>
                 )}
                 <span className="flex-1 min-w-0 text-sm text-foreground truncate">{b.label}</span>
+                {b.empty && !b.hidden && (
+                  <span className="shrink-0 text-neben text-foreground-faint">{t("editLayoutEmpty")}</span>
+                )}
                 {/* Der dritte Schalter: in welchem Zustand der Block STARTET. Nur für Blöcke, die
                     eine eigene Rubrik haben — sie ist der Griff, und ohne sie gäbe es nichts
                     anzutippen. `alwaysOn`-Blöcke tragen ihn nie: zugeklappt ist verschwunden, und
@@ -377,7 +388,7 @@ export default function DashboardStack({
           className="w-full flex items-center gap-2 px-1 py-2 text-xs text-foreground-faint hover:text-foreground-muted transition"
         >
           <SlidersHorizontal size={14} />
-          <span>{hiddenCount > 0 ? t("layoutHiddenCount", { count: hiddenCount }) : t("editLayout")}</span>
+          <span>{hiddenCount > 0 ? t("layoutHiddenCount", { count: hiddenCount }) : t("editLayout", { surface })}</span>
         </button>
       </DashboardBlock>
     </>
