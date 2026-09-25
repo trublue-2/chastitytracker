@@ -24,18 +24,22 @@ import { useNotifyLevel } from "@/app/hooks/useNotifyLevel";
 import { usePushDevice } from "@/app/hooks/usePushDevice";
 import PasswordChangeConfirm from "@/app/components/PasswordChangeConfirm";
 import WeightSettings from "./WeightSettings";
+import LockmeboxConnect from "@/app/components/LockmeboxConnect";
+import BoxRemoveButton from "./BoxRemoveButton";
 import TelegramSettings from "./TelegramSettings";
 import PushAllowRow from "./PushAllowRow";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, mailConfigured, version, buildDate, feedbackMode, weight, instanceSections }: SettingsFormProps & {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, mailConfigured, version, buildDate, feedbackMode, weight, box, instanceSections }: SettingsFormProps & {
   /** Abschnitte, die der INSTANZ gehören statt der Person — heute die Foto-Prüfung. Nur die
    *  Admin-Seite reicht sie herein; im Träger-Bereich bleibt die Maske rein persönlich. Innerhalb
    *  des `<main>`, damit sie in derselben Spalte und Landmarke stehen wie der Rest. */
   instanceSections?: React.ReactNode;
 }) {
   const t = useTranslations("settings");
+  const tBox = useTranslations("lockmebox");
+  const tBoxStatus = useTranslations("boxStatus");
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
   const tm = useTranslations("messages");
@@ -495,6 +499,33 @@ export default function SettingsForm({ username, email, locale, timezone, startP
               onToggle={() => toggle("weight")}
             >
               <WeightSettings {...weight} />
+            </ExpandRow>
+          )}
+
+          {/* Die Schlüsselbox — genau eine je Träger (boxPairing.ts). Gekoppelt: welche es ist, samt
+              „Box entfernen" für den Wechsel. Sonst das einmalige Koppeln einer LockMeBox; verbunden
+              wird im Alltag über die Box-Karte. Nicht für Konten ohne eigenen Tracker: eine Box
+              verschliesst den eigenen Schlüssel. */}
+          {box && !hideOwnValue && (
+            <ExpandRow
+              label={tBoxStatus("settingsRow")}
+              open={expanded === "box"}
+              onToggle={() => toggle("box")}
+            >
+              {box.paired ? (
+                <>
+                  <p className="text-sm font-medium text-foreground">{tBoxStatus("paired", { name: box.paired.name })}</p>
+                  <p className="text-sm text-foreground-muted">
+                    {box.paired.kind === "lockmebox" ? tBox("pairedHint") : tBoxStatus("pairedHintHeimdall")}
+                  </p>
+                  <BoxRemoveButton boxId={box.paired.boxId} />
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-foreground-muted">{tBox("settingsHint")}</p>
+                  <LockmeboxConnect unsupportedHint />
+                </>
+              )}
             </ExpandRow>
           )}
 

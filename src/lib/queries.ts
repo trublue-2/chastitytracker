@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund, EntrySource } from "@/lib/constants";
-import { LOCK_ENDED_REASON, heimdallEnabled } from "@/lib/constants";
+import { LOCK_ENDED_REASON, boxCouplingEnabled } from "@/lib/constants";
 import { activeCleaningWindowIn, parseCleaningWindows } from "@/lib/cleaningService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
-import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, effectiveEntryWhere } from "@/lib/lockPending";
+import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER, effectiveEntryWhere } from "@/lib/lockPending";
+import { hasLockmebox } from "@/lib/boxStatus";
 import { APP_TZ } from "@/lib/utils";
 import { isHealthHoldActive } from "@/lib/healthHold";
 
@@ -138,13 +139,24 @@ export async function getMobileDesktopMode(userId: string): Promise<boolean> {
  *  `requiresBolt` gehört mit hierher, weil es dieselbe Frage weiterführt: der Riegel-Schalter der
  *  Keyholderin wirkt NUR, wo es eine Box gibt. Zwei getrennte Ableitungen liessen den Fall
  *  „Schalter an, Box abgemeldet" an einer Stelle als gültig durchgehen. */
+/** Hat dieser Träger eine Box — gemeldet (Heimdall) oder gekoppelt (LockMeBox)? Das Tor der
+ *  Box-Karte: ohne eigene Zeile pollte sie sonst im 5-s-Takt `/api/box` ins Leere, und das bei JEDEM
+ *  Träger einer Instanz, sobald dort die Box-Kopplung an ist. */
+export async function userHasBox(userId: string): Promise<boolean> {
+  if (!boxCouplingEnabled()) return false;
+  return (await prisma.boxStatus.count({ where: { userId } })) > 0;
+}
+
 export async function getBoxFormContext(userId: string): Promise<{ boxConfirm: boolean; boxName: string; requiresBolt: boolean }> {
-  if (!heimdallEnabled()) return { boxConfirm: false, boxName: "", requiresBolt: false };
-  const boxes = await prisma.boxStatus.findMany({ where: { userId }, select: { name: true } });
+  if (!boxCouplingEnabled()) return { boxConfirm: false, boxName: "", requiresBolt: false };
+  const boxes = await prisma.boxStatus.findMany({ where: { userId }, select: { name: true, kind: true } });
   const boxName = boxes.map((b) => b.name).filter(Boolean).join(", ");
   // Ohne Box ist `requiresBolt` schon beantwortet — die zweite Abfrage entfällt. Sie träfe sonst
   // auch die drei Aufrufer, die das Feld gar nicht lesen (Kontroll-Formular, Freigabe, Einstellungen).
   if (boxes.length === 0) return { boxConfirm: false, boxName, requiresBolt: false };
+  // Bei der LockMeBox gilt der Verschluss IMMER erst mit dem Riegel — dieselbe Regel wie in
+  // `lockAwaitsBolt`, hier nur für die Anzeige (das Formular zeigt dann kein Zeitfeld).
+  if (hasLockmebox(boxes)) return { boxConfirm: true, boxName, requiresBolt: true };
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { lockRequiresBolt: true } });
   return { boxConfirm: true, boxName, requiresBolt: user?.lockRequiresBolt ?? false };
 }
@@ -295,7 +307,8 @@ export async function latestKgTimesByUser(userIds: string[]): Promise<{
     }),
     prisma.entry.groupBy({
       by: ["userId"],
-      where: { userId: { in: userIds }, type: "OEFFNEN" },
+      // Eine Öffnung, die noch auf „Riegel offen" wartet (LockMeBox), ist ebenso wenig passiert.
+      where: { userId: { in: userIds }, type: "OEFFNEN", openAwaitsBolt: false },
       _max: { startTime: true },
     }),
   ]);
@@ -315,14 +328,24 @@ export async function latestKgTimesByUser(userIds: string[]): Promise<{
  * EINE Abfrage für drei Sichten (Keyholder-Dashboard, `get_box_state`, `get_context`) — die
  * Reihenfolge (`createdAt desc`) ist tragend und muss mit der von `commitPendingLock` übereinstimmen.
  *
- * BEWUSST ohne `heimdallEnabled()`-Kurzschluss, obwohl ohne Heimdall keiner entstehen KANN: wird
+ * BEWUSST ohne `boxCouplingEnabled()`-Kurzschluss, obwohl ohne Box-Kopplung keiner entstehen KANN: wird
  * das Geheimnis rotiert, während einer wartet, ist der Zurücknehmen-Knopf des Trägers der einzige
  * Weg heraus (der Schalter der Keyholderin ist dann 404). Er erscheint nur, solange diese Frage
  * beantwortet wird. Die Abfrage ist indexiert (`Entry_userId_type_boltConfirmedAt_idx`).
  */
 export async function pendingLockCallAt(userId: string): Promise<Date | null> {
+  return pendingCallAt(userId, PENDING_LOCK_FILTER);
+}
+
+/** Dasselbe für die wartende Öffnung (LockMeBox) — `get_box_state.openCallWaitingSince`. Indexiert
+ *  über `Entry_userId_type_openAwaitsBolt_idx`. */
+export async function pendingOpenCallAt(userId: string): Promise<Date | null> {
+  return pendingCallAt(userId, PENDING_OPEN_FILTER);
+}
+
+async function pendingCallAt(userId: string, filter: typeof PENDING_LOCK_FILTER | typeof PENDING_OPEN_FILTER): Promise<Date | null> {
   const pending = await prisma.entry.findFirst({
-    where: { userId, ...PENDING_LOCK_FILTER },
+    where: { userId, ...filter },
     orderBy: { createdAt: "desc" },
     select: { createdAt: true },
   });
@@ -902,7 +925,9 @@ export async function getCurrentSealedCode(userId: string) {
  */
 export async function isCodePhotoRevealed(entry: { userId: string; startTime: Date }): Promise<boolean> {
   const later = await prisma.entry.findFirst({
-    where: { userId: entry.userId, type: "OEFFNEN", startTime: { gt: entry.startTime } },
+    // NUR eine vollzogene Öffnung: eine, die bei der LockMeBox noch auf „Riegel offen" wartet, ist
+    // zurücknehmbar — gäbe sie den Code frei, wäre Issue #111 über diesen Umweg wieder offen.
+    where: { userId: entry.userId, type: "OEFFNEN", openAwaitsBolt: false, startTime: { gt: entry.startTime } },
     select: { id: true },
   });
   return later !== null;
@@ -1106,6 +1131,7 @@ export const SESSION_ENTRY_SELECT = {
   // Pflicht, weil `filterAndSortPairEntries` daran den schwebenden Verschluss aussortiert — ohne
   // die Spalte kompiliert das Paaren gar nicht erst (siehe `lockPending.ts`).
   boltConfirmedAt: true,
+  openAwaitsBolt: true,
   device: { select: { id: true, categoryId: true } },
 } satisfies Prisma.EntrySelect;
 

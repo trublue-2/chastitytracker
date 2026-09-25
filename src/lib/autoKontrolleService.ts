@@ -7,10 +7,10 @@ import {
   AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   CLEANING_RELOCK_INSPECTION_DELAY, CLEANING_RELOCK_INSPECTION_DELAY_SLEEP, TIME_RANGE_INVALID,
   POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE,
-  POST_LOCK_INSPECTION_DEADLINE_RANGE, heimdallEnabled,
+  POST_LOCK_INSPECTION_DEADLINE_RANGE,
 } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/utils";
-import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere, getIsLocked } from "@/lib/queries";
+import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere, getIsLocked, userHasBox } from "@/lib/queries";
 import {
   autoInspectionDayRulesProblem, fixedWindowMinutes, formatAutoInspectionDayRule,
   parseAutoInspectionDayRules, timesForDay, triggerWindowAllQuiet, type AutoInspectionDayRule,
@@ -834,9 +834,7 @@ export async function schedulePostLockInspection(
   // beim Einreichen aus der Einstellung rekonstruiert: sonst änderte ein Umlegen des Schalters die
   // Regeln einer bereits laufenden Kontrolle, deren Frist tickt. Die Box-Abfrage kostet nur, wo der
   // Schalter überhaupt gesetzt ist — ohne gemeldete Box bliebe die Kontrolle sonst unerfüllbar.
-  const requireBoxPhoto = settings.postLockRequireBoxPhoto
-    && heimdallEnabled()
-    && (await prisma.boxStatus.count({ where: { userId } })) > 0;
+  const requireBoxPhoto = settings.postLockRequireBoxPhoto && (await userHasBox(userId));
 
   await createAutoKontrollen(userId, [{ wirksamAb, deadline }], { postLock: true, requireBoxPhoto });
   return { wirksamAb, deadline, imSchlaf };

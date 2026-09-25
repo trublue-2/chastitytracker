@@ -4,7 +4,7 @@ import { KG_PAIR, WEAR_PAIR, type PairTypes } from "@/lib/utils";
 import { entryGuardError } from "@/lib/entryErrors";
 import { getEntryNeighbors } from "@/lib/queries";
 import { validOeffnenCodes } from "@/lib/reasonsService";
-import { isPendingLock } from "@/lib/lockPending";
+import { isPendingEntry, isPendingLock } from "@/lib/lockPending";
 import { clearBoxCommandForUser } from "@/lib/boxCommand";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
@@ -274,10 +274,10 @@ export async function correctEntry(
  * verschieden aus (ein Dialog dort, eine Absage mit Vorschlag hier).
  */
 export async function chainBreakPartner(
-  existing: { id: string; userId: string; type: string; startTime: Date; deviceId: string | null; boltConfirmedAt: Date | null },
+  existing: { id: string; userId: string; type: string; startTime: Date; deviceId: string | null; boltConfirmedAt: Date | null; openAwaitsBolt: boolean },
 ): Promise<{ id: string; type: string; startTime: Date } | null> {
   const pair = entryPairTypes(existing.type);
-  if (!pair || isPendingLock(existing)) return null;
+  if (!pair || isPendingEntry(existing)) return null;
 
   // Über `getEntryNeighbors` und nicht über eigene Abfragen: nur dort steckt `effectiveEntryWhere`,
   // das den schwebenden Verschluss-AUFRUF ausblendet. Von Hand gelesen sah diese Prüfung ihn als
@@ -308,7 +308,7 @@ export async function chainBreakPartner(
  * weg — von beiden Halbzuständen ist das der schlechtere.
  */
 export async function deleteEntryForUser(
-  existing: { id: string; userId: string; type: string; boltConfirmedAt: Date | null;
+  existing: { id: string; userId: string; type: string; boltConfirmedAt: Date | null; openAwaitsBolt: boolean;
     imageUrl: string | null; codeImageUrl: string | null; boxImageUrl: string | null },
   partnerId: string | null,
 ): Promise<ServiceResult<null>> {
@@ -327,9 +327,12 @@ export async function deleteEntryForUser(
         });
         if (!partner) throw codedError("PARTNER_CHANGED");
       }
-      // Einen schwebenden Verschluss-Aufruf zurückzunehmen heisst auch: die Box steht wieder still.
-      // Über `boxCommand.ts`, dem einzigen Schreiber des Kommando-Paares.
-      if (isPendingLock(existing)) await clearBoxCommandForUser(tx, existing.userId, "lock");
+      // Einen schwebenden Aufruf zurückzunehmen heisst auch: die Box steht wieder still — beim
+      // Verschluss ihr `lock`, bei der Öffnung (LockMeBox) ihr `open`. Über `boxCommand.ts`, dem
+      // einzigen Schreiber des Kommando-Paares.
+      if (isPendingEntry(existing)) {
+        await clearBoxCommandForUser(tx, existing.userId, isPendingLock(existing) ? "lock" : "open");
+      }
       // Eine gelöschte Prüfung gibt ihre Anforderung wieder frei — sonst gälte sie als erfüllt
       // durch einen Nachweis, den es nicht mehr gibt.
       if (existing.type === "PRUEFUNG") {

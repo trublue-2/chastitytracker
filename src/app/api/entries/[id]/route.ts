@@ -12,7 +12,7 @@ import { serviceFailure } from "@/lib/serviceResult";
 import { WEAR_PAIR } from "@/lib/utils";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
-import { isPendingLock } from "@/lib/lockPending";
+import { isPendingEntry } from "@/lib/lockPending";
 
 export async function PATCH(
   req: NextRequest,
@@ -152,7 +152,7 @@ export async function DELETE(
   const existing = await prisma.entry.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   // Löschen darf: ein globaler Admin oder ein Keyholder des Eigentümers (scoped admin). Der
-  // Eigentümer selbst nur einen Verschluss-AUFRUF, der noch auf den Riegel wartet — das
+  // Eigentümer selbst nur einen AUFRUF (Verschluss oder — LockMeBox — Öffnung), der noch auf den Riegel wartet — das
   // „Zurücknehmen" in `OpenStateHero`, der einzige Löschweg, den ihm die Oberfläche bietet.
   //
   // Die API stand dem Träger vorher für JEDEN eigenen Eintrag offen, auch ohne Knopf dafür. Seit der
@@ -161,7 +161,7 @@ export async function DELETE(
   // Korrigiert wird deshalb wie beim Bearbeiten über die Keyholderin.
   const { allowed, elevated } = await entryManageAccess(session.user.id, session.user.role, existing.userId);
   if (!allowed) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  if (!elevated && !isPendingLock(existing)) {
+  if (!elevated && !isPendingEntry(existing)) {
     return NextResponse.json({ error: "DELETE_KEYHOLDER_ONLY" }, { status: 403 });
   }
 
@@ -179,7 +179,7 @@ export async function DELETE(
   // NICHT in der Kette (`effectiveEntryWhere` blendet ihn überall aus), also kann sein Löschen sie
   // auch nicht brechen. Ohne diese Ausnahme müsste die Zurücknehmen-Aktion mit `force=true` an
   // einer Prüfung vorbei, die für sie gar nicht gedacht ist.
-  if (isPair && !force && !isPendingLock(existing)) {
+  if (isPair && !force && !isPendingEntry(existing)) {
     const pairTypes = [pair.close, pair.open];
     const wearCategoryId = isWearPair && existing.deviceId
       ? (await prisma.device.findUnique({ where: { id: existing.deviceId }, select: { categoryId: true } }))?.categoryId

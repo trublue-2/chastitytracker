@@ -172,6 +172,26 @@ export function visionMaxTotalRefs(): number {
 export function heimdallEnabled(): boolean {
   return !!process.env.HEIMDALL_SYNC_SECRET;
 }
+
+/** LockMeBox (Bluetooth) aktiv? = der Schlüssel der Bluetooth-Brücke ist gesetzt (32 Hex-Zeichen).
+ *  Er kommt vom Betreiber der Instanz und steht nicht im Repo. */
+export function lockmeboxEnabled(): boolean {
+  return bleBridgeKey() !== null;
+}
+
+/** Der Schlüssel der Bluetooth-Brücke, oder `null`, wenn er fehlt oder kein 128-Bit-Hex-Wert ist —
+ *  die EINE Stelle, die die Variable liest. */
+export function bleBridgeKey(): string | null {
+  const raw = process.env.BLE_BRIDGE_KEY ?? "";
+  return /^[0-9a-f]{32}$/i.test(raw) ? raw : null;
+}
+
+/** Gibt es auf dieser Instanz überhaupt eine Box-Kopplung — Heimdall ODER LockMeBox? Das Tor für
+ *  alles, was nur vom Box-ZUSTAND abhängt (Karte, Kommandos, Riegel-Schalter, Formular-Rückfrage).
+ *  Was an Heimdall selbst hängt (Instant-Push, Riegel-Ereignisse), prüft weiter `heimdallEnabled`. */
+export function boxCouplingEnabled(): boolean {
+  return heimdallEnabled() || lockmeboxEnabled();
+}
 export const ORGASMUS_ARTEN = ["Orgasmus", "ruinierter Orgasmus", "feuchter Traum"] as const;
 /** Maps each ORGASMUS_ARTEN value to its orgasmForm i18n key (shared by entry + Anforderung forms). */
 export const ORGASMUS_ART_I18N_KEYS: Record<string, string> = {

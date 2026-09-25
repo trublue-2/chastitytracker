@@ -217,6 +217,7 @@ const KG_ENTRY_SELECT = {
   // Siehe `lockPending.ts`: ein Verschluss ohne Riegel ist noch nicht passiert. Das Strafbuch
   // beurteilt ihn deshalb nicht — die Reinigungs-Frist läuft weiter, bis der Riegel zufällt.
   boltConfirmedAt: true,
+  openAwaitsBolt: true,
   oeffnenGrund: true,
   note: true,
   source: true,
@@ -657,7 +658,8 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
     prisma.timezoneChange.findMany({ where: { userId }, select: TIMEZONE_CHANGE_SELECT }),
     prisma.user.findUnique({ where: { id: userId }, select: { ...CLEANING_USER_SELECT, timezone: true } }),
-    prisma.entry.findMany({ where: { userId, type: "OEFFNEN" }, orderBy: { startTime: "desc" }, select: KG_ENTRY_SELECT }),
+    // Eine wartende Öffnung (LockMeBox) ist noch nicht passiert — beurteilt wird sie erst vollzogen.
+    prisma.entry.findMany({ where: { userId, type: "OEFFNEN", openAwaitsBolt: false }, orderBy: { startTime: "desc" }, select: KG_ENTRY_SELECT }),
     prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS", ...CONFIRMED_LOCK_FILTER }, orderBy: { startTime: "asc" }, select: KG_ENTRY_SELECT }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...triggeredWhere(now) } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "ANFORDERUNG", withdrawnAt: null, ...triggeredWhere(now) } }),

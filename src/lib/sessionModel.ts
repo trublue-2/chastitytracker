@@ -27,6 +27,7 @@ export interface SegmentEntry {
    *  es optional, könnte ein Select die Spalte weglassen und ein noch gar nicht vollzogener
    *  Verschluss stünde in den Segmenten. */
   boltConfirmedAt: Date | null;
+  openAwaitsBolt: boolean;
   oeffnenGrund?: string | null;
   kontrollCode?: string | null;
   verifikationStatus?: string | null;

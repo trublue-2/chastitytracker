@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getIsLocked } from "@/lib/queries";
+import { getIsLocked, userHasBox } from "@/lib/queries";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { block, type StackBlock } from "@/lib/blockStack";
@@ -11,11 +11,11 @@ import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
   deviceCountCached, entriesCached, evaluatedTasksCached, kgVorgabenCached, kgWearPairsCached,
   latestKeyInBoxCached, latestKgEntryCached, lockRequestCached,
-  orgasmConfigCached, orgasmEntriesCached, pendingLockCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
+  orgasmConfigCached, orgasmEntriesCached, pendingLockCached, pendingOpenCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
   subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
 } from "@/lib/dashboardData";
-import { deviceCategoriesEnabled, heimdallEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled } from "@/lib/constants";
 import { predictAutoMarkAt } from "@/lib/inspectionEscalationService";
 import { cleaningPermissionUserAt } from "@/lib/cleaningRules";
 import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch";
@@ -280,7 +280,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   boxStatus: block({
     // Ohne Heimdall gibt es keine Box-Karte — dann auch keine Abfragen für sie.
     load: async ({ userId }) => {
-      if (!heimdallEnabled()) return null;
+      if (!(await userHasBox(userId))) return null;
       // Der Zustand des TRÄGERS gehört dazu: nur mit ihm kann die Karte „Riegel zu, obwohl
       // niemand verschlossen ist" von „Riegel zu, während der Verschluss läuft" unterscheiden.
       // Das ist EINE zusätzliche indizierte Abfrage (`getLatestKgEntry`), nicht gratis — aber die
@@ -294,9 +294,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       ]);
       return { wearerLocked, keyInBox };
     },
-    // `null` heisst „ohne Box" — die Karte hängt an Heimdall, und ohne den lief der Loader gar nicht
-    // erst.
-    render: (data) => heimdallEnabled() && data !== null && (
+    // `null` heisst „ohne Box" — keine Kopplung auf der Instanz oder keine Box bei diesem Träger.
+    render: (data) => data !== null && (
       <BoxStatusCard wearerLocked={data.wearerLocked} keyInBox={data.keyInBox} />
     ),
   }),
@@ -385,7 +384,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         const open = await openStateData(ctx);
         return open && ({ open } as const);
       }
-      const [activeLockPeriod, user, activeVorgabe, hours, deviceCount, offenseRules, kgVorgaben, kgPairs] = await Promise.all([
+      const [activeLockPeriod, user, activeVorgabe, hours, deviceCount, offenseRules, kgVorgaben, kgPairs, pendingOpen] = await Promise.all([
         subLockPeriodCached(userId), userRowCached(userId), activeVorgabeCached(userId, nowMs),
         wearingHoursCached(userId, nowMs, tz), deviceCountCached(userId),
         // Für die Folge-Zeile unter der Sperrzeit: OB ein früheres Öffnen geahndet wird, ist je Sub
@@ -393,12 +392,16 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         getOffenseRules(userId, now),
         // Für Woche/Monat/Jahr: ALLE KG-Segmente, nicht nur das aktive Ziel.
         kgVorgabenCached(userId), kgWearPairsCached(userId, nowMs),
+        // Die Öffnung, die bei der LockMeBox noch auf „Riegel offen" wartet — der Held zeigt sie samt
+        // „Aufruf zurücknehmen", solange der Träger noch als verschlossen gilt.
+        pendingOpenCached(userId),
       ]);
       const { goal, actualH } = resolveGoalRow(activeVorgabe, kgVorgaben, kgPairs, now, tz);
       // `open: null` als Unterscheidungsmerkmal — mit `"open" in data` müsste jede Verwendung
       // darunter noch einmal auf `undefined` prüfen, obwohl der Zweig sie ausschliesst.
       return {
         open: null, ...running, activeLockPeriod, user, deviceCount, offenseRules,
+        openCall: pendingOpen ? { id: pendingOpen.id } : null,
         goalTargets: activeVorgabe ? goal : null,
         hours: { ...hours, ...segmentHours(actualH) },
       };
@@ -421,6 +424,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       ) : (
       <DashboardBlock>
         <LaufendeSessionCard
+          openCall={data.openCall}
           sessionStart={data.activePair.verschluss.startTime}
           interruptionPausedMs={interruptionPauseMs(data.activePair.interruptions)}
           now={now}

@@ -19,6 +19,7 @@ const e = (type: string, iso: string, deviceName?: string, oeffnenGrund?: string
   startTime: D(iso),
   // Vollzogen — der schwebende Verschluss hat eigene Fälle weiter unten.
   boltConfirmedAt: type === "VERSCHLUSS" ? D(iso) : null,
+  openAwaitsBolt: false,
   oeffnenGrund: oeffnenGrund ?? null,
   device: deviceName ? { name: deviceName, categoryId: null } : null,
   // Default „nicht erklärt" — die keyInBox-Fälle überschreiben das per Spread.

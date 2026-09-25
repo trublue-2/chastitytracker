@@ -109,7 +109,7 @@ export const TASK_INCLUDE = {
  * getragen war. Wer ein Feld weglässt, bekommt jetzt eine Nachladung statt einer leeren Liste.
  */
 /** Was die Verschluss-Paarung braucht. `oeffnenGrund` entscheidet über die Reinigungs-Ausnahme. */
-type KgEntry = { id: string; type: string; startTime: Date; boltConfirmedAt: Date | null; oeffnenGrund?: string | null };
+type KgEntry = { id: string; type: string; startTime: Date; boltConfirmedAt: Date | null; openAwaitsBolt: boolean; oeffnenGrund?: string | null };
 
 export interface TaskEntrySource {
   /** VERSCHLUSS/OEFFNEN — braucht `id` und `oeffnenGrund` (für die Reinigungs-Ausnahme). */

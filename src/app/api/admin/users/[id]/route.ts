@@ -14,7 +14,7 @@ import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { setReasonConfig } from "@/lib/reasonsService";
 import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
-import { heimdallEnabled } from "@/lib/constants";
+import { boxCouplingEnabled } from "@/lib/constants";
 import { setLockRequiresBolt } from "@/lib/lockCommit";
 import { setOffenseStatementsAllowed } from "@/lib/offenseStatementService";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
@@ -197,7 +197,7 @@ export async function PATCH(
   if (body.lockRequiresBolt !== undefined) {
     // Führt die Instanz die Box gar nicht, gibt es die Einstellung
     // nicht — 404 statt 403, damit die Antwort nicht verrät, dass es sie gäbe.
-    if (!heimdallEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!boxCouplingEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
     // Über den Dienst, nicht per `update`: das Abschalten vollzieht einen wartenden Aufruf.
     await setLockRequiresBolt(id, Boolean(body.lockRequiresBolt));
     return NextResponse.json({ ok: true });

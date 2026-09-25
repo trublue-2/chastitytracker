@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { getActiveLockPeriod } from "@/lib/queries";
-import { heimdallEnabled } from "@/lib/constants";
-import { toPendingCommand } from "@/lib/boxStatus";
+import { boxCouplingEnabled } from "@/lib/constants";
+import { toBoxKind, toPendingCommand } from "@/lib/boxStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +22,9 @@ const NO_STORE = { headers: { "Cache-Control": "no-store" } };
 export async function GET(req: NextRequest) {
   const session = await requireApi();
   if (session instanceof NextResponse) return session;
-  // Heimdall-Box ist ein eigenständiges Feature: ohne Sync-Secret keine Box-UI (auch wenn
+  // Die Box ist ein eigenständiges Feature: ohne Box-Kopplung keine Box-UI (auch wenn
   // noch alte BoxStatus-Zeilen in der DB liegen).
-  if (!heimdallEnabled()) return NextResponse.json([], NO_STORE);
+  if (!boxCouplingEnabled()) return NextResponse.json([], NO_STORE);
   // `||` statt `??`: ein leerer `?userId=` ist kein Ziel, sondern ein kaputter Aufruf — er soll auf
   // die Selbst-Sicht fallen, nicht als fremde (nirgends existierende) User-Id weitergereicht werden.
   const userId = req.nextUrl.searchParams.get("userId") || session.user.id;
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     prisma.boxStatus.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { boxId: true, name: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true, offlineOpenHours: true, battery: true, charging: true, lowBatteryOpenPercent: true, fwVersion: true },
+      select: { boxId: true, name: true, kind: true, locked: true, reportedLocked: true, lockUntil: true, simpleLock: true, keyholderLocked: true, lastSyncAt: true, pendingCommand: true, offlineOpenHours: true, battery: true, charging: true, lowBatteryOpenPercent: true, fwVersion: true },
     }),
     getActiveLockPeriod(userId),
   ]);
@@ -48,6 +48,9 @@ export async function GET(req: NextRequest) {
     boxes.map((b) => ({
       boxId: b.boxId,
       name: b.name,
+      // Bestimmt nur, ob die Karte „Mit Box verbinden" anbietet — die Zustands-Ableitung ist für
+      // beide Arten dieselbe.
+      kind: toBoxKind(b.kind),
       locked: b.locked,
       // IST getrennt vom SOLL: seit dem Präsenz-Guard kann die Box offen stehen, obwohl sie zu
       // sein soll (wartet auf Knopf/USB) — die Anzeige darf das SOLL nicht als „Ist" etikettieren.

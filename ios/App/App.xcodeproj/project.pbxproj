@@ -83,6 +83,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 504EC3161FED79650016851F /* Build configuration list for PBXNativeTarget "App" */;
 			buildPhases = (
+				A1C0DE0000000000000000A1 /* Keine Dev-URL im Release */,
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
@@ -152,6 +153,29 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A1C0DE0000000000000000A1 /* Keine Dev-URL im Release */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/App/capacitor.config.json",
+			);
+			name = "Keine Dev-URL im Release";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Ein Release darf keine Dev-URL tragen: CAP_DEV_URL (capacitor.config.ts) schreibt server.url in die\n# generierte capacitor.config.json. Liegt sie beim Archivieren noch drin, laedt die ausgelieferte App\n# einen Rechner im WLAN des Entwicklers statt der Huelle.\nif [ \"$CONFIGURATION\" = \"Release\" ] && /usr/bin/plutil -extract server.url raw -o - \"$SRCROOT/App/capacitor.config.json\" >/dev/null 2>&1; then\n  echo \"error: capacitor.config.json enthaelt eine Dev-URL (server.url). Vor dem Archiv 'npx cap sync ios' OHNE CAP_DEV_URL ausfuehren.\"\n  exit 1\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		504EC3001FED79650016851F /* Sources */ = {
@@ -321,7 +345,8 @@
 				);
 				MARKETING_VERSION = 1.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
-				PRODUCT_BUNDLE_IDENTIFIER = ch.chastitytracker.app;
+				APP_DISPLAY_NAME = "CT Dev";
+				PRODUCT_BUNDLE_IDENTIFIER = ch.chastitytracker.app.dev;
 				PRODUCT_NAME = "chastity tracker";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_VERSION = 5.0;
@@ -343,6 +368,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				APP_DISPLAY_NAME = ChastityTracker;
 				PRODUCT_BUNDLE_IDENTIFIER = ch.chastitytracker.app;
 				PRODUCT_NAME = "chastity tracker";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";

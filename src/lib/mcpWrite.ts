@@ -33,7 +33,7 @@ import {
 } from "@/lib/autoKontrolleDayRules";
 
 import {
-  heimdallEnabled,
+  boxCouplingEnabled,
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY,
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE, POST_LOCK_INSPECTION_DEADLINE_RANGE,
@@ -1335,8 +1335,8 @@ export interface SetBoxArgs {
  * bei einer defekten Box liegt.
  */
 export async function mcpSetBox(username: string, args: SetBoxArgs) {
-  if (!heimdallEnabled()) {
-    throw new Error("The key box is not available on this instance (HEIMDALL_SYNC_SECRET is not set).");
+  if (!boxCouplingEnabled()) {
+    throw new Error("The key box is not available on this instance (neither HEIMDALL_SYNC_SECRET nor BLE_BRIDGE_KEY is set).");
   }
   const userId = await resolveTargetUserId(username);
   requireAnyOf(args, ["requireBolt"]);
@@ -2330,7 +2330,7 @@ export async function mcpDeleteEntry(username: string, args: DeleteEntryArgs) {
   const iso = await isoForUser(userId);
   const existing = await prisma.entry.findFirst({
     where: { id: args.id, userId },
-    select: { id: true, userId: true, type: true, startTime: true, deviceId: true, boltConfirmedAt: true,
+    select: { id: true, userId: true, type: true, startTime: true, deviceId: true, boltConfirmedAt: true, openAwaitsBolt: true,
       imageUrl: true, codeImageUrl: true, boxImageUrl: true },
   });
   if (!existing) throw new Error(`Entry not found: ${args.id}`);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { expectImportFree } from "@/test/importFree";
-import { isPendingLock, isEffectiveEntry, clampBoltTime, boltFieldsFor, latestEffectiveKgEntry } from "./lockPending";
+import { isPendingLock, isPendingOpen, isEffectiveEntry, clampBoltTime, boltFieldsFor, latestEffectiveKgEntry } from "./lockPending";
 
 const D = (iso: string) => new Date(iso);
 
@@ -23,7 +23,7 @@ describe("isPendingLock", () => {
     // den Paaren und jede Session bliebe für immer offen.
     expect(isPendingLock({ type: "OEFFNEN", boltConfirmedAt: null })).toBe(false);
     expect(isPendingLock({ type: "PRUEFUNG", boltConfirmedAt: null })).toBe(false);
-    expect(isEffectiveEntry({ type: "OEFFNEN", boltConfirmedAt: null })).toBe(true);
+    expect(isEffectiveEntry({ type: "OEFFNEN", boltConfirmedAt: null, openAwaitsBolt: false })).toBe(true);
   });
 
   it("behandelt eine Zeile ohne die Spalte als gültig, nicht als schwebend", () => {
@@ -33,31 +33,51 @@ describe("isPendingLock", () => {
   });
 });
 
+describe("isPendingOpen", () => {
+  it("erkennt die Öffnung, deren Riegel noch aussteht (LockMeBox)", () => {
+    expect(isPendingOpen({ type: "OEFFNEN", openAwaitsBolt: true })).toBe(true);
+    expect(isPendingOpen({ type: "OEFFNEN", openAwaitsBolt: false })).toBe(false);
+    expect(isEffectiveEntry({ type: "OEFFNEN", boltConfirmedAt: null, openAwaitsBolt: true })).toBe(false);
+  });
+
+  it("gilt nur für OEFFNEN", () => {
+    expect(isPendingOpen({ type: "VERSCHLUSS", openAwaitsBolt: true })).toBe(false);
+  });
+
+  it("behandelt eine Zeile ohne die Spalte als gültig", () => {
+    expect(isPendingOpen({ type: "OEFFNEN" } as unknown as { type: string; openAwaitsBolt: boolean })).toBe(false);
+  });
+});
+
 describe("boltFieldsFor — die Schreib-Seite", () => {
   const t = D("2026-08-30T10:00:00Z");
 
   it("macht einen Verschluss ohne Riegel-Erwartung sofort wirksam", () => {
     // Der Fall, der zählt: Keyholder-Pfad und Demo-Seeder. Ohne diese Vorgabe läge dort dauerhaft
     // ein schwebender Verschluss — unsichtbar für jede Ableitung, auf einer Instanz ganz ohne Box.
-    expect(boltFieldsFor("VERSCHLUSS", t)).toEqual({ boltConfirmedAt: t });
+    expect(boltFieldsFor("VERSCHLUSS", t)).toEqual({ boltConfirmedAt: t, openAwaitsBolt: false });
   });
 
   it("lässt ihn offen, wenn er auf den Riegel wartet", () => {
-    expect(boltFieldsFor("VERSCHLUSS", t, true)).toEqual({ boltConfirmedAt: null });
+    expect(boltFieldsFor("VERSCHLUSS", t, true)).toEqual({ boltConfirmedAt: null, openAwaitsBolt: false });
   });
 
-  it("setzt bei jedem anderen Typ nichts — dort ist das Feld bedeutungslos", () => {
-    expect(boltFieldsFor("OEFFNEN", t)).toEqual({ boltConfirmedAt: null });
-    expect(boltFieldsFor("PRUEFUNG", t, true)).toEqual({ boltConfirmedAt: null });
+  it("lässt eine Öffnung nur schweben, wenn sie auf den Riegel wartet", () => {
+    expect(boltFieldsFor("OEFFNEN", t)).toEqual({ boltConfirmedAt: null, openAwaitsBolt: false });
+    expect(boltFieldsFor("OEFFNEN", t, true)).toEqual({ boltConfirmedAt: null, openAwaitsBolt: true });
+  });
+
+  it("setzt bei jedem anderen Typ nichts — dort sind die Felder bedeutungslos", () => {
+    expect(boltFieldsFor("PRUEFUNG", t, true)).toEqual({ boltConfirmedAt: null, openAwaitsBolt: false });
   });
 });
 
 describe("latestEffectiveKgEntry", () => {
   // Absteigend nach startTime — so, wie die Sichten ihre Einträge laden.
   const rows = [
-    { id: "v2", type: "VERSCHLUSS", boltConfirmedAt: null },
-    { id: "o1", type: "OEFFNEN", boltConfirmedAt: null },
-    { id: "v1", type: "VERSCHLUSS", boltConfirmedAt: D("2026-08-29T10:00:00Z") },
+    { id: "v2", type: "VERSCHLUSS", boltConfirmedAt: null, openAwaitsBolt: false },
+    { id: "o1", type: "OEFFNEN", boltConfirmedAt: null, openAwaitsBolt: false },
+    { id: "v1", type: "VERSCHLUSS", boltConfirmedAt: D("2026-08-29T10:00:00Z"), openAwaitsBolt: false },
   ];
 
   it("überspringt den schwebenden Aufruf und nimmt den Eintrag darunter", () => {
@@ -65,11 +85,16 @@ describe("latestEffectiveKgEntry", () => {
   });
 
   it("ignoriert Nicht-KG-Einträge", () => {
-    expect(latestEffectiveKgEntry([{ id: "p1", type: "PRUEFUNG", boltConfirmedAt: null }, ...rows])?.id).toBe("o1");
+    expect(latestEffectiveKgEntry([{ id: "p1", type: "PRUEFUNG", boltConfirmedAt: null, openAwaitsBolt: false }, ...rows])?.id).toBe("o1");
   });
 
   it("null, wenn es keinen wirksamen KG-Eintrag gibt", () => {
-    expect(latestEffectiveKgEntry([{ id: "v2", type: "VERSCHLUSS", boltConfirmedAt: null }])).toBe(null);
+    expect(latestEffectiveKgEntry([{ id: "v2", type: "VERSCHLUSS", boltConfirmedAt: null, openAwaitsBolt: false }])).toBe(null);
+  });
+
+  it("überspringt eine schwebende Öffnung — der Träger bleibt verschlossen, bis die Box aufgeht", () => {
+    const withPendingOpen = [{ id: "o2", type: "OEFFNEN", boltConfirmedAt: null, openAwaitsBolt: true }, rows[2]];
+    expect(latestEffectiveKgEntry(withPendingOpen)?.id).toBe("v1");
   });
 });
 

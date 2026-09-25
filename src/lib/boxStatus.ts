@@ -2,9 +2,26 @@
 // Dashboard-Box-Status-Karte (BoxStatusCard). Keine Server-Imports — reine Formatierung; i18n bleibt
 // beim Aufrufer (Labels via übergebenem `t`).
 
+/** Welche Box: `heimdall` meldet sich selbst über WLAN, `lockmebox` (Werks-Firmware) nur, wenn das
+ *  Handy des Trägers per Bluetooth verbindet — ihr IST ist so alt wie dieser letzte Kontakt. */
+export type BoxKind = "heimdall" | "lockmebox";
+
+/** `BoxStatus.kind` ist in Prisma ein freier `String` — hier auf die zwei gültigen Werte verengen;
+ *  alles andere gilt als Heimdall, die Spalten-Vorgabe. */
+export function toBoxKind(raw: string | null | undefined): BoxKind {
+  return raw === "lockmebox" ? "lockmebox" : "heimdall";
+}
+
+/** Ist unter diesen Boxen eine LockMeBox? Dann gilt Verschluss wie Öffnung erst mit dem Riegel —
+ *  immer, ohne Schalter (docs/lockmebox.md). Die EINE Fassung der Frage für Formular und Anlegen. */
+export function hasLockmebox(boxes: { kind: string }[]): boolean {
+  return boxes.some((b) => toBoxKind(b.kind) === "lockmebox");
+}
+
 export type BoxRow = {
   boxId: string;
   name: string;
+  kind: BoxKind;
   /** SOLL: soll die Box zu sein (Heimdall-Entscheid, gespiegelt). */
   locked: boolean;
   /** Physisches IST der letzten Sync-Meldung — kann vom SOLL abweichen (Präsenz-Guard: „soll zu,
@@ -436,14 +453,17 @@ export function boxBatteryLabel(
   return b.charging ? `${label} · ${t("batteryCharging")}` : label;
 }
 
-/** Frische aus `lastSyncAt`: „gerade aktiv" (< 2 Min), sonst „zuletzt online vor X"; null → nie gesynct. */
-export function boxFreshnessLabel(lastSyncAt: string | null, now: number, t: Translate): string {
-  if (!lastSyncAt) return t("neverSynced");
+/** Frische aus `lastSyncAt`: „gerade aktiv" (< 2 Min), sonst „zuletzt online vor X"; null → nie gesynct.
+ *  Eine LockMeBox ist nie online — ihr Zeitpunkt ist der letzte Bluetooth-Kontakt, und „zuletzt online
+ *  vor 3 Tg" läse sich bei ihr wie eine Störung, obwohl es ihr Normalzustand ist. */
+export function boxFreshnessLabel(lastSyncAt: string | null, now: number, t: Translate, kind: BoxKind): string {
+  const ble = kind === "lockmebox";
+  if (!lastSyncAt) return t(ble ? "neverContacted" : "neverSynced");
   if (boxIsLive(lastSyncAt, now)) return t("live");
   const ageMs = Math.max(0, now - new Date(lastSyncAt).getTime());
   const min = Math.floor(ageMs / 60_000);
-  if (min < 60) return t("lastSeenMinutes", { count: min });
+  if (min < 60) return t(ble ? "lastContactMinutes" : "lastSeenMinutes", { count: min });
   const hours = Math.floor(min / 60);
-  if (hours < 24) return t("lastSeenHours", { count: hours });
-  return t("lastSeenDays", { count: Math.floor(hours / 24) });
+  if (hours < 24) return t(ble ? "lastContactHours" : "lastSeenHours", { count: hours });
+  return t(ble ? "lastContactDays" : "lastSeenDays", { count: Math.floor(hours / 24) });
 }

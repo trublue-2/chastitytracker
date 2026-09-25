@@ -495,6 +495,18 @@ export const FM_CAPABILITIES: FmCapability[] = [
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/box/relock"],
   }),
   c({
+    id: "box-ble", mechanic: "Box", title: "LockMeBox per Bluetooth koppeln und bedienen",
+    what: "Das Handy des Trägers verbindet sich mit einer LockMeBox (Werks-Firmware) und reicht Status und Befehle zwischen Box und Tracker durch; der erste Kontakt koppelt sie.",
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/box/ble"],
+    note: "Die Box folgt den Einträgen wie Heimdall, ausgeführt wird aber erst beim nächsten Verbinden an der Box. Nur mit BLE_BRIDGE_KEY. Details: docs/lockmebox.md.",
+  }),
+  c({
+    id: "box-remove", mechanic: "Box", title: "Box entfernen",
+    what: "Der Träger entfernt seine Box, um eine andere zu koppeln — er führt genau eine.",
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/box/[boxId]"],
+    note: "Nur wenn er offen ist, die Box nicht als zu gemeldet hat und weder Aufruf noch Kommando wartet. Eine zweite Kopplung lehnen beide Wege ab (Bluetooth und Heimdall-Sync). Details: docs/lockmebox.md.",
+  }),
+  c({
     id: "box-integration", mechanic: "Box", title: "Gegenstelle für die Box",
     what: "Liefert der Box ihre Konfiguration und nimmt Zustandsmeldungen und Ereignisse entgegen.",
     actors: ["system"], surfaces: ["extern"],

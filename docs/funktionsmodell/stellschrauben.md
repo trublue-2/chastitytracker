@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 152 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 153 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -22,6 +22,7 @@ Steckbrief: [15-eintraege.md](15-eintraege.md)
 | `Entry.startTime` | DateTime | (keiner) | je Eintrag | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | Sub, Keyholder (UI) | Sessions/Statistik, Strafbuch | `entryFulfilment.ts` |
 | `Entry.keyInBox` | Boolean? | — | je Eintrag | Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt. | Sub | Box, Sperrzeit | `boxCommand.ts` |
 | `Entry.boltConfirmedAt` | DateTime? | — | je Eintrag | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | System | Box, Sperrzeit, Sessions/Statistik, Strafbuch | `lockPending.ts` |
+| `Entry.openAwaitsBolt` | Boolean | `false` | je Eintrag | Nur LockMeBox: die Öffnung ist erst der Aufruf, die Box zu öffnen. `true` = für JEDE Ableitung unsichtbar, der Träger bleibt verschlossen, bis die Box „Riegel offen" meldet; dann wird sie vollzogen und das Feld gelöscht. | System | Box, Sperrzeit, Sessions/Statistik, Strafbuch | `lockPending.ts` |
 | `Entry.oeffnenGrund` | String? | — | je Eintrag | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | Sub, Keyholder (UI) | Reinigung, Sperrzeit, Strafbuch, Sessions/Statistik | `queries.ts:isAllowedCleaningOpen` |
 | `Entry.deviceId` | String? | — | je Eintrag | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | Sub, Keyholder (UI) | Geräte, Sessions/Statistik, Kontrollen | — |
 
@@ -455,7 +456,9 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `BoxStatus.id` | Identität | Primärschlüssel. |
 | `BoxStatus.userId` | Identität | Eigentümer der Zeile. |
 | `BoxStatus.boxId` | Identität | Stabile Geräte-Kennung der Box. |
-| `BoxStatus.name` | Datensatz | Anzeigename der Box; kommt aus Heimdall. |
+| `BoxStatus.name` | Datensatz | Anzeigename der Box; kommt aus Heimdall bzw. ist bei der LockMeBox ihr Bluetooth-Name. |
+| `BoxStatus.kind` | Identität | Welche Box: `heimdall` meldet sich selbst, `lockmebox` (Werks-Firmware) nur, wenn sich das Handy des Trägers per Bluetooth verbindet. |
+| `BoxStatus.lockPassword` | Datensatz | Nur LockMeBox: das Passwort, mit dem der Tracker sie verschliesst und öffnet. Einmal je Box beim Koppeln erzeugt, nie gewechselt, verlässt nie den Server. |
 | `BoxStatus.locked` | Laufzeitzustand | Das SOLL: so soll die Box stehen. |
 | `BoxStatus.reportedLocked` | Laufzeitzustand | Das IST der letzten Meldung. Seit dem Präsenz-Guard kann die Box offen stehen, obwohl sie zu sein soll. |
 | `BoxStatus.lockUntil` | Laufzeitzustand | Die effektive Sperre aus eigener Frist und Tracker-Sperrzeit, gekappt. |

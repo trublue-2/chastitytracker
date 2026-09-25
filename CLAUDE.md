@@ -322,6 +322,10 @@ TELEGRAM_BOT_TOKEN=<token>         # optional: Bot-Token von BotFather. Ohne ihn
 TELEGRAM_BOT_USERNAME=<botname>    # optional: Bot-Name ohne @ (für den Deep-Link t.me/<botname>?start=…). Ohne ihn kein Verbinden.
 TELEGRAM_WEBHOOK_SECRET=<random>   # optional, aber Pflicht sobald der Webhook läuft: wird gegen den
                                    #   X-Telegram-Bot-Api-Secret-Token-Header geprüft; ohne ihn lehnt der Webhook alles ab.
+# LockMeBox (Bluetooth, docs/lockmebox.md): Schlüssel der Bluetooth-Brücke, 32 Hex-Zeichen. Kommt
+# vom Betreiber, steht NICHT im Repo. Ohne ihn keine Kopplung, keine Route `/api/box/ble`, kein
+# Einstellungs-Eintrag.
+BLE_BRIDGE_KEY=<hex>               # optional
 ```
 
 
@@ -406,7 +410,7 @@ keine Closure. `src/lib/nestedComponents.test.ts` liest den Baum und erzwingt da
 - `src/app/hooks/useDialogBehaviour.ts` — was einen modalen Dialog bedienbar macht: Fokus hinein, Fokus-Falle, Escape, Fokus zurück an den Auslöser, Scroll-Sperre. **Jeder** Dialog nimmt ihn; vier hatten die Mechanik einmal selbst gebaut und jeder andere Teile davon vergessen. Er zählt die offenen Dialoge an EINER Stelle — nur der oberste hört auf Escape und Tab, und die Scroll-Sperre gehört dem Stapel, nicht dem einzelnen Dialog
 - `src/app/components/LiveStatus.tsx` + `useAnnouncement()` — die `sr-only`-Zeile, die eine Zustandsänderung ansagt (Auswahlmodus, Trefferzahl, neue Position). **Ihr Inhalt darf sich NIE im Takt ändern** — ein `aria-live` auf einer tickenden Zahl lässt den Screenreader sich endlos selbst unterbrechen (Vorfall `TimerDisplay`). Der Hook bringt den Zähler mit, ohne den dieselbe Meldung zweimal hintereinander stumm bliebe
 - `src/app/components/SkipLink.tsx` — „Zum Inhalt springen", hängt in beiden Kopfzeilen und sucht die `<main>`-Landmarke beim Klick
-- `src/lib/theme.ts` — **welche Farbwelt gilt, und zwar abgeleitet statt gewählt.** `subWorld(isLocked)` → `sub-locked` (grün) oder `sub-open` (rosa), `keyholderWorld()` → `keyholder` (indigo), `DEFAULT_WORLD` für Bildschirme ohne Zustand (Anmeldung, `/info`). Alle drei sind DUNKEL; einen hellen Modus und einen Umschalter gibt es seit v6 nicht mehr. Gesetzt wird beim Rendern im Bereichs-Layout, `ThemeRootSync` trägt die Welt an ZWEI Abnehmer nach, die den Bereichs-Wrapper nicht lesen: an `<html>` (für alles, was per Portal am Body hängt) und über `nativeWorld.ts` an den nativen Sperrbildschirm. **Eine neue Welt braucht vier Dinge:** einen Eintrag in `WELTEN` (`docs/design/tokens.mjs`), einen in `World`/`WORLDS` — `theme.test.ts` hält die beiden gegeneinander —, einen Lauf von `node docs/design/tokens.mjs --write` und eine Farbtafel in `LockPalette` (`ios/App/App/AppDelegate.swift`, **nicht versioniert** — dort fällt das Fehlen niemandem auf, der nur dieses Repo liest)
+- `src/lib/theme.ts` — **welche Farbwelt gilt, und zwar abgeleitet statt gewählt.** `subWorld(isLocked)` → `sub-locked` (grün) oder `sub-open` (rosa), `keyholderWorld()` → `keyholder` (indigo), `DEFAULT_WORLD` für Bildschirme ohne Zustand (Anmeldung, `/info`). Alle drei sind DUNKEL; einen hellen Modus und einen Umschalter gibt es seit v6 nicht mehr. Gesetzt wird beim Rendern im Bereichs-Layout, `ThemeRootSync` trägt die Welt an ZWEI Abnehmer nach, die den Bereichs-Wrapper nicht lesen: an `<html>` (für alles, was per Portal am Body hängt) und über `nativeWorld.ts` an den nativen Sperrbildschirm. **Eine neue Welt braucht vier Dinge:** einen Eintrag in `WELTEN` (`docs/design/tokens.mjs`), einen in `World`/`WORLDS` — `theme.test.ts` hält die beiden gegeneinander —, einen Lauf von `node docs/design/tokens.mjs --write` und eine Farbtafel in `LockPalette` (`ios/App/App/AppDelegate.swift` — versioniert, aber kein Test hält sie gegen `WELTEN`; wirksam erst mit dem nächsten iOS-Build)
 - `src/app/components/EmptyState.tsx` — Leer-Zustand Platzhalter
 - `src/app/components/Skeleton.tsx` — Loading-Skeleton
 - `src/app/components/Spinner.tsx` — Loading-Spinner

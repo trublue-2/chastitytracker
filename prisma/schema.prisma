@@ -1198,8 +1198,16 @@ model BoxStatus {
   id                     String    @id @default(cuid())
   userId                 String
   user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  boxId                  String // Heimdall-Geräte-id (stabil)
+  boxId                  String // Heimdall-Geräte-id (stabil) bzw. BLE-Name `LOCKMEBOX-<id>`
   name                   String
+  // Welche Box: "heimdall" (eigene Firmware, meldet sich über den Heimdall-Server) oder "lockmebox"
+  // (Werks-Firmware, nur Bluetooth — das Handy des Trägers reicht Befehle und Status durch,
+  // `lockmeboxService.ts`). Bestimmt, wer die Zeile schreibt; die Anzeige ist für beide dieselbe.
+  kind                   String    @default("heimdall")
+  // Nur "lockmebox": das Passwort, mit dem der Tracker die Box verschliesst (`C/0/1/*/<pw>`) und
+  // wieder öffnet (`O/<pw>`). EINES je Box, beim Koppeln erzeugt und nie gewechselt — ein Wechsel
+  // könnte eine Box aussperren, deren Verschluss-Rückmeldung verloren ging. Verlässt nie den Server.
+  lockPassword           String?
   locked                 Boolean   @default(false)
   // Physisches IST der frischen Sync-Meldung — `locked` ist das SOLL. Seit dem Präsenz-Guard
   // (FW 0.2.33) kann die Box offen stehen, obwohl sie zu sein soll. null = Alt-Zeile (Fallback SOLL).
@@ -1270,6 +1278,11 @@ model Entry {
   /// (`User.lockRequiresBolt`), ohne Box oder auf dem Keyholder-Pfad wird die Zeile sofort vollzogen
   /// und trägt ihre `startTime`. Siehe `lockCommit.ts` und docs/riegel-konzept.md.
   boltConfirmedAt               DateTime?
+  /// Nur OEFFNEN, nur LockMeBox: die Öffnung ist erst der AUFRUF, die Box zu öffnen — sie gilt, wenn
+  /// die Box „Riegel offen" meldet (`commitPendingOpen`, lockCommit.ts). Bis dahin für jede Ableitung
+  /// unsichtbar wie ein schwebender Verschluss. Vorgabe `false`: ein Erzeuger, der das Feld nicht
+  /// kennt, legt eine sofort gültige Öffnung an — das Bestandsverhalten, nie ein unsichtbarer Eintrag.
+  openAwaitsBolt                Boolean   @default(false)
   note                          String?
   oeffnenGrund                  String?
   orgasmusArt                   String?
@@ -1313,6 +1326,8 @@ model Entry {
   // gibt (meistens keine); `boltConfirmedAt` allein hinter `userId` wäre wertlos, weil JEDER
   // Nicht-Verschluss dort NULL trägt.
   @@index([userId, type, boltConfirmedAt])
+  // Die wartende Öffnung (LockMeBox) — sonst läse jede Suche nach ihr alle Öffnungen des Trägers.
+  @@index([userId, type, openAwaitsBolt])
   // Ein Stempel gilt je Nutzer. Mehrere NULL nebeneinander erlaubt SQLite in einem UNIQUE-Index,
   // Einträge ohne Stempel bleiben also unberührt — es braucht keine Rückfüllung.
   @@unique([userId, clientRequestId])

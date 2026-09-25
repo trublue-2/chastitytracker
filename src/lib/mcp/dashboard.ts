@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getOpenKontrollen, getActiveLockPeriod, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedLockPeriod, getCurrentLockKeyInBox, pendingLockCallAt, getOpenLockRequests } from "@/lib/queries";
+import { getOpenKontrollen, getActiveLockPeriod, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedLockPeriod, getCurrentLockKeyInBox, pendingLockCallAt, pendingOpenCallAt, getOpenLockRequests } from "@/lib/queries";
 import {
   buildLockState, mapOpenKontrolle, mapActiveLockPeriod, mapOpenOrgasmusAnforderung,
   mapActiveWearSessions, mapInterruptedLockPeriod, mapOpenLockRequest,
@@ -14,7 +14,7 @@ import { getOffenses, offenseRowState, type OffenseRow } from "@/lib/mcp/ledger"
 import { offenseNeedsAttention } from "@/lib/offenseTypes";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
-import { toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, boxBoltOpenDespiteLocked, type BoxFailsafeWarning } from "@/lib/boxStatus";
+import { toBoxKind, toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, boxBoltOpenDespiteLocked, type BoxFailsafeWarning, type BoxKind } from "@/lib/boxStatus";
 import { getEvaluatedTasks, loadTaskProofViews, type EvaluatedTask, type TaskProofView } from "@/lib/taskIntervals";
 import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike, proofDueOffsetPending,} from "@/lib/tasks";
 import { taskProofState } from "@/lib/taskView";
@@ -37,6 +37,13 @@ export type BoxFailsafeWarningView =
 
 export interface BoxStateView {
   name: string;
+  /** Welche Box. `"heimdall"` meldet sich selbst über WLAN (stündlich, bei Aktivität sofort).
+   *  `"lockmebox"` (Werks-Firmware) hat kein Netz: sie meldet sich NUR, wenn sich das Handy des
+   *  Trägers per Bluetooth verbindet — `lastSeen` ist dann der letzte solche Kontakt, und dazwischen
+   *  weiss der Tracker nichts. Sie öffnet nie von selbst (keine Failsafes, keine Frist) und nur auf
+   *  ein Passwort, das allein der Tracker kennt; `openArmed`/`staleLock` sind bei ihr immer false.
+   *  Ein Kommando (`pendingCommand`) wird erst beim nächsten solchen Kontakt ausgeführt. */
+  kind: BoxKind;
   /** SOLL: soll die Box gerade zu sein? Der zuletzt von Heimdall gemeldete Wert (jede Sperrquelle,
    *  eigen ODER Tracker-Sperrzeit); er kippt NICHT durch blossen Zeitablauf, solange die Box nicht
    *  wieder synct — dafür ist `staleLock` da. Steht `pendingCommand` an, ist dieser Wert ÄLTER als
@@ -98,7 +105,8 @@ export interface BoxStateView {
    * Seit wann ein VERSCHLUSS-AUFRUF auf den Riegel wartet (ISO-8601), `null` wenn keiner wartet
    * (docs/riegel-konzept.md).
    *
-   * Nur bei einem Träger mit `get_context.box.requireBolt`. Solange dieser Wert steht, ist er
+   * Nur bei einem Träger mit `get_context.box.requireBolt` oder mit LockMeBox (`kind`, dort immer).
+   * Solange dieser Wert steht, ist er
    * NICHT verschlossen — `currentRun` ist leer, obwohl er den Verschluss längst erfasst hat. Ohne
    * dieses Feld sähe seine Absicht für dich aus wie Untätigkeit.
    *
@@ -107,6 +115,10 @@ export interface BoxStateView {
    * nicht bei ihr.
    */
   lockCallWaitingSince: string | null;
+  /** Das Gegenstück bei der LockMeBox: seit wann eine ÖFFNUNG erfasst ist, die Box aber noch nicht
+   *  „Riegel offen" gemeldet hat. Solange dieser Wert steht, ist der Träger NOCH VERSCHLOSSEN — die
+   *  Öffnung gilt erst, wenn sich sein Handy an der Box verbunden und sie geöffnet hat. */
+  openCallWaitingSince: string | null;
   /** Deklaration des Subs beim aktuellen Verschluss: liegt der Schlüssel überhaupt in dieser Box?
    *  `false` = NEIN, er trägt ihn bei sich (z.B. auf Reise) — die Box hat dann bewusst KEIN
    *  lock-Kommando bekommen. Das ERKLÄRT ein `hardwareEnforced: false`, das sonst wie eine Box-Störung
@@ -671,7 +683,9 @@ type BoxRow = Awaited<ReturnType<typeof loadBoxRow>>;
  *  Schlüssel in ihr liegt — nur der Sub hat das erklärt. Deshalb reicht der Aufrufer die Deklaration
  *  durch: das Dashboard hat sie gratis aus dem Lock-Zustand (derselbe Wert wie `currentRun.keyInBox`,
  *  die beiden können so nicht auseinanderlaufen), `get_box_state` lädt sie via `getCurrentLockKeyInBox`. */
-function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null, lockCallAt: Date | null): BoxStateView | null {
+function mapBoxState(
+  box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null, lockCallAt: Date | null, openCallAt: Date | null,
+): BoxStateView | null {
   if (!box) return null;
   // Bester bekannter physischer Stand: das gemeldete IST, bei Alt-Zeilen ohne IST-Meldung das SOLL
   // (= bisheriges Verhalten, bis der erste Heimdall-Push nach dem Rollout das Feld füllt). Bewusst
@@ -714,6 +728,7 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null,
       : "stale-lock";
   return {
     name: box.name,
+    kind: toBoxKind(box.kind),
     locked: box.locked,
     pendingCommand: toPendingCommand(box.pendingCommand),
     reportedLocked: box.reportedLocked,
@@ -725,6 +740,7 @@ function mapBoxState(box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null,
     staleLock,
     keyInBox,
     lockCallWaitingSince: iso(lockCallAt),
+    openCallWaitingSince: iso(openCallAt),
     keySecured: box.reportedLocked === true && keyInBox === true && !openArmed && !staleLock,
     battery: box.battery,
     charging: box.charging,
@@ -753,14 +769,15 @@ export interface BoxStateResult extends Envelope {
 export async function getBoxState(username: string): Promise<BoxStateResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   // Box-Zeile und Schlüssel-Deklaration hängen beide nur an userId — parallel, nicht nacheinander.
-  const [box, keyInBox, lockCall] = await Promise.all([
+  const [box, keyInBox, lockCall, openCall] = await Promise.all([
     loadBoxRow(userId),
     getCurrentLockKeyInBox(userId),
     pendingLockCallAt(userId),
+    pendingOpenCallAt(userId),
   ]);
   const now = new Date();
   const iso = makeIso(timezone);
-  return { schemaVersion: 4, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox, lockCall) };
+  return { schemaVersion: 4, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox, lockCall, openCall) };
 }
 
 
@@ -794,7 +811,7 @@ export async function keyholderDashboard(
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
   // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
   const [openKontrolleRows, activeLockPeriodRow, openLockRequestRows, interruptedLockPeriodRow, activeWearRows, openOrgasmusRow,
-         rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives, lockCall, weight] = await Promise.all([
+         rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives, lockCall, weight, openCall] = await Promise.all([
     getOpenKontrollen(trackingCtx.userId, now),
     getActiveLockPeriod(trackingCtx.userId),
     getOpenLockRequests(trackingCtx.userId, now),
@@ -821,6 +838,8 @@ export async function keyholderDashboard(
     // Gewicht: liefert selbst `null`, wenn das Feature für diesen Träger aus ist. Die Reihe selbst
     // holt `weight_history`.
     weightSummary(trackingCtx.userId),
+    // Die wartende Öffnung (LockMeBox) — aus demselben Grund eine eigene Abfrage wie oben.
+    pendingOpenCallAt(trackingCtx.userId),
   ]);
 
   const lock = buildLockState(trackingCtx.entries, trackingCtx.cleaning, now, fmt, pairs);
@@ -836,7 +855,7 @@ export async function keyholderDashboard(
   const activeWearSessions = mapActiveWearSessions(activeWearRows, now, fmt);
   // Die Box-Sicht erbt die Schlüssel-Deklaration aus DEMSELBEN Lock-Zustand wie currentRun — die
   // beiden Felder einer Antwort können so nicht auseinanderlaufen, und es kostet keine Query.
-  const boxState = mapBoxState(boxRow, now, iso, lock.keyInBox, lockCall);
+  const boxState = mapBoxState(boxRow, now, iso, lock.keyInBox, lockCall, openCall);
 
   // wornNow: KG-Lock (falls verschlossen) + aktive Wear-Sessions der Kategorien.
   const wornNow: DashboardResult["wornNow"] = [];

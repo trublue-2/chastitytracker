@@ -54,6 +54,8 @@ export type LockEntry = {
   startTime: Date;
   /** Siehe `Entry.boltConfirmedAt`. Pflichtfeld aus demselben Grund wie `keyInBox` unten. */
   boltConfirmedAt: Date | null;
+  /** Siehe `Entry.openAwaitsBolt` — die schwebende Öffnung der LockMeBox. */
+  openAwaitsBolt: boolean;
   oeffnenGrund: string | null;
   device: { name: string; categoryId?: string | null } | null;
   /** Siehe `Entry.keyInBox` (schema.prisma). Pflichtfeld: wäre es optional, könnte ein Select die

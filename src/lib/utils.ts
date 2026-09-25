@@ -767,11 +767,11 @@ function normalizeBuildPairsOptions(
  *  (see `TaskEntrySource`) — they must not re-spell the type literals.
  *
  *  Hier fällt zugleich der schwebende Verschluss weg — der EINE Trichter der Speicher-Seite, siehe
- *  `lockPending.ts`. Deshalb ist `boltConfirmedAt` ein PFLICHTFELD der Signatur und nicht optional:
+ *  `lockPending.ts`. Deshalb sind `boltConfirmedAt` und `openAwaitsBolt` PFLICHTFELDER der Signatur:
  *  ein Aufrufer, der die Spalte nicht lädt, bekommt einen Compiler-Fehler statt einer Session, die
  *  einen noch gar nicht vollzogenen Verschluss enthält. (Für WEAR-Paare ist die Regel wirkungslos —
  *  sie kennen keinen VERSCHLUSS —, die Spalte mitzuladen kostet dort nichts.) */
-export function filterAndSortPairEntries<E extends { type: string; startTime: Date; boltConfirmedAt: Date | null }>(
+export function filterAndSortPairEntries<E extends { type: string; startTime: Date; boltConfirmedAt: Date | null; openAwaitsBolt: boolean }>(
   entries: E[],
   types: PairTypes,
 ): E[] {
@@ -829,6 +829,7 @@ export function buildPairs<
     /** Siehe `filterAndSortPairEntries`: Pflichtfeld, damit kein Aufrufer die Spalte weglässt und
      *  damit still einen noch nicht vollzogenen Verschluss in die Sessions holt. */
     boltConfirmedAt: Date | null;
+    openAwaitsBolt: boolean;
     oeffnenGrund?: string | null;
     device?: { categoryId?: string | null } | null;
   },
@@ -1065,7 +1066,7 @@ export type WearPair = { start: Date; end: Date };
  *  Beginn. Deshalb nimmt die Funktion keine `types`/`categoryId` mehr entgegen: die
  *  Trage-Kategorien gehen über `wearHourPairsByCategory` (paart je GERÄT). */
 export function buildKgWearPairs<
-  E extends { type: string; startTime: Date; boltConfirmedAt: Date | null }
+  E extends { type: string; startTime: Date; boltConfirmedAt: Date | null; openAwaitsBolt: boolean }
 >(entries: E[], now: Date): WearPair[] {
   const asc = filterAndSortPairEntries(entries, KG_PAIR);
   const pairs: WearPair[] = [];
@@ -1135,6 +1136,7 @@ export function calculateWearingHoursByRange<
     type: string;
     startTime: Date;
     boltConfirmedAt: Date | null;
+    openAwaitsBolt: boolean;
     oeffnenGrund?: string | null;
   }
 >(

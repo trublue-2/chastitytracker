@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { heimdallEnabled } from "@/lib/constants";
+import { boxCouplingEnabled } from "@/lib/constants";
 
 /**
  * Box-Kopplung (vereinheitlichtes Modell): die Heimdall-Box hat keine eigene Bedienung mehr, sondern
@@ -13,7 +13,7 @@ import { heimdallEnabled } from "@/lib/constants";
  * der Tracker (Strafbuch, `cleaningRelockDeadline`). Die Box bekommt diese Frist bewusst nicht —
  * sie würde den Riegel bei deren Ablauf unbeaufsichtigt zufahren.
  *
- * No-op ohne Heimdall (`HEIMDALL_SYNC_SECRET` nicht gesetzt) und für User ohne Box (updateMany trifft 0
+ * No-op ohne Box-Kopplung (`boxCouplingEnabled`) und für User ohne Box (updateMany trifft 0
  * Zeilen). Läuft in der Eintrags-Transaktion → atomar mit dem Eintrag.
  */
 export async function setBoxCommandForUser(
@@ -22,9 +22,9 @@ export async function setBoxCommandForUser(
   cmd: "lock" | "open",
 ): Promise<boolean> {
   // Gibt zurück, ob wirklich ein Kommando ansteht. Wer das aus einer Zeilenzahl daneben ableitet,
-  // meldet auf einer Installation ohne Heimdall „Box beauftragt", wo nichts geschrieben wurde —
+  // meldet auf einer Installation ohne Box-Kopplung „Box beauftragt", wo nichts geschrieben wurde —
   // dieselbe Regel wie bei `boxCommandForEntry`: EINE Entscheidung speist Pull und Push.
-  if (!heimdallEnabled()) return false;
+  if (!boxCouplingEnabled()) return false;
   const { count } = await tx.boxStatus.updateMany({
     where: { userId },
     data: { pendingCommand: cmd, pendingCommandAt: new Date() },
@@ -40,6 +40,9 @@ export async function setBoxCommandForUser(
  * `only` engt auf eine Richtung ein: wer einen Verschluss-AUFRUF zurücknimmt, streicht sein `lock` —
  * ein zwischenzeitlich gesetztes `open` gehört einem anderen Vorgang und bliebe stehen.
  *
+ * `boxId` engt auf EINE Box ein: hat eine LockMeBox das Kommando vollzogen, gilt das nur für sie —
+ * eine zweite Box desselben Trägers wartet weiter auf ihres.
+ *
  * **Was es NICHT kann:** eine Box, die das Kommando beim letzten Sync bereits gezogen hat, wartet
  * weiter auf den Knopf. Von hier aus ändert das nichts mehr — sie schliesst dann auf Knopfdruck
  * ohne Eintrag, derselbe Zustand wie bei jedem von Hand verriegelten Schloss.
@@ -48,10 +51,11 @@ export async function clearBoxCommandForUser(
   tx: Prisma.TransactionClient,
   userId: string,
   only?: "lock" | "open",
+  boxId?: string,
 ): Promise<boolean> {
-  if (!heimdallEnabled()) return false;
+  if (!boxCouplingEnabled()) return false;
   const { count } = await tx.boxStatus.updateMany({
-    where: { userId, ...(only ? { pendingCommand: only } : {}) },
+    where: { userId, ...(only ? { pendingCommand: only } : {}), ...(boxId ? { boxId } : {}) },
     data: { pendingCommand: null, pendingCommandAt: null },
   });
   return count > 0;

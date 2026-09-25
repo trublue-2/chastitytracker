@@ -43,6 +43,7 @@ type Entry = {
   type: string;
   startTime: Date;
   boltConfirmedAt: Date | null;
+  openAwaitsBolt: boolean;
   oeffnenGrund?: string | null;
 };
 
@@ -55,6 +56,7 @@ const mkEntry = (id: string, type: string, time: string, oeffnenGrund?: string):
   type,
   startTime: t(time),
   boltConfirmedAt: type === "VERSCHLUSS" ? t(time) : null,
+  openAwaitsBolt: false,
   oeffnenGrund: oeffnenGrund ?? null,
 });
 
@@ -341,12 +343,12 @@ describe("runningCleaningPauseUntil — dieselbe Frist, nach der buildPairs die 
     const until = runningCleaningPauseUntil(open, cleaning, t("2026-05-01T11:10:00Z"))!;
     // Wiederverschluss exakt auf der Frist → noch eine Unterbrechung …
     const amLimit = buildPairs([mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"), open,
-      { id: "v2", type: "VERSCHLUSS", startTime: until, boltConfirmedAt: until, oeffnenGrund: null }], [], cleaning);
+      { id: "v2", type: "VERSCHLUSS", startTime: until, boltConfirmedAt: until, openAwaitsBolt: false, oeffnenGrund: null }], [], cleaning);
     expect(amLimit).toHaveLength(1);
     expect(amLimit[0].interruptions).toHaveLength(1);
     // … eine Sekunde später nicht mehr: zwei Sessions.
     const nachLimit = buildPairs([mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"), open,
-      { id: "v2", type: "VERSCHLUSS", startTime: new Date(until.getTime() + 1000), boltConfirmedAt: new Date(until.getTime() + 1000), oeffnenGrund: null }], [], cleaning);
+      { id: "v2", type: "VERSCHLUSS", startTime: new Date(until.getTime() + 1000), boltConfirmedAt: new Date(until.getTime() + 1000), openAwaitsBolt: false, oeffnenGrund: null }], [], cleaning);
     expect(nachLimit).toHaveLength(2);
   });
 
@@ -455,7 +457,7 @@ describe("der schwebende Verschluss zählt nirgends mit", () => {
   // Der zweite der beiden Trichter (docs/riegel-konzept.md): was `filterAndSortPairEntries` hier
   // wegfiltert, verschwindet aus Sessions, Statistik, Kalender, Trainingszielen und Strafbuch auf
   // einmal. Ohne diese Zeile zählte eine Tragezeit ab einem Verschluss, der nie zufiel.
-  const schwebend = { id: "v0", type: "VERSCHLUSS", startTime: t("2026-05-01T18:00:00Z"), boltConfirmedAt: null, oeffnenGrund: null };
+  const schwebend = { id: "v0", type: "VERSCHLUSS", startTime: t("2026-05-01T18:00:00Z"), boltConfirmedAt: null, openAwaitsBolt: false, oeffnenGrund: null };
 
   it("buildPairs lässt ihn weg", () => {
     const result = buildPairs([
@@ -483,9 +485,9 @@ describe("buildKgWearPairs", () => {
   it("builds pairs and uses `now` for open sessions", () => {
     const now = t("2026-05-01T20:00:00Z");
     const entries = [
-      { type: "VERSCHLUSS", startTime: t("2026-05-01T10:00:00Z"), boltConfirmedAt: t("2026-05-01T10:00:00Z") },
-      { type: "OEFFNEN", startTime: t("2026-05-01T14:00:00Z"), boltConfirmedAt: null },
-      { type: "VERSCHLUSS", startTime: t("2026-05-01T18:00:00Z"), boltConfirmedAt: t("2026-05-01T18:00:00Z") },
+      { type: "VERSCHLUSS", startTime: t("2026-05-01T10:00:00Z"), boltConfirmedAt: t("2026-05-01T10:00:00Z"), openAwaitsBolt: false },
+      { type: "OEFFNEN", startTime: t("2026-05-01T14:00:00Z"), boltConfirmedAt: null, openAwaitsBolt: false },
+      { type: "VERSCHLUSS", startTime: t("2026-05-01T18:00:00Z"), boltConfirmedAt: t("2026-05-01T18:00:00Z"), openAwaitsBolt: false },
     ];
     const result = buildKgWearPairs(entries, now);
     expect(result).toHaveLength(2);
@@ -496,10 +498,10 @@ describe("buildKgWearPairs", () => {
   it("filters out non-VERSCHLUSS/OEFFNEN entries", () => {
     const now = t("2026-05-01T20:00:00Z");
     const entries = [
-      { type: "PRUEFUNG", startTime: t("2026-05-01T09:00:00Z"), boltConfirmedAt: null },
-      { type: "VERSCHLUSS", startTime: t("2026-05-01T10:00:00Z"), boltConfirmedAt: t("2026-05-01T10:00:00Z") },
-      { type: "ORGASMUS", startTime: t("2026-05-01T12:00:00Z"), boltConfirmedAt: null },
-      { type: "OEFFNEN", startTime: t("2026-05-01T14:00:00Z"), boltConfirmedAt: null },
+      { type: "PRUEFUNG", startTime: t("2026-05-01T09:00:00Z"), boltConfirmedAt: null, openAwaitsBolt: false },
+      { type: "VERSCHLUSS", startTime: t("2026-05-01T10:00:00Z"), boltConfirmedAt: t("2026-05-01T10:00:00Z"), openAwaitsBolt: false },
+      { type: "ORGASMUS", startTime: t("2026-05-01T12:00:00Z"), boltConfirmedAt: null, openAwaitsBolt: false },
+      { type: "OEFFNEN", startTime: t("2026-05-01T14:00:00Z"), boltConfirmedAt: null, openAwaitsBolt: false },
     ];
     const result = buildKgWearPairs(entries, now);
     expect(result).toHaveLength(1);
@@ -975,7 +977,7 @@ describe("calculateWearingHoursByRange — „heute\" ist der Tag der Sub", () =
   // Durchgehend verschlossen seit dem 01.07. — der Verschluss liegt vor jeder hier geprüften
   // Periodengrenze, die Stunden hängen also allein davon ab, wo die Grenze gezogen wird.
   const entries = [
-    { id: "v1", type: "VERSCHLUSS", startTime: new Date("2026-07-01T00:00:00Z"), boltConfirmedAt: new Date("2026-07-01T00:00:00Z"), oeffnenGrund: null },
+    { id: "v1", type: "VERSCHLUSS", startTime: new Date("2026-07-01T00:00:00Z"), boltConfirmedAt: new Date("2026-07-01T00:00:00Z"), openAwaitsBolt: false, oeffnenGrund: null },
   ];
   const now = new Date("2026-07-10T23:00:00Z"); // Auckland: 11.07. 11:00 · Zürich: 11.07. 01:00
 

@@ -239,6 +239,12 @@ export const CATEGORY_RULE_CODES = [
 export const BOX_CODES = [
   "BOX_RELOCK_NOT_LOCKED",
   "BOX_RELOCK_KEY_NOT_IN_BOX",
+  // /api/box/ble — die Handy-Brücke zur LockMeBox (lockmeboxService.ts).
+  "BOX_BLE_BAD_STATUS",
+  "BOX_BLE_OTHER_BOX",
+  // Eine Box je Träger (boxPairing.ts): Koppeln einer zweiten, Entfernen der einen.
+  "BOX_ONE_PER_USER",
+  "BOX_REMOVE_BLOCKED",
 ] as const;
 
 /** taskService (Aufgaben: Anweisungstext + 0..n Bedingungen, die bis `holdUntil` durchgehend gelten). */

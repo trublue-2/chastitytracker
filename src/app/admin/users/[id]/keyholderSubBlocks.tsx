@@ -10,8 +10,8 @@ import {
   orgasmEntriesCached, sessionListDataCached, taskCardsCached, wearCountsCached,
   wearingHoursCached, wearSessionRowsCached,
 } from "@/lib/dashboardData";
-import { deviceCategoriesEnabled, heimdallEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
-import { getIsLocked, isScheduledDirective } from "@/lib/queries";
+import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
+import { getIsLocked, isScheduledDirective, userHasBox } from "@/lib/queries";
 import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/cleaningService";
 import { datedWindowLabel } from "@/lib/weekdays";
 import { parseWeekdayGoalRules } from "@/lib/weekdayGoal";
@@ -108,7 +108,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
   // Box-Zustand bisher nirgends — weder Ist/Soll noch, ob die Box überhaupt noch funkt.
   boxStatus: block({
     load: async (ctx) => {
-      if (!heimdallEnabled()) return null;
+      if (!(await userHasBox(ctx.subjectId))) return null;
       const [wearerLocked, keyInBox] = await Promise.all([
         // Siehe `dashboardBlocks`: ohne den Träger-Zustand liesse sich „Riegel zu, obwohl niemand
         // verschlossen ist" nicht vom Normalfall unterscheiden.
@@ -119,7 +119,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
       ]);
       return { wearerLocked, keyInBox };
     },
-    render: (data, { subjectId }) => heimdallEnabled() && data !== null && (
+    render: (data, { subjectId }) => data !== null && (
       <BoxStatusCard userId={subjectId} wearerLocked={data.wearerLocked} keyInBox={data.keyInBox} />
     ),
   }),

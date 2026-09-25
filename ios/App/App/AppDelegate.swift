@@ -199,8 +199,30 @@ private class LockScreenView: UIView {
 
 // MARK: - AppDelegate
 
-@UIApplicationMain
+/// Seit dem iOS-27-SDK bricht UIKit beim Start ab, wenn eine App kein UIScene-Lebenszyklusmodell
+/// hat. Fenster, Sperrbildschirm und URL-Einsprünge leben deshalb im `SceneDelegate`; hier bleibt
+/// nur, was an der Anwendung hängt statt an einem Fenster (die Push-Registrierung).
+@main
 class AppDelegate: UIResponder, UIApplicationDelegate {
+
+    // MARK: - Remote Notifications
+
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication,
+                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+}
+
+// MARK: - SceneDelegate
+
+/// Das eine Fenster der App. Die Szene lädt `Main.storyboard` (Info.plist →
+/// `UIApplicationSceneManifest`) und damit den `CAPBridgeViewController`.
+class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
 
@@ -211,13 +233,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // MARK: - Lifecycle
 
-    func application(_ application: UIApplication,
-                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession,
+               options connectionOptions: UIScene.ConnectionOptions) {
         checkBiometryAvailability()
-        return true
+        // Kaltstart über einen Link: dieselben Einsprünge wie im laufenden Betrieb.
+        openURLs(connectionOptions.urlContexts)
+        connectionOptions.userActivities.forEach(continueActivity)
     }
 
-    func applicationDidBecomeActive(_ application: UIApplication) {
+    func sceneDidBecomeActive(_ scene: UIScene) {
         guard biometryAvailable else { return }
         // Show on first launch — window is guaranteed ready here
         if !initialLockShown {
@@ -227,10 +251,31 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    func applicationDidEnterBackground(_ application: UIApplication) {
+    func sceneDidEnterBackground(_ scene: UIScene) {
         guard biometryAvailable else { return }
         isAuthenticating = false
         showLockScreen()
+    }
+
+    // MARK: - URLs & Universal Links (an Capacitor weitergereicht)
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        openURLs(URLContexts)
+    }
+
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        continueActivity(userActivity)
+    }
+
+    private func openURLs(_ contexts: Set<UIOpenURLContext>) {
+        for context in contexts {
+            _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: context.url, options: [:])
+        }
+    }
+
+    private func continueActivity(_ activity: NSUserActivity) {
+        _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: activity,
+                                                        restorationHandler: { _ in })
     }
 
     // MARK: - Biometry
@@ -378,28 +423,5 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 // or tap Mit Passwort anmelden for the app login form.
             }
         }
-    }
-
-    // MARK: - Remote Notifications
-
-    func application(_ application: UIApplication,
-                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
-    }
-
-    func application(_ application: UIApplication,
-                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
-    }
-
-    func application(_ app: UIApplication, open url: URL,
-                     options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
-    }
-
-    func application(_ application: UIApplication, continue userActivity: NSUserActivity,
-                     restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
-        return ApplicationDelegateProxy.shared.application(application, continue: userActivity,
-                                                           restorationHandler: restorationHandler)
     }
 }

@@ -11,9 +11,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 
-import { lockAwaitsBolt } from "./lockCommit";
+import { lockAwaitsBolt, openAwaitsBolt } from "./lockCommit";
 
-type BoxRow = { locked: boolean; reportedLocked: boolean | null; lastSyncAt: Date | null };
+type BoxRow = { locked: boolean; reportedLocked: boolean | null; lastSyncAt: Date | null; kind?: string };
 
 /** Ein Prisma-Stub in der Rolle des Transaktions-Clients — mehr liest die Funktion nicht. */
 const db = (opts: { requiresBolt: boolean; boxes: BoxRow[] }) =>
@@ -89,5 +89,53 @@ describe("lockAwaitsBolt", () => {
       { locked: true, reportedLocked: true, lastSyncAt: FRISCH },
     ] });
     expect(await lockAwaitsBolt(tx, "u1", true, NOW)).toBe(false);
+  });
+});
+
+describe("lockAwaitsBolt — LockMeBox", () => {
+  it("wartet bei einer LockMeBox auch OHNE den Schalter der Keyholderin", async () => {
+    const tx = db({ requiresBolt: false, boxes: [{ kind: "lockmebox", locked: false, reportedLocked: false, lastSyncAt: ALT }] });
+    expect(await lockAwaitsBolt(tx, "u1", true, NOW)).toBe(true);
+  });
+});
+
+/**
+ * `openAwaitsBolt` — das Spiegelbild für die Öffnung, nur bei der LockMeBox. Der Stub liefert die
+ * Boxen so, wie die Abfrage sie schon auf `kind: "lockmebox"` eingeengt hätte.
+ */
+describe("openAwaitsBolt", () => {
+  const KEY_VORHER = process.env.BLE_BRIDGE_KEY;
+  beforeEach(() => { process.env.BLE_BRIDGE_KEY = "000102030405060708090a0b0c0d0e0f"; });
+  afterEach(() => {
+    if (KEY_VORHER === undefined) delete process.env.BLE_BRIDGE_KEY;
+    else process.env.BLE_BRIDGE_KEY = KEY_VORHER;
+  });
+
+  const lmb = (over: Partial<BoxRow> = {}) => ({ kind: "lockmebox", locked: true, reportedLocked: true, lastSyncAt: ALT, ...over });
+
+  it("wartet, wenn eine LockMeBox gekoppelt ist und die Öffnung erlaubt war", async () => {
+    expect(await openAwaitsBolt(db({ requiresBolt: false, boxes: [lmb()] }), "u1", true, false, NOW)).toBe(true);
+  });
+
+  it("wartet nicht, wenn die Öffnung eine Sperrzeit bricht — die Box bekommt dann kein Kommando", async () => {
+    expect(await openAwaitsBolt(db({ requiresBolt: false, boxes: [lmb()] }), "u1", true, true, NOW)).toBe(false);
+  });
+
+  it("wartet nicht im Reisefall", async () => {
+    expect(await openAwaitsBolt(db({ requiresBolt: false, boxes: [lmb()] }), "u1", false, false, NOW)).toBe(false);
+  });
+
+  it("wartet nicht, wenn die Instanz keine LockMeBox führt", async () => {
+    delete process.env.BLE_BRIDGE_KEY;
+    expect(await openAwaitsBolt(db({ requiresBolt: false, boxes: [lmb()] }), "u1", true, false, NOW)).toBe(false);
+  });
+
+  it("wartet nicht ohne LockMeBox (Heimdall: die Öffnung gilt sofort)", async () => {
+    expect(await openAwaitsBolt(db({ requiresBolt: true, boxes: [] }), "u1", true, false, NOW)).toBe(false);
+  });
+
+  it("wartet nicht, wenn die Box sich gerade frisch als offen gemeldet hat", async () => {
+    const tx = db({ requiresBolt: false, boxes: [lmb({ locked: false, reportedLocked: false, lastSyncAt: FRISCH })] });
+    expect(await openAwaitsBolt(tx, "u1", true, false, NOW)).toBe(false);
   });
 });

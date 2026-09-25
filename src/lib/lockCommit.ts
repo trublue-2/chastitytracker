@@ -1,8 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { heimdallEnabled } from "@/lib/constants";
-import { boxIsLive } from "@/lib/boxStatus";
-import { clampBoltTime, PENDING_LOCK_FILTER } from "@/lib/lockPending";
+import { boxCouplingEnabled, lockmeboxEnabled } from "@/lib/constants";
+import { boxIsLive, hasLockmebox } from "@/lib/boxStatus";
+import { clampBoltTime, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER } from "@/lib/lockPending";
+import type { BoxKind } from "@/lib/boxStatus";
 import { getLatestKgEntry } from "@/lib/queries";
 import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entryFulfilment";
 import { structuredLog } from "@/lib/serverLog";
@@ -46,12 +47,16 @@ export async function lockAwaitsBolt(
   keyInBox: boolean | null,
   now: Date,
 ): Promise<boolean> {
-  if (!heimdallEnabled()) return false;
+  if (!boxCouplingEnabled()) return false;
   if (keyInBox === false) return false;
-  const user = await tx.user.findUnique({ where: { id: userId }, select: { lockRequiresBolt: true } });
-  if (!user?.lockRequiresBolt) return false;
-  const boxes = await tx.boxStatus.findMany({ where: { userId }, select: { reportedLocked: true, lastSyncAt: true } });
+  const boxes = await tx.boxStatus.findMany({ where: { userId }, select: { kind: true, reportedLocked: true, lastSyncAt: true } });
   if (boxes.length === 0) return false;
+  // Bei der LockMeBox immer, ohne Schalter (Entscheid 25.09.2026): sie tut ohnehin nur etwas, wenn
+  // sich jemand an ihr verbindet — der Tracker soll erst umschalten, wenn sie „Riegel zu" gemeldet hat.
+  if (!hasLockmebox(boxes)) {
+    const user = await tx.user.findUnique({ where: { id: userId }, select: { lockRequiresBolt: true } });
+    if (!user?.lockRequiresBolt) return false;
+  }
   // Frische zählt: eine Box, die seit Stunden schweigt, meldet ihren Riegel „zu" aus einer Zeit vor
   // dem Öffnen — das wäre keine Bestätigung, sondern ein alter Stand.
   //
@@ -63,6 +68,32 @@ export async function lockAwaitsBolt(
   // ohne dass je ein Riegel zufiel. Hier zählt allein eine ausdrückliche IST-Meldung.
   if (boxes.some((b) => b.reportedLocked === true && boxIsLive(b.lastSyncAt, now.getTime()))) return false;
   return true;
+}
+
+/**
+ * Wartet eine neue Öffnung dieses Trägers auf den Riegel? Das Spiegelbild von {@link lockAwaitsBolt},
+ * aber NUR bei der LockMeBox (Entscheid 25.09.2026): bei Heimdall gilt die Öffnung weiter sofort.
+ *
+ * Kein Warten, wenn
+ * - die Öffnung eine Sperrzeit bricht (`brokeLockPeriod`): dann bekommt die Box gar kein Kommando
+ *   (`boxCommandForEntry`), es käme nie eine Meldung — der Eintrag dokumentiert den Bruch sofort;
+ * - der Schlüssel laut laufendem Verschluss nicht in der Box liegt (Reise, `keyInBox: false`);
+ * - die Box sich gerade frisch als offen gemeldet hat: dann ist die Öffnung schon vollzogen.
+ */
+export async function openAwaitsBolt(
+  tx: Db,
+  userId: string,
+  keyInBox: boolean | null,
+  brokeLockPeriod: boolean,
+  now: Date,
+): Promise<boolean> {
+  if (!lockmeboxEnabled() || brokeLockPeriod || keyInBox === false) return false;
+  const boxes = await tx.boxStatus.findMany({
+    where: { userId, kind: "lockmebox" satisfies BoxKind },
+    select: { reportedLocked: true, lastSyncAt: true },
+  });
+  if (boxes.length === 0) return false;
+  return !boxes.some((b) => b.reportedLocked === false && boxIsLive(b.lastSyncAt, now.getTime()));
 }
 
 /**
@@ -78,13 +109,19 @@ export async function setLockRequiresBolt(userId: string, enabled: boolean): Pro
   if (!enabled) await commitPendingLock(userId, new Date());
 }
 
-/** Der wartende Aufruf in der Transaktion — für Guards, die ihn im selben Lesefenster brauchen.
- *  Die Sichten fragen stattdessen `pendingLockCallAt` (queries.ts). */
-export const findPendingLockTx = (tx: Db, userId: string) =>
-  tx.entry.findFirst({ where: { userId, ...PENDING_LOCK_FILTER }, select: { id: true } });
+type PendingFilter = typeof PENDING_LOCK_FILTER | typeof PENDING_OPEN_FILTER;
+
+/** Der wartende Aufruf — in der Transaktion für Guards, die ihn im selben Lesefenster brauchen, und
+ *  ausserhalb als Vorab-Absage des Vollzugs. Die Sichten fragen `pendingLockCallAt`/`pendingOpenCallAt`. */
+const findPendingCall = (tx: Db, userId: string, filter: PendingFilter) =>
+  tx.entry.findFirst({ where: { userId, ...filter }, select: { id: true } });
+export const findPendingLockTx = (tx: Db, userId: string) => findPendingCall(tx, userId, PENDING_LOCK_FILTER);
+export const findPendingOpenTx = (tx: Db, userId: string) => findPendingCall(tx, userId, PENDING_OPEN_FILTER);
 
 /**
- * Vollzieht den offenen Verschluss-Aufruf eines Trägers. `false` = es gab keinen.
+ * Das Gerüst BEIDER Vollzüge (Verschluss und Öffnung): den jüngsten wartenden Aufruf finden, die
+ * gemeldete Zeit klemmen und `apply` die Arbeit der jeweiligen Richtung in derselben Transaktion tun
+ * lassen. `null` = es gab keinen Aufruf (oder `apply` hat ihn verworfen).
  *
  * `at` ist der gemeldete Riegel-Zeitpunkt, wird aber auf `[createdAt, jetzt]` GEKLEMMT: eine
  * falsch gestellte Box-Uhr darf weder in die Zukunft datieren noch hinter den Aufruf zurück —
@@ -95,23 +132,34 @@ export const findPendingLockTx = (tx: Db, userId: string) =>
  * Ausstieg öffnete jede Box bei jedem Sync eine Schreib-Transaktion, um nichts zu finden, und
  * serialisierte dabei (`connection_limit=1`) alles andere. Die Abfrage in der Transaktion bleibt
  * als die massgebliche stehen; der Vorablauf ist nur die Absage.
+ */
+async function commitPendingCall<R>(
+  userId: string,
+  at: Date,
+  filter: PendingFilter,
+  apply: (tx: Prisma.TransactionClient, pending: { id: string }, effectiveAt: Date) => Promise<R | null>,
+): Promise<R | null> {
+  const now = new Date();
+  if (!(await findPendingCall(prisma, userId, filter))) return null;
+  return prisma.$transaction(async (tx) => {
+    const pending = await tx.entry.findFirst({
+      where: { userId, ...filter },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, createdAt: true },
+    });
+    if (!pending) return null;
+    return apply(tx, pending, clampBoltTime(at, pending.createdAt, now));
+  });
+}
+
+/**
+ * Vollzieht den offenen Verschluss-Aufruf eines Trägers. `false` = es gab keinen.
  *
  * Die Nacharbeiten laufen NACH dem Commit und fire-and-forget, genau wie auf dem Anlege-Pfad: eine
  * gescheiterte Meldung darf den vollzogenen Verschluss nicht mitreissen.
  */
 export async function commitPendingLock(userId: string, at: Date): Promise<boolean> {
-  const now = new Date();
-  if (!(await prisma.entry.findFirst({ where: { userId, ...PENDING_LOCK_FILTER }, select: { id: true } }))) return false;
-
-  const result = await prisma.$transaction(async (tx) => {
-    const pending = await tx.entry.findFirst({
-      where: { userId, ...PENDING_LOCK_FILTER },
-      orderBy: { createdAt: "desc" },
-    });
-    if (!pending) return null;
-
-    const effectiveAt = clampBoltTime(at, pending.createdAt, now);
-
+  const result = await commitPendingCall(userId, at, PENDING_LOCK_FILTER, async (tx, pending, effectiveAt) => {
     // VOR dem Update lesen: danach wäre dieser Eintrag selbst der jüngste KG-Eintrag. Dieselbe
     // Frage wie beim Anlegen — schliesst der Verschluss eine Reinigungspause ab?
     const previous = await getLatestKgEntry(userId, tx);
@@ -162,17 +210,75 @@ export async function commitPendingLock(userId: string, at: Date): Promise<boole
 }
 
 /**
- * {@link commitPendingLock} für die beiden BOX-Eingänge: der Vollzug ist dort eine Nacharbeit, und
- * die Box muss ihre Antwort in JEDEM Fall bekommen — scheitert der Sync, zieht sie ihr Kommando nie
- * ab. Der Fehler wird deshalb geschluckt und protokolliert.
- *
- * Als eigene Funktion, weil sonst beide Ingest-Routen denselben try/catch samt Begründung tragen —
- * und die dritte ihn abschriebe.
+ * Vollzieht die offene Öffnung eines Trägers (LockMeBox) — das Gegenstück zu
+ * {@link commitPendingLock}, mit denselben Nacharbeiten, die der Anlege-Pfad sonst sofort erledigt.
+ * `false` = es gab keine.
  */
-export async function commitPendingLockSafe(userId: string, at: Date, source: string): Promise<void> {
+export async function commitPendingOpen(userId: string, at: Date): Promise<boolean> {
+  const result = await commitPendingCall(userId, at, PENDING_OPEN_FILTER, async (tx, pending, effectiveAt) => {
+    // VOR dem Update lesen: danach wäre die Öffnung selbst der jüngste KG-Eintrag.
+    const lock = await getLatestKgEntry(userId, tx);
+    // Überholt: inzwischen ist der Träger schon offen (die Keyholderin hat geöffnet). Vollzöge man
+    // die wartende Öffnung jetzt, stünden zwei Öffnungen hintereinander — sie hat sich erledigt.
+    if (lock?.type !== "VERSCHLUSS") {
+      await tx.entry.delete({ where: { id: pending.id } });
+      return null;
+    }
+    const entry = await tx.entry.update({
+      where: { id: pending.id },
+      data: { startTime: effectiveAt, openAwaitsBolt: false },
+    });
+    const requiredDeviceIds = await applyEntryFulfilment(
+      tx, entry, { verification: null, targetWhere: null }, effectiveAt,
+    );
+    return { entry, requiredDeviceIds, effectiveAt, lockStartTime: lock.startTime };
+  });
+
+  if (!result) return false;
+  const { entry, requiredDeviceIds, effectiveAt, lockStartTime } = result;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { username: true, oeffnenGruendeConfig: true, orgasmusArtenConfig: true },
+  });
+  await applyEntryAftermath(entry, {
+    requiredDeviceIds,
+    endsCleaningPause: false,
+    notify: {
+      actorUserId: userId,
+      userId,
+      username: user?.username ?? "User",
+      type: "OEFFNEN",
+      startTime: effectiveAt,
+      // Eine Öffnung, die eine Sperrzeit bricht, schwebt nie (`openAwaitsBolt`).
+      withdrawnLockPeriod: false,
+      oeffnenGrund: entry.oeffnenGrund,
+      note: entry.note,
+      imageUrl: entry.imageUrl,
+      lockStartTime,
+      deviceId: entry.deviceId,
+      reasonConfig: user,
+    },
+  });
+
+  structuredLog("lockCommit", "open confirmed", { entryId: entry.id, at: effectiveAt.toISOString() });
+  return true;
+}
+
+/**
+ * Die Vollzüge für die BOX-Eingänge: der Vollzug ist dort eine Nacharbeit, und die Box muss ihre
+ * Antwort in JEDEM Fall bekommen — scheitert der Sync, zieht sie ihr Kommando nie ab. Der Fehler wird
+ * deshalb geschluckt und protokolliert.
+ *
+ * Als eigene Funktionen, weil sonst jede Ingest-Route denselben try/catch samt Begründung trägt —
+ * und die nächste ihn abschriebe.
+ */
+async function commitSafely(commit: (userId: string, at: Date) => Promise<boolean>, userId: string, at: Date, source: string): Promise<void> {
   try {
-    await commitPendingLock(userId, at);
+    await commit(userId, at);
   } catch (e) {
-    console.error(`[${source}] commitPendingLock failed`, (e as Error).message);
+    console.error(`[${source}] ${commit.name} failed`, (e as Error).message);
   }
 }
+export const commitPendingLockSafe = (userId: string, at: Date, source: string) => commitSafely(commitPendingLock, userId, at, source);
+export const commitPendingOpenSafe = (userId: string, at: Date, source: string) => commitSafely(commitPendingOpen, userId, at, source);

@@ -68,7 +68,7 @@ export default function BoxHardwareLine({
           Aussage („Schlüssel drin — und die Box hält ihn auch"), er ist keine zweite. */}
       {showBolt && <span>{" · "}{boxIstLabel(box, t)}</span>}
       {box && !boxIsLive(box.lastSyncAt, now) && (
-        <span>{" · "}{boxFreshnessLabel(box.lastSyncAt, now, t)}</span>
+        <span>{" · "}{boxFreshnessLabel(box.lastSyncAt, now, t, box.kind)}</span>
       )}
       <BoxDeviceInfo boxes={boxes} />
     </p>

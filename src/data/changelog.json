@@ -1,5 +1,25 @@
 [
   {
+    "version": "6.3.0",
+    "date": "2026-09-25",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Eine LockMeBox mit Werks-Firmware lässt sich per Bluetooth koppeln — in der iOS-App und in Chrome/Edge. Verschluss und Öffnung gelten erst, wenn die Box sie ausgeführt hat; in der App genügt dafür der Knopf an der Box.",
+          "en": "A LockMeBox with factory firmware can be paired via Bluetooth — in the iOS app and in Chrome/Edge. Locking and opening only take effect once the box has carried them out; in the app, pressing the button on the box is enough."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Pro Träger ist genau eine Schlüsselbox gekoppelt. Für einen Wechsel lässt sie sich in den Einstellungen entfernen, solange du offen bist und nichts wartet.",
+          "en": "Each wearer has exactly one key box paired. To switch, remove it in the settings while you are unlocked and nothing is waiting."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.10",
     "date": "2026-09-24",
     "changes": [

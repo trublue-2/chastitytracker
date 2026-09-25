@@ -1,9 +1,12 @@
 /**
  * **Der schwebende Verschluss — eine Regel, zwei Formen.**
  *
- * Bei einem Träger mit Riegel-Schalter (`User.lockRequiresBolt`) ist ein VERSCHLUSS-Eintrag erst der
- * AUFRUF, die Box zu schliessen. Er steht sofort in der Tabelle, gilt aber nicht: erst die Meldung
+ * Bei einem Träger mit Riegel-Schalter (`User.lockRequiresBolt`) oder mit LockMeBox ist ein
+ * VERSCHLUSS-Eintrag erst der AUFRUF, die Box zu schliessen. Er steht sofort in der Tabelle, gilt aber nicht: erst die Meldung
  * „Riegel zu" setzt `boltConfirmedAt` und vollzieht ihn (`lockCommit.ts`, docs/riegel-konzept.md).
+ *
+ * Bei der LockMeBox gilt dasselbe für die ÖFFNUNG: sie gilt erst mit „Riegel offen"
+ * (`Entry.openAwaitsBolt`, {@link isPendingOpen}).
  *
  * Solange er schwebt, muss er für JEDE Ableitung unsichtbar sein — Verschluss-Zustand, Farbwelt,
  * Sessions, Statistik, Kalender, Trainingsziele, Strafbuch, Kontroll-Ziel, MCP. Das gelingt nur,
@@ -14,8 +17,10 @@
  * **Importfrei** (per Test abgesichert): Client-Komponenten und server-only Code teilen es sich.
  */
 
-/** Was eine Zeile mitbringen muss, damit die Frage überhaupt beantwortbar ist. */
-export type BoltGatedRow = { type: string; boltConfirmedAt: Date | null };
+/** Was eine Zeile mitbringen muss, damit die Frage überhaupt beantwortbar ist. `openAwaitsBolt` ist
+ *  PFLICHT wie `boltConfirmedAt`: ein Select ohne die Spalte soll nicht kompilieren, statt eine
+ *  schwebende Öffnung still als vollzogen zu zählen. */
+export type BoltGatedRow = { type: string; boltConfirmedAt: Date | null; openAwaitsBolt: boolean };
 
 /**
  * Ein Verschluss, dessen Riegel noch aussteht.
@@ -25,13 +30,27 @@ export type BoltGatedRow = { type: string; boltConfirmedAt: Date | null };
  * still ALLE Verschlüsse verschwinden. Der Typ verlangt das Feld ohnehin; das hier ist die
  * Absicherung für den Fall, dass jemand ihn umgeht.
  */
-export function isPendingLock(e: BoltGatedRow): boolean {
+export function isPendingLock(e: Pick<BoltGatedRow, "type" | "boltConfirmedAt">): boolean {
   return e.type === "VERSCHLUSS" && e.boltConfirmedAt === null;
+}
+
+/**
+ * Eine Öffnung, deren Riegel noch aussteht — das Spiegelbild des schwebenden Verschlusses, nur bei
+ * der LockMeBox (docs/lockmebox.md). `=== true` aus demselben Grund wie oben: fehlt das Feld, gilt
+ * die Zeile (Bestandsverhalten).
+ */
+export function isPendingOpen(e: Pick<BoltGatedRow, "type" | "openAwaitsBolt">): boolean {
+  return e.type === "OEFFNEN" && e.openAwaitsBolt === true;
+}
+
+/** Schwebt der Eintrag — in welche Richtung auch immer? */
+export function isPendingEntry(e: BoltGatedRow): boolean {
+  return isPendingLock(e) || isPendingOpen(e);
 }
 
 /** Das Gegenstück — die Zeilen, aus denen der Zustand entsteht. */
 export function isEffectiveEntry(e: BoltGatedRow): boolean {
-  return !isPendingLock(e);
+  return !isPendingEntry(e);
 }
 
 /**
@@ -70,9 +89,14 @@ export function latestEffectiveKgEntry<E extends BoltGatedRow>(entries: E[]): E 
  * `awaitsBolt` entscheidet allein der Sub-Pfad (`lockAwaitsBolt`); überall sonst gilt der Eintrag
  * sofort.
  */
-export function boltFieldsFor(type: string, startTime: Date, awaitsBolt = false): { boltConfirmedAt: Date | null } {
-  if (type !== "VERSCHLUSS") return { boltConfirmedAt: null };
-  return { boltConfirmedAt: awaitsBolt ? null : startTime };
+export function boltFieldsFor(
+  type: string,
+  startTime: Date,
+  awaitsBolt = false,
+): { boltConfirmedAt: Date | null; openAwaitsBolt: boolean } {
+  if (type === "OEFFNEN") return { boltConfirmedAt: null, openAwaitsBolt: awaitsBolt };
+  if (type !== "VERSCHLUSS") return { boltConfirmedAt: null, openAwaitsBolt: false };
+  return { boltConfirmedAt: awaitsBolt ? null : startTime, openAwaitsBolt: false };
 }
 
 /**
@@ -88,6 +112,9 @@ export const CONFIRMED_LOCK_FILTER = { boltConfirmedAt: { not: null } };
  */
 export const PENDING_LOCK_FILTER = { type: "VERSCHLUSS", boltConfirmedAt: null };
 
+/** Die wartende Öffnung — das Gegenstück zu {@link PENDING_LOCK_FILTER}. */
+export const PENDING_OPEN_FILTER = { type: "OEFFNEN", openAwaitsBolt: true };
+
 /**
  * Where-Bedingung für GEMISCHTE Abfragen (VERSCHLUSS neben anderen Typen): der übergebene Rest
  * UND „nicht schwebend".
@@ -98,5 +125,11 @@ export const PENDING_LOCK_FILTER = { type: "VERSCHLUSS", boltConfirmedAt: null }
  * `filterAndSortPairEntries`: den Fehler unmöglich machen, statt vor ihm zu warnen.
  */
 export function effectiveEntryWhere<T extends object>(rest: T) {
-  return { AND: [rest, { OR: [{ type: { not: "VERSCHLUSS" } }, { boltConfirmedAt: { not: null } }] }] };
+  return {
+    AND: [
+      rest,
+      { OR: [{ type: { not: "VERSCHLUSS" } }, { boltConfirmedAt: { not: null } }] },
+      { NOT: PENDING_OPEN_FILTER },
+    ],
+  };
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { errorResponse } from "@/lib/serviceResult";
-import { heimdallEnabled } from "@/lib/constants";
+import { boxCouplingEnabled } from "@/lib/constants";
 import { getIsLocked, getCurrentLockKeyInBox } from "@/lib/queries";
 import { setBoxCommandForUser } from "@/lib/boxCommand";
 import { PENDING_LOCK_FILTER } from "@/lib/lockPending";
@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   const session = await requireApi();
   if (session instanceof NextResponse) return session;
-  if (!heimdallEnabled()) return NextResponse.json([]);
+  if (!boxCouplingEnabled()) return NextResponse.json([]);
   const userId = session.user.id;
 
   const [locked, keyInBox, pending] = await Promise.all([

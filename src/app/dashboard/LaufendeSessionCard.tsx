@@ -8,6 +8,7 @@ import SessionTimeline from "./SessionTimeline";
 import Section from "@/app/components/Section";
 import { KeyRound } from "lucide-react";
 import StateHero from "@/app/components/StateHero";
+import PendingCallNotice from "@/app/components/PendingCallNotice";
 import BoxHardwareLine from "@/app/components/BoxHardwareLine";
 import LiveTrainingGoals from "./LiveTrainingGoals";
 import LockPeriodRemaining from "@/app/components/LockPeriodRemaining";
@@ -66,6 +67,9 @@ interface Props {
   tz?: string;
   /** Blendet die „Gerät"-Zeile im Kontroll-Detail ein (true, wenn der Nutzer Geräte hat). */
   userHasDevices?: boolean;
+  /** Die Öffnung, die bei der LockMeBox noch auf „Riegel offen" wartet (docs/lockmebox.md) — nur in
+   *  der Sicht des Trägers: er zieht sie zurück oder vollzieht sie an der Box. */
+  openCall?: { id: string } | null;
 }
 
 export default async function LaufendeSessionCard({
@@ -91,6 +95,7 @@ export default async function LaufendeSessionCard({
   jahrH,
   tz = APP_TZ,
   userHasDevices = false,
+  openCall = null,
 }: Props) {
   const t = await getTranslations("dashboard");
   const tCommon = await getTranslations("common");
@@ -192,6 +197,7 @@ export default async function LaufendeSessionCard({
           </p>
         )}
         {keyInBox === true && <BoxHardwareLine userId={subjectId} keyInBox={keyInBox} />}
+        {openCall && <PendingCallNotice entryId={openCall.id} message={t("openCallPressButton")} />}
       </StateHero>
 
       {/* Trainingsvorgaben als eigener, benannter Abschnitt — vorher hingen sie namenlos unter

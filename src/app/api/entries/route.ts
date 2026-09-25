@@ -4,7 +4,7 @@ import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { detectKeyInBox } from "@/lib/verifyCode";
 import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVerificationStatus, type InspectionVerification } from "@/lib/kontrolleService";
-import { DEVICE_BEARING_TYPES, validateEntryPayload, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, type Rotation } from "@/lib/constants";
+import { DEVICE_BEARING_TYPES, validateEntryPayload, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, lockmeboxEnabled, type Rotation } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
@@ -17,7 +17,7 @@ import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
 import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entryFulfilment";
-import { lockAwaitsBolt, findPendingLockTx } from "@/lib/lockCommit";
+import { lockAwaitsBolt, openAwaitsBolt, findPendingLockTx, findPendingOpenTx } from "@/lib/lockCommit";
 import { boltFieldsFor } from "@/lib/lockPending";
 import { parseOfflineCapture } from "@/lib/offlineCapture";
 
@@ -156,11 +156,13 @@ export async function POST(req: NextRequest) {
         const latest = await getLatestKgEntry(session.user.id, tx);
         if (!latest || latest.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
         if (effectiveStart <= latest.startTime) throw entryGuardError("TIME_BEFORE");
+        // Wie beim Verschluss: eine schwebende Öffnung zählt für `getLatestKgEntry` nicht — ohne
+        // diese Sperre legte der Träger Aufruf auf Aufruf, während die Box auf den ersten wartet.
+        if (lockmeboxEnabled() && await findPendingOpenTx(tx, session.user.id)) throw entryGuardError("OPEN_ALREADY_PENDING");
         lockStartTime = latest.startTime;
-      }
-
-      if (type === "OEFFNEN") {
         withdrawnLockPeriod = await releaseLockPeriodsOnOpen(session.user.id, oeffnenGrund, tx, "user");
+        // LockMeBox: die Öffnung gilt erst mit „Riegel offen" (`lockCommit.ts`, docs/lockmebox.md).
+        awaitsBolt = await openAwaitsBolt(tx, session.user.id, latest.keyInBox, withdrawnLockPeriod, new Date());
       }
 
       // WELCHES ZIEL beantwortet diese Einreichung? Ohne Gerät der KG (Bestandsverhalten), mit

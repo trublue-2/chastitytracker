@@ -401,10 +401,12 @@ describe("isCodePhotoRevealed — Freigabe des versiegelten Code-Fotos", () => {
     expect(await isCodePhotoRevealed(ENTRY)).toBe(false);
   });
 
-  it("sucht nur Öffnungen DESSELBEN Trägers NACH dem Verschluss", async () => {
+  it("sucht nur VOLLZOGENE Öffnungen DESSELBEN Trägers NACH dem Verschluss", async () => {
     await isCodePhotoRevealed(ENTRY);
+    // `openAwaitsBolt: false`: eine wartende Öffnung (LockMeBox) ist zurücknehmbar — gäbe sie den
+    // Code frei, liesse er sich ablesen und die Öffnung danach spurlos löschen (Issue #111).
     expect(db.entry.findFirst.mock.calls[0][0].where).toEqual({
-      userId: "u1", type: "OEFFNEN", startTime: { gt: ENTRY.startTime },
+      userId: "u1", type: "OEFFNEN", openAwaitsBolt: false, startTime: { gt: ENTRY.startTime },
     });
   });
 });

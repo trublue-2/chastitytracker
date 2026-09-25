@@ -34,6 +34,7 @@ was der Tracker als Verschluss zählt, ist dann durch Hardware gedeckt.
 | Welches Signal gilt? | `BoxEvent LOCKED` **oder** ein Status-Push mit `reportedLocked: true` — wer zuerst kommt. Bei mehreren Boxen gewinnt die erste Meldung. |
 | Reisefall (`keyInBox: false`) | Kein Warten. Die Box bekommt gar kein Kommando, es käme nie eine Meldung. |
 | Keine Box / Keyholder-Pfad | Kein Warten — Bestandsverhalten. |
+| LockMeBox (Werks-Firmware) | Immer, **ohne** Schalter — und in beide Richtungen: auch die Öffnung gilt erst mit „Riegel offen" (`Entry.openAwaitsBolt`, docs/lockmebox.md). |
 | Box meldet den Riegel schon zu | Sofort vollzogen, sofern die Meldung **frisch** ist (`boxIsLive`, < 2 min). Ohne diesen Ausstieg käme nie ein neues Ereignis und der Aufruf hinge für immer. |
 | Farbwelt während des Aufrufs | Bleibt **rosa/offen**. Er ist nicht verschlossen, und die Welt sagt den Zustand, nicht die Absicht. |
 | Meldung an die Keyholderin | Erst beim Vollzug. Beim Aufruf wäre „hat sich eingeschlossen" eine Behauptung über etwas, das noch nicht passiert ist. |

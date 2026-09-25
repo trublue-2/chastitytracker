@@ -10,7 +10,7 @@ import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_
 import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/queries";
 import { type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 import { getOffenseRules } from "@/lib/offenseRulesService";
-import { heimdallEnabled, AI_AUTHOR, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
+import { boxCouplingEnabled, AI_AUTHOR, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
 
 /** Kontext & Kalender (explain_model §13) — wiederkehrender Wochen-Kontext, Einzeltermine,
  *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant.
@@ -251,7 +251,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     getOffenseRules(userId, now),
     weightReleaseStatus(userId, now),
     // Führt die Instanz keine Box, wird gar nicht gefragt — `null` ist dann die ganze Antwort.
-    heimdallEnabled() ? loadBoxSettings(userId) : Promise.resolve(null),
+    boxCouplingEnabled() ? loadBoxSettings(userId) : Promise.resolve(null),
     currentVisionConfig(now),
   ]);
 

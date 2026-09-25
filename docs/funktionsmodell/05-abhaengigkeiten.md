@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 155 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
+Insgesamt 159 Kanten über 18 Mechaniken, davon 20 fest verdrahtet.
 
 ## Einträge
 
@@ -73,6 +73,10 @@ flowchart LR
 | Sperrzeit | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
 | Sessions/Statistik | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
 | Strafbuch | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
+| Box | `Entry.openAwaitsBolt` | Nur LockMeBox: die Öffnung ist erst der Aufruf, die Box zu öffnen. `true` = für JEDE Ableitung unsichtbar, der Träger bleibt verschlossen, bis die Box „Riegel offen" meldet; dann wird sie vollzogen und das Feld gelöscht. | `lockPending.ts` |
+| Sperrzeit | `Entry.openAwaitsBolt` | Nur LockMeBox: die Öffnung ist erst der Aufruf, die Box zu öffnen. `true` = für JEDE Ableitung unsichtbar, der Träger bleibt verschlossen, bis die Box „Riegel offen" meldet; dann wird sie vollzogen und das Feld gelöscht. | `lockPending.ts` |
+| Sessions/Statistik | `Entry.openAwaitsBolt` | Nur LockMeBox: die Öffnung ist erst der Aufruf, die Box zu öffnen. `true` = für JEDE Ableitung unsichtbar, der Träger bleibt verschlossen, bis die Box „Riegel offen" meldet; dann wird sie vollzogen und das Feld gelöscht. | `lockPending.ts` |
+| Strafbuch | `Entry.openAwaitsBolt` | Nur LockMeBox: die Öffnung ist erst der Aufruf, die Box zu öffnen. `true` = für JEDE Ableitung unsichtbar, der Träger bleibt verschlossen, bis die Box „Riegel offen" meldet; dann wird sie vollzogen und das Feld gelöscht. | `lockPending.ts` |
 | Geräte | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
 | Sessions/Statistik | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
 | Kontrollen | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
@@ -117,6 +121,7 @@ flowchart LR
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
 | Einträge | `Entry.keyInBox` | Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt. | `boxCommand.ts` |
 | Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
+| Einträge | `Entry.openAwaitsBolt` | Nur LockMeBox: die Öffnung ist erst der Aufruf, die Box zu öffnen. `true` = für JEDE Ableitung unsichtbar, der Träger bleibt verschlossen, bis die Box „Riegel offen" meldet; dann wird sie vollzogen und das Feld gelöscht. | `lockPending.ts` |
 | Orgasmus | `OrgasmusAnforderung.openingAllowed` | Erlaubt das Öffnen im Fenster, ohne dass es als unautorisiert zählt — der einzige Weg, eine Sperrzeit gezielt zu durchbrechen. | — |
 | MCP | `HealthHold.active` | Gesundheits-Halt: setzt die Direktiven aus. Die eine Bremse, die über allem steht. | `healthHold.ts` |
 | MCP | `RecurringContext.deviceFree` | Der Slot verlangt Gerätefreiheit — die Information, wegen der der Keyholder ihn überhaupt führt. | — |
@@ -389,6 +394,7 @@ flowchart LR
 | Kontrollen | `User.postLockInspectionRequireBoxPhoto` | Die Verschluss-Kontrolle verlangt das Foto durchs Sichtfenster ZWINGEND: ohne es weist die Einreichung ab, statt nachzufragen. Gilt nur bei gemeldeter Box — ohne Box wirkungslos, sonst wäre die Kontrolle nicht erfüllbar. Wirkt auf NEUE Kontrollen: jede trägt die Pflicht ab dem Anlegen in sich. | `autoKontrolleService.ts:schedulePostLockInspection` |
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
 | Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
+| Einträge | `Entry.openAwaitsBolt` | Nur LockMeBox: die Öffnung ist erst der Aufruf, die Box zu öffnen. `true` = für JEDE Ableitung unsichtbar, der Träger bleibt verschlossen, bis die Box „Riegel offen" meldet; dann wird sie vollzogen und das Feld gelöscht. | `lockPending.ts` |
 | Einträge | `Entry.startTime` | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | `entryFulfilment.ts` |
 | Orgasmus | `OrgasmusAnforderung.art` | ANWEISUNG = Pflicht (ungenutzt ist ein Vergehen), GELEGENHEIT = Erlaubnis (ungenutzt folgenlos). Der ganze Unterschied der Direktive. | — |
 | Orgasmus | `OrgasmusAnforderung.endsAt` | Ende des Fensters. Danach ist eine ANWEISUNG versäumt. | — |
@@ -495,6 +501,7 @@ flowchart LR
 | Sperrzeit | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
 | Einträge | `Entry.keyInBox` | Erklärung beim Verschluss, ob der Schlüssel in die Box wandert. `false` = er behält ihn, die Box bekommt bewusst KEIN Sperr-Kommando. `null` = nicht gefragt. | `boxCommand.ts` |
 | Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
+| Einträge | `Entry.openAwaitsBolt` | Nur LockMeBox: die Öffnung ist erst der Aufruf, die Box zu öffnen. `true` = für JEDE Ableitung unsichtbar, der Träger bleibt verschlossen, bis die Box „Riegel offen" meldet; dann wird sie vollzogen und das Feld gelöscht. | `lockPending.ts` |
 | Einträge | *feste Regel* | Die Box folgt den Einträgen: aus Verschluss und Öffnen leitet der Tracker ihr Kommando ab. Eine VERBOTENE Öffnung bekommt keines — sonst vollzöge er das Vergehen, das er dokumentiert. | `boxCommand.ts` |
 | Sperrzeit | *feste Regel* | Läuft eine Sperrzeit, hält die Box den Schlüssel fest. Die Sperre ist damit mehr als ein Datenbank-Eintrag. | `boxCommand.ts` |
 
@@ -776,6 +783,7 @@ flowchart LR
 | Geräte | `DeviceCategory.trackingEnabled` | Aus = reine Inventar-Kategorie: keine Trage-Sessions, keine Statistik. Abwesenheit in den Auswertungen ist dann keine Nichtnutzung. Bei der eingebauten Kategorie unveränderlich. | `deviceCategoryService.ts:resolveCategoryRuleChanges` |
 | Einträge | `Entry.oeffnenGrund` | Grund einer Öffnung. `REINIGUNG` ist der eine Wert, an dem die gesamte Reinigungsmechanik hängt — er entscheidet, ob die Sperrzeit fällt. | `queries.ts:isAllowedCleaningOpen` |
 | Einträge | `Entry.boltConfirmedAt` | Wann der Riegel diesen Verschluss vollzogen hat. `null` = der Aufruf steht noch aus, und dann ist die Zeile für JEDE Ableitung unsichtbar (Verschluss-Zustand, Sessions, Statistik, Strafbuch). Ohne aktiven Riegel-Schalter sofort gesetzt. | `lockPending.ts` |
+| Einträge | `Entry.openAwaitsBolt` | Nur LockMeBox: die Öffnung ist erst der Aufruf, die Box zu öffnen. `true` = für JEDE Ableitung unsichtbar, der Träger bleibt verschlossen, bis die Box „Riegel offen" meldet; dann wird sie vollzogen und das Feld gelöscht. | `lockPending.ts` |
 | Einträge | `Entry.deviceId` | Welches Gerät der Eintrag betrifft. Bei einem Konflikt mit dem Bild gewinnt das Bild, nicht diese Deklaration. | — |
 | Einträge | `Entry.startTime` | Der Zeitpunkt, den der Eintrag behauptet. Auf dem Sub-Pfad gegen Rückdatierung begrenzt, auf dem Keyholder-Pfad frei — dort erfüllt ein Nachtrag nur, was es zu seinem Zeitpunkt schon gab. | `entryFulfilment.ts` |
 | Trainingsziele | `TrainingVorgabe.minProTagH` | Mindest-Tragestunden pro Tag. Gemessen wird Wanduhr-Zeit der Kategorie, nicht Gerätestunden. | `vorgaben.ts` |

@@ -1,5 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
+const devUrl = process.env.CAP_DEV_URL;
+
 const config: CapacitorConfig = {
   appId: "ch.chastitytracker.app",
   appName: "ChastityTracker",
@@ -14,6 +16,13 @@ const config: CapacitorConfig = {
       "*.chastity-tracker.com",
     ],
     androidScheme: "https",
+    // NUR für lokale Entwickler-Läufe: `CAP_DEV_URL=http://<mac-ip>:3000 npx cap sync ios` lässt die
+    // App direkt den Dev-Server laden (statt der Hülle, die nur https + die drei Basis-Domains
+    // annimmt). Vor jedem Archive für TestFlight OHNE die Variable neu synchronisieren — sonst lädt
+    // die ausgelieferte App einen Rechner, den es beim Nutzer nicht gibt. Vergessen bricht das
+    // Release ab (Build-Schritt „Keine Dev-URL im Release" im Xcode-Projekt). `cleartext` gilt nur
+    // für Android; auf iOS erlaubt `NSAllowsLocalNetworking` (Info.plist) das http im LAN.
+    ...(devUrl ? { url: devUrl, cleartext: true } : {}),
   },
   plugins: {
     PushNotifications: {

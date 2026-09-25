@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { heimdallEnabled, BOLT_OPEN_EVENT_TYPES } from "@/lib/constants";
+import type { BoxKind } from "@/lib/boxStatus";
 
 /**
  * Schlüssel-Nachweis aus der Box-Telemetrie (Spur 2) statt aus dem Box-Foto (Spur 1).
@@ -168,7 +169,10 @@ export async function loadTelemetryKeyProof(userId: string, sessions: LockSessio
   if (declaredAt.length === 0) return NO_TELEMETRY_KEY_PROOF;
   const firstAt = new Date(Math.min(...declaredAt));
   const [boxes, events] = await Promise.all([
-    prisma.boxStatus.findMany({ where: { userId }, select: { lastSyncAt: true, reportedLocked: true, locked: true } }),
+    // Nur Heimdall-Boxen: der Beweis stützt sich auf den lückenlosen Strom ihrer Riegel-Ereignisse.
+    // Eine LockMeBox meldet keine Ereignisse und ist zwischen zwei Handy-Kontakten stumm — ihr
+    // Schweigen hiesse hier „Riegel lag still", obwohl niemand zugesehen hat.
+    prisma.boxStatus.findMany({ where: { userId, kind: "heimdall" satisfies BoxKind }, select: { lastSyncAt: true, reportedLocked: true, locked: true } }),
     prisma.boxEvent.findMany({
       where: { userId, type: { in: BOLT_OPEN_EVENT_TYPES }, at: { gte: firstAt } },
       select: { at: true },

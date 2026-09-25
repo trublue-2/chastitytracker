@@ -5,7 +5,8 @@ import { getRecipientChannels } from "@/lib/notificationPrefs";
 import { telegramLinkAvailable } from "@/lib/telegram";
 import { hasPushTarget } from "@/lib/push";
 import { mailReaches, mailConfigured } from "@/lib/mail";
-import { isValidStartPage, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
+import { boxCouplingEnabled, isValidStartPage, lockmeboxEnabled, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
+import { toBoxKind, type BoxKind } from "@/lib/boxStatus";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
 import pkg from "@/../package.json";
@@ -54,6 +55,11 @@ export interface SettingsFormProps {
   /** Gewichtstracking — `null`, wenn die Keyholderin es für diesen Sub nicht freigeschaltet hat.
    *  Der Abschnitt erscheint dann gar nicht. */
   weight: WeightSettingsProps | null;
+  /** Die Schlüsselbox: `null` = der Abschnitt erscheint nicht (keine Box-Kopplung, oder weder eine
+   *  Box noch die LockMeBox zum Koppeln). Sonst die EINE Box des Trägers (`boxPairing.ts`) — dann
+   *  bietet er „Box entfernen" an —, oder `paired: null`: dann das Koppeln einer LockMeBox. Ob DIESES
+   *  Gerät Bluetooth kann, entscheidet erst der Browser. */
+  box: { paired: { boxId: string; name: string; kind: BoxKind } | null } | null;
 }
 
 /**
@@ -158,5 +164,12 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     buildDate: process.env.BUILD_DATE ?? undefined,
     feedbackMode: feedbackMode(),
     weight,
+    box: boxCouplingEnabled() && userId ? await boxSettings(userId) : null,
   };
+}
+
+async function boxSettings(userId: string): Promise<SettingsFormProps["box"]> {
+  const box = await prisma.boxStatus.findFirst({ where: { userId }, select: { boxId: true, name: true, kind: true } });
+  if (box) return { paired: { boxId: box.boxId, name: box.name, kind: toBoxKind(box.kind) } };
+  return lockmeboxEnabled() ? { paired: null } : null;
 }

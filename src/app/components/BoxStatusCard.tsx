@@ -8,6 +8,7 @@ import Card from "@/app/components/Card";
 import WarnLine from "@/app/components/WarnLine";
 import BlockHeading from "@/app/components/BlockHeading";
 import BoxDeviceInfo from "@/app/components/BoxDeviceInfo";
+import LockmeboxConnect from "@/app/components/LockmeboxConnect";
 
 /** Eine Zeile dieser Karte. Die Kette stand fünfmal wörtlich darin — `listRowCls` passt nicht,
  *  weil es `blockInsetCls` mitbringt und die Karte ihre Polsterung selbst hat. */
@@ -88,6 +89,9 @@ export default function BoxStatusCard({ userId, wearerLocked = true, keyInBox }:
     const batteryLow = batteryLabel !== null && boxBatteryIsLow(b);
     return { b, isLocked, boltAlert, transition, failsafes, batteryLow, batteryLabel };
   });
+
+  // Die LockMeBox, die gerade einen Befehl ausführen soll — an ihr hängt die Verbindung.
+  const lockmeboxPending = boxRows.find((s) => s.b.kind === "lockmebox" && s.transition) ?? null;
 
   // Die Fläche richtet sich nach der lautesten Box. Im Normalfall die STILLE Karte (kein Rahmen,
   // keine Bedeutungsfarbe) — sie hebt sich durch die Fläche allein ab, und das reicht für eine
@@ -177,7 +181,11 @@ export default function BoxStatusCard({ userId, wearerLocked = true, keyInBox }:
               )}
               {transition && (
                 <p className={`${boxRowCls} text-neben font-medium text-sperrzeit-text`}>
-                  {transition === "closing" ? t("pendingCloseAtDevice") : t("pendingOpenAtDevice")}
+                  {/* Die LockMeBox hat keinen Knopf-Vollzug wie Heimdall: sie tut etwas, sobald sich
+                      ein Handy an ihr verbindet. */}
+                  {b.kind === "lockmebox"
+                    ? (transition === "closing" ? t("pendingCloseBle") : t("pendingOpenBle"))
+                    : (transition === "closing" ? t("pendingCloseAtDevice") : t("pendingOpenAtDevice"))}
                 </p>
               )}
               {/* Failsafe: die Box öffnet nach genug Funkstille oder bei leerem Akku von SELBST.
@@ -194,6 +202,15 @@ export default function BoxStatusCard({ userId, wearerLocked = true, keyInBox }:
             </div>
           );
         })}
+        {/* Nur in der Sicht des Trägers: verbinden kann nur, wer an der Box steht. Und nur, wenn ein
+            Befehl ansteht — bei einem Konflikt ohne Befehl gliche der Knopf bloss den Stand ab und
+            behöbe nichts; abgleichen lässt sich die Box jederzeit in den Einstellungen. */}
+        {!userId && lockmeboxPending && (
+          <div className="pt-2">
+            {/* In der App sucht sie selbst nach dieser Box, im Browser bleibt der Knopf. */}
+            <LockmeboxConnect autoBoxId={lockmeboxPending.b.boxId} />
+          </div>
+        )}
       </Card>
     </DashboardBlock>
   );

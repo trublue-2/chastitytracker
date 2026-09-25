@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireBoxSync } from "@/lib/boxSync";
 import { commitPendingLockSafe } from "@/lib/lockCommit";
+import { otherBoxExists } from "@/lib/boxPairing";
+import { errorResponse } from "@/lib/serviceResult";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +46,9 @@ export async function POST(req: NextRequest) {
 
   const key = { userId_boxId: { userId: user.id, boxId: body.boxId } };
   const existing = await prisma.boxStatus.findUnique({ where: key });
+  // Eine Box je Träger (`boxPairing.ts`): eine NEUE Box wird nicht angelegt, solange er eine andere
+  // führt. Die Antwort sagt Heimdall, warum; eine bestehende Box meldet sich weiter wie immer.
+  if (!existing && await otherBoxExists(prisma, user.id, body.boxId)) return errorResponse(409, "BOX_ONE_PER_USER");
   // Consume-on-read: ein anstehendes Kommando wird beim Abholen direkt gelöscht. Heimdall
   // wendet es an; geht es verloren (Crash), setzt der Sub es einfach neu — kein Ack nötig.
   const pendingCommand = existing?.pendingCommand ?? null;

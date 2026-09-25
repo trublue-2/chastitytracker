@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
     staleTimes: { dynamic: 0 },
   },
   devIndicators: false,
+  // Der Dev-Server beantwortet seine Entwickler-Ressourcen nur für localhost. Die Entwickler-App auf
+  // dem iPhone lädt ihn über die LAN-Adresse des Macs — die kommt aus der lokalen `.env.local`.
+  // Ohne die Variable leer; im Produktions-Build ohnehin wirkungslos.
+  allowedDevOrigins: process.env.DEV_ALLOWED_ORIGINS?.split(",").filter(Boolean) ?? [],
   poweredByHeader: false,
   // exifr extern lassen: gebündelt scheitert sein dynamischer `import()` von fs/zlib und der
   // Standalone-Server meldet beim Start „Couldn't load fs/zlib". Als echtes Node-Modul greift

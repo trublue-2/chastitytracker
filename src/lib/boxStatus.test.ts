@@ -8,6 +8,7 @@ import { boxBatteryLabel, boxBoltAlert, boxBoltOpenDespiteLocked, boxHasConflict
 const row = (over: Partial<BoxRow>): BoxRow => ({
   boxId: "b1",
   name: "Box",
+  kind: "heimdall",
   locked: false,
   reportedLocked: false,
   pendingCommand: null,

@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useTranslations } from "next-intl";
-import useToast from "@/app/hooks/useToast";
-import { useApiError } from "@/app/hooks/useApiError";
-import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
 import Button from "@/app/components/Button";
+import PendingCallNotice from "@/app/components/PendingCallNotice";
 import StateHero from "@/app/components/StateHero";
 import TimerDisplay from "@/app/components/TimerDisplay";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
@@ -53,28 +51,6 @@ export default function OpenStateHero({
 }) {
   const t = useTranslations("dashboard");
   const router = useRouter();
-  const toast = useToast();
-  const apiError = useApiError();
-  const [withdrawing, setWithdrawing] = useState(false);
-
-  /** Den Aufruf zurücknehmen = den Eintrag löschen. Kein eigener Endpunkt: „ist nie passiert" IST
-   *  das Löschen, und die Route räumt dabei auch das noch nicht abgeholte Box-Kommando ab.
-   *
-   *  Ohne `force`: ein schwebender Aufruf steht nicht in der Verschluss-Kette, die Route nimmt ihn
-   *  deshalb von der Ketten-Prüfung aus. Fehler über `parseApiErrorCode`/`useApiError` wie überall,
-   *  statt den Code der Route wegzuwerfen. */
-  async function withdraw(id: string) {
-    setWithdrawing(true);
-    try {
-      const res = await fetchWithTimeout(`/api/entries/${id}`, { method: "DELETE" });
-      if (!res.ok) { toast.error(apiError(await parseApiErrorCode(res))); return; }
-      router.refresh();
-    } catch {
-      toast.error(t("lockCallWithdrawFailed"));
-    } finally {
-      setWithdrawing(false);
-    }
-  }
 
   // Nach Fristablauf zurück in den normalen „offen"-Zustand — EIN Timer, ausgelöst vom Effekt.
   // Nicht über `onExpire` von TimerDisplay: das feuert aus dem Render heraus und im Sekundentakt,
@@ -123,12 +99,7 @@ export default function OpenStateHero({
       )}
     >
       {lockCall ? (
-        <div className="relative mt-4 flex flex-col gap-2">
-          <p className="text-sm font-medium text-warn">{t("lockCallPressButton")}</p>
-          <Button variant="secondary" loading={withdrawing} onClick={() => withdraw(lockCall.id)}>
-            {t("lockCallWithdraw")}
-          </Button>
-        </div>
+        <PendingCallNotice entryId={lockCall.id} message={t("lockCallPressButton")} />
       ) : cleaningPauseUntil && (
         <Link href="/dashboard/new/verschluss" className="relative mt-4 block">
           <Button variant="semantic" semantic="lock" fullWidth icon={<LockClosedIcon size={16} />}>

@@ -21,7 +21,7 @@ const neighbours = getEntryNeighbors as unknown as ReturnType<typeof vi.fn>;
 
 const OEFFNEN = {
   id: "o1", userId: "u1", type: "OEFFNEN", startTime: new Date("2026-09-01T12:00:00Z"),
-  deviceId: null, boltConfirmedAt: new Date("2026-09-01T12:00:00Z"),
+  deviceId: null, boltConfirmedAt: new Date("2026-09-01T12:00:00Z"), openAwaitsBolt: false,
 };
 const nachbar = (id: string, type: string) => ({ id, type, startTime: new Date("2026-09-01T10:00:00Z") });
 
@@ -69,6 +69,11 @@ describe("chainBreakPartner", () => {
   it("ein schwebender Verschluss-Aufruf hat keinen Partner", async () => {
     const schwebend = { ...OEFFNEN, id: "v9", type: "VERSCHLUSS", boltConfirmedAt: null };
     expect(await chainBreakPartner(schwebend)).toBeNull();
+    expect(neighbours).not.toHaveBeenCalled();
+  });
+
+  it("eine schwebende Öffnung (LockMeBox) hat ebenfalls keinen Partner", async () => {
+    expect(await chainBreakPartner({ ...OEFFNEN, openAwaitsBolt: true })).toBeNull();
     expect(neighbours).not.toHaveBeenCalled();
   });
 

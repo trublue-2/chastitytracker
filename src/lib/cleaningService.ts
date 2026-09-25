@@ -224,7 +224,7 @@ function nextWindowIn(windows: CleaningWindows[], now: Date, tz: string): NextCl
  *  {@link countCleaningUsedToday}. */
 export async function cleaningUsedToday(userId: string, now: Date, tz = APP_TZ): Promise<number> {
   return prisma.entry.count({
-    where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", startTime: { gte: midnightInTZ(now, tz) } },
+    where: { userId, type: "OEFFNEN", oeffnenGrund: "REINIGUNG", openAwaitsBolt: false, startTime: { gte: midnightInTZ(now, tz) } },
   });
 }
 
@@ -234,6 +234,8 @@ export interface CleaningCountEntry {
   type: string;
   oeffnenGrund?: string | null;
   startTime: Date;
+  /** Die wartende Öffnung der LockMeBox — optional wie `oeffnenGrund`, fehlt es, zählt die Zeile. */
+  openAwaitsBolt?: boolean;
 }
 
 /** Dasselbe Ergebnis wie {@link cleaningUsedToday}, nur aus bereits geladenen Einträgen
@@ -246,7 +248,8 @@ export interface CleaningCountEntry {
 export function countCleaningUsedToday(allEntries: CleaningCountEntry[], now: Date, tz = APP_TZ): number {
   const seit = midnightInTZ(now, tz);
   return allEntries.filter(
-    (e) => e.type === "OEFFNEN" && e.oeffnenGrund === "REINIGUNG" && e.startTime >= seit,
+    // Eine wartende Öffnung (LockMeBox) zählt erst, wenn die Box aufgegangen ist.
+    (e) => e.type === "OEFFNEN" && e.oeffnenGrund === "REINIGUNG" && e.openAwaitsBolt !== true && e.startTime >= seit,
   ).length;
 }
 

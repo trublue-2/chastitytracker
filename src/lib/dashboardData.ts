@@ -6,7 +6,7 @@ import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
-import { latestEffectiveKgEntry, isPendingLock } from "@/lib/lockPending";
+import { latestEffectiveKgEntry, isPendingLock, isPendingOpen } from "@/lib/lockPending";
 import {
   buildKontrolleItems, buildKgWearPairs, buildPairs, wearHoursOfPairs,
   completedPairsFrom, getOpenPair, KG_PAIR, pairDurationMs, tzDayKey,
@@ -149,6 +149,12 @@ export const latestKgEntryCached = cache(async (userId: string) =>
  *  {@link latestKgEntryCached}, aus derselben geladenen Liste (jüngster zuerst). */
 export const pendingLockCached = cache(async (userId: string) =>
   (await entriesCached(userId)).find(isPendingLock) ?? null,
+);
+
+/** Die schwebende Öffnung (LockMeBox), wenn eine offen ist — das Gegenstück zu
+ *  {@link pendingLockCached}: der Träger bleibt verschlossen, bis die Box „Riegel offen" meldet. */
+export const pendingOpenCached = cache(async (userId: string) =>
+  (await entriesCached(userId)).find(isPendingOpen) ?? null,
 );
 
 /**

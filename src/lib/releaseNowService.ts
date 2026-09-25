@@ -106,8 +106,8 @@ export async function previewReleaseNow(userId: string): Promise<ReleaseNowPrevi
     getIsLocked(userId),
     prisma.verschlussAnforderung.count({ where: endableLockPeriods(userId, new Date()) }),
     // Über den geteilten Kontext statt über ein eigenes `count`: der trägt das
-    // `heimdallEnabled()`-Tor. Ohne das verspräche die Vorschau auf einer Installation ohne
-    // Heimdall eine Box, die es dort gar nicht gibt.
+    // `boxCouplingEnabled()`-Tor. Ohne das verspräche die Vorschau auf einer Installation ohne
+    // Box-Kopplung eine Box, die es dort gar nicht gibt.
     getBoxFormContext(userId),
   ]);
   return {
