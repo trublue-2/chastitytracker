@@ -22,12 +22,23 @@ export async function otherBoxExists(db: Db, userId: string, boxId: string): Pro
 }
 
 /**
+ * **Das Passwort einer LockMeBox darf nie verloren gehen, solange sie zu sein könnte** — nur der
+ * Tracker kennt es, ohne es bleibt nur der Hammer. „Könnte zu sein" heisst: sie hat „zu" gemeldet,
+ * ODER ein Schliessbefehl ist hinausgegangen und ihre Antwort nie angekommen (dann steht SOLL „zu",
+ * IST unbekannt — `lockmeboxRelayStep`). Erst eine spätere Meldung „offen" gibt es wieder frei.
+ * Gilt für jeden Weg, auf dem die Box-Zeile verschwindet: `removeBox` und das Löschen des Nutzers.
+ */
+export function boxPasswordAtRisk(box: { kind: string; locked: boolean; reportedLocked: boolean | null }): boolean {
+  return box.kind === "lockmebox" && boxIsPhysicallyLocked(box);
+}
+
+/**
  * Die Box des Trägers entfernen — der Weg zum Box-Wechsel. Nur, wenn nichts an ihr hängt:
  *
  * - der Träger ist offen und kein Verschluss- oder Öffnungs-Aufruf wartet;
  * - die Box hat kein unerledigtes Kommando;
- * - sie ist nicht zu (`boxIsPhysicallyLocked`: die IST-Meldung, ohne sie das SOLL). Bei der
- *   LockMeBox wäre das Passwort danach weg, eine verschlossene Box liesse sich nie mehr öffnen.
+ * - sie ist nicht zu (`boxIsPhysicallyLocked`: die IST-Meldung, ohne sie das SOLL) — für jede
+ *   Box-Art, bei der LockMeBox zugleich {@link boxPasswordAtRisk}.
  *
  * Eine Heimdall-Box, die weiter synchronisiert, legt ihre Zeile beim nächsten Sync neu an, solange
  * keine andere Box da ist — abmelden muss man sie deshalb auch bei Heimdall.

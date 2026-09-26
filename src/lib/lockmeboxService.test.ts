@@ -63,3 +63,27 @@ describe("lockmeboxRelayStep — Erstkontakt", () => {
     expect(db.boxStatus.findUniqueOrThrow).toHaveBeenCalled();
   });
 });
+
+describe("lockmeboxRelayStep — Schliessbefehl", () => {
+  // 17 Felder + Schlussstrich; Feld 1 = verriegelt (0 = offen), Feld 14 = Firmware.
+  const OPEN_LINE = "<S/0/0/0/1/80/0/0/0/0/0/0/0/0/15/1/1/>";
+
+  it("markiert die Box ab dem Senden als „vermutlich zu“ — SOLL zu, IST unbekannt", async () => {
+    db.boxStatus.findUnique.mockResolvedValue({ ...PAIRED, pendingCommand: "lock" });
+    db.boxStatus.update.mockResolvedValue({});
+    const result = await lockmeboxRelayStep("u1", { boxId: BOX, line: OPEN_LINE, sent: null });
+    expect(result.ok && result.data.send?.command).toBe("lock");
+    expect(db.boxStatus.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ locked: true, reportedLocked: null }),
+    }));
+  });
+
+  it("ohne Schliessbefehl übernimmt die Zeile den gemeldeten Zustand", async () => {
+    db.boxStatus.update.mockResolvedValue({});
+    db.boxStatus.findUnique.mockResolvedValue(PAIRED);
+    await lockmeboxRelayStep("u1", { boxId: BOX, line: OPEN_LINE, sent: null });
+    expect(db.boxStatus.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ locked: false, reportedLocked: false }),
+    }));
+  });
+});

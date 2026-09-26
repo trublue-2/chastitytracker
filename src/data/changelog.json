@@ -13,6 +13,13 @@
       {
         "type": "feat",
         "text": {
+          "de": "Wartet die LockMeBox auf einen Befehl, erinnert eine Push-Mitteilung daran, die App zu öffnen und den Knopf an der Box zu drücken.",
+          "en": "When the LockMeBox is waiting for a command, a push notification reminds you to open the app and press the button on the box."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
           "de": "Pro Träger ist genau eine Schlüsselbox gekoppelt. Für einen Wechsel lässt sie sich in den Einstellungen entfernen, solange du offen bist und nichts wartet.",
           "en": "Each wearer has exactly one key box paired. To switch, remove it in the settings while you are unlocked and nothing is waiting."
         }

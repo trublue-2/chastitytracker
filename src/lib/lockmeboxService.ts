@@ -62,13 +62,19 @@ export async function lockmeboxRelayStep(
   const pending = toPendingCommand(box.pendingCommand);
   const next = nextLockmeboxCommand(status, pending, input.sent);
   if (status) {
+    // Geht jetzt ein Schliessbefehl hinaus, gilt die Box ab SOFORT als „vermutlich zu": SOLL zu, IST
+    // unbekannt. Reisst die Verbindung ab, nachdem sie zugefahren ist, aber bevor ihre Antwort hier
+    // ankommt, stünde sonst „offen" in der Zeile — und „Box entfernen" oder das Löschen des Nutzers
+    // nähme das Passwort einer verschlossenen Box mit (`boxPasswordAtRisk`). Erst ihre nächste
+    // Meldung setzt den Zustand wieder aus der Box selbst.
+    const lockGoingOut = next.command === "lock";
     await prisma.boxStatus.update({
       where: key,
       data: {
         // Die Box kennt kein eigenes SOLL: sie ist zu, bis der Tracker sie öffnet. SOLL und IST
         // sind deshalb dieselbe Meldung; was der Tracker will, steht in `pendingCommand`.
-        locked: status.locked,
-        reportedLocked: status.locked,
+        locked: lockGoingOut || status.locked,
+        reportedLocked: lockGoingOut ? null : status.locked,
         battery: status.battery,
         charging: status.charging,
         fwVersion: status.fwVersion,

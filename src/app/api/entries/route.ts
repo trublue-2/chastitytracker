@@ -12,7 +12,7 @@ import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "@/li
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/boxCommand";
-import { notifyHeimdall } from "@/lib/heimdallNotify";
+import { announceBoxCommand } from "@/lib/boxCommandNotify";
 import { deviceCheckApplies, runDeviceCheck } from "@/lib/deviceCheckService";
 import { runInspectionVerification } from "@/lib/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
@@ -285,8 +285,9 @@ export async function POST(req: NextRequest) {
 
       // Box-Kopplung: die Heimdall-Box folgt dem Eintrag. Die Regel — samt der zwei Fälle, in denen
       // sie ihm NICHT folgt — steht in `boxCommandForEntry`. No-op ohne Heimdall/Box.
-      boxCmd = boxCommandForEntry({ type, keyInBox: keyInBoxDeclared, brokeLockPeriod: withdrawnLockPeriod });
-      if (boxCmd) await setBoxCommandForUser(tx, session.user.id, boxCmd);
+      const cmd = boxCommandForEntry({ type, keyInBox: keyInBoxDeclared, brokeLockPeriod: withdrawnLockPeriod });
+      // Angesagt wird nur, was wirklich gesetzt wurde — ohne Box bleibt `boxCmd` leer.
+      if (cmd && await setBoxCommandForUser(tx, session.user.id, cmd)) boxCmd = cmd;
 
       return created;
     });
@@ -305,11 +306,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: entryGuardCode(e) }, { status: 400 });
   }
 
-  // Instant-Push an Heimdall: eine LIVE Box vollzieht dasselbe Kommando sofort per MQTT — der
-  // pendingCommand-Pull beim nächsten Box-Sync (in der Transaktion oben gesetzt) bleibt der Fallback.
-  // Dieselbe Entscheidung, nicht dieselbe Bedingung noch einmal: sonst driften Pull und Push
-  // auseinander und die Box täte per MQTT etwas anderes als beim Sync. No-op ohne HEIMDALL_BASE_URL.
-  if (boxCmd) notifyHeimdall(session.user.name, boxCmd);
+  // Das Kommando ansagen (Heimdall-Instant-Push bzw. LockMeBox-Mitteilung ans Handy) — der
+  // pendingCommand-Pull (in der Transaktion oben gesetzt) bleibt der Fallback. Dieselbe Entscheidung,
+  // nicht dieselbe Bedingung noch einmal: sonst driften Pull und Push auseinander.
+  if (boxCmd) announceBoxCommand(session.user.id, boxCmd);
 
   // REINIGUNG-Limit wird NICHT mehr automatisch bestraft: eine Reinigungsöffnung über dem
   // Tageskontingent (auch ein Geräte-Wechsel) wird im Strafbuch nur noch ERKANNT (live in

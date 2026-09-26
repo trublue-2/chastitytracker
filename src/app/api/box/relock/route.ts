@@ -6,7 +6,7 @@ import { boxCouplingEnabled } from "@/lib/constants";
 import { getIsLocked, getCurrentLockKeyInBox } from "@/lib/queries";
 import { setBoxCommandForUser } from "@/lib/boxCommand";
 import { PENDING_LOCK_FILTER } from "@/lib/lockPending";
-import { notifyHeimdall } from "@/lib/heimdallNotify";
+import { announceBoxCommand } from "@/lib/boxCommandNotify";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +45,7 @@ export async function POST() {
   // erst gewartet worden (`lockAwaitsBolt`).
   if (keyInBox === false) return errorResponse(409, "BOX_RELOCK_KEY_NOT_IN_BOX");
 
-  await setBoxCommandForUser(prisma, userId, "lock");
-  // Instant-Push (best effort) — sonst zieht die Box das Kommando beim nächsten Sync.
-  notifyHeimdall(session.user.name, "lock");
+  // Ansagen (best effort) — sonst zieht die Box das Kommando erst beim nächsten Sync bzw. Kontakt.
+  if (await setBoxCommandForUser(prisma, userId, "lock")) announceBoxCommand(userId, "lock");
   return NextResponse.json({ ok: true });
 }

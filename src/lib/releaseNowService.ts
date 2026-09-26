@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { createOeffnenEntryTx } from "@/lib/oeffnenService";
 import { getBoxFormContext, getIsLocked } from "@/lib/queries";
 import { setBoxCommandForUser } from "@/lib/boxCommand";
-import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
+import { announceBoxCommand } from "@/lib/boxCommandNotify";
 import { notifyUser } from "@/lib/notify";
 import { notifyControllersAboutEntry } from "@/lib/entryNotify";
 import { boxCommandForEntry } from "@/lib/boxCommand";
@@ -193,7 +193,7 @@ export async function releaseNow(params: ReleaseNowParams): Promise<ServiceResul
     // Ab hier nach dem Commit: ein langsamer HTTP-Aufruf hat in einem SQLite-Schreib-Lock nichts
     // verloren, und der Orgasmus-Dienst bringt seine eigene Transaktion mit (Prisma kann sie nicht
     // verschachteln).
-    if (committed.boxCommanded) void notifyHeimdallForUserId(userId, "open");
+    if (committed.boxCommanded) announceBoxCommand(userId, "open");
 
     // Das Fenster über den DIENST, nicht mit einem rohen `create`: der benachrichtigt den Träger
     // (sonst hätte er ein Fenster, von dem er nichts weiss) und zieht eine noch offene Anweisung

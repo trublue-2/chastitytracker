@@ -15,6 +15,9 @@ import { boxCouplingEnabled } from "@/lib/constants";
  *
  * No-op ohne Box-Kopplung (`boxCouplingEnabled`) und für User ohne Box (updateMany trifft 0
  * Zeilen). Läuft in der Eintrags-Transaktion → atomar mit dem Eintrag.
+ *
+ * **Nach dem Commit:** liefert sie `true`, ruft der Aufrufer `announceBoxCommand`
+ * (`boxCommandNotify.ts`) — sonst erfährt weder die Heimdall-Box noch das Handy davon.
  */
 export async function setBoxCommandForUser(
   tx: Prisma.TransactionClient,

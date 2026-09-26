@@ -10,12 +10,16 @@ import { NextRequest } from "next/server";
  * Client — das genügt, weil der Test die Guard-Entscheidung prüft, nicht die Isolation.
  */
 const db = vi.hoisted(() => ({
-  user: { findMany: vi.fn(), update: vi.fn() },
+  user: { findMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  boxStatus: { findMany: vi.fn() },
+  entry: { findMany: vi.fn(async () => []) },
+  device: { findMany: vi.fn(async () => []) },
+  deviceReferenceImage: { findMany: vi.fn(async () => []) },
   $transaction: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
-vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/auth", () => ({ auth: vi.fn(async () => ({ user: { id: "admin-id" } })) }));
 // Beide Guards müssen im Mock stehen — die Route importiert sie, auch wenn der Rollen-Zweig
 // ausschliesslich über `requireAdminApi` läuft.
 vi.mock("@/lib/authGuards", () => ({
@@ -23,7 +27,7 @@ vi.mock("@/lib/authGuards", () => ({
   requireKeyholderOrAdminApi: vi.fn(async () => null),
 }));
 
-import { PATCH } from "./route";
+import { DELETE, PATCH } from "./route";
 
 const TARGET_ID = "target-user-id";
 const OTHER_ADMIN_ID = "other-admin-id";
@@ -91,5 +95,32 @@ describe("PATCH /api/admin/users/[id] — Rollenwechsel", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "invalidRole" });
     expect(db.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /api/admin/users/[id] — Passwort der LockMeBox", () => {
+  const del = () => DELETE(new NextRequest(`http://localhost/api/admin/users/${TARGET_ID}`, { method: "DELETE" }),
+    { params: Promise.resolve({ id: TARGET_ID }) });
+
+  it("verweigert, solange die LockMeBox zu sein könnte — ihr Passwort ginge mit dem Konto verloren", async () => {
+    db.boxStatus.findMany.mockResolvedValue([{ kind: "lockmebox", locked: true, reportedLocked: null }]);
+    const res = await del();
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "USER_BOX_LOCKED" });
+    expect(db.user.delete).not.toHaveBeenCalled();
+  });
+
+  it("löscht, wenn die LockMeBox offen gemeldet ist", async () => {
+    db.boxStatus.findMany.mockResolvedValue([{ kind: "lockmebox", locked: false, reportedLocked: false }]);
+    db.user.delete.mockResolvedValue({});
+    const res = await del();
+    expect(res.status).toBe(204);
+    expect(db.user.delete).toHaveBeenCalled();
+  });
+
+  it("eine Heimdall-Box hält das Löschen nicht auf — ihr Passwort liegt nicht beim Tracker", async () => {
+    db.boxStatus.findMany.mockResolvedValue([{ kind: "heimdall", locked: true, reportedLocked: true }]);
+    db.user.delete.mockResolvedValue({});
+    expect((await del()).status).toBe(204);
   });
 });

@@ -18,7 +18,8 @@ import { boxCouplingEnabled } from "@/lib/constants";
 import { setLockRequiresBolt } from "@/lib/lockCommit";
 import { setOffenseStatementsAllowed } from "@/lib/offenseStatementService";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
-import { serviceResponse } from "@/lib/serviceResult";
+import { errorResponse, serviceResponse } from "@/lib/serviceResult";
+import { boxPasswordAtRisk } from "@/lib/boxPairing";
 import { normalizeQuickSettings } from "@/lib/quickSettings";
 
 export async function GET(
@@ -277,7 +278,16 @@ export async function DELETE(
     prisma.deviceReferenceImage.findMany({ where: { device: { userId: id } }, select: { imageUrl: true } }),
   ]);
 
-  await prisma.user.delete({ where: { id } });
+  // Mit dem Nutzer ginge das Passwort seiner LockMeBox verloren (Kaskade) — solange sie zu sein
+  // könnte, bliebe dann nur der Hammer (`boxPasswordAtRisk`). Prüfen und Löschen in EINER
+  // Transaktion: ein Schliessbefehl, der dazwischen hinausgeht, markiert die Box als „vermutlich zu".
+  const deleted = await prisma.$transaction(async (tx) => {
+    const boxes = await tx.boxStatus.findMany({ where: { userId: id }, select: { kind: true, locked: true, reportedLocked: true } });
+    if (boxes.some(boxPasswordAtRisk)) return false;
+    await tx.user.delete({ where: { id } });
+    return true;
+  });
+  if (!deleted) return errorResponse(409, "USER_BOX_LOCKED");
 
   void deleteUploadedFiles([
     ...entries.flatMap(entryImageUrls),

@@ -245,6 +245,8 @@ export const BOX_CODES = [
   // Eine Box je Träger (boxPairing.ts): Koppeln einer zweiten, Entfernen der einen.
   "BOX_ONE_PER_USER",
   "BOX_REMOVE_BLOCKED",
+  // Nutzer löschen, solange seine LockMeBox zu sein könnte (Passwort ginge verloren).
+  "USER_BOX_LOCKED",
 ] as const;
 
 /** taskService (Aufgaben: Anweisungstext + 0..n Bedingungen, die bis `holdUntil` durchgehend gelten). */

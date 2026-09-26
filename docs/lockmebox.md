@@ -31,6 +31,12 @@ Einstellungs-Eintrag.
    Handy bei `POST /api/box/ble` den nächsten Befehl (fertig verschlüsselt) und reicht die Antwort
    der Box zurück (`lockmeboxService.ts`).
 
+**Mitteilung „Box wartet".** Weil das Handy nur sucht, solange die App offen ist, bekommt der Träger
+eine Push-Mitteilung, sobald ein Befehl für seine LockMeBox ansteht — auch wenn er im Browser
+verschlossen oder die Keyholderin freigegeben hat. Antippen öffnet die Übersicht, deren Box-Karte
+selbst sucht (`announceBoxCommand` in `boxCommandNotify.ts`, dieselbe Stelle, die Heimdall den
+Instant-Push schickt). Sie folgt der Push-Stufe des Trägers wie eine wichtige Meldung.
+
 **Eine Box je Träger** (`boxPairing.ts`). Der Schlüssel liegt in einer Box; mit zweien liefen die
 Regeln auseinander (ein Verschluss gälte mit dem Riegel irgendeiner Box, eine Öffnung nur mit der
 LockMeBox). Beide Kopplungswege — der erste Bluetooth-Kontakt und der erste Heimdall-Sync einer
@@ -50,6 +56,22 @@ Nordic UART Service. Befehle gehen verschlüsselt an die Box, gesperrt wird nur 
 Passwort (kein Timer) und geöffnet mit `O/<pw>`. Antworten der Box sind Klartext mit 16 bzw. ab
 Firmware 15 17 Feldern. Rahmung und Auswertung: `lockmeboxProtocol.ts` (importfrei, von Server und
 Handy geteilt), Verschlüsselung: `lockmebox.ts` (nur Server).
+
+## Das Passwort geht nie verloren, solange die Box zu sein könnte
+
+Nur der Tracker kennt das Passwort (`BoxStatus.lockPassword`); verschwindet die Zeile einer
+verschlossenen Box, bleibt nur der Hammer. Deshalb (`boxPasswordAtRisk` in `boxPairing.ts`):
+
+- **Ab dem Senden des Schliessbefehls gilt die Box als „vermutlich zu"** (SOLL zu, IST unbekannt,
+  `lockmeboxRelayStep`). Reisst die Verbindung ab, nachdem sie zugefahren ist, aber bevor ihre Antwort
+  ankam, steht sonst „offen" in der Zeile. Erst eine spätere Meldung „offen" gibt sie wieder frei.
+- **„Box entfernen"** verweigert, solange die Box zu ist oder sein könnte (dazu: Träger verschlossen,
+  Aufruf oder Kommando wartet).
+- **Einen Nutzer löschen** verweigert die Admin-Route ebenso (`USER_BOX_LOCKED`) — die Box-Zeile ginge
+  per Kaskade mit.
+- Das Passwort wird nie neu erzeugt; ein Backup bleibt deshalb gültig.
+
+Ausserhalb des Trackers liegt: eine ganze Instanz samt Datenbank löschen.
 
 ## Grenzen — bewusst so
 
