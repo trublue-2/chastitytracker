@@ -145,7 +145,7 @@ export default function WeightToggle({
           <div className="flex flex-col gap-3">
             <Input
               label={`${t("weightKeyholderTargetLabel")} (${unitLabel})`}
-              type="number"
+              type="text"
               inputMode="decimal"
               value={target}
               disabled={saving}
