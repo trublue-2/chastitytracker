@@ -177,9 +177,10 @@ export default function WeightFormCore({
 
         <Input
           label={`${t("weight")} (${unitLabel})`}
-          type="number"
+          // Textfeld statt `type="number"`: die iOS-Zifferntastatur zeigt dort ein Komma, das das
+          // Feld je nach Tastatur-Sprache verwirft. `parseDecimalInput` nimmt Komma wie Punkt.
+          type="text"
           inputMode="decimal"
-          step="0.1"
           value={weight}
           onChange={(e) => setWeight(e.target.value)}
           required

@@ -123,7 +123,7 @@ export default function WeightSettings({
       <div className="flex flex-col gap-3">
         <Input
           label={`${t("targetWeight")} (${weightUnitLabel})`}
-          type="number"
+          type="text"
           inputMode="decimal"
           value={target}
           disabled={saving}
