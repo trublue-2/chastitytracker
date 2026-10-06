@@ -104,10 +104,19 @@ export async function openAwaitsBolt(
  * Ohne das bliebe der Verschluss für immer schwebend, denn den Riegel erwartet danach niemand mehr.
  * Und genau darin liegt der zweite Zweck des Schalters: er ist der NOTAUSGANG bei defekter Box —
  * der einzige bedienbare Weg, einen Aufruf zu vollziehen, wenn die Meldung nie kommt.
+ *
+ * **Bei einer LockMeBox ohne Wirkung** (`false` zurück, nichts geschrieben, nichts vollzogen): der Riegel
+ * gilt dort immer (`lockAwaitsBolt`), und ein Abschalten, das einen wartenden Aufruf OHNE Riegel
+ * vollzöge, widerspräche genau dieser Regel. Ein Wert, den niemand liest, bliebe ausserdem als Falle
+ * stehen, falls der Träger später nur noch eine Heimdall-Box führt. Den Ausweg bei toter LockMeBox hat
+ * der Träger: er nimmt den Aufruf zurück. `true` = der Schalter wurde gesetzt.
  */
-export async function setLockRequiresBolt(userId: string, enabled: boolean): Promise<void> {
+export async function setLockRequiresBolt(userId: string, enabled: boolean): Promise<boolean> {
+  const boxes = await prisma.boxStatus.findMany({ where: { userId }, select: { kind: true } });
+  if (hasLockmebox(boxes)) return false;
   await prisma.user.update({ where: { id: userId }, data: { lockRequiresBolt: enabled } });
   if (!enabled) await commitPendingLock(userId, new Date());
+  return true;
 }
 
 type PendingFilter = typeof PENDING_LOCK_FILTER | typeof PENDING_OPEN_FILTER;

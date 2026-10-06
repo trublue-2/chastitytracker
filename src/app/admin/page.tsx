@@ -117,7 +117,7 @@ export default async function AdminPage() {
     boxCouplingEnabled()
       ? prisma.boxStatus.findMany({
           where: { userId: { in: userIds } },
-          select: { userId: true, locked: true, reportedLocked: true, pendingCommand: true },
+          select: { userId: true, kind: true, locked: true, reportedLocked: true, pendingCommand: true },
         })
       : [],
     // Wartende Aufgaben-Nachweise (#8): eingereicht (`submittedAt`), Aufgabe nicht zurückgezogen —
@@ -168,6 +168,8 @@ export default async function AdminPage() {
   // Wer hat überhaupt eine Box gemeldet? Dieselbe Zeilen-Menge, aus der oben der Riegel-Hinweis
   // entsteht — für die Schnellschalter, die es nur mit Box gibt (Riegel-Pflicht, Boxfoto-Zwang).
   const boxUserIds = new Set(allBoxes.map((b) => b.userId));
+  // Träger mit LockMeBox: der Riegel-Schalter wirkt dort nicht und steht deshalb nicht als Chip da.
+  const lockmeboxUserIds = new Set(allBoxes.filter((b) => b.kind === "lockmebox").map((b) => b.userId));
   // Das Aufgaben-Zeichen aus der EINEN Registratur (`actionSign`) — nicht `ClipboardCheck` von Hand,
   // das trägt die Prüfung.
   const TaskIcon = actionIcon("TASK");
@@ -626,7 +628,7 @@ export default async function AdminPage() {
                               sagt, wie es steht, und wer danach handelt, hat den Zustand gelesen.
                               Ohne Auswahl ist die Liste leer und die Zeile sieht aus wie bisher. */}
                           {parseQuickSettings(u.quickSettings)
-                            .filter((qs) => quickSettingOnCard(qs, u, { hasBox: boxUserIds.has(u.id) }))
+                            .filter((qs) => quickSettingOnCard(qs, u, { hasBox: boxUserIds.has(u.id), hasLockmebox: lockmeboxUserIds.has(u.id) }))
                             .map((qs) => (
                               <QuickSettingChip
                                 key={qs.key}

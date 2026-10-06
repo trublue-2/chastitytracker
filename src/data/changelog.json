@@ -44,6 +44,20 @@
           "de": "Der einmalige Hinweis „Die App sieht neu aus“ entfällt.",
           "en": "The one-time “The app looks new” notice is gone."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Der Riegel-Schalter in den Keyholder-Einstellungen ist bei Trägern mit LockMeBox gesperrt und zeigt „an“: dort gilt der Verschluss immer erst mit dem Riegel.",
+          "en": "The bolt switch in the keyholder settings is locked on for wearers with a LockMeBox: there the lock always takes effect only once the bolt is shut."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Bereich „Box“ der Keyholder-Einstellungen steht, welche Box hinterlegt ist (Heimdall, LockMeBox oder keine) und welche Box-Nr.",
+          "en": "The “Box” section of the keyholder settings shows which box is registered (Heimdall, LockMeBox or none) and its box number."
+        }
       }
     ]
   },

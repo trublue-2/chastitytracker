@@ -1350,27 +1350,32 @@ export async function mcpSetBox(username: string, args: SetBoxArgs) {
 
   if (args.dryRun) {
     const before = { requireBolt: user.lockRequiresBolt };
-    const after = { requireBolt: args.requireBolt ?? before.requireBolt };
+    // Bei einer LockMeBox bleibt der Wert, wie er ist: die Einstellung wirkt dort nicht (`boltAlways`).
+    const after = { requireBolt: box.boltAlways ? before.requireBolt : args.requireBolt ?? before.requireBolt };
     return dryRunPreview("set_box", undefined, {
       ...after,
       ...box,
       // Die eine Folge, die über das Umlegen hinausgeht.
-      ...(args.requireBolt === false && box.lockCallWaitingSince ? { alsoCompletesWaitingLockCall: true } : {}),
+      ...(!box.boltAlways && args.requireBolt === false && box.lockCallWaitingSince ? { alsoCompletesWaitingLockCall: true } : {}),
     }, diffFields(before, after));
   }
 
-  if (args.requireBolt !== undefined) await setLockRequiresBolt(userId, args.requireBolt);
+  const applied = args.requireBolt !== undefined && await setLockRequiresBolt(userId, args.requireBolt);
 
   const parts = [
     args.requireBolt === undefined ? ""
+      // Bei einer LockMeBox gilt der Riegel immer: nichts geändert, nichts vollzogen — die Sätze
+      // darunter wären dort falsch. Der Träger kann einen toten Aufruf selbst zurücknehmen.
+      : !applied
+        ? " NOTHING CHANGED: he has a LockMeBox, so his lock ALWAYS waits for the bolt, whatever this setting says — and a waiting call is not completed by it either (he can withdraw it himself)."
       : args.requireBolt
         ? " His lock now takes effect only when the box reports the bolt shut — until then nothing starts: no lock period, no request fulfilled, no wearing time."
         : " His lock takes effect immediately again when he records it.",
-    args.requireBolt === false && box.lockCallWaitingSince
+    applied && args.requireBolt === false && box.lockCallWaitingSince
       ? " The lock call that was waiting has been completed with the time of this change."
       : "",
     // Ohne Box läuft die Einstellung leer — sie ist gesetzt, wirkt aber erst, wenn eine Box meldet.
-    args.requireBolt === true && !box.hasBox
+    applied && args.requireBolt === true && !box.hasBox
       ? " NOTE: no box has reported for this wearer yet, so nothing waits for a bolt until one does."
       : "",
   ];

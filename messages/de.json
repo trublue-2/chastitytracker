@@ -1577,7 +1577,13 @@
     "strafbuchGemeldet": "Vom Träger als erledigt gemeldet am {date}",
     "boxPhotoDueInfo": "Box-Bild ausstehend seit {date}",
     "boxPhotoWaive": "Box-Bild erlassen",
-    "boxPhotoWaiveHint": "Der Verschluss bleibt gültig. Nur für den Fall, dass das Bild nicht zu beschaffen ist."
+    "boxPhotoWaiveHint": "Der Verschluss bleibt gültig. Nur für den Fall, dass das Bild nicht zu beschaffen ist.",
+    "boltGateAlways": "Bei einer LockMeBox gilt der Verschluss immer erst mit dem Riegel — dieser Schalter wirkt dort nicht und lässt sich nicht ändern.",
+    "boxInfoNone": "Keine Box hinterlegt.",
+    "boxInfoKind": "Box-Art",
+    "boxInfoNumber": "Box-Nr.",
+    "boxKindHeimdall": "Heimdall",
+    "boxKindLockmebox": "LockMeBox"
   },
   "forgotPassword": {
     "pageTitle": "Passwort zurücksetzen",

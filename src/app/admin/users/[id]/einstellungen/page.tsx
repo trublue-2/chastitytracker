@@ -16,10 +16,11 @@ import WeightToggle from "@/app/admin/WeightToggle";
 import HealthHoldToggle from "@/app/admin/HealthHoldToggle";
 import { activeHealthHold } from "@/lib/healthHold";
 import BoxLockToggle from "@/app/admin/BoxLockToggle";
+import BoxIdentityInfo from "@/app/admin/BoxIdentityInfo";
 import type { UnitSystem } from "@/lib/weight";
 import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reasonsService";
 import ReasonsEditor from "@/app/admin/ReasonsEditor";
-import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, ORGASMUS_ART_I18N_KEYS, GRUND_I18N_KEYS } from "@/lib/constants";
+import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, ORGASMUS_ART_I18N_KEYS, GRUND_I18N_KEYS, boxCouplingEnabled } from "@/lib/constants";
 import AccountSection from "./AccountSection";
 import UserLocaleSelect from "@/app/admin/UserLocaleSelect";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
@@ -73,8 +74,8 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
     // Promise.all wie der Rest — `actorId` steht seit dem Guard fest, ein eigener Roundtrip
     // danach wäre reine Wartezeit.
     prisma.user.findUnique({ where: { id: actorId }, select: { unitSystem: true } }),
-    // Der Riegel-Schalter erscheint nur, wo es überhaupt einen Riegel gibt — dieselbe Bedingung wie
-    // im Verschluss-Formular (`getBoxFormContext`): Heimdall aktiv UND eine Box, die gemeldet hat.
+    // Der Bereich „Box": welche Box hinterlegt ist (`boxes`), und der Riegel-Schalter — nur mit Box, bei
+    // einer LockMeBox gesperrt (`boltAlways`). Dieselbe Quelle wie im Verschluss-Formular.
     getBoxFormContext(id),
     activeHealthHold(id),
   ]);
@@ -84,7 +85,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
   // Welche Schnellschalter gelten für DIESEN Träger? Einmal ausgewertet: die Auswahlliste und die
   // Vorbelegung darunter müssen dieselbe Antwort lesen, sonst zählt ein unsichtbares Kästchen mit.
   const quickSettingsAvailable = QUICK_SETTINGS.filter((qs) =>
-    quickSettingAvailable(qs, { hasBox: box.boxConfirm }),
+    quickSettingAvailable(qs, { hasBox: box.boxConfirm, hasLockmebox: box.boltAlways }),
   );
 
   // Built-in-Codes → i18n-Label (Placeholder im Editor, wenn kein Override gesetzt ist). Deckt auch
@@ -296,10 +297,14 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         />
       </SettingsSection>
 
-      {/* Heimdall-Box — entfällt ganz, wo keine Box gemeldet hat */}
-      {box.boxConfirm && (
+      {/* Box — entfällt ganz, wo die Instanz keine Box-Kopplung hat. Ohne hinterlegte Box steht dort
+          „keine Box"; den Riegel-Schalter gibt es nur mit Box. */}
+      {boxCouplingEnabled() && (
         <SettingsSection defaultCollapsed title={t("sectionBox")} description={t("sectionBoxDesc")} bodyPadded>
-          <BoxLockToggle userId={user.id} initialEnabled={user.lockRequiresBolt} />
+          <div className="flex flex-col gap-4">
+            <BoxIdentityInfo boxes={box.boxes} />
+            {box.boxConfirm && <BoxLockToggle userId={user.id} initialEnabled={user.lockRequiresBolt} alwaysOn={box.boltAlways} />}
+          </div>
         </SettingsSection>
       )}
 

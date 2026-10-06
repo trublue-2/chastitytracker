@@ -11,6 +11,10 @@ import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
  * An: sein „Verschlossen" ist erst der AUFRUF an die Box — verschlossen ist er, wenn der Riegel
  * zufällt. Aus: Bestandsverhalten, der Eintrag gilt sofort.
  *
+ * **Bei einer LockMeBox gilt der Riegel immer** (`lockAwaitsBolt`), der Schalter wirkt dort nicht — er
+ * steht dann gesperrt auf „an" und sagt das (`alwaysOn`). Ein Schalter, der „aus" zeigt und trotzdem
+ * wartet, wäre eine Auskunft, die nicht stimmt.
+ *
  * Das Abschalten vollzieht einen gerade wartenden Aufruf sofort (`setLockRequiresBolt`) — deshalb
  * ist dieser Schalter zugleich der Weg heraus, wenn die Box nicht mehr meldet. Der Hinweis darunter
  * sagt das, denn im Moment der Panne sucht niemand in der Doku.
@@ -18,9 +22,12 @@ import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 export default function BoxLockToggle({
   userId,
   initialEnabled,
+  alwaysOn = false,
 }: {
   userId: string;
   initialEnabled: boolean;
+  /** Der Träger führt eine LockMeBox: der Riegel gilt dort immer, der Schalter ist gesperrt. */
+  alwaysOn?: boolean;
 }) {
   const t = useTranslations("admin");
   const { saving, save } = useUserSettingsSave(userId);
@@ -36,11 +43,13 @@ export default function BoxLockToggle({
       <Toggle
         label={t("boltGateLabel")}
         description={t("boltGateDesc")}
-        checked={enabled}
-        disabled={saving}
+        checked={alwaysOn || enabled}
+        disabled={alwaysOn || saving}
         onChange={handleToggle}
       />
-      {enabled && <p className="text-xs text-foreground-faint">{t("boltGateEscapeHint")}</p>}
+      {alwaysOn
+        ? <p className="text-xs text-foreground-faint">{t("boltGateAlways")}</p>
+        : enabled && <p className="text-xs text-foreground-faint">{t("boltGateEscapeHint")}</p>}
     </div>
   );
 }

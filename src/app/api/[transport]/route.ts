@@ -1956,7 +1956,9 @@ function registerTools(server: McpServer) {
           "and until then NOTHING starts: no lock period, no lock request fulfilled, no wearing time, and the " +
           "re-lock deadline after a cleaning break keeps running. Read the current state in `get_context.box` " +
           "and the box itself in `get_box_state`. Switching it OFF completes a call that is waiting right now — " +
-          "that is the way out when the box has stopped reporting; the dry run says whether one is waiting." + KEYHOLDER_SILENT,
+          "that is the way out when the box has stopped reporting; the dry run says whether one is waiting. " +
+          "With a LockMeBox the rule is ALWAYS on and this tool changes NOTHING there (no value written, no waiting call " +
+          "completed; `get_context.box.boltAlways` says so) — a dead box is then for him to withdraw his call." + KEYHOLDER_SILENT,
         inputSchema: {
           requireBolt: z.boolean().optional().describe(
             "Does his lock take effect only once the box reports the bolt shut? Off = it takes effect the moment he records it.",

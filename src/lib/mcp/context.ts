@@ -3,6 +3,7 @@ import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
 import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/healthHold";
 import { notifyUser } from "@/lib/notify";
 import { dueBoxPhotoLock, waiveBoxPhoto } from "@/lib/boxPhotoDueService";
+import { hasLockmebox } from "@/lib/boxStatus";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser, autoInspectionsView, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoInspectionsView } from "@/lib/autoKontrolleService";
@@ -191,6 +192,8 @@ export interface ContextResult extends Envelope {
     requireBolt: boolean;
     /** Hat für diesen Träger überhaupt eine Box gemeldet? Ohne sie wartet nichts auf einen Riegel. */
     hasBox: boolean;
+    /** Führt er eine LockMeBox? Dann gilt der Riegel IMMER — `requireBolt` ändert dort nichts. */
+    boltAlways: boolean;
     lockCallWaitingSince: string | null;
   } | null;
   recurringContext: ReturnType<typeof recurringView>[];
@@ -214,11 +217,11 @@ const contextUserSelect = {
 /** Box-Bestand und wartender Aufruf — die Lese-Seite zu `set_box` (docs/riegel-konzept.md).
  *  Der Schalter selbst kommt aus der ohnehin geladenen User-Zeile. */
 export async function loadBoxSettings(userId: string) {
-  const [hasBox, waitingSince] = await Promise.all([
-    prisma.boxStatus.count({ where: { userId } }),
+  const [boxes, waitingSince] = await Promise.all([
+    prisma.boxStatus.findMany({ where: { userId }, select: { kind: true } }),
     pendingLockCallAt(userId),
   ]);
-  return { hasBox: hasBox > 0, lockCallWaitingSince: waitingSince?.toISOString() ?? null };
+  return { hasBox: boxes.length > 0, boltAlways: hasLockmebox(boxes), lockCallWaitingSince: waitingSince?.toISOString() ?? null };
 }
 
 /** Liefert HealthHold + Auto-Kontroll-Einstellungen + Reinigungs-Regeln + Wochen-Kontext + anstehende

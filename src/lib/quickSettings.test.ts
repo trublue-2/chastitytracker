@@ -98,6 +98,16 @@ describe("Verfügbarkeit", () => {
     expect(quickSettingAvailable(box, { hasBox: true })).toBe(true);
     expect(quickSettingAvailable(plain, { hasBox: false })).toBe(true);
   });
+
+  it("der Riegel-Schalter entfällt bei einer LockMeBox — dort gilt der Riegel immer", () => {
+    const bolt = QUICK_SETTINGS.find((s) => s.key === "lockRequiresBolt")!;
+    expect(quickSettingAvailable(bolt, { hasBox: true })).toBe(true);
+    expect(quickSettingAvailable(bolt, { hasBox: true, hasLockmebox: false })).toBe(true);
+    expect(quickSettingAvailable(bolt, { hasBox: true, hasLockmebox: true })).toBe(false);
+    // Die übrigen Box-Schalter bleiben: sie hängen nicht an der Riegel-Regel.
+    const boxPhoto = QUICK_SETTINGS.find((s) => s.key === "postLockBoxPhoto")!;
+    expect(quickSettingAvailable(boxPhoto, { hasBox: true, hasLockmebox: true })).toBe(true);
+  });
 });
 
 describe("Gespeicherte Auswahl lesen", () => {

@@ -147,18 +147,22 @@ export async function userHasBox(userId: string): Promise<boolean> {
   return (await prisma.boxStatus.count({ where: { userId } })) > 0;
 }
 
-export async function getBoxFormContext(userId: string): Promise<{ boxConfirm: boolean; boxName: string; requiresBolt: boolean }> {
-  if (!boxCouplingEnabled()) return { boxConfirm: false, boxName: "", requiresBolt: false };
-  const boxes = await prisma.boxStatus.findMany({ where: { userId }, select: { name: true, kind: true } });
+/** Welche Box ein Träger führt: Art, Nummer (`boxId`: Heimdall-Geräte-id bzw. BLE-Name der LockMeBox) und Anzeigename. */
+export type BoxIdentity = { kind: string; boxId: string; name: string };
+
+export async function getBoxFormContext(userId: string): Promise<{ boxConfirm: boolean; boxName: string; requiresBolt: boolean; boltAlways: boolean; boxes: BoxIdentity[] }> {
+  if (!boxCouplingEnabled()) return { boxConfirm: false, boxName: "", requiresBolt: false, boltAlways: false, boxes: [] };
+  const boxes = await prisma.boxStatus.findMany({ where: { userId }, select: { name: true, kind: true, boxId: true } });
   const boxName = boxes.map((b) => b.name).filter(Boolean).join(", ");
   // Ohne Box ist `requiresBolt` schon beantwortet — die zweite Abfrage entfällt. Sie träfe sonst
   // auch die drei Aufrufer, die das Feld gar nicht lesen (Kontroll-Formular, Freigabe, Einstellungen).
-  if (boxes.length === 0) return { boxConfirm: false, boxName, requiresBolt: false };
+  if (boxes.length === 0) return { boxConfirm: false, boxName, requiresBolt: false, boltAlways: false, boxes };
   // Bei der LockMeBox gilt der Verschluss IMMER erst mit dem Riegel — dieselbe Regel wie in
   // `lockAwaitsBolt`, hier nur für die Anzeige (das Formular zeigt dann kein Zeitfeld).
-  if (hasLockmebox(boxes)) return { boxConfirm: true, boxName, requiresBolt: true };
+  // `boltAlways`: der Schalter der Keyholderin wirkt dort nicht — die Einstellungen zeigen ihn gesperrt.
+  if (hasLockmebox(boxes)) return { boxConfirm: true, boxName, requiresBolt: true, boltAlways: true, boxes };
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { lockRequiresBolt: true } });
-  return { boxConfirm: true, boxName, requiresBolt: user?.lockRequiresBolt ?? false };
+  return { boxConfirm: true, boxName, requiresBolt: user?.lockRequiresBolt ?? false, boltAlways: false, boxes };
 }
 
 /** Returns active (non-archived) KG devices for a user, ordered by creation date.

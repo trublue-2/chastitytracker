@@ -45,6 +45,11 @@ export interface QuickSetting {
   descKey: string;
   requires?: QuickSettingRequirement;
   /**
+   * Entfällt bei einer LockMeBox: die Einstellung wirkt dort nicht (`lockAwaitsBolt` gilt für sie
+   * immer). Ein Chip, der „aus" zeigt, während der Träger wartet, sagt das Falsche.
+   */
+  unlessLockmebox?: boolean;
+  /**
    * Das Feld, an dem diese Einstellung HÄNGT — ist es aus, wirkt sie nicht, und der Chip entfällt.
    *
    * Dieselbe Regel, der die Einstellungs-Seite schon folgt: dort steht „nur bei Sperrzeit" im
@@ -72,7 +77,7 @@ export const QUICK_SETTINGS: readonly QuickSetting[] = [
   { key: "inspectionReminder", field: "inspectionReminderEnabled", labelKey: "quickInspectionReminder", descKey: "quickInspectionReminderDesc" },
   { key: "inspectionAutoMark", field: "inspectionAutoMarkEnabled", labelKey: "quickInspectionAutoMark", descKey: "quickInspectionAutoMarkDesc" },
   { key: "weightTracking", field: "weightTrackingEnabled", labelKey: "quickWeightTracking", descKey: "quickWeightTrackingDesc" },
-  { key: "lockRequiresBolt", field: "lockRequiresBolt", labelKey: "quickLockRequiresBolt", descKey: "quickLockRequiresBoltDesc", requires: "box" },
+  { key: "lockRequiresBolt", field: "lockRequiresBolt", labelKey: "quickLockRequiresBolt", descKey: "quickLockRequiresBoltDesc", requires: "box", unlessLockmebox: true },
 ];
 
 /**
@@ -110,8 +115,9 @@ export function quickSettingValue(row: object, s: QuickSetting): boolean {
  *  schaltet, ist schlimmer als keiner. */
 export function quickSettingAvailable(
   s: QuickSetting,
-  ctx: { hasBox: boolean },
+  ctx: { hasBox: boolean; hasLockmebox?: boolean },
 ): boolean {
+  if (s.unlessLockmebox && ctx.hasLockmebox) return false;
   if (s.requires === "box") return ctx.hasBox;
   return true;
 }
@@ -124,7 +130,7 @@ export function quickSettingAvailable(
 export function quickSettingOnCard(
   s: QuickSetting,
   row: object,
-  ctx: { hasBox: boolean },
+  ctx: { hasBox: boolean; hasLockmebox?: boolean },
 ): boolean {
   if (!quickSettingAvailable(s, ctx)) return false;
   return !s.dependsOn || (row as QuickSettingValues)[s.dependsOn] === true;

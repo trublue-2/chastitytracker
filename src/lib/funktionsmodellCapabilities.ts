@@ -487,7 +487,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
     what: "Ob der Verschluss des Trägers erst gilt, wenn die Box „Riegel zu\" meldet — bis dahin ist sein Eintrag nur der Aufruf.",
     actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
     routes: ["/api/admin/users/[id]"], tools: ["set_box"],
-    note: "Vorgabe aus; sichtbar nur, wo eine Box gemeldet hat. Das ABSCHALTEN vollzieht einen gerade wartenden Aufruf sofort — das ist zugleich der Ausweg, wenn die Box nicht mehr meldet. Details: docs/riegel-konzept.md.",
+    note: "Vorgabe aus; sichtbar nur, wo eine Box gemeldet hat. Bei einer LockMeBox gilt der Riegel immer — der Schalter steht dort gesperrt auf „an\", und Umlegen (auch über den MCP) tut nichts, auch kein Vollziehen eines wartenden Aufrufs. Das ABSCHALTEN vollzieht einen gerade wartenden Aufruf sofort — das ist zugleich der Ausweg, wenn die Box nicht mehr meldet. Details: docs/riegel-konzept.md.",
   }),
   c({
     id: "box-photo-due", mechanic: "Box", title: "Box-Foto nach „Riegel zu\" nachreichen",

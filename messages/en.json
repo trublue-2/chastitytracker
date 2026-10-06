@@ -1577,7 +1577,13 @@
     "strafbuchGemeldet": "Reported as done by the wearer on {date}",
     "boxPhotoDueInfo": "Box photo outstanding since {date}",
     "boxPhotoWaive": "Waive box photo",
-    "boxPhotoWaiveHint": "The lock stays valid. Only for when the photo cannot be obtained."
+    "boxPhotoWaiveHint": "The lock stays valid. Only for when the photo cannot be obtained.",
+    "boltGateAlways": "With a LockMeBox the lock always takes effect only once the bolt is shut — this switch has no effect there and cannot be changed.",
+    "boxInfoNone": "No box registered.",
+    "boxInfoKind": "Box type",
+    "boxInfoNumber": "Box no.",
+    "boxKindHeimdall": "Heimdall",
+    "boxKindLockmebox": "LockMeBox"
   },
   "forgotPassword": {
     "pageTitle": "Reset password",
