@@ -3,8 +3,8 @@
 import { useState } from "react";
 
 /**
- * Das Wegklicken eines Hinweises, dessen Quittung am `User` liegt — geteilt vom Umstellungs-Hinweis
- * (`ChangeoverNotice`) und dem Hinweis zur Foto-Prüfung (`PhotoAnalysisNotice`).
+ * Das Wegklicken eines Hinweises, dessen Quittung am `User` liegt — heute der Hinweis zur Foto-Prüfung
+ * (`PhotoAnalysisNotice`); ein weiterer Hinweis dieser Art nimmt denselben Hook.
  *
  * **Optimistisch geschlossen, ohne Erfolgsprüfung.** Schlägt der PATCH fehl, erscheint der Hinweis
  * beim nächsten Aufruf noch einmal — ein hinnehmbarer Ausgang und allemal besser, als den Nutzer vor
@@ -14,7 +14,7 @@ import { useState } from "react";
  * navigiert weg und schnitte die laufende Anfrage sonst ab — der Hinweis käme wieder. Dieselbe Form
  * nutzt `useLocaleSwitcher` aus demselben Grund.
  *
- * Die Route nimmt nur den AKTUELLEN Wert an (siehe die beiden `…-seen`-Routen). Liegt zwischen Anzeige
+ * Die Route nimmt nur den AKTUELLEN Wert an (siehe die `…-seen`-Route des Hinweises). Liegt zwischen Anzeige
  * und Klick eine Änderung, wird die alte Quittung abgelehnt, und der neue Hinweis erscheint.
  */
 export function useNoticeDismiss(url: string, body: Record<string, string>) {

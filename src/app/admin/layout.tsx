@@ -8,7 +8,6 @@ import { ownTrackerHidden } from "@/lib/ownTracker";
 import { keyholderWorld } from "@/lib/theme";
 import pkg from "../../../package.json";
 import { adminShellColCls } from "@/app/components/inputStyles";
-import ChangeoverNoticeGate from "@/app/components/ChangeoverNoticeGate";
 import PhotoAnalysisScope from "@/app/components/PhotoAnalysisScope";
 
 // SECURITY: admin-only, user-spezifisch — nie statisch/geteilt cachen (per-Request inkl. RSC).
@@ -50,8 +49,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           die volle Breite, die Zeilen darunter das Lesemass. */}
       <div className="lg:ml-64 2xl:pr-64 min-h-screen pb-[var(--bottom-nav-space)] lg:pb-0">
         <div className={`${adminShellColCls} [--block-col:100%] [--block-gutter:0px]`}>
-          {/* Siehe `dashboard/layout.tsx` — und ebenfalls INNERHALB der Spalte. */}
-          {user?.id && <ChangeoverNoticeGate userId={user.id} />}
           <PhotoAnalysisScope notice={{ userId: user?.id, isAdmin: isGlobalAdmin }}>{children}</PhotoAnalysisScope>
         </div>
       </div>

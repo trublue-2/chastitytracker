@@ -400,11 +400,8 @@ export const FM_REGISTRY: FmEntry[] = [
     effect: "Startseite nach der Anmeldung; `auto` wählt sie nach Rolle.",
     writers: ["sub"], affects: ["Oberfläche"], anchor: "userSelfField.ts",
   }),
-  s({
-    model: "User", field: "noticeSeenVersion", domain: "konto", scope: "standing",
-    effect: "Welche Umstellung dieser Nutzer quittiert hat, als Versionsnummer. Leer = der Hinweis zur laufenden Umstellung erscheint beim nächsten Aufruf. Reine Anzeige-Quittung: er ändert nichts an Regeln, Fristen oder Beurteilung.",
-    writers: ["sub"], affects: ["Oberfläche"], anchor: "notice.ts:NOTICE_VERSION",
-  }),
+  x("runtime", "User", "noticeSeenVersion",
+    "Veraltet: Quittung des einmaligen Umstellungs-Hinweises auf v6, der entfernt wurde. Wird nirgends mehr gelesen oder geschrieben; die Spalte bleibt, bis eine Migration sie entfernt."),
   s({
     model: "User", field: "photoAnalysisNoticeSeen", domain: "konto", scope: "standing",
     effect: "Welchen Stand der Foto-Prüfung dieser Nutzer zuletzt quittiert hat (`none` oder `external:<anbieter>`). Weicht der Stand der Instanz davon ab, erscheint der Hinweis erneut — bei Anbieterwechsel und am Ende der Übergangsfrist. Den Hinweis gibt es nur im Keyholder-Bereich; Subs erfahren den Datenweg allein über das ⓘ am Foto-Feld. Reine Anzeige-Quittung.",

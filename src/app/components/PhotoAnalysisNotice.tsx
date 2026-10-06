@@ -16,9 +16,8 @@ import { useNoticeDismiss } from "@/app/hooks/useNoticeDismiss";
  * aus und sollen wissen, wohin die Fotos gehen. **Nur im Keyholder-Bereich** — die Subs erfahren es
  * über das ⓘ am Foto-Feld (`PhotoAnalysisScope`).
  *
- * Gleiche Bauform wie der Umstellungs-Hinweis (`ChangeoverNotice`): Merker am `User`, quittiert über
- * `useNoticeDismiss`. Anders als dort ist der Text ein Zustand der INSTANZ — deshalb kommen Anbieter und
- * Stand als Props, und die Quittung schickt genau den Stand mit, der hier stand.
+ * Merker am `User`, quittiert über `useNoticeDismiss`. Der Text ist ein Zustand der INSTANZ —
+ * deshalb kommen Anbieter und Stand als Props, und die Quittung schickt genau den Stand mit, der hier stand.
  *
  * Der Admin sieht zusätzlich, bis wann der geteilte Schlüssel des Portal-Betreibers noch gilt, und
  * wo er seinen eigenen einträgt. Ein Keyholder ohne Admin-Rolle bekommt davon nichts — es ist nicht seine Entscheidung.

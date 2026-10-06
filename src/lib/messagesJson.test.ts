@@ -4,7 +4,7 @@ import { join } from "path";
 
 /**
  * Doppelte Schlüssel in den Message-Dateien fallen sonst niemandem auf: `JSON.parse` behält still den
- * letzten, und jede Schlüssel-Prüfung (`notificationEventLabels.test.ts`, `notice.test.ts`) arbeitet
+ * letzten, und jede Schlüssel-Prüfung (`notificationEventLabels.test.ts`) arbeitet
  * auf dem bereits geparsten Objekt. Entstanden ist einer beim Merge, als beide Seiten denselben
  * Schlüssel anlegten (11.09.2026) — mit verschiedenem Text, von dem einer lautlos verschwand.
  *

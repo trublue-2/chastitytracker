@@ -80,11 +80,9 @@ const BLOCK_USER_SELECT = {
   inspectionAutoMarkEnabled: true,
   inspectionAutoMarkDelayMinutes: true,
   inspectionReminderDelayMinutes: true,
-  // Für den Umstellungs-Hinweis (`ChangeoverNoticeGate`). Steht MIT drin aus demselben Grund wie
+  // Für den Hinweis zur Foto-Prüfung (`PhotoAnalysisScope`). Steht MIT drin aus demselben Grund wie
   // `dashboardLayout`: die Zeile wird ohnehin geladen, eine zweite Abfrage dafür kostete
   // gemessene ~215 µs auf dem kritischen Pfad, die Spalte kostet nichts.
-  noticeSeenVersion: true,
-  // Für den Hinweis zur Foto-Prüfung (`PhotoAnalysisScope`) — dieselbe Begründung.
   photoAnalysisNoticeSeen: true,
   // Für die Foto-Aufnahme der Dashboard-Karten (`BoxPhotoDueCard`) — dieselbe Begründung.
   mobileDesktopUpload: true,

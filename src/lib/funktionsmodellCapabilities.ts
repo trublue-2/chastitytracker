@@ -673,9 +673,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "account-display", mechanic: "Zugang", title: "Darstellung einstellen",
-    what: "Sprache, Startseite, das Ausblenden des eigenen Trackers, die Zusammenstellung des eigenen Dashboards und das Wegklicken des Umstellungs-Hinweises.",
+    what: "Sprache, Startseite, das Ausblenden des eigenen Trackers, die Zusammenstellung des eigenen Dashboards und das Wegklicken des Hinweises zur Foto-Prüfung.",
     actors: ["sub"], surfaces: ["sub-ui"],
-    routes: ["/api/settings/locale", "/api/settings/start-page", "/api/settings/hide-own-tracker", "/api/settings/dashboard-layout", "/api/settings/notice-seen", "/api/settings/photo-analysis-notice-seen"],
+    routes: ["/api/settings/locale", "/api/settings/start-page", "/api/settings/hide-own-tracker", "/api/settings/dashboard-layout", "/api/settings/photo-analysis-notice-seen"],
   }),
   c({
     id: "account-timezone", mechanic: "Zugang", title: "Zeitzone setzen",

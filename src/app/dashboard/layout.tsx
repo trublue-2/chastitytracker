@@ -16,7 +16,6 @@ import { prisma } from "@/lib/prisma";
 import { subWorld } from "@/lib/theme";
 import pkg from "../../../package.json";
 import { readingColCls } from "@/app/components/inputStyles";
-import ChangeoverNoticeGate from "@/app/components/ChangeoverNoticeGate";
 import PhotoAnalysisScope from "@/app/components/PhotoAnalysisScope";
 
 // SECURITY: user-spezifisch (auth() → Rolle/Avatar/Daten). Nie statisch/geteilt cachen — erzwingt
@@ -111,13 +110,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
           und sie würde schmaler statt mittiger. Ab 1280 px passt beides. */}
       <div className="lg:ml-64 xl:pr-64 min-h-[calc(100vh-3.5rem)] overscroll-y-contain">
         <div className={`${readingColCls} [--block-col:100%] [--block-gutter:0px]`}>
-          {/* Im LAYOUT und nicht auf der Übersichtsseite: `landing.ts` kennt fünf Einstiege, und
-              zwei davon führen an der Übersicht vorbei — eine Keyholderin mit genau einem Sub
-              landet direkt auf dessen Detailseite. Hier erreicht der Hinweis jeden, und weil er
-              sich pro Person merkt, dass er gelesen wurde, steht er trotzdem nur einmal da.
-              INNERHALB der Spalte: davor lief er von Bildschirmkante zu Bildschirmkante und
-              ignorierte den Versatz der Seitenleiste (Issue #87). */}
-          {userId && <ChangeoverNoticeGate userId={userId} />}
           <PhotoAnalysisScope>
             <OfflineIndicator />
             {children}

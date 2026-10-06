@@ -138,17 +138,13 @@ model User {
   // täglich gebraucht werden, hängt an seinen Regeln, nicht an ihrem Geschmack. Zwei Keyholder
   // desselben Trägers teilen sie sich damit — wie jede andere seiner Einstellungen auch.
   quickSettings                  String?
-  // Welche Umstellung dieser Nutzer zuletzt quittiert hat, als Versionsnummer ("6.0.0").
-  //
-  // Eine VERSION und kein Boolean: derselbe Merker trägt damit auch den nächsten
-  // Umstellungs-Hinweis, statt dass jeder eine eigene Spalte bekommt. Und am `User` und nicht in
-  // `localStorage`, weil der Hinweis einmal pro PERSON gelesen werden soll — nicht einmal pro
-  // Gerät. Genau das war der Fehler, den #88 beschrieb: eine Anzeige-Entscheidung im
-  // Gerätespeicher läuft zwischen Handy und Rechner auseinander.
+  // VERALTET: Quittung des einmaligen Umstellungs-Hinweises auf v6, der entfernt wurde. Wird nirgends
+  // mehr gelesen oder geschrieben. Die Spalte bleibt, bis eine eigene Migration sie entfernt
+  // (Trigger-Register in `mcp/stateAreas.ts` mitziehen).
   noticeSeenVersion              String?
   // Welchen Stand der Foto-Prüfung dieser Nutzer zuletzt quittiert hat: `none` oder
-  // `external:<anbieter>` (siehe `disclosureOf` in vision/config.ts). Kein Versions-Zähler wie
-  // `noticeSeenVersion`: der Hinweis muss je INSTANZ-Zustand erscheinen und erneut, sobald der Admin
+  // `external:<anbieter>` (siehe `disclosureOf` in vision/config.ts). Kein Versions-Zähler:
+  // der Hinweis muss je INSTANZ-Zustand erscheinen und erneut, sobald der Admin
   // den Anbieter wechselt oder die Übergangsfrist abläuft — beides weiss keine einkompilierte Version.
   photoAnalysisNoticeSeen        String?
   // Free-text keyholder rules the human admin sets for the MCP AI keyholder (soft guidance, read-only to the agent).

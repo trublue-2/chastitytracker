@@ -37,6 +37,13 @@
           "de": "Verschluss und Öffnung werden auf die Sekunde datiert, solange du die Zeit nicht änderst. Wer kurz nach einer Öffnung wieder verschliesst (oder umgekehrt), bekommt nicht mehr „Zeitpunkt muss nach dem vorherigen Eintrag liegen\".",
           "en": "Locking and opening are timed to the second as long as you leave the time alone. Locking again right after an opening (or the other way round) no longer fails with “time must be after the previous entry”."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der einmalige Hinweis „Die App sieht neu aus“ entfällt.",
+          "en": "The one-time “The app looks new” notice is gone."
+        }
       }
     ]
   },
