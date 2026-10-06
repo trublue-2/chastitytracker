@@ -1266,6 +1266,20 @@ model Entry {
   // Vision-Provider, oder Prüfung läuft noch). Advisory wie deviceCheck: die Keyholderin sieht es,
   // blockiert aber nichts. Erkennt "ein Schlüssel", NICHT "der richtige Schlüssel".
   keyDetected                   Boolean?
+  /// Ab wann das Box-Foto fällig ist — nur VERSCHLUSS mit `keyInBox: true`. Gesetzt in dem Moment, in
+  /// dem die Box „Riegel zu" meldet: ein Foto VOR dem Riegel belegt nichts, bei offener Box lässt
+  /// sich der Schlüssel danach wieder herausnehmen. Das Foto wird nachgereicht und landet in
+  /// `boxImageUrl`. Einmal gesetzt, wird es nicht erneut gesetzt (siehe `boxPhotoDueService.ts`).
+  boxPhotoDueAt                 DateTime?
+  /// Die Keyholderin hat das Foto erlassen (Notausgang bei Kamerafehler, Schlüssel nicht sichtbar).
+  /// Eigenes Feld statt `boxPhotoDueAt = null`, weil der nächste „Riegel zu"-Sync es sonst neu fällig
+  /// stellte.
+  boxPhotoWaivedAt              DateTime?
+  /// Das nachgereichte Box-Foto trägt eine Aufnahmezeit (EXIF, sonst Dateizeit des Geräts) VOR „Riegel
+  /// zu" (`boxPhotoTakenBeforeBolt`): es zeigt dann womöglich die noch offene Box. Angenommen, aber
+  /// markiert; die Keyholderin sieht den Hinweis. Das Urteil steht fest, die Zeit selbst wird nicht
+  /// gespeichert — sie kommt vom Gerät und ist ein Hinweis, kein Beweis.
+  boxImageBeforeBolt            Boolean   @default(false)
   /// Wann der Riegel diesen Verschluss VOLLZOGEN hat — nur bei VERSCHLUSS gesetzt.
   ///
   /// `null` heisst „der Aufruf steht noch aus": der Träger hat den Verschluss erfasst, die Box hat

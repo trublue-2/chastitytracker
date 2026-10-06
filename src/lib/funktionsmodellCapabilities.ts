@@ -490,6 +490,18 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Vorgabe aus; sichtbar nur, wo eine Box gemeldet hat. Das ABSCHALTEN vollzieht einen gerade wartenden Aufruf sofort — das ist zugleich der Ausweg, wenn die Box nicht mehr meldet. Details: docs/riegel-konzept.md.",
   }),
   c({
+    id: "box-photo-due", mechanic: "Box", title: "Box-Foto nach „Riegel zu\" nachreichen",
+    what: "Sobald die Box den Riegel als zu meldet, fordert das Dashboard ein Bild der Box mit sichtbarem Schlüssel an; es hängt am Verschluss.",
+    actors: ["sub", "system"], surfaces: ["sub-ui", "automatik"], routes: ["/api/entries/[id]/box-photo"],
+    note: "Der Verschluss-Dialog fragt das Foto nicht mehr ab: bei offener Box belegt es nichts, der Schlüssel liesse sich danach wieder entnehmen. Die Aufforderung bleibt, bis das Bild da ist oder erlassen wird; der Verschluss gilt auch ohne. Fällig wird es einmal je Verschluss, für LockMeBox und Heimdall. Ein Foto mit Aufnahmezeit vor „Riegel zu\" wird angenommen, aber markiert. Kontrollen verlangen ihr Foto weiterhin.",
+  }),
+  c({
+    id: "box-photo-waive", mechanic: "Box", title: "Fälliges Box-Foto erlassen",
+    what: "Die Keyholderin streicht die Aufforderung, wenn das Bild nicht zu beschaffen ist (Kamera defekt, Schlüssel im Fenster nicht erkennbar).",
+    actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"], routes: ["/api/admin/box-photo"], tools: ["waive_box_photo"],
+    note: "Notausgang, kein Bypass der Kontrolle. Der Verschluss bleibt unberührt.",
+  }),
+  c({
     id: "box-relock", mechanic: "Box", title: "Box wieder verriegeln",
     what: "Löst das Verriegeln nach einer Reinigungspause aus.",
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/box/relock"],

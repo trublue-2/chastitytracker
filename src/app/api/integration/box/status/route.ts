@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireBoxSync } from "@/lib/boxSync";
-import { commitPendingLockSafe } from "@/lib/lockCommit";
+import { boxReportedLockedSafe } from "@/lib/lockCommit";
 import { otherBoxExists } from "@/lib/boxPairing";
 import { errorResponse } from "@/lib/serviceResult";
 
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   //
   // Awaited, aber schluckend (siehe `commitPendingLockSafe`): die Box muss ihre Antwort in JEDEM
   // Fall bekommen, sonst zieht sie ihr Kommando nie ab.
-  if (status.reportedLocked === true) await commitPendingLockSafe(user.id, status.lastSyncAt ?? new Date(), "box/status");
+  if (status.reportedLocked === true) await boxReportedLockedSafe(user.id, status.lastSyncAt ?? new Date(), "box/status");
 
   return NextResponse.json({ pendingCommand });
 }

@@ -108,8 +108,11 @@ There is **no** sub-facing command route. The box has no separate controls: it f
 ## Key proof from telemetry
 
 The key proof on an entry is normally the **box photo** (`Entry.boxImageUrl` →
-`keyDetected`, judged server-side by `detectKeyInBox`). The photo stays
-**optional**, and the form still asks before saving without one.
+`keyDetected`, judged server-side by `detectKeyInBox`). The photo is requested
+only **after** the box reports the bolt closed — before that it proves nothing,
+because the key could still be taken out. The lock form no longer asks for it;
+the dashboard does (`docs/lockmebox.md`, "Das Box-Foto kommt nach dem Riegel").
+It stays **optional** for the lock itself, and the keyholder can waive it.
 
 `lib/boxKeyProof.ts` adds a second, photo-free source: **if the bolt has not
 moved since the last proof, that proof still holds.** The anchors are the lock

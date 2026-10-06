@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-110 Funktionen über 18 Mechaniken, davon 12 ohne jede Bedienung — sie laufen von selbst.
+112 Funktionen über 18 Mechaniken, davon 13 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -161,6 +161,8 @@ Steckbrief: [60-box.md](60-box.md)
 |---|---|---|---|---|
 | **Box-Zustand ansehen** | Verriegelung (Soll und Ist), Akku, Riegelstellung, letzter Kontakt und die Vorwarnungen der Failsafes. | Sub, Keyholder (UI), Keyholder (MCP) | App (Träger), App (Keyholder), MCP | `/api/box` `get_box_state` |
 | **Verschluss an den Riegel binden** | Ob der Verschluss des Trägers erst gilt, wenn die Box „Riegel zu" meldet — bis dahin ist sein Eintrag nur der Aufruf. <br>*Vorgabe aus; sichtbar nur, wo eine Box gemeldet hat. Das ABSCHALTEN vollzieht einen gerade wartenden Aufruf sofort — das ist zugleich der Ausweg, wenn die Box nicht mehr meldet. Details: docs/riegel-konzept.md.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]` `set_box` |
+| **Box-Foto nach „Riegel zu" nachreichen** | Sobald die Box den Riegel als zu meldet, fordert das Dashboard ein Bild der Box mit sichtbarem Schlüssel an; es hängt am Verschluss. <br>*Der Verschluss-Dialog fragt das Foto nicht mehr ab: bei offener Box belegt es nichts, der Schlüssel liesse sich danach wieder entnehmen. Die Aufforderung bleibt, bis das Bild da ist oder erlassen wird; der Verschluss gilt auch ohne. Fällig wird es einmal je Verschluss, für LockMeBox und Heimdall. Ein Foto mit Aufnahmezeit vor „Riegel zu" wird angenommen, aber markiert. Kontrollen verlangen ihr Foto weiterhin.* | Sub, System | App (Träger), läuft von selbst | `/api/entries/[id]/box-photo` |
+| **Fälliges Box-Foto erlassen** | Die Keyholderin streicht die Aufforderung, wenn das Bild nicht zu beschaffen ist (Kamera defekt, Schlüssel im Fenster nicht erkennbar). <br>*Notausgang, kein Bypass der Kontrolle. Der Verschluss bleibt unberührt.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/box-photo` `waive_box_photo` |
 | **Box wieder verriegeln** | Löst das Verriegeln nach einer Reinigungspause aus. | Sub | App (Träger) | `/api/box/relock` |
 | **LockMeBox per Bluetooth koppeln und bedienen** | Das Handy des Trägers verbindet sich mit einer LockMeBox (Werks-Firmware) und reicht Status und Befehle zwischen Box und Tracker durch; der erste Kontakt koppelt sie. <br>*Die Box folgt den Einträgen wie Heimdall, ausgeführt wird aber erst beim nächsten Verbinden an der Box. Nur mit BLE_BRIDGE_KEY. Details: docs/lockmebox.md.* | Sub | App (Träger) | `/api/box/ble` |
 | **Box entfernen** | Der Träger entfernt seine Box, um eine andere zu koppeln — er führt genau eine. <br>*Nur wenn er offen ist, die Box nicht als zu gemeldet hat und weder Aufruf noch Kommando wartet. Eine zweite Kopplung lehnen beide Wege ab (Bluetooth und Heimdall-Sync). Details: docs/lockmebox.md.* | Sub | App (Träger) | `/api/box/[boxId]` |
@@ -264,6 +266,7 @@ Grund für die Frage, welche Einstellung etwas verursacht hat: bei den meisten g
 | **Aufgaben auswerten und melden** | Aufgaben | Leitet den Zustand jeder Aufgabe aus den Einträgen ab, stellt terminierte zu und meldet das Ergebnis an beide Seiten. |
 | **Vergehen melden** | Strafbuch | Stellt erkannte, bestrafte und verworfene Vergehen beiden Seiten in den Posteingang. |
 | **Geräte-Abgleich beim Kontroll-Foto** | Geräte | Vergleicht nach dem Einreichen das Bild mit den Referenzbildern des deklarierten Geräts. |
+| **Box-Foto nach „Riegel zu" nachreichen** | Box | Sobald die Box den Riegel als zu meldet, fordert das Dashboard ein Bild der Box mit sichtbarem Schlüssel an; es hängt am Verschluss. |
 | **Siegel im Foto erkennen** | Box | Prüft, ob das Siegel auf dem Bild unversehrt und lesbar ist. |
 | **Posteingang beschneiden** | Nachrichten | Löscht einmal täglich gelesene Meldungen jenseits der Aufbewahrungsfrist (Vorgabe ein Jahr, per MESSAGE_RETENTION_DAYS einstellbar, 0 = aus). |
 | **Terminierte Direktiven zustellen** | Benachrichtigungen | Der Minuten-Takt stellt Kontrollen, Sperrzeiten, Orgasmus-Fenster und Aufgaben zu, sobald sie wirksam werden. |

@@ -88,6 +88,12 @@ export interface SessionEventData {
 }
 
 
+/** Der Text des Schlüssel-Urteils je Quelle — nur der FEHLENDE Schlüssel hat einen eigenen, quellenlosen. */
+const KEY_PROOF_LABEL = {
+  photo: "keyDetected",
+  telemetry: "keyDetectedTelemetry",
+} as const;
+
 function CaptureButton({ href }: { href: string }) {
   const t = useTranslations("dashboard");
   const [open, setOpen] = useState(false);
@@ -191,14 +197,20 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
   // Der NACHWEIS ist der Normalfall und deshalb neutral; nur sein Fehlen ist eine Aussage. Vorher
   // war es umgekehrt gewichtet: der erbrachte Nachweis leuchtete grün, das Fehlen rot — zwei
   // Signale, wo eines gemeint ist.
-  const keyPill = ev.keyDetected == null ? null : (
+  // Ein Foto von VOR „Riegel zu" (`photo-before-bolt`) geht vor und trägt Warn-Optik, auch wenn ein
+  // Schlüssel erkannt wurde oder gar kein Urteil vorliegt: es zeigt womöglich die noch offene Box und
+  // belegt dann nichts.
+  const keyBeforeBolt = ev.keyProofSource === "photo-before-bolt";
+  const keyPill = ev.keyDetected == null && !keyBeforeBolt ? null : (
     <Badge
       size="sm"
-      variant={ev.keyDetected ? "neutral" : "warn"}
+      variant={ev.keyDetected && !keyBeforeBolt ? "neutral" : "warn"}
       icon={<KeyRound size={11} />}
-      label={ev.keyDetected
-        ? t(ev.keyProofSource === "telemetry" ? "keyDetectedTelemetry" : "keyDetected")
-        : t("keyNotDetected")}
+      label={keyBeforeBolt
+        ? t("keyPhotoBeforeBolt")
+        : ev.keyDetected
+          ? t(KEY_PROOF_LABEL[ev.keyProofSource === "telemetry" ? "telemetry" : "photo"])
+          : t("keyNotDetected")}
     />
   );
 

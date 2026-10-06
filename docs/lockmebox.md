@@ -37,6 +37,19 @@ verschlossen oder die Keyholderin freigegeben hat. Antippen öffnet die Übersic
 selbst sucht (`announceBoxCommand` in `boxCommandNotify.ts`, dieselbe Stelle, die Heimdall den
 Instant-Push schickt). Sie folgt der Push-Stufe des Trägers wie eine wichtige Meldung.
 
+**Das Box-Foto kommt nach dem Riegel** (`boxPhotoDue.ts`, `boxPhotoDueService.ts`). Der
+Verschluss-Dialog fragt es nicht mehr ab: bei noch offener Box belegt ein Foto nichts, der Schlüssel
+liesse sich danach wieder herausnehmen. Meldet die Box „Riegel zu" (`boxReportedLockedSafe` in
+`lockCommit.ts` — der eine Einstieg von Heimdall-Ereignis, Heimdall-Status und Bluetooth), wird für
+den laufenden Verschluss mit `keyInBox: true` einmal `Entry.boxPhotoDueAt` gesetzt. Der Träger bekommt
+eine Push-Mitteilung und im Dashboard die Aufforderung „Box-Bild mit sichtbarem Schlüssel
+hinterlegen" (`BoxPhotoDueCard`); sie bleibt, bis das Bild da ist. Das Bild geht an
+`POST /api/entries/<id>/box-photo`, landet in `Entry.boxImageUrl` und wird wie bisher server-seitig
+auf den Schlüssel geprüft. Der Verschluss gilt auch ohne Bild; öffnet der Träger vorher, erledigt sich
+die Aufforderung. Verschlüsse, die älter sind als diese Regel, hat die Migration auf „erlassen" gestellt;
+ihnen wird nichts nachgefordert. Notausgang: die Keyholderin erlässt das Bild (`Entry.boxPhotoWaivedAt`, Route
+`/api/admin/box-photo`, MCP `waive_box_photo`). Die Aufnahmezeit des Fotos (EXIF, sonst Dateizeit) wird mit „Riegel zu" verglichen: liegt sie mehr als fünf Minuten davor, wird das Foto angenommen, aber markiert (`Entry.boxImageBeforeBolt`, `boxPhotoTakenBeforeBolt`) — die Session-Zeile zeigt „Foto vor Riegel zu". Die Zeit liefert das Gerät, es ist ein Hinweis, kein Beweis. Kontrollen verlangen ihr Box-Foto unverändert.
+
 **Eine Box je Träger** (`boxPairing.ts`). Der Schlüssel liegt in einer Box; mit zweien liefen die
 Regeln auseinander (ein Verschluss gälte mit dem Riegel irgendeiner Box, eine Öffnung nur mit der
 LockMeBox). Beide Kopplungswege — der erste Bluetooth-Kontakt und der erste Heimdall-Sync einer

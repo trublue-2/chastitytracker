@@ -39,8 +39,35 @@ async function announce(userId: string, command: "lock" | "open"): Promise<void>
   const kinds = new Set(user.boxStatuses.map((b) => b.kind));
   if (kinds.has("heimdall" satisfies BoxKind)) notifyHeimdall(user.username, command);
   if (!kinds.has("lockmebox" satisfies BoxKind) || !lockmeboxEnabled()) return;
-  // Wichtig, nicht beiläufig: ohne den Gang zur Box gilt der Befehl nie.
+  await pushImportant(userId, user, "boxWaitingPushTitle", command === "lock" ? "boxWaitingPushLock" : "boxWaitingPushOpen");
+}
+
+/** Eine Push-Mitteilung auf der Stufe „important" — wichtig, nicht beiläufig: ohne den Anstoss bliebe
+ *  die Aufforderung liegen, bis jemand zufällig die App öffnet. Ziel ist immer die Übersicht. */
+async function pushImportant(
+  userId: string,
+  user: Parameters<typeof deliveryChannels>[0] & { locale: string | null },
+  titleKey: Parameters<ReturnType<typeof emailT>>[0],
+  bodyKey: Parameters<ReturnType<typeof emailT>>[0],
+): Promise<void> {
   if (!(await deliveryChannels(user, "important")).push) return;
   const t = emailT(user.locale);
-  firePush(userId, t("boxWaitingPushTitle"), t(command === "lock" ? "boxWaitingPushLock" : "boxWaitingPushOpen"), "/dashboard");
+  firePush(userId, t(titleKey), t(bodyKey), "/dashboard");
+}
+
+/**
+ * Der Riegel ist zu, jetzt ist das Box-Foto fällig (`boxPhotoDue.ts`) — sag es dem Träger. Eine
+ * Mitteilung wie bei „Box wartet", und aus demselben Grund „important": ohne den Anstoss bliebe die
+ * Aufforderung liegen, bis jemand zufällig das Dashboard öffnet. Für beide Box-Arten gleich.
+ * Fire-and-forget.
+ */
+export function announceBoxPhotoDue(userId: string): void {
+  notifyPhotoDue(userId).catch((e: unknown) => {
+    console.warn(`[boxCommandNotify] Foto-Ansage fehlgeschlagen: ${(e as Error).message}`);
+  });
+}
+
+async function notifyPhotoDue(userId: string): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: NOTIFY_RECIPIENT_SELECT });
+  if (user) await pushImportant(userId, user, "boxPhotoDuePushTitle", "boxPhotoDuePushBody");
 }

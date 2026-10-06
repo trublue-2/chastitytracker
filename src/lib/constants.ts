@@ -839,8 +839,15 @@ export function validateDeviceInput(input: {
 
 // ── Rotation ────────────────────────────────────────────────────────────────
 
+/** Wie weit die Uhr eines Handys gegenüber der des Servers vorgehen darf, bevor eine von ihm gelieferte
+ *  Zeit „in der Zukunft" liegt — ein paar Minuten Luft, eine Stunde wäre keine Luft mehr, sondern eine
+ *  Lücke. Geteilt von Mess- und Aufnahmezeiten. */
+export const CLIENT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
 export const VALID_ROTATIONS = [0, 90, 180, 270] as const;
 export type Rotation = typeof VALID_ROTATIONS[number];
+/** Eine vom Client gelieferte Drehung, auf eine gültige geklemmt — alles Unbekannte ist 0. */
+export const parseRotation = (v: unknown): Rotation => ((VALID_ROTATIONS as readonly unknown[]).includes(v) ? (v as Rotation) : 0);
 
 /** Validates that imageUrl is an internal upload path (prevents SSRF + ownership bypass). */
 const ALLOWED_IMAGE_URL = /^\/api\/uploads\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/;

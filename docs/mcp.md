@@ -176,7 +176,7 @@ after a cleaning relock (it hangs on `active` alone) and the requirement that th
 sub be locked. A single inspection on demand stays `request_inspection`.
 
 **V2 knowledge / context writes** — `upsert_note`, `link_note`, `set_device_meta`,
-`set_health_hold`, `upsert_appointment`, `upsert_recurring_context`. Each takes a
+`set_health_hold`, `waive_box_photo`, `upsert_appointment`, `upsert_recurring_context`. Each takes a
 mandatory `reason` (audited), supports `dryRun`, and runs in a transaction with a
 recorded field diff. All silent.
 

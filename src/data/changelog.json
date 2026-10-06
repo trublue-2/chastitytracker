@@ -23,6 +23,13 @@
           "de": "Pro Träger ist genau eine Schlüsselbox gekoppelt. Für einen Wechsel lässt sie sich in den Einstellungen entfernen, solange du offen bist und nichts wartet.",
           "en": "Each wearer has exactly one key box paired. To switch, remove it in the settings while you are unlocked and nothing is waiting."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Das Foto der Box mit sichtbarem Schlüssel wird nicht mehr beim Verschliessen verlangt, sondern erst, wenn die Box den Riegel als zu meldet — vorher belegt es nichts. Die Keyholderin kann es erlassen, falls es sich nicht beschaffen lässt. Wurde es vor dem Schliessen aufgenommen, markiert die Session es.",
+          "en": "The box photo with the key visible is no longer asked for when locking, but once the box reports the bolt closed — before that it proves nothing. The keyholder can waive it if it cannot be obtained. If it was taken before the bolt closed, the session flags it."
+        }
       }
     ]
   },

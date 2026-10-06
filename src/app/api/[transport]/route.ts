@@ -34,7 +34,7 @@ import { prisma } from "@/lib/prisma";
 import { keyholderDashboard, getBoxState } from "@/lib/mcp/dashboard";
 import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
 import { getOffenses, OFFENSE_TYPES } from "@/lib/mcp/ledger";
-import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "@/lib/mcp/context";
+import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef, waiveBoxPhotoDef } from "@/lib/mcp/context";
 import { timeline } from "@/lib/mcp/timeline";
 import { getActionLog } from "@/lib/mcp/actionlog";
 import { checkUpdates } from "@/lib/mcp/stateToken";
@@ -242,7 +242,7 @@ const MCP_SERVER_INSTRUCTIONS =
   "Kategorie, Preis, Kontroll-Code-Pflicht), `upsert_category` (anlegen/ändern inkl. der drei Regeln; " +
   "an der eingebauten KG-Kategorie sind die Regeln unveränderlich), `delete_device`/`delete_category` " +
   "zum Wegräumen. Bestand samt Kategorie-ids: `get_devices`.\n" +
-  "• WISSEN/META/KONTEXT: `upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, " +
+  "• WISSEN/META/KONTEXT: `upsert_note`, `link_note`, `set_device_meta`, `set_health_hold`, `waive_box_photo`, " +
   "`upsert_appointment`, `upsert_recurring_context`. Diese Schicht ist dein GEDÄCHTNIS: zwischen zwei " +
   "Sitzungen erinnerst du nur, was hier in der DB steht — vom Gespräch bleibt nichts. Halte darum fest, " +
   "was du gelernt hast (`upsert_note`; `refs` hängt die Notiz gleich ans Objekt, `link_note` nur für " +
@@ -2090,6 +2090,21 @@ function registerTools(server: McpServer) {
         },
       },
       (args, extra) => runV2Write(setHealthHoldDef, extra, args),
+    );
+
+    server.registerTool(
+      "waive_box_photo",
+      {
+        title: "Waive the due box photo (v2)",
+        description:
+          "Erlässt das Box-Foto, das nach „Riegel zu\" fällig wurde (explain_model: Box-Foto). Der Notausgang " +
+          "für den Fall, dass der Träger das Bild nicht beschaffen kann (Kamera defekt, Schlüssel im Fenster " +
+          "nicht zu erkennen) — der Verschluss selbst bleibt gültig und unberührt. Nur sinnvoll, solange " +
+          "`keyholder_dashboard`/`get_box_state` ein fälliges Box-Foto zeigen; sonst lehnt der Aufruf ab. " +
+          "Kein Ersatz für die Kontrolle: Kontrollen verlangen ihr Box-Foto weiterhin." + V2_WRITE_NOTE,
+        inputSchema: { ...writeMetaFields },
+      },
+      (args, extra) => runV2Write(waiveBoxPhotoDef, extra, args),
     );
 
     server.registerTool(

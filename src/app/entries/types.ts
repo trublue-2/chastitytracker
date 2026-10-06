@@ -56,11 +56,6 @@ export interface VerschlussPayload {
   codeImageUrl?: string | null;
   /** Bildersafe: Ziffern im Code-Foto erkannt (Lesbarkeits-✓). */
   codeReadable?: boolean | null;
-  /** Foto durchs Sichtfenster der Box, das den Schlüssel darin zeigt. Nur bei aktiver Box. */
-  boxImageUrl?: string | null;
-  /** Anzeige-Drehung des Box-Fotos — die server-seitige Erkennung liest es damit so, wie der Sub
-   *  es gesehen hat. Kein Urteil vom Client: `keyDetected` entsteht ausschliesslich auf dem Server. */
-  boxImageRotation?: number;
 }
 
 export interface OeffnenPayload {

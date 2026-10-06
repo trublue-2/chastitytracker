@@ -35,7 +35,7 @@ export interface SessionEvent {
 
 type LockRef = { name?: string | null };
 type ActivePair = {
-  verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null; device?: LockRef | null };
+  verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null; boxImageBeforeBolt?: boolean; device?: LockRef | null };
   kontrollen: {
     entryId: string | null; time: Date; recordedAt: Date; imageUrl: string | null; note: string | null;
     deadline: Date | null; kommentar: string | null; code: string | null;
@@ -45,7 +45,7 @@ type ActivePair = {
     verifikationFailure: VerifyFailure | null;
     keyDetected?: boolean | null; boxImageUrl?: string | null;
   }[];
-  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; boxImageUrl?: string | null; keyDetected?: boolean | null; device?: LockRef | null } }[];
+  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; boxImageUrl?: string | null; keyDetected?: boolean | null; boxImageBeforeBolt?: boolean; device?: LockRef | null } }[];
 };
 
 type OrgasmusEntry = { id: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt: string | null };
@@ -75,7 +75,7 @@ export function buildSessionEvents(
       entryId: activePair.verschluss.id,
       kontrolleCode: activePair.verschluss.kontrollCode,
       deviceName: activePair.verschluss.device?.name ?? null,
-      ...keyProofFor(activePair.verschluss.id, activePair.verschluss.keyDetected, activePair.verschluss.boxImageUrl, telemetryKeyProof),
+      ...keyProofFor(activePair.verschluss.id, activePair.verschluss.keyDetected, activePair.verschluss.boxImageUrl, telemetryKeyProof, activePair.verschluss.boxImageBeforeBolt),
       boxImageUrl: activePair.verschluss.boxImageUrl ?? null,
     },
     ...activePair.kontrollen
@@ -117,7 +117,7 @@ export function buildSessionEvents(
       // Fotos des WIEDERVERSCHLUSSES: die Zeile steht für die Pause, der Nachweis gehört aber zum
       // Wiedereinschliessen — „Schlüssel wieder in der Box" ist genau hier die Aussage.
       boxImageUrl: intr.verschluss.boxImageUrl ?? null,
-      ...keyProofFor(intr.verschluss.id, intr.verschluss.keyDetected, intr.verschluss.boxImageUrl, telemetryKeyProof),
+      ...keyProofFor(intr.verschluss.id, intr.verschluss.keyDetected, intr.verschluss.boxImageUrl, telemetryKeyProof, intr.verschluss.boxImageBeforeBolt),
       imageExifTime: null,
       note: intr.oeffnen.note,
       entryId: intr.oeffnen.id,

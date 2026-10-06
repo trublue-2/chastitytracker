@@ -283,7 +283,8 @@
     "Forbidden": "Kein Zugriff — für diese Aktion fehlen deinem Konto die Rechte.",
     "Unauthorized": "Du bist nicht (mehr) angemeldet. Bitte melde dich neu an.",
     "rateLimited": "Zu viele Versuche. Bitte in ein paar Minuten erneut.",
-    "photoAnalysisBaseUrlPrivate": "Diese Adresse zeigt auf ein internes Netz. Das geht nur, wenn der Server-Betreiber es ausdrücklich freigegeben hat."
+    "photoAnalysisBaseUrlPrivate": "Diese Adresse zeigt auf ein internes Netz. Das geht nur, wenn der Server-Betreiber es ausdrücklich freigegeben hat.",
+    "BOX_PHOTO_NOT_DUE": "Für diesen Verschluss ist kein Box-Bild fällig (mehr)."
   },
   "appLock": {
     "subtitle": "Identität bestätigen um fortzufahren",
@@ -620,7 +621,11 @@
     "editLayoutLocked": "Trägt eine Frist — bleibt sichtbar",
     "editLayoutMoved": "{name} ist jetzt an Position {position} von {total}.",
     "editLayoutStartsOpen": "„{name}\": startet Offen — antippen, damit der Block zugeklappt startet",
-    "editLayoutStartsClosed": "„{name}\": startet Zu — antippen, damit der Block offen startet"
+    "editLayoutStartsClosed": "„{name}\": startet Zu — antippen, damit der Block offen startet",
+    "boxPhotoDueTitle": "Box-Bild mit sichtbarem Schlüssel hinterlegen",
+    "boxPhotoDueText": "Der Riegel ist zu. Fotografiere die Box durchs Sichtfenster, sodass der Schlüssel gut erkennbar ist.",
+    "boxPhotoDueSave": "Bild hinterlegen",
+    "keyPhotoBeforeBolt": "Foto vor Riegel zu aufgenommen"
   },
   "newEntry": {
     "title": "Neu erfassen",
@@ -695,7 +700,7 @@
     "saveBtn": "Verschluss speichern",
     "keyInBoxName": "Box: {name}",
     "keyInBoxLabel": "Schlüssel ist in der Box",
-    "keyInBoxDesc": "Aus = du behältst den Schlüssel (z.B. auf Reise). Die Box verriegelt dann nicht.",
+    "keyInBoxDesc": "Aus = du behältst den Schlüssel (z.B. auf Reise). Die Box verriegelt dann nicht. An = sobald der Riegel zu ist, wirst du um ein Bild der Box gebeten.",
     "boltGateTimeHint": "Setzt der Riegel: Speichern ruft die Box zum Schliessen: verschlossen bist du, sobald sie „Riegel zu“ meldet.",
     "sealNumber": "Siegel-Nummer (optional)",
     "sealNumberHint": "5–8 Ziffern",
@@ -723,9 +728,9 @@
     "boxPhotoHint": "Durch das Sichtfenster fotografieren, sodass der Schlüssel gut erkennbar ist.",
     "confirmKeyOutsideTitle": "Schlüssel nicht in der Box?",
     "confirmKeyOutsideText": "Sicher, dass der Schlüssel nicht in die Box muss? Die Box verriegelt dann nicht.",
+    "confirmSaveAnyway": "Trotzdem speichern",
     "confirmNoBoxPhotoTitle": "Kein Foto der Box",
-    "confirmNoBoxPhotoText": "Sicher ohne Foto der Box speichern? Ohne Foto ist nicht belegt, dass der Schlüssel wirklich drin liegt.",
-    "confirmSaveAnyway": "Trotzdem speichern"
+    "confirmNoBoxPhotoText": "Sicher ohne Foto der Box speichern? Ohne Foto ist nicht belegt, dass der Schlüssel wirklich drin liegt."
   },
   "feedback": {
     "title": "Feedback",
@@ -1569,7 +1574,10 @@
     "strafbuchUrteilPlaceholder": "Urteil wählen …",
     "strafbuchUrteilAufgabe": "Aufgabe als Strafe stellen",
     "strafbuchStrafeBeschreiben": "Strafe beschreiben",
-    "strafbuchGemeldet": "Vom Träger als erledigt gemeldet am {date}"
+    "strafbuchGemeldet": "Vom Träger als erledigt gemeldet am {date}",
+    "boxPhotoDueInfo": "Box-Bild ausstehend seit {date}",
+    "boxPhotoWaive": "Box-Bild erlassen",
+    "boxPhotoWaiveHint": "Der Verschluss bleibt gültig. Nur für den Fall, dass das Bild nicht zu beschaffen ist."
   },
   "forgotPassword": {
     "pageTitle": "Passwort zurücksetzen",
@@ -2003,7 +2011,9 @@
     "penaltyReportedDoneSubject": "{username} meldet eine Strafe als erledigt",
     "penaltyReportedDoneMessage": "{username} meldet die Strafe „{penalty}“ als erledigt. Bestätigen kannst du sie auf der Übersicht oder im Strafbuch.",
     "taskProofReminderSubject": "Nachweis fehlt noch",
-    "taskProofReminderMessage": "Zur Aufgabe „{title}“ fehlt noch der Nachweis „{description}“ — fällig um {until}."
+    "taskProofReminderMessage": "Zur Aufgabe „{title}“ fehlt noch der Nachweis „{description}“ — fällig um {until}.",
+    "boxPhotoDuePushTitle": "Box-Bild hinterlegen",
+    "boxPhotoDuePushBody": "Der Riegel ist zu. Öffne die App und hinterlege ein Bild der Box mit sichtbarem Schlüssel."
   },
   "tasks": {
     "titleLabel": "Titel",

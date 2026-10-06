@@ -159,6 +159,19 @@ describe("keyProofFor", () => {
     expect(keyProofFor("check1", false, "/api/uploads/box.jpg", proven)).toEqual({ keyDetected: false, keyProofSource: "photo" });
   });
 
+  it("nennt ein Foto von VOR „Riegel zu\" als eigene Quelle — das Urteil selbst bleibt, die Zeile warnt", () => {
+    expect(keyProofFor("lock1", true, "/api/uploads/box.jpg", new Set(), true)).toEqual({ keyDetected: true, keyProofSource: "photo-before-bolt" });
+    expect(keyProofFor("lock1", false, "/api/uploads/box.jpg", new Set(), true)).toEqual({ keyDetected: false, keyProofSource: "photo-before-bolt" });
+  });
+
+  it("meldet ein Foto von VOR „Riegel zu\" auch ohne Urteil — ohne Vision-Anbieter käme sonst nie eines", () => {
+    expect(keyProofFor("lock1", null, "/api/uploads/box.jpg", new Set(), true)).toEqual({ keyDetected: null, keyProofSource: "photo-before-bolt" });
+  });
+
+  it("ohne Foto bleibt es stumm, auch wenn die Markierung gesetzt wäre", () => {
+    expect(keyProofFor("lock1", null, null, new Set(), true)).toEqual({ keyDetected: null, keyProofSource: null });
+  });
+
   it("greift ohne Foto auf die Telemetrie zurück und nennt sie als Quelle", () => {
     expect(keyProofFor("check1", null, null, proven)).toEqual({ keyDetected: true, keyProofSource: "telemetry" });
   });

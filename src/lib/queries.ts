@@ -212,7 +212,9 @@ export function getLatestKgEntry(
     // `oeffnenGrund` gehört dazu, weil der Lock-Zustand allein nicht sagt, WARUM zuletzt geöffnet
     // wurde — die Kontrolle nach einer Reinigungspause hängt genau daran (entries-Route).
     // `codeImageUrl`: ob der laufende Verschluss schon ein Bildersafe-Foto trägt (`bildersafeMenuAction`).
-    select: { id: true, type: true, startTime: true, kontrollCode: true, deviceId: true, keyInBox: true, oeffnenGrund: true, codeImageUrl: true },
+    select: { id: true, type: true, startTime: true, kontrollCode: true, deviceId: true, keyInBox: true, oeffnenGrund: true, codeImageUrl: true,
+      // Für die Box-Foto-Regel (`boxPhotoDue.ts`): fällig/erlassen/vorhanden, samt Zeitanker.
+      boxImageUrl: true, boxPhotoDueAt: true, boxPhotoWaivedAt: true },
   });
 }
 

@@ -64,6 +64,14 @@ interface UsePhotoUploadOptions {
    * mit einer Fehlermeldung (`abortUpload`).
    */
   enableOfflineCapture?: boolean;
+  /**
+   * Die Aufnahmezeit aus dem EXIF des ORIGINALS lesen (Dateizeit nur als Rückfall), statt wie sonst die
+   * Dateizeit zu schicken. Default false. Der Server gibt der Client-Zeit Vorrang, und das komprimierte
+   * Bild trägt kein EXIF mehr — wer die ECHTE Aufnahmezeit braucht (Frische des Box-Fotos), muss sie
+   * hier aus dem Original lesen. Eine kopierte oder heruntergeladene Datei hat eine junge Dateizeit,
+   * aber ein altes EXIF. Kostet den dynamischen `exifr`-Import, deshalb nicht überall.
+   */
+  preferExifTime?: boolean;
   /** Initial values (for edit mode). */
   initial?: {
     imageUrl?: string | null;
@@ -81,6 +89,7 @@ export function usePhotoUpload({
   enableScaleDetection = false,
   scaleUnitSystem = "metric",
   enableOfflineCapture = false,
+  preferExifTime = false,
   initial,
 }: UsePhotoUploadOptions) {
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
@@ -196,8 +205,12 @@ export function usePhotoUpload({
     setImagePreview(blobUrl);
 
     // Read lastModified BEFORE compression (iOS Safari strips EXIF)
-    const clientExifTime = file.lastModified ? new Date(file.lastModified).toISOString() : null;
-    const compressed = await compressImage(file).catch(() => file);
+    const [clientExifTime, compressed] = await Promise.all([
+      preferExifTime
+        ? readClientExifTime(file)
+        : Promise.resolve(file.lastModified ? new Date(file.lastModified).toISOString() : null),
+      compressImage(file).catch(() => file),
+    ]);
 
     function abortUpload() {
       URL.revokeObjectURL(blobUrl);
@@ -277,7 +290,7 @@ export function usePhotoUpload({
       enableDeviceDetection ? runDeviceDetection(result.url) : Promise.resolve(),
       enableScaleDetection ? runScaleDetection(result.url, 0) : Promise.resolve(),
     ]);
-  }, [startTime, exifWarningText, uploadErrorText, enableSealDetection, enableDeviceDetection, enableScaleDetection, enableOfflineCapture, runSealDetection, runDeviceDetection, runScaleDetection]);
+  }, [startTime, exifWarningText, uploadErrorText, enableSealDetection, enableDeviceDetection, enableScaleDetection, enableOfflineCapture, preferExifTime, runSealDetection, runDeviceDetection, runScaleDetection]);
 
   // Die VORSCHLAG-Erkennungen nach einem Drehen neu feuern (Siegel bzw. Waage). Ein Offline-Marker ist
   // keine echte URL — dann liefe die Server-Erkennung ins Leere, also übersprungen. EIN Ort für beide

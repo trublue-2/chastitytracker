@@ -62,6 +62,9 @@ export interface EntryRow {
    *  es dieselbe Frage für die zweite Aufnahme beantwortet — ohne das Feld wäre nur zu erraten, ob
    *  ein Eintrag überhaupt eines hat. */
   hasBoxImage: boolean;
+  /** Das Box-Foto trägt eine Aufnahmezeit VOR „Riegel zu" (Hinweis aus EXIF/Dateizeit des Geräts, kein
+   *  Beweis): es zeigt womöglich die noch offene Box und belegt dann nichts. Additiv. */
+  boxImageBeforeBolt: boolean;
   imageExifTime: string | null;
   /** True when the entered time differs from the creation time (back-/post-dated). */
   timeCorrected: boolean;
@@ -134,6 +137,8 @@ export async function listEntries(username: string, opts: ListEntriesOptions = {
       capturedOffline: e.capturedOffline,
       hasImage: !!e.imageUrl,
       hasBoxImage: !!e.boxImageUrl,
+      // Aufnahme VOR „Riegel zu" (EXIF/Dateizeit des Geräts, also ein Hinweis): das Foto zeigt womöglich die noch offene Box.
+      boxImageBeforeBolt: e.boxImageBeforeBolt,
       imageExifTime: e.imageExifTime ? formatDateTime(e.imageExifTime, undefined, timezone) : null,
       timeCorrected: isTimeCorrected(e.startTime, e.createdAt),
     })),

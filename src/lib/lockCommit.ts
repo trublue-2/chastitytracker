@@ -1,12 +1,13 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { boxCouplingEnabled, lockmeboxEnabled } from "@/lib/constants";
-import { boxIsLive, hasLockmebox } from "@/lib/boxStatus";
+import { boxIsLive, boxReportsFreshlyLocked, hasLockmebox } from "@/lib/boxStatus";
 import { clampBoltTime, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER } from "@/lib/lockPending";
 import type { BoxKind } from "@/lib/boxStatus";
 import { getLatestKgEntry } from "@/lib/queries";
 import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entryFulfilment";
 import { structuredLog } from "@/lib/serverLog";
+import { markBoxPhotoDue } from "@/lib/boxPhotoDueService";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -66,7 +67,7 @@ export async function lockAwaitsBolt(
   // hinkt ausserdem hinter dem Öffnen her (siehe `boxSollLocked`), eine Box könnte also unmittelbar
   // nach einer Reinigungsöffnung noch „soll zu" tragen; der Aufruf gälte dann sofort als vollzogen,
   // ohne dass je ein Riegel zufiel. Hier zählt allein eine ausdrückliche IST-Meldung.
-  if (boxes.some((b) => b.reportedLocked === true && boxIsLive(b.lastSyncAt, now.getTime()))) return false;
+  if (boxReportsFreshlyLocked(boxes, now.getTime())) return false;
   return true;
 }
 
@@ -282,3 +283,15 @@ async function commitSafely(commit: (userId: string, at: Date) => Promise<boolea
 }
 export const commitPendingLockSafe = (userId: string, at: Date, source: string) => commitSafely(commitPendingLock, userId, at, source);
 export const commitPendingOpenSafe = (userId: string, at: Date, source: string) => commitSafely(commitPendingOpen, userId, at, source);
+
+/**
+ * Die Box hat „Riegel zu" gemeldet — der EINE Einstieg der drei Box-Eingänge (Heimdall-Ereignis,
+ * Heimdall-Status, LockMeBox-BLE): erst einen wartenden Verschluss vollziehen, dann das Box-Foto des
+ * laufenden Verschlusses fällig stellen. Die Reihenfolge ist Absicht: ein eben vollzogener
+ * Verschluss ist erst danach der laufende. Beide Schritte schlucken ihre Fehler, weil die Box ihre
+ * Antwort in JEDEM Fall bekommen muss.
+ */
+export async function boxReportedLockedSafe(userId: string, at: Date, source: string): Promise<void> {
+  await commitPendingLockSafe(userId, at, source);
+  await markBoxPhotoDue(userId);
+}

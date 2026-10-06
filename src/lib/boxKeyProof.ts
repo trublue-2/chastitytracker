@@ -13,8 +13,9 @@ import type { BoxKind } from "@/lib/boxStatus";
  */
 
 /** Woher der Schlüssel-Nachweis einer Zeile stammt — für den Keyholder sichtbar, weil ein Foto mehr
- *  zeigt (den Schlüssel selbst) als die Telemetrie (nur: der Riegel lag still). */
-export type KeyProofSource = "photo" | "telemetry";
+ *  zeigt (den Schlüssel selbst) als die Telemetrie (nur: der Riegel lag still). `photo-before-bolt`:
+ *  das Foto trägt eine Aufnahmezeit VOR „Riegel zu" (`boxPhotoTakenBeforeBolt`). */
+export type KeyProofSource = "photo" | "photo-before-bolt" | "telemetry";
 
 /** Ein Zeitpunkt, an dem sich am Riegel oder am Nachweis etwas entscheidet. Bewusst eine
  *  unterschiedene Union: welche Zusatz-Angabe zählt, hängt an der Art des Ankers. */
@@ -209,8 +210,12 @@ export function keyProofFor(
   photoDetected: boolean | null | undefined,
   boxImageUrl: string | null | undefined,
   telemetryProven: ReadonlySet<string>,
+  photoBeforeBolt = false,
 ): { keyDetected: boolean | null; keyProofSource: KeyProofSource | null } {
-  if (photoDetected != null) return { keyDetected: photoDetected, keyProofSource: "photo" };
+  if (photoDetected != null) return { keyDetected: photoDetected, keyProofSource: photoBeforeBolt ? "photo-before-bolt" : "photo" };
+  // Ein Foto von VOR „Riegel zu" meldet sich auch OHNE Urteil: ohne Vision-Anbieter bleibt `keyDetected`
+  // für immer leer, und die Warnung wäre dort nie zu sehen.
+  if (boxImageUrl && photoBeforeBolt) return { keyDetected: null, keyProofSource: "photo-before-bolt" };
   if (!boxImageUrl && entryId && telemetryProven.has(entryId)) return { keyDetected: true, keyProofSource: "telemetry" };
   return { keyDetected: null, keyProofSource: null };
 }

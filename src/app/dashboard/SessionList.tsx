@@ -44,6 +44,8 @@ interface Entry {
   /** Urteil der Schlüssel-Erkennung auf dem Box-Foto (null = nicht geprüft). */
   keyDetected?: boolean | null;
   boxImageUrl?: string | null;
+  /** Das Box-Foto wurde vor „Riegel zu" aufgenommen (`boxPhotoTakenBeforeBolt`). */
+  boxImageBeforeBolt?: boolean;
   device?: { name?: string | null; categoryId?: string | null } | null;
 }
 
@@ -171,7 +173,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         timeCorrected: false,
         deviceName: verschluss.device?.name ?? null,
         showDevice: userHasDevices,
-        ...keyProofFor(verschluss.id, verschluss.keyDetected, verschluss.boxImageUrl, telemetryKeyProof),
+        ...keyProofFor(verschluss.id, verschluss.keyDetected, verschluss.boxImageUrl, telemetryKeyProof, verschluss.boxImageBeforeBolt),
         boxImageUrl: verschluss.boxImageUrl ?? null,
       },
       ...kontrollen
@@ -267,7 +269,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         // Fotos + Urteil stammen vom WIEDERVERSCHLUSS, nicht von der Öffnung: hier wird belegt,
         // dass der Schlüssel wieder in der Box liegt.
         boxImageUrl: intr.verschluss.boxImageUrl ?? null,
-        ...keyProofFor(intr.verschluss.id, intr.verschluss.keyDetected, intr.verschluss.boxImageUrl, telemetryKeyProof),
+        ...keyProofFor(intr.verschluss.id, intr.verschluss.keyDetected, intr.verschluss.boxImageUrl, telemetryKeyProof, intr.verschluss.boxImageBeforeBolt),
         exifStr: null,
         note: intr.oeffnen.note,
         codeImageUrl: intr.verschluss.codeImageUrl ?? null,

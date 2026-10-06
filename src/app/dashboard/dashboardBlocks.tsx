@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { getIsLocked, userHasBox } from "@/lib/queries";
+import { isBoxPhotoDue } from "@/lib/boxPhotoDue";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { block, type StackBlock } from "@/lib/blockStack";
@@ -217,13 +218,19 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   // Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte.
   alerts: block({
     load: async ({ userId, nowMs }) => {
-      const [anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg] = await Promise.all([
+      const [anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, latest] = await Promise.all([
         subVisibleInspectionsNow(userId), lockRequestCached(userId, nowMs),
         subOrgasmRequestCached(userId, nowMs), userRowCached(userId), orgasmConfigCached(userId),
+        latestKgEntryCached(userId),
       ]);
-      return { anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg };
+      // Das Box-Foto, das nach „Riegel zu" fällig wurde (`boxPhotoDue.ts`). Nur der LAUFENDE Verschluss
+      // zählt — `latestKgEntryCached` ist genau der.
+      const boxPhotoDue = latest && isBoxPhotoDue(latest)
+        ? { entryId: latest.id, mobileDesktopMode: user?.mobileDesktopUpload ?? false }
+        : null;
+      return { anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, boxPhotoDue };
     },
-    render: ({ anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg }, { now, tz, dl, t, tOrgasm }) => {
+    render: ({ anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, boxPhotoDue }, { now, tz, dl, t, tOrgasm }) => {
       // ALLE offenen — je Ziel kann eine laufen (v5.0.1). Dringendste zuerst, damit das Banner mit
       // der knappsten Frist oben steht.
       const pendingInspections = openInspections(anforderungen);
@@ -234,6 +241,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
       const alertProps: DashboardAlertsProps = {
         tz,
+        boxPhotoDue,
 
         pendingInspections: pendingInspections.map((k) => ({
           deadline: k.deadline.toISOString(),

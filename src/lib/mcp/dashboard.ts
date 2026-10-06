@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { boxPhotoDueSince } from "@/lib/boxPhotoDueService";
 import { getOpenKontrollen, getActiveLockPeriod, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedLockPeriod, getCurrentLockKeyInBox, pendingLockCallAt, pendingOpenCallAt, getOpenLockRequests } from "@/lib/queries";
 import {
   buildLockState, mapOpenKontrolle, mapActiveLockPeriod, mapOpenOrgasmusAnforderung,
@@ -119,6 +120,11 @@ export interface BoxStateView {
    *  „Riegel offen" gemeldet hat. Solange dieser Wert steht, ist der Träger NOCH VERSCHLOSSEN — die
    *  Öffnung gilt erst, wenn sich sein Handy an der Box verbunden und sie geöffnet hat. */
   openCallWaitingSince: string | null;
+  /** Seit wann der Träger ein Box-Foto schuldet (ISO-8601), `null` wenn keines aussteht. Es wird fällig,
+   *  sobald die Box „Riegel zu" meldet — ein Foto vorher belegte nichts. Er hat dann noch das Bild des
+   *  Schlüssels im Sichtfenster zu liefern; bleibt es stehen, kann die Keyholderin es mit
+   *  `waive_box_photo` erlassen. Additiv, daher kein schemaVersion-Bump. */
+  boxPhotoDueSince: string | null;
   /** Deklaration des Subs beim aktuellen Verschluss: liegt der Schlüssel überhaupt in dieser Box?
    *  `false` = NEIN, er trägt ihn bei sich (z.B. auf Reise) — die Box hat dann bewusst KEIN
    *  lock-Kommando bekommen. Das ERKLÄRT ein `hardwareEnforced: false`, das sonst wie eine Box-Störung
@@ -684,7 +690,7 @@ type BoxRow = Awaited<ReturnType<typeof loadBoxRow>>;
  *  durch: das Dashboard hat sie gratis aus dem Lock-Zustand (derselbe Wert wie `currentRun.keyInBox`,
  *  die beiden können so nicht auseinanderlaufen), `get_box_state` lädt sie via `getCurrentLockKeyInBox`. */
 function mapBoxState(
-  box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null, lockCallAt: Date | null, openCallAt: Date | null,
+  box: BoxRow, now: Date, iso: Iso, keyInBox: boolean | null, lockCallAt: Date | null, openCallAt: Date | null, photoDueAt: Date | null,
 ): BoxStateView | null {
   if (!box) return null;
   // Bester bekannter physischer Stand: das gemeldete IST, bei Alt-Zeilen ohne IST-Meldung das SOLL
@@ -741,6 +747,7 @@ function mapBoxState(
     keyInBox,
     lockCallWaitingSince: iso(lockCallAt),
     openCallWaitingSince: iso(openCallAt),
+    boxPhotoDueSince: iso(photoDueAt),
     keySecured: box.reportedLocked === true && keyInBox === true && !openArmed && !staleLock,
     battery: box.battery,
     charging: box.charging,
@@ -769,15 +776,16 @@ export interface BoxStateResult extends Envelope {
 export async function getBoxState(username: string): Promise<BoxStateResult> {
   const { id: userId, timezone } = await resolveUserContext(username);
   // Box-Zeile und Schlüssel-Deklaration hängen beide nur an userId — parallel, nicht nacheinander.
-  const [box, keyInBox, lockCall, openCall] = await Promise.all([
+  const [box, keyInBox, lockCall, openCall, photoDueAt] = await Promise.all([
     loadBoxRow(userId),
     getCurrentLockKeyInBox(userId),
     pendingLockCallAt(userId),
     pendingOpenCallAt(userId),
+    boxPhotoDueSince(userId),
   ]);
   const now = new Date();
   const iso = makeIso(timezone);
-  return { schemaVersion: 4, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox, lockCall, openCall) };
+  return { schemaVersion: 4, user: username, ...buildEnvelope(now, iso, timezone), boxState: mapBoxState(box, now, iso, keyInBox, lockCall, openCall, photoDueAt) };
 }
 
 
@@ -811,7 +819,7 @@ export async function keyholderDashboard(
   // V1-Antwort von buildOverview hindurch, die ~14 weitere Felder samt vier ungenutzter Queries
   // (Strafen-Zähler, Keyholder-Notizen, Reinigungs-Verbrauch, offene Verschluss-Anforderung) baute.
   const [openKontrolleRows, activeLockPeriodRow, openLockRequestRows, interruptedLockPeriodRow, activeWearRows, openOrgasmusRow,
-         rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives, lockCall, weight, openCall] = await Promise.all([
+         rec, periods, ledger, pinned, boxRow, healthHold, scheduledDirectives, lockCall, weight, openCall, photoDueAt] = await Promise.all([
     getOpenKontrollen(trackingCtx.userId, now),
     getActiveLockPeriod(trackingCtx.userId),
     getOpenLockRequests(trackingCtx.userId, now),
@@ -840,6 +848,7 @@ export async function keyholderDashboard(
     weightSummary(trackingCtx.userId),
     // Die wartende Öffnung (LockMeBox) — aus demselben Grund eine eigene Abfrage wie oben.
     pendingOpenCallAt(trackingCtx.userId),
+    boxPhotoDueSince(trackingCtx.userId),
   ]);
 
   const lock = buildLockState(trackingCtx.entries, trackingCtx.cleaning, now, fmt, pairs);
@@ -855,7 +864,7 @@ export async function keyholderDashboard(
   const activeWearSessions = mapActiveWearSessions(activeWearRows, now, fmt);
   // Die Box-Sicht erbt die Schlüssel-Deklaration aus DEMSELBEN Lock-Zustand wie currentRun — die
   // beiden Felder einer Antwort können so nicht auseinanderlaufen, und es kostet keine Query.
-  const boxState = mapBoxState(boxRow, now, iso, lock.keyInBox, lockCall, openCall);
+  const boxState = mapBoxState(boxRow, now, iso, lock.keyInBox, lockCall, openCall, photoDueAt);
 
   // wornNow: KG-Lock (falls verschlossen) + aktive Wear-Sessions der Kategorien.
   const wornNow: DashboardResult["wornNow"] = [];

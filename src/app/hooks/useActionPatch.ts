@@ -27,11 +27,12 @@ export function useActionPatch() {
   /**
    * Sendet die Anfrage. Bei Erfolg wird die Seite neu geladen; sonst entscheidet der Aufrufer.
    *
-   * `DELETE` ist zugelassen, weil es dieselbe Mechanik ist: Zeile anfassen, Laufzustand, neu laden.
+   * `DELETE` und `POST` sind zugelassen, weil es dieselbe Mechanik ist: Zeile anfassen, Laufzustand,
+   * neu laden (`POST` für die Aktionen, die etwas an einer Zeile ABGEBEN, z.B. das Box-Foto).
    * Ohne Body — ein `DELETE` trägt keinen, und `JSON.stringify(undefined)` wäre `undefined` als
    * Rumpf, was manche Server als Syntaxfehler lesen.
    */
-  async function run(url: string, body?: unknown, method: "PATCH" | "DELETE" = "PATCH"): Promise<Response | null> {
+  async function run(url: string, body?: unknown, method: "PATCH" | "DELETE" | "POST" = "PATCH"): Promise<Response | null> {
     setSaving(true);
     try {
       const res = await fetchWithTimeout(url, {

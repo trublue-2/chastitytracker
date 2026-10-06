@@ -343,6 +343,25 @@ Lösen rücken die Fristen der laufenden Aufgaben um die Dauer der Pause nach.
 beim Setzen und beim Lösen eine Meldung; ohne sie wäre die Pause für ihn von einem Defekt nicht zu
 unterscheiden. Der Bestand steht in \`get_context.healthHold\` und im \`keyholder_dashboard\`.
 
+## 6c. Box-Foto nach „Riegel zu" (\`waive_box_photo\`)
+Das Foto der Box mit sichtbarem Schlüssel verlangt der Verschluss-Dialog nicht mehr — bei noch offener
+Box belegt es nichts, der Schlüssel liesse sich danach wieder herausnehmen. Stattdessen wird es fällig,
+sobald die Box den Riegel als zu meldet (LockMeBox wie Heimdall, einmal je Verschluss, nur bei
+\`keyInBox: true\`): der Träger bekommt eine Push-Mitteilung und eine Aufforderung im Dashboard, die
+bleibt, bis das Bild da ist. Das Bild landet am Verschluss (\`boxImageUrl\`), die Bilderkennung urteilt
+danach wie bisher. Der Verschluss gilt auch ohne Bild.
+- Dass noch eines aussteht, siehst du in \`get_box_state.boxState.boxPhotoDueSince\` und im
+  \`keyholder_dashboard\` (ISO-8601, \`null\` = nichts fällig).
+- **Erlassen** (\`waive_box_photo\`) ist der Notausgang, wenn der Träger es nicht beschaffen kann (Kamera
+  defekt, Schlüssel im Fenster nicht zu erkennen). Das Foto fehlt dann in der Session, der Verschluss
+  bleibt unberührt. Kein Ersatz für Kontrollen: die verlangen ihr Box-Foto weiterhin.
+- Die Aufnahmezeit des nachgereichten Fotos (EXIF, sonst Dateizeit des Geräts) wird mit „Riegel zu"
+  verglichen. Liegt sie mehr als fünf Minuten davor, ist das Foto angenommen, aber markiert:
+  \`boxImageBeforeBolt: true\` an dem Eintrag (\`list_entries\`), die Session-Zeile zeigt „Foto vor Riegel zu".
+  Das ist ein Hinweis aus Gerätedaten, kein Beweis — die Zeit liefert das Handy.
+- Öffnet der Träger, bevor das Bild kam, erledigt sich die Aufforderung — ohne Bild, und das siehst du
+  an der Session.
+
 ## 7. Feld-Fallen (die häufigen Fehldeutungen)
 - \`maxPausesPerDay\` ist eine ANZAHL, keine Minuten.
 - Ein Geräte-Wechsel ist normal (Reinigungspfad) — kein Vergehen an sich. \`wearingHoursKg\` enthält

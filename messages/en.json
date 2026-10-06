@@ -283,7 +283,8 @@
     "Forbidden": "No access — your account is not allowed to do this.",
     "Unauthorized": "You are not (or no longer) signed in. Please sign in again.",
     "rateLimited": "Too many attempts. Please try again in a few minutes.",
-    "photoAnalysisBaseUrlPrivate": "This address points to an internal network. That only works if the server operator has explicitly allowed it."
+    "photoAnalysisBaseUrlPrivate": "This address points to an internal network. That only works if the server operator has explicitly allowed it.",
+    "BOX_PHOTO_NOT_DUE": "No box photo is due (any more) for this lock."
   },
   "appLock": {
     "subtitle": "Confirm your identity to continue",
@@ -620,7 +621,11 @@
     "editLayoutLocked": "Carries a deadline — stays visible",
     "editLayoutMoved": "{name} is now at position {position} of {total}.",
     "editLayoutStartsOpen": "\"{name}\": starts Open — tap so the block starts collapsed",
-    "editLayoutStartsClosed": "\"{name}\": starts Closed — tap so the block starts expanded"
+    "editLayoutStartsClosed": "\"{name}\": starts Closed — tap so the block starts expanded",
+    "boxPhotoDueTitle": "Add a box photo with the key visible",
+    "boxPhotoDueText": "The bolt is closed. Photograph the box through the viewing window so the key is clearly visible.",
+    "boxPhotoDueSave": "Add photo",
+    "keyPhotoBeforeBolt": "photo taken before bolt closed"
   },
   "newEntry": {
     "title": "New entry",
@@ -695,7 +700,7 @@
     "saveBtn": "Save lock",
     "keyInBoxName": "Box: {name}",
     "keyInBoxLabel": "The key is in the box",
-    "keyInBoxDesc": "Off = you keep the key (e.g. while travelling). The box will not lock.",
+    "keyInBoxDesc": "Off = you keep the key (e.g. while travelling). The box will not lock. On = once the bolt is closed, you will be asked for a photo of the box.",
     "boltGateTimeHint": "Set by the bolt: saving calls the box to close; you are locked once it reports the bolt shut.",
     "sealNumber": "Seal number (optional)",
     "sealNumberHint": "5–8 digits",
@@ -723,9 +728,9 @@
     "boxPhotoHint": "Shoot through the viewing window so the key is clearly visible.",
     "confirmKeyOutsideTitle": "Key not in the box?",
     "confirmKeyOutsideText": "Are you sure the key does not go into the box? The box will not lock then.",
+    "confirmSaveAnyway": "Save anyway",
     "confirmNoBoxPhotoTitle": "No photo of the box",
-    "confirmNoBoxPhotoText": "Save without a photo of the box? Without one, there is nothing showing the key is really inside.",
-    "confirmSaveAnyway": "Save anyway"
+    "confirmNoBoxPhotoText": "Save without a photo of the box? Without one, there is nothing showing the key is really inside."
   },
   "feedback": {
     "title": "Feedback",
@@ -1569,7 +1574,10 @@
     "strafbuchUrteilPlaceholder": "Choose a judgment …",
     "strafbuchUrteilAufgabe": "Set a task as the penalty",
     "strafbuchStrafeBeschreiben": "Describe a penalty",
-    "strafbuchGemeldet": "Reported as done by the wearer on {date}"
+    "strafbuchGemeldet": "Reported as done by the wearer on {date}",
+    "boxPhotoDueInfo": "Box photo outstanding since {date}",
+    "boxPhotoWaive": "Waive box photo",
+    "boxPhotoWaiveHint": "The lock stays valid. Only for when the photo cannot be obtained."
   },
   "forgotPassword": {
     "pageTitle": "Reset password",
@@ -2003,7 +2011,9 @@
     "penaltyReportedDoneSubject": "{username} reports a penalty as done",
     "penaltyReportedDoneMessage": "{username} reports the penalty “{penalty}” as done. You can confirm it on the overview or in the offense ledger.",
     "taskProofReminderSubject": "Proof still missing",
-    "taskProofReminderMessage": "The task “{title}” is still missing the proof “{description}” — due at {until}."
+    "taskProofReminderMessage": "The task “{title}” is still missing the proof “{description}” — due at {until}.",
+    "boxPhotoDuePushTitle": "Add the box photo",
+    "boxPhotoDuePushBody": "The bolt is closed. Open the app and add a photo of the box with the key visible."
   },
   "tasks": {
     "titleLabel": "Title",

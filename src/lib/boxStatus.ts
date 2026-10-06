@@ -121,6 +121,14 @@ export function boxIsLive(lastSyncAt: string | Date | null, now: number): boolea
   return Math.max(0, now - new Date(lastSyncAt).getTime()) < LIVE_THRESHOLD_MS;
 }
 
+/** Meldet eine der Boxen den Riegel JETZT ausdrücklich als zu — und frisch? Eine ausdrückliche IST-Meldung,
+ *  bewusst NICHT über {@link boxIsPhysicallyLocked}: deren Rückfall aufs SOLL wäre die Absicht, nicht
+ *  die Bestätigung (Begründung an `lockAwaitsBolt`). Geteilt von der Wartepfad-Entscheidung und der
+ *  Fälligkeit des Box-Fotos, damit beide dieselbe Frage meinen. */
+export function boxReportsFreshlyLocked(boxes: { reportedLocked: boolean | null; lastSyncAt: string | Date | null }[], now: number): boolean {
+  return boxes.some((b) => b.reportedLocked === true && boxIsLive(b.lastSyncAt, now));
+}
+
 /** Physisches IST der Box: das gemeldete `reportedLocked`, bei Alt-Zeilen ohne Meldung das SOLL. */
 export const boxIsPhysicallyLocked = (b: Pick<BoxRow, "locked" | "reportedLocked">): boolean => b.reportedLocked ?? b.locked;
 

@@ -10,8 +10,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/boxPhotoDueService", () => ({ markBoxPhotoDue: vi.fn() }));
 
-import { lockAwaitsBolt, openAwaitsBolt } from "./lockCommit";
+import { lockAwaitsBolt, openAwaitsBolt, boxReportedLockedSafe } from "./lockCommit";
+import { markBoxPhotoDue } from "@/lib/boxPhotoDueService";
 
 type BoxRow = { locked: boolean; reportedLocked: boolean | null; lastSyncAt: Date | null; kind?: string };
 
@@ -137,5 +139,14 @@ describe("openAwaitsBolt", () => {
   it("wartet nicht, wenn die Box sich gerade frisch als offen gemeldet hat", async () => {
     const tx = db({ requiresBolt: false, boxes: [lmb({ locked: false, reportedLocked: false, lastSyncAt: FRISCH })] });
     expect(await openAwaitsBolt(tx, "u1", true, false, NOW)).toBe(false);
+  });
+});
+
+describe("boxReportedLockedSafe", () => {
+  it("stellt das Box-Foto auch fällig, wenn der Vollzug scheitert — die Box bekommt ihre Antwort in jedem Fall", async () => {
+    // `prisma` ist hier ein leerer Stub: der Vollzug wirft und wird geschluckt.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(boxReportedLockedSafe("u1", new Date(), "box/event")).resolves.toBeUndefined();
+    expect(markBoxPhotoDue).toHaveBeenCalledWith("u1");
   });
 });

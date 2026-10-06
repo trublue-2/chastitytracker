@@ -307,6 +307,9 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `Entry.codeReadable` | Laufzeitzustand | Ob im Bildersafe-Foto überhaupt Ziffern erkennbar waren. Die Zahl selbst wird bewusst nicht gespeichert. |
 | `Entry.boxImageUrl` | Datensatz | Aufnahme durch das Sichtfenster der Box als Schlüssel-Nachweis. |
 | `Entry.keyDetected` | Laufzeitzustand | Hat die Bilderkennung im Sichtfenster einen Schlüssel gesehen? Beratend, blockiert nichts — und erkennt 'ein Schlüssel', nicht 'der richtige'. |
+| `Entry.boxPhotoDueAt` | Laufzeitzustand | Ab wann das Box-Foto fällig ist: gesetzt, wenn die Box „Riegel zu" meldet — ein Foto vorher belegte nichts. Einmal je Verschluss. |
+| `Entry.boxPhotoWaivedAt` | Laufzeitzustand | Die Keyholderin hat das fällige Box-Foto erlassen (Notausgang). Eigenes Feld, damit der nächste Riegel-Sync es nicht neu fällig stellt. |
+| `Entry.boxImageBeforeBolt` | Laufzeitzustand | Das Box-Foto wurde mehr als fünf Minuten VOR „Riegel zu" aufgenommen: angenommen, aber markiert — es zeigt womöglich die noch offene Box. |
 | `Entry.note` | Datensatz | Freitext des Erfassenden. |
 | `Entry.orgasmusArt` | Datensatz | Art des Orgasmus; die Auswahlliste steuert `User.orgasmusArtenConfig`. |
 | `Entry.kontrollCode` | Laufzeitzustand | Der bei dieser Kontrolle geforderte Code. |

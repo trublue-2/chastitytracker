@@ -87,6 +87,9 @@ const INTENTIONALLY_SHARED = [
   // dieselbe Bild-URL-Rüge wie die Entry-Routen. Gleicher Wortlaut, gleicher Adressat (der User über
   // sein eigenes Gerät) — ein zweiter Code wäre eine Unterscheidung ohne Unterschied.
   "FORBIDDEN", "INVALID_IMAGE_URL",
+  // Dieselbe Rüge („Aufnahme gehört schon zu einem anderen Eintrag"), ob das Foto beim Anlegen einer
+  // Kontrolle oder beim Nachreichen des Box-Fotos kommt (`boxPhotoReused`) — derselbe Adressat, der Träger.
+  "BOX_PHOTO_REUSED",
   // „Zeitpunkt darf nicht in der Zukunft liegen" — derselbe Satz, ob ein Sub seinen Eintrag
   // vordatiert oder ein Keyholder ein notiertes Vergehen (`manualOffenseService`). Kein Adressaten-
   // wechsel, der eine eigene Formulierung nötig machte.

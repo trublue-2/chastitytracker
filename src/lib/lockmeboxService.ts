@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { commitPendingLockSafe, commitPendingOpenSafe } from "@/lib/lockCommit";
+import { boxReportedLockedSafe, commitPendingOpenSafe } from "@/lib/lockCommit";
 import { toPendingCommand, type BoxKind } from "@/lib/boxStatus";
 import { nextLockmeboxCommand, parseLockmeboxStatus, type LockmeboxRelayInput, type LockmeboxRelayResult } from "@/lib/lockmeboxProtocol";
 import { clearBoxCommandForUser } from "@/lib/boxCommand";
@@ -87,7 +87,7 @@ export async function lockmeboxRelayStep(
     // „Riegel zu" vollzieht einen wartenden Verschluss-Aufruf — derselbe Trichter wie bei Heimdall.
     // „Riegel offen" vollzieht die wartende Öffnung: der Tracker schaltet erst um, wenn die Box
     // tatsächlich aufgegangen ist.
-    if (status.locked) await commitPendingLockSafe(userId, now, "box/ble");
+    if (status.locked) await boxReportedLockedSafe(userId, now, "box/ble");
     else await commitPendingOpenSafe(userId, now, "box/ble");
   }
 

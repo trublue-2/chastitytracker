@@ -86,6 +86,8 @@ const BLOCK_USER_SELECT = {
   noticeSeenVersion: true,
   // Für den Hinweis zur Foto-Prüfung (`PhotoAnalysisScope`) — dieselbe Begründung.
   photoAnalysisNoticeSeen: true,
+  // Für die Foto-Aufnahme der Dashboard-Karten (`BoxPhotoDueCard`) — dieselbe Begründung.
+  mobileDesktopUpload: true,
 } as const;
 
 /** Die Benutzerzeile eines Trägers, wie die Blöcke sie sehen. */

@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import DashboardBlock from "@/app/components/DashboardBlock";
+import BoxPhotoDueCard from "@/app/dashboard/BoxPhotoDueCard";
 import { rowHoverCls } from "@/app/components/inputStyles";
 
 /** Die Anforderungen mit Frist — Kontrolle, Einschliessen, Orgasmus.
@@ -45,6 +46,9 @@ export interface DashboardAlertsProps {
     windowLabel: string;
   } | null;
 
+  /** Das Box-Foto, das nach „Riegel zu" fällig wurde — bleibt, bis es da ist oder erlassen wird. */
+  boxPhotoDue: { entryId: string; mobileDesktopMode: boolean } | null;
+
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
 }
@@ -53,9 +57,10 @@ export default async function DashboardAlerts({
   pendingInspections,
   offeneVerschlussAnf,
   offeneOrgasmusAnf,
+  boxPhotoDue,
   tz,
 }: DashboardAlertsProps) {
-  if (pendingInspections.length === 0 && !offeneVerschlussAnf && !offeneOrgasmusAnf) return null;
+  if (pendingInspections.length === 0 && !offeneVerschlussAnf && !offeneOrgasmusAnf && !boxPhotoDue) return null;
 
   const t = await getTranslations("dashboard");
 
@@ -115,6 +120,8 @@ export default async function DashboardAlerts({
           deadlineLabel={offeneOrgasmusAnf.windowLabel}
         />
       )}
+
+      {boxPhotoDue && <BoxPhotoDueCard entryId={boxPhotoDue.entryId} mobileDesktopMode={boxPhotoDue.mobileDesktopMode} />}
     </DashboardBlock>
   );
 }

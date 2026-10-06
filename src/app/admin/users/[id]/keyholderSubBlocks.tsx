@@ -43,6 +43,8 @@ import TaskCardStack from "@/app/components/TaskCardStack";
 import KeyholderTaskCard from "@/app/admin/tasks/KeyholderTaskCard";
 import WithdrawButton from "@/app/admin/WithdrawButton";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
+import BoxPhotoWaive from "@/app/components/BoxPhotoWaive";
+import { boxPhotoDueAtOf } from "@/lib/boxPhotoDue";
 import Section from "@/app/components/Section";
 import StatsCard from "@/app/components/StatsCard";
 import { getOffenseRules } from "@/lib/offenseRulesService";
@@ -109,18 +111,25 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
   boxStatus: block({
     load: async (ctx) => {
       if (!(await userHasBox(ctx.subjectId))) return null;
-      const [wearerLocked, keyInBox] = await Promise.all([
+      const [wearerLocked, keyInBox, latest] = await Promise.all([
         // Siehe `dashboardBlocks`: ohne den Träger-Zustand liesse sich „Riegel zu, obwohl niemand
         // verschlossen ist" nicht vom Normalfall unterscheiden.
         getIsLocked(ctx.subjectId),
         // Und ohne den Schlüssel-Zustand widerspräche diese Karte der eigenen Übersicht der
         // Keyholderin: `/admin` nimmt den Reisefall aus, hier fehlte er.
         latestKeyInBoxCached(ctx.subjectId),
+        // Das fällige Box-Foto (`boxPhotoDue.ts`) samt Notausgang.
+        latestKgEntryCached(ctx.subjectId),
       ]);
-      return { wearerLocked, keyInBox };
+      return { wearerLocked, keyInBox, photoDueSince: latest ? boxPhotoDueAtOf(latest) : null };
     },
-    render: (data, { subjectId }) => data !== null && (
-      <BoxStatusCard userId={subjectId} wearerLocked={data.wearerLocked} keyInBox={data.keyInBox} />
+    render: (data, { subjectId, fmtDual, t }) => data !== null && (
+      <>
+        <BoxStatusCard userId={subjectId} wearerLocked={data.wearerLocked} keyInBox={data.keyInBox} />
+        {data.photoDueSince && (
+          <BoxPhotoWaive userId={subjectId} info={t("boxPhotoDueInfo", { date: fmtDual(data.photoDueSince) })} />
+        )}
+      </>
     ),
   }),
 

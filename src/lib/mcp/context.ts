@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
 import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/healthHold";
 import { notifyUser } from "@/lib/notify";
+import { dueBoxPhotoLock, waiveBoxPhoto } from "@/lib/boxPhotoDueService";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser, autoInspectionsView, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoInspectionsView } from "@/lib/autoKontrolleService";
@@ -364,6 +365,31 @@ export const setHealthHoldDef: WriteDef<SetHealthHoldArgs, HealthHoldView | null
       diff,
       afterCommit,
     };
+  },
+};
+
+// ── Write: waive_box_photo ──────────────────────────────────────────────────
+
+/** Die Keyholderin erlässt das fällige Box-Foto (`boxPhotoDue.ts`) — derselbe Dienst wie die Route
+ *  `/api/admin/box-photo`, damit die KI-Keyholderin nicht weniger kann als die Oberfläche. */
+const NO_BOX_PHOTO_DUE = "No box photo is due for this wearer.";
+
+export const waiveBoxPhotoDef: WriteDef<Record<string, never>, { entryId: string; waived: true }> = {
+  tool: "waive_box_photo",
+  async preview(ctx) {
+    const lock = await dueBoxPhotoLock(ctx.targetUserId);
+    if (!lock) return { preview: { due: false }, problem: NO_BOX_PHOTO_DUE };
+    const iso = makeIso(await tzOf(ctx.targetUserId));
+    return {
+      preview: { due: true, entryId: lock.id, dueSince: iso(lock.boxPhotoDueAt) },
+      before: { waived: false },
+      after: { waived: true },
+    };
+  },
+  async apply(tx, ctx) {
+    const result = await waiveBoxPhoto(ctx.targetUserId, tx);
+    if (!result.ok) throw new Error(NO_BOX_PHOTO_DUE);
+    return { newState: { entryId: result.data.entryId, waived: true }, resultRef: result.data.entryId, diff: { waived: [false, true] } };
   },
 };
 

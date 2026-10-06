@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
-import { detectKeyInBox } from "@/lib/verifyCode";
+import { boxPhotoReused, detectKeyInBoxInBackground, markBoxPhotoDueIfBoxLocked } from "@/lib/boxPhotoDueService";
 import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVerificationStatus, type InspectionVerification } from "@/lib/kontrolleService";
-import { DEVICE_BEARING_TYPES, validateEntryPayload, VALID_ROTATIONS, BOX_PHOTO_TYPES, parseOrgasmusArtBase, lockmeboxEnabled, type Rotation } from "@/lib/constants";
+import { DEVICE_BEARING_TYPES, validateEntryPayload, parseRotation, BOX_PHOTO_TYPES, parseOrgasmusArtBase, lockmeboxEnabled } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
 import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
@@ -87,14 +87,10 @@ export async function POST(req: NextRequest) {
     if (schonDa) return NextResponse.json(schonDa);
   }
 
-  // Replay-Schutz fürs Box-Foto: dieselbe Aufnahme darf nicht ein zweites Mal als Nachweis dienen.
-  // Ohne diese Prüfung könnte der Sub die URL seines ersten Fotos aus dem Request-Body abschreiben
-  // und bei jeder Kontrolle erneut schicken — der Nachweis „der Schlüssel liegt NOCH drin" wäre
-  // dann eine Momentaufnahme von vor Wochen. Das Haupt-Foto ist über die EXIF-Zeit gedeckt, das
-  // Box-Foto hat keine; hier ist die Eindeutigkeit der Datei die Deckung.
-  if (BOX_PHOTO_TYPES.has(type) && boxImageUrl) {
-    const reused = await prisma.entry.findFirst({ where: { boxImageUrl }, select: { id: true } });
-    if (reused) return NextResponse.json({ error: "BOX_PHOTO_REUSED" }, { status: 400 });
+  // Replay-Schutz fürs Box-Foto (Kontrolle): dieselbe Aufnahme darf nicht ein zweites Mal als Nachweis
+  // dienen — Begründung an `boxPhotoReused`.
+  if (BOX_PHOTO_TYPES.has(type) && boxImageUrl && await boxPhotoReused(boxImageUrl)) {
+    return NextResponse.json({ error: "BOX_PHOTO_REUSED" }, { status: 400 });
   }
 
   // Wrap state-check + create in a transaction to prevent TOCTOU races
@@ -373,32 +369,18 @@ export async function POST(req: NextRequest) {
       photoUrl: imageUrl,
       // Die Foto-Drehung des Nutzers respektieren — sonst scheitert die Server-Prüfung an einem
       // gedrehten Bild, das in der Client-Vorschau gematcht hat.
-      rotation: VALID_ROTATIONS.includes(imageRotation) ? imageRotation : 0,
+      rotation: parseRotation(imageRotation),
       verification,
     });
   }
 
-  // Schlüssel-Erkennung auf dem Box-Foto — wie die Code-Verifikation server-seitig und
-  // fire-and-forget. Der Client schickt NUR das Foto, nie das Urteil: ein Nachweis, den der
-  // Nachzuweisende selbst formuliert, ist keiner.
-  //
-  // Anders als bei `verifikationStatus` muss hier NICHT immer zurückgeschrieben werden: die Spalte
-  // startet auf null und `null` heisst genau dasselbe wie ihr Startwert („nicht geprüft"). Es gibt
-  // also keinen „pending"-Zustand, in dem ein Eintrag hängenbleiben könnte.
-  if (BOX_PHOTO_TYPES.has(type) && boxImageUrl) {
-    const entryId = entry.id;
-    const photoUrl = boxImageUrl;
-    const safeRotation: Rotation = VALID_ROTATIONS.includes(boxImageRotation) ? boxImageRotation : 0;
-    (async () => {
-      const detected = await detectKeyInBox(photoUrl, safeRotation);
-      if (detected === null) return;
-      try {
-        await prisma.entry.update({ where: { id: entryId }, data: { keyDetected: detected } });
-      } catch (err) {
-        console.error("[POST /api/entries] keyDetected write failed for entry", entryId, err);
-      }
-    })();
-  }
+  // Schlüssel-Erkennung auf dem Box-Foto — server-seitig und fire-and-forget (`boxPhotoDueService.ts`).
+  // Beim VERSCHLUSS kommt das Foto nicht mehr mit: es wird erst nach „Riegel zu" nachgereicht.
+  if (BOX_PHOTO_TYPES.has(type) && boxImageUrl) detectKeyInBoxInBackground(entry.id, boxImageUrl, boxImageRotation);
+
+  // Meldet die Box den Riegel schon JETZT zu, wartet der Verschluss auf nichts (`lockAwaitsBolt`) und
+  // es käme keine neue Meldung mehr — das Foto muss hier fällig werden, nicht erst beim nächsten Sync.
+  if (type === "VERSCHLUSS" && !awaitsBolt && keyInBoxDeclared === true) await markBoxPhotoDueIfBoxLocked(session.user.id);
 
   if (type === "VERSCHLUSS" || type === "OEFFNEN") {
     revalidatePath("/dashboard", "layout");

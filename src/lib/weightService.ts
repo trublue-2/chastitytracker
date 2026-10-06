@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { isValidImageUrl } from "@/lib/constants";
+import { CLIENT_CLOCK_SKEW_MS, isValidImageUrl } from "@/lib/constants";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { APP_TZ } from "@/lib/utils";
 import { inWeighingWindow } from "@/lib/weightWindows";
@@ -83,10 +83,6 @@ const { table: ERRORS, fail } = serviceErrors({
   INVALID_IMAGE_URL: { status: 400, error: "INVALID_IMAGE_URL" },
 });
 
-/** Ab wann eine Messzeit „in der Zukunft" liegt. Ein paar Minuten Luft, weil die Uhr des Handys
- *  gegenüber der des Servers vorgehen darf — eine Stunde wäre keine Luft mehr, sondern eine Lücke. */
-const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
-
 /**
  * Schreibt die Messung des Tages. **Ein Wert je Kalendertag des Trägers** — eine zweite Messung
  * desselben Tages ersetzt die erste, statt eine zweite Zeile anzulegen.
@@ -103,7 +99,7 @@ export async function recordWeight(
   if (!isValidImageUrl(params.imageUrl)) return serviceFail(400, "INVALID_IMAGE_URL");
 
   const now = params.now ?? new Date();
-  if (params.measuredAt.getTime() > now.getTime() + FUTURE_TOLERANCE_MS) {
+  if (params.measuredAt.getTime() > now.getTime() + CLIENT_CLOCK_SKEW_MS) {
     return serviceFail(400, "WEIGHT_IN_FUTURE");
   }
 
