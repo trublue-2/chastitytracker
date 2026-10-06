@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
+import { fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
+import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import PhotoCapture from "@/app/components/PhotoCapture";
@@ -68,7 +69,7 @@ export default function VerschlussFormCore({
   const tForm = useTranslations("lockForm");
   const dl = toDateLocale(useLocale());
 
-  const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
+  const { startTime, onStartChange, startIsNow } = useEntryStartTime(initial?.startTime, nowDefault, tz);
   const [note, setNote] = useState(initial?.note ?? "");
   // Wahrheitsgemässe Angabe, KEIN Submit-Gate mehr: „nein" ist eine legitime Antwort (Schlüssel
   // reist mit) und darf das Speichern nicht blockieren. Default an = der Normalfall, und die Box
@@ -168,6 +169,7 @@ export default function VerschlussFormCore({
       // keinen vorgetäuschten Hardware-Hold.
       ...(boxConfirm ? { keyInBox } : {}),
       startTime: fromDatetimeLocal(startTime, tz).toISOString(),
+      ...(startIsNow ? { startIsNow } : {}),
       imageUrl: imageUrl || null,
       imageExifTime: imageExifTime || null,
       note: note.trim() || null,
@@ -247,7 +249,7 @@ export default function VerschlussFormCore({
         <DateTimePicker
           label={t("dateTime")}
           value={startTime}
-          onChange={(e) => setStartTime(e.target.value)}
+          onChange={onStartChange}
           required
           {...(minTime && { min: minTime })}
         />

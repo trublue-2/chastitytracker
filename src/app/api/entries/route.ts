@@ -20,6 +20,7 @@ import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entryFulfilment
 import { lockAwaitsBolt, openAwaitsBolt, findPendingLockTx, findPendingOpenTx } from "@/lib/lockCommit";
 import { boltFieldsFor } from "@/lib/lockPending";
 import { parseOfflineCapture } from "@/lib/offlineCapture";
+import { resolveEntryStart, startAfter, startIsNow } from "@/lib/entryStart";
 
 export async function GET() {
   const session = await requireApi();
@@ -72,7 +73,12 @@ export async function POST(req: NextRequest) {
   const { capturedOffline, capturedAt } = parseOfflineCapture(body);
   // Der wirksame Eintrags-Zeitpunkt: offline die Erfassungszeit des Clients, sonst die (frei
   // wählbare) Formular-Zeit. Ohne Offline-Flag `capturedAt === null` — also online unverändert.
-  const effectiveStart = capturedAt ?? new Date(startTime);
+  //
+  // „Jetzt" (`startIsNow`, `entryStart.ts`): der Träger hat die Zeit nicht angefasst, dann gilt die
+  // Server-Uhr auf die Sekunde — dieselbe, nach der der Riegel datiert. Das Formular kennt nur
+  // Minuten und schickte sonst 12:06:00 gegen einen Eintrag von 12:06:10.
+  const isNowStart = startIsNow(body, type, capturedOffline);
+  let effectiveStart = resolveEntryStart({ capturedAt, startTime, isNow: isNowStart, now: new Date() });
   // Stichtag für Fristen/Vergehen (`applyEntryFulfilment`): offline die Erfassungszeit, sonst die
   // Server-Uhr im Moment der Einreichung.
   const fulfilmentAt = capturedAt ?? new Date();
@@ -142,8 +148,9 @@ export async function POST(req: NextRequest) {
         // Guard oben greift für ihn also nicht, und ohne den hier legte der Träger beliebig viele
         // Aufrufe übereinander an, während die Box auf den ersten wartet.
         if (await findPendingLockTx(tx, session.user.id)) throw entryGuardError("LOCK_ALREADY_PENDING");
-        if (latest?.type === "OEFFNEN" && effectiveStart <= latest.startTime) {
-          throw entryGuardError("TIME_BEFORE");
+        if (latest?.type === "OEFFNEN") {
+          effectiveStart = startAfter(effectiveStart, latest.startTime, isNowStart);
+          if (effectiveStart <= latest.startTime) throw entryGuardError("TIME_BEFORE");
         }
         endsCleaningPause = latest?.type === "OEFFNEN" && latest.oeffnenGrund === "REINIGUNG";
         awaitsBolt = await lockAwaitsBolt(tx, session.user.id, keyInBoxDeclared, new Date());
@@ -151,6 +158,7 @@ export async function POST(req: NextRequest) {
       if (type === "OEFFNEN") {
         const latest = await getLatestKgEntry(session.user.id, tx);
         if (!latest || latest.type !== "VERSCHLUSS") throw entryGuardError("NOT_LOCKED");
+        effectiveStart = startAfter(effectiveStart, latest.startTime, isNowStart);
         if (effectiveStart <= latest.startTime) throw entryGuardError("TIME_BEFORE");
         // Wie beim Verschluss: eine schwebende Öffnung zählt für `getLatestKgEntry` nicht — ohne
         // diese Sperre legte der Träger Aufruf auf Aufruf, während die Box auf den ersten wartet.

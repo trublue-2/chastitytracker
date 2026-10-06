@@ -30,6 +30,13 @@
           "de": "Das Foto der Box mit sichtbarem Schlüssel wird nicht mehr beim Verschliessen verlangt, sondern erst, wenn die Box den Riegel als zu meldet — vorher belegt es nichts. Die Keyholderin kann es erlassen, falls es sich nicht beschaffen lässt. Wurde es vor dem Schliessen aufgenommen, markiert die Session es.",
           "en": "The box photo with the key visible is no longer asked for when locking, but once the box reports the bolt closed — before that it proves nothing. The keyholder can waive it if it cannot be obtained. If it was taken before the bolt closed, the session flags it."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Verschluss und Öffnung werden auf die Sekunde datiert, solange du die Zeit nicht änderst. Wer kurz nach einer Öffnung wieder verschliesst (oder umgekehrt), bekommt nicht mehr „Zeitpunkt muss nach dem vorherigen Eintrag liegen\".",
+          "en": "Locking and opening are timed to the second as long as you leave the time alone. Locking again right after an opening (or the other way round) no longer fails with “time must be after the previous entry”."
+        }
       }
     ]
   },

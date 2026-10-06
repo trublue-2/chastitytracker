@@ -43,6 +43,8 @@ export interface PruefungPayload {
 export interface VerschlussPayload {
   type: "VERSCHLUSS";
   startTime: string;
+  /** Der Träger hat die Zeit nicht angefasst: der Server datiert mit seiner Uhr, auf die Sekunde. */
+  startIsNow?: boolean;
   imageUrl: string | null;
   imageExifTime: string | null;
   note: string | null;
@@ -61,6 +63,8 @@ export interface VerschlussPayload {
 export interface OeffnenPayload {
   type: "OEFFNEN";
   startTime: string;
+  /** Der Träger hat die Zeit nicht angefasst: der Server datiert mit seiner Uhr, auf die Sekunde. */
+  startIsNow?: boolean;
   oeffnenGrund: string;
   note: string | null;
   /** Only set when user confirmed the Reinigung-limit-bypass sheet. */

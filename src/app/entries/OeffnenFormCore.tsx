@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { toDatetimeLocal, fromDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { fromDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { datedWindowLabel } from "@/lib/weekdays";
 import { type OeffnenGrund } from "@/lib/constants";
@@ -68,7 +69,7 @@ export default function OeffnenFormCore({
   // Sub-Warnungen ohnehin nicht, und ein Grund würde jede Reinigungsöffnung als Bruch anzeigen.
   const cleaningBlock = cleaning?.cleaningBlock ?? null;
 
-  const [startTime, setStartTime] = useState(toDatetimeLocal(initial?.startTime, tz) || nowDefault);
+  const { startTime, onStartChange, startIsNow } = useEntryStartTime(initial?.startTime, nowDefault, tz);
   const [grund, setGrund] = useState<OeffnenGrund | "">((initial?.oeffnenGrund as OeffnenGrund) ?? defaultGrund ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [showWarning, setShowWarning] = useState(false);
@@ -116,6 +117,7 @@ export default function OeffnenFormCore({
     const payload: OeffnenPayload = {
       type: "OEFFNEN",
       startTime: fromDatetimeLocal(startTime, tz).toISOString(),
+      ...(startIsNow ? { startIsNow } : {}),
       oeffnenGrund: grund,
       note: note.trim() || null,
     };
@@ -240,7 +242,7 @@ export default function OeffnenFormCore({
         <DateTimePicker
           label={tCommon("dateTime")}
           value={startTime}
-          onChange={(e) => setStartTime(e.target.value)}
+          onChange={onStartChange}
           required
           {...(maxTime && { max: maxTime })}
         />
