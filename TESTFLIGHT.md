@@ -199,19 +199,17 @@ Jeder Upload muss eine höhere Build-Nummer haben als der vorherige.
 
 ---
 
-## Encryption Compliance (bei jedem Upload)
+## Encryption Compliance
 
-Bei "Missing Compliance" im TestFlight:
+`Info.plist` setzt `ITSAppUsesNonExemptEncryption = NO` (gilt ab dem Build nach 10). Der Dialog erscheint damit nicht mehr bei
+jedem Upload. Die Angabe stimmt, weil die App nur die Verschlüsselung von iOS selbst nutzt (HTTPS im WebView); die
+Befehle an die LockMeBox verschlüsselt der Tracker-Server, die App reicht sie nur durch. Kommt eine eigene
+Verschlüsselung in die App, muss der Wert auf `YES` und die Frage neu beantwortet werden.
+
+Fehlt der Schlüssel in einem Build (z.B. Build 10) und TestFlight zeigt "Missing Compliance":
 1. App Store Connect → TestFlight → Build auswählen
 2. **"Provide Export Compliance Information"**
-3. → **"No"** (die App verwendet keine eigenen Encryption-Algorithmen)
-4. → *None of the algorithms mentioned above*
-
-Um diesen Dialog zu vermeiden, kann in `Info.plist` eingetragen werden:
-```xml
-<key>ITSAppUsesNonExemptEncryption</key>
-<false/>
-```
+3. → *None of the algorithms mentioned above* (Keinen der oben genannten Algorithmen)
 
 ---
 

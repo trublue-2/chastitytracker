@@ -81,5 +81,8 @@
 	<string>Die App verbindet sich per Bluetooth mit deiner Schlüsselbox, um sie zu verschliessen und zu öffnen.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Die App verwendet Face ID, um deine Daten zu schützen.</string>
+	<!-- Nur iOS-eigene Verschlüsselung (HTTPS); Begründung in TESTFLIGHT.md -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
