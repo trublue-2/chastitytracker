@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { useLocale } from "next-intl";
 
 /**
  * Ein Verlaufs-Diagramm für eine Messreihe: Punkte, geglättete Linie, optionale Ziel-Linie.
@@ -52,9 +53,12 @@ interface Props {
 const W = 320;
 const H = 140;
 const PAD = { top: 8, right: 6, bottom: 16, left: 30 };
+/** Ab dieser Spanne der Achse genügen ganze Zahlen; darunter bekommt sie eine Kommastelle. */
+const TICK_WHOLE_SPAN = 6;
 
 export default function MeasurementChart({ points, trend, markers = [], domain, unit, ariaLabel }: Props) {
   const clipId = useId();
+  const locale = useLocale();
   if (points.length === 0) return null;
 
   // Etwas Luft ober- und unterhalb, damit Punkte nicht auf dem Rahmen kleben. Eine Reihe ohne
@@ -77,6 +81,13 @@ export default function MeasurementChart({ points, trend, markers = [], domain, 
 
   // Drei Beschriftungen reichen: unten, Mitte, oben. Mehr Zahlen machen die Achse zur Tabelle.
   const ticks = [lo, (lo + hi) / 2, hi];
+  // Ganze Zahlen nur, wo die Achse breit genug ist: bei einer Spanne von unter einem Kilo hiessen
+  // sonst alle drei Marken „85" und die Achse sagte nichts mehr (84,5 und 85,4 sähen gleich aus).
+  const fractionDigits = hi - lo >= TICK_WHOLE_SPAN ? 0 : 1;
+  const tickFormat = new Intl.NumberFormat(locale.startsWith("en") ? "en-US" : "de", {
+    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: fractionDigits,
+  });
 
   return (
     <svg
@@ -126,7 +137,7 @@ export default function MeasurementChart({ points, trend, markers = [], domain, 
             className="fill-[var(--color-foreground-faint)]"
             style={{ fontSize: 7 }}
           >
-            {Math.round(v)}
+            {tickFormat.format(v)}
           </text>
         </g>
       ))}

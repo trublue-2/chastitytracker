@@ -27,6 +27,32 @@
     ]
   },
   {
+    "version": "6.2.12",
+    "date": "2026-10-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Gewicht und Zielgewicht lassen sich auf dem iPhone auch mit gemischter Tastatur (Deutsch/Englisch) mit Komma eingeben: Die Felder sind jetzt Textfelder mit Ziffern-Tastatur. Komma und Punkt gelten gleich.",
+          "en": "Weight and target weight can now be entered with a decimal comma on an iPhone with a mixed German/English keyboard: the fields are text fields with a numeric keypad. Comma and point are treated alike."
+        }
+      }
+    ]
+  },
+  {
+    "version": "6.2.11",
+    "date": "2026-10-02",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Gewichtsdiagramm: Die Werteachse zeigt bei kleiner Spanne eine Kommastelle, sodass sich 84,5 und 85,4 kg unterscheiden lassen.",
+          "en": "Weight chart: the value axis shows one decimal when the range is small, so 84.5 and 85.4 kg can be told apart."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.2.10",
     "date": "2026-09-24",
     "changes": [
