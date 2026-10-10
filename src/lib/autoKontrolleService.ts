@@ -325,8 +325,21 @@ function spreadOverDay(
       const triggerMin = Math.ceil(winStart + i * segSize);
       const triggerMax = Math.floor(winStart + (i + 1) * segSize) - 1; // Trigger vor Segmentende → verteilt
       if (triggerMax < triggerMin) continue; // Segment < 1 Min → überspringen
-      const trig = randomInt(triggerMin, triggerMax, rand);
-      if (isInQuietMinutes(quietVon, quietBis, trig)) continue; // nie im Schlaf wecken
+      // Gewürfelt wird nur unter den Minuten, die GEHEN: nicht im Schlaf, und die Mindest-Frist endet
+      // noch vor dem nächsten Schlaf-Beginn. Vorher wurde über das ganze Segment gewürfelt und ein
+      // unpassender Wurf VERWORFEN — bei Fenster 18–20, Ruhe ab 21:00 und Frist 120 fiel jeder Wurf
+      // nach 18:59 weg, bei „1 pro Tag" also an gut jedem zweiten Tag die einzige Kontrolle. Und der
+      // Tages-Merker stempelte den Tag trotzdem als geplant. Verworfen wird jetzt nur noch, wenn im
+      // Segment gar keine passende Minute liegt — dann ist es wirklich nicht erfüllbar.
+      const candidates: number[] = [];
+      for (let m = triggerMin; m <= triggerMax; m++) {
+        if (isInQuietMinutes(quietVon, quietBis, m)) continue; // nie im Schlaf wecken
+        if (windowDeadlineMin(m, fristVon, quietVon, fristVon) === null) continue; // Mindest-Frist passt nicht mehr
+        candidates.push(m);
+      }
+      if (candidates.length === 0) continue;
+      const trig = candidates[randomInt(0, candidates.length - 1, rand)];
+      // Die Mindest-Frist passt hier nach Auswahl; eine längere gewürfelte wird am Schlaf-Beginn gekappt.
       const deadlineMin = windowDeadlineMin(trig, randomInt(fristVon, fristBis, rand), quietVon, fristVon);
       if (deadlineMin !== null) pushIfFuture(trig, deadlineMin);
     }

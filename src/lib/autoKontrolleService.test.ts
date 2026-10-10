@@ -568,3 +568,54 @@ describe("settingsForDay — Ruhetage und Tages-Ausnahmen", () => {
     }
   });
 });
+
+describe("festes Auslöse-Fenster: gewürfelt wird nur, was geht", () => {
+  // Gemeldet von einem Tester: Fenster 18–20, Ruhe ab 21:00, Frist 120, eine Kontrolle pro Tag. Eine
+  // Frist von 120 Minuten endet nur vor 21:00, wenn die Auslösung spätestens um 18:59 liegt. Der Planer
+  // würfelte über das ganze Fenster und verwarf alles danach — an gut jedem zweiten Tag kam gar keine.
+  const tester = settingsOf({
+    perDayMin: 1, perDayMax: 1, ruheVon: "21:00", ruheBis: "08:00",
+    fristVon: 120, fristBis: 120, fensterVon: "18:00", fensterBis: "20:00",
+  });
+  const dayStart = midnightInTZ(new Date("2026-10-10T12:00:00Z"), TZ);
+  /** Zufall, der bei jedem Aufruf denselben Wert liefert — fährt den Bereich der Würfe ab. */
+  const sweep = Array.from({ length: 100 }, (_, i) => i / 100);
+
+  it("liefert für JEDEN Wurf eine Kontrolle, nicht nur für die in der ersten Fenster-Hälfte", () => {
+    for (const r of sweep) {
+      const slots = generateAutoKontrollen(tester, dayStart, () => r, TZ);
+      expect(slots, `Wurf ${r}`).toHaveLength(1);
+    }
+  });
+
+  it("legt die Auslösung dorthin, wo die Frist noch vor dem Schlaf endet", () => {
+    for (const r of sweep) {
+      const [slot] = generateAutoKontrollen(tester, dayStart, () => r, TZ);
+      const from = hhmmToMinutes(hhmm(slot.wirksamAb));
+      const to = hhmmToMinutes(hhmm(slot.deadline));
+      expect(from, `Wurf ${r}`).toBeGreaterThanOrEqual(hhmmToMinutes("18:00"));
+      expect(from, `Wurf ${r}`).toBeLessThanOrEqual(hhmmToMinutes("18:59"));
+      expect(to, `Wurf ${r}`).toBeLessThan(hhmmToMinutes("21:00"));
+    }
+  });
+
+  it("bleibt über viele echte Würfe nie leer", () => {
+    for (let i = 0; i < 500; i++) {
+      expect(generateAutoKontrollen(tester, dayStart, Math.random, TZ)).toHaveLength(1);
+    }
+  });
+
+  it("nutzt das ganze Fenster, wo die Mindest-Frist es hergibt", () => {
+    // Frist 60: der Schlaf beginnt um 21:00, also darf die Auslösung bis 19:59 liegen.
+    const kurz = { ...tester, fristVon: 60, fristBis: 60 };
+    const latest = Math.max(...sweep.map((r) => hhmmToMinutes(hhmm(generateAutoKontrollen(kurz, dayStart, () => r, TZ)[0].wirksamAb))));
+    expect(latest).toBeGreaterThan(hhmmToMinutes("19:30"));
+    for (const r of sweep) expect(generateAutoKontrollen(kurz, dayStart, () => r, TZ)).toHaveLength(1);
+  });
+
+  it("ein Fenster, in dem die Mindest-Frist nie passt, bleibt leer — erfunden wird keine", () => {
+    // Auslösung frühestens 20:30, Frist 120 → 22:30, mitten im Schlaf ab 21:00: nicht erfüllbar.
+    const unmoeglich = { ...tester, fensterVon: "20:30", fensterBis: "20:50" };
+    for (const r of sweep) expect(generateAutoKontrollen(unmoeglich, dayStart, () => r, TZ)).toHaveLength(0);
+  });
+});

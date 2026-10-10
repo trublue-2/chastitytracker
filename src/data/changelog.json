@@ -58,6 +58,13 @@
           "de": "Im Bereich „Box“ der Keyholder-Einstellungen steht, welche Box hinterlegt ist (Heimdall, LockMeBox oder keine) und welche Box-Nr.",
           "en": "The “Box” section of the keyholder settings shows which box is registered (Heimdall, LockMeBox or none) and its box number."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Tagesplanung der automatischen Kontrollen mit festem Zeitfenster lässt den Tag nicht mehr leer, wenn die Frist erst nach dem Ruhebeginn geendet hätte: die Kontrolle wird in den Teil des Fensters gelegt, in dem die Frist noch passt.",
+          "en": "The daily planning of automatic inspections with a fixed time window no longer leaves the day empty when the deadline would have ended after quiet time began: the inspection is placed in the part of the window where the deadline still fits."
+        }
       }
     ]
   },
