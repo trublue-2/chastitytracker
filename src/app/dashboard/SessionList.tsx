@@ -169,6 +169,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         kontrolleKommentar: null,
         kombiniertePillLabel: null,
         kombiniertePillCls: null,
+        review: null,
         orgasmusArt: null,
         timeCorrected: false,
         deviceName: verschluss.device?.name ?? null,
@@ -208,6 +209,10 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             kombiniertePillLabel: pill?.label ?? null,
             kombiniertePillCls: pill?.cls ?? null,
             verifyFailure: k.verifikationFailure,
+            // Urteilen darf nur die Keyholderin — in der Sicht des Subs bleibt das Foto ohne Knöpfe.
+            review: keyholderView && k.entryId
+              ? { entryId: k.entryId, requested: k.anforderungStatus !== null, verifikationStatus: k.verifikationStatus }
+              : null,
             ...keyProofFor(k.entryId, k.keyDetected, k.boxImageUrl, telemetryKeyProof),
             boxImageUrl: k.boxImageUrl ?? null,
             orgasmusArt: null,
@@ -250,6 +255,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         kontrolleKommentar: null,
         kombiniertePillLabel: null,
         kombiniertePillCls: null,
+        review: null,
         orgasmusArt: orgasmLabel(e.orgasmusArt),
         timeCorrected: false,
       })),
@@ -282,6 +288,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         kontrolleKommentar: null,
         kombiniertePillLabel: null,
         kombiniertePillCls: null,
+        review: null,
         orgasmusArt: null,
         timeCorrected: false,
         pauseDurationStr: formatDurationBetween(intr.oeffnen.startTime, intr.verschluss.startTime, dl),

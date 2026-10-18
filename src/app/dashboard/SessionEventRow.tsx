@@ -5,6 +5,7 @@ import { CheckCircle2, Droplets, MoreVertical, Camera, AlertTriangle, AlertCircl
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
+import InspectionReviewButtons, { type InspectionReviewData } from "@/app/admin/kontrollen/InspectionReviewButtons";
 import Badge from "@/app/components/Badge";
 import { blockInsetCls } from "@/app/components/inputStyles";
 import DetailField from "@/app/components/DetailField";
@@ -58,6 +59,10 @@ export interface SessionEventData {
   kontrolleKommentar: string | null;
   kombiniertePillLabel: string | null;
   kombiniertePillCls: string | null;
+  /** KONTROLLE, nur Keyholder-Sicht: dann stehen Verifizieren / Ablehnen unter dem Foto. Der Sub
+   *  bekommt hier `null` — er beurteilt seine eigenen Kontrollen nicht. Pflicht wie `captureDisabled`,
+   *  damit kein Builder die Entscheidung stillschweigend auslässt. */
+  review: InspectionReviewData | null | undefined;
   /** KONTROLLE: WARUM der automatische Foto-Check nicht gematcht hat. Steht direkt unter der Pille,
    *  weil die sonst „Nicht verifiziert" sagt und nichts weiter — der Träger sah eine Ablehnung ohne
    *  Grund und konnte weder nachbessern noch widersprechen.
@@ -413,6 +418,7 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
               <DetailField label={tc("dateTime")}>
                 <p className="text-sm font-semibold text-foreground">{ev.dateStr}, {ev.timeStr}</p>
               </DetailField>
+              {ev.type === "kontrolle" && ev.review && <InspectionReviewButtons {...ev.review} />}
               {ev.type === "kontrolle" && deviceRow}
               {ev.exifStr && (
                 <DetailField label={tc("exifDate")}>

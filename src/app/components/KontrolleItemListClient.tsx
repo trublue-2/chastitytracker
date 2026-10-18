@@ -12,6 +12,7 @@ import { blockInsetCls } from "@/app/components/inputStyles";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { LIST_PAGE_SIZE } from "@/lib/constants";
+import InspectionReviewButtons, { type InspectionReviewData } from "@/app/admin/kontrollen/InspectionReviewButtons";
 
 export interface KontrolleItemData {
   id: string;
@@ -32,6 +33,8 @@ export interface KontrolleItemData {
   timeCorrectedStr?: string | null;
   /** Foto durchs Sichtfenster der Box — im Vollbild neben dem Kontroll-Foto wählbar. */
   boxImageUrl?: string | null;
+  /** Nur in Keyholder-Sichten gesetzt: dann stehen Verifizieren / Ablehnen unter dem Foto. */
+  review?: InspectionReviewData | null;
 }
 
 
@@ -77,6 +80,7 @@ function KontrolleThumb({ k, imageAlt }: { k: KontrolleItemData; imageAlt: strin
                   )}
                 </div>
               )}
+              {k.review && <InspectionReviewButtons {...k.review} />}
               {k.deadlineStr && (
                 <DetailField label={k.deadlinePrefix}>
                   <p className="text-sm text-foreground-muted">{k.deadlineStr}</p>

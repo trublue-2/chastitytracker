@@ -276,6 +276,11 @@ export default async function LaufendeSessionCard({
             kombiniertePillLabel: kombiniertePill?.label ?? null,
             kombiniertePillCls: kombiniertePill?.cls ?? null,
             verifyFailure: ev.kontrolleVerifikationFailure ?? null,
+            // Gesetztes `subjectId` = Keyholder-Sicht (die Karte rendert auch dort). Nur dann stehen
+            // Verifizieren / Ablehnen unter dem Foto; der Träger beurteilt seine Kontrollen nicht.
+            review: subjectId && ev.type === "kontrolle" && ev.entryId
+              ? { entryId: ev.entryId, requested: !!ev.kontrolleAnforderungStatus, verifikationStatus: ev.kontrolleVerifikationStatus ?? null }
+              : null,
             orgasmusArt: ev.orgasmusArt ?? null,
             pauseDurationStr: ev.pauseDurationStr ?? null,
             timeCorrected,
