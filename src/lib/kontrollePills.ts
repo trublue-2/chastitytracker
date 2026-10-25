@@ -180,3 +180,15 @@ export function entryInspectionPill(
     t,
   );
 }
+
+/**
+ * Stehen unter dem Vollbild-Foto die Knöpfe Verifizieren / Ablehnen?
+ *
+ * Nur bei „Nicht geprüft" — dem einzigen Zustand, in dem eine eingereichte Kontrolle noch auf das
+ * Urteil der Keyholderin wartet. Gleich ob pünktlich, zu spät oder als Selbstkontrolle: das Urteil
+ * ist dasselbe. Läuft die KI-Prüfung noch (`pending`), wartet die Keyholderin ihr Ergebnis ab; ein
+ * gefälltes Urteil korrigiert sie weiterhin über das Zeilenmenü der Kontrollen-Liste.
+ */
+export function canReviewInspection(verifikationStatus: string | null | undefined): boolean {
+  return verifikationStatus === "unverified";
+}

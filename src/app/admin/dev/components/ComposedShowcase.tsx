@@ -72,6 +72,7 @@ const demoEvent = {
   timeIso: undefined, codeImageUrl: null, codeRevealed: undefined, captureDisabled: false,
   verifyFailure: null, pauseDurationStr: null, timeCorrected: false, timeCorrectedSystemStr: null,
   deviceName: null, showDevice: false, keyDetected: null, keyProofSource: null, boxImageUrl: null,
+  review: null,
 } satisfies Partial<SessionEventData>;
 
 export function SessionEventRowDemo() {

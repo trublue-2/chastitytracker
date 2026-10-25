@@ -13,6 +13,7 @@ import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { LIST_PAGE_SIZE } from "@/lib/constants";
 import KontrolleActions from "./KontrolleActions";
+import InspectionReviewButtons from "./InspectionReviewButtons";
 import { useTranslations } from "next-intl";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
 import { LockClosedIcon } from "@/app/components/lockIcons";
@@ -140,6 +141,9 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
               <PhotoChoice photo={photo} />
               {row.pillLabel && (
                 <Badge size="sm" tone={row.pillCls ?? undefined} label={row.pillLabel} className="self-start" />
+              )}
+              {row.entryId && (
+                <InspectionReviewButtons entryId={row.entryId} requested={row.kontrolleId !== null} verifikationStatus={row.verifikationStatus} />
               )}
               {row.target && (
                 <DetailField label={t("kontrolleTarget")}>

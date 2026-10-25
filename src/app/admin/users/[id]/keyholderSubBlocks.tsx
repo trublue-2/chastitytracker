@@ -504,6 +504,10 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
               code: k.code, dateTimeStr: fmtDual(k.time), dateTimePrefix: null,
               deadlineStr: k.deadline ? fmtDual(k.deadline) : null,
               deadlinePrefix: t("frist"), note: null, entryId: k.entryId,
+              // Selbstkontrolle = kein Anforderungs-Status.
+              review: k.entryId
+                ? { entryId: k.entryId, requested: k.anforderungStatus !== null, verifikationStatus: k.verifikationStatus }
+                : null,
               editHref: k.entryId ? `/dashboard/edit/${k.entryId}?from=admin&userId=${subjectId}` : null,
               timeCorrectedStr: isTimeCorrected(k.time, k.submittedAt)
                 ? `${t("timeCorrected")} – ${t("givenLabel")}: ${fmtDual(k.time)} · ${t("systemLabel")}: ${fmtDual(k.submittedAt!)}`

@@ -6,6 +6,7 @@ import { formatDateTime, formatTime, APP_TZ } from "@/lib/utils";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";
+import InspectionReviewButtons, { type InspectionReviewData } from "@/app/admin/kontrollen/InspectionReviewButtons";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { categoryStyle } from "@/lib/categoryConstants";
 import { listRowCls, listRowButtonCls, listRowTimeCls } from "@/app/components/inputStyles";
@@ -59,6 +60,9 @@ interface Props {
    *  `entryInspectionPill()` (das braucht die verknüpfte Anforderung, also eine Abfrage).
    *  Warum es sie gibt, steht in `kontrollePills.ts`. */
   inspectionPill?: KontrollePill | null;
+  /** Nur aus Keyholder-Sichten: dann stehen Verifizieren / Ablehnen unter dem Foto einer Kontrolle.
+   *  Die eigene Liste des Subs reicht es nicht durch — er beurteilt seine Kontrollen nicht selbst. */
+  inspectionReview?: InspectionReviewData | null;
   /** Optional action slot (e.g. EntryActions menu) */
   actions?: ReactNode;
   /** Nur die Uhrzeit statt Datum und Uhrzeit — für Listen, die ihre Tage schon überschreiben
@@ -84,7 +88,7 @@ function notePreview(note: string): string {
   return note.length > NOTE_PREVIEW_MAX ? `${note.slice(0, NOTE_PREVIEW_MAX).trimEnd()}…` : note;
 }
 
-export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel, openingLabel, inspectionPill, actions, timeOnly }: Props) {
+export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel, openingLabel, inspectionPill, inspectionReview, actions, timeOnly }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const tStats = useTranslations("stats");
 
@@ -218,6 +222,7 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
           onClose={() => setShowDetail(false)}
           title={typeTitle}
           panel={
+            <div className="flex flex-col gap-3">
             <EntryDetailPanel
               startTime={startTime}
               locale={locale}
@@ -232,6 +237,8 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
               capturedOffline={e.capturedOffline}
               note={e.note}
             />
+            {inspectionReview && <InspectionReviewButtons {...inspectionReview} />}
+            </div>
           }
         />
       )}

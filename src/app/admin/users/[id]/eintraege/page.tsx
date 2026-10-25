@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { formatDateTime, mapVerifikationStatus, toDateLocale } from "@/lib/utils";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { loadWeightRows } from "@/lib/weightRows";
@@ -135,6 +135,9 @@ export default async function AdminUserEintraegePage({
           orgasmusLabel={resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm)}
           openingLabel={e.oeffnenGrund ? resolveReasonLabel(e.oeffnenGrund, openCfg, "opening", tOpen) : null}
           inspectionPill={entryInspectionPill(e, ta, now)}
+          inspectionReview={e.type === "PRUEFUNG"
+            ? { entryId: e.id, requested: e.kontrollAnforderung !== null, verifikationStatus: mapVerifikationStatus(e.verifikationStatus) }
+            : null}
           actions={<EntryActions id={e.id} editHref={`/dashboard/edit/${e.id}?from=admin&userId=${id}`} tz={tz} />}
         />
       ),

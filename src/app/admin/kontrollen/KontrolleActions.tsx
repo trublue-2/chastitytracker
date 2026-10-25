@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import ConfirmDialog from "@/app/components/ConfirmDialog";
 import RowActionsMenu, { type RowAction } from "@/app/components/RowActionsMenu";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
+import { useInspectionReview } from "./useInspectionReview";
 
 interface Props {
   kontrolleId: string | null;
@@ -28,6 +29,8 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
   const canReject = !!entryId && verifikationStatus !== "rejected";
 
   const [error, setError] = useState<string | null>(null);
+  const inspection = useInspectionReview(entryId);
+  const shownError = error ?? inspection.error;
 
   /**
    * Rückfrage vor dem Ablehnen — die einzige Aktion dieses Menüs, die dem TRÄGER etwas antut.
@@ -58,15 +61,10 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "withdraw" }),
         });
-      } else if ((action === "manuallyVerify" || action === "reject") && entryId) {
-        // Am EINTRAG, nicht an der Anforderung: eine Selbstkontrolle hat keine (`kontrolleId` ist
-        // dort null), und die Kontrollen-Route erreicht sie deshalb nicht. Für angeforderte
-        // Kontrollen ist das Ergebnis dasselbe — die Route findet die Anforderung selbst.
-        res = await fetch(`/api/admin/entries/${entryId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action }),
-        });
+      } else if (action === "manuallyVerify" || action === "reject") {
+        // Das Urteil läuft über den geteilten Hook — derselbe Abruf wie unter dem Vollbild-Foto.
+        await inspection.review(action);
+        return;
       }
       // Auffangnetz, kein aktiver Pfad: heute deckt sich jede Zweig-Bedingung oben mit dem `can…`,
       // das den zugehörigen Knopf zeigt. Driftet das je wieder auseinander — genau der Defekt vom
@@ -136,8 +134,8 @@ export default function KontrolleActions({ kontrolleId, entryId, anforderungStat
 
   return (
     <div className="relative flex-shrink-0">
-      {error && (
-        <p className="absolute right-0 top-full mt-1 text-xs text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-lg px-2 py-1 whitespace-nowrap z-50">{error}</p>
+      {shownError && (
+        <p className="absolute right-0 top-full mt-1 text-xs text-warn bg-warn-bg border border-[var(--color-warn-border)] rounded-lg px-2 py-1 whitespace-nowrap z-50">{shownError}</p>
       )}
       <RowActionsMenu items={items} ariaLabel={t("kontrolleAriaActions")} />
 
