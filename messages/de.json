@@ -2394,6 +2394,7 @@
     "noReplyLast": "Die Box hat nicht rechtzeitig geantwortet. Zuletzt empfangen: {line}",
     "connectFailed": "Keine Verbindung zur Box. Ist die LockMeBox-App noch offen? Sie belegt die Box — App ganz beenden, Knopf an der Box drücken und nochmals versuchen.",
     "writeFailed": "Der Befehl ist nicht bis zur Box gekommen. Knopf an der Box drücken und nochmals versuchen.",
+    "keyRejected": "Die Box meldet sich, versteht den Tracker aber nicht. Meist stimmt der Schlüssel `BLE_BRIDGE_KEY` der Instanz nicht — er muss der Schlüssel der Box-Firmware sein, kein selbst erzeugter Wert (siehe README).",
     "passwordWrong": "Die Box ist mit einem anderen Passwort verschlossen, vermutlich über die Hersteller-App. Der Tracker kann sie so nicht öffnen.",
     "notApplied": "Die Box hat den Befehl nicht ausgeführt. Bitte nochmals verbinden.",
     "settingsHint": "Koppelt eine LockMeBox mit Werks-Firmware per Bluetooth. Danach folgt sie deinen Verschluss- und Öffnen-Einträgen — ausgeführt wird jeweils, wenn du dich an der Box verbindest.",

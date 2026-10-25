@@ -105,6 +105,17 @@ environment variables. Everything above is on by default.
   weigh-in form, the chart, the weighing windows and the "Weight report missed"
   rule show up anywhere, including in the wearer's own rule list. Concept:
   `docs/gewicht-konzept.md`, release condition: `docs/gewicht-freigabe-konzept.md`.
+- **LockMeBox over Bluetooth** — pairs a LockMeBox running its factory firmware
+  and locks/unlocks it from the phone (app, or Chrome/Edge on Android and desktop).
+  Needs `BLE_BRIDGE_KEY`. **This is not a secret you generate yourself.** It is the
+  AES-128 key the box firmware uses to decrypt commands, the same one the
+  manufacturer's app uses. A random key (for example from `openssl rand -hex 16`)
+  is accepted by the tracker but the box cannot read the commands and ignores them:
+  status queries then work only by accident, and locking/unlocking fails with
+  "the box did not answer". The key is not part of this repository and this
+  project does not say how to obtain it. Without a key the feature stays off. The
+  box accepts one Bluetooth connection at a time, so the manufacturer's app must
+  be closed. Details: [docs/lockmebox.md](docs/lockmebox.md).
 - **MCP keyholder interface** & **Heimdall physical box** — two larger opt-in
   integrations, documented under [Advanced integrations](#advanced-integrations).
 
@@ -236,6 +247,7 @@ BILDERSAFE_SHARPNESS_MIN=20        # local sharpness threshold (Laplacian varian
 # Feature flags
 ENABLE_DEVICE_CATEGORIES=false     # multi-category wear tracking (default on; false = KG only)
 ENABLE_BILDERSAFE=true             # sealed key-box code photo (default off)
+BLE_BRIDGE_KEY=<32 hex chars>      # LockMeBox: the box firmware's own AES key, NOT a random value (see "LockMeBox over Bluetooth")
 
 # Optional integrations
 PORTAL_SHARED_SECRET=<secret>      # JWT secret for the self-service portal's login flow

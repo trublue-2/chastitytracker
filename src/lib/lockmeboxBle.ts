@@ -18,6 +18,9 @@ import {
  *  Sekunden, die Box antwortet erst danach — bei schwachem Akku oder schwergängigem Riegel länger,
  *  als 8 Sekunden reichten (Rückmeldung 6.5.2: Befehl ausgeführt, Antwort zu spät). */
 const REPLY_TIMEOUT_MS = 20_000;
+/** So schnell antwortet eine Box auf die Statusabfrage, wenn sie den Befehl lesen kann (ohne Motor).
+ *  Bleibt sie darauf stumm, obwohl sie sich beim Verbinden gemeldet hat, versteht sie den Befehl nicht. */
+const STATUS_TIMEOUT_MS = 6_000;
 /** Status + höchstens ein Befehl + dessen Antwort — mehr braucht eine Sitzung nie. Die Grenze
  *  schützt nur davor, dass ein Fehler die Verbindung endlos offen hält. */
 const MAX_STEPS = 4;
@@ -34,6 +37,9 @@ export type LockmeboxSessionError =
   | "noDevice"
   /** Die Box hat auf einen Befehl nicht rechtzeitig geantwortet. */
   | "noReply"
+  /** Die Box meldet sich beim Verbinden, ignoriert aber unsere Befehle — fast immer ein falscher
+   *  `BLE_BRIDGE_KEY` (sie liest die verschlüsselten Befehle nicht). */
+  | "keyRejected"
   /** Die Verbindung zur Box kam nicht zustande — häufig belegt eine andere App (Hersteller-App) sie,
    *  denn die Box nimmt nur eine Verbindung zugleich an. */
   | "connectFailed"
@@ -148,18 +154,25 @@ async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Prom
   // meldet sich beim Verbinden von selbst) fallen weg.
   let buffer = "";
   let lastFrame: string | null = null;
+  // Die Box meldet sich beim Verbinden von selbst. Kam das VOR unserem ersten Befehl, lebt sie und
+  // spricht — schweigt sie danach auf die Statusabfrage, liest sie unsere Befehle nicht.
+  let greeted = false;
+  let written = false;
   let stage: "connect" | "write" | "wait" = "connect";
   let awaiting: { prefix: string; resolve: (line: string | null) => void } | null = null;
   const onNotify = (value: DataView) => {
     const split = splitLockmeboxFrames(buffer + dataViewToText(value));
     buffer = split.rest;
-    if (split.frames.length) lastFrame = split.frames[split.frames.length - 1];
+    if (split.frames.length) {
+      lastFrame = split.frames[split.frames.length - 1];
+      if (!written) greeted = true;
+    }
     const hit = awaiting && split.frames.find((l) => l.startsWith(awaiting!.prefix));
     if (hit) awaiting!.resolve(hit);
   };
   const sendAndAwait = (command: LockmeboxCommand, frame: string) =>
     new Promise<string | null>((resolve, reject) => {
-      const timer = setTimeout(() => done(null), REPLY_TIMEOUT_MS);
+      const timer = setTimeout(() => done(null), command === "status" ? STATUS_TIMEOUT_MS : REPLY_TIMEOUT_MS);
       const done = (line: string | null) => {
         clearTimeout(timer);
         awaiting = null;
@@ -168,6 +181,7 @@ async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Prom
       const mine = { prefix: `<${LOCKMEBOX_COMMAND_LETTER[command]}/`, resolve: done };
       awaiting = mine;
       stage = "write";
+      written = true;
       // Nur setzen, solange DIESER Befehl noch wartet: kam die Antwort schon vor der Schreib-Quittung,
       // läuft längst der nächste Befehl, und ein spätes „wait“ verfälschte dessen Fehlerart.
       BleClient.write(deviceId, LOCKMEBOX_SERVICE, LOCKMEBOX_RX, textToDataView(frame)).then(() => { if (awaiting === mine) stage = "wait"; }, (e) => {
@@ -185,7 +199,10 @@ async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Prom
     for (let i = 0; i < MAX_STEPS && step.send; i++) {
       const { command, frame } = step.send;
       const line = await sendAndAwait(command, frame);
-      if (!line) return { ok: false, error: "noReply", lastLine: buffer || lastFrame };
+      if (!line) {
+        const error = command === "status" && greeted ? "keyRejected" : "noReply";
+        return { ok: false, error, lastLine: buffer || lastFrame };
+      }
       step = await relayStep({ boxId, line, sent: command });
     }
     if (step.problem) return { ok: false, error: step.problem };

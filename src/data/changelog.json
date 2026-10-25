@@ -48,8 +48,8 @@
       {
         "type": "fix",
         "text": {
-          "de": "Die LockMeBox bekommt mehr Zeit zum Antworten, und bei einem Fehler sagt der Tracker genauer, woran es lag (keine Verbindung, Befehl nicht angekommen, keine Antwort).",
-          "en": "The LockMeBox gets more time to answer, and on failure the tracker now says more precisely what went wrong (no connection, command not delivered, no answer)."
+          "de": "Die LockMeBox bekommt mehr Zeit zum Antworten, und bei einem Fehler sagt der Tracker genauer, woran es lag (keine Verbindung, Befehl nicht angekommen, keine Antwort, Schlüssel der Instanz passt nicht zur Box).",
+          "en": "The LockMeBox gets more time to answer, and on failure the tracker now says more precisely what went wrong (no connection, command not delivered, no answer, instance key does not match the box)."
         }
       }
     ]

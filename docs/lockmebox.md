@@ -7,9 +7,13 @@ damit jeder Browser auf dem iPhone kann kein Web Bluetooth).
 
 ## Einschalten
 
-Auf der Instanz `BLE_BRIDGE_KEY` setzen (32 Hex-Zeichen), den Schlüssel der Bluetooth-Brücke. Er
-kommt vom Betreiber und steht nicht im Repo. Ohne ihn gibt es weder die Route noch den
-Einstellungs-Eintrag.
+Auf der Instanz `BLE_BRIDGE_KEY` setzen (32 Hex-Zeichen). Das ist **kein frei wählbares Geheimnis**,
+sondern der AES-Schlüssel, mit dem die Firmware der Box Befehle entschlüsselt (derselbe wie in der
+Hersteller-App). Er steht nicht im Repo. Ein selbst erzeugter Wert (etwa `openssl rand -hex 16`)
+wird vom Tracker angenommen, die Box kann die Befehle damit aber nicht lesen und ignoriert sie:
+Statusabfragen gelingen nur zufällig, Sperren und Öffnen enden mit «Die Box hat nicht geantwortet».
+Ohne Schlüssel gibt es weder die Route noch den Einstellungs-Eintrag. Die Box nimmt nur EINE
+Bluetooth-Verbindung zugleich an; die Hersteller-App muss dafür beendet sein.
 
 ## Ablauf
 
