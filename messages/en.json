@@ -2394,7 +2394,7 @@
     "noReplyLast": "The box did not answer in time. Last received: {line}",
     "connectFailed": "No connection to the box. Is the LockMeBox app still open? It occupies the box — close the app completely, press the button on the box and try again.",
     "writeFailed": "The command did not reach the box. Press the button on the box and try again.",
-    "keyRejected": "The box answers on connect but does not understand the tracker. Usually the instance's `BLE_BRIDGE_KEY` is wrong — it must be the box firmware's own key, not a self-generated value (see README).",
+    "keyRejected": "No communication with the box possible.",
     "passwordWrong": "The box is locked with a different password, probably through the manufacturer's app. The tracker cannot open it that way.",
     "notApplied": "The box did not carry out the command. Please connect again.",
     "settingsHint": "Pairs a LockMeBox with factory firmware via Bluetooth. From then on it follows your lock and unlock entries — carried out whenever you connect at the box.",

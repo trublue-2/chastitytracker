@@ -541,7 +541,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
   c({
     id: "box-ble", mechanic: "Box", title: "LockMeBox per Bluetooth koppeln und bedienen",
     what: "Das Handy des Trägers verbindet sich mit einer LockMeBox (Werks-Firmware) und reicht Status und Befehle zwischen Box und Tracker durch; der erste Kontakt koppelt sie.",
-    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/box/ble"],
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/box/ble", "/api/box/ble/diagnostic"],
     note: "Die Box folgt den Einträgen wie Heimdall, ausgeführt wird aber erst beim nächsten Verbinden an der Box. Nur mit BLE_BRIDGE_KEY. Details: docs/lockmebox.md.",
   }),
   c({

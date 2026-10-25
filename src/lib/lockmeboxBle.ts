@@ -38,7 +38,8 @@ export type LockmeboxSessionError =
   /** Die Box hat auf einen Befehl nicht rechtzeitig geantwortet. */
   | "noReply"
   /** Die Box meldet sich beim Verbinden, ignoriert aber unsere Befehle — fast immer ein falscher
-   *  `BLE_BRIDGE_KEY` (sie liest die verschlüsselten Befehle nicht). */
+   *  `BLE_BRIDGE_KEY` (sie liest die verschlüsselten Befehle nicht). Die Oberfläche sagt nur „keine
+   *  Kommunikation möglich"; die Ursache geht ins Server-Log (`reportKeyRejected`). */
   | "keyRejected"
   /** Die Verbindung zur Box kam nicht zustande — häufig belegt eine andere App (Hersteller-App) sie,
    *  denn die Box nimmt nur eine Verbindung zugleich an. */
@@ -84,6 +85,16 @@ async function relayStep(body: LockmeboxRelayInput): Promise<LockmeboxRelayResul
   });
   if (!res.ok) throw codedError(RELAY_ERROR_PREFIX + ((await parseApiErrorCode(res)) ?? ""));
   return res.json();
+}
+
+/** Sagt dem Server, WARUM keine Verbindung möglich ist — die Ursache gehört ins Log des Betreibers,
+ *  nicht in die Oberfläche. Fire-and-forget: ein Fehler hier ändert nichts am Ergebnis der Sitzung. */
+function reportKeyRejected(boxId: string): void {
+  void fetchWithTimeout("/api/box/ble/diagnostic", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ boxId, reason: "keyRejected" }),
+  }).catch(() => {});
 }
 
 type BleModule = typeof import("@capacitor-community/bluetooth-le");
@@ -201,6 +212,7 @@ async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Prom
       const line = await sendAndAwait(command, frame);
       if (!line) {
         const error = command === "status" && greeted ? "keyRejected" : "noReply";
+        if (error === "keyRejected") reportKeyRejected(boxId);
         return { ok: false, error, lastLine: buffer || lastFrame };
       }
       step = await relayStep({ boxId, line, sent: command });
