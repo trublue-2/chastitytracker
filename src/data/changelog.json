@@ -51,6 +51,13 @@
           "de": "Die LockMeBox bekommt mehr Zeit zum Antworten, und bei einem Fehler sagt der Tracker genauer, woran es lag (keine Verbindung, Befehl nicht angekommen, keine Antwort, Schlüssel der Instanz passt nicht zur Box).",
           "en": "The LockMeBox gets more time to answer, and on failure the tracker now says more precisely what went wrong (no connection, command not delivered, no answer, instance key does not match the box)."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Kontrollen direkt am Foto beurteilen: Öffnet die Keyholderin das Foto einer noch nicht geprüften Kontrolle, stehen darunter «Verifizieren» und «Ablehnen».",
+          "en": "Judge inspections right at the photo: when the keyholder opens the photo of an inspection that hasn't been checked yet, \"Verify\" and \"Reject\" are right below it."
+        }
       }
     ]
   },

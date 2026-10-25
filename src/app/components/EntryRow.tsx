@@ -223,21 +223,21 @@ export default function EntryRow({ entry: e, locale, tz = APP_TZ, orgasmusLabel,
           title={typeTitle}
           panel={
             <div className="flex flex-col gap-3">
-            <EntryDetailPanel
-              startTime={startTime}
-              locale={locale}
-              tz={tz}
-              imageExifTime={e.imageExifTime}
-              oeffnenGrund={e.oeffnenGrund}
-              orgasmusArt={e.orgasmusArt}
-              openingLabel={openingLabel}
-              orgasmusLabel={orgasmusLabel}
-              kontrollCode={e.kontrollCode}
-              inspectionPill={inspectionPill}
-              capturedOffline={e.capturedOffline}
-              note={e.note}
-            />
-            {inspectionReview && <InspectionReviewButtons {...inspectionReview} />}
+              <EntryDetailPanel
+                startTime={startTime}
+                locale={locale}
+                tz={tz}
+                imageExifTime={e.imageExifTime}
+                oeffnenGrund={e.oeffnenGrund}
+                orgasmusArt={e.orgasmusArt}
+                openingLabel={openingLabel}
+                orgasmusLabel={orgasmusLabel}
+                kontrollCode={e.kontrollCode}
+                inspectionPill={inspectionPill}
+                capturedOffline={e.capturedOffline}
+                note={e.note}
+              />
+              {inspectionReview && <InspectionReviewButtons {...inspectionReview} />}
             </div>
           }
         />
