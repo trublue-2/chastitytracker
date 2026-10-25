@@ -9,6 +9,13 @@
           "de": "Sicherheits-Updates: Next.js schliesst eine kritische Lücke (Remote-Code-Ausführung bei der Bildoptimierung), dazu Updates für Zod, Nodemailer und die Passkey-Bibliothek. Bestehende Passkeys funktionieren weiter.",
           "en": "Security updates: Next.js closes a critical hole (remote code execution in image optimization), plus updates for Zod, Nodemailer and the passkey library. Existing passkeys keep working."
         }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "Der KI-Zugriff (MCP) lässt sich nur noch mit einem Admin-Konto freigeben, auch zum Lesen. Bereits an andere Konten ausgestellte Zugänge verfallen.",
+          "en": "AI access (MCP) can now only be authorized with an admin account, even for reading. Access already issued to other accounts expires."
+        }
       }
     ]
   },

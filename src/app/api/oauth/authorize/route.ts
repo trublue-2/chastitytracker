@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getClient, clientAllowsRedirect, createAuthorizationCode, scopesValid } from "@/lib/oauth";
+import { checkMcpKeyholder } from "@/lib/mcpWrite";
 
 /**
  * GET /api/oauth/authorize
@@ -66,6 +67,12 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  // Der MCP zeigt Keyholder-Daten, die dem Sub bewusst verborgen sind, und liest sie für JEDEN Token
+  // gleich (immer MCP_USERNAME). Einen Token bekommt deshalb nur ein Admin — die Rolle kommt aus der
+  // DB, nicht aus dem Sitzungs-Token.
+  if (!(await checkMcpKeyholder(session.user.id)).ok) {
+    return NextResponse.json({ error: "access_denied" }, { status: 403 });
   }
 
   let body: Record<string, string>;

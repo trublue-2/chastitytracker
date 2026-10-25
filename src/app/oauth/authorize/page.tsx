@@ -44,12 +44,14 @@ export default async function OAuthAuthorizePage({ searchParams }: Props) {
     redirect(`/login?callbackUrl=${encodeURIComponent(returnUrl)}`);
   }
 
+  // Nur Admins bekommen einen Token (`POST /api/oauth/authorize` erzwingt es mit der Rolle aus der DB);
+  // die Seite zeigt den Grund, statt einen Knopf anzubieten, der ins Leere läuft.
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+  if (!isAdmin) return <OAuthError message={t("adminOnly")} />;
+
   const scopeList = (scope ?? "read").split(" ").filter(Boolean);
   // Use the DB-stored client name — never the URL param (attacker-controlled)
   const appName = client.clientName;
-  // Schreibzugriff hängt NICHT am OAuth-Scope (nur "read" existiert), sondern an der Rolle:
-  // checkMcpKeyholder lässt Schreib-Tools nur für Admins zu. Der Consent muss das ehrlich zeigen.
-  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
 
   // Wohin der Browser nach der Entscheidung geht — aus der REGISTRIERTEN redirect_uri (oben gegen den
   // Client geprüft), nicht aus dem Namen, den der Client sich gibt. Wer hier einen fremden Host liest,
@@ -90,15 +92,13 @@ export default async function OAuthAuthorizePage({ searchParams }: Props) {
                     <span>{t("permRead")}</span>
                   </li>
                 )}
-                {isAdmin && (
-                  <li className="text-sm flex items-start gap-2">
-                    <span className="text-lock mt-0.5">✓</span>
-                    <span>{t("permKeyholder")}</span>
-                  </li>
-                )}
+                <li className="text-sm flex items-start gap-2">
+                  <span className="text-lock mt-0.5">✓</span>
+                  <span>{t("permKeyholder")}</span>
+                </li>
               </ul>
               <p className="text-xs text-foreground-faint mt-3">
-                {isAdmin ? t("noteAdmin") : t("noteReadOnly")}
+                {t("noteAdmin")}
               </p>
             </div>
 

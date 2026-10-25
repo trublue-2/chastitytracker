@@ -2412,6 +2412,10 @@ const verifyToken = async (_req: Request, token?: string) => {
   // 1. OAuth access token — carries the authorizing user's id (used to gate write tools).
   const oauthRecord = await verifyAccessToken(token);
   if (oauthRecord) {
+    // Lese- UND Schreib-Werkzeuge zeigen Keyholder-Daten: der Nutzer hinter dem Token muss JETZT Admin
+    // sein. So verfallen auch Tokens, die vor dieser Regel an Nichtadmins gingen, und die eines
+    // gelöschten oder herabgestuften Admins.
+    if (!(await checkMcpKeyholder(oauthRecord.userId)).ok) return undefined;
     return { token, scopes: oauthRecord.scopes.split(" "), clientId: oauthRecord.clientId, extra: { userId: oauthRecord.userId } };
   }
 

@@ -62,9 +62,12 @@ An MCP client discovers and completes the flow automatically:
 5. **Revoke** — `POST /api/oauth/revoke` (RFC 7009) drops access + refresh tokens
    by hash; always responds 200.
 
-**Write access requires admin consent.** Write tools require `role === "admin"`,
-and the OAuth code is bound to the user who approved the consent screen. So sign
-in as an **admin** account when authorizing. (The only OAuth scope is `read`;
+**An OAuth token requires admin consent.** Only a user with `role === "admin"` can
+approve the consent screen (checked against the database, not the session), and
+the MCP rejects any token whose user is no longer an admin. The read tools show
+keyholder-side data that is deliberately hidden from the sub, so a non-admin
+cannot hold a token at all. The OAuth code is bound to the user who approved the
+consent screen. So sign in as an **admin** account when authorizing. (The only OAuth scope is `read`;
 write permission is gated on the admin role, not the scope.) Tokens are stored
 only as SHA-256 hashes; authorization codes are single-use with a 10-minute TTL.
 
