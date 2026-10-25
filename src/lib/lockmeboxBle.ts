@@ -15,8 +15,9 @@ import {
 } from "@/lib/lockmeboxProtocol";
 
 /** So lange wartet das Handy auf die Antwort der Box auf einen Befehl. Der Motor braucht ein paar
- *  Sekunden, die Box antwortet erst danach. */
-const REPLY_TIMEOUT_MS = 8_000;
+ *  Sekunden, die Box antwortet erst danach — bei schwachem Akku oder schwergängigem Riegel länger,
+ *  als 8 Sekunden reichten (Rückmeldung 6.5.2: Befehl ausgeführt, Antwort zu spät). */
+const REPLY_TIMEOUT_MS = 20_000;
 /** Status + höchstens ein Befehl + dessen Antwort — mehr braucht eine Sitzung nie. Die Grenze
  *  schützt nur davor, dass ein Fehler die Verbindung endlos offen hält. */
 const MAX_STEPS = 4;
@@ -31,14 +32,21 @@ export type LockmeboxSessionError =
   | "permission"
   /** Keine Box gewählt bzw. gefunden (schläft sie? erst den Knopf drücken). */
   | "noDevice"
-  /** Die Box hat auf einen Befehl nicht geantwortet. */
+  /** Die Box hat auf einen Befehl nicht rechtzeitig geantwortet. */
   | "noReply"
+  /** Die Verbindung zur Box kam nicht zustande — häufig belegt eine andere App (Hersteller-App) sie,
+   *  denn die Box nimmt nur eine Verbindung zugleich an. */
+  | "connectFailed"
+  /** Der Befehl ging nicht bis zur Box (Schreiben fehlgeschlagen). */
+  | "writeFailed"
   /** Der Server hat abgelehnt (Code in `code`) oder war nicht erreichbar (`code` leer). */
   | "server";
 
 export type LockmeboxSessionOutcome =
   | { ok: true; locked: boolean | null; info: LockmeboxInfo | null }
-  | { ok: false; error: LockmeboxSessionError; code?: string | null };
+  /** `lastLine`: das Letzte, was die Box vor dem Schweigen geschickt hat (auch angefangen) — hilft,
+   *  ein Antwortformat zu erkennen, das der Tracker nicht kennt. */
+  | { ok: false; error: LockmeboxSessionError; code?: string | null; lastLine?: string | null };
 
 /** Wie erreicht dieses Gerät die Box? `native` = die App (sucht selbst im Hintergrund), `web` =
  *  Web Bluetooth (nur über die Geräteauswahl nach einem Klick), `null` = gar nicht. In der App nur,
@@ -139,10 +147,13 @@ async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Prom
   // Befehl auf Antwort, erfüllt die erste passende Zeile sein Versprechen. Zeilen davor (die Box
   // meldet sich beim Verbinden von selbst) fallen weg.
   let buffer = "";
+  let lastFrame: string | null = null;
+  let stage: "connect" | "write" | "wait" = "connect";
   let awaiting: { prefix: string; resolve: (line: string | null) => void } | null = null;
   const onNotify = (value: DataView) => {
     const split = splitLockmeboxFrames(buffer + dataViewToText(value));
     buffer = split.rest;
+    if (split.frames.length) lastFrame = split.frames[split.frames.length - 1];
     const hit = awaiting && split.frames.find((l) => l.startsWith(awaiting!.prefix));
     if (hit) awaiting!.resolve(hit);
   };
@@ -154,8 +165,12 @@ async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Prom
         awaiting = null;
         resolve(line);
       };
-      awaiting = { prefix: `<${LOCKMEBOX_COMMAND_LETTER[command]}/`, resolve: done };
-      BleClient.write(deviceId, LOCKMEBOX_SERVICE, LOCKMEBOX_RX, textToDataView(frame)).catch((e) => {
+      const mine = { prefix: `<${LOCKMEBOX_COMMAND_LETTER[command]}/`, resolve: done };
+      awaiting = mine;
+      stage = "write";
+      // Nur setzen, solange DIESER Befehl noch wartet: kam die Antwort schon vor der Schreib-Quittung,
+      // läuft längst der nächste Befehl, und ein spätes „wait“ verfälschte dessen Fehlerart.
+      BleClient.write(deviceId, LOCKMEBOX_SERVICE, LOCKMEBOX_RX, textToDataView(frame)).then(() => { if (awaiting === mine) stage = "wait"; }, (e) => {
         clearTimeout(timer);
         awaiting = null;
         reject(e);
@@ -170,7 +185,7 @@ async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Prom
     for (let i = 0; i < MAX_STEPS && step.send; i++) {
       const { command, frame } = step.send;
       const line = await sendAndAwait(command, frame);
-      if (!line) return { ok: false, error: "noReply" };
+      if (!line) return { ok: false, error: "noReply", lastLine: buffer || lastFrame };
       step = await relayStep({ boxId, line, sent: command });
     }
     if (step.problem) return { ok: false, error: step.problem };
@@ -180,7 +195,7 @@ async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Prom
   } catch (e) {
     const code = codeOf(e);
     if (code?.startsWith(RELAY_ERROR_PREFIX)) return { ok: false, error: "server", code: code.slice(RELAY_ERROR_PREFIX.length) || null };
-    return { ok: false, error: "noReply" };
+    return { ok: false, error: stage === "connect" ? "connectFailed" : stage === "write" ? "writeFailed" : "noReply" };
   } finally {
     await BleClient.disconnect(deviceId).catch(() => {});
   }

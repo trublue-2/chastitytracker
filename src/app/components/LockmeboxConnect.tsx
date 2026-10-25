@@ -17,8 +17,11 @@ import {
  *  nach etwa einer Minute ein, ein Dauer-Neuversuch hülfe also nicht, er belastete nur den Akku. */
 const AUTO_RETRY_MS = 3_000;
 
+/** So viel der letzten Zeile der Box zeigt die Fehlermeldung — genug, um das Format zu erkennen. */
+const LAST_LINE_MAX = 80;
+
 /** Fehler, die ein neuer Versuch beheben kann: die Box schlief wieder ein oder die Leitung hakte. */
-const RETRYABLE = new Set<LockmeboxSessionError>(["noDevice", "noReply", "notApplied"]);
+const RETRYABLE = new Set<LockmeboxSessionError>(["noDevice", "noReply", "connectFailed", "writeFailed", "notApplied"]);
 
 /**
  * Die Verbindung zur LockMeBox (Werks-Firmware, nur Bluetooth) — EIN Bauteil für beide Wege.
@@ -67,7 +70,11 @@ export default function LockmeboxConnect({ unsupportedHint = false, autoBoxId, q
       // Held, Einträge und Karte gleich mit — der Tracker hat eben umgeschaltet.
       router.refresh();
     } else {
-      setError(outcome.error !== "server" ? t(outcome.error) : outcome.code ? apiError(outcome.code) : t("serverUnreachable"));
+      setError(
+        outcome.error === "server" ? (outcome.code ? apiError(outcome.code) : t("serverUnreachable"))
+        : outcome.error === "noReply" && outcome.lastLine ? t("noReplyLast", { line: outcome.lastLine.slice(0, LAST_LINE_MAX) })
+        : t(outcome.error),
+      );
     }
   };
 

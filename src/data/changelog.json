@@ -44,6 +44,13 @@
           "de": "«Falsche Orgasmusart» ist eine eigene Vergehensart und lässt sich unter Vergehen abschalten. Eine Anweisung, die mit einer anderen Art beantwortet wurde, zählt nicht mehr als versäumt.",
           "en": "\"Wrong orgasm type\" is its own offense type and can be switched off under Offenses. A directive answered with a different type no longer counts as missed."
         }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die LockMeBox bekommt mehr Zeit zum Antworten, und bei einem Fehler sagt der Tracker genauer, woran es lag (keine Verbindung, Befehl nicht angekommen, keine Antwort).",
+          "en": "The LockMeBox gets more time to answer, and on failure the tracker now says more precisely what went wrong (no connection, command not delivered, no answer)."
+        }
       }
     ]
   },
