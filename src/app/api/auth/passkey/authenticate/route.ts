@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRpConfig, setChallenge, getAndDeleteChallenge, createPasskeyToken } from "@/lib/webauthn";
-import { generateAuthenticationOptions, verifyAuthenticationResponse } from "@simplewebauthn/server";
-import type { AuthenticatorTransportFuture } from "@simplewebauthn/types";
+import { generateAuthenticationOptions, verifyAuthenticationResponse, type AuthenticatorTransport } from "@simplewebauthn/server";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/clientIp";
 
@@ -71,12 +70,12 @@ export async function PUT(req: Request) {
       },
       expectedOrigin: rpOrigin,
       expectedRPID: rpId,
-      authenticator: {
-        credentialID: Uint8Array.from(Buffer.from(passkey.credentialId, "base64url")),
-        credentialPublicKey: Uint8Array.from(Buffer.from(passkey.publicKey, "base64url")),
+      credential: {
+        id: passkey.credentialId,
+        publicKey: Uint8Array.from(Buffer.from(passkey.publicKey, "base64url")),
         counter: passkey.counter,
         transports: passkey.transports
-          ? (JSON.parse(passkey.transports) as AuthenticatorTransportFuture[])
+          ? (JSON.parse(passkey.transports) as AuthenticatorTransport[])
           : undefined,
       },
     });

@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.5.3",
+    "date": "2026-10-25",
+    "changes": [
+      {
+        "type": "security",
+        "text": {
+          "de": "Sicherheits-Updates: Next.js schliesst eine kritische Lücke (Remote-Code-Ausführung bei der Bildoptimierung), dazu Updates für Zod, Nodemailer und die Passkey-Bibliothek. Bestehende Passkeys funktionieren weiter.",
+          "en": "Security updates: Next.js closes a critical hole (remote code execution in image optimization), plus updates for Zod, Nodemailer and the passkey library. Existing passkeys keep working."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.5.2",
     "date": "2026-10-18",
     "changes": [

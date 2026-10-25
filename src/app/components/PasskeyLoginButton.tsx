@@ -47,7 +47,7 @@ export default function PasskeyLoginButton() {
       const options = await optionsRes.json();
 
       // 2. Authenticate with browser/authenticator
-      const credential = await startAuthentication(options);
+      const credential = await startAuthentication({ optionsJSON: options });
 
       // 3. Verify on server
       const verifyRes = await fetch("/api/auth/passkey/authenticate", {

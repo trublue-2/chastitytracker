@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { getRpConfig, setChallenge, getAndDeleteChallenge } from "@/lib/webauthn";
-import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
-import type { AuthenticatorTransportFuture } from "@simplewebauthn/types";
+import { generateRegistrationOptions, verifyRegistrationResponse, type AuthenticatorTransport } from "@simplewebauthn/server";
 
 /**
  * POST /api/auth/passkey/register
@@ -24,10 +23,9 @@ export async function POST() {
   });
 
   const excludeCredentials = existingPasskeys.map((p) => ({
-    id: Buffer.from(p.credentialId, "base64url"),
-    type: "public-key" as const,
+    id: p.credentialId,
     transports: p.transports
-      ? (JSON.parse(p.transports) as AuthenticatorTransportFuture[])
+      ? (JSON.parse(p.transports) as AuthenticatorTransport[])
       : undefined,
   }));
 
@@ -35,7 +33,9 @@ export async function POST() {
     rpName,
     rpID: rpId,
     userName: session.user.name ?? userId,
-    userID: userId,
+    // Dieselben UTF-8-Bytes wie vor v14 (dort wandelte die Bibliothek den String selbst): der
+    // User-Handle bestehender Passkeys bleibt gleich.
+    userID: new TextEncoder().encode(userId),
     attestationType: "none", // We don't need attestation for this use case
     excludeCredentials,
     authenticatorSelection: {
@@ -82,15 +82,15 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Verification failed" }, { status: 400 });
     }
 
-    const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
+    const { credential } = verification.registrationInfo;
 
     // Store passkey in database
     await prisma.passkey.create({
       data: {
         userId,
-        credentialId: Buffer.from(credentialID).toString("base64url"),
-        publicKey: Buffer.from(credentialPublicKey).toString("base64url"),
-        counter,
+        credentialId: credential.id,
+        publicKey: Buffer.from(credential.publicKey).toString("base64url"),
+        counter: credential.counter,
         transports: response.response?.transports
           ? JSON.stringify(response.response.transports)
           : null,

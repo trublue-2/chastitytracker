@@ -1,6 +1,6 @@
 {
   "name": "kg-app",
-  "version": "6.5.2",
+  "version": "6.5.3",
   "private": true,
   "license": "SEE LICENSE IN LICENSE.md",
   "scripts": {
@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@auth/core": "0.41.3",
     "@capacitor-community/bluetooth-le": "^8.3.0",
     "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.3.0",
@@ -25,22 +26,22 @@
     "@capawesome/capacitor-badge": "^8.0.2",
     "@modelcontextprotocol/server": "2.3.1",
     "@prisma/client": "^5.22.0",
-    "@simplewebauthn/browser": "^9.0.1",
-    "@simplewebauthn/server": "^9.0.3",
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.0.3",
     "bcryptjs": "^3.0.3",
     "exifr": "^7.1.3",
     "lucide-react": "^0.577.0",
     "mcp-handler": "2.3.0",
-    "next": "~16.3.8",
+    "next": "~16.4.3",
     "next-auth": "^5.0.0-beta.32",
     "next-intl": "^4.8.3",
-    "nodemailer": "^10.1.2",
+    "nodemailer": "^10.2.1",
     "prisma": "^5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sharp": "^0.35.5",
     "web-push": "^3.6.7",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@capacitor/android": "^8.3.0",
@@ -60,7 +61,9 @@
   },
   "overrides": {
     "next-auth": {
-      "nodemailer": "$nodemailer"
+      "nodemailer": "$nodemailer",
+      "@simplewebauthn/server": "$@simplewebauthn/server",
+      "@simplewebauthn/browser": "$@simplewebauthn/browser"
     }
   }
 }

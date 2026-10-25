@@ -103,7 +103,7 @@ export default function PasskeyManager({ timezone }: { timezone: string }) {
 
       // 2. Create credential with browser/authenticator
       // 3. Ask for the device name (dialog), then 4. verify and store — see `finishRegistration`
-      setPendingCredential(await startRegistration(options));
+      setPendingCredential(await startRegistration({ optionsJSON: options }));
     } catch (err) {
       // User cancelled or error
       if ((err as Error)?.name !== "NotAllowedError") {
