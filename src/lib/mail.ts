@@ -20,10 +20,11 @@ const transporter = nodemailer.createTransport({
   socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
   port: Number(process.env.SMTP_PORT ?? 587),
   secure: Number(process.env.SMTP_PORT) === 465,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
+  // Ohne SMTP_USER unauthentifiziert senden (Relay per IP-Freigabe) — sonst versucht nodemailer
+  // ein AUTH mit leeren Credentials, sobald der Server AUTH anbietet.
+  auth: process.env.SMTP_USER
+    ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    : undefined,
 });
 
 /** Kann die Instanz überhaupt Mails versenden? Ohne `SMTP_HOST` fällt der ganze Kanal still aus. */
