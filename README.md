@@ -386,6 +386,7 @@ NEXTAUTH_URL=https://tracker.example.com
 # SMTP for password reset + notifications
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
+# Leave SMTP_USER/SMTP_PASS unset for an IP-authorised relay (no AUTH is attempted then)
 SMTP_USER=<smtp-user>
 SMTP_PASS=<smtp-password>
 SMTP_FROM="KG Tracker <no-reply@example.com>"
