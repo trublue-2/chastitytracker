@@ -4,7 +4,7 @@ import { EMAIL_BUTTON_COLORS } from "./constants";
 
 const { transportSend, createTransport } = vi.hoisted(() => {
   const transportSend = vi.fn();
-  return { transportSend, createTransport: vi.fn((_opts: Record<string, number>) => ({ sendMail: transportSend })) };
+  return { transportSend, createTransport: vi.fn((_opts: Record<string, unknown>) => ({ sendMail: transportSend })) };
 });
 vi.mock("nodemailer", () => ({ default: { createTransport } }));
 
@@ -20,6 +20,32 @@ describe("SMTP-Zeitlimits", () => {
     expect(opts.connectionTimeout).toBe(10_000);
     expect(opts.greetingTimeout).toBe(10_000);
     expect(opts.socketTimeout).toBe(15_000);
+  });
+});
+
+// Relay per IP-Freigabe: ohne SMTP_USER darf kein AUTH mit leeren Credentials versucht werden.
+describe("SMTP-Anmeldung", () => {
+  afterEach(() => {
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASS;
+  });
+
+  async function transportOpts() {
+    vi.resetModules();
+    createTransport.mockClear();
+    await import("./mail");
+    return createTransport.mock.calls[0][0];
+  }
+
+  it("sendet ohne SMTP_USER unauthentifiziert", async () => {
+    delete process.env.SMTP_USER;
+    expect((await transportOpts()).auth).toBeUndefined();
+  });
+
+  it("meldet sich mit SMTP_USER und SMTP_PASS an", async () => {
+    process.env.SMTP_USER = "user";
+    process.env.SMTP_PASS = "pass";
+    expect((await transportOpts()).auth).toEqual({ user: "user", pass: "pass" });
   });
 });
 
