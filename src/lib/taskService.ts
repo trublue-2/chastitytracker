@@ -25,6 +25,7 @@ import {
 import { structuredLog } from "@/lib/serverLog";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";
+import { markLastAction } from "@/lib/appMeta";
 
 /**
  * Aufgaben-Service — Anlegen, Ändern, Zurückziehen, Erledigt-Melden.
@@ -645,6 +646,7 @@ export async function createTask(
   const checked = await checkTask(prisma, p, actor);
   if (!checked.ok) return checked;
   const task = await writeTask(prisma, checked.data);
+  markLastAction();
 
   // Terminiert: NICHTS melden. Die Meldung IST das, was die Terminierung verschiebt — sie hier
   // trotzdem zu verschicken verriete die Aufgabe, die der Träger noch nicht kennen soll.
@@ -716,6 +718,7 @@ export async function updateTask(
   // die Funktion wirft nie und stempelt sich selbst.
   if (next.holdUntil < t.holdUntil) void notifyLateProofsForTask(merged, userId);
 
+  markLastAction();
   return { ok: true, data: { id, userId } };
 }
 
@@ -773,6 +776,7 @@ export async function withdrawTask(id: string, userId: string, actor: MessageAct
       inbox: { ref: { type: "task", id }, once: true, actor },
     });
   }
+  markLastAction();
   return { ok: true, data: { userId, releasedJudgments: released } };
 }
 
@@ -1451,6 +1455,7 @@ export async function createTaskSeries(
     },
     select: { id: true },
   });
+  markLastAction();
   return { ok: true, data: { id: series.id } };
 }
 
@@ -1489,6 +1494,7 @@ export async function updateTaskSeries(
       },
     });
   });
+  markLastAction();
   return { ok: true, data: { id } };
 }
 
@@ -1498,6 +1504,7 @@ export async function withdrawTaskSeries(id: string, userId: string): Promise<Se
     where: { id, userId, deletedAt: null }, data: { deletedAt: new Date() },
   });
   if (res.count === 0) return serviceFail(404, "TASK_SERIES_NOT_FOUND");
+  markLastAction();
   return { ok: true, data: { id } };
 }
 

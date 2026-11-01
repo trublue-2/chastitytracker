@@ -4,6 +4,7 @@ import { escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { notifyUser, deliverToChannels, NOTIFY_RECIPIENT_SELECT, type NotifyContent, type NotifyInbox, type NotifyRecipient } from "@/lib/notify";
 import { actorColumn, recordInboxDelivery, type MessageActor } from "@/lib/messageService";
 import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
+import { markLastAction } from "@/lib/appMeta";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
 import { formatDateTime, formatDurationHours } from "@/lib/utils";
@@ -276,6 +277,7 @@ export async function createVerschlussAnforderung(
 
   // Instant-Push: Heimdall re-pullt die Config (neue/geänderte Sperre) für eine LIVE Box sofort.
   void notifyHeimdallForUserId(userId);
+  markLastAction();
   return { ok: true, data: { id: anforderung.id, scheduledFor: wirksamAb?.toISOString() ?? null } };
 }
 
@@ -411,6 +413,7 @@ export async function updateLockPeriodEnd(
       : { subjectKey: "lockPeriodChangedSubject", messageKey: "lockPeriodChangedMessageIndefinite", inbox });
   }
   void notifyHeimdallForUserId(va.userId);
+  markLastAction();
   return { ok: true, data: { id, userId: va.userId, notified } };
 }
 
@@ -567,6 +570,7 @@ export async function updateLockRequest(
   // Verborgen + noch nicht sofort fällig: stumm. Der Poller stellt bei Fälligkeit den frischen Stand zu.
 
   void notifyHeimdallForUserId(va.userId);
+  markLastAction();
   // `deliveredToPoller` = verborgen, aber poller-fällig: WIR haben nicht benachrichtigt, der Poller
   // wird es gleich tun. `notified` bleibt bewusst false (diese Antwort behauptet keine erfolgte
   // Zustellung), das MCP-Tool formuliert daraus die passende Meldung.
@@ -686,6 +690,7 @@ export async function withdrawVerschlussAnforderungById(
   const notified = !isHiddenFromSub(va);
   if (notified) await notifyUser(va.userId, verschlussWithdrawNotice(va.art as "ANFORDERUNG" | "SPERRZEIT", actor, id));
   void notifyHeimdallForUserId(va.userId);
+  markLastAction();
   return { ok: true, data: { userId: va.userId, notified } };
 }
 
@@ -748,6 +753,9 @@ export async function withdrawVerschlussAnforderung(
 
   const count = rows.length;
   if (notified) await notifyUser(userId, verschlussWithdrawNotice(art, actor));
-  if (count > 0) void notifyHeimdallForUserId(userId); // Instant-Push: der Rückzug erreicht eine LIVE Box sofort
+  if (count > 0) {
+    void notifyHeimdallForUserId(userId); // Instant-Push: der Rückzug erreicht eine LIVE Box sofort
+    markLastAction();
+  }
   return { ok: true, data: { count, hidden, notified, rows } };
 }

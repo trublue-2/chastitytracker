@@ -8,6 +8,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Der Rückzug läuft in einer Transaktion (er nimmt ein offenes Strafurteil mit) — `tx` ist hier
 // derselbe Mock wie `prisma`, die Aufrufe sind damit an einer Stelle ablesbar.
+vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
+import { markLastAction } from "@/lib/appMeta";
 vi.mock("@/lib/prisma", () => {
   const p = {
     user: { findUnique: vi.fn() },
@@ -110,6 +112,11 @@ describe("createTask", () => {
     // Ohne Geräte gibt es nichts anzulegen; holdUntil ist dann eine schlichte Erledigungs-Frist.
     const res = await createTask({ ...base, holdUntil: new Date("2026-07-25T12:20:00Z") }, "herrin");
     expect(res.ok).toBe(true);
+  });
+
+  it("zählt als Aktion der Instanz — sonst hält das Portal eine Instanz mit aktiver Keyholderin für ungenutzt", async () => {
+    await createTask({ ...base, holdUntil: new Date("2026-07-25T12:20:00Z") }, "herrin");
+    expect(markLastAction).toHaveBeenCalledTimes(1);
   });
 
   it("KG als Trage-Kategorie wird abgewiesen (dafür gibt es KG_LOCKED)", async () => {

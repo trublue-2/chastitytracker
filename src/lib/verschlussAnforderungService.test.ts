@@ -15,6 +15,7 @@ const tx = {
   verschlussAnforderung: { findMany: vi.fn(), updateMany: vi.fn(), create: vi.fn() },
 };
 
+vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Minimaler Prisma-Doppelgänger für den Serien-Pfad: nur die Methoden, die `createTaskSeries` und
 // `materializeDueSeries` (samt dem geteilten `checkTask`) tatsächlich anfassen.
+vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 vi.mock("@/lib/prisma", () => {
   const p = {
     taskSeries: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },

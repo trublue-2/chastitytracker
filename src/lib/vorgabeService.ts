@@ -6,6 +6,7 @@ import { reorderVorgabenDates } from "@/lib/vorgaben";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+import { markLastAction } from "@/lib/appMeta";
 import {
   parseWeekdayGoalRules, weekdayGoalRulesProblem, weekdayGoalRuleTooHigh, weekdayGoalRulesHaveTarget,
   type WeekdayGoalRule,
@@ -206,6 +207,7 @@ export async function createVorgabe(params: CreateVorgabeParams): Promise<Servic
   });
 
   await reorderVorgabenDates(userId);
+  markLastAction();
 
   return { ok: true, data: { id: vorgabe.id } };
 }
@@ -244,6 +246,7 @@ export async function updateVorgabe(id: string, params: UpdateVorgabeParams): Pr
     },
   });
   await reorderVorgabenDates(existing.userId);
+  markLastAction();
   return { ok: true, data: { id, userId: existing.userId } };
 }
 
@@ -264,6 +267,7 @@ export async function deleteVorgabe(id: string): Promise<ServiceResult<{ userId:
   // Verbleibende (aktive) Ziele derselben Kategorie neu verketten — die gelöschte Zeile fällt aus
   // reorderVorgabenDates' eigener Query (jetzt ebenfalls deletedAt:null) automatisch heraus.
   await reorderVorgabenDates(existing.userId);
+  markLastAction();
   return { ok: true, data: { userId: existing.userId } };
 }
 
