@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { adminNavItems, ADMIN_HOME_HREF, type AdminNavItem } from "@/lib/adminNavItems";
 import AdminFAB from "./AdminFAB";
-import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
+import AppFooterMeta from "@/app/components/AppFooterMeta";
 
 interface Props {
   version?: string;
@@ -57,15 +57,7 @@ export default function AdminBottomNav({ version, isGlobalAdmin, hideOwnTracker 
           aus Schriftgrösse und Polsterung, driftet sie von dem Token weg, das sie beschreibt. */}
       {version && (
         <div className="flex items-center justify-between px-4 h-6">
-          <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
-            &copy; trublue {new Date().getFullYear()}
-          </a>
-          <div className="flex items-center gap-2">
-            <UpdateAvailableIndicator currentVersion={version} />
-            <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
-              {version}
-            </Link>
-          </div>
+          <AppFooterMeta version={version} />
         </div>
       )}
     </nav>
