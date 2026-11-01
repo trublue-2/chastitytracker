@@ -9,11 +9,13 @@ import { CheckCircle, ClipboardList, Plus, Undo2, XCircle } from "lucide-react";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import FormError from "@/app/components/FormError";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
 import EmptyState from "@/app/components/EmptyState";
 import { blockInsetCls } from "@/app/components/inputStyles";
 import { Quote } from "@/app/components/QuotedField";
 import Select from "@/app/components/Select";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
+import useToast from "@/app/hooks/useToast";
 import { taskFormHref } from "@/lib/entryFormRoute";
 import { joinParts } from "@/lib/utils";
 import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType } from "@/lib/offenseTypes";
@@ -226,6 +228,10 @@ interface Labels {
   strafbuchGemeldet: string;
   strafbuchAbbrechen: string;
   strafbuchRueckgaengig: string;
+  strafbuchRueckgaengigConfirm: string;
+  /** Was der Sub nach „Strafe verhängen“ / „Vergehen verwerfen“ zu sehen bekommt. */
+  strafbuchFolgeStrafe: string;
+  strafbuchFolgeVerworfen: string;
   strafbuchStellungnahme: string;
   /** Vorlage mit `{date}` — der Client setzt den Tag ein. */
   strafbuchStellungnahmeGeaendert: string;
@@ -542,7 +548,6 @@ function JudgmentForm({ ctx, refId, canonical, sectionRefs, status, label, place
     }
   }
 
-  const statement = ctx.statements[refId] ?? null;
   const prior = priorPunishments(ctx.strafeRecords, offenseType, sectionRefs);
   const priorLine = joinParts(
     prior.count > 0 && ctx.labels.strafbuchFruehereStrafen.replace("{count}", String(prior.count)),
@@ -554,22 +559,13 @@ function JudgmentForm({ ctx, refId, canonical, sectionRefs, status, label, place
   return (
     <form onSubmit={submit} className="mt-2 bg-surface-raised rounded-xl border border-border p-3 flex flex-col gap-2">
       {priorLine && <p className={FACT_CLS}>{priorLine}</p>}
-      {/* Was ER dazu sagt — über dem Feld, in dem entschieden wird. Die Vorgeschichte darüber sagt,
-          was war; das hier sagt, was er einzuwenden hat. Beides gehört vor das Urteil, nicht
-          daneben. */}
-      {statement && (
-        <div>
-          <p className="text-xs text-foreground-faint mb-1">
-            {joinParts(ctx.labels.strafbuchStellungnahme, statement.editedAtStr && ctx.labels.strafbuchStellungnahmeGeaendert.replace("{date}", statement.editedAtStr))}
-          </p>
-          <Quote>{statement.text}</Quote>
-        </div>
-      )}
       <div>
         <label className="block text-xs text-foreground-faint mb-1">{label}</label>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={2} required placeholder={placeholder}
           className={`${fieldCls} resize-none`} />
       </div>
+      {/* Was der Sub nach dem Absenden zu sehen bekommt (Texte: `penaltyMessage`, `offenseDismissedMessage`). */}
+      <p className={FACT_CLS}>{status === "PUNISHED" ? ctx.labels.strafbuchFolgeStrafe : ctx.labels.strafbuchFolgeVerworfen}</p>
       {error && <p className="text-xs text-warn">{error}</p>}
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onClose}
@@ -665,6 +661,20 @@ function DismissedBadge({ ctx, refId }: { ctx: JudgmentCtx; refId: string }) {
   );
 }
 
+/** Seine Stellungnahme, sichtbar VOR der Urteilswahl — stand im Formular und fehlte damit beim Weg „Aufgabe“. */
+function StatementBlock({ ctx, refId }: { ctx: JudgmentCtx; refId: string }) {
+  const statement = ctx.statements[refId];
+  if (!statement) return null;
+  return (
+    <div>
+      <p className="text-xs text-foreground-faint mb-1">
+        {joinParts(ctx.labels.strafbuchStellungnahme, statement.editedAtStr && ctx.labels.strafbuchStellungnahmeGeaendert.replace("{date}", statement.editedAtStr))}
+      </p>
+      <Quote>{statement.text}</Quote>
+    </div>
+  );
+}
+
 /**
  * 3-Wege-Urteilsslot: bestraft → PunishedBadge, verworfen → DismissedBadge, offen → Urteils-Auswahl.
  *
@@ -702,6 +712,7 @@ function JudgmentSlot({ ctx, refId, canonical, sectionRefs, anlass }: {
 
   return (
     <div className="mt-2 flex flex-col gap-2">
+      <StatementBlock ctx={ctx} refId={refId} />
       <div className="flex flex-wrap items-center gap-2">
         <div className="w-full sm:max-w-xs">
           <Select
@@ -725,7 +736,7 @@ function JudgmentSlot({ ctx, refId, canonical, sectionRefs, anlass }: {
         <JudgmentForm ctx={ctx} refId={refId} canonical={canonical} sectionRefs={sectionRefs} status="PUNISHED"
           label={ctx.labels.strafbuchStrafeLabel} placeholder={ctx.labels.strafbuchStrafePlaceholder}
           submitLabel={ctx.labels.strafbuchStrafeVerhaengen} submitIcon={<CheckCircle size={12} />}
-          submitClass="bg-[var(--color-ok)]" onClose={() => ctx.setOpenJudgment(null)} />
+          submitClass="bg-btn-primary" onClose={() => ctx.setOpenJudgment(null)} />
       )}
       {mode === "dismiss" && (
         <JudgmentForm ctx={ctx} refId={refId} canonical={canonical} sectionRefs={sectionRefs} status="DISMISSED"
@@ -745,7 +756,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const [showAll, setShowAll] = useState(false);
   // Welches Urteils-Formular offen ist — EIN Zustand, weil die Auswahl immer nur eines öffnet.
   const [openJudgment, setOpenJudgment] = useState<{ refId: string; mode: "punish" | "dismiss" } | null>(null);
-  const { run: runAction } = useActionPatch();
+  const { saving: acting, run: runAction } = useActionPatch();
 
   // Urteils-Lebenszyklus: bestraft (PUNISHED, offen→erledigt) | verworfen (DISMISSED) | offen (kein Record).
   // „closed" = verworfen ODER bestraft & erledigt. Eine bestrafte, noch nicht erledigte Strafe bleibt relevant.
@@ -755,13 +766,18 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
   const hasPunished = strafeRecords.length > 0;
 
-  async function handleUndo(refId: string) {
-    await fetch("/api/admin/strafe", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refId }),
-    });
-    router.refresh();
+  // Rücknahme eines Urteils: erst fragen, dann die Antwort PRÜFEN — ein stiller Fehlschlag sähe nach
+  // dem Neuladen wie ein Erfolg aus. Der Fehler kommt als Toast: die Zeile liegt irgendwo in einer
+  // langen Liste, und eine Fehlerzeile am Seitenanfang bliebe ausser Sicht.
+  const toast = useToast();
+  const [undoRef, setUndoRef] = useState<string | null>(null);
+
+  async function confirmUndo() {
+    if (!undoRef) return;
+    const res = await runAction("/api/admin/strafe", { refId: undoRef }, "DELETE");
+    if (!res) toast.error(labels.networkError);
+    else if (!res.ok) toast.error(apiError(await parseApiErrorCode(res)));
+    setUndoRef(null);
   }
 
   function markDone(refId: string, done: boolean) {
@@ -1048,7 +1064,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
   const judgmentCtx: JudgmentCtx = {
     userId, labels, statements, strafeRecords, punishedIds, dismissedIds,
     openJudgment, setOpenJudgment, apiError,
-    onUndo: handleUndo, onMarkDone: markDone,
+    onUndo: setUndoRef, onMarkDone: markDone,
   };
 
   // Fehlt oben eine Art, bricht der Build hier und nennt sie beim Namen — Begründung an der
@@ -1061,6 +1077,15 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
 
   return (
     <div className="flex flex-col gap-6">
+      <ConfirmDialog
+        open={undoRef !== null}
+        title={labels.strafbuchRueckgaengig}
+        message={labels.strafbuchRueckgaengigConfirm}
+        confirmLabel={labels.strafbuchRueckgaengig}
+        loading={acting}
+        onConfirm={() => void confirmUndo()}
+        onCancel={() => setUndoRef(null)}
+      />
 
       {/* Der Einstieg gehört HIERHER: wer ein Vergehen notieren will, sitzt vor dem Buch, in dem es
           landen soll. Bisher gab es ihn nur im Aktionen-Hub — man musste die Seite verlassen, um

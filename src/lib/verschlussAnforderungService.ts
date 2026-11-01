@@ -669,6 +669,10 @@ export async function carryOverLockPeriodOnAlreadyLocked(
  * Dieselben Regeln wie die art-basierte Variante, und deshalb im Service statt in der Route: die
  * Route benachrichtigte bedingungslos (verriet also geplante Direktiven) und pushte nie an Heimdall
  * (eine LIVE Box behielt die zurückgezogene Sperre bis zu ihrem nächsten Pull).
+ *
+ * Die Rückfrage im Keyholder-Bereich (`WithdrawButton`, `withdrawLockPeriodConfirm`) verspricht
+ * genau diese Regel: Mitteilung nur, wenn `!isHiddenFromSub`, und kein Weg zurück. Wer eines davon
+ * ändert, ändert die Texte mit.
  */
 export async function withdrawVerschlussAnforderungById(
   id: string,

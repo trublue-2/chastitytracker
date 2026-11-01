@@ -196,6 +196,9 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchOffeneAnzeigen: t("strafbuchOffeneAnzeigen"),
     strafbuchAbbrechen: t("strafbuchAbbrechen"),
     strafbuchRueckgaengig: t("strafbuchRueckgaengig"),
+    strafbuchRueckgaengigConfirm: t("strafbuchRueckgaengigConfirm"),
+    strafbuchFolgeStrafe: t("strafbuchFolgeStrafe"),
+    strafbuchFolgeVerworfen: t("strafbuchFolgeVerworfen"),
     strafbuchStellungnahme: t("strafbuchStellungnahme"),
     strafbuchStellungnahmeGeaendert: t("strafbuchStellungnahmeGeaendert", { date: "{date}" }),
     // Der Platzhalter reist als sein eigener Wert durch — dasselbe Muster wie `strafbuchUrteilVon`
