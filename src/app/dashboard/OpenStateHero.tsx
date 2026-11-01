@@ -29,6 +29,7 @@ export default function OpenStateHero({
   cleaningRelockWarnTime,
   cleaningRelockWarnPassed,
   lockCall,
+  yieldPrimary,
 }: {
   /** Beginn des offenen Zustands (ISO). */
   since: string;
@@ -48,6 +49,9 @@ export default function OpenStateHero({
    *  dahinter lehnt einen zweiten Aufruf ab (`LOCK_ALREADY_PENDING`). Ein Knopf, der in eine Absage
    *  führt, ist schlimmer als keiner. */
   lockCall: { id: string; at: string } | null;
+  /** Eine Kontrolle oder Einschliess-Anforderung trägt den gefüllten Knopf des Bildschirms: das
+   *  „Einschliessen" hier ist dann nur umrandet. */
+  yieldPrimary: boolean;
 }) {
   const t = useTranslations("dashboard");
   const router = useRouter();
@@ -100,10 +104,19 @@ export default function OpenStateHero({
     >
       {lockCall ? (
         <PendingCallNotice entryId={lockCall.id} message={t("lockCallPressButton")} />
-      ) : cleaningPauseUntil && (
+      ) : (
         <Link href="/dashboard/new/verschluss" className="relative mt-4 block">
-          <Button variant="semantic" semantic="lock" fullWidth icon={<LockClosedIcon size={16} />}>
-            {t("cleaningPauseRelock")}
+          {/* Der Weg zurück in den Verschluss ist die häufigste Handlung dieses Zustands — er stand
+              nur hinter dem (+). Während der Pause ist er zugleich die Frist-Handlung (immer
+              gefüllt); sonst tritt er zurück, sobald eine Anforderung darüber den einen gefüllten
+              Knopf des Bildschirms trägt. */}
+          <Button
+            variant={cleaningPauseUntil || !yieldPrimary ? "semantic" : "secondary"}
+            semantic="lock"
+            fullWidth
+            icon={<LockClosedIcon size={16} />}
+          >
+            {t(cleaningPauseUntil ? "cleaningPauseRelock" : "lockNow")}
           </Button>
         </Link>
       )}

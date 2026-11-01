@@ -235,7 +235,10 @@ export default function NewEntrySheet({ open, onClose, isLocked, lockCallPending
         {/* Die Auskunft, die vorher fehlte. Sie ersetzt die Zeilen nicht, sie steht über ihnen —
             der Nutzer soll sehen, WAS er getippt hat und dass es klemmt. */}
         {nav.stalled && <PoorConnectionNote onRetry={nav.retry} />}
-        {options.map((opt) => (
+        {/* Die gültige Zustandsänderung steht ZUERST: die abgedimmte Zwillingszeile (Verschluss bei
+            geschlossenem KG und umgekehrt) rückt ans Ende. Die häufigste Wahl der App begann sonst mit
+            einer toten Zeile. Die Sortierung ist stabil — die Reihenfolge der gültigen bleibt. */}
+        {[...options].sort((a, b) => Number(a.disabled) - Number(b.disabled)).map((opt) => (
           <SheetActionRow
             key={opt.type}
             {...rowNav}
