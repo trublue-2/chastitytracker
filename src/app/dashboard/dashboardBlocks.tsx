@@ -35,6 +35,7 @@ import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import { inspectionHref, openInspections } from "@/lib/entryFormRoute";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { belongsOnDashboard, isHeldByTask } from "@/lib/taskIntervals";
+import { isTaskDueSoon } from "@/lib/taskView";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";
@@ -309,8 +310,29 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   }),
 
   openTasks: block({
-    load: async (ctx) => (await taskCardsOf(ctx)).open,
-    render: (tasks, { tz, collapseDefault }) => <OpenTasks tasks={tasks} tz={tz} defaultCollapsed={collapseDefault} />,
+    load: async (ctx) => {
+      const [{ open }, inspections, lockRequest] = await Promise.all([
+        taskCardsOf(ctx), subVisibleInspectionsNow(ctx.userId), lockRequestCached(ctx.userId, ctx.nowMs),
+      ]);
+      // Eine offene Kontrolle oder Einschliess-Anforderung trägt darüber den einen gefüllten Knopf
+      // des Bildschirms; die Selbstmeldung tritt dann zurück (`OpenTasks`, `yieldPrimary`).
+      return { tasks: open, yieldPrimary: openInspections(inspections).length > 0 || !!lockRequest };
+    },
+    render: ({ tasks, yieldPrimary }, { tz, now, collapseDefault }) => (
+      <OpenTasks
+        tasks={tasks}
+        tz={tz}
+        // Die Aufgaben treten zurück, solange eine knappere Frist darüber steht UND keine von ihnen
+        // in den nächsten Stunden fällig wird. Eine zugeklappte Vorgabe des Trägers bleibt zu; ein
+        // gespeichertes „offen" ist von der Vorgabe nicht zu unterscheiden (`false` in beiden
+        // Fällen), der Schalter in der Rubrik öffnet den Stapel dann mit einem Tipp. `undefined`
+        // (Block nicht zuklappbar) bleibt, wie es ist.
+        defaultCollapsed={collapseDefault === undefined
+          ? undefined
+          : collapseDefault || (yieldPrimary && !tasks.some((task) => isTaskDueSoon(task, now)))}
+        yieldPrimary={yieldPrimary}
+      />
+    ),
   }),
 
   // UNTER den Aufgaben: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand.
