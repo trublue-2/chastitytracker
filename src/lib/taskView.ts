@@ -339,6 +339,34 @@ export function visibleStartDeadline(task: Pick<TaskCardData, "startDeadline" | 
   return task.startDeadline;
 }
 
+/** Wie weit voraus eine Aufgaben-Frist als „bald" gilt — danach darf sie hinter einer knapperen Frist
+ *  zurücktreten ({@link isTaskDueSoon}). */
+const TASK_DUE_SOON_MS = 12 * 3_600_000;
+
+/**
+ * Wird an dieser Aufgabe in den nächsten Stunden etwas fällig — oder ist es schon?
+ *
+ * Gefragt wird nach JEDER Frist, die ein Vergehen auslösen kann: Beginn, Ende und die noch offenen
+ * Nachweise. Nur das Ende anzusehen liesse eine Aufgabe mit einem Nachweis in einer Stunde als „noch
+ * lange hin" durchgehen. Eine Strafaufgabe gilt immer als dringend.
+ *
+ * Rein und ohne Uhr: `now` kommt vom Aufrufer, damit Server und Test dieselbe Antwort geben.
+ */
+export function isTaskDueSoon(
+  task: Pick<TaskCardData, "isPunishment" | "holdUntil" | "startDeadline" | "startedAt" | "state" | "proofs" | "proofsDue">,
+  now: Date,
+): boolean {
+  if (task.isPunishment) return true;
+  const deadlines = [
+    visibleStartDeadline(task),
+    task.holdUntil,
+    task.proofsDue?.at ?? null,
+    ...task.proofs.filter((p) => !p.submitted).map((p) => p.dueAt),
+  ];
+  const horizon = now.getTime() + TASK_DUE_SOON_MS;
+  return deadlines.some((iso) => iso !== null && new Date(iso).getTime() <= horizon);
+}
+
 /**
  * Liegt an diesem Nachweis überhaupt ein Foto? — die Frage, an der die Sichtung hängt.
  *
