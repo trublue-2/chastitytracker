@@ -8,9 +8,11 @@ interface Props {
   userId: string;
   /** Die geteilten Tagebuch-Einträge — nur für eine zugeordnete Keyholderin (siehe Layout). */
   showJournal?: boolean;
+  /** Wie viel an einem Reiter auf die Entscheidung der Keyholderin wartet (0 = nichts, kein Zähler). */
+  counts?: { strafbuch: number; tasks: number };
 }
 
-export default function UserSubNav({ userId, showJournal = false }: Props) {
+export default function UserSubNav({ userId, showJournal = false, counts }: Props) {
   const t = useTranslations("adminNav");
   const pathname = usePathname();
   const router = useRouter();
@@ -22,10 +24,10 @@ export default function UserSubNav({ userId, showJournal = false }: Props) {
     { href: `${base}/aktionen`, label: t("actions_tab"), exact: false },
     { href: `${base}/eintraege`, label: t("entries_tab"), exact: false },
     { href: `${base}/kontrollen`, label: t("inspections_tab"), exact: false },
-    { href: `${base}/aufgaben`, label: t("tasks_tab"), exact: false },
+    { href: `${base}/aufgaben`, label: t("tasks_tab"), exact: false, count: counts?.tasks },
     { href: `${base}/stats`, label: t("stats_tab"), exact: false },
     ...(showJournal ? [{ href: `${base}/tagebuch`, label: t("journal_tab"), exact: false }] : []),
-    { href: `${base}/strafbuch`, label: t("strafbuch_tab"), exact: false },
+    { href: `${base}/strafbuch`, label: t("strafbuch_tab"), exact: false, count: counts?.strafbuch },
     { href: `${base}/geraete`, label: t("devices_tab"), exact: false },
     { href: `${base}/einstellungen`, label: t("user_settings_tab"), exact: false },
   ];
@@ -53,7 +55,7 @@ export default function UserSubNav({ userId, showJournal = false }: Props) {
           className="w-full border border-border rounded-xl px-3 py-2 text-sm text-foreground bg-surface-raised"
         >
           {tabs.map((tab) => (
-            <option key={tab.href} value={tab.href}>{tab.label}</option>
+            <option key={tab.href} value={tab.href}>{tab.count ? `${tab.label} (${tab.count})` : tab.label}</option>
           ))}
         </select>
       </div>
@@ -90,6 +92,12 @@ export default function UserSubNav({ userId, showJournal = false }: Props) {
               }`}
             >
               {tab.label}
+              {/* Koralle ist Aufforderung: die Zahl steht nur, wo etwas auf eine Entscheidung wartet. */}
+              {tab.count ? (
+                <span className="ml-1.5 inline-block rounded-full bg-warn-bg px-1.5 text-neben font-semibold tabular-nums text-warn-text">
+                  <span className="sr-only">{t("tabNeedsYou")} </span>{tab.count}
+                </span>
+              ) : null}
             </Link>
           );
         })}

@@ -16,6 +16,20 @@
           "de": "Eine laufende Sperrzeit oder Orgasmus-Anweisung zurückziehen, ein Urteil im Strafbuch zurücknehmen und Telegram entkoppeln fragen jetzt vorher nach; Strafe, Verwerfen und Ablehnen sagen dazu, was der Sub erfährt. Im Strafbuch steht seine Stellungnahme schon vor der Urteilswahl.",
           "en": "Withdrawing a running lock period or orgasm directive, undoing a verdict in the penalty book and disconnecting Telegram now ask first; penalty, dismiss and reject say what the sub is told. In the penalty book their statement shows before you choose a verdict."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Auf dem Dashboard steht nur noch die dringendste Pflicht gross, die übrigen darunter kompakt; im offenen Zustand gibt es „Jetzt einschliessen“ direkt unter der Zeit, und im „+“-Blatt steht die mögliche Aktion zuerst.",
+          "en": "On the dashboard only the most urgent obligation is shown large, the others compactly below; when open there is a “Lock now” button right under the timer, and the “+” sheet lists the available action first."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Reiter Strafbuch und Aufgaben zeigen, wie viel auf deine Entscheidung wartet, und im Posteingang erscheinen Kategorie- und Absenderfilter erst auf Wunsch.",
+          "en": "The Penalty book and Tasks tabs show how much is waiting for your decision, and the inbox shows category and sender filters only on request."
+        }
       }
     ]
   },

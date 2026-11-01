@@ -426,6 +426,7 @@
     "tasks_tab": "Tasks",
     "mainNavLabel": "Main navigation",
     "userTabsLabel": "Sections for this user",
+    "tabNeedsYou": "waiting for you:",
     "journal_tab": "Shared entries"
   },
   "nav": {
@@ -1826,6 +1827,7 @@
     "filterCategoryLabel": "Filter by category",
     "filterSenderLabel": "Filter by sender",
     "filterAllCategories": "All categories",
+    "filterMore": "More filters",
     "filterAllSenders": "All senders",
     "emptyFilteredTitle": "Nothing in this selection",
     "emptyFilteredText": "No messages match this filter.",

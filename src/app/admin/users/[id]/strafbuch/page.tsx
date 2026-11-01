@@ -3,7 +3,8 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/utils";
-import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
+import { type StrafbuchControlOffense } from "@/lib/strafbuch";
+import { requestNowMs, strafbuchCached } from "@/lib/dashboardData";
 import { cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { missedWeightRef } from "@/lib/weightObligation";
 import { loadStatementsOfUser } from "@/lib/offenseStatementService";
@@ -16,7 +17,11 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   await assertKeyholderOrAdmin(id);
   const [t, tCommon, dl] = [await getTranslations("admin"), await getTranslations("common"), toDateLocale(await getLocale())];
-  const now = new Date();
+  // Die Anfrage-Uhr, nicht `new Date()`: das Layout zählt die offenen Vergehen für den Reiter aus
+  // demselben Strafbuch (`strafbuchCached`), und die Ableitung läuft nur einmal, wenn beide denselben
+  // Zeitpunkt nennen.
+  const nowMs = requestNowMs();
+  const now = new Date(nowMs);
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;
@@ -34,7 +39,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   //
   // NEBEN der Ableitung, nicht dahinter: sie hängt an nichts, was `buildStrafbuch` liefert, und
   // hinter dem teuersten Aufruf der Seite eingereiht kostete sie eine eigene Runde zur Datenbank.
-  const [sb, statementRows] = await Promise.all([buildStrafbuch(id, now), loadStatementsOfUser(id)]);
+  const [sb, statementRows] = await Promise.all([strafbuchCached(id, nowMs), loadStatementsOfUser(id)]);
 
   const cleaningLimitOffenses: CleaningLimitRow[] = sb.cleaningLimitViolations.map((v) => ({
     entryId: v.entryId,
