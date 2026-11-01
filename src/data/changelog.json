@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.5.4",
+    "date": "2026-11-01",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Änderungen der Keyholderin (Aufgaben, Sperrzeiten, Trainingsziele) zählen jetzt als Aktivität der Instanz, sodass das Portal sie nicht mehr als ungenutzt zeigt. Mails lassen sich auch über ein Relay ohne Anmeldung versenden.",
+          "en": "Keyholder changes (tasks, lock periods, training goals) now count as activity of the instance, so the portal no longer shows it as unused. Mail can also be sent through a relay without login."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.5.3",
     "date": "2026-10-25",
     "changes": [
