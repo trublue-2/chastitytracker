@@ -1040,14 +1040,13 @@ export function cleaningWindowBindingStatus(
   return { windowsBinding: true, windowsBindingReason: null, openingAllowedNow: reason === null };
 }
 
-/** Ist DIESE Öffnung eine erlaubte Reinigungsöffnung? Grund + {@link cleaningBlockReason}. */
+/** Ist DIESE Öffnung eine erlaubte Reinigungsöffnung? Grund + das Urteil von
+ *  {@link cleaningBlockReason} — das der Aufrufer EINMAL fällt, weil er es auch als Grund weitergibt. */
 function isAllowedCleaningOpen(
   oeffnenGrund: OeffnenGrund | string | null | undefined,
-  now: Date,
-  user: CleaningPermissionUser,
-  activeLockPeriods: { cleaningAllowed: boolean }[],
+  cleaningBlock: CleaningBlockReason | null,
 ): boolean {
-  return oeffnenGrund === "REINIGUNG" && cleaningBlockReason(user, activeLockPeriods, now) === null;
+  return oeffnenGrund === "REINIGUNG" && cleaningBlock === null;
 }
 
 /**
@@ -1091,12 +1090,36 @@ export async function releaseLockPeriodsOnOpen(
   userId: string,
   oeffnenGrund: OeffnenGrund | string | null | undefined,
   tx: PrismaTx,
+  source: EntrySource,
+  user?: CleaningPermissionUser,
+): Promise<boolean> {
+  return (await releaseLockPeriodsOnOpenDetailed(userId, oeffnenGrund, tx, source, user)).broke;
+}
+
+/** Ergebnis von {@link releaseLockPeriodsOnOpenDetailed}. */
+export interface LockReleaseOutcome {
+  /** Mindestens eine Sperrzeit wurde zurückgezogen — siehe {@link releaseLockPeriodsOnOpen}. */
+  broke: boolean;
+  /** Nur gesetzt, wenn eine als Reinigung erfasste Öffnung die Sperrzeit TROTZDEM brach: warum.
+   *  Für die Meldung an die Keyholderin, die sonst nur „Grund: Reinigung" las und die gebrochene
+   *  Sperrzeit nicht erklären konnte. Dasselbe Urteil, das über den Bruch entschieden hat — nicht
+   *  nachgerechnet. */
+  cleaningBlock: CleaningBlockReason | null;
+}
+
+/** {@link releaseLockPeriodsOnOpen}, das zusätzlich den Grund nennt. Der Sub-Pfad braucht ihn für
+ *  die Meldung; die übrigen Aufrufer nehmen die schlanke Fassung. */
+export async function releaseLockPeriodsOnOpenDetailed(
+  userId: string,
+  oeffnenGrund: OeffnenGrund | string | null | undefined,
+  tx: PrismaTx,
   // Bewusst PFLICHT und vor dem optionalen `user`: ein Default „user" liesse einen künftigen
   // System-Pfad, der das Argument vergisst, still in genau den Bug zurückfallen, den er behebt.
   source: EntrySource,
   user?: CleaningPermissionUser,
-): Promise<boolean> {
-  if (source === "system") return false;
+): Promise<LockReleaseOutcome> {
+  const kept: LockReleaseOutcome = { broke: false, cleaningBlock: null };
+  if (source === "system") return kept;
 
   // EINE Uhr für beide Fragen: welche Sperrzeiten laufen, und ist ein Fenster offen.
   const now = new Date();
@@ -1104,14 +1127,16 @@ export async function releaseLockPeriodsOnOpen(
     where: activeLockPeriodWhere(userId, now),
     select: { id: true, cleaningAllowed: true },
   });
-  if (activeLockPeriods.length === 0) return false;
+  if (activeLockPeriods.length === 0) return kept;
 
   const effectiveUser = user ?? await tx.user.findUnique({
     where: { id: userId },
     select: { cleaningAllowed: true, cleaningWindows: true, timezone: true },
   }) ?? { cleaningAllowed: false, cleaningWindows: null, timezone: APP_TZ };
 
-  if (isAllowedCleaningOpen(oeffnenGrund, now, effectiveUser, activeLockPeriods)) return false;
+  // Nur bei Grund „Reinigung" gefragt: sonst gibt es nichts zu erlauben und nichts zu erklären.
+  const cleaningBlock = oeffnenGrund === "REINIGUNG" ? cleaningBlockReason(effectiveUser, activeLockPeriods, now) : null;
+  if (isAllowedCleaningOpen(oeffnenGrund, cleaningBlock)) return kept;
 
   // Gesundheits-Halt: die Öffnung ist gedeckt, die Sperrzeit bleibt stehen — und weil der Rückgabewert
   // zugleich das Box-Kommando steuert (`boxCommandForEntry`), geht der Riegel dabei auf. Genau das
@@ -1125,13 +1150,13 @@ export async function releaseLockPeriodsOnOpen(
   // Die Asymmetrie ist gewollt und folgt aus dem Rückgabewert: er steuert den Riegel, und der öffnet
   // in der Gegenwart. Eine von der Keyholderin nachgetragene Öffnung, die in eine vergangene Pause
   // fällt, bricht die Sperrzeit also — bleibt aber straffrei.
-  if (await isHealthHoldActive(userId, tx)) return false;
+  if (await isHealthHoldActive(userId, tx)) return kept;
 
   await tx.verschlussAnforderung.updateMany({
     where: { id: { in: activeLockPeriods.map((s) => s.id) } },
     data: { withdrawnAt: now, endedReason: LOCK_ENDED_REASON.opening },
   });
-  return true;
+  return { broke: true, cleaningBlock };
 }
 
 /**

@@ -48,7 +48,7 @@ function strafbuch(over: Partial<StrafbuchData> = {}): StrafbuchData {
 }
 
 const opening = (id: string, startTime: Date) => ({
-  id, startTime, note: null, lockPeriodEndsAt: null, lockPeriodIndefinite: false,
+  id, startTime, note: null, lockPeriodEndsAt: null, lockPeriodIndefinite: false, cleaningBlock: null,
 });
 
 describe("selectSubOffenses — Zustände", () => {

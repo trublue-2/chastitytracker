@@ -92,7 +92,9 @@ direkt aus, ohne Rückfrage oder Bestätigung.
   statt aus `windows` selbst zu schliessen. `windows` (Tages-Zeitfenster) binden NUR während einer
   aktiven Sperrzeit, die Reinigung erlaubt; ausserhalb einer Sperre ist eine Reinigungsöffnung immer
   erlaubt. `windowsBinding`/`windowsBindingReason` sagt, ob und warum `windows` gerade greift.
-- Eine Reinigungsöffnung = ein OEFFNEN mit `oeffnenGrund=REINIGUNG`.
+- Eine Reinigungsöffnung = ein OEFFNEN mit `oeffnenGrund=REINIGUNG`. Bricht sie die Sperrzeit
+  trotzdem, steht sie in `get_offenses` als unerlaubte Öffnung, und `cleaningBlock` nennt den Grund
+  (`userNotAllowed` | `lockPeriodForbids` | `outsideWindow`, nach den Regeln zur Tatzeit).
 - **Nach jedem selbst erfassten Wiederverschluss, der eine Reinigungspause beendet, folgt
   automatisch eine Kontrolle**
   (15–45 min danach) — „zeig mir, dass du wieder drin bist". Sie ERSETZT die nächste noch nicht

@@ -64,6 +64,8 @@ export interface UnerlaubteOeffnungRow {
   note: string | null;
   lockPeriodEndsAtStr: string | null;
   lockPeriodIndefinite: boolean;
+  /** Nur bei einer als Reinigung erfassten Öffnung: warum sie die Sperrzeit trotzdem brach. */
+  cleaningBlockStr: string | null;
 }
 
 /** Ein versäumter Drei-Tage-Block ohne Gewichts-Meldung. `refId` kommt aus dem Tagesschlüssel —
@@ -839,6 +841,7 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
               {labels.strafbuchGeoeffnetAm} {o.startTimeStr}
               {qualifier && <> — <span className="text-warn font-normal">{qualifier}</span></>}
             </p>
+            {o.cleaningBlockStr && <span className={FACT_CLS}>{o.cleaningBlockStr}</span>}
             {o.note && <span className={NOTE_CLS}>„{o.note}"</span>}
           </>
         );

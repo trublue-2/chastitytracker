@@ -146,7 +146,10 @@ export default async function RulesPage() {
                     </ul>
                   )}
                   {cleaningWindows.length > 0 && (
-                    <p className="text-xs text-foreground-muted italic">{ta("reinigungFensterClosedDayHint")}</p>
+                    <>
+                      <p className="text-xs text-foreground-muted italic">{ta("reinigungFensterLockOnlyHint")}</p>
+                      <p className="text-xs text-foreground-muted italic">{ta("reinigungFensterClosedDayHint")}</p>
+                    </>
                   )}
                 </DetailField>
               </>

@@ -6,6 +6,7 @@ import { offenseState, offenseNeedsAttention, type OffenseState } from "@/lib/of
 import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks";
 import { missedWeightRef } from "@/lib/weightObligation";
 import { loadStatements } from "@/lib/offenseStatementService";
+import type { CleaningBlockReason } from "@/lib/queries";
 
 // ── Strafbuch-Snapshot ────────────────────────────────────────────────────────
 // Wohnt hier, weil `getOffenses` sein einziger Aufrufer ist. Solange auch das (entfernte) V1-
@@ -54,9 +55,13 @@ export interface StrafbuchOverview {
   openOffenseCount: number;
   /** Bestrafte Vergehen, deren Strafe noch nicht als erledigt markiert ist. */
   pendingPenaltyCount: number;
+  /** `cleaningBlock` ist nur bei einer als Reinigung erfassten Öffnung gesetzt und sagt, warum sie
+   *  die Sperrzeit trotzdem brach (`userNotAllowed` | `lockPeriodForbids` | `outsideWindow`, Regeln
+   *  zur Tatzeit). Rein additiv, kein schemaVersion-Bump. */
   unauthorizedOpenings: ({
     time: string; note: string | null;
     lockPeriodEndedAt: string | null; lockPeriodIndefinite: boolean;
+    cleaningBlock: CleaningBlockReason | null;
   } & OffenseJudgment)[];
   lateControls: StrafbuchControlRow[];
   rejectedControls: StrafbuchControlRow[];
@@ -166,6 +171,7 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
       note: o.note,
       lockPeriodEndedAt: o.lockPeriodEndsAt ? fmt(o.lockPeriodEndsAt) : null,
       lockPeriodIndefinite: o.lockPeriodIndefinite,
+      cleaningBlock: o.cleaningBlock,
       ...judge("unauthorized_opening", o.id),
     })),
     lateControls: sb.lateControls.map(toControlRow("late_control")),
@@ -374,7 +380,7 @@ export function buildOffenseRows(
   clusterByName: Map<string, DeviceCluster>,
 ): OffenseRow[] {
   return [
-    ...sb.unauthorizedOpenings.map((o) => toRow(o.time, o, { note: o.note, lockPeriodEndedAt: o.lockPeriodEndedAt, lockPeriodIndefinite: o.lockPeriodIndefinite })),
+    ...sb.unauthorizedOpenings.map((o) => toRow(o.time, o, { note: o.note, lockPeriodEndedAt: o.lockPeriodEndedAt, lockPeriodIndefinite: o.lockPeriodIndefinite, cleaningBlock: o.cleaningBlock })),
     ...controlRows(sb.lateControls, (c) => ({ backdated: c.backdated })),
     ...controlRows(sb.rejectedControls),
     ...controlRows(sb.autoRemovedControls),

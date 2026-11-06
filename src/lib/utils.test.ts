@@ -168,6 +168,23 @@ describe("buildPairs — Reinigungs-Interruption", () => {
     expect(result[0].interruptions[0].verschluss.id).toBe("v2");
   });
 
+  it("verschmilzt eine rechtzeitig verschlossene Reinigung AUCH ausserhalb des Fensters", () => {
+    // Bewusst so: das Session-Modell kennt nur Erlaubnis und Höchstdauer, nicht die Fenster und
+    // nicht die Sperrzeit — es speist Tragezeiten, Rekorde und Aufgaben, und eine Änderung hier
+    // schriebe vergangene Statistik um. Bricht eine solche Pause die Sperrzeit (das Strafbuch
+    // bucht sie dann als unerlaubte Öffnung), markiert die History sie über
+    // `lockBreakingOpeningIds` — die Pause bleibt also eine Pause, sieht aber nicht erlaubt aus.
+    const entries = [
+      mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"),
+      // buildPairs bekommt gar keine Fenster — welche Uhrzeit, spielt hier keine Rolle.
+      mkEntry("o1", "OEFFNEN", "2026-05-01T11:00:00Z", "REINIGUNG"),
+      mkEntry("v2", "VERSCHLUSS", "2026-05-01T11:10:00Z"),
+    ];
+    const result = buildPairs(entries, [], cleaning);
+    expect(result).toHaveLength(1);
+    expect(result[0].interruptions.map((i) => i.oeffnen.id)).toEqual(["o1"]);
+  });
+
   it("closes session when REINIGUNG re-lock is past maxMinutes (timeout)", () => {
     const entries = [
       mkEntry("v1", "VERSCHLUSS", "2026-05-01T10:00:00Z"),

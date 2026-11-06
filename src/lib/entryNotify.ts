@@ -7,6 +7,7 @@ import { getControllersOfUser } from "@/lib/keyholder";
 import { deliveryChannels } from "@/lib/deliveryChannels";
 import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/utils";
+import type { CleaningBlockReason } from "@/lib/queries";
 import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, anyChannelActive, type MessagePriority, APP_NAME } from "@/lib/constants";
 
 export interface EntryNotifyParams {
@@ -21,6 +22,10 @@ export interface EntryNotifyParams {
   startTime: Date;
   /** Öffnung während einer zurückgezogenen Sperrzeit — steuert nur die Empfänger-Auswahl. */
   withdrawnLockPeriod?: boolean;
+  /** Warum eine als Reinigung erfasste Öffnung die Sperrzeit trotzdem brach (`LockReleaseOutcome`).
+   *  Ohne ihn las die Keyholderin „Grund: Reinigung" neben einer verbotenen Öffnung und musste
+   *  raten, was daran falsch war. */
+  cleaningBlock?: CleaningBlockReason | null;
   oeffnenGrund?: string | null;
   orgasmusArt?: string | null;
   kontrollCode?: string | null;
@@ -63,6 +68,19 @@ interface EntryLabels {
   device: string | null;
 }
 
+/** Schlüssel je Grund, aus dem eine Reinigungsöffnung die Sperrzeit trotzdem brach. */
+const CLEANING_BLOCK_EMAIL_KEY: Record<CleaningBlockReason, string> = {
+  userNotAllowed: "entryCleaningNotAllowed",
+  lockPeriodForbids: "entryCleaningLockPeriodForbids",
+  outsideWindow: "entryCleaningOutsideWindow",
+};
+
+/** „Reinigung ausserhalb des Fensters — Sperrzeit gebrochen" — nur, wenn es wirklich so war. */
+function cleaningBlockText(p: EntryNotifyParams, t: EmailTranslator): string | null {
+  // `cleaningBlock` setzt nur der Öffnungs-Pfad, und nur wenn die Sperrzeit tatsächlich fiel.
+  return p.cleaningBlock ? t(CLEANING_BLOCK_EMAIL_KEY[p.cleaningBlock]) : null;
+}
+
 /** Titel und Push-Zeile in EINER Sprache. */
 function renderHeadline(
   p: EntryNotifyParams,
@@ -77,7 +95,7 @@ function renderHeadline(
     case "OEFFNEN":
       return {
         title: t("entryOpenedTitle", { username }),
-        pushBody: labels.grund ? `${time} · ${t("entryDetailReason")} ${labels.grund}` : time,
+        pushBody: [time, labels.grund && `${t("entryDetailReason")} ${labels.grund}`, cleaningBlockText(p, t)].filter(Boolean).join(" · "),
       };
     case "ORGASMUS":
       return {
@@ -118,6 +136,8 @@ function renderDetails(
   if (p.type === "OEFFNEN" && labels.grund) {
     rows.push(`<strong>${escHtml(t("entryDetailReason"))}</strong> ${escHtml(labels.grund)}`);
   }
+  const blocked = cleaningBlockText(p, t);
+  if (blocked) rows.push(`<span style="color:#dc2626;font-weight:bold">${escHtml(blocked)}</span>`);
   if (p.type === "ORGASMUS" && labels.art) {
     rows.push(`<strong>${escHtml(t("entryDetailKind"))}</strong> ${escHtml(labels.art)}`);
   }

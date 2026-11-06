@@ -74,6 +74,10 @@ export interface SessionEventData {
   verifyFailure: VerifyFailure | null | undefined;
   orgasmusArt: string | null;
   pauseDurationStr: string | null | undefined;
+  /** Nur Reinigungspausen: die Öffnung brach dabei eine Sperrzeit (sie steht im Strafbuch). Die
+   *  Pause selbst bleibt eine Pause — so rechnet das Session-Modell —, aber die Zeile darf nicht
+   *  aussehen wie eine erlaubte Reinigung. Fehlt der Wert, ist es unbekannt (Sub-Sicht). */
+  brokeLockPeriod?: boolean;
   timeCorrected: boolean | undefined;
   timeCorrectedSystemStr: string | null | undefined;
   /** VERSCHLUSS + KONTROLLE: the device worn (null = none selected). */
@@ -226,7 +230,12 @@ export default function SessionEventRow({ ev, icon }: { ev: SessionEventData; ic
     // `ShowerHead`, nicht das offene Schloss: dieselbe Liste zeigt es weiter unten für das ENDE
     // einer Tragezeit, und dasselbe Zeichen hiesse dann einmal „Unterbrechung, es geht weiter" und
     // einmal „vorbei".
-    const cleaningPill = <Badge size="sm" icon={<ShowerHead size={11} />} label={t("sessionReinigung")} />;
+    const cleaningPill = (
+      <>
+        <Badge size="sm" icon={<ShowerHead size={11} />} label={t("sessionReinigung")} />
+        {ev.brokeLockPeriod && <Badge size="sm" variant="warn" label={t("sessionCleaningBrokeLock")} />}
+      </>
+    );
 
     return (
       <>

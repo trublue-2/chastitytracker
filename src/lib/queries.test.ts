@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { releaseLockPeriodsOnOpen, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveLockPeriods, isCodePhotoRevealed, bildersafeMenuAction, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE, getKgNeighbors, getEntryNeighbors } from "./queries";
+import { releaseLockPeriodsOnOpen, releaseLockPeriodsOnOpenDetailed, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveLockPeriods, isCodePhotoRevealed, bildersafeMenuAction, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE, getKgNeighbors, getEntryNeighbors } from "./queries";
 import type { PrismaTx } from "./queries";
 import { prisma } from "@/lib/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
@@ -241,6 +241,35 @@ describe("releaseLockPeriodsOnOpen", () => {
     const t = tx();
     expect(await releaseLockPeriodsOnOpen("u1", "REINIGUNG", t, "user")).toBe(false);
     expect(t.user.findUnique).toHaveBeenCalledOnce();
+  });
+});
+
+/** Der Grund zum Bruch — er geht in die Meldung an die Keyholderin. Er muss aus DEMSELBEN Urteil
+ *  stammen, das die Sperrzeit fallen liess, und darf nur dort stehen, wo sie wirklich fiel. */
+describe("releaseLockPeriodsOnOpenDetailed — der Grund", () => {
+  it("Reinigung ausserhalb des Fensters: gebrochen, Grund outsideWindow", async () => {
+    jetzt(NACHTS);
+    expect(await releaseLockPeriodsOnOpenDetailed("u1", "REINIGUNG", tx(), "user", user()))
+      .toEqual({ broke: true, cleaningBlock: "outsideWindow" });
+  });
+
+  it("die Sperrzeit verbietet Reinigung: Grund lockPeriodForbids", async () => {
+    jetzt(IM_FENSTER);
+    findMany.mockResolvedValue([{ id: "s1", cleaningAllowed: false }]);
+    expect(await releaseLockPeriodsOnOpenDetailed("u1", "REINIGUNG", tx(), "user", user()))
+      .toEqual({ broke: true, cleaningBlock: "lockPeriodForbids" });
+  });
+
+  it("erlaubte Reinigung: nichts gebrochen, kein Grund", async () => {
+    jetzt(IM_FENSTER);
+    expect(await releaseLockPeriodsOnOpenDetailed("u1", "REINIGUNG", tx(), "user", user()))
+      .toEqual({ broke: false, cleaningBlock: null });
+  });
+
+  it("gewöhnliche Öffnung: gebrochen, aber kein Reinigungs-Grund", async () => {
+    jetzt(IM_FENSTER);
+    expect(await releaseLockPeriodsOnOpenDetailed("u1", "ORGASMUS", tx(), "user", user()))
+      .toEqual({ broke: true, cleaningBlock: null });
   });
 });
 

@@ -8,8 +8,16 @@ import { cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { missedWeightRef } from "@/lib/weightObligation";
 import { loadStatementsOfUser } from "@/lib/offenseStatementService";
 import { passwordChangeViaLabel } from "@/lib/constants";
+import type { CleaningBlockReason } from "@/lib/queries";
 import { getLocale, getTranslations } from "next-intl/server";
 import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type CleaningLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type OrgasmusFalscheArtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow, type StatementView } from "./StrafbuchClient";
+
+/** Warum eine als Reinigung erfasste Öffnung trotzdem im Strafbuch steht. */
+const CLEANING_BLOCK_STRAFBUCH_KEY = {
+  userNotAllowed: "strafbuchCleaningNotAllowed",
+  lockPeriodForbids: "strafbuchCleaningLockPeriodForbids",
+  outsideWindow: "strafbuchCleaningOutsideWindow",
+} as const satisfies Record<CleaningBlockReason, string>;
 
 export default async function StrafbuchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -54,6 +62,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     note: o.note,
     lockPeriodEndsAtStr: o.lockPeriodEndsAt ? fmtDual(o.lockPeriodEndsAt) : null,
     lockPeriodIndefinite: o.lockPeriodIndefinite,
+    cleaningBlockStr: o.cleaningBlock ? t(CLEANING_BLOCK_STRAFBUCH_KEY[o.cleaningBlock]) : null,
   }));
 
   const toKontrollRow = (k: StrafbuchControlOffense, backdated: boolean): KontrollRow => ({

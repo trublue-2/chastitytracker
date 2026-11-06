@@ -3,7 +3,7 @@
 import Section from "@/app/components/Section";
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronDown, ChevronUp, Timer } from "lucide-react";
+import { ChevronDown, ChevronUp, ShowerHead, Timer } from "lucide-react";
 import { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
 import ListPager from "@/app/components/ListPager";
@@ -17,6 +17,10 @@ interface OeffnenFooter {
   timeStr: string;
   /** Already resolved via the data-owner's config (SessionList). null = kein Grund gesetzt. */
   grundLabel: string | null;
+  /** Die Tragezeit endete mit einer Reinigungsöffnung (nicht rechtzeitig wieder verschlossen). */
+  isCleaning: boolean;
+  /** Wie `SessionEventData.brokeLockPeriod`: die Öffnung brach eine Sperrzeit. Fehlt = unbekannt. */
+  brokeLockPeriod?: boolean;
   note: string | null;
 }
 
@@ -55,6 +59,10 @@ export default function SessionListClient({ sessions, tz, defaultCollapsed }: { 
       )}
       {visible.map((session) => {
         const isOpen = openId === session.id;
+        // Reinigungen gehören in die ZUGEKLAPPTE Zeile: vorher sah eine Session mit Pausen dort aus
+        // wie jede andere, und eine, die mit einer Reinigung endete, wie eine gewöhnliche Öffnung.
+        const cleaningPauses = session.events.filter((ev) => ev.type === "cleaning");
+        const pausesBrokeLock = cleaningPauses.some((ev) => ev.brokeLockPeriod);
         return (
           <div key={session.id}>
             {/* ── Zugeklappte Kopfzeile ── */}
@@ -84,6 +92,22 @@ export default function SessionListClient({ sessions, tz, defaultCollapsed }: { 
                   jede andere in der Zeile, und ein Rahmen um zwei Wörter ist der kleinste Kasten
                   der App. Farbe trägt nur der Zustand, der JETZT gilt — „noch verschlossen". */}
               <div className="flex items-center gap-2 shrink-0">
+                {cleaningPauses.length > 0 && (
+                  <span
+                    className={`text-neben tabular-nums flex items-center gap-1 ${pausesBrokeLock ? "text-warn" : "text-foreground-muted"}`}
+                    title={t("sessionCleaningPauses", { count: cleaningPauses.length })}
+                  >
+                    <ShowerHead size={11} aria-hidden />
+                    <span className="sr-only">{t("sessionCleaningPauses", { count: cleaningPauses.length })}</span>
+                    <span aria-hidden>{cleaningPauses.length}</span>
+                  </span>
+                )}
+                {session.oeffnen?.isCleaning && (
+                  <span className={`text-neben flex items-center gap-1 ${session.oeffnen.brokeLockPeriod ? "text-warn" : "text-foreground-muted"}`} title={t("sessionEndedByCleaning")}>
+                    <ShowerHead size={11} aria-hidden />
+                    <span className="sr-only">{t("sessionEndedByCleaning")}</span>
+                  </span>
+                )}
                 {session.active ? (
                   <span className="text-neben font-semibold text-lock">{t("stillLocked")}</span>
                 ) : session.durationStr ? (

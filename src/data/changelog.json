@@ -1,5 +1,25 @@
 [
   {
+    "version": "6.5.5",
+    "date": "2026-11-06",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Bricht eine Reinigung die Sperrzeit, nennen Benachrichtigung und Strafbuch jetzt den Grund, etwa „ausserhalb des Reinigungs-Fensters“. Die Einstellungen sagen klar, dass Reinigungs-Fenster nur während einer Sperrzeit gelten.",
+          "en": "When a cleaning breaks the lock period, the notification and the penalty log now name the reason, such as “outside the cleaning window”. The settings now state clearly that cleaning windows only apply during a lock period."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Der Verlauf zeigt Reinigungspausen schon in der zugeklappten Zeile, und eine Pause, die die Sperrzeit brach, ist für die Keyholderin markiert.",
+          "en": "The history shows cleaning breaks right in the collapsed row, and a break that broke the lock period is marked for the keyholder."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.5.4",
     "date": "2026-11-01",
     "changes": [

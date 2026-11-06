@@ -430,6 +430,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
     render: (data, { subjectTz }) => (
       <SessionList
         keyholderView
+        lockBreakingOpeningIds={data.lockBreakingOpeningIds}
         pairs={data.pairs}
         orgasmusEntries={data.orgasmusEntries}
         userHasDevices={data.deviceCount > 0}

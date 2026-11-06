@@ -364,11 +364,16 @@ export const wearSessionRowsCached = cache(async (userId: string, nowMs: number,
 
 /** Was die Session-Liste braucht — dieselben fünf Quellen, nur je Sicht die passende Paarung. */
 export const sessionListDataCached = cache(async (userId: string, nowMs: number, audience: BlockAudience) => {
-  const [{ pairs }, orgasmusEntries, telemetryKeyProof, user, deviceCount] = await Promise.all([
+  const [{ pairs }, orgasmusEntries, telemetryKeyProof, user, deviceCount, strafbuch] = await Promise.all([
     pairsOf(userId, nowMs, audience), orgasmEntriesCached(userId), keyProofOf(userId, nowMs, audience),
     userRowCached(userId), deviceCountCached(userId),
+    // Nur die Keyholderin sieht, welche Reinigungspause in Wahrheit eine Sperrzeit brach. Das
+    // Strafbuch teilt sich den Request-Cache mit dem Vergehens-Block derselben Seite — hat sie den
+    // ausgeblendet, kostet die Liste damit einen eigenen Strafbuch-Lauf.
+    audience === "keyholder" ? strafbuchCached(userId, nowMs) : null,
   ]);
-  return { pairs, orgasmusEntries, telemetryKeyProof, user, deviceCount };
+  const lockBreakingOpeningIds = strafbuch ? new Set(strafbuch.unauthorizedOpenings.map((o) => o.id)) : undefined;
+  return { pairs, orgasmusEntries, telemetryKeyProof, user, deviceCount, lockBreakingOpeningIds };
 });
 
 /** Die aktive Trainingsvorgabe (KG) zum Zeitpunkt der Seite. */

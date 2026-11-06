@@ -98,7 +98,12 @@ export default function CleaningToggle({
               <span className={`${faintCls} italic`}>{t("reinigungFensterEmpty")}</span>
             )}
             {windows.length > 0 && (
-              <span className={`${faintCls} italic`}>{t("reinigungFensterClosedDayHint")}</span>
+              <>
+                {/* Die Fenster binden nur während einer Sperrzeit — ohne diesen Satz hielt ein
+                    Keyholder sie für kaputt, weil der Sub ausserhalb trotzdem folgenlos reinigte. */}
+                <span className={`${faintCls} italic`}>{t("reinigungFensterLockOnlyHint")}</span>
+                <span className={`${faintCls} italic`}>{t("reinigungFensterClosedDayHint")}</span>
+              </>
             )}
             {windows.map((f, i) => {
               // Ein Fenster wird immer als GANZES gespeichert: die Zeile schickt den Stand, den sie

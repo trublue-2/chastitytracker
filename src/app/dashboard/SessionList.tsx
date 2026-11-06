@@ -86,9 +86,13 @@ interface Props {
   /** Einträge, deren Schlüssel-Nachweis aus der Box-Telemetrie stammt (`lib/boxKeyProof.ts`).
    *  Weggelassen → nur Foto-Urteile. */
   telemetryKeyProof?: ReadonlySet<string>;
+  /** Öffnungen, die eine Sperrzeit brachen (Strafbuch: `unauthorizedOpenings`). Markiert eine
+   *  Reinigungspause, die das Session-Modell zwar verschmilzt, die aber nicht erlaubt war — etwa
+   *  ausserhalb des Fensters. Weggelassen → keine Markierung. */
+  lockBreakingOpeningIds?: ReadonlySet<string>;
 }
 
-export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ, orgasmusArtenConfig = null, oeffnenGruendeConfig = null, keyholderView = false, telemetryKeyProof = NO_TELEMETRY_KEY_PROOF, defaultCollapsed }: Props) {
+export default async function SessionList({ pairs, orgasmusEntries, userHasDevices = false, tz = APP_TZ, orgasmusArtenConfig = null, oeffnenGruendeConfig = null, keyholderView = false, telemetryKeyProof = NO_TELEMETRY_KEY_PROOF, lockBreakingOpeningIds, defaultCollapsed }: Props) {
   const locale = await getLocale();
   const dl = toDateLocale(locale);
   const ta = await getTranslations("admin");
@@ -292,6 +296,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
         orgasmusArt: null,
         timeCorrected: false,
         pauseDurationStr: formatDurationBetween(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
+        brokeLockPeriod: lockBreakingOpeningIds?.has(intr.oeffnen.id),
       })),
     ].sort((a, b) => a.time.getTime() - b.time.getTime());
 
@@ -312,6 +317,8 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
             dateStr: formatDate(oeffnen.startTime, dl, tz),
             timeStr: formatTime(oeffnen.startTime, dl, tz),
             grundLabel: openLabel(oeffnen.oeffnenGrund),
+            isCleaning: oeffnen.oeffnenGrund === "REINIGUNG",
+            brokeLockPeriod: lockBreakingOpeningIds?.has(oeffnen.id),
             note: oeffnen.note,
           }
         : null,

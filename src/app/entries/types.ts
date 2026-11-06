@@ -107,6 +107,9 @@ export interface CleaningConfig {
   cleaningBlock?: CleaningBlockReason | null;
   /** Das nächste beginnende Reinigungsfenster — rein informativ, samt dem Tag, an dem es liegt. */
   nextWindow?: NextCleaningWindow | null;
+  /** Fenster sind konfiguriert, binden aber gerade nicht, weil keine Sperrzeit läuft. Der Sub soll
+   *  das lesen, statt sich zu wundern, warum er ausserhalb seiner Fenster folgenlos reinigen kann. */
+  windowsInactive?: boolean;
 }
 
 /** Bundled Sperrzeit state (user-dashboard only — admin skips these warnings). Das Sperr-Flag

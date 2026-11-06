@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON, orgasmTypeSatisfies } from "@/lib/constants";
 import { deployCutoff } from "@/lib/appMeta";
 import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ, hhmmToMinutes } from "@/lib/utils";
-import { cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
+import { cleaningBlockReason, type CleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { activeCleaningWindow, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
@@ -43,6 +43,10 @@ export interface StrafbuchData {
     note: string | null;
     lockPeriodEndsAt: Date | null;
     lockPeriodIndefinite: boolean;
+    /** Nur bei Grund „Reinigung": warum sie die Sperrzeit TROTZDEM brach, beurteilt nach den
+     *  Regeln zur Tatzeit. `null` = keine als Reinigung erfasste Öffnung. Ohne diesen Grund sah die
+     *  Keyholderin eine Reinigung im Strafbuch und konnte nicht erkennen, was daran falsch war. */
+    cleaningBlock: CleaningBlockReason | null;
   }[];
   lateControls: StrafbuchControlOffense[];
   rejectedControls: StrafbuchControlOffense[];
@@ -604,10 +608,22 @@ function isAllowedCleaningOpening(
   user: CleaningPermissionUser,
   enforcedFrom: Date,
 ): boolean {
-  if (!lockPeriod || o.oeffnenGrund !== "REINIGUNG") return false;
+  return !!lockPeriod && o.oeffnenGrund === "REINIGUNG" && cleaningOpeningBlock(o, lockPeriod, user, enforcedFrom) === null;
+}
+
+/** Warum eine Reinigungsöffnung in `lockPeriod` die Sperrzeit bricht — `null` = sie bricht sie
+ *  nicht. Die eine Stelle, an der der Stichtag der Fenster-Regel ({@link cleaningWindowEnforcedFrom})
+ *  greift: das Urteil ({@link isAllowedCleaningOpening}) und der im Strafbuch genannte Grund kommen
+ *  beide von hier und können deshalb nicht auseinanderlaufen. */
+function cleaningOpeningBlock(
+  o: { startTime: Date },
+  lockPeriod: { cleaningAllowed: boolean },
+  user: CleaningPermissionUser,
+  enforcedFrom: Date,
+): CleaningBlockReason | null {
   const grandfathered = o.startTime < enforcedFrom;
   const effectiveUser = grandfathered ? { ...user, cleaningWindows: null } : user;
-  return cleaningBlockReason(effectiveUser, [lockPeriod], o.startTime) === null;
+  return cleaningBlockReason(effectiveUser, [lockPeriod], o.startTime);
 }
 
 /**
@@ -832,19 +848,24 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   // (source="system", the inspection-escalation auto-mark) are EXCLUDED: that's the sub's
   // presumed removal already counted once as `autoRemovedControls` — it's not a willful action by
   // the sub, so flagging it a second time here would double-punish a single ambiguous event.
-  const unauthorizedOpenings = openings
-    .map((o) => ({ o, lockPeriod: findActiveLockPeriod(o.startTime, enforcingLockPeriods) }))
-    .filter(({ o, lockPeriod }) =>
-      o.source !== "system" &&
-      !!lockPeriod && !isAllowedCleaningOpening(o, lockPeriod, cleaningPermissionUserAt(cleaningAt(o.startTime), tzAt(o.startTime)), enforcedFrom) && !isOrgasmusOpenAllowed(o.startTime),
-    )
-    .map(({ o, lockPeriod }) => ({
+  const unauthorizedOpenings = openings.flatMap((o) => {
+    const lockPeriod = findActiveLockPeriod(o.startTime, enforcingLockPeriods);
+    if (o.source === "system" || !lockPeriod || isOrgasmusOpenAllowed(o.startTime)) return [];
+    let cleaningBlock: CleaningBlockReason | null = null;
+    if (o.oeffnenGrund === "REINIGUNG") {
+      cleaningBlock = cleaningOpeningBlock(o, lockPeriod, cleaningPermissionUserAt(cleaningAt(o.startTime), tzAt(o.startTime)), enforcedFrom);
+      // Eine Reinigung, gegen die keine Regel spricht, bricht nichts.
+      if (cleaningBlock === null) return [];
+    }
+    return [{
       id: o.id,
       startTime: o.startTime,
       note: o.note,
-      lockPeriodEndsAt: lockPeriod!.endsAt,
-      lockPeriodIndefinite: lockPeriod!.endsAt === null,
-    }));
+      lockPeriodEndsAt: lockPeriod.endsAt,
+      lockPeriodIndefinite: lockPeriod.endsAt === null,
+      cleaningBlock,
+    }];
+  });
 
   // Die bereits beurteilten Vergehen — einmal gebaut, zweimal gebraucht: hier für die
   // Orgasmus-Ableitung und unten für `applyOffenseRules`.

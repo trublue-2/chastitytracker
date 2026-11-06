@@ -11,7 +11,7 @@ import { bildersafeEnabled } from "@/lib/constants";
 import { entryFormBase } from "@/lib/entryFormRoute";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
-import { cleaningUsedToday, nextCleaningWindow, CLEANING_USER_SELECT } from "@/lib/cleaningService";
+import { cleaningUsedToday, nextCleaningWindow, parseCleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { boxHoldOutlook } from "@/lib/boxOpenOutlook";
 import { getTasksBlocking } from "@/lib/taskIntervals";
 import { structuredLog } from "@/lib/serverLog";
@@ -100,6 +100,7 @@ export default async function NewOeffnenPage() {
               )
             : (user?.cleaningAllowed ? null : "userNotAllowed"),
           nextWindow: nextCleaningWindow(user?.cleaningWindows, now, tz),
+          windowsInactive: !activeLockPeriod && !!user?.cleaningAllowed && parseCleaningWindows(user?.cleaningWindows).length > 0,
         }}
         boxHold={boxHold}
         hasBox={!!box}

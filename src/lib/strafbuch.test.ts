@@ -231,6 +231,8 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
     const s = await buildStrafbuch("u1", NOW);
     expect(s.unauthorizedOpenings).toHaveLength(1);
     expect(s.unauthorizedOpenings[0].startTime).toEqual(NACHTS);
+    // Der Grund steht dabei — sonst sieht die Keyholderin nur „Reinigung" und nicht, was falsch war.
+    expect(s.unauthorizedOpenings[0].cleaningBlock).toBe("outsideWindow");
     // Ein gebrochenes Siegel ist kein versäumter Wiederverschluss.
     expect(s.cleaningNotRelocked).toHaveLength(0);
   });
@@ -258,13 +260,24 @@ describe("buildStrafbuch — die Reinigungsöffnung und das Zeitfenster", () => 
   it("die Sperrzeit verbietet Reinigung: unerlaubtes Öffnen, auch im Fenster", async () => {
     mockLockPeriods([{ ...SPERRE, cleaningAllowed: false }]);
     mockOeffnung(oeffnung(IM_FENSTER));
-    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+    const s = await buildStrafbuch("u1", NOW);
+    expect(s.unauthorizedOpenings).toHaveLength(1);
+    expect(s.unauthorizedOpenings[0].cleaningBlock).toBe("lockPeriodForbids");
   });
 
   it("der User darf gar nicht reinigen: unerlaubtes Öffnen, auch im Fenster", async () => {
     db.user.findUnique.mockResolvedValue({ ...USER, cleaningAllowed: false });
     mockOeffnung(oeffnung(IM_FENSTER));
-    expect((await buildStrafbuch("u1", NOW)).unauthorizedOpenings).toHaveLength(1);
+    const s = await buildStrafbuch("u1", NOW);
+    expect(s.unauthorizedOpenings).toHaveLength(1);
+    expect(s.unauthorizedOpenings[0].cleaningBlock).toBe("userNotAllowed");
+  });
+
+  it("eine gewöhnliche Öffnung trägt keinen Reinigungs-Grund", async () => {
+    mockOeffnung({ ...oeffnung(NACHTS), oeffnenGrund: "SONSTIGES" });
+    const s = await buildStrafbuch("u1", NOW);
+    expect(s.unauthorizedOpenings).toHaveLength(1);
+    expect(s.unauthorizedOpenings[0].cleaningBlock).toBeNull();
   });
 });
 

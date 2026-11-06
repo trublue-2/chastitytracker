@@ -7,7 +7,7 @@ import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVer
 import { DEVICE_BEARING_TYPES, validateEntryPayload, parseRotation, BOX_PHOTO_TYPES, parseOrgasmusArtBase, lockmeboxEnabled } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { isDevBypassEnabled } from "@/lib/devMode";
-import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
+import { validateDeviceOwnership, releaseLockPeriodsOnOpenDetailed, type CleaningBlockReason, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "@/lib/inspectionTarget";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
   let boxCmd: "lock" | "open" | null = null;
 
   let withdrawnLockPeriod = false;
+  let cleaningBlock: CleaningBlockReason | null = null;
   let lockStartTime: Date | null = null;
   // Schliesst dieser VERSCHLUSS eine Reinigungspause ab? In der Transaktion aus demselben
   // Lock-Eintrag abgeleitet, den der Guard ohnehin liest — nach dem Commit löst er die Kontrolle aus.
@@ -170,7 +171,7 @@ export async function POST(req: NextRequest) {
         // diese Sperre legte der Träger Aufruf auf Aufruf, während die Box auf den ersten wartet.
         if (lockmeboxEnabled() && await findPendingOpenTx(tx, session.user.id)) throw entryGuardError("OPEN_ALREADY_PENDING");
         lockStartTime = latest.startTime;
-        withdrawnLockPeriod = await releaseLockPeriodsOnOpen(session.user.id, oeffnenGrund, tx, "user");
+        ({ broke: withdrawnLockPeriod, cleaningBlock } = await releaseLockPeriodsOnOpenDetailed(session.user.id, oeffnenGrund, tx, "user"));
         // LockMeBox: die Öffnung gilt erst mit „Riegel offen" (`lockCommit.ts`, docs/lockmebox.md).
         awaitsBolt = await openAwaitsBolt(tx, session.user.id, latest.keyInBox, withdrawnLockPeriod, new Date());
       }
@@ -347,6 +348,7 @@ export async function POST(req: NextRequest) {
       type,
       startTime: effectiveStart,
       withdrawnLockPeriod,
+      cleaningBlock,
       oeffnenGrund,
       orgasmusArt,
       kontrollCode,

@@ -105,7 +105,8 @@ export default function OeffnenFormCore({
    *  geht. Dieselbe Quelle wie die Sperrzeit-Zeile der Übersicht. */
   const cleaningHintText =
     (cleaningHintKey ? t(cleaningHintKey) : t("modalSubtextReinigung", { minutes: cleaningMaxMinutes })) +
-    (cleaningBlock === "outsideWindow" ? nextWindowText : "");
+    (cleaningBlock === "outsideWindow" ? nextWindowText : "") +
+    (cleaning?.windowsInactive ? " " + t("reinigungHintWindowsInactive") : "");
 
   // Hält die Box? Das Urteil kommt fertig vom Server (eine Uhr, Sub-Zeitzone). Bei einer erlaubten
   // Reinigungsöffnung folgt der Riegel trotz laufender Sperrzeit (der Tracker setzt den Dauerauftrag
