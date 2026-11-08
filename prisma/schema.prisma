@@ -94,6 +94,11 @@ model User {
   inspectionReminderDelayMinutes Int                      @default(5)
   inspectionAutoMarkEnabled      Boolean                  @default(false)
   inspectionAutoMarkDelayMinutes Int                      @default(60)
+  // Fristen-Joker: ein Guthaben, das die Keyholderin setzt (0 = aus). Der Träger verschiebt damit
+  // eine laufende Kontrollfrist VOR ihrem Ablauf um `inspectionJokerMinutes`, einmal je Kontrolle.
+  // Die Regel steht in inspectionJoker.ts.
+  inspectionJokerBalance         Int                      @default(0)
+  inspectionJokerMinutes         Int                      @default(60)
   mobileDesktopUpload            Boolean                  @default(false)
   // IANA-Zeitzone des Nutzers (z.B. "America/New_York"). Governiert Anzeige, Eingabe-Defaults und
   // die Wanduhr-Fenster (Reinigung/Schlaf) für DIESEN Nutzer. Default "Europe/Zurich" = bisheriges
@@ -864,6 +869,10 @@ model KontrollAnforderung {
   // stamme aus dieser Regel. Was BEIDE gemeinsam haben — kein Sperrzeit-Gate, Schonung im
   // Schlaf-Fenster —, fragt `isEntryTriggeredInspection()` an einer Stelle ab.
   postLock                 Boolean   @default(false)
+  // Fristen-Joker: die Frist VOR dem Einsatz, damit die Keyholderin sieht, was verschoben wurde.
+  // Gesetzt heisst zugleich „für diese Kontrolle verbraucht" — ein eigener Zeitstempel daneben wäre
+  // ein zweiter Zustand, der dem ersten widersprechen könnte.
+  jokerPreviousDeadline    DateTime?
 
   @@index([userId, withdrawnAt])
   @@index([userId, entryId])

@@ -41,6 +41,8 @@ const CATEGORY_BY_BODY_KEY: Record<MessageBodyKey, MessageCategory> = {
   inspectionRejectedMessage: "inspection",
   inspectionResolvedWithdrawnMessage: "inspection",
   inspectionExtendedMessage: "inspection",
+  inspectionJokerUsedMessageKeyholder: "inspection",
+  inspectionJokerUsedReasonMessageKeyholder: "inspection",
   inspectionReminderMessage: "inspection",
   inspectionReminderMessageNoCode: "inspection",
   inspectionAutoRemovedMessageSub: "inspection",
@@ -201,6 +203,9 @@ const PRIORITY_BY_BODY_KEY: Record<MessageBodyKey, MessagePriority> = {
   taskDoneMessage: "info",
   taskProofAcceptedMessage: "info",
   taskDoneMessageKeyholder: "info",
+  // Kein Handlungsbedarf: die Frist läuft weiter, nur später. Die Keyholderin soll es wissen, nicht müssen.
+  inspectionJokerUsedMessageKeyholder: "info",
+  inspectionJokerUsedReasonMessageKeyholder: "info",
   weightTargetReachedMessageKeyholder: "info",
   weightTargetLostMessageKeyholder: "info",
   weightReleaseWithdrawnMessage: "info",

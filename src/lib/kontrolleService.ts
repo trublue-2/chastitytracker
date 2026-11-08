@@ -15,6 +15,8 @@ import { isHealthHoldActive } from "@/lib/healthHold";
 import { type PrismaTx, getOpenKontrollen } from "@/lib/queries";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { inspectionHref } from "@/lib/entryFormRoute";
+import { extendInspectionProblem, inspectionDeadlineWrite } from "@/lib/inspectionDeadline";
+import { jokerOffer, type InspectionJokerOffer } from "@/lib/inspectionJoker";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
 
@@ -87,22 +89,10 @@ export async function resolveKontrolle(id: string, action: KontrolleAction, acto
   return { ok: true, data: { userId: ka.userId, notified } };
 }
 
-/** Ob sich die Frist dieser Kontrolle auf `newDeadline` verlängern lässt — der Code des Grundes,
- *  sonst `null`. Rein und schreibfrei: der Commit ({@link extendInspectionDeadline}) und die
- *  MCP-Vorschau rufen DIESELBE Funktion, damit die Vorschau nie Erfolg für einen Commit verspricht,
- *  der mit 400 endet. */
-export function extendInspectionProblem(
-  ka: { entryId: string | null; withdrawnAt: Date | null; autoMarkedRemovedAt: Date | null; wirksamAb: Date | null; benachrichtigtAt: Date | null; deadline: Date },
-  newDeadline: Date,
-  now: Date,
-): "INSPECTION_NOT_EXTENDABLE" | "INSPECTION_DEADLINE_NOT_LATER" | null {
-  // Erfüllt, zurückgezogen, von der Eskalation gebucht — oder noch gar nicht zugestellt: deren
-  // Frist rechnet der Zusteller beim Auslösen aus (`deadlineFromDispatch`), sie hier zu setzen
-  // würde überschrieben.
-  if (ka.entryId || ka.withdrawnAt || ka.autoMarkedRemovedAt || isHiddenFromSub(ka)) return "INSPECTION_NOT_EXTENDABLE";
-  if (newDeadline.getTime() <= Math.max(ka.deadline.getTime(), now.getTime())) return "INSPECTION_DEADLINE_NOT_LATER";
-  return null;
-}
+// Die Schranke der Frist-Verlängerung liegt in `inspectionDeadline.ts`, damit der Fristen-Joker
+// (`inspectionJoker.ts`) sie teilen kann, ohne diesen Dienst zu importieren. Hier weitergereicht für
+// die bestehenden Aufrufer.
+export { extendInspectionProblem } from "@/lib/inspectionDeadline";
 
 /**
  * Verlängert die Frist einer offenen, bereits zugestellten Kontrolle — statt sie zurückzuziehen und
@@ -114,8 +104,7 @@ export function extendInspectionProblem(
  * schon verstrichene Frist rückwirkend ungültig werden. Die neue Frist muss ausserdem in der Zukunft
  * liegen, sonst bliebe die Kontrolle überfällig und die Eskalation liefe weiter.
  *
- * Setzt den Mahn-Stempel zurück (`benachrichtigtReminderAt`): beide Stufen zählen ab der FRIST, die
- * Mahnung der alten Frist wäre sonst für die neue verbraucht und Stufe 2 liefe schon ab ihr.
+ * Was beim Verschieben mit zurückgesetzt wird (der Mahn-Stempel), steht bei `inspectionDeadlineWrite`.
  */
 export async function extendInspectionDeadline(
   id: string,
@@ -133,10 +122,7 @@ export async function extendInspectionDeadline(
   // Bedingt statt `update`: zwischen Prüfung und Schreiben kann der Träger einreichen oder die
   // Eskalation die Kontrolle buchen — dann darf weder die Frist noch der Mahn-Stempel zurückgesetzt
   // und dem Träger keine Verlängerung gemeldet werden.
-  const { count } = await prisma.kontrollAnforderung.updateMany({
-    where: { id, entryId: null, withdrawnAt: null, autoMarkedRemovedAt: null },
-    data: { deadline: newDeadline, benachrichtigtReminderAt: null },
-  });
+  const { count } = await prisma.kontrollAnforderung.updateMany(inspectionDeadlineWrite(id, newDeadline));
   if (count === 0) return serviceFail(400, "INSPECTION_NOT_EXTENDABLE");
   markLastAction();
   await notifyUser(ka.userId, {
@@ -385,6 +371,7 @@ export async function requestKontrolle(
   let sealCode: string | null;
   let controlId: string;
   let targetInfo: { categoryId: string | null; label: string | null };
+  let created: Awaited<ReturnType<typeof prisma.kontrollAnforderung.create>>;
   // Wurf- und Fang-Seite hängen an derselben Tabelle: `fail()` akzeptiert nur Codes, die unten
   // auch gemappt werden — ein Tippfehler ist ein Compile-Fehler, kein stiller 500.
   // Die Schlüssel SIND die Fehlercodes, die `inspectionPreconditionProblem` liefert — so wandert
@@ -458,10 +445,11 @@ export async function requestKontrolle(
       });
 
       return {
-        code: c, sealCode: seal, id: ka.id,
+        code: c, sealCode: seal, id: ka.id, row: ka,
         target: { categoryId: target.categoryId, label: inspectionTargetLabel(target) },
       };
     });
+    created = result.row;
     code = result.code;
     sealCode = result.sealCode;
     controlId = result.id;
@@ -474,7 +462,10 @@ export async function requestKontrolle(
 
   // Sofort benachrichtigen; bei geplanter Auslösung übernimmt der Poller bei Fälligkeit.
   if (!wirksamAb) {
-    await sendKontrolleNotification({ user, code, sealCode, kommentar: kommentarTrimmed, deadline, controlId, target: targetInfo, actor });
+    await sendKontrolleNotification({
+      user, code, sealCode, kommentar: kommentarTrimmed, deadline, controlId, target: targetInfo, actor,
+      joker: jokerOffer(created, user, now, user.timezone ?? APP_TZ),
+    });
   }
 
   return { ok: true, data: { code, deadline: deadline.toISOString(), scheduledFor: wirksamAb?.toISOString() ?? null } };
@@ -523,8 +514,10 @@ function buildInspectionMail(o: {
   deadlineStr: string;
   formPath: string;
   targetLabel: string | null;
+  /** Aufschub des Fristen-Jokers, `null` = keiner einsetzbar. */
+  jokerMinutes: number | null;
 }): { subject: string; html: string } {
-  const { t, locale, username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath, targetLabel } = o;
+  const { t, locale, username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath, targetLabel, jokerMinutes } = o;
   const intro = inspectionIntro(t, deadline.getTime() - Date.now());
   const kommentarHtml = optionalNoticeBoxHtml(t("inspectionAdminLabel"), kommentar);
 
@@ -553,7 +546,8 @@ function buildInspectionMail(o: {
       ${codeBlockHtml}
       ${sealHintHtml}
       ${targetLabel ? `<p><strong>${t("inspectionTargetLabel")}</strong> ${escHtml(targetLabel)}</p>` : ""}
-      <p><strong>${t("inspectionDeadlineLabel")}</strong> ${deadlineStr}</p>`,
+      <p><strong>${t("inspectionDeadlineLabel")}</strong> ${deadlineStr}</p>
+      ${jokerMinutes ? `<p>${escHtml(t("inspectionJokerAvailable", { minutes: jokerMinutes }))}</p>` : ""}`,
       t("inspectionButton"),
       {
         buttonColor: EMAIL_BUTTON_COLORS.inspection,
@@ -588,10 +582,12 @@ export function buildInspectionPush(opts: {
   deadlineStr: string;
   sealRequired: boolean;
   kommentar: string | null;
+  /** Fristen-Joker einsetzbar — ein kurzes Wort ohne Ziffern, die Erkennung stört es nicht. */
+  jokerAvailable?: boolean;
   /** Nur für Tests: der Stichtag des „liegt die Frist heute?"-Vergleichs. */
   now?: Date;
 }): { title: string; body: string } {
-  const { t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar, now = new Date() } = opts;
+  const { t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar, jokerAvailable = false, now = new Date() } = opts;
   const deadlineShort = formatDate(deadline) === formatDate(now) ? formatTime(deadline) : deadlineStr;
   const parts = [
     ...(targetLabel ? [targetLabel] : []),
@@ -599,6 +595,7 @@ export function buildInspectionPush(opts: {
   ];
   if (sealRequired) parts.push(t("inspectionPushSeal"));
   if (kommentar) parts.push(kommentar);
+  if (jokerAvailable) parts.push(t("inspectionPushJoker"));
   return {
     // Ohne Code (Gerät ohne Code-Pflicht) bleibt der bisherige Titel — „Kontrolle · " mit nichts
     // dahinter wäre eine Lücke, wo der Nutzer eine Zahl erwartet.
@@ -637,8 +634,13 @@ export async function sendKontrolleNotification(opts: {
    *  bei einer Auto-Kontrolle (die stellt niemand) ist eine ENTSCHEIDUNG, kein Versehen, und die
    *  soll ein neuer Aufrufer treffen müssen statt still in die System-Zeile zu rutschen. */
   actor: MessageActor;
+  /** Der Fristen-Joker für diese Kontrolle, wie ihn `jokerOffer` (inspectionJoker.ts) für die
+   *  zugestellte Zeile ausrechnet — DIESELBE Regel wie Knopf und Dienst, damit die Mail keinen Joker
+   *  verspricht, den das Dashboard dann nicht anbietet. Die Aufrufer rechnen ihn, weil nur sie Zeile
+   *  und Einstellungen geladen haben. */
+  joker?: InspectionJokerOffer | null;
 }): Promise<void> {
-  const { user, code, sealCode, kommentar, deadline, controlId, target, actor } = opts;
+  const { user, code, sealCode, kommentar, deadline, controlId, target, actor, joker = null } = opts;
   const targetLabel = target?.label ?? null;
 
   // VOR dem E-Mail-Guard: der Posteingang ist der einzige Kanal, der auch ohne hinterlegte Adresse
@@ -669,9 +671,9 @@ export async function sendKontrolleNotification(opts: {
   // Auto-Buchung als Öffnen) lief auf einer Anforderung, die ihn nie erreicht hatte. Über den
   // manuellen Pfad kann das nicht entstehen (`requestKontrolle` weist ohne Adresse ab), wohl aber
   // über die automatischen Kontrollen: die plant `autoKontrolleService` ohne solche Prüfung.
-  const push = buildInspectionPush({ t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar });
+  const push = buildInspectionPush({ t, code, targetLabel, deadline, deadlineStr, sealRequired, kommentar, jokerAvailable: !!joker });
   await deliverToChannels(user, channels, {
-    mail: () => buildInspectionMail({ t, locale, username: user.username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath, targetLabel }),
+    mail: () => buildInspectionMail({ t, locale, username: user.username, code, sealCode, sealRequired, kommentar, deadline, deadlineStr, formPath, targetLabel, jokerMinutes: joker?.minutes ?? null }),
     title: push.title,
     body: push.body,
     url: formPath,

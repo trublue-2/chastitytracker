@@ -4,6 +4,7 @@ import { pruneWeightPhotos } from "@/lib/weightService";
 import { sendDueWeighingReminders } from "@/lib/weightReminder";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { NOTIFY_RECIPIENT_SELECT } from "@/lib/notify";
+import { jokerOffer, INSPECTION_JOKER_USER_SELECT } from "@/lib/inspectionJoker";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";
 import { getIsLocked, getActiveLockPeriod } from "@/lib/queries";
 import { resolveInspectionTarget, inspectionTargetLabel, isKgTarget } from "@/lib/inspectionTarget";
@@ -69,7 +70,7 @@ async function processDue(): Promise<void> {
 
     const due = await prisma.kontrollAnforderung.findMany({
       where: { ...dueForDispatchWhere(now), entryId: null },
-      include: { user: { select: { ...NOTIFY_RECIPIENT_SELECT, autoKontrolleNurBeiSperre: true } } },
+      include: { user: { select: { ...NOTIFY_RECIPIENT_SELECT, ...AUTO_KONTROLLE_SETTINGS_SELECT, ...INSPECTION_JOKER_USER_SELECT } } },
       // Chronologisch: werden mehrere Kontrollen desselben Users im selben Tick fällig, überlebt die
       // früheste (wird zuerst zugestellt), die späteren verwirft der Überschneidungs-Schutz unten.
       orderBy: { wirksamAb: "asc" },
@@ -140,6 +141,8 @@ async function processDue(): Promise<void> {
           // Bei Auto-Kontrollen (und Altzeilen) ist die Spalte null: dann meldet, wie bisher, das
           // System. Genau richtig — hinter einer Auto-Kontrolle steht kein Mensch.
           actor: ka.createdBy,
+          // Für die Zeile, wie sie NACH dem Versand aussieht: zugestellt und mit der Frist ab jetzt.
+          joker: jokerOffer({ ...ka, deadline, benachrichtigtAt: sentAt }, ka.user, sentAt, ka.user.timezone ?? APP_TZ),
         });
         // Frist UND Code mitschreiben: Mail, Strafbuch-Beurteilung, Eskalation und die Erfüllung
         // müssen dieselben Werte lesen. Ein verworfener Code darf nicht in der Zeile stehenbleiben —

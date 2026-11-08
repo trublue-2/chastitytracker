@@ -271,6 +271,12 @@ export const FM_CAPABILITIES: FmCapability[] = [
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/kontrollen/code-push", "/api/kontrollen/[id]/code-push"],
   }),
   c({
+    id: "inspection-joker", mechanic: "Kontrollen", title: "Kontrollfrist mit Joker verschieben",
+    what: "Der Träger verschiebt eine laufende Kontrollfrist selbst um den eingestellten Aufschub und verbraucht dabei einen Joker; die Keyholderin wird benachrichtigt.",
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/kontrollen/[id]/joker"],
+    note: "Nur vor Fristende und einmal je Kontrolle — ein späterer Einsatz erliesse das Vergehen. Nie für die Kontrolle nach einer Reinigungspause oder einem Verschluss.",
+  }),
+  c({
     id: "inspection-open-list", mechanic: "Kontrollen", title: "Offene Kontrollen abfragen",
     what: "Liefert Code und Frist der offenen Kontrollen des Subs als schmales JSON — für Geräte und Skripte, die den Code anzeigen, ohne das Dashboard zu lesen.",
     actors: ["sub"], surfaces: ["extern"], routes: ["/api/kontrollen/open"],
@@ -806,7 +812,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "escalation-settings", mechanic: "Kontrollen", title: "Eskalations-Stufen einstellen",
-    what: "Ob und nach welcher Zeit gemahnt und die Abnahme gebucht wird.",
+    what: "Ob und nach welcher Zeit gemahnt und die Abnahme gebucht wird, dazu Guthaben und Aufschub der Fristen-Joker.",
     actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"],
     routes: ["/api/admin/users/[id]"], tools: ["set_inspection_escalation"],
     note: "Zwei Stufen, eine Kette: die Mahnung ohne den Vermerk ist eine Erinnerung, der Vermerk ohne die Mahnung eine Falle.",

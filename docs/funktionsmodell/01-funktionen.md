@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-120 Funktionen über 19 Mechaniken, davon 14 ohne jede Bedienung — sie laufen von selbst.
+121 Funktionen über 19 Mechaniken, davon 14 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -78,9 +78,10 @@ Steckbrief: [30-kontrollen.md](30-kontrollen.md)
 | **Kontrolle erfüllen** | Der Träger reicht das Foto ein — bei einem Gerät mit Code-Pflicht mit handschriftlichem Code im Bild. <br>*Erfüllt wird nur die Kontrolle desselben Ziels.* | Sub | App (Träger) | — |
 | **Code im Foto erkennen** | Liest den handschriftlichen Kontroll-Code aus dem Bild und vergleicht ihn mit dem geforderten. <br>*Bei fehlgeschlagener Erkennung entsteht ein Grund-Code, kein stilles Scheitern.* | System | läuft von selbst | `/api/verify-kontrolle` |
 | **Kontroll-Code erneut zustellen** | Schickt den Code einer offenen Kontrolle noch einmal als Push. | Sub | App (Träger) | `/api/kontrollen/code-push` `/api/kontrollen/[id]/code-push` |
+| **Kontrollfrist mit Joker verschieben** | Der Träger verschiebt eine laufende Kontrollfrist selbst um den eingestellten Aufschub und verbraucht dabei einen Joker; die Keyholderin wird benachrichtigt. <br>*Nur vor Fristende und einmal je Kontrolle — ein späterer Einsatz erliesse das Vergehen. Nie für die Kontrolle nach einer Reinigungspause oder einem Verschluss.* | Sub | App (Träger) | `/api/kontrollen/[id]/joker` |
 | **Offene Kontrollen abfragen** | Liefert Code und Frist der offenen Kontrollen des Subs als schmales JSON — für Geräte und Skripte, die den Code anzeigen, ohne das Dashboard zu lesen. <br>*Dieselbe Auswahl wie das Dashboard: geplante, noch nicht ausgelöste Kontrollen bleiben unsichtbar. Der Code ist null, wenn das Gerät keinen verlangt.* | Sub | Gegenstelle | `/api/kontrollen/open` |
 | **Überfällige Kontrolle eskalieren** | Stufe 1 mahnt, Stufe 2 bucht die Öffnung bzw. das Ablegen selbst. <br>*Stufe 2 zählt ab dem Stempel von Stufe 1 — ohne Stufe 1 feuert sie nie. Eine Sperrzeit hebt sie nicht auf.* | System | läuft von selbst | — |
-| **Eskalations-Stufen einstellen** | Ob und nach welcher Zeit gemahnt und die Abnahme gebucht wird. <br>*Zwei Stufen, eine Kette: die Mahnung ohne den Vermerk ist eine Erinnerung, der Vermerk ohne die Mahnung eine Falle.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]` `set_inspection_escalation` |
+| **Eskalations-Stufen einstellen** | Ob und nach welcher Zeit gemahnt und die Abnahme gebucht wird, dazu Guthaben und Aufschub der Fristen-Joker. <br>*Zwei Stufen, eine Kette: die Mahnung ohne den Vermerk ist eine Erinnerung, der Vermerk ohne die Mahnung eine Falle.* | Keyholder (UI), Keyholder (MCP) | App (Keyholder), MCP | `/api/admin/users/[id]` `set_inspection_escalation` |
 
 ## Auto-Kontrollen
 

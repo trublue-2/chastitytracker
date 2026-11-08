@@ -19,7 +19,7 @@ import {
   mcpImportDeviceReferences, mcpDeleteDeviceReference, mcpDeleteEntry,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcpWrite";
-import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
+import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, INSPECTION_JOKER_BALANCE_RANGE, INSPECTION_JOKER_MINUTES_RANGE, RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
 import { verifyAccessToken } from "@/lib/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -1346,13 +1346,18 @@ function registerTools(server: McpServer) {
           "MARKING as removed (which counts as an offence if that rule is on). The reminder delay is measured " +
           "from the DEADLINE; the auto-mark delay is measured from the REMINDER — reminder 5 + auto-mark 60 " +
           "means the mark falls 65 minutes after the deadline, not 60. Do not promise the wearer a time " +
-          "without adding the two up. Only provided fields change; the current values are in " +
+          "without adding the two up. Also sets the wearer's DEADLINE JOKERS: `jokerBalance` is the absolute number " +
+          "he has (0 = off), `jokerMinutes` the postponement per use. With a joker he moves a running inspection " +
+          "deadline himself, BEFORE it expires, once per inspection — never for the inspection after a cleaning break " +
+          "or after locking; you are notified of each use. Only provided fields change; the current values are in " +
           "get_context.inspectionEscalation." + KEYHOLDER_SILENT,
         inputSchema: {
           reminderEnabled: z.boolean().optional().describe("Remind the wearer when the deadline passes?"),
           reminderDelayMinutes: rangeField(INSPECTION_REMINDER_DELAY_RANGE, "Minutes after the DEADLINE before reminding"),
           autoMarkEnabled: z.boolean().optional().describe("Automatically mark the inspection as removed when it stays unanswered?"),
           autoMarkDelayMinutes: rangeField(INSPECTION_AUTO_MARK_DELAY_RANGE, "Minutes after the REMINDER before marking automatically (so: deadline + reminderDelay + this)"),
+          jokerBalance: rangeField(INSPECTION_JOKER_BALANCE_RANGE, "Deadline jokers the wearer has, set ABSOLUTELY (0 = none, feature off)"),
+          jokerMinutes: rangeField(INSPECTION_JOKER_MINUTES_RANGE, "Minutes one joker postpones the deadline (cut short before his sleep window)"),
           reason: reasonField,
           dryRun: dryRunFieldV1,
         },

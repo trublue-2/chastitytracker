@@ -384,6 +384,16 @@ export const FM_REGISTRY: FmEntry[] = [
     effect: "Verzug bis zu dieser Buchung, gemessen ab dem Stempel der Stufe 1.",
     writers: ["admin", "mcp"], affects: ["Kontrollen"], anchor: "inspectionEscalationService.ts",
   }),
+  s({
+    model: "User", field: "inspectionJokerBalance", domain: "kontrollen", scope: "standing",
+    effect: "Fristen-Joker des Trägers: so oft darf er eine laufende Kontrollfrist vor ihrem Ablauf selbst verschieben. 0 = aus; jeder Einsatz zieht einen ab.",
+    writers: ["admin", "mcp"], affects: ["Kontrollen", "Benachrichtigungen"], anchor: "inspectionJoker.ts",
+  }),
+  s({
+    model: "User", field: "inspectionJokerMinutes", domain: "kontrollen", scope: "standing",
+    effect: "Aufschub je Joker. Endet vor dem Schlaf-Fenster, wenn die alte Frist im Wachen lag.",
+    writers: ["admin", "mcp"], affects: ["Kontrollen"], anchor: "inspectionJoker.ts",
+  }),
 
   // ── User: Erfassung, Darstellung, Zugang ───────────────────────────────────────────────────
   s({
@@ -738,6 +748,7 @@ export const FM_REGISTRY: FmEntry[] = [
   x("runtime", "KontrollAnforderung", "benachrichtigtReminderAt",
     "Stempel der Stufe 1 — zugleich der Uhr-Anker, ab dem Stufe 2 zählt."),
   x("runtime", "KontrollAnforderung", "autoMarkedRemovedAt", "Stempel der Stufe 2."),
+  x("runtime", "KontrollAnforderung", "jokerPreviousDeadline", "Die Frist vor dem Joker-Einsatz, für die Anzeige bei der Keyholderin — gesetzt heisst zugleich, dass der Joker dieser Kontrolle verbraucht ist."),
   x("runtime", "KontrollAnforderung", "autoMarkedEntryId",
     "Der von Stufe 2 erzeugte Öffnen-Eintrag — bewusst eine eigene Spalte, nicht die des erfüllenden Eintrags."),
   x("runtime", "KontrollAnforderung", "cleaningRelock",

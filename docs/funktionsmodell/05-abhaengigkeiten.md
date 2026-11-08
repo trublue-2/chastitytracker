@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 158 Kanten über 19 Mechaniken, davon 20 fest verdrahtet.
+Insgesamt 159 Kanten über 19 Mechaniken, davon 20 fest verdrahtet.
 
 ## Einträge
 
@@ -240,6 +240,7 @@ flowchart LR
 | Einträge | `User.inspectionAutoMarkEnabled` | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | `queries.ts:releaseLockPeriodsOnOpen` |
 | Sessions/Statistik | `User.inspectionAutoMarkEnabled` | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | `queries.ts:releaseLockPeriodsOnOpen` |
 | Strafbuch | `User.inspectionAutoMarkEnabled` | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | `queries.ts:releaseLockPeriodsOnOpen` |
+| Benachrichtigungen | `User.inspectionJokerBalance` | Fristen-Joker des Trägers: so oft darf er eine laufende Kontrollfrist vor ihrem Ablauf selbst verschieben. 0 = aus; jeder Einsatz zieht einen ab. | `inspectionJoker.ts` |
 | Geräte | `KontrollAnforderung.deviceId` | Verengt das Ziel auf genau ein Gerät und hat Vorrang vor der Kategorie. Es muss das getragene sein, sonst ist die Kontrolle nicht erfüllbar. | — |
 | Strafbuch | `KontrollAnforderung.deadline` | Erfüllungsfrist. Nach Ablauf verschwindet die Kontrolle nicht, sie wird überfällig — und ist der Startpunkt der Eskalation. | `inspectionEscalationService.ts` |
 | Auto-Kontrollen | `KontrollAnforderung.wirksamAb` | Terminierte Zustellung; bis dahin für den Sub unsichtbar und ohne laufende Frist. Auch der Weg, auf dem der Tagesplan vorab angelegt wird. | — |
@@ -564,6 +565,7 @@ flowchart LR
 |---|---|---|---|
 | Kontrollen | `User.inspectionReminderEnabled` | Stufe 1: mahnt eine überfällige Kontrolle an. Setzt nur den Uhr-Anker für Stufe 2 — ohne sie beginnt Stufe 2 nie. | `inspectionEscalationService.ts` |
 | Kontrollen | `User.inspectionReminderDelayMinutes` | Verzug bis zur Mahnung, gemessen ab dem Ablauf der Kontroll-Frist. | `inspectionEscalationService.ts` |
+| Kontrollen | `User.inspectionJokerBalance` | Fristen-Joker des Trägers: so oft darf er eine laufende Kontrollfrist vor ihrem Ablauf selbst verschieben. 0 = aus; jeder Einsatz zieht einen ab. | `inspectionJoker.ts` |
 | Zugang | `User.locale` | Sprache der Oberfläche UND aller Anschreiben — auch der Portal-Mails, die sie von hier lesen. | `emailI18n.ts` |
 | Zugang | `User.role` | `user` oder `admin`. Entscheidet über Admin-Oberfläche, MCP-Zugang und das Handeln für fremde Konten. Wirkt zusätzlich auf die Zustellung, und zwar in beide Richtungen: jeder Admin ist Empfänger für JEDEN Träger (`getControllersOfUser`), und über einen Träger MIT Admin-Rolle wird keine Keyholder-Posteingangs-Zeile mehr geschrieben (`keyholderRowReadable`) — Mail und Push laufen dabei weiter. Beides steht in der Rückfrage beim Hochstufen; wer es hier ändert, ändert dort den Text mit. | `authGuards.ts:requireAdminApi` |
 | Sperrzeit | `VerschlussAnforderung.wirksamAb` | Terminierte Auslösung. Bis dahin existiert die Direktive für den Sub nicht: keine Anzeige, keine Meldung, keine laufende Frist. | — |

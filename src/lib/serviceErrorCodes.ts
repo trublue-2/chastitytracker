@@ -83,6 +83,8 @@ export const INSPECTION_CODES = [
   // Frist verlängern: die Kontrolle ist erledigt/verborgen, oder die neue Frist liegt nicht später.
   "INSPECTION_NOT_EXTENDABLE",
   "INSPECTION_DEADLINE_NOT_LATER",
+  // Fristen-Joker: kein Guthaben, schon eingesetzt, Frist abgelaufen oder die Kontrolle schliesst ihn aus.
+  "INSPECTION_JOKER_UNAVAILABLE",
   // Ziel-Kontrollen (v5.0.1): das Gegenstück zu USER_NOT_LOCKED für Trage-Kategorien, dazu die
   // beiden Fehler, die nur ein ZIEL haben kann — es existiert nicht (mehr), oder das verlangte
   // Gerät ist nicht das getragene.

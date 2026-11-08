@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 154 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 156 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -79,6 +79,8 @@ Steckbrief: [30-kontrollen.md](30-kontrollen.md)
 | `User.inspectionReminderDelayMinutes` | Int | `5` | dauerhaft | Verzug bis zur Mahnung, gemessen ab dem Ablauf der Kontroll-Frist. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionEscalationService.ts` |
 | `User.inspectionAutoMarkEnabled` | Boolean | `false` | dauerhaft | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Einträge, Sessions/Statistik, Strafbuch | `queries.ts:releaseLockPeriodsOnOpen` |
 | `User.inspectionAutoMarkDelayMinutes` | Int | `60` | dauerhaft | Verzug bis zu dieser Buchung, gemessen ab dem Stempel der Stufe 1. | Keyholder (UI), Keyholder (MCP) | Kontrollen | `inspectionEscalationService.ts` |
+| `User.inspectionJokerBalance` | Int | `0` | dauerhaft | Fristen-Joker des Trägers: so oft darf er eine laufende Kontrollfrist vor ihrem Ablauf selbst verschieben. 0 = aus; jeder Einsatz zieht einen ab. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Benachrichtigungen | `inspectionJoker.ts` |
+| `User.inspectionJokerMinutes` | Int | `60` | dauerhaft | Aufschub je Joker. Endet vor dem Schlaf-Fenster, wenn die alte Frist im Wachen lag. | Keyholder (UI), Keyholder (MCP) | Kontrollen | `inspectionJoker.ts` |
 | `KontrollAnforderung.categoryId` | String? | — | je Direktive | ZIEL der Kontrolle: leer = der KG (verlangt einen aktiven Verschluss), gesetzt = eine Trage-Kategorie. Je Ziel darf nur eine Kontrolle laufen. | Keyholder (UI), Keyholder (MCP) | Kontrollen | `kontrolleService.ts:hasActiveKontrolle` |
 | `KontrollAnforderung.deviceId` | String? | — | je Direktive | Verengt das Ziel auf genau ein Gerät und hat Vorrang vor der Kategorie. Es muss das getragene sein, sonst ist die Kontrolle nicht erfüllbar. | Keyholder (UI), Keyholder (MCP) | Kontrollen, Geräte | — |
 | `KontrollAnforderung.kommentar` | String? | — | je Direktive | Begleittext an den Sub. | Keyholder (UI), Keyholder (MCP) | Nachrichten | — |
@@ -377,6 +379,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `KontrollAnforderung.cleaningRelock` | Laufzeitzustand | Herkunft: aus einem Wiederverschluss nach einer Reinigungspause statt aus dem Tagesplan. Nicht aus der Zeile rekonstruierbar. |
 | `KontrollAnforderung.requireBoxPhoto` | Laufzeitzustand | Diese Kontrolle verlangt das Foto durchs Sichtfenster zwingend — ohne es wird die Einreichung abgewiesen statt nachgefragt. Schnappschuss beim Anlegen aus der Einstellung UND dem Vorhandensein einer Box. |
 | `KontrollAnforderung.postLock` | Laufzeitzustand | Herkunft: aus einem Verschluss-Eintrag statt aus dem Tagesplan. Teilt mit `cleaningRelock` die Folgen (kein Sperrzeit-Gate, Schonung im Schlaf). |
+| `KontrollAnforderung.jokerPreviousDeadline` | Laufzeitzustand | Die Frist vor dem Joker-Einsatz, für die Anzeige bei der Keyholderin — gesetzt heisst zugleich, dass der Joker dieser Kontrolle verbraucht ist. |
 | `OrgasmusAnforderung.id` | Identität | Primärschlüssel. |
 | `OrgasmusAnforderung.userId` | Identität | Eigentümer der Zeile. |
 | `OrgasmusAnforderung.createdAt` | Datensatz | Anlage-Zeitpunkt. |

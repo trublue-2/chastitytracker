@@ -116,6 +116,9 @@ export const MESSAGE_BODY_KEYS = [
   // Keyholder, mit Verweis auf die Vergleichsansicht — ohne Ziffern.
   "lockboxCodeSameMessageKeyholder",
   "lockboxCodeUncertainMessageKeyholder",
+  // Fristen-Joker: der Träger hat eine Kontrollfrist selbst verschoben. An die Keyholder.
+  "inspectionJokerUsedMessageKeyholder",
+  "inspectionJokerUsedReasonMessageKeyholder",
 ] as const;
 
 export type MessageBodyKey = (typeof MESSAGE_BODY_KEYS)[number];

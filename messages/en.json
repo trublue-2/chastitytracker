@@ -298,7 +298,8 @@
     "Unauthorized": "You are not (or no longer) signed in. Please sign in again.",
     "rateLimited": "Too many attempts. Please try again in a few minutes.",
     "photoAnalysisBaseUrlPrivate": "This address points to an internal network. That only works if the server operator has explicitly allowed it.",
-    "BOX_PHOTO_NOT_DUE": "No box photo is due (any more) for this lock."
+    "BOX_PHOTO_NOT_DUE": "No box photo is due (any more) for this lock.",
+    "INSPECTION_JOKER_UNAVAILABLE": "No joker is available for this inspection"
   },
   "common": {
     "daily": "daily",
@@ -952,7 +953,14 @@
     "code": "Code",
     "autoMarkWarn": "Without proof, the device is then booked as removed automatically.",
     "outlookAutoMark": "Without you: the device counts as removed at {time}.",
-    "outlookNothing": "Without you, nothing is booked automatically."
+    "outlookNothing": "Without you, nothing is booked automatically.",
+    "jokerUse": "Use joker (+{minutes} min) · {balance} left",
+    "jokerTitle": "Postpone deadline with a joker",
+    "jokerConfirm": "New deadline: {date}.",
+    "jokerConfirmHint": "Afterwards you will have {remaining, plural, =0 {no jokers left} one {# joker left} other {# jokers left}}. The keyholder will be notified.",
+    "jokerReasonLabel": "Reason (optional)",
+    "jokerReasonHint": "Included in the message to the keyholder.",
+    "jokerSubmit": "Use joker"
   },
   "stats": {
     "title": "Statistics",
@@ -1589,7 +1597,12 @@
     "codeCheckResult_none": "There is no automatic check for this lock.",
     "codeCheckResult_pending": "The automatic check is still running. Reload the page in a few minutes.",
     "codeCheckResult_error": "The automatic check failed. Compare the two photos yourself.",
-    "codeCheckLimits": "The check reads the photos automatically and can misread them. A detected difference does not guarantee that the code was really changed."
+    "codeCheckLimits": "The check reads the photos automatically and can misread them. A detected difference does not guarantee that the code was really changed.",
+    "inspectionJokerLabel": "Deadline jokers",
+    "inspectionJokerDesc": "The sub can postpone a running inspection deadline before it expires, once per inspection. Each use costs one joker, and you are notified.",
+    "inspectionJokerBalanceLabel": "Jokers available",
+    "inspectionJokerMinutesLabel": "Postponement per joker",
+    "inspectionJokerUsedNote": "Joker used, original deadline: {date}"
   },
   "forgotPassword": {
     "pageTitle": "Reset password",
@@ -2026,7 +2039,12 @@
     "lockboxCodeSameSubjectKeyholder": "Key box code not changed?",
     "lockboxCodeSameMessageKeyholder": "{username} apparently sealed the same key box code for the new lock as for the last one. Both photos are in the comparison view.",
     "lockboxCodeUncertainSubjectKeyholder": "Please check the key box code",
-    "lockboxCodeUncertainMessageKeyholder": "For {username}'s new lock it could not be reliably detected whether the key box code was changed. Both photos are in the comparison view."
+    "lockboxCodeUncertainMessageKeyholder": "For {username}'s new lock it could not be reliably detected whether the key box code was changed. Both photos are in the comparison view.",
+    "inspectionJokerUsedSubjectKeyholder": "Joker used",
+    "inspectionJokerUsedMessageKeyholder": "{username} used a joker: the inspection deadline now runs until {to} instead of {from}. Jokers left: {balance}.",
+    "inspectionJokerUsedReasonMessageKeyholder": "{username} used a joker: the inspection deadline now runs until {to} instead of {from}. Jokers left: {balance}. Reason: {reason}",
+    "inspectionJokerAvailable": "If you cannot make the deadline, you can postpone it by {minutes} min beforehand on the dashboard with a joker.",
+    "inspectionPushJoker": "Joker available"
   },
   "tasks": {
     "titleLabel": "Title",

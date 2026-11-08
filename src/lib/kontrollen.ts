@@ -46,6 +46,8 @@ export interface KontrolleRow {
   auto: boolean;
   /** Zeitpunkt, zu dem eine Auto-Kontrolle tatsächlich versendet wurde. */
   benachrichtigtAt: Date | null;
+  /** Fristen-Joker: die Frist VOR dem Einsatz, null = kein Joker. */
+  jokerPreviousDeadline: Date | null;
 }
 
 type PruefungEntry = {
@@ -86,6 +88,8 @@ type KontrollAnforderung = {
   entryId: string | null;
   auto: boolean;
   benachrichtigtAt: Date | null;
+  /** Fristen-Joker: die Frist vor dem Einsatz. Optional, weil Testzeilen sie nicht tragen. */
+  jokerPreviousDeadline?: Date | null;
   user?: { username: string; timezone: string };
 };
 
@@ -183,6 +187,7 @@ export function buildKontrolleRows(
       entryId: e.id,
       auto: ka?.auto ?? false,
       benachrichtigtAt: ka?.benachrichtigtAt ?? null,
+      jokerPreviousDeadline: ka?.jokerPreviousDeadline ?? null,
     };
   });
 
@@ -215,6 +220,7 @@ export function buildKontrolleRows(
       entryId: null,
       auto: k.auto,
       benachrichtigtAt: k.benachrichtigtAt,
+      jokerPreviousDeadline: k.jokerPreviousDeadline ?? null,
     }));
 
   return { pruefungRows, offeneRows };
@@ -301,6 +307,7 @@ export function mapKontrolleRow(
       : isTimeCorrected(row.fulfilledAt!, row.submittedAt)
         ? `${t("timeCorrected")} – ${t("givenLabel")}: ${fmt(row.fulfilledAt!)} · ${t("systemLabel")}: ${fmt(row.submittedAt!)}`
         : `${t("strafbuchEingereicht")}: ${fmt(row.submittedAt!)}`,
+    jokerStr: row.jokerPreviousDeadline ? t("inspectionJokerUsedNote", { date: fmt(row.jokerPreviousDeadline) }) : null,
     note: row.note,
     kontrolleId: row.kontrolleId,
     entryId: row.entryId,

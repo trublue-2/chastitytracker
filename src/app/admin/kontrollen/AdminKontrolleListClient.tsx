@@ -73,6 +73,8 @@ export interface AdminKontrolleRowData {
    *  gesetzt. Die Beschriftung ("Geplant für") liefert `labels.scheduledForLabel`. */
   scheduledForStr: string | null;
   timeCorrectedStr: string | null;
+  /** „Joker eingesetzt, ursprünglich …" — der Träger hat die Frist selbst verschoben. */
+  jokerStr: string | null;
   note: string | null;
   kontrolleId: string | null;
   entryId: string | null;
@@ -154,6 +156,7 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
                 <p className="text-xs text-warn">{row.verifikationReasonStr}</p>
               )}
               <DeviceFact t={t} row={row} />
+              {row.jokerStr && <p className="text-xs text-foreground-muted">{row.jokerStr}</p>}
               {row.scheduledForStr && (
                 <DetailField label={labels.scheduledForLabel}>
                   <p className="text-sm text-foreground-muted">{row.scheduledForStr}</p>
@@ -248,6 +251,7 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
               {row.timeCorrectedStr && (
                 <p className="text-xs text-warn font-medium mt-0.5">{row.timeCorrectedStr}</p>
               )}
+              {row.jokerStr && <p className="text-xs text-foreground-muted mt-0.5">{row.jokerStr}</p>}
               {row.kommentar && (
                 <p className="text-xs text-foreground-faint italic mt-0.5">{labels.instructionLabel}: {row.kommentar}</p>
               )}

@@ -84,6 +84,18 @@ plant, plant anteilig in seine Rest-Zeit — beim Neuwurf zusätzlich begrenzt d
 schon zugestellt wurde. Bietet die Rest-Zeit keinen Platz mehr für die Mindest-Frist, bleibt der Tag
 leer; erfunden wird keiner.
 
+## Fristen-Joker
+
+Die Keyholderin vergibt ein Guthaben (`inspectionJokerBalance`, 0 = aus) und den Aufschub je Einsatz
+(`inspectionJokerMinutes`). Der Träger verschiebt damit eine laufende Frist selbst — **nur vor ihrem
+Ablauf** und einmal je Kontrolle; die Frist davor steht in `jokerPreviousDeadline`, die Keyholderin wird
+benachrichtigt. Nach Ablauf gibt es keinen Joker: das Strafbuch leitet „zu spät" aus der aktuellen Frist
+ab, ein späterer Einsatz erliesse das Vergehen. Keinen Joker gibt es für die Kontrolle nach einer
+Reinigungspause oder einem Verschluss. Liegt die alte Frist im Wachen, endet die neue spätestens mit dem
+Schlaf-Beginn; bleiben so weniger als 15 Minuten, wird er nicht angeboten. Wie bei der Verlängerung durch
+die Keyholderin fällt der Mahn-Stempel mit — beide Stufen unten zählen ab der neuen Frist. Regel:
+`inspectionJoker.ts`.
+
 ## Eskalation
 
 Zwei Stufen, beide standardmässig aus:

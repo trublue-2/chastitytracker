@@ -298,7 +298,8 @@
     "Unauthorized": "Du bist nicht (mehr) angemeldet. Bitte melde dich neu an.",
     "rateLimited": "Zu viele Versuche. Bitte in ein paar Minuten erneut.",
     "photoAnalysisBaseUrlPrivate": "Diese Adresse zeigt auf ein internes Netz. Das geht nur, wenn der Server-Betreiber es ausdrücklich freigegeben hat.",
-    "BOX_PHOTO_NOT_DUE": "Für diesen Verschluss ist kein Box-Bild fällig (mehr)."
+    "BOX_PHOTO_NOT_DUE": "Für diesen Verschluss ist kein Box-Bild fällig (mehr).",
+    "INSPECTION_JOKER_UNAVAILABLE": "Für diese Kontrolle ist kein Joker verfügbar"
   },
   "common": {
     "daily": "täglich",
@@ -952,7 +953,14 @@
     "code": "Code",
     "autoMarkWarn": "Ohne Nachweis wird das Gerät danach automatisch als abgelegt gebucht.",
     "outlookAutoMark": "Ohne dich: Das Gerät gilt {time} als abgelegt.",
-    "outlookNothing": "Ohne dich wird nichts automatisch gebucht."
+    "outlookNothing": "Ohne dich wird nichts automatisch gebucht.",
+    "jokerUse": "Joker einsetzen (+{minutes} min) · noch {balance}",
+    "jokerTitle": "Frist mit Joker verschieben",
+    "jokerConfirm": "Neue Frist: {date}.",
+    "jokerConfirmHint": "Danach {remaining, plural, =0 {hast du keinen Joker mehr} one {bleibt dir # Joker} other {bleiben dir # Joker}}. Der Keyholder wird benachrichtigt.",
+    "jokerReasonLabel": "Grund (optional)",
+    "jokerReasonHint": "Steht in der Nachricht an den Keyholder.",
+    "jokerSubmit": "Joker einsetzen"
   },
   "stats": {
     "title": "Statistik",
@@ -1589,7 +1597,12 @@
     "codeCheckResult_none": "Für diesen Verschluss liegt keine automatische Prüfung vor.",
     "codeCheckResult_pending": "Die automatische Prüfung läuft noch. Lade die Seite in ein paar Minuten neu.",
     "codeCheckResult_error": "Die automatische Prüfung ist gescheitert. Vergleiche die beiden Fotos selbst.",
-    "codeCheckLimits": "Die Prüfung liest die Fotos automatisch und kann sich verlesen. Ein erkannter Unterschied ist keine Garantie, dass der Code wirklich gewechselt wurde."
+    "codeCheckLimits": "Die Prüfung liest die Fotos automatisch und kann sich verlesen. Ein erkannter Unterschied ist keine Garantie, dass der Code wirklich gewechselt wurde.",
+    "inspectionJokerLabel": "Fristen-Joker",
+    "inspectionJokerDesc": "Der Sub kann eine laufende Kontrollfrist vor ihrem Ablauf selbst verschieben, einmal je Kontrolle. Jeder Einsatz kostet einen Joker, du wirst benachrichtigt.",
+    "inspectionJokerBalanceLabel": "Verfügbare Joker",
+    "inspectionJokerMinutesLabel": "Aufschub je Joker",
+    "inspectionJokerUsedNote": "Joker eingesetzt, ursprüngliche Frist: {date}"
   },
   "forgotPassword": {
     "pageTitle": "Passwort zurücksetzen",
@@ -2026,7 +2039,12 @@
     "lockboxCodeSameSubjectKeyholder": "Schlüsselbox-Code nicht gewechselt?",
     "lockboxCodeSameMessageKeyholder": "{username} hat beim neuen Verschluss offenbar denselben Schlüsselbox-Code versiegelt wie beim letzten. Beide Fotos stehen in der Vergleichsansicht.",
     "lockboxCodeUncertainSubjectKeyholder": "Schlüsselbox-Code bitte prüfen",
-    "lockboxCodeUncertainMessageKeyholder": "Beim neuen Verschluss von {username} liess sich nicht sicher erkennen, ob der Schlüsselbox-Code gewechselt hat. Beide Fotos stehen in der Vergleichsansicht."
+    "lockboxCodeUncertainMessageKeyholder": "Beim neuen Verschluss von {username} liess sich nicht sicher erkennen, ob der Schlüsselbox-Code gewechselt hat. Beide Fotos stehen in der Vergleichsansicht.",
+    "inspectionJokerUsedSubjectKeyholder": "Joker eingesetzt",
+    "inspectionJokerUsedMessageKeyholder": "{username} hat einen Joker eingesetzt: Die Kontrollfrist läuft jetzt bis {to} statt bis {from}. Verbleibende Joker: {balance}.",
+    "inspectionJokerUsedReasonMessageKeyholder": "{username} hat einen Joker eingesetzt: Die Kontrollfrist läuft jetzt bis {to} statt bis {from}. Verbleibende Joker: {balance}. Grund: {reason}",
+    "inspectionJokerAvailable": "Schaffst du die Frist nicht, kannst du sie vorher im Dashboard mit einem Joker um {minutes} min verschieben.",
+    "inspectionPushJoker": "Joker verfügbar"
   },
   "tasks": {
     "titleLabel": "Titel",

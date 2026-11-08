@@ -18,6 +18,7 @@ import {
 } from "@/lib/dashboardData";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { predictAutoMarkAt } from "@/lib/inspectionEscalationService";
+import { jokerOffer } from "@/lib/inspectionJoker";
 import { cleaningPermissionUserAt } from "@/lib/cleaningRules";
 import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch";
 import {
@@ -254,6 +255,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           // den Mahn-Stempel als Anker und den Schlaf-Fenster-Sonderfall, und beides von Hand
           // nachzubauen hiesse, die Zwei-Stufen-Logik ein zweites Mal zu führen.
           autoMarkAt: user ? predictAutoMarkAt(k, { ...user, timezone: tz })?.toISOString() ?? null : null,
+          id: k.id,
+          joker: user ? jokerOffer(k, user, now, tz) : null,
         })),
 
         offeneVerschlussAnf: offeneVerschlussAnf ? {

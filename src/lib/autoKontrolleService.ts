@@ -690,6 +690,27 @@ export function isSleepingAt(settings: AutoKontrolleSettings, at: Date, tz: stri
 }
 
 /**
+ * Minuten ab `at` bis zum ersten Moment im Schlaf-Fenster, höchstens `horizon` — sonst `Infinity`.
+ *
+ * Geprüft werden nur die Zeitpunkte, an denen {@link isSleepingAt} umspringen kann: der Schlaf-Beginn
+ * des Tages, Mitternacht (dort wechselt die Tages-Ausnahme) und der Schlaf-Beginn des Folgetags.
+ * Jeder Kandidat geht durch `isSleepingAt` selbst, die Antwort ist also nie eine zweite Regel daneben.
+ * An einem Umstellungstag kann ein Kandidat um die Stunde danebenliegen; dann fällt er durch diese
+ * Prüfung, und es bleibt beim ungekappten Wert — nie bei einem falschen.
+ */
+export function minutesUntilSleep(settings: AutoKontrolleSettings, at: Date, tz: string, horizon: number): number {
+  const nowMin = hhmmToMinutes(formatTime(at, "de-CH", tz));
+  const isoDay = isoWeekdayInTZ(at, tz);
+  const today = timesForDay(settings, settings.dayRules, isoDay);
+  const tomorrow = timesForDay(settings, settings.dayRules, (isoDay % 7) + 1);
+  const toMidnight = 1440 - nowMin;
+  const candidates = [hhmmToMinutes(today.ruheVon) - nowMin, toMidnight, toMidnight + hhmmToMinutes(tomorrow.ruheVon)]
+    .filter((m) => m > 0 && m <= horizon)
+    .sort((a, b) => a - b);
+  return candidates.find((m) => isSleepingAt(settings, new Date(at.getTime() + m * 60_000), tz)) ?? Infinity;
+}
+
+/**
  * Die Verzögerung einer Kontrolle, die auf eine HANDLUNG des Trägers antwortet — und die Antwort auf
  * die Frage, ob sie in seinen Schlaf fällt.
  *

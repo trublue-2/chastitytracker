@@ -192,7 +192,10 @@ Sperre \`cleaningAllowed\` hat. Freie Wechsel erlauben ⇒ \`cleaningAllowed\` s
   Entscheidung, und die Regel-Historie bekommt einen Zeitpunkt statt mehrerer. Eine Änderung wirkt
   nach vorn: was schon beurteilt ist, bleibt. \`manual_offense\` ist bewusst nicht schaltbar.
 - Was mit einer überfälligen Kontrolle passiert — Mahnung, automatischer Vermerk, je mit eigener
-  Verzögerung —, stellt \`set_inspection_escalation\`.
+  Verzögerung —, stellt \`set_inspection_escalation\`. Dort vergibst du auch die Fristen-Joker
+  (\`jokerBalance\` absolut, \`jokerMinutes\` je Einsatz): mit einem Joker verschiebt der Träger eine
+  laufende Kontrollfrist selbst, nur VOR ihrem Ablauf und einmal je Kontrolle. Jeder Einsatz wird dir
+  gemeldet; \`list_inspections\` zeigt die Frist davor als \`jokerOriginalDeadline\`.
 - Eine offene Kontrolle verlängerst du mit \`edit_inspection\` (\`id\`, dazu \`deadlineAt\` oder
   \`extendHours\`), statt sie zurückzuziehen und neu zu stellen — der Rückzug liesse die Geschichte
   als „zurückgezogen" stehen, und der Träger sähe einen neuen Code. Nur nach hinten, in die

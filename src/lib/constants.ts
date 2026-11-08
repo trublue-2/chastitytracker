@@ -420,6 +420,13 @@ export const INSPECTION_REMINDER_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY,
 /** Verzögerung bis zum automatischen Vermerk (Stufe 2). */
 export const INSPECTION_AUTO_MARK_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY, fallback: 60 } as const satisfies NumberRange;
 
+/** Fristen-Joker: Aufschub je Einsatz in Minuten (siehe inspectionJoker.ts). */
+export const INSPECTION_JOKER_MINUTES_RANGE = { min: 30, max: 240, fallback: 60 } as const satisfies NumberRange;
+/** Guthaben an Jokern, das die Keyholderin setzen kann. 0 = Funktion aus. */
+export const INSPECTION_JOKER_BALANCE_RANGE = { min: 0, max: 99, fallback: 0 } as const satisfies NumberRange;
+/** Länge des optionalen Grundes, den der Träger beim Einsatz angibt. */
+export const INSPECTION_JOKER_REASON_MAX_LENGTH = 200;
+
 /** Vorgabe-Frist einer Kontrollanforderung in Stunden. Hier, weil sie an drei Stellen auftaucht:
  *  Formular-Startwert, Service-Fallback und die MCP-Tool-Beschreibung. Die dritte ist Prosa — als
  *  Literal geschrieben informiert sie den Agenten still falsch, sobald die Vorgabe wandert. */

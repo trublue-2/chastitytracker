@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { INSPECTION_JOKER_USER_SELECT } from "@/lib/inspectionJoker";
 import { getUserDeviceOptions, getKeyholderLockPeriods, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/queries";
 import { isHiddenFromSub, computeDelayedTrigger } from "@/lib/delayedTrigger";
 import { conflictingLockSpecs, hasLockSpec } from "@/lib/lockSpec";
@@ -38,7 +39,7 @@ import {
   HHMM, INVALID_TIME, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE, POST_LOCK_INSPECTION_DEADLINE_RANGE,
   MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH, AI_AUTHOR,
-  INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
+  INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, INSPECTION_JOKER_BALANCE_RANGE, INSPECTION_JOKER_MINUTES_RANGE,
   clampProofDueOffset, clampHoldDuration, type NumberRange,
   RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE,
 } from "@/lib/constants";
@@ -1963,6 +1964,9 @@ export interface SetInspectionEscalationArgs {
   reminderDelayMinutes?: number;
   autoMarkEnabled?: boolean;
   autoMarkDelayMinutes?: number;
+  /** Fristen-Joker: Guthaben ABSOLUT (0 = aus) und Aufschub je Einsatz. */
+  jokerBalance?: number;
+  jokerMinutes?: number;
   dryRun?: boolean;
 }
 
@@ -1975,7 +1979,7 @@ export interface SetInspectionEscalationArgs {
  */
 export async function mcpSetInspectionEscalation(username: string, args: SetInspectionEscalationArgs) {
   const userId = await resolveTargetUserId(username);
-  requireAnyOf(args, ["reminderEnabled", "reminderDelayMinutes", "autoMarkEnabled", "autoMarkDelayMinutes"]);
+  requireAnyOf(args, ["reminderEnabled", "reminderDelayMinutes", "autoMarkEnabled", "autoMarkDelayMinutes", "jokerBalance", "jokerMinutes"]);
 
   if (args.dryRun) {
     // Der Bestand nur hier — der Commit-Pfad patcht, ohne ihn zu kennen (Muster `set_cleaning`).
@@ -1984,6 +1988,7 @@ export async function mcpSetInspectionEscalation(username: string, args: SetInsp
       select: {
         inspectionReminderEnabled: true, inspectionReminderDelayMinutes: true,
         inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
+        ...INSPECTION_JOKER_USER_SELECT,
       },
     });
     // Wie bei set_cleaning die GEKLEMMTEN Werte zeigen — der Dienst klemmt intern identisch, und
@@ -1993,12 +1998,16 @@ export async function mcpSetInspectionEscalation(username: string, args: SetInsp
       reminderDelayMinutes: current.inspectionReminderDelayMinutes,
       autoMarkEnabled: current.inspectionAutoMarkEnabled,
       autoMarkDelayMinutes: current.inspectionAutoMarkDelayMinutes,
+      jokerBalance: current.inspectionJokerBalance,
+      jokerMinutes: current.inspectionJokerMinutes,
     };
     const after: Record<string, unknown> = {
       reminderEnabled: args.reminderEnabled ?? before.reminderEnabled,
       reminderDelayMinutes: clampOptional(args.reminderDelayMinutes, INSPECTION_REMINDER_DELAY_RANGE) ?? before.reminderDelayMinutes,
       autoMarkEnabled: args.autoMarkEnabled ?? before.autoMarkEnabled,
       autoMarkDelayMinutes: clampOptional(args.autoMarkDelayMinutes, INSPECTION_AUTO_MARK_DELAY_RANGE) ?? before.autoMarkDelayMinutes,
+      jokerBalance: clampOptional(args.jokerBalance, INSPECTION_JOKER_BALANCE_RANGE) ?? before.jokerBalance,
+      jokerMinutes: clampOptional(args.jokerMinutes, INSPECTION_JOKER_MINUTES_RANGE) ?? before.jokerMinutes,
     };
     return dryRunPreview("set_inspection_escalation", undefined, after, diffFields(before, after));
   }
@@ -2008,6 +2017,8 @@ export async function mcpSetInspectionEscalation(username: string, args: SetInsp
     reminderDelayMinutes: args.reminderDelayMinutes,
     autoMarkEnabled: args.autoMarkEnabled,
     autoMarkDelayMinutes: args.autoMarkDelayMinutes,
+    jokerBalance: args.jokerBalance,
+    jokerMinutes: args.jokerMinutes,
   }));
   return { ok: true, message: "Inspection escalation settings updated." };
 }

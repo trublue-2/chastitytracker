@@ -151,11 +151,13 @@ export async function PATCH(
 
   if (
     body.inspectionReminderEnabled !== undefined || body.inspectionReminderDelayMinutes !== undefined ||
-    body.inspectionAutoMarkEnabled !== undefined || body.inspectionAutoMarkDelayMinutes !== undefined
+    body.inspectionAutoMarkEnabled !== undefined || body.inspectionAutoMarkDelayMinutes !== undefined ||
+    body.inspectionJokerBalance !== undefined || body.inspectionJokerMinutes !== undefined
   ) {
     return serviceResponse(await setInspectionEscalationSettings(id, {
       reminderEnabled: body.inspectionReminderEnabled, reminderDelayMinutes: body.inspectionReminderDelayMinutes,
       autoMarkEnabled: body.inspectionAutoMarkEnabled, autoMarkDelayMinutes: body.inspectionAutoMarkDelayMinutes,
+      jokerBalance: body.inspectionJokerBalance, jokerMinutes: body.inspectionJokerMinutes,
     }));
   }
 

@@ -1,8 +1,15 @@
 [
   {
     "version": "6.5.5",
-    "date": "2026-11-06",
+    "date": "2026-11-08",
     "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Fristen-Joker: Die Keyholderin kann Joker vergeben, mit denen der Träger eine laufende Kontrollfrist vor ihrem Ablauf einmal aufschieben kann. Bei jedem Einsatz wird sie benachrichtigt.",
+          "en": "Deadline joker: the keyholder can grant jokers that let the wearer postpone a running inspection deadline once, before it expires. The keyholder is notified each time one is used."
+        }
+      },
       {
         "type": "fix",
         "text": {

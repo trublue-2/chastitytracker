@@ -9,6 +9,7 @@ import { resolveInspectionTarget, isKgTarget } from "@/lib/inspectionTarget";
 import {
   AUTO_ENTFERNT_REASON, NO_FIELDS_TO_UPDATE,
   INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
+  INSPECTION_JOKER_BALANCE_RANGE, INSPECTION_JOKER_MINUTES_RANGE,
 } from "@/lib/constants";
 import { codeOf } from "@/lib/codedError";
 import { isSleepingAt, autoKontrolleSettingsFromUser, isEntryTriggeredInspection, type AutoKontrolleUserFields } from "@/lib/autoKontrolleService";
@@ -224,6 +225,9 @@ export interface SetInspectionEscalationParams {
   reminderDelayMinutes?: number;
   autoMarkEnabled?: boolean;
   autoMarkDelayMinutes?: number;
+  /** Fristen-Joker: Guthaben (absolut gesetzt) und Aufschub je Einsatz. */
+  jokerBalance?: number;
+  jokerMinutes?: number;
 }
 
 /** Persists the per-sub escalation settings (both stages independently toggleable). Minute values
@@ -242,6 +246,8 @@ export async function setInspectionEscalationSettings(
   if (params.autoMarkDelayMinutes !== undefined) {
     data.inspectionAutoMarkDelayMinutes = clamp(params.autoMarkDelayMinutes, INSPECTION_AUTO_MARK_DELAY_RANGE);
   }
+  if (params.jokerBalance !== undefined) data.inspectionJokerBalance = clamp(params.jokerBalance, INSPECTION_JOKER_BALANCE_RANGE);
+  if (params.jokerMinutes !== undefined) data.inspectionJokerMinutes = clamp(params.jokerMinutes, INSPECTION_JOKER_MINUTES_RANGE);
 
   // Gleicher Kontrakt wie setCleaningSettings/setAutoKontrolleSettings: ein leerer Patch ist ein
   // Aufruferfehler. Reine Geschwister-Konsistenz — über die Route unerreichbar (sie prüft vorher

@@ -75,6 +75,9 @@ export interface InspectionRow {
   deadline: string | null;
   /** Wann der Träger eingereicht hat. */
   fulfilledAt: string | null;
+  /** Der Träger hat die Frist mit einem Fristen-Joker selbst verschoben: das ist die Frist DAVOR,
+   *  `deadline` die neue. `null` = kein Joker. */
+  jokerOriginalDeadline: string | null;
   withdrawnAt: string | null;
   /**
    * Der Stand der Foto-Prüfung: `ai`/`manual` = bestätigt, `rejected` = von einem Menschen
@@ -135,6 +138,7 @@ export async function listInspections(username: string, args: ListInspectionsArg
       deadline: iso(r.deadline),
       fulfilledAt: iso(r.submittedAt ?? r.fulfilledAt),
       withdrawnAt: iso(r.withdrawnAt),
+      jokerOriginalDeadline: iso(r.jokerPreviousDeadline),
       verification: r.verifikationStatus,
       verificationFailure: toVerifyFailure(r.verifikationStatus, r.verifikationReason, r.verifikationReasonDetected),
       deviceCheck: r.deviceCheck ? mcpDeviceCheckStatus(effectiveDeviceCheckStatus(r.deviceCheck, r.deviceCheckNote)) : null,

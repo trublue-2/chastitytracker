@@ -73,6 +73,9 @@ interface Props {
   /** Beschriftete Handlungen der Keyholderin unter der kompakten Zeile (Frist verlängern,
    *  Zurückziehen). Eigene Zeile statt neben dem Text, weil Wörter dort die Spalte erdrücken. */
   actions?: ReactNode;
+  /** Träger-Sicht der GROSSEN Fassung: der Fristen-Joker (`InspectionJokerButton`), unter dem
+   *  Erfassen-Knopf. Nur gesetzt, wenn er für diese Kontrolle jetzt einsetzbar ist. */
+  jokerAction?: ReactNode;
 }
 
 /**
@@ -101,6 +104,7 @@ export default function KontrolleBanner({
   withdrawAction,
   outlook,
   actions,
+  jokerAction,
   tz = APP_TZ,
   viewerTz,
 }: Props) {
@@ -197,6 +201,7 @@ export default function KontrolleBanner({
           {target && <span className="sr-only">{" — "}{target}</span>}
         </Link>
       )}
+      {jokerAction}
       {withdrawAction && <div className="self-start mt-1">{withdrawAction}</div>}
     </Section>
   );

@@ -277,6 +277,8 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           initialReminderDelayMinutes={user.inspectionReminderDelayMinutes}
           initialAutoMarkEnabled={user.inspectionAutoMarkEnabled}
           initialAutoMarkDelayMinutes={user.inspectionAutoMarkDelayMinutes}
+          initialJokerBalance={user.inspectionJokerBalance}
+          initialJokerMinutes={user.inspectionJokerMinutes}
         />
       </SettingsSection>
 

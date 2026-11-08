@@ -115,7 +115,8 @@ Notable V2 read fields:
   windowOpenNow). These moved here from the removed `get_overview`. Also
   `offenseRules` (which offence types count for this sub; written via
   `set_offense_rules`) and `inspectionEscalation` (reminder + automatic marking,
-  written via `set_inspection_escalation`) — note that the auto-mark delay counts
+  plus the wearer's deadline jokers `jokerBalance`/`jokerMinutes`, all written via
+  `set_inspection_escalation`) — note that the auto-mark delay counts
   from the REMINDER, not from the deadline.
 - `get_devices` — includes `purchasePrice` and `currency` per device.
 - `get_offenses` — carries the offense type `admin_password_change`: the password of an **admin**

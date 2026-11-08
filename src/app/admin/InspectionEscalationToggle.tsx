@@ -5,15 +5,20 @@ import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
 import NumberInput from "@/app/components/NumberInput";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
-import { INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, type NumberRange } from "@/lib/constants";
+import {
+  INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, INSPECTION_JOKER_BALANCE_RANGE,
+  INSPECTION_JOKER_MINUTES_RANGE, type NumberRange,
+} from "@/lib/constants";
+import SettingLabel from "@/app/components/SettingLabel";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 
-/** Single "N minutes" input, committed on blur. */
-function MinutesInput({ label, value, range, commit, disabled }: {
+/** Single number input, committed on blur. Default unit: minutes. */
+function NumberSettingInput({ label, value, range, commit, disabled, unit = "min" }: {
   label: string; value: number; range: NumberRange; commit: (n: number) => Promise<boolean>; disabled: boolean;
+  unit?: string;
 }) {
   return (
-    <InlineSettingRow label={label} unit="min">
+    <InlineSettingRow label={label} unit={unit}>
       <NumberInput value={value} range={range}
         disabled={disabled} ariaLabel={label} onCommit={commit} />
     </InlineSettingRow>
@@ -26,12 +31,16 @@ export default function InspectionEscalationToggle({
   initialReminderDelayMinutes,
   initialAutoMarkEnabled,
   initialAutoMarkDelayMinutes,
+  initialJokerBalance,
+  initialJokerMinutes,
 }: {
   userId: string;
   initialReminderEnabled: boolean;
   initialReminderDelayMinutes: number;
   initialAutoMarkEnabled: boolean;
   initialAutoMarkDelayMinutes: number;
+  initialJokerBalance: number;
+  initialJokerMinutes: number;
 }) {
   const t = useTranslations("admin");
   const { saving, save } = useUserSettingsSave(userId);
@@ -39,6 +48,8 @@ export default function InspectionEscalationToggle({
   const [reminderDelayMinutes, setReminderDelayMinutes] = useState(initialReminderDelayMinutes);
   const [autoMarkEnabled, setAutoMarkEnabled] = useState(initialAutoMarkEnabled);
   const [autoMarkDelayMinutes, setAutoMarkDelayMinutes] = useState(initialAutoMarkDelayMinutes);
+  const [jokerBalance, setJokerBalance] = useState(initialJokerBalance);
+  const [jokerMinutes, setJokerMinutes] = useState(initialJokerMinutes);
 
   /** Lokal erst übernehmen, wenn der Server den Wert angenommen hat; der Rückgabewert lässt das
    *  Feld bei Ablehnung auf den gespeicherten Stand zurückspringen. */
@@ -58,7 +69,7 @@ export default function InspectionEscalationToggle({
         onChange={(checked) => { setReminderEnabled(checked); save({ inspectionReminderEnabled: checked }); }}
       />
       {reminderEnabled && (
-        <MinutesInput
+        <NumberSettingInput
           label={t("inspectionReminderDelayLabel")} value={reminderDelayMinutes} range={INSPECTION_REMINDER_DELAY_RANGE}
           commit={(n) => saveDelay({ inspectionReminderDelayMinutes: n }, () => setReminderDelayMinutes(n))}
           disabled={saving}
@@ -75,9 +86,27 @@ export default function InspectionEscalationToggle({
           onChange={(checked) => { setAutoMarkEnabled(checked); save({ inspectionAutoMarkEnabled: checked }); }}
         />
         {autoMarkEnabled && (
-          <MinutesInput
+          <NumberSettingInput
             label={t("inspectionAutoMarkDelayLabel")} value={autoMarkDelayMinutes} range={INSPECTION_AUTO_MARK_DELAY_RANGE}
             commit={(n) => saveDelay({ inspectionAutoMarkDelayMinutes: n }, () => setAutoMarkDelayMinutes(n))}
+            disabled={saving}
+          />
+        )}
+      </div>
+
+      {/* Fristen-Joker: VOR der Eskalation, aber hier, weil er dieselbe Frist betrifft. Das Guthaben
+          setzt die Keyholderin absolut — aufladen und wegnehmen ist dieselbe Eingabe. */}
+      <div className="flex flex-col gap-3 pt-3 border-t border-border-subtle">
+        <SettingLabel label={t("inspectionJokerLabel")} description={t("inspectionJokerDesc")} />
+        <NumberSettingInput
+          label={t("inspectionJokerBalanceLabel")} value={jokerBalance} range={INSPECTION_JOKER_BALANCE_RANGE} unit=""
+          commit={(n) => saveDelay({ inspectionJokerBalance: n }, () => setJokerBalance(n))}
+          disabled={saving}
+        />
+        {jokerBalance > 0 && (
+          <NumberSettingInput
+            label={t("inspectionJokerMinutesLabel")} value={jokerMinutes} range={INSPECTION_JOKER_MINUTES_RANGE}
+            commit={(n) => saveDelay({ inspectionJokerMinutes: n }, () => setJokerMinutes(n))}
             disabled={saving}
           />
         )}

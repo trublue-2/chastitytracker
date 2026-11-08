@@ -4,6 +4,9 @@ import KontrolleBanner from "@/app/components/KontrolleBanner";
 import LockRequestBanner from "@/app/components/LockRequestBanner";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import BoxPhotoDueCard from "@/app/dashboard/BoxPhotoDueCard";
+import InspectionJokerButton from "@/app/components/InspectionJokerButton";
+import type { InspectionJokerOffer } from "@/lib/inspectionJoker";
+import { APP_TZ } from "@/lib/utils";
 import { rowHoverCls } from "@/app/components/inputStyles";
 
 /** Die Anforderungen mit Frist — Kontrolle, Einschliessen, Orgasmus.
@@ -29,6 +32,9 @@ export interface DashboardAlertsProps {
     /** Wann das System die Kontrolle selbsttätig als abgelegt bucht — null, wenn die Automatik aus
      *  ist. Steht nur im überfälligen Banner: vorher ist die Frist die Nachricht. */
     autoMarkAt: string | null;
+    id: string;
+    /** Der Fristen-Joker, falls der Träger ihn für DIESE Kontrolle jetzt einsetzen kann. */
+    joker: InspectionJokerOffer | null;
   }[];
 
   offeneVerschlussAnf: {
@@ -78,6 +84,9 @@ export default async function DashboardAlerts({
           autoMarkAt={pendingInspections[0].autoMarkAt ? new Date(pendingInspections[0].autoMarkAt) : null}
           variant="large"
           href={pendingInspections[0].href}
+          jokerAction={pendingInspections[0].joker && (
+            <InspectionJokerButton inspectionId={pendingInspections[0].id} offer={pendingInspections[0].joker} tz={tz ?? APP_TZ} variant="button" />
+          )}
           tz={tz}
         />
       )}
@@ -87,15 +96,20 @@ export default async function DashboardAlerts({
           einzige Spur auf dem ganzen Dashboard, denn die Session-Liste führt nur KG und das
           (+)-Sheet folgt ebenfalls nur der ersten. Wer sie übersah, verlor das Gerät an die
           Eskalation. Der Code steckt in der `href` — das Formular zeigt ihn. */}
-      {pendingInspections.slice(1).map((k, i) => (
-        <Link key={i} href={k.href} className={`block ${rowHoverCls}`}>
-          <KontrolleBanner
-            deadline={new Date(k.deadline)}
-            target={k.target}
-            overdue={k.overdue}
-            variant="compact"
-          />
-        </Link>
+      {pendingInspections.slice(1).map((k) => (
+        // Der Joker steht NEBEN dem Link, nicht in ihm: ein Knopf in einem `<a>` ist ungültig, und
+        // ein Tipp darauf öffnete sonst zugleich das Formular.
+        <div key={k.id} className="flex flex-col gap-1">
+          <Link href={k.href} className={`block ${rowHoverCls}`}>
+            <KontrolleBanner
+              deadline={new Date(k.deadline)}
+              target={k.target}
+              overdue={k.overdue}
+              variant="compact"
+            />
+          </Link>
+          {k.joker && <InspectionJokerButton inspectionId={k.id} offer={k.joker} tz={tz ?? APP_TZ} variant="link" />}
+        </div>
       ))}
 
       {offeneVerschlussAnf && (

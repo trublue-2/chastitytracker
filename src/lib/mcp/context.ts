@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { INSPECTION_JOKER_USER_SELECT } from "@/lib/inspectionJoker";
 import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
 import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/healthHold";
 import { notifyUser } from "@/lib/notify";
@@ -177,6 +178,9 @@ export interface ContextResult extends Envelope {
     reminderDelayMinutes: number;
     autoMarkEnabled: boolean;
     autoMarkDelayMinutes: number;
+    /** Fristen-Joker: verfügbares Guthaben (0 = aus) und Aufschub je Einsatz in Minuten. */
+    jokerBalance: number;
+    jokerMinutes: number;
   };
   /**
    * Die Schlüsselbox-Einstellungen — `null`, wenn die Instanz gar keine Box führt.
@@ -209,6 +213,7 @@ const contextUserSelect = {
   ...AUTO_KONTROLLE_SETTINGS_SELECT,
   inspectionReminderEnabled: true, inspectionReminderDelayMinutes: true,
   inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
+  ...INSPECTION_JOKER_USER_SELECT,
   lockRequiresBolt: true,
   offenseStatementsAllowed: true,
   // Die Kanal-Stufen des Trägers: wie laut Mail, Push und Telegram für IHN sein dürfen.
@@ -294,6 +299,8 @@ export async function getContext(username: string, opts: GetContextOptions = {})
       reminderDelayMinutes: user.inspectionReminderDelayMinutes,
       autoMarkEnabled: user.inspectionAutoMarkEnabled,
       autoMarkDelayMinutes: user.inspectionAutoMarkDelayMinutes,
+      jokerBalance: user.inspectionJokerBalance,
+      jokerMinutes: user.inspectionJokerMinutes,
     },
     offenseRules,
     offenseStatementsAllowed: user.offenseStatementsAllowed,
