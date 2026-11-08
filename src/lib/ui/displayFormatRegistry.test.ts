@@ -64,12 +64,12 @@ describe("Zahlen-Darstellung — Register gegen Quelltext", () => {
   });
 
   /**
-   * Der Gegenzug zur Datei-weiten Ausnahme für `utils.ts`. Dort darf jede Zeile eine Dauer bauen —
+   * Der Gegenzug zur Datei-weiten Ausnahme für `duration.ts`. Dort darf jede Zeile eine Dauer bauen —
    * also muss hier geprüft werden, dass kein Formatierer entsteht, den das Register nicht kennt.
    * Ohne diesen Test wäre die Ausnahme eine Blankovollmacht.
    */
-  it("jeder exportierte Formatierer in utils.ts steht im Register", () => {
-    const src = fs.readFileSync(path.join(ROOT, "src/lib/shared/utils.ts"), "utf8");
+  it("jeder exportierte Formatierer in duration.ts steht im Register", () => {
+    const src = fs.readFileSync(path.join(ROOT, "src/lib/shared/duration.ts"), "utf8");
     const exported = [...src.matchAll(/export function (format(?:Duration|Total|Elapsed)\w*)/g)].map((m) => m[1]);
     expect(exported.length).toBeGreaterThan(0); // Scanner-Selbstschutz: eine Umbenennung darf nicht still 0 finden
     const known = new Set(DURATION_FORMATS.map((f) => f.name));

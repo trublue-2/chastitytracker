@@ -9,7 +9,7 @@ import SessionTimeline from "./SessionTimeline";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { BLOCK_PAGE_SIZE } from "@/lib/shared/constants";
-import { toDateLocale } from "@/lib/shared/utils";
+import { toDateLocale } from "@/lib/shared/time";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 interface OeffnenFooter {

@@ -17,7 +17,7 @@ vi.mock("@/lib/shared/prisma", () => ({ prisma: prismaMock }));
 
 const { ensureDailyAutoKontrollenForUser, rerollTodayAutoKontrollenForUser, autoKontrolleSettingsFromUser } =
   await import("./autoKontrolleService");
-const { midnightInTZ, dateAtLocalMinutes } = await import("../shared/utils");
+const { midnightInTZ, dateAtLocalMinutes } = await import("../shared/time");
 
 const { ALL_WEEKDAYS, weekdayMaskOf } = await import("../stats/weekdays");
 

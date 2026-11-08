@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/shared/prisma";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { formatDateTime, mapVerifikationStatus, toDateLocale } from "@/lib/shared/utils";
+import { formatDateTime, toDateLocale } from "@/lib/shared/time";
+import { mapVerifikationStatus } from "@/lib/shared/utils";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/entries/reasonsService";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { loadWeightRows } from "@/lib/weight/weightRows";

@@ -7,7 +7,7 @@ import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
 import { CapturedOfflineBadge, CapturedOfflineDetail } from "@/app/components/CapturedOffline";
 import { listRowCls, listRowButtonCls, listRowTimeCls } from "@/app/components/inputStyles";
-import { formatDateTime, formatTime, APP_TZ } from "@/lib/shared/utils";
+import { formatDateTime, formatTime, APP_TZ } from "@/lib/shared/time";
 import { weightText, type UnitSystem } from "@/lib/weight/weight";
 import type { WeightRowData } from "@/lib/weight/weightRows";
 

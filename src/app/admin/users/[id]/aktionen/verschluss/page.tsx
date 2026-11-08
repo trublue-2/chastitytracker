@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { getUserDeviceOptions, getIsLocked, getUserTimezone } from "@/lib/entries/queries";
-import { nowDatetimeLocal } from "@/lib/shared/utils";
+import { nowDatetimeLocal } from "@/lib/shared/time";
 import VerschlussForm from "./VerschlussForm";
 
 export default async function AdminVerschlussPage({ params }: { params: Promise<{ id: string }> }) {

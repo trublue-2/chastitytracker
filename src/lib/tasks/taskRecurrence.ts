@@ -1,4 +1,4 @@
-import { dateAtLocalMinutes, hhmmToMinutes } from "@/lib/shared/utils";
+import { dateAtLocalMinutes, hhmmToMinutes } from "@/lib/shared/time";
 import { HHMM } from "@/lib/shared/constants";
 import { weightDayKey, addWeightDays, dayNumber, endOfWeightDay, daysInMonth } from "@/lib/weight/weight";
 import { weekdayMaskHas, isoWeekdayInTZ } from "@/lib/stats/weekdays";

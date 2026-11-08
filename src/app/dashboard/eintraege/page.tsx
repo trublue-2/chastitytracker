@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/shared/prisma";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, APP_TZ } from "@/lib/shared/utils";
+import { toDateLocale, APP_TZ } from "@/lib/shared/time";
 import { INSPECTION_PILL_SELECT, entryInspectionPill } from "@/lib/kontrollen/kontrollePills";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/entries/reasonsService";
 import { ClipboardList } from "lucide-react";

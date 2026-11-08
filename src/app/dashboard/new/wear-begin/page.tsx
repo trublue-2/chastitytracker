@@ -8,7 +8,8 @@ import { getTranslations } from "next-intl/server";
 import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { deviceFormHref } from "@/lib/devices/categoryConstants";
 import { getActiveWearSessionForCategory, getMobileDesktopMode } from "@/lib/entries/queries";
-import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/shared/utils";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/time";
+import { safeInternalPath } from "@/lib/shared/utils";
 import WearForm from "../../WearForm";
 
 export default async function NewWearBeginPage({ searchParams }: { searchParams: Promise<{ category?: string; device?: string; redirectTo?: string }> }) {

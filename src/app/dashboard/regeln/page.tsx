@@ -22,7 +22,7 @@ import {
 import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
 import { weightText, type UnitSystem } from "@/lib/weight/weight";
-import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/shared/utils";
+import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/shared/time";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
 import { ALL_WEEKDAYS, weekdayMaskLabel } from "@/lib/stats/weekdays";
 

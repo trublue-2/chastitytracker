@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/shared/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
-import { APP_TZ, hhmmToMinutes, midnightInTZ, dateAtLocalMinutes, formatTime, clamp, randomInt } from "@/lib/shared/utils";
+import { APP_TZ, hhmmToMinutes, midnightInTZ, dateAtLocalMinutes, formatTime } from "@/lib/shared/time";
+import { clamp, randomInt } from "@/lib/shared/utils";
 import type { NumberRange } from "@/lib/shared/constants";
 import {
   NO_FIELDS_TO_UPDATE, INVALID_TIME, HHMM, AUTO_INSPECTION_PER_DAY_RANGE,

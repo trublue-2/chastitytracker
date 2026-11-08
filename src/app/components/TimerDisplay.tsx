@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import useTick from "@/app/hooks/useTick";
-import { formatElapsedMs } from "@/lib/shared/utils";
+import { formatElapsedMs } from "@/lib/shared/duration";
 
 type TimerMode = "countup" | "countdown";
 type TimerFormat = "long" | "short";

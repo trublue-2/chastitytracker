@@ -13,7 +13,7 @@ import { listTaskSeries } from "@/lib/tasks/taskService";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/tasks/taskIntervals";
 import { toTaskCard } from "@/lib/tasks/taskView";
 import { loadTaskProofViews } from "@/lib/tasks/taskIntervals";
-import { APP_TZ } from "@/lib/shared/utils";
+import { APP_TZ } from "@/lib/shared/time";
 import { BLOCK_PAGE_SIZE } from "@/lib/shared/constants";
 import { isTaskOpenForKeyholder } from "@/lib/tasks/tasks";
 import { taskFormHref } from "@/lib/entries/entryFormRoute";

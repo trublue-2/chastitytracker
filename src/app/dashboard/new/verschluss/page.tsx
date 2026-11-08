@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getUserDeviceOptions, getIsLocked, getOpenLockRequest, getBoxFormContext, getMobileDesktopMode, pendingLockCallAt } from "@/lib/entries/queries";
 import { bildersafeEnabled } from "@/lib/shared/constants";
-import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/shared/utils";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/time";
+import { safeInternalPath } from "@/lib/shared/utils";
 
 export default async function NewVerschlussPage({ searchParams }: { searchParams: Promise<{ redirectTo?: string }> }) {
   // Aus der URL (Ketten-Weiterleitung der Aufgaben-Bedingungen) → geprüft, siehe safeInternalPath.

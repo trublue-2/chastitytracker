@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale } from "next-intl";
-import { formatDateTime, toDateLocale } from "@/lib/shared/utils";
+import { formatDateTime, toDateLocale } from "@/lib/shared/time";
 
 /**
  * Ein aus der Eingabe abgeleiteter Zeitpunkt im Klartext — die Zeile, die eine relative Angabe auf

@@ -1,4 +1,4 @@
-import { fromDatetimeLocal, toDatetimeLocal, toDateLocale } from "@/lib/shared/utils";
+import { fromDatetimeLocal, toDatetimeLocal, toDateLocale } from "@/lib/shared/time";
 import { ALL_WEEKDAYS, weekdayMaskOf, isoWeekdayOfDateKey } from "@/lib/stats/weekdays";
 import { type RecurrenceFreq } from "@/lib/tasks/taskRecurrence";
 import type { RecurrenceInput } from "@/lib/tasks/taskService";

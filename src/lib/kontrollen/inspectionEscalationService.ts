@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/shared/prisma";
 import { localeT } from "@/lib/messages/emailI18n";
-import { clamp, APP_TZ } from "@/lib/shared/utils";
+import { clamp } from "@/lib/shared/utils";
+import { APP_TZ } from "@/lib/shared/time";
 import { notifyUser, notifyControllers } from "@/lib/messages/notify";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { createOeffnenEntryTx } from "@/lib/entries/oeffnenService";

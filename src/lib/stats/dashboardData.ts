@@ -7,10 +7,8 @@ import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from 
 import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { loadTelemetryKeyProof } from "@/lib/box/boxKeyProof";
 import { latestEffectiveKgEntry, isPendingLock, isPendingOpen } from "@/lib/entries/lockPending";
-import {
-  buildKontrolleItems, buildKgWearPairs, buildPairs, wearHoursOfPairs,
-  completedPairsFrom, getOpenPair, KG_PAIR, pairDurationMs, tzDayKey,
-} from "@/lib/shared/utils";
+import { buildKontrolleItems, buildKgWearPairs, buildPairs, wearHoursOfPairs, completedPairsFrom, getOpenPair, KG_PAIR, pairDurationMs } from "@/lib/shared/utils";
+import { tzDayKey } from "@/lib/shared/time";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/entries/sessionModel";
 import { buildDailyData } from "@/lib/stats/statsBuilders";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";

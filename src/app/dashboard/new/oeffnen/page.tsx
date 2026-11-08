@@ -9,7 +9,7 @@ import { getTranslations } from "next-intl/server";
 import { getLatestKgEntry, getActiveLockPeriod, cleaningBlockReason } from "@/lib/entries/queries";
 import { bildersafeEnabled } from "@/lib/shared/constants";
 import { entryFormBase } from "@/lib/entries/entryFormRoute";
-import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/utils";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/time";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/entries/reasonsService";
 import { cleaningUsedToday, nextCleaningWindow, CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
 import { boxHoldOutlook } from "@/lib/box/boxOpenOutlook";

@@ -7,7 +7,7 @@
  * Funktionsmodell — Register plus Generator-taugliche Oberfläche plus Test —, und aus demselben
  * Grund: eine Aufräum-Aktion hält nicht, eine geprüfte Aussage schon.
  *
- * **Die Regel in einem Satz:** eine Dauer oder ein Prozentwert entsteht in `utils.ts` bzw.
+ * **Die Regel in einem Satz:** eine Dauer oder ein Prozentwert entsteht in `duration.ts` bzw.
  * `percent.ts` — nirgends sonst. Wer anderswo eine baut, bricht den Test und muss entweder die
  * vorhandene Funktion nehmen oder seine Stelle hier mit Begründung eintragen.
  */
@@ -60,7 +60,7 @@ export const DURATION_FORMATS: readonly DisplayFormat[] = [
     kind: "duration",
     sense: "span",
     name: "formatDurationMs",
-    anchor: "utils.ts:formatDurationMs",
+    anchor: "duration.ts:formatDurationMs",
     meaning: "Eine abgeschlossene Dauer, aus Millisekunden.",
     shape: "2T 3h 14min · Null-Teile entfallen · <1min unterhalb einer Minute · 0min bei null",
   },
@@ -68,7 +68,7 @@ export const DURATION_FORMATS: readonly DisplayFormat[] = [
     kind: "duration",
     sense: "span",
     name: "formatDurationHours",
-    anchor: "utils.ts:formatDurationHours",
+    anchor: "duration.ts:formatDurationHours",
     meaning: "Dieselbe Dauer, aber die Eingabe liegt als Stunden vor (Ziele, Tages-/Wochensummen).",
     shape: "wie formatDurationMs · rundet die Eingabe auf die Millisekunde (Gleitkomma-Reste)",
   },
@@ -76,7 +76,7 @@ export const DURATION_FORMATS: readonly DisplayFormat[] = [
     kind: "duration",
     sense: "span",
     name: "formatDurationBetween",
-    anchor: "utils.ts:formatDurationBetween",
+    anchor: "duration.ts:formatDurationBetween",
     meaning: "Dieselbe Dauer, aber die Eingabe sind zwei Zeitpunkte.",
     shape: "wie formatDurationMs",
   },
@@ -84,7 +84,7 @@ export const DURATION_FORMATS: readonly DisplayFormat[] = [
     kind: "duration",
     sense: "span",
     name: "formatElapsedMs",
-    anchor: "utils.ts:formatElapsedMs",
+    anchor: "duration.ts:formatElapsedMs",
     meaning: "Eine LAUFENDE Dauer in Worten. Zeigt die Minute auch bei null, damit die letzte Stelle tickt.",
     shape: "2T 3h 14min · optional mit Sekunden",
   },
@@ -100,7 +100,7 @@ export const DURATION_FORMATS: readonly DisplayFormat[] = [
     kind: "duration",
     sense: "total",
     name: "formatTotalMs",
-    anchor: "utils.ts:formatTotalMs",
+    anchor: "duration.ts:formatTotalMs",
     meaning: "Eine SUMME zusammengezählter Zeit, aus Millisekunden. Nie Tage.",
     shape: "74h 36min · ab 1000 h ohne Minuten und mit Tausender-Trennung (7 446h) · ohne locale",
   },
@@ -108,7 +108,7 @@ export const DURATION_FORMATS: readonly DisplayFormat[] = [
     kind: "duration",
     sense: "total",
     name: "formatTotalHours",
-    anchor: "utils.ts:formatTotalHours",
+    anchor: "duration.ts:formatTotalHours",
     meaning: "Dieselbe Summe, Eingabe als Stunden — der Normalfall (Ziele, Perioden-Summen).",
     shape: "wie formatTotalMs · rundet die Eingabe auf die Millisekunde",
   },
@@ -154,7 +154,7 @@ export const PERCENT_FORMATS: readonly DisplayFormat[] = [
  * fehlschlagen oder — schlimmer — eine neue Stelle durchrutschen.
  *
  * Ein leerer `contains` nimmt die GANZE Datei aus. Das ist nur dort vertretbar, wo eine zweite
- * Prüfung die Vollständigkeit sichert — bei `utils.ts` tut das der Export-Abgleich im Test
+ * Prüfung die Vollständigkeit sichert — bei `duration.ts` tut das der Export-Abgleich im Test
  * (jeder exportierte Formatierer muss in {@link DURATION_FORMATS} stehen).
  */
 export interface DisplayFormatException {
@@ -166,12 +166,17 @@ export interface DisplayFormatException {
 /** Wer eine Dauer zusammensetzen darf, und wer nur so aussieht. */
 export const DURATION_ASSEMBLY_EXCEPTIONS: readonly DisplayFormatException[] = [
   {
-    file: "src/lib/shared/utils.ts",
+    file: "src/lib/shared/duration.ts",
     contains: "",
     reason:
       "Hier IST der eine Ort, an dem eine Dauer entsteht — Zeile für Zeile auszunehmen wäre eine " +
       "Liste, die bei jeder Umformatierung bricht. Dass hier kein VIERTER Formatierer unbemerkt " +
       "dazukommt, sichert stattdessen der Export-Abgleich im Test.",
+  },
+  {
+    file: "src/lib/shared/time.ts",
+    contains: 'T${hour}:${get("minute")}',
+    reason: "Wanduhr-Zeit als `datetime-local`-String — das „T\" ist der Datums-Trenner, keine Tages-Einheit; hier entsteht keine Dauer.",
   },
   {
     file: "src/app/api/upload/route.ts",

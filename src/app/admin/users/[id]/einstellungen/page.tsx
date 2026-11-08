@@ -37,7 +37,7 @@ import VorgabeRow from "../VorgabeRow";
 import { goalDateToInput } from "@/lib/stats/vorgabeService";
 import { parseWeekdayGoalRules } from "@/lib/stats/weekdayGoal";
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, formatDate } from "@/lib/shared/utils";
+import { toDateLocale, formatDate } from "@/lib/shared/time";
 import { formColCls } from "@/app/components/inputStyles";
 
 function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }): boolean {

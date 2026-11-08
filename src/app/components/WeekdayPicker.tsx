@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { toDateLocale } from "@/lib/shared/utils";
+import { toDateLocale } from "@/lib/shared/time";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
 import { WEEKDAY_KEYS, toggleWeekday, weekdayMaskHas } from "@/lib/stats/weekdays";
 

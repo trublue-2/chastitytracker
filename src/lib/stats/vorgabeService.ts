@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/shared/prisma";
-import { midnightOfLocalDate, APP_TZ } from "@/lib/shared/utils";
+import { midnightOfLocalDate, APP_TZ } from "@/lib/shared/time";
 import { weightDayKey } from "@/lib/weight/weight";
 import { getUserTimezone } from "@/lib/entries/queries";
 import { reorderVorgabenDates } from "@/lib/stats/vorgaben";

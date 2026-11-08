@@ -6,7 +6,8 @@ import { structuredLog } from "@/lib/shared/serverLog";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { deliveryChannels } from "@/lib/messages/deliveryChannels";
 import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/entries/reasonsService";
-import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/shared/utils";
+import { formatDateTime, toDateLocale } from "@/lib/shared/time";
+import { formatDurationBetween } from "@/lib/shared/duration";
 import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, anyChannelActive, type MessagePriority, APP_NAME } from "@/lib/shared/constants";
 
 export interface EntryNotifyParams {

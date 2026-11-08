@@ -5,7 +5,8 @@ import {
 } from "@/lib/shared/constants";
 import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/shared/serviceResult";
 import { addWeightDays, dayNumber, isUnderweightTarget, weightDayKey, weightProblem } from "@/lib/weight/weight";
-import { APP_TZ, clamp } from "@/lib/shared/utils";
+import { APP_TZ } from "@/lib/shared/time";
+import { clamp } from "@/lib/shared/utils";
 import { evaluateRelease, isReleaseDirection, thresholdOn, type ReleaseEvaluation } from "@/lib/weight/weightRelease";
 import { movingAverage, type WeightPoint } from "@/lib/weight/weightSeries";
 import { createOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungService";

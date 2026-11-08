@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ClipboardList, Droplets, Camera, Play, Square } from "lucide-react";
-import { formatDateTime, formatTime, APP_TZ } from "@/lib/shared/utils";
+import { formatDateTime, formatTime, APP_TZ } from "@/lib/shared/time";
 import { TYPE_STATS_KEYS } from "@/lib/shared/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";

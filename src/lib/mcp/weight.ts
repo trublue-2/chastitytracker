@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/shared/prisma";
-import { APP_TZ, round1 } from "@/lib/shared/utils";
+import { APP_TZ } from "@/lib/shared/time";
+import { round1 } from "@/lib/shared/utils";
 import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
 import {
   bmi, dayNumber, effectiveTarget, startWeightIn, subTargetOf, targetProgress, weightDayKey,

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { fromDatetimeLocal } from "@/lib/shared/utils";
+import { fromDatetimeLocal } from "@/lib/shared/time";
 import {
   ORGASMUS_ANFORDERUNG_ARTEN, orgasmusAnforderungArtLabel,
   DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit,

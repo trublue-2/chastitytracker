@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth/auth";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { logAccess } from "@/lib/shared/serverLog";
 import { prisma } from "@/lib/shared/prisma";
-import { toDateLocale, APP_TZ } from "@/lib/shared/utils";
+import { toDateLocale, APP_TZ } from "@/lib/shared/time";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ClipboardCheck } from "lucide-react";
 import KontrolleButton from "@/app/admin/KontrolleButton";

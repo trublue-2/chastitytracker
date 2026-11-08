@@ -8,7 +8,7 @@ import { listMessages, pageOfMessage, subInbox, unreadCountCached, unreadCount }
 import { presentMessages } from "@/lib/messages/messagePresenter";
 import { isMessageFiltered, messageFilterToParams, parseMessageFilterFrom } from "@/lib/messages/messageCategories";
 import { MESSAGE_SCOPES } from "@/lib/messages/messageScope";
-import { APP_TZ } from "@/lib/shared/utils";
+import { APP_TZ } from "@/lib/shared/time";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import MessageList from "@/app/components/MessageList";
 

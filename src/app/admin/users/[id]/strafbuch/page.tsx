@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth/auth";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { logAccess } from "@/lib/shared/serverLog";
 import { prisma } from "@/lib/shared/prisma";
-import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/shared/utils";
+import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/shared/time";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch/strafbuch";
 import { cleaningNotRelockedRef } from "@/lib/strafbuch/strafurteilService";
 import { missedWeightRef } from "@/lib/weight/weightObligation";

@@ -42,7 +42,8 @@ import {
   clampProofDueOffset, clampHoldDuration, type NumberRange,
   RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE,
 } from "@/lib/shared/constants";
-import { clamp, randomInt, midnightAfterDays } from "@/lib/shared/utils";
+import { clamp, randomInt } from "@/lib/shared/utils";
+import { midnightAfterDays } from "@/lib/shared/time";
 import { goalCategoryKey } from "@/lib/stats/vorgaben";
 import { goalDateFromInput } from "@/lib/stats/vorgabeService";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/strafbuch/manualOffenseService";

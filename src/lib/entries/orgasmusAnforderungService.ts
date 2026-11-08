@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/shared/prisma";
 import { escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/messages/mail";
-import { formatDateTime } from "@/lib/shared/utils";
+import { formatDateTime } from "@/lib/shared/time";
 import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS, APP_NAME } from "@/lib/shared/constants";
 import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten } from "@/lib/entries/reasonsService";
 import { notifyUser, deliverToChannels, type NotifyContent, type NotifyRecipient } from "@/lib/messages/notify";

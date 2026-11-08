@@ -4,7 +4,7 @@ import OrgasmusForm from "../../OrgasmusForm";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/shared/prisma";
 import { getTranslations } from "next-intl/server";
-import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/utils";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/time";
 import { effectiveOrgasmusArten, resolveOrgasmusOptions } from "@/lib/entries/reasonsService";
 
 export default async function NewOrgasmusPage() {

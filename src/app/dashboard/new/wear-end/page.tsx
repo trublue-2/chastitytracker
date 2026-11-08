@@ -6,7 +6,7 @@ import { redirect, notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { getActiveWearSessionForCategory } from "@/lib/entries/queries";
-import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/utils";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/time";
 import { getTasksBlocking } from "@/lib/tasks/taskIntervals";
 import WearForm from "../../WearForm";
 

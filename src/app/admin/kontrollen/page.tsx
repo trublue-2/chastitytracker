@@ -2,7 +2,7 @@ import { prisma } from "@/lib/shared/prisma";
 import { titleCls } from "@/app/components/inputStyles";
 import { auth } from "@/lib/auth/auth";
 import { assertAdmin } from "@/lib/auth/authGuards";
-import { toDateLocale, APP_TZ } from "@/lib/shared/utils";
+import { toDateLocale, APP_TZ } from "@/lib/shared/time";
 import BackLink from "@/app/components/BackLink";
 import { ClipboardCheck } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";

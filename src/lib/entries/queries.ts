@@ -6,7 +6,7 @@ import { activeCleaningWindowIn, parseCleaningWindows } from "@/lib/entries/clea
 import { triggeredWhere } from "@/lib/entries/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER, effectiveEntryWhere } from "@/lib/entries/lockPending";
 import { hasLockmebox } from "@/lib/box/boxStatus";
-import { APP_TZ } from "@/lib/shared/utils";
+import { APP_TZ } from "@/lib/shared/time";
 import { isHealthHoldActive } from "@/lib/entries/healthHold";
 import { startAfter } from "@/lib/entries/entryStart";
 

@@ -9,7 +9,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/shared/utils";
+import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/shared/time";
 
 interface Props {
   /** Id der aktiven bzw. geplanten Sperrzeit (VerschlussAnforderung, art=SPERRZEIT). */

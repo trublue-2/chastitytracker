@@ -3,7 +3,7 @@ import { prisma } from "@/lib/shared/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { getUserDeviceOptions, getIsLocked, getUserTimezone } from "@/lib/entries/queries";
 import { subLockPeriodCached } from "@/lib/stats/dashboardData";
-import { nowDatetimeLocal } from "@/lib/shared/utils";
+import { nowDatetimeLocal } from "@/lib/shared/time";
 import { resolveLockFormArt } from "@/lib/entries/lockRequestPlanning";
 import VerschlussAnforderungForm from "./VerschlussAnforderungForm";
 

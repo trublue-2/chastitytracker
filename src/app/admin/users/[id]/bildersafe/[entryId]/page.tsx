@@ -7,7 +7,7 @@ import { previousSealedCode } from "@/lib/box/lockboxCodeCheckService";
 import { prisma } from "@/lib/shared/prisma";
 import { getUserTimezone } from "@/lib/entries/queries";
 import { logAccess } from "@/lib/shared/serverLog";
-import { formatDateTime, toDateLocale } from "@/lib/shared/utils";
+import { formatDateTime, toDateLocale } from "@/lib/shared/time";
 import ImageViewer from "@/app/components/ImageViewer";
 import Section from "@/app/components/Section";
 

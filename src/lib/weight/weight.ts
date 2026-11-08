@@ -1,4 +1,5 @@
-import { effectiveAt, midnightOfLocalDate, round1, tzDateParts } from "@/lib/shared/utils";
+import { effectiveAt, round1 } from "@/lib/shared/utils";
+import { midnightOfLocalDate, tzDateParts } from "@/lib/shared/time";
 import { HEIGHT_CM_RANGE, WEIGHT_KG_RANGE } from "@/lib/shared/constants";
 import { coveragePct } from "@/lib/stats/percent";
 import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
