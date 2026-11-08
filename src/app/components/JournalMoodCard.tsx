@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import Card from "./Card";
 import MeasurementChart from "./MeasurementChart";
-import { JOURNAL_MOOD_MAX, JOURNAL_MOOD_MIN } from "@/lib/constants";
+import { JOURNAL_MOOD_MAX, JOURNAL_MOOD_MIN } from "@/lib/shared/constants";
 
 /** Ein Punkt, wie er vom Server kommt — Zeit als Millisekunden, damit die Grenze serialisierbar ist. */
 export interface MoodChartPoint {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import { createOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 export async function POST(req: NextRequest) {
   try {

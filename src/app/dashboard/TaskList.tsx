@@ -9,8 +9,8 @@ import Sheet from "@/app/components/Sheet";
 import TaskCard from "@/app/components/TaskCard";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
-import { formatDateTimeDual, formatElapsedMs, toDateLocale } from "@/lib/utils";
-import { TASK_LIST_ANCHOR, TASK_STATE_COLOR, BLOCK_PAGE_SIZE } from "@/lib/constants";
+import { formatDateTimeDual, formatElapsedMs, toDateLocale } from "@/lib/shared/utils";
+import { TASK_LIST_ANCHOR, TASK_STATE_COLOR, BLOCK_PAGE_SIZE } from "@/lib/shared/constants";
 import { taskDeadlineLine, type TaskCardData } from "@/lib/tasks/taskView";
 
 

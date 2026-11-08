@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 
 /**
  * Der Träger meldet eine verhängte Strafe als erledigt — sein Rückkanal zur Keyholderin.

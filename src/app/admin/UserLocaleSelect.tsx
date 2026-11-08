@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import Select from "@/app/components/Select";
 import FormError from "@/app/components/FormError";
 import FormSuccess from "@/app/components/FormSuccess";
-import { LOCALES_LONG } from "@/lib/constants";
+import { LOCALES_LONG } from "@/lib/shared/constants";
 
 /**
  * Lets a keyholder/admin set THIS sub's language from the sub-management page. Writes User.locale

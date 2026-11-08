@@ -28,7 +28,7 @@ vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn() }));
  *  gleich oft geschrieben". Warum als Tabelle statt als Aufrufprotokoll: siehe `messageTableMock`. */
 const inbox = vi.hoisted(() => [] as import("@/test/messageTableMock").MessageRow[]);
 
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createMessageTablePrisma } = await import("@/test/messageTableMock");
   return { prisma: createMessageTablePrisma(inbox) };
 });
@@ -56,7 +56,7 @@ vi.mock("@/lib/strafbuch/strafbuch", async (importOriginal) => ({
 import { POST, PATCH } from "@/app/api/admin/strafe/route";
 import { judgeOffense } from "./strafurteilService";
 import { auth } from "@/lib/auth/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { sendMailSafe } from "@/lib/messages/mail";
 import { sendPushToUser } from "@/lib/messages/push";

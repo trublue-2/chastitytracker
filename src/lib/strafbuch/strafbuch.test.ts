@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
 import { isLateLock, cleaningRelockDeadline, isCleaningNotRelocked, cleaningRelockObligation, buildStrafbuch, cleaningWindowEnforcedFrom } from "./strafbuch";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
 describe("isLateLock", () => {

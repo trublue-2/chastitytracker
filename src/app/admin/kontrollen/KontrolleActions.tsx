@@ -8,7 +8,7 @@ import { CheckCircle2, X, MinusCircle, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ConfirmDialog from "@/app/components/ConfirmDialog";
 import RowActionsMenu, { type RowAction } from "@/app/components/RowActionsMenu";
-import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
+import type { AnforderungStatus, VerifikationStatus } from "@/lib/shared/utils";
 import { useInspectionReview } from "./useInspectionReview";
 
 interface Props {

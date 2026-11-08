@@ -18,7 +18,7 @@ const tx = {
   healthHold: { findFirst: vi.fn() },
 };
 
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: {} }));
 
 import { releaseLockPeriodsOnOpen } from "./queries";
 import { mapInterruptedLockPeriod } from "../mcp/liveState";

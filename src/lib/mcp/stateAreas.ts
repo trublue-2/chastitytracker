@@ -1,4 +1,4 @@
-import type { SchemaFields } from "@/lib/prismaSchema";
+import type { SchemaFields } from "@/lib/shared/prismaSchema";
 
 /**
  * Register für `check_updates`: welche Tabelle zu welchem BEREICH des Sub-Zustands gehört.

@@ -9,7 +9,7 @@ import { createPrismaMock, type PrismaMock } from "@/test/prismaMock";
  */
 
 const prismaMock: PrismaMock = createPrismaMock();
-vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: prismaMock }));
 
 const { scheduleCleaningRelockInspection, isSleepingAt, autoKontrolleSettingsFromUser } = await import("../kontrollen/autoKontrolleService");
 

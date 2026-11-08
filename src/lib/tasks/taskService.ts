@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { dropJudgments } from "@/lib/strafbuch/offenseJudgmentCleanup";
-import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/shared/serviceResult";
 import { notifyUser, notifyControllers, type NotifyContent, type NotifyRecipient } from "@/lib/messages/notify";
 import { actorColumn, type MessageActor } from "@/lib/messages/messageService";
 import { getControllerAudience } from "@/lib/auth/keyholder";
@@ -10,19 +10,19 @@ import { evaluateTasks, evaluateTaskById, SUB_VISIBLE_WHERE, TASK_INCLUDE } from
 import type { PrismaTx } from "@/lib/entries/queries";
 import { parseTriggerAt, computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/entries/delayedTrigger";
 import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, latestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters, type TaskLike } from "@/lib/tasks/tasks";
-import { isUniqueConstraintOn } from "@/lib/prismaErrors";
+import { isUniqueConstraintOn } from "@/lib/shared/prismaErrors";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
   clampProofDueOffset,
   TASK_REQUIREMENT_TYPES, TASK_PROOF_MAX,
   TASK_PROOF_DESCRIPTION_MAX_LENGTH, type TaskRequirementType,
-} from "@/lib/constants";
-import { formatDateTime, generateKontrollCode, groupByUser, midnightInTZ, APP_TZ } from "@/lib/utils";
+} from "@/lib/shared/constants";
+import { formatDateTime, generateKontrollCode, groupByUser, midnightInTZ, APP_TZ } from "@/lib/shared/utils";
 import {
   recurrenceProblem, occurrencesBetween, upcomingOccurrences,
   type RecurrenceRule, type RecurrenceFreq,
 } from "@/lib/tasks/taskRecurrence";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 import { deleteUploadedFiles } from "@/lib/client/imageUtils";
 import { NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/entries/healthHold";
 import { markLastAction } from "@/lib/upstream/appMeta";

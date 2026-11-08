@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * was nur der Bestand beantwortet: Gesundheits-Halt, eine bereits offene Anforderung und die
  * Nachwiege-Sperre. Jeder dieser drei Fälle erzeugt sonst eine Direktive, die niemand gestellt hat.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   const mock = createPrismaMock();
   // `$transaction` deckt der geteilte Mock bewusst nicht ab (nur Lesepfade). Hier reicht der
@@ -21,13 +21,13 @@ vi.mock("@/lib/prisma", async () => {
     }),
   };
 });
-const transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(await import("@/lib/prisma").then((m) => m.prisma)));
+const transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(await import("@/lib/shared/prisma").then((m) => m.prisma)));
 vi.mock("@/lib/entries/orgasmusAnforderungService", () => ({ createOrgasmusAnforderung: vi.fn() }));
 vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn().mockResolvedValue([]) }));
 
 import { applyWeightRelease, setWeightRelease } from "@/lib/weight/weightReleaseService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { createOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungService";
 import type { PrismaMock } from "@/test/prismaMock";
 

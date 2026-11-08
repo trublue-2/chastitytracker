@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // hasActiveKontrolle nutzt nur prisma.kontrollAnforderung.findFirst; resolveInspectionEntry
 // zusätzlich entry.findUnique/update — mocken.
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     kontrollAnforderung: { findFirst: vi.fn() },
     entry: { findUnique: vi.fn(), update: vi.fn() },
@@ -20,7 +20,7 @@ vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn(), hasPushTarget: 
 
 import { hasActiveKontrolle, inspectionIntro, buildInspectionPush, buildInspectionCodePush, resolveInspectionEntry, resendOwnInspectionCode } from "./kontrolleService";
 import { emailT } from "@/lib/messages/emailI18n";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { notifyUser } from "@/lib/messages/notify";
 import { sendPushToUser, hasPushTarget } from "@/lib/messages/push";
 import { sendTelegram } from "@/lib/messages/telegram";

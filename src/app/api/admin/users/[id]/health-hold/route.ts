@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import { setHealthHold } from "@/lib/entries/healthHold";
-import { serviceResponse } from "@/lib/serviceResult";
+import { serviceResponse } from "@/lib/shared/serviceResult";
 
 /**
  * Setzt oder hebt den Gesundheits-Halt eines Trägers: `{ active, reason }`.

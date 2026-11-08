@@ -3,7 +3,7 @@ import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuard
 import { createTask, type CreateTaskParams } from "@/lib/tasks/taskService";
 import { punishWithTask, type StoredOffenseType } from "@/lib/strafbuch/strafurteilService";
 import { TASK_FORM_QUERY } from "@/lib/entries/entryFormRoute";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /** Keyholder stellt dem Sub eine Aufgabe. */
 export async function POST(req: NextRequest) {

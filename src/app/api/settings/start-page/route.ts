@@ -1,6 +1,6 @@
-import { isValidStartPage } from "@/lib/constants";
+import { isValidStartPage } from "@/lib/shared/constants";
 import { canControlSub } from "@/lib/auth/keyholder";
-import { userSelfFieldRoute } from "@/lib/userSelfField";
+import { userSelfFieldRoute } from "@/lib/shared/userSelfField";
 
 // Startseite nach Login ist ein USER-SELF-Feld (eigene Präferenz). Per CLAUDE.md brauchen nur
 // admin-gesetzte Felder requireAdminApi() — normale Session-Auth ist hier korrekt.

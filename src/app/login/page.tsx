@@ -11,8 +11,8 @@ import Input from "@/app/components/Input";
 import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 import PasskeyLoginButton from "@/app/components/PasskeyLoginButton";
 import { clearSwUserCache } from "@/lib/messages/swMessages";
-import { syncLocaleCookieFromLogin } from "@/lib/locale";
-import { APP_NAME } from "@/lib/constants";
+import { syncLocaleCookieFromLogin } from "@/lib/shared/locale";
+import { APP_NAME } from "@/lib/shared/constants";
 
 export default function LoginPage() {
   const t = useTranslations("login");

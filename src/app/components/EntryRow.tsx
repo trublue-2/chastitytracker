@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { ClipboardList, Droplets, Camera, Play, Square } from "lucide-react";
-import { formatDateTime, formatTime, APP_TZ } from "@/lib/utils";
-import { TYPE_STATS_KEYS } from "@/lib/constants";
+import { formatDateTime, formatTime, APP_TZ } from "@/lib/shared/utils";
+import { TYPE_STATS_KEYS } from "@/lib/shared/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";
 import InspectionReviewButtons, { type InspectionReviewData } from "@/app/admin/kontrollen/InspectionReviewButtons";

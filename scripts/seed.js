@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 // Das frühere Raster der Keyholder-Meldungen. Seit dem Stufen-Modell wird es NICHT mehr angelegt —
 // diese Liste ist nur noch der Lese-Schlüssel der einmaligen Übernahme in die Kanal-Stufen
 // (`backfillNotifyLevels`) und beschreibt damit Bestand, nicht geltendes Verhalten.
-// Frühere Spiegelung von src/lib/constants.ts — seed.js is plain CJS
+// Frühere Spiegelung von src/lib/shared/constants.ts — seed.js is plain CJS
 // and can't import from src. Keep both lists in sync.
 const NOTIFICATION_EVENT_TYPES = [
   "VERSCHLUSS",
@@ -174,7 +174,7 @@ async function backfillNotifyLevels() {
   return migrated;
 }
 
-// Mirror of AI_AUTHOR in src/lib/constants.ts — seed.js is plain CJS and can't import from src.
+// Mirror of AI_AUTHOR in src/lib/shared/constants.ts — seed.js is plain CJS and can't import from src.
 // Kanonische Begründung der Namensgrenze steht dort; hier nur die Durchsetzung.
 const AI_AUTHOR = "ai";
 const DEFAULT_ADMIN_USERNAME = "admin";
@@ -222,7 +222,7 @@ async function main() {
   // sich der Nutzer registriert hat; ohne sie startete jede Instanz auf Deutsch, und das Portal
   // las diesen Default später als vermeintliche Nutzerwahl zurück und schrieb seine Anschreiben
   // danach. Wirkt nur bei der Neuanlage — die Wahl eines bestehenden Users wird nie überschrieben.
-  // Mirror of toLocale() in src/lib/constants.ts — seed.js is plain CJS and can't import from src.
+  // Mirror of toLocale() in src/lib/shared/constants.ts — seed.js is plain CJS and can't import from src.
   const locale = process.env.ADMIN_LOCALE === "en" ? "en" : "de";
   // C1: KEIN ratebarer Default ("admin123"). Ohne ADMIN_PASSWORD wird ein starkes Zufalls-
   // passwort erzeugt und (nur beim Erststart, s.u.) genau einmal ins Log geschrieben.

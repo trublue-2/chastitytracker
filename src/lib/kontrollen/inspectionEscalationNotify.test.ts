@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * über einen Vorgang, den sie nicht benennen konnte — ohne den Kommentar der Anforderung und ohne
  * Möglichkeit, eine tote Referenz von einer nie gesetzten zu unterscheiden.
  */
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () => [{ id: "kh1" }]) }));
 vi.mock("@/lib/entries/oeffnenService", () => ({ createOeffnenEntryTx: vi.fn() }));

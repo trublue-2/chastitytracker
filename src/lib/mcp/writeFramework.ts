@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 import type { Prisma } from "@prisma/client";
 
 /** Prisma-Client innerhalb einer Transaktion (von $transaction an apply/recordAction übergeben). */

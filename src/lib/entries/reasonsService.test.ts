@@ -13,7 +13,7 @@ import {
   PROTECTED_OPENING_CODE,
   type ReasonEntry,
 } from "./reasonsService";
-import { OEFFNEN_GRUENDE } from "../constants";
+import { OEFFNEN_GRUENDE } from "../shared/constants";
 
 const ORGASM_DEFAULT = DEFAULT_ORGASM_ARTEN.map((code) => ({ code }));
 

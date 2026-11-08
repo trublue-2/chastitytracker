@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { requireApi } from "@/lib/auth/authGuards";
-import { isRecipientNotificationEventType, NO_FIELDS_TO_UPDATE } from "@/lib/constants";
-import { errorResponse } from "@/lib/serviceResult";
+import { isRecipientNotificationEventType, NO_FIELDS_TO_UPDATE } from "@/lib/shared/constants";
+import { errorResponse } from "@/lib/shared/serviceResult";
 
 /**
  * PATCH /api/settings/notifications — der Nutzer schaltet seine EIGENEN Empfangs-Kanäle.

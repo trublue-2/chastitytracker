@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { getLatestKgEntry, latestKgTimesByUser } from "@/lib/entries/queries";
 import { subLockPeriodCached } from "@/lib/stats/dashboardData";

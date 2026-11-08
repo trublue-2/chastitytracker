@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { useTranslations } from "next-intl";
-import { JOURNAL_VISIBILITIES, type JournalVisibility } from "@/lib/constants";
+import { JOURNAL_VISIBILITIES, type JournalVisibility } from "@/lib/shared/constants";
 
 /**
  * Die drei Sichtbarkeits-Stufen eines Tagebuch-Eintrags als Radiogruppe — unter jeder steht im

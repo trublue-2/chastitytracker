@@ -7,7 +7,7 @@
  *  components. `codedError.ts` is importable here because it is itself import-free.
  */
 
-import { codedError, codeOf } from "@/lib/codedError";
+import { codedError, codeOf } from "@/lib/shared/codedError";
 
 /** Raised by the transaction guards inside the entry routes (always answered with 400). */
 export const ENTRY_GUARD_CODES = [

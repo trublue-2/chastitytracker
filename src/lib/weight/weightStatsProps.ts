@@ -1,7 +1,7 @@
 import { getLocale } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
-import { prisma } from "@/lib/prisma";
-import { APP_TZ, formatDate, toDateLocale } from "@/lib/utils";
+import { prisma } from "@/lib/shared/prisma";
+import { APP_TZ, formatDate, toDateLocale } from "@/lib/shared/utils";
 import { effectiveTarget, startWeightIn, weightDayKey, type UnitSystem } from "@/lib/weight/weight";
 import { WEIGHT_USER_SELECT } from "@/lib/weight/weightService";
 import { loadWeightRows } from "@/lib/weight/weightRows";

@@ -7,7 +7,7 @@ import { signIn, getSession } from "next-auth/react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import Button from "@/app/components/Button";
 import { clearSwUserCache } from "@/lib/messages/swMessages";
-import { syncLocaleCookieFromLogin } from "@/lib/locale";
+import { syncLocaleCookieFromLogin } from "@/lib/shared/locale";
 
 /**
  * PasskeyLoginButton — shows a "Sign in with Passkey" button on the login page.

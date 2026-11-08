@@ -1,6 +1,6 @@
 import { effectiveDeviceCheckStatus, sameLookalikeCluster, type DeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";
 import { toVerifyFailure, type VerifyFailure } from "@/lib/kontrollen/verifyReason";
-import { buildPairs, mergeWearPairs, msToHours, type CleaningPauseRules, WEAR_PAIR, type WearPair } from "@/lib/utils";
+import { buildPairs, mergeWearPairs, msToHours, type CleaningPauseRules, WEAR_PAIR, type WearPair } from "@/lib/shared/utils";
 
 /**
  * Das Session-Modell — EINE Definition von „Session", geteilt von der MCP-Schicht und der UI.

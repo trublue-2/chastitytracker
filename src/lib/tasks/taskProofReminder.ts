@@ -1,10 +1,10 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { evaluateTasks, TASK_INCLUDE, SUB_VISIBLE_WHERE } from "@/lib/tasks/taskIntervals";
 import { NOT_PAUSED_WHERE } from "@/lib/entries/healthHold";
 import { earliestTaskEnd, isTaskOpen, proofDue, taskAnchor, type TaskEvaluation, type TaskLike, type ProofDeadlineWindow,} from "@/lib/tasks/tasks";
 import { notifyUser } from "@/lib/messages/notify";
-import { formatDateTime, groupByUser } from "@/lib/utils";
-import { TASK_PROOF_REMINDER_LEAD_MIN } from "@/lib/constants";
+import { formatDateTime, groupByUser } from "@/lib/shared/utils";
+import { TASK_PROOF_REMINDER_LEAD_MIN } from "@/lib/shared/constants";
 
 /** Was die Erinnerung an einem Nachweis liest — die Felder, die `TASK_INCLUDE` ohnehin lädt. */
 interface OpenProof {

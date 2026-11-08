@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * Geprüft wird an BEIDEN Zweigen derselben Funktion: der Commit übergibt den Wert an `updateTask`,
  * die dryRun-Vorschau zeigt ihn — sie dürfen über dieselbe Aufgabe nicht Verschiedenes sagen.
  */
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     task: { findUnique: vi.fn() },
@@ -26,7 +26,7 @@ vi.mock("@/lib/tasks/taskService", async (importOriginal) => {
 });
 
 import { mcpEditTask } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { updateTask } from "@/lib/tasks/taskService";
 import { taskRow } from "@/test/taskRow";
 

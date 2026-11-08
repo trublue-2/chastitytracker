@@ -1,15 +1,15 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import {
   CLEANING_RULES_EPOCH, cleaningSettingsEqual, cleaningSettingsFromUser, type CleaningSettings,
 } from "@/lib/entries/cleaningRules";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
-import { APP_TZ, hhmmInTZ, midnightInTZ, clamp } from "@/lib/utils";
-import { listProblem, parseJsonList, type ListProblem } from "@/lib/jsonList";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
+import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
+import { APP_TZ, hhmmInTZ, midnightInTZ, clamp } from "@/lib/shared/utils";
+import { listProblem, parseJsonList, type ListProblem } from "@/lib/shared/jsonList";
 import {
   CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, CLEANING_WINDOWS_TOO_MANY,
   HHMM, INVALID_TIME, NO_FIELDS_TO_UPDATE, TIME_RANGE_INVALID,
-} from "@/lib/constants";
+} from "@/lib/shared/constants";
 import { isoDayPlus, isoWeekdayInTZ, parseWeekdayMask, weekdayMaskHas, weekdayMaskValid } from "@/lib/stats/weekdays";
 
 export interface CleaningWindows {

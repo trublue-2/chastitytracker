@@ -1,16 +1,16 @@
 import { cache } from "react";
 import { getTranslations } from "next-intl/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/kontrollen/autoKontrolleService";
 import { CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/entries/cleaningRules";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { loadTelemetryKeyProof } from "@/lib/box/boxKeyProof";
 import { latestEffectiveKgEntry, isPendingLock, isPendingOpen } from "@/lib/entries/lockPending";
 import {
   buildKontrolleItems, buildKgWearPairs, buildPairs, wearHoursOfPairs,
   completedPairsFrom, getOpenPair, KG_PAIR, pairDurationMs, tzDayKey,
-} from "@/lib/utils";
+} from "@/lib/shared/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/entries/sessionModel";
 import { buildDailyData } from "@/lib/stats/statsBuilders";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";

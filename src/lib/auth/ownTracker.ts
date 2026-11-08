@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 /** Die Felder, aus denen sich „kann diese Person die Einstellung überhaupt haben?" beantworten
  *  lässt — genau der Ausschnitt der Session, den alle Aufrufer ohnehin in der Hand halten. Die

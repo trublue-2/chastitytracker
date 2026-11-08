@@ -11,11 +11,11 @@ import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
-import { LIST_PAGE_SIZE } from "@/lib/constants";
+import { LIST_PAGE_SIZE } from "@/lib/shared/constants";
 import KontrolleActions from "./KontrolleActions";
 import InspectionReviewButtons from "./InspectionReviewButtons";
 import { useTranslations } from "next-intl";
-import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
+import type { AnforderungStatus, VerifikationStatus } from "@/lib/shared/utils";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 /**

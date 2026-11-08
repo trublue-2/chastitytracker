@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * hinterlässt einen Code, für den die Anzeige kein Wort hat.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { device: { findUnique: vi.fn() }, user: { findUnique: vi.fn() } },
 }));
 vi.mock("@/lib/entries/queries", () => ({ getEntryNeighbors: vi.fn() }));

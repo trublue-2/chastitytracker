@@ -8,14 +8,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Test ist daher (a) Stolperdraht — wer den V2-Vertrag ändert, muss die Liste bewusst mitändern —
 // und (b) ein Smoke-Test der gesamten Komposition (buildOverviewLean + records + periodSummary +
 // getOffenses + queryNotes + boxState + healthHold laufen wirklich durch).
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
 import { keyholderDashboard, getBoxState } from "./dashboard";
 import { NOTE_TEXT_LIMIT } from "./common";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { TEST_USER, type PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

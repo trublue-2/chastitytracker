@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Factory-Import statt Top-Level-Variable: `vi.mock` wird an den Dateianfang gehoben.
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
 import { setOffenseRule } from "./offenseRulesService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { type PrismaMock } from "@/test/prismaMock";
 
 const prismaMock = prisma as unknown as PrismaMock;

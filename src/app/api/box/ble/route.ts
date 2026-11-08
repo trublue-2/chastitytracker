@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApi } from "@/lib/auth/authGuards";
-import { lockmeboxEnabled } from "@/lib/constants";
-import { errorResponse, serviceFailure } from "@/lib/serviceResult";
+import { lockmeboxEnabled } from "@/lib/shared/constants";
+import { errorResponse, serviceFailure } from "@/lib/shared/serviceResult";
 import { LOCKMEBOX_COMMANDS, LOCKMEBOX_NAME_RE } from "@/lib/box/lockmeboxProtocol";
 import { lockmeboxRelayStep } from "@/lib/box/lockmeboxService";
 

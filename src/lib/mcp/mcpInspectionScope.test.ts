@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *    Wert als Erfolg. 242 min angefragt, 65 geliefert, kein Hinweis in der Antwort.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     kontrollAnforderung: { count: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() },
@@ -25,9 +25,9 @@ vi.mock("@/lib/kontrollen/kontrolleService", async (importOriginal) => {
 });
 
 import { mcpWithdraw, mcpRequestInspection, mcpResolveInspection } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrollen/kontrolleService";
-import { INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
+import { INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/shared/constants";
 import { keyholderVisibleKontrolleWhere } from "@/lib/entries/queries";
 
 const JETZT = new Date("2026-07-28T12:00:00Z");

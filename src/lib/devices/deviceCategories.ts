@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { PrismaTx } from "@/lib/entries/queries";
 
 /** Stable slug for the built-in KG category — referenced by buildPairs gating, API

@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { LOCK_ENDED_REASON, APP_NAME } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { LOCK_ENDED_REASON, APP_NAME } from "@/lib/shared/constants";
 import { escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/messages/mail";
 import { notifyUser, deliverToChannels, NOTIFY_RECIPIENT_SELECT, type NotifyContent, type NotifyInbox, type NotifyRecipient } from "@/lib/messages/notify";
 import { actorColumn, recordInboxDelivery, type MessageActor } from "@/lib/messages/messageService";
@@ -7,9 +7,9 @@ import { notifyHeimdallForUserId } from "@/lib/box/heimdallNotify";
 import { markLastAction } from "@/lib/upstream/appMeta";
 import { emailT, emailGreeting } from "@/lib/messages/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/entries/queries";
-import { formatDateTime, formatDurationHours } from "@/lib/utils";
+import { formatDateTime, formatDurationHours } from "@/lib/shared/utils";
 import { parseTriggerAt, computeDelayedTrigger, isHiddenFromSub } from "@/lib/entries/delayedTrigger";
-import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 import { isHealthHoldActive } from "@/lib/entries/healthHold";
 import { conflictingLockSpecs, hasLockSpec } from "@/lib/entries/lockSpec";
 

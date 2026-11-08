@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import {
   resolveUserContext, makeIso, buildEnvelope, tzOf, toNoteDTO, noteSelect, parseIsoDate, entityKey, matchByNameCI, NOTE_TEXT_LIMIT,
   type Envelope, type NoteDTO, type EntityRef, type EntityType,

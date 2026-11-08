@@ -1,15 +1,15 @@
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/kontrollen/verifyCode";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 import { notifyUser } from "@/lib/messages/notify";
 import { getControllerAudience } from "@/lib/auth/keyholder";
 import { notifyLateProof } from "@/lib/tasks/taskProofNotify";
 import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/tasks/taskIntervals";
 import { isTaskResultFinal, proofResubmittable, type TaskEvaluation, proofAcceptsNow, type ProofDeadlineWindow,} from "@/lib/tasks/tasks";
 import { settleIfFinal, settleIfNowDone } from "@/lib/tasks/taskService";
-import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
+import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/shared/constants";
 import type { MessageActor } from "@/lib/messages/messageService";
 
 /**

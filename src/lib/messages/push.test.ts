@@ -14,7 +14,7 @@ const { sendNotification, nativeTokens, subscriptions, deleteTokens } = vi.hoist
 }));
 
 vi.mock("web-push", () => ({ default: { setVapidDetails: vi.fn(), sendNotification } }));
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     nativePushToken: { findMany: nativeTokens, deleteMany: deleteTokens },
     pushSubscription: { findMany: subscriptions, deleteMany: vi.fn() },

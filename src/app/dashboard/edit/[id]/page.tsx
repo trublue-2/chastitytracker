@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { auth } from "@/lib/auth/auth";
 import { notFound } from "next/navigation";
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
@@ -9,11 +9,11 @@ import PruefungForm from "../../PruefungForm";
 import OrgasmusForm from "../../OrgasmusForm";
 import WearForm from "../../WearForm";
 import { getTranslations } from "next-intl/server";
-import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
+import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/shared/utils";
 import { getUserDeviceOptions, getUserTimezone, getLatestKgEntry, getMobileDesktopMode } from "@/lib/entries/queries";
 import { entryManageAccess } from "@/lib/auth/keyholder";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrollen/kontrolleService";
-import { TYPE_STATS_KEYS } from "@/lib/constants";
+import { TYPE_STATS_KEYS } from "@/lib/shared/constants";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/entries/reasonsService";
 
 export default async function EditEntryPage({

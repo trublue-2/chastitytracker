@@ -13,7 +13,7 @@ import { describe, it, expect, vi } from "vitest";
  */
 
 // Nur die reine Ableitung wird geprüft — der Prisma-Client des Moduls bleibt eine Attrappe.
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });

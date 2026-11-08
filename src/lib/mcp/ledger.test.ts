@@ -15,7 +15,7 @@ import { describe, it, expect, vi } from "vitest";
  * still verschwindet.
  */
 
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -26,7 +26,7 @@ vi.mock("@/lib/strafbuch/strafbuch", async (orig) => ({ ...(await orig<object>()
 import { buildOffenseRows, filterOffenses, getOffenses, OFFENSE_TYPES, type OffenseRow } from "./ledger";
 import { collectDetectedOffenses, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafbuch/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";
 import { TEST_USER, type PrismaMock } from "@/test/prismaMock";
 

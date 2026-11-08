@@ -8,7 +8,7 @@ import QuotedField from "@/app/components/QuotedField";
 import Textarea from "@/app/components/Textarea";
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/constants";
+import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/shared/constants";
 import type { StatementView } from "@/lib/strafbuch/offenseStatementService";
 
 /**

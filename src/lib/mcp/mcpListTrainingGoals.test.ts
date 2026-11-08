@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * aus und liefert sie nur mit includeDeleted:true — dann mit status:"deleted" + gesetztem deletedAt.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
   },
@@ -15,7 +15,7 @@ vi.mock("@/lib/stats/vorgabeService", () => ({
 }));
 
 import { mcpListTrainingGoals } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { listVorgaben } from "@/lib/stats/vorgabeService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;

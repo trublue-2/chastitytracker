@@ -11,10 +11,10 @@
  */
 import { describe, it, expect, vi } from "vitest";
 
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: {} }));
 
 import { judgmentAuthorColumns } from "./strafurteilService";
-import { AI_AUTHOR } from "../constants";
+import { AI_AUTHOR } from "../shared/constants";
 
 describe("Urteils-Autor", () => {
   it("hält den Namen fest, wenn ein Mensch entscheidet", () => {

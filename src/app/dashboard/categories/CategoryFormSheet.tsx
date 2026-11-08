@@ -21,7 +21,7 @@ import {
   type CategoryIcon,
 } from "@/lib/devices/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
-import { DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
+import { DEVICE_NAME_MAX_LENGTH } from "@/lib/shared/constants";
 import Toggle from "@/app/components/Toggle";
 import type { CategoryRow } from "./CategoriesClient";
 

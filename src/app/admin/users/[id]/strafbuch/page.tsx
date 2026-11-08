@@ -1,13 +1,13 @@
 import { auth } from "@/lib/auth/auth";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
-import { logAccess } from "@/lib/serverLog";
-import { prisma } from "@/lib/prisma";
-import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/utils";
+import { logAccess } from "@/lib/shared/serverLog";
+import { prisma } from "@/lib/shared/prisma";
+import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/shared/utils";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch/strafbuch";
 import { cleaningNotRelockedRef } from "@/lib/strafbuch/strafurteilService";
 import { missedWeightRef } from "@/lib/weight/weightObligation";
 import { loadStatementsOfUser } from "@/lib/strafbuch/offenseStatementService";
-import { passwordChangeViaLabel } from "@/lib/constants";
+import { passwordChangeViaLabel } from "@/lib/shared/constants";
 import { getLocale, getTranslations } from "next-intl/server";
 import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type CleaningLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type OrgasmusFalscheArtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow, type StatementView } from "./StrafbuchClient";
 

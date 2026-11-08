@@ -16,7 +16,7 @@ const server = await createServer({
   root, configFile: false, logLevel: "warn", server: { middlewareMode: true }, appType: "custom",
 });
 try {
-  const doc = await server.ssrLoadModule("/src/lib/prismaSchema.ts");
+  const doc = await server.ssrLoadModule("/src/lib/shared/prismaSchema.ts");
   const areas = await server.ssrLoadModule("/src/lib/mcp/stateAreas.ts");
   const schema = doc.parsePrismaSchema(await fs.readFile(path.join(root, "prisma/schema.prisma"), "utf8"));
   process.stdout.write(areas.buildStateTriggerSql(schema));

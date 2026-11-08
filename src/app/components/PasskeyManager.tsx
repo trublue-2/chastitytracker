@@ -9,7 +9,7 @@ import Button from "@/app/components/Button";
 import ConfirmDialog from "@/app/components/ConfirmDialog";
 import Input from "@/app/components/Input";
 import useToast from "@/app/hooks/useToast";
-import { formatDate, toDateLocale } from "@/lib/utils";
+import { formatDate, toDateLocale } from "@/lib/shared/utils";
 
 interface PasskeyEntry {
   id: string;

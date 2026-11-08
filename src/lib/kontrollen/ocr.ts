@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { spawn } from "child_process";
 import { loadUploadedImage } from "@/lib/client/imageUtils";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 
 /**
  * Lokale, KI-freie Ziffern-OCR via Tesseract (im Docker-Image: `apk add tesseract-ocr`).

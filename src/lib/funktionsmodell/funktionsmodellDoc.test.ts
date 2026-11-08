@@ -21,7 +21,7 @@ import {
 import { FM_CAPABILITIES, FM_EXCLUDED_ROUTES, FM_MCP_EXEMPT } from "./funktionsmodellCapabilities";
 import { readApiRoutes, readMcpTools } from "./funktionsmodellSurfaces";
 import { FM_REGISTRY, FM_SCANNED_MODELS } from "./funktionsmodellRegistry";
-import { SELF_EDITABLE_USER_FIELDS } from "../constants";
+import { SELF_EDITABLE_USER_FIELDS } from "../shared/constants";
 
 const root = path.resolve(__dirname, "../../..");
 const schema = parsePrismaSchema(fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8"));

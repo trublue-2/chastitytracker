@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * `withdrawnAt` und löscht nicht — sonst verschwände mit dem Fehleintrag auch seine Spur.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     manualOffense: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), update: vi.fn(), delete: vi.fn(), deleteMany: vi.fn() },
@@ -20,8 +20,8 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
 
 import { mcpRecordOffense, mcpWithdraw } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
-import { MANUAL_OFFENSE_TITLE_MAX_LENGTH } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { MANUAL_OFFENSE_TITLE_MAX_LENGTH } from "@/lib/shared/constants";
 import { markLastAction } from "@/lib/upstream/appMeta";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;

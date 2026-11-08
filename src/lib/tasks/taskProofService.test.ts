@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * um die es in #39 überhaupt geht, wäre in jedem dieser Fälle wertlos.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     taskProof: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     task: { findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
@@ -16,7 +16,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/kontrollen/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
-vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
+vi.mock("@/lib/shared/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "kh1" }], username: "sub" })) }));
 // Nur `evaluateTaskById` festnageln, der Rest bleibt ECHT: `SUB_VISIBLE_WHERE` hängt am Einreiche-Pfad
@@ -32,7 +32,7 @@ import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, pr
 import { notifyUser, notifyControllers } from "@/lib/messages/notify";
 import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
 import { settleIfFinal } from "@/lib/tasks/taskService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { verifyKontrolleCodeDetailed } from "@/lib/kontrollen/verifyCode";
 
 const find = prisma.taskProof.findFirst as unknown as ReturnType<typeof vi.fn>;

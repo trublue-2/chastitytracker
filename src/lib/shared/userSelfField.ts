@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { requireApi, type ApiSession } from "@/lib/auth/authGuards";
-import type { SelfEditableUserField } from "@/lib/constants";
+import type { SelfEditableUserField } from "@/lib/shared/constants";
 import type { Prisma } from "@prisma/client";
 
 /**

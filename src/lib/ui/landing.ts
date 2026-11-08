@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getControlledSubs, canControlSub } from "@/lib/auth/keyholder";
 import { isController } from "@/lib/auth/ownTracker";
-import { isValidStartPage } from "@/lib/constants";
+import { isValidStartPage } from "@/lib/shared/constants";
 
 /** Session shape the landing resolver needs (subset of the NextAuth session). */
 interface LandingSession {

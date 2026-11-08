@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { requirementsShownAt, type TaskState } from "./tasks/tasks";
+import { requirementsShownAt, type TaskState } from "../tasks/tasks";
 
 /**
  * Über welchen Zeitpunkt die Bedingungs-Häkchen einer Aufgabe sprechen. Anlass: nach dem Ablegen am

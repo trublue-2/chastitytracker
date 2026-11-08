@@ -10,7 +10,7 @@ import {
   orgasmEntriesCached, sessionListDataCached, taskCardsCached, wearCountsCached,
   wearingHoursCached, wearSessionRowsCached,
 } from "@/lib/stats/dashboardData";
-import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
+import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/shared/constants";
 import { getIsLocked, isScheduledDirective, userHasBox } from "@/lib/entries/queries";
 import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/entries/cleaningService";
 import { datedWindowLabel } from "@/lib/stats/weekdays";
@@ -27,7 +27,7 @@ import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import {
   formatDate, formatTime, formatDurationMs, formatTotalHours, formatTotalMs,
   interruptionPauseMs, isTimeCorrected, nowDatetimeLocal,
-} from "@/lib/utils";
+} from "@/lib/shared/utils";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import StatusBanner from "@/app/dashboard/StatusBanner";
 import ActiveWearSessions from "@/app/dashboard/ActiveWearSessions";

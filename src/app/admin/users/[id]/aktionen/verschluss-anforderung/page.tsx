@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { getUserDeviceOptions, getIsLocked, getUserTimezone } from "@/lib/entries/queries";
 import { subLockPeriodCached } from "@/lib/stats/dashboardData";
-import { nowDatetimeLocal } from "@/lib/utils";
+import { nowDatetimeLocal } from "@/lib/shared/utils";
 import { resolveLockFormArt } from "@/lib/entries/lockRequestPlanning";
 import VerschlussAnforderungForm from "./VerschlussAnforderungForm";
 

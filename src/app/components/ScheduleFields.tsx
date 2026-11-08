@@ -2,11 +2,11 @@
 
 import type { Ref } from "react";
 import { useTranslations } from "next-intl";
-import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/shared/utils";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import DurationInput from "@/app/components/DurationInput";
 import FieldTabs from "@/app/components/FieldTabs";
-import { durationToHours, type DurationUnit } from "@/lib/constants";
+import { durationToHours, type DurationUnit } from "@/lib/shared/constants";
 
 /**
  * Die TERMINIERUNG einer Direktive — sofort, verzögert oder auf einen Zeitpunkt.

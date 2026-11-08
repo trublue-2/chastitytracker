@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getRpConfig, setChallenge, getAndDeleteChallenge, createPasskeyToken } from "@/lib/auth/webauthn";
 import { generateAuthenticationOptions, verifyAuthenticationResponse, type AuthenticatorTransport } from "@simplewebauthn/server";
 import { checkRateLimit, rateLimitResponse } from "@/lib/auth/rate-limit";

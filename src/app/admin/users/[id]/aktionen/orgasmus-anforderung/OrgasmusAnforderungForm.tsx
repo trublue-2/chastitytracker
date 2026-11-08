@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { fromDatetimeLocal } from "@/lib/utils";
+import { fromDatetimeLocal } from "@/lib/shared/utils";
 import {
   ORGASMUS_ANFORDERUNG_ARTEN, orgasmusAnforderungArtLabel,
   DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit,
-} from "@/lib/constants";
+} from "@/lib/shared/constants";
 import type { ResolvedReason } from "@/lib/entries/reasonsService";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";

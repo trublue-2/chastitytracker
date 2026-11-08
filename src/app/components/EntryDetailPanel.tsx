@@ -1,7 +1,7 @@
 "use client";
 
-import { formatDateTime, APP_TZ } from "@/lib/utils";
-import { GRUND_I18N_KEYS } from "@/lib/constants";
+import { formatDateTime, APP_TZ } from "@/lib/shared/utils";
+import { GRUND_I18N_KEYS } from "@/lib/shared/constants";
 import { useTranslations } from "next-intl";
 import DetailField from "@/app/components/DetailField";
 import Badge from "@/app/components/Badge";

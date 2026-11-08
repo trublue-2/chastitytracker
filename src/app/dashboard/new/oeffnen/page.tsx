@@ -3,18 +3,18 @@ import { actionSign } from "@/app/entries/actionSign";
 import OeffnenForm from "../../OeffnenForm";
 import type { LockPeriodState } from "@/app/entries/types";
 import { auth } from "@/lib/auth/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getLatestKgEntry, getActiveLockPeriod, cleaningBlockReason } from "@/lib/entries/queries";
-import { bildersafeEnabled } from "@/lib/constants";
+import { bildersafeEnabled } from "@/lib/shared/constants";
 import { entryFormBase } from "@/lib/entries/entryFormRoute";
-import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/entries/reasonsService";
 import { cleaningUsedToday, nextCleaningWindow, CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
 import { boxHoldOutlook } from "@/lib/box/boxOpenOutlook";
 import { getTasksBlocking } from "@/lib/tasks/taskIntervals";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 
 export default async function NewOeffnenPage() {
   // Diagnose, befristet: diese Seite braucht auf einer Instanz gelegentlich länger als die vier

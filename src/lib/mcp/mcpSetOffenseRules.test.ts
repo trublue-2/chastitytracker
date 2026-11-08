@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Vorschau, die auch nennt, was sich gar nicht bewegt.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() }, offenseRuleChange: { findMany: vi.fn() } },
 }));
 vi.mock("@/lib/strafbuch/offenseRulesService", async (importOriginal) => {
@@ -17,7 +17,7 @@ vi.mock("@/lib/strafbuch/offenseRulesService", async (importOriginal) => {
 });
 
 import { mcpSetOffenseRules } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { setOffenseRule } from "@/lib/strafbuch/offenseRulesService";
 
 const setRuleMock = setOffenseRule as unknown as ReturnType<typeof vi.fn>;

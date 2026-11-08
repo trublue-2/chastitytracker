@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { entryManageAccess } from "@/lib/auth/keyholder";
 
 /**

@@ -1,10 +1,10 @@
 import { readFile, writeFile } from "fs/promises";
 import { join, basename } from "path";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { uploadsDirPath, generateUploadFilename, deleteUploadedFiles } from "@/lib/client/imageUtils";
-import { visionMaxRefsPerDevice } from "@/lib/constants";
+import { visionMaxRefsPerDevice } from "@/lib/shared/constants";
 import type { DeviceReference } from "@/lib/kontrollen/detectDevice";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 
 /**
  * Sammelt die Referenzbilder JE aktivem KG-Gerät für die Vision-Erkennung: bevorzugt kuratierte

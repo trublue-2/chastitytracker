@@ -5,14 +5,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * dort immer (`lockAwaitsBolt`); ein Abschalten, das einen wartenden Aufruf OHNE Riegel vollzöge, widerspräche
  * dieser Regel.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 vi.mock("@/lib/box/boxPhotoDueService", () => ({ markBoxPhotoDue: vi.fn() }));
 
 import { setLockRequiresBolt } from "./lockCommit";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

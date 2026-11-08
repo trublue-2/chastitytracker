@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 const findMany = vi.fn();
-vi.mock("@/lib/prisma", () => ({ prisma: { boxStatus: { findMany: (...a: unknown[]) => findMany(...a) } } }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: { boxStatus: { findMany: (...a: unknown[]) => findMany(...a) } } }));
 vi.mock("@/lib/entries/queries", () => ({ getIsLocked: vi.fn(), getInterruptedLockPeriod: vi.fn() }));
 vi.mock("@/lib/box/boxCommand", () => ({ setBoxCommandForUser: vi.fn() }));
 vi.mock("@/lib/box/boxCommandNotify", () => ({ announceBoxCommand: vi.fn() }));

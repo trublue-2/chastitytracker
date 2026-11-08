@@ -1,5 +1,5 @@
 import { releaseLockPeriodsOnOpen, getLatestKgEntry, type PrismaTx } from "@/lib/entries/queries";
-import { codedError } from "@/lib/codedError";
+import { codedError } from "@/lib/shared/codedError";
 
 export interface CreateOeffnenParams {
   userId: string;

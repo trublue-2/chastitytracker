@@ -1,6 +1,6 @@
-import { listProblem, parseJsonList, type ListProblem } from "@/lib/jsonList";
+import { listProblem, parseJsonList, type ListProblem } from "@/lib/shared/jsonList";
 import { firstWeekdayRule, isoWeekdayInTZ, parseWeekdayMask, weekdayMaskValid } from "@/lib/stats/weekdays";
-import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
 
 /**
  * Wochentag-Ausnahmen des TAGES-Minimums eines Trainingsziels: **die Abweichung vom Grundstand, nicht

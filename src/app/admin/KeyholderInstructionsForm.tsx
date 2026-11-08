@@ -8,7 +8,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Card from "@/app/components/Card";
 import HelpLink from "@/app/components/HelpLink";
-import { mcpHelpUrl, toLocale } from "@/lib/constants";
+import { mcpHelpUrl, toLocale } from "@/lib/shared/constants";
 import { KEYHOLDER_TEMPLATE } from "@/lib/mcp/keyholderTemplate";
 
 /** Free-text rules the human keyholder sets for the AI keyholder acting over the MCP.

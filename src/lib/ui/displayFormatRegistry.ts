@@ -166,7 +166,7 @@ export interface DisplayFormatException {
 /** Wer eine Dauer zusammensetzen darf, und wer nur so aussieht. */
 export const DURATION_ASSEMBLY_EXCEPTIONS: readonly DisplayFormatException[] = [
   {
-    file: "src/lib/utils.ts",
+    file: "src/lib/shared/utils.ts",
     contains: "",
     reason:
       "Hier IST der eine Ort, an dem eine Dauer entsteht — Zeile für Zeile auszunehmen wäre eine " +
@@ -184,7 +184,7 @@ export const DURATION_ASSEMBLY_EXCEPTIONS: readonly DisplayFormatException[] = [
     reason: "Ein Tages-Datum + fester Uhrzeit („T12:00\"/„T23:59\") nach ISO — das „T\" ist der Datums-Trenner, keine Tages-Einheit; hier entsteht keine Dauer.",
   },
   {
-    file: "src/lib/serverLog.ts",
+    file: "src/lib/shared/serverLog.ts",
     contains: "s.replace(",
     reason: "Log-Kürzung `<5d>`: „d\" steht für Ziffern (digits), nicht für Tage.",
   },

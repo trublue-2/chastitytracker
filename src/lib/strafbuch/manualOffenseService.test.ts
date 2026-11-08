@@ -6,14 +6,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * dieser Test hält fest, welche das ist.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { manualOffense: { create: vi.fn(), updateMany: vi.fn() }, strafeRecord: { findUnique: vi.fn() } },
 }));
 vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
 
 import { validateManualOffenseInput, createManualOffense, withdrawManualOffense } from "./manualOffenseService";
-import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "../constants";
-import { prisma } from "@/lib/prisma";
+import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "../shared/constants";
+import { prisma } from "@/lib/shared/prisma";
 
 const createMock = prisma.manualOffense.create as unknown as ReturnType<typeof vi.fn>;
 const updateManyMock = prisma.manualOffense.updateMany as unknown as ReturnType<typeof vi.fn>;

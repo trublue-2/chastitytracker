@@ -12,7 +12,7 @@ import type { NextRequest } from "next/server";
  */
 
 vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -27,7 +27,7 @@ import { DELETE as deleteMessageRoute } from "@/app/api/admin/messages/[id]/rout
 import { POST as markReadRoute, DELETE as markUnreadRoute } from "@/app/api/admin/messages/[id]/read/route";
 import { POST as bulkRoute } from "@/app/api/admin/messages/bulk/route";
 import { auth } from "@/lib/auth/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 const authMock = mock(auth);

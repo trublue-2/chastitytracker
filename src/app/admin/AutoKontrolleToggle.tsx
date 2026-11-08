@@ -12,7 +12,7 @@ import {
   AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE, POST_LOCK_INSPECTION_DEADLINE_RANGE,
   type NumberRange,
-} from "@/lib/constants";
+} from "@/lib/shared/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import WeekdayPicker from "@/app/components/WeekdayPicker";
 import RemoveRowButton from "@/app/components/RemoveRowButton";

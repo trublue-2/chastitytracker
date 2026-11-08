@@ -5,10 +5,10 @@ import { createPrismaMock, type PrismaMock } from "@/test/prismaMock";
 // prisma.user.update und würfelt bei einer echten Planungs-Änderung den Tag neu
 // (kontrollAnforderung.deleteMany/findMany/createMany).
 const prismaMock: PrismaMock = createPrismaMock();
-vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: prismaMock }));
 
 const { setAutoKontrolleSettings } = await import("./autoKontrolleService");
-const { serviceResponse } = await import("../serviceResult");
+const { serviceResponse } = await import("../shared/serviceResult");
 
 const updateMock = prismaMock.user.update;
 const findUniqueMock = prismaMock.user.findUnique;

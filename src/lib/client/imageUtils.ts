@@ -2,7 +2,7 @@ import { readFile, unlink } from "fs/promises";
 import { join, basename, sep } from "path";
 import { randomBytes } from "crypto";
 import sharp from "sharp";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 
 export const IMAGE_MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "image/webp"> = {
   jpg: "image/jpeg",

@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 interface Row { id: string; username: string; email: string | null }
 let users: Row[] = [];
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(async ({ where }: { where: { username?: string; id?: string } }) =>
@@ -22,7 +22,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { emailTakenByOther, findUserByLogin, normalizeEmail, prepareEmailInput, resolveLogin } from "./loginIdentity";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const findMany = prisma.user.findMany as unknown as ReturnType<typeof vi.fn>;
 

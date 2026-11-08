@@ -1,12 +1,12 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import {
   ALL_CHANNELS, anyChannelActive, channelsAnd, channelsForLevels,
   type MessagePriority, type NotificationChannels,
-} from "@/lib/constants";
+} from "@/lib/shared/constants";
 import { hasPushTarget } from "@/lib/messages/push";
 import { mailReaches } from "@/lib/messages/mail";
 import { telegramChatReachable } from "@/lib/messages/telegram";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 
 /**
  * Was der Versand über einen Empfänger wissen muss, um seine Kanäle zu bestimmen — seine drei Stufen

@@ -1,7 +1,7 @@
-import { effectiveAt, midnightOfLocalDate, round1, tzDateParts } from "@/lib/utils";
-import { HEIGHT_CM_RANGE, WEIGHT_KG_RANGE } from "@/lib/constants";
+import { effectiveAt, midnightOfLocalDate, round1, tzDateParts } from "@/lib/shared/utils";
+import { HEIGHT_CM_RANGE, WEIGHT_KG_RANGE } from "@/lib/shared/constants";
 import { coveragePct } from "@/lib/stats/percent";
-import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
 
 /**
  * Rechenkern des Gewichtstrackings: Einheiten, BMI, Zielgewicht und Fortschritt, Grössen-Historie.

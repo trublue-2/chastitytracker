@@ -14,7 +14,7 @@ const tx = {
   orgasmusAnforderung: { findMany: vi.fn(), updateMany: vi.fn(), create: vi.fn() },
 };
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     orgasmusAnforderung: { updateMany: vi.fn() },
@@ -39,7 +39,7 @@ vi.mock("@/lib/messages/notify", async (importOriginal) => ({
 vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 
 import { createOrgasmusAnforderung, checkOrgasmWindowEnd } from "./orgasmusAnforderungService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { sendMailSafe } from "@/lib/messages/mail";
 import { notifyUser } from "@/lib/messages/notify";
 import { sendPushToUser } from "@/lib/messages/push";

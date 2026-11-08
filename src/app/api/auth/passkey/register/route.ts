@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getRpConfig, setChallenge, getAndDeleteChallenge } from "@/lib/auth/webauthn";
 import { generateRegistrationOptions, verifyRegistrationResponse, type AuthenticatorTransport } from "@simplewebauthn/server";
 

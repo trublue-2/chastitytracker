@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * `locale: "de"` gerendert. Ein englischsprachiger Keyholder bekam sie auf Deutsch.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     device: { findUnique: vi.fn() },
   },

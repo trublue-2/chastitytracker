@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
+import { fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/shared/utils";
 import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
 import { useLockboxCodePhoto } from "@/app/hooks/useLockboxCodePhoto";
 import LockboxCodePhotoField from "@/app/components/LockboxCodePhotoField";

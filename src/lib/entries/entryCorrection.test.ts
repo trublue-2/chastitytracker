@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { assertEntryTimeOk, correctionProblem, entryPairTypes, entryPersistsDevice } from "./entryCorrection";
-import { KG_PAIR, WEAR_PAIR } from "../utils";
-import { VALID_TYPES } from "../constants";
+import { KG_PAIR, WEAR_PAIR } from "../shared/utils";
+import { VALID_TYPES } from "../shared/constants";
 import type { Prisma } from "@prisma/client";
 
 /**

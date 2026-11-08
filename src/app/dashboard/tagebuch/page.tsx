@@ -10,7 +10,7 @@ import JournalBrowser from "@/app/components/JournalBrowser";
 import { titleCls } from "@/app/components/inputStyles";
 import { JOURNAL_HREF, JOURNAL_NEW_HREF } from "@/lib/journal/journal";
 import { loadJournalView } from "@/lib/journal/journalService";
-import { APP_TZ } from "@/lib/utils";
+import { APP_TZ } from "@/lib/shared/utils";
 
 // Wie das übrige Dashboard: user-spezifisch, nie geteilt gecacht.
 export const dynamic = "force-dynamic";

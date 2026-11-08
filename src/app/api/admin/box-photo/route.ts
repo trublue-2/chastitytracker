@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
 import { waiveBoxPhoto } from "@/lib/box/boxPhotoDueService";
-import { errorResponse, serviceResponse } from "@/lib/serviceResult";
+import { errorResponse, serviceResponse } from "@/lib/shared/serviceResult";
 
 /**
  * Die Keyholderin erlässt das fällige Box-Foto — der Notausgang, wenn es nicht zu beschaffen ist

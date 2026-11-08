@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma";
-import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
+import { NO_FIELDS_TO_UPDATE } from "@/lib/shared/constants";
 import { weighingWindowsProblem, parseWeighingWindows } from "@/lib/weight/weightWindows";
 import { WEIGHT_USER_SELECT } from "@/lib/weight/weightService";
 import { OFFENSE_RULE_CHANGE_SELECT } from "@/lib/strafbuch/offenseRulesService";

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
 import { entryManageAccess } from "@/lib/auth/keyholder";
-import { prisma } from "@/lib/prisma";
-import { isValidImageUrl, validateDeviceInput } from "@/lib/constants";
-import { errorResponse, serviceFailure } from "@/lib/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+import { isValidImageUrl, validateDeviceInput } from "@/lib/shared/constants";
+import { errorResponse, serviceFailure } from "@/lib/shared/serviceResult";
 import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";
 
 /**

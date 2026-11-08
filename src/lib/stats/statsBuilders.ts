@@ -1,7 +1,7 @@
 import {
   dayKeyOfLocalDate, formatMonthYear, formatTime, formatTotalHours, midnightAfterDays, midnightOfLocalDate,
   mondayIndexOfLocalDate, tzDateParts, tzDayKey, wearingHoursFromPairs, type WearPair,
-} from "@/lib/utils";
+} from "@/lib/shared/utils";
 import { periodTarget } from "@/lib/stats/goalFulfillment";
 import { segmentedGoalWindows, NO_SEGMENTED_GOAL, type SegmentedGoalProgress } from "@/lib/stats/goalSegments";
 import { parseWeekdayGoalRules, resolveDayTarget } from "@/lib/stats/weekdayGoal";

@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Der Codewechsel-Vergleich an der Datenbank und am Vision-Provider (#115): wann geprüft wird, wie
  * oft gelesen wird, was gespeichert und wem gemeldet wird — und dass nirgends Ziffern hinausgehen.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -18,7 +18,7 @@ vi.mock("@/lib/auth/keyholder", () => ({
 vi.mock("@/lib/messages/notify", () => ({ notifyControllers: vi.fn(async () => undefined) }));
 vi.mock("@/lib/entries/queries", () => ({ isCodePhotoRevealed: vi.fn(async () => true) }));
 
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { visionConfigured } from "@/lib/vision";
 import { detectLockboxCode } from "@/lib/kontrollen/verifyCode";
 import { notifyControllers } from "@/lib/messages/notify";

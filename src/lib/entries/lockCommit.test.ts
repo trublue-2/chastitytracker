@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * er alles richtig gemacht hat.
  */
 
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/box/boxPhotoDueService", () => ({ markBoxPhotoDue: vi.fn() }));
 
 import { lockAwaitsBolt, openAwaitsBolt, boxReportedLockedSafe } from "./lockCommit";

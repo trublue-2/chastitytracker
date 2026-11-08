@@ -12,7 +12,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/prisma", () => {
+vi.mock("@/lib/shared/prisma", () => {
   const timezoneChange = {
     count: vi.fn(async () => 0),
     createMany: vi.fn(async (_args: { data: unknown[] }) => ({ count: 0 })),
@@ -31,7 +31,7 @@ vi.mock("@/lib/prisma", () => {
 });
 
 import { timezoneRulesFrom, setUserTimezone, TIMEZONE_EPOCH, fixedTimezone } from "./timezoneRules";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const at = (iso: string) => new Date(iso);
 /** Die Zeilen, die der Schreibpfad angelegt hat — an zwei Stellen gebraucht. */

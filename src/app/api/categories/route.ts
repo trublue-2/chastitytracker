@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { requireApi, deviceCategoriesGate } from "@/lib/auth/authGuards";
 import { entryManageAccess } from "@/lib/auth/keyholder";
-import { errorResponse } from "@/lib/serviceResult";
+import { errorResponse } from "@/lib/shared/serviceResult";
 import { createCategory } from "@/lib/devices/deviceCategoryService";
 import { validateCategoryInput } from "@/lib/devices/categoryConstants";
-import { DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
+import { DEVICE_NAME_MAX_LENGTH } from "@/lib/shared/constants";
 import { CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT } from "@/lib/entries/queries";
 
 /** GET /api/categories — list current user's DeviceCategories.

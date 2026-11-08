@@ -5,7 +5,7 @@ import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import { JOURNAL_HREF } from "@/lib/journal/journal";
 import { journalSettingsOf } from "@/lib/journal/journalService";
-import { APP_TZ, nowDatetimeLocal } from "@/lib/utils";
+import { APP_TZ, nowDatetimeLocal } from "@/lib/shared/utils";
 import JournalForm from "../../JournalForm";
 
 export const dynamic = "force-dynamic";

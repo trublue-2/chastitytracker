@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Echtes SMTP, Push und Telegram sind hier nicht erreichbar; geprüft wird, was an sie GEHT.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     message: { create: vi.fn(async () => ({ id: "m1" })), findFirst: vi.fn(async () => null) },
@@ -25,7 +25,7 @@ vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn(), hasPushTarget: 
 vi.mock("@/lib/messages/telegram", () => ({ sendTelegram: vi.fn() }));
 vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 vi.mock("next-intl/server", async () => (await import("@/test/notifyLeafMocks")).intlServerLeaf());
-vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
+vi.mock("@/lib/shared/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
 vi.mock("@/lib/box/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
@@ -46,12 +46,12 @@ import { notifyUser } from "./notify";
 import { sendKontrolleNotification } from "../kontrollen/kontrolleService";
 import { sendVerschlussAnforderungNotifications } from "../entries/verschlussAnforderungService";
 import { sendOrgasmusAnforderungNotifications } from "../entries/orgasmusAnforderungService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { recordInboxDelivery } from "@/lib/messages/messageService";
 import * as mailModule from "@/lib/messages/mail";
 import * as pushModule from "@/lib/messages/push";
 import * as telegramModule from "@/lib/messages/telegram";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME } from "@/lib/shared/constants";
 
 type Spy = ReturnType<typeof vi.fn>;
 

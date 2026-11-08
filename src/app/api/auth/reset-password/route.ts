@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import bcrypt from "bcryptjs";
 import { hashToken } from "@/lib/auth/oauth";
-import { passwordErrorCode } from "@/lib/constants";
+import { passwordErrorCode } from "@/lib/shared/constants";
 import { buildAdminPasswordChangeRows } from "@/lib/auth/passwordAudit";
 import { checkRateLimit, rateLimitResponse } from "@/lib/auth/rate-limit";
 import { clientIp } from "@/lib/auth/clientIp";

@@ -9,12 +9,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * vielen Stellen NACH der eigentlichen Änderung, ein 500 von hier verlöre sie.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { notificationPreference: { findUnique: vi.fn() } },
 }));
 
 import { getRecipientChannels } from "./notificationPrefs";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const findUnique = prisma.notificationPreference.findUnique as unknown as ReturnType<typeof vi.fn>;
 

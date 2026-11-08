@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
 import { writeOffenseStatement } from "@/lib/strafbuch/offenseStatementService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 import { notifyControllers } from "@/lib/messages/notify";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";

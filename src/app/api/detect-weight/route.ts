@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi, weightTrackingGate } from "@/lib/auth/authGuards";
 import { detectScaleReading } from "@/lib/kontrollen/verifyCode";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
-import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
+import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/shared/constants";
 import { weightInputToKg, weightProblem, type UnitSystem } from "@/lib/weight/weight";
 
 /**

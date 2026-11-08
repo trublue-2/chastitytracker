@@ -13,7 +13,7 @@ import AddRowButton from "@/app/components/AddRowButton";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import { editRowCardCls } from "@/app/components/inputStyles";
 import { coveragePct } from "@/lib/stats/percent";
-import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/constants";
+import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/shared/constants";
 import { ALL_WEEKDAYS } from "@/lib/stats/weekdays";
 import { WEEKDAY_GOAL_RULES_MAX, type WeekdayGoalRule } from "@/lib/stats/weekdayGoal";
 

@@ -8,10 +8,10 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 
 // telegram.ts zieht prisma nach sich (Verknüpfungs-Helfer). Der Versand braucht es nicht — wohl aber
 // `forgetDeadChat`, das bei einem toten Chat die Verknüpfung löst.
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { user: { updateMany: vi.fn(async () => ({ count: 1 })) } },
 }));
-vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
+vi.mock("@/lib/shared/serverLog", () => ({ structuredLog: vi.fn() }));
 
 const ORIGINAL_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 

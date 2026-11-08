@@ -8,12 +8,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * findet. Diese Datei pinnt die Ableitung, die daraus die drei Entscheidungen macht.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { device: { findUnique: vi.fn() } },
 }));
 
 import { inspectionCodeRequired, plannedVerification, initialVerificationStatus } from "./kontrolleService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const deviceFind = prisma.device.findUnique as unknown as ReturnType<typeof vi.fn>;
 

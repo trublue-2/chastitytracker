@@ -3,11 +3,11 @@ import { actionSign } from "@/app/entries/actionSign";
 import PruefungForm from "../../PruefungForm";
 import { auth } from "@/lib/auth/auth";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrollen/kontrolleService";
-import { generateKontrollCode } from "@/lib/utils";
+import { generateKontrollCode } from "@/lib/shared/utils";
 import { getBoxFormContext, getOpenKontrollen, getMobileDesktopMode } from "@/lib/entries/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { getTranslations } from "next-intl/server";
-import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/utils";
 
 export default async function NewPruefungPage({ searchParams }: { searchParams: Promise<{ code?: string; kommentar?: string; cat?: string }> }) {
   const [{ code, kommentar, cat }, session] = await Promise.all([searchParams, auth()]);

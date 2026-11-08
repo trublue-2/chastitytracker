@@ -1,4 +1,4 @@
-import { round1 } from "@/lib/utils";
+import { round1 } from "@/lib/shared/utils";
 import { dayNumber, weightDayKey } from "@/lib/weight/weight";
 import { movingAverage, type WeightPoint } from "@/lib/weight/weightSeries";
 

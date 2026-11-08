@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * unabhängig davon, ob sie später noch ausgelöst wird oder vorher zurückgezogen wurde.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { strafeRecord: { count: vi.fn() }, task: { findMany: vi.fn() } },
 }));
 vi.mock("next-intl/server", () => ({ getTranslations: vi.fn(async () => (k: string) => k) }));
@@ -27,7 +27,7 @@ vi.mock("@/app/components/OffenseList", () => ({ default: () => null }));
 
 import OpenPenalties from "./OpenPenalties";
 import { SUB_VISIBLE_WHERE } from "@/lib/tasks/taskIntervals";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { loadSubOffenses } from "@/lib/strafbuch/subOffenses";
 import { announcedOpenRefs } from "@/lib/strafbuch/offenseAnnounce";
 import { loadStatementViews } from "@/lib/strafbuch/offenseStatementService";

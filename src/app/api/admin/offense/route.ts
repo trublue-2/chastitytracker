@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { requireKeyholderOrAdminActor, requireKeyholderOrAdminApi, sessionActor } from "@/lib/auth/authGuards";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 import { validateManualOffenseInput, createManualOffense, withdrawManualOffense } from "@/lib/strafbuch/manualOffenseService";
 
 /** Von Hand notierte Vergehen anlegen und zurückziehen — der Browser-Rand desselben

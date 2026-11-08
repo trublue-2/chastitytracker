@@ -16,7 +16,7 @@ const state = vi.hoisted(() => ({
   deleted: [] as string[],
 }));
 
-vi.mock("@/lib/prisma", () => {
+vi.mock("@/lib/shared/prisma", () => {
   const tx = {
     boxStatus: {
       findUnique: vi.fn(async () => state.box),

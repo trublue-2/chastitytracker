@@ -21,10 +21,10 @@ import {
   type FmTarget,
 } from "./funktionsmodellRegistry";
 import { FM_CAPABILITIES, FM_EXCLUDED_ROUTES, type FmCapability, type FmSurface } from "./funktionsmodellCapabilities";
-import type { SchemaField, SchemaFields } from "../prismaSchema";
+import type { SchemaField, SchemaFields } from "../shared/prismaSchema";
 
 // Weitergereicht, weil `scripts/gen-funktionsmodell.mjs` und der Test den Parser über dieses Modul laden.
-export { parsePrismaSchema, type SchemaField, type SchemaFields } from "../prismaSchema";
+export { parsePrismaSchema, type SchemaField, type SchemaFields } from "../shared/prismaSchema";
 
 /** Ein Registry-Eintrag samt der Schema-Form, auf die er sich beruft. */
 export interface ResolvedEntry {

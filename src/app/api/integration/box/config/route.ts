@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { requireBoxSync } from "@/lib/box/boxSync";
 import { getActiveLockPeriod } from "@/lib/entries/queries";
 

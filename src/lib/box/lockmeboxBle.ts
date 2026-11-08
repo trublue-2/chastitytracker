@@ -6,7 +6,7 @@
 // es nur in der App. Alle Module werden dynamisch geladen, damit nichts davon im Server-Rendering läuft.
 
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
-import { codedError, codeOf } from "@/lib/codedError";
+import { codedError, codeOf } from "@/lib/shared/codedError";
 import { isNativePlatform } from "@/lib/messages/nativePush";
 import {
   LOCKMEBOX_COMMAND_LETTER, LOCKMEBOX_NAME_PREFIX, LOCKMEBOX_NAME_RE, LOCKMEBOX_RX, LOCKMEBOX_SERVICE,

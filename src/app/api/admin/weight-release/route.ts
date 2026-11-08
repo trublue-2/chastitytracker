@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import { setWeightRelease, withdrawWeightRelease } from "@/lib/weight/weightReleaseService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /** Freigabe-Vorgabe stellen (docs/gewicht-freigabe-konzept.md). Der Dienst prüft Gate, Richtung,
  *  Untergewicht und Zeitpunkt — die Route reicht den Body roh durch, wie bei der Orgasmus-Anweisung. */

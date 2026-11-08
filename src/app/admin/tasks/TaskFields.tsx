@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList, Repeat } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
-import { toDatetimeLocal, fromDatetimeLocal, formatElapsedMs } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, formatElapsedMs } from "@/lib/shared/utils";
 import useTick from "@/app/hooks/useTick";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import DurationInput from "@/app/components/DurationInput";
@@ -26,7 +26,7 @@ import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH,
   TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, clampStartGrace, startGraceFromClock, clampHoldDuration,
   DURATION_UNITS, durationToHours, durationFromHours, type DurationUnit,
-} from "@/lib/constants";
+} from "@/lib/shared/constants";
 import { minHoldMs, startDeadline } from "@/lib/tasks/tasks";
 import { TASK_FORM_QUERY } from "@/lib/entries/entryFormRoute";
 import type { TaskRequirementInput, TaskProofInput } from "@/lib/tasks/taskService";

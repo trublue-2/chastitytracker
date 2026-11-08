@@ -4,8 +4,8 @@ import { useTranslations } from "next-intl";
 import DateTimePicker from "./DateTimePicker";
 import DurationInput from "./DurationInput";
 import FieldTabs from "./FieldTabs";
-import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
-import { durationFromHours, durationToHours, type DurationUnit } from "@/lib/constants";
+import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/shared/utils";
+import { durationFromHours, durationToHours, type DurationUnit } from "@/lib/shared/constants";
 
 /**
  * EIN Zeitpunkt, zwei Eingabe-Wege: „Dauer" (Spanne ab einem Nullpunkt) oder „Zeitpunkt" (absolut).

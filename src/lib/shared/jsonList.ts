@@ -1,4 +1,4 @@
-import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
 
 /**
  * Die zwei Hälften einer LISTE in einer JSON-Spalte — für die drei Fenster-Familien, die sich

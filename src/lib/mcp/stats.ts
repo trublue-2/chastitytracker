@@ -1,4 +1,4 @@
-import { buildKgWearPairs, wearHoursOfPairs, longestOrgasmFreeGap, median, msToHours, orgasmTimes, round1, summarizeDurations } from "@/lib/utils";
+import { buildKgWearPairs, wearHoursOfPairs, longestOrgasmFreeGap, median, msToHours, orgasmTimes, round1, summarizeDurations } from "@/lib/shared/utils";
 import { type ByPeriod, type GoalChangedInPeriod, type VorgabeTargets } from "@/lib/stats/goalFulfillment";
 import { resolveGoalRow } from "@/lib/stats/goalSegments";
 import { getActiveVorgabe, getKgVorgabeSegments } from "@/lib/entries/queries";
@@ -6,7 +6,7 @@ import { buildCategoryWearGoals } from "@/lib/devices/categoryGoals";
 import { buildSessions, buildWearSessions, deviceDisplayName, deviceGroupKey, isLiveOpenSession, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/entries/sessionModel";
 import { pct } from "@/lib/mcp/format";
 import { makeIso, buildEnvelope, loadTrackingContext, loadCategoryNames, type Envelope, type TrackingContext } from "@/lib/mcp/common";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 /** Vorberechnete Statistiken & Rekorde aus SEGMENTEN (nicht Labels) — §5/§6/§7. Rein lesend.
  *  Jedes Tool nimmt optional einen vorgeladenen TrackingContext (vom keyholder_dashboard), um

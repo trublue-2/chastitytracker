@@ -5,14 +5,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * Was an die Kanäle GEHT, hält `deliveryContract.test.ts` für alle Versandstellen fest — hier die
  * Warte-Regel des Helfers selbst.
  */
-vi.mock("@/lib/prisma", () => ({ prisma: { user: { findUnique: vi.fn() } } }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: { user: { findUnique: vi.fn() } } }));
 vi.mock("@/lib/messages/mail", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/messages/mail")>()),
   sendMailSafe: vi.fn(),
 }));
 vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn() }));
 vi.mock("@/lib/messages/telegram", () => ({ sendTelegram: vi.fn() }));
-vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
+vi.mock("@/lib/shared/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/messages/deliveryChannels", () => ({
   deliveryChannels: vi.fn(async () => ({ mail: true, push: true, telegram: true })),
 }));
@@ -25,9 +25,9 @@ import { deliverToChannels, notifyUser, CHANNEL_DEADLINE_MS } from "./notify";
 import { sendMailSafe } from "@/lib/messages/mail";
 import { sendPushToUser } from "@/lib/messages/push";
 import { sendTelegram } from "@/lib/messages/telegram";
-import { structuredLog } from "@/lib/serverLog";
-import { prisma } from "@/lib/prisma";
-import { APP_NAME } from "@/lib/constants";
+import { structuredLog } from "@/lib/shared/serverLog";
+import { prisma } from "@/lib/shared/prisma";
+import { APP_NAME } from "@/lib/shared/constants";
 
 type Spy = ReturnType<typeof vi.fn>;
 const mail = sendMailSafe as unknown as Spy;

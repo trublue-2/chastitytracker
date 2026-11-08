@@ -27,7 +27,7 @@ const tx = {
   healthHold: { findFirst: vi.fn(async () => null) },
 };
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     // Die Nachrichten-Tabelle selbst: `create` ist die Ablesestelle dieses Tests, `findFirst` die
@@ -56,7 +56,7 @@ vi.mock("next-intl/server", () => ({ getTranslations: vi.fn(async () => (k: stri
 vi.mock("@/lib/box/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
 vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []), getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })) }));
-vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
+vi.mock("@/lib/shared/serverLog", () => ({ structuredLog: vi.fn() }));
 // Die Ziel-Auflösung der Kontrolle ist eine eigene, anderswo geprüfte Maschinerie — hier zählt nur,
 // dass sie durchlässt.
 vi.mock("@/lib/kontrollen/inspectionTarget", () => ({
@@ -91,8 +91,8 @@ vi.mock("@/lib/messages/messageService", async (importOriginal) => {
   };
 });
 
-import { AI_AUTHOR } from "@/lib/constants";
-import { prisma } from "@/lib/prisma";
+import { AI_AUTHOR } from "@/lib/shared/constants";
+import { prisma } from "@/lib/shared/prisma";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { requestKontrolle, resolveKontrolle, sendKontrolleNotification } from "../kontrollen/kontrolleService";
 import { sendVerschlussAnforderungNotifications, withdrawVerschlussAnforderungById } from "../entries/verschlussAnforderungService";

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 
 // Beide Funktionen sind rein — die Mocks halten nur die Modulkette vom Laden ab.
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/tasks/taskIntervals", () => ({ evaluateTasks: vi.fn(), TASK_INCLUDE: {}, SUB_VISIBLE_WHERE: {} }));
 vi.mock("@/lib/entries/healthHold", () => ({ NOT_PAUSED_WHERE: {} }));
 vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn() }));

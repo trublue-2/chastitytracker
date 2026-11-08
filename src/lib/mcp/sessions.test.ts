@@ -3,13 +3,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // A-05 (MCP-Befundliste 2026-07-17): dataQualityFlags blieb leer, obwohl ein Segment ganz ohne
 // Gerät (deviceConfidence "undeclared", A-04) im Bestand steht. get_session muss das jetzt melden.
 
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
 import { getSession } from "./sessions";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { TEST_USER, type PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

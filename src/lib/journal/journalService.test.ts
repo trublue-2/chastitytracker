@@ -4,12 +4,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Die Grenzen des Tagebuchs an der Datenbank: was die Keyholderin LÄDT, und dass Schreiben nur den
  * eigenen Eintrag trifft. Die reinen Regeln (Prüfung, Projektion, Dauern) stehen in `journal.test.ts`.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import {
   createJournalEntry,
   deleteJournalEntry,

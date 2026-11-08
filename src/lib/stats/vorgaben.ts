@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 /** True if the vorgabe targets the built-in KG category (or is legacy pre-migration
  *  with no category). Centralizes the predicate so calendar/monthstats and goal-card

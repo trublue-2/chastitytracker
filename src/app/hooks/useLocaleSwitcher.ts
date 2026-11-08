@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { setLocaleCookie } from "@/lib/locale";
+import { setLocaleCookie } from "@/lib/shared/locale";
 
 /**
  * Switches the active locale. The `locale` cookie drives the UI locale immediately; the account

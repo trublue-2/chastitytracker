@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 /** Fire-and-forget: aktueller Zeitstempel für einen AppMeta-Key. */
 export function touchAppMeta(key: string): void {

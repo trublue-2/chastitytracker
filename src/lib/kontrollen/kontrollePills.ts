@@ -1,4 +1,4 @@
-import { mapAnforderungStatus, mapVerifikationStatus } from "@/lib/utils";
+import { mapAnforderungStatus, mapVerifikationStatus } from "@/lib/shared/utils";
 
 /**
  * **Die Pillen sind Beschriftungen geworden — Farbe, keine Fläche und kein Rahmen.**

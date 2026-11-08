@@ -3,7 +3,7 @@ import { actionSign } from "@/app/entries/actionSign";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getWeightFormProps } from "@/lib/weight/weightFormProps";
 import { weighingWindowHint } from "@/lib/weight/weightWindows";
 import WeightForm from "../../WeightForm";

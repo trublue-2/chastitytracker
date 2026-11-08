@@ -1,4 +1,4 @@
-import type { NumberRange } from "@/lib/constants";
+import type { NumberRange } from "@/lib/shared/constants";
 import { toVerifyFailure, type VerifyFailure } from "@/lib/kontrollen/verifyReason";
 import { isEffectiveEntry } from "@/lib/entries/lockPending";
 
@@ -800,7 +800,7 @@ export function filterAndSortPairEntries<E extends { type: string; startTime: Da
 /** Frist, bis zu der ein Wiederverschluss eine Reinigungsöffnung als blosse UNTERBRECHUNG der
  *  laufenden Session fortführt — danach zerfällt sie in zwei Sessions. Öffnung + `maxMinutes`.
  *
- *  Bewusst NICHT dieselbe Frist wie {@link import("./strafbuch/strafbuch").cleaningRelockObligation}: die
+ *  Bewusst NICHT dieselbe Frist wie {@link import("../strafbuch/strafbuch").cleaningRelockObligation}: die
  *  beantwortet die Strafbuch-Frage („gibt es dafür ein Vergehen?"), hängt an einer aktiven
  *  Sperrzeit und reicht bei konfigurierten Fenstern bis ans Fensterende — bei einem 20–22-Uhr-
  *  Fenster also Stunden über diese Frist hinaus. Wer die beiden vertauscht, zeigt dem Sub einen

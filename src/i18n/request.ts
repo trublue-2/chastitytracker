@@ -1,6 +1,6 @@
 import { getRequestConfig } from "next-intl/server";
 import { cookies } from "next/headers";
-import { isValidLocale, toLocale, type Locale } from "@/lib/constants";
+import { isValidLocale, toLocale, type Locale } from "@/lib/shared/constants";
 
 export default getRequestConfig(async ({ locale: override }) => {
   // An explicit override (getTranslations({locale})) wins and must NOT touch cookies() — those

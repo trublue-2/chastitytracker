@@ -1,6 +1,6 @@
 import type { CleaningUserFields } from "@/lib/entries/cleaningService";
 import type { CleaningPermissionUser } from "@/lib/entries/queries";
-import { effectiveAt, type CleaningPauseAllowance } from "@/lib/utils";
+import { effectiveAt, type CleaningPauseAllowance } from "@/lib/shared/utils";
 
 /**
  * Der vollständige Reinigungs-Stand eines Subs zu EINEM Zeitpunkt — die vier Werte, die darüber

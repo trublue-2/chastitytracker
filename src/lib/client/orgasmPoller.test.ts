@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * raus und der Stempel weckt die Zeile nicht auf; (2) der Zustellstempel kommt erst NACH dem
  * Versand — ein Absturz dazwischen ist höchstens eine doppelte Meldung, nie ein stiller Verlust.
  */
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { orgasmusAnforderung: { findMany: vi.fn(), count: vi.fn(), update: vi.fn(), updateMany: vi.fn() } },
 }));
 vi.mock("@/lib/entries/orgasmusAnforderungService", async (importOriginal) => {
@@ -16,7 +16,7 @@ vi.mock("@/lib/entries/orgasmusAnforderungService", async (importOriginal) => {
 });
 
 import { processDueOrgasmusAnforderungen } from "../kontrollen/kontrollePoller";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { sendOrgasmusAnforderungNotifications } from "@/lib/entries/orgasmusAnforderungService";
 
 const db = prisma.orgasmusAnforderung as unknown as Record<"findMany" | "count" | "update" | "updateMany", ReturnType<typeof vi.fn>>;

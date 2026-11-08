@@ -4,7 +4,7 @@ import de from "../../../messages/de.json";
 import en from "../../../messages/en.json";
 
 // `taskAssignmentNotice` ist rein — die Mocks halten nur die Modulkette vom Laden ab.
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllerAudience: vi.fn() }));
 vi.mock("@/lib/tasks/taskProofNotify", () => ({ notifyLateProofsForTask: vi.fn() }));

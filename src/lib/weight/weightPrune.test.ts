@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     weightEntry: { findMany: vi.fn(), updateMany: vi.fn() },
   },
@@ -8,7 +8,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/client/imageUtils", () => ({ deleteUploadedFiles: vi.fn() }));
 
 import { pruneWeightPhotos, weightPhotoRetentionDays } from "./weightService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { deleteUploadedFiles } from "@/lib/client/imageUtils";
 
 const findMany = prisma.weightEntry.findMany as unknown as ReturnType<typeof vi.fn>;

@@ -17,7 +17,7 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
-import { fromDatetimeLocal, toDateLocale, formatDurationBetween } from "@/lib/utils";
+import { fromDatetimeLocal, toDateLocale, formatDurationBetween } from "@/lib/shared/utils";
 import { categoryStyle } from "@/lib/devices/categoryConstants";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
 import type { TaskWarning } from "@/lib/tasks/taskIntervals";

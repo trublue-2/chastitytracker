@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import Toggle from "@/app/components/Toggle";
 import NumberInput from "@/app/components/NumberInput";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
-import { INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, type NumberRange } from "@/lib/constants";
+import { INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, type NumberRange } from "@/lib/shared/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 
 /** Single "N minutes" input, committed on blur. */

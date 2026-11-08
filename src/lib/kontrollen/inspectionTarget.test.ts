@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * sie erfüllt bekommt.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     device: { findUnique: vi.fn() },
     deviceCategory: { findUnique: vi.fn() },
@@ -19,8 +19,8 @@ vi.mock("@/lib/entries/queries", () => ({
 }));
 
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "./inspectionTarget";
-import { buildKontrolleItems } from "../utils";
-import { prisma } from "@/lib/prisma";
+import { buildKontrolleItems } from "../shared/utils";
+import { prisma } from "@/lib/shared/prisma";
 import { getLatestKgEntry, getActiveWearSessionForCategory } from "@/lib/entries/queries";
 
 const deviceMock = prisma.device.findUnique as unknown as ReturnType<typeof vi.fn>;

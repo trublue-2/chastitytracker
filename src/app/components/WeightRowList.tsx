@@ -3,7 +3,7 @@
 import ListPager from "@/app/components/ListPager";
 import WeightRow from "@/app/components/WeightRow";
 import usePagedList from "@/app/hooks/usePagedList";
-import { LIST_PAGE_SIZE } from "@/lib/constants";
+import { LIST_PAGE_SIZE } from "@/lib/shared/constants";
 import type { UnitSystem } from "@/lib/weight/weight";
 import type { WeightRowData } from "@/lib/weight/weightRows";
 

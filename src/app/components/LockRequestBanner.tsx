@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Droplets } from "lucide-react";
-import { APP_TZ, formatDayTimeDual } from "@/lib/utils";
+import { APP_TZ, formatDayTimeDual } from "@/lib/shared/utils";
 import type { ComponentType, ReactNode } from "react";
 import LockPeriodRemaining from "./LockPeriodRemaining";
 import { LockClosedIcon } from "@/app/components/lockIcons";

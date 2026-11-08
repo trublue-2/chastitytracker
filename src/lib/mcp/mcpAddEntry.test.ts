@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * kommt eine Absage in der Sprache an, die eine KEYHOLDERIN lesen muss?
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() } },
 }));
 // Nur das SCHREIBEN festnageln. `validateEntryCreate` bleibt echt: die dryRun-Vorschau soll gegen
@@ -23,7 +23,7 @@ vi.mock("@/lib/entries/queries", async (orig) => ({
 }));
 
 import { mcpAddEntry } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { createEntryForUser } from "@/lib/entries/entryCreateService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;

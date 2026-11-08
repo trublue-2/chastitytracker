@@ -11,7 +11,7 @@ import Badge from "@/app/components/Badge";
 import { blockInsetCls } from "@/app/components/inputStyles";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
-import { LIST_PAGE_SIZE } from "@/lib/constants";
+import { LIST_PAGE_SIZE } from "@/lib/shared/constants";
 import InspectionReviewButtons, { type InspectionReviewData } from "@/app/admin/kontrollen/InspectionReviewButtons";
 
 export interface KontrolleItemData {

@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { heimdallEnabled } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { heimdallEnabled } from "@/lib/shared/constants";
 
 /**
  * Instant-Push Tracker → Heimdall. Sagt dem Heimdall-Server, dass sich für einen User gerade der

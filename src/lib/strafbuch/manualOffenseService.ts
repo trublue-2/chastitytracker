@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { markLastAction } from "@/lib/upstream/appMeta";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
+import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "@/lib/shared/constants";
 
 /**
  * Von Hand notierte Vergehen (`ManualOffense`) — die einzige Vergehensart, die GESCHRIEBEN statt

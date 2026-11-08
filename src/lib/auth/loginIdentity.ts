@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { isValidEmail } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { isValidEmail } from "@/lib/shared/constants";
 
 /**
  * Wer mit dieser Eingabe im Anmeldefeld gemeint ist — Benutzername ODER E-Mail-Adresse.

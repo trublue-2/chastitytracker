@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import BlockHeading from "@/app/components/BlockHeading";
 import { redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
@@ -20,7 +20,7 @@ import BoxIdentityInfo from "@/app/admin/BoxIdentityInfo";
 import type { UnitSystem } from "@/lib/weight/weight";
 import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/entries/reasonsService";
 import ReasonsEditor from "@/app/admin/ReasonsEditor";
-import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, ORGASMUS_ART_I18N_KEYS, GRUND_I18N_KEYS, boxCouplingEnabled } from "@/lib/constants";
+import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, ORGASMUS_ART_I18N_KEYS, GRUND_I18N_KEYS, boxCouplingEnabled } from "@/lib/shared/constants";
 import AccountSection from "./AccountSection";
 import UserLocaleSelect from "@/app/admin/UserLocaleSelect";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
@@ -37,7 +37,7 @@ import VorgabeRow from "../VorgabeRow";
 import { goalDateToInput } from "@/lib/stats/vorgabeService";
 import { parseWeekdayGoalRules } from "@/lib/stats/weekdayGoal";
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, formatDate } from "@/lib/utils";
+import { toDateLocale, formatDate } from "@/lib/shared/utils";
 import { formColCls } from "@/app/components/inputStyles";
 
 function isActive(v: { gueltigAb: Date; gueltigBis: Date | null }): boolean {

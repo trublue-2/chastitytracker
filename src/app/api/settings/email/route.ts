@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { prepareEmailInput } from "@/lib/auth/loginIdentity";
-import { isUniqueConstraintOn } from "@/lib/prismaErrors";
+import { isUniqueConstraintOn } from "@/lib/shared/prismaErrors";
 
 /** Die hinterlegte Adresse des angemeldeten Users. Existiert, damit das Feedback-Formular sein
  *  Pflichtfeld vorbelegen kann, ohne dass jede Seite die Adresse mitrendern muss — geladen wird

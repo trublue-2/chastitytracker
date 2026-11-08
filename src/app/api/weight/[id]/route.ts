@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
 import { deleteWeightEntry, updateWeightEntry } from "@/lib/weight/weightService";
-import { errorResponse, serviceFailure } from "@/lib/serviceResult";
+import { errorResponse, serviceFailure } from "@/lib/shared/serviceResult";
 
 /**
  * Wer die Zeile anfassen darf — für BEIDE Methoden dieselbe Frage, deshalb an einer Stelle.

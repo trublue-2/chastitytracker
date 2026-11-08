@@ -10,13 +10,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * hat keine Tests.
  */
 
-vi.mock("@/lib/prisma", () => ({ prisma: { entry: { update: vi.fn() } } }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: { entry: { update: vi.fn() } } }));
 vi.mock("@/lib/devices/deviceReferenceService", () => ({ gatherDeviceReferences: vi.fn() }));
 vi.mock("@/lib/kontrollen/detectDevice", () => ({ checkDeviceInPhoto: vi.fn() }));
-vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
+vi.mock("@/lib/shared/serverLog", () => ({ structuredLog: vi.fn() }));
 
 import { deviceCheckApplies, runDeviceCheck } from "./deviceCheckService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { gatherDeviceReferences } from "@/lib/devices/deviceReferenceService";
 import { checkDeviceInPhoto } from "@/lib/kontrollen/detectDevice";
 

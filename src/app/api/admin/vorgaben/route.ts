@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
 import { createVorgabe } from "@/lib/stats/vorgabeService";
-import { serviceFailure } from "@/lib/serviceResult";
+import { serviceFailure } from "@/lib/shared/serviceResult";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();

@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from "vitest";
  * Zusage an den Sub („ohne Nachweis bis HH:MM"), und eine Zusage, die nicht eintrifft, ist schlimmer
  * als gar keine.
  */
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn() }));
 vi.mock("@/lib/entries/oeffnenService", () => ({ createOeffnenEntryTx: vi.fn() }));

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ChangeEvent } from "react";
-import { toDatetimeLocal } from "@/lib/utils";
+import { toDatetimeLocal } from "@/lib/shared/utils";
 
 /**
  * Die Zeit-Eingabe eines Verschluss-/Öffnen-/Trage-Formulars samt der Frage, ob der Träger sie angefasst hat

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const tx = {
   entry: { findUnique: vi.fn(), create: vi.fn() },
 };
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)) },
 }));
 vi.mock("@/lib/entries/queries", () => ({ getKgNeighbors: vi.fn() }));

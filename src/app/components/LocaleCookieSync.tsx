@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { setLocaleCookie } from "@/lib/locale";
+import { setLocaleCookie } from "@/lib/shared/locale";
 
 /**
  * One-time bridge that adopts the logged-in account's stored language on a device that has no

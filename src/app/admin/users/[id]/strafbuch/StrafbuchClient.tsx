@@ -15,9 +15,9 @@ import { Quote } from "@/app/components/QuotedField";
 import Select from "@/app/components/Select";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { taskFormHref } from "@/lib/entries/entryFormRoute";
-import { joinParts } from "@/lib/utils";
+import { joinParts } from "@/lib/shared/utils";
 import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
-import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
+import { AI_AUTHOR, hasAuthor } from "@/lib/shared/constants";
 import { taskFailureKind, type TaskFailureKind, type TaskOffenseState } from "@/lib/tasks/tasks";
 
 /** Das Urteil einer Zeile, so weit die Anzeige es braucht.

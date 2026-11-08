@@ -4,7 +4,7 @@ import { useState } from "react";
 import BackLink from "@/app/components/BackLink";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { formatTotalHours } from "@/lib/utils";
+import { formatTotalHours } from "@/lib/shared/utils";
 import { Plus, Pencil, Trash2, Tag } from "lucide-react";
 import ReorderButtons from "@/app/components/ReorderButtons";
 import Section from "@/app/components/Section";

@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import Section from "@/app/components/Section";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import OffenseList from "@/app/components/OffenseList";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { messageFilterToParams } from "@/lib/messages/messageCategories";
 import { loadSubOffenses, subAttentionOffensesOf } from "@/lib/strafbuch/subOffenses";
 import { announcedOpenRefs } from "@/lib/strafbuch/offenseAnnounce";

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { titleCls } from "@/app/components/inputStyles";
 import Link from "next/link";
 import { assertAdmin } from "@/lib/auth/authGuards";

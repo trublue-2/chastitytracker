@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import {
   codeCheckPath, compareCodeReads, codeChangeNeedsReview,
   type CodeChangeState, type CodeChangeVerdict,
@@ -6,7 +6,7 @@ import {
 import { getControllerAudience, getKeyholdersOfUser } from "@/lib/auth/keyholder";
 import { notifyControllers } from "@/lib/messages/notify";
 import { isCodePhotoRevealed } from "@/lib/entries/queries";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 import { detectLockboxCode } from "@/lib/kontrollen/verifyCode";
 import { visionConfigured } from "@/lib/vision";
 

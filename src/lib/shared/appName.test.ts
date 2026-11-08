@@ -30,7 +30,7 @@ function constFromSource(file: string, name: string): string {
   return m![1];
 }
 
-const APP_NAME = constFromSource("src/lib/constants.ts", "APP_NAME");
+const APP_NAME = constFromSource("src/lib/shared/constants.ts", "APP_NAME");
 const KG_BUILTIN_NAME = constFromSource("src/lib/devices/deviceCategories.ts", "KG_BUILTIN_NAME");
 
 describe("Der App-Name steht überall gleich", () => {
@@ -78,7 +78,7 @@ describe("Der App-Name steht überall gleich", () => {
     const stale = files.filter((f) => {
       const src = readFileSync(f, "utf8");
       // Die Begründung an `APP_NAME` selbst DARF den alten Namen nennen — sie erklärt ihn.
-      if (f === "src/lib/constants.ts") return false;
+      if (f === "src/lib/shared/constants.ts") return false;
       return /KG[ -]Tracker/.test(src);
     });
     expect(stale, "diese Dateien führen noch den alten App-Namen").toEqual([]);

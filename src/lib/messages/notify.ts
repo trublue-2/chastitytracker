@@ -1,15 +1,15 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { withOffenseName } from "@/lib/strafbuch/offenseLabels";
 import { withMessageDefaults } from "@/lib/messages/messageDefaults";
 import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/messages/mail";
 import { emailT, emailGreeting, localeT } from "@/lib/messages/emailI18n";
 import { sendPushToUser } from "@/lib/messages/push";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 import { sendTelegram } from "@/lib/messages/telegram";
 import { recordInboxDelivery, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messages/messageService";
 import { messagePriority } from "@/lib/messages/messageCategories";
 import { deliveryChannels, type DeliveryRecipient } from "@/lib/messages/deliveryChannels";
-import { anyChannelActive, channelsAnd, type MessagePriority, type NotificationChannels, APP_NAME } from "@/lib/constants";
+import { anyChannelActive, channelsAnd, type MessagePriority, type NotificationChannels, APP_NAME } from "@/lib/shared/constants";
 
 /**
  * Was an einer Posteingangs-Zeile hängt, unabhängig davon, WESSEN Posteingang gemeint ist —

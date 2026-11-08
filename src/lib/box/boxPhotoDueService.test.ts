@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Das Box-Foto kommt NACH „Riegel zu": wann es fällig wird (einmal je Verschluss, nie nachträglich für
  * einen alten), wie es nachgereicht und wie es erlassen wird.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -13,7 +13,7 @@ vi.mock("@/lib/kontrollen/verifyCode", () => ({ detectKeyInBox: vi.fn().mockReso
 vi.mock("@/lib/box/boxCommandNotify", () => ({ announceBoxPhotoDue: vi.fn() }));
 
 import { markBoxPhotoDue, markBoxPhotoDueIfBoxLocked, submitBoxPhoto, waiveBoxPhoto } from "./boxPhotoDueService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getLatestKgEntry } from "@/lib/entries/queries";
 import { detectKeyInBox } from "@/lib/kontrollen/verifyCode";
 import { announceBoxPhotoDue } from "@/lib/box/boxCommandNotify";

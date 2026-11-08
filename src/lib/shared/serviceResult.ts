@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { codedError, codeOf } from "@/lib/codedError";
-import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+import { codedError, codeOf } from "@/lib/shared/codedError";
+import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
 
 /** Shared result type for service-layer functions called by both API routes and MCP write tools.
  *  `status` is the HTTP status an API route should return on failure.

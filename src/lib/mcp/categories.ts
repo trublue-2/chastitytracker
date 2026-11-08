@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { makeIso, matchByNameCI, tzOf, type Iso } from "@/lib/mcp/common";
 import { diffFields, type TxClient, type WriteDef } from "@/lib/mcp/writeFramework";
 import {
@@ -8,7 +8,7 @@ import {
   type CategoryUsage,
 } from "@/lib/devices/deviceCategoryService";
 import { validateCategoryInput } from "@/lib/devices/categoryConstants";
-import { deviceCategoriesEnabled, DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
+import { deviceCategoriesEnabled, DEVICE_NAME_MAX_LENGTH } from "@/lib/shared/constants";
 import { CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT } from "@/lib/entries/queries";
 
 /** Geräte-Kategorien über den MCP: lesen (als Teil von `get_devices`), anlegen/ändern, löschen.

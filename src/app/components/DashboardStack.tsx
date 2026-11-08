@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition, type ReactNode } from "react";
-import { swapAt, moveToEdge } from "@/lib/utils";
+import { swapAt, moveToEdge } from "@/lib/shared/utils";
 import { metaRowButtonCls, metaRowChipCls, metaRowSlotCls } from "@/app/components/inputStyles";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

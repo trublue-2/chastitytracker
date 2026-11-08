@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma";
-import { structuredLog } from "@/lib/serverLog";
-import { ALL_CHANNELS, type NotificationChannels, type RecipientNotificationEventType } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { structuredLog } from "@/lib/shared/serverLog";
+import { ALL_CHANNELS, type NotificationChannels, type RecipientNotificationEventType } from "@/lib/shared/constants";
 
 export type { NotificationChannels };
 

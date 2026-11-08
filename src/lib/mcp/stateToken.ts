@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { STATE_AREAS, type StateArea } from "./stateAreas";
 import { buildEnvelope, makeIso, resolveUserContext, type Envelope } from "./common";
 

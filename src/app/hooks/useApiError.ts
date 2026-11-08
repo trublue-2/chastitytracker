@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { PASSWORD_MIN_LENGTH, BCRYPT_MAX_BYTES } from "@/lib/constants";
+import { PASSWORD_MIN_LENGTH, BCRYPT_MAX_BYTES } from "@/lib/shared/constants";
 
 /**
  * Resolves a stable API error code (see the `errors` message namespace) into a

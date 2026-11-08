@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
 import { updateVorgabe, deleteVorgabe, findActiveVorgabe } from "@/lib/stats/vorgabeService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 export async function PATCH(
   req: NextRequest,

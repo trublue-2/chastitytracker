@@ -1,15 +1,15 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { Prisma } from "@prisma/client";
-import { KG_PAIR, WEAR_PAIR, type PairTypes } from "@/lib/utils";
+import { KG_PAIR, WEAR_PAIR, type PairTypes } from "@/lib/shared/utils";
 import { entryGuardError } from "@/lib/entries/entryErrors";
 import { getEntryNeighbors } from "@/lib/entries/queries";
 import { validOeffnenCodes } from "@/lib/entries/reasonsService";
 import { isPendingEntry, isPendingLock } from "@/lib/entries/lockPending";
 import { clearBoxCommandForUser } from "@/lib/box/boxCommand";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/client/imageUtils";
-import { mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { codedError, codeOf } from "@/lib/codedError";
-import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+import { mapServiceError, serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
+import { codedError, codeOf } from "@/lib/shared/codedError";
+import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
 
 /**
  * Die KORREKTUR eines bereits erfassten Eintrags — die Regeln einmal, für beide Schnittstellen.

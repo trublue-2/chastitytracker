@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { midnightAfterDays, tzDateParts, tzDayKey } from "@/lib/utils";
+import { midnightAfterDays, tzDateParts, tzDayKey } from "@/lib/shared/utils";
 import BlockHeading from "@/app/components/BlockHeading";
 import { blockInsetCls } from "@/app/components/inputStyles";
 

@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Was eine Instanz beim Update-Check meldet (Issue #15): Image-Herkunft, Nutzung, Funktionen — und
  * dass ein Fehler beim Sammeln den Update-Check nie mitreisst.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -13,7 +13,7 @@ vi.mock("@/lib/vision/config", () => ({
   visionSpec: vi.fn(() => ({ external: true })),
 }));
 
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
 import { censusEnabled, censusHeaders, censusInstanceId, clearCensusPublicIdMemo, clearCensusStatsMemo, publicIdentity, collectCensusStats, imageOrigin, imageOriginLabel } from "./census";
 import type { PrismaMock } from "@/test/prismaMock";

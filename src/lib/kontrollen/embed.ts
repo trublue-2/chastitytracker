@@ -1,6 +1,6 @@
 import { loadUploadedImage } from "@/lib/client/imageUtils";
-import { visionDeviceMaxImagePx } from "@/lib/constants";
-import { structuredLog } from "@/lib/serverLog";
+import { visionDeviceMaxImagePx } from "@/lib/shared/constants";
+import { structuredLog } from "@/lib/shared/serverLog";
 
 /**
  * Client für den lokalen Bild-Embedding-Dienst (CLIP/SigLIP, OpenAI-unabhängig). Liefert L2-

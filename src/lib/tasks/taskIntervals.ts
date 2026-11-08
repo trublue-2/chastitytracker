@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { buildPairs, filterAndSortPairEntries, mergeWearPairs, KG_PAIR, WEAR_PAIR, type CleaningPauseRules, type WearPair } from "@/lib/utils";
+import { prisma } from "@/lib/shared/prisma";
+import { buildPairs, filterAndSortPairEntries, mergeWearPairs, KG_PAIR, WEAR_PAIR, type CleaningPauseRules, type WearPair } from "@/lib/shared/utils";
 import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice, type SegmentEntry } from "@/lib/entries/sessionModel";
 import { SESSION_ENTRY_SELECT } from "@/lib/entries/queries";
 import { CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";

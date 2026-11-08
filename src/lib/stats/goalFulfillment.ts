@@ -36,7 +36,7 @@
  * 2026-08-23; die Herleitung steht im Kopf von `goalSegments.ts`.
  */
 
-import { getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd, midnightAfterDays, type WearHours } from "@/lib/utils";
+import { getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd, midnightAfterDays, type WearHours } from "@/lib/shared/utils";
 import { tagesSollFuer } from "@/lib/stats/weekdayGoal";
 
 /** Validity window of a goal. `end === null` = open-ended (covers everything after `start`). */

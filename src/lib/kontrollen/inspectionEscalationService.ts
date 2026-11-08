@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { localeT } from "@/lib/messages/emailI18n";
-import { clamp, APP_TZ } from "@/lib/utils";
+import { clamp, APP_TZ } from "@/lib/shared/utils";
 import { notifyUser, notifyControllers } from "@/lib/messages/notify";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { createOeffnenEntryTx } from "@/lib/entries/oeffnenService";
@@ -9,10 +9,10 @@ import { resolveInspectionTarget, isKgTarget } from "@/lib/kontrollen/inspection
 import {
   AUTO_ENTFERNT_REASON, NO_FIELDS_TO_UPDATE,
   INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
-} from "@/lib/constants";
-import { codeOf } from "@/lib/codedError";
+} from "@/lib/shared/constants";
+import { codeOf } from "@/lib/shared/codedError";
 import { isSleepingAt, autoKontrolleSettingsFromUser, isEntryTriggeredInspection, type AutoKontrolleUserFields } from "@/lib/kontrollen/autoKontrolleService";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 
 /*
  * KEINE Nachricht dieses Moduls trägt einen `actor` — und das ist eine Entscheidung, kein Vergessen.

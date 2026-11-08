@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { resolveUserContext, makeIso, buildEnvelope, parseIsoDate, type Envelope } from "@/lib/mcp/common";
 
 /** get_action_log (§9.2) — append-only Audit aller mutierenden V2-Aktionen: was hat welche Instanz

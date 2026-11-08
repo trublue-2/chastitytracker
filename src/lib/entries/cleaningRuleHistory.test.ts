@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 /** Eigener Doppelgänger statt `createPrismaMock`: der deckt nur Lesepfade ab und wirft bei
  *  `$transaction` — hier steht genau der Schreibpfad zur Prüfung. Die Transaktion reicht dieselben
  *  Modell-Mocks durch, damit der Test sieht, was INNEN geschrieben wurde. */
-vi.mock("@/lib/prisma", () => {
+vi.mock("@/lib/shared/prisma", () => {
   const cleaningRuleChange = {
     count: vi.fn(async () => 0),
     createMany: vi.fn(async () => ({ count: 0 })),
@@ -22,7 +22,7 @@ vi.mock("@/lib/prisma", () => {
 });
 
 import { setCleaningSettings } from "./cleaningService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const db = prisma as unknown as {
   user: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };

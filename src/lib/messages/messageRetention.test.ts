@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     message: {
       findMany: vi.fn(async () => [] as { id: string }[]),
@@ -20,7 +20,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { pruneExpiredMessages, messageRetentionDays } from "./messageService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const NOW = new Date("2026-08-21T12:00:00Z");
 const day = 86_400_000;

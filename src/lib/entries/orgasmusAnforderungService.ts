@@ -1,13 +1,13 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/messages/mail";
-import { formatDateTime } from "@/lib/utils";
-import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS, APP_NAME } from "@/lib/constants";
+import { formatDateTime } from "@/lib/shared/utils";
+import { ORGASMUS_ANFORDERUNG_ARTEN, toLocale, EMAIL_BUTTON_COLORS, APP_NAME } from "@/lib/shared/constants";
 import { orgasmusValueAllowed, resolveOrgasmusArtDisplay, effectiveOrgasmusArten } from "@/lib/entries/reasonsService";
 import { notifyUser, deliverToChannels, type NotifyContent, type NotifyRecipient } from "@/lib/messages/notify";
 import { computeDelayedTrigger, isHiddenFromSub, parseTriggerAt } from "@/lib/entries/delayedTrigger";
 import { recordInboxDelivery, type MessageActor } from "@/lib/messages/messageService";
 import { emailT, emailGreeting, localeT } from "@/lib/messages/emailI18n";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 import { isHealthHoldActive } from "@/lib/entries/healthHold";
 
 /** `endsAt` in der Vergangenheit → Reject (B-01, MCP-Befundliste 2026-07-17): der einzige gefundene

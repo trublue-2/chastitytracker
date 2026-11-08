@@ -10,15 +10,15 @@ import FieldTabs from "@/app/components/FieldTabs";
 import Toggle from "@/app/components/Toggle";
 import DurationInput from "@/app/components/DurationInput";
 import Input from "@/app/components/Input";
-import { formatElapsedMs } from "@/lib/utils";
+import { formatElapsedMs } from "@/lib/shared/utils";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import ReorderButtons from "@/app/components/ReorderButtons";
 import TimePreview from "@/app/components/TimePreview";
 import {
   TASK_PROOF_MAX, TASK_PROOF_DESCRIPTION_MAX_LENGTH,
   clampProofDueOffset, durationToHours, type DurationUnit,
-} from "@/lib/constants";
-import { swapAt } from "@/lib/utils";
+} from "@/lib/shared/constants";
+import { swapAt } from "@/lib/shared/utils";
 import type { TaskProofInput } from "@/lib/tasks/taskService";
 
 /**

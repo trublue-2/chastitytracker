@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Minimaler Prisma-Doppelgänger für den Serien-Pfad: nur die Methoden, die `createTaskSeries` und
 // `materializeDueSeries` (samt dem geteilten `checkTask`) tatsächlich anfassen.
 vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
-vi.mock("@/lib/prisma", () => {
+vi.mock("@/lib/shared/prisma", () => {
   const p = {
     taskSeries: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     taskSeriesRequirement: { deleteMany: vi.fn() },
@@ -26,7 +26,7 @@ vi.mock("@/lib/auth/keyholder", () => ({
 }));
 
 import { createTaskSeries, updateTaskSeries, withdrawTaskSeries, materializeDueSeries, type CreateTaskSeriesParams } from "./taskService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { notifyUser } from "@/lib/messages/notify";
 
 const db = prisma as unknown as {

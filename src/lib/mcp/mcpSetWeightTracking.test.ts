@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * (CLAUDE.md, „MCP-Vollständigkeit").
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() } },
 }));
 vi.mock("@/lib/weight/weightSettingsService", async (importOriginal) => {
@@ -18,7 +18,7 @@ vi.mock("@/lib/weight/weightSettingsService", async (importOriginal) => {
 });
 
 import { mcpSetWeightTracking } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { setWeightSettingsKeyholder } from "@/lib/weight/weightSettingsService";
 import { ALL_WEEKDAYS, weekdayMaskOf } from "../stats/weekdays";
 

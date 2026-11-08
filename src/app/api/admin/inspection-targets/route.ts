@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
 import { listInspectionTargets } from "@/lib/kontrollen/inspectionTarget";
-import { errorResponse } from "@/lib/serviceResult";
+import { errorResponse } from "@/lib/shared/serviceResult";
 
 /**
  * GET /api/admin/inspection-targets?userId=<id>

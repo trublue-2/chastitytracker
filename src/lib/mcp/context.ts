@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
 import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/entries/healthHold";
 import { notifyUser } from "@/lib/messages/notify";
@@ -12,7 +12,7 @@ import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_
 import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/entries/queries";
 import { type OffenseMode, type SwitchableOffenseType } from "@/lib/strafbuch/offenseRules";
 import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
-import { boxCouplingEnabled, AI_AUTHOR, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
+import { boxCouplingEnabled, AI_AUTHOR, toNotifyLevel, type NotifyLevel } from "@/lib/shared/constants";
 
 /** Kontext & Kalender (explain_model §13) — wiederkehrender Wochen-Kontext, Einzeltermine,
  *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant.

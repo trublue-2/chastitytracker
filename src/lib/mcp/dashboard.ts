@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { boxPhotoDueSince } from "@/lib/box/boxPhotoDueService";
 import { getOpenKontrollen, getActiveLockPeriod, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedLockPeriod, getCurrentLockKeyInBox, pendingLockCallAt, pendingOpenCallAt, getOpenLockRequests } from "@/lib/entries/queries";
 import {
@@ -8,7 +8,7 @@ import {
   type InterruptedLockPeriodView, type OpenLockRequestView,
 } from "@/lib/mcp/liveState";
 import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContext, NOTE_TEXT_LIMIT, type Envelope, type Iso, type NoteDTO, type TrackingEntry } from "@/lib/mcp/common";
-import { buildPairs } from "@/lib/utils";
+import { buildPairs } from "@/lib/shared/utils";
 import { buildSessions, isLiveOpenSession, type Session, type DeviceConfidence } from "@/lib/entries/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, offenseRowState, type OffenseRow } from "@/lib/mcp/ledger";

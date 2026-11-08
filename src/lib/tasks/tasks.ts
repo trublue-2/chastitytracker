@@ -1,4 +1,4 @@
-import { mergeWearPairs, type WearPair } from "@/lib/utils";
+import { mergeWearPairs, type WearPair } from "@/lib/shared/utils";
 
 /**
  * Aufgaben-Auswertung — die reine Logik hinter „ist die Aufgabe erfüllt?".

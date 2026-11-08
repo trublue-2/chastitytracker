@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 import {
   CATEGORY_SLUG_MAX_LENGTH, DEFAULT_USER_CATEGORY_COLOR, DEFAULT_USER_CATEGORY_ICON,
   slugifyCategoryName, validateCategoryInput,

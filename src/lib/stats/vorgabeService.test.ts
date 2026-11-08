@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     trainingVorgabe: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
   },
@@ -19,7 +19,7 @@ vi.mock("@/lib/stats/vorgaben", () => ({ reorderVorgabenDates: vi.fn() }));
 vi.mock("@/lib/devices/deviceCategoryService", () => ({ resolveOwnedCategory: vi.fn(async () => ({ ok: true, data: null })) }));
 
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility } from "./vorgabeService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { reorderVorgabenDates } from "@/lib/stats/vorgaben";
 
 const findFirstMock = prisma.trainingVorgabe.findFirst as unknown as ReturnType<typeof vi.fn>;

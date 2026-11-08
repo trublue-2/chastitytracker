@@ -1,7 +1,7 @@
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { generateToken, hashToken } from "@/lib/auth/oauth";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 
 // ── Instanz-Konfiguration ────────────────────────────────────────────────────
 // EIN Bot je Instanz: ein Token, ein Webhook auf die eigene Subdomain. Der Betreiber legt den Bot

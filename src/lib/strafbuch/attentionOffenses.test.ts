@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 
 // `attentionOffensesOf` ist rein — die Mocks halten nur die Modulkette (strafbuch → prisma,
 // strafurteilService → notify/taskService) vom Laden ab. Dieselben wie in `subOffenses.test.ts`.
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/tasks/taskService", () => ({ checkTask: vi.fn(), writeTask: vi.fn() }));
 vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));

@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { verifyKontrolleCodeDeduped } from "@/lib/kontrollen/verifyCache";
 import { detectSealNumber } from "@/lib/kontrollen/verifyCode";
 import type { InspectionVerification } from "@/lib/kontrollen/kontrolleService";
-import type { Rotation } from "@/lib/constants";
+import type { Rotation } from "@/lib/shared/constants";
 import type { VerifyReason } from "@/lib/kontrollen/verifyReason";
 
 /**

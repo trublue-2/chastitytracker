@@ -1,4 +1,4 @@
-import { codedError, codeOf } from "@/lib/codedError";
+import { codedError, codeOf } from "@/lib/shared/codedError";
 import { reportReachable, reportStalled } from "@/lib/client/connectionHealth";
 
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;

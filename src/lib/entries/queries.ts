@@ -1,12 +1,12 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
-import type { OeffnenGrund, EntrySource } from "@/lib/constants";
-import { LOCK_ENDED_REASON, boxCouplingEnabled } from "@/lib/constants";
+import type { OeffnenGrund, EntrySource } from "@/lib/shared/constants";
+import { LOCK_ENDED_REASON, boxCouplingEnabled } from "@/lib/shared/constants";
 import { activeCleaningWindowIn, parseCleaningWindows } from "@/lib/entries/cleaningService";
 import { triggeredWhere } from "@/lib/entries/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER, effectiveEntryWhere } from "@/lib/entries/lockPending";
 import { hasLockmebox } from "@/lib/box/boxStatus";
-import { APP_TZ } from "@/lib/utils";
+import { APP_TZ } from "@/lib/shared/utils";
 import { isHealthHoldActive } from "@/lib/entries/healthHold";
 import { startAfter } from "@/lib/entries/entryStart";
 

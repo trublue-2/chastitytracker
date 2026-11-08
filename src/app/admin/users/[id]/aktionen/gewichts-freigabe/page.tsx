@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { getUserTimezone } from "@/lib/entries/queries";
-import { nowDatetimeLocal } from "@/lib/utils";
+import { nowDatetimeLocal } from "@/lib/shared/utils";
 import { currentWeightAverage, openWeightRelease } from "@/lib/weight/weightReleaseService";
-import { RELEASE_AVERAGE_DAYS_RANGE } from "@/lib/constants";
+import { RELEASE_AVERAGE_DAYS_RANGE } from "@/lib/shared/constants";
 import type { UnitSystem } from "@/lib/weight/weight";
 import WeightReleaseForm from "./WeightReleaseForm";
 

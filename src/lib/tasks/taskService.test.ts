@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // derselbe Mock wie `prisma`, die Aufrufe sind damit an einer Stelle ablesbar.
 vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
 import { markLastAction } from "@/lib/upstream/appMeta";
-vi.mock("@/lib/prisma", () => {
+vi.mock("@/lib/shared/prisma", () => {
   const p = {
     user: { findUnique: vi.fn() },
     device: { findMany: vi.fn() },
@@ -35,11 +35,11 @@ vi.mock("@/lib/auth/keyholder", () => ({ getControllerAudience: vi.fn(async () =
 vi.mock("@/lib/tasks/taskProofNotify", () => ({ notifyLateProofsForTask: vi.fn() }));
 vi.mock("@/lib/client/imageUtils", () => ({ deleteUploadedFiles: vi.fn() }));
 // Nur den Zufall festnageln — `utils` ist sonst reine Arithmetik und soll echt laufen.
-vi.mock("@/lib/utils", async (orig) => ({ ...(await orig<object>()), generateKontrollCode: () => "12345" }));
+vi.mock("@/lib/shared/utils", async (orig) => ({ ...(await orig<object>()), generateKontrollCode: () => "12345" }));
 
 import { createTask, updateTask, withdrawTask, deleteTask, completeTask, mergeTaskPatch, effectivePenaltyReason } from "./taskService";
 import { deleteUploadedFiles } from "@/lib/client/imageUtils";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { notifyUser, notifyControllers } from "@/lib/messages/notify";
 import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
 import { notifyLateProofsForTask } from "@/lib/tasks/taskProofNotify";

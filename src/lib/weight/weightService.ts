@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma";
-import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { CLIENT_CLOCK_SKEW_MS, isValidImageUrl } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
+import { CLIENT_CLOCK_SKEW_MS, isValidImageUrl } from "@/lib/shared/constants";
 import { deleteUploadedFiles } from "@/lib/client/imageUtils";
-import { APP_TZ } from "@/lib/utils";
+import { APP_TZ } from "@/lib/shared/utils";
 import { inWeighingWindow } from "@/lib/weight/weightWindows";
 import {
   effectiveTarget, targetEventToAnnounce, weightDayKey, weightForDisplay, weightProblem,

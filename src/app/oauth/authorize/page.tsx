@@ -6,7 +6,7 @@ import { ShieldCheck } from "lucide-react";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import { getClient, clientAllowsRedirect } from "@/lib/auth/oauth";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME } from "@/lib/shared/constants";
 
 interface Props {
   searchParams: Promise<{

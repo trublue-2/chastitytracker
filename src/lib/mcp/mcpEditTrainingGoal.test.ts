@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // mcpEditTrainingGoal soll ein PARTIAL-Update sein: weggelassene Argumente behalten den Bestand.
 // prisma + der Service-Layer werden gemockt, um genau zu prüfen, was an updateVorgabe übergeben wird.
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
   },
@@ -19,7 +19,7 @@ vi.mock("@/lib/stats/vorgabeService", async (importOriginal) => ({
 }));
 
 import { mcpEditTrainingGoal } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { updateVorgabe, findActiveVorgabe } from "@/lib/stats/vorgabeService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;

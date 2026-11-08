@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { resolveSegmentedGoal, resolveGoalRow, type GoalSegment } from "./goalSegments";
-import type { WearPair } from "../utils";
+import type { WearPair } from "../shared/utils";
 
 const D = (s: string) => new Date(s);
 const TZ = "Europe/Zurich";

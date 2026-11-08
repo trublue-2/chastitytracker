@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { titleCls } from "@/app/components/inputStyles";
 import { auth } from "@/lib/auth/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import Badge from "@/app/components/Badge";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import DetailField from "@/app/components/DetailField";
@@ -22,7 +22,7 @@ import {
 import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
 import { weightText, type UnitSystem } from "@/lib/weight/weight";
-import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/utils";
+import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/shared/utils";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
 import { ALL_WEEKDAYS, weekdayMaskLabel } from "@/lib/stats/weekdays";
 

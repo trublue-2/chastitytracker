@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { APP_TZ } from "@/lib/utils";
+import { prisma } from "@/lib/shared/prisma";
+import { APP_TZ } from "@/lib/shared/utils";
 import { weightDayKey } from "@/lib/weight/weight";
 import { activeWeighingWindow, weighingWindowEnd, type WeighingWindow } from "@/lib/weight/weightWindows";
 import { getRecipientChannels } from "@/lib/messages/notificationPrefs";

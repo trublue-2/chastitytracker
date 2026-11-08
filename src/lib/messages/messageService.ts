@@ -1,14 +1,14 @@
 import { cache } from "react";
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { structuredLog } from "@/lib/serverLog";
+import { prisma } from "@/lib/shared/prisma";
+import { structuredLog } from "@/lib/shared/serverLog";
 import { getControllableSubsCached } from "@/lib/auth/keyholder";
 import { bodyKeysOfCategory, bodyKeysOutsideSystem, messagePriority, type MessageFilter, type MessageSenderKind } from "@/lib/messages/messageCategories";
 import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/strafbuch/offenseTypes";
 import { isHiddenFromSub } from "@/lib/entries/delayedTrigger";
 import { codeCheckPath } from "@/lib/box/lockboxCodeCheck";
-import { mapAnforderungStatus } from "@/lib/utils";
-import { AI_AUTHOR, hasAuthor, type NotificationChannels } from "@/lib/constants";
+import { mapAnforderungStatus } from "@/lib/shared/utils";
+import { AI_AUTHOR, hasAuthor, type NotificationChannels } from "@/lib/shared/constants";
 import { deliveryChannels, deliveryChannelsForUser, type DeliveryRecipient } from "@/lib/messages/deliveryChannels";
 
 /**

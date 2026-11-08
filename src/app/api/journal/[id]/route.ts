@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
 import { deleteJournalEntry, updateJournalEntry } from "@/lib/journal/journalService";
-import { errorResponse, serviceFailure } from "@/lib/serviceResult";
+import { errorResponse, serviceFailure } from "@/lib/shared/serviceResult";
 
 /**
  * Einen eigenen Tagebuch-Eintrag ändern oder löschen. Die Dienste filtern mit dem Besitzer aus der

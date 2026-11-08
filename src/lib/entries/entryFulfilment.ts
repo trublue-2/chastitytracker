@@ -1,9 +1,9 @@
-import { orgasmTypeSatisfies } from "@/lib/constants";
+import { orgasmTypeSatisfies } from "@/lib/shared/constants";
 import type { Prisma } from "@prisma/client";
 import type { InspectionVerification } from "@/lib/kontrollen/kontrolleService";
 
 type PrismaKontrollWhere = Prisma.KontrollAnforderungWhereInput;
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { recordSystemMessage } from "@/lib/messages/messageService";
 import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";

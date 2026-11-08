@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { bleBridgeKey } from "@/lib/constants";
+import { bleBridgeKey } from "@/lib/shared/constants";
 import { LOCKMEBOX_COMMAND_LETTER, type LockmeboxCommand } from "@/lib/box/lockmeboxProtocol";
 
 /**

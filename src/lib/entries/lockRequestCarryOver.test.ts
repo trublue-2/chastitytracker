@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const txMock = {
   verschlussAnforderung: { create: vi.fn(), update: vi.fn() },
 };
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(txMock)) },
 }));
 // Heimdall-Push ist fire-and-forget und für die Regel unerheblich.
@@ -111,7 +111,7 @@ describe("carryOverLockPeriodOnAlreadyLocked", () => {
   });
 
   it("Anlegen und Erfüllt-Setzen laufen in EINER Transaktion", async () => {
-    const { prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/shared/prisma");
     await carryOverLockPeriodOnAlreadyLocked(anforderung(), X);
     expect((prisma as unknown as { $transaction: ReturnType<typeof vi.fn> }).$transaction).toHaveBeenCalledTimes(1);
   });

@@ -6,7 +6,7 @@ import { codedError, codeOf } from "./codedError";
 // Begründung in `expectImportFree`.
 describe("codedError.ts bleibt importfrei", () => {
   it("enthält keine import-/require-Anweisung", () => {
-    expectImportFree("src/lib/codedError.ts");
+    expectImportFree("src/lib/shared/codedError.ts");
   });
 });
 

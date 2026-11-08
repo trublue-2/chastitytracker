@@ -1,6 +1,6 @@
 import { checkLayoutPatch, isEmptySurface, mergeLayout } from "@/lib/ui/dashboardLayout";
 import { controlsAnySub } from "@/lib/auth/keyholder";
-import { userSelfFieldRoute } from "@/lib/userSelfField";
+import { userSelfFieldRoute } from "@/lib/shared/userSelfField";
 
 /**
  * Die Dashboard-Konfiguration ist eine USER-SELF-Präferenz: jeder stellt nur sein eigenes

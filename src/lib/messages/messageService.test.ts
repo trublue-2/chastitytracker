@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 
 // Der Service liest Nachrichten + die vier Bezugsobjekte und schreibt Lese-Kennzeichen.
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     // Die Lese-Kennzeichen laufen seit v5.1 in EINER Transaktion statt in N Einzel-Upserts.
     $transaction: vi.fn((ops: unknown[]) => Promise.all(ops)),
@@ -31,7 +31,7 @@ import {
   subInbox,
   keyholderInbox,
 } from "./messageService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 

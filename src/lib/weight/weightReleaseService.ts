@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import {
   RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_STEP_KG_RANGE,
   RELEASE_WINDOW_HOURS_RANGE,
-} from "@/lib/constants";
-import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/serviceResult";
+} from "@/lib/shared/constants";
+import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/shared/serviceResult";
 import { addWeightDays, dayNumber, isUnderweightTarget, weightDayKey, weightProblem } from "@/lib/weight/weight";
-import { APP_TZ, clamp } from "@/lib/utils";
+import { APP_TZ, clamp } from "@/lib/shared/utils";
 import { evaluateRelease, isReleaseDirection, thresholdOn, type ReleaseEvaluation } from "@/lib/weight/weightRelease";
 import { movingAverage, type WeightPoint } from "@/lib/weight/weightSeries";
 import { createOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungService";

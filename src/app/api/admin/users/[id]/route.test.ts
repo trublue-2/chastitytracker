@@ -18,7 +18,7 @@ const db = vi.hoisted(() => ({
   $transaction: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({ prisma: db }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: db }));
 vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn(async () => ({ user: { id: "admin-id" } })) }));
 // Beide Guards müssen im Mock stehen — die Route importiert sie, auch wenn der Rollen-Zweig
 // ausschliesslich über `requireAdminApi` läuft.

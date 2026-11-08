@@ -6,14 +6,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * Ein Fehler hier öffnet entweder die Box bei einem Verstoss oder hält sie bei einer erlaubten
  * Reinigung zu. Beides ist am Gerät passiert, deshalb dieser Test.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
 import { releaseLockPeriodsOnOpen, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveLockPeriods, isCodePhotoRevealed, bildersafeMenuAction, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE, getKgNeighbors, getEntryNeighbors } from "./queries";
 import type { PrismaTx } from "./queries";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

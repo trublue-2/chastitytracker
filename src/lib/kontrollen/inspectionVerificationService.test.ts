@@ -6,12 +6,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * ist schon endgültig und unterscheidet „unverifiziert" von „nicht nötig".
  */
 
-vi.mock("@/lib/prisma", () => ({ prisma: { entry: { update: vi.fn() } } }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: { entry: { update: vi.fn() } } }));
 vi.mock("@/lib/kontrollen/verifyCache", () => ({ verifyKontrolleCodeDeduped: vi.fn() }));
 vi.mock("@/lib/kontrollen/verifyCode", () => ({ detectSealNumber: vi.fn() }));
 
 import { runInspectionVerification } from "./inspectionVerificationService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { verifyKontrolleCodeDeduped } from "@/lib/kontrollen/verifyCache";
 import { detectSealNumber } from "@/lib/kontrollen/verifyCode";
 

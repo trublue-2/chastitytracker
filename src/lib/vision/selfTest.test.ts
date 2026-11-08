@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const verifyCodeOnImage = vi.fn();
 vi.mock("@/lib/kontrollen/verifyCode", () => ({ verifyCodeOnImage: (...a: unknown[]) => verifyCodeOnImage(...a) }));
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: {} }));
 
 import { runVisionSelfTest, SELF_TEST_CODE } from "./selfTest";
 import { resolveVisionFrom } from "./config";

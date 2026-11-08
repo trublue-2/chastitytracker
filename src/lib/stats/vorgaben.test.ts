@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // reorderVorgabenDates nutzt nur prisma.trainingVorgabe.findMany + update — beides mocken.
 // Die Kategorie-Zugehörigkeit kommt als Relation an der Zeile mit (`include`), nicht als zweite Query.
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { trainingVorgabe: { findMany: vi.fn(), update: vi.fn() } },
 }));
 
 import { reorderVorgabenDates, goalCategoryKey } from "./vorgaben";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const findManyMock = prisma.trainingVorgabe.findMany as unknown as ReturnType<typeof vi.fn>;
 const updateMock = prisma.trainingVorgabe.update as unknown as ReturnType<typeof vi.fn>;

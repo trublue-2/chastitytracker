@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
-import { boxCouplingEnabled } from "@/lib/constants";
-import { errorResponse, serviceResponse } from "@/lib/serviceResult";
+import { boxCouplingEnabled } from "@/lib/shared/constants";
+import { errorResponse, serviceResponse } from "@/lib/shared/serviceResult";
 import { removeBox } from "@/lib/box/boxPairing";
 
 export const runtime = "nodejs";

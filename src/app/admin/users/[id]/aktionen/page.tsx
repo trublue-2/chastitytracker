@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { LOCK_FORM_PLAN_MODE } from "@/lib/entries/lockRequestPlanning";
 import { getIsLocked } from "@/lib/entries/queries";

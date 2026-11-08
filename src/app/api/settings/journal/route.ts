@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
 import { setJournalSettings } from "@/lib/journal/journalService";
-import { errorResponse, serviceFailure } from "@/lib/serviceResult";
+import { errorResponse, serviceFailure } from "@/lib/shared/serviceResult";
 
 /**
  * PATCH /api/settings/journal — die eigenen Tagebuch-Einstellungen (Standard-Sichtbarkeit neuer

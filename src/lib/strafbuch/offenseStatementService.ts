@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { announcedOffenseType } from "@/lib/strafbuch/offenseAnnounce";
-import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/constants";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/shared/constants";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
+import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
 import type { OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
 
 /**

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 
 import { useLocale, useTranslations } from "next-intl";
-import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/shared/utils";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import FormError from "@/app/components/FormError";
 import FormSuccess from "@/app/components/FormSuccess";
@@ -14,7 +14,7 @@ import Button from "@/app/components/Button";
 import FieldTabs from "@/app/components/FieldTabs";
 import DurationOrDatetimeField from "@/app/components/DurationOrDatetimeField";
 import HoursInput from "@/app/components/HoursInput";
-import { DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit } from "@/lib/constants";
+import { DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit } from "@/lib/shared/constants";
 import ScheduleFields, { initialSchedule, scheduleFromWirksamAb, scheduleIsPast, schedulePayload, scheduleAnchorMs, scheduleTriggerIso, type ScheduleValue } from "@/app/components/ScheduleFields";
 import type { DeviceOption } from "@/lib/entries/queries";
 import { hasLockSpec } from "@/lib/entries/lockSpec";

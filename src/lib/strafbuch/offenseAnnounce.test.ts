@@ -39,7 +39,7 @@ const create = vi.fn(async ({ data }: { data: Record<string, string | null> }) =
   });
   return { id: "m1" };
 });
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     message: {
       findMany: (...a: unknown[]) => findMany(...a),

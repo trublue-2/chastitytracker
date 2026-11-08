@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // (ISO-Wochentage → Maske, freq), dass der dryRun den Fehlercode des Rechenkerns durchreicht, und
 // die Existenz-Prüfung beim Zurückziehen. Der Commit-Pfad (createTaskSeries etc.) ist in
 // taskSeries.test.ts geprüft.
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     taskSeries: { findFirst: vi.fn() },
@@ -19,7 +19,7 @@ vi.mock("@/lib/auth/keyholder", () => ({
 }));
 
 import { mcpCreateTaskSeries, mcpEditTaskSeries, mcpWithdrawTaskSeries, type CreateTaskSeriesArgs } from "../mcp/mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const db = prisma as unknown as {
   user: { findUnique: ReturnType<typeof vi.fn> };

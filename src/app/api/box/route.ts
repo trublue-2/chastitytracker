@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi, requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getActiveLockPeriod } from "@/lib/entries/queries";
-import { boxCouplingEnabled } from "@/lib/constants";
+import { boxCouplingEnabled } from "@/lib/shared/constants";
 import { toBoxKind, toPendingCommand } from "@/lib/box/boxStatus";
 import { boxNeedsReopen, boxReopenBlockReason } from "@/lib/box/boxReopenService";
 

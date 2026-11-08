@@ -16,7 +16,7 @@ const tx = {
 };
 
 vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     verschlussAnforderung: { findUnique: vi.fn(), update: vi.fn() },
@@ -50,7 +50,7 @@ import {
   LOCK_ANCHOR_GRACE_MS,
   lockPeriodFromRequest,
 } from "./verschlussAnforderungService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { notifyUser } from "@/lib/messages/notify";
 import { notifyHeimdallForUserId } from "@/lib/box/heimdallNotify";
 import { getIsLocked } from "@/lib/entries/queries";

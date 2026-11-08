@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { isJournalVisibility, type JournalVisibility } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { isJournalVisibility, type JournalVisibility } from "@/lib/shared/constants";
 import { CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesAt, cleaningRulesFrom } from "@/lib/entries/cleaningRules";
 import {
@@ -19,9 +19,9 @@ import {
   type JournalRow,
   type KeyholderJournalRow,
 } from "@/lib/journal/journal";
-import { serviceFail, type ServiceFailure, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceFailure, type ServiceResult } from "@/lib/shared/serviceResult";
 import { buildSessions } from "@/lib/entries/sessionModel";
-import { orgasmTimes, tzDateParts } from "@/lib/utils";
+import { orgasmTimes, tzDateParts } from "@/lib/shared/utils";
 
 /**
  * Das Tagebuch des Subs (Issue #114) — Laden und Schreiben. Die Regeln selbst stehen datenbankfrei in

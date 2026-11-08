@@ -1,6 +1,6 @@
 "use client";
 
-import { LOCALES } from "@/lib/constants";
+import { LOCALES } from "@/lib/shared/constants";
 import SegmentedControl from "@/app/components/SegmentedControl";
 import { useLocaleSwitcher } from "@/app/hooks/useLocaleSwitcher";
 

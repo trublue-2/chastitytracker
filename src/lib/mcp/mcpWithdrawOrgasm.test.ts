@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Falschauskunft, gegen die `withdrawnItems` nach dem Vorfall 28.07.2026 gebaut wurde.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() } },
 }));
 vi.mock("@/lib/entries/orgasmusAnforderungService", () => ({
@@ -22,7 +22,7 @@ vi.mock("@/lib/entries/orgasmusAnforderungService", () => ({
 }));
 
 import { mcpWithdraw } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { withdrawOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;

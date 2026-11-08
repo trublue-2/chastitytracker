@@ -2,7 +2,7 @@
 // sie, ohne dass hier etwas rot wird. Deshalb pinnt der Test die Form.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -10,7 +10,7 @@ vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn() }));
 
 import { GET } from "./route";
 import { auth } from "@/lib/auth/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

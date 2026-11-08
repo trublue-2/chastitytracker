@@ -3,7 +3,7 @@ import { actionSign } from "@/app/entries/actionSign";
 import { auth } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { bildersafeEnabled } from "@/lib/constants";
+import { bildersafeEnabled } from "@/lib/shared/constants";
 import { getCurrentSealedCode, isCodePhotoRevealed } from "@/lib/entries/queries";
 import CodeAnzeigen from "./CodeAnzeigen";
 

@@ -6,7 +6,7 @@ import { NextRequest } from "next/server";
  * gegen den Aufrufer liesse jeden Keyholder die Messungen jedes fremden Trägers löschen, weil er
  * für IRGENDEINEN Träger berechtigt ist.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -14,7 +14,7 @@ vi.mock("@/lib/auth/authGuards", () => ({ requireKeyholderOrAdminApi: vi.fn() })
 vi.mock("@/lib/weight/weightService", () => ({ deleteWeightEntry: vi.fn(), updateWeightEntry: vi.fn() }));
 
 import { DELETE, PATCH } from "./route";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
 import { deleteWeightEntry, updateWeightEntry } from "@/lib/weight/weightService";
 import type { PrismaMock } from "@/test/prismaMock";

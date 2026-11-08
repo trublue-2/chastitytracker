@@ -9,7 +9,7 @@ import { loadMcpImage, mcpImageToolVisible } from "@/lib/mcp/entryImage";
 import { MCP_MODEL_DOC } from "@/lib/mcp/mcpModelDoc";
 import { OFFENSE_RULE_MODES } from "@/lib/strafbuch/offenseRules";
 import { AUTO_INSPECTION_DAY_RULES_MAX } from "@/lib/kontrollen/autoKontrolleDayRules";
-import { structuredLog, redactDigits } from "@/lib/serverLog";
+import { structuredLog, redactDigits } from "@/lib/shared/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod,
   mcpReleaseNow, mcpRequestInspection, mcpSetTrainingGoal, mcpWithdraw,
@@ -19,7 +19,7 @@ import {
   mcpImportDeviceReferences, mcpDeleteDeviceReference, mcpDeleteEntry,
   mcpRequestOrgasm, mcpJudgeOffense, mcpRecordOffense,
 } from "@/lib/mcp/mcpWrite";
-import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
+import { DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, ORGASMUS_ARTEN, VALID_TYPES, CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE, INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY, INSPECTION_DEADLINE_DEFAULT_H, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY, type NumberRange, AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE, INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE, RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/shared/constants";
 import { verifyAccessToken } from "@/lib/auth/oauth";
 // ── MCP V2 ──
 import { getSession } from "@/lib/mcp/sessions";
@@ -30,7 +30,7 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_NAME_MAX_LENGTH } from "@/lib
 import { executeWrite, recordAction, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
 import { buildWriteContext, NOTE_TEXT_LIMIT } from "@/lib/mcp/common";
 import { computeToolSurfaceFingerprint, setToolSurfaceFingerprint, toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { keyholderDashboard, getBoxState } from "@/lib/mcp/dashboard";
 import { deviceStats, records, denialTrend, periodSummary } from "@/lib/mcp/stats";
 import { getOffenses, OFFENSE_TYPES } from "@/lib/mcp/ledger";
@@ -299,7 +299,7 @@ async function buildServerInstructions(): Promise<string> {
   const username = process.env.MCP_USERNAME;
   if (!username) return instructions;
   try {
-    const { prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/shared/prisma");
     const user = await prisma.user.findUnique({ where: { username }, select: { mcpKeyholderInstructions: true } });
     const rules = user?.mcpKeyholderInstructions?.trim();
     if (rules) {

@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
-import { prisma } from "@/lib/prisma";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { getUserTimezone } from "@/lib/entries/queries";
-import { formatDateTime, nowDatetimeLocal, toDateLocale, toDatetimeLocal } from "@/lib/utils";
+import { formatDateTime, nowDatetimeLocal, toDateLocale, toDatetimeLocal } from "@/lib/shared/utils";
 import { strafbuchCached } from "@/lib/stats/dashboardData";
 import { openOffensesOf, selectSubOffenses } from "@/lib/strafbuch/subOffenses";
 import { STORED_TYPE } from "@/lib/strafbuch/offenseTypes";

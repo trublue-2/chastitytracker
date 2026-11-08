@@ -20,7 +20,7 @@ const tx = {
   // wogegen genau, prüft `offenseDismissedNotice.test.ts` an der echten Zeile.
   message: { deleteMany: vi.fn() },
 };
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { $transaction: vi.fn(async (fn: (c: typeof tx) => Promise<unknown>) => fn(tx)) },
 }));
 // Der Browser-Eingang dieses Vorgangs (`POST /api/admin/tasks`) läuft hier mit — er trägt dieselben

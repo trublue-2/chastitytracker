@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { compressImage } from "@/lib/client/compressImage";
-import type { Rotation } from "@/lib/constants";
+import type { Rotation } from "@/lib/shared/constants";
 import { fetchWithTimeout, UPLOAD_TIMEOUT_MS, uploadPhoto } from "@/lib/client/apiClient";
 import { putBlob, offlineBlobToken, isOfflineBlobUrl } from "@/lib/client/idb";
 

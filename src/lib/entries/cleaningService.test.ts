@@ -3,7 +3,7 @@ import {
   activeCleaningWindow, countCleaningUsedToday, currentOrNextCleaningWindow, nextCleaningWindow,
   parseCleaningWindows, cleaningWindowProblem, cleaningWindowListProblem, formatCleaningWindows,
 } from "./cleaningService";
-import { CLEANING_WINDOWS_MAX, CLEANING_WINDOWS_TOO_MANY, INVALID_TIME, TIME_RANGE_INVALID } from "@/lib/constants";
+import { CLEANING_WINDOWS_MAX, CLEANING_WINDOWS_TOO_MANY, INVALID_TIME, TIME_RANGE_INVALID } from "@/lib/shared/constants";
 import { ALL_WEEKDAYS, weekdayMaskOf } from "@/lib/stats/weekdays";
 
 /** Montag … Sonntag als Maske — die Tests lesen sich damit wie der Zettel des Keyholders. */

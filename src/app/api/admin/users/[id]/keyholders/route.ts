@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { requireAdminApi } from "@/lib/auth/authGuards";
 
 /** Admin-only management of a sub's keyholders (AdminUserRelationship: adminId = keyholder, userId = sub).

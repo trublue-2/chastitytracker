@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 
 const tx = { entry: { create: vi.fn() }, verschlussAnforderung: { updateMany: vi.fn() } };
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) },
 }));
 vi.mock("@/lib/entries/queries", () => ({

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Droplets } from "lucide-react";
-import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/shared/utils";
 import { splitOrgasmusArt, type OrgasmusOption } from "@/lib/entries/reasonsService";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";

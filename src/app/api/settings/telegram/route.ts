@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { requireApi } from "@/lib/auth/authGuards";
-import { errorResponse } from "@/lib/serviceResult";
+import { errorResponse } from "@/lib/shared/serviceResult";
 import { createTelegramLink, unlinkTelegram, telegramLinkAvailable } from "@/lib/messages/telegram";
 
 /** GET /api/settings/telegram — Verknüpfungs-Status des eigenen Kontos (für die Anzeige, nachdem der

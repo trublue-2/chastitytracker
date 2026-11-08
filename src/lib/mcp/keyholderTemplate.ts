@@ -1,4 +1,4 @@
-import type { Locale } from "@/lib/constants";
+import type { Locale } from "@/lib/shared/constants";
 
 /** Startvorlage für die Freitext-Regeln des menschlichen Keyholders (`mcpKeyholderInstructions`).
  *  Der Admin fügt sie im Einstellungs-Formular per Knopf ein und passt sie an — sie wird NIE

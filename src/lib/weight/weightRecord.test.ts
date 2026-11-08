@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/prisma", () => {
+vi.mock("@/lib/shared/prisma", () => {
   const tx = {
     user: { findUnique: vi.fn() },
     weightEntry: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
@@ -18,7 +18,7 @@ vi.mock("@/lib/weight/weightReleaseService", () => ({ applyWeightRelease: vi.fn(
 
 import { recordWeight, updateWeightEntry } from "./weightService";
 import { applyWeightRelease } from "@/lib/weight/weightReleaseService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const tx = (prisma as unknown as { __tx: {
   user: { findUnique: ReturnType<typeof vi.fn> };

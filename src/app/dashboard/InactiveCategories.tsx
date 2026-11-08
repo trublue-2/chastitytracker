@@ -7,7 +7,7 @@ import { wearActionHref } from "@/lib/devices/categoryConstants";
 import CategoryLinkRow from "@/app/components/CategoryLinkRow";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import ExpandToggle from "@/app/components/ExpandToggle";
-import { formatTotalHours } from "@/lib/utils";
+import { formatTotalHours } from "@/lib/shared/utils";
 
 export interface InactiveCategoryRow {
   id: string;

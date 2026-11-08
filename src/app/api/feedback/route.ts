@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
-import { isValidEmail } from "@/lib/constants";
+import { isValidEmail } from "@/lib/shared/constants";
 import { censusEnabled, censusInstanceId, imageOrigin, imageOriginLabel } from "@/lib/upstream/census";
 import { FEEDBACK_DEFAULT_UPSTREAM_URL, feedbackMode, isThrowawayEmail } from "@/lib/upstream/feedback";
 

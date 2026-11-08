@@ -1,8 +1,8 @@
-import { APP_TZ, hhmmFromMinutes, hhmmInTZ, hhmmToMinutes } from "@/lib/utils";
-import { HHMM, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE } from "@/lib/constants";
+import { APP_TZ, hhmmFromMinutes, hhmmInTZ, hhmmToMinutes } from "@/lib/shared/utils";
+import { HHMM, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE } from "@/lib/shared/constants";
 import { isoDayPlus, isoWeekdayInTZ, parseWeekdayMask, weekdayMaskHas, weekdayMaskValid } from "@/lib/stats/weekdays";
-import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
-import { listProblem, parseJsonList, type ListProblem } from "@/lib/jsonList";
+import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
+import { listProblem, parseJsonList, type ListProblem } from "@/lib/shared/jsonList";
 
 /**
  * Die täglichen Wiege-Fenster: „zwischen 6 und 8 Uhr wiegen".

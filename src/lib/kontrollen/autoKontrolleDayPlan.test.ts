@@ -13,11 +13,11 @@ import { createPrismaMock, type PrismaMock } from "@/test/prismaMock";
  */
 
 const prismaMock: PrismaMock = createPrismaMock();
-vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: prismaMock }));
 
 const { ensureDailyAutoKontrollenForUser, rerollTodayAutoKontrollenForUser, autoKontrolleSettingsFromUser } =
   await import("./autoKontrolleService");
-const { midnightInTZ, dateAtLocalMinutes } = await import("../utils");
+const { midnightInTZ, dateAtLocalMinutes } = await import("../shared/utils");
 
 const { ALL_WEEKDAYS, weekdayMaskOf } = await import("../stats/weekdays");
 

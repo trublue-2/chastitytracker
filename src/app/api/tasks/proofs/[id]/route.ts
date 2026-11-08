@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
 import { submitTaskProof } from "@/lib/tasks/taskProofService";
-import { isValidImageUrl } from "@/lib/constants";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { isValidImageUrl } from "@/lib/shared/constants";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /**
  * Der Sub reicht ein gefordertes Nachweis-Foto ein.

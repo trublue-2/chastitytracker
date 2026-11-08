@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * checkGoalPlausibility, checkLockEnd), erkennt der Preview einen Verstoss auch wirklich.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() },
     device: { findMany: vi.fn() },
@@ -88,7 +88,7 @@ import {
   mcpEditLockPeriod, mcpEditLockRequest, mcpJudgeOffense, mcpCreateTask, mcpEditTask, mcpSetAutoInspections,
   mcpReviewTaskProof, mcpReleaseNow, mcpSetWeightRelease,
 } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/entries/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrollen/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/stats/vorgabeService";
@@ -98,7 +98,7 @@ import { createOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungServ
 import { judgeOffense, requireDetectedOffense } from "@/lib/strafbuch/strafurteilService";
 import { releaseNow } from "@/lib/entries/releaseNowService";
 import { setWeightRelease } from "@/lib/weight/weightReleaseService";
-import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
+import { CLEANING_WINDOWS_MAX } from "@/lib/shared/constants";
 import { ALL_WEEKDAYS, weekdayMaskOf } from "@/lib/stats/weekdays";
 import { taskRow } from "@/test/taskRow";
 import { taskProofRow } from "@/test/taskProofRow";

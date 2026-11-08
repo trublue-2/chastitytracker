@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * Träger keine andere Box führt (eine Box je Träger, `boxPairing.ts`), und nie mit zwei Passwörtern,
  * auch wenn zwei Erstkontakte gleichzeitig ankommen.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -17,7 +17,7 @@ vi.mock("@/lib/entries/lockCommit", () => ({
 }));
 
 import { lockmeboxRelayStep } from "./lockmeboxService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

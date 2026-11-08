@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { deployCutoff } from "@/lib/upstream/appMeta";
 import { loadSubOffenses, type SubOffense } from "@/lib/strafbuch/subOffenses";
 import { recordSystemMessage, OFFENSE_REF_TYPE, parseParams } from "@/lib/messages/messageService";

@@ -1,6 +1,6 @@
-import type { Rotation } from "@/lib/constants";
+import type { Rotation } from "@/lib/shared/constants";
 import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/kontrollen/verifyCode";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 
 /**
  * Dedup-Layer über verifyKontrolleCodeDetailed. Der Live-Check im Formular (`/api/verify-kontrolle`)

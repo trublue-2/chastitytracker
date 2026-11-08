@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * aufdecken soll.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() } },
 }));
 vi.mock("@/lib/kontrollen/inspectionEscalationService", async (importOriginal) => {
@@ -18,7 +18,7 @@ vi.mock("@/lib/kontrollen/inspectionEscalationService", async (importOriginal) =
 });
 
 import { mcpSetInspectionEscalation } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { setInspectionEscalationSettings } from "@/lib/kontrollen/inspectionEscalationService";
 
 const setSettingsMock = setInspectionEscalationSettings as unknown as ReturnType<typeof vi.fn>;

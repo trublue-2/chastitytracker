@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
-import { EMAIL_BUTTON_COLORS } from "@/lib/constants";
-import { structuredLog } from "@/lib/serverLog";
+import { EMAIL_BUTTON_COLORS } from "@/lib/shared/constants";
+import { structuredLog } from "@/lib/shared/serverLog";
 
 export function escHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

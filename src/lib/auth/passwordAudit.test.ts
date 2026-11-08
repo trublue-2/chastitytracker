@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Factory-Import statt Top-Level-Variable: `vi.mock` wird an den Dateianfang gehoben, eine
 // aussenstehende Konstante wäre dort noch nicht initialisiert (Muster aus dashboard.test.ts).
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 vi.mock("@/lib/entries/queries", () => ({ subsWithActiveLockPeriod: vi.fn() }));
 
 import { buildAdminPasswordChangeRows } from "./passwordAudit";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { subsWithActiveLockPeriod } from "@/lib/entries/queries";
 import { type PrismaMock } from "@/test/prismaMock";
 

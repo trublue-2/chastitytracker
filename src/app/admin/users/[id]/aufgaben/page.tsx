@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth/auth";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getTranslations } from "next-intl/server";
 import { ClipboardList } from "lucide-react";
 import Button from "@/app/components/Button";
@@ -13,8 +13,8 @@ import { listTaskSeries } from "@/lib/tasks/taskService";
 import { evaluateTasks, TASK_INCLUDE } from "@/lib/tasks/taskIntervals";
 import { toTaskCard } from "@/lib/tasks/taskView";
 import { loadTaskProofViews } from "@/lib/tasks/taskIntervals";
-import { APP_TZ } from "@/lib/utils";
-import { BLOCK_PAGE_SIZE } from "@/lib/constants";
+import { APP_TZ } from "@/lib/shared/utils";
+import { BLOCK_PAGE_SIZE } from "@/lib/shared/constants";
 import { isTaskOpenForKeyholder } from "@/lib/tasks/tasks";
 import { taskFormHref } from "@/lib/entries/entryFormRoute";
 

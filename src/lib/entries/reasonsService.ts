@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import {
   ORGASMUS_ARTEN,
   OEFFNEN_GRUENDE,
@@ -9,7 +9,7 @@ import {
   parseOrgasmusArtBase,
   orgasmusArtLabel,
   ART_SEP,
-} from "@/lib/constants";
+} from "@/lib/shared/constants";
 
 // ART_SEP ist die zentrale Konstante in constants.ts (K4); hier re-exportiert für bestehende Importeure.
 export { ART_SEP };

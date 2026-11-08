@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getTranslations } from "next-intl/server";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { getUserTimezone } from "@/lib/entries/queries";
-import { nowDatetimeLocal } from "@/lib/utils";
+import { nowDatetimeLocal } from "@/lib/shared/utils";
 import { effectiveOrgasmusArten, resolveOrgasmusOptions } from "@/lib/entries/reasonsService";
 import OrgasmusForm from "./OrgasmusForm";
 

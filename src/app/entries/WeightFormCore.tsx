@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Scale } from "lucide-react";
-import { toDateLocale, formatDateTime, fromDatetimeLocal, round1 } from "@/lib/utils";
+import { toDateLocale, formatDateTime, fromDatetimeLocal, round1 } from "@/lib/shared/utils";
 import {
   bmi, parseDecimalInput, plausibleDetection, weightForDisplay, weightText, weightInputToKg,
   WEIGHT_JUMP_CONFIRM_KG,

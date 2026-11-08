@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getUserDeviceOptions, getKeyholderLockPeriods, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/entries/queries";
 import { isHiddenFromSub, computeDelayedTrigger } from "@/lib/entries/delayedTrigger";
 import { conflictingLockSpecs, hasLockSpec } from "@/lib/entries/lockSpec";
@@ -22,7 +22,7 @@ import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
 import { resolveTaskProof } from "@/lib/mcp/taskProofRef";
 import { diffFields } from "@/lib/mcp/writeFramework";
-import type { ListProblem } from "@/lib/jsonList";
+import type { ListProblem } from "@/lib/shared/jsonList";
 import {
   setAutoKontrolleSettings, autoKontrolleSettingsFromUser, autoInspectionsView, planningChanged,
   AUTO_KONTROLLE_SETTINGS_SELECT, type AutoKontrolleSettings,
@@ -41,13 +41,13 @@ import {
   INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
   clampProofDueOffset, clampHoldDuration, type NumberRange,
   RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE,
-} from "@/lib/constants";
-import { clamp, randomInt, midnightAfterDays } from "@/lib/utils";
+} from "@/lib/shared/constants";
+import { clamp, randomInt, midnightAfterDays } from "@/lib/shared/utils";
 import { goalCategoryKey } from "@/lib/stats/vorgaben";
 import { goalDateFromInput } from "@/lib/stats/vorgabeService";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/strafbuch/manualOffenseService";
-import type { ServiceResult } from "@/lib/serviceResult";
-import { KEYHOLDER_LOCK_STATE_WORDING } from "@/lib/serviceErrorCodes";
+import type { ServiceResult } from "@/lib/shared/serviceResult";
+import { KEYHOLDER_LOCK_STATE_WORDING } from "@/lib/shared/serviceErrorCodes";
 import en from "../../../messages/en.json";
 import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/tasks/taskProofService";
 import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/tasks/taskService";
@@ -62,7 +62,7 @@ import { createEntryGapForUser, validateEntryGap, entryGapEnabled, type EntryGap
 import { deleteReference, importEntryAsReference, importRecentVerschluss, selectImportCandidates } from "@/lib/devices/deviceReferenceService";
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks/tasks";
 import { releaseNow, previewReleaseNow } from "@/lib/entries/releaseNowService";
-import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
+import { RELEASE_ORGASM_WINDOW_H } from "@/lib/shared/constants";
 import { setLockRequiresBolt } from "@/lib/entries/lockCommit";
 import { setOffenseStatementsAllowed } from "@/lib/strafbuch/offenseStatementService";
 import { loadBoxSettings } from "@/lib/mcp/context";

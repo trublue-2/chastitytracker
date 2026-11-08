@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *    verschickten Meldungen im nächsten Tick wiederholte.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     task: { findMany: vi.fn(), update: vi.fn() },
     user: { findUnique: vi.fn() },
@@ -26,7 +26,7 @@ vi.mock("@/lib/auth/keyholder", () => ({ getControllerAudience: vi.fn() }));
 vi.mock("@/lib/tasks/taskIntervals", () => ({ evaluateTasks: vi.fn(), TASK_INCLUDE: {}, SUB_VISIBLE_WHERE: {} }));
 
 import { processDueTasks } from "./taskService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { notifyUser, notifyControllers } from "@/lib/messages/notify";
 import { getControllerAudience } from "@/lib/auth/keyholder";
 import { evaluateTasks } from "@/lib/tasks/taskIntervals";

@@ -2,7 +2,7 @@
 
 import { useState, Fragment, useRef } from "react";
 import BlockHeading from "@/app/components/BlockHeading";
-import { toDateLocale, formatTotalHours } from "@/lib/utils";
+import { toDateLocale, formatTotalHours } from "@/lib/shared/utils";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
 import { iconButtonCls } from "@/app/components/inputStyles";
 import { useDialogBehaviour } from "@/app/hooks/useDialogBehaviour";

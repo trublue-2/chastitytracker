@@ -17,8 +17,8 @@ import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import Textarea from "@/app/components/Textarea";
 import EntryFormShell from "@/app/components/EntryFormShell";
-import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
-import { formatDateTime, formatElapsedMs, toDateLocale } from "@/lib/utils";
+import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/shared/constants";
+import { formatDateTime, formatElapsedMs, toDateLocale } from "@/lib/shared/utils";
 
 /**
  * Der Sub reicht EINEN geforderten Nachweis ein (Issue #39; Text-Nachweis Issue #108).

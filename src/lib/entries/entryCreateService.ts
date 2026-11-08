@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { Entry, User } from "@prisma/client";
-import { validateEntryPayload, DEVICE_BEARING_TYPES, LOCK_ENDED_REASON, lockmeboxEnabled } from "@/lib/constants";
+import { validateEntryPayload, DEVICE_BEARING_TYPES, LOCK_ENDED_REASON, lockmeboxEnabled } from "@/lib/shared/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/entries/reasonsService";
 import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, getKgNeighbors, endableLockPeriods } from "@/lib/entries/queries";
 import { entryGuardError, entryGuardCode } from "@/lib/entries/entryErrors";

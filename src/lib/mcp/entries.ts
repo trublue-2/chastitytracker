@@ -1,6 +1,6 @@
 import { isCodeChangeState, type CodeChangeState } from "@/lib/box/lockboxCodeCheck";
-import { prisma } from "@/lib/prisma";
-import { formatDateTime, isTimeCorrected } from "@/lib/utils";
+import { prisma } from "@/lib/shared/prisma";
+import { formatDateTime, isTimeCorrected } from "@/lib/shared/utils";
 import { effectiveDeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";
 import { toVerifyFailure, type VerifyFailure } from "@/lib/kontrollen/verifyReason";
 import { resolveUserContext, buildEnvelope, makeIso, mcpDeviceCheckStatus, type Envelope, type McpDeviceCheckStatus } from "@/lib/mcp/common";

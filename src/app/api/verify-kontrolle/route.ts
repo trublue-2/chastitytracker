@@ -4,8 +4,8 @@ import { verifyKontrolleCodeDeduped } from "@/lib/kontrollen/verifyCache";
 import { deriveSealCode } from "@/lib/kontrollen/kontrolleService";
 import { getLatestKgEntry } from "@/lib/entries/queries";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
-import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
-import { structuredLog } from "@/lib/serverLog";
+import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/shared/constants";
+import { structuredLog } from "@/lib/shared/serverLog";
 
 const log = (label: string, fields: Record<string, unknown>) => structuredLog("verify", label, fields);
 

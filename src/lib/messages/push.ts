@@ -1,6 +1,6 @@
 import webpush from "web-push";
-import { prisma } from "@/lib/prisma";
-import { structuredLog } from "@/lib/serverLog";
+import { prisma } from "@/lib/shared/prisma";
+import { structuredLog } from "@/lib/shared/serverLog";
 import { isAllowedPushEndpoint } from "@/lib/messages/pushEndpoint";
 import { apnsProviderToken, resetApnsTokenCache } from "@/lib/messages/apnsAuth";
 

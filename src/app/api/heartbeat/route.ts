@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getDashboardTasks, evaluateTasks } from "@/lib/tasks/taskIntervals";
 import { isTaskResultFinal, proofAwaitingVerdict } from "@/lib/tasks/tasks";
 import { getIsLocked, getActiveLockPeriod, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/entries/queries";

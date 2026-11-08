@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { pruneExpiredMessages } from "@/lib/messages/messageService";
 import { pruneWeightPhotos } from "@/lib/weight/weightService";
 import { sendDueWeighingReminders } from "@/lib/weight/weightReminder";
-import { LOCK_ENDED_REASON } from "@/lib/constants";
+import { LOCK_ENDED_REASON } from "@/lib/shared/constants";
 import { NOTIFY_RECIPIENT_SELECT } from "@/lib/messages/notify";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrollen/kontrolleService";
 import { getIsLocked, getActiveLockPeriod } from "@/lib/entries/queries";
@@ -10,9 +10,9 @@ import { resolveInspectionTarget, inspectionTargetLabel, isKgTarget } from "@/li
 import { sendVerschlussAnforderungNotifications, checkLockEnd, carryOverLockPeriodOnAlreadyLocked } from "@/lib/entries/verschlussAnforderungService";
 import { sendOrgasmusAnforderungNotifications, checkOrgasmWindowEnd } from "@/lib/entries/orgasmusAnforderungService";
 import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt, autoKontrolleSettingsFromUser, isEntryTriggeredInspection, AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/kontrollen/autoKontrolleService";
-import { APP_TZ } from "@/lib/utils";
+import { APP_TZ } from "@/lib/shared/utils";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked, predictAutoMarkAt, INSPECTION_ESCALATION_USER_SELECT } from "@/lib/kontrollen/inspectionEscalationService";
-import { maybeRunHealthChecks } from "@/lib/healthCheck";
+import { maybeRunHealthChecks } from "@/lib/shared/healthCheck";
 import { maybeAnnounceOffenses } from "@/lib/strafbuch/offenseAnnounce";
 import { deadlineFromDispatch, dueForDispatchWhere } from "@/lib/entries/delayedTrigger";
 import { dispatchDueTasks, processDueTasks, materializeDueSeries } from "@/lib/tasks/taskService";

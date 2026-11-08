@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { subsWithActiveLockPeriod } from "@/lib/entries/queries";
 import type { Prisma } from "@prisma/client";
 

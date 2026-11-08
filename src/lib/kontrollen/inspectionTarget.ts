@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getLatestKgEntry, getActiveWearSessionForCategory, getActiveWearSessions, getIsLocked, type PrismaTx } from "@/lib/entries/queries";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 
 /**
  * Das ZIEL einer Kontrolle — der KG oder eine Trage-Kategorie (v5.0.1).

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { codedError } from "../codedError";
+import { codedError } from "../shared/codedError";
 import { ENTRY_ERROR_CODES, entryGuardError, entryGuardCode } from "./entryErrors";
 
 /** Die Entry-Routen, die stabile Codes als `{ error: "CODE" }` beantworten. */

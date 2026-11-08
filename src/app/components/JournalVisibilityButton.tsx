@@ -8,7 +8,7 @@ import useToast from "@/app/hooks/useToast";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/client/apiClient";
-import type { JournalVisibility } from "@/lib/constants";
+import type { JournalVisibility } from "@/lib/shared/constants";
 import JournalVisibilityOptions from "./JournalVisibilityOptions";
 import { asVisibility } from "@/lib/journal/journal";
 

@@ -4,13 +4,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * `getBoxFormContext`: was Formulare und Einstellungen über die Box des Trägers wissen. `boltAlways` ist
  * die Auskunft, dass der Schalter der Keyholderin bei einer LockMeBox nicht wirkt (`lockAwaitsBolt`).
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
 import { getBoxFormContext } from "../entries/queries";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

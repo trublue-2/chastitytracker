@@ -13,7 +13,7 @@ import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { fromDatetimeLocal } from "@/lib/utils";
+import { fromDatetimeLocal } from "@/lib/shared/utils";
 import type { ResolvedReason } from "@/lib/entries/reasonsService";
 import { actionSign } from "@/app/entries/actionSign";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";

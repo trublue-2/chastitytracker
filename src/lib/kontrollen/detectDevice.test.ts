@@ -5,7 +5,7 @@ vi.mock("@/lib/vision", () => ({ visionComplete: vi.fn(), visionConfigured: vi.f
 // Das Bild-Budget wird gepinnt statt aus den Defaults gelesen: sonst hinge die erwartete Verteilung
 // still an zwei Konstanten in constants.ts und ein Default-Wechsel liefe hier als undurchsichtiger
 // Array-Vergleich auf.
-vi.mock("@/lib/constants", () => ({
+vi.mock("@/lib/shared/constants", () => ({
   visionDeviceMaxImagePx: vi.fn(() => 512),
   visionMaxRefsPerDevice: vi.fn(() => 2),
   visionMaxTotalRefs: vi.fn(() => 6),
@@ -14,7 +14,7 @@ vi.mock("@/lib/constants", () => ({
 import { allocateImageBudget, checkDeviceInPhoto, detectDevice, type DeviceReference } from "./detectDevice";
 import { loadUploadedImage } from "@/lib/client/imageUtils";
 import { visionComplete, visionConfigured } from "@/lib/vision";
-import { visionMaxRefsPerDevice } from "@/lib/constants";
+import { visionMaxRefsPerDevice } from "@/lib/shared/constants";
 
 const loadMock = loadUploadedImage as unknown as ReturnType<typeof vi.fn>;
 const visionMock = visionComplete as unknown as ReturnType<typeof vi.fn>;

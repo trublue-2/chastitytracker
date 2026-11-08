@@ -1,9 +1,9 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import {
   wearingHoursFromPairs,
   getMidnightToday,
   type WearHours,
-} from "@/lib/utils";
+} from "@/lib/shared/utils";
 import { buildWearSessions, wearHourPairsByCategory, type SegmentEntry } from "@/lib/entries/sessionModel";
 import { hasVisibleGoalRow, type VorgabeTargets } from "@/lib/stats/goalFulfillment";
 import { resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";

@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { heimdallEnabled, BOLT_OPEN_EVENT_TYPES } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { heimdallEnabled, BOLT_OPEN_EVENT_TYPES } from "@/lib/shared/constants";
 import type { BoxKind } from "@/lib/box/boxStatus";
 
 /**

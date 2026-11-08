@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
-import { LOCK_ENDED_REASON, orgasmTypeSatisfies } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { LOCK_ENDED_REASON, orgasmTypeSatisfies } from "@/lib/shared/constants";
 import { deployCutoff } from "@/lib/upstream/appMeta";
-import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ, hhmmToMinutes } from "@/lib/utils";
+import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ, hhmmToMinutes } from "@/lib/shared/utils";
 import { cleaningBlockReason, type CleaningPermissionUser } from "@/lib/entries/queries";
 import { activeCleaningWindow, CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
 
@@ -17,7 +17,7 @@ import {
   CLEANING_RULE_CHANGE_SELECT, cleaningPermissionUserAt, cleaningRulesFrom, cleaningRulesAt,
   type CleaningSettingsResolver,
 } from "@/lib/entries/cleaningRules";
-import { TIMEZONE_CHANGE_SELECT, timezoneRulesFrom, type TimezoneResolver } from "@/lib/timezoneRules";
+import { TIMEZONE_CHANGE_SELECT, timezoneRulesFrom, type TimezoneResolver } from "@/lib/shared/timezoneRules";
 import type { OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
@@ -618,7 +618,7 @@ function isAllowedCleaningOpening(
  * Sperrzeit-Kontext, Reinigung nicht erlaubt, ausserhalb der Fenster, oder die Sperrzeit endet vor
  * der Frist (dann bleibt nichts mehr zu verletzen).
  *
- * NICHT zu verwechseln mit {@link import("../utils").cleaningInterruptionDeadline} — der Frist, bis
+ * NICHT zu verwechseln mit {@link import("../shared/utils").cleaningInterruptionDeadline} — der Frist, bis
  * zu der ein Wiederverschluss die Session fortführt. Die hier ist strenger im Zugang (nur unter
  * Sperrzeit) und zugleich grosszügiger in der Dauer (bei konfigurierten Fenstern bis ans
  * Fensterende, also möglicherweise Stunden). Als Countdown im Dashboard gezeigt, verspräche sie

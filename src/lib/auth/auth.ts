@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 import { checkRateLimit, recordFailure, recordSuccess } from "@/lib/auth/login-attempts";
 import { resolveLogin } from "@/lib/auth/loginIdentity";

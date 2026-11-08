@@ -1,7 +1,7 @@
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { notFound } from "next/navigation";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { buildCategoryRows } from "@/lib/devices/categoryRows";
 import CategoriesClient from "@/app/dashboard/categories/CategoriesClient";
 

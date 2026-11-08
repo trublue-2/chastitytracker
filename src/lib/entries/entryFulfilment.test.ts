@@ -17,10 +17,10 @@ const txMock = {
   verschlussAnforderung: { findMany: vi.fn(), updateMany: vi.fn(), createMany: vi.fn() },
   orgasmusAnforderung: { findFirst: vi.fn(), update: vi.fn() },
 };
-vi.mock("@/lib/prisma", () => ({ prisma: { strafeRecord: { create: vi.fn() } } }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: { strafeRecord: { create: vi.fn() } } }));
 
 import { applyEntryFulfilment } from "./entryFulfilment";
-import { isPastDeadlineUnfulfilled } from "../utils";
+import { isPastDeadlineUnfulfilled } from "../shared/utils";
 
 /** Die Frist der Anordnung: „schliess dich bis 20:00 ein." */
 const DEADLINE = new Date("2026-08-03T20:00:00Z");

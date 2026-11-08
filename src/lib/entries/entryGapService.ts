@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { Entry, User } from "@prisma/client";
 import { validateEntryCreate } from "@/lib/entries/entryCreateService";
 import { getKgNeighbors, type PrismaTx } from "@/lib/entries/queries";

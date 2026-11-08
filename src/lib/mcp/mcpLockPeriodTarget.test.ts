@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * meldete früher ein nacktes `count`, ohne zu sagen, dass eine geplante mitgegangen ist.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() }, verschlussAnforderung: { findUnique: vi.fn() } },
 }));
 vi.mock("@/lib/entries/queries", () => ({
@@ -24,7 +24,7 @@ vi.mock("@/lib/entries/verschlussAnforderungService", () => ({
 }));
 
 import { mcpEditLockPeriod, mcpWithdraw } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getKeyholderLockPeriods } from "@/lib/entries/queries";
 import { updateLockPeriodEnd, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, type WithdrawnDirective } from "@/lib/entries/verschlussAnforderungService";
 

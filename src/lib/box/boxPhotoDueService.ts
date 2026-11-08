@@ -1,12 +1,12 @@
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { CLIENT_CLOCK_SKEW_MS, isValidImageUrl, parseRotation } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { CLIENT_CLOCK_SKEW_MS, isValidImageUrl, parseRotation } from "@/lib/shared/constants";
 import { boxReportsFreshlyLocked } from "@/lib/box/boxStatus";
 import { getLatestKgEntry } from "@/lib/entries/queries";
 import { detectKeyInBox } from "@/lib/kontrollen/verifyCode";
 import { announceBoxPhotoDue } from "@/lib/box/boxCommandNotify";
 import { boxPhotoDueAtOf, boxPhotoTakenBeforeBolt, isBoxPhotoDue, needsBoxPhoto } from "@/lib/box/boxPhotoDue";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 
 /**
  * Das Box-Foto kommt NACH dem Riegel (Regel und Begründung: `boxPhotoDue.ts`). Dieser Dienst setzt

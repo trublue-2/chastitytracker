@@ -1,13 +1,13 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { escHtml, appBaseUrl, dashboardEmailHtml } from "@/lib/messages/mail";
 import { emailT, localeT, type EmailTranslator } from "@/lib/messages/emailI18n";
 import { deliverToChannels } from "@/lib/messages/notify";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { deliveryChannels } from "@/lib/messages/deliveryChannels";
 import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/entries/reasonsService";
-import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/utils";
-import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, anyChannelActive, type MessagePriority, APP_NAME } from "@/lib/constants";
+import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/shared/utils";
+import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, anyChannelActive, type MessagePriority, APP_NAME } from "@/lib/shared/constants";
 
 export interface EntryNotifyParams {
   /** Der Träger, dessen Eintrag gemeldet wird. */

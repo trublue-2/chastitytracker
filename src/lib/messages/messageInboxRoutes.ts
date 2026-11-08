@@ -15,7 +15,7 @@ import {
 import { presentMessages } from "@/lib/messages/messagePresenter";
 import { parseMessageFilter } from "@/lib/messages/messageCategories";
 import { parseMessageBulkBody } from "@/lib/messages/messageBulk";
-import { errorResponse, serviceFailure } from "@/lib/serviceResult";
+import { errorResponse, serviceFailure } from "@/lib/shared/serviceResult";
 
 /**
  * Die Endpunkt-Familie EINES Posteingangs — einmal geschrieben, von beiden Sichten benutzt.

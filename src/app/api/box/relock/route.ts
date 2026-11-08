@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
-import { prisma } from "@/lib/prisma";
-import { errorResponse } from "@/lib/serviceResult";
-import { boxCouplingEnabled } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { errorResponse } from "@/lib/shared/serviceResult";
+import { boxCouplingEnabled } from "@/lib/shared/constants";
 import { getIsLocked, getCurrentLockKeyInBox } from "@/lib/entries/queries";
 import { setBoxCommandForUser } from "@/lib/box/boxCommand";
 import { PENDING_LOCK_FILTER } from "@/lib/entries/lockPending";

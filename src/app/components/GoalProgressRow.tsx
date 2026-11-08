@@ -1,4 +1,4 @@
-import { formatTotalHours } from "@/lib/utils";
+import { formatTotalHours } from "@/lib/shared/utils";
 import { goalPct } from "@/lib/stats/percent";
 import { goalOutlook } from "@/lib/stats/goalOutlook";
 

@@ -11,8 +11,8 @@ import { bildersafeMenuAction, getLatestKgEntry, pendingLockCallAt } from "@/lib
 import { subVisibleInspectionsNow } from "@/lib/stats/dashboardData";
 import { pendingInspection } from "@/lib/entries/entryFormRoute";
 import { buildNewEntryCategoryRows } from "@/lib/devices/categoryRows";
-import { bildersafeEnabled } from "@/lib/constants";
-import { prisma } from "@/lib/prisma";
+import { bildersafeEnabled } from "@/lib/shared/constants";
+import { prisma } from "@/lib/shared/prisma";
 import { subWorld } from "@/lib/client/theme";
 import pkg from "../../../package.json";
 import { readingColCls } from "@/app/components/inputStyles";

@@ -20,7 +20,7 @@ const db = vi.hoisted(() => ({
 const access = vi.hoisted(() => ({ entryManageAccess: vi.fn() }));
 const ids = vi.hoisted(() => ({ OWNER_ID: "owner-id", ENTRY_ID: "entry-id" }));
 
-vi.mock("@/lib/prisma", () => ({ prisma: db }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: db }));
 vi.mock("@/lib/auth/authGuards", () => ({
   requireApi: vi.fn(async () => ({ user: { id: ids.OWNER_ID, role: "user" } })),
 }));

@@ -2,7 +2,7 @@ import { loadKontrolleRows, sortedKontrolleRows } from "@/lib/kontrollen/kontrol
 import { buildEnvelope, makeIso, mcpDeviceCheckStatus, resolveUserContext, type Envelope, type McpDeviceCheckStatus } from "@/lib/mcp/common";
 import { effectiveDeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";
 import { toVerifyFailure, type VerifyFailure } from "@/lib/kontrollen/verifyReason";
-import type { AnforderungStatus } from "@/lib/utils";
+import type { AnforderungStatus } from "@/lib/shared/utils";
 
 /**
  * Der KONTROLL-VERLAUF für die KI-Keyholderin — die Liste, die sie in der Oberfläche unter

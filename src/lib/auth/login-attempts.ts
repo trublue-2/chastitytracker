@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const KEY = (username: string) => `login:${username}`;
 const MAX_FAILURES = 5;

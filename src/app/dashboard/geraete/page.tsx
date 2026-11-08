@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { redirect } from "next/navigation";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import DevicesClient from "./DevicesClient";
 import { CATEGORY_QUERY_KEY } from "@/lib/devices/categoryConstants";
 

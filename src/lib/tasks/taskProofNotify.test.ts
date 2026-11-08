@@ -6,13 +6,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * (`updateTask`). Warum es diese Meldung überhaupt braucht, steht am Modul selbst.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     taskProof: { findMany: vi.fn(), update: vi.fn() },
     user: { findUnique: vi.fn() },
   },
 }));
-vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
+vi.mock("@/lib/shared/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/messages/notify", () => ({ notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({
   getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "kh1" }], username: "sub" })),
@@ -26,7 +26,7 @@ import { notifyLateProof, notifyLateProofsForTask } from "./taskProofNotify";
 import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
 import { notifyControllers } from "@/lib/messages/notify";
 import { getControllerAudience } from "@/lib/auth/keyholder";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const notifyKh = notifyControllers as unknown as ReturnType<typeof vi.fn>;
 const audience = getControllerAudience as unknown as ReturnType<typeof vi.fn>;

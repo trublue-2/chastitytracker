@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/prisma";
-import { formatDateTime } from "@/lib/utils";
+import { prisma } from "@/lib/shared/prisma";
+import { formatDateTime } from "@/lib/shared/utils";
 import { loadUploadedImage } from "@/lib/client/imageUtils";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 import {
   mcpImageMaxPx, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_MAX_AGE_MS, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY,
-} from "@/lib/constants";
+} from "@/lib/shared/constants";
 import { resolveUserContext } from "@/lib/mcp/common";
 import { resolveTaskProof } from "@/lib/mcp/taskProofRef";
 

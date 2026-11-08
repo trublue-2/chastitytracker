@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma";
-import { structuredLog } from "@/lib/serverLog";
-import { lockmeboxEnabled } from "@/lib/constants";
+import { prisma } from "@/lib/shared/prisma";
+import { structuredLog } from "@/lib/shared/serverLog";
+import { lockmeboxEnabled } from "@/lib/shared/constants";
 import { notifyHeimdall } from "@/lib/box/heimdallNotify";
 import { deliveryChannels } from "@/lib/messages/deliveryChannels";
 import { emailT } from "@/lib/messages/emailI18n";

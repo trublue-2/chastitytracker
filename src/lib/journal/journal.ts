@@ -6,10 +6,10 @@ import {
   JOURNAL_TEXT_MAX,
   isJournalVisibility,
   type JournalVisibility,
-} from "@/lib/constants";
-import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+} from "@/lib/shared/constants";
+import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
 import type { Session } from "@/lib/entries/sessionModel";
-import { midnightOfLocalDate } from "@/lib/utils";
+import { midnightOfLocalDate } from "@/lib/shared/utils";
 
 /**
  * Das Tagebuch des Subs (Issue #114) — der REINE Teil: Prüfung der Eingaben, die Sicht der

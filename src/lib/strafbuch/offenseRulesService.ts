@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import {
   currentOffenseRules,
   isSwitchableOffenseType,
@@ -7,7 +7,7 @@ import {
   type OffenseMode,
   type SwitchableOffenseType,
 } from "@/lib/strafbuch/offenseRules";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 
 /** Genau die Felder, die `OffenseRuleChangeRow` (offenseRules.ts) verlangt — einmal, damit die
  *  Lese- und die Schreib-Abfrage nicht getrennt voneinander veralten. */

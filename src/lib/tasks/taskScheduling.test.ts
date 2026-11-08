@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *     weder auftauchen noch etwas blockieren, bei der Keyholderin dagegen schon.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     task: { findMany: vi.fn(), updateMany: vi.fn() },
     entry: { findMany: vi.fn(async () => []) },
@@ -23,7 +23,7 @@ vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () =>
 
 import { dispatchDueTasks } from "./taskService";
 import { getDashboardTasks, getEvaluatedTaskHistory, getTasksBlocking } from "./taskIntervals";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { notifyUser } from "@/lib/messages/notify";
 
 const findMany = prisma.task.findMany as unknown as ReturnType<typeof vi.fn>;

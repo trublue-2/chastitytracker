@@ -6,7 +6,7 @@ import { keyholderInbox, listMessages, unreadCountForKeyholderCached, unreadCoun
 import { presentMessages } from "@/lib/messages/messagePresenter";
 import { isMessageFiltered, messageFilterToParams, parseMessageFilterFrom } from "@/lib/messages/messageCategories";
 import { MESSAGE_SCOPES } from "@/lib/messages/messageScope";
-import { APP_TZ } from "@/lib/utils";
+import { APP_TZ } from "@/lib/shared/utils";
 import MessageList from "@/app/components/MessageList";
 
 // Wie der übrige Admin-Bereich: leser-spezifisch, nie geteilt gecacht.

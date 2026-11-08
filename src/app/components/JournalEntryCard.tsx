@@ -13,7 +13,7 @@ import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { journalEditHref, type JournalCardEntry } from "@/lib/journal/journal";
-import { formatDurationMs, formatTime, toDateLocale } from "@/lib/utils";
+import { formatDurationMs, formatTime, toDateLocale } from "@/lib/shared/utils";
 
 /**
  * Ein Tagebuch-Eintrag als Karte — für den Sub (`own`: Sichtbarkeit änderbar, Bearbeiten, Löschen)

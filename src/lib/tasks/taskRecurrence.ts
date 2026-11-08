@@ -1,8 +1,8 @@
-import { dateAtLocalMinutes, hhmmToMinutes } from "@/lib/utils";
-import { HHMM } from "@/lib/constants";
+import { dateAtLocalMinutes, hhmmToMinutes } from "@/lib/shared/utils";
+import { HHMM } from "@/lib/shared/constants";
 import { weightDayKey, addWeightDays, dayNumber, endOfWeightDay, daysInMonth } from "@/lib/weight/weight";
 import { weekdayMaskHas, isoWeekdayInTZ } from "@/lib/stats/weekdays";
-import { parseJsonList } from "@/lib/jsonList";
+import { parseJsonList } from "@/lib/shared/jsonList";
 
 /**
  * Der Rechenkern der Serien-Aufgaben (#26): aus einer Wiederhol-Regel die konkreten Termine.

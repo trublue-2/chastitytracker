@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import Select from "@/app/components/Select";
 import Toggle from "@/app/components/Toggle";
 import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { JOURNAL_VISIBILITIES, type JournalVisibility } from "@/lib/constants";
+import { JOURNAL_VISIBILITIES, type JournalVisibility } from "@/lib/shared/constants";
 
 export interface JournalSettingsProps {
   defaultVisibility: JournalVisibility;

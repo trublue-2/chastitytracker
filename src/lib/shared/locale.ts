@@ -1,4 +1,4 @@
-import { isValidLocale } from "@/lib/constants";
+import { isValidLocale } from "@/lib/shared/constants";
 
 const MAX_AGE = 365 * 24 * 60 * 60; // 1 year in seconds
 

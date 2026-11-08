@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
 import { manageableDeviceOwner } from "@/lib/devices/deviceAccess";
-import { isValidImageUrl } from "@/lib/constants";
+import { isValidImageUrl } from "@/lib/shared/constants";
 import { listDeviceReferences, addReferenceFromUpload, importEntryAsReference } from "@/lib/devices/deviceReferenceService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 type Params = { params: Promise<{ id: string }> };
 

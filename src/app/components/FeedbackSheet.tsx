@@ -12,7 +12,7 @@ import FormError from "./FormError";
 import HelpLink from "./HelpLink";
 import Card from "./Card";
 import { parseApiError } from "@/lib/client/apiClient";
-import { isValidEmail } from "@/lib/constants";
+import { isValidEmail } from "@/lib/shared/constants";
 import { isThrowawayEmail, type FeedbackMode } from "@/lib/upstream/feedback";
 
 type FeedbackType = "BUG" | "IDEA" | "QUESTION" | "THANKS";

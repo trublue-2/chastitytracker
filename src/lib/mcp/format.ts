@@ -1,4 +1,4 @@
-import { tzOffsetMsAt } from "@/lib/utils";
+import { tzOffsetMsAt } from "@/lib/shared/utils";
 import { goalPct } from "@/lib/stats/percent";
 
 /** Prozent-Erfüllung (actual/target), gerundet; null wenn kein/0-Ziel. Geteilt von V1 + V2.

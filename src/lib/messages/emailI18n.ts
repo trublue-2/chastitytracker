@@ -1,6 +1,6 @@
 import { createTranslator } from "next-intl";
 import { escHtml } from "@/lib/messages/mail";
-import { toLocale, type Locale } from "@/lib/constants";
+import { toLocale, type Locale } from "@/lib/shared/constants";
 import de from "../../../messages/de.json";
 import en from "../../../messages/en.json";
 

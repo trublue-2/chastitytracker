@@ -20,7 +20,7 @@
  * landete ohne Typfehler und ohne Testrot im Client-Bundle. Geprüft wird das in `quickSettings.test.ts`.
  */
 
-import { parseJsonList } from "@/lib/jsonList";
+import { parseJsonList } from "@/lib/shared/jsonList";
 
 /** Woran eine Einstellung hängt, ohne die es sie auf diesem Bildschirm nicht gibt.
  *  `box`: der Träger hat eine Heimdall-Box gemeldet. */

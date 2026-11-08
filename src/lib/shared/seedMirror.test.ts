@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createRequire } from "node:module";
-import { DEFAULT_ORGASM_ARTEN, backfillOrgasmusArtenConfig, ART_SEP } from "./entries/reasonsService";
+import { DEFAULT_ORGASM_ARTEN, backfillOrgasmusArtenConfig, ART_SEP } from "../entries/reasonsService";
 import { AI_AUTHOR } from "./constants";
 
 // scripts/seed.js ist Plain-CJS (kann nicht aus src importieren) und spiegelt Teile von
 // reasonsService.ts. Dieser Test sichert den Mirror gegen stille Drift ab: er lädt die echten
 // seed.js-Exports und vergleicht sie mit dem TS-Original.
 const require = createRequire(import.meta.url);
-const seed = require("../../scripts/seed.js") as {
+const seed = require("../../../scripts/seed.js") as {
   ART_SEP: string;
   ORGASM_MAIN_WITH_SUBS: Record<string, string[]>;
   backfillOrgasmusArtenConfig: (raw: unknown) => string | null;

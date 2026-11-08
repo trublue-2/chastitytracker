@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { fromDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { fromDatetimeLocal, toDateLocale } from "@/lib/shared/utils";
 import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
 import { datedWindowLabel } from "@/lib/stats/weekdays";
-import { type OeffnenGrund } from "@/lib/constants";
+import { type OeffnenGrund } from "@/lib/shared/constants";
 import type { ResolvedReason } from "@/lib/entries/reasonsService";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
 import type { TaskWarning } from "@/lib/tasks/taskIntervals";

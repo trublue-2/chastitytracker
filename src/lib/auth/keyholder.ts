@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { NOTIFY_RECIPIENT_SELECT, type NotifyRecipient } from "@/lib/messages/notify";
 
 /**

@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from "vitest";
  * vorherigen Eintrag, statt wegen einer Sekunden-Feinheit mit TIME_BEFORE abgewiesen zu werden — wie
  * bei Verschluss und Öffnung (`entryStart.ts`). Eine von Hand gewählte Zeit wird nie verschoben.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });

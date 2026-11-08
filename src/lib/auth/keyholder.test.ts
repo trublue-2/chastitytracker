@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // entryManageAccess ruft isKeyholderOf → prisma.adminUserRelationship.findUnique nur im
 // Keyholder-Zweig auf (Admin/Owner werden vorher kurzgeschlossen).
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { adminUserRelationship: { findUnique: vi.fn() } },
 }));
 
 import { entryManageAccess } from "./keyholder";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const relMock = prisma.adminUserRelationship.findUnique as unknown as ReturnType<typeof vi.fn>;
 

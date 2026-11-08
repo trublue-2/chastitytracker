@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
 import { journalPageQuery } from "@/lib/journal/journal";
 import { createJournalEntry, listOwnJournal } from "@/lib/journal/journalService";
-import { errorResponse, serviceFailure } from "@/lib/serviceResult";
-import { APP_TZ } from "@/lib/utils";
+import { errorResponse, serviceFailure } from "@/lib/shared/serviceResult";
+import { APP_TZ } from "@/lib/shared/utils";
 
 /**
  * Das eigene Tagebuch (Issue #114). Scope ist IMMER die Session — es gibt keinen `userId`-Parameter,

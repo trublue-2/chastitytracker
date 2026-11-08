@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import bcrypt from "bcryptjs";
-import { passwordErrorCode } from "@/lib/constants";
+import { passwordErrorCode } from "@/lib/shared/constants";
 import { recordAdminPasswordChange } from "@/lib/auth/passwordAudit";
 
 // Eigener Handler statt userSelfFieldRoute: der Body-Key (`newPassword`) weicht von der Spalte

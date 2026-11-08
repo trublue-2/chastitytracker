@@ -9,7 +9,7 @@ import StatsCard from "@/app/components/StatsCard";
 import FieldTabs from "@/app/components/FieldTabs";
 import MeasurementChart from "@/app/components/MeasurementChart";
 import WeightRowList from "@/app/components/WeightRowList";
-import { round1 } from "@/lib/utils";
+import { round1 } from "@/lib/shared/utils";
 import { bmi, dayNumber, targetProgress, weightForDisplay, weightText, type UnitSystem, type WeightTarget } from "@/lib/weight/weight";
 import { buildWeightSeries, withinRange } from "@/lib/weight/weightSeries";
 import type { WeightRowData } from "@/lib/weight/weightRows";

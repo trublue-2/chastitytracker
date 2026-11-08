@@ -17,9 +17,9 @@
  * Auto-Kontrollen, jede Anzeige. Dort ist die heutige Zone die richtige, und der Resolver hat nichts
  * verloren.
  */
-import { prisma } from "@/lib/prisma";
-import { APP_TZ, effectiveAt } from "@/lib/utils";
-import { isValidTimezone } from "@/lib/timezones";
+import { prisma } from "@/lib/shared/prisma";
+import { APP_TZ, effectiveAt } from "@/lib/shared/utils";
+import { isValidTimezone } from "@/lib/shared/timezones";
 
 /** Eine Zeile aus `TimezoneChange` — genau die Felder, die der Resolver liest. */
 export interface TimezoneChangeRow {

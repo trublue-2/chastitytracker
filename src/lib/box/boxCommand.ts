@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { boxCouplingEnabled } from "@/lib/constants";
+import { boxCouplingEnabled } from "@/lib/shared/constants";
 
 /**
  * Box-Kopplung (vereinheitlichtes Modell): die Heimdall-Box hat keine eigene Bedienung mehr, sondern

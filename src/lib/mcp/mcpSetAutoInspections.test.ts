@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Ablehnung der Fenster-Kombinationen, die der Planer sonst kommentarlos übergeht.
  */
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() } },
 }));
 vi.mock("@/lib/kontrollen/autoKontrolleService", async (importOriginal) => {
@@ -16,7 +16,7 @@ vi.mock("@/lib/kontrollen/autoKontrolleService", async (importOriginal) => {
 });
 
 import { mcpSetAutoInspections } from "./mcpWrite";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { setAutoKontrolleSettings } from "@/lib/kontrollen/autoKontrolleService";
 
 const findUniqueOrThrowMock = prisma.user.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;

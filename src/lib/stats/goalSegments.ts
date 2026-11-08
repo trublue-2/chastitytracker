@@ -39,7 +39,7 @@
 
 import {
   calendarDaysBetween, wearingHoursFromPairs, type WearHours, type WearPair,
-} from "@/lib/utils";
+} from "@/lib/shared/utils";
 import {
   periodBounds, goalEffectiveEndMs, resolveDayGoalTarget, hasVisibleGoalRow,
   type GoalWindow, type GoalPeriod, type VorgabePeriodTargets, type VorgabeTargets,

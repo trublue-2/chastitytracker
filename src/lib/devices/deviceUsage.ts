@@ -1,4 +1,4 @@
-import { summarizeDurations } from "@/lib/utils";
+import { summarizeDurations } from "@/lib/shared/utils";
 
 /** Geräte-Nutzung je Kategorie: aus Sessions wird pro Gerät Anzahl, Gesamt-/Ø-/Median-/Min-/Max-Dauer,
  *  „zuletzt getragen" und Kosten pro Stunde. EINE Auswertung für alle Kategorien — die Sessions

@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { round1 } from "@/lib/utils";
+import { prisma } from "@/lib/shared/prisma";
+import { round1 } from "@/lib/shared/utils";
 
 /**
  * Die Wiege-Einträge als LISTE — eine Zeile je Messung, mit allem, was an ihr hängt.

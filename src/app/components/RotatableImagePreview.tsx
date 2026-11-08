@@ -2,7 +2,7 @@
 
 import { RotateCcw, RotateCw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { Rotation } from "@/lib/constants";
+import type { Rotation } from "@/lib/shared/constants";
 
 interface RotatableImagePreviewProps {
   src: string;

@@ -1,6 +1,6 @@
 import { clientIp } from "@/lib/auth/clientIp";
 import { headers } from "next/headers";
-import { logTimestamp } from "@/lib/logFormat";
+import { logTimestamp } from "@/lib/shared/logFormat";
 
 export async function logAccess(adminName: string, path: string) {
   const h = await headers();

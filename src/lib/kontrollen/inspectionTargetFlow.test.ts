@@ -21,7 +21,7 @@ const tx = {
   healthHold: { findFirst: vi.fn(async () => null) },
 };
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     device: { findUnique: vi.fn() },
@@ -59,7 +59,7 @@ vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeaf
 
 import { requestKontrolle } from "./kontrolleService";
 import { autoMarkInspectionRemoved } from "./inspectionEscalationService";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { getLatestKgEntry, getActiveWearSessionForCategory, prepareWearEntry } from "@/lib/entries/queries";
 import { createOeffnenEntryTx } from "@/lib/entries/oeffnenService";
 

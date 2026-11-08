@@ -14,7 +14,7 @@ import {
   formatDate, formatDateTime, formatDurationMs, formatTotalHours, formatTotalMs,
   buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday,
   longestOrgasmFreeGap, summarizeSessions, tzDayKey, wearingHoursFromPairs, WEAR_PAIR,
-} from "@/lib/utils";
+} from "@/lib/shared/utils";
 import {
   buildCalendarMonths, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
 } from "@/lib/stats/statsBuilders";

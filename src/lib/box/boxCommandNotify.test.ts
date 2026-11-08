@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * Instant-Push, das Handy eines LockMeBox-Trägers die Mitteilung „Box wartet", Letztere nur, wenn der
  * Träger Push auf dieser Stufe zulässt.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -14,7 +14,7 @@ vi.mock("@/lib/messages/deliveryChannels", () => ({ deliveryChannels: vi.fn() })
 vi.mock("@/lib/messages/push", () => ({ firePush: vi.fn() }));
 
 import { announceBoxCommand } from "./boxCommandNotify";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { notifyHeimdall } from "@/lib/box/heimdallNotify";
 import { deliveryChannels } from "@/lib/messages/deliveryChannels";
 import { firePush } from "@/lib/messages/push";

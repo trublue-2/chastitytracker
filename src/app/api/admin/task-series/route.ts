@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import { createTaskSeries, listTaskSeries } from "@/lib/tasks/taskService";
 import { taskSeriesParamsFromBody } from "@/lib/tasks/taskSeriesRequestBody";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /** Aktive Serien eines Subs — für die Keyholder-Liste (samt Termin-Vorschau). */
 export async function GET(req: NextRequest) {

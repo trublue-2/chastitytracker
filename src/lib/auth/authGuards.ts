@@ -2,10 +2,10 @@ import { auth } from "@/lib/auth/auth";
 import type { Session } from "next-auth";
 import { NextResponse } from "next/server";
 import { notFound, redirect } from "next/navigation";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { canReadJournal, getControllableSubsCached, isKeyholderOf } from "@/lib/auth/keyholder";
-import { errorResponse } from "@/lib/serviceResult";
-import { prisma } from "@/lib/prisma";
+import { errorResponse } from "@/lib/shared/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
 
 /** A session that is guaranteed to carry a user id (what `requireApi` hands back).
  *  `Session` (not `ReturnType<typeof auth>`) — `auth` is overloaded and would resolve to the

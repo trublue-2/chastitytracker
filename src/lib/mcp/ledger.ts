@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, buildEnvelope, parseIsoDate, type Envelope, type NoteDTO } from "@/lib/mcp/common";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafbuch/strafurteilService";

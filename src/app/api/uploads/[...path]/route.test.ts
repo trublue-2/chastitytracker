@@ -10,7 +10,7 @@ import { NextRequest } from "next/server";
  * dagegen auch dann, wenn er Admin ist (Issue #111).
  * `isCodePhotoRevealed` selbst ist in `lib/queries.test.ts` abgedeckt — hier ist es gemockt.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -20,7 +20,7 @@ vi.mock("@/lib/entries/queries", () => ({ isCodePhotoRevealed: vi.fn() }));
 vi.mock("fs/promises", () => ({ readFile: vi.fn() }));
 
 import { GET } from "./route";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { auth } from "@/lib/auth/auth";
 import { isKeyholderOf } from "@/lib/auth/keyholder";
 import { isCodePhotoRevealed } from "@/lib/entries/queries";

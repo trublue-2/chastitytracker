@@ -56,7 +56,7 @@ describe("verbotene Muster", () => {
   it("der Kontroll-Code entsteht nicht aus Math.random()", () => {
     // Er ist der Frischenachweis einer Foto-Kontrolle — vorhersagbar hiesse: vorab fotografierbar.
     // utils.ts darf Math.random sonst behalten (`randomInt` bekommt die Quelle als Parameter).
-    const src = readStripped("src/lib/utils.ts");
+    const src = readStripped("src/lib/shared/utils.ts");
     const start = src.indexOf("export function generateKontrollCode");
     expect(start).toBeGreaterThan(-1);
     const body = src.slice(start, src.indexOf("\n}\n", start));

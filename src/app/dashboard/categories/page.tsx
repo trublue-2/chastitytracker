@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth/auth";
 import { redirect, notFound } from "next/navigation";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { buildCategoryRows } from "@/lib/devices/categoryRows";
 import CategoriesClient from "./CategoriesClient";
 

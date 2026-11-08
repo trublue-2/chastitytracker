@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { gatherDeviceReferences } from "@/lib/devices/deviceReferenceService";
 import { checkDeviceInPhoto, type DeviceCheckResult } from "@/lib/kontrollen/detectDevice";
-import { structuredLog } from "@/lib/serverLog";
+import { structuredLog } from "@/lib/shared/serverLog";
 
 /**
  * Der Kontroll-Geräte-Check als EIN Vorgang: Startwert, Ausführung und Endzustand.

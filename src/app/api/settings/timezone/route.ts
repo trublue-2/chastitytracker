@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isValidTimezone } from "@/lib/timezones";
+import { isValidTimezone } from "@/lib/shared/timezones";
 import { requireApi, sessionActor } from "@/lib/auth/authGuards";
-import { setUserTimezone } from "@/lib/timezoneRules";
+import { setUserTimezone } from "@/lib/shared/timezoneRules";
 
 /**
  * PATCH /api/settings/timezone — die Zone des Trägers umstellen.

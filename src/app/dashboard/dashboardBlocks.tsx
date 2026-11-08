@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { getIsLocked, userHasBox } from "@/lib/entries/queries";
 import { isBoxPhotoDue } from "@/lib/box/boxPhotoDue";
 import { getTranslations } from "next-intl/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { block, type StackBlock } from "@/lib/ui/blockStack";
 import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
 import type { UnitSystem } from "@/lib/weight/weight";
@@ -16,14 +16,14 @@ import {
   subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
 } from "@/lib/stats/dashboardData";
-import { deviceCategoriesEnabled } from "@/lib/constants";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { predictAutoMarkAt } from "@/lib/kontrollen/inspectionEscalationService";
 import { cleaningPermissionUserAt } from "@/lib/entries/cleaningRules";
 import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch/strafbuch";
 import {
   formatDateTime, formatTime, interruptionPauseMs, runningCleaningPauseUntil,
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
-} from "@/lib/utils";
+} from "@/lib/shared/utils";
 import { wearHourPairsByCategory } from "@/lib/entries/sessionModel";
 import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";
 import type { Translate } from "@/lib/box/boxStatus";

@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/prisma";
-import { midnightOfLocalDate, APP_TZ } from "@/lib/utils";
+import { prisma } from "@/lib/shared/prisma";
+import { midnightOfLocalDate, APP_TZ } from "@/lib/shared/utils";
 import { weightDayKey } from "@/lib/weight/weight";
 import { getUserTimezone } from "@/lib/entries/queries";
 import { reorderVorgabenDates } from "@/lib/stats/vorgaben";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";
-import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
+import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
 import { markLastAction } from "@/lib/upstream/appMeta";
 import {
   parseWeekdayGoalRules, weekdayGoalRulesProblem, weekdayGoalRuleTooHigh, weekdayGoalRulesHaveTarget,

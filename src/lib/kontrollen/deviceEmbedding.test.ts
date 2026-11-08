@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // prisma komplett mocken; echte Vektor-Mathematik aus embed.ts behalten, nur I/O mocken.
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { device: { findMany: vi.fn() }, deviceReferenceImage: { update: vi.fn() } },
 }));
 vi.mock("@/lib/kontrollen/embed", async (importActual) => {
@@ -13,7 +13,7 @@ vi.mock("@/lib/vision", () => ({ visionConfigured: vi.fn(async () => true) }));
 
 import { detectDeviceByEmbedding } from "./deviceEmbedding";
 import { visionConfigured } from "@/lib/vision";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { embedAvailable, embedImages, vectorToBytes } from "@/lib/kontrollen/embed";
 
 const findMany = prisma.device.findMany as unknown as ReturnType<typeof vi.fn>;

@@ -9,7 +9,7 @@ import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerNa
 import { ownTrackerHidden } from "@/lib/auth/ownTracker";
 import pkg from "../../package.json";
 import { instanceHostname } from "@/lib/upstream/appMeta";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME } from "@/lib/shared/constants";
 import { feedbackSetup } from "@/lib/upstream/feedbackSetup";
 
 export default async function Header() {

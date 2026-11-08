@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { structuredLog } from "@/lib/serverLog";
+import { prisma } from "@/lib/shared/prisma";
+import { structuredLog } from "@/lib/shared/serverLog";
 import { visionConfigured } from "@/lib/vision";
 import { embedAvailable, embedModel, embedImages, bytesToVector, vectorToBytes, cosine } from "@/lib/kontrollen/embed";
 import type { DetectedDevice } from "@/lib/kontrollen/detectDevice";

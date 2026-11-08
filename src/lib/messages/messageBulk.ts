@@ -1,5 +1,5 @@
 import { MESSAGE_PAGE_SIZE } from "@/lib/messages/messageService";
-import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
+import { serviceFail, type ServiceResult } from "@/lib/shared/serviceResult";
 
 /**
  * Der Body von `POST …/messages/bulk` — geteilt vom Posteingang des Trägers und dem der

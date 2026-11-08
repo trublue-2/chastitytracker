@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import { updateTaskSeries, withdrawTaskSeries } from "@/lib/tasks/taskService";
 import { taskSeriesParamsFromBody } from "@/lib/tasks/taskSeriesRequestBody";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /** Serie ändern — Voll-Ersetzung der Vorlage (künftige Termine). */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

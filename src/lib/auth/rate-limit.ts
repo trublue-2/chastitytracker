@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { errorResponse } from "@/lib/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+import { errorResponse } from "@/lib/shared/serviceResult";
 
 /**
  * Persistent rate limiter backed by SQLite.

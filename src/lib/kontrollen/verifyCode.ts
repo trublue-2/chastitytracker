@@ -1,8 +1,8 @@
 import { readFile } from "fs/promises";
 import { join, basename } from "path";
 import sharp from "sharp";
-import { visionMaxImagePx, type Rotation } from "@/lib/constants";
-import { structuredLog, redactDigits } from "@/lib/serverLog";
+import { visionMaxImagePx, type Rotation } from "@/lib/shared/constants";
+import { structuredLog, redactDigits } from "@/lib/shared/serverLog";
 import { IMAGE_MEDIA_TYPES, type ImageData } from "@/lib/client/imageUtils";
 import { visionComplete, visionConfigured } from "@/lib/vision";
 import { parseJsonObject, wasTruncated } from "@/lib/vision/parse";

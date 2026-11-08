@@ -1,5 +1,5 @@
 import type { MessageBodyKey } from "@/lib/messages/messageService";
-import type { MessagePriority } from "@/lib/constants";
+import type { MessagePriority } from "@/lib/shared/constants";
 import type { BadgeVariant } from "@/app/components/Badge";
 
 /**

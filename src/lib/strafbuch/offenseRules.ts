@@ -1,5 +1,5 @@
 import { type AssertCoversAllOffenses, type OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
-import { effectiveAt } from "@/lib/utils";
+import { effectiveAt } from "@/lib/shared/utils";
 
 /**
  * Welche Vergehensarten bei einem Sub überhaupt gelten — und seit wann.

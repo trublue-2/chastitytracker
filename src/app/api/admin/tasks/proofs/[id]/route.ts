@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { reviewTaskProof } from "@/lib/tasks/taskProofService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /**
  * Die Keyholderin sichtet einen eingereichten Nachweis — annehmen oder ablehnen.

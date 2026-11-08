@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Gelesen-Stand am Leser hängt (`MessageRead.userId`). Schriebe sie jemand je Empfänger, stünde
  * dieselbe Meldung n-fach in der Tabelle, und niemand bekäme davon einen Fehler.
  */
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() } },
 }));
 vi.mock("@/lib/messages/mail", async (importOriginal) => ({
@@ -33,7 +33,7 @@ vi.mock("@/lib/messages/messageService", async (importOriginal) => ({
 }));
 
 import { notifyControllers, notifyUser } from "./notify";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { sendMailSafe } from "@/lib/messages/mail";
 import { sendPushToUser } from "@/lib/messages/push";
 import { deliveryChannels, deliveryChannelsForUser } from "@/lib/messages/deliveryChannels";

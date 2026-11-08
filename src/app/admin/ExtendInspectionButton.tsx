@@ -12,7 +12,7 @@ import { cardActionCls } from "@/app/components/inputStyles";
 import { actionIcon } from "@/app/entries/actionSign";
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal } from "@/lib/shared/utils";
 
 const InspectionIcon = actionIcon("PRUEFUNG");
 

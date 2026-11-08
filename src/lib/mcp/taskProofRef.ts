@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 /**
  * Löst „Aufgabe + Position" zu EINEM Nachweis auf — die gemeinsame Adressierung aller Werkzeuge,

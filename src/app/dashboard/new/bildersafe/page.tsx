@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { bildersafeMenuAction, getLatestKgEntry, getMobileDesktopMode } from "@/lib/entries/queries";
-import { bildersafeEnabled } from "@/lib/constants";
+import { bildersafeEnabled } from "@/lib/shared/constants";
 import BildersafeSealForm from "./BildersafeSealForm";
 
 export default async function NewBildersafePage() {
