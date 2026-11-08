@@ -48,7 +48,7 @@ import { goalDateFromInput } from "@/lib/vorgabeService";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/strafbuch/manualOffenseService";
 import type { ServiceResult } from "@/lib/serviceResult";
 import { KEYHOLDER_LOCK_STATE_WORDING } from "@/lib/serviceErrorCodes";
-import en from "../../messages/en.json";
+import en from "../../../messages/en.json";
 import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/tasks/taskProofService";
 import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/tasks/taskService";
 import {

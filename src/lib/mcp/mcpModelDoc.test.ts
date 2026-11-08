@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { MCP_MODEL_DOC } from "./mcpModelDoc";
-import { STORED_TYPE } from "./strafbuch/offenseTypes";
+import { STORED_TYPE } from "../strafbuch/offenseTypes";
 
 /** Der menschenlesbare Spiegel — laut Header beider Dateien manuell synchron zu halten.
  *  Dieser Test macht aus der Header-Bitte eine Zusicherung: driftet ein Abschnitt, schlägt er fehl.
  *  Der Pfad ist relativ zur Testdatei aufgelöst, nicht zum cwd des Runners. */
-const GUIDE_URL = new URL("../../docs/mcp-keyholder-guide.md", import.meta.url);
+const GUIDE_URL = new URL("../../../docs/mcp-keyholder-guide.md", import.meta.url);
 
 /** Die Blockquote-Notiz direkt unter dem Guide-Titel („Spiegel von …") existiert im TS-Original
  *  bewusst nicht — nur SIE wird vor dem Vergleich entfernt (erste Blockquote-Zeilengruppe, ein

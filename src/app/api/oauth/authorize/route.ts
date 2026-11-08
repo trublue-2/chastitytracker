@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
 import { getClient, clientAllowsRedirect, createAuthorizationCode, scopesValid } from "@/lib/auth/oauth";
-import { checkMcpKeyholder } from "@/lib/mcpWrite";
+import { checkMcpKeyholder } from "@/lib/mcp/mcpWrite";
 
 /**
  * GET /api/oauth/authorize

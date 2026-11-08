@@ -8,7 +8,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/vorgabeService", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./vorgabeService")>()),
+  ...(await importOriginal<typeof import("../vorgabeService")>()),
   createVorgabe: vi.fn(),
   updateVorgabe: vi.fn(),
   deleteVorgabe: vi.fn(),
