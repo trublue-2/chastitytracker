@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { isInQuietMinutes, generateAutoKontrollen, fillFreeGaps, settingsForDay, type AutoKontrolleSettings } from "./autoKontrolleService";
 import { triggerWindowAllQuiet } from "./autoKontrolleDayRules";
-import { hhmmToMinutes } from "./utils";
-import { ALL_WEEKDAYS, weekdayMaskOf } from "./weekdays";
-import { dateAtLocalMinutes, midnightInTZ, formatTime } from "./utils";
+import { hhmmToMinutes } from "../utils";
+import { ALL_WEEKDAYS, weekdayMaskOf } from "../weekdays";
+import { dateAtLocalMinutes, midnightInTZ, formatTime } from "../utils";
 
 /** Alle Tests dieser Datei rechnen in der Zeitzone einer CH-Sub. */
 const TZ = "Europe/Zurich";

@@ -14,7 +14,7 @@ import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere, getIsL
 import {
   autoInspectionDayRulesProblem, fixedWindowMinutes, formatAutoInspectionDayRule,
   parseAutoInspectionDayRules, timesForDay, triggerWindowAllQuiet, type AutoInspectionDayRule,
-} from "@/lib/autoKontrolleDayRules";
+} from "@/lib/kontrollen/autoKontrolleDayRules";
 import { isoWeekdayInTZ, weekdayMaskHas, weekdayMaskKeys, weekdayMaskValid } from "@/lib/weekdays";
 import type { Prisma } from "@prisma/client";
 import { USER_NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";

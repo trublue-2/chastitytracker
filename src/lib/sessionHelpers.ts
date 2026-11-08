@@ -1,5 +1,5 @@
 import { formatDurationBetween, buildLockPoints, wornDeviceNameAt } from "@/lib/utils";
-import type { VerifyFailure } from "@/lib/verifyReason";
+import type { VerifyFailure } from "@/lib/kontrollen/verifyReason";
 import { keyProofFor, NO_TELEMETRY_KEY_PROOF, type KeyProofSource } from "@/lib/boxKeyProof";
 
 export interface SessionEvent {

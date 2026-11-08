@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
-import { checkDeviceInPhoto, type DeviceCheckResult } from "@/lib/detectDevice";
+import { checkDeviceInPhoto, type DeviceCheckResult } from "@/lib/kontrollen/detectDevice";
 import { structuredLog } from "@/lib/serverLog";
 
 /**

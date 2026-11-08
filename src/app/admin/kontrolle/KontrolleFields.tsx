@@ -13,7 +13,7 @@ import Textarea from "@/app/components/Textarea";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { INSPECTION_DEADLINE_DEFAULT_H, durationHoursOr, type DurationUnit } from "@/lib/constants";
 import { useApiError } from "@/app/hooks/useApiError";
-import type { InspectionTargetOption } from "@/lib/inspectionTarget";
+import type { InspectionTargetOption } from "@/lib/kontrollen/inspectionTarget";
 
 /** Der Wert des Ziel-Selects. Das leere Feld IST der KG — `categoryId: null` heisst überall im
  *  Modell „KG", und ein Sentinel-String hier müsste beim Absenden wieder zurückübersetzt werden. */

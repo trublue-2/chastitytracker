@@ -21,7 +21,7 @@ import SettingLabel from "@/app/components/SettingLabel";
 import { ALL_WEEKDAYS } from "@/lib/weekdays";
 import {
   AUTO_INSPECTION_DAY_RULES_MAX, parseAutoInspectionDayRules, type AutoInspectionDayRule,
-} from "@/lib/autoKontrolleDayRules";
+} from "@/lib/kontrollen/autoKontrolleDayRules";
 
 /** Beschriftung der beiden Felder einer „von – bis"-Zeile: die sichtbare Beschriftung steht nur
  *  einmal vor dem Paar, für Screenreader braucht jedes Feld seine eigene. */

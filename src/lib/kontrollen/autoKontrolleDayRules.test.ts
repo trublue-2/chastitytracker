@@ -3,7 +3,7 @@ import {
   AUTO_INSPECTION_DAY_RULES_MAX, autoInspectionDayRulesProblem, dayRuleFor,
   formatAutoInspectionDayRule, parseAutoInspectionDayRules, timesForDay,
 } from "./autoKontrolleDayRules";
-import { ALL_WEEKDAYS, weekdayMaskOf } from "./weekdays";
+import { ALL_WEEKDAYS, weekdayMaskOf } from "../weekdays";
 
 const MO = weekdayMaskOf([1]), DI = weekdayMaskOf([2]);
 const WERKTAGS = weekdayMaskOf([1, 2, 3, 4, 5]);

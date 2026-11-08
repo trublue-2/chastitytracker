@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/autoKontrolleService";
+import { AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/kontrollen/autoKontrolleService";
 import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
 import { deviceCategoriesEnabled } from "@/lib/constants";

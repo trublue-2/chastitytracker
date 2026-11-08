@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
 import { overviewChipCls } from "@/app/components/inputStyles";
 import KontrolleFields from "./kontrolle/KontrolleFields";
-import type { InspectionTargetOption } from "@/lib/inspectionTarget";
+import type { InspectionTargetOption } from "@/lib/kontrollen/inspectionTarget";
 
 export default function KontrolleButton({ userId, hasEmail, targets }: {
   userId: string;

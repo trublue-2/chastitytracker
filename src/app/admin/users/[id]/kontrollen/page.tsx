@@ -9,8 +9,8 @@ import KontrolleButton from "@/app/admin/KontrolleButton";
 import EmptyState from "@/app/components/EmptyState";
 import Section from "@/app/components/Section";
 import AdminKontrolleListClient from "@/app/admin/kontrollen/AdminKontrolleListClient";
-import { loadKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen";
-import { listInspectionTargets } from "@/lib/inspectionTarget";
+import { loadKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen/kontrollen";
+import { listInspectionTargets } from "@/lib/kontrollen/inspectionTarget";
 
 export default async function AdminUserKontrollenPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();

@@ -1,5 +1,5 @@
 import { buildSessions, buildWearSessions, type Session, type Segment, type LinkedControl } from "@/lib/sessionModel";
-import type { VerifyFailure } from "@/lib/verifyReason";
+import type { VerifyFailure } from "@/lib/kontrollen/verifyReason";
 import { msToHours } from "@/lib/utils";
 import { resolveUserId, makeIso, buildEnvelope, notesForEntities, entityKey, loadTrackingData, loadCategoryNames, mcpDeviceCheckStatus, type Envelope, type Iso, type NoteDTO, type EntityRef, type McpDeviceCheckStatus } from "@/lib/mcp/common";
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi, weightTrackingGate } from "@/lib/authGuards";
-import { detectScaleReading } from "@/lib/verifyCode";
+import { detectScaleReading } from "@/lib/kontrollen/verifyCode";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
 import { weightInputToKg, weightProblem, type UnitSystem } from "@/lib/weight/weight";

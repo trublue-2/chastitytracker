@@ -10,14 +10,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() } },
 }));
-vi.mock("@/lib/autoKontrolleService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/autoKontrolleService")>();
+vi.mock("@/lib/kontrollen/autoKontrolleService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/kontrollen/autoKontrolleService")>();
   return { ...actual, setAutoKontrolleSettings: vi.fn().mockResolvedValue({ ok: true, data: null }) };
 });
 
 import { mcpSetAutoInspections } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
+import { setAutoKontrolleSettings } from "@/lib/kontrollen/autoKontrolleService";
 
 const findUniqueOrThrowMock = prisma.user.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;
 const setSettingsMock = setAutoKontrolleSettings as unknown as ReturnType<typeof vi.fn>;

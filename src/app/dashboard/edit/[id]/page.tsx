@@ -12,7 +12,7 @@ import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
 import { getUserDeviceOptions, getUserTimezone, getLatestKgEntry, getMobileDesktopMode } from "@/lib/queries";
 import { entryManageAccess } from "@/lib/keyholder";
-import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrolleService";
+import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrollen/kontrolleService";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/reasonsService";
 

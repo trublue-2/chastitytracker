@@ -13,7 +13,7 @@ import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { isHealthHoldActive } from "@/lib/healthHold";
 import { type PrismaTx, getOpenKontrollen } from "@/lib/queries";
-import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { inspectionHref } from "@/lib/entryFormRoute";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";

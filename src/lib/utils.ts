@@ -1,5 +1,5 @@
 import type { NumberRange } from "@/lib/constants";
-import { toVerifyFailure, type VerifyFailure } from "@/lib/verifyReason";
+import { toVerifyFailure, type VerifyFailure } from "@/lib/kontrollen/verifyReason";
 import { isEffectiveEntry } from "@/lib/lockPending";
 
 /** Einheiten-Kürzel für „Tage" nach Locale. Prefix-Vergleich, damit auch regionale Tags

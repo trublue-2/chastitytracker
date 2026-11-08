@@ -168,7 +168,7 @@ describe("writeHealthHold", () => {
  */
 describe("Die Erstell-Dienste prüfen den Halt selbst", () => {
   const files = {
-    "kontrolleService.ts": readFileSync("src/lib/kontrolleService.ts", "utf8"),
+    "kontrolleService.ts": readFileSync("src/lib/kontrollen/kontrolleService.ts", "utf8"),
     "verschlussAnforderungService.ts": readFileSync("src/lib/verschlussAnforderungService.ts", "utf8"),
     "orgasmusAnforderungService.ts": readFileSync("src/lib/orgasmusAnforderungService.ts", "utf8"),
     // Die Aufgabe prüft in `checkTask`, nicht in `createTask` — damit die MCP-dryRun-Vorschau

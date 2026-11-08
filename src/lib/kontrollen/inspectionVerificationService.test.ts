@@ -7,13 +7,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 vi.mock("@/lib/prisma", () => ({ prisma: { entry: { update: vi.fn() } } }));
-vi.mock("@/lib/verifyCache", () => ({ verifyKontrolleCodeDeduped: vi.fn() }));
-vi.mock("@/lib/verifyCode", () => ({ detectSealNumber: vi.fn() }));
+vi.mock("@/lib/kontrollen/verifyCache", () => ({ verifyKontrolleCodeDeduped: vi.fn() }));
+vi.mock("@/lib/kontrollen/verifyCode", () => ({ detectSealNumber: vi.fn() }));
 
 import { runInspectionVerification } from "./inspectionVerificationService";
 import { prisma } from "@/lib/prisma";
-import { verifyKontrolleCodeDeduped } from "@/lib/verifyCache";
-import { detectSealNumber } from "@/lib/verifyCode";
+import { verifyKontrolleCodeDeduped } from "@/lib/kontrollen/verifyCache";
+import { detectSealNumber } from "@/lib/kontrollen/verifyCode";
 
 const updateMock = prisma.entry.update as unknown as ReturnType<typeof vi.fn>;
 const verifyMock = verifyKontrolleCodeDeduped as unknown as ReturnType<typeof vi.fn>;

@@ -10,8 +10,8 @@ import SettingsSection from "@/app/components/SettingsSection";
 import {
   AUTO_KONTROLLE_SETTINGS_SELECT,
   autoKontrolleSettingsFromUser,
-} from "@/lib/autoKontrolleService";
-import { fixedWindowMinutes, parseAutoInspectionDayRules } from "@/lib/autoKontrolleDayRules";
+} from "@/lib/kontrollen/autoKontrolleService";
+import { fixedWindowMinutes, parseAutoInspectionDayRules } from "@/lib/kontrollen/autoKontrolleDayRules";
 import {
   formatCleaningWindows,
   maxPausesPerDaySentinel,

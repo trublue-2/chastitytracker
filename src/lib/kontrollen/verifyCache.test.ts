@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
+vi.mock("@/lib/kontrollen/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 
-import { verifyKontrolleCodeDeduped } from "@/lib/verifyCache";
-import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
+import { verifyKontrolleCodeDeduped } from "@/lib/kontrollen/verifyCache";
+import { verifyKontrolleCodeDetailed } from "@/lib/kontrollen/verifyCode";
 
 const mockVerify = vi.mocked(verifyKontrolleCodeDetailed);
 const OK = { detected: "12345", match: true, reason: null };

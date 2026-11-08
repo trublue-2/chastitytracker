@@ -1,7 +1,7 @@
 import { formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected, APP_TZ, formatDateTimeDual } from "@/lib/utils";
 export type { SessionEvent } from "@/lib/sessionHelpers";
 import { getTranslations, getLocale } from "next-intl/server";
-import { getKombinierterPill } from "@/lib/kontrollePills";
+import { getKombinierterPill } from "@/lib/kontrollen/kontrollePills";
 import SessionDurationBadge from "./SessionDurationBadge";
 import type { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";

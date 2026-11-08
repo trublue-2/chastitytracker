@@ -59,7 +59,7 @@ vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []),
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 // Die Ziel-Auflösung der Kontrolle ist eine eigene, anderswo geprüfte Maschinerie — hier zählt nur,
 // dass sie durchlässt.
-vi.mock("@/lib/inspectionTarget", () => ({
+vi.mock("@/lib/kontrollen/inspectionTarget", () => ({
   resolveInspectionTarget: vi.fn(async () => ({ ok: true, target: { categoryId: null, deviceId: null, activeDeviceId: "kg-1", active: true, lockEntry: null } })),
   inspectionPreconditionProblem: vi.fn(() => undefined),
   inspectionTargetLabel: vi.fn(() => null),
@@ -94,7 +94,7 @@ vi.mock("@/lib/messageService", async (importOriginal) => {
 import { AI_AUTHOR } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
-import { requestKontrolle, resolveKontrolle, sendKontrolleNotification } from "./kontrolleService";
+import { requestKontrolle, resolveKontrolle, sendKontrolleNotification } from "./kontrollen/kontrolleService";
 import { sendVerschlussAnforderungNotifications, withdrawVerschlussAnforderungById } from "./verschlussAnforderungService";
 import { withdrawOrgasmusAnforderungById } from "./orgasmusAnforderungService";
 import { withdrawTask, settleTaskResult } from "./tasks/taskService";

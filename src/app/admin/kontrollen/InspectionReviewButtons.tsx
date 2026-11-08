@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
-import { canReviewInspection } from "@/lib/kontrollePills";
+import { canReviewInspection } from "@/lib/kontrollen/kontrollePills";
 import { useInspectionReview } from "./useInspectionReview";
 
 /** Was eine Aufrufstelle braucht, um die Knöpfe zu zeigen. Nur Keyholder-Sichten reichen es

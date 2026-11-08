@@ -5,7 +5,7 @@ import { toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
 import { APP_TZ, type CleaningPauseRules } from "@/lib/utils";
 import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
-import type { DeviceCheckStatus } from "@/lib/deviceCheck";
+import type { DeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";
 import { isoWithOffset } from "@/lib/mcp/format";
 import type { DeviceMeta } from "@/lib/sessionModel";
 import type { WriteContext, TxClient } from "@/lib/mcp/writeFramework";

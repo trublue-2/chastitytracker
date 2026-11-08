@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminActor, requireKeyholderOrAdminApi, sessionActor } from "@/lib/authGuards";
-import { resolveKontrolle, extendInspectionDeadline } from "@/lib/kontrolleService";
+import { resolveKontrolle, extendInspectionDeadline } from "@/lib/kontrollen/kontrolleService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 import { mapAnforderungStatus } from "@/lib/utils";
 

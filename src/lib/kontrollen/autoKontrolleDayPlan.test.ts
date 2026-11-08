@@ -17,9 +17,9 @@ vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
 const { ensureDailyAutoKontrollenForUser, rerollTodayAutoKontrollenForUser, autoKontrolleSettingsFromUser } =
   await import("./autoKontrolleService");
-const { midnightInTZ, dateAtLocalMinutes } = await import("./utils");
+const { midnightInTZ, dateAtLocalMinutes } = await import("../utils");
 
-const { ALL_WEEKDAYS, weekdayMaskOf } = await import("./weekdays");
+const { ALL_WEEKDAYS, weekdayMaskOf } = await import("../weekdays");
 
 const TZ = "Europe/Zurich";
 /** Lokale Mitternacht — ab hier liegt der ganze Tag in der Zukunft. */

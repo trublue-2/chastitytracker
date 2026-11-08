@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 
-import { extendInspectionProblem } from "@/lib/kontrolleService";
+import { extendInspectionProblem } from "@/lib/kontrollen/kontrolleService";
 
 const NOW = new Date("2026-10-17T20:00:00Z");
 const H = 3_600_000;

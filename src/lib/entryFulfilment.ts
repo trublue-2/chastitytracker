@@ -1,6 +1,6 @@
 import { orgasmTypeSatisfies } from "@/lib/constants";
 import type { Prisma } from "@prisma/client";
-import type { InspectionVerification } from "@/lib/kontrolleService";
+import type { InspectionVerification } from "@/lib/kontrollen/kontrolleService";
 
 type PrismaKontrollWhere = Prisma.KontrollAnforderungWhereInput;
 import { prisma } from "@/lib/prisma";
@@ -15,7 +15,7 @@ import {
 } from "@/lib/queries";
 import { lockAnchor, lockPeriodFromRequest } from "@/lib/verschlussAnforderungService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
-import { scheduleCleaningRelockInspection, triggerPostLockInspection } from "@/lib/autoKontrolleService";
+import { scheduleCleaningRelockInspection, triggerPostLockInspection } from "@/lib/kontrollen/autoKontrolleService";
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/entryNotify";
 import { markLastAction } from "@/lib/appMeta";
 import { isHealthHoldActive } from "@/lib/healthHold";

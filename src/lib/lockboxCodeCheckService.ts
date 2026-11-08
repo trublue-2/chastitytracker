@@ -7,7 +7,7 @@ import { getControllerAudience, getKeyholdersOfUser } from "@/lib/keyholder";
 import { notifyControllers } from "@/lib/notify";
 import { isCodePhotoRevealed } from "@/lib/queries";
 import { structuredLog } from "@/lib/serverLog";
-import { detectLockboxCode } from "@/lib/verifyCode";
+import { detectLockboxCode } from "@/lib/kontrollen/verifyCode";
 import { visionConfigured } from "@/lib/vision";
 
 /**

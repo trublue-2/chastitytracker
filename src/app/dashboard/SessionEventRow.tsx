@@ -12,7 +12,7 @@ import DetailField from "@/app/components/DetailField";
 import SealedCodePhoto from "./SealedCodePhoto";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
-import { formatVerifyReason, type VerifyFailure } from "@/lib/verifyReason";
+import { formatVerifyReason, type VerifyFailure } from "@/lib/kontrollen/verifyReason";
 import type { KeyProofSource } from "@/lib/boxKeyProof";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 

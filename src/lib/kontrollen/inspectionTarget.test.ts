@@ -19,7 +19,7 @@ vi.mock("@/lib/queries", () => ({
 }));
 
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "./inspectionTarget";
-import { buildKontrolleItems } from "./utils";
+import { buildKontrolleItems } from "../utils";
 import { prisma } from "@/lib/prisma";
 import { getLatestKgEntry, getActiveWearSessionForCategory } from "@/lib/queries";
 

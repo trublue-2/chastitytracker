@@ -5,7 +5,7 @@ import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
 import KontrolleFields from "@/app/admin/kontrolle/KontrolleFields";
-import type { InspectionTargetOption } from "@/lib/inspectionTarget";
+import type { InspectionTargetOption } from "@/lib/kontrollen/inspectionTarget";
 
 export default function KontrolleForm({ userId, targets }: { userId: string; targets: InspectionTargetOption[] }) {
   const t = useTranslations("admin");

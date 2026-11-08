@@ -1,6 +1,6 @@
 "use client";
 
-import type { DeviceCheckStatus } from "@/lib/deviceCheck";
+import type { DeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";
 import { useState } from "react";
 import { ImageOff, CheckCircle2, ScanLine, Check, AlertTriangle } from "lucide-react";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";

@@ -22,8 +22,8 @@ import { loadStatementViews } from "@/lib/strafbuch/offenseStatementService";
 import OffenseList from "@/app/components/OffenseList";
 import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
-import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
-import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollen/kontrollePills";
+import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import {
   formatDate, formatTime, formatDurationMs, formatTotalHours, formatTotalMs,
   interruptionPauseMs, isTimeCorrected, nowDatetimeLocal,

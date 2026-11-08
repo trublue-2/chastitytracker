@@ -118,7 +118,7 @@ describe("dueForDispatchWhere", () => {
  * Attrappen für Prisma, Mail, Push und Posteingang — viel Gerüst für zwei Zuweisungen.
  */
 describe("Der Poller verschiebt das Orgasmus-Fenster mit, wenn er zu spät zustellt", () => {
-  const src = readFileSync("src/lib/kontrollePoller.ts", "utf8");
+  const src = readFileSync("src/lib/kontrollen/kontrollePoller.ts", "utf8");
   const call = src.slice(
     src.indexOf("const lateMs"),
     src.indexOf("});", src.indexOf("sendOrgasmusAnforderungNotifications(")),

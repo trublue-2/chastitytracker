@@ -11,7 +11,7 @@ import { createPrismaMock, type PrismaMock } from "@/test/prismaMock";
 const prismaMock: PrismaMock = createPrismaMock();
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
-const { scheduleCleaningRelockInspection, isSleepingAt, autoKontrolleSettingsFromUser } = await import("./autoKontrolleService");
+const { scheduleCleaningRelockInspection, isSleepingAt, autoKontrolleSettingsFromUser } = await import("./kontrollen/autoKontrolleService");
 
 const TZ = "Europe/Zurich";
 /** 2026-06-15T12:00Z = 14:00 Zürcher Ortszeit — mitten im Wach-Fenster. */

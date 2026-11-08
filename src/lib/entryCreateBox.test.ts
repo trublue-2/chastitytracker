@@ -22,7 +22,7 @@ vi.mock("@/lib/queries", () => ({
   getKgNeighbors: vi.fn(),
 }));
 vi.mock("@/lib/entryFulfilment", () => ({ applyEntryFulfilment: vi.fn(async () => []) }));
-vi.mock("@/lib/autoKontrolleService", () => ({ triggerPostLockInspection: vi.fn() }));
+vi.mock("@/lib/kontrollen/autoKontrolleService", () => ({ triggerPostLockInspection: vi.fn() }));
 vi.mock("@/lib/lockCommit", () => ({
   findPendingLockTx: vi.fn(async () => null),
   findPendingOpenTx: vi.fn(async () => null),

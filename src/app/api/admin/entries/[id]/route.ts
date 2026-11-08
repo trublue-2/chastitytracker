@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { resolveInspectionEntry } from "@/lib/kontrolleService";
+import { resolveInspectionEntry } from "@/lib/kontrollen/kontrolleService";
 import { serviceResponse, errorResponse } from "@/lib/serviceResult";
 
 /**

@@ -15,7 +15,7 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: vi.fn() },
   },
 }));
-vi.mock("@/lib/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
+vi.mock("@/lib/kontrollen/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({ getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "kh1" }], username: "sub" })) }));
@@ -33,7 +33,7 @@ import { notifyUser, notifyControllers } from "@/lib/notify";
 import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
 import { settleIfFinal } from "@/lib/tasks/taskService";
 import { prisma } from "@/lib/prisma";
-import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
+import { verifyKontrolleCodeDetailed } from "@/lib/kontrollen/verifyCode";
 
 const find = prisma.taskProof.findFirst as unknown as ReturnType<typeof vi.fn>;
 const update = prisma.taskProof.updateMany as unknown as ReturnType<typeof vi.fn>;

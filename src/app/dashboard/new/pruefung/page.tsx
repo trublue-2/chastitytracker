@@ -2,10 +2,10 @@ import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import PruefungForm from "../../PruefungForm";
 import { auth } from "@/lib/auth";
-import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrolleService";
+import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrollen/kontrolleService";
 import { generateKontrollCode } from "@/lib/utils";
 import { getBoxFormContext, getOpenKontrollen, getMobileDesktopMode } from "@/lib/queries";
-import { resolveInspectionTarget, isKgTarget, inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { resolveInspectionTarget, isKgTarget, inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { getTranslations } from "next-intl/server";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 

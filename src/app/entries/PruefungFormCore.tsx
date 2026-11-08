@@ -26,7 +26,7 @@ import Spinner from "@/app/components/Spinner";
 import InspectionCodePushButton from "@/app/components/InspectionCodePushButton";
 import type { PruefungPayload, SubmitResult } from "./types";
 import { useApiError } from "@/app/hooks/useApiError";
-import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
+import { formatVerifyReason, type VerifyReason } from "@/lib/kontrollen/verifyReason";
 import { INSPECTION_CODE_LENGTH, isValidInspectionCode } from "@/lib/constants";
 import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/apiClient";
 import { isOfflineBlobUrl } from "@/lib/idb";

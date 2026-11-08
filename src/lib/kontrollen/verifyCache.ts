@@ -1,5 +1,5 @@
 import type { Rotation } from "@/lib/constants";
-import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/verifyCode";
+import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/kontrollen/verifyCode";
 import { structuredLog } from "@/lib/serverLog";
 
 /**

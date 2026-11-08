@@ -20,7 +20,7 @@ import {
 } from "@/lib/statsBuilders";
 import { hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/goalFulfillment";
 import { resolveGoalRow } from "@/lib/goalSegments";
-import { getKombinierterPill } from "@/lib/kontrollePills";
+import { getKombinierterPill } from "@/lib/kontrollen/kontrollePills";
 import { isKgVorgabe, goalCategoryKey, groupVorgabenByCategory } from "@/lib/vorgaben";
 import { isEffectiveEntry, latestEffectiveKgEntry } from "@/lib/lockPending";
 import { categoryStyle } from "@/lib/categoryConstants";

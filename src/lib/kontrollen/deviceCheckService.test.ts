@@ -12,13 +12,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({ prisma: { entry: { update: vi.fn() } } }));
 vi.mock("@/lib/deviceReferenceService", () => ({ gatherDeviceReferences: vi.fn() }));
-vi.mock("@/lib/detectDevice", () => ({ checkDeviceInPhoto: vi.fn() }));
+vi.mock("@/lib/kontrollen/detectDevice", () => ({ checkDeviceInPhoto: vi.fn() }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 
 import { deviceCheckApplies, runDeviceCheck } from "./deviceCheckService";
 import { prisma } from "@/lib/prisma";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
-import { checkDeviceInPhoto } from "@/lib/detectDevice";
+import { checkDeviceInPhoto } from "@/lib/kontrollen/detectDevice";
 
 const updateMock = prisma.entry.update as unknown as ReturnType<typeof vi.fn>;
 const refsMock = gatherDeviceReferences as unknown as ReturnType<typeof vi.fn>;

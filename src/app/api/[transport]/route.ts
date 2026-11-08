@@ -8,7 +8,7 @@ import { listReferences } from "@/lib/mcp/deviceReferences";
 import { loadMcpImage, mcpImageToolVisible } from "@/lib/mcp/entryImage";
 import { MCP_MODEL_DOC } from "@/lib/mcpModelDoc";
 import { OFFENSE_RULE_MODES } from "@/lib/strafbuch/offenseRules";
-import { AUTO_INSPECTION_DAY_RULES_MAX } from "@/lib/autoKontrolleDayRules";
+import { AUTO_INSPECTION_DAY_RULES_MAX } from "@/lib/kontrollen/autoKontrolleDayRules";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
 import {
   checkMcpKeyholder, mcpRequestLock, mcpSetLockPeriod,

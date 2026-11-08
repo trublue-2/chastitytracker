@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { device: { findMany: vi.fn() }, deviceReferenceImage: { update: vi.fn() } },
 }));
-vi.mock("@/lib/embed", async (importActual) => {
+vi.mock("@/lib/kontrollen/embed", async (importActual) => {
   const actual = await importActual<typeof import("./embed")>();
   return { ...actual, embedAvailable: vi.fn(() => true), embedModel: vi.fn(() => "test-model"), embedImages: vi.fn() };
 });
@@ -14,7 +14,7 @@ vi.mock("@/lib/vision", () => ({ visionConfigured: vi.fn(async () => true) }));
 import { detectDeviceByEmbedding } from "./deviceEmbedding";
 import { visionConfigured } from "@/lib/vision";
 import { prisma } from "@/lib/prisma";
-import { embedAvailable, embedImages, vectorToBytes } from "@/lib/embed";
+import { embedAvailable, embedImages, vectorToBytes } from "@/lib/kontrollen/embed";
 
 const findMany = prisma.device.findMany as unknown as ReturnType<typeof vi.fn>;
 const updateRef = prisma.deviceReferenceImage.update as unknown as ReturnType<typeof vi.fn>;

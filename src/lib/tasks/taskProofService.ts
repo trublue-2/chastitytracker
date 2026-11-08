@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/verifyCode";
+import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/kontrollen/verifyCode";
 import { structuredLog } from "@/lib/serverLog";
 import { notifyUser } from "@/lib/notify";
 import { getControllerAudience } from "@/lib/keyholder";

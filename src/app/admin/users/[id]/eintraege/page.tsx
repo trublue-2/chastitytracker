@@ -7,7 +7,7 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { loadWeightRows } from "@/lib/weight/weightRows";
 import { weightText, type UnitSystem } from "@/lib/weight/weight";
 import EntryRow from "@/app/components/EntryRow";
-import { INSPECTION_PILL_SELECT, entryInspectionPill } from "@/lib/kontrollePills";
+import { INSPECTION_PILL_SELECT, entryInspectionPill } from "@/lib/kontrollen/kontrollePills";
 import DayGroups from "@/app/components/DayGroups";
 import ListPagerLinks from "@/app/components/ListPagerLinks";
 import WeightRow from "@/app/components/WeightRow";

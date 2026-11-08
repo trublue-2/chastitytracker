@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { toVerifyFailure, formatVerifyReason } from "./verifyReason";
-import { buildKontrolleItems } from "./utils";
+import { buildKontrolleItems } from "../utils";
 
 describe("toVerifyFailure — der Grund gilt nur, solange kein Urteil daneben steht", () => {
   it("unverifiziert (status null) + Grund → der Grund wird gemeldet", () => {

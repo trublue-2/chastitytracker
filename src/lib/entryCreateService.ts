@@ -5,7 +5,7 @@ import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, getKgNeighbors, endableLockPeriods } from "@/lib/queries";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
 import { applyEntryFulfilment } from "@/lib/entryFulfilment";
-import { triggerPostLockInspection } from "@/lib/autoKontrolleService";
+import { triggerPostLockInspection } from "@/lib/kontrollen/autoKontrolleService";
 import { boltFieldsFor } from "@/lib/lockPending";
 import { findPendingLockTx, findPendingOpenTx, openAwaitsBolt } from "@/lib/lockCommit";
 import { boxCommandForEntry, setBoxCommandForUser } from "@/lib/boxCommand";

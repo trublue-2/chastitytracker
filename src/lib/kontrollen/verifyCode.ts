@@ -6,7 +6,7 @@ import { structuredLog, redactDigits } from "@/lib/serverLog";
 import { IMAGE_MEDIA_TYPES, type ImageData } from "@/lib/imageUtils";
 import { visionComplete, visionConfigured } from "@/lib/vision";
 import { parseJsonObject, wasTruncated } from "@/lib/vision/parse";
-import { localReadDigits } from "@/lib/ocr";
+import { localReadDigits } from "@/lib/kontrollen/ocr";
 
 /** Beschreibung der zulaessigen Code-Quellen — wird in beiden Vision-Prompts verwendet
  *  damit Vokabular nicht zwischen verifyKontrolleCodeDetailed und detectSealNumber driftet. */
@@ -264,8 +264,8 @@ export function fuzzyMatch(a: string, b: string): boolean {
 
 // VerifyReason + its i18n formatting live in verifyReason.ts (client-safe — no sharp/fs/next-headers)
 // so client components can import the formatter without bundling this server-only vision module.
-export type { VerifyReason } from "@/lib/verifyReason";
-import type { VerifyReason } from "@/lib/verifyReason";
+export type { VerifyReason } from "@/lib/kontrollen/verifyReason";
+import type { VerifyReason } from "@/lib/kontrollen/verifyReason";
 
 export type VerifyDetailedResult = {
   detected: string | null;

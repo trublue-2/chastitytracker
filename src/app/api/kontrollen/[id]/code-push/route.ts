@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
-import { resendInspectionCode } from "@/lib/kontrolleService";
+import { resendInspectionCode } from "@/lib/kontrollen/kontrolleService";
 import { serviceResponse, errorResponse } from "@/lib/serviceResult";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { INSPECTION_CODE_PUSH_COOLDOWN_MS, inspectionCodePushLimitKey } from "@/lib/constants";

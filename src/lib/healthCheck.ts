@@ -1,6 +1,6 @@
 import { currentVisionConfig } from "@/lib/vision/config";
 import { visionHealthProbe } from "@/lib/vision/openaiCompatible";
-import { embedAvailable, embedHealthProbe } from "@/lib/embed";
+import { embedAvailable, embedHealthProbe } from "@/lib/kontrollen/embed";
 import { sendMail, escHtml } from "@/lib/mail";
 import { structuredLog } from "@/lib/serverLog";
 import { APP_NAME } from "@/lib/constants";

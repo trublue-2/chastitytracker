@@ -42,16 +42,16 @@ vi.mock("@/lib/verschlussAnforderungService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/verschlussAnforderungService")>();
   return { ...actual, createVerschlussAnforderung: vi.fn(), updateLockPeriodEnd: vi.fn(), updateLockRequest: vi.fn(), withdrawVerschlussAnforderung: vi.fn(), withdrawVerschlussAnforderungById: vi.fn() };
 });
-vi.mock("@/lib/kontrolleService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/kontrolleService")>();
+vi.mock("@/lib/kontrollen/kontrolleService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/kontrollen/kontrolleService")>();
   return { ...actual, requestKontrolle: vi.fn(), resolveKontrolle: vi.fn(), resolveInspectionEntry: vi.fn(), hasActiveKontrolle: vi.fn() };
 });
 vi.mock("@/lib/vorgabeService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/vorgabeService")>();
   return { ...actual, createVorgabe: vi.fn(), updateVorgabe: vi.fn(), deleteVorgabe: vi.fn(), listVorgaben: vi.fn() };
 });
-vi.mock("@/lib/autoKontrolleService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/autoKontrolleService")>();
+vi.mock("@/lib/kontrollen/autoKontrolleService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/kontrollen/autoKontrolleService")>();
   return { ...actual, setAutoKontrolleSettings: vi.fn() };
 });
 vi.mock("@/lib/cleaningService", async (importOriginal) => {
@@ -90,10 +90,10 @@ import {
 } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
 import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
-import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrollen/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
 import { setCleaningSettings } from "@/lib/cleaningService";
-import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
+import { setAutoKontrolleSettings } from "@/lib/kontrollen/autoKontrolleService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, requireDetectedOffense } from "@/lib/strafbuch/strafurteilService";
 import { releaseNow } from "@/lib/releaseNowService";

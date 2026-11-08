@@ -1,5 +1,5 @@
-import { effectiveDeviceCheckStatus, sameLookalikeCluster, type DeviceCheckStatus } from "@/lib/deviceCheck";
-import { toVerifyFailure, type VerifyFailure } from "@/lib/verifyReason";
+import { effectiveDeviceCheckStatus, sameLookalikeCluster, type DeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";
+import { toVerifyFailure, type VerifyFailure } from "@/lib/kontrollen/verifyReason";
 import { buildPairs, mergeWearPairs, msToHours, type CleaningPauseRules, WEAR_PAIR, type WearPair } from "@/lib/utils";
 
 /**

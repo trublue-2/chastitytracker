@@ -12,14 +12,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() } },
 }));
-vi.mock("@/lib/inspectionEscalationService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/inspectionEscalationService")>();
+vi.mock("@/lib/kontrollen/inspectionEscalationService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/kontrollen/inspectionEscalationService")>();
   return { ...actual, setInspectionEscalationSettings: vi.fn().mockResolvedValue({ ok: true, data: null }) };
 });
 
 import { mcpSetInspectionEscalation } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
+import { setInspectionEscalationSettings } from "@/lib/kontrollen/inspectionEscalationService";
 
 const setSettingsMock = setInspectionEscalationSettings as unknown as ReturnType<typeof vi.fn>;
 

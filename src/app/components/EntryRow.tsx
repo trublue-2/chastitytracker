@@ -16,7 +16,7 @@ import { actionIcon } from "@/app/entries/actionSign";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 import Badge from "@/app/components/Badge";
 import { CapturedOfflineBadge } from "@/app/components/CapturedOffline";
-import type { KontrollePill } from "@/lib/kontrollePills";
+import type { KontrollePill } from "@/lib/kontrollen/kontrollePills";
 
 /**
  * Das Zeichen einer Eintragsart — aus der geteilten Registratur, nicht aus einer eigenen Tabelle.

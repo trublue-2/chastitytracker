@@ -43,7 +43,7 @@ vi.mock("@/lib/messageService", async (importOriginal) => ({
 }));
 
 import { notifyUser } from "./notify";
-import { sendKontrolleNotification } from "./kontrolleService";
+import { sendKontrolleNotification } from "./kontrollen/kontrolleService";
 import { sendVerschlussAnforderungNotifications } from "./verschlussAnforderungService";
 import { sendOrgasmusAnforderungNotifications } from "./orgasmusAnforderungService";
 import { prisma } from "@/lib/prisma";

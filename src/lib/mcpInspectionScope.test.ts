@@ -19,14 +19,14 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/kontrolleService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/kontrolleService")>();
+vi.mock("@/lib/kontrollen/kontrolleService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/kontrollen/kontrolleService")>();
   return { ...actual, requestKontrolle: vi.fn(), resolveKontrolle: vi.fn(), resolveInspectionEntry: vi.fn(), hasActiveKontrolle: vi.fn() };
 });
 
 import { mcpWithdraw, mcpRequestInspection, mcpResolveInspection } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrolleService";
+import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrollen/kontrolleService";
 import { INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
 import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
 

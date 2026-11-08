@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { listInspectionTargets } from "@/lib/inspectionTarget";
+import { listInspectionTargets } from "@/lib/kontrollen/inspectionTarget";
 import KontrolleForm from "./KontrolleForm";
 
 export default async function AdminKontrollePage({ params }: { params: Promise<{ id: string }> }) {

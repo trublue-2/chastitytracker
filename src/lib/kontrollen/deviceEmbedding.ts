@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { structuredLog } from "@/lib/serverLog";
 import { visionConfigured } from "@/lib/vision";
-import { embedAvailable, embedModel, embedImages, bytesToVector, vectorToBytes, cosine } from "@/lib/embed";
-import type { DetectedDevice } from "@/lib/detectDevice";
+import { embedAvailable, embedModel, embedImages, bytesToVector, vectorToBytes, cosine } from "@/lib/kontrollen/embed";
+import type { DetectedDevice } from "@/lib/kontrollen/detectDevice";
 
 const dlog = (label: string, fields: Record<string, unknown>) => structuredLog("device-embed", label, fields);
 

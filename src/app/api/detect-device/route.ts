@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isValidImageUrl } from "@/lib/constants";
-import { detectDevice } from "@/lib/detectDevice";
-import { detectDeviceByEmbedding } from "@/lib/deviceEmbedding";
-import { embedAvailable } from "@/lib/embed";
+import { detectDevice } from "@/lib/kontrollen/detectDevice";
+import { detectDeviceByEmbedding } from "@/lib/kontrollen/deviceEmbedding";
+import { embedAvailable } from "@/lib/kontrollen/embed";
 import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
 
 /**

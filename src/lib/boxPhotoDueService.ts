@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { CLIENT_CLOCK_SKEW_MS, isValidImageUrl, parseRotation } from "@/lib/constants";
 import { boxReportsFreshlyLocked } from "@/lib/boxStatus";
 import { getLatestKgEntry } from "@/lib/queries";
-import { detectKeyInBox } from "@/lib/verifyCode";
+import { detectKeyInBox } from "@/lib/kontrollen/verifyCode";
 import { announceBoxPhotoDue } from "@/lib/boxCommandNotify";
 import { boxPhotoDueAtOf, boxPhotoTakenBeforeBolt, isBoxPhotoDue, needsBoxPhoto } from "@/lib/boxPhotoDue";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";

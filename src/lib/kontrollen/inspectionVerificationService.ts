@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { verifyKontrolleCodeDeduped } from "@/lib/verifyCache";
-import { detectSealNumber } from "@/lib/verifyCode";
-import type { InspectionVerification } from "@/lib/kontrolleService";
+import { verifyKontrolleCodeDeduped } from "@/lib/kontrollen/verifyCache";
+import { detectSealNumber } from "@/lib/kontrollen/verifyCode";
+import type { InspectionVerification } from "@/lib/kontrollen/kontrolleService";
 import type { Rotation } from "@/lib/constants";
-import type { VerifyReason } from "@/lib/verifyReason";
+import type { VerifyReason } from "@/lib/kontrollen/verifyReason";
 
 /**
  * Die Foto-Verifikation einer Kontrolle als EIN Vorgang — Gegenstück zu `deviceCheckService`, und aus

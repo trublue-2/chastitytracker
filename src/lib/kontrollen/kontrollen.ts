@@ -1,9 +1,9 @@
 import { mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected, formatDateTimeDual, APP_TZ } from "@/lib/utils";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/utils";
-import { effectiveDeviceCheckStatus } from "@/lib/deviceCheck";
-import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollePills";
-import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
-import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { effectiveDeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";
+import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollen/kontrollePills";
+import { formatVerifyReason, type VerifyReason } from "@/lib/kontrollen/verifyReason";
+import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { prisma } from "@/lib/prisma";
 import { keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
 import type { AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontrolleListClient";

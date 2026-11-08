@@ -9,7 +9,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 vi.mock("@/lib/vision", () => ({ visionConfigured: vi.fn(async () => true) }));
-vi.mock("@/lib/verifyCode", () => ({ detectLockboxCode: vi.fn() }));
+vi.mock("@/lib/kontrollen/verifyCode", () => ({ detectLockboxCode: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({
   // Ein globaler Admin ohne Zuordnung und die zugeordnete Keyholderin.
   getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "admin1" }, { id: "kh1" }], username: "sub" })),
@@ -20,7 +20,7 @@ vi.mock("@/lib/queries", () => ({ isCodePhotoRevealed: vi.fn(async () => true) }
 
 import { prisma } from "@/lib/prisma";
 import { visionConfigured } from "@/lib/vision";
-import { detectLockboxCode } from "@/lib/verifyCode";
+import { detectLockboxCode } from "@/lib/kontrollen/verifyCode";
 import { notifyControllers } from "@/lib/notify";
 import { isCodePhotoRevealed } from "@/lib/queries";
 import { checkCodeChange, clearCodeReadCache, codeChangeCheckApplies, runCodeChangeCheck } from "./lockboxCodeCheckService";

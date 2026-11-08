@@ -47,7 +47,7 @@ vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []),
 // Nur der Schreib-Weg wird ersetzt; der Rest des Moduls (Absender-Abbildung, Spalten-Helfer) bleibt
 // echt — er ist reine Ableitung, keine Nebenwirkung. Spread statt Aufzählung, siehe offenseAnnounce.test.ts.
 vi.mock("@/lib/messageService", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./messageService")>()),
+  ...(await importOriginal<typeof import("../messageService")>()),
   recordInboxDelivery: vi.fn(async () => ({ badge: 0, channels: { mail: true, push: true, telegram: true } })),
 }));
 vi.mock("@/lib/mail", () => ({

@@ -17,7 +17,7 @@ import {
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
 } from "@/lib/dashboardData";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { predictAutoMarkAt } from "@/lib/inspectionEscalationService";
+import { predictAutoMarkAt } from "@/lib/kontrollen/inspectionEscalationService";
 import { cleaningPermissionUserAt } from "@/lib/cleaningRules";
 import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch/strafbuch";
 import {
@@ -33,7 +33,7 @@ import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { resolveReasonLabel } from "@/lib/reasonsService";
 import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import { inspectionHref, openInspections } from "@/lib/entryFormRoute";
-import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { belongsOnDashboard, isHeldByTask } from "@/lib/tasks/taskIntervals";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";

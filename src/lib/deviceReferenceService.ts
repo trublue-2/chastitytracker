@@ -3,7 +3,7 @@ import { join, basename } from "path";
 import { prisma } from "@/lib/prisma";
 import { uploadsDirPath, generateUploadFilename, deleteUploadedFiles } from "@/lib/imageUtils";
 import { visionMaxRefsPerDevice } from "@/lib/constants";
-import type { DeviceReference } from "@/lib/detectDevice";
+import type { DeviceReference } from "@/lib/kontrollen/detectDevice";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 /**

@@ -5,13 +5,13 @@ import { notifyUser, notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
 import { createOeffnenEntryTx } from "@/lib/oeffnenService";
 import { prepareWearEntry } from "@/lib/queries";
-import { resolveInspectionTarget, isKgTarget } from "@/lib/inspectionTarget";
+import { resolveInspectionTarget, isKgTarget } from "@/lib/kontrollen/inspectionTarget";
 import {
   AUTO_ENTFERNT_REASON, NO_FIELDS_TO_UPDATE,
   INSPECTION_REMINDER_DELAY_RANGE, INSPECTION_AUTO_MARK_DELAY_RANGE,
 } from "@/lib/constants";
 import { codeOf } from "@/lib/codedError";
-import { isSleepingAt, autoKontrolleSettingsFromUser, isEntryTriggeredInspection, type AutoKontrolleUserFields } from "@/lib/autoKontrolleService";
+import { isSleepingAt, autoKontrolleSettingsFromUser, isEntryTriggeredInspection, type AutoKontrolleUserFields } from "@/lib/kontrollen/autoKontrolleService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 /*

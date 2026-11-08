@@ -1,5 +1,5 @@
 import { buildPairs, getOpenPair, interruptionPauseMs, msToHours, type CleaningPauseRules } from "@/lib/utils";
-import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { latestEffectiveKgEntry } from "@/lib/lockPending";
 
 /**
