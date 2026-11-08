@@ -25,7 +25,7 @@ import {
 import { structuredLog } from "@/lib/serverLog";
 import { deleteUploadedFiles } from "@/lib/client/imageUtils";
 import { NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 
 /**
  * Aufgaben-Service — Anlegen, Ändern, Zurückziehen, Erledigt-Melden.

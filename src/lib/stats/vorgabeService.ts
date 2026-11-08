@@ -6,7 +6,7 @@ import { reorderVorgabenDates } from "@/lib/stats/vorgaben";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 import {
   parseWeekdayGoalRules, weekdayGoalRulesProblem, weekdayGoalRuleTooHigh, weekdayGoalRulesHaveTarget,
   type WeekdayGoalRule,

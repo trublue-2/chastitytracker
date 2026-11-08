@@ -12,9 +12,9 @@ import type { UnitSystem } from "@/lib/weight/weight";
 import { journalSettingsOf } from "@/lib/journal/journalService";
 import type { JournalSettingsProps } from "./JournalSettings";
 import pkg from "@/../package.json";
-import type { FeedbackSetup } from "@/lib/feedback";
-import { feedbackSetup } from "@/lib/feedbackSetup";
-import { publicIdentity } from "@/lib/census";
+import type { FeedbackSetup } from "@/lib/upstream/feedback";
+import { feedbackSetup } from "@/lib/upstream/feedbackSetup";
+import { publicIdentity } from "@/lib/upstream/census";
 
 export interface SettingsFormProps {
   username: string;

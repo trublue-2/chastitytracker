@@ -7,7 +7,7 @@ import releasesData from "@/data/changelog.json";
 import UpstreamSection from "./UpstreamSection";
 import Section from "@/app/components/Section";
 import { blockStackCls, titleCls } from "@/app/components/inputStyles";
-import { pickChangelogText, type ChangelogText } from "@/lib/changelogText";
+import { pickChangelogText, type ChangelogText } from "@/lib/upstream/changelogText";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";

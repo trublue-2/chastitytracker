@@ -26,7 +26,7 @@ vi.mock("@/lib/messages/telegram", () => ({ sendTelegram: vi.fn() }));
 vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 vi.mock("next-intl/server", async () => (await import("@/test/notifyLeafMocks")).intlServerLeaf());
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
-vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
+vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
 vi.mock("@/lib/box/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
 

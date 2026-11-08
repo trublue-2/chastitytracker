@@ -3,7 +3,7 @@
  *  GitHub server-side — avoids a connect-src CSP violation when fetching
  *  raw.githubusercontent.com directly from the browser. */
 
-import type { ChangelogText } from "@/lib/changelogText";
+import type { ChangelogText } from "@/lib/upstream/changelogText";
 
 const PROXY_URL = "/api/upstream-changelog";
 const CACHE_KEY = "upstream-changelog-v1";

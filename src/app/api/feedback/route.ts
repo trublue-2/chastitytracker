@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
 import { isValidEmail } from "@/lib/constants";
-import { censusEnabled, censusInstanceId, imageOrigin, imageOriginLabel } from "@/lib/census";
-import { FEEDBACK_DEFAULT_UPSTREAM_URL, feedbackMode, isThrowawayEmail } from "@/lib/feedback";
+import { censusEnabled, censusInstanceId, imageOrigin, imageOriginLabel } from "@/lib/upstream/census";
+import { FEEDBACK_DEFAULT_UPSTREAM_URL, feedbackMode, isThrowawayEmail } from "@/lib/upstream/feedback";
 
 const VALID_TYPES = ["BUG", "IDEA", "QUESTION", "THANKS"] as const;
 const VALID_PLATFORMS = ["web", "ios", "android"] as const;

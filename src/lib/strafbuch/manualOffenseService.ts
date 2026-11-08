@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 

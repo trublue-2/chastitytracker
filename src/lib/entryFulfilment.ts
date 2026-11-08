@@ -17,7 +17,7 @@ import { lockAnchor, lockPeriodFromRequest } from "@/lib/verschlussAnforderungSe
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { scheduleCleaningRelockInspection, triggerPostLockInspection } from "@/lib/kontrollen/autoKontrolleService";
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/messages/entryNotify";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 import { isHealthHoldActive } from "@/lib/healthHold";
 import { entryGuardError } from "@/lib/entryErrors";
 

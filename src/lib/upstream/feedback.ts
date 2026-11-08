@@ -4,7 +4,7 @@
  * Client-erreichbar (das Formular teilt die Adress-Prüfung mit der Route), deshalb nur importfreie
  * Abhängigkeiten. Die ENV-Abfragen laufen nur auf dem Server; im Client-Bundle wären sie leer.
  */
-import { isPortalInstance } from "./auth/portalInstance";
+import { isPortalInstance } from "../auth/portalInstance";
 
 /** Posteingang im Portal. Self-Hoster leiten mit FEEDBACK_UPSTREAM_URL um oder schalten mit
  *  DISABLE_FEEDBACK=true ab. */

@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { Sparkles, Bug, Zap, Wrench, Palette, Download } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
-import { fetchUpstreamChangelog, type UpstreamRelease } from "@/lib/upstreamChangelog";
-import { compareVersions } from "@/lib/semver";
-import { pickChangelogText } from "@/lib/changelogText";
+import { fetchUpstreamChangelog, type UpstreamRelease } from "@/lib/upstream/upstreamChangelog";
+import { compareVersions } from "@/lib/upstream/semver";
+import { pickChangelogText } from "@/lib/upstream/changelogText";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";

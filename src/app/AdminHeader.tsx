@@ -8,8 +8,8 @@ import { Users } from "lucide-react";
 import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerIconBtnCls, headerNameCls, headerRowCls } from "@/app/components/inputStyles";
 import type { OwnTrackerActor } from "@/lib/auth/ownTracker";
 import pkg from "../../package.json";
-import { instanceHostname } from "@/lib/appMeta";
-import { feedbackSetup } from "@/lib/feedbackSetup";
+import { instanceHostname } from "@/lib/upstream/appMeta";
+import { feedbackSetup } from "@/lib/upstream/feedbackSetup";
 
 interface Props {
   username: string;

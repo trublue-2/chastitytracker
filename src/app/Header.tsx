@@ -8,9 +8,9 @@ import SkipLink from "@/app/components/SkipLink";
 import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerNameCls, headerRowCls } from "@/app/components/inputStyles";
 import { ownTrackerHidden } from "@/lib/auth/ownTracker";
 import pkg from "../../package.json";
-import { instanceHostname } from "@/lib/appMeta";
+import { instanceHostname } from "@/lib/upstream/appMeta";
 import { APP_NAME } from "@/lib/constants";
-import { feedbackSetup } from "@/lib/feedbackSetup";
+import { feedbackSetup } from "@/lib/upstream/feedbackSetup";
 
 export default async function Header() {
   const session = await auth();

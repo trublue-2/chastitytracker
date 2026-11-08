@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * direkt in `goals.*.todayPct` durch und damit in die Adhärenz-Argumentation gegenüber dem Sub.
  */
 
-vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
+vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     trainingVorgabe: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },

@@ -4,7 +4,7 @@ import { reportPenaltyDone } from "@/lib/strafbuch/penaltyReport";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 import { notifyControllers } from "@/lib/messages/notify";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 
 /**
  * Der Träger meldet eine verhängte Strafe als erledigt (`reportPenaltyDone`).

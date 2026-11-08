@@ -4,7 +4,7 @@ import { escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/messag
 import { notifyUser, deliverToChannels, NOTIFY_RECIPIENT_SELECT, type NotifyContent, type NotifyInbox, type NotifyRecipient } from "@/lib/messages/notify";
 import { actorColumn, recordInboxDelivery, type MessageActor } from "@/lib/messages/messageService";
 import { notifyHeimdallForUserId } from "@/lib/box/heimdallNotify";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 import { emailT, emailGreeting } from "@/lib/messages/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
 import { formatDateTime, formatDurationHours } from "@/lib/utils";

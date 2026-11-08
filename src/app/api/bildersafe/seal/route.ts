@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { bildersafeEnabled, isValidImageUrl } from "@/lib/constants";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 import { bildersafeMenuAction, getLatestKgEntry } from "@/lib/queries";
 import { codeChangeCheckApplies, runCodeChangeCheck } from "@/lib/box/lockboxCodeCheckService";
 

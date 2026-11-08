@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { manualOffense: { create: vi.fn(), updateMany: vi.fn() }, strafeRecord: { findUnique: vi.fn() } },
 }));
-vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
+vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
 
 import { validateManualOffenseInput, createManualOffense, withdrawManualOffense } from "./manualOffenseService";
 import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "../constants";

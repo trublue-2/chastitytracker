@@ -15,7 +15,7 @@ vi.mock("@/lib/messages/notify", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/messages/notify")>()),
   notifyUser: vi.fn(),
 }));
-vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
+vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
 vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn(), hasPushTarget: vi.fn() }));
 
 import { hasActiveKontrolle, inspectionIntro, buildInspectionPush, buildInspectionCodePush, resolveInspectionEntry, resendOwnInspectionCode } from "./kontrolleService";

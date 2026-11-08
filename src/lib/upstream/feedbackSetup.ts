@@ -1,6 +1,6 @@
-import pkg from "../../package.json";
-import { publicIdentity } from "@/lib/census";
-import { feedbackMode, githubIssueHref, type FeedbackSetup } from "@/lib/feedback";
+import pkg from "../../../package.json";
+import { publicIdentity } from "@/lib/upstream/census";
+import { feedbackMode, githubIssueHref, type FeedbackSetup } from "@/lib/upstream/feedback";
 
 /** Modus und GitHub-Link des Feedback-Knopfs — serverseitig, weil die öffentliche Kennung in der
  *  Datenbank liegt. */

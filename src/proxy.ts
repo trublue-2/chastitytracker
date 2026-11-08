@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth/auth";
 import { NextResponse } from "next/server";
 import { ownTrackerHidden } from "@/lib/auth/ownTracker";
-import { touchAppMeta } from "@/lib/appMeta";
+import { touchAppMeta } from "@/lib/upstream/appMeta";
 import { logTimestamp } from "@/lib/logFormat";
 import { isPublicPath } from "@/lib/auth/publicRoutes";
 import { clientIp } from "@/lib/auth/clientIp";

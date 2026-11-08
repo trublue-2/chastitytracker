@@ -5,7 +5,7 @@ import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 import { notifyControllers } from "@/lib/messages/notify";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 
 /**
  * Die Stellungnahme des Trägers zu einem festgestellten Vergehen — schreiben, ändern, zurücknehmen.

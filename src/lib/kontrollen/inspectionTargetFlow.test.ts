@@ -54,7 +54,7 @@ vi.mock("@/lib/messages/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, appBaseUrl: () => "https://x", noticeBoxHtml: () => "", optionalNoticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
 vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn() }));
-vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
+vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
 vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 
 import { requestKontrolle } from "./kontrolleService";

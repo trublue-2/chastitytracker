@@ -13,7 +13,7 @@ import HelpLink from "./HelpLink";
 import Card from "./Card";
 import { parseApiError } from "@/lib/client/apiClient";
 import { isValidEmail } from "@/lib/constants";
-import { isThrowawayEmail, type FeedbackMode } from "@/lib/feedback";
+import { isThrowawayEmail, type FeedbackMode } from "@/lib/upstream/feedback";
 
 type FeedbackType = "BUG" | "IDEA" | "QUESTION" | "THANKS";
 

@@ -17,12 +17,12 @@ vi.mock("@/lib/prisma", () => ({
     strafeRecord: { findUnique: vi.fn() },
   },
 }));
-vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
+vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
 
 import { mcpRecordOffense, mcpWithdraw } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
 import { MANUAL_OFFENSE_TITLE_MAX_LENGTH } from "@/lib/constants";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const createMock = prisma.manualOffense.create as unknown as ReturnType<typeof vi.fn>;

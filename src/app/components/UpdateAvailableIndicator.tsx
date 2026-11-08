@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { fetchUpstreamChangelog } from "@/lib/upstreamChangelog";
-import { compareVersions } from "@/lib/semver";
+import { fetchUpstreamChangelog } from "@/lib/upstream/upstreamChangelog";
+import { compareVersions } from "@/lib/upstream/semver";
 
 /** Small dot + label shown when an upstream version is newer than the running one.
  *  Hidden if upstream check fails or no newer version exists. */

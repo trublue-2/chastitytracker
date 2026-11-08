@@ -47,7 +47,7 @@ vi.mock("@/lib/tasks/taskService", async (importOriginal) => ({
   writeTask: vi.fn(),
 }));
 vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn() }));
-vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
+vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
 
 import { punishWithTask, judgeOffense } from "./strafurteilService";
 import { POST as postTask } from "@/app/api/admin/tasks/route";

@@ -4,7 +4,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import exifr from "exifr";
 import sharp from "sharp";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 import { uploadsDirPath, generateUploadFilename } from "@/lib/client/imageUtils";
 import { fromDatetimeLocal, APP_TZ } from "@/lib/utils";
 

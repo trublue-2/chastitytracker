@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON, orgasmTypeSatisfies } from "@/lib/constants";
-import { deployCutoff } from "@/lib/appMeta";
+import { deployCutoff } from "@/lib/upstream/appMeta";
 import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ, hhmmToMinutes } from "@/lib/utils";
 import { cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { activeCleaningWindow, CLEANING_USER_SELECT } from "@/lib/cleaningService";

@@ -6,7 +6,7 @@ import { recordSystemMessage, DISMISSAL_BODY_KEY, OFFENSE_REF_TYPE, type Message
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
 import { checkTask, writeTask, taskAssignmentNotice, type CreateTaskParams } from "@/lib/tasks/taskService";
 import { formatDateTime } from "@/lib/utils";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 import { offenseWasAnnounced } from "@/lib/strafbuch/offenseAnnounce";
 import { STORED_TYPE, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/strafbuch/offenseTypes";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";

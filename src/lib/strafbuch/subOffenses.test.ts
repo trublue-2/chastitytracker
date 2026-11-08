@@ -17,7 +17,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/tasks/taskService", () => ({ checkTask: vi.fn(), writeTask: vi.fn() }));
-vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
+vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
 
 import { selectSubOffenses } from "./subOffenses";
 import { cleaningNotRelockedRef, type StrafbuchData } from "./strafbuch";

@@ -8,8 +8,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Der Rückzug läuft in einer Transaktion (er nimmt ein offenes Strafurteil mit) — `tx` ist hier
 // derselbe Mock wie `prisma`, die Aufrufe sind damit an einer Stelle ablesbar.
-vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
-import { markLastAction } from "@/lib/appMeta";
+vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
+import { markLastAction } from "@/lib/upstream/appMeta";
 vi.mock("@/lib/prisma", () => {
   const p = {
     user: { findUnique: vi.fn() },

@@ -3,7 +3,7 @@ import { generateKontrollCode, APP_TZ } from "@/lib/utils";
 import { escHtml, appBaseUrl, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/messages/mail";
 import { formatDateTime, formatDate, formatTime } from "@/lib/utils";
 import { hasPushTarget } from "@/lib/messages/push";
-import { markLastAction } from "@/lib/appMeta";
+import { markLastAction } from "@/lib/upstream/appMeta";
 import { notifyUser, deliverToChannels, NOTIFY_RECIPIENT_SELECT, type NotifyContent, type NotifyRecipient } from "@/lib/messages/notify";
 import { actorColumn, recordInboxDelivery, type MessageActor, type MessageRef } from "@/lib/messages/messageService";
 import { deliveryChannels } from "@/lib/messages/deliveryChannels";
