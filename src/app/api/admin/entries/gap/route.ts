@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminActor } from "@/lib/auth/authGuards";
-import { isDevBypassEnabled } from "@/lib/devMode";
+import { isDevBypassEnabled } from "@/lib/client/devMode";
 import { createEntryGapForUser, entryGapEnabled, ENTRY_GAP_KINDS } from "@/lib/entryGapService";
 
 /**

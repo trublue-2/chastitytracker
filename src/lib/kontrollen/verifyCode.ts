@@ -3,7 +3,7 @@ import { join, basename } from "path";
 import sharp from "sharp";
 import { visionMaxImagePx, type Rotation } from "@/lib/constants";
 import { structuredLog, redactDigits } from "@/lib/serverLog";
-import { IMAGE_MEDIA_TYPES, type ImageData } from "@/lib/imageUtils";
+import { IMAGE_MEDIA_TYPES, type ImageData } from "@/lib/client/imageUtils";
 import { visionComplete, visionConfigured } from "@/lib/vision";
 import { parseJsonObject, wasTruncated } from "@/lib/vision/parse";
 import { localReadDigits } from "@/lib/kontrollen/ocr";

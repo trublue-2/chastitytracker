@@ -6,7 +6,7 @@ import { boxPhotoReused, detectKeyInBoxInBackground, markBoxPhotoDueIfBoxLocked 
 import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVerificationStatus, type InspectionVerification } from "@/lib/kontrollen/kontrolleService";
 import { DEVICE_BEARING_TYPES, validateEntryPayload, parseRotation, BOX_PHOTO_TYPES, parseOrgasmusArtBase, lockmeboxEnabled } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
-import { isDevBypassEnabled } from "@/lib/devMode";
+import { isDevBypassEnabled } from "@/lib/client/devMode";
 import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "@/lib/kontrollen/inspectionTarget";
 import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
@@ -20,7 +20,7 @@ import { structuredLog } from "@/lib/serverLog";
 import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entryFulfilment";
 import { lockAwaitsBolt, openAwaitsBolt, findPendingLockTx, findPendingOpenTx } from "@/lib/lockCommit";
 import { boltFieldsFor } from "@/lib/lockPending";
-import { parseOfflineCapture } from "@/lib/offlineCapture";
+import { parseOfflineCapture } from "@/lib/client/offlineCapture";
 import { resolveEntryStart, startAfter, startIsNow } from "@/lib/entryStart";
 
 export async function GET() {

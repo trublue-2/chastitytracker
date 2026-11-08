@@ -8,7 +8,7 @@ vi.mock("@/lib/entryGapService", async () => {
 });
 vi.mock("@/lib/prisma", () => ({ prisma: { user: { findUnique: vi.fn(async () => ({ id: "u1", orgasmusArtenConfig: null, oeffnenGruendeConfig: null })) } } }));
 vi.mock("@/lib/auth/authGuards", () => ({ requireKeyholderOrAdminActor: vi.fn(async () => ({ user: { id: "kh" } })) }));
-vi.mock("@/lib/devMode", () => ({ isDevBypassEnabled: () => false }));
+vi.mock("@/lib/client/devMode", () => ({ isDevBypassEnabled: () => false }));
 
 import { POST } from "./route";
 

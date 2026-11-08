@@ -5,7 +5,7 @@ import { join } from "path";
 import exifr from "exifr";
 import sharp from "sharp";
 import { markLastAction } from "@/lib/appMeta";
-import { uploadsDirPath, generateUploadFilename } from "@/lib/imageUtils";
+import { uploadsDirPath, generateUploadFilename } from "@/lib/client/imageUtils";
 import { fromDatetimeLocal, APP_TZ } from "@/lib/utils";
 
 function isAllowedImageBuffer(buf: Buffer): boolean {

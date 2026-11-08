@@ -28,8 +28,8 @@ import type { PruefungPayload, SubmitResult } from "./types";
 import { useApiError } from "@/app/hooks/useApiError";
 import { formatVerifyReason, type VerifyReason } from "@/lib/kontrollen/verifyReason";
 import { INSPECTION_CODE_LENGTH, isValidInspectionCode } from "@/lib/constants";
-import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/apiClient";
-import { isOfflineBlobUrl } from "@/lib/idb";
+import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/client/apiClient";
+import { isOfflineBlobUrl } from "@/lib/client/idb";
 
 /** Ruhezeit (ms) nach Tippen/Rotieren, bevor ein Live-Code-Check gefeuert wird (entprellt Abbruch-Stürme). */
 const LIVE_CHECK_DEBOUNCE_MS = 600;

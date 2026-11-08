@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import PruefungFormCore from "@/app/entries/PruefungFormCore";
 import type { PruefungPayload, SubmitResult } from "@/app/entries/types";
-import { submitAdminEntry } from "@/lib/apiClient";
+import { submitAdminEntry } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 
 export default function PruefungForm({ userId, tz, nowDefault }: { userId: string; tz: string; nowDefault: string }) {

@@ -8,7 +8,7 @@ import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
 import type { OeffnenPayload, CleaningConfig, LockPeriodState, SubmitResult } from "@/app/entries/types";
 import type { BoxHold } from "@/lib/box/boxOpenOutlook";
-import { entryRequest, parseApiErrorCode } from "@/lib/apiClient";
+import { entryRequest, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { ResolvedReason } from "@/lib/reasonsService";
 import type { TaskWarning } from "@/lib/tasks/taskIntervals";

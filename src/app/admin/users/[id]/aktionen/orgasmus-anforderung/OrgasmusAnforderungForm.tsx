@@ -23,7 +23,7 @@ import Textarea from "@/app/components/Textarea";
 import Checkbox from "@/app/components/Checkbox";
 import Button from "@/app/components/Button";
 import TimePreview from "@/app/components/TimePreview";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 
 /** Wie das Fenster-ENDE angegeben wird — dieselben zwei Antwort-Arten wie an der Verschluss-Frist.

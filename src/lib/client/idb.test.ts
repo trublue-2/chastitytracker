@@ -4,7 +4,7 @@ import {
   offlineBlobToken,
   isOfflineBlobUrl,
   parseOfflineBlobToken,
-} from "@/lib/idb";
+} from "@/lib/client/idb";
 
 // Reine Marker-Helfer der Offline-Foto-Zwischenspeicherung — round-trippen und sauber von echten
 // Bild-Pfaden abgrenzen. Die IndexedDB-Operationen selbst brauchen einen Browser und sind hier nicht

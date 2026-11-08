@@ -7,7 +7,7 @@ import Button from "@/app/components/Button";
 import ConfirmDialog from "@/app/components/ConfirmDialog";
 import FormError from "@/app/components/FormError";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 
 export default function DeleteUserButton({ id, username, isSelf }: { id: string; username: string; isSelf?: boolean }) {
   const t = useTranslations("admin");

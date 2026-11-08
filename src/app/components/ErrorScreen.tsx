@@ -6,7 +6,7 @@ import { AlertTriangle, SearchX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import EmptyState from "@/app/components/EmptyState";
 import { quietLinkCls } from "@/app/components/inputStyles";
-import { DEFAULT_WORLD } from "@/lib/theme";
+import { DEFAULT_WORLD } from "@/lib/client/theme";
 
 type Props =
   | { kind: "notFound"; standalone?: boolean }

@@ -13,7 +13,7 @@ import { pendingInspection } from "@/lib/entryFormRoute";
 import { buildNewEntryCategoryRows } from "@/lib/devices/categoryRows";
 import { bildersafeEnabled } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { subWorld } from "@/lib/theme";
+import { subWorld } from "@/lib/client/theme";
 import pkg from "../../../package.json";
 import { readingColCls } from "@/app/components/inputStyles";
 import PhotoAnalysisScope from "@/app/components/PhotoAnalysisScope";

@@ -6,7 +6,7 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import WeightFormCore, { type WeightPayload } from "@/app/entries/WeightFormCore";
 import type { SubmitResult } from "@/app/entries/types";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { UnitSystem } from "@/lib/weight/weight";
 

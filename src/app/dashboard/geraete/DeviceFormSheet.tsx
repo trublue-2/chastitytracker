@@ -16,7 +16,7 @@ import useToast from "@/app/hooks/useToast";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { VALID_CURRENCIES, DEVICE_NAME_MAX_LENGTH, DEVICE_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import type { DeviceRow, CategoryOption } from "./DevicesClient";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 
 const CURRENCY_OPTIONS = VALID_CURRENCIES.map((c) => ({ value: c, label: c }));

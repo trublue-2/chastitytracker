@@ -19,7 +19,7 @@ import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
 import TimePreview from "@/app/components/TimePreview";
 import { busyDimCls } from "@/app/components/inputStyles";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import { useApiError } from "@/app/hooks/useApiError";
 import {

@@ -5,7 +5,7 @@
 // am Desktop). Safari — und damit JEDER Browser auf dem iPhone — kennt Web Bluetooth nicht; dort geht
 // es nur in der App. Alle Module werden dynamisch geladen, damit nichts davon im Server-Rendering läuft.
 
-import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
+import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
 import { codedError, codeOf } from "@/lib/codedError";
 import { isNativePlatform } from "@/lib/messages/nativePush";
 import {

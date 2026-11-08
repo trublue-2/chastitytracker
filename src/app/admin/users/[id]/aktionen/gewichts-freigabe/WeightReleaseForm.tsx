@@ -14,7 +14,7 @@ import UnderweightNote from "@/app/components/UnderweightNote";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
 import Button from "@/app/components/Button";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 
 /**

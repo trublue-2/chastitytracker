@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
-import { loadUploadedImage } from "@/lib/imageUtils";
+import { loadUploadedImage } from "@/lib/client/imageUtils";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { structuredLog } from "@/lib/serverLog";
 import {

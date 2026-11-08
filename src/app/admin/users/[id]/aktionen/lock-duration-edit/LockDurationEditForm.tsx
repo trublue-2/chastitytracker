@@ -9,7 +9,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import LockPeriodEndForm from "@/app/admin/LockPeriodEndForm";
 import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
-import { fetchWithTimeout } from "@/lib/apiClient";
+import { fetchWithTimeout } from "@/lib/client/apiClient";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {

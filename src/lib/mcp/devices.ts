@@ -3,7 +3,7 @@ import { resolveUserContext, makeIso, buildEnvelope, notesForEntities, entityKey
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef, type TxClient } from "@/lib/mcp/writeFramework";
 import { listCategoryViews, type CategoryView } from "@/lib/mcp/categories";
 import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";
-import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { deleteUploadedFiles } from "@/lib/client/imageUtils";
 import { applyDeviceRemoval, planDeviceRemoval } from "@/lib/devices/deviceService";
 import {
   DEVICE_DESCRIPTION_MAX_LENGTH, DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, validateDeviceInput,

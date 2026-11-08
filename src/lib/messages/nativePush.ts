@@ -1,7 +1,7 @@
 // Native (Capacitor) Push-Logik — getrennt von der UI (PushManager). Alle Capacitor-Module werden
 // dynamisch importiert, damit nichts auf dem Server oder im reinen Browser ohne Bridge läuft.
 
-import { prefGet, prefSet } from "@/lib/capacitorPrefs";
+import { prefGet, prefSet } from "@/lib/client/capacitorPrefs";
 
 // Der gespeicherte Token IST der Registrierungs-Zustand — kein separates Flag (sonst zwei Quellen
 // für eine Wahrheit, die auseinanderlaufen können). Vorhanden = Push für dieses Gerät aktiv.

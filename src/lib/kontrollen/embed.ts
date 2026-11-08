@@ -1,4 +1,4 @@
-import { loadUploadedImage } from "@/lib/imageUtils";
+import { loadUploadedImage } from "@/lib/client/imageUtils";
 import { visionDeviceMaxImagePx } from "@/lib/constants";
 import { structuredLog } from "@/lib/serverLog";
 

@@ -1,5 +1,5 @@
 import { sameLookalikeCluster, type DeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";
-import { loadUploadedImage, type ImageData } from "@/lib/imageUtils";
+import { loadUploadedImage, type ImageData } from "@/lib/client/imageUtils";
 import { visionDeviceMaxImagePx, visionMaxRefsPerDevice, visionMaxTotalRefs } from "@/lib/constants";
 import { structuredLog } from "@/lib/serverLog";
 import { visionComplete, visionConfigured, type VisionBlock } from "@/lib/vision";

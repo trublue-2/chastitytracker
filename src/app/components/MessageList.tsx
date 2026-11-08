@@ -17,7 +17,7 @@ import MessageFilterBar from "./MessageFilterBar";
 import MessageRow from "./MessageRow";
 import { useApiError } from "@/app/hooks/useApiError";
 import useToast from "@/app/hooks/useToast";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { toDateLocale } from "@/lib/utils";
 import type { PresentedMessage } from "@/lib/messages/messagePresenter";
 import { isMessageFiltered, messageFilterToParams, type MessageFilter } from "@/lib/messages/messageCategories";

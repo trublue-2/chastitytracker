@@ -18,7 +18,7 @@ import Badge from "@/app/components/Badge";
 import ActionModal from "@/app/components/ActionModal";
 import useToast from "@/app/hooks/useToast";
 import DeviceForm from "./DeviceFormSheet";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 

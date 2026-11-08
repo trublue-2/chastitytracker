@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { rememberWorld } from "@/lib/nativeWorld";
-import type { World } from "@/lib/theme";
+import { rememberWorld } from "@/lib/client/nativeWorld";
+import type { World } from "@/lib/client/theme";
 
 /**
  * Trägt die Welt des Bereichs an `<html>` nach.

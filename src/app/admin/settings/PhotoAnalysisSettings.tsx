@@ -11,7 +11,7 @@ import FormError from "@/app/components/FormError";
 import FormSuccess from "@/app/components/FormSuccess";
 import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { useApiError } from "@/app/hooks/useApiError";
-import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
+import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { VISION_PROVIDERS, VISION_PROVIDER_IDS, adminSetsBaseUrl, type VisionProviderId } from "@/lib/vision/providers";
 import type { PhotoAnalysisView } from "@/lib/vision/config";

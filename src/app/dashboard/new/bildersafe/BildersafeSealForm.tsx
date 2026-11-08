@@ -9,7 +9,7 @@ import EntryFormShell from "@/app/components/EntryFormShell";
 import LockboxCodePhotoField from "@/app/components/LockboxCodePhotoField";
 import { useLockboxCodePhoto } from "@/app/hooks/useLockboxCodePhoto";
 import useToast from "@/app/hooks/useToast";
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/client/apiClient";
 
 /**
  * Standalone-Aufnahme eines versiegelten Schlüsselbox-Code-Fotos (Bildersafe), die das Foto an den

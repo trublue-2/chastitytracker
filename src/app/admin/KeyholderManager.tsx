@@ -8,7 +8,7 @@ import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import Badge from "@/app/components/Badge";
 import FormError from "@/app/components/FormError";
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/client/apiClient";
 
 interface Person { id: string; username: string }
 interface Candidate extends Person { role?: string }

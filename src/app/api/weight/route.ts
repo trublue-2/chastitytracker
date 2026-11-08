@@ -3,7 +3,7 @@ import { requireApi, requireKeyholderOrAdminActor, sessionActor, weightTrackingG
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 import { recordWeight } from "@/lib/weight/weightService";
 import { plausibleDetection } from "@/lib/weight/weight";
-import { parseOfflineCapture } from "@/lib/offlineCapture";
+import { parseOfflineCapture } from "@/lib/client/offlineCapture";
 
 /**
  * Eine Messung erfassen — für sich selbst, oder als Keyholderin für einen Träger.

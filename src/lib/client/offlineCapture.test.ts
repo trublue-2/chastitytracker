@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseOfflineCapture } from "@/lib/offlineCapture";
+import { parseOfflineCapture } from "@/lib/client/offlineCapture";
 
 const NOW = new Date("2026-09-06T12:00:00.000Z");
 

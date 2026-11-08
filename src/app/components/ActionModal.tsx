@@ -4,7 +4,7 @@ import { useCallback, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { THEME_WRAPPER_SELECTOR } from "@/lib/theme";
+import { THEME_WRAPPER_SELECTOR } from "@/lib/client/theme";
 import { useDialogBehaviour } from "@/app/hooks/useDialogBehaviour";
 
 interface Props {

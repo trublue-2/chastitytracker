@@ -8,7 +8,7 @@ import ConfirmDialog from "@/app/components/ConfirmDialog";
 import FormError from "@/app/components/FormError";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 
 /**
  * „Box entfernen" — der Weg zum Box-Wechsel, denn ein Träger führt genau eine Box (`boxPairing.ts`).

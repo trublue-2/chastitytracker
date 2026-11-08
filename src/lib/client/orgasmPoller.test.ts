@@ -15,7 +15,7 @@ vi.mock("@/lib/orgasmusAnforderungService", async (importOriginal) => {
   return { ...actual, sendOrgasmusAnforderungNotifications: vi.fn() };
 });
 
-import { processDueOrgasmusAnforderungen } from "./kontrollen/kontrollePoller";
+import { processDueOrgasmusAnforderungen } from "../kontrollen/kontrollePoller";
 import { prisma } from "@/lib/prisma";
 import { sendOrgasmusAnforderungNotifications } from "@/lib/orgasmusAnforderungService";
 

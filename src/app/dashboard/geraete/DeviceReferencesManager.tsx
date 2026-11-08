@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronRight, Plus, Download, X } from "lucide-react";
 import FormError from "@/app/components/FormError";
 import { PhotoAnalysisInfo } from "@/app/components/PhotoAnalysisContext";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 
 interface Reference {

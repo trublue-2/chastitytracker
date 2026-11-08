@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/imageUtils", () => ({ loadUploadedImage: vi.fn() }));
+vi.mock("@/lib/client/imageUtils", () => ({ loadUploadedImage: vi.fn() }));
 vi.mock("@/lib/vision", () => ({ visionComplete: vi.fn(), visionConfigured: vi.fn(() => true) }));
 // Das Bild-Budget wird gepinnt statt aus den Defaults gelesen: sonst hinge die erwartete Verteilung
 // still an zwei Konstanten in constants.ts und ein Default-Wechsel liefe hier als undurchsichtiger
@@ -12,7 +12,7 @@ vi.mock("@/lib/constants", () => ({
 }));
 
 import { allocateImageBudget, checkDeviceInPhoto, detectDevice, type DeviceReference } from "./detectDevice";
-import { loadUploadedImage } from "@/lib/imageUtils";
+import { loadUploadedImage } from "@/lib/client/imageUtils";
 import { visionComplete, visionConfigured } from "@/lib/vision";
 import { visionMaxRefsPerDevice } from "@/lib/constants";
 

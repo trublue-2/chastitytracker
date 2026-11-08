@@ -9,8 +9,8 @@ import { entryManageAccess } from "@/lib/auth/keyholder";
 import { entryGuardCode } from "@/lib/entryErrors";
 import { assertEntryTimeOk, chainBreakPartner, deleteEntryForUser, entryPairTypes, entryPersistsDevice } from "@/lib/entryCorrection";
 import { serviceFailure } from "@/lib/serviceResult";
-import { isDevBypassEnabled } from "@/lib/devMode";
-import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { isDevBypassEnabled } from "@/lib/client/devMode";
+import { deleteUploadedFiles } from "@/lib/client/imageUtils";
 import { isPendingEntry } from "@/lib/lockPending";
 
 export async function PATCH(

@@ -6,7 +6,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 
 /**
  * Die Keyholderin erlässt das fällige Box-Foto — der Notausgang, wenn es nicht zu beschaffen ist

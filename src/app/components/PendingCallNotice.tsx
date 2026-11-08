@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
-import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
+import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
 import Button from "@/app/components/Button";
 
 /**

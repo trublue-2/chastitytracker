@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { loadUploadedImage } from "@/lib/imageUtils";
+import { loadUploadedImage } from "@/lib/client/imageUtils";
 
 /**
  * Lokale, datenschutzfreundliche Schärfeprüfung für das Bildersafe-Code-Foto — OHNE KI, ohne

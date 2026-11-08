@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useOptimisticSave } from "@/app/hooks/useOptimisticSave";
-import { saveNotifyLevel } from "@/lib/apiClient";
+import { saveNotifyLevel } from "@/lib/client/apiClient";
 import type { NotifyChannel, NotifyLevel } from "@/lib/constants";
 
 /**

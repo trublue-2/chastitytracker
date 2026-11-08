@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useOptimisticSave } from "@/app/hooks/useOptimisticSave";
-import { saveOwnNotificationChannels } from "@/lib/apiClient";
+import { saveOwnNotificationChannels } from "@/lib/client/apiClient";
 import type { NotifyChannel } from "@/lib/constants";
 
 /**

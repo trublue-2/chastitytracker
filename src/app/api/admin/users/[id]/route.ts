@@ -17,7 +17,7 @@ import { setWeightSettingsKeyholder } from "@/lib/weight/weightSettingsService";
 import { boxCouplingEnabled } from "@/lib/constants";
 import { setLockRequiresBolt } from "@/lib/lockCommit";
 import { setOffenseStatementsAllowed } from "@/lib/strafbuch/offenseStatementService";
-import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
+import { deleteUploadedFiles, entryImageUrls } from "@/lib/client/imageUtils";
 import { errorResponse, serviceResponse } from "@/lib/serviceResult";
 import { boxPasswordAtRisk } from "@/lib/box/boxPairing";
 import { normalizeQuickSettings } from "@/lib/quickSettings";

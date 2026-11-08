@@ -18,7 +18,7 @@ import { DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit } from "@/lib/
 import ScheduleFields, { initialSchedule, scheduleFromWirksamAb, scheduleIsPast, schedulePayload, scheduleAnchorMs, scheduleTriggerIso, type ScheduleValue } from "@/app/components/ScheduleFields";
 import type { DeviceOption } from "@/lib/queries";
 import { hasLockSpec } from "@/lib/lockSpec";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 

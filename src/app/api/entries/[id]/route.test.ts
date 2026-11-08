@@ -25,7 +25,7 @@ vi.mock("@/lib/auth/authGuards", () => ({
   requireApi: vi.fn(async () => ({ user: { id: ids.OWNER_ID, role: "user" } })),
 }));
 vi.mock("@/lib/auth/keyholder", () => access);
-vi.mock("@/lib/imageUtils", () => ({
+vi.mock("@/lib/client/imageUtils", () => ({
   deleteUploadedFiles: vi.fn(),
   entryImageUrls: vi.fn(() => []),
 }));

@@ -17,7 +17,7 @@ import useToast from "@/app/hooks/useToast";
 import { categoryStyle } from "@/lib/devices/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import CategoryFormSheet from "./CategoryFormSheet";
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/client/apiClient";
 
 export interface CategoryRow {
   id: string;

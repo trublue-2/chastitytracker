@@ -8,7 +8,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { proofIsSubmitted, type TaskCardProof } from "@/lib/tasks/taskView";

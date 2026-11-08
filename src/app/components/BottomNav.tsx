@@ -9,7 +9,7 @@ import useViewTransition from "@/app/hooks/useViewTransition";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 import { adminNavEntry } from "@/lib/adminNavEntry";
 import { isEntryFormRoute } from "@/lib/entryFormRoute";
-import { hapticLight } from "@/lib/haptics";
+import { hapticLight } from "@/lib/client/haptics";
 
 interface BottomNavProps {
   isAdmin?: boolean;

@@ -1,6 +1,6 @@
 "use client";
 
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/client/apiClient";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";

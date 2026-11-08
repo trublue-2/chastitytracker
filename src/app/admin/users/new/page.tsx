@@ -11,7 +11,7 @@ import Select from "@/app/components/Select";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { formColCls, titleCls } from "@/app/components/inputStyles";
 
 export default function NewUserPage() {

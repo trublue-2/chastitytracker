@@ -5,7 +5,7 @@ import ThemeRootSync from "@/app/components/ThemeRootSync";
 import AutoRefresh from "@/app/components/AutoRefresh";
 import { auth } from "@/lib/auth/auth";
 import { ownTrackerHidden } from "@/lib/auth/ownTracker";
-import { keyholderWorld } from "@/lib/theme";
+import { keyholderWorld } from "@/lib/client/theme";
 import pkg from "../../../package.json";
 import { adminShellColCls } from "@/app/components/inputStyles";
 import PhotoAnalysisScope from "@/app/components/PhotoAnalysisScope";

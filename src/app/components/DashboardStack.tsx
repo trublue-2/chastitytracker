@@ -11,7 +11,7 @@ import ReorderButtons from "@/app/components/ReorderButtons";
 import Button from "@/app/components/Button";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import LiveStatus from "@/app/components/LiveStatus";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { isKeyholderSurface, type BlockSurface } from "@/lib/dashboardBlockRegistry";
 

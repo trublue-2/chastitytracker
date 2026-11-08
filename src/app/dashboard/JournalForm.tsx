@@ -15,7 +15,7 @@ import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import type { SubmitResult } from "@/app/entries/types";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { JOURNAL_MOOD_MAX, JOURNAL_MOOD_MIN, JOURNAL_TEXT_MAX, type JournalVisibility } from "@/lib/constants";
 import { JOURNAL_HREF } from "@/lib/journal/journal";
 import { fromDatetimeLocal } from "@/lib/utils";

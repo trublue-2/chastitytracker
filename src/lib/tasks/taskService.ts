@@ -23,7 +23,7 @@ import {
   type RecurrenceRule, type RecurrenceFreq,
 } from "@/lib/tasks/taskRecurrence";
 import { structuredLog } from "@/lib/serverLog";
-import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { deleteUploadedFiles } from "@/lib/client/imageUtils";
 import { NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";
 import { markLastAction } from "@/lib/appMeta";
 

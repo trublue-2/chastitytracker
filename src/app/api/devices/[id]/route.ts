@@ -3,7 +3,7 @@ import { requireApi } from "@/lib/auth/authGuards";
 import { entryManageAccess } from "@/lib/auth/keyholder";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl, validateDeviceInput } from "@/lib/constants";
-import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { deleteUploadedFiles } from "@/lib/client/imageUtils";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";
 import { removeDevice } from "@/lib/devices/deviceService";

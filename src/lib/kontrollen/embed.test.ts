@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { vectorToBytes, bytesToVector, cosine, embedAvailable, embedModel, embedImages } from "./embed";
 
-vi.mock("@/lib/imageUtils", () => ({ loadUploadedImage: vi.fn() }));
-import { loadUploadedImage } from "@/lib/imageUtils";
+vi.mock("@/lib/client/imageUtils", () => ({ loadUploadedImage: vi.fn() }));
+import { loadUploadedImage } from "@/lib/client/imageUtils";
 const loadMock = loadUploadedImage as unknown as ReturnType<typeof vi.fn>;
 
 describe("vectorToBytes / bytesToVector", () => {

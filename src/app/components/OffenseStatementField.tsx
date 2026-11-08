@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
 import QuotedField from "@/app/components/QuotedField";
 import Textarea from "@/app/components/Textarea";
-import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
+import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/constants";
 import type { StatementView } from "@/lib/strafbuch/offenseStatementService";

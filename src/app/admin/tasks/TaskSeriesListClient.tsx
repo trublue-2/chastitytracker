@@ -8,7 +8,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { toDateLocale } from "@/lib/utils";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { isoDaysOfMask } from "@/lib/weekdays";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";

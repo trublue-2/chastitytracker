@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { spawn } from "child_process";
-import { loadUploadedImage } from "@/lib/imageUtils";
+import { loadUploadedImage } from "@/lib/client/imageUtils";
 import { structuredLog } from "@/lib/serverLog";
 
 /**

@@ -11,7 +11,7 @@ import { iconActionCls } from "./inputStyles";
 import useToast from "@/app/hooks/useToast";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { journalEditHref, type JournalCardEntry } from "@/lib/journal/journal";
 import { formatDurationMs, formatTime, toDateLocale } from "@/lib/utils";
 

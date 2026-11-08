@@ -5,7 +5,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-vi.mock("@/lib/imageUtils", () => ({
+vi.mock("@/lib/client/imageUtils", () => ({
   loadUploadedImage: vi.fn(),
 }));
 
@@ -14,7 +14,7 @@ vi.mock("@/lib/auth/rate-limit", () => ({
 }));
 
 import { loadMcpImage, mcpImageKeyUnlocked, mcpImageToolVisible } from "./entryImage";
-import { loadUploadedImage } from "@/lib/imageUtils";
+import { loadUploadedImage } from "@/lib/client/imageUtils";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { type PrismaMock } from "@/test/prismaMock";

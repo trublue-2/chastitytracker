@@ -6,7 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Camera, FileText } from "lucide-react";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import PhotoCapture from "@/app/components/PhotoCapture";
 import RotatableImagePreview from "@/app/components/RotatableImagePreview";

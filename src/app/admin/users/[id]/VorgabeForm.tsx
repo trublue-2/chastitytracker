@@ -1,6 +1,6 @@
 "use client";
 
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useState } from "react";
 import { useRouter } from "next/navigation";

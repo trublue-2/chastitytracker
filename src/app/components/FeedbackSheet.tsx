@@ -11,7 +11,7 @@ import Button from "./Button";
 import FormError from "./FormError";
 import HelpLink from "./HelpLink";
 import Card from "./Card";
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/client/apiClient";
 import { isValidEmail } from "@/lib/constants";
 import { isThrowawayEmail, type FeedbackMode } from "@/lib/feedback";
 

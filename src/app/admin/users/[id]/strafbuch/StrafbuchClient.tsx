@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/app/components/Button";
 import { CheckCircle, ClipboardList, Plus, Undo2, XCircle } from "lucide-react";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";

@@ -5,11 +5,11 @@ vi.mock("@/lib/prisma", () => ({
     weightEntry: { findMany: vi.fn(), updateMany: vi.fn() },
   },
 }));
-vi.mock("@/lib/imageUtils", () => ({ deleteUploadedFiles: vi.fn() }));
+vi.mock("@/lib/client/imageUtils", () => ({ deleteUploadedFiles: vi.fn() }));
 
 import { pruneWeightPhotos, weightPhotoRetentionDays } from "./weightService";
 import { prisma } from "@/lib/prisma";
-import { deleteUploadedFiles } from "@/lib/imageUtils";
+import { deleteUploadedFiles } from "@/lib/client/imageUtils";
 
 const findMany = prisma.weightEntry.findMany as unknown as ReturnType<typeof vi.fn>;
 const updateMany = prisma.weightEntry.updateMany as unknown as ReturnType<typeof vi.fn>;

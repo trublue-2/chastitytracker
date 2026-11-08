@@ -1,6 +1,6 @@
-import { prefSet } from "@/lib/capacitorPrefs";
+import { prefSet } from "@/lib/client/capacitorPrefs";
 import { isNativePlatform } from "@/lib/messages/nativePush";
-import type { World } from "@/lib/theme";
+import type { World } from "@/lib/client/theme";
 
 /**
  * Der Schlüssel, unter dem die Welt liegt — als Konstante, obwohl er nur EINEN Leser in TypeScript
