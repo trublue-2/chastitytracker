@@ -1,6 +1,6 @@
 import type { getTranslations } from "next-intl/server";
 import Section from "./Section";
-import { formatDurationMs, formatDateTime } from "@/lib/utils";
+import { formatDurationMs, formatDateTime } from "@/lib/shared/utils";
 
 /**
  * **Die orgasmusfreie Zeit als Block** — die Dauer seit dem letzten Orgasmus, darunter leise das

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
-import { prisma } from "@/lib/prisma";
+import { requireApi } from "@/lib/auth/authGuards";
+import { prisma } from "@/lib/shared/prisma";
 
 export async function POST(req: NextRequest) {
   const session = await requireApi();

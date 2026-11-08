@@ -1,7 +1,7 @@
 "use client";
 
 import FormError from "@/app/components/FormError";
-import { isUnderweightTarget, parseDecimalInput, weightInputToKg, type UnitSystem } from "@/lib/weight";
+import { isUnderweightTarget, parseDecimalInput, weightInputToKg, type UnitSystem } from "@/lib/weight/weight";
 
 /**
  * Der Hinweis unter einem Zielgewichts-Feld, sobald die eingetippte Zahl den Träger unter BMI 18,5

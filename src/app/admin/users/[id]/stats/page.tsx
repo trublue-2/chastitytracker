@@ -1,7 +1,7 @@
-import { auth } from "@/lib/auth";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { prisma } from "@/lib/prisma";
-import { logAccess } from "@/lib/serverLog";
+import { auth } from "@/lib/auth/auth";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
+import { prisma } from "@/lib/shared/prisma";
+import { logAccess } from "@/lib/shared/serverLog";
 import StatsMain from "@/app/components/StatsMain";
 
 export default async function AdminUserStatsPage({ params }: { params: Promise<{ id: string }> }) {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import CategoryIconRender from "@/app/components/CategoryIcon";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
 
 /** Kachelgrössen der Trage-Listen. Das Symbol darin bleibt in beiden Fällen `size-4`. */
 type ThumbSize = "sm" | "md";

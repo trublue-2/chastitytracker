@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList, Repeat } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
-import { toDatetimeLocal, fromDatetimeLocal, formatElapsedMs } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, formatElapsedMs } from "@/lib/shared/utils";
 import useTick from "@/app/hooks/useTick";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import DurationInput from "@/app/components/DurationInput";
@@ -19,22 +19,22 @@ import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
 import TimePreview from "@/app/components/TimePreview";
 import { busyDimCls } from "@/app/components/inputStyles";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import { useApiError } from "@/app/hooks/useApiError";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH,
   TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, clampStartGrace, startGraceFromClock, clampHoldDuration,
   DURATION_UNITS, durationToHours, durationFromHours, type DurationUnit,
-} from "@/lib/constants";
-import { minHoldMs, startDeadline } from "@/lib/tasks";
-import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
-import type { TaskRequirementInput, TaskProofInput } from "@/lib/taskService";
+} from "@/lib/shared/constants";
+import { minHoldMs, startDeadline } from "@/lib/tasks/tasks";
+import { TASK_FORM_QUERY } from "@/lib/entries/entryFormRoute";
+import type { TaskRequirementInput, TaskProofInput } from "@/lib/tasks/taskService";
 import TaskRequirementPicker, { type PickerCategory } from "./TaskRequirementPicker";
 import TaskProofPicker from "./TaskProofPicker";
 import RecurrenceFields from "./RecurrenceFields";
 import Select from "@/app/components/Select";
-import { initialRecurrence, recurrencePayload, occurrenceFormatter, type RecurrenceValue } from "@/lib/recurrenceForm";
+import { initialRecurrence, recurrencePayload, occurrenceFormatter, type RecurrenceValue } from "@/lib/entries/recurrenceForm";
 
 /** Ein unbeurteiltes Vergehen zur Auswahl „Strafe für" — von der Seite aufbereitet. `anlass` belegt
  *  das Feld „Wofür" vor, `offenseType` reist wie beim Weg aus dem Strafbuch mit. */

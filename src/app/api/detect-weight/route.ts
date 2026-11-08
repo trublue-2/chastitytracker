@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi, weightTrackingGate } from "@/lib/authGuards";
-import { detectScaleReading } from "@/lib/verifyCode";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
-import { weightInputToKg, weightProblem, type UnitSystem } from "@/lib/weight";
+import { requireApi, weightTrackingGate } from "@/lib/auth/authGuards";
+import { detectScaleReading } from "@/lib/kontrollen/verifyCode";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/shared/constants";
+import { weightInputToKg, weightProblem, type UnitSystem } from "@/lib/weight/weight";
 
 /**
  * Liest die Anzeige einer Waage aus einem hochgeladenen Foto — Muster und Grenzen wie

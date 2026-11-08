@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Droplets } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { fromDatetimeLocal } from "@/lib/utils";
+import { fromDatetimeLocal } from "@/lib/shared/utils";
 import {
   ORGASMUS_ANFORDERUNG_ARTEN, orgasmusAnforderungArtLabel,
   DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit,
-} from "@/lib/constants";
-import type { ResolvedReason } from "@/lib/reasonsService";
+} from "@/lib/shared/constants";
+import type { ResolvedReason } from "@/lib/entries/reasonsService";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import DateTimePicker from "@/app/components/DateTimePicker";
@@ -23,7 +23,7 @@ import Textarea from "@/app/components/Textarea";
 import Checkbox from "@/app/components/Checkbox";
 import Button from "@/app/components/Button";
 import TimePreview from "@/app/components/TimePreview";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 
 /** Wie das Fenster-ENDE angegeben wird — dieselben zwei Antwort-Arten wie an der Verschluss-Frist.

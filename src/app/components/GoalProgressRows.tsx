@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import GoalProgressRow from "@/app/components/GoalProgressRow";
 import { useNowMs } from "@/app/hooks/useLiveHours";
-import { GOAL_PERIODS, type ByPeriod } from "@/lib/goalFulfillment";
+import { GOAL_PERIODS, type ByPeriod } from "@/lib/stats/goalFulfillment";
 
 /**
  * Die vier Ziel-Zeilen (Tag/Woche/Monat/Jahr) einer Trainingsvorgabe.

@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
-import { activateWaitingSw } from "@/lib/swMessages";
+import { activateWaitingSw } from "@/lib/messages/swMessages";
 import Button from "@/app/components/Button";
-import { fetchWithTimeout } from "@/lib/apiClient";
+import { fetchWithTimeout } from "@/lib/client/apiClient";
 
 const POLL_INTERVAL_MS = 30_000;
 /** Takt, solange der Server eine laufende Erkennung meldet (`settling`). Die KI-Urteile fallen in

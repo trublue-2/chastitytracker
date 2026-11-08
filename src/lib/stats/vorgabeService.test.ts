@@ -1,0 +1,210 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+/**
+ * B-02 (MCP-Befundliste 2026-07-17): `set_training_goal`/`edit_training_goal` akzeptierten jeden
+ * Stundenwert unkommentiert — z.B. 25 Std/Tag oder 500 Std/Woche (die Woche hat 168). Beides schlug
+ * direkt in `goals.*.todayPct` durch und damit in die Adhärenz-Argumentation gegenüber dem Sub.
+ */
+
+vi.mock("@/lib/upstream/appMeta", () => ({ markLastAction: vi.fn() }));
+vi.mock("@/lib/shared/prisma", () => ({
+  prisma: {
+    trainingVorgabe: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
+  },
+}));
+// Der Service löst die Zeitzone des Subs auf, um ein reines Kalenderdatum („2026-08-23" aus dem
+// `<input type="date">`) als LOKALE Mitternacht zu speichern statt als UTC-Mitternacht.
+vi.mock("@/lib/entries/queries", () => ({ getUserTimezone: vi.fn(async () => "Europe/Zurich") }));
+vi.mock("@/lib/stats/vorgaben", () => ({ reorderVorgabenDates: vi.fn() }));
+vi.mock("@/lib/devices/deviceCategoryService", () => ({ resolveOwnedCategory: vi.fn(async () => ({ ok: true, data: null })) }));
+
+import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility } from "./vorgabeService";
+import { prisma } from "@/lib/shared/prisma";
+import { reorderVorgabenDates } from "@/lib/stats/vorgaben";
+
+const findFirstMock = prisma.trainingVorgabe.findFirst as unknown as ReturnType<typeof vi.fn>;
+const findManyMock = prisma.trainingVorgabe.findMany as unknown as ReturnType<typeof vi.fn>;
+const createMock = prisma.trainingVorgabe.create as unknown as ReturnType<typeof vi.fn>;
+const updateMock = prisma.trainingVorgabe.update as unknown as ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  findFirstMock.mockReset().mockResolvedValue({ userId: "u1" });
+  findManyMock.mockReset().mockResolvedValue([]);
+  createMock.mockReset().mockResolvedValue({ id: "neu" });
+  updateMock.mockReset().mockResolvedValue({ id: "g1" });
+});
+
+describe("checkGoalPlausibility", () => {
+  it("akzeptiert plausible Werte", () => {
+    expect(checkGoalPlausibility({ minProTagH: 8, minProWocheH: 40 })).toBeNull();
+  });
+
+  it("akzeptiert 24 Std/Tag genau an der Grenze", () => {
+    expect(checkGoalPlausibility({ minProTagH: 24 })).toBeNull();
+  });
+
+  it("lehnt mehr als 24 Std/Tag ab", () => {
+    expect(checkGoalPlausibility({ minProTagH: 25 })).toBe("GOAL_DAY_TARGET_TOO_HIGH");
+  });
+
+  it("lehnt mehr als 168 Std/Woche ab (die Woche hat 168 Stunden — der dokumentierte Fehlerfall)", () => {
+    expect(checkGoalPlausibility({ minProWocheH: 500 })).toBe("GOAL_WEEK_TARGET_TOO_HIGH");
+  });
+
+  it("lehnt mehr als 744 Std/Monat ab", () => {
+    expect(checkGoalPlausibility({ minProMonatH: 800 })).toBe("GOAL_MONTH_TARGET_TOO_HIGH");
+  });
+
+  it("lehnt mehr als 8784 Std/Jahr ab", () => {
+    expect(checkGoalPlausibility({ minProJahrH: 9000 })).toBe("GOAL_YEAR_TARGET_TOO_HIGH");
+  });
+
+  it("akzeptiert ein Wochen-/Monats-/Jahresziel über dem Vielfachen des Tagesziels (Boden, kein Deckel)", () => {
+    // Das Tagesziel ist ein Mindestwert: werktags 6h, am Wochenende mehr — 80h/Woche ist über die
+    // längere Frist erreichbar. Die frühere Quer-Sperre lehnte genau das fälschlich ab.
+    expect(checkGoalPlausibility({ minProTagH: 6, minProWocheH: 80 })).toBeNull();
+    expect(checkGoalPlausibility({ minProTagH: 2, minProMonatH: 100 })).toBeNull();
+    expect(checkGoalPlausibility({ minProTagH: 2, minProJahrH: 1000 })).toBeNull();
+  });
+
+  it("minProTagH: 0 (explizit gelöscht) wird wie 'nicht gesetzt' behandelt, nicht wie ein Ziel von 0 Stunden", () => {
+    // Regression (code-review Phase 5): 0 ist der einzige Wert, mit dem ein MCP-Aufrufer ein
+    // Tagesziel explizit löschen kann (Zod erlaubt kein null) — ein Wechsel von "8h/Tag + 40h/Woche"
+    // auf "nur noch 40h/Woche" darf nicht an "40 > 7×0" scheitern.
+    expect(checkGoalPlausibility({ minProTagH: 0, minProWocheH: 40 })).toBeNull();
+  });
+
+  it("ohne Tagesziel wird die Quer-Konsistenz nicht geprüft (nichts, wogegen verglichen werden könnte)", () => {
+    expect(checkGoalPlausibility({ minProWocheH: 100 })).toBeNull();
+  });
+
+  it("die absolute Obergrenze wird VOR der Quer-Konsistenz geprüft (spezifischerer Fehler zuerst)", () => {
+    // 1000h/Woche verletzt sowohl die absolute Grenze (168) als auch die Quer-Konsistenz (7x1=7) —
+    // die absolute Grenze ist die aussagekräftigere Meldung.
+    expect(checkGoalPlausibility({ minProTagH: 1, minProWocheH: 1000 })).toBe("GOAL_WEEK_TARGET_TOO_HIGH");
+  });
+
+  it("prüft JEDEN Wochentag-Ausnahme-Wert gegen die 24-h-Tagesgrenze", () => {
+    const ok = [{ days: 0b111_1111, hours: 16 }];
+    const tooHigh = [{ days: 0b1, hours: 25 }];
+    expect(checkGoalPlausibility({ minProTagH: 6, minProTagWochentage: ok })).toBeNull();
+    expect(checkGoalPlausibility({ minProTagH: 6, minProTagWochentage: tooHigh })).toBe("GOAL_DAY_TARGET_TOO_HIGH");
+  });
+});
+
+describe("createVorgabe — Plausibilitätsschranken (B-02)", () => {
+  it("lehnt 25 Std/Tag ab, bevor irgendein DB-Write passiert", async () => {
+    const res = await createVorgabe({ userId: "u1", gueltigAb: "2026-07-17", minProTagH: 25 });
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("GOAL_DAY_TARGET_TOO_HIGH");
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("lehnt 500 Std/Woche ab (der dokumentierte Fehlerfall)", async () => {
+    const res = await createVorgabe({ userId: "u1", gueltigAb: "2026-07-17", minProWocheH: 500 });
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("GOAL_WEEK_TARGET_TOO_HIGH");
+  });
+
+  it("akzeptiert plausible Werte", async () => {
+    const res = await createVorgabe({ userId: "u1", gueltigAb: "2026-07-17", minProTagH: 8 });
+    expect(res.ok).toBe(true);
+    expect(createMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("updateVorgabe — Plausibilitätsschranken greifen auch bei reinem Stunden-Edit (B-02)", () => {
+  it("lehnt eine implausible Änderung ab, auch ohne Datumsänderung", async () => {
+    const res = await updateVorgabe("g1", { gueltigAb: "2026-07-17", minProTagH: 2, minProWocheH: 999 });
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("GOAL_WEEK_TARGET_TOO_HIGH");
+  });
+
+  it("ein bereits soft-gelöschtes Ziel gilt als nicht mehr vorhanden (findFirst mit deletedAt:null)", async () => {
+    // Die Prisma-Mock-Ebene sieht die WHERE-Klausel nicht selbst — hier wird nur zugesichert, dass
+    // updateVorgabe überhaupt über deletedAt:null sucht (nicht per findUnique(id) allein), sonst
+    // würde ein gelöschtes Ziel weiter editierbar bleiben.
+    await updateVorgabe("g1", { gueltigAb: "2026-07-17", minProTagH: 2 });
+    expect(findFirstMock).toHaveBeenCalledWith({ where: { id: "g1", deletedAt: null } });
+  });
+});
+
+describe("deleteVorgabe — Soft-Delete (B-04, MCP-Befundliste 2026-07-17)", () => {
+  it("löscht NICHT physisch — setzt deletedAt statt delete()", async () => {
+    const res = await deleteVorgabe("g1");
+    expect(res.ok).toBe(true);
+    expect(updateMock).toHaveBeenCalledWith({ where: { id: "g1" }, data: { deletedAt: expect.any(Date) } });
+  });
+
+  it("verkettet die verbleibenden (aktiven) Ziele der Kategorie neu", async () => {
+    await deleteVorgabe("g1");
+    expect(reorderVorgabenDates).toHaveBeenCalledWith("u1");
+  });
+
+  it("ein zweiter Delete-Aufruf auf ein bereits gelöschtes Ziel liefert GOAL_NOT_FOUND — wie beim alten Hard-Delete", async () => {
+    findFirstMock.mockResolvedValue(null); // deletedAt:null-Suche findet nichts mehr
+    const res = await deleteVorgabe("g1");
+    if (res.ok) throw new Error("erwartet: Fehler");
+    expect(res.error).toBe("GOAL_NOT_FOUND");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("listVorgaben — soft-gelöschte Ziele standardmässig ausgeblendet (B-04)", () => {
+  it("ohne includeDeleted: nur deletedAt:null", async () => {
+    await listVorgaben("u1");
+    expect(findManyMock).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: "u1", deletedAt: null },
+    }));
+  });
+
+  it("mit includeDeleted:true: kein deletedAt-Filter", async () => {
+    await listVorgaben("u1", { includeDeleted: true });
+    expect(findManyMock).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: "u1" },
+    }));
+  });
+});
+
+describe("createVorgabe — reines Kalenderdatum als LOKALE Mitternacht", () => {
+  const storedGueltigAb = () => createMock.mock.calls[0][0].data.gueltigAb as Date;
+
+  it("„2026-08-23\" aus dem Datumsfeld wird 00:00 Zürich, nicht 00:00 UTC", async () => {
+    // `new Date("2026-08-23")` ist nach ISO-8601 UTC-Mitternacht = 02:00 Zürich. Ein über die
+    // Oberfläche auf heute gesetztes Ziel begann damit mitten im Tag und löste die Regeln für
+    // geteilte Perioden aus, obwohl niemand einen Start mitten am Tag gemeint hatte.
+    await createVorgabe({ userId: "u1", gueltigAb: "2026-08-23", minProTagH: 8 });
+    expect(storedGueltigAb().toISOString()).toBe("2026-08-22T22:00:00.000Z");
+  });
+
+  it("ein Wert MIT Uhrzeit bleibt unangetastet — der bewusste Start mitten am Tag ist erlaubt", async () => {
+    await createVorgabe({ userId: "u1", gueltigAb: "2026-08-23T09:54:00+02:00", minProTagH: 8 });
+    expect(storedGueltigAb().toISOString()).toBe("2026-08-23T07:54:00.000Z");
+  });
+
+  it("ein fertiges Date (MCP-Pfad: nächste Mitternacht) geht unverändert durch", async () => {
+    const d = new Date("2026-08-23T22:00:00.000Z");
+    await createVorgabe({ userId: "u1", gueltigAb: d, minProTagH: 8 });
+    expect(storedGueltigAb()).toBe(d);
+  });
+});
+
+describe("goalDateToInput — Gegenstück zu goalDateFromInput", () => {
+  // Der Fehler: das Bearbeiten-Formular formatierte in UTC, gespeichert wird aber Mitternacht in der
+  // Zone des Subs — wer nur etwas anderes änderte, schob das Ziel um einen Tag nach vorn.
+  it.each(["Europe/Zurich", "Asia/Tokyo", "America/Los_Angeles", "Pacific/Kiritimati"])(
+    "Hin-und-zurück in %s liefert dasselbe Datum",
+    async (tz) => {
+      const { goalDateFromInput, goalDateToInput } = await import("./vorgabeService");
+      for (const day of ["2026-03-29", "2026-06-12", "2026-10-25", "2026-01-01"]) {
+        expect(goalDateToInput(goalDateFromInput(day, tz), tz)).toBe(day);
+      }
+    },
+  );
+
+  it("Zürich: Mitternacht lokal ist am Vortag 22:00 UTC — UTC-Formatierung hätte den Vortag geliefert", async () => {
+    const { goalDateToInput } = await import("./vorgabeService");
+    expect(goalDateToInput(new Date("2026-06-11T22:00:00Z"), "Europe/Zurich")).toBe("2026-06-12");
+  });
+});

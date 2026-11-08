@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition, type ReactNode } from "react";
-import { swapAt, moveToEdge } from "@/lib/utils";
+import { swapAt, moveToEdge } from "@/lib/shared/utils";
 import { metaRowButtonCls, metaRowChipCls, metaRowSlotCls } from "@/app/components/inputStyles";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,9 +11,9 @@ import ReorderButtons from "@/app/components/ReorderButtons";
 import Button from "@/app/components/Button";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import LiveStatus from "@/app/components/LiveStatus";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { isKeyholderSurface, type BlockSurface } from "@/lib/dashboardBlockRegistry";
+import { isKeyholderSurface, type BlockSurface } from "@/lib/ui/dashboardBlockRegistry";
 
 /** Ein Block, wie ihn der Bearbeiten-Modus kennt — Beschriftung und Zustand, KEIN Inhalt. */
 export interface StackBlockMeta {

@@ -1,14 +1,14 @@
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/shared/prisma";
 import { redirect, notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { deviceCategoriesEnabled } from "@/lib/constants";
-import { deviceFormHref } from "@/lib/categoryConstants";
-import { getActiveWearSessionForCategory, getMobileDesktopMode } from "@/lib/queries";
-import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/utils";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
+import { deviceFormHref } from "@/lib/devices/categoryConstants";
+import { getActiveWearSessionForCategory, getMobileDesktopMode } from "@/lib/entries/queries";
+import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/shared/utils";
 import WearForm from "../../WearForm";
 
 export default async function NewWearBeginPage({ searchParams }: { searchParams: Promise<{ category?: string; device?: string; redirectTo?: string }> }) {

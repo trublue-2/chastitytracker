@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/apiClient";
-import { isCodeChangeVerdict, type CodeChangeVerdict } from "@/lib/lockboxCodeCheck";
+import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/client/apiClient";
+import { isCodeChangeVerdict, type CodeChangeVerdict } from "@/lib/box/lockboxCodeCheck";
 
 /**
  * Was ein frisch aufgenommenes Bildersafe-Code-Foto braucht, bevor es versiegelt wird — geteilt vom

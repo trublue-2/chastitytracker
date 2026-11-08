@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { titleCls } from "@/app/components/inputStyles";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/shared/prisma";
 import Badge from "@/app/components/Badge";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import DetailField from "@/app/components/DetailField";
@@ -10,21 +10,21 @@ import SettingsSection from "@/app/components/SettingsSection";
 import {
   AUTO_KONTROLLE_SETTINGS_SELECT,
   autoKontrolleSettingsFromUser,
-} from "@/lib/autoKontrolleService";
-import { fixedWindowMinutes, parseAutoInspectionDayRules } from "@/lib/autoKontrolleDayRules";
+} from "@/lib/kontrollen/autoKontrolleService";
+import { fixedWindowMinutes, parseAutoInspectionDayRules } from "@/lib/kontrollen/autoKontrolleDayRules";
 import {
   formatCleaningWindows,
   maxPausesPerDaySentinel,
-  parseCleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
+  parseCleaningWindows, CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
 import {
   OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS, switchableOffenseTypesFor,
-} from "@/lib/offenseLabels";
-import { getOffenseRules } from "@/lib/offenseRulesService";
-import { weightReleaseStatus } from "@/lib/weightReleaseService";
-import { weightText, type UnitSystem } from "@/lib/weight";
-import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/utils";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { ALL_WEEKDAYS, weekdayMaskLabel } from "@/lib/weekdays";
+} from "@/lib/strafbuch/offenseLabels";
+import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
+import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
+import { weightText, type UnitSystem } from "@/lib/weight/weight";
+import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/shared/utils";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
+import { ALL_WEEKDAYS, weekdayMaskLabel } from "@/lib/stats/weekdays";
 
 /** Ein „von–bis"-Paar als eine Zeile. Die Seite zeigt drei Sorten davon (Uhrzeiten, Minuten,
  *  Anzahl) — `formatCleaningWindows` bleibt beim Reinigungs-Fenster, dessen Form es kennt. */

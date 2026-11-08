@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useOptimisticSave } from "@/app/hooks/useOptimisticSave";
-import { saveOwnNotificationChannels } from "@/lib/apiClient";
-import type { NotifyChannel } from "@/lib/constants";
+import { saveOwnNotificationChannels } from "@/lib/client/apiClient";
+import type { NotifyChannel } from "@/lib/shared/constants";
 
 /**
  * Ein Kanal-Schalter eines EINZELNEN Ereignisses — seit dem Stufen-Modell nur noch die

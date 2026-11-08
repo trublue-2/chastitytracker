@@ -1,0 +1,215 @@
+import { auth } from "@/lib/auth/auth";
+import type { Session } from "next-auth";
+import { NextResponse } from "next/server";
+import { notFound, redirect } from "next/navigation";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
+import { canReadJournal, getControllableSubsCached, isKeyholderOf } from "@/lib/auth/keyholder";
+import { errorResponse } from "@/lib/shared/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+
+/** A session that is guaranteed to carry a user id (what `requireApi` hands back).
+ *  `Session` (not `ReturnType<typeof auth>`) — `auth` is overloaded and would resolve to the
+ *  middleware signature. Die `user.id`/`user.role`-Felder kommen aus src/types/next-auth.d.ts. */
+export type ApiSession = Session;
+
+/**
+ * Plain-user API guard — the counterpart to `requireAdminApi()` for routes that only need "somebody
+ * is logged in". Returns the session on success, so the caller needs no second `auth()` call:
+ *
+ *   const session = await requireApi();
+ *   if (session instanceof NextResponse) return session;
+ *   // session is narrowed to ApiSession here
+ *
+ * Deliberately NOT used by `oauth/authorize` (returns the RFC-6749 lowercase `unauthorized` code
+ * its clients string-match) nor by `uploads/[...path]` (answers in plaintext, not JSON).
+ */
+export async function requireApi(): Promise<ApiSession | NextResponse> {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return session;
+}
+
+/** Returns a 403 NextResponse if the current session is not an admin, otherwise null. */
+export async function requireAdminApi(): Promise<NextResponse | null> {
+  const session = await auth();
+  if (!session || session.user.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return null;
+}
+
+/** Redirects to /login if the current session is not an admin. For use in page components. */
+export async function assertAdmin(): Promise<void> {
+  const session = await auth();
+  if (!session || session.user.role !== "admin") redirect("/login");
+}
+
+/** API guard wie {@link requireKeyholderOrAdminApi}, gibt bei Erfolg aber die SESSION zurück — für
+ *  Routen, die den Handelnden brauchen (z.B. um ihn aus einer Empfängerliste zu streichen), ohne
+ *  ein zweites `auth()`. Gleiche Form wie {@link requireApi}, also auch dieselbe Prüfung beim
+ *  Aufrufer (`instanceof NextResponse`).
+ *
+ *  Bewusst eine eigene Funktion statt eines erweiterten Rückgabetyps der bestehenden: deren ~20
+ *  Aufrufer prüfen `if (err) return err`, und ein wahrheitswertiges Erfolgs-Objekt würde dort als
+ *  Antwort zurückgegeben — ein stiller 200 mit dem Guard-Ergebnis als Body. */
+export async function requireKeyholderOrAdminActor(targetUserId: string): Promise<ApiSession | NextResponse> {
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
+  if (session.user.role === "admin") return session;
+  if (await isKeyholderOf(session.user.id, targetUserId)) return session;
+  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+}
+
+/**
+ * Die Kennung des HANDELNDEN aus seiner Sitzung — was in ein Audit-Feld (`ManualOffense.createdBy`,
+ * `KontrollAnforderung.createdBy`) und als Absender an jede daraus entstehende Nachricht geht.
+ *
+ * Der Ausweichwert ist LEER und kein Platzhalter wie „?": der Autor IST der Absender der Meldung an
+ * den Träger (`senderFromAuthor`), jeder Platzhalter stünde ihm also wörtlich als Absender im
+ * Posteingang. Leer heisst überall dasselbe, ohne dass eine Stelle einen Sonderwert kennen muss —
+ * die Abbildung liest daraus „kein Autor" (→ System), und das Strafbuch lässt die Zeile „Notiert
+ * von" weg. Praktisch unerreichbar (der Credentials-Login setzt `name` immer auf den Benutzernamen),
+ * aber ein `??` soll nichts erfinden.
+ *
+ * Eine Funktion statt eines `session.user.name ?? ""` an jedem Aufrufer: die Begründung für den
+ * leeren Ausweichwert gilt für alle und soll an EINER Stelle stehen.
+ */
+export function sessionActor(session: ApiSession): string {
+  return session.user.name ?? "";
+}
+
+/** API guard: allows a global admin OR a keyholder of `targetUserId`. Self-control is impossible
+ *  (isKeyholderOf rejects actor === target). Returns a 401/403 NextResponse on denial, else null. */
+export async function requireKeyholderOrAdminApi(targetUserId: string): Promise<NextResponse | null> {
+  const actor = await requireKeyholderOrAdminActor(targetUserId);
+  return actor instanceof NextResponse ? actor : null;
+}
+
+/**
+ * Darf der Handelnde das Tagebuch von `subId` lesen (Issue #114)? NUR, wenn er dem Sub als Keyholder
+ * ZUGEORDNET ist (`isKeyholderOf`).
+ *
+ * **Bewusst OHNE Admin-Bypass — die einzige Keyholder-Prüfung dieser Art.** Jeder andere Keyholder-Pfad
+ * lässt den globalen Admin durch, weil er der Betreiber der Instanz ist und über alles Auskunft geben
+ * können soll. Für das Tagebuch gilt das nicht: was ein Sub mit seiner Keyholderin teilt, teilt er mit
+ * IHR, nicht mit dem Betreiber. Wer hier „vereinheitlicht", gibt jedem Admin jeder Portal-Instanz die
+ * freigegebenen Einträge aller Subs zu lesen. Ist der Admin zugleich zugeordnet, liest er als Keyholder.
+ *
+ * Gleiche Form wie {@link requireKeyholderOrAdminApi}: null = darf, sonst die Absage.
+ */
+export async function requireJournalReaderApi(subId: string): Promise<NextResponse | null> {
+  const session = await requireApi();
+  if (session instanceof NextResponse) return session;
+  return (await canReadJournal(session.user.id, subId)) ? null : errorResponse(403, "FORBIDDEN");
+}
+
+/** Seiten-Gegenstück zu {@link requireJournalReaderApi}: für alle ausser der zugeordneten
+ *  Keyholderin gibt es die Seite nicht (404, wie eine unbekannte). */
+export async function assertJournalReader(subId: string): Promise<{ userId: string }> {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  if (!(await canReadJournal(session.user.id, subId))) notFound();
+  return { userId: session.user.id };
+}
+
+/** Der Handelnde UND die Träger, die er kontrollieren darf — die Rechte-Grenze als DATUM, nicht als
+ *  blosses Ja/Nein. Genau in dieser Form braucht sie der Service (`keyholderInbox(readerId, subs)`,
+ *  siehe messageService.ts): mit den Namen, weil die Zeilen des Keyholder-Posteingangs sie tragen
+ *  und die Abfrage sie ohnehin mitliest. */
+export interface ControllerScope {
+  session: ApiSession;
+  /** Die Subs des Handelnden, alphabetisch (siehe `getControllableSubs`). Beim globalen Admin alle
+   *  Nicht-Admin-Nutzer — leer nur auf einer Ein-Personen-Instanz. */
+  subs: { id: string; username: string }[];
+}
+
+/** Warum ein Zugriff nicht durchgeht — die Antwort ohne die Form, in der sie ausgeliefert wird.
+ *  „Nicht angemeldet" und „darf nicht" sind verschiedene Dinge und werden je nach Aufrufer als
+ *  401/403 oder als zwei verschiedene Umleitungen beantwortet. */
+type ControllerDenial = "unauthenticated" | "forbidden";
+
+/**
+ * DIE Regel der Keyholder-Sicht OHNE einzelnen Träger, einmal formuliert: wer angemeldet ist und
+ * mindestens einen Träger kontrolliert (oder qua Admin-Rolle Kontrolleur ist), bekommt seine
+ * Träger-Liste; alle anderen eine Absage.
+ *
+ * Ein Sub OHNE Subs bekommt „darf nicht", keine leere Liste: „hat nichts" wäre die falsche Antwort
+ * — sie sähe heute gleich aus und ginge morgen auf, sobald ihm jemand einen Träger zuordnet. Der
+ * globale Admin bleibt Kontrolleur, auch wenn seine Liste leer ist (Ein-Personen-Instanz): er ist
+ * es qua Rolle, nicht qua Zuordnung.
+ *
+ * Die Liste kommt aus `getControllableSubsCached` — in BEIDEN Guards dieselbe Abfrage, pro Request
+ * memoisiert: Seiten-Guard, Kopfzeilen-Zähler und die Seite selbst teilen sich damit einen einzigen
+ * Zugriff. Sie ZWEIMAL zu ermitteln wäre die zweite Ableitung derselben Zuordnung — genau die, vor
+ * der `keyholderInbox()` warnt.
+ */
+async function resolveControllerScope(): Promise<ControllerScope | ControllerDenial> {
+  const session = await auth();
+  if (!session?.user?.id) return "unauthenticated";
+  const subs = await getControllableSubsCached(session.user.id, session.user.role);
+  if (session.user.role !== "admin" && subs.length === 0) return "forbidden";
+  return { session, subs };
+}
+
+/**
+ * API-Guard der Keyholder-Sicht OHNE einzelnen Träger — für Routen, die über ALLE Subs des
+ * Handelnden gehen (sein Posteingang). {@link requireKeyholderOrAdminApi} greift dort nicht: dessen
+ * `targetUserId` gibt es nicht, die Sammel-Sicht hat kein einzelnes Ziel.
+ *
+ * Gleiche Form wie {@link requireApi}: der Aufrufer prüft `instanceof NextResponse`.
+ */
+export async function requireControllerApi(): Promise<ControllerScope | NextResponse> {
+  const scope = await resolveControllerScope();
+  if (scope === "unauthenticated") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (scope === "forbidden") return errorResponse(403, "FORBIDDEN");
+  return scope;
+}
+
+/**
+ * Seiten-Guard der Keyholder-Sicht — die Entsprechung zu {@link requireControllerApi} für eine
+ * SEITE: dieselbe Regel ({@link resolveControllerScope}), aber Umleitung statt Statuscode (wie
+ * {@link assertKeyholderOrAdmin} neben `requireKeyholderOrAdminApi`).
+ *
+ * `proxy.ts` lässt Nicht-Admins nur auf ausgewählte `/admin`-Pfade; dieser Guard ist die zweite,
+ * inhaltliche Schranke — er entscheidet über die Rolle, nicht über den Pfad.
+ */
+export async function assertController(): Promise<ControllerScope> {
+  const scope = await resolveControllerScope();
+  if (scope === "unauthenticated") redirect("/login");
+  if (scope === "forbidden") redirect("/dashboard");
+  return scope;
+}
+
+/** Page guard: returns the actor's id + whether they are a global admin if they are admin or
+ *  keyholder of `targetUserId`, else redirects. Returning isGlobalAdmin lets callers gate
+ *  admin-only UI without a second `auth()` call. */
+export async function assertKeyholderOrAdmin(targetUserId: string): Promise<{ userId: string; isGlobalAdmin: boolean }> {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  const isGlobalAdmin = session.user.role === "admin";
+  if (isGlobalAdmin || (await isKeyholderOf(session.user.id, targetUserId))) {
+    return { userId: session.user.id, isGlobalAdmin };
+  }
+  redirect("/dashboard");
+}
+
+/** Returns a 404 NextResponse if the device-categories feature flag is off, else null.
+ *  Mirrors `requireAdminApi()` — caller does:
+ *  `const gate = deviceCategoriesGate(); if (gate) return gate;`. */
+export function deviceCategoriesGate(): NextResponse | null {
+  if (deviceCategoriesEnabled()) return null;
+  return NextResponse.json({ error: "Device-Kategorien sind nicht aktiviert" }, { status: 404 });
+}
+
+/**
+ * Gewichtstracking: der Schalter der Keyholderin für DIESEN Sub. `null` heisst „durchlassen".
+ *
+ * Die Prüfung gehört serverseitig in jede Route, nicht nur in die Oberfläche: ein ausgeblendetes
+ * Formular ist keine Sperre, der Endpunkt bliebe per direktem Aufruf erreichbar. Ausgeschaltet
+ * liefert sie **403** mit stabilem Code — die Antwort ist „noch nicht freigeschaltet", und die
+ * Oberfläche soll genau das sagen können.
+ */
+export async function weightTrackingGate(userId: string): Promise<NextResponse | null> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { weightTrackingEnabled: true } });
+  return user?.weightTrackingEnabled ? null : errorResponse(403, "WEIGHT_TRACKING_DISABLED");
+}

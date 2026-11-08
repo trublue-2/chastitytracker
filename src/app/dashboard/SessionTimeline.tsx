@@ -12,7 +12,7 @@ import {
   shouldRenderBucketHeaders,
   historicalSessionNeedsBuckets,
   type TimelineBucket,
-} from "@/lib/timelineBuckets";
+} from "@/lib/stats/timelineBuckets";
 
 interface Props {
   events: SessionEventData[];

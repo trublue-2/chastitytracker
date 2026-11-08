@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useOptimisticSave } from "@/app/hooks/useOptimisticSave";
-import { saveNotifyLevel } from "@/lib/apiClient";
-import type { NotifyChannel, NotifyLevel } from "@/lib/constants";
+import { saveNotifyLevel } from "@/lib/client/apiClient";
+import type { NotifyChannel, NotifyLevel } from "@/lib/shared/constants";
 
 /**
  * Eine Kanal-Stufe der eigenen Einstellungen umstellen — der eine Kanal wird geschrieben, die

@@ -1,4 +1,4 @@
-import { userSelfFieldRoute } from "@/lib/userSelfField";
+import { userSelfFieldRoute } from "@/lib/shared/userSelfField";
 
 // „Eigene Karte in der Keyholder-Übersicht ausblenden" ist ein USER-SELF-Feld (eigene Präferenz).
 // Per CLAUDE.md brauchen nur admin-gesetzte Felder requireAdminApi() — Session-Auth ist hier korrekt.

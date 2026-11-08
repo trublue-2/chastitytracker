@@ -5,7 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import StateHero from "@/app/components/StateHero";
 import SessionDurationBadge from "@/app/dashboard/SessionDurationBadge";
 import { blockInsetCls } from "@/app/components/inputStyles";
-import { toDateLocale, APP_TZ } from "@/lib/utils";
+import { toDateLocale, APP_TZ } from "@/lib/shared/utils";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 interface Props {

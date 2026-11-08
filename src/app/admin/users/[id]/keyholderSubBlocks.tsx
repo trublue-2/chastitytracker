@@ -1,33 +1,33 @@
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { ClipboardList, Droplets, ChevronRight, Gavel } from "lucide-react";
-import { block, type StackBlock } from "@/lib/blockStack";
-import type { KeyholderSubBlockId } from "@/lib/dashboardBlockRegistry";
+import { block, type StackBlock } from "@/lib/ui/blockStack";
+import type { KeyholderSubBlockId } from "@/lib/ui/dashboardBlockRegistry";
 import {
   activeVorgabeCached, activeWearSessionsCached, deviceCountCached, kgVorgabenCached, kgWearPairsCached,
   keyholderInspectionsCached, keyholderOrgasmRequestCached, keyholderPairsCached,
   keyholderRunningSessionCached, keyholderLockPeriodCached, latestKeyInBoxCached, latestKgEntryCached, orgasmConfigCached,
   orgasmEntriesCached, sessionListDataCached, taskCardsCached, wearCountsCached,
   wearingHoursCached, wearSessionRowsCached,
-} from "@/lib/dashboardData";
-import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
-import { getIsLocked, isScheduledDirective, userHasBox } from "@/lib/queries";
-import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/cleaningService";
-import { datedWindowLabel } from "@/lib/weekdays";
-import { parseWeekdayGoalRules } from "@/lib/weekdayGoal";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { userRowCached, strafbuchCached } from "@/lib/dashboardData";
-import { selectSubOffenses, attentionOffensesOf } from "@/lib/subOffenses";
-import { loadStatementViews } from "@/lib/offenseStatementService";
+} from "@/lib/stats/dashboardData";
+import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/shared/constants";
+import { getIsLocked, isScheduledDirective, userHasBox } from "@/lib/entries/queries";
+import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/entries/cleaningService";
+import { datedWindowLabel } from "@/lib/stats/weekdays";
+import { parseWeekdayGoalRules } from "@/lib/stats/weekdayGoal";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
+import { userRowCached, strafbuchCached } from "@/lib/stats/dashboardData";
+import { selectSubOffenses, attentionOffensesOf } from "@/lib/strafbuch/subOffenses";
+import { loadStatementViews } from "@/lib/strafbuch/offenseStatementService";
 import OffenseList from "@/app/components/OffenseList";
-import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
-import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
-import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollePills";
-import { inspectionTargetLabel } from "@/lib/inspectionTarget";
+import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";
+import { resolveOrgasmusArtDisplay } from "@/lib/entries/reasonsService";
+import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollen/kontrollePills";
+import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import {
   formatDate, formatTime, formatDurationMs, formatTotalHours, formatTotalMs,
   interruptionPauseMs, isTimeCorrected, nowDatetimeLocal,
-} from "@/lib/utils";
+} from "@/lib/shared/utils";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import StatusBanner from "@/app/dashboard/StatusBanner";
 import ActiveWearSessions from "@/app/dashboard/ActiveWearSessions";
@@ -45,10 +45,10 @@ import WithdrawButton from "@/app/admin/WithdrawButton";
 import ExtendInspectionButton from "@/app/admin/ExtendInspectionButton";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import BoxPhotoWaive from "@/app/components/BoxPhotoWaive";
-import { boxPhotoDueAtOf } from "@/lib/boxPhotoDue";
+import { boxPhotoDueAtOf } from "@/lib/box/boxPhotoDue";
 import Section from "@/app/components/Section";
 import StatsCard from "@/app/components/StatsCard";
-import { getOffenseRules } from "@/lib/offenseRulesService";
+import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 
 /**
  * **Die Blöcke der Keyholder-Detailseite — je mit eigener Datenbeschaffung.**

@@ -1,13 +1,13 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
 // CleaningPauseAllowance wird NUR lokal gebraucht — der Typ gehört utils.ts (wo buildPairs ihn
 // definiert); MCP-Konsumenten importieren ihn von dort direkt, nicht über dieses Modul.
-import { APP_TZ, type CleaningPauseRules } from "@/lib/utils";
-import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
-import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
-import type { DeviceCheckStatus } from "@/lib/deviceCheck";
+import { APP_TZ, type CleaningPauseRules } from "@/lib/shared/utils";
+import { CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
+import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/entries/cleaningRules";
+import type { DeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";
 import { isoWithOffset } from "@/lib/mcp/format";
-import type { DeviceMeta } from "@/lib/sessionModel";
+import type { DeviceMeta } from "@/lib/entries/sessionModel";
 import type { WriteContext, TxClient } from "@/lib/mcp/writeFramework";
 
 /** Querschnitt-Helfer der MCP-V2-Schicht: User-Auflösung, Zeitformat, Inline-Notes.

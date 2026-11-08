@@ -16,9 +16,9 @@ import { vi } from "vitest";
  * deshalb im Testfile selbst stehen muss. Der dynamische Import in der Fabrik ist der dafür
  * vorgesehene Weg (die Fabrik läuft lazy, nicht beim Hochziehen):
  *
- *     vi.mock("@/lib/mail", async () => (await import("@/test/notifyLeafMocks")).mailLeaf());
- *     vi.mock("@/lib/push", async () => (await import("@/test/notifyLeafMocks")).pushLeaf());
- *     vi.mock("@/lib/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
+ *     vi.mock("@/lib/messages/mail", async () => (await import("@/test/notifyLeafMocks")).mailLeaf());
+ *     vi.mock("@/lib/messages/push", async () => (await import("@/test/notifyLeafMocks")).pushLeaf());
+ *     vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
  *     vi.mock("next-intl/server", async () => (await import("@/test/notifyLeafMocks")).intlServerLeaf());
  */
 

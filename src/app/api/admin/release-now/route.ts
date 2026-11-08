@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { releaseNow } from "@/lib/releaseNowService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
+import { releaseNow } from "@/lib/entries/releaseNowService";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /**
  * „Sofort aufschliessen" — Sperrzeit beenden, Box öffnen, Öffnung erfassen, in einem Griff.

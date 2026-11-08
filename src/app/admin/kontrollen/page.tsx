@@ -1,14 +1,14 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { titleCls } from "@/app/components/inputStyles";
-import { auth } from "@/lib/auth";
-import { assertAdmin } from "@/lib/authGuards";
-import { toDateLocale, APP_TZ } from "@/lib/utils";
+import { auth } from "@/lib/auth/auth";
+import { assertAdmin } from "@/lib/auth/authGuards";
+import { toDateLocale, APP_TZ } from "@/lib/shared/utils";
 import BackLink from "@/app/components/BackLink";
 import { ClipboardCheck } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import EmptyState from "@/app/components/EmptyState";
 import AdminKontrolleListClient from "./AdminKontrolleListClient";
-import { isKontrolleAlarm, loadKontrolleRows, mapKontrolleRow, sortedKontrolleRows } from "@/lib/kontrollen";
+import { isKontrolleAlarm, loadKontrolleRows, mapKontrolleRow, sortedKontrolleRows } from "@/lib/kontrollen/kontrollen";
 
 export default async function AdminKontrollenPage({
   searchParams,

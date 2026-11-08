@@ -1,13 +1,13 @@
 "use client";
 
-import { formatDurationMs, formatTotalHours } from "@/lib/utils";
+import { formatDurationMs, formatTotalHours } from "@/lib/shared/utils";
 import { useTranslations, useLocale } from "next-intl";
 import BlockHeading from "@/app/components/BlockHeading";
 import Section from "@/app/components/Section";
 import ShowMore, { useShowMore } from "@/app/components/ShowMore";
 import { blockInsetCls } from "@/app/components/inputStyles";
 
-import type { MonthStat } from "@/lib/statsTypes";
+import type { MonthStat } from "@/lib/stats/statsTypes";
 
 const INITIAL_COUNT = 2;
 

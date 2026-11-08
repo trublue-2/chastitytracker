@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
-import { completeTask } from "@/lib/taskService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { requireApi } from "@/lib/auth/authGuards";
+import { completeTask } from "@/lib/tasks/taskService";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /** Der Sub meldet seine eigene Aufgabe als erledigt. Mehrfach-Zustellung ist eingeplant (die Meldung
  *  läuft über die Offline-Warteschlange); ob eine Wiederholung den Zeitstempel vorrückt, entscheidet

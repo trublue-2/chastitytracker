@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
-import { prisma } from "@/lib/prisma";
+import { requireApi } from "@/lib/auth/authGuards";
+import { prisma } from "@/lib/shared/prisma";
 
 /**
  * GET /api/auth/passkey/list

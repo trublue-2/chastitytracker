@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { titleCls } from "@/app/components/inputStyles";
-import { auth } from "@/lib/auth";
-import { soleControllerName } from "@/lib/keyholder";
+import { auth } from "@/lib/auth/auth";
+import { soleControllerName } from "@/lib/auth/keyholder";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
-import { listMessages, pageOfMessage, subInbox, unreadCountCached, unreadCount } from "@/lib/messageService";
-import { presentMessages } from "@/lib/messagePresenter";
-import { isMessageFiltered, messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
-import { MESSAGE_SCOPES } from "@/lib/messageScope";
-import { APP_TZ } from "@/lib/utils";
+import { listMessages, pageOfMessage, subInbox, unreadCountCached, unreadCount } from "@/lib/messages/messageService";
+import { presentMessages } from "@/lib/messages/messagePresenter";
+import { isMessageFiltered, messageFilterToParams, parseMessageFilterFrom } from "@/lib/messages/messageCategories";
+import { MESSAGE_SCOPES } from "@/lib/messages/messageScope";
+import { APP_TZ } from "@/lib/shared/utils";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import MessageList from "@/app/components/MessageList";
 

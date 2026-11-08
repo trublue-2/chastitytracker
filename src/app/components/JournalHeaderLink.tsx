@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { actionIcon } from "@/app/entries/actionSign";
-import { JOURNAL_HREF } from "@/lib/journal";
+import { JOURNAL_HREF } from "@/lib/journal/journal";
 import { headerIconBtnCls } from "./inputStyles";
 
 /**

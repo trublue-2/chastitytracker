@@ -1,0 +1,127 @@
+import { formatDurationBetween, buildLockPoints, wornDeviceNameAt } from "@/lib/shared/utils";
+import type { VerifyFailure } from "@/lib/kontrollen/verifyReason";
+import { keyProofFor, NO_TELEMETRY_KEY_PROOF, type KeyProofSource } from "@/lib/box/boxKeyProof";
+
+export interface SessionEvent {
+  type: "verschluss" | "kontrolle" | "orgasmus" | "cleaning";
+  time: Date;
+  imageUrl: string | null;
+  /** Bildersafe (VERSCHLUSS): versiegeltes Schlüsselbox-Code-Foto. Sichtbarkeit entscheidet der Server (403-Gate). */
+  codeImageUrl?: string | null;
+  imageExifTime: Date | null;
+  note: string | null;
+  entryId: string | null;
+  deadline?: Date | null;
+  kontrolleKommentar?: string | null;
+  kontrolleCode?: string | null;
+  kontrolleAnforderungStatus?: string | null;
+  kontrolleVerifikationStatus?: string | null;
+  /** Grund hinter „Nicht verifiziert" (siehe `KontrolleItem.verifikationFailure`). Gerade in der
+   *  LAUFENDEN Session ist er das Dringende: dort steht die Kontrolle, die der Träger eben erst
+   *  eingereicht hat und die er noch nachbessern kann. */
+  kontrolleVerifikationFailure?: VerifyFailure | null;
+  orgasmusArt?: string | null;
+  pauseDurationStr?: string | null;
+  submittedAt?: Date | null;
+  /** KONTROLLE: getragenes Gerät zum Kontroll-Zeitpunkt (re-lock-bewusst). */
+  deviceName?: string | null;
+  /** VERSCHLUSS + KONTROLLE: Schlüssel-Urteil (null = nicht geprüft). Quelle in `keyProofSource`. */
+  keyDetected?: boolean | null;
+  /** Woher das Urteil stammt: Box-Foto oder Telemetrie (siehe `lib/boxKeyProof.ts`). */
+  keyProofSource?: KeyProofSource | null;
+  /** VERSCHLUSS + KONTROLLE: das Box-Foto selbst (im Vollbild wählbar). */
+  boxImageUrl?: string | null;
+}
+
+type LockRef = { name?: string | null };
+type ActivePair = {
+  verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; imageExifTime: Date | null; note: string | null; kontrollCode: string | null; keyDetected?: boolean | null; boxImageUrl?: string | null; boxImageBeforeBolt?: boolean; device?: LockRef | null };
+  kontrollen: {
+    entryId: string | null; time: Date; recordedAt: Date; imageUrl: string | null; note: string | null;
+    deadline: Date | null; kommentar: string | null; code: string | null;
+    anforderungStatus: string | null; verifikationStatus: string | null; submittedAt: Date | null;
+    /** Pflicht wie an `KontrolleItem`, und mit derselben Reichweite: es zwingt den WEITERGEBENDEN,
+     *  nicht den Ladenden (Begründung dort). */
+    verifikationFailure: VerifyFailure | null;
+    keyDetected?: boolean | null; boxImageUrl?: string | null;
+  }[];
+  interruptions: { oeffnen: { id: string; startTime: Date; note: string | null }; verschluss: { id: string; startTime: Date; imageUrl: string | null; codeImageUrl?: string | null; boxImageUrl?: string | null; keyDetected?: boolean | null; boxImageBeforeBolt?: boolean; device?: LockRef | null } }[];
+};
+
+type OrgasmusEntry = { id: string; startTime: Date; imageUrl: string | null; note: string | null; orgasmusArt: string | null };
+
+/** Builds the sorted SessionEvent array for the active session timeline.
+ *  `resolveOrgasmus` maps a stored orgasmusArt code (+ optional detail suffix) to its owner-config
+ *  display label; omitted → the raw stored value is shown (built-in-compatible).
+ *  `telemetryKeyProof` sind die Einträge, deren Schlüssel-Nachweis aus der Box-Telemetrie stammt
+ *  (`lib/boxKeyProof.ts`); leer/weggelassen → nur Foto-Urteile. */
+export function buildSessionEvents(
+  activePair: ActivePair,
+  orgasmusEntries: OrgasmusEntry[],
+  dl: string,
+  resolveOrgasmus?: (art: string | null) => string | null,
+  telemetryKeyProof: ReadonlySet<string> = NO_TELEMETRY_KEY_PROOF,
+): SessionEvent[] {
+  // (Wieder-)Verschluss-Zeitpunkte mit Gerät — für das getragene Gerät je Kontrolle (re-lock-bewusst).
+  const lockPoints = buildLockPoints(activePair);
+  return [
+    {
+      type: "verschluss" as const,
+      time: activePair.verschluss.startTime,
+      imageUrl: activePair.verschluss.imageUrl,
+      codeImageUrl: activePair.verschluss.codeImageUrl ?? null,
+      imageExifTime: activePair.verschluss.imageExifTime,
+      note: activePair.verschluss.note,
+      entryId: activePair.verschluss.id,
+      kontrolleCode: activePair.verschluss.kontrollCode,
+      deviceName: activePair.verschluss.device?.name ?? null,
+      ...keyProofFor(activePair.verschluss.id, activePair.verschluss.keyDetected, activePair.verschluss.boxImageUrl, telemetryKeyProof, activePair.verschluss.boxImageBeforeBolt),
+      boxImageUrl: activePair.verschluss.boxImageUrl ?? null,
+    },
+    ...activePair.kontrollen
+      .filter(k => k.entryId !== null)
+      .map(k => ({
+        type: "kontrolle" as const,
+        time: k.time,
+        imageUrl: k.imageUrl,
+        imageExifTime: null,
+        note: k.note,
+        entryId: k.entryId,
+        deadline: k.deadline,
+        kontrolleKommentar: k.kommentar,
+        kontrolleCode: k.code,
+        kontrolleAnforderungStatus: k.anforderungStatus,
+        kontrolleVerifikationStatus: k.verifikationStatus,
+        kontrolleVerifikationFailure: k.verifikationFailure,
+        submittedAt: k.submittedAt,
+        deviceName: wornDeviceNameAt(lockPoints, k.time),
+        ...keyProofFor(k.entryId, k.keyDetected, k.boxImageUrl, telemetryKeyProof),
+        boxImageUrl: k.boxImageUrl ?? null,
+      })),
+    ...orgasmusEntries
+      .filter(e => e.startTime >= activePair.verschluss.startTime)
+      .map(e => ({
+        type: "orgasmus" as const,
+        time: e.startTime,
+        imageUrl: e.imageUrl,
+        imageExifTime: null,
+        note: e.note,
+        entryId: e.id,
+        orgasmusArt: resolveOrgasmus ? resolveOrgasmus(e.orgasmusArt) : e.orgasmusArt,
+      })),
+    ...activePair.interruptions.map(intr => ({
+      type: "cleaning" as const,
+      time: intr.oeffnen.startTime,
+      imageUrl: intr.verschluss.imageUrl,
+      codeImageUrl: intr.verschluss.codeImageUrl ?? null,
+      // Fotos des WIEDERVERSCHLUSSES: die Zeile steht für die Pause, der Nachweis gehört aber zum
+      // Wiedereinschliessen — „Schlüssel wieder in der Box" ist genau hier die Aussage.
+      boxImageUrl: intr.verschluss.boxImageUrl ?? null,
+      ...keyProofFor(intr.verschluss.id, intr.verschluss.keyDetected, intr.verschluss.boxImageUrl, telemetryKeyProof, intr.verschluss.boxImageBeforeBolt),
+      imageExifTime: null,
+      note: intr.oeffnen.note,
+      entryId: intr.oeffnen.id,
+      pauseDurationStr: formatDurationBetween(intr.oeffnen.startTime, intr.verschluss.startTime, dl),
+    })),
+  ].sort((a, b) => a.time.getTime() - b.time.getTime());
+}

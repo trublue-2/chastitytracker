@@ -3,7 +3,7 @@
 import ListPager from "@/app/components/ListPager";
 import { blockInsetCls } from "@/app/components/inputStyles";
 import usePagedList from "@/app/hooks/usePagedList";
-import { LIST_PAGE_SIZE } from "@/lib/constants";
+import { LIST_PAGE_SIZE } from "@/lib/shared/constants";
 
 export interface OrgasmusItemData {
   id: string;

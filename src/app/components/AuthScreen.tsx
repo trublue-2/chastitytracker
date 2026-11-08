@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import type { ReactNode } from "react";
-import { DEFAULT_WORLD } from "@/lib/theme";
+import { DEFAULT_WORLD } from "@/lib/client/theme";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 import { authColCls, quietLinkCls } from "@/app/components/inputStyles";
 

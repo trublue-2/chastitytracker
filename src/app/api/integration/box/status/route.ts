@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { requireBoxSync } from "@/lib/boxSync";
-import { boxReportedLockedSafe } from "@/lib/lockCommit";
-import { otherBoxExists } from "@/lib/boxPairing";
-import { errorResponse } from "@/lib/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+import { requireBoxSync } from "@/lib/box/boxSync";
+import { boxReportedLockedSafe } from "@/lib/entries/lockCommit";
+import { otherBoxExists } from "@/lib/box/boxPairing";
+import { errorResponse } from "@/lib/shared/serviceResult";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

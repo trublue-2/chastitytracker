@@ -1,4 +1,4 @@
-import { userSelfFieldRoute } from "@/lib/userSelfField";
+import { userSelfFieldRoute } from "@/lib/shared/userSelfField";
 import { currentVisionConfig, disclosureOf } from "@/lib/vision/config";
 
 // Quittung des Hinweises zur Foto-Prüfung. Ein USER-SELF-Feld wie `notice-seen`: es hält fest, was

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { createVerschlussAnforderung } from "@/lib/verschlussAnforderungService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
+import { createVerschlussAnforderung } from "@/lib/entries/verschlussAnforderungService";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 export async function POST(req: NextRequest) {
   try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/client/apiClient";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
@@ -19,9 +19,9 @@ import {
   isValidCategoryIcon,
   type CategoryColor,
   type CategoryIcon,
-} from "@/lib/categoryConstants";
+} from "@/lib/devices/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
-import { DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
+import { DEVICE_NAME_MAX_LENGTH } from "@/lib/shared/constants";
 import Toggle from "@/app/components/Toggle";
 import type { CategoryRow } from "./CategoriesClient";
 

@@ -41,7 +41,7 @@ bis zum vollen Rosa, gültig für Kalender, Balken und Ringe:
 ### Die Rolle sitzt im Grund
 
 Die App unterscheidet drei Welten (`sub-open`, `sub-locked`, `keyholder` in
-`src/lib/theme.ts`) — Träger grün, Keyholder indigo. Diese Trennung bleibt, aber sie wandert vom
+`src/lib/client/theme.ts`) — Träger grün, Keyholder indigo. Diese Trennung bleibt, aber sie wandert vom
 Akzent auf den **Grund**:
 
 | | Grund | Schein |

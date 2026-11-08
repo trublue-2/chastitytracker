@@ -1,16 +1,16 @@
 import { redirect } from "next/navigation";
 import { ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
-import { prisma } from "@/lib/prisma";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { LOCK_FORM_PLAN_MODE } from "@/lib/lockRequestPlanning";
-import { getIsLocked } from "@/lib/queries";
-import { subLockPeriodCached } from "@/lib/dashboardData";
-import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
-import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
+import { prisma } from "@/lib/shared/prisma";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
+import { LOCK_FORM_PLAN_MODE } from "@/lib/entries/lockRequestPlanning";
+import { getIsLocked } from "@/lib/entries/queries";
+import { subLockPeriodCached } from "@/lib/stats/dashboardData";
+import { buildNewEntryCategoryRows } from "@/lib/devices/categoryRows";
+import { categoryStyle, wearActionHref } from "@/lib/devices/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import Section from "@/app/components/Section";
 import { getTranslations } from "next-intl/server";
-import { entryGapEnabled } from "@/lib/entryGapService";
+import { entryGapEnabled } from "@/lib/entries/entryGapService";
 import ActionRow from "./ActionRow";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 

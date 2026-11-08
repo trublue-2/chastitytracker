@@ -1,20 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
 import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringContextDef } from "./context";
 import { executeWrite } from "./writeFramework";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { TEST_USER, type PrismaMock } from "@/test/prismaMock";
-import { OFFENSE_RULE_DEFAULT } from "@/lib/offenseRules";
+import { OFFENSE_RULE_DEFAULT } from "@/lib/strafbuch/offenseRules";
 
 const db = prisma as unknown as PrismaMock;
 
 // windowsBinding/windowsBindingReason/openingAllowedNow (A-02) sind bei `cleaningWindowBindingStatus`
-// in src/lib/queries.ts getestet — colocated mit `cleaningBlockReason`, dessen Einordnung sie ist.
+// in src/lib/entries/queries.ts getestet — colocated mit `cleaningBlockReason`, dessen Einordnung sie ist.
 
 // Regression: runV2Write (route.ts) destructures `reason` out of the raw tool args as the
 // mandatory AUDIT field before the domain-specific args ever reach validate()/apply(). The

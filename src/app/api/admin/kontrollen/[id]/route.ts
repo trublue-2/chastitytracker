@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminActor, requireKeyholderOrAdminApi, sessionActor } from "@/lib/authGuards";
-import { resolveKontrolle, extendInspectionDeadline } from "@/lib/kontrolleService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
-import { mapAnforderungStatus } from "@/lib/utils";
+import { prisma } from "@/lib/shared/prisma";
+import { requireKeyholderOrAdminActor, requireKeyholderOrAdminApi, sessionActor } from "@/lib/auth/authGuards";
+import { resolveKontrolle, extendInspectionDeadline } from "@/lib/kontrollen/kontrolleService";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
+import { mapAnforderungStatus } from "@/lib/shared/utils";
 
 export async function DELETE(
   _req: NextRequest,

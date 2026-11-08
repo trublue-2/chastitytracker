@@ -9,7 +9,7 @@ einem Fehler in einer Mechanik, sondern aus dem Zusammenspiel zweier Mechaniken,
 richtig arbeiten.
 
 Adressat sind Betreiber und Entwickler. Für die Keyholder-KI gibt es die eigene, bewusst anders
-geschnittene Referenz `src/lib/mcpModelDoc.ts` (Tool `explain_model`); für den Sub die Regel-Seite
+geschnittene Referenz `src/lib/mcp/mcpModelDoc.ts` (Tool `explain_model`); für den Sub die Regel-Seite
 in der App. Wo sich Aussagen überschneiden, ist diese Sammlung die technische, jene die
 handlungsleitende Fassung.
 
@@ -130,7 +130,7 @@ npm run funktionsmodell
 ```
 
 Erzeugt **alle drei** generierten Dateien aus `prisma/schema.prisma` (Form: Feld, Typ, Default) und
-`src/lib/funktionsmodellRegistry.ts` (Bedeutung: wer schreibt, worauf wirkt es, wo steht die Regel).
+`src/lib/funktionsmodell/funktionsmodellRegistry.ts` (Bedeutung: wer schreibt, worauf wirkt es, wo steht die Regel).
 
 Die Abhängigkeits-Ansicht ist dabei vollständig **abgeleitet**: sie liest dieselben `affects`-Angaben
 rückwärts. Eine von Hand gepflegte Gegenrichtung wäre binnen weniger Änderungen unvollständig, und

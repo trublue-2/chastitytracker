@@ -1,6 +1,6 @@
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { getUserTimezone } from "@/lib/queries";
-import { nowDatetimeLocal } from "@/lib/utils";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
+import { getUserTimezone } from "@/lib/entries/queries";
+import { nowDatetimeLocal } from "@/lib/shared/utils";
 import VergehenForm from "./VergehenForm";
 
 export default async function AdminVergehenPage({ params }: { params: Promise<{ id: string }> }) {

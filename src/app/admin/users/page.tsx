@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { titleCls } from "@/app/components/inputStyles";
 import Link from "next/link";
-import { assertAdmin } from "@/lib/authGuards";
+import { assertAdmin } from "@/lib/auth/authGuards";
 import { getTranslations } from "next-intl/server";
 import Badge from "@/app/components/Badge";
 import Button from "@/app/components/Button";

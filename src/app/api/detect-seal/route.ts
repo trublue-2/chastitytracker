@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
-import { detectSealNumber, detectLockboxCode } from "@/lib/verifyCode";
-import { localCodeReadable } from "@/lib/imageReadability";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/constants";
+import { requireApi } from "@/lib/auth/authGuards";
+import { detectSealNumber, detectLockboxCode } from "@/lib/kontrollen/verifyCode";
+import { localCodeReadable } from "@/lib/kontrollen/imageReadability";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { isValidImageUrl, VALID_ROTATIONS, type Rotation } from "@/lib/shared/constants";
 
 export async function POST(req: NextRequest) {
   const session = await requireApi();

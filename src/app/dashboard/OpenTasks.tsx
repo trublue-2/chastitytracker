@@ -11,10 +11,10 @@ import Button from "@/app/components/Button";
 import ConfirmDialog from "@/app/components/ConfirmDialog";
 import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { nextTaskStep, type TaskCardData } from "@/lib/taskView";
-import { isTaskOpen } from "@/lib/tasks";
+import { nextTaskStep, type TaskCardData } from "@/lib/tasks/taskView";
+import { isTaskOpen } from "@/lib/tasks/tasks";
 
 /**
  * Der Aufgaben-Block des Sub-Dashboards — Rang 3, direkt über der Session-Karte.

@@ -11,11 +11,11 @@ import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
-import { BLOCK_PAGE_SIZE } from "@/lib/constants";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { BLOCK_PAGE_SIZE } from "@/lib/shared/constants";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
 
-import type { WearSessionRow } from "@/lib/wearSessionRows";
-export type { WearSessionRow } from "@/lib/wearSessionRows";
+import type { WearSessionRow } from "@/lib/entries/wearSessionRows";
+export type { WearSessionRow } from "@/lib/entries/wearSessionRows";
 
 
 /** Read-only list of completed non-KG wear sessions, grouped by category icon

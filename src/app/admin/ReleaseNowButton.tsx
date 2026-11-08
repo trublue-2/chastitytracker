@@ -8,9 +8,9 @@ import Button from "@/app/components/Button";
 import Checkbox from "@/app/components/Checkbox";
 import FormError from "@/app/components/FormError";
 import { LockOpenIcon } from "@/app/components/lockIcons";
-import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
+import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
+import { RELEASE_ORGASM_WINDOW_H } from "@/lib/shared/constants";
 import { overviewChipCls } from "@/app/components/inputStyles";
 
 interface Props {

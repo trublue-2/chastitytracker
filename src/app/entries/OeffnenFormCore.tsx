@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { fromDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { fromDatetimeLocal, toDateLocale } from "@/lib/shared/utils";
 import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { datedWindowLabel } from "@/lib/weekdays";
-import { type OeffnenGrund } from "@/lib/constants";
-import type { ResolvedReason } from "@/lib/reasonsService";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
+import { datedWindowLabel } from "@/lib/stats/weekdays";
+import { type OeffnenGrund } from "@/lib/shared/constants";
+import type { ResolvedReason } from "@/lib/entries/reasonsService";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
-import type { TaskWarning } from "@/lib/taskIntervals";
+import type { TaskWarning } from "@/lib/tasks/taskIntervals";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
@@ -22,7 +22,7 @@ import EntryFormShell from "@/app/components/EntryFormShell";
 import Card from "@/app/components/Card";
 import RiskConfirmSheet from "@/app/components/RiskConfirmSheet";
 import type { OeffnenPayload, CleaningConfig, LockPeriodState, SubmitResult } from "./types";
-import type { BoxHold } from "@/lib/boxOpenOutlook";
+import type { BoxHold } from "@/lib/box/boxOpenOutlook";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 interface Props {

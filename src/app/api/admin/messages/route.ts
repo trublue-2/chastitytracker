@@ -1,4 +1,4 @@
-import { keyholderInboxRoutes } from "@/lib/messageInboxRoutes";
+import { keyholderInboxRoutes } from "@/lib/messages/messageInboxRoutes";
 
 /** GET /api/admin/messages — eine Seite des Keyholder-Posteingangs. Der Zwilling von
  *  `GET /api/messages`, gleiche Antwort-Form; Unterschied ist allein der Scope

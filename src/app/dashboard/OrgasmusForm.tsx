@@ -6,9 +6,9 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import OrgasmusFormCore from "@/app/entries/OrgasmusFormCore";
 import type { OrgasmusPayload, SubmitResult } from "@/app/entries/types";
-import { entryRequest, parseApiErrorCode } from "@/lib/apiClient";
+import { entryRequest, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import type { OrgasmusOption } from "@/lib/reasonsService";
+import type { OrgasmusOption } from "@/lib/entries/reasonsService";
 
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; orgasmusArt?: string | null };

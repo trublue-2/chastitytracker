@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { getMobileDesktopMode } from "@/lib/queries";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getMobileDesktopMode } from "@/lib/entries/queries";
+import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/shared/prisma";
 import TaskProofFormCore from "@/app/entries/TaskProofFormCore";
-import { ownProofWhere, proofSubmitContext } from "@/lib/taskProofService";
-import { proofDue, proofDueOffsetPending } from "@/lib/tasks";
-import { APP_TZ } from "@/lib/utils";
+import { ownProofWhere, proofSubmitContext } from "@/lib/tasks/taskProofService";
+import { proofDue, proofDueOffsetPending } from "@/lib/tasks/tasks";
+import { APP_TZ } from "@/lib/shared/utils";
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import { getTranslations } from "next-intl/server";

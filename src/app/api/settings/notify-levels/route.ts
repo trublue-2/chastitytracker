@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { requireApi } from "@/lib/authGuards";
-import { isNotifyLevel, type SelfEditableUserField } from "@/lib/constants";
-import { errorResponse } from "@/lib/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+import { requireApi } from "@/lib/auth/authGuards";
+import { isNotifyLevel, type SelfEditableUserField } from "@/lib/shared/constants";
+import { errorResponse } from "@/lib/shared/serviceResult";
 
 /**
  * Kanal → Spalte. Als `SelfEditableUserField` getypt, aus demselben Grund wie in

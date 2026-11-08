@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { isValidImageUrl } from "@/lib/constants";
-import { detectDevice } from "@/lib/detectDevice";
-import { detectDeviceByEmbedding } from "@/lib/deviceEmbedding";
-import { embedAvailable } from "@/lib/embed";
-import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
+import { requireApi } from "@/lib/auth/authGuards";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { isValidImageUrl } from "@/lib/shared/constants";
+import { detectDevice } from "@/lib/kontrollen/detectDevice";
+import { detectDeviceByEmbedding } from "@/lib/kontrollen/deviceEmbedding";
+import { embedAvailable } from "@/lib/kontrollen/embed";
+import { gatherDeviceReferences } from "@/lib/devices/deviceReferenceService";
 
 /**
  * POST /api/detect-device

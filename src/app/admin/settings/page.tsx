@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import SettingsForm from "@/app/dashboard/settings/SettingsForm";
 import { getSettingsProps } from "@/app/dashboard/settings/getSettingsProps";
-import { isController } from "@/lib/ownTracker";
+import { isController } from "@/lib/auth/ownTracker";
 import { photoAnalysisView } from "@/lib/vision/config";
 import PhotoAnalysisSettings from "./PhotoAnalysisSettings";
 

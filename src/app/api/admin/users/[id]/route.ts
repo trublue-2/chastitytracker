@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { prepareEmailInput } from "@/lib/loginIdentity";
-import { requireAdminApi, requireKeyholderOrAdminApi, requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
+import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/shared/prisma";
+import { prepareEmailInput } from "@/lib/auth/loginIdentity";
+import { requireAdminApi, requireKeyholderOrAdminApi, requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import bcrypt from "bcryptjs";
-import { passwordErrorCode, isValidLocale } from "@/lib/constants";
-import { getActiveLockPeriod, getIsLocked } from "@/lib/queries";
-import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
-import { isUniqueConstraintOn } from "@/lib/prismaErrors";
-import { recordAdminPasswordChange } from "@/lib/passwordAudit";
-import { setCleaningSettings } from "@/lib/cleaningService";
-import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
-import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
-import { setReasonConfig } from "@/lib/reasonsService";
-import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
-import { boxCouplingEnabled } from "@/lib/constants";
-import { setLockRequiresBolt } from "@/lib/lockCommit";
-import { setOffenseStatementsAllowed } from "@/lib/offenseStatementService";
-import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
-import { errorResponse, serviceResponse } from "@/lib/serviceResult";
-import { boxPasswordAtRisk } from "@/lib/boxPairing";
-import { normalizeQuickSettings } from "@/lib/quickSettings";
+import { passwordErrorCode, isValidLocale } from "@/lib/shared/constants";
+import { getActiveLockPeriod, getIsLocked } from "@/lib/entries/queries";
+import { buildNewEntryCategoryRows } from "@/lib/devices/categoryRows";
+import { isUniqueConstraintOn } from "@/lib/shared/prismaErrors";
+import { recordAdminPasswordChange } from "@/lib/auth/passwordAudit";
+import { setCleaningSettings } from "@/lib/entries/cleaningService";
+import { setAutoKontrolleSettings } from "@/lib/kontrollen/autoKontrolleService";
+import { setInspectionEscalationSettings } from "@/lib/kontrollen/inspectionEscalationService";
+import { setReasonConfig } from "@/lib/entries/reasonsService";
+import { setWeightSettingsKeyholder } from "@/lib/weight/weightSettingsService";
+import { boxCouplingEnabled } from "@/lib/shared/constants";
+import { setLockRequiresBolt } from "@/lib/entries/lockCommit";
+import { setOffenseStatementsAllowed } from "@/lib/strafbuch/offenseStatementService";
+import { deleteUploadedFiles, entryImageUrls } from "@/lib/client/imageUtils";
+import { errorResponse, serviceResponse } from "@/lib/shared/serviceResult";
+import { boxPasswordAtRisk } from "@/lib/box/boxPairing";
+import { normalizeQuickSettings } from "@/lib/ui/quickSettings";
 
 export async function GET(
   _req: NextRequest,

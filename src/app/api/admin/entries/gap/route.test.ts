@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 const createEntryGapForUser = vi.fn();
-vi.mock("@/lib/entryGapService", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/entryGapService")>("@/lib/entryGapService");
+vi.mock("@/lib/entries/entryGapService", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/entries/entryGapService")>("@/lib/entries/entryGapService");
   return { ...actual, createEntryGapForUser: (...a: unknown[]) => createEntryGapForUser(...a) };
 });
-vi.mock("@/lib/prisma", () => ({ prisma: { user: { findUnique: vi.fn(async () => ({ id: "u1", orgasmusArtenConfig: null, oeffnenGruendeConfig: null })) } } }));
-vi.mock("@/lib/authGuards", () => ({ requireKeyholderOrAdminActor: vi.fn(async () => ({ user: { id: "kh" } })) }));
-vi.mock("@/lib/devMode", () => ({ isDevBypassEnabled: () => false }));
+vi.mock("@/lib/shared/prisma", () => ({ prisma: { user: { findUnique: vi.fn(async () => ({ id: "u1", orgasmusArtenConfig: null, oeffnenGruendeConfig: null })) } } }));
+vi.mock("@/lib/auth/authGuards", () => ({ requireKeyholderOrAdminActor: vi.fn(async () => ({ user: { id: "kh" } })) }));
+vi.mock("@/lib/client/devMode", () => ({ isDevBypassEnabled: () => false }));
 
 import { POST } from "./route";
 

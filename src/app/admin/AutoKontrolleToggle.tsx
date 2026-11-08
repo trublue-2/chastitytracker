@@ -12,16 +12,16 @@ import {
   AUTO_INSPECTION_PER_DAY_RANGE, AUTO_INSPECTION_DEADLINE_FROM_RANGE, AUTO_INSPECTION_DEADLINE_TO_RANGE,
   POST_LOCK_INSPECTION_DELAY_MIN_RANGE, POST_LOCK_INSPECTION_DELAY_MAX_RANGE, POST_LOCK_INSPECTION_DEADLINE_RANGE,
   type NumberRange,
-} from "@/lib/constants";
+} from "@/lib/shared/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import WeekdayPicker from "@/app/components/WeekdayPicker";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import AddRowButton from "@/app/components/AddRowButton";
 import SettingLabel from "@/app/components/SettingLabel";
-import { ALL_WEEKDAYS } from "@/lib/weekdays";
+import { ALL_WEEKDAYS } from "@/lib/stats/weekdays";
 import {
   AUTO_INSPECTION_DAY_RULES_MAX, parseAutoInspectionDayRules, type AutoInspectionDayRule,
-} from "@/lib/autoKontrolleDayRules";
+} from "@/lib/kontrollen/autoKontrolleDayRules";
 
 /** Beschriftung der beiden Felder einer „von – bis"-Zeile: die sichtbare Beschriftung steht nur
  *  einmal vor dem Paar, für Screenreader braucht jedes Feld seine eigene. */

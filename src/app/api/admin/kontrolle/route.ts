@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { requestKontrolle } from "@/lib/kontrolleService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
+import { requestKontrolle } from "@/lib/kontrollen/kontrolleService";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 export async function POST(req: NextRequest) {
   try {

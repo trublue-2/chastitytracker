@@ -1,6 +1,6 @@
-import { buildSessions, buildWearSessions, type Session, type Segment, type LinkedControl } from "@/lib/sessionModel";
-import type { VerifyFailure } from "@/lib/verifyReason";
-import { msToHours } from "@/lib/utils";
+import { buildSessions, buildWearSessions, type Session, type Segment, type LinkedControl } from "@/lib/entries/sessionModel";
+import type { VerifyFailure } from "@/lib/kontrollen/verifyReason";
+import { msToHours } from "@/lib/shared/utils";
 import { resolveUserId, makeIso, buildEnvelope, notesForEntities, entityKey, loadTrackingData, loadCategoryNames, mcpDeviceCheckStatus, type Envelope, type Iso, type NoteDTO, type EntityRef, type McpDeviceCheckStatus } from "@/lib/mcp/common";
 
 /** get_session — Sessions als abgeleitete Wahrheit: Segmente + deviceBreakdown + Inline-Notes

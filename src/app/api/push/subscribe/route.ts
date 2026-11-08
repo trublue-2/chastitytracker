@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
-import { prisma } from "@/lib/prisma";
-import { isAllowedPushEndpoint } from "@/lib/pushEndpoint";
+import { requireApi } from "@/lib/auth/authGuards";
+import { prisma } from "@/lib/shared/prisma";
+import { isAllowedPushEndpoint } from "@/lib/messages/pushEndpoint";
 
 export async function POST(req: NextRequest) {
   const session = await requireApi();

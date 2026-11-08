@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { WifiOff, CloudUpload, Loader2, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { getQueueCount } from "@/lib/idb";
+import { getQueueCount } from "@/lib/client/idb";
 import useConnectionStalled from "@/app/hooks/useConnectionStalled";
 import PoorConnectionNote from "@/app/components/PoorConnectionNote";
 

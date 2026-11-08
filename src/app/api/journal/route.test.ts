@@ -5,8 +5,8 @@ import { NextRequest } from "next/server";
  * Das eigene Tagebuch schreibt nur sein Besitzer. Der Scope kommt aus der Sitzung — ein `userId` im
  * Body (wie ihn `/api/weight` für die Keyholderin kennt) darf hier nichts bewirken.
  */
-vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/journalService", () => ({
+vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/journal/journalService", () => ({
   createJournalEntry: vi.fn(async () => ({ ok: true, data: { id: "j1" } })),
   listOwnJournal: vi.fn(async () => ({ entries: [], hasMore: false })),
   updateJournalEntry: vi.fn(async () => ({ ok: true, data: null })),
@@ -15,8 +15,8 @@ vi.mock("@/lib/journalService", () => ({
 
 import { GET, POST } from "./route";
 import { PATCH, DELETE } from "./[id]/route";
-import { auth } from "@/lib/auth";
-import { createJournalEntry, deleteJournalEntry, listOwnJournal, updateJournalEntry } from "@/lib/journalService";
+import { auth } from "@/lib/auth/auth";
+import { createJournalEntry, deleteJournalEntry, listOwnJournal, updateJournalEntry } from "@/lib/journal/journalService";
 
 const req = (method: string, body?: string, path = "/api/journal") =>
   new NextRequest(`http://x${path}`, { method, ...(body !== undefined && { body }) });

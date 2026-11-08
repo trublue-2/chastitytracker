@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { prepareEmailInput } from "@/lib/loginIdentity";
-import { requireAdminApi } from "@/lib/authGuards";
+import { prisma } from "@/lib/shared/prisma";
+import { prepareEmailInput } from "@/lib/auth/loginIdentity";
+import { requireAdminApi } from "@/lib/auth/authGuards";
 import bcrypt from "bcryptjs";
-import { passwordErrorCode } from "@/lib/constants";
-import { ensureKgCategory } from "@/lib/deviceCategories";
-import { isUniqueConstraintOn } from "@/lib/prismaErrors";
-import { latestKgTimesByUser } from "@/lib/queries";
+import { passwordErrorCode } from "@/lib/shared/constants";
+import { ensureKgCategory } from "@/lib/devices/deviceCategories";
+import { isUniqueConstraintOn } from "@/lib/shared/prismaErrors";
+import { latestKgTimesByUser } from "@/lib/entries/queries";
 
 export async function GET() {
   const err = await requireAdminApi();

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { encode } from "@auth/core/jwt";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 // One hour – tokens are max 2 min, so after 1h they are long expired anyway.
 const CLEANUP_AGE_MS = 60 * 60 * 1000;

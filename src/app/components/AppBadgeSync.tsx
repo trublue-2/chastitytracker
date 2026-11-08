@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { setAppBadgeSafe } from "@/lib/swMessages";
+import { setAppBadgeSafe } from "@/lib/messages/swMessages";
 
 /**
  * Hält das App-Badge am ZUSTAND — beim Seitenaufruf und bei jedem Resume.

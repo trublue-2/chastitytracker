@@ -1,14 +1,14 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { resolveUserContext, makeIso, buildEnvelope, notesForEntities, entityKey, matchByNameCI, parseStringArray, tzOf, type Iso, type NoteDTO, type Envelope } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef, type TxClient } from "@/lib/mcp/writeFramework";
 import { listCategoryViews, type CategoryView } from "@/lib/mcp/categories";
-import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
-import { deleteUploadedFiles } from "@/lib/imageUtils";
-import { applyDeviceRemoval, planDeviceRemoval } from "@/lib/deviceService";
+import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";
+import { deleteUploadedFiles } from "@/lib/client/imageUtils";
+import { applyDeviceRemoval, planDeviceRemoval } from "@/lib/devices/deviceService";
 import {
   DEVICE_DESCRIPTION_MAX_LENGTH, DEVICE_NAME_MAX_LENGTH, VALID_CURRENCIES, validateDeviceInput,
   type DeviceValidationCode,
-} from "@/lib/constants";
+} from "@/lib/shared/constants";
 
 /** Geräte-Metadaten, die Keyholder-Entscheidungen tragen (explain_model §13) + angereicherte
  *  Geräteliste mit Inline-Notes. MCP-only, additiv. */

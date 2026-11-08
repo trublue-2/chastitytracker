@@ -1,11 +1,11 @@
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import OrgasmusForm from "../../OrgasmusForm";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/shared/prisma";
 import { getTranslations } from "next-intl/server";
-import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
-import { effectiveOrgasmusArten, resolveOrgasmusOptions } from "@/lib/reasonsService";
+import { nowDatetimeLocal, APP_TZ } from "@/lib/shared/utils";
+import { effectiveOrgasmusArten, resolveOrgasmusOptions } from "@/lib/entries/reasonsService";
 
 export default async function NewOrgasmusPage() {
   const session = await auth();

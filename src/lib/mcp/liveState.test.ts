@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPairs, type CleaningPauseAllowance } from "@/lib/utils";
+import { buildPairs, type CleaningPauseAllowance } from "@/lib/shared/utils";
 import {
   buildLockState, mapOpenKontrolle, mapActiveLockPeriod, mapOpenOrgasmusAnforderung,
   mapActiveWearSessions, type LockEntry,

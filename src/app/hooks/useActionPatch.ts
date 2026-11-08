@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { fetchWithTimeout } from "@/lib/apiClient";
+import { fetchWithTimeout } from "@/lib/client/apiClient";
 
 /**
  * Die Mechanik einer Listen-Aktion, die per `PATCH` etwas an einer Zeile ändert: Laufzustand,

@@ -1,11 +1,11 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { auth } from "@/lib/auth";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { logAccess } from "@/lib/serverLog";
-import { APP_TZ, formatDateTimeDual, toDateLocale } from "@/lib/utils";
-import { userRowCached } from "@/lib/dashboardData";
-import { renderStack } from "@/lib/blockStack";
-import { viewerLayout } from "@/lib/viewerLayout";
+import { auth } from "@/lib/auth/auth";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
+import { logAccess } from "@/lib/shared/serverLog";
+import { APP_TZ, formatDateTimeDual, toDateLocale } from "@/lib/shared/utils";
+import { userRowCached } from "@/lib/stats/dashboardData";
+import { renderStack } from "@/lib/ui/blockStack";
+import { viewerLayout } from "@/lib/ui/viewerLayout";
 import BlockStack from "@/app/components/BlockStack";
 import { KEYHOLDER_SUB_BLOCK_TABLE, type KeyholderSubCtx } from "./keyholderSubBlocks";
 

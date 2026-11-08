@@ -2,8 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CLIENT_TIMEOUT_MS } from "@/lib/apiClient";
-import { reportReachable, reportStalled } from "@/lib/connectionHealth";
+import { CLIENT_TIMEOUT_MS } from "@/lib/client/apiClient";
+import { reportReachable, reportStalled } from "@/lib/client/connectionHealth";
 
 /**
  * Nach wie vielen ms ohne Seitenwechsel die Navigation als steckengeblieben gilt.

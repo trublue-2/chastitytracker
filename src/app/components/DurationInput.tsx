@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import Button from "./Button";
 import FieldTabs from "./FieldTabs";
 import HoursInput from "./HoursInput";
-import { DURATION_QUICK_HOURS, DURATION_UNITS, durationFromHours, durationToHours, type DurationUnit } from "@/lib/constants";
+import { DURATION_QUICK_HOURS, DURATION_UNITS, durationFromHours, durationToHours, type DurationUnit } from "@/lib/shared/constants";
 
 /**
  * Eine Dauer wahlweise in Stunden oder Minuten — Umschalter über dem Zahlenfeld, Schnellwahl darunter.

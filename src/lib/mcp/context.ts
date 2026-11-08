@@ -1,18 +1,18 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
-import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/healthHold";
-import { notifyUser } from "@/lib/notify";
-import { dueBoxPhotoLock, waiveBoxPhoto } from "@/lib/boxPhotoDueService";
-import { hasLockmebox } from "@/lib/boxStatus";
+import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/entries/healthHold";
+import { notifyUser } from "@/lib/messages/notify";
+import { dueBoxPhotoLock, waiveBoxPhoto } from "@/lib/box/boxPhotoDueService";
+import { hasLockmebox } from "@/lib/box/boxStatus";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
-import { autoKontrolleSettingsFromUser, autoInspectionsView, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoInspectionsView } from "@/lib/autoKontrolleService";
-import { weightReleaseStatus } from "@/lib/weightReleaseService";
-import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_SELECT } from "@/lib/cleaningService";
-import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/queries";
-import { type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
-import { getOffenseRules } from "@/lib/offenseRulesService";
-import { boxCouplingEnabled, AI_AUTHOR, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
+import { autoKontrolleSettingsFromUser, autoInspectionsView, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoInspectionsView } from "@/lib/kontrollen/autoKontrolleService";
+import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
+import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
+import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/entries/queries";
+import { type OffenseMode, type SwitchableOffenseType } from "@/lib/strafbuch/offenseRules";
+import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
+import { boxCouplingEnabled, AI_AUTHOR, toNotifyLevel, type NotifyLevel } from "@/lib/shared/constants";
 
 /** Kontext & Kalender (explain_model §13) — wiederkehrender Wochen-Kontext, Einzeltermine,
  *  HealthHold. Damit der Keyholder Anker/Kontrollen ums echte Leben plant.

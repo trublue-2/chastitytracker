@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { parsePrismaSchema } from "@/lib/prismaSchema";
+import { parsePrismaSchema } from "@/lib/shared/prismaSchema";
 import {
   STATE_TABLES, STATE_IGNORED_TABLES, STATE_TRIGGER_MARKER, buildStateTriggerSql,
 } from "./stateAreas";

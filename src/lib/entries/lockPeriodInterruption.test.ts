@@ -1,0 +1,105 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+/**
+ * Eine Sperrzeit kann auf drei Arten enden, und sie sahen alle gleich aus: `withdrawnAt` gesetzt.
+ * Damit war für den Keyholder — Mensch wie KI — nicht mehr unterscheidbar, ob eine Konsequenz
+ * bewusst erlassen, vom Sub aufgebrochen oder nie gesetzt worden war. Eine 14-Tage-Sperre verschwand
+ * spurlos aus dem Dashboard (gemeldet 11.07.2026).
+ *
+ * `endedReason` hält die Endart fest. Und die wichtigste Regel steht darüber: eine VERMUTETE Öffnung
+ * bricht gar nichts.
+ */
+
+const tx = {
+  verschlussAnforderung: { findMany: vi.fn(), updateMany: vi.fn() },
+  user: { findUnique: vi.fn() },
+  // Vierte Endart-Frage seit dem Gesundheits-Halt: läuft einer, bleibt die Sperrzeit stehen und die
+  // Öffnung ist gedeckt. `null` = kein Halt, der Normalfall dieser Datei.
+  healthHold: { findFirst: vi.fn() },
+};
+
+vi.mock("@/lib/shared/prisma", () => ({ prisma: {} }));
+
+import { releaseLockPeriodsOnOpen } from "./queries";
+import { mapInterruptedLockPeriod } from "../mcp/liveState";
+
+const NOW = new Date("2026-07-11T17:53:00+02:00");
+const fmt = (d: Date) => d.toISOString();
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  tx.verschlussAnforderung.findMany.mockReset().mockResolvedValue([{ id: "s1", cleaningAllowed: false }]);
+  tx.verschlussAnforderung.updateMany.mockReset().mockResolvedValue({ count: 1 });
+  tx.user.findUnique.mockReset().mockResolvedValue({ cleaningAllowed: false, cleaningWindows: null, timezone: "Europe/Zurich" });
+  tx.healthHold.findFirst.mockReset().mockResolvedValue(null);
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const asTx = () => tx as any;
+
+describe("releaseLockPeriodsOnOpen", () => {
+  it("KERN-BUG 11.07.: eine SYSTEM-Öffnung bricht die Sperrzeit NICHT", async () => {
+    // Die Eskalation bucht das Gerät als „vermutlich abgenommen", weil der Sub eine Kontrolle nie
+    // beantwortet hat. Das ist keine Handlung des Subs (das Strafbuch schliesst sie aus den
+    // unerlaubten Öffnungen aus) und sie öffnet die Box nicht einmal. Zöge sie die Sperrzeit zurück,
+    // räumte ausgerechnet ein Versäumnis die Konsequenz aus dem Weg, die es nach sich ziehen soll.
+    const broke = await releaseLockPeriodsOnOpen("u1", "AUTO_ENTFERNT", asTx(), "system");
+
+    expect(broke).toBe(false);
+    expect(tx.verschlussAnforderung.updateMany).not.toHaveBeenCalled();
+    expect(tx.verschlussAnforderung.findMany).not.toHaveBeenCalled(); // gar nicht erst nachgesehen
+  });
+
+  it("eine willentliche Öffnung bricht sie — und markiert sie als unterbrochen, nicht als zurückgezogen", async () => {
+    const broke = await releaseLockPeriodsOnOpen("u1", "ANDERES", asTx(), "user");
+
+    expect(broke).toBe(true);
+    expect(tx.verschlussAnforderung.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["s1"] } },
+      data: { withdrawnAt: expect.any(Date), endedReason: "opening" },
+    });
+  });
+
+  it("ein laufender Gesundheits-Halt deckt die Öffnung — die Sperrzeit bleibt stehen", async () => {
+    // Die Pause setzt die Sperrzeit AUS, sie hebt sie nicht auf: danach läuft sie weiter. Und weil
+    // der Rückgabewert zugleich das Box-Kommando steuert, geht der Riegel dabei auf — eine Pause,
+    // die dem Träger nur die Strafe erlässt und ihn eingeschlossen lässt, hilft ihm nicht.
+    tx.healthHold.findFirst.mockResolvedValue({ id: "h1", active: true, reason: "Grippe", createdAt: NOW, resolvedAt: null });
+
+    const broke = await releaseLockPeriodsOnOpen("u1", "ANDERES", asTx(), "user");
+
+    expect(broke).toBe(false);
+    expect(tx.verschlussAnforderung.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("ohne laufende Sperrzeit passiert nichts", async () => {
+    tx.verschlussAnforderung.findMany.mockResolvedValue([]);
+    expect(await releaseLockPeriodsOnOpen("u1", "ANDERES", asTx(), "user")).toBe(false);
+    expect(tx.verschlussAnforderung.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("mapInterruptedLockPeriod", () => {
+  it("zeigt das URSPRÜNGLICHE Ende und den Zeitpunkt des Aufbrechens", async () => {
+    const view = mapInterruptedLockPeriod(
+      { endsAt: new Date("2026-07-25T00:00:00+02:00"), withdrawnAt: NOW, message: "14 Tage, Konsequenz" },
+      fmt,
+    )!;
+    expect(view.originalEndsAt).toBe("2026-07-24T22:00:00.000Z");
+    expect(view.indefinite).toBe(false);
+    expect(view.interruptedAt).toBe(NOW.toISOString());
+    expect(view.message).toBe("14 Tage, Konsequenz");
+  });
+
+  it("eine unbefristete Sperrzeit trägt indefinite=true", () => {
+    const view = mapInterruptedLockPeriod({ endsAt: null, withdrawnAt: NOW, message: null }, fmt)!;
+    expect(view.indefinite).toBe(true);
+    expect(view.originalEndsAt).toBeNull();
+  });
+
+  it("null bleibt null", () => {
+    expect(mapInterruptedLockPeriod(null, fmt)).toBeNull();
+    // Ohne withdrawnAt gibt es nichts zu unterbrechen — defensiv, die Query filtert bereits.
+    expect(mapInterruptedLockPeriod({ endsAt: null, withdrawnAt: null, message: null }, fmt)).toBeNull();
+  });
+});

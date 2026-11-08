@@ -1,13 +1,13 @@
 import { Suspense } from "react";
-import { getIsLocked, userHasBox } from "@/lib/queries";
-import { isBoxPhotoDue } from "@/lib/boxPhotoDue";
+import { getIsLocked, userHasBox } from "@/lib/entries/queries";
+import { isBoxPhotoDue } from "@/lib/box/boxPhotoDue";
 import { getTranslations } from "next-intl/server";
-import { prisma } from "@/lib/prisma";
-import { block, type StackBlock } from "@/lib/blockStack";
-import { weightReleaseStatus } from "@/lib/weightReleaseService";
-import type { UnitSystem } from "@/lib/weight";
-import type { SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
-import type { ResolvedLayout } from "@/lib/dashboardLayout";
+import { prisma } from "@/lib/shared/prisma";
+import { block, type StackBlock } from "@/lib/ui/blockStack";
+import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
+import type { UnitSystem } from "@/lib/weight/weight";
+import type { SubDashboardBlockId } from "@/lib/ui/dashboardBlockRegistry";
+import type { ResolvedLayout } from "@/lib/ui/dashboardLayout";
 import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
   deviceCountCached, entriesCached, evaluatedTasksCached, kgVorgabenCached, kgWearPairsCached,
@@ -15,26 +15,26 @@ import {
   orgasmConfigCached, orgasmEntriesCached, pendingLockCached, pendingOpenCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
   subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
-} from "@/lib/dashboardData";
-import { deviceCategoriesEnabled } from "@/lib/constants";
-import { predictAutoMarkAt } from "@/lib/inspectionEscalationService";
-import { cleaningPermissionUserAt } from "@/lib/cleaningRules";
-import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch";
+} from "@/lib/stats/dashboardData";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
+import { predictAutoMarkAt } from "@/lib/kontrollen/inspectionEscalationService";
+import { cleaningPermissionUserAt } from "@/lib/entries/cleaningRules";
+import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch/strafbuch";
 import {
   formatDateTime, formatTime, interruptionPauseMs, runningCleaningPauseUntil,
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
-} from "@/lib/utils";
-import { wearHourPairsByCategory } from "@/lib/sessionModel";
-import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
-import type { Translate } from "@/lib/boxStatus";
-import { currentOrNextCleaningWindow } from "@/lib/cleaningService";
-import { datedWindowLabel } from "@/lib/weekdays";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { resolveReasonLabel } from "@/lib/reasonsService";
-import { categoryNeedsDevice } from "@/lib/categoryConstants";
-import { inspectionHref, openInspections } from "@/lib/entryFormRoute";
-import { inspectionTargetLabel } from "@/lib/inspectionTarget";
-import { belongsOnDashboard, isHeldByTask } from "@/lib/taskIntervals";
+} from "@/lib/shared/utils";
+import { wearHourPairsByCategory } from "@/lib/entries/sessionModel";
+import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";
+import type { Translate } from "@/lib/box/boxStatus";
+import { currentOrNextCleaningWindow } from "@/lib/entries/cleaningService";
+import { datedWindowLabel } from "@/lib/stats/weekdays";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
+import { resolveReasonLabel } from "@/lib/entries/reasonsService";
+import { categoryNeedsDevice } from "@/lib/devices/categoryConstants";
+import { inspectionHref, openInspections } from "@/lib/entries/entryFormRoute";
+import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
+import { belongsOnDashboard, isHeldByTask } from "@/lib/tasks/taskIntervals";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";
@@ -53,7 +53,7 @@ import BoxStatusCard from "@/app/components/BoxStatusCard";
 import WeightReleaseCard from "./WeightReleaseCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import OrgasmFreeSection from "@/app/components/OrgasmFreeSection";
-import { getOffenseRules } from "@/lib/offenseRulesService";
+import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 
 /**
  * **Die Blöcke des Träger-Dashboards — jeder mit seiner eigenen Datenbeschaffung.**

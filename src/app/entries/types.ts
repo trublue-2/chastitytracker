@@ -8,8 +8,8 @@
  */
 
 // `import type` — zur Laufzeit gelöscht, zieht also kein Prisma in das Client-Bundle.
-import type { NextCleaningWindow } from "@/lib/cleaningService";
-import type { CleaningBlockReason } from "@/lib/queries";
+import type { NextCleaningWindow } from "@/lib/entries/cleaningService";
+import type { CleaningBlockReason } from "@/lib/entries/queries";
 export type SubmitResult =
   | { ok: true; offline?: boolean }
   | { ok: false; error: string };

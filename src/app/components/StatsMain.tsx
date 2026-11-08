@@ -1,8 +1,8 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { APP_TZ, toDateLocale } from "@/lib/utils";
-import { entriesCached, hasWeightDataCached, userRowCached } from "@/lib/dashboardData";
-import { renderStack } from "@/lib/blockStack";
-import { viewerLayout } from "@/lib/viewerLayout";
+import { APP_TZ, toDateLocale } from "@/lib/shared/utils";
+import { entriesCached, hasWeightDataCached, userRowCached } from "@/lib/stats/dashboardData";
+import { renderStack } from "@/lib/ui/blockStack";
+import { viewerLayout } from "@/lib/ui/viewerLayout";
 import BlockStack from "@/app/components/BlockStack";
 import { STATS_BLOCK_TABLE, type StatsCtx } from "@/app/components/statsBlocks";
 import BackLink from "@/app/components/BackLink";

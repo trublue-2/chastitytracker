@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { formatDayTimeDual, toDateLocale, APP_TZ } from "@/lib/utils";
+import { formatDayTimeDual, toDateLocale, APP_TZ } from "@/lib/shared/utils";
 import { useTranslations, useLocale } from "next-intl";
 import Section from "@/app/components/Section";
 import type { SectionTone } from "@/app/components/Section";

@@ -5,7 +5,7 @@ import { MessageSquareText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import FeedbackSheet from "./FeedbackSheet";
 import { headerIconBtnCls } from "./inputStyles";
-import type { FeedbackSetup } from "@/lib/feedback";
+import type { FeedbackSetup } from "@/lib/upstream/feedback";
 
 /** Feedback-Knopf (Kopfzeile oder Menü-Zeile). `feedback` kommt vom Server (`feedbackSetup()`);
  *  bei Modus `off` rendert er nichts. */

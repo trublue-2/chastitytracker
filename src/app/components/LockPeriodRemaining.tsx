@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { formatElapsedMs } from "@/lib/utils";
+import { formatElapsedMs } from "@/lib/shared/utils";
 import useRemainingMs from "@/app/hooks/useRemainingMs";
 
 /**

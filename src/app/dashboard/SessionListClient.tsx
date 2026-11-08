@@ -8,8 +8,8 @@ import { SessionEventData } from "./SessionEventRow";
 import SessionTimeline from "./SessionTimeline";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
-import { BLOCK_PAGE_SIZE } from "@/lib/constants";
-import { toDateLocale } from "@/lib/utils";
+import { BLOCK_PAGE_SIZE } from "@/lib/shared/constants";
+import { toDateLocale } from "@/lib/shared/utils";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 interface OeffnenFooter {

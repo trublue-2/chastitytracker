@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { getConnectionStalled, getConnectionStalledServer, subscribeConnection } from "@/lib/connectionHealth";
+import { getConnectionStalled, getConnectionStalledServer, subscribeConnection } from "@/lib/client/connectionHealth";
 
 /**
  * Ob die Verbindung gerade stockt — der EINE Lesezugang zu `connectionHealth`.

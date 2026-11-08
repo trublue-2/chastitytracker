@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import pkg from "../../../../package.json";
-import { censusEnabled, censusHeaders } from "@/lib/census";
+import { censusEnabled, censusHeaders } from "@/lib/upstream/census";
 
 // Gelesen wird der Git-Tag `release`, NICHT main: `release` wandert nur, wenn ein Image als
 // :latest freigegeben wird. Von main gelesen würde der Update-Hinweis Versionen ankündigen,

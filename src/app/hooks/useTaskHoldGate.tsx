@@ -5,8 +5,8 @@ import { AlertCircle } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Card from "@/app/components/Card";
 import RiskConfirmSheet from "@/app/components/RiskConfirmSheet";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
-import type { TaskWarning } from "@/lib/taskIntervals";
+import { formatDateTime, toDateLocale } from "@/lib/shared/utils";
+import type { TaskWarning } from "@/lib/tasks/taskIntervals";
 
 /**
  * Die Bremse vor dem Ablegen: Warnkarte im Formular plus Rückfrage vor dem Absenden, wenn eine

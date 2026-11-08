@@ -8,7 +8,7 @@ import FormError from "@/app/components/FormError";
 import { cardActionCls } from "@/app/components/inputStyles";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 
 /**
  * Eine zurückgezogene Aufgabe endgültig löschen — der Weg, die Liste sauber zu halten.

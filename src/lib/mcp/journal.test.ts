@@ -4,16 +4,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Die KI liest das geteilte Tagebuch unter derselben Regel wie der Mensch: nur als ZUGEORDNETE
  * Keyholderin, und nur über den einen Lesepfad, der Privates gar nicht lädt.
  */
-vi.mock("@/lib/keyholder", () => ({ canReadJournal: vi.fn() }));
-vi.mock("@/lib/journalService", () => ({ listKeyholderJournal: vi.fn() }));
+vi.mock("@/lib/auth/keyholder", () => ({ canReadJournal: vi.fn() }));
+vi.mock("@/lib/journal/journalService", () => ({ listKeyholderJournal: vi.fn() }));
 vi.mock("./common", async (orig) => ({
   ...(await orig<typeof import("./common")>()),
   resolveUserContext: vi.fn(async () => ({ id: "sub1", timezone: "UTC" })),
 }));
 
 import { sharedJournal, SharedJournalDenied } from "./journal";
-import { canReadJournal } from "@/lib/keyholder";
-import { listKeyholderJournal } from "@/lib/journalService";
+import { canReadJournal } from "@/lib/auth/keyholder";
+import { listKeyholderJournal } from "@/lib/journal/journalService";
 
 beforeEach(() => {
   vi.clearAllMocks();

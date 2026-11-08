@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
-import { writeOffenseStatement } from "@/lib/offenseStatementService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
-import { notifyControllers } from "@/lib/notify";
-import { getControllersOfUser } from "@/lib/keyholder";
-import { offenseNameKey } from "@/lib/offenseLabels";
-import { markLastAction } from "@/lib/appMeta";
+import { requireApi } from "@/lib/auth/authGuards";
+import { writeOffenseStatement } from "@/lib/strafbuch/offenseStatementService";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
+import { notifyControllers } from "@/lib/messages/notify";
+import { getControllersOfUser } from "@/lib/auth/keyholder";
+import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";
+import { markLastAction } from "@/lib/upstream/appMeta";
 
 /**
  * Die Stellungnahme des Trägers zu einem festgestellten Vergehen — schreiben, ändern, zurücknehmen.

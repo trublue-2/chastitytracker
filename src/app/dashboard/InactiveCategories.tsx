@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
-import { wearActionHref } from "@/lib/categoryConstants";
+import { wearActionHref } from "@/lib/devices/categoryConstants";
 import CategoryLinkRow from "@/app/components/CategoryLinkRow";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import ExpandToggle from "@/app/components/ExpandToggle";
-import { formatTotalHours } from "@/lib/utils";
+import { formatTotalHours } from "@/lib/shared/utils";
 
 export interface InactiveCategoryRow {
   id: string;

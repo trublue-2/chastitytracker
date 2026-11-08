@@ -1,21 +1,21 @@
 import { redirect } from "next/navigation";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { prisma } from "@/lib/prisma";
-import { deviceCategoriesEnabled } from "@/lib/constants";
-import { getUserTimezone } from "@/lib/queries";
-import { formatDateTime, nowDatetimeLocal, toDateLocale, toDatetimeLocal } from "@/lib/utils";
-import { strafbuchCached } from "@/lib/dashboardData";
-import { openOffensesOf, selectSubOffenses } from "@/lib/subOffenses";
-import { STORED_TYPE } from "@/lib/offenseTypes";
-import { offenseNameKey } from "@/lib/offenseLabels";
-import { weightDayKey } from "@/lib/weight";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
+import { prisma } from "@/lib/shared/prisma";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
+import { getUserTimezone } from "@/lib/entries/queries";
+import { formatDateTime, nowDatetimeLocal, toDateLocale, toDatetimeLocal } from "@/lib/shared/utils";
+import { strafbuchCached } from "@/lib/stats/dashboardData";
+import { openOffensesOf, selectSubOffenses } from "@/lib/strafbuch/subOffenses";
+import { STORED_TYPE } from "@/lib/strafbuch/offenseTypes";
+import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";
+import { weightDayKey } from "@/lib/weight/weight";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import { getLocale, getTranslations } from "next-intl/server";
 import TaskFields, { type PunishmentOffenseOption, type TaskFormInitial } from "@/app/admin/tasks/TaskFields";
-import { recurrenceFromRow } from "@/lib/recurrenceForm";
-import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
-import type { RecurrenceFreq } from "@/lib/taskRecurrence";
+import { recurrenceFromRow } from "@/lib/entries/recurrenceForm";
+import { TASK_FORM_QUERY } from "@/lib/entries/entryFormRoute";
+import type { RecurrenceFreq } from "@/lib/tasks/taskRecurrence";
 
 /** Minuten → Dauer-Eingabe (Stunden bei glattem Wert, sonst Minuten) fürs Vorbefüllen. */
 function minutesToDuration(min: number): { hours: string; holdUnit: "h" | "min" } {

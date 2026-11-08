@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireBoxSync } from "@/lib/boxSync";
-import { getActiveLockPeriod } from "@/lib/queries";
+import { prisma } from "@/lib/shared/prisma";
+import { requireBoxSync } from "@/lib/box/boxSync";
+import { getActiveLockPeriod } from "@/lib/entries/queries";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

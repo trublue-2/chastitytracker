@@ -13,15 +13,15 @@ vi.mock("next/navigation", () => ({
     throw new Error(`REDIRECT:${to}`);
   }),
 }));
-vi.mock("@/lib/auth", () => ({ auth: vi.fn(async () => ({ user: { id: "u1", timezone: null } })) }));
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn(async () => ({ user: { id: "u1", timezone: null } })) }));
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { taskProof: { findFirst: vi.fn() }, user: { findUnique: vi.fn(async () => null) } },
 }));
 // Die Formular-Komponente ist hier ohne Belang — geprüft wird, was die Seite lädt.
 vi.mock("@/app/entries/TaskProofFormCore", () => ({ default: () => null }));
 
 import TaskProofPage from "./page";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const find = prisma.taskProof.findFirst as unknown as ReturnType<typeof vi.fn>;
 

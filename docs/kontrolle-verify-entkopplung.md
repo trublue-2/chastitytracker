@@ -158,9 +158,9 @@ Kopplung — nachrangig zu M1.
 
 ## Verwandte Dateien
 - `src/app/api/entries/route.ts` (POST — Save + Verify-Kopplung)
-- `src/lib/verifyCode.ts` (`verifyKontrolleCode`, `verifyKontrolleCodeDetailed`)
+- `src/lib/kontrollen/verifyCode.ts` (`verifyKontrolleCode`, `verifyKontrolleCodeDetailed`)
 - `src/app/entries/PruefungFormCore.tsx` (Client Live-Check)
 - `src/app/api/verify-kontrolle/route.ts` (Live-Check-Route)
 - `src/lib/vision/openaiCompatible.ts` (`LOCAL_VISION_TIMEOUT_MS`)
-- `src/lib/detectDevice.ts` / Geräte-Check (Referenz für entkoppeltes Muster)
+- `src/lib/kontrollen/detectDevice.ts` / Geräte-Check (Referenz für entkoppeltes Muster)
 - [`docs/local-vision.md`](local-vision.md) (lokale Vision-Provider-Doku)

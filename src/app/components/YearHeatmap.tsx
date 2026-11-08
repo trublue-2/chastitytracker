@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Section from "@/app/components/Section";
-import { WEAR_LEVEL_UPPER, WEAR_LEVEL_BG } from "@/lib/wearIntensity";
-import { ratioPct } from "@/lib/percent";
-import type { HeatmapDay, YearHeatmapData } from "@/lib/statsTypes";
+import { WEAR_LEVEL_UPPER, WEAR_LEVEL_BG } from "@/lib/stats/wearIntensity";
+import { ratioPct } from "@/lib/stats/percent";
+import type { HeatmapDay, YearHeatmapData } from "@/lib/stats/statsTypes";
 
 // Blau-Skala aus wearIntensity.ts — dieselbe Quelle wie der Monatskalender (via WEAR_LEVEL_BG).
 const LEVEL_CLASS = WEAR_LEVEL_BG;

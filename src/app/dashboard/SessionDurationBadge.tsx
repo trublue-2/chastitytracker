@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale } from "next-intl";
-import { formatElapsedMs } from "@/lib/utils";
+import { formatElapsedMs } from "@/lib/shared/utils";
 import useTick from "@/app/hooks/useTick";
 
 /** Ab hier tragen Sekunden nichts mehr bei: eine Stunde. */

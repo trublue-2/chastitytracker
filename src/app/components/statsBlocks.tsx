@@ -1,32 +1,32 @@
 import { cache } from "react";
 import { getTranslations } from "next-intl/server";
-import { block, type StackBlock } from "@/lib/blockStack";
+import { block, type StackBlock } from "@/lib/ui/blockStack";
 import BackLink from "@/app/components/BackLink";
-import type { StatsBlockId } from "@/lib/dashboardBlockRegistry";
+import type { StatsBlockId } from "@/lib/ui/dashboardBlockRegistry";
 import {
   cleaningRulesCached, completedPairsCached, devicesCached, entriesAscCached, entriesCached,
   kgDailyDataCached, kgPairsCached, kgVorgabenCached, kgWearPairsCached, orgasmDaysCached,
   orgasmEntriesCached, punishedDaysCached, statsCategoriesCached, strafbuchCached, subVisibleInspectionsCached,
   vorgabenCached, wearCountsCached, wearPairsByCategoryCached, wearSessionsCached,
-} from "@/lib/dashboardData";
-import { goalPct, sharePct } from "@/lib/percent";
+} from "@/lib/stats/dashboardData";
+import { goalPct, sharePct } from "@/lib/stats/percent";
 import {
   formatDate, formatDateTime, formatDurationMs, formatTotalHours, formatTotalMs,
   buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday,
   longestOrgasmFreeGap, summarizeSessions, tzDayKey, wearingHoursFromPairs, WEAR_PAIR,
-} from "@/lib/utils";
+} from "@/lib/shared/utils";
 import {
   buildCalendarMonths, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
-} from "@/lib/statsBuilders";
-import { hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/goalFulfillment";
-import { resolveGoalRow } from "@/lib/goalSegments";
-import { getKombinierterPill } from "@/lib/kontrollePills";
-import { isKgVorgabe, goalCategoryKey, groupVorgabenByCategory } from "@/lib/vorgaben";
-import { isEffectiveEntry, latestEffectiveKgEntry } from "@/lib/lockPending";
-import { categoryStyle } from "@/lib/categoryConstants";
-import { KG_CATEGORY_META } from "@/lib/deviceCategories";
-import { buildSessions, deviceWearingsOf, type Session } from "@/lib/sessionModel";
-import { buildDeviceUsage, type UsageSession } from "@/lib/deviceUsage";
+} from "@/lib/stats/statsBuilders";
+import { hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/stats/goalFulfillment";
+import { resolveGoalRow } from "@/lib/stats/goalSegments";
+import { getKombinierterPill } from "@/lib/kontrollen/kontrollePills";
+import { isKgVorgabe, goalCategoryKey, groupVorgabenByCategory } from "@/lib/stats/vorgaben";
+import { isEffectiveEntry, latestEffectiveKgEntry } from "@/lib/entries/lockPending";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
+import { KG_CATEGORY_META } from "@/lib/devices/deviceCategories";
+import { buildSessions, deviceWearingsOf, type Session } from "@/lib/entries/sessionModel";
+import { buildDeviceUsage, type UsageSession } from "@/lib/devices/deviceUsage";
 import CategoryIconRender from "./CategoryIcon";
 import { type CategoryVariant } from "./CategorySwitcherCard";
 import DeviceUsageSwitcher, { type DeviceUsageVariant } from "./DeviceUsageSwitcher";
@@ -40,10 +40,10 @@ import StatsCard from "./StatsCard";
 import StatsKontrollenList, { type StatsKontrolleRow } from "./StatsKontrollenList";
 import WeightStatsCard from "./WeightStatsCard";
 import JournalMoodCard, { type MoodChartPoint } from "./JournalMoodCard";
-import { auth } from "@/lib/auth";
-import { canReadJournal } from "@/lib/keyholder";
-import { journalMoodSeries } from "@/lib/journalService";
-import { getWeightStatsProps } from "@/lib/weightStatsProps";
+import { auth } from "@/lib/auth/auth";
+import { canReadJournal } from "@/lib/auth/keyholder";
+import { journalMoodSeries } from "@/lib/journal/journalService";
+import { getWeightStatsProps } from "@/lib/weight/weightStatsProps";
 import { ShieldAlert } from "lucide-react";
 
 /**

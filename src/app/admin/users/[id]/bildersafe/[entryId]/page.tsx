@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { auth } from "@/lib/auth";
-import { isKeyholderOf } from "@/lib/keyholder";
-import { isCodeChangeState } from "@/lib/lockboxCodeCheck";
-import { previousSealedCode } from "@/lib/lockboxCodeCheckService";
-import { prisma } from "@/lib/prisma";
-import { getUserTimezone } from "@/lib/queries";
-import { logAccess } from "@/lib/serverLog";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { auth } from "@/lib/auth/auth";
+import { isKeyholderOf } from "@/lib/auth/keyholder";
+import { isCodeChangeState } from "@/lib/box/lockboxCodeCheck";
+import { previousSealedCode } from "@/lib/box/lockboxCodeCheckService";
+import { prisma } from "@/lib/shared/prisma";
+import { getUserTimezone } from "@/lib/entries/queries";
+import { logAccess } from "@/lib/shared/serverLog";
+import { formatDateTime, toDateLocale } from "@/lib/shared/utils";
 import ImageViewer from "@/app/components/ImageViewer";
 import Section from "@/app/components/Section";
 

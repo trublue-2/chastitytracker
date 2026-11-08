@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/app/components/Button";
 import { CheckCircle, ClipboardList, Plus, Undo2, XCircle } from "lucide-react";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
@@ -14,11 +14,11 @@ import { blockInsetCls } from "@/app/components/inputStyles";
 import { Quote } from "@/app/components/QuotedField";
 import Select from "@/app/components/Select";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
-import { taskFormHref } from "@/lib/entryFormRoute";
-import { joinParts } from "@/lib/utils";
-import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType } from "@/lib/offenseTypes";
-import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
-import { taskFailureKind, type TaskFailureKind, type TaskOffenseState } from "@/lib/tasks";
+import { taskFormHref } from "@/lib/entries/entryFormRoute";
+import { joinParts } from "@/lib/shared/utils";
+import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
+import { AI_AUTHOR, hasAuthor } from "@/lib/shared/constants";
+import { taskFailureKind, type TaskFailureKind, type TaskOffenseState } from "@/lib/tasks/tasks";
 
 /** Das Urteil einer Zeile, so weit die Anzeige es braucht.
  *

@@ -1,9 +1,9 @@
-import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/categoryGoals";
-import { type SegmentEntry } from "@/lib/sessionModel";
-import { periodEndsMs } from "@/lib/goalFulfillment";
-import type { KgGoalRow } from "@/lib/goalSegments";
+import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/devices/categoryGoals";
+import { type SegmentEntry } from "@/lib/entries/sessionModel";
+import { periodEndsMs } from "@/lib/stats/goalFulfillment";
+import type { KgGoalRow } from "@/lib/stats/goalSegments";
 import CategoryGoalsLive from "./CategoryGoalsLive";
-import { KG_CATEGORY_META } from "@/lib/deviceCategories";
+import { KG_CATEGORY_META } from "@/lib/devices/deviceCategories";
 
 interface Props {
   /** Vorgabe aus der Dashboard-Konfiguration — siehe `Section`. */

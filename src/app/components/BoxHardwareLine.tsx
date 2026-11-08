@@ -2,7 +2,7 @@
 
 import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { boxIstLabel, boxFreshnessLabel, boxIsLive, boxBoltAlert } from "@/lib/boxStatus";
+import { boxIstLabel, boxFreshnessLabel, boxIsLive, boxBoltAlert } from "@/lib/box/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import BoxDeviceInfo from "@/app/components/BoxDeviceInfo";
 

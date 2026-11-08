@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { sendMailSafe, escHtml, appBaseUrl } from "@/lib/mail";
-import { emailT, emailGreeting } from "@/lib/emailI18n";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/clientIp";
-import { hashToken } from "@/lib/oauth";
+import { prisma } from "@/lib/shared/prisma";
+import { sendMailSafe, escHtml, appBaseUrl } from "@/lib/messages/mail";
+import { emailT, emailGreeting } from "@/lib/messages/emailI18n";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { clientIp } from "@/lib/auth/clientIp";
+import { hashToken } from "@/lib/auth/oauth";
 import crypto from "crypto";
-import { APP_NAME } from "@/lib/constants";
-import { findUserByLogin } from "@/lib/loginIdentity";
+import { APP_NAME } from "@/lib/shared/constants";
+import { findUserByLogin } from "@/lib/auth/loginIdentity";
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req.headers);

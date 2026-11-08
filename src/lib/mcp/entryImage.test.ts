@@ -1,22 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
-vi.mock("@/lib/imageUtils", () => ({
+vi.mock("@/lib/client/imageUtils", () => ({
   loadUploadedImage: vi.fn(),
 }));
 
-vi.mock("@/lib/rate-limit", () => ({
+vi.mock("@/lib/auth/rate-limit", () => ({
   checkRateLimit: vi.fn(),
 }));
 
 import { loadMcpImage, mcpImageKeyUnlocked, mcpImageToolVisible } from "./entryImage";
-import { loadUploadedImage } from "@/lib/imageUtils";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { prisma } from "@/lib/prisma";
+import { loadUploadedImage } from "@/lib/client/imageUtils";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { prisma } from "@/lib/shared/prisma";
 import { type PrismaMock } from "@/test/prismaMock";
 import { taskProofRow } from "@/test/taskProofRow";
 

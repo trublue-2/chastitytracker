@@ -5,8 +5,8 @@ import { NextRequest } from "next/server";
 const db = vi.hoisted(() => ({
   nativePushToken: { findUnique: vi.fn(async () => null), upsert: vi.fn(async () => ({})) },
 }));
-vi.mock("@/lib/prisma", () => ({ prisma: db }));
-vi.mock("@/lib/authGuards", () => ({
+vi.mock("@/lib/shared/prisma", () => ({ prisma: db }));
+vi.mock("@/lib/auth/authGuards", () => ({
   requireApi: vi.fn(async () => ({ user: { id: "u1" } })),
 }));
 

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 
 export interface TelegramSettingsProps {
   /** Kontrolliert vom Elter (`SettingsForm`), damit es für die „kein Kanal trägt"-Warnung live

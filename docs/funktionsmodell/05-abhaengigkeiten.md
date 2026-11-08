@@ -1,6 +1,6 @@
 # Abhängigkeiten je Funktion
 
-<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodellRegistry.ts
+<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodell/funktionsmodellRegistry.ts
      (`affects` je Stellschraube + FM_WIRED_EDGES) · neu erzeugen: `npm run funktionsmodell` -->
 
 Für jede Mechanik: **was in sie hineinwirkt** und **worauf sie selbst wirkt**. Die Steckbriefe

@@ -1,4 +1,4 @@
-import { verifyCodeOnImage } from "@/lib/verifyCode";
+import { verifyCodeOnImage } from "@/lib/kontrollen/verifyCode";
 import { withVisionConfig, type VisionConfig } from "./config";
 import { SELF_TEST_IMAGE_BASE64 } from "./selfTestImage";
 

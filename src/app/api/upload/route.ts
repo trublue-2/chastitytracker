@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import exifr from "exifr";
 import sharp from "sharp";
-import { markLastAction } from "@/lib/appMeta";
-import { uploadsDirPath, generateUploadFilename } from "@/lib/imageUtils";
-import { fromDatetimeLocal, APP_TZ } from "@/lib/utils";
+import { markLastAction } from "@/lib/upstream/appMeta";
+import { uploadsDirPath, generateUploadFilename } from "@/lib/client/imageUtils";
+import { fromDatetimeLocal, APP_TZ } from "@/lib/shared/utils";
 
 function isAllowedImageBuffer(buf: Buffer): boolean {
   // JPEG: FF D8 FF

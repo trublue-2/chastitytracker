@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useDialogBehaviour } from "@/app/hooks/useDialogBehaviour";
-import { hapticMedium } from "@/lib/haptics";
+import { hapticMedium } from "@/lib/client/haptics";
 
 /** Ab welcher zurückgelegten Strecke (px) das Loslassen schliesst statt zurückzufedern. */
 const SCHLIESS_WEG = 90;

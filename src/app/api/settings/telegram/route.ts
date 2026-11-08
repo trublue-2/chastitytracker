@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireApi } from "@/lib/authGuards";
-import { errorResponse } from "@/lib/serviceResult";
-import { createTelegramLink, unlinkTelegram, telegramLinkAvailable } from "@/lib/telegram";
+import { prisma } from "@/lib/shared/prisma";
+import { requireApi } from "@/lib/auth/authGuards";
+import { errorResponse } from "@/lib/shared/serviceResult";
+import { createTelegramLink, unlinkTelegram, telegramLinkAvailable } from "@/lib/messages/telegram";
 
 /** GET /api/settings/telegram — Verknüpfungs-Status des eigenen Kontos (für die Anzeige, nachdem der
  *  Nutzer im Chat Start gedrückt hat und der Webhook die Bindung gesetzt hat). Ob die Instanz einen

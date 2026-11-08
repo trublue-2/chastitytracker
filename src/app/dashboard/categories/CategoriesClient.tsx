@@ -4,7 +4,7 @@ import { useState } from "react";
 import BackLink from "@/app/components/BackLink";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { formatTotalHours } from "@/lib/utils";
+import { formatTotalHours } from "@/lib/shared/utils";
 import { Plus, Pencil, Trash2, Tag } from "lucide-react";
 import ReorderButtons from "@/app/components/ReorderButtons";
 import Section from "@/app/components/Section";
@@ -14,10 +14,10 @@ import EmptyState from "@/app/components/EmptyState";
 import Badge from "@/app/components/Badge";
 import ActionModal from "@/app/components/ActionModal";
 import useToast from "@/app/hooks/useToast";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import CategoryFormSheet from "./CategoryFormSheet";
-import { parseApiError } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/client/apiClient";
 
 export interface CategoryRow {
   id: string;

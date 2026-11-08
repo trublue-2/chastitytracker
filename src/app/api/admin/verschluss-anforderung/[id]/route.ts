@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { updateLockPeriodEnd, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
+import { updateLockPeriodEnd, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/entries/verschlussAnforderungService";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /** Die Bestandswerte EINER offenen Einschliess-Anforderung — Vorlage für das Bearbeiten-Formular.
  *  Nur ANFORDERUNG: eine Sperrzeit bearbeitet man über `setEnd`, nicht hierüber. */

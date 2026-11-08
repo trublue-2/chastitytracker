@@ -2,7 +2,7 @@
 
 import CalendarContainer from "./CalendarContainer";
 import ShowMore, { useShowMore } from "@/app/components/ShowMore";
-import type { CalendarMonthData } from "@/lib/statsTypes";
+import type { CalendarMonthData } from "@/lib/stats/statsTypes";
 
 /** Wie viele Monate ohne Aufklappen zu sehen sind. */
 const INITIAL_COUNT = 2;

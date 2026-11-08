@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { isEntryFormRoute } from "@/lib/entryFormRoute";
+import { isEntryFormRoute } from "@/lib/entries/entryFormRoute";
 
 /**
  * Reserviert auf Mobile am Ende des Content-Flusses den Platz der fixen Bottom-Nav (h-16 +

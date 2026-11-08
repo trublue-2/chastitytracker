@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBlockedUntil } from "@/lib/login-attempts";
-import { resolveLogin } from "@/lib/loginIdentity";
-import { errorResponse } from "@/lib/serviceResult";
-import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/clientIp";
+import { getBlockedUntil } from "@/lib/auth/login-attempts";
+import { resolveLogin } from "@/lib/auth/loginIdentity";
+import { errorResponse } from "@/lib/shared/serviceResult";
+import { checkRateLimit, rateLimitResponse } from "@/lib/auth/rate-limit";
+import { clientIp } from "@/lib/auth/clientIp";
 
 /**
  * Sagt der Login-Seite, ob die Eingabe im Anmeldefeld gerade gesperrt ist — Benutzername ODER

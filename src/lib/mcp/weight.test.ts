@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() }, weightEntry: { findUnique: vi.fn(), findMany: vi.fn() } },
 }));
 
 import { logWeightDef, weightHistory } from "./weight";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const CTX = { targetUserId: "u1" } as never;

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminActor } from "@/lib/authGuards";
-import { isDevBypassEnabled } from "@/lib/devMode";
-import { createEntryGapForUser, entryGapEnabled, ENTRY_GAP_KINDS } from "@/lib/entryGapService";
+import { prisma } from "@/lib/shared/prisma";
+import { requireKeyholderOrAdminActor } from "@/lib/auth/authGuards";
+import { isDevBypassEnabled } from "@/lib/client/devMode";
+import { createEntryGapForUser, entryGapEnabled, ENTRY_GAP_KINDS } from "@/lib/entries/entryGapService";
 
 /**
  * Eine vergessene Pause (`kind: "break"`, Vorgabe) oder Tragezeit (`kind: "session"`) nachtragen:

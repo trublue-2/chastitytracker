@@ -10,10 +10,10 @@ import RowAction from "@/app/components/RowAction";
 import ImageViewer from "@/app/components/ImageViewer";
 import Badge from "@/app/components/Badge";
 import useRemainingMs from "@/app/hooks/useRemainingMs";
-import { formatDateTimeDual, formatElapsedMs, formatTime, toDateLocale } from "@/lib/utils";
-import { nextTaskStep, taskDeadlineLine, taskFailureLabelKey, visibleStartDeadline, type TaskCardData, type TaskCardProof } from "@/lib/taskView";
-import { isTaskOffense } from "@/lib/tasks";
-import { TASK_STATE_COLOR } from "@/lib/constants";
+import { formatDateTimeDual, formatElapsedMs, formatTime, toDateLocale } from "@/lib/shared/utils";
+import { nextTaskStep, taskDeadlineLine, taskFailureLabelKey, visibleStartDeadline, type TaskCardData, type TaskCardProof } from "@/lib/tasks/taskView";
+import { isTaskOffense } from "@/lib/tasks/tasks";
+import { TASK_STATE_COLOR } from "@/lib/shared/constants";
 
 /** Das Handlungswort einer Nachweis-Zeile: „Foto aufnehmen" führt in die Kamera, „Text einreichen"
  *  ins Textfeld — die Zeile darf nicht das eine versprechen und das andere öffnen. Verspätet ist es

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { createTask, type CreateTaskParams } from "@/lib/taskService";
-import { punishWithTask, type StoredOffenseType } from "@/lib/strafurteilService";
-import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
+import { createTask, type CreateTaskParams } from "@/lib/tasks/taskService";
+import { punishWithTask, type StoredOffenseType } from "@/lib/strafbuch/strafurteilService";
+import { TASK_FORM_QUERY } from "@/lib/entries/entryFormRoute";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /** Keyholder stellt dem Sub eine Aufgabe. */
 export async function POST(req: NextRequest) {

@@ -1,8 +1,8 @@
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { prisma } from "@/lib/prisma";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
+import { prisma } from "@/lib/shared/prisma";
 import { notFound } from "next/navigation";
-import { deviceCategoriesEnabled } from "@/lib/constants";
-import { buildCategoryRows } from "@/lib/categoryRows";
+import { deviceCategoriesEnabled } from "@/lib/shared/constants";
+import { buildCategoryRows } from "@/lib/devices/categoryRows";
 import CategoriesClient from "@/app/dashboard/categories/CategoriesClient";
 
 export default async function AdminCategoriesPage({ params }: { params: Promise<{ id: string }> }) {

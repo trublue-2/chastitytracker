@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { ClipboardList, Droplets, Camera, Play, Square } from "lucide-react";
-import { formatDateTime, formatTime, APP_TZ } from "@/lib/utils";
-import { TYPE_STATS_KEYS } from "@/lib/constants";
+import { formatDateTime, formatTime, APP_TZ } from "@/lib/shared/utils";
+import { TYPE_STATS_KEYS } from "@/lib/shared/constants";
 import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";
 import InspectionReviewButtons, { type InspectionReviewData } from "@/app/admin/kontrollen/InspectionReviewButtons";
 import CategoryIconRender from "@/app/components/CategoryIcon";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
 import { listRowCls, listRowButtonCls, listRowTimeCls } from "@/app/components/inputStyles";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -16,7 +16,7 @@ import { actionIcon } from "@/app/entries/actionSign";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 import Badge from "@/app/components/Badge";
 import { CapturedOfflineBadge } from "@/app/components/CapturedOffline";
-import type { KontrollePill } from "@/lib/kontrollePills";
+import type { KontrollePill } from "@/lib/kontrollen/kontrollePills";
 
 /**
  * Das Zeichen einer Eintragsart — aus der geteilten Registratur, nicht aus einer eigenen Tabelle.

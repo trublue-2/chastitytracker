@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { resolveInspectionEntry } from "@/lib/kontrolleService";
-import { serviceResponse, errorResponse } from "@/lib/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
+import { resolveInspectionEntry } from "@/lib/kontrollen/kontrolleService";
+import { serviceResponse, errorResponse } from "@/lib/shared/serviceResult";
 
 /**
  * Urteil über eine eingereichte Kontrolle, adressiert über den EINTRAG (`action`:

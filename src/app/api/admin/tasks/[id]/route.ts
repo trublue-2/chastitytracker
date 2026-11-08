@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { withdrawTask, deleteTask, updateTask, type UpdateTaskParams } from "@/lib/taskService";
-import { serviceFailure, errorResponse } from "@/lib/serviceResult";
+import { prisma } from "@/lib/shared/prisma";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
+import { withdrawTask, deleteTask, updateTask, type UpdateTaskParams } from "@/lib/tasks/taskService";
+import { serviceFailure, errorResponse } from "@/lib/shared/serviceResult";
 
 /**
  * Wer diese Aufgabe anfassen darf — der BESITZER bestimmt es, nicht der Body.

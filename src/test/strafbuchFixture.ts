@@ -1,4 +1,4 @@
-import { OFFENSE_LISTS } from "@/lib/strafbuch";
+import { OFFENSE_LISTS } from "@/lib/strafbuch/strafbuch";
 
 /**
  * TEST-ONLY (liegt wie `prismaMock.ts` ausserhalb von `src/lib/`: Produktivcode braucht das nicht).

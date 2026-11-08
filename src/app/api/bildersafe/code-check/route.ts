@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
-import { bildersafeEnabled, isValidImageUrl } from "@/lib/constants";
-import { checkCodeChange } from "@/lib/lockboxCodeCheckService";
-import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
-import { errorResponse } from "@/lib/serviceResult";
+import { requireApi } from "@/lib/auth/authGuards";
+import { bildersafeEnabled, isValidImageUrl } from "@/lib/shared/constants";
+import { checkCodeChange } from "@/lib/box/lockboxCodeCheckService";
+import { checkRateLimit, rateLimitResponse } from "@/lib/auth/rate-limit";
+import { errorResponse } from "@/lib/shared/serviceResult";
 
 /**
  * Bildersafe, Issue #115: vergleicht ein frisch aufgenommenes Code-Foto mit dem zuletzt versiegelten

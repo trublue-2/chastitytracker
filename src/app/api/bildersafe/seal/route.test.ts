@@ -8,20 +8,20 @@ import { NextRequest, NextResponse } from "next/server";
  * AKTUELLEN Verschluss — sonst hinge das Code-Foto an einer beendeten Session und wäre über das
  * Anti-Lockout-Ventil sofort freigegeben). Dazu: nur EINMAL pro Verschluss (Issue #111).
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
-vi.mock("@/lib/authGuards", () => ({ requireApi: vi.fn() }));
-vi.mock("@/lib/lockboxCodeCheckService", () => ({
+vi.mock("@/lib/auth/authGuards", () => ({ requireApi: vi.fn() }));
+vi.mock("@/lib/box/lockboxCodeCheckService", () => ({
   codeChangeCheckApplies: vi.fn(async () => true),
   runCodeChangeCheck: vi.fn(async () => undefined),
 }));
 
 import { POST } from "./route";
-import { prisma } from "@/lib/prisma";
-import { requireApi } from "@/lib/authGuards";
-import { codeChangeCheckApplies, runCodeChangeCheck } from "@/lib/lockboxCodeCheckService";
+import { prisma } from "@/lib/shared/prisma";
+import { requireApi } from "@/lib/auth/authGuards";
+import { codeChangeCheckApplies, runCodeChangeCheck } from "@/lib/box/lockboxCodeCheckService";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

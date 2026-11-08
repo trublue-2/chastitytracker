@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, buildEnvelope, parseIsoDate, type Envelope, type NoteDTO } from "@/lib/mcp/common";
-import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
-import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
-import { offenseState, offenseNeedsAttention, type OffenseState } from "@/lib/offenseTypes";
-import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks";
-import { missedWeightRef } from "@/lib/weightObligation";
-import { loadStatements } from "@/lib/offenseStatementService";
+import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch/strafbuch";
+import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafbuch/strafurteilService";
+import { offenseState, offenseNeedsAttention, type OffenseState } from "@/lib/strafbuch/offenseTypes";
+import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks/tasks";
+import { missedWeightRef } from "@/lib/weight/weightObligation";
+import { loadStatements } from "@/lib/strafbuch/offenseStatementService";
 
 // ── Strafbuch-Snapshot ────────────────────────────────────────────────────────
 // Wohnt hier, weil `getOffenses` sein einziger Aufrufer ist. Solange auch das (entfernte) V1-

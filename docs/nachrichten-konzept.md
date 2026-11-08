@@ -130,7 +130,7 @@ einzige Stelle im Projekt mit hartkodiert deutschem Meldungstext (siehe Nebenbef
 
 ### 1.1 Was die App heute verschickt
 
-26 Meldungstypen, praktisch alle über `notifyUser` (`src/lib/notify.ts:27-44`) als **Mail und Push
+26 Meldungstypen, praktisch alle über `notifyUser` (`src/lib/messages/notify.ts:27-44`) als **Mail und Push
 gleichzeitig**, **ohne jede Persistenz**. Die Texte kommen aus dem `emails`-Namespace beider
 `messages/*.json` und werden in der Sprache des *Empfängers* gerendert (`notify.ts:32-34`).
 
@@ -187,7 +187,7 @@ verschwinden mit ihm, weil das Dashboard ausschliesslich **offene** Direktiven l
 > an `firePush` durch) und trägt ungelesene Nachrichten.
 
 `public/sw.js:100-101` setzt `setAppBadge(1)`, das APNs-Payload setzt `badge: 1`
-(`src/lib/push.ts:60`). Zehn Meldungen ergeben 1. Geräumt wird nur im Service Worker beim
+(`src/lib/messages/push.ts:60`). Zehn Meldungen ergeben 1. Geräumt wird nur im Service Worker beim
 Notification-Klick (`sw.js:110-113`) — den nativen Pfad (Capacitor/iOS) durchläuft der SW nicht,
 `NativePushRouter.tsx:24-30` navigiert nur. **Nativ bleibt die 1 dauerhaft stehen.**
 
@@ -287,7 +287,7 @@ Daraus folgen vier Regeln:
   Web-Push-JSON. `sw.js` setzt dann `setAppBadge(data.unread)` bzw. räumt bei 0.
 - **Räumen darf nicht am Klick hängen, sondern am Zustand:** bei App-Start, bei jedem Resume und nach
   jedem Lesevorgang neu setzen.
-- Der Plattform-Zugriff gehört gekapselt nach `src/lib/swMessages.ts` — dort gilt die Regel, dass
+- Der Plattform-Zugriff gehört gekapselt nach `src/lib/messages/swMessages.ts` — dort gilt die Regel, dass
   jeder solche Zugriff dorthin gehört, weil `navigator.serviceWorker` in der iOS-WKWebView und in
   Privatfenstern fehlt und ein ungeschützter Zugriff die umgebende Aktion mitverschluckt.
 - **Ehrlichkeitsregel:** Das Badge zählt **ungelesene Nachrichten**, nicht offene Pflichten. Beides in
@@ -300,7 +300,7 @@ Daraus folgen vier Regeln:
 ### 3.1 Ein Modell, zwei sich ausschliessende Inhaltsfelder
 
 Die Kernfrage ist die Trennung „i18n-Schlüssel + Parameter" gegen „Freitext". Die Antwort steht im
-Repo schon bei den Fehler-Codes (`src/lib/serviceResult.ts:12-14`): ein Feld, in dem manchmal ein
+Repo schon bei den Fehler-Codes (`src/lib/shared/serviceResult.ts:12-14`): ein Feld, in dem manchmal ein
 Schlüssel und manchmal Prosa steht, ist dieselbe Kategorienverwechslung.
 
 ```prisma
@@ -450,7 +450,7 @@ nach sich.
 > **Eine Nachricht darf niemals eine terminierte Direktive verraten.**
 
 Der Bestand hält diese Zusage an zwei Stellen mühsam: `isHiddenFromSub()`
-(`src/lib/delayedTrigger.ts:37-39`) und die `NO_SCHEDULE_DISCLOSURE`-Klausel in den Tool-Beschreibungen.
+(`src/lib/entries/delayedTrigger.ts:37-39`) und die `NO_SCHEDULE_DISCLOSURE`-Klausel in den Tool-Beschreibungen.
 Ein freier Textkanal ist der bequemste Weg, sie zu umgehen — die KI muss den Zeitpunkt nicht einmal
 nennen, ein „mach dich schon mal bereit" reicht.
 

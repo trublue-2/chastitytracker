@@ -200,7 +200,7 @@ in `mcpWrite.ts` und `taskIntervals.ts`.
 
 **Neun Mail-Betreffe bauen dieselbe Figur von Hand.** `${APP_NAME} – …` steht in sieben Dateien,
 dazu zweimal `${APP_NAME}: …` in `healthCheck.ts` — zwei Trennzeichen ohne erkennbaren Grund. Das
-gehört als `appSubject()` neben `dashboardEmailHtml()` in `src/lib/mail.ts`.
+gehört als `appSubject()` neben `dashboardEmailHtml()` in `src/lib/messages/mail.ts`.
 
 ---
 

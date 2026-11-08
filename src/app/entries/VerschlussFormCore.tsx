@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
+import { fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/shared/utils";
 import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
 import { useLockboxCodePhoto } from "@/app/hooks/useLockboxCodePhoto";
 import LockboxCodePhotoField from "@/app/components/LockboxCodePhotoField";
@@ -25,7 +25,7 @@ import ConfirmDialog from "@/app/components/ConfirmDialog";
 import Select from "@/app/components/Select";
 import Card from "@/app/components/Card";
 import Toggle from "@/app/components/Toggle";
-import type { DeviceOption } from "@/lib/queries";
+import type { DeviceOption } from "@/lib/entries/queries";
 import type { VerschlussPayload, SubmitResult } from "./types";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { userRowCached } from "@/lib/dashboardData";
+import { userRowCached } from "@/lib/stats/dashboardData";
 import { currentVisionConfig, disclosureOf, photoAnalysisNoticeDue, visionSpec } from "@/lib/vision/config";
 import PhotoAnalysisNotice from "@/app/components/PhotoAnalysisNotice";
 import { PhotoAnalysisProvider } from "@/app/components/PhotoAnalysisContext";

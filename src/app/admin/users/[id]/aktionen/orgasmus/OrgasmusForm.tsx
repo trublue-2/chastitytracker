@@ -6,9 +6,9 @@ import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import OrgasmusFormCore from "@/app/entries/OrgasmusFormCore";
 import type { OrgasmusPayload, SubmitResult } from "@/app/entries/types";
-import { submitAdminEntry } from "@/lib/apiClient";
+import { submitAdminEntry } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import type { OrgasmusOption } from "@/lib/reasonsService";
+import type { OrgasmusOption } from "@/lib/entries/reasonsService";
 
 export default function OrgasmusForm({ userId, artOptions, tz, nowDefault }: { userId: string; artOptions: OrgasmusOption[]; tz: string; nowDefault: string }) {
   const t = useTranslations("admin");

@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 // Das frühere Raster der Keyholder-Meldungen. Seit dem Stufen-Modell wird es NICHT mehr angelegt —
 // diese Liste ist nur noch der Lese-Schlüssel der einmaligen Übernahme in die Kanal-Stufen
 // (`backfillNotifyLevels`) und beschreibt damit Bestand, nicht geltendes Verhalten.
-// Frühere Spiegelung von src/lib/constants.ts — seed.js is plain CJS
+// Frühere Spiegelung von src/lib/shared/constants.ts — seed.js is plain CJS
 // and can't import from src. Keep both lists in sync.
 const NOTIFICATION_EVENT_TYPES = [
   "VERSCHLUSS",
@@ -26,7 +26,7 @@ const NOTIFICATION_EVENT_TYPES = [
   "PENALTY_REPORTED_DONE",
 ];
 
-// Mirror of src/lib/reasonsService.ts (ART_SEP + DEFAULT_ORGASM_ARTEN sub-combos + backfill logic).
+// Mirror of src/lib/entries/reasonsService.ts (ART_SEP + DEFAULT_ORGASM_ARTEN sub-combos + backfill logic).
 // seed.js is plain CJS and can't import from src — keep in sync. Tested there via
 // backfillOrgasmusArtenConfig in reasonsService.test.ts.
 const ART_SEP = " – ";
@@ -75,7 +75,7 @@ async function ensureKgCategory(userId) {
     create: {
       id: categoryId,
       userId,
-      // Muss `KG_BUILTIN_NAME` aus `src/lib/deviceCategories.ts` spiegeln — `appName.test.ts`
+      // Muss `KG_BUILTIN_NAME` aus `src/lib/devices/deviceCategories.ts` spiegeln — `appName.test.ts`
       // hält die beiden zusammen. Wichtig, weil `docker-entrypoint.sh` erst `migrate deploy`
       // und DANN den Seed fährt: auf einer neuen Instanz läuft die Umbenennungs-Migration über
       // eine leere Tabelle, und was der Seed danach schreibt, korrigiert sie nie mehr.
@@ -174,7 +174,7 @@ async function backfillNotifyLevels() {
   return migrated;
 }
 
-// Mirror of AI_AUTHOR in src/lib/constants.ts — seed.js is plain CJS and can't import from src.
+// Mirror of AI_AUTHOR in src/lib/shared/constants.ts — seed.js is plain CJS and can't import from src.
 // Kanonische Begründung der Namensgrenze steht dort; hier nur die Durchsetzung.
 const AI_AUTHOR = "ai";
 const DEFAULT_ADMIN_USERNAME = "admin";
@@ -214,7 +214,7 @@ async function main() {
   // Die Reservierung prüft den GETRIMMTEN Namen — „ ai" darf nicht an ihr vorbeirutschen.
   const rawUsername = process.env.ADMIN_USERNAME || DEFAULT_ADMIN_USERNAME;
   const username = safeAdminUsername(rawUsername.trim());
-  // Dieselbe Schreibweise wie in der App (`normalizeEmail` in src/lib/loginIdentity.ts — seed.js ist
+  // Dieselbe Schreibweise wie in der App (`normalizeEmail` in src/lib/auth/loginIdentity.ts — seed.js ist
   // CJS und kann nicht importieren): getrimmt und klein, sonst passte die Adresse später nicht auf
   // eine anders geschriebene Eingabe im selben Konto.
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase() || null;
@@ -222,7 +222,7 @@ async function main() {
   // sich der Nutzer registriert hat; ohne sie startete jede Instanz auf Deutsch, und das Portal
   // las diesen Default später als vermeintliche Nutzerwahl zurück und schrieb seine Anschreiben
   // danach. Wirkt nur bei der Neuanlage — die Wahl eines bestehenden Users wird nie überschrieben.
-  // Mirror of toLocale() in src/lib/constants.ts — seed.js is plain CJS and can't import from src.
+  // Mirror of toLocale() in src/lib/shared/constants.ts — seed.js is plain CJS and can't import from src.
   const locale = process.env.ADMIN_LOCALE === "en" ? "en" : "de";
   // C1: KEIN ratebarer Default ("admin123"). Ohne ADMIN_PASSWORD wird ein starkes Zufalls-
   // passwort erzeugt und (nur beim Erststart, s.u.) genau einmal ins Log geschrieben.

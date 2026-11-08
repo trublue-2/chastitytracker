@@ -8,8 +8,8 @@ import ActionModal from "@/app/components/ActionModal";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import LockPeriodEndForm from "@/app/admin/LockPeriodEndForm";
-import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
-import { fetchWithTimeout } from "@/lib/apiClient";
+import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/shared/utils";
+import { fetchWithTimeout } from "@/lib/client/apiClient";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {

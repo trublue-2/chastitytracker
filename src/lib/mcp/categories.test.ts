@@ -4,14 +4,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Oberfläche (deviceCategoryService) — diese Tests halten fest, dass hier keine zweite Prüfkette
 // entstanden ist, die dem Keyholder mehr oder weniger erlaubt als das Formular.
 
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
 import { upsertCategoryDef, deleteCategoryDef } from "./categories";
 import { executeWrite } from "./writeFramework";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { type PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

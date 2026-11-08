@@ -1,4 +1,4 @@
-import { assertAdmin } from "@/lib/authGuards";
+import { assertAdmin } from "@/lib/auth/authGuards";
 import { titleCls } from "@/app/components/inputStyles";
 import { ClipboardCheck, Droplets, Clipboard, Shield, BarChart3 } from "lucide-react";
 

@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Repeat } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
-import { toDateLocale } from "@/lib/utils";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { isoDaysOfMask } from "@/lib/weekdays";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { toDateLocale } from "@/lib/shared/utils";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
+import { isoDaysOfMask } from "@/lib/stats/weekdays";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import FormError from "@/app/components/FormError";
-import { FREQ_LABEL_KEY, FREQ_UNIT_KEY, occurrenceFormatter } from "@/lib/recurrenceForm";
+import { FREQ_LABEL_KEY, FREQ_UNIT_KEY, occurrenceFormatter } from "@/lib/entries/recurrenceForm";
 
 export interface TaskSeriesUi {
   id: string;

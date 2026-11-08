@@ -11,13 +11,13 @@ import Textarea from "@/app/components/Textarea";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";
-import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
+import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { fromDatetimeLocal } from "@/lib/utils";
-import type { ResolvedReason } from "@/lib/reasonsService";
+import { fromDatetimeLocal } from "@/lib/shared/utils";
+import type { ResolvedReason } from "@/lib/entries/reasonsService";
 import { actionSign } from "@/app/entries/actionSign";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
-import type { EntryGapKind } from "@/lib/entryGapService";
+import type { EntryGapKind } from "@/lib/entries/entryGapService";
 
 /** Beschriftung und Zeichen je Art. Die beiden Zeitpunkte heissen hier „erster" und „zweiter": bei
  *  der Pause ist der erste das Öffnen, bei der Tragezeit der Verschluss — die Reihenfolge am Bildschirm

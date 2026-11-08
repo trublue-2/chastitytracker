@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { actionSign } from "@/app/entries/actionSign";
 import { useLocale, useTranslations } from "next-intl";
-import { fromDatetimeLocal, round1 } from "@/lib/utils";
-import { RELEASE_AVERAGE_DAYS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
-import { parseDecimalInput, weightForDisplay, weightInputToKg, weightText, type UnitSystem } from "@/lib/weight";
+import { fromDatetimeLocal, round1 } from "@/lib/shared/utils";
+import { RELEASE_AVERAGE_DAYS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/shared/constants";
+import { parseDecimalInput, weightForDisplay, weightInputToKg, weightText, type UnitSystem } from "@/lib/weight/weight";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import FieldTabs from "@/app/components/FieldTabs";
@@ -14,7 +14,7 @@ import UnderweightNote from "@/app/components/UnderweightNote";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
 import Button from "@/app/components/Button";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 
 /**

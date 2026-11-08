@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import { quietLinkCls } from "@/app/components/inputStyles";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { formatDateTime, toDateLocale } from "@/lib/shared/utils";
 import { useNoticeDismiss } from "@/app/hooks/useNoticeDismiss";
 
 /**

@@ -8,7 +8,7 @@ import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 
 function ResetPasswordForm() {
   const t = useTranslations("resetPassword");

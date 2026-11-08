@@ -4,7 +4,7 @@ import { Scale } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Section from "@/app/components/Section";
 import DetailField from "@/app/components/DetailField";
-import { weightText, type UnitSystem } from "@/lib/weight";
+import { weightText, type UnitSystem } from "@/lib/weight/weight";
 
 /**
  * Die Freigabe-Vorgabe, wie der Träger sie sieht: was verlangt ist, wo er steht, was noch fehlt

@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { entryGapEnabled, type EntryGapKind } from "@/lib/entryGapService";
-import { prisma } from "@/lib/prisma";
+import { entryGapEnabled, type EntryGapKind } from "@/lib/entries/entryGapService";
+import { prisma } from "@/lib/shared/prisma";
 import { getTranslations } from "next-intl/server";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { getUserTimezone } from "@/lib/queries";
-import { nowDatetimeLocal } from "@/lib/utils";
-import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
+import { getUserTimezone } from "@/lib/entries/queries";
+import { nowDatetimeLocal } from "@/lib/shared/utils";
+import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/entries/reasonsService";
 import EntryGapForm from "./EntryGapForm";
 
 /** Server-Seite für beide Nachträge (Pause, Tragezeit). Anders als `oeffnen`/`verschluss` ohne Gate

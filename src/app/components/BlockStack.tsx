@@ -1,8 +1,8 @@
 import { Fragment, type ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
 import DashboardStack from "@/app/components/DashboardStack";
-import type { BlockSurface } from "@/lib/dashboardBlockRegistry";
-import type { ResolvedLayout } from "@/lib/dashboardLayout";
+import type { BlockSurface } from "@/lib/ui/dashboardBlockRegistry";
+import type { ResolvedLayout } from "@/lib/ui/dashboardLayout";
 
 /**
  * Der Block-Stapel einer Seite: die Beschriftungen für den Bearbeiten-Modus und die gerenderten

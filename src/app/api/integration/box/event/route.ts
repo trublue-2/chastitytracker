@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { requireBoxSync } from "@/lib/boxSync";
-import { BOX_EVENT_TYPES } from "@/lib/constants";
-import { boxReportedLockedSafe } from "@/lib/lockCommit";
+import { prisma } from "@/lib/shared/prisma";
+import { requireBoxSync } from "@/lib/box/boxSync";
+import { BOX_EVENT_TYPES } from "@/lib/shared/constants";
+import { boxReportedLockedSafe } from "@/lib/entries/lockCommit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

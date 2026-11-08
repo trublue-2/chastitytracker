@@ -10,10 +10,10 @@ import OffenseStatementField from "@/app/components/OffenseStatementField";
 import ExpandRow from "@/app/components/ExpandRow";
 import RowActionsMenu from "@/app/components/RowActionsMenu";
 import useIsClamped from "@/app/hooks/useIsClamped";
-import { formatDayMonth, formatTime } from "@/lib/utils";
-import { MESSAGE_CATEGORY_PILLS, senderLabel } from "@/lib/messageCategories";
-import type { PresentedMessage } from "@/lib/messagePresenter";
-import type { MessageSenderKind } from "@/lib/messageService";
+import { formatDayMonth, formatTime } from "@/lib/shared/utils";
+import { MESSAGE_CATEGORY_PILLS, senderLabel } from "@/lib/messages/messageCategories";
+import type { PresentedMessage } from "@/lib/messages/messagePresenter";
+import type { MessageSenderKind } from "@/lib/messages/messageService";
 
 const SENDER_ICON: Record<MessageSenderKind, typeof Bot> = { ai: Bot, keyholder: UserRound, system: Settings };
 

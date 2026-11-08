@@ -13,7 +13,7 @@ const loadTrackingContext = vi.fn();
 const deviceFindFirst = vi.fn().mockResolvedValue(null);
 // device_stats liest die Kategorien aus IHRER Tabelle (nicht aus den Geräten) — sonst hätte ein
 // Sammel-Posten ohne Gerät keine Kategorie.
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/shared/prisma", () => ({
   prisma: {
     deviceCategory: {
       findMany: vi.fn().mockResolvedValue([

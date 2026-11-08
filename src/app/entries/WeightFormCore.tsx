@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Scale } from "lucide-react";
-import { toDateLocale, formatDateTime, fromDatetimeLocal, round1 } from "@/lib/utils";
+import { toDateLocale, formatDateTime, fromDatetimeLocal, round1 } from "@/lib/shared/utils";
 import {
   bmi, parseDecimalInput, plausibleDetection, weightForDisplay, weightText, weightInputToKg,
   WEIGHT_JUMP_CONFIRM_KG,
   type UnitSystem,
-} from "@/lib/weight";
+} from "@/lib/weight/weight";
 import FormError from "@/app/components/FormError";
 import FormField from "@/app/components/FormField";
 import { PhotoAnalysisInfo } from "@/app/components/PhotoAnalysisContext";

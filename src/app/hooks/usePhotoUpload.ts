@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { compressImage } from "@/lib/compressImage";
-import type { Rotation } from "@/lib/constants";
-import { fetchWithTimeout, UPLOAD_TIMEOUT_MS, uploadPhoto } from "@/lib/apiClient";
-import { putBlob, offlineBlobToken, isOfflineBlobUrl } from "@/lib/idb";
+import { compressImage } from "@/lib/client/compressImage";
+import type { Rotation } from "@/lib/shared/constants";
+import { fetchWithTimeout, UPLOAD_TIMEOUT_MS, uploadPhoto } from "@/lib/client/apiClient";
+import { putBlob, offlineBlobToken, isOfflineBlobUrl } from "@/lib/client/idb";
 
 /**
  * Netz-unabhängige Aufnahmezeit eines Fotos: erst die EXIF-Zeit (via `exifr`, wie server-seitig),

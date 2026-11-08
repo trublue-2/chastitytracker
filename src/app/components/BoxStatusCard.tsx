@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { boxIsPhysicallyLocked, boxIstLabel, boxBoltAlert, boxPendingTransition, boxBatteryLabel, boxBatteryIsLow, boxFailsafeWarnings, boxFailsafeLabel } from "@/lib/boxStatus";
+import { boxIsPhysicallyLocked, boxIstLabel, boxBoltAlert, boxPendingTransition, boxBatteryLabel, boxBatteryIsLow, boxFailsafeWarnings, boxFailsafeLabel } from "@/lib/box/boxStatus";
 import { useBoxStatus } from "@/app/hooks/useBoxStatus";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import Card from "@/app/components/Card";

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { LayoutDashboard, PlusCircle, BarChart2, ClipboardCheck, LogIn, ShieldCheck } from "lucide-react";
 import { LockClosedIcon } from "@/app/components/lockIcons";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME } from "@/lib/shared/constants";
 
 type Lang = "de" | "en";
 

@@ -2,8 +2,8 @@
 
 import { inlineInputCls } from "@/app/components/inputStyles";
 import { useSyncedDraft } from "@/app/hooks/useSyncedDraft";
-import type { NumberRange } from "@/lib/constants";
-import { clampInputValue } from "@/lib/utils";
+import type { NumberRange } from "@/lib/shared/constants";
+import { clampInputValue } from "@/lib/shared/utils";
 
 /**
  * Schmale Zahl-Eingabe im Inline-Stil der Admin-Settings, die den Tippstand roh stehen lässt und

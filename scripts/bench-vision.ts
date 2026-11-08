@@ -66,7 +66,7 @@ function pad(s: string, n: number) { return (s + " ".repeat(n)).slice(0, n); }
 
 async function main() {
   // Import NACH dem Env-Load, damit die Module die Variablen sehen.
-  const { verifyKontrolleCodeDetailed, detectSealNumber } = await import("@/lib/verifyCode");
+  const { verifyKontrolleCodeDetailed, detectSealNumber } = await import("@/lib/kontrollen/verifyCode");
 
   const manifestPath = process.argv[2] || join(process.cwd(), "scripts", "bench-vision.manifest.json");
   if (!existsSync(manifestPath)) {

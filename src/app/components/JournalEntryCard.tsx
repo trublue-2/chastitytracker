@@ -11,9 +11,9 @@ import { iconActionCls } from "./inputStyles";
 import useToast from "@/app/hooks/useToast";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
-import { journalEditHref, type JournalCardEntry } from "@/lib/journal";
-import { formatDurationMs, formatTime, toDateLocale } from "@/lib/utils";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
+import { journalEditHref, type JournalCardEntry } from "@/lib/journal/journal";
+import { formatDurationMs, formatTime, toDateLocale } from "@/lib/shared/utils";
 
 /**
  * Ein Tagebuch-Eintrag als Karte — für den Sub (`own`: Sichtbarkeit änderbar, Bearbeiten, Löschen)

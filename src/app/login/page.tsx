@@ -10,9 +10,9 @@ import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
 import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 import PasskeyLoginButton from "@/app/components/PasskeyLoginButton";
-import { clearSwUserCache } from "@/lib/swMessages";
-import { syncLocaleCookieFromLogin } from "@/lib/locale";
-import { APP_NAME } from "@/lib/constants";
+import { clearSwUserCache } from "@/lib/messages/swMessages";
+import { syncLocaleCookieFromLogin } from "@/lib/shared/locale";
+import { APP_NAME } from "@/lib/shared/constants";
 
 export default function LoginPage() {
   const t = useTranslations("login");
@@ -55,7 +55,7 @@ export default function LoginPage() {
       // Sprache dieses Accounts übernehmen — sonst bliebe das Cookie eines vorher an DIESEM Browser
       // angemeldeten Users stehen (falsche UI-Sprache trotz korrekter Einstellung).
       syncLocaleCookieFromLogin((session?.user as { locale?: string })?.locale);
-      // Ziel entscheidet der serverseitige Resolver (src/lib/landing.ts) anhand der startPage-Präferenz.
+      // Ziel entscheidet der serverseitige Resolver (src/lib/ui/landing.ts) anhand der startPage-Präferenz.
       router.push("/");
       router.refresh();
     } catch {

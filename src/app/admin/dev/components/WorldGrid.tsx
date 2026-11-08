@@ -1,4 +1,4 @@
-import { WORLDS, type World } from "@/lib/theme";
+import { WORLDS, type World } from "@/lib/client/theme";
 
 /**
  * Das Raster der Bauteil-Schau: dieselbe Sache in jeder Welt, nebeneinander.

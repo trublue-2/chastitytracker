@@ -7,9 +7,9 @@ import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import DetailField from "@/app/components/DetailField";
 import { CapturedOfflineBadge, CapturedOfflineDetail } from "@/app/components/CapturedOffline";
 import { listRowCls, listRowButtonCls, listRowTimeCls } from "@/app/components/inputStyles";
-import { formatDateTime, formatTime, APP_TZ } from "@/lib/utils";
-import { weightText, type UnitSystem } from "@/lib/weight";
-import type { WeightRowData } from "@/lib/weightRows";
+import { formatDateTime, formatTime, APP_TZ } from "@/lib/shared/utils";
+import { weightText, type UnitSystem } from "@/lib/weight/weight";
+import type { WeightRowData } from "@/lib/weight/weightRows";
 
 /**
  * Eine Wiegung als Zeile — geteilt von der Liste in der Statistik-Karte (Träger) und der

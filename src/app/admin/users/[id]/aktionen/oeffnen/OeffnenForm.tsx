@@ -5,9 +5,9 @@ import { useTranslations } from "next-intl";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import OeffnenFormCore from "@/app/entries/OeffnenFormCore";
 import type { OeffnenPayload, SubmitResult } from "@/app/entries/types";
-import { submitAdminEntry } from "@/lib/apiClient";
+import { submitAdminEntry } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import type { ResolvedReason } from "@/lib/reasonsService";
+import type { ResolvedReason } from "@/lib/entries/reasonsService";
 import { actionSign } from "@/app/entries/actionSign";
 
 export default function OeffnenForm({ userId, grundOptions, tz, nowDefault }: { userId: string; grundOptions: ResolvedReason[]; tz: string; nowDefault: string }) {

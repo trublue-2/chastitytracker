@@ -1,16 +1,16 @@
-import { auth } from "@/lib/auth";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
-import { logAccess } from "@/lib/serverLog";
-import { prisma } from "@/lib/prisma";
-import { toDateLocale, APP_TZ } from "@/lib/utils";
+import { auth } from "@/lib/auth/auth";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
+import { logAccess } from "@/lib/shared/serverLog";
+import { prisma } from "@/lib/shared/prisma";
+import { toDateLocale, APP_TZ } from "@/lib/shared/utils";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ClipboardCheck } from "lucide-react";
 import KontrolleButton from "@/app/admin/KontrolleButton";
 import EmptyState from "@/app/components/EmptyState";
 import Section from "@/app/components/Section";
 import AdminKontrolleListClient from "@/app/admin/kontrollen/AdminKontrolleListClient";
-import { loadKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen";
-import { listInspectionTargets } from "@/lib/inspectionTarget";
+import { loadKontrolleRows, mapKontrolleRow } from "@/lib/kontrollen/kontrollen";
+import { listInspectionTargets } from "@/lib/kontrollen/inspectionTarget";
 
 export default async function AdminUserKontrollenPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();

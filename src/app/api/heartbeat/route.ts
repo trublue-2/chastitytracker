@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { getDashboardTasks, evaluateTasks } from "@/lib/taskIntervals";
-import { isTaskResultFinal, proofAwaitingVerdict } from "@/lib/tasks";
-import { getIsLocked, getActiveLockPeriod, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
-import { triggeredWhere } from "@/lib/delayedTrigger";
+import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/shared/prisma";
+import { getDashboardTasks, evaluateTasks } from "@/lib/tasks/taskIntervals";
+import { isTaskResultFinal, proofAwaitingVerdict } from "@/lib/tasks/tasks";
+import { getIsLocked, getActiveLockPeriod, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/entries/queries";
+import { triggeredWhere } from "@/lib/entries/delayedTrigger";
 import { visionConfigured } from "@/lib/vision";
 
 /** So lange gilt eine noch offene Erkennung als „läuft gerade" (steuert nur den Poll-Takt). */

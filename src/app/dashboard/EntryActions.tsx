@@ -8,8 +8,8 @@ import ActionModal from "@/app/components/ActionModal";
 import RowActionsMenu from "@/app/components/RowActionsMenu";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
-import { TYPE_STATS_KEYS } from "@/lib/constants";
-import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/utils";
+import { TYPE_STATS_KEYS } from "@/lib/shared/constants";
+import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/shared/utils";
 
 interface Props {
   id: string;

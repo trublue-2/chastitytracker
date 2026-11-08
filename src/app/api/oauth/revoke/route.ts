@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/clientIp";
-import { revokeToken } from "@/lib/oauth";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { clientIp } from "@/lib/auth/clientIp";
+import { revokeToken } from "@/lib/auth/oauth";
 
 /**
  * POST /api/oauth/revoke

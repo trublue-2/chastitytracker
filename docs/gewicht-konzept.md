@@ -184,7 +184,7 @@ werden müsste — die Fenster brauchen weder Historie noch Urheber.
 
 **BMI wird gerechnet, nicht gespeichert** — eine Spalte wäre eine zweite Wahrheit, die bei jeder
 Grössenkorrektur still falsch würde. Formel, Umrechnung, Rundung, Ziel-Auflösung und Fortschritt in
-`src/lib/weight.ts`.
+`src/lib/weight/weight.ts`.
 
 ## 4. Die Wiege-Fenster
 
@@ -196,10 +196,10 @@ Kurve die Tageszeit mit.
 
 ### 4.1 Eigener Baustein — die Reinigung wird nicht angefasst
 
-Die Reinigungsfenster (`cleaningWindows`, `src/lib/cleaningService.ts`) sehen von aussen gleich
+Die Reinigungsfenster (`cleaningWindows`, `src/lib/entries/cleaningService.ts`) sehen von aussen gleich
 aus: JSON-Liste aus `{start,end}` in Sub-Lokalzeit. **Sie bleiben, wie sie sind.** Kein Umbenennen,
 kein Herausziehen gemeinsamer Helfer, kein Re-Export. Die Wiege-Fenster bekommen einen eigenen,
-geschlossenen Baustein (`src/lib/weightWindows.ts`), der von `cleaningService` nichts benutzt und
+geschlossenen Baustein (`src/lib/weight/weightWindows.ts`), der von `cleaningService` nichts benutzt und
 nichts an ihm ändert.
 
 **Warum das trotz Doppelung richtig ist.** Zeitlich ähneln sich die Fenster, fachlich nicht:
@@ -231,7 +231,7 @@ Seit dem 23.08.2026 ist ein Fenster **Startzeit + Dauer + Wochentage + Erinnerun
 - **Start plus Dauer** statt zweier Uhrzeiten — so steht es auf dem Zettel des Nutzers („ab 5:00,
   ca. 3 h") und so denkt auch, wer es einstellt: die Dauer ist die Grosszügigkeit, die er einräumt
 - **`days` ist eine Wochentags-Bitmaske** (Montag = 1 … Sonntag = 64, 127 = täglich). Sie lebt in
-  `src/lib/weekdays.ts`, zusammen mit der Auswahl-Komponente `WeekdayPicker` — **bewusst ohne Bezug
+  `src/lib/stats/weekdays.ts`, zusammen mit der Auswahl-Komponente `WeekdayPicker` — **bewusst ohne Bezug
   auf das Gewicht**: dieselbe Auswahl brauchen die Auto-Kontrollen (Schlaf-Fenster, festes
   Auslöse-Fenster) und die Reinigungsfenster, sobald jemand sie nachrüstet. Geteilt wird, was ein
   Wochentag ist, nicht was er auslöst
@@ -304,7 +304,7 @@ Tagesaufgabe würde bei jedem ausgelassenen Tag scheitern, während die Regel dr
 Also eine eigene Vergehensart, **live abgeleitet** wie alle anderen — aus den Lücken zwischen den
 `WeightEntry`-Tagen. Keine gespeicherte Zeile, kein Poller.
 
-Was dazugehört (`src/lib/offenseTypes.ts`, `offenseRules.ts`, `offenseLabels.ts`, `strafbuch.ts`):
+Was dazugehört (`src/lib/strafbuch/offenseTypes.ts`, `offenseRules.ts`, `offenseLabels.ts`, `strafbuch.ts`):
 
 - kanonischer Typ `missed_weight_report`, Modi `off`/`on`
 - **Vorgabe `off`.** Die Datei sagt es selbst: „Ein Update darf niemandem über Nacht ein Vergehen
@@ -401,7 +401,7 @@ lange nützlich, wie ihn jemand anzweifeln könnte. Vorschlag **60 Tage**, über
 
 ### 9.3 Die Erkennung
 
-**Der Weg existiert.** `detectSealDigits()` (`src/lib/verifyCode.ts:443`) ist ein generischer
+**Der Weg existiert.** `detectSealDigits()` (`src/lib/kontrollen/verifyCode.ts:443`) ist ein generischer
 Ziffernleser über die Vision-Abstraktion (`src/lib/vision/`): Provider-Umschaltung Anthropic/lokale
 Box, Rotation, Logging, Halluzinations-Guards. `detectSealNumber` und `detectLockboxCode` sind
 bereits zwei Aufrufer mit eigenem Prompt; die Waage wird der dritte — mit einer Erweiterung, denn
@@ -473,7 +473,7 @@ Deshalb eine Zeilen-Liste, an zwei Orten aus denselben Bausteinen:
   auf (untere Grenze einschliessend, obere ausschliessend) — eine zweite Paginierung über eine
   zweite Tabelle müsste beide Zählungen zusammenrechnen, um zu wissen, wo Seite drei beginnt
 
-Bausteine: `src/lib/weightRows.ts` (Laden samt Veränderung zum Vorwert) und
+Bausteine: `src/lib/weight/weightRows.ts` (Laden samt Veränderung zum Vorwert) und
 `src/app/components/WeightRow.tsx` (die Zeile samt Detail-Panel, Aufbau und Masse wie `EntryRow`).
 Die Veränderung rechnet immer gegen die vorherige Messung im BESTAND, nicht gegen die vorherige im
 Ausschnitt: sonst begänne jede Seite mit einem leeren Delta.
@@ -518,9 +518,9 @@ Meldung darunter (Abschnitt 7). Beide brauchen die Angabe nicht.
 
 | # | Inhalt | Kern |
 |---|---|---|
-| 1 | Schema + Migration (`WeightEntry`, `HeightChange`, User-Felder), **Gate je Sub + ENV** (ENV seit 6.2.7 entfernt), `src/lib/weight.ts` (BMI, Umrechnung, Rundung, Ziel-Prüfung), Einstellungen beidseitig, API-Routen | Fleissarbeit nach Muster |
+| 1 | Schema + Migration (`WeightEntry`, `HeightChange`, User-Felder), **Gate je Sub + ENV** (ENV seit 6.2.7 entfernt), `src/lib/weight/weight.ts` (BMI, Umrechnung, Rundung, Ziel-Prüfung), Einstellungen beidseitig, API-Routen | Fleissarbeit nach Muster |
 | 2 | Erfassung: (+)-Zeile, Formular Sub (Foto-Pflicht, 3-kg-Nachfrage), Aktion KH, Upload, EXIF | viele kleine Dateien |
-| 3 | `src/lib/weightWindows.ts` — eigener Baustein, `cleaningService` bleibt unberührt | in sich geschlossen |
+| 3 | `src/lib/weight/weightWindows.ts` — eigener Baustein, `cleaningService` bleibt unberührt | in sich geschlossen |
 | 4 ✅ | Pflicht und Vergehen: `missed_weight_report`, Drei-Tage-Blöcke, `HealthHold`-Pause, Regel-Historisierung, Kopplung an den Gate, Tests | **die heikelste Etappe** — nur hier kann ein Fehler rückwirkend Vergehen erzeugen |
 | 5 ✅ | Grenz-Meldung (einmal je Austritt) | wenig Code, existierende Wege. **Ohne Verweis ins Aufgaben-Formular:** Nachrichten tragen im Bestand keine Ziel-Links (die `ref` dient nur der Einmal-Zusage), und eine Link-Auflösung im Posteingang wäre ein eigener Umbau. Die Keyholderin handelt von der Sub-Seite aus. |
 | 6 ✅ | Diagramm-Komponente + Statistik-Karte | Zeichenarbeit, keine Logik |

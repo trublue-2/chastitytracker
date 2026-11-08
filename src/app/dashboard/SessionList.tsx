@@ -1,10 +1,10 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { toDateLocale, formatDurationBetween, formatDurationMs, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, buildLockPoints, wornDeviceNameAt, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type CleaningPauseAllowance } from "@/lib/utils";
-import { getKombinierterPill } from "@/lib/kontrollePills";
-import type { VerifyFailure } from "@/lib/verifyReason";
-import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
-import { keyProofFor, NO_TELEMETRY_KEY_PROOF } from "@/lib/boxKeyProof";
-import { inspectionHref } from "@/lib/entryFormRoute";
+import { toDateLocale, formatDurationBetween, formatDurationMs, formatDate, formatTime, formatDateTime, hasExifMismatch, interruptionPauseMs, buildLockPoints, wornDeviceNameAt, APP_TZ, isTimeCorrected, isSubVisibleKontrolle, type CleaningPauseAllowance } from "@/lib/shared/utils";
+import { getKombinierterPill } from "@/lib/kontrollen/kontrollePills";
+import type { VerifyFailure } from "@/lib/kontrollen/verifyReason";
+import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/entries/reasonsService";
+import { keyProofFor, NO_TELEMETRY_KEY_PROOF } from "@/lib/box/boxKeyProof";
+import { inspectionHref } from "@/lib/entries/entryFormRoute";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 
 interface KontrolleItem {

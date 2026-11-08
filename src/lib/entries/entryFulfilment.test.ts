@@ -1,0 +1,399 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+
+/**
+ * `applyEntryFulfilment` ist die eine Erfüllungs-Logik beider Erfassungs-Pfade. Ihr einziger
+ * Unterschied ist der Parameter `at` — Stichtag der Auswahl UND Erfüllungs-Zeitstempel:
+ *
+ *   Sub-Pfad       `at = new Date()`      (Server-Uhr; die Eintrags-Zeit ist frei wählbar)
+ *   Keyholder-Pfad `at = entry.startTime` (dort ist Rückdatieren erlaubt)
+ *
+ * Genau daran hängt, ob ein nachgetragener Eintrag ein „zu spät"-Vergehen erzeugt oder auflöst —
+ * das Strafbuch leitet es live aus `fulfilledAt` gegen die Frist ab (siehe strafbuch.ts).
+ */
+
+const txMock = {
+  kontrollAnforderung: { findFirst: vi.fn(), update: vi.fn() },
+  verschlussAnforderung: { findMany: vi.fn(), updateMany: vi.fn(), createMany: vi.fn() },
+  orgasmusAnforderung: { findFirst: vi.fn(), update: vi.fn() },
+};
+vi.mock("@/lib/shared/prisma", () => ({ prisma: { strafeRecord: { create: vi.fn() } } }));
+
+import { applyEntryFulfilment } from "./entryFulfilment";
+import { isPastDeadlineUnfulfilled } from "../shared/utils";
+
+/** Die Frist der Anordnung: „schliess dich bis 20:00 ein." */
+const DEADLINE = new Date("2026-08-03T20:00:00Z");
+/** Der Sub handelt pünktlich um 19:30 … */
+const ON_TIME = new Date("2026-08-03T19:30:00Z");
+/** … die Keyholderin trägt es aber erst am nächsten Tag nach. */
+const RECORDED_LATER = new Date("2026-08-04T09:00:00Z");
+const HOUR = 60 * 60 * 1000;
+
+/** Kein Kontroll-Kontext — jeder Eintrag, der keine PRUEFUNG ist. */
+const NO_INSPECTION = { verification: null, targetWhere: null };
+/** Eine Kontroll-Einreichung samt Ziel-Schranke (hier: KG), wie `deriveEntryVerification` sie liefert. */
+const inspection = (verification: Parameters<typeof applyEntryFulfilment>[2]["verification"]) =>
+  ({ verification, targetWhere: { categoryId: null } });
+
+const entry = (over: Partial<{ type: string; startTime: Date; orgasmusArt: string | null }> = {}) => ({
+  id: "e1", userId: "u1", type: "VERSCHLUSS", startTime: ON_TIME, orgasmusArt: null, ...over,
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  txMock.verschlussAnforderung.findMany.mockResolvedValue([]);
+  txMock.kontrollAnforderung.findFirst.mockResolvedValue(null);
+  txMock.orgasmusAnforderung.findFirst.mockResolvedValue(null);
+});
+
+/** Die eine offene Anordnung mit Frist 20:00 und 24 h Sperre. */
+function openLockRequest() {
+  txMock.verschlussAnforderung.findMany.mockResolvedValue([
+    { id: "a1", deviceId: null, message: "24h drin bleiben", cleaningAllowed: true, minDurationHours: 24, lockEndsAt: null },
+  ]);
+}
+
+describe("Verschluss-Anforderung — `at` entscheidet über das Vergehen", () => {
+  it("Keyholder-Nachtrag mit pünktlicher Zeit erfüllt VOR der Frist → kein Vergehen", async () => {
+    openLockRequest();
+    // Keyholder-Pfad: `at` ist die Eintrags-Zeit, NICHT der Moment des Erfassens.
+    await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
+
+    const { data } = txMock.verschlussAnforderung.updateMany.mock.calls[0][0] as { data: { fulfilledAt: Date } };
+    expect(data.fulfilledAt).toEqual(ON_TIME);
+    // Das Strafbuch liest genau diesen Wert — pünktlich erfüllt heisst: nicht zu spät.
+    expect(isPastDeadlineUnfulfilled(DEADLINE, data.fulfilledAt, RECORDED_LATER)).toBe(false);
+  });
+
+  it("derselbe Nachtrag mit dem Erfassungs-Moment als `at` erzeugt das Vergehen — der alte Zustand", async () => {
+    openLockRequest();
+    await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, RECORDED_LATER);
+
+    const { data } = txMock.verschlussAnforderung.updateMany.mock.calls[0][0] as { data: { fulfilledAt: Date } };
+    expect(isPastDeadlineUnfulfilled(DEADLINE, data.fulfilledAt, RECORDED_LATER)).toBe(true);
+  });
+
+  it("eine Eintrags-Zeit NACH der Frist bleibt ein Vergehen — Rückdatieren wäscht nicht pauschal rein", async () => {
+    openLockRequest();
+    const zuSpaet = new Date("2026-08-03T20:05:00Z");
+    await applyEntryFulfilment(txMock as never, entry({ startTime: zuSpaet }), NO_INSPECTION, zuSpaet);
+
+    const { data } = txMock.verschlussAnforderung.updateMany.mock.calls[0][0] as { data: { fulfilledAt: Date } };
+    expect(isPastDeadlineUnfulfilled(DEADLINE, data.fulfilledAt, RECORDED_LATER)).toBe(true);
+  });
+
+  it("die Auswahl der Anforderungen läuft gegen `at`, nicht gegen die Uhr", async () => {
+    openLockRequest();
+    await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
+
+    const { where } = txMock.verschlussAnforderung.findMany.mock.calls[0][0] as {
+      where: { OR: unknown[]; createdAt: { lte: Date } };
+    };
+    // activeVerschlussAnforderungWhere(at): nur was zu DIESEM Zeitpunkt schon ausgelöst war.
+    expect(where.OR).toEqual([{ wirksamAb: null }, { wirksamAb: { lte: ON_TIME } }]);
+    // Und — die eigentliche Rückdatierungs-Schranke — nur was es damals schon GAB. Ohne sie hakte
+    // ein zurückdatierter Verschluss eine erst danach gestellte Anordnung ab und erzeugte eine
+    // Sperrzeit, die im Moment ihrer Entstehung bereits abgelaufen wäre.
+    expect(where.createdAt).toEqual({ lte: ON_TIME });
+  });
+
+  it("die Sperrzeit rechnet ab der Eintrags-Zeit, nicht ab dem Nachtrag", async () => {
+    openLockRequest();
+    await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
+
+    const { data } = txMock.verschlussAnforderung.createMany.mock.calls[0][0] as { data: { endsAt: Date }[] };
+    expect(data[0].endsAt).toEqual(new Date(ON_TIME.getTime() + 24 * HOUR));
+  });
+
+  it("eine unbefristete Vorgabe ergibt eine Sperrzeit OHNE Ende", async () => {
+    txMock.verschlussAnforderung.findMany.mockResolvedValue([
+      { id: "a1", deviceId: null, message: null, cleaningAllowed: false, minDurationHours: null, lockEndsAt: null, lockIndefinite: true },
+    ]);
+    await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
+
+    const { data } = txMock.verschlussAnforderung.createMany.mock.calls[0][0] as { data: { art: string; endsAt: Date | null }[] };
+    expect(data).toEqual([expect.objectContaining({ art: "SPERRZEIT", endsAt: null })]);
+  });
+
+  it("ohne offene Anforderung passiert nichts — und es gibt keine Geräte-Vorgabe", async () => {
+    const required = await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
+    expect(txMock.verschlussAnforderung.updateMany).not.toHaveBeenCalled();
+    expect(txMock.verschlussAnforderung.createMany).not.toHaveBeenCalled();
+    expect(required).toEqual([]);
+  });
+
+  it("gibt die geforderten Geräte zurück (Grundlage der Falsch-Gerät-Ahndung)", async () => {
+    txMock.verschlussAnforderung.findMany.mockResolvedValue([
+      { id: "a1", deviceId: "d1", message: null, cleaningAllowed: false, minDurationHours: null, lockEndsAt: null },
+      { id: "a2", deviceId: null, message: null, cleaningAllowed: false, minDurationHours: null, lockEndsAt: null },
+    ]);
+    const required = await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
+    expect(required).toEqual(["d1"]);
+  });
+});
+
+describe("Kontroll-Anforderung", () => {
+  it("mit Code-Pflicht ist der Code der Schlüssel — und `at` der Erfüllungs-Zeitstempel", async () => {
+    txMock.kontrollAnforderung.findFirst.mockResolvedValue({ id: "k1" });
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "PRUEFUNG" }),
+      inspection({ kind: "code", code: "89758", sealCode: null }),
+      ON_TIME,
+    );
+
+    const { where } = txMock.kontrollAnforderung.findFirst.mock.calls[0][0] as {
+      where: { code: string; createdAt: { lte: Date } };
+    };
+    expect(where.code).toBe("89758");
+    // Dieselbe Schranke wie bei den Verschluss-Anforderungen: ein auf 09:00 zurückdatierter
+    // Eintrag darf keine erst um 14:00 gestellte Kontrolle beantworten.
+    expect(where.createdAt).toEqual({ lte: ON_TIME });
+    const { data } = txMock.kontrollAnforderung.update.mock.calls[0][0] as { data: { fulfilledAt: Date; entryId: string } };
+    expect(data).toEqual({ entryId: "e1", fulfilledAt: ON_TIME });
+  });
+
+  it("freiwillige Selbstkontrolle an einem Gerät MIT Code-Pflicht erfüllt nichts", async () => {
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "PRUEFUNG" }),
+      inspection({ kind: "none", codeRequired: true }),
+      ON_TIME,
+    );
+    expect(txMock.kontrollAnforderung.findFirst).not.toHaveBeenCalled();
+    expect(txMock.kontrollAnforderung.update).not.toHaveBeenCalled();
+  });
+
+  it("ohne Code-Pflicht beantwortet das Foto die eine offene, code-lose Anforderung", async () => {
+    txMock.kontrollAnforderung.findFirst.mockResolvedValue({ id: "k2" });
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "PRUEFUNG" }),
+      inspection({ kind: "none", codeRequired: false }),
+      ON_TIME,
+    );
+    const { where } = txMock.kontrollAnforderung.findFirst.mock.calls[0][0] as { where: { code: null } };
+    expect(where.code).toBeNull();
+    expect(txMock.kontrollAnforderung.update).toHaveBeenCalled();
+  });
+
+  it("ohne Verifikations-Kontext (kein Foto/kein Lock) wird nichts erfüllt", async () => {
+    await applyEntryFulfilment(txMock as never, entry({ type: "PRUEFUNG" }), NO_INSPECTION, ON_TIME);
+    expect(txMock.kontrollAnforderung.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Der Nachweis-Zwang einer Kontrolle. Was verlangt wird, steht in der ANFORDERUNG (`requireBoxPhoto`,
+ * beim Anlegen geschrieben) — hier wird nur noch abgeglichen, ob die Einreichung ihn mitbringt. Und
+ * es wird geworfen statt erfüllt: der Wurf rollt die Transaktion zurück, der Eintrag entsteht gar
+ * nicht erst.
+ */
+describe("Kontrolle mit Nachweis-Zwang", () => {
+  const submit = (over: { requireBoxPhoto: boolean; boxPhotoMissing: boolean }) => {
+    txMock.kontrollAnforderung.findFirst.mockResolvedValue({ id: "k1", requireBoxPhoto: over.requireBoxPhoto });
+    return applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "PRUEFUNG" }),
+      { ...inspection({ kind: "code", code: "89758", sealCode: null }), boxPhotoMissing: over.boxPhotoMissing },
+      ON_TIME,
+    );
+  };
+
+  it("weist die Einreichung ohne Box-Foto ab — und hakt dabei nichts ab", async () => {
+    await expect(submit({ requireBoxPhoto: true, boxPhotoMissing: true })).rejects.toThrow();
+    expect(txMock.kontrollAnforderung.update).not.toHaveBeenCalled();
+  });
+
+  it("mit Box-Foto erfüllt sie normal", async () => {
+    await submit({ requireBoxPhoto: true, boxPhotoMissing: false });
+    expect(txMock.kontrollAnforderung.update).toHaveBeenCalled();
+  });
+
+  it("eine Anforderung ohne Zwang bleibt auch ohne Foto erfüllbar", async () => {
+    await submit({ requireBoxPhoto: false, boxPhotoMissing: true });
+    expect(txMock.kontrollAnforderung.update).toHaveBeenCalled();
+  });
+});
+
+describe("Orgasmus-Anforderung", () => {
+  it("das FENSTER prüft immer die Eintrags-Zeit, der Stempel folgt `at`", async () => {
+    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: null });
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "ORGASMUS", startTime: ON_TIME }),
+      NO_INSPECTION,
+      RECORDED_LATER,
+    );
+
+    const { where } = txMock.orgasmusAnforderung.findFirst.mock.calls[0][0] as {
+      where: { beginsAt: { lte: Date }; endsAt: { gte: Date } };
+    };
+    expect(where.beginsAt.lte).toEqual(ON_TIME);
+    expect(where.endsAt.gte).toEqual(ON_TIME);
+    const { data } = txMock.orgasmusAnforderung.update.mock.calls[0][0] as { data: { fulfilledAt: Date } };
+    expect(data.fulfilledAt).toEqual(RECORDED_LATER);
+  });
+
+  it("passt die vorgegebene Art nicht, bleibt die Anforderung offen", async () => {
+    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: "RUINIERT" });
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "ORGASMUS", orgasmusArt: "VOLL" }),
+      NO_INSPECTION,
+      ON_TIME,
+    );
+    expect(txMock.orgasmusAnforderung.update).not.toHaveBeenCalled();
+  });
+
+  it("eine Vorgabe als voller Kombi-Code erfüllt sich bei exakt dieser Unterart", async () => {
+    // Vorfall 05.09.2026: Vorgabe UND Eintrag waren „Orgasmus – Masturbation", der Vergleich nur
+    // gegen die Basis („Orgasmus") schlug fehl und die Anweisung lief unerfüllbar aus.
+    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: "Orgasmus – Masturbation" });
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "ORGASMUS", orgasmusArt: "Orgasmus – Masturbation" }),
+      NO_INSPECTION,
+      ON_TIME,
+    );
+    expect(txMock.orgasmusAnforderung.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ fulfilledAt: ON_TIME, entryId: "e1" }) }),
+    );
+  });
+
+  it("eine Unterart-Vorgabe zählt eine andere Unterart NICHT", async () => {
+    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: "Orgasmus – Masturbation" });
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "ORGASMUS", orgasmusArt: "Orgasmus – Geschlechtsverkehr" }),
+      NO_INSPECTION,
+      ON_TIME,
+    );
+    expect(txMock.orgasmusAnforderung.update).not.toHaveBeenCalled();
+  });
+
+  it("eine Hauptart-Vorgabe wird von jeder Unterart erfüllt", async () => {
+    txMock.orgasmusAnforderung.findFirst.mockResolvedValue({ id: "o1", requiredType: "Orgasmus" });
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "ORGASMUS", orgasmusArt: "Orgasmus – Masturbation" }),
+      NO_INSPECTION,
+      ON_TIME,
+    );
+    expect(txMock.orgasmusAnforderung.update).toHaveBeenCalled();
+  });
+});
+
+describe("Typ-Trennung", () => {
+  it("ein Verschluss fasst weder Kontroll- noch Orgasmus-Anforderungen an", async () => {
+    openLockRequest();
+    await applyEntryFulfilment(txMock as never, entry(), NO_INSPECTION, ON_TIME);
+    expect(txMock.kontrollAnforderung.findFirst).not.toHaveBeenCalled();
+    expect(txMock.orgasmusAnforderung.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("eine Öffnung erfüllt gar nichts", async () => {
+    await applyEntryFulfilment(txMock as never, entry({ type: "OEFFNEN" }), NO_INSPECTION, ON_TIME);
+    expect(txMock.verschlussAnforderung.findMany).not.toHaveBeenCalled();
+    expect(txMock.kontrollAnforderung.findFirst).not.toHaveBeenCalled();
+    expect(txMock.orgasmusAnforderung.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Der Header oben beschreibt die Asymmetrie der beiden Pfade — geprüft wurde bisher nur, dass
+ * `applyEntryFulfilment` das übergebene `at` treu verarbeitet. WELCHES `at` die Routen übergeben,
+ * prüfte niemand, und genau dort sitzt die Sicherheitseigenschaft aus `bb818d2c`: übergäbe der
+ * Sub-Pfad `created.startTime` statt der Server-Uhr, wäre die Rückdatier-Lücke zurück — jeder Test
+ * dieser Datei bliebe grün, weil die Funktion ja weiterhin korrekt rechnet.
+ *
+ * Bauart nach `appName.test.ts`: die Aufrufstelle wird als TEXT gelesen. Die Alternative wäre ein
+ * Routen-Test mit Attrappen für Prisma, Auth, Box und Benachrichtigungen — viel Gerüst für eine
+ * Eigenschaft, die aus einem Argument besteht.
+ *
+ * **Warum die Argumente zerlegt werden, statt im ganzen Aufruf nach Text zu suchen.** Beides war
+ * hier schon falsch gebaut und fiel erst im Review auf:
+ *
+ *   1. Ein Ausschnitt bis zur ersten `);` endet mitten im Aufruf, sobald ein KOMMENTAR darin ein
+ *      `foo();` enthält. Die belastende Zeile liegt dann ausserhalb — und eine `not.toMatch`-Zusage
+ *      wird GRÜN, gerade weil der Text fehlt. Klammer-Tiefe kennt dieses Versagen nicht: ein
+ *      Kommentar mit `foo();` ist ausgeglichen.
+ *   2. `toContain("new Date()")` über den ganzen Aufruf sagt nur, dass irgendwo eine Server-Uhr
+ *      steht — nicht, dass sie das `at`-Argument IST. `submittedAt: new Date()` im Options-Objekt
+ *      erfüllt die Zusage, während `at` längst die frei gewählte Nutzer-Zeit trägt.
+ *
+ * Deshalb: Argumente über die Klammer-Tiefe trennen und das LETZTE exakt vergleichen. Geht die
+ * Zerlegung schief, stimmt die Argument-Zahl nicht mehr und der Wächter wird ROT — die Richtung,
+ * in die ein Wächter versagen muss.
+ */
+describe("Welche Uhr die Erfassungs-Routen an applyEntryFulfilment geben", () => {
+  /**
+   * Die Argumente eines Aufrufs als Quelltext, über die Klammer-Tiefe getrennt.
+   * Der Import (`import { applyEntryFulfilment, … }`) kann nicht getroffen werden: dort folgt dem
+   * Bezeichner nie eine öffnende Klammer.
+   */
+  function callArgs(file: string): string[] {
+    const src = readFileSync(file, "utf8");
+    const at = src.indexOf("applyEntryFulfilment(");
+    expect(at, `kein Aufruf von applyEntryFulfilment( in ${file}`).toBeGreaterThan(-1);
+
+    const args: string[] = [];
+    let cur = "";
+    let depth = 0;
+    for (let i = at + "applyEntryFulfilment".length; i < src.length; i++) {
+      const c = src[i];
+      if (c === "(" || c === "{" || c === "[") {
+        if (++depth === 1) continue;
+      } else if (c === ")" || c === "}" || c === "]") {
+        if (--depth === 0) { args.push(cur); break; }
+      } else if (c === "," && depth === 1) {
+        args.push(cur); cur = ""; continue;
+      }
+      cur += c;
+    }
+    return args.map((a) => a.trim()).filter((a) => a.length > 0);
+  }
+
+  const sub = callArgs("src/app/api/entries/route.ts");
+  // Der Keyholder-Pfad liegt seit der MCP-Öffnung im DIENST, nicht mehr in der Route — der
+  // Wächter folgt ihm dorthin. Was er bewacht, ist unverändert: WELCHE Uhr die Erfüllung datiert.
+  const admin = callArgs("src/lib/entries/entryCreateService.ts");
+
+  it("zerlegt beide Aufrufe vollständig", () => {
+    // Der Selbsttest des Wächters: stimmt die Zahl nicht, ist die Zerlegung an einer Klammer
+    // gescheitert und JEDE Aussage darunter wertlos. Lieber hier rot als unten falsch grün.
+    expect(sub, "Sub-Pfad: (tx, created, opts, at)").toHaveLength(4);
+    expect(admin, "Keyholder-Pfad: (tx, created, opts, at)").toHaveLength(4);
+  });
+
+  it("der Sub-Pfad datiert mit der SERVER-Uhr — eine Client-Zeit NUR über das Offline-Flag", () => {
+    // Der Stichtag ist jetzt eine Variable (`fulfilmentAt`), seit ein OFFLINE erfasster Eintrag die
+    // Client-Erfassungszeit tragen darf. Der Wächter folgt der Variablen und prüft ihre Herleitung —
+    // genau, wie der Kommentar am alten `new Date()`-Vergleich es vorgezeichnet hat.
+    expect(sub[3]).toBe("fulfilmentAt");
+
+    const src = readFileSync("src/app/api/entries/route.ts", "utf8");
+    // `fulfilmentAt` ist die Server-Uhr, AUSSER `capturedAt` ist gesetzt — die RICHTUNG ist die
+    // Eigenschaft: `capturedAt ?? new Date()`, nie umgekehrt (sonst datierte jeder Eintrag mit der
+    // Client-Zeit und nur der offline erfasste mit der Server-Uhr — das Gegenteil).
+    const decl = src.match(/const fulfilmentAt = .*/)?.[0] ?? "";
+    expect(decl).toMatch(/capturedAt \?\? new Date\(\)/);
+
+    // Und `capturedAt` ist streng aufs Offline-Flag gegatet: es kommt ausschliesslich aus
+    // `parseOfflineCapture`, das ohne `capturedOffline: true` im Rumpf `null` liefert. Ohne diese
+    // Schranke wäre `fulfilmentAt` ein offenes Backdating-Loch für JEDE Online-Übermittlung.
+    const capDecl = src.match(/const \{ capturedOffline, capturedAt \} = .*/)?.[0] ?? "";
+    expect(capDecl).toMatch(/parseOfflineCapture\(body\)/);
+  });
+
+  it("der Keyholder-Pfad darf rückdatieren — ausser er erfasst für sich selbst", () => {
+    expect(admin[3]).toBe("fulfilAt");
+    // Die RICHTUNG des Ternärs ist die Eigenschaft, nicht sein Vorhandensein: erfasst die
+    // Keyholderin für SICH, ist sie der Sub und es gilt die Server-Uhr. Vertauscht bedeutete
+    // dieselbe Zeile das Gegenteil — und wäre die offene Hintertür.
+    const decl = readFileSync("src/lib/entries/entryCreateService.ts", "utf8")
+      .match(/const fulfilAt = .*/)?.[0] ?? "";
+    expect(decl).toMatch(/userId === opts\.actorUserId\s*\?\s*new Date\(\)\s*:\s*entryTime/);
+  });
+});

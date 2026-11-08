@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/shared/utils";
 
 /**
  * Die Hinweiszeilen, die zu einem hochgeladenen Foto gehören.

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateProtectedResourceMetadata } from "mcp-handler";
-import { OAUTH_SUPPORTED_SCOPES, publicBaseFromHeaders } from "@/lib/oauth";
+import { OAUTH_SUPPORTED_SCOPES, publicBaseFromHeaders } from "@/lib/auth/oauth";
 
 /**
  * GET /.well-known/oauth-protected-resource

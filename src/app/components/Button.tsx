@@ -2,7 +2,7 @@
 
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import Spinner from "./Spinner";
-import { hapticLight } from "@/lib/haptics";
+import { hapticLight } from "@/lib/client/haptics";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "semantic";
 type ButtonSize = "sm" | "default" | "lg";

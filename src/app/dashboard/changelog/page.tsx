@@ -2,12 +2,12 @@ import { ArrowLeft, Zap, Bug, Wrench, Sparkles, Palette } from "lucide-react";
 import Link from "next/link";
 import pkg from "../../../../package.json";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale } from "@/lib/utils";
+import { toDateLocale } from "@/lib/shared/utils";
 import releasesData from "@/data/changelog.json";
 import UpstreamSection from "./UpstreamSection";
 import Section from "@/app/components/Section";
 import { blockStackCls, titleCls } from "@/app/components/inputStyles";
-import { pickChangelogText, type ChangelogText } from "@/lib/changelogText";
+import { pickChangelogText, type ChangelogText } from "@/lib/upstream/changelogText";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 type EntryType = "feat" | "fix" | "security" | "perf" | "chore" | "ui";

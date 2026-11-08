@@ -6,8 +6,8 @@ import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
 import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
-import { parseApiErrorCode } from "@/lib/apiClient";
-import { INSPECTION_CODE_PUSH_COOLDOWN_MS } from "@/lib/constants";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
+import { INSPECTION_CODE_PUSH_COOLDOWN_MS } from "@/lib/shared/constants";
 
 /**
  * Schickt den Code der laufenden Kontrolle noch einmal als Meldung aufs Gerät des Subs.

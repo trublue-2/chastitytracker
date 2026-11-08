@@ -17,13 +17,13 @@ import useToast from "@/app/hooks/useToast";
 import useOfflineQueue from "@/app/hooks/useOfflineQueue";
 import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
-import { fromDatetimeLocal, toDateLocale, formatDurationBetween } from "@/lib/utils";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { fromDatetimeLocal, toDateLocale, formatDurationBetween } from "@/lib/shared/utils";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
-import type { TaskWarning } from "@/lib/taskIntervals";
+import type { TaskWarning } from "@/lib/tasks/taskIntervals";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import type { WearBeginPayload, WearEndPayload } from "@/app/entries/types";
-import { entryRequest, postAdminEntry, parseApiErrorCode } from "@/lib/apiClient";
+import { entryRequest, postAdminEntry, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 
 interface Category {

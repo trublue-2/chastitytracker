@@ -1,12 +1,12 @@
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import VerschlussForm from "../../VerschlussForm";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserDeviceOptions, getIsLocked, getOpenLockRequest, getBoxFormContext, getMobileDesktopMode, pendingLockCallAt } from "@/lib/queries";
-import { bildersafeEnabled } from "@/lib/constants";
-import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/utils";
+import { getUserDeviceOptions, getIsLocked, getOpenLockRequest, getBoxFormContext, getMobileDesktopMode, pendingLockCallAt } from "@/lib/entries/queries";
+import { bildersafeEnabled } from "@/lib/shared/constants";
+import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/shared/utils";
 
 export default async function NewVerschlussPage({ searchParams }: { searchParams: Promise<{ redirectTo?: string }> }) {
   // Aus der URL (Ketten-Weiterleitung der Aufgaben-Bedingungen) → geprüft, siehe safeInternalPath.

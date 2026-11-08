@@ -203,7 +203,7 @@ the *tracker's* view, which usually errs early (a stalled Heimdall push ages
 `lastSyncAt` here while the box is fine) but can also err late: the box resets its
 own counter only after reading a successful response, while Heimdall stamps
 `lastSyncAt` on request arrival — so a lost response leaves the box counting while
-this looks fresh. Same derivation (`boxFailsafeWarnings` in `src/lib/boxStatus.ts`)
+this looks fresh. Same derivation (`boxFailsafeWarnings` in `src/lib/box/boxStatus.ts`)
 as the sub's box card, so both sides read one deadline.
 
 An empty array means "no cause **or** no data": a box that never synced, and a

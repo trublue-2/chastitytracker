@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
@@ -8,7 +8,7 @@ vi.mock("@/lib/prisma", async () => {
 import { upsertNoteDef, queryNotes } from "./notes";
 import { NOTE_TEXT_LIMIT } from "./common";
 import { executeWrite } from "./writeFramework";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { type PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

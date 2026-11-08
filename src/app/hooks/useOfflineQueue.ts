@@ -5,10 +5,10 @@ import {
   addToQueue, getQueue, clearQueueItem, getQueueCount, updateQueueItemBody,
   getBlob, deleteBlob, isOfflineBlobUrl, parseOfflineBlobToken,
   type QueuedMutation,
-} from "@/lib/idb";
-import { fetchWithTimeout, parseApiErrorCode, uploadPhoto } from "@/lib/apiClient";
-import { classifyQueueResponse, stopsQueueRun } from "@/lib/offlineQueueOutcome";
-import { registerBackgroundSync } from "@/lib/swMessages";
+} from "@/lib/client/idb";
+import { fetchWithTimeout, parseApiErrorCode, uploadPhoto } from "@/lib/client/apiClient";
+import { classifyQueueResponse, stopsQueueRun } from "@/lib/client/offlineQueueOutcome";
+import { registerBackgroundSync } from "@/lib/messages/swMessages";
 import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useTranslations } from "next-intl";

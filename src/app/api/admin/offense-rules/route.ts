@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { setOffenseRule } from "@/lib/offenseRulesService";
-import { errorResponse, serviceResponse } from "@/lib/serviceResult";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
+import { setOffenseRule } from "@/lib/strafbuch/offenseRulesService";
+import { errorResponse, serviceResponse } from "@/lib/shared/serviceResult";
 
 /**
  * Legt EINE Vergehens-Regel eines Subs um: `{ userId, offenseType, mode }`.

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi, weightTrackingGate } from "@/lib/authGuards";
-import { serviceResponse } from "@/lib/serviceResult";
-import { setWeightSettingsSelf } from "@/lib/weightSettingsService";
+import { requireApi, weightTrackingGate } from "@/lib/auth/authGuards";
+import { serviceResponse } from "@/lib/shared/serviceResult";
+import { setWeightSettingsSelf } from "@/lib/weight/weightSettingsService";
 
 /**
  * Die eigenen Gewichts-Einstellungen des Subs: Körpergrösse, Einheit und SEIN Zielgewicht.

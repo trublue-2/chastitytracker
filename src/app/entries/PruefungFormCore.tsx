@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ClipboardCheck } from "lucide-react";
-import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/utils";
+import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/shared/utils";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import PhotoCapture from "@/app/components/PhotoCapture";
@@ -26,10 +26,10 @@ import Spinner from "@/app/components/Spinner";
 import InspectionCodePushButton from "@/app/components/InspectionCodePushButton";
 import type { PruefungPayload, SubmitResult } from "./types";
 import { useApiError } from "@/app/hooks/useApiError";
-import { formatVerifyReason, type VerifyReason } from "@/lib/verifyReason";
-import { INSPECTION_CODE_LENGTH, isValidInspectionCode } from "@/lib/constants";
-import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/apiClient";
-import { isOfflineBlobUrl } from "@/lib/idb";
+import { formatVerifyReason, type VerifyReason } from "@/lib/kontrollen/verifyReason";
+import { INSPECTION_CODE_LENGTH, isValidInspectionCode } from "@/lib/shared/constants";
+import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "@/lib/client/apiClient";
+import { isOfflineBlobUrl } from "@/lib/client/idb";
 
 /** Ruhezeit (ms) nach Tippen/Rotieren, bevor ein Live-Code-Check gefeuert wird (entprellt Abbruch-Stürme). */
 const LIVE_CHECK_DEBOUNCE_MS = 600;

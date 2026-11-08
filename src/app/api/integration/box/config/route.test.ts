@@ -12,13 +12,13 @@ import { NextRequest } from "next/server";
  * eine Öffnung erlaubt ist, und schickt daraufhin ein `open`. Ein früherer Anlauf lieferte sie hier
  * mit — Heimdall las das Feld nie, und zwei Regelwerke über dieselbe Frage laufen auseinander.
  */
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
 import { GET } from "./route";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

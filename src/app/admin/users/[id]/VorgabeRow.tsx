@@ -4,9 +4,9 @@ import { useState } from "react";
 import VorgabeForm, { type VorgabeInitialValues, type CategoryOption } from "./VorgabeForm";
 import DeleteVorgabeButton from "./DeleteVorgabeButton";
 import { useTranslations } from "next-intl";
-import { coveragePct } from "@/lib/percent";
-import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/constants";
-import { formatTotalHours } from "@/lib/utils";
+import { coveragePct } from "@/lib/stats/percent";
+import { HOURS_PER_DAY, HOURS_PER_WEEK, HOURS_PER_MONTH, HOURS_PER_YEAR } from "@/lib/shared/constants";
+import { formatTotalHours } from "@/lib/shared/utils";
 import { blockInsetCls } from "@/app/components/inputStyles";
 
 

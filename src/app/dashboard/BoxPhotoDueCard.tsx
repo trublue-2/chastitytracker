@@ -10,7 +10,7 @@ import Section from "@/app/components/Section";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
 import { useApiError } from "@/app/hooks/useApiError";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
-import { parseApiErrorCode } from "@/lib/apiClient";
+import { parseApiErrorCode } from "@/lib/client/apiClient";
 
 /**
  * Die Aufforderung „Box-Bild mit sichtbarem Schlüssel hinterlegen" — fällig, sobald die Box den

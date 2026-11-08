@@ -6,7 +6,7 @@ import Input from "@/app/components/Input";
 import Button from "@/app/components/Button";
 import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { busyDimCls } from "@/app/components/inputStyles";
-import { formatDateTime, toDateLocale } from "@/lib/utils";
+import { formatDateTime, toDateLocale } from "@/lib/shared/utils";
 
 /**
  * Die Gesundheitspause EINES Trägers — setzen und aufheben.

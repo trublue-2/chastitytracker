@@ -1,6 +1,6 @@
 # Tracker-Modell — Referenz für den MCP-Keyholder
 
-> Spiegel von `src/lib/mcpModelDoc.ts` (Single Source). Das MCP-Tool `explain_model` gibt
+> Spiegel von `src/lib/mcp/mcpModelDoc.ts` (Single Source). Das MCP-Tool `explain_model` gibt
 > denselben Text zurück. Bei Änderungen beide synchron halten.
 
 Kurzreferenz, wie die Begriffe zusammenhängen, die du über den MCP siehst. Lies einen Abschnitt, wenn

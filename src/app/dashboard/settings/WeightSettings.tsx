@@ -14,7 +14,7 @@ import { useNotificationChannelToggle } from "@/app/hooks/useNotificationChannel
 import {
   heightForDisplay, heightInputToCm, inchesToFeet,
   parseDecimalInput, weightFieldValue, weightForDisplay, weightText, weightInputToKg, type UnitSystem,
-} from "@/lib/weight";
+} from "@/lib/weight/weight";
 
 export interface WeightSettingsProps {
   unitSystem: UnitSystem;

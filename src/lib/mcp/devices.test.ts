@@ -3,14 +3,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // N-3 (MCP-Restliste 2026-07-17): get_devices war als einziger V2-Read ohne Zeitanker.
 // listDevicesV2 trägt jetzt den gemeinsamen Envelope (generatedAt/timezone) + returnedCount.
 
-vi.mock("@/lib/prisma", async () => {
+vi.mock("@/lib/shared/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
 
 import { listDevicesV2, setDeviceMetaDef, upsertDeviceDef, deleteDeviceDef } from "./devices";
 import { executeWrite } from "./writeFramework";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/shared/prisma";
 import { type PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;
