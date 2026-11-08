@@ -9,21 +9,21 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: vi.fn() },
   },
 }));
-vi.mock("@/lib/telegram", () => ({ sendTelegram: vi.fn(), telegramChatReachable: vi.fn() }));
-vi.mock("@/lib/notify", async (importOriginal) => ({
+vi.mock("@/lib/messages/telegram", () => ({ sendTelegram: vi.fn(), telegramChatReachable: vi.fn() }));
+vi.mock("@/lib/messages/notify", async (importOriginal) => ({
   // Der Versand-Rumpf (`deliverToChannels`) läuft ECHT: geprüft wird, was an die Kanal-Blätter geht.
-  ...(await importOriginal<typeof import("@/lib/notify")>()),
+  ...(await importOriginal<typeof import("@/lib/messages/notify")>()),
   notifyUser: vi.fn(),
 }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
-vi.mock("@/lib/push", () => ({ sendPushToUser: vi.fn(), hasPushTarget: vi.fn() }));
+vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn(), hasPushTarget: vi.fn() }));
 
 import { hasActiveKontrolle, inspectionIntro, buildInspectionPush, buildInspectionCodePush, resolveInspectionEntry, resendOwnInspectionCode } from "./kontrolleService";
-import { emailT } from "@/lib/emailI18n";
+import { emailT } from "@/lib/messages/emailI18n";
 import { prisma } from "@/lib/prisma";
-import { notifyUser } from "@/lib/notify";
-import { sendPushToUser, hasPushTarget } from "@/lib/push";
-import { sendTelegram } from "@/lib/telegram";
+import { notifyUser } from "@/lib/messages/notify";
+import { sendPushToUser, hasPushTarget } from "@/lib/messages/push";
+import { sendTelegram } from "@/lib/messages/telegram";
 
 /** Die Zone, in der die Erwartungswerte dieser Datei ausgedrückt sind. Als Konstante, damit der
  *  eine Test, der bewusst eine ANDERE Zone prüft, im Fliesstext sofort auffällt. */

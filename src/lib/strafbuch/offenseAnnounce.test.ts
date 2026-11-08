@@ -56,7 +56,7 @@ const offenses = vi.fn();
 vi.mock("@/lib/strafbuch/subOffenses", () => ({ loadSubOffenses: async () => offenses() }));
 
 import { announceNewOffenses, announceableOffenses } from "./offenseAnnounce";
-import { OFFENSE_REF_TYPE } from "@/lib/messageService";
+import { OFFENSE_REF_TYPE } from "@/lib/messages/messageService";
 import type { SubOffense } from "./subOffenses";
 
 const SINCE = new Date("2026-08-01T00:00:00Z");

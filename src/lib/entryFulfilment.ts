@@ -4,7 +4,7 @@ import type { InspectionVerification } from "@/lib/kontrollen/kontrolleService";
 
 type PrismaKontrollWhere = Prisma.KontrollAnforderungWhereInput;
 import { prisma } from "@/lib/prisma";
-import { recordSystemMessage } from "@/lib/messageService";
+import { recordSystemMessage } from "@/lib/messages/messageService";
 import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";
 import {
@@ -16,7 +16,7 @@ import {
 import { lockAnchor, lockPeriodFromRequest } from "@/lib/verschlussAnforderungService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { scheduleCleaningRelockInspection, triggerPostLockInspection } from "@/lib/kontrollen/autoKontrolleService";
-import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/entryNotify";
+import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/messages/entryNotify";
 import { markLastAction } from "@/lib/appMeta";
 import { isHealthHoldActive } from "@/lib/healthHold";
 import { entryGuardError } from "@/lib/entryErrors";

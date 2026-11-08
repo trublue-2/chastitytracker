@@ -19,9 +19,9 @@ import { useApiError } from "@/app/hooks/useApiError";
 import useToast from "@/app/hooks/useToast";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { toDateLocale } from "@/lib/utils";
-import type { PresentedMessage } from "@/lib/messagePresenter";
-import { isMessageFiltered, messageFilterToParams, type MessageFilter } from "@/lib/messageCategories";
-import { MESSAGE_SCOPES, type MessageScope } from "@/lib/messageScope";
+import type { PresentedMessage } from "@/lib/messages/messagePresenter";
+import { isMessageFiltered, messageFilterToParams, type MessageFilter } from "@/lib/messages/messageCategories";
+import { MESSAGE_SCOPES, type MessageScope } from "@/lib/messages/messageScope";
 
 /** Was eine geladene Seite mitbringt. Als Typ herausgezogen, seit `load` sein Ergebnis
  *  ZURÜCKGIBT — der Filterwechsel sagt daraus die Trefferzahl an. */

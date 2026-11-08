@@ -2,10 +2,10 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import type { PrismaTx } from "@/lib/queries";
 import { taskAnchor } from "@/lib/tasks/tasks";
-import { notifyUser, type NotifyContent } from "@/lib/notify";
+import { notifyUser, type NotifyContent } from "@/lib/messages/notify";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { structuredLog } from "@/lib/serverLog";
-import type { MessageActor } from "@/lib/messageService";
+import type { MessageActor } from "@/lib/messages/messageService";
 
 /** „Transaktion oder globaler Client" — derselbe Alias, den `queries.ts` schon exportiert. Reiner
  *  Typ-Import, also kein Laufzeit-Zyklus, obwohl `queries.ts` seinerseits aus diesem Modul liest. */

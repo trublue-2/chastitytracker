@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { evaluateTasks, TASK_INCLUDE, SUB_VISIBLE_WHERE } from "@/lib/tasks/taskIntervals";
 import { NOT_PAUSED_WHERE } from "@/lib/healthHold";
 import { earliestTaskEnd, isTaskOpen, proofDue, taskAnchor, type TaskEvaluation, type TaskLike, type ProofDeadlineWindow,} from "@/lib/tasks/tasks";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser } from "@/lib/messages/notify";
 import { formatDateTime, groupByUser } from "@/lib/utils";
 import { TASK_PROOF_REMINDER_LEAD_MIN } from "@/lib/constants";
 

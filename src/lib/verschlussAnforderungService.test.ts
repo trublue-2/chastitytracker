@@ -25,9 +25,9 @@ vi.mock("@/lib/prisma", () => ({
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   },
 }));
-vi.mock("@/lib/notify", async (importOriginal) => ({
+vi.mock("@/lib/messages/notify", async (importOriginal) => ({
   // Der Versand-Rumpf (`deliverToChannels`) läuft ECHT: geprüft wird, was an die Kanal-Blätter geht.
-  ...(await importOriginal<typeof import("@/lib/notify")>()),
+  ...(await importOriginal<typeof import("@/lib/messages/notify")>()),
   notifyUser: vi.fn(),
 }));
 vi.mock("@/lib/box/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn() }));
@@ -37,11 +37,11 @@ vi.mock("@/lib/queries", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/queries")>();
   return { ...actual, getIsLocked: vi.fn(async () => true), validateDeviceOwnership: vi.fn() };
 });
-vi.mock("@/lib/mail", () => ({
+vi.mock("@/lib/messages/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, noticeBoxHtml: () => "", optionalNoticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
-vi.mock("@/lib/emailI18n", () => ({ emailT: async () => (k: string) => k, emailGreeting: () => "" }));
-vi.mock("@/lib/push", () => ({ sendPushToUser: vi.fn() }));
+vi.mock("@/lib/messages/emailI18n", () => ({ emailT: async () => (k: string) => k, emailGreeting: () => "" }));
+vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn() }));
 
 import {
   createVerschlussAnforderung, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById,
@@ -51,11 +51,11 @@ import {
   lockPeriodFromRequest,
 } from "./verschlussAnforderungService";
 import { prisma } from "@/lib/prisma";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser } from "@/lib/messages/notify";
 import { notifyHeimdallForUserId } from "@/lib/box/heimdallNotify";
 import { getIsLocked } from "@/lib/queries";
-import { sendPushToUser } from "@/lib/push";
-import { sendMailSafe } from "@/lib/mail";
+import { sendPushToUser } from "@/lib/messages/push";
+import { sendMailSafe } from "@/lib/messages/mail";
 
 const findUniqueMock = prisma.verschlussAnforderung.findUnique as unknown as ReturnType<typeof vi.fn>;
 const updateMock = prisma.verschlussAnforderung.update as unknown as ReturnType<typeof vi.fn>;

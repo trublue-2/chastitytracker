@@ -10,14 +10,14 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 vi.mock("@/lib/box/heimdallNotify", () => ({ notifyHeimdall: vi.fn() }));
-vi.mock("@/lib/deliveryChannels", () => ({ deliveryChannels: vi.fn() }));
-vi.mock("@/lib/push", () => ({ firePush: vi.fn() }));
+vi.mock("@/lib/messages/deliveryChannels", () => ({ deliveryChannels: vi.fn() }));
+vi.mock("@/lib/messages/push", () => ({ firePush: vi.fn() }));
 
 import { announceBoxCommand } from "./boxCommandNotify";
 import { prisma } from "@/lib/prisma";
 import { notifyHeimdall } from "@/lib/box/heimdallNotify";
-import { deliveryChannels } from "@/lib/deliveryChannels";
-import { firePush } from "@/lib/push";
+import { deliveryChannels } from "@/lib/messages/deliveryChannels";
+import { firePush } from "@/lib/messages/push";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

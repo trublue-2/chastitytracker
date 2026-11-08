@@ -1,5 +1,5 @@
 import { prefSet } from "@/lib/capacitorPrefs";
-import { isNativePlatform } from "@/lib/nativePush";
+import { isNativePlatform } from "@/lib/messages/nativePush";
 import type { World } from "@/lib/theme";
 
 /**

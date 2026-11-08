@@ -3,13 +3,13 @@ import { createOeffnenEntryTx } from "@/lib/oeffnenService";
 import { getBoxFormContext, getIsLocked, endableLockPeriods } from "@/lib/queries";
 import { setBoxCommandForUser } from "@/lib/box/boxCommand";
 import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
-import { notifyUser } from "@/lib/notify";
-import { notifyControllersAboutEntry } from "@/lib/entryNotify";
+import { notifyUser } from "@/lib/messages/notify";
+import { notifyControllersAboutEntry } from "@/lib/messages/entryNotify";
 import { boxCommandForEntry } from "@/lib/box/boxCommand";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { LOCK_ENDED_REASON, RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
 import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/serviceResult";
-import type { MessageActor } from "@/lib/messageService";
+import type { MessageActor } from "@/lib/messages/messageService";
 
 /**
  * „Sofort aufschliessen" — das Gegenstück zur Sperrzeit, in einem Griff.

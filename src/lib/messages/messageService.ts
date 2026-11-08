@@ -3,13 +3,13 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { structuredLog } from "@/lib/serverLog";
 import { getControllableSubsCached } from "@/lib/auth/keyholder";
-import { bodyKeysOfCategory, bodyKeysOutsideSystem, messagePriority, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
+import { bodyKeysOfCategory, bodyKeysOutsideSystem, messagePriority, type MessageFilter, type MessageSenderKind } from "@/lib/messages/messageCategories";
 import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/strafbuch/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { codeCheckPath } from "@/lib/box/lockboxCodeCheck";
 import { mapAnforderungStatus } from "@/lib/utils";
 import { AI_AUTHOR, hasAuthor, type NotificationChannels } from "@/lib/constants";
-import { deliveryChannels, deliveryChannelsForUser, type DeliveryRecipient } from "@/lib/deliveryChannels";
+import { deliveryChannels, deliveryChannelsForUser, type DeliveryRecipient } from "@/lib/messages/deliveryChannels";
 
 /**
  * Der Posteingang: die Nachrichten, die der Sub nachlesen kann.
@@ -219,7 +219,7 @@ export interface MessageRef {
 /** Absender-Arten und Filter liegen in `messageCategories.ts` — importfrei, damit die
  *  Client-Filterleiste sie lesen kann, ohne `prisma` in den Browser zu ziehen. Hier re-exportiert,
  *  damit die bestehenden Importeure unverändert bleiben. */
-export { MESSAGE_SENDER_KINDS, isMessageSenderKind, type MessageSenderKind, type MessageFilter } from "@/lib/messageCategories";
+export { MESSAGE_SENDER_KINDS, isMessageSenderKind, type MessageSenderKind, type MessageFilter } from "@/lib/messages/messageCategories";
 
 export interface RecordMessageParams {
   subjectUserId: string;

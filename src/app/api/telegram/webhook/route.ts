@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { consumeTelegramLink, forgetDeadChat, sendTelegram, telegramWebhookSecretOk } from "@/lib/telegram";
-import { localeT } from "@/lib/emailI18n";
+import { consumeTelegramLink, forgetDeadChat, sendTelegram, telegramWebhookSecretOk } from "@/lib/messages/telegram";
+import { localeT } from "@/lib/messages/emailI18n";
 import { structuredLog } from "@/lib/serverLog";
 
 /**

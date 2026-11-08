@@ -1,8 +1,8 @@
 import { createTranslator } from "next-intl";
-import { escHtml } from "@/lib/mail";
+import { escHtml } from "@/lib/messages/mail";
 import { toLocale, type Locale } from "@/lib/constants";
-import de from "../../messages/de.json";
-import en from "../../messages/en.json";
+import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
 
 // Loosely typed on purpose: subjectKey/messageKey in NotifyContent are dynamic strings, so the
 // translator must accept `string` keys (as the previously-used getTranslations did). Runtime key

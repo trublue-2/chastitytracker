@@ -1,4 +1,4 @@
-import { MESSAGE_PAGE_SIZE } from "@/lib/messageService";
+import { MESSAGE_PAGE_SIZE } from "@/lib/messages/messageService";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 /**

@@ -23,27 +23,27 @@ vi.mock("@/lib/prisma", () => ({
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   },
 }));
-vi.mock("@/lib/mail", () => ({
+vi.mock("@/lib/messages/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, noticeBoxHtml: () => "", optionalNoticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
-vi.mock("@/lib/push", () => ({ sendPushToUser: vi.fn() }));
-vi.mock("@/lib/deliveryChannels", () => ({
+vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn() }));
+vi.mock("@/lib/messages/deliveryChannels", () => ({
   deliveryChannels: vi.fn(async () => ({ mail: true, push: true, telegram: true })),
   deliveryChannelsForUser: vi.fn(async () => ({ mail: true, push: true, telegram: true })),
 }));
-vi.mock("@/lib/notify", async (importOriginal) => ({
+vi.mock("@/lib/messages/notify", async (importOriginal) => ({
   // Der Versand-Rumpf (`deliverToChannels`) läuft ECHT: geprüft wird, was an die Kanal-Blätter geht.
-  ...(await importOriginal<typeof import("@/lib/notify")>()),
+  ...(await importOriginal<typeof import("@/lib/messages/notify")>()),
   notifyUser: vi.fn(),
 }));
-vi.mock("@/lib/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
+vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 
 import { createOrgasmusAnforderung, checkOrgasmWindowEnd } from "./orgasmusAnforderungService";
 import { prisma } from "@/lib/prisma";
-import { sendMailSafe } from "@/lib/mail";
-import { notifyUser } from "@/lib/notify";
-import { sendPushToUser } from "@/lib/push";
-import { deliveryChannels, deliveryChannelsForUser } from "@/lib/deliveryChannels";
+import { sendMailSafe } from "@/lib/messages/mail";
+import { notifyUser } from "@/lib/messages/notify";
+import { sendPushToUser } from "@/lib/messages/push";
+import { deliveryChannels, deliveryChannelsForUser } from "@/lib/messages/deliveryChannels";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const mailMock = sendMailSafe as unknown as ReturnType<typeof vi.fn>;

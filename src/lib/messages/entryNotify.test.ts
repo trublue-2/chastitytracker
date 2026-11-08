@@ -16,22 +16,22 @@ vi.mock("@/lib/prisma", () => ({
 // Die Kanäle kommen je EMPFÄNGER aus seinen Stufen (`deliveryChannels`), nicht mehr aus dem Raster
 // des Trägers: ein Keyholder, der nur Wichtiges will, bekommt die verbotene Öffnung und nicht jeden
 // Verschluss.
-vi.mock("@/lib/deliveryChannels", () => ({ deliveryChannels: vi.fn() }));
-vi.mock("@/lib/mail", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/mail")>()),
+vi.mock("@/lib/messages/deliveryChannels", () => ({ deliveryChannels: vi.fn() }));
+vi.mock("@/lib/messages/mail", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/messages/mail")>()),
   sendMailSafe: vi.fn(),
   appBaseUrl: () => "https://kg.example",
 }));
-vi.mock("@/lib/push", () => ({ sendPushToUser: vi.fn() }));
-vi.mock("@/lib/telegram", () => ({ sendTelegram: vi.fn() }));
+vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn() }));
+vi.mock("@/lib/messages/telegram", () => ({ sendTelegram: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn() }));
 
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "./entryNotify";
-import { sendMailSafe } from "@/lib/mail";
-import { sendPushToUser } from "@/lib/push";
-import { sendTelegram } from "@/lib/telegram";
+import { sendMailSafe } from "@/lib/messages/mail";
+import { sendPushToUser } from "@/lib/messages/push";
+import { sendTelegram } from "@/lib/messages/telegram";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
-import { deliveryChannels } from "@/lib/deliveryChannels";
+import { deliveryChannels } from "@/lib/messages/deliveryChannels";
 
 const prefs = deliveryChannels as unknown as ReturnType<typeof vi.fn>;
 const controllers = getControllersOfUser as unknown as ReturnType<typeof vi.fn>;

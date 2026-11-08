@@ -2,8 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { APP_TZ } from "@/lib/utils";
 import { weightDayKey } from "@/lib/weight/weight";
 import { activeWeighingWindow, weighingWindowEnd, type WeighingWindow } from "@/lib/weight/weightWindows";
-import { getRecipientChannels } from "@/lib/notificationPrefs";
-import { notifyUser } from "@/lib/notify";
+import { getRecipientChannels } from "@/lib/messages/notificationPrefs";
+import { notifyUser } from "@/lib/messages/notify";
 import { USER_NOT_PAUSED_WHERE } from "@/lib/healthHold";
 
 /**

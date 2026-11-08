@@ -41,7 +41,7 @@ describe("Die Rückfrage beim Hochstufen bleibt an ihren Mechanismen", () => {
 
   it("über einen Träger mit Admin-Rolle entfällt die Posteingangs-Zeile", () => {
     expect(
-      src("src/lib/notify.ts"),
+      src("src/lib/messages/notify.ts"),
       `keyholderRowReadable entscheidet nicht mehr an der Admin-Rolle des Betreffs. ${HINWEIS}`,
     ).toContain('subject?.role !== "admin"');
   });

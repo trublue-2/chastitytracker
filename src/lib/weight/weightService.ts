@@ -8,7 +8,7 @@ import {
   effectiveTarget, targetEventToAnnounce, weightDayKey, weightForDisplay, weightProblem,
   type UnitSystem, type WeightTarget,
 } from "@/lib/weight/weight";
-import { notifyControllers } from "@/lib/notify";
+import { notifyControllers } from "@/lib/messages/notify";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { applyWeightRelease } from "@/lib/weight/weightReleaseService";
 

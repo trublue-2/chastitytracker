@@ -23,7 +23,7 @@ vi.mock("@/lib/prisma", async () => {
 });
 const transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(await import("@/lib/prisma").then((m) => m.prisma)));
 vi.mock("@/lib/orgasmusAnforderungService", () => ({ createOrgasmusAnforderung: vi.fn() }));
-vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
+vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn().mockResolvedValue([]) }));
 
 import { applyWeightRelease, setWeightRelease } from "@/lib/weight/weightReleaseService";

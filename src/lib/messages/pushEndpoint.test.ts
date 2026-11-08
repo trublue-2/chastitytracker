@@ -36,7 +36,7 @@ describe("isAllowedPushEndpoint", () => {
   ])("lehnt %s ab", (u) => expect(isAllowedPushEndpoint(u)).toBe(false));
 
   it("ist importfrei", () => {
-    expectImportFree("src/lib/pushEndpoint.ts");
+    expectImportFree("src/lib/messages/pushEndpoint.ts");
   });
 
   it("lehnt Nicht-Strings ab", () => {

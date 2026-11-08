@@ -71,7 +71,7 @@ async function callBot(
 
 /**
  * Eine Meldung an einen verknüpften Chat senden — fehlertolerant und exakt nach dem Muster von
- * {@link import("@/lib/mail").sendMailSafe}: ohne konfiguriertes `TELEGRAM_BOT_TOKEN` still
+ * {@link import("@/lib/messages/mail").sendMailSafe}: ohne konfiguriertes `TELEGRAM_BOT_TOKEN` still
  * übersprungen (kein Wurf), und jeder Fehler (Netz, ungültiger Chat, gesperrter Bot) wird gefangen
  * und geloggt statt den awaitenden Business-Flow mit einem 500 abzubrechen. Ein toter Chat wird
  * dabei gelöst ({@link forgetDeadChat}).

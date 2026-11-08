@@ -12,7 +12,7 @@ vi.mock("@/lib/prisma", () => ({
     deviceCategory: { findMany: vi.fn(async () => []) },
   },
 }));
-vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
+vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({
   getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })),
   getControllersOfUser: vi.fn(async () => []),

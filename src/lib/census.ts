@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { bildersafeEnabled } from "@/lib/constants";
 import { isPortalInstance } from "@/lib/auth/portalInstance";
-import { telegramLinkAvailable } from "@/lib/telegram";
+import { telegramLinkAvailable } from "@/lib/messages/telegram";
 import { buildKgWearPairs, groupByUser, wearingHoursFromPairs } from "@/lib/utils";
 import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
 

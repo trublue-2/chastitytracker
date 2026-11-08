@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
-import { activateWaitingSw } from "@/lib/swMessages";
+import { activateWaitingSw } from "@/lib/messages/swMessages";
 import Button from "@/app/components/Button";
 import { fetchWithTimeout } from "@/lib/apiClient";
 

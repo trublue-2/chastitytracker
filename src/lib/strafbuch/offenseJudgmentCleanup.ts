@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { DISMISSAL_BODY_KEY, OFFENSE_REF_TYPE } from "@/lib/messageService";
+import { DISMISSAL_BODY_KEY, OFFENSE_REF_TYPE } from "@/lib/messages/messageService";
 
 /**
  * Ein Urteil FALLEN LASSEN — die Zeile weg und die Meldung, die sie behauptet hat, gleich mit.

@@ -15,11 +15,11 @@ import { readFileSync } from "node:fs";
 vi.mock("@/lib/prisma", () => ({
   prisma: { $transaction: vi.fn(), healthHold: { findMany: vi.fn(async () => []) } },
 }));
-vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
+vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn() }));
 
 import { isPausedAt, writeHealthHold, setHealthHold, toHealthHoldSpans, NOT_PAUSED_WHERE, USER_NOT_PAUSED_WHERE, type HealthHoldSpan } from "./healthHold";
 import { prisma } from "@/lib/prisma";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser } from "@/lib/messages/notify";
 
 const T = (iso: string) => new Date(iso);
 

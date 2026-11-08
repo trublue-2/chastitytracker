@@ -148,7 +148,7 @@ describe("Routen-Inventar", () => {
   });
 
   it("die Fabrik der Posteingänge setzt ihre Wächter selbst", () => {
-    const src = readStripped("src/lib/messageInboxRoutes.ts");
+    const src = readStripped("src/lib/messages/messageInboxRoutes.ts");
     expect(src).toMatch(/requireApi\(|requireControllerApi\(/);
   });
 

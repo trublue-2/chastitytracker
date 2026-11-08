@@ -3,9 +3,9 @@ import {
   ALL_CHANNELS, anyChannelActive, channelsAnd, channelsForLevels,
   type MessagePriority, type NotificationChannels,
 } from "@/lib/constants";
-import { hasPushTarget } from "@/lib/push";
-import { mailReaches } from "@/lib/mail";
-import { telegramChatReachable } from "@/lib/telegram";
+import { hasPushTarget } from "@/lib/messages/push";
+import { mailReaches } from "@/lib/messages/mail";
+import { telegramChatReachable } from "@/lib/messages/telegram";
 import { structuredLog } from "@/lib/serverLog";
 
 /**

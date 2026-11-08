@@ -10,7 +10,7 @@ import { boltFieldsFor } from "@/lib/lockPending";
 import { findPendingLockTx, findPendingOpenTx, openAwaitsBolt } from "@/lib/lockCommit";
 import { boxCommandForEntry, setBoxCommandForUser } from "@/lib/box/boxCommand";
 import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
-import { notifyControllersAboutEntry } from "@/lib/entryNotify";
+import { notifyControllersAboutEntry } from "@/lib/messages/entryNotify";
 import type { EntryGuardCode, EntryValidationCode } from "@/lib/entryErrors";
 
 /**

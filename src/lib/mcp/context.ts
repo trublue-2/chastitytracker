@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
 import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/healthHold";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser } from "@/lib/messages/notify";
 import { dueBoxPhotoLock, waiveBoxPhoto } from "@/lib/box/boxPhotoDueService";
 import { hasLockmebox } from "@/lib/box/boxStatus";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";

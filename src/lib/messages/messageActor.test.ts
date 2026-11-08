@@ -46,12 +46,12 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 // Die Blätter von `notifyUser` — Mail und Push sind für die Absender-Frage ohne Belang.
-vi.mock("@/lib/mail", () => ({
+vi.mock("@/lib/messages/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, appBaseUrl: () => "https://x",
   noticeBoxHtml: () => "", optionalNoticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
-vi.mock("@/lib/push", () => ({ firePush: vi.fn(), sendPushToUser: vi.fn() }));
-vi.mock("@/lib/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
+vi.mock("@/lib/messages/push", () => ({ firePush: vi.fn(), sendPushToUser: vi.fn() }));
+vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 vi.mock("next-intl/server", () => ({ getTranslations: vi.fn(async () => (k: string) => k) }));
 vi.mock("@/lib/box/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
@@ -71,7 +71,7 @@ vi.mock("@/lib/strafbuch/strafbuch", async (importOriginal) => ({
 // Partiell: ersetzt ist nur die SCHRANKE („wurde die Feststellung je gemeldet?"), nicht der
 // Referenz-Typ daneben — den teilen Schreiben und Löschen der Verwerfungs-Meldung.
 vi.mock("@/lib/strafbuch/offenseAnnounce", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./strafbuch/offenseAnnounce")>()),
+  ...(await importOriginal<typeof import("../strafbuch/offenseAnnounce")>()),
   offenseWasAnnounced: vi.fn(async () => true),
 }));
 
@@ -80,7 +80,7 @@ vi.mock("@/lib/strafbuch/offenseAnnounce", async (importOriginal) => ({
  * Absender-Frage nichts zu tun. Das SCHREIBEN läuft echt — dort entsteht die Absender-Achse aus dem
  * Handelnden, und genau das ist die zu prüfende Abbildung.
  */
-vi.mock("@/lib/messageService", async (importOriginal) => {
+vi.mock("@/lib/messages/messageService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./messageService")>();
   return {
     ...actual,
@@ -94,11 +94,11 @@ vi.mock("@/lib/messageService", async (importOriginal) => {
 import { AI_AUTHOR } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
-import { requestKontrolle, resolveKontrolle, sendKontrolleNotification } from "./kontrollen/kontrolleService";
-import { sendVerschlussAnforderungNotifications, withdrawVerschlussAnforderungById } from "./verschlussAnforderungService";
-import { withdrawOrgasmusAnforderungById } from "./orgasmusAnforderungService";
-import { withdrawTask, settleTaskResult } from "./tasks/taskService";
-import { judgeOffense } from "./strafbuch/strafurteilService";
+import { requestKontrolle, resolveKontrolle, sendKontrolleNotification } from "../kontrollen/kontrolleService";
+import { sendVerschlussAnforderungNotifications, withdrawVerschlussAnforderungById } from "../verschlussAnforderungService";
+import { withdrawOrgasmusAnforderungById } from "../orgasmusAnforderungService";
+import { withdrawTask, settleTaskResult } from "../tasks/taskService";
+import { judgeOffense } from "../strafbuch/strafurteilService";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;

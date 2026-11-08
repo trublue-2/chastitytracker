@@ -43,9 +43,9 @@ vi.mock("@/lib/auth/keyholder", () => ({
 // Die Blätter der Benachrichtigung: als Mock lässt sich vergleichen, ob BEIDE Wege dasselbe
 // verschicken — die Verwerfung nichts, die Strafe je eine Mail und einen Push. Geteilt mit
 // `offenseDismissedNotice.test.ts`, siehe `notifyLeafMocks`.
-vi.mock("@/lib/mail", async () => (await import("@/test/notifyLeafMocks")).mailLeaf());
-vi.mock("@/lib/push", async () => (await import("@/test/notifyLeafMocks")).pushLeaf());
-vi.mock("@/lib/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
+vi.mock("@/lib/messages/mail", async () => (await import("@/test/notifyLeafMocks")).mailLeaf());
+vi.mock("@/lib/messages/push", async () => (await import("@/test/notifyLeafMocks")).pushLeaf());
+vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 vi.mock("next-intl/server", async () => (await import("@/test/notifyLeafMocks")).intlServerLeaf());
 
 vi.mock("@/lib/strafbuch/strafbuch", async (importOriginal) => ({
@@ -58,8 +58,8 @@ import { judgeOffense } from "./strafurteilService";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
-import { sendMailSafe } from "@/lib/mail";
-import { sendPushToUser } from "@/lib/push";
+import { sendMailSafe } from "@/lib/messages/mail";
+import { sendPushToUser } from "@/lib/messages/push";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";
 import { offenseAnnouncement } from "@/test/messageTableMock";
 

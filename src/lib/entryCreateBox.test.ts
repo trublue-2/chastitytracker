@@ -30,7 +30,7 @@ vi.mock("@/lib/lockCommit", () => ({
 }));
 vi.mock("@/lib/box/boxCommand", async (orig) => ({ ...(await orig<object>()), setBoxCommandForUser: vi.fn(async () => true) }));
 vi.mock("@/lib/box/boxCommandNotify", () => ({ announceBoxCommand: vi.fn() }));
-vi.mock("@/lib/entryNotify", () => ({ notifyControllersAboutEntry: vi.fn() }));
+vi.mock("@/lib/messages/entryNotify", () => ({ notifyControllersAboutEntry: vi.fn() }));
 
 import { createEntryForUser } from "./entryCreateService";
 import { getKgNeighbors, releaseLockPeriodsOnOpen } from "@/lib/queries";
@@ -38,7 +38,7 @@ import { applyEntryFulfilment } from "@/lib/entryFulfilment";
 import { findPendingOpenTx, openAwaitsBolt } from "@/lib/lockCommit";
 import { setBoxCommandForUser } from "@/lib/box/boxCommand";
 import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
-import { notifyControllersAboutEntry } from "@/lib/entryNotify";
+import { notifyControllersAboutEntry } from "@/lib/messages/entryNotify";
 import type { User } from "@prisma/client";
 
 const fn = <T>(f: T) => f as unknown as ReturnType<typeof vi.fn>;

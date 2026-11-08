@@ -38,24 +38,24 @@ vi.mock("@/lib/queries", () => ({
   releaseLockPeriodsOnOpen: vi.fn(),
 }));
 vi.mock("@/lib/oeffnenService", () => ({ createOeffnenEntryTx: vi.fn() }));
-vi.mock("@/lib/notify", async (importOriginal) => ({
+vi.mock("@/lib/messages/notify", async (importOriginal) => ({
   // Der Versand-Rumpf (`deliverToChannels`) läuft ECHT: geprüft wird, was an die Kanal-Blätter geht.
-  ...(await importOriginal<typeof import("@/lib/notify")>()),
+  ...(await importOriginal<typeof import("@/lib/messages/notify")>()),
   notifyUser: vi.fn(), notifyControllers: vi.fn(),
 }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []), getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })) }));
 // Nur der Schreib-Weg wird ersetzt; der Rest des Moduls (Absender-Abbildung, Spalten-Helfer) bleibt
 // echt — er ist reine Ableitung, keine Nebenwirkung. Spread statt Aufzählung, siehe offenseAnnounce.test.ts.
-vi.mock("@/lib/messageService", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../messageService")>()),
+vi.mock("@/lib/messages/messageService", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../messages/messageService")>()),
   recordInboxDelivery: vi.fn(async () => ({ badge: 0, channels: { mail: true, push: true, telegram: true } })),
 }));
-vi.mock("@/lib/mail", () => ({
+vi.mock("@/lib/messages/mail", () => ({
   sendMailSafe: vi.fn(), escHtml: (s: string) => s, appBaseUrl: () => "https://x", noticeBoxHtml: () => "", optionalNoticeBoxHtml: () => "", dashboardEmailHtml: () => "",
 }));
-vi.mock("@/lib/push", () => ({ sendPushToUser: vi.fn() }));
+vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
-vi.mock("@/lib/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
+vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 
 import { requestKontrolle } from "./kontrolleService";
 import { autoMarkInspectionRemoved } from "./inspectionEscalationService";

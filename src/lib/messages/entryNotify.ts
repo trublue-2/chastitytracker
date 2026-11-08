@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { escHtml, appBaseUrl, dashboardEmailHtml } from "@/lib/mail";
-import { emailT, localeT, type EmailTranslator } from "@/lib/emailI18n";
-import { deliverToChannels } from "@/lib/notify";
+import { escHtml, appBaseUrl, dashboardEmailHtml } from "@/lib/messages/mail";
+import { emailT, localeT, type EmailTranslator } from "@/lib/messages/emailI18n";
+import { deliverToChannels } from "@/lib/messages/notify";
 import { structuredLog } from "@/lib/serverLog";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
-import { deliveryChannels } from "@/lib/deliveryChannels";
+import { deliveryChannels } from "@/lib/messages/deliveryChannels";
 import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/utils";
 import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, anyChannelActive, type MessagePriority, APP_NAME } from "@/lib/constants";

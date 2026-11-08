@@ -24,7 +24,7 @@ vi.mock("@/lib/prisma", () => {
   };
   return { prisma: p };
 });
-vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
+vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 // Teilmock wie in `taskProofService.test.ts`: die Auswertung ist dort geprüft, hier zählt, was die
 // App mit ihrem Ergebnis tut.
 vi.mock("@/lib/tasks/taskIntervals", async (orig) => ({
@@ -40,7 +40,7 @@ vi.mock("@/lib/utils", async (orig) => ({ ...(await orig<object>()), generateKon
 import { createTask, updateTask, withdrawTask, deleteTask, completeTask, mergeTaskPatch, effectivePenaltyReason } from "./taskService";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { prisma } from "@/lib/prisma";
-import { notifyUser, notifyControllers } from "@/lib/notify";
+import { notifyUser, notifyControllers } from "@/lib/messages/notify";
 import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
 import { notifyLateProofsForTask } from "@/lib/tasks/taskProofNotify";
 

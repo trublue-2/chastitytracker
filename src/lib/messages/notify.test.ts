@@ -11,33 +11,33 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() } },
 }));
-vi.mock("@/lib/mail", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/mail")>()),
+vi.mock("@/lib/messages/mail", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/messages/mail")>()),
   sendMailSafe: vi.fn(),
 }));
-vi.mock("@/lib/push", () => ({ sendPushToUser: vi.fn() }));
-vi.mock("@/lib/deliveryChannels", () => ({
+vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn() }));
+vi.mock("@/lib/messages/deliveryChannels", () => ({
   deliveryChannels: vi.fn(async () => ({ mail: true, push: true, telegram: false })),
   deliveryChannelsForUser: vi.fn(async () => ({ mail: true, push: true, telegram: false })),
 }));
 // Nur die beiden Schreib-Funktionen werden ersetzt; alles andere bleibt echt (Absender-Abbildung &
 // Co. sind reine Ableitung). Spread statt Aufzählung, siehe offenseAnnounce.test.ts.
-vi.mock("@/lib/messageService", async (importOriginal) => ({
+vi.mock("@/lib/messages/messageService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./messageService")>()),
   recordSystemMessage: vi.fn(async () => "m-new"),
   // Die Kanäle kommen aus den (gemockten) Stufen des Empfängers — so bleibt das Gaten unten prüfbar.
   recordInboxDelivery: vi.fn(async (p: { subjectUserId: string }) => ({
     badge: 1,
-    channels: await (await import("@/lib/deliveryChannels")).deliveryChannelsForUser(p.subjectUserId, "info"),
+    channels: await (await import("@/lib/messages/deliveryChannels")).deliveryChannelsForUser(p.subjectUserId, "info"),
   })),
 }));
 
 import { notifyControllers, notifyUser } from "./notify";
 import { prisma } from "@/lib/prisma";
-import { sendMailSafe } from "@/lib/mail";
-import { sendPushToUser } from "@/lib/push";
-import { deliveryChannels, deliveryChannelsForUser } from "@/lib/deliveryChannels";
-import { recordSystemMessage, recordInboxDelivery } from "@/lib/messageService";
+import { sendMailSafe } from "@/lib/messages/mail";
+import { sendPushToUser } from "@/lib/messages/push";
+import { deliveryChannels, deliveryChannelsForUser } from "@/lib/messages/deliveryChannels";
+import { recordSystemMessage, recordInboxDelivery } from "@/lib/messages/messageService";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 

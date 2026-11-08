@@ -10,12 +10,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Möglichkeit, eine tote Referenz von einer nie gesetzten zu unterscheiden.
  */
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
-vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
+vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () => [{ id: "kh1" }]) }));
 vi.mock("@/lib/oeffnenService", () => ({ createOeffnenEntryTx: vi.fn() }));
 
 import { notifyInspectionAutoMarked } from "./inspectionEscalationService";
-import { notifyUser, notifyControllers } from "@/lib/notify";
+import { notifyUser, notifyControllers } from "@/lib/messages/notify";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;
 

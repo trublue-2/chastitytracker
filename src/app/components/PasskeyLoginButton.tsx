@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { signIn, getSession } from "next-auth/react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import Button from "@/app/components/Button";
-import { clearSwUserCache } from "@/lib/swMessages";
+import { clearSwUserCache } from "@/lib/messages/swMessages";
 import { syncLocaleCookieFromLogin } from "@/lib/locale";
 
 /**

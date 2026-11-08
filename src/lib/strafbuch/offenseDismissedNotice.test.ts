@@ -50,9 +50,9 @@ vi.mock("@/lib/auth/keyholder", () => ({
 // Die Blätter von `notifyUser` — sonst liefe der Test in echte SMTP- und VAPID-Aufrufe. Geteilt mit
 // `judgeOffenseParity.test.ts`: die Mail-Fabrik ist eine Export-Whitelist und gehört nicht zweimal
 // gepflegt (siehe `notifyLeafMocks`).
-vi.mock("@/lib/mail", async () => (await import("@/test/notifyLeafMocks")).mailLeaf());
-vi.mock("@/lib/push", async () => (await import("@/test/notifyLeafMocks")).pushLeaf());
-vi.mock("@/lib/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
+vi.mock("@/lib/messages/mail", async () => (await import("@/test/notifyLeafMocks")).mailLeaf());
+vi.mock("@/lib/messages/push", async () => (await import("@/test/notifyLeafMocks")).pushLeaf());
+vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 vi.mock("next-intl/server", async () => (await import("@/test/notifyLeafMocks")).intlServerLeaf());
 
 vi.mock("@/lib/strafbuch/strafbuch", async (importOriginal) => ({

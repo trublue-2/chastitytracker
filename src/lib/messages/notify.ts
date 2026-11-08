@@ -1,14 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { withOffenseName } from "@/lib/strafbuch/offenseLabels";
-import { withMessageDefaults } from "@/lib/messageDefaults";
-import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/mail";
-import { emailT, emailGreeting, localeT } from "@/lib/emailI18n";
-import { sendPushToUser } from "@/lib/push";
+import { withMessageDefaults } from "@/lib/messages/messageDefaults";
+import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/messages/mail";
+import { emailT, emailGreeting, localeT } from "@/lib/messages/emailI18n";
+import { sendPushToUser } from "@/lib/messages/push";
 import { structuredLog } from "@/lib/serverLog";
-import { sendTelegram } from "@/lib/telegram";
-import { recordInboxDelivery, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messageService";
-import { messagePriority } from "@/lib/messageCategories";
-import { deliveryChannels, type DeliveryRecipient } from "@/lib/deliveryChannels";
+import { sendTelegram } from "@/lib/messages/telegram";
+import { recordInboxDelivery, recordSystemMessage, type MessageActor, type MessageBodyKey, type MessageRef } from "@/lib/messages/messageService";
+import { messagePriority } from "@/lib/messages/messageCategories";
+import { deliveryChannels, type DeliveryRecipient } from "@/lib/messages/deliveryChannels";
 import { anyChannelActive, channelsAnd, type MessagePriority, type NotificationChannels, APP_NAME } from "@/lib/constants";
 
 /**

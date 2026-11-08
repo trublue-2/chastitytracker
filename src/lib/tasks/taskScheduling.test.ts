@@ -18,13 +18,13 @@ vi.mock("@/lib/prisma", () => ({
     healthHold: { findMany: vi.fn(async () => []) },
   },
 }));
-vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
+vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []), getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })) }));
 
 import { dispatchDueTasks } from "./taskService";
 import { getDashboardTasks, getEvaluatedTaskHistory, getTasksBlocking } from "./taskIntervals";
 import { prisma } from "@/lib/prisma";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser } from "@/lib/messages/notify";
 
 const findMany = prisma.task.findMany as unknown as ReturnType<typeof vi.fn>;
 const update = prisma.task.updateMany as unknown as ReturnType<typeof vi.fn>;

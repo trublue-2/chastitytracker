@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { escHtml, noticeBoxHtml, dashboardEmailHtml, appBaseUrl, sendMail, sendMailSafe } from "./mail";
-import { EMAIL_BUTTON_COLORS } from "./constants";
+import { EMAIL_BUTTON_COLORS } from "../constants";
 
 const { transportSend, createTransport } = vi.hoisted(() => {
   const transportSend = vi.fn();

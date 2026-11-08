@@ -1,8 +1,8 @@
 import webpush from "web-push";
 import { prisma } from "@/lib/prisma";
 import { structuredLog } from "@/lib/serverLog";
-import { isAllowedPushEndpoint } from "@/lib/pushEndpoint";
-import { apnsProviderToken, resetApnsTokenCache } from "@/lib/apnsAuth";
+import { isAllowedPushEndpoint } from "@/lib/messages/pushEndpoint";
+import { apnsProviderToken, resetApnsTokenCache } from "@/lib/messages/apnsAuth";
 
 const plog = (label: string, fields: Record<string, unknown>) => structuredLog("push", label, fields);
 

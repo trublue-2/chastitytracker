@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { deployCutoff } from "@/lib/appMeta";
 import { loadSubOffenses, type SubOffense } from "@/lib/strafbuch/subOffenses";
-import { recordSystemMessage, OFFENSE_REF_TYPE, parseParams } from "@/lib/messageService";
+import { recordSystemMessage, OFFENSE_REF_TYPE, parseParams } from "@/lib/messages/messageService";
 import { offenseCanonicalFromNameKey, offenseNameKey } from "@/lib/strafbuch/offenseLabels";
 import type { OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
 

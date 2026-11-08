@@ -2,10 +2,10 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { titleCls } from "@/app/components/inputStyles";
 import { assertController } from "@/lib/auth/authGuards";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
-import { keyholderInbox, listMessages, unreadCountForKeyholderCached, unreadCount } from "@/lib/messageService";
-import { presentMessages } from "@/lib/messagePresenter";
-import { isMessageFiltered, messageFilterToParams, parseMessageFilterFrom } from "@/lib/messageCategories";
-import { MESSAGE_SCOPES } from "@/lib/messageScope";
+import { keyholderInbox, listMessages, unreadCountForKeyholderCached, unreadCount } from "@/lib/messages/messageService";
+import { presentMessages } from "@/lib/messages/messagePresenter";
+import { isMessageFiltered, messageFilterToParams, parseMessageFilterFrom } from "@/lib/messages/messageCategories";
+import { MESSAGE_SCOPES } from "@/lib/messages/messageScope";
 import { APP_TZ } from "@/lib/utils";
 import MessageList from "@/app/components/MessageList";
 

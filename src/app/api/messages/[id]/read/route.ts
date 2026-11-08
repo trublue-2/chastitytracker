@@ -1,4 +1,4 @@
-import { ownInboxRoutes } from "@/lib/messageInboxRoutes";
+import { ownInboxRoutes } from "@/lib/messages/messageInboxRoutes";
 
 /** POST = gelesen, DELETE = wieder ungelesen. */
 export const POST = ownInboxRoutes.markRead;

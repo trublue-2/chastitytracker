@@ -3,14 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/kontrollen/verifyCode";
 import { structuredLog } from "@/lib/serverLog";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser } from "@/lib/messages/notify";
 import { getControllerAudience } from "@/lib/auth/keyholder";
 import { notifyLateProof } from "@/lib/tasks/taskProofNotify";
 import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/tasks/taskIntervals";
 import { isTaskResultFinal, proofResubmittable, type TaskEvaluation, proofAcceptsNow, type ProofDeadlineWindow,} from "@/lib/tasks/tasks";
 import { settleIfFinal, settleIfNowDone } from "@/lib/tasks/taskService";
 import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
-import type { MessageActor } from "@/lib/messageService";
+import type { MessageActor } from "@/lib/messages/messageService";
 
 /**
  * Der Sub reicht ein gefordertes Nachweis-Foto ein (Issue #39, Etappe 3).

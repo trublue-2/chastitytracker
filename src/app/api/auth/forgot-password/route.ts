@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendMailSafe, escHtml, appBaseUrl } from "@/lib/mail";
-import { emailT, emailGreeting } from "@/lib/emailI18n";
+import { sendMailSafe, escHtml, appBaseUrl } from "@/lib/messages/mail";
+import { emailT, emailGreeting } from "@/lib/messages/emailI18n";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { clientIp } from "@/lib/auth/clientIp";
 import { hashToken } from "@/lib/auth/oauth";

@@ -8,7 +8,7 @@ import {
 } from "@/lib/idb";
 import { fetchWithTimeout, parseApiErrorCode, uploadPhoto } from "@/lib/apiClient";
 import { classifyQueueResponse, stopsQueueRun } from "@/lib/offlineQueueOutcome";
-import { registerBackgroundSync } from "@/lib/swMessages";
+import { registerBackgroundSync } from "@/lib/messages/swMessages";
 import useToast from "@/app/hooks/useToast";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useTranslations } from "next-intl";

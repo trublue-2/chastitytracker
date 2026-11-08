@@ -1,10 +1,10 @@
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
 import { getControllableSubs } from "@/lib/auth/keyholder";
-import { getRecipientChannels } from "@/lib/notificationPrefs";
-import { telegramLinkAvailable } from "@/lib/telegram";
-import { hasPushTarget } from "@/lib/push";
-import { mailReaches, mailConfigured } from "@/lib/mail";
+import { getRecipientChannels } from "@/lib/messages/notificationPrefs";
+import { telegramLinkAvailable } from "@/lib/messages/telegram";
+import { hasPushTarget } from "@/lib/messages/push";
+import { mailReaches, mailConfigured } from "@/lib/messages/mail";
 import { boxCouplingEnabled, isValidStartPage, lockmeboxEnabled, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
 import { toBoxKind, type BoxKind } from "@/lib/box/boxStatus";
 import type { WeightSettingsProps } from "./WeightSettings";

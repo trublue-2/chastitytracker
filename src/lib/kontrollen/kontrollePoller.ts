@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { pruneExpiredMessages } from "@/lib/messageService";
+import { pruneExpiredMessages } from "@/lib/messages/messageService";
 import { pruneWeightPhotos } from "@/lib/weight/weightService";
 import { sendDueWeighingReminders } from "@/lib/weight/weightReminder";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
-import { NOTIFY_RECIPIENT_SELECT } from "@/lib/notify";
+import { NOTIFY_RECIPIENT_SELECT } from "@/lib/messages/notify";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrollen/kontrolleService";
 import { getIsLocked, getActiveLockPeriod } from "@/lib/queries";
 import { resolveInspectionTarget, inspectionTargetLabel, isKgTarget } from "@/lib/kontrollen/inspectionTarget";

@@ -10,7 +10,7 @@ import FormError from "@/app/components/FormError";
 import Input from "@/app/components/Input";
 import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 import PasskeyLoginButton from "@/app/components/PasskeyLoginButton";
-import { clearSwUserCache } from "@/lib/swMessages";
+import { clearSwUserCache } from "@/lib/messages/swMessages";
 import { syncLocaleCookieFromLogin } from "@/lib/locale";
 import { APP_NAME } from "@/lib/constants";
 

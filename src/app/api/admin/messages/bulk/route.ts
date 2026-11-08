@@ -1,3 +1,3 @@
-import { keyholderInboxRoutes } from "@/lib/messageInboxRoutes";
+import { keyholderInboxRoutes } from "@/lib/messages/messageInboxRoutes";
 
 export const POST = keyholderInboxRoutes.bulk;

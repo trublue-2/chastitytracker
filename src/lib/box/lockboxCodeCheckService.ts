@@ -4,7 +4,7 @@ import {
   type CodeChangeState, type CodeChangeVerdict,
 } from "@/lib/box/lockboxCodeCheck";
 import { getControllerAudience, getKeyholdersOfUser } from "@/lib/auth/keyholder";
-import { notifyControllers } from "@/lib/notify";
+import { notifyControllers } from "@/lib/messages/notify";
 import { isCodePhotoRevealed } from "@/lib/queries";
 import { structuredLog } from "@/lib/serverLog";
 import { detectLockboxCode } from "@/lib/kontrollen/verifyCode";

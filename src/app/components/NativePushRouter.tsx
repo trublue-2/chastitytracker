@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { isNativePlatform } from "@/lib/nativePush";
+import { isNativePlatform } from "@/lib/messages/nativePush";
 
 /**
  * Öffnet beim Tippen auf eine NATIVE Push-Benachrichtigung (Capacitor/iOS) die passende Seite

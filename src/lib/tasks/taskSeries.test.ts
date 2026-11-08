@@ -19,7 +19,7 @@ vi.mock("@/lib/prisma", () => {
   };
   return { prisma: p };
 });
-vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
+vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({
   getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })),
   getControllersOfUser: vi.fn(async () => []),
@@ -27,7 +27,7 @@ vi.mock("@/lib/auth/keyholder", () => ({
 
 import { createTaskSeries, updateTaskSeries, withdrawTaskSeries, materializeDueSeries, type CreateTaskSeriesParams } from "./taskService";
 import { prisma } from "@/lib/prisma";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser } from "@/lib/messages/notify";
 
 const db = prisma as unknown as {
   taskSeries: Record<string, ReturnType<typeof vi.fn>>;

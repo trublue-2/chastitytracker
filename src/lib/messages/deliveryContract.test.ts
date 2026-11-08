@@ -17,13 +17,13 @@ vi.mock("@/lib/prisma", () => ({
     message: { create: vi.fn(async () => ({ id: "m1" })), findFirst: vi.fn(async () => null) },
   },
 }));
-vi.mock("@/lib/mail", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/mail")>()),
+vi.mock("@/lib/messages/mail", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/messages/mail")>()),
   sendMailSafe: vi.fn(),
 }));
-vi.mock("@/lib/push", () => ({ sendPushToUser: vi.fn(), hasPushTarget: vi.fn() }));
-vi.mock("@/lib/telegram", () => ({ sendTelegram: vi.fn() }));
-vi.mock("@/lib/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
+vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn(), hasPushTarget: vi.fn() }));
+vi.mock("@/lib/messages/telegram", () => ({ sendTelegram: vi.fn() }));
+vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 vi.mock("next-intl/server", async () => (await import("@/test/notifyLeafMocks")).intlServerLeaf());
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
@@ -32,25 +32,25 @@ vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () =>
 
 // Die Kanal-ENTSCHEIDUNG ist anderswo geprüft (`deliveryChannels`) — hier kommt sie als Vorgabe.
 let CHANNELS = { mail: true, push: true, telegram: true };
-vi.mock("@/lib/deliveryChannels", () => ({
+vi.mock("@/lib/messages/deliveryChannels", () => ({
   deliveryChannels: vi.fn(async () => CHANNELS),
   deliveryChannelsForUser: vi.fn(async () => CHANNELS),
 }));
-vi.mock("@/lib/messageService", async (importOriginal) => ({
+vi.mock("@/lib/messages/messageService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./messageService")>()),
   recordSystemMessage: vi.fn(async () => "m-new"),
   recordInboxDelivery: vi.fn(async () => ({ badge: 3, channels: CHANNELS })),
 }));
 
 import { notifyUser } from "./notify";
-import { sendKontrolleNotification } from "./kontrollen/kontrolleService";
-import { sendVerschlussAnforderungNotifications } from "./verschlussAnforderungService";
-import { sendOrgasmusAnforderungNotifications } from "./orgasmusAnforderungService";
+import { sendKontrolleNotification } from "../kontrollen/kontrolleService";
+import { sendVerschlussAnforderungNotifications } from "../verschlussAnforderungService";
+import { sendOrgasmusAnforderungNotifications } from "../orgasmusAnforderungService";
 import { prisma } from "@/lib/prisma";
-import { recordInboxDelivery } from "@/lib/messageService";
-import * as mailModule from "@/lib/mail";
-import * as pushModule from "@/lib/push";
-import * as telegramModule from "@/lib/telegram";
+import { recordInboxDelivery } from "@/lib/messages/messageService";
+import * as mailModule from "@/lib/messages/mail";
+import * as pushModule from "@/lib/messages/push";
+import * as telegramModule from "@/lib/messages/telegram";
 import { APP_NAME } from "@/lib/constants";
 
 type Spy = ReturnType<typeof vi.fn>;

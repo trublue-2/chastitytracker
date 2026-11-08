@@ -6,8 +6,8 @@ import Select from "@/app/components/Select";
 import LiveStatus from "@/app/components/LiveStatus";
 import {
   MESSAGE_CATEGORIES, MESSAGE_CATEGORY_PILLS, MESSAGE_SENDER_KINDS, senderLabel, type MessageFilter,
-} from "@/lib/messageCategories";
-import type { MessageScope } from "@/lib/messageScope";
+} from "@/lib/messages/messageCategories";
+import type { MessageScope } from "@/lib/messages/messageScope";
 
 /** Der leere Wert der beiden Auswahlfelder — „egal", nicht „keine". Als Konstante, weil ihn die
  *  Zuordnung in beide Richtungen braucht. */

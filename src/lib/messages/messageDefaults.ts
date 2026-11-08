@@ -1,4 +1,4 @@
-import type { MessageBodyKey } from "@/lib/messageService";
+import type { MessageBodyKey } from "@/lib/messages/messageService";
 
 /**
  * Vorgaben für Platzhalter, die eine Meldung erst später bekommen hat — angewandt, wo aus Schlüssel

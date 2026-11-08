@@ -6,25 +6,25 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * Warte-Regel des Helfers selbst.
  */
 vi.mock("@/lib/prisma", () => ({ prisma: { user: { findUnique: vi.fn() } } }));
-vi.mock("@/lib/mail", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/mail")>()),
+vi.mock("@/lib/messages/mail", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/messages/mail")>()),
   sendMailSafe: vi.fn(),
 }));
-vi.mock("@/lib/push", () => ({ sendPushToUser: vi.fn() }));
-vi.mock("@/lib/telegram", () => ({ sendTelegram: vi.fn() }));
+vi.mock("@/lib/messages/push", () => ({ sendPushToUser: vi.fn() }));
+vi.mock("@/lib/messages/telegram", () => ({ sendTelegram: vi.fn() }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
-vi.mock("@/lib/deliveryChannels", () => ({
+vi.mock("@/lib/messages/deliveryChannels", () => ({
   deliveryChannels: vi.fn(async () => ({ mail: true, push: true, telegram: true })),
 }));
-vi.mock("@/lib/messageService", async (importOriginal) => ({
+vi.mock("@/lib/messages/messageService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./messageService")>()),
   recordInboxDelivery: vi.fn(async () => ({ badge: 1, channels: { mail: true, push: true, telegram: true } })),
 }));
 
 import { deliverToChannels, notifyUser, CHANNEL_DEADLINE_MS } from "./notify";
-import { sendMailSafe } from "@/lib/mail";
-import { sendPushToUser } from "@/lib/push";
-import { sendTelegram } from "@/lib/telegram";
+import { sendMailSafe } from "@/lib/messages/mail";
+import { sendPushToUser } from "@/lib/messages/push";
+import { sendTelegram } from "@/lib/messages/telegram";
 import { structuredLog } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { APP_NAME } from "@/lib/constants";

@@ -11,10 +11,10 @@ import {
   subInbox,
   unreadCount,
   type InboxScope,
-} from "@/lib/messageService";
-import { presentMessages } from "@/lib/messagePresenter";
-import { parseMessageFilter } from "@/lib/messageCategories";
-import { parseMessageBulkBody } from "@/lib/messageBulk";
+} from "@/lib/messages/messageService";
+import { presentMessages } from "@/lib/messages/messagePresenter";
+import { parseMessageFilter } from "@/lib/messages/messageCategories";
+import { parseMessageBulkBody } from "@/lib/messages/messageBulk";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 
 /**

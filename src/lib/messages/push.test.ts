@@ -20,7 +20,7 @@ vi.mock("@/lib/prisma", () => ({
     pushSubscription: { findMany: subscriptions, deleteMany: vi.fn() },
   },
 }));
-vi.mock("@/lib/pushEndpoint", () => ({ isAllowedPushEndpoint: () => true }));
+vi.mock("@/lib/messages/pushEndpoint", () => ({ isAllowedPushEndpoint: () => true }));
 
 beforeEach(() => {
   vi.resetModules();

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Bell } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { headerIconBtnCls } from "./inputStyles";
-import { MESSAGE_SCOPES, type MessageScope } from "@/lib/messageScope";
+import { MESSAGE_SCOPES, type MessageScope } from "@/lib/messages/messageScope";
 
 /**
  * Der Zugang zum Posteingang, im Header statt in der Bottom-Nav: die hat bei Keyholder-Rolle bereits

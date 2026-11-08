@@ -1,3 +1,3 @@
-import { ownInboxRoutes } from "@/lib/messageInboxRoutes";
+import { ownInboxRoutes } from "@/lib/messages/messageInboxRoutes";
 
 export const DELETE = ownInboxRoutes.remove;

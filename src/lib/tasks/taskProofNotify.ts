@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
 import { structuredLog } from "@/lib/serverLog";
-import { notifyControllers } from "@/lib/notify";
+import { notifyControllers } from "@/lib/messages/notify";
 import { getControllerAudience, type Controller } from "@/lib/auth/keyholder";
 import { proofSubmittedLate, type TaskLike, type ProofLike, type ProofDeadlineWindow,} from "@/lib/tasks/tasks";
 

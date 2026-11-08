@@ -46,7 +46,7 @@ vi.mock("@/lib/tasks/taskService", async (importOriginal) => ({
   checkTask: vi.fn(),
   writeTask: vi.fn(),
 }));
-vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
+vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 
 import { punishWithTask, judgeOffense } from "./strafurteilService";
@@ -54,7 +54,7 @@ import { POST as postTask } from "@/app/api/admin/tasks/route";
 import type { NextRequest } from "next/server";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { checkTask, writeTask } from "@/lib/tasks/taskService";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser } from "@/lib/messages/notify";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";
 
 const strafbuch = buildStrafbuch as unknown as ReturnType<typeof vi.fn>;

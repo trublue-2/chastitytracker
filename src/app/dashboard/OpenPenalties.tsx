@@ -4,7 +4,7 @@ import Section from "@/app/components/Section";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import OffenseList from "@/app/components/OffenseList";
 import { prisma } from "@/lib/prisma";
-import { messageFilterToParams } from "@/lib/messageCategories";
+import { messageFilterToParams } from "@/lib/messages/messageCategories";
 import { loadSubOffenses, subAttentionOffensesOf } from "@/lib/strafbuch/subOffenses";
 import { announcedOpenRefs } from "@/lib/strafbuch/offenseAnnounce";
 import { loadStatementViews } from "@/lib/strafbuch/offenseStatementService";

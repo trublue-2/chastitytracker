@@ -5,7 +5,7 @@ import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ConfirmDialog from "@/app/components/ConfirmDialog";
-import { clearSwUserCache } from "@/lib/swMessages";
+import { clearSwUserCache } from "@/lib/messages/swMessages";
 
 /**
  * Das EINE Abmelden: Rückfrage, dann Cache des Service Workers leeren, dann `signOut`.

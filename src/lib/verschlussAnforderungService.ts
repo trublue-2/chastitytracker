@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON, APP_NAME } from "@/lib/constants";
-import { escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
-import { notifyUser, deliverToChannels, NOTIFY_RECIPIENT_SELECT, type NotifyContent, type NotifyInbox, type NotifyRecipient } from "@/lib/notify";
-import { actorColumn, recordInboxDelivery, type MessageActor } from "@/lib/messageService";
+import { escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/messages/mail";
+import { notifyUser, deliverToChannels, NOTIFY_RECIPIENT_SELECT, type NotifyContent, type NotifyInbox, type NotifyRecipient } from "@/lib/messages/notify";
+import { actorColumn, recordInboxDelivery, type MessageActor } from "@/lib/messages/messageService";
 import { notifyHeimdallForUserId } from "@/lib/box/heimdallNotify";
 import { markLastAction } from "@/lib/appMeta";
-import { emailT, emailGreeting } from "@/lib/emailI18n";
+import { emailT, emailGreeting } from "@/lib/messages/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
 import { formatDateTime, formatDurationHours } from "@/lib/utils";
 import { parseTriggerAt, computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyDeadlineFallback } from "./deliveryChannels";
-import { channelsForLevels, levelDelivers } from "./constants";
+import { channelsForLevels, levelDelivers } from "../constants";
 import { messagePriority } from "./messageCategories";
 
 const ch = (mail: boolean, push: boolean, telegram: boolean) => ({ mail, push, telegram });

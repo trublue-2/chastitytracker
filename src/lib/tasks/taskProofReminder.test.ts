@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/tasks/taskIntervals", () => ({ evaluateTasks: vi.fn(), TASK_INCLUDE: {}, SUB_VISIBLE_WHERE: {} }));
 vi.mock("@/lib/healthHold", () => ({ NOT_PAUSED_WHERE: {} }));
-vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
+vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn() }));
 
 import { mayBeDueWithin, nextDueProof } from "./taskProofReminder";
 

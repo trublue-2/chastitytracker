@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
-import { NOTIFY_RECIPIENT_SELECT, type NotifyRecipient } from "@/lib/notify";
+import { NOTIFY_RECIPIENT_SELECT, type NotifyRecipient } from "@/lib/messages/notify";
 
 /**
  * Keyholder relationships. A keyholder is any user with an AdminUserRelationship row
