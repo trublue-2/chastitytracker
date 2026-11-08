@@ -1,6 +1,6 @@
 # Funktionskatalog
 
-<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodellCapabilities.ts
+<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodell/funktionsmodellCapabilities.ts
      neu erzeugen: `npm run funktionsmodell` -->
 
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für

@@ -130,7 +130,7 @@ npm run funktionsmodell
 ```
 
 Erzeugt **alle drei** generierten Dateien aus `prisma/schema.prisma` (Form: Feld, Typ, Default) und
-`src/lib/funktionsmodellRegistry.ts` (Bedeutung: wer schreibt, worauf wirkt es, wo steht die Regel).
+`src/lib/funktionsmodell/funktionsmodellRegistry.ts` (Bedeutung: wer schreibt, worauf wirkt es, wo steht die Regel).
 
 Die Abhängigkeits-Ansicht ist dabei vollständig **abgeleitet**: sie liest dieselben `affects`-Angaben
 rückwärts. Eine von Hand gepflegte Gegenrichtung wäre binnen weniger Änderungen unvollständig, und

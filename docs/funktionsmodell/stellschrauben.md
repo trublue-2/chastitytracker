@@ -1,7 +1,7 @@
 # Stellschrauben-Register
 
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
-     src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
+     src/lib/funktionsmodell/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
 Jedes Feld, das Verhalten steuert: 154 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
