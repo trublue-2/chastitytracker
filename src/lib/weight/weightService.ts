@@ -9,7 +9,7 @@ import {
   type UnitSystem, type WeightTarget,
 } from "@/lib/weight/weight";
 import { notifyControllers } from "@/lib/notify";
-import { getControllersOfUser } from "@/lib/keyholder";
+import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { applyWeightRelease } from "@/lib/weight/weightReleaseService";
 
 /**

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { prepareEmailInput } from "@/lib/loginIdentity";
-import { requireAdminApi } from "@/lib/authGuards";
+import { prepareEmailInput } from "@/lib/auth/loginIdentity";
+import { requireAdminApi } from "@/lib/auth/authGuards";
 import bcrypt from "bcryptjs";
 import { passwordErrorCode } from "@/lib/constants";
 import { ensureKgCategory } from "@/lib/devices/deviceCategories";

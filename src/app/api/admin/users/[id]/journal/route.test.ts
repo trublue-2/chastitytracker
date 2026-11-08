@@ -7,14 +7,14 @@ import { NextRequest } from "next/server";
  * wird deshalb der echte Guard (`requireJournalReaderApi`), nicht ein Mock davon — nur Sitzung und
  * Zuordnung sind gestellt.
  */
-vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ canReadJournal: vi.fn(), isKeyholderOf: vi.fn(), getControllableSubsCached: vi.fn() }));
+vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/auth/keyholder", () => ({ canReadJournal: vi.fn(), isKeyholderOf: vi.fn(), getControllableSubsCached: vi.fn() }));
 vi.mock("@/lib/journal/journalService", () => ({ listKeyholderJournal: vi.fn(async () => ({ entries: [], hasMore: false })) }));
 vi.mock("@/lib/queries", () => ({ getUserTimezone: vi.fn(async () => "Europe/Zurich") }));
 
 import { GET } from "./route";
-import { auth } from "@/lib/auth";
-import { canReadJournal } from "@/lib/keyholder";
+import { auth } from "@/lib/auth/auth";
+import { canReadJournal } from "@/lib/auth/keyholder";
 import { listKeyholderJournal } from "@/lib/journal/journalService";
 
 const SUB = "sub00000000000000000001";

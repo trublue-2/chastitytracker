@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
 import { loadUploadedImage } from "@/lib/imageUtils";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { structuredLog } from "@/lib/serverLog";
 import {
   mcpImageMaxPx, MCP_IMAGE_MAX_AGE_H, MCP_IMAGE_MAX_AGE_MS, MCP_IMAGE_PER_HOUR, MCP_IMAGE_PER_DAY,

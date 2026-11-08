@@ -21,10 +21,10 @@ const access = vi.hoisted(() => ({ entryManageAccess: vi.fn() }));
 const ids = vi.hoisted(() => ({ OWNER_ID: "owner-id", ENTRY_ID: "entry-id" }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
-vi.mock("@/lib/authGuards", () => ({
+vi.mock("@/lib/auth/authGuards", () => ({
   requireApi: vi.fn(async () => ({ user: { id: ids.OWNER_ID, role: "user" } })),
 }));
-vi.mock("@/lib/keyholder", () => access);
+vi.mock("@/lib/auth/keyholder", () => access);
 vi.mock("@/lib/imageUtils", () => ({
   deleteUploadedFiles: vi.fn(),
   entryImageUrls: vi.fn(() => []),

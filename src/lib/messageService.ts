@@ -2,7 +2,7 @@ import { cache } from "react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { structuredLog } from "@/lib/serverLog";
-import { getControllableSubsCached } from "@/lib/keyholder";
+import { getControllableSubsCached } from "@/lib/auth/keyholder";
 import { bodyKeysOfCategory, bodyKeysOutsideSystem, messagePriority, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
 import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/strafbuch/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";

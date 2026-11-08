@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn(async () => [{ id: "kh1" }]) }));
+vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () => [{ id: "kh1" }]) }));
 vi.mock("@/lib/oeffnenService", () => ({ createOeffnenEntryTx: vi.fn() }));
 
 import { notifyInspectionAutoMarked } from "./inspectionEscalationService";

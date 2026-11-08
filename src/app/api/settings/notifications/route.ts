@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { isRecipientNotificationEventType, NO_FIELDS_TO_UPDATE } from "@/lib/constants";
 import { errorResponse } from "@/lib/serviceResult";
 

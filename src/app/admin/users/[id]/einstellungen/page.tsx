@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import BlockHeading from "@/app/components/BlockHeading";
 import { redirect } from "next/navigation";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import RoleSelect from "@/app/admin/RoleSelect";
 import CleaningToggle from "@/app/admin/CleaningToggle";
 import AutoKontrolleToggle from "@/app/admin/AutoKontrolleToggle";
@@ -26,7 +26,7 @@ import UserLocaleSelect from "@/app/admin/UserLocaleSelect";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
 import KeyholderInstructionsForm from "@/app/admin/KeyholderInstructionsForm";
 import KeyholderManager from "@/app/admin/KeyholderManager";
-import { getKeyholdersOfUser } from "@/lib/keyholder";
+import { getKeyholdersOfUser } from "@/lib/auth/keyholder";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import SettingsSection from "@/app/components/SettingsSection";

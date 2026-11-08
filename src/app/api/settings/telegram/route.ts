@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { errorResponse } from "@/lib/serviceResult";
 import { createTelegramLink, unlinkTelegram, telegramLinkAvailable } from "@/lib/telegram";
 

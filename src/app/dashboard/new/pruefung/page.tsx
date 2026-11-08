@@ -1,7 +1,7 @@
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import PruefungForm from "../../PruefungForm";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrollen/kontrolleService";
 import { generateKontrollCode } from "@/lib/utils";
 import { getBoxFormContext, getOpenKontrollen, getMobileDesktopMode } from "@/lib/queries";

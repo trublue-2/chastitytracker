@@ -25,8 +25,8 @@ vi.mock("@/lib/prisma", () => ({
 }));
 // Der Browser-Eingang dieses Vorgangs (`POST /api/admin/tasks`) läuft hier mit — er trägt dieselben
 // zwei Regeln wie die Strafbuch-Route, und geprüft wird, dass er sie WIRKLICH setzt.
-vi.mock("@/lib/auth", () => ({ auth: vi.fn(async () => ({ user: { id: "kh1", role: "admin", name: "herrin" } })) }));
-vi.mock("@/lib/keyholder", () => ({
+vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn(async () => ({ user: { id: "kh1", role: "admin", name: "herrin" } })) }));
+vi.mock("@/lib/auth/keyholder", () => ({
   isKeyholderOf: vi.fn(async () => false),
   getControllableSubsCached: vi.fn(async () => []),
   getControllersOfUser: vi.fn(async () => []),

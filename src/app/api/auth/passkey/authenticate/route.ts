@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRpConfig, setChallenge, getAndDeleteChallenge, createPasskeyToken } from "@/lib/webauthn";
+import { getRpConfig, setChallenge, getAndDeleteChallenge, createPasskeyToken } from "@/lib/auth/webauthn";
 import { generateAuthenticationOptions, verifyAuthenticationResponse, type AuthenticatorTransport } from "@simplewebauthn/server";
-import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/clientIp";
+import { checkRateLimit, rateLimitResponse } from "@/lib/auth/rate-limit";
+import { clientIp } from "@/lib/auth/clientIp";
 
 /** Eine Anmeldung sind zwei Aufrufe (POST Optionen, PUT Prüfung) — 30 in 15 Minuten sind 15 Anmeldungen je IP. */
 async function limited(req: Request) {

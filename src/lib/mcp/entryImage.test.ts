@@ -9,13 +9,13 @@ vi.mock("@/lib/imageUtils", () => ({
   loadUploadedImage: vi.fn(),
 }));
 
-vi.mock("@/lib/rate-limit", () => ({
+vi.mock("@/lib/auth/rate-limit", () => ({
   checkRateLimit: vi.fn(),
 }));
 
 import { loadMcpImage, mcpImageKeyUnlocked, mcpImageToolVisible } from "./entryImage";
 import { loadUploadedImage } from "@/lib/imageUtils";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { type PrismaMock } from "@/test/prismaMock";
 import { taskProofRow } from "@/test/taskProofRow";

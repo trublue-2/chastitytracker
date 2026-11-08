@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { NextResponse } from "next/server";
-import { ownTrackerHidden } from "@/lib/ownTracker";
+import { ownTrackerHidden } from "@/lib/auth/ownTracker";
 import { touchAppMeta } from "@/lib/appMeta";
 import { logTimestamp } from "@/lib/logFormat";
-import { isPublicPath } from "@/lib/publicRoutes";
-import { clientIp } from "@/lib/clientIp";
+import { isPublicPath } from "@/lib/auth/publicRoutes";
+import { clientIp } from "@/lib/auth/clientIp";
 
 // ── Rate limiter für Login-Endpunkt ──────────────────────────────────────────
 const loginBucket = new Map<string, { count: number; resetAt: number }>();

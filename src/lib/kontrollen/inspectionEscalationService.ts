@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { localeT } from "@/lib/emailI18n";
 import { clamp, APP_TZ } from "@/lib/utils";
 import { notifyUser, notifyControllers } from "@/lib/notify";
-import { getControllersOfUser } from "@/lib/keyholder";
+import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { createOeffnenEntryTx } from "@/lib/oeffnenService";
 import { prepareWearEntry } from "@/lib/queries";
 import { resolveInspectionTarget, isKgTarget } from "@/lib/kontrollen/inspectionTarget";

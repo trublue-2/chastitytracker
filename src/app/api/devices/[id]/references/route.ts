@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { manageableDeviceOwner } from "@/lib/devices/deviceAccess";
 import { isValidImageUrl } from "@/lib/constants";
 import { listDeviceReferences, addReferenceFromUpload, importEntryAsReference } from "@/lib/devices/deviceReferenceService";

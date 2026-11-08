@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { titleCls } from "@/app/components/inputStyles";
-import { auth } from "@/lib/auth";
-import { soleControllerName } from "@/lib/keyholder";
+import { auth } from "@/lib/auth/auth";
+import { soleControllerName } from "@/lib/auth/keyholder";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import { listMessages, pageOfMessage, subInbox, unreadCountCached, unreadCount } from "@/lib/messageService";
 import { presentMessages } from "@/lib/messagePresenter";

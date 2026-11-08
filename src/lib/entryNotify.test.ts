@@ -24,13 +24,13 @@ vi.mock("@/lib/mail", async (importOriginal) => ({
 }));
 vi.mock("@/lib/push", () => ({ sendPushToUser: vi.fn() }));
 vi.mock("@/lib/telegram", () => ({ sendTelegram: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn() }));
+vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn() }));
 
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "./entryNotify";
 import { sendMailSafe } from "@/lib/mail";
 import { sendPushToUser } from "@/lib/push";
 import { sendTelegram } from "@/lib/telegram";
-import { getControllersOfUser } from "@/lib/keyholder";
+import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { deliveryChannels } from "@/lib/deliveryChannels";
 
 const prefs = deliveryChannels as unknown as ReturnType<typeof vi.fn>;

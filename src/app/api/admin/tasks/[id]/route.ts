@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import { withdrawTask, deleteTask, updateTask, type UpdateTaskParams } from "@/lib/tasks/taskService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 

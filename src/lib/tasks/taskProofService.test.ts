@@ -18,7 +18,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/kontrollen/verifyCode", () => ({ verifyKontrolleCodeDetailed: vi.fn() }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "kh1" }], username: "sub" })) }));
+vi.mock("@/lib/auth/keyholder", () => ({ getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "kh1" }], username: "sub" })) }));
 // Nur `evaluateTaskById` festnageln, der Rest bleibt ECHT: `SUB_VISIBLE_WHERE` hängt am Einreiche-Pfad
 // und wird unten geprüft. Als Attrappe (`{}` oder eine abgeschriebene Kopie) prüfte der Test die
 // Attrappe statt die Regel — grün, während das Fragment fehlt oder veraltet ist.

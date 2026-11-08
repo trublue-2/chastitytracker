@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { registerClient, OAUTH_SUPPORTED_SCOPES } from "@/lib/oauth";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/clientIp";
+import { registerClient, OAUTH_SUPPORTED_SCOPES } from "@/lib/auth/oauth";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { clientIp } from "@/lib/auth/clientIp";
 
 /**
  * POST /api/oauth/register

@@ -3,7 +3,7 @@ import {
   codeCheckPath, compareCodeReads, codeChangeNeedsReview,
   type CodeChangeState, type CodeChangeVerdict,
 } from "@/lib/lockboxCodeCheck";
-import { getControllerAudience, getKeyholdersOfUser } from "@/lib/keyholder";
+import { getControllerAudience, getKeyholdersOfUser } from "@/lib/auth/keyholder";
 import { notifyControllers } from "@/lib/notify";
 import { isCodePhotoRevealed } from "@/lib/queries";
 import { structuredLog } from "@/lib/serverLog";

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { assertJournalReader } from "@/lib/authGuards";
+import { assertJournalReader } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { getUserTimezone } from "@/lib/queries";
 import JournalBrowser from "@/app/components/JournalBrowser";

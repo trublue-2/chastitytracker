@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Plus } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import InfoDot from "@/app/components/InfoDot";
 import Button from "@/app/components/Button";

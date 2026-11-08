@@ -40,7 +40,7 @@ describe("verbotene Muster", () => {
   it("X-Forwarded-For und X-Real-IP werden nur im IP-Helfer gelesen", () => {
     // Der erste Eintrag von X-Forwarded-For ist vom Aufrufer wählbar (Traefik hängt die echte IP ans
     // ENDE) — jede zweite Kopie der Auslese ist eine Stelle, an der das wieder falsch werden kann.
-    const allow = { "src/lib/clientIp.ts": "der EINE Helfer" };
+    const allow = { "src/lib/auth/clientIp.ts": "der EINE Helfer" };
     expect(scan(SRC, /x-forwarded-for|x-real-ip/i, allow)).toEqual([]);
   });
 

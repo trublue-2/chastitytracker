@@ -26,6 +26,6 @@ describe("clientIp", () => {
   });
 
   it("ist importfrei (Proxy und Server-Log nehmen es, ohne die Datenbank nachzuziehen)", () => {
-    expectImportFree("src/lib/clientIp.ts");
+    expectImportFree("src/lib/auth/clientIp.ts");
   });
 });

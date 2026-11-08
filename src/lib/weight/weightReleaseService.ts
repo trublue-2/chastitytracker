@@ -10,7 +10,7 @@ import { evaluateRelease, isReleaseDirection, thresholdOn, type ReleaseEvaluatio
 import { movingAverage, type WeightPoint } from "@/lib/weight/weightSeries";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { notifyUser, notifyControllers } from "@/lib/notify";
-import { getControllersOfUser } from "@/lib/keyholder";
+import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { weightForDisplay, type UnitSystem } from "@/lib/weight/weight";
 import type { MessageActor } from "@/lib/messageService";
 import { isHealthHoldActive } from "@/lib/healthHold";

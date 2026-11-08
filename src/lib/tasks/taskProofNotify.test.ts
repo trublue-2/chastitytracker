@@ -14,7 +14,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyControllers: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({
+vi.mock("@/lib/auth/keyholder", () => ({
   getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "kh1" }], username: "sub" })),
 }));
 
@@ -25,7 +25,7 @@ vi.mock("@/lib/tasks/taskIntervals", () => ({ evaluateTaskById: vi.fn() }));
 import { notifyLateProof, notifyLateProofsForTask } from "./taskProofNotify";
 import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
 import { notifyControllers } from "@/lib/notify";
-import { getControllerAudience } from "@/lib/keyholder";
+import { getControllerAudience } from "@/lib/auth/keyholder";
 import { prisma } from "@/lib/prisma";
 
 const notifyKh = notifyControllers as unknown as ReturnType<typeof vi.fn>;

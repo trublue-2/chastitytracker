@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl } from "@/lib/constants";
 import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
 import { validateDeviceOwnership } from "@/lib/queries";
-import { entryManageAccess } from "@/lib/keyholder";
+import { entryManageAccess } from "@/lib/auth/keyholder";
 import { entryGuardCode } from "@/lib/entryErrors";
 import { assertEntryTimeOk, chainBreakPartner, deleteEntryForUser, entryPairTypes, entryPersistsDevice } from "@/lib/entryCorrection";
 import { serviceFailure } from "@/lib/serviceResult";

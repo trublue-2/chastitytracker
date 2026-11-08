@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { boxCouplingEnabled } from "@/lib/constants";
 import { requestBoxReopen } from "@/lib/boxReopenService";
 import { serviceFailure } from "@/lib/serviceResult";

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import { setHealthHold } from "@/lib/healthHold";
 import { serviceResponse } from "@/lib/serviceResult";
 

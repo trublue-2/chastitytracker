@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { manageableDeviceOwner } from "@/lib/devices/deviceAccess";
 import { deleteReference } from "@/lib/devices/deviceReferenceService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";

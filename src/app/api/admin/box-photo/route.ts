@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
 import { waiveBoxPhoto } from "@/lib/boxPhotoDueService";
 import { errorResponse, serviceResponse } from "@/lib/serviceResult";
 

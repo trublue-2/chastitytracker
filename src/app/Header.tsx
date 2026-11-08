@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import Link from "next/link";
 import AvatarMenu from "@/app/components/AvatarMenu";
 import FeedbackButton from "@/app/components/FeedbackButton";
@@ -6,7 +6,7 @@ import HeaderMessages from "@/app/components/HeaderMessages";
 import JournalHeaderLink from "@/app/components/JournalHeaderLink";
 import SkipLink from "@/app/components/SkipLink";
 import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerNameCls, headerRowCls } from "@/app/components/inputStyles";
-import { ownTrackerHidden } from "@/lib/ownTracker";
+import { ownTrackerHidden } from "@/lib/auth/ownTracker";
 import pkg from "../../package.json";
 import { instanceHostname } from "@/lib/appMeta";
 import { APP_NAME } from "@/lib/constants";

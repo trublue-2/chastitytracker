@@ -1,4 +1,4 @@
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";

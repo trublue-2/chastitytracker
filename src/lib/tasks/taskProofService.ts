@@ -4,7 +4,7 @@ import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/kontrollen/verifyCode";
 import { structuredLog } from "@/lib/serverLog";
 import { notifyUser } from "@/lib/notify";
-import { getControllerAudience } from "@/lib/keyholder";
+import { getControllerAudience } from "@/lib/auth/keyholder";
 import { notifyLateProof } from "@/lib/tasks/taskProofNotify";
 import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/tasks/taskIntervals";
 import { isTaskResultFinal, proofResubmittable, type TaskEvaluation, proofAcceptsNow, type ProofDeadlineWindow,} from "@/lib/tasks/tasks";

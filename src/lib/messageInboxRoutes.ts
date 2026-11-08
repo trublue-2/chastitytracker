@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLocale } from "next-intl/server";
-import { requireApi, requireControllerApi } from "@/lib/authGuards";
+import { requireApi, requireControllerApi } from "@/lib/auth/authGuards";
 import {
   deleteMessage,
   deleteMessages,

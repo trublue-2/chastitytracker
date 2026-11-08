@@ -1,9 +1,9 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import type { Session } from "next-auth";
 import { NextResponse } from "next/server";
 import { notFound, redirect } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { canReadJournal, getControllableSubsCached, isKeyholderOf } from "@/lib/keyholder";
+import { canReadJournal, getControllableSubsCached, isKeyholderOf } from "@/lib/auth/keyholder";
 import { errorResponse } from "@/lib/serviceResult";
 import { prisma } from "@/lib/prisma";
 

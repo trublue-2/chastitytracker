@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/authGuards";
+import { requireAdminApi } from "@/lib/auth/authGuards";
 import {
   checkPhotoAnalysisInput,
   checkPhotoAnalysisTarget,

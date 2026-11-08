@@ -3,10 +3,10 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
-import { checkRateLimit, recordFailure, recordSuccess } from "@/lib/login-attempts";
-import { resolveLogin } from "@/lib/loginIdentity";
-import { consumePasskeyToken } from "@/lib/webauthn";
-import { controlsAnySub } from "@/lib/keyholder";
+import { checkRateLimit, recordFailure, recordSuccess } from "@/lib/auth/login-attempts";
+import { resolveLogin } from "@/lib/auth/loginIdentity";
+import { consumePasskeyToken } from "@/lib/auth/webauthn";
+import { controlsAnySub } from "@/lib/auth/keyholder";
 
 function ts() { return new Date().toISOString(); }
 

@@ -1,7 +1,7 @@
 import type { EntryValidationCode } from "@/lib/entryErrors";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import type { TaskState } from "@/lib/tasks/tasks";
-import type { PasswordChangeVia } from "@/lib/passwordAudit";
+import type { PasswordChangeVia } from "@/lib/auth/passwordAudit";
 
 export const VALID_LOCALES = ["de", "en"] as const;
 export type Locale = (typeof VALID_LOCALES)[number];

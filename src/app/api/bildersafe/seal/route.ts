@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { bildersafeEnabled, isValidImageUrl } from "@/lib/constants";
 import { markLastAction } from "@/lib/appMeta";

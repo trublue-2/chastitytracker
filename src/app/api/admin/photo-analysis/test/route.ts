@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/authGuards";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { requireAdminApi } from "@/lib/auth/authGuards";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
 import {
   checkPhotoAnalysisInput,
   checkPhotoAnalysisTarget,

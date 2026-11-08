@@ -22,7 +22,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * einen möglichen.
  */
 
-vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn() }));
 
 /** Der Posteingang als STAND — die Zusage ist „am Ende steht dieselbe Zeile da", nicht „es wurde
  *  gleich oft geschrieben". Warum als Tabelle statt als Aufrufprotokoll: siehe `messageTableMock`. */
@@ -33,7 +33,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createMessageTablePrisma(inbox) };
 });
 
-vi.mock("@/lib/keyholder", () => ({
+vi.mock("@/lib/auth/keyholder", () => ({
   isKeyholderOf: vi.fn(async () => false),
   getControllableSubsCached: vi.fn(async () => []),
   getControllersOfUser: vi.fn(async () => []),
@@ -55,7 +55,7 @@ vi.mock("@/lib/strafbuch/strafbuch", async (importOriginal) => ({
 
 import { POST, PATCH } from "@/app/api/admin/strafe/route";
 import { judgeOffense } from "./strafurteilService";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { sendMailSafe } from "@/lib/mail";

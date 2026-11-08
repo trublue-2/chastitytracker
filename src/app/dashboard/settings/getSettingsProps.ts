@@ -1,6 +1,6 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
-import { getControllableSubs } from "@/lib/keyholder";
+import { getControllableSubs } from "@/lib/auth/keyholder";
 import { getRecipientChannels } from "@/lib/notificationPrefs";
 import { telegramLinkAvailable } from "@/lib/telegram";
 import { hasPushTarget } from "@/lib/push";

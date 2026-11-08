@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
-import { getRpConfig, setChallenge, getAndDeleteChallenge } from "@/lib/webauthn";
+import { getRpConfig, setChallenge, getAndDeleteChallenge } from "@/lib/auth/webauthn";
 import { generateRegistrationOptions, verifyRegistrationResponse, type AuthenticatorTransport } from "@simplewebauthn/server";
 
 /**

@@ -6,7 +6,7 @@ import ThemeRootSync from "@/app/components/ThemeRootSync";
 import AutoRefresh from "@/app/components/AutoRefresh";
 import DashboardBottomNav from "./DashboardBottomNav";
 import BottomNavSpacer from "./BottomNavSpacer";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { bildersafeMenuAction, getLatestKgEntry, pendingLockCallAt } from "@/lib/queries";
 import { subVisibleInspectionsNow } from "@/lib/dashboardData";
 import { pendingInspection } from "@/lib/entryFormRoute";

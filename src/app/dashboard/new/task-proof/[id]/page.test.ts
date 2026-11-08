@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
     throw new Error(`REDIRECT:${to}`);
   }),
 }));
-vi.mock("@/lib/auth", () => ({ auth: vi.fn(async () => ({ user: { id: "u1", timezone: null } })) }));
+vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn(async () => ({ user: { id: "u1", timezone: null } })) }));
 vi.mock("@/lib/prisma", () => ({
   prisma: { taskProof: { findFirst: vi.fn() }, user: { findUnique: vi.fn(async () => null) } },
 }));

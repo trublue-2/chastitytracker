@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { prisma } from "@/lib/prisma";
-import { openSecret, sealSecret } from "@/lib/secretBox";
+import { openSecret, sealSecret } from "@/lib/auth/secretBox";
 import {
   VISION_PROVIDERS,
   adminSetsBaseUrl,
@@ -12,7 +12,7 @@ import {
 } from "./providers";
 import type { VisionTask } from "./types";
 import { isAllowedVisionUrl } from "./urlGuard";
-import { isPortalInstance } from "@/lib/portalInstance";
+import { isPortalInstance } from "@/lib/auth/portalInstance";
 
 /**
  * WELCHE Foto-Prüfung gilt auf dieser Instanz — die eine Stelle, die das entscheidet.

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireApi, deviceCategoriesGate } from "@/lib/authGuards";
-import { entryManageAccess } from "@/lib/keyholder";
+import { requireApi, deviceCategoriesGate } from "@/lib/auth/authGuards";
+import { entryManageAccess } from "@/lib/auth/keyholder";
 import { validateCategoryInput } from "@/lib/devices/categoryConstants";
 import { errorResponse } from "@/lib/serviceResult";
 import { resolveCategoryRuleChanges, currentCategoryRules, categoryUsage, categoryDeleteBlock } from "@/lib/devices/deviceCategoryService";

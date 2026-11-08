@@ -2,7 +2,7 @@ import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
 import { getWeightFormProps } from "@/lib/weight/weightFormProps";
 import { weighingWindowHint } from "@/lib/weight/weightWindows";

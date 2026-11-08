@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { reportPenaltyDone } from "@/lib/strafbuch/penaltyReport";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 import { notifyControllers } from "@/lib/notify";
-import { getControllersOfUser } from "@/lib/keyholder";
+import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { markLastAction } from "@/lib/appMeta";
 
 /**

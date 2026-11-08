@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import { createTaskSeries, listTaskSeries } from "@/lib/tasks/taskService";
 import { taskSeriesParamsFromBody } from "@/lib/tasks/taskSeriesRequestBody";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";

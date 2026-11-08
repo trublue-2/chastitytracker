@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import StatsMain from "@/app/components/StatsMain";
 
 export default async function StatsPage() {

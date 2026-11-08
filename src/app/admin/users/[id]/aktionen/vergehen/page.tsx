@@ -1,4 +1,4 @@
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { getUserTimezone } from "@/lib/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
 import VergehenForm from "./VergehenForm";

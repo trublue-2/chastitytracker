@@ -1,9 +1,9 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import BlockHeading from "@/app/components/BlockHeading";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
-import { getControlledSubs } from "@/lib/keyholder";
+import { getControlledSubs } from "@/lib/auth/keyholder";
 import Link from "next/link";
 
 import KontrolleButton from "./KontrolleButton";

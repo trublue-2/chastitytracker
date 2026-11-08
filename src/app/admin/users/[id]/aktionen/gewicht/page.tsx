@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { actionSign } from "@/app/entries/actionSign";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { getWeightFormProps } from "@/lib/weight/weightFormProps";
 import { weighingWindowHint } from "@/lib/weight/weightWindows";

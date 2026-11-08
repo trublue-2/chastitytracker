@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { formatDateTime, mapVerifikationStatus, toDateLocale } from "@/lib/utils";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { loadWeightRows } from "@/lib/weight/weightRows";
 import { weightText, type UnitSystem } from "@/lib/weight/weight";
 import EntryRow from "@/app/components/EntryRow";

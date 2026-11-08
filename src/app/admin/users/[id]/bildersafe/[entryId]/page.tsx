@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { auth } from "@/lib/auth";
-import { isKeyholderOf } from "@/lib/keyholder";
+import { auth } from "@/lib/auth/auth";
+import { isKeyholderOf } from "@/lib/auth/keyholder";
 import { isCodeChangeState } from "@/lib/lockboxCodeCheck";
 import { previousSealedCode } from "@/lib/lockboxCodeCheckService";
 import { prisma } from "@/lib/prisma";

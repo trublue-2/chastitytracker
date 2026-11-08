@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import de from "../../messages/de.json";
-import en from "../../messages/en.json";
-import { PASSWORD_CHANGE_VIA_I18N_KEYS, passwordChangeViaLabel } from "./constants";
+import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import { PASSWORD_CHANGE_VIA_I18N_KEYS, passwordChangeViaLabel } from "../constants";
 
 /**
  * Wächter über die Beschriftung der Passwortwechsel-Wege im Strafbuch. Ein fehlender Schlüssel fiele

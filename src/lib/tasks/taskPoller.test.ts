@@ -22,13 +22,13 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ getControllerAudience: vi.fn() }));
+vi.mock("@/lib/auth/keyholder", () => ({ getControllerAudience: vi.fn() }));
 vi.mock("@/lib/tasks/taskIntervals", () => ({ evaluateTasks: vi.fn(), TASK_INCLUDE: {}, SUB_VISIBLE_WHERE: {} }));
 
 import { processDueTasks } from "./taskService";
 import { prisma } from "@/lib/prisma";
 import { notifyUser, notifyControllers } from "@/lib/notify";
-import { getControllerAudience } from "@/lib/keyholder";
+import { getControllerAudience } from "@/lib/auth/keyholder";
 import { evaluateTasks } from "@/lib/tasks/taskIntervals";
 import type { TaskState } from "./tasks";
 

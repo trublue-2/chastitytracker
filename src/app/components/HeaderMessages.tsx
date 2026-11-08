@@ -1,7 +1,7 @@
 import MessageBell from "@/app/components/MessageBell";
 import AppBadgeSync from "@/app/components/AppBadgeSync";
 import { unreadCountCached, unreadCountForKeyholderCached } from "@/lib/messageService";
-import { isController, type OwnTrackerActor } from "@/lib/ownTracker";
+import { isController, type OwnTrackerActor } from "@/lib/auth/ownTracker";
 import type { MessageScope } from "@/lib/messageScope";
 
 /**

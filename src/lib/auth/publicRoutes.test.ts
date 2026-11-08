@@ -31,7 +31,7 @@ describe("publicRoutes", () => {
   });
 
   it("ist importfrei (Proxy und Tests lesen sie)", () => {
-    expectImportFree("src/lib/publicRoutes.ts");
+    expectImportFree("src/lib/auth/publicRoutes.ts");
   });
 
   it("hat keine doppelten Pfade", () => {

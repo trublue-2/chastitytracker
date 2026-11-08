@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
+import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 import { judgeOffense, type StoredOffenseType } from "@/lib/strafbuch/strafurteilService";
 

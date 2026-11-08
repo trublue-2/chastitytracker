@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { generateToken, hashToken } from "@/lib/oauth";
+import { generateToken, hashToken } from "@/lib/auth/oauth";
 import { structuredLog } from "@/lib/serverLog";
 
 // ── Instanz-Konfiguration ────────────────────────────────────────────────────

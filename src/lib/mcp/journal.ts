@@ -1,4 +1,4 @@
-import { canReadJournal } from "@/lib/keyholder";
+import { canReadJournal } from "@/lib/auth/keyholder";
 import { journalMonthOf, journalPageQuery, monthParam } from "@/lib/journal/journal";
 import { listKeyholderJournal } from "@/lib/journal/journalService";
 import { msToHours } from "@/lib/utils";

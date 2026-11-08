@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
 import { getDashboardTasks, evaluateTasks } from "@/lib/tasks/taskIntervals";
 import { isTaskResultFinal, proofAwaitingVerdict } from "@/lib/tasks/tasks";

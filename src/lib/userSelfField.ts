@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireApi, type ApiSession } from "@/lib/authGuards";
+import { requireApi, type ApiSession } from "@/lib/auth/authGuards";
 import type { SelfEditableUserField } from "@/lib/constants";
 import type { Prisma } from "@prisma/client";
 

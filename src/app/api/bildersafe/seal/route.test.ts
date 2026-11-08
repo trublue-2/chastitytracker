@@ -12,7 +12,7 @@ vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
-vi.mock("@/lib/authGuards", () => ({ requireApi: vi.fn() }));
+vi.mock("@/lib/auth/authGuards", () => ({ requireApi: vi.fn() }));
 vi.mock("@/lib/lockboxCodeCheckService", () => ({
   codeChangeCheckApplies: vi.fn(async () => true),
   runCodeChangeCheck: vi.fn(async () => undefined),
@@ -20,7 +20,7 @@ vi.mock("@/lib/lockboxCodeCheckService", () => ({
 
 import { POST } from "./route";
 import { prisma } from "@/lib/prisma";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { codeChangeCheckApplies, runCodeChangeCheck } from "@/lib/lockboxCodeCheckService";
 import type { PrismaMock } from "@/test/prismaMock";
 

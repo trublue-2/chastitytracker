@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { boxPhotoReused, detectKeyInBoxInBackground, markBoxPhotoDueIfBoxLocked } from "@/lib/boxPhotoDueService";
 import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVerificationStatus, type InspectionVerification } from "@/lib/kontrollen/kontrolleService";

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { resolveLandingPath } from "@/lib/landing";
 
 export default async function Home() {

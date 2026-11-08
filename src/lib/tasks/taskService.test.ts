@@ -31,7 +31,7 @@ vi.mock("@/lib/tasks/taskIntervals", async (orig) => ({
   ...(await orig<object>()),
   evaluateTaskById: vi.fn(),
 }));
-vi.mock("@/lib/keyholder", () => ({ getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })) }));
+vi.mock("@/lib/auth/keyholder", () => ({ getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })) }));
 vi.mock("@/lib/tasks/taskProofNotify", () => ({ notifyLateProofsForTask: vi.fn() }));
 vi.mock("@/lib/imageUtils", () => ({ deleteUploadedFiles: vi.fn() }));
 // Nur den Zufall festnageln — `utils` ist sonst reine Arithmetik und soll echt laufen.

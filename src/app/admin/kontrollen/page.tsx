@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { titleCls } from "@/app/components/inputStyles";
-import { auth } from "@/lib/auth";
-import { assertAdmin } from "@/lib/authGuards";
+import { auth } from "@/lib/auth/auth";
+import { assertAdmin } from "@/lib/auth/authGuards";
 import { toDateLocale, APP_TZ } from "@/lib/utils";
 import BackLink from "@/app/components/BackLink";
 import { ClipboardCheck } from "lucide-react";

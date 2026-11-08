@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { isNotifyLevel, type SelfEditableUserField } from "@/lib/constants";
 import { errorResponse } from "@/lib/serviceResult";
 

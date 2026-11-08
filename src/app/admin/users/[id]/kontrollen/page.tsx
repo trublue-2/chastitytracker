@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { auth } from "@/lib/auth/auth";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { toDateLocale, APP_TZ } from "@/lib/utils";

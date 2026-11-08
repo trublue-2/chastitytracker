@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { entryGapEnabled, type EntryGapKind } from "@/lib/entryGapService";
 import { prisma } from "@/lib/prisma";
 import { getTranslations } from "next-intl/server";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { getUserTimezone } from "@/lib/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";

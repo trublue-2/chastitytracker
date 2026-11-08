@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { OAUTH_SUPPORTED_SCOPES, OAUTH_SUPPORTED_GRANT_TYPES, OAUTH_CODE_CHALLENGE_METHODS, publicBaseFromHeaders } from "@/lib/oauth";
+import { OAUTH_SUPPORTED_SCOPES, OAUTH_SUPPORTED_GRANT_TYPES, OAUTH_CODE_CHALLENGE_METHODS, publicBaseFromHeaders } from "@/lib/auth/oauth";
 
 /**
  * GET /.well-known/oauth-authorization-server

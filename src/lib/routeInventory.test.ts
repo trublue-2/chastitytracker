@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { listFiles, readStripped } from "@/test/sourceScan";
-import { PUBLIC_ROUTES, isPublicPath } from "./publicRoutes";
+import { PUBLIC_ROUTES, isPublicPath } from "./auth/publicRoutes";
 
 /**
  * Jede Route hat einen Wächter — und ein neuer ungeschützter Endpunkt bricht diesen Test.

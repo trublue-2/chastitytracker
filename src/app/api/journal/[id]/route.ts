@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { deleteJournalEntry, updateJournalEntry } from "@/lib/journal/journalService";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 

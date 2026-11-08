@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from "vitest";
  */
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn() }));
+vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn() }));
 vi.mock("@/lib/oeffnenService", () => ({ createOeffnenEntryTx: vi.fn() }));
 
 import { predictAutoMarkAt } from "./inspectionEscalationService";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
 import { listInspectionTargets } from "@/lib/kontrollen/inspectionTarget";
 import { errorResponse } from "@/lib/serviceResult";
 

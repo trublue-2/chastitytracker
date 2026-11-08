@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { lockmeboxEnabled } from "@/lib/constants";
 import { errorResponse } from "@/lib/serviceResult";
 import { structuredLog } from "@/lib/serverLog";

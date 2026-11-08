@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 
 export async function GET() {
   const session = await requireApi();

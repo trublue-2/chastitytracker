@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidTimezone } from "@/lib/timezones";
-import { requireApi, sessionActor } from "@/lib/authGuards";
+import { requireApi, sessionActor } from "@/lib/auth/authGuards";
 import { setUserTimezone } from "@/lib/timezoneRules";
 
 /**

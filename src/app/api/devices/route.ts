@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
-import { entryManageAccess } from "@/lib/keyholder";
+import { requireApi } from "@/lib/auth/authGuards";
+import { entryManageAccess } from "@/lib/auth/keyholder";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl, validateDeviceInput } from "@/lib/constants";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";

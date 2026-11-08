@@ -1,4 +1,4 @@
-import { clientIp } from "@/lib/clientIp";
+import { clientIp } from "@/lib/auth/clientIp";
 import { headers } from "next/headers";
 import { logTimestamp } from "@/lib/logFormat";
 

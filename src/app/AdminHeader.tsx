@@ -6,7 +6,7 @@ import HeaderMessages from "@/app/components/HeaderMessages";
 import SkipLink from "@/app/components/SkipLink";
 import { Users } from "lucide-react";
 import { headerActionsCls, headerBarCls, headerBrandCls, headerHostCls, headerIconBtnCls, headerNameCls, headerRowCls } from "@/app/components/inputStyles";
-import type { OwnTrackerActor } from "@/lib/ownTracker";
+import type { OwnTrackerActor } from "@/lib/auth/ownTracker";
 import pkg from "../../package.json";
 import { instanceHostname } from "@/lib/appMeta";
 import { feedbackSetup } from "@/lib/feedbackSetup";

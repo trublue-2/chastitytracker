@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { hashToken } from "@/lib/oauth";
+import { hashToken } from "@/lib/auth/oauth";
 import { passwordErrorCode } from "@/lib/constants";
-import { buildAdminPasswordChangeRows } from "@/lib/passwordAudit";
-import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/clientIp";
+import { buildAdminPasswordChangeRows } from "@/lib/auth/passwordAudit";
+import { checkRateLimit, rateLimitResponse } from "@/lib/auth/rate-limit";
+import { clientIp } from "@/lib/auth/clientIp";
 
 export async function POST(req: Request) {
   // Der Token hat 256 Bit — Raten ist aussichtslos —, aber der Endpunkt hasht und schreibt bcrypt (Kosten 12):

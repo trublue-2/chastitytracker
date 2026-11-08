@@ -20,7 +20,7 @@ vi.mock("@/lib/prisma", () => {
   return { prisma: p };
 });
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({
+vi.mock("@/lib/auth/keyholder", () => ({
   getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })),
   getControllersOfUser: vi.fn(async () => []),
 }));

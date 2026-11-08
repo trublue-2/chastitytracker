@@ -10,7 +10,7 @@ vi.mock("@/lib/prisma", async () => {
 });
 vi.mock("@/lib/vision", () => ({ visionConfigured: vi.fn(async () => true) }));
 vi.mock("@/lib/kontrollen/verifyCode", () => ({ detectLockboxCode: vi.fn() }));
-vi.mock("@/lib/keyholder", () => ({
+vi.mock("@/lib/auth/keyholder", () => ({
   // Ein globaler Admin ohne Zuordnung und die zugeordnete Keyholderin.
   getControllerAudience: vi.fn(async () => ({ controllers: [{ id: "admin1" }, { id: "kh1" }], username: "sub" })),
   getKeyholdersOfUser: vi.fn(async () => [{ id: "kh1", username: "kh", role: "user" }]),

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { resendOwnInspectionCode } from "@/lib/kontrollen/kontrolleService";
 import { serviceResponse, errorResponse } from "@/lib/serviceResult";
-import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimitResponse } from "@/lib/auth/rate-limit";
 import { INSPECTION_CODE_PUSH_COOLDOWN_MS, inspectionCodePushLimitKey, isValidInspectionCode } from "@/lib/constants";
 import { APP_TZ } from "@/lib/utils";
 

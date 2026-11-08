@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { entryManageAccess } from "@/lib/keyholder";
+import { entryManageAccess } from "@/lib/auth/keyholder";
 
 /**
  * Returns the device's owner id if `actorId` (with `role`) may manage the device — owner, global

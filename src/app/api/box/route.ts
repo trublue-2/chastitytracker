@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi, requireKeyholderOrAdminApi } from "@/lib/authGuards";
+import { requireApi, requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { getActiveLockPeriod } from "@/lib/queries";
 import { boxCouplingEnabled } from "@/lib/constants";

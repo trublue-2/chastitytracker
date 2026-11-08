@@ -3,7 +3,7 @@ import { escHtml, appBaseUrl, dashboardEmailHtml } from "@/lib/mail";
 import { emailT, localeT, type EmailTranslator } from "@/lib/emailI18n";
 import { deliverToChannels } from "@/lib/notify";
 import { structuredLog } from "@/lib/serverLog";
-import { getControllersOfUser } from "@/lib/keyholder";
+import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { deliveryChannels } from "@/lib/deliveryChannels";
 import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/utils";

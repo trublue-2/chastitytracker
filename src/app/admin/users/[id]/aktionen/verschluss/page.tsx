@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { getUserDeviceOptions, getIsLocked, getUserTimezone } from "@/lib/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
 import VerschlussForm from "./VerschlussForm";

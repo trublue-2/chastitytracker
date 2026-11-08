@@ -214,7 +214,7 @@ async function main() {
   // Die Reservierung prüft den GETRIMMTEN Namen — „ ai" darf nicht an ihr vorbeirutschen.
   const rawUsername = process.env.ADMIN_USERNAME || DEFAULT_ADMIN_USERNAME;
   const username = safeAdminUsername(rawUsername.trim());
-  // Dieselbe Schreibweise wie in der App (`normalizeEmail` in src/lib/loginIdentity.ts — seed.js ist
+  // Dieselbe Schreibweise wie in der App (`normalizeEmail` in src/lib/auth/loginIdentity.ts — seed.js ist
   // CJS und kann nicht importieren): getrimmt und klein, sonst passte die Adresse später nicht auf
   // eine anders geschriebene Eingabe im selben Konto.
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase() || null;

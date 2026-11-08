@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import exifr from "exifr";

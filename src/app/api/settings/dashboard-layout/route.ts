@@ -1,5 +1,5 @@
 import { checkLayoutPatch, isEmptySurface, mergeLayout } from "@/lib/dashboardLayout";
-import { controlsAnySub } from "@/lib/keyholder";
+import { controlsAnySub } from "@/lib/auth/keyholder";
 import { userSelfFieldRoute } from "@/lib/userSelfField";
 
 /**

@@ -34,7 +34,7 @@ const src = (f: string) => readFileSync(f, "utf8");
 describe("Die Rückfrage beim Hochstufen bleibt an ihren Mechanismen", () => {
   it("jeder Admin ist Empfänger für jeden Träger", () => {
     expect(
-      src("src/lib/keyholder.ts"),
+      src("src/lib/auth/keyholder.ts"),
       `getControllersOfUser nimmt nicht mehr alle Admins auf. ${HINWEIS}`,
     ).toContain('where: { role: "admin" }');
   });

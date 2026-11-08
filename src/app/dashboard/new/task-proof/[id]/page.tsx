@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getMobileDesktopMode } from "@/lib/queries";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
 import TaskProofFormCore from "@/app/entries/TaskProofFormCore";
 import { ownProofWhere, proofSubmitContext } from "@/lib/tasks/taskProofService";

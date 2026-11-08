@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { ClipboardCheck, ClipboardList, Droplets, Bell, Gavel, Scale } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { LOCK_FORM_PLAN_MODE } from "@/lib/lockRequestPlanning";
 import { getIsLocked } from "@/lib/queries";
 import { subLockPeriodCached } from "@/lib/dashboardData";

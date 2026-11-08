@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
-import { prepareEmailInput } from "@/lib/loginIdentity";
-import { requireAdminApi, requireKeyholderOrAdminApi, requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
+import { prepareEmailInput } from "@/lib/auth/loginIdentity";
+import { requireAdminApi, requireKeyholderOrAdminApi, requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
 import bcrypt from "bcryptjs";
 import { passwordErrorCode, isValidLocale } from "@/lib/constants";
 import { getActiveLockPeriod, getIsLocked } from "@/lib/queries";
 import { buildNewEntryCategoryRows } from "@/lib/devices/categoryRows";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
-import { recordAdminPasswordChange } from "@/lib/passwordAudit";
+import { recordAdminPasswordChange } from "@/lib/auth/passwordAudit";
 import { setCleaningSettings } from "@/lib/cleaningService";
 import { setAutoKontrolleSettings } from "@/lib/kontrollen/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/kontrollen/inspectionEscalationService";

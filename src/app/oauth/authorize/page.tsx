@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { titleCls } from "@/app/components/inputStyles";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { ShieldCheck } from "lucide-react";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
-import { getClient, clientAllowsRedirect } from "@/lib/oauth";
+import { getClient, clientAllowsRedirect } from "@/lib/auth/oauth";
 import { APP_NAME } from "@/lib/constants";
 
 interface Props {

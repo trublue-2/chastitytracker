@@ -11,7 +11,7 @@ import type { NextRequest } from "next/server";
  * sobald ihm jemand einen Träger zuordnet.
  */
 
-vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
@@ -26,7 +26,7 @@ import { GET } from "@/app/api/admin/messages/route";
 import { DELETE as deleteMessageRoute } from "@/app/api/admin/messages/[id]/route";
 import { POST as markReadRoute, DELETE as markUnreadRoute } from "@/app/api/admin/messages/[id]/read/route";
 import { POST as bulkRoute } from "@/app/api/admin/messages/bulk/route";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;

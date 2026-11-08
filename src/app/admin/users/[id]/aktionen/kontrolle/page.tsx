@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { listInspectionTargets } from "@/lib/kontrollen/inspectionTarget";
 import KontrolleForm from "./KontrolleForm";
 

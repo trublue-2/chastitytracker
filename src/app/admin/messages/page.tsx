@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { titleCls } from "@/app/components/inputStyles";
-import { assertController } from "@/lib/authGuards";
+import { assertController } from "@/lib/auth/authGuards";
 import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import { keyholderInbox, listMessages, unreadCountForKeyholderCached, unreadCount } from "@/lib/messageService";
 import { presentMessages } from "@/lib/messagePresenter";

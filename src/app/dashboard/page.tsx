@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { APP_TZ, toDateLocale } from "@/lib/utils";
 import { viewerLayout } from "@/lib/viewerLayout";
 import { requestNowMs } from "@/lib/dashboardData";

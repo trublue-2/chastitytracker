@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/clientIp";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { clientIp } from "@/lib/auth/clientIp";
 import {
   getClient, consumeAuthorizationCode, createAccessToken, createRefreshToken, verifyRefreshToken,
   verifyPkceS256, OAUTH_TOKEN_TTL_MS, pruneExpiredOAuthRecords,
-} from "@/lib/oauth";
+} from "@/lib/auth/oauth";
 
 /** Standard-Token-Response (access + refresh + Metadaten). */
 function tokenResponse(accessToken: string, refreshToken: string, scope: string) {

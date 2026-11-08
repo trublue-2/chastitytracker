@@ -1,5 +1,5 @@
 import { isValidStartPage } from "@/lib/constants";
-import { canControlSub } from "@/lib/keyholder";
+import { canControlSub } from "@/lib/auth/keyholder";
 import { userSelfFieldRoute } from "@/lib/userSelfField";
 
 // Startseite nach Login ist ein USER-SELF-Feld (eigene Präferenz). Per CLAUDE.md brauchen nur

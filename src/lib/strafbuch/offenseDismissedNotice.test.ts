@@ -19,7 +19,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * „ja" gemockt. Die SCHRANKE selbst läuft deshalb hier echt — gegen die Nachrichten-Tabelle.
  */
 
-vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn() }));
 
 /**
  * Der Posteingang als STAND, nicht als Aufrufprotokoll (Doppelgänger siehe `messageTableMock`).
@@ -40,7 +40,7 @@ vi.mock("@/lib/prisma", async () => {
 // Der Guard der Route entscheidet über die Rolle aus der Sitzung; die Zuordnungs-Abfrage wird für
 // den globalen Admin gar nicht erst erreicht. Sie steht trotzdem im Mock, weil `authGuards` sie
 // importiert.
-vi.mock("@/lib/keyholder", () => ({
+vi.mock("@/lib/auth/keyholder", () => ({
   isKeyholderOf: vi.fn(async () => false),
   getControllableSubsCached: vi.fn(async () => []),
   getControllersOfUser: vi.fn(async () => []),
@@ -62,7 +62,7 @@ vi.mock("@/lib/strafbuch/strafbuch", async (importOriginal) => ({
 
 import { POST, DELETE } from "@/app/api/admin/strafe/route";
 import { judgeOffense } from "./strafurteilService";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { AI_AUTHOR } from "@/lib/constants";

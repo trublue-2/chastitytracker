@@ -1,6 +1,6 @@
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { bildersafeEnabled } from "@/lib/constants";

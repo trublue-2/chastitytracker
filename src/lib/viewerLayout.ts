@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { userRowCached } from "@/lib/dashboardData";
 import { parseDashboardLayout, resolveLayout, type ResolvedLayout } from "@/lib/dashboardLayout";
 import type { BlockSurface } from "@/lib/dashboardBlockRegistry";

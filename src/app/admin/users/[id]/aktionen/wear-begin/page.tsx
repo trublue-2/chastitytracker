@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { assertKeyholderOrAdmin } from "@/lib/authGuards";
+import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getActiveWearSessionForCategory, getUserTimezone, getMobileDesktopMode } from "@/lib/queries";

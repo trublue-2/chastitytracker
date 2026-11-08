@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApi, requireKeyholderOrAdminActor, sessionActor, weightTrackingGate } from "@/lib/authGuards";
+import { requireApi, requireKeyholderOrAdminActor, sessionActor, weightTrackingGate } from "@/lib/auth/authGuards";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 import { recordWeight } from "@/lib/weight/weightService";
 import { plausibleDetection } from "@/lib/weight/weight";

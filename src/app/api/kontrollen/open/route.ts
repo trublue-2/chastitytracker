@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApi } from "@/lib/authGuards";
+import { requireApi } from "@/lib/auth/authGuards";
 import { getOpenKontrollen } from "@/lib/queries";
 import { errorResponse } from "@/lib/serviceResult";
 
