@@ -5,7 +5,7 @@ import { isKeyholderOf } from "@/lib/auth/keyholder";
 import { isCodeChangeState } from "@/lib/box/lockboxCodeCheck";
 import { previousSealedCode } from "@/lib/box/lockboxCodeCheckService";
 import { prisma } from "@/lib/prisma";
-import { getUserTimezone } from "@/lib/queries";
+import { getUserTimezone } from "@/lib/entries/queries";
 import { logAccess } from "@/lib/serverLog";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import ImageViewer from "@/app/components/ImageViewer";

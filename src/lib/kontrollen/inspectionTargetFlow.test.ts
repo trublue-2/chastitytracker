@@ -31,13 +31,13 @@ vi.mock("@/lib/prisma", () => ({
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   },
 }));
-vi.mock("@/lib/queries", () => ({
+vi.mock("@/lib/entries/queries", () => ({
   getLatestKgEntry: vi.fn(),
   getActiveWearSessionForCategory: vi.fn(),
   prepareWearEntry: vi.fn(),
   releaseLockPeriodsOnOpen: vi.fn(),
 }));
-vi.mock("@/lib/oeffnenService", () => ({ createOeffnenEntryTx: vi.fn() }));
+vi.mock("@/lib/entries/oeffnenService", () => ({ createOeffnenEntryTx: vi.fn() }));
 vi.mock("@/lib/messages/notify", async (importOriginal) => ({
   // Der Versand-Rumpf (`deliverToChannels`) läuft ECHT: geprüft wird, was an die Kanal-Blätter geht.
   ...(await importOriginal<typeof import("@/lib/messages/notify")>()),
@@ -60,8 +60,8 @@ vi.mock("@/lib/messages/emailI18n", async () => (await import("@/test/notifyLeaf
 import { requestKontrolle } from "./kontrolleService";
 import { autoMarkInspectionRemoved } from "./inspectionEscalationService";
 import { prisma } from "@/lib/prisma";
-import { getLatestKgEntry, getActiveWearSessionForCategory, prepareWearEntry } from "@/lib/queries";
-import { createOeffnenEntryTx } from "@/lib/oeffnenService";
+import { getLatestKgEntry, getActiveWearSessionForCategory, prepareWearEntry } from "@/lib/entries/queries";
+import { createOeffnenEntryTx } from "@/lib/entries/oeffnenService";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 // Ziel-Auflösung und Code-Regel lesen über den tx-Client — dort liegen die Geräte-/Kategorie-Mocks.

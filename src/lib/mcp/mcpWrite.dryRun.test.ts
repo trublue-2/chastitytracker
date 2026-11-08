@@ -38,8 +38,8 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 // Die mutierenden Service-Funktionen — dryRun darf keine davon je aufrufen.
-vi.mock("@/lib/verschlussAnforderungService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/verschlussAnforderungService")>();
+vi.mock("@/lib/entries/verschlussAnforderungService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/entries/verschlussAnforderungService")>();
   return { ...actual, createVerschlussAnforderung: vi.fn(), updateLockPeriodEnd: vi.fn(), updateLockRequest: vi.fn(), withdrawVerschlussAnforderung: vi.fn(), withdrawVerschlussAnforderungById: vi.fn() };
 });
 vi.mock("@/lib/kontrollen/kontrolleService", async (importOriginal) => {
@@ -54,12 +54,12 @@ vi.mock("@/lib/kontrollen/autoKontrolleService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/kontrollen/autoKontrolleService")>();
   return { ...actual, setAutoKontrolleSettings: vi.fn() };
 });
-vi.mock("@/lib/cleaningService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/cleaningService")>();
+vi.mock("@/lib/entries/cleaningService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/entries/cleaningService")>();
   return { ...actual, setCleaningSettings: vi.fn() };
 });
-vi.mock("@/lib/orgasmusAnforderungService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/orgasmusAnforderungService")>();
+vi.mock("@/lib/entries/orgasmusAnforderungService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/entries/orgasmusAnforderungService")>();
   return { ...actual, createOrgasmusAnforderung: vi.fn(), withdrawOrgasmusAnforderung: vi.fn() };
 });
 // `checkWeightRelease` bleibt ECHT — die Vorschau ruft genau sie auf; nur die Bestandsleser stehen daneben.
@@ -67,8 +67,8 @@ vi.mock("@/lib/weight/weightReleaseService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/weight/weightReleaseService")>();
   return { ...actual, openWeightRelease: vi.fn(async () => null), weightReleaseStatus: vi.fn(async () => null), setWeightRelease: vi.fn(), withdrawWeightRelease: vi.fn() };
 });
-vi.mock("@/lib/releaseNowService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/releaseNowService")>();
+vi.mock("@/lib/entries/releaseNowService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/entries/releaseNowService")>();
   // `previewReleaseNow` bleibt ECHT — sie ist genau das, was hier geprüft wird.
   return { ...actual, releaseNow: vi.fn() };
 });
@@ -89,14 +89,14 @@ import {
   mcpReviewTaskProof, mcpReleaseNow, mcpSetWeightRelease,
 } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
+import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/entries/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrollen/kontrolleService";
 import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/stats/vorgabeService";
-import { setCleaningSettings } from "@/lib/cleaningService";
+import { setCleaningSettings } from "@/lib/entries/cleaningService";
 import { setAutoKontrolleSettings } from "@/lib/kontrollen/autoKontrolleService";
-import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
+import { createOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungService";
 import { judgeOffense, requireDetectedOffense } from "@/lib/strafbuch/strafurteilService";
-import { releaseNow } from "@/lib/releaseNowService";
+import { releaseNow } from "@/lib/entries/releaseNowService";
 import { setWeightRelease } from "@/lib/weight/weightReleaseService";
 import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
 import { ALL_WEEKDAYS, weekdayMaskOf } from "@/lib/stats/weekdays";

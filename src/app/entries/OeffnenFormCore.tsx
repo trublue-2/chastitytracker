@@ -8,7 +8,7 @@ import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
 import { datedWindowLabel } from "@/lib/stats/weekdays";
 import { type OeffnenGrund } from "@/lib/constants";
-import type { ResolvedReason } from "@/lib/reasonsService";
+import type { ResolvedReason } from "@/lib/entries/reasonsService";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
 import type { TaskWarning } from "@/lib/tasks/taskIntervals";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";

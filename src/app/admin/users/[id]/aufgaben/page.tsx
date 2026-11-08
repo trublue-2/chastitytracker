@@ -16,7 +16,7 @@ import { loadTaskProofViews } from "@/lib/tasks/taskIntervals";
 import { APP_TZ } from "@/lib/utils";
 import { BLOCK_PAGE_SIZE } from "@/lib/constants";
 import { isTaskOpenForKeyholder } from "@/lib/tasks/tasks";
-import { taskFormHref } from "@/lib/entryFormRoute";
+import { taskFormHref } from "@/lib/entries/entryFormRoute";
 
 /** Die Aufgaben-Historie eines Subs — ohne sie sähe der Keyholder im Web nie, ob eine gestellte
  *  Aufgabe erfüllt wurde. Zurückgezogene bleiben sichtbar: es sind seine eigenen Rückzüge, gleiche

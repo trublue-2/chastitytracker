@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireJournalReaderApi } from "@/lib/auth/authGuards";
 import { journalPageQuery } from "@/lib/journal/journal";
 import { listKeyholderJournal } from "@/lib/journal/journalService";
-import { getUserTimezone } from "@/lib/queries";
+import { getUserTimezone } from "@/lib/entries/queries";
 
 /**
  * Was die Keyholderin vom Tagebuch ihres Subs sieht (Issue #114) — nur Lesen, nur Freigegebenes.

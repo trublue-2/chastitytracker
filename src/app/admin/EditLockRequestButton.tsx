@@ -9,7 +9,7 @@ import ActionModal from "@/app/components/ActionModal";
 import Spinner from "@/app/components/Spinner";
 import FormError from "@/app/components/FormError";
 import VerschlussAnforderungFields, { type LockRequestEditData } from "./verschluss-anforderung/VerschlussAnforderungFields";
-import type { DeviceOption } from "@/lib/queries";
+import type { DeviceOption } from "@/lib/entries/queries";
 import { iconActionCls } from "@/app/components/inputStyles";
 
 /**

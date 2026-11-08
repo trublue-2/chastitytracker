@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createRequire } from "node:module";
-import { DEFAULT_ORGASM_ARTEN, backfillOrgasmusArtenConfig, ART_SEP } from "./reasonsService";
+import { DEFAULT_ORGASM_ARTEN, backfillOrgasmusArtenConfig, ART_SEP } from "./entries/reasonsService";
 import { AI_AUTHOR } from "./constants";
 
 // scripts/seed.js ist Plain-CJS (kann nicht aus src importieren) und spiegelt Teile von

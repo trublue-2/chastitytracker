@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
-import { isCodePhotoRevealed } from "@/lib/queries";
+import { isCodePhotoRevealed } from "@/lib/entries/queries";
 import { isKeyholderOf } from "@/lib/auth/keyholder";
 import { readFile } from "fs/promises";
 import { join, extname, resolve, sep } from "path";

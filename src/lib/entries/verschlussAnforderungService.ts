@@ -6,12 +6,12 @@ import { actorColumn, recordInboxDelivery, type MessageActor } from "@/lib/messa
 import { notifyHeimdallForUserId } from "@/lib/box/heimdallNotify";
 import { markLastAction } from "@/lib/upstream/appMeta";
 import { emailT, emailGreeting } from "@/lib/messages/emailI18n";
-import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";
+import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/entries/queries";
 import { formatDateTime, formatDurationHours } from "@/lib/utils";
-import { parseTriggerAt, computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
+import { parseTriggerAt, computeDelayedTrigger, isHiddenFromSub } from "@/lib/entries/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { isHealthHoldActive } from "@/lib/healthHold";
-import { conflictingLockSpecs, hasLockSpec } from "@/lib/lockSpec";
+import { isHealthHoldActive } from "@/lib/entries/healthHold";
+import { conflictingLockSpecs, hasLockSpec } from "@/lib/entries/lockSpec";
 
 export interface CreateVerschlussAnforderungParams {
   userId: string;

@@ -9,7 +9,7 @@ import {
   ORGASMUS_ANFORDERUNG_ARTEN, orgasmusAnforderungArtLabel,
   DURATION_QUICK_HOURS, durationHoursOr, type DurationUnit,
 } from "@/lib/constants";
-import type { ResolvedReason } from "@/lib/reasonsService";
+import type { ResolvedReason } from "@/lib/entries/reasonsService";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import DateTimePicker from "@/app/components/DateTimePicker";

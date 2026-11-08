@@ -31,8 +31,8 @@ vi.mock("@/lib/client/imageUtils", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const correction = vi.hoisted(() => ({ deleteEntryForUser: vi.fn() }));
-vi.mock("@/lib/entryCorrection", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/entryCorrection")>()),
+vi.mock("@/lib/entries/entryCorrection", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/entries/entryCorrection")>()),
   deleteEntryForUser: correction.deleteEntryForUser,
 }));
 

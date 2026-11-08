@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   CLEANING_RULES_EPOCH, cleaningSettingsEqual, cleaningSettingsFromUser, type CleaningSettings,
-} from "@/lib/cleaningRules";
+} from "@/lib/entries/cleaningRules";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import { APP_TZ, hhmmInTZ, midnightInTZ, clamp } from "@/lib/utils";

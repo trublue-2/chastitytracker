@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { formatDateTime, mapVerifikationStatus, toDateLocale } from "@/lib/utils";
-import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
+import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/entries/reasonsService";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { loadWeightRows } from "@/lib/weight/weightRows";
 import { weightText, type UnitSystem } from "@/lib/weight/weight";

@@ -8,7 +8,7 @@ const D = (iso: string) => new Date(iso);
 // server-only Modulen (`queries.ts` → Prisma) gebraucht — Begründung in `expectImportFree`.
 describe("lockPending.ts bleibt importfrei", () => {
   it("enthält keine import-/require-Anweisung", () => {
-    expectImportFree("src/lib/lockPending.ts");
+    expectImportFree("src/lib/entries/lockPending.ts");
   });
 });
 

@@ -26,7 +26,7 @@ const NOTIFICATION_EVENT_TYPES = [
   "PENALTY_REPORTED_DONE",
 ];
 
-// Mirror of src/lib/reasonsService.ts (ART_SEP + DEFAULT_ORGASM_ARTEN sub-combos + backfill logic).
+// Mirror of src/lib/entries/reasonsService.ts (ART_SEP + DEFAULT_ORGASM_ARTEN sub-combos + backfill logic).
 // seed.js is plain CJS and can't import from src — keep in sync. Tested there via
 // backfillOrgasmusArtenConfig in reasonsService.test.ts.
 const ART_SEP = " – ";

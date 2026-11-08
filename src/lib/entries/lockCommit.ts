@@ -2,10 +2,10 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { boxCouplingEnabled, lockmeboxEnabled } from "@/lib/constants";
 import { boxIsLive, boxReportsFreshlyLocked, hasLockmebox } from "@/lib/box/boxStatus";
-import { clampBoltTime, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER } from "@/lib/lockPending";
+import { clampBoltTime, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER } from "@/lib/entries/lockPending";
 import type { BoxKind } from "@/lib/box/boxStatus";
-import { getLatestKgEntry } from "@/lib/queries";
-import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entryFulfilment";
+import { getLatestKgEntry } from "@/lib/entries/queries";
+import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entries/entryFulfilment";
 import { structuredLog } from "@/lib/serverLog";
 import { markBoxPhotoDue } from "@/lib/box/boxPhotoDueService";
 

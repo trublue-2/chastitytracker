@@ -5,11 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { boxPhotoReused, detectKeyInBoxInBackground, markBoxPhotoDueIfBoxLocked } from "@/lib/box/boxPhotoDueService";
 import { deriveSealCode, inspectionCodeRequired, plannedVerification, initialVerificationStatus, type InspectionVerification } from "@/lib/kontrollen/kontrolleService";
 import { DEVICE_BEARING_TYPES, validateEntryPayload, parseRotation, BOX_PHOTO_TYPES, parseOrgasmusArtBase, lockmeboxEnabled } from "@/lib/constants";
-import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
+import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/entries/reasonsService";
 import { isDevBypassEnabled } from "@/lib/client/devMode";
-import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/queries";
+import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, openLockRequestWhere, LOCK_REQUEST_ORDER, aktiveKontrolleWhere, getLatestKgEntry } from "@/lib/entries/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "@/lib/kontrollen/inspectionTarget";
-import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
+import { entryGuardError, entryGuardCode } from "@/lib/entries/entryErrors";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { setBoxCommandForUser, boxCommandForEntry } from "@/lib/box/boxCommand";
 import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
@@ -17,11 +17,11 @@ import { deviceCheckApplies, runDeviceCheck } from "@/lib/kontrollen/deviceCheck
 import { codeChangeCheckApplies, runCodeChangeCheck } from "@/lib/box/lockboxCodeCheckService";
 import { runInspectionVerification } from "@/lib/kontrollen/inspectionVerificationService";
 import { structuredLog } from "@/lib/serverLog";
-import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entryFulfilment";
-import { lockAwaitsBolt, openAwaitsBolt, findPendingLockTx, findPendingOpenTx } from "@/lib/lockCommit";
-import { boltFieldsFor } from "@/lib/lockPending";
+import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entries/entryFulfilment";
+import { lockAwaitsBolt, openAwaitsBolt, findPendingLockTx, findPendingOpenTx } from "@/lib/entries/lockCommit";
+import { boltFieldsFor } from "@/lib/entries/lockPending";
 import { parseOfflineCapture } from "@/lib/client/offlineCapture";
-import { resolveEntryStart, startAfter, startIsNow } from "@/lib/entryStart";
+import { resolveEntryStart, startAfter, startIsNow } from "@/lib/entries/entryStart";
 
 export async function GET() {
   const session = await requireApi();

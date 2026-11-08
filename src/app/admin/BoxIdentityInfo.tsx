@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import DetailField from "@/app/components/DetailField";
-import type { BoxIdentity } from "@/lib/queries";
+import type { BoxIdentity } from "@/lib/entries/queries";
 import { toBoxKind } from "@/lib/box/boxStatus";
 
 /**

@@ -25,8 +25,8 @@ vi.mock("@/lib/prisma", () => {
   };
   return { prisma: { $transaction: (fn: (t: typeof tx) => unknown) => fn(tx) } };
 });
-vi.mock("@/lib/queries", () => ({ getIsLocked: vi.fn(async () => state.locked) }));
-vi.mock("@/lib/lockCommit", () => ({
+vi.mock("@/lib/entries/queries", () => ({ getIsLocked: vi.fn(async () => state.locked) }));
+vi.mock("@/lib/entries/lockCommit", () => ({
   findPendingLockTx: vi.fn(async () => state.pendingLock),
   findPendingOpenTx: vi.fn(async () => state.pendingOpen),
 }));

@@ -14,16 +14,16 @@ const tx = { entry: { create: vi.fn() }, verschlussAnforderung: { updateMany: vi
 vi.mock("@/lib/prisma", () => ({
   prisma: { $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)) },
 }));
-vi.mock("@/lib/queries", () => ({
+vi.mock("@/lib/entries/queries", () => ({
   endableLockPeriods: (userId: string) => ({ userId, art: "SPERRZEIT" }),
   validateDeviceOwnership: vi.fn(),
   releaseLockPeriodsOnOpen: vi.fn(),
   prepareWearEntry: vi.fn(),
   getKgNeighbors: vi.fn(),
 }));
-vi.mock("@/lib/entryFulfilment", () => ({ applyEntryFulfilment: vi.fn(async () => []) }));
+vi.mock("@/lib/entries/entryFulfilment", () => ({ applyEntryFulfilment: vi.fn(async () => []) }));
 vi.mock("@/lib/kontrollen/autoKontrolleService", () => ({ triggerPostLockInspection: vi.fn() }));
-vi.mock("@/lib/lockCommit", () => ({
+vi.mock("@/lib/entries/lockCommit", () => ({
   findPendingLockTx: vi.fn(async () => null),
   findPendingOpenTx: vi.fn(async () => null),
   openAwaitsBolt: vi.fn(async () => false),
@@ -33,9 +33,9 @@ vi.mock("@/lib/box/boxCommandNotify", () => ({ announceBoxCommand: vi.fn() }));
 vi.mock("@/lib/messages/entryNotify", () => ({ notifyControllersAboutEntry: vi.fn() }));
 
 import { createEntryForUser } from "./entryCreateService";
-import { getKgNeighbors, releaseLockPeriodsOnOpen } from "@/lib/queries";
-import { applyEntryFulfilment } from "@/lib/entryFulfilment";
-import { findPendingOpenTx, openAwaitsBolt } from "@/lib/lockCommit";
+import { getKgNeighbors, releaseLockPeriodsOnOpen } from "@/lib/entries/queries";
+import { applyEntryFulfilment } from "@/lib/entries/entryFulfilment";
+import { findPendingOpenTx, openAwaitsBolt } from "@/lib/entries/lockCommit";
 import { setBoxCommandForUser } from "@/lib/box/boxCommand";
 import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
 import { notifyControllersAboutEntry } from "@/lib/messages/entryNotify";

@@ -13,7 +13,7 @@ import { useApiError } from "@/app/hooks/useApiError";
 import Button from "@/app/components/Button";
 import Card from "@/app/components/Card";
 import FormError from "@/app/components/FormError";
-import { FREQ_LABEL_KEY, FREQ_UNIT_KEY, occurrenceFormatter } from "@/lib/recurrenceForm";
+import { FREQ_LABEL_KEY, FREQ_UNIT_KEY, occurrenceFormatter } from "@/lib/entries/recurrenceForm";
 
 export interface TaskSeriesUi {
   id: string;

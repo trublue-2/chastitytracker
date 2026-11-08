@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { PrismaTx } from "@/lib/queries";
+import type { PrismaTx } from "@/lib/entries/queries";
 
 /** Stable slug for the built-in KG category — referenced by buildPairs gating, API
  *  validation, and admin UI to identify "the KG category" reliably regardless of name. */

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getIsLocked, getInterruptedLockPeriod } from "@/lib/queries";
+import { getIsLocked, getInterruptedLockPeriod } from "@/lib/entries/queries";
 import { boxIsPhysicallyLocked } from "@/lib/box/boxStatus";
 import { setBoxCommandForUser } from "@/lib/box/boxCommand";
 import { announceBoxCommand } from "@/lib/box/boxCommandNotify";

@@ -12,14 +12,14 @@ import {
   openLockRequestWhere,
   LOCK_REQUEST_ORDER,
   type PrismaTx,
-} from "@/lib/queries";
-import { lockAnchor, lockPeriodFromRequest } from "@/lib/verschlussAnforderungService";
-import { triggeredWhere } from "@/lib/delayedTrigger";
+} from "@/lib/entries/queries";
+import { lockAnchor, lockPeriodFromRequest } from "@/lib/entries/verschlussAnforderungService";
+import { triggeredWhere } from "@/lib/entries/delayedTrigger";
 import { scheduleCleaningRelockInspection, triggerPostLockInspection } from "@/lib/kontrollen/autoKontrolleService";
 import { notifyControllersAboutEntry, type EntryNotifyParams } from "@/lib/messages/entryNotify";
 import { markLastAction } from "@/lib/upstream/appMeta";
-import { isHealthHoldActive } from "@/lib/healthHold";
-import { entryGuardError } from "@/lib/entryErrors";
+import { isHealthHoldActive } from "@/lib/entries/healthHold";
+import { entryGuardError } from "@/lib/entries/entryErrors";
 
 /** Was von der zugeordneten Anforderung gebraucht wird: die id zum Abhaken und der Nachweis, den sie
  *  verlangt. Eine Konstante, weil beide Zuordnungswege dieselben Spalten brauchen — getrennt notiert

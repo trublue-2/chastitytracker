@@ -5,7 +5,7 @@ import { deliverToChannels } from "@/lib/messages/notify";
 import { structuredLog } from "@/lib/serverLog";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { deliveryChannels } from "@/lib/messages/deliveryChannels";
-import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
+import { effectiveOeffnenGruende, effectiveOrgasmusArten, resolveReasonLabel, resolveOrgasmusArtDisplay } from "@/lib/entries/reasonsService";
 import { formatDateTime, formatDurationBetween, toDateLocale } from "@/lib/utils";
 import { TYPE_EMAIL_COLORS, EMAIL_BUTTON_COLORS, anyChannelActive, type MessagePriority, APP_NAME } from "@/lib/constants";
 

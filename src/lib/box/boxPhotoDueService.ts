@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { CLIENT_CLOCK_SKEW_MS, isValidImageUrl, parseRotation } from "@/lib/constants";
 import { boxReportsFreshlyLocked } from "@/lib/box/boxStatus";
-import { getLatestKgEntry } from "@/lib/queries";
+import { getLatestKgEntry } from "@/lib/entries/queries";
 import { detectKeyInBox } from "@/lib/kontrollen/verifyCode";
 import { announceBoxPhotoDue } from "@/lib/box/boxCommandNotify";
 import { boxPhotoDueAtOf, boxPhotoTakenBeforeBolt, isBoxPhotoDue, needsBoxPhoto } from "@/lib/box/boxPhotoDue";

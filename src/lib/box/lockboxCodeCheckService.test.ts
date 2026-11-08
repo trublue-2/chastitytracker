@@ -16,13 +16,13 @@ vi.mock("@/lib/auth/keyholder", () => ({
   getKeyholdersOfUser: vi.fn(async () => [{ id: "kh1", username: "kh", role: "user" }]),
 }));
 vi.mock("@/lib/messages/notify", () => ({ notifyControllers: vi.fn(async () => undefined) }));
-vi.mock("@/lib/queries", () => ({ isCodePhotoRevealed: vi.fn(async () => true) }));
+vi.mock("@/lib/entries/queries", () => ({ isCodePhotoRevealed: vi.fn(async () => true) }));
 
 import { prisma } from "@/lib/prisma";
 import { visionConfigured } from "@/lib/vision";
 import { detectLockboxCode } from "@/lib/kontrollen/verifyCode";
 import { notifyControllers } from "@/lib/messages/notify";
-import { isCodePhotoRevealed } from "@/lib/queries";
+import { isCodePhotoRevealed } from "@/lib/entries/queries";
 import { checkCodeChange, clearCodeReadCache, codeChangeCheckApplies, runCodeChangeCheck } from "./lockboxCodeCheckService";
 import type { PrismaMock } from "@/test/prismaMock";
 

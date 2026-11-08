@@ -1,5 +1,5 @@
 import { formatDateTime, formatDate, formatTime, hasExifMismatch, toDateLocale, isTimeCorrected, APP_TZ, formatDateTimeDual } from "@/lib/utils";
-export type { SessionEvent } from "@/lib/sessionHelpers";
+export type { SessionEvent } from "@/lib/entries/sessionHelpers";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getKombinierterPill } from "@/lib/kontrollen/kontrollePills";
 import SessionDurationBadge from "./SessionDurationBadge";
@@ -13,8 +13,8 @@ import BoxHardwareLine from "@/app/components/BoxHardwareLine";
 import LiveTrainingGoals from "./LiveTrainingGoals";
 import LockPeriodRemaining from "@/app/components/LockPeriodRemaining";
 
-import type { SessionEvent } from "@/lib/sessionHelpers";
-import { inspectionHref } from "@/lib/entryFormRoute";
+import type { SessionEvent } from "@/lib/entries/sessionHelpers";
+import { inspectionHref } from "@/lib/entries/entryFormRoute";
 import { hasVisibleGoalRow, periodEndsMs, type VorgabeTargets } from "@/lib/stats/goalFulfillment";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 

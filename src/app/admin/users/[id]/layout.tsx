@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
-import { getLatestKgEntry, latestKgTimesByUser } from "@/lib/queries";
+import { getLatestKgEntry, latestKgTimesByUser } from "@/lib/entries/queries";
 import { subLockPeriodCached } from "@/lib/stats/dashboardData";
 import { canReadJournal, getControlledSubs } from "@/lib/auth/keyholder";
 import UserContextBar from "./UserContextBar";

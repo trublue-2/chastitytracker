@@ -8,7 +8,7 @@ import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 import useViewTransition from "@/app/hooks/useViewTransition";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 import { adminNavEntry } from "@/lib/ui/adminNavEntry";
-import { isEntryFormRoute } from "@/lib/entryFormRoute";
+import { isEntryFormRoute } from "@/lib/entries/entryFormRoute";
 import { hapticLight } from "@/lib/client/haptics";
 
 interface BottomNavProps {

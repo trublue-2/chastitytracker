@@ -9,12 +9,12 @@ import { actorColumn, recordInboxDelivery, type MessageActor, type MessageRef } 
 import { deliveryChannels } from "@/lib/messages/deliveryChannels";
 import { emailT, emailGreeting, type EmailTranslator } from "@/lib/messages/emailI18n";
 import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_DEFAULT_H, isValidInspectionCode } from "@/lib/constants";
-import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
+import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/entries/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { isHealthHoldActive } from "@/lib/healthHold";
-import { type PrismaTx, getOpenKontrollen } from "@/lib/queries";
+import { isHealthHoldActive } from "@/lib/entries/healthHold";
+import { type PrismaTx, getOpenKontrollen } from "@/lib/entries/queries";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
-import { inspectionHref } from "@/lib/entryFormRoute";
+import { inspectionHref } from "@/lib/entries/entryFormRoute";
 
 export type KontrolleAction = "withdraw" | "manuallyVerify" | "reject";
 

@@ -1,5 +1,5 @@
-import type { CleaningUserFields } from "@/lib/cleaningService";
-import type { CleaningPermissionUser } from "@/lib/queries";
+import type { CleaningUserFields } from "@/lib/entries/cleaningService";
+import type { CleaningPermissionUser } from "@/lib/entries/queries";
 import { effectiveAt, type CleaningPauseAllowance } from "@/lib/utils";
 
 /**

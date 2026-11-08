@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import ActionModal from "@/app/components/ActionModal";
 import VerschlussAnforderungFields from "./verschluss-anforderung/VerschlussAnforderungFields";
-import type { DeviceOption } from "@/lib/queries";
+import type { DeviceOption } from "@/lib/entries/queries";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 import { overviewChipCls } from "@/app/components/inputStyles";
 

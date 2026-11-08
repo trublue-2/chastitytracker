@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
-import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/healthHold";
+import { writeHealthHold, healthHoldNotice, activeHealthHold } from "@/lib/entries/healthHold";
 import { notifyUser } from "@/lib/messages/notify";
 import { dueBoxPhotoLock, waiveBoxPhoto } from "@/lib/box/boxPhotoDueService";
 import { hasLockmebox } from "@/lib/box/boxStatus";
@@ -8,8 +8,8 @@ import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArr
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser, autoInspectionsView, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoInspectionsView } from "@/lib/kontrollen/autoKontrolleService";
 import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
-import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_SELECT } from "@/lib/cleaningService";
-import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/queries";
+import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
+import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/entries/queries";
 import { type OffenseMode, type SwitchableOffenseType } from "@/lib/strafbuch/offenseRules";
 import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 import { boxCouplingEnabled, AI_AUTHOR, toNotifyLevel, type NotifyLevel } from "@/lib/constants";

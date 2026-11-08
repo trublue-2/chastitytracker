@@ -3,15 +3,15 @@ import { revalidatePath } from "next/cache";
 import { requireApi } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl } from "@/lib/constants";
-import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
-import { validateDeviceOwnership } from "@/lib/queries";
+import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/entries/reasonsService";
+import { validateDeviceOwnership } from "@/lib/entries/queries";
 import { entryManageAccess } from "@/lib/auth/keyholder";
-import { entryGuardCode } from "@/lib/entryErrors";
-import { assertEntryTimeOk, chainBreakPartner, deleteEntryForUser, entryPairTypes, entryPersistsDevice } from "@/lib/entryCorrection";
+import { entryGuardCode } from "@/lib/entries/entryErrors";
+import { assertEntryTimeOk, chainBreakPartner, deleteEntryForUser, entryPairTypes, entryPersistsDevice } from "@/lib/entries/entryCorrection";
 import { serviceFailure } from "@/lib/serviceResult";
 import { isDevBypassEnabled } from "@/lib/client/devMode";
 import { deleteUploadedFiles } from "@/lib/client/imageUtils";
-import { isPendingEntry } from "@/lib/lockPending";
+import { isPendingEntry } from "@/lib/entries/lockPending";
 
 export async function PATCH(
   req: NextRequest,

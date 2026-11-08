@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { APP_TZ, nowDatetimeLocal } from "@/lib/utils";
-import { getMobileDesktopMode } from "@/lib/queries";
+import { getMobileDesktopMode } from "@/lib/entries/queries";
 import { activeWeighingWindow, nextWeighingWindow, weighingWindowEnd } from "@/lib/weight/weightWindows";
 import { lastWeightBefore } from "@/lib/weight/weightService";
 import type { UnitSystem } from "@/lib/weight/weight";

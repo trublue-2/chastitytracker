@@ -15,7 +15,7 @@ import { fixedWindowMinutes, parseAutoInspectionDayRules } from "@/lib/kontrolle
 import {
   formatCleaningWindows,
   maxPausesPerDaySentinel,
-  parseCleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
+  parseCleaningWindows, CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
 import {
   OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS, switchableOffenseTypesFor,
 } from "@/lib/strafbuch/offenseLabels";

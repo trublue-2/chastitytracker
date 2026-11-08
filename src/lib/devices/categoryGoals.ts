@@ -4,11 +4,11 @@ import {
   getMidnightToday,
   type WearHours,
 } from "@/lib/utils";
-import { buildWearSessions, wearHourPairsByCategory, type SegmentEntry } from "@/lib/sessionModel";
+import { buildWearSessions, wearHourPairsByCategory, type SegmentEntry } from "@/lib/entries/sessionModel";
 import { hasVisibleGoalRow, type VorgabeTargets } from "@/lib/stats/goalFulfillment";
 import { resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";
 import { isActive } from "@/lib/stats/statsBuilders";
-import { getNonKgTrackingCategories, getWearEntries, getUserTimezone } from "@/lib/queries";
+import { getNonKgTrackingCategories, getWearEntries, getUserTimezone } from "@/lib/entries/queries";
 import { groupVorgabenByCategory } from "@/lib/stats/vorgaben";
 
 /** Wearing hours + active TrainingVorgabe targets for one non-KG tracking category.

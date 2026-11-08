@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SERVICE_ERROR_CODES } from "./serviceErrorCodes";
-import { ENTRY_ERROR_CODES } from "./entryErrors";
+import { ENTRY_ERROR_CODES } from "./entries/entryErrors";
 import de from "../../messages/de.json";
 import en from "../../messages/en.json";
 

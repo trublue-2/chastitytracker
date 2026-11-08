@@ -4,7 +4,7 @@ import PruefungForm from "../../PruefungForm";
 import { auth } from "@/lib/auth/auth";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrollen/kontrolleService";
 import { generateKontrollCode } from "@/lib/utils";
-import { getBoxFormContext, getOpenKontrollen, getMobileDesktopMode } from "@/lib/queries";
+import { getBoxFormContext, getOpenKontrollen, getMobileDesktopMode } from "@/lib/entries/queries";
 import { resolveInspectionTarget, isKgTarget, inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { getTranslations } from "next-intl/server";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";

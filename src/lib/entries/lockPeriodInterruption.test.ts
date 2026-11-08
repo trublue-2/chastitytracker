@@ -21,7 +21,7 @@ const tx = {
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 
 import { releaseLockPeriodsOnOpen } from "./queries";
-import { mapInterruptedLockPeriod } from "./mcp/liveState";
+import { mapInterruptedLockPeriod } from "../mcp/liveState";
 
 const NOW = new Date("2026-07-11T17:53:00+02:00");
 const fmt = (d: Date) => d.toISOString();

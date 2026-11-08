@@ -10,11 +10,11 @@ import OrgasmusForm from "../../OrgasmusForm";
 import WearForm from "../../WearForm";
 import { getTranslations } from "next-intl/server";
 import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/utils";
-import { getUserDeviceOptions, getUserTimezone, getLatestKgEntry, getMobileDesktopMode } from "@/lib/queries";
+import { getUserDeviceOptions, getUserTimezone, getLatestKgEntry, getMobileDesktopMode } from "@/lib/entries/queries";
 import { entryManageAccess } from "@/lib/auth/keyholder";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrollen/kontrolleService";
 import { TYPE_STATS_KEYS } from "@/lib/constants";
-import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/reasonsService";
+import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveReasonList, resolveOrgasmusOptions } from "@/lib/entries/reasonsService";
 
 export default async function EditEntryPage({
   params,

@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { getUserDeviceOptions, getKeyholderLockPeriods, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/queries";
-import { isHiddenFromSub, computeDelayedTrigger } from "@/lib/delayedTrigger";
-import { conflictingLockSpecs, hasLockSpec } from "@/lib/lockSpec";
-import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
+import { getUserDeviceOptions, getKeyholderLockPeriods, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/entries/queries";
+import { isHiddenFromSub, computeDelayedTrigger } from "@/lib/entries/delayedTrigger";
+import { conflictingLockSpecs, hasLockSpec } from "@/lib/entries/lockSpec";
+import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/entries/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, extendInspectionDeadline, extendInspectionProblem, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrollen/kontrolleService";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, validateGoalTargets, findActiveVorgabe } from "@/lib/stats/vorgabeService";
-import { setCleaningSettings, maxPausesPerDaySentinel, parseCleaningWindows, cleaningWindowListProblem, formatCleaningWindows, type CleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
+import { setCleaningSettings, maxPausesPerDaySentinel, parseCleaningWindows, cleaningWindowListProblem, formatCleaningWindows, type CleaningWindows, CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
 import { checkWeightRelease, openWeightRelease, setWeightRelease, weightReleaseStatus, withdrawWeightRelease } from "@/lib/weight/weightReleaseService";
 import { setWeightSettingsKeyholder } from "@/lib/weight/weightSettingsService";
 import { setOffenseRule, getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
@@ -16,7 +16,7 @@ import { parseWeighingWindows, weighingWindowEnd, weighingWindowsProblem, type W
 import { effectiveTarget, isUnderweightTarget, keyholderTargetOf, subTargetOf, weightProblem } from "@/lib/weight/weight";
 import { ALL_WEEKDAYS, isoDaysOfMask, weekdayMaskKeys, weekdayMaskOf, weekdayMaskValid } from "@/lib/stats/weekdays";
 import { parseWeekdayGoalRules, type WeekdayGoalRule } from "@/lib/stats/weekdayGoal";
-import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
+import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafbuch/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
@@ -56,14 +56,14 @@ import {
   type CreateTaskSeriesParams, type RecurrenceInput,
 } from "@/lib/tasks/taskService";
 import { type RecurrenceFreq } from "@/lib/tasks/taskRecurrence";
-import { chainBreakPartner, correctEntry, correctionProblem, deleteEntryForUser, type EntryCorrection } from "@/lib/entryCorrection";
-import { createEntryForUser, validateEntryCreate } from "@/lib/entryCreateService";
-import { createEntryGapForUser, validateEntryGap, entryGapEnabled, type EntryGapKind } from "@/lib/entryGapService";
+import { chainBreakPartner, correctEntry, correctionProblem, deleteEntryForUser, type EntryCorrection } from "@/lib/entries/entryCorrection";
+import { createEntryForUser, validateEntryCreate } from "@/lib/entries/entryCreateService";
+import { createEntryGapForUser, validateEntryGap, entryGapEnabled, type EntryGapKind } from "@/lib/entries/entryGapService";
 import { deleteReference, importEntryAsReference, importRecentVerschluss, selectImportCandidates } from "@/lib/devices/deviceReferenceService";
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks/tasks";
-import { releaseNow, previewReleaseNow } from "@/lib/releaseNowService";
+import { releaseNow, previewReleaseNow } from "@/lib/entries/releaseNowService";
 import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
-import { setLockRequiresBolt } from "@/lib/lockCommit";
+import { setLockRequiresBolt } from "@/lib/entries/lockCommit";
 import { setOffenseStatementsAllowed } from "@/lib/strafbuch/offenseStatementService";
 import { loadBoxSettings } from "@/lib/mcp/context";
 

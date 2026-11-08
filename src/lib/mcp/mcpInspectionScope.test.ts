@@ -28,7 +28,7 @@ import { mcpWithdraw, mcpRequestInspection, mcpResolveInspection } from "./mcpWr
 import { prisma } from "@/lib/prisma";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrollen/kontrolleService";
 import { INSPECTION_DELAY_RANGE, INSPECTION_RANDOM_DELAY } from "@/lib/constants";
-import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
+import { keyholderVisibleKontrolleWhere } from "@/lib/entries/queries";
 
 const JETZT = new Date("2026-07-28T12:00:00Z");
 const kontrollFindManyMock = prisma.kontrollAnforderung.findMany as unknown as ReturnType<typeof vi.fn>;

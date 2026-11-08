@@ -28,13 +28,13 @@ import {
   DURATION_UNITS, durationToHours, durationFromHours, type DurationUnit,
 } from "@/lib/constants";
 import { minHoldMs, startDeadline } from "@/lib/tasks/tasks";
-import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
+import { TASK_FORM_QUERY } from "@/lib/entries/entryFormRoute";
 import type { TaskRequirementInput, TaskProofInput } from "@/lib/tasks/taskService";
 import TaskRequirementPicker, { type PickerCategory } from "./TaskRequirementPicker";
 import TaskProofPicker from "./TaskProofPicker";
 import RecurrenceFields from "./RecurrenceFields";
 import Select from "@/app/components/Select";
-import { initialRecurrence, recurrencePayload, occurrenceFormatter, type RecurrenceValue } from "@/lib/recurrenceForm";
+import { initialRecurrence, recurrencePayload, occurrenceFormatter, type RecurrenceValue } from "@/lib/entries/recurrenceForm";
 
 /** Ein unbeurteiltes Vergehen zur Auswahl „Strafe für" — von der Seite aufbereitet. `anlass` belegt
  *  das Feld „Wofür" vor, `offenseType` reist wie beim Weg aus dem Strafbuch mit. */

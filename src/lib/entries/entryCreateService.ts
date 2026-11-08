@@ -1,17 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import type { Entry, User } from "@prisma/client";
 import { validateEntryPayload, DEVICE_BEARING_TYPES, LOCK_ENDED_REASON, lockmeboxEnabled } from "@/lib/constants";
-import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/reasonsService";
-import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, getKgNeighbors, endableLockPeriods } from "@/lib/queries";
-import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
-import { applyEntryFulfilment } from "@/lib/entryFulfilment";
+import { orgasmusValueAllowed, validOeffnenCodes } from "@/lib/entries/reasonsService";
+import { validateDeviceOwnership, releaseLockPeriodsOnOpen, prepareWearEntry, getKgNeighbors, endableLockPeriods } from "@/lib/entries/queries";
+import { entryGuardError, entryGuardCode } from "@/lib/entries/entryErrors";
+import { applyEntryFulfilment } from "@/lib/entries/entryFulfilment";
 import { triggerPostLockInspection } from "@/lib/kontrollen/autoKontrolleService";
-import { boltFieldsFor } from "@/lib/lockPending";
-import { findPendingLockTx, findPendingOpenTx, openAwaitsBolt } from "@/lib/lockCommit";
+import { boltFieldsFor } from "@/lib/entries/lockPending";
+import { findPendingLockTx, findPendingOpenTx, openAwaitsBolt } from "@/lib/entries/lockCommit";
 import { boxCommandForEntry, setBoxCommandForUser } from "@/lib/box/boxCommand";
 import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
 import { notifyControllersAboutEntry } from "@/lib/messages/entryNotify";
-import type { EntryGuardCode, EntryValidationCode } from "@/lib/entryErrors";
+import type { EntryGuardCode, EntryValidationCode } from "@/lib/entries/entryErrors";
 
 /**
  * Ein Ereignis für den TRÄGER nachtragen — der Weg der Keyholderin, nicht der des Subs.

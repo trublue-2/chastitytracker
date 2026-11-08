@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildWearSessions, wearHourPairsByCategory, wearSessionPairsByCategory } from "./sessionModel";
 import { buildWearSessionRows } from "./wearSessionRows";
-import { wearingHoursFromPairs } from "./utils";
+import { wearingHoursFromPairs } from "../utils";
 
 /**
  * Die Trage-Sessions der Nicht-KG-Kategorien. Bis v4.50.37 gab es sie nirgends: `buildSessions`

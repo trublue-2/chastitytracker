@@ -44,8 +44,8 @@ vi.mock("@/lib/messages/messageService", async (importOriginal) => ({
 
 import { notifyUser } from "./notify";
 import { sendKontrolleNotification } from "../kontrollen/kontrolleService";
-import { sendVerschlussAnforderungNotifications } from "../verschlussAnforderungService";
-import { sendOrgasmusAnforderungNotifications } from "../orgasmusAnforderungService";
+import { sendVerschlussAnforderungNotifications } from "../entries/verschlussAnforderungService";
+import { sendOrgasmusAnforderungNotifications } from "../entries/orgasmusAnforderungService";
 import { prisma } from "@/lib/prisma";
 import { recordInboxDelivery } from "@/lib/messages/messageService";
 import * as mailModule from "@/lib/messages/mail";

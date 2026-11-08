@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { getUserTimezone } from "@/lib/queries";
+import { getUserTimezone } from "@/lib/entries/queries";
 import { formatDateTime, nowDatetimeLocal, toDateLocale, toDatetimeLocal } from "@/lib/utils";
 import { strafbuchCached } from "@/lib/stats/dashboardData";
 import { openOffensesOf, selectSubOffenses } from "@/lib/strafbuch/subOffenses";
@@ -13,8 +13,8 @@ import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import { getLocale, getTranslations } from "next-intl/server";
 import TaskFields, { type PunishmentOffenseOption, type TaskFormInitial } from "@/app/admin/tasks/TaskFields";
-import { recurrenceFromRow } from "@/lib/recurrenceForm";
-import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
+import { recurrenceFromRow } from "@/lib/entries/recurrenceForm";
+import { TASK_FORM_QUERY } from "@/lib/entries/entryFormRoute";
 import type { RecurrenceFreq } from "@/lib/tasks/taskRecurrence";
 
 /** Minuten → Dauer-Eingabe (Stunden bei glattem Wert, sonst Minuten) fürs Vorbefüllen. */

@@ -8,7 +8,7 @@ import {
   type JournalVisibility,
 } from "@/lib/constants";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
-import type { Session } from "@/lib/sessionModel";
+import type { Session } from "@/lib/entries/sessionModel";
 import { midnightOfLocalDate } from "@/lib/utils";
 
 /**

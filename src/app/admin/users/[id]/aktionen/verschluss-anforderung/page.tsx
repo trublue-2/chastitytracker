@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
-import { getUserDeviceOptions, getIsLocked, getUserTimezone } from "@/lib/queries";
+import { getUserDeviceOptions, getIsLocked, getUserTimezone } from "@/lib/entries/queries";
 import { subLockPeriodCached } from "@/lib/stats/dashboardData";
 import { nowDatetimeLocal } from "@/lib/utils";
-import { resolveLockFormArt } from "@/lib/lockRequestPlanning";
+import { resolveLockFormArt } from "@/lib/entries/lockRequestPlanning";
 import VerschlussAnforderungForm from "./VerschlussAnforderungForm";
 
 export default async function AdminVerschlussAnforderungPage({

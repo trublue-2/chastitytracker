@@ -1,6 +1,6 @@
 import type { NumberRange } from "@/lib/constants";
 import { toVerifyFailure, type VerifyFailure } from "@/lib/kontrollen/verifyReason";
-import { isEffectiveEntry } from "@/lib/lockPending";
+import { isEffectiveEntry } from "@/lib/entries/lockPending";
 
 /** Einheiten-Kürzel für „Tage" nach Locale. Prefix-Vergleich, damit auch regionale Tags
  *  (`"en-US"`, `"en-GB"`) als Englisch zählen — `"de-CH"` bleibt bei "T". */

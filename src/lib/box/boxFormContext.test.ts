@@ -9,7 +9,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { getBoxFormContext } from "../queries";
+import { getBoxFormContext } from "../entries/queries";
 import { prisma } from "@/lib/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
 

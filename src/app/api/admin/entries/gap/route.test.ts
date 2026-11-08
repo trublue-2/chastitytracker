@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 const createEntryGapForUser = vi.fn();
-vi.mock("@/lib/entryGapService", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/entryGapService")>("@/lib/entryGapService");
+vi.mock("@/lib/entries/entryGapService", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/entries/entryGapService")>("@/lib/entries/entryGapService");
   return { ...actual, createEntryGapForUser: (...a: unknown[]) => createEntryGapForUser(...a) };
 });
 vi.mock("@/lib/prisma", () => ({ prisma: { user: { findUnique: vi.fn(async () => ({ id: "u1", orgasmusArtenConfig: null, oeffnenGruendeConfig: null })) } } }));

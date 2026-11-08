@@ -13,8 +13,8 @@ import { createPrismaMock, type PrismaMock } from "@/test/prismaMock";
 const prismaMock: PrismaMock = createPrismaMock();
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 const getIsLocked = vi.fn(async () => true);
-vi.mock("@/lib/queries", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/queries")>();
+vi.mock("@/lib/entries/queries", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/entries/queries")>();
   return { ...actual, getIsLocked };
 });
 

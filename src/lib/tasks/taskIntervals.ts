@@ -1,10 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildPairs, filterAndSortPairEntries, mergeWearPairs, KG_PAIR, WEAR_PAIR, type CleaningPauseRules, type WearPair } from "@/lib/utils";
-import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice, type SegmentEntry } from "@/lib/sessionModel";
-import { SESSION_ENTRY_SELECT } from "@/lib/queries";
-import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
-import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
+import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice, type SegmentEntry } from "@/lib/entries/sessionModel";
+import { SESSION_ENTRY_SELECT } from "@/lib/entries/queries";
+import { CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
+import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/entries/cleaningRules";
 import { evaluateTask, coversPoint, isTaskOffense, isTaskOpen, needsKeyholderReview, requirementsShownAt, type Interval, type ProofLike, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks/tasks";
 
 /**

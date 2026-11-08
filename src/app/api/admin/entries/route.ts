@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminActor } from "@/lib/auth/authGuards";
 import { isDevBypassEnabled } from "@/lib/client/devMode";
-import { createEntryForUser } from "@/lib/entryCreateService";
+import { createEntryForUser } from "@/lib/entries/entryCreateService";
 
 /**
  * Ein Ereignis für einen Träger nachtragen — der Keyholder-Pfad.

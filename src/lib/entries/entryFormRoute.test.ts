@@ -6,7 +6,7 @@ import { isEntryFormRoute, inspectionHref, taskFormHref, openInspections, pendin
 // (`kontrolleService` → Mail/Push) importieren dieses Modul — Begründung in `expectImportFree`.
 describe("entryFormRoute.ts bleibt importfrei", () => {
   it("enthält keine import-/require-Anweisung", () => {
-    expectImportFree("src/lib/entryFormRoute.ts");
+    expectImportFree("src/lib/entries/entryFormRoute.ts");
   });
 });
 

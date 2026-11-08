@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import type { Entry, User } from "@prisma/client";
-import { validateEntryCreate } from "@/lib/entryCreateService";
-import { getKgNeighbors, type PrismaTx } from "@/lib/queries";
-import { entryGuardError, entryGuardCode } from "@/lib/entryErrors";
-import type { EntryCreateError } from "@/lib/entryCreateService";
-import { boltFieldsFor } from "@/lib/lockPending";
+import { validateEntryCreate } from "@/lib/entries/entryCreateService";
+import { getKgNeighbors, type PrismaTx } from "@/lib/entries/queries";
+import { entryGuardError, entryGuardCode } from "@/lib/entries/entryErrors";
+import type { EntryCreateError } from "@/lib/entries/entryCreateService";
+import { boltFieldsFor } from "@/lib/entries/lockPending";
 
 /**
  * Eine vergessene Öffnung samt Wiederverschluss NACHTRAGEN — als EIN Vorgang.

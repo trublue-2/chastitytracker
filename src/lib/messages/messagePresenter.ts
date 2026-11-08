@@ -1,7 +1,7 @@
 import { localeT } from "@/lib/messages/emailI18n";
 import type { InboxMessage, MessageSenderKind } from "@/lib/messages/messageService";
 import { messageCategory, type MessageCategory } from "@/lib/messages/messageCategories";
-import { inspectionHref } from "@/lib/entryFormRoute";
+import { inspectionHref } from "@/lib/entries/entryFormRoute";
 import { offenseCanonicalFromNameKey, withOffenseName } from "@/lib/strafbuch/offenseLabels";
 import { withMessageDefaults } from "@/lib/messages/messageDefaults";
 import { loadStatementViews, type StatementView } from "@/lib/strafbuch/offenseStatementService";

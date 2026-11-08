@@ -5,15 +5,15 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-vi.mock("@/lib/queries", () => ({
+vi.mock("@/lib/entries/queries", () => ({
   getNonKgTrackingCategories: vi.fn(),
   getWearEntries: vi.fn(),
   getUserTimezone: vi.fn(),
 }));
 
 import { buildCategoryWearGoals } from "./categoryGoals";
-import { getNonKgTrackingCategories, getUserTimezone } from "@/lib/queries";
-import type { SegmentEntry } from "@/lib/sessionModel";
+import { getNonKgTrackingCategories, getUserTimezone } from "@/lib/entries/queries";
+import type { SegmentEntry } from "@/lib/entries/sessionModel";
 
 /**
  * Die Kategorie-Stunden lagen auf dem CH-Tag, während der Zwilling `buildCategoryRows` die Zeitzone

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import BottomNav from "@/app/components/BottomNav";
 import NewEntrySheet, { type NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
-import type { BildersafeMenuAction } from "@/lib/queries";
+import type { BildersafeMenuAction } from "@/lib/entries/queries";
 
 interface Props {
   isAdmin?: boolean;

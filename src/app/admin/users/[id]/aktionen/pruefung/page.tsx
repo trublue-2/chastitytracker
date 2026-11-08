@@ -1,5 +1,5 @@
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
-import { getUserTimezone } from "@/lib/queries";
+import { getUserTimezone } from "@/lib/entries/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
 import PruefungForm from "./PruefungForm";
 

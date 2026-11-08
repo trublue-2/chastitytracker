@@ -5,7 +5,7 @@ import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollen/kontrol
 import { formatVerifyReason, type VerifyReason } from "@/lib/kontrollen/verifyReason";
 import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { prisma } from "@/lib/prisma";
-import { keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE } from "@/lib/queries";
+import { keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE } from "@/lib/entries/queries";
 import type { AdminKontrolleRowData } from "@/app/admin/kontrollen/AdminKontrolleListClient";
 
 /** Raw row built from PRUEFUNG entries + KontrollAnforderungen, ready for display mapping. */

@@ -9,7 +9,7 @@ import {
 } from "@/lib/devices/deviceCategoryService";
 import { validateCategoryInput } from "@/lib/devices/categoryConstants";
 import { deviceCategoriesEnabled, DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
-import { CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT } from "@/lib/queries";
+import { CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT } from "@/lib/entries/queries";
 
 /** Geräte-Kategorien über den MCP: lesen (als Teil von `get_devices`), anlegen/ändern, löschen.
  *

@@ -1,5 +1,5 @@
 import { KG_BUILTIN_SLUG } from "@/lib/devices/deviceCategories";
-import { entryFormBase } from "@/lib/entryFormRoute";
+import { entryFormBase } from "@/lib/entries/entryFormRoute";
 
 /** User-pickable color palette for DeviceCategory (per UI Designer spec).
  *  cat-steel is reserved for the KG built-in identity. The remaining 11 are user-pickable.

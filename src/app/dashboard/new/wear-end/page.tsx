@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { getActiveWearSessionForCategory } from "@/lib/queries";
+import { getActiveWearSessionForCategory } from "@/lib/entries/queries";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getTasksBlocking } from "@/lib/tasks/taskIntervals";
 import WearForm from "../../WearForm";

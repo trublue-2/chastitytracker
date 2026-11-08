@@ -10,7 +10,7 @@ import type { OeffnenPayload, CleaningConfig, LockPeriodState, SubmitResult } fr
 import type { BoxHold } from "@/lib/box/boxOpenOutlook";
 import { entryRequest, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import type { ResolvedReason } from "@/lib/reasonsService";
+import type { ResolvedReason } from "@/lib/entries/reasonsService";
 import type { TaskWarning } from "@/lib/tasks/taskIntervals";
 
 interface Props {

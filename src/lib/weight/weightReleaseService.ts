@@ -8,12 +8,12 @@ import { addWeightDays, dayNumber, isUnderweightTarget, weightDayKey, weightProb
 import { APP_TZ, clamp } from "@/lib/utils";
 import { evaluateRelease, isReleaseDirection, thresholdOn, type ReleaseEvaluation } from "@/lib/weight/weightRelease";
 import { movingAverage, type WeightPoint } from "@/lib/weight/weightSeries";
-import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
+import { createOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungService";
 import { notifyUser, notifyControllers } from "@/lib/messages/notify";
 import { getControllersOfUser } from "@/lib/auth/keyholder";
 import { weightForDisplay, type UnitSystem } from "@/lib/weight/weight";
 import type { MessageActor } from "@/lib/messages/messageService";
-import { isHealthHoldActive } from "@/lib/healthHold";
+import { isHealthHoldActive } from "@/lib/entries/healthHold";
 
 /**
  * Die Freigabe-Vorgabe als Vorgang: stellen, zurückziehen, auswerten

@@ -6,7 +6,7 @@ import { errorResponse } from "@/lib/serviceResult";
 import { createCategory } from "@/lib/devices/deviceCategoryService";
 import { validateCategoryInput } from "@/lib/devices/categoryConstants";
 import { DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
-import { CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT } from "@/lib/queries";
+import { CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT } from "@/lib/entries/queries";
 
 /** GET /api/categories — list current user's DeviceCategories.
  *  Admin may pass ?userId=<id> to fetch another user's categories.

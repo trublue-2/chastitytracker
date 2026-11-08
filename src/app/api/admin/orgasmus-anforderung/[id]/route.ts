@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
-import { withdrawOrgasmusAnforderungById } from "@/lib/orgasmusAnforderungService";
+import { withdrawOrgasmusAnforderungById } from "@/lib/entries/orgasmusAnforderungService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 export async function PATCH(

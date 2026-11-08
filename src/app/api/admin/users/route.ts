@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import { passwordErrorCode } from "@/lib/constants";
 import { ensureKgCategory } from "@/lib/devices/deviceCategories";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
-import { latestKgTimesByUser } from "@/lib/queries";
+import { latestKgTimesByUser } from "@/lib/entries/queries";
 
 export async function GET() {
   const err = await requireAdminApi();

@@ -2,21 +2,21 @@ import { prisma } from "@/lib/prisma";
 import { LOCK_ENDED_REASON, orgasmTypeSatisfies } from "@/lib/constants";
 import { deployCutoff } from "@/lib/upstream/appMeta";
 import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalMinutes, APP_TZ, hhmmToMinutes } from "@/lib/utils";
-import { cleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
-import { activeCleaningWindow, CLEANING_USER_SELECT } from "@/lib/cleaningService";
+import { cleaningBlockReason, type CleaningPermissionUser } from "@/lib/entries/queries";
+import { activeCleaningWindow, CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
 
 import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/tasks/taskIntervals";
 import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks/tasks";
-import { triggeredWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
-import { CONFIRMED_LOCK_FILTER } from "@/lib/lockPending";
+import { triggeredWhere, isHiddenFromSub } from "@/lib/entries/delayedTrigger";
+import { CONFIRMED_LOCK_FILTER } from "@/lib/entries/lockPending";
 import { missedWeightBlocks, missedWeightRef } from "@/lib/weight/weightObligation";
-import { isPausedAt, toHealthHoldSpans, type HealthHoldSpan } from "@/lib/healthHold";
+import { isPausedAt, toHealthHoldSpans, type HealthHoldSpan } from "@/lib/entries/healthHold";
 import { addWeightDays, endOfWeightDay, weightDayKey } from "@/lib/weight/weight";
 import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/strafbuch/offenseRules";
 import {
   CLEANING_RULE_CHANGE_SELECT, cleaningPermissionUserAt, cleaningRulesFrom, cleaningRulesAt,
   type CleaningSettingsResolver,
-} from "@/lib/cleaningRules";
+} from "@/lib/entries/cleaningRules";
 import { TIMEZONE_CHANGE_SELECT, timezoneRulesFrom, type TimezoneResolver } from "@/lib/timezoneRules";
 import type { OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
 

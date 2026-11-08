@@ -8,13 +8,13 @@ vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
-vi.mock("@/lib/queries", () => ({ getLatestKgEntry: vi.fn() }));
+vi.mock("@/lib/entries/queries", () => ({ getLatestKgEntry: vi.fn() }));
 vi.mock("@/lib/kontrollen/verifyCode", () => ({ detectKeyInBox: vi.fn().mockResolvedValue(null) }));
 vi.mock("@/lib/box/boxCommandNotify", () => ({ announceBoxPhotoDue: vi.fn() }));
 
 import { markBoxPhotoDue, markBoxPhotoDueIfBoxLocked, submitBoxPhoto, waiveBoxPhoto } from "./boxPhotoDueService";
 import { prisma } from "@/lib/prisma";
-import { getLatestKgEntry } from "@/lib/queries";
+import { getLatestKgEntry } from "@/lib/entries/queries";
 import { detectKeyInBox } from "@/lib/kontrollen/verifyCode";
 import { announceBoxPhotoDue } from "@/lib/box/boxCommandNotify";
 import type { PrismaMock } from "@/test/prismaMock";

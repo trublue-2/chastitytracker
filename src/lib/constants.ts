@@ -1,4 +1,4 @@
-import type { EntryValidationCode } from "@/lib/entryErrors";
+import type { EntryValidationCode } from "@/lib/entries/entryErrors";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import type { TaskState } from "@/lib/tasks/tasks";
 import type { PasswordChangeVia } from "@/lib/auth/passwordAudit";

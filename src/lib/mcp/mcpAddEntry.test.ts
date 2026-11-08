@@ -13,18 +13,18 @@ vi.mock("@/lib/prisma", () => ({
 }));
 // Nur das SCHREIBEN festnageln. `validateEntryCreate` bleibt echt: die dryRun-Vorschau soll gegen
 // die wirkliche Regel prüfen, nicht gegen eine Attrappe — sonst prüfte der Test die Attrappe.
-vi.mock("@/lib/entryCreateService", async (orig) => ({
+vi.mock("@/lib/entries/entryCreateService", async (orig) => ({
   ...(await orig<object>()),
   createEntryForUser: vi.fn(),
 }));
-vi.mock("@/lib/queries", async (orig) => ({
+vi.mock("@/lib/entries/queries", async (orig) => ({
   ...(await orig<object>()),
   getUserDeviceOptions: vi.fn(async () => []),
 }));
 
 import { mcpAddEntry } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { createEntryForUser } from "@/lib/entryCreateService";
+import { createEntryForUser } from "@/lib/entries/entryCreateService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const createMock = createEntryForUser as unknown as ReturnType<typeof vi.fn>;

@@ -31,10 +31,10 @@ vi.mock("@/lib/messages/notify", async (importOriginal) => ({
   notifyUser: vi.fn(),
 }));
 vi.mock("@/lib/box/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn() }));
-vi.mock("@/lib/queries", async (importOriginal) => {
+vi.mock("@/lib/entries/queries", async (importOriginal) => {
   // isScheduledDirective ist reine Zeit-Arithmetik ohne DB — sie kommt echt aus dem Modul, damit der
   // Test die WIRKLICHE „terminiert?"-Regel prüft und nicht eine nachgebaute.
-  const actual = await importOriginal<typeof import("@/lib/queries")>();
+  const actual = await importOriginal<typeof import("@/lib/entries/queries")>();
   return { ...actual, getIsLocked: vi.fn(async () => true), validateDeviceOwnership: vi.fn() };
 });
 vi.mock("@/lib/messages/mail", () => ({
@@ -53,7 +53,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/messages/notify";
 import { notifyHeimdallForUserId } from "@/lib/box/heimdallNotify";
-import { getIsLocked } from "@/lib/queries";
+import { getIsLocked } from "@/lib/entries/queries";
 import { sendPushToUser } from "@/lib/messages/push";
 import { sendMailSafe } from "@/lib/messages/mail";
 

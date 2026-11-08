@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/auth/authGuards";
-import { releaseNow } from "@/lib/releaseNowService";
+import { releaseNow } from "@/lib/entries/releaseNowService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 /**

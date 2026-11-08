@@ -1,5 +1,5 @@
 import { buildCategoryWearGoals, hasAnyGoal } from "@/lib/devices/categoryGoals";
-import { type SegmentEntry } from "@/lib/sessionModel";
+import { type SegmentEntry } from "@/lib/entries/sessionModel";
 import { periodEndsMs } from "@/lib/stats/goalFulfillment";
 import type { KgGoalRow } from "@/lib/stats/goalSegments";
 import CategoryGoalsLive from "./CategoryGoalsLive";

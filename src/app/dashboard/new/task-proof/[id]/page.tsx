@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getMobileDesktopMode } from "@/lib/queries";
+import { getMobileDesktopMode } from "@/lib/entries/queries";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
 import TaskProofFormCore from "@/app/entries/TaskProofFormCore";

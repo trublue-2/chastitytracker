@@ -14,7 +14,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 // Der Service löst die Zeitzone des Subs auf, um ein reines Kalenderdatum („2026-08-23" aus dem
 // `<input type="date">`) als LOKALE Mitternacht zu speichern statt als UTC-Mitternacht.
-vi.mock("@/lib/queries", () => ({ getUserTimezone: vi.fn(async () => "Europe/Zurich") }));
+vi.mock("@/lib/entries/queries", () => ({ getUserTimezone: vi.fn(async () => "Europe/Zurich") }));
 vi.mock("@/lib/stats/vorgaben", () => ({ reorderVorgabenDates: vi.fn() }));
 vi.mock("@/lib/devices/deviceCategoryService", () => ({ resolveOwnedCategory: vi.fn(async () => ({ ok: true, data: null })) }));
 

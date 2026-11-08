@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { boxReportedLockedSafe, commitPendingOpenSafe } from "@/lib/lockCommit";
+import { boxReportedLockedSafe, commitPendingOpenSafe } from "@/lib/entries/lockCommit";
 import { toPendingCommand, type BoxKind } from "@/lib/box/boxStatus";
 import { nextLockmeboxCommand, parseLockmeboxStatus, type LockmeboxRelayInput, type LockmeboxRelayResult } from "@/lib/box/lockmeboxProtocol";
 import { clearBoxCommandForUser } from "@/lib/box/boxCommand";

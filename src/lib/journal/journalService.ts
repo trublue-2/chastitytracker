@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { isJournalVisibility, type JournalVisibility } from "@/lib/constants";
-import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
-import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesAt, cleaningRulesFrom } from "@/lib/cleaningRules";
+import { CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
+import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesAt, cleaningRulesFrom } from "@/lib/entries/cleaningRules";
 import {
   KEYHOLDER_VISIBLE,
   checkJournalInput,
@@ -20,7 +20,7 @@ import {
   type KeyholderJournalRow,
 } from "@/lib/journal/journal";
 import { serviceFail, type ServiceFailure, type ServiceResult } from "@/lib/serviceResult";
-import { buildSessions } from "@/lib/sessionModel";
+import { buildSessions } from "@/lib/entries/sessionModel";
 import { orgasmTimes, tzDateParts } from "@/lib/utils";
 
 /**

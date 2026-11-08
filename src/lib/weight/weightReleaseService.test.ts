@@ -22,13 +22,13 @@ vi.mock("@/lib/prisma", async () => {
   };
 });
 const transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(await import("@/lib/prisma").then((m) => m.prisma)));
-vi.mock("@/lib/orgasmusAnforderungService", () => ({ createOrgasmusAnforderung: vi.fn() }));
+vi.mock("@/lib/entries/orgasmusAnforderungService", () => ({ createOrgasmusAnforderung: vi.fn() }));
 vi.mock("@/lib/messages/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn().mockResolvedValue([]) }));
 
 import { applyWeightRelease, setWeightRelease } from "@/lib/weight/weightReleaseService";
 import { prisma } from "@/lib/prisma";
-import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
+import { createOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungService";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

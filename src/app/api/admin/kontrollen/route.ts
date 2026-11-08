@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/auth/authGuards";
-import { keyholderVisibleKontrolleWhere } from "@/lib/queries";
+import { keyholderVisibleKontrolleWhere } from "@/lib/entries/queries";
 
 export async function GET() {
   const err = await requireAdminApi();

@@ -10,14 +10,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { orgasmusAnforderung: { findMany: vi.fn(), count: vi.fn(), update: vi.fn(), updateMany: vi.fn() } },
 }));
-vi.mock("@/lib/orgasmusAnforderungService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/orgasmusAnforderungService")>();
+vi.mock("@/lib/entries/orgasmusAnforderungService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/entries/orgasmusAnforderungService")>();
   return { ...actual, sendOrgasmusAnforderungNotifications: vi.fn() };
 });
 
 import { processDueOrgasmusAnforderungen } from "../kontrollen/kontrollePoller";
 import { prisma } from "@/lib/prisma";
-import { sendOrgasmusAnforderungNotifications } from "@/lib/orgasmusAnforderungService";
+import { sendOrgasmusAnforderungNotifications } from "@/lib/entries/orgasmusAnforderungService";
 
 const db = prisma.orgasmusAnforderung as unknown as Record<"findMany" | "count" | "update" | "updateMany", ReturnType<typeof vi.fn>>;
 const send = sendOrgasmusAnforderungNotifications as unknown as ReturnType<typeof vi.fn>;

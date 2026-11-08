@@ -9,7 +9,7 @@ import Input from "@/app/components/Input";
 import Select from "@/app/components/Select";
 import WeekdayPicker from "@/app/components/WeekdayPicker";
 import { TimeField } from "@/app/components/TimeInput";
-import { FREQ_LABEL_KEY, FREQ_UNIT_KEY, FREQ_ORDER, type RecurrenceValue } from "@/lib/recurrenceForm";
+import { FREQ_LABEL_KEY, FREQ_UNIT_KEY, FREQ_ORDER, type RecurrenceValue } from "@/lib/entries/recurrenceForm";
 
 // Die reine Form-Logik (Zustand ⇄ Nutzlast, Formatierer, Vorbelegung) liegt in `@/lib/recurrenceForm`
 // — sie wird auch vom SERVER gebraucht (Serien-Bearbeitung befüllt vor). Hier steht nur die Eingabe.

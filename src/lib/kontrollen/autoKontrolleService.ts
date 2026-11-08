@@ -10,14 +10,14 @@ import {
   POST_LOCK_INSPECTION_DEADLINE_RANGE,
 } from "@/lib/constants";
 import { generateKontrollCode } from "@/lib/utils";
-import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere, getIsLocked, userHasBox } from "@/lib/queries";
+import { GENUINELY_WITHDRAWN_WHERE, AUTO_PLAN_WHERE, todaysAutoPlanWhere, getIsLocked, userHasBox } from "@/lib/entries/queries";
 import {
   autoInspectionDayRulesProblem, fixedWindowMinutes, formatAutoInspectionDayRule,
   parseAutoInspectionDayRules, timesForDay, triggerWindowAllQuiet, type AutoInspectionDayRule,
 } from "@/lib/kontrollen/autoKontrolleDayRules";
 import { isoWeekdayInTZ, weekdayMaskHas, weekdayMaskKeys, weekdayMaskValid } from "@/lib/stats/weekdays";
 import type { Prisma } from "@prisma/client";
-import { USER_NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";
+import { USER_NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/entries/healthHold";
 
 /**
  * Automatische Kontrollen: pro Tag und Sub eine ZUFÄLLIGE Anzahl `x ∈ [perDayMin, perDayMax]` zufällig

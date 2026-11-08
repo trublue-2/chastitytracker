@@ -13,7 +13,7 @@ vi.mock("@/lib/prisma", () => ({
     deviceCategory: { findUnique: vi.fn() },
   },
 }));
-vi.mock("@/lib/queries", () => ({
+vi.mock("@/lib/entries/queries", () => ({
   getLatestKgEntry: vi.fn(),
   getActiveWearSessionForCategory: vi.fn(),
 }));
@@ -21,7 +21,7 @@ vi.mock("@/lib/queries", () => ({
 import { resolveInspectionTarget, isKgTarget, inspectionTargetWhere } from "./inspectionTarget";
 import { buildKontrolleItems } from "../utils";
 import { prisma } from "@/lib/prisma";
-import { getLatestKgEntry, getActiveWearSessionForCategory } from "@/lib/queries";
+import { getLatestKgEntry, getActiveWearSessionForCategory } from "@/lib/entries/queries";
 
 const deviceMock = prisma.device.findUnique as unknown as ReturnType<typeof vi.fn>;
 const categoryMock = prisma.deviceCategory.findUnique as unknown as ReturnType<typeof vi.fn>;

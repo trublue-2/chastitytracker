@@ -22,10 +22,10 @@ import { hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/stats/go
 import { resolveGoalRow } from "@/lib/stats/goalSegments";
 import { getKombinierterPill } from "@/lib/kontrollen/kontrollePills";
 import { isKgVorgabe, goalCategoryKey, groupVorgabenByCategory } from "@/lib/stats/vorgaben";
-import { isEffectiveEntry, latestEffectiveKgEntry } from "@/lib/lockPending";
+import { isEffectiveEntry, latestEffectiveKgEntry } from "@/lib/entries/lockPending";
 import { categoryStyle } from "@/lib/devices/categoryConstants";
 import { KG_CATEGORY_META } from "@/lib/devices/deviceCategories";
-import { buildSessions, deviceWearingsOf, type Session } from "@/lib/sessionModel";
+import { buildSessions, deviceWearingsOf, type Session } from "@/lib/entries/sessionModel";
 import { buildDeviceUsage, type UsageSession } from "@/lib/devices/deviceUsage";
 import CategoryIconRender from "./CategoryIcon";
 import { type CategoryVariant } from "./CategorySwitcherCard";

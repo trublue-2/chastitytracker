@@ -4,7 +4,7 @@ import { weightDayKey } from "@/lib/weight/weight";
 import { activeWeighingWindow, weighingWindowEnd, type WeighingWindow } from "@/lib/weight/weightWindows";
 import { getRecipientChannels } from "@/lib/messages/notificationPrefs";
 import { notifyUser } from "@/lib/messages/notify";
-import { USER_NOT_PAUSED_WHERE } from "@/lib/healthHold";
+import { USER_NOT_PAUSED_WHERE } from "@/lib/entries/healthHold";
 
 /**
  * Die Erinnerung zum Wiege-Fenster: „das Fenster ist offen, und du hast heute noch nichts gemeldet".

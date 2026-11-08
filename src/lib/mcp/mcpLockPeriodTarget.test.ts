@@ -12,11 +12,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() }, verschlussAnforderung: { findUnique: vi.fn() } },
 }));
-vi.mock("@/lib/queries", () => ({
+vi.mock("@/lib/entries/queries", () => ({
   getUserDeviceOptions: vi.fn(),
   getKeyholderLockPeriods: vi.fn(),
 }));
-vi.mock("@/lib/verschlussAnforderungService", () => ({
+vi.mock("@/lib/entries/verschlussAnforderungService", () => ({
   createVerschlussAnforderung: vi.fn(),
   updateLockPeriodEnd: vi.fn(),
   withdrawVerschlussAnforderung: vi.fn(),
@@ -25,8 +25,8 @@ vi.mock("@/lib/verschlussAnforderungService", () => ({
 
 import { mcpEditLockPeriod, mcpWithdraw } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { getKeyholderLockPeriods } from "@/lib/queries";
-import { updateLockPeriodEnd, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, type WithdrawnDirective } from "@/lib/verschlussAnforderungService";
+import { getKeyholderLockPeriods } from "@/lib/entries/queries";
+import { updateLockPeriodEnd, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, type WithdrawnDirective } from "@/lib/entries/verschlussAnforderungService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const openMock = getKeyholderLockPeriods as unknown as ReturnType<typeof vi.fn>;

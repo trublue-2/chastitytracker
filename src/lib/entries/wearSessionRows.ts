@@ -1,5 +1,5 @@
 import { formatDate, formatDurationBetween, formatTime } from "@/lib/utils";
-import { type Session } from "@/lib/sessionModel";
+import { type Session } from "@/lib/entries/sessionModel";
 
 /** Die Darstellungs-Schicht über `buildWearSessions` (Session-Modell): fertige Zeilen für die
  *  Trage-Session-Liste im Dashboard und in der Keyholder-Ansicht. Das Modell selbst bleibt

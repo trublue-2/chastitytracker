@@ -25,7 +25,7 @@ import ConfirmDialog from "@/app/components/ConfirmDialog";
 import Select from "@/app/components/Select";
 import Card from "@/app/components/Card";
 import Toggle from "@/app/components/Toggle";
-import type { DeviceOption } from "@/lib/queries";
+import type { DeviceOption } from "@/lib/entries/queries";
 import type { VerschlussPayload, SubmitResult } from "./types";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 

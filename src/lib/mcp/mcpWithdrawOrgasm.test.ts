@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() } },
 }));
-vi.mock("@/lib/orgasmusAnforderungService", () => ({
+vi.mock("@/lib/entries/orgasmusAnforderungService", () => ({
   createOrgasmusAnforderung: vi.fn(),
   withdrawOrgasmusAnforderung: vi.fn(),
   withdrawOrgasmusAnforderungById: vi.fn(),
@@ -23,7 +23,7 @@ vi.mock("@/lib/orgasmusAnforderungService", () => ({
 
 import { mcpWithdraw } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { withdrawOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
+import { withdrawOrgasmusAnforderung } from "@/lib/entries/orgasmusAnforderungService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const withdrawMock = withdrawOrgasmusAnforderung as unknown as ReturnType<typeof vi.fn>;

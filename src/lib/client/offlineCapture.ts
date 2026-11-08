@@ -17,7 +17,7 @@
  * Wert nützte ohnehin niemandem, aber eine offline erfasste Zukunft ist unsinnig). Fehlt das Flag
  * oder ist die Zeit unlesbar, ist das Ergebnis „nicht offline" — dann greift wieder die Server-Uhr.
  */
-import { parseTriggerAt } from "@/lib/delayedTrigger";
+import { parseTriggerAt } from "@/lib/entries/delayedTrigger";
 
 export interface OfflineCapture {
   capturedOffline: boolean;

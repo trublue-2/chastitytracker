@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
-import { getUserTimezone } from "@/lib/queries";
+import { getUserTimezone } from "@/lib/entries/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
 import { currentWeightAverage, openWeightRelease } from "@/lib/weight/weightReleaseService";
 import { RELEASE_AVERAGE_DAYS_RANGE } from "@/lib/constants";

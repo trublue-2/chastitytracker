@@ -20,7 +20,7 @@ const txMock = {
 vi.mock("@/lib/prisma", () => ({ prisma: { strafeRecord: { create: vi.fn() } } }));
 
 import { applyEntryFulfilment } from "./entryFulfilment";
-import { isPastDeadlineUnfulfilled } from "./utils";
+import { isPastDeadlineUnfulfilled } from "../utils";
 
 /** Die Frist der Anordnung: „schliess dich bis 20:00 ein." */
 const DEADLINE = new Date("2026-08-03T20:00:00Z");
@@ -358,7 +358,7 @@ describe("Welche Uhr die Erfassungs-Routen an applyEntryFulfilment geben", () =>
   const sub = callArgs("src/app/api/entries/route.ts");
   // Der Keyholder-Pfad liegt seit der MCP-Öffnung im DIENST, nicht mehr in der Route — der
   // Wächter folgt ihm dorthin. Was er bewacht, ist unverändert: WELCHE Uhr die Erfüllung datiert.
-  const admin = callArgs("src/lib/entryCreateService.ts");
+  const admin = callArgs("src/lib/entries/entryCreateService.ts");
 
   it("zerlegt beide Aufrufe vollständig", () => {
     // Der Selbsttest des Wächters: stimmt die Zahl nicht, ist die Zerlegung an einer Klammer
@@ -392,7 +392,7 @@ describe("Welche Uhr die Erfassungs-Routen an applyEntryFulfilment geben", () =>
     // Die RICHTUNG des Ternärs ist die Eigenschaft, nicht sein Vorhandensein: erfasst die
     // Keyholderin für SICH, ist sie der Sub und es gilt die Server-Uhr. Vertauscht bedeutete
     // dieselbe Zeile das Gegenteil — und wäre die offene Hintertür.
-    const decl = readFileSync("src/lib/entryCreateService.ts", "utf8")
+    const decl = readFileSync("src/lib/entries/entryCreateService.ts", "utf8")
       .match(/const fulfilAt = .*/)?.[0] ?? "";
     expect(decl).toMatch(/userId === opts\.actorUserId\s*\?\s*new Date\(\)\s*:\s*entryTime/);
   });

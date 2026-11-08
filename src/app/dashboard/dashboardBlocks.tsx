@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getIsLocked, userHasBox } from "@/lib/queries";
+import { getIsLocked, userHasBox } from "@/lib/entries/queries";
 import { isBoxPhotoDue } from "@/lib/box/boxPhotoDue";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
@@ -18,21 +18,21 @@ import {
 } from "@/lib/stats/dashboardData";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { predictAutoMarkAt } from "@/lib/kontrollen/inspectionEscalationService";
-import { cleaningPermissionUserAt } from "@/lib/cleaningRules";
+import { cleaningPermissionUserAt } from "@/lib/entries/cleaningRules";
 import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch/strafbuch";
 import {
   formatDateTime, formatTime, interruptionPauseMs, runningCleaningPauseUntil,
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
 } from "@/lib/utils";
-import { wearHourPairsByCategory } from "@/lib/sessionModel";
+import { wearHourPairsByCategory } from "@/lib/entries/sessionModel";
 import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";
 import type { Translate } from "@/lib/box/boxStatus";
-import { currentOrNextCleaningWindow } from "@/lib/cleaningService";
+import { currentOrNextCleaningWindow } from "@/lib/entries/cleaningService";
 import { datedWindowLabel } from "@/lib/stats/weekdays";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
-import { resolveReasonLabel } from "@/lib/reasonsService";
+import { resolveReasonLabel } from "@/lib/entries/reasonsService";
 import { categoryNeedsDevice } from "@/lib/devices/categoryConstants";
-import { inspectionHref, openInspections } from "@/lib/entryFormRoute";
+import { inspectionHref, openInspections } from "@/lib/entries/entryFormRoute";
 import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { belongsOnDashboard, isHeldByTask } from "@/lib/tasks/taskIntervals";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";

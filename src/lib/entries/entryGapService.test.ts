@@ -6,10 +6,10 @@ const tx = {
 vi.mock("@/lib/prisma", () => ({
   prisma: { $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)) },
 }));
-vi.mock("@/lib/queries", () => ({ getKgNeighbors: vi.fn() }));
+vi.mock("@/lib/entries/queries", () => ({ getKgNeighbors: vi.fn() }));
 
 import { createEntryGapForUser, validateEntryGap } from "./entryGapService";
-import { getKgNeighbors } from "@/lib/queries";
+import { getKgNeighbors } from "@/lib/entries/queries";
 
 const neighbors = getKgNeighbors as unknown as ReturnType<typeof vi.fn>;
 const USER = { id: "u1", orgasmusArtenConfig: null, oeffnenGruendeConfig: null };

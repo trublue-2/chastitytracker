@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { KG_PAIR, WEAR_PAIR, type PairTypes } from "@/lib/utils";
-import { entryGuardError } from "@/lib/entryErrors";
-import { getEntryNeighbors } from "@/lib/queries";
-import { validOeffnenCodes } from "@/lib/reasonsService";
-import { isPendingEntry, isPendingLock } from "@/lib/lockPending";
+import { entryGuardError } from "@/lib/entries/entryErrors";
+import { getEntryNeighbors } from "@/lib/entries/queries";
+import { validOeffnenCodes } from "@/lib/entries/reasonsService";
+import { isPendingEntry, isPendingLock } from "@/lib/entries/lockPending";
 import { clearBoxCommandForUser } from "@/lib/box/boxCommand";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/client/imageUtils";
 import { mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";

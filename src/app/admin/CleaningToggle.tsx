@@ -1,6 +1,6 @@
 "use client";
 
-import type { CleaningWindows } from "@/lib/cleaningService";
+import type { CleaningWindows } from "@/lib/entries/cleaningService";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";

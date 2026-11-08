@@ -7,8 +7,8 @@ import { actorColumn, type MessageActor } from "@/lib/messages/messageService";
 import { getControllerAudience } from "@/lib/auth/keyholder";
 import { notifyLateProofsForTask } from "@/lib/tasks/taskProofNotify";
 import { evaluateTasks, evaluateTaskById, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/tasks/taskIntervals";
-import type { PrismaTx } from "@/lib/queries";
-import { parseTriggerAt, computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
+import type { PrismaTx } from "@/lib/entries/queries";
+import { parseTriggerAt, computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/entries/delayedTrigger";
 import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, latestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters, type TaskLike } from "@/lib/tasks/tasks";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import {
@@ -24,7 +24,7 @@ import {
 } from "@/lib/tasks/taskRecurrence";
 import { structuredLog } from "@/lib/serverLog";
 import { deleteUploadedFiles } from "@/lib/client/imageUtils";
-import { NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";
+import { NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/entries/healthHold";
 import { markLastAction } from "@/lib/upstream/appMeta";
 
 /**

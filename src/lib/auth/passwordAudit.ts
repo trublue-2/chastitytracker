@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { subsWithActiveLockPeriod } from "@/lib/queries";
+import { subsWithActiveLockPeriod } from "@/lib/entries/queries";
 import type { Prisma } from "@prisma/client";
 
 /** Auf welchem Weg das Passwort gesetzt wurde. `reset_token` ist der Fall, um den es geht: Wer

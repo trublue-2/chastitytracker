@@ -13,7 +13,7 @@ import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 import useViewTransition from "@/app/hooks/useViewTransition";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 import { adminNavEntry } from "@/lib/ui/adminNavEntry";
-import type { BildersafeMenuAction } from "@/lib/queries";
+import type { BildersafeMenuAction } from "@/lib/entries/queries";
 
 interface Props {
   isAdmin?: boolean;

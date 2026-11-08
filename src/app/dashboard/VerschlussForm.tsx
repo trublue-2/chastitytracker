@@ -8,7 +8,7 @@ import VerschlussFormCore from "@/app/entries/VerschlussFormCore";
 import type { VerschlussPayload, SubmitResult } from "@/app/entries/types";
 import { entryRequest, parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import type { DeviceOption } from "@/lib/queries";
+import type { DeviceOption } from "@/lib/entries/queries";
 
 interface Props {
   initial?: {

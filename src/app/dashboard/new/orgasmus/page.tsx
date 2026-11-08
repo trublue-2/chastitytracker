@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/prisma";
 import { getTranslations } from "next-intl/server";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
-import { effectiveOrgasmusArten, resolveOrgasmusOptions } from "@/lib/reasonsService";
+import { effectiveOrgasmusArten, resolveOrgasmusOptions } from "@/lib/entries/reasonsService";
 
 export default async function NewOrgasmusPage() {
   const session = await auth();

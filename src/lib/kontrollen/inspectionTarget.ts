@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getLatestKgEntry, getActiveWearSessionForCategory, getActiveWearSessions, getIsLocked, type PrismaTx } from "@/lib/queries";
+import { getLatestKgEntry, getActiveWearSessionForCategory, getActiveWearSessions, getIsLocked, type PrismaTx } from "@/lib/entries/queries";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 
 /**

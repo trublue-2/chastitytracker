@@ -8,7 +8,7 @@ import VerschlussFormCore from "@/app/entries/VerschlussFormCore";
 import type { VerschlussPayload, SubmitResult } from "@/app/entries/types";
 import { submitAdminEntry } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import type { DeviceOption } from "@/lib/queries";
+import type { DeviceOption } from "@/lib/entries/queries";
 import { actionSign } from "@/app/entries/actionSign";
 
 export default function VerschlussForm({ userId, devices = [], tz, nowDefault }: { userId: string; devices?: DeviceOption[]; tz: string; nowDefault: string }) {

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { assertJournalReader } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
-import { getUserTimezone } from "@/lib/queries";
+import { getUserTimezone } from "@/lib/entries/queries";
 import JournalBrowser from "@/app/components/JournalBrowser";
 import { titleCls } from "@/app/components/inputStyles";
 import { loadJournalView } from "@/lib/journal/journalService";

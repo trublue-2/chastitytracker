@@ -6,11 +6,11 @@ vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
-vi.mock("@/lib/queries", () => ({ subsWithActiveLockPeriod: vi.fn() }));
+vi.mock("@/lib/entries/queries", () => ({ subsWithActiveLockPeriod: vi.fn() }));
 
 import { buildAdminPasswordChangeRows } from "./passwordAudit";
 import { prisma } from "@/lib/prisma";
-import { subsWithActiveLockPeriod } from "@/lib/queries";
+import { subsWithActiveLockPeriod } from "@/lib/entries/queries";
 import { type PrismaMock } from "@/test/prismaMock";
 
 const prismaMock = prisma as unknown as PrismaMock;

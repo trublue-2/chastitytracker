@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/prisma";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { getActiveWearSessionForCategory, getUserTimezone } from "@/lib/queries";
+import { getActiveWearSessionForCategory, getUserTimezone } from "@/lib/entries/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
 import WearForm from "@/app/dashboard/WearForm";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";

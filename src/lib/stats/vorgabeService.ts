@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { midnightOfLocalDate, APP_TZ } from "@/lib/utils";
 import { weightDayKey } from "@/lib/weight/weight";
-import { getUserTimezone } from "@/lib/queries";
+import { getUserTimezone } from "@/lib/entries/queries";
 import { reorderVorgabenDates } from "@/lib/stats/vorgaben";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";

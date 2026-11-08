@@ -8,7 +8,7 @@ import ReorderButtons from "@/app/components/ReorderButtons";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import FormError from "@/app/components/FormError";
 import { swapAt } from "@/lib/utils";
-import type { ReasonEntry } from "@/lib/reasonsService";
+import type { ReasonEntry } from "@/lib/entries/reasonsService";
 
 /** Zeile im Editor: ReasonEntry plus optionaler stabiler Client-Key für noch nicht gespeicherte Zeilen. */
 type EditorRow = ReasonEntry & { _k?: string };

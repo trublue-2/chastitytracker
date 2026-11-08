@@ -2,13 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund, EntrySource } from "@/lib/constants";
 import { LOCK_ENDED_REASON, boxCouplingEnabled } from "@/lib/constants";
-import { activeCleaningWindowIn, parseCleaningWindows } from "@/lib/cleaningService";
-import { triggeredWhere } from "@/lib/delayedTrigger";
-import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER, effectiveEntryWhere } from "@/lib/lockPending";
+import { activeCleaningWindowIn, parseCleaningWindows } from "@/lib/entries/cleaningService";
+import { triggeredWhere } from "@/lib/entries/delayedTrigger";
+import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER, effectiveEntryWhere } from "@/lib/entries/lockPending";
 import { hasLockmebox } from "@/lib/box/boxStatus";
 import { APP_TZ } from "@/lib/utils";
-import { isHealthHoldActive } from "@/lib/healthHold";
-import { startAfter } from "@/lib/entryStart";
+import { isHealthHoldActive } from "@/lib/entries/healthHold";
+import { startAfter } from "@/lib/entries/entryStart";
 
 /**
  * Where-Fragment: bereits AKTIVE Kontroll-Anforderungen — sofortige (wirksamAb null) und

@@ -1,6 +1,6 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/tasks/taskIntervals";
 import { endIsProvisional, firstOutOfOrderProof, proofDueOffsetPending, proofAcceptsNow, type ProofLike, isTaskOffense, isTaskOpen, ownProofDeadline, proofResubmittable, startDeadline, taskAnchor, taskFailureKind, type TaskEvaluation, type TaskFailureKind, type TaskOffenseState, type TaskState } from "@/lib/tasks/tasks";
-import { isHiddenFromSub } from "@/lib/delayedTrigger";
+import { isHiddenFromSub } from "@/lib/entries/delayedTrigger";
 import { wearActionHref } from "@/lib/devices/categoryConstants";
 
 /**

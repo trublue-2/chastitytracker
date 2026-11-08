@@ -16,14 +16,14 @@ vi.mock("@/lib/prisma", async () => {
 });
 vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ isKeyholderOf: vi.fn() }));
-vi.mock("@/lib/queries", () => ({ isCodePhotoRevealed: vi.fn() }));
+vi.mock("@/lib/entries/queries", () => ({ isCodePhotoRevealed: vi.fn() }));
 vi.mock("fs/promises", () => ({ readFile: vi.fn() }));
 
 import { GET } from "./route";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth/auth";
 import { isKeyholderOf } from "@/lib/auth/keyholder";
-import { isCodePhotoRevealed } from "@/lib/queries";
+import { isCodePhotoRevealed } from "@/lib/entries/queries";
 import { readFile } from "fs/promises";
 import type { PrismaMock } from "@/test/prismaMock";
 import type { Session } from "next-auth";

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { boxPhotoDueSince } from "@/lib/box/boxPhotoDueService";
-import { getOpenKontrollen, getActiveLockPeriod, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedLockPeriod, getCurrentLockKeyInBox, pendingLockCallAt, pendingOpenCallAt, getOpenLockRequests } from "@/lib/queries";
+import { getOpenKontrollen, getActiveLockPeriod, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedLockPeriod, getCurrentLockKeyInBox, pendingLockCallAt, pendingOpenCallAt, getOpenLockRequests } from "@/lib/entries/queries";
 import {
   buildLockState, mapOpenKontrolle, mapActiveLockPeriod, mapOpenOrgasmusAnforderung,
   mapActiveWearSessions, mapInterruptedLockPeriod, mapOpenLockRequest,
@@ -9,7 +9,7 @@ import {
 } from "@/lib/mcp/liveState";
 import { makeIso, makeFmt, buildEnvelope, resolveUserContext, loadTrackingContext, NOTE_TEXT_LIMIT, type Envelope, type Iso, type NoteDTO, type TrackingEntry } from "@/lib/mcp/common";
 import { buildPairs } from "@/lib/utils";
-import { buildSessions, isLiveOpenSession, type Session, type DeviceConfidence } from "@/lib/sessionModel";
+import { buildSessions, isLiveOpenSession, type Session, type DeviceConfidence } from "@/lib/entries/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, offenseRowState, type OffenseRow } from "@/lib/mcp/ledger";
 import { offenseNeedsAttention } from "@/lib/strafbuch/offenseTypes";
@@ -19,7 +19,7 @@ import { toBoxKind, toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked
 import { getEvaluatedTasks, loadTaskProofViews, type EvaluatedTask, type TaskProofView } from "@/lib/tasks/taskIntervals";
 import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike, proofDueOffsetPending,} from "@/lib/tasks/tasks";
 import { taskProofState } from "@/lib/tasks/taskView";
-import { pendingDispatchWhere } from "@/lib/delayedTrigger";
+import { pendingDispatchWhere } from "@/lib/entries/delayedTrigger";
 import { weightSummary, type WeightSummary } from "@/lib/mcp/weight";
 
 /** keyholder_dashboard (explain_model §13) — EIN Call, der 90 % der Keyholder-Fragen beantwortet: aktueller

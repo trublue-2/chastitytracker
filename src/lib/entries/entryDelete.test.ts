@@ -12,10 +12,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { device: { findUnique: vi.fn() }, user: { findUnique: vi.fn() } },
 }));
-vi.mock("@/lib/queries", () => ({ getEntryNeighbors: vi.fn() }));
+vi.mock("@/lib/entries/queries", () => ({ getEntryNeighbors: vi.fn() }));
 
 import { chainBreakPartner } from "./entryCorrection";
-import { getEntryNeighbors } from "@/lib/queries";
+import { getEntryNeighbors } from "@/lib/entries/queries";
 
 const neighbours = getEntryNeighbors as unknown as ReturnType<typeof vi.fn>;
 

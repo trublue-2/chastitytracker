@@ -3,7 +3,7 @@ import { actionSign } from "@/app/entries/actionSign";
 import { auth } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { bildersafeMenuAction, getLatestKgEntry, getMobileDesktopMode } from "@/lib/queries";
+import { bildersafeMenuAction, getLatestKgEntry, getMobileDesktopMode } from "@/lib/entries/queries";
 import { bildersafeEnabled } from "@/lib/constants";
 import BildersafeSealForm from "./BildersafeSealForm";
 

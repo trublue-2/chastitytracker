@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { getTranslations } from "next-intl/server";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
-import { getUserTimezone } from "@/lib/queries";
+import { getUserTimezone } from "@/lib/entries/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
-import { effectiveOrgasmusArten, resolveOrgasmusOptions } from "@/lib/reasonsService";
+import { effectiveOrgasmusArten, resolveOrgasmusOptions } from "@/lib/entries/reasonsService";
 import OrgasmusForm from "./OrgasmusForm";
 
 export default async function AdminOrgasmusPage({ params }: { params: Promise<{ id: string }> }) {

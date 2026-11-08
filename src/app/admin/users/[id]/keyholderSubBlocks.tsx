@@ -11,8 +11,8 @@ import {
   wearingHoursCached, wearSessionRowsCached,
 } from "@/lib/stats/dashboardData";
 import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
-import { getIsLocked, isScheduledDirective, userHasBox } from "@/lib/queries";
-import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/cleaningService";
+import { getIsLocked, isScheduledDirective, userHasBox } from "@/lib/entries/queries";
+import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/entries/cleaningService";
 import { datedWindowLabel } from "@/lib/stats/weekdays";
 import { parseWeekdayGoalRules } from "@/lib/stats/weekdayGoal";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
@@ -21,7 +21,7 @@ import { selectSubOffenses, attentionOffensesOf } from "@/lib/strafbuch/subOffen
 import { loadStatementViews } from "@/lib/strafbuch/offenseStatementService";
 import OffenseList from "@/app/components/OffenseList";
 import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";
-import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
+import { resolveOrgasmusArtDisplay } from "@/lib/entries/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollen/kontrollePills";
 import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import {

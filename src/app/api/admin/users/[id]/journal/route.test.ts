@@ -10,7 +10,7 @@ import { NextRequest } from "next/server";
 vi.mock("@/lib/auth/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ canReadJournal: vi.fn(), isKeyholderOf: vi.fn(), getControllableSubsCached: vi.fn() }));
 vi.mock("@/lib/journal/journalService", () => ({ listKeyholderJournal: vi.fn(async () => ({ entries: [], hasMore: false })) }));
-vi.mock("@/lib/queries", () => ({ getUserTimezone: vi.fn(async () => "Europe/Zurich") }));
+vi.mock("@/lib/entries/queries", () => ({ getUserTimezone: vi.fn(async () => "Europe/Zurich") }));
 
 import { GET } from "./route";
 import { auth } from "@/lib/auth/auth";

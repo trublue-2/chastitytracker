@@ -2,31 +2,31 @@ import { cache } from "react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/kontrollen/autoKontrolleService";
-import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
-import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
+import { CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
+import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/entries/cleaningRules";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { loadTelemetryKeyProof } from "@/lib/box/boxKeyProof";
-import { latestEffectiveKgEntry, isPendingLock, isPendingOpen } from "@/lib/lockPending";
+import { latestEffectiveKgEntry, isPendingLock, isPendingOpen } from "@/lib/entries/lockPending";
 import {
   buildKontrolleItems, buildKgWearPairs, buildPairs, wearHoursOfPairs,
   completedPairsFrom, getOpenPair, KG_PAIR, pairDurationMs, tzDayKey,
 } from "@/lib/utils";
-import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
+import { buildWearSessions, wearHourPairsByCategory } from "@/lib/entries/sessionModel";
 import { buildDailyData } from "@/lib/stats/statsBuilders";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { selectSubOffenses } from "@/lib/strafbuch/subOffenses";
-import { buildSessionEvents } from "@/lib/sessionHelpers";
-import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
+import { buildSessionEvents } from "@/lib/entries/sessionHelpers";
+import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/entries/reasonsService";
 import { belongsOnDashboard, getEvaluatedTaskHistory, loadTaskProofViews } from "@/lib/tasks/taskIntervals";
 import { toTaskCard } from "@/lib/tasks/taskView";
-import { buildWearSessionRows } from "@/lib/wearSessionRows";
+import { buildWearSessionRows } from "@/lib/entries/wearSessionRows";
 import { isKgVorgabe } from "@/lib/stats/vorgaben";
 import {
   CATEGORY_LIST_ORDER, aktiveKontrolleWhere, keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE,
   getActiveVorgabe, getActiveLockPeriod, getKeyholderLockPeriod, getActiveWearSessions,
   getNonKgTrackingCategories, getActiveOrgasmusAnforderung, getKeyholderOrgasmusAnforderung,
   getOpenLockRequest,
-} from "@/lib/queries";
+} from "@/lib/entries/queries";
 
 /**
  * **Die Quellen der Block-Stapel — einmal je Seitenaufbau, geteilt von allen Blöcken, die sie

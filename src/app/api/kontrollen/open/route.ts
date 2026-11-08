@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
-import { getOpenKontrollen } from "@/lib/queries";
+import { getOpenKontrollen } from "@/lib/entries/queries";
 import { errorResponse } from "@/lib/serviceResult";
 
 export const dynamic = "force-dynamic";
